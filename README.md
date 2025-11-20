@@ -27,4 +27,6 @@ Add `-debug` or `VIDEOTOOLS_DEBUG=1` for verbose stderr logs.
 
 ## Notes
 - GUI requires a running display server (X11/Wayland). In headless shells it will log `[UI] DISPLAY environment variable is empty`.
-- Module handlers are placeholders; hook them to actual FFmpeg calls next.
+- Convert screen accepts drag-and-drop or the "Open File…" button; ffprobe metadata populates instantly, the preview box animates extracted frames with simple play/pause + slider controls (and lets you grab cover art), and the "Generate Snippet" button produces a 20-second midpoint clip for quick quality checks (requires ffmpeg in `PATH`).
+- Simple mode now applies smart inverse telecine by default—automatically skipping it on progressive footage—and lets you rename the target file before launching a convert job.
+- Other module handlers are placeholders; hook them to actual FFmpeg calls next.
