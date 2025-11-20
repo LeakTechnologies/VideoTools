@@ -126,6 +126,7 @@ type appState struct {
 	player       player.Controller
 	playerReady  bool
 	playerVolume float64
+	playerPaused bool
 }
 
 func (s *appState) stopPreview() {
@@ -213,6 +214,7 @@ func (s *appState) stopPlayer() {
 		s.player.Stop()
 	}
 	s.playerReady = false
+	s.playerPaused = false
 }
 
 func main() {
@@ -830,7 +832,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	stage.SetMinSize(fyne.NewSize(targetWidth-12, targetHeight-12))
 	videoStage := container.NewMax(stage, container.NewPadded(container.NewCenter(img)))
 
-	coverBtn := makeIconButton("📸", "Set current frame as cover art", func() {
+	coverBtn := makeIconButton("⌾", "Set current frame as cover art", func() {
 		path, err := state.captureCoverFromCurrent()
 		if err != nil {
 			dialog.ShowError(err, state.window)
@@ -841,7 +843,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		}
 	})
 
-	importBtn := makeIconButton("🖼", "Import cover art file", func() {
+	importBtn := makeIconButton("⬆", "Import cover art file", func() {
 		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 			if err != nil {
 				dialog.ShowError(err, state.window)
@@ -894,11 +896,22 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			}
 		}
 		volSlider.Refresh()
-		playBtn := makeIconButton("⏯", "Play/Pause", func() {
-			if state.player != nil {
+		playBtn := makeIconButton("▶/⏸", "Play/Pause", func() {
+			if state.player == nil {
+				return
+			}
+			if state.playerPaused {
 				if err := state.player.Play(); err != nil {
 					debugLog(logCatFFMPEG, "player play failed: %v", err)
+					return
 				}
+				state.playerPaused = false
+			} else {
+				if err := state.player.Pause(); err != nil {
+					debugLog(logCatFFMPEG, "player pause failed: %v", err)
+					return
+				}
+				state.playerPaused = true
 			}
 		})
 		fullBtn := makeIconButton("⛶", "Toggle fullscreen", func() {
@@ -930,7 +943,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				}
 			}
 		}
-		playBtn := makeIconButton("⏯", "Play/Pause", func() {
+		playBtn := makeIconButton("▶/⏸", "Play/Pause", func() {
 			if len(src.PreviewFrames) == 0 {
 				return
 			}
@@ -1142,6 +1155,7 @@ func (s *appState) loadVideo(path string) {
 			s.playerReady = false
 		} else {
 			s.playerReady = true
+			s.playerPaused = false
 			// Apply remembered volume for new loads.
 			if err := s.player.SetVolume(s.playerVolume); err != nil {
 				debugLog(logCatFFMPEG, "player set volume failed: %v", err)
