@@ -126,6 +126,8 @@ type appState struct {
 	player       player.Controller
 	playerReady  bool
 	playerVolume float64
+	playerMuted  bool
+	lastVolume   float64
 	playerPaused bool
 }
 
@@ -264,6 +266,8 @@ func runGUI() {
 		},
 		player:       player.New(),
 		playerVolume: 100,
+		lastVolume:   100,
+		playerMuted:  false,
 	}
 	defer state.shutdown()
 	w.SetOnDropped(func(pos fyne.Position, items []fyne.URI) {
@@ -874,7 +878,22 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 
 	var controls fyne.CanvasObject
 	if usePlayer {
-		slider := widget.NewSlider(0, math.Max(1, src.Duration))
+		var updatingVolume bool
+		var slider *widget.Slider
+		var volIcon *widget.Button
+
+		updateVolIcon := func() {
+			if volIcon == nil {
+				return
+			}
+			if state.playerMuted || state.playerVolume <= 0 {
+				volIcon.SetText("🔇")
+			} else {
+				volIcon.SetText("🔊")
+			}
+		}
+
+		slider = widget.NewSlider(0, math.Max(1, src.Duration))
 		slider.Step = 0.5
 		slider.OnChanged = func(val float64) {
 			currentTime.SetText(formatClock(val))
@@ -884,17 +903,54 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				}
 			}
 		}
+		volIcon = makeIconButton("🔊", "Mute/Unmute", func() {
+			if state.player == nil {
+				return
+			}
+			if state.playerMuted {
+				target := state.lastVolume
+				if target <= 0 {
+					target = 50
+				}
+				state.playerVolume = target
+				state.playerMuted = false
+				updatingVolume = true
+				slider.SetValue(target)
+				updatingVolume = false
+				_ = state.player.SetVolume(target)
+			} else {
+				state.lastVolume = state.playerVolume
+				state.playerVolume = 0
+				state.playerMuted = true
+				updatingVolume = true
+				slider.SetValue(0)
+				updatingVolume = false
+				_ = state.player.SetVolume(0)
+			}
+			updateVolIcon()
+		})
 		volSlider := widget.NewSlider(0, 100)
 		volSlider.Step = 1
 		volSlider.Value = state.playerVolume
 		volSlider.OnChanged = func(val float64) {
+			if updatingVolume {
+				return
+			}
 			state.playerVolume = val
+			if val > 0 {
+				state.lastVolume = val
+				state.playerMuted = false
+			} else {
+				state.playerMuted = true
+			}
 			if state.player != nil && state.playerReady {
 				if err := state.player.SetVolume(val); err != nil {
 					debugLog(logCatFFMPEG, "player volume failed: %v", err)
 				}
 			}
+			updateVolIcon()
 		}
+		updateVolIcon()
 		volSlider.Refresh()
 		playBtn := makeIconButton("▶/⏸", "Play/Pause", func() {
 			if state.player == nil {
@@ -921,7 +977,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				}
 			}
 		})
-		volBox := container.NewHBox(widget.NewLabel("🔊"), container.NewMax(volSlider))
+		volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
 		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
 		controls = container.NewVBox(
 			container.NewHBox(playBtn, fullBtn, coverBtn, importBtn, layout.NewSpacer(), volBox),
