@@ -2,8 +2,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"image"
@@ -133,6 +136,10 @@ type appState struct {
 	playerMuted  bool
 	lastVolume   float64
 	playerPaused bool
+	playerPos    float64
+	playerLast   time.Time
+	progressQuit chan struct{}
+	playerSurf   *playerSurface
 	playSess     *playSession
 }
 
@@ -141,6 +148,77 @@ func (s *appState) stopPreview() {
 		s.anim.Stop()
 		s.anim = nil
 	}
+}
+
+type playerSurface struct {
+	obj           fyne.CanvasObject
+	width, height int
+}
+
+func (s *appState) setPlayerSurface(obj fyne.CanvasObject, w, h int) {
+	s.playerSurf = &playerSurface{obj: obj, width: w, height: h}
+	s.syncPlayerWindow()
+}
+
+func (s *appState) currentPlayerPos() float64 {
+	if s.playerPaused {
+		return s.playerPos
+	}
+	return s.playerPos + time.Since(s.playerLast).Seconds()
+}
+
+func (s *appState) stopProgressLoop() {
+	if s.progressQuit != nil {
+		close(s.progressQuit)
+		s.progressQuit = nil
+	}
+}
+
+func (s *appState) startProgressLoop(maxDur float64, slider *widget.Slider, update func(float64)) {
+	s.stopProgressLoop()
+	stop := make(chan struct{})
+	s.progressQuit = stop
+	ticker := time.NewTicker(200 * time.Millisecond)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				pos := s.currentPlayerPos()
+				if pos < 0 {
+					pos = 0
+				}
+				if pos > maxDur {
+					pos = maxDur
+				}
+				if update != nil {
+					update(pos)
+				}
+				if slider != nil {
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						slider.SetValue(pos)
+					}, false)
+				}
+			}
+		}
+	}()
+}
+
+func (s *appState) syncPlayerWindow() {
+	if s.player == nil || s.playerSurf == nil || s.playerSurf.obj == nil {
+		return
+	}
+	driver := fyne.CurrentApp().Driver()
+	pos := driver.AbsolutePositionForObject(s.playerSurf.obj)
+	width := s.playerSurf.width
+	height := s.playerSurf.height
+	if width <= 0 || height <= 0 {
+		return
+	}
+	s.player.SetWindow(int(pos.X), int(pos.Y), width, height)
+	debugLog(logCatUI, "player window target pos=(%d,%d) size=%dx%d", int(pos.X), int(pos.Y), width, height)
 }
 
 func (s *appState) startPreview(frames []string, img *canvas.Image, slider *widget.Slider) {
@@ -224,8 +302,9 @@ func (s *appState) stopPlayer() {
 	if s.player != nil {
 		s.player.Stop()
 	}
+	s.stopProgressLoop()
 	s.playerReady = false
-	s.playerPaused = false
+	s.playerPaused = true
 }
 
 func main() {
@@ -277,6 +356,7 @@ func runGUI() {
 		playerVolume: 100,
 		lastVolume:   100,
 		playerMuted:  false,
+		playerPaused: true,
 	}
 	defer state.shutdown()
 	w.SetOnDropped(func(pos fyne.Position, items []fyne.URI) {
@@ -888,33 +968,34 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	slider := widget.NewSlider(0, math.Max(1, src.Duration))
 	slider.Step = 0.5
 	updateProgress := func(val float64) {
-		updatingProgress = true
-		currentTime.SetText(formatClock(val))
-		slider.SetValue(val)
-		updatingProgress = false
-	}
-	if state.playSess != nil {
-		state.playSess.prog = updateProgress
-	}
-	if state.playSess == nil {
-		state.playSess = newPlaySession(src.Path, src.Width, src.Height, src.FrameRate, int(targetWidth-28), int(targetHeight-40), updateProgress, img)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			updatingProgress = true
+			currentTime.SetText(formatClock(val))
+			slider.SetValue(val)
+			updatingProgress = false
+		}, false)
 	}
 
 	var controls fyne.CanvasObject
 	if usePlayer {
 		var volIcon *widget.Button
 		var updatingVolume bool
-		seek := func(val float64) {
-			if state.playSess != nil {
-				state.playSess.Seek(val)
+		ensureSession := func() bool {
+			if state.playSess == nil {
+				state.playSess = newPlaySession(src.Path, src.Width, src.Height, src.FrameRate, int(targetWidth-28), int(targetHeight-40), updateProgress, img)
+				state.playSess.SetVolume(state.playerVolume)
+				state.playerPaused = true
 			}
+			return state.playSess != nil
 		}
 		slider.OnChanged = func(val float64) {
 			if updatingProgress {
 				return
 			}
 			updateProgress(val)
-			seek(val)
+			if ensureSession() {
+				state.playSess.Seek(val)
+			}
 		}
 		updateVolIcon := func() {
 			if volIcon == nil {
@@ -927,7 +1008,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			}
 		}
 		volIcon = makeIconButton("🔊", "Mute/Unmute", func() {
-			if state.playSess == nil {
+			if !ensureSession() {
 				return
 			}
 			if state.playerMuted {
@@ -937,16 +1018,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				}
 				state.playerVolume = target
 				state.playerMuted = false
-				if state.playSess != nil {
-					state.playSess.SetVolume(target)
-				}
+				state.playSess.SetVolume(target)
 			} else {
 				state.lastVolume = state.playerVolume
 				state.playerVolume = 0
 				state.playerMuted = true
-				if state.playSess != nil {
-					state.playSess.SetVolume(0)
-				}
+				state.playSess.SetVolume(0)
 			}
 			updateVolIcon()
 		})
@@ -964,7 +1041,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			} else {
 				state.playerMuted = true
 			}
-			if state.playSess != nil {
+			if ensureSession() {
 				state.playSess.SetVolume(val)
 			}
 			updateVolIcon()
@@ -972,9 +1049,8 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		updateVolIcon()
 		volSlider.Refresh()
 		playBtn := makeIconButton("▶/⏸", "Play/Pause", func() {
-			if state.playSess == nil {
-				state.playSess = newPlaySession(src.Path, src.Width, src.Height, src.FrameRate, int(targetWidth-28), int(targetHeight-40), updateProgress, img)
-				state.playSess.SetVolume(state.playerVolume)
+			if !ensureSession() {
+				return
 			}
 			if state.playerPaused {
 				state.playSess.Play()
@@ -1043,6 +1119,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 
 	overlay := container.NewVBox(layout.NewSpacer(), overlayBar)
 	videoWithOverlay := container.NewMax(videoStage, overlay)
+	state.setPlayerSurface(videoStage, int(targetWidth-12), int(targetHeight-12))
 
 	stack := container.NewVBox(
 		container.NewPadded(videoWithOverlay),
@@ -1070,6 +1147,7 @@ type playSession struct {
 	muted     bool
 	paused    bool
 	current   float64
+	seekTimer *time.Timer
 	stop      chan struct{}
 	done      chan struct{}
 	prog      func(float64)
@@ -1077,8 +1155,20 @@ type playSession struct {
 	mu        sync.Mutex
 	videoCmd  *exec.Cmd
 	audioCmd  *exec.Cmd
-	audioCtx  *oto.Context
-	audioPlay io.Closer
+	frameN    int
+}
+
+var audioCtxGlobal struct {
+	once sync.Once
+	ctx  *oto.Context
+	err  error
+}
+
+func getAudioContext(sampleRate, channels, bytesPerSample int) (*oto.Context, error) {
+	audioCtxGlobal.once.Do(func() {
+		audioCtxGlobal.ctx, audioCtxGlobal.err = oto.NewContext(sampleRate, channels, bytesPerSample, 2048)
+	})
+	return audioCtxGlobal.ctx, audioCtxGlobal.err
 }
 
 func newPlaySession(path string, w, h int, fps float64, targetW, targetH int, prog func(float64), img *canvas.Image) *playSession {
@@ -1126,8 +1216,20 @@ func (p *playSession) Seek(offset float64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.current = offset
-	p.stopLocked()
-	p.startLocked(offset)
+	if offset < 0 {
+		p.current = 0
+	}
+	if p.seekTimer != nil {
+		p.seekTimer.Stop()
+	}
+	paused := p.paused
+	p.seekTimer = time.AfterFunc(90*time.Millisecond, func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		p.stopLocked()
+		p.startLocked(p.current)
+		p.paused = paused
+	})
 }
 
 func (p *playSession) SetVolume(v float64) {
@@ -1161,20 +1263,14 @@ func (p *playSession) stopLocked() {
 	}
 	if p.videoCmd != nil && p.videoCmd.Process != nil {
 		_ = p.videoCmd.Process.Kill()
+		_ = p.videoCmd.Wait()
 	}
 	if p.audioCmd != nil && p.audioCmd.Process != nil {
 		_ = p.audioCmd.Process.Kill()
-	}
-	if p.audioPlay != nil {
-		p.audioPlay.Close()
-	}
-	if p.audioCtx != nil {
-		p.audioCtx.Close()
+		_ = p.audioCmd.Wait()
 	}
 	p.videoCmd = nil
 	p.audioCmd = nil
-	p.audioPlay = nil
-	p.audioCtx = nil
 	p.stop = make(chan struct{})
 	p.done = make(chan struct{})
 }
@@ -1182,12 +1278,15 @@ func (p *playSession) stopLocked() {
 func (p *playSession) startLocked(offset float64) {
 	p.paused = false
 	p.current = offset
+	p.frameN = 0
+	debugLog(logCatFFMPEG, "playSession start path=%s offset=%.3f fps=%.3f target=%dx%d", p.path, offset, p.fps, p.targetW, p.targetH)
 	p.runVideo(offset)
 	p.runAudio(offset)
 }
 
 func (p *playSession) runVideo(offset float64) {
-	cmd := exec.Command("ffmpeg",
+	var stderr bytes.Buffer
+	args := []string{
 		"-hide_banner", "-loglevel", "error",
 		"-ss", fmt.Sprintf("%.3f", offset),
 		"-i", p.path,
@@ -1196,14 +1295,24 @@ func (p *playSession) runVideo(offset float64) {
 		"-pix_fmt", "rgb24",
 		"-r", fmt.Sprintf("%.3f", p.fps),
 		"-",
-	)
+	}
+	cmd := exec.Command("ffmpeg", args...)
+	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		debugLog(logCatFFMPEG, "video pipe error: %v", err)
 		return
 	}
 	if err := cmd.Start(); err != nil {
+		debugLog(logCatFFMPEG, "video start failed: %v (%s)", err, strings.TrimSpace(stderr.String()))
 		return
 	}
+	// Pace frames to the source frame rate instead of hammering refreshes as fast as possible.
+	frameDur := time.Second
+	if p.fps > 0 {
+		frameDur = time.Duration(float64(time.Second) / math.Max(p.fps, 0.1))
+	}
+	nextFrameAt := time.Now()
 	p.videoCmd = cmd
 	frameSize := p.targetW * p.targetH * 3
 	buf := make([]byte, frameSize)
@@ -1212,26 +1321,47 @@ func (p *playSession) runVideo(offset float64) {
 		for {
 			select {
 			case <-p.stop:
+				debugLog(logCatFFMPEG, "video loop stop")
 				return
 			default:
 			}
 			if p.paused {
 				time.Sleep(30 * time.Millisecond)
+				nextFrameAt = time.Now().Add(frameDur)
 				continue
 			}
 			_, err := io.ReadFull(stdout, buf)
 			if err != nil {
+				if errors.Is(err, io.EOF) {
+					return
+				}
+				msg := strings.TrimSpace(stderr.String())
+				debugLog(logCatFFMPEG, "video read failed: %v (%s)", err, msg)
 				return
 			}
-			frame := image.NewNRGBA(image.Rect(0, 0, p.targetW, p.targetH))
-			copy(frame.Pix, buf)
+			if delay := time.Until(nextFrameAt); delay > 0 {
+				time.Sleep(delay)
+			}
+			nextFrameAt = nextFrameAt.Add(frameDur)
+			// Allocate a fresh frame to avoid concurrent texture reuse issues.
+			frame := image.NewRGBA(image.Rect(0, 0, p.targetW, p.targetH))
+			copyRGBToRGBA(frame.Pix, buf)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				if p.img != nil {
+					// Ensure we render the live frame, not a stale resource preview.
+					p.img.Resource = nil
+					p.img.File = ""
 					p.img.Image = frame
 					p.img.Refresh()
 				}
 			}, false)
-			p.current += 1.0 / p.fps
+			if p.frameN < 3 {
+				debugLog(logCatFFMPEG, "video frame %d drawn (%.2fs)", p.frameN+1, p.current)
+			}
+			p.frameN++
+			if p.fps > 0 {
+				p.current = offset + (float64(p.frameN) / p.fps)
+			}
 			if p.prog != nil {
 				p.prog(p.current)
 			}
@@ -1243,6 +1373,7 @@ func (p *playSession) runAudio(offset float64) {
 	const sampleRate = 48000
 	const channels = 2
 	const bytesPerSample = 2
+	var stderr bytes.Buffer
 	cmd := exec.Command("ffmpeg",
 		"-hide_banner", "-loglevel", "error",
 		"-ss", fmt.Sprintf("%.3f", offset),
@@ -1253,29 +1384,38 @@ func (p *playSession) runAudio(offset float64) {
 		"-f", "s16le",
 		"-",
 	)
+	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		debugLog(logCatFFMPEG, "audio pipe error: %v", err)
 		return
 	}
 	if err := cmd.Start(); err != nil {
+		debugLog(logCatFFMPEG, "audio start failed: %v (%s)", err, strings.TrimSpace(stderr.String()))
 		return
 	}
 	p.audioCmd = cmd
-	ctx, err := oto.NewContext(sampleRate, channels, bytesPerSample, 2048)
+	ctx, err := getAudioContext(sampleRate, channels, bytesPerSample)
 	if err != nil {
+		debugLog(logCatFFMPEG, "audio context error: %v", err)
 		return
 	}
 	player := ctx.NewPlayer()
-	p.audioCtx = ctx
-	p.audioPlay = player
+	if player == nil {
+		debugLog(logCatFFMPEG, "audio player creation failed")
+		return
+	}
+	localPlayer := player
 	go func() {
 		defer cmd.Process.Kill()
-		defer player.Close()
-		defer ctx.Close()
+		defer localPlayer.Close()
 		chunk := make([]byte, 4096)
+		tmp := make([]byte, 4096)
+		loggedFirst := false
 		for {
 			select {
 			case <-p.stop:
+				debugLog(logCatFFMPEG, "audio loop stop")
 				return
 			default:
 			}
@@ -1285,14 +1425,25 @@ func (p *playSession) runAudio(offset float64) {
 			}
 			n, err := stdout.Read(chunk)
 			if n > 0 {
+				if !loggedFirst {
+					debugLog(logCatFFMPEG, "audio stream delivering bytes")
+					loggedFirst = true
+				}
 				gain := p.volume / 100.0
+				if gain < 0 {
+					gain = 0
+				}
+				if gain > 2 {
+					gain = 2
+				}
+				copy(tmp, chunk[:n])
 				if p.muted || gain <= 0 {
 					for i := 0; i < n; i++ {
-						chunk[i] = 0
+						tmp[i] = 0
 					}
-				} else if gain < 0.999 || gain > 1.001 {
+				} else if math.Abs(1-gain) > 0.001 {
 					for i := 0; i+1 < n; i += 2 {
-						sample := int16(chunk[i]) | int16(chunk[i+1])<<8
+						sample := int16(binary.LittleEndian.Uint16(tmp[i:]))
 						amp := int(float64(sample) * gain)
 						if amp > math.MaxInt16 {
 							amp = math.MaxInt16
@@ -1300,13 +1451,15 @@ func (p *playSession) runAudio(offset float64) {
 						if amp < math.MinInt16 {
 							amp = math.MinInt16
 						}
-						chunk[i] = byte(amp)
-						chunk[i+1] = byte(amp >> 8)
+						binary.LittleEndian.PutUint16(tmp[i:], uint16(int16(amp)))
 					}
 				}
-				player.Write(chunk[:n])
+				localPlayer.Write(tmp[:n])
 			}
 			if err != nil {
+				if !errors.Is(err, io.EOF) {
+					debugLog(logCatFFMPEG, "audio read failed: %v (%s)", err, strings.TrimSpace(stderr.String()))
+				}
 				return
 			}
 		}
@@ -1452,6 +1605,7 @@ func (s *appState) loadVideo(path string) {
 		s.playSess.Stop()
 		s.playSess = nil
 	}
+	s.stopProgressLoop()
 	src, err := probeVideo(path)
 	if err != nil {
 		debugLog(logCatFFMPEG, "ffprobe failed for %s: %v", path, err)
@@ -1473,19 +1627,9 @@ func (s *appState) loadVideo(path string) {
 	s.convert.OutputBase = strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName))
 	s.convert.CoverArtPath = ""
 	s.convert.AspectHandling = "Auto"
-	if s.player != nil {
-		if err := s.player.Load(src.Path, 0); err != nil {
-			debugLog(logCatFFMPEG, "player load failed: %v", err)
-			s.playerReady = false
-		} else {
-			s.playerReady = true
-			s.playerPaused = false
-			// Apply remembered volume for new loads.
-			if err := s.player.SetVolume(s.playerVolume); err != nil {
-				debugLog(logCatFFMPEG, "player set volume failed: %v", err)
-			}
-		}
-	}
+	s.playerReady = false
+	s.playerPos = 0
+	s.playerPaused = true
 	debugLog(logCatModule, "video loaded %+v", src)
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(src)
@@ -1788,6 +1932,17 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// copyRGBToRGBA expands packed RGB bytes into RGBA while forcing opaque alpha.
+func copyRGBToRGBA(dst, src []byte) {
+	di := 0
+	for si := 0; si+2 < len(src) && di+3 < len(dst); si, di = si+3, di+4 {
+		dst[di] = src[si]
+		dst[di+1] = src[si+1]
+		dst[di+2] = src[si+2]
+		dst[di+3] = 0xff
+	}
 }
 
 func makeIconButton(symbol, tooltip string, tapped func()) *widget.Button {
