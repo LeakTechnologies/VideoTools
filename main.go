@@ -1654,7 +1654,8 @@ func (s *appState) loadVideo(path string) {
 		s.currentFrame = ""
 	}
 	s.applyInverseDefaults(src)
-	s.convert.OutputBase = strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName))
+	base := strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName))
+	s.convert.OutputBase = base + "-convert"
 	s.convert.CoverArtPath = ""
 	s.convert.AspectHandling = "Auto"
 	s.playerReady = false
