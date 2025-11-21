@@ -124,23 +124,25 @@ func (c convertConfig) CoverLabel() string {
 }
 
 type appState struct {
-	window       fyne.Window
-	active       string
-	source       *videoSource
-	anim         *previewAnimator
-	convert      convertConfig
-	currentFrame string
-	player       player.Controller
-	playerReady  bool
-	playerVolume float64
-	playerMuted  bool
-	lastVolume   float64
-	playerPaused bool
-	playerPos    float64
-	playerLast   time.Time
-	progressQuit chan struct{}
-	playerSurf   *playerSurface
-	playSess     *playSession
+	window        fyne.Window
+	active        string
+	source        *videoSource
+	anim          *previewAnimator
+	convert       convertConfig
+	currentFrame  string
+	player        player.Controller
+	playerReady   bool
+	playerVolume  float64
+	playerMuted   bool
+	lastVolume    float64
+	playerPaused  bool
+	playerPos     float64
+	playerLast    time.Time
+	progressQuit  chan struct{}
+	playerSurf    *playerSurface
+	convertBusy   bool
+	convertStatus string
+	playSess      *playSession
 }
 
 func (s *appState) stopPreview() {
@@ -682,12 +684,27 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		aspectOptions.SetSelected("Auto")
 		debugLog(logCatUI, "convert settings reset to defaults")
 	})
-	convertBtn := widget.NewButton("CONVERT", func() {
-		debugLog(logCatModule, "convert action triggered -> %s", state.convert.OutputFile())
+	statusLabel := widget.NewLabel("")
+	if state.convertBusy {
+		statusLabel.SetText(state.convertStatus)
+	} else if src != nil {
+		statusLabel.SetText("Ready to convert")
+	} else {
+		statusLabel.SetText("Load a video to convert")
+	}
+	var convertBtn *widget.Button
+	convertBtn = widget.NewButton("CONVERT", func() {
+		state.startConvert(statusLabel, convertBtn)
 	})
 	convertBtn.Importance = widget.HighImportance
+	if src == nil {
+		convertBtn.Disable()
+	}
+	if state.convertBusy {
+		convertBtn.Disable()
+	}
 
-	actionInner := container.NewHBox(resetBtn, layout.NewSpacer(), convertBtn)
+	actionInner := container.NewHBox(resetBtn, statusLabel, layout.NewSpacer(), convertBtn)
 	actionBar := tintedBar(convertColor, actionInner)
 
 	return container.NewBorder(
@@ -1654,12 +1671,114 @@ func (s *appState) clearVideo() {
 	s.stopPlayer()
 	s.source = nil
 	s.currentFrame = ""
+	s.convertBusy = false
+	s.convertStatus = ""
 	s.convert.OutputBase = "converted"
 	s.convert.CoverArtPath = ""
 	s.convert.AspectHandling = "Auto"
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(nil)
 	}, false)
+}
+
+func crfForQuality(q string) string {
+	switch q {
+	case "Draft (CRF 28)":
+		return "28"
+	case "High (CRF 18)":
+		return "18"
+	case "Lossless":
+		return "0"
+	default:
+		return "23"
+	}
+}
+
+func (s *appState) startConvert(status *widget.Label, btn *widget.Button) {
+	if s.source == nil {
+		dialog.ShowInformation("Convert", "Load a video first.", s.window)
+		return
+	}
+	if s.convertBusy {
+		return
+	}
+	src := s.source
+	cfg := s.convert
+	outDir := filepath.Dir(src.Path)
+	outName := cfg.OutputFile()
+	if outName == "" {
+		outName = "converted" + cfg.SelectedFormat.Ext
+	}
+	outPath := filepath.Join(outDir, outName)
+	if outPath == src.Path {
+		outPath = filepath.Join(outDir, "converted-"+outName)
+	}
+
+	args := []string{
+		"-y",
+		"-hide_banner",
+		"-loglevel", "error",
+		"-i", src.Path,
+	}
+	// Video filters.
+	var vf []string
+	if cfg.InverseTelecine {
+		vf = append(vf, "yadif")
+	}
+	if len(vf) > 0 {
+		args = append(args, "-vf", strings.Join(vf, ","))
+	}
+	// Video codec and quality.
+	args = append(args, "-c:v", cfg.SelectedFormat.VideoCodec)
+	crf := crfForQuality(cfg.Quality)
+	if cfg.SelectedFormat.VideoCodec == "libx264" || cfg.SelectedFormat.VideoCodec == "libx265" {
+		args = append(args, "-crf", crf, "-preset", "medium")
+	}
+	// Audio: copy if present.
+	args = append(args, "-c:a", "copy")
+	args = append(args, outPath)
+
+	debugLog(logCatFFMPEG, "convert command: ffmpeg %s", strings.Join(args, " "))
+	s.convertBusy = true
+	s.convertStatus = "Converting..."
+	if status != nil {
+		status.SetText(s.convertStatus)
+	}
+	if btn != nil {
+		btn.Disable()
+	}
+
+	go func() {
+		cmd := exec.Command("ffmpeg", args...)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			debugLog(logCatFFMPEG, "convert failed: %v output=%s", err, strings.TrimSpace(string(out)))
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				dialog.ShowError(fmt.Errorf("convert failed: %w", err), s.window)
+				s.convertBusy = false
+				s.convertStatus = "Failed"
+				if status != nil {
+					status.SetText(s.convertStatus)
+				}
+				if btn != nil {
+					btn.Enable()
+				}
+			}, false)
+			return
+		}
+		debugLog(logCatFFMPEG, "convert completed: %s", outPath)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			dialog.ShowInformation("Convert", fmt.Sprintf("Saved %s", outPath), s.window)
+			s.convertBusy = false
+			s.convertStatus = "Done"
+			if status != nil {
+				status.SetText(s.convertStatus)
+			}
+			if btn != nil {
+				btn.Enable()
+			}
+		}, false)
+	}()
 }
 func (s *appState) generateSnippet() {
 	if s.source == nil {
