@@ -1,5 +1,0 @@
-./acc_amd64.go
-./raster_fixed.go
-./raster_floating.go
-./vector.go
-./acc_amd64.s

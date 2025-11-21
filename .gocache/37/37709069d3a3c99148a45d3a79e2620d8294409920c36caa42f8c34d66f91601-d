@@ -1,7 +1,0 @@
-./context.go
-./dummy.go
-./pipe_notgopherjs.go
-./player.go
-_cgo_gotypes.go
-driver_linux.cgo1.go
-_cgo_import.go
