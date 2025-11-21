@@ -1137,25 +1137,24 @@ func moduleColor(id string) color.Color {
 }
 
 type playSession struct {
-	path      string
-	fps       float64
-	width     int
-	height    int
-	targetW   int
-	targetH   int
-	volume    float64
-	muted     bool
-	paused    bool
-	current   float64
-	seekTimer *time.Timer
-	stop      chan struct{}
-	done      chan struct{}
-	prog      func(float64)
-	img       *canvas.Image
-	mu        sync.Mutex
-	videoCmd  *exec.Cmd
-	audioCmd  *exec.Cmd
-	frameN    int
+	path     string
+	fps      float64
+	width    int
+	height   int
+	targetW  int
+	targetH  int
+	volume   float64
+	muted    bool
+	paused   bool
+	current  float64
+	stop     chan struct{}
+	done     chan struct{}
+	prog     func(float64)
+	img      *canvas.Image
+	mu       sync.Mutex
+	videoCmd *exec.Cmd
+	audioCmd *exec.Cmd
+	frameN   int
 }
 
 var audioCtxGlobal struct {
@@ -1215,21 +1214,25 @@ func (p *playSession) Pause() {
 func (p *playSession) Seek(offset float64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.current = offset
 	if offset < 0 {
-		p.current = 0
-	}
-	if p.seekTimer != nil {
-		p.seekTimer.Stop()
+		offset = 0
 	}
 	paused := p.paused
-	p.seekTimer = time.AfterFunc(90*time.Millisecond, func() {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		p.stopLocked()
-		p.startLocked(p.current)
-		p.paused = paused
-	})
+	p.current = offset
+	p.stopLocked()
+	p.startLocked(p.current)
+	p.paused = paused
+	if p.paused {
+		// Ensure loops honor paused right after restart.
+		time.AfterFunc(30*time.Millisecond, func() {
+			p.mu.Lock()
+			defer p.mu.Unlock()
+			p.paused = true
+		})
+	}
+	if p.prog != nil {
+		p.prog(p.current)
+	}
 }
 
 func (p *playSession) SetVolume(v float64) {
