@@ -564,7 +564,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	videoPanel := buildVideoPane(state, fyne.NewSize(520, 300), src, updateCover)
-	metaPanel := buildMetadataPanel(src, fyne.NewSize(520, 160))
+	metaPanel := buildMetadataPanel(state, src, fyne.NewSize(520, 160))
 
 	modeToggle := widget.NewRadioGroup([]string{"Simple", "Advanced"}, func(value string) {
 		debugLog(logCatUI, "convert mode selected: %s", value)
@@ -793,7 +793,7 @@ func tintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 	return container.NewMax(rect, padded)
 }
 
-func buildMetadataPanel(src *videoSource, min fyne.Size) fyne.CanvasObject {
+func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) fyne.CanvasObject {
 	outer := canvas.NewRectangle(mustHex("#191F35"))
 	outer.CornerRadius = 8
 	outer.StrokeColor = gridColor
@@ -801,10 +801,11 @@ func buildMetadataPanel(src *videoSource, min fyne.Size) fyne.CanvasObject {
 	outer.SetMinSize(min)
 
 	header := widget.NewLabelWithStyle("Metadata", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	var top fyne.CanvasObject = header
 
 	if src == nil {
 		body := container.NewVBox(
-			header,
+			top,
 			widget.NewSeparator(),
 			widget.NewLabel("Load a clip to inspect its technical details."),
 			layout.NewSpacer(),
@@ -837,8 +838,17 @@ func buildMetadataPanel(src *videoSource, min fyne.Size) fyne.CanvasObject {
 		}
 	}
 
+	// Clear button to remove the loaded video and reset UI.
+	clearBtn := widget.NewButton("Clear Video", func() {
+		if state != nil {
+			state.clearVideo()
+		}
+	})
+	clearBtn.Importance = widget.LowImportance
+	top = container.NewBorder(nil, nil, nil, clearBtn, header)
+
 	body := container.NewVBox(
-		header,
+		top,
 		widget.NewSeparator(),
 		info,
 	)
@@ -1636,6 +1646,19 @@ func (s *appState) loadVideo(path string) {
 	debugLog(logCatModule, "video loaded %+v", src)
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(src)
+	}, false)
+}
+
+func (s *appState) clearVideo() {
+	debugLog(logCatModule, "clearing loaded video")
+	s.stopPlayer()
+	s.source = nil
+	s.currentFrame = ""
+	s.convert.OutputBase = "converted"
+	s.convert.CoverArtPath = ""
+	s.convert.AspectHandling = "Auto"
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		s.showConvertView(nil)
 	}, false)
 }
 func (s *appState) generateSnippet() {
