@@ -362,7 +362,7 @@ func runGUI() {
 			Mode:             "Simple",
 			InverseTelecine:  true,
 			InverseAutoNotes: "Default smoothing for interlaced footage.",
-			OutputAspect:     "16:9",
+			OutputAspect:     "Source",
 			AspectHandling:   "Auto",
 		},
 		player:       player.New(),
@@ -628,10 +628,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.OutputAspect = value
 	})
 	if state.convert.OutputAspect == "" {
-		state.convert.OutputAspect = "16:9"
+		state.convert.OutputAspect = "Source"
 	}
 	targetAspectSelect.SetSelected(state.convert.OutputAspect)
-	targetAspectHint := widget.NewLabel("Pick desired output aspect (default 16:9).")
+	targetAspectHint := widget.NewLabel("Pick desired output aspect (default Source).")
 
 	aspectOptions := widget.NewRadioGroup([]string{"Auto", "Letterbox", "Pillarbox", "Blur Fill"}, func(value string) {
 		debugLog(logCatUI, "aspect handling set to %s", value)
@@ -734,7 +734,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		formatSelect.SetSelected("MP4 (H.264)")
 		qualitySelect.SetSelected("Standard (CRF 23)")
 		aspectOptions.SetSelected("Auto")
-		targetAspectSelect.SetSelected("16:9")
+		targetAspectSelect.SetSelected("Source")
 		updateAspectBoxVisibility()
 		debugLog(logCatUI, "convert settings reset to defaults")
 	})
@@ -1747,7 +1747,7 @@ func (s *appState) clearVideo() {
 	s.convert.OutputBase = "converted"
 	s.convert.CoverArtPath = ""
 	s.convert.AspectHandling = "Auto"
-	s.convert.OutputAspect = "16:9"
+	s.convert.OutputAspect = "Source"
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(nil)
 	}, false)
