@@ -125,9 +125,9 @@ func (c convertConfig) OutputFile() string {
 
 func (c convertConfig) CoverLabel() string {
 	if strings.TrimSpace(c.CoverArtPath) == "" {
-		return "Cover: none"
+		return "none"
 	}
-	return fmt.Sprintf("Cover: %s", filepath.Base(c.CoverArtPath))
+	return filepath.Base(c.CoverArtPath)
 }
 
 type appState struct {
@@ -276,14 +276,15 @@ func (s *appState) showMainMenu() {
 	var mods []ui.ModuleInfo
 	for _, m := range modulesList {
 		mods = append(mods, ui.ModuleInfo{
-			ID:    m.ID,
-			Label: m.Label,
-			Color: m.Color,
+			ID:      m.ID,
+			Label:   m.Label,
+			Color:   m.Color,
+			Enabled: m.ID == "convert", // Only convert module is functional
 		})
 	}
 
 	titleColor := utils.MustHex("#4CE870")
-	menu := ui.BuildMainMenu(mods, s.showModule, titleColor, queueColor, textColor)
+	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, titleColor, queueColor, textColor)
 	s.setContent(container.NewPadded(menu))
 }
 
@@ -293,6 +294,36 @@ func (s *appState) showModule(id string) {
 		s.showConvertView(nil)
 	default:
 		logging.Debug(logging.CatUI, "UI module %s not wired yet", id)
+	}
+}
+
+func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
+	logging.Debug(logging.CatModule, "handleModuleDrop called: moduleID=%s itemCount=%d", moduleID, len(items))
+	if len(items) == 0 {
+		logging.Debug(logging.CatModule, "handleModuleDrop: no items to process")
+		return
+	}
+	// Load the first video file
+	for _, uri := range items {
+		logging.Debug(logging.CatModule, "handleModuleDrop: processing uri scheme=%s path=%s", uri.Scheme(), uri.Path())
+		if uri.Scheme() != "file" {
+			logging.Debug(logging.CatModule, "handleModuleDrop: skipping non-file URI")
+			continue
+		}
+		path := uri.Path()
+		logging.Debug(logging.CatModule, "drop on module %s path=%s - starting load", moduleID, path)
+
+		// Load video and switch to the module
+		go func() {
+			logging.Debug(logging.CatModule, "loading video in goroutine")
+			s.loadVideo(path)
+			// After loading, switch to the module
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				logging.Debug(logging.CatModule, "showing module %s after load", moduleID)
+				s.showModule(moduleID)
+			}, false)
+		}()
+		break
 	}
 }
 
@@ -395,7 +426,7 @@ func runGUI() {
 	}
 	defer state.shutdown()
 	w.SetOnDropped(func(pos fyne.Position, items []fyne.URI) {
-		state.handleDrop(items)
+		state.handleDrop(pos, items)
 	})
 	state.showMainMenu()
 	logging.Debug(logging.CatUI, "main menu rendered with %d modules", len(modulesList))
@@ -537,6 +568,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	backBar := ui.TintedBar(convertColor, container.NewHBox(back, layout.NewSpacer()))
 
 	var updateCover func(string)
+	var coverDisplay *widget.Label
+	var updateMetaCover func()
 	coverLabel := widget.NewLabel(state.convert.CoverLabel())
 	updateCover = func(path string) {
 		if strings.TrimSpace(path) == "" {
@@ -544,10 +577,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		state.convert.CoverArtPath = path
 		coverLabel.SetText(state.convert.CoverLabel())
+		if coverDisplay != nil {
+			coverDisplay.SetText("Cover Art: " + state.convert.CoverLabel())
+		}
+		if updateMetaCover != nil {
+			updateMetaCover()
+		}
 	}
 
 	videoPanel := buildVideoPane(state, fyne.NewSize(520, 300), src, updateCover)
-	metaPanel := buildMetadataPanel(state, src, fyne.NewSize(520, 160))
+	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(520, 160))
+	updateMetaCover = metaCoverUpdate
 
 	var formatLabels []string
 	for _, opt := range formatOptions {
@@ -637,40 +677,44 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.AspectHandling = value
 	}
 
-	// Simple mode options
+	// Simple mode options - minimal controls, aspect locked to Source
 	simpleOptions := container.NewVBox(
-		widget.NewLabelWithStyle("Output Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		outputHint,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Quality", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("═══ QUALITY ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		qualitySelect,
+		widget.NewLabel("Aspect ratio will match source video"),
 		layout.NewSpacer(),
 	)
 
-	// Advanced mode options
+	// Cover art display on one line
+	coverDisplay = widget.NewLabel("Cover Art: " + state.convert.CoverLabel())
+
+	// Advanced mode options - full controls with organized sections
 	advancedOptions := container.NewVBox(
-		widget.NewLabelWithStyle("Output Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		outputHint,
-		widget.NewLabelWithStyle("Cover Art", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		coverLabel,
+		coverDisplay,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Quality", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("═══ VIDEO ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Quality Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		qualitySelect,
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Inverse Telecine", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		inverseCheck,
-		inverseHint,
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Output Aspect", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelect,
 		targetAspectHint,
 		aspectBox,
+		widget.NewLabelWithStyle("Deinterlacing", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		inverseCheck,
+		inverseHint,
 		layout.NewSpacer(),
 	)
 
@@ -690,11 +734,21 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	tabs.OnSelected = func(item *container.TabItem) {
 		if item.Text == "Simple" {
 			state.convert.Mode = "Simple"
-			logging.Debug(logging.CatUI, "convert mode selected: Simple")
+			// Lock aspect ratio to Source in Simple mode
+			state.convert.OutputAspect = "Source"
+			targetAspectSelect.SetSelected("Source")
+			updateAspectBoxVisibility()
+			logging.Debug(logging.CatUI, "convert mode selected: Simple (aspect locked to Source)")
 		} else {
 			state.convert.Mode = "Advanced"
 			logging.Debug(logging.CatUI, "convert mode selected: Advanced")
 		}
+	}
+
+	// Ensure Simple mode starts with Source aspect
+	if state.convert.Mode == "Simple" {
+		state.convert.OutputAspect = "Source"
+		targetAspectSelect.SetSelected("Source")
 	}
 
 	optionsRect := canvas.NewRectangle(utils.MustHex("#13182B"))
@@ -798,7 +852,7 @@ func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
 }
 
 
-func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) fyne.CanvasObject {
+func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.CanvasObject, func()) {
 	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
 	outer.CornerRadius = 8
 	outer.StrokeColor = gridColor
@@ -815,7 +869,7 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) fyne.C
 			widget.NewLabel("Load a clip to inspect its technical details."),
 			layout.NewSpacer(),
 		)
-		return container.NewMax(outer, container.NewPadded(body))
+		return container.NewMax(outer, container.NewPadded(body)), func() {}
 	}
 
 	bitrate := "--"
@@ -873,14 +927,14 @@ Channels: %s`,
 		}
 	}
 
-	// Copy metadata button
+	// Copy metadata button - beside header text
 	copyBtn := widget.NewButton("📋", func() {
 		state.window.Clipboard().SetContent(metadataText)
 		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
 	})
 	copyBtn.Importance = widget.LowImportance
 
-	// Clear button to remove the loaded video and reset UI.
+	// Clear button to remove the loaded video and reset UI - on the right
 	clearBtn := widget.NewButton("Clear Video", func() {
 		if state != nil {
 			state.clearVideo()
@@ -888,15 +942,47 @@ Channels: %s`,
 	})
 	clearBtn.Importance = widget.LowImportance
 
-	buttonRow := container.NewHBox(copyBtn, clearBtn)
-	top = container.NewBorder(nil, nil, nil, buttonRow, header)
+	headerRow := container.NewHBox(header, copyBtn)
+	top = container.NewBorder(nil, nil, nil, clearBtn, headerRow)
+
+	// Cover art display area - 40% larger (168x168)
+	coverImg := canvas.NewImageFromFile("")
+	coverImg.FillMode = canvas.ImageFillContain
+	coverImg.SetMinSize(fyne.NewSize(168, 168))
+
+	placeholderRect := canvas.NewRectangle(utils.MustHex("#0F1529"))
+	placeholderRect.SetMinSize(fyne.NewSize(168, 168))
+	placeholderText := widget.NewLabel("Drop cover\nart here")
+	placeholderText.Alignment = fyne.TextAlignCenter
+	placeholderText.TextStyle = fyne.TextStyle{Italic: true}
+	placeholder := container.NewMax(placeholderRect, container.NewCenter(placeholderText))
+
+	// Update cover art when changed
+	updateCoverDisplay := func() {
+		if state.convert.CoverArtPath != "" {
+			coverImg.File = state.convert.CoverArtPath
+			coverImg.Refresh()
+			placeholder.Hide()
+			coverImg.Show()
+		} else {
+			coverImg.Hide()
+			placeholder.Show()
+		}
+	}
+	updateCoverDisplay()
+
+	coverContainer := container.NewMax(placeholder, coverImg)
+
+	// Layout: metadata form on left, cover art on right (bottom-aligned)
+	coverColumn := container.NewVBox(layout.NewSpacer(), coverContainer)
+	contentArea := container.NewBorder(nil, nil, nil, coverColumn, info)
 
 	body := container.NewVBox(
 		top,
 		widget.NewSeparator(),
-		info,
+		contentArea,
 	)
-	return container.NewMax(outer, container.NewPadded(body))
+	return container.NewMax(outer, container.NewPadded(body)), updateCoverDisplay
 }
 
 func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover func(string)) fyne.CanvasObject {
@@ -1603,6 +1689,21 @@ func (s *appState) showFrameManual(path string, img *canvas.Image) {
 }
 
 func (s *appState) captureCoverFromCurrent() (string, error) {
+	// If we have a play session active, capture the current playing frame
+	if s.playSess != nil && s.playSess.img != nil && s.playSess.img.Image != nil {
+		dest := filepath.Join(os.TempDir(), fmt.Sprintf("videotools-cover-%d.png", time.Now().UnixNano()))
+		f, err := os.Create(dest)
+		if err != nil {
+			return "", err
+		}
+		defer f.Close()
+		if err := png.Encode(f, s.playSess.img.Image); err != nil {
+			return "", err
+		}
+		return dest, nil
+	}
+
+	// Otherwise use the current preview frame
 	if s.currentFrame == "" {
 		return "", fmt.Errorf("no frame available")
 	}
@@ -1629,7 +1730,7 @@ func (s *appState) importCoverImage(path string) (string, error) {
 	return dest, nil
 }
 
-func (s *appState) handleDrop(items []fyne.URI) {
+func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 	if len(items) == 0 {
 		return
 	}
@@ -1638,15 +1739,95 @@ func (s *appState) handleDrop(items []fyne.URI) {
 			continue
 		}
 		path := uri.Path()
-		logging.Debug(logging.CatModule, "drop received path=%s active=%s", path, s.active)
+		logging.Debug(logging.CatModule, "drop received path=%s active=%s pos=%v", path, s.active, pos)
+
+		// If on main menu, detect which module tile was dropped on
+		if s.active == "" {
+			moduleID := s.detectModuleTileAtPosition(pos)
+			if moduleID != "" {
+				logging.Debug(logging.CatUI, "drop on main menu tile=%s", moduleID)
+				s.handleModuleDrop(moduleID, items)
+				return
+			}
+			logging.Debug(logging.CatUI, "drop on main menu but not over any module tile")
+			return
+		}
+
+		// If in a module, handle normally
 		switch s.active {
 		case "convert":
 			go s.loadVideo(path)
 		default:
-			logging.Debug(logging.CatUI, "drop ignored; no module active to handle file")
+			logging.Debug(logging.CatUI, "drop ignored; module %s cannot handle files", s.active)
 		}
 		break
 	}
+}
+
+// detectModuleTileAtPosition calculates which module tile is at the given position
+// based on the main menu grid layout (3 columns)
+func (s *appState) detectModuleTileAtPosition(pos fyne.Position) string {
+	logging.Debug(logging.CatUI, "detecting module tile at position x=%.1f y=%.1f", pos.X, pos.Y)
+
+	// Main menu layout:
+	// - Window padding: ~6px
+	// - Header (title + queue): ~70-80px height
+	// - Padding: 14px
+	// - Grid starts at approximately y=100
+	// - Grid is 3 columns x 3 rows
+	// - Each tile: 220x110 with padding
+
+	// Approximate grid start position
+	const gridStartY = 100.0
+	const gridStartX = 6.0 // Window padding
+
+	// Window width is 920, minus padding = 908
+	// 3 columns = ~302px per column
+	const columnWidth = 302.0
+
+	// Each row is tile height (110) + vertical padding (~12) = ~122
+	const rowHeight = 122.0
+
+	// Calculate relative position within grid
+	if pos.Y < gridStartY {
+		logging.Debug(logging.CatUI, "position above grid (y=%.1f < %.1f)", pos.Y, gridStartY)
+		return ""
+	}
+
+	relX := pos.X - gridStartX
+	relY := pos.Y - gridStartY
+
+	// Calculate column (0, 1, or 2)
+	col := int(relX / columnWidth)
+	if col < 0 || col > 2 {
+		logging.Debug(logging.CatUI, "position outside grid columns (col=%d)", col)
+		return ""
+	}
+
+	// Calculate row (0, 1, or 2)
+	row := int(relY / rowHeight)
+	if row < 0 || row > 2 {
+		logging.Debug(logging.CatUI, "position outside grid rows (row=%d)", row)
+		return ""
+	}
+
+	// Calculate module index in grid (row * 3 + col)
+	moduleIndex := row*3 + col
+	if moduleIndex >= len(modulesList) {
+		logging.Debug(logging.CatUI, "module index %d out of range (total %d)", moduleIndex, len(modulesList))
+		return ""
+	}
+
+	moduleID := modulesList[moduleIndex].ID
+	logging.Debug(logging.CatUI, "detected module: row=%d col=%d index=%d id=%s", row, col, moduleIndex, moduleID)
+
+	// Only return module ID if it's enabled (currently only "convert")
+	if moduleID != "convert" {
+		logging.Debug(logging.CatUI, "module %s is not enabled, ignoring drop", moduleID)
+		return ""
+	}
+
+	return moduleID
 }
 
 func (s *appState) loadVideo(path string) {
@@ -1676,7 +1857,13 @@ func (s *appState) loadVideo(path string) {
 	s.applyInverseDefaults(src)
 	base := strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName))
 	s.convert.OutputBase = base + "-convert"
-	s.convert.CoverArtPath = ""
+	// Use embedded cover art if present, otherwise clear
+	if src.EmbeddedCoverArt != "" {
+		s.convert.CoverArtPath = src.EmbeddedCoverArt
+		logging.Debug(logging.CatFFMPEG, "using embedded cover art from video: %s", src.EmbeddedCoverArt)
+	} else {
+		s.convert.CoverArtPath = ""
+	}
 	s.convert.AspectHandling = "Auto"
 	s.playerReady = false
 	s.playerPos = 0
@@ -1763,6 +1950,13 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		"-loglevel", "error",
 		"-i", src.Path,
 	}
+
+	// Add cover art if available
+	hasCoverArt := cfg.CoverArtPath != ""
+	if hasCoverArt {
+		args = append(args, "-i", cfg.CoverArtPath)
+	}
+
 	// Video filters.
 	var vf []string
 	if cfg.InverseTelecine {
@@ -1781,13 +1975,35 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	crf := crfForQuality(cfg.Quality)
 	if cfg.SelectedFormat.VideoCodec == "libx264" || cfg.SelectedFormat.VideoCodec == "libx265" {
 		args = append(args, "-crf", crf, "-preset", "medium")
+		// Force yuv420p pixel format for H.264 compatibility (especially for WMV sources)
+		args = append(args, "-pix_fmt", "yuv420p")
 	}
-	// Audio: copy if present.
-	args = append(args, "-c:a", "copy")
+	// Audio: WMV files need re-encoding to AAC for MP4 compatibility
+	isWMV := strings.HasSuffix(strings.ToLower(src.Path), ".wmv")
+	isMP4Output := strings.EqualFold(cfg.SelectedFormat.Ext, ".mp4")
+	if isWMV && isMP4Output {
+		// WMV audio (wmav2) cannot be copied to MP4, must re-encode to AAC
+		args = append(args, "-c:a", "aac", "-b:a", "192k")
+		logging.Debug(logging.CatFFMPEG, "WMV source detected, re-encoding audio to AAC for MP4 compatibility")
+	} else {
+		// Copy audio if present
+		args = append(args, "-c:a", "copy")
+	}
+	// Map cover art as attached picture (must be before movflags and progress)
+	if hasCoverArt {
+		// Need to explicitly map streams when adding cover art
+		args = append(args, "-map", "0:v", "-map", "0:a?", "-map", "1:v")
+		// Set cover art codec to PNG (MP4 requires PNG or MJPEG for attached pics)
+		args = append(args, "-c:v:1", "png")
+		args = append(args, "-disposition:v:1", "attached_pic")
+		logging.Debug(logging.CatFFMPEG, "convert: mapped cover art as attached picture with PNG codec")
+	}
+
 	// Ensure quickstart for MP4/MOV outputs.
 	if strings.EqualFold(cfg.SelectedFormat.Ext, ".mp4") || strings.EqualFold(cfg.SelectedFormat.Ext, ".mov") {
 		args = append(args, "-movflags", "+faststart")
 	}
+
 	// Progress feed to stdout for live updates.
 	args = append(args, "-progress", "pipe:1", "-nostats")
 	args = append(args, outPath)
@@ -2037,22 +2253,24 @@ func aspectFilters(target float64, mode string) []string {
 		return []string{scale, "setsar=1"}
 	}
 
-	// Blur Fill: keep source resolution, just pad to target aspect
+	// Blur Fill: create blurred background then overlay original video
 	if strings.EqualFold(mode, "Blur Fill") {
-		// No scaling - keep original video size and just pad around it
-		pad := fmt.Sprintf("pad=w='trunc(max(iw,ih*%[1]s)/2)*2':h='trunc(max(ih,iw/%[1]s)/2)*2':x='(ow-iw)/2':y='(oh-ih)/2':color=black", ar)
-		return []string{pad, "setsar=1"}
+		// Complex filter chain:
+		// 1. Split input into two streams
+		// 2. Blur and scale one stream to fill the target canvas
+		// 3. Overlay the original video centered on top
+		// Output dimensions with even numbers
+		outW := fmt.Sprintf("trunc(max(iw,ih*%[1]s)/2)*2", ar)
+		outH := fmt.Sprintf("trunc(max(ih,iw/%[1]s)/2)*2", ar)
+
+		// Filter: split[bg][fg]; [bg]scale=outW:outH,boxblur=20:5[blurred]; [blurred][fg]overlay=(W-w)/2:(H-h)/2
+		filterStr := fmt.Sprintf("split[bg][fg];[bg]scale=%s:%s:force_original_aspect_ratio=increase,boxblur=20:5[blurred];[blurred][fg]overlay=(W-w)/2:(H-h)/2", outW, outH)
+		return []string{filterStr, "setsar=1"}
 	}
 
-	// Letterbox/Pillarbox: fit image then add bars
-	// Scale to fit inside target aspect while maintaining source aspect ratio
-	// If target is wider: scale to fit height, will pad sides
-	// If target is narrower: scale to fit width, will pad top/bottom
-	scale := fmt.Sprintf("scale=w='trunc(if(gt(iw/ih,%[1]s),trunc(ih*%[1]s/2)*2,iw)/2)*2':h='trunc(if(gt(iw/ih,%[1]s),ih,trunc(iw/%[1]s/2)*2)/2)*2'", ar)
-
-	// Pad to exact target aspect with even dimensions
+	// Letterbox/Pillarbox: keep source resolution, just pad to target aspect with black bars
 	pad := fmt.Sprintf("pad=w='trunc(max(iw,ih*%[1]s)/2)*2':h='trunc(max(ih,iw/%[1]s)/2)*2':x='(ow-iw)/2':y='(oh-ih)/2':color=black", ar)
-	return []string{scale, pad, "setsar=1"}
+	return []string{pad, "setsar=1"}
 }
 
 func (s *appState) generateSnippet() {
@@ -2074,22 +2292,63 @@ func (s *appState) generateSnippet() {
 		"-t", "20",
 	}
 
+	// Add cover art if available
+	hasCoverArt := s.convert.CoverArtPath != ""
+	logging.Debug(logging.CatFFMPEG, "snippet: CoverArtPath=%s hasCoverArt=%v", s.convert.CoverArtPath, hasCoverArt)
+	if hasCoverArt {
+		args = append(args, "-i", s.convert.CoverArtPath)
+		logging.Debug(logging.CatFFMPEG, "snippet: added cover art input %s", s.convert.CoverArtPath)
+	}
+
 	// Check if aspect ratio conversion is needed
 	srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
 	targetAspect := resolveTargetAspect(s.convert.OutputAspect, src)
 
-	if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
+	needsReencode := targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01)
+
+	if needsReencode {
 		// Apply aspect ratio filters
 		filters := aspectFilters(targetAspect, s.convert.AspectHandling)
 		if len(filters) > 0 {
 			filterStr := strings.Join(filters, ",")
 			args = append(args, "-vf", filterStr)
 		}
-		// Re-encode with H.264
-		args = append(args, "-c:v", "libx264", "-crf", "23", "-c:a", "copy")
+	}
+
+	// Map streams (including cover art if present)
+	if hasCoverArt {
+		args = append(args, "-map", "0:v", "-map", "0:a?", "-map", "1:v")
+		logging.Debug(logging.CatFFMPEG, "snippet: mapped video, audio, and cover art")
+	}
+
+	// Set video codec
+	if needsReencode {
+		args = append(args, "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p")
+	} else if hasCoverArt {
+		args = append(args, "-c:v:0", "copy")
 	} else {
-		// No conversion needed, just copy
-		args = append(args, "-c", "copy")
+		args = append(args, "-c:v", "copy")
+	}
+
+	// Set cover art codec (must be PNG or MJPEG for MP4)
+	if hasCoverArt {
+		args = append(args, "-c:v:1", "png")
+		logging.Debug(logging.CatFFMPEG, "snippet: set cover art codec to PNG")
+	}
+
+	// Set audio codec
+	isWMV := strings.HasSuffix(strings.ToLower(src.Path), ".wmv")
+	if needsReencode && isWMV {
+		args = append(args, "-c:a", "aac", "-b:a", "192k")
+		logging.Debug(logging.CatFFMPEG, "WMV snippet: re-encoding audio to AAC for MP4 compatibility")
+	} else {
+		args = append(args, "-c:a", "copy")
+	}
+
+	// Mark cover art as attached picture
+	if hasCoverArt {
+		args = append(args, "-disposition:v:1", "attached_pic")
+		logging.Debug(logging.CatFFMPEG, "snippet: set cover art disposition")
 	}
 
 	args = append(args, outPath)
@@ -2139,21 +2398,22 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 
 
 type videoSource struct {
-	Path          string
-	DisplayName   string
-	Format        string
-	Width         int
-	Height        int
-	Duration      float64
-	VideoCodec    string
-	AudioCodec    string
-	Bitrate       int
-	FrameRate     float64
-	PixelFormat   string
-	AudioRate     int
-	Channels      int
-	FieldOrder    string
-	PreviewFrames []string
+	Path             string
+	DisplayName      string
+	Format           string
+	Width            int
+	Height           int
+	Duration         float64
+	VideoCodec       string
+	AudioCodec       string
+	Bitrate          int
+	FrameRate        float64
+	PixelFormat      string
+	AudioRate        int
+	Channels         int
+	FieldOrder       string
+	PreviewFrames    []string
+	EmbeddedCoverArt string // Path to extracted embedded cover art, if any
 }
 
 func (v *videoSource) DurationString() string {
@@ -2232,6 +2492,7 @@ func probeVideo(path string) (*videoSource, error) {
 			BitRate    string `json:"bit_rate"`
 		} `json:"format"`
 		Streams []struct {
+			Index        int    `json:"index"`
 			CodecType    string `json:"codec_type"`
 			CodecName    string `json:"codec_name"`
 			Width        int    `json:"width"`
@@ -2243,6 +2504,9 @@ func probeVideo(path string) (*videoSource, error) {
 			Channels     int    `json:"channels"`
 			AvgFrameRate string `json:"avg_frame_rate"`
 			FieldOrder   string `json:"field_order"`
+			Disposition  struct {
+				AttachedPic int `json:"attached_pic"`
+			} `json:"disposition"`
 		} `json:"streams"`
 	}
 	if err := json.Unmarshal(out, &result); err != nil {
@@ -2262,10 +2526,22 @@ func probeVideo(path string) (*videoSource, error) {
 			src.Duration = val
 		}
 	}
+	// Track if we've found the main video stream (not cover art)
+	foundMainVideo := false
+	var coverArtStreamIndex int = -1
+
 	for _, stream := range result.Streams {
 		switch stream.CodecType {
 		case "video":
-			if src.VideoCodec == "" {
+			// Check if this is an attached picture (cover art)
+			if stream.Disposition.AttachedPic == 1 {
+				coverArtStreamIndex = stream.Index
+				logging.Debug(logging.CatFFMPEG, "found embedded cover art at stream %d", stream.Index)
+				continue
+			}
+			// Only use the first non-cover-art video stream
+			if !foundMainVideo {
+				foundMainVideo = true
 				src.VideoCodec = stream.CodecName
 				src.FieldOrder = stream.FieldOrder
 				if stream.Width > 0 {
@@ -2301,6 +2577,25 @@ func probeVideo(path string) (*videoSource, error) {
 			}
 		}
 	}
+
+	// Extract embedded cover art if present
+	if coverArtStreamIndex >= 0 {
+		coverPath := filepath.Join(os.TempDir(), fmt.Sprintf("videotools-embedded-cover-%d.png", time.Now().UnixNano()))
+		extractCmd := exec.CommandContext(ctx, "ffmpeg",
+			"-i", path,
+			"-map", fmt.Sprintf("0:%d", coverArtStreamIndex),
+			"-frames:v", "1",
+			"-y",
+			coverPath,
+		)
+		if err := extractCmd.Run(); err != nil {
+			logging.Debug(logging.CatFFMPEG, "failed to extract embedded cover art: %v", err)
+		} else {
+			src.EmbeddedCoverArt = coverPath
+			logging.Debug(logging.CatFFMPEG, "extracted embedded cover art to %s", coverPath)
+		}
+	}
+
 	return src, nil
 }
 
