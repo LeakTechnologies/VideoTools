@@ -13,7 +13,6 @@ import (
 	"image/color"
 	"image/png"
 	"io"
-	"log"
 	"math"
 	"os"
 	"os/exec"
@@ -31,9 +30,12 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 	"github.com/hajimehoshi/oto"
 )
 
@@ -48,42 +50,46 @@ type Module struct {
 var (
 	debugFlag = flag.Bool("debug", false, "enable verbose logging (env: VIDEOTOOLS_DEBUG=1)")
 
-	backgroundColor = mustHex("#0B0F1A")
-	gridColor       = mustHex("#171C2A")
-	textColor       = mustHex("#E1EEFF")
-	queueColor      = mustHex("#5961FF")
+	backgroundColor = utils.MustHex("#0B0F1A")
+	gridColor       = utils.MustHex("#171C2A")
+	textColor       = utils.MustHex("#E1EEFF")
+	queueColor      = utils.MustHex("#5961FF")
 
-	modules = []Module{
-		{"convert", "Convert", mustHex("#5E2AE2"), handleConvert},
-		{"merge", "Merge", mustHex("#3852F3"), handleMerge},
-		{"trim", "Trim", mustHex("#1B87F4"), handleTrim},
-		{"filters", "Filters", mustHex("#1FC4D0"), handleFilters},
-		{"upscale", "Upscale", mustHex("#3FD777"), handleUpscale},
-		{"audio", "Audio", mustHex("#9CE33D"), handleAudio},
-		{"thumb", "Thumb", mustHex("#F0C33E"), handleThumb},
-		{"inspect", "Inspect", mustHex("#F69A3F"), handleInspect},
+	modulesList = []Module{
+		{"convert", "Convert", utils.MustHex("#8B44FF"), modules.HandleConvert},   // Violet
+		{"merge", "Merge", utils.MustHex("#4488FF"), modules.HandleMerge},         // Blue
+		{"trim", "Trim", utils.MustHex("#44DDFF"), modules.HandleTrim},            // Cyan
+		{"filters", "Filters", utils.MustHex("#44FF88"), modules.HandleFilters},   // Green
+		{"upscale", "Upscale", utils.MustHex("#AAFF44"), modules.HandleUpscale},   // Yellow-Green
+		{"audio", "Audio", utils.MustHex("#FFD744"), modules.HandleAudio},         // Yellow
+		{"thumb", "Thumb", utils.MustHex("#FF8844"), modules.HandleThumb},         // Orange
+		{"inspect", "Inspect", utils.MustHex("#FF4444"), modules.HandleInspect},   // Red
 	}
 )
 
-var (
-	logFilePath  string
-	logFile      *os.File
-	logHistory   []string
-	debugEnabled bool
-	debugLogger  = log.New(os.Stderr, "[videotools] ", log.LstdFlags|log.Lmicroseconds)
-)
+// moduleColor returns the color for a given module ID
+func moduleColor(id string) color.Color {
+	for _, m := range modulesList {
+		if m.ID == id {
+			return m.Color
+		}
+	}
+	return queueColor
+}
 
-const logHistoryMax = 500
-
-type logCategory string
-
-const (
-	logCatUI     logCategory = "[UI]"
-	logCatCLI    logCategory = "[CLI]"
-	logCatFFMPEG logCategory = "[FFMPEG]"
-	logCatSystem logCategory = "[SYS]"
-	logCatModule logCategory = "[MODULE]"
-)
+// resolveTargetAspect resolves an aspect ratio value or source aspect
+func resolveTargetAspect(val string, src *videoSource) float64 {
+	if strings.EqualFold(val, "source") {
+		if src != nil {
+			return utils.AspectRatioFloat(src.Width, src.Height)
+		}
+		return 0
+	}
+	if r := utils.ParseAspectValue(val); r > 0 {
+		return r
+	}
+	return 0
+}
 
 type formatOption struct {
 	Label      string
@@ -222,7 +228,7 @@ func (s *appState) syncPlayerWindow() {
 		return
 	}
 	s.player.SetWindow(int(pos.X), int(pos.Y), width, height)
-	debugLog(logCatUI, "player window target pos=(%d,%d) size=%dx%d", int(pos.X), int(pos.Y), width, height)
+	logging.Debug(logging.CatUI, "player window target pos=(%d,%d) size=%dx%d", int(pos.X), int(pos.Y), width, height)
 }
 
 func (s *appState) startPreview(frames []string, img *canvas.Image, slider *widget.Slider) {
@@ -265,7 +271,20 @@ func (s *appState) showMainMenu() {
 	s.stopPreview()
 	s.stopPlayer()
 	s.active = ""
-	s.setContent(container.NewPadded(buildMainMenu(s)))
+
+	// Convert Module slice to ui.ModuleInfo slice
+	var mods []ui.ModuleInfo
+	for _, m := range modulesList {
+		mods = append(mods, ui.ModuleInfo{
+			ID:    m.ID,
+			Label: m.Label,
+			Color: m.Color,
+		})
+	}
+
+	titleColor := utils.MustHex("#4CE870")
+	menu := ui.BuildMainMenu(mods, s.showModule, titleColor, queueColor, textColor)
+	s.setContent(container.NewPadded(menu))
 }
 
 func (s *appState) showModule(id string) {
@@ -273,7 +292,7 @@ func (s *appState) showModule(id string) {
 	case "convert":
 		s.showConvertView(nil)
 	default:
-		debugLog(logCatUI, "UI module %s not wired yet", id)
+		logging.Debug(logging.CatUI, "UI module %s not wired yet", id)
 	}
 }
 
@@ -312,12 +331,12 @@ func (s *appState) stopPlayer() {
 }
 
 func main() {
-	initLogging()
-	defer closeLogs()
+	logging.Init()
+	defer logging.Close()
 
 	flag.Parse()
-	setDebug(*debugFlag || os.Getenv("VIDEOTOOLS_DEBUG") != "")
-	debugLog(logCatSystem, "starting VideoTools prototype at %s", time.Now().Format(time.RFC3339))
+	logging.SetDebug(*debugFlag || os.Getenv("VIDEOTOOLS_DEBUG") != "")
+	logging.Debug(logging.CatSystem, "starting VideoTools prototype at %s", time.Now().Format(time.RFC3339))
 
 	args := flag.Args()
 	if len(args) > 0 {
@@ -331,27 +350,30 @@ func main() {
 	}
 
 	if display := os.Getenv("DISPLAY"); display == "" {
-		debugLog(logCatUI, "DISPLAY environment variable is empty; GUI may not be visible in headless mode")
+		logging.Debug(logging.CatUI, "DISPLAY environment variable is empty; GUI may not be visible in headless mode")
 	} else {
-		debugLog(logCatUI, "DISPLAY=%s", display)
+		logging.Debug(logging.CatUI, "DISPLAY=%s", display)
 	}
 	runGUI()
 }
 
 func runGUI() {
+	// Initialize UI colors
+	ui.SetColors(gridColor, textColor)
+
 	a := app.NewWithID("com.leaktechnologies.videotools")
-	a.Settings().SetTheme(&monoTheme{})
-	debugLog(logCatUI, "created fyne app: %#v", a)
+	a.Settings().SetTheme(&ui.MonoTheme{})
+	logging.Debug(logging.CatUI, "created fyne app: %#v", a)
 	w := a.NewWindow("VideoTools")
-	if icon := loadAppIcon(); icon != nil {
+	if icon := utils.LoadAppIcon(); icon != nil {
 		a.SetIcon(icon)
 		w.SetIcon(icon)
-		debugLog(logCatUI, "app icon loaded and applied")
+		logging.Debug(logging.CatUI, "app icon loaded and applied")
 	} else {
-		debugLog(logCatUI, "app icon not found; continuing without custom icon")
+		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
 	w.Resize(fyne.NewSize(920, 540))
-	debugLog(logCatUI, "window initialized (size 920x540)")
+	logging.Debug(logging.CatUI, "window initialized (size 920x540)")
 
 	state := &appState{
 		window: w,
@@ -376,14 +398,14 @@ func runGUI() {
 		state.handleDrop(items)
 	})
 	state.showMainMenu()
-	debugLog(logCatUI, "main menu rendered with %d modules", len(modules))
+	logging.Debug(logging.CatUI, "main menu rendered with %d modules", len(modulesList))
 	w.ShowAndRun()
 }
 
 func runCLI(args []string) error {
 	cmd := strings.ToLower(args[0])
 	cmdArgs := args[1:]
-	debugLog(logCatCLI, "command=%s args=%v", cmd, cmdArgs)
+	logging.Debug(logging.CatCLI, "command=%s args=%v", cmd, cmdArgs)
 
 	switch cmd {
 	case "convert":
@@ -391,17 +413,17 @@ func runCLI(args []string) error {
 	case "combine", "merge":
 		return runCombineCLI(cmdArgs)
 	case "trim":
-		handleTrim(cmdArgs)
+		modules.HandleTrim(cmdArgs)
 	case "filters":
-		handleFilters(cmdArgs)
+		modules.HandleFilters(cmdArgs)
 	case "upscale":
-		handleUpscale(cmdArgs)
+		modules.HandleUpscale(cmdArgs)
 	case "audio":
-		handleAudio(cmdArgs)
+		modules.HandleAudio(cmdArgs)
 	case "thumb":
-		handleThumb(cmdArgs)
+		modules.HandleThumb(cmdArgs)
 	case "inspect":
-		handleInspect(cmdArgs)
+		modules.HandleInspect(cmdArgs)
 	case "logs":
 		return runLogsCLI()
 	case "help":
@@ -417,8 +439,8 @@ func runConvertCLI(args []string) error {
 		return fmt.Errorf("convert requires input and output files (e.g. videotools convert input.avi output.mp4)")
 	}
 	in, out := args[0], args[1]
-	debugLog(logCatFFMPEG, "convert input=%s output=%s", in, out)
-	handleConvert([]string{in, out})
+	logging.Debug(logging.CatFFMPEG, "convert input=%s output=%s", in, out)
+	modules.HandleConvert([]string{in, out})
 	return nil
 }
 
@@ -433,9 +455,9 @@ func runCombineCLI(args []string) error {
 	if len(inputs) == 0 || len(outputs) == 0 {
 		return fmt.Errorf("combine expects one or more inputs, '/', then an output file")
 	}
-	debugLog(logCatFFMPEG, "combine inputs=%v output=%v", inputs, outputs)
+	logging.Debug(logging.CatFFMPEG, "combine inputs=%v output=%v", inputs, outputs)
 	// For now feed inputs followed by outputs to the merge handler.
-	handleMerge(append(inputs, outputs...))
+	modules.HandleMerge(append(inputs, outputs...))
 	return nil
 }
 
@@ -469,15 +491,15 @@ func printUsage() {
 	fmt.Println("  videotools            # launch GUI")
 	fmt.Println()
 	fmt.Println("Set VIDEOTOOLS_DEBUG=1 or pass -debug for verbose logs.")
-	fmt.Println("Logs are written to", logFilePath, "or set VIDEOTOOLS_LOG_FILE to override.")
+	fmt.Println("Logs are written to", logging.FilePath(), "or set VIDEOTOOLS_LOG_FILE to override.")
 }
 
 func runLogsCLI() error {
-	path := logFilePath
+	path := logging.FilePath()
 	if path == "" {
 		return fmt.Errorf("log file unavailable")
 	}
-	debugLog(logCatCLI, "reading logs from %s", path)
+	logging.Debug(logging.CatCLI, "reading logs from %s", path)
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -504,58 +526,6 @@ func runLogsCLI() error {
 	return nil
 }
 
-func buildMainMenu(state *appState) fyne.CanvasObject {
-	title := canvas.NewText("VIDEOTOOLS", mustHex("#4CE870"))
-	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	title.TextSize = 28
-
-	queueTile := buildQueueTile(0, 0)
-
-	header := container.New(layout.NewHBoxLayout(),
-		title,
-		layout.NewSpacer(),
-		queueTile,
-	)
-
-	var tileObjects []fyne.CanvasObject
-	for _, mod := range modules {
-		modCopy := mod
-		tileObjects = append(tileObjects, buildModuleTile(modCopy, func() {
-			state.showModule(modCopy.ID)
-		}))
-	}
-
-	grid := container.NewGridWithColumns(3, tileObjects...)
-
-	padding := canvas.NewRectangle(color.Transparent)
-	padding.SetMinSize(fyne.NewSize(0, 14))
-
-	body := container.New(layout.NewVBoxLayout(),
-		header,
-		padding,
-		grid,
-	)
-
-	return body
-}
-
-func buildModuleTile(mod Module, tapped func()) fyne.CanvasObject {
-	debugLog(logCatUI, "building tile %s color=%v", mod.ID, mod.Color)
-	return container.NewPadded(newModuleTile(mod.Label, mod.Color, tapped))
-}
-
-func buildQueueTile(done, total int) fyne.CanvasObject {
-	rect := canvas.NewRectangle(queueColor)
-	rect.CornerRadius = 8
-	rect.SetMinSize(fyne.NewSize(160, 60))
-
-	text := canvas.NewText(fmt.Sprintf("QUEUE: %d/%d", done, total), textColor)
-	text.Alignment = fyne.TextAlignCenter
-	text.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	text.TextSize = 18
-
-	return container.NewMax(rect, container.NewCenter(text))
-}
 
 func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	convertColor := moduleColor("convert")
@@ -564,7 +534,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.showMainMenu()
 	})
 	back.Importance = widget.LowImportance
-	backBar := tintedBar(convertColor, container.NewHBox(back, layout.NewSpacer()))
+	backBar := ui.TintedBar(convertColor, container.NewHBox(back, layout.NewSpacer()))
 
 	var updateCover func(string)
 	coverLabel := widget.NewLabel(state.convert.CoverLabel())
@@ -579,13 +549,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoPanel := buildVideoPane(state, fyne.NewSize(520, 300), src, updateCover)
 	metaPanel := buildMetadataPanel(state, src, fyne.NewSize(520, 160))
 
-	modeToggle := widget.NewRadioGroup([]string{"Simple", "Advanced"}, func(value string) {
-		debugLog(logCatUI, "convert mode selected: %s", value)
-		state.convert.Mode = value
-	})
-	modeToggle.Horizontal = true
-	modeToggle.SetSelected(state.convert.Mode)
-
 	var formatLabels []string
 	for _, opt := range formatOptions {
 		formatLabels = append(formatLabels, opt.Label)
@@ -594,7 +557,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	formatSelect := widget.NewSelect(formatLabels, func(value string) {
 		for _, opt := range formatOptions {
 			if opt.Label == value {
-				debugLog(logCatUI, "format set to %s", value)
+				logging.Debug(logging.CatUI, "format set to %s", value)
 				state.convert.SelectedFormat = opt
 				outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
 				break
@@ -604,7 +567,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
 
 	qualitySelect := widget.NewSelect([]string{"Draft (CRF 28)", "Standard (CRF 23)", "High (CRF 18)", "Lossless"}, func(value string) {
-		debugLog(logCatUI, "quality preset %s", value)
+		logging.Debug(logging.CatUI, "quality preset %s", value)
 		state.convert.Quality = value
 	})
 	qualitySelect.SetSelected(state.convert.Quality)
@@ -624,7 +587,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	aspectTargets := []string{"Source", "16:9", "4:3", "1:1", "9:16", "21:9"}
 	targetAspectSelect := widget.NewSelect(aspectTargets, func(value string) {
-		debugLog(logCatUI, "target aspect set to %s", value)
+		logging.Debug(logging.CatUI, "target aspect set to %s", value)
 		state.convert.OutputAspect = value
 	})
 	if state.convert.OutputAspect == "" {
@@ -633,8 +596,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	targetAspectSelect.SetSelected(state.convert.OutputAspect)
 	targetAspectHint := widget.NewLabel("Pick desired output aspect (default Source).")
 
-	aspectOptions := widget.NewRadioGroup([]string{"Auto", "Letterbox", "Pillarbox", "Blur Fill"}, func(value string) {
-		debugLog(logCatUI, "aspect handling set to %s", value)
+	aspectOptions := widget.NewRadioGroup([]string{"Auto", "Crop", "Letterbox", "Pillarbox", "Blur Fill", "Stretch"}, func(value string) {
+		logging.Debug(logging.CatUI, "aspect handling set to %s", value)
 		state.convert.AspectHandling = value
 	})
 	aspectOptions.Horizontal = false
@@ -656,8 +619,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			return
 		}
 		target := resolveTargetAspect(state.convert.OutputAspect, src)
-		srcAspect := aspectRatioFloat(src.Width, src.Height)
-		if target == 0 || srcAspect == 0 || ratiosApproxEqual(target, srcAspect, 0.01) {
+		srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
+		if target == 0 || srcAspect == 0 || utils.RatiosApproxEqual(target, srcAspect, 0.01) {
 			aspectBox.Hide()
 		} else {
 			aspectBox.Show()
@@ -665,19 +628,30 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	updateAspectBoxVisibility()
 	targetAspectSelect.OnChanged = func(value string) {
-		debugLog(logCatUI, "target aspect set to %s", value)
+		logging.Debug(logging.CatUI, "target aspect set to %s", value)
 		state.convert.OutputAspect = value
 		updateAspectBoxVisibility()
 	}
 	aspectOptions.OnChanged = func(value string) {
-		debugLog(logCatUI, "aspect handling set to %s", value)
+		logging.Debug(logging.CatUI, "aspect handling set to %s", value)
 		state.convert.AspectHandling = value
 	}
 
-	optionsBody := container.NewVBox(
-		widget.NewLabelWithStyle("Mode", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		modeToggle,
+	// Simple mode options
+	simpleOptions := container.NewVBox(
+		widget.NewLabelWithStyle("Output Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		formatSelect,
+		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		outputEntry,
+		outputHint,
 		widget.NewSeparator(),
+		widget.NewLabelWithStyle("Quality", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		qualitySelect,
+		layout.NewSpacer(),
+	)
+
+	// Advanced mode options
+	advancedOptions := container.NewVBox(
 		widget.NewLabelWithStyle("Output Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -700,11 +674,34 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		layout.NewSpacer(),
 	)
 
-	optionsRect := canvas.NewRectangle(mustHex("#13182B"))
+	// Create tabs for Simple/Advanced modes
+	tabs := container.NewAppTabs(
+		container.NewTabItem("Simple", container.NewVScroll(simpleOptions)),
+		container.NewTabItem("Advanced", container.NewVScroll(advancedOptions)),
+	)
+	tabs.SetTabLocation(container.TabLocationTop)
+
+	// Set initial tab based on mode
+	if state.convert.Mode == "Advanced" {
+		tabs.SelectIndex(1)
+	}
+
+	// Update mode when tab changes
+	tabs.OnSelected = func(item *container.TabItem) {
+		if item.Text == "Simple" {
+			state.convert.Mode = "Simple"
+			logging.Debug(logging.CatUI, "convert mode selected: Simple")
+		} else {
+			state.convert.Mode = "Advanced"
+			logging.Debug(logging.CatUI, "convert mode selected: Advanced")
+		}
+	}
+
+	optionsRect := canvas.NewRectangle(utils.MustHex("#13182B"))
 	optionsRect.CornerRadius = 8
 	optionsRect.StrokeColor = gridColor
 	optionsRect.StrokeWidth = 1
-	optionsPanel := container.NewMax(optionsRect, container.NewPadded(optionsBody))
+	optionsPanel := container.NewMax(optionsRect, container.NewPadded(tabs))
 
 	snippetBtn := widget.NewButton("Generate Snippet", func() {
 		if state.source == nil {
@@ -730,13 +727,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	))
 
 	resetBtn := widget.NewButton("Reset", func() {
-		modeToggle.SetSelected("Simple")
+		tabs.SelectIndex(0) // Select Simple tab
+		state.convert.Mode = "Simple"
 		formatSelect.SetSelected("MP4 (H.264)")
 		qualitySelect.SetSelected("Standard (CRF 23)")
 		aspectOptions.SetSelected("Auto")
 		targetAspectSelect.SetSelected("Source")
 		updateAspectBoxVisibility()
-		debugLog(logCatUI, "convert settings reset to defaults")
+		logging.Debug(logging.CatUI, "convert settings reset to defaults")
 	})
 	statusLabel := widget.NewLabel("")
 	if state.convertBusy {
@@ -773,7 +771,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	actionInner := container.NewHBox(resetBtn, activity, statusLabel, layout.NewSpacer(), cancelBtn, convertBtn)
-	actionBar := tintedBar(convertColor, actionInner)
+	actionBar := ui.TintedBar(convertColor, actionInner)
 
 	return container.NewBorder(
 		backBar,
@@ -785,7 +783,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 }
 
 func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
-	rect := canvas.NewRectangle(mustHex("#191F35"))
+	rect := canvas.NewRectangle(utils.MustHex("#191F35"))
 	rect.CornerRadius = 8
 	rect.StrokeColor = gridColor
 	rect.StrokeWidth = 1
@@ -799,87 +797,9 @@ func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
 	return container.NewMax(rect, container.NewPadded(box))
 }
 
-type moduleTile struct {
-	widget.BaseWidget
-	label    string
-	color    color.Color
-	onTapped func()
-}
-
-func newModuleTile(label string, col color.Color, tapped func()) *moduleTile {
-	m := &moduleTile{
-		label:    strings.ToUpper(label),
-		color:    col,
-		onTapped: tapped,
-	}
-	m.ExtendBaseWidget(m)
-	return m
-}
-
-func (m *moduleTile) CreateRenderer() fyne.WidgetRenderer {
-	bg := canvas.NewRectangle(m.color)
-	bg.CornerRadius = 8
-	bg.StrokeColor = gridColor
-	bg.StrokeWidth = 1
-
-	txt := canvas.NewText(m.label, textColor)
-	txt.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	txt.Alignment = fyne.TextAlignCenter
-
-	return &moduleTileRenderer{
-		tile:  m,
-		bg:    bg,
-		label: txt,
-	}
-}
-
-func (m *moduleTile) Tapped(*fyne.PointEvent) {
-	if m.onTapped != nil {
-		m.onTapped()
-	}
-}
-
-type moduleTileRenderer struct {
-	tile  *moduleTile
-	bg    *canvas.Rectangle
-	label *canvas.Text
-}
-
-func (r *moduleTileRenderer) Layout(size fyne.Size) {
-	r.bg.Resize(size)
-	labelSize := r.label.MinSize()
-	r.label.Move(fyne.NewPos(
-		(size.Width-labelSize.Width)/2,
-		(size.Height-labelSize.Height)/2,
-	))
-}
-
-func (r *moduleTileRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(220, 110)
-}
-
-func (r *moduleTileRenderer) Refresh() {
-	r.bg.FillColor = r.tile.color
-	r.bg.Refresh()
-	r.label.Text = r.tile.label
-	r.label.Refresh()
-}
-
-func (r *moduleTileRenderer) Destroy() {}
-
-func (r *moduleTileRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.bg, r.label}
-}
-
-func tintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
-	rect := canvas.NewRectangle(col)
-	rect.SetMinSize(fyne.NewSize(0, 48))
-	padded := container.NewPadded(body)
-	return container.NewMax(rect, padded)
-}
 
 func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) fyne.CanvasObject {
-	outer := canvas.NewRectangle(mustHex("#191F35"))
+	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
 	outer.CornerRadius = 8
 	outer.StrokeColor = gridColor
 	outer.StrokeWidth = 1
@@ -903,26 +823,62 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) fyne.C
 		bitrate = fmt.Sprintf("%d kbps", src.Bitrate/1000)
 	}
 
+	// Build metadata string for copying
+	metadataText := fmt.Sprintf(`File: %s
+Format: %s
+Resolution: %dx%d
+Aspect Ratio: %s
+Duration: %s
+Video Codec: %s
+Video Bitrate: %s
+Frame Rate: %.2f fps
+Pixel Format: %s
+Field Order: %s
+Audio Codec: %s
+Audio Rate: %d Hz
+Channels: %s`,
+		src.DisplayName,
+		utils.FirstNonEmpty(src.Format, "Unknown"),
+		src.Width, src.Height,
+		src.AspectRatioString(),
+		src.DurationString(),
+		utils.FirstNonEmpty(src.VideoCodec, "Unknown"),
+		bitrate,
+		src.FrameRate,
+		utils.FirstNonEmpty(src.PixelFormat, "Unknown"),
+		utils.FirstNonEmpty(src.FieldOrder, "Unknown"),
+		utils.FirstNonEmpty(src.AudioCodec, "Unknown"),
+		src.AudioRate,
+		utils.ChannelLabel(src.Channels),
+	)
+
 	info := widget.NewForm(
 		widget.NewFormItem("File", widget.NewLabel(src.DisplayName)),
-		widget.NewFormItem("Format", widget.NewLabel(firstNonEmpty(src.Format, "Unknown"))),
+		widget.NewFormItem("Format", widget.NewLabel(utils.FirstNonEmpty(src.Format, "Unknown"))),
 		widget.NewFormItem("Resolution", widget.NewLabel(fmt.Sprintf("%dx%d", src.Width, src.Height))),
 		widget.NewFormItem("Aspect Ratio", widget.NewLabel(src.AspectRatioString())),
 		widget.NewFormItem("Duration", widget.NewLabel(src.DurationString())),
-		widget.NewFormItem("Video Codec", widget.NewLabel(firstNonEmpty(src.VideoCodec, "Unknown"))),
+		widget.NewFormItem("Video Codec", widget.NewLabel(utils.FirstNonEmpty(src.VideoCodec, "Unknown"))),
 		widget.NewFormItem("Video Bitrate", widget.NewLabel(bitrate)),
 		widget.NewFormItem("Frame Rate", widget.NewLabel(fmt.Sprintf("%.2f fps", src.FrameRate))),
-		widget.NewFormItem("Pixel Format", widget.NewLabel(firstNonEmpty(src.PixelFormat, "Unknown"))),
-		widget.NewFormItem("Field Order", widget.NewLabel(firstNonEmpty(src.FieldOrder, "Unknown"))),
-		widget.NewFormItem("Audio Codec", widget.NewLabel(firstNonEmpty(src.AudioCodec, "Unknown"))),
+		widget.NewFormItem("Pixel Format", widget.NewLabel(utils.FirstNonEmpty(src.PixelFormat, "Unknown"))),
+		widget.NewFormItem("Field Order", widget.NewLabel(utils.FirstNonEmpty(src.FieldOrder, "Unknown"))),
+		widget.NewFormItem("Audio Codec", widget.NewLabel(utils.FirstNonEmpty(src.AudioCodec, "Unknown"))),
 		widget.NewFormItem("Audio Rate", widget.NewLabel(fmt.Sprintf("%d Hz", src.AudioRate))),
-		widget.NewFormItem("Channels", widget.NewLabel(channelLabel(src.Channels))),
+		widget.NewFormItem("Channels", widget.NewLabel(utils.ChannelLabel(src.Channels))),
 	)
 	for _, item := range info.Items {
 		if lbl, ok := item.Widget.(*widget.Label); ok {
 			lbl.Wrapping = fyne.TextWrapWord
 		}
 	}
+
+	// Copy metadata button
+	copyBtn := widget.NewButton("📋", func() {
+		state.window.Clipboard().SetContent(metadataText)
+		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
+	})
+	copyBtn.Importance = widget.LowImportance
 
 	// Clear button to remove the loaded video and reset UI.
 	clearBtn := widget.NewButton("Clear Video", func() {
@@ -931,7 +887,9 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) fyne.C
 		}
 	})
 	clearBtn.Importance = widget.LowImportance
-	top = container.NewBorder(nil, nil, nil, clearBtn, header)
+
+	buttonRow := container.NewHBox(copyBtn, clearBtn)
+	top = container.NewBorder(nil, nil, nil, buttonRow, header)
 
 	body := container.NewVBox(
 		top,
@@ -942,7 +900,7 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) fyne.C
 }
 
 func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover func(string)) fyne.CanvasObject {
-	outer := canvas.NewRectangle(mustHex("#191F35"))
+	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
 	outer.CornerRadius = 8
 	outer.StrokeColor = gridColor
 	outer.StrokeWidth = 1
@@ -960,7 +918,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	outer.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 
 	if src == nil {
-		icon := canvas.NewText("▶", mustHex("#4CE870"))
+		icon := canvas.NewText("▶", utils.MustHex("#4CE870"))
 		icon.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 		icon.TextSize = 42
 		hintMain := widget.NewLabelWithStyle("Drop a video or open one to start playback", fyne.TextAlignCenter, fyne.TextStyle{Monospace: true, Bold: true})
@@ -968,10 +926,10 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		hintSub.Alignment = fyne.TextAlignCenter
 
 		open := widget.NewButton("Open File…", func() {
-			debugLog(logCatUI, "convert open file dialog requested")
+			logging.Debug(logging.CatUI, "convert open file dialog requested")
 			dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 				if err != nil {
-					debugLog(logCatUI, "file open error: %v", err)
+					logging.Debug(logging.CatUI, "file open error: %v", err)
 					return
 				}
 				if r == nil {
@@ -1017,12 +975,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	}
 	img.FillMode = canvas.ImageFillContain
 	img.SetMinSize(fyne.NewSize(targetWidth-28, targetHeight-40))
-	stage := canvas.NewRectangle(mustHex("#0F1529"))
+	stage := canvas.NewRectangle(utils.MustHex("#0F1529"))
 	stage.CornerRadius = 6
 	stage.SetMinSize(fyne.NewSize(targetWidth-12, targetHeight-12))
 	videoStage := container.NewMax(stage, container.NewPadded(container.NewCenter(img)))
 
-	coverBtn := makeIconButton("⌾", "Set current frame as cover art", func() {
+	coverBtn := utils.MakeIconButton("⌾", "Set current frame as cover art", func() {
 		path, err := state.captureCoverFromCurrent()
 		if err != nil {
 			dialog.ShowError(err, state.window)
@@ -1033,7 +991,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		}
 	})
 
-	importBtn := makeIconButton("⬆", "Import cover art file", func() {
+	importBtn := utils.MakeIconButton("⬆", "Import cover art file", func() {
 		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 			if err != nil {
 				dialog.ShowError(err, state.window)
@@ -1104,7 +1062,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				volIcon.SetText("🔊")
 			}
 		}
-		volIcon = makeIconButton("🔊", "Mute/Unmute", func() {
+		volIcon = utils.MakeIconButton("🔊", "Mute/Unmute", func() {
 			if !ensureSession() {
 				return
 			}
@@ -1145,7 +1103,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		}
 		updateVolIcon()
 		volSlider.Refresh()
-		playBtn := makeIconButton("▶/⏸", "Play/Pause", func() {
+		playBtn := utils.MakeIconButton("▶/⏸", "Play/Pause", func() {
 			if !ensureSession() {
 				return
 			}
@@ -1157,7 +1115,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				state.playerPaused = true
 			}
 		})
-		fullBtn := makeIconButton("⛶", "Toggle fullscreen", func() {
+		fullBtn := utils.MakeIconButton("⛶", "Toggle fullscreen", func() {
 			// Placeholder: embed fullscreen toggle into playback surface later.
 		})
 		volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
@@ -1182,7 +1140,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				}
 			}
 		}
-		playBtn := makeIconButton("▶/⏸", "Play/Pause", func() {
+		playBtn := utils.MakeIconButton("▶/⏸", "Play/Pause", func() {
 			if len(src.PreviewFrames) == 0 {
 				return
 			}
@@ -1224,14 +1182,6 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	return container.NewMax(outer, container.NewCenter(container.NewPadded(stack)))
 }
 
-func moduleColor(id string) color.Color {
-	for _, m := range modules {
-		if m.ID == id {
-			return m.Color
-		}
-	}
-	return queueColor
-}
 
 type playSession struct {
 	path     string
@@ -1275,7 +1225,7 @@ func newPlaySession(path string, w, h int, fps float64, targetW, targetH int, pr
 		targetW = 640
 	}
 	if targetH <= 0 {
-		targetH = int(float64(targetW) * (float64(h) / float64(maxInt(w, 1))))
+		targetH = int(float64(targetW) * (float64(h) / float64(utils.MaxInt(w, 1))))
 	}
 	return &playSession{
 		path:    path,
@@ -1379,7 +1329,7 @@ func (p *playSession) startLocked(offset float64) {
 	p.paused = false
 	p.current = offset
 	p.frameN = 0
-	debugLog(logCatFFMPEG, "playSession start path=%s offset=%.3f fps=%.3f target=%dx%d", p.path, offset, p.fps, p.targetW, p.targetH)
+	logging.Debug(logging.CatFFMPEG, "playSession start path=%s offset=%.3f fps=%.3f target=%dx%d", p.path, offset, p.fps, p.targetW, p.targetH)
 	p.runVideo(offset)
 	p.runAudio(offset)
 }
@@ -1400,11 +1350,11 @@ func (p *playSession) runVideo(offset float64) {
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		debugLog(logCatFFMPEG, "video pipe error: %v", err)
+		logging.Debug(logging.CatFFMPEG, "video pipe error: %v", err)
 		return
 	}
 	if err := cmd.Start(); err != nil {
-		debugLog(logCatFFMPEG, "video start failed: %v (%s)", err, strings.TrimSpace(stderr.String()))
+		logging.Debug(logging.CatFFMPEG, "video start failed: %v (%s)", err, strings.TrimSpace(stderr.String()))
 		return
 	}
 	// Pace frames to the source frame rate instead of hammering refreshes as fast as possible.
@@ -1421,7 +1371,7 @@ func (p *playSession) runVideo(offset float64) {
 		for {
 			select {
 			case <-p.stop:
-				debugLog(logCatFFMPEG, "video loop stop")
+				logging.Debug(logging.CatFFMPEG, "video loop stop")
 				return
 			default:
 			}
@@ -1436,7 +1386,7 @@ func (p *playSession) runVideo(offset float64) {
 					return
 				}
 				msg := strings.TrimSpace(stderr.String())
-				debugLog(logCatFFMPEG, "video read failed: %v (%s)", err, msg)
+				logging.Debug(logging.CatFFMPEG, "video read failed: %v (%s)", err, msg)
 				return
 			}
 			if delay := time.Until(nextFrameAt); delay > 0 {
@@ -1445,7 +1395,7 @@ func (p *playSession) runVideo(offset float64) {
 			nextFrameAt = nextFrameAt.Add(frameDur)
 			// Allocate a fresh frame to avoid concurrent texture reuse issues.
 			frame := image.NewRGBA(image.Rect(0, 0, p.targetW, p.targetH))
-			copyRGBToRGBA(frame.Pix, buf)
+			utils.CopyRGBToRGBA(frame.Pix, buf)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				if p.img != nil {
 					// Ensure we render the live frame, not a stale resource preview.
@@ -1456,7 +1406,7 @@ func (p *playSession) runVideo(offset float64) {
 				}
 			}, false)
 			if p.frameN < 3 {
-				debugLog(logCatFFMPEG, "video frame %d drawn (%.2fs)", p.frameN+1, p.current)
+				logging.Debug(logging.CatFFMPEG, "video frame %d drawn (%.2fs)", p.frameN+1, p.current)
 			}
 			p.frameN++
 			if p.fps > 0 {
@@ -1487,22 +1437,22 @@ func (p *playSession) runAudio(offset float64) {
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		debugLog(logCatFFMPEG, "audio pipe error: %v", err)
+		logging.Debug(logging.CatFFMPEG, "audio pipe error: %v", err)
 		return
 	}
 	if err := cmd.Start(); err != nil {
-		debugLog(logCatFFMPEG, "audio start failed: %v (%s)", err, strings.TrimSpace(stderr.String()))
+		logging.Debug(logging.CatFFMPEG, "audio start failed: %v (%s)", err, strings.TrimSpace(stderr.String()))
 		return
 	}
 	p.audioCmd = cmd
 	ctx, err := getAudioContext(sampleRate, channels, bytesPerSample)
 	if err != nil {
-		debugLog(logCatFFMPEG, "audio context error: %v", err)
+		logging.Debug(logging.CatFFMPEG, "audio context error: %v", err)
 		return
 	}
 	player := ctx.NewPlayer()
 	if player == nil {
-		debugLog(logCatFFMPEG, "audio player creation failed")
+		logging.Debug(logging.CatFFMPEG, "audio player creation failed")
 		return
 	}
 	localPlayer := player
@@ -1515,7 +1465,7 @@ func (p *playSession) runAudio(offset float64) {
 		for {
 			select {
 			case <-p.stop:
-				debugLog(logCatFFMPEG, "audio loop stop")
+				logging.Debug(logging.CatFFMPEG, "audio loop stop")
 				return
 			default:
 			}
@@ -1526,7 +1476,7 @@ func (p *playSession) runAudio(offset float64) {
 			n, err := stdout.Read(chunk)
 			if n > 0 {
 				if !loggedFirst {
-					debugLog(logCatFFMPEG, "audio stream delivering bytes")
+					logging.Debug(logging.CatFFMPEG, "audio stream delivering bytes")
 					loggedFirst = true
 				}
 				gain := p.volume / 100.0
@@ -1558,7 +1508,7 @@ func (p *playSession) runAudio(offset float64) {
 			}
 			if err != nil {
 				if !errors.Is(err, io.EOF) {
-					debugLog(logCatFFMPEG, "audio read failed: %v (%s)", err, strings.TrimSpace(stderr.String()))
+					logging.Debug(logging.CatFFMPEG, "audio read failed: %v (%s)", err, strings.TrimSpace(stderr.String()))
 				}
 				return
 			}
@@ -1688,12 +1638,12 @@ func (s *appState) handleDrop(items []fyne.URI) {
 			continue
 		}
 		path := uri.Path()
-		debugLog(logCatModule, "drop received path=%s active=%s", path, s.active)
+		logging.Debug(logging.CatModule, "drop received path=%s active=%s", path, s.active)
 		switch s.active {
 		case "convert":
 			go s.loadVideo(path)
 		default:
-			debugLog(logCatUI, "drop ignored; no module active to handle file")
+			logging.Debug(logging.CatUI, "drop ignored; no module active to handle file")
 		}
 		break
 	}
@@ -1708,7 +1658,7 @@ func (s *appState) loadVideo(path string) {
 	s.stopProgressLoop()
 	src, err := probeVideo(path)
 	if err != nil {
-		debugLog(logCatFFMPEG, "ffprobe failed for %s: %v", path, err)
+		logging.Debug(logging.CatFFMPEG, "ffprobe failed for %s: %v", path, err)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			dialog.ShowError(fmt.Errorf("failed to analyze %s: %w", filepath.Base(path), err), win)
 		}, false)
@@ -1720,7 +1670,7 @@ func (s *appState) loadVideo(path string) {
 			s.currentFrame = frames[0]
 		}
 	} else {
-		debugLog(logCatFFMPEG, "preview generation failed: %v", err)
+		logging.Debug(logging.CatFFMPEG, "preview generation failed: %v", err)
 		s.currentFrame = ""
 	}
 	s.applyInverseDefaults(src)
@@ -1731,14 +1681,14 @@ func (s *appState) loadVideo(path string) {
 	s.playerReady = false
 	s.playerPos = 0
 	s.playerPaused = true
-	debugLog(logCatModule, "video loaded %+v", src)
+	logging.Debug(logging.CatModule, "video loaded %+v", src)
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(src)
 	}, false)
 }
 
 func (s *appState) clearVideo() {
-	debugLog(logCatModule, "clearing loaded video")
+	logging.Debug(logging.CatModule, "clearing loaded video")
 	s.stopPlayer()
 	s.source = nil
 	s.currentFrame = ""
@@ -1783,7 +1733,7 @@ func (s *appState) cancelConvert(cancelBtn, btn *widget.Button, spinner *widget.
 func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.Button, spinner *widget.ProgressBarInfinite) {
 	setStatus := func(msg string) {
 		s.convertStatus = msg
-		debugLog(logCatFFMPEG, "convert status: %s", msg)
+		logging.Debug(logging.CatFFMPEG, "convert status: %s", msg)
 		if status != nil {
 			status.SetText(msg)
 		}
@@ -1818,9 +1768,9 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	if cfg.InverseTelecine {
 		vf = append(vf, "yadif")
 	}
-	srcAspect := aspectRatioFloat(src.Width, src.Height)
+	srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
 	targetAspect := resolveTargetAspect(cfg.OutputAspect, src)
-	if targetAspect > 0 && srcAspect > 0 && !ratiosApproxEqual(targetAspect, srcAspect, 0.01) {
+	if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
 		vf = append(vf, aspectFilters(targetAspect, cfg.AspectHandling)...)
 	}
 	if len(vf) > 0 {
@@ -1842,7 +1792,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	args = append(args, "-progress", "pipe:1", "-nostats")
 	args = append(args, outPath)
 
-	debugLog(logCatFFMPEG, "convert command: ffmpeg %s", strings.Join(args, " "))
+	logging.Debug(logging.CatFFMPEG, "convert command: ffmpeg %s", strings.Join(args, " "))
 	s.convertBusy = true
 	setStatus("Preparing conversion…")
 	if btn != nil {
@@ -1868,7 +1818,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
-			debugLog(logCatFFMPEG, "convert stdout pipe failed: %v", err)
+			logging.Debug(logging.CatFFMPEG, "convert stdout pipe failed: %v", err)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				dialog.ShowError(fmt.Errorf("convert failed: %w", err), s.window)
 				s.convertBusy = false
@@ -1942,7 +1892,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 		if err := cmd.Start(); err != nil {
 			close(progressQuit)
-			debugLog(logCatFFMPEG, "convert failed to start: %v", err)
+			logging.Debug(logging.CatFFMPEG, "convert failed to start: %v", err)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				dialog.ShowError(fmt.Errorf("convert failed: %w", err), s.window)
 				s.convertBusy = false
@@ -1966,7 +1916,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		close(progressQuit)
 		if err != nil {
 			if errors.Is(err, context.Canceled) || ctx.Err() != nil {
-				debugLog(logCatFFMPEG, "convert cancelled")
+				logging.Debug(logging.CatFFMPEG, "convert cancelled")
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					s.convertBusy = false
 					setStatus("Cancelled")
@@ -1984,7 +1934,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				s.convertCancel = nil
 				return
 			}
-			debugLog(logCatFFMPEG, "convert failed: %v stderr=%s", err, strings.TrimSpace(stderr.String()))
+			logging.Debug(logging.CatFFMPEG, "convert failed: %v stderr=%s", err, strings.TrimSpace(stderr.String()))
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				dialog.ShowError(fmt.Errorf("convert failed: %w", err), s.window)
 				s.convertBusy = false
@@ -2007,7 +1957,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			setStatus("Validating output…")
 		}, false)
 		if _, probeErr := probeVideo(outPath); probeErr != nil {
-			debugLog(logCatFFMPEG, "convert probe failed: %v", probeErr)
+			logging.Debug(logging.CatFFMPEG, "convert probe failed: %v", probeErr)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				dialog.ShowError(fmt.Errorf("conversion output is invalid: %w", probeErr), s.window)
 				s.convertBusy = false
@@ -2026,7 +1976,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			s.convertCancel = nil
 			return
 		}
-		debugLog(logCatFFMPEG, "convert completed: %s", outPath)
+		logging.Debug(logging.CatFFMPEG, "convert completed: %s", outPath)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			dialog.ShowInformation("Convert", fmt.Sprintf("Saved %s", outPath), s.window)
 			s.convertBusy = false
@@ -2072,36 +2022,39 @@ func aspectFilters(target float64, mode string) []string {
 		return nil
 	}
 	ar := fmt.Sprintf("%.6f", target)
-	scale := fmt.Sprintf("scale=w='if(gt(a,%[1]s),round(ih*%[1]s/2)*2,iw)':h='if(gt(a,%[1]s),ih,round(iw/%[1]s/2)*2)'", ar)
-	padColor := "black"
-	if strings.EqualFold(mode, "Blur Fill") {
-		padColor = "black"
+
+	// Crop mode: center crop to target aspect ratio
+	if strings.EqualFold(mode, "Crop") || strings.EqualFold(mode, "Auto") {
+		// Crop to target aspect ratio with even dimensions for H.264 encoding
+		// Use trunc/2*2 to ensure even dimensions
+		crop := fmt.Sprintf("crop=w='trunc(if(gt(a,%[1]s),ih*%[1]s,iw)/2)*2':h='trunc(if(gt(a,%[1]s),ih,iw/%[1]s)/2)*2':x='(iw-out_w)/2':y='(ih-out_h)/2'", ar)
+		return []string{crop, "setsar=1"}
 	}
-	// Future: expand blur fill to use blurred edges; currently shares padding approach.
-	pad := fmt.Sprintf("pad=w='max(iw,round(ih*%[1]s/2)*2)':h='max(round(iw/%[1]s/2)*2,ih)':x='(ow-iw)/2':y='(oh-ih)/2':color=%s", ar, padColor)
+
+	// Stretch mode: just change the aspect ratio without cropping or padding
+	if strings.EqualFold(mode, "Stretch") {
+		scale := fmt.Sprintf("scale=w='trunc(ih*%[1]s/2)*2':h='trunc(iw/%[1]s/2)*2'", ar)
+		return []string{scale, "setsar=1"}
+	}
+
+	// Blur Fill: keep source resolution, just pad to target aspect
+	if strings.EqualFold(mode, "Blur Fill") {
+		// No scaling - keep original video size and just pad around it
+		pad := fmt.Sprintf("pad=w='trunc(max(iw,ih*%[1]s)/2)*2':h='trunc(max(ih,iw/%[1]s)/2)*2':x='(ow-iw)/2':y='(oh-ih)/2':color=black", ar)
+		return []string{pad, "setsar=1"}
+	}
+
+	// Letterbox/Pillarbox: fit image then add bars
+	// Scale to fit inside target aspect while maintaining source aspect ratio
+	// If target is wider: scale to fit height, will pad sides
+	// If target is narrower: scale to fit width, will pad top/bottom
+	scale := fmt.Sprintf("scale=w='trunc(if(gt(iw/ih,%[1]s),trunc(ih*%[1]s/2)*2,iw)/2)*2':h='trunc(if(gt(iw/ih,%[1]s),ih,trunc(iw/%[1]s/2)*2)/2)*2'", ar)
+
+	// Pad to exact target aspect with even dimensions
+	pad := fmt.Sprintf("pad=w='trunc(max(iw,ih*%[1]s)/2)*2':h='trunc(max(ih,iw/%[1]s)/2)*2':x='(ow-iw)/2':y='(oh-ih)/2':color=black", ar)
 	return []string{scale, pad, "setsar=1"}
 }
 
-func loadAppIcon() fyne.Resource {
-	search := []string{
-		filepath.Join("assets", "logo", "VT_Icon.svg"),
-	}
-	if exe, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exe)
-		search = append(search, filepath.Join(dir, "assets", "logo", "VT_Icon.svg"))
-	}
-	for _, p := range search {
-		if _, err := os.Stat(p); err == nil {
-			res, err := fyne.LoadResourceFromPath(p)
-			if err != nil {
-				debugLog(logCatUI, "failed to load icon %s: %v", p, err)
-				continue
-			}
-			return res
-		}
-	}
-	return nil
-}
 func (s *appState) generateSnippet() {
 	if s.source == nil {
 		return
@@ -2113,16 +2066,38 @@ func (s *appState) generateSnippet() {
 	outPath := filepath.Join(filepath.Dir(src.Path), outName)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "ffmpeg",
+
+	// Build ffmpeg command with aspect ratio conversion if needed
+	args := []string{
 		"-ss", start,
 		"-i", src.Path,
 		"-t", "20",
-		"-c", "copy",
-		outPath,
-	)
-	debugLog(logCatFFMPEG, "snippet command: %s", strings.Join(cmd.Args, " "))
+	}
+
+	// Check if aspect ratio conversion is needed
+	srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
+	targetAspect := resolveTargetAspect(s.convert.OutputAspect, src)
+
+	if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
+		// Apply aspect ratio filters
+		filters := aspectFilters(targetAspect, s.convert.AspectHandling)
+		if len(filters) > 0 {
+			filterStr := strings.Join(filters, ",")
+			args = append(args, "-vf", filterStr)
+		}
+		// Re-encode with H.264
+		args = append(args, "-c:v", "libx264", "-crf", "23", "-c:a", "copy")
+	} else {
+		// No conversion needed, just copy
+		args = append(args, "-c", "copy")
+	}
+
+	args = append(args, outPath)
+
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	logging.Debug(logging.CatFFMPEG, "snippet command: %s", strings.Join(cmd.Args, " "))
 	if out, err := cmd.CombinedOutput(); err != nil {
-		debugLog(logCatFFMPEG, "snippet stderr: %s", string(out))
+		logging.Debug(logging.CatFFMPEG, "snippet stderr: %s", string(out))
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			dialog.ShowError(fmt.Errorf("snippet failed: %w", err), s.window)
 		}, false)
@@ -2162,24 +2137,6 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 	return files, nil
 }
 
-type monoTheme struct{}
-
-func (m *monoTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
-	return theme.DefaultTheme().Color(name, variant)
-}
-
-func (m *monoTheme) Font(style fyne.TextStyle) fyne.Resource {
-	style.Monospace = true
-	return theme.DefaultTheme().Font(style)
-}
-
-func (m *monoTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
-	return theme.DefaultTheme().Icon(name)
-}
-
-func (m *monoTheme) Size(name fyne.ThemeSizeName) float32 {
-	return theme.DefaultTheme().Size(name)
-}
 
 type videoSource struct {
 	Path          string
@@ -2217,7 +2174,7 @@ func (v *videoSource) AspectRatioString() string {
 	if v.Width <= 0 || v.Height <= 0 {
 		return "--"
 	}
-	num, den := simplifyRatio(v.Width, v.Height)
+	num, den := utils.SimplifyRatio(v.Width, v.Height)
 	if num == 0 || den == 0 {
 		return "--"
 	}
@@ -2295,13 +2252,13 @@ func probeVideo(path string) (*videoSource, error) {
 	src := &videoSource{
 		Path:        path,
 		DisplayName: filepath.Base(path),
-		Format:      firstNonEmpty(result.Format.Format, result.Format.FormatName),
+		Format:      utils.FirstNonEmpty(result.Format.Format, result.Format.FormatName),
 	}
-	if rate, err := parseInt(result.Format.BitRate); err == nil {
+	if rate, err := utils.ParseInt(result.Format.BitRate); err == nil {
 		src.Bitrate = rate
 	}
 	if durStr := result.Format.Duration; durStr != "" {
-		if val, err := parseFloat(durStr); err == nil {
+		if val, err := utils.ParseFloat(durStr); err == nil {
 			src.Duration = val
 		}
 	}
@@ -2317,10 +2274,10 @@ func probeVideo(path string) (*videoSource, error) {
 				if stream.Height > 0 {
 					src.Height = stream.Height
 				}
-				if dur, err := parseFloat(stream.Duration); err == nil && dur > 0 {
+				if dur, err := utils.ParseFloat(stream.Duration); err == nil && dur > 0 {
 					src.Duration = dur
 				}
-				if fr := parseFraction(stream.AvgFrameRate); fr > 0 {
+				if fr := utils.ParseFraction(stream.AvgFrameRate); fr > 0 {
 					src.FrameRate = fr
 				}
 				if stream.PixFmt != "" {
@@ -2328,14 +2285,14 @@ func probeVideo(path string) (*videoSource, error) {
 				}
 			}
 			if src.Bitrate == 0 {
-				if br, err := parseInt(stream.BitRate); err == nil {
+				if br, err := utils.ParseInt(stream.BitRate); err == nil {
 					src.Bitrate = br
 				}
 			}
 		case "audio":
 			if src.AudioCodec == "" {
 				src.AudioCodec = stream.CodecName
-				if rate, err := parseInt(stream.SampleRate); err == nil {
+				if rate, err := utils.ParseInt(stream.SampleRate); err == nil {
 					src.AudioRate = rate
 				}
 				if stream.Channels > 0 {
@@ -2347,266 +2304,5 @@ func probeVideo(path string) (*videoSource, error) {
 	return src, nil
 }
 
-func parseFloat(s string) (float64, error) {
-	return strconv.ParseFloat(strings.TrimSpace(s), 64)
-}
 
-func parseInt(s string) (int, error) {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return 0, fmt.Errorf("empty")
-	}
-	return strconv.Atoi(s)
-}
 
-func parseFraction(s string) float64 {
-	s = strings.TrimSpace(s)
-	if s == "" || s == "0" {
-		return 0
-	}
-	parts := strings.Split(s, "/")
-	num, err := strconv.ParseFloat(parts[0], 64)
-	if err != nil {
-		return 0
-	}
-	if len(parts) == 1 {
-		return num
-	}
-	den, err := strconv.ParseFloat(parts[1], 64)
-	if err != nil || den == 0 {
-		return 0
-	}
-	return num / den
-}
-
-func firstNonEmpty(values ...string) string {
-	for _, v := range values {
-		if strings.TrimSpace(v) != "" {
-			return v
-		}
-	}
-	return "--"
-}
-
-func channelLabel(ch int) string {
-	switch ch {
-	case 1:
-		return "Mono"
-	case 2:
-		return "Stereo"
-	case 6:
-		return "5.1"
-	case 8:
-		return "7.1"
-	default:
-		if ch <= 0 {
-			return ""
-		}
-		return fmt.Sprintf("%d ch", ch)
-	}
-}
-
-func gcd(a, b int) int {
-	if a < 0 {
-		a = -a
-	}
-	if b < 0 {
-		b = -b
-	}
-	for b != 0 {
-		a, b = b, a%b
-	}
-	if a == 0 {
-		return 1
-	}
-	return a
-}
-
-func simplifyRatio(w, h int) (int, int) {
-	if w <= 0 || h <= 0 {
-		return 0, 0
-	}
-	g := gcd(w, h)
-	return w / g, h / g
-}
-
-func aspectRatioFloat(w, h int) float64 {
-	if w <= 0 || h <= 0 {
-		return 0
-	}
-	return float64(w) / float64(h)
-}
-
-func parseAspectValue(val string) float64 {
-	val = strings.TrimSpace(val)
-	switch val {
-	case "16:9":
-		return 16.0 / 9.0
-	case "4:3":
-		return 4.0 / 3.0
-	case "1:1":
-		return 1
-	case "9:16":
-		return 9.0 / 16.0
-	case "21:9":
-		return 21.0 / 9.0
-	}
-	parts := strings.Split(val, ":")
-	if len(parts) == 2 {
-		n, err1 := strconv.ParseFloat(parts[0], 64)
-		d, err2 := strconv.ParseFloat(parts[1], 64)
-		if err1 == nil && err2 == nil && d != 0 {
-			return n / d
-		}
-	}
-	return 0
-}
-
-func resolveTargetAspect(val string, src *videoSource) float64 {
-	if strings.EqualFold(val, "source") {
-		if src != nil {
-			return aspectRatioFloat(src.Width, src.Height)
-		}
-		return 0
-	}
-	if r := parseAspectValue(val); r > 0 {
-		return r
-	}
-	return 0
-}
-
-func ratiosApproxEqual(a, b, tol float64) bool {
-	if a == 0 || b == 0 {
-		return false
-	}
-	diff := math.Abs(a - b)
-	if b != 0 {
-		diff = diff / b
-	}
-	return diff <= tol
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-// copyRGBToRGBA expands packed RGB bytes into RGBA while forcing opaque alpha.
-func copyRGBToRGBA(dst, src []byte) {
-	di := 0
-	for si := 0; si+2 < len(src) && di+3 < len(dst); si, di = si+3, di+4 {
-		dst[di] = src[si]
-		dst[di+1] = src[si+1]
-		dst[di+2] = src[si+2]
-		dst[di+3] = 0xff
-	}
-}
-
-func makeIconButton(symbol, tooltip string, tapped func()) *widget.Button {
-	btn := widget.NewButton(symbol, tapped)
-	btn.Importance = widget.LowImportance
-	return btn
-}
-
-func mustHex(h string) color.NRGBA {
-	c, err := parseHexColor(h)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "invalid color %q: %v\n", h, err)
-		os.Exit(1)
-	}
-	return c
-}
-
-func parseHexColor(s string) (color.NRGBA, error) {
-	s = strings.TrimPrefix(s, "#")
-	if len(s) != 6 {
-		return color.NRGBA{}, fmt.Errorf("want 6 digits, got %q", s)
-	}
-	var r, g, b uint8
-	if _, err := fmt.Sscanf(s, "%02x%02x%02x", &r, &g, &b); err != nil {
-		return color.NRGBA{}, err
-	}
-	return color.NRGBA{R: r, G: g, B: b, A: 0xff}, nil
-}
-
-// Placeholder handlers keep the prototype compiling while we wire modules.
-func handleConvert(files []string) {
-	debugLog(logCatFFMPEG, "convert handler invoked with %v", files)
-	fmt.Println("convert", files)
-}
-
-func handleMerge(files []string) {
-	debugLog(logCatFFMPEG, "merge handler invoked with %v", files)
-	fmt.Println("merge", files)
-}
-
-func handleTrim(files []string) {
-	debugLog(logCatModule, "trim handler invoked with %v", files)
-	fmt.Println("trim", files)
-}
-
-func handleFilters(files []string) {
-	debugLog(logCatModule, "filters handler invoked with %v", files)
-	fmt.Println("filters", files)
-}
-
-func handleUpscale(files []string) {
-	debugLog(logCatModule, "upscale handler invoked with %v", files)
-	fmt.Println("upscale", files)
-}
-
-func handleAudio(files []string) {
-	debugLog(logCatModule, "audio handler invoked with %v", files)
-	fmt.Println("audio", files)
-}
-
-func handleThumb(files []string) {
-	debugLog(logCatModule, "thumb handler invoked with %v", files)
-	fmt.Println("thumb", files)
-}
-
-func handleInspect(files []string) {
-	debugLog(logCatModule, "inspect handler invoked with %v", files)
-	fmt.Println("inspect", files)
-}
-
-func initLogging() {
-	logFilePath = os.Getenv("VIDEOTOOLS_LOG_FILE")
-	if logFilePath == "" {
-		logFilePath = "videotools.log"
-	}
-	f, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "videotools: cannot open log file %s: %v\n", logFilePath, err)
-		return
-	}
-	logFile = f
-}
-
-func closeLogs() {
-	if logFile != nil {
-		logFile.Close()
-	}
-}
-
-func setDebug(on bool) {
-	debugEnabled = on
-	debugLog(logCatSystem, "debug logging toggled -> %v (VIDEOTOOLS_DEBUG=%s)", on, os.Getenv("VIDEOTOOLS_DEBUG"))
-}
-
-func debugLog(cat logCategory, format string, args ...interface{}) {
-	msg := fmt.Sprintf("%s %s", cat, fmt.Sprintf(format, args...))
-	timestamp := time.Now().Format(time.RFC3339Nano)
-	if logFile != nil {
-		fmt.Fprintf(logFile, "%s %s\n", timestamp, msg)
-	}
-	logHistory = append(logHistory, fmt.Sprintf("%s %s", timestamp, msg))
-	if len(logHistory) > logHistoryMax {
-		logHistory = logHistory[len(logHistory)-logHistoryMax:]
-	}
-	if debugEnabled {
-		debugLogger.Printf("%s %s", timestamp, msg)
-	}
-}
