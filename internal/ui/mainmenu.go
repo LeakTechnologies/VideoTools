@@ -13,13 +13,14 @@ import (
 
 // ModuleInfo contains information about a module for display
 type ModuleInfo struct {
-	ID    string
-	Label string
-	Color color.Color
+	ID      string
+	Label   string
+	Color   color.Color
+	Enabled bool
 }
 
 // BuildMainMenu creates the main menu view with module tiles
-func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), titleColor, queueColor, textColor color.Color) fyne.CanvasObject {
+func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), titleColor, queueColor, textColor color.Color) fyne.CanvasObject {
 	title := canvas.NewText("VIDEOTOOLS", titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 28
@@ -35,9 +36,17 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), titleColor,
 	var tileObjects []fyne.CanvasObject
 	for _, mod := range modules {
 		modID := mod.ID // Capture for closure
-		tileObjects = append(tileObjects, buildModuleTile(mod, func() {
-			onModuleClick(modID)
-		}))
+		var tapFunc func()
+		var dropFunc func([]fyne.URI)
+		if mod.Enabled {
+			tapFunc = func() {
+				onModuleClick(modID)
+			}
+			dropFunc = func(items []fyne.URI) {
+				onModuleDrop(modID, items)
+			}
+		}
+		tileObjects = append(tileObjects, buildModuleTile(mod, tapFunc, dropFunc))
 	}
 
 	grid := container.NewGridWithColumns(3, tileObjects...)
@@ -55,9 +64,9 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), titleColor,
 }
 
 // buildModuleTile creates a single module tile
-func buildModuleTile(mod ModuleInfo, tapped func()) fyne.CanvasObject {
-	logging.Debug(logging.CatUI, "building tile %s color=%v", mod.ID, mod.Color)
-	return container.NewPadded(NewModuleTile(mod.Label, mod.Color, tapped))
+func buildModuleTile(mod ModuleInfo, tapped func(), dropped func([]fyne.URI)) fyne.CanvasObject {
+	logging.Debug(logging.CatUI, "building tile %s color=%v enabled=%v", mod.ID, mod.Color, mod.Enabled)
+	return container.NewPadded(NewModuleTile(mod.Label, mod.Color, mod.Enabled, tapped, dropped))
 }
 
 // buildQueueTile creates the queue status tile
