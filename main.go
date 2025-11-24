@@ -106,8 +106,27 @@ var formatOptions = []formatOption{
 type convertConfig struct {
 	OutputBase       string
 	SelectedFormat   formatOption
-	Quality          string
-	Mode             string
+	Quality          string // Preset quality (Draft/Standard/High/Lossless)
+	Mode             string // Simple or Advanced
+
+	// Video encoding settings
+	VideoCodec       string // H.264, H.265, VP9, AV1, Copy
+	EncoderPreset    string // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
+	CRF              string // Manual CRF value (0-51, or empty to use Quality preset)
+	BitrateMode      string // CRF, CBR, VBR
+	VideoBitrate     string // For CBR/VBR modes (e.g., "5000k")
+	TargetResolution string // Source, 720p, 1080p, 1440p, 4K, or custom
+	FrameRate        string // Source, 24, 30, 60, or custom
+	PixelFormat      string // yuv420p, yuv422p, yuv444p
+	HardwareAccel    string // none, nvenc, vaapi, qsv, videotoolbox
+	TwoPass          bool   // Enable two-pass encoding for VBR
+
+	// Audio encoding settings
+	AudioCodec       string // AAC, Opus, MP3, FLAC, Copy
+	AudioBitrate     string // 128k, 192k, 256k, 320k
+	AudioChannels    string // Source, Mono, Stereo, 5.1
+
+	// Other settings
 	InverseTelecine  bool
 	InverseAutoNotes string
 	CoverArtPath     string
@@ -259,7 +278,7 @@ func (s *appState) applyInverseDefaults(src *videoSource) {
 
 func (s *appState) setContent(body fyne.CanvasObject) {
 	bg := canvas.NewRectangle(backgroundColor)
-	bg.SetMinSize(fyne.NewSize(920, 540))
+	// Don't set a minimum size - let content determine layout naturally
 	if body == nil {
 		s.window.SetContent(bg)
 		return
@@ -403,8 +422,8 @@ func runGUI() {
 	} else {
 		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
-	w.Resize(fyne.NewSize(920, 540))
-	logging.Debug(logging.CatUI, "window initialized (size 920x540)")
+	w.Resize(fyne.NewSize(1120, 640))
+	logging.Debug(logging.CatUI, "window initialized at 1120x640")
 
 	state := &appState{
 		window: w,
@@ -413,6 +432,25 @@ func runGUI() {
 			SelectedFormat:   formatOptions[0],
 			Quality:          "Standard (CRF 23)",
 			Mode:             "Simple",
+
+			// Video encoding defaults
+			VideoCodec:       "H.264",
+			EncoderPreset:    "medium",
+			CRF:              "", // Empty means use Quality preset
+			BitrateMode:      "CRF",
+			VideoBitrate:     "5000k",
+			TargetResolution: "Source",
+			FrameRate:        "Source",
+			PixelFormat:      "yuv420p",
+			HardwareAccel:    "none",
+			TwoPass:          false,
+
+			// Audio encoding defaults
+			AudioCodec:       "AAC",
+			AudioBitrate:     "192k",
+			AudioChannels:    "Source",
+
+			// Other defaults
 			InverseTelecine:  true,
 			InverseAutoNotes: "Default smoothing for interlaced footage.",
 			OutputAspect:     "Source",
@@ -585,8 +623,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	videoPanel := buildVideoPane(state, fyne.NewSize(520, 300), src, updateCover)
-	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(520, 160))
+	videoPanel := buildVideoPane(state, fyne.NewSize(400, 250), src, updateCover)
+	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(400, 150))
 	updateMetaCover = metaCoverUpdate
 
 	var formatLabels []string
@@ -695,6 +733,98 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Cover art display on one line
 	coverDisplay = widget.NewLabel("Cover Art: " + state.convert.CoverLabel())
 
+	// Video Codec selection
+	videoCodecSelect := widget.NewSelect([]string{"H.264", "H.265", "VP9", "AV1", "Copy"}, func(value string) {
+		state.convert.VideoCodec = value
+		logging.Debug(logging.CatUI, "video codec set to %s", value)
+	})
+	videoCodecSelect.SetSelected(state.convert.VideoCodec)
+
+	// Encoder Preset
+	encoderPresetSelect := widget.NewSelect([]string{"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"}, func(value string) {
+		state.convert.EncoderPreset = value
+		logging.Debug(logging.CatUI, "encoder preset set to %s", value)
+	})
+	encoderPresetSelect.SetSelected(state.convert.EncoderPreset)
+
+	// Bitrate Mode
+	bitrateModeSelect := widget.NewSelect([]string{"CRF", "CBR", "VBR"}, func(value string) {
+		state.convert.BitrateMode = value
+		logging.Debug(logging.CatUI, "bitrate mode set to %s", value)
+	})
+	bitrateModeSelect.SetSelected(state.convert.BitrateMode)
+
+	// Manual CRF entry
+	crfEntry := widget.NewEntry()
+	crfEntry.SetPlaceHolder("Auto (from Quality preset)")
+	crfEntry.SetText(state.convert.CRF)
+	crfEntry.OnChanged = func(val string) {
+		state.convert.CRF = val
+	}
+
+	// Video Bitrate entry (for CBR/VBR)
+	videoBitrateEntry := widget.NewEntry()
+	videoBitrateEntry.SetPlaceHolder("5000k")
+	videoBitrateEntry.SetText(state.convert.VideoBitrate)
+	videoBitrateEntry.OnChanged = func(val string) {
+		state.convert.VideoBitrate = val
+	}
+
+	// Target Resolution
+	resolutionSelect := widget.NewSelect([]string{"Source", "720p", "1080p", "1440p", "4K"}, func(value string) {
+		state.convert.TargetResolution = value
+		logging.Debug(logging.CatUI, "target resolution set to %s", value)
+	})
+	resolutionSelect.SetSelected(state.convert.TargetResolution)
+
+	// Frame Rate
+	frameRateSelect := widget.NewSelect([]string{"Source", "24", "30", "60"}, func(value string) {
+		state.convert.FrameRate = value
+		logging.Debug(logging.CatUI, "frame rate set to %s", value)
+	})
+	frameRateSelect.SetSelected(state.convert.FrameRate)
+
+	// Pixel Format
+	pixelFormatSelect := widget.NewSelect([]string{"yuv420p", "yuv422p", "yuv444p"}, func(value string) {
+		state.convert.PixelFormat = value
+		logging.Debug(logging.CatUI, "pixel format set to %s", value)
+	})
+	pixelFormatSelect.SetSelected(state.convert.PixelFormat)
+
+	// Hardware Acceleration
+	hwAccelSelect := widget.NewSelect([]string{"none", "nvenc", "vaapi", "qsv", "videotoolbox"}, func(value string) {
+		state.convert.HardwareAccel = value
+		logging.Debug(logging.CatUI, "hardware accel set to %s", value)
+	})
+	hwAccelSelect.SetSelected(state.convert.HardwareAccel)
+
+	// Two-Pass encoding
+	twoPassCheck := widget.NewCheck("Enable Two-Pass Encoding", func(checked bool) {
+		state.convert.TwoPass = checked
+	})
+	twoPassCheck.Checked = state.convert.TwoPass
+
+	// Audio Codec
+	audioCodecSelect := widget.NewSelect([]string{"AAC", "Opus", "MP3", "FLAC", "Copy"}, func(value string) {
+		state.convert.AudioCodec = value
+		logging.Debug(logging.CatUI, "audio codec set to %s", value)
+	})
+	audioCodecSelect.SetSelected(state.convert.AudioCodec)
+
+	// Audio Bitrate
+	audioBitrateSelect := widget.NewSelect([]string{"128k", "192k", "256k", "320k"}, func(value string) {
+		state.convert.AudioBitrate = value
+		logging.Debug(logging.CatUI, "audio bitrate set to %s", value)
+	})
+	audioBitrateSelect.SetSelected(state.convert.AudioBitrate)
+
+	// Audio Channels
+	audioChannelsSelect := widget.NewSelect([]string{"Source", "Mono", "Stereo", "5.1"}, func(value string) {
+		state.convert.AudioChannels = value
+		logging.Debug(logging.CatUI, "audio channels set to %s", value)
+	})
+	audioChannelsSelect.SetSelected(state.convert.AudioChannels)
+
 	// Advanced mode options - full controls with organized sections
 	advancedOptions := container.NewVBox(
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
@@ -705,14 +835,48 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		outputHint,
 		coverDisplay,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("═══ VIDEO ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+
+		widget.NewLabelWithStyle("═══ VIDEO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Video Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		videoCodecSelect,
+		widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		encoderPresetSelect,
 		widget.NewLabelWithStyle("Quality Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		qualitySelect,
-		widget.NewLabelWithStyle("Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Bitrate Mode", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		bitrateModeSelect,
+		widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		crfEntry,
+		widget.NewLabelWithStyle("Video Bitrate (for CBR/VBR)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		videoBitrateEntry,
+		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		resolutionSelect,
+		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		frameRateSelect,
+		widget.NewLabelWithStyle("Pixel Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		pixelFormatSelect,
+		widget.NewLabelWithStyle("Hardware Acceleration", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		hwAccelSelect,
+		twoPassCheck,
+		widget.NewSeparator(),
+
+		widget.NewLabelWithStyle("═══ ASPECT RATIO ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelect,
 		targetAspectHint,
 		aspectBox,
-		widget.NewLabelWithStyle("Deinterlacing", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewSeparator(),
+
+		widget.NewLabelWithStyle("═══ AUDIO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Audio Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		audioCodecSelect,
+		widget.NewLabelWithStyle("Audio Bitrate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		audioBitrateSelect,
+		widget.NewLabelWithStyle("Audio Channels", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		audioChannelsSelect,
+		widget.NewSeparator(),
+
+		widget.NewLabelWithStyle("═══ DEINTERLACING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		inverseCheck,
 		inverseHint,
 		layout.NewSpacer(),
@@ -770,10 +934,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	snippetHint := widget.NewLabel("Creates a 20s clip centred on the timeline midpoint.")
 	snippetRow := container.NewHBox(snippetBtn, layout.NewSpacer(), snippetHint)
-	leftColumn := container.NewVBox(
-		videoPanel,
-		container.NewMax(metaPanel),
-	)
+	// Use VSplit to make panels expand vertically and fill available space
+	leftColumn := container.NewVSplit(videoPanel, metaPanel)
+	leftColumn.Offset = 0.65 // Video pane gets 65% of space, metadata gets 35%
 	grid := container.NewGridWithColumns(2, leftColumn, optionsPanel)
 	mainArea := container.NewPadded(container.NewVBox(
 		grid,
@@ -827,12 +990,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	actionInner := container.NewHBox(resetBtn, activity, statusLabel, layout.NewSpacer(), cancelBtn, convertBtn)
 	actionBar := ui.TintedBar(convertColor, actionInner)
 
+	// Wrap mainArea in a scroll container to prevent content from forcing window resize
+	scrollableMain := container.NewScroll(mainArea)
+
 	return container.NewBorder(
 		backBar,
 		container.NewVBox(widget.NewSeparator(), actionBar),
 		nil,
 		nil,
-		mainArea,
+		scrollableMain,
 	)
 }
 
@@ -1903,6 +2069,56 @@ func crfForQuality(q string) string {
 	}
 }
 
+// determineVideoCodec maps user-friendly codec names to FFmpeg codec names
+func determineVideoCodec(cfg convertConfig) string {
+	switch cfg.VideoCodec {
+	case "H.264":
+		if cfg.HardwareAccel == "nvenc" {
+			return "h264_nvenc"
+		} else if cfg.HardwareAccel == "qsv" {
+			return "h264_qsv"
+		} else if cfg.HardwareAccel == "videotoolbox" {
+			return "h264_videotoolbox"
+		}
+		return "libx264"
+	case "H.265":
+		if cfg.HardwareAccel == "nvenc" {
+			return "hevc_nvenc"
+		} else if cfg.HardwareAccel == "qsv" {
+			return "hevc_qsv"
+		} else if cfg.HardwareAccel == "videotoolbox" {
+			return "hevc_videotoolbox"
+		}
+		return "libx265"
+	case "VP9":
+		return "libvpx-vp9"
+	case "AV1":
+		return "libaom-av1"
+	case "Copy":
+		return "copy"
+	default:
+		return "libx264"
+	}
+}
+
+// determineAudioCodec maps user-friendly codec names to FFmpeg codec names
+func determineAudioCodec(cfg convertConfig) string {
+	switch cfg.AudioCodec {
+	case "AAC":
+		return "aac"
+	case "Opus":
+		return "libopus"
+	case "MP3":
+		return "libmp3lame"
+	case "FLAC":
+		return "flac"
+	case "Copy":
+		return "copy"
+	default:
+		return "aac"
+	}
+}
+
 func (s *appState) cancelConvert(cancelBtn, btn *widget.Button, spinner *widget.ProgressBarInfinite, status *widget.Label) {
 	if s.convertCancel == nil {
 		return
@@ -1957,37 +2173,126 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		args = append(args, "-i", cfg.CoverArtPath)
 	}
 
+	// Hardware acceleration
+	if cfg.HardwareAccel != "none" && cfg.HardwareAccel != "" {
+		switch cfg.HardwareAccel {
+		case "nvenc":
+			args = append(args, "-hwaccel", "cuda")
+		case "vaapi":
+			args = append(args, "-hwaccel", "vaapi")
+		case "qsv":
+			args = append(args, "-hwaccel", "qsv")
+		case "videotoolbox":
+			args = append(args, "-hwaccel", "videotoolbox")
+		}
+		logging.Debug(logging.CatFFMPEG, "hardware acceleration: %s", cfg.HardwareAccel)
+	}
+
 	// Video filters.
 	var vf []string
+
+	// Deinterlacing
 	if cfg.InverseTelecine {
 		vf = append(vf, "yadif")
 	}
+
+	// Scaling/Resolution
+	if cfg.TargetResolution != "" && cfg.TargetResolution != "Source" {
+		var scaleFilter string
+		switch cfg.TargetResolution {
+		case "720p":
+			scaleFilter = "scale=-2:720"
+		case "1080p":
+			scaleFilter = "scale=-2:1080"
+		case "1440p":
+			scaleFilter = "scale=-2:1440"
+		case "4K":
+			scaleFilter = "scale=-2:2160"
+		}
+		if scaleFilter != "" {
+			vf = append(vf, scaleFilter)
+		}
+	}
+
+	// Aspect ratio conversion
 	srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
 	targetAspect := resolveTargetAspect(cfg.OutputAspect, src)
 	if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
 		vf = append(vf, aspectFilters(targetAspect, cfg.AspectHandling)...)
 	}
+
+	// Frame rate
+	if cfg.FrameRate != "" && cfg.FrameRate != "Source" {
+		vf = append(vf, "fps="+cfg.FrameRate)
+	}
+
 	if len(vf) > 0 {
 		args = append(args, "-vf", strings.Join(vf, ","))
 	}
-	// Video codec and quality.
-	args = append(args, "-c:v", cfg.SelectedFormat.VideoCodec)
-	crf := crfForQuality(cfg.Quality)
-	if cfg.SelectedFormat.VideoCodec == "libx264" || cfg.SelectedFormat.VideoCodec == "libx265" {
-		args = append(args, "-crf", crf, "-preset", "medium")
-		// Force yuv420p pixel format for H.264 compatibility (especially for WMV sources)
-		args = append(args, "-pix_fmt", "yuv420p")
-	}
-	// Audio: WMV files need re-encoding to AAC for MP4 compatibility
-	isWMV := strings.HasSuffix(strings.ToLower(src.Path), ".wmv")
-	isMP4Output := strings.EqualFold(cfg.SelectedFormat.Ext, ".mp4")
-	if isWMV && isMP4Output {
-		// WMV audio (wmav2) cannot be copied to MP4, must re-encode to AAC
-		args = append(args, "-c:a", "aac", "-b:a", "192k")
-		logging.Debug(logging.CatFFMPEG, "WMV source detected, re-encoding audio to AAC for MP4 compatibility")
+
+	// Video codec
+	videoCodec := determineVideoCodec(cfg)
+	if cfg.VideoCodec == "Copy" {
+		args = append(args, "-c:v", "copy")
 	} else {
-		// Copy audio if present
+		args = append(args, "-c:v", videoCodec)
+
+		// Bitrate mode and quality
+		if cfg.BitrateMode == "CRF" || cfg.BitrateMode == "" {
+			// Use CRF mode
+			crf := cfg.CRF
+			if crf == "" {
+				crf = crfForQuality(cfg.Quality)
+			}
+			if videoCodec == "libx264" || videoCodec == "libx265" || videoCodec == "libvpx-vp9" {
+				args = append(args, "-crf", crf)
+			}
+		} else if cfg.BitrateMode == "CBR" {
+			// Constant bitrate
+			if cfg.VideoBitrate != "" {
+				args = append(args, "-b:v", cfg.VideoBitrate, "-minrate", cfg.VideoBitrate, "-maxrate", cfg.VideoBitrate, "-bufsize", cfg.VideoBitrate)
+			}
+		} else if cfg.BitrateMode == "VBR" {
+			// Variable bitrate (2-pass if enabled)
+			if cfg.VideoBitrate != "" {
+				args = append(args, "-b:v", cfg.VideoBitrate)
+			}
+		}
+
+		// Encoder preset (speed vs quality tradeoff)
+		if cfg.EncoderPreset != "" && (videoCodec == "libx264" || videoCodec == "libx265") {
+			args = append(args, "-preset", cfg.EncoderPreset)
+		}
+
+		// Pixel format
+		if cfg.PixelFormat != "" {
+			args = append(args, "-pix_fmt", cfg.PixelFormat)
+		}
+	}
+
+	// Audio codec and settings
+	if cfg.AudioCodec == "Copy" {
 		args = append(args, "-c:a", "copy")
+	} else {
+		audioCodec := determineAudioCodec(cfg)
+		args = append(args, "-c:a", audioCodec)
+
+		// Audio bitrate
+		if cfg.AudioBitrate != "" && audioCodec != "flac" {
+			args = append(args, "-b:a", cfg.AudioBitrate)
+		}
+
+		// Audio channels
+		if cfg.AudioChannels != "" && cfg.AudioChannels != "Source" {
+			switch cfg.AudioChannels {
+			case "Mono":
+				args = append(args, "-ac", "1")
+			case "Stereo":
+				args = append(args, "-ac", "2")
+			case "5.1":
+				args = append(args, "-ac", "6")
+			}
+		}
 	}
 	// Map cover art as attached picture (must be before movflags and progress)
 	if hasCoverArt {
@@ -2289,7 +2594,6 @@ func (s *appState) generateSnippet() {
 	args := []string{
 		"-ss", start,
 		"-i", src.Path,
-		"-t", "20",
 	}
 
 	// Add cover art if available
@@ -2300,19 +2604,50 @@ func (s *appState) generateSnippet() {
 		logging.Debug(logging.CatFFMPEG, "snippet: added cover art input %s", s.convert.CoverArtPath)
 	}
 
+	// Build video filters (snippets should be fast - only apply essential filters)
+	var vf []string
+
+	// Skip deinterlacing for snippets - they're meant to be fast previews
+	// Full conversions will still apply deinterlacing
+
+	// Resolution scaling for snippets (only if explicitly set)
+	if s.convert.TargetResolution != "" && s.convert.TargetResolution != "Source" {
+		var scaleFilter string
+		switch s.convert.TargetResolution {
+		case "720p":
+			scaleFilter = "scale=-2:720"
+		case "1080p":
+			scaleFilter = "scale=-2:1080"
+		case "1440p":
+			scaleFilter = "scale=-2:1440"
+		case "4K":
+			scaleFilter = "scale=-2:2160"
+		}
+		if scaleFilter != "" {
+			vf = append(vf, scaleFilter)
+		}
+	}
+
 	// Check if aspect ratio conversion is needed
 	srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
 	targetAspect := resolveTargetAspect(s.convert.OutputAspect, src)
+	aspectConversionNeeded := targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01)
+	if aspectConversionNeeded {
+		vf = append(vf, aspectFilters(targetAspect, s.convert.AspectHandling)...)
+	}
 
-	needsReencode := targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01)
+	// Frame rate conversion (only if explicitly set and different from source)
+	if s.convert.FrameRate != "" && s.convert.FrameRate != "Source" {
+		vf = append(vf, "fps="+s.convert.FrameRate)
+	}
 
-	if needsReencode {
-		// Apply aspect ratio filters
-		filters := aspectFilters(targetAspect, s.convert.AspectHandling)
-		if len(filters) > 0 {
-			filterStr := strings.Join(filters, ",")
-			args = append(args, "-vf", filterStr)
-		}
+	// WMV files must be re-encoded for MP4 compatibility (wmv3/wmav2 can't be copied to MP4)
+	isWMV := strings.HasSuffix(strings.ToLower(src.Path), ".wmv")
+	needsReencode := len(vf) > 0 || isWMV
+
+	if len(vf) > 0 {
+		filterStr := strings.Join(vf, ",")
+		args = append(args, "-vf", filterStr)
 	}
 
 	// Map streams (including cover art if present)
@@ -2321,13 +2656,38 @@ func (s *appState) generateSnippet() {
 		logging.Debug(logging.CatFFMPEG, "snippet: mapped video, audio, and cover art")
 	}
 
-	// Set video codec
-	if needsReencode {
-		args = append(args, "-c:v", "libx264", "-crf", "23", "-pix_fmt", "yuv420p")
-	} else if hasCoverArt {
-		args = append(args, "-c:v:0", "copy")
+	// Set video codec - snippets should copy when possible for speed
+	if !needsReencode {
+		// No filters needed - use stream copy for fast snippets
+		if hasCoverArt {
+			args = append(args, "-c:v:0", "copy")
+		} else {
+			args = append(args, "-c:v", "copy")
+		}
 	} else {
-		args = append(args, "-c:v", "copy")
+		// Filters required - must re-encode
+		// Use configured codec or fallback to H.264 for compatibility
+		videoCodec := determineVideoCodec(s.convert)
+		if videoCodec == "copy" {
+			videoCodec = "libx264"
+		}
+		args = append(args, "-c:v", videoCodec)
+
+		// Use configured CRF or fallback to quality preset
+		crf := s.convert.CRF
+		if crf == "" {
+			crf = crfForQuality(s.convert.Quality)
+		}
+		if videoCodec == "libx264" || videoCodec == "libx265" {
+			args = append(args, "-crf", crf)
+			// Use faster preset for snippets
+			args = append(args, "-preset", "veryfast")
+		}
+
+		// Pixel format
+		if s.convert.PixelFormat != "" {
+			args = append(args, "-pix_fmt", s.convert.PixelFormat)
+		}
 	}
 
 	// Set cover art codec (must be PNG or MJPEG for MP4)
@@ -2336,13 +2696,34 @@ func (s *appState) generateSnippet() {
 		logging.Debug(logging.CatFFMPEG, "snippet: set cover art codec to PNG")
 	}
 
-	// Set audio codec
-	isWMV := strings.HasSuffix(strings.ToLower(src.Path), ".wmv")
-	if needsReencode && isWMV {
-		args = append(args, "-c:a", "aac", "-b:a", "192k")
-		logging.Debug(logging.CatFFMPEG, "WMV snippet: re-encoding audio to AAC for MP4 compatibility")
-	} else {
+	// Set audio codec - snippets should copy when possible for speed
+	if !needsReencode {
+		// No video filters - use audio stream copy for fast snippets
 		args = append(args, "-c:a", "copy")
+	} else {
+		// Video is being re-encoded - may need to re-encode audio too
+		audioCodec := determineAudioCodec(s.convert)
+		if audioCodec == "copy" {
+			audioCodec = "aac"
+		}
+		args = append(args, "-c:a", audioCodec)
+
+		// Audio bitrate
+		if s.convert.AudioBitrate != "" && audioCodec != "flac" {
+			args = append(args, "-b:a", s.convert.AudioBitrate)
+		}
+
+		// Audio channels
+		if s.convert.AudioChannels != "" && s.convert.AudioChannels != "Source" {
+			switch s.convert.AudioChannels {
+			case "Mono":
+				args = append(args, "-ac", "1")
+			case "Stereo":
+				args = append(args, "-ac", "2")
+			case "5.1":
+				args = append(args, "-ac", "6")
+			}
+		}
 	}
 
 	// Mark cover art as attached picture
@@ -2351,18 +2732,39 @@ func (s *appState) generateSnippet() {
 		logging.Debug(logging.CatFFMPEG, "snippet: set cover art disposition")
 	}
 
+	// Limit output duration to 20 seconds (must come after all codec/mapping options)
+	args = append(args, "-t", "20")
+
 	args = append(args, outPath)
 
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	logging.Debug(logging.CatFFMPEG, "snippet command: %s", strings.Join(cmd.Args, " "))
+
+	// Show progress dialog for snippets that need re-encoding (WMV, filters, etc.)
+	var progressDialog dialog.Dialog
+	if needsReencode {
+		progressDialog = dialog.NewCustom("Generating Snippet", "Cancel",
+			widget.NewLabel("Generating 20-second snippet...\nThis may take 20-30 seconds for WMV files."),
+			s.window)
+		progressDialog.Show()
+	}
+
+	// Run the snippet generation
 	if out, err := cmd.CombinedOutput(); err != nil {
 		logging.Debug(logging.CatFFMPEG, "snippet stderr: %s", string(out))
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			if progressDialog != nil {
+				progressDialog.Hide()
+			}
 			dialog.ShowError(fmt.Errorf("snippet failed: %w", err), s.window)
 		}, false)
 		return
 	}
+
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		if progressDialog != nil {
+			progressDialog.Hide()
+		}
 		dialog.ShowInformation("Snippet Created", fmt.Sprintf("Saved %s", outPath), s.window)
 	}, false)
 }
