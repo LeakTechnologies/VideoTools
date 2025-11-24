@@ -162,3 +162,112 @@ func TintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 	padded := container.NewPadded(body)
 	return container.NewMax(rect, padded)
 }
+
+// DraggableVScroll creates a vertical scroll container with draggable track
+type DraggableVScroll struct {
+	widget.BaseWidget
+	content fyne.CanvasObject
+	scroll  *container.Scroll
+}
+
+// NewDraggableVScroll creates a new draggable vertical scroll container
+func NewDraggableVScroll(content fyne.CanvasObject) *DraggableVScroll {
+	d := &DraggableVScroll{
+		content: content,
+		scroll:  container.NewVScroll(content),
+	}
+	d.ExtendBaseWidget(d)
+	return d
+}
+
+// CreateRenderer creates the renderer for the draggable scroll
+func (d *DraggableVScroll) CreateRenderer() fyne.WidgetRenderer {
+	return &draggableScrollRenderer{
+		scroll: d.scroll,
+	}
+}
+
+// Dragged handles drag events on the scrollbar track
+func (d *DraggableVScroll) Dragged(ev *fyne.DragEvent) {
+	// Calculate the scroll position based on drag position
+	size := d.scroll.Size()
+	contentSize := d.content.MinSize()
+
+	if contentSize.Height <= size.Height {
+		return // No scrolling needed
+	}
+
+	// Calculate scroll ratio (0.0 to 1.0)
+	ratio := ev.Position.Y / size.Height
+	if ratio < 0 {
+		ratio = 0
+	}
+	if ratio > 1 {
+		ratio = 1
+	}
+
+	// Calculate target offset
+	maxOffset := contentSize.Height - size.Height
+	targetOffset := ratio * maxOffset
+
+	// Apply scroll offset
+	d.scroll.Offset = fyne.NewPos(0, targetOffset)
+	d.scroll.Refresh()
+}
+
+// DragEnd handles the end of a drag event
+func (d *DraggableVScroll) DragEnd() {
+	// Nothing needed
+}
+
+// Tapped handles tap events on the scrollbar track
+func (d *DraggableVScroll) Tapped(ev *fyne.PointEvent) {
+	// Jump to tapped position
+	size := d.scroll.Size()
+	contentSize := d.content.MinSize()
+
+	if contentSize.Height <= size.Height {
+		return
+	}
+
+	ratio := ev.Position.Y / size.Height
+	if ratio < 0 {
+		ratio = 0
+	}
+	if ratio > 1 {
+		ratio = 1
+	}
+
+	maxOffset := contentSize.Height - size.Height
+	targetOffset := ratio * maxOffset
+
+	d.scroll.Offset = fyne.NewPos(0, targetOffset)
+	d.scroll.Refresh()
+}
+
+// Scrolled handles scroll events (mouse wheel)
+func (d *DraggableVScroll) Scrolled(ev *fyne.ScrollEvent) {
+	d.scroll.Scrolled(ev)
+}
+
+type draggableScrollRenderer struct {
+	scroll *container.Scroll
+}
+
+func (r *draggableScrollRenderer) Layout(size fyne.Size) {
+	r.scroll.Resize(size)
+}
+
+func (r *draggableScrollRenderer) MinSize() fyne.Size {
+	return r.scroll.MinSize()
+}
+
+func (r *draggableScrollRenderer) Refresh() {
+	r.scroll.Refresh()
+}
+
+func (r *draggableScrollRenderer) Destroy() {}
+
+func (r *draggableScrollRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{r.scroll}
+}
