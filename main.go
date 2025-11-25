@@ -993,6 +993,65 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Wrap mainArea in a scroll container to prevent content from forcing window resize
 	scrollableMain := container.NewScroll(mainArea)
 
+	// Start a UI refresh ticker to update widgets from state while conversion is active
+	// This ensures progress updates even when navigating between modules
+	go func() {
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+
+		// Track the previous busy state to detect transitions
+		wasBusy := state.convertBusy
+
+		for {
+			select {
+			case <-ticker.C:
+				isBusy := state.convertBusy
+
+				// Update UI on the main thread
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					// Update status label from state
+					if isBusy {
+						statusLabel.SetText(state.convertStatus)
+					} else if wasBusy {
+						// Just finished - update one last time
+						statusLabel.SetText(state.convertStatus)
+					}
+
+					// Update button states
+					if isBusy {
+						convertBtn.Disable()
+						cancelBtn.Enable()
+						activity.Show()
+						if !activity.Running() {
+							activity.Start()
+						}
+					} else {
+						if src != nil {
+							convertBtn.Enable()
+						} else {
+							convertBtn.Disable()
+						}
+						cancelBtn.Disable()
+						activity.Stop()
+						activity.Hide()
+					}
+				}, false)
+
+				// If conversion finished, stop the ticker after one final update
+				if wasBusy && !isBusy {
+					return
+				}
+				wasBusy = isBusy
+
+			case <-time.After(30 * time.Second):
+				// Safety timeout - if no conversion after 30s, stop ticker
+				if !state.convertBusy {
+					return
+				}
+			}
+		}
+	}()
+
 	return container.NewBorder(
 		backBar,
 		container.NewVBox(widget.NewSeparator(), actionBar),
@@ -2123,13 +2182,8 @@ func (s *appState) cancelConvert(cancelBtn, btn *widget.Button, spinner *widget.
 	if s.convertCancel == nil {
 		return
 	}
-	if cancelBtn != nil {
-		cancelBtn.Disable()
-	}
 	s.convertStatus = "Cancelling…"
-	if status != nil {
-		status.SetText(s.convertStatus)
-	}
+	// Widget states will be updated by the UI refresh ticker
 	s.convertCancel()
 }
 
@@ -2137,9 +2191,8 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	setStatus := func(msg string) {
 		s.convertStatus = msg
 		logging.Debug(logging.CatFFMPEG, "convert status: %s", msg)
-		if status != nil {
-			status.SetText(msg)
-		}
+		// Note: Don't update widgets here - they may be stale if user navigated away
+		// The UI will refresh from state.convertStatus via a ticker
 	}
 	if s.source == nil {
 		dialog.ShowInformation("Convert", "Load a video first.", s.window)
@@ -2316,16 +2369,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	logging.Debug(logging.CatFFMPEG, "convert command: ffmpeg %s", strings.Join(args, " "))
 	s.convertBusy = true
 	setStatus("Preparing conversion…")
-	if btn != nil {
-		btn.Disable()
-	}
-	if spinner != nil {
-		spinner.Show()
-		spinner.Start()
-	}
-	if cancelBtn != nil {
-		cancelBtn.Enable()
-	}
+	// Widget states will be updated by the UI refresh ticker
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s.convertCancel = cancel
@@ -2344,16 +2388,6 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				dialog.ShowError(fmt.Errorf("convert failed: %w", err), s.window)
 				s.convertBusy = false
 				setStatus("Failed")
-				if btn != nil {
-					btn.Enable()
-				}
-				if cancelBtn != nil {
-					cancelBtn.Disable()
-				}
-				if spinner != nil {
-					spinner.Stop()
-					spinner.Hide()
-				}
 			}, false)
 			s.convertCancel = nil
 			return
@@ -2418,16 +2452,6 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				dialog.ShowError(fmt.Errorf("convert failed: %w", err), s.window)
 				s.convertBusy = false
 				setStatus("Failed")
-				if btn != nil {
-					btn.Enable()
-				}
-				if cancelBtn != nil {
-					cancelBtn.Disable()
-				}
-				if spinner != nil {
-					spinner.Stop()
-					spinner.Hide()
-				}
 			}, false)
 			s.convertCancel = nil
 			return
@@ -2441,16 +2465,6 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					s.convertBusy = false
 					setStatus("Cancelled")
-					if btn != nil {
-						btn.Enable()
-					}
-					if cancelBtn != nil {
-						cancelBtn.Disable()
-					}
-					if spinner != nil {
-						spinner.Stop()
-						spinner.Hide()
-					}
 				}, false)
 				s.convertCancel = nil
 				return
@@ -2460,16 +2474,6 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				dialog.ShowError(fmt.Errorf("convert failed: %w", err), s.window)
 				s.convertBusy = false
 				setStatus("Failed")
-				if btn != nil {
-					btn.Enable()
-				}
-				if cancelBtn != nil {
-					cancelBtn.Disable()
-				}
-				if spinner != nil {
-					spinner.Stop()
-					spinner.Hide()
-				}
 			}, false)
 			s.convertCancel = nil
 			return
@@ -2483,16 +2487,6 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				dialog.ShowError(fmt.Errorf("conversion output is invalid: %w", probeErr), s.window)
 				s.convertBusy = false
 				setStatus("Failed")
-				if btn != nil {
-					btn.Enable()
-				}
-				if cancelBtn != nil {
-					cancelBtn.Disable()
-				}
-				if spinner != nil {
-					spinner.Stop()
-					spinner.Hide()
-				}
 			}, false)
 			s.convertCancel = nil
 			return
@@ -2502,16 +2496,6 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			dialog.ShowInformation("Convert", fmt.Sprintf("Saved %s", outPath), s.window)
 			s.convertBusy = false
 			setStatus("Done")
-			if btn != nil {
-				btn.Enable()
-			}
-			if cancelBtn != nil {
-				cancelBtn.Disable()
-			}
-			if spinner != nil {
-				spinner.Stop()
-				spinner.Hide()
-			}
 		}, false)
 		s.convertCancel = nil
 	}()
