@@ -887,7 +887,26 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Format-specific settings
-	selectedFormat := cfg["selectedFormat"].(formatOption)
+	var selectedFormat formatOption
+	switch v := cfg["selectedFormat"].(type) {
+	case formatOption:
+		selectedFormat = v
+	case map[string]interface{}:
+		// Reconstruct from map (happens when loading from JSON)
+		if label, ok := v["Label"].(string); ok {
+			selectedFormat.Label = label
+		}
+		if ext, ok := v["Ext"].(string); ok {
+			selectedFormat.Ext = ext
+		}
+		if codec, ok := v["VideoCodec"].(string); ok {
+			selectedFormat.VideoCodec = codec
+		}
+	default:
+		// Fallback to MP4
+		selectedFormat = formatOptions[0]
+	}
+
 	if strings.EqualFold(selectedFormat.Ext, ".mp4") || strings.EqualFold(selectedFormat.Ext, ".mov") {
 		args = append(args, "-movflags", "+faststart")
 	}
