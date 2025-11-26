@@ -83,9 +83,11 @@ func (q *Queue) SetChangeCallback(callback func()) {
 }
 
 // notifyChange triggers the onChange callback if set
+// Must be called without holding the mutex lock
 func (q *Queue) notifyChange() {
 	if q.onChange != nil {
-		q.onChange()
+		// Call in goroutine to avoid blocking and potential deadlocks
+		go q.onChange()
 	}
 }
 
