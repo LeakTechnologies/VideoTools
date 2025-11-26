@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"image/color"
 	"strings"
 
@@ -325,4 +326,177 @@ func (r *draggableScrollRenderer) Destroy() {}
 
 func (r *draggableScrollRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.scroll}
+}
+
+// ConversionStatsBar shows current conversion status with live updates
+type ConversionStatsBar struct {
+	widget.BaseWidget
+	running   int
+	pending   int
+	completed int
+	failed    int
+	progress  float64
+	jobTitle  string
+	onTapped  func()
+}
+
+// NewConversionStatsBar creates a new conversion stats bar
+func NewConversionStatsBar(onTapped func()) *ConversionStatsBar {
+	c := &ConversionStatsBar{
+		onTapped: onTapped,
+	}
+	c.ExtendBaseWidget(c)
+	return c
+}
+
+// UpdateStats updates the stats display
+func (c *ConversionStatsBar) UpdateStats(running, pending, completed, failed int, progress float64, jobTitle string) {
+	c.running = running
+	c.pending = pending
+	c.completed = completed
+	c.failed = failed
+	c.progress = progress
+	c.jobTitle = jobTitle
+	c.Refresh()
+}
+
+// CreateRenderer creates the renderer for the stats bar
+func (c *ConversionStatsBar) CreateRenderer() fyne.WidgetRenderer {
+	bg := canvas.NewRectangle(color.NRGBA{R: 30, G: 30, B: 30, A: 255})
+	bg.CornerRadius = 4
+	bg.StrokeColor = GridColor
+	bg.StrokeWidth = 1
+
+	statusText := canvas.NewText("", TextColor)
+	statusText.TextStyle = fyne.TextStyle{Monospace: true}
+	statusText.TextSize = 11
+
+	progressBar := widget.NewProgressBar()
+
+	return &conversionStatsRenderer{
+		bar:         c,
+		bg:          bg,
+		statusText:  statusText,
+		progressBar: progressBar,
+	}
+}
+
+// Tapped handles tap events
+func (c *ConversionStatsBar) Tapped(*fyne.PointEvent) {
+	if c.onTapped != nil {
+		c.onTapped()
+	}
+}
+
+type conversionStatsRenderer struct {
+	bar         *ConversionStatsBar
+	bg          *canvas.Rectangle
+	statusText  *canvas.Text
+	progressBar *widget.ProgressBar
+}
+
+func (r *conversionStatsRenderer) Layout(size fyne.Size) {
+	r.bg.Resize(size)
+
+	// Layout text and progress bar
+	textSize := r.statusText.MinSize()
+	padding := float32(8)
+
+	// If there's a running job, show progress bar
+	if r.bar.running > 0 && r.bar.progress > 0 {
+		// Show progress bar on right side
+		barWidth := float32(120)
+		barHeight := float32(14)
+		barX := size.Width - barWidth - padding
+		barY := (size.Height - barHeight) / 2
+
+		r.progressBar.Resize(fyne.NewSize(barWidth, barHeight))
+		r.progressBar.Move(fyne.NewPos(barX, barY))
+		r.progressBar.Show()
+
+		// Position text on left
+		r.statusText.Move(fyne.NewPos(padding, (size.Height-textSize.Height)/2))
+	} else {
+		// No progress bar, center text
+		r.progressBar.Hide()
+		r.statusText.Move(fyne.NewPos(padding, (size.Height-textSize.Height)/2))
+	}
+}
+
+func (r *conversionStatsRenderer) MinSize() fyne.Size {
+	return fyne.NewSize(400, 32)
+}
+
+func (r *conversionStatsRenderer) Refresh() {
+	// Update status text
+	if r.bar.running > 0 {
+		statusStr := ""
+		if r.bar.jobTitle != "" {
+			// Truncate job title if too long
+			title := r.bar.jobTitle
+			if len(title) > 30 {
+				title = title[:27] + "..."
+			}
+			statusStr = title
+		} else {
+			statusStr = "Processing"
+		}
+
+		// Always show progress percentage when running (even if 0%)
+		statusStr += " • " + formatProgress(r.bar.progress)
+
+		if r.bar.pending > 0 {
+			statusStr += " • " + formatCount(r.bar.pending, "pending")
+		}
+
+		r.statusText.Text = "▶ " + statusStr
+		r.statusText.Color = color.NRGBA{R: 100, G: 220, B: 100, A: 255} // Green
+
+		// Update progress bar (show even at 0%)
+		r.progressBar.SetValue(r.bar.progress / 100.0)
+		r.progressBar.Show()
+	} else if r.bar.pending > 0 {
+		r.statusText.Text = "⏸ " + formatCount(r.bar.pending, "queued")
+		r.statusText.Color = color.NRGBA{R: 255, G: 200, B: 100, A: 255} // Yellow
+		r.progressBar.Hide()
+	} else if r.bar.completed > 0 || r.bar.failed > 0 {
+		statusStr := "✓ "
+		parts := []string{}
+		if r.bar.completed > 0 {
+			parts = append(parts, formatCount(r.bar.completed, "completed"))
+		}
+		if r.bar.failed > 0 {
+			parts = append(parts, formatCount(r.bar.failed, "failed"))
+		}
+		statusStr += strings.Join(parts, " • ")
+		r.statusText.Text = statusStr
+		r.statusText.Color = color.NRGBA{R: 150, G: 150, B: 150, A: 255} // Gray
+		r.progressBar.Hide()
+	} else {
+		r.statusText.Text = "○ No active jobs"
+		r.statusText.Color = color.NRGBA{R: 100, G: 100, B: 100, A: 255} // Dim gray
+		r.progressBar.Hide()
+	}
+
+	r.statusText.Refresh()
+	r.progressBar.Refresh()
+	r.bg.Refresh()
+}
+
+func (r *conversionStatsRenderer) Destroy() {}
+
+func (r *conversionStatsRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{r.bg, r.statusText, r.progressBar}
+}
+
+// Helper functions for formatting
+func formatProgress(progress float64) string {
+	return fmt.Sprintf("%.1f%%", progress)
+}
+
+func formatCount(count int, label string) string {
+	if count == 1 {
+		return fmt.Sprintf("1 %s", label)
+	}
+	return fmt.Sprintf("%d %s", count, label)
 }

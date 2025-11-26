@@ -57,14 +57,14 @@ var (
 	queueColor      = utils.MustHex("#5961FF")
 
 	modulesList = []Module{
-		{"convert", "Convert", utils.MustHex("#8B44FF"), modules.HandleConvert},   // Violet
-		{"merge", "Merge", utils.MustHex("#4488FF"), modules.HandleMerge},         // Blue
-		{"trim", "Trim", utils.MustHex("#44DDFF"), modules.HandleTrim},            // Cyan
-		{"filters", "Filters", utils.MustHex("#44FF88"), modules.HandleFilters},   // Green
-		{"upscale", "Upscale", utils.MustHex("#AAFF44"), modules.HandleUpscale},   // Yellow-Green
-		{"audio", "Audio", utils.MustHex("#FFD744"), modules.HandleAudio},         // Yellow
-		{"thumb", "Thumb", utils.MustHex("#FF8844"), modules.HandleThumb},         // Orange
-		{"inspect", "Inspect", utils.MustHex("#FF4444"), modules.HandleInspect},   // Red
+		{"convert", "Convert", utils.MustHex("#8B44FF"), modules.HandleConvert}, // Violet
+		{"merge", "Merge", utils.MustHex("#4488FF"), modules.HandleMerge},       // Blue
+		{"trim", "Trim", utils.MustHex("#44DDFF"), modules.HandleTrim},          // Cyan
+		{"filters", "Filters", utils.MustHex("#44FF88"), modules.HandleFilters}, // Green
+		{"upscale", "Upscale", utils.MustHex("#AAFF44"), modules.HandleUpscale}, // Yellow-Green
+		{"audio", "Audio", utils.MustHex("#FFD744"), modules.HandleAudio},       // Yellow
+		{"thumb", "Thumb", utils.MustHex("#FF8844"), modules.HandleThumb},       // Orange
+		{"inspect", "Inspect", utils.MustHex("#FF4444"), modules.HandleInspect}, // Red
 	}
 )
 
@@ -105,10 +105,10 @@ var formatOptions = []formatOption{
 }
 
 type convertConfig struct {
-	OutputBase       string
-	SelectedFormat   formatOption
-	Quality          string // Preset quality (Draft/Standard/High/Lossless)
-	Mode             string // Simple or Advanced
+	OutputBase     string
+	SelectedFormat formatOption
+	Quality        string // Preset quality (Draft/Standard/High/Lossless)
+	Mode           string // Simple or Advanced
 
 	// Video encoding settings
 	VideoCodec       string // H.264, H.265, VP9, AV1, Copy
@@ -123,9 +123,9 @@ type convertConfig struct {
 	TwoPass          bool   // Enable two-pass encoding for VBR
 
 	// Audio encoding settings
-	AudioCodec       string // AAC, Opus, MP3, FLAC, Copy
-	AudioBitrate     string // 128k, 192k, 256k, 320k
-	AudioChannels    string // Source, Mono, Stereo, 5.1
+	AudioCodec    string // AAC, Opus, MP3, FLAC, Copy
+	AudioBitrate  string // 128k, 192k, 256k, 320k
+	AudioChannels string // Source, Mono, Stereo, 5.1
 
 	// Other settings
 	InverseTelecine  bool
@@ -154,6 +154,8 @@ type appState struct {
 	window        fyne.Window
 	active        string
 	source        *videoSource
+	loadedVideos  []*videoSource // Multiple loaded videos for navigation
+	currentIndex  int            // Current video index in loadedVideos
 	anim          *previewAnimator
 	convert       convertConfig
 	currentFrame  string
@@ -172,6 +174,7 @@ type appState struct {
 	convertStatus string
 	playSess      *playSession
 	jobQueue      *queue.Queue
+	statsBar      *ui.ConversionStatsBar
 }
 
 func (s *appState) stopPreview() {
@@ -179,6 +182,30 @@ func (s *appState) stopPreview() {
 		s.anim.Stop()
 		s.anim = nil
 	}
+}
+
+func (s *appState) updateStatsBar() {
+	if s.statsBar == nil || s.jobQueue == nil {
+		return
+	}
+
+	pending, running, completed, failed := s.jobQueue.Stats()
+
+	// Find the currently running job to get its progress
+	var progress float64
+	var jobTitle string
+	if running > 0 {
+		jobs := s.jobQueue.List()
+		for _, job := range jobs {
+			if job.Status == queue.JobStatusRunning {
+				progress = job.Progress
+				jobTitle = job.Title
+				break
+			}
+		}
+	}
+
+	s.statsBar.UpdateStats(running, pending, completed, failed, progress, jobTitle)
 }
 
 type playerSurface struct {
@@ -288,6 +315,34 @@ func (s *appState) setContent(body fyne.CanvasObject) {
 	s.window.SetContent(container.NewMax(bg, body))
 }
 
+// showErrorWithCopy displays an error dialog with a "Copy Error" button
+func (s *appState) showErrorWithCopy(title string, err error) {
+	errMsg := err.Error()
+
+	// Create error message label
+	errorLabel := widget.NewLabel(errMsg)
+	errorLabel.Wrapping = fyne.TextWrapWord
+
+	// Create copy button
+	copyBtn := widget.NewButton("Copy Error", func() {
+		s.window.Clipboard().SetContent(errMsg)
+	})
+
+	// Create dialog content
+	content := container.NewBorder(
+		errorLabel,
+		copyBtn,
+		nil,
+		nil,
+		nil,
+	)
+
+	// Show custom dialog
+	d := dialog.NewCustom(title, "Close", content, s.window)
+	d.Resize(fyne.NewSize(500, 200))
+	d.Show()
+}
+
 func (s *appState) showMainMenu() {
 	s.stopPreview()
 	s.stopPlayer()
@@ -306,16 +361,29 @@ func (s *appState) showMainMenu() {
 
 	titleColor := utils.MustHex("#4CE870")
 
-	// Get queue stats
-	var queueCompleted, queueTotal int
+	// Get queue stats - show active jobs (pending+running) out of total
+	var queueActive, queueTotal int
 	if s.jobQueue != nil {
-		_, _, completed, _ := s.jobQueue.Stats()
-		queueCompleted = completed
+		pending, running, _, _ := s.jobQueue.Stats()
+		queueActive = pending + running
 		queueTotal = len(s.jobQueue.List())
 	}
 
-	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, titleColor, queueColor, textColor, queueCompleted, queueTotal)
-	s.setContent(container.NewPadded(menu))
+	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, titleColor, queueColor, textColor, queueActive, queueTotal)
+
+	// Update stats bar
+	s.updateStatsBar()
+
+	// Add stats bar at the bottom of the menu
+	content := container.NewBorder(
+		nil,                       // top
+		s.statsBar,                // bottom
+		nil,                       // left
+		nil,                       // right
+		container.NewPadded(menu), // center
+	)
+
+	s.setContent(content)
 }
 
 func (s *appState) showQueue() {
@@ -327,38 +395,38 @@ func (s *appState) showQueue() {
 
 	view := ui.BuildQueueView(
 		jobs,
-		s.showMainMenu,                    // onBack
-		func(id string) {                  // onPause
+		s.showMainMenu, // onBack
+		func(id string) { // onPause
 			if err := s.jobQueue.Pause(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to pause job: %v", err)
 			}
 			s.showQueue() // Refresh
 		},
-		func(id string) {                  // onResume
+		func(id string) { // onResume
 			if err := s.jobQueue.Resume(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to resume job: %v", err)
 			}
 			s.showQueue() // Refresh
 		},
-		func(id string) {                  // onCancel
+		func(id string) { // onCancel
 			if err := s.jobQueue.Cancel(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to cancel job: %v", err)
 			}
 			s.showQueue() // Refresh
 		},
-		func(id string) {                  // onRemove
+		func(id string) { // onRemove
 			if err := s.jobQueue.Remove(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to remove job: %v", err)
 			}
 			s.showQueue() // Refresh
 		},
-		func() {                            // onClear
+		func() { // onClear
 			s.jobQueue.Clear()
 			s.showQueue() // Refresh
 		},
-		utils.MustHex("#4CE870"),           // titleColor
-		gridColor,                          // bgColor
-		textColor,                          // textColor
+		utils.MustHex("#4CE870"), // titleColor
+		gridColor,                // bgColor
+		textColor,                // textColor
 	)
 
 	s.setContent(container.NewPadded(view))
@@ -529,12 +597,23 @@ func (s *appState) batchAddToQueue(paths []string) {
 	logging.Debug(logging.CatModule, "batch adding %d videos to queue", len(paths))
 
 	addedCount := 0
+	failedCount := 0
+	var failedFiles []string
+	var firstValidPath string
+
 	for _, path := range paths {
 		// Load video metadata
 		src, err := probeVideo(path)
 		if err != nil {
 			logging.Debug(logging.CatModule, "failed to parse metadata for %s: %v", path, err)
+			failedCount++
+			failedFiles = append(failedFiles, filepath.Base(path))
 			continue
+		}
+
+		// Remember the first valid video to load later
+		if firstValidPath == "" {
+			firstValidPath = path
 		}
 
 		// Create job config
@@ -587,12 +666,21 @@ func (s *appState) batchAddToQueue(paths []string) {
 
 	// Show confirmation dialog
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-		msg := fmt.Sprintf("Added %d video(s) to the queue!", addedCount)
-		dialog.ShowInformation("Batch Add", msg, s.window)
+		if addedCount > 0 {
+			msg := fmt.Sprintf("Added %d video(s) to the queue!", addedCount)
+			if failedCount > 0 {
+				msg += fmt.Sprintf("\n\n%d file(s) failed to analyze:\n%s", failedCount, strings.Join(failedFiles, ", "))
+			}
+			dialog.ShowInformation("Batch Add", msg, s.window)
+		} else {
+			// All files failed
+			msg := fmt.Sprintf("Failed to analyze %d file(s):\n%s", failedCount, strings.Join(failedFiles, ", "))
+			s.showErrorWithCopy("Batch Add Failed", fmt.Errorf("%s", msg))
+		}
 
-		// Load the first video so user can adjust settings if needed
-		if len(paths) > 0 {
-			s.loadVideo(paths[0])
+		// Load all valid videos so user can navigate between them
+		if firstValidPath != "" {
+			s.loadVideos(paths)
 			s.showModule("convert")
 		}
 	}, false)
@@ -931,10 +1019,10 @@ func runGUI() {
 	state := &appState{
 		window: w,
 		convert: convertConfig{
-			OutputBase:       "converted",
-			SelectedFormat:   formatOptions[0],
-			Quality:          "Standard (CRF 23)",
-			Mode:             "Simple",
+			OutputBase:     "converted",
+			SelectedFormat: formatOptions[0],
+			Quality:        "Standard (CRF 23)",
+			Mode:           "Simple",
 
 			// Video encoding defaults
 			VideoCodec:       "H.264",
@@ -949,9 +1037,9 @@ func runGUI() {
 			TwoPass:          false,
 
 			// Audio encoding defaults
-			AudioCodec:       "AAC",
-			AudioBitrate:     "192k",
-			AudioChannels:    "Source",
+			AudioCodec:    "AAC",
+			AudioBitrate:  "192k",
+			AudioChannels: "Source",
 
 			// Other defaults
 			InverseTelecine:  true,
@@ -966,9 +1054,18 @@ func runGUI() {
 		playerPaused: true,
 	}
 
+	// Initialize conversion stats bar
+	state.statsBar = ui.NewConversionStatsBar(func() {
+		// Clicking the stats bar opens the queue view
+		state.showQueue()
+	})
+
 	// Initialize job queue
 	state.jobQueue = queue.New(state.jobExecutor)
 	state.jobQueue.SetChangeCallback(func() {
+		// Update stats bar
+		state.updateStatsBar()
+
 		// Refresh UI when queue changes
 		if state.active == "" {
 			state.showMainMenu()
@@ -1117,7 +1214,6 @@ func runLogsCLI() error {
 	return nil
 }
 
-
 func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	convertColor := moduleColor("convert")
 
@@ -1126,12 +1222,27 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	back.Importance = widget.LowImportance
 
+	// Navigation buttons for multiple loaded videos
+	var navButtons fyne.CanvasObject
+	if len(state.loadedVideos) > 1 {
+		prevBtn := widget.NewButton("◀ Prev", func() {
+			state.prevVideo()
+		})
+		nextBtn := widget.NewButton("Next ▶", func() {
+			state.nextVideo()
+		})
+		videoCounter := widget.NewLabel(fmt.Sprintf("Video %d of %d", state.currentIndex+1, len(state.loadedVideos)))
+		navButtons = container.NewHBox(prevBtn, videoCounter, nextBtn)
+	} else {
+		navButtons = container.NewHBox()
+	}
+
 	// Queue button to view queue
 	queueBtn := widget.NewButton("View Queue", func() {
 		state.showQueue()
 	})
 
-	backBar := ui.TintedBar(convertColor, container.NewHBox(back, layout.NewSpacer(), queueBtn))
+	backBar := ui.TintedBar(convertColor, container.NewHBox(back, layout.NewSpacer(), navButtons, layout.NewSpacer(), queueBtn))
 
 	var updateCover func(string)
 	var coverDisplay *widget.Label
@@ -1151,8 +1262,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	videoPanel := buildVideoPane(state, fyne.NewSize(400, 250), src, updateCover)
-	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(400, 150))
+	videoPanel := buildVideoPane(state, fyne.NewSize(360, 230), src, updateCover)
+	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(360, 150))
 	updateMetaCover = metaCoverUpdate
 
 	var formatLabels []string
@@ -1465,9 +1576,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Use VSplit to make panels expand vertically and fill available space
 	leftColumn := container.NewVSplit(videoPanel, metaPanel)
 	leftColumn.Offset = 0.65 // Video pane gets 65% of space, metadata gets 35%
-	grid := container.NewGridWithColumns(2, leftColumn, optionsPanel)
+	mainSplit := container.NewHSplit(leftColumn, optionsPanel)
+	mainSplit.Offset = 0.45 // Give the options panel extra horizontal room
 	mainArea := container.NewPadded(container.NewVBox(
-		grid,
+		mainSplit,
 		snippetRow,
 	))
 
@@ -1577,6 +1689,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 						activity.Stop()
 						activity.Hide()
 					}
+
+					// Update stats bar to show live progress
+					state.updateStatsBar()
 				}, false)
 
 				// If conversion finished, stop the ticker after one final update
@@ -1594,9 +1709,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}()
 
+	// Update stats bar
+	state.updateStatsBar()
+
+	// Add stats bar above the action bar at the bottom
+	bottomSection := container.NewVBox(
+		state.statsBar,
+		widget.NewSeparator(),
+		actionBar,
+	)
+
 	return container.NewBorder(
 		backBar,
-		container.NewVBox(widget.NewSeparator(), actionBar),
+		bottomSection,
 		nil,
 		nil,
 		scrollableMain,
@@ -1617,7 +1742,6 @@ func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
 	box := container.NewVBox(header, desc, layout.NewSpacer())
 	return container.NewMax(rect, container.NewPadded(box))
 }
-
 
 func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.CanvasObject, func()) {
 	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
@@ -1762,9 +1886,6 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		defaultAspect = float64(src.Height) / float64(src.Width)
 	}
 	baseWidth := float64(min.Width)
-	if baseWidth < 500 {
-		baseWidth = 500
-	}
 	targetWidth := float32(baseWidth)
 	_ = defaultAspect
 	targetHeight := float32(min.Height)
@@ -2034,7 +2155,6 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	)
 	return container.NewMax(outer, container.NewCenter(container.NewPadded(stack)))
 }
-
 
 type playSession struct {
 	path     string
@@ -2598,7 +2718,6 @@ func (s *appState) detectModuleTileAtPosition(pos fyne.Position) string {
 }
 
 func (s *appState) loadVideo(path string) {
-	win := s.window
 	if s.playSess != nil {
 		s.playSess.Stop()
 		s.playSess = nil
@@ -2608,7 +2727,7 @@ func (s *appState) loadVideo(path string) {
 	if err != nil {
 		logging.Debug(logging.CatFFMPEG, "ffprobe failed for %s: %v", path, err)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			dialog.ShowError(fmt.Errorf("failed to analyze %s: %w", filepath.Base(path), err), win)
+			s.showErrorWithCopy("Failed to Analyze Video", fmt.Errorf("failed to analyze %s: %w", filepath.Base(path), err))
 		}, false)
 		return
 	}
@@ -2635,6 +2754,11 @@ func (s *appState) loadVideo(path string) {
 	s.playerReady = false
 	s.playerPos = 0
 	s.playerPaused = true
+
+	// Set up single-video navigation
+	s.loadedVideos = []*videoSource{src}
+	s.currentIndex = 0
+
 	logging.Debug(logging.CatModule, "video loaded %+v", src)
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(src)
@@ -2645,6 +2769,8 @@ func (s *appState) clearVideo() {
 	logging.Debug(logging.CatModule, "clearing loaded video")
 	s.stopPlayer()
 	s.source = nil
+	s.loadedVideos = nil
+	s.currentIndex = 0
 	s.currentFrame = ""
 	s.convertBusy = false
 	s.convertStatus = ""
@@ -2655,6 +2781,94 @@ func (s *appState) clearVideo() {
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(nil)
 	}, false)
+}
+
+// loadVideos loads multiple videos for navigation
+func (s *appState) loadVideos(paths []string) {
+	s.loadedVideos = nil
+	s.currentIndex = 0
+
+	// Load all videos
+	for _, path := range paths {
+		src, err := probeVideo(path)
+		if err != nil {
+			logging.Debug(logging.CatFFMPEG, "ffprobe failed for %s: %v", path, err)
+			continue
+		}
+
+		if frames, err := capturePreviewFrames(src.Path, src.Duration); err == nil {
+			src.PreviewFrames = frames
+		}
+
+		s.loadedVideos = append(s.loadedVideos, src)
+	}
+
+	if len(s.loadedVideos) == 0 {
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			s.showErrorWithCopy("Failed to Load Videos", fmt.Errorf("no valid videos to load"))
+		}, false)
+		return
+	}
+
+	// Load the first video
+	s.switchToVideo(0)
+}
+
+// switchToVideo switches to a specific video by index
+func (s *appState) switchToVideo(index int) {
+	if index < 0 || index >= len(s.loadedVideos) {
+		return
+	}
+
+	s.currentIndex = index
+	src := s.loadedVideos[index]
+	s.source = src
+
+	if len(src.PreviewFrames) > 0 {
+		s.currentFrame = src.PreviewFrames[0]
+	} else {
+		s.currentFrame = ""
+	}
+
+	s.applyInverseDefaults(src)
+	base := strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName))
+	s.convert.OutputBase = base + "-convert"
+
+	if src.EmbeddedCoverArt != "" {
+		s.convert.CoverArtPath = src.EmbeddedCoverArt
+	} else {
+		s.convert.CoverArtPath = ""
+	}
+
+	s.convert.AspectHandling = "Auto"
+	s.playerReady = false
+	s.playerPos = 0
+	s.playerPaused = true
+
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		s.showConvertView(src)
+	}, false)
+}
+
+// nextVideo switches to the next loaded video
+func (s *appState) nextVideo() {
+	if len(s.loadedVideos) == 0 {
+		return
+	}
+	nextIndex := (s.currentIndex + 1) % len(s.loadedVideos)
+	s.switchToVideo(nextIndex)
+}
+
+// prevVideo switches to the previous loaded video
+func (s *appState) prevVideo() {
+	if len(s.loadedVideos) == 0 {
+		return
+	}
+	prevIndex := s.currentIndex - 1
+	if prevIndex < 0 {
+		prevIndex = len(s.loadedVideos) - 1
+	}
+	s.switchToVideo(prevIndex)
 }
 
 func crfForQuality(q string) string {
@@ -2927,7 +3141,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		if err != nil {
 			logging.Debug(logging.CatFFMPEG, "convert stdout pipe failed: %v", err)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				dialog.ShowError(fmt.Errorf("convert failed: %w", err), s.window)
+				s.showErrorWithCopy("Conversion Failed", fmt.Errorf("convert failed: %w", err))
 				s.convertBusy = false
 				setStatus("Failed")
 			}, false)
@@ -2991,7 +3205,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			close(progressQuit)
 			logging.Debug(logging.CatFFMPEG, "convert failed to start: %v", err)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				dialog.ShowError(fmt.Errorf("convert failed: %w", err), s.window)
+				s.showErrorWithCopy("Conversion Failed", fmt.Errorf("convert failed: %w", err))
 				s.convertBusy = false
 				setStatus("Failed")
 			}, false)
@@ -3013,7 +3227,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			}
 			logging.Debug(logging.CatFFMPEG, "convert failed: %v stderr=%s", err, strings.TrimSpace(stderr.String()))
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				dialog.ShowError(fmt.Errorf("convert failed: %w", err), s.window)
+				s.showErrorWithCopy("Conversion Failed", fmt.Errorf("convert failed: %w", err))
 				s.convertBusy = false
 				setStatus("Failed")
 			}, false)
@@ -3026,7 +3240,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		if _, probeErr := probeVideo(outPath); probeErr != nil {
 			logging.Debug(logging.CatFFMPEG, "convert probe failed: %v", probeErr)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				dialog.ShowError(fmt.Errorf("conversion output is invalid: %w", probeErr), s.window)
+				s.showErrorWithCopy("Conversion Failed", fmt.Errorf("conversion output is invalid: %w", probeErr))
 				s.convertBusy = false
 				setStatus("Failed")
 			}, false)
@@ -3324,7 +3538,6 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 	return files, nil
 }
 
-
 type videoSource struct {
 	Path             string
 	DisplayName      string
@@ -3526,6 +3739,3 @@ func probeVideo(path string) (*videoSource, error) {
 
 	return src, nil
 }
-
-
-
