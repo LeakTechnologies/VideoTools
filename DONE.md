@@ -2,6 +2,52 @@
 
 This file tracks completed features, fixes, and milestones.
 
+## Version 0.1.0-dev11 (2025-11-26)
+
+### Features
+- ✅ Added persistent conversion stats bar visible on all screens
+  - Real-time progress updates for running jobs
+  - Displays pending/completed/failed job counts
+  - Clickable to open queue view
+  - Shows job title and progress percentage
+- ✅ Added multi-video navigation with Prev/Next buttons
+  - Load multiple videos for batch queue setup
+  - Switch between loaded videos to review settings before queuing
+  - Shows "Video X of Y" counter
+- ✅ Added installation script with animated loading spinner
+  - Braille character animations
+  - Shows current task during build and install
+  - Interactive path selection (system-wide or user-local)
+- ✅ Added error dialogs with "Copy Error" button
+  - One-click error message copying for debugging
+  - Applied to all major error scenarios
+  - Better user experience when reporting issues
+
+### Improvements
+- ✅ Updated queue tile to show active/total jobs instead of completed/total
+  - Shows pending + running jobs out of total
+  - More intuitive status at a glance
+- ✅ Fixed critical deadlock in queue callback system
+  - Callbacks now run in goroutines to prevent blocking
+  - Prevents app freezing when adding jobs to queue
+- ✅ Improved batch file handling with detailed error reporting
+  - Shows which specific files failed to analyze
+  - Continues processing valid files when some fail
+  - Clear summary messages
+- ✅ Fixed queue status display
+  - Always shows progress percentage (even at 0%)
+  - Clearer indication when job is running vs. pending
+- ✅ Fixed queue deserialization for formatOption struct
+  - Handles JSON map conversion properly
+  - Prevents panic when reloading saved queue on startup
+
+### Bug Fixes
+- ✅ Fixed crash when dragging multiple files
+  - Better error handling in batch processing
+  - Graceful degradation for problematic files
+- ✅ Fixed deadlock when queue callbacks tried to read stats
+- ✅ Fixed formatOption deserialization from saved queue
+
 ## Version 0.1.0-dev7 (2025-11-23)
 
 ### Features
