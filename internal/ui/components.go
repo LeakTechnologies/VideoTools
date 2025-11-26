@@ -163,6 +163,61 @@ func TintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 	return container.NewMax(rect, padded)
 }
 
+// Tappable wraps any canvas object and makes it tappable
+type Tappable struct {
+	widget.BaseWidget
+	content  fyne.CanvasObject
+	onTapped func()
+}
+
+// NewTappable creates a new tappable wrapper
+func NewTappable(content fyne.CanvasObject, onTapped func()) *Tappable {
+	t := &Tappable{
+		content:  content,
+		onTapped: onTapped,
+	}
+	t.ExtendBaseWidget(t)
+	return t
+}
+
+// CreateRenderer creates the renderer for the tappable
+func (t *Tappable) CreateRenderer() fyne.WidgetRenderer {
+	return &tappableRenderer{
+		tappable: t,
+		content:  t.content,
+	}
+}
+
+// Tapped handles tap events
+func (t *Tappable) Tapped(*fyne.PointEvent) {
+	if t.onTapped != nil {
+		t.onTapped()
+	}
+}
+
+type tappableRenderer struct {
+	tappable *Tappable
+	content  fyne.CanvasObject
+}
+
+func (r *tappableRenderer) Layout(size fyne.Size) {
+	r.content.Resize(size)
+}
+
+func (r *tappableRenderer) MinSize() fyne.Size {
+	return r.content.MinSize()
+}
+
+func (r *tappableRenderer) Refresh() {
+	r.content.Refresh()
+}
+
+func (r *tappableRenderer) Destroy() {}
+
+func (r *tappableRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{r.content}
+}
+
 // DraggableVScroll creates a vertical scroll container with draggable track
 type DraggableVScroll struct {
 	widget.BaseWidget

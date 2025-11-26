@@ -20,12 +20,12 @@ type ModuleInfo struct {
 }
 
 // BuildMainMenu creates the main menu view with module tiles
-func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), titleColor, queueColor, textColor color.Color) fyne.CanvasObject {
+func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
 	title := canvas.NewText("VIDEOTOOLS", titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 28
 
-	queueTile := buildQueueTile(0, 0, queueColor, textColor)
+	queueTile := buildQueueTile(queueCompleted, queueTotal, queueColor, textColor, onQueueClick)
 
 	header := container.New(layout.NewHBoxLayout(),
 		title,
@@ -70,7 +70,7 @@ func buildModuleTile(mod ModuleInfo, tapped func(), dropped func([]fyne.URI)) fy
 }
 
 // buildQueueTile creates the queue status tile
-func buildQueueTile(done, total int, queueColor, textColor color.Color) fyne.CanvasObject {
+func buildQueueTile(done, total int, queueColor, textColor color.Color, onClick func()) fyne.CanvasObject {
 	rect := canvas.NewRectangle(queueColor)
 	rect.CornerRadius = 8
 	rect.SetMinSize(fyne.NewSize(160, 60))
@@ -80,5 +80,9 @@ func buildQueueTile(done, total int, queueColor, textColor color.Color) fyne.Can
 	text.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	text.TextSize = 18
 
-	return container.NewMax(rect, container.NewCenter(text))
+	tile := container.NewMax(rect, container.NewCenter(text))
+
+	// Make it tappable
+	tappable := NewTappable(tile, onClick)
+	return tappable
 }

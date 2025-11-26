@@ -34,6 +34,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 	"github.com/hajimehoshi/oto"
@@ -170,6 +171,7 @@ type appState struct {
 	convertBusy   bool
 	convertStatus string
 	playSess      *playSession
+	jobQueue      *queue.Queue
 }
 
 func (s *appState) stopPreview() {
@@ -303,8 +305,127 @@ func (s *appState) showMainMenu() {
 	}
 
 	titleColor := utils.MustHex("#4CE870")
-	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, titleColor, queueColor, textColor)
+
+	// Get queue stats
+	var queueCompleted, queueTotal int
+	if s.jobQueue != nil {
+		_, _, completed, _ := s.jobQueue.Stats()
+		queueCompleted = completed
+		queueTotal = len(s.jobQueue.List())
+	}
+
+	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, titleColor, queueColor, textColor, queueCompleted, queueTotal)
 	s.setContent(container.NewPadded(menu))
+}
+
+func (s *appState) showQueue() {
+	s.stopPreview()
+	s.stopPlayer()
+	s.active = "queue"
+
+	jobs := s.jobQueue.List()
+
+	view := ui.BuildQueueView(
+		jobs,
+		s.showMainMenu,                    // onBack
+		func(id string) {                  // onPause
+			if err := s.jobQueue.Pause(id); err != nil {
+				logging.Debug(logging.CatSystem, "failed to pause job: %v", err)
+			}
+			s.showQueue() // Refresh
+		},
+		func(id string) {                  // onResume
+			if err := s.jobQueue.Resume(id); err != nil {
+				logging.Debug(logging.CatSystem, "failed to resume job: %v", err)
+			}
+			s.showQueue() // Refresh
+		},
+		func(id string) {                  // onCancel
+			if err := s.jobQueue.Cancel(id); err != nil {
+				logging.Debug(logging.CatSystem, "failed to cancel job: %v", err)
+			}
+			s.showQueue() // Refresh
+		},
+		func(id string) {                  // onRemove
+			if err := s.jobQueue.Remove(id); err != nil {
+				logging.Debug(logging.CatSystem, "failed to remove job: %v", err)
+			}
+			s.showQueue() // Refresh
+		},
+		func() {                            // onClear
+			s.jobQueue.Clear()
+			s.showQueue() // Refresh
+		},
+		utils.MustHex("#4CE870"),           // titleColor
+		gridColor,                          // bgColor
+		textColor,                          // textColor
+	)
+
+	s.setContent(container.NewPadded(view))
+}
+
+// addConvertToQueue adds a conversion job to the queue
+func (s *appState) addConvertToQueue() error {
+	if s.source == nil {
+		return fmt.Errorf("no video loaded")
+	}
+
+	src := s.source
+	cfg := s.convert
+
+	outDir := filepath.Dir(src.Path)
+	outName := cfg.OutputFile()
+	if outName == "" {
+		outName = "converted" + cfg.SelectedFormat.Ext
+	}
+	outPath := filepath.Join(outDir, outName)
+	if outPath == src.Path {
+		outPath = filepath.Join(outDir, "converted-"+outName)
+	}
+
+	// Create job config map
+	config := map[string]interface{}{
+		"inputPath":        src.Path,
+		"outputPath":       outPath,
+		"outputBase":       cfg.OutputBase,
+		"selectedFormat":   cfg.SelectedFormat,
+		"quality":          cfg.Quality,
+		"mode":             cfg.Mode,
+		"videoCodec":       cfg.VideoCodec,
+		"encoderPreset":    cfg.EncoderPreset,
+		"crf":              cfg.CRF,
+		"bitrateMode":      cfg.BitrateMode,
+		"videoBitrate":     cfg.VideoBitrate,
+		"targetResolution": cfg.TargetResolution,
+		"frameRate":        cfg.FrameRate,
+		"pixelFormat":      cfg.PixelFormat,
+		"hardwareAccel":    cfg.HardwareAccel,
+		"twoPass":          cfg.TwoPass,
+		"audioCodec":       cfg.AudioCodec,
+		"audioBitrate":     cfg.AudioBitrate,
+		"audioChannels":    cfg.AudioChannels,
+		"inverseTelecine":  cfg.InverseTelecine,
+		"coverArtPath":     cfg.CoverArtPath,
+		"aspectHandling":   cfg.AspectHandling,
+		"outputAspect":     cfg.OutputAspect,
+		"sourceWidth":      src.Width,
+		"sourceHeight":     src.Height,
+	}
+
+	job := &queue.Job{
+		Type:        queue.JobTypeConvert,
+		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
+		Description: fmt.Sprintf("Output: %s → %s", filepath.Base(src.Path), filepath.Base(outPath)),
+		InputFile:   src.Path,
+		OutputFile:  outPath,
+		Config:      config,
+		Priority:    0,
+	}
+
+	s.jobQueue.Add(job)
+	logging.Debug(logging.CatSystem, "added convert job to queue: %s", job.ID)
+
+	return nil
 }
 
 func (s *appState) showModule(id string) {
@@ -322,7 +443,9 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 		logging.Debug(logging.CatModule, "handleModuleDrop: no items to process")
 		return
 	}
-	// Load the first video file
+
+	// Collect all video files (including from folders)
+	var videoPaths []string
 	for _, uri := range items {
 		logging.Debug(logging.CatModule, "handleModuleDrop: processing uri scheme=%s path=%s", uri.Scheme(), uri.Path())
 		if uri.Scheme() != "file" {
@@ -330,20 +453,149 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 			continue
 		}
 		path := uri.Path()
-		logging.Debug(logging.CatModule, "drop on module %s path=%s - starting load", moduleID, path)
 
-		// Load video and switch to the module
-		go func() {
-			logging.Debug(logging.CatModule, "loading video in goroutine")
-			s.loadVideo(path)
-			// After loading, switch to the module
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				logging.Debug(logging.CatModule, "showing module %s after load", moduleID)
-				s.showModule(moduleID)
-			}, false)
-		}()
-		break
+		// Check if it's a directory
+		if info, err := os.Stat(path); err == nil && info.IsDir() {
+			logging.Debug(logging.CatModule, "processing directory: %s", path)
+			videos := s.findVideoFiles(path)
+			videoPaths = append(videoPaths, videos...)
+		} else if s.isVideoFile(path) {
+			videoPaths = append(videoPaths, path)
+		}
 	}
+
+	logging.Debug(logging.CatModule, "found %d video files to process", len(videoPaths))
+
+	if len(videoPaths) == 0 {
+		return
+	}
+
+	// If convert module and multiple files, add all to queue
+	if moduleID == "convert" && len(videoPaths) > 1 {
+		go s.batchAddToQueue(videoPaths)
+		return
+	}
+
+	// Single file or non-convert module: load first video and show module
+	path := videoPaths[0]
+	logging.Debug(logging.CatModule, "drop on module %s path=%s - starting load", moduleID, path)
+
+	go func() {
+		logging.Debug(logging.CatModule, "loading video in goroutine")
+		s.loadVideo(path)
+		// After loading, switch to the module
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			logging.Debug(logging.CatModule, "showing module %s after load", moduleID)
+			s.showModule(moduleID)
+		}, false)
+	}()
+}
+
+// isVideoFile checks if a file has a video extension
+func (s *appState) isVideoFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	videoExts := []string{".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg", ".3gp", ".ogv"}
+	for _, videoExt := range videoExts {
+		if ext == videoExt {
+			return true
+		}
+	}
+	return false
+}
+
+// findVideoFiles recursively finds all video files in a directory
+func (s *appState) findVideoFiles(dir string) []string {
+	var videos []string
+
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip errors
+		}
+		if !info.IsDir() && s.isVideoFile(path) {
+			videos = append(videos, path)
+		}
+		return nil
+	})
+
+	if err != nil {
+		logging.Debug(logging.CatModule, "error walking directory %s: %v", dir, err)
+	}
+
+	return videos
+}
+
+// batchAddToQueue adds multiple videos to the queue
+func (s *appState) batchAddToQueue(paths []string) {
+	logging.Debug(logging.CatModule, "batch adding %d videos to queue", len(paths))
+
+	addedCount := 0
+	for _, path := range paths {
+		// Load video metadata
+		src, err := probeVideo(path)
+		if err != nil {
+			logging.Debug(logging.CatModule, "failed to parse metadata for %s: %v", path, err)
+			continue
+		}
+
+		// Create job config
+		outDir := filepath.Dir(path)
+		baseName := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+		outName := baseName + "-converted" + s.convert.SelectedFormat.Ext
+		outPath := filepath.Join(outDir, outName)
+
+		config := map[string]interface{}{
+			"inputPath":        path,
+			"outputPath":       outPath,
+			"outputBase":       baseName + "-converted",
+			"selectedFormat":   s.convert.SelectedFormat,
+			"quality":          s.convert.Quality,
+			"mode":             s.convert.Mode,
+			"videoCodec":       s.convert.VideoCodec,
+			"encoderPreset":    s.convert.EncoderPreset,
+			"crf":              s.convert.CRF,
+			"bitrateMode":      s.convert.BitrateMode,
+			"videoBitrate":     s.convert.VideoBitrate,
+			"targetResolution": s.convert.TargetResolution,
+			"frameRate":        s.convert.FrameRate,
+			"pixelFormat":      s.convert.PixelFormat,
+			"hardwareAccel":    s.convert.HardwareAccel,
+			"twoPass":          s.convert.TwoPass,
+			"audioCodec":       s.convert.AudioCodec,
+			"audioBitrate":     s.convert.AudioBitrate,
+			"audioChannels":    s.convert.AudioChannels,
+			"inverseTelecine":  s.convert.InverseTelecine,
+			"coverArtPath":     "",
+			"aspectHandling":   s.convert.AspectHandling,
+			"outputAspect":     s.convert.OutputAspect,
+			"sourceWidth":      src.Width,
+			"sourceHeight":     src.Height,
+		}
+
+		job := &queue.Job{
+			Type:        queue.JobTypeConvert,
+			Title:       fmt.Sprintf("Convert %s", filepath.Base(path)),
+			Description: fmt.Sprintf("Output: %s → %s", filepath.Base(path), filepath.Base(outPath)),
+			InputFile:   path,
+			OutputFile:  outPath,
+			Config:      config,
+			Priority:    0,
+		}
+
+		s.jobQueue.Add(job)
+		addedCount++
+	}
+
+	// Show confirmation dialog
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		msg := fmt.Sprintf("Added %d video(s) to the queue!", addedCount)
+		dialog.ShowInformation("Batch Add", msg, s.window)
+
+		// Load the first video so user can adjust settings if needed
+		if len(paths) > 0 {
+			s.loadVideo(paths[0])
+			s.showModule("convert")
+		}
+	}, false)
 }
 
 func (s *appState) showConvertView(file *videoSource) {
@@ -360,7 +612,258 @@ func (s *appState) showConvertView(file *videoSource) {
 	s.setContent(buildConvertView(s, s.source))
 }
 
+// jobExecutor executes a job from the queue
+func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
+	logging.Debug(logging.CatSystem, "executing job %s: %s", job.ID, job.Title)
+
+	switch job.Type {
+	case queue.JobTypeConvert:
+		return s.executeConvertJob(ctx, job, progressCallback)
+	case queue.JobTypeMerge:
+		return fmt.Errorf("merge jobs not yet implemented")
+	case queue.JobTypeTrim:
+		return fmt.Errorf("trim jobs not yet implemented")
+	case queue.JobTypeFilter:
+		return fmt.Errorf("filter jobs not yet implemented")
+	case queue.JobTypeUpscale:
+		return fmt.Errorf("upscale jobs not yet implemented")
+	case queue.JobTypeAudio:
+		return fmt.Errorf("audio jobs not yet implemented")
+	case queue.JobTypeThumb:
+		return fmt.Errorf("thumb jobs not yet implemented")
+	default:
+		return fmt.Errorf("unknown job type: %s", job.Type)
+	}
+}
+
+// executeConvertJob executes a conversion job from the queue
+func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
+	cfg := job.Config
+	inputPath := cfg["inputPath"].(string)
+	outputPath := cfg["outputPath"].(string)
+
+	// Build FFmpeg arguments
+	args := []string{
+		"-y",
+		"-hide_banner",
+		"-loglevel", "error",
+		"-i", inputPath,
+	}
+
+	// Add cover art if available
+	coverArtPath, _ := cfg["coverArtPath"].(string)
+	hasCoverArt := coverArtPath != ""
+	if hasCoverArt {
+		args = append(args, "-i", coverArtPath)
+	}
+
+	// Hardware acceleration
+	hardwareAccel, _ := cfg["hardwareAccel"].(string)
+	if hardwareAccel != "none" && hardwareAccel != "" {
+		switch hardwareAccel {
+		case "nvenc":
+			args = append(args, "-hwaccel", "cuda")
+		case "vaapi":
+			args = append(args, "-hwaccel", "vaapi")
+		case "qsv":
+			args = append(args, "-hwaccel", "qsv")
+		case "videotoolbox":
+			args = append(args, "-hwaccel", "videotoolbox")
+		}
+	}
+
+	// Video filters
+	var vf []string
+
+	// Deinterlacing
+	if inverseTelecine, _ := cfg["inverseTelecine"].(bool); inverseTelecine {
+		vf = append(vf, "yadif")
+	}
+
+	// Scaling/Resolution
+	targetResolution, _ := cfg["targetResolution"].(string)
+	if targetResolution != "" && targetResolution != "Source" {
+		var scaleFilter string
+		switch targetResolution {
+		case "720p":
+			scaleFilter = "scale=-2:720"
+		case "1080p":
+			scaleFilter = "scale=-2:1080"
+		case "1440p":
+			scaleFilter = "scale=-2:1440"
+		case "4K":
+			scaleFilter = "scale=-2:2160"
+		}
+		if scaleFilter != "" {
+			vf = append(vf, scaleFilter)
+		}
+	}
+
+	// Aspect ratio conversion
+	sourceWidth, _ := cfg["sourceWidth"].(int)
+	sourceHeight, _ := cfg["sourceHeight"].(int)
+	srcAspect := utils.AspectRatioFloat(sourceWidth, sourceHeight)
+	outputAspect, _ := cfg["outputAspect"].(string)
+	aspectHandling, _ := cfg["aspectHandling"].(string)
+
+	// Create temp source for aspect calculation
+	tempSrc := &videoSource{Width: sourceWidth, Height: sourceHeight}
+	targetAspect := resolveTargetAspect(outputAspect, tempSrc)
+	if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
+		vf = append(vf, aspectFilters(targetAspect, aspectHandling)...)
+	}
+
+	// Frame rate
+	frameRate, _ := cfg["frameRate"].(string)
+	if frameRate != "" && frameRate != "Source" {
+		vf = append(vf, "fps="+frameRate)
+	}
+
+	if len(vf) > 0 {
+		args = append(args, "-vf", strings.Join(vf, ","))
+	}
+
+	// Video codec
+	videoCodec, _ := cfg["videoCodec"].(string)
+	if videoCodec == "Copy" {
+		args = append(args, "-c:v", "copy")
+	} else {
+		// Determine the actual codec to use
+		actualCodec := determineVideoCodec(convertConfig{
+			VideoCodec:    videoCodec,
+			HardwareAccel: hardwareAccel,
+		})
+		args = append(args, "-c:v", actualCodec)
+
+		// Bitrate mode and quality
+		bitrateMode, _ := cfg["bitrateMode"].(string)
+		if bitrateMode == "CRF" || bitrateMode == "" {
+			crfStr, _ := cfg["crf"].(string)
+			if crfStr == "" {
+				quality, _ := cfg["quality"].(string)
+				crfStr = crfForQuality(quality)
+			}
+			if actualCodec == "libx264" || actualCodec == "libx265" || actualCodec == "libvpx-vp9" {
+				args = append(args, "-crf", crfStr)
+			}
+		} else if bitrateMode == "CBR" {
+			if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
+				args = append(args, "-b:v", videoBitrate, "-minrate", videoBitrate, "-maxrate", videoBitrate, "-bufsize", videoBitrate)
+			}
+		} else if bitrateMode == "VBR" {
+			if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
+				args = append(args, "-b:v", videoBitrate)
+			}
+		}
+
+		// Encoder preset
+		if encoderPreset, _ := cfg["encoderPreset"].(string); encoderPreset != "" && (actualCodec == "libx264" || actualCodec == "libx265") {
+			args = append(args, "-preset", encoderPreset)
+		}
+
+		// Pixel format
+		if pixelFormat, _ := cfg["pixelFormat"].(string); pixelFormat != "" {
+			args = append(args, "-pix_fmt", pixelFormat)
+		}
+	}
+
+	// Audio codec and settings
+	audioCodec, _ := cfg["audioCodec"].(string)
+	if audioCodec == "Copy" {
+		args = append(args, "-c:a", "copy")
+	} else {
+		actualAudioCodec := determineAudioCodec(convertConfig{AudioCodec: audioCodec})
+		args = append(args, "-c:a", actualAudioCodec)
+
+		if audioBitrate, _ := cfg["audioBitrate"].(string); audioBitrate != "" && actualAudioCodec != "flac" {
+			args = append(args, "-b:a", audioBitrate)
+		}
+
+		if audioChannels, _ := cfg["audioChannels"].(string); audioChannels != "" && audioChannels != "Source" {
+			switch audioChannels {
+			case "Mono":
+				args = append(args, "-ac", "1")
+			case "Stereo":
+				args = append(args, "-ac", "2")
+			case "5.1":
+				args = append(args, "-ac", "6")
+			}
+		}
+	}
+
+	// Map cover art
+	if hasCoverArt {
+		args = append(args, "-map", "0:v", "-map", "0:a?", "-map", "1:v")
+		args = append(args, "-c:v:1", "png")
+		args = append(args, "-disposition:v:1", "attached_pic")
+	}
+
+	// Format-specific settings
+	selectedFormat := cfg["selectedFormat"].(formatOption)
+	if strings.EqualFold(selectedFormat.Ext, ".mp4") || strings.EqualFold(selectedFormat.Ext, ".mov") {
+		args = append(args, "-movflags", "+faststart")
+	}
+
+	// Progress feed
+	args = append(args, "-progress", "pipe:1", "-nostats")
+	args = append(args, outputPath)
+
+	logging.Debug(logging.CatFFMPEG, "queue convert command: ffmpeg %s", strings.Join(args, " "))
+
+	// Execute FFmpeg
+	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start ffmpeg: %w", err)
+	}
+
+	// Parse progress
+	scanner := bufio.NewScanner(stdout)
+	var duration float64
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "out_time_ms=") {
+			val := strings.TrimPrefix(line, "out_time_ms=")
+			if ms, err := strconv.ParseInt(val, 10, 64); err == nil && ms > 0 {
+				currentSec := float64(ms) / 1000000.0
+				if duration > 0 {
+					progress := (currentSec / duration) * 100.0
+					if progress > 100 {
+						progress = 100
+					}
+					progressCallback(progress)
+				}
+			}
+		} else if strings.HasPrefix(line, "duration_ms=") {
+			val := strings.TrimPrefix(line, "duration_ms=")
+			if ms, err := strconv.ParseInt(val, 10, 64); err == nil && ms > 0 {
+				duration = float64(ms) / 1000000.0
+			}
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("ffmpeg failed: %w", err)
+	}
+
+	logging.Debug(logging.CatFFMPEG, "queue conversion completed: %s", outputPath)
+	return nil
+}
+
 func (s *appState) shutdown() {
+	// Save queue before shutting down
+	if s.jobQueue != nil {
+		s.jobQueue.Stop()
+		queuePath := filepath.Join(os.TempDir(), "videotools-queue.json")
+		if err := s.jobQueue.Save(queuePath); err != nil {
+			logging.Debug(logging.CatSystem, "failed to save queue: %v", err)
+		}
+	}
+
 	s.stopPlayer()
 	if s.player != nil {
 		s.player.Close()
@@ -462,6 +965,25 @@ func runGUI() {
 		playerMuted:  false,
 		playerPaused: true,
 	}
+
+	// Initialize job queue
+	state.jobQueue = queue.New(state.jobExecutor)
+	state.jobQueue.SetChangeCallback(func() {
+		// Refresh UI when queue changes
+		if state.active == "" {
+			state.showMainMenu()
+		}
+	})
+
+	// Load saved queue
+	queuePath := filepath.Join(os.TempDir(), "videotools-queue.json")
+	if err := state.jobQueue.Load(queuePath); err != nil {
+		logging.Debug(logging.CatSystem, "failed to load queue: %v", err)
+	}
+
+	// Start queue processing
+	state.jobQueue.Start()
+
 	defer state.shutdown()
 	w.SetOnDropped(func(pos fyne.Position, items []fyne.URI) {
 		state.handleDrop(pos, items)
@@ -603,7 +1125,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.showMainMenu()
 	})
 	back.Importance = widget.LowImportance
-	backBar := ui.TintedBar(convertColor, container.NewHBox(back, layout.NewSpacer()))
+
+	// Queue button to view queue
+	queueBtn := widget.NewButton("View Queue", func() {
+		state.showQueue()
+	})
+
+	backBar := ui.TintedBar(convertColor, container.NewHBox(back, layout.NewSpacer(), queueBtn))
 
 	var updateCover func(string)
 	var coverDisplay *widget.Label
@@ -975,7 +1503,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	cancelBtn.Importance = widget.DangerImportance
 	cancelBtn.Disable()
-	convertBtn = widget.NewButton("CONVERT", func() {
+
+	// Add to Queue button
+	addQueueBtn := widget.NewButton("Add to Queue", func() {
+		if err := state.addConvertToQueue(); err != nil {
+			dialog.ShowError(err, state.window)
+		} else {
+			dialog.ShowInformation("Queue", "Job added to queue!", state.window)
+		}
+	})
+	if src == nil {
+		addQueueBtn.Disable()
+	}
+
+	convertBtn = widget.NewButton("CONVERT NOW", func() {
 		state.startConvert(statusLabel, convertBtn, cancelBtn, activity)
 	})
 	convertBtn.Importance = widget.HighImportance
@@ -985,9 +1526,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	if state.convertBusy {
 		convertBtn.Disable()
 		cancelBtn.Enable()
+		addQueueBtn.Disable()
 	}
 
-	actionInner := container.NewHBox(resetBtn, activity, statusLabel, layout.NewSpacer(), cancelBtn, convertBtn)
+	actionInner := container.NewHBox(resetBtn, activity, statusLabel, layout.NewSpacer(), cancelBtn, addQueueBtn, convertBtn)
 	actionBar := ui.TintedBar(convertColor, actionInner)
 
 	// Wrap mainArea in a scroll container to prevent content from forcing window resize
