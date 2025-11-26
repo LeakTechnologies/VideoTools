@@ -28,7 +28,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] Add bitrate-based encoding option (not just CRF)
 - [ ] Implement custom FFmpeg arguments field
 - [ ] Add preset save/load functionality
-- [ ] Add batch conversion queue
+- [x] Add batch conversion queue (v0.1.0-dev11)
+- [x] Multi-video loading and navigation (v0.1.0-dev11)
 - [ ] Estimated file size calculator
 - [ ] Preview/comparison mode
 - [ ] Audio-only output option
@@ -181,7 +182,8 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### General Interface
 - [ ] Keyboard shortcuts system
-- [ ] Drag-and-drop file loading
+- [x] Drag-and-drop file loading (v0.1.0-dev11)
+- [x] Multiple file drag-and-drop with batch processing (v0.1.0-dev11)
 - [ ] Dark/light theme toggle
 - [ ] Custom color schemes
 - [ ] Window size/position persistence
@@ -198,13 +200,14 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] Subtitle display during playback
 
 ### Queue/Batch System
-- [ ] Global job queue
-- [ ] Priority management
-- [ ] Pause/resume individual jobs
+- [x] Global job queue (v0.1.0-dev11)
+- [x] Priority management (v0.1.0-dev11)
+- [x] Pause/resume individual jobs (v0.1.0-dev11)
+- [x] Queue persistence (v0.1.0-dev11)
+- [x] Job history (v0.1.0-dev11)
+- [x] Persistent status bar showing queue stats (v0.1.0-dev11)
 - [ ] Parallel processing option
-- [ ] Queue persistence
 - [ ] Estimated completion time
-- [ ] Job history
 
 ### Settings/Preferences
 - [ ] Settings dialog
@@ -286,9 +289,15 @@ This file tracks upcoming features, improvements, and known issues.
 
 - **Build hangs on GCC 15.2.1** - CGO compilation freezes during OpenGL binding compilation
 - No Windows/macOS builds tested yet
-- Limited error messages for FFmpeg failures
-- No progress indication during metadata parsing
 - Preview frames not cleaned up on crash
+
+## Fixed Issues (v0.1.0-dev11)
+
+- ✅ Limited error messages for FFmpeg failures - Added "Copy Error" button to all error dialogs
+- ✅ No progress indication during metadata parsing - Added persistent stats bar showing real-time progress
+- ✅ Crash when dragging multiple files - Improved error handling with detailed reporting
+- ✅ Queue callback deadlocks - Fixed by running callbacks in goroutines
+- ✅ Queue deserialization panic - Fixed formatOption struct handling
 
 ## Research Needed
 
