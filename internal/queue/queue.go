@@ -378,6 +378,15 @@ func (q *Queue) Clear() {
 	q.notifyChange()
 }
 
+// ClearAll removes all jobs from the queue
+func (q *Queue) ClearAll() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	q.jobs = make([]*Job, 0)
+	q.notifyChange()
+}
+
 // generateID generates a unique ID for a job
 func generateID() string {
 	return fmt.Sprintf("job-%d", time.Now().UnixNano())
