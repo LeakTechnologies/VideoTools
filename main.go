@@ -1916,6 +1916,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 
 		open := widget.NewButton("Open File…", func() {
 			logging.Debug(logging.CatUI, "convert open file dialog requested")
+			// Use custom file dialog that supports multiple selection
 			dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 				if err != nil {
 					logging.Debug(logging.CatUI, "file open error: %v", err)
@@ -1924,6 +1925,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				if r == nil {
 					return
 				}
+				// Single file selection via NewFileOpen
 				path := r.URI().Path()
 				r.Close()
 				go state.loadVideo(path)
