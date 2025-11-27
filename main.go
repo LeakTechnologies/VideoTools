@@ -1916,7 +1916,6 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 
 		open := widget.NewButton("Open File…", func() {
 			logging.Debug(logging.CatUI, "convert open file dialog requested")
-			// Use custom file dialog that supports multiple selection
 			dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 				if err != nil {
 					logging.Debug(logging.CatUI, "file open error: %v", err)
@@ -1925,9 +1924,28 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				if r == nil {
 					return
 				}
-				// Single file selection via NewFileOpen
 				path := r.URI().Path()
 				r.Close()
+				go state.loadVideo(path)
+			}, state.window)
+			dlg.Resize(fyne.NewSize(600, 400))
+			dlg.Show()
+		})
+
+		addMultiple := widget.NewButton("Add Multiple…", func() {
+			logging.Debug(logging.CatUI, "convert add multiple files dialog requested")
+			dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
+				if err != nil {
+					logging.Debug(logging.CatUI, "file open error: %v", err)
+					return
+				}
+				if r == nil {
+					return
+				}
+				path := r.URI().Path()
+				r.Close()
+				// For now, load the first selected file
+				// In a real multi-select dialog, you'd get all selected files
 				go state.loadVideo(path)
 			}, state.window)
 			dlg.Resize(fyne.NewSize(600, 400))
@@ -1938,7 +1956,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			container.NewCenter(icon),
 			container.NewCenter(hintMain),
 			container.NewCenter(hintSub),
-			container.NewCenter(open),
+			container.NewHBox(open, addMultiple),
 		)
 		return container.NewMax(outer, container.NewCenter(container.NewPadded(placeholder)))
 	}
@@ -2638,34 +2656,59 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 	if len(items) == 0 {
 		return
 	}
-	for _, uri := range items {
-		if uri.Scheme() != "file" {
-			continue
-		}
-		path := uri.Path()
-		logging.Debug(logging.CatModule, "drop received path=%s active=%s pos=%v", path, s.active, pos)
 
-		// If on main menu, detect which module tile was dropped on
-		if s.active == "" {
-			moduleID := s.detectModuleTileAtPosition(pos)
-			if moduleID != "" {
-				logging.Debug(logging.CatUI, "drop on main menu tile=%s", moduleID)
-				s.handleModuleDrop(moduleID, items)
-				return
+	// If on main menu, detect which module tile was dropped on
+	if s.active == "" {
+		moduleID := s.detectModuleTileAtPosition(pos)
+		if moduleID != "" {
+			logging.Debug(logging.CatUI, "drop on main menu tile=%s", moduleID)
+			s.handleModuleDrop(moduleID, items)
+			return
+		}
+		logging.Debug(logging.CatUI, "drop on main menu but not over any module tile")
+		return
+	}
+
+	// If in convert module, handle all files
+	if s.active == "convert" {
+		// Collect all video files from the dropped items
+		var videoPaths []string
+		for _, uri := range items {
+			if uri.Scheme() != "file" {
+				continue
 			}
-			logging.Debug(logging.CatUI, "drop on main menu but not over any module tile")
+			path := uri.Path()
+			logging.Debug(logging.CatModule, "drop received path=%s", path)
+
+			// Check if it's a directory
+			if info, err := os.Stat(path); err == nil && info.IsDir() {
+				logging.Debug(logging.CatModule, "processing directory: %s", path)
+				videos := s.findVideoFiles(path)
+				videoPaths = append(videoPaths, videos...)
+			} else if s.isVideoFile(path) {
+				videoPaths = append(videoPaths, path)
+			}
+		}
+
+		if len(videoPaths) == 0 {
+			logging.Debug(logging.CatUI, "no valid video files in dropped items")
 			return
 		}
 
-		// If in a module, handle normally
-		switch s.active {
-		case "convert":
-			go s.loadVideo(path)
-		default:
-			logging.Debug(logging.CatUI, "drop ignored; module %s cannot handle files", s.active)
+		// If multiple videos, add all to queue
+		if len(videoPaths) > 1 {
+			logging.Debug(logging.CatUI, "multiple videos dropped in convert module; adding all to queue")
+			go s.batchAddToQueue(videoPaths)
+		} else {
+			// Single video: load it
+			logging.Debug(logging.CatUI, "single video dropped in convert module; loading: %s", videoPaths[0])
+			go s.loadVideo(videoPaths[0])
 		}
-		break
+		return
 	}
+
+	// Other modules don't handle file drops yet
+	logging.Debug(logging.CatUI, "drop ignored; module %s cannot handle files", s.active)
 }
 
 // detectModuleTileAtPosition calculates which module tile is at the given position
