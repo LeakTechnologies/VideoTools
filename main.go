@@ -151,30 +151,31 @@ func (c convertConfig) CoverLabel() string {
 }
 
 type appState struct {
-	window        fyne.Window
-	active        string
-	source        *videoSource
-	loadedVideos  []*videoSource // Multiple loaded videos for navigation
-	currentIndex  int            // Current video index in loadedVideos
-	anim          *previewAnimator
-	convert       convertConfig
-	currentFrame  string
-	player        player.Controller
-	playerReady   bool
-	playerVolume  float64
-	playerMuted   bool
-	lastVolume    float64
-	playerPaused  bool
-	playerPos     float64
-	playerLast    time.Time
-	progressQuit  chan struct{}
-	convertCancel context.CancelFunc
-	playerSurf    *playerSurface
-	convertBusy   bool
-	convertStatus string
-	playSess      *playSession
-	jobQueue      *queue.Queue
-	statsBar      *ui.ConversionStatsBar
+	window           fyne.Window
+	active           string
+	initComplete     bool // Track if initialization is complete
+	source           *videoSource
+	loadedVideos     []*videoSource // Multiple loaded videos for navigation
+	currentIndex     int            // Current video index in loadedVideos
+	anim             *previewAnimator
+	convert          convertConfig
+	currentFrame     string
+	player           player.Controller
+	playerReady      bool
+	playerVolume     float64
+	playerMuted      bool
+	lastVolume       float64
+	playerPaused     bool
+	playerPos        float64
+	playerLast       time.Time
+	progressQuit     chan struct{}
+	convertCancel    context.CancelFunc
+	playerSurf       *playerSurface
+	convertBusy      bool
+	convertStatus    string
+	playSess         *playSession
+	jobQueue         *queue.Queue
+	statsBar         *ui.ConversionStatsBar
 }
 
 func (s *appState) stopPreview() {
@@ -308,11 +309,36 @@ func (s *appState) applyInverseDefaults(src *videoSource) {
 func (s *appState) setContent(body fyne.CanvasObject) {
 	bg := canvas.NewRectangle(backgroundColor)
 	// Don't set a minimum size - let content determine layout naturally
-	if body == nil {
-		s.window.SetContent(bg)
-		return
+
+	// Only use DoFromGoroutine if initialization is complete and we might be on a goroutine
+	// During early initialization, always call directly since we're on the main thread
+	if !s.initComplete {
+		// During initialization, call directly (we're on main thread)
+		if body == nil {
+			s.window.SetContent(bg)
+		} else {
+			s.window.SetContent(container.NewMax(bg, body))
+		}
+	} else {
+		// After initialization, use DoFromGoroutine to be safe
+		app := fyne.CurrentApp()
+		if app != nil && app.Driver() != nil {
+			app.Driver().DoFromGoroutine(func() {
+				if body == nil {
+					s.window.SetContent(bg)
+				} else {
+					s.window.SetContent(container.NewMax(bg, body))
+				}
+			}, false)
+		} else {
+			// Fallback if driver not available
+			if body == nil {
+				s.window.SetContent(bg)
+			} else {
+				s.window.SetContent(container.NewMax(bg, body))
+			}
+		}
 	}
-	s.window.SetContent(container.NewMax(bg, body))
 }
 
 // showErrorWithCopy displays an error dialog with a "Copy Error" button
@@ -424,12 +450,116 @@ func (s *appState) showQueue() {
 			s.jobQueue.Clear()
 			s.showQueue() // Refresh
 		},
+		func() { // onClearAll
+			s.jobQueue.ClearAll()
+			s.showQueue() // Refresh
+		},
+		func() { // onProcess
+			s.jobQueue.ResumeProcessing()
+			logging.Debug(logging.CatSystem, "queue processing started")
+		},
 		utils.MustHex("#4CE870"), // titleColor
 		gridColor,                // bgColor
 		textColor,                // textColor
 	)
 
 	s.setContent(container.NewPadded(view))
+}
+
+// hasModifiedConvertSettings checks if the current conversion settings differ from defaults
+func (s *appState) hasModifiedConvertSettings() bool {
+	cfg := s.convert
+
+	// Check if any non-default values are set
+	if cfg.OutputBase != "" && cfg.OutputBase != "converted" {
+		return true
+	}
+	if cfg.Quality != "" && cfg.Quality != "Standard (CRF 23)" {
+		return true
+	}
+	if cfg.VideoCodec != "" && cfg.VideoCodec != "H.264" {
+		return true
+	}
+	if cfg.EncoderPreset != "" && cfg.EncoderPreset != "medium" {
+		return true
+	}
+	if cfg.CRF != "" {
+		return true
+	}
+	if cfg.BitrateMode != "" && cfg.BitrateMode != "CRF" {
+		return true
+	}
+	if cfg.VideoBitrate != "" {
+		return true
+	}
+	if cfg.TargetResolution != "" && cfg.TargetResolution != "Source" {
+		return true
+	}
+	if cfg.FrameRate != "" && cfg.FrameRate != "Source" {
+		return true
+	}
+	if cfg.PixelFormat != "" && cfg.PixelFormat != "yuv420p" {
+		return true
+	}
+	if cfg.HardwareAccel != "" && cfg.HardwareAccel != "none" {
+		return true
+	}
+	if cfg.TwoPass {
+		return true
+	}
+	if cfg.AudioCodec != "" && cfg.AudioCodec != "AAC" {
+		return true
+	}
+	if cfg.AudioBitrate != "" && cfg.AudioBitrate != "192k" {
+		return true
+	}
+	if cfg.AudioChannels != "" && cfg.AudioChannels != "Source" {
+		return true
+	}
+	if cfg.InverseTelecine {
+		return true
+	}
+	if cfg.CoverArtPath != "" {
+		return true
+	}
+	if cfg.AspectHandling != "" && cfg.AspectHandling != "Auto" {
+		return true
+	}
+	if cfg.OutputAspect != "" && cfg.OutputAspect != "Source" {
+		return true
+	}
+
+	return false
+}
+
+// removeQueuedConvertJob removes pending conversion jobs for the current video
+func (s *appState) removeQueuedConvertJob() error {
+	if s.source == nil {
+		return fmt.Errorf("no video loaded")
+	}
+
+	jobs := s.jobQueue.List()
+	removed := 0
+
+	// Remove all pending convert jobs for this video
+	for _, job := range jobs {
+		if job.Type == queue.JobTypeConvert && job.Status == queue.JobStatusPending {
+			if inputPath, ok := job.Config["inputPath"].(string); ok && inputPath == s.source.Path {
+				if err := s.jobQueue.Remove(job.ID); err != nil {
+					logging.Debug(logging.CatSystem, "failed to remove job %s: %v", job.ID, err)
+				} else {
+					removed++
+				}
+			}
+		}
+	}
+
+	if removed == 0 {
+		return fmt.Errorf("no pending conversion jobs found for this video")
+	}
+
+	logging.Debug(logging.CatSystem, "removed %d conversion jobs from queue for: %s", removed, s.source.Path)
+	return nil
 }
 
 // addConvertToQueue adds a conversion job to the queue
@@ -481,13 +611,14 @@ func (s *appState) addConvertToQueue() error {
 	}
 
 	job := &queue.Job{
-		Type:        queue.JobTypeConvert,
-		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
-		Description: fmt.Sprintf("Output: %s → %s", filepath.Base(src.Path), filepath.Base(outPath)),
-		InputFile:   src.Path,
-		OutputFile:  outPath,
-		Config:      config,
-		Priority:    0,
+		Type:                queue.JobTypeConvert,
+		Title:               fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
+		Description:         fmt.Sprintf("Output: %s → %s", filepath.Base(src.Path), filepath.Base(outPath)),
+		InputFile:           src.Path,
+		OutputFile:          outPath,
+		Config:              config,
+		Priority:            0,
+		HasModifiedSettings: s.hasModifiedConvertSettings(),
 	}
 
 	s.jobQueue.Add(job)
@@ -651,13 +782,14 @@ func (s *appState) batchAddToQueue(paths []string) {
 		}
 
 		job := &queue.Job{
-			Type:        queue.JobTypeConvert,
-			Title:       fmt.Sprintf("Convert %s", filepath.Base(path)),
-			Description: fmt.Sprintf("Output: %s → %s", filepath.Base(path), filepath.Base(outPath)),
-			InputFile:   path,
-			OutputFile:  outPath,
-			Config:      config,
-			Priority:    0,
+			Type:                queue.JobTypeConvert,
+			Title:               fmt.Sprintf("Convert %s", filepath.Base(path)),
+			Description:         fmt.Sprintf("Output: %s → %s", filepath.Base(path), filepath.Base(outPath)),
+			InputFile:           path,
+			OutputFile:          outPath,
+			Config:              config,
+			Priority:            0,
+			HasModifiedSettings: s.hasModifiedConvertSettings(),
 		}
 
 		s.jobQueue.Add(job)
@@ -962,13 +1094,10 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 }
 
 func (s *appState) shutdown() {
-	// Save queue before shutting down
+	// Queue is not persisted between sessions - start fresh each time
 	if s.jobQueue != nil {
 		s.jobQueue.Stop()
-		queuePath := filepath.Join(os.TempDir(), "videotools-queue.json")
-		if err := s.jobQueue.Save(queuePath); err != nil {
-			logging.Debug(logging.CatSystem, "failed to save queue: %v", err)
-		}
+		// Don't save the queue - we want a clean slate each session
 	}
 
 	s.stopPlayer()
@@ -1036,7 +1165,10 @@ func runGUI() {
 	logging.Debug(logging.CatUI, "window initialized at 1120x640")
 
 	state := &appState{
-		window: w,
+		window:       w,
+		source:       nil, // Start with no video source
+		loadedVideos: nil, // Start with no videos loaded
+		currentIndex: 0,
 		convert: convertConfig{
 			OutputBase:     "converted",
 			SelectedFormat: formatOptions[0],
@@ -1081,23 +1213,11 @@ func runGUI() {
 
 	// Initialize job queue
 	state.jobQueue = queue.New(state.jobExecutor)
-	state.jobQueue.SetChangeCallback(func() {
-		// Update stats bar
-		state.updateStatsBar()
 
-		// Refresh UI when queue changes
-		if state.active == "" {
-			state.showMainMenu()
-		}
-	})
-
-	// Load saved queue
-	queuePath := filepath.Join(os.TempDir(), "videotools-queue.json")
-	if err := state.jobQueue.Load(queuePath); err != nil {
-		logging.Debug(logging.CatSystem, "failed to load queue: %v", err)
-	}
-
-	// Start queue processing
+	// Start with a clean queue for each session
+	// Queue will be populated as user adds videos via drag-and-drop
+	// Queue is saved to disk on shutdown but not loaded on startup
+	// Start the queue but keep it paused by default - only process when user explicitly requests
 	state.jobQueue.Start()
 
 	defer state.shutdown()
@@ -1106,6 +1226,36 @@ func runGUI() {
 	})
 	state.showMainMenu()
 	logging.Debug(logging.CatUI, "main menu rendered with %d modules", len(modulesList))
+
+	// Set queue change callback AFTER window is shown to avoid threading issues during startup
+	// Use a small delay to ensure everything is fully initialized
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		state.jobQueue.SetChangeCallback(func() {
+			// Only handle queue changes after initialization is complete
+			if !state.initComplete {
+				return
+			}
+
+			// Queue callbacks come from goroutines, so wrap UI calls
+			app := fyne.CurrentApp()
+			if app == nil || app.Driver() == nil {
+				return
+			}
+
+			app.Driver().DoFromGoroutine(func() {
+				// Update stats bar
+				state.updateStatsBar()
+
+				// Refresh UI when queue changes
+				if state.active == "" {
+					state.showMainMenu()
+				}
+			}, false)
+		})
+		state.initComplete = true
+	}()
+
 	w.ShowAndRun()
 }
 
@@ -1635,16 +1785,29 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	cancelBtn.Importance = widget.DangerImportance
 	cancelBtn.Disable()
 
-	// Add to Queue button
-	addQueueBtn := widget.NewButton("Add to Queue", func() {
+	// Queue buttons - Add and Remove
+	addQueueBtn := widget.NewButton("+ Add", func() {
 		if err := state.addConvertToQueue(); err != nil {
 			dialog.ShowError(err, state.window)
 		} else {
 			dialog.ShowInformation("Queue", "Job added to queue!", state.window)
 		}
 	})
+	addQueueBtn.Importance = widget.MediumImportance
 	if src == nil {
 		addQueueBtn.Disable()
+	}
+
+	removeQueueBtn := widget.NewButton("- Remove", func() {
+		if err := state.removeQueuedConvertJob(); err != nil {
+			dialog.ShowError(err, state.window)
+		} else {
+			dialog.ShowInformation("Queue", "Job removed from queue!", state.window)
+		}
+	})
+	removeQueueBtn.Importance = widget.MediumImportance
+	if src == nil {
+		removeQueueBtn.Disable()
 	}
 
 	convertBtn = widget.NewButton("CONVERT NOW", func() {
@@ -1658,9 +1821,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		convertBtn.Disable()
 		cancelBtn.Enable()
 		addQueueBtn.Disable()
+		removeQueueBtn.Disable()
 	}
 
-	actionInner := container.NewHBox(resetBtn, activity, statusLabel, layout.NewSpacer(), cancelBtn, addQueueBtn, convertBtn)
+	// Queue management container
+	queueBox := container.NewHBox(addQueueBtn, removeQueueBtn)
+
+	actionInner := container.NewHBox(resetBtn, activity, statusLabel, layout.NewSpacer(), cancelBtn, queueBox, convertBtn)
 	actionBar := ui.TintedBar(convertColor, actionInner)
 
 	// Wrap mainArea in a scroll container to prevent content from forcing window resize
