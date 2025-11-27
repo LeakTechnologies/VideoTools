@@ -51,7 +51,6 @@ type Job struct {
 	StartedAt   *time.Time             `json:"started_at,omitempty"`
 	CompletedAt *time.Time             `json:"completed_at,omitempty"`
 	Priority    int                    `json:"priority"` // Higher priority = runs first
-	HasModifiedSettings bool            `json:"has_modified_settings"`
 	cancel      context.CancelFunc     `json:"-"`
 }
 
@@ -60,12 +59,11 @@ type JobExecutor func(ctx context.Context, job *Job, progressCallback func(float
 
 // Queue manages a queue of jobs
 type Queue struct {
-	jobs        []*Job
-	executor    JobExecutor
-	running     bool
-	paused      bool // When paused, no jobs are processed even if running
-	mu          sync.RWMutex
-	onChange    func() // Callback when queue state changes
+	jobs     []*Job
+	executor JobExecutor
+	running  bool
+	mu       sync.RWMutex
+	onChange func() // Callback when queue state changes
 }
 
 // New creates a new queue with the given executor
@@ -74,7 +72,6 @@ func New(executor JobExecutor) *Queue {
 		jobs:     make([]*Job, 0),
 		executor: executor,
 		running:  false,
-		paused:   true, // Start paused by default
 	}
 }
 
@@ -252,22 +249,6 @@ func (q *Queue) Stop() {
 	q.running = false
 }
 
-// PauseProcessing pauses job processing (jobs stay in queue)
-func (q *Queue) PauseProcessing() {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	q.paused = true
-	q.notifyChange()
-}
-
-// ResumeProcessing resumes job processing
-func (q *Queue) ResumeProcessing() {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	q.paused = false
-	q.notifyChange()
-}
-
 // processJobs continuously processes pending jobs
 func (q *Queue) processJobs() {
 	for {
@@ -275,13 +256,6 @@ func (q *Queue) processJobs() {
 		if !q.running {
 			q.mu.Unlock()
 			return
-		}
-
-		// If paused, wait and don't process jobs
-		if q.paused {
-			q.mu.Unlock()
-			time.Sleep(500 * time.Millisecond)
-			continue
 		}
 
 		// Find highest priority pending job
@@ -401,15 +375,6 @@ func (q *Queue) Clear() {
 		}
 	}
 	q.jobs = filtered
-	q.notifyChange()
-}
-
-// ClearAll removes all jobs from the queue
-func (q *Queue) ClearAll() {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	q.jobs = make([]*Job, 0)
 	q.notifyChange()
 }
 
