@@ -308,11 +308,26 @@ func (s *appState) applyInverseDefaults(src *videoSource) {
 func (s *appState) setContent(body fyne.CanvasObject) {
 	bg := canvas.NewRectangle(backgroundColor)
 	// Don't set a minimum size - let content determine layout naturally
-	if body == nil {
-		s.window.SetContent(bg)
-		return
+
+	// Always use DoFromGoroutine to ensure we're on the main thread
+	// This is safe even when already on the main thread
+	app := fyne.CurrentApp()
+	if app != nil && app.Driver() != nil {
+		app.Driver().DoFromGoroutine(func() {
+			if body == nil {
+				s.window.SetContent(bg)
+			} else {
+				s.window.SetContent(container.NewMax(bg, body))
+			}
+		}, false)
+	} else {
+		// Fallback if app not ready yet (during initialization)
+		if body == nil {
+			s.window.SetContent(bg)
+		} else {
+			s.window.SetContent(container.NewMax(bg, body))
+		}
 	}
-	s.window.SetContent(container.NewMax(bg, body))
 }
 
 // showErrorWithCopy displays an error dialog with a "Copy Error" button
@@ -1086,13 +1101,21 @@ func runGUI() {
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		state.jobQueue.SetChangeCallback(func() {
-			// Update stats bar
-			state.updateStatsBar()
-
-			// Refresh UI when queue changes
-			if state.active == "" {
-				state.showMainMenu()
+			// Queue callbacks come from goroutines, so wrap UI calls
+			app := fyne.CurrentApp()
+			if app == nil || app.Driver() == nil {
+				return
 			}
+
+			app.Driver().DoFromGoroutine(func() {
+				// Update stats bar
+				state.updateStatsBar()
+
+				// Refresh UI when queue changes
+				if state.active == "" {
+					state.showMainMenu()
+				}
+			}, false)
 		})
 	}()
 
