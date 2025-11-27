@@ -21,6 +21,8 @@ func BuildQueueView(
 	onCancel func(string),
 	onRemove func(string),
 	onClear func(),
+	onClearAll func(),
+	onProcess func(),
 	titleColor, bgColor, textColor color.Color,
 ) fyne.CanvasObject {
 	// Header
@@ -29,20 +31,73 @@ func BuildQueueView(
 	title.TextSize = 24
 
 	backBtn := widget.NewButton("← Back", onBack)
+	backBtn.Importance = widget.LowImportance
+
 	clearBtn := widget.NewButton("Clear Completed", onClear)
+	clearBtn.Importance = widget.LowImportance
+
+	clearAllBtn := widget.NewButton("Clear All", onClearAll)
+	clearAllBtn.Importance = widget.DangerImportance
+
+	processBtn := widget.NewButton("▶ Process Queue", onProcess)
+	processBtn.Importance = widget.HighImportance
+
+	// Only show process button if there are pending jobs
+	if len(jobs) == 0 {
+		processBtn.Disable()
+	}
+	var hasPending bool
+	for _, job := range jobs {
+		if job.Status == queue.JobStatusPending {
+			hasPending = true
+			break
+		}
+	}
+	if !hasPending {
+		processBtn.Disable()
+	}
 
 	header := container.NewBorder(
 		nil, nil,
 		backBtn,
-		clearBtn,
+		container.NewHBox(clearBtn, clearAllBtn, processBtn),
 		container.NewCenter(title),
 	)
+
+	// Count stats
+	pending := 0
+	running := 0
+	failed := 0
+	completed := 0
+	for _, job := range jobs {
+		switch job.Status {
+		case queue.JobStatusPending:
+			pending++
+		case queue.JobStatusRunning:
+			running++
+		case queue.JobStatusCompleted:
+			completed++
+		case queue.JobStatusFailed, queue.JobStatusCancelled:
+			failed++
+		}
+	}
+
+	// Stats display with better formatting
+	var statsText string
+	if len(jobs) == 0 {
+		statsText = "Queue is empty"
+	} else {
+		statsText = fmt.Sprintf("  Total: %d  |  Running: %d  |  Pending: %d  |  Completed: %d  |  Failed: %d  ",
+			len(jobs), running, pending, completed, failed)
+	}
+	statsLabel := widget.NewLabel(statsText)
+	statsLabel.Alignment = fyne.TextAlignCenter
 
 	// Job list
 	var jobItems []fyne.CanvasObject
 
 	if len(jobs) == 0 {
-		emptyMsg := widget.NewLabel("No jobs in queue")
+		emptyMsg := widget.NewLabel("Drop videos on modules to add conversion jobs")
 		emptyMsg.Alignment = fyne.TextAlignCenter
 		jobItems = append(jobItems, container.NewCenter(emptyMsg))
 	} else {
@@ -54,9 +109,10 @@ func BuildQueueView(
 	jobList := container.NewVBox(jobItems...)
 	scrollable := container.NewVScroll(jobList)
 
+	// Create body with header, stats, and scrollable list
 	body := container.NewBorder(
 		header,
-		nil, nil, nil,
+		statsLabel, nil, nil,
 		scrollable,
 	)
 
@@ -75,26 +131,31 @@ func buildJobItem(
 	// Status color
 	statusColor := getStatusColor(job.Status)
 
-	// Status indicator
+	// Status indicator bar
 	statusRect := canvas.NewRectangle(statusColor)
-	statusRect.SetMinSize(fyne.NewSize(6, 0))
+	statusRect.SetMinSize(fyne.NewSize(4, 0))
 
-	// Title and description
-	titleLabel := widget.NewLabel(job.Title)
+	// Title with modified indicator
+	titleText := job.Title
+	if job.HasModifiedSettings && job.Status == queue.JobStatusPending {
+		titleText = titleText + " ⚙ (custom settings)"
+	}
+	titleLabel := widget.NewLabel(titleText)
 	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
 
+	// Description/output path
 	descLabel := widget.NewLabel(job.Description)
 	descLabel.TextStyle = fyne.TextStyle{Italic: true}
 
-	// Progress bar (for running jobs)
+	// Progress bar (for running/completed jobs)
 	var progressWidget fyne.CanvasObject
-	if job.Status == queue.JobStatusRunning {
+	if job.Status == queue.JobStatusRunning || job.Status == queue.JobStatusCompleted {
 		progress := widget.NewProgressBar()
-		progress.SetValue(job.Progress / 100.0)
-		progressWidget = progress
-	} else if job.Status == queue.JobStatusCompleted {
-		progress := widget.NewProgressBar()
-		progress.SetValue(1.0)
+		if job.Status == queue.JobStatusRunning {
+			progress.SetValue(job.Progress / 100.0)
+		} else {
+			progress.SetValue(1.0)
+		}
 		progressWidget = progress
 	} else {
 		progressWidget = widget.NewLabel("")
@@ -105,29 +166,40 @@ func buildJobItem(
 	statusLabel := widget.NewLabel(statusText)
 	statusLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
-	// Control buttons
+	// Control buttons with status-appropriate styling
 	var buttons []fyne.CanvasObject
 	switch job.Status {
 	case queue.JobStatusRunning:
-		buttons = append(buttons,
-			widget.NewButton("Pause", func() { onPause(job.ID) }),
-			widget.NewButton("Cancel", func() { onCancel(job.ID) }),
-		)
+		pauseBtn := widget.NewButton("⏸ Pause", func() { onPause(job.ID) })
+		pauseBtn.Importance = widget.MediumImportance
+		cancelBtn := widget.NewButton("⊗ Cancel", func() { onCancel(job.ID) })
+		cancelBtn.Importance = widget.DangerImportance
+		buttons = append(buttons, pauseBtn, cancelBtn)
 	case queue.JobStatusPaused:
-		buttons = append(buttons,
-			widget.NewButton("Resume", func() { onResume(job.ID) }),
-			widget.NewButton("Cancel", func() { onCancel(job.ID) }),
-		)
+		resumeBtn := widget.NewButton("▶ Resume", func() { onResume(job.ID) })
+		resumeBtn.Importance = widget.MediumImportance
+		cancelBtn := widget.NewButton("⊗ Cancel", func() { onCancel(job.ID) })
+		cancelBtn.Importance = widget.DangerImportance
+		buttons = append(buttons, resumeBtn, cancelBtn)
 	case queue.JobStatusPending:
-		buttons = append(buttons,
-			widget.NewButton("Cancel", func() { onCancel(job.ID) }),
-		)
-	case queue.JobStatusCompleted, queue.JobStatusFailed, queue.JobStatusCancelled:
-		buttons = append(buttons,
-			widget.NewButton("Remove", func() { onRemove(job.ID) }),
-		)
+		cancelBtn := widget.NewButton("⊗ Cancel", func() { onCancel(job.ID) })
+		cancelBtn.Importance = widget.DangerImportance
+		buttons = append(buttons, cancelBtn)
+	case queue.JobStatusCompleted:
+		removeBtn := widget.NewButton("✓ Remove", func() { onRemove(job.ID) })
+		removeBtn.Importance = widget.LowImportance
+		buttons = append(buttons, removeBtn)
+	case queue.JobStatusFailed:
+		removeBtn := widget.NewButton("✗ Remove", func() { onRemove(job.ID) })
+		removeBtn.Importance = widget.LowImportance
+		buttons = append(buttons, removeBtn)
+	case queue.JobStatusCancelled:
+		removeBtn := widget.NewButton("⊗ Remove", func() { onRemove(job.ID) })
+		removeBtn.Importance = widget.LowImportance
+		buttons = append(buttons, removeBtn)
 	}
 
+	// Layout buttons in a responsive way
 	buttonBox := container.NewHBox(buttons...)
 
 	// Info section
@@ -138,7 +210,7 @@ func buildJobItem(
 		statusLabel,
 	)
 
-	// Main content
+	// Main content with borders
 	content := container.NewBorder(
 		nil, nil,
 		statusRect,
@@ -146,7 +218,7 @@ func buildJobItem(
 		infoBox,
 	)
 
-	// Card background
+	// Card background with padding
 	card := canvas.NewRectangle(bgColor)
 	card.CornerRadius = 4
 
