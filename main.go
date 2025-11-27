@@ -962,13 +962,9 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 }
 
 func (s *appState) shutdown() {
-	// Save queue before shutting down
+	// Stop queue without saving - we want a clean slate each session
 	if s.jobQueue != nil {
 		s.jobQueue.Stop()
-		queuePath := filepath.Join(os.TempDir(), "videotools-queue.json")
-		if err := s.jobQueue.Save(queuePath); err != nil {
-			logging.Debug(logging.CatSystem, "failed to save queue: %v", err)
-		}
 	}
 
 	s.stopPlayer()
@@ -1081,24 +1077,24 @@ func runGUI() {
 
 	// Initialize job queue
 	state.jobQueue = queue.New(state.jobExecutor)
-	state.jobQueue.SetChangeCallback(func() {
-		// Update stats bar
-		state.updateStatsBar()
 
-		// Refresh UI when queue changes
-		if state.active == "" {
-			state.showMainMenu()
-		}
-	})
-
-	// Load saved queue
-	queuePath := filepath.Join(os.TempDir(), "videotools-queue.json")
-	if err := state.jobQueue.Load(queuePath); err != nil {
-		logging.Debug(logging.CatSystem, "failed to load queue: %v", err)
-	}
-
-	// Start queue processing
+	// Start queue processing (but paused by default)
 	state.jobQueue.Start()
+
+	// Set callback AFTER showing the window to avoid threading issues during startup
+	// Use a goroutine with delay to ensure UI is fully initialized
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		state.jobQueue.SetChangeCallback(func() {
+			// Update stats bar
+			state.updateStatsBar()
+
+			// Refresh UI when queue changes
+			if state.active == "" {
+				state.showMainMenu()
+			}
+		})
+	}()
 
 	defer state.shutdown()
 	w.SetOnDropped(func(pos fyne.Position, items []fyne.URI) {
