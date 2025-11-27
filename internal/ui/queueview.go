@@ -21,6 +21,7 @@ func BuildQueueView(
 	onCancel func(string),
 	onRemove func(string),
 	onClear func(),
+	onClearAll func(),
 	titleColor, bgColor, textColor color.Color,
 ) fyne.CanvasObject {
 	// Header
@@ -29,12 +30,18 @@ func BuildQueueView(
 	title.TextSize = 24
 
 	backBtn := widget.NewButton("← Back", onBack)
+	backBtn.Importance = widget.LowImportance
+
 	clearBtn := widget.NewButton("Clear Completed", onClear)
+	clearBtn.Importance = widget.LowImportance
+
+	clearAllBtn := widget.NewButton("Clear All", onClearAll)
+	clearAllBtn.Importance = widget.DangerImportance
 
 	header := container.NewBorder(
 		nil, nil,
 		backBtn,
-		clearBtn,
+		container.NewHBox(clearBtn, clearAllBtn),
 		container.NewCenter(title),
 	)
 

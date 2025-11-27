@@ -151,31 +151,30 @@ func (c convertConfig) CoverLabel() string {
 }
 
 type appState struct {
-	window         fyne.Window
-	active         string
-	initComplete   bool // True after initial UI setup completes
-	source         *videoSource
-	loadedVideos   []*videoSource // Multiple loaded videos for navigation
-	currentIndex   int            // Current video index in loadedVideos
-	anim           *previewAnimator
-	convert        convertConfig
-	currentFrame   string
-	player         player.Controller
-	playerReady    bool
-	playerVolume   float64
-	playerMuted    bool
-	lastVolume     float64
-	playerPaused   bool
-	playerPos      float64
-	playerLast     time.Time
-	progressQuit   chan struct{}
-	convertCancel  context.CancelFunc
-	playerSurf     *playerSurface
-	convertBusy    bool
-	convertStatus  string
-	playSess       *playSession
-	jobQueue       *queue.Queue
-	statsBar       *ui.ConversionStatsBar
+	window        fyne.Window
+	active        string
+	source        *videoSource
+	loadedVideos  []*videoSource // Multiple loaded videos for navigation
+	currentIndex  int            // Current video index in loadedVideos
+	anim          *previewAnimator
+	convert       convertConfig
+	currentFrame  string
+	player        player.Controller
+	playerReady   bool
+	playerVolume  float64
+	playerMuted   bool
+	lastVolume    float64
+	playerPaused  bool
+	playerPos     float64
+	playerLast    time.Time
+	progressQuit  chan struct{}
+	convertCancel context.CancelFunc
+	playerSurf    *playerSurface
+	convertBusy   bool
+	convertStatus string
+	playSess      *playSession
+	jobQueue      *queue.Queue
+	statsBar      *ui.ConversionStatsBar
 }
 
 func (s *appState) stopPreview() {
@@ -423,6 +422,10 @@ func (s *appState) showQueue() {
 		},
 		func() { // onClear
 			s.jobQueue.Clear()
+			s.showQueue() // Refresh
+		},
+		func() { // onClearAll
+			s.jobQueue.ClearAll()
 			s.showQueue() // Refresh
 		},
 		utils.MustHex("#4CE870"), // titleColor
@@ -1082,39 +1085,27 @@ func runGUI() {
 	// Start queue processing (but paused by default)
 	state.jobQueue.Start()
 
-	// Set callback - queue changes are triggered by job processor goroutine
-	state.jobQueue.SetChangeCallback(func() {
-		// Skip updates during initialization
-		if !state.initComplete {
-			return
-		}
-
-		// Marshal UI updates to main thread
-		app := fyne.CurrentApp()
-		if app == nil || app.Driver() == nil {
-			return
-		}
-
-		app.Driver().DoFromGoroutine(func() {
-			// Update stats bar
-			state.updateStatsBar()
-
-			// Refresh UI when queue changes and we're on main menu
-			if state.active == "" {
-				state.showMainMenu()
-			}
-		}, false)
-	})
-
-	// Mark initialization as complete
-	state.initComplete = true
-
 	defer state.shutdown()
 	w.SetOnDropped(func(pos fyne.Position, items []fyne.URI) {
 		state.handleDrop(pos, items)
 	})
 	state.showMainMenu()
 	logging.Debug(logging.CatUI, "main menu rendered with %d modules", len(modulesList))
+
+	// Start stats bar update loop on a timer
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+		for range ticker.C {
+			app := fyne.CurrentApp()
+			if app != nil && app.Driver() != nil {
+				app.Driver().DoFromGoroutine(func() {
+					state.updateStatsBar()
+				}, false)
+			}
+		}
+	}()
+
 	w.ShowAndRun()
 }
 
