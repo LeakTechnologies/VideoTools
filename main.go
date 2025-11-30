@@ -843,6 +843,15 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	inputPath := cfg["inputPath"].(string)
 	outputPath := cfg["outputPath"].(string)
 
+	// If a direct conversion is running, wait until it finishes before starting queued jobs.
+	for s.convertBusy {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+
 	// Build FFmpeg arguments
 	args := []string{
 		"-y",
@@ -1973,7 +1982,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		} else {
 			dialog.ShowInformation("Queue", "Job added to queue!", state.window)
 			// Auto-start queue if not already running
-			if state.jobQueue != nil && !state.jobQueue.IsRunning() {
+			if state.jobQueue != nil && !state.jobQueue.IsRunning() && !state.convertBusy {
 				state.jobQueue.Start()
 				logging.Debug(logging.CatUI, "queue auto-started after adding job")
 			}
