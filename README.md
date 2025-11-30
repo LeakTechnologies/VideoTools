@@ -27,16 +27,31 @@ VideoTools is a professional-grade video processing application with a modern GU
 
 ## Quick Start
 
-### One-Time Setup
+### Installation (One Command)
+
 ```bash
-cd /home/stu/Projects/VideoTools
-source scripts/alias.sh
+bash install.sh
 ```
 
-### Run VideoTools
+The installer will build, install, and set up everything automatically!
+
+**After installation:**
 ```bash
+source ~/.bashrc    # (or ~/.zshrc for zsh)
 VideoTools
 ```
+
+### Alternative: Developer Setup
+
+If you already have the repo cloned:
+
+```bash
+cd /path/to/VideoTools
+source scripts/alias.sh
+VideoTools
+```
+
+For detailed installation options, see **INSTALLATION.md**.
 
 ## How to Create a Professional DVD
 
@@ -56,6 +71,9 @@ Output is professional quality, ready for:
 - PS2 playback
 
 ## Documentation
+
+**Getting Started:**
+- **INSTALLATION.md** - Comprehensive installation guide (read this first!)
 
 **For Users:**
 - **BUILD_AND_RUN.md** - How to build and run VideoTools
