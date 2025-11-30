@@ -814,8 +814,32 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		"-y",
 		"-hide_banner",
 		"-loglevel", "error",
-		"-i", inputPath,
 	}
+
+	// Check if this is a DVD format (special handling required)
+	selectedFormat, _ := cfg["selectedFormat"].(formatOption)
+	isDVD := selectedFormat.Ext == ".mpg"
+
+	// DVD presets: enforce compliant target, frame rate, resolution, codecs
+	if isDVD {
+		if strings.Contains(selectedFormat.Label, "PAL") {
+			args = append(args, "-target", "pal-dvd")
+			cfg["frameRate"] = "25"
+			cfg["targetResolution"] = "PAL (720×576)"
+		} else {
+			args = append(args, "-target", "ntsc-dvd")
+			cfg["frameRate"] = "29.97"
+			cfg["targetResolution"] = "NTSC (720×480)"
+		}
+		cfg["videoCodec"] = "MPEG-2"
+		cfg["audioCodec"] = "AC-3"
+		if _, ok := cfg["audioBitrate"].(string); !ok || cfg["audioBitrate"] == "" {
+			cfg["audioBitrate"] = "192k"
+		}
+		cfg["pixelFormat"] = "yuv420p"
+	}
+
+	args = append(args, "-i", inputPath)
 
 	// Add cover art if available
 	coverArtPath, _ := cfg["coverArtPath"].(string)
@@ -889,10 +913,6 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	if len(vf) > 0 {
 		args = append(args, "-vf", strings.Join(vf, ","))
 	}
-
-	// Check if this is a DVD format (special handling required)
-	selectedFormat, _ := cfg["selectedFormat"].(formatOption)
-	isDVD := selectedFormat.Ext == ".mpg"
 
 	// Video codec
 	videoCodec, _ := cfg["videoCodec"].(string)
@@ -3354,6 +3374,8 @@ func determineVideoCodec(cfg convertConfig) string {
 		return "libaom-av1"
 	case "MPEG-2":
 		return "mpeg2video"
+	case "mpeg2video":
+		return "mpeg2video"
 	case "Copy":
 		return "copy"
 	default:
@@ -3371,6 +3393,8 @@ func determineAudioCodec(cfg convertConfig) string {
 	case "MP3":
 		return "libmp3lame"
 	case "AC-3":
+		return "ac3"
+	case "ac3":
 		return "ac3"
 	case "FLAC":
 		return "flac"
