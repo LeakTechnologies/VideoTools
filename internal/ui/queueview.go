@@ -76,7 +76,10 @@ func BuildQueueView(
 	}
 
 	jobList := container.NewVBox(jobItems...)
-	scrollable := container.NewVScroll(jobList)
+	// Use a scroll container anchored to the top to avoid jumpy scroll-to-content behavior.
+	scrollable := container.NewScroll(jobList)
+	scrollable.SetMinSize(fyne.NewSize(0, 0))
+	scrollable.Offset = fyne.NewPos(0, 0)
 
 	body := container.NewBorder(
 		header,
