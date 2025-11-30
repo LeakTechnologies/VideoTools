@@ -1807,9 +1807,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		simpleOptions,
 	)
 
-	// Avoid nested scrolls capturing wheel events; let the outer page scroll handle overflow.
+	// Keep Simple lightweight; wrap Advanced in its own scroll to avoid bloating MinSize.
 	simpleScrollBox := simpleWithSettings
-	advancedScrollBox := advancedOptions
+	advancedScrollBox := container.NewVScroll(advancedOptions)
+	advancedScrollBox.SetMinSize(fyne.NewSize(0, 0))
 
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Simple", simpleScrollBox),
