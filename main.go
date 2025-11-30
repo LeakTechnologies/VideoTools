@@ -1892,6 +1892,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	convertBtn = widget.NewButton("CONVERT NOW", func() {
+		// Check if queue is already running
+		if state.jobQueue != nil && state.jobQueue.IsRunning() {
+			dialog.ShowInformation("Queue Active",
+				"The conversion queue is currently running. Click \"Add to Queue\" to add this video to the queue instead.",
+				state.window)
+			// Auto-add to queue instead
+			if err := state.addConvertToQueue(); err != nil {
+				dialog.ShowError(err, state.window)
+			} else {
+				dialog.ShowInformation("Queue", "Job added to queue!", state.window)
+			}
+			return
+		}
 		state.startConvert(statusLabel, convertBtn, cancelBtn, activity)
 	})
 	convertBtn.Importance = widget.HighImportance
@@ -1902,6 +1915,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		convertBtn.Disable()
 		cancelBtn.Enable()
 		addQueueBtn.Disable()
+	}
+	// Also disable if queue is running
+	if state.jobQueue != nil && state.jobQueue.IsRunning() {
+		convertBtn.Disable()
+		addQueueBtn.Enable()
 	}
 
 	actionInner := container.NewHBox(resetBtn, activity, statusLabel, layout.NewSpacer(), cancelBtn, addQueueBtn, convertBtn)
