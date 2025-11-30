@@ -1880,6 +1880,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			dialog.ShowError(err, state.window)
 		} else {
 			dialog.ShowInformation("Queue", "Job added to queue!", state.window)
+			// Auto-start queue if not already running
+			if state.jobQueue != nil && !state.jobQueue.IsRunning() {
+				state.jobQueue.Start()
+				logging.Debug(logging.CatUI, "queue auto-started after adding job")
+			}
 		}
 	})
 	if src == nil {
