@@ -893,6 +893,10 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	// Add cover art if available
 	coverArtPath, _ := cfg["coverArtPath"].(string)
 	hasCoverArt := coverArtPath != ""
+	if isDVD {
+		// DVD targets do not support attached cover art
+		hasCoverArt = false
+	}
 	if hasCoverArt {
 		args = append(args, "-i", coverArtPath)
 	}
@@ -3525,6 +3529,10 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 	// Add cover art if available
 	hasCoverArt := cfg.CoverArtPath != ""
+	if isDVD {
+		// DVD targets do not support attached cover art
+		hasCoverArt = false
+	}
 	if hasCoverArt {
 		args = append(args, "-i", cfg.CoverArtPath)
 	}
