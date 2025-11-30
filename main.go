@@ -1413,23 +1413,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	dvdAspectBox := container.NewVBox(dvdAspectLabel, dvdAspectSelect, dvdInfoLabel)
 	dvdAspectBox.Hide() // Hidden by default
 
-	// Show/hide DVD options based on format selection
-	updateDVDOptions := func() {
-		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
-		if isDVD {
-			dvdAspectBox.Show()
-			// Update DVD info based on which DVD format was selected
-			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
-				dvdInfoLabel.SetText("NTSC: 720×480 @ 29.97fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 6000k (default), 9000k (max PS2-safe)\nCompatible with DVDStyler, PS2, standalone DVD players")
-			} else if strings.Contains(state.convert.SelectedFormat.Label, "PAL") {
-				dvdInfoLabel.SetText("PAL: 720×576 @ 25.00fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 8000k (default), 9500k (max PS2-safe)\nCompatible with European DVD players and authoring tools")
-			} else {
-				dvdInfoLabel.SetText("DVD Format selected")
-			}
-		} else {
-			dvdAspectBox.Hide()
-		}
-	}
+	// Placeholder for updateDVDOptions - will be defined after resolution/framerate selects are created
+	var updateDVDOptions func()
 
 	// Create formatSelect with callback that updates DVD options
 	formatSelect := widget.NewSelect(formatLabels, func(value string) {
@@ -1438,7 +1423,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				logging.Debug(logging.CatUI, "format set to %s", value)
 				state.convert.SelectedFormat = opt
 				outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
-				updateDVDOptions() // Show/hide DVD options
+				if updateDVDOptions != nil {
+					updateDVDOptions() // Show/hide DVD options and auto-set resolution
+				}
 				break
 			}
 		}
@@ -1573,7 +1560,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Target Resolution
-	resolutionSelect := widget.NewSelect([]string{"Source", "720p", "1080p", "1440p", "4K"}, func(value string) {
+	resolutionSelect := widget.NewSelect([]string{"Source", "720p", "1080p", "1440p", "4K", "NTSC (720×480)", "PAL (720×576)"}, func(value string) {
 		state.convert.TargetResolution = value
 		logging.Debug(logging.CatUI, "target resolution set to %s", value)
 	})
@@ -1626,6 +1613,34 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		logging.Debug(logging.CatUI, "audio channels set to %s", value)
 	})
 	audioChannelsSelect.SetSelected(state.convert.AudioChannels)
+
+	// Now define updateDVDOptions with access to resolution and framerate selects
+	updateDVDOptions = func() {
+		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
+		if isDVD {
+			dvdAspectBox.Show()
+			// Auto-set resolution and framerate based on DVD format
+			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
+				dvdInfoLabel.SetText("NTSC: 720×480 @ 29.97fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 6000k (default), 9000k (max PS2-safe)\nCompatible with DVDStyler, PS2, standalone DVD players")
+				// Auto-set to NTSC resolution
+				resolutionSelect.SetSelected("NTSC (720×480)")
+				frameRateSelect.SetSelected("30") // Will be converted to 29.97fps
+				state.convert.TargetResolution = "NTSC (720×480)"
+				state.convert.FrameRate = "30"
+			} else if strings.Contains(state.convert.SelectedFormat.Label, "PAL") {
+				dvdInfoLabel.SetText("PAL: 720×576 @ 25.00fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 8000k (default), 9500k (max PS2-safe)\nCompatible with European DVD players and authoring tools")
+				// Auto-set to PAL resolution
+				resolutionSelect.SetSelected("PAL (720×576)")
+				frameRateSelect.SetSelected("25")
+				state.convert.TargetResolution = "PAL (720×576)"
+				state.convert.FrameRate = "25"
+			} else {
+				dvdInfoLabel.SetText("DVD Format selected")
+			}
+		} else {
+			dvdAspectBox.Hide()
+		}
+	}
 
 	// Advanced mode options - full controls with organized sections
 	advancedOptions := container.NewVBox(
