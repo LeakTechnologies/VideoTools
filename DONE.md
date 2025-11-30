@@ -2,7 +2,7 @@
 
 This file tracks completed features, fixes, and milestones.
 
-## Version 0.1.0-dev11 (2025-11-26)
+## Version 0.1.0-dev11 (2025-11-30)
 
 ### Features
 - ✅ Added persistent conversion stats bar visible on all screens
@@ -24,6 +24,17 @@ This file tracks completed features, fixes, and milestones.
   - Better user experience when reporting issues
 
 ### Improvements
+- ✅ Align direct convert and queue behavior
+  - Show active direct convert inline in queue with live progress
+  - Preserve queue scroll position during updates
+  - Back button from queue returns to originating module
+  - Queue badge includes active direct conversions
+  - Allow adding to queue while a convert is running
+- ✅ DVD-compliant outputs
+  - Enforce MPEG-2 video + AC-3 audio, yuv420p
+  - Apply NTSC/PAL targets with correct fps/resolution
+  - Disable cover art for DVD targets to avoid mux errors
+  - Unified settings for direct and queued jobs
 - ✅ Updated queue tile to show active/total jobs instead of completed/total
   - Shows pending + running jobs out of total
   - More intuitive status at a glance

@@ -1,15 +1,13 @@
-# VideoTools TODO
+# VideoTools TODO (v0.1.0-dev12 plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Critical Issues
-
-### Build System
-- [ ] **Fix GCC 15.2.1 CGO compilation hang** - Current builds hang during OpenGL/CGO compilation
-  - Investigate GCC version compatibility
-  - Test with older GCC versions
-  - Consider Docker build environment
-  - Document workaround for development builds
+## Critical Issues / Polishing for dev12
+- [ ] Queue polish: ensure scroll/refresh stability with 10+ jobs and long runs
+- [ ] Direct+queue parity: verify label/progress/order are correct when mixing modes
+- [ ] Conversion error surfacing: include stderr snippet in dialog for faster debug
+- [ ] DVD author helper (optional): one-click VIDEO_TS/ISO from DVD .mpg
+- [ ] Build reliability: document cgo/GL deps and avoid accidental cache wipes
 
 ## Core Features
 
@@ -22,7 +20,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] Add recent files tracking and dropdown menu
 - [ ] Test video persistence across module switches
 
-### Convert Module Completion
+### Convert Module Completion (dev12 focus)
 - [ ] Add hardware acceleration UI controls (NVENC, QSV, VAAPI)
 - [ ] Implement two-pass encoding mode
 - [ ] Add bitrate-based encoding option (not just CRF)
