@@ -424,7 +424,8 @@ func (r *conversionStatsRenderer) Layout(size fyne.Size) {
 }
 
 func (r *conversionStatsRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(400, 32)
+	// Only constrain height, allow width to flex
+	return fyne.NewSize(0, 32)
 }
 
 func (r *conversionStatsRenderer) Refresh() {

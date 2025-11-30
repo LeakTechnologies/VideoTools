@@ -38,7 +38,9 @@ echo "✓ Dependencies verified"
 echo ""
 
 echo "🔨 Building VideoTools..."
-if CGO_ENABLED=0 go build -o "$BUILD_OUTPUT" .; then
+# Fyne needs cgo for GLFW/OpenGL bindings; build with CGO enabled.
+export CGO_ENABLED=1
+if go build -o "$BUILD_OUTPUT" .; then
     echo "✓ Build successful!"
     echo ""
     echo "════════════════════════════════════════════════════════════════"
