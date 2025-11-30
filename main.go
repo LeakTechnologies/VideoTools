@@ -156,6 +156,7 @@ func (c convertConfig) CoverLabel() string {
 type appState struct {
 	window          fyne.Window
 	active          string
+	lastModule      string
 	source          *videoSource
 	loadedVideos    []*videoSource // Multiple loaded videos for navigation
 	currentIndex    int            // Current video index in loadedVideos
@@ -440,6 +441,7 @@ func (s *appState) showMainMenu() {
 func (s *appState) showQueue() {
 	s.stopPreview()
 	s.stopPlayer()
+	s.lastModule = s.active
 	s.active = "queue"
 	s.refreshQueueView()
 }
@@ -466,7 +468,13 @@ func (s *appState) refreshQueueView() {
 
 	view, scroll := ui.BuildQueueView(
 		jobs,
-		s.showMainMenu, // onBack
+		func() { // onBack
+			if s.lastModule != "" && s.lastModule != "queue" && s.lastModule != "menu" {
+				s.showModule(s.lastModule)
+			} else {
+				s.showMainMenu()
+			}
+		},
 		func(id string) { // onPause
 			if err := s.jobQueue.Pause(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to pause job: %v", err)
@@ -810,6 +818,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 
 func (s *appState) showConvertView(file *videoSource) {
 	s.stopPreview()
+	s.lastModule = s.active
 	s.active = "convert"
 	if file != nil {
 		s.source = file
