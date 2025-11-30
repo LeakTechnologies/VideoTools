@@ -1159,8 +1159,10 @@ func runGUI() {
 	} else {
 		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
-	w.Resize(fyne.NewSize(1120, 640))
-	logging.Debug(logging.CatUI, "window initialized at 1120x640")
+	// Use a generous default window size that fits typical desktops without overflowing.
+	w.Resize(fyne.NewSize(1280, 800))
+	w.SetFixedSize(false) // Allow manual resizing
+	logging.Debug(logging.CatUI, "window initialized with manual resizing enabled")
 
 	state := &appState{
 		window: w,
@@ -1420,8 +1422,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	videoPanel := buildVideoPane(state, fyne.NewSize(360, 230), src, updateCover)
-	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(360, 150))
+	// Make panel sizes responsive with modest minimums to avoid forcing the window beyond the screen
+	videoPanel := buildVideoPane(state, fyne.NewSize(460, 260), src, updateCover)
+	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200))
 	updateMetaCover = metaCoverUpdate
 
 	var formatLabels []string
@@ -1537,7 +1540,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Settings management for batch operations
 	settingsInfoLabel := widget.NewLabel("Settings persist across videos. Change them anytime to affect all subsequent videos.")
-	settingsInfoLabel.Wrapping = fyne.TextWrapWord
+	// Don't wrap - let text scroll or truncate if needed
+	settingsInfoLabel.Alignment = fyne.TextAlignCenter
 
 	resetSettingsBtn := widget.NewButton("Reset to Defaults", func() {
 		// Reset to default settings
@@ -1569,10 +1573,33 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	resetSettingsBtn.Importance = widget.LowImportance
 
-	settingsBox := container.NewVBox(
-		widget.NewLabelWithStyle("═══ BATCH SETTINGS ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+	// Create collapsible batch settings section
+	settingsContent := container.NewVBox(
 		settingsInfoLabel,
 		resetSettingsBtn,
+	)
+	settingsContent.Hide() // Hidden by default
+
+	// Use a pointer to track visibility state
+	settingsVisible := false
+
+	var toggleSettingsBtn *widget.Button
+	toggleSettingsBtn = widget.NewButton("Show Batch Settings", func() {
+		if settingsVisible {
+			settingsContent.Hide()
+			toggleSettingsBtn.SetText("Show Batch Settings")
+			settingsVisible = false
+		} else {
+			settingsContent.Show()
+			toggleSettingsBtn.SetText("Hide Batch Settings")
+			settingsVisible = true
+		}
+	})
+	toggleSettingsBtn.Importance = widget.LowImportance
+
+	settingsBox := container.NewVBox(
+		toggleSettingsBtn,
+		settingsContent,
 		widget.NewSeparator(),
 	)
 
@@ -1780,9 +1807,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		simpleOptions,
 	)
 
+	// Avoid nested scrolls capturing wheel events; let the outer page scroll handle overflow.
+	simpleScrollBox := simpleWithSettings
+	advancedScrollBox := advancedOptions
+
 	tabs := container.NewAppTabs(
-		container.NewTabItem("Simple", container.NewVScroll(simpleWithSettings)),
-		container.NewTabItem("Advanced", container.NewVScroll(advancedOptions)),
+		container.NewTabItem("Simple", simpleScrollBox),
+		container.NewTabItem("Advanced", advancedScrollBox),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
@@ -1831,15 +1862,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	snippetHint := widget.NewLabel("Creates a 20s clip centred on the timeline midpoint.")
 	snippetRow := container.NewHBox(snippetBtn, layout.NewSpacer(), snippetHint)
-	// Use VSplit to make panels expand vertically and fill available space
-	leftColumn := container.NewVSplit(videoPanel, metaPanel)
-	leftColumn.Offset = 0.65 // Video pane gets 65% of space, metadata gets 35%
+
+	// Stack video and metadata directly so metadata sits immediately under the player.
+	leftColumn := container.NewVBox(videoPanel, metaPanel)
+
+	// Split: left side (video + metadata VSplit) takes 55% | right side (options) takes 45%
 	mainSplit := container.NewHSplit(leftColumn, optionsPanel)
-	mainSplit.Offset = 0.45 // Give the options panel extra horizontal room
-	mainArea := container.NewPadded(container.NewVBox(
-		mainSplit,
-		snippetRow,
-	))
+	mainSplit.Offset = 0.55 // Video/metadata column gets 55%, options gets 45%
+
+	// Core content now just the split; ancillary controls stack in bottomSection.
+	mainContent := container.NewMax(mainSplit)
 
 	resetBtn := widget.NewButton("Reset", func() {
 		tabs.SelectIndex(0) // Select Simple tab
@@ -1922,11 +1954,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		addQueueBtn.Enable()
 	}
 
-	actionInner := container.NewHBox(resetBtn, activity, statusLabel, layout.NewSpacer(), cancelBtn, addQueueBtn, convertBtn)
+	leftControls := container.NewHBox(resetBtn)
+	centerStatus := container.NewHBox(activity, statusLabel)
+	rightControls := container.NewHBox(cancelBtn, addQueueBtn, convertBtn)
+	actionInner := container.NewBorder(nil, nil, leftControls, rightControls, centerStatus)
 	actionBar := ui.TintedBar(convertColor, actionInner)
-
-	// Wrap mainArea in a scroll container to prevent content from forcing window resize
-	scrollableMain := container.NewScroll(mainArea)
 
 	// Start a UI refresh ticker to update widgets from state while conversion is active
 	// This ensures progress updates even when navigating between modules
@@ -1993,20 +2025,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Update stats bar
 	state.updateStatsBar()
 
-	// Add stats bar above the action bar at the bottom
-	bottomSection := container.NewVBox(
-		state.statsBar,
-		widget.NewSeparator(),
-		actionBar,
-	)
+	// Stack status + snippet + actions tightly to avoid dead air, outside the scroll area.
+	bottomSection := container.NewVBox(state.statsBar, snippetRow, widget.NewSeparator(), actionBar)
 
-	return container.NewBorder(
-		backBar,
-		bottomSection,
-		nil,
-		nil,
-		scrollableMain,
-	)
+	scrollableMain := container.NewVScroll(mainContent)
+
+	return container.NewBorder(backBar, bottomSection, nil, nil, container.NewMax(scrollableMain))
 }
 
 func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
@@ -2249,11 +2273,13 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		img = canvas.NewImageFromResource(nil)
 	}
 	img.FillMode = canvas.ImageFillContain
-	img.SetMinSize(fyne.NewSize(targetWidth-28, targetHeight-40))
+	// Let the image grow with the available stage size
+	img.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 	stage := canvas.NewRectangle(utils.MustHex("#0F1529"))
 	stage.CornerRadius = 6
-	stage.SetMinSize(fyne.NewSize(targetWidth-12, targetHeight-12))
-	videoStage := container.NewMax(stage, container.NewPadded(container.NewCenter(img)))
+	stage.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
+	// Overlay the image directly so it fills the stage while preserving aspect.
+	videoStage := container.NewMax(stage, img)
 
 	coverBtn := utils.MakeIconButton("⌾", "Set current frame as cover art", func() {
 		path, err := state.captureCoverFromCurrent()
@@ -2454,7 +2480,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	stack := container.NewVBox(
 		container.NewPadded(videoWithOverlay),
 	)
-	return container.NewMax(outer, container.NewCenter(container.NewPadded(stack)))
+	return container.NewMax(outer, container.NewPadded(stack))
 }
 
 type playSession struct {
