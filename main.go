@@ -1535,6 +1535,47 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.AspectHandling = value
 	}
 
+	// Settings management for batch operations
+	settingsInfoLabel := widget.NewLabel("Settings persist across videos. Change them anytime to affect all subsequent videos.")
+	settingsInfoLabel.Wrapping = fyne.TextWrapWord
+
+	resetSettingsBtn := widget.NewButton("Reset to Defaults", func() {
+		// Reset to default settings
+		state.convert = convertConfig{
+			SelectedFormat:   formatOptions[0],
+			OutputBase:       "converted",
+			Quality:          "Standard (CRF 23)",
+			InverseTelecine:  false,
+			OutputAspect:     "Source",
+			AspectHandling:   "Auto",
+			VideoCodec:       "H.264",
+			EncoderPreset:    "medium",
+			BitrateMode:      "CRF",
+			CRF:              "",
+			VideoBitrate:     "",
+			TargetResolution: "Source",
+			FrameRate:        "Source",
+			PixelFormat:      "yuv420p",
+			HardwareAccel:    "none",
+			AudioCodec:       "AAC",
+			AudioBitrate:     "192k",
+			AudioChannels:    "Source",
+		}
+		logging.Debug(logging.CatUI, "settings reset to defaults")
+		// Refresh all UI elements to show new settings
+		formatSelect.SetSelected(state.convert.SelectedFormat.Label)
+		qualitySelect.SetSelected(state.convert.Quality)
+		outputEntry.SetText(state.convert.OutputBase)
+	})
+	resetSettingsBtn.Importance = widget.LowImportance
+
+	settingsBox := container.NewVBox(
+		widget.NewLabelWithStyle("═══ BATCH SETTINGS ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		settingsInfoLabel,
+		resetSettingsBtn,
+		widget.NewSeparator(),
+	)
+
 	// Simple mode options - minimal controls, aspect locked to Source
 	simpleOptions := container.NewVBox(
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
@@ -1733,8 +1774,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	)
 
 	// Create tabs for Simple/Advanced modes
+	// Wrap simple options with settings box at top
+	simpleWithSettings := container.NewVBox(
+		settingsBox,
+		simpleOptions,
+	)
+
 	tabs := container.NewAppTabs(
-		container.NewTabItem("Simple", container.NewVScroll(simpleOptions)),
+		container.NewTabItem("Simple", container.NewVScroll(simpleWithSettings)),
 		container.NewTabItem("Advanced", container.NewVScroll(advancedOptions)),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
