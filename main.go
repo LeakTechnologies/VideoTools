@@ -243,6 +243,10 @@ func (s *appState) updateQueueButtonLabel() {
 		return
 	}
 	completed, total := s.queueProgressCounts()
+	// Include active direct conversion in totals
+	if s.convertBusy {
+		total++
+	}
 	label := "View Queue"
 	if total > 0 {
 		label = fmt.Sprintf("View Queue %d/%d", completed, total)
