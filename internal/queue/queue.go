@@ -283,6 +283,13 @@ func (q *Queue) Stop() {
 	q.running = false
 }
 
+// IsRunning returns true if the queue is currently processing jobs
+func (q *Queue) IsRunning() bool {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+	return q.running
+}
+
 // PauseAll pauses any running job and stops processing
 func (q *Queue) PauseAll() {
 	q.mu.Lock()
