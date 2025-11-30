@@ -179,6 +179,8 @@ type appState struct {
 	jobQueue      *queue.Queue
 	statsBar      *ui.ConversionStatsBar
 	queueBtn      *widget.Button
+	queueScroll   *container.Scroll
+	queueOffset   fyne.Position
 }
 
 func (s *appState) stopPreview() {
@@ -430,6 +432,15 @@ func (s *appState) showQueue() {
 	s.stopPreview()
 	s.stopPlayer()
 	s.active = "queue"
+	s.refreshQueueView()
+}
+
+// refreshQueueView rebuilds the queue UI while preserving scroll position and inline active conversion.
+func (s *appState) refreshQueueView() {
+	// Preserve current scroll offset if we already have a view
+	if s.queueScroll != nil {
+		s.queueOffset = s.queueScroll.Offset
+	}
 
 	jobs := s.jobQueue.List()
 	// If a direct conversion is running but not represented in the queue, surface it as a pseudo job.
@@ -444,71 +455,78 @@ func (s *appState) showQueue() {
 		}}, jobs...)
 	}
 
-	view := ui.BuildQueueView(
+	view, scroll := ui.BuildQueueView(
 		jobs,
 		s.showMainMenu, // onBack
 		func(id string) { // onPause
 			if err := s.jobQueue.Pause(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to pause job: %v", err)
 			}
-			s.showQueue() // Refresh
+			s.refreshQueueView() // Refresh
 		},
 		func(id string) { // onResume
 			if err := s.jobQueue.Resume(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to resume job: %v", err)
 			}
-			s.showQueue() // Refresh
+			s.refreshQueueView() // Refresh
 		},
 		func(id string) { // onCancel
 			if err := s.jobQueue.Cancel(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to cancel job: %v", err)
 			}
-			s.showQueue() // Refresh
+			s.refreshQueueView() // Refresh
 		},
 		func(id string) { // onRemove
 			if err := s.jobQueue.Remove(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to remove job: %v", err)
 			}
-			s.showQueue() // Refresh
+			s.refreshQueueView() // Refresh
 		},
 		func(id string) { // onMoveUp
 			if err := s.jobQueue.MoveUp(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to move job up: %v", err)
 			}
-			s.showQueue() // Refresh
+			s.refreshQueueView() // Refresh
 		},
 		func(id string) { // onMoveDown
 			if err := s.jobQueue.MoveDown(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to move job down: %v", err)
 			}
-			s.showQueue() // Refresh
+			s.refreshQueueView() // Refresh
 		},
 		func() { // onPauseAll
 			s.jobQueue.PauseAll()
-			s.showQueue()
+			s.refreshQueueView()
 		},
 		func() { // onResumeAll
 			s.jobQueue.ResumeAll()
-			s.showQueue()
+			s.refreshQueueView()
 		},
 		func() { // onStart
 			s.jobQueue.ResumeAll()
-			s.showQueue()
+			s.refreshQueueView()
 		},
 		func() { // onClear
 			s.jobQueue.Clear()
 			s.clearVideo()
-			s.showQueue() // Refresh
+			s.refreshQueueView() // Refresh
 		},
 		func() { // onClearAll
 			s.jobQueue.ClearAll()
 			s.clearVideo()
-			s.showQueue() // Refresh
+			s.refreshQueueView() // Refresh
 		},
 		utils.MustHex("#4CE870"), // titleColor
 		gridColor,                // bgColor
 		textColor,                // textColor
 	)
+
+	// Restore scroll offset
+	s.queueScroll = scroll
+	if s.queueScroll != nil {
+		s.queueScroll.Offset = s.queueOffset
+		s.queueScroll.Refresh()
+	}
 
 	s.setContent(container.NewPadded(view))
 }
@@ -1260,7 +1278,7 @@ func runGUI() {
 			state.updateStatsBar()
 			state.updateQueueButtonLabel()
 			if state.active == "queue" {
-				state.showQueue()
+				state.refreshQueueView()
 			}
 		}, false)
 	})

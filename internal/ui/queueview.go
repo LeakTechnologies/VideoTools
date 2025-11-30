@@ -29,7 +29,7 @@ func BuildQueueView(
 	onClear func(),
 	onClearAll func(),
 	titleColor, bgColor, textColor color.Color,
-) fyne.CanvasObject {
+) (fyne.CanvasObject, *container.Scroll) {
 	// Header
 	title := canvas.NewText("JOB QUEUE", titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
@@ -87,7 +87,7 @@ func BuildQueueView(
 		scrollable,
 	)
 
-	return container.NewPadded(body)
+	return container.NewPadded(body), scrollable
 }
 
 // buildJobItem creates a single job item in the queue list
