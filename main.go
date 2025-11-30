@@ -154,35 +154,37 @@ func (c convertConfig) CoverLabel() string {
 }
 
 type appState struct {
-	window          fyne.Window
-	active          string
-	lastModule      string
-	source          *videoSource
-	loadedVideos    []*videoSource // Multiple loaded videos for navigation
-	currentIndex    int            // Current video index in loadedVideos
-	anim            *previewAnimator
-	convert         convertConfig
-	currentFrame    string
-	player          player.Controller
-	playerReady     bool
-	playerVolume    float64
-	playerMuted     bool
-	lastVolume      float64
-	playerPaused    bool
-	playerPos       float64
-	playerLast      time.Time
-	progressQuit    chan struct{}
-	convertCancel   context.CancelFunc
-	playerSurf      *playerSurface
-	convertBusy     bool
-	convertStatus   string
-	convertProgress float64
-	playSess        *playSession
-	jobQueue        *queue.Queue
-	statsBar        *ui.ConversionStatsBar
-	queueBtn        *widget.Button
-	queueScroll     *container.Scroll
-	queueOffset     fyne.Position
+	window           fyne.Window
+	active           string
+	lastModule       string
+	source           *videoSource
+	loadedVideos     []*videoSource // Multiple loaded videos for navigation
+	currentIndex     int            // Current video index in loadedVideos
+	anim             *previewAnimator
+	convert          convertConfig
+	currentFrame     string
+	player           player.Controller
+	playerReady      bool
+	playerVolume     float64
+	playerMuted      bool
+	lastVolume       float64
+	playerPaused     bool
+	playerPos        float64
+	playerLast       time.Time
+	progressQuit     chan struct{}
+	convertCancel    context.CancelFunc
+	playerSurf       *playerSurface
+	convertBusy      bool
+	convertStatus    string
+	convertActiveIn  string
+	convertActiveOut string
+	convertProgress  float64
+	playSess         *playSession
+	jobQueue         *queue.Queue
+	statsBar         *ui.ConversionStatsBar
+	queueBtn         *widget.Button
+	queueScroll      *container.Scroll
+	queueOffset      fyne.Position
 }
 
 func (s *appState) stopPreview() {
@@ -214,7 +216,11 @@ func (s *appState) updateStatsBar() {
 	} else if s.convertBusy {
 		// Reflect direct conversion as an active job in the stats bar
 		running = 1
-		jobTitle = fmt.Sprintf("Direct convert: %s", filepath.Base(s.source.Path))
+		in := filepath.Base(s.convertActiveIn)
+		if in == "" && s.source != nil {
+			in = filepath.Base(s.source.Path)
+		}
+		jobTitle = fmt.Sprintf("Direct convert: %s", in)
 		progress = s.convertProgress
 	}
 
@@ -456,12 +462,17 @@ func (s *appState) refreshQueueView() {
 	jobs := s.jobQueue.List()
 	// If a direct conversion is running but not represented in the queue, surface it as a pseudo job.
 	if s.convertBusy {
+		in := filepath.Base(s.convertActiveIn)
+		if in == "" && s.source != nil {
+			in = filepath.Base(s.source.Path)
+		}
+		out := filepath.Base(s.convertActiveOut)
 		jobs = append([]*queue.Job{{
 			ID:          "active-convert",
 			Type:        queue.JobTypeConvert,
 			Status:      queue.JobStatusRunning,
-			Title:       fmt.Sprintf("Direct convert: %s", filepath.Base(s.source.Path)),
-			Description: fmt.Sprintf("Output: %s", s.convert.OutputFile()),
+			Title:       fmt.Sprintf("Direct convert: %s", in),
+			Description: fmt.Sprintf("Output: %s", out),
 			Progress:    s.convertProgress,
 		}}, jobs...)
 	}
@@ -3698,6 +3709,8 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	logging.Debug(logging.CatFFMPEG, "convert command: ffmpeg %s", strings.Join(args, " "))
 	s.convertBusy = true
 	s.convertProgress = 0
+	s.convertActiveIn = src.Path
+	s.convertActiveOut = outPath
 	setStatus("Preparing conversion…")
 	// Widget states will be updated by the UI refresh ticker
 
@@ -3801,6 +3814,8 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				logging.Debug(logging.CatFFMPEG, "convert cancelled")
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					s.convertBusy = false
+					s.convertActiveIn = ""
+					s.convertActiveOut = ""
 					s.convertProgress = 0
 					setStatus("Cancelled")
 				}, false)
@@ -3811,6 +3826,8 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.showErrorWithCopy("Conversion Failed", fmt.Errorf("convert failed: %w", err))
 				s.convertBusy = false
+				s.convertActiveIn = ""
+				s.convertActiveOut = ""
 				s.convertProgress = 0
 				setStatus("Failed")
 			}, false)
@@ -3825,6 +3842,8 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.showErrorWithCopy("Conversion Failed", fmt.Errorf("conversion output is invalid: %w", probeErr))
 				s.convertBusy = false
+				s.convertActiveIn = ""
+				s.convertActiveOut = ""
 				s.convertProgress = 0
 				setStatus("Failed")
 			}, false)
@@ -3835,6 +3854,8 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			dialog.ShowInformation("Convert", fmt.Sprintf("Saved %s", outPath), s.window)
 			s.convertBusy = false
+			s.convertActiveIn = ""
+			s.convertActiveOut = ""
 			s.convertProgress = 100
 			setStatus("Done")
 		}, false)
