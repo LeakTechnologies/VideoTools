@@ -94,7 +94,6 @@ func (q *Queue) notifyChange() {
 // Add adds a job to the queue
 func (q *Queue) Add(job *Job) {
 	q.mu.Lock()
-	defer q.mu.Unlock()
 
 	if job.ID == "" {
 		job.ID = generateID()
@@ -107,13 +106,16 @@ func (q *Queue) Add(job *Job) {
 	}
 
 	q.jobs = append(q.jobs, job)
+	q.rebalancePrioritiesLocked()
+	q.mu.Unlock()
 	q.notifyChange()
 }
 
 // Remove removes a job from the queue by ID
 func (q *Queue) Remove(id string) error {
 	q.mu.Lock()
-	defer q.mu.Unlock()
+
+	var removed bool
 
 	for i, job := range q.jobs {
 		if job.ID == id {
@@ -122,9 +124,15 @@ func (q *Queue) Remove(id string) error {
 				job.cancel()
 			}
 			q.jobs = append(q.jobs[:i], q.jobs[i+1:]...)
-			q.notifyChange()
-			return nil
+			q.rebalancePrioritiesLocked()
+			removed = true
+			break
 		}
+	}
+	q.mu.Unlock()
+	if removed {
+		q.notifyChange()
+		return nil
 	}
 	return fmt.Errorf("job not found: %s", id)
 }
@@ -147,8 +155,12 @@ func (q *Queue) List() []*Job {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 
+	// Return a copy of the jobs to avoid races on the live queue state
 	result := make([]*Job, len(q.jobs))
-	copy(result, q.jobs)
+	for i, job := range q.jobs {
+		clone := *job
+		result[i] = &clone
+	}
 	return result
 }
 
@@ -175,56 +187,78 @@ func (q *Queue) Stats() (pending, running, completed, failed int) {
 // Pause pauses a running job
 func (q *Queue) Pause(id string) error {
 	q.mu.Lock()
-	defer q.mu.Unlock()
+
+	result := fmt.Errorf("job not found: %s", id)
 
 	for _, job := range q.jobs {
 		if job.ID == id {
 			if job.Status != JobStatusRunning {
-				return fmt.Errorf("job is not running")
+				result = fmt.Errorf("job is not running")
+				break
 			}
 			if job.cancel != nil {
 				job.cancel()
 			}
 			job.Status = JobStatusPaused
-			q.notifyChange()
-			return nil
+			// Keep position; just stop current run
+			result = nil
+			break
 		}
 	}
-	return fmt.Errorf("job not found: %s", id)
+	q.mu.Unlock()
+	if result == nil {
+		q.notifyChange()
+	}
+	return result
 }
 
 // Resume resumes a paused job
 func (q *Queue) Resume(id string) error {
 	q.mu.Lock()
-	defer q.mu.Unlock()
+
+	result := fmt.Errorf("job not found: %s", id)
 
 	for _, job := range q.jobs {
 		if job.ID == id {
 			if job.Status != JobStatusPaused {
-				return fmt.Errorf("job is not paused")
+				result = fmt.Errorf("job is not paused")
+				break
 			}
 			job.Status = JobStatusPending
-			q.notifyChange()
-			return nil
+			// Keep position; move selection via priorities
+			result = nil
+			break
 		}
 	}
-	return fmt.Errorf("job not found: %s", id)
+	q.mu.Unlock()
+	if result == nil {
+		q.notifyChange()
+	}
+	return result
 }
 
 // Cancel cancels a job
 func (q *Queue) Cancel(id string) error {
 	q.mu.Lock()
-	defer q.mu.Unlock()
 
+	var cancelled bool
+	now := time.Now()
 	for _, job := range q.jobs {
 		if job.ID == id {
 			if job.Status == JobStatusRunning && job.cancel != nil {
 				job.cancel()
 			}
 			job.Status = JobStatusCancelled
-			q.notifyChange()
-			return nil
+			job.CompletedAt = &now
+			q.rebalancePrioritiesLocked()
+			cancelled = true
+			break
 		}
+	}
+	q.mu.Unlock()
+	if cancelled {
+		q.notifyChange()
+		return nil
 	}
 	return fmt.Errorf("job not found: %s", id)
 }
@@ -247,6 +281,37 @@ func (q *Queue) Stop() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.running = false
+}
+
+// PauseAll pauses any running job and stops processing
+func (q *Queue) PauseAll() {
+	q.mu.Lock()
+	for _, job := range q.jobs {
+		if job.Status == JobStatusRunning && job.cancel != nil {
+			job.cancel()
+			job.Status = JobStatusPaused
+			job.cancel = nil
+			job.StartedAt = nil
+			job.CompletedAt = nil
+			job.Error = ""
+		}
+	}
+	q.running = false
+	q.mu.Unlock()
+	q.notifyChange()
+}
+
+// ResumeAll restarts processing the queue
+func (q *Queue) ResumeAll() {
+	q.mu.Lock()
+	if q.running {
+		q.mu.Unlock()
+		return
+	}
+	q.running = true
+	q.mu.Unlock()
+	q.notifyChange()
+	go q.processJobs()
 }
 
 // processJobs continuously processes pending jobs
@@ -295,18 +360,71 @@ func (q *Queue) processJobs() {
 		// Update job status
 		q.mu.Lock()
 		now = time.Now()
-		nextJob.CompletedAt = &now
 		if err != nil {
-			nextJob.Status = JobStatusFailed
-			nextJob.Error = err.Error()
+			if ctx.Err() == context.Canceled {
+				if nextJob.Status == JobStatusPaused {
+					// Leave as paused without timestamps/error
+					nextJob.StartedAt = nil
+					nextJob.CompletedAt = nil
+					nextJob.Error = ""
+				} else {
+					// Cancelled
+					nextJob.Status = JobStatusCancelled
+					nextJob.CompletedAt = &now
+					nextJob.Error = ""
+				}
+			} else {
+				nextJob.Status = JobStatusFailed
+				nextJob.CompletedAt = &now
+				nextJob.Error = err.Error()
+			}
 		} else {
 			nextJob.Status = JobStatusCompleted
 			nextJob.Progress = 100.0
+			nextJob.CompletedAt = &now
 		}
 		nextJob.cancel = nil
 		q.mu.Unlock()
 		q.notifyChange()
 	}
+}
+
+// MoveUp moves a pending or paused job one position up in the queue
+func (q *Queue) MoveUp(id string) error {
+	return q.move(id, -1)
+}
+
+// MoveDown moves a pending or paused job one position down in the queue
+func (q *Queue) MoveDown(id string) error {
+	return q.move(id, 1)
+}
+
+func (q *Queue) move(id string, delta int) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	var idx int = -1
+	for i, job := range q.jobs {
+		if job.ID == id {
+			idx = i
+			if job.Status != JobStatusPending && job.Status != JobStatusPaused {
+				return fmt.Errorf("job must be pending or paused to reorder")
+			}
+			break
+		}
+	}
+	if idx == -1 {
+		return fmt.Errorf("job not found: %s", id)
+	}
+
+	newIdx := idx + delta
+	if newIdx < 0 || newIdx >= len(q.jobs) {
+		return nil // already at boundary; no-op
+	}
+
+	q.jobs[idx], q.jobs[newIdx] = q.jobs[newIdx], q.jobs[idx]
+	q.rebalancePrioritiesLocked()
+	return nil
 }
 
 // Save saves the queue to a JSON file
@@ -348,7 +466,6 @@ func (q *Queue) Load(path string) error {
 	}
 
 	q.mu.Lock()
-	defer q.mu.Unlock()
 
 	// Reset running jobs to pending
 	for _, job := range jobs {
@@ -359,6 +476,8 @@ func (q *Queue) Load(path string) error {
 	}
 
 	q.jobs = jobs
+	q.rebalancePrioritiesLocked()
+	q.mu.Unlock()
 	q.notifyChange()
 	return nil
 }
@@ -366,7 +485,9 @@ func (q *Queue) Load(path string) error {
 // Clear removes all completed, failed, and cancelled jobs
 func (q *Queue) Clear() {
 	q.mu.Lock()
-	defer q.mu.Unlock()
+
+	// Cancel any running jobs before filtering
+	q.cancelRunningLocked()
 
 	filtered := make([]*Job, 0)
 	for _, job := range q.jobs {
@@ -375,19 +496,47 @@ func (q *Queue) Clear() {
 		}
 	}
 	q.jobs = filtered
+	q.rebalancePrioritiesLocked()
+	q.mu.Unlock()
 	q.notifyChange()
 }
 
 // ClearAll removes all jobs from the queue
 func (q *Queue) ClearAll() {
 	q.mu.Lock()
-	defer q.mu.Unlock()
+
+	// Cancel any running work and stop the processor
+	q.cancelRunningLocked()
+	q.running = false
 
 	q.jobs = make([]*Job, 0)
+	q.rebalancePrioritiesLocked()
+	q.mu.Unlock()
 	q.notifyChange()
 }
 
 // generateID generates a unique ID for a job
 func generateID() string {
 	return fmt.Sprintf("job-%d", time.Now().UnixNano())
+}
+
+// rebalancePrioritiesLocked assigns descending priorities so earlier items are selected first
+func (q *Queue) rebalancePrioritiesLocked() {
+	for i := range q.jobs {
+		q.jobs[i].Priority = len(q.jobs) - i
+	}
+}
+
+// cancelRunningLocked cancels any currently running job and marks it cancelled.
+func (q *Queue) cancelRunningLocked() {
+	now := time.Now()
+	for _, job := range q.jobs {
+		if job.Status == JobStatusRunning {
+			if job.cancel != nil {
+				job.cancel()
+			}
+			job.Status = JobStatusCancelled
+			job.CompletedAt = &now
+		}
+	}
 }

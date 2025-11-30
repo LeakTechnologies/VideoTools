@@ -299,7 +299,13 @@ func (c *ffplayController) startLocked(offset float64) error {
 		env = append(env, fmt.Sprintf("SDL_VIDEO_WINDOW_POS=%s", pos))
 	}
 	if os.Getenv("SDL_VIDEODRIVER") == "" {
-		env = append(env, "SDL_VIDEODRIVER=x11")
+		// Auto-detect display server and set appropriate SDL video driver
+		if os.Getenv("WAYLAND_DISPLAY") != "" {
+			env = append(env, "SDL_VIDEODRIVER=wayland")
+		} else {
+			// Default to X11 for compatibility, but Wayland takes precedence if available
+			env = append(env, "SDL_VIDEODRIVER=x11")
+		}
 	}
 	if os.Getenv("XDG_RUNTIME_DIR") == "" {
 		run := fmt.Sprintf("/run/user/%d", os.Getuid())
@@ -330,8 +336,9 @@ func (c *ffplayController) startLocked(offset float64) error {
 	c.ctx = ctx
 	c.cancel = cancel
 
-	// Best-effort window placement via xdotool in case WM ignores SDL hints.
-	if c.winW > 0 && c.winH > 0 {
+	// Best-effort window placement via xdotool (X11 only) if available and not on Wayland.
+	// Wayland compositors don't support window manipulation via xdotool.
+	if c.winW > 0 && c.winH > 0 && os.Getenv("WAYLAND_DISPLAY") == "" {
 		go func(title string, x, y, w, h int) {
 			time.Sleep(120 * time.Millisecond)
 			ffID := pickLastID(exec.Command("xdotool", "search", "--name", title))

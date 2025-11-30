@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 )
@@ -20,6 +21,11 @@ func BuildQueueView(
 	onResume func(string),
 	onCancel func(string),
 	onRemove func(string),
+	onMoveUp func(string),
+	onMoveDown func(string),
+	onPauseAll func(),
+	onResumeAll func(),
+	onStart func(),
 	onClear func(),
 	onClearAll func(),
 	titleColor, bgColor, textColor color.Color,
@@ -32,16 +38,27 @@ func BuildQueueView(
 	backBtn := widget.NewButton("← Back", onBack)
 	backBtn.Importance = widget.LowImportance
 
+	startAllBtn := widget.NewButton("Start Queue", onStart)
+	startAllBtn.Importance = widget.MediumImportance
+
+	pauseAllBtn := widget.NewButton("Pause All", onPauseAll)
+	pauseAllBtn.Importance = widget.LowImportance
+
+	resumeAllBtn := widget.NewButton("Resume All", onResumeAll)
+	resumeAllBtn.Importance = widget.LowImportance
+
 	clearBtn := widget.NewButton("Clear Completed", onClear)
 	clearBtn.Importance = widget.LowImportance
 
 	clearAllBtn := widget.NewButton("Clear All", onClearAll)
 	clearAllBtn.Importance = widget.DangerImportance
 
+	buttonRow := container.NewHBox(startAllBtn, pauseAllBtn, resumeAllBtn, clearAllBtn, clearBtn)
+
 	header := container.NewBorder(
 		nil, nil,
 		backBtn,
-		container.NewHBox(clearBtn, clearAllBtn),
+		buttonRow,
 		container.NewCenter(title),
 	)
 
@@ -54,7 +71,7 @@ func BuildQueueView(
 		jobItems = append(jobItems, container.NewCenter(emptyMsg))
 	} else {
 		for _, job := range jobs {
-			jobItems = append(jobItems, buildJobItem(job, onPause, onResume, onCancel, onRemove, bgColor, textColor))
+			jobItems = append(jobItems, buildJobItem(job, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, bgColor, textColor))
 		}
 	}
 
@@ -77,6 +94,8 @@ func buildJobItem(
 	onResume func(string),
 	onCancel func(string),
 	onRemove func(string),
+	onMoveUp func(string),
+	onMoveDown func(string),
 	bgColor, textColor color.Color,
 ) fyne.CanvasObject {
 	// Status color
@@ -94,18 +113,15 @@ func buildJobItem(
 	descLabel.TextStyle = fyne.TextStyle{Italic: true}
 
 	// Progress bar (for running jobs)
-	var progressWidget fyne.CanvasObject
-	if job.Status == queue.JobStatusRunning {
-		progress := widget.NewProgressBar()
-		progress.SetValue(job.Progress / 100.0)
-		progressWidget = progress
-	} else if job.Status == queue.JobStatusCompleted {
-		progress := widget.NewProgressBar()
+	progress := widget.NewProgressBar()
+	progress.SetValue(job.Progress / 100.0)
+	if job.Status == queue.JobStatusCompleted {
 		progress.SetValue(1.0)
-		progressWidget = progress
-	} else {
-		progressWidget = widget.NewLabel("")
 	}
+	progressWidget := progress
+
+	// Module badge
+	badge := buildModuleBadge(job.Type)
 
 	// Status text
 	statusText := getStatusText(job)
@@ -114,6 +130,14 @@ func buildJobItem(
 
 	// Control buttons
 	var buttons []fyne.CanvasObject
+	// Reorder arrows for pending/paused jobs
+	if job.Status == queue.JobStatusPending || job.Status == queue.JobStatusPaused {
+		buttons = append(buttons,
+			widget.NewButton("↑", func() { onMoveUp(job.ID) }),
+			widget.NewButton("↓", func() { onMoveDown(job.ID) }),
+		)
+	}
+
 	switch job.Status {
 	case queue.JobStatusRunning:
 		buttons = append(buttons,
@@ -139,7 +163,7 @@ func buildJobItem(
 
 	// Info section
 	infoBox := container.NewVBox(
-		titleLabel,
+		container.NewHBox(titleLabel, layout.NewSpacer(), badge),
 		descLabel,
 		progressWidget,
 		statusLabel,
@@ -161,7 +185,14 @@ func buildJobItem(
 		container.NewMax(card, content),
 	)
 
-	return item
+	// Wrap with draggable to allow drag-to-reorder (up/down by drag direction)
+	return newDraggableJobItem(job.ID, item, func(id string, dir int) {
+		if dir < 0 {
+			onMoveUp(id)
+		} else if dir > 0 {
+			onMoveDown(id)
+		}
+	})
 }
 
 // getStatusColor returns the color for a job status
@@ -210,4 +241,77 @@ func getStatusText(job *queue.Job) string {
 	default:
 		return fmt.Sprintf("Status: %s", job.Status)
 	}
+}
+
+// buildModuleBadge renders a small colored pill to show which module created the job.
+func buildModuleBadge(t queue.JobType) fyne.CanvasObject {
+	label := widget.NewLabel(string(t))
+	label.TextStyle = fyne.TextStyle{Bold: true}
+	label.Alignment = fyne.TextAlignCenter
+
+	bg := canvas.NewRectangle(moduleColor(t))
+	bg.CornerRadius = 6
+	bg.SetMinSize(fyne.NewSize(label.MinSize().Width+12, label.MinSize().Height+6))
+
+	return container.NewMax(bg, container.NewCenter(label))
+}
+
+// moduleColor maps job types to distinct colors for quick visual scanning.
+func moduleColor(t queue.JobType) color.Color {
+	switch t {
+	case queue.JobTypeConvert:
+		return color.RGBA{R: 76, G: 232, B: 112, A: 255} // green
+	case queue.JobTypeMerge:
+		return color.RGBA{R: 68, G: 136, B: 255, A: 255} // blue
+	case queue.JobTypeTrim:
+		return color.RGBA{R: 255, G: 193, B: 7, A: 255} // amber
+	case queue.JobTypeFilter:
+		return color.RGBA{R: 160, G: 86, B: 255, A: 255} // purple
+	case queue.JobTypeUpscale:
+		return color.RGBA{R: 255, G: 138, B: 101, A: 255} // coral
+	case queue.JobTypeAudio:
+		return color.RGBA{R: 255, G: 215, B: 64, A: 255} // gold
+	case queue.JobTypeThumb:
+		return color.RGBA{R: 102, G: 217, B: 239, A: 255} // teal
+	default:
+		return color.Gray{Y: 180}
+	}
+}
+
+// draggableJobItem allows simple drag up/down to reorder one slot at a time.
+type draggableJobItem struct {
+	widget.BaseWidget
+	jobID     string
+	content   fyne.CanvasObject
+	onReorder func(string, int) // id, direction (-1 up, +1 down)
+	accumY    float32
+}
+
+func newDraggableJobItem(id string, content fyne.CanvasObject, onReorder func(string, int)) *draggableJobItem {
+	d := &draggableJobItem{
+		jobID:     id,
+		content:   content,
+		onReorder: onReorder,
+	}
+	d.ExtendBaseWidget(d)
+	return d
+}
+
+func (d *draggableJobItem) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(d.content)
+}
+
+func (d *draggableJobItem) Dragged(ev *fyne.DragEvent) {
+	// fyne.Delta is a struct with dx, dy fields
+	d.accumY += ev.Dragged.DY
+}
+
+func (d *draggableJobItem) DragEnd() {
+	const threshold float32 = 25
+	if d.accumY <= -threshold {
+		d.onReorder(d.jobID, -1)
+	} else if d.accumY >= threshold {
+		d.onReorder(d.jobID, 1)
+	}
+	d.accumY = 0
 }
