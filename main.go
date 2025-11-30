@@ -1397,17 +1397,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		formatLabels = append(formatLabels, opt.Label)
 	}
 	outputHint := widget.NewLabel(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
-	formatSelect := widget.NewSelect(formatLabels, func(value string) {
-		for _, opt := range formatOptions {
-			if opt.Label == value {
-				logging.Debug(logging.CatUI, "format set to %s", value)
-				state.convert.SelectedFormat = opt
-				outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
-				break
-			}
-		}
-	})
-	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
 
 	// DVD-specific aspect ratio selector (only shown for DVD formats)
 	dvdAspectSelect := widget.NewSelect([]string{"4:3", "16:9"}, func(value string) {
@@ -1442,14 +1431,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	// Update formatSelect callback to also handle DVD options visibility
-	originalFormatCallback := formatSelect.OnChanged
-	formatSelect.OnChanged = func(value string) {
-		if originalFormatCallback != nil {
-			originalFormatCallback(value)
+	// Create formatSelect with callback that updates DVD options
+	formatSelect := widget.NewSelect(formatLabels, func(value string) {
+		for _, opt := range formatOptions {
+			if opt.Label == value {
+				logging.Debug(logging.CatUI, "format set to %s", value)
+				state.convert.SelectedFormat = opt
+				outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+				updateDVDOptions() // Show/hide DVD options
+				break
+			}
 		}
-		updateDVDOptions()
-	}
+	})
+	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
 
 	qualitySelect := widget.NewSelect([]string{"Draft (CRF 28)", "Standard (CRF 23)", "High (CRF 18)", "Lossless"}, func(value string) {
 		logging.Debug(logging.CatUI, "quality preset %s", value)
