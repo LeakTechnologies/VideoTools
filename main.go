@@ -346,8 +346,8 @@ func (s *appState) setContent(body fyne.CanvasObject) {
 		s.window.SetContent(container.NewMax(bg, body))
 	}
 
-	// Always marshal content changes onto the Fyne UI thread
-	fyne.DoAndWait(update)
+	// Use async Do() instead of DoAndWait() to avoid deadlock when called from main goroutine
+	fyne.Do(update)
 }
 
 // showErrorWithCopy displays an error dialog with a "Copy Error" button
