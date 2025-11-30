@@ -819,15 +819,16 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	// Check if this is a DVD format (special handling required)
 	selectedFormat, _ := cfg["selectedFormat"].(formatOption)
 	isDVD := selectedFormat.Ext == ".mpg"
+	var targetOption string
 
 	// DVD presets: enforce compliant target, frame rate, resolution, codecs
 	if isDVD {
 		if strings.Contains(selectedFormat.Label, "PAL") {
-			args = append(args, "-target", "pal-dvd")
+			targetOption = "pal-dvd"
 			cfg["frameRate"] = "25"
 			cfg["targetResolution"] = "PAL (720×576)"
 		} else {
-			args = append(args, "-target", "ntsc-dvd")
+			targetOption = "ntsc-dvd"
 			cfg["frameRate"] = "29.97"
 			cfg["targetResolution"] = "NTSC (720×480)"
 		}
@@ -1040,6 +1041,10 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 	if strings.EqualFold(selectedFormat.Ext, ".mp4") || strings.EqualFold(selectedFormat.Ext, ".mov") {
 		args = append(args, "-movflags", "+faststart")
+	}
+
+	if targetOption != "" {
+		args = append(args, "-target", targetOption)
 	}
 
 	// Progress feed
@@ -3431,6 +3436,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	src := s.source
 	cfg := s.convert
 	isDVD := cfg.SelectedFormat.Ext == ".mpg"
+	var targetOption string
 	outDir := filepath.Dir(src.Path)
 	outName := cfg.OutputFile()
 	if outName == "" {
@@ -3450,11 +3456,11 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	// DVD presets: enforce compliant codecs, frame rate, resolution, and target
 	if isDVD {
 		if strings.Contains(cfg.SelectedFormat.Label, "PAL") {
-			args = append(args, "-target", "pal-dvd")
+			targetOption = "pal-dvd"
 			cfg.FrameRate = "25"
 			cfg.TargetResolution = "PAL (720×576)"
 		} else {
-			args = append(args, "-target", "ntsc-dvd")
+			targetOption = "ntsc-dvd"
 			cfg.FrameRate = "29.97"
 			cfg.TargetResolution = "NTSC (720×480)"
 		}
@@ -3608,6 +3614,11 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	// Ensure quickstart for MP4/MOV outputs.
 	if strings.EqualFold(cfg.SelectedFormat.Ext, ".mp4") || strings.EqualFold(cfg.SelectedFormat.Ext, ".mov") {
 		args = append(args, "-movflags", "+faststart")
+	}
+
+	// Apply target for DVD (must come before output path)
+	if targetOption != "" {
+		args = append(args, "-target", targetOption)
 	}
 
 	// Progress feed to stdout for live updates.
