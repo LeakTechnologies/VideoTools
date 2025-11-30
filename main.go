@@ -3755,6 +3755,11 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 						s.convertProgress = pct
 						setStatus(lbl)
+						// Keep stats bar and queue view in sync during direct converts
+						s.updateStatsBar()
+						if s.active == "queue" {
+							s.refreshQueueView()
+						}
 					}, false)
 				}
 				if key == "progress" && val == "end" {
