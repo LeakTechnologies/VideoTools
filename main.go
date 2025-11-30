@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -102,6 +103,8 @@ var formatOptions = []formatOption{
 	{"MP4 (H.264)", ".mp4", "libx264"},
 	{"MKV (H.265)", ".mkv", "libx265"},
 	{"MOV (ProRes)", ".mov", "prores_ks"},
+	{"DVD-NTSC (MPEG-2)", ".mpg", "mpeg2video"},
+	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video"},
 }
 
 type convertConfig struct {
@@ -175,6 +178,7 @@ type appState struct {
 	playSess      *playSession
 	jobQueue      *queue.Queue
 	statsBar      *ui.ConversionStatsBar
+	queueBtn      *widget.Button
 }
 
 func (s *appState) stopPreview() {
@@ -206,6 +210,32 @@ func (s *appState) updateStatsBar() {
 	}
 
 	s.statsBar.UpdateStats(running, pending, completed, failed, progress, jobTitle)
+}
+
+func (s *appState) queueProgressCounts() (completed, total int) {
+	if s.jobQueue == nil {
+		return 0, 0
+	}
+	pending, running, completedCount, failed := s.jobQueue.Stats()
+	// Total includes all jobs in memory, including cancelled/failed/pending
+	total = len(s.jobQueue.List())
+	completed = completedCount
+	_ = pending
+	_ = running
+	_ = failed
+	return
+}
+
+func (s *appState) updateQueueButtonLabel() {
+	if s.queueBtn == nil {
+		return
+	}
+	completed, total := s.queueProgressCounts()
+	label := "View Queue"
+	if total > 0 {
+		label = fmt.Sprintf("View Queue %d/%d", completed, total)
+	}
+	s.queueBtn.SetText(label)
 }
 
 type playerSurface struct {
@@ -306,13 +336,18 @@ func (s *appState) applyInverseDefaults(src *videoSource) {
 }
 
 func (s *appState) setContent(body fyne.CanvasObject) {
-	bg := canvas.NewRectangle(backgroundColor)
-	// Don't set a minimum size - let content determine layout naturally
-	if body == nil {
-		s.window.SetContent(bg)
-		return
+	update := func() {
+		bg := canvas.NewRectangle(backgroundColor)
+		// Don't set a minimum size - let content determine layout naturally
+		if body == nil {
+			s.window.SetContent(bg)
+			return
+		}
+		s.window.SetContent(container.NewMax(bg, body))
 	}
-	s.window.SetContent(container.NewMax(bg, body))
+
+	// Always marshal content changes onto the Fyne UI thread
+	fyne.DoAndWait(update)
 }
 
 // showErrorWithCopy displays an error dialog with a "Copy Error" button
@@ -361,15 +396,15 @@ func (s *appState) showMainMenu() {
 
 	titleColor := utils.MustHex("#4CE870")
 
-	// Get queue stats - show active jobs (pending+running) out of total
-	var queueActive, queueTotal int
+	// Get queue stats - show completed jobs out of total
+	var queueCompleted, queueTotal int
 	if s.jobQueue != nil {
-		pending, running, _, _ := s.jobQueue.Stats()
-		queueActive = pending + running
+		_, _, completed, _ := s.jobQueue.Stats()
+		queueCompleted = completed
 		queueTotal = len(s.jobQueue.List())
 	}
 
-	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, titleColor, queueColor, textColor, queueActive, queueTotal)
+	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, titleColor, queueColor, textColor, queueCompleted, queueTotal)
 
 	// Update stats bar
 	s.updateStatsBar()
@@ -420,12 +455,38 @@ func (s *appState) showQueue() {
 			}
 			s.showQueue() // Refresh
 		},
+		func(id string) { // onMoveUp
+			if err := s.jobQueue.MoveUp(id); err != nil {
+				logging.Debug(logging.CatSystem, "failed to move job up: %v", err)
+			}
+			s.showQueue() // Refresh
+		},
+		func(id string) { // onMoveDown
+			if err := s.jobQueue.MoveDown(id); err != nil {
+				logging.Debug(logging.CatSystem, "failed to move job down: %v", err)
+			}
+			s.showQueue() // Refresh
+		},
+		func() { // onPauseAll
+			s.jobQueue.PauseAll()
+			s.showQueue()
+		},
+		func() { // onResumeAll
+			s.jobQueue.ResumeAll()
+			s.showQueue()
+		},
+		func() { // onStart
+			s.jobQueue.ResumeAll()
+			s.showQueue()
+		},
 		func() { // onClear
 			s.jobQueue.Clear()
+			s.clearVideo()
 			s.showQueue() // Refresh
 		},
 		func() { // onClearAll
 			s.jobQueue.ClearAll()
+			s.clearVideo()
 			s.showQueue() // Refresh
 		},
 		utils.MustHex("#4CE870"), // titleColor
@@ -482,6 +543,7 @@ func (s *appState) addConvertToQueue() error {
 		"outputAspect":     cfg.OutputAspect,
 		"sourceWidth":      src.Width,
 		"sourceHeight":     src.Height,
+		"sourceDuration":   src.Duration,
 	}
 
 	job := &queue.Job{
@@ -491,7 +553,6 @@ func (s *appState) addConvertToQueue() error {
 		InputFile:   src.Path,
 		OutputFile:  outPath,
 		Config:      config,
-		Priority:    0,
 	}
 
 	s.jobQueue.Add(job)
@@ -652,6 +713,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"outputAspect":     s.convert.OutputAspect,
 			"sourceWidth":      src.Width,
 			"sourceHeight":     src.Height,
+			"sourceDuration":   src.Duration,
 		}
 
 		job := &queue.Job{
@@ -661,7 +723,6 @@ func (s *appState) batchAddToQueue(paths []string) {
 			InputFile:   path,
 			OutputFile:  outPath,
 			Config:      config,
-			Priority:    0,
 		}
 
 		s.jobQueue.Add(job)
@@ -684,7 +745,21 @@ func (s *appState) batchAddToQueue(paths []string) {
 
 		// Load all valid videos so user can navigate between them
 		if firstValidPath != "" {
-			s.loadVideos(paths)
+			combined := make([]string, 0, len(s.loadedVideos)+len(paths))
+			seen := make(map[string]bool)
+			for _, v := range s.loadedVideos {
+				if v != nil && !seen[v.Path] {
+					combined = append(combined, v.Path)
+					seen[v.Path] = true
+				}
+			}
+			for _, p := range paths {
+				if !seen[p] {
+					combined = append(combined, p)
+					seen[p] = true
+				}
+			}
+			s.loadVideos(combined)
 			s.showModule("convert")
 		}
 	}, false)
@@ -935,6 +1010,9 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	// Parse progress
 	scanner := bufio.NewScanner(stdout)
 	var duration float64
+	if d, ok := cfg["sourceDuration"].(float64); ok && d > 0 {
+		duration = d
+	}
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "out_time_ms=") {
@@ -1009,10 +1087,21 @@ func main() {
 		return
 	}
 
-	if display := os.Getenv("DISPLAY"); display == "" {
-		logging.Debug(logging.CatUI, "DISPLAY environment variable is empty; GUI may not be visible in headless mode")
+	// Detect display server (X11 or Wayland)
+	display := os.Getenv("DISPLAY")
+	waylandDisplay := os.Getenv("WAYLAND_DISPLAY")
+	xdgSessionType := os.Getenv("XDG_SESSION_TYPE")
+
+	if waylandDisplay != "" {
+		logging.Debug(logging.CatUI, "Wayland display server detected: WAYLAND_DISPLAY=%s", waylandDisplay)
+	} else if display != "" {
+		logging.Debug(logging.CatUI, "X11 display server detected: DISPLAY=%s", display)
 	} else {
-		logging.Debug(logging.CatUI, "DISPLAY=%s", display)
+		logging.Debug(logging.CatUI, "No display server detected (DISPLAY and WAYLAND_DISPLAY are empty); GUI may not be visible in headless mode")
+	}
+
+	if xdgSessionType != "" {
+		logging.Debug(logging.CatUI, "Session type: %s", xdgSessionType)
 	}
 	runGUI()
 }
@@ -1022,6 +1111,12 @@ func runGUI() {
 	ui.SetColors(gridColor, textColor)
 
 	a := app.NewWithID("com.leaktechnologies.videotools")
+
+	// Always start with a clean slate: wipe any persisted app storage (queue or otherwise)
+	if root := a.Storage().RootURI(); root != nil && root.Scheme() == "file" {
+		_ = os.RemoveAll(root.Path())
+	}
+
 	a.Settings().SetTheme(&ui.MonoTheme{})
 	logging.Debug(logging.CatUI, "created fyne app: %#v", a)
 	w := a.NewWindow("VideoTools")
@@ -1081,9 +1176,19 @@ func runGUI() {
 
 	// Initialize job queue
 	state.jobQueue = queue.New(state.jobExecutor)
-
-	// Start queue processing (but paused by default)
-	state.jobQueue.Start()
+	state.jobQueue.SetChangeCallback(func() {
+		app := fyne.CurrentApp()
+		if app == nil || app.Driver() == nil {
+			return
+		}
+		app.Driver().DoFromGoroutine(func() {
+			state.updateStatsBar()
+			state.updateQueueButtonLabel()
+			if state.active == "queue" {
+				state.showQueue()
+			}
+		}, false)
+	})
 
 	defer state.shutdown()
 	w.SetOnDropped(func(pos fyne.Position, items []fyne.URI) {
@@ -1260,6 +1365,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	queueBtn := widget.NewButton("View Queue", func() {
 		state.showQueue()
 	})
+	state.queueBtn = queueBtn
+	state.updateQueueButtonLabel()
 
 	backBar := ui.TintedBar(convertColor, container.NewHBox(back, layout.NewSpacer(), navButtons, layout.NewSpacer(), queueBtn))
 
@@ -1301,6 +1408,48 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	})
 	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
+
+	// DVD-specific aspect ratio selector (only shown for DVD formats)
+	dvdAspectSelect := widget.NewSelect([]string{"4:3", "16:9"}, func(value string) {
+		logging.Debug(logging.CatUI, "DVD aspect set to %s", value)
+		state.convert.OutputAspect = value
+	})
+	dvdAspectSelect.SetSelected("16:9")
+	dvdAspectLabel := widget.NewLabelWithStyle("DVD Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+
+	// DVD info label showing specs based on format selected
+	dvdInfoLabel := widget.NewLabel("")
+	dvdInfoLabel.Wrapping = fyne.TextWrapWord
+
+	dvdAspectBox := container.NewVBox(dvdAspectLabel, dvdAspectSelect, dvdInfoLabel)
+	dvdAspectBox.Hide() // Hidden by default
+
+	// Show/hide DVD options based on format selection
+	updateDVDOptions := func() {
+		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
+		if isDVD {
+			dvdAspectBox.Show()
+			// Update DVD info based on which DVD format was selected
+			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
+				dvdInfoLabel.SetText("NTSC: 720×480 @ 29.97fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 6000k (default), 9000k (max PS2-safe)\nCompatible with DVDStyler, PS2, standalone DVD players")
+			} else if strings.Contains(state.convert.SelectedFormat.Label, "PAL") {
+				dvdInfoLabel.SetText("PAL: 720×576 @ 25.00fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 8000k (default), 9500k (max PS2-safe)\nCompatible with European DVD players and authoring tools")
+			} else {
+				dvdInfoLabel.SetText("DVD Format selected")
+			}
+		} else {
+			dvdAspectBox.Hide()
+		}
+	}
+
+	// Update formatSelect callback to also handle DVD options visibility
+	originalFormatCallback := formatSelect.OnChanged
+	formatSelect.OnChanged = func(value string) {
+		if originalFormatCallback != nil {
+			originalFormatCallback(value)
+		}
+		updateDVDOptions()
+	}
 
 	qualitySelect := widget.NewSelect([]string{"Draft (CRF 28)", "Standard (CRF 23)", "High (CRF 18)", "Lossless"}, func(value string) {
 		logging.Debug(logging.CatUI, "quality preset %s", value)
@@ -1378,6 +1527,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
+		dvdAspectBox, // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		outputHint,
@@ -1488,6 +1638,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
+		dvdAspectBox, // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		outputHint,
@@ -2819,9 +2970,25 @@ func (s *appState) loadVideo(path string) {
 	s.playerPos = 0
 	s.playerPaused = true
 
-	// Set up single-video navigation
-	s.loadedVideos = []*videoSource{src}
-	s.currentIndex = 0
+	// Maintain/extend loaded video list for navigation
+	found := -1
+	for i, v := range s.loadedVideos {
+		if v.Path == src.Path {
+			found = i
+			break
+		}
+	}
+
+	if found >= 0 {
+		s.loadedVideos[found] = src
+		s.currentIndex = found
+	} else if len(s.loadedVideos) > 0 {
+		s.loadedVideos = append(s.loadedVideos, src)
+		s.currentIndex = len(s.loadedVideos) - 1
+	} else {
+		s.loadedVideos = []*videoSource{src}
+		s.currentIndex = 0
+	}
 
 	logging.Debug(logging.CatModule, "video loaded %+v", src)
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -2849,33 +3016,107 @@ func (s *appState) clearVideo() {
 
 // loadVideos loads multiple videos for navigation
 func (s *appState) loadVideos(paths []string) {
-	s.loadedVideos = nil
-	s.currentIndex = 0
-
-	// Load all videos
-	for _, path := range paths {
-		src, err := probeVideo(path)
-		if err != nil {
-			logging.Debug(logging.CatFFMPEG, "ffprobe failed for %s: %v", path, err)
-			continue
-		}
-
-		if frames, err := capturePreviewFrames(src.Path, src.Duration); err == nil {
-			src.PreviewFrames = frames
-		}
-
-		s.loadedVideos = append(s.loadedVideos, src)
-	}
-
-	if len(s.loadedVideos) == 0 {
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			s.showErrorWithCopy("Failed to Load Videos", fmt.Errorf("no valid videos to load"))
-		}, false)
+	if len(paths) == 0 {
 		return
 	}
 
-	// Load the first video
-	s.switchToVideo(0)
+	go func() {
+		total := len(paths)
+		type result struct {
+			idx int
+			src *videoSource
+		}
+
+		// Progress UI
+		status := widget.NewLabel(fmt.Sprintf("Loading 0/%d", total))
+		progress := widget.NewProgressBar()
+		progress.Max = float64(total)
+		var dlg dialog.Dialog
+		fyne.Do(func() {
+			dlg = dialog.NewCustomWithoutButtons("Loading Videos", container.NewVBox(status, progress), s.window)
+			dlg.Show()
+		})
+		defer fyne.Do(func() {
+			if dlg != nil {
+				dlg.Hide()
+			}
+		})
+
+		results := make([]*videoSource, total)
+		var mu sync.Mutex
+		done := 0
+
+		workerCount := runtime.NumCPU()
+		if workerCount > 4 {
+			workerCount = 4
+		}
+		if workerCount < 1 {
+			workerCount = 1
+		}
+
+		jobs := make(chan int, total)
+		var wg sync.WaitGroup
+		for w := 0; w < workerCount; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for idx := range jobs {
+					path := paths[idx]
+					src, err := probeVideo(path)
+					if err == nil {
+						if frames, ferr := capturePreviewFrames(src.Path, src.Duration); ferr == nil {
+							src.PreviewFrames = frames
+						}
+						mu.Lock()
+						results[idx] = src
+						done++
+						curDone := done
+						mu.Unlock()
+						fyne.Do(func() {
+							status.SetText(fmt.Sprintf("Loading %d/%d", curDone, total))
+							progress.SetValue(float64(curDone))
+						})
+					} else {
+						logging.Debug(logging.CatFFMPEG, "ffprobe failed for %s: %v", path, err)
+						mu.Lock()
+						done++
+						curDone := done
+						mu.Unlock()
+						fyne.Do(func() {
+							status.SetText(fmt.Sprintf("Loading %d/%d", curDone, total))
+							progress.SetValue(float64(curDone))
+						})
+					}
+				}
+			}()
+		}
+		for i := range paths {
+			jobs <- i
+		}
+		close(jobs)
+		wg.Wait()
+
+		// Collect valid videos in original order
+		var loaded []*videoSource
+		for _, src := range results {
+			if src != nil {
+				loaded = append(loaded, src)
+			}
+		}
+
+		if len(loaded) == 0 {
+			fyne.Do(func() {
+				s.showErrorWithCopy("Failed to Load Videos", fmt.Errorf("no valid videos to load"))
+			})
+			return
+		}
+
+		s.loadedVideos = loaded
+		s.currentIndex = 0
+		fyne.Do(func() {
+			s.switchToVideo(0)
+		})
+	}()
 }
 
 // switchToVideo switches to a specific video by index
