@@ -212,7 +212,7 @@ func (s *appState) updateStatsBar() {
 	} else if s.convertBusy {
 		// Reflect direct conversion as an active job in the stats bar
 		running = 1
-		jobTitle = "Active conversion"
+		jobTitle = fmt.Sprintf("Direct convert: %s", filepath.Base(s.source.Path))
 		progress = 0
 	}
 
@@ -449,7 +449,7 @@ func (s *appState) refreshQueueView() {
 			ID:          "active-convert",
 			Type:        queue.JobTypeConvert,
 			Status:      queue.JobStatusRunning,
-			Title:       "Active conversion",
+			Title:       fmt.Sprintf("Direct convert: %s", filepath.Base(s.source.Path)),
 			Description: fmt.Sprintf("Output: %s", s.convert.OutputFile()),
 			Progress:    0,
 		}}, jobs...)
