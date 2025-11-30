@@ -3351,6 +3351,8 @@ func determineVideoCodec(cfg convertConfig) string {
 		return "libvpx-vp9"
 	case "AV1":
 		return "libaom-av1"
+	case "MPEG-2":
+		return "mpeg2video"
 	case "Copy":
 		return "copy"
 	default:
@@ -3367,6 +3369,8 @@ func determineAudioCodec(cfg convertConfig) string {
 		return "libopus"
 	case "MP3":
 		return "libmp3lame"
+	case "AC-3":
+		return "ac3"
 	case "FLAC":
 		return "flac"
 	case "Copy":
@@ -3401,6 +3405,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	}
 	src := s.source
 	cfg := s.convert
+	isDVD := cfg.SelectedFormat.Ext == ".mpg"
 	outDir := filepath.Dir(src.Path)
 	outName := cfg.OutputFile()
 	if outName == "" {
@@ -3415,8 +3420,28 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		"-y",
 		"-hide_banner",
 		"-loglevel", "error",
-		"-i", src.Path,
 	}
+
+	// DVD presets: enforce compliant codecs, frame rate, resolution, and target
+	if isDVD {
+		if strings.Contains(cfg.SelectedFormat.Label, "PAL") {
+			args = append(args, "-target", "pal-dvd")
+			cfg.FrameRate = "25"
+			cfg.TargetResolution = "PAL (720×576)"
+		} else {
+			args = append(args, "-target", "ntsc-dvd")
+			cfg.FrameRate = "29.97"
+			cfg.TargetResolution = "NTSC (720×480)"
+		}
+		cfg.VideoCodec = "MPEG-2"
+		cfg.AudioCodec = "AC-3"
+		if cfg.AudioBitrate == "" {
+			cfg.AudioBitrate = "192k"
+		}
+		cfg.PixelFormat = "yuv420p"
+	}
+
+	args = append(args, "-i", src.Path)
 
 	// Add cover art if available
 	hasCoverArt := cfg.CoverArtPath != ""
