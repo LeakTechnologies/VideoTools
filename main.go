@@ -1970,9 +1970,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		convertBtn.Disable()
 	}
 	if state.convertBusy {
+		// Allow queueing new jobs while current convert runs; just disable Convert Now and enable Cancel.
 		convertBtn.Disable()
 		cancelBtn.Enable()
-		addQueueBtn.Disable()
+		addQueueBtn.Enable()
 	}
 	// Also disable if queue is running
 	if state.jobQueue != nil && state.jobQueue.IsRunning() {
