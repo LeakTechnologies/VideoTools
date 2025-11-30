@@ -890,70 +890,103 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		args = append(args, "-vf", strings.Join(vf, ","))
 	}
 
+	// Check if this is a DVD format (special handling required)
+	selectedFormat, _ := cfg["selectedFormat"].(formatOption)
+	isDVD := selectedFormat.Ext == ".mpg"
+
 	// Video codec
 	videoCodec, _ := cfg["videoCodec"].(string)
-	if videoCodec == "Copy" {
+	if videoCodec == "Copy" && !isDVD {
 		args = append(args, "-c:v", "copy")
 	} else {
 		// Determine the actual codec to use
-		actualCodec := determineVideoCodec(convertConfig{
-			VideoCodec:    videoCodec,
-			HardwareAccel: hardwareAccel,
-		})
+		var actualCodec string
+		if isDVD {
+			// DVD requires MPEG-2 video
+			actualCodec = "mpeg2video"
+		} else {
+			actualCodec = determineVideoCodec(convertConfig{
+				VideoCodec:    videoCodec,
+				HardwareAccel: hardwareAccel,
+			})
+		}
 		args = append(args, "-c:v", actualCodec)
 
-		// Bitrate mode and quality
-		bitrateMode, _ := cfg["bitrateMode"].(string)
-		if bitrateMode == "CRF" || bitrateMode == "" {
-			crfStr, _ := cfg["crf"].(string)
-			if crfStr == "" {
-				quality, _ := cfg["quality"].(string)
-				crfStr = crfForQuality(quality)
+		// DVD-specific video settings
+		if isDVD {
+			// NTSC vs PAL settings
+			if strings.Contains(selectedFormat.Label, "NTSC") {
+				args = append(args, "-b:v", "6000k", "-maxrate", "9000k", "-bufsize", "1835k", "-g", "15")
+			} else if strings.Contains(selectedFormat.Label, "PAL") {
+				args = append(args, "-b:v", "8000k", "-maxrate", "9500k", "-bufsize", "2228k", "-g", "12")
 			}
-			if actualCodec == "libx264" || actualCodec == "libx265" || actualCodec == "libvpx-vp9" {
-				args = append(args, "-crf", crfStr)
+		} else {
+			// Standard bitrate mode and quality for non-DVD
+			bitrateMode, _ := cfg["bitrateMode"].(string)
+			if bitrateMode == "CRF" || bitrateMode == "" {
+				crfStr, _ := cfg["crf"].(string)
+				if crfStr == "" {
+					quality, _ := cfg["quality"].(string)
+					crfStr = crfForQuality(quality)
+				}
+				if actualCodec == "libx264" || actualCodec == "libx265" || actualCodec == "libvpx-vp9" {
+					args = append(args, "-crf", crfStr)
+				}
+			} else if bitrateMode == "CBR" {
+				if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
+					args = append(args, "-b:v", videoBitrate, "-minrate", videoBitrate, "-maxrate", videoBitrate, "-bufsize", videoBitrate)
+				}
+			} else if bitrateMode == "VBR" {
+				if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
+					args = append(args, "-b:v", videoBitrate)
+				}
 			}
-		} else if bitrateMode == "CBR" {
-			if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
-				args = append(args, "-b:v", videoBitrate, "-minrate", videoBitrate, "-maxrate", videoBitrate, "-bufsize", videoBitrate)
-			}
-		} else if bitrateMode == "VBR" {
-			if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
-				args = append(args, "-b:v", videoBitrate)
-			}
-		}
 
-		// Encoder preset
-		if encoderPreset, _ := cfg["encoderPreset"].(string); encoderPreset != "" && (actualCodec == "libx264" || actualCodec == "libx265") {
-			args = append(args, "-preset", encoderPreset)
-		}
+			// Encoder preset
+			if encoderPreset, _ := cfg["encoderPreset"].(string); encoderPreset != "" && (actualCodec == "libx264" || actualCodec == "libx265") {
+				args = append(args, "-preset", encoderPreset)
+			}
 
-		// Pixel format
-		if pixelFormat, _ := cfg["pixelFormat"].(string); pixelFormat != "" {
-			args = append(args, "-pix_fmt", pixelFormat)
+			// Pixel format
+			if pixelFormat, _ := cfg["pixelFormat"].(string); pixelFormat != "" {
+				args = append(args, "-pix_fmt", pixelFormat)
+			}
 		}
 	}
 
 	// Audio codec and settings
 	audioCodec, _ := cfg["audioCodec"].(string)
-	if audioCodec == "Copy" {
+	if audioCodec == "Copy" && !isDVD {
 		args = append(args, "-c:a", "copy")
 	} else {
-		actualAudioCodec := determineAudioCodec(convertConfig{AudioCodec: audioCodec})
+		var actualAudioCodec string
+		if isDVD {
+			// DVD requires AC-3 audio
+			actualAudioCodec = "ac3"
+		} else {
+			actualAudioCodec = determineAudioCodec(convertConfig{AudioCodec: audioCodec})
+		}
 		args = append(args, "-c:a", actualAudioCodec)
 
-		if audioBitrate, _ := cfg["audioBitrate"].(string); audioBitrate != "" && actualAudioCodec != "flac" {
-			args = append(args, "-b:a", audioBitrate)
-		}
+		// DVD-specific audio settings
+		if isDVD {
+			// DVD standard: AC-3 stereo at 48 kHz, 192 kbps
+			args = append(args, "-b:a", "192k", "-ar", "48000", "-ac", "2")
+		} else {
+			// Standard audio settings for non-DVD
+			if audioBitrate, _ := cfg["audioBitrate"].(string); audioBitrate != "" && actualAudioCodec != "flac" {
+				args = append(args, "-b:a", audioBitrate)
+			}
 
-		if audioChannels, _ := cfg["audioChannels"].(string); audioChannels != "" && audioChannels != "Source" {
-			switch audioChannels {
-			case "Mono":
-				args = append(args, "-ac", "1")
-			case "Stereo":
-				args = append(args, "-ac", "2")
-			case "5.1":
-				args = append(args, "-ac", "6")
+			if audioChannels, _ := cfg["audioChannels"].(string); audioChannels != "" && audioChannels != "Source" {
+				switch audioChannels {
+				case "Mono":
+					args = append(args, "-ac", "1")
+				case "Stereo":
+					args = append(args, "-ac", "2")
+				case "5.1":
+					args = append(args, "-ac", "6")
+				}
 			}
 		}
 	}
@@ -965,8 +998,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		args = append(args, "-disposition:v:1", "attached_pic")
 	}
 
-	// Format-specific settings
-	var selectedFormat formatOption
+	// Format-specific settings (already parsed above for DVD check)
 	switch v := cfg["selectedFormat"].(type) {
 	case formatOption:
 		selectedFormat = v
