@@ -207,6 +207,11 @@ func (s *appState) updateStatsBar() {
 				break
 			}
 		}
+	} else if s.convertBusy {
+		// Reflect direct conversion as an active job in the stats bar
+		running = 1
+		jobTitle = "Active conversion"
+		progress = 0
 	}
 
 	s.statsBar.UpdateStats(running, pending, completed, failed, progress, jobTitle)
@@ -427,6 +432,17 @@ func (s *appState) showQueue() {
 	s.active = "queue"
 
 	jobs := s.jobQueue.List()
+	// If a direct conversion is running but not represented in the queue, surface it as a pseudo job.
+	if s.convertBusy {
+		jobs = append([]*queue.Job{{
+			ID:          "active-convert",
+			Type:        queue.JobTypeConvert,
+			Status:      queue.JobStatusRunning,
+			Title:       "Active conversion",
+			Description: fmt.Sprintf("Output: %s", s.convert.OutputFile()),
+			Progress:    0,
+		}}, jobs...)
+	}
 
 	view := ui.BuildQueueView(
 		jobs,
