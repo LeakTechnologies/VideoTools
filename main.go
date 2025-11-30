@@ -227,6 +227,10 @@ func (s *appState) queueProgressCounts() (completed, total int) {
 	pending, running, completedCount, failed := s.jobQueue.Stats()
 	// Total includes all jobs in memory, including cancelled/failed/pending
 	total = len(s.jobQueue.List())
+	// Include direct conversion as an in-flight item in totals
+	if s.convertBusy {
+		total++
+	}
 	completed = completedCount
 	_ = pending
 	_ = running
