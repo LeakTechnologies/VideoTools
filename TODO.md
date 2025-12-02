@@ -1,8 +1,75 @@
-# VideoTools TODO (v0.1.0-dev12 plan)
+# VideoTools TODO (v0.1.0-dev13 plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Critical Issues / Polishing for dev12
+## Priority Features for dev13 (Based on Jake's research)
+
+### Quality & Compression Improvements
+- [ ] **Automatic black bar detection and cropping** (HIGHEST PRIORITY)
+  - Implement ffmpeg cropdetect analysis pass
+  - Auto-apply detected crop values
+  - 15-30% file size reduction with zero quality loss
+  - Add manual crop override option
+
+- [ ] **Frame rate conversion UI**
+  - Dropdown: Source, 24, 25, 29.97, 30, 50, 59.94, 60 fps
+  - Auto-suggest 60→30fps conversion with size estimate
+  - Show file size impact (40-45% reduction for 60→30)
+
+- [ ] **HEVC/H.265 preset options**
+  - Add preset dropdown: ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
+  - Show time/quality trade-off estimates
+  - Default to "slow" for best quality/size balance
+
+- [ ] **Advanced filters module**
+  - Denoising: hqdn3d (fast), nlmeans (slow, high quality)
+  - Sharpening: unsharp filter with strength slider
+  - Deblocking: remove compression artifacts
+  - All with strength sliders and preview
+
+### Encoding Features
+- [ ] **2-pass encoding for precise bitrate targeting**
+  - UI for target file size
+  - Auto-calculate bitrate from duration + size
+  - Progress tracking for both passes
+
+- [ ] **SVT-AV1 codec support**
+  - Faster than H.265, smaller files
+  - Add compatibility warnings for iOS
+  - Preset selection (0-13)
+
+### UI & Workflow
+- [ ] **Add UI controls for dev12 backend features**
+  - H.264 profile/level dropdowns
+  - Deinterlace method selector (yadif/bwdif)
+  - Audio normalization checkbox
+  - Auto-crop toggle
+
+- [ ] **Encoding presets system**
+  - "iPhone Compatible" preset (main/4.0, stereo, 48kHz, auto-crop)
+  - "Maximum Compression" preset (H.265, slower, CRF 24, 10-bit, auto-crop)
+  - "Fast Encode" preset (medium, hardware encoding)
+  - Save custom presets
+
+- [ ] **File size estimator**
+  - Show estimated output size before encoding
+  - Based on source duration, target bitrate/CRF
+  - Update in real-time as settings change
+
+### VR & Advanced Features
+- [ ] **VR video support infrastructure**
+  - Detect VR metadata tags
+  - Side-by-side and over-under format detection
+  - Preserve VR metadata in output
+  - Add VR-specific presets
+
+- [ ] **Batch folder import**
+  - Select folder, auto-add all videos to queue
+  - Filter by extension
+  - Apply same settings to all files
+  - Progress indicator for folder scanning
+
+## Critical Issues / Polishing
 - [ ] Queue polish: ensure scroll/refresh stability with 10+ jobs and long runs
 - [ ] Direct+queue parity: verify label/progress/order are correct when mixing modes
 - [ ] Conversion error surfacing: include stderr snippet in dialog for faster debug

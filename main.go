@@ -124,11 +124,18 @@ type convertConfig struct {
 	PixelFormat      string // yuv420p, yuv422p, yuv444p
 	HardwareAccel    string // none, nvenc, vaapi, qsv, videotoolbox
 	TwoPass          bool   // Enable two-pass encoding for VBR
+	H264Profile        string // baseline, main, high (for H.264 compatibility)
+	H264Level          string // 3.0, 3.1, 4.0, 4.1, 5.0, 5.1 (for H.264 compatibility)
+	Deinterlace        string // Auto, Force, Off
+	DeinterlaceMethod  string // yadif, bwdif (bwdif is higher quality but slower)
+	AutoCrop           bool   // Auto-detect and remove black bars
 
 	// Audio encoding settings
-	AudioCodec    string // AAC, Opus, MP3, FLAC, Copy
-	AudioBitrate  string // 128k, 192k, 256k, 320k
-	AudioChannels string // Source, Mono, Stereo, 5.1
+	AudioCodec       string // AAC, Opus, MP3, FLAC, Copy
+	AudioBitrate     string // 128k, 192k, 256k, 320k
+	AudioChannels    string // Source, Mono, Stereo, 5.1
+	AudioSampleRate  string // Source, 44100, 48000
+	NormalizeAudio   bool   // Force stereo + 48kHz for compatibility
 
 	// Other settings
 	InverseTelecine  bool
@@ -596,9 +603,15 @@ func (s *appState) addConvertToQueue() error {
 		"pixelFormat":      cfg.PixelFormat,
 		"hardwareAccel":    cfg.HardwareAccel,
 		"twoPass":          cfg.TwoPass,
-		"audioCodec":       cfg.AudioCodec,
+		"h264Profile":        cfg.H264Profile,
+		"h264Level":          cfg.H264Level,
+		"deinterlace":        cfg.Deinterlace,
+		"deinterlaceMethod":  cfg.DeinterlaceMethod,
+		"audioCodec":         cfg.AudioCodec,
 		"audioBitrate":     cfg.AudioBitrate,
 		"audioChannels":    cfg.AudioChannels,
+		"audioSampleRate":  cfg.AudioSampleRate,
+		"normalizeAudio":   cfg.NormalizeAudio,
 		"inverseTelecine":  cfg.InverseTelecine,
 		"coverArtPath":     cfg.CoverArtPath,
 		"aspectHandling":   cfg.AspectHandling,
@@ -606,6 +619,7 @@ func (s *appState) addConvertToQueue() error {
 		"sourceWidth":      src.Width,
 		"sourceHeight":     src.Height,
 		"sourceDuration":   src.Duration,
+		"fieldOrder":       src.FieldOrder,
 	}
 
 	job := &queue.Job{
@@ -766,9 +780,15 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"pixelFormat":      s.convert.PixelFormat,
 			"hardwareAccel":    s.convert.HardwareAccel,
 			"twoPass":          s.convert.TwoPass,
-			"audioCodec":       s.convert.AudioCodec,
+			"h264Profile":        s.convert.H264Profile,
+			"h264Level":          s.convert.H264Level,
+			"deinterlace":        s.convert.Deinterlace,
+			"deinterlaceMethod":  s.convert.DeinterlaceMethod,
+			"audioCodec":         s.convert.AudioCodec,
 			"audioBitrate":     s.convert.AudioBitrate,
 			"audioChannels":    s.convert.AudioChannels,
+			"audioSampleRate":  s.convert.AudioSampleRate,
+			"normalizeAudio":   s.convert.NormalizeAudio,
 			"inverseTelecine":  s.convert.InverseTelecine,
 			"coverArtPath":     "",
 			"aspectHandling":   s.convert.AspectHandling,
@@ -776,6 +796,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"sourceWidth":      src.Width,
 			"sourceHeight":     src.Height,
 			"sourceDuration":   src.Duration,
+			"fieldOrder":       src.FieldOrder,
 		}
 
 		job := &queue.Job{
@@ -944,8 +965,36 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	var vf []string
 
 	// Deinterlacing
+	shouldDeinterlace := false
+	deinterlaceMode, _ := cfg["deinterlace"].(string)
+	fieldOrder, _ := cfg["fieldOrder"].(string)
+
+	if deinterlaceMode == "Force" {
+		shouldDeinterlace = true
+	} else if deinterlaceMode == "Auto" || deinterlaceMode == "" {
+		// Auto-detect based on field order
+		if fieldOrder != "" && fieldOrder != "progressive" && fieldOrder != "unknown" {
+			shouldDeinterlace = true
+		}
+	}
+
+	// Legacy support
 	if inverseTelecine, _ := cfg["inverseTelecine"].(bool); inverseTelecine {
-		vf = append(vf, "yadif")
+		shouldDeinterlace = true
+	}
+
+	if shouldDeinterlace {
+		// Choose deinterlacing method
+		deintMethod, _ := cfg["deinterlaceMethod"].(string)
+		if deintMethod == "" {
+			deintMethod = "bwdif" // Default to bwdif (higher quality)
+		}
+
+		if deintMethod == "bwdif" {
+			vf = append(vf, "bwdif=mode=send_frame:parity=auto")
+		} else {
+			vf = append(vf, "yadif=0:-1:0")
+		}
 	}
 
 	// Scaling/Resolution
@@ -961,6 +1010,8 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			scaleFilter = "scale=-2:1440"
 		case "4K":
 			scaleFilter = "scale=-2:2160"
+		case "8K":
+			scaleFilter = "scale=-2:4320"
 		}
 		if scaleFilter != "" {
 			vf = append(vf, scaleFilter)
@@ -1048,6 +1099,16 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			if pixelFormat, _ := cfg["pixelFormat"].(string); pixelFormat != "" {
 				args = append(args, "-pix_fmt", pixelFormat)
 			}
+
+			// H.264 profile and level for compatibility
+			if videoCodec == "H.264" && (strings.Contains(actualCodec, "264") || strings.Contains(actualCodec, "h264")) {
+				if h264Profile, _ := cfg["h264Profile"].(string); h264Profile != "" && h264Profile != "Auto" {
+					args = append(args, "-profile:v", h264Profile)
+				}
+				if h264Level, _ := cfg["h264Level"].(string); h264Level != "" && h264Level != "Auto" {
+					args = append(args, "-level:v", h264Level)
+				}
+			}
 		}
 	}
 
@@ -1075,14 +1136,23 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 				args = append(args, "-b:a", audioBitrate)
 			}
 
-			if audioChannels, _ := cfg["audioChannels"].(string); audioChannels != "" && audioChannels != "Source" {
-				switch audioChannels {
-				case "Mono":
-					args = append(args, "-ac", "1")
-				case "Stereo":
-					args = append(args, "-ac", "2")
-				case "5.1":
-					args = append(args, "-ac", "6")
+			// Audio normalization (compatibility mode)
+			if normalizeAudio, _ := cfg["normalizeAudio"].(bool); normalizeAudio {
+				args = append(args, "-ac", "2", "-ar", "48000")
+			} else {
+				if audioChannels, _ := cfg["audioChannels"].(string); audioChannels != "" && audioChannels != "Source" {
+					switch audioChannels {
+					case "Mono":
+						args = append(args, "-ac", "1")
+					case "Stereo":
+						args = append(args, "-ac", "2")
+					case "5.1":
+						args = append(args, "-ac", "6")
+					}
+				}
+
+				if audioSampleRate, _ := cfg["audioSampleRate"].(string); audioSampleRate != "" && audioSampleRate != "Source" {
+					args = append(args, "-ar", audioSampleRate)
 				}
 			}
 		}
@@ -1121,6 +1191,17 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 	if targetOption != "" {
 		args = append(args, "-target", targetOption)
+	}
+
+	// Fix VFR/desync issues - regenerate timestamps and enforce CFR
+	args = append(args, "-fflags", "+genpts")
+	frameRateStr, _ := cfg["frameRate"].(string)
+	sourceDuration, _ := cfg["sourceDuration"].(float64)
+	if frameRateStr != "" && frameRateStr != "Source" {
+		args = append(args, "-r", frameRateStr)
+	} else if sourceDuration > 0 {
+		// Calculate approximate source frame rate if available
+		args = append(args, "-r", "30") // Safe default
 	}
 
 	// Progress feed
@@ -1281,14 +1362,21 @@ func runGUI() {
 			VideoBitrate:     "5000k",
 			TargetResolution: "Source",
 			FrameRate:        "Source",
-			PixelFormat:      "yuv420p",
+			PixelFormat:      "yuv420p10le",
 			HardwareAccel:    "none",
 			TwoPass:          false,
+			H264Profile:        "main",
+			H264Level:          "4.0",
+			Deinterlace:        "Auto",
+			DeinterlaceMethod:  "bwdif",
+			AutoCrop:           false,
 
 			// Audio encoding defaults
-			AudioCodec:    "AAC",
-			AudioBitrate:  "192k",
-			AudioChannels: "Source",
+			AudioCodec:       "AAC",
+			AudioBitrate:     "192k",
+			AudioChannels:    "Source",
+			AudioSampleRate:  "Source",
+			NormalizeAudio:   false,
 
 			// Other defaults
 			InverseTelecine:  true,
@@ -3429,6 +3517,62 @@ func crfForQuality(q string) string {
 	}
 }
 
+// detectBestH264Encoder probes ffmpeg for available H.264 encoders and returns the best one
+// Priority: h264_nvenc (NVIDIA) > h264_qsv (Intel) > h264_vaapi (VA-API) > libopenh264 > fallback
+func detectBestH264Encoder() string {
+	// List of encoders to try in priority order
+	encoders := []string{"h264_nvenc", "h264_qsv", "h264_vaapi", "libopenh264"}
+
+	for _, encoder := range encoders {
+		cmd := exec.Command("ffmpeg", "-hide_banner", "-encoders")
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			// Check if encoder is in the output
+			if strings.Contains(string(output), " "+encoder+" ") || strings.Contains(string(output), " "+encoder+"\n") {
+				logging.Debug(logging.CatFFMPEG, "detected hardware encoder: %s", encoder)
+				return encoder
+			}
+		}
+	}
+
+	// Fallback: check if libx264 is available
+	cmd := exec.Command("ffmpeg", "-hide_banner", "-encoders")
+	output, err := cmd.CombinedOutput()
+	if err == nil && (strings.Contains(string(output), " libx264 ") || strings.Contains(string(output), " libx264\n")) {
+		logging.Debug(logging.CatFFMPEG, "using software encoder: libx264")
+		return "libx264"
+	}
+
+	logging.Debug(logging.CatFFMPEG, "no H.264 encoder found, using libx264 as fallback")
+	return "libx264"
+}
+
+// detectBestH265Encoder probes ffmpeg for available H.265 encoders and returns the best one
+func detectBestH265Encoder() string {
+	encoders := []string{"hevc_nvenc", "hevc_qsv", "hevc_vaapi"}
+
+	for _, encoder := range encoders {
+		cmd := exec.Command("ffmpeg", "-hide_banner", "-encoders")
+		output, err := cmd.CombinedOutput()
+		if err == nil {
+			if strings.Contains(string(output), " "+encoder+" ") || strings.Contains(string(output), " "+encoder+"\n") {
+				logging.Debug(logging.CatFFMPEG, "detected hardware encoder: %s", encoder)
+				return encoder
+			}
+		}
+	}
+
+	cmd := exec.Command("ffmpeg", "-hide_banner", "-encoders")
+	output, err := cmd.CombinedOutput()
+	if err == nil && (strings.Contains(string(output), " libx265 ") || strings.Contains(string(output), " libx265\n")) {
+		logging.Debug(logging.CatFFMPEG, "using software encoder: libx265")
+		return "libx265"
+	}
+
+	logging.Debug(logging.CatFFMPEG, "no H.265 encoder found, using libx265 as fallback")
+	return "libx265"
+}
+
 // determineVideoCodec maps user-friendly codec names to FFmpeg codec names
 func determineVideoCodec(cfg convertConfig) string {
 	switch cfg.VideoCodec {
@@ -3439,6 +3583,9 @@ func determineVideoCodec(cfg convertConfig) string {
 			return "h264_qsv"
 		} else if cfg.HardwareAccel == "videotoolbox" {
 			return "h264_videotoolbox"
+		} else if cfg.HardwareAccel == "none" || cfg.HardwareAccel == "" {
+			// Auto-detect best available encoder
+			return detectBestH264Encoder()
 		}
 		return "libx264"
 	case "H.265":
@@ -3448,6 +3595,9 @@ func determineVideoCodec(cfg convertConfig) string {
 			return "hevc_qsv"
 		} else if cfg.HardwareAccel == "videotoolbox" {
 			return "hevc_videotoolbox"
+		} else if cfg.HardwareAccel == "none" || cfg.HardwareAccel == "" {
+			// Auto-detect best available encoder
+			return detectBestH265Encoder()
 		}
 		return "libx265"
 	case "VP9":
@@ -3580,8 +3730,51 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	var vf []string
 
 	// Deinterlacing
+	shouldDeinterlace := false
+	if cfg.Deinterlace == "Force" {
+		shouldDeinterlace = true
+		logging.Debug(logging.CatFFMPEG, "deinterlacing: forced on")
+	} else if cfg.Deinterlace == "Auto" || cfg.Deinterlace == "" {
+		// Auto-detect based on field order
+		if src.FieldOrder != "" && src.FieldOrder != "progressive" && src.FieldOrder != "unknown" {
+			shouldDeinterlace = true
+			logging.Debug(logging.CatFFMPEG, "deinterlacing: auto-detected (field_order=%s)", src.FieldOrder)
+		}
+	} else if cfg.Deinterlace == "Off" {
+		shouldDeinterlace = false
+		logging.Debug(logging.CatFFMPEG, "deinterlacing: disabled")
+	}
+
+	// Legacy InverseTelecine support
 	if cfg.InverseTelecine {
-		vf = append(vf, "yadif")
+		shouldDeinterlace = true
+		logging.Debug(logging.CatFFMPEG, "deinterlacing: enabled via legacy InverseTelecine")
+	}
+
+	if shouldDeinterlace {
+		// Choose deinterlacing method
+		deintMethod := cfg.DeinterlaceMethod
+		if deintMethod == "" {
+			deintMethod = "bwdif" // Default to bwdif (higher quality)
+		}
+
+		if deintMethod == "bwdif" {
+			// Bob Weaver Deinterlacing - higher quality, slower
+			vf = append(vf, "bwdif=mode=send_frame:parity=auto")
+			logging.Debug(logging.CatFFMPEG, "using bwdif deinterlacing (high quality)")
+		} else {
+			// Yet Another Deinterlacing Filter - faster, good quality
+			vf = append(vf, "yadif=0:-1:0")
+			logging.Debug(logging.CatFFMPEG, "using yadif deinterlacing (fast)")
+		}
+	}
+
+	// Auto-crop black bars (apply before scaling for best results)
+	if cfg.AutoCrop {
+		// Use cropdetect filter - this will need manual application for now
+		// In future versions, we'll auto-detect and apply the crop
+		vf = append(vf, "cropdetect=24:16:0")
+		logging.Debug(logging.CatFFMPEG, "auto-crop enabled (cropdetect filter added)")
 	}
 
 	// Scaling/Resolution
@@ -3596,6 +3789,8 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			scaleFilter = "scale=-2:1440"
 		case "4K":
 			scaleFilter = "scale=-2:2160"
+		case "8K":
+			scaleFilter = "scale=-2:4320"
 		}
 		if scaleFilter != "" {
 			vf = append(vf, scaleFilter)
@@ -3656,6 +3851,18 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		if cfg.PixelFormat != "" {
 			args = append(args, "-pix_fmt", cfg.PixelFormat)
 		}
+
+		// H.264 profile and level for compatibility (iPhone, etc.)
+		if cfg.VideoCodec == "H.264" && (strings.Contains(videoCodec, "264") || strings.Contains(videoCodec, "h264")) {
+			if cfg.H264Profile != "" && cfg.H264Profile != "Auto" {
+				args = append(args, "-profile:v", cfg.H264Profile)
+				logging.Debug(logging.CatFFMPEG, "H.264 profile: %s", cfg.H264Profile)
+			}
+			if cfg.H264Level != "" && cfg.H264Level != "Auto" {
+				args = append(args, "-level:v", cfg.H264Level)
+				logging.Debug(logging.CatFFMPEG, "H.264 level: %s", cfg.H264Level)
+			}
+		}
 	}
 
 	// Audio codec and settings
@@ -3671,7 +3878,11 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		}
 
 		// Audio channels
-		if cfg.AudioChannels != "" && cfg.AudioChannels != "Source" {
+		if cfg.NormalizeAudio {
+			// Force stereo for maximum compatibility
+			args = append(args, "-ac", "2")
+			logging.Debug(logging.CatFFMPEG, "audio normalization: forcing stereo")
+		} else if cfg.AudioChannels != "" && cfg.AudioChannels != "Source" {
 			switch cfg.AudioChannels {
 			case "Mono":
 				args = append(args, "-ac", "1")
@@ -3680,6 +3891,15 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			case "5.1":
 				args = append(args, "-ac", "6")
 			}
+		}
+
+		// Audio sample rate
+		if cfg.NormalizeAudio {
+			// Force 48kHz for maximum compatibility
+			args = append(args, "-ar", "48000")
+			logging.Debug(logging.CatFFMPEG, "audio normalization: forcing 48kHz sample rate")
+		} else if cfg.AudioSampleRate != "" && cfg.AudioSampleRate != "Source" {
+			args = append(args, "-ar", cfg.AudioSampleRate)
 		}
 	}
 	// Map cover art as attached picture (must be before movflags and progress)
@@ -3700,6 +3920,17 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	// Apply target for DVD (must come before output path)
 	if targetOption != "" {
 		args = append(args, "-target", targetOption)
+	}
+
+	// Fix VFR/desync issues - regenerate timestamps and enforce CFR
+	args = append(args, "-fflags", "+genpts")
+	if cfg.FrameRate != "" && cfg.FrameRate != "Source" {
+		args = append(args, "-r", cfg.FrameRate)
+		logging.Debug(logging.CatFFMPEG, "enforcing CFR at %s fps", cfg.FrameRate)
+	} else {
+		// Use source frame rate as CFR
+		args = append(args, "-r", fmt.Sprintf("%.3f", src.FrameRate))
+		logging.Debug(logging.CatFFMPEG, "enforcing CFR at source rate %.3f fps", src.FrameRate)
 	}
 
 	// Progress feed to stdout for live updates.
