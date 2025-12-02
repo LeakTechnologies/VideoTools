@@ -69,6 +69,79 @@ This file tracks upcoming features, improvements, and known issues.
   - Apply same settings to all files
   - Progress indicator for folder scanning
 
+## Windows Compatibility (v0.1.0-dev14)
+
+### Build System
+- [ ] **Cross-compilation setup**
+  - Configure CGO for Windows cross-compilation
+  - Set up MinGW-w64 toolchain
+  - Test Fyne compilation on Windows
+  - Create Windows build script equivalent to build.sh
+
+- [ ] **Dependency bundling**
+  - Bundle ffmpeg.exe with Windows builds
+  - Include all required DLLs (OpenGL, etc.)
+  - Create installer with dependencies
+  - Add ffmpeg to PATH or bundle in application directory
+
+### Platform-Specific Code
+- [ ] **Path handling**
+  - Replace Unix path separators with filepath.Separator
+  - Handle Windows drive letters (C:\, D:\, etc.)
+  - Support UNC paths (\\server\share\)
+  - Test with spaces and special characters in paths
+
+- [ ] **File dialogs**
+  - Ensure Fyne file dialogs work on Windows
+  - Test drag-and-drop on Windows Explorer
+  - Handle Windows file associations
+  - Add "Open with VideoTools" context menu option
+
+- [ ] **Process management**
+  - Test ffmpeg process spawning on Windows
+  - Handle Windows process termination (no SIGTERM)
+  - Support Windows-style console output
+  - Test background process handling
+
+### Hardware Detection
+- [ ] **Windows GPU detection**
+  - Detect NVIDIA GPUs (NVENC) on Windows
+  - Detect Intel integrated graphics (QSV)
+  - Detect AMD GPUs (AMF)
+  - Auto-select best available encoder
+
+- [ ] **Windows-specific encoders**
+  - Add Windows Media Foundation encoders
+  - Test NVENC on Windows (h264_nvenc, hevc_nvenc)
+  - Test Intel QSV on Windows
+  - Add fallback to software encoding
+
+### Testing & Distribution
+- [ ] **Windows testing**
+  - Test on Windows 10
+  - Test on Windows 11
+  - Test with different GPU vendors
+  - Test on systems without GPU
+
+- [ ] **Installation**
+  - Create Windows installer (MSI or NSIS)
+  - Add to Windows Start Menu
+  - Create desktop shortcut option
+  - Auto-update mechanism
+
+- [ ] **Documentation**
+  - Windows installation guide
+  - Windows-specific troubleshooting
+  - GPU driver requirements
+  - Antivirus whitelist instructions
+
+### Nice-to-Have
+- [ ] Windows Store submission
+- [ ] Portable/USB-stick version
+- [ ] Windows taskbar progress integration
+- [ ] File thumbnail generation for Windows Explorer
+- [ ] Windows notification system integration
+
 ## Critical Issues / Polishing
 - [ ] Queue polish: ensure scroll/refresh stability with 10+ jobs and long runs
 - [ ] Direct+queue parity: verify label/progress/order are correct when mixing modes
