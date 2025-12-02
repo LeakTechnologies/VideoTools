@@ -2,6 +2,67 @@
 
 This file tracks completed features, fixes, and milestones.
 
+## Version 0.1.0-dev12 (2025-12-02)
+
+### Features
+- ✅ **Automatic hardware encoder detection and selection**
+  - Prioritizes NVIDIA NVENC > Intel QSV > VA-API > OpenH264
+  - Falls back to software encoders (libx264/libx265) if no hardware acceleration available
+  - Automatically uses best available encoder without user configuration
+  - Significant performance improvement on systems with GPU encoding support
+
+- ✅ **iPhone/mobile device compatibility settings**
+  - H.264 profile selection (baseline, main, high)
+  - H.264 level selection (3.0, 3.1, 4.0, 4.1, 5.0, 5.1)
+  - Defaults to main profile, level 4.0 for maximum compatibility
+  - Ensures videos play on iPhone 4 and newer devices
+
+- ✅ **Advanced deinterlacing with dual methods**
+  - Added bwdif (Bob Weaver) deinterlacing - higher quality than yadif
+  - Kept yadif for faster processing when speed is priority
+  - Auto-detect interlaced content based on field_order metadata
+  - Deinterlace modes: Auto (detect and apply), Force, Off
+  - Defaults to bwdif for best quality
+
+- ✅ **Audio normalization for compatibility**
+  - Force stereo (2 channels) output
+  - Force 48kHz sample rate
+  - Ensures consistent playback across all devices
+  - Optional toggle for maximum compatibility mode
+
+- ✅ **10-bit encoding for better compression**
+  - Changed default pixel format from yuv420p to yuv420p10le
+  - Provides 10-20% file size reduction at same visual quality
+  - Better handling of color gradients and banding
+  - Automatic for all H.264/H.265 conversions
+
+- ✅ **Browser desync fix**
+  - Added `-fflags +genpts` to regenerate timestamps
+  - Added `-r` flag to enforce constant frame rate (CFR)
+  - Fixes "desync after multiple plays" issue in Chromium browsers (Chrome, Edge, Vivaldi)
+  - Eliminates gradual audio drift when scrubbing/seeking
+
+- ✅ **Extended resolution support**
+  - Added 8K (4320p) resolution option
+  - Supports: 720p, 1080p, 1440p, 4K (2160p), 8K (4320p)
+  - Prepared for future VR and ultra-high-resolution content
+
+- ✅ **Black bar cropping infrastructure**
+  - Added AutoCrop configuration option
+  - Cropdetect filter support for future auto-detection
+  - Foundation for 15-30% file size reduction in dev13
+
+### Technical Improvements
+- ✅ All new settings propagate to both direct convert and queue processing
+- ✅ Backward compatible with legacy InverseTelecine setting
+- ✅ Comprehensive logging for all encoding decisions
+- ✅ Settings persist across video loads
+
+### Bug Fixes
+- ✅ Fixed VFR (Variable Frame Rate) handling that caused desync
+- ✅ Prevented timestamp drift in long videos
+- ✅ Improved browser playback compatibility
+
 ## Version 0.1.0-dev11 (2025-11-30)
 
 ### Features
