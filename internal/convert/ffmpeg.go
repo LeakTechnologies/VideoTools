@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -96,26 +97,34 @@ func ProbeVideo(path string) (*VideoSource, error) {
 
 	var result struct {
 		Format struct {
-			Filename   string `json:"filename"`
-			Format     string `json:"format_long_name"`
-			Duration   string `json:"duration"`
-			FormatName string `json:"format_name"`
-			BitRate    string `json:"bit_rate"`
+			Filename   string                 `json:"filename"`
+			Format     string                 `json:"format_long_name"`
+			Duration   string                 `json:"duration"`
+			FormatName string                 `json:"format_name"`
+			BitRate    string                 `json:"bit_rate"`
+			Tags       map[string]interface{} `json:"tags"`
 		} `json:"format"`
-		Streams []struct {
-			Index        int    `json:"index"`
-			CodecType    string `json:"codec_type"`
-			CodecName    string `json:"codec_name"`
-			Width        int    `json:"width"`
-			Height       int    `json:"height"`
-			Duration     string `json:"duration"`
-			BitRate      string `json:"bit_rate"`
-			PixFmt       string `json:"pix_fmt"`
-			SampleRate   string `json:"sample_rate"`
-			Channels     int    `json:"channels"`
-			AvgFrameRate string `json:"avg_frame_rate"`
-			FieldOrder   string `json:"field_order"`
-			Disposition  struct {
+		Chapters []interface{} `json:"chapters"`
+		Streams  []struct {
+			Index           int    `json:"index"`
+			CodecType       string `json:"codec_type"`
+			CodecName       string `json:"codec_name"`
+			Width           int    `json:"width"`
+			Height          int    `json:"height"`
+			Duration        string `json:"duration"`
+			BitRate         string `json:"bit_rate"`
+			PixFmt          string `json:"pix_fmt"`
+			SampleRate      string `json:"sample_rate"`
+			Channels        int    `json:"channels"`
+			AvgFrameRate    string `json:"avg_frame_rate"`
+			FieldOrder      string `json:"field_order"`
+			SampleAspectRat string `json:"sample_aspect_ratio"`
+			DisplayAspect   string `json:"display_aspect_ratio"`
+			ColorSpace      string `json:"color_space"`
+			ColorRange      string `json:"color_range"`
+			ColorPrimaries  string `json:"color_primaries"`
+			ColorTransfer   string `json:"color_transfer"`
+			Disposition     struct {
 				AttachedPic int `json:"attached_pic"`
 			} `json:"disposition"`
 		} `json:"streams"`
@@ -135,6 +144,22 @@ func ProbeVideo(path string) (*VideoSource, error) {
 	if durStr := result.Format.Duration; durStr != "" {
 		if val, err := utils.ParseFloat(durStr); err == nil {
 			src.Duration = val
+		}
+	}
+
+	// Check for chapters
+	src.HasChapters = len(result.Chapters) > 0
+
+	// Check for metadata (title, artist, copyright, etc.)
+	if result.Format.Tags != nil && len(result.Format.Tags) > 0 {
+		// Look for common metadata tags
+		for key := range result.Format.Tags {
+			lowerKey := strings.ToLower(key)
+			if lowerKey == "title" || lowerKey == "artist" || lowerKey == "copyright" ||
+				lowerKey == "comment" || lowerKey == "description" || lowerKey == "album" {
+				src.HasMetadata = true
+				break
+			}
 		}
 	}
 	// Track if we've found the main video stream (not cover art)
@@ -170,6 +195,23 @@ func ProbeVideo(path string) (*VideoSource, error) {
 				if stream.PixFmt != "" {
 					src.PixelFormat = stream.PixFmt
 				}
+
+				// Capture additional metadata
+				if stream.SampleAspectRat != "" && stream.SampleAspectRat != "0:1" {
+					src.SampleAspectRatio = stream.SampleAspectRat
+				}
+
+				// Color space information
+				if stream.ColorSpace != "" && stream.ColorSpace != "unknown" {
+					src.ColorSpace = stream.ColorSpace
+				} else if stream.ColorPrimaries != "" && stream.ColorPrimaries != "unknown" {
+					// Fallback to color primaries if color_space is not set
+					src.ColorSpace = stream.ColorPrimaries
+				}
+
+				if stream.ColorRange != "" && stream.ColorRange != "unknown" {
+					src.ColorRange = stream.ColorRange
+				}
 			}
 			if src.Bitrate == 0 {
 				if br, err := utils.ParseInt(stream.BitRate); err == nil {
@@ -184,6 +226,9 @@ func ProbeVideo(path string) (*VideoSource, error) {
 				}
 				if stream.Channels > 0 {
 					src.Channels = stream.Channels
+				}
+				if br, err := utils.ParseInt(stream.BitRate); err == nil && br > 0 {
+					src.AudioBitrate = br
 				}
 			}
 		}
@@ -207,5 +252,62 @@ func ProbeVideo(path string) (*VideoSource, error) {
 		}
 	}
 
+	// Probe GOP size by examining a few frames (only if we have video)
+	if foundMainVideo && src.Duration > 0 {
+		gopSize := detectGOPSize(ctx, path)
+		if gopSize > 0 {
+			src.GOPSize = gopSize
+		}
+	}
+
 	return src, nil
+}
+
+// detectGOPSize attempts to detect GOP size by examining key frames
+func detectGOPSize(ctx context.Context, path string) int {
+	// Use ffprobe to show frames and look for key_frame markers
+	// We'll analyze the first 300 frames (about 10 seconds at 30fps)
+	cmd := exec.CommandContext(ctx, "ffprobe",
+		"-v", "quiet",
+		"-select_streams", "v:0",
+		"-show_entries", "frame=pict_type,key_frame",
+		"-read_intervals", "%+#300",
+		"-print_format", "json",
+		path,
+	)
+
+	out, err := cmd.Output()
+	if err != nil {
+		return 0
+	}
+
+	var result struct {
+		Frames []struct {
+			KeyFrame int    `json:"key_frame"`
+			PictType string `json:"pict_type"`
+		} `json:"frames"`
+	}
+
+	if err := json.Unmarshal(out, &result); err != nil {
+		return 0
+	}
+
+	// Find distances between key frames
+	var keyFramePositions []int
+	for i, frame := range result.Frames {
+		if frame.KeyFrame == 1 {
+			keyFramePositions = append(keyFramePositions, i)
+		}
+	}
+
+	// Calculate average GOP size
+	if len(keyFramePositions) >= 2 {
+		var totalDistance int
+		for i := 1; i < len(keyFramePositions); i++ {
+			totalDistance += keyFramePositions[i] - keyFramePositions[i-1]
+		}
+		return totalDistance / (len(keyFramePositions) - 1)
+	}
+
+	return 0
 }

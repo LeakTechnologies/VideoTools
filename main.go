@@ -117,8 +117,9 @@ type convertConfig struct {
 	VideoCodec       string // H.264, H.265, VP9, AV1, Copy
 	EncoderPreset    string // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
 	CRF              string // Manual CRF value (0-51, or empty to use Quality preset)
-	BitrateMode      string // CRF, CBR, VBR
+	BitrateMode      string // CRF, CBR, VBR, TargetSize
 	VideoBitrate     string // For CBR/VBR modes (e.g., "5000k")
+	TargetFileSize   string // Target file size (e.g., "25MB", "100MB") - requires BitrateMode=TargetSize
 	TargetResolution string // Source, 720p, 1080p, 1440p, 4K, or custom
 	FrameRate        string // Source, 24, 30, 60, or custom
 	PixelFormat      string // yuv420p, yuv422p, yuv444p
@@ -946,12 +947,15 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		args = append(args, "-i", coverArtPath)
 	}
 
-	// Hardware acceleration
+	// Hardware acceleration for decoding
+	// Note: NVENC doesn't need -hwaccel for encoding, only for decoding
 	hardwareAccel, _ := cfg["hardwareAccel"].(string)
 	if hardwareAccel != "none" && hardwareAccel != "" {
 		switch hardwareAccel {
 		case "nvenc":
-			args = append(args, "-hwaccel", "cuda")
+			// For NVENC, we don't add -hwaccel flags
+			// The h264_nvenc/hevc_nvenc encoder handles GPU encoding directly
+			// Only add hwaccel if we want GPU decoding too, which can cause issues
 		case "vaapi":
 			args = append(args, "-hwaccel", "vaapi")
 		case "qsv":
@@ -1210,12 +1214,19 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 	logging.Debug(logging.CatFFMPEG, "queue convert command: ffmpeg %s", strings.Join(args, " "))
 
+	// Also print to stdout for debugging
+	fmt.Printf("\n=== FFMPEG COMMAND ===\nffmpeg %s\n======================\n\n", strings.Join(args, " "))
+
 	// Execute FFmpeg
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
+
+	// Capture stderr for error messages
+	var stderrBuf strings.Builder
+	cmd.Stderr = &stderrBuf
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start ffmpeg: %w", err)
@@ -1250,7 +1261,35 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("ffmpeg failed: %w", err)
+		stderrOutput := stderrBuf.String()
+		errorExplanation := interpretFFmpegError(err)
+
+		// Check if this is a hardware encoding failure
+		isHardwareFailure := strings.Contains(stderrOutput, "No capable devices found") ||
+			strings.Contains(stderrOutput, "Cannot load") ||
+			strings.Contains(stderrOutput, "not available") &&
+			(strings.Contains(stderrOutput, "nvenc") ||
+			 strings.Contains(stderrOutput, "qsv") ||
+			 strings.Contains(stderrOutput, "vaapi") ||
+			 strings.Contains(stderrOutput, "videotoolbox"))
+
+		if isHardwareFailure && hardwareAccel != "none" && hardwareAccel != "" {
+			logging.Debug(logging.CatFFMPEG, "hardware encoding failed, will suggest software fallback")
+			return fmt.Errorf("hardware encoding (%s) failed - no compatible hardware found\n\nPlease disable hardware acceleration in the conversion settings and try again with software encoding.\n\nFFmpeg output:\n%s", hardwareAccel, stderrOutput)
+		}
+
+		var errorMsg string
+		if errorExplanation != "" {
+			errorMsg = fmt.Sprintf("ffmpeg failed: %v - %s", err, errorExplanation)
+		} else {
+			errorMsg = fmt.Sprintf("ffmpeg failed: %v", err)
+		}
+
+		if stderrOutput != "" {
+			logging.Debug(logging.CatFFMPEG, "ffmpeg stderr: %s", stderrOutput)
+			return fmt.Errorf("%s\n\nFFmpeg output:\n%s", errorMsg, stderrOutput)
+		}
+		return fmt.Errorf("%s", errorMsg)
 	}
 
 	logging.Debug(logging.CatFFMPEG, "queue conversion completed: %s", outputPath)
@@ -1362,7 +1401,7 @@ func runGUI() {
 			VideoBitrate:     "5000k",
 			TargetResolution: "Source",
 			FrameRate:        "Source",
-			PixelFormat:      "yuv420p10le",
+			PixelFormat:      "yuv420p",
 			HardwareAccel:    "none",
 			TwoPass:          false,
 			H264Profile:        "main",
@@ -2264,33 +2303,88 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.
 		bitrate = fmt.Sprintf("%d kbps", src.Bitrate/1000)
 	}
 
+	audioBitrate := "--"
+	if src.AudioBitrate > 0 {
+		audioBitrate = fmt.Sprintf("%d kbps", src.AudioBitrate/1000)
+	}
+
+	// Format advanced metadata
+	par := utils.FirstNonEmpty(src.SampleAspectRatio, "1:1 (Square)")
+	if par == "1:1" || par == "1:1 (Square)" {
+		par = "1:1 (Square)"
+	} else {
+		par = par + " (Non-square)"
+	}
+
+	colorSpace := utils.FirstNonEmpty(src.ColorSpace, "Unknown")
+	colorRange := utils.FirstNonEmpty(src.ColorRange, "Unknown")
+	if colorRange == "tv" {
+		colorRange = "Limited (TV)"
+	} else if colorRange == "pc" || colorRange == "jpeg" {
+		colorRange = "Full (PC)"
+	}
+
+	interlacing := "Progressive"
+	if src.FieldOrder != "" && src.FieldOrder != "progressive" && src.FieldOrder != "unknown" {
+		interlacing = "Interlaced (" + src.FieldOrder + ")"
+	}
+
+	gopSize := "--"
+	if src.GOPSize > 0 {
+		gopSize = fmt.Sprintf("%d frames", src.GOPSize)
+	}
+
+	chapters := "No"
+	if src.HasChapters {
+		chapters = "Yes"
+	}
+
+	metadata := "No"
+	if src.HasMetadata {
+		metadata = "Yes (title/copyright/etc)"
+	}
+
 	// Build metadata string for copying
 	metadataText := fmt.Sprintf(`File: %s
 Format: %s
 Resolution: %dx%d
 Aspect Ratio: %s
+Pixel Aspect Ratio: %s
 Duration: %s
 Video Codec: %s
 Video Bitrate: %s
 Frame Rate: %.2f fps
 Pixel Format: %s
-Field Order: %s
+Interlacing: %s
+Color Space: %s
+Color Range: %s
+GOP Size: %s
 Audio Codec: %s
+Audio Bitrate: %s
 Audio Rate: %d Hz
-Channels: %s`,
+Channels: %s
+Chapters: %s
+Metadata: %s`,
 		src.DisplayName,
 		utils.FirstNonEmpty(src.Format, "Unknown"),
 		src.Width, src.Height,
 		src.AspectRatioString(),
+		par,
 		src.DurationString(),
 		utils.FirstNonEmpty(src.VideoCodec, "Unknown"),
 		bitrate,
 		src.FrameRate,
 		utils.FirstNonEmpty(src.PixelFormat, "Unknown"),
-		utils.FirstNonEmpty(src.FieldOrder, "Unknown"),
+		interlacing,
+		colorSpace,
+		colorRange,
+		gopSize,
 		utils.FirstNonEmpty(src.AudioCodec, "Unknown"),
+		audioBitrate,
 		src.AudioRate,
 		utils.ChannelLabel(src.Channels),
+		chapters,
+		metadata,
 	)
 
 	info := widget.NewForm(
@@ -2298,15 +2392,22 @@ Channels: %s`,
 		widget.NewFormItem("Format", widget.NewLabel(utils.FirstNonEmpty(src.Format, "Unknown"))),
 		widget.NewFormItem("Resolution", widget.NewLabel(fmt.Sprintf("%dx%d", src.Width, src.Height))),
 		widget.NewFormItem("Aspect Ratio", widget.NewLabel(src.AspectRatioString())),
+		widget.NewFormItem("Pixel Aspect Ratio", widget.NewLabel(par)),
 		widget.NewFormItem("Duration", widget.NewLabel(src.DurationString())),
 		widget.NewFormItem("Video Codec", widget.NewLabel(utils.FirstNonEmpty(src.VideoCodec, "Unknown"))),
 		widget.NewFormItem("Video Bitrate", widget.NewLabel(bitrate)),
 		widget.NewFormItem("Frame Rate", widget.NewLabel(fmt.Sprintf("%.2f fps", src.FrameRate))),
 		widget.NewFormItem("Pixel Format", widget.NewLabel(utils.FirstNonEmpty(src.PixelFormat, "Unknown"))),
-		widget.NewFormItem("Field Order", widget.NewLabel(utils.FirstNonEmpty(src.FieldOrder, "Unknown"))),
+		widget.NewFormItem("Interlacing", widget.NewLabel(interlacing)),
+		widget.NewFormItem("Color Space", widget.NewLabel(colorSpace)),
+		widget.NewFormItem("Color Range", widget.NewLabel(colorRange)),
+		widget.NewFormItem("GOP Size", widget.NewLabel(gopSize)),
 		widget.NewFormItem("Audio Codec", widget.NewLabel(utils.FirstNonEmpty(src.AudioCodec, "Unknown"))),
+		widget.NewFormItem("Audio Bitrate", widget.NewLabel(audioBitrate)),
 		widget.NewFormItem("Audio Rate", widget.NewLabel(fmt.Sprintf("%d Hz", src.AudioRate))),
 		widget.NewFormItem("Channels", widget.NewLabel(utils.ChannelLabel(src.Channels))),
+		widget.NewFormItem("Chapters", widget.NewLabel(chapters)),
+		widget.NewFormItem("Metadata", widget.NewLabel(metadata)),
 	)
 	for _, item := range info.Items {
 		if lbl, ok := item.Widget.(*widget.Label); ok {
@@ -3583,10 +3684,8 @@ func determineVideoCodec(cfg convertConfig) string {
 			return "h264_qsv"
 		} else if cfg.HardwareAccel == "videotoolbox" {
 			return "h264_videotoolbox"
-		} else if cfg.HardwareAccel == "none" || cfg.HardwareAccel == "" {
-			// Auto-detect best available encoder
-			return detectBestH264Encoder()
 		}
+		// When set to "none" or empty, use software encoder
 		return "libx264"
 	case "H.265":
 		if cfg.HardwareAccel == "nvenc" {
@@ -3595,10 +3694,8 @@ func determineVideoCodec(cfg convertConfig) string {
 			return "hevc_qsv"
 		} else if cfg.HardwareAccel == "videotoolbox" {
 			return "hevc_videotoolbox"
-		} else if cfg.HardwareAccel == "none" || cfg.HardwareAccel == "" {
-			// Auto-detect best available encoder
-			return detectBestH265Encoder()
 		}
+		// When set to "none" or empty, use software encoder
 		return "libx265"
 	case "VP9":
 		return "libvpx-vp9"
@@ -3711,11 +3808,13 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		args = append(args, "-i", cfg.CoverArtPath)
 	}
 
-	// Hardware acceleration
+	// Hardware acceleration for decoding
+	// Note: NVENC doesn't need -hwaccel for encoding, only for decoding
 	if cfg.HardwareAccel != "none" && cfg.HardwareAccel != "" {
 		switch cfg.HardwareAccel {
 		case "nvenc":
-			args = append(args, "-hwaccel", "cuda")
+			// For NVENC, we don't add -hwaccel flags
+			// The h264_nvenc/hevc_nvenc encoder handles GPU encoding directly
 		case "vaapi":
 			args = append(args, "-hwaccel", "vaapi")
 		case "qsv":
@@ -4053,9 +4152,36 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				s.convertCancel = nil
 				return
 			}
-			logging.Debug(logging.CatFFMPEG, "convert failed: %v stderr=%s", err, strings.TrimSpace(stderr.String()))
+			stderrOutput := strings.TrimSpace(stderr.String())
+			logging.Debug(logging.CatFFMPEG, "convert failed: %v stderr=%s", err, stderrOutput)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				s.showErrorWithCopy("Conversion Failed", fmt.Errorf("convert failed: %w", err))
+				errorExplanation := interpretFFmpegError(err)
+				var errorMsg error
+
+				// Check if this is a hardware encoding failure
+				isHardwareFailure := strings.Contains(stderrOutput, "No capable devices found") ||
+					strings.Contains(stderrOutput, "Cannot load") ||
+					strings.Contains(stderrOutput, "not available") &&
+					(strings.Contains(stderrOutput, "nvenc") ||
+					 strings.Contains(stderrOutput, "qsv") ||
+					 strings.Contains(stderrOutput, "vaapi") ||
+					 strings.Contains(stderrOutput, "videotoolbox"))
+
+				if isHardwareFailure && s.convert.HardwareAccel != "none" && s.convert.HardwareAccel != "" {
+					errorMsg = fmt.Errorf("Hardware encoding (%s) failed - no compatible hardware found.\n\nPlease disable hardware acceleration in the conversion settings and try again with software encoding.\n\nFFmpeg output:\n%s", s.convert.HardwareAccel, stderrOutput)
+				} else {
+					baseMsg := "convert failed: " + err.Error()
+					if errorExplanation != "" {
+						baseMsg = fmt.Sprintf("convert failed: %v - %s", err, errorExplanation)
+					}
+
+					if stderrOutput != "" {
+						errorMsg = fmt.Errorf("%s\n\nFFmpeg output:\n%s", baseMsg, stderrOutput)
+					} else {
+						errorMsg = fmt.Errorf("%s", baseMsg)
+					}
+				}
+				s.showErrorWithCopy("Conversion Failed", errorMsg)
 				s.convertBusy = false
 				s.convertActiveIn = ""
 				s.convertActiveOut = ""
@@ -4113,6 +4239,49 @@ func etaOrDash(s string) string {
 		return "--"
 	}
 	return s
+}
+
+// interpretFFmpegError adds a human-readable explanation for common FFmpeg error codes
+func interpretFFmpegError(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	// Extract exit code from error
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		exitCode := exitErr.ExitCode()
+
+		// Common FFmpeg/OS error codes and their meanings
+		switch exitCode {
+		case 1:
+			return "Generic error (check FFmpeg output for details)"
+		case 2:
+			return "Invalid command line arguments"
+		case 126:
+			return "Command cannot execute (permission denied)"
+		case 127:
+			return "Command not found (is FFmpeg installed?)"
+		case 137:
+			return "Process killed (out of memory?)"
+		case 139:
+			return "Segmentation fault (FFmpeg crashed)"
+		case 143:
+			return "Process terminated by signal (SIGTERM)"
+		case 187:
+			return "Protocol/format not found or filter syntax error (check input file format and filter settings)"
+		case 255:
+			return "FFmpeg error (check output for details)"
+		default:
+			if exitCode > 128 && exitCode < 160 {
+				signal := exitCode - 128
+				return fmt.Sprintf("Process terminated by signal %d", signal)
+			}
+			return fmt.Sprintf("Exit code %d", exitCode)
+		}
+	}
+
+	return ""
 }
 
 func aspectFilters(target float64, mode string) []string {
@@ -4384,7 +4553,8 @@ type videoSource struct {
 	Duration         float64
 	VideoCodec       string
 	AudioCodec       string
-	Bitrate          int
+	Bitrate          int    // Video bitrate in bits per second
+	AudioBitrate     int    // Audio bitrate in bits per second
 	FrameRate        float64
 	PixelFormat      string
 	AudioRate        int
@@ -4392,6 +4562,14 @@ type videoSource struct {
 	FieldOrder       string
 	PreviewFrames    []string
 	EmbeddedCoverArt string // Path to extracted embedded cover art, if any
+
+	// Advanced metadata
+	SampleAspectRatio string // Pixel Aspect Ratio (SAR) - e.g., "1:1", "40:33"
+	ColorSpace        string // Color space/primaries - e.g., "bt709", "bt601"
+	ColorRange        string // Color range - "tv" (limited) or "pc" (full)
+	GOPSize           int    // GOP size / keyframe interval
+	HasChapters       bool   // Whether file has embedded chapters
+	HasMetadata       bool   // Whether file has title/copyright/etc metadata
 }
 
 func (v *videoSource) DurationString() string {
