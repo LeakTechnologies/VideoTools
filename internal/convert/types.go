@@ -28,8 +28,9 @@ type ConvertConfig struct {
 	VideoCodec       string // H.264, H.265, VP9, AV1, Copy
 	EncoderPreset    string // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
 	CRF              string // Manual CRF value (0-51, or empty to use Quality preset)
-	BitrateMode      string // CRF, CBR, VBR
+	BitrateMode      string // CRF, CBR, VBR, TargetSize
 	VideoBitrate     string // For CBR/VBR modes (e.g., "5000k")
+	TargetFileSize   string // Target file size (e.g., "25MB", "100MB", "8MB") - requires BitrateMode=TargetSize
 	TargetResolution string // Source, 720p, 1080p, 1440p, 4K, or custom
 	FrameRate        string // Source, 24, 30, 60, or custom
 	PixelFormat      string // yuv420p, yuv422p, yuv444p
@@ -76,7 +77,8 @@ type VideoSource struct {
 	Duration         float64
 	VideoCodec       string
 	AudioCodec       string
-	Bitrate          int
+	Bitrate          int    // Video bitrate in bits per second
+	AudioBitrate     int    // Audio bitrate in bits per second
 	FrameRate        float64
 	PixelFormat      string
 	AudioRate        int
@@ -84,6 +86,14 @@ type VideoSource struct {
 	FieldOrder       string
 	PreviewFrames    []string
 	EmbeddedCoverArt string // Path to extracted embedded cover art, if any
+
+	// Advanced metadata
+	SampleAspectRatio string // Pixel Aspect Ratio (SAR) - e.g., "1:1", "40:33"
+	ColorSpace        string // Color space/primaries - e.g., "bt709", "bt601"
+	ColorRange        string // Color range - "tv" (limited) or "pc" (full)
+	GOPSize           int    // GOP size / keyframe interval
+	HasChapters       bool   // Whether file has embedded chapters
+	HasMetadata       bool   // Whether file has title/copyright/etc metadata
 }
 
 // DurationString returns a human-readable duration string (HH:MM:SS or MM:SS)
@@ -153,6 +163,76 @@ func ResolveTargetAspect(val string, src *VideoSource) float64 {
 		return r
 	}
 	return 0
+}
+
+// CalculateBitrateForTargetSize calculates the required video bitrate to hit a target file size
+// targetSize: target file size in bytes
+// duration: video duration in seconds
+// audioBitrate: audio bitrate in bits per second
+// Returns: video bitrate in bits per second
+func CalculateBitrateForTargetSize(targetSize int64, duration float64, audioBitrate int) int {
+	if duration <= 0 {
+		return 0
+	}
+
+	// Reserve 3% for container overhead
+	targetSize = int64(float64(targetSize) * 0.97)
+
+	// Calculate total bits available
+	totalBits := targetSize * 8
+
+	// Calculate audio bits
+	audioBits := int64(float64(audioBitrate) * duration)
+
+	// Remaining bits for video
+	videoBits := totalBits - audioBits
+	if videoBits < 0 {
+		videoBits = totalBits / 2 // Fallback: split 50/50 if audio is too large
+	}
+
+	// Calculate video bitrate
+	videoBitrate := int(float64(videoBits) / duration)
+
+	// Minimum bitrate sanity check (100 kbps)
+	if videoBitrate < 100000 {
+		videoBitrate = 100000
+	}
+
+	return videoBitrate
+}
+
+// ParseFileSize parses a file size string like "25MB", "100MB", "1.5GB" into bytes
+func ParseFileSize(sizeStr string) (int64, error) {
+	sizeStr = strings.TrimSpace(strings.ToUpper(sizeStr))
+	if sizeStr == "" {
+		return 0, fmt.Errorf("empty size string")
+	}
+
+	// Extract number and unit
+	var value float64
+	var unit string
+
+	_, err := fmt.Sscanf(sizeStr, "%f%s", &value, &unit)
+	if err != nil {
+		return 0, fmt.Errorf("invalid size format: %s", sizeStr)
+	}
+
+	// Convert to bytes
+	multiplier := int64(1)
+	switch unit {
+	case "KB":
+		multiplier = 1024
+	case "MB":
+		multiplier = 1024 * 1024
+	case "GB":
+		multiplier = 1024 * 1024 * 1024
+	case "B", "":
+		multiplier = 1
+	default:
+		return 0, fmt.Errorf("unknown unit: %s", unit)
+	}
+
+	return int64(value * float64(multiplier)), nil
 }
 
 // AspectFilters returns FFmpeg filter strings for aspect ratio conversion
