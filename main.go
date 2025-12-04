@@ -5449,10 +5449,34 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		}
 	}
 
+	// Helper to truncate filename if too long
+	truncateFilename := func(filename string, maxLen int) string {
+		if len(filename) <= maxLen {
+			return filename
+		}
+		// Keep extension visible
+		ext := filepath.Ext(filename)
+		nameWithoutExt := strings.TrimSuffix(filename, ext)
+
+		// If extension is too long, just truncate the whole thing
+		if len(ext) > 10 {
+			return filename[:maxLen-3] + "..."
+		}
+
+		// Truncate name but keep extension
+		availableLen := maxLen - len(ext) - 3 // 3 for "..."
+		if availableLen < 1 {
+			return filename[:maxLen-3] + "..."
+		}
+		return nameWithoutExt[:availableLen] + "..." + ext
+	}
+
 	// Helper to update file display
 	updateFile1 := func() {
 		if state.compareFile1 != nil {
-			file1Label.SetText(fmt.Sprintf("File 1: %s", filepath.Base(state.compareFile1.Path)))
+			filename := filepath.Base(state.compareFile1.Path)
+			displayName := truncateFilename(filename, 35)
+			file1Label.SetText(fmt.Sprintf("File 1: %s", displayName))
 			file1Info.SetText(formatMetadata(state.compareFile1))
 			loadThumbnail(state.compareFile1, file1Thumbnail)
 		} else {
@@ -5465,7 +5489,9 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 	updateFile2 := func() {
 		if state.compareFile2 != nil {
-			file2Label.SetText(fmt.Sprintf("File 2: %s", filepath.Base(state.compareFile2.Path)))
+			filename := filepath.Base(state.compareFile2.Path)
+			displayName := truncateFilename(filename, 35)
+			file2Label.SetText(fmt.Sprintf("File 2: %s", displayName))
 			file2Info.SetText(formatMetadata(state.compareFile2))
 			loadThumbnail(state.compareFile2, file2Thumbnail)
 		} else {
@@ -5519,10 +5545,6 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			logging.Debug(logging.CatModule, "loaded compare file 2: %s", path)
 		}, state.window)
 	})
-
-	// Enable text wrapping on file labels to prevent window stretching
-	file1Label.Wrapping = fyne.TextWrapBreak
-	file2Label.Wrapping = fyne.TextWrapBreak
 
 	// File 1 header (label + button)
 	file1Header := container.NewVBox(
