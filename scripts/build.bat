@@ -37,14 +37,16 @@ if %ERRORLEVEL% neq 0 (
         echo 📥 Installing MinGW-w64 via winget...
         echo This may take a few minutes...
         winget install -e --id=MSYS2.MSYS2
+        set MSYS2_INSTALL_RESULT=!ERRORLEVEL!
 
-        if !ERRORLEVEL! equ 0 (
+        if !MSYS2_INSTALL_RESULT! equ 0 (
             echo ✓ MSYS2 installed successfully!
             echo.
             echo 📦 Installing GCC toolchain...
             C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm mingw-w64-x86_64-gcc"
+            set GCC_INSTALL_RESULT=!ERRORLEVEL!
 
-            if !ERRORLEVEL! equ 0 (
+            if !GCC_INSTALL_RESULT! equ 0 (
                 echo ✓ GCC installed successfully!
                 echo.
                 echo 🔧 Adding MinGW to PATH for this session...
