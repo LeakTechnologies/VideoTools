@@ -1511,7 +1511,8 @@ func runGUI() {
 	// Use a generous default window size that fits typical desktops without overflowing.
 	w.Resize(fyne.NewSize(1280, 800))
 	w.SetFixedSize(false) // Allow manual resizing
-	logging.Debug(logging.CatUI, "window initialized with manual resizing enabled")
+	w.CenterOnScreen()
+	logging.Debug(logging.CatUI, "window initialized with manual resizing and centering enabled")
 
 	state := &appState{
 		window: w,
