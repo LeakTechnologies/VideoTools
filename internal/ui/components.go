@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -49,11 +50,13 @@ func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
 // ModuleTile is a clickable tile widget for module selection
 type ModuleTile struct {
 	widget.BaseWidget
-	label     string
-	color     color.Color
-	enabled   bool
-	onTapped  func()
-	onDropped func([]fyne.URI)
+	label      string
+	color      color.Color
+	enabled    bool
+	onTapped   func()
+	onDropped  func([]fyne.URI)
+	flashing   bool
+	draggedOver bool
 }
 
 // NewModuleTile creates a new module tile
@@ -72,15 +75,40 @@ func NewModuleTile(label string, col color.Color, enabled bool, tapped func(), d
 // DraggedOver implements desktop.Droppable interface
 func (m *ModuleTile) DraggedOver(pos fyne.Position) {
 	logging.Debug(logging.CatUI, "DraggedOver tile=%s enabled=%v pos=%v", m.label, m.enabled, pos)
+	if m.enabled {
+		m.draggedOver = true
+		m.Refresh()
+	}
+}
+
+// DraggedOut is called when drag leaves the tile
+func (m *ModuleTile) DraggedOut() {
+	logging.Debug(logging.CatUI, "DraggedOut tile=%s", m.label)
+	m.draggedOver = false
+	m.Refresh()
 }
 
 // Dropped implements desktop.Droppable interface
 func (m *ModuleTile) Dropped(pos fyne.Position, items []fyne.URI) {
+	fmt.Printf("[DROPTILE] Dropped on tile=%s enabled=%v itemCount=%d\n", m.label, m.enabled, len(items))
 	logging.Debug(logging.CatUI, "Dropped on tile=%s enabled=%v items=%v", m.label, m.enabled, items)
+	// Reset dragged over state
+	m.draggedOver = false
+
 	if m.enabled && m.onDropped != nil {
+		fmt.Printf("[DROPTILE] Calling callback for %s\n", m.label)
 		logging.Debug(logging.CatUI, "Calling onDropped callback for %s", m.label)
+		// Trigger flash animation
+		m.flashing = true
+		m.Refresh()
+		// Reset flash after 300ms
+		time.AfterFunc(300*time.Millisecond, func() {
+			m.flashing = false
+			m.Refresh()
+		})
 		m.onDropped(items)
 	} else {
+		fmt.Printf("[DROPTILE] Drop IGNORED on %s: enabled=%v hasCallback=%v\n", m.label, m.enabled, m.onDropped != nil)
 		logging.Debug(logging.CatUI, "Drop ignored: enabled=%v hasCallback=%v", m.enabled, m.onDropped != nil)
 	}
 }
@@ -145,6 +173,22 @@ func (r *moduleTileRenderer) MinSize() fyne.Size {
 
 func (r *moduleTileRenderer) Refresh() {
 	r.bg.FillColor = r.tile.color
+
+	// Apply visual feedback based on state
+	if r.tile.flashing {
+		// Flash animation - white outline
+		r.bg.StrokeColor = color.White
+		r.bg.StrokeWidth = 3
+	} else if r.tile.draggedOver {
+		// Dragging over - cyan/blue outline to indicate drop zone
+		r.bg.StrokeColor = color.NRGBA{R: 0, G: 200, B: 255, A: 255}
+		r.bg.StrokeWidth = 3
+	} else {
+		// Normal state
+		r.bg.StrokeColor = GridColor
+		r.bg.StrokeWidth = 1
+	}
+
 	r.bg.Refresh()
 	r.label.Text = r.tile.label
 	r.label.Refresh()

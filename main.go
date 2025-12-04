@@ -194,6 +194,9 @@ type appState struct {
 	convertActiveIn  string
 	convertActiveOut string
 	convertProgress  float64
+	convertFPS       float64
+	convertSpeed     float64
+	convertETA       time.Duration
 	playSess         *playSession
 	jobQueue         *queue.Queue
 	statsBar         *ui.ConversionStatsBar
@@ -202,6 +205,8 @@ type appState struct {
 	queueOffset      fyne.Position
 	compareFile1     *videoSource
 	compareFile2     *videoSource
+	inspectFile      *videoSource
+	autoCompare      bool // Auto-load Compare module after conversion
 }
 
 func (s *appState) stopPreview() {
@@ -430,7 +435,7 @@ func (s *appState) showMainMenu() {
 			ID:      m.ID,
 			Label:   m.Label,
 			Color:   m.Color,
-			Enabled: m.ID == "convert" || m.ID == "compare", // Convert and compare modules are functional
+			Enabled: m.ID == "convert" || m.ID == "compare" || m.ID == "inspect", // Convert, compare, and inspect modules are functional
 		})
 	}
 
@@ -491,6 +496,11 @@ func (s *appState) refreshQueueView() {
 			Title:       fmt.Sprintf("Direct convert: %s", in),
 			Description: fmt.Sprintf("Output: %s", out),
 			Progress:    s.convertProgress,
+			Config: map[string]interface{}{
+				"fps":   s.convertFPS,
+				"speed": s.convertSpeed,
+				"eta":   s.convertETA,
+			},
 		}}, jobs...)
 	}
 
@@ -568,9 +578,18 @@ func (s *appState) refreshQueueView() {
 
 	// Restore scroll offset
 	s.queueScroll = scroll
-	if s.queueScroll != nil {
-		s.queueScroll.Offset = s.queueOffset
-		s.queueScroll.Refresh()
+	if s.queueScroll != nil && s.active == "queue" {
+		// Use ScrollTo instead of directly setting Offset to prevent rubber banding
+		// Defer to allow UI to settle first
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				if s.queueScroll != nil {
+					s.queueScroll.Offset = s.queueOffset
+					s.queueScroll.Refresh()
+				}
+			}, false)
+		}()
 	}
 
 	s.setContent(container.NewPadded(view))
@@ -659,6 +678,8 @@ func (s *appState) showModule(id string) {
 		s.showConvertView(nil)
 	case "compare":
 		s.showCompareView()
+	case "inspect":
+		s.showInspectView()
 	default:
 		logging.Debug(logging.CatUI, "UI module %s not wired yet", id)
 	}
@@ -735,12 +756,50 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 				}, false)
 			}
 
-			// Update state and show module
+			// Update state and show module (with small delay to allow flash animation to be seen)
+			time.Sleep(350 * time.Millisecond)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				s.compareFile1 = src1
-				s.compareFile2 = src2
+				// Smart slot assignment: if dropping 2 videos, fill both slots
+				if len(videoPaths) >= 2 {
+					s.compareFile1 = src1
+					s.compareFile2 = src2
+				} else {
+					// Single video: fill the empty slot, or slot 1 if both empty
+					if s.compareFile1 == nil {
+						s.compareFile1 = src1
+					} else if s.compareFile2 == nil {
+						s.compareFile2 = src1
+					} else {
+						// Both slots full, overwrite slot 1
+						s.compareFile1 = src1
+					}
+				}
 				s.showModule(moduleID)
 				logging.Debug(logging.CatModule, "loaded %d video(s) for compare module", len(videoPaths))
+			}, false)
+		}()
+		return
+	}
+
+	// If inspect module, load video into inspect slot
+	if moduleID == "inspect" {
+		path := videoPaths[0]
+		go func() {
+			src, err := probeVideo(path)
+			if err != nil {
+				logging.Debug(logging.CatModule, "failed to load video for inspect: %v", err)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+				}, false)
+				return
+			}
+
+			// Update state and show module (with small delay to allow flash animation)
+			time.Sleep(350 * time.Millisecond)
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.inspectFile = src
+				s.showModule(moduleID)
+				logging.Debug(logging.CatModule, "loaded video for inspect module")
 			}, false)
 		}()
 		return
@@ -753,7 +812,8 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 	go func() {
 		logging.Debug(logging.CatModule, "loading video in goroutine")
 		s.loadVideo(path)
-		// After loading, switch to the module
+		// After loading, switch to the module (with small delay to allow flash animation)
+		time.Sleep(350 * time.Millisecond)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			logging.Debug(logging.CatModule, "showing module %s after load", moduleID)
 			s.showModule(moduleID)
@@ -929,6 +989,20 @@ func (s *appState) showCompareView() {
 	s.lastModule = s.active
 	s.active = "compare"
 	s.setContent(buildCompareView(s))
+}
+
+func (s *appState) showInspectView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "inspect"
+	s.setContent(buildInspectView(s))
+}
+
+func (s *appState) showCompareFullscreen() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "compare-fullscreen"
+	s.setContent(buildCompareFullscreenView(s))
 }
 
 // jobExecutor executes a job from the queue
@@ -2529,20 +2603,23 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	convertBtn = widget.NewButton("CONVERT NOW", func() {
-		// Check if queue is already running
-		if state.jobQueue != nil && state.jobQueue.IsRunning() {
-			dialog.ShowInformation("Queue Active",
-				"The conversion queue is currently running. Click \"Add to Queue\" to add this video to the queue instead.",
-				state.window)
-			// Auto-add to queue instead
-			if err := state.addConvertToQueue(); err != nil {
-				dialog.ShowError(err, state.window)
-			} else {
-				dialog.ShowInformation("Queue", "Job added to queue!", state.window)
-			}
+		// Add job to queue and start immediately
+		if err := state.addConvertToQueue(); err != nil {
+			dialog.ShowError(err, state.window)
 			return
 		}
-		state.startConvert(statusLabel, convertBtn, cancelBtn, activity)
+
+		// Start the queue if not already running
+		if state.jobQueue != nil && !state.jobQueue.IsRunning() {
+			state.jobQueue.Start()
+			logging.Debug(logging.CatSystem, "started queue from Convert Now")
+		}
+
+		// Clear the loaded video from convert module
+		state.clearVideo()
+
+		// Show success message
+		dialog.ShowInformation("Convert", "Conversion started! View progress in Job Queue.", state.window)
 	})
 	convertBtn.Importance = widget.HighImportance
 	if src == nil {
@@ -2560,7 +2637,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		addQueueBtn.Enable()
 	}
 
-	leftControls := container.NewHBox(resetBtn)
+	// Auto-compare checkbox
+	autoCompareCheck := widget.NewCheck("Compare After", func(checked bool) {
+		state.autoCompare = checked
+	})
+	autoCompareCheck.SetChecked(state.autoCompare)
+
+	leftControls := container.NewHBox(resetBtn, autoCompareCheck)
 	centerStatus := container.NewHBox(activity, statusLabel)
 	rightControls := container.NewHBox(cancelBtn, addQueueBtn, convertBtn)
 	actionInner := container.NewBorder(nil, nil, leftControls, rightControls, centerStatus)
@@ -3702,7 +3785,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		// Load videos sequentially to avoid race conditions
 		go func() {
 			if len(videoPaths) == 1 {
-				// Single video dropped - fill first empty slot
+				// Single video dropped - use smart slot assignment
 				src, err := probeVideo(videoPaths[0])
 				if err != nil {
 					logging.Debug(logging.CatModule, "failed to load video: %v", err)
@@ -3713,19 +3796,17 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				}
 
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					// Fill first empty slot
+					// Smart slot assignment: fill the empty slot, or slot 1 if both empty
 					if s.compareFile1 == nil {
 						s.compareFile1 = src
-						logging.Debug(logging.CatModule, "loaded video into slot 1")
+						logging.Debug(logging.CatModule, "loaded video into empty slot 1")
 					} else if s.compareFile2 == nil {
 						s.compareFile2 = src
-						logging.Debug(logging.CatModule, "loaded video into slot 2")
+						logging.Debug(logging.CatModule, "loaded video into empty slot 2")
 					} else {
-						// Both slots full - ask which to replace
-						dialog.ShowInformation("Both Slots Full",
-							"Both comparison slots are full. Use the Clear button to empty a slot first.",
-							s.window)
-						return
+						// Both slots full, overwrite slot 1
+						s.compareFile1 = src
+						logging.Debug(logging.CatModule, "both slots full, overwriting slot 1")
 					}
 					s.showCompareView()
 				}, false)
@@ -3760,6 +3841,47 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 					logging.Debug(logging.CatModule, "loaded %d video(s) into both slots", len(videoPaths))
 				}, false)
 			}
+		}()
+
+		return
+	}
+
+	// If in inspect module, handle single video file
+	if s.active == "inspect" {
+		// Collect video files from dropped items
+		var videoPaths []string
+		for _, uri := range items {
+			if uri.Scheme() != "file" {
+				continue
+			}
+			path := uri.Path()
+			if s.isVideoFile(path) {
+				videoPaths = append(videoPaths, path)
+			}
+		}
+
+		if len(videoPaths) == 0 {
+			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			dialog.ShowInformation("Inspect Video", "No video files found in dropped items.", s.window)
+			return
+		}
+
+		// Load first video
+		go func() {
+			src, err := probeVideo(videoPaths[0])
+			if err != nil {
+				logging.Debug(logging.CatModule, "failed to load video for inspect: %v", err)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+				}, false)
+				return
+			}
+
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.inspectFile = src
+				s.showInspectView()
+				logging.Debug(logging.CatModule, "loaded video into inspect module")
+			}, false)
 		}()
 
 		return
@@ -4592,6 +4714,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		progressQuit := make(chan struct{})
 		go func() {
 			scanner := bufio.NewScanner(stdout)
+			var currentFPS float64
 			for scanner.Scan() {
 				select {
 				case <-progressQuit:
@@ -4604,6 +4727,15 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 					continue
 				}
 				key, val := parts[0], parts[1]
+
+				// Capture FPS value
+				if key == "fps" {
+					if fps, err := strconv.ParseFloat(val, 64); err == nil {
+						currentFPS = fps
+					}
+					continue
+				}
+
 				if key != "out_time_ms" && key != "progress" {
 					continue
 				}
@@ -4628,9 +4760,26 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 					if elapsedWall > 0 {
 						speed = elapsedProc / elapsedWall
 					}
-					lbl := fmt.Sprintf("Converting… %.0f%% | elapsed %s | ETA %s | %.2fx", pct, formatShortDuration(elapsedWall), etaOrDash(eta), speed)
+
+					var etaDuration time.Duration
+					if pct > 0 && elapsedWall > 0 && pct < 100 {
+						remaining := elapsedWall * (100 - pct) / pct
+						etaDuration = time.Duration(remaining * float64(time.Second))
+					}
+
+					// Build status with FPS
+					var lbl string
+					if currentFPS > 0 {
+						lbl = fmt.Sprintf("Converting… %.0f%% | %.0f fps | elapsed %s | ETA %s | %.2fx", pct, currentFPS, formatShortDuration(elapsedWall), etaOrDash(eta), speed)
+					} else {
+						lbl = fmt.Sprintf("Converting… %.0f%% | elapsed %s | ETA %s | %.2fx", pct, formatShortDuration(elapsedWall), etaOrDash(eta), speed)
+					}
+
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 						s.convertProgress = pct
+						s.convertFPS = currentFPS
+						s.convertSpeed = speed
+						s.convertETA = etaDuration
 						setStatus(lbl)
 						// Keep stats bar and queue view in sync during direct converts
 						s.updateStatsBar()
@@ -4736,6 +4885,26 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			s.convertActiveOut = ""
 			s.convertProgress = 100
 			setStatus("Done")
+
+			// Auto-compare if enabled
+			if s.autoCompare {
+				go func() {
+					// Probe the output file
+					convertedSrc, err := probeVideo(outPath)
+					if err != nil {
+						logging.Debug(logging.CatModule, "auto-compare: failed to probe converted file: %v", err)
+						return
+					}
+
+					// Load original and converted into compare slots
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						s.compareFile1 = src              // Original
+						s.compareFile2 = convertedSrc     // Converted
+						s.showCompareView()
+						logging.Debug(logging.CatModule, "auto-compare: loaded original vs converted")
+					}, false)
+				}()
+			}
 		}, false)
 		s.convertCancel = nil
 	}()
@@ -5287,6 +5456,15 @@ type CropValues struct {
 // detectCrop runs cropdetect analysis on a video to find black bars
 // Returns nil if no crop is detected or if detection fails
 func detectCrop(path string, duration float64) *CropValues {
+	// First, get source video dimensions for validation
+	src, err := probeVideo(path)
+	if err != nil {
+		logging.Debug(logging.CatFFMPEG, "failed to probe video for crop detection: %v", err)
+		return nil
+	}
+	sourceWidth := src.Width
+	sourceHeight := src.Height
+	logging.Debug(logging.CatFFMPEG, "source dimensions: %dx%d", sourceWidth, sourceHeight)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -5336,6 +5514,58 @@ func detectCrop(path string, duration float64) *CropValues {
 	y, _ := strconv.Atoi(lastMatch[4])
 
 	logging.Debug(logging.CatFFMPEG, "detected crop: %dx%d at %d,%d", width, height, x, y)
+
+	// Validate crop dimensions
+	if width <= 0 || height <= 0 {
+		logging.Debug(logging.CatFFMPEG, "invalid crop dimensions: width=%d height=%d", width, height)
+		return nil
+	}
+
+	// Ensure crop doesn't exceed source dimensions
+	if width > sourceWidth {
+		logging.Debug(logging.CatFFMPEG, "crop width %d exceeds source width %d, clamping", width, sourceWidth)
+		width = sourceWidth
+	}
+	if height > sourceHeight {
+		logging.Debug(logging.CatFFMPEG, "crop height %d exceeds source height %d, clamping", height, sourceHeight)
+		height = sourceHeight
+	}
+
+	// Ensure crop position + size doesn't exceed source
+	if x + width > sourceWidth {
+		logging.Debug(logging.CatFFMPEG, "crop x+width exceeds source, adjusting x from %d to %d", x, sourceWidth-width)
+		x = sourceWidth - width
+		if x < 0 {
+			x = 0
+			width = sourceWidth
+		}
+	}
+	if y + height > sourceHeight {
+		logging.Debug(logging.CatFFMPEG, "crop y+height exceeds source, adjusting y from %d to %d", y, sourceHeight-height)
+		y = sourceHeight - height
+		if y < 0 {
+			y = 0
+			height = sourceHeight
+		}
+	}
+
+	// Ensure even dimensions (required for many codecs)
+	if width % 2 != 0 {
+		width -= 1
+		logging.Debug(logging.CatFFMPEG, "adjusted width to even number: %d", width)
+	}
+	if height % 2 != 0 {
+		height -= 1
+		logging.Debug(logging.CatFFMPEG, "adjusted height to even number: %d", height)
+	}
+
+	// If crop is the same as source, no cropping needed
+	if width == sourceWidth && height == sourceHeight {
+		logging.Debug(logging.CatFFMPEG, "crop dimensions match source, no cropping needed")
+		return nil
+	}
+
+	logging.Debug(logging.CatFFMPEG, "validated crop: %dx%d at %d,%d", width, height, x, y)
 	return &CropValues{
 		Width:  width,
 		Height: height,
@@ -5374,6 +5604,169 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
+	// Fullscreen Compare button
+	fullscreenBtn := widget.NewButton("Fullscreen Compare", func() {
+		if state.compareFile1 == nil && state.compareFile2 == nil {
+			dialog.ShowInformation("No Videos", "Load two videos to use fullscreen comparison.", state.window)
+			return
+		}
+		state.showCompareFullscreen()
+	})
+	fullscreenBtn.Importance = widget.MediumImportance
+
+	// Copy Comparison button - copies both files' metadata side by side
+	copyComparisonBtn := widget.NewButton("Copy Comparison", func() {
+		if state.compareFile1 == nil && state.compareFile2 == nil {
+			dialog.ShowInformation("No Videos", "Load at least one video to copy comparison metadata.", state.window)
+			return
+		}
+
+		// Format side-by-side comparison
+		var comparisonText strings.Builder
+		comparisonText.WriteString("═══════════════════════════════════════════════════════════════════════\n")
+		comparisonText.WriteString("                        VIDEO COMPARISON REPORT\n")
+		comparisonText.WriteString("═══════════════════════════════════════════════════════════════════════\n\n")
+
+		// File names header
+		file1Name := "Not loaded"
+		file2Name := "Not loaded"
+		if state.compareFile1 != nil {
+			file1Name = filepath.Base(state.compareFile1.Path)
+		}
+		if state.compareFile2 != nil {
+			file2Name = filepath.Base(state.compareFile2.Path)
+		}
+
+		comparisonText.WriteString(fmt.Sprintf("FILE 1: %s\n", file1Name))
+		comparisonText.WriteString(fmt.Sprintf("FILE 2: %s\n", file2Name))
+		comparisonText.WriteString("───────────────────────────────────────────────────────────────────────\n\n")
+
+		// Helper to get field value or placeholder
+		getField := func(src *videoSource, getter func(*videoSource) string) string {
+			if src == nil {
+				return "—"
+			}
+			return getter(src)
+		}
+
+		// File Info section
+		comparisonText.WriteString("━━━ FILE INFO ━━━\n")
+
+		file1Size := getField(state.compareFile1, func(src *videoSource) string {
+			if fi, err := os.Stat(src.Path); err == nil {
+				sizeMB := float64(fi.Size()) / (1024 * 1024)
+				if sizeMB >= 1024 {
+					return fmt.Sprintf("%.2f GB", sizeMB/1024)
+				}
+				return fmt.Sprintf("%.2f MB", sizeMB)
+			}
+			return "Unknown"
+		})
+		file2Size := getField(state.compareFile2, func(src *videoSource) string {
+			if fi, err := os.Stat(src.Path); err == nil {
+				sizeMB := float64(fi.Size()) / (1024 * 1024)
+				if sizeMB >= 1024 {
+					return fmt.Sprintf("%.2f GB", sizeMB/1024)
+				}
+				return fmt.Sprintf("%.2f MB", sizeMB)
+			}
+			return "Unknown"
+		})
+
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n", "File Size:", file1Size, file2Size))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Format:",
+			getField(state.compareFile1, func(s *videoSource) string { return s.Format }),
+			getField(state.compareFile2, func(s *videoSource) string { return s.Format })))
+
+		// Video section
+		comparisonText.WriteString("\n━━━ VIDEO ━━━\n")
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Codec:",
+			getField(state.compareFile1, func(s *videoSource) string { return s.VideoCodec }),
+			getField(state.compareFile2, func(s *videoSource) string { return s.VideoCodec })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Resolution:",
+			getField(state.compareFile1, func(s *videoSource) string { return fmt.Sprintf("%dx%d", s.Width, s.Height) }),
+			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%dx%d", s.Width, s.Height) })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Aspect Ratio:",
+			getField(state.compareFile1, func(s *videoSource) string { return s.AspectRatioString() }),
+			getField(state.compareFile2, func(s *videoSource) string { return s.AspectRatioString() })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Frame Rate:",
+			getField(state.compareFile1, func(s *videoSource) string { return fmt.Sprintf("%.2f fps", s.FrameRate) }),
+			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%.2f fps", s.FrameRate) })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Bitrate:",
+			getField(state.compareFile1, func(s *videoSource) string { return formatBitrate(s.Bitrate) }),
+			getField(state.compareFile2, func(s *videoSource) string { return formatBitrate(s.Bitrate) })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Pixel Format:",
+			getField(state.compareFile1, func(s *videoSource) string { return s.PixelFormat }),
+			getField(state.compareFile2, func(s *videoSource) string { return s.PixelFormat })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Color Space:",
+			getField(state.compareFile1, func(s *videoSource) string { return s.ColorSpace }),
+			getField(state.compareFile2, func(s *videoSource) string { return s.ColorSpace })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Color Range:",
+			getField(state.compareFile1, func(s *videoSource) string { return s.ColorRange }),
+			getField(state.compareFile2, func(s *videoSource) string { return s.ColorRange })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Field Order:",
+			getField(state.compareFile1, func(s *videoSource) string { return s.FieldOrder }),
+			getField(state.compareFile2, func(s *videoSource) string { return s.FieldOrder })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"GOP Size:",
+			getField(state.compareFile1, func(s *videoSource) string { return fmt.Sprintf("%d", s.GOPSize) }),
+			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%d", s.GOPSize) })))
+
+		// Audio section
+		comparisonText.WriteString("\n━━━ AUDIO ━━━\n")
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Codec:",
+			getField(state.compareFile1, func(s *videoSource) string { return s.AudioCodec }),
+			getField(state.compareFile2, func(s *videoSource) string { return s.AudioCodec })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Bitrate:",
+			getField(state.compareFile1, func(s *videoSource) string { return formatBitrate(s.AudioBitrate) }),
+			getField(state.compareFile2, func(s *videoSource) string { return formatBitrate(s.AudioBitrate) })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Sample Rate:",
+			getField(state.compareFile1, func(s *videoSource) string { return fmt.Sprintf("%d Hz", s.AudioRate) }),
+			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%d Hz", s.AudioRate) })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Channels:",
+			getField(state.compareFile1, func(s *videoSource) string { return fmt.Sprintf("%d", s.Channels) }),
+			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%d", s.Channels) })))
+
+		// Other section
+		comparisonText.WriteString("\n━━━ OTHER ━━━\n")
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Duration:",
+			getField(state.compareFile1, func(s *videoSource) string { return s.DurationString() }),
+			getField(state.compareFile2, func(s *videoSource) string { return s.DurationString() })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"SAR (Pixel Aspect):",
+			getField(state.compareFile1, func(s *videoSource) string { return s.SampleAspectRatio }),
+			getField(state.compareFile2, func(s *videoSource) string { return s.SampleAspectRatio })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Chapters:",
+			getField(state.compareFile1, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasChapters) }),
+			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasChapters) })))
+		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
+			"Metadata:",
+			getField(state.compareFile1, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasMetadata) }),
+			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasMetadata) })))
+
+		comparisonText.WriteString("\n═══════════════════════════════════════════════════════════════════════\n")
+
+		state.window.Clipboard().SetContent(comparisonText.String())
+		dialog.ShowInformation("Copied", "Comparison metadata copied to clipboard", state.window)
+	})
+	copyComparisonBtn.Importance = widget.LowImportance
+
 	// Clear All button
 	clearAllBtn := widget.NewButton("Clear All", func() {
 		state.compareFile1 = nil
@@ -5382,7 +5775,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	})
 	clearAllBtn.Importance = widget.LowImportance
 
-	instructionsRow := container.NewBorder(nil, nil, nil, clearAllBtn, instructions)
+	instructionsRow := container.NewBorder(nil, nil, nil, container.NewHBox(fullscreenBtn, copyComparisonBtn, clearAllBtn), instructions)
 
 	// File labels
 	file1Label := widget.NewLabel("File 1: Not loaded")
@@ -5391,21 +5784,13 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	file2Label := widget.NewLabel("File 2: Not loaded")
 	file2Label.TextStyle = fyne.TextStyle{Bold: true}
 
-	// Thumbnail images - use smaller minimum for better flexibility
-	file1Thumbnail := canvas.NewImageFromImage(nil)
-	file1Thumbnail.FillMode = canvas.ImageFillContain
-	file1Thumbnail.SetMinSize(fyne.NewSize(240, 135))
+	// Video player containers
+	file1VideoContainer := container.NewMax()
+	file2VideoContainer := container.NewMax()
 
-	file2Thumbnail := canvas.NewImageFromImage(nil)
-	file2Thumbnail.FillMode = canvas.ImageFillContain
-	file2Thumbnail.SetMinSize(fyne.NewSize(240, 135))
-
-	// Placeholder backgrounds
-	file1ThumbBg := canvas.NewRectangle(utils.MustHex("#0F1529"))
-	file1ThumbBg.SetMinSize(fyne.NewSize(240, 135))
-
-	file2ThumbBg := canvas.NewRectangle(utils.MustHex("#0F1529"))
-	file2ThumbBg.SetMinSize(fyne.NewSize(240, 135))
+	// Initialize with placeholders
+	file1VideoContainer.Objects = []fyne.CanvasObject{container.NewCenter(widget.NewLabel("No video loaded"))}
+	file2VideoContainer.Objects = []fyne.CanvasObject{container.NewCenter(widget.NewLabel("No video loaded"))}
 
 	// Info labels
 	file1Info := widget.NewLabel("No file loaded")
@@ -5476,36 +5861,6 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		)
 	}
 
-	// Helper to load thumbnail for a video
-	loadThumbnail := func(src *videoSource, img *canvas.Image) {
-		if src == nil {
-			return
-		}
-		// Generate preview frames if not already present
-		if len(src.PreviewFrames) == 0 {
-			go func() {
-				if thumb, err := capturePreviewFrames(src.Path, src.Duration); err == nil && len(thumb) > 0 {
-					src.PreviewFrames = thumb
-					// Update thumbnail on UI thread
-					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						thumbImg := canvas.NewImageFromFile(src.PreviewFrames[0])
-						if thumbImg.Image != nil {
-							img.Image = thumbImg.Image
-							img.Refresh()
-						}
-					}, false)
-				}
-			}()
-			return
-		}
-		// Load the first preview frame as thumbnail
-		thumbImg := canvas.NewImageFromFile(src.PreviewFrames[0])
-		if thumbImg.Image != nil {
-			img.Image = thumbImg.Image
-			img.Refresh()
-		}
-	}
-
 	// Helper to truncate filename if too long
 	truncateFilename := func(filename string, maxLen int) string {
 		if len(filename) <= maxLen {
@@ -5535,12 +5890,18 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			displayName := truncateFilename(filename, 35)
 			file1Label.SetText(fmt.Sprintf("File 1: %s", displayName))
 			file1Info.SetText(formatMetadata(state.compareFile1))
-			loadThumbnail(state.compareFile1, file1Thumbnail)
+			// Build video player with compact size for side-by-side
+			file1VideoContainer.Objects = []fyne.CanvasObject{
+				buildVideoPane(state, fyne.NewSize(320, 180), state.compareFile1, nil),
+			}
+			file1VideoContainer.Refresh()
 		} else {
 			file1Label.SetText("File 1: Not loaded")
 			file1Info.SetText("No file loaded")
-			file1Thumbnail.Image = nil
-			file1Thumbnail.Refresh()
+			file1VideoContainer.Objects = []fyne.CanvasObject{
+				container.NewCenter(widget.NewLabel("No video loaded")),
+			}
+			file1VideoContainer.Refresh()
 		}
 	}
 
@@ -5550,12 +5911,18 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			displayName := truncateFilename(filename, 35)
 			file2Label.SetText(fmt.Sprintf("File 2: %s", displayName))
 			file2Info.SetText(formatMetadata(state.compareFile2))
-			loadThumbnail(state.compareFile2, file2Thumbnail)
+			// Build video player with compact size for side-by-side
+			file2VideoContainer.Objects = []fyne.CanvasObject{
+				buildVideoPane(state, fyne.NewSize(320, 180), state.compareFile2, nil),
+			}
+			file2VideoContainer.Refresh()
 		} else {
 			file2Label.SetText("File 2: Not loaded")
 			file2Info.SetText("No file loaded")
-			file2Thumbnail.Image = nil
-			file2Thumbnail.Refresh()
+			file2VideoContainer.Objects = []fyne.CanvasObject{
+				container.NewCenter(widget.NewLabel("No video loaded")),
+			}
+			file2VideoContainer.Refresh()
 		}
 	}
 
@@ -5657,24 +6024,24 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	file2InfoScroll := container.NewVScroll(file2Info)
 	file2InfoScroll.SetMinSize(fyne.NewSize(250, 150))
 
-	// File 1 column: header, thumb, metadata (using Border to make metadata expand)
+	// File 1 column: header, video player, metadata (using Border to make metadata expand)
 	file1Column := container.NewBorder(
 		container.NewVBox(
 			file1Header,
 			widget.NewSeparator(),
-			container.NewMax(file1ThumbBg, file1Thumbnail),
+			file1VideoContainer,
 			widget.NewSeparator(),
 		),
 		nil, nil, nil,
 		file1InfoScroll,
 	)
 
-	// File 2 column: header, thumb, metadata (using Border to make metadata expand)
+	// File 2 column: header, video player, metadata (using Border to make metadata expand)
 	file2Column := container.NewBorder(
 		container.NewVBox(
 			file2Header,
 			widget.NewSeparator(),
-			container.NewMax(file2ThumbBg, file2Thumbnail),
+			file2VideoContainer,
 			widget.NewSeparator(),
 		),
 		nil, nil, nil,
@@ -5689,6 +6056,317 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		container.NewVBox(instructionsRow, widget.NewSeparator()),
 		nil, nil, nil,
 		container.NewGridWithColumns(2, file1Column, file2Column),
+	)
+
+	return container.NewBorder(topBar, bottomBar, nil, nil, content)
+}
+
+// buildInspectView creates the UI for inspecting a single video with player
+func buildInspectView(state *appState) fyne.CanvasObject {
+	inspectColor := moduleColor("inspect")
+
+	// Back button
+	backBtn := widget.NewButton("< INSPECT", func() {
+		state.showMainMenu()
+	})
+	backBtn.Importance = widget.LowImportance
+
+	// Top bar with module color
+	topBar := ui.TintedBar(inspectColor, container.NewHBox(backBtn, layout.NewSpacer()))
+
+	// Instructions
+	instructions := widget.NewLabel("Load a video to inspect its properties and preview playback. Drag a video here or use the button below.")
+	instructions.Wrapping = fyne.TextWrapWord
+	instructions.Alignment = fyne.TextAlignCenter
+
+	// Clear button
+	clearBtn := widget.NewButton("Clear", func() {
+		state.inspectFile = nil
+		state.showInspectView()
+	})
+	clearBtn.Importance = widget.LowImportance
+
+	instructionsRow := container.NewBorder(nil, nil, nil, clearBtn, instructions)
+
+	// File label
+	fileLabel := widget.NewLabel("No file loaded")
+	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	// Metadata text
+	metadataText := widget.NewLabel("No file loaded")
+	metadataText.Wrapping = fyne.TextWrapWord
+
+	// Metadata scroll
+	metadataScroll := container.NewScroll(metadataText)
+	metadataScroll.SetMinSize(fyne.NewSize(400, 200))
+
+	// Helper function to format metadata
+	formatMetadata := func(src *videoSource) string {
+		fileSize := "Unknown"
+		if fi, err := os.Stat(src.Path); err == nil {
+			sizeMB := float64(fi.Size()) / (1024 * 1024)
+			if sizeMB >= 1024 {
+				fileSize = fmt.Sprintf("%.2f GB", sizeMB/1024)
+			} else {
+				fileSize = fmt.Sprintf("%.2f MB", sizeMB)
+			}
+		}
+
+		return fmt.Sprintf(
+			"━━━ FILE INFO ━━━\n"+
+				"Path: %s\n"+
+				"File Size: %s\n"+
+				"Format: %s\n"+
+				"\n━━━ VIDEO ━━━\n"+
+				"Codec: %s\n"+
+				"Resolution: %dx%d\n"+
+				"Aspect Ratio: %s\n"+
+				"Frame Rate: %.2f fps\n"+
+				"Bitrate: %s\n"+
+				"Pixel Format: %s\n"+
+				"Color Space: %s\n"+
+				"Color Range: %s\n"+
+				"Field Order: %s\n"+
+				"GOP Size: %d\n"+
+				"\n━━━ AUDIO ━━━\n"+
+				"Codec: %s\n"+
+				"Bitrate: %s\n"+
+				"Sample Rate: %d Hz\n"+
+				"Channels: %d\n"+
+				"\n━━━ OTHER ━━━\n"+
+				"Duration: %s\n"+
+				"SAR (Pixel Aspect): %s\n"+
+				"Chapters: %v\n"+
+				"Metadata: %v",
+			filepath.Base(src.Path),
+			fileSize,
+			src.Format,
+			src.VideoCodec,
+			src.Width, src.Height,
+			src.AspectRatioString(),
+			src.FrameRate,
+			formatBitrate(src.Bitrate),
+			src.PixelFormat,
+			src.ColorSpace,
+			src.ColorRange,
+			src.FieldOrder,
+			src.GOPSize,
+			src.AudioCodec,
+			formatBitrate(src.AudioBitrate),
+			src.AudioRate,
+			src.Channels,
+			src.DurationString(),
+			src.SampleAspectRatio,
+			src.HasChapters,
+			src.HasMetadata,
+		)
+	}
+
+	// Video player container
+	var videoContainer fyne.CanvasObject = container.NewCenter(widget.NewLabel("No video loaded"))
+
+	// Update display function
+	updateDisplay := func() {
+		if state.inspectFile != nil {
+			filename := filepath.Base(state.inspectFile.Path)
+			// Truncate if too long
+			if len(filename) > 50 {
+				ext := filepath.Ext(filename)
+				nameWithoutExt := strings.TrimSuffix(filename, ext)
+				if len(ext) > 10 {
+					filename = filename[:47] + "..."
+				} else {
+					availableLen := 47 - len(ext)
+					if availableLen < 1 {
+						filename = filename[:47] + "..."
+					} else {
+						filename = nameWithoutExt[:availableLen] + "..." + ext
+					}
+				}
+			}
+			fileLabel.SetText(fmt.Sprintf("File: %s", filename))
+			metadataText.SetText(formatMetadata(state.inspectFile))
+
+			// Build video player
+			videoContainer = buildVideoPane(state, fyne.NewSize(640, 360), state.inspectFile, nil)
+		} else {
+			fileLabel.SetText("No file loaded")
+			metadataText.SetText("No file loaded")
+			videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
+		}
+	}
+
+	// Initialize display
+	updateDisplay()
+
+	// Load button
+	loadBtn := widget.NewButton("Load Video", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			path := reader.URI().Path()
+			reader.Close()
+
+			src, err := probeVideo(path)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
+				return
+			}
+
+			state.inspectFile = src
+			state.showInspectView()
+			logging.Debug(logging.CatModule, "loaded inspect file: %s", path)
+		}, state.window)
+	})
+
+	// Copy metadata button
+	copyBtn := widget.NewButton("Copy Metadata", func() {
+		if state.inspectFile == nil {
+			return
+		}
+		metadata := formatMetadata(state.inspectFile)
+		state.window.Clipboard().SetContent(metadata)
+		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
+	})
+	copyBtn.Importance = widget.LowImportance
+
+	// Action buttons
+	actionButtons := container.NewHBox(loadBtn, copyBtn, clearBtn)
+
+	// Main layout: left side is video player, right side is metadata
+	leftColumn := container.NewBorder(
+		fileLabel,
+		nil, nil, nil,
+		videoContainer,
+	)
+
+	rightColumn := container.NewBorder(
+		widget.NewLabel("Metadata:"),
+		nil, nil, nil,
+		metadataScroll,
+	)
+
+	// Bottom bar with module color
+	bottomBar := ui.TintedBar(inspectColor, container.NewHBox(layout.NewSpacer()))
+
+	// Main content
+	content := container.NewBorder(
+		container.NewVBox(instructionsRow, actionButtons, widget.NewSeparator()),
+		nil, nil, nil,
+		container.NewGridWithColumns(2, leftColumn, rightColumn),
+	)
+
+	return container.NewBorder(topBar, bottomBar, nil, nil, content)
+}
+// buildCompareFullscreenView creates fullscreen side-by-side comparison with synchronized controls
+func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
+	compareColor := moduleColor("compare")
+
+	// Back button
+	backBtn := widget.NewButton("< BACK TO COMPARE", func() {
+		state.showCompareView()
+	})
+	backBtn.Importance = widget.LowImportance
+
+	// Top bar with module color
+	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer()))
+
+	// Video player containers - large size for fullscreen
+	file1VideoContainer := container.NewMax()
+	file2VideoContainer := container.NewMax()
+
+	// Build players if videos are loaded - use flexible size that won't force window expansion
+	if state.compareFile1 != nil {
+		file1VideoContainer.Objects = []fyne.CanvasObject{
+			buildVideoPane(state, fyne.NewSize(400, 225), state.compareFile1, nil),
+		}
+	} else {
+		file1VideoContainer.Objects = []fyne.CanvasObject{
+			container.NewCenter(widget.NewLabel("No video loaded")),
+		}
+	}
+
+	if state.compareFile2 != nil {
+		file2VideoContainer.Objects = []fyne.CanvasObject{
+			buildVideoPane(state, fyne.NewSize(400, 225), state.compareFile2, nil),
+		}
+	} else {
+		file2VideoContainer.Objects = []fyne.CanvasObject{
+			container.NewCenter(widget.NewLabel("No video loaded")),
+		}
+	}
+
+	// File labels
+	file1Name := "File 1: Not loaded"
+	if state.compareFile1 != nil {
+		file1Name = fmt.Sprintf("File 1: %s", filepath.Base(state.compareFile1.Path))
+	}
+
+	file2Name := "File 2: Not loaded"
+	if state.compareFile2 != nil {
+		file2Name = fmt.Sprintf("File 2: %s", filepath.Base(state.compareFile2.Path))
+	}
+
+	file1Label := widget.NewLabel(file1Name)
+	file1Label.TextStyle = fyne.TextStyle{Bold: true}
+	file1Label.Alignment = fyne.TextAlignCenter
+
+	file2Label := widget.NewLabel(file2Name)
+	file2Label.TextStyle = fyne.TextStyle{Bold: true}
+	file2Label.Alignment = fyne.TextAlignCenter
+
+	// Synchronized playback controls (note: actual sync would require VT_Player API enhancement)
+	playBtn := widget.NewButton("▶ Play Both", func() {
+		// TODO: When VT_Player API supports it, trigger synchronized playback
+		dialog.ShowInformation("Synchronized Playback",
+			"Synchronized playback control will be available when VT_Player API is enhanced.\n\n"+
+				"For now, use individual player controls.",
+			state.window)
+	})
+	playBtn.Importance = widget.HighImportance
+
+	pauseBtn := widget.NewButton("⏸ Pause Both", func() {
+		// TODO: Synchronized pause
+		dialog.ShowInformation("Synchronized Playback",
+			"Synchronized playback control will be available when VT_Player API is enhanced.",
+			state.window)
+	})
+
+	syncControls := container.NewHBox(
+		layout.NewSpacer(),
+		playBtn,
+		pauseBtn,
+		layout.NewSpacer(),
+	)
+
+	// Info text
+	infoLabel := widget.NewLabel("Side-by-side fullscreen comparison. Use individual player controls until synchronized playback is implemented in VT_Player.")
+	infoLabel.Wrapping = fyne.TextWrapWord
+	infoLabel.Alignment = fyne.TextAlignCenter
+
+	// Left column (File 1)
+	leftColumn := container.NewBorder(
+		file1Label,
+		nil, nil, nil,
+		file1VideoContainer,
+	)
+
+	// Right column (File 2)
+	rightColumn := container.NewBorder(
+		file2Label,
+		nil, nil, nil,
+		file2VideoContainer,
+	)
+
+	// Bottom bar with module color
+	bottomBar := ui.TintedBar(compareColor, container.NewHBox(layout.NewSpacer()))
+
+	// Main content
+	content := container.NewBorder(
+		container.NewVBox(infoLabel, syncControls, widget.NewSeparator()),
+		nil, nil, nil,
+		container.NewGridWithColumns(2, leftColumn, rightColumn),
 	)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)

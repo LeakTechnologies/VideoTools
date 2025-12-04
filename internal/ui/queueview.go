@@ -228,7 +228,22 @@ func getStatusText(job *queue.Job) string {
 		if job.StartedAt != nil {
 			elapsed = fmt.Sprintf(" | Elapsed: %s", time.Since(*job.StartedAt).Round(time.Second))
 		}
-		return fmt.Sprintf("Status: Running | Progress: %.1f%%%s", job.Progress, elapsed)
+
+		// Add FPS and speed info if available in Config
+		var extras string
+		if job.Config != nil {
+			if fps, ok := job.Config["fps"].(float64); ok && fps > 0 {
+				extras += fmt.Sprintf(" | %.0f fps", fps)
+			}
+			if speed, ok := job.Config["speed"].(float64); ok && speed > 0 {
+				extras += fmt.Sprintf(" | %.2fx", speed)
+			}
+			if etaDuration, ok := job.Config["eta"].(time.Duration); ok && etaDuration > 0 {
+				extras += fmt.Sprintf(" | ETA %s", etaDuration.Round(time.Second))
+			}
+		}
+
+		return fmt.Sprintf("Status: Running | Progress: %.1f%%%s%s", job.Progress, elapsed, extras)
 	case queue.JobStatusPaused:
 		return "Status: Paused"
 	case queue.JobStatusCompleted:
@@ -259,23 +274,23 @@ func buildModuleBadge(t queue.JobType) fyne.CanvasObject {
 	return container.NewMax(bg, container.NewCenter(label))
 }
 
-// moduleColor maps job types to distinct colors for quick visual scanning.
+// moduleColor maps job types to distinct colors matching the main module colors
 func moduleColor(t queue.JobType) color.Color {
 	switch t {
 	case queue.JobTypeConvert:
-		return color.RGBA{R: 76, G: 232, B: 112, A: 255} // green
+		return color.RGBA{R: 139, G: 68, B: 255, A: 255} // Violet (#8B44FF)
 	case queue.JobTypeMerge:
-		return color.RGBA{R: 68, G: 136, B: 255, A: 255} // blue
+		return color.RGBA{R: 68, G: 136, B: 255, A: 255} // Blue (#4488FF)
 	case queue.JobTypeTrim:
-		return color.RGBA{R: 255, G: 193, B: 7, A: 255} // amber
+		return color.RGBA{R: 68, G: 221, B: 255, A: 255} // Cyan (#44DDFF)
 	case queue.JobTypeFilter:
-		return color.RGBA{R: 160, G: 86, B: 255, A: 255} // purple
+		return color.RGBA{R: 68, G: 255, B: 136, A: 255} // Green (#44FF88)
 	case queue.JobTypeUpscale:
-		return color.RGBA{R: 255, G: 138, B: 101, A: 255} // coral
+		return color.RGBA{R: 170, G: 255, B: 68, A: 255} // Yellow-Green (#AAFF44)
 	case queue.JobTypeAudio:
-		return color.RGBA{R: 255, G: 215, B: 64, A: 255} // gold
+		return color.RGBA{R: 255, G: 215, B: 68, A: 255} // Yellow (#FFD744)
 	case queue.JobTypeThumb:
-		return color.RGBA{R: 102, G: 217, B: 239, A: 255} // teal
+		return color.RGBA{R: 255, G: 136, B: 68, A: 255} // Orange (#FF8844)
 	default:
 		return color.Gray{Y: 180}
 	}
