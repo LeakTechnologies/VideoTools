@@ -3701,36 +3701,65 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		// Load videos sequentially to avoid race conditions
 		go func() {
-			// Load first video
-			src1, err := probeVideo(videoPaths[0])
-			if err != nil {
-				logging.Debug(logging.CatModule, "failed to load first video: %v", err)
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					dialog.ShowError(fmt.Errorf("failed to load video 1: %w", err), s.window)
-				}, false)
-				return
-			}
-
-			// Load second video if available
-			var src2 *videoSource
-			if len(videoPaths) >= 2 {
-				src2, err = probeVideo(videoPaths[1])
+			if len(videoPaths) == 1 {
+				// Single video dropped - fill first empty slot
+				src, err := probeVideo(videoPaths[0])
 				if err != nil {
-					logging.Debug(logging.CatModule, "failed to load second video: %v", err)
-					// Continue with just first video
+					logging.Debug(logging.CatModule, "failed to load video: %v", err)
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						dialog.ShowError(fmt.Errorf("failed to load video 2: %w", err), s.window)
+						dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
 					}, false)
+					return
 				}
-			}
 
-			// Update state and refresh view once with both files
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				s.compareFile1 = src1
-				s.compareFile2 = src2
-				s.showCompareView()
-				logging.Debug(logging.CatModule, "loaded %d video(s) via drag-and-drop", len(videoPaths))
-			}, false)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					// Fill first empty slot
+					if s.compareFile1 == nil {
+						s.compareFile1 = src
+						logging.Debug(logging.CatModule, "loaded video into slot 1")
+					} else if s.compareFile2 == nil {
+						s.compareFile2 = src
+						logging.Debug(logging.CatModule, "loaded video into slot 2")
+					} else {
+						// Both slots full - ask which to replace
+						dialog.ShowInformation("Both Slots Full",
+							"Both comparison slots are full. Use the Clear button to empty a slot first.",
+							s.window)
+						return
+					}
+					s.showCompareView()
+				}, false)
+			} else {
+				// Multiple videos dropped - load into both slots
+				src1, err := probeVideo(videoPaths[0])
+				if err != nil {
+					logging.Debug(logging.CatModule, "failed to load first video: %v", err)
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						dialog.ShowError(fmt.Errorf("failed to load video 1: %w", err), s.window)
+					}, false)
+					return
+				}
+
+				var src2 *videoSource
+				if len(videoPaths) >= 2 {
+					src2, err = probeVideo(videoPaths[1])
+					if err != nil {
+						logging.Debug(logging.CatModule, "failed to load second video: %v", err)
+						// Continue with just first video
+						fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+							dialog.ShowError(fmt.Errorf("failed to load video 2: %w", err), s.window)
+						}, false)
+					}
+				}
+
+				// Update both slots and refresh view once
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					s.compareFile1 = src1
+					s.compareFile2 = src2
+					s.showCompareView()
+					logging.Debug(logging.CatModule, "loaded %d video(s) into both slots", len(videoPaths))
+				}, false)
+			}
 		}()
 
 		return
