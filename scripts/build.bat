@@ -25,7 +25,8 @@ REM Check for winget (required for auto-install)
 REM ----------------------------
 set WINGET_AVAILABLE=0
 where winget >nul 2>&1
-if %ERRORLEVEL% equ 0 (
+set WINGET_CHECK=!ERRORLEVEL!
+if !WINGET_CHECK! equ 0 (
     set WINGET_AVAILABLE=1
     echo ✓ winget found (automatic installation available)
 ) else (
@@ -38,7 +39,8 @@ REM ----------------------------
 REM Check for Git (recommended for development)
 REM ----------------------------
 where git >nul 2>&1
-if %ERRORLEVEL% equ 0 (
+set GIT_CHECK=!ERRORLEVEL!
+if !GIT_CHECK! equ 0 (
     echo ✓ Git found
     git --version
 ) else (
@@ -74,7 +76,8 @@ REM ----------------------------
 REM Check for GCC (required for CGO)
 REM ----------------------------
 where gcc >nul 2>&1
-if %ERRORLEVEL% neq 0 (
+set GCC_CHECK=!ERRORLEVEL!
+if !GCC_CHECK! neq 0 (
     echo ⚠️  WARNING: GCC not found. CGO requires a C compiler.
     echo.
     echo VideoTools requires MinGW-w64 to build on Windows.
