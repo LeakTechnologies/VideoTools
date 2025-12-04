@@ -5,6 +5,18 @@ This file tracks completed features, fixes, and milestones.
 ## Version 0.1.0-dev13 (In Progress - 2025-12-03)
 
 ### Features
+- ✅ **Automatic Black Bar Detection and Cropping**
+  - Detects and removes black bars to reduce file size (15-30% typical reduction)
+  - One-click "Detect Crop" button analyzes video using FFmpeg cropdetect
+  - Samples 10 seconds from middle of video for stable detection
+  - Shows estimated file size reduction percentage before applying
+  - User confirmation dialog displays before/after dimensions
+  - Manual crop override capability (width, height, X/Y offsets)
+  - Applied before scaling for optimal results
+  - Works in both direct convert and queue job execution
+  - Proper handling for videos without black bars
+  - 30-second timeout protection for detection process
+
 - ✅ **Compare Module**
   - Side-by-side video comparison interface
   - Load two videos and compare detailed metadata
