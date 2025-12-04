@@ -430,7 +430,7 @@ func (s *appState) showMainMenu() {
 			ID:      m.ID,
 			Label:   m.Label,
 			Color:   m.Color,
-			Enabled: m.ID == "convert", // Only convert module is functional
+			Enabled: m.ID == "convert" || m.ID == "compare", // Convert and compare modules are functional
 		})
 	}
 
@@ -2061,9 +2061,75 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.VideoBitrate = val
 	}
 
-	// Target File Size entry (for Target Size mode)
+	// Target File Size with smart presets + manual entry
 	targetFileSizeEntry := widget.NewEntry()
 	targetFileSizeEntry.SetPlaceHolder("e.g., 25MB, 100MB, 8MB")
+
+	var targetFileSizeSelect *widget.Select
+
+	updateTargetSizeOptions := func() {
+		if src == nil {
+			targetFileSizeSelect.Options = []string{"Manual", "25MB", "50MB", "100MB", "200MB", "500MB", "1GB"}
+			return
+		}
+
+		// Calculate smart reduction options based on source file size
+		srcPath := src.Path
+		fileInfo, err := os.Stat(srcPath)
+		if err != nil {
+			targetFileSizeSelect.Options = []string{"Manual", "25MB", "50MB", "100MB", "200MB", "500MB", "1GB"}
+			return
+		}
+
+		srcSize := fileInfo.Size()
+		srcSizeMB := float64(srcSize) / (1024 * 1024)
+
+		// Calculate smart reductions
+		size33 := int(srcSizeMB * 0.67) // 33% reduction
+		size50 := int(srcSizeMB * 0.50) // 50% reduction
+		size75 := int(srcSizeMB * 0.25) // 75% reduction
+
+		options := []string{"Manual"}
+
+		if size75 > 5 {
+			options = append(options, fmt.Sprintf("%dMB (75%% smaller)", size75))
+		}
+		if size50 > 10 {
+			options = append(options, fmt.Sprintf("%dMB (50%% smaller)", size50))
+		}
+		if size33 > 15 {
+			options = append(options, fmt.Sprintf("%dMB (33%% smaller)", size33))
+		}
+
+		// Add common sizes
+		options = append(options, "25MB", "50MB", "100MB", "200MB", "500MB", "1GB")
+
+		targetFileSizeSelect.Options = options
+	}
+
+	targetFileSizeSelect = widget.NewSelect([]string{"Manual", "25MB", "50MB", "100MB", "200MB", "500MB", "1GB"}, func(value string) {
+		if value == "Manual" {
+			targetFileSizeEntry.Show()
+			targetFileSizeEntry.SetText(state.convert.TargetFileSize)
+		} else {
+			// Extract size from selection (handle "XMB (Y% smaller)" format)
+			var sizeStr string
+			if strings.Contains(value, "(") {
+				// Format: "50MB (50% smaller)"
+				sizeStr = strings.TrimSpace(strings.Split(value, "(")[0])
+			} else {
+				// Format: "100MB"
+				sizeStr = value
+			}
+			state.convert.TargetFileSize = sizeStr
+			targetFileSizeEntry.SetText(sizeStr)
+			targetFileSizeEntry.Hide()
+		}
+		logging.Debug(logging.CatUI, "target file size set to %s", state.convert.TargetFileSize)
+	})
+	targetFileSizeSelect.SetSelected("Manual")
+	updateTargetSizeOptions()
+
 	targetFileSizeEntry.SetText(state.convert.TargetFileSize)
 	targetFileSizeEntry.OnChanged = func(val string) {
 		state.convert.TargetFileSize = val
@@ -2239,7 +2305,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		crfEntry,
 		widget.NewLabelWithStyle("Video Bitrate (for CBR/VBR)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		videoBitrateEntry,
-		widget.NewLabelWithStyle("Target File Size (e.g., 25MB, 100MB)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Target File Size", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		targetFileSizeSelect,
 		targetFileSizeEntry,
 		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelect,
