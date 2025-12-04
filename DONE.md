@@ -2,6 +2,37 @@
 
 This file tracks completed features, fixes, and milestones.
 
+## Version 0.1.0-dev13 (In Progress - 2025-12-03)
+
+### Features
+- ✅ **Compare Module**
+  - Side-by-side video comparison interface
+  - Load two videos and compare detailed metadata
+  - Displays format, resolution, codecs, bitrates, frame rate, pixel format
+  - Shows color space, color range, GOP size, field order
+  - Indicates presence of chapters and metadata
+  - Accessible via GUI button (pink color) or CLI: `videotools compare <file1> <file2>`
+  - Added formatBitrate() helper function for consistent bitrate display
+
+- ✅ **Target File Size Encoding Mode**
+  - New "Target Size" bitrate mode in convert module
+  - Specify desired output file size (e.g., "25MB", "100MB", "8MB")
+  - Automatically calculates required video bitrate based on:
+    - Target file size
+    - Video duration
+    - Audio bitrate
+    - Container overhead (3% reserved)
+  - Implemented ParseFileSize() to parse size strings (KB, MB, GB)
+  - Implemented CalculateBitrateForTargetSize() for bitrate calculation
+  - Works in both GUI convert view and job queue execution
+  - Minimum bitrate sanity check (100 kbps) to prevent invalid outputs
+
+### Technical Improvements
+- ✅ Added compare command to CLI help text
+- ✅ Consistent "Target Size" naming throughout UI and code
+- ✅ Added compareFile1 and compareFile2 to appState for video comparison
+- ✅ Module button grid updated with compare button (pink/magenta color)
+
 ## Version 0.1.0-dev12 (2025-12-02)
 
 ### Features
