@@ -11,10 +11,10 @@ This file tracks upcoming features, improvements, and known issues.
   - 15-30% file size reduction with zero quality loss
   - Add manual crop override option
 
-- [ ] **Frame rate conversion UI**
-  - Dropdown: Source, 24, 25, 29.97, 30, 50, 59.94, 60 fps
+- [x] **Frame rate conversion UI** (v0.1.0-dev13 - COMPLETED)
+  - Dropdown: Source, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60 fps
   - Auto-suggest 60→30fps conversion with size estimate
-  - Show file size impact (40-45% reduction for 60→30)
+  - Show file size impact (40-50% reduction for 60→30)
 
 - [ ] **HEVC/H.265 preset options**
   - Add preset dropdown: ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
