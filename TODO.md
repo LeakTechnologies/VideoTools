@@ -5,7 +5,7 @@ This file tracks upcoming features, improvements, and known issues.
 ## Priority Features for dev13 (Based on Jake's research)
 
 ### Quality & Compression Improvements
-- [ ] **Automatic black bar detection and cropping** (HIGHEST PRIORITY)
+- [x] **Automatic black bar detection and cropping** (v0.1.0-dev13 - COMPLETED)
   - Implement ffmpeg cropdetect analysis pass
   - Auto-apply detected crop values
   - 15-30% file size reduction with zero quality loss

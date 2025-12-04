@@ -2044,12 +2044,73 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	resolutionSelect.SetSelected(state.convert.TargetResolution)
 
-	// Frame Rate
-	frameRateSelect := widget.NewSelect([]string{"Source", "24", "30", "60"}, func(value string) {
+	// Frame Rate with hint
+	frameRateHint := widget.NewLabel("")
+	frameRateHint.Wrapping = fyne.TextWrapWord
+
+	updateFrameRateHint := func() {
+		if src == nil {
+			frameRateHint.SetText("")
+			return
+		}
+
+		selectedFPS := state.convert.FrameRate
+		if selectedFPS == "" || selectedFPS == "Source" {
+			frameRateHint.SetText("")
+			return
+		}
+
+		// Parse target frame rate
+		var targetFPS float64
+		switch selectedFPS {
+		case "23.976":
+			targetFPS = 23.976
+		case "24":
+			targetFPS = 24.0
+		case "25":
+			targetFPS = 25.0
+		case "29.97":
+			targetFPS = 29.97
+		case "30":
+			targetFPS = 30.0
+		case "50":
+			targetFPS = 50.0
+		case "59.94":
+			targetFPS = 59.94
+		case "60":
+			targetFPS = 60.0
+		default:
+			frameRateHint.SetText("")
+			return
+		}
+
+		sourceFPS := src.FrameRate
+		if sourceFPS <= 0 {
+			frameRateHint.SetText("")
+			return
+		}
+
+		// Calculate potential savings
+		if targetFPS < sourceFPS {
+			ratio := targetFPS / sourceFPS
+			reduction := (1.0 - ratio) * 100
+			frameRateHint.SetText(fmt.Sprintf("Converting %.0f → %.0f fps: ~%.0f%% smaller file",
+				sourceFPS, targetFPS, reduction))
+		} else if targetFPS > sourceFPS {
+			frameRateHint.SetText(fmt.Sprintf("⚠ Upscaling from %.0f to %.0f fps (may cause judder)",
+				sourceFPS, targetFPS))
+		} else {
+			frameRateHint.SetText("")
+		}
+	}
+
+	frameRateSelect := widget.NewSelect([]string{"Source", "23.976", "24", "25", "29.97", "30", "50", "59.94", "60"}, func(value string) {
 		state.convert.FrameRate = value
 		logging.Debug(logging.CatUI, "frame rate set to %s", value)
+		updateFrameRateHint()
 	})
 	frameRateSelect.SetSelected(state.convert.FrameRate)
+	updateFrameRateHint()
 
 	// Pixel Format
 	pixelFormatSelect := widget.NewSelect([]string{"yuv420p", "yuv422p", "yuv444p"}, func(value string) {
@@ -2151,6 +2212,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		resolutionSelect,
 		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		frameRateSelect,
+		frameRateHint,
 		widget.NewLabelWithStyle("Pixel Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		pixelFormatSelect,
 		widget.NewLabelWithStyle("Hardware Acceleration", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
