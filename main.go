@@ -5287,17 +5287,14 @@ func formatBitrate(bps int) string {
 func buildCompareView(state *appState) fyne.CanvasObject {
 	compareColor := moduleColor("compare")
 
-	// Header
-	title := canvas.NewText("COMPARE VIDEOS", compareColor)
-	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	title.TextSize = 24
-
-	backBtn := widget.NewButton("← Back to Menu", func() {
+	// Back button
+	backBtn := widget.NewButton("< COMPARE", func() {
 		state.showMainMenu()
 	})
 	backBtn.Importance = widget.LowImportance
 
-	header := container.NewBorder(nil, nil, backBtn, nil, container.NewCenter(title))
+	// Top bar with module color
+	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// Instructions
 	instructions := widget.NewLabel("Load two videos to compare their metadata and visual differences side by side. Drag videos here or use buttons below.")
@@ -5510,9 +5507,11 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		container.NewScroll(file2Info),
 	)
 
+	// Bottom bar with module color
+	bottomBar := ui.TintedBar(compareColor, container.NewHBox(layout.NewSpacer()))
+
+	// Main content
 	content := container.NewVBox(
-		header,
-		widget.NewSeparator(),
 		instructions,
 		widget.NewSeparator(),
 		compareBtn,
@@ -5523,5 +5522,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		),
 	)
 
-	return container.NewPadded(content)
+	scrollableContent := container.NewVScroll(content)
+
+	return container.NewBorder(topBar, bottomBar, nil, nil, scrollableContent)
 }
