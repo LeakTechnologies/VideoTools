@@ -55,3 +55,9 @@ func HandleInspect(files []string) {
 	logging.Debug(logging.CatModule, "inspect handler invoked with %v", files)
 	fmt.Println("inspect", files)
 }
+
+// HandleCompare handles the compare module (side-by-side comparison of two videos)
+func HandleCompare(files []string) {
+	logging.Debug(logging.CatModule, "compare handler invoked with %v", files)
+	fmt.Println("compare", files)
+}

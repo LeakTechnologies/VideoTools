@@ -28,9 +28,9 @@ type ConvertConfig struct {
 	VideoCodec       string // H.264, H.265, VP9, AV1, Copy
 	EncoderPreset    string // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
 	CRF              string // Manual CRF value (0-51, or empty to use Quality preset)
-	BitrateMode      string // CRF, CBR, VBR, TargetSize
+	BitrateMode      string // CRF, CBR, VBR, "Target Size"
 	VideoBitrate     string // For CBR/VBR modes (e.g., "5000k")
-	TargetFileSize   string // Target file size (e.g., "25MB", "100MB", "8MB") - requires BitrateMode=TargetSize
+	TargetFileSize   string // Target file size (e.g., "25MB", "100MB", "8MB") - requires BitrateMode="Target Size"
 	TargetResolution string // Source, 720p, 1080p, 1440p, 4K, or custom
 	FrameRate        string // Source, 24, 30, 60, or custom
 	PixelFormat      string // yuv420p, yuv422p, yuv444p
