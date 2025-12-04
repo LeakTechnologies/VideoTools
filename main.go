@@ -5374,6 +5374,16 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
+	// Clear All button
+	clearAllBtn := widget.NewButton("Clear All", func() {
+		state.compareFile1 = nil
+		state.compareFile2 = nil
+		state.showCompareView()
+	})
+	clearAllBtn.Importance = widget.LowImportance
+
+	instructionsRow := container.NewBorder(nil, nil, nil, clearAllBtn, instructions)
+
 	// File labels
 	file1Label := widget.NewLabel("File 1: Not loaded")
 	file1Label.TextStyle = fyne.TextStyle{Bold: true}
@@ -5468,7 +5478,24 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 	// Helper to load thumbnail for a video
 	loadThumbnail := func(src *videoSource, img *canvas.Image) {
-		if src == nil || len(src.PreviewFrames) == 0 {
+		if src == nil {
+			return
+		}
+		// Generate preview frames if not already present
+		if len(src.PreviewFrames) == 0 {
+			go func() {
+				if thumb, err := capturePreviewFrames(src.Path, src.Duration); err == nil && len(thumb) > 0 {
+					src.PreviewFrames = thumb
+					// Update thumbnail on UI thread
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						thumbImg := canvas.NewImageFromFile(src.PreviewFrames[0])
+						if thumbImg.Image != nil {
+							img.Image = thumbImg.Image
+							img.Refresh()
+						}
+					}, false)
+				}
+			}()
 			return
 		}
 		// Load the first preview frame as thumbnail
@@ -5659,7 +5686,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 	// Main content: instructions at top, then two columns side by side
 	content := container.NewBorder(
-		container.NewVBox(instructions, widget.NewSeparator()),
+		container.NewVBox(instructionsRow, widget.NewSeparator()),
 		nil, nil, nil,
 		container.NewGridWithColumns(2, file1Column, file2Column),
 	)
