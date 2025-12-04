@@ -34,18 +34,25 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 	)
 
 	var tileObjects []fyne.CanvasObject
-	for _, mod := range modules {
-		modID := mod.ID // Capture for closure
+	for i := range modules {
+		mod := modules[i]   // Create new variable for this iteration
+		modID := mod.ID     // Capture for closure
 		var tapFunc func()
 		var dropFunc func([]fyne.URI)
 		if mod.Enabled {
+			// Create new closure with properly captured modID
+			id := modID // Explicit capture
 			tapFunc = func() {
-				onModuleClick(modID)
+				onModuleClick(id)
 			}
 			dropFunc = func(items []fyne.URI) {
-				onModuleDrop(modID, items)
+				fmt.Printf("[MAINMENU] dropFunc called for module=%s itemCount=%d\n", id, len(items))
+				logging.Debug(logging.CatUI, "MainMenu dropFunc called for module=%s itemCount=%d", id, len(items))
+				onModuleDrop(id, items)
 			}
 		}
+		fmt.Printf("[MAINMENU] Creating tile for module=%s enabled=%v hasDropFunc=%v\n", modID, mod.Enabled, dropFunc != nil)
+		logging.Debug(logging.CatUI, "Creating tile for module=%s enabled=%v hasDropFunc=%v", modID, mod.Enabled, dropFunc != nil)
 		tileObjects = append(tileObjects, buildModuleTile(mod, tapFunc, dropFunc))
 	}
 

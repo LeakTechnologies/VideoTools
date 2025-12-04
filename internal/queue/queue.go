@@ -330,6 +330,22 @@ func (q *Queue) processJobs() {
 			return
 		}
 
+		// Check if there's already a running job (only process one at a time)
+		hasRunningJob := false
+		for _, job := range q.jobs {
+			if job.Status == JobStatusRunning {
+				hasRunningJob = true
+				break
+			}
+		}
+
+		// If a job is already running, wait and check again later
+		if hasRunningJob {
+			q.mu.Unlock()
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+
 		// Find highest priority pending job
 		var nextJob *Job
 		highestPriority := -1
