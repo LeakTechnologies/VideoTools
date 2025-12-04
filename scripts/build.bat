@@ -94,6 +94,11 @@ if !GCC_CHECK! neq 0 (
             winget install -e --id=MSYS2.MSYS2
             set MSYS2_INSTALL_RESULT=!ERRORLEVEL!
 
+        REM Check if MSYS2 is installed (either newly installed or already present)
+        if exist "C:\msys64\usr\bin\bash.exe" (
+            set MSYS2_INSTALL_RESULT=0
+        )
+
         if !MSYS2_INSTALL_RESULT! equ 0 (
             echo [OK] MSYS2 installed successfully!
             echo.
