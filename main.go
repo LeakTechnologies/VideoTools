@@ -703,6 +703,49 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 		return
 	}
 
+	// If compare module, load up to 2 videos into compare slots
+	if moduleID == "compare" {
+		go func() {
+			// Load first video
+			src1, err := probeVideo(videoPaths[0])
+			if err != nil {
+				logging.Debug(logging.CatModule, "failed to load first video for compare: %v", err)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+				}, false)
+				return
+			}
+
+			// Load second video if available
+			var src2 *videoSource
+			if len(videoPaths) >= 2 {
+				src2, err = probeVideo(videoPaths[1])
+				if err != nil {
+					logging.Debug(logging.CatModule, "failed to load second video for compare: %v", err)
+					// Continue with just first video
+				}
+			}
+
+			// Show dialog if more than 2 videos
+			if len(videoPaths) > 2 {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowInformation("Compare Videos",
+						fmt.Sprintf("You dropped %d videos. Only the first two will be loaded for comparison.", len(videoPaths)),
+						s.window)
+				}, false)
+			}
+
+			// Update state and show module
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.compareFile1 = src1
+				s.compareFile2 = src2
+				s.showModule(moduleID)
+				logging.Debug(logging.CatModule, "loaded %d video(s) for compare module", len(videoPaths))
+			}, false)
+		}()
+		return
+	}
+
 	// Single file or non-convert module: load first video and show module
 	path := videoPaths[0]
 	logging.Debug(logging.CatModule, "drop on module %s path=%s - starting load", moduleID, path)
@@ -5297,205 +5340,192 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// Instructions
-	instructions := widget.NewLabel("Load two videos to compare their metadata and visual differences side by side. Drag videos here or use buttons below.")
+	instructions := widget.NewLabel("Load two videos to compare their metadata side by side. Drag videos here or use buttons below.")
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
-	// File labels (declare early for use in helper)
+	// File labels
 	file1Label := widget.NewLabel("File 1: Not loaded")
 	file1Label.TextStyle = fyne.TextStyle{Bold: true}
 
 	file2Label := widget.NewLabel("File 2: Not loaded")
 	file2Label.TextStyle = fyne.TextStyle{Bold: true}
 
-	file1SelectBtn := widget.NewButton("Load File 1", func() {
-		// File picker for first file
-		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
-			if err != nil || reader == nil {
-				return
-			}
-			path := reader.URI().Path()
-			reader.Close()
+	// Thumbnail images
+	file1Thumbnail := canvas.NewImageFromImage(nil)
+	file1Thumbnail.FillMode = canvas.ImageFillContain
+	file1Thumbnail.SetMinSize(fyne.NewSize(320, 180))
 
-			// Probe the video
-			src, err := probeVideo(path)
-			if err != nil {
-				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
-				return
-			}
+	file2Thumbnail := canvas.NewImageFromImage(nil)
+	file2Thumbnail.FillMode = canvas.ImageFillContain
+	file2Thumbnail.SetMinSize(fyne.NewSize(320, 180))
 
-			file1Label.SetText(fmt.Sprintf("File 1: %s", filepath.Base(path)))
-			state.compareFile1 = src
-			logging.Debug(logging.CatModule, "loaded compare file 1: %s", path)
-		}, state.window)
-	})
+	// Placeholder backgrounds
+	file1ThumbBg := canvas.NewRectangle(utils.MustHex("#0F1529"))
+	file1ThumbBg.SetMinSize(fyne.NewSize(320, 180))
 
+	file2ThumbBg := canvas.NewRectangle(utils.MustHex("#0F1529"))
+	file2ThumbBg.SetMinSize(fyne.NewSize(320, 180))
+
+	// Info labels
 	file1Info := widget.NewLabel("No file loaded")
 	file1Info.Wrapping = fyne.TextWrapWord
-
-	// File 2 button (label already declared earlier)
-	file2SelectBtn := widget.NewButton("Load File 2", func() {
-		// File picker for second file
-		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
-			if err != nil || reader == nil {
-				return
-			}
-			path := reader.URI().Path()
-			reader.Close()
-
-			// Probe the video
-			src, err := probeVideo(path)
-			if err != nil {
-				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
-				return
-			}
-
-			file2Label.SetText(fmt.Sprintf("File 2: %s", filepath.Base(path)))
-			state.compareFile2 = src
-			logging.Debug(logging.CatModule, "loaded compare file 2: %s", path)
-		}, state.window)
-	})
 
 	file2Info := widget.NewLabel("No file loaded")
 	file2Info.Wrapping = fyne.TextWrapWord
 
-	// Compare button
-	compareBtn := widget.NewButton("COMPARE", func() {
-		if state.compareFile1 == nil || state.compareFile2 == nil {
-			dialog.ShowInformation("Compare Videos", "Please load both files first.", state.window)
+	// Helper function to format metadata
+	formatMetadata := func(src *videoSource) string {
+		fileSize := "Unknown"
+		if fi, err := os.Stat(src.Path); err == nil {
+			sizeMB := float64(fi.Size()) / (1024 * 1024)
+			if sizeMB >= 1024 {
+				fileSize = fmt.Sprintf("%.2f GB", sizeMB/1024)
+			} else {
+				fileSize = fmt.Sprintf("%.2f MB", sizeMB)
+			}
+		}
+
+		return fmt.Sprintf(
+			"━━━ FILE INFO ━━━\n"+
+				"Path: %s\n"+
+				"File Size: %s\n"+
+				"Format: %s\n"+
+				"\n━━━ VIDEO ━━━\n"+
+				"Codec: %s\n"+
+				"Resolution: %dx%d\n"+
+				"Aspect Ratio: %s\n"+
+				"Frame Rate: %.2f fps\n"+
+				"Bitrate: %s\n"+
+				"Pixel Format: %s\n"+
+				"Color Space: %s\n"+
+				"Color Range: %s\n"+
+				"Field Order: %s\n"+
+				"GOP Size: %d\n"+
+				"\n━━━ AUDIO ━━━\n"+
+				"Codec: %s\n"+
+				"Bitrate: %s\n"+
+				"Sample Rate: %d Hz\n"+
+				"Channels: %d\n"+
+				"\n━━━ OTHER ━━━\n"+
+				"Duration: %s\n"+
+				"SAR (Pixel Aspect): %s\n"+
+				"Chapters: %v\n"+
+				"Metadata: %v",
+			filepath.Base(src.Path),
+			fileSize,
+			src.Format,
+			src.VideoCodec,
+			src.Width, src.Height,
+			src.AspectRatioString(),
+			src.FrameRate,
+			formatBitrate(src.Bitrate),
+			src.PixelFormat,
+			src.ColorSpace,
+			src.ColorRange,
+			src.FieldOrder,
+			src.GOPSize,
+			src.AudioCodec,
+			formatBitrate(src.AudioBitrate),
+			src.AudioRate,
+			src.Channels,
+			src.DurationString(),
+			src.SampleAspectRatio,
+			src.HasChapters,
+			src.HasMetadata,
+		)
+	}
+
+	// Helper to load thumbnail for a video
+	loadThumbnail := func(src *videoSource, img *canvas.Image) {
+		if src == nil || len(src.PreviewFrames) == 0 {
 			return
 		}
-
-		// Build comparison data
-		f1 := state.compareFile1
-		f2 := state.compareFile2
-
-		// Calculate file size
-		file1Size := "Unknown"
-		if fi, err := os.Stat(f1.Path); err == nil {
-			sizeMB := float64(fi.Size()) / (1024 * 1024)
-			if sizeMB >= 1024 {
-				file1Size = fmt.Sprintf("%.2f GB", sizeMB/1024)
-			} else {
-				file1Size = fmt.Sprintf("%.2f MB", sizeMB)
-			}
+		// Load the first preview frame as thumbnail
+		thumbImg := canvas.NewImageFromFile(src.PreviewFrames[0])
+		if thumbImg.Image != nil {
+			img.Image = thumbImg.Image
+			img.Refresh()
 		}
+	}
 
-		file1Info.SetText(fmt.Sprintf(
-			"━━━ FILE INFO ━━━\n"+
-				"Path: %s\n"+
-				"File Size: %s\n"+
-				"Format: %s\n"+
-				"\n━━━ VIDEO ━━━\n"+
-				"Codec: %s\n"+
-				"Resolution: %dx%d\n"+
-				"Aspect Ratio: %s\n"+
-				"Frame Rate: %.2f fps\n"+
-				"Bitrate: %s\n"+
-				"Pixel Format: %s\n"+
-				"Color Space: %s\n"+
-				"Color Range: %s\n"+
-				"Field Order: %s\n"+
-				"GOP Size: %d\n"+
-				"\n━━━ AUDIO ━━━\n"+
-				"Codec: %s\n"+
-				"Bitrate: %s\n"+
-				"Sample Rate: %d Hz\n"+
-				"Channels: %d\n"+
-				"\n━━━ OTHER ━━━\n"+
-				"Duration: %s\n"+
-				"SAR (Pixel Aspect): %s\n"+
-				"Chapters: %v\n"+
-				"Metadata: %v",
-			filepath.Base(f1.Path),
-			file1Size,
-			f1.Format,
-			f1.VideoCodec,
-			f1.Width, f1.Height,
-			f1.AspectRatioString(),
-			f1.FrameRate,
-			formatBitrate(f1.Bitrate),
-			f1.PixelFormat,
-			f1.ColorSpace,
-			f1.ColorRange,
-			f1.FieldOrder,
-			f1.GOPSize,
-			f1.AudioCodec,
-			formatBitrate(f1.AudioBitrate),
-			f1.AudioRate,
-			f1.Channels,
-			f1.DurationString(),
-			f1.SampleAspectRatio,
-			f1.HasChapters,
-			f1.HasMetadata,
-		))
-
-		// Calculate file size
-		file2Size := "Unknown"
-		if fi, err := os.Stat(f2.Path); err == nil {
-			sizeMB := float64(fi.Size()) / (1024 * 1024)
-			if sizeMB >= 1024 {
-				file2Size = fmt.Sprintf("%.2f GB", sizeMB/1024)
-			} else {
-				file2Size = fmt.Sprintf("%.2f MB", sizeMB)
-			}
+	// Helper to update file display
+	updateFile1 := func() {
+		if state.compareFile1 != nil {
+			file1Label.SetText(fmt.Sprintf("File 1: %s", filepath.Base(state.compareFile1.Path)))
+			file1Info.SetText(formatMetadata(state.compareFile1))
+			loadThumbnail(state.compareFile1, file1Thumbnail)
+		} else {
+			file1Label.SetText("File 1: Not loaded")
+			file1Info.SetText("No file loaded")
+			file1Thumbnail.Image = nil
+			file1Thumbnail.Refresh()
 		}
+	}
 
-		file2Info.SetText(fmt.Sprintf(
-			"━━━ FILE INFO ━━━\n"+
-				"Path: %s\n"+
-				"File Size: %s\n"+
-				"Format: %s\n"+
-				"\n━━━ VIDEO ━━━\n"+
-				"Codec: %s\n"+
-				"Resolution: %dx%d\n"+
-				"Aspect Ratio: %s\n"+
-				"Frame Rate: %.2f fps\n"+
-				"Bitrate: %s\n"+
-				"Pixel Format: %s\n"+
-				"Color Space: %s\n"+
-				"Color Range: %s\n"+
-				"Field Order: %s\n"+
-				"GOP Size: %d\n"+
-				"\n━━━ AUDIO ━━━\n"+
-				"Codec: %s\n"+
-				"Bitrate: %s\n"+
-				"Sample Rate: %d Hz\n"+
-				"Channels: %d\n"+
-				"\n━━━ OTHER ━━━\n"+
-				"Duration: %s\n"+
-				"SAR (Pixel Aspect): %s\n"+
-				"Chapters: %v\n"+
-				"Metadata: %v",
-			filepath.Base(f2.Path),
-			file2Size,
-			f2.Format,
-			f2.VideoCodec,
-			f2.Width, f2.Height,
-			f2.AspectRatioString(),
-			f2.FrameRate,
-			formatBitrate(f2.Bitrate),
-			f2.PixelFormat,
-			f2.ColorSpace,
-			f2.ColorRange,
-			f2.FieldOrder,
-			f2.GOPSize,
-			f2.AudioCodec,
-			formatBitrate(f2.AudioBitrate),
-			f2.AudioRate,
-			f2.Channels,
-			f2.DurationString(),
-			f2.SampleAspectRatio,
-			f2.HasChapters,
-			f2.HasMetadata,
-		))
+	updateFile2 := func() {
+		if state.compareFile2 != nil {
+			file2Label.SetText(fmt.Sprintf("File 2: %s", filepath.Base(state.compareFile2.Path)))
+			file2Info.SetText(formatMetadata(state.compareFile2))
+			loadThumbnail(state.compareFile2, file2Thumbnail)
+		} else {
+			file2Label.SetText("File 2: Not loaded")
+			file2Info.SetText("No file loaded")
+			file2Thumbnail.Image = nil
+			file2Thumbnail.Refresh()
+		}
+	}
+
+	// Initialize with any already-loaded files
+	updateFile1()
+	updateFile2()
+
+	file1SelectBtn := widget.NewButton("Load File 1", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			path := reader.URI().Path()
+			reader.Close()
+
+			src, err := probeVideo(path)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
+				return
+			}
+
+			state.compareFile1 = src
+			updateFile1()
+			logging.Debug(logging.CatModule, "loaded compare file 1: %s", path)
+		}, state.window)
 	})
-	compareBtn.Importance = widget.HighImportance
+
+	file2SelectBtn := widget.NewButton("Load File 2", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			path := reader.URI().Path()
+			reader.Close()
+
+			src, err := probeVideo(path)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
+				return
+			}
+
+			state.compareFile2 = src
+			updateFile2()
+			logging.Debug(logging.CatModule, "loaded compare file 2: %s", path)
+		}, state.window)
+	})
 
 	// Layout
 	file1Box := container.NewVBox(
 		file1Label,
 		file1SelectBtn,
+		widget.NewSeparator(),
+		container.NewMax(file1ThumbBg, file1Thumbnail),
 		widget.NewSeparator(),
 		container.NewScroll(file1Info),
 	)
@@ -5503,6 +5533,8 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	file2Box := container.NewVBox(
 		file2Label,
 		file2SelectBtn,
+		widget.NewSeparator(),
+		container.NewMax(file2ThumbBg, file2Thumbnail),
 		widget.NewSeparator(),
 		container.NewScroll(file2Info),
 	)
@@ -5513,8 +5545,6 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	// Main content
 	content := container.NewVBox(
 		instructions,
-		widget.NewSeparator(),
-		compareBtn,
 		widget.NewSeparator(),
 		container.NewGridWithColumns(2,
 			file1Box,
