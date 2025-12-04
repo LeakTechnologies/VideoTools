@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"strconv"
@@ -132,6 +133,10 @@ type convertConfig struct {
 	Deinterlace        string // Auto, Force, Off
 	DeinterlaceMethod  string // yadif, bwdif (bwdif is higher quality but slower)
 	AutoCrop           bool   // Auto-detect and remove black bars
+	CropWidth          string // Manual crop width (empty = use auto-detect)
+	CropHeight         string // Manual crop height (empty = use auto-detect)
+	CropX              string // Manual crop X offset (empty = use auto-detect)
+	CropY              string // Manual crop Y offset (empty = use auto-detect)
 
 	// Audio encoding settings
 	AudioCodec       string // AAC, Opus, MP3, FLAC, Copy
@@ -613,6 +618,11 @@ func (s *appState) addConvertToQueue() error {
 		"h264Level":          cfg.H264Level,
 		"deinterlace":        cfg.Deinterlace,
 		"deinterlaceMethod":  cfg.DeinterlaceMethod,
+		"autoCrop":           cfg.AutoCrop,
+		"cropWidth":          cfg.CropWidth,
+		"cropHeight":         cfg.CropHeight,
+		"cropX":              cfg.CropX,
+		"cropY":              cfg.CropY,
 		"audioCodec":         cfg.AudioCodec,
 		"audioBitrate":     cfg.AudioBitrate,
 		"audioChannels":    cfg.AudioChannels,
@@ -1012,6 +1022,33 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			vf = append(vf, "bwdif=mode=send_frame:parity=auto")
 		} else {
 			vf = append(vf, "yadif=0:-1:0")
+		}
+	}
+
+	// Auto-crop black bars (apply before scaling for best results)
+	if autoCrop, _ := cfg["autoCrop"].(bool); autoCrop {
+		cropWidth, _ := cfg["cropWidth"].(string)
+		cropHeight, _ := cfg["cropHeight"].(string)
+		cropX, _ := cfg["cropX"].(string)
+		cropY, _ := cfg["cropY"].(string)
+
+		if cropWidth != "" && cropHeight != "" {
+			cropW := strings.TrimSpace(cropWidth)
+			cropH := strings.TrimSpace(cropHeight)
+			cropXStr := strings.TrimSpace(cropX)
+			cropYStr := strings.TrimSpace(cropY)
+
+			// Default to center crop if X/Y not specified
+			if cropXStr == "" {
+				cropXStr = "(in_w-out_w)/2"
+			}
+			if cropYStr == "" {
+				cropYStr = "(in_h-out_h)/2"
+			}
+
+			cropFilter := fmt.Sprintf("crop=%s:%s:%s:%s", cropW, cropH, cropXStr, cropYStr)
+			vf = append(vf, cropFilter)
+			logging.Debug(logging.CatFFMPEG, "applying crop in queue job: %s", cropFilter)
 		}
 	}
 
@@ -1756,6 +1793,69 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	inverseCheck.Checked = state.convert.InverseTelecine
 	inverseHint := widget.NewLabel(state.convert.InverseAutoNotes)
 
+	// Auto-crop controls
+	autoCropCheck := widget.NewCheck("Auto-Detect Black Bars", func(checked bool) {
+		state.convert.AutoCrop = checked
+		logging.Debug(logging.CatUI, "auto-crop set to %v", checked)
+	})
+	autoCropCheck.Checked = state.convert.AutoCrop
+
+	var detectCropBtn *widget.Button
+	detectCropBtn = widget.NewButton("Detect Crop", func() {
+		if src == nil {
+			dialog.ShowInformation("Auto-Crop", "Load a video first.", state.window)
+			return
+		}
+		// Run detection in background
+		go func() {
+			detectCropBtn.SetText("Detecting...")
+			detectCropBtn.Disable()
+			defer func() {
+				detectCropBtn.SetText("Detect Crop")
+				detectCropBtn.Enable()
+			}()
+
+			crop := detectCrop(src.Path, src.Duration)
+			if crop == nil {
+				dialog.ShowInformation("Auto-Crop", "No black bars detected. Video is already fully cropped.", state.window)
+				return
+			}
+
+			// Calculate savings
+			originalPixels := src.Width * src.Height
+			croppedPixels := crop.Width * crop.Height
+			savingsPercent := (1.0 - float64(croppedPixels)/float64(originalPixels)) * 100
+
+			// Show detection results and apply
+			message := fmt.Sprintf("Detected crop:\n\n"+
+				"Original: %dx%d\n"+
+				"Cropped: %dx%d (offset %d,%d)\n"+
+				"Estimated file size reduction: %.1f%%\n\n"+
+				"Apply these crop values?",
+				src.Width, src.Height,
+				crop.Width, crop.Height, crop.X, crop.Y,
+				savingsPercent)
+
+			dialog.ShowConfirm("Auto-Crop Detection", message, func(apply bool) {
+				if apply {
+					state.convert.CropWidth = fmt.Sprintf("%d", crop.Width)
+					state.convert.CropHeight = fmt.Sprintf("%d", crop.Height)
+					state.convert.CropX = fmt.Sprintf("%d", crop.X)
+					state.convert.CropY = fmt.Sprintf("%d", crop.Y)
+					state.convert.AutoCrop = true
+					autoCropCheck.SetChecked(true)
+					logging.Debug(logging.CatUI, "applied detected crop: %dx%d at %d,%d", crop.Width, crop.Height, crop.X, crop.Y)
+				}
+			}, state.window)
+		}()
+	})
+	if src == nil {
+		detectCropBtn.Disable()
+	}
+
+	autoCropHint := widget.NewLabel("Removes black bars to reduce file size (15-30% typical reduction)")
+	autoCropHint.Wrapping = fyne.TextWrapWord
+
 	aspectTargets := []string{"Source", "16:9", "4:3", "1:1", "9:16", "21:9"}
 	targetAspectSelect := widget.NewSelect(aspectTargets, func(value string) {
 		logging.Debug(logging.CatUI, "target aspect set to %s", value)
@@ -2072,6 +2172,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		audioBitrateSelect,
 		widget.NewLabelWithStyle("Audio Channels", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioChannelsSelect,
+		widget.NewSeparator(),
+
+		widget.NewLabelWithStyle("═══ AUTO-CROP ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		autoCropCheck,
+		detectCropBtn,
+		autoCropHint,
 		widget.NewSeparator(),
 
 		widget.NewLabelWithStyle("═══ DEINTERLACING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
@@ -3922,10 +4028,27 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 	// Auto-crop black bars (apply before scaling for best results)
 	if cfg.AutoCrop {
-		// Use cropdetect filter - this will need manual application for now
-		// In future versions, we'll auto-detect and apply the crop
-		vf = append(vf, "cropdetect=24:16:0")
-		logging.Debug(logging.CatFFMPEG, "auto-crop enabled (cropdetect filter added)")
+		// Apply crop using detected or manual values
+		if cfg.CropWidth != "" && cfg.CropHeight != "" {
+			cropW := strings.TrimSpace(cfg.CropWidth)
+			cropH := strings.TrimSpace(cfg.CropHeight)
+			cropX := strings.TrimSpace(cfg.CropX)
+			cropY := strings.TrimSpace(cfg.CropY)
+
+			// Default to center crop if X/Y not specified
+			if cropX == "" {
+				cropX = "(in_w-out_w)/2"
+			}
+			if cropY == "" {
+				cropY = "(in_h-out_h)/2"
+			}
+
+			cropFilter := fmt.Sprintf("crop=%s:%s:%s:%s", cropW, cropH, cropX, cropY)
+			vf = append(vf, cropFilter)
+			logging.Debug(logging.CatFFMPEG, "applying crop: %s", cropFilter)
+		} else {
+			logging.Debug(logging.CatFFMPEG, "auto-crop enabled but no crop values specified, skipping")
+		}
 	}
 
 	// Scaling/Resolution
@@ -4826,6 +4949,74 @@ func probeVideo(path string) (*videoSource, error) {
 	}
 
 	return src, nil
+}
+
+// CropValues represents detected crop parameters
+type CropValues struct {
+	Width  int
+	Height int
+	X      int
+	Y      int
+}
+
+// detectCrop runs cropdetect analysis on a video to find black bars
+// Returns nil if no crop is detected or if detection fails
+func detectCrop(path string, duration float64) *CropValues {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Sample 10 seconds from the middle of the video
+	sampleStart := duration / 2
+	if sampleStart < 0 {
+		sampleStart = 0
+	}
+
+	// Run ffmpeg with cropdetect filter
+	cmd := exec.CommandContext(ctx, "ffmpeg",
+		"-ss", fmt.Sprintf("%.2f", sampleStart),
+		"-i", path,
+		"-t", "10",
+		"-vf", "cropdetect=24:16:0",
+		"-f", "null",
+		"-",
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logging.Debug(logging.CatFFMPEG, "cropdetect failed: %v", err)
+		return nil
+	}
+
+	// Parse the output to find the most common crop values
+	// Look for lines like: [Parsed_cropdetect_0 @ 0x...] x1:0 x2:1919 y1:0 y2:803 w:1920 h:800 x:0 y:2 pts:... t:... crop=1920:800:0:2
+	outputStr := string(output)
+	cropRegex := regexp.MustCompile(`crop=(\d+):(\d+):(\d+):(\d+)`)
+
+	// Find all crop suggestions
+	matches := cropRegex.FindAllStringSubmatch(outputStr, -1)
+	if len(matches) == 0 {
+		logging.Debug(logging.CatFFMPEG, "no crop values detected")
+		return nil
+	}
+
+	// Use the last crop value (most stable after initial detection)
+	lastMatch := matches[len(matches)-1]
+	if len(lastMatch) != 5 {
+		return nil
+	}
+
+	width, _ := strconv.Atoi(lastMatch[1])
+	height, _ := strconv.Atoi(lastMatch[2])
+	x, _ := strconv.Atoi(lastMatch[3])
+	y, _ := strconv.Atoi(lastMatch[4])
+
+	logging.Debug(logging.CatFFMPEG, "detected crop: %dx%d at %d,%d", width, height, x, y)
+	return &CropValues{
+		Width:  width,
+		Height: height,
+		X:      x,
+		Y:      y,
+	}
 }
 
 // formatBitrate formats a bitrate in bits/s to a human-readable string
