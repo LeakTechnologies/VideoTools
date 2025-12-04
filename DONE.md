@@ -17,6 +17,16 @@ This file tracks completed features, fixes, and milestones.
   - Proper handling for videos without black bars
   - 30-second timeout protection for detection process
 
+- ✅ **Frame Rate Conversion UI with Size Estimates**
+  - Comprehensive frame rate options: Source, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60
+  - Intelligent file size reduction estimates (40-50% for 60→30 fps)
+  - Real-time hints showing "Converting X → Y fps: ~Z% smaller file"
+  - Warning for upscaling attempts with judder notice
+  - Automatic calculation based on source and target frame rates
+  - Dynamic updates when video or frame rate changes
+  - Supports both film (24 fps) and broadcast standards (25/29.97/30)
+  - Uses FFmpeg fps filter for frame rate conversion
+
 - ✅ **Compare Module**
   - Side-by-side video comparison interface
   - Load two videos and compare detailed metadata

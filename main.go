@@ -1999,12 +1999,44 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	videoCodecSelect.SetSelected(state.convert.VideoCodec)
 
-	// Encoder Preset
+	// Encoder Preset with hint
+	encoderPresetHint := widget.NewLabel("")
+	encoderPresetHint.Wrapping = fyne.TextWrapWord
+
+	updateEncoderPresetHint := func(preset string) {
+		var hint string
+		switch preset {
+		case "ultrafast":
+			hint = "⚡ Ultrafast: Fastest encoding, largest files (~10x faster than slow, ~30% larger files)"
+		case "superfast":
+			hint = "⚡ Superfast: Very fast encoding, large files (~7x faster than slow, ~20% larger files)"
+		case "veryfast":
+			hint = "⚡ Very Fast: Fast encoding, moderately large files (~5x faster than slow, ~15% larger files)"
+		case "faster":
+			hint = "⏩ Faster: Quick encoding, slightly large files (~3x faster than slow, ~10% larger files)"
+		case "fast":
+			hint = "⏩ Fast: Good speed, slightly large files (~2x faster than slow, ~5% larger files)"
+		case "medium":
+			hint = "⚖️ Medium (default): Balanced speed and quality (baseline for comparison)"
+		case "slow":
+			hint = "🎯 Slow (recommended): Best quality/size ratio (~2x slower than medium, ~5-10% smaller)"
+		case "slower":
+			hint = "🎯 Slower: Excellent compression (~3x slower than medium, ~10-15% smaller files)"
+		case "veryslow":
+			hint = "🐌 Very Slow: Maximum compression (~5x slower than medium, ~15-20% smaller files)"
+		default:
+			hint = ""
+		}
+		encoderPresetHint.SetText(hint)
+	}
+
 	encoderPresetSelect := widget.NewSelect([]string{"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"}, func(value string) {
 		state.convert.EncoderPreset = value
 		logging.Debug(logging.CatUI, "encoder preset set to %s", value)
+		updateEncoderPresetHint(value)
 	})
 	encoderPresetSelect.SetSelected(state.convert.EncoderPreset)
+	updateEncoderPresetHint(state.convert.EncoderPreset)
 
 	// Bitrate Mode
 	bitrateModeSelect := widget.NewSelect([]string{"CRF", "CBR", "VBR", "Target Size"}, func(value string) {
@@ -2198,6 +2230,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		videoCodecSelect,
 		widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		encoderPresetSelect,
+		encoderPresetHint,
 		widget.NewLabelWithStyle("Quality Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		qualitySelect,
 		widget.NewLabelWithStyle("Bitrate Mode", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
