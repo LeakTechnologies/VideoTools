@@ -27,6 +27,16 @@ This file tracks completed features, fixes, and milestones.
   - Supports both film (24 fps) and broadcast standards (25/29.97/30)
   - Uses FFmpeg fps filter for frame rate conversion
 
+- ✅ **Encoder Preset Descriptions with Speed/Quality Trade-offs**
+  - Detailed information for all 9 preset options
+  - Speed comparisons relative to "slow" and "medium" baselines
+  - File size impact percentages for each preset
+  - Visual icons indicating speed categories (⚡⏩⚖️🎯🐌)
+  - Recommends "slow" as best quality/size ratio
+  - Dynamic hint updates when preset changes
+  - Helps users make informed encoding time decisions
+  - Ranges from ultrafast (~10x faster, ~30% larger) to veryslow (~5x slower, ~15-20% smaller)
+
 - ✅ **Compare Module**
   - Side-by-side video comparison interface
   - Load two videos and compare detailed metadata
