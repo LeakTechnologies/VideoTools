@@ -16,10 +16,10 @@ This file tracks upcoming features, improvements, and known issues.
   - Auto-suggest 60→30fps conversion with size estimate
   - Show file size impact (40-50% reduction for 60→30)
 
-- [ ] **HEVC/H.265 preset options**
-  - Add preset dropdown: ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
+- [x] **HEVC/H.265 encoder preset options** (v0.1.0-dev13 - COMPLETED)
+  - Preset dropdown: ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
   - Show time/quality trade-off estimates
-  - Default to "slow" for best quality/size balance
+  - Recommend "slow" for best quality/size balance
 
 - [ ] **Advanced filters module**
   - Denoising: hqdn3d (fast), nlmeans (slow, high quality)
