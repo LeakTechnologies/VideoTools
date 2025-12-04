@@ -32,6 +32,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
@@ -65,6 +66,7 @@ var (
 		{"upscale", "Upscale", utils.MustHex("#AAFF44"), modules.HandleUpscale}, // Yellow-Green
 		{"audio", "Audio", utils.MustHex("#FFD744"), modules.HandleAudio},       // Yellow
 		{"thumb", "Thumb", utils.MustHex("#FF8844"), modules.HandleThumb},       // Orange
+		{"compare", "Compare", utils.MustHex("#FF44AA"), modules.HandleCompare}, // Pink
 		{"inspect", "Inspect", utils.MustHex("#FF4444"), modules.HandleInspect}, // Red
 	}
 )
@@ -117,9 +119,9 @@ type convertConfig struct {
 	VideoCodec       string // H.264, H.265, VP9, AV1, Copy
 	EncoderPreset    string // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
 	CRF              string // Manual CRF value (0-51, or empty to use Quality preset)
-	BitrateMode      string // CRF, CBR, VBR, TargetSize
+	BitrateMode      string // CRF, CBR, VBR, "Target Size"
 	VideoBitrate     string // For CBR/VBR modes (e.g., "5000k")
-	TargetFileSize   string // Target file size (e.g., "25MB", "100MB") - requires BitrateMode=TargetSize
+	TargetFileSize   string // Target file size (e.g., "25MB", "100MB") - requires BitrateMode="Target Size"
 	TargetResolution string // Source, 720p, 1080p, 1440p, 4K, or custom
 	FrameRate        string // Source, 24, 30, 60, or custom
 	PixelFormat      string // yuv420p, yuv422p, yuv444p
@@ -193,6 +195,8 @@ type appState struct {
 	queueBtn         *widget.Button
 	queueScroll      *container.Scroll
 	queueOffset      fyne.Position
+	compareFile1     *videoSource
+	compareFile2     *videoSource
 }
 
 func (s *appState) stopPreview() {
@@ -599,6 +603,7 @@ func (s *appState) addConvertToQueue() error {
 		"crf":              cfg.CRF,
 		"bitrateMode":      cfg.BitrateMode,
 		"videoBitrate":     cfg.VideoBitrate,
+		"targetFileSize":   cfg.TargetFileSize,
 		"targetResolution": cfg.TargetResolution,
 		"frameRate":        cfg.FrameRate,
 		"pixelFormat":      cfg.PixelFormat,
@@ -642,6 +647,8 @@ func (s *appState) showModule(id string) {
 	switch id {
 	case "convert":
 		s.showConvertView(nil)
+	case "compare":
+		s.showCompareView()
 	default:
 		logging.Debug(logging.CatUI, "UI module %s not wired yet", id)
 	}
@@ -862,6 +869,13 @@ func (s *appState) showConvertView(file *videoSource) {
 		s.convert.AspectHandling = "Auto"
 	}
 	s.setContent(buildConvertView(s, s.source))
+}
+
+func (s *appState) showCompareView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "compare"
+	s.setContent(buildCompareView(s))
 }
 
 // jobExecutor executes a job from the queue
@@ -1091,6 +1105,31 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			} else if bitrateMode == "VBR" {
 				if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
 					args = append(args, "-b:v", videoBitrate)
+				}
+			} else if bitrateMode == "Target Size" {
+				// Calculate bitrate from target file size
+				targetSizeStr, _ := cfg["targetFileSize"].(string)
+				audioBitrateStr, _ := cfg["audioBitrate"].(string)
+				duration, _ := cfg["sourceDuration"].(float64)
+
+				if targetSizeStr != "" && duration > 0 {
+					targetBytes, err := convert.ParseFileSize(targetSizeStr)
+					if err == nil {
+						// Parse audio bitrate (default to 192k if not set)
+						audioBitrate := 192000
+						if audioBitrateStr != "" {
+							if rate, err := utils.ParseInt(strings.TrimSuffix(audioBitrateStr, "k")); err == nil {
+								audioBitrate = rate * 1000
+							}
+						}
+
+						// Calculate required video bitrate
+						videoBitrate := convert.CalculateBitrateForTargetSize(targetBytes, duration, audioBitrate)
+						videoBitrateStr := fmt.Sprintf("%dk", videoBitrate/1000)
+
+						logging.Debug(logging.CatFFMPEG, "target size mode: %s -> video bitrate %s (audio %s)", targetSizeStr, videoBitrateStr, audioBitrateStr)
+						args = append(args, "-b:v", videoBitrateStr)
+					}
 				}
 			}
 
@@ -1496,6 +1535,8 @@ func runCLI(args []string) error {
 		modules.HandleAudio(cmdArgs)
 	case "thumb":
 		modules.HandleThumb(cmdArgs)
+	case "compare":
+		modules.HandleCompare(cmdArgs)
 	case "inspect":
 		modules.HandleInspect(cmdArgs)
 	case "logs":
@@ -1560,6 +1601,7 @@ func printUsage() {
 	fmt.Println("  videotools upscale <args>")
 	fmt.Println("  videotools audio <args>")
 	fmt.Println("  videotools thumb <args>")
+	fmt.Println("  videotools compare <file1> <file2>")
 	fmt.Println("  videotools inspect <args>")
 	fmt.Println("  videotools logs                 # tail recent log lines")
 	fmt.Println("  videotools            # launch GUI")
@@ -1865,7 +1907,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	encoderPresetSelect.SetSelected(state.convert.EncoderPreset)
 
 	// Bitrate Mode
-	bitrateModeSelect := widget.NewSelect([]string{"CRF", "CBR", "VBR"}, func(value string) {
+	bitrateModeSelect := widget.NewSelect([]string{"CRF", "CBR", "VBR", "Target Size"}, func(value string) {
 		state.convert.BitrateMode = value
 		logging.Debug(logging.CatUI, "bitrate mode set to %s", value)
 	})
@@ -1885,6 +1927,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoBitrateEntry.SetText(state.convert.VideoBitrate)
 	videoBitrateEntry.OnChanged = func(val string) {
 		state.convert.VideoBitrate = val
+	}
+
+	// Target File Size entry (for Target Size mode)
+	targetFileSizeEntry := widget.NewEntry()
+	targetFileSizeEntry.SetPlaceHolder("e.g., 25MB, 100MB, 8MB")
+	targetFileSizeEntry.SetText(state.convert.TargetFileSize)
+	targetFileSizeEntry.OnChanged = func(val string) {
+		state.convert.TargetFileSize = val
 	}
 
 	// Target Resolution
@@ -1995,6 +2045,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		crfEntry,
 		widget.NewLabelWithStyle("Video Bitrate (for CBR/VBR)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		videoBitrateEntry,
+		widget.NewLabelWithStyle("Target File Size (e.g., 25MB, 100MB)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		targetFileSizeEntry,
 		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelect,
 		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -3939,6 +3991,27 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			if cfg.VideoBitrate != "" {
 				args = append(args, "-b:v", cfg.VideoBitrate)
 			}
+		} else if cfg.BitrateMode == "Target Size" {
+			// Calculate bitrate from target file size
+			if cfg.TargetFileSize != "" && src.Duration > 0 {
+				targetBytes, err := convert.ParseFileSize(cfg.TargetFileSize)
+				if err == nil {
+					// Parse audio bitrate (default to 192k if not set)
+					audioBitrate := 192000
+					if cfg.AudioBitrate != "" {
+						if rate, err := utils.ParseInt(strings.TrimSuffix(cfg.AudioBitrate, "k")); err == nil {
+							audioBitrate = rate * 1000
+						}
+					}
+
+					// Calculate required video bitrate
+					videoBitrate := convert.CalculateBitrateForTargetSize(targetBytes, src.Duration, audioBitrate)
+					videoBitrateStr := fmt.Sprintf("%dk", videoBitrate/1000)
+
+					logging.Debug(logging.CatFFMPEG, "target size mode: %s -> video bitrate %s (audio %s)", cfg.TargetFileSize, videoBitrateStr, cfg.AudioBitrate)
+					args = append(args, "-b:v", videoBitrateStr)
+				}
+			}
 		}
 
 		// Encoder preset (speed vs quality tradeoff)
@@ -4753,4 +4826,209 @@ func probeVideo(path string) (*videoSource, error) {
 	}
 
 	return src, nil
+}
+
+// formatBitrate formats a bitrate in bits/s to a human-readable string
+func formatBitrate(bps int) string {
+	if bps == 0 {
+		return "N/A"
+	}
+	kbps := float64(bps) / 1000.0
+	if kbps >= 1000 {
+		return fmt.Sprintf("%.1f Mbps", kbps/1000.0)
+	}
+	return fmt.Sprintf("%.0f kbps", kbps)
+}
+
+// buildCompareView creates the UI for comparing two videos side by side
+func buildCompareView(state *appState) fyne.CanvasObject {
+	compareColor := moduleColor("compare")
+
+	// Header
+	title := canvas.NewText("COMPARE VIDEOS", compareColor)
+	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	title.TextSize = 24
+
+	backBtn := widget.NewButton("← Back to Menu", func() {
+		state.showMainMenu()
+	})
+	backBtn.Importance = widget.LowImportance
+
+	header := container.NewBorder(nil, nil, backBtn, nil, container.NewCenter(title))
+
+	// Instructions
+	instructions := widget.NewLabel("Load two videos to compare their metadata and visual differences side by side.")
+	instructions.Wrapping = fyne.TextWrapWord
+	instructions.Alignment = fyne.TextAlignCenter
+
+	// File 1 (Source/Original)
+	file1Label := widget.NewLabel("File 1: Not loaded")
+	file1Label.TextStyle = fyne.TextStyle{Bold: true}
+
+	file1SelectBtn := widget.NewButton("Load File 1", func() {
+		// File picker for first file
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			path := reader.URI().Path()
+			reader.Close()
+
+			// Probe the video
+			src, err := probeVideo(path)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
+				return
+			}
+
+			file1Label.SetText(fmt.Sprintf("File 1: %s", filepath.Base(path)))
+			state.compareFile1 = src
+			logging.Debug(logging.CatModule, "loaded compare file 1: %s", path)
+		}, state.window)
+	})
+
+	file1Info := widget.NewLabel("No file loaded")
+	file1Info.Wrapping = fyne.TextWrapWord
+
+	// File 2 (Output/Converted)
+	file2Label := widget.NewLabel("File 2: Not loaded")
+	file2Label.TextStyle = fyne.TextStyle{Bold: true}
+
+	file2SelectBtn := widget.NewButton("Load File 2", func() {
+		// File picker for second file
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			path := reader.URI().Path()
+			reader.Close()
+
+			// Probe the video
+			src, err := probeVideo(path)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
+				return
+			}
+
+			file2Label.SetText(fmt.Sprintf("File 2: %s", filepath.Base(path)))
+			state.compareFile2 = src
+			logging.Debug(logging.CatModule, "loaded compare file 2: %s", path)
+		}, state.window)
+	})
+
+	file2Info := widget.NewLabel("No file loaded")
+	file2Info.Wrapping = fyne.TextWrapWord
+
+	// Compare button
+	compareBtn := widget.NewButton("COMPARE", func() {
+		if state.compareFile1 == nil || state.compareFile2 == nil {
+			dialog.ShowInformation("Compare Videos", "Please load both files first.", state.window)
+			return
+		}
+
+		// Build comparison data
+		f1 := state.compareFile1
+		f2 := state.compareFile2
+
+		file1Info.SetText(fmt.Sprintf(
+			"Format: %s\n"+
+				"Resolution: %dx%d\n"+
+				"Duration: %s\n"+
+				"Video Codec: %s\n"+
+				"Audio Codec: %s\n"+
+				"Video Bitrate: %s\n"+
+				"Audio Bitrate: %s\n"+
+				"Frame Rate: %.2f fps\n"+
+				"Pixel Format: %s\n"+
+				"Aspect Ratio: %s\n"+
+				"Color Space: %s\n"+
+				"Color Range: %s\n"+
+				"GOP Size: %d\n"+
+				"Field Order: %s\n"+
+				"Chapters: %v\n"+
+				"Metadata: %v",
+			f1.Format,
+			f1.Width, f1.Height,
+			f1.DurationString(),
+			f1.VideoCodec,
+			f1.AudioCodec,
+			formatBitrate(f1.Bitrate),
+			formatBitrate(f1.AudioBitrate),
+			f1.FrameRate,
+			f1.PixelFormat,
+			f1.AspectRatioString(),
+			f1.ColorSpace,
+			f1.ColorRange,
+			f1.GOPSize,
+			f1.FieldOrder,
+			f1.HasChapters,
+			f1.HasMetadata,
+		))
+
+		file2Info.SetText(fmt.Sprintf(
+			"Format: %s\n"+
+				"Resolution: %dx%d\n"+
+				"Duration: %s\n"+
+				"Video Codec: %s\n"+
+				"Audio Codec: %s\n"+
+				"Video Bitrate: %s\n"+
+				"Audio Bitrate: %s\n"+
+				"Frame Rate: %.2f fps\n"+
+				"Pixel Format: %s\n"+
+				"Aspect Ratio: %s\n"+
+				"Color Space: %s\n"+
+				"Color Range: %s\n"+
+				"GOP Size: %d\n"+
+				"Field Order: %s\n"+
+				"Chapters: %v\n"+
+				"Metadata: %v",
+			f2.Format,
+			f2.Width, f2.Height,
+			f2.DurationString(),
+			f2.VideoCodec,
+			f2.AudioCodec,
+			formatBitrate(f2.Bitrate),
+			formatBitrate(f2.AudioBitrate),
+			f2.FrameRate,
+			f2.PixelFormat,
+			f2.AspectRatioString(),
+			f2.ColorSpace,
+			f2.ColorRange,
+			f2.GOPSize,
+			f2.FieldOrder,
+			f2.HasChapters,
+			f2.HasMetadata,
+		))
+	})
+	compareBtn.Importance = widget.HighImportance
+
+	// Layout
+	file1Box := container.NewVBox(
+		file1Label,
+		file1SelectBtn,
+		widget.NewSeparator(),
+		container.NewScroll(file1Info),
+	)
+
+	file2Box := container.NewVBox(
+		file2Label,
+		file2SelectBtn,
+		widget.NewSeparator(),
+		container.NewScroll(file2Info),
+	)
+
+	content := container.NewVBox(
+		header,
+		widget.NewSeparator(),
+		instructions,
+		widget.NewSeparator(),
+		compareBtn,
+		widget.NewSeparator(),
+		container.NewGridWithColumns(2,
+			file1Box,
+			file2Box,
+		),
+	)
+
+	return container.NewPadded(content)
 }
