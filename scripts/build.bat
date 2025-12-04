@@ -28,9 +28,9 @@ where winget >nul 2>&1
 set WINGET_CHECK=!ERRORLEVEL!
 if !WINGET_CHECK! equ 0 (
     set WINGET_AVAILABLE=1
-    echo ✓ winget found (automatic installation available)
+    echo ✓ winget found ^(automatic installation available^)
 ) else (
-    echo ⚠️  winget not found (manual installation will be required)
+    echo ⚠️  winget not found ^(manual installation will be required^)
     echo    To enable automatic installation, update to Windows 10 1809+ or Windows 11
 )
 echo.
@@ -44,11 +44,11 @@ if !GIT_CHECK! equ 0 (
     echo ✓ Git found
     git --version
 ) else (
-    echo ⚠️  Git not found (recommended for development)
+    echo ⚠️  Git not found ^(recommended for development^)
 
     if !WINGET_AVAILABLE! equ 1 (
         echo.
-        echo Would you like to install Git automatically? (Y/N):
+        echo Would you like to install Git automatically? ^(Y/N^):
         set /p install_git=
 
         if /I "!install_git!"=="Y" (
@@ -84,7 +84,7 @@ if !GCC_CHECK! neq 0 (
     echo.
 
     if !WINGET_AVAILABLE! equ 1 (
-        echo Would you like to install MinGW-w64 automatically? (Y/N):
+        echo Would you like to install MinGW-w64 automatically? ^(Y/N^):
         set /p install_gcc=
 
         if /I "!install_gcc!"=="Y" (
@@ -203,7 +203,7 @@ REM ----------------------------
 REM Offer to run FFmpeg setup
 REM ----------------------------
 if exist "%~dp0setup-windows.ps1" (
-    echo Would you like to download FFmpeg now? (Y/N):
+    echo Would you like to download FFmpeg now? ^(Y/N^):
     set /p choice=
 
     if /I "!choice!"=="Y" (
