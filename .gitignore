@@ -2,3 +2,11 @@ videotools.log
 .gocache/
 .gomodcache/
 VideoTools
+
+# Windows build artifacts
+VideoTools.exe
+ffmpeg.exe
+ffprobe.exe
+ffmpeg-windows.zip
+ffmpeg-temp/
+dist/

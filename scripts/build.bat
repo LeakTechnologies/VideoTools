@@ -21,6 +21,68 @@ go version
 echo.
 
 REM ----------------------------
+REM Check for GCC (required for CGO)
+REM ----------------------------
+where gcc >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo ⚠️  WARNING: GCC not found. CGO requires a C compiler.
+    echo.
+    echo VideoTools requires MinGW-w64 to build on Windows.
+    echo.
+    echo Would you like to install MinGW-w64 automatically? (Y/N):
+    set /p install_gcc=
+
+    if /I "!install_gcc!"=="Y" (
+        echo.
+        echo 📥 Installing MinGW-w64 via winget...
+        echo This may take a few minutes...
+        winget install -e --id=MSYS2.MSYS2
+
+        if !ERRORLEVEL! equ 0 (
+            echo ✓ MSYS2 installed successfully!
+            echo.
+            echo 📦 Installing GCC toolchain...
+            C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm mingw-w64-x86_64-gcc"
+
+            if !ERRORLEVEL! equ 0 (
+                echo ✓ GCC installed successfully!
+                echo.
+                echo 🔧 Adding MinGW to PATH for this session...
+                set "PATH=C:\msys64\mingw64\bin;!PATH!"
+
+                echo ✓ Setup complete! Continuing with build...
+                echo.
+            ) else (
+                echo ❌ Failed to install GCC. Please install manually.
+                echo Visit: https://www.msys2.org/
+                exit /b 1
+            )
+        ) else (
+            echo ❌ Failed to install MSYS2. Please install manually.
+            echo Visit: https://www.msys2.org/
+            exit /b 1
+        )
+    ) else (
+        echo.
+        echo ❌ GCC is required to build VideoTools on Windows.
+        echo.
+        echo Please install MinGW-w64:
+        echo   1. Install MSYS2 from https://www.msys2.org/
+        echo   2. Run: pacman -S mingw-w64-x86_64-gcc
+        echo   3. Add C:\msys64\mingw64\bin to your PATH
+        echo.
+        echo Or install via winget:
+        echo   winget install MSYS2.MSYS2
+        echo   C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm mingw-w64-x86_64-gcc"
+        exit /b 1
+    )
+) else (
+    echo ✓ GCC found:
+    gcc --version | findstr /C:"gcc"
+    echo.
+)
+
+REM ----------------------------
 REM Move to project root
 REM ----------------------------
 pushd "%~dp0\.."
@@ -47,10 +109,12 @@ echo.
 
 REM ----------------------------
 REM Build VideoTools (Windows GUI mode)
-REM Equivalent to:
-REM go build -ldflags="-H windowsgui -s -w" -o VideoTools.exe .
+REM Note: CGO is required for Fyne/OpenGL on Windows
 REM ----------------------------
 echo 🔨 Building VideoTools.exe...
+
+REM Enable CGO for Windows build (required for Fyne)
+set CGO_ENABLED=1
 
 go build ^
     -ldflags="-H windowsgui -s -w" ^

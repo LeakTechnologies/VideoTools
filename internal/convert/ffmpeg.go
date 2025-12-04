@@ -14,6 +14,14 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
+// FFmpegPath holds the path to the ffmpeg executable
+// This should be set by the main package during initialization
+var FFmpegPath = "ffmpeg"
+
+// FFprobePath holds the path to the ffprobe executable
+// This should be set by the main package during initialization
+var FFprobePath = "ffprobe"
+
 // CRFForQuality returns the CRF value for a given quality preset
 func CRFForQuality(q string) string {
 	switch q {
@@ -237,7 +245,7 @@ func ProbeVideo(path string) (*VideoSource, error) {
 	// Extract embedded cover art if present
 	if coverArtStreamIndex >= 0 {
 		coverPath := filepath.Join(os.TempDir(), fmt.Sprintf("videotools-embedded-cover-%d.png", time.Now().UnixNano()))
-		extractCmd := exec.CommandContext(ctx, "ffmpeg",
+		extractCmd := exec.CommandContext(ctx, FFmpegPath,
 			"-i", path,
 			"-map", fmt.Sprintf("0:%d", coverArtStreamIndex),
 			"-frames:v", "1",

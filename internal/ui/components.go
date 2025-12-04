@@ -381,6 +381,9 @@ type ConversionStatsBar struct {
 	failed    int
 	progress  float64
 	jobTitle  string
+	fps       float64
+	speed     float64
+	eta       string
 	onTapped  func()
 }
 
@@ -400,6 +403,20 @@ func (c *ConversionStatsBar) UpdateStats(running, pending, completed, failed int
 	c.completed = completed
 	c.failed = failed
 	c.progress = progress
+	c.jobTitle = jobTitle
+	c.Refresh()
+}
+
+// UpdateStatsWithDetails updates the stats display with detailed conversion info
+func (c *ConversionStatsBar) UpdateStatsWithDetails(running, pending, completed, failed int, progress, fps, speed float64, eta, jobTitle string) {
+	c.running = running
+	c.pending = pending
+	c.completed = completed
+	c.failed = failed
+	c.progress = progress
+	c.fps = fps
+	c.speed = speed
+	c.eta = eta
 	c.jobTitle = jobTitle
 	c.Refresh()
 }
@@ -489,6 +506,21 @@ func (r *conversionStatsRenderer) Refresh() {
 
 		// Always show progress percentage when running (even if 0%)
 		statusStr += " • " + formatProgress(r.bar.progress)
+
+		// Show FPS if available
+		if r.bar.fps > 0 {
+			statusStr += fmt.Sprintf(" • %.0f fps", r.bar.fps)
+		}
+
+		// Show speed if available
+		if r.bar.speed > 0 {
+			statusStr += fmt.Sprintf(" • %.2fx", r.bar.speed)
+		}
+
+		// Show ETA if available
+		if r.bar.eta != "" {
+			statusStr += " • ETA " + r.bar.eta
+		}
 
 		if r.bar.pending > 0 {
 			statusStr += " • " + formatCount(r.bar.pending, "pending")

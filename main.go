@@ -70,6 +70,9 @@ var (
 		{"compare", "Compare", utils.MustHex("#FF44AA"), modules.HandleCompare}, // Pink
 		{"inspect", "Inspect", utils.MustHex("#FF4444"), modules.HandleInspect}, // Red
 	}
+
+	// Platform-specific configuration
+	platformConfig *PlatformConfig
 )
 
 // moduleColor returns the color for a given module ID
@@ -126,7 +129,7 @@ type convertConfig struct {
 	TargetResolution string // Source, 720p, 1080p, 1440p, 4K, or custom
 	FrameRate        string // Source, 24, 30, 60, or custom
 	PixelFormat      string // yuv420p, yuv422p, yuv444p
-	HardwareAccel    string // none, nvenc, vaapi, qsv, videotoolbox
+	HardwareAccel    string // none, nvenc, amf, vaapi, qsv, videotoolbox
 	TwoPass          bool   // Enable two-pass encoding for VBR
 	H264Profile        string // baseline, main, high (for H.264 compatibility)
 	H264Level          string // 3.0, 3.1, 4.0, 4.1, 5.0, 5.1 (for H.264 compatibility)
@@ -223,15 +226,28 @@ func (s *appState) updateStatsBar() {
 
 	pending, running, completed, failed := s.jobQueue.Stats()
 
-	// Find the currently running job to get its progress
-	var progress float64
-	var jobTitle string
+	// Find the currently running job to get its progress and stats
+	var progress, fps, speed float64
+	var eta, jobTitle string
 	if running > 0 {
 		jobs := s.jobQueue.List()
 		for _, job := range jobs {
 			if job.Status == queue.JobStatusRunning {
 				progress = job.Progress
 				jobTitle = job.Title
+
+				// Extract stats from job config if available
+				if job.Config != nil {
+					if f, ok := job.Config["fps"].(float64); ok {
+						fps = f
+					}
+					if sp, ok := job.Config["speed"].(float64); ok {
+						speed = sp
+					}
+					if etaDuration, ok := job.Config["eta"].(time.Duration); ok && etaDuration > 0 {
+						eta = etaDuration.Round(time.Second).String()
+					}
+				}
 				break
 			}
 		}
@@ -244,9 +260,14 @@ func (s *appState) updateStatsBar() {
 		}
 		jobTitle = fmt.Sprintf("Direct convert: %s", in)
 		progress = s.convertProgress
+		fps = s.convertFPS
+		speed = s.convertSpeed
+		if s.convertETA > 0 {
+			eta = s.convertETA.Round(time.Second).String()
+		}
 	}
 
-	s.statsBar.UpdateStats(running, pending, completed, failed, progress, jobTitle)
+	s.statsBar.UpdateStatsWithDetails(running, pending, completed, failed, progress, fps, speed, eta, jobTitle)
 }
 
 func (s *appState) queueProgressCounts() (completed, total int) {
@@ -655,6 +676,7 @@ func (s *appState) addConvertToQueue() error {
 		"sourceHeight":     src.Height,
 		"sourceDuration":   src.Duration,
 		"fieldOrder":       src.FieldOrder,
+		"autoCompare":      s.autoCompare, // Include auto-compare flag
 	}
 
 	job := &queue.Job{
@@ -1054,18 +1076,20 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	// Check if this is a DVD format (special handling required)
 	selectedFormat, _ := cfg["selectedFormat"].(formatOption)
 	isDVD := selectedFormat.Ext == ".mpg"
-	var targetOption string
 
-	// DVD presets: enforce compliant target, frame rate, resolution, codecs
+	// DVD presets: enforce compliant codecs and audio settings
+	// Note: We do NOT force resolution - user can choose Source or specific resolution
 	if isDVD {
 		if strings.Contains(selectedFormat.Label, "PAL") {
-			targetOption = "pal-dvd"
-			cfg["frameRate"] = "25"
-			cfg["targetResolution"] = "PAL (720×576)"
+			// Only set frame rate if not already specified
+			if fr, ok := cfg["frameRate"].(string); !ok || fr == "" || fr == "Source" {
+				cfg["frameRate"] = "25"
+			}
 		} else {
-			targetOption = "ntsc-dvd"
-			cfg["frameRate"] = "29.97"
-			cfg["targetResolution"] = "NTSC (720×480)"
+			// Only set frame rate if not already specified
+			if fr, ok := cfg["frameRate"].(string); !ok || fr == "" || fr == "Source" {
+				cfg["frameRate"] = "29.97"
+			}
 		}
 		cfg["videoCodec"] = "MPEG-2"
 		cfg["audioCodec"] = "AC-3"
@@ -1089,7 +1113,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Hardware acceleration for decoding
-	// Note: NVENC doesn't need -hwaccel for encoding, only for decoding
+	// Note: NVENC and AMF don't need -hwaccel for encoding, only for decoding
 	hardwareAccel, _ := cfg["hardwareAccel"].(string)
 	if hardwareAccel != "none" && hardwareAccel != "" {
 		switch hardwareAccel {
@@ -1097,6 +1121,9 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			// For NVENC, we don't add -hwaccel flags
 			// The h264_nvenc/hevc_nvenc encoder handles GPU encoding directly
 			// Only add hwaccel if we want GPU decoding too, which can cause issues
+		case "amf":
+			// For AMD AMF, we don't add -hwaccel flags
+			// The h264_amf/hevc_amf/av1_amf encoders handle GPU encoding directly
 		case "vaapi":
 			args = append(args, "-hwaccel", "vaapi")
 		case "qsv":
@@ -1395,9 +1422,8 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		args = append(args, "-movflags", "+faststart")
 	}
 
-	if targetOption != "" {
-		args = append(args, "-target", targetOption)
-	}
+	// Note: We no longer use -target because it forces resolution changes.
+	// DVD-specific parameters are set manually in the video codec section below.
 
 	// Fix VFR/desync issues - regenerate timestamps and enforce CFR
 	args = append(args, "-fflags", "+genpts")
@@ -1420,7 +1446,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	fmt.Printf("\n=== FFMPEG COMMAND ===\nffmpeg %s\n======================\n\n", strings.Join(args, " "))
 
 	// Execute FFmpeg
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
@@ -1440,10 +1466,39 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	if d, ok := cfg["sourceDuration"].(float64); ok && d > 0 {
 		duration = d
 	}
+
+	started := time.Now()
+	var currentFPS float64
+	var currentSpeed float64
+	var currentETA time.Duration
+
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "out_time_ms=") {
-			val := strings.TrimPrefix(line, "out_time_ms=")
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		key, val := parts[0], parts[1]
+
+		// Capture FPS value
+		if key == "fps" {
+			if fps, err := strconv.ParseFloat(val, 64); err == nil {
+				currentFPS = fps
+			}
+			continue
+		}
+
+		// Capture speed value
+		if key == "speed" {
+			// Speed comes as "1.5x" format, strip the 'x'
+			speedStr := strings.TrimSuffix(val, "x")
+			if speed, err := strconv.ParseFloat(speedStr, 64); err == nil {
+				currentSpeed = speed
+			}
+			continue
+		}
+
+		if key == "out_time_ms" {
 			if ms, err := strconv.ParseInt(val, 10, 64); err == nil && ms > 0 {
 				currentSec := float64(ms) / 1000000.0
 				if duration > 0 {
@@ -1451,11 +1506,28 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 					if progress > 100 {
 						progress = 100
 					}
+
+					// Calculate ETA
+					elapsedWall := time.Since(started).Seconds()
+					if progress > 0 && elapsedWall > 0 && progress < 100 {
+						remaining := elapsedWall * (100 - progress) / progress
+						currentETA = time.Duration(remaining * float64(time.Second))
+					}
+
+					// Calculate speed if not provided by ffmpeg
+					if currentSpeed == 0 && elapsedWall > 0 {
+						currentSpeed = currentSec / elapsedWall
+					}
+
+					// Update job config with detailed stats for the stats bar to display
+					job.Config["fps"] = currentFPS
+					job.Config["speed"] = currentSpeed
+					job.Config["eta"] = currentETA
+
 					progressCallback(progress)
 				}
 			}
-		} else if strings.HasPrefix(line, "duration_ms=") {
-			val := strings.TrimPrefix(line, "duration_ms=")
+		} else if key == "duration_ms" {
 			if ms, err := strconv.ParseInt(val, 10, 64); err == nil && ms > 0 {
 				duration = float64(ms) / 1000000.0
 			}
@@ -1471,6 +1543,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			strings.Contains(stderrOutput, "Cannot load") ||
 			strings.Contains(stderrOutput, "not available") &&
 			(strings.Contains(stderrOutput, "nvenc") ||
+			 strings.Contains(stderrOutput, "amf") ||
 			 strings.Contains(stderrOutput, "qsv") ||
 			 strings.Contains(stderrOutput, "vaapi") ||
 			 strings.Contains(stderrOutput, "videotoolbox"))
@@ -1495,6 +1568,31 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	logging.Debug(logging.CatFFMPEG, "queue conversion completed: %s", outputPath)
+
+	// Auto-compare if enabled
+	if autoCompare, ok := cfg["autoCompare"].(bool); ok && autoCompare {
+		inputPath := cfg["inputPath"].(string)
+
+		// Probe both original and converted files
+		go func() {
+			originalSrc, err1 := probeVideo(inputPath)
+			convertedSrc, err2 := probeVideo(outputPath)
+
+			if err1 != nil || err2 != nil {
+				logging.Debug(logging.CatModule, "auto-compare: failed to probe files: original=%v, converted=%v", err1, err2)
+				return
+			}
+
+			// Load into compare slots
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.compareFile1 = originalSrc   // Original
+				s.compareFile2 = convertedSrc  // Converted
+				s.showCompareView()
+				logging.Debug(logging.CatModule, "auto-compare from queue: loaded original vs converted")
+			}, false)
+		}()
+	}
+
 	return nil
 }
 
@@ -1530,6 +1628,16 @@ func main() {
 	flag.Parse()
 	logging.SetDebug(*debugFlag || os.Getenv("VIDEOTOOLS_DEBUG") != "")
 	logging.Debug(logging.CatSystem, "starting VideoTools prototype at %s", time.Now().Format(time.RFC3339))
+
+	// Detect platform and configure paths
+	platformConfig = DetectPlatform()
+	if platformConfig.FFmpegPath == "ffmpeg" || platformConfig.FFmpegPath == "ffmpeg.exe" {
+		logging.Debug(logging.CatSystem, "WARNING: FFmpeg not found in expected locations, assuming it's in PATH")
+	}
+
+	// Set paths in convert package
+	convert.FFmpegPath = platformConfig.FFmpegPath
+	convert.FFprobePath = platformConfig.FFprobePath
 
 	args := flag.Args()
 	if len(args) > 0 {
@@ -2348,7 +2456,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	pixelFormatSelect.SetSelected(state.convert.PixelFormat)
 
 	// Hardware Acceleration
-	hwAccelSelect := widget.NewSelect([]string{"none", "nvenc", "vaapi", "qsv", "videotoolbox"}, func(value string) {
+	hwAccelSelect := widget.NewSelect([]string{"none", "nvenc", "amf", "vaapi", "qsv", "videotoolbox"}, func(value string) {
 		state.convert.HardwareAccel = value
 		logging.Debug(logging.CatUI, "hardware accel set to %s", value)
 	})
@@ -2386,21 +2494,21 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
 		if isDVD {
 			dvdAspectBox.Show()
-			// Auto-set resolution and framerate based on DVD format
+			// Show DVD format info without forcing resolution
 			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
-				dvdInfoLabel.SetText("NTSC: 720×480 @ 29.97fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 6000k (default), 9000k (max PS2-safe)\nCompatible with DVDStyler, PS2, standalone DVD players")
-				// Auto-set to NTSC resolution
-				resolutionSelect.SetSelected("NTSC (720×480)")
-				frameRateSelect.SetSelected("30") // Will be converted to 29.97fps
-				state.convert.TargetResolution = "NTSC (720×480)"
-				state.convert.FrameRate = "30"
+				dvdInfoLabel.SetText("NTSC DVD: Standard 720×480 @ 29.97fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 6000k (default), 9000k (max PS2-safe)\nNote: Resolution defaults to 'Source' - change to 'NTSC (720×480)' for standard DVD compliance")
+				// Suggest framerate but don't force it
+				if state.convert.FrameRate == "" || state.convert.FrameRate == "Source" {
+					frameRateSelect.SetSelected("30") // Suggest 29.97fps
+					state.convert.FrameRate = "30"
+				}
 			} else if strings.Contains(state.convert.SelectedFormat.Label, "PAL") {
-				dvdInfoLabel.SetText("PAL: 720×576 @ 25.00fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 8000k (default), 9500k (max PS2-safe)\nCompatible with European DVD players and authoring tools")
-				// Auto-set to PAL resolution
-				resolutionSelect.SetSelected("PAL (720×576)")
-				frameRateSelect.SetSelected("25")
-				state.convert.TargetResolution = "PAL (720×576)"
-				state.convert.FrameRate = "25"
+				dvdInfoLabel.SetText("PAL DVD: Standard 720×576 @ 25.00fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 8000k (default), 9500k (max PS2-safe)\nNote: Resolution defaults to 'Source' - change to 'PAL (720×576)' for standard DVD compliance")
+				// Suggest framerate but don't force it
+				if state.convert.FrameRate == "" || state.convert.FrameRate == "Source" {
+					frameRateSelect.SetSelected("25")
+					state.convert.FrameRate = "25"
+				}
 			} else {
 				dvdInfoLabel.SetText("DVD Format selected")
 			}
@@ -3029,8 +3137,15 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	// img.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 	stage := canvas.NewRectangle(utils.MustHex("#0F1529"))
 	stage.CornerRadius = 6
-	// Set a reasonable minimum but allow scaling down
-	stage.SetMinSize(fyne.NewSize(200, 113)) // 16:9 aspect at reasonable minimum
+	// Set minimum size based on source aspect ratio
+	stageWidth := float32(200)
+	stageHeight := float32(113) // Default 16:9
+	if src != nil && src.Width > 0 && src.Height > 0 {
+		// Calculate height based on actual aspect ratio
+		aspectRatio := float32(src.Width) / float32(src.Height)
+		stageHeight = stageWidth / aspectRatio
+	}
+	stage.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
 	// Overlay the image directly so it fills the stage while preserving aspect.
 	videoStage := container.NewMax(stage, img)
 
@@ -3399,7 +3514,7 @@ func (p *playSession) runVideo(offset float64) {
 		"-r", fmt.Sprintf("%.3f", p.fps),
 		"-",
 	}
-	cmd := exec.Command("ffmpeg", args...)
+	cmd := exec.Command(platformConfig.FFmpegPath, args...)
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -3477,7 +3592,7 @@ func (p *playSession) runAudio(offset float64) {
 	const channels = 2
 	const bytesPerSample = 2
 	var stderr bytes.Buffer
-	cmd := exec.Command("ffmpeg",
+	cmd := exec.Command(platformConfig.FFmpegPath,
 		"-hide_banner", "-loglevel", "error",
 		"-ss", fmt.Sprintf("%.3f", offset),
 		"-i", p.path,
@@ -4221,7 +4336,7 @@ func detectBestH264Encoder() string {
 	encoders := []string{"h264_nvenc", "h264_qsv", "h264_vaapi", "libopenh264"}
 
 	for _, encoder := range encoders {
-		cmd := exec.Command("ffmpeg", "-hide_banner", "-encoders")
+		cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
 		output, err := cmd.CombinedOutput()
 		if err == nil {
 			// Check if encoder is in the output
@@ -4233,7 +4348,7 @@ func detectBestH264Encoder() string {
 	}
 
 	// Fallback: check if libx264 is available
-	cmd := exec.Command("ffmpeg", "-hide_banner", "-encoders")
+	cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
 	output, err := cmd.CombinedOutput()
 	if err == nil && (strings.Contains(string(output), " libx264 ") || strings.Contains(string(output), " libx264\n")) {
 		logging.Debug(logging.CatFFMPEG, "using software encoder: libx264")
@@ -4249,7 +4364,7 @@ func detectBestH265Encoder() string {
 	encoders := []string{"hevc_nvenc", "hevc_qsv", "hevc_vaapi"}
 
 	for _, encoder := range encoders {
-		cmd := exec.Command("ffmpeg", "-hide_banner", "-encoders")
+		cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
 		output, err := cmd.CombinedOutput()
 		if err == nil {
 			if strings.Contains(string(output), " "+encoder+" ") || strings.Contains(string(output), " "+encoder+"\n") {
@@ -4259,7 +4374,7 @@ func detectBestH265Encoder() string {
 		}
 	}
 
-	cmd := exec.Command("ffmpeg", "-hide_banner", "-encoders")
+	cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
 	output, err := cmd.CombinedOutput()
 	if err == nil && (strings.Contains(string(output), " libx265 ") || strings.Contains(string(output), " libx265\n")) {
 		logging.Debug(logging.CatFFMPEG, "using software encoder: libx265")
@@ -4276,6 +4391,8 @@ func determineVideoCodec(cfg convertConfig) string {
 	case "H.264":
 		if cfg.HardwareAccel == "nvenc" {
 			return "h264_nvenc"
+		} else if cfg.HardwareAccel == "amf" {
+			return "h264_amf"
 		} else if cfg.HardwareAccel == "qsv" {
 			return "h264_qsv"
 		} else if cfg.HardwareAccel == "videotoolbox" {
@@ -4286,6 +4403,8 @@ func determineVideoCodec(cfg convertConfig) string {
 	case "H.265":
 		if cfg.HardwareAccel == "nvenc" {
 			return "hevc_nvenc"
+		} else if cfg.HardwareAccel == "amf" {
+			return "hevc_amf"
 		} else if cfg.HardwareAccel == "qsv" {
 			return "hevc_qsv"
 		} else if cfg.HardwareAccel == "videotoolbox" {
@@ -4296,6 +4415,16 @@ func determineVideoCodec(cfg convertConfig) string {
 	case "VP9":
 		return "libvpx-vp9"
 	case "AV1":
+		if cfg.HardwareAccel == "amf" {
+			return "av1_amf"
+		} else if cfg.HardwareAccel == "nvenc" {
+			return "av1_nvenc"
+		} else if cfg.HardwareAccel == "qsv" {
+			return "av1_qsv"
+		} else if cfg.HardwareAccel == "vaapi" {
+			return "av1_vaapi"
+		}
+		// When set to "none" or empty, use software encoder
 		return "libaom-av1"
 	case "MPEG-2":
 		return "mpeg2video"
@@ -4356,7 +4485,6 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	src := s.source
 	cfg := s.convert
 	isDVD := cfg.SelectedFormat.Ext == ".mpg"
-	var targetOption string
 	outDir := filepath.Dir(src.Path)
 	outName := cfg.OutputFile()
 	if outName == "" {
@@ -4373,16 +4501,19 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		"-loglevel", "error",
 	}
 
-	// DVD presets: enforce compliant codecs, frame rate, resolution, and target
+	// DVD presets: enforce compliant codecs and audio settings
+	// Note: We do NOT force resolution - user can choose Source or specific resolution
 	if isDVD {
 		if strings.Contains(cfg.SelectedFormat.Label, "PAL") {
-			targetOption = "pal-dvd"
-			cfg.FrameRate = "25"
-			cfg.TargetResolution = "PAL (720×576)"
+			// Only set frame rate if not already specified
+			if cfg.FrameRate == "" || cfg.FrameRate == "Source" {
+				cfg.FrameRate = "25"
+			}
 		} else {
-			targetOption = "ntsc-dvd"
-			cfg.FrameRate = "29.97"
-			cfg.TargetResolution = "NTSC (720×480)"
+			// Only set frame rate if not already specified
+			if cfg.FrameRate == "" || cfg.FrameRate == "Source" {
+				cfg.FrameRate = "29.97"
+			}
 		}
 		cfg.VideoCodec = "MPEG-2"
 		cfg.AudioCodec = "AC-3"
@@ -4405,12 +4536,15 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	}
 
 	// Hardware acceleration for decoding
-	// Note: NVENC doesn't need -hwaccel for encoding, only for decoding
+	// Note: NVENC and AMF don't need -hwaccel for encoding, only for decoding
 	if cfg.HardwareAccel != "none" && cfg.HardwareAccel != "" {
 		switch cfg.HardwareAccel {
 		case "nvenc":
 			// For NVENC, we don't add -hwaccel flags
 			// The h264_nvenc/hevc_nvenc encoder handles GPU encoding directly
+		case "amf":
+			// For AMD AMF, we don't add -hwaccel flags
+			// The h264_amf/hevc_amf/av1_amf encoders handle GPU encoding directly
 		case "vaapi":
 			args = append(args, "-hwaccel", "vaapi")
 		case "qsv":
@@ -4509,11 +4643,14 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		}
 	}
 
-	// Aspect ratio conversion
-	srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
-	targetAspect := resolveTargetAspect(cfg.OutputAspect, src)
-	if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
-		vf = append(vf, aspectFilters(targetAspect, cfg.AspectHandling)...)
+	// Aspect ratio conversion (only if user explicitly changed from Source)
+	if cfg.OutputAspect != "" && !strings.EqualFold(cfg.OutputAspect, "source") {
+		srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
+		targetAspect := resolveTargetAspect(cfg.OutputAspect, src)
+		if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
+			vf = append(vf, aspectFilters(targetAspect, cfg.AspectHandling)...)
+			logging.Debug(logging.CatFFMPEG, "converting aspect ratio from %.2f to %.2f using %s mode", srcAspect, targetAspect, cfg.AspectHandling)
+		}
 	}
 
 	// Frame rate
@@ -4660,9 +4797,8 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	}
 
 	// Apply target for DVD (must come before output path)
-	if targetOption != "" {
-		args = append(args, "-target", targetOption)
-	}
+	// Note: We no longer use -target because it forces resolution changes.
+	// DVD-specific parameters are set manually in the video codec section below.
 
 	// Fix VFR/desync issues - regenerate timestamps and enforce CFR
 	args = append(args, "-fflags", "+genpts")
@@ -4696,7 +4832,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		}, false)
 
 		started := time.Now()
-		cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+		cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			logging.Debug(logging.CatFFMPEG, "convert stdout pipe failed: %v", err)
@@ -4833,6 +4969,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 					strings.Contains(stderrOutput, "Cannot load") ||
 					strings.Contains(stderrOutput, "not available") &&
 					(strings.Contains(stderrOutput, "nvenc") ||
+					 strings.Contains(stderrOutput, "amf") ||
 					 strings.Contains(stderrOutput, "qsv") ||
 					 strings.Contains(stderrOutput, "vaapi") ||
 					 strings.Contains(stderrOutput, "videotoolbox"))
@@ -5173,7 +5310,7 @@ func (s *appState) generateSnippet() {
 
 	args = append(args, outPath)
 
-	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
+	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
 	logging.Debug(logging.CatFFMPEG, "snippet command: %s", strings.Join(cmd.Args, " "))
 
 	// Show progress dialog for snippets that need re-encoding (WMV, filters, etc.)
@@ -5213,7 +5350,7 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 		return nil, err
 	}
 	pattern := filepath.Join(dir, "frame-%03d.png")
-	cmd := exec.Command("ffmpeg",
+	cmd := exec.Command(platformConfig.FFmpegPath,
 		"-y",
 		"-ss", start,
 		"-i", path,
@@ -5427,7 +5564,7 @@ func probeVideo(path string) (*videoSource, error) {
 	// Extract embedded cover art if present
 	if coverArtStreamIndex >= 0 {
 		coverPath := filepath.Join(os.TempDir(), fmt.Sprintf("videotools-embedded-cover-%d.png", time.Now().UnixNano()))
-		extractCmd := exec.CommandContext(ctx, "ffmpeg",
+		extractCmd := exec.CommandContext(ctx, platformConfig.FFmpegPath,
 			"-i", path,
 			"-map", fmt.Sprintf("0:%d", coverArtStreamIndex),
 			"-frames:v", "1",
@@ -5475,7 +5612,7 @@ func detectCrop(path string, duration float64) *CropValues {
 	}
 
 	// Run ffmpeg with cropdetect filter
-	cmd := exec.CommandContext(ctx, "ffmpeg",
+	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath,
 		"-ss", fmt.Sprintf("%.2f", sampleStart),
 		"-i", path,
 		"-t", "10",
