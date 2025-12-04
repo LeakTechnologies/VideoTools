@@ -5520,39 +5520,63 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		}, state.window)
 	})
 
-	// Layout
-	file1Box := container.NewVBox(
+	// Enable text wrapping on file labels to prevent window stretching
+	file1Label.Wrapping = fyne.TextWrapBreak
+	file2Label.Wrapping = fyne.TextWrapBreak
+
+	// File 1 header (label + button)
+	file1Header := container.NewVBox(
 		file1Label,
 		file1SelectBtn,
-		widget.NewSeparator(),
-		container.NewMax(file1ThumbBg, file1Thumbnail),
-		widget.NewSeparator(),
-		container.NewScroll(file1Info),
 	)
 
-	file2Box := container.NewVBox(
+	// File 2 header (label + button)
+	file2Header := container.NewVBox(
 		file2Label,
 		file2SelectBtn,
-		widget.NewSeparator(),
-		container.NewMax(file2ThumbBg, file2Thumbnail),
-		widget.NewSeparator(),
-		container.NewScroll(file2Info),
+	)
+
+	// Scrollable metadata area for file 1
+	file1InfoScroll := container.NewVScroll(file1Info)
+	file1InfoScroll.SetMinSize(fyne.NewSize(300, 200))
+
+	// Scrollable metadata area for file 2
+	file2InfoScroll := container.NewVScroll(file2Info)
+	file2InfoScroll.SetMinSize(fyne.NewSize(300, 200))
+
+	// File 1 column: header, thumb, metadata (using Border to make metadata expand)
+	file1Column := container.NewBorder(
+		container.NewVBox(
+			file1Header,
+			widget.NewSeparator(),
+			container.NewMax(file1ThumbBg, file1Thumbnail),
+			widget.NewSeparator(),
+		),
+		nil, nil, nil,
+		file1InfoScroll,
+	)
+
+	// File 2 column: header, thumb, metadata (using Border to make metadata expand)
+	file2Column := container.NewBorder(
+		container.NewVBox(
+			file2Header,
+			widget.NewSeparator(),
+			container.NewMax(file2ThumbBg, file2Thumbnail),
+			widget.NewSeparator(),
+		),
+		nil, nil, nil,
+		file2InfoScroll,
 	)
 
 	// Bottom bar with module color
 	bottomBar := ui.TintedBar(compareColor, container.NewHBox(layout.NewSpacer()))
 
-	// Main content
-	content := container.NewVBox(
-		instructions,
-		widget.NewSeparator(),
-		container.NewGridWithColumns(2,
-			file1Box,
-			file2Box,
-		),
+	// Main content: instructions at top, then two columns side by side
+	content := container.NewBorder(
+		container.NewVBox(instructions, widget.NewSeparator()),
+		nil, nil, nil,
+		container.NewGridWithColumns(2, file1Column, file2Column),
 	)
 
-	scrollableContent := container.NewVScroll(content)
-
-	return container.NewBorder(topBar, bottomBar, nil, nil, scrollableContent)
+	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
