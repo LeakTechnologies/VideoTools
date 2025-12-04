@@ -1783,7 +1783,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Make panel sizes responsive with modest minimums to avoid forcing the window beyond the screen
-	videoPanel := buildVideoPane(state, fyne.NewSize(460, 260), src, updateCover)
+	// Use a smaller minimum size to allow window to be more flexible
+	// The video pane will scale to fit available space
+	videoPanel := buildVideoPane(state, fyne.NewSize(320, 180), src, updateCover)
 	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200))
 	updateMetaCover = metaCoverUpdate
 
@@ -2860,7 +2862,8 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	targetWidth := float32(baseWidth)
 	_ = defaultAspect
 	targetHeight := float32(min.Height)
-	outer.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
+	// Don't set rigid MinSize - let the outer container be flexible
+	// outer.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 
 	if src == nil {
 		icon := canvas.NewText("▶", utils.MustHex("#4CE870"))
@@ -2939,11 +2942,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		img = canvas.NewImageFromResource(nil)
 	}
 	img.FillMode = canvas.ImageFillContain
-	// Let the image grow with the available stage size
-	img.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
+	// Don't set rigid MinSize on image - it will scale to container
+	// img.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 	stage := canvas.NewRectangle(utils.MustHex("#0F1529"))
 	stage.CornerRadius = 6
-	stage.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
+	// Set a reasonable minimum but allow scaling down
+	stage.SetMinSize(fyne.NewSize(200, 113)) // 16:9 aspect at reasonable minimum
 	// Overlay the image directly so it fills the stage while preserving aspect.
 	videoStage := container.NewMax(stage, img)
 
@@ -5352,21 +5356,21 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	file2Label := widget.NewLabel("File 2: Not loaded")
 	file2Label.TextStyle = fyne.TextStyle{Bold: true}
 
-	// Thumbnail images
+	// Thumbnail images - use smaller minimum for better flexibility
 	file1Thumbnail := canvas.NewImageFromImage(nil)
 	file1Thumbnail.FillMode = canvas.ImageFillContain
-	file1Thumbnail.SetMinSize(fyne.NewSize(320, 180))
+	file1Thumbnail.SetMinSize(fyne.NewSize(240, 135))
 
 	file2Thumbnail := canvas.NewImageFromImage(nil)
 	file2Thumbnail.FillMode = canvas.ImageFillContain
-	file2Thumbnail.SetMinSize(fyne.NewSize(320, 180))
+	file2Thumbnail.SetMinSize(fyne.NewSize(240, 135))
 
 	// Placeholder backgrounds
 	file1ThumbBg := canvas.NewRectangle(utils.MustHex("#0F1529"))
-	file1ThumbBg.SetMinSize(fyne.NewSize(320, 180))
+	file1ThumbBg.SetMinSize(fyne.NewSize(240, 135))
 
 	file2ThumbBg := canvas.NewRectangle(utils.MustHex("#0F1529"))
-	file2ThumbBg.SetMinSize(fyne.NewSize(320, 180))
+	file2ThumbBg.SetMinSize(fyne.NewSize(240, 135))
 
 	// Info labels
 	file1Info := widget.NewLabel("No file loaded")
@@ -5559,13 +5563,13 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		file2SelectBtn,
 	)
 
-	// Scrollable metadata area for file 1
+	// Scrollable metadata area for file 1 - use smaller minimum
 	file1InfoScroll := container.NewVScroll(file1Info)
-	file1InfoScroll.SetMinSize(fyne.NewSize(300, 200))
+	file1InfoScroll.SetMinSize(fyne.NewSize(250, 150))
 
-	// Scrollable metadata area for file 2
+	// Scrollable metadata area for file 2 - use smaller minimum
 	file2InfoScroll := container.NewVScroll(file2Info)
-	file2InfoScroll.SetMinSize(fyne.NewSize(300, 200))
+	file2InfoScroll.SetMinSize(fyne.NewSize(250, 150))
 
 	// File 1 column: header, thumb, metadata (using Border to make metadata expand)
 	file1Column := container.NewBorder(
