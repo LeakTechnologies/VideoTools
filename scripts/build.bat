@@ -21,6 +21,56 @@ go version
 echo.
 
 REM ----------------------------
+REM Check for winget (required for auto-install)
+REM ----------------------------
+set WINGET_AVAILABLE=0
+where winget >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    set WINGET_AVAILABLE=1
+    echo ✓ winget found (automatic installation available)
+) else (
+    echo ⚠️  winget not found (manual installation will be required)
+    echo    To enable automatic installation, update to Windows 10 1809+ or Windows 11
+)
+echo.
+
+REM ----------------------------
+REM Check for Git (recommended for development)
+REM ----------------------------
+where git >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    echo ✓ Git found
+    git --version
+) else (
+    echo ⚠️  Git not found (recommended for development)
+
+    if !WINGET_AVAILABLE! equ 1 (
+        echo.
+        echo Would you like to install Git automatically? (Y/N):
+        set /p install_git=
+
+        if /I "!install_git!"=="Y" (
+            echo.
+            echo 📥 Installing Git via winget...
+            winget install -e --id=Git.Git
+            set GIT_INSTALL_RESULT=!ERRORLEVEL!
+
+            if !GIT_INSTALL_RESULT! equ 0 (
+                echo ✓ Git installed successfully!
+                echo Please restart your terminal and run this script again.
+                exit /b 0
+            ) else (
+                echo ❌ Failed to install Git automatically.
+                echo Please install manually from: https://git-scm.com/
+            )
+        )
+    ) else (
+        echo Please install Git from: https://git-scm.com/
+    )
+)
+echo.
+
+REM ----------------------------
 REM Check for GCC (required for CGO)
 REM ----------------------------
 where gcc >nul 2>&1
@@ -29,15 +79,17 @@ if %ERRORLEVEL% neq 0 (
     echo.
     echo VideoTools requires MinGW-w64 to build on Windows.
     echo.
-    echo Would you like to install MinGW-w64 automatically? (Y/N):
-    set /p install_gcc=
 
-    if /I "!install_gcc!"=="Y" (
-        echo.
-        echo 📥 Installing MinGW-w64 via winget...
-        echo This may take a few minutes...
-        winget install -e --id=MSYS2.MSYS2
-        set MSYS2_INSTALL_RESULT=!ERRORLEVEL!
+    if !WINGET_AVAILABLE! equ 1 (
+        echo Would you like to install MinGW-w64 automatically? (Y/N):
+        set /p install_gcc=
+
+        if /I "!install_gcc!"=="Y" (
+            echo.
+            echo 📥 Installing MinGW-w64 via winget...
+            echo This may take a few minutes...
+            winget install -e --id=MSYS2.MSYS2
+            set MSYS2_INSTALL_RESULT=!ERRORLEVEL!
 
         if !MSYS2_INSTALL_RESULT! equ 0 (
             echo ✓ MSYS2 installed successfully!
@@ -64,19 +116,24 @@ if %ERRORLEVEL% neq 0 (
             echo Visit: https://www.msys2.org/
             exit /b 1
         )
+        ) else (
+            echo Skipping automatic installation.
+        )
     ) else (
-        echo.
-        echo ❌ GCC is required to build VideoTools on Windows.
-        echo.
-        echo Please install MinGW-w64:
-        echo   1. Install MSYS2 from https://www.msys2.org/
-        echo   2. Run: pacman -S mingw-w64-x86_64-gcc
-        echo   3. Add C:\msys64\mingw64\bin to your PATH
-        echo.
-        echo Or install via winget:
-        echo   winget install MSYS2.MSYS2
-        echo   C:\msys64\usr\bin\bash.exe -lc "pacman -S --noconfirm mingw-w64-x86_64-gcc"
-        exit /b 1
+        echo winget is not available on this system.
+    )
+
+    REM Show manual installation instructions if we get here
+    echo.
+    echo ❌ GCC is required to build VideoTools on Windows.
+    echo.
+    echo Please install MinGW-w64 manually:
+    echo   1. Install MSYS2 from https://www.msys2.org/
+    echo   2. Run: pacman -S mingw-w64-x86_64-gcc
+    echo   3. Add C:\msys64\mingw64\bin to your PATH
+    echo   4. Restart your terminal and run this script again
+    echo.
+    exit /b 1
     )
 ) else (
     echo ✓ GCC found:
