@@ -3699,43 +3699,39 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				s.window)
 		}
 
-		// Load first video
+		// Load videos sequentially to avoid race conditions
 		go func() {
-			src, err := probeVideo(videoPaths[0])
+			// Load first video
+			src1, err := probeVideo(videoPaths[0])
 			if err != nil {
 				logging.Debug(logging.CatModule, "failed to load first video: %v", err)
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+					dialog.ShowError(fmt.Errorf("failed to load video 1: %w", err), s.window)
 				}, false)
 				return
 			}
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				s.compareFile1 = src
-				// Refresh compare view to show updated file
-				s.showCompareView()
-				logging.Debug(logging.CatModule, "loaded first video via drag-and-drop: %s", videoPaths[0])
-			}, false)
-		}()
 
-		// Load second video if available
-		if len(videoPaths) >= 2 {
-			go func() {
-				src, err := probeVideo(videoPaths[1])
+			// Load second video if available
+			var src2 *videoSource
+			if len(videoPaths) >= 2 {
+				src2, err = probeVideo(videoPaths[1])
 				if err != nil {
 					logging.Debug(logging.CatModule, "failed to load second video: %v", err)
+					// Continue with just first video
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+						dialog.ShowError(fmt.Errorf("failed to load video 2: %w", err), s.window)
 					}, false)
-					return
 				}
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					s.compareFile2 = src
-					// Refresh compare view to show updated file
-					s.showCompareView()
-					logging.Debug(logging.CatModule, "loaded second video via drag-and-drop: %s", videoPaths[1])
-				}, false)
-			}()
-		}
+			}
+
+			// Update state and refresh view once with both files
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.compareFile1 = src1
+				s.compareFile2 = src2
+				s.showCompareView()
+				logging.Debug(logging.CatModule, "loaded %d video(s) via drag-and-drop", len(videoPaths))
+			}, false)
+		}()
 
 		return
 	}
@@ -5551,16 +5547,50 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		}, state.window)
 	})
 
-	// File 1 header (label + button)
+	// File 1 action buttons
+	file1CopyBtn := widget.NewButton("Copy Metadata", func() {
+		if state.compareFile1 == nil {
+			return
+		}
+		metadata := formatMetadata(state.compareFile1)
+		state.window.Clipboard().SetContent(metadata)
+		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
+	})
+	file1CopyBtn.Importance = widget.LowImportance
+
+	file1ClearBtn := widget.NewButton("Clear", func() {
+		state.compareFile1 = nil
+		updateFile1()
+	})
+	file1ClearBtn.Importance = widget.LowImportance
+
+	// File 2 action buttons
+	file2CopyBtn := widget.NewButton("Copy Metadata", func() {
+		if state.compareFile2 == nil {
+			return
+		}
+		metadata := formatMetadata(state.compareFile2)
+		state.window.Clipboard().SetContent(metadata)
+		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
+	})
+	file2CopyBtn.Importance = widget.LowImportance
+
+	file2ClearBtn := widget.NewButton("Clear", func() {
+		state.compareFile2 = nil
+		updateFile2()
+	})
+	file2ClearBtn.Importance = widget.LowImportance
+
+	// File 1 header (label + buttons)
 	file1Header := container.NewVBox(
 		file1Label,
-		file1SelectBtn,
+		container.NewHBox(file1SelectBtn, file1CopyBtn, file1ClearBtn),
 	)
 
-	// File 2 header (label + button)
+	// File 2 header (label + buttons)
 	file2Header := container.NewVBox(
 		file2Label,
-		file2SelectBtn,
+		container.NewHBox(file2SelectBtn, file2CopyBtn, file2ClearBtn),
 	)
 
 	// Scrollable metadata area for file 1 - use smaller minimum
