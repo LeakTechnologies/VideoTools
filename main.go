@@ -1183,10 +1183,19 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			// H.264 profile and level for compatibility
 			if videoCodec == "H.264" && (strings.Contains(actualCodec, "264") || strings.Contains(actualCodec, "h264")) {
 				if h264Profile, _ := cfg["h264Profile"].(string); h264Profile != "" && h264Profile != "Auto" {
-					args = append(args, "-profile:v", h264Profile)
+					// Use :v:0 if cover art is present to avoid applying to PNG stream
+					if hasCoverArt {
+						args = append(args, "-profile:v:0", h264Profile)
+					} else {
+						args = append(args, "-profile:v", h264Profile)
+					}
 				}
 				if h264Level, _ := cfg["h264Level"].(string); h264Level != "" && h264Level != "Auto" {
-					args = append(args, "-level:v", h264Level)
+					if hasCoverArt {
+						args = append(args, "-level:v:0", h264Level)
+					} else {
+						args = append(args, "-level:v", h264Level)
+					}
 				}
 			}
 		}
@@ -1739,6 +1748,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		formatLabels = append(formatLabels, opt.Label)
 	}
 	outputHint := widget.NewLabel(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+	outputHint.Wrapping = fyne.TextWrapWord
 
 	// DVD-specific aspect ratio selector (only shown for DVD formats)
 	dvdAspectSelect := widget.NewSelect([]string{"4:3", "16:9"}, func(value string) {
@@ -4312,11 +4322,20 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		// H.264 profile and level for compatibility (iPhone, etc.)
 		if cfg.VideoCodec == "H.264" && (strings.Contains(videoCodec, "264") || strings.Contains(videoCodec, "h264")) {
 			if cfg.H264Profile != "" && cfg.H264Profile != "Auto" {
-				args = append(args, "-profile:v", cfg.H264Profile)
+				// Use :v:0 if cover art is present to avoid applying to PNG stream
+				if hasCoverArt {
+					args = append(args, "-profile:v:0", cfg.H264Profile)
+				} else {
+					args = append(args, "-profile:v", cfg.H264Profile)
+				}
 				logging.Debug(logging.CatFFMPEG, "H.264 profile: %s", cfg.H264Profile)
 			}
 			if cfg.H264Level != "" && cfg.H264Level != "Auto" {
-				args = append(args, "-level:v", cfg.H264Level)
+				if hasCoverArt {
+					args = append(args, "-level:v:0", cfg.H264Level)
+				} else {
+					args = append(args, "-level:v", cfg.H264Level)
+				}
 				logging.Debug(logging.CatFFMPEG, "H.264 level: %s", cfg.H264Level)
 			}
 		}
