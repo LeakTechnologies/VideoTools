@@ -30,6 +30,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
@@ -107,6 +108,7 @@ type formatOption struct {
 
 var formatOptions = []formatOption{
 	{"MP4 (H.264)", ".mp4", "libx264"},
+	{"MP4 (H.265)", ".mp4", "libx265"},
 	{"MKV (H.265)", ".mkv", "libx265"},
 	{"MOV (ProRes)", ".mov", "prores_ks"},
 	{"DVD-NTSC (MPEG-2)", ".mpg", "mpeg2video"},
@@ -114,39 +116,44 @@ var formatOptions = []formatOption{
 }
 
 type convertConfig struct {
-	OutputBase     string
-	SelectedFormat formatOption
-	Quality        string // Preset quality (Draft/Standard/High/Lossless)
-	Mode           string // Simple or Advanced
+	OutputBase       string
+	SelectedFormat   formatOption
+	Quality          string // Preset quality (Draft/Standard/High/Lossless)
+	Mode             string // Simple or Advanced
+	UseAutoNaming    bool
+	AutoNameTemplate string // Template for metadata-driven naming, e.g., "<actress> - <studio> - <scene>"
 
 	// Video encoding settings
-	VideoCodec       string // H.264, H.265, VP9, AV1, Copy
-	EncoderPreset    string // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
-	CRF              string // Manual CRF value (0-51, or empty to use Quality preset)
-	BitrateMode      string // CRF, CBR, VBR, "Target Size"
-	VideoBitrate     string // For CBR/VBR modes (e.g., "5000k")
-	TargetFileSize   string // Target file size (e.g., "25MB", "100MB") - requires BitrateMode="Target Size"
-	TargetResolution string // Source, 720p, 1080p, 1440p, 4K, or custom
-	FrameRate        string // Source, 24, 30, 60, or custom
-	PixelFormat      string // yuv420p, yuv422p, yuv444p
-	HardwareAccel    string // none, nvenc, amf, vaapi, qsv, videotoolbox
-	TwoPass          bool   // Enable two-pass encoding for VBR
-	H264Profile        string // baseline, main, high (for H.264 compatibility)
-	H264Level          string // 3.0, 3.1, 4.0, 4.1, 5.0, 5.1 (for H.264 compatibility)
-	Deinterlace        string // Auto, Force, Off
-	DeinterlaceMethod  string // yadif, bwdif (bwdif is higher quality but slower)
-	AutoCrop           bool   // Auto-detect and remove black bars
-	CropWidth          string // Manual crop width (empty = use auto-detect)
-	CropHeight         string // Manual crop height (empty = use auto-detect)
-	CropX              string // Manual crop X offset (empty = use auto-detect)
-	CropY              string // Manual crop Y offset (empty = use auto-detect)
+	VideoCodec        string // H.264, H.265, VP9, AV1, Copy
+	EncoderPreset     string // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
+	CRF               string // Manual CRF value (0-51, or empty to use Quality preset)
+	BitrateMode       string // CRF, CBR, VBR, "Target Size"
+	VideoBitrate      string // For CBR/VBR modes (e.g., "5000k")
+	TargetFileSize    string // Target file size (e.g., "25MB", "100MB") - requires BitrateMode="Target Size"
+	TargetResolution  string // Source, 720p, 1080p, 1440p, 4K, or custom
+	FrameRate         string // Source, 24, 30, 60, or custom
+	PixelFormat       string // yuv420p, yuv422p, yuv444p
+	HardwareAccel     string // none, nvenc, amf, vaapi, qsv, videotoolbox
+	TwoPass           bool   // Enable two-pass encoding for VBR
+	H264Profile       string // baseline, main, high (for H.264 compatibility)
+	H264Level         string // 3.0, 3.1, 4.0, 4.1, 5.0, 5.1 (for H.264 compatibility)
+	Deinterlace       string // Auto, Force, Off
+	DeinterlaceMethod string // yadif, bwdif (bwdif is higher quality but slower)
+	AutoCrop          bool   // Auto-detect and remove black bars
+	CropWidth         string // Manual crop width (empty = use auto-detect)
+	CropHeight        string // Manual crop height (empty = use auto-detect)
+	CropX             string // Manual crop X offset (empty = use auto-detect)
+	CropY             string // Manual crop Y offset (empty = use auto-detect)
+	FlipHorizontal    bool   // Flip video horizontally (mirror)
+	FlipVertical      bool   // Flip video vertically (upside down)
+	Rotation          string // 0, 90, 180, 270 (clockwise rotation in degrees)
 
 	// Audio encoding settings
-	AudioCodec       string // AAC, Opus, MP3, FLAC, Copy
-	AudioBitrate     string // 128k, 192k, 256k, 320k
-	AudioChannels    string // Source, Mono, Stereo, 5.1
-	AudioSampleRate  string // Source, 44100, 48000
-	NormalizeAudio   bool   // Force stereo + 48kHz for compatibility
+	AudioCodec      string // AAC, Opus, MP3, FLAC, Copy
+	AudioBitrate    string // 128k, 192k, 256k, 320k
+	AudioChannels   string // Source, Mono, Stereo, 5.1
+	AudioSampleRate string // Source, 44100, 48000
+	NormalizeAudio  bool   // Force stereo + 48kHz for compatibility
 
 	// Other settings
 	InverseTelecine  bool
@@ -592,6 +599,18 @@ func (s *appState) refreshQueueView() {
 			s.clearVideo()
 			s.refreshQueueView() // Refresh
 		},
+		func(id string) { // onCopyError
+			job, err := s.jobQueue.Get(id)
+			if err != nil {
+				logging.Debug(logging.CatSystem, "copy error text failed: %v", err)
+				return
+			}
+			text := strings.TrimSpace(job.Error)
+			if text == "" {
+				text = fmt.Sprintf("%s: no error message available", job.Title)
+			}
+			s.window.Clipboard().SetContent(text)
+		},
 		utils.MustHex("#4CE870"), // titleColor
 		gridColor,                // bgColor
 		textColor,                // textColor
@@ -623,7 +642,10 @@ func (s *appState) addConvertToQueue() error {
 	}
 
 	src := s.source
+	outputBase := s.resolveOutputBase(src, true)
+	s.convert.OutputBase = outputBase
 	cfg := s.convert
+	cfg.OutputBase = outputBase
 
 	outDir := filepath.Dir(src.Path)
 	outName := cfg.OutputFile()
@@ -635,48 +657,64 @@ func (s *appState) addConvertToQueue() error {
 		outPath = filepath.Join(outDir, "converted-"+outName)
 	}
 
+	// Align codec choice with the selected format when the preset implies a codec change.
+	adjustedCodec := s.convert.VideoCodec
+	if preset := s.convert.SelectedFormat.VideoCodec; preset != "" {
+		if friendly := friendlyCodecFromPreset(preset); friendly != "" {
+			if adjustedCodec == "" ||
+				(strings.EqualFold(adjustedCodec, "H.264") && friendly == "H.265") ||
+				(strings.EqualFold(adjustedCodec, "H.265") && friendly == "H.264") {
+				adjustedCodec = friendly
+				s.convert.VideoCodec = friendly
+			}
+		}
+	}
+
 	// Create job config map
 	config := map[string]interface{}{
-		"inputPath":        src.Path,
-		"outputPath":       outPath,
-		"outputBase":       cfg.OutputBase,
-		"selectedFormat":   cfg.SelectedFormat,
-		"quality":          cfg.Quality,
-		"mode":             cfg.Mode,
-		"videoCodec":       cfg.VideoCodec,
-		"encoderPreset":    cfg.EncoderPreset,
-		"crf":              cfg.CRF,
-		"bitrateMode":      cfg.BitrateMode,
-		"videoBitrate":     cfg.VideoBitrate,
-		"targetFileSize":   cfg.TargetFileSize,
-		"targetResolution": cfg.TargetResolution,
-		"frameRate":        cfg.FrameRate,
-		"pixelFormat":      cfg.PixelFormat,
-		"hardwareAccel":    cfg.HardwareAccel,
-		"twoPass":          cfg.TwoPass,
-		"h264Profile":        cfg.H264Profile,
-		"h264Level":          cfg.H264Level,
-		"deinterlace":        cfg.Deinterlace,
-		"deinterlaceMethod":  cfg.DeinterlaceMethod,
-		"autoCrop":           cfg.AutoCrop,
-		"cropWidth":          cfg.CropWidth,
-		"cropHeight":         cfg.CropHeight,
-		"cropX":              cfg.CropX,
-		"cropY":              cfg.CropY,
-		"audioCodec":         cfg.AudioCodec,
-		"audioBitrate":     cfg.AudioBitrate,
-		"audioChannels":    cfg.AudioChannels,
-		"audioSampleRate":  cfg.AudioSampleRate,
-		"normalizeAudio":   cfg.NormalizeAudio,
-		"inverseTelecine":  cfg.InverseTelecine,
-		"coverArtPath":     cfg.CoverArtPath,
-		"aspectHandling":   cfg.AspectHandling,
-		"outputAspect":     cfg.OutputAspect,
-		"sourceWidth":      src.Width,
-		"sourceHeight":     src.Height,
-		"sourceDuration":   src.Duration,
-		"fieldOrder":       src.FieldOrder,
-		"autoCompare":      s.autoCompare, // Include auto-compare flag
+		"inputPath":         src.Path,
+		"outputPath":        outPath,
+		"outputBase":        cfg.OutputBase,
+		"selectedFormat":    cfg.SelectedFormat,
+		"quality":           cfg.Quality,
+		"mode":              cfg.Mode,
+		"videoCodec":        adjustedCodec,
+		"encoderPreset":     cfg.EncoderPreset,
+		"crf":               cfg.CRF,
+		"bitrateMode":       cfg.BitrateMode,
+		"videoBitrate":      cfg.VideoBitrate,
+		"targetFileSize":    cfg.TargetFileSize,
+		"targetResolution":  cfg.TargetResolution,
+		"frameRate":         cfg.FrameRate,
+		"pixelFormat":       cfg.PixelFormat,
+		"hardwareAccel":     cfg.HardwareAccel,
+		"twoPass":           cfg.TwoPass,
+		"h264Profile":       cfg.H264Profile,
+		"h264Level":         cfg.H264Level,
+		"deinterlace":       cfg.Deinterlace,
+		"deinterlaceMethod": cfg.DeinterlaceMethod,
+		"autoCrop":          cfg.AutoCrop,
+		"cropWidth":         cfg.CropWidth,
+		"cropHeight":        cfg.CropHeight,
+		"cropX":             cfg.CropX,
+		"cropY":             cfg.CropY,
+		"flipHorizontal":    cfg.FlipHorizontal,
+		"flipVertical":      cfg.FlipVertical,
+		"rotation":          cfg.Rotation,
+		"audioCodec":        cfg.AudioCodec,
+		"audioBitrate":      cfg.AudioBitrate,
+		"audioChannels":     cfg.AudioChannels,
+		"audioSampleRate":   cfg.AudioSampleRate,
+		"normalizeAudio":    cfg.NormalizeAudio,
+		"inverseTelecine":   cfg.InverseTelecine,
+		"coverArtPath":      cfg.CoverArtPath,
+		"aspectHandling":    cfg.AspectHandling,
+		"outputAspect":      cfg.OutputAspect,
+		"sourceWidth":       src.Width,
+		"sourceHeight":      src.Height,
+		"sourceDuration":    src.Duration,
+		"fieldOrder":        src.FieldOrder,
+		"autoCompare":       s.autoCompare, // Include auto-compare flag
 	}
 
 	job := &queue.Job{
@@ -902,44 +940,44 @@ func (s *appState) batchAddToQueue(paths []string) {
 
 		// Create job config
 		outDir := filepath.Dir(path)
-		baseName := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-		outName := baseName + "-converted" + s.convert.SelectedFormat.Ext
+		outputBase := s.resolveOutputBase(src, false)
+		outName := outputBase + s.convert.SelectedFormat.Ext
 		outPath := filepath.Join(outDir, outName)
 
 		config := map[string]interface{}{
-			"inputPath":        path,
-			"outputPath":       outPath,
-			"outputBase":       baseName + "-converted",
-			"selectedFormat":   s.convert.SelectedFormat,
-			"quality":          s.convert.Quality,
-			"mode":             s.convert.Mode,
-			"videoCodec":       s.convert.VideoCodec,
-			"encoderPreset":    s.convert.EncoderPreset,
-			"crf":              s.convert.CRF,
-			"bitrateMode":      s.convert.BitrateMode,
-			"videoBitrate":     s.convert.VideoBitrate,
-			"targetResolution": s.convert.TargetResolution,
-			"frameRate":        s.convert.FrameRate,
-			"pixelFormat":      s.convert.PixelFormat,
-			"hardwareAccel":    s.convert.HardwareAccel,
-			"twoPass":          s.convert.TwoPass,
-			"h264Profile":        s.convert.H264Profile,
-			"h264Level":          s.convert.H264Level,
-			"deinterlace":        s.convert.Deinterlace,
-			"deinterlaceMethod":  s.convert.DeinterlaceMethod,
-			"audioCodec":         s.convert.AudioCodec,
-			"audioBitrate":     s.convert.AudioBitrate,
-			"audioChannels":    s.convert.AudioChannels,
-			"audioSampleRate":  s.convert.AudioSampleRate,
-			"normalizeAudio":   s.convert.NormalizeAudio,
-			"inverseTelecine":  s.convert.InverseTelecine,
-			"coverArtPath":     "",
-			"aspectHandling":   s.convert.AspectHandling,
-			"outputAspect":     s.convert.OutputAspect,
-			"sourceWidth":      src.Width,
-			"sourceHeight":     src.Height,
-			"sourceDuration":   src.Duration,
-			"fieldOrder":       src.FieldOrder,
+			"inputPath":         path,
+			"outputPath":        outPath,
+			"outputBase":        outputBase,
+			"selectedFormat":    s.convert.SelectedFormat,
+			"quality":           s.convert.Quality,
+			"mode":              s.convert.Mode,
+			"videoCodec":        s.convert.VideoCodec,
+			"encoderPreset":     s.convert.EncoderPreset,
+			"crf":               s.convert.CRF,
+			"bitrateMode":       s.convert.BitrateMode,
+			"videoBitrate":      s.convert.VideoBitrate,
+			"targetResolution":  s.convert.TargetResolution,
+			"frameRate":         s.convert.FrameRate,
+			"pixelFormat":       s.convert.PixelFormat,
+			"hardwareAccel":     s.convert.HardwareAccel,
+			"twoPass":           s.convert.TwoPass,
+			"h264Profile":       s.convert.H264Profile,
+			"h264Level":         s.convert.H264Level,
+			"deinterlace":       s.convert.Deinterlace,
+			"deinterlaceMethod": s.convert.DeinterlaceMethod,
+			"audioCodec":        s.convert.AudioCodec,
+			"audioBitrate":      s.convert.AudioBitrate,
+			"audioChannels":     s.convert.AudioChannels,
+			"audioSampleRate":   s.convert.AudioSampleRate,
+			"normalizeAudio":    s.convert.NormalizeAudio,
+			"inverseTelecine":   s.convert.InverseTelecine,
+			"coverArtPath":      "",
+			"aspectHandling":    s.convert.AspectHandling,
+			"outputAspect":      s.convert.OutputAspect,
+			"sourceWidth":       src.Width,
+			"sourceHeight":      src.Height,
+			"sourceDuration":    src.Duration,
+			"fieldOrder":        src.FieldOrder,
 		}
 
 		job := &queue.Job{
@@ -1074,7 +1112,21 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Check if this is a DVD format (special handling required)
-	selectedFormat, _ := cfg["selectedFormat"].(formatOption)
+	selectedFormat := formatOptions[0]
+	switch v := cfg["selectedFormat"].(type) {
+	case formatOption:
+		selectedFormat = v
+	case map[string]interface{}:
+		if label, ok := v["Label"].(string); ok {
+			selectedFormat.Label = label
+		}
+		if ext, ok := v["Ext"].(string); ok {
+			selectedFormat.Ext = ext
+		}
+		if codec, ok := v["VideoCodec"].(string); ok {
+			selectedFormat.VideoCodec = codec
+		}
+	}
 	isDVD := selectedFormat.Ext == ".mpg"
 
 	// DVD presets: enforce compliant codecs and audio settings
@@ -1231,6 +1283,31 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		vf = append(vf, aspectFilters(targetAspect, aspectHandling)...)
 	}
 
+	// Flip horizontal
+	flipH, _ := cfg["flipHorizontal"].(bool)
+	if flipH {
+		vf = append(vf, "hflip")
+	}
+
+	// Flip vertical
+	flipV, _ := cfg["flipVertical"].(bool)
+	if flipV {
+		vf = append(vf, "vflip")
+	}
+
+	// Rotation
+	rotation, _ := cfg["rotation"].(string)
+	if rotation != "" && rotation != "0" {
+		switch rotation {
+		case "90":
+			vf = append(vf, "transpose=1") // 90 degrees clockwise
+		case "180":
+			vf = append(vf, "transpose=1,transpose=1") // 180 degrees
+		case "270":
+			vf = append(vf, "transpose=2") // 90 degrees counter-clockwise (= 270 clockwise)
+		}
+	}
+
 	// Frame rate
 	frameRate, _ := cfg["frameRate"].(string)
 	if frameRate != "" && frameRate != "Source" {
@@ -1243,6 +1320,14 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 	// Video codec
 	videoCodec, _ := cfg["videoCodec"].(string)
+	if friendly := friendlyCodecFromPreset(selectedFormat.VideoCodec); friendly != "" {
+		if videoCodec == "" ||
+			(strings.EqualFold(videoCodec, "H.264") && friendly == "H.265") ||
+			(strings.EqualFold(videoCodec, "H.265") && friendly == "H.264") {
+			videoCodec = friendly
+			cfg["videoCodec"] = friendly
+		}
+	}
 	if videoCodec == "Copy" && !isDVD {
 		args = append(args, "-c:v", "copy")
 	} else {
@@ -1270,8 +1355,9 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		} else {
 			// Standard bitrate mode and quality for non-DVD
 			bitrateMode, _ := cfg["bitrateMode"].(string)
+			crfStr := ""
 			if bitrateMode == "CRF" || bitrateMode == "" {
-				crfStr, _ := cfg["crf"].(string)
+				crfStr, _ = cfg["crf"].(string)
 				if crfStr == "" {
 					quality, _ := cfg["quality"].(string)
 					crfStr = crfForQuality(quality)
@@ -1314,19 +1400,40 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 				}
 			}
 
+			pixelFormat, _ := cfg["pixelFormat"].(string)
+			h264Profile, _ := cfg["h264Profile"].(string)
+
 			// Encoder preset
 			if encoderPreset, _ := cfg["encoderPreset"].(string); encoderPreset != "" && (actualCodec == "libx264" || actualCodec == "libx265") {
 				args = append(args, "-preset", encoderPreset)
 			}
 
+			// Enforce true lossless for software HEVC when CRF is 0
+			if actualCodec == "libx265" && crfStr == "0" {
+				args = append(args, "-x265-params", "lossless=1")
+			}
+
+			// H.264 lossless requires High 4:4:4 profile and yuv444p pixel format
+			if actualCodec == "libx264" && crfStr == "0" {
+				if h264Profile == "" || strings.EqualFold(h264Profile, "auto") ||
+					strings.EqualFold(h264Profile, "baseline") ||
+					strings.EqualFold(h264Profile, "main") ||
+					strings.EqualFold(h264Profile, "high") {
+					h264Profile = "high444"
+				}
+				if pixelFormat == "" || strings.EqualFold(pixelFormat, "yuv420p") {
+					pixelFormat = "yuv444p"
+				}
+			}
+
 			// Pixel format
-			if pixelFormat, _ := cfg["pixelFormat"].(string); pixelFormat != "" {
+			if pixelFormat != "" {
 				args = append(args, "-pix_fmt", pixelFormat)
 			}
 
 			// H.264 profile and level for compatibility
 			if videoCodec == "H.264" && (strings.Contains(actualCodec, "264") || strings.Contains(actualCodec, "h264")) {
-				if h264Profile, _ := cfg["h264Profile"].(string); h264Profile != "" && h264Profile != "Auto" {
+				if h264Profile != "" && h264Profile != "Auto" {
 					// Use :v:0 if cover art is present to avoid applying to PNG stream
 					if hasCoverArt {
 						args = append(args, "-profile:v:0", h264Profile)
@@ -1396,26 +1503,6 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		args = append(args, "-map", "0:v", "-map", "0:a?", "-map", "1:v")
 		args = append(args, "-c:v:1", "png")
 		args = append(args, "-disposition:v:1", "attached_pic")
-	}
-
-	// Format-specific settings (already parsed above for DVD check)
-	switch v := cfg["selectedFormat"].(type) {
-	case formatOption:
-		selectedFormat = v
-	case map[string]interface{}:
-		// Reconstruct from map (happens when loading from JSON)
-		if label, ok := v["Label"].(string); ok {
-			selectedFormat.Label = label
-		}
-		if ext, ok := v["Ext"].(string); ok {
-			selectedFormat.Ext = ext
-		}
-		if codec, ok := v["VideoCodec"].(string); ok {
-			selectedFormat.VideoCodec = codec
-		}
-	default:
-		// Fallback to MP4
-		selectedFormat = formatOptions[0]
 	}
 
 	if strings.EqualFold(selectedFormat.Ext, ".mp4") || strings.EqualFold(selectedFormat.Ext, ".mov") {
@@ -1542,11 +1629,11 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		isHardwareFailure := strings.Contains(stderrOutput, "No capable devices found") ||
 			strings.Contains(stderrOutput, "Cannot load") ||
 			strings.Contains(stderrOutput, "not available") &&
-			(strings.Contains(stderrOutput, "nvenc") ||
-			 strings.Contains(stderrOutput, "amf") ||
-			 strings.Contains(stderrOutput, "qsv") ||
-			 strings.Contains(stderrOutput, "vaapi") ||
-			 strings.Contains(stderrOutput, "videotoolbox"))
+				(strings.Contains(stderrOutput, "nvenc") ||
+					strings.Contains(stderrOutput, "amf") ||
+					strings.Contains(stderrOutput, "qsv") ||
+					strings.Contains(stderrOutput, "vaapi") ||
+					strings.Contains(stderrOutput, "videotoolbox"))
 
 		if isHardwareFailure && hardwareAccel != "none" && hardwareAccel != "" {
 			logging.Debug(logging.CatFFMPEG, "hardware encoding failed, will suggest software fallback")
@@ -1585,8 +1672,8 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 			// Load into compare slots
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				s.compareFile1 = originalSrc   // Original
-				s.compareFile2 = convertedSrc  // Converted
+				s.compareFile1 = originalSrc  // Original
+				s.compareFile2 = convertedSrc // Converted
 				s.showCompareView()
 				logging.Debug(logging.CatModule, "auto-compare from queue: loaded original vs converted")
 			}, false)
@@ -1699,34 +1786,36 @@ func runGUI() {
 	state := &appState{
 		window: w,
 		convert: convertConfig{
-			OutputBase:     "converted",
-			SelectedFormat: formatOptions[0],
-			Quality:        "Standard (CRF 23)",
-			Mode:           "Simple",
+			OutputBase:       "converted",
+			SelectedFormat:   formatOptions[0],
+			Quality:          "Standard (CRF 23)",
+			Mode:             "Simple",
+			UseAutoNaming:    false,
+			AutoNameTemplate: "<actress> - <studio> - <scene>",
 
 			// Video encoding defaults
-			VideoCodec:       "H.264",
-			EncoderPreset:    "medium",
-			CRF:              "", // Empty means use Quality preset
-			BitrateMode:      "CRF",
-			VideoBitrate:     "5000k",
-			TargetResolution: "Source",
-			FrameRate:        "Source",
-			PixelFormat:      "yuv420p",
-			HardwareAccel:    "none",
-			TwoPass:          false,
-			H264Profile:        "main",
-			H264Level:          "4.0",
-			Deinterlace:        "Auto",
-			DeinterlaceMethod:  "bwdif",
-			AutoCrop:           false,
+			VideoCodec:        "H.264",
+			EncoderPreset:     "medium",
+			CRF:               "", // Empty means use Quality preset
+			BitrateMode:       "CRF",
+			VideoBitrate:      "5000k",
+			TargetResolution:  "Source",
+			FrameRate:         "Source",
+			PixelFormat:       "yuv420p",
+			HardwareAccel:     "none",
+			TwoPass:           false,
+			H264Profile:       "main",
+			H264Level:         "4.0",
+			Deinterlace:       "Auto",
+			DeinterlaceMethod: "bwdif",
+			AutoCrop:          false,
 
 			// Audio encoding defaults
-			AudioCodec:       "AAC",
-			AudioBitrate:     "192k",
-			AudioChannels:    "Source",
-			AudioSampleRate:  "Source",
-			NormalizeAudio:   false,
+			AudioCodec:      "AAC",
+			AudioBitrate:    "192k",
+			AudioChannels:   "Source",
+			AudioSampleRate: "Source",
+			NormalizeAudio:  false,
 
 			// Other defaults
 			InverseTelecine:  true,
@@ -1996,22 +2085,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Placeholder for updateDVDOptions - will be defined after resolution/framerate selects are created
 	var updateDVDOptions func()
 
-	// Create formatSelect with callback that updates DVD options
-	formatSelect := widget.NewSelect(formatLabels, func(value string) {
-		for _, opt := range formatOptions {
-			if opt.Label == value {
-				logging.Debug(logging.CatUI, "format set to %s", value)
-				state.convert.SelectedFormat = opt
-				outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
-				if updateDVDOptions != nil {
-					updateDVDOptions() // Show/hide DVD options and auto-set resolution
-				}
-				break
-			}
-		}
-	})
-	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
-
 	qualitySelect := widget.NewSelect([]string{"Draft (CRF 28)", "Standard (CRF 23)", "High (CRF 18)", "Lossless"}, func(value string) {
 		logging.Debug(logging.CatUI, "quality preset %s", value)
 		state.convert.Quality = value
@@ -2020,9 +2093,48 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	outputEntry := widget.NewEntry()
 	outputEntry.SetText(state.convert.OutputBase)
+	var updatingOutput bool
 	outputEntry.OnChanged = func(val string) {
+		if updatingOutput {
+			return
+		}
 		state.convert.OutputBase = val
 		outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+	}
+
+	applyAutoName := func(force bool) {
+		if !force && !state.convert.UseAutoNaming {
+			return
+		}
+		newBase := state.resolveOutputBase(src, false)
+		updatingOutput = true
+		state.convert.OutputBase = newBase
+		outputEntry.SetText(newBase)
+		updatingOutput = false
+		outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+	}
+
+	autoNameCheck := widget.NewCheck("Auto-name from metadata", func(checked bool) {
+		state.convert.UseAutoNaming = checked
+		applyAutoName(true)
+	})
+	autoNameCheck.Checked = state.convert.UseAutoNaming
+
+	autoNameTemplate := widget.NewEntry()
+	autoNameTemplate.SetPlaceHolder("<actress> - <studio> - <scene>")
+	autoNameTemplate.SetText(state.convert.AutoNameTemplate)
+	autoNameTemplate.OnChanged = func(val string) {
+		state.convert.AutoNameTemplate = val
+		if state.convert.UseAutoNaming {
+			applyAutoName(true)
+		}
+	}
+
+	autoNameHint := widget.NewLabel("Tokens: <actress>, <studio>, <scene>, <title>, <series>, <date>, <filename>")
+	autoNameHint.Wrapping = fyne.TextWrapWord
+
+	if state.convert.UseAutoNaming {
+		applyAutoName(true)
 	}
 
 	inverseCheck := widget.NewCheck("Smart Inverse Telecine", func(checked bool) {
@@ -2094,6 +2206,47 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	autoCropHint := widget.NewLabel("Removes black bars to reduce file size (15-30% typical reduction)")
 	autoCropHint.Wrapping = fyne.TextWrapWord
 
+	// Flip and Rotation controls
+	flipHorizontalCheck := widget.NewCheck("Flip Horizontal (Mirror)", func(checked bool) {
+		state.convert.FlipHorizontal = checked
+		logging.Debug(logging.CatUI, "flip horizontal set to %v", checked)
+	})
+	flipHorizontalCheck.Checked = state.convert.FlipHorizontal
+
+	flipVerticalCheck := widget.NewCheck("Flip Vertical (Upside Down)", func(checked bool) {
+		state.convert.FlipVertical = checked
+		logging.Debug(logging.CatUI, "flip vertical set to %v", checked)
+	})
+	flipVerticalCheck.Checked = state.convert.FlipVertical
+
+	rotationSelect := widget.NewSelect([]string{"0°", "90° CW", "180°", "270° CW"}, func(value string) {
+		var rotation string
+		switch value {
+		case "0°":
+			rotation = "0"
+		case "90° CW":
+			rotation = "90"
+		case "180°":
+			rotation = "180"
+		case "270° CW":
+			rotation = "270"
+		}
+		state.convert.Rotation = rotation
+		logging.Debug(logging.CatUI, "rotation set to %s", rotation)
+	})
+	if state.convert.Rotation == "" {
+		state.convert.Rotation = "0"
+	}
+	rotationMap := map[string]string{"0": "0°", "90": "90° CW", "180": "180°", "270": "270° CW"}
+	if label, ok := rotationMap[state.convert.Rotation]; ok {
+		rotationSelect.SetSelected(label)
+	} else {
+		rotationSelect.SetSelected("0°")
+	}
+
+	transformHint := widget.NewLabel("Apply flips and rotation to correct video orientation")
+	transformHint.Wrapping = fyne.TextWrapWord
+
 	aspectTargets := []string{"Source", "16:9", "4:3", "1:1", "9:16", "21:9"}
 	targetAspectSelect := widget.NewSelect(aspectTargets, func(value string) {
 		logging.Debug(logging.CatUI, "target aspect set to %s", value)
@@ -2146,87 +2299,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.AspectHandling = value
 	}
 
-	// Settings management for batch operations
-	settingsInfoLabel := widget.NewLabel("Settings persist across videos. Change them anytime to affect all subsequent videos.")
-	// Don't wrap - let text scroll or truncate if needed
-	settingsInfoLabel.Alignment = fyne.TextAlignCenter
-
-	resetSettingsBtn := widget.NewButton("Reset to Defaults", func() {
-		// Reset to default settings
-		state.convert = convertConfig{
-			SelectedFormat:   formatOptions[0],
-			OutputBase:       "converted",
-			Quality:          "Standard (CRF 23)",
-			InverseTelecine:  false,
-			OutputAspect:     "Source",
-			AspectHandling:   "Auto",
-			VideoCodec:       "H.264",
-			EncoderPreset:    "medium",
-			BitrateMode:      "CRF",
-			CRF:              "",
-			VideoBitrate:     "",
-			TargetResolution: "Source",
-			FrameRate:        "Source",
-			PixelFormat:      "yuv420p",
-			HardwareAccel:    "none",
-			AudioCodec:       "AAC",
-			AudioBitrate:     "192k",
-			AudioChannels:    "Source",
-		}
-		logging.Debug(logging.CatUI, "settings reset to defaults")
-		// Refresh all UI elements to show new settings
-		formatSelect.SetSelected(state.convert.SelectedFormat.Label)
-		qualitySelect.SetSelected(state.convert.Quality)
-		outputEntry.SetText(state.convert.OutputBase)
-	})
-	resetSettingsBtn.Importance = widget.LowImportance
-
-	// Create collapsible batch settings section
-	settingsContent := container.NewVBox(
-		settingsInfoLabel,
-		resetSettingsBtn,
-	)
-	settingsContent.Hide() // Hidden by default
-
-	// Use a pointer to track visibility state
-	settingsVisible := false
-
-	var toggleSettingsBtn *widget.Button
-	toggleSettingsBtn = widget.NewButton("Show Batch Settings", func() {
-		if settingsVisible {
-			settingsContent.Hide()
-			toggleSettingsBtn.SetText("Show Batch Settings")
-			settingsVisible = false
-		} else {
-			settingsContent.Show()
-			toggleSettingsBtn.SetText("Hide Batch Settings")
-			settingsVisible = true
-		}
-	})
-	toggleSettingsBtn.Importance = widget.LowImportance
-
-	settingsBox := container.NewVBox(
-		toggleSettingsBtn,
-		settingsContent,
-		widget.NewSeparator(),
-	)
-
-	// Simple mode options - minimal controls, aspect locked to Source
-	simpleOptions := container.NewVBox(
-		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		formatSelect,
-		dvdAspectBox, // DVD options appear here when DVD format selected
-		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		outputEntry,
-		outputHint,
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle("═══ QUALITY ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		qualitySelect,
-		widget.NewLabel("Aspect ratio will match source video"),
-		layout.NewSpacer(),
-	)
-
 	// Cover art display on one line
 	coverDisplay = widget.NewLabel("Cover Art: " + state.convert.CoverLabel())
 
@@ -2236,6 +2308,47 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		logging.Debug(logging.CatUI, "video codec set to %s", value)
 	})
 	videoCodecSelect.SetSelected(state.convert.VideoCodec)
+
+	// Map format preset codec names to the UI-facing codec selector value
+	mapFormatCodec := func(codec string) string {
+		codec = strings.ToLower(codec)
+		switch {
+		case strings.Contains(codec, "265") || strings.Contains(codec, "hevc"):
+			return "H.265"
+		case strings.Contains(codec, "264"):
+			return "H.264"
+		case strings.Contains(codec, "vp9"):
+			return "VP9"
+		case strings.Contains(codec, "av1"):
+			return "AV1"
+		case strings.Contains(codec, "mpeg2"):
+			return "MPEG-2"
+		default:
+			return state.convert.VideoCodec
+		}
+	}
+
+	formatSelect := widget.NewSelect(formatLabels, func(value string) {
+		for _, opt := range formatOptions {
+			if opt.Label == value {
+				logging.Debug(logging.CatUI, "format set to %s", value)
+				state.convert.SelectedFormat = opt
+				outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+				if updateDVDOptions != nil {
+					updateDVDOptions() // Show/hide DVD options and auto-set resolution
+				}
+
+				// Keep the codec selector aligned with the chosen format by default
+				newCodec := mapFormatCodec(opt.VideoCodec)
+				if newCodec != "" {
+					state.convert.VideoCodec = newCodec
+					videoCodecSelect.SetSelected(newCodec)
+				}
+				break
+			}
+		}
+	})
+	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
 
 	// Encoder Preset with hint
 	encoderPresetHint := widget.NewLabel("")
@@ -2275,6 +2388,78 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	encoderPresetSelect.SetSelected(state.convert.EncoderPreset)
 	updateEncoderPresetHint(state.convert.EncoderPreset)
+
+	// Simple mode preset dropdown
+	simplePresetSelect := widget.NewSelect([]string{"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"}, func(value string) {
+		state.convert.EncoderPreset = value
+		logging.Debug(logging.CatUI, "simple preset set to %s", value)
+		updateEncoderPresetHint(value)
+	})
+	simplePresetSelect.SetSelected(state.convert.EncoderPreset)
+
+	// Settings management for batch operations
+	settingsInfoLabel := widget.NewLabel("Settings persist across videos. Change them anytime to affect all subsequent videos.")
+	settingsInfoLabel.Alignment = fyne.TextAlignCenter
+
+	resetSettingsBtn := widget.NewButton("Reset to Defaults", func() {
+		state.convert = convertConfig{
+			SelectedFormat:   formatOptions[0],
+			OutputBase:       "converted",
+			Quality:          "Standard (CRF 23)",
+			InverseTelecine:  false,
+			OutputAspect:     "Source",
+			AspectHandling:   "Auto",
+			VideoCodec:       "H.264",
+			EncoderPreset:    "medium",
+			BitrateMode:      "CRF",
+			CRF:              "",
+			VideoBitrate:     "",
+			TargetResolution: "Source",
+			FrameRate:        "Source",
+			PixelFormat:      "yuv420p",
+			HardwareAccel:    "none",
+			AudioCodec:       "AAC",
+			AudioBitrate:     "192k",
+			AudioChannels:    "Source",
+			UseAutoNaming:    false,
+			AutoNameTemplate: "<actress> - <studio> - <scene>",
+		}
+		logging.Debug(logging.CatUI, "settings reset to defaults")
+		formatSelect.SetSelected(state.convert.SelectedFormat.Label)
+		videoCodecSelect.SetSelected(state.convert.VideoCodec)
+		qualitySelect.SetSelected(state.convert.Quality)
+		simplePresetSelect.SetSelected(state.convert.EncoderPreset)
+		autoNameCheck.SetChecked(state.convert.UseAutoNaming)
+		autoNameTemplate.SetText(state.convert.AutoNameTemplate)
+		outputEntry.SetText(state.convert.OutputBase)
+	})
+	resetSettingsBtn.Importance = widget.LowImportance
+
+	settingsContent := container.NewVBox(
+		settingsInfoLabel,
+		resetSettingsBtn,
+	)
+	settingsContent.Hide()
+
+	settingsVisible := false
+	var toggleSettingsBtn *widget.Button
+	toggleSettingsBtn = widget.NewButton("Show Batch Settings", func() {
+		if settingsVisible {
+			settingsContent.Hide()
+			toggleSettingsBtn.SetText("Show Batch Settings")
+		} else {
+			settingsContent.Show()
+			toggleSettingsBtn.SetText("Hide Batch Settings")
+		}
+		settingsVisible = !settingsVisible
+	})
+	toggleSettingsBtn.Importance = widget.LowImportance
+
+	settingsBox := container.NewVBox(
+		toggleSettingsBtn,
+		settingsContent,
+		widget.NewSeparator(),
+	)
 
 	// Bitrate Mode
 	bitrateModeSelect := widget.NewSelect([]string{"CRF", "CBR", "VBR", "Target Size"}, func(value string) {
@@ -2516,6 +2701,30 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			dvdAspectBox.Hide()
 		}
 	}
+	updateDVDOptions()
+
+	// Simple mode options - minimal controls, aspect locked to Source
+	simpleOptions := container.NewVBox(
+		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		formatSelect,
+		dvdAspectBox, // DVD options appear here when DVD format selected
+		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		outputEntry,
+		autoNameCheck,
+		autoNameTemplate,
+		autoNameHint,
+		outputHint,
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle("═══ QUALITY ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		qualitySelect,
+		widget.NewLabelWithStyle("Encoder Speed/Quality", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabel("Choose slower for better compression, faster for speed"),
+		widget.NewLabelWithStyle("Encoder Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		simplePresetSelect,
+		widget.NewLabel("Aspect ratio will match source video"),
+		layout.NewSpacer(),
+	)
 
 	// Advanced mode options - full controls with organized sections
 	advancedOptions := container.NewVBox(
@@ -2525,6 +2734,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		dvdAspectBox, // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
+		autoNameCheck,
+		autoNameTemplate,
+		autoNameHint,
 		outputHint,
 		coverDisplay,
 		widget.NewSeparator(),
@@ -2580,6 +2792,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		autoCropHint,
 		widget.NewSeparator(),
 
+		widget.NewLabelWithStyle("═══ VIDEO TRANSFORMATIONS ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		flipHorizontalCheck,
+		flipVerticalCheck,
+		widget.NewLabelWithStyle("Rotation", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		rotationSelect,
+		transformHint,
+		widget.NewSeparator(),
+
 		widget.NewLabelWithStyle("═══ DEINTERLACING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		inverseCheck,
 		inverseHint,
@@ -2588,10 +2808,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Create tabs for Simple/Advanced modes
 	// Wrap simple options with settings box at top
-	simpleWithSettings := container.NewVBox(
-		settingsBox,
-		simpleOptions,
-	)
+	simpleWithSettings := container.NewVBox(settingsBox, simpleOptions)
 
 	// Keep Simple lightweight; wrap Advanced in its own scroll to avoid bloating MinSize.
 	simpleScrollBox := simpleWithSettings
@@ -2743,6 +2960,30 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	if state.jobQueue != nil && state.jobQueue.IsRunning() {
 		convertBtn.Disable()
 		addQueueBtn.Enable()
+	}
+
+	// Keyboard shortcut: Ctrl+Enter (Cmd+Enter on macOS maps to Super) -> Convert Now
+	if c := state.window.Canvas(); c != nil {
+		triggerNow := func() {
+			if convertBtn != nil && !convertBtn.Disabled() {
+				if convertBtn.OnTapped != nil {
+					convertBtn.OnTapped()
+				}
+			}
+		}
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyReturn, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) {
+			triggerNow()
+		})
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) {
+			triggerNow()
+		})
+		// macOS Command+Enter is reported as Super+Enter
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyReturn, Modifier: fyne.KeyModifierSuper}, func(fyne.Shortcut) {
+			triggerNow()
+		})
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierSuper}, func(fyne.Shortcut) {
+			triggerNow()
+		})
 	}
 
 	// Auto-compare checkbox
@@ -3160,6 +3401,40 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		}
 	})
 
+	saveFrameBtn := utils.MakeIconButton("💾", "Save current frame as PNG", func() {
+		framePath, err := state.captureCoverFromCurrent()
+		if err != nil {
+			dialog.ShowError(err, state.window)
+			return
+		}
+		dlg := dialog.NewFileSave(func(w fyne.URIWriteCloser, err error) {
+			if err != nil {
+				dialog.ShowError(err, state.window)
+				return
+			}
+			if w == nil {
+				return
+			}
+			defer w.Close()
+
+			data, readErr := os.ReadFile(framePath)
+			if readErr != nil {
+				dialog.ShowError(readErr, state.window)
+				return
+			}
+			if _, writeErr := w.Write(data); writeErr != nil {
+				dialog.ShowError(writeErr, state.window)
+				return
+			}
+		}, state.window)
+		dlg.SetFilter(storage.NewExtensionFileFilter([]string{".png"}))
+		if src != nil {
+			name := strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)) + "-frame.png"
+			dlg.SetFileName(name)
+		}
+		dlg.Show()
+	})
+
 	importBtn := utils.MakeIconButton("⬆", "Import cover art file", func() {
 		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 			if err != nil {
@@ -3290,7 +3565,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
 		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
 		controls = container.NewVBox(
-			container.NewHBox(playBtn, fullBtn, coverBtn, importBtn, layout.NewSpacer(), volBox),
+			container.NewHBox(playBtn, fullBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), volBox),
 			progress,
 		)
 	} else {
@@ -3327,7 +3602,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		volSlider.Disable()
 		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
 		controls = container.NewVBox(
-			container.NewHBox(playBtn, coverBtn, importBtn, layout.NewSpacer(), widget.NewLabel("🔇"), container.NewMax(volSlider)),
+			container.NewHBox(playBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), widget.NewLabel("🔇"), container.NewMax(volSlider)),
 			progress,
 		)
 		if len(src.PreviewFrames) > 1 {
@@ -4096,8 +4371,7 @@ func (s *appState) loadVideo(path string) {
 		s.currentFrame = ""
 	}
 	s.applyInverseDefaults(src)
-	base := strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName))
-	s.convert.OutputBase = base + "-convert"
+	s.convert.OutputBase = s.resolveOutputBase(src, false)
 	// Use embedded cover art if present, otherwise clear
 	if src.EmbeddedCoverArt != "" {
 		s.convert.CoverArtPath = src.EmbeddedCoverArt
@@ -4276,8 +4550,7 @@ func (s *appState) switchToVideo(index int) {
 	}
 
 	s.applyInverseDefaults(src)
-	base := strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName))
-	s.convert.OutputBase = base + "-convert"
+	s.convert.OutputBase = s.resolveOutputBase(src, false)
 
 	if src.EmbeddedCoverArt != "" {
 		s.convert.CoverArtPath = src.EmbeddedCoverArt
@@ -4434,6 +4707,25 @@ func determineVideoCodec(cfg convertConfig) string {
 		return "copy"
 	default:
 		return "libx264"
+	}
+}
+
+// friendlyCodecFromPreset maps a preset codec string (e.g., "libx265") to the UI-friendly codec name.
+func friendlyCodecFromPreset(preset string) string {
+	preset = strings.ToLower(preset)
+	switch {
+	case strings.Contains(preset, "265") || strings.Contains(preset, "hevc"):
+		return "H.265"
+	case strings.Contains(preset, "264"):
+		return "H.264"
+	case strings.Contains(preset, "vp9"):
+		return "VP9"
+	case strings.Contains(preset, "av1"):
+		return "AV1"
+	case strings.Contains(preset, "mpeg2"):
+		return "MPEG-2"
+	default:
+		return ""
 	}
 }
 
@@ -4650,6 +4942,28 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
 			vf = append(vf, aspectFilters(targetAspect, cfg.AspectHandling)...)
 			logging.Debug(logging.CatFFMPEG, "converting aspect ratio from %.2f to %.2f using %s mode", srcAspect, targetAspect, cfg.AspectHandling)
+		}
+	}
+
+	// Flip horizontal
+	if cfg.FlipHorizontal {
+		vf = append(vf, "hflip")
+	}
+
+	// Flip vertical
+	if cfg.FlipVertical {
+		vf = append(vf, "vflip")
+	}
+
+	// Rotation
+	if cfg.Rotation != "" && cfg.Rotation != "0" {
+		switch cfg.Rotation {
+		case "90":
+			vf = append(vf, "transpose=1") // 90 degrees clockwise
+		case "180":
+			vf = append(vf, "transpose=1,transpose=1") // 180 degrees
+		case "270":
+			vf = append(vf, "transpose=2") // 90 degrees counter-clockwise (= 270 clockwise)
 		}
 	}
 
@@ -4968,11 +5282,11 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				isHardwareFailure := strings.Contains(stderrOutput, "No capable devices found") ||
 					strings.Contains(stderrOutput, "Cannot load") ||
 					strings.Contains(stderrOutput, "not available") &&
-					(strings.Contains(stderrOutput, "nvenc") ||
-					 strings.Contains(stderrOutput, "amf") ||
-					 strings.Contains(stderrOutput, "qsv") ||
-					 strings.Contains(stderrOutput, "vaapi") ||
-					 strings.Contains(stderrOutput, "videotoolbox"))
+						(strings.Contains(stderrOutput, "nvenc") ||
+							strings.Contains(stderrOutput, "amf") ||
+							strings.Contains(stderrOutput, "qsv") ||
+							strings.Contains(stderrOutput, "vaapi") ||
+							strings.Contains(stderrOutput, "videotoolbox"))
 
 				if isHardwareFailure && s.convert.HardwareAccel != "none" && s.convert.HardwareAccel != "" {
 					errorMsg = fmt.Errorf("Hardware encoding (%s) failed - no compatible hardware found.\n\nPlease disable hardware acceleration in the conversion settings and try again with software encoding.\n\nFFmpeg output:\n%s", s.convert.HardwareAccel, stderrOutput)
@@ -5035,8 +5349,8 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 					// Load original and converted into compare slots
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						s.compareFile1 = src              // Original
-						s.compareFile2 = convertedSrc     // Converted
+						s.compareFile1 = src          // Original
+						s.compareFile2 = convertedSrc // Converted
 						s.showCompareView()
 						logging.Debug(logging.CatModule, "auto-compare: loaded original vs converted")
 					}, false)
@@ -5380,8 +5694,8 @@ type videoSource struct {
 	Duration         float64
 	VideoCodec       string
 	AudioCodec       string
-	Bitrate          int    // Video bitrate in bits per second
-	AudioBitrate     int    // Audio bitrate in bits per second
+	Bitrate          int // Video bitrate in bits per second
+	AudioBitrate     int // Audio bitrate in bits per second
 	FrameRate        float64
 	PixelFormat      string
 	AudioRate        int
@@ -5397,6 +5711,7 @@ type videoSource struct {
 	GOPSize           int    // GOP size / keyframe interval
 	HasChapters       bool   // Whether file has embedded chapters
 	HasMetadata       bool   // Whether file has title/copyright/etc metadata
+	Metadata          map[string]string
 }
 
 func (v *videoSource) DurationString() string {
@@ -5468,11 +5783,12 @@ func probeVideo(path string) (*videoSource, error) {
 
 	var result struct {
 		Format struct {
-			Filename   string `json:"filename"`
-			Format     string `json:"format_long_name"`
-			Duration   string `json:"duration"`
-			FormatName string `json:"format_name"`
-			BitRate    string `json:"bit_rate"`
+			Filename   string                 `json:"filename"`
+			Format     string                 `json:"format_long_name"`
+			Duration   string                 `json:"duration"`
+			FormatName string                 `json:"format_name"`
+			BitRate    string                 `json:"bit_rate"`
+			Tags       map[string]interface{} `json:"tags"`
 		} `json:"format"`
 		Streams []struct {
 			Index        int    `json:"index"`
@@ -5507,6 +5823,13 @@ func probeVideo(path string) (*videoSource, error) {
 	if durStr := result.Format.Duration; durStr != "" {
 		if val, err := utils.ParseFloat(durStr); err == nil {
 			src.Duration = val
+		}
+	}
+
+	if len(result.Format.Tags) > 0 {
+		src.Metadata = normalizeTags(result.Format.Tags)
+		if len(src.Metadata) > 0 {
+			src.HasMetadata = true
 		}
 	}
 	// Track if we've found the main video stream (not cover art)
@@ -5580,6 +5903,21 @@ func probeVideo(path string) (*videoSource, error) {
 	}
 
 	return src, nil
+}
+
+func normalizeTags(tags map[string]interface{}) map[string]string {
+	normalized := make(map[string]string, len(tags))
+	for k, v := range tags {
+		key := strings.ToLower(strings.TrimSpace(k))
+		if key == "" {
+			continue
+		}
+		val := strings.TrimSpace(fmt.Sprint(v))
+		if val != "" {
+			normalized[key] = val
+		}
+	}
+	return normalized
 }
 
 // CropValues represents detected crop parameters
@@ -5669,7 +6007,7 @@ func detectCrop(path string, duration float64) *CropValues {
 	}
 
 	// Ensure crop position + size doesn't exceed source
-	if x + width > sourceWidth {
+	if x+width > sourceWidth {
 		logging.Debug(logging.CatFFMPEG, "crop x+width exceeds source, adjusting x from %d to %d", x, sourceWidth-width)
 		x = sourceWidth - width
 		if x < 0 {
@@ -5677,7 +6015,7 @@ func detectCrop(path string, duration float64) *CropValues {
 			width = sourceWidth
 		}
 	}
-	if y + height > sourceHeight {
+	if y+height > sourceHeight {
 		logging.Debug(logging.CatFFMPEG, "crop y+height exceeds source, adjusting y from %d to %d", y, sourceHeight-height)
 		y = sourceHeight - height
 		if y < 0 {
@@ -5687,11 +6025,11 @@ func detectCrop(path string, duration float64) *CropValues {
 	}
 
 	// Ensure even dimensions (required for many codecs)
-	if width % 2 != 0 {
+	if width%2 != 0 {
 		width -= 1
 		logging.Debug(logging.CatFFMPEG, "adjusted width to even number: %d", width)
 	}
-	if height % 2 != 0 {
+	if height%2 != 0 {
 		height -= 1
 		logging.Debug(logging.CatFFMPEG, "adjusted height to even number: %d", height)
 	}
@@ -6396,6 +6734,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
+
 // buildCompareFullscreenView creates fullscreen side-by-side comparison with synchronized controls
 func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 	compareColor := moduleColor("compare")
