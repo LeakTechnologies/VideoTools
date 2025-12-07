@@ -104,17 +104,14 @@ case "$OS" in
                     echo "  Or:  .\scripts\setup-windows.ps1 -Portable"
                     echo ""
 
-                    # Offer to run setup automatically
-                    echo "Would you like to download FFmpeg now? (y/n)"
-                    read -r response
-                    if [[ "$response" =~ ^[Yy]$ ]]; then
-                        if command -v powershell &> /dev/null; then
-                            powershell -ExecutionPolicy Bypass -File "$SCRIPT_DIR/setup-windows.ps1" -Portable
-                        else
-                            cmd.exe /c setup-windows.bat
-                        fi
+                    if ffmpeg -version >/dev/null 2>&1 && ffprobe -version >/dev/null 2>&1; then
+                        echo "FFmpeg detected on PATH. Skipping bundled download."
                     else
-                        echo "You can run setup-windows.bat later to get FFmpeg."
+                        echo "FFmpeg not detected on PATH."
+                        echo "Next step: Get FFmpeg"
+                        echo "  Run: setup-windows.bat"
+                        echo "  Or:  .\\scripts\\setup-windows.ps1 -Portable"
+                        echo "You can skip if FFmpeg is already installed elsewhere."
                     fi
                 else
                     echo "✓ Build complete: VideoTools.exe"
