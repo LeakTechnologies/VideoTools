@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -28,6 +29,7 @@ func BuildQueueView(
 	onStart func(),
 	onClear func(),
 	onClearAll func(),
+	onCopyError func(string),
 	titleColor, bgColor, textColor color.Color,
 ) (fyne.CanvasObject, *container.Scroll) {
 	// Header
@@ -71,7 +73,7 @@ func BuildQueueView(
 		jobItems = append(jobItems, container.NewCenter(emptyMsg))
 	} else {
 		for _, job := range jobs {
-			jobItems = append(jobItems, buildJobItem(job, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, bgColor, textColor))
+			jobItems = append(jobItems, buildJobItem(job, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, onCopyError, bgColor, textColor))
 		}
 	}
 
@@ -99,6 +101,7 @@ func buildJobItem(
 	onRemove func(string),
 	onMoveUp func(string),
 	onMoveDown func(string),
+	onCopyError func(string),
 	bgColor, textColor color.Color,
 ) fyne.CanvasObject {
 	// Status color
@@ -157,6 +160,11 @@ func buildJobItem(
 			widget.NewButton("Cancel", func() { onCancel(job.ID) }),
 		)
 	case queue.JobStatusCompleted, queue.JobStatusFailed, queue.JobStatusCancelled:
+		if job.Status == queue.JobStatusFailed && strings.TrimSpace(job.Error) != "" && onCopyError != nil {
+			buttons = append(buttons,
+				widget.NewButton("Copy Error", func() { onCopyError(job.ID) }),
+			)
+		}
 		buttons = append(buttons,
 			widget.NewButton("Remove", func() { onRemove(job.ID) }),
 		)
