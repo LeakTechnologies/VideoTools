@@ -198,6 +198,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] Implement color correction filters
   - [ ] Brightness/Contrast
   - [ ] Saturation/Hue
+  - [ ] LUT support (1D/3D .cube load/apply) — primary home in Filters menu; optionally expose quick apply in Convert presets
   - [ ] Color balance
   - [ ] Curves/Levels
 - [ ] Implement enhancement filters
