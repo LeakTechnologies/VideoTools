@@ -14,6 +14,7 @@ import (
 	"image/png"
 	"io"
 	"math"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,8 +64,10 @@ var (
 
 	conversionLogSuffix = ".videotools.log"
 
-	logsDirOnce sync.Once
-	logsDirPath string
+	logsDirOnce     sync.Once
+	logsDirPath     string
+	feedbackBundler = newFeedbackBundler()
+	appVersion      = "v0.1.0-dev14"
 
 	modulesList = []Module{
 		{"convert", "Convert", utils.MustHex("#8B44FF"), "Convert", modules.HandleConvert},  // Violet
@@ -213,6 +216,33 @@ func openFolder(path string) error {
 	}
 	utils.ApplyNoWindow(cmd)
 	return cmd.Start()
+}
+
+func (s *appState) showAbout() {
+	version := fmt.Sprintf("VideoTools %s", appVersion)
+	dev := "Leak Technologies"
+	logsPath := getLogsDir()
+
+	versionText := widget.NewLabel(version)
+	devText := widget.NewLabel(fmt.Sprintf("Developer: %s", dev))
+	logsLink := widget.NewButton("Open Logs Folder", func() {
+		if err := openFolder(logsPath); err != nil {
+			dialog.ShowError(fmt.Errorf("failed to open logs folder: %w", err), s.window)
+		}
+	})
+	logsLink.Importance = widget.LowImportance
+
+	donateURL, _ := url.Parse("https://leaktechnologies.dev/support")
+	donateLink := widget.NewHyperlink("Support development", donateURL)
+
+	body := container.NewVBox(
+		versionText,
+		devText,
+		logsLink,
+		donateLink,
+		widget.NewLabel("Feedback: use the Logs button on the main menu to view logs; send issues with attached logs."),
+	)
+	dialog.ShowCustom("About & Support", "Close", body, s.window)
 }
 
 type formatOption struct {
@@ -618,13 +648,22 @@ func (s *appState) showMainMenu() {
 	// Update stats bar
 	s.updateStatsBar()
 
+	// Footer with version info and a small About/Support button
+	versionLabel := widget.NewLabel(fmt.Sprintf("VideoTools %s", appVersion))
+	versionLabel.Alignment = fyne.TextAlignLeading
+	aboutBtn := widget.NewButton("About / Support", func() {
+		s.showAbout()
+	})
+	aboutBtn.Importance = widget.LowImportance
+	footer := container.NewBorder(nil, nil, nil, aboutBtn, versionLabel)
+
 	// Add stats bar at the bottom of the menu
 	content := container.NewBorder(
-		nil,                       // top
-		s.statsBar,                // bottom
-		nil,                       // left
-		nil,                       // right
-		container.NewPadded(menu), // center
+		nil,                                   // top
+		container.NewVBox(s.statsBar, footer), // bottom
+		nil,                                   // left
+		nil,                                   // right
+		container.NewPadded(menu),             // center
 	)
 
 	s.setContent(content)
