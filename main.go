@@ -60,6 +60,8 @@ var (
 	textColor       = utils.MustHex("#E1EEFF")
 	queueColor      = utils.MustHex("#5961FF")
 
+	conversionLogSuffix = ".videotools.log"
+
 	modulesList = []Module{
 		{"convert", "Convert", utils.MustHex("#8B44FF"), modules.HandleConvert}, // Violet
 		{"merge", "Merge", utils.MustHex("#4488FF"), modules.HandleMerge},       // Blue
@@ -98,6 +100,29 @@ func resolveTargetAspect(val string, src *videoSource) float64 {
 		return r
 	}
 	return 0
+}
+
+func createConversionLog(inputPath, outputPath string, args []string) (*os.File, string, error) {
+	logPath := outputPath + conversionLogSuffix
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return nil, logPath, fmt.Errorf("create log dir: %w", err)
+	}
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return nil, logPath, err
+	}
+	header := fmt.Sprintf(`VideoTools Conversion Log
+Started: %s
+Input: %s
+Output: %s
+Command: ffmpeg %s
+
+`, time.Now().Format(time.RFC3339), inputPath, outputPath, strings.Join(args, " "))
+	if _, err := f.WriteString(header); err != nil {
+		_ = f.Close()
+		return nil, logPath, err
+	}
+	return f, logPath, nil
 }
 
 type formatOption struct {
@@ -611,6 +636,28 @@ func (s *appState) refreshQueueView() {
 				text = fmt.Sprintf("%s: no error message available", job.Title)
 			}
 			s.window.Clipboard().SetContent(text)
+		},
+		func(id string) { // onViewLog
+			job, err := s.jobQueue.Get(id)
+			if err != nil {
+				logging.Debug(logging.CatSystem, "view log failed: %v", err)
+				return
+			}
+			path := strings.TrimSpace(job.LogPath)
+			if path == "" {
+				dialog.ShowInformation("No Log", "No log path recorded for this job.", s.window)
+				return
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to read log: %w", err), s.window)
+				return
+			}
+			text := widget.NewMultiLineEntry()
+			text.SetText(string(data))
+			text.Wrapping = fyne.TextWrapWord
+			text.Disable()
+			dialog.ShowCustom("Conversion Log", "Close", container.NewVScroll(text), s.window)
 		},
 		utils.MustHex("#4CE870"), // titleColor
 		gridColor,                // bgColor
@@ -1530,6 +1577,15 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	args = append(args, "-progress", "pipe:1", "-nostats")
 	args = append(args, outputPath)
 
+	logFile, logPath, logErr := createConversionLog(inputPath, outputPath, args)
+	if logErr != nil {
+		logging.Debug(logging.CatFFMPEG, "conversion log open failed: %v", logErr)
+	} else {
+		job.LogPath = logPath
+		fmt.Fprintf(logFile, "Status: started\n\n")
+		defer logFile.Close()
+	}
+
 	logging.Debug(logging.CatFFMPEG, "queue convert command: ffmpeg %s", strings.Join(args, " "))
 
 	// Also print to stdout for debugging
@@ -1545,14 +1601,22 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 	// Capture stderr for error messages
 	var stderrBuf strings.Builder
-	cmd.Stderr = &stderrBuf
+	if logFile != nil {
+		cmd.Stderr = io.MultiWriter(&stderrBuf, logFile)
+	} else {
+		cmd.Stderr = &stderrBuf
+	}
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start ffmpeg: %w", err)
 	}
 
 	// Parse progress
-	scanner := bufio.NewScanner(stdout)
+	stdoutReader := io.Reader(stdout)
+	if logFile != nil {
+		stdoutReader = io.TeeReader(stdout, logFile)
+	}
+	scanner := bufio.NewScanner(stdoutReader)
 	var duration float64
 	if d, ok := cfg["sourceDuration"].(float64); ok && d > 0 {
 		duration = d
@@ -1658,6 +1722,9 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		return fmt.Errorf("%s", errorMsg)
 	}
 
+	if logFile != nil {
+		fmt.Fprintf(logFile, "\nStatus: completed OK at %s\n", time.Now().Format(time.RFC3339))
+	}
 	logging.Debug(logging.CatFFMPEG, "queue conversion completed: %s", outputPath)
 
 	// Auto-compare if enabled
@@ -5381,6 +5448,13 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	s.convertProgress = 0
 	s.convertActiveIn = src.Path
 	s.convertActiveOut = outPath
+	logFile, logPath, logErr := createConversionLog(src.Path, outPath, args)
+	if logErr != nil {
+		logging.Debug(logging.CatFFMPEG, "conversion log open failed: %v", logErr)
+	} else {
+		fmt.Fprintf(logFile, "Status: started\n\n")
+	}
+	_ = logPath
 	setStatus("Preparing conversion…")
 	// Widget states will be updated by the UI refresh ticker
 
@@ -5391,6 +5465,9 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			setStatus("Running ffmpeg…")
 		}, false)
+		if logFile != nil {
+			defer logFile.Close()
+		}
 
 		started := time.Now()
 		cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
@@ -5407,11 +5484,19 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			return
 		}
 		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
+		if logFile != nil {
+			cmd.Stderr = io.MultiWriter(&stderr, logFile)
+		} else {
+			cmd.Stderr = &stderr
+		}
 
 		progressQuit := make(chan struct{})
 		go func() {
-			scanner := bufio.NewScanner(stdout)
+			stdoutReader := io.Reader(stdout)
+			if logFile != nil {
+				stdoutReader = io.TeeReader(stdout, logFile)
+			}
+			scanner := bufio.NewScanner(stdoutReader)
 			var currentFPS float64
 			for scanner.Scan() {
 				select {
@@ -5510,6 +5595,9 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		if err != nil {
 			if errors.Is(err, context.Canceled) || ctx.Err() != nil {
 				logging.Debug(logging.CatFFMPEG, "convert cancelled")
+				if logFile != nil {
+					fmt.Fprintf(logFile, "\nStatus: cancelled at %s\n", time.Now().Format(time.RFC3339))
+				}
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					s.convertBusy = false
 					s.convertActiveIn = ""
@@ -5522,6 +5610,9 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			}
 			stderrOutput := strings.TrimSpace(stderr.String())
 			logging.Debug(logging.CatFFMPEG, "convert failed: %v stderr=%s", err, stderrOutput)
+			if logFile != nil {
+				fmt.Fprintf(logFile, "\nStatus: failed at %s\nError: %v\nStderr:\n%s\n", time.Now().Format(time.RFC3339), err, stderrOutput)
+			}
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				errorExplanation := interpretFFmpegError(err)
 				var errorMsg error
@@ -5559,6 +5650,9 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			}, false)
 			s.convertCancel = nil
 			return
+		}
+		if logFile != nil {
+			fmt.Fprintf(logFile, "\nStatus: completed OK at %s\n", time.Now().Format(time.RFC3339))
 		}
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			setStatus("Validating output…")
