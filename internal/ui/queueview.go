@@ -119,6 +119,7 @@ func buildJobItem(
 
 	descLabel := widget.NewLabel(job.Description)
 	descLabel.TextStyle = fyne.TextStyle{Italic: true}
+	descLabel.Wrapping = fyne.TextWrapWord
 
 	// Progress bar (for running jobs)
 	progress := widget.NewProgressBar()

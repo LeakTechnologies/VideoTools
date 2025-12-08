@@ -918,7 +918,7 @@ func (s *appState) addConvertToQueue() error {
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
-		Description: fmt.Sprintf("Output: %s → %s", filepath.Base(src.Path), filepath.Base(outPath)),
+		Description: fmt.Sprintf("Output: %s → %s", utils.ShortenMiddle(filepath.Base(src.Path), 40), utils.ShortenMiddle(filepath.Base(outPath), 40)),
 		InputFile:   src.Path,
 		OutputFile:  outPath,
 		Config:      config,
