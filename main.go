@@ -62,6 +62,9 @@ var (
 
 	conversionLogSuffix = ".videotools.log"
 
+	logsDirOnce sync.Once
+	logsDirPath string
+
 	modulesList = []Module{
 		{"convert", "Convert", utils.MustHex("#8B44FF"), modules.HandleConvert}, // Violet
 		{"merge", "Merge", utils.MustHex("#4488FF"), modules.HandleMerge},       // Blue
@@ -103,7 +106,8 @@ func resolveTargetAspect(val string, src *videoSource) float64 {
 }
 
 func createConversionLog(inputPath, outputPath string, args []string) (*os.File, string, error) {
-	logPath := outputPath + conversionLogSuffix
+	base := strings.TrimSuffix(filepath.Base(outputPath), filepath.Ext(outputPath))
+	logPath := filepath.Join(getLogsDir(), base+conversionLogSuffix)
 	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 		return nil, logPath, fmt.Errorf("create log dir: %w", err)
 	}
@@ -123,6 +127,23 @@ Command: ffmpeg %s
 		return nil, logPath, err
 	}
 	return f, logPath, nil
+}
+
+func getLogsDir() string {
+	logsDirOnce.Do(func() {
+		// Prefer a logs folder next to the executable
+		if exe, err := os.Executable(); err == nil {
+			if dir := filepath.Dir(exe); dir != "" {
+				logsDirPath = filepath.Join(dir, "logs")
+			}
+		}
+		// Fallback to cwd/logs
+		if logsDirPath == "" {
+			logsDirPath = filepath.Join(".", "logs")
+		}
+		_ = os.MkdirAll(logsDirPath, 0o755)
+	})
+	return logsDirPath
 }
 
 type formatOption struct {
@@ -5453,6 +5474,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		logging.Debug(logging.CatFFMPEG, "conversion log open failed: %v", logErr)
 	} else {
 		fmt.Fprintf(logFile, "Status: started\n\n")
+		s.convertActiveLog = logPath
 	}
 	_ = logPath
 	setStatus("Preparing conversion…")
