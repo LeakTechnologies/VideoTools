@@ -146,6 +146,56 @@ func getLogsDir() string {
 	return logsDirPath
 }
 
+// openLogViewer opens a simple dialog showing the log content. If live is true, it auto-refreshes.
+func (s *appState) openLogViewer(title, path string, live bool) {
+	if strings.TrimSpace(path) == "" {
+		dialog.ShowInformation("No Log", "No log available.", s.window)
+		return
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("failed to read log: %w", err), s.window)
+		return
+	}
+
+	text := widget.NewMultiLineEntry()
+	text.SetText(string(data))
+	text.Wrapping = fyne.TextWrapWord
+	text.Disable()
+	scroll := container.NewVScroll(text)
+	scroll.SetMinSize(fyne.NewSize(600, 400))
+
+	stop := make(chan struct{})
+	if live {
+		go func() {
+			ticker := time.NewTicker(1 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-stop:
+					return
+				case <-ticker.C:
+					b, err := os.ReadFile(path)
+					if err != nil {
+						b = []byte(fmt.Sprintf("failed to read log: %v", err))
+					}
+					content := string(b)
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						text.SetText(content)
+					}, false)
+				}
+			}
+		}()
+	}
+
+	closeBtn := widget.NewButton("Close", func() {
+		close(stop)
+	})
+	content := container.NewBorder(nil, container.NewHBox(layout.NewSpacer(), closeBtn), nil, nil, scroll)
+	d := dialog.NewCustomWithoutButtons(title, content, s.window)
+	d.Show()
+}
+
 type formatOption struct {
 	Label      string
 	Ext        string
@@ -250,6 +300,7 @@ type appState struct {
 	convertStatus    string
 	convertActiveIn  string
 	convertActiveOut string
+	convertActiveLog string
 	convertProgress  float64
 	convertFPS       float64
 	convertSpeed     float64
@@ -3279,11 +3330,26 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	if src == nil {
 		convertBtn.Disable()
 	}
+
+	viewLogBtn := widget.NewButton("View Log", func() {
+		if state.convertActiveLog == "" {
+			dialog.ShowInformation("No Log", "No conversion log available.", state.window)
+			return
+		}
+		state.openLogViewer("Conversion Log", state.convertActiveLog, state.convertBusy)
+	})
+	viewLogBtn.Importance = widget.LowImportance
+	if state.convertActiveLog == "" {
+		viewLogBtn.Disable()
+	}
 	if state.convertBusy {
 		// Allow queueing new jobs while current convert runs; just disable Convert Now and enable Cancel.
 		convertBtn.Disable()
 		cancelBtn.Enable()
 		addQueueBtn.Enable()
+		if state.convertActiveLog != "" {
+			viewLogBtn.Enable()
+		}
 	}
 	// Also disable if queue is running
 	if state.jobQueue != nil && state.jobQueue.IsRunning() {
@@ -3323,7 +3389,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	leftControls := container.NewHBox(resetBtn, autoCompareCheck)
 	centerStatus := container.NewHBox(activity, statusLabel)
-	rightControls := container.NewHBox(cancelBtn, addQueueBtn, convertBtn)
+	rightControls := container.NewHBox(cancelBtn, viewLogBtn, addQueueBtn, convertBtn)
 	actionInner := container.NewBorder(nil, nil, leftControls, rightControls, centerStatus)
 	actionBar := ui.TintedBar(convertColor, actionInner)
 
@@ -5469,6 +5535,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	s.convertProgress = 0
 	s.convertActiveIn = src.Path
 	s.convertActiveOut = outPath
+	s.convertActiveLog = ""
 	logFile, logPath, logErr := createConversionLog(src.Path, outPath, args)
 	if logErr != nil {
 		logging.Debug(logging.CatFFMPEG, "conversion log open failed: %v", logErr)
@@ -5624,6 +5691,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 					s.convertBusy = false
 					s.convertActiveIn = ""
 					s.convertActiveOut = ""
+					s.convertActiveLog = ""
 					s.convertProgress = 0
 					setStatus("Cancelled")
 				}, false)
@@ -5667,6 +5735,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				s.convertBusy = false
 				s.convertActiveIn = ""
 				s.convertActiveOut = ""
+				s.convertActiveLog = ""
 				s.convertProgress = 0
 				setStatus("Failed")
 			}, false)
@@ -5686,6 +5755,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				s.convertBusy = false
 				s.convertActiveIn = ""
 				s.convertActiveOut = ""
+				s.convertActiveLog = ""
 				s.convertProgress = 0
 				setStatus("Failed")
 			}, false)
@@ -5698,6 +5768,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			s.convertBusy = false
 			s.convertActiveIn = ""
 			s.convertActiveOut = ""
+			s.convertActiveLog = ""
 			s.convertProgress = 100
 			setStatus("Done")
 
@@ -7075,8 +7146,28 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	})
 	copyBtn.Importance = widget.LowImportance
 
+	logPath := ""
+	if state.inspectFile != nil {
+		base := strings.TrimSuffix(filepath.Base(state.inspectFile.Path), filepath.Ext(state.inspectFile.Path))
+		p := filepath.Join(getLogsDir(), base+conversionLogSuffix)
+		if _, err := os.Stat(p); err == nil {
+			logPath = p
+		}
+	}
+	viewLogBtn := widget.NewButton("View Conversion Log", func() {
+		if logPath == "" {
+			dialog.ShowInformation("No Log", "No conversion log found for this file.", state.window)
+			return
+		}
+		state.openLogViewer("Conversion Log", logPath, false)
+	})
+	viewLogBtn.Importance = widget.LowImportance
+	if logPath == "" {
+		viewLogBtn.Disable()
+	}
+
 	// Action buttons
-	actionButtons := container.NewHBox(loadBtn, copyBtn, clearBtn)
+	actionButtons := container.NewHBox(loadBtn, copyBtn, viewLogBtn, clearBtn)
 
 	// Main layout: left side is video player, right side is metadata
 	leftColumn := container.NewBorder(
