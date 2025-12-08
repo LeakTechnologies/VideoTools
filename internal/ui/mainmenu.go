@@ -13,30 +13,33 @@ import (
 
 // ModuleInfo contains information about a module for display
 type ModuleInfo struct {
-	ID      string
-	Label   string
-	Color   color.Color
-	Enabled bool
+	ID       string
+	Label    string
+	Color    color.Color
+	Enabled  bool
+	Category string
 }
 
-// BuildMainMenu creates the main menu view with module tiles
-func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
+// BuildMainMenu creates the main menu view with module tiles grouped by category
+func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
 	title := canvas.NewText("VIDEOTOOLS", titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 28
 
 	queueTile := buildQueueTile(queueCompleted, queueTotal, queueColor, textColor, onQueueClick)
+	logsBtn := widget.NewButton("Logs", onLogsClick)
+	logsBtn.Importance = widget.LowImportance
 
-	header := container.New(layout.NewHBoxLayout(),
-		title,
-		layout.NewSpacer(),
-		queueTile,
-	)
+	header := container.New(layout.NewHBoxLayout(), title, layout.NewSpacer(), logsBtn, queueTile)
 
-	var tileObjects []fyne.CanvasObject
+	categorized := map[string][]fyne.CanvasObject{}
 	for i := range modules {
-		mod := modules[i]   // Create new variable for this iteration
-		modID := mod.ID     // Capture for closure
+		mod := modules[i] // Create new variable for this iteration
+		modID := mod.ID   // Capture for closure
+		cat := mod.Category
+		if cat == "" {
+			cat = "General"
+		}
 		var tapFunc func()
 		var dropFunc func([]fyne.URI)
 		if mod.Enabled {
@@ -53,10 +56,16 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 		}
 		fmt.Printf("[MAINMENU] Creating tile for module=%s enabled=%v hasDropFunc=%v\n", modID, mod.Enabled, dropFunc != nil)
 		logging.Debug(logging.CatUI, "Creating tile for module=%s enabled=%v hasDropFunc=%v", modID, mod.Enabled, dropFunc != nil)
-		tileObjects = append(tileObjects, buildModuleTile(mod, tapFunc, dropFunc))
+		categorized[cat] = append(categorized[cat], buildModuleTile(mod, tapFunc, dropFunc))
 	}
 
-	grid := container.NewGridWithColumns(3, tileObjects...)
+	var sections []fyne.CanvasObject
+	for _, cat := range sortedKeys(categorized) {
+		sections = append(sections,
+			canvas.NewText(cat, textColor),
+			container.NewGridWithColumns(3, categorized[cat]...),
+		)
+	}
 
 	padding := canvas.NewRectangle(color.Transparent)
 	padding.SetMinSize(fyne.NewSize(0, 14))
@@ -64,7 +73,7 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 	body := container.New(layout.NewVBoxLayout(),
 		header,
 		padding,
-		grid,
+		container.NewVBox(sections...),
 	)
 
 	return body
@@ -92,4 +101,14 @@ func buildQueueTile(completed, total int, queueColor, textColor color.Color, onC
 	// Make it tappable
 	tappable := NewTappable(tile, onClick)
 	return tappable
+}
+
+// sortedKeys returns sorted keys for stable category ordering
+func sortedKeys(m map[string][]fyne.CanvasObject) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

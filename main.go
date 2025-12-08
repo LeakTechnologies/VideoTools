@@ -46,10 +46,11 @@ import (
 
 // Module describes a high level tool surface that gets a tile on the menu.
 type Module struct {
-	ID     string
-	Label  string
-	Color  color.Color
-	Handle func(files []string)
+	ID       string
+	Label    string
+	Color    color.Color
+	Category string
+	Handle   func(files []string)
 }
 
 var (
@@ -66,15 +67,15 @@ var (
 	logsDirPath string
 
 	modulesList = []Module{
-		{"convert", "Convert", utils.MustHex("#8B44FF"), modules.HandleConvert}, // Violet
-		{"merge", "Merge", utils.MustHex("#4488FF"), modules.HandleMerge},       // Blue
-		{"trim", "Trim", utils.MustHex("#44DDFF"), modules.HandleTrim},          // Cyan
-		{"filters", "Filters", utils.MustHex("#44FF88"), modules.HandleFilters}, // Green
-		{"upscale", "Upscale", utils.MustHex("#AAFF44"), modules.HandleUpscale}, // Yellow-Green
-		{"audio", "Audio", utils.MustHex("#FFD744"), modules.HandleAudio},       // Yellow
-		{"thumb", "Thumb", utils.MustHex("#FF8844"), modules.HandleThumb},       // Orange
-		{"compare", "Compare", utils.MustHex("#FF44AA"), modules.HandleCompare}, // Pink
-		{"inspect", "Inspect", utils.MustHex("#FF4444"), modules.HandleInspect}, // Red
+		{"convert", "Convert", utils.MustHex("#8B44FF"), "Convert", modules.HandleConvert},  // Violet
+		{"merge", "Merge", utils.MustHex("#4488FF"), "Convert", modules.HandleMerge},        // Blue
+		{"trim", "Trim", utils.MustHex("#44DDFF"), "Convert", modules.HandleTrim},           // Cyan
+		{"filters", "Filters", utils.MustHex("#44FF88"), "Convert", modules.HandleFilters},  // Green
+		{"upscale", "Upscale", utils.MustHex("#AAFF44"), "Advanced", modules.HandleUpscale}, // Yellow-Green
+		{"audio", "Audio", utils.MustHex("#FFD744"), "Convert", modules.HandleAudio},        // Yellow
+		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},    // Orange
+		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},  // Pink
+		{"inspect", "Inspect", utils.MustHex("#FF4444"), "Inspect", modules.HandleInspect},  // Red
 	}
 
 	// Platform-specific configuration
@@ -194,6 +195,24 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 	content := container.NewBorder(nil, container.NewHBox(layout.NewSpacer(), closeBtn), nil, nil, scroll)
 	d := dialog.NewCustomWithoutButtons(title, content, s.window)
 	d.Show()
+}
+
+// openFolder tries to open a folder in the OS file browser.
+func openFolder(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("path is empty")
+	}
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("explorer", path)
+	case "darwin":
+		cmd = exec.Command("open", path)
+	default:
+		cmd = exec.Command("xdg-open", path)
+	}
+	utils.ApplyNoWindow(cmd)
+	return cmd.Start()
 }
 
 type formatOption struct {
@@ -558,10 +577,11 @@ func (s *appState) showMainMenu() {
 	var mods []ui.ModuleInfo
 	for _, m := range modulesList {
 		mods = append(mods, ui.ModuleInfo{
-			ID:      m.ID,
-			Label:   m.Label,
-			Color:   m.Color,
-			Enabled: m.ID == "convert" || m.ID == "compare" || m.ID == "inspect", // Convert, compare, and inspect modules are functional
+			ID:       m.ID,
+			Label:    m.Label,
+			Color:    m.Color,
+			Category: m.Category,
+			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect", // Convert, compare, and inspect modules are functional
 		})
 	}
 
@@ -575,7 +595,25 @@ func (s *appState) showMainMenu() {
 		queueTotal = len(s.jobQueue.List())
 	}
 
-	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, titleColor, queueColor, textColor, queueCompleted, queueTotal)
+	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, func() {
+		// Logs button: offer to open logs folder or view app log
+		logOptions := container.NewVBox(
+			widget.NewButton("Open Logs Folder", func() {
+				if err := openFolder(getLogsDir()); err != nil {
+					dialog.ShowError(fmt.Errorf("failed to open logs folder: %w", err), s.window)
+				}
+			}),
+			widget.NewButton("View App Log", func() {
+				path := logging.FilePath()
+				if strings.TrimSpace(path) == "" {
+					dialog.ShowInformation("No Log", "No app log file found.", s.window)
+					return
+				}
+				s.openLogViewer("App Log", path, false)
+			}),
+		)
+		dialog.ShowCustom("Logs", "Close", logOptions, s.window)
+	}, titleColor, queueColor, textColor, queueCompleted, queueTotal)
 
 	// Update stats bar
 	s.updateStatsBar()
