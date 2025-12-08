@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
@@ -49,6 +50,28 @@ func FirstNonEmpty(values ...string) string {
 		}
 	}
 	return "--"
+}
+
+// ShortenMiddle shortens a string to max runes, keeping start and end with ellipsis in the middle.
+func ShortenMiddle(s string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	if utf8.RuneCountInString(s) <= max {
+		return s
+	}
+	ellipsis := "…"
+	keep := max - utf8.RuneCountInString(ellipsis)
+	if keep <= 0 {
+		return s[:max]
+	}
+	left := keep / 2
+	right := keep - left
+	runes := []rune(s)
+	if left+right >= len(runes) {
+		return s
+	}
+	return string(runes[:left]) + ellipsis + string(runes[len(runes)-right:])
 }
 
 // Parsing utilities
