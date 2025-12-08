@@ -44,6 +44,7 @@ type Job struct {
 	Description string                 `json:"description"`
 	InputFile   string                 `json:"input_file"`
 	OutputFile  string                 `json:"output_file"`
+	LogPath     string                 `json:"log_path,omitempty"`
 	Config      map[string]interface{} `json:"config"`
 	Progress    float64                `json:"progress"`
 	Error       string                 `json:"error,omitempty"`

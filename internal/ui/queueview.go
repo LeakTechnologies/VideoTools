@@ -30,6 +30,7 @@ func BuildQueueView(
 	onClear func(),
 	onClearAll func(),
 	onCopyError func(string),
+	onViewLog func(string),
 	titleColor, bgColor, textColor color.Color,
 ) (fyne.CanvasObject, *container.Scroll) {
 	// Header
@@ -73,7 +74,7 @@ func BuildQueueView(
 		jobItems = append(jobItems, container.NewCenter(emptyMsg))
 	} else {
 		for _, job := range jobs {
-			jobItems = append(jobItems, buildJobItem(job, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, onCopyError, bgColor, textColor))
+			jobItems = append(jobItems, buildJobItem(job, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, onCopyError, onViewLog, bgColor, textColor))
 		}
 	}
 
@@ -102,6 +103,7 @@ func buildJobItem(
 	onMoveUp func(string),
 	onMoveDown func(string),
 	onCopyError func(string),
+	onViewLog func(string),
 	bgColor, textColor color.Color,
 ) fyne.CanvasObject {
 	// Status color
@@ -163,6 +165,11 @@ func buildJobItem(
 		if job.Status == queue.JobStatusFailed && strings.TrimSpace(job.Error) != "" && onCopyError != nil {
 			buttons = append(buttons,
 				widget.NewButton("Copy Error", func() { onCopyError(job.ID) }),
+			)
+		}
+		if job.LogPath != "" && onViewLog != nil {
+			buttons = append(buttons,
+				widget.NewButton("View Log", func() { onViewLog(job.ID) }),
 			)
 		}
 		buttons = append(buttons,
