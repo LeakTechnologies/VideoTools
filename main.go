@@ -128,6 +128,7 @@ type convertConfig struct {
 	EncoderPreset     string // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
 	CRF               string // Manual CRF value (0-51, or empty to use Quality preset)
 	BitrateMode       string // CRF, CBR, VBR, "Target Size"
+	BitratePreset     string // Friendly bitrate presets (codec-aware recommendations)
 	VideoBitrate      string // For CBR/VBR modes (e.g., "5000k")
 	TargetFileSize    string // Target file size (e.g., "25MB", "100MB") - requires BitrateMode="Target Size"
 	TargetResolution  string // Source, 720p, 1080p, 1440p, 4K, or custom
@@ -682,6 +683,7 @@ func (s *appState) addConvertToQueue() error {
 		"encoderPreset":     cfg.EncoderPreset,
 		"crf":               cfg.CRF,
 		"bitrateMode":       cfg.BitrateMode,
+		"bitratePreset":     cfg.BitratePreset,
 		"videoBitrate":      cfg.VideoBitrate,
 		"targetFileSize":    cfg.TargetFileSize,
 		"targetResolution":  cfg.TargetResolution,
@@ -955,6 +957,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"encoderPreset":     s.convert.EncoderPreset,
 			"crf":               s.convert.CRF,
 			"bitrateMode":       s.convert.BitrateMode,
+			"bitratePreset":     s.convert.BitratePreset,
 			"videoBitrate":      s.convert.VideoBitrate,
 			"targetResolution":  s.convert.TargetResolution,
 			"frameRate":         s.convert.FrameRate,
@@ -1534,6 +1537,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 	// Execute FFmpeg
 	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	utils.ApplyNoWindow(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
@@ -1798,6 +1802,7 @@ func runGUI() {
 			EncoderPreset:     "medium",
 			CRF:               "", // Empty means use Quality preset
 			BitrateMode:       "CRF",
+			BitratePreset:     "Manual",
 			VideoBitrate:      "5000k",
 			TargetResolution:  "Source",
 			FrameRate:         "Source",
@@ -2085,11 +2090,57 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Placeholder for updateDVDOptions - will be defined after resolution/framerate selects are created
 	var updateDVDOptions func()
 
-	qualitySelect := widget.NewSelect([]string{"Draft (CRF 28)", "Standard (CRF 23)", "High (CRF 18)", "Lossless"}, func(value string) {
-		logging.Debug(logging.CatUI, "quality preset %s", value)
+	// Forward declarations for encoding controls (used in reset/update callbacks)
+	var (
+		bitrateModeSelect    *widget.Select
+		bitratePresetSelect  *widget.Select
+		crfEntry             *widget.Entry
+		videoBitrateEntry    *widget.Entry
+		targetFileSizeSelect *widget.Select
+		targetFileSizeEntry  *widget.Entry
+		qualitySelectSimple  *widget.Select
+		qualitySelectAdv     *widget.Select
+		qualitySectionSimple fyne.CanvasObject
+		qualitySectionAdv    fyne.CanvasObject
+	)
+
+	qualityOptions := []string{"Draft (CRF 28)", "Standard (CRF 23)", "High (CRF 18)", "Lossless"}
+	var syncingQuality bool
+
+	qualitySelectSimple = widget.NewSelect(qualityOptions, func(value string) {
+		if syncingQuality {
+			return
+		}
+		syncingQuality = true
+		logging.Debug(logging.CatUI, "quality preset %s (simple)", value)
 		state.convert.Quality = value
+		if qualitySelectAdv != nil {
+			qualitySelectAdv.SetSelected(value)
+		}
+		if updateEncodingControls != nil {
+			updateEncodingControls()
+		}
+		syncingQuality = false
 	})
-	qualitySelect.SetSelected(state.convert.Quality)
+
+	qualitySelectAdv = widget.NewSelect(qualityOptions, func(value string) {
+		if syncingQuality {
+			return
+		}
+		syncingQuality = true
+		logging.Debug(logging.CatUI, "quality preset %s (advanced)", value)
+		state.convert.Quality = value
+		if qualitySelectSimple != nil {
+			qualitySelectSimple.SetSelected(value)
+		}
+		if updateEncodingControls != nil {
+			updateEncodingControls()
+		}
+		syncingQuality = false
+	})
+
+	qualitySelectSimple.SetSelected(state.convert.Quality)
+	qualitySelectAdv.SetSelected(state.convert.Quality)
 
 	outputEntry := widget.NewEntry()
 	outputEntry.SetText(state.convert.OutputBase)
@@ -2123,6 +2174,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	autoNameTemplate := widget.NewEntry()
 	autoNameTemplate.SetPlaceHolder("<actress> - <studio> - <scene>")
 	autoNameTemplate.SetText(state.convert.AutoNameTemplate)
+
 	autoNameTemplate.OnChanged = func(val string) {
 		state.convert.AutoNameTemplate = val
 		if state.convert.UseAutoNaming {
@@ -2306,6 +2358,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoCodecSelect := widget.NewSelect([]string{"H.264", "H.265", "VP9", "AV1", "Copy"}, func(value string) {
 		state.convert.VideoCodec = value
 		logging.Debug(logging.CatUI, "video codec set to %s", value)
+		if updateQualityVisibility != nil {
+			updateQualityVisibility()
+		}
 	})
 	videoCodecSelect.SetSelected(state.convert.VideoCodec)
 
@@ -2328,6 +2383,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
+	var updateQualityVisibility func()
+
 	formatSelect := widget.NewSelect(formatLabels, func(value string) {
 		for _, opt := range formatOptions {
 			if opt.Label == value {
@@ -2343,6 +2400,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				if newCodec != "" {
 					state.convert.VideoCodec = newCodec
 					videoCodecSelect.SetSelected(newCodec)
+				}
+				if updateQualityVisibility != nil {
+					updateQualityVisibility()
 				}
 				break
 			}
@@ -2412,6 +2472,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			VideoCodec:       "H.264",
 			EncoderPreset:    "medium",
 			BitrateMode:      "CRF",
+			BitratePreset:    "Manual",
 			CRF:              "",
 			VideoBitrate:     "",
 			TargetResolution: "Source",
@@ -2427,11 +2488,24 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		logging.Debug(logging.CatUI, "settings reset to defaults")
 		formatSelect.SetSelected(state.convert.SelectedFormat.Label)
 		videoCodecSelect.SetSelected(state.convert.VideoCodec)
-		qualitySelect.SetSelected(state.convert.Quality)
+		qualitySelectSimple.SetSelected(state.convert.Quality)
+		qualitySelectAdv.SetSelected(state.convert.Quality)
 		simplePresetSelect.SetSelected(state.convert.EncoderPreset)
+		bitrateModeSelect.SetSelected(state.convert.BitrateMode)
+		bitratePresetSelect.SetSelected(state.convert.BitratePreset)
+		crfEntry.SetText(state.convert.CRF)
+		videoBitrateEntry.SetText(state.convert.VideoBitrate)
+		targetFileSizeSelect.SetSelected("Manual")
+		targetFileSizeEntry.SetText(state.convert.TargetFileSize)
 		autoNameCheck.SetChecked(state.convert.UseAutoNaming)
 		autoNameTemplate.SetText(state.convert.AutoNameTemplate)
 		outputEntry.SetText(state.convert.OutputBase)
+		if updateEncodingControls != nil {
+			updateEncodingControls()
+		}
+		if updateQualityVisibility != nil {
+			updateQualityVisibility()
+		}
 	})
 	resetSettingsBtn.Importance = widget.LowImportance
 
@@ -2461,15 +2535,21 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewSeparator(),
 	)
 
+	// Shared updater for bitrate/quality UI state; defined later alongside controls
+	var updateEncodingControls func()
+
 	// Bitrate Mode
-	bitrateModeSelect := widget.NewSelect([]string{"CRF", "CBR", "VBR", "Target Size"}, func(value string) {
+	bitrateModeSelect = widget.NewSelect([]string{"CRF", "CBR", "VBR", "Target Size"}, func(value string) {
 		state.convert.BitrateMode = value
 		logging.Debug(logging.CatUI, "bitrate mode set to %s", value)
+		if updateEncodingControls != nil {
+			updateEncodingControls()
+		}
 	})
 	bitrateModeSelect.SetSelected(state.convert.BitrateMode)
 
 	// Manual CRF entry
-	crfEntry := widget.NewEntry()
+	crfEntry = widget.NewEntry()
 	crfEntry.SetPlaceHolder("Auto (from Quality preset)")
 	crfEntry.SetText(state.convert.CRF)
 	crfEntry.OnChanged = func(val string) {
@@ -2477,18 +2557,52 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Video Bitrate entry (for CBR/VBR)
-	videoBitrateEntry := widget.NewEntry()
+	videoBitrateEntry = widget.NewEntry()
 	videoBitrateEntry.SetPlaceHolder("5000k")
 	videoBitrateEntry.SetText(state.convert.VideoBitrate)
 	videoBitrateEntry.OnChanged = func(val string) {
 		state.convert.VideoBitrate = val
 	}
 
-	// Target File Size with smart presets + manual entry
-	targetFileSizeEntry := widget.NewEntry()
-	targetFileSizeEntry.SetPlaceHolder("e.g., 25MB, 100MB, 8MB")
+	type bitratePreset struct {
+		Label   string
+		Bitrate string
+		Codec   string
+	}
 
-	var targetFileSizeSelect *widget.Select
+	presets := []bitratePreset{
+		{Label: "Manual", Bitrate: "", Codec: ""},
+		{Label: "AV1 1080p - 1200k (smallest)", Bitrate: "1200k", Codec: "AV1"},
+		{Label: "AV1 1080p - 1400k (sweet spot)", Bitrate: "1400k", Codec: "AV1"},
+		{Label: "AV1 1080p - 1800k (headroom)", Bitrate: "1800k", Codec: "AV1"},
+		{Label: "H.265 1080p - 2000k (balanced)", Bitrate: "2000k", Codec: "H.265"},
+		{Label: "H.265 1080p - 2400k (noisy sources)", Bitrate: "2400k", Codec: "H.265"},
+		{Label: "AV1 4K - 7M (archive)", Bitrate: "7000k", Codec: "AV1"},
+		{Label: "H.265 4K - 9M (fast/Topaz)", Bitrate: "9000k", Codec: "H.265"},
+	}
+
+	bitratePresetLookup := make(map[string]bitratePreset)
+	var bitratePresetLabels []string
+	for _, p := range presets {
+		bitratePresetLookup[p.Label] = p
+		bitratePresetLabels = append(bitratePresetLabels, p.Label)
+	}
+
+	var applyBitratePreset func(string)
+
+	bitratePresetSelect = widget.NewSelect(bitratePresetLabels, func(value string) {
+		if applyBitratePreset != nil {
+			applyBitratePreset(value)
+		}
+	})
+	if state.convert.BitratePreset == "" || bitratePresetLookup[state.convert.BitratePreset].Label == "" {
+		state.convert.BitratePreset = "Manual"
+	}
+	bitratePresetSelect.SetSelected(state.convert.BitratePreset)
+
+	// Target File Size with smart presets + manual entry
+	targetFileSizeEntry = widget.NewEntry()
+	targetFileSizeEntry.SetPlaceHolder("e.g., 25MB, 100MB, 8MB")
 
 	updateTargetSizeOptions := func() {
 		if src == nil {
@@ -2557,6 +2671,97 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	targetFileSizeEntry.OnChanged = func(val string) {
 		state.convert.TargetFileSize = val
 	}
+
+	encodingHint := widget.NewLabel("")
+	encodingHint.Wrapping = fyne.TextWrapWord
+
+	applyBitratePreset = func(label string) {
+		preset, ok := bitratePresetLookup[label]
+		if !ok {
+			label = "Manual"
+			preset = bitratePresetLookup[label]
+		}
+
+		state.convert.BitratePreset = label
+
+		// Move to CBR for predictable output when a preset is chosen
+		if preset.Bitrate != "" && state.convert.BitrateMode != "CBR" && state.convert.BitrateMode != "VBR" {
+			state.convert.BitrateMode = "CBR"
+			bitrateModeSelect.SetSelected("CBR")
+		}
+
+		if preset.Bitrate != "" {
+			state.convert.VideoBitrate = preset.Bitrate
+			videoBitrateEntry.SetText(preset.Bitrate)
+		}
+
+		// Adjust codec to match the preset intent (user can change back)
+		if preset.Codec != "" && state.convert.VideoCodec != preset.Codec {
+			state.convert.VideoCodec = preset.Codec
+			videoCodecSelect.SetSelected(preset.Codec)
+		}
+
+		if updateEncodingControls != nil {
+			updateEncodingControls()
+		}
+	}
+
+	updateEncodingControls = func() {
+		mode := state.convert.BitrateMode
+		isLossless := state.convert.Quality == "Lossless"
+
+		// Default: enable everything
+		crfEntry.Enable()
+		videoBitrateEntry.Enable()
+		targetFileSizeEntry.Enable()
+		targetFileSizeSelect.Enable()
+		bitratePresetSelect.Enable()
+
+		hint := ""
+
+		if isLossless {
+			// Lossless forces CRF 0; ignore bitrate/preset/target size to reduce confusion
+			if mode != "CRF" {
+				state.convert.BitrateMode = "CRF"
+				bitrateModeSelect.SetSelected("CRF")
+				mode = "CRF"
+			}
+			if crfEntry.Text != "0" {
+				crfEntry.SetText("0")
+			}
+			state.convert.CRF = "0"
+			crfEntry.Disable()
+			videoBitrateEntry.Disable()
+			targetFileSizeEntry.Disable()
+			targetFileSizeSelect.Disable()
+			bitratePresetSelect.Disable()
+			hint = "Lossless forces CRF 0 for H.265/AV1; bitrate and target size are ignored."
+		} else {
+			switch mode {
+			case "CRF", "":
+				videoBitrateEntry.Disable()
+				targetFileSizeEntry.Disable()
+				targetFileSizeSelect.Disable()
+				bitratePresetSelect.Disable()
+				hint = "CRF mode uses the quality preset/CRF only."
+			case "CBR", "VBR":
+				crfEntry.Disable()
+				targetFileSizeEntry.Disable()
+				targetFileSizeSelect.Disable()
+				hint = "Bitrate mode uses the value above; presets auto-fill common choices."
+			case "Target Size":
+				crfEntry.Disable()
+				videoBitrateEntry.Disable()
+				bitratePresetSelect.Disable()
+				targetFileSizeEntry.Enable()
+				targetFileSizeSelect.Enable()
+				hint = "Target size calculates bitrate automatically from duration."
+			}
+		}
+
+		encodingHint.SetText(hint)
+	}
+	updateEncodingControls()
 
 	// Target Resolution
 	resolutionSelect := widget.NewSelect([]string{"Source", "720p", "1080p", "1440p", "4K", "NTSC (720×480)", "PAL (720×576)"}, func(value string) {
@@ -2703,6 +2908,35 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	updateDVDOptions()
 
+	qualitySectionSimple = container.NewVBox(
+		widget.NewLabelWithStyle("═══ QUALITY ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		qualitySelectSimple,
+	)
+	qualitySectionAdv = container.NewVBox(
+		widget.NewLabelWithStyle("Quality Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		qualitySelectAdv,
+	)
+
+	updateQualityVisibility = func() {
+		hide := strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") ||
+			strings.EqualFold(state.convert.VideoCodec, "H.265")
+
+		if qualitySectionSimple != nil {
+			if hide {
+				qualitySectionSimple.Hide()
+			} else {
+				qualitySectionSimple.Show()
+			}
+		}
+		if qualitySectionAdv != nil {
+			if hide {
+				qualitySectionAdv.Hide()
+			} else {
+				qualitySectionAdv.Show()
+			}
+		}
+	}
+
 	// Simple mode options - minimal controls, aspect locked to Source
 	simpleOptions := container.NewVBox(
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
@@ -2711,13 +2945,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		dvdAspectBox, // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
-		autoNameCheck,
-		autoNameTemplate,
-		autoNameHint,
 		outputHint,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("═══ QUALITY ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		qualitySelect,
+		qualitySectionSimple,
 		widget.NewLabelWithStyle("Encoder Speed/Quality", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Choose slower for better compression, faster for speed"),
 		widget.NewLabelWithStyle("Encoder Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -2734,9 +2964,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		dvdAspectBox, // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
-		autoNameCheck,
-		autoNameTemplate,
-		autoNameHint,
 		outputHint,
 		coverDisplay,
 		widget.NewSeparator(),
@@ -2747,14 +2974,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		encoderPresetSelect,
 		encoderPresetHint,
-		widget.NewLabelWithStyle("Quality Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		qualitySelect,
+		qualitySectionAdv,
 		widget.NewLabelWithStyle("Bitrate Mode", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		bitrateModeSelect,
 		widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		crfEntry,
 		widget.NewLabelWithStyle("Video Bitrate (for CBR/VBR)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		videoBitrateEntry,
+		widget.NewLabelWithStyle("Recommended Bitrate Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		bitratePresetSelect,
+		encodingHint,
 		widget.NewLabelWithStyle("Target File Size", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetFileSizeSelect,
 		targetFileSizeEntry,
@@ -2814,6 +3043,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	simpleScrollBox := simpleWithSettings
 	advancedScrollBox := container.NewVScroll(advancedOptions)
 	advancedScrollBox.SetMinSize(fyne.NewSize(0, 0))
+
+	if updateQualityVisibility != nil {
+		updateQualityVisibility()
+	}
 
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Simple", simpleScrollBox),
@@ -2881,10 +3114,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		tabs.SelectIndex(0) // Select Simple tab
 		state.convert.Mode = "Simple"
 		formatSelect.SetSelected("MP4 (H.264)")
-		qualitySelect.SetSelected("Standard (CRF 23)")
+		state.convert.Quality = "Standard (CRF 23)"
+		qualitySelectSimple.SetSelected("Standard (CRF 23)")
+		qualitySelectAdv.SetSelected("Standard (CRF 23)")
 		aspectOptions.SetSelected("Auto")
 		targetAspectSelect.SetSelected("Source")
 		updateAspectBoxVisibility()
+		if updateEncodingControls != nil {
+			updateEncodingControls()
+		}
+		if updateQualityVisibility != nil {
+			updateQualityVisibility()
+		}
 		logging.Debug(logging.CatUI, "convert settings reset to defaults")
 	})
 	statusLabel := widget.NewLabel("")
@@ -3790,6 +4031,7 @@ func (p *playSession) runVideo(offset float64) {
 		"-",
 	}
 	cmd := exec.Command(platformConfig.FFmpegPath, args...)
+	utils.ApplyNoWindow(cmd)
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -3877,6 +4119,7 @@ func (p *playSession) runAudio(offset float64) {
 		"-f", "s16le",
 		"-",
 	)
+	utils.ApplyNoWindow(cmd)
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -4610,6 +4853,7 @@ func detectBestH264Encoder() string {
 
 	for _, encoder := range encoders {
 		cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
+		utils.ApplyNoWindow(cmd)
 		output, err := cmd.CombinedOutput()
 		if err == nil {
 			// Check if encoder is in the output
@@ -4622,6 +4866,7 @@ func detectBestH264Encoder() string {
 
 	// Fallback: check if libx264 is available
 	cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
+	utils.ApplyNoWindow(cmd)
 	output, err := cmd.CombinedOutput()
 	if err == nil && (strings.Contains(string(output), " libx264 ") || strings.Contains(string(output), " libx264\n")) {
 		logging.Debug(logging.CatFFMPEG, "using software encoder: libx264")
@@ -4638,6 +4883,7 @@ func detectBestH265Encoder() string {
 
 	for _, encoder := range encoders {
 		cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
+		utils.ApplyNoWindow(cmd)
 		output, err := cmd.CombinedOutput()
 		if err == nil {
 			if strings.Contains(string(output), " "+encoder+" ") || strings.Contains(string(output), " "+encoder+"\n") {
@@ -4648,6 +4894,7 @@ func detectBestH265Encoder() string {
 	}
 
 	cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
+	utils.ApplyNoWindow(cmd)
 	output, err := cmd.CombinedOutput()
 	if err == nil && (strings.Contains(string(output), " libx265 ") || strings.Contains(string(output), " libx265\n")) {
 		logging.Debug(logging.CatFFMPEG, "using software encoder: libx265")
@@ -5147,6 +5394,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 		started := time.Now()
 		cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+		utils.ApplyNoWindow(cmd)
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			logging.Debug(logging.CatFFMPEG, "convert stdout pipe failed: %v", err)
@@ -5625,6 +5873,7 @@ func (s *appState) generateSnippet() {
 	args = append(args, outPath)
 
 	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	utils.ApplyNoWindow(cmd)
 	logging.Debug(logging.CatFFMPEG, "snippet command: %s", strings.Join(cmd.Args, " "))
 
 	// Show progress dialog for snippets that need re-encoding (WMV, filters, etc.)
@@ -5672,6 +5921,7 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 		"-vf", "scale=640:-1:flags=lanczos,fps=8",
 		pattern,
 	)
+	utils.ApplyNoWindow(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		os.RemoveAll(dir)
@@ -5776,6 +6026,7 @@ func probeVideo(path string) (*videoSource, error) {
 		"-show_streams",
 		path,
 	)
+	utils.ApplyNoWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -5894,6 +6145,7 @@ func probeVideo(path string) (*videoSource, error) {
 			"-y",
 			coverPath,
 		)
+		utils.ApplyNoWindow(extractCmd)
 		if err := extractCmd.Run(); err != nil {
 			logging.Debug(logging.CatFFMPEG, "failed to extract embedded cover art: %v", err)
 		} else {
@@ -5958,6 +6210,7 @@ func detectCrop(path string, duration float64) *CropValues {
 		"-f", "null",
 		"-",
 	)
+	utils.ApplyNoWindow(cmd)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -6561,7 +6814,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	})
 	clearBtn.Importance = widget.LowImportance
 
-	instructionsRow := container.NewBorder(nil, nil, nil, clearBtn, instructions)
+	instructionsRow := container.NewBorder(nil, nil, nil, nil, instructions)
 
 	// File label
 	fileLabel := widget.NewLabel("No file loaded")

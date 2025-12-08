@@ -10,19 +10,20 @@ import (
 	"time"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 // PlatformConfig holds platform-specific configuration
 type PlatformConfig struct {
-	FFmpegPath     string
-	FFprobePath    string
-	TempDir        string
-	HWEncoders     []string
-	ExeExtension   string
-	PathSeparator  string
-	IsWindows      bool
-	IsLinux        bool
-	IsDarwin       bool
+	FFmpegPath    string
+	FFprobePath   string
+	TempDir       string
+	HWEncoders    []string
+	ExeExtension  string
+	PathSeparator string
+	IsWindows     bool
+	IsLinux       bool
+	IsDarwin      bool
 }
 
 // DetectPlatform detects the current platform and returns configuration
@@ -167,6 +168,7 @@ func detectHardwareEncoders(cfg *PlatformConfig) []string {
 
 	// Get list of available encoders from ffmpeg
 	cmd := exec.Command(cfg.FFmpegPath, "-hide_banner", "-encoders")
+	utils.ApplyNoWindow(cmd)
 	output, err := cmd.Output()
 	if err != nil {
 		logging.Debug(logging.CatSystem, "Failed to query ffmpeg encoders: %v", err)

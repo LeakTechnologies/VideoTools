@@ -98,6 +98,7 @@ func ProbeVideo(path string) (*VideoSource, error) {
 		"-show_streams",
 		path,
 	)
+	utils.ApplyNoWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -152,6 +153,13 @@ func ProbeVideo(path string) (*VideoSource, error) {
 	if durStr := result.Format.Duration; durStr != "" {
 		if val, err := utils.ParseFloat(durStr); err == nil {
 			src.Duration = val
+		}
+	}
+
+	if len(result.Format.Tags) > 0 {
+		src.Metadata = normalizeTags(result.Format.Tags)
+		if len(src.Metadata) > 0 {
+			src.HasMetadata = true
 		}
 	}
 
@@ -252,6 +260,7 @@ func ProbeVideo(path string) (*VideoSource, error) {
 			"-y",
 			coverPath,
 		)
+		utils.ApplyNoWindow(extractCmd)
 		if err := extractCmd.Run(); err != nil {
 			logging.Debug(logging.CatFFMPEG, "failed to extract embedded cover art: %v", err)
 		} else {
@@ -271,6 +280,21 @@ func ProbeVideo(path string) (*VideoSource, error) {
 	return src, nil
 }
 
+func normalizeTags(tags map[string]interface{}) map[string]string {
+	normalized := make(map[string]string, len(tags))
+	for k, v := range tags {
+		key := strings.ToLower(strings.TrimSpace(k))
+		if key == "" {
+			continue
+		}
+		val := strings.TrimSpace(fmt.Sprint(v))
+		if val != "" {
+			normalized[key] = val
+		}
+	}
+	return normalized
+}
+
 // detectGOPSize attempts to detect GOP size by examining key frames
 func detectGOPSize(ctx context.Context, path string) int {
 	// Use ffprobe to show frames and look for key_frame markers
@@ -283,6 +307,7 @@ func detectGOPSize(ctx context.Context, path string) int {
 		"-print_format", "json",
 		path,
 	)
+	utils.ApplyNoWindow(cmd)
 
 	out, err := cmd.Output()
 	if err != nil {
