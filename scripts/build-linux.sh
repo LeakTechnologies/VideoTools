@@ -6,6 +6,9 @@ set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_OUTPUT="$PROJECT_ROOT/VideoTools"
+# Extract app version from main.go
+APP_VERSION="$(grep -E 'appVersion\s*=\s*\"' "$PROJECT_ROOT/main.go" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+[ -z "$APP_VERSION" ] && APP_VERSION="(version unknown)"
 
 echo "════════════════════════════════════════════════════════════════"
 echo "  VideoTools Build Script"
@@ -41,14 +44,15 @@ echo "🔨 Building VideoTools..."
 # Fyne needs cgo for GLFW/OpenGL bindings; build with CGO enabled.
 export CGO_ENABLED=1
 if go build -o "$BUILD_OUTPUT" .; then
-    echo "✓ Build successful!"
+    echo "✓ Build successful! (VideoTools $APP_VERSION)"
     echo ""
     echo "════════════════════════════════════════════════════════════════"
-    echo "✅ BUILD COMPLETE"
+    echo "✅ BUILD COMPLETE - $APP_VERSION"
     echo "════════════════════════════════════════════════════════════════"
     echo ""
     echo "Output: $BUILD_OUTPUT"
     echo "Size: $(du -h "$BUILD_OUTPUT" | cut -f1)"
+    echo "Diagnostics: version=$APP_VERSION os=$(uname -s) arch=$(uname -m) go=$(go version | awk '{print $3}')"
     echo ""
     echo "To run:"
     echo "  $PROJECT_ROOT/VideoTools"
@@ -58,6 +62,7 @@ if go build -o "$BUILD_OUTPUT" .; then
     echo "  VideoTools"
     echo ""
 else
-    echo "❌ Build failed!"
+    echo "❌ Build failed! (VideoTools $APP_VERSION)"
+    echo "Diagnostics: version=$APP_VERSION os=$(uname -s) arch=$(uname -m) go=$(go version | awk '{print $3}')"
     exit 1
 fi
