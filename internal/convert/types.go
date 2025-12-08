@@ -77,8 +77,8 @@ type VideoSource struct {
 	Duration         float64
 	VideoCodec       string
 	AudioCodec       string
-	Bitrate          int    // Video bitrate in bits per second
-	AudioBitrate     int    // Audio bitrate in bits per second
+	Bitrate          int // Video bitrate in bits per second
+	AudioBitrate     int // Audio bitrate in bits per second
 	FrameRate        float64
 	PixelFormat      string
 	AudioRate        int
@@ -94,6 +94,7 @@ type VideoSource struct {
 	GOPSize           int    // GOP size / keyframe interval
 	HasChapters       bool   // Whether file has embedded chapters
 	HasMetadata       bool   // Whether file has title/copyright/etc metadata
+	Metadata          map[string]string
 }
 
 // DurationString returns a human-readable duration string (HH:MM:SS or MM:SS)
