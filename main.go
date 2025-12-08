@@ -2280,6 +2280,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		qualitySectionSimple fyne.CanvasObject
 		qualitySectionAdv    fyne.CanvasObject
 	)
+	var (
+		updateEncodingControls  func()
+		updateQualityVisibility func()
+	)
 
 	qualityOptions := []string{"Draft (CRF 28)", "Standard (CRF 23)", "High (CRF 18)", "Lossless"}
 	var syncingQuality bool
@@ -2560,8 +2564,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	var updateQualityVisibility func()
-
 	formatSelect := widget.NewSelect(formatLabels, func(value string) {
 		for _, opt := range formatOptions {
 			if opt.Label == value {
@@ -2711,9 +2713,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		settingsContent,
 		widget.NewSeparator(),
 	)
-
-	// Shared updater for bitrate/quality UI state; defined later alongside controls
-	var updateEncodingControls func()
 
 	// Bitrate Mode
 	bitrateModeSelect = widget.NewSelect([]string{"CRF", "CBR", "VBR", "Target Size"}, func(value string) {
