@@ -165,9 +165,11 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 	text := widget.NewMultiLineEntry()
 	text.SetText(string(data))
 	text.Wrapping = fyne.TextWrapWord
+	text.TextStyle = fyne.TextStyle{Monospace: true}
 	text.Disable()
-	scroll := container.NewVScroll(text)
-	scroll.SetMinSize(fyne.NewSize(600, 400))
+	bg := canvas.NewRectangle(color.NRGBA{0x15, 0x1a, 0x24, 0xff}) // slightly lighter than app bg
+	scroll := container.NewVScroll(container.NewMax(bg, text))
+	scroll.SetMinSize(fyne.NewSize(700, 450))
 
 	stop := make(chan struct{})
 	if live {
@@ -195,8 +197,13 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 	closeBtn := widget.NewButton("Close", func() {
 		close(stop)
 	})
-	content := container.NewBorder(nil, container.NewHBox(layout.NewSpacer(), closeBtn), nil, nil, scroll)
-	d := dialog.NewCustomWithoutButtons(title, content, s.window)
+	copyBtn := widget.NewButton("Copy All", func() {
+		s.window.Clipboard().SetContent(text.Text)
+	})
+	buttons := container.NewHBox(copyBtn, layout.NewSpacer(), closeBtn)
+	content := container.NewBorder(nil, buttons, nil, nil, scroll)
+	d := dialog.NewCustom(title, "Close", content, s.window)
+	d.SetOnClosed(func() { close(stop) })
 	d.Show()
 }
 
@@ -3596,6 +3603,9 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.
 	}
 
 	colorSpace := utils.FirstNonEmpty(src.ColorSpace, "Unknown")
+	if strings.EqualFold(colorSpace, "unknown") && strings.Contains(strings.ToLower(src.Format), "mp4") {
+		colorSpace = "MP4 (ISO BMFF family)"
+	}
 	colorRange := utils.FirstNonEmpty(src.ColorRange, "Unknown")
 	if colorRange == "tv" {
 		colorRange = "Limited (TV)"
@@ -3668,7 +3678,7 @@ Metadata: %s`,
 
 	info := widget.NewForm(
 		widget.NewFormItem("File", widget.NewLabel(src.DisplayName)),
-		widget.NewFormItem("Format", widget.NewLabel(utils.FirstNonEmpty(src.Format, "Unknown"))),
+		widget.NewFormItem("Format Family", widget.NewLabel(utils.FirstNonEmpty(src.Format, "Unknown"))),
 		widget.NewFormItem("Resolution", widget.NewLabel(fmt.Sprintf("%dx%d", src.Width, src.Height))),
 		widget.NewFormItem("Aspect Ratio", widget.NewLabel(src.AspectRatioString())),
 		widget.NewFormItem("Pixel Aspect Ratio", widget.NewLabel(par)),
@@ -3691,6 +3701,7 @@ Metadata: %s`,
 	for _, item := range info.Items {
 		if lbl, ok := item.Widget.(*widget.Label); ok {
 			lbl.Wrapping = fyne.TextWrapWord
+			lbl.TextStyle = fyne.TextStyle{} // prevent selection
 		}
 	}
 
@@ -6786,14 +6797,18 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	// Info labels
 	file1Info := widget.NewLabel("No file loaded")
 	file1Info.Wrapping = fyne.TextWrapWord
+	file1Info.TextStyle = fyne.TextStyle{} // non-selectable label
 
 	file2Info := widget.NewLabel("No file loaded")
 	file2Info.Wrapping = fyne.TextWrapWord
+	file2Info.TextStyle = fyne.TextStyle{} // non-selectable label
 
 	// Helper function to format metadata
 	formatMetadata := func(src *videoSource) string {
 		fileSize := "Unknown"
+		origBytes := int64(0)
 		if fi, err := os.Stat(src.Path); err == nil {
+			origBytes = fi.Size()
 			sizeMB := float64(fi.Size()) / (1024 * 1024)
 			if sizeMB >= 1024 {
 				fileSize = fmt.Sprintf("%.2f GB", sizeMB/1024)
@@ -6801,12 +6816,18 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 				fileSize = fmt.Sprintf("%.2f MB", sizeMB)
 			}
 		}
+		var bitrateStr string
+		if src.Bitrate > 0 {
+			bitrateStr = formatBitrate(src.Bitrate)
+		} else {
+			bitrateStr = "--"
+		}
 
 		return fmt.Sprintf(
 			"━━━ FILE INFO ━━━\n"+
 				"Path: %s\n"+
 				"File Size: %s\n"+
-				"Format: %s\n"+
+				"Format Family: %s\n"+
 				"\n━━━ VIDEO ━━━\n"+
 				"Codec: %s\n"+
 				"Resolution: %dx%d\n"+
@@ -6835,7 +6856,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			src.Width, src.Height,
 			src.AspectRatioString(),
 			src.FrameRate,
-			formatBitrate(src.Bitrate),
+			bitrateStr,
 			src.PixelFormat,
 			src.ColorSpace,
 			src.ColorRange,
