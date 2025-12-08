@@ -66,7 +66,7 @@ var (
 
 	logsDirOnce     sync.Once
 	logsDirPath     string
-	feedbackBundler = newFeedbackBundler()
+	feedbackBundler = utils.NewFeedbackBundler()
 	appVersion      = "v0.1.0-dev14"
 
 	modulesList = []Module{

@@ -12,7 +12,7 @@ import (
 
 type FeedbackBundler struct{}
 
-func newFeedbackBundler() *FeedbackBundler {
+func NewFeedbackBundler() *FeedbackBundler {
 	return &FeedbackBundler{}
 }
 
