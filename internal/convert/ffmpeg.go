@@ -145,7 +145,7 @@ func ProbeVideo(path string) (*VideoSource, error) {
 	src := &VideoSource{
 		Path:        path,
 		DisplayName: filepath.Base(path),
-		Format:      utils.FirstNonEmpty(result.Format.Format, result.Format.FormatName),
+		Format:      humanFriendlyFormat(result.Format.Format, result.Format.FormatName),
 	}
 	if rate, err := utils.ParseInt(result.Format.BitRate); err == nil {
 		src.Bitrate = rate
