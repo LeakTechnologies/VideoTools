@@ -150,6 +150,36 @@ func getLogsDir() string {
 	return logsDirPath
 }
 
+// defaultBitrate picks a sane default when user leaves bitrate empty in bitrate modes.
+func defaultBitrate(codec string, width int) string {
+	switch strings.ToLower(codec) {
+	case "h.265", "hevc", "libx265", "hevc_nvenc", "hevc_qsv", "hevc_amf", "hevc_videotoolbox":
+		if width >= 1920 {
+			return "3500k"
+		}
+		if width >= 1280 {
+			return "2000k"
+		}
+		return "1200k"
+	case "av1", "libaom-av1", "av1_nvenc", "av1_amf", "av1_qsv", "av1_vaapi":
+		if width >= 1920 {
+			return "2800k"
+		}
+		if width >= 1280 {
+			return "1600k"
+		}
+		return "1000k"
+	default:
+		if width >= 1920 {
+			return "4500k"
+		}
+		if width >= 1280 {
+			return "2500k"
+		}
+		return "1500k"
+	}
+}
+
 // openLogViewer opens a simple dialog showing the log content. If live is true, it auto-refreshes.
 func (s *appState) openLogViewer(title, path string, live bool) {
 	if strings.TrimSpace(path) == "" {
@@ -5483,9 +5513,11 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			}
 		} else if cfg.BitrateMode == "CBR" {
 			// Constant bitrate
-			if cfg.VideoBitrate != "" {
-				args = append(args, "-b:v", cfg.VideoBitrate, "-minrate", cfg.VideoBitrate, "-maxrate", cfg.VideoBitrate, "-bufsize", cfg.VideoBitrate)
+			vb := cfg.VideoBitrate
+			if vb == "" {
+				vb = defaultBitrate(cfg.VideoCodec, src.Width)
 			}
+			args = append(args, "-b:v", vb, "-minrate", vb, "-maxrate", vb, "-bufsize", vb)
 		} else if cfg.BitrateMode == "VBR" {
 			// Variable bitrate (2-pass if enabled)
 			if cfg.VideoBitrate != "" {
