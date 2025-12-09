@@ -101,7 +101,7 @@ case "$OS" in
             echo "Help: check the Go error messages above."
             echo " - Undefined symbol/identifier: usually a missing variable or typo in source; see the referenced file:line."
             echo " - \"C compiler not found\": install MinGW-w64 or MSYS2 toolchain so gcc is in PATH."
-            echo " - Cache permission denied: delete or chown the Go build cache (e.g., %LOCALAPPDATA%\\go-build on Windows)."
+            echo " - Cache permission denied: run scripts/clear-go-cache.sh or delete/chown the Go build cache (e.g., %LOCALAPPDATA%\\go-build on Windows)."
             exit 1
         fi
         ;;
