@@ -3585,7 +3585,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				return
 			}
 			state.convert = cfg
-			state.showConvertView()
+			state.showConvertView(state.source)
 		}, state.window)
 	})
 	saveCfgBtn := widget.NewButton("Save Config", func() {
@@ -7472,7 +7472,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 		for range ticker.C {
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				updateInspectStatus()
-			})
+			}, false)
 			// Optional stop condition could be added if needed
 		}
 	}()
