@@ -2182,12 +2182,13 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
 	utils.ApplyNoWindow(cmd)
 
-	if err := cmd.Run(); err != nil {
+	out, err := cmd.CombinedOutput()
+	if err != nil {
 		if logFile != nil {
-			fmt.Fprintf(logFile, "\nStatus: failed at %s\nError: %v\n", time.Now().Format(time.RFC3339), err)
+			fmt.Fprintf(logFile, "\nStatus: failed at %s\nError: %v\nFFmpeg output:\n%s\n", time.Now().Format(time.RFC3339), err, string(out))
 			_ = logFile.Close()
 		}
-		return err
+		return fmt.Errorf("snippet failed: %w\nffmpeg output:\n%s", err, string(out))
 	}
 	if logFile != nil {
 		fmt.Fprintf(logFile, "\nStatus: completed at %s\n", time.Now().Format(time.RFC3339))
