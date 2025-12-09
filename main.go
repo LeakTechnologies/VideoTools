@@ -3566,7 +3566,48 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	autoCompareCheck.SetChecked(state.autoCompare)
 
-	leftControls := container.NewHBox(resetBtn, autoCompareCheck)
+	// Load/Save config buttons
+	loadCfgBtn := widget.NewButton("Load Config", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			path := reader.URI().Path()
+			reader.Close()
+			data, err := os.ReadFile(path)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to read config: %w", err), state.window)
+				return
+			}
+			var cfg convertConfig
+			if err := json.Unmarshal(data, &cfg); err != nil {
+				dialog.ShowError(fmt.Errorf("failed to parse config: %w", err), state.window)
+				return
+			}
+			state.convert = cfg
+			state.showConvertView()
+		}, state.window)
+	})
+	saveCfgBtn := widget.NewButton("Save Config", func() {
+		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
+			if err != nil || writer == nil {
+				return
+			}
+			path := writer.URI().Path()
+			defer writer.Close()
+			data, err := json.MarshalIndent(state.convert, "", "  ")
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to serialize config: %w", err), state.window)
+				return
+			}
+			if err := os.WriteFile(path, data, 0o644); err != nil {
+				dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
+				return
+			}
+		}, state.window)
+	})
+
+	leftControls := container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn, autoCompareCheck)
 	centerStatus := container.NewHBox(activity, statusLabel)
 	rightControls := container.NewHBox(cancelBtn, viewLogBtn, addQueueBtn, convertBtn)
 	actionInner := container.NewBorder(nil, nil, leftControls, rightControls, centerStatus)
@@ -7410,7 +7451,33 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	)
 
 	// Bottom bar with module color
-	bottomBar := ui.TintedBar(inspectColor, container.NewHBox(layout.NewSpacer()))
+	queueBtn := widget.NewButton("View Queue", func() {
+		state.showQueue()
+	})
+	statusLabel := widget.NewLabel("Idle")
+	statusLabel.Alignment = fyne.TextAlignCenter
+
+	updateInspectStatus := func() {
+		if state.convertBusy {
+			statusLabel.SetText(fmt.Sprintf("Active: %s", state.convertStatus))
+		} else {
+			statusLabel.SetText("Idle")
+		}
+	}
+	updateInspectStatus()
+
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+		for range ticker.C {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				updateInspectStatus()
+			})
+			// Optional stop condition could be added if needed
+		}
+	}()
+
+	bottomBar := ui.TintedBar(inspectColor, container.NewHBox(queueBtn, layout.NewSpacer(), statusLabel))
 
 	// Main content
 	content := container.NewBorder(
