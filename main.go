@@ -520,6 +520,19 @@ type appState struct {
 	compareFile2     *videoSource
 	inspectFile      *videoSource
 	autoCompare      bool // Auto-load Compare module after conversion
+
+	// Merge state
+	mergeClips     []mergeClip
+	mergeFormat    string
+	mergeOutput    string
+	mergeKeepAll   bool
+	mergeCodecMode string
+}
+
+type mergeClip struct {
+	Path     string
+	Chapter  string
+	Duration float64
 }
 
 func (s *appState) persistConvertConfig() {
@@ -533,6 +546,35 @@ func (s *appState) stopPreview() {
 		s.anim.Stop()
 		s.anim = nil
 	}
+}
+
+func toString(v interface{}) string {
+	switch t := v.(type) {
+	case string:
+		return t
+	case fmt.Stringer:
+		return t.String()
+	default:
+		return fmt.Sprintf("%v", v)
+	}
+}
+
+func toFloat(v interface{}) float64 {
+	switch t := v.(type) {
+	case float64:
+		return t
+	case float32:
+		return float64(t)
+	case int:
+		return float64(t)
+	case int64:
+		return float64(t)
+	case json.Number:
+		if f, err := t.Float64(); err == nil {
+			return f
+		}
+	}
+	return 0
 }
 
 func (s *appState) updateStatsBar() {
@@ -773,7 +815,7 @@ func (s *appState) showMainMenu() {
 			Label:    m.Label,
 			Color:    m.Color,
 			Category: m.Category,
-			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect", // Convert, compare, and inspect modules are functional
+			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge", // Enabled modules
 		})
 	}
 
@@ -1109,6 +1151,8 @@ func (s *appState) showModule(id string) {
 	switch id {
 	case "convert":
 		s.showConvertView(nil)
+	case "merge":
+		s.showMergeView()
 	case "compare":
 		s.showCompareView()
 	case "inspect":
@@ -1437,6 +1481,284 @@ func (s *appState) showInspectView() {
 	s.setContent(buildInspectView(s))
 }
 
+func (s *appState) showMergeView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "merge"
+
+	if s.mergeFormat == "" {
+		s.mergeFormat = "mkv-copy"
+	}
+
+	listBox := container.NewVBox()
+
+	var buildList func()
+	buildList = func() {
+		listBox.Objects = nil
+		if len(s.mergeClips) == 0 {
+			empty := widget.NewLabel("Add at least two clips to merge.")
+			empty.Alignment = fyne.TextAlignCenter
+			listBox.Add(container.NewCenter(empty))
+		} else {
+			for i, c := range s.mergeClips {
+				idx := i
+				name := filepath.Base(c.Path)
+				label := widget.NewLabel(utils.ShortenMiddle(name, 50))
+				chEntry := widget.NewEntry()
+				chEntry.SetText(c.Chapter)
+				chEntry.SetPlaceHolder(fmt.Sprintf("Part %d", i+1))
+				chEntry.OnChanged = func(val string) {
+					s.mergeClips[idx].Chapter = val
+				}
+				upBtn := widget.NewButton("↑", func() {
+					if idx > 0 {
+						s.mergeClips[idx-1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx-1]
+						buildList()
+					}
+				})
+				downBtn := widget.NewButton("↓", func() {
+					if idx < len(s.mergeClips)-1 {
+						s.mergeClips[idx+1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx+1]
+						buildList()
+					}
+				})
+				delBtn := widget.NewButton("Remove", func() {
+					s.mergeClips = append(s.mergeClips[:idx], s.mergeClips[idx+1:]...)
+					buildList()
+				})
+				row := container.NewBorder(
+					nil, nil,
+					container.NewVBox(upBtn, downBtn),
+					delBtn,
+					container.NewVBox(label, chEntry),
+				)
+				cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
+				cardBg.CornerRadius = 6
+				cardBg.SetMinSize(fyne.NewSize(0, label.MinSize().Height+chEntry.MinSize().Height+12))
+				listBox.Add(container.NewPadded(container.NewMax(cardBg, row)))
+			}
+		}
+		listBox.Refresh()
+	}
+
+	addFiles := func(paths []string) {
+		for _, p := range paths {
+			src, err := probeVideo(p)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to probe %s: %w", p, err), s.window)
+				continue
+			}
+			s.mergeClips = append(s.mergeClips, mergeClip{
+				Path:     p,
+				Chapter:  strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)),
+				Duration: src.Duration,
+			})
+		}
+		if len(s.mergeClips) >= 2 && s.mergeOutput == "" {
+			first := filepath.Dir(s.mergeClips[0].Path)
+			s.mergeOutput = filepath.Join(first, "merged.mkv")
+		}
+		buildList()
+	}
+
+	addBtn := widget.NewButton("Add Files…", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			path := reader.URI().Path()
+			reader.Close()
+			addFiles([]string{path})
+		}, s.window)
+	})
+	clearBtn := widget.NewButton("Clear", func() {
+		s.mergeClips = nil
+		buildList()
+	})
+
+	formatMap := map[string]string{
+		"MKV (Copy if compatible)":       "mkv-copy",
+		"MKV (Re-encode H.265)":          "mkv-encode",
+		"DVD NTSC 16:9":                  "dvd-ntsc-169",
+		"DVD NTSC 4:3":                   "dvd-ntsc-43",
+		"DVD PAL 16:9":                   "dvd-pal-169",
+		"DVD PAL 4:3":                    "dvd-pal-43",
+		"Blu-ray (H.264, MKV container)": "bd-h264",
+	}
+	var formatKeys []string
+	for k := range formatMap {
+		formatKeys = append(formatKeys, k)
+	}
+	slices.Sort(formatKeys)
+
+	formatSelect := widget.NewSelect(formatKeys, func(val string) {
+		s.mergeFormat = formatMap[val]
+		switch {
+		case strings.HasPrefix(s.mergeFormat, "dvd"):
+			s.mergeCodecMode = "encode"
+			if s.mergeOutput == "" && len(s.mergeClips) > 0 {
+				dir := filepath.Dir(s.mergeClips[0].Path)
+				s.mergeOutput = filepath.Join(dir, "merged-dvd.mpg")
+			}
+		case s.mergeFormat == "bd-h264":
+			s.mergeCodecMode = "encode"
+			if s.mergeOutput == "" && len(s.mergeClips) > 0 {
+				dir := filepath.Dir(s.mergeClips[0].Path)
+				s.mergeOutput = filepath.Join(dir, "merged-bd.mkv")
+			}
+		default:
+			if s.mergeCodecMode == "" {
+				s.mergeCodecMode = "copy"
+			}
+			if s.mergeOutput == "" && len(s.mergeClips) > 0 {
+				dir := filepath.Dir(s.mergeClips[0].Path)
+				s.mergeOutput = filepath.Join(dir, "merged.mkv")
+			}
+		}
+	})
+	for label, val := range formatMap {
+		if val == s.mergeFormat {
+			formatSelect.SetSelected(label)
+			break
+		}
+	}
+
+	keepAllCheck := widget.NewCheck("Keep all audio/subtitle tracks", func(v bool) {
+		s.mergeKeepAll = v
+	})
+	keepAllCheck.SetChecked(s.mergeKeepAll)
+
+	codecModeSelect := widget.NewSelect([]string{"Copy (if compatible)", "Re-encode (H.265)"}, func(val string) {
+		if strings.HasPrefix(val, "Copy") {
+			s.mergeCodecMode = "copy"
+		} else {
+			s.mergeCodecMode = "encode"
+		}
+	})
+	if s.mergeCodecMode == "" {
+		s.mergeCodecMode = "copy"
+	}
+	if s.mergeCodecMode == "encode" {
+		codecModeSelect.SetSelected("Re-encode (H.265)")
+	} else {
+		codecModeSelect.SetSelected("Copy (if compatible)")
+	}
+
+	outputEntry := widget.NewEntry()
+	outputEntry.SetPlaceHolder("merged output path")
+	outputEntry.SetText(s.mergeOutput)
+	outputEntry.OnChanged = func(val string) {
+		s.mergeOutput = val
+	}
+	browseOut := widget.NewButton("Browse", func() {
+		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
+			if err != nil || writer == nil {
+				return
+			}
+			s.mergeOutput = writer.URI().Path()
+			outputEntry.SetText(s.mergeOutput)
+			writer.Close()
+		}, s.window)
+	})
+
+	addQueueBtn := widget.NewButton("Add Merge to Queue", func() {
+		if err := s.addMergeToQueue(false); err != nil {
+			dialog.ShowError(err, s.window)
+			return
+		}
+		dialog.ShowInformation("Queue", "Merge job added to queue.", s.window)
+		if s.jobQueue != nil && !s.jobQueue.IsRunning() {
+			s.jobQueue.Start()
+		}
+	})
+	runNowBtn := widget.NewButton("Merge Now", func() {
+		if err := s.addMergeToQueue(true); err != nil {
+			dialog.ShowError(err, s.window)
+			return
+		}
+		if s.jobQueue != nil && !s.jobQueue.IsRunning() {
+			s.jobQueue.Start()
+		}
+		dialog.ShowInformation("Merge", "Merge started! Track progress in Job Queue.", s.window)
+	})
+	if len(s.mergeClips) < 2 {
+		addQueueBtn.Disable()
+		runNowBtn.Disable()
+	}
+
+	listScroll := container.NewVScroll(listBox)
+	listScroll.SetMinSize(fyne.NewSize(400, 300))
+
+	left := container.NewVBox(
+		widget.NewLabelWithStyle("Clips to Merge", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		container.NewHBox(addBtn, clearBtn),
+		listScroll,
+	)
+
+	right := container.NewVBox(
+		widget.NewLabelWithStyle("Output Options", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabel("Format"),
+		formatSelect,
+		codecModeSelect,
+		keepAllCheck,
+		widget.NewSeparator(),
+		widget.NewLabel("Output Path"),
+		container.NewBorder(nil, nil, nil, browseOut, outputEntry),
+		widget.NewSeparator(),
+		container.NewHBox(addQueueBtn, runNowBtn),
+	)
+
+	content := container.NewHSplit(left, right)
+	content.Offset = 0.55
+	s.setContent(container.NewBorder(nil, nil, nil, nil, content))
+
+	buildList()
+}
+
+func (s *appState) addMergeToQueue(startNow bool) error {
+	if len(s.mergeClips) < 2 {
+		return fmt.Errorf("add at least two clips")
+	}
+	if strings.TrimSpace(s.mergeOutput) == "" {
+		firstDir := filepath.Dir(s.mergeClips[0].Path)
+		s.mergeOutput = filepath.Join(firstDir, "merged.mkv")
+	}
+	clips := make([]map[string]interface{}, 0, len(s.mergeClips))
+	for _, c := range s.mergeClips {
+		name := c.Chapter
+		if strings.TrimSpace(name) == "" {
+			name = strings.TrimSuffix(filepath.Base(c.Path), filepath.Ext(c.Path))
+		}
+		clips = append(clips, map[string]interface{}{
+			"path":     c.Path,
+			"chapter":  name,
+			"duration": c.Duration,
+		})
+	}
+
+	config := map[string]interface{}{
+		"clips":          clips,
+		"format":         s.mergeFormat,
+		"keepAllStreams": s.mergeKeepAll,
+		"codecMode":      s.mergeCodecMode,
+		"outputPath":     s.mergeOutput,
+	}
+
+	job := &queue.Job{
+		Type:        queue.JobTypeMerge,
+		Title:       fmt.Sprintf("Merge %d clips", len(clips)),
+		Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(s.mergeOutput), 40)),
+		InputFile:   clips[0]["path"].(string),
+		OutputFile:  s.mergeOutput,
+		Config:      config,
+	}
+	s.jobQueue.Add(job)
+	if startNow && s.jobQueue != nil && !s.jobQueue.IsRunning() {
+		s.jobQueue.Start()
+	}
+	return nil
+}
+
 func (s *appState) showCompareFullscreen() {
 	s.stopPreview()
 	s.lastModule = s.active
@@ -1452,7 +1774,7 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 	case queue.JobTypeConvert:
 		return s.executeConvertJob(ctx, job, progressCallback)
 	case queue.JobTypeMerge:
-		return fmt.Errorf("merge jobs not yet implemented")
+		return s.executeMergeJob(ctx, job, progressCallback)
 	case queue.JobTypeTrim:
 		return fmt.Errorf("trim jobs not yet implemented")
 	case queue.JobTypeFilter:
@@ -1468,6 +1790,142 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 	default:
 		return fmt.Errorf("unknown job type: %s", job.Type)
 	}
+}
+
+func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
+	cfg := job.Config
+	format, _ := cfg["format"].(string)
+	keepAll, _ := cfg["keepAllStreams"].(bool)
+	codecMode, _ := cfg["codecMode"].(string) // copy or encode
+	outputPath, _ := cfg["outputPath"].(string)
+
+	rawClips, _ := cfg["clips"].([]interface{})
+	var clips []mergeClip
+	for _, rc := range rawClips {
+		if m, ok := rc.(map[string]interface{}); ok {
+			clips = append(clips, mergeClip{
+				Path:     toString(m["path"]),
+				Chapter:  toString(m["chapter"]),
+				Duration: toFloat(m["duration"]),
+			})
+		}
+	}
+	if len(clips) < 2 {
+		return fmt.Errorf("need at least two clips to merge")
+	}
+
+	tmpDir := os.TempDir()
+	listFile, err := os.CreateTemp(tmpDir, "vt-merge-list-*.txt")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(listFile.Name())
+	for _, c := range clips {
+		fmt.Fprintf(listFile, "file '%s'\n", strings.ReplaceAll(c.Path, "'", "'\\''"))
+	}
+	_ = listFile.Close()
+
+	// Build chapters metadata
+	chapterFile, err := os.CreateTemp(tmpDir, "vt-merge-chapters-*.txt")
+	if err != nil {
+		return err
+	}
+	var elapsed float64
+	fmt.Fprintln(chapterFile, ";FFMETADATA1")
+	for i, c := range clips {
+		startMs := int64(elapsed * 1000)
+		endMs := int64((elapsed + c.Duration) * 1000)
+		fmt.Fprintln(chapterFile, "[CHAPTER]")
+		fmt.Fprintln(chapterFile, "TIMEBASE=1/1000")
+		fmt.Fprintf(chapterFile, "START=%d\n", startMs)
+		fmt.Fprintf(chapterFile, "END=%d\n", endMs)
+		name := c.Chapter
+		if strings.TrimSpace(name) == "" {
+			name = fmt.Sprintf("Part %d", i+1)
+		}
+		fmt.Fprintf(chapterFile, "title=%s\n", name)
+		elapsed += c.Duration
+	}
+	_ = chapterFile.Close()
+
+	args := []string{
+		"-y",
+		"-hide_banner",
+		"-loglevel", "error",
+		"-f", "concat",
+		"-safe", "0",
+		"-i", listFile.Name(),
+		"-i", chapterFile.Name(),
+		"-map_metadata", "1",
+		"-map_chapters", "1",
+	}
+
+	// Map streams
+	if keepAll {
+		args = append(args, "-map", "0")
+	} else {
+		args = append(args, "-map", "0:v:0", "-map", "0:a:0")
+	}
+
+	// Output profile
+	switch format {
+	case "dvd-ntsc-169", "dvd-ntsc-43", "dvd-pal-169", "dvd-pal-43":
+		// Force MPEG-2 / AC-3
+		args = append(args,
+			"-c:v", "mpeg2video",
+			"-c:a", "ac3",
+			"-b:a", "192k",
+			"-max_muxing_queue_size", "1024",
+		)
+		aspect := "16:9"
+		if strings.Contains(format, "43") {
+			aspect = "4:3"
+		}
+		if strings.Contains(format, "ntsc") {
+			args = append(args, "-vf", "scale=720:480,setsar=1", "-r", "30000/1001", "-pix_fmt", "yuv420p", "-aspect", aspect)
+		} else {
+			args = append(args, "-vf", "scale=720:576,setsar=1", "-r", "25", "-pix_fmt", "yuv420p", "-aspect", aspect)
+		}
+		args = append(args, "-target", "ntsc-dvd")
+		if strings.Contains(format, "pal") {
+			args[len(args)-1] = "pal-dvd"
+		}
+	case "bd-h264":
+		args = append(args,
+			"-c:v", "libx264",
+			"-preset", "slow",
+			"-crf", "18",
+			"-pix_fmt", "yuv420p",
+			"-c:a", "ac3",
+			"-b:a", "256k",
+		)
+	default:
+		if codecMode == "copy" {
+			args = append(args, "-c", "copy")
+		} else {
+			// Re-encode to H.265 by default
+			args = append(args, "-c:v", "libx265", "-crf", "20", "-c:a", "copy")
+		}
+	}
+
+	args = append(args, outputPath)
+
+	// Execute
+	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	utils.ApplyNoWindow(cmd)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if progressCallback != nil {
+		progressCallback(0)
+	}
+	err = cmd.Run()
+	if err != nil {
+		return fmt.Errorf("merge failed: %w\nFFmpeg output:\n%s", err, strings.TrimSpace(stderr.String()))
+	}
+	if progressCallback != nil {
+		progressCallback(100)
+	}
+	return nil
 }
 
 // executeConvertJob executes a conversion job from the queue
