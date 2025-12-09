@@ -5892,6 +5892,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				var errorMsg error
 
 				// Check if this is a hardware encoding failure
+				resolvedAccel := effectiveHardwareAccel(s.convert)
 				isHardwareFailure := strings.Contains(stderrOutput, "No capable devices found") ||
 					strings.Contains(stderrOutput, "Cannot load") ||
 					strings.Contains(stderrOutput, "not available") &&
@@ -5901,8 +5902,16 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 							strings.Contains(stderrOutput, "vaapi") ||
 							strings.Contains(stderrOutput, "videotoolbox"))
 
-				if isHardwareFailure && s.convert.HardwareAccel != "none" && s.convert.HardwareAccel != "" {
-					errorMsg = fmt.Errorf("Hardware encoding (%s) failed - no compatible hardware found.\n\nPlease disable hardware acceleration in the conversion settings and try again with software encoding.\n\nFFmpeg output:\n%s", s.convert.HardwareAccel, stderrOutput)
+				if isHardwareFailure && resolvedAccel != "none" && resolvedAccel != "" {
+					chosen := s.convert.HardwareAccel
+					if chosen == "" {
+						chosen = "auto"
+					}
+					if strings.EqualFold(chosen, "auto") {
+						// Auto failed; fall back to software for next runs
+						s.convert.HardwareAccel = "none"
+					}
+					errorMsg = fmt.Errorf("Hardware encoding (%s→%s) failed - no compatible hardware found.\n\nSwitched hardware acceleration to 'none'. Please try again (software encoding).\n\nFFmpeg output:\n%s", chosen, resolvedAccel, stderrOutput)
 				} else {
 					baseMsg := "convert failed: " + err.Error()
 					if errorExplanation != "" {
