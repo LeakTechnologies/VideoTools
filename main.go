@@ -1405,10 +1405,13 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 
 // executeConvertJob executes a conversion job from the queue
 func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
+	return s.executeConvertJobWithFallback(ctx, job, progressCallback, false)
+}
+
+func (s *appState) executeConvertJobWithFallback(ctx context.Context, job *queue.Job, progressCallback func(float64), hwFallbackTried bool) error {
 	cfg := job.Config
 	inputPath := cfg["inputPath"].(string)
 	outputPath := cfg["outputPath"].(string)
-	hwFallbackTried, _ := cfg["hwFallbackTried"].(bool)
 
 	// If a direct conversion is running, wait until it finishes before starting queued jobs.
 	for s.convertBusy {
@@ -6221,22 +6224,13 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 						strings.Contains(stderrOutput, "videotoolbox"))
 
 			if isHardwareFailure && !hwFallbackTried && resolvedAccel != "none" && resolvedAccel != "" {
-				accelVal, _ := cfg["hardwareAccel"].(string)
-				if accelVal == "" {
-					accelVal = "auto"
+				s.convert.HardwareAccel = "none"
+				if logFile != nil {
+					fmt.Fprintf(logFile, "\nAuto-fallback: retrying with software encoder at %s\n", time.Now().Format(time.RFC3339))
+					_ = logFile.Close()
 				}
-				if !strings.EqualFold(accelVal, "none") {
-					cfg["hardwareAccel"] = "none"
-					cfg["hwFallbackTried"] = true
-					job.Config = cfg
-					s.convert.HardwareAccel = "none"
-					if logFile != nil {
-						fmt.Fprintf(logFile, "\nAuto-fallback: retrying with software encoder at %s\n", time.Now().Format(time.RFC3339))
-						_ = logFile.Close()
-					}
-					s.convertCancel = nil
-					return s.executeConvertJob(ctx, job, progressCallback)
-				}
+				s.convertCancel = nil
+				return s.executeConvertJobWithFallback(ctx, job, progressCallback, true)
 			}
 
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
