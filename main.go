@@ -1408,6 +1408,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	cfg := job.Config
 	inputPath := cfg["inputPath"].(string)
 	outputPath := cfg["outputPath"].(string)
+	hwFallbackTried, _ := cfg["hwFallbackTried"].(bool)
 
 	// If a direct conversion is running, wait until it finishes before starting queued jobs.
 	for s.convertBusy {
@@ -6222,6 +6223,24 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 							strings.Contains(stderrOutput, "qsv") ||
 							strings.Contains(stderrOutput, "vaapi") ||
 							strings.Contains(stderrOutput, "videotoolbox"))
+
+				// Auto-fallback to software and retry once if hardware fails
+				if isHardwareFailure && !hwFallbackTried && resolvedAccel != "none" && resolvedAccel != "" {
+					cfg["hardwareAccel"] = "none"
+					cfg["hwFallbackTried"] = true
+					job.Config = cfg
+					s.convert.HardwareAccel = "none"
+					if logFile != nil {
+						fmt.Fprintf(logFile, "\nAuto-fallback: retrying with software encoder at %s\n", time.Now().Format(time.RFC3339))
+						_ = logFile.Close()
+					}
+					s.convertCancel = nil
+					// Retry conversion in software
+					go func() {
+						_ = s.executeConvertJob(ctx, job, progressCallback)
+					}()
+					return
+				}
 
 				if isHardwareFailure && resolvedAccel != "none" && resolvedAccel != "" {
 					chosen := s.convert.HardwareAccel
