@@ -93,7 +93,6 @@ Current dependencies to maintain:
 ### Cross-Platform Support
 Player must work on:
 - Linux (GNOME, KDE, etc.)
-- macOS
 - Windows
 
 ### Performance

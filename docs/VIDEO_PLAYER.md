@@ -551,7 +551,7 @@ type Controller interface {
 
 - **Stub** (`controller_stub.go`): Returns errors for all operations
 - **Linux** (`controller_linux.go`): Uses X11 window embedding (partially implemented)
-- **Windows/macOS**: Not implemented
+- **Windows**: Not implemented
 
 **Status:** This approach was largely abandoned in favor of the custom `playSession` implementation due to window embedding complexity.
 

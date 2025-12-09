@@ -39,7 +39,6 @@ VideoTools is built with Fyne UI framework and runs on GNOME/Fedora and other Li
 
 VideoTools aims to run smoothly on:
 - **Linux**: GNOME, KDE, XFCE, etc.
-- **macOS**: Native macOS window behavior
 - **Windows**: Native Windows window behavior
 
 ## Fyne Framework Considerations

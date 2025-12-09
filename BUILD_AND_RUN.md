@@ -185,11 +185,6 @@ VideoToolsClean         # Remove build artifacts
 - Hardware acceleration (VAAPI, NVENC, QSV)
 - X11 and Wayland display server support
 
-### macOS ✅ (Supported)
-- Build with `scripts/build.sh`
-- Requires Xcode Command Line Tools: `xcode-select --install`
-- Hardware acceleration (VideoToolbox, NVENC)
-
 ### Windows ✅ (New in dev14)
 - Cross-compilation from Linux: `bash scripts/build-windows.sh`
 - Requires MinGW-w64 toolchain for cross-compilation
@@ -366,15 +361,7 @@ bash scripts/build-windows.sh
 # Output: dist/windows/VideoTools.exe
 ```
 
-### macOS Cross-Compilation
-
-```bash
-# Build for macOS (from Linux)
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o VideoTools-mac
-
-# Build for Apple Silicon (M1/M2)
-CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o VideoTools-mac-arm64
-```
+### Multi-Platform Build Script
 
 ### Multi-Platform Build Script
 

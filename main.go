@@ -2860,6 +2860,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		{Label: "AV1 1080p - 1800k (headroom)", Bitrate: "1800k", Codec: "AV1"},
 		{Label: "H.265 1080p - 2000k (balanced)", Bitrate: "2000k", Codec: "H.265"},
 		{Label: "H.265 1080p - 2400k (noisy sources)", Bitrate: "2400k", Codec: "H.265"},
+		{Label: "AV1 1440p - 2600k (balanced)", Bitrate: "2600k", Codec: "AV1"},
+		{Label: "H.265 1440p - 3200k (balanced)", Bitrate: "3200k", Codec: "H.265"},
+		{Label: "H.265 1440p - 4000k (noisy sources)", Bitrate: "4000k", Codec: "H.265"},
+		{Label: "AV1 4K - 5M (balanced)", Bitrate: "5000k", Codec: "AV1"},
+		{Label: "H.265 4K - 6M (balanced)", Bitrate: "6000k", Codec: "H.265"},
 		{Label: "AV1 4K - 7M (archive)", Bitrate: "7000k", Codec: "AV1"},
 		{Label: "H.265 4K - 9M (fast/Topaz)", Bitrate: "9000k", Codec: "H.265"},
 	}
@@ -6680,6 +6685,19 @@ func formatBitrate(bps int) string {
 	return fmt.Sprintf("%.0f kbps", kbps)
 }
 
+// formatBitrateFull shows both Mbps and kbps.
+func formatBitrateFull(bps int) string {
+	if bps <= 0 {
+		return "N/A"
+	}
+	kbps := float64(bps) / 1000.0
+	mbps := kbps / 1000.0
+	if kbps >= 1000 {
+		return fmt.Sprintf("%.1f Mbps (%.0f kbps)", mbps, kbps)
+	}
+	return fmt.Sprintf("%.0f kbps (%.2f Mbps)", kbps, mbps)
+}
+
 // buildCompareView creates the UI for comparing two videos side by side
 func buildCompareView(state *appState) fyne.CanvasObject {
 	compareColor := moduleColor("compare")
@@ -6790,12 +6808,12 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%.2f fps", s.FrameRate) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Bitrate:",
-			getField(state.compareFile1, func(s *videoSource) string { return formatBitrate(s.Bitrate) }),
+			getField(state.compareFile1, func(s *videoSource) string { return formatBitrateFull(s.Bitrate) }),
 			getField(state.compareFile2, func(s *videoSource) string {
 				if state.compareFile1 != nil {
 					return utils.DeltaBitrate(s.Bitrate, state.compareFile1.Bitrate)
 				}
-				return formatBitrate(s.Bitrate)
+				return formatBitrateFull(s.Bitrate)
 			})))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Pixel Format:",
@@ -6826,8 +6844,8 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			getField(state.compareFile2, func(s *videoSource) string { return s.AudioCodec })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Bitrate:",
-			getField(state.compareFile1, func(s *videoSource) string { return formatBitrate(s.AudioBitrate) }),
-			getField(state.compareFile2, func(s *videoSource) string { return formatBitrate(s.AudioBitrate) })))
+			getField(state.compareFile1, func(s *videoSource) string { return formatBitrateFull(s.AudioBitrate) }),
+			getField(state.compareFile2, func(s *videoSource) string { return formatBitrateFull(s.AudioBitrate) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Sample Rate:",
 			getField(state.compareFile1, func(s *videoSource) string { return fmt.Sprintf("%d Hz", s.AudioRate) }),
@@ -6927,7 +6945,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			if refBitrate > 0 {
 				bitrateStr = utils.DeltaBitrate(src.Bitrate, refBitrate)
 			} else {
-				bitrateStr = formatBitrate(src.Bitrate)
+				bitrateStr = formatBitrateFull(src.Bitrate)
 			}
 		}
 
@@ -7260,14 +7278,14 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 			src.Width, src.Height,
 			src.AspectRatioString(),
 			src.FrameRate,
-			formatBitrate(src.Bitrate),
+			formatBitrateFull(src.Bitrate),
 			src.PixelFormat,
 			src.ColorSpace,
 			src.ColorRange,
 			src.FieldOrder,
 			src.GOPSize,
 			src.AudioCodec,
-			formatBitrate(src.AudioBitrate),
+			formatBitrateFull(src.AudioBitrate),
 			src.AudioRate,
 			src.Channels,
 			src.DurationString(),

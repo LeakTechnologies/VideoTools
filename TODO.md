@@ -378,7 +378,7 @@ This file tracks upcoming features, improvements, and known issues.
   - **Hardware player testing** across different brands
   - **Quality validation** with professional tools
   - **Performance benchmarking** for encoding times
-  - **Cross-platform testing** (Windows, macOS, Linux)
+  - **Cross-platform testing** (Windows, Linux)
 
 ### Merge Module (Not Started)
 - [ ] Design UI layout
@@ -615,7 +615,7 @@ Trim provides frame-accurate cutting with lossless-first philosophy (inspired by
 ### User Documentation
 - [ ] Complete README.md for all modules
 - [ ] Getting Started guide
-- [ ] Installation instructions (Windows, macOS, Linux)
+- [ ] Installation instructions (Windows, Linux)
 - [ ] Keyboard shortcuts reference
 - [ ] Workflow examples
 - [ ] FAQ section
@@ -634,7 +634,6 @@ Trim provides frame-accurate cutting with lossless-first philosophy (inspired by
 ## Packaging & Distribution
 
 - [ ] Create installers for Windows (.exe/.msi)
-- [ ] Create macOS app bundle (.dmg)
 - [ ] Create Linux packages (.deb, .rpm, AppImage)
 - [ ] Set up CI/CD pipeline
 - [ ] Automatic builds for releases
@@ -658,7 +657,7 @@ Trim provides frame-accurate cutting with lossless-first philosophy (inspired by
 ## Known Issues
 
 - **Build hangs on GCC 15.2.1** - CGO compilation freezes during OpenGL binding compilation
-- No Windows/macOS builds tested yet
+- No Windows builds tested yet
 - Preview frames not cleaned up on crash
 
 ## Fixed Issues (v0.1.0-dev11)

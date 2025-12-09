@@ -226,7 +226,7 @@ This module set covers all major FFmpeg capabilities:
 - ✅ **Transcoding and format conversion** - Full DVD encoding system
 - ✅ **Metadata viewing and editing** - Basic implementation
 - ✅ **Queue system** - Batch processing with job management
-- ✅ **Cross-platform support** - Linux, macOS, Windows (dev14)
+- ✅ **Cross-platform support** - Linux, Windows (dev14)
 
 ### 🔄 In Development/Planned
 - 🔄 **Concatenation and merging** - Planned for dev15

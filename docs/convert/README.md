@@ -88,7 +88,6 @@ When available, use GPU encoding for faster processing:
 - **NVENC** - NVIDIA GPUs (RTX, GTX, Quadro)
 - **QSV** - Intel Quick Sync Video
 - **VAAPI** - Intel/AMD (Linux)
-- **VideoToolbox** - Apple Silicon/Intel Macs
 - **AMF** - AMD GPUs
 
 ### Advanced Options
