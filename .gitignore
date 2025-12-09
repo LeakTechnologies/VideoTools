@@ -1,6 +1,8 @@
 videotools.log
+logs/
 .gocache/
 .gomodcache/
+.cache/
 VideoTools
 
 # Windows build artifacts
