@@ -33,7 +33,7 @@ VideoTools is a professional-grade video processing application with a modern GU
 bash install.sh
 ```
 
-The installer will build, install, and set up everything automatically!
+The installer will build, install, and set up everything automatically with a guided wizard!
 
 **After installation:**
 ```bash
@@ -51,7 +51,7 @@ source scripts/alias.sh
 VideoTools
 ```
 
-For detailed installation options, see **INSTALLATION.md**.
+For detailed installation options, troubleshooting, and platform-specific notes, see **INSTALLATION.md**.
 
 ## How to Create a Professional DVD
 

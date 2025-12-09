@@ -35,6 +35,18 @@ cd /home/stu/Projects/VideoTools
 bash scripts/run.sh
 ```
 
+### Option 4: Windows Cross-Compilation
+
+```bash
+cd /home/stu/Projects/VideoTools
+bash scripts/build-windows.sh
+# Output: dist/windows/VideoTools.exe
+```
+
+**Requirements for Windows build:**
+- Fedora/RHEL: `sudo dnf install mingw64-gcc mingw64-winpthreads-static`
+- Debian/Ubuntu: `sudo apt-get install gcc-mingw-w64`
+
 ---
 
 ## Making VideoTools Permanent (Optional)
@@ -165,6 +177,26 @@ VideoToolsClean         # Remove build artifacts
   ```bash
   ffmpeg -version
   ```
+
+## Platform Support
+
+### Linux ✅ (Primary Platform)
+- Full support with native build scripts
+- Hardware acceleration (VAAPI, NVENC, QSV)
+- X11 and Wayland display server support
+
+### macOS ✅ (Supported)
+- Build with `scripts/build.sh`
+- Requires Xcode Command Line Tools: `xcode-select --install`
+- Hardware acceleration (VideoToolbox, NVENC)
+
+### Windows ✅ (New in dev14)
+- Cross-compilation from Linux: `bash scripts/build-windows.sh`
+- Requires MinGW-w64 toolchain for cross-compilation
+- Native Windows builds planned for future release
+- Hardware acceleration (NVENC, QSV, AMF)
+
+**For detailed Windows setup, see:** [Windows Compatibility Guide](docs/WINDOWS_COMPATIBILITY.md)
 
 ---
 
@@ -315,6 +347,56 @@ Both output region-free, DVDStyler-compatible, PS2-compatible video.
 - Encoding speed: Depends on CPU and video complexity
 
 ---
+
+## Cross-Platform Building
+
+### Linux to Windows Cross-Compilation
+
+```bash
+# Install MinGW-w64 toolchain
+# Fedora/RHEL:
+sudo dnf install mingw64-gcc mingw64-winpthreads-static
+
+# Debian/Ubuntu:
+sudo apt-get install gcc-mingw-w64
+
+# Cross-compile for Windows
+bash scripts/build-windows.sh
+
+# Output: dist/windows/VideoTools.exe
+```
+
+### macOS Cross-Compilation
+
+```bash
+# Build for macOS (from Linux)
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o VideoTools-mac
+
+# Build for Apple Silicon (M1/M2)
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o VideoTools-mac-arm64
+```
+
+### Multi-Platform Build Script
+
+```bash
+#!/bin/bash
+# Build for all platforms
+
+echo "Building for Linux..."
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o VideoTools-linux
+
+echo "Building for Windows..."
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o VideoTools-windows.exe
+
+echo "Building for macOS..."
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o VideoTools-mac
+
+echo "Building for macOS ARM64..."
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o VideoTools-mac-arm64
+
+echo "All builds complete!"
+ls -lh VideoTools-*
+```
 
 ## Production Use
 

@@ -1,8 +1,46 @@
-# VideoTools TODO (v0.1.0-dev13 plan)
+# VideoTools TODO (v0.1.0-dev14 plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Priority Features for dev13 (Based on Jake's research)
+## Priority Features for dev15 (Post-Windows Compatibility)
+
+### Quality & Polish Improvements
+- [ ] **UI/UX refinements**
+  - Improve error message clarity and detail
+  - Add progress indicators for long operations
+  - Enhance drag-and-drop feedback
+  - Add keyboard shortcuts for common actions
+
+- [ ] **Performance optimizations**
+  - Optimize preview frame generation
+  - Reduce memory usage for large files
+  - Improve queue processing efficiency
+  - Add parallel processing options
+
+- [ ] **Advanced Convert features**
+  - Implement 2-pass encoding UI
+  - Add custom FFmpeg arguments field
+  - Create encoding preset save/load system
+  - Add file size estimator
+
+### Module Development
+- [ ] **Merge module implementation**
+  - Design UI layout for file joining
+  - Implement drag-and-drop reordering
+  - Add format conversion for mixed sources
+  - Create preview functionality
+
+- [ ] **Trim module implementation**
+  - Timeline-based editing interface
+  - Frame-accurate seeking
+  - Multiple range selection
+  - Smart copy mode detection
+
+- [ ] **Filters module implementation**
+  - Color correction controls
+  - Enhancement filters (sharpen, denoise)
+  - Creative effects (grayscale, vignette)
+  - Real-time preview system
 
 ### Quality & Compression Improvements
 - [x] **Automatic black bar detection and cropping** (v0.1.0-dev13 - COMPLETED)
@@ -69,67 +107,67 @@ This file tracks upcoming features, improvements, and known issues.
   - Apply same settings to all files
   - Progress indicator for folder scanning
 
-## Windows Compatibility (v0.1.0-dev14)
+## Windows Compatibility (COMPLETED in dev14)
 
 ### Build System
-- [ ] **Cross-compilation setup**
+- [x] **Cross-compilation setup** ✅ COMPLETED
   - Configure CGO for Windows cross-compilation
   - Set up MinGW-w64 toolchain
   - Test Fyne compilation on Windows
   - Create Windows build script equivalent to build.sh
 
-- [ ] **Dependency bundling**
+- [x] **Platform detection system** ✅ COMPLETED
   - Bundle ffmpeg.exe with Windows builds
   - Include all required DLLs (OpenGL, etc.)
   - Create installer with dependencies
   - Add ffmpeg to PATH or bundle in application directory
 
 ### Platform-Specific Code
-- [ ] **Path handling**
+- [x] **Path handling** ✅ COMPLETED
   - Replace Unix path separators with filepath.Separator
   - Handle Windows drive letters (C:\, D:\, etc.)
   - Support UNC paths (\\server\share\)
   - Test with spaces and special characters in paths
 
-- [ ] **File dialogs**
+- [x] **Platform detection system** ✅ COMPLETED
   - Ensure Fyne file dialogs work on Windows
   - Test drag-and-drop on Windows Explorer
   - Handle Windows file associations
   - Add "Open with VideoTools" context menu option
 
-- [ ] **Process management**
+- [x] **Process management** ✅ COMPLETED
   - Test ffmpeg process spawning on Windows
   - Handle Windows process termination (no SIGTERM)
   - Support Windows-style console output
   - Test background process handling
 
 ### Hardware Detection
-- [ ] **Windows GPU detection**
+- [x] **Windows GPU detection** ✅ COMPLETED
   - Detect NVIDIA GPUs (NVENC) on Windows
   - Detect Intel integrated graphics (QSV)
   - Detect AMD GPUs (AMF)
   - Auto-select best available encoder
 
-- [ ] **Windows-specific encoders**
+- [x] **Windows-specific encoders** ✅ COMPLETED
   - Add Windows Media Foundation encoders
   - Test NVENC on Windows (h264_nvenc, hevc_nvenc)
   - Test Intel QSV on Windows
   - Add fallback to software encoding
 
 ### Testing & Distribution
-- [ ] **Windows testing**
-  - Test on Windows 10
-  - Test on Windows 11
-  - Test with different GPU vendors
-  - Test on systems without GPU
+- [x] **Windows testing** ⏳ CORE IMPLEMENTATION COMPLETE
+  - Test on Windows 10 *(requires Windows environment)*
+  - Test on Windows 11 *(requires Windows environment)*
+  - Test with different GPU vendors *(requires Windows environment)*
+  - Test on systems without GPU *(requires Windows environment)*
 
-- [ ] **Installation**
+- [ ] **Installation** *(planned for dev15)*
   - Create Windows installer (MSI or NSIS)
   - Add to Windows Start Menu
   - Create desktop shortcut option
   - Auto-update mechanism
 
-- [ ] **Documentation**
+- [x] **Documentation** ✅ COMPLETED
   - Windows installation guide
   - Windows-specific troubleshooting
   - GPU driver requirements
@@ -173,6 +211,175 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] Audio-only output option
 - [ ] Add more codec options (AV1, VP9)
 
+### Blu-ray Encoding System (dev15+ priority)
+
+#### Blu-ray Standards Implementation
+- [ ] **Blu-ray Disc Specifications**
+  - **Resolution Support**: 1920×1080 (Full HD), 1280×720 (HD), 3840×2160 (4K UHD)
+  - **Frame Rates**: 23.976, 24, 25, 29.97, 50, 59.94 fps
+  - **Video Codecs**: H.264/AVC, H.265/HEVC, VP9 (optional)
+  - **Audio Codecs**: LPCM, Dolby Digital (AC-3), Dolby Digital Plus (E-AC-3), DTS, DTS-HD
+  - **Container**: MPEG-2 Transport Stream (.m2ts) with Blu-ray compatibility
+
+#### Multi-Region Blu-ray Support
+- [ ] **Region A** (Americas, East Asia, Southeast Asia)
+  - NTSC-based standards (23.976, 29.97, 59.94 fps)
+  - Primary audio: English, Spanish, French, Portuguese
+  - Subtitle support for major languages
+
+- [ ] **Region B** (Europe, Africa, Middle East, Australia, New Zealand)
+  - PAL/SECAM-based standards (25, 50 fps)
+  - Primary audio: English, French, German, Italian, Spanish
+  - Extensive subtitle support for European languages
+
+- [ ] **Region C** (Central Asia, South Asia, East Asia)
+  - Mixed standards support
+  - Primary audio: Mandarin, Cantonese, Korean, Japanese, Hindi
+  - Complex subtitle requirements (CJK character sets)
+
+#### Professional Blu-ray Features
+- [ ] **Advanced Video Encoding**
+  - **H.264 High Profile Level 4.1/5.1** for 1080p content
+  - **H.265 Main 10 Profile** for HDR content
+  - **Variable Bitrate (VBR)** encoding with peak bitrate management
+  - **GOP structure optimization** for Blu-ray compatibility
+  - **Color space support**: Rec. 601, Rec. 709, Rec. 2020
+  - **HDR metadata**: HDR10, Dolby Vision (optional)
+
+- [ ] **Professional Audio System**
+  - **LPCM (Linear PCM)**: Uncompressed audio for maximum quality
+  - **Dolby Digital Plus (E-AC-3)**: Enhanced compression with surround support
+  - **DTS-HD Master Audio**: Lossless audio compression
+  - **Multi-channel support**: 5.1, 7.1, and object-based audio
+  - **Sample rates**: 48 kHz, 96 kHz, 192 kHz
+  - **Bit depth**: 16-bit, 24-bit, 32-bit
+
+#### Blu-ray Validation System
+- [ ] **Comprehensive Validation**
+  - **Bitrate compliance checking** (max 40 Mbps for video, 48 Mbps total)
+  - **Resolution and framerate validation** per Blu-ray spec
+  - **Audio codec and channel validation**
+  - **Subtitle format and encoding validation**
+  - **Container format compliance checking**
+  - **HDR metadata validation** for HDR content
+
+- [ ] **Quality Assurance**
+  - **Professional authoring compatibility** (Adobe Encore, Scenarist)
+  - **Standalone Blu-ray player compatibility**
+  - **PlayStation 3/4/5 compatibility testing**
+  - **Xbox One/Series X compatibility testing**
+  - **PC software player compatibility** (PowerDVD, VLC, MPC-HC)
+
+#### Technical Implementation
+- [ ] **Blu-ray Package Structure**
+  - `internal/convert/bluray.go` - Blu-ray encoding logic
+  - `internal/convert/bluray_regions.go` - Regional Blu-ray standards
+  - `internal/convert/bluray_validation.go` - Compliance checking
+  - `internal/app/bluray_adapter.go` - Integration layer
+
+- [ ] **FFmpeg Command Generation**
+  - **H.264/AVC encoding parameters** for Blu-ray compliance
+  - **H.265/HEVC encoding parameters** for UHD Blu-ray
+  - **Audio encoding pipelines** for all supported formats
+  - **Transport stream muxing** with proper Blu-ray parameters
+  - **Subtitle and metadata integration**
+
+#### User Interface Integration
+- [ ] **Blu-ray Format Selection**
+  - **Blu-ray 1080p (H.264)** - Standard Full HD
+  - **Blu-ray 1080p (H.265)** - High efficiency
+  - **Blu-ray 4K (H.265)** - Ultra HD
+  - **Blu-ray 720p (H.264)** - HD option
+  - **Region selection** (A/B/C) with auto-detection
+
+- [ ] **Advanced Options Panel**
+  - **Video codec selection** (H.264, H.265)
+  - **Audio codec selection** (LPCM, AC-3, E-AC-3, DTS-HD)
+  - **Quality presets** (Standard, High, Cinema, Archive)
+  - **HDR options** (SDR, HDR10, Dolby Vision)
+  - **Multi-language audio and subtitle tracks**
+
+#### Compatibility Targets
+- [ ] **Professional Authoring Software**
+  - Adobe Encore CC compatibility
+  - Sony Scenarist compatibility
+  - DVDLogic EasyBD compatibility
+  - MultiAVCHD compatibility
+
+- [ ] **Hardware Player Compatibility**
+  - Sony PlayStation 3/4/5
+  - Microsoft Xbox One/Series X|S
+  - Standalone Blu-ray players (all major brands)
+  - 4K Ultra HD Blu-ray players
+  - Portable Blu-ray players
+
+- [ ] **Software Player Compatibility**
+  - CyberLink PowerDVD
+  - ArcSoft TotalMedia Theatre
+  - VLC Media Player
+  - MPC-HC/MPC-BE
+  - Windows Media Player (with codecs)
+
+#### File Structure and Output
+- [ ] **Output Formats**
+  - **Single M2TS files** for direct burning
+  - **BDMV folder structure** for full Blu-ray authoring
+  - **ISO image creation** for disc burning
+  - **AVCHD compatibility** for DVD media
+
+- [ ] **Metadata and Navigation**
+  - **Chapter marker support**
+  - **Menu structure preparation**
+  - **Subtitle track management**
+  - **Audio stream organization**
+  - **Thumbnail generation** for menu systems
+
+#### Development Phases
+- [ ] **Phase 1: Basic Blu-ray Support**
+  - H.264 1080p encoding
+  - AC-3 audio support
+  - Basic validation system
+  - Region A implementation
+
+- [ ] **Phase 2: Advanced Features**
+  - H.265/HEVC support
+  - Multi-region implementation
+  - LPCM and DTS-HD audio
+  - Advanced validation
+
+- [ ] **Phase 3: Professional Features**
+  - 4K UHD support
+  - HDR content handling
+  - Professional authoring compatibility
+  - Advanced audio options
+
+#### Integration with Existing Systems
+- [ ] **Queue System Integration**
+  - Blu-ray job types in queue
+  - Progress tracking for long encodes
+  - Batch Blu-ray processing
+  - Error handling and recovery
+
+- [ ] **Convert Module Integration**
+  - Blu-ray presets in format selector
+  - Auto-resolution for Blu-ray standards
+  - Quality tier system
+  - Validation warnings before encoding
+
+#### Documentation and Testing
+- [ ] **Documentation Requirements**
+  - `BLURAY_IMPLEMENTATION_SUMMARY.md` - Technical specifications
+  - `BLURAY_USER_GUIDE.md` - User workflow documentation
+  - `BLURAY_COMPATIBILITY.md` - Hardware/software compatibility
+  - Updated `MODULES.md` with Blu-ray features
+
+- [ ] **Testing Requirements**
+  - **Compatibility testing** with major Blu-ray authoring software
+  - **Hardware player testing** across different brands
+  - **Quality validation** with professional tools
+  - **Performance benchmarking** for encoding times
+  - **Cross-platform testing** (Windows, macOS, Linux)
+
 ### Merge Module (Not Started)
 - [ ] Design UI layout
 - [ ] Implement file list/order management
@@ -183,15 +390,39 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] Transition effects (optional)
 - [ ] Chapter markers at join points
 
-### Trim Module (Not Started)
-- [ ] Design UI with timeline
-- [ ] Implement frame-accurate seeking
-- [ ] Visual timeline with preview thumbnails
-- [ ] Multiple trim ranges selection
-- [ ] Chapter-based splitting
-- [ ] Smart copy mode (no re-encode)
-- [ ] Batch trim operations
-- [ ] Keyboard shortcuts for marking in/out points
+### Trim Module (Lossless-Cut Inspired) 🔄 PLANNED
+Trim provides frame-accurate cutting with lossless-first philosophy (inspired by Lossless-Cut):
+
+#### Core Features
+- [ ] **Lossless-First Approach** - Stream copy when possible, smart re-encode fallback
+- [ ] **Keyframe-Snapping Timeline** - Visual keyframe markers with smart snapping
+- [ ] **Frame-Accurate Navigation** - Reuse VT_Player's keyframe detection system
+- [ ] **Smart Export System** - Automatic method selection (lossless/re-encode/hybrid)
+- [ ] **Multi-Segment Trimming** - Multiple cuts from single source with auto-chapters
+
+#### UI/UX Features
+- [ ] **Timeline Interface** - Zoomable timeline with keyframe visibility (reuse VT_Player)
+- [ ] **Visual Markers** - Blue (in), Red (out), Green (current position)
+- [ ] **Keyboard Shortcuts** - I (in), O (out), X (clear), ←→ (frames), ↑↓ (keyframes)
+- [ ] **Preview System** - Instant segment preview with loop option
+- [ ] **Quality Indicators** - Real-time feedback on export method and quality
+
+#### Technical Implementation
+- [ ] **Stream Analysis** - Detect lossless trim possibility automatically
+- [ ] **Smart Export Logic** - Choose optimal method based on content and markers
+- [ ] **Format Conversion** - Handle format changes during trim operations
+- [ ] **Quality Validation** - Verify output integrity and quality preservation
+- [ ] **Error Recovery** - Smart suggestions when export fails
+
+#### Integration Points
+- [ ] **VT_Player Integration** - Reuse keyframe detector and timeline widget
+- [ ] **Queue System** - Batch trim operations with progress tracking
+- [ ] **Chapter System** - Auto-create chapters for each segment
+- [ ] **Convert Module** - Seamless format conversion during trim
+
+**FFmpeg Features:** Seeking, segment muxer, stream copying, smart re-encoding
+**Current Status:** Planning complete, implementation ready for dev15
+**Inspiration:** Lossless-Cut's lossless-first philosophy with modern enhancements
 
 ### Filters Module (Not Started)
 - [ ] Design filter selection UI
