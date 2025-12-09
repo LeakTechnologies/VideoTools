@@ -432,6 +432,54 @@ func (c convertConfig) CoverLabel() string {
 	return filepath.Base(c.CoverArtPath)
 }
 
+// defaultConvertConfigPath returns the path to the persisted convert config.
+func defaultConvertConfigPath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil || configDir == "" {
+		home := os.Getenv("HOME")
+		if home != "" {
+			configDir = filepath.Join(home, ".config")
+		}
+	}
+	if configDir == "" {
+		return "convert.json"
+	}
+	return filepath.Join(configDir, "VideoTools", "convert.json")
+}
+
+// loadPersistedConvertConfig loads the saved convert configuration from disk.
+func loadPersistedConvertConfig() (convertConfig, error) {
+	var cfg convertConfig
+	path := defaultConvertConfigPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return cfg, err
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return cfg, err
+	}
+	if cfg.OutputAspect == "" {
+		cfg.OutputAspect = "Source"
+		cfg.AspectUserSet = false
+	} else if !strings.EqualFold(cfg.OutputAspect, "Source") {
+		cfg.AspectUserSet = true
+	}
+	return cfg, nil
+}
+
+// savePersistedConvertConfig writes the convert configuration to disk.
+func savePersistedConvertConfig(cfg convertConfig) error {
+	path := defaultConvertConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
 type appState struct {
 	window           fyne.Window
 	active           string
@@ -472,6 +520,12 @@ type appState struct {
 	compareFile2     *videoSource
 	inspectFile      *videoSource
 	autoCompare      bool // Auto-load Compare module after conversion
+}
+
+func (s *appState) persistConvertConfig() {
+	if err := savePersistedConvertConfig(s.convert); err != nil {
+		logging.Debug(logging.CatSystem, "failed to persist convert config: %v", err)
+	}
 }
 
 func (s *appState) stopPreview() {
@@ -2207,6 +2261,8 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 }
 
 func (s *appState) shutdown() {
+	s.persistConvertConfig()
+
 	// Stop queue without saving - we want a clean slate each session
 	if s.jobQueue != nil {
 		s.jobQueue.Stop()
@@ -2353,6 +2409,12 @@ func runGUI() {
 		lastVolume:   100,
 		playerMuted:  false,
 		playerPaused: true,
+	}
+
+	if cfg, err := loadPersistedConvertConfig(); err == nil {
+		state.convert = cfg
+	} else if !errors.Is(err, os.ErrNotExist) {
+		logging.Debug(logging.CatSystem, "failed to load persisted convert config: %v", err)
 	}
 
 	// Initialize conversion stats bar
@@ -2823,7 +2885,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	transformHint := widget.NewLabel("Apply flips and rotation to correct video orientation")
 	transformHint.Wrapping = fyne.TextWrapWord
 
-	aspectTargets := []string{"Source", "16:9", "4:3", "1:1", "9:16", "21:9"}
+	aspectTargets := []string{"Source", "16:9", "4:3", "5:4", "1:1", "9:16", "21:9"}
 	targetAspectSelect := widget.NewSelect(aspectTargets, func(value string) {
 		logging.Debug(logging.CatUI, "target aspect set to %s", value)
 		state.convert.OutputAspect = value
@@ -3715,6 +3777,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if updateQualityVisibility != nil {
 			updateQualityVisibility()
 		}
+		state.persistConvertConfig()
 		logging.Debug(logging.CatUI, "convert settings reset to defaults")
 	})
 	statusLabel := widget.NewLabel("")
@@ -3742,6 +3805,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Add to Queue button
 	addQueueBtn := widget.NewButton("Add to Queue", func() {
+		state.persistConvertConfig()
 		if err := state.addConvertToQueue(); err != nil {
 			dialog.ShowError(err, state.window)
 		} else {
@@ -3758,6 +3822,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	convertBtn = widget.NewButton("CONVERT NOW", func() {
+		state.persistConvertConfig()
 		// Add job to queue and start immediately
 		if err := state.addConvertToQueue(); err != nil {
 			dialog.ShowError(err, state.window)
@@ -3839,49 +3904,24 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Load/Save config buttons
 	loadCfgBtn := widget.NewButton("Load Config", func() {
-		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
-			if err != nil || reader == nil {
-				return
+		cfg, err := loadPersistedConvertConfig()
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				dialog.ShowInformation("No Config", "No saved config found yet. It will save automatically after your first change.", state.window)
+			} else {
+				dialog.ShowError(fmt.Errorf("failed to load config: %w", err), state.window)
 			}
-			path := reader.URI().Path()
-			reader.Close()
-			data, err := os.ReadFile(path)
-			if err != nil {
-				dialog.ShowError(fmt.Errorf("failed to read config: %w", err), state.window)
-				return
-			}
-			var cfg convertConfig
-			if err := json.Unmarshal(data, &cfg); err != nil {
-				dialog.ShowError(fmt.Errorf("failed to parse config: %w", err), state.window)
-				return
-			}
-			if cfg.OutputAspect == "" {
-				cfg.OutputAspect = "Source"
-				cfg.AspectUserSet = false
-			} else if !strings.EqualFold(cfg.OutputAspect, "Source") {
-				cfg.AspectUserSet = true
-			}
-			state.convert = cfg
-			state.showConvertView(state.source)
-		}, state.window)
+			return
+		}
+		state.convert = cfg
+		state.showConvertView(state.source)
 	})
 	saveCfgBtn := widget.NewButton("Save Config", func() {
-		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
-			if err != nil || writer == nil {
-				return
-			}
-			path := writer.URI().Path()
-			defer writer.Close()
-			data, err := json.MarshalIndent(state.convert, "", "  ")
-			if err != nil {
-				dialog.ShowError(fmt.Errorf("failed to serialize config: %w", err), state.window)
-				return
-			}
-			if err := os.WriteFile(path, data, 0o644); err != nil {
-				dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
-				return
-			}
-		}, state.window)
+		if err := savePersistedConvertConfig(state.convert); err != nil {
+			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
+			return
+		}
+		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", defaultConvertConfigPath()), state.window)
 	})
 
 	leftControls := container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn, autoCompareCheck)
