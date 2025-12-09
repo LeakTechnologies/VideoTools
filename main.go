@@ -414,6 +414,7 @@ type convertConfig struct {
 	CoverArtPath     string
 	AspectHandling   string
 	OutputAspect     string
+	AspectUserSet    bool // Tracks if user explicitly set OutputAspect
 }
 
 func (c convertConfig) OutputFile() string {
@@ -1347,6 +1348,10 @@ func (s *appState) showConvertView(file *videoSource) {
 		s.convert.OutputBase = "converted"
 		s.convert.CoverArtPath = ""
 		s.convert.AspectHandling = "Auto"
+	}
+	if !s.convert.AspectUserSet || s.convert.OutputAspect == "" {
+		s.convert.OutputAspect = "Source"
+		s.convert.AspectUserSet = false
 	}
 	s.setContent(buildConvertView(s, s.source))
 }
@@ -2341,6 +2346,7 @@ func runGUI() {
 			InverseAutoNotes: "Default smoothing for interlaced footage.",
 			OutputAspect:     "Source",
 			AspectHandling:   "Auto",
+			AspectUserSet:    false,
 		},
 		player:       player.New(),
 		playerVolume: 100,
@@ -2821,6 +2827,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	targetAspectSelect := widget.NewSelect(aspectTargets, func(value string) {
 		logging.Debug(logging.CatUI, "target aspect set to %s", value)
 		state.convert.OutputAspect = value
+		state.convert.AspectUserSet = true
 	})
 	if state.convert.OutputAspect == "" {
 		state.convert.OutputAspect = "Source"
@@ -2926,6 +2933,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
 
+	if !state.convert.AspectUserSet {
+		state.convert.OutputAspect = "Source"
+	}
+
 	// Encoder Preset with hint
 	encoderPresetHint := widget.NewLabel("")
 	encoderPresetHint.Wrapping = fyne.TextWrapWord
@@ -2985,6 +2996,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			InverseTelecine:  false,
 			OutputAspect:     "Source",
 			AspectHandling:   "Auto",
+			AspectUserSet:    false,
 			VideoCodec:       "H.264",
 			EncoderPreset:    "medium",
 			BitrateMode:      "CRF",
@@ -3138,6 +3150,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	targetAspectSelectSimple := widget.NewSelect(aspectTargets, func(value string) {
 		logging.Debug(logging.CatUI, "target aspect set to %s (simple)", value)
 		state.convert.OutputAspect = value
+		state.convert.AspectUserSet = true
 		updateAspectBoxVisibility()
 	})
 	if state.convert.OutputAspect == "" {
@@ -3841,6 +3854,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			if err := json.Unmarshal(data, &cfg); err != nil {
 				dialog.ShowError(fmt.Errorf("failed to parse config: %w", err), state.window)
 				return
+			}
+			if cfg.OutputAspect == "" {
+				cfg.OutputAspect = "Source"
+				cfg.AspectUserSet = false
+			} else if !strings.EqualFold(cfg.OutputAspect, "Source") {
+				cfg.AspectUserSet = true
 			}
 			state.convert = cfg
 			state.showConvertView(state.source)
