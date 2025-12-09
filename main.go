@@ -1334,10 +1334,6 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	cfg := job.Config
 	inputPath := cfg["inputPath"].(string)
 	outputPath := cfg["outputPath"].(string)
-	sourceBitrate := 0
-	if v, ok := cfg["sourceBitrate"].(float64); ok {
-		sourceBitrate = int(v)
-	}
 
 	// If a direct conversion is running, wait until it finishes before starting queued jobs.
 	for s.convertBusy {
@@ -1517,7 +1513,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	sourceWidth, _ := cfg["sourceWidth"].(int)
 	sourceHeight, _ := cfg["sourceHeight"].(int)
 	// Get source bitrate if present
-	sourceBitrate = 0
+	sourceBitrate := 0
 	if v, ok := cfg["sourceBitrate"].(float64); ok {
 		sourceBitrate = int(v)
 	}
@@ -1617,6 +1613,9 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			} else if bitrateMode == "CBR" {
 				if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
 					args = append(args, "-b:v", videoBitrate, "-minrate", videoBitrate, "-maxrate", videoBitrate, "-bufsize", videoBitrate)
+				} else {
+					vb := defaultBitrate(videoCodec, sourceWidth, sourceBitrate)
+					args = append(args, "-b:v", vb, "-minrate", vb, "-maxrate", vb, "-bufsize", vb)
 				}
 			} else if bitrateMode == "VBR" {
 				if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
@@ -2865,6 +2864,30 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	bitratePresetSelect.SetSelected(state.convert.BitratePreset)
 
+	// Simple bitrate selector (shares presets)
+	simpleBitrateSelect := widget.NewSelect(bitratePresetLabels, func(value string) {
+		state.convert.BitratePreset = value
+		if applyBitratePreset != nil {
+			applyBitratePreset(value)
+		}
+	})
+	simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
+
+	// Simple resolution selector (separate widget to avoid double-parent issues)
+	resolutionSelectSimple := widget.NewSelect([]string{"Source", "720p", "1080p", "1440p", "4K", "NTSC (720×480)", "PAL (720×576)"}, func(value string) {
+		state.convert.TargetResolution = value
+		logging.Debug(logging.CatUI, "target resolution set to %s (simple)", value)
+	})
+	resolutionSelectSimple.SetSelected(state.convert.TargetResolution)
+
+	// Simple aspect selector (separate widget)
+	targetAspectSelectSimple := widget.NewSelect(aspectTargets, func(value string) {
+		logging.Debug(logging.CatUI, "target aspect set to %s (simple)", value)
+		state.convert.OutputAspect = value
+		updateAspectBoxVisibility()
+	})
+	targetAspectSelectSimple.SetSelected(state.convert.OutputAspect)
+
 	// Target File Size with smart presets + manual entry
 	targetFileSizeEntry = widget.NewEntry()
 	targetFileSizeEntry.SetPlaceHolder("e.g., 25MB, 100MB, 8MB")
@@ -3028,11 +3051,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	updateEncodingControls()
 
-	// Target Resolution
+	// Target Resolution (advanced)
 	resolutionSelect := widget.NewSelect([]string{"Source", "720p", "1080p", "1440p", "4K", "NTSC (720×480)", "PAL (720×576)"}, func(value string) {
 		state.convert.TargetResolution = value
 		logging.Debug(logging.CatUI, "target resolution set to %s", value)
 	})
+	if state.convert.TargetResolution == "" {
+		state.convert.TargetResolution = "Source"
+	}
 	resolutionSelect.SetSelected(state.convert.TargetResolution)
 
 	// Frame Rate with hint
@@ -3217,7 +3243,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabel("Choose slower for better compression, faster for speed"),
 		widget.NewLabelWithStyle("Encoder Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		simplePresetSelect,
-		widget.NewLabel("Aspect ratio will match source video"),
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle("Bitrate (simple presets)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		simpleBitrateSelect,
+		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		resolutionSelectSimple,
+		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		targetAspectSelectSimple,
+		targetAspectHint,
 		layout.NewSpacer(),
 	)
 
@@ -3328,21 +3361,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	tabs.OnSelected = func(item *container.TabItem) {
 		if item.Text == "Simple" {
 			state.convert.Mode = "Simple"
-			// Lock aspect ratio to Source in Simple mode
-			state.convert.OutputAspect = "Source"
-			targetAspectSelect.SetSelected("Source")
-			updateAspectBoxVisibility()
-			logging.Debug(logging.CatUI, "convert mode selected: Simple (aspect locked to Source)")
+			logging.Debug(logging.CatUI, "convert mode selected: Simple")
 		} else {
 			state.convert.Mode = "Advanced"
 			logging.Debug(logging.CatUI, "convert mode selected: Advanced")
 		}
-	}
-
-	// Ensure Simple mode starts with Source aspect
-	if state.convert.Mode == "Simple" {
-		state.convert.OutputAspect = "Source"
-		targetAspectSelect.SetSelected("Source")
 	}
 
 	optionsRect := canvas.NewRectangle(utils.MustHex("#13182B"))
@@ -5307,6 +5330,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	}
 	src := s.source
 	cfg := s.convert
+	sourceBitrate := src.Bitrate
 	isDVD := cfg.SelectedFormat.Ext == ".mpg"
 	outDir := filepath.Dir(src.Path)
 	outName := cfg.OutputFile()
@@ -6699,30 +6723,27 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		// File Info section
 		comparisonText.WriteString("━━━ FILE INFO ━━━\n")
 
+		var file1SizeBytes int64
 		file1Size := getField(state.compareFile1, func(src *videoSource) string {
 			if fi, err := os.Stat(src.Path); err == nil {
-				sizeMB := float64(fi.Size()) / (1024 * 1024)
-				if sizeMB >= 1024 {
-					return fmt.Sprintf("%.2f GB", sizeMB/1024)
-				}
-				return fmt.Sprintf("%.2f MB", sizeMB)
+				file1SizeBytes = fi.Size()
+				return utils.FormatBytes(fi.Size())
 			}
 			return "Unknown"
 		})
 		file2Size := getField(state.compareFile2, func(src *videoSource) string {
 			if fi, err := os.Stat(src.Path); err == nil {
-				sizeMB := float64(fi.Size()) / (1024 * 1024)
-				if sizeMB >= 1024 {
-					return fmt.Sprintf("%.2f GB", sizeMB/1024)
+				if file1SizeBytes > 0 {
+					return utils.DeltaBytes(fi.Size(), file1SizeBytes)
 				}
-				return fmt.Sprintf("%.2f MB", sizeMB)
+				return utils.FormatBytes(fi.Size())
 			}
 			return "Unknown"
 		})
 
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n", "File Size:", file1Size, file2Size))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
-			"Format:",
+			"Format Family:",
 			getField(state.compareFile1, func(s *videoSource) string { return s.Format }),
 			getField(state.compareFile2, func(s *videoSource) string { return s.Format })))
 
@@ -6747,7 +6768,12 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Bitrate:",
 			getField(state.compareFile1, func(s *videoSource) string { return formatBitrate(s.Bitrate) }),
-			getField(state.compareFile2, func(s *videoSource) string { return formatBitrate(s.Bitrate) })))
+			getField(state.compareFile2, func(s *videoSource) string {
+				if state.compareFile1 != nil {
+					return utils.DeltaBitrate(s.Bitrate, state.compareFile1.Bitrate)
+				}
+				return formatBitrate(s.Bitrate)
+			})))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Pixel Format:",
 			getField(state.compareFile1, func(s *videoSource) string { return s.PixelFormat }),
@@ -6848,22 +6874,38 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	file2Info.Wrapping = fyne.TextWrapWord
 	file2Info.TextStyle = fyne.TextStyle{} // non-selectable label
 
-	// Helper function to format metadata
-	formatMetadata := func(src *videoSource) string {
-		fileSize := "Unknown"
+	// Helper function to format metadata (optionally comparing to a reference video)
+	formatMetadata := func(src *videoSource, ref *videoSource) string {
+		var (
+			fileSize       = "Unknown"
+			refSize  int64 = 0
+		)
 		if fi, err := os.Stat(src.Path); err == nil {
-			sizeMB := float64(fi.Size()) / (1024 * 1024)
-			if sizeMB >= 1024 {
-				fileSize = fmt.Sprintf("%.2f GB", sizeMB/1024)
+			if ref != nil {
+				if rfi, err := os.Stat(ref.Path); err == nil {
+					refSize = rfi.Size()
+				}
+			}
+			if refSize > 0 {
+				fileSize = utils.DeltaBytes(fi.Size(), refSize)
 			} else {
-				fileSize = fmt.Sprintf("%.2f MB", sizeMB)
+				fileSize = utils.FormatBytes(fi.Size())
 			}
 		}
-		var bitrateStr string
-		if src.Bitrate > 0 {
-			bitrateStr = formatBitrate(src.Bitrate)
-		} else {
+
+		var (
 			bitrateStr = "--"
+			refBitrate = 0
+		)
+		if ref != nil {
+			refBitrate = ref.Bitrate
+		}
+		if src.Bitrate > 0 {
+			if refBitrate > 0 {
+				bitrateStr = utils.DeltaBitrate(src.Bitrate, refBitrate)
+			} else {
+				bitrateStr = formatBitrate(src.Bitrate)
+			}
 		}
 
 		return fmt.Sprintf(
@@ -6944,7 +6986,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			filename := filepath.Base(state.compareFile1.Path)
 			displayName := truncateFilename(filename, 35)
 			file1Label.SetText(fmt.Sprintf("File 1: %s", displayName))
-			file1Info.SetText(formatMetadata(state.compareFile1))
+			file1Info.SetText(formatMetadata(state.compareFile1, state.compareFile2))
 			// Build video player with compact size for side-by-side
 			file1VideoContainer.Objects = []fyne.CanvasObject{
 				buildVideoPane(state, fyne.NewSize(320, 180), state.compareFile1, nil),
@@ -6965,7 +7007,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			filename := filepath.Base(state.compareFile2.Path)
 			displayName := truncateFilename(filename, 35)
 			file2Label.SetText(fmt.Sprintf("File 2: %s", displayName))
-			file2Info.SetText(formatMetadata(state.compareFile2))
+			file2Info.SetText(formatMetadata(state.compareFile2, state.compareFile1))
 			// Build video player with compact size for side-by-side
 			file2VideoContainer.Objects = []fyne.CanvasObject{
 				buildVideoPane(state, fyne.NewSize(320, 180), state.compareFile2, nil),
@@ -7030,7 +7072,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		if state.compareFile1 == nil {
 			return
 		}
-		metadata := formatMetadata(state.compareFile1)
+		metadata := formatMetadata(state.compareFile1, state.compareFile2)
 		state.window.Clipboard().SetContent(metadata)
 		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
 	})
@@ -7047,7 +7089,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		if state.compareFile2 == nil {
 			return
 		}
-		metadata := formatMetadata(state.compareFile2)
+		metadata := formatMetadata(state.compareFile2, state.compareFile1)
 		state.window.Clipboard().SetContent(metadata)
 		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
 	})
@@ -7159,19 +7201,14 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	formatMetadata := func(src *videoSource) string {
 		fileSize := "Unknown"
 		if fi, err := os.Stat(src.Path); err == nil {
-			sizeMB := float64(fi.Size()) / (1024 * 1024)
-			if sizeMB >= 1024 {
-				fileSize = fmt.Sprintf("%.2f GB", sizeMB/1024)
-			} else {
-				fileSize = fmt.Sprintf("%.2f MB", sizeMB)
-			}
+			fileSize = utils.FormatBytes(fi.Size())
 		}
 
 		return fmt.Sprintf(
 			"━━━ FILE INFO ━━━\n"+
 				"Path: %s\n"+
 				"File Size: %s\n"+
-				"Format: %s\n"+
+				"Format Family: %s\n"+
 				"\n━━━ VIDEO ━━━\n"+
 				"Codec: %s\n"+
 				"Resolution: %dx%d\n"+

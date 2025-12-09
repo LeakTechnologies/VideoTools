@@ -6,8 +6,8 @@ set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_OUTPUT="$PROJECT_ROOT/VideoTools"
-# Extract app version from main.go
-APP_VERSION="$(grep -E 'appVersion\s*=\s*\"' "$PROJECT_ROOT/main.go" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+# Extract app version from main.go (avoid grep warnings on Git Bash)
+APP_VERSION="$(grep -m1 'appVersion' "$PROJECT_ROOT/main.go" | sed -E 's/.*\"([^\"]+)\".*/\1/')"
 [ -z "$APP_VERSION" ] && APP_VERSION="(version unknown)"
 
 echo "════════════════════════════════════════════════════════════════"
@@ -64,5 +64,10 @@ if go build -o "$BUILD_OUTPUT" .; then
 else
     echo "❌ Build failed! (VideoTools $APP_VERSION)"
     echo "Diagnostics: version=$APP_VERSION os=$(uname -s) arch=$(uname -m) go=$(go version | awk '{print $3}')"
+    echo ""
+    echo "Help: check the Go error messages above."
+    echo " - Undefined symbol/identifier: usually a missing variable or typo in source; see the referenced file:line."
+    echo " - \"C compiler not found\": install a C toolchain (e.g., build-essential on Ubuntu, Xcode CLT on macOS)."
+    echo " - Cache permission denied: run 'rm -rf ~/.cache/go-build' or 'chown -R $USER ~/.cache/go-build'."
     exit 1
 fi

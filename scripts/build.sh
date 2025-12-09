@@ -5,8 +5,8 @@ set -e
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Extract app version from main.go
-APP_VERSION="$(grep -E 'appVersion[[:space:]]*=[[:space:]]*\"' "$PROJECT_ROOT/main.go" | head -1 | sed -E 's/.*\"([^\"]+)\".*/\1/')"
+# Extract app version from main.go (avoid grep warnings on Git Bash)
+APP_VERSION="$(grep -m1 'appVersion' "$PROJECT_ROOT/main.go" | sed -E 's/.*\"([^\"]+)\".*/\1/')"
 [ -z "$APP_VERSION" ] && APP_VERSION="(version unknown)"
 
 echo "════════════════════════════════════════════════════════════════"
@@ -97,6 +97,11 @@ case "$OS" in
         else
             echo "❌ Build failed! (VideoTools $APP_VERSION)"
             diagnostics
+            echo ""
+            echo "Help: check the Go error messages above."
+            echo " - Undefined symbol/identifier: usually a missing variable or typo in source; see the referenced file:line."
+            echo " - \"C compiler not found\": install MinGW-w64 or MSYS2 toolchain so gcc is in PATH."
+            echo " - Cache permission denied: delete or chown the Go build cache (e.g., %LOCALAPPDATA%\\go-build on Windows)."
             exit 1
         fi
         ;;
