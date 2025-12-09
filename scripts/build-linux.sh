@@ -31,6 +31,8 @@ cd "$PROJECT_ROOT"
 echo "🧹 Cleaning previous builds and cache..."
 go clean -cache -modcache -testcache 2>/dev/null || true
 rm -f "$BUILD_OUTPUT" 2>/dev/null || true
+# Also clear build cache directory to avoid permission issues
+rm -rf "${GOCACHE:-$HOME/.cache/go-build}" 2>/dev/null || true
 echo "✓ Cache cleaned"
 echo ""
 

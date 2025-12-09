@@ -52,6 +52,8 @@ case "$OS" in
 
         echo "🧹 Cleaning previous builds..."
         rm -f VideoTools.exe 2>/dev/null || true
+        # Clear Go cache to avoid permission issues
+        go clean -cache -modcache -testcache 2>/dev/null || true
         echo "✓ Cache cleaned"
         echo ""
 
