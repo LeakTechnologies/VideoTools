@@ -2885,7 +2885,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	transformHint := widget.NewLabel("Apply flips and rotation to correct video orientation")
 	transformHint.Wrapping = fyne.TextWrapWord
 
-	aspectTargets := []string{"Source", "16:9", "4:3", "5:4", "1:1", "9:16", "21:9"}
+	aspectTargets := []string{"Source", "16:9", "4:3", "5:4", "5:3", "1:1", "9:16", "21:9"}
 	targetAspectSelect := widget.NewSelect(aspectTargets, func(value string) {
 		logging.Debug(logging.CatUI, "target aspect set to %s", value)
 		state.convert.OutputAspect = value
