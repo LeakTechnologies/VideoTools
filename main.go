@@ -788,21 +788,34 @@ func (s *appState) showMainMenu() {
 	}
 
 	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, func() {
-		// Logs button: offer to open logs folder or view app log
+		logDir := getLogsDir()
+		_ = os.MkdirAll(logDir, 0o755)
+
+		openFolderBtn := widget.NewButton("Open Logs Folder", func() {
+			if err := openFolder(logDir); err != nil {
+				dialog.ShowError(fmt.Errorf("failed to open logs folder: %w", err), s.window)
+			}
+		})
+
+		appLogPath := strings.TrimSpace(logging.FilePath())
+		viewAppLogBtn := widget.NewButton("View App Log", func() {
+			if appLogPath == "" {
+				dialog.ShowInformation("No Log", "No app log file found yet.", s.window)
+				return
+			}
+			s.openLogViewer("App Log", appLogPath, false)
+		})
+		if appLogPath == "" {
+			viewAppLogBtn.Disable()
+		}
+
+		infoLabel := widget.NewLabel(fmt.Sprintf("Logs directory: %s", logDir))
+		infoLabel.Wrapping = fyne.TextWrapWord
+
 		logOptions := container.NewVBox(
-			widget.NewButton("Open Logs Folder", func() {
-				if err := openFolder(getLogsDir()); err != nil {
-					dialog.ShowError(fmt.Errorf("failed to open logs folder: %w", err), s.window)
-				}
-			}),
-			widget.NewButton("View App Log", func() {
-				path := logging.FilePath()
-				if strings.TrimSpace(path) == "" {
-					dialog.ShowInformation("No Log", "No app log file found.", s.window)
-					return
-				}
-				s.openLogViewer("App Log", path, false)
-			}),
+			infoLabel,
+			openFolderBtn,
+			viewAppLogBtn,
 		)
 		dialog.ShowCustom("Logs", "Close", logOptions, s.window)
 	}, titleColor, queueColor, textColor, queueCompleted, queueTotal)
