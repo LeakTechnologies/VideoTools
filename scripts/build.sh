@@ -6,7 +6,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Extract app version from main.go
-APP_VERSION="$(grep -E 'appVersion\s*=\s*"' "$PROJECT_ROOT/main.go" | head -1 | sed -E 's/.*"([^"]+)".*/\1/')"
+APP_VERSION="$(grep -E 'appVersion[[:space:]]*=[[:space:]]*\"' "$PROJECT_ROOT/main.go" | head -1 | sed -E 's/.*\"([^\"]+)\".*/\1/')"
 [ -z "$APP_VERSION" ] && APP_VERSION="(version unknown)"
 
 echo "════════════════════════════════════════════════════════════════"
