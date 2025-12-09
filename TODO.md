@@ -501,6 +501,85 @@ Trim provides frame-accurate cutting with lossless-first philosophy (inspired by
 
 ## Additional Modules
 
+### Files Module (Proposed)
+Built-in Video File Explorer/Manager for comprehensive file management without leaving VideoTools.
+
+#### Core Features
+- [ ] **File Browser Interface**
+  - Open folder selection with hierarchical tree view
+  - Batch drag-and-drop support for multiple files
+  - Recursive folder scanning with file filtering
+  - Video file type detection and filtering
+  - Recent folders quick access
+
+- [ ] **Metadata Table/Grid View**
+  - Sortable columns: Filename, Size, Duration, Codec, Resolution, FPS, Bitrate, Format
+  - Fast metadata loading with caching
+  - Column customization (show/hide, reorder)
+  - Multi-select support for batch operations
+  - Search/filter capabilities
+
+- [ ] **Integration with Existing Modules**
+  - Seamless Compare module integration for video comparison
+  - Direct file loading into Convert module
+  - Quick access to Inspect module for file properties
+  - Return navigation flow after module actions
+  - Maintain selection state across module switches
+
+- [ ] **File Management Tools**
+  - Delete with confirmation dialog ("Are you sure?")
+  - Move/copy file operations
+  - Rename functionality
+  - File organization tools
+  - Recycle bin safety (platform-specific)
+
+- [ ] **Context Menu System**
+  - Right-click context menu for all file operations
+  - "Open in Player" - Launch VT_Player or internal player
+  - "Open in External Player" - System default or configured external player
+  - "File Properties" - Open in Inspect module
+  - "Convert" - Pre-load file into Convert module
+  - "Compare" - Add to Compare module
+  - "Delete" - Confirmation prompt before deletion
+
+- [ ] **UI/UX Enhancements**
+  - Grid view and list view toggle
+  - Thumbnail preview column (optional)
+  - File size/duration statistics for selections
+  - Batch operation progress indicators
+  - Drag-and-drop to other modules
+
+#### Technical Implementation
+- [ ] **Efficient Metadata Caching**
+  - Background metadata scanning
+  - SQLite database for fast lookups
+  - Incremental folder scanning
+  - Smart cache invalidation
+
+- [ ] **Cross-Platform File Operations**
+  - Platform-specific delete (trash vs recycle bin)
+  - External player detection and configuration
+  - File association handling
+  - Permission management
+
+#### Integration Architecture
+- [ ] **Module Interconnection**
+  - Files → Compare: Select 2+ files for comparison
+  - Files → Convert: Single-click pre-load into Convert
+  - Files → Inspect: Double-click or context menu
+  - Module → Files: "Return to Files" button in other modules
+  - Persistent selection state across navigation
+
+- [ ] **Color-Coded Module Navigation**
+  - Each module has a signature color (already established)
+  - Buttons/links to other modules use that module's color
+  - Creates visual consistency and intuitive navigation
+  - Example: "Compare" button in Files uses Compare module's color
+  - Example: "Convert" button in Files uses Convert module's color
+
+**Current Status:** Proposed for VideoTools workflow integration
+**Priority:** High - Significantly improves user workflow and file management
+
 ### Subtitle Module (Proposed)
 - [ ] Requirements analysis
 - [ ] UI design
@@ -554,6 +633,12 @@ Trim provides frame-accurate cutting with lossless-first philosophy (inspired by
 - [ ] Keyboard shortcuts system
 - [x] Drag-and-drop file loading (v0.1.0-dev11)
 - [x] Multiple file drag-and-drop with batch processing (v0.1.0-dev11)
+- [ ] **Color-Coded Module Navigation System**
+  - Apply module signature colors to all references/buttons pointing to that module
+  - Creates visual consistency and intuitive navigation loop
+  - Example: "Convert" button anywhere uses Convert module's color
+  - Example: "Compare" link uses Compare module's color
+  - Applies globally across all modules for unified experience
 - [ ] Dark/light theme toggle
 - [ ] Custom color schemes
 - [ ] Window size/position persistence
