@@ -6209,23 +6209,23 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			if logFile != nil {
 				fmt.Fprintf(logFile, "\nStatus: failed at %s\nError: %v\nStderr:\n%s\n", time.Now().Format(time.RFC3339), err, stderrOutput)
 			}
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				errorExplanation := interpretFFmpegError(err)
-				var errorMsg error
+			// Detect hardware failure and retry once in software before surfacing error
+			resolvedAccel := effectiveHardwareAccel(s.convert)
+			isHardwareFailure := strings.Contains(stderrOutput, "No capable devices found") ||
+				strings.Contains(stderrOutput, "Cannot load") ||
+				strings.Contains(stderrOutput, "not available") &&
+					(strings.Contains(stderrOutput, "nvenc") ||
+						strings.Contains(stderrOutput, "amf") ||
+						strings.Contains(stderrOutput, "qsv") ||
+						strings.Contains(stderrOutput, "vaapi") ||
+						strings.Contains(stderrOutput, "videotoolbox"))
 
-				// Check if this is a hardware encoding failure
-				resolvedAccel := effectiveHardwareAccel(s.convert)
-				isHardwareFailure := strings.Contains(stderrOutput, "No capable devices found") ||
-					strings.Contains(stderrOutput, "Cannot load") ||
-					strings.Contains(stderrOutput, "not available") &&
-						(strings.Contains(stderrOutput, "nvenc") ||
-							strings.Contains(stderrOutput, "amf") ||
-							strings.Contains(stderrOutput, "qsv") ||
-							strings.Contains(stderrOutput, "vaapi") ||
-							strings.Contains(stderrOutput, "videotoolbox"))
-
-				// Auto-fallback to software and retry once if hardware fails
-				if isHardwareFailure && !hwFallbackTried && resolvedAccel != "none" && resolvedAccel != "" {
+			if isHardwareFailure && !hwFallbackTried && resolvedAccel != "none" && resolvedAccel != "" {
+				accelVal, _ := cfg["hardwareAccel"].(string)
+				if accelVal == "" {
+					accelVal = "auto"
+				}
+				if !strings.EqualFold(accelVal, "none") {
 					cfg["hardwareAccel"] = "none"
 					cfg["hwFallbackTried"] = true
 					job.Config = cfg
@@ -6235,13 +6235,15 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 						_ = logFile.Close()
 					}
 					s.convertCancel = nil
-					// Retry conversion in software
-					go func() {
-						_ = s.executeConvertJob(ctx, job, progressCallback)
-					}()
-					return
+					return s.executeConvertJob(ctx, job, progressCallback)
 				}
+			}
 
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				errorExplanation := interpretFFmpegError(err)
+				var errorMsg error
+
+				// Check if this is a hardware encoding failure
 				if isHardwareFailure && resolvedAccel != "none" && resolvedAccel != "" {
 					chosen := s.convert.HardwareAccel
 					if chosen == "" {
