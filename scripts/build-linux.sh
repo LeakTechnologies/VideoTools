@@ -45,6 +45,8 @@ echo ""
 echo "🔨 Building VideoTools..."
 # Fyne needs cgo for GLFW/OpenGL bindings; build with CGO enabled.
 export CGO_ENABLED=1
+export GOCACHE="$PROJECT_ROOT/.cache/go-build"
+mkdir -p "$GOCACHE"
 if go build -o "$BUILD_OUTPUT" .; then
     echo "✓ Build successful! (VideoTools $APP_VERSION)"
     echo ""
