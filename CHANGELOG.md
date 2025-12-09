@@ -117,9 +117,9 @@
 - ✅ Better Wayland support
 - ✅ Enhanced process management
 
-#### macOS (Maintained)
-- ✅ Continued support with Xcode tools
-- ✅ Hardware acceleration (VideoToolbox)
+#### Linux (Enhanced)
+- ✅ Continued support with native builds
+- ✅ Hardware acceleration (VAAPI, NVENC, QSV)
 - ✅ Cross-platform compatibility
 
 ### 📊 Statistics
@@ -128,7 +128,7 @@
 - **New files**: 3 (platform.go, build-windows.sh, install.sh)
 - **Updated files**: 15+ across codebase
 - **Documentation**: 1,300+ lines added/updated
-- **Platform support**: 3 platforms (Linux, macOS, Windows)
+- **Platform support**: 2 platforms (Linux, Windows)
 
 #### Features
 - **New major features**: 4 (Windows support, installer, auto-resolution, queue improvements)

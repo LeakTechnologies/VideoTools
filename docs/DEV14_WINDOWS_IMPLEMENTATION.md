@@ -8,7 +8,7 @@
 
 ## Overview
 
-This document summarizes the Windows compatibility implementation for VideoTools v0.1.0-dev14. The goal was to make VideoTools fully functional on Windows while maintaining Linux/macOS compatibility.
+This document summarizes the Windows compatibility implementation for VideoTools v0.1.0-dev14. The goal was to make VideoTools fully functional on Windows while maintaining Linux compatibility.
 
 ---
 
@@ -43,7 +43,6 @@ Created a comprehensive platform detection and configuration system:
 - **Hardware Encoder Detection**:
   - **Windows**: NVENC (NVIDIA), QSV (Intel), AMF (AMD)
   - **Linux**: VAAPI, NVENC, QSV
-  - **macOS**: VideoToolbox, NVENC
 
 - **Platform-Specific Functions**:
   - `ValidateWindowsPath()`: Validates drive letters and UNC paths
@@ -170,15 +169,11 @@ var FFprobePath = "ffprobe"
 - Hardware encoders: VAAPI, NVENC, QSV
 - FFmpeg detection: Checks PATH
 
-### macOS
-- Executable extension: None
-- Temp directory: `/tmp/videotools`
-- Path separator: `/`
-- Process termination: Graceful `SIGTERM` → `Kill()`
-- Hardware encoders: VideoToolbox, NVENC
-- FFmpeg detection: Checks PATH
-
 ---
+
+## Platform Support
+
+### Linux ✅ (Primary Platform)
 
 ## Testing Checklist
 
@@ -315,7 +310,7 @@ The next phase requires:
 2. Windows 10/11 system for testing
 3. Verification of all Windows-specific features
 
-The codebase is now **cross-platform ready** and maintains full backward compatibility with Linux and macOS while adding Windows support.
+The codebase is now **cross-platform ready** and maintains full backward compatibility with Linux while adding Windows support.
 
 ---
 

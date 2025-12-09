@@ -23,7 +23,7 @@ VideoTools provides a **modern approach to video processing** with enhanced capa
 | Feature | Traditional Tools | VideoTools | Advantage |
 |---------|------------------|-------------|-----------|
 | **Modern Architecture** | Monolithic | Modular | Extensible, maintainable |
-| **Cross-Platform** | Limited | Full support | Linux, macOS, Windows parity |
+| **Cross-Platform** | Limited | Full support | Linux, Windows parity |
 | **AI Upscaling** | None | Planned | Next-gen enhancement |
 | **Smart Chapters** | Manual | Auto-generation | Intelligent workflow |
 | **Advanced Queue** | Basic | Enhanced | Better batch processing |
@@ -147,7 +147,7 @@ type TitleInfo struct {
 ### **Technical Advantages**
 - **Modern Codebase** - Go language for better maintainability and performance
 - **Modular Architecture** - Extensible design for future enhancements
-- **Cross-Platform** - Native support on Linux, macOS, and Windows
+- **Cross-Platform** - Native support on Linux and Windows
 - **Hardware Acceleration** - Optimized GPU utilization across platforms
 - **AI Integration** - Next-generation enhancement capabilities
 
@@ -170,7 +170,7 @@ type TitleInfo struct {
 - ✅ **Complete Feature Set** - Comprehensive video processing capabilities
 - ✅ **50% Faster Encoding** - Optimized hardware utilization
 - ✅ **30% Better Quality** - Smart optimization algorithms
-- ✅ **Cross-Platform** - Native Linux/macOS/Windows support
+- ✅ **Cross-Platform** - Native Linux/Windows support
 
 ### **Market Positioning**
 - **Modern Video Suite** - Next-generation architecture and features

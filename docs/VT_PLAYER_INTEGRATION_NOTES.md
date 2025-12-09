@@ -324,7 +324,7 @@ player.OnKeyframeSet(func(markerType string, position time.Duration) {
 
 4. **Visual feedback matters**: Keyframe markers must be immediately visible. Timeline updates should be smooth.
 
-5. **Cross-platform testing**: VT_Player must work on Linux (GNOME/X11/Wayland), macOS, and Windows
+5. **Cross-platform testing**: VT_Player must work on Linux (GNOME/X11/Wayland) and Windows
 
 6. **FFmpeg integration**: VT_Player doesn't run FFmpeg, but must provide precise timestamps that VideoTools can pass to FFmpeg
 

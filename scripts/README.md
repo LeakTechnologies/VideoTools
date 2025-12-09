@@ -247,13 +247,7 @@ Some antivirus software may flag the built executable. This is common with Go ap
 1. Add an exception for the build directory
 2. Submit the binary to your antivirus vendor for whitelisting
 
-### macOS Support (Future)
 
-macOS support is planned but not yet implemented. Required changes:
-
-- Add macOS dependencies (via Homebrew)
-- Add macOS build script
-- Test Fyne on macOS
 - Handle codesigning requirements
 
 ## License

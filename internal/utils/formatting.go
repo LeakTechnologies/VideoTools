@@ -94,8 +94,9 @@ func formatBitrateHuman(bps int) string {
 		return "--"
 	}
 	kbps := float64(bps) / 1000.0
+	mbps := kbps / 1000.0
 	if kbps >= 1000 {
-		return fmt.Sprintf("%.1f Mbps", kbps/1000.0)
+		return fmt.Sprintf("%.1f Mbps (%.0f kbps)", mbps, kbps)
 	}
-	return fmt.Sprintf("%.0f kbps", kbps)
+	return fmt.Sprintf("%.0f kbps (%.2f Mbps)", kbps, mbps)
 }
