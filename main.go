@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -68,6 +69,9 @@ var (
 	logsDirPath     string
 	feedbackBundler = utils.NewFeedbackBundler()
 	appVersion      = "v0.1.0-dev14"
+
+	hwAccelProbeOnce sync.Once
+	hwAccelSupported atomic.Value // map[string]bool
 
 	modulesList = []Module{
 		{"convert", "Convert", utils.MustHex("#8B44FF"), "Convert", modules.HandleConvert},  // Violet
@@ -200,6 +204,50 @@ func effectiveHardwareAccel(cfg convertConfig) string {
 		// Prefer NVENC, then Intel (QSV), then VAAPI
 		return "nvenc"
 	}
+}
+
+// hwAccelAvailable checks ffmpeg -hwaccels once and caches the result.
+func hwAccelAvailable(accel string) bool {
+	accel = strings.ToLower(accel)
+	if accel == "" || accel == "none" {
+		return false
+	}
+
+	hwAccelProbeOnce.Do(func() {
+		supported := make(map[string]bool)
+		cmd := exec.Command("ffmpeg", "-hide_banner", "-v", "error", "-hwaccels")
+		output, err := cmd.Output()
+		if err != nil {
+			hwAccelSupported.Store(supported)
+			return
+		}
+		for _, line := range strings.Split(string(output), "\n") {
+			line = strings.ToLower(strings.TrimSpace(line))
+			switch line {
+			case "cuda":
+				supported["nvenc"] = true
+			case "qsv":
+				supported["qsv"] = true
+			case "vaapi":
+				supported["vaapi"] = true
+			case "videotoolbox":
+				supported["videotoolbox"] = true
+			}
+		}
+		hwAccelSupported.Store(supported)
+	})
+
+	val := hwAccelSupported.Load()
+	if val == nil {
+		return false
+	}
+	supported := val.(map[string]bool)
+
+	// Treat AMF as available if any GPU accel was detected; ffmpeg -hwaccels may not list it.
+	if accel == "amf" {
+		return supported["nvenc"] || supported["qsv"] || supported["vaapi"] || supported["videotoolbox"]
+	}
+	return supported[accel]
 }
 
 // openLogViewer opens a simple dialog showing the log content. If live is true, it auto-refreshes.
@@ -2910,6 +2958,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.OutputAspect = value
 		updateAspectBoxVisibility()
 	})
+	if state.convert.OutputAspect == "" {
+		state.convert.OutputAspect = "Source"
+	}
 	targetAspectSelectSimple.SetSelected(state.convert.OutputAspect)
 
 	// Target File Size with smart presets + manual entry
@@ -5286,6 +5337,9 @@ func detectBestH265Encoder() string {
 // determineVideoCodec maps user-friendly codec names to FFmpeg codec names
 func determineVideoCodec(cfg convertConfig) string {
 	accel := effectiveHardwareAccel(cfg)
+	if accel != "" && accel != "none" && !hwAccelAvailable(accel) {
+		accel = "none"
+	}
 	switch cfg.VideoCodec {
 	case "H.264":
 		if accel == "nvenc" {
@@ -5455,7 +5509,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	}
 
 	// Hardware acceleration for decoding (best-effort)
-	if accel := effectiveHardwareAccel(cfg); accel != "none" && accel != "" {
+	if accel := effectiveHardwareAccel(cfg); accel != "none" && accel != "" && hwAccelAvailable(accel) {
 		switch accel {
 		case "nvenc":
 			// NVENC encoders handle GPU directly; no hwaccel flag needed
@@ -6160,7 +6214,7 @@ func (s *appState) generateSnippet() {
 		logging.Debug(logging.CatFFMPEG, "snippet: added cover art input %s", s.convert.CoverArtPath)
 	}
 
-	// Build video filters (snippets should be fast - only apply essential filters)
+	// Build video filters using current settings (respect upscaling/AR/FPS)
 	var vf []string
 
 	// Skip deinterlacing for snippets - they're meant to be fast previews
@@ -6178,6 +6232,8 @@ func (s *appState) generateSnippet() {
 			scaleFilter = "scale=-2:1440"
 		case "4K":
 			scaleFilter = "scale=-2:2160"
+		case "8K":
+			scaleFilter = "scale=-2:4320"
 		}
 		if scaleFilter != "" {
 			vf = append(vf, scaleFilter)
@@ -6197,9 +6253,10 @@ func (s *appState) generateSnippet() {
 		vf = append(vf, "fps="+s.convert.FrameRate)
 	}
 
-	// WMV files must be re-encoded for MP4 compatibility (wmv3/wmav2 can't be copied to MP4)
+	// Decide if we must re-encode: filters, non-copy codec, or WMV
 	isWMV := strings.HasSuffix(strings.ToLower(src.Path), ".wmv")
-	needsReencode := len(vf) > 0 || isWMV
+	forcedCodec := !strings.EqualFold(s.convert.VideoCodec, "Copy")
+	needsReencode := len(vf) > 0 || isWMV || forcedCodec
 
 	if len(vf) > 0 {
 		filterStr := strings.Join(vf, ",")
@@ -6221,23 +6278,41 @@ func (s *appState) generateSnippet() {
 			args = append(args, "-c:v", "copy")
 		}
 	} else {
-		// Filters required - must re-encode
-		// Use configured codec or fallback to H.264 for compatibility
+		// Filters/codec require re-encode; use current settings
 		videoCodec := determineVideoCodec(s.convert)
 		if videoCodec == "copy" {
 			videoCodec = "libx264"
 		}
 		args = append(args, "-c:v", videoCodec)
 
-		// Use configured CRF or fallback to quality preset
-		crf := s.convert.CRF
-		if crf == "" {
-			crf = crfForQuality(s.convert.Quality)
+		// Bitrate/quality from current mode
+		mode := s.convert.BitrateMode
+		if mode == "" {
+			mode = "CRF"
 		}
-		if videoCodec == "libx264" || videoCodec == "libx265" {
-			args = append(args, "-crf", crf)
-			// Use faster preset for snippets
-			args = append(args, "-preset", "veryfast")
+		switch mode {
+		case "CBR", "VBR":
+			vb := s.convert.VideoBitrate
+			if vb == "" {
+				vb = defaultBitrate(s.convert.VideoCodec, src.Width, src.Bitrate)
+			}
+			args = append(args, "-b:v", vb)
+			if mode == "CBR" {
+				args = append(args, "-minrate", vb, "-maxrate", vb, "-bufsize", vb)
+			}
+		default: // CRF/Target size fallback to CRF
+			crf := s.convert.CRF
+			if crf == "" {
+				crf = crfForQuality(s.convert.Quality)
+			}
+			if videoCodec == "libx264" || videoCodec == "libx265" {
+				args = append(args, "-crf", crf)
+			}
+		}
+
+		// Preset from current settings
+		if s.convert.EncoderPreset != "" && (strings.Contains(videoCodec, "264") || strings.Contains(videoCodec, "265")) {
+			args = append(args, "-preset", s.convert.EncoderPreset)
 		}
 
 		// Pixel format
