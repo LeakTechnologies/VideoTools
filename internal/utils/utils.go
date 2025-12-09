@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
