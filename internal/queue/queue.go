@@ -21,6 +21,7 @@ const (
 	JobTypeUpscale JobType = "upscale"
 	JobTypeAudio   JobType = "audio"
 	JobTypeThumb   JobType = "thumb"
+	JobTypeSnippet JobType = "snippet"
 )
 
 // JobStatus represents the current state of a job
