@@ -6206,6 +6206,11 @@ func (s *appState) generateSnippet() {
 		"-i", src.Path,
 	}
 
+	// Ensure aspect defaults to Source for snippets when unset
+	if s.convert.OutputAspect == "" {
+		s.convert.OutputAspect = "Source"
+	}
+
 	// Add cover art if available
 	hasCoverArt := s.convert.CoverArtPath != ""
 	logging.Debug(logging.CatFFMPEG, "snippet: CoverArtPath=%s hasCoverArt=%v", s.convert.CoverArtPath, hasCoverArt)
