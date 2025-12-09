@@ -151,7 +151,10 @@ func getLogsDir() string {
 }
 
 // defaultBitrate picks a sane default when user leaves bitrate empty in bitrate modes.
-func defaultBitrate(codec string, width int) string {
+func defaultBitrate(codec string, width int, sourceBitrate int) string {
+	if sourceBitrate > 0 {
+		return fmt.Sprintf("%dk", sourceBitrate/1000)
+	}
 	switch strings.ToLower(codec) {
 	case "h.265", "hevc", "libx265", "hevc_nvenc", "hevc_qsv", "hevc_amf", "hevc_videotoolbox":
 		if width >= 1920 {
@@ -1212,6 +1215,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"outputAspect":      s.convert.OutputAspect,
 			"sourceWidth":       src.Width,
 			"sourceHeight":      src.Height,
+			"sourceBitrate":     src.Bitrate,
 			"sourceDuration":    src.Duration,
 			"fieldOrder":        src.FieldOrder,
 		}
@@ -1330,6 +1334,10 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	cfg := job.Config
 	inputPath := cfg["inputPath"].(string)
 	outputPath := cfg["outputPath"].(string)
+	sourceBitrate := 0
+	if v, ok := cfg["sourceBitrate"].(float64); ok {
+		sourceBitrate = int(v)
+	}
 
 	// If a direct conversion is running, wait until it finishes before starting queued jobs.
 	for s.convertBusy {
@@ -1508,6 +1516,11 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	// Aspect ratio conversion
 	sourceWidth, _ := cfg["sourceWidth"].(int)
 	sourceHeight, _ := cfg["sourceHeight"].(int)
+	// Get source bitrate if present
+	sourceBitrate = 0
+	if v, ok := cfg["sourceBitrate"].(float64); ok {
+		sourceBitrate = int(v)
+	}
 	srcAspect := utils.AspectRatioFloat(sourceWidth, sourceHeight)
 	outputAspect, _ := cfg["outputAspect"].(string)
 	aspectHandling, _ := cfg["aspectHandling"].(string)
@@ -5515,7 +5528,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			// Constant bitrate
 			vb := cfg.VideoBitrate
 			if vb == "" {
-				vb = defaultBitrate(cfg.VideoCodec, src.Width)
+				vb = defaultBitrate(cfg.VideoCodec, src.Width, sourceBitrate)
 			}
 			args = append(args, "-b:v", vb, "-minrate", vb, "-maxrate", vb, "-bufsize", vb)
 		} else if cfg.BitrateMode == "VBR" {

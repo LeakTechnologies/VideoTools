@@ -39,6 +39,42 @@ func formatBytes(b int64) string {
 	}
 }
 
+// DeltaBytes renders size plus delta vs reference.
+func DeltaBytes(newBytes, refBytes int64) string {
+	if newBytes <= 0 {
+		return "0 B"
+	}
+	size := formatBytes(newBytes)
+	if refBytes <= 0 || refBytes == newBytes {
+		return size
+	}
+	change := float64(newBytes-refBytes) / float64(refBytes)
+	dir := "increase"
+	if change < 0 {
+		dir = "reduction"
+	}
+	pct := math.Abs(change) * 100
+	return fmt.Sprintf("%s (%.1f%% %s)", size, pct, dir)
+}
+
+// DeltaBitrate renders bitrate plus delta vs reference (expects bps).
+func DeltaBitrate(newBps, refBps int) string {
+	if newBps <= 0 {
+		return "--"
+	}
+	br := formatBitrate(newBps)
+	if refBps <= 0 || refBps == newBps {
+		return br
+	}
+	change := float64(newBps-refBps) / float64(refBps)
+	dir := "increase"
+	if change < 0 {
+		dir = "reduction"
+	}
+	pct := math.Abs(change) * 100
+	return fmt.Sprintf("%s (%.1f%% %s)", br, pct, dir)
+}
+
 // formatPercent renders a percentage with no trailing zeros after decimal.
 func formatPercent(val float64) string {
 	val = math.Round(val*10) / 10 // one decimal
