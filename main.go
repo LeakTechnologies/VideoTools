@@ -6240,12 +6240,15 @@ func (s *appState) generateSnippet() {
 		}
 	}
 
-	// Check if aspect ratio conversion is needed
-	srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
-	targetAspect := resolveTargetAspect(s.convert.OutputAspect, src)
-	aspectConversionNeeded := targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01)
-	if aspectConversionNeeded {
-		vf = append(vf, aspectFilters(targetAspect, s.convert.AspectHandling)...)
+	// Check if aspect ratio conversion is needed (only if user explicitly set OutputAspect)
+	aspectExplicit := s.convert.OutputAspect != "" && !strings.EqualFold(s.convert.OutputAspect, "Source")
+	if aspectExplicit {
+		srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
+		targetAspect := resolveTargetAspect(s.convert.OutputAspect, src)
+		aspectConversionNeeded := targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01)
+		if aspectConversionNeeded {
+			vf = append(vf, aspectFilters(targetAspect, s.convert.AspectHandling)...)
+		}
 	}
 
 	// Frame rate conversion (only if explicitly set and different from source)
