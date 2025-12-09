@@ -6838,8 +6838,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	// Helper function to format metadata
 	formatMetadata := func(src *videoSource) string {
 		fileSize := "Unknown"
-		// origBytes reserved for future reduction calc
-		origBytes := int64(0)
+		origBytes := int64(0) // reserved for future reduction calc
 		if fi, err := os.Stat(src.Path); err == nil {
 			origBytes = fi.Size()
 			sizeMB := float64(fi.Size()) / (1024 * 1024)
