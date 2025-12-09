@@ -1391,6 +1391,8 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 		return fmt.Errorf("audio jobs not yet implemented")
 	case queue.JobTypeThumb:
 		return fmt.Errorf("thumb jobs not yet implemented")
+	case queue.JobTypeSnippet:
+		return s.executeSnippetJob(ctx, job, progressCallback)
 	default:
 		return fmt.Errorf("unknown job type: %s", job.Type)
 	}
@@ -2016,6 +2018,185 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		}()
 	}
 
+	return nil
+}
+
+func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
+	cfg := job.Config
+	inputPath := cfg["inputPath"].(string)
+	outputPath := cfg["outputPath"].(string)
+
+	conv := s.convert
+	if cfgJSON, ok := cfg["convertConfig"].(string); ok && cfgJSON != "" {
+		_ = json.Unmarshal([]byte(cfgJSON), &conv)
+	}
+	if conv.OutputAspect == "" {
+		conv.OutputAspect = "Source"
+	}
+
+	src, err := probeVideo(inputPath)
+	if err != nil {
+		return err
+	}
+
+	center := math.Max(0, src.Duration/2-10)
+	start := fmt.Sprintf("%.2f", center)
+
+	args := []string{
+		"-y",
+		"-hide_banner",
+		"-loglevel", "error",
+		"-ss", start,
+		"-i", inputPath,
+	}
+
+	hasCoverArt := strings.TrimSpace(conv.CoverArtPath) != ""
+	if hasCoverArt {
+		args = append(args, "-i", conv.CoverArtPath)
+	}
+
+	var vf []string
+	if conv.TargetResolution != "" && conv.TargetResolution != "Source" {
+		var scaleFilter string
+		switch conv.TargetResolution {
+		case "720p":
+			scaleFilter = "scale=-2:720"
+		case "1080p":
+			scaleFilter = "scale=-2:1080"
+		case "1440p":
+			scaleFilter = "scale=-2:1440"
+		case "4K":
+			scaleFilter = "scale=-2:2160"
+		case "8K":
+			scaleFilter = "scale=-2:4320"
+		}
+		if scaleFilter != "" {
+			vf = append(vf, scaleFilter)
+		}
+	}
+
+	aspectExplicit := conv.OutputAspect != "" && !strings.EqualFold(conv.OutputAspect, "Source")
+	if aspectExplicit {
+		srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
+		targetAspect := resolveTargetAspect(conv.OutputAspect, src)
+		aspectConversionNeeded := targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01)
+		if aspectConversionNeeded {
+			vf = append(vf, aspectFilters(targetAspect, conv.AspectHandling)...)
+		}
+	}
+
+	if conv.FrameRate != "" && conv.FrameRate != "Source" {
+		vf = append(vf, "fps="+conv.FrameRate)
+	}
+
+	forcedCodec := !strings.EqualFold(conv.VideoCodec, "Copy")
+	isWMV := strings.HasSuffix(strings.ToLower(src.Path), ".wmv")
+	needsReencode := len(vf) > 0 || isWMV || forcedCodec
+
+	if len(vf) > 0 {
+		args = append(args, "-vf", strings.Join(vf, ","))
+	}
+
+	if hasCoverArt {
+		args = append(args, "-map", "0", "-map", "1:v")
+	} else {
+		args = append(args, "-map", "0")
+	}
+
+	if !needsReencode {
+		if hasCoverArt {
+			args = append(args, "-c:v:0", "copy")
+		} else {
+			args = append(args, "-c:v", "copy")
+		}
+	} else {
+		videoCodec := determineVideoCodec(conv)
+		if videoCodec == "copy" {
+			videoCodec = "libx264"
+		}
+		args = append(args, "-c:v", videoCodec)
+
+		mode := conv.BitrateMode
+		if mode == "" {
+			mode = "CRF"
+		}
+		switch mode {
+		case "CBR", "VBR":
+			vb := conv.VideoBitrate
+			if vb == "" {
+				vb = defaultBitrate(conv.VideoCodec, src.Width, src.Bitrate)
+			}
+			args = append(args, "-b:v", vb)
+			if mode == "CBR" {
+				args = append(args, "-minrate", vb, "-maxrate", vb, "-bufsize", vb)
+			}
+		default:
+			crf := conv.CRF
+			if crf == "" {
+				crf = crfForQuality(conv.Quality)
+			}
+			if videoCodec == "libx264" || videoCodec == "libx265" {
+				args = append(args, "-crf", crf)
+			}
+		}
+
+		if conv.EncoderPreset != "" && (strings.Contains(videoCodec, "264") || strings.Contains(videoCodec, "265")) {
+			args = append(args, "-preset", conv.EncoderPreset)
+		}
+
+		if conv.PixelFormat != "" {
+			args = append(args, "-pix_fmt", conv.PixelFormat)
+		}
+	}
+
+	if hasCoverArt {
+		args = append(args, "-c:v:1", "png", "-disposition:v:1", "attached_pic")
+	}
+
+	if !needsReencode {
+		args = append(args, "-c:a", "copy")
+	} else {
+		audioCodec := determineAudioCodec(conv)
+		if audioCodec == "copy" {
+			audioCodec = "aac"
+		}
+		args = append(args, "-c:a", audioCodec)
+		if conv.AudioBitrate != "" && audioCodec != "flac" {
+			args = append(args, "-b:a", conv.AudioBitrate)
+		}
+		if conv.AudioChannels != "" && conv.AudioChannels != "Source" {
+			switch conv.AudioChannels {
+			case "Mono":
+				args = append(args, "-ac", "1")
+			case "Stereo":
+				args = append(args, "-ac", "2")
+			case "5.1":
+				args = append(args, "-ac", "6")
+			}
+		}
+	}
+
+	args = append(args, "-t", "20", outputPath)
+
+	logFile, logPath, _ := createConversionLog(inputPath, outputPath, args)
+	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	utils.ApplyNoWindow(cmd)
+
+	if err := cmd.Run(); err != nil {
+		if logFile != nil {
+			fmt.Fprintf(logFile, "\nStatus: failed at %s\nError: %v\n", time.Now().Format(time.RFC3339), err)
+			_ = logFile.Close()
+		}
+		return err
+	}
+	if logFile != nil {
+		fmt.Fprintf(logFile, "\nStatus: completed at %s\n", time.Now().Format(time.RFC3339))
+		_ = logFile.Close()
+		job.LogPath = logPath
+	}
+	if progressCallback != nil {
+		progressCallback(1)
+	}
 	return nil
 }
 
@@ -3460,7 +3641,32 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			dialog.ShowInformation("Snippet", "Load a video first.", state.window)
 			return
 		}
-		go state.generateSnippet()
+		if state.jobQueue == nil {
+			dialog.ShowInformation("Queue", "Queue not initialized.", state.window)
+			return
+		}
+		src := state.source
+		outName := fmt.Sprintf("%s-snippet-%d.mp4", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix())
+		outPath := filepath.Join(filepath.Dir(src.Path), outName)
+
+		cfgBytes, _ := json.Marshal(state.convert)
+		job := &queue.Job{
+			Type:        queue.JobTypeSnippet,
+			Title:       "Snippet: " + filepath.Base(src.Path),
+			Description: "20s snippet centred on midpoint",
+			InputFile:   src.Path,
+			OutputFile:  outPath,
+			Config: map[string]interface{}{
+				"inputPath":     src.Path,
+				"outputPath":    outPath,
+				"convertConfig": string(cfgBytes),
+			},
+		}
+		state.jobQueue.Add(job)
+		if !state.jobQueue.IsRunning() {
+			state.jobQueue.Start()
+		}
+		dialog.ShowInformation("Snippet", "Snippet job added to queue.", state.window)
 	})
 	snippetBtn.Importance = widget.MediumImportance
 	if src == nil {
