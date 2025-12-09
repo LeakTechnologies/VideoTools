@@ -39,6 +39,11 @@ func formatBytes(b int64) string {
 	}
 }
 
+// FormatBytes exposes human-readable bytes with binary units.
+func FormatBytes(b int64) string {
+	return formatBytes(b)
+}
+
 // DeltaBytes renders size plus delta vs reference.
 func DeltaBytes(newBytes, refBytes int64) string {
 	if newBytes <= 0 {
@@ -62,7 +67,7 @@ func DeltaBitrate(newBps, refBps int) string {
 	if newBps <= 0 {
 		return "--"
 	}
-	br := formatBitrate(newBps)
+	br := formatBitrateHuman(newBps)
 	if refBps <= 0 || refBps == newBps {
 		return br
 	}
@@ -82,4 +87,15 @@ func formatPercent(val float64) string {
 		return fmt.Sprintf("%d%%", int(val))
 	}
 	return fmt.Sprintf("%.1f%%", val)
+}
+
+func formatBitrateHuman(bps int) string {
+	if bps <= 0 {
+		return "--"
+	}
+	kbps := float64(bps) / 1000.0
+	if kbps >= 1000 {
+		return fmt.Sprintf("%.1f Mbps", kbps/1000.0)
+	}
+	return fmt.Sprintf("%.0f kbps", kbps)
 }
