@@ -183,6 +183,25 @@ func defaultBitrate(codec string, width int, sourceBitrate int) string {
 	}
 }
 
+// effectiveHardwareAccel resolves "auto" to a best-effort hardware encoder for the platform.
+func effectiveHardwareAccel(cfg convertConfig) string {
+	accel := strings.ToLower(cfg.HardwareAccel)
+	if accel != "" && accel != "auto" {
+		return accel
+	}
+
+	switch runtime.GOOS {
+	case "windows":
+		// Prefer NVENC, then Intel (QSV), then AMD (AMF)
+		return "nvenc"
+	case "darwin":
+		return "videotoolbox"
+	default: // linux and others
+		// Prefer NVENC, then Intel (QSV), then VAAPI
+		return "nvenc"
+	}
+}
+
 // openLogViewer opens a simple dialog showing the log content. If live is true, it auto-refreshes.
 func (s *appState) openLogViewer(title, path string, live bool) {
 	if strings.TrimSpace(path) == "" {
@@ -319,7 +338,7 @@ type convertConfig struct {
 	TargetResolution  string // Source, 720p, 1080p, 1440p, 4K, or custom
 	FrameRate         string // Source, 24, 30, 60, or custom
 	PixelFormat       string // yuv420p, yuv422p, yuv444p
-	HardwareAccel     string // none, nvenc, amf, vaapi, qsv, videotoolbox
+	HardwareAccel     string // auto, none, nvenc, amf, vaapi, qsv, videotoolbox
 	TwoPass           bool   // Enable two-pass encoding for VBR
 	H264Profile       string // baseline, main, high (for H.264 compatibility)
 	H264Level         string // 3.0, 3.1, 4.0, 4.1, 5.0, 5.1 (for H.264 compatibility)
@@ -2072,7 +2091,7 @@ func runGUI() {
 			TargetResolution:  "Source",
 			FrameRate:         "Source",
 			PixelFormat:       "yuv420p",
-			HardwareAccel:     "none",
+			HardwareAccel:     "auto",
 			TwoPass:           false,
 			H264Profile:       "main",
 			H264Level:         "4.0",
@@ -2745,7 +2764,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			TargetResolution: "Source",
 			FrameRate:        "Source",
 			PixelFormat:      "yuv420p",
-			HardwareAccel:    "none",
+			HardwareAccel:    "auto",
 			AudioCodec:       "AAC",
 			AudioBitrate:     "192k",
 			AudioChannels:    "Source",
@@ -3136,11 +3155,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	pixelFormatSelect.SetSelected(state.convert.PixelFormat)
 
-	// Hardware Acceleration
-	hwAccelSelect := widget.NewSelect([]string{"none", "nvenc", "amf", "vaapi", "qsv", "videotoolbox"}, func(value string) {
+	// Hardware Acceleration with hint
+	hwAccelHint := widget.NewLabel("Auto picks the best GPU path; if encode fails, switch to none (software).")
+	hwAccelHint.Wrapping = fyne.TextWrapWord
+	hwAccelSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "amf", "vaapi", "qsv", "videotoolbox"}, func(value string) {
 		state.convert.HardwareAccel = value
 		logging.Debug(logging.CatUI, "hardware accel set to %s", value)
 	})
+	if state.convert.HardwareAccel == "" {
+		state.convert.HardwareAccel = "auto"
+	}
 	hwAccelSelect.SetSelected(state.convert.HardwareAccel)
 
 	// Two-Pass encoding
@@ -3294,6 +3318,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		pixelFormatSelect,
 		widget.NewLabelWithStyle("Hardware Acceleration", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		hwAccelSelect,
+		hwAccelHint,
 		twoPassCheck,
 		widget.NewSeparator(),
 
@@ -5214,27 +5239,28 @@ func detectBestH265Encoder() string {
 
 // determineVideoCodec maps user-friendly codec names to FFmpeg codec names
 func determineVideoCodec(cfg convertConfig) string {
+	accel := effectiveHardwareAccel(cfg)
 	switch cfg.VideoCodec {
 	case "H.264":
-		if cfg.HardwareAccel == "nvenc" {
+		if accel == "nvenc" {
 			return "h264_nvenc"
-		} else if cfg.HardwareAccel == "amf" {
+		} else if accel == "amf" {
 			return "h264_amf"
-		} else if cfg.HardwareAccel == "qsv" {
+		} else if accel == "qsv" {
 			return "h264_qsv"
-		} else if cfg.HardwareAccel == "videotoolbox" {
+		} else if accel == "videotoolbox" {
 			return "h264_videotoolbox"
 		}
 		// When set to "none" or empty, use software encoder
 		return "libx264"
 	case "H.265":
-		if cfg.HardwareAccel == "nvenc" {
+		if accel == "nvenc" {
 			return "hevc_nvenc"
-		} else if cfg.HardwareAccel == "amf" {
+		} else if accel == "amf" {
 			return "hevc_amf"
-		} else if cfg.HardwareAccel == "qsv" {
+		} else if accel == "qsv" {
 			return "hevc_qsv"
-		} else if cfg.HardwareAccel == "videotoolbox" {
+		} else if accel == "videotoolbox" {
 			return "hevc_videotoolbox"
 		}
 		// When set to "none" or empty, use software encoder
@@ -5242,13 +5268,13 @@ func determineVideoCodec(cfg convertConfig) string {
 	case "VP9":
 		return "libvpx-vp9"
 	case "AV1":
-		if cfg.HardwareAccel == "amf" {
+		if accel == "amf" {
 			return "av1_amf"
-		} else if cfg.HardwareAccel == "nvenc" {
+		} else if accel == "nvenc" {
 			return "av1_nvenc"
-		} else if cfg.HardwareAccel == "qsv" {
+		} else if accel == "qsv" {
 			return "av1_qsv"
-		} else if cfg.HardwareAccel == "vaapi" {
+		} else if accel == "vaapi" {
 			return "av1_vaapi"
 		}
 		// When set to "none" or empty, use software encoder
@@ -5382,16 +5408,13 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		args = append(args, "-i", cfg.CoverArtPath)
 	}
 
-	// Hardware acceleration for decoding
-	// Note: NVENC and AMF don't need -hwaccel for encoding, only for decoding
-	if cfg.HardwareAccel != "none" && cfg.HardwareAccel != "" {
-		switch cfg.HardwareAccel {
+	// Hardware acceleration for decoding (best-effort)
+	if accel := effectiveHardwareAccel(cfg); accel != "none" && accel != "" {
+		switch accel {
 		case "nvenc":
-			// For NVENC, we don't add -hwaccel flags
-			// The h264_nvenc/hevc_nvenc encoder handles GPU encoding directly
+			// NVENC encoders handle GPU directly; no hwaccel flag needed
 		case "amf":
-			// For AMD AMF, we don't add -hwaccel flags
-			// The h264_amf/hevc_amf/av1_amf encoders handle GPU encoding directly
+			// AMF encoders handle GPU directly
 		case "vaapi":
 			args = append(args, "-hwaccel", "vaapi")
 		case "qsv":
@@ -5399,7 +5422,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		case "videotoolbox":
 			args = append(args, "-hwaccel", "videotoolbox")
 		}
-		logging.Debug(logging.CatFFMPEG, "hardware acceleration: %s", cfg.HardwareAccel)
+		logging.Debug(logging.CatFFMPEG, "hardware acceleration: %s", accel)
 	}
 
 	// Video filters.
