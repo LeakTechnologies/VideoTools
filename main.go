@@ -6230,7 +6230,9 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 					_ = logFile.Close()
 				}
 				s.convertCancel = nil
-				return s.executeConvertJobWithFallback(ctx, job, progressCallback, true)
+				if err := s.executeConvertJobWithFallback(ctx, job, progressCallback, true); err == nil {
+					return
+				}
 			}
 
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
