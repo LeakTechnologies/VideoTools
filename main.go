@@ -2092,6 +2092,12 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	if targetResolution != "" && targetResolution != "Source" {
 		var scaleFilter string
 		switch targetResolution {
+		case "360p":
+			scaleFilter = "scale=-2:360"
+		case "480p":
+			scaleFilter = "scale=-2:480"
+		case "540p":
+			scaleFilter = "scale=-2:540"
 		case "720p":
 			scaleFilter = "scale=-2:720"
 		case "1080p":
@@ -3673,7 +3679,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
 
 	// Simple resolution selector (separate widget to avoid double-parent issues)
-	resolutionSelectSimple := widget.NewSelect([]string{"Source", "720p", "1080p", "1440p", "4K", "NTSC (720×480)", "PAL (720×576)"}, func(value string) {
+	resolutionSelectSimple := widget.NewSelect([]string{
+		"Source", "360p", "480p", "540p", "720p", "1080p", "1440p", "4K",
+		"NTSC (720×480)", "PAL (720×576)",
+	}, func(value string) {
 		state.convert.TargetResolution = value
 		logging.Debug(logging.CatUI, "target resolution set to %s (simple)", value)
 	})
