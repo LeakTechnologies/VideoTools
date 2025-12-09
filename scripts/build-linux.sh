@@ -68,6 +68,6 @@ else
     echo "Help: check the Go error messages above."
     echo " - Undefined symbol/identifier: usually a missing variable or typo in source; see the referenced file:line."
     echo " - \"C compiler not found\": install a C toolchain (e.g., build-essential on Ubuntu, Xcode CLT on macOS)."
-    echo " - Cache permission denied: run scripts/clear-go-cache.sh or 'rm -rf ~/.cache/go-build' / 'chown -R $USER ~/.cache/go-build'."
+    echo " - Cache permission denied: run scripts/clear-go-cache.sh or rm -rf ~/.cache/go-build / chown -R \$USER ~/.cache/go-build."
     exit 1
 fi
