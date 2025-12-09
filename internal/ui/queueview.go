@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 // BuildQueueView creates the queue viewer UI
@@ -114,10 +115,13 @@ func buildJobItem(
 	statusRect.SetMinSize(fyne.NewSize(6, 0))
 
 	// Title and description
-	titleLabel := widget.NewLabel(job.Title)
+	titleText := utils.ShortenMiddle(job.Title, 60)
+	descText := utils.ShortenMiddle(job.Description, 90)
+
+	titleLabel := widget.NewLabel(titleText)
 	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	descLabel := widget.NewLabel(job.Description)
+	descLabel := widget.NewLabel(descText)
 	descLabel.TextStyle = fyne.TextStyle{Italic: true}
 	descLabel.Wrapping = fyne.TextWrapWord
 
