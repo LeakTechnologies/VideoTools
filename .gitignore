@@ -12,3 +12,13 @@ ffprobe.exe
 ffmpeg-windows.zip
 ffmpeg-temp/
 dist/
+
+# Ignore sample media/output in git_converter helper
+scripts/git_converter/Converted/
+scripts/git_converter/*.mp4
+scripts/git_converter/*.mkv
+scripts/git_converter/*.avi
+scripts/git_converter/*.mov
+scripts/git_converter/*.wmv
+scripts/git_converter/*.ts
+scripts/git_converter/*.m2ts
