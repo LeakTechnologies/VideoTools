@@ -7,6 +7,22 @@
 OUT="Converted"
 mkdir -p "$OUT"
 
+# Choose best available encoder with runtime check
+pick_encoder() {
+  # candidate list in order of preference
+  local candidates=("$@")
+  for enc in "${candidates[@]}"; do
+    # Quick runtime probe: attempt tiny encode and discard output
+    if ffmpeg -hide_banner -loglevel error \
+      -f lavfi -i color=size=16x16:rate=1 -frames:v 1 \
+      -c:v "$enc" -f null - >/dev/null 2>&1; then
+      echo "$enc"
+      return 0
+    fi
+  done
+  return 1
+}
+
 clear
 cat << "EOF"
 
@@ -61,8 +77,8 @@ echo
 read -p "   Enter 1–6 → " c
 
 case $c in
-  1|3) codec="av1_amf"  ;;
-  2|4|5|6) codec="hevc_amf" ;;
+  1|3) codec_pref=("av1_amf" "libaom-av1") ;;
+  2|4|5|6) codec_pref=("hevc_amf" "hevc_nvenc" "h264_nvenc" "libx265") ;;
   *)   echo "Invalid — exiting"; sleep 3; exit ;;
 esac
 
@@ -75,6 +91,15 @@ case $c in
   3|4|6) fps_filter=",fps=60"; suf="_60fps" ;;
   *)     fps_filter="";        suf=""       ;;
 esac
+
+# Resolve encoder now, once
+codec=$(pick_encoder "${codec_pref[@]}")
+if [ -z "$codec" ]; then
+  echo "No supported encoder found (tried: ${codec_pref[*]})."
+  echo "Install/enable GPU drivers or fall back to CPU codecs."
+  echo "Defaulting to libx265."
+  codec="libx265"
+fi
 
 # — Bitrate Selection —
 clear
@@ -131,10 +156,13 @@ for f in *.mp4 *.mkv *.mov *.avi *.wmv *.ts *.m2ts; do
   fi
 
   # FINAL FIXED CONVERSION — 1080p FORCED + 60fps works
-  ffmpeg -y -i "$f" $bitdepth_filter -vf "scale=${scale}:flags=lanczos${fps_filter}" \
-         -c:v "$codec" -b:v "$this_bitrate" -c:a aac -b:a 192k -ac 2 "$out"
-
-  echo "DONE → $(basename "$out")"
+  if ffmpeg -y -i "$f" $bitdepth_filter -vf "scale=${scale}:flags=lanczos${fps_filter}" \
+         -c:v "$codec" -b:v "$this_bitrate" -c:a aac -b:a 192k -ac 2 "$out"; then
+    echo "DONE → $(basename "$out")"
+  else
+    echo "FAILED → $f (encoder: $codec). Check ffmpeg output above."
+    rm -f "$out"
+  fi
   echo
 done
 
