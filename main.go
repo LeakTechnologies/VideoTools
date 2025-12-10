@@ -73,6 +73,9 @@ var (
 	hwAccelProbeOnce sync.Once
 	hwAccelSupported atomic.Value // map[string]bool
 
+	nvencRuntimeOnce sync.Once
+	nvencRuntimeOK   bool
+
 	modulesList = []Module{
 		{"convert", "Convert", utils.MustHex("#8B44FF"), "Convert", modules.HandleConvert},  // Violet
 		{"merge", "Merge", utils.MustHex("#4488FF"), "Convert", modules.HandleMerge},        // Blue
@@ -247,7 +250,32 @@ func hwAccelAvailable(accel string) bool {
 	if accel == "amf" {
 		return supported["nvenc"] || supported["qsv"] || supported["vaapi"] || supported["videotoolbox"]
 	}
+	if accel == "nvenc" && supported["nvenc"] {
+		if !nvencRuntimeAvailable() {
+			return false
+		}
+	}
 	return supported[accel]
+}
+
+// nvencRuntimeAvailable runs a lightweight encode probe to verify the NVENC runtime is usable (nvcuda.dll loaded).
+func nvencRuntimeAvailable() bool {
+	nvencRuntimeOnce.Do(func() {
+		cmd := exec.Command(platformConfig.FFmpegPath,
+			"-hide_banner", "-loglevel", "error",
+			"-f", "lavfi", "-i", "color=size=16x16:rate=1",
+			"-frames:v", "1",
+			"-c:v", "h264_nvenc",
+			"-f", "null", "-",
+		)
+		utils.ApplyNoWindow(cmd)
+		if err := cmd.Run(); err == nil {
+			nvencRuntimeOK = true
+		} else {
+			logging.Debug(logging.CatFFMPEG, "nvenc runtime check failed: %v", err)
+		}
+	})
+	return nvencRuntimeOK
 }
 
 // openLogViewer opens a simple dialog showing the log content. If live is true, it auto-refreshes.
@@ -1486,9 +1514,25 @@ func (s *appState) showMergeView() {
 	s.lastModule = s.active
 	s.active = "merge"
 
+	mergeColor := moduleColor("merge")
+
 	if s.mergeFormat == "" {
 		s.mergeFormat = "mkv-copy"
 	}
+
+	backBtn := widget.NewButton("< MERGE", func() {
+		s.showMainMenu()
+	})
+	backBtn.Importance = widget.LowImportance
+
+	queueBtn := widget.NewButton("View Queue", func() {
+		s.showQueue()
+	})
+	s.queueBtn = queueBtn
+	s.updateQueueButtonLabel()
+
+	topBar := ui.TintedBar(mergeColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+	bottomBar := ui.TintedBar(mergeColor, container.NewHBox(layout.NewSpacer()))
 
 	listBox := container.NewVBox()
 
@@ -1710,7 +1754,7 @@ func (s *appState) showMergeView() {
 
 	content := container.NewHSplit(left, right)
 	content.Offset = 0.55
-	s.setContent(container.NewBorder(nil, nil, nil, nil, content))
+	s.setContent(container.NewBorder(topBar, bottomBar, nil, nil, container.NewPadded(content)))
 
 	buildList()
 }
