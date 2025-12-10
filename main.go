@@ -4056,11 +4056,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			)
 
 			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
-				dvdNotes = "NTSC DVD: 720×480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz"
+				dvdNotes = "NTSC DVD: 720×480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 6000k default, 9000k max PS2-safe)"
 				targetRes = "NTSC (720×480)"
 				targetFPS = "29.97"
 			} else if strings.Contains(state.convert.SelectedFormat.Label, "PAL") {
-				dvdNotes = "PAL DVD: 720×576 @ 25fps, MPEG-2 Video, AC-3 Stereo 48kHz"
+				dvdNotes = "PAL DVD: 720×576 @ 25fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k default, 9500k max)"
 				targetRes = "PAL (720×576)"
 				targetFPS = "25"
 			} else {
@@ -4106,7 +4106,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			videoCodecSelect.SetSelected("MPEG-2")
 			videoCodecSelect.Disable()
 
-			dvdInfoLabel.SetText(fmt.Sprintf("%s\nResolution, frame rate, aspect, codec, pixel format, and GPU toggles are locked for DVD compliance.", dvdNotes))
+			dvdInfoLabel.SetText(fmt.Sprintf("%s\nLocked: resolution, frame rate, aspect, codec, pixel format, and GPU toggles for DVD compliance.", dvdNotes))
 		} else {
 			dvdAspectBox.Hide()
 		}
