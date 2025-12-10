@@ -51,12 +51,10 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 				onModuleClick(id)
 			}
 			dropFunc = func(items []fyne.URI) {
-				fmt.Printf("[MAINMENU] dropFunc called for module=%s itemCount=%d\n", id, len(items))
 				logging.Debug(logging.CatUI, "MainMenu dropFunc called for module=%s itemCount=%d", id, len(items))
 				onModuleDrop(id, items)
 			}
 		}
-		fmt.Printf("[MAINMENU] Creating tile for module=%s enabled=%v hasDropFunc=%v\n", modID, mod.Enabled, dropFunc != nil)
 		logging.Debug(logging.CatUI, "Creating tile for module=%s enabled=%v hasDropFunc=%v", modID, mod.Enabled, dropFunc != nil)
 		categorized[cat] = append(categorized[cat], buildModuleTile(mod, tapFunc, dropFunc))
 	}

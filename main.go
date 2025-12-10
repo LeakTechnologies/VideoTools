@@ -555,6 +555,7 @@ type appState struct {
 	mergeOutput    string
 	mergeKeepAll   bool
 	mergeCodecMode string
+	mergeChapters  bool
 }
 
 type mergeClip struct {
@@ -1672,6 +1673,11 @@ func (s *appState) showMergeView() {
 	})
 	keepAllCheck.SetChecked(s.mergeKeepAll)
 
+	chapterCheck := widget.NewCheck("Create chapters from each clip", func(v bool) {
+		s.mergeChapters = v
+	})
+	chapterCheck.SetChecked(s.mergeChapters)
+
 	codecModeSelect := widget.NewSelect([]string{"Copy (if compatible)", "Re-encode (H.265)"}, func(val string) {
 		if strings.HasPrefix(val, "Copy") {
 			s.mergeCodecMode = "copy"
@@ -1745,6 +1751,7 @@ func (s *appState) showMergeView() {
 		formatSelect,
 		codecModeSelect,
 		keepAllCheck,
+		chapterCheck,
 		widget.NewSeparator(),
 		widget.NewLabel("Output Path"),
 		container.NewBorder(nil, nil, nil, browseOut, outputEntry),
@@ -1784,6 +1791,7 @@ func (s *appState) addMergeToQueue(startNow bool) error {
 		"clips":          clips,
 		"format":         s.mergeFormat,
 		"keepAllStreams": s.mergeKeepAll,
+		"chapters":       s.mergeChapters,
 		"codecMode":      s.mergeCodecMode,
 		"outputPath":     s.mergeOutput,
 	}
@@ -1840,6 +1848,10 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 	cfg := job.Config
 	format, _ := cfg["format"].(string)
 	keepAll, _ := cfg["keepAllStreams"].(bool)
+	withChapters, ok := cfg["chapters"].(bool)
+	if !ok {
+		withChapters = true
+	}
 	codecMode, _ := cfg["codecMode"].(string) // copy or encode
 	outputPath, _ := cfg["outputPath"].(string)
 
@@ -1869,28 +1881,31 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 	}
 	_ = listFile.Close()
 
-	// Build chapters metadata
-	chapterFile, err := os.CreateTemp(tmpDir, "vt-merge-chapters-*.txt")
-	if err != nil {
-		return err
-	}
-	var elapsed float64
-	fmt.Fprintln(chapterFile, ";FFMETADATA1")
-	for i, c := range clips {
-		startMs := int64(elapsed * 1000)
-		endMs := int64((elapsed + c.Duration) * 1000)
-		fmt.Fprintln(chapterFile, "[CHAPTER]")
-		fmt.Fprintln(chapterFile, "TIMEBASE=1/1000")
-		fmt.Fprintf(chapterFile, "START=%d\n", startMs)
-		fmt.Fprintf(chapterFile, "END=%d\n", endMs)
-		name := c.Chapter
-		if strings.TrimSpace(name) == "" {
-			name = fmt.Sprintf("Part %d", i+1)
+	var chapterFile *os.File
+	if withChapters {
+		chapterFile, err = os.CreateTemp(tmpDir, "vt-merge-chapters-*.txt")
+		if err != nil {
+			return err
 		}
-		fmt.Fprintf(chapterFile, "title=%s\n", name)
-		elapsed += c.Duration
+		var elapsed float64
+		fmt.Fprintln(chapterFile, ";FFMETADATA1")
+		for i, c := range clips {
+			startMs := int64(elapsed * 1000)
+			endMs := int64((elapsed + c.Duration) * 1000)
+			fmt.Fprintln(chapterFile, "[CHAPTER]")
+			fmt.Fprintln(chapterFile, "TIMEBASE=1/1000")
+			fmt.Fprintf(chapterFile, "START=%d\n", startMs)
+			fmt.Fprintf(chapterFile, "END=%d\n", endMs)
+			name := c.Chapter
+			if strings.TrimSpace(name) == "" {
+				name = fmt.Sprintf("Part %d", i+1)
+			}
+			fmt.Fprintf(chapterFile, "title=%s\n", name)
+			elapsed += c.Duration
+		}
+		_ = chapterFile.Close()
+		defer os.Remove(chapterFile.Name())
 	}
-	_ = chapterFile.Close()
 
 	args := []string{
 		"-y",
@@ -1899,9 +1914,9 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 		"-f", "concat",
 		"-safe", "0",
 		"-i", listFile.Name(),
-		"-i", chapterFile.Name(),
-		"-map_metadata", "1",
-		"-map_chapters", "1",
+	}
+	if withChapters && chapterFile != nil {
+		args = append(args, "-i", chapterFile.Name(), "-map_metadata", "1", "-map_chapters", "1")
 	}
 
 	// Map streams
@@ -2622,6 +2637,10 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	center := math.Max(0, src.Duration/2-10)
 	start := fmt.Sprintf("%.2f", center)
 
+	if progressCallback != nil {
+		progressCallback(0)
+	}
+
 	args := []string{
 		"-y",
 		"-hide_banner",
@@ -2649,6 +2668,12 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			scaleFilter = "scale=-2:2160"
 		case "8K":
 			scaleFilter = "scale=-2:4320"
+		case "NTSC (720×480)":
+			scaleFilter = "scale=720:480"
+		case "PAL (720×540)":
+			scaleFilter = "scale=720:540"
+		case "PAL (720×576)":
+			scaleFilter = "scale=720:576"
 		}
 		if scaleFilter != "" {
 			vf = append(vf, scaleFilter)
@@ -2925,11 +2950,12 @@ func runGUI() {
 			AspectHandling:   "Auto",
 			AspectUserSet:    false,
 		},
-		player:       player.New(),
-		playerVolume: 100,
-		lastVolume:   100,
-		playerMuted:  false,
-		playerPaused: true,
+		mergeChapters: true,
+		player:        player.New(),
+		playerVolume:  100,
+		lastVolume:    100,
+		playerMuted:   false,
+		playerPaused:  true,
 	}
 
 	if cfg, err := loadPersistedConvertConfig(); err == nil {
@@ -3727,7 +3753,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Simple resolution selector (separate widget to avoid double-parent issues)
 	resolutionSelectSimple := widget.NewSelect([]string{
 		"Source", "360p", "480p", "540p", "720p", "1080p", "1440p", "4K",
-		"NTSC (720×480)", "PAL (720×576)",
+		"NTSC (720×480)", "PAL (720×540)", "PAL (720×576)",
 	}, func(value string) {
 		state.convert.TargetResolution = value
 		logging.Debug(logging.CatUI, "target resolution set to %s (simple)", value)
@@ -3910,7 +3936,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	updateEncodingControls()
 
 	// Target Resolution (advanced)
-	resolutionSelect := widget.NewSelect([]string{"Source", "720p", "1080p", "1440p", "4K", "NTSC (720×480)", "PAL (720×576)"}, func(value string) {
+	resolutionSelect := widget.NewSelect([]string{"Source", "720p", "1080p", "1440p", "4K", "NTSC (720×480)", "PAL (720×540)", "PAL (720×576)"}, func(value string) {
 		state.convert.TargetResolution = value
 		logging.Debug(logging.CatUI, "target resolution set to %s", value)
 	})
@@ -4051,6 +4077,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		targetFileSizeEntry.Enable()
 		targetFileSizeSelect.Enable()
 		crfEntry.Enable()
+		bitratePresetSelect.Show()
+		simpleBitrateSelect.Show()
+		targetFileSizeEntry.Show()
+		targetFileSizeSelect.Show()
+		crfEntry.Show()
 
 		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
 		if isDVD {
@@ -4065,20 +4096,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			)
 
 			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
-				dvdNotes = "NTSC DVD: 720×480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 6000k default, 9000k max PS2-safe)"
+				dvdNotes = "NTSC DVD: 720×480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k, 9000k max PS2-safe)"
 				targetRes = "NTSC (720×480)"
 				targetFPS = "29.97"
-				dvdBitrate = "6000k"
+				dvdBitrate = "8000k"
 			} else if strings.Contains(state.convert.SelectedFormat.Label, "PAL") {
-				dvdNotes = "PAL DVD: 720×576 @ 25fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k default, 9500k max)"
-				targetRes = "PAL (720×576)"
+				dvdNotes = "PAL DVD: 720×540 @ 25fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k default, 9500k max)"
+				targetRes = "PAL (720×540)"
 				targetFPS = "25"
 				dvdBitrate = "8000k"
 			} else {
 				dvdNotes = "DVD format selected"
 				targetRes = "NTSC (720×480)"
 				targetFPS = "29.97"
-				dvdBitrate = "6000k"
+				dvdBitrate = "8000k"
 			}
 
 			if strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "4:3") {
@@ -4133,9 +4164,22 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			targetFileSizeSelect.Disable()
 			crfEntry.Disable()
 
+			// Hide bitrate/target-size fields to declutter in locked DVD mode
+			bitratePresetSelect.Hide()
+			simpleBitrateSelect.Hide()
+			targetFileSizeEntry.Hide()
+			targetFileSizeSelect.Hide()
+			crfEntry.Hide()
+
 			dvdInfoLabel.SetText(fmt.Sprintf("%s\nLocked: resolution, frame rate, aspect, codec, pixel format, bitrate, and GPU toggles for DVD compliance.", dvdNotes))
 		} else {
 			dvdAspectBox.Hide()
+			// Re-show hidden controls
+			bitratePresetSelect.Show()
+			simpleBitrateSelect.Show()
+			targetFileSizeEntry.Show()
+			targetFileSizeSelect.Show()
+			crfEntry.Show()
 		}
 	}
 	updateDVDOptions()
@@ -4326,7 +4370,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			return
 		}
 		src := state.source
-		outName := fmt.Sprintf("%s-snippet-%d.mp4", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix())
+		ext := state.convert.SelectedFormat.Ext
+		if ext == "" {
+			ext = ".mp4"
+		}
+		outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix(), ext)
 		outPath := filepath.Join(filepath.Dir(src.Path), outName)
 
 		cfgBytes, _ := json.Marshal(state.convert)
@@ -6348,6 +6396,15 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	// Note: We do NOT force resolution - user can choose Source or specific resolution
 	if isDVD {
 		if strings.Contains(cfg.SelectedFormat.Label, "PAL") {
+			cfg.TargetResolution = "PAL (720×540)"
+			cfg.FrameRate = "25"
+		} else {
+			cfg.TargetResolution = "NTSC (720×480)"
+			cfg.FrameRate = "29.97"
+		}
+		cfg.VideoBitrate = "8000k"
+		cfg.BitrateMode = "CBR"
+		if strings.Contains(cfg.SelectedFormat.Label, "PAL") {
 			// Only set frame rate if not already specified
 			if cfg.FrameRate == "" || cfg.FrameRate == "Source" {
 				cfg.FrameRate = "25"
@@ -6477,6 +6534,12 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			scaleFilter = "scale=-2:2160"
 		case "8K":
 			scaleFilter = "scale=-2:4320"
+		case "NTSC (720×480)":
+			scaleFilter = "scale=720:480"
+		case "PAL (720×540)":
+			scaleFilter = "scale=720:540"
+		case "PAL (720×576)":
+			scaleFilter = "scale=720:576"
 		}
 		if scaleFilter != "" {
 			vf = append(vf, scaleFilter)
