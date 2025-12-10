@@ -4095,6 +4095,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				dvdBitrate string
 			)
 
+			// Prefer the explicit DVD aspect select if set; otherwise derive from source
+			targetAR = dvdAspectSelect.Selected
+
 			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
 				dvdNotes = "NTSC DVD: 720×480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k, 9000k max PS2-safe)"
 				targetRes = "NTSC (720×480)"
@@ -4116,6 +4119,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				targetAR = "4:3"
 			} else {
 				targetAR = "16:9"
+			}
+
+			// If aspect still unset, derive from source
+			if targetAR == "" || strings.EqualFold(targetAR, "Source") {
+				if src != nil {
+					if ar := utils.AspectRatioFloat(src.Width, src.Height); ar > 0 && ar < 1.6 {
+						targetAR = "4:3"
+					} else {
+						targetAR = "16:9"
+					}
+				} else {
+					targetAR = "16:9"
+				}
 			}
 
 			// Apply locked values for DVD compliance
