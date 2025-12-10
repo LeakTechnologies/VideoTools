@@ -3186,6 +3186,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// DVD info label showing specs based on format selected
 	dvdInfoLabel := widget.NewLabel("")
 	dvdInfoLabel.Wrapping = fyne.TextWrapWord
+	dvdInfoLabel.Alignment = fyne.TextAlignLeading
 
 	dvdAspectBox := container.NewVBox(dvdAspectLabel, dvdAspectSelect, dvdInfoLabel)
 	dvdAspectBox.Hide() // Hidden by default
@@ -3463,7 +3464,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	coverDisplay = widget.NewLabel("Cover Art: " + state.convert.CoverLabel())
 
 	// Video Codec selection
-	videoCodecSelect := widget.NewSelect([]string{"H.264", "H.265", "VP9", "AV1", "Copy"}, func(value string) {
+	videoCodecSelect := widget.NewSelect([]string{"H.264", "H.265", "VP9", "AV1", "MPEG-2", "Copy"}, func(value string) {
 		state.convert.VideoCodec = value
 		logging.Debug(logging.CatUI, "video codec set to %s", value)
 		if updateQualityVisibility != nil {
@@ -4033,27 +4034,79 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Now define updateDVDOptions with access to resolution and framerate selects
 	updateDVDOptions = func() {
+		// Clear locks by default so non-DVD formats remain flexible
+		resolutionSelectSimple.Enable()
+		resolutionSelect.Enable()
+		frameRateSelect.Enable()
+		targetAspectSelectSimple.Enable()
+		targetAspectSelect.Enable()
+		pixelFormatSelect.Enable()
+		hwAccelSelect.Enable()
+		videoCodecSelect.Enable()
+
 		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
 		if isDVD {
 			dvdAspectBox.Show()
-			// Show DVD format info without forcing resolution
+
+			var (
+				targetRes string
+				targetFPS string
+				targetAR  string
+				dvdNotes  string
+			)
+
 			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
-				dvdInfoLabel.SetText("NTSC DVD: Standard 720×480 @ 29.97fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 6000k (default), 9000k (max PS2-safe)\nNote: Resolution defaults to 'Source' - change to 'NTSC (720×480)' for standard DVD compliance")
-				// Suggest framerate but don't force it
-				if state.convert.FrameRate == "" || state.convert.FrameRate == "Source" {
-					frameRateSelect.SetSelected("30") // Suggest 29.97fps
-					state.convert.FrameRate = "30"
-				}
+				dvdNotes = "NTSC DVD: 720×480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz"
+				targetRes = "NTSC (720×480)"
+				targetFPS = "29.97"
 			} else if strings.Contains(state.convert.SelectedFormat.Label, "PAL") {
-				dvdInfoLabel.SetText("PAL DVD: Standard 720×576 @ 25.00fps, MPEG-2, AC-3 Stereo 48kHz\nBitrate: 8000k (default), 9500k (max PS2-safe)\nNote: Resolution defaults to 'Source' - change to 'PAL (720×576)' for standard DVD compliance")
-				// Suggest framerate but don't force it
-				if state.convert.FrameRate == "" || state.convert.FrameRate == "Source" {
-					frameRateSelect.SetSelected("25")
-					state.convert.FrameRate = "25"
-				}
+				dvdNotes = "PAL DVD: 720×576 @ 25fps, MPEG-2 Video, AC-3 Stereo 48kHz"
+				targetRes = "PAL (720×576)"
+				targetFPS = "25"
 			} else {
-				dvdInfoLabel.SetText("DVD Format selected")
+				dvdNotes = "DVD format selected"
+				targetRes = "NTSC (720×480)"
+				targetFPS = "29.97"
 			}
+
+			if strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "4:3") {
+				targetAR = "4:3"
+			} else {
+				targetAR = "16:9"
+			}
+
+			// Apply locked values for DVD compliance
+			state.convert.TargetResolution = targetRes
+			resolutionSelectSimple.SetSelected(targetRes)
+			resolutionSelect.SetSelected(targetRes)
+			resolutionSelectSimple.Disable()
+			resolutionSelect.Disable()
+
+			state.convert.FrameRate = targetFPS
+			frameRateSelect.SetSelected(targetFPS)
+			frameRateSelect.Disable()
+
+			state.convert.OutputAspect = targetAR
+			state.convert.AspectUserSet = true
+			targetAspectSelectSimple.SetSelected(targetAR)
+			targetAspectSelect.SetSelected(targetAR)
+			targetAspectSelectSimple.Disable()
+			targetAspectSelect.Disable()
+			dvdAspectSelect.SetSelected(targetAR)
+
+			state.convert.PixelFormat = "yuv420p"
+			pixelFormatSelect.SetSelected("yuv420p")
+			pixelFormatSelect.Disable()
+
+			state.convert.HardwareAccel = "none"
+			hwAccelSelect.SetSelected("none")
+			hwAccelSelect.Disable()
+
+			state.convert.VideoCodec = "MPEG-2"
+			videoCodecSelect.SetSelected("MPEG-2")
+			videoCodecSelect.Disable()
+
+			dvdInfoLabel.SetText(fmt.Sprintf("%s\nResolution, frame rate, aspect, codec, pixel format, and GPU toggles are locked for DVD compliance.", dvdNotes))
 		} else {
 			dvdAspectBox.Hide()
 		}
