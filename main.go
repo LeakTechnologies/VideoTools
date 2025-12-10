@@ -3206,6 +3206,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		qualitySelectAdv     *widget.Select
 		qualitySectionSimple fyne.CanvasObject
 		qualitySectionAdv    fyne.CanvasObject
+		simpleBitrateSelect  *widget.Select
 	)
 	var (
 		updateEncodingControls  func()
@@ -3715,7 +3716,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	bitratePresetSelect.SetSelected(state.convert.BitratePreset)
 
 	// Simple bitrate selector (shares presets)
-	simpleBitrateSelect := widget.NewSelect(bitratePresetLabels, func(value string) {
+	simpleBitrateSelect = widget.NewSelect(bitratePresetLabels, func(value string) {
 		state.convert.BitratePreset = value
 		if applyBitratePreset != nil {
 			applyBitratePreset(value)
@@ -4043,30 +4044,41 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		pixelFormatSelect.Enable()
 		hwAccelSelect.Enable()
 		videoCodecSelect.Enable()
+		videoBitrateEntry.Enable()
+		bitrateModeSelect.Enable()
+		bitratePresetSelect.Enable()
+		simpleBitrateSelect.Enable()
+		targetFileSizeEntry.Enable()
+		targetFileSizeSelect.Enable()
+		crfEntry.Enable()
 
 		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
 		if isDVD {
 			dvdAspectBox.Show()
 
 			var (
-				targetRes string
-				targetFPS string
-				targetAR  string
-				dvdNotes  string
+				targetRes  string
+				targetFPS  string
+				targetAR   string
+				dvdNotes   string
+				dvdBitrate string
 			)
 
 			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
 				dvdNotes = "NTSC DVD: 720×480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 6000k default, 9000k max PS2-safe)"
 				targetRes = "NTSC (720×480)"
 				targetFPS = "29.97"
+				dvdBitrate = "6000k"
 			} else if strings.Contains(state.convert.SelectedFormat.Label, "PAL") {
 				dvdNotes = "PAL DVD: 720×576 @ 25fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k default, 9500k max)"
 				targetRes = "PAL (720×576)"
 				targetFPS = "25"
+				dvdBitrate = "8000k"
 			} else {
 				dvdNotes = "DVD format selected"
 				targetRes = "NTSC (720×480)"
 				targetFPS = "29.97"
+				dvdBitrate = "6000k"
 			}
 
 			if strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "4:3") {
@@ -4106,7 +4118,22 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			videoCodecSelect.SetSelected("MPEG-2")
 			videoCodecSelect.Disable()
 
-			dvdInfoLabel.SetText(fmt.Sprintf("%s\nLocked: resolution, frame rate, aspect, codec, pixel format, and GPU toggles for DVD compliance.", dvdNotes))
+			state.convert.VideoBitrate = dvdBitrate
+			videoBitrateEntry.SetText(dvdBitrate)
+			videoBitrateEntry.Disable()
+			state.convert.BitrateMode = "CBR"
+			bitrateModeSelect.SetSelected("CBR")
+			bitrateModeSelect.Disable()
+			state.convert.BitratePreset = "Manual"
+			bitratePresetSelect.SetSelected("Manual")
+			bitratePresetSelect.Disable()
+			simpleBitrateSelect.SetSelected("Manual")
+			simpleBitrateSelect.Disable()
+			targetFileSizeEntry.Disable()
+			targetFileSizeSelect.Disable()
+			crfEntry.Disable()
+
+			dvdInfoLabel.SetText(fmt.Sprintf("%s\nLocked: resolution, frame rate, aspect, codec, pixel format, bitrate, and GPU toggles for DVD compliance.", dvdNotes))
 		} else {
 			dvdAspectBox.Hide()
 		}
