@@ -1569,6 +1569,7 @@ func (s *appState) showMergeView() {
 	bottomBar := ui.TintedBar(mergeColor, container.NewHBox(layout.NewSpacer()))
 
 	listBox := container.NewVBox()
+	var addFiles func([]string)
 
 	var buildList func()
 	buildList = func() {
@@ -1631,7 +1632,7 @@ func (s *appState) showMergeView() {
 		listBox.Refresh()
 	}
 
-	addFiles := func(paths []string) {
+	addFiles = func(paths []string) {
 		for _, p := range paths {
 			src, err := probeVideo(p)
 			if err != nil {
