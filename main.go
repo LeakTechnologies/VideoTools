@@ -1311,6 +1311,39 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 		return
 	}
 
+	if moduleID == "merge" {
+		go func() {
+			var clips []mergeClip
+			for _, p := range videoPaths {
+				src, err := probeVideo(p)
+				if err != nil {
+					logging.Debug(logging.CatModule, "failed to probe merge clip %s: %v", p, err)
+					continue
+				}
+				clips = append(clips, mergeClip{
+					Path:     p,
+					Chapter:  strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)),
+					Duration: src.Duration,
+				})
+			}
+			if len(clips) == 0 {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowInformation("Merge", "No valid video files found.", s.window)
+				}, false)
+				return
+			}
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.mergeClips = append(s.mergeClips, clips...)
+				if len(s.mergeClips) >= 2 && strings.TrimSpace(s.mergeOutput) == "" {
+					first := filepath.Dir(s.mergeClips[0].Path)
+					s.mergeOutput = filepath.Join(first, "merged.mkv")
+				}
+				s.showMergeView()
+			}, false)
+		}()
+		return
+	}
+
 	// Single file or non-convert module: load first video and show module
 	path := videoPaths[0]
 	logging.Debug(logging.CatModule, "drop on module %s path=%s - starting load", moduleID, path)
