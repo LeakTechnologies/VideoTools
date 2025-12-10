@@ -4465,11 +4465,31 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	var convertBtn *widget.Button
 	var cancelBtn *widget.Button
+	var cancelQueueBtn *widget.Button
 	cancelBtn = widget.NewButton("Cancel", func() {
 		state.cancelConvert(cancelBtn, convertBtn, activity, statusLabel)
 	})
 	cancelBtn.Importance = widget.DangerImportance
 	cancelBtn.Disable()
+
+	cancelQueueBtn = widget.NewButton("Cancel Active Job", func() {
+		if state.jobQueue == nil {
+			dialog.ShowInformation("Cancel", "Queue not initialized.", state.window)
+			return
+		}
+		job := state.jobQueue.CurrentRunning()
+		if job == nil {
+			dialog.ShowInformation("Cancel", "No running job to cancel.", state.window)
+			return
+		}
+		if err := state.jobQueue.Cancel(job.ID); err != nil {
+			dialog.ShowError(fmt.Errorf("failed to cancel job: %w", err), state.window)
+			return
+		}
+		dialog.ShowInformation("Cancelled", fmt.Sprintf("Cancelled job: %s", job.Title), state.window)
+	})
+	cancelQueueBtn.Importance = widget.DangerImportance
+	cancelQueueBtn.Disable()
 
 	// Add to Queue button
 	addQueueBtn := widget.NewButton("Add to Queue", func() {
@@ -4594,7 +4614,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	leftControls := container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn, autoCompareCheck)
 	centerStatus := container.NewHBox(activity, statusLabel)
-	rightControls := container.NewHBox(cancelBtn, viewLogBtn, addQueueBtn, convertBtn)
+	rightControls := container.NewHBox(cancelBtn, cancelQueueBtn, viewLogBtn, addQueueBtn, convertBtn)
 	actionInner := container.NewBorder(nil, nil, leftControls, rightControls, centerStatus)
 	actionBar := ui.TintedBar(convertColor, actionInner)
 
@@ -4626,6 +4646,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 					if isBusy {
 						convertBtn.Disable()
 						cancelBtn.Enable()
+						if state.jobQueue != nil && state.jobQueue.CurrentRunning() != nil {
+							cancelQueueBtn.Enable()
+						} else {
+							cancelQueueBtn.Disable()
+						}
 						activity.Show()
 						if !activity.Running() {
 							activity.Start()
@@ -4637,6 +4662,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 							convertBtn.Disable()
 						}
 						cancelBtn.Disable()
+						if state.jobQueue != nil && state.jobQueue.CurrentRunning() != nil {
+							cancelQueueBtn.Enable()
+						} else {
+							cancelQueueBtn.Disable()
+						}
 						activity.Stop()
 						activity.Hide()
 					}

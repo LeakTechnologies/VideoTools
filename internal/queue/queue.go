@@ -186,6 +186,19 @@ func (q *Queue) Stats() (pending, running, completed, failed int) {
 	return
 }
 
+// CurrentRunning returns the currently running job, if any.
+func (q *Queue) CurrentRunning() *Job {
+	q.mu.RLock()
+	defer q.mu.RUnlock()
+	for _, job := range q.jobs {
+		if job.Status == JobStatusRunning {
+			clone := *job
+			return &clone
+		}
+	}
+	return nil
+}
+
 // Pause pauses a running job
 func (q *Queue) Pause(id string) error {
 	q.mu.Lock()
