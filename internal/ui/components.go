@@ -50,12 +50,12 @@ func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
 // ModuleTile is a clickable tile widget for module selection
 type ModuleTile struct {
 	widget.BaseWidget
-	label      string
-	color      color.Color
-	enabled    bool
-	onTapped   func()
-	onDropped  func([]fyne.URI)
-	flashing   bool
+	label       string
+	color       color.Color
+	enabled     bool
+	onTapped    func()
+	onDropped   func([]fyne.URI)
+	flashing    bool
 	draggedOver bool
 }
 
@@ -260,6 +260,70 @@ func (r *tappableRenderer) Refresh() {
 func (r *tappableRenderer) Destroy() {}
 
 func (r *tappableRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{r.content}
+}
+
+// Droppable wraps any canvas object and makes it a drop target (files/URIs)
+type Droppable struct {
+	widget.BaseWidget
+	content   fyne.CanvasObject
+	onDropped func([]fyne.URI)
+}
+
+// NewDroppable creates a new droppable wrapper
+func NewDroppable(content fyne.CanvasObject, onDropped func([]fyne.URI)) *Droppable {
+	d := &Droppable{
+		content:   content,
+		onDropped: onDropped,
+	}
+	d.ExtendBaseWidget(d)
+	return d
+}
+
+// CreateRenderer creates the renderer for the droppable
+func (d *Droppable) CreateRenderer() fyne.WidgetRenderer {
+	return &droppableRenderer{
+		droppable: d,
+		content:   d.content,
+	}
+}
+
+// DraggedOver highlights when drag is over (optional)
+func (d *Droppable) DraggedOver(pos fyne.Position) {
+	_ = pos
+}
+
+// DraggedOut clears highlight (optional)
+func (d *Droppable) DraggedOut() {}
+
+// Dropped handles drop events
+func (d *Droppable) Dropped(pos fyne.Position, items []fyne.URI) {
+	_ = pos
+	if d.onDropped != nil {
+		d.onDropped(items)
+	}
+}
+
+type droppableRenderer struct {
+	droppable *Droppable
+	content   fyne.CanvasObject
+}
+
+func (r *droppableRenderer) Layout(size fyne.Size) {
+	r.content.Resize(size)
+}
+
+func (r *droppableRenderer) MinSize() fyne.Size {
+	return r.content.MinSize()
+}
+
+func (r *droppableRenderer) Refresh() {
+	r.content.Refresh()
+}
+
+func (r *droppableRenderer) Destroy() {}
+
+func (r *droppableRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.content}
 }
 

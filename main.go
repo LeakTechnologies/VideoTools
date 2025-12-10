@@ -1574,9 +1574,21 @@ func (s *appState) showMergeView() {
 	buildList = func() {
 		listBox.Objects = nil
 		if len(s.mergeClips) == 0 {
-			empty := widget.NewLabel("Add at least two clips to merge.")
-			empty.Alignment = fyne.TextAlignCenter
-			listBox.Add(container.NewCenter(empty))
+			emptyLabel := widget.NewLabel("Add at least two clips to merge.")
+			emptyLabel.Alignment = fyne.TextAlignCenter
+			// Make empty state a drop target
+			emptyDrop := ui.NewDroppable(container.NewCenter(emptyLabel), func(items []fyne.URI) {
+				var paths []string
+				for _, uri := range items {
+					if uri.Scheme() == "file" {
+						paths = append(paths, uri.Path())
+					}
+				}
+				if len(paths) > 0 {
+					addFiles(paths)
+				}
+			})
+			listBox.Add(container.NewMax(emptyDrop))
 		} else {
 			for i, c := range s.mergeClips {
 				idx := i
