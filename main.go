@@ -6402,6 +6402,21 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		outPath = filepath.Join(outDir, "converted-"+outName)
 	}
 
+	// Guard against overwriting an existing file without confirmation
+	if _, err := os.Stat(outPath); err == nil {
+		confirm := make(chan bool, 1)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			msg := fmt.Sprintf("Output file already exists:\n%s\n\nOverwrite it?", outPath)
+			dialog.ShowConfirm("Overwrite File?", msg, func(ok bool) {
+				confirm <- ok
+			}, s.window)
+		}, false)
+		if ok := <-confirm; !ok {
+			setStatus("Cancelled (existing output)")
+			return
+		}
+	}
+
 	args := []string{
 		"-y",
 		"-hide_banner",
