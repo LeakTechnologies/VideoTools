@@ -1018,7 +1018,8 @@ func (s *appState) refreshQueueView() {
 		func() { // onClearAll
 			s.jobQueue.ClearAll()
 			s.clearVideo()
-			s.refreshQueueView() // Refresh
+			// Return to main menu after clearing everything to avoid dangling in queue
+			s.showMainMenu()
 		},
 		func(id string) { // onCopyError
 			job, err := s.jobQueue.Get(id)
