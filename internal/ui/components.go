@@ -268,7 +268,6 @@ type Droppable struct {
 	widget.BaseWidget
 	content   fyne.CanvasObject
 	onDropped func([]fyne.URI)
-	dragged   bool
 }
 
 // NewDroppable creates a new droppable wrapper
@@ -292,19 +291,14 @@ func (d *Droppable) CreateRenderer() fyne.WidgetRenderer {
 // DraggedOver highlights when drag is over (optional)
 func (d *Droppable) DraggedOver(pos fyne.Position) {
 	_ = pos
-	d.dragged = true
-	d.Refresh()
 }
 
 // DraggedOut clears highlight (optional)
 func (d *Droppable) DraggedOut() {
-	d.dragged = false
-	d.Refresh()
 }
 
 // Dropped handles drop events
 func (d *Droppable) Dropped(_ fyne.Position, items []fyne.URI) {
-	d.dragged = false
 	if d.onDropped != nil && len(items) > 0 {
 		d.onDropped(items)
 	}
