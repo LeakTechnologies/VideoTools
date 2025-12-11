@@ -1566,7 +1566,7 @@ func (s *appState) showMergeView() {
 	s.updateQueueButtonLabel()
 
 	topBar := ui.TintedBar(mergeColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-	bottomBar := ui.TintedBar(mergeColor, container.NewHBox(layout.NewSpacer()))
+	bottomBar := ui.TintedBar(mergeColor, container.NewHBox(s.statsBar, layout.NewSpacer()))
 
 	listBox := container.NewVBox()
 	var addFiles func([]string)
@@ -1831,6 +1831,7 @@ func (s *appState) showMergeView() {
 	s.setContent(container.NewBorder(topBar, bottomBar, nil, nil, container.NewPadded(content)))
 
 	buildList()
+	s.updateStatsBar()
 }
 
 func (s *appState) addMergeToQueue(startNow bool) error {
