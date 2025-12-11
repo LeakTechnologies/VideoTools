@@ -1570,6 +1570,8 @@ func (s *appState) showMergeView() {
 
 	listBox := container.NewVBox()
 	var addFiles func([]string)
+	var addQueueBtn *widget.Button
+	var runNowBtn *widget.Button
 
 	var buildList func()
 	buildList = func() {
@@ -1630,6 +1632,15 @@ func (s *appState) showMergeView() {
 			}
 		}
 		listBox.Refresh()
+		if addQueueBtn != nil && runNowBtn != nil {
+			if len(s.mergeClips) >= 2 {
+				addQueueBtn.Enable()
+				runNowBtn.Enable()
+			} else {
+				addQueueBtn.Disable()
+				runNowBtn.Disable()
+			}
+		}
 	}
 
 	addFiles = func(paths []string) {
@@ -1757,7 +1768,7 @@ func (s *appState) showMergeView() {
 		}, s.window)
 	})
 
-	addQueueBtn := widget.NewButton("Add Merge to Queue", func() {
+	addQueueBtn = widget.NewButton("Add Merge to Queue", func() {
 		if err := s.addMergeToQueue(false); err != nil {
 			dialog.ShowError(err, s.window)
 			return
