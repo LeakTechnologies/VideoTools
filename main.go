@@ -1778,7 +1778,7 @@ func (s *appState) showMergeView() {
 			s.jobQueue.Start()
 		}
 	})
-	runNowBtn := widget.NewButton("Merge Now", func() {
+	runNowBtn = widget.NewButton("Merge Now", func() {
 		if err := s.addMergeToQueue(true); err != nil {
 			dialog.ShowError(err, s.window)
 			return
