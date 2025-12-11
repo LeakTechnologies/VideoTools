@@ -1923,9 +1923,20 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 	outputPath, _ := cfg["outputPath"].(string)
 
 	rawClips, _ := cfg["clips"].([]interface{})
+	rawClipMaps, _ := cfg["clips"].([]map[string]interface{})
 	var clips []mergeClip
-	for _, rc := range rawClips {
-		if m, ok := rc.(map[string]interface{}); ok {
+	if len(rawClips) > 0 {
+		for _, rc := range rawClips {
+			if m, ok := rc.(map[string]interface{}); ok {
+				clips = append(clips, mergeClip{
+					Path:     toString(m["path"]),
+					Chapter:  toString(m["chapter"]),
+					Duration: toFloat(m["duration"]),
+				})
+			}
+		}
+	} else if len(rawClipMaps) > 0 {
+		for _, m := range rawClipMaps {
 			clips = append(clips, mergeClip{
 				Path:     toString(m["path"]),
 				Chapter:  toString(m["chapter"]),
