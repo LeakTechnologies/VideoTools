@@ -2047,20 +2047,66 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 
 	args = append(args, outputPath)
 
+	// Add progress output for live updates
+	args = append(args, "-progress", "pipe:1", "-nostats")
+
 	// Execute
 	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
 	utils.ApplyNoWindow(cmd)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("merge stdout pipe: %w", err)
+	}
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
+
 	if progressCallback != nil {
 		progressCallback(0)
 	}
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("merge failed: %w\nFFmpeg output:\n%s", err, strings.TrimSpace(stderr.String()))
+
+	// Track total duration for progress
+	var totalDur float64
+	for _, c := range clips {
+		if c.Duration > 0 {
+			totalDur += c.Duration
+		}
 	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("merge start failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
+	}
+
+	// Parse progress
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			key, val := parts[0], parts[1]
+			if key == "out_time_ms" && totalDur > 0 && progressCallback != nil {
+				if ms, err := strconv.ParseFloat(val, 64); err == nil {
+					pct := (ms / 1000.0 / totalDur) * 100
+					if pct > 100 {
+						pct = 100
+					}
+					progressCallback(pct)
+				}
+			}
+		}
+	}()
+
+	err = cmd.Wait()
 	if progressCallback != nil {
 		progressCallback(100)
+	}
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("merge failed: %w\nFFmpeg output:\n%s", err, strings.TrimSpace(stderr.String()))
 	}
 	return nil
 }
