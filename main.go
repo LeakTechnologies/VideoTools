@@ -1788,7 +1788,17 @@ func (s *appState) showMergeView() {
 	left := container.NewVBox(
 		widget.NewLabelWithStyle("Clips to Merge", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		container.NewHBox(addBtn, clearBtn),
-		listScroll,
+		ui.NewDroppable(listScroll, func(items []fyne.URI) {
+			var paths []string
+			for _, uri := range items {
+				if uri.Scheme() == "file" {
+					paths = append(paths, uri.Path())
+				}
+			}
+			if len(paths) > 0 {
+				addFiles(paths)
+			}
+		}),
 	)
 
 	right := container.NewVBox(
