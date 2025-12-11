@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -288,19 +289,16 @@ func (d *Droppable) CreateRenderer() fyne.WidgetRenderer {
 	}
 }
 
-// DraggedOver highlights when drag is over (optional)
-func (d *Droppable) DraggedOver(pos fyne.Position) {
-	_ = pos
-}
+// Dragged satisfies desktop.DropTarget; no-op highlight for now.
+func (d *Droppable) Dragged(_ *desktop.DragEvent) {}
 
 // DraggedOut clears highlight (optional)
 func (d *Droppable) DraggedOut() {}
 
 // Dropped handles drop events
-func (d *Droppable) Dropped(pos fyne.Position, items []fyne.URI) {
-	_ = pos
-	if d.onDropped != nil {
-		d.onDropped(items)
+func (d *Droppable) Dropped(ev *desktop.DragEvent) {
+	if d.onDropped != nil && ev != nil {
+		d.onDropped(ev.URIs)
 	}
 }
 

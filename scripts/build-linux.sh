@@ -29,17 +29,24 @@ echo ""
 cd "$PROJECT_ROOT"
 
 echo "🧹 Cleaning previous builds and cache..."
-go clean -cache -modcache -testcache 2>/dev/null || true
+go clean -cache -testcache 2>/dev/null || true
 rm -f "$BUILD_OUTPUT" 2>/dev/null || true
 # Also clear build cache directory to avoid permission issues
 rm -rf "${GOCACHE:-$HOME/.cache/go-build}" 2>/dev/null || true
 echo "✓ Cache cleaned"
 echo ""
 
-echo "⬇️  Downloading and verifying dependencies..."
-go mod download
-go mod verify
-echo "✓ Dependencies verified"
+echo "⬇️  Downloading and verifying dependencies (skips if already cached)..."
+if go list -m all >/dev/null 2>&1; then
+    echo "✓ Dependencies already present"
+else
+    if go mod download && go mod verify; then
+        echo "✓ Dependencies downloaded and verified"
+    else
+        echo "❌ Failed to download/verify modules. Check network/GOPROXY or try again."
+        exit 1
+    fi
+fi
 echo ""
 
 echo "🔨 Building VideoTools..."
