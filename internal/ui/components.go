@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -269,6 +268,7 @@ type Droppable struct {
 	widget.BaseWidget
 	content   fyne.CanvasObject
 	onDropped func([]fyne.URI)
+	dragged   bool
 }
 
 // NewDroppable creates a new droppable wrapper
@@ -289,27 +289,24 @@ func (d *Droppable) CreateRenderer() fyne.WidgetRenderer {
 	}
 }
 
-// Dragged satisfies desktop.DropTarget; no-op highlight for now.
-func (d *Droppable) Dragged(_ *desktop.DragEvent) {}
+// DraggedOver highlights when drag is over (optional)
+func (d *Droppable) DraggedOver(pos fyne.Position) {
+	_ = pos
+	d.dragged = true
+	d.Refresh()
+}
 
 // DraggedOut clears highlight (optional)
-func (d *Droppable) DraggedOut() {}
+func (d *Droppable) DraggedOut() {
+	d.dragged = false
+	d.Refresh()
+}
 
 // Dropped handles drop events
-func (d *Droppable) Dropped(ev *desktop.DragEvent) {
-	if d.onDropped == nil || ev == nil {
-		return
-	}
-	if len(ev.URIs) > 0 {
-		d.onDropped(ev.URIs)
-		return
-	}
-	if ev.DraggedObj != nil {
-		if fileURI, ok := ev.DraggedObj.(*fyne.StaticResource); ok && fileURI != nil {
-			if u, err := fyne.ParseURI(fileURI.Name()); err == nil {
-				d.onDropped([]fyne.URI{u})
-			}
-		}
+func (d *Droppable) Dropped(_ fyne.Position, items []fyne.URI) {
+	d.dragged = false
+	if d.onDropped != nil && len(items) > 0 {
+		d.onDropped(items)
 	}
 }
 
