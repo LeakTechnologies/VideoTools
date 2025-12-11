@@ -297,8 +297,19 @@ func (d *Droppable) DraggedOut() {}
 
 // Dropped handles drop events
 func (d *Droppable) Dropped(ev *desktop.DragEvent) {
-	if d.onDropped != nil && ev != nil {
+	if d.onDropped == nil || ev == nil {
+		return
+	}
+	if len(ev.URIs) > 0 {
 		d.onDropped(ev.URIs)
+		return
+	}
+	if ev.DraggedObj != nil {
+		if fileURI, ok := ev.DraggedObj.(*fyne.StaticResource); ok && fileURI != nil {
+			if u, err := fyne.ParseURI(fileURI.Name()); err == nil {
+				d.onDropped([]fyne.URI{u})
+			}
+		}
 	}
 }
 
