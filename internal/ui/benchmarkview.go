@@ -113,12 +113,14 @@ func (v *BenchmarkProgressView) GetContainer() *fyne.Container {
 // UpdateProgress updates the progress bar and labels
 func (v *BenchmarkProgressView) UpdateProgress(current, total int, encoder, preset string) {
 	pct := float64(current) / float64(total)
-	v.progressBar.SetValue(pct)
-	v.statusLabel.SetText(fmt.Sprintf("Testing encoder %d of %d", current, total))
-	v.currentLabel.SetText(fmt.Sprintf("Testing: %s (preset: %s)", encoder, preset))
-	v.progressBar.Refresh()
-	v.statusLabel.Refresh()
-	v.currentLabel.Refresh()
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		v.progressBar.SetValue(pct)
+		v.statusLabel.SetText(fmt.Sprintf("Testing encoder %d of %d", current, total))
+		v.currentLabel.SetText(fmt.Sprintf("Testing: %s (preset: %s)", encoder, preset))
+		v.progressBar.Refresh()
+		v.statusLabel.Refresh()
+		v.currentLabel.Refresh()
+	}, false)
 }
 
 // AddResult adds a completed test result to the display
@@ -162,20 +164,24 @@ func (v *BenchmarkProgressView) AddResult(result benchmark.Result) {
 		container.NewMax(card, content),
 	)
 
-	v.resultsBox.Add(item)
-	v.resultsBox.Refresh()
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		v.resultsBox.Add(item)
+		v.resultsBox.Refresh()
+	}, false)
 }
 
 // SetComplete marks the benchmark as complete
 func (v *BenchmarkProgressView) SetComplete() {
-	v.statusLabel.SetText("Benchmark complete!")
-	v.progressBar.SetValue(1.0)
-	v.currentLabel.SetText("")
-	v.cancelBtn.SetText("Close")
-	v.statusLabel.Refresh()
-	v.progressBar.Refresh()
-	v.currentLabel.Refresh()
-	v.cancelBtn.Refresh()
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		v.statusLabel.SetText("Benchmark complete!")
+		v.progressBar.SetValue(1.0)
+		v.currentLabel.SetText("")
+		v.cancelBtn.SetText("Close")
+		v.statusLabel.Refresh()
+		v.progressBar.Refresh()
+		v.currentLabel.Refresh()
+		v.cancelBtn.Refresh()
+	}, false)
 }
 
 // BuildBenchmarkResultsView creates the final results/recommendation UI
