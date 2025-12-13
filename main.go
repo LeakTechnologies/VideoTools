@@ -1709,6 +1709,30 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 		return
 	}
 
+	// If thumb module, load video into thumb slot
+	if moduleID == "thumb" {
+		path := videoPaths[0]
+		go func() {
+			src, err := probeVideo(path)
+			if err != nil {
+				logging.Debug(logging.CatModule, "failed to load video for thumb: %v", err)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+				}, false)
+				return
+			}
+
+			// Update state and show module (with small delay to allow flash animation)
+			time.Sleep(350 * time.Millisecond)
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.thumbFile = src
+				s.showModule(moduleID)
+				logging.Debug(logging.CatModule, "loaded video for thumb module")
+			}, false)
+		}()
+		return
+	}
+
 	// Single file or non-convert module: load first video and show module
 	path := videoPaths[0]
 	logging.Debug(logging.CatModule, "drop on module %s path=%s - starting load", moduleID, path)
@@ -6767,6 +6791,47 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 						s.showInspectView() // Refresh to show results
 					}, false)
 				}()
+			}, false)
+		}()
+
+		return
+	}
+
+	// If in thumb module, handle single video file
+	if s.active == "thumb" {
+		// Collect video files from dropped items
+		var videoPaths []string
+		for _, uri := range items {
+			if uri.Scheme() != "file" {
+				continue
+			}
+			path := uri.Path()
+			if s.isVideoFile(path) {
+				videoPaths = append(videoPaths, path)
+			}
+		}
+
+		if len(videoPaths) == 0 {
+			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			dialog.ShowInformation("Thumbnail Generation", "No video files found in dropped items.", s.window)
+			return
+		}
+
+		// Load first video
+		go func() {
+			src, err := probeVideo(videoPaths[0])
+			if err != nil {
+				logging.Debug(logging.CatModule, "failed to load video for thumb: %v", err)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+				}, false)
+				return
+			}
+
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.thumbFile = src
+				s.showThumbView()
+				logging.Debug(logging.CatModule, "loaded video into thumb module")
 			}, false)
 		}()
 
