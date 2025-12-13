@@ -2130,11 +2130,13 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 
 	// Track total duration for progress
 	var totalDur float64
-	for _, c := range clips {
+	for i, c := range clips {
 		if c.Duration > 0 {
 			totalDur += c.Duration
+			logging.Debug(logging.CatFFMPEG, "merge clip %d duration: %.2fs (path: %s)", i, c.Duration, filepath.Base(c.Path))
 		}
 	}
+	logging.Debug(logging.CatFFMPEG, "merge total expected duration: %.2fs (%d clips)", totalDur, len(clips))
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("merge start failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
@@ -2143,6 +2145,7 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 	// Parse progress
 	go func() {
 		scanner := bufio.NewScanner(stdout)
+		var lastPct float64
 		for scanner.Scan() {
 			line := scanner.Text()
 			parts := strings.SplitN(line, "=", 2)
@@ -2152,11 +2155,25 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 			key, val := parts[0], parts[1]
 			if key == "out_time_ms" && totalDur > 0 && progressCallback != nil {
 				if ms, err := strconv.ParseFloat(val, 64); err == nil {
-					pct := (ms / 1000.0 / totalDur) * 100
+					currentSec := ms / 1000.0
+					pct := (currentSec / totalDur) * 100
+
+					// Debug logging to diagnose progress issues
+					if pct >= 100 && lastPct < 100 {
+						logging.Debug(logging.CatFFMPEG, "merge progress hit 100%%: out_time=%.2fs total_duration=%.2fs", currentSec, totalDur)
+					}
+
+					// Don't cap at 100% - let it go slightly over to avoid premature 100%
+					// FFmpeg's concat can sometimes report slightly different durations
 					if pct > 100 {
 						pct = 100
 					}
-					progressCallback(pct)
+
+					// Only update if changed by at least 0.1%
+					if pct-lastPct >= 0.1 || pct >= 100 {
+						lastPct = pct
+						progressCallback(pct)
+					}
 				}
 			}
 		}
