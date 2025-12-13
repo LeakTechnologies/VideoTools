@@ -43,6 +43,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/thumbnail"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 	"github.com/hajimehoshi/oto"
@@ -70,7 +71,7 @@ var (
 	logsDirOnce     sync.Once
 	logsDirPath     string
 	feedbackBundler = utils.NewFeedbackBundler()
-	appVersion      = "v0.1.0-dev16"
+	appVersion      = "v0.1.0-dev17"
 
 	hwAccelProbeOnce sync.Once
 	hwAccelSupported atomic.Value // map[string]bool
@@ -615,6 +616,15 @@ type appState struct {
 	mergeCodecMode string
 	mergeChapters  bool
 
+	// Thumbnail module state
+	thumbFile         *videoSource
+	thumbCount        int
+	thumbWidth        int
+	thumbContactSheet bool
+	thumbColumns      int
+	thumbRows         int
+	thumbGenerating   bool
+
 	// Interlacing detection state
 	interlaceResult     *interlace.DetectionResult
 	interlaceAnalyzing  bool
@@ -906,7 +916,7 @@ func (s *appState) showMainMenu() {
 			Label:    m.Label,
 			Color:    m.Color,
 			Category: m.Category,
-			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge", // Enabled modules
+			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb", // Enabled modules
 		})
 	}
 
@@ -1516,6 +1526,8 @@ func (s *appState) showModule(id string) {
 		s.showCompareView()
 	case "inspect":
 		s.showInspectView()
+	case "thumb":
+		s.showThumbView()
 	default:
 		logging.Debug(logging.CatUI, "UI module %s not wired yet", id)
 	}
@@ -1894,6 +1906,13 @@ func (s *appState) showInspectView() {
 	s.lastModule = s.active
 	s.active = "inspect"
 	s.setContent(buildInspectView(s))
+}
+
+func (s *appState) showThumbView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "thumb"
+	s.setContent(buildThumbView(s))
 }
 
 func (s *appState) showMergeView() {
@@ -9522,6 +9541,238 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
+}
+
+// buildThumbView creates the thumbnail generation UI
+func buildThumbView(state *appState) fyne.CanvasObject {
+	thumbColor := moduleColor("thumb")
+
+	// Back button
+	backBtn := widget.NewButton("< THUMBNAILS", func() {
+		state.showMainMenu()
+	})
+	backBtn.Importance = widget.LowImportance
+
+	// Top bar with module color
+	topBar := ui.TintedBar(thumbColor, container.NewHBox(backBtn, layout.NewSpacer()))
+
+	// Instructions
+	instructions := widget.NewLabel("Generate thumbnails from a video file. Load a video and configure settings.")
+	instructions.Wrapping = fyne.TextWrapWord
+	instructions.Alignment = fyne.TextAlignCenter
+
+	// Initialize state defaults
+	if state.thumbCount == 0 {
+		state.thumbCount = 24 // Default to 24 thumbnails (good for contact sheets)
+	}
+	if state.thumbWidth == 0 {
+		state.thumbWidth = 320
+	}
+	if state.thumbColumns == 0 {
+		state.thumbColumns = 4 // 4 columns works well for widescreen videos
+	}
+	if state.thumbRows == 0 {
+		state.thumbRows = 6 // 4x6 = 24 thumbnails
+	}
+
+	// File label
+	fileLabel := widget.NewLabel("No file loaded")
+	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	if state.thumbFile != nil {
+		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.thumbFile.Path)))
+	}
+
+	// Load button
+	loadBtn := widget.NewButton("Load Video", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			path := reader.URI().Path()
+			reader.Close()
+
+			src, err := probeVideo(path)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
+				return
+			}
+
+			state.thumbFile = src
+			state.showThumbView()
+			logging.Debug(logging.CatModule, "loaded thumbnail file: %s", path)
+		}, state.window)
+	})
+
+	// Clear button
+	clearBtn := widget.NewButton("Clear", func() {
+		state.thumbFile = nil
+		state.showThumbView()
+	})
+	clearBtn.Importance = widget.LowImportance
+
+	// Thumbnail count slider
+	countLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Count: %d", state.thumbCount))
+	countSlider := widget.NewSlider(3, 50)
+	countSlider.Value = float64(state.thumbCount)
+	countSlider.Step = 1
+	countSlider.OnChanged = func(val float64) {
+		state.thumbCount = int(val)
+		countLabel.SetText(fmt.Sprintf("Thumbnail Count: %d", int(val)))
+	}
+
+	// Thumbnail width slider
+	widthLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Width: %d px", state.thumbWidth))
+	widthSlider := widget.NewSlider(160, 640)
+	widthSlider.Value = float64(state.thumbWidth)
+	widthSlider.Step = 32
+	widthSlider.OnChanged = func(val float64) {
+		state.thumbWidth = int(val)
+		widthLabel.SetText(fmt.Sprintf("Thumbnail Width: %d px", int(val)))
+	}
+
+	// Contact sheet checkbox
+	contactSheetCheck := widget.NewCheck("Generate Contact Sheet (single image)", func(checked bool) {
+		state.thumbContactSheet = checked
+		state.showThumbView()
+	})
+	contactSheetCheck.Checked = state.thumbContactSheet
+
+	// Contact sheet grid options (only show if contact sheet is enabled)
+	var gridOptions fyne.CanvasObject
+	if state.thumbContactSheet {
+		colLabel := widget.NewLabel(fmt.Sprintf("Columns: %d", state.thumbColumns))
+		colSlider := widget.NewSlider(2, 12)
+		colSlider.Value = float64(state.thumbColumns)
+		colSlider.Step = 1
+		colSlider.OnChanged = func(val float64) {
+			state.thumbColumns = int(val)
+			colLabel.SetText(fmt.Sprintf("Columns: %d", int(val)))
+		}
+
+		rowLabel := widget.NewLabel(fmt.Sprintf("Rows: %d", state.thumbRows))
+		rowSlider := widget.NewSlider(2, 12)
+		rowSlider.Value = float64(state.thumbRows)
+		rowSlider.Step = 1
+		rowSlider.OnChanged = func(val float64) {
+			state.thumbRows = int(val)
+			rowLabel.SetText(fmt.Sprintf("Rows: %d", int(val)))
+		}
+
+		gridOptions = container.NewVBox(
+			widget.NewSeparator(),
+			widget.NewLabel("Contact Sheet Grid:"),
+			colLabel,
+			colSlider,
+			rowLabel,
+			rowSlider,
+		)
+	} else {
+		gridOptions = container.NewVBox()
+	}
+
+	// Generate button
+	generateBtn := widget.NewButton("Generate Thumbnails", func() {
+		if state.thumbFile == nil {
+			dialog.ShowInformation("No Video", "Please load a video file first.", state.window)
+			return
+		}
+
+		state.thumbGenerating = true
+		state.showThumbView()
+
+		go func() {
+			// Create temp directory for thumbnails
+			outputDir := filepath.Join(os.TempDir(), fmt.Sprintf("videotools_thumbs_%d", time.Now().Unix()))
+
+			generator := thumbnail.NewGenerator(platformConfig.FFmpegPath)
+			config := thumbnail.Config{
+				VideoPath:     state.thumbFile.Path,
+				OutputDir:     outputDir,
+				Count:         state.thumbCount,
+				Width:         state.thumbWidth,
+				Format:        "jpg",
+				Quality:       85,
+				ContactSheet:  state.thumbContactSheet,
+				Columns:       state.thumbColumns,
+				Rows:          state.thumbRows,
+				ShowTimestamp: true,
+				ShowMetadata:  true,
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			defer cancel()
+
+			result, err := generator.Generate(ctx, config)
+
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				state.thumbGenerating = false
+
+				if err != nil {
+					logging.Debug(logging.CatSystem, "thumbnail generation failed: %v", err)
+					dialog.ShowError(fmt.Errorf("Thumbnail generation failed: %w", err), state.window)
+					state.showThumbView()
+					return
+				}
+
+				logging.Debug(logging.CatSystem, "generated %d thumbnails", len(result.Thumbnails))
+
+				// Show success dialog with option to open folder
+				confirmDialog := dialog.NewConfirm(
+					"Thumbnails Generated",
+					fmt.Sprintf("Successfully generated %d thumbnail(s) at:\n%s\n\nOpen folder?",
+						len(result.Thumbnails), outputDir),
+					func(open bool) {
+						if open {
+							openFolder(outputDir)
+						}
+					},
+					state.window,
+				)
+				confirmDialog.SetConfirmText("Open Folder")
+				confirmDialog.SetDismissText("Close")
+				confirmDialog.Show()
+
+				state.showThumbView()
+			}, false)
+		}()
+	})
+	generateBtn.Importance = widget.HighImportance
+
+	if state.thumbFile == nil {
+		generateBtn.Disable()
+	}
+
+	if state.thumbGenerating {
+		generateBtn.SetText("Generating...")
+		generateBtn.Disable()
+	}
+
+	// Settings panel
+	settingsPanel := container.NewVBox(
+		widget.NewLabel("Settings:"),
+		widget.NewSeparator(),
+		countLabel,
+		countSlider,
+		widthLabel,
+		widthSlider,
+		widget.NewSeparator(),
+		contactSheetCheck,
+		gridOptions,
+		widget.NewSeparator(),
+		generateBtn,
+	)
+
+	// Main content
+	content := container.NewBorder(
+		container.NewVBox(instructions, widget.NewSeparator(), fileLabel, container.NewHBox(loadBtn, clearBtn)),
+		nil,
+		nil,
+		nil,
+		settingsPanel,
+	)
+
+	return container.NewBorder(topBar, nil, nil, nil, content)
 }
 
 // buildCompareFullscreenView creates fullscreen side-by-side comparison with synchronized controls
