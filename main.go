@@ -38,6 +38,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
@@ -611,6 +612,10 @@ type appState struct {
 	mergeKeepAll   bool
 	mergeCodecMode string
 	mergeChapters  bool
+
+	// Interlacing detection state
+	interlaceResult     *interlace.DetectionResult
+	interlaceAnalyzing  bool
 }
 
 type mergeClip struct {
@@ -5440,6 +5445,116 @@ Metadata: %s`,
 
 	coverContainer := container.NewMax(placeholder, coverImg)
 
+	// Interlacing Analysis Section
+	analyzeBtn := widget.NewButton("Analyze Interlacing", func() {
+		if state.source == nil {
+			return
+		}
+		state.interlaceAnalyzing = true
+		state.interlaceResult = nil
+		state.showConvertView(state.source) // Refresh to show "Analyzing..."
+
+		go func() {
+			detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+
+			result, err := detector.QuickAnalyze(ctx, state.source.Path)
+
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				state.interlaceAnalyzing = false
+				if err != nil {
+					logging.Debug(logging.CatSystem, "interlacing analysis failed: %v", err)
+					dialog.ShowError(fmt.Errorf("Analysis failed: %w", err), state.window)
+				} else {
+					state.interlaceResult = result
+					logging.Debug(logging.CatSystem, "interlacing analysis complete: %s", result.Status)
+
+					// Auto-update deinterlace setting based on recommendation
+					if result.SuggestDeinterlace && state.convert.Deinterlace == "Off" {
+						state.convert.Deinterlace = "Auto"
+					}
+				}
+				state.showConvertView(state.source) // Refresh to show results
+			}, false)
+		}()
+	})
+	analyzeBtn.Importance = widget.MediumImportance
+
+	var interlaceSection fyne.CanvasObject
+	if state.interlaceAnalyzing {
+		statusLabel := widget.NewLabel("Analyzing interlacing... (first 500 frames)")
+		statusLabel.TextStyle = fyne.TextStyle{Italic: true}
+		interlaceSection = container.NewVBox(
+			widget.NewSeparator(),
+			analyzeBtn,
+			statusLabel,
+		)
+	} else if state.interlaceResult != nil {
+		result := state.interlaceResult
+
+		// Status color
+		var statusColor color.Color
+		switch result.Status {
+		case "Progressive":
+			statusColor = color.RGBA{R: 76, G: 232, B: 112, A: 255} // Green
+		case "Interlaced":
+			statusColor = color.RGBA{R: 255, G: 193, B: 7, A: 255} // Yellow
+		default:
+			statusColor = color.RGBA{R: 255, G: 136, B: 68, A: 255} // Orange
+		}
+
+		statusRect := canvas.NewRectangle(statusColor)
+		statusRect.SetMinSize(fyne.NewSize(4, 0))
+		statusRect.CornerRadius = 2
+
+		statusLabel := widget.NewLabel(result.Status)
+		statusLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+		percLabel := widget.NewLabel(fmt.Sprintf("%.1f%% interlaced frames", result.InterlacedPercent))
+		fieldLabel := widget.NewLabel(fmt.Sprintf("Field Order: %s", result.FieldOrder))
+		confLabel := widget.NewLabel(fmt.Sprintf("Confidence: %s", result.Confidence))
+		recLabel := widget.NewLabel(result.Recommendation)
+		recLabel.Wrapping = fyne.TextWrapWord
+
+		// Frame counts (collapsed by default)
+		detailsLabel := widget.NewLabel(fmt.Sprintf(
+			"Progressive: %d | TFF: %d | BFF: %d | Undetermined: %d | Total: %d",
+			result.Progressive, result.TFF, result.BFF, result.Undetermined, result.TotalFrames,
+		))
+		detailsLabel.TextStyle = fyne.TextStyle{Italic: true}
+		detailsLabel.Wrapping = fyne.TextWrapWord
+
+		resultCard := canvas.NewRectangle(utils.MustHex("#1E1E1E"))
+		resultCard.CornerRadius = 4
+
+		resultContent := container.NewBorder(
+			nil, nil,
+			statusRect,
+			nil,
+			container.NewVBox(
+				statusLabel,
+				percLabel,
+				fieldLabel,
+				confLabel,
+				widget.NewSeparator(),
+				recLabel,
+				detailsLabel,
+			),
+		)
+
+		interlaceSection = container.NewVBox(
+			widget.NewSeparator(),
+			analyzeBtn,
+			container.NewPadded(container.NewMax(resultCard, resultContent)),
+		)
+	} else {
+		interlaceSection = container.NewVBox(
+			widget.NewSeparator(),
+			analyzeBtn,
+		)
+	}
+
 	// Layout: metadata form on left, cover art on right (bottom-aligned)
 	coverColumn := container.NewVBox(layout.NewSpacer(), coverContainer)
 	contentArea := container.NewBorder(nil, nil, nil, coverColumn, info)
@@ -5448,6 +5563,7 @@ Metadata: %s`,
 		top,
 		widget.NewSeparator(),
 		contentArea,
+		interlaceSection,
 	)
 	return container.NewMax(outer, container.NewPadded(body)), updateCoverDisplay
 }
