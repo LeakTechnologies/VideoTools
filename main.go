@@ -1807,11 +1807,18 @@ func (s *appState) showMergeView() {
 	}
 
 	listScroll := container.NewVScroll(listBox)
-	listScroll.SetMinSize(fyne.NewSize(400, 300))
 
-	left := container.NewVBox(
+	// Use border layout so the list expands to fill available vertical space
+	leftTop := container.NewVBox(
 		widget.NewLabelWithStyle("Clips to Merge", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		container.NewHBox(addBtn, clearBtn),
+	)
+
+	left := container.NewBorder(
+		leftTop,  // top
+		nil,      // bottom
+		nil,      // left
+		nil,      // right
 		ui.NewDroppable(listScroll, func(items []fyne.URI) {
 			var paths []string
 			for _, uri := range items {
