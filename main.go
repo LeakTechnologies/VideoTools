@@ -1679,52 +1679,37 @@ func (s *appState) showMergeView() {
 		buildList()
 	})
 
+	// Helper to get file extension for format
+	getExtForFormat := func(format string) string {
+		switch {
+		case strings.HasPrefix(format, "dvd"):
+			return ".mpg"
+		case strings.HasPrefix(format, "mkv"), strings.HasPrefix(format, "bd"):
+			return ".mkv"
+		case strings.HasPrefix(format, "mp4"):
+			return ".mp4"
+		default:
+			return ".mkv"
+		}
+	}
+
 	formatMap := map[string]string{
-		"MKV (Copy if compatible)":       "mkv-copy",
-		"MKV (Re-encode H.265)":          "mkv-encode",
-		"DVD NTSC 16:9":                  "dvd-ntsc-169",
-		"DVD NTSC 4:3":                   "dvd-ntsc-43",
-		"DVD PAL 16:9":                   "dvd-pal-169",
-		"DVD PAL 4:3":                    "dvd-pal-43",
-		"Blu-ray (H.264, MKV container)": "bd-h264",
+		"MKV (Copy streams)":     "mkv-copy",
+		"MKV (H.264)":            "mkv-h264",
+		"MKV (H.265)":            "mkv-h265",
+		"MP4 (H.264)":            "mp4-h264",
+		"MP4 (H.265)":            "mp4-h265",
+		"DVD NTSC 16:9":          "dvd-ntsc-169",
+		"DVD NTSC 4:3":           "dvd-ntsc-43",
+		"DVD PAL 16:9":           "dvd-pal-169",
+		"DVD PAL 4:3":            "dvd-pal-43",
+		"Blu-ray (H.264)":        "bd-h264",
 	}
 	var formatKeys []string
 	for k := range formatMap {
 		formatKeys = append(formatKeys, k)
 	}
 	slices.Sort(formatKeys)
-
-	formatSelect := widget.NewSelect(formatKeys, func(val string) {
-		s.mergeFormat = formatMap[val]
-		switch {
-		case strings.HasPrefix(s.mergeFormat, "dvd"):
-			s.mergeCodecMode = "encode"
-			if s.mergeOutput == "" && len(s.mergeClips) > 0 {
-				dir := filepath.Dir(s.mergeClips[0].Path)
-				s.mergeOutput = filepath.Join(dir, "merged-dvd.mpg")
-			}
-		case s.mergeFormat == "bd-h264":
-			s.mergeCodecMode = "encode"
-			if s.mergeOutput == "" && len(s.mergeClips) > 0 {
-				dir := filepath.Dir(s.mergeClips[0].Path)
-				s.mergeOutput = filepath.Join(dir, "merged-bd.mkv")
-			}
-		default:
-			if s.mergeCodecMode == "" {
-				s.mergeCodecMode = "copy"
-			}
-			if s.mergeOutput == "" && len(s.mergeClips) > 0 {
-				dir := filepath.Dir(s.mergeClips[0].Path)
-				s.mergeOutput = filepath.Join(dir, "merged.mkv")
-			}
-		}
-	})
-	for label, val := range formatMap {
-		if val == s.mergeFormat {
-			formatSelect.SetSelected(label)
-			break
-		}
-	}
 
 	keepAllCheck := widget.NewCheck("Keep all audio/subtitle tracks", func(v bool) {
 		s.mergeKeepAll = v
@@ -1736,28 +1721,55 @@ func (s *appState) showMergeView() {
 	})
 	chapterCheck.SetChecked(s.mergeChapters)
 
-	codecModeSelect := widget.NewSelect([]string{"Copy (if compatible)", "Re-encode (H.265)"}, func(val string) {
-		if strings.HasPrefix(val, "Copy") {
-			s.mergeCodecMode = "copy"
-		} else {
-			s.mergeCodecMode = "encode"
-		}
-	})
-	if s.mergeCodecMode == "" {
-		s.mergeCodecMode = "copy"
-	}
-	if s.mergeCodecMode == "encode" {
-		codecModeSelect.SetSelected("Re-encode (H.265)")
-	} else {
-		codecModeSelect.SetSelected("Copy (if compatible)")
-	}
-
+	// Create output entry widget first so it can be referenced in callbacks
 	outputEntry := widget.NewEntry()
 	outputEntry.SetPlaceHolder("merged output path")
 	outputEntry.SetText(s.mergeOutput)
 	outputEntry.OnChanged = func(val string) {
 		s.mergeOutput = val
 	}
+
+	// Helper to update output path extension (requires outputEntry to exist)
+	updateOutputExt := func() {
+		if s.mergeOutput == "" {
+			return
+		}
+		currentExt := filepath.Ext(s.mergeOutput)
+		correctExt := getExtForFormat(s.mergeFormat)
+		if currentExt != correctExt {
+			s.mergeOutput = strings.TrimSuffix(s.mergeOutput, currentExt) + correctExt
+			outputEntry.SetText(s.mergeOutput)
+		}
+	}
+
+	// Create format selector (after outputEntry and updateOutputExt are defined)
+	formatSelect := widget.NewSelect(formatKeys, func(val string) {
+		s.mergeFormat = formatMap[val]
+
+		// Set default output path if not set
+		if s.mergeOutput == "" && len(s.mergeClips) > 0 {
+			dir := filepath.Dir(s.mergeClips[0].Path)
+			ext := getExtForFormat(s.mergeFormat)
+			basename := "merged"
+			if strings.HasPrefix(s.mergeFormat, "dvd") {
+				basename = "merged-dvd"
+			} else if strings.HasPrefix(s.mergeFormat, "bd") {
+				basename = "merged-bd"
+			}
+			s.mergeOutput = filepath.Join(dir, basename+ext)
+			outputEntry.SetText(s.mergeOutput)
+		} else {
+			// Update extension of existing path
+			updateOutputExt()
+		}
+	})
+	for label, val := range formatMap {
+		if val == s.mergeFormat {
+			formatSelect.SetSelected(label)
+			break
+		}
+	}
+
 	browseOut := widget.NewButton("Browse", func() {
 		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if err != nil || writer == nil {
@@ -1817,7 +1829,6 @@ func (s *appState) showMergeView() {
 		widget.NewLabelWithStyle("Output Options", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Format"),
 		formatSelect,
-		codecModeSelect,
 		keepAllCheck,
 		chapterCheck,
 		widget.NewSeparator(),
@@ -1842,6 +1853,27 @@ func (s *appState) addMergeToQueue(startNow bool) error {
 	if strings.TrimSpace(s.mergeOutput) == "" {
 		firstDir := filepath.Dir(s.mergeClips[0].Path)
 		s.mergeOutput = filepath.Join(firstDir, "merged.mkv")
+	}
+
+	// Ensure output path has correct extension for selected format
+	currentExt := filepath.Ext(s.mergeOutput)
+	var correctExt string
+	switch {
+	case strings.HasPrefix(s.mergeFormat, "dvd"):
+		correctExt = ".mpg"
+	case strings.HasPrefix(s.mergeFormat, "mkv"), strings.HasPrefix(s.mergeFormat, "bd"):
+		correctExt = ".mkv"
+	case strings.HasPrefix(s.mergeFormat, "mp4"):
+		correctExt = ".mp4"
+	default:
+		correctExt = ".mkv"
+	}
+
+	// Auto-fix extension if missing or wrong
+	if currentExt == "" {
+		s.mergeOutput += correctExt
+	} else if currentExt != correctExt {
+		s.mergeOutput = strings.TrimSuffix(s.mergeOutput, currentExt) + correctExt
 	}
 	clips := make([]map[string]interface{}, 0, len(s.mergeClips))
 	for _, c := range s.mergeClips {
@@ -1921,7 +1953,7 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 	if !ok {
 		withChapters = true
 	}
-	codecMode, _ := cfg["codecMode"].(string) // copy or encode
+	_ = cfg["codecMode"] // Deprecated: kept for backward compatibility with old queue jobs
 	outputPath, _ := cfg["outputPath"].(string)
 
 	rawClips, _ := cfg["clips"].([]interface{})
@@ -2038,13 +2070,43 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 			"-c:a", "ac3",
 			"-b:a", "256k",
 		)
+	case "mkv-copy":
+		args = append(args, "-c", "copy")
+	case "mkv-h264":
+		args = append(args,
+			"-c:v", "libx264",
+			"-preset", "medium",
+			"-crf", "23",
+			"-c:a", "copy",
+		)
+	case "mkv-h265":
+		args = append(args,
+			"-c:v", "libx265",
+			"-preset", "medium",
+			"-crf", "28",
+			"-c:a", "copy",
+		)
+	case "mp4-h264":
+		args = append(args,
+			"-c:v", "libx264",
+			"-preset", "medium",
+			"-crf", "23",
+			"-c:a", "aac",
+			"-b:a", "192k",
+			"-movflags", "+faststart",
+		)
+	case "mp4-h265":
+		args = append(args,
+			"-c:v", "libx265",
+			"-preset", "medium",
+			"-crf", "28",
+			"-c:a", "aac",
+			"-b:a", "192k",
+			"-movflags", "+faststart",
+		)
 	default:
-		if codecMode == "copy" {
-			args = append(args, "-c", "copy")
-		} else {
-			// Re-encode to H.265 by default
-			args = append(args, "-c:v", "libx265", "-crf", "20", "-c:a", "copy")
-		}
+		// Fallback to copy
+		args = append(args, "-c", "copy")
 	}
 
 	// Add progress output for live updates (must be before output path)
