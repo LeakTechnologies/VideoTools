@@ -6039,6 +6039,68 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		return
 	}
 
+	// If in merge module, handle multiple video files
+	if s.active == "merge" {
+		// Collect all video files from the dropped items
+		var videoPaths []string
+		for _, uri := range items {
+			if uri.Scheme() != "file" {
+				continue
+			}
+			path := uri.Path()
+			logging.Debug(logging.CatModule, "drop received path=%s", path)
+
+			// Check if it's a directory
+			if info, err := os.Stat(path); err == nil && info.IsDir() {
+				logging.Debug(logging.CatModule, "processing directory: %s", path)
+				videos := s.findVideoFiles(path)
+				videoPaths = append(videoPaths, videos...)
+			} else if s.isVideoFile(path) {
+				videoPaths = append(videoPaths, path)
+			}
+		}
+
+		if len(videoPaths) == 0 {
+			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			return
+		}
+
+		// Add all videos to merge clips sequentially
+		go func() {
+			for _, path := range videoPaths {
+				src, err := probeVideo(path)
+				if err != nil {
+					logging.Debug(logging.CatModule, "failed to probe %s: %v", path, err)
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						dialog.ShowError(fmt.Errorf("failed to probe %s: %w", filepath.Base(path), err), s.window)
+					}, false)
+					continue
+				}
+
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					s.mergeClips = append(s.mergeClips, mergeClip{
+						Path:     path,
+						Chapter:  strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
+						Duration: src.Duration,
+					})
+
+					// Set default output path if not set and we have at least 2 clips
+					if len(s.mergeClips) >= 2 && strings.TrimSpace(s.mergeOutput) == "" {
+						first := filepath.Dir(s.mergeClips[0].Path)
+						s.mergeOutput = filepath.Join(first, "merged.mkv")
+					}
+
+					// Refresh the merge view to show the new clips
+					s.showMergeView()
+				}, false)
+			}
+
+			logging.Debug(logging.CatModule, "added %d clips to merge list", len(videoPaths))
+		}()
+
+		return
+	}
+
 	// Other modules don't handle file drops yet
 	logging.Debug(logging.CatUI, "drop ignored; module %s cannot handle files", s.active)
 }
