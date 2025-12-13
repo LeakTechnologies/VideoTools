@@ -200,13 +200,20 @@ func (s *Suite) RunFullSuite(ctx context.Context, availableEncoders []string) er
 		}
 
 		for _, preset := range test.presets {
-			current++
+			// Report progress before starting test
 			if s.Progress != nil {
 				s.Progress(current, totalTests, test.encoder, preset)
 			}
 
+			// Run the test
 			result := s.TestEncoder(ctx, test.encoder, preset)
 			s.Results = append(s.Results, result)
+
+			// Increment and report completion
+			current++
+			if s.Progress != nil {
+				s.Progress(current, totalTests, test.encoder, preset)
+			}
 
 			// Check for context cancellation
 			if ctx.Err() != nil {
