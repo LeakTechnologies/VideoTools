@@ -2047,10 +2047,10 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 		}
 	}
 
-	args = append(args, outputPath)
-
-	// Add progress output for live updates
+	// Add progress output for live updates (must be before output path)
 	args = append(args, "-progress", "pipe:1", "-nostats")
+
+	args = append(args, outputPath)
 
 	// Execute
 	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
