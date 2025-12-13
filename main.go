@@ -36,6 +36,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
@@ -508,6 +509,53 @@ func savePersistedConvertConfig(cfg convertConfig) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
+// benchmarkConfig holds benchmark results and recommendations
+type benchmarkConfig struct {
+	RecommendedEncoder string    `json:"recommended_encoder"`
+	RecommendedPreset  string    `json:"recommended_preset"`
+	RecommendedHWAccel string    `json:"recommended_hwaccel"`
+	LastBenchmarkTime  time.Time `json:"last_benchmark_time"`
+}
+
+func benchmarkConfigPath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil || configDir == "" {
+		home := os.Getenv("HOME")
+		if home != "" {
+			configDir = filepath.Join(home, ".config")
+		}
+	}
+	if configDir == "" {
+		return "benchmark.json"
+	}
+	return filepath.Join(configDir, "VideoTools", "benchmark.json")
+}
+
+func loadBenchmarkConfig() (benchmarkConfig, error) {
+	path := benchmarkConfigPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return benchmarkConfig{}, err
+	}
+	var cfg benchmarkConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return benchmarkConfig{}, err
+	}
+	return cfg, nil
+}
+
+func saveBenchmarkConfig(cfg benchmarkConfig) error {
+	path := benchmarkConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
 type appState struct {
 	window           fyne.Window
 	active           string
@@ -889,7 +937,7 @@ func (s *appState) showMainMenu() {
 			viewAppLogBtn,
 		)
 		dialog.ShowCustom("Logs", "Close", logOptions, s.window)
-	}, titleColor, queueColor, textColor, queueCompleted, queueTotal)
+	}, s.showBenchmark, titleColor, queueColor, textColor, queueCompleted, queueTotal)
 
 	// Update stats bar
 	s.updateStatsBar()
@@ -1175,6 +1223,166 @@ func (s *appState) addConvertToQueue() error {
 	logging.Debug(logging.CatSystem, "added convert job to queue: %s", job.ID)
 
 	return nil
+}
+
+func (s *appState) showBenchmark() {
+	s.stopPreview()
+	s.stopPlayer()
+	s.active = "benchmark"
+
+	// Create benchmark suite
+	tmpDir := filepath.Join(os.TempDir(), "videotools-benchmark")
+	_ = os.MkdirAll(tmpDir, 0o755)
+
+	suite := benchmark.NewSuite(platformConfig.FFmpegPath, tmpDir)
+
+	// Build progress view
+	view := ui.BuildBenchmarkProgressView(
+		func() {
+			// Cancel benchmark
+			s.showMainMenu()
+		},
+		utils.MustHex("#4CE870"),
+		utils.MustHex("#1E1E1E"),
+		utils.MustHex("#FFFFFF"),
+	)
+
+	s.setContent(view.GetContainer())
+
+	// Run benchmark in background
+	go func() {
+		ctx := context.Background()
+
+		// Generate test video
+		view.UpdateProgress(0, 100, "Generating test video", "")
+		testPath, err := suite.GenerateTestVideo(ctx, 30)
+		if err != nil {
+			logging.Debug(logging.CatSystem, "failed to generate test video: %v", err)
+			dialog.ShowError(fmt.Errorf("failed to generate test video: %w", err), s.window)
+			s.showMainMenu()
+			return
+		}
+		logging.Debug(logging.CatSystem, "generated test video: %s", testPath)
+
+		// Detect available encoders
+		availableEncoders := s.detectHardwareEncoders()
+		logging.Debug(logging.CatSystem, "detected %d available encoders", len(availableEncoders))
+
+		// Set up progress callback
+		suite.Progress = func(current, total int, encoder, preset string) {
+			logging.Debug(logging.CatSystem, "benchmark progress: %d/%d testing %s (%s)", current, total, encoder, preset)
+			view.UpdateProgress(current, total, encoder, preset)
+		}
+
+		// Run benchmark suite
+		err = suite.RunFullSuite(ctx, availableEncoders)
+		if err != nil {
+			logging.Debug(logging.CatSystem, "benchmark failed: %v", err)
+			dialog.ShowError(fmt.Errorf("benchmark failed: %w", err), s.window)
+			s.showMainMenu()
+			return
+		}
+
+		// Display results as they come in
+		for _, result := range suite.Results {
+			view.AddResult(result)
+		}
+
+		// Mark complete
+		view.SetComplete()
+
+		// Get recommendation
+		encoder, preset, rec := suite.GetRecommendation()
+		if encoder != "" {
+			logging.Debug(logging.CatSystem, "benchmark recommendation: %s (preset: %s) - %.1f FPS", encoder, preset, rec.FPS)
+
+			// Show results dialog with option to apply
+			go func() {
+				topResults := suite.GetTopN(10)
+				resultsView := ui.BuildBenchmarkResultsView(
+					topResults,
+					rec,
+					func() {
+						// Apply recommended settings
+						s.applyBenchmarkRecommendation(encoder, preset)
+						s.showMainMenu()
+					},
+					func() {
+						// Close without applying
+						s.showMainMenu()
+					},
+					utils.MustHex("#4CE870"),
+					utils.MustHex("#1E1E1E"),
+					utils.MustHex("#FFFFFF"),
+				)
+
+				s.setContent(resultsView)
+			}()
+		}
+
+		// Clean up test video
+		os.Remove(testPath)
+	}()
+}
+
+func (s *appState) detectHardwareEncoders() []string {
+	var available []string
+
+	// Always add software encoders
+	available = append(available, "libx264", "libx265")
+
+	// Check for hardware encoders by trying to get codec info
+	encodersToCheck := []string{
+		"h264_nvenc", "hevc_nvenc",   // NVIDIA
+		"h264_qsv", "hevc_qsv",        // Intel QuickSync
+		"h264_amf", "hevc_amf",        // AMD AMF
+		"h264_videotoolbox",           // Apple VideoToolbox
+	}
+
+	for _, encoder := range encodersToCheck {
+		cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
+		output, err := cmd.CombinedOutput()
+		if err == nil && strings.Contains(string(output), encoder) {
+			available = append(available, encoder)
+			logging.Debug(logging.CatSystem, "detected available encoder: %s", encoder)
+		}
+	}
+
+	return available
+}
+
+func (s *appState) applyBenchmarkRecommendation(encoder, preset string) {
+	// Map encoder to hardware acceleration setting
+	var hwAccel string
+	switch {
+	case strings.Contains(encoder, "nvenc"):
+		hwAccel = "nvenc"
+	case strings.Contains(encoder, "qsv"):
+		hwAccel = "qsv"
+	case strings.Contains(encoder, "amf"):
+		hwAccel = "amf"
+	case strings.Contains(encoder, "videotoolbox"):
+		hwAccel = "videotoolbox"
+	default:
+		hwAccel = "none"
+	}
+
+	// Save benchmark recommendation
+	cfg := benchmarkConfig{
+		RecommendedEncoder:  encoder,
+		RecommendedPreset:   preset,
+		RecommendedHWAccel:  hwAccel,
+		LastBenchmarkTime:   time.Now(),
+	}
+	if err := saveBenchmarkConfig(cfg); err != nil {
+		logging.Debug(logging.CatSystem, "failed to save benchmark recommendation: %v", err)
+	}
+
+	logging.Debug(logging.CatSystem, "applied benchmark recommendation: encoder=%s preset=%s hwaccel=%s", encoder, preset, hwAccel)
+
+	dialog.ShowInformation("Benchmark Settings Applied",
+		fmt.Sprintf("Your system's optimal encoder settings have been saved:\n\nEncoder: %s\nPreset: %s\nHardware: %s\n\nThese are available for reference in the Convert module.",
+			encoder, preset, hwAccel), s.window)
 }
 
 func (s *appState) showModule(id string) {

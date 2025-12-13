@@ -23,16 +23,20 @@ type ModuleInfo struct {
 }
 
 // BuildMainMenu creates the main menu view with module tiles grouped by category
-func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
+func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onBenchmarkClick func(), titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
 	title := canvas.NewText("VIDEOTOOLS", titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 28
 
 	queueTile := buildQueueTile(queueCompleted, queueTotal, queueColor, textColor, onQueueClick)
+
+	benchmarkBtn := widget.NewButton("Benchmark", onBenchmarkClick)
+	benchmarkBtn.Importance = widget.LowImportance
+
 	logsBtn := widget.NewButton("Logs", onLogsClick)
 	logsBtn.Importance = widget.LowImportance
 
-	header := container.New(layout.NewHBoxLayout(), title, layout.NewSpacer(), logsBtn, queueTile)
+	header := container.New(layout.NewHBoxLayout(), title, layout.NewSpacer(), benchmarkBtn, logsBtn, queueTile)
 
 	categorized := map[string][]fyne.CanvasObject{}
 	for i := range modules {
