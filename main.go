@@ -509,12 +509,19 @@ func savePersistedConvertConfig(cfg convertConfig) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
-// benchmarkConfig holds benchmark results and recommendations
+// benchmarkRun represents a single benchmark test run
+type benchmarkRun struct {
+	Timestamp          time.Time             `json:"timestamp"`
+	Results            []benchmark.Result    `json:"results"`
+	RecommendedEncoder string                `json:"recommended_encoder"`
+	RecommendedPreset  string                `json:"recommended_preset"`
+	RecommendedHWAccel string                `json:"recommended_hwaccel"`
+	RecommendedFPS     float64               `json:"recommended_fps"`
+}
+
+// benchmarkConfig holds benchmark history
 type benchmarkConfig struct {
-	RecommendedEncoder string    `json:"recommended_encoder"`
-	RecommendedPreset  string    `json:"recommended_preset"`
-	RecommendedHWAccel string    `json:"recommended_hwaccel"`
-	LastBenchmarkTime  time.Time `json:"last_benchmark_time"`
+	History []benchmarkRun `json:"history"`
 }
 
 func benchmarkConfigPath() string {
@@ -937,7 +944,7 @@ func (s *appState) showMainMenu() {
 			viewAppLogBtn,
 		)
 		dialog.ShowCustom("Logs", "Close", logOptions, s.window)
-	}, s.showBenchmark, titleColor, queueColor, textColor, queueCompleted, queueTotal)
+	}, s.showBenchmark, s.showBenchmarkHistory, titleColor, queueColor, textColor, queueCompleted, queueTotal)
 
 	// Update stats bar
 	s.updateStatsBar()
@@ -1293,14 +1300,20 @@ func (s *appState) showBenchmark() {
 
 		// Get recommendation
 		encoder, preset, rec := suite.GetRecommendation()
+
+		// Save benchmark run to history
+		if err := s.saveBenchmarkRun(suite.Results, encoder, preset, rec.FPS); err != nil {
+			logging.Debug(logging.CatSystem, "failed to save benchmark run: %v", err)
+		}
+
 		if encoder != "" {
 			logging.Debug(logging.CatSystem, "benchmark recommendation: %s (preset: %s) - %.1f FPS", encoder, preset, rec.FPS)
 
 			// Show results dialog with option to apply
 			go func() {
-				topResults := suite.GetTopN(10)
+				allResults := suite.Results // Show all results, not just top 10
 				resultsView := ui.BuildBenchmarkResultsView(
-					topResults,
+					allResults,
 					rec,
 					func() {
 						// Apply recommended settings
@@ -1351,7 +1364,7 @@ func (s *appState) detectHardwareEncoders() []string {
 	return available
 }
 
-func (s *appState) applyBenchmarkRecommendation(encoder, preset string) {
+func (s *appState) saveBenchmarkRun(results []benchmark.Result, encoder, preset string, fps float64) error {
 	// Map encoder to hardware acceleration setting
 	var hwAccel string
 	switch {
@@ -1367,22 +1380,123 @@ func (s *appState) applyBenchmarkRecommendation(encoder, preset string) {
 		hwAccel = "none"
 	}
 
-	// Save benchmark recommendation
-	cfg := benchmarkConfig{
-		RecommendedEncoder:  encoder,
-		RecommendedPreset:   preset,
-		RecommendedHWAccel:  hwAccel,
-		LastBenchmarkTime:   time.Now(),
-	}
-	if err := saveBenchmarkConfig(cfg); err != nil {
-		logging.Debug(logging.CatSystem, "failed to save benchmark recommendation: %v", err)
+	// Load existing config
+	cfg, err := loadBenchmarkConfig()
+	if err != nil {
+		// Create new config if loading fails
+		cfg = benchmarkConfig{History: []benchmarkRun{}}
 	}
 
-	logging.Debug(logging.CatSystem, "applied benchmark recommendation: encoder=%s preset=%s hwaccel=%s", encoder, preset, hwAccel)
+	// Create new benchmark run
+	run := benchmarkRun{
+		Timestamp:          time.Now(),
+		Results:            results,
+		RecommendedEncoder: encoder,
+		RecommendedPreset:  preset,
+		RecommendedHWAccel: hwAccel,
+		RecommendedFPS:     fps,
+	}
+
+	// Add to history (keep last 10 runs)
+	cfg.History = append([]benchmarkRun{run}, cfg.History...)
+	if len(cfg.History) > 10 {
+		cfg.History = cfg.History[:10]
+	}
+
+	// Save config
+	if err := saveBenchmarkConfig(cfg); err != nil {
+		return err
+	}
+
+	logging.Debug(logging.CatSystem, "saved benchmark run: encoder=%s preset=%s fps=%.1f results=%d", encoder, preset, fps, len(results))
+	return nil
+}
+
+func (s *appState) applyBenchmarkRecommendation(encoder, preset string) {
+	logging.Debug(logging.CatSystem, "applied benchmark recommendation: encoder=%s preset=%s", encoder, preset)
 
 	dialog.ShowInformation("Benchmark Settings Applied",
-		fmt.Sprintf("Your system's optimal encoder settings have been saved:\n\nEncoder: %s\nPreset: %s\nHardware: %s\n\nThese are available for reference in the Convert module.",
-			encoder, preset, hwAccel), s.window)
+		fmt.Sprintf("Recommended encoder noted:\n\nEncoder: %s\nPreset: %s\n\nYou can reference these settings in the Convert module.",
+			encoder, preset), s.window)
+}
+
+func (s *appState) showBenchmarkHistory() {
+	s.stopPreview()
+	s.stopPlayer()
+	s.active = "benchmark-history"
+
+	// Load benchmark history
+	cfg, err := loadBenchmarkConfig()
+	if err != nil || len(cfg.History) == 0 {
+		// Show empty state
+		view := ui.BuildBenchmarkHistoryView(
+			[]ui.BenchmarkHistoryRun{},
+			nil,
+			s.showMainMenu,
+			utils.MustHex("#4CE870"),
+			utils.MustHex("#1E1E1E"),
+			utils.MustHex("#FFFFFF"),
+		)
+		s.setContent(view)
+		return
+	}
+
+	// Convert history to UI format
+	var historyRuns []ui.BenchmarkHistoryRun
+	for _, run := range cfg.History {
+		historyRuns = append(historyRuns, ui.BenchmarkHistoryRun{
+			Timestamp:          run.Timestamp.Format("2006-01-02 15:04:05"),
+			ResultCount:        len(run.Results),
+			RecommendedEncoder: run.RecommendedEncoder,
+			RecommendedPreset:  run.RecommendedPreset,
+			RecommendedFPS:     run.RecommendedFPS,
+		})
+	}
+
+	// Build history view
+	view := ui.BuildBenchmarkHistoryView(
+		historyRuns,
+		func(index int) {
+			// Show detailed results for this run
+			if index < 0 || index >= len(cfg.History) {
+				return
+			}
+			run := cfg.History[index]
+
+			// Create a fake recommendation result for the results view
+			rec := benchmark.Result{
+				Encoder: run.RecommendedEncoder,
+				Preset:  run.RecommendedPreset,
+				FPS:     run.RecommendedFPS,
+				Score:   run.RecommendedFPS,
+			}
+
+			resultsView := ui.BuildBenchmarkResultsView(
+				run.Results,
+				rec,
+				func() {
+					// Apply this recommendation
+					s.applyBenchmarkRecommendation(run.RecommendedEncoder, run.RecommendedPreset)
+					s.showBenchmarkHistory()
+				},
+				func() {
+					// Back to history
+					s.showBenchmarkHistory()
+				},
+				utils.MustHex("#4CE870"),
+				utils.MustHex("#1E1E1E"),
+				utils.MustHex("#FFFFFF"),
+			)
+
+			s.setContent(resultsView)
+		},
+		s.showMainMenu,
+		utils.MustHex("#4CE870"),
+		utils.MustHex("#1E1E1E"),
+		utils.MustHex("#FFFFFF"),
+	)
+
+	s.setContent(view)
 }
 
 func (s *appState) showModule(id string) {

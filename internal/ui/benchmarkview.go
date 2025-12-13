@@ -305,3 +305,114 @@ func BuildBenchmarkResultsView(
 
 	return container.NewPadded(body)
 }
+
+// BuildBenchmarkHistoryView creates the benchmark history browser UI
+func BuildBenchmarkHistoryView(
+	history []BenchmarkHistoryRun,
+	onSelectRun func(int),
+	onClose func(),
+	titleColor, bgColor, textColor color.Color,
+) fyne.CanvasObject {
+	// Header
+	title := canvas.NewText("BENCHMARK HISTORY", titleColor)
+	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	title.TextSize = 24
+
+	closeBtn := widget.NewButton("← Back", onClose)
+	closeBtn.Importance = widget.LowImportance
+
+	header := container.NewBorder(
+		nil, nil,
+		closeBtn,
+		nil,
+		container.NewCenter(title),
+	)
+
+	if len(history) == 0 {
+		emptyMsg := widget.NewLabel("No benchmark history yet.\n\nRun your first benchmark to see results here.")
+		emptyMsg.Alignment = fyne.TextAlignCenter
+		emptyMsg.Wrapping = fyne.TextWrapWord
+
+		body := container.NewBorder(
+			header,
+			nil, nil, nil,
+			container.NewCenter(emptyMsg),
+		)
+
+		return container.NewPadded(body)
+	}
+
+	// Build list of benchmark runs
+	var runItems []fyne.CanvasObject
+	for i, run := range history {
+		idx := i // Capture for closure
+		runItems = append(runItems, buildHistoryRunItem(run, idx, onSelectRun, bgColor, textColor))
+	}
+
+	runsList := container.NewVBox(runItems...)
+	runsScroll := container.NewVScroll(runsList)
+	runsScroll.SetMinSize(fyne.NewSize(0, 400))
+
+	infoLabel := widget.NewLabel("Click on a benchmark run to view detailed results")
+	infoLabel.Alignment = fyne.TextAlignCenter
+	infoLabel.TextStyle = fyne.TextStyle{Italic: true}
+
+	body := container.NewBorder(
+		header,
+		container.NewVBox(widget.NewSeparator(), infoLabel),
+		nil, nil,
+		runsScroll,
+	)
+
+	return container.NewPadded(body)
+}
+
+// BenchmarkHistoryRun represents a benchmark run in the history view
+type BenchmarkHistoryRun struct {
+	Timestamp          string
+	ResultCount        int
+	RecommendedEncoder string
+	RecommendedPreset  string
+	RecommendedFPS     float64
+}
+
+func buildHistoryRunItem(
+	run BenchmarkHistoryRun,
+	index int,
+	onSelect func(int),
+	bgColor, textColor color.Color,
+) fyne.CanvasObject {
+	// Timestamp label
+	timeLabel := widget.NewLabel(run.Timestamp)
+	timeLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	// Recommendation info
+	recLabel := widget.NewLabel(fmt.Sprintf("Recommended: %s (%s) - %.1f FPS",
+		run.RecommendedEncoder, run.RecommendedPreset, run.RecommendedFPS))
+
+	// Result count
+	countLabel := widget.NewLabel(fmt.Sprintf("%d encoders tested", run.ResultCount))
+	countLabel.TextStyle = fyne.TextStyle{Italic: true}
+
+	// Content
+	content := container.NewVBox(
+		timeLabel,
+		recLabel,
+		countLabel,
+	)
+
+	// Card background
+	card := canvas.NewRectangle(bgColor)
+	card.CornerRadius = 4
+
+	item := container.NewPadded(
+		container.NewMax(card, content),
+	)
+
+	// Make it tappable
+	tappable := NewTappable(item, func() {
+		onSelect(index)
+	})
+
+	return tappable
+}
