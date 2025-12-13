@@ -299,15 +299,19 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 	// Build tile filter
 	tileFilter := fmt.Sprintf("scale=%d:%d,tile=%dx%d", thumbWidth, thumbHeight, config.Columns, config.Rows)
 
-	// Add timestamp overlay if requested
-	if config.ShowTimestamp {
-		// This is complex for contact sheets, skip for now
+	// Build video filter
+	var vfilter string
+	if config.ShowMetadata {
+		// Add metadata header to contact sheet
+		vfilter = g.buildMetadataFilter(config, duration, thumbWidth, thumbHeight, selectFilter, tileFilter)
+	} else {
+		vfilter = fmt.Sprintf("%s,%s", selectFilter, tileFilter)
 	}
 
 	// Build FFmpeg command
 	args := []string{
 		"-i", config.VideoPath,
-		"-vf", fmt.Sprintf("%s,%s", selectFilter, tileFilter),
+		"-vf", vfilter,
 		"-frames:v", "1",
 		"-y",
 	}
@@ -324,6 +328,57 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 	}
 
 	return outputPath, nil
+}
+
+// buildMetadataFilter creates a filter that adds metadata header to contact sheet
+func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWidth, thumbHeight int, selectFilter, tileFilter string) string {
+	// Get file info
+	fileInfo, _ := os.Stat(config.VideoPath)
+	fileSize := fileInfo.Size()
+	fileSizeMB := float64(fileSize) / (1024 * 1024)
+
+	// Get video info (we already have duration, just need dimensions)
+	_, videoWidth, videoHeight, _ := g.getVideoInfo(context.Background(), config.VideoPath)
+
+	// Format duration as HH:MM:SS
+	hours := int(duration) / 3600
+	minutes := (int(duration) % 3600) / 60
+	seconds := int(duration) % 60
+	durationStr := fmt.Sprintf("%02d\\:%02d\\:%02d", hours, minutes, seconds)
+
+	// Get just the filename without path
+	filename := filepath.Base(config.VideoPath)
+
+	// Calculate sheet dimensions
+	sheetWidth := thumbWidth * config.Columns
+	sheetHeight := thumbHeight * config.Rows
+	headerHeight := 80
+
+	// Build metadata text lines
+	// Line 1: Filename and file size
+	line1 := fmt.Sprintf("%s (%.1f MB)", filename, fileSizeMB)
+	// Line 2: Resolution, FPS, Duration
+	line2 := fmt.Sprintf("%dx%d | Duration\\: %s", videoWidth, videoHeight, durationStr)
+
+	// Create filter that:
+	// 1. Generates contact sheet from selected frames
+	// 2. Creates a blank header area
+	// 3. Draws metadata text on header
+	// 4. Stacks header on top of contact sheet
+	filter := fmt.Sprintf(
+		"%s,%s,pad=%d:%d:0:%d:black,"+
+		"drawtext=text='%s':fontcolor=white:fontsize=14:x=10:y=10,"+
+		"drawtext=text='%s':fontcolor=white:fontsize=12:x=10:y=35",
+		selectFilter,
+		tileFilter,
+		sheetWidth,
+		sheetHeight+headerHeight,
+		headerHeight,
+		line1,
+		line2,
+	)
+
+	return filter
 }
 
 // calculateTimestamps generates timestamps for thumbnail extraction
