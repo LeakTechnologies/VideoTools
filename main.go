@@ -70,7 +70,7 @@ var (
 	logsDirOnce     sync.Once
 	logsDirPath     string
 	feedbackBundler = utils.NewFeedbackBundler()
-	appVersion      = "v0.1.0-dev15"
+	appVersion      = "v0.1.0-dev16"
 
 	hwAccelProbeOnce sync.Once
 	hwAccelSupported atomic.Value // map[string]bool
@@ -602,8 +602,10 @@ type appState struct {
 	queueOffset      fyne.Position
 	compareFile1     *videoSource
 	compareFile2     *videoSource
-	inspectFile      *videoSource
-	autoCompare      bool // Auto-load Compare module after conversion
+	inspectFile              *videoSource
+	inspectInterlaceResult   *interlace.DetectionResult
+	inspectInterlaceAnalyzing bool
+	autoCompare              bool // Auto-load Compare module after conversion
 
 	// Merge state
 	mergeClips     []mergeClip
@@ -1632,8 +1634,31 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 			time.Sleep(350 * time.Millisecond)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.inspectFile = src
+				s.inspectInterlaceResult = nil
+				s.inspectInterlaceAnalyzing = true
 				s.showModule(moduleID)
 				logging.Debug(logging.CatModule, "loaded video for inspect module")
+
+				// Auto-run interlacing detection in background
+				go func() {
+					detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+					defer cancel()
+
+					result, err := detector.QuickAnalyze(ctx, path)
+
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						s.inspectInterlaceAnalyzing = false
+						if err != nil {
+							logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
+							s.inspectInterlaceResult = nil
+						} else {
+							s.inspectInterlaceResult = result
+							logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
+						}
+						s.showInspectView() // Refresh to show results
+					}, false)
+				}()
 			}, false)
 		}()
 		return
@@ -3872,6 +3897,74 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	inverseCheck.Checked = state.convert.InverseTelecine
 	inverseHint := widget.NewLabel(state.convert.InverseAutoNotes)
 
+	// Interlacing Analysis Button (Simple Menu)
+	var analyzeInterlaceBtn *widget.Button
+	analyzeInterlaceBtn = widget.NewButton("Analyze Interlacing", func() {
+		if src == nil {
+			dialog.ShowInformation("Interlacing Analysis", "Load a video first.", state.window)
+			return
+		}
+		go func() {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				analyzeInterlaceBtn.SetText("Analyzing...")
+				analyzeInterlaceBtn.Disable()
+			}, false)
+
+			detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+
+			result, err := detector.QuickAnalyze(ctx, src.Path)
+
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				analyzeInterlaceBtn.SetText("Analyze Interlacing")
+				analyzeInterlaceBtn.Enable()
+
+				if err != nil {
+					logging.Debug(logging.CatSystem, "interlacing analysis failed: %v", err)
+					dialog.ShowError(fmt.Errorf("Analysis failed: %w", err), state.window)
+				} else {
+					state.interlaceResult = result
+					logging.Debug(logging.CatSystem, "interlacing analysis complete: %s", result.Status)
+
+					// Show results dialog
+					resultText := fmt.Sprintf(
+						"Status: %s\n"+
+						"Interlaced Frames: %.1f%%\n"+
+						"Field Order: %s\n"+
+						"Confidence: %s\n\n"+
+						"Recommendation:\n%s\n\n"+
+						"Frame Counts:\n"+
+						"Progressive: %d\n"+
+						"Top Field First: %d\n"+
+						"Bottom Field First: %d\n"+
+						"Undetermined: %d\n"+
+						"Total Analyzed: %d",
+						result.Status,
+						result.InterlacedPercent,
+						result.FieldOrder,
+						result.Confidence,
+						result.Recommendation,
+						result.Progressive,
+						result.TFF,
+						result.BFF,
+						result.Undetermined,
+						result.TotalFrames,
+					)
+
+					dialog.ShowInformation("Interlacing Analysis Results", resultText, state.window)
+
+					// Auto-update deinterlace setting
+					if result.SuggestDeinterlace && state.convert.Deinterlace == "Off" {
+						state.convert.Deinterlace = "Auto"
+						inverseCheck.SetChecked(true)
+					}
+				}
+			}, false)
+		}()
+	})
+	analyzeInterlaceBtn.Importance = widget.MediumImportance
+
 	// Auto-crop controls
 	autoCropCheck := widget.NewCheck("Auto-Detect Black Bars", func(checked bool) {
 		state.convert.AutoCrop = checked
@@ -4872,6 +4965,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewSeparator(),
 
 		widget.NewLabelWithStyle("═══ DEINTERLACING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		analyzeInterlaceBtn,
 		inverseCheck,
 		inverseHint,
 		layout.NewSpacer(),
@@ -5543,11 +5637,81 @@ Metadata: %s`,
 			),
 		)
 
-		interlaceSection = container.NewVBox(
+		// Preview button (only show if deinterlacing is recommended)
+		var previewSection fyne.CanvasObject
+		if result.SuggestDeinterlace {
+			previewBtn := widget.NewButton("Generate Deinterlace Preview", func() {
+				if state.source == nil {
+					return
+				}
+
+				go func() {
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						dialog.ShowInformation("Generating Preview", "Creating comparison preview...", state.window)
+					}, false)
+
+					detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+					ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+					defer cancel()
+
+					// Generate preview at 10 seconds into the video
+					previewPath := filepath.Join(os.TempDir(), fmt.Sprintf("deinterlace_preview_%d.png", time.Now().Unix()))
+					err := detector.GenerateComparisonPreview(ctx, state.source.Path, 10.0, previewPath)
+
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						if err != nil {
+							logging.Debug(logging.CatSystem, "preview generation failed: %v", err)
+							dialog.ShowError(fmt.Errorf("Preview generation failed: %w", err), state.window)
+						} else {
+							// Load and display the preview image
+							img, err := fyne.LoadResourceFromPath(previewPath)
+							if err != nil {
+								dialog.ShowError(fmt.Errorf("Failed to load preview: %w", err), state.window)
+								return
+							}
+
+							previewImg := canvas.NewImageFromResource(img)
+							previewImg.FillMode = canvas.ImageFillContain
+							previewImg.SetMinSize(fyne.NewSize(800, 450))
+
+							infoLabel := widget.NewLabel("Left: Original | Right: Deinterlaced")
+							infoLabel.Alignment = fyne.TextAlignCenter
+							infoLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+							content := container.NewBorder(
+								infoLabel,
+								nil, nil, nil,
+								container.NewScroll(previewImg),
+							)
+
+							previewDialog := dialog.NewCustom("Deinterlace Preview", "Close", content, state.window)
+							previewDialog.Resize(fyne.NewSize(900, 600))
+							previewDialog.Show()
+
+							// Clean up temp file after dialog closes
+							go func() {
+								time.Sleep(5 * time.Second)
+								os.Remove(previewPath)
+							}()
+						}
+					}, false)
+				}()
+			})
+			previewBtn.Importance = widget.LowImportance
+			previewSection = previewBtn
+		}
+
+		var sectionItems []fyne.CanvasObject
+		sectionItems = append(sectionItems,
 			widget.NewSeparator(),
 			analyzeBtn,
 			container.NewPadded(container.NewMax(resultCard, resultContent)),
 		)
+		if previewSection != nil {
+			sectionItems = append(sectionItems, previewSection)
+		}
+
+		interlaceSection = container.NewVBox(sectionItems...)
 	} else {
 		interlaceSection = container.NewVBox(
 			widget.NewSeparator(),
@@ -6558,8 +6722,32 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.inspectFile = src
+				s.inspectInterlaceResult = nil
+				s.inspectInterlaceAnalyzing = true
 				s.showInspectView()
 				logging.Debug(logging.CatModule, "loaded video into inspect module")
+
+				// Auto-run interlacing detection in background
+				videoPath := videoPaths[0]
+				go func() {
+					detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+					defer cancel()
+
+					result, err := detector.QuickAnalyze(ctx, videoPath)
+
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						s.inspectInterlaceAnalyzing = false
+						if err != nil {
+							logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
+							s.inspectInterlaceResult = nil
+						} else {
+							s.inspectInterlaceResult = result
+							logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
+						}
+						s.showInspectView() // Refresh to show results
+					}, false)
+				}()
 			}, false)
 		}()
 
@@ -9097,7 +9285,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 			fileSize = utils.FormatBytes(fi.Size())
 		}
 
-		return fmt.Sprintf(
+		metadata := fmt.Sprintf(
 			"━━━ FILE INFO ━━━\n"+
 				"Path: %s\n"+
 				"File Size: %s\n"+
@@ -9145,6 +9333,28 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 			src.HasChapters,
 			src.HasMetadata,
 		)
+
+		// Add interlacing detection results if available
+		if state.inspectInterlaceAnalyzing {
+			metadata += "\n\n━━━ INTERLACING DETECTION ━━━\n"
+			metadata += "Analyzing... (first 500 frames)"
+		} else if state.inspectInterlaceResult != nil {
+			result := state.inspectInterlaceResult
+			metadata += "\n\n━━━ INTERLACING DETECTION ━━━\n"
+			metadata += fmt.Sprintf("Status: %s\n", result.Status)
+			metadata += fmt.Sprintf("Interlaced Frames: %.1f%%\n", result.InterlacedPercent)
+			metadata += fmt.Sprintf("Field Order: %s\n", result.FieldOrder)
+			metadata += fmt.Sprintf("Confidence: %s\n", result.Confidence)
+			metadata += fmt.Sprintf("Recommendation: %s\n", result.Recommendation)
+			metadata += fmt.Sprintf("\nFrame Counts:\n")
+			metadata += fmt.Sprintf("  Progressive: %d\n", result.Progressive)
+			metadata += fmt.Sprintf("  Top Field First: %d\n", result.TFF)
+			metadata += fmt.Sprintf("  Bottom Field First: %d\n", result.BFF)
+			metadata += fmt.Sprintf("  Undetermined: %d\n", result.Undetermined)
+			metadata += fmt.Sprintf("  Total Analyzed: %d", result.TotalFrames)
+		}
+
+		return metadata
 	}
 
 	// Video player container
@@ -9200,8 +9410,31 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 			}
 
 			state.inspectFile = src
+			state.inspectInterlaceResult = nil
+			state.inspectInterlaceAnalyzing = true
 			state.showInspectView()
 			logging.Debug(logging.CatModule, "loaded inspect file: %s", path)
+
+			// Auto-run interlacing detection in background
+			go func() {
+				detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				defer cancel()
+
+				result, err := detector.QuickAnalyze(ctx, path)
+
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					state.inspectInterlaceAnalyzing = false
+					if err != nil {
+						logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
+						state.inspectInterlaceResult = nil
+					} else {
+						state.inspectInterlaceResult = result
+						logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
+					}
+					state.showInspectView() // Refresh to show results
+				}, false)
+			}()
 		}, state.window)
 	})
 
