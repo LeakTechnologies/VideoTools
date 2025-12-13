@@ -140,6 +140,7 @@ func buildJobItem(
 	statusText := getStatusText(job)
 	statusLabel := widget.NewLabel(statusText)
 	statusLabel.TextStyle = fyne.TextStyle{Monospace: true}
+	statusLabel.Wrapping = fyne.TextWrapWord
 
 	// Control buttons
 	var buttons []fyne.CanvasObject
@@ -273,7 +274,13 @@ func getStatusText(job *queue.Job) string {
 		}
 		return fmt.Sprintf("Status: Completed%s", duration)
 	case queue.JobStatusFailed:
-		return fmt.Sprintf("Status: Failed | Error: %s", job.Error)
+		// Truncate error to prevent UI overflow
+		errMsg := job.Error
+		maxLen := 150
+		if len(errMsg) > maxLen {
+			errMsg = errMsg[:maxLen] + "… (see Copy Error button for full message)"
+		}
+		return fmt.Sprintf("Status: Failed | Error: %s", errMsg)
 	case queue.JobStatusCancelled:
 		return "Status: Cancelled"
 	default:
