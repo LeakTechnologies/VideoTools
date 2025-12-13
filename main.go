@@ -2153,6 +2153,7 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 	go func() {
 		scanner := bufio.NewScanner(stdout)
 		var lastPct float64
+		var sampleCount int
 		for scanner.Scan() {
 			line := scanner.Text()
 			parts := strings.SplitN(line, "=", 2)
@@ -2162,12 +2163,14 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 			key, val := parts[0], parts[1]
 			if key == "out_time_ms" && totalDur > 0 && progressCallback != nil {
 				if ms, err := strconv.ParseFloat(val, 64); err == nil {
-					currentSec := ms / 1000.0
+					// Note: out_time_ms is actually in microseconds, not milliseconds
+					currentSec := ms / 1000000.0
 					pct := (currentSec / totalDur) * 100
 
-					// Debug logging to diagnose progress issues
-					if pct >= 100 && lastPct < 100 {
-						logging.Debug(logging.CatFFMPEG, "merge progress hit 100%%: out_time=%.2fs total_duration=%.2fs", currentSec, totalDur)
+					// Log first few samples and when hitting milestones
+					sampleCount++
+					if sampleCount <= 5 || pct >= 25 && lastPct < 25 || pct >= 50 && lastPct < 50 || pct >= 75 && lastPct < 75 || pct >= 100 && lastPct < 100 {
+						logging.Debug(logging.CatFFMPEG, "merge progress sample #%d: out_time_ms=%s (%.2fs) / total=%.2fs = %.1f%%", sampleCount, val, currentSec, totalDur, pct)
 					}
 
 					// Don't cap at 100% - let it go slightly over to avoid premature 100%
