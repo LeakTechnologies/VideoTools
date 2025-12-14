@@ -617,12 +617,13 @@ type appState struct {
 	mergeChapters  bool
 
 	// Thumbnail module state
-	thumbFile         *videoSource
-	thumbCount        int
-	thumbWidth        int
-	thumbContactSheet bool
-	thumbColumns      int
-	thumbRows         int
+	thumbFile           *videoSource
+	thumbCount          int
+	thumbWidth          int
+	thumbContactSheet   bool
+	thumbColumns        int
+	thumbRows           int
+	thumbLastOutputPath string // Path to last generated output
 
 	// Interlacing detection state
 	interlaceResult     *interlace.DetectionResult
@@ -9682,9 +9683,9 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		var count, width int
 		var description string
 		if state.thumbContactSheet {
-			// Contact sheet: count is determined by grid, use default width
+			// Contact sheet: count is determined by grid, use smaller width to fit window
 			count = state.thumbColumns * state.thumbRows
-			width = 320 // Fixed width for contact sheets
+			width = 200 // Smaller width for contact sheets to fit larger grids
 			description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", state.thumbColumns, state.thumbRows, count)
 		} else {
 			// Individual thumbnails: use user settings
@@ -9729,6 +9730,51 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	})
 	viewQueueBtn.Importance = widget.MediumImportance
 
+	// View Results button - shows output folder if it exists
+	viewResultsBtn := widget.NewButton("View Results", func() {
+		if state.thumbFile == nil {
+			dialog.ShowInformation("No Video", "Load a video first to locate results.", state.window)
+			return
+		}
+
+		videoDir := filepath.Dir(state.thumbFile.Path)
+		videoBaseName := strings.TrimSuffix(filepath.Base(state.thumbFile.Path), filepath.Ext(state.thumbFile.Path))
+		outputDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
+
+		// Check if output exists
+		if _, err := os.Stat(outputDir); os.IsNotExist(err) {
+			dialog.ShowInformation("No Results", "No generated thumbnails found. Generate thumbnails first.", state.window)
+			return
+		}
+
+		// If contact sheet mode, try to show the contact sheet image
+		if state.thumbContactSheet {
+			contactSheetPath := filepath.Join(outputDir, "contact_sheet.jpg")
+			if _, err := os.Stat(contactSheetPath); err == nil {
+				// Show contact sheet in a dialog
+				go func() {
+					img := canvas.NewImageFromFile(contactSheetPath)
+					img.FillMode = canvas.ImageFillContain
+					img.SetMinSize(fyne.NewSize(800, 600))
+
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						d := dialog.NewCustom("Contact Sheet", "Close", img, state.window)
+						d.Resize(fyne.NewSize(900, 700))
+						d.Show()
+					}, false)
+				}()
+				return
+			}
+		}
+
+		// Otherwise, open folder
+		openFolder(outputDir)
+	})
+	viewResultsBtn.Importance = widget.MediumImportance
+	if state.thumbFile == nil {
+		viewResultsBtn.Disable()
+	}
+
 	// Settings panel
 	settingsPanel := container.NewVBox(
 		widget.NewLabel("Settings:"),
@@ -9738,6 +9784,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		widget.NewSeparator(),
 		generateBtn,
 		viewQueueBtn,
+		viewResultsBtn,
 	)
 
 	// Main content - split layout with preview on left, settings on right
