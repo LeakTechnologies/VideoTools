@@ -513,12 +513,12 @@ func savePersistedConvertConfig(cfg convertConfig) error {
 
 // benchmarkRun represents a single benchmark test run
 type benchmarkRun struct {
-	Timestamp          time.Time             `json:"timestamp"`
-	Results            []benchmark.Result    `json:"results"`
-	RecommendedEncoder string                `json:"recommended_encoder"`
-	RecommendedPreset  string                `json:"recommended_preset"`
-	RecommendedHWAccel string                `json:"recommended_hwaccel"`
-	RecommendedFPS     float64               `json:"recommended_fps"`
+	Timestamp          time.Time          `json:"timestamp"`
+	Results            []benchmark.Result `json:"results"`
+	RecommendedEncoder string             `json:"recommended_encoder"`
+	RecommendedPreset  string             `json:"recommended_preset"`
+	RecommendedHWAccel string             `json:"recommended_hwaccel"`
+	RecommendedFPS     float64            `json:"recommended_fps"`
 }
 
 // benchmarkConfig holds benchmark history
@@ -566,47 +566,47 @@ func saveBenchmarkConfig(cfg benchmarkConfig) error {
 }
 
 type appState struct {
-	window           fyne.Window
-	active           string
-	lastModule       string
-	source           *videoSource
-	loadedVideos     []*videoSource // Multiple loaded videos for navigation
-	currentIndex     int            // Current video index in loadedVideos
-	anim             *previewAnimator
-	convert          convertConfig
-	currentFrame     string
-	player           player.Controller
-	playerReady      bool
-	playerVolume     float64
-	playerMuted      bool
-	lastVolume       float64
-	playerPaused     bool
-	playerPos        float64
-	playerLast       time.Time
-	progressQuit     chan struct{}
-	convertCancel    context.CancelFunc
-	playerSurf       *playerSurface
-	convertBusy      bool
-	convertStatus    string
-	convertActiveIn  string
-	convertActiveOut string
-	convertActiveLog string
-	convertProgress  float64
-	convertFPS       float64
-	convertSpeed     float64
-	convertETA       time.Duration
-	playSess         *playSession
-	jobQueue         *queue.Queue
-	statsBar         *ui.ConversionStatsBar
-	queueBtn         *widget.Button
-	queueScroll      *container.Scroll
-	queueOffset      fyne.Position
-	compareFile1     *videoSource
-	compareFile2     *videoSource
-	inspectFile              *videoSource
-	inspectInterlaceResult   *interlace.DetectionResult
+	window                    fyne.Window
+	active                    string
+	lastModule                string
+	source                    *videoSource
+	loadedVideos              []*videoSource // Multiple loaded videos for navigation
+	currentIndex              int            // Current video index in loadedVideos
+	anim                      *previewAnimator
+	convert                   convertConfig
+	currentFrame              string
+	player                    player.Controller
+	playerReady               bool
+	playerVolume              float64
+	playerMuted               bool
+	lastVolume                float64
+	playerPaused              bool
+	playerPos                 float64
+	playerLast                time.Time
+	progressQuit              chan struct{}
+	convertCancel             context.CancelFunc
+	playerSurf                *playerSurface
+	convertBusy               bool
+	convertStatus             string
+	convertActiveIn           string
+	convertActiveOut          string
+	convertActiveLog          string
+	convertProgress           float64
+	convertFPS                float64
+	convertSpeed              float64
+	convertETA                time.Duration
+	playSess                  *playSession
+	jobQueue                  *queue.Queue
+	statsBar                  *ui.ConversionStatsBar
+	queueBtn                  *widget.Button
+	queueScroll               *container.Scroll
+	queueOffset               fyne.Position
+	compareFile1              *videoSource
+	compareFile2              *videoSource
+	inspectFile               *videoSource
+	inspectInterlaceResult    *interlace.DetectionResult
 	inspectInterlaceAnalyzing bool
-	autoCompare              bool // Auto-load Compare module after conversion
+	autoCompare               bool // Auto-load Compare module after conversion
 
 	// Merge state
 	mergeClips     []mergeClip
@@ -626,8 +626,8 @@ type appState struct {
 	thumbLastOutputPath string // Path to last generated output
 
 	// Interlacing detection state
-	interlaceResult     *interlace.DetectionResult
-	interlaceAnalyzing  bool
+	interlaceResult    *interlace.DetectionResult
+	interlaceAnalyzing bool
 }
 
 type mergeClip struct {
@@ -1363,10 +1363,10 @@ func (s *appState) detectHardwareEncoders() []string {
 
 	// Check for hardware encoders by trying to get codec info
 	encodersToCheck := []string{
-		"h264_nvenc", "hevc_nvenc",   // NVIDIA
-		"h264_qsv", "hevc_qsv",        // Intel QuickSync
-		"h264_amf", "hevc_amf",        // AMD AMF
-		"h264_videotoolbox",           // Apple VideoToolbox
+		"h264_nvenc", "hevc_nvenc", // NVIDIA
+		"h264_qsv", "hevc_qsv", // Intel QuickSync
+		"h264_amf", "hevc_amf", // AMD AMF
+		"h264_videotoolbox", // Apple VideoToolbox
 	}
 
 	for _, encoder := range encodersToCheck {
@@ -2089,16 +2089,16 @@ func (s *appState) showMergeView() {
 	}
 
 	formatMap := map[string]string{
-		"MKV (Copy streams)":     "mkv-copy",
-		"MKV (H.264)":            "mkv-h264",
-		"MKV (H.265)":            "mkv-h265",
-		"MP4 (H.264)":            "mp4-h264",
-		"MP4 (H.265)":            "mp4-h265",
-		"DVD NTSC 16:9":          "dvd-ntsc-169",
-		"DVD NTSC 4:3":           "dvd-ntsc-43",
-		"DVD PAL 16:9":           "dvd-pal-169",
-		"DVD PAL 4:3":            "dvd-pal-43",
-		"Blu-ray (H.264)":        "bd-h264",
+		"MKV (Copy streams)": "mkv-copy",
+		"MKV (H.264)":        "mkv-h264",
+		"MKV (H.265)":        "mkv-h265",
+		"MP4 (H.264)":        "mp4-h264",
+		"MP4 (H.265)":        "mp4-h265",
+		"DVD NTSC 16:9":      "dvd-ntsc-169",
+		"DVD NTSC 4:3":       "dvd-ntsc-43",
+		"DVD PAL 16:9":       "dvd-pal-169",
+		"DVD PAL 4:3":        "dvd-pal-43",
+		"Blu-ray (H.264)":    "bd-h264",
 	}
 	var formatKeys []string
 	for k := range formatMap {
@@ -2210,10 +2210,10 @@ func (s *appState) showMergeView() {
 	)
 
 	left := container.NewBorder(
-		leftTop,  // top
-		nil,      // bottom
-		nil,      // left
-		nil,      // right
+		leftTop, // top
+		nil,     // bottom
+		nil,     // left
+		nil,     // right
 		ui.NewDroppable(listScroll, func(items []fyne.URI) {
 			var paths []string
 			for _, uri := range items {
@@ -3297,7 +3297,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 		"-i", inputPath,
 		"-t", "20",
 		"-c", "copy", // Copy all streams without re-encoding
-		"-map", "0",  // Include all streams
+		"-map", "0", // Include all streams
 		outputPath,
 	}
 
@@ -3757,7 +3757,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		updateQualityVisibility func()
 	)
 
-	qualityOptions := []string{"Draft (CRF 28)", "Standard (CRF 23)", "High (CRF 18)", "Lossless"}
+	qualityOptions := []string{
+		"Draft (CRF 28)",
+		"Standard (CRF 23)",
+		"Balanced (CRF 20)",
+		"High (CRF 18)",
+		"Near-Lossless (CRF 16)",
+		"Lossless",
+	}
 	var syncingQuality bool
 
 	qualitySelectSimple = widget.NewSelect(qualityOptions, func(value string) {
@@ -3792,6 +3799,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		syncingQuality = false
 	})
 
+	if !slices.Contains(qualityOptions, state.convert.Quality) {
+		state.convert.Quality = "Standard (CRF 23)"
+	}
 	qualitySelectSimple.SetSelected(state.convert.Quality)
 	qualitySelectAdv.SetSelected(state.convert.Quality)
 
@@ -3881,16 +3891,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 					// Show results dialog
 					resultText := fmt.Sprintf(
 						"Status: %s\n"+
-						"Interlaced Frames: %.1f%%\n"+
-						"Field Order: %s\n"+
-						"Confidence: %s\n\n"+
-						"Recommendation:\n%s\n\n"+
-						"Frame Counts:\n"+
-						"Progressive: %d\n"+
-						"Top Field First: %d\n"+
-						"Bottom Field First: %d\n"+
-						"Undetermined: %d\n"+
-						"Total Analyzed: %d",
+							"Interlaced Frames: %.1f%%\n"+
+							"Field Order: %s\n"+
+							"Confidence: %s\n\n"+
+							"Recommendation:\n%s\n\n"+
+							"Frame Counts:\n"+
+							"Progressive: %d\n"+
+							"Top Field First: %d\n"+
+							"Bottom Field First: %d\n"+
+							"Undetermined: %d\n"+
+							"Total Analyzed: %d",
 						result.Status,
 						result.InterlacedPercent,
 						result.FieldOrder,
@@ -4338,7 +4348,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Simple resolution selector (separate widget to avoid double-parent issues)
 	resolutionSelectSimple := widget.NewSelect([]string{
-		"Source", "360p", "480p", "540p", "720p", "1080p", "1440p", "4K",
+		"Source", "360p", "480p", "540p", "720p", "1080p", "1440p", "4K", "8K",
+		"2X (relative)", "4X (relative)",
 		"NTSC (720×480)", "PAL (720×540)", "PAL (720×576)",
 	}, func(value string) {
 		state.convert.TargetResolution = value
@@ -4522,7 +4533,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	updateEncodingControls()
 
 	// Target Resolution (advanced)
-	resolutionSelect := widget.NewSelect([]string{"Source", "720p", "1080p", "1440p", "4K", "NTSC (720×480)", "PAL (720×540)", "PAL (720×576)"}, func(value string) {
+	resolutionSelect := widget.NewSelect([]string{
+		"Source", "720p", "1080p", "1440p", "4K", "8K",
+		"2X (relative)", "4X (relative)",
+		"NTSC (720×480)", "PAL (720×540)", "PAL (720×576)",
+	}, func(value string) {
 		state.convert.TargetResolution = value
 		logging.Debug(logging.CatUI, "target resolution set to %s", value)
 	})
@@ -7121,10 +7136,14 @@ func (s *appState) prevVideo() {
 
 func crfForQuality(q string) string {
 	switch q {
+	case "Balanced (CRF 20)":
+		return "20"
 	case "Draft (CRF 28)":
 		return "28"
 	case "High (CRF 18)":
 		return "18"
+	case "Near-Lossless (CRF 16)":
+		return "16"
 	case "Lossless":
 		return "0"
 	default:
@@ -7478,6 +7497,12 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	// Scaling/Resolution
 	if cfg.TargetResolution != "" && cfg.TargetResolution != "Source" {
 		var scaleFilter string
+		makeEven := func(v int) int {
+			if v%2 != 0 {
+				return v + 1
+			}
+			return v
+		}
 		switch cfg.TargetResolution {
 		case "720p":
 			scaleFilter = "scale=-2:720"
@@ -7495,6 +7520,18 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			scaleFilter = "scale=720:540"
 		case "PAL (720×576)":
 			scaleFilter = "scale=720:576"
+		case "2X (relative)":
+			if src != nil {
+				w := makeEven(src.Width * 2)
+				h := makeEven(src.Height * 2)
+				scaleFilter = fmt.Sprintf("scale=%d:%d", w, h)
+			}
+		case "4X (relative)":
+			if src != nil {
+				w := makeEven(src.Width * 4)
+				h := makeEven(src.Height * 4)
+				scaleFilter = fmt.Sprintf("scale=%d:%d", w, h)
+			}
 		}
 		if scaleFilter != "" {
 			vf = append(vf, scaleFilter)
