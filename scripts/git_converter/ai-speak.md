@@ -29,6 +29,14 @@
 - dev16/dev17: Not documented in repo—need Jake to outline what shipped; flag to capture in `DONE.md`.
 - dev18 (needs plan): Define next wave after dev15–17 catch-up; likely focus on stabilization, installer completion, progress bars/batch polish, subtitle support, GTK player viability, Blu-ray, and advanced modules—require Jake’s input.
 
+### 🧩 **lt-convert Presets to Port into VT**
+- Quality presets (simple + advanced UIs): CRF 18 (AV1/HEVC), CRF 16 (near-lossless), CRF 20 (balanced), Source/no-change, and Custom bitrate.
+- Resolution/scaling: Source, 720p/1080p/1440p/4K, 2x/4x with scaler choice (bicubic/lanczos/bilinear); surface common picks in the simple menu.
+- FPS: Original or 60 fps toggle.
+- Color looks (for Filters module when built): pink-skin fix, warm, cool, DVD restore, 90s restore, VHS restore, anime preservation; keep an off option.
+- Containers/codecs: MKV/MP4 with AV1/HEVC; map hardware variants (NVENC/AMF/QSV) when available.
+- Presets are WIP but promising—integrate quality/resolution/fps now; fold color presets into the Filters module once it lands.
+
 ---
 
 ## 📖 **HOW TO USE THIS FILE (For Stu's AI)**
