@@ -5,6 +5,7 @@
 **👥 Partners:** 
 - Stu's AI Assistant (development partner)
 - Stu (human developer & tester)
+- Jake (human developer)
 - User (Windows testing & feedback)
 
 **📅 Project:** lt-convert.sh - Cross-platform Video Converter  
