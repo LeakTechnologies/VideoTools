@@ -95,6 +95,9 @@
 
 ## 💬 **Conversation Log**
 
+### 2025-12-14 - Line endings + sync
+**Stu's AI:** Added `.gitattributes` to enforce LF endings for all shell scripts, preventing Windows CRLF issues. Pulled/merged Jake's latest `lt-convert.sh` changes and set the script executable bit. Repo is clean and up to date on `master`.
+
 ### 2025-12-14 - Initial Cross-Platform Fixes
 **Stu's AI:** "My friend Stu uses Wayland Linux and he said that drag and drop function onto 'lt-convert.sh' did not work for him. He said that it also did not detect video files within his current folder."
 
@@ -129,7 +132,7 @@
 **Status:** ⏳ **AWAITING TEST RESULTS**
 **Testers:** 
 - User: Windows ✅ (confirmed working)
-- Stu: Linux Wayland 🔄 **PENDING**
+- Stu: Linux Wayland 🔄 **PENDING** (after pulling latest `.gitattributes` + executable bit)
 
 **Expected Results:**
 - Drag files onto script → Should process them
@@ -213,5 +216,3 @@
 - Linux: `lspci`/`lshw` hardware detection, `timeout` command
 
 ---
-
-*"Great software is not born, it's built through collaboration and testing across diverse environments."*
