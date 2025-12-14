@@ -9540,26 +9540,6 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	})
 	clearBtn.Importance = widget.LowImportance
 
-	// Thumbnail count slider
-	countLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Count: %d", state.thumbCount))
-	countSlider := widget.NewSlider(3, 50)
-	countSlider.Value = float64(state.thumbCount)
-	countSlider.Step = 1
-	countSlider.OnChanged = func(val float64) {
-		state.thumbCount = int(val)
-		countLabel.SetText(fmt.Sprintf("Thumbnail Count: %d", int(val)))
-	}
-
-	// Thumbnail width slider
-	widthLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Width: %d px", state.thumbWidth))
-	widthSlider := widget.NewSlider(160, 640)
-	widthSlider.Value = float64(state.thumbWidth)
-	widthSlider.Step = 32
-	widthSlider.OnChanged = func(val float64) {
-		state.thumbWidth = int(val)
-		widthLabel.SetText(fmt.Sprintf("Thumbnail Width: %d px", int(val)))
-	}
-
 	// Contact sheet checkbox
 	contactSheetCheck := widget.NewCheck("Generate Contact Sheet (single image)", func(checked bool) {
 		state.thumbContactSheet = checked
@@ -9567,9 +9547,10 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	})
 	contactSheetCheck.Checked = state.thumbContactSheet
 
-	// Contact sheet grid options (only show if contact sheet is enabled)
-	var gridOptions fyne.CanvasObject
+	// Conditional settings based on contact sheet mode
+	var settingsOptions fyne.CanvasObject
 	if state.thumbContactSheet {
+		// Contact sheet mode: show columns and rows
 		colLabel := widget.NewLabel(fmt.Sprintf("Columns: %d", state.thumbColumns))
 		colSlider := widget.NewSlider(2, 12)
 		colSlider.Value = float64(state.thumbColumns)
@@ -9588,16 +9569,47 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			rowLabel.SetText(fmt.Sprintf("Rows: %d", int(val)))
 		}
 
-		gridOptions = container.NewVBox(
+		totalThumbs := state.thumbColumns * state.thumbRows
+		totalLabel := widget.NewLabel(fmt.Sprintf("Total thumbnails: %d", totalThumbs))
+		totalLabel.TextStyle = fyne.TextStyle{Italic: true}
+
+		settingsOptions = container.NewVBox(
 			widget.NewSeparator(),
 			widget.NewLabel("Contact Sheet Grid:"),
 			colLabel,
 			colSlider,
 			rowLabel,
 			rowSlider,
+			totalLabel,
 		)
 	} else {
-		gridOptions = container.NewVBox()
+		// Individual thumbnails mode: show count and width
+		countLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Count: %d", state.thumbCount))
+		countSlider := widget.NewSlider(3, 50)
+		countSlider.Value = float64(state.thumbCount)
+		countSlider.Step = 1
+		countSlider.OnChanged = func(val float64) {
+			state.thumbCount = int(val)
+			countLabel.SetText(fmt.Sprintf("Thumbnail Count: %d", int(val)))
+		}
+
+		widthLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Width: %d px", state.thumbWidth))
+		widthSlider := widget.NewSlider(160, 640)
+		widthSlider.Value = float64(state.thumbWidth)
+		widthSlider.Step = 32
+		widthSlider.OnChanged = func(val float64) {
+			state.thumbWidth = int(val)
+			widthLabel.SetText(fmt.Sprintf("Thumbnail Width: %d px", int(val)))
+		}
+
+		settingsOptions = container.NewVBox(
+			widget.NewSeparator(),
+			widget.NewLabel("Individual Thumbnails:"),
+			countLabel,
+			countSlider,
+			widthLabel,
+			widthSlider,
+		)
 	}
 
 	// Generate button
@@ -9615,11 +9627,24 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			outputDir := filepath.Join(os.TempDir(), fmt.Sprintf("videotools_thumbs_%d", time.Now().Unix()))
 
 			generator := thumbnail.NewGenerator(platformConfig.FFmpegPath)
+
+			// Configure based on mode
+			var count, width int
+			if state.thumbContactSheet {
+				// Contact sheet: count is determined by grid, use default width
+				count = state.thumbColumns * state.thumbRows
+				width = 320 // Fixed width for contact sheets
+			} else {
+				// Individual thumbnails: use user settings
+				count = state.thumbCount
+				width = state.thumbWidth
+			}
+
 			config := thumbnail.Config{
 				VideoPath:     state.thumbFile.Path,
 				OutputDir:     outputDir,
-				Count:         state.thumbCount,
-				Width:         state.thumbWidth,
+				Count:         count,
+				Width:         width,
 				Format:        "jpg",
 				Quality:       85,
 				ContactSheet:  state.thumbContactSheet,
@@ -9681,13 +9706,8 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	settingsPanel := container.NewVBox(
 		widget.NewLabel("Settings:"),
 		widget.NewSeparator(),
-		countLabel,
-		countSlider,
-		widthLabel,
-		widthSlider,
-		widget.NewSeparator(),
 		contactSheetCheck,
-		gridOptions,
+		settingsOptions,
 		widget.NewSeparator(),
 		generateBtn,
 	)
