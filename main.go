@@ -9504,12 +9504,16 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		state.thumbRows = 6 // 4x6 = 24 thumbnails
 	}
 
-	// File label
+	// File label and video preview
 	fileLabel := widget.NewLabel("No file loaded")
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
+	var videoContainer fyne.CanvasObject
 	if state.thumbFile != nil {
 		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.thumbFile.Path)))
+		videoContainer = buildVideoPane(state, fyne.NewSize(640, 360), state.thumbFile, nil)
+	} else {
+		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
 	}
 
 	// Load button
@@ -9623,8 +9627,10 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		state.showThumbView()
 
 		go func() {
-			// Create temp directory for thumbnails
-			outputDir := filepath.Join(os.TempDir(), fmt.Sprintf("videotools_thumbs_%d", time.Now().Unix()))
+			// Create output directory in same folder as video
+			videoDir := filepath.Dir(state.thumbFile.Path)
+			videoBaseName := strings.TrimSuffix(filepath.Base(state.thumbFile.Path), filepath.Ext(state.thumbFile.Path))
+			outputDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
 
 			generator := thumbnail.NewGenerator(platformConfig.FFmpegPath)
 
@@ -9712,13 +9718,24 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		generateBtn,
 	)
 
-	// Main content
+	// Main content - split layout with preview on left, settings on right
+	leftColumn := container.NewVBox(
+		videoContainer,
+	)
+
+	rightColumn := container.NewVBox(
+		settingsPanel,
+	)
+
+	mainContent := container.NewHSplit(leftColumn, rightColumn)
+	mainContent.Offset = 0.55 // Give more space to preview
+
 	content := container.NewBorder(
 		container.NewVBox(instructions, widget.NewSeparator(), fileLabel, container.NewHBox(loadBtn, clearBtn)),
 		nil,
 		nil,
 		nil,
-		settingsPanel,
+		mainContent,
 	)
 
 	return container.NewBorder(topBar, nil, nil, nil, content)
