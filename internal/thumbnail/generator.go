@@ -234,7 +234,7 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 			seconds := int(ts) % 60
 			timeStr := fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
 
-			drawTextFilter := fmt.Sprintf("scale=%d:%d,drawtext=text='%s':fontcolor=white:fontsize=20:box=1:boxcolor=black@0.5:boxborderw=5:x=(w-text_w)/2:y=h-th-10",
+			drawTextFilter := fmt.Sprintf("scale=%d:%d,drawtext=text='%s':fontcolor=white:fontsize=20:font='DejaVu Sans Mono':box=1:boxcolor=black@0.5:boxborderw=5:x=(w-text_w)/2:y=h-th-10",
 				thumbWidth, thumbHeight, timeStr)
 
 			// Replace scale filter with combined filter
