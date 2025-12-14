@@ -9556,26 +9556,29 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	if state.thumbContactSheet {
 		// Contact sheet mode: show columns and rows
 		colLabel := widget.NewLabel(fmt.Sprintf("Columns: %d", state.thumbColumns))
+		rowLabel := widget.NewLabel(fmt.Sprintf("Rows: %d", state.thumbRows))
+
+		totalThumbs := state.thumbColumns * state.thumbRows
+		totalLabel := widget.NewLabel(fmt.Sprintf("Total thumbnails: %d", totalThumbs))
+		totalLabel.TextStyle = fyne.TextStyle{Italic: true}
+
 		colSlider := widget.NewSlider(2, 12)
 		colSlider.Value = float64(state.thumbColumns)
 		colSlider.Step = 1
 		colSlider.OnChanged = func(val float64) {
 			state.thumbColumns = int(val)
 			colLabel.SetText(fmt.Sprintf("Columns: %d", int(val)))
+			totalLabel.SetText(fmt.Sprintf("Total thumbnails: %d", state.thumbColumns*state.thumbRows))
 		}
 
-		rowLabel := widget.NewLabel(fmt.Sprintf("Rows: %d", state.thumbRows))
 		rowSlider := widget.NewSlider(2, 12)
 		rowSlider.Value = float64(state.thumbRows)
 		rowSlider.Step = 1
 		rowSlider.OnChanged = func(val float64) {
 			state.thumbRows = int(val)
 			rowLabel.SetText(fmt.Sprintf("Rows: %d", int(val)))
+			totalLabel.SetText(fmt.Sprintf("Total thumbnails: %d", state.thumbColumns*state.thumbRows))
 		}
-
-		totalThumbs := state.thumbColumns * state.thumbRows
-		totalLabel := widget.NewLabel(fmt.Sprintf("Total thumbnails: %d", totalThumbs))
-		totalLabel.TextStyle = fyne.TextStyle{Italic: true}
 
 		settingsOptions = container.NewVBox(
 			widget.NewSeparator(),
