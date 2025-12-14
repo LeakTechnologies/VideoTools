@@ -3231,19 +3231,13 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	inputPath := cfg["inputPath"].(string)
 	outputPath := cfg["outputPath"].(string)
 
-	conv := s.convert
-	if cfgJSON, ok := cfg["convertConfig"].(string); ok && cfgJSON != "" {
-		_ = json.Unmarshal([]byte(cfgJSON), &conv)
-	}
-	if conv.OutputAspect == "" {
-		conv.OutputAspect = "Source"
-	}
-
+	// Probe video to get duration
 	src, err := probeVideo(inputPath)
 	if err != nil {
 		return err
 	}
 
+	// Calculate start time centered on midpoint
 	center := math.Max(0, src.Duration/2-10)
 	start := fmt.Sprintf("%.2f", center)
 
@@ -3251,147 +3245,18 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 		progressCallback(0)
 	}
 
+	// Use stream copy to extract snippet without re-encoding
 	args := []string{
 		"-y",
 		"-hide_banner",
 		"-loglevel", "error",
 		"-ss", start,
 		"-i", inputPath,
+		"-t", "20",
+		"-c", "copy", // Copy all streams without re-encoding
+		"-map", "0",  // Include all streams
+		outputPath,
 	}
-
-	hasCoverArt := strings.TrimSpace(conv.CoverArtPath) != ""
-	if hasCoverArt {
-		args = append(args, "-i", conv.CoverArtPath)
-	}
-
-	var vf []string
-	if conv.TargetResolution != "" && conv.TargetResolution != "Source" {
-		var scaleFilter string
-		switch conv.TargetResolution {
-		case "720p":
-			scaleFilter = "scale=-2:720"
-		case "1080p":
-			scaleFilter = "scale=-2:1080"
-		case "1440p":
-			scaleFilter = "scale=-2:1440"
-		case "4K":
-			scaleFilter = "scale=-2:2160"
-		case "8K":
-			scaleFilter = "scale=-2:4320"
-		case "NTSC (720×480)":
-			scaleFilter = "scale=720:480"
-		case "PAL (720×540)":
-			scaleFilter = "scale=720:540"
-		case "PAL (720×576)":
-			scaleFilter = "scale=720:576"
-		}
-		if scaleFilter != "" {
-			vf = append(vf, scaleFilter)
-		}
-	}
-
-	aspectExplicit := conv.OutputAspect != "" && !strings.EqualFold(conv.OutputAspect, "Source")
-	if aspectExplicit {
-		srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
-		targetAspect := resolveTargetAspect(conv.OutputAspect, src)
-		aspectConversionNeeded := targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01)
-		if aspectConversionNeeded {
-			vf = append(vf, aspectFilters(targetAspect, conv.AspectHandling)...)
-		}
-	}
-
-	if conv.FrameRate != "" && conv.FrameRate != "Source" {
-		vf = append(vf, "fps="+conv.FrameRate)
-	}
-
-	forcedCodec := !strings.EqualFold(conv.VideoCodec, "Copy")
-	isWMV := strings.HasSuffix(strings.ToLower(src.Path), ".wmv")
-	needsReencode := len(vf) > 0 || isWMV || forcedCodec
-
-	if len(vf) > 0 {
-		args = append(args, "-vf", strings.Join(vf, ","))
-	}
-
-	if hasCoverArt {
-		args = append(args, "-map", "0", "-map", "1:v")
-	} else {
-		args = append(args, "-map", "0")
-	}
-
-	if !needsReencode {
-		if hasCoverArt {
-			args = append(args, "-c:v:0", "copy")
-		} else {
-			args = append(args, "-c:v", "copy")
-		}
-	} else {
-		videoCodec := determineVideoCodec(conv)
-		if videoCodec == "copy" {
-			videoCodec = "libx264"
-		}
-		args = append(args, "-c:v", videoCodec)
-
-		mode := conv.BitrateMode
-		if mode == "" {
-			mode = "CRF"
-		}
-		switch mode {
-		case "CBR", "VBR":
-			vb := conv.VideoBitrate
-			if vb == "" {
-				vb = defaultBitrate(conv.VideoCodec, src.Width, src.Bitrate)
-			}
-			args = append(args, "-b:v", vb)
-			if mode == "CBR" {
-				args = append(args, "-minrate", vb, "-maxrate", vb, "-bufsize", vb)
-			}
-		default:
-			crf := conv.CRF
-			if crf == "" {
-				crf = crfForQuality(conv.Quality)
-			}
-			if videoCodec == "libx264" || videoCodec == "libx265" {
-				args = append(args, "-crf", crf)
-			}
-		}
-
-		if conv.EncoderPreset != "" && (strings.Contains(videoCodec, "264") || strings.Contains(videoCodec, "265")) {
-			args = append(args, "-preset", conv.EncoderPreset)
-		}
-
-		if conv.PixelFormat != "" {
-			args = append(args, "-pix_fmt", conv.PixelFormat)
-		}
-	}
-
-	if hasCoverArt {
-		args = append(args, "-c:v:1", "png", "-disposition:v:1", "attached_pic")
-	}
-
-	if !needsReencode {
-		args = append(args, "-c:a", "copy")
-	} else {
-		audioCodec := determineAudioCodec(conv)
-		if audioCodec == "copy" {
-			audioCodec = "aac"
-		}
-		args = append(args, "-c:a", audioCodec)
-		if conv.AudioBitrate != "" && audioCodec != "flac" {
-			args = append(args, "-b:a", conv.AudioBitrate)
-		}
-		if conv.AudioChannels != "" && conv.AudioChannels != "Source" {
-			switch conv.AudioChannels {
-			case "Mono":
-				args = append(args, "-ac", "1")
-			case "Stereo":
-				args = append(args, "-ac", "2")
-			case "5.1":
-				args = append(args, "-ac", "6")
-			}
-		}
-	}
-
-	args = append(args, "-t", "20", outputPath)
 
 	logFile, logPath, _ := createConversionLog(inputPath, outputPath, args)
 	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
@@ -5065,24 +4930,23 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			return
 		}
 		src := state.source
-		ext := state.convert.SelectedFormat.Ext
+		// Use same extension as source file since we're using stream copy
+		ext := filepath.Ext(src.Path)
 		if ext == "" {
 			ext = ".mp4"
 		}
 		outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix(), ext)
 		outPath := filepath.Join(filepath.Dir(src.Path), outName)
 
-		cfgBytes, _ := json.Marshal(state.convert)
 		job := &queue.Job{
 			Type:        queue.JobTypeSnippet,
 			Title:       "Snippet: " + filepath.Base(src.Path),
-			Description: "20s snippet centred on midpoint",
+			Description: "20s snippet centred on midpoint (source settings)",
 			InputFile:   src.Path,
 			OutputFile:  outPath,
 			Config: map[string]interface{}{
-				"inputPath":     src.Path,
-				"outputPath":    outPath,
-				"convertConfig": string(cfgBytes),
+				"inputPath":  src.Path,
+				"outputPath": outPath,
 			},
 		}
 		state.jobQueue.Add(job)
