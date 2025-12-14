@@ -8,17 +8,26 @@
 - Jake (human developer)
 - User (Windows testing & feedback)
 
+**Role focus:** Jake leads the `git_converter` scripts (lt-convert modules); Stu is driving the overall VideoTools GUI and app stack.
+
 **📅 Project:** lt-convert.sh - Cross-platform Video Converter  
 **🔄 Last Updated:** 2025-12-14
 
 ---
 
 ## 🧭 **Project Overview (VideoTools & lt-convert)**
-- VideoTools is a professional GUI suite focused on DVD-compliant output (MPEG-2 NTSC/PAL), AC-3 audio, and DVDStyler/PS2 compatibility.
+- VideoTools is a full FFmpeg-based conversion suite with a professional GUI; DVD-compliant output is one focus area (MPEG-2 NTSC/PAL, AC-3, DVDStyler/PS2), but the scope includes broad AV1/HEVC/H.264 workflows, queueing, and future modules (merge/trim/filters/etc.).
 - Core app: Go-based modular architecture (convert/queue/ui/player), batch queue with pause/resume/history, smart framerate/audio conversion, aspect handling, and validation.
 - Scripts: `lt-convert.sh` provides cross-platform hardware-accelerated AV1/HEVC conversions with modular bash components (hardware/codec/quality/filters/encode).
 - Key docs: `README.md` (overview), `INSTALLATION.md`, `DVD_USER_GUIDE.md`, `DVD_IMPLEMENTATION_SUMMARY.md`, `QUEUE_SYSTEM_GUIDE.md`, `INTEGRATION_GUIDE.md`, `BUILD_AND_RUN.md`.
 - Current Linux display focus is Wayland-first while retaining X11 support; VT_Player is moving to GTK and not yet functional.
+
+### 📜 **Release/Planning Snapshot**
+- dev11–dev13: See `DONE.md` (batch queue, multi-video nav, auto crop/fps UI, encoder presets, target size mode, compare module, hardware detection, mobile profiles, 10-bit defaults, deinterlace, etc.).
+- dev14: Windows compatibility (cross-compilation, path/process handling, GPU detection, docs) completed; installer planned for dev15 per `TODO.md`.
+- dev15 (planned in `TODO.md`): UI polish (progress indicators), performance optimizations, merge/trim/filters module implementations, encoding enhancements (2-pass, custom args, presets), Blu-ray groundwork, Windows installer.
+- dev16/dev17: Not documented in repo—need Jake to outline what shipped; flag to capture in `DONE.md`.
+- dev18 (needs plan): Define next wave after dev15–17 catch-up; likely focus on stabilization, installer completion, progress bars/batch polish, subtitle support, GTK player viability, Blu-ray, and advanced modules—require Jake’s input.
 
 ---
 
@@ -160,6 +169,13 @@
 - Hardware detection varies by Linux distribution
 - Wayland is the primary Linux target; X11 support must be preserved
 - VT_Player is moving to GTK; current GTK player support is not yet functional
+
+### **Testing Needs**
+- Wayland drag/drop and file detection (Linux primary), X11 parity
+- Batch queue reliability and performance under load; progress indicators once implemented
+- Windows installer (planned for dev15), GPU detection/encoder selection on NVIDIA/AMD/Intel
+- Cross-platform hardware benchmarking and encoder fallback paths
+- Subtitle flow (once added) and Blu-ray pipeline (planned dev15+)
 
 ### **Technical Debt**
 - Consider replacing bash arrays for better portability
