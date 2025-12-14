@@ -2,6 +2,136 @@
 
 This file tracks completed features, fixes, and milestones.
 
+## Version 0.1.0-dev17 (2025-12-14)
+
+### Features
+- ✅ **Thumbnail Module - Complete Implementation**
+  - Individual thumbnail generation with customizable count (3-50 thumbnails)
+  - Contact sheet generation with metadata headers
+  - Customizable grid layouts (2-12 columns, 2-12 rows)
+  - Even timestamp distribution across video duration
+  - JPEG output with configurable quality (default: 85)
+  - Configurable thumbnail width (160-640px for individual, 200px for contact sheets)
+  - Saves to `{video_directory}/{video_name}_thumbnails/` for easy access
+  - DejaVu Sans Mono font matching app styling
+  - App background color (#0B0F1A) for contact sheet padding
+  - Dynamic total count display for grid layouts
+
+- ✅ **Thumbnail UI Integration**
+  - Video preview window (640x360) in thumbnail module
+  - Mode-specific controls (contact sheet: columns/rows, individual: count/width)
+  - Dual button system:
+    - "GENERATE NOW" - Adds to queue and starts immediately
+    - "Add to Queue" - Adds for batch processing
+  - "View Results" button with in-app contact sheet viewer (900x700 dialog)
+  - "View Queue" button for queue access from thumbnail module
+  - Drag-and-drop support for video files (universal across app)
+  - Real-time grid total calculation as columns/rows change
+
+- ✅ **Job Queue Integration for Thumbnails**
+  - Background thumbnail generation with progress tracking
+  - Job queue support with live progress updates
+  - Can queue multiple thumbnail jobs from different videos
+  - Progress callback integration for thumbnail extraction
+  - Proper context cancellation support
+
+- ✅ **Snippet Tool Improvement**
+  - Changed from re-encoding to stream copy (`-c copy`)
+  - Instant 20-second snippet extraction with zero quality loss
+  - No encoding overhead - extracts source streams directly
+  - Removed 148 lines of unnecessary encoding logic
+
+### Technical Improvements
+- ✅ **Timestamp-based Frame Selection**
+  - Fixed frame selection from FPS-dependent (`eq(n,frame_num)`) to timestamp-based (`gte(t,timestamp)`)
+  - Ensures correct thumbnail count regardless of video frame rate
+  - Works reliably with VFR (Variable Frame Rate) content
+  - Uses `setpts=N/TB` for proper timestamp reset in contact sheets
+
+- ✅ **FFmpeg Filter Optimization**
+  - Tile filter for grid layouts: `tile=COLUMNSxROWS`
+  - Select filter with timestamp-based frame extraction
+  - Pad filter with hex color codes for app background matching
+  - Drawtext filter with font specification and positioning
+  - Scale filter maintaining aspect ratios
+
+- ✅ **Module Architecture**
+  - Added thumbnail state fields to appState (thumbFile, thumbCount, thumbWidth, thumbContactSheet, thumbColumns, thumbRows, thumbLastOutputPath)
+  - Implemented `showThumbView()` for thumbnail module UI
+  - Implemented `buildThumbView()` for split layout (preview 55%, settings 45%)
+  - Implemented `executeThumbJob()` for job queue integration
+  - Universal drag-and-drop handler for all modules
+
+- ✅ **Error Handling**
+  - Disabled timestamp overlay on individual thumbnails to avoid font availability issues
+  - Graceful handling of missing output directories
+  - Proper error dialogs with context-specific messages
+  - Exit status 234 resolution (font-related errors)
+
+### Bug Fixes
+- ✅ Fixed incorrect thumbnail count in contact sheets (was generating 34 instead of 40 for 5x8 grid)
+- ✅ Fixed frame selection FPS assumption (hardcoded 30fps removed)
+- ✅ Fixed module visibility (added thumb module to enabled check)
+- ✅ Fixed undefined function call (openFileManager → openFolder)
+- ✅ Fixed dynamic total count not updating when changing grid dimensions
+- ✅ Fixed font-related crash on systems without DejaVu Sans Mono
+
+## Version 0.1.0-dev16 (2025-12-14)
+
+### Features
+- ✅ **Interlacing Detection Module - Complete Implementation**
+  - Automatic interlacing analysis using FFmpeg idet filter
+  - Field order detection (TFF - Top Field First, BFF - Bottom Field First)
+  - Frame-by-frame analysis with classifications:
+    - Progressive frames
+    - Top Field First interlaced frames
+    - Bottom Field First interlaced frames
+    - Undetermined frames
+  - Interlaced percentage calculation
+  - Status determination: Progressive (<5%), Interlaced (>95%), Mixed Content (5-95%)
+  - Confidence levels: High (<5% undetermined), Medium (5-15%), Low (>15%)
+  - Quick analyze mode (500 frames) for fast detection
+  - Full video analysis option for comprehensive results
+
+- ✅ **Deinterlacing Recommendations**
+  - Automatic deinterlacing recommendations based on analysis
+  - Suggested filter selection (yadif for compatibility)
+  - Human-readable recommendations
+  - SuggestDeinterlace boolean flag for programmatic use
+
+- ✅ **Preview Generation**
+  - Deinterlace preview at specific timestamps
+  - Side-by-side comparison (original vs deinterlaced)
+  - Uses yadif filter for preview generation
+  - Frame extraction with proper scaling
+
+### Technical Improvements
+- ✅ **Detector Implementation**
+  - Created `/internal/interlace/detector.go` package
+  - NewDetector() constructor accepting ffmpeg and ffprobe paths
+  - Analyze() method with configurable sample frame count
+  - QuickAnalyze() convenience method for 500-frame sampling
+  - Regex-based parsing of idet filter output
+  - Multi-frame detection statistics extraction
+
+- ✅ **Detection Result Structure**
+  - Comprehensive DetectionResult type with all metrics
+  - String() method for formatted output
+  - Percentage calculations for interlaced content
+  - Field order determination logic
+  - Confidence calculation based on undetermined ratio
+
+- ✅ **FFmpeg Integration**
+  - idet filter integration for interlacing detection
+  - Proper stderr pipe handling for filter statistics
+  - Context-aware command execution with cancellation support
+  - Null output format for analysis-only operations
+
+### Documentation
+- ✅ Added interlacing detection to module list
+- ✅ Documented detection algorithms and thresholds
+- ✅ Explained field order types and their implications
+
 ## Version 0.1.0-dev13 (In Progress - 2025-12-03)
 
 ### Features
