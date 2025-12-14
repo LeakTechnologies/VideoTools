@@ -142,23 +142,26 @@ EOF
 build_filter_chain() {
     filter_chain=""
     
-    if [[ -n "$scale" ]]; then
-        filter_chain="scale=${scale}:flags=${scale_flags}"
-    fi
-    
-    if [[ -n "$fps_filter" ]]; then
-        if [[ -n "$filter_chain" ]]; then
-            filter_chain="${filter_chain},${fps_filter}"
-        else
-            filter_chain="$fps_filter"
+    # Only build filter chain if actually needed
+    if [[ -n "$scale" || -n "$fps_filter" || -n "$color_filter" ]]; then
+        if [[ -n "$scale" ]]; then
+            filter_chain="scale=${scale}:flags=${scale_flags}"
         fi
-    fi
-    
-    if [[ -n "$color_filter" ]]; then
-        if [[ -n "$filter_chain" ]]; then
-            filter_chain="${filter_chain},${color_filter}"
-        else
-            filter_chain="$color_filter"
+        
+        if [[ -n "$fps_filter" ]]; then
+            if [[ -n "$filter_chain" ]]; then
+                filter_chain="${filter_chain},${fps_filter}"
+            else
+                filter_chain="$fps_filter"
+            fi
+        fi
+        
+        if [[ -n "$color_filter" ]]; then
+            if [[ -n "$filter_chain" ]]; then
+                filter_chain="${filter_chain},${color_filter}"
+            else
+                filter_chain="$color_filter"
+            fi
         fi
     fi
 }
