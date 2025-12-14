@@ -11,19 +11,24 @@ if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]]; then
     printf '\e[14]'           # Font size 14
 fi
 
-# Get directory where the script is located
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get directory where the script is located (cross-platform)
+if [[ -n "${BASH_SOURCE[0]}" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$(pwd)"
+fi
 
 # Always create Converted folder in the script's directory
 OUT="$SCRIPT_DIR/Converted"
 mkdir -p "$OUT"
 
-# Source modules
-source "$(dirname "$0")/modules/hardware.sh"
-source "$(dirname "$0")/modules/codec.sh"
-source "$(dirname "$0")/modules/quality.sh"
-source "$(dirname "$0")/modules/filters.sh"
-source "$(dirname "$0")/modules/encode.sh"
+# Source modules with cross-platform path handling
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/modules/hardware.sh"
+source "$SCRIPT_DIR/modules/codec.sh"
+source "$SCRIPT_DIR/modules/quality.sh"
+source "$SCRIPT_DIR/modules/filters.sh"
+source "$SCRIPT_DIR/modules/encode.sh"
 
 # Auto-detect encoder function
 auto_detect_encoder() {
@@ -72,17 +77,51 @@ auto_detect_encoder() {
         if ffmpeg -hide_banner -loglevel error -encoders | grep -q "$enc"; then
             echo "  Testing $enc..." >&2
             start_time=$(date +%s)
-            if timeout 10 ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc=duration=1:size=320x240:rate=1" \
-                -c:v "$enc" -f null - >/dev/null 2>&1; then
-                end_time=$(date +%s)
-                test_time=$((end_time - start_time))
-                echo "    $enc: ${test_time}s (SUCCESS)" >&2
-                if [[ $test_time -lt $best_time ]]; then
-                    best_time=$test_time
-                    best_encoder=$enc
+            # Cross-platform timeout handling
+            if command -v timeout >/dev/null 2>&1; then
+                # Linux/macOS timeout
+                timeout_cmd="timeout 10"
+            elif command -v gtimeout >/dev/null 2>&1; then
+                # macOS with GNU coreutils
+                timeout_cmd="gtimeout 10"
+            else
+                # Windows - no timeout, but we'll background and kill
+                timeout_cmd=""
+            fi
+            
+            if [[ -n "$timeout_cmd" ]]; then
+                if $timeout_cmd ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc=duration=1:size=320x240:rate=1" \
+                    -c:v "$enc" -f null - >/dev/null 2>&1; then
+                    end_time=$(date +%s)
+                    test_time=$((end_time - start_time))
+                    echo "    $enc: ${test_time}s (SUCCESS)" >&2
+                    if [[ $test_time -lt $best_time ]]; then
+                        best_time=$test_time
+                        best_encoder=$enc
+                    fi
+                else
+                    echo "    $enc: FAILED" >&2
                 fi
             else
-                echo "    $enc: FAILED" >&2
+                # Windows fallback - run without timeout but limit test duration
+                ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc=duration=1:size=320x240:rate=1" \
+                    -c:v "$enc" -f null - >/dev/null 2>&1 &
+                ffmpeg_pid=$!
+                sleep 5  # Wait max 5 seconds
+                if kill -0 $ffmpeg_pid 2>/dev/null; then
+                    kill $ffmpeg_pid 2>/dev/null
+                    wait $ffmpeg_pid 2>/dev/null
+                    echo "    $enc: TIMEOUT" >&2
+                else
+                    wait $ffmpeg_pid
+                    end_time=$(date +%s)
+                    test_time=$((end_time - start_time))
+                    echo "    $enc: ${test_time}s (SUCCESS)" >&2
+                    if [[ $test_time -lt $best_time ]]; then
+                        best_time=$test_time
+                        best_encoder=$enc
+                    fi
+                fi
             fi
         else
             echo "    $enc: NOT AVAILABLE" >&2
@@ -233,12 +272,23 @@ if [[ $# -gt 0 ]]; then
     echo "Processing dragged files: ${#video_files[@]} file(s)"
 else
     # Double-clicked - process all video files in current directory
-    shopt -s nullglob
-    video_files=(*.mp4 *.mkv *.mov *.avi *.wmv *.ts *.m2ts)
-    shopt -u nullglob
+    # More comprehensive file detection for cross-platform compatibility
+    video_files=()
+    
+    # Common video extensions
+    extensions=("mp4" "mkv" "mov" "avi" "wmv" "ts" "m2ts" "flv" "webm" "m4v" "3gp" "mpg" "mpeg" "m4v")
+    
+    for ext in "${extensions[@]}"; do
+        for file in *."$ext"; do
+            if [[ -f "$file" ]]; then
+                video_files+=("$file")
+            fi
+        done
+    done
     
     if [[ ${#video_files[@]} -eq 0 ]]; then
         echo "No video files found in current directory."
+        echo "Supported formats: ${extensions[*]}"
         read -p "Press Enter to exit"
         exit 0
     fi

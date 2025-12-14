@@ -1,83 +1,70 @@
 #!/bin/bash
-# ===================================================================
-#  Codec and Container Selection Module - GIT Converter v2.7
-#  User choice for codec and container type
-# ===================================================================
 
-get_codec_and_container_settings() {
-    local encoder="$1"
+# Codec and container selection module
+# Sets output codec and container format
+
+select_codec() {
+    echo -e "\n🎬 Select output codec:"
+    echo "1) AV1 (best compression, newer)"
+    echo "2) HEVC (good compatibility, mature)"
     
-    clear
-    cat << "EOF"
-╔═════════════════════════════════════════════════════════════╗
-║                    Choose Codec & Container                 ║
-╚═════════════════════════════════════════════════════════╝
-
-   1) AV1 Encoding
-      - MKV container (recommended)
-      - MP4 container
-   
-   2) HEVC Encoding
-      - MKV container (recommended)
-      - MP4 container
-EOF
-    echo
-
     while true; do
-        read -p "   Enter 1–2 → " codec_choice
-        if [[ -n "$codec_choice" && "$codec_choice" =~ ^[1-2]$ ]]; then
-            break
-        else
-            echo "   Invalid input. Please enter 1 or 2."
-        fi
-    done
-
-    # Get container preference
-    if [[ "$codec_choice" =~ ^[1-2]$ ]]; then
-        echo
-        echo "Choose container for $( [[ "$codec_choice" == "1" ]] && echo "AV1" || echo "HEVC"):"
-        echo "   1) MKV (recommended)"
-        echo "   2) MP4"
-        echo
-        
-        while true; do
-            read -p "   Enter 1–2 → " container_choice
-            if [[ -n "$container_choice" && "$container_choice" =~ ^[1-2]$ ]]; then
+        read -p "Enter choice [1-2]: " codec_choice
+        case $codec_choice in
+            1) 
+                OUTPUT_CODEC="av1"
+                ENCODER="libsvtav1"
+                echo "✅ Selected AV1 codec"
                 break
-            else
-                echo "   Invalid input. Please enter 1 or 2."
-            fi
-        done
-        
-        case $container_choice in
-            1) ext="mkv" ;;
-            2) ext="mp4" ;;
+                ;;
+            2) 
+                OUTPUT_CODEC="hevc"
+                ENCODER="libx265"
+                echo "✅ Selected HEVC codec"
+                break
+                ;;
+            *) 
+                echo "❌ Invalid choice. Please enter 1 or 2."
+                ;;
         esac
-    else
-        ext="mkv"  # Default fallback
-    fi
+    done
+}
+
+select_container() {
+    echo -e "\n📦 Select output container:"
+    echo "1) MKV (flexible, supports all features)"
+    echo "2) MP4 (better device compatibility)"
     
-    # Set encoder based on choice
-    case $codec_choice in
-        1) 
-            # AV1 encoding - use detected encoder if AV1-capable
-            if [[ "$encoder" == *"av1"* ]]; then
-                final_encoder="$encoder"
-            else
-                # Fallback to SVT-AV1 if detected encoder doesn't support AV1
-                final_encoder="libsvtav1"
-            fi
-            ;;
-        2) 
-            # HEVC encoding - use detected encoder
-            final_encoder="$encoder"
-            ;;
-        *)
-            final_encoder="$encoder"  # Fallback
-            ;;
-    esac
+    while true; do
+        read -p "Enter choice [1-2]: " container_choice
+        case $container_choice in
+            1) 
+                OUTPUT_CONTAINER="mkv"
+                echo "✅ Selected MKV container"
+                break
+                ;;
+            2) 
+                OUTPUT_CONTAINER="mp4"
+                echo "✅ Selected MP4 container"
+                break
+                ;;
+            *) 
+                echo "❌ Invalid choice. Please enter 1 or 2."
+                ;;
+        esac
+    done
+}
+
+setup_codec_and_container() {
+    select_codec
+    select_container
     
-    # Export variables for main script
-    echo "$final_encoder"
-    echo "$ext"
+    # Set output filename
+    local base_name="${INPUT_FILE%.*}"
+    OUTPUT_FILE="${base_name}_converted.${OUTPUT_CONTAINER}"
+    
+    echo -e "\n🎯 Codec & Container Configuration:"
+    echo "Codec: $OUTPUT_CODEC ($ENCODER)"
+    echo "Container: $OUTPUT_CONTAINER"
+    echo "Output file: $OUTPUT_FILE"
 }
