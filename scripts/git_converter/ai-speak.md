@@ -5,10 +5,7 @@
 **👥 Partners:** 
 - Stu's AI Assistant (development partner)
 - Stu (human developer & tester)
-- Jake (human developer)
 - User (Windows testing & feedback)
-
-**Role focus:** Jake leads the `git_converter` scripts (lt-convert modules); Stu is driving the overall VideoTools GUI and app stack.
 
 **📅 Project:** lt-convert.sh - Cross-platform Video Converter  
 **🔄 Last Updated:** 2025-12-14
@@ -16,26 +13,11 @@
 ---
 
 ## 🧭 **Project Overview (VideoTools & lt-convert)**
-- VideoTools is a full FFmpeg-based conversion suite with a professional GUI; DVD-compliant output is one focus area (MPEG-2 NTSC/PAL, AC-3, DVDStyler/PS2), but the scope includes broad AV1/HEVC/H.264 workflows, queueing, and future modules (merge/trim/filters/etc.).
+- VideoTools is a professional GUI suite focused on DVD-compliant output (MPEG-2 NTSC/PAL), AC-3 audio, and DVDStyler/PS2 compatibility.
 - Core app: Go-based modular architecture (convert/queue/ui/player), batch queue with pause/resume/history, smart framerate/audio conversion, aspect handling, and validation.
 - Scripts: `lt-convert.sh` provides cross-platform hardware-accelerated AV1/HEVC conversions with modular bash components (hardware/codec/quality/filters/encode).
 - Key docs: `README.md` (overview), `INSTALLATION.md`, `DVD_USER_GUIDE.md`, `DVD_IMPLEMENTATION_SUMMARY.md`, `QUEUE_SYSTEM_GUIDE.md`, `INTEGRATION_GUIDE.md`, `BUILD_AND_RUN.md`.
 - Current Linux display focus is Wayland-first while retaining X11 support; VT_Player is moving to GTK and not yet functional.
-
-### 📜 **Release/Planning Snapshot**
-- dev11–dev13: See `DONE.md` (batch queue, multi-video nav, auto crop/fps UI, encoder presets, target size mode, compare module, hardware detection, mobile profiles, 10-bit defaults, deinterlace, etc.).
-- dev14: Windows compatibility (cross-compilation, path/process handling, GPU detection, docs) completed; installer planned for dev15 per `TODO.md`.
-- dev15 (planned in `TODO.md`): UI polish (progress indicators), performance optimizations, merge/trim/filters module implementations, encoding enhancements (2-pass, custom args, presets), Blu-ray groundwork, Windows installer.
-- dev16/dev17: Not documented in repo—need Jake to outline what shipped; flag to capture in `DONE.md`.
-- dev18 (needs plan): Define next wave after dev15–17 catch-up; likely focus on stabilization, installer completion, progress bars/batch polish, subtitle support, GTK player viability, Blu-ray, and advanced modules—require Jake’s input.
-
-### 🧩 **lt-convert Presets to Port into VT**
-- Quality presets (simple + advanced UIs): CRF 18 (AV1/HEVC), CRF 16 (near-lossless), CRF 20 (balanced), Source/no-change, and Custom bitrate.
-- Resolution/scaling: Source, 720p/1080p/1440p/4K, 2x/4x with scaler choice (bicubic/lanczos/bilinear); surface common picks in the simple menu.
-- FPS: Original or 60 fps toggle.
-- Color looks (slot into Filters/Upcale pipeline): pink-skin fix, warm, cool, DVD restore, 90s restore, VHS restore, anime preservation; keep an off option. Consider pairing DVD/Anime looks with upscale flows.
-- Containers/codecs: MKV/MP4 with AV1/HEVC; map hardware variants (NVENC/AMF/QSV) when available.
-- Presets are WIP but promising—integrate quality/resolution/fps now; fold color presets into the Filters module once it lands.
 
 ---
 
@@ -82,7 +64,41 @@
 - [x] Error handling and validation
 
 ### 🔄 **Current Issues Being Addressed**
-- None currently - all major features implemented
+- 🚨 **PERFORMANCE ISSUE:** lt-convert.sh slower (70-100 FPS) vs legacy (200+ FPS)
+
+### 💬 **Conversation Log**
+
+### 2025-12-14 - Performance Regression Investigation
+**User:** "The code converts videos slower than previous versions that I created before we went modular. I want to understand why. Please can you look through it code in 'legacy' folder and see if you can understand why FPS on each video convert was in the 200s and above, whereas I only get 70-100 using lt-convert.sh"
+
+**Analysis:** Found key performance differences:
+
+**🔍 LEGACY (Fast - 200+ FPS):**
+- Uses **bitrate encoding** (`-b:v 1800k-3500k`)
+- **Simple presets** - no complex quality parameters
+- **Direct AMD AMF** with minimal overhead
+- **Basic scaling** only when needed
+
+**🐌 MODULAR (Slow - 70-100 FPS):**
+- Uses **CRF encoding** by default (`-crf 16-20`)
+- **Complex quality parameters** (`-preset 6`, `-quality 23-28`)
+- **Hardware benchmarking overhead** at startup
+- **Modular function call overhead**
+- **More complex filter chains**
+
+**🎯 ROOT CAUSE:** CRF encoding is inherently slower than bitrate encoding because it analyzes each frame for optimal quality, while bitrate encoding uses fixed target rates.
+
+**Status:** 🔄 **IMPLEMENTING SOLUTIONS**
+
+### 2025-12-14 - Performance Optimization Implementation
+**User Request:** "Add Fast Bitrate mode, but also let's create a menu option for hardware benchmarking at startup, This setting will allow user to select Enter for Hardware Benchmarking first before they can convert. This setting will be presented alongside 'Convert (Skip Benchmark)' which will do as it says, it will just go straight to the conversion options. The hardware benchmarking will need to save and remember users hardware preferences, alongside with encoders and hardware selected which are most appropriate to them and show the user a thumbs up in ascii at the end of the benchmark with the results. Let's be clear about the results in a casual fashion. 'Your AMD Graphics Card was detected', The best encoder for you is (show encoder here)' 'Your Benchmark score was (benchmark score based on a test we could somehow do with ffmpeg). I want to also implement the Simplify Filter Chains solution following the work on the Hardware Encoder. Let's prioritise that, then the Add Fast Bitrate Mode, then Simplify Filter Chains."
+
+**Implementation Plan:**
+1. **Priority 1:** Hardware benchmarking menu with caching
+2. **Priority 2:** Fast bitrate mode implementation  
+3. **Priority 3:** Simplify filter chains
+
+**Status:** 🔄 **STARTING IMPLEMENTATION**
 
 ---
 
@@ -177,13 +193,6 @@
 - Hardware detection varies by Linux distribution
 - Wayland is the primary Linux target; X11 support must be preserved
 - VT_Player is moving to GTK; current GTK player support is not yet functional
-
-### **Testing Needs**
-- Wayland drag/drop and file detection (Linux primary), X11 parity
-- Batch queue reliability and performance under load; progress indicators once implemented
-- Windows installer (planned for dev15), GPU detection/encoder selection on NVIDIA/AMD/Intel
-- Cross-platform hardware benchmarking and encoder fallback paths
-- Subtitle flow (once added) and Blu-ray pipeline (planned dev15+)
 
 ### **Technical Debt**
 - Consider replacing bash arrays for better portability

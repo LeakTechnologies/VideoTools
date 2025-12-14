@@ -30,38 +30,54 @@ source "$SCRIPT_DIR/modules/quality.sh"
 source "$SCRIPT_DIR/modules/filters.sh"
 source "$SCRIPT_DIR/modules/encode.sh"
 
-# Auto-detect encoder function
-auto_detect_encoder() {
-    echo "Detecting hardware and optimal encoder..." >&2
+# Hardware benchmarking function
+run_hardware_benchmark() {
+    echo "Detecting your hardware..." >&2
     
     # Detect GPU type
     gpu_type="none"
+    gpu_name="Unknown"
     
     # Try NVIDIA detection
     if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; then
         gpu_type="nvidia"
-        echo "  ✓ NVIDIA GPU detected" >&2
-    # Try AMD detection with multiple methods
+        gpu_name=$(nvidia-smi --query-gpu=name --format=csv,noheader,nounits | head -1)
+        echo "  ✓ NVIDIA GPU detected: $gpu_name" >&2
+    # Try AMD detection
     elif command -v lspci >/dev/null 2>&1 && lspci 2>/dev/null | grep -iq "amd\|radeon\|advanced micro devices"; then
         gpu_type="amd"
-        echo "  ✓ AMD GPU detected (via lspci)" >&2
-    elif command -v wmic >/dev/null 2>&1 && wmic path win32_VideoController get name 2>/dev/null | grep -iq "amd\|radeon"; then
+        gpu_name=$(lspci 2>/dev/null | grep -i "amd\|radeon" | head -1 | cut -d':' -f3 | xargs)
+        echo "  ✓ AMD GPU detected: $gpu_name" >&2
+    elif command -v lshw >/dev/null 2>&1 && lshw -c display 2>/dev/null | grep -iq "amd\|radeon"; then
         gpu_type="amd"
-        echo "  ✓ AMD GPU detected (via wmic)" >&2
+        gpu_name=$(lshw -c display 2>/dev/null | grep -i "product" | head -1 | cut -d':' -f2 | xargs)
+        echo "  ✓ AMD GPU detected: $gpu_name" >&2
+    elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]] && command -v wmic >/dev/null 2>&1 && wmic path win32_VideoController get name 2>/dev/null | grep -iq "amd\|radeon"; then
+        gpu_type="amd"
+        gpu_name=$(wmic path win32_VideoController get name 2>/dev/null | grep -i "amd\|radeon" | head -1 | xargs)
+        echo "  ✓ AMD GPU detected: $gpu_name" >&2
     # Try Intel detection
     elif command -v lspci >/dev/null 2>&1 && lspci 2>/dev/null | grep -iq "intel.*vga\|intel.*display"; then
         gpu_type="intel"
-        echo "  ✓ Intel GPU detected (via lspci)" >&2
-    elif command -v wmic >/dev/null 2>&1 && wmic path win32_VideoController get name 2>/dev/null | grep -iq "intel"; then
+        gpu_name=$(lspci 2>/dev/null | grep -i "intel.*vga\|intel.*display" | head -1 | cut -d':' -f3 | xargs)
+        echo "  ✓ Intel GPU detected: $gpu_name" >&2
+    elif command -v lshw >/dev/null 2>&1 && lshw -c display 2>/dev/null | grep -iq "intel"; then
         gpu_type="intel"
-        echo "  ✓ Intel GPU detected (via wmic)" >&2
+        gpu_name=$(lshw -c display 2>/dev/null | grep -i "product" | head -1 | cut -d':' -f2 | xargs)
+        echo "  ✓ Intel GPU detected: $gpu_name" >&2
+    elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "win32" ]] && command -v wmic >/dev/null 2>&1 && wmic path win32_VideoController get name 2>/dev/null | grep -iq "intel"; then
+        gpu_type="intel"
+        gpu_name=$(wmic path win32_VideoController get name 2>/dev/null | grep -i "intel" | head -1 | xargs)
+        echo "  ✓ Intel GPU detected: $gpu_name" >&2
     else
         echo "  ⚠ No GPU detected, will use CPU encoding" >&2
+        gpu_name="CPU"
     fi
     
     # Test encoder availability and speed
     local best_encoder=""
     local best_time=999999
+    local benchmark_score=0
     
     # Test candidates based on GPU type
     local candidates=()
@@ -72,11 +88,13 @@ auto_detect_encoder() {
         *)      candidates=("libsvtav1" "libx265") ;;
     esac
     
-    # Quick benchmark each encoder
+    echo "  Testing encoders..." >&2
+# Quick benchmark each encoder
     for enc in "${candidates[@]}"; do
         if ffmpeg -hide_banner -loglevel error -encoders | grep -q "$enc"; then
             echo "  Testing $enc..." >&2
             start_time=$(date +%s)
+            
             # Cross-platform timeout handling
             if command -v timeout >/dev/null 2>&1; then
                 # Linux/macOS timeout
@@ -90,51 +108,71 @@ auto_detect_encoder() {
             fi
             
             if [[ -n "$timeout_cmd" ]]; then
-                if $timeout_cmd ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc=duration=1:size=320x240:rate=1" \
+                if $timeout_cmd ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc=duration=2:size=640x480:rate=30" \
                     -c:v "$enc" -f null - >/dev/null 2>&1; then
                     end_time=$(date +%s)
                     test_time=$((end_time - start_time))
-                    echo "    $enc: ${test_time}s (SUCCESS)" >&2
+                    # Calculate benchmark score (higher is better)
+                    benchmark_score=$((1000 / test_time))
+                    echo "      $enc: ${test_time}s (Score: $benchmark_score)" >&2
                     if [[ $test_time -lt $best_time ]]; then
                         best_time=$test_time
                         best_encoder=$enc
+                        benchmark_score=$((1000 / best_time))
                     fi
                 else
-                    echo "    $enc: FAILED" >&2
+                    echo "      $enc: FAILED" >&2
                 fi
             else
                 # Windows fallback - run without timeout but limit test duration
-                ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc=duration=1:size=320x240:rate=1" \
+                ffmpeg -hide_banner -loglevel error -y -f lavfi -i "testsrc=duration=2:size=640x480:rate=30" \
                     -c:v "$enc" -f null - >/dev/null 2>&1 &
                 ffmpeg_pid=$!
-                sleep 5  # Wait max 5 seconds
+                sleep 8  # Wait max 8 seconds
                 if kill -0 $ffmpeg_pid 2>/dev/null; then
                     kill $ffmpeg_pid 2>/dev/null
                     wait $ffmpeg_pid 2>/dev/null
-                    echo "    $enc: TIMEOUT" >&2
+                    echo "      $enc: TIMEOUT" >&2
                 else
                     wait $ffmpeg_pid
                     end_time=$(date +%s)
                     test_time=$((end_time - start_time))
-                    echo "    $enc: ${test_time}s (SUCCESS)" >&2
+                    if [[ $test_time -gt 0 ]]; then
+                        benchmark_score=$((1000 / test_time))
+                    else
+                        benchmark_score=1
+                    fi
+                    echo "      $enc: ${test_time}s (Score: $benchmark_score)" >&2
                     if [[ $test_time -lt $best_time ]]; then
                         best_time=$test_time
                         best_encoder=$enc
+                        benchmark_score=$((1000 / best_time))
                     fi
                 fi
             fi
         else
-            echo "    $enc: NOT AVAILABLE" >&2
+            echo "      $enc: NOT AVAILABLE" >&2
         fi
     done
     
-    if [[ -n "$best_encoder" ]]; then
-        echo "  ✓ Selected: $best_encoder (fastest encoder)" >&2
-        echo "$best_encoder"
-    else
-        echo "  ⚠ No working encoder found, defaulting to libx265" >&2
-        echo "libx265"
-    fi
+    # Display results with ASCII thumbs up
+    echo
+    echo "  Your $gpu_name was detected" >&2
+    echo "  The best encoder for you is $best_encoder" >&2
+    echo "  Your benchmark score was $benchmark_score" >&2
+    echo
+    echo "     ( ͡° ͜ʖ ͡°)" >&2
+    echo
+    
+    # Cache results
+    cat > "$CACHE_FILE" << EOF
+cached_gpu="$gpu_name"
+cached_encoder="$best_encoder"
+cached_score="$benchmark_score"
+cached_gpu_type="$gpu_type"
+EOF
+    
+    optimal_encoder="$best_encoder"
 }
 
 # Display header
@@ -159,10 +197,44 @@ cat << "EOF"
 
 EOF
 
-# Auto-detect encoder first
-echo -e "\n🔍 Auto-detecting optimal encoder..."
-optimal_encoder=$(auto_detect_encoder)
-echo "✅ Selected: $optimal_encoder"
+# Check for cached hardware results
+CACHE_FILE="$SCRIPT_DIR/.hardware_cache"
+if [[ -f "$CACHE_FILE" ]]; then
+    echo
+    echo "╔═══════════════════════════════════════════════════════════════╗"
+    echo "║                    Hardware Benchmarking                         ║"
+    echo "╚═══════════════════════════════════════════════════════════════╝"
+    echo
+    echo "   1) Convert (Skip Benchmark) - Use cached settings"
+    echo "   2) Run Hardware Benchmarking"
+    echo
+    
+    while true; do
+        read -p "   Enter 1–2 → " bench_choice
+        if [[ -n "$bench_choice" && "$bench_choice" =~ ^[1-2]$ ]]; then
+            break
+        else
+            echo "   Invalid input. Please enter 1 or 2."
+        fi
+    done
+    
+    if [[ "$bench_choice" == "1" ]]; then
+        # Load cached results
+        source "$CACHE_FILE"
+        echo "✅ Using cached hardware settings"
+        echo "   Your $cached_gpu was detected"
+        echo "   The best encoder for you is $cached_encoder"
+        echo "   Your benchmark score was $cached_score"
+        echo
+        optimal_encoder="$cached_encoder"
+    else
+        echo -e "\n🔍 Running hardware benchmarking..."
+        run_hardware_benchmark
+    fi
+else
+    echo -e "\n🔍 First-time setup - running hardware benchmarking..."
+    run_hardware_benchmark
+fi
 
 echo
 echo "Press space to continue..."
