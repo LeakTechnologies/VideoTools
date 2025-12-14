@@ -623,7 +623,6 @@ type appState struct {
 	thumbContactSheet bool
 	thumbColumns      int
 	thumbRows         int
-	thumbGenerating   bool
 
 	// Interlacing detection state
 	interlaceResult     *interlace.DetectionResult
@@ -2339,7 +2338,7 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 	case queue.JobTypeAudio:
 		return fmt.Errorf("audio jobs not yet implemented")
 	case queue.JobTypeThumb:
-		return fmt.Errorf("thumb jobs not yet implemented")
+		return s.executeThumbJob(ctx, job, progressCallback)
 	case queue.JobTypeSnippet:
 		return s.executeSnippetJob(ctx, job, progressCallback)
 	default:
@@ -3221,6 +3220,49 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 				logging.Debug(logging.CatModule, "auto-compare from queue: loaded original vs converted")
 			}, false)
 		}()
+	}
+
+	return nil
+}
+
+func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
+	cfg := job.Config
+	inputPath := cfg["inputPath"].(string)
+	outputDir := cfg["outputDir"].(string)
+	count := int(cfg["count"].(float64))
+	width := int(cfg["width"].(float64))
+	contactSheet := cfg["contactSheet"].(bool)
+	columns := int(cfg["columns"].(float64))
+	rows := int(cfg["rows"].(float64))
+
+	if progressCallback != nil {
+		progressCallback(0)
+	}
+
+	generator := thumbnail.NewGenerator(platformConfig.FFmpegPath)
+	config := thumbnail.Config{
+		VideoPath:     inputPath,
+		OutputDir:     outputDir,
+		Count:         count,
+		Width:         width,
+		Format:        "jpg",
+		Quality:       85,
+		ContactSheet:  contactSheet,
+		Columns:       columns,
+		Rows:          rows,
+		ShowTimestamp: true,
+		ShowMetadata:  true,
+	}
+
+	result, err := generator.Generate(ctx, config)
+	if err != nil {
+		return fmt.Errorf("thumbnail generation failed: %w", err)
+	}
+
+	logging.Debug(logging.CatSystem, "generated %d thumbnails", len(result.Thumbnails))
+
+	if progressCallback != nil {
+		progressCallback(1)
 	}
 
 	return nil
@@ -9619,86 +9661,61 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		)
 	}
 
-	// Generate button
-	generateBtn := widget.NewButton("Generate Thumbnails", func() {
+	// Generate button - adds to queue
+	generateBtn := widget.NewButton("Add to Queue", func() {
 		if state.thumbFile == nil {
 			dialog.ShowInformation("No Video", "Please load a video file first.", state.window)
 			return
 		}
 
-		state.thumbGenerating = true
-		state.showThumbView()
+		if state.jobQueue == nil {
+			dialog.ShowInformation("Queue", "Queue not initialized.", state.window)
+			return
+		}
 
-		go func() {
-			// Create output directory in same folder as video
-			videoDir := filepath.Dir(state.thumbFile.Path)
-			videoBaseName := strings.TrimSuffix(filepath.Base(state.thumbFile.Path), filepath.Ext(state.thumbFile.Path))
-			outputDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
+		// Create output directory in same folder as video
+		videoDir := filepath.Dir(state.thumbFile.Path)
+		videoBaseName := strings.TrimSuffix(filepath.Base(state.thumbFile.Path), filepath.Ext(state.thumbFile.Path))
+		outputDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
 
-			generator := thumbnail.NewGenerator(platformConfig.FFmpegPath)
+		// Configure based on mode
+		var count, width int
+		var description string
+		if state.thumbContactSheet {
+			// Contact sheet: count is determined by grid, use default width
+			count = state.thumbColumns * state.thumbRows
+			width = 320 // Fixed width for contact sheets
+			description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", state.thumbColumns, state.thumbRows, count)
+		} else {
+			// Individual thumbnails: use user settings
+			count = state.thumbCount
+			width = state.thumbWidth
+			description = fmt.Sprintf("%d individual thumbnails (%dpx width)", count, width)
+		}
 
-			// Configure based on mode
-			var count, width int
-			if state.thumbContactSheet {
-				// Contact sheet: count is determined by grid, use default width
-				count = state.thumbColumns * state.thumbRows
-				width = 320 // Fixed width for contact sheets
-			} else {
-				// Individual thumbnails: use user settings
-				count = state.thumbCount
-				width = state.thumbWidth
-			}
+		job := &queue.Job{
+			Type:        queue.JobTypeThumb,
+			Title:       "Thumbnails: " + filepath.Base(state.thumbFile.Path),
+			Description: description,
+			InputFile:   state.thumbFile.Path,
+			OutputFile:  outputDir,
+			Config: map[string]interface{}{
+				"inputPath":    state.thumbFile.Path,
+				"outputDir":    outputDir,
+				"count":        float64(count),
+				"width":        float64(width),
+				"contactSheet": state.thumbContactSheet,
+				"columns":      float64(state.thumbColumns),
+				"rows":         float64(state.thumbRows),
+			},
+		}
 
-			config := thumbnail.Config{
-				VideoPath:     state.thumbFile.Path,
-				OutputDir:     outputDir,
-				Count:         count,
-				Width:         width,
-				Format:        "jpg",
-				Quality:       85,
-				ContactSheet:  state.thumbContactSheet,
-				Columns:       state.thumbColumns,
-				Rows:          state.thumbRows,
-				ShowTimestamp: true,
-				ShowMetadata:  true,
-			}
+		state.jobQueue.Add(job)
+		if !state.jobQueue.IsRunning() {
+			state.jobQueue.Start()
+		}
 
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-			defer cancel()
-
-			result, err := generator.Generate(ctx, config)
-
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				state.thumbGenerating = false
-
-				if err != nil {
-					logging.Debug(logging.CatSystem, "thumbnail generation failed: %v", err)
-					dialog.ShowError(fmt.Errorf("Thumbnail generation failed: %w", err), state.window)
-					state.showThumbView()
-					return
-				}
-
-				logging.Debug(logging.CatSystem, "generated %d thumbnails", len(result.Thumbnails))
-
-				// Show success dialog with option to open folder
-				confirmDialog := dialog.NewConfirm(
-					"Thumbnails Generated",
-					fmt.Sprintf("Successfully generated %d thumbnail(s) at:\n%s\n\nOpen folder?",
-						len(result.Thumbnails), outputDir),
-					func(open bool) {
-						if open {
-							openFolder(outputDir)
-						}
-					},
-					state.window,
-				)
-				confirmDialog.SetConfirmText("Open Folder")
-				confirmDialog.SetDismissText("Close")
-				confirmDialog.Show()
-
-				state.showThumbView()
-			}, false)
-		}()
+		dialog.ShowInformation("Thumbnails", "Thumbnail job added to queue.", state.window)
 	})
 	generateBtn.Importance = widget.HighImportance
 
@@ -9706,10 +9723,11 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		generateBtn.Disable()
 	}
 
-	if state.thumbGenerating {
-		generateBtn.SetText("Generating...")
-		generateBtn.Disable()
-	}
+	// View Queue button
+	viewQueueBtn := widget.NewButton("View Queue", func() {
+		state.showQueue()
+	})
+	viewQueueBtn.Importance = widget.MediumImportance
 
 	// Settings panel
 	settingsPanel := container.NewVBox(
@@ -9719,6 +9737,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		settingsOptions,
 		widget.NewSeparator(),
 		generateBtn,
+		viewQueueBtn,
 	)
 
 	// Main content - split layout with preview on left, settings on right
