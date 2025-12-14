@@ -12,6 +12,15 @@
 
 ---
 
+## 🧭 **Project Overview (VideoTools & lt-convert)**
+- VideoTools is a professional GUI suite focused on DVD-compliant output (MPEG-2 NTSC/PAL), AC-3 audio, and DVDStyler/PS2 compatibility.
+- Core app: Go-based modular architecture (convert/queue/ui/player), batch queue with pause/resume/history, smart framerate/audio conversion, aspect handling, and validation.
+- Scripts: `lt-convert.sh` provides cross-platform hardware-accelerated AV1/HEVC conversions with modular bash components (hardware/codec/quality/filters/encode).
+- Key docs: `README.md` (overview), `INSTALLATION.md`, `DVD_USER_GUIDE.md`, `DVD_IMPLEMENTATION_SUMMARY.md`, `QUEUE_SYSTEM_GUIDE.md`, `INTEGRATION_GUIDE.md`, `BUILD_AND_RUN.md`.
+- Current Linux display focus is Wayland-first while retaining X11 support; VT_Player is moving to GTK and not yet functional.
+
+---
+
 ## 📖 **HOW TO USE THIS FILE (For Stu's AI)**
 
 ### **🔍 READING THIS FILE:**
@@ -170,6 +179,11 @@
 ## 📞 **Contact & Collaboration**
 
 **For Stu's AI:** When working on this project, please:
+
+### **Workflow Rules**
+- Commit after every meaningful change; keep commits small and descriptive.
+- Update `TODO.md` and `DONE.md` to reflect new work, completed tasks, and testing results.
+- Keep this `ai-speak.md` in sync with priorities, logs, and testing status.
 
 ### **🔄 When Changes Are Made:**
 1. **IMMEDIATELY UPDATE** this file with any suggestions or changes
