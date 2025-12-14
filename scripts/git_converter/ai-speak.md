@@ -62,14 +62,14 @@
 ## 🎯 **Priority Tasks**
 
 ### 🚨 **High Priority**
-- [ ] Test on actual Wayland Linux system
+- [ ] Test on actual Wayland Linux system (primary target) while keeping X11 support
 - [ ] Verify drag-and-drop works across different desktop environments
 - [ ] Performance testing with various video formats
-
-### 📈 **Medium Priority**
 - [ ] Add progress bars for long conversions
 - [ ] Implement batch queue processing
-- [ ] Add subtitle support (burn-in/soft-subs)
+
+### 📈 **Medium Priority**
+- [ ] Add subtitle support (burn-in/soft-subs) once core modules stabilize
 - [ ] Create comprehensive test suite
 
 ### 🔮 **Future Enhancements**
@@ -148,6 +148,8 @@
 - Windows timeout fallback uses manual process killing
 - Some Wayland desktop environments may have different drag-and-drop behavior
 - Hardware detection varies by Linux distribution
+- Wayland is the primary Linux target; X11 support must be preserved
+- VT_Player is moving to GTK; current GTK player support is not yet functional
 
 ### **Technical Debt**
 - Consider replacing bash arrays for better portability
@@ -159,8 +161,8 @@
 ## 🔄 **Next Steps**
 
 1. **Immediate:** Get feedback from Stu on Wayland testing
-2. **Short-term:** Address any compatibility issues found
-3. **Medium-term:** Implement progress indicators
+2. **Short-term:** Address any compatibility issues found; add progress bars and batch queue processing
+3. **Medium-term:** Build comprehensive test suite; plan subtitle support once core is stable
 4. **Long-term:** Consider GUI frontend development
 
 ---
