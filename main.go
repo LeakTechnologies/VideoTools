@@ -3251,8 +3251,8 @@ func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progress
 		ContactSheet:  contactSheet,
 		Columns:       columns,
 		Rows:          rows,
-		ShowTimestamp: true,
-		ShowMetadata:  true,
+		ShowTimestamp: false, // Disabled to avoid font issues
+		ShowMetadata:  contactSheet,
 	}
 
 	result, err := generator.Generate(ctx, config)
