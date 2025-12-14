@@ -284,15 +284,17 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 	tempConfig.Interval = 0
 	timestamps := g.calculateTimestamps(tempConfig, duration)
 
-	// Build select filter for timestamps
+	// Build select filter using timestamps (more reliable than frame numbers)
+	// Use gte(t,timestamp) approach to select frames closest to target times
 	selectFilter := "select='"
 	for i, ts := range timestamps {
 		if i > 0 {
 			selectFilter += "+"
 		}
-		selectFilter += fmt.Sprintf("eq(n\\,%d)", int(ts*30)) // Assuming 30fps, should calculate actual fps
+		// Select frame at or after this timestamp, limiting to one frame per timestamp
+		selectFilter += fmt.Sprintf("gte(t\\,%.2f)*lt(t\\,%.2f)", ts, ts+0.1)
 	}
-	selectFilter += "'"
+	selectFilter += "',setpts=N/TB"
 
 	outputPath := filepath.Join(config.OutputDir, fmt.Sprintf("contact_sheet.%s", config.Format))
 
@@ -362,11 +364,12 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 
 	// Create filter that:
 	// 1. Generates contact sheet from selected frames
-	// 2. Creates a blank header area
+	// 2. Creates a blank header area with app background color
 	// 3. Draws metadata text on header (using monospace font)
 	// 4. Stacks header on top of contact sheet
+	// App background color: #0B0F1A (dark blue)
 	filter := fmt.Sprintf(
-		"%s,%s,pad=%d:%d:0:%d:black,"+
+		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
 		"drawtext=text='%s':fontcolor=white:fontsize=14:font='DejaVu Sans Mono':x=10:y=10,"+
 		"drawtext=text='%s':fontcolor=white:fontsize=12:font='DejaVu Sans Mono':x=10:y=35",
 		selectFilter,
