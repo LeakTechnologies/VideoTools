@@ -46,7 +46,7 @@ EOF
         cat << "EOF"
 ╔═══════════════════════════════════════════════════════════════╗
 ║                    Choose Scaling Algorithm                   ║
-╚═════════════════════════════════════════════════════════════════╝
+╚═══════════════════════════════════════════════════════════════╝
 
    1) Bicubic (fast, good quality)
    2) Lanczos (best quality, slower)
@@ -129,13 +129,13 @@ EOF
 
     case $color_opt in
         1) color_filter=""; color_suf="" ;;
-        2) color_filter="eq=contrast=1.05:brightness=0.02:saturation=1.1:hue=-0.02"; color_suf="_colorfix" ;;
-        3) color_filter="eq=contrast=1.03:brightness=0.01:saturation=1.15:hue=-0.01"; color_suf="_warm" ;;
-        4) color_filter="eq=contrast=1.03:brightness=0.01:saturation=0.95:hue=0.02"; color_suf="_cool" ;;
-        5) color_filter="eq=contrast=1.08:brightness=0.03:saturation=1.2:hue=0:gamma=0.95,unsharp=4:4:0.8:4:4:0.0"; color_suf="_dvdrestore" ;;
-        6) color_filter="eq=contrast=1.12:brightness=0.05:saturation=1.3:hue=0:gamma=0.92,unsharp=5:5:1.0:5:5:0.0,hqdn3d=3:2:2:3"; color_suf="_90srestore" ;;
-        7) color_filter="eq=contrast=1.15:brightness=0.08:saturation=1.4:hue=0:gamma=0.90,unsharp=5:5:1.0:5:5:0.0,hqdn3d=3:2:2:3"; color_suf="_vhsrestore" ;;
-        8) color_filter="eq=contrast=1.02:brightness=0:saturation=1.05:hue=0:gamma=1.0,unsharp=3:3:0.5:3:3:0.0,gradfun=2.5:2.5"; color_suf="_anime" ;;
+        2) color_filter="eq=contrast=1.05:brightness=0.02:saturation=1.1,hue=h=-0.02"; color_suf="_colorfix" ;;
+        3) color_filter="eq=contrast=1.03:brightness=0.01:saturation=1.15,hue=h=-0.01"; color_suf="_warm" ;;
+        4) color_filter="eq=contrast=1.03:brightness=0.01:saturation=0.95,hue=h=0.02"; color_suf="_cool" ;;
+        5) color_filter="eq=contrast=1.08:brightness=0.03:saturation=1.2:gamma=0.95,unsharp=5:5:0.8:5:5:0.0"; color_suf="_dvdrestore" ;;
+        6) color_filter="eq=contrast=1.12:brightness=0.05:saturation=1.3:gamma=0.92,unsharp=5:5:1.0:5:5:0.0,hqdn3d=3:2:2:3"; color_suf="_90srestore" ;;
+        7) color_filter="eq=contrast=1.15:brightness=0.08:saturation=1.4:gamma=0.90,unsharp=5:5:1.0:5:5:0.0,hqdn3d=3:2:2:3"; color_suf="_vhsrestore" ;;
+        8) color_filter="eq=contrast=1.02:brightness=0:saturation=1.05:gamma=1.0,unsharp=3:3:0.5:3:3:0.0,gradfun=2.5:2.5"; color_suf="_anime" ;;
     esac
 }
 
