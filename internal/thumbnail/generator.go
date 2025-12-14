@@ -363,12 +363,12 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	// Create filter that:
 	// 1. Generates contact sheet from selected frames
 	// 2. Creates a blank header area
-	// 3. Draws metadata text on header
+	// 3. Draws metadata text on header (using monospace font)
 	// 4. Stacks header on top of contact sheet
 	filter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:black,"+
-		"drawtext=text='%s':fontcolor=white:fontsize=14:x=10:y=10,"+
-		"drawtext=text='%s':fontcolor=white:fontsize=12:x=10:y=35",
+		"drawtext=text='%s':fontcolor=white:fontsize=14:font='DejaVu Sans Mono':x=10:y=10,"+
+		"drawtext=text='%s':fontcolor=white:fontsize=12:font='DejaVu Sans Mono':x=10:y=35",
 		selectFilter,
 		tileFilter,
 		sheetWidth,
