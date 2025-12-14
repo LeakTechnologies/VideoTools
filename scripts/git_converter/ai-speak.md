@@ -33,7 +33,7 @@
 - Quality presets (simple + advanced UIs): CRF 18 (AV1/HEVC), CRF 16 (near-lossless), CRF 20 (balanced), Source/no-change, and Custom bitrate.
 - Resolution/scaling: Source, 720p/1080p/1440p/4K, 2x/4x with scaler choice (bicubic/lanczos/bilinear); surface common picks in the simple menu.
 - FPS: Original or 60 fps toggle.
-- Color looks (for Filters module when built): pink-skin fix, warm, cool, DVD restore, 90s restore, VHS restore, anime preservation; keep an off option.
+- Color looks (slot into Filters/Upcale pipeline): pink-skin fix, warm, cool, DVD restore, 90s restore, VHS restore, anime preservation; keep an off option. Consider pairing DVD/Anime looks with upscale flows.
 - Containers/codecs: MKV/MP4 with AV1/HEVC; map hardware variants (NVENC/AMF/QSV) when available.
 - Presets are WIP but promising—integrate quality/resolution/fps now; fold color presets into the Filters module once it lands.
 
