@@ -9662,18 +9662,8 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		)
 	}
 
-	// Generate button - adds to queue
-	generateBtn := widget.NewButton("Add to Queue", func() {
-		if state.thumbFile == nil {
-			dialog.ShowInformation("No Video", "Please load a video file first.", state.window)
-			return
-		}
-
-		if state.jobQueue == nil {
-			dialog.ShowInformation("Queue", "Queue not initialized.", state.window)
-			return
-		}
-
+	// Helper function to create thumbnail job
+	createThumbJob := func() *queue.Job {
 		// Create output directory in same folder as video
 		videoDir := filepath.Dir(state.thumbFile.Path)
 		videoBaseName := strings.TrimSuffix(filepath.Base(state.thumbFile.Path), filepath.Ext(state.thumbFile.Path))
@@ -9694,7 +9684,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			description = fmt.Sprintf("%d individual thumbnails (%dpx width)", count, width)
 		}
 
-		job := &queue.Job{
+		return &queue.Job{
 			Type:        queue.JobTypeThumb,
 			Title:       "Thumbnails: " + filepath.Base(state.thumbFile.Path),
 			Description: description,
@@ -9710,18 +9700,58 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 				"rows":         float64(state.thumbRows),
 			},
 		}
+	}
 
-		state.jobQueue.Add(job)
-		if !state.jobQueue.IsRunning() {
-			state.jobQueue.Start()
+	// Generate Now button - adds to queue and starts it
+	generateNowBtn := widget.NewButton("GENERATE NOW", func() {
+		if state.thumbFile == nil {
+			dialog.ShowInformation("No Video", "Please load a video file first.", state.window)
+			return
 		}
 
-		dialog.ShowInformation("Thumbnails", "Thumbnail job added to queue.", state.window)
+		if state.jobQueue == nil {
+			dialog.ShowInformation("Queue", "Queue not initialized.", state.window)
+			return
+		}
+
+		job := createThumbJob()
+		state.jobQueue.Add(job)
+
+		// Start the queue if not already running
+		if !state.jobQueue.IsRunning() {
+			state.jobQueue.Start()
+			logging.Debug(logging.CatSystem, "started queue from Generate Now")
+		}
+
+		dialog.ShowInformation("Thumbnails", "Thumbnail generation started! View progress in Job Queue.", state.window)
 	})
-	generateBtn.Importance = widget.HighImportance
+	generateNowBtn.Importance = widget.HighImportance
 
 	if state.thumbFile == nil {
-		generateBtn.Disable()
+		generateNowBtn.Disable()
+	}
+
+	// Add to Queue button
+	addQueueBtn := widget.NewButton("Add to Queue", func() {
+		if state.thumbFile == nil {
+			dialog.ShowInformation("No Video", "Please load a video file first.", state.window)
+			return
+		}
+
+		if state.jobQueue == nil {
+			dialog.ShowInformation("Queue", "Queue not initialized.", state.window)
+			return
+		}
+
+		job := createThumbJob()
+		state.jobQueue.Add(job)
+
+		dialog.ShowInformation("Queue", "Thumbnail job added to queue!", state.window)
+	})
+	addQueueBtn.Importance = widget.MediumImportance
+
+	if state.thumbFile == nil {
+		addQueueBtn.Disable()
 	}
 
 	// View Queue button
@@ -9782,7 +9812,8 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		contactSheetCheck,
 		settingsOptions,
 		widget.NewSeparator(),
-		generateBtn,
+		generateNowBtn,
+		addQueueBtn,
 		viewQueueBtn,
 		viewResultsBtn,
 	)
