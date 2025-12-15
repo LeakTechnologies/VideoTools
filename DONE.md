@@ -2,6 +2,93 @@
 
 This file tracks completed features, fixes, and milestones.
 
+## Version 0.1.0-dev18 (2025-12-15)
+
+### Features
+- ✅ **Thumbnail Module Enhancements**
+  - Enhanced metadata display with 3 lines of comprehensive technical data
+  - Added 8px padding between thumbnails in contact sheets
+  - Increased thumbnail width to 280px for analyzable screenshots (4x8 grid = ~1144x1416)
+  - Audio bitrate display alongside audio codec (e.g., "AAC 192kbps")
+  - Concise bitrate display (removed "Total:" prefix)
+  - Video codec, audio codec, FPS, and overall bitrate shown in metadata
+  - Navy blue background (#0B0F1A) for professional appearance
+
+- ✅ **Player Module**
+  - New Player button on main menu (Teal #44FFDD)
+  - Access to VT_Player for video playback
+  - Video loading and preview integration
+  - Module handler for CLI support
+
+- ✅ **Filters Module - UI Complete**
+  - Color correction controls (brightness, contrast, saturation)
+  - Enhancement tools (sharpness, denoise)
+  - Transform operations (rotation, flip horizontal/vertical)
+  - Creative effects (grayscale)
+  - Navigation to Upscale module with video transfer
+  - Full state management for filter settings
+
+- ✅ **Upscale Module - Fully Functional**
+  - Traditional FFmpeg scaling methods: Lanczos (sharp), Bicubic (smooth), Spline (balanced), Bilinear (fast)
+  - Resolution presets: 720p, 1080p, 1440p, 4K, 8K
+  - "UPSCALE NOW" button for immediate processing
+  - "Add to Queue" button for batch processing
+  - Job queue integration with real-time progress tracking
+  - AI upscaling detection (Real-ESRGAN) with graceful fallback
+  - High quality encoding (libx264, preset slow, CRF 18)
+  - Navigation back to Filters module
+
+- ✅ **Configurable Snippet Length**
+  - Adjustable snippet length (5-60 seconds, default: 20)
+  - Slider control with real-time display
+  - Snippets centered on video midpoint
+  - Length persists across video loads
+
+- ✅ **Batch Snippet Generation**
+  - "Generate All Snippets" button for multiple loaded videos
+  - Processes all videos with same configured length
+  - Consistent timestamp for uniform naming
+  - Efficient queue integration
+
+### Technical Improvements
+- ✅ **Precise Snippet Duration Control**
+  - Changed from stream copy to re-encoding for frame-accurate cutting
+  - Video: libx264 with ultrafast preset, CRF 18
+  - Audio: Stream copy (no re-encoding needed)
+  - Fixes duration inaccuracy caused by keyframe-only cutting
+
+- ✅ **Metadata Enhancement System**
+  - New `getDetailedVideoInfo()` function using FFprobe
+  - Extracts video codec, audio codec, FPS, video bitrate, audio bitrate
+  - Multiple ffprobe calls for comprehensive data
+  - Graceful fallback to format-level bitrate if stream bitrate unavailable
+
+- ✅ **Module Navigation Pattern**
+  - Bidirectional navigation between Filters and Upscale
+  - Video file transfer between modules
+  - Filter chain transfer capability (foundation for future)
+
+- ✅ **Resolution Parsing System**
+  - `parseResolutionPreset()` function for preset strings
+  - Maps "1080p (1920x1080)" format to width/height integers
+  - Support for custom resolution input (foundation)
+
+- ✅ **Upscale Filter Builder**
+  - `buildUpscaleFilter()` constructs FFmpeg scale filters
+  - Method-specific scaling: lanczos, bicubic, spline, bilinear
+  - Filter chain combination support
+
+### Bug Fixes
+- ✅ Fixed snippet duration exceeding configured length (stream copy → re-encode)
+- ✅ Fixed missing audio bitrate in thumbnail metadata
+- ✅ Fixed contact sheet dimensions not accounting for padding
+- ✅ Added missing `strings` import to thumbnail/generator.go
+
+### Documentation
+- ✅ Updated ai-speak.md with comprehensive dev18 documentation
+- ✅ Created 24-item testing checklist for dev18
+- ✅ Documented all implementation details and technical decisions
+
 ## Version 0.1.0-dev17 (2025-12-14)
 
 ### Features

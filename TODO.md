@@ -467,7 +467,7 @@ Trim provides frame-accurate cutting with lossless-first philosophy (inspired by
 - [ ] Channel mapping
 - [ ] Audio-only operations
 
-### Thumb Module ✅ COMPLETED (v0.1.0-dev17)
+### Thumb Module ✅ COMPLETED (v0.1.0-dev18)
 - [x] Design thumbnail generation UI
 - [x] Single thumbnail extraction
 - [x] Grid/contact sheet generation
