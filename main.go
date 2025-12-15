@@ -89,6 +89,7 @@ var (
 		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},    // Orange
 		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},  // Pink
 		{"inspect", "Inspect", utils.MustHex("#FF4444"), "Inspect", modules.HandleInspect},  // Red
+		{"player", "Player", utils.MustHex("#44FFDD"), "Playback", modules.HandlePlayer},    // Teal
 	}
 
 	// Platform-specific configuration
@@ -625,6 +626,37 @@ type appState struct {
 	thumbRows           int
 	thumbLastOutputPath string // Path to last generated output
 
+	// Player module state
+	playerFile *videoSource
+
+	// Filters module state
+	filtersFile       *videoSource
+	filterBrightness  float64
+	filterContrast    float64
+	filterSaturation  float64
+	filterSharpness   float64
+	filterDenoise     float64
+	filterRotation    int // 0, 90, 180, 270
+	filterFlipH       bool
+	filterFlipV       bool
+	filterGrayscale   bool
+	filterActiveChain []string // Active filter chain
+
+	// Upscale module state
+	upscaleFile         *videoSource
+	upscaleMethod       string   // lanczos, bicubic, spline, bilinear
+	upscaleTargetRes    string   // 720p, 1080p, 1440p, 4K, 8K, Custom
+	upscaleCustomWidth  int      // For custom resolution
+	upscaleCustomHeight int      // For custom resolution
+	upscaleAIEnabled    bool     // Use AI upscaling if available
+	upscaleAIModel      string   // realesrgan, realesrgan-anime, none
+	upscaleAIAvailable  bool     // Runtime detection
+	upscaleApplyFilters bool     // Apply filters from Filters module
+	upscaleFilterChain  []string // Transferred filters from Filters module
+
+	// Snippet settings
+	snippetLength int // Length of snippet in seconds (default: 20)
+
 	// Interlacing detection state
 	interlaceResult    *interlace.DetectionResult
 	interlaceAnalyzing bool
@@ -916,7 +948,7 @@ func (s *appState) showMainMenu() {
 			Label:    m.Label,
 			Color:    m.Color,
 			Category: m.Category,
-			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb", // Enabled modules
+			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale", // Enabled modules
 		})
 	}
 
@@ -1528,6 +1560,12 @@ func (s *appState) showModule(id string) {
 		s.showInspectView()
 	case "thumb":
 		s.showThumbView()
+	case "player":
+		s.showPlayerView()
+	case "filters":
+		s.showFiltersView()
+	case "upscale":
+		s.showUpscaleView()
 	default:
 		logging.Debug(logging.CatUI, "UI module %s not wired yet", id)
 	}
@@ -1939,6 +1977,27 @@ func (s *appState) showThumbView() {
 	s.setContent(buildThumbView(s))
 }
 
+func (s *appState) showPlayerView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "player"
+	s.setContent(buildPlayerView(s))
+}
+
+func (s *appState) showFiltersView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "filters"
+	s.setContent(buildFiltersView(s))
+}
+
+func (s *appState) showUpscaleView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "upscale"
+	s.setContent(buildUpscaleView(s))
+}
+
 func (s *appState) showMergeView() {
 	s.stopPreview()
 	s.lastModule = s.active
@@ -2335,7 +2394,7 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 	case queue.JobTypeFilter:
 		return fmt.Errorf("filter jobs not yet implemented")
 	case queue.JobTypeUpscale:
-		return fmt.Errorf("upscale jobs not yet implemented")
+		return s.executeUpscaleJob(ctx, job, progressCallback)
 	case queue.JobTypeAudio:
 		return fmt.Errorf("audio jobs not yet implemented")
 	case queue.JobTypeThumb:
@@ -3274,6 +3333,12 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	inputPath := cfg["inputPath"].(string)
 	outputPath := cfg["outputPath"].(string)
 
+	// Get snippet length from config, default to 20 if not present
+	snippetLength := 20
+	if lengthVal, ok := cfg["snippetLength"].(float64); ok {
+		snippetLength = int(lengthVal)
+	}
+
 	// Probe video to get duration
 	src, err := probeVideo(inputPath)
 	if err != nil {
@@ -3281,23 +3346,27 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Calculate start time centered on midpoint
-	center := math.Max(0, src.Duration/2-10)
+	halfLength := float64(snippetLength) / 2.0
+	center := math.Max(0, src.Duration/2-halfLength)
 	start := fmt.Sprintf("%.2f", center)
 
 	if progressCallback != nil {
 		progressCallback(0)
 	}
 
-	// Use stream copy to extract snippet without re-encoding
+	// Re-encode for precise duration control (stream copy can only cut at keyframes)
 	args := []string{
 		"-y",
 		"-hide_banner",
 		"-loglevel", "error",
 		"-ss", start,
 		"-i", inputPath,
-		"-t", "20",
-		"-c", "copy", // Copy all streams without re-encoding
-		"-map", "0", // Include all streams
+		"-t", fmt.Sprintf("%d", snippetLength),
+		"-c:v", "libx264",   // Re-encode video for frame-accurate cutting
+		"-preset", "ultrafast", // Fast encoding for snippets
+		"-crf", "18",         // High quality
+		"-c:a", "copy",       // Copy audio without re-encoding
+		"-map", "0",          // Include all streams
 		outputPath,
 	}
 
@@ -3321,6 +3390,140 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	if progressCallback != nil {
 		progressCallback(1)
 	}
+	return nil
+}
+
+func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
+	cfg := job.Config
+	inputPath := cfg["inputPath"].(string)
+	outputPath := cfg["outputPath"].(string)
+	method := cfg["method"].(string)
+	targetWidth := int(cfg["targetWidth"].(float64))
+	targetHeight := int(cfg["targetHeight"].(float64))
+	// useAI := cfg["useAI"].(bool) // TODO: Implement AI upscaling in future
+	applyFilters := cfg["applyFilters"].(bool)
+
+	if progressCallback != nil {
+		progressCallback(0)
+	}
+
+	// Build filter chain
+	var filters []string
+
+	// Add filters from Filters module if requested
+	if applyFilters {
+		if filterChain, ok := cfg["filterChain"].([]interface{}); ok {
+			for _, f := range filterChain {
+				if filterStr, ok := f.(string); ok {
+					filters = append(filters, filterStr)
+				}
+			}
+		}
+	}
+
+	// Add scale filter
+	scaleFilter := buildUpscaleFilter(targetWidth, targetHeight, method)
+	filters = append(filters, scaleFilter)
+
+	// Combine filters
+	var vfilter string
+	if len(filters) > 0 {
+		vfilter = strings.Join(filters, ",")
+	}
+
+	// Build FFmpeg command
+	args := []string{
+		"-y",
+		"-hide_banner",
+		"-i", inputPath,
+	}
+
+	// Add video filter if we have any
+	if vfilter != "" {
+		args = append(args, "-vf", vfilter)
+	}
+
+	// Use same video codec as source, but with high quality settings
+	args = append(args,
+		"-c:v", "libx264",
+		"-preset", "slow",
+		"-crf", "18",
+		"-c:a", "copy", // Copy audio without re-encoding
+		outputPath,
+	)
+
+	logFile, logPath, _ := createConversionLog(inputPath, outputPath, args)
+	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	utils.ApplyNoWindow(cmd)
+
+	// Create progress reader for stderr
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start upscale: %w", err)
+	}
+
+	// Parse progress from FFmpeg stderr
+	go func() {
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if logFile != nil {
+				fmt.Fprintln(logFile, line)
+			}
+
+			// Parse progress from "time=00:01:23.45"
+			if strings.Contains(line, "time=") {
+				// Get duration from job config
+				if duration, ok := cfg["duration"].(float64); ok && duration > 0 {
+					// Extract time from FFmpeg output
+					if idx := strings.Index(line, "time="); idx != -1 {
+						timeStr := line[idx+5:]
+						if spaceIdx := strings.Index(timeStr, " "); spaceIdx != -1 {
+							timeStr = timeStr[:spaceIdx]
+						}
+
+						// Parse time string (HH:MM:SS.ms)
+						var h, m int
+						var s float64
+						if _, err := fmt.Sscanf(timeStr, "%d:%d:%f", &h, &m, &s); err == nil {
+							currentTime := float64(h*3600 + m*60) + s
+							progress := currentTime / duration
+							if progress > 1.0 {
+								progress = 1.0
+							}
+							if progressCallback != nil {
+								progressCallback(progress)
+							}
+						}
+					}
+				}
+			}
+		}
+	}()
+
+	err = cmd.Wait()
+	if err != nil {
+		if logFile != nil {
+			fmt.Fprintf(logFile, "\nStatus: failed at %s\nError: %v\n", time.Now().Format(time.RFC3339), err)
+			_ = logFile.Close()
+		}
+		return fmt.Errorf("upscale failed: %w", err)
+	}
+
+	if logFile != nil {
+		fmt.Fprintf(logFile, "\nStatus: completed at %s\n", time.Now().Format(time.RFC3339))
+		_ = logFile.Close()
+		job.LogPath = logPath
+	}
+
+	if progressCallback != nil {
+		progressCallback(1)
+	}
+
 	return nil
 }
 
@@ -4978,6 +5181,26 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	optionsRect.StrokeWidth = 1
 	optionsPanel := container.NewMax(optionsRect, container.NewPadded(tabs))
 
+	// Initialize snippet length default
+	if state.snippetLength == 0 {
+		state.snippetLength = 20 // Default to 20 seconds
+	}
+
+	// Snippet length configuration
+	snippetLengthLabel := widget.NewLabel(fmt.Sprintf("Snippet Length: %d seconds", state.snippetLength))
+	snippetLengthSlider := widget.NewSlider(5, 60)
+	snippetLengthSlider.SetValue(float64(state.snippetLength))
+	snippetLengthSlider.Step = 1
+	snippetLengthSlider.OnChanged = func(value float64) {
+		state.snippetLength = int(value)
+		snippetLengthLabel.SetText(fmt.Sprintf("Snippet Length: %d seconds", state.snippetLength))
+	}
+
+	snippetConfigRow := container.NewVBox(
+		snippetLengthLabel,
+		snippetLengthSlider,
+	)
+
 	snippetBtn := widget.NewButton("Generate Snippet", func() {
 		if state.source == nil {
 			dialog.ShowInformation("Snippet", "Load a video first.", state.window)
@@ -4999,26 +5222,87 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		job := &queue.Job{
 			Type:        queue.JobTypeSnippet,
 			Title:       "Snippet: " + filepath.Base(src.Path),
-			Description: "20s snippet centred on midpoint (source settings)",
+			Description: fmt.Sprintf("%ds snippet centred on midpoint (source settings)", state.snippetLength),
 			InputFile:   src.Path,
 			OutputFile:  outPath,
 			Config: map[string]interface{}{
-				"inputPath":  src.Path,
-				"outputPath": outPath,
+				"inputPath":     src.Path,
+				"outputPath":    outPath,
+				"snippetLength": float64(state.snippetLength),
 			},
 		}
 		state.jobQueue.Add(job)
 		if !state.jobQueue.IsRunning() {
 			state.jobQueue.Start()
 		}
-		dialog.ShowInformation("Snippet", "Snippet job added to queue.", state.window)
+		dialog.ShowInformation("Snippet", fmt.Sprintf("%ds snippet job added to queue.", state.snippetLength), state.window)
 	})
 	snippetBtn.Importance = widget.MediumImportance
 	if src == nil {
 		snippetBtn.Disable()
 	}
-	snippetHint := widget.NewLabel("Creates a 20s clip centred on the timeline midpoint.")
-	snippetRow := container.NewHBox(snippetBtn, layout.NewSpacer(), snippetHint)
+
+	// Button to generate snippets for all loaded videos
+	var snippetAllBtn *widget.Button
+	if len(state.loadedVideos) > 1 {
+		snippetAllBtn = widget.NewButton("Generate All Snippets", func() {
+			if state.jobQueue == nil {
+				dialog.ShowInformation("Queue", "Queue not initialized.", state.window)
+				return
+			}
+
+			timestamp := time.Now().Unix()
+			jobsAdded := 0
+
+			for _, src := range state.loadedVideos {
+				if src == nil {
+					continue
+				}
+
+				// Use same extension as source file since we're using stream copy
+				ext := filepath.Ext(src.Path)
+				if ext == "" {
+					ext = ".mp4"
+				}
+				outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), timestamp, ext)
+				outPath := filepath.Join(filepath.Dir(src.Path), outName)
+
+				job := &queue.Job{
+					Type:        queue.JobTypeSnippet,
+					Title:       "Snippet: " + filepath.Base(src.Path),
+					Description: fmt.Sprintf("%ds snippet centred on midpoint (source settings)", state.snippetLength),
+					InputFile:   src.Path,
+					OutputFile:  outPath,
+					Config: map[string]interface{}{
+						"inputPath":     src.Path,
+						"outputPath":    outPath,
+						"snippetLength": float64(state.snippetLength),
+					},
+				}
+				state.jobQueue.Add(job)
+				jobsAdded++
+			}
+
+			if jobsAdded > 0 {
+				if !state.jobQueue.IsRunning() {
+					state.jobQueue.Start()
+				}
+				dialog.ShowInformation("Snippets",
+					fmt.Sprintf("Added %d snippet jobs to queue.\nEach %ds long.", jobsAdded, state.snippetLength),
+					state.window)
+			}
+		})
+		snippetAllBtn.Importance = widget.HighImportance
+	}
+
+	snippetHint := widget.NewLabel("Creates a clip centred on the timeline midpoint.")
+
+	var snippetRow fyne.CanvasObject
+	if snippetAllBtn != nil {
+		snippetRow = container.NewHBox(snippetBtn, snippetAllBtn, layout.NewSpacer(), snippetHint)
+	} else {
+		snippetRow = container.NewHBox(snippetBtn, layout.NewSpacer(), snippetHint)
+	}
 
 	// Stack video and metadata directly so metadata sits immediately under the player.
 	leftColumn := container.NewVBox(videoPanel, metaPanel)
@@ -5295,7 +5579,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	state.updateStatsBar()
 
 	// Stack status + snippet + actions tightly to avoid dead air, outside the scroll area.
-	bottomSection := container.NewVBox(state.statsBar, snippetRow, widget.NewSeparator(), actionBar)
+	bottomSection := container.NewVBox(state.statsBar, snippetConfigRow, snippetRow, widget.NewSeparator(), actionBar)
 
 	scrollableMain := container.NewVScroll(mainContent)
 
@@ -9710,9 +9994,9 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		var count, width int
 		var description string
 		if state.thumbContactSheet {
-			// Contact sheet: count is determined by grid, use smaller width to fit window
+			// Contact sheet: count is determined by grid, use larger width for analyzable screenshots
 			count = state.thumbColumns * state.thumbRows
-			width = 200 // Smaller width for contact sheets to fit larger grids
+			width = 280 // Larger width for contact sheets to make screenshots analyzable (4x8 grid = ~1144x1416)
 			description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", state.thumbColumns, state.thumbRows, count)
 		} else {
 			// Individual thumbnails: use user settings
@@ -9876,6 +10160,605 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	)
 
 	return container.NewBorder(topBar, nil, nil, nil, content)
+}
+
+// buildPlayerView creates the VT_Player UI
+func buildPlayerView(state *appState) fyne.CanvasObject {
+	playerColor := moduleColor("player")
+
+	// Back button
+	backBtn := widget.NewButton("< PLAYER", func() {
+		state.showMainMenu()
+	})
+	backBtn.Importance = widget.LowImportance
+
+	// Top bar with module color
+	topBar := ui.TintedBar(playerColor, container.NewHBox(backBtn, layout.NewSpacer()))
+
+	// Instructions
+	instructions := widget.NewLabel("VT_Player - Advanced video playback with frame-accurate seeking and analysis tools.")
+	instructions.Wrapping = fyne.TextWrapWord
+	instructions.Alignment = fyne.TextAlignCenter
+
+	// File label
+	fileLabel := widget.NewLabel("No file loaded")
+	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	var videoContainer fyne.CanvasObject
+	if state.playerFile != nil {
+		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.playerFile.Path)))
+		videoContainer = buildVideoPane(state, fyne.NewSize(960, 540), state.playerFile, nil)
+	} else {
+		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
+	}
+
+	// Load button
+	loadBtn := widget.NewButton("Load Video", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+
+			path := reader.URI().Path()
+			go func() {
+				src, err := probeVideo(path)
+				if err != nil {
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						dialog.ShowError(err, state.window)
+					}, false)
+					return
+				}
+
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					state.playerFile = src
+					state.showPlayerView()
+				}, false)
+			}()
+		}, state.window)
+	})
+	loadBtn.Importance = widget.HighImportance
+
+	// Main content
+	mainContent := container.NewVBox(
+		instructions,
+		widget.NewSeparator(),
+		fileLabel,
+		loadBtn,
+		videoContainer,
+	)
+
+	content := container.NewPadded(mainContent)
+
+	return container.NewBorder(topBar, nil, nil, nil, content)
+}
+
+// buildFiltersView creates the Filters module UI
+func buildFiltersView(state *appState) fyne.CanvasObject {
+	filtersColor := moduleColor("filters")
+
+	// Back button
+	backBtn := widget.NewButton("< FILTERS", func() {
+		state.showMainMenu()
+	})
+	backBtn.Importance = widget.LowImportance
+
+	// Queue button
+	queueBtn := widget.NewButton("View Queue", func() {
+		state.showQueue()
+	})
+	state.queueBtn = queueBtn
+	state.updateQueueButtonLabel()
+
+	// Top bar with module color
+	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+
+	// Instructions
+	instructions := widget.NewLabel("Apply filters and color corrections to your video. Preview changes in real-time.")
+	instructions.Wrapping = fyne.TextWrapWord
+	instructions.Alignment = fyne.TextAlignCenter
+
+	// Initialize state defaults
+	if state.filterBrightness == 0 && state.filterContrast == 0 && state.filterSaturation == 0 {
+		state.filterBrightness = 0.0  // -1.0 to 1.0
+		state.filterContrast = 1.0    // 0.0 to 3.0
+		state.filterSaturation = 1.0  // 0.0 to 3.0
+		state.filterSharpness = 0.0   // 0.0 to 5.0
+		state.filterDenoise = 0.0     // 0.0 to 10.0
+	}
+
+	// File label
+	fileLabel := widget.NewLabel("No file loaded")
+	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	var videoContainer fyne.CanvasObject
+	if state.filtersFile != nil {
+		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.filtersFile.Path)))
+		videoContainer = buildVideoPane(state, fyne.NewSize(640, 360), state.filtersFile, nil)
+	} else {
+		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
+	}
+
+	// Load button
+	loadBtn := widget.NewButton("Load Video", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+
+			path := reader.URI().Path()
+			go func() {
+				src, err := probeVideo(path)
+				if err != nil {
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						dialog.ShowError(err, state.window)
+					}, false)
+					return
+				}
+
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					state.filtersFile = src
+					state.showFiltersView()
+				}, false)
+			}()
+		}, state.window)
+	})
+	loadBtn.Importance = widget.HighImportance
+
+	// Navigation to Upscale module
+	upscaleNavBtn := widget.NewButton("Send to Upscale →", func() {
+		if state.filtersFile != nil {
+			state.upscaleFile = state.filtersFile
+			// TODO: Transfer active filter chain to upscale
+			// state.upscaleFilterChain = state.filterActiveChain
+		}
+		state.showUpscaleView()
+	})
+
+	// Color Correction Section
+	colorSection := widget.NewCard("Color Correction", "", container.NewVBox(
+		widget.NewLabel("Adjust brightness, contrast, and saturation"),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Brightness:"),
+			widget.NewSlider(-1.0, 1.0),
+			widget.NewLabel("Contrast:"),
+			widget.NewSlider(0.0, 3.0),
+			widget.NewLabel("Saturation:"),
+			widget.NewSlider(0.0, 3.0),
+		),
+	))
+
+	// Enhancement Section
+	enhanceSection := widget.NewCard("Enhancement", "", container.NewVBox(
+		widget.NewLabel("Sharpen, blur, and denoise"),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Sharpness:"),
+			widget.NewSlider(0.0, 5.0),
+			widget.NewLabel("Denoise:"),
+			widget.NewSlider(0.0, 10.0),
+		),
+	))
+
+	// Transform Section
+	transformSection := widget.NewCard("Transform", "", container.NewVBox(
+		widget.NewLabel("Rotate and flip video"),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Rotation:"),
+			widget.NewSelect([]string{"0°", "90°", "180°", "270°"}, func(s string) {}),
+			widget.NewLabel("Flip Horizontal:"),
+			widget.NewCheck("", func(b bool) { state.filterFlipH = b }),
+			widget.NewLabel("Flip Vertical:"),
+			widget.NewCheck("", func(b bool) { state.filterFlipV = b }),
+		),
+	))
+
+	// Creative Effects Section
+	creativeSection := widget.NewCard("Creative Effects", "", container.NewVBox(
+		widget.NewLabel("Apply artistic effects"),
+		widget.NewCheck("Grayscale", func(b bool) { state.filterGrayscale = b }),
+	))
+
+	// Apply button
+	applyBtn := widget.NewButton("Apply Filters", func() {
+		if state.filtersFile == nil {
+			dialog.ShowInformation("No Video", "Please load a video first.", state.window)
+			return
+		}
+		// TODO: Implement filter application
+		dialog.ShowInformation("Coming Soon", "Filter application will be implemented soon.", state.window)
+	})
+	applyBtn.Importance = widget.HighImportance
+
+	// Main content
+	leftPanel := container.NewVBox(
+		instructions,
+		widget.NewSeparator(),
+		fileLabel,
+		loadBtn,
+		upscaleNavBtn,
+	)
+
+	settingsPanel := container.NewVBox(
+		colorSection,
+		enhanceSection,
+		transformSection,
+		creativeSection,
+		applyBtn,
+	)
+
+	settingsScroll := container.NewVScroll(settingsPanel)
+	settingsScroll.SetMinSize(fyne.NewSize(400, 600))
+
+	mainContent := container.NewHSplit(
+		container.NewVBox(leftPanel, videoContainer),
+		settingsScroll,
+	)
+	mainContent.SetOffset(0.55) // 55% for video preview, 45% for settings
+
+	content := container.NewPadded(mainContent)
+
+	return container.NewBorder(topBar, nil, nil, nil, content)
+}
+
+// buildUpscaleView creates the Upscale module UI
+func buildUpscaleView(state *appState) fyne.CanvasObject {
+	upscaleColor := moduleColor("upscale")
+
+	// Back button
+	backBtn := widget.NewButton("< UPSCALE", func() {
+		state.showMainMenu()
+	})
+	backBtn.Importance = widget.LowImportance
+
+	// Queue button
+	queueBtn := widget.NewButton("View Queue", func() {
+		state.showQueue()
+	})
+	state.queueBtn = queueBtn
+	state.updateQueueButtonLabel()
+
+	// Top bar with module color
+	topBar := ui.TintedBar(upscaleColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+
+	// Instructions
+	instructions := widget.NewLabel("Upscale your video to higher resolution using traditional or AI-powered methods.")
+	instructions.Wrapping = fyne.TextWrapWord
+	instructions.Alignment = fyne.TextAlignCenter
+
+	// Initialize state defaults
+	if state.upscaleMethod == "" {
+		state.upscaleMethod = "lanczos" // Best general-purpose traditional method
+	}
+	if state.upscaleTargetRes == "" {
+		state.upscaleTargetRes = "1080p"
+	}
+	if state.upscaleAIModel == "" {
+		state.upscaleAIModel = "realesrgan" // General purpose AI model
+	}
+
+	// Check AI availability on first load
+	if !state.upscaleAIAvailable {
+		state.upscaleAIAvailable = checkAIUpscaleAvailable()
+	}
+
+	// File label
+	fileLabel := widget.NewLabel("No file loaded")
+	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	var videoContainer fyne.CanvasObject
+	var sourceResLabel *widget.Label
+	if state.upscaleFile != nil {
+		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.upscaleFile.Path)))
+		sourceResLabel = widget.NewLabel(fmt.Sprintf("Source: %dx%d", state.upscaleFile.Width, state.upscaleFile.Height))
+		sourceResLabel.TextStyle = fyne.TextStyle{Italic: true}
+		videoContainer = buildVideoPane(state, fyne.NewSize(640, 360), state.upscaleFile, nil)
+	} else {
+		sourceResLabel = widget.NewLabel("Source: N/A")
+		sourceResLabel.TextStyle = fyne.TextStyle{Italic: true}
+		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
+	}
+
+	// Load button
+	loadBtn := widget.NewButton("Load Video", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+
+			path := reader.URI().Path()
+			go func() {
+				src, err := probeVideo(path)
+				if err != nil {
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						dialog.ShowError(err, state.window)
+					}, false)
+					return
+				}
+
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					state.upscaleFile = src
+					state.showUpscaleView()
+				}, false)
+			}()
+		}, state.window)
+	})
+	loadBtn.Importance = widget.HighImportance
+
+	// Navigation to Filters module
+	filtersNavBtn := widget.NewButton("← Adjust Filters", func() {
+		if state.upscaleFile != nil {
+			state.filtersFile = state.upscaleFile
+		}
+		state.showFiltersView()
+	})
+
+	// Traditional Scaling Section
+	methodLabel := widget.NewLabel(fmt.Sprintf("Method: %s", state.upscaleMethod))
+	methodSelect := widget.NewSelect([]string{
+		"lanczos",  // Sharp, best general purpose
+		"bicubic",  // Smooth
+		"spline",   // Balanced
+		"bilinear", // Fast, lower quality
+	}, func(s string) {
+		state.upscaleMethod = s
+		methodLabel.SetText(fmt.Sprintf("Method: %s", s))
+	})
+	methodSelect.SetSelected(state.upscaleMethod)
+
+	methodInfo := widget.NewLabel("Lanczos: Sharp, best quality\nBicubic: Smooth\nSpline: Balanced\nBilinear: Fast")
+	methodInfo.TextStyle = fyne.TextStyle{Italic: true}
+	methodInfo.Wrapping = fyne.TextWrapWord
+
+	traditionalSection := widget.NewCard("Traditional Scaling (FFmpeg)", "", container.NewVBox(
+		widget.NewLabel("Classic upscaling methods - always available"),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Scaling Algorithm:"),
+			methodSelect,
+		),
+		methodLabel,
+		widget.NewSeparator(),
+		methodInfo,
+	))
+
+	// Resolution Selection Section
+	resLabel := widget.NewLabel(fmt.Sprintf("Target: %s", state.upscaleTargetRes))
+	resSelect := widget.NewSelect([]string{
+		"720p (1280x720)",
+		"1080p (1920x1080)",
+		"1440p (2560x1440)",
+		"4K (3840x2160)",
+		"8K (7680x4320)",
+		"Custom",
+	}, func(s string) {
+		state.upscaleTargetRes = s
+		resLabel.SetText(fmt.Sprintf("Target: %s", s))
+	})
+	resSelect.SetSelected(state.upscaleTargetRes)
+
+	resolutionSection := widget.NewCard("Target Resolution", "", container.NewVBox(
+		widget.NewLabel("Select output resolution"),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Resolution:"),
+			resSelect,
+		),
+		resLabel,
+		sourceResLabel,
+	))
+
+	// AI Upscaling Section
+	var aiSection *widget.Card
+	if state.upscaleAIAvailable {
+		aiModelSelect := widget.NewSelect([]string{
+			"realesrgan (General Purpose)",
+			"realesrgan-anime (Anime/Animation)",
+		}, func(s string) {
+			if strings.Contains(s, "anime") {
+				state.upscaleAIModel = "realesrgan-anime"
+			} else {
+				state.upscaleAIModel = "realesrgan"
+			}
+		})
+		if strings.Contains(state.upscaleAIModel, "anime") {
+			aiModelSelect.SetSelected("realesrgan-anime (Anime/Animation)")
+		} else {
+			aiModelSelect.SetSelected("realesrgan (General Purpose)")
+		}
+
+		aiEnabledCheck := widget.NewCheck("Use AI Upscaling", func(checked bool) {
+			state.upscaleAIEnabled = checked
+		})
+		aiEnabledCheck.SetChecked(state.upscaleAIEnabled)
+
+		aiSection = widget.NewCard("AI Upscaling", "✓ Available", container.NewVBox(
+			widget.NewLabel("Real-ESRGAN detected - enhanced quality available"),
+			aiEnabledCheck,
+			container.NewGridWithColumns(2,
+				widget.NewLabel("AI Model:"),
+				aiModelSelect,
+			),
+			widget.NewLabel("Note: AI upscaling is slower but produces higher quality results"),
+		))
+	} else {
+		aiSection = widget.NewCard("AI Upscaling", "Not Available", container.NewVBox(
+			widget.NewLabel("Real-ESRGAN not detected. Install for enhanced quality:"),
+			widget.NewLabel("https://github.com/xinntao/Real-ESRGAN"),
+			widget.NewLabel("Traditional scaling methods will be used."),
+		))
+	}
+
+	// Filter Integration Section
+	applyFiltersCheck := widget.NewCheck("Apply filters before upscaling", func(checked bool) {
+		state.upscaleApplyFilters = checked
+	})
+	applyFiltersCheck.SetChecked(state.upscaleApplyFilters)
+
+	filterIntegrationSection := widget.NewCard("Filter Integration", "", container.NewVBox(
+		widget.NewLabel("Apply color correction and filters from Filters module"),
+		applyFiltersCheck,
+		widget.NewLabel("Filters will be applied before upscaling for best quality"),
+	))
+
+	// Helper function to create upscale job
+	createUpscaleJob := func() (*queue.Job, error) {
+		if state.upscaleFile == nil {
+			return nil, fmt.Errorf("no video loaded")
+		}
+
+		// Parse target resolution
+		targetWidth, targetHeight, err := parseResolutionPreset(state.upscaleTargetRes)
+		if err != nil {
+			return nil, fmt.Errorf("invalid resolution: %w", err)
+		}
+
+		// Build output path
+		videoDir := filepath.Dir(state.upscaleFile.Path)
+		videoBaseName := strings.TrimSuffix(filepath.Base(state.upscaleFile.Path), filepath.Ext(state.upscaleFile.Path))
+		outputPath := filepath.Join(videoDir, fmt.Sprintf("%s_upscaled_%s_%s.mp4",
+			videoBaseName, state.upscaleTargetRes[:strings.Index(state.upscaleTargetRes, " ")], state.upscaleMethod))
+
+		// Build description
+		description := fmt.Sprintf("Upscale to %s using %s", state.upscaleTargetRes, state.upscaleMethod)
+		if state.upscaleAIEnabled && state.upscaleAIAvailable {
+			description += fmt.Sprintf(" + AI (%s)", state.upscaleAIModel)
+		}
+
+		return &queue.Job{
+			Type:        queue.JobTypeUpscale,
+			Title:       "Upscale: " + filepath.Base(state.upscaleFile.Path),
+			Description: description,
+			Config: map[string]interface{}{
+				"inputPath":    state.upscaleFile.Path,
+				"outputPath":   outputPath,
+				"method":       state.upscaleMethod,
+				"targetWidth":  float64(targetWidth),
+				"targetHeight": float64(targetHeight),
+				"useAI":        state.upscaleAIEnabled && state.upscaleAIAvailable,
+				"aiModel":      state.upscaleAIModel,
+				"applyFilters": state.upscaleApplyFilters,
+				"filterChain":  state.upscaleFilterChain,
+				"duration":     state.upscaleFile.Duration,
+			},
+		}, nil
+	}
+
+	// Apply/Queue buttons
+	applyBtn := widget.NewButton("UPSCALE NOW", func() {
+		job, err := createUpscaleJob()
+		if err != nil {
+			dialog.ShowError(err, state.window)
+			return
+		}
+
+		state.jobQueue.Add(job)
+		if !state.jobQueue.IsRunning() {
+			state.jobQueue.Start()
+		}
+		dialog.ShowInformation("Upscale Started",
+			fmt.Sprintf("Upscaling to %s.\nCheck the queue for progress.", state.upscaleTargetRes),
+			state.window)
+	})
+	applyBtn.Importance = widget.HighImportance
+
+	addQueueBtn := widget.NewButton("Add to Queue", func() {
+		job, err := createUpscaleJob()
+		if err != nil {
+			dialog.ShowError(err, state.window)
+			return
+		}
+
+		state.jobQueue.Add(job)
+		dialog.ShowInformation("Added to Queue",
+			fmt.Sprintf("Upscale job added.\nTarget: %s, Method: %s", state.upscaleTargetRes, state.upscaleMethod),
+			state.window)
+	})
+	addQueueBtn.Importance = widget.MediumImportance
+
+	// Main content
+	leftPanel := container.NewVBox(
+		instructions,
+		widget.NewSeparator(),
+		fileLabel,
+		loadBtn,
+		filtersNavBtn,
+	)
+
+	settingsPanel := container.NewVBox(
+		traditionalSection,
+		resolutionSection,
+		aiSection,
+		filterIntegrationSection,
+		container.NewGridWithColumns(2, applyBtn, addQueueBtn),
+	)
+
+	settingsScroll := container.NewVScroll(settingsPanel)
+	settingsScroll.SetMinSize(fyne.NewSize(450, 600))
+
+	mainContent := container.NewHSplit(
+		container.NewVBox(leftPanel, videoContainer),
+		settingsScroll,
+	)
+	mainContent.SetOffset(0.55) // 55% for video preview, 45% for settings
+
+	content := container.NewPadded(mainContent)
+
+	return container.NewBorder(topBar, nil, nil, nil, content)
+}
+
+// checkAIUpscaleAvailable checks if Real-ESRGAN is available on the system
+func checkAIUpscaleAvailable() bool {
+	// Check for realesrgan-ncnn-vulkan (most common binary distribution)
+	cmd := exec.Command("realesrgan-ncnn-vulkan", "--help")
+	if err := cmd.Run(); err == nil {
+		return true
+	}
+
+	// Check for Python-based Real-ESRGAN
+	cmd = exec.Command("python3", "-c", "import realesrgan")
+	if err := cmd.Run(); err == nil {
+		return true
+	}
+
+	// Check for alternative Python command
+	cmd = exec.Command("python", "-c", "import realesrgan")
+	if err := cmd.Run(); err == nil {
+		return true
+	}
+
+	return false
+}
+
+// parseResolutionPreset parses resolution preset strings like "1080p (1920x1080)" to width and height
+func parseResolutionPreset(preset string) (width, height int, err error) {
+	// Extract dimensions from preset string
+	// Format: "1080p (1920x1080)" or "4K (3840x2160)"
+
+	presetMap := map[string][2]int{
+		"720p (1280x720)":     {1280, 720},
+		"1080p (1920x1080)":   {1920, 1080},
+		"1440p (2560x1440)":   {2560, 1440},
+		"4K (3840x2160)":      {3840, 2160},
+		"8K (7680x4320)":      {7680, 4320},
+		"720p":                {1280, 720},
+		"1080p":               {1920, 1080},
+		"1440p":               {2560, 1440},
+		"4K":                  {3840, 2160},
+		"8K":                  {7680, 4320},
+	}
+
+	if dims, ok := presetMap[preset]; ok {
+		return dims[0], dims[1], nil
+	}
+
+	return 0, 0, fmt.Errorf("unknown resolution preset: %s", preset)
+}
+
+// buildUpscaleFilter builds the FFmpeg scale filter string with the selected method
+func buildUpscaleFilter(targetWidth, targetHeight int, method string) string {
+	// Build scale filter with method (flags parameter)
+	// Format: scale=width:height:flags=method
+	return fmt.Sprintf("scale=%d:%d:flags=%s", targetWidth, targetHeight, method)
 }
 
 // buildCompareFullscreenView creates fullscreen side-by-side comparison with synchronized controls

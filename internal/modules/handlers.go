@@ -61,3 +61,9 @@ func HandleCompare(files []string) {
 	logging.Debug(logging.CatModule, "compare handler invoked with %v", files)
 	fmt.Println("compare", files)
 }
+
+// HandlePlayer handles the player module
+func HandlePlayer(files []string) {
+	logging.Debug(logging.CatModule, "player handler invoked with %v", files)
+	fmt.Println("player", files)
+}

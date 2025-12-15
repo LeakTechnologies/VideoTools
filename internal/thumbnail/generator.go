@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // Config contains configuration for thumbnail generation
@@ -176,6 +177,86 @@ func (g *Generator) getVideoInfo(ctx context.Context, videoPath string) (duratio
 	return d, w, h, nil
 }
 
+// getDetailedVideoInfo retrieves codec, fps, and bitrate information from a video file
+func (g *Generator) getDetailedVideoInfo(ctx context.Context, videoPath string) (videoCodec, audioCodec string, fps, bitrate, audioBitrate float64) {
+	// Use ffprobe to get detailed video and audio information
+	cmd := exec.CommandContext(ctx, "ffprobe",
+		"-v", "error",
+		"-select_streams", "v:0",
+		"-show_entries", "stream=codec_name,r_frame_rate,bit_rate",
+		"-of", "default=noprint_wrappers=1:nokey=1",
+		videoPath,
+	)
+
+	output, err := cmd.Output()
+	if err != nil {
+		return "unknown", "unknown", 0, 0, 0
+	}
+
+	// Parse video stream info
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) >= 1 {
+		videoCodec = strings.ToUpper(lines[0])
+	}
+	if len(lines) >= 2 {
+		// Parse frame rate (format: "30000/1001" or "30/1")
+		fpsStr := lines[1]
+		var num, den float64
+		if _, err := fmt.Sscanf(fpsStr, "%f/%f", &num, &den); err == nil && den > 0 {
+			fps = num / den
+		}
+	}
+	if len(lines) >= 3 && lines[2] != "N/A" {
+		// Parse bitrate if available
+		fmt.Sscanf(lines[2], "%f", &bitrate)
+	}
+
+	// Get audio codec and bitrate
+	cmd = exec.CommandContext(ctx, "ffprobe",
+		"-v", "error",
+		"-select_streams", "a:0",
+		"-show_entries", "stream=codec_name,bit_rate",
+		"-of", "default=noprint_wrappers=1:nokey=1",
+		videoPath,
+	)
+
+	output, err = cmd.Output()
+	if err == nil {
+		audioLines := strings.Split(strings.TrimSpace(string(output)), "\n")
+		if len(audioLines) >= 1 {
+			audioCodec = strings.ToUpper(audioLines[0])
+		}
+		if len(audioLines) >= 2 && audioLines[1] != "N/A" {
+			fmt.Sscanf(audioLines[1], "%f", &audioBitrate)
+		}
+	}
+
+	// If bitrate wasn't available from video stream, try to get overall bitrate
+	if bitrate == 0 {
+		cmd = exec.CommandContext(ctx, "ffprobe",
+			"-v", "error",
+			"-show_entries", "format=bit_rate",
+			"-of", "default=noprint_wrappers=1:nokey=1",
+			videoPath,
+		)
+
+		output, err = cmd.Output()
+		if err == nil {
+			fmt.Sscanf(strings.TrimSpace(string(output)), "%f", &bitrate)
+		}
+	}
+
+	// Set defaults if still empty
+	if videoCodec == "" {
+		videoCodec = "unknown"
+	}
+	if audioCodec == "" {
+		audioCodec = "none"
+	}
+
+	return videoCodec, audioCodec, fps, bitrate, audioBitrate
+}
+
 // calculateDimensions determines thumbnail dimensions maintaining aspect ratio
 func (g *Generator) calculateDimensions(videoWidth, videoHeight, targetWidth, targetHeight int) (width, height int) {
 	if targetWidth == 0 && targetHeight == 0 {
@@ -298,14 +379,15 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 
 	outputPath := filepath.Join(config.OutputDir, fmt.Sprintf("contact_sheet.%s", config.Format))
 
-	// Build tile filter
-	tileFilter := fmt.Sprintf("scale=%d:%d,tile=%dx%d", thumbWidth, thumbHeight, config.Columns, config.Rows)
+	// Build tile filter with padding between thumbnails
+	padding := 8 // Pixels of padding between each thumbnail
+	tileFilter := fmt.Sprintf("scale=%d:%d,tile=%dx%d:padding=%d", thumbWidth, thumbHeight, config.Columns, config.Rows, padding)
 
 	// Build video filter
 	var vfilter string
 	if config.ShowMetadata {
 		// Add metadata header to contact sheet
-		vfilter = g.buildMetadataFilter(config, duration, thumbWidth, thumbHeight, selectFilter, tileFilter)
+		vfilter = g.buildMetadataFilter(config, duration, thumbWidth, thumbHeight, padding, selectFilter, tileFilter)
 	} else {
 		vfilter = fmt.Sprintf("%s,%s", selectFilter, tileFilter)
 	}
@@ -333,7 +415,7 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 }
 
 // buildMetadataFilter creates a filter that adds metadata header to contact sheet
-func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWidth, thumbHeight int, selectFilter, tileFilter string) string {
+func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWidth, thumbHeight, padding int, selectFilter, tileFilter string) string {
 	// Get file info
 	fileInfo, _ := os.Stat(config.VideoPath)
 	fileSize := fileInfo.Size()
@@ -341,6 +423,9 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 
 	// Get video info (we already have duration, just need dimensions)
 	_, videoWidth, videoHeight, _ := g.getVideoInfo(context.Background(), config.VideoPath)
+
+	// Get additional video metadata using ffprobe
+	videoCodec, audioCodec, fps, bitrate, audioBitrate := g.getDetailedVideoInfo(context.Background(), config.VideoPath)
 
 	// Format duration as HH:MM:SS
 	hours := int(duration) / 3600
@@ -351,27 +436,39 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	// Get just the filename without path
 	filename := filepath.Base(config.VideoPath)
 
-	// Calculate sheet dimensions
-	sheetWidth := thumbWidth * config.Columns
-	sheetHeight := thumbHeight * config.Rows
-	headerHeight := 80
+	// Calculate sheet dimensions accounting for padding between thumbnails
+	// Padding is added between tiles: (cols-1) horizontal gaps and (rows-1) vertical gaps
+	sheetWidth := (thumbWidth * config.Columns) + (padding * (config.Columns - 1))
+	sheetHeight := (thumbHeight * config.Rows) + (padding * (config.Rows - 1))
+	headerHeight := 100
 
 	// Build metadata text lines
 	// Line 1: Filename and file size
 	line1 := fmt.Sprintf("%s (%.1f MB)", filename, fileSizeMB)
-	// Line 2: Resolution, FPS, Duration
-	line2 := fmt.Sprintf("%dx%d | Duration\\: %s", videoWidth, videoHeight, durationStr)
+	// Line 2: Resolution and frame rate
+	line2 := fmt.Sprintf("%dx%d @ %.2f fps", videoWidth, videoHeight, fps)
+	// Line 3: Codecs with audio bitrate, overall bitrate, and duration
+	bitrateKbps := int(bitrate / 1000)
+	var audioInfo string
+	if audioBitrate > 0 {
+		audioBitrateKbps := int(audioBitrate / 1000)
+		audioInfo = fmt.Sprintf("%s %dkbps", audioCodec, audioBitrateKbps)
+	} else {
+		audioInfo = audioCodec
+	}
+	line3 := fmt.Sprintf("Video\\: %s | Audio\\: %s | %d kbps | %s", videoCodec, audioInfo, bitrateKbps, durationStr)
 
 	// Create filter that:
 	// 1. Generates contact sheet from selected frames
 	// 2. Creates a blank header area with app background color
 	// 3. Draws metadata text on header (using monospace font)
 	// 4. Stacks header on top of contact sheet
-	// App background color: #0B0F1A (dark blue)
+	// App background color: #0B0F1A (dark navy blue)
 	filter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
-		"drawtext=text='%s':fontcolor=white:fontsize=14:font='DejaVu Sans Mono':x=10:y=10,"+
-		"drawtext=text='%s':fontcolor=white:fontsize=12:font='DejaVu Sans Mono':x=10:y=35",
+		"drawtext=text='%s':fontcolor=white:fontsize=13:font='DejaVu Sans Mono':x=10:y=10,"+
+		"drawtext=text='%s':fontcolor=white:fontsize=12:font='DejaVu Sans Mono':x=10:y=35,"+
+		"drawtext=text='%s':fontcolor=white:fontsize=11:font='DejaVu Sans Mono':x=10:y=60",
 		selectFilter,
 		tileFilter,
 		sheetWidth,
@@ -379,6 +476,7 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 		headerHeight,
 		line1,
 		line2,
+		line3,
 	)
 
 	return filter
