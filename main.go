@@ -655,7 +655,8 @@ type appState struct {
 	upscaleFilterChain  []string // Transferred filters from Filters module
 
 	// Snippet settings
-	snippetLength int // Length of snippet in seconds (default: 20)
+	snippetLength       int  // Length of snippet in seconds (default: 20)
+	snippetSourceFormat bool // true = source format, false = conversion format (default: true)
 
 	// Interlacing detection state
 	interlaceResult    *interlace.DetectionResult
@@ -3339,6 +3340,12 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 		snippetLength = int(lengthVal)
 	}
 
+	// Get snippet mode, default to source format (true)
+	useSourceFormat := true
+	if modeVal, ok := cfg["useSourceFormat"].(bool); ok {
+		useSourceFormat = modeVal
+	}
+
 	// Probe video to get duration
 	src, err := probeVideo(inputPath)
 	if err != nil {
@@ -3354,20 +3361,39 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 		progressCallback(0)
 	}
 
-	// Re-encode for precise duration control (stream copy can only cut at keyframes)
-	args := []string{
-		"-y",
-		"-hide_banner",
-		"-loglevel", "error",
-		"-ss", start,
-		"-i", inputPath,
-		"-t", fmt.Sprintf("%d", snippetLength),
-		"-c:v", "libx264",   // Re-encode video for frame-accurate cutting
-		"-preset", "ultrafast", // Fast encoding for snippets
-		"-crf", "18",         // High quality
-		"-c:a", "copy",       // Copy audio without re-encoding
-		"-map", "0",          // Include all streams
-		outputPath,
+	var args []string
+
+	if useSourceFormat {
+		// Source format mode: Use stream copy for clean extraction
+		// Note: This uses keyframe cutting, so duration may not be frame-perfect
+		args = []string{
+			"-y",
+			"-hide_banner",
+			"-loglevel", "error",
+			"-ss", start,
+			"-i", inputPath,
+			"-t", fmt.Sprintf("%d", snippetLength),
+			"-c", "copy", // Stream copy - no re-encoding
+			"-map", "0",  // Include all streams
+			outputPath,
+		}
+	} else {
+		// Conversion format mode: Re-encode for precise duration and format conversion
+		args = []string{
+			"-y",
+			"-hide_banner",
+			"-loglevel", "error",
+			"-ss", start,
+			"-i", inputPath,
+			"-t", fmt.Sprintf("%d", snippetLength),
+			"-c:v", "libx264",      // Re-encode video to h264
+			"-preset", "ultrafast", // Fast encoding
+			"-crf", "18",           // High quality
+			"-c:a", "aac",          // Re-encode audio to AAC
+			"-b:a", "192k",         // Audio bitrate
+			"-map", "0",            // Include all streams
+			outputPath,
+		}
 	}
 
 	logFile, logPath, _ := createConversionLog(inputPath, outputPath, args)
@@ -5181,9 +5207,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	optionsRect.StrokeWidth = 1
 	optionsPanel := container.NewMax(optionsRect, container.NewPadded(tabs))
 
-	// Initialize snippet length default
+	// Initialize snippet settings defaults
 	if state.snippetLength == 0 {
 		state.snippetLength = 20 // Default to 20 seconds
+	}
+	// Default to source format if not set
+	if !state.snippetSourceFormat {
+		state.snippetSourceFormat = true
 	}
 
 	// Snippet length configuration
@@ -5196,9 +5226,22 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetLengthLabel.SetText(fmt.Sprintf("Snippet Length: %d seconds", state.snippetLength))
 	}
 
+	// Snippet output mode
+	snippetModeLabel := widget.NewLabel("Snippet Mode:")
+	snippetModeCheck := widget.NewCheck("Use Source Format (stream copy)", func(checked bool) {
+		state.snippetSourceFormat = checked
+	})
+	snippetModeCheck.SetChecked(state.snippetSourceFormat)
+	snippetModeHint := widget.NewLabel("Unchecked = Conversion format (re-encode)")
+	snippetModeHint.TextStyle = fyne.TextStyle{Italic: true}
+
 	snippetConfigRow := container.NewVBox(
 		snippetLengthLabel,
 		snippetLengthSlider,
+		widget.NewSeparator(),
+		snippetModeLabel,
+		snippetModeCheck,
+		snippetModeHint,
 	)
 
 	snippetBtn := widget.NewButton("Generate Snippet", func() {
@@ -5211,20 +5254,39 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			return
 		}
 		src := state.source
-		// Always use .mp4 for snippets since we're re-encoding to h264
-		outName := fmt.Sprintf("%s-snippet-%d.mp4", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix())
+
+		// Determine output extension based on mode
+		var ext string
+		if state.snippetSourceFormat {
+			// Source format: use source extension
+			ext = filepath.Ext(src.Path)
+			if ext == "" {
+				ext = ".mp4"
+			}
+		} else {
+			// Conversion format: always use .mp4
+			ext = ".mp4"
+		}
+
+		outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix(), ext)
 		outPath := filepath.Join(filepath.Dir(src.Path), outName)
+
+		modeDesc := "conversion settings"
+		if state.snippetSourceFormat {
+			modeDesc = "source format"
+		}
 
 		job := &queue.Job{
 			Type:        queue.JobTypeSnippet,
 			Title:       "Snippet: " + filepath.Base(src.Path),
-			Description: fmt.Sprintf("%ds snippet centred on midpoint (source settings)", state.snippetLength),
+			Description: fmt.Sprintf("%ds snippet centred on midpoint (%s)", state.snippetLength, modeDesc),
 			InputFile:   src.Path,
 			OutputFile:  outPath,
 			Config: map[string]interface{}{
-				"inputPath":     src.Path,
-				"outputPath":    outPath,
-				"snippetLength": float64(state.snippetLength),
+				"inputPath":       src.Path,
+				"outputPath":      outPath,
+				"snippetLength":   float64(state.snippetLength),
+				"useSourceFormat": state.snippetSourceFormat,
 			},
 		}
 		state.jobQueue.Add(job)
@@ -5250,25 +5312,43 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			timestamp := time.Now().Unix()
 			jobsAdded := 0
 
+			modeDesc := "conversion settings"
+			if state.snippetSourceFormat {
+				modeDesc = "source format"
+			}
+
 			for _, src := range state.loadedVideos {
 				if src == nil {
 					continue
 				}
 
-				// Always use .mp4 for snippets since we're re-encoding to h264
-			outName := fmt.Sprintf("%s-snippet-%d.mp4", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), timestamp)
+				// Determine output extension based on mode
+				var ext string
+				if state.snippetSourceFormat {
+					// Source format: use source extension
+					ext = filepath.Ext(src.Path)
+					if ext == "" {
+						ext = ".mp4"
+					}
+				} else {
+					// Conversion format: always use .mp4
+					ext = ".mp4"
+				}
+
+				outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), timestamp, ext)
 				outPath := filepath.Join(filepath.Dir(src.Path), outName)
 
 				job := &queue.Job{
 					Type:        queue.JobTypeSnippet,
 					Title:       "Snippet: " + filepath.Base(src.Path),
-					Description: fmt.Sprintf("%ds snippet centred on midpoint (source settings)", state.snippetLength),
+					Description: fmt.Sprintf("%ds snippet centred on midpoint (%s)", state.snippetLength, modeDesc),
 					InputFile:   src.Path,
 					OutputFile:  outPath,
 					Config: map[string]interface{}{
-						"inputPath":     src.Path,
-						"outputPath":    outPath,
-						"snippetLength": float64(state.snippetLength),
+						"inputPath":       src.Path,
+						"outputPath":      outPath,
+						"snippetLength":   float64(state.snippetLength),
+						"useSourceFormat": state.snippetSourceFormat,
 					},
 				}
 				state.jobQueue.Add(job)
