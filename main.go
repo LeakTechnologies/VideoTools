@@ -5211,12 +5211,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			return
 		}
 		src := state.source
-		// Use same extension as source file since we're using stream copy
-		ext := filepath.Ext(src.Path)
-		if ext == "" {
-			ext = ".mp4"
-		}
-		outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix(), ext)
+		// Always use .mp4 for snippets since we're re-encoding to h264
+		outName := fmt.Sprintf("%s-snippet-%d.mp4", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix())
 		outPath := filepath.Join(filepath.Dir(src.Path), outName)
 
 		job := &queue.Job{
@@ -5259,12 +5255,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 					continue
 				}
 
-				// Use same extension as source file since we're using stream copy
-				ext := filepath.Ext(src.Path)
-				if ext == "" {
-					ext = ".mp4"
-				}
-				outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), timestamp, ext)
+				// Always use .mp4 for snippets since we're re-encoding to h264
+			outName := fmt.Sprintf("%s-snippet-%d.mp4", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), timestamp)
 				outPath := filepath.Join(filepath.Dir(src.Path), outName)
 
 				job := &queue.Job{
