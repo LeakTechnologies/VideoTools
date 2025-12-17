@@ -111,7 +111,7 @@ func statusStrip(bar *ui.ConversionStatsBar) fyne.CanvasObject {
 	bg := canvas.NewRectangle(color.NRGBA{R: 34, G: 34, B: 34, A: 255})
 	bg.SetMinSize(fyne.NewSize(0, 32))
 	content := container.NewPadded(container.NewHBox(bar, layout.NewSpacer()))
-	return container.NewMax(bg, content)
+	return container.NewMax(bg, container.NewBorder(nil, nil, nil, nil, content))
 }
 
 // moduleFooter stacks a dark status strip above a tinted action/footer band.
@@ -2464,15 +2464,15 @@ func (s *appState) addMergeToQueue(startNow bool) error {
 	}
 
 	config := map[string]interface{}{
-		"clips":                 clips,
-		"format":                s.mergeFormat,
-		"keepAllStreams":        s.mergeKeepAll,
-		"chapters":              s.mergeChapters,
-		"codecMode":             s.mergeCodecMode,
-		"outputPath":            s.mergeOutput,
-		"dvdRegion":             s.mergeDVDRegion,
-		"dvdAspect":             s.mergeDVDAspect,
-		"frameRate":             s.mergeFrameRate,
+		"clips":                  clips,
+		"format":                 s.mergeFormat,
+		"keepAllStreams":         s.mergeKeepAll,
+		"chapters":               s.mergeChapters,
+		"codecMode":              s.mergeCodecMode,
+		"outputPath":             s.mergeOutput,
+		"dvdRegion":              s.mergeDVDRegion,
+		"dvdAspect":              s.mergeDVDAspect,
+		"frameRate":              s.mergeFrameRate,
 		"useMotionInterpolation": s.mergeMotionInterpolation,
 	}
 
@@ -11320,18 +11320,18 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			Description: desc,
 			OutputFile:  outputPath,
 			Config: map[string]interface{}{
-				"inputPath":             state.upscaleFile.Path,
-				"outputPath":            outputPath,
-				"method":                state.upscaleMethod,
-				"targetWidth":           float64(targetWidth),
-				"targetHeight":          float64(targetHeight),
-				"preserveAR":            preserveAspect,
-				"useAI":                 state.upscaleAIEnabled && state.upscaleAIAvailable,
-				"aiModel":               state.upscaleAIModel,
-				"applyFilters":          state.upscaleApplyFilters,
-				"filterChain":           state.upscaleFilterChain,
-				"duration":              state.upscaleFile.Duration,
-				"frameRate":             state.upscaleFrameRate,
+				"inputPath":              state.upscaleFile.Path,
+				"outputPath":             outputPath,
+				"method":                 state.upscaleMethod,
+				"targetWidth":            float64(targetWidth),
+				"targetHeight":           float64(targetHeight),
+				"preserveAR":             preserveAspect,
+				"useAI":                  state.upscaleAIEnabled && state.upscaleAIAvailable,
+				"aiModel":                state.upscaleAIModel,
+				"applyFilters":           state.upscaleApplyFilters,
+				"filterChain":            state.upscaleFilterChain,
+				"duration":               state.upscaleFile.Duration,
+				"frameRate":              state.upscaleFrameRate,
 				"useMotionInterpolation": state.upscaleMotionInterpolation,
 			},
 		}, nil
