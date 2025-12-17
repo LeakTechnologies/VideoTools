@@ -22,6 +22,7 @@ type stripedProgress struct {
 	progress float64
 	color    color.Color
 	bg       color.Color
+	offset   float64
 }
 
 func newStripedProgress(col color.Color) *stripedProgress {
@@ -54,8 +55,8 @@ func (s *stripedProgress) CreateRenderer() fyne.WidgetRenderer {
 		dark := applyAlpha(s.color, 140)
 		for y := 0; y < h; y++ {
 			for x := 0; x < w; x++ {
-				// simple diagonal stripe pattern
-				if ((x + y) / 6 % 2) == 0 {
+				// animate diagonal stripes using offset
+				if (((x + y) + int(s.offset)) / 6 % 2) == 0 {
 					img.Set(x, y, light)
 				} else {
 					img.Set(x, y, dark)
@@ -104,6 +105,8 @@ func (r *stripedProgressRenderer) MinSize() fyne.Size {
 }
 
 func (r *stripedProgressRenderer) Refresh() {
+	// small drift to animate stripes
+	r.bar.offset += 1
 	r.Layout(r.bg.Size())
 	canvas.Refresh(r.bg)
 }
