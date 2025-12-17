@@ -751,7 +751,7 @@ func (s *appState) updateStatsBar() {
 		return
 	}
 
-	pending, running, completed, failed := s.jobQueue.Stats()
+	pending, running, completed, failed, cancelled := s.jobQueue.Stats()
 
 	// Find the currently running job to get its progress and stats
 	var progress, fps, speed float64
@@ -794,14 +794,14 @@ func (s *appState) updateStatsBar() {
 		}
 	}
 
-	s.statsBar.UpdateStatsWithDetails(running, pending, completed, failed, progress, fps, speed, eta, jobTitle)
+	s.statsBar.UpdateStatsWithDetails(running, pending, completed, failed, cancelled, progress, fps, speed, eta, jobTitle)
 }
 
 func (s *appState) queueProgressCounts() (completed, total int) {
 	if s.jobQueue == nil {
 		return 0, 0
 	}
-	pending, running, completedCount, failed := s.jobQueue.Stats()
+	pending, running, completedCount, failed, cancelled := s.jobQueue.Stats()
 	// Total includes all jobs in memory, including cancelled/failed/pending
 	total = len(s.jobQueue.List())
 	// Include direct conversion as an in-flight item in totals
@@ -812,6 +812,7 @@ func (s *appState) queueProgressCounts() (completed, total int) {
 	_ = pending
 	_ = running
 	_ = failed
+	_ = cancelled
 	return
 }
 
@@ -1122,7 +1123,7 @@ func (s *appState) showMainMenu() {
 	// Get queue stats - show completed jobs out of total
 	var queueCompleted, queueTotal int
 	if s.jobQueue != nil {
-		_, _, completed, _ := s.jobQueue.Stats()
+		_, _, completed, _, _ := s.jobQueue.Stats()
 		queueCompleted = completed
 		queueTotal = len(s.jobQueue.List())
 	}

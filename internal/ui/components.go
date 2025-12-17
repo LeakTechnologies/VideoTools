@@ -443,6 +443,7 @@ type ConversionStatsBar struct {
 	pending   int
 	completed int
 	failed    int
+	cancelled int
 	progress  float64
 	jobTitle  string
 	fps       float64
@@ -461,22 +462,24 @@ func NewConversionStatsBar(onTapped func()) *ConversionStatsBar {
 }
 
 // UpdateStats updates the stats display
-func (c *ConversionStatsBar) UpdateStats(running, pending, completed, failed int, progress float64, jobTitle string) {
+func (c *ConversionStatsBar) UpdateStats(running, pending, completed, failed, cancelled int, progress float64, jobTitle string) {
 	c.running = running
 	c.pending = pending
 	c.completed = completed
 	c.failed = failed
+	c.cancelled = cancelled
 	c.progress = progress
 	c.jobTitle = jobTitle
 	c.Refresh()
 }
 
 // UpdateStatsWithDetails updates the stats display with detailed conversion info
-func (c *ConversionStatsBar) UpdateStatsWithDetails(running, pending, completed, failed int, progress, fps, speed float64, eta, jobTitle string) {
+func (c *ConversionStatsBar) UpdateStatsWithDetails(running, pending, completed, failed, cancelled int, progress, fps, speed float64, eta, jobTitle string) {
 	c.running = running
 	c.pending = pending
 	c.completed = completed
 	c.failed = failed
+	c.cancelled = cancelled
 	c.progress = progress
 	c.fps = fps
 	c.speed = speed
@@ -600,7 +603,7 @@ func (r *conversionStatsRenderer) Refresh() {
 		r.statusText.Text = "⏸ " + formatCount(r.bar.pending, "queued")
 		r.statusText.Color = color.NRGBA{R: 255, G: 200, B: 100, A: 255} // Yellow
 		r.progressBar.Hide()
-	} else if r.bar.completed > 0 || r.bar.failed > 0 {
+	} else if r.bar.completed > 0 || r.bar.failed > 0 || r.bar.cancelled > 0 {
 		statusStr := "✓ "
 		parts := []string{}
 		if r.bar.completed > 0 {
@@ -608,6 +611,9 @@ func (r *conversionStatsRenderer) Refresh() {
 		}
 		if r.bar.failed > 0 {
 			parts = append(parts, formatCount(r.bar.failed, "failed"))
+		}
+		if r.bar.cancelled > 0 {
+			parts = append(parts, formatCount(r.bar.cancelled, "cancelled"))
 		}
 		statusStr += strings.Join(parts, " • ")
 		r.statusText.Text = statusStr
