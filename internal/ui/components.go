@@ -516,6 +516,11 @@ func (c *ConversionStatsBar) Tapped(*fyne.PointEvent) {
 	}
 }
 
+// Enable full-width tap target across the bar
+func (c *ConversionStatsBar) MouseIn(*fyne.MouseEvent)    {}
+func (c *ConversionStatsBar) MouseMoved(*fyne.MouseEvent) {}
+func (c *ConversionStatsBar) MouseOut()                   {}
+
 type conversionStatsRenderer struct {
 	bar         *ConversionStatsBar
 	bg          *canvas.Rectangle
