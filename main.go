@@ -5918,10 +5918,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 
 	leftControls := container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn, autoCompareCheck)
-	centerStatus := container.NewHBox(activity, statusLabel)
 	rightControls := container.NewHBox(cancelBtn, cancelQueueBtn, viewLogBtn, addQueueBtn, convertBtn)
-	actionInner := container.NewBorder(nil, nil, leftControls, rightControls, centerStatus)
-	actionBar := container.NewHBox(actionInner.Objects...)
+	actionBar := container.NewHBox(leftControls, layout.NewSpacer(), rightControls)
 
 	// Start a UI refresh ticker to update widgets from state while conversion is active
 	// This ensures progress updates even when navigating between modules
