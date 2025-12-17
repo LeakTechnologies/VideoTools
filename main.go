@@ -3366,20 +3366,17 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 
 	if useSourceFormat {
 		// Source format mode: Use stream copy for clean extraction
-		// Note: This uses keyframe cutting, so duration may not be frame-perfect
-		// Calculate end time for more accurate cutting
-		endTime := center + float64(snippetLength)
+		// Simple, reliable approach: -ss before -i for fast seek, -t for duration
 		args = []string{
-			"-y",
+			"-ss", start, // Seek to start position (before -i for fast keyframe seek)
+			"-i", inputPath,
+			"-t", fmt.Sprintf("%d", snippetLength), // Duration to extract
+			"-c", "copy",                            // Stream copy - no re-encoding
+			"-map", "0",                             // Include all streams
+			"-avoid_negative_ts", "make_zero",       // Fix timestamp issues
+			"-y",                                    // Overwrite output
 			"-hide_banner",
 			"-loglevel", "error",
-			"-accurate_seek", // Seek accurately to keyframes
-			"-ss", start,
-			"-i", inputPath,
-			"-to", fmt.Sprintf("%.2f", endTime), // Use -to instead of -t for better accuracy
-			"-c", "copy",                         // Stream copy - no re-encoding
-			"-map", "0",                          // Include all streams
-			"-avoid_negative_ts", "make_zero",    // Fix timestamp issues
 			outputPath,
 		}
 	} else {
