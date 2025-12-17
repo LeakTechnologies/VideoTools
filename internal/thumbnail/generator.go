@@ -11,21 +11,21 @@ import (
 
 // Config contains configuration for thumbnail generation
 type Config struct {
-	VideoPath      string
-	OutputDir      string
-	Count          int     // Number of thumbnails to generate
-	Interval       float64 // Interval in seconds between thumbnails (alternative to Count)
-	Width          int     // Thumbnail width (0 = auto based on height)
-	Height         int     // Thumbnail height (0 = auto based on width)
-	Quality        int     // JPEG quality 1-100 (0 = PNG lossless)
-	Format         string  // "png" or "jpg"
-	StartOffset    float64 // Start generating from this timestamp
-	EndOffset      float64 // Stop generating before this timestamp
-	ContactSheet   bool    // Generate a single contact sheet instead of individual files
-	Columns        int     // Contact sheet columns (if ContactSheet=true)
-	Rows           int     // Contact sheet rows (if ContactSheet=true)
-	ShowTimestamp  bool    // Overlay timestamp on thumbnails
-	ShowMetadata   bool    // Show metadata header on contact sheet
+	VideoPath     string
+	OutputDir     string
+	Count         int     // Number of thumbnails to generate
+	Interval      float64 // Interval in seconds between thumbnails (alternative to Count)
+	Width         int     // Thumbnail width (0 = auto based on height)
+	Height        int     // Thumbnail height (0 = auto based on width)
+	Quality       int     // JPEG quality 1-100 (0 = PNG lossless)
+	Format        string  // "png" or "jpg"
+	StartOffset   float64 // Start generating from this timestamp
+	EndOffset     float64 // Stop generating before this timestamp
+	ContactSheet  bool    // Generate a single contact sheet instead of individual files
+	Columns       int     // Contact sheet columns (if ContactSheet=true)
+	Rows          int     // Contact sheet rows (if ContactSheet=true)
+	ShowTimestamp bool    // Overlay timestamp on thumbnails
+	ShowMetadata  bool    // Show metadata header on contact sheet
 }
 
 // Generator creates thumbnails from videos
@@ -151,7 +151,7 @@ func (g *Generator) getVideoInfo(ctx context.Context, videoPath string) (duratio
 		"-select_streams", "v:0",
 		"-show_entries", "stream=width,height,duration",
 		"-show_entries", "format=duration",
-		"-of", "default=noprint_wrappers=1",
+		"-of", "json",
 		videoPath,
 	)
 
@@ -160,18 +160,47 @@ func (g *Generator) getVideoInfo(ctx context.Context, videoPath string) (duratio
 		return 0, 0, 0, fmt.Errorf("ffprobe failed: %w", err)
 	}
 
-	// Parse output
-	var w, h int
-	var d float64
-	_, _ = fmt.Sscanf(string(output), "width=%d\nheight=%d\nduration=%f", &w, &h, &d)
-
-	// If stream duration not available, try format duration
-	if d == 0 {
-		_, _ = fmt.Sscanf(string(output), "width=%d\nheight=%d\nwidth=%*d\nheight=%*d\nduration=%f", &w, &h, &d)
+	// Parse JSON for robust extraction
+	type streamInfo struct {
+		Width    int    `json:"width"`
+		Height   int    `json:"height"`
+		Duration string `json:"duration"`
+	}
+	type formatInfo struct {
+		Duration string `json:"duration"`
+	}
+	type ffprobeResp struct {
+		Streams []streamInfo `json:"streams"`
+		Format  formatInfo   `json:"format"`
 	}
 
-	if w == 0 || h == 0 || d == 0 {
-		return 0, 0, 0, fmt.Errorf("failed to parse video info")
+	var resp ffprobeResp
+	if err := json.Unmarshal(output, &resp); err != nil {
+		return 0, 0, 0, fmt.Errorf("failed to parse ffprobe json: %w", err)
+	}
+
+	var w, h int
+	var d float64
+	if len(resp.Streams) > 0 {
+		w = resp.Streams[0].Width
+		h = resp.Streams[0].Height
+		if resp.Streams[0].Duration != "" {
+			if val, err := strconv.ParseFloat(resp.Streams[0].Duration, 64); err == nil {
+				d = val
+			}
+		}
+	}
+	if d == 0 && resp.Format.Duration != "" {
+		if val, err := strconv.ParseFloat(resp.Format.Duration, 64); err == nil {
+			d = val
+		}
+	}
+
+	if w == 0 || h == 0 {
+		return 0, 0, 0, fmt.Errorf("failed to parse video info (missing width/height)")
+	}
+	if d == 0 {
+		return 0, 0, 0, fmt.Errorf("failed to parse video info (missing duration)")
 	}
 
 	return d, w, h, nil
@@ -466,9 +495,9 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	// App background color: #0B0F1A (dark navy blue)
 	filter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
-		"drawtext=text='%s':fontcolor=white:fontsize=13:font='DejaVu Sans Mono':x=10:y=10,"+
-		"drawtext=text='%s':fontcolor=white:fontsize=12:font='DejaVu Sans Mono':x=10:y=35,"+
-		"drawtext=text='%s':fontcolor=white:fontsize=11:font='DejaVu Sans Mono':x=10:y=60",
+			"drawtext=text='%s':fontcolor=white:fontsize=13:font='DejaVu Sans Mono':x=10:y=10,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=12:font='DejaVu Sans Mono':x=10:y=35,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=11:font='DejaVu Sans Mono':x=10:y=60",
 		selectFilter,
 		tileFilter,
 		sheetWidth,
