@@ -38,6 +38,23 @@ This file tracks completed features, fixes, and milestones.
   - High quality encoding (libx264, preset slow, CRF 18)
   - Navigation back to Filters module
 
+- ✅ **Snippet System Overhaul - Dual Output Modes**
+  - **"Snippet to Default Format" (Checkbox CHECKED - Default)**:
+    - Stream copy mode preserves exact source format, codec, bitrate
+    - Zero quality loss - bit-perfect copy of source
+    - Outputs to source container (.wmv → .wmv, .avi → .avi, etc.)
+    - Fast processing (no re-encoding)
+    - Duration: Keyframe-level precision (may vary ±1-2s)
+    - Perfect for merge testing without quality changes
+  - **"Snippet to Output Format" (Checkbox UNCHECKED)**:
+    - Uses configured conversion settings from Convert tab
+    - Applies video codec (H.264, H.265, VP9, AV1, etc.)
+    - Applies audio codec (AAC, Opus, MP3, FLAC, etc.)
+    - Uses encoder preset and CRF quality settings
+    - Outputs to selected format (.mp4, .mkv, .webm, etc.)
+    - Frame-perfect duration control (exactly configured length)
+    - Perfect preview of final conversion output
+
 - ✅ **Configurable Snippet Length**
   - Adjustable snippet length (5-60 seconds, default: 20)
   - Slider control with real-time display
@@ -49,13 +66,20 @@ This file tracks completed features, fixes, and milestones.
   - Processes all videos with same configured length
   - Consistent timestamp for uniform naming
   - Efficient queue integration
+  - Shows confirmation with count of jobs added
+
+- ✅ **Smart Job Descriptions**
+  - Displays snippet length and mode in job queue
+  - "10s snippet centred on midpoint (source format)"
+  - "20s snippet centred on midpoint (conversion settings)"
 
 ### Technical Improvements
-- ✅ **Precise Snippet Duration Control**
-  - Changed from stream copy to re-encoding for frame-accurate cutting
-  - Video: libx264 with ultrafast preset, CRF 18
-  - Audio: Stream copy (no re-encoding needed)
-  - Fixes duration inaccuracy caused by keyframe-only cutting
+- ✅ **Dual-Mode Snippet System Implementation**
+  - Default Format mode: Stream copy for bit-perfect source preservation
+  - Output Format mode: Full conversion using user's configured settings
+  - Automatic container/codec matching based on mode selection
+  - Integration with conversion config (video/audio codecs, presets, CRF)
+  - Smart extension handling (source format vs. selected output format)
 
 - ✅ **Metadata Enhancement System**
   - New `getDetailedVideoInfo()` function using FFprobe
@@ -79,10 +103,15 @@ This file tracks completed features, fixes, and milestones.
   - Filter chain combination support
 
 ### Bug Fixes
-- ✅ Fixed snippet duration exceeding configured length (stream copy → re-encode)
+- ✅ Fixed snippet duration issues with dual-mode approach
+  - Default Format: Uses stream copy (keyframe-level precision)
+  - Output Format: Re-encodes for frame-perfect duration
+- ✅ Fixed container/codec mismatch in snippet generation
+  - Now properly matches container to codec (MP4 for h264, source format for stream copy)
 - ✅ Fixed missing audio bitrate in thumbnail metadata
 - ✅ Fixed contact sheet dimensions not accounting for padding
 - ✅ Added missing `strings` import to thumbnail/generator.go
+- ✅ Updated snippet UI labels for clarity (Default Format vs Output Format)
 
 ### Documentation
 - ✅ Updated ai-speak.md with comprehensive dev18 documentation
