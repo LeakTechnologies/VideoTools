@@ -2173,11 +2173,11 @@ func (s *appState) showMergeView() {
 
 	formatMap := map[string]string{
 		"Fast Merge (No Re-encoding)": "mkv-copy",
-		"Lossless MKV (Best Quality)":  "mkv-lossless",
-		"High Quality MP4 (H.264)":     "mp4-h264",
-		"High Quality MP4 (H.265)":     "mp4-h265",
-		"DVD Format":                   "dvd",
-		"Blu-ray Format":               "bd-h264",
+		"Lossless MKV (Best Quality)": "mkv-lossless",
+		"High Quality MP4 (H.264)":    "mp4-h264",
+		"High Quality MP4 (H.265)":    "mp4-h265",
+		"DVD Format":                  "dvd",
+		"Blu-ray Format":              "bd-h264",
 	}
 	// Maintain order for dropdown
 	formatKeys := []string{
@@ -2591,10 +2591,10 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 				"-r", "30000/1001",
 				"-pix_fmt", "yuv420p",
 				"-aspect", dvdAspect,
-				"-b:v", "5000k",      // DVD video bitrate
-				"-maxrate", "8000k",  // DVD max bitrate
+				"-b:v", "5000k", // DVD video bitrate
+				"-maxrate", "8000k", // DVD max bitrate
 				"-bufsize", "1835008", // DVD buffer size
-				"-f", "dvd",          // DVD format
+				"-f", "dvd", // DVD format
 			)
 		} else {
 			args = append(args,
@@ -2602,10 +2602,10 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 				"-r", "25",
 				"-pix_fmt", "yuv420p",
 				"-aspect", dvdAspect,
-				"-b:v", "5000k",      // DVD video bitrate
-				"-maxrate", "8000k",  // DVD max bitrate
+				"-b:v", "5000k", // DVD video bitrate
+				"-maxrate", "8000k", // DVD max bitrate
 				"-bufsize", "1835008", // DVD buffer size
-				"-f", "dvd",          // DVD format
+				"-f", "dvd", // DVD format
 			)
 		}
 
@@ -3535,7 +3535,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 
 			// Apply encoder preset if supported codec
 			if strings.Contains(strings.ToLower(videoCodec), "264") ||
-			   strings.Contains(strings.ToLower(videoCodec), "265") {
+				strings.Contains(strings.ToLower(videoCodec), "265") {
 				if conv.EncoderPreset != "" {
 					args = append(args, "-preset", conv.EncoderPreset)
 				} else {
@@ -3556,7 +3556,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 
 			args = append(args, "-c:a", audioCodec)
 			if strings.Contains(strings.ToLower(audioCodec), "aac") ||
-			   strings.Contains(strings.ToLower(audioCodec), "mp3") {
+				strings.Contains(strings.ToLower(audioCodec), "mp3") {
 				if conv.AudioBitrate != "" {
 					args = append(args, "-b:a", conv.AudioBitrate)
 				} else {
@@ -3784,7 +3784,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 						var h, m int
 						var s float64
 						if _, err := fmt.Sscanf(timeStr, "%d:%d:%f", &h, &m, &s); err == nil {
-							currentTime := float64(h*3600 + m*60) + s
+							currentTime := float64(h*3600+m*60) + s
 							progress := currentTime / duration
 							if progress > 1.0 {
 								progress = 1.0
@@ -7397,6 +7397,84 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		return
 	}
 
+	// If in filters module, handle single video file
+	if s.active == "filters" {
+		var videoPaths []string
+		for _, uri := range items {
+			if uri.Scheme() != "file" {
+				continue
+			}
+			path := uri.Path()
+			if s.isVideoFile(path) {
+				videoPaths = append(videoPaths, path)
+			}
+		}
+
+		if len(videoPaths) == 0 {
+			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			dialog.ShowInformation("Filters", "No video files found in dropped items.", s.window)
+			return
+		}
+
+		go func() {
+			src, err := probeVideo(videoPaths[0])
+			if err != nil {
+				logging.Debug(logging.CatModule, "failed to load video for filters: %v", err)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+				}, false)
+				return
+			}
+
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.filtersFile = src
+				s.showFiltersView()
+				logging.Debug(logging.CatModule, "loaded video into filters module")
+			}, false)
+		}()
+
+		return
+	}
+
+	// If in upscale module, handle single video file
+	if s.active == "upscale" {
+		var videoPaths []string
+		for _, uri := range items {
+			if uri.Scheme() != "file" {
+				continue
+			}
+			path := uri.Path()
+			if s.isVideoFile(path) {
+				videoPaths = append(videoPaths, path)
+			}
+		}
+
+		if len(videoPaths) == 0 {
+			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			dialog.ShowInformation("Upscale", "No video files found in dropped items.", s.window)
+			return
+		}
+
+		go func() {
+			src, err := probeVideo(videoPaths[0])
+			if err != nil {
+				logging.Debug(logging.CatModule, "failed to load video for upscale: %v", err)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+				}, false)
+				return
+			}
+
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.upscaleFile = src
+				s.showUpscaleView()
+				logging.Debug(logging.CatModule, "loaded video into upscale module")
+			}, false)
+		}()
+
+		return
+	}
+
 	// If in merge module, handle multiple video files
 	if s.active == "merge" {
 		// Collect all video files from the dropped items
@@ -10688,11 +10766,11 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 
 	// Initialize state defaults
 	if state.filterBrightness == 0 && state.filterContrast == 0 && state.filterSaturation == 0 {
-		state.filterBrightness = 0.0  // -1.0 to 1.0
-		state.filterContrast = 1.0    // 0.0 to 3.0
-		state.filterSaturation = 1.0  // 0.0 to 3.0
-		state.filterSharpness = 0.0   // 0.0 to 5.0
-		state.filterDenoise = 0.0     // 0.0 to 10.0
+		state.filterBrightness = 0.0 // -1.0 to 1.0
+		state.filterContrast = 1.0   // 0.0 to 3.0
+		state.filterSaturation = 1.0 // 0.0 to 3.0
+		state.filterSharpness = 0.0  // 0.0 to 5.0
+		state.filterDenoise = 0.0    // 0.0 to 10.0
 	}
 
 	// File label
@@ -11165,16 +11243,16 @@ func parseResolutionPreset(preset string) (width, height int, err error) {
 	// Format: "1080p (1920x1080)" or "4K (3840x2160)"
 
 	presetMap := map[string][2]int{
-		"720p (1280x720)":     {1280, 720},
-		"1080p (1920x1080)":   {1920, 1080},
-		"1440p (2560x1440)":   {2560, 1440},
-		"4K (3840x2160)":      {3840, 2160},
-		"8K (7680x4320)":      {7680, 4320},
-		"720p":                {1280, 720},
-		"1080p":               {1920, 1080},
-		"1440p":               {2560, 1440},
-		"4K":                  {3840, 2160},
-		"8K":                  {7680, 4320},
+		"720p (1280x720)":   {1280, 720},
+		"1080p (1920x1080)": {1920, 1080},
+		"1440p (2560x1440)": {2560, 1440},
+		"4K (3840x2160)":    {3840, 2160},
+		"8K (7680x4320)":    {7680, 4320},
+		"720p":              {1280, 720},
+		"1080p":             {1920, 1080},
+		"1440p":             {2560, 1440},
+		"4K":                {3840, 2160},
+		"8K":                {7680, 4320},
 	}
 
 	if dims, ok := presetMap[preset]; ok {
