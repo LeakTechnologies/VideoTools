@@ -90,7 +90,7 @@ func (r *stripedProgressRenderer) Layout(size fyne.Size) {
 	r.bg.Resize(size)
 	r.bg.Move(fyne.NewPos(0, 0))
 
-	fillWidth := size.Width * r.bar.progress
+	fillWidth := size.Width * float32(r.bar.progress)
 	fillSize := fyne.NewSize(fillWidth, size.Height)
 
 	r.fill.Resize(fillSize)
