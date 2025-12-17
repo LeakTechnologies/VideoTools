@@ -3210,12 +3210,22 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		}
 	}
 
-	// Map cover art
+	// Map streams and metadata
 	if hasCoverArt {
-		args = append(args, "-map", "0:v", "-map", "0:a?", "-map", "1:v")
+		// With cover art: map video, audio, subtitles, and cover art
+		args = append(args, "-map", "0:v", "-map", "0:a?", "-map", "0:s?", "-map", "1:v")
 		args = append(args, "-c:v:1", "png")
 		args = append(args, "-disposition:v:1", "attached_pic")
+	} else {
+		// Without cover art: map video, audio, and subtitles
+		args = append(args, "-map", "0:v", "-map", "0:a?", "-map", "0:s?")
 	}
+
+	// Preserve chapters and metadata
+	args = append(args, "-map_chapters", "0", "-map_metadata", "0")
+
+	// Copy subtitle streams by default (don't re-encode)
+	args = append(args, "-c:s", "copy")
 
 	if strings.EqualFold(selectedFormat.Ext, ".mp4") || strings.EqualFold(selectedFormat.Ext, ".mov") {
 		args = append(args, "-movflags", "+faststart")
