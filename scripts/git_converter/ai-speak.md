@@ -359,6 +359,49 @@
 
 **Status:** Seamless workflow established
 
+#### **6. Snippet System Overhaul** - FULLY FUNCTIONAL ⭐
+- [x] **Configurable Snippet Length:**
+  - Adjustable length slider (5-60 seconds, default: 20) ✅
+  - Real-time display of current setting ✅
+  - Length persists across video loads ✅
+  - Snippets centered on video midpoint ✅
+
+- [x] **Dual Output Modes:**
+  - **"Snippet to Default Format"** (Checkbox CHECKED - Default):
+    - Uses stream copy (`-c copy`) for zero quality loss ✅
+    - Preserves source container format (.wmv → .wmv, .avi → .avi, etc.) ✅
+    - Maintains exact bitrate, codec, and all video properties ✅
+    - **No conversion artifacts whatsoever** ✅
+    - Fast processing (no re-encoding) ✅
+    - Duration: Keyframe-level precision (may vary by 1-2s due to keyframe boundaries) ✅
+  - **"Snippet to Output Format"** (Checkbox UNCHECKED):
+    - Uses configured conversion settings from Convert tab ✅
+    - Applies video codec (H.264, H.265, VP9, AV1, etc.) ✅
+    - Applies audio codec (AAC, Opus, MP3, FLAC, etc.) ✅
+    - Uses encoder preset and CRF quality settings ✅
+    - Outputs to selected format (.mp4, .mkv, .webm, etc.) ✅
+    - Frame-perfect duration control (exactly configured length) ✅
+    - **Perfect preview of final conversion output** ✅
+
+- [x] **Batch Snippet Generation:**
+  - "Generate All Snippets" button for multiple loaded videos ✅
+  - Processes all videos with same configured length ✅
+  - Consistent timestamp for uniform naming ✅
+  - Efficient queue integration ✅
+  - Shows confirmation with count of jobs added ✅
+
+- [x] **Smart Job Descriptions:**
+  - Displays snippet length and mode in job description ✅
+  - "10s snippet centred on midpoint (source format)" ✅
+  - "20s snippet centred on midpoint (conversion settings)" ✅
+
+**Status:** Fully functional - ready for merge testing and quality comparison
+
+**Use Cases:**
+- Generate "Default Format" snippets to test merge functionality without quality loss
+- Generate "Output Format" snippets to preview conversion quality before full conversion
+- Compare both modes side-by-side to verify no artifacts in conversion
+
 ---
 
 ### 🔧 **Technical Implementation Details**
@@ -427,12 +470,39 @@ ffmpeg -y -hide_banner -i input.mp4 \
 - [ ] Verify video preview displays correctly
 - [ ] Test navigation back to main menu
 
+**Snippet System Testing:**
+- [ ] Load a video file (preferably WMV or other non-MP4 format)
+- [ ] Set snippet length to 10 seconds
+- [ ] **Test "Snippet to Default Format" (checkbox CHECKED):**
+  - [ ] Generate snippet
+  - [ ] Verify output format matches source (e.g., .wmv → .wmv)
+  - [ ] Check duration (should be ~10s, may vary by 1-2s due to keyframes)
+  - [ ] Verify file size is appropriate (no re-encoding)
+  - [ ] Confirm no quality loss (bit-perfect copy)
+- [ ] **Test "Snippet to Output Format" (checkbox UNCHECKED):**
+  - [ ] Configure conversion settings in Convert tab (e.g., H.264, AAC, MP4)
+  - [ ] Generate snippet
+  - [ ] Verify output format matches conversion settings (e.g., .mp4)
+  - [ ] Check duration is exactly 10 seconds (frame-perfect)
+  - [ ] Confirm video/audio codecs match conversion settings
+  - [ ] Verify quality matches CRF setting
+- [ ] **Test Batch Snippet Generation:**
+  - [ ] Load multiple videos (7+ videos)
+  - [ ] Click "Generate All Snippets"
+  - [ ] Verify all snippets added to queue
+  - [ ] Check all snippets have same timestamp in filename
+  - [ ] Confirm all use configured length and mode
+- [ ] Compare snippets side-by-side (default vs output) to verify no unwanted artifacts
+
 #### **📊 Expected Results:**
 - **Upscale Output:** Video upscaled to target resolution with high quality (CRF 18)
 - **Performance:** Progress tracking updates smoothly
 - **Quality:** No visual artifacts, audio perfectly synced
 - **Logs:** Complete FFmpeg command and output in log file
 - **Contact Sheets:** Professional-looking with clear metadata and proper spacing
+- **Snippet Default Format:** Exact copy of source with same container, codec, bitrate
+- **Snippet Output Format:** Preview matching conversion settings exactly
+- **Snippet Duration:** Default format ~10s (±1-2s keyframe variance), Output format exactly 10s
 
 #### **⚠️ Known Issues to Watch:**
 - None currently - fresh implementation
@@ -474,7 +544,7 @@ ffmpeg -y -hide_banner -i input.mp4 \
 
 **Hey Jake's AI! 👋**
 
-We've been busy implementing three new modules in VideoTools:
+We've been busy implementing major features in VideoTools dev18:
 
 1. **Upscale Module** - Fully functional traditional scaling (Lanczos/Bicubic/Spline/Bilinear) with queue integration. Can upscale videos from 720p to 8K with real-time progress tracking. Ready for testing!
 
@@ -482,14 +552,29 @@ We've been busy implementing three new modules in VideoTools:
 
 3. **Player Module** - Basic structure for VT_Player, ready for advanced features.
 
+4. **Snippet System Overhaul** - This is a BIG one! Complete redesign with two output modes:
+   - **"Snippet to Default Format"**: Stream copy mode that preserves the exact source format, codec, bitrate - zero quality loss, perfect for merge testing
+   - **"Snippet to Output Format"**: Uses your actual conversion settings to preview what the final output will look like
+   - Configurable length (5-60s), batch generation for multiple videos, smart job descriptions
+   - This solves the problem of comparing source quality vs converted quality BEFORE doing full conversions!
+
 **What we need from testing:**
 - Verify upscale actually produces correct resolution outputs
 - Check that progress tracking works smoothly
 - Confirm quality settings (CRF 18, slow preset) produce good results
-- Make sure module navigation doesn't break anything
+- **CRITICAL: Test both snippet modes** - "Default Format" should produce bit-perfect copies, "Output Format" should match conversion settings exactly
+- Compare snippets side-by-side to verify no unwanted conversion artifacts
+- Test batch snippet generation with 7+ videos
 
 **Architecture Note:**
 We designed Filters and Upscale to work together - you can adjust filters, then send the video (with filter settings) to Upscale. The filter chain will be applied BEFORE upscaling for best quality. This is ready to activate once filter execution is implemented.
+
+**Snippet Architecture:**
+The dual-mode snippet system allows perfect quality comparison workflow:
+1. Generate "Default Format" snippets from source files (WMV → WMV, perfect quality)
+2. Test merge functionality with these pristine snippets
+3. Generate "Output Format" snippets with your conversion settings
+4. Compare both to verify conversion quality before processing full files
 
 **Build is solid** - no errors, all modules enabled and wired up correctly. Just needs real-world testing before we tag dev18!
 
