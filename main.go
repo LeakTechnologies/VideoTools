@@ -1645,9 +1645,30 @@ func (s *appState) saveBenchmarkRun(results []benchmark.Result, encoder, preset 
 func (s *appState) applyBenchmarkRecommendation(encoder, preset string) {
 	logging.Debug(logging.CatSystem, "applied benchmark recommendation: encoder=%s preset=%s", encoder, preset)
 
+	// Map encoder to hardware acceleration setting
+	hwAccel := "none"
+	switch {
+	case strings.Contains(encoder, "nvenc"):
+		hwAccel = "nvenc"
+	case strings.Contains(encoder, "qsv"):
+		hwAccel = "qsv"
+	case strings.Contains(encoder, "amf"):
+		hwAccel = "amf"
+	case strings.Contains(encoder, "videotoolbox"):
+		hwAccel = "videotoolbox"
+	}
+
+	// Map encoder to friendly codec to align Convert defaults
+	if codec := friendlyCodecFromPreset(encoder); codec != "" {
+		s.convert.VideoCodec = codec
+	}
+	s.convert.EncoderPreset = preset
+	s.convert.HardwareAccel = hwAccel
+	s.persistConvertConfig()
+
 	dialog.ShowInformation("Benchmark Settings Applied",
-		fmt.Sprintf("Recommended encoder noted:\n\nEncoder: %s\nPreset: %s\n\nYou can reference these settings in the Convert module.",
-			encoder, preset), s.window)
+		fmt.Sprintf("Applied recommended defaults:\n\nEncoder: %s\nPreset: %s\nHardware Accel: %s\n\nThese are now set as your Convert defaults.",
+			encoder, preset, hwAccel), s.window)
 }
 
 func (s *appState) showBenchmarkHistory() {
