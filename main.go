@@ -667,16 +667,18 @@ type appState struct {
 	filterActiveChain []string // Active filter chain
 
 	// Upscale module state
-	upscaleFile         *videoSource
-	upscaleMethod       string   // lanczos, bicubic, spline, bilinear
-	upscaleTargetRes    string   // 720p, 1080p, 1440p, 4K, 8K, Custom
-	upscaleCustomWidth  int      // For custom resolution
-	upscaleCustomHeight int      // For custom resolution
-	upscaleAIEnabled    bool     // Use AI upscaling if available
-	upscaleAIModel      string   // realesrgan, realesrgan-anime, none
-	upscaleAIAvailable  bool     // Runtime detection
-	upscaleApplyFilters bool     // Apply filters from Filters module
-	upscaleFilterChain  []string // Transferred filters from Filters module
+	upscaleFile                *videoSource
+	upscaleMethod              string   // lanczos, bicubic, spline, bilinear
+	upscaleTargetRes           string   // 720p, 1080p, 1440p, 4K, 8K, Custom
+	upscaleCustomWidth         int      // For custom resolution
+	upscaleCustomHeight        int      // For custom resolution
+	upscaleAIEnabled           bool     // Use AI upscaling if available
+	upscaleAIModel             string   // realesrgan, realesrgan-anime, none
+	upscaleAIAvailable         bool     // Runtime detection
+	upscaleApplyFilters        bool     // Apply filters from Filters module
+	upscaleFilterChain         []string // Transferred filters from Filters module
+	upscaleFrameRate           string   // Source, 24, 30, 60, or custom
+	upscaleMotionInterpolation bool     // Use motion interpolation for frame rate changes
 
 	// Snippet settings
 	snippetLength       int  // Length of snippet in seconds (default: 20)
@@ -3728,6 +3730,8 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	}
 	// useAI := cfg["useAI"].(bool) // TODO: Implement AI upscaling in future
 	applyFilters := cfg["applyFilters"].(bool)
+	frameRate, _ := cfg["frameRate"].(string)
+	useMotionInterp, _ := cfg["useMotionInterpolation"].(bool)
 
 	if progressCallback != nil {
 		progressCallback(0)
@@ -3750,6 +3754,17 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	// Add scale filter (preserve aspect by default)
 	scaleFilter := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
 	filters = append(filters, scaleFilter)
+
+	// Add frame rate conversion if requested
+	if frameRate != "" && frameRate != "Source" {
+		if useMotionInterp {
+			// Use motion interpolation for smooth frame rate changes
+			filters = append(filters, fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1", frameRate))
+		} else {
+			// Simple frame rate change (duplicates/drops frames)
+			filters = append(filters, "fps="+frameRate)
+		}
+	}
 
 	// Combine filters
 	var vfilter string
@@ -11022,6 +11037,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	if state.upscaleAIModel == "" {
 		state.upscaleAIModel = "realesrgan" // General purpose AI model
 	}
+	if state.upscaleFrameRate == "" {
+		state.upscaleFrameRate = "Source"
+	}
 
 	// Check AI availability on first load
 	if !state.upscaleAIAvailable {
@@ -11136,6 +11154,30 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		sourceResLabel,
 	))
 
+	// Frame Rate Section
+	frameRateLabel := widget.NewLabel(fmt.Sprintf("Frame Rate: %s", state.upscaleFrameRate))
+	frameRateSelect := widget.NewSelect([]string{"Source", "23.976", "24", "25", "29.97", "30", "50", "59.94", "60"}, func(s string) {
+		state.upscaleFrameRate = s
+		frameRateLabel.SetText(fmt.Sprintf("Frame Rate: %s", s))
+	})
+	frameRateSelect.SetSelected(state.upscaleFrameRate)
+
+	motionInterpCheck := widget.NewCheck("Use Motion Interpolation (slower, smoother)", func(checked bool) {
+		state.upscaleMotionInterpolation = checked
+	})
+	motionInterpCheck.SetChecked(state.upscaleMotionInterpolation)
+
+	frameRateSection := widget.NewCard("Frame Rate", "", container.NewVBox(
+		widget.NewLabel("Convert frame rate (optional)"),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Target FPS:"),
+			frameRateSelect,
+		),
+		frameRateLabel,
+		motionInterpCheck,
+		widget.NewLabel("Motion interpolation creates smooth in-between frames"),
+	))
+
 	// AI Upscaling Section
 	var aiSection *widget.Card
 	if state.upscaleAIAvailable {
@@ -11225,17 +11267,19 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			Description: desc,
 			OutputFile:  outputPath,
 			Config: map[string]interface{}{
-				"inputPath":    state.upscaleFile.Path,
-				"outputPath":   outputPath,
-				"method":       state.upscaleMethod,
-				"targetWidth":  float64(targetWidth),
-				"targetHeight": float64(targetHeight),
-				"preserveAR":   preserveAspect,
-				"useAI":        state.upscaleAIEnabled && state.upscaleAIAvailable,
-				"aiModel":      state.upscaleAIModel,
-				"applyFilters": state.upscaleApplyFilters,
-				"filterChain":  state.upscaleFilterChain,
-				"duration":     state.upscaleFile.Duration,
+				"inputPath":             state.upscaleFile.Path,
+				"outputPath":            outputPath,
+				"method":                state.upscaleMethod,
+				"targetWidth":           float64(targetWidth),
+				"targetHeight":          float64(targetHeight),
+				"preserveAR":            preserveAspect,
+				"useAI":                 state.upscaleAIEnabled && state.upscaleAIAvailable,
+				"aiModel":               state.upscaleAIModel,
+				"applyFilters":          state.upscaleApplyFilters,
+				"filterChain":           state.upscaleFilterChain,
+				"duration":              state.upscaleFile.Duration,
+				"frameRate":             state.upscaleFrameRate,
+				"useMotionInterpolation": state.upscaleMotionInterpolation,
 			},
 		}, nil
 	}
@@ -11284,6 +11328,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	settingsPanel := container.NewVBox(
 		traditionalSection,
 		resolutionSection,
+		frameRateSection,
 		aiSection,
 		filterIntegrationSection,
 		container.NewGridWithColumns(2, applyBtn, addQueueBtn),
