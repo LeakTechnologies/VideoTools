@@ -593,10 +593,13 @@ func saveBenchmarkConfig(cfg benchmarkConfig) error {
 }
 
 type appState struct {
-	window                    fyne.Window
-	active                    string
-	lastModule                string
-	source                    *videoSource
+	window                     fyne.Window
+	active                     string
+	lastModule                 string
+	navigationHistory          []string // Track module navigation history for back/forward buttons
+	navigationHistoryPosition  int      // Current position in navigation history
+	navigationHistorySuppress  bool     // Temporarily suppress history tracking during navigation
+	source                     *videoSource
 	loadedVideos              []*videoSource // Multiple loaded videos for navigation
 	currentIndex              int            // Current video index in loadedVideos
 	anim                      *previewAnimator
@@ -925,6 +928,130 @@ func (s *appState) applyInverseDefaults(src *videoSource) {
 	}
 }
 
+// pushNavigationHistory adds current module to navigation history
+func (s *appState) pushNavigationHistory(module string) {
+	// Skip if suppressed (during back/forward navigation)
+	if s.navigationHistorySuppress {
+		return
+	}
+
+	// Don't add if it's the same as current position
+	if len(s.navigationHistory) > 0 && s.navigationHistoryPosition < len(s.navigationHistory) {
+		if s.navigationHistory[s.navigationHistoryPosition] == module {
+			return
+		}
+	}
+
+	// Truncate forward history when navigating to a new module
+	if s.navigationHistoryPosition < len(s.navigationHistory)-1 {
+		s.navigationHistory = s.navigationHistory[:s.navigationHistoryPosition+1]
+	}
+
+	// Add new module to history
+	s.navigationHistory = append(s.navigationHistory, module)
+	s.navigationHistoryPosition = len(s.navigationHistory) - 1
+
+	// Limit history to 50 entries
+	if len(s.navigationHistory) > 50 {
+		s.navigationHistory = s.navigationHistory[1:]
+		s.navigationHistoryPosition--
+	}
+}
+
+// navigateBack goes back in navigation history (mouse back button)
+func (s *appState) navigateBack() {
+	if s.navigationHistoryPosition > 0 {
+		s.navigationHistoryPosition--
+		module := s.navigationHistory[s.navigationHistoryPosition]
+		s.navigationHistorySuppress = true
+		s.showModule(module)
+		s.navigationHistorySuppress = false
+	}
+}
+
+// navigateForward goes forward in navigation history (mouse forward button)
+func (s *appState) navigateForward() {
+	if s.navigationHistoryPosition < len(s.navigationHistory)-1 {
+		s.navigationHistoryPosition++
+		module := s.navigationHistory[s.navigationHistoryPosition]
+		s.navigationHistorySuppress = true
+		s.showModule(module)
+		s.navigationHistorySuppress = false
+	}
+}
+
+// mouseButtonHandler wraps content and handles mouse back/forward buttons
+type mouseButtonHandler struct {
+	widget.BaseWidget
+	content fyne.CanvasObject
+	state   *appState
+}
+
+func newMouseButtonHandler(content fyne.CanvasObject, state *appState) *mouseButtonHandler {
+	h := &mouseButtonHandler{
+		content: content,
+		state:   state,
+	}
+	h.ExtendBaseWidget(h)
+	return h
+}
+
+func (m *mouseButtonHandler) CreateRenderer() fyne.WidgetRenderer {
+	return &mouseButtonRenderer{
+		handler: m,
+		content: m.content,
+	}
+}
+
+func (m *mouseButtonHandler) MouseDown(me *desktop.MouseEvent) {
+	// Button 3 = Back button (typically mouse button 4)
+	// Button 4 = Forward button (typically mouse button 5)
+	if me.Button == desktop.MouseButtonTertiary+1 { // Back button
+		m.state.navigateBack()
+	} else if me.Button == desktop.MouseButtonTertiary+2 { // Forward button
+		m.state.navigateForward()
+	}
+}
+
+func (m *mouseButtonHandler) MouseUp(*desktop.MouseEvent) {}
+
+type mouseButtonRenderer struct {
+	handler *mouseButtonHandler
+	content fyne.CanvasObject
+}
+
+func (r *mouseButtonRenderer) Layout(size fyne.Size) {
+	if r.content != nil {
+		r.content.Resize(size)
+		r.content.Move(fyne.NewPos(0, 0))
+	}
+}
+
+func (r *mouseButtonRenderer) MinSize() fyne.Size {
+	if r.content != nil {
+		return r.content.MinSize()
+	}
+	return fyne.NewSize(0, 0)
+}
+
+func (r *mouseButtonRenderer) Refresh() {
+	if r.content != nil {
+		r.content.Refresh()
+	}
+}
+
+func (r *mouseButtonRenderer) Objects() []fyne.CanvasObject {
+	if r.content != nil {
+		return []fyne.CanvasObject{r.content}
+	}
+	return []fyne.CanvasObject{}
+}
+
+func (r *mouseButtonRenderer) Destroy() {}
+func (r *mouseButtonRenderer) BackgroundColor() color.Color {
+	return color.Transparent
+}
+
 func (s *appState) setContent(body fyne.CanvasObject) {
 	update := func() {
 		bg := canvas.NewRectangle(backgroundColor)
@@ -933,7 +1060,9 @@ func (s *appState) setContent(body fyne.CanvasObject) {
 			s.window.SetContent(bg)
 			return
 		}
-		s.window.SetContent(container.NewMax(bg, body))
+		// Wrap content with mouse button handler
+		wrapped := newMouseButtonHandler(container.NewMax(bg, body), s)
+		s.window.SetContent(wrapped)
 	}
 
 	// Use async Do() instead of DoAndWait() to avoid deadlock when called from main goroutine
@@ -972,6 +1101,9 @@ func (s *appState) showMainMenu() {
 	s.stopPreview()
 	s.stopPlayer()
 	s.active = ""
+
+	// Track navigation history
+	s.pushNavigationHistory("mainmenu")
 
 	// Convert Module slice to ui.ModuleInfo slice
 	var mods []ui.ModuleInfo
@@ -1596,6 +1728,9 @@ func (s *appState) showBenchmarkHistory() {
 }
 
 func (s *appState) showModule(id string) {
+	// Track navigation history
+	s.pushNavigationHistory(id)
+
 	switch id {
 	case "convert":
 		s.showConvertView(nil)
@@ -1613,6 +1748,8 @@ func (s *appState) showModule(id string) {
 		s.showFiltersView()
 	case "upscale":
 		s.showUpscaleView()
+	case "mainmenu":
+		s.showMainMenu()
 	default:
 		logging.Debug(logging.CatUI, "UI module %s not wired yet", id)
 	}
