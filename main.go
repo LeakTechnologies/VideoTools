@@ -3791,53 +3791,50 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			"-t", fmt.Sprintf("%d", snippetLength),
 		}
 
-		// Apply video codec settings
+		// Apply video codec settings with bitrate/CRF caps to avoid runaway bitrates on short clips
+		targetBitrate := strings.TrimSpace(conv.VideoBitrate)
+		if targetBitrate == "" {
+			targetBitrate = defaultBitrate(conv.VideoCodec, src.Width, src.Bitrate)
+		}
+		if targetBitrate == "" {
+			targetBitrate = "3500k"
+		}
+
+		preset := conv.EncoderPreset
+		if preset == "" {
+			preset = "medium"
+		}
+
+		crfVal := conv.CRF
+		if crfVal == "" {
+			crfVal = crfForQuality(conv.Quality)
+			if crfVal == "" {
+				crfVal = "23"
+			}
+		}
+
 		videoCodec := strings.ToLower(conv.VideoCodec)
 		switch videoCodec {
 		case "h.264", "":
 			args = append(args, "-c:v", "libx264")
-			if conv.EncoderPreset != "" {
-				args = append(args, "-preset", conv.EncoderPreset)
-			} else {
-				args = append(args, "-preset", "medium")
-			}
-			if conv.CRF != "" {
-				args = append(args, "-crf", conv.CRF)
-			} else {
-				args = append(args, "-crf", "23")
-			}
+			args = append(args, "-preset", preset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 		case "h.265":
 			args = append(args, "-c:v", "libx265")
-			if conv.EncoderPreset != "" {
-				args = append(args, "-preset", conv.EncoderPreset)
-			} else {
-				args = append(args, "-preset", "medium")
-			}
-			if conv.CRF != "" {
-				args = append(args, "-crf", conv.CRF)
-			} else {
-				args = append(args, "-crf", "28")
-			}
+			args = append(args, "-preset", preset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 		case "vp9":
 			args = append(args, "-c:v", "libvpx-vp9")
-			if conv.CRF != "" {
-				args = append(args, "-crf", conv.CRF)
-			} else {
-				args = append(args, "-crf", "31")
-			}
+			args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 		case "av1":
 			args = append(args, "-c:v", "libsvtav1")
-			if conv.CRF != "" {
-				args = append(args, "-crf", conv.CRF)
-			} else {
-				args = append(args, "-crf", "35")
-			}
+			args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 		case "copy":
 			args = append(args, "-c:v", "copy")
 		default:
 			// Fallback to h264
-			args = append(args, "-c:v", "libx264", "-preset", "medium", "-crf", "23")
+			args = append(args, "-c:v", "libx264", "-preset", preset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 		}
+		// Ensure standard pixel format
+		args = append(args, "-pix_fmt", "yuv420p")
 
 		// Apply audio codec settings
 		audioCodec := strings.ToLower(conv.AudioCodec)
