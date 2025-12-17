@@ -531,7 +531,7 @@ func (r *conversionStatsRenderer) Layout(size fyne.Size) {
 	if r.bar.running > 0 && r.bar.progress > 0 {
 		// Show progress bar on right side
 		barWidth := float32(120)
-		barHeight := float32(14)
+		barHeight := float32(20)
 		barX := size.Width - barWidth - padding
 		barY := (size.Height - barHeight) / 2
 
