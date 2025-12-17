@@ -487,12 +487,12 @@ func (c *ConversionStatsBar) UpdateStatsWithDetails(running, pending, completed,
 
 // CreateRenderer creates the renderer for the stats bar
 func (c *ConversionStatsBar) CreateRenderer() fyne.WidgetRenderer {
-	bg := canvas.NewRectangle(color.NRGBA{R: 30, G: 30, B: 30, A: 255})
-	bg.CornerRadius = 4
-	bg.StrokeColor = GridColor
-	bg.StrokeWidth = 1
+	// Transparent background so the parent tinted bar color shows through
+	bg := canvas.NewRectangle(color.Transparent)
+	bg.CornerRadius = 0
+	bg.StrokeWidth = 0
 
-	statusText := canvas.NewText("", TextColor)
+	statusText := canvas.NewText("", color.NRGBA{R: 230, G: 236, B: 245, A: 255})
 	statusText.TextStyle = fyne.TextStyle{Monospace: true}
 	statusText.TextSize = 11
 
@@ -525,7 +525,7 @@ func (r *conversionStatsRenderer) Layout(size fyne.Size) {
 
 	// Layout text and progress bar
 	textSize := r.statusText.MinSize()
-	padding := float32(8)
+	padding := float32(10)
 
 	// If there's a running job, show progress bar
 	if r.bar.running > 0 && r.bar.progress > 0 {
