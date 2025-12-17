@@ -5199,6 +5199,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	frameRateSelect.SetSelected(state.convert.FrameRate)
 	updateFrameRateHint()
 
+	// Motion Interpolation checkbox
+	motionInterpCheck := widget.NewCheck("Use Motion Interpolation (slower, smoother frame rate changes)", func(checked bool) {
+		state.convert.UseMotionInterpolation = checked
+		logging.Debug(logging.CatUI, "motion interpolation set to %v", checked)
+	})
+	motionInterpCheck.Checked = state.convert.UseMotionInterpolation
+
 	// Pixel Format
 	pixelFormatSelect := widget.NewSelect([]string{"yuv420p", "yuv422p", "yuv444p"}, func(value string) {
 		state.convert.PixelFormat = value
@@ -5479,6 +5486,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		frameRateSelect,
 		frameRateHint,
+		motionInterpCheck,
 		widget.NewLabelWithStyle("Pixel Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		pixelFormatSelect,
 		widget.NewLabelWithStyle("Hardware Acceleration", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -6001,7 +6009,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		actionBar,
 	))
 
-	return container.NewBorder(backBar, statusBar(convertColor, state.statsBar), nil, nil, container.NewMax(scrollableMain))
+	return container.NewBorder(backBar, moduleFooter(convertColor, layout.NewSpacer(), state.statsBar), nil, nil, container.NewMax(scrollableMain))
 
 }
 
@@ -10383,7 +10391,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	)
 
 	// Bottom bar with module color
-	bottomBar := statusBar(inspectColor, state.statsBar)
+	bottomBar = moduleFooter(inspectColor, layout.NewSpacer(), state.statsBar)
 
 	// Main content
 	content := container.NewBorder(
@@ -10727,7 +10735,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		mainContent,
 	)
 
-	bottomBar := statusBar(thumbColor, state.statsBar)
+	bottomBar := moduleFooter(thumbColor, layout.NewSpacer(), state.statsBar)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
@@ -10804,7 +10812,7 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	)
 
 	content := container.NewPadded(mainContent)
-	bottomBar := statusBar(playerColor, state.statsBar)
+	bottomBar := moduleFooter(playerColor, layout.NewSpacer(), state.statsBar)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
@@ -10828,7 +10836,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 
 	// Top bar with module color
 	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-	bottomBar := statusBar(filtersColor, state.statsBar)
+	bottomBar := moduleFooter(filtersColor, layout.NewSpacer(), state.statsBar)
 
 	// Instructions
 	instructions := widget.NewLabel("Apply filters and color corrections to your video. Preview changes in real-time.")
@@ -10998,7 +11006,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 
 	// Top bar with module color
 	topBar := ui.TintedBar(upscaleColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-	bottomBar := statusBar(upscaleColor, state.statsBar)
+	bottomBar := moduleFooter(upscaleColor, layout.NewSpacer(), state.statsBar)
 
 	// Instructions
 	instructions := widget.NewLabel("Upscale your video to higher resolution using traditional or AI-powered methods.")
