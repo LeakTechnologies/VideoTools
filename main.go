@@ -3378,7 +3378,10 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			outputPath,
 		}
 	} else {
-		// Conversion format mode: Re-encode for precise duration and format conversion
+		// Conversion format mode: Use configured conversion settings
+		// This allows previewing what the final converted output will look like
+		conv := s.convert
+
 		args = []string{
 			"-y",
 			"-hide_banner",
@@ -3386,14 +3389,90 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			"-ss", start,
 			"-i", inputPath,
 			"-t", fmt.Sprintf("%d", snippetLength),
-			"-c:v", "libx264",      // Re-encode video to h264
-			"-preset", "ultrafast", // Fast encoding
-			"-crf", "18",           // High quality
-			"-c:a", "aac",          // Re-encode audio to AAC
-			"-b:a", "192k",         // Audio bitrate
-			"-map", "0",            // Include all streams
-			outputPath,
 		}
+
+		// Apply video codec settings
+		videoCodec := strings.ToLower(conv.VideoCodec)
+		switch videoCodec {
+		case "h.264", "":
+			args = append(args, "-c:v", "libx264")
+			if conv.EncoderPreset != "" {
+				args = append(args, "-preset", conv.EncoderPreset)
+			} else {
+				args = append(args, "-preset", "medium")
+			}
+			if conv.CRF != "" {
+				args = append(args, "-crf", conv.CRF)
+			} else {
+				args = append(args, "-crf", "23")
+			}
+		case "h.265":
+			args = append(args, "-c:v", "libx265")
+			if conv.EncoderPreset != "" {
+				args = append(args, "-preset", conv.EncoderPreset)
+			} else {
+				args = append(args, "-preset", "medium")
+			}
+			if conv.CRF != "" {
+				args = append(args, "-crf", conv.CRF)
+			} else {
+				args = append(args, "-crf", "28")
+			}
+		case "vp9":
+			args = append(args, "-c:v", "libvpx-vp9")
+			if conv.CRF != "" {
+				args = append(args, "-crf", conv.CRF)
+			} else {
+				args = append(args, "-crf", "31")
+			}
+		case "av1":
+			args = append(args, "-c:v", "libsvtav1")
+			if conv.CRF != "" {
+				args = append(args, "-crf", conv.CRF)
+			} else {
+				args = append(args, "-crf", "35")
+			}
+		case "copy":
+			args = append(args, "-c:v", "copy")
+		default:
+			// Fallback to h264
+			args = append(args, "-c:v", "libx264", "-preset", "medium", "-crf", "23")
+		}
+
+		// Apply audio codec settings
+		audioCodec := strings.ToLower(conv.AudioCodec)
+		switch audioCodec {
+		case "aac", "":
+			args = append(args, "-c:a", "aac")
+			if conv.AudioBitrate != "" {
+				args = append(args, "-b:a", conv.AudioBitrate)
+			} else {
+				args = append(args, "-b:a", "192k")
+			}
+		case "opus":
+			args = append(args, "-c:a", "libopus")
+			if conv.AudioBitrate != "" {
+				args = append(args, "-b:a", conv.AudioBitrate)
+			} else {
+				args = append(args, "-b:a", "128k")
+			}
+		case "mp3":
+			args = append(args, "-c:a", "libmp3lame")
+			if conv.AudioBitrate != "" {
+				args = append(args, "-b:a", conv.AudioBitrate)
+			} else {
+				args = append(args, "-b:a", "192k")
+			}
+		case "flac":
+			args = append(args, "-c:a", "flac")
+		case "copy":
+			args = append(args, "-c:a", "copy")
+		default:
+			// Fallback to AAC
+			args = append(args, "-c:a", "aac", "-b:a", "192k")
+		}
+
+		args = append(args, outputPath)
 	}
 
 	logFile, logPath, _ := createConversionLog(inputPath, outputPath, args)
@@ -5264,8 +5343,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				ext = ".mp4"
 			}
 		} else {
-			// Conversion format: always use .mp4
-			ext = ".mp4"
+			// Conversion format: use configured output format
+			ext = state.convert.SelectedFormat.Ext
+			if ext == "" {
+				ext = ".mp4"
+			}
 		}
 
 		outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix(), ext)
@@ -5331,8 +5413,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 						ext = ".mp4"
 					}
 				} else {
-					// Conversion format: always use .mp4
-					ext = ".mp4"
+					// Conversion format: use configured output format
+					ext = state.convert.SelectedFormat.Ext
+					if ext == "" {
+						ext = ".mp4"
+					}
 				}
 
 				outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), timestamp, ext)
