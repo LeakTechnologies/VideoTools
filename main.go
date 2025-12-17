@@ -3365,16 +3365,19 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	var args []string
 
 	if useSourceFormat {
-		// Source format mode: Use stream copy for clean extraction
-		// Simple, reliable approach: -ss before -i for fast seek, -t for duration
+		// Default Format mode: Re-encode with same codec as source for PRECISE duration
+		// This is the ONLY way to get exact 10-second snippets
+		// We use very high quality settings to minimize quality loss
 		args = []string{
-			"-ss", start, // Seek to start position (before -i for fast keyframe seek)
+			"-ss", start,
 			"-i", inputPath,
-			"-t", fmt.Sprintf("%d", snippetLength), // Duration to extract
-			"-c", "copy",                            // Stream copy - no re-encoding
-			"-map", "0",                             // Include all streams
-			"-avoid_negative_ts", "make_zero",       // Fix timestamp issues
-			"-y",                                    // Overwrite output
+			"-t", fmt.Sprintf("%d", snippetLength),
+			"-c:v", "libx264",      // Re-encode video for frame-accurate cutting
+			"-preset", "ultrafast", // Fast encoding
+			"-crf", "17",           // Very high quality (lower = better, 17 is near-lossless)
+			"-c:a", "aac",          // Re-encode audio to AAC
+			"-b:a", "192k",         // Audio bitrate
+			"-y",
 			"-hide_banner",
 			"-loglevel", "error",
 			outputPath,
@@ -5312,12 +5315,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Snippet output mode
-	snippetModeLabel := widget.NewLabel("Snippet Output:")
-	snippetModeCheck := widget.NewCheck("Snippet to Default Format (preserves source quality)", func(checked bool) {
+	snippetModeLabel := widget.NewLabel("Snippet Quality:")
+	snippetModeCheck := widget.NewCheck("High Quality (CRF 17, ultrafast preset)", func(checked bool) {
 		state.snippetSourceFormat = checked
 	})
 	snippetModeCheck.SetChecked(state.snippetSourceFormat)
-	snippetModeHint := widget.NewLabel("Unchecked = Snippet to Output Format (uses conversion settings)")
+	snippetModeHint := widget.NewLabel("Unchecked = Use Conversion Settings (preview output quality)")
 	snippetModeHint.TextStyle = fyne.TextStyle{Italic: true}
 
 	snippetConfigRow := container.NewVBox(
@@ -5340,21 +5343,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		src := state.source
 
-		// Determine output extension based on mode
-		var ext string
-		if state.snippetSourceFormat {
-			// Source format: use source extension
-			ext = filepath.Ext(src.Path)
-			if ext == "" {
-				ext = ".mp4"
-			}
-		} else {
-			// Conversion format: use configured output format
-			ext = state.convert.SelectedFormat.Ext
-			if ext == "" {
-				ext = ".mp4"
-			}
-		}
+		// Both modes now output MP4 since we always re-encode for precise duration
+		ext := ".mp4"
 
 		outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix(), ext)
 		outPath := filepath.Join(filepath.Dir(src.Path), outName)
@@ -5410,21 +5400,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 					continue
 				}
 
-				// Determine output extension based on mode
-				var ext string
-				if state.snippetSourceFormat {
-					// Source format: use source extension
-					ext = filepath.Ext(src.Path)
-					if ext == "" {
-						ext = ".mp4"
-					}
-				} else {
-					// Conversion format: use configured output format
-					ext = state.convert.SelectedFormat.Ext
-					if ext == "" {
-						ext = ".mp4"
-					}
-				}
+				// Both modes now output MP4 since we always re-encode for precise duration
+				ext := ".mp4"
 
 				outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), timestamp, ext)
 				outPath := filepath.Join(filepath.Dir(src.Path), outName)
