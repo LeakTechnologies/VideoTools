@@ -518,6 +518,10 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 	} else if !strings.EqualFold(cfg.OutputAspect, "Source") {
 		cfg.AspectUserSet = true
 	}
+	// Always default FrameRate to Source if not set to avoid unwanted conversions
+	if cfg.FrameRate == "" {
+		cfg.FrameRate = "Source"
+	}
 	return cfg, nil
 }
 
@@ -4069,6 +4073,10 @@ func runGUI() {
 
 	if cfg, err := loadPersistedConvertConfig(); err == nil {
 		state.convert = cfg
+		// Ensure FrameRate defaults to Source if not explicitly set
+		if state.convert.FrameRate == "" {
+			state.convert.FrameRate = "Source"
+		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		logging.Debug(logging.CatSystem, "failed to load persisted convert config: %v", err)
 	}
