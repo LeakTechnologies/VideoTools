@@ -550,7 +550,7 @@ func (r *conversionStatsRenderer) Layout(size fyne.Size) {
 
 func (r *conversionStatsRenderer) MinSize() fyne.Size {
 	// Only constrain height, allow width to flex
-	return fyne.NewSize(0, 32)
+	return fyne.NewSize(0, 36)
 }
 
 func (r *conversionStatsRenderer) Refresh() {
