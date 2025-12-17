@@ -10763,6 +10763,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 
 	// Top bar with module color
 	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+	bottomBar := ui.TintedBar(filtersColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
 
 	// Instructions
 	instructions := widget.NewLabel("Apply filters and color corrections to your video. Preview changes in real-time.")
@@ -10910,7 +10911,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 
 	content := container.NewPadded(mainContent)
 
-	return container.NewBorder(topBar, nil, nil, nil, content)
+	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
 
 // buildUpscaleView creates the Upscale module UI
@@ -10932,6 +10933,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 
 	// Top bar with module color
 	topBar := ui.TintedBar(upscaleColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+	bottomBar := ui.TintedBar(upscaleColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
 
 	// Instructions
 	instructions := widget.NewLabel("Upscale your video to higher resolution using traditional or AI-powered methods.")
@@ -11224,7 +11226,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 
 	content := container.NewPadded(mainContent)
 
-	return container.NewBorder(topBar, nil, nil, nil, content)
+	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
 
 // checkAIUpscaleAvailable checks if Real-ESRGAN is available on the system
