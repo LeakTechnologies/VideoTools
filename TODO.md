@@ -7,7 +7,7 @@ This file tracks upcoming features, improvements, and known issues.
 ### Quality & Polish Improvements
 - [ ] **UI/UX refinements**
   - Improve error message clarity and detail
-  - Add progress indicators for long operations
+  - Add progress indicators for long operations (striped bars landed; continue refining status cues)
   - Enhance drag-and-drop feedback
   - Add keyboard shortcuts for common actions
 
