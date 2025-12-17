@@ -3790,9 +3790,9 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 						var s float64
 						if _, err := fmt.Sscanf(timeStr, "%d:%d:%f", &h, &m, &s); err == nil {
 							currentTime := float64(h*3600+m*60) + s
-							progress := currentTime / duration
-							if progress > 1.0 {
-								progress = 1.0
+							progress := (currentTime / duration) * 100.0
+							if progress > 100.0 {
+								progress = 100.0
 							}
 							if progressCallback != nil {
 								progressCallback(progress)
@@ -3820,7 +3820,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	if progressCallback != nil {
-		progressCallback(1)
+		progressCallback(100)
 	}
 
 	return nil

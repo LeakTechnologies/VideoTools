@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"strings"
 	"time"
@@ -14,6 +15,107 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
+
+// stripedProgress renders a progress bar with a tinted stripe pattern.
+type stripedProgress struct {
+	widget.BaseWidget
+	progress float64
+	color    color.Color
+	bg       color.Color
+}
+
+func newStripedProgress(col color.Color) *stripedProgress {
+	sp := &stripedProgress{
+		progress: 0,
+		color:    col,
+		bg:       color.RGBA{R: 34, G: 38, B: 48, A: 255}, // dark neutral
+	}
+	sp.ExtendBaseWidget(sp)
+	return sp
+}
+
+func (s *stripedProgress) SetProgress(p float64) {
+	if p < 0 {
+		p = 0
+	}
+	if p > 1 {
+		p = 1
+	}
+	s.progress = p
+	s.Refresh()
+}
+
+func (s *stripedProgress) CreateRenderer() fyne.WidgetRenderer {
+	bgRect := canvas.NewRectangle(s.bg)
+	fillRect := canvas.NewRectangle(applyAlpha(s.color, 180))
+	stripes := canvas.NewRaster(func(w, h int) image.Image {
+		img := image.NewRGBA(image.Rect(0, 0, w, h))
+		light := applyAlpha(s.color, 90)
+		dark := applyAlpha(s.color, 140)
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				// simple diagonal stripe pattern
+				if ((x + y) / 6 % 2) == 0 {
+					img.Set(x, y, light)
+				} else {
+					img.Set(x, y, dark)
+				}
+			}
+		}
+		return img
+	})
+
+	objects := []fyne.CanvasObject{bgRect, fillRect, stripes}
+
+	r := &stripedProgressRenderer{
+		bar:     s,
+		bg:      bgRect,
+		fill:    fillRect,
+		stripes: stripes,
+		objects: objects,
+	}
+	return r
+}
+
+type stripedProgressRenderer struct {
+	bar     *stripedProgress
+	bg      *canvas.Rectangle
+	fill    *canvas.Rectangle
+	stripes *canvas.Raster
+	objects []fyne.CanvasObject
+}
+
+func (r *stripedProgressRenderer) Layout(size fyne.Size) {
+	r.bg.Resize(size)
+	r.bg.Move(fyne.NewPos(0, 0))
+
+	fillWidth := size.Width * r.bar.progress
+	fillSize := fyne.NewSize(fillWidth, size.Height)
+
+	r.fill.Resize(fillSize)
+	r.fill.Move(fyne.NewPos(0, 0))
+
+	r.stripes.Resize(fillSize)
+	r.stripes.Move(fyne.NewPos(0, 0))
+}
+
+func (r *stripedProgressRenderer) MinSize() fyne.Size {
+	return fyne.NewSize(120, 14)
+}
+
+func (r *stripedProgressRenderer) Refresh() {
+	r.Layout(r.bg.Size())
+	canvas.Refresh(r.bg)
+}
+
+func (r *stripedProgressRenderer) BackgroundColor() color.Color { return color.Transparent }
+func (r *stripedProgressRenderer) Objects() []fyne.CanvasObject { return r.objects }
+func (r *stripedProgressRenderer) Destroy()                     {}
+
+func applyAlpha(c color.Color, alpha uint8) color.Color {
+	r, g, b, _ := c.RGBA()
+	return color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: alpha}
+}
 
 // BuildQueueView creates the queue viewer UI
 func BuildQueueView(
@@ -126,10 +228,10 @@ func buildJobItem(
 	descLabel.Wrapping = fyne.TextWrapWord
 
 	// Progress bar (for running jobs)
-	progress := widget.NewProgressBar()
-	progress.SetValue(job.Progress / 100.0)
+	progress := newStripedProgress(moduleColor(job.Type))
+	progress.SetProgress(job.Progress / 100.0)
 	if job.Status == queue.JobStatusCompleted {
-		progress.SetValue(1.0)
+		progress.SetProgress(1.0)
 	}
 	progressWidget := progress
 
