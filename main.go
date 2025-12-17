@@ -1126,8 +1126,12 @@ func (s *appState) refreshQueueView() {
 		func() { // onClearAll
 			s.jobQueue.ClearAll()
 			s.clearVideo()
-			// Return to main menu after clearing everything to avoid dangling in queue
-			s.showMainMenu()
+			// Return to previous module or main menu
+			if s.lastModule != "" && s.lastModule != "queue" {
+				s.showModule(s.lastModule)
+			} else {
+				s.showMainMenu()
+			}
 		},
 		func(id string) { // onCopyError
 			job, err := s.jobQueue.Get(id)
