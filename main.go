@@ -3365,23 +3365,71 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	var args []string
 
 	if useSourceFormat {
-		// Default Format mode: Re-encode with same codec as source for PRECISE duration
-		// This is the ONLY way to get exact 10-second snippets
-		// We use very high quality settings to minimize quality loss
+		// High Quality mode: Re-encode with source codecs for PRECISE duration
+		// Output to source format to preserve quality
+		conv := s.convert
+
 		args = []string{
 			"-ss", start,
 			"-i", inputPath,
 			"-t", fmt.Sprintf("%d", snippetLength),
-			"-c:v", "libx264",      // Re-encode video for frame-accurate cutting
-			"-preset", "ultrafast", // Fast encoding
-			"-crf", "17",           // Very high quality (lower = better, 17 is near-lossless)
-			"-c:a", "aac",          // Re-encode audio to AAC
-			"-b:a", "192k",         // Audio bitrate
-			"-y",
-			"-hide_banner",
-			"-loglevel", "error",
-			outputPath,
 		}
+
+		// Use source video codec
+		if src.VideoCodec != "" {
+			args = append(args, "-c:v", src.VideoCodec)
+			// Apply encoder preset if supported codec
+			if strings.Contains(strings.ToLower(src.VideoCodec), "264") ||
+			   strings.Contains(strings.ToLower(src.VideoCodec), "265") {
+				if conv.EncoderPreset != "" {
+					args = append(args, "-preset", conv.EncoderPreset)
+				} else {
+					args = append(args, "-preset", "slow")
+				}
+				if conv.CRF != "" {
+					args = append(args, "-crf", conv.CRF)
+				} else {
+					args = append(args, "-crf", "18")
+				}
+			}
+		} else {
+			// Fallback to libx264 if no codec detected
+			args = append(args, "-c:v", "libx264")
+			if conv.EncoderPreset != "" {
+				args = append(args, "-preset", conv.EncoderPreset)
+			} else {
+				args = append(args, "-preset", "slow")
+			}
+			if conv.CRF != "" {
+				args = append(args, "-crf", conv.CRF)
+			} else {
+				args = append(args, "-crf", "18")
+			}
+		}
+
+		// Use source audio codec
+		if src.AudioCodec != "" {
+			args = append(args, "-c:a", src.AudioCodec)
+			// Add bitrate for common codecs
+			if strings.Contains(strings.ToLower(src.AudioCodec), "aac") ||
+			   strings.Contains(strings.ToLower(src.AudioCodec), "mp3") {
+				if conv.AudioBitrate != "" {
+					args = append(args, "-b:a", conv.AudioBitrate)
+				} else {
+					args = append(args, "-b:a", "192k")
+				}
+			}
+		} else {
+			// Fallback to AAC if no codec detected
+			args = append(args, "-c:a", "aac")
+			if conv.AudioBitrate != "" {
+				args = append(args, "-b:a", conv.AudioBitrate)
+			} else {
+				args = append(args, "-b:a", "192k")
+			}
+		}
+
+		args = append(args, "-y", "-hide_banner", "-loglevel", "error", outputPath)
 	} else {
 		// Conversion format mode: Use configured conversion settings
 		// This allows previewing what the final converted output will look like
@@ -5315,8 +5363,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Snippet output mode
-	snippetModeLabel := widget.NewLabel("Snippet Quality:")
-	snippetModeCheck := widget.NewCheck("High Quality (CRF 17, ultrafast preset)", func(checked bool) {
+	snippetModeLabel := widget.NewLabel("Snippet Mode:")
+	snippetModeCheck := widget.NewCheck("High Quality (source format/codecs)", func(checked bool) {
 		state.snippetSourceFormat = checked
 	})
 	snippetModeCheck.SetChecked(state.snippetSourceFormat)
@@ -5343,8 +5391,21 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		src := state.source
 
-		// Both modes now output MP4 since we always re-encode for precise duration
-		ext := ".mp4"
+		// Determine output extension based on mode
+		var ext string
+		if state.snippetSourceFormat {
+			// High Quality mode: use source extension
+			ext = filepath.Ext(src.Path)
+			if ext == "" {
+				ext = ".mp4"
+			}
+		} else {
+			// Conversion Settings mode: use configured output format
+			ext = state.convert.SelectedFormat.Ext
+			if ext == "" {
+				ext = ".mp4"
+			}
+		}
 
 		outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix(), ext)
 		outPath := filepath.Join(filepath.Dir(src.Path), outName)
@@ -5400,8 +5461,21 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 					continue
 				}
 
-				// Both modes now output MP4 since we always re-encode for precise duration
-				ext := ".mp4"
+				// Determine output extension based on mode
+				var ext string
+				if state.snippetSourceFormat {
+					// High Quality mode: use source extension
+					ext = filepath.Ext(src.Path)
+					if ext == "" {
+						ext = ".mp4"
+					}
+				} else {
+					// Conversion Settings mode: use configured output format
+					ext = state.convert.SelectedFormat.Ext
+					if ext == "" {
+						ext = ".mp4"
+					}
+				}
 
 				outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), timestamp, ext)
 				outPath := filepath.Join(filepath.Dir(src.Path), outName)
@@ -5474,6 +5548,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		logging.Debug(logging.CatUI, "convert settings reset to defaults")
 	})
 	statusLabel := widget.NewLabel("")
+	statusLabel.Wrapping = fyne.TextTruncate // Prevent text wrapping to new line
 	if state.convertBusy {
 		statusLabel.SetText(state.convertStatus)
 	} else if src != nil {
@@ -7429,12 +7504,13 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	s.convert.AspectHandling = "Auto"
 
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-		msg := fmt.Sprintf("Loaded %d video(s) into memory.\nUse arrow buttons or Convert/Snippet buttons to process.", len(validVideos))
-		if len(failedFiles) > 0 {
-			msg += fmt.Sprintf("\n\n%d file(s) failed to analyze:\n%s", len(failedFiles), strings.Join(failedFiles, ", "))
-		}
-		dialog.ShowInformation("Videos Loaded", msg, s.window)
+		// Silently load videos - showing the convert view is sufficient feedback
 		s.showConvertView(firstVideo)
+
+		// Log any failed files for debugging
+		if len(failedFiles) > 0 {
+			logging.Debug(logging.CatModule, "%d file(s) failed to analyze: %s", len(failedFiles), strings.Join(failedFiles, ", "))
+		}
 	}, false)
 
 	logging.Debug(logging.CatModule, "loaded %d videos into memory", len(validVideos))
