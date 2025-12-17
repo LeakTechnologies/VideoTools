@@ -9568,7 +9568,13 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	backBtn.Importance = widget.LowImportance
 
 	// Top bar with module color
-	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer()))
+	queueBtn := widget.NewButton("View Queue", func() {
+		state.showQueue()
+	})
+	state.queueBtn = queueBtn
+	state.updateQueueButtonLabel()
+	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+	bottomBar := ui.TintedBar(compareColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
 
 	// Instructions
 	instructions := widget.NewLabel("Load two videos to compare their metadata side by side. Drag videos here or use buttons below.")
@@ -10045,9 +10051,6 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		file2InfoScroll,
 	)
 
-	// Bottom bar with module color
-	bottomBar := ui.TintedBar(compareColor, container.NewHBox(layout.NewSpacer()))
-
 	// Main content: instructions at top, then two columns side by side
 	content := container.NewBorder(
 		container.NewVBox(instructionsRow, widget.NewSeparator()),
@@ -10069,7 +10072,12 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	backBtn.Importance = widget.LowImportance
 
 	// Top bar with module color
-	topBar := ui.TintedBar(inspectColor, container.NewHBox(backBtn, layout.NewSpacer()))
+	queueBtn := widget.NewButton("View Queue", func() {
+		state.showQueue()
+	})
+	state.queueBtn = queueBtn
+	state.updateQueueButtonLabel()
+	topBar := ui.TintedBar(inspectColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
 
 	// Instructions
 	instructions := widget.NewLabel("Load a video to inspect its properties and preview playback. Drag a video here or use the button below.")
@@ -10331,7 +10339,11 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 		}
 	}()
 
-	bottomBar := ui.TintedBar(inspectColor, container.NewHBox(queueBtn, layout.NewSpacer(), statusLabel))
+	bottomContent := container.NewVBox(
+		container.NewHBox(statusLabel, layout.NewSpacer()),
+		state.statsBar,
+	)
+	bottomBar := ui.TintedBar(inspectColor, bottomContent)
 
 	// Main content
 	content := container.NewBorder(
@@ -10354,7 +10366,12 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	backBtn.Importance = widget.LowImportance
 
 	// Top bar with module color
-	topBar := ui.TintedBar(thumbColor, container.NewHBox(backBtn, layout.NewSpacer()))
+	queueBtn := widget.NewButton("View Queue", func() {
+		state.showQueue()
+	})
+	state.queueBtn = queueBtn
+	state.updateQueueButtonLabel()
+	topBar := ui.TintedBar(thumbColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
 
 	// Instructions
 	instructions := widget.NewLabel("Generate thumbnails from a video file. Load a video and configure settings.")
@@ -10670,7 +10687,9 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		mainContent,
 	)
 
-	return container.NewBorder(topBar, nil, nil, nil, content)
+	bottomBar := ui.TintedBar(thumbColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
+
+	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
 
 // buildPlayerView creates the VT_Player UI
@@ -10684,7 +10703,12 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	backBtn.Importance = widget.LowImportance
 
 	// Top bar with module color
-	topBar := ui.TintedBar(playerColor, container.NewHBox(backBtn, layout.NewSpacer()))
+	queueBtn := widget.NewButton("View Queue", func() {
+		state.showQueue()
+	})
+	state.queueBtn = queueBtn
+	state.updateQueueButtonLabel()
+	topBar := ui.TintedBar(playerColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
 
 	// Instructions
 	instructions := widget.NewLabel("VT_Player - Advanced video playback with frame-accurate seeking and analysis tools.")
@@ -10740,8 +10764,9 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	)
 
 	content := container.NewPadded(mainContent)
+	bottomBar := ui.TintedBar(playerColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
 
-	return container.NewBorder(topBar, nil, nil, nil, content)
+	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
 
 // buildFiltersView creates the Filters module UI
