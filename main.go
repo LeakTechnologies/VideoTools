@@ -5393,7 +5393,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
 		chapterWarningLabel, // Warning when converting chapters to DVD
-		dvdAspectBox, // DVD options appear here when DVD format selected
+		dvdAspectBox,        // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		outputHint,
@@ -5420,7 +5420,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
 		chapterWarningLabel, // Warning when converting chapters to DVD
-		dvdAspectBox, // DVD options appear here when DVD format selected
+		dvdAspectBox,        // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		outputHint,
@@ -5963,7 +5963,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	state.updateStatsBar()
 
 	// Stack status + snippet + actions tightly to avoid dead air, outside the scroll area.
-	bottomSection := container.NewVBox(state.statsBar, snippetConfigRow, snippetRow, widget.NewSeparator(), actionBar)
+	bottomSection := ui.TintedBar(convertColor, container.NewVBox(state.statsBar, snippetConfigRow, snippetRow, widget.NewSeparator(), actionBar))
 
 	scrollableMain := container.NewVScroll(mainContent)
 
@@ -10341,34 +10341,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	)
 
 	// Bottom bar with module color
-	statusLabel := widget.NewLabel("Idle")
-	statusLabel.Alignment = fyne.TextAlignCenter
-
-	updateInspectStatus := func() {
-		if state.convertBusy {
-			statusLabel.SetText(fmt.Sprintf("Active: %s", state.convertStatus))
-		} else {
-			statusLabel.SetText("Idle")
-		}
-	}
-	updateInspectStatus()
-
-	go func() {
-		ticker := time.NewTicker(500 * time.Millisecond)
-		defer ticker.Stop()
-		for range ticker.C {
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				updateInspectStatus()
-			}, false)
-			// Optional stop condition could be added if needed
-		}
-	}()
-
-	bottomContent := container.NewVBox(
-		container.NewHBox(statusLabel, layout.NewSpacer()),
-		state.statsBar,
-	)
-	bottomBar := ui.TintedBar(inspectColor, bottomContent)
+	bottomBar := ui.TintedBar(inspectColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
 
 	// Main content
 	content := container.NewBorder(
@@ -11471,7 +11444,7 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 	)
 
 	// Bottom bar with module color
-	bottomBar := ui.TintedBar(compareColor, container.NewHBox(layout.NewSpacer()))
+	bottomBar := ui.TintedBar(compareColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
 
 	// Main content
 	content := container.NewBorder(
