@@ -80,6 +80,13 @@ This file tracks completed features, fixes, and milestones.
   - Automatic container/codec matching based on mode selection
   - Integration with conversion config (video/audio codecs, presets, CRF)
   - Smart extension handling (source format vs. selected output format)
+- ✅ **Queue/Status UI polish**
+  - Animated striped progress bars per module color with faster motion for visibility
+  - Footer refactor: consistent dark status strip + tinted action bar across modules
+  - Status bar tap restored to open Job Queue; full-width clickable strip
+- ✅ **Snippet progress reporting**
+  - Live progress from ffmpeg `-progress` output; 0–100% updates in status bar and queue
+  - Error/log capture preserved for snippet jobs
 
 - ✅ **Metadata Enhancement System**
   - New `getDetailedVideoInfo()` function using FFprobe
