@@ -6995,10 +6995,11 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			return
 		}
 
-		// If multiple videos, add all to queue
+		// Load all videos into memory (don't auto-queue)
+		// This allows users to adjust settings or generate snippets before manually queuing
 		if len(videoPaths) > 1 {
-			logging.Debug(logging.CatUI, "multiple videos dropped in convert module; adding all to queue")
-			go s.batchAddToQueue(videoPaths)
+			logging.Debug(logging.CatUI, "multiple videos dropped in convert module; loading all into memory")
+			go s.loadMultipleVideos(videoPaths)
 		} else {
 			// Single video: load it
 			logging.Debug(logging.CatUI, "single video dropped in convert module; loading: %s", videoPaths[0])
@@ -7400,6 +7401,65 @@ func (s *appState) loadVideo(path string) {
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(src)
 	}, false)
+}
+
+// loadMultipleVideos loads multiple videos into memory without auto-queuing
+func (s *appState) loadMultipleVideos(paths []string) {
+	logging.Debug(logging.CatModule, "loading %d videos into memory", len(paths))
+
+	var validVideos []*videoSource
+	var failedFiles []string
+
+	for _, path := range paths {
+		src, err := probeVideo(path)
+		if err != nil {
+			logging.Debug(logging.CatFFMPEG, "ffprobe failed for %s: %v", path, err)
+			failedFiles = append(failedFiles, filepath.Base(path))
+			continue
+		}
+		validVideos = append(validVideos, src)
+	}
+
+	if len(validVideos) == 0 {
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			msg := fmt.Sprintf("Failed to analyze %d file(s):\n%s", len(failedFiles), strings.Join(failedFiles, ", "))
+			s.showErrorWithCopy("Load Failed", fmt.Errorf("%s", msg))
+		}, false)
+		return
+	}
+
+	// Load all videos into loadedVideos array
+	s.loadedVideos = validVideos
+	s.currentIndex = 0
+
+	// Load the first video to display
+	firstVideo := validVideos[0]
+	if frames, err := capturePreviewFrames(firstVideo.Path, firstVideo.Duration); err == nil {
+		firstVideo.PreviewFrames = frames
+		if len(frames) > 0 {
+			s.currentFrame = frames[0]
+		}
+	}
+
+	s.applyInverseDefaults(firstVideo)
+	s.convert.OutputBase = s.resolveOutputBase(firstVideo, false)
+	if firstVideo.EmbeddedCoverArt != "" {
+		s.convert.CoverArtPath = firstVideo.EmbeddedCoverArt
+	} else {
+		s.convert.CoverArtPath = ""
+	}
+	s.convert.AspectHandling = "Auto"
+
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		msg := fmt.Sprintf("Loaded %d video(s) into memory.\nUse arrow buttons or Convert/Snippet buttons to process.", len(validVideos))
+		if len(failedFiles) > 0 {
+			msg += fmt.Sprintf("\n\n%d file(s) failed to analyze:\n%s", len(failedFiles), strings.Join(failedFiles, ", "))
+		}
+		dialog.ShowInformation("Videos Loaded", msg, s.window)
+		s.showConvertView(firstVideo)
+	}, false)
+
+	logging.Debug(logging.CatModule, "loaded %d videos into memory", len(validVideos))
 }
 
 func (s *appState) clearVideo() {
