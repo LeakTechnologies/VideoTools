@@ -11145,10 +11145,13 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			description += fmt.Sprintf(" + AI (%s)", state.upscaleAIModel)
 		}
 
+		desc := fmt.Sprintf("%s → %s", description, filepath.Base(outputPath))
+
 		return &queue.Job{
 			Type:        queue.JobTypeUpscale,
 			Title:       "Upscale: " + filepath.Base(state.upscaleFile.Path),
-			Description: description,
+			Description: desc,
+			OutputFile:  outputPath,
 			Config: map[string]interface{}{
 				"inputPath":    state.upscaleFile.Path,
 				"outputPath":   outputPath,
