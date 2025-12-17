@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -517,9 +518,9 @@ func (c *ConversionStatsBar) Tapped(*fyne.PointEvent) {
 }
 
 // Enable full-width tap target across the bar
-func (c *ConversionStatsBar) MouseIn(*fyne.MouseEvent)    {}
-func (c *ConversionStatsBar) MouseMoved(*fyne.MouseEvent) {}
-func (c *ConversionStatsBar) MouseOut()                   {}
+func (c *ConversionStatsBar) MouseIn(*desktop.MouseEvent)    {}
+func (c *ConversionStatsBar) MouseMoved(*desktop.MouseEvent) {}
+func (c *ConversionStatsBar) MouseOut()                      {}
 
 type conversionStatsRenderer struct {
 	bar         *ConversionStatsBar
