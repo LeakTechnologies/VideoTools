@@ -4161,6 +4161,39 @@ func runLogsCLI() error {
 	return nil
 }
 
+func (s *appState) executeAddToQueue() {
+	if err := s.addConvertToQueue(); err != nil {
+		dialog.ShowError(err, s.window)
+	} else {
+		dialog.ShowInformation("Queue", "Job added to queue!", s.window)
+		// Auto-start queue if not already running
+		if s.jobQueue != nil && !s.jobQueue.IsRunning() && !s.convertBusy {
+			s.jobQueue.Start()
+			logging.Debug(logging.CatUI, "queue auto-started after adding job")
+		}
+	}
+}
+
+func (s *appState) executeConversion() {
+	// Add job to queue and start immediately
+	if err := s.addConvertToQueue(); err != nil {
+		dialog.ShowError(err, s.window)
+		return
+	}
+
+	// Start the queue if not already running
+	if s.jobQueue != nil && !s.jobQueue.IsRunning() {
+		s.jobQueue.Start()
+		logging.Debug(logging.CatSystem, "started queue from Convert Now")
+	}
+
+	// Clear the loaded video from convert module
+	s.clearVideo()
+
+	// Show success message
+	dialog.ShowInformation("Convert", "Conversion started! View progress in Job Queue.", s.window)
+}
+
 func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	convertColor := moduleColor("convert")
 
@@ -5735,16 +5768,25 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Add to Queue button
 	addQueueBtn := widget.NewButton("Add to Queue", func() {
 		state.persistConvertConfig()
-		if err := state.addConvertToQueue(); err != nil {
-			dialog.ShowError(err, state.window)
-		} else {
-			dialog.ShowInformation("Queue", "Job added to queue!", state.window)
-			// Auto-start queue if not already running
-			if state.jobQueue != nil && !state.jobQueue.IsRunning() && !state.convertBusy {
-				state.jobQueue.Start()
-				logging.Debug(logging.CatUI, "queue auto-started after adding job")
-			}
+
+		// Check if converting a file with chapters to DVD format
+		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
+		if state.source != nil && state.source.HasChapters && isDVD {
+			dialog.ShowConfirm("Chapter Warning",
+				"This file contains chapters, but DVD/MPEG format does not support embedded chapters.\n\n"+
+					"Chapters will be lost in the conversion.\n\n"+
+					"Consider using MKV or MP4 format to preserve chapters.\n\n"+
+					"Continue anyway?",
+				func(confirmed bool) {
+					if !confirmed {
+						return
+					}
+					state.executeAddToQueue()
+				}, state.window)
+			return
 		}
+
+		state.executeAddToQueue()
 	})
 	if src == nil {
 		addQueueBtn.Disable()
@@ -5752,23 +5794,25 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	convertBtn = widget.NewButton("CONVERT NOW", func() {
 		state.persistConvertConfig()
-		// Add job to queue and start immediately
-		if err := state.addConvertToQueue(); err != nil {
-			dialog.ShowError(err, state.window)
+
+		// Check if converting a file with chapters to DVD format
+		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
+		if state.source != nil && state.source.HasChapters && isDVD {
+			dialog.ShowConfirm("Chapter Warning",
+				"This file contains chapters, but DVD/MPEG format does not support embedded chapters.\n\n"+
+					"Chapters will be lost in the conversion.\n\n"+
+					"Consider using MKV or MP4 format to preserve chapters.\n\n"+
+					"Continue anyway?",
+				func(confirmed bool) {
+					if !confirmed {
+						return
+					}
+					state.executeConversion()
+				}, state.window)
 			return
 		}
 
-		// Start the queue if not already running
-		if state.jobQueue != nil && !state.jobQueue.IsRunning() {
-			state.jobQueue.Start()
-			logging.Debug(logging.CatSystem, "started queue from Convert Now")
-		}
-
-		// Clear the loaded video from convert module
-		state.clearVideo()
-
-		// Show success message
-		dialog.ShowInformation("Convert", "Conversion started! View progress in Job Queue.", state.window)
+		state.executeConversion()
 	})
 	convertBtn.Importance = widget.HighImportance
 	if src == nil {
