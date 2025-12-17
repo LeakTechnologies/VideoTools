@@ -13,6 +13,20 @@ encode_video() {
     
     echo "Processing: $input_file → $(basename "$output_file")"
     
+    # Stream copy mode: when user explicitly chooses no processing
+    if [[ "$DO_RESOLUTION" == "false" && "$DO_FPS" == "false" && "$DO_COLOR" == "false" ]]; then
+        echo "🚀 STREAM COPY: No processing selected"
+        ffmpeg -y -i "$input_file" -c:v copy -c:a copy "$output_file"
+        return $?
+    fi
+    
+    # Fast bypass mode: stream copy when no processing needed
+    if [[ -z "$filter_chain" && -z "$quality_params" ]]; then
+        echo "🚀 FAST BYPASS: Stream copy (no re-encoding)"
+        ffmpeg -y -i "$input_file" -c:v copy -c:a copy "$output_file"
+        return $?
+    fi
+    
     # Build optimized ffmpeg command
     if [[ -n "$filter_chain" ]]; then
         ffmpeg -y -i "$input_file" -pix_fmt yuv420p -vf "$filter_chain" \
@@ -40,15 +54,43 @@ process_files() {
     local color_suf="$5"
     local ext="$6"
     
+    # Simple queue processing
+    local total_files=${#video_files[@]}
+    local current_file=0
+    
+    echo "📋 Queue: $total_files file(s) to process"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo
+    
     for f in "${video_files[@]}"; do
         [[ -f "$f" ]] || continue
-
+        
+        ((current_file++))
+        
         # Extract basename for output filename
         basename_f=$(basename "$f")
         out="$OUT/${basename_f%.*}${suf}${color_suf}__cv.$ext"
-        [[ -f "$out" ]] && { echo "SKIP $f (already exists)"; continue; }
+        
+        echo "📁 [$current_file/$total_files] Processing: $basename_f"
+        
+        if [[ -f "$out" ]]; then
+            echo "⚠️  SKIP - Output file already exists"
+            echo
+            continue
+        fi
 
         encode_video "$f" "$out" "$encoder" "$quality_params" "$filter_chain"
+        
+        if [[ $? -eq 0 ]]; then
+            echo "✅ [$current_file/$total_files] COMPLETED: $(basename "$out")"
+        else
+            echo "❌ [$current_file/$total_files] FAILED: $basename_f"
+        fi
+        
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo
     done
+    
+    echo "🎉 Queue processing complete!"
+    echo "📁 All files saved to: $OUT"
 }

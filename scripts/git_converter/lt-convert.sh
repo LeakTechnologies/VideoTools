@@ -199,6 +199,8 @@ EOF
 
 # Check for cached hardware results
 CACHE_FILE="$SCRIPT_DIR/.hardware_cache"
+SETTINGS_FILE="$SCRIPT_DIR/.user_settings"
+
 if [[ -f "$CACHE_FILE" ]]; then
     echo
     echo "╔═══════════════════════════════════════════════════════════════╗"
@@ -239,6 +241,7 @@ fi
 echo
 echo "Press space to continue..."
 read -n 1 -s
+clear
 
 # Get user settings
 echo
@@ -246,85 +249,141 @@ echo "╔═══════════════════════�
 echo "║                    Choose Encoder/GPU                         ║"
 echo "╚═══════════════════════════════════════════════════════════════╝"
 echo
-echo "   1) Keep auto-detected: $optimal_encoder"
-echo "   2) NVIDIA HEVC NVENC"
-echo "   3) NVIDIA AV1 NVENC"
-echo "   4) AMD HEVC AMF"
-echo "   5) AMD AV1 AMF"
-echo "   6) Intel HEVC Quick Sync"
-echo "   7) Intel AV1 Quick Sync"
-echo "   8) CPU SVT-AV1"
-echo "   9) CPU x265 HEVC"
-echo "  10) Custom encoder selection"
+echo "   1) Auto-detect optimal encoder (recommended)"
+echo "   2) NVIDIA GPU encoding"
+echo "   3) AMD GPU encoding"
+echo "   4) CPU encoding"
 echo
 
 while true; do
-    read -p "   Enter 1–10 → " enc_choice
-    if [[ -n "$enc_choice" && "$enc_choice" =~ ^([1-9]|10)$ ]]; then
+    read -p "   Enter 1–4 → " enc_choice
+    if [[ -n "$enc_choice" && "$enc_choice" =~ ^[1-4]$ ]]; then
         break
     else
-        echo "   Invalid input. Please enter a number between 1 and 10."
+        echo "   Invalid input. Please enter a number between 1 and 4."
     fi
 done
 
 case $enc_choice in
     1) 
-        echo "✅ Keeping: $optimal_encoder"
+        echo "✅ Auto-detected: $optimal_encoder"
         ;;
     2) 
-        optimal_encoder="hevc_nvenc"
-        echo "✅ Selected: NVIDIA HEVC NVENC"
+        # Auto-select best NVIDIA encoder
+        if ffmpeg -hide_banner -loglevel error -encoders | grep -q "hevc_nvenc"; then
+            optimal_encoder="hevc_nvenc"
+            echo "✅ Selected: NVIDIA HEVC NVENC"
+        elif ffmpeg -hide_banner -loglevel error -encoders | grep -q "av1_nvenc"; then
+            optimal_encoder="av1_nvenc"
+            echo "✅ Selected: NVIDIA AV1 NVENC"
+        else
+            echo "❌ No NVIDIA encoders available, using auto-detected"
+        fi
         ;;
     3) 
-        optimal_encoder="av1_nvenc"
-        echo "✅ Selected: NVIDIA AV1 NVENC"
+        # Auto-select best AMD encoder
+        if ffmpeg -hide_banner -loglevel error -encoders | grep -q "hevc_amf"; then
+            optimal_encoder="hevc_amf"
+            echo "✅ Selected: AMD HEVC AMF"
+        elif ffmpeg -hide_banner -loglevel error -encoders | grep -q "av1_amf"; then
+            optimal_encoder="av1_amf"
+            echo "✅ Selected: AMD AV1 AMF"
+        else
+            echo "❌ No AMD encoders available, using auto-detected"
+        fi
         ;;
     4) 
-        optimal_encoder="hevc_amf"
-        echo "✅ Selected: AMD HEVC AMF"
+        # Auto-select best CPU encoder
+        if ffmpeg -hide_banner -loglevel error -encoders | grep -q "libsvtav1"; then
+            optimal_encoder="libsvtav1"
+            echo "✅ Selected: CPU SVT-AV1"
+        else
+            optimal_encoder="libx265"
+            echo "✅ Selected: CPU x265 HEVC"
+        fi
         ;;
-    5) 
-        optimal_encoder="av1_amf"
-        echo "✅ Selected: AMD AV1 AMF"
-        ;;
-    6) 
-        optimal_encoder="hevc_qsv"
-        echo "✅ Selected: Intel HEVC Quick Sync"
-        ;;
-    7) 
-        optimal_encoder="av1_qsv"
-        echo "✅ Selected: Intel AV1 Quick Sync"
-        ;;
-    8) 
-        optimal_encoder="libsvtav1"
-        echo "✅ Selected: CPU SVT-AV1"
-        ;;
-    9) 
-        optimal_encoder="libx265"
-        echo "✅ Selected: CPU x265 HEVC"
-        ;;
-    10) 
-        echo -e "\n⚙️ Available Encoders:"
-        ffmpeg -hide_banner -encoders | grep -E "(hevc|av1|h265)" | grep -v "V\|D" | awk '{print $2}' | nl
+    esac
+
+# Settings persistence functions
+save_user_settings() {
+    cat > "$SETTINGS_FILE" << EOF
+# User settings cache - GIT Converter v2.7
+cached_encoder="$optimal_encoder"
+cached_resolution="$res_name"
+cached_fps_choice="$fps_choice"
+cached_quality_choice="$b"
+cached_color_choice="$color_opt"
+cached_modular_choice="$op_choice"
+cached_scale="$scale"
+cached_scale_flags="$scale_flags"
+cached_quality_params="$quality_params"
+cached_quality_name="$quality_name"
+cached_color_filter="$color_filter"
+cached_color_suf="$color_suf"
+cached_fps_filter="$fps_filter"
+cached_suf="$suf"
+EOF
+}
+
+load_user_settings() {
+    if [[ -f "$SETTINGS_FILE" ]]; then
+        echo
+        echo "╔═══════════════════════════════════════════════════════════════╗"
+        echo "║                    Previous Settings Found                      ║"
+        echo "╚═══════════════════════════════════════════════════════════════╝"
+        echo
+        echo "   1) Use previous settings"
+        echo "   2) Configure new settings"
+        echo
         
         while true; do
-            read -p "Enter encoder name: " custom_enc
-            if ffmpeg -hide_banner -loglevel error -encoders | grep -q "$custom_enc"; then
-                optimal_encoder="$custom_enc"
-                echo "✅ Selected: $custom_enc"
+            read -p "   Enter 1–2 → " settings_choice
+            if [[ -n "$settings_choice" && "$settings_choice" =~ ^[1-2]$ ]]; then
                 break
             else
-                echo "❌ Encoder '$custom_enc' not found. Please try again."
+                echo "   Invalid input. Please enter 1 or 2."
             fi
         done
-        ;;
-esac
+        
+        if [[ "$settings_choice" == "1" ]]; then
+            source "$SETTINGS_FILE"
+            echo "✅ Using previous settings"
+            echo "   Encoder: $cached_encoder"
+            echo "   Resolution: $cached_resolution"
+            echo "   Quality: $cached_quality_name"
+            echo "   Color: ${cached_color_suf:-None}"
+            echo "   FPS: ${cached_suf:-Original}"
+            echo
+            optimal_encoder="$cached_encoder"
+            res_name="$cached_resolution"
+            scale="$cached_scale"
+            scale_flags="$cached_scale_flags"
+            fps_choice="$cached_fps_choice"
+            fps_filter="$cached_fps_filter"
+            suf="$cached_suf"
+            b="$cached_quality_choice"
+            quality_params="$cached_quality_params"
+            quality_name="$cached_quality_name"
+            color_opt="$cached_color_choice"
+            color_filter="$cached_color_filter"
+            color_suf="$cached_color_suf"
+            return 0
+        fi
+    fi
+    return 1
+}
 
 setup_codec_and_container
-get_resolution_settings
-get_fps_settings
-get_quality_settings "$optimal_encoder"
-get_color_correction
+if ! load_user_settings; then
+    get_modular_operations
+    get_resolution_settings
+    get_fps_settings
+    get_quality_settings "$optimal_encoder"
+    get_color_correction
+    
+    # Save settings for next time
+    save_user_settings
+fi
 
 # Build filter chain
 build_filter_chain

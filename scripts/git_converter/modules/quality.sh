@@ -8,17 +8,17 @@ get_quality_settings() {
     local encoder="$1"
     
     clear
-    cat << "EOF"
-╔═══════════════════════════════════════════════════════════╗
+cat << "EOF"
+╔═════════════════════════════════════════════════════════════╗
 ║                    Choose Quality Mode                       ║
 ╚═════════════════════════════════════════════════════════════╝
 
-   1) Fast Bitrate (200+ FPS) - Legacy speed
-   2) Source quality (no changes unless required)
-   3) High Quality (CRF 18) - Recommended
-   4) Near-Lossless (CRF 16) - Maximum quality
-   5) Good Quality (CRF 20) - Balanced
-   6) Custom bitrate (exact bitrate control)
+   1) Source quality (bypass mode)
+   2) High Quality (CRF 18) - Recommended
+   3) Good Quality (CRF 20) - Balanced
+   4) DVD-NTSC Professional (MPEG-2)
+   5) DVD-PAL Professional (MPEG-2)
+   6) Custom bitrate
 EOF
     echo
 
@@ -33,43 +33,10 @@ EOF
 
     case $b in
         1) 
-            # Fast bitrate mode - legacy style
-            echo
-            echo "Choose target bitrate:"
-            echo "  1) 1800 kbps (~400 MB per 30 min)"
-            echo "  2) 2000 kbps (~440 MB per 30 min)"
-            echo "  3) 2300 kbps (~510 MB per 30 min)"
-            echo "  4) 2600 kbps (~580 MB per 30 min)"
-            echo "  5) 2900 kbps (~640 MB per 30 min)"
-            echo "  6) 3200 kbps (~710 MB per 30 min)"
-            echo "  7) 3500 kbps (~780 MB per 30 min)"
-            echo
-            
-            while true; do
-                read -p "Enter 1–7 → " bitrate_choice
-                if [[ -n "$bitrate_choice" && "$bitrate_choice" =~ ^[1-7]$ ]]; then
-                    break
-                else
-                    echo "Invalid input. Please enter a number between 1 and 7."
-                fi
-            done
-            
-            case $bitrate_choice in
-                1) quality_params="-b:v 1800k"; quality_name="Fast 1800k" ;;
-                2) quality_params="-b:v 2000k"; quality_name="Fast 2000k" ;;
-                3) quality_params="-b:v 2300k"; quality_name="Fast 2300k" ;;
-                4) quality_params="-b:v 2600k"; quality_name="Fast 2600k" ;;
-                5) quality_params="-b:v 2900k"; quality_name="Fast 2900k" ;;
-                6) quality_params="-b:v 3200k"; quality_name="Fast 3200k" ;;
-                7) quality_params="-b:v 3500k"; quality_name="Fast 3500k" ;;
-                *) quality_params="-b:v 2400k"; quality_name="Fast 2400k" ;;
-            esac
-            ;;
-        2) 
             quality_params=""
             quality_name="Source quality"
             ;;
-        3) 
+        2) 
             if [[ "$encoder" == *"av1"* ]]; then
                 quality_params="-crf 18 -preset 6"
                 quality_name="AV1 CRF 18"
@@ -78,16 +45,7 @@ EOF
                 quality_name="HEVC CRF 18"
             fi
             ;;
-        4) 
-            if [[ "$encoder" == *"av1"* ]]; then
-                quality_params="-crf 16 -preset 4"
-                quality_name="AV1 CRF 16"
-            else
-                quality_params="-crf 16 -quality 28"
-                quality_name="HEVC CRF 16"
-            fi
-            ;;
-        5) 
+        3) 
             if [[ "$encoder" == *"av1"* ]]; then
                 quality_params="-crf 20 -preset 6"
                 quality_name="AV1 CRF 20"
@@ -95,6 +53,18 @@ EOF
                 quality_params="-crf 20 -quality 23"
                 quality_name="HEVC CRF 20"
             fi
+            ;;
+        4) 
+            # DVD-NTSC Professional (MPEG-2)
+            quality_params="-c:v mpeg2video -b:v 6000k -g 15 -bf 2 -sc_threshold 1000000000"
+            quality_name="DVD-NTSC Professional"
+            echo "✅ DVD-NTSC: 720×480 @ 29.97fps, MPEG-2, 6000kbps"
+            ;;
+        5) 
+            # DVD-PAL Professional (MPEG-2)
+            quality_params="-c:v mpeg2video -b:v 8000k -g 12 -bf 2 -sc_threshold 1000000000"
+            quality_name="DVD-PAL Professional"
+            echo "✅ DVD-PAL: 720×576 @ 25fps, MPEG-2, 8000kbps"
             ;;
         6) 
             echo
