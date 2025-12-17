@@ -3712,10 +3712,6 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	center := math.Max(0, src.Duration/2-halfLength)
 	start := fmt.Sprintf("%.2f", center)
 
-	if progressCallback != nil {
-		progressCallback(0)
-	}
-
 	var args []string
 
 	if useSourceFormat {
@@ -3780,7 +3776,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			}
 		}
 
-		args = append(args, "-y", "-hide_banner", "-loglevel", "error", outputPath)
+		args = append(args, "-y", "-hide_banner", "-loglevel", "error")
 	} else {
 		// Conversion format mode: Use configured conversion settings
 		// This allows previewing what the final converted output will look like
@@ -3876,20 +3872,62 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			args = append(args, "-c:a", "aac", "-b:a", "192k")
 		}
 
-		args = append(args, outputPath)
+		// Common args appended after progress flags
+	}
+
+	// Add progress output for live updates (stdout) and finish with output path
+	args = append(args, "-progress", "pipe:1", "-nostats", outputPath)
+
+	if progressCallback != nil {
+		progressCallback(0)
 	}
 
 	logFile, logPath, _ := createConversionLog(inputPath, outputPath, args)
 	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
 	utils.ApplyNoWindow(cmd)
 
-	out, err := cmd.CombinedOutput()
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("snippet stdout pipe: %w", err)
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("snippet start failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
+	}
+
+	// Track progress based on snippet length
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if logFile != nil {
+				fmt.Fprintln(logFile, line)
+			}
+			if strings.HasPrefix(line, "out_time_ms=") && snippetLength > 0 {
+				val := strings.TrimPrefix(line, "out_time_ms=")
+				if ms, err := strconv.ParseFloat(val, 64); err == nil {
+					currentSec := ms / 1_000_000.0
+					pct := (currentSec / float64(snippetLength)) * 100.0
+					if pct > 100 {
+						pct = 100
+					}
+					if progressCallback != nil {
+						progressCallback(pct)
+					}
+				}
+			}
+		}
+	}()
+
+	err = cmd.Wait()
 	if err != nil {
 		if logFile != nil {
-			fmt.Fprintf(logFile, "\nStatus: failed at %s\nError: %v\nFFmpeg output:\n%s\n", time.Now().Format(time.RFC3339), err, string(out))
+			fmt.Fprintf(logFile, "\nStatus: failed at %s\nError: %v\nFFmpeg stderr:\n%s\n", time.Now().Format(time.RFC3339), err, strings.TrimSpace(stderr.String()))
 			_ = logFile.Close()
 		}
-		return fmt.Errorf("snippet failed: %w\nffmpeg output:\n%s", err, string(out))
+		return fmt.Errorf("snippet failed: %w\nFFmpeg stderr:\n%s", err, strings.TrimSpace(stderr.String()))
 	}
 	if logFile != nil {
 		fmt.Fprintf(logFile, "\nStatus: completed at %s\n", time.Now().Format(time.RFC3339))
@@ -3897,7 +3935,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 		job.LogPath = logPath
 	}
 	if progressCallback != nil {
-		progressCallback(1)
+		progressCallback(100)
 	}
 	return nil
 }
