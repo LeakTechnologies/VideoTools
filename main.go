@@ -114,8 +114,8 @@ func statusStrip(bar *ui.ConversionStatsBar) fyne.CanvasObject {
 	return container.NewMax(bg, content)
 }
 
-// moduleFooter stacks the dark status strip above a tinted action/footer area.
-// Pass a content node for module-specific footer controls; use layout.NewSpacer() if empty.
+// moduleFooter creates a single tinted footer bar with the dark status strip overlaid.
+// If content is nil, a spacer is used.
 func moduleFooter(tint color.Color, content fyne.CanvasObject, bar *ui.ConversionStatsBar) fyne.CanvasObject {
 	if content == nil {
 		content = layout.NewSpacer()
@@ -123,7 +123,8 @@ func moduleFooter(tint color.Color, content fyne.CanvasObject, bar *ui.Conversio
 	bg := canvas.NewRectangle(tint)
 	bg.SetMinSize(fyne.NewSize(0, 44))
 	tinted := container.NewMax(bg, container.NewPadded(content))
-	return container.NewVBox(statusStrip(bar), tinted)
+	// Overlay the status strip above the tinted bar to keep a single bar visual
+	return container.NewStack(tinted, statusStrip(bar))
 }
 
 // resolveTargetAspect resolves an aspect ratio value or source aspect
@@ -5998,18 +5999,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Update stats bar
 	state.updateStatsBar()
 
-	// Stack status + snippet + actions tightly to avoid dead air, outside the scroll area.
-	// Keep snippet/actions above the consistent status bar
-	scrollableMain := container.NewVScroll(container.NewVBox(
-		mainContent,
-		widget.NewSeparator(),
+	scrollableMain := container.NewVScroll(mainContent)
+
+	footerContent := container.NewVBox(
 		snippetConfigRow,
 		snippetRow,
 		widget.NewSeparator(),
 		actionBar,
-	))
+	)
 
-	return container.NewBorder(backBar, moduleFooter(convertColor, layout.NewSpacer(), state.statsBar), nil, nil, container.NewMax(scrollableMain))
+	return container.NewBorder(backBar, moduleFooter(convertColor, footerContent, state.statsBar), nil, nil, container.NewMax(scrollableMain))
 
 }
 
