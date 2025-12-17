@@ -524,9 +524,7 @@ func (q *Queue) Load(path string) error {
 func (q *Queue) Clear() {
 	q.mu.Lock()
 
-	// Cancel any running jobs before filtering
-	q.cancelRunningLocked()
-
+	// Keep only pending, running, and paused jobs
 	filtered := make([]*Job, 0)
 	for _, job := range q.jobs {
 		if job.Status == JobStatusPending || job.Status == JobStatusRunning || job.Status == JobStatusPaused {
