@@ -301,7 +301,8 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 	text.Disable()
 	bg := canvas.NewRectangle(color.NRGBA{0x15, 0x1a, 0x24, 0xff}) // slightly lighter than app bg
 	scroll := container.NewVScroll(container.NewMax(bg, text))
-	scroll.SetMinSize(fyne.NewSize(700, 450))
+	// Adaptive min size - allows proper scaling on small screens
+	scroll.SetMinSize(fyne.NewSize(600, 350))
 
 	stop := make(chan struct{})
 	if live {
@@ -3728,11 +3729,15 @@ func runGUI() {
 	} else {
 		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
-	// Use a generous default window size that fits typical desktops without overflowing.
-	w.Resize(fyne.NewSize(1280, 800))
-	w.SetFixedSize(false) // Allow manual resizing
+	// Adaptive window sizing for professional cross-resolution support
+	w.SetFixedSize(false) // Allow manual resizing and maximizing
+
+	// Use conservative default size that fits on small laptop screens (1280x768)
+	// Window can be maximized by user using window manager controls
+	w.Resize(fyne.NewSize(1200, 700))
 	w.CenterOnScreen()
-	logging.Debug(logging.CatUI, "window initialized with manual resizing and centering enabled")
+
+	logging.Debug(logging.CatUI, "window initialized at 1200x700 (fits 1280x768+ screens), manual resizing enabled")
 
 	state := &appState{
 		window: w,
@@ -6078,7 +6083,8 @@ Metadata: %s`,
 
 							previewImg := canvas.NewImageFromResource(img)
 							previewImg.FillMode = canvas.ImageFillContain
-							previewImg.SetMinSize(fyne.NewSize(800, 450))
+							// Adaptive size for small screens
+							previewImg.SetMinSize(fyne.NewSize(640, 360))
 
 							infoLabel := widget.NewLabel("Left: Original | Right: Deinterlaced")
 							infoLabel.Alignment = fyne.TextAlignCenter
@@ -10263,11 +10269,15 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 				go func() {
 					img := canvas.NewImageFromFile(contactSheetPath)
 					img.FillMode = canvas.ImageFillContain
-					img.SetMinSize(fyne.NewSize(800, 600))
+					// Adaptive size for small screens - use scrollable dialog
+					img.SetMinSize(fyne.NewSize(640, 480))
 
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						d := dialog.NewCustom("Contact Sheet", "Close", img, state.window)
-						d.Resize(fyne.NewSize(900, 700))
+						// Wrap in scroll container for large contact sheets
+						scroll := container.NewScroll(img)
+						d := dialog.NewCustom("Contact Sheet", "Close", scroll, state.window)
+						// Adaptive dialog size that fits on 1280x768 screens
+						d.Resize(fyne.NewSize(700, 600))
 						d.Show()
 					}, false)
 				}()
@@ -10545,7 +10555,8 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 	)
 
 	settingsScroll := container.NewVScroll(settingsPanel)
-	settingsScroll.SetMinSize(fyne.NewSize(400, 600))
+	// Adaptive height for small screens - allow content to flow
+	settingsScroll.SetMinSize(fyne.NewSize(350, 400))
 
 	mainContent := container.NewHSplit(
 		container.NewVBox(leftPanel, videoContainer),
@@ -10850,7 +10861,8 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	)
 
 	settingsScroll := container.NewVScroll(settingsPanel)
-	settingsScroll.SetMinSize(fyne.NewSize(450, 600))
+	// Adaptive height for small screens
+	settingsScroll.SetMinSize(fyne.NewSize(400, 400))
 
 	mainContent := container.NewHSplit(
 		container.NewVBox(leftPanel, videoContainer),
