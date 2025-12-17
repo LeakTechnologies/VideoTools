@@ -9160,6 +9160,7 @@ func probeVideo(path string) (*videoSource, error) {
 		"-print_format", "json",
 		"-show_format",
 		"-show_streams",
+		"-show_chapters",
 		path,
 	)
 	utils.ApplyNoWindow(cmd)
@@ -9194,6 +9195,9 @@ func probeVideo(path string) (*videoSource, error) {
 				AttachedPic int `json:"attached_pic"`
 			} `json:"disposition"`
 		} `json:"streams"`
+		Chapters []struct {
+			ID int `json:"id"`
+		} `json:"chapters"`
 	}
 	if err := json.Unmarshal(out, &result); err != nil {
 		return nil, err
@@ -9219,6 +9223,13 @@ func probeVideo(path string) (*videoSource, error) {
 			src.HasMetadata = true
 		}
 	}
+
+	// Check for chapters
+	if len(result.Chapters) > 0 {
+		src.HasChapters = true
+		logging.Debug(logging.CatFFMPEG, "found %d chapter(s) in video", len(result.Chapters))
+	}
+
 	// Track if we've found the main video stream (not cover art)
 	foundMainVideo := false
 	var coverArtStreamIndex int = -1
