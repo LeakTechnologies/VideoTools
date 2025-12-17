@@ -1121,7 +1121,17 @@ func (s *appState) refreshQueueView() {
 		func() { // onClear
 			s.jobQueue.Clear()
 			s.clearVideo()
-			s.refreshQueueView() // Refresh
+
+			// If queue is now empty, return to previous module
+			if len(s.jobQueue.List()) == 0 {
+				if s.lastModule != "" && s.lastModule != "queue" {
+					s.showModule(s.lastModule)
+				} else {
+					s.showMainMenu()
+				}
+			} else {
+				s.refreshQueueView() // Refresh if jobs remain
+			}
 		},
 		func() { // onClearAll
 			s.jobQueue.ClearAll()
