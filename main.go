@@ -114,17 +114,9 @@ func statusStrip(bar *ui.ConversionStatsBar) fyne.CanvasObject {
 	return container.NewMax(bg, content)
 }
 
-// moduleFooter creates a single tinted footer bar with the dark status strip overlaid.
-// If content is nil, a spacer is used.
-func moduleFooter(tint color.Color, content fyne.CanvasObject, bar *ui.ConversionStatsBar) fyne.CanvasObject {
-	if content == nil {
-		content = layout.NewSpacer()
-	}
-	bg := canvas.NewRectangle(tint)
-	bg.SetMinSize(fyne.NewSize(0, 44))
-	tinted := container.NewMax(bg, container.NewPadded(content))
-	// Overlay the status strip above the tinted bar to keep a single bar visual
-	return container.NewStack(tinted, statusStrip(bar))
+// moduleFooter renders only the dark status strip for consistency across modules.
+func moduleFooter(_ color.Color, _ fyne.CanvasObject, bar *ui.ConversionStatsBar) fyne.CanvasObject {
+	return statusStrip(bar)
 }
 
 // resolveTargetAspect resolves an aspect ratio value or source aspect
@@ -6008,7 +6000,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		actionBar,
 	)
 
-	return container.NewBorder(backBar, moduleFooter(convertColor, footerContent, state.statsBar), nil, nil, container.NewMax(scrollableMain))
+	// Actions/snippets stay above; footer is a single dark status strip
+	mainWithFooter := container.NewBorder(nil, footerContent, nil, nil, container.NewMax(scrollableMain))
+	return container.NewBorder(backBar, statusStrip(state.statsBar), nil, nil, mainWithFooter)
 
 }
 
