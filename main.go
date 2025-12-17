@@ -4654,6 +4654,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
+	// Chapter warning label (shown when converting file with chapters to DVD)
+	chapterWarningLabel := widget.NewLabel("⚠️  Chapters will be lost - DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.")
+	chapterWarningLabel.Wrapping = fyne.TextWrapWord
+	chapterWarningLabel.TextStyle = fyne.TextStyle{Italic: true}
+	var updateChapterWarning func()
+	updateChapterWarning = func() {
+		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
+		if src != nil && src.HasChapters && isDVD {
+			chapterWarningLabel.Show()
+		} else {
+			chapterWarningLabel.Hide()
+		}
+	}
+
 	formatSelect := widget.NewSelect(formatLabels, func(value string) {
 		for _, opt := range formatOptions {
 			if opt.Label == value {
@@ -4662,6 +4676,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
 				if updateDVDOptions != nil {
 					updateDVDOptions() // Show/hide DVD options and auto-set resolution
+				}
+				if updateChapterWarning != nil {
+					updateChapterWarning() // Show/hide chapter warning
 				}
 
 				// Keep the codec selector aligned with the chosen format by default
@@ -4678,6 +4695,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	})
 	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
+	updateChapterWarning() // Initial visibility
 
 	if !state.convert.AspectUserSet {
 		state.convert.OutputAspect = "Source"
@@ -5374,6 +5392,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
+		chapterWarningLabel, // Warning when converting chapters to DVD
 		dvdAspectBox, // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
@@ -5400,6 +5419,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
+		chapterWarningLabel, // Warning when converting chapters to DVD
 		dvdAspectBox, // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
@@ -5768,24 +5788,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Add to Queue button
 	addQueueBtn := widget.NewButton("Add to Queue", func() {
 		state.persistConvertConfig()
-
-		// Check if converting a file with chapters to DVD format
-		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
-		if state.source != nil && state.source.HasChapters && isDVD {
-			dialog.ShowConfirm("Chapter Warning",
-				"This file contains chapters, but DVD/MPEG format does not support embedded chapters.\n\n"+
-					"Chapters will be lost in the conversion.\n\n"+
-					"Consider using MKV or MP4 format to preserve chapters.\n\n"+
-					"Continue anyway?",
-				func(confirmed bool) {
-					if !confirmed {
-						return
-					}
-					state.executeAddToQueue()
-				}, state.window)
-			return
-		}
-
 		state.executeAddToQueue()
 	})
 	if src == nil {
@@ -5794,24 +5796,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	convertBtn = widget.NewButton("CONVERT NOW", func() {
 		state.persistConvertConfig()
-
-		// Check if converting a file with chapters to DVD format
-		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
-		if state.source != nil && state.source.HasChapters && isDVD {
-			dialog.ShowConfirm("Chapter Warning",
-				"This file contains chapters, but DVD/MPEG format does not support embedded chapters.\n\n"+
-					"Chapters will be lost in the conversion.\n\n"+
-					"Consider using MKV or MP4 format to preserve chapters.\n\n"+
-					"Continue anyway?",
-				func(confirmed bool) {
-					if !confirmed {
-						return
-					}
-					state.executeConversion()
-				}, state.window)
-			return
-		}
-
 		state.executeConversion()
 	})
 	convertBtn.Importance = widget.HighImportance
