@@ -3712,6 +3712,31 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	center := math.Max(0, src.Duration/2-halfLength)
 	start := fmt.Sprintf("%.2f", center)
 
+	clampSnippetBitrate := func(bitrate string, width int) string {
+		val := strings.TrimSpace(strings.ToLower(bitrate))
+		val = strings.TrimSuffix(val, "bps")
+		val = strings.TrimSuffix(val, "k")
+		n, err := strconv.ParseFloat(val, 64)
+		if err != nil || n <= 0 {
+			n = 3500
+		}
+		capKbps := 5000.0
+		if width >= 3840 {
+			capKbps = 30000
+		} else if width >= 1920 {
+			capKbps = 15000
+		} else if width >= 1280 {
+			capKbps = 8000
+		}
+		if n > capKbps {
+			n = capKbps
+		}
+		if n < 800 {
+			n = 800
+		}
+		return fmt.Sprintf("%.0fk", n)
+	}
+
 	var args []string
 
 	if useSourceFormat {
@@ -3792,12 +3817,12 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 		}
 
 		// Apply video codec settings with bitrate/CRF caps to avoid runaway bitrates on short clips
-		targetBitrate := strings.TrimSpace(conv.VideoBitrate)
+		targetBitrate := clampSnippetBitrate(strings.TrimSpace(conv.VideoBitrate), src.Width)
 		if targetBitrate == "" {
-			targetBitrate = defaultBitrate(conv.VideoCodec, src.Width, src.Bitrate)
+			targetBitrate = clampSnippetBitrate(defaultBitrate(conv.VideoCodec, src.Width, src.Bitrate), src.Width)
 		}
 		if targetBitrate == "" {
-			targetBitrate = "3500k"
+			targetBitrate = clampSnippetBitrate("3500k", src.Width)
 		}
 
 		preset := conv.EncoderPreset
@@ -3811,6 +3836,10 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			if crfVal == "" {
 				crfVal = "23"
 			}
+		}
+		// Disallow lossless for snippets to avoid runaway bitrates
+		if strings.TrimSpace(crfVal) == "0" {
+			crfVal = "18"
 		}
 
 		videoCodec := strings.ToLower(conv.VideoCodec)
