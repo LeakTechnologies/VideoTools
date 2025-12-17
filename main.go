@@ -110,8 +110,9 @@ func moduleColor(id string) color.Color {
 func statusStrip(bar *ui.ConversionStatsBar) fyne.CanvasObject {
 	bg := canvas.NewRectangle(color.NRGBA{R: 34, G: 34, B: 34, A: 255})
 	bg.SetMinSize(fyne.NewSize(0, 32))
-	content := container.NewPadded(container.NewHBox(bar, layout.NewSpacer()))
-	return container.NewMax(bg, container.NewBorder(nil, nil, nil, nil, content))
+	// Make the entire bar area clickable by letting the bar fill the strip
+	content := container.NewPadded(container.NewMax(bar))
+	return container.NewMax(bg, content)
 }
 
 // moduleFooter stacks a dark status strip above a tinted action/footer band.
@@ -593,13 +594,13 @@ func saveBenchmarkConfig(cfg benchmarkConfig) error {
 }
 
 type appState struct {
-	window                     fyne.Window
-	active                     string
-	lastModule                 string
-	navigationHistory          []string // Track module navigation history for back/forward buttons
-	navigationHistoryPosition  int      // Current position in navigation history
-	navigationHistorySuppress  bool     // Temporarily suppress history tracking during navigation
-	source                     *videoSource
+	window                    fyne.Window
+	active                    string
+	lastModule                string
+	navigationHistory         []string // Track module navigation history for back/forward buttons
+	navigationHistoryPosition int      // Current position in navigation history
+	navigationHistorySuppress bool     // Temporarily suppress history tracking during navigation
+	source                    *videoSource
 	loadedVideos              []*videoSource // Multiple loaded videos for navigation
 	currentIndex              int            // Current video index in loadedVideos
 	anim                      *previewAnimator
