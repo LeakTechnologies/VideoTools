@@ -106,6 +106,11 @@ func moduleColor(id string) color.Color {
 	return queueColor
 }
 
+// statusBar creates a consistent bottom status bar for modules.
+func statusBar(color color.Color, bar *ui.ConversionStatsBar) fyne.CanvasObject {
+	return ui.TintedBar(color, container.NewHBox(bar, layout.NewSpacer()))
+}
+
 // resolveTargetAspect resolves an aspect ratio value or source aspect
 func resolveTargetAspect(val string, src *videoSource) float64 {
 	if strings.EqualFold(val, "source") {
@@ -2045,7 +2050,7 @@ func (s *appState) showMergeView() {
 	s.updateQueueButtonLabel()
 
 	topBar := ui.TintedBar(mergeColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-	bottomBar := ui.TintedBar(mergeColor, container.NewHBox(s.statsBar, layout.NewSpacer()))
+	bottomBar := statusBar(mergeColor, s.statsBar)
 
 	listBox := container.NewVBox()
 	var addFiles func([]string)
@@ -5963,11 +5968,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	state.updateStatsBar()
 
 	// Stack status + snippet + actions tightly to avoid dead air, outside the scroll area.
-	bottomSection := ui.TintedBar(convertColor, container.NewVBox(state.statsBar, snippetConfigRow, snippetRow, widget.NewSeparator(), actionBar))
+	// Keep snippet/actions above the consistent status bar
+	scrollableMain := container.NewVScroll(container.NewVBox(
+		mainContent,
+		widget.NewSeparator(),
+		snippetConfigRow,
+		snippetRow,
+		widget.NewSeparator(),
+		actionBar,
+	))
 
-	scrollableMain := container.NewVScroll(mainContent)
+	return container.NewBorder(backBar, statusBar(convertColor, state.statsBar), nil, nil, container.NewMax(scrollableMain))
 
-	return container.NewBorder(backBar, bottomSection, nil, nil, container.NewMax(scrollableMain))
 }
 
 func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
@@ -9602,7 +9614,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-	bottomBar := ui.TintedBar(compareColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
+	bottomBar := statusBar(compareColor, state.statsBar)
 
 	// Instructions
 	instructions := widget.NewLabel("Load two videos to compare their metadata side by side. Drag videos here or use buttons below.")
@@ -10341,7 +10353,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	)
 
 	// Bottom bar with module color
-	bottomBar := ui.TintedBar(inspectColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
+	bottomBar := statusBar(inspectColor, state.statsBar)
 
 	// Main content
 	content := container.NewBorder(
@@ -10685,7 +10697,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		mainContent,
 	)
 
-	bottomBar := ui.TintedBar(thumbColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
+	bottomBar := statusBar(thumbColor, state.statsBar)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
@@ -10762,7 +10774,7 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	)
 
 	content := container.NewPadded(mainContent)
-	bottomBar := ui.TintedBar(playerColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
+	bottomBar := statusBar(playerColor, state.statsBar)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
@@ -10786,7 +10798,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 
 	// Top bar with module color
 	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-	bottomBar := ui.TintedBar(filtersColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
+	bottomBar := statusBar(filtersColor, state.statsBar)
 
 	// Instructions
 	instructions := widget.NewLabel("Apply filters and color corrections to your video. Preview changes in real-time.")
@@ -10956,7 +10968,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 
 	// Top bar with module color
 	topBar := ui.TintedBar(upscaleColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-	bottomBar := ui.TintedBar(upscaleColor, container.NewHBox(state.statsBar, layout.NewSpacer()))
+	bottomBar := statusBar(upscaleColor, state.statsBar)
 
 	// Instructions
 	instructions := widget.NewLabel("Upscale your video to higher resolution using traditional or AI-powered methods.")
