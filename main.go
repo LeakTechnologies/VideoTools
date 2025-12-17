@@ -106,9 +106,24 @@ func moduleColor(id string) color.Color {
 	return queueColor
 }
 
-// statusBar creates a consistent bottom status bar for modules.
-func statusBar(color color.Color, bar *ui.ConversionStatsBar) fyne.CanvasObject {
-	return ui.TintedBar(color, container.NewHBox(bar, layout.NewSpacer()))
+// statusStrip renders a consistent dark status area with the shared stats bar.
+func statusStrip(bar *ui.ConversionStatsBar) fyne.CanvasObject {
+	bg := canvas.NewRectangle(color.NRGBA{R: 34, G: 34, B: 34, A: 255})
+	bg.SetMinSize(fyne.NewSize(0, 32))
+	content := container.NewPadded(container.NewHBox(bar, layout.NewSpacer()))
+	return container.NewMax(bg, content)
+}
+
+// moduleFooter stacks the dark status strip above a tinted action/footer area.
+// Pass a content node for module-specific footer controls; use layout.NewSpacer() if empty.
+func moduleFooter(tint color.Color, content fyne.CanvasObject, bar *ui.ConversionStatsBar) fyne.CanvasObject {
+	if content == nil {
+		content = layout.NewSpacer()
+	}
+	bg := canvas.NewRectangle(tint)
+	bg.SetMinSize(fyne.NewSize(0, 44))
+	tinted := container.NewMax(bg, container.NewPadded(content))
+	return container.NewVBox(statusStrip(bar), tinted)
 }
 
 // resolveTargetAspect resolves an aspect ratio value or source aspect
@@ -414,30 +429,31 @@ type convertConfig struct {
 	AutoNameTemplate string // Template for metadata-driven naming, e.g., "<actress> - <studio> - <scene>"
 
 	// Video encoding settings
-	VideoCodec        string // H.264, H.265, VP9, AV1, Copy
-	EncoderPreset     string // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
-	CRF               string // Manual CRF value (0-51, or empty to use Quality preset)
-	BitrateMode       string // CRF, CBR, VBR, "Target Size"
-	BitratePreset     string // Friendly bitrate presets (codec-aware recommendations)
-	VideoBitrate      string // For CBR/VBR modes (e.g., "5000k")
-	TargetFileSize    string // Target file size (e.g., "25MB", "100MB") - requires BitrateMode="Target Size"
-	TargetResolution  string // Source, 720p, 1080p, 1440p, 4K, or custom
-	FrameRate         string // Source, 24, 30, 60, or custom
-	PixelFormat       string // yuv420p, yuv422p, yuv444p
-	HardwareAccel     string // auto, none, nvenc, amf, vaapi, qsv, videotoolbox
-	TwoPass           bool   // Enable two-pass encoding for VBR
-	H264Profile       string // baseline, main, high (for H.264 compatibility)
-	H264Level         string // 3.0, 3.1, 4.0, 4.1, 5.0, 5.1 (for H.264 compatibility)
-	Deinterlace       string // Auto, Force, Off
-	DeinterlaceMethod string // yadif, bwdif (bwdif is higher quality but slower)
-	AutoCrop          bool   // Auto-detect and remove black bars
-	CropWidth         string // Manual crop width (empty = use auto-detect)
-	CropHeight        string // Manual crop height (empty = use auto-detect)
-	CropX             string // Manual crop X offset (empty = use auto-detect)
-	CropY             string // Manual crop Y offset (empty = use auto-detect)
-	FlipHorizontal    bool   // Flip video horizontally (mirror)
-	FlipVertical      bool   // Flip video vertically (upside down)
-	Rotation          string // 0, 90, 180, 270 (clockwise rotation in degrees)
+	VideoCodec             string // H.264, H.265, VP9, AV1, Copy
+	EncoderPreset          string // ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow
+	CRF                    string // Manual CRF value (0-51, or empty to use Quality preset)
+	BitrateMode            string // CRF, CBR, VBR, "Target Size"
+	BitratePreset          string // Friendly bitrate presets (codec-aware recommendations)
+	VideoBitrate           string // For CBR/VBR modes (e.g., "5000k")
+	TargetFileSize         string // Target file size (e.g., "25MB", "100MB") - requires BitrateMode="Target Size"
+	TargetResolution       string // Source, 720p, 1080p, 1440p, 4K, or custom
+	FrameRate              string // Source, 24, 30, 60, or custom
+	UseMotionInterpolation bool   // Use motion interpolation for smooth frame rate changes
+	PixelFormat            string // yuv420p, yuv422p, yuv444p
+	HardwareAccel          string // auto, none, nvenc, amf, vaapi, qsv, videotoolbox
+	TwoPass                bool   // Enable two-pass encoding for VBR
+	H264Profile            string // baseline, main, high (for H.264 compatibility)
+	H264Level              string // 3.0, 3.1, 4.0, 4.1, 5.0, 5.1 (for H.264 compatibility)
+	Deinterlace            string // Auto, Force, Off
+	DeinterlaceMethod      string // yadif, bwdif (bwdif is higher quality but slower)
+	AutoCrop               bool   // Auto-detect and remove black bars
+	CropWidth              string // Manual crop width (empty = use auto-detect)
+	CropHeight             string // Manual crop height (empty = use auto-detect)
+	CropX                  string // Manual crop X offset (empty = use auto-detect)
+	CropY                  string // Manual crop Y offset (empty = use auto-detect)
+	FlipHorizontal         bool   // Flip video horizontally (mirror)
+	FlipVertical           bool   // Flip video vertically (upside down)
+	Rotation               string // 0, 90, 180, 270 (clockwise rotation in degrees)
 
 	// Audio encoding settings
 	AudioCodec      string // AAC, Opus, MP3, FLAC, Copy
@@ -2050,7 +2066,7 @@ func (s *appState) showMergeView() {
 	s.updateQueueButtonLabel()
 
 	topBar := ui.TintedBar(mergeColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-	bottomBar := statusBar(mergeColor, s.statsBar)
+	bottomBar := moduleFooter(mergeColor, layout.NewSpacer(), s.statsBar)
 
 	listBox := container.NewVBox()
 	var addFiles func([]string)
@@ -3024,8 +3040,15 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 	// Frame rate
 	frameRate, _ := cfg["frameRate"].(string)
+	useMotionInterp, _ := cfg["useMotionInterpolation"].(bool)
 	if frameRate != "" && frameRate != "Source" {
-		vf = append(vf, "fps="+frameRate)
+		if useMotionInterp {
+			// Use motion interpolation for smooth frame rate changes
+			vf = append(vf, fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1", frameRate))
+		} else {
+			// Simple frame rate change (duplicates/drops frames)
+			vf = append(vf, "fps="+frameRate)
+		}
 	}
 
 	if len(vf) > 0 {
@@ -8392,7 +8415,13 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 	// Frame rate
 	if cfg.FrameRate != "" && cfg.FrameRate != "Source" {
-		vf = append(vf, "fps="+cfg.FrameRate)
+		if cfg.UseMotionInterpolation {
+			// Use motion interpolation for smooth frame rate changes
+			vf = append(vf, fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1", cfg.FrameRate))
+		} else {
+			// Simple frame rate change (duplicates/drops frames)
+			vf = append(vf, "fps="+cfg.FrameRate)
+		}
 	}
 
 	if len(vf) > 0 {
@@ -9614,7 +9643,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-	bottomBar := statusBar(compareColor, state.statsBar)
+	bottomBar := moduleFooter(compareColor, layout.NewSpacer(), state.statsBar)
 
 	// Instructions
 	instructions := widget.NewLabel("Load two videos to compare their metadata side by side. Drag videos here or use buttons below.")
@@ -10118,6 +10147,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 	topBar := ui.TintedBar(inspectColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+	bottomBar := moduleFooter(inspectColor, layout.NewSpacer(), state.statsBar)
 
 	// Instructions
 	instructions := widget.NewLabel("Load a video to inspect its properties and preview playback. Drag a video here or use the button below.")
