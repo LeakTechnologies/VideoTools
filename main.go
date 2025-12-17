@@ -3365,9 +3365,9 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	var args []string
 
 	if useSourceFormat {
-		// High Quality mode: Re-encode with source codecs for PRECISE duration
-		// Output to source format to preserve quality
+		// Source Format mode: Re-encode matching source format for PRECISE duration
 		conv := s.convert
+		isWMV := strings.HasSuffix(strings.ToLower(inputPath), ".wmv")
 
 		args = []string{
 			"-ss", start,
@@ -3375,12 +3375,28 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			"-t", fmt.Sprintf("%d", snippetLength),
 		}
 
-		// Use source video codec
-		if src.VideoCodec != "" {
-			args = append(args, "-c:v", src.VideoCodec)
+		// Handle WMV files specially - use wmv2 encoder
+		if isWMV {
+			args = append(args, "-c:v", "wmv2")
+			args = append(args, "-b:v", "2000k") // High quality bitrate for WMV
+			args = append(args, "-c:a", "wmav2")
+			if conv.AudioBitrate != "" {
+				args = append(args, "-b:a", conv.AudioBitrate)
+			} else {
+				args = append(args, "-b:a", "192k")
+			}
+		} else {
+			// For non-WMV: use source codec or fallback to H.264
+			videoCodec := src.VideoCodec
+			if videoCodec == "" || strings.Contains(strings.ToLower(videoCodec), "wmv") {
+				videoCodec = "libx264"
+			}
+
+			args = append(args, "-c:v", videoCodec)
+
 			// Apply encoder preset if supported codec
-			if strings.Contains(strings.ToLower(src.VideoCodec), "264") ||
-			   strings.Contains(strings.ToLower(src.VideoCodec), "265") {
+			if strings.Contains(strings.ToLower(videoCodec), "264") ||
+			   strings.Contains(strings.ToLower(videoCodec), "265") {
 				if conv.EncoderPreset != "" {
 					args = append(args, "-preset", conv.EncoderPreset)
 				} else {
@@ -3392,40 +3408,21 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 					args = append(args, "-crf", "18")
 				}
 			}
-		} else {
-			// Fallback to libx264 if no codec detected
-			args = append(args, "-c:v", "libx264")
-			if conv.EncoderPreset != "" {
-				args = append(args, "-preset", conv.EncoderPreset)
-			} else {
-				args = append(args, "-preset", "slow")
-			}
-			if conv.CRF != "" {
-				args = append(args, "-crf", conv.CRF)
-			} else {
-				args = append(args, "-crf", "18")
-			}
-		}
 
-		// Use source audio codec
-		if src.AudioCodec != "" {
-			args = append(args, "-c:a", src.AudioCodec)
-			// Add bitrate for common codecs
-			if strings.Contains(strings.ToLower(src.AudioCodec), "aac") ||
-			   strings.Contains(strings.ToLower(src.AudioCodec), "mp3") {
+			// Audio codec
+			audioCodec := src.AudioCodec
+			if audioCodec == "" || strings.Contains(strings.ToLower(audioCodec), "wmav") {
+				audioCodec = "aac"
+			}
+
+			args = append(args, "-c:a", audioCodec)
+			if strings.Contains(strings.ToLower(audioCodec), "aac") ||
+			   strings.Contains(strings.ToLower(audioCodec), "mp3") {
 				if conv.AudioBitrate != "" {
 					args = append(args, "-b:a", conv.AudioBitrate)
 				} else {
 					args = append(args, "-b:a", "192k")
 				}
-			}
-		} else {
-			// Fallback to AAC if no codec detected
-			args = append(args, "-c:a", "aac")
-			if conv.AudioBitrate != "" {
-				args = append(args, "-b:a", conv.AudioBitrate)
-			} else {
-				args = append(args, "-b:a", "192k")
 			}
 		}
 
@@ -5363,12 +5360,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Snippet output mode
-	snippetModeLabel := widget.NewLabel("Snippet Mode:")
-	snippetModeCheck := widget.NewCheck("High Quality (source format/codecs)", func(checked bool) {
+	snippetModeLabel := widget.NewLabel("Snippet Output:")
+	snippetModeCheck := widget.NewCheck("Match Source Format", func(checked bool) {
 		state.snippetSourceFormat = checked
 	})
 	snippetModeCheck.SetChecked(state.snippetSourceFormat)
-	snippetModeHint := widget.NewLabel("Unchecked = Use Conversion Settings (preview output quality)")
+	snippetModeHint := widget.NewLabel("Unchecked = Use Conversion Settings")
 	snippetModeHint.TextStyle = fyne.TextStyle{Italic: true}
 
 	snippetConfigRow := container.NewVBox(
