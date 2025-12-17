@@ -5306,12 +5306,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Snippet output mode
-	snippetModeLabel := widget.NewLabel("Snippet Mode:")
-	snippetModeCheck := widget.NewCheck("Use Source Format (stream copy)", func(checked bool) {
+	snippetModeLabel := widget.NewLabel("Snippet Output:")
+	snippetModeCheck := widget.NewCheck("Snippet to Default Format (preserves source quality)", func(checked bool) {
 		state.snippetSourceFormat = checked
 	})
 	snippetModeCheck.SetChecked(state.snippetSourceFormat)
-	snippetModeHint := widget.NewLabel("Unchecked = Conversion format (re-encode)")
+	snippetModeHint := widget.NewLabel("Unchecked = Snippet to Output Format (uses conversion settings)")
 	snippetModeHint.TextStyle = fyne.TextStyle{Italic: true}
 
 	snippetConfigRow := container.NewVBox(
