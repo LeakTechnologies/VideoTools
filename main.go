@@ -2577,6 +2577,7 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 		}
 
 		// Force MPEG-2 / AC-3
+		// Note: Don't use -target flags as they strip metadata including chapters
 		args = append(args,
 			"-c:v", "mpeg2video",
 			"-c:a", "ac3",
@@ -2585,16 +2586,32 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 		)
 
 		if dvdRegion == "NTSC" {
-			args = append(args, "-vf", "scale=720:480,setsar=1", "-r", "30000/1001", "-pix_fmt", "yuv420p", "-aspect", dvdAspect)
-			args = append(args, "-target", "ntsc-dvd")
+			args = append(args,
+				"-vf", "scale=720:480,setsar=1",
+				"-r", "30000/1001",
+				"-pix_fmt", "yuv420p",
+				"-aspect", dvdAspect,
+				"-b:v", "5000k",      // DVD video bitrate
+				"-maxrate", "8000k",  // DVD max bitrate
+				"-bufsize", "1835008", // DVD buffer size
+				"-f", "dvd",          // DVD format
+			)
 		} else {
-			args = append(args, "-vf", "scale=720:576,setsar=1", "-r", "25", "-pix_fmt", "yuv420p", "-aspect", dvdAspect)
-			args = append(args, "-target", "pal-dvd")
+			args = append(args,
+				"-vf", "scale=720:576,setsar=1",
+				"-r", "25",
+				"-pix_fmt", "yuv420p",
+				"-aspect", dvdAspect,
+				"-b:v", "5000k",      // DVD video bitrate
+				"-maxrate", "8000k",  // DVD max bitrate
+				"-bufsize", "1835008", // DVD buffer size
+				"-f", "dvd",          // DVD format
+			)
 		}
 
 	case "dvd-ntsc-169", "dvd-ntsc-43", "dvd-pal-169", "dvd-pal-43":
 		// Legacy DVD formats for backward compatibility
-		// Force MPEG-2 / AC-3
+		// Note: Don't use -target flags as they strip metadata including chapters
 		args = append(args,
 			"-c:v", "mpeg2video",
 			"-c:a", "ac3",
@@ -2606,13 +2623,27 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 			aspect = "4:3"
 		}
 		if strings.Contains(format, "ntsc") {
-			args = append(args, "-vf", "scale=720:480,setsar=1", "-r", "30000/1001", "-pix_fmt", "yuv420p", "-aspect", aspect)
+			args = append(args,
+				"-vf", "scale=720:480,setsar=1",
+				"-r", "30000/1001",
+				"-pix_fmt", "yuv420p",
+				"-aspect", aspect,
+				"-b:v", "5000k",
+				"-maxrate", "8000k",
+				"-bufsize", "1835008",
+				"-f", "dvd",
+			)
 		} else {
-			args = append(args, "-vf", "scale=720:576,setsar=1", "-r", "25", "-pix_fmt", "yuv420p", "-aspect", aspect)
-		}
-		args = append(args, "-target", "ntsc-dvd")
-		if strings.Contains(format, "pal") {
-			args[len(args)-1] = "pal-dvd"
+			args = append(args,
+				"-vf", "scale=720:576,setsar=1",
+				"-r", "25",
+				"-pix_fmt", "yuv420p",
+				"-aspect", aspect,
+				"-b:v", "5000k",
+				"-maxrate", "8000k",
+				"-bufsize", "1835008",
+				"-f", "dvd",
+			)
 		}
 	case "bd-h264":
 		args = append(args,
