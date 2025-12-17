@@ -10313,9 +10313,6 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	)
 
 	// Bottom bar with module color
-	queueBtn := widget.NewButton("View Queue", func() {
-		state.showQueue()
-	})
 	statusLabel := widget.NewLabel("Idle")
 	statusLabel.Alignment = fyne.TextAlignCenter
 
