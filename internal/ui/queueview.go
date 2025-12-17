@@ -51,12 +51,12 @@ func (s *stripedProgress) CreateRenderer() fyne.WidgetRenderer {
 	fillRect := canvas.NewRectangle(applyAlpha(s.color, 200))
 	stripes := canvas.NewRaster(func(w, h int) image.Image {
 		img := image.NewRGBA(image.Rect(0, 0, w, h))
-		light := applyAlpha(s.color, 60)
-		dark := applyAlpha(s.color, 200)
+		light := applyAlpha(s.color, 80)
+		dark := applyAlpha(s.color, 220)
 		for y := 0; y < h; y++ {
 			for x := 0; x < w; x++ {
 				// animate diagonal stripes using offset
-				if (((x + y) + int(s.offset)) / 6 % 2) == 0 {
+				if (((x + y) + int(s.offset)) / 4 % 2) == 0 {
 					img.Set(x, y, light)
 				} else {
 					img.Set(x, y, dark)
@@ -106,9 +106,10 @@ func (r *stripedProgressRenderer) MinSize() fyne.Size {
 
 func (r *stripedProgressRenderer) Refresh() {
 	// small drift to animate stripes
-	r.bar.offset += 1
+	r.bar.offset += 2
 	r.Layout(r.bg.Size())
 	canvas.Refresh(r.bg)
+	canvas.Refresh(r.stripes)
 }
 
 func (r *stripedProgressRenderer) BackgroundColor() color.Color { return color.Transparent }
