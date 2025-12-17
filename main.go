@@ -3694,6 +3694,10 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	method := cfg["method"].(string)
 	targetWidth := int(cfg["targetWidth"].(float64))
 	targetHeight := int(cfg["targetHeight"].(float64))
+	preserveAR := true
+	if v, ok := cfg["preserveAR"].(bool); ok {
+		preserveAR = v
+	}
 	// useAI := cfg["useAI"].(bool) // TODO: Implement AI upscaling in future
 	applyFilters := cfg["applyFilters"].(bool)
 
@@ -3715,8 +3719,8 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		}
 	}
 
-	// Add scale filter
-	scaleFilter := buildUpscaleFilter(targetWidth, targetHeight, method)
+	// Add scale filter (preserve aspect by default)
+	scaleFilter := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
 	filters = append(filters, scaleFilter)
 
 	// Combine filters
@@ -3737,12 +3741,13 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		args = append(args, "-vf", vfilter)
 	}
 
-	// Use same video codec as source, but with high quality settings
+	// Use lossless MKV by default for upscales; copy audio
 	args = append(args,
 		"-c:v", "libx264",
 		"-preset", "slow",
-		"-crf", "18",
-		"-c:a", "copy", // Copy audio without re-encoding
+		"-crf", "0", // lossless
+		"-pix_fmt", "yuv420p",
+		"-c:a", "copy",
 		outputPath,
 	)
 
@@ -10938,7 +10943,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		state.upscaleMethod = "lanczos" // Best general-purpose traditional method
 	}
 	if state.upscaleTargetRes == "" {
-		state.upscaleTargetRes = "1080p"
+		state.upscaleTargetRes = "Match Source"
 	}
 	if state.upscaleAIModel == "" {
 		state.upscaleAIModel = "realesrgan" // General purpose AI model
@@ -11032,6 +11037,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	// Resolution Selection Section
 	resLabel := widget.NewLabel(fmt.Sprintf("Target: %s", state.upscaleTargetRes))
 	resSelect := widget.NewSelect([]string{
+		"Match Source",
+		"2X (relative)",
+		"4X (relative)",
 		"720p (1280x720)",
 		"1080p (1920x1080)",
 		"1440p (2560x1440)",
@@ -11113,8 +11121,8 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			return nil, fmt.Errorf("no video loaded")
 		}
 
-		// Parse target resolution
-		targetWidth, targetHeight, err := parseResolutionPreset(state.upscaleTargetRes)
+		// Parse target resolution (preserve aspect by default)
+		targetWidth, targetHeight, preserveAspect, err := parseResolutionPreset(state.upscaleTargetRes, state.upscaleFile.Width, state.upscaleFile.Height)
 		if err != nil {
 			return nil, fmt.Errorf("invalid resolution: %w", err)
 		}
@@ -11122,8 +11130,12 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		// Build output path
 		videoDir := filepath.Dir(state.upscaleFile.Path)
 		videoBaseName := strings.TrimSuffix(filepath.Base(state.upscaleFile.Path), filepath.Ext(state.upscaleFile.Path))
-		outputPath := filepath.Join(videoDir, fmt.Sprintf("%s_upscaled_%s_%s.mp4",
-			videoBaseName, state.upscaleTargetRes[:strings.Index(state.upscaleTargetRes, " ")], state.upscaleMethod))
+		slug := sanitizeForPath(state.upscaleTargetRes)
+		if slug == "" {
+			slug = "source"
+		}
+		outputPath := filepath.Join(videoDir, fmt.Sprintf("%s_upscaled_%s_%s.mkv",
+			videoBaseName, slug, state.upscaleMethod))
 
 		// Build description
 		description := fmt.Sprintf("Upscale to %s using %s", state.upscaleTargetRes, state.upscaleMethod)
@@ -11141,6 +11153,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 				"method":       state.upscaleMethod,
 				"targetWidth":  float64(targetWidth),
 				"targetHeight": float64(targetHeight),
+				"preserveAR":   preserveAspect,
 				"useAI":        state.upscaleAIEnabled && state.upscaleAIAvailable,
 				"aiModel":      state.upscaleAIModel,
 				"applyFilters": state.upscaleApplyFilters,
@@ -11237,10 +11250,25 @@ func checkAIUpscaleAvailable() bool {
 	return false
 }
 
-// parseResolutionPreset parses resolution preset strings like "1080p (1920x1080)" to width and height
-func parseResolutionPreset(preset string) (width, height int, err error) {
-	// Extract dimensions from preset string
-	// Format: "1080p (1920x1080)" or "4K (3840x2160)"
+// parseResolutionPreset parses resolution preset strings and returns target dimensions and whether to preserve aspect.
+// Special presets like "Match Source" and relative (2X/4X) use source dimensions to preserve AR.
+func parseResolutionPreset(preset string, srcW, srcH int) (width, height int, preserveAspect bool, err error) {
+	// Default: preserve aspect
+	preserveAspect = true
+
+	// Sanitize source
+	if srcW < 1 || srcH < 1 {
+		srcW, srcH = 1920, 1080 // fallback to avoid zero division
+	}
+
+	switch preset {
+	case "", "Match Source":
+		return srcW, srcH, true, nil
+	case "2X (relative)":
+		return srcW * 2, srcH * 2, true, nil
+	case "4X (relative)":
+		return srcW * 4, srcH * 4, true, nil
+	}
 
 	presetMap := map[string][2]int{
 		"720p (1280x720)":   {1280, 720},
@@ -11256,17 +11284,35 @@ func parseResolutionPreset(preset string) (width, height int, err error) {
 	}
 
 	if dims, ok := presetMap[preset]; ok {
-		return dims[0], dims[1], nil
+		// Keep aspect by default: use target height and let FFmpeg derive width
+		return dims[0], dims[1], true, nil
 	}
 
-	return 0, 0, fmt.Errorf("unknown resolution preset: %s", preset)
+	return 0, 0, true, fmt.Errorf("unknown resolution preset: %s", preset)
 }
 
 // buildUpscaleFilter builds the FFmpeg scale filter string with the selected method
-func buildUpscaleFilter(targetWidth, targetHeight int, method string) string {
-	// Build scale filter with method (flags parameter)
-	// Format: scale=width:height:flags=method
-	return fmt.Sprintf("scale=%d:%d:flags=%s", targetWidth, targetHeight, method)
+func buildUpscaleFilter(targetWidth, targetHeight int, method string, preserveAspect bool) string {
+	// Ensure even dimensions for encoders
+	makeEven := func(v int) int {
+		if v%2 != 0 {
+			return v + 1
+		}
+		return v
+	}
+
+	h := makeEven(targetHeight)
+	w := targetWidth
+	if preserveAspect || w <= 0 {
+		w = -2 // FFmpeg will derive width from height while preserving AR
+	}
+	return fmt.Sprintf("scale=%d:%d:flags=%s", w, h, method)
+}
+
+// sanitizeForPath creates a simple slug for filenames from user-visible labels
+func sanitizeForPath(label string) string {
+	r := strings.NewReplacer(" ", "", "(", "", ")", "", "×", "x", "/", "-", "\\", "-", ":", "-", ",", "", ".", "", "_", "")
+	return strings.ToLower(r.Replace(label))
 }
 
 // buildCompareFullscreenView creates fullscreen side-by-side comparison with synchronized controls
