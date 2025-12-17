@@ -167,7 +167,7 @@ func (q *Queue) List() []*Job {
 }
 
 // Stats returns queue statistics
-func (q *Queue) Stats() (pending, running, completed, failed int) {
+func (q *Queue) Stats() (pending, running, completed, failed, cancelled int) {
 	q.mu.RLock()
 	defer q.mu.RUnlock()
 
@@ -179,8 +179,10 @@ func (q *Queue) Stats() (pending, running, completed, failed int) {
 			running++
 		case JobStatusCompleted:
 			completed++
-		case JobStatusFailed, JobStatusCancelled:
+		case JobStatusFailed:
 			failed++
+		case JobStatusCancelled:
+			cancelled++
 		}
 	}
 	return
