@@ -632,14 +632,16 @@ type appState struct {
 	autoCompare               bool // Auto-load Compare module after conversion
 
 	// Merge state
-	mergeClips     []mergeClip
-	mergeFormat    string
-	mergeOutput    string
-	mergeKeepAll   bool
-	mergeCodecMode string
-	mergeChapters  bool
-	mergeDVDRegion string // "NTSC" or "PAL"
-	mergeDVDAspect string // "16:9" or "4:3"
+	mergeClips               []mergeClip
+	mergeFormat              string
+	mergeOutput              string
+	mergeKeepAll             bool
+	mergeCodecMode           string
+	mergeChapters            bool
+	mergeDVDRegion           string // "NTSC" or "PAL"
+	mergeDVDAspect           string // "16:9" or "4:3"
+	mergeFrameRate           string // Source, 24, 30, 60, or custom
+	mergeMotionInterpolation bool   // Use motion interpolation for frame rate changes
 
 	// Thumbnail module state
 	thumbFile           *videoSource
@@ -2055,6 +2057,9 @@ func (s *appState) showMergeView() {
 	if s.mergeDVDAspect == "" {
 		s.mergeDVDAspect = "16:9"
 	}
+	if s.mergeFrameRate == "" {
+		s.mergeFrameRate = "Source"
+	}
 
 	backBtn := widget.NewButton("< MERGE", func() {
 		s.showMainMenu()
@@ -2308,6 +2313,23 @@ func (s *appState) showMergeView() {
 		dvdOptionsContainer.Hide()
 	}
 
+	// Frame Rate controls
+	frameRateSelect := widget.NewSelect([]string{"Source", "23.976", "24", "25", "29.97", "30", "50", "59.94", "60"}, func(val string) {
+		s.mergeFrameRate = val
+	})
+	frameRateSelect.SetSelected(s.mergeFrameRate)
+
+	motionInterpCheck := widget.NewCheck("Use Motion Interpolation (slower, smoother)", func(checked bool) {
+		s.mergeMotionInterpolation = checked
+	})
+	motionInterpCheck.SetChecked(s.mergeMotionInterpolation)
+
+	frameRateRow := container.NewVBox(
+		widget.NewLabel("Frame Rate"),
+		frameRateSelect,
+		motionInterpCheck,
+	)
+
 	browseOut := widget.NewButton("Browse", func() {
 		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if err != nil || writer == nil {
@@ -2375,6 +2397,9 @@ func (s *appState) showMergeView() {
 		widget.NewLabel("Format"),
 		formatSelect,
 		dvdOptionsContainer,
+		widget.NewSeparator(),
+		frameRateRow,
+		widget.NewSeparator(),
 		keepAllCheck,
 		chapterCheck,
 		widget.NewSeparator(),
@@ -2435,14 +2460,16 @@ func (s *appState) addMergeToQueue(startNow bool) error {
 	}
 
 	config := map[string]interface{}{
-		"clips":          clips,
-		"format":         s.mergeFormat,
-		"keepAllStreams": s.mergeKeepAll,
-		"chapters":       s.mergeChapters,
-		"codecMode":      s.mergeCodecMode,
-		"outputPath":     s.mergeOutput,
-		"dvdRegion":      s.mergeDVDRegion,
-		"dvdAspect":      s.mergeDVDAspect,
+		"clips":                 clips,
+		"format":                s.mergeFormat,
+		"keepAllStreams":        s.mergeKeepAll,
+		"chapters":              s.mergeChapters,
+		"codecMode":             s.mergeCodecMode,
+		"outputPath":            s.mergeOutput,
+		"dvdRegion":             s.mergeDVDRegion,
+		"dvdAspect":             s.mergeDVDAspect,
+		"frameRate":             s.mergeFrameRate,
+		"useMotionInterpolation": s.mergeMotionInterpolation,
 	}
 
 	job := &queue.Job{
@@ -2722,6 +2749,21 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 	default:
 		// Fallback to copy
 		args = append(args, "-c", "copy")
+	}
+
+	// Frame rate handling (for non-DVD formats that don't lock frame rate)
+	frameRate, _ := cfg["frameRate"].(string)
+	useMotionInterp, _ := cfg["useMotionInterpolation"].(bool)
+	if frameRate != "" && frameRate != "Source" && format != "dvd" && !strings.HasPrefix(format, "dvd-") {
+		// Build frame rate filter
+		var frFilter string
+		if useMotionInterp {
+			frFilter = fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1", frameRate)
+		} else {
+			frFilter = "fps=" + frameRate
+		}
+		// Add as separate filter
+		args = append(args, "-vf", frFilter)
 	}
 
 	// Add progress output for live updates (must be before output path)
@@ -5458,6 +5500,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		simpleBitrateSelect,
 		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelectSimple,
+		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		frameRateSelect,
+		motionInterpCheck,
 		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelectSimple,
 		targetAspectHint,
