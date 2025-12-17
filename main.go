@@ -617,6 +617,8 @@ type appState struct {
 	mergeKeepAll   bool
 	mergeCodecMode string
 	mergeChapters  bool
+	mergeDVDRegion string // "NTSC" or "PAL"
+	mergeDVDAspect string // "16:9" or "4:3"
 
 	// Thumbnail module state
 	thumbFile           *videoSource
@@ -2010,6 +2012,12 @@ func (s *appState) showMergeView() {
 	if s.mergeFormat == "" {
 		s.mergeFormat = "mkv-copy"
 	}
+	if s.mergeDVDRegion == "" {
+		s.mergeDVDRegion = "NTSC"
+	}
+	if s.mergeDVDAspect == "" {
+		s.mergeDVDAspect = "16:9"
+	}
 
 	backBtn := widget.NewButton("< MERGE", func() {
 		s.showMainMenu()
@@ -2150,22 +2158,22 @@ func (s *appState) showMergeView() {
 	}
 
 	formatMap := map[string]string{
-		"MKV (Copy streams)": "mkv-copy",
-		"MKV (H.264)":        "mkv-h264",
-		"MKV (H.265)":        "mkv-h265",
-		"MP4 (H.264)":        "mp4-h264",
-		"MP4 (H.265)":        "mp4-h265",
-		"DVD NTSC 16:9":      "dvd-ntsc-169",
-		"DVD NTSC 4:3":       "dvd-ntsc-43",
-		"DVD PAL 16:9":       "dvd-pal-169",
-		"DVD PAL 4:3":        "dvd-pal-43",
-		"Blu-ray (H.264)":    "bd-h264",
+		"Fast Merge (No Re-encoding)": "mkv-copy",
+		"Lossless MKV (Best Quality)":  "mkv-lossless",
+		"High Quality MP4 (H.264)":     "mp4-h264",
+		"High Quality MP4 (H.265)":     "mp4-h265",
+		"DVD Format":                   "dvd",
+		"Blu-ray Format":               "bd-h264",
 	}
-	var formatKeys []string
-	for k := range formatMap {
-		formatKeys = append(formatKeys, k)
+	// Maintain order for dropdown
+	formatKeys := []string{
+		"Fast Merge (No Re-encoding)",
+		"Lossless MKV (Best Quality)",
+		"High Quality MP4 (H.264)",
+		"High Quality MP4 (H.265)",
+		"DVD Format",
+		"Blu-ray Format",
 	}
-	slices.Sort(formatKeys)
 
 	keepAllCheck := widget.NewCheck("Keep all audio/subtitle tracks", func(v bool) {
 		s.mergeKeepAll = v
@@ -2198,19 +2206,49 @@ func (s *appState) showMergeView() {
 		}
 	}
 
+	// DVD-specific options
+	dvdRegionSelect := widget.NewSelect([]string{"NTSC", "PAL"}, func(val string) {
+		s.mergeDVDRegion = val
+	})
+	dvdRegionSelect.SetSelected(s.mergeDVDRegion)
+
+	dvdAspectSelect := widget.NewSelect([]string{"16:9", "4:3"}, func(val string) {
+		s.mergeDVDAspect = val
+	})
+	dvdAspectSelect.SetSelected(s.mergeDVDAspect)
+
+	dvdOptionsRow := container.NewHBox(
+		widget.NewLabel("Region:"),
+		dvdRegionSelect,
+		widget.NewLabel("Aspect:"),
+		dvdAspectSelect,
+	)
+
+	// Container for DVD options (can be shown/hidden)
+	dvdOptionsContainer := container.NewVBox(dvdOptionsRow)
+
 	// Create format selector (after outputEntry and updateOutputExt are defined)
 	formatSelect := widget.NewSelect(formatKeys, func(val string) {
 		s.mergeFormat = formatMap[val]
+
+		// Show/hide DVD options based on selection
+		if s.mergeFormat == "dvd" {
+			dvdOptionsContainer.Show()
+		} else {
+			dvdOptionsContainer.Hide()
+		}
 
 		// Set default output path if not set
 		if s.mergeOutput == "" && len(s.mergeClips) > 0 {
 			dir := filepath.Dir(s.mergeClips[0].Path)
 			ext := getExtForFormat(s.mergeFormat)
 			basename := "merged"
-			if strings.HasPrefix(s.mergeFormat, "dvd") {
+			if strings.HasPrefix(s.mergeFormat, "dvd") || s.mergeFormat == "dvd" {
 				basename = "merged-dvd"
 			} else if strings.HasPrefix(s.mergeFormat, "bd") {
 				basename = "merged-bd"
+			} else if s.mergeFormat == "mkv-lossless" {
+				basename = "merged-lossless"
 			}
 			s.mergeOutput = filepath.Join(dir, basename+ext)
 			outputEntry.SetText(s.mergeOutput)
@@ -2224,6 +2262,13 @@ func (s *appState) showMergeView() {
 			formatSelect.SetSelected(label)
 			break
 		}
+	}
+
+	// Initialize DVD options visibility
+	if s.mergeFormat == "dvd" {
+		dvdOptionsContainer.Show()
+	} else {
+		dvdOptionsContainer.Hide()
 	}
 
 	browseOut := widget.NewButton("Browse", func() {
@@ -2292,6 +2337,7 @@ func (s *appState) showMergeView() {
 		widget.NewLabelWithStyle("Output Options", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Format"),
 		formatSelect,
+		dvdOptionsContainer,
 		keepAllCheck,
 		chapterCheck,
 		widget.NewSeparator(),
@@ -2358,6 +2404,8 @@ func (s *appState) addMergeToQueue(startNow bool) error {
 		"chapters":       s.mergeChapters,
 		"codecMode":      s.mergeCodecMode,
 		"outputPath":     s.mergeOutput,
+		"dvdRegion":      s.mergeDVDRegion,
+		"dvdAspect":      s.mergeDVDAspect,
 	}
 
 	job := &queue.Job{
@@ -2503,7 +2551,35 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 
 	// Output profile
 	switch format {
+	case "dvd":
+		// Get DVD-specific settings from config
+		dvdRegion, _ := cfg["dvdRegion"].(string)
+		dvdAspect, _ := cfg["dvdAspect"].(string)
+		if dvdRegion == "" {
+			dvdRegion = "NTSC"
+		}
+		if dvdAspect == "" {
+			dvdAspect = "16:9"
+		}
+
+		// Force MPEG-2 / AC-3
+		args = append(args,
+			"-c:v", "mpeg2video",
+			"-c:a", "ac3",
+			"-b:a", "192k",
+			"-max_muxing_queue_size", "1024",
+		)
+
+		if dvdRegion == "NTSC" {
+			args = append(args, "-vf", "scale=720:480,setsar=1", "-r", "30000/1001", "-pix_fmt", "yuv420p", "-aspect", dvdAspect)
+			args = append(args, "-target", "ntsc-dvd")
+		} else {
+			args = append(args, "-vf", "scale=720:576,setsar=1", "-r", "25", "-pix_fmt", "yuv420p", "-aspect", dvdAspect)
+			args = append(args, "-target", "pal-dvd")
+		}
+
 	case "dvd-ntsc-169", "dvd-ntsc-43", "dvd-pal-169", "dvd-pal-43":
+		// Legacy DVD formats for backward compatibility
 		// Force MPEG-2 / AC-3
 		args = append(args,
 			"-c:v", "mpeg2video",
@@ -2548,6 +2624,14 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 			"-preset", "medium",
 			"-crf", "28",
 			"-c:a", "copy",
+		)
+	case "mkv-lossless":
+		// Lossless MKV with best quality settings
+		args = append(args,
+			"-c:v", "libx264",
+			"-preset", "slow",
+			"-crf", "18",
+			"-c:a", "flac",
 		)
 	case "mp4-h264":
 		args = append(args,
