@@ -1372,8 +1372,33 @@ func (s *appState) showMainMenu() {
 	// Build sidebar if visible
 	var sidebar fyne.CanvasObject
 	if s.sidebarVisible {
+		// Get active jobs from queue (running/pending)
+		var activeJobs []ui.HistoryEntry
+		if s.jobQueue != nil {
+			for _, job := range s.jobQueue.List() {
+				if job.Status == queue.JobStatusRunning || job.Status == queue.JobStatusPending {
+					// Convert queue.Job to ui.HistoryEntry
+					entry := ui.HistoryEntry{
+						ID:         job.ID,
+						Type:       job.Type,
+						Status:     job.Status,
+						Title:      job.Title,
+						InputFile:  job.InputFile,
+						OutputFile: job.OutputFile,
+						LogPath:    job.LogPath,
+						Config:     job.Config,
+						CreatedAt:  job.CreatedAt,
+						StartedAt:  job.StartedAt,
+						Error:      job.Error,
+					}
+					activeJobs = append(activeJobs, entry)
+				}
+			}
+		}
+
 		sidebar = ui.BuildHistorySidebar(
 			s.historyEntries,
+			activeJobs,
 			s.showHistoryDetails,
 			s.deleteHistoryEntry,
 			titleColor,

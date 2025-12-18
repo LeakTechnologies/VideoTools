@@ -153,6 +153,7 @@ func sortedKeys(m map[string][]fyne.CanvasObject) []string {
 // BuildHistorySidebar creates the history sidebar with tabs
 func BuildHistorySidebar(
 	entries []HistoryEntry,
+	activeJobs []HistoryEntry,
 	onEntryClick func(HistoryEntry),
 	onEntryDelete func(HistoryEntry),
 	titleColor, bgColor, textColor color.Color,
@@ -168,11 +169,13 @@ func BuildHistorySidebar(
 	}
 
 	// Build lists
+	inProgressList := buildHistoryList(activeJobs, onEntryClick, nil, bgColor, textColor) // No delete for active jobs
 	completedList := buildHistoryList(completedEntries, onEntryClick, onEntryDelete, bgColor, textColor)
 	failedList := buildHistoryList(failedEntries, onEntryClick, onEntryDelete, bgColor, textColor)
 
-	// Tabs
+	// Tabs - In Progress first for quick visibility
 	tabs := container.NewAppTabs(
+		container.NewTabItem("In Progress", container.NewVScroll(inProgressList)),
 		container.NewTabItem("Completed", container.NewVScroll(completedList)),
 		container.NewTabItem("Failed", container.NewVScroll(failedList)),
 	)
@@ -220,20 +223,37 @@ func buildHistoryItem(
 	// Capture entry for closures
 	capturedEntry := entry
 
-	// Delete button - small "×" button
-	deleteBtn := widget.NewButton("×", func() {
-		onEntryDelete(capturedEntry)
-	})
-	deleteBtn.Importance = widget.LowImportance
+	// Build header row with badge and optional delete button
+	headerItems := []fyne.CanvasObject{badge, layout.NewSpacer()}
+	if onEntryDelete != nil {
+		// Delete button - small "×" button (only for completed/failed)
+		deleteBtn := widget.NewButton("×", func() {
+			onEntryDelete(capturedEntry)
+		})
+		deleteBtn.Importance = widget.LowImportance
+		headerItems = append(headerItems, deleteBtn)
+	}
 
 	// Title
 	titleLabel := widget.NewLabel(utils.ShortenMiddle(entry.Title, 25))
 	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	// Timestamp
-	timeStr := "Unknown"
-	if entry.CompletedAt != nil {
-		timeStr = entry.CompletedAt.Format("Jan 2, 15:04")
+	// Timestamp or status info
+	var timeStr string
+	if entry.Status == queue.JobStatusRunning || entry.Status == queue.JobStatusPending {
+		// For in-progress jobs, show status
+		if entry.Status == queue.JobStatusRunning {
+			timeStr = "Running..."
+		} else {
+			timeStr = "Pending"
+		}
+	} else {
+		// For completed/failed jobs, show timestamp
+		if entry.CompletedAt != nil {
+			timeStr = entry.CompletedAt.Format("Jan 2, 15:04")
+		} else {
+			timeStr = "Unknown"
+		}
 	}
 	timeLabel := widget.NewLabel(timeStr)
 	timeLabel.TextStyle = fyne.TextStyle{Monospace: true}
@@ -246,7 +266,7 @@ func buildHistoryItem(
 	content := container.NewBorder(
 		nil, nil, statusRect, nil,
 		container.NewVBox(
-			container.NewHBox(badge, layout.NewSpacer(), deleteBtn),
+			container.NewHBox(headerItems...),
 			titleLabel,
 			timeLabel,
 		),
