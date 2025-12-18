@@ -349,15 +349,18 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 		}()
 	}
 
+	var d dialog.Dialog
 	closeBtn := widget.NewButton("Close", func() {
-		close(stop)
+		if d != nil {
+			d.Hide()
+		}
 	})
 	copyBtn := widget.NewButton("Copy All", func() {
 		s.window.Clipboard().SetContent(text.Text)
 	})
 	buttons := container.NewHBox(copyBtn, layout.NewSpacer(), closeBtn)
 	content := container.NewBorder(nil, buttons, nil, nil, scroll)
-	d := dialog.NewCustom(title, "Close", content, s.window)
+	d = dialog.NewCustom(title, "Close", content, s.window)
 	d.SetOnClosed(func() { close(stop) })
 	d.Show()
 }
@@ -863,17 +866,6 @@ Config:
 	detailsLabel := widget.NewLabel(details)
 	detailsLabel.Wrapping = fyne.TextWrapWord
 
-	// FFmpeg Command section
-	var ffmpegSection fyne.CanvasObject
-	if entry.FFmpegCmd != "" {
-		cmdWidget := ui.NewFFmpegCommandWidget(entry.FFmpegCmd, s.window)
-		ffmpegSection = container.NewVBox(
-			widget.NewSeparator(),
-			widget.NewLabel("FFmpeg Command:"),
-			cmdWidget,
-		)
-	}
-
 	// Buttons
 	var buttons []fyne.CanvasObject
 
@@ -899,23 +891,36 @@ Config:
 	closeBtn := widget.NewButton("Close", nil)
 	buttons = append(buttons, layout.NewSpacer(), closeBtn)
 
-	// Layout
-	contentVBox := container.NewVBox(
-		container.NewVScroll(detailsLabel),
-	)
-	if ffmpegSection != nil {
-		contentVBox.Add(ffmpegSection)
+	// Job details in scrollable area
+	detailsScroll := container.NewVScroll(detailsLabel)
+	detailsScroll.SetMinSize(fyne.NewSize(650, 250))
+
+	// FFmpeg Command section at bottom
+	var ffmpegSection fyne.CanvasObject
+	if entry.FFmpegCmd != "" {
+		cmdWidget := ui.NewFFmpegCommandWidget(entry.FFmpegCmd, s.window)
+		cmdLabel := widget.NewLabel("FFmpeg Command:")
+		cmdLabel.TextStyle = fyne.TextStyle{Bold: true}
+		ffmpegSection = container.NewVBox(
+			widget.NewSeparator(),
+			cmdLabel,
+			cmdWidget,
+		)
 	}
 
+	// Layout: details at top (scrollable), FFmpeg at bottom (fixed)
 	content := container.NewBorder(
-		nil,
-		container.NewHBox(buttons...),
+		detailsScroll,             // Top: job details (scrollable, takes priority)
+		container.NewVBox(         // Bottom: FFmpeg command (fixed)
+			ffmpegSection,
+			container.NewHBox(buttons...),
+		),
 		nil, nil,
-		contentVBox,
+		nil, // No center content - top and bottom fill the space
 	)
 
 	d := dialog.NewCustom("Job Details", "Close", content, s.window)
-	d.Resize(fyne.NewSize(700, 600))
+	d.Resize(fyne.NewSize(750, 650))
 	closeBtn.OnTapped = func() { d.Hide() }
 	d.Show()
 }
@@ -5951,7 +5956,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				crfContainer.Hide()
 				bitrateContainer.Show()
 				targetSizeContainer.Hide()
-				hint = "VBR mode: Variable bitrate - targets average bitrate. More efficient than CBR. Use 2-pass for accuracy."
+				hint = "VBR mode: Variable bitrate - targets average bitrate with 2x peak cap. Efficient quality. Uses 2-pass encoding."
 			case "Target Size":
 				// Show only target size controls
 				crfContainer.Hide()
@@ -9398,7 +9403,13 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			if vb == "" {
 				vb = defaultBitrate(cfg.VideoCodec, src.Width, sourceBitrate)
 			}
-			args = append(args, "-b:v", vb, "-minrate", vb, "-maxrate", vb, "-bufsize", vb)
+			// Set bufsize to 2x target for better encoder handling
+			bitrateVal, err := utils.ParseInt(strings.TrimSuffix(vb, "k"))
+			bufsize := vb
+			if err == nil {
+				bufsize = fmt.Sprintf("%dk", bitrateVal*2)
+			}
+			args = append(args, "-b:v", vb, "-minrate", vb, "-maxrate", vb, "-bufsize", bufsize)
 		} else if cfg.BitrateMode == "VBR" {
 			// Variable bitrate - use 2-pass for accuracy
 			vb := cfg.VideoBitrate
@@ -9406,11 +9417,12 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				vb = defaultBitrate(cfg.VideoCodec, src.Width, sourceBitrate)
 			}
 			args = append(args, "-b:v", vb)
-			// VBR uses maxrate at ~1.5x target for quality peaks
+			// VBR uses maxrate at 2x target for quality peaks, bufsize at 2x maxrate to enforce cap
 			bitrateVal, err := utils.ParseInt(strings.TrimSuffix(vb, "k"))
 			if err == nil {
-				maxBitrate := fmt.Sprintf("%dk", int(float64(bitrateVal)*1.5))
-				args = append(args, "-maxrate", maxBitrate)
+				maxBitrate := fmt.Sprintf("%dk", bitrateVal*2)
+				bufsize := fmt.Sprintf("%dk", bitrateVal*4)
+				args = append(args, "-maxrate", maxBitrate, "-bufsize", bufsize)
 			}
 			// Force 2-pass for VBR accuracy
 			if !cfg.TwoPass {
