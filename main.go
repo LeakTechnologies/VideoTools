@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"runtime"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -815,6 +816,103 @@ func (s *appState) addToHistory(job *queue.Job) {
 	}
 }
 
+// showHistoryDetails displays detailed information about a history entry
+func (s *appState) showHistoryDetails(entry ui.HistoryEntry) {
+	// Format config
+	var configLines []string
+	for key, value := range entry.Config {
+		configLines = append(configLines, fmt.Sprintf("%s: %v", key, value))
+	}
+	sort.Strings(configLines)
+
+	// Format timestamps
+	createdStr := entry.CreatedAt.Format("2006-01-02 15:04:05")
+	startedStr := "N/A"
+	if entry.StartedAt != nil {
+		startedStr = entry.StartedAt.Format("2006-01-02 15:04:05")
+	}
+	completedStr := "N/A"
+	if entry.CompletedAt != nil {
+		completedStr = entry.CompletedAt.Format("2006-01-02 15:04:05")
+	}
+
+	details := fmt.Sprintf(`Type: %s
+Status: %s
+Input: %s
+Output: %s
+
+Created:   %s
+Started:   %s
+Completed: %s
+
+Config:
+%s`, entry.Type, entry.Status, entry.InputFile, entry.OutputFile,
+		createdStr, startedStr, completedStr, strings.Join(configLines, "\n"))
+
+	if entry.Error != "" {
+		details += fmt.Sprintf("\n\nError:\n%s", entry.Error)
+	}
+
+	detailsLabel := widget.NewLabel(details)
+	detailsLabel.Wrapping = fyne.TextWrapWord
+
+	// FFmpeg Command section
+	var ffmpegSection fyne.CanvasObject
+	if entry.FFmpegCmd != "" {
+		cmdWidget := ui.NewFFmpegCommandWidget(entry.FFmpegCmd, s.window)
+		ffmpegSection = container.NewVBox(
+			widget.NewSeparator(),
+			widget.NewLabel("FFmpeg Command:"),
+			cmdWidget,
+		)
+	}
+
+	// Buttons
+	var buttons []fyne.CanvasObject
+
+	if entry.OutputFile != "" {
+		if _, err := os.Stat(entry.OutputFile); err == nil {
+			buttons = append(buttons, widget.NewButton("Show in Folder", func() {
+				dir := filepath.Dir(entry.OutputFile)
+				if err := openFolder(dir); err != nil {
+					dialog.ShowError(err, s.window)
+				}
+			}))
+		}
+	}
+
+	if entry.LogPath != "" {
+		if _, err := os.Stat(entry.LogPath); err == nil {
+			buttons = append(buttons, widget.NewButton("View Log", func() {
+				s.openLogViewer(entry.Title, entry.LogPath, false)
+			}))
+		}
+	}
+
+	closeBtn := widget.NewButton("Close", nil)
+	buttons = append(buttons, layout.NewSpacer(), closeBtn)
+
+	// Layout
+	contentVBox := container.NewVBox(
+		container.NewVScroll(detailsLabel),
+	)
+	if ffmpegSection != nil {
+		contentVBox.Add(ffmpegSection)
+	}
+
+	content := container.NewBorder(
+		nil,
+		container.NewHBox(buttons...),
+		nil, nil,
+		contentVBox,
+	)
+
+	d := dialog.NewCustom("Job Details", "Close", content, s.window)
+	d.Resize(fyne.NewSize(700, 600))
+	closeBtn.OnTapped = func() { d.Hide() }
+	d.Show()
+}
+
 func (s *appState) stopPreview() {
 	if s.anim != nil {
 		s.anim.Stop()
@@ -1233,6 +1331,18 @@ func (s *appState) showMainMenu() {
 		queueTotal = len(s.jobQueue.List())
 	}
 
+	// Build sidebar if visible
+	var sidebar fyne.CanvasObject
+	if s.sidebarVisible {
+		sidebar = ui.BuildHistorySidebar(
+			s.historyEntries,
+			s.showHistoryDetails,
+			titleColor,
+			utils.MustHex("#1A1F2E"),
+			textColor,
+		)
+	}
+
 	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, func() {
 		logDir := getLogsDir()
 		_ = os.MkdirAll(logDir, 0o755)
@@ -1264,7 +1374,11 @@ func (s *appState) showMainMenu() {
 			viewAppLogBtn,
 		)
 		dialog.ShowCustom("Logs", "Close", logOptions, s.window)
-	}, s.showBenchmark, s.showBenchmarkHistory, titleColor, queueColor, textColor, queueCompleted, queueTotal)
+	}, s.showBenchmark, s.showBenchmarkHistory, func() {
+		// Toggle sidebar
+		s.sidebarVisible = !s.sidebarVisible
+		s.showMainMenu()
+	}, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal)
 
 	// Update stats bar
 	s.updateStatsBar()
