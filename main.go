@@ -694,8 +694,8 @@ type appState struct {
 	compareFile2              *videoSource
 	inspectFile               *videoSource
 	inspectInterlaceResult    *interlace.DetectionResult
-	inspectInterlaceAnalyzing  bool
-	autoCompare                bool // Auto-load Compare module after conversion
+	inspectInterlaceAnalyzing bool
+	autoCompare               bool // Auto-load Compare module after conversion
 	convertCommandPreviewShow bool // Show FFmpeg command preview in Convert module
 
 	// Merge state
@@ -1350,38 +1350,7 @@ func (s *appState) showMainMenu() {
 		)
 	}
 
-	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, func() {
-		logDir := getLogsDir()
-		_ = os.MkdirAll(logDir, 0o755)
-
-		openFolderBtn := widget.NewButton("Open Logs Folder", func() {
-			if err := openFolder(logDir); err != nil {
-				dialog.ShowError(fmt.Errorf("failed to open logs folder: %w", err), s.window)
-			}
-		})
-
-		appLogPath := strings.TrimSpace(logging.FilePath())
-		viewAppLogBtn := widget.NewButton("View App Log", func() {
-			if appLogPath == "" {
-				dialog.ShowInformation("No Log", "No app log file found yet.", s.window)
-				return
-			}
-			s.openLogViewer("App Log", appLogPath, false)
-		})
-		if appLogPath == "" {
-			viewAppLogBtn.Disable()
-		}
-
-		infoLabel := widget.NewLabel(fmt.Sprintf("Logs directory: %s", logDir))
-		infoLabel.Wrapping = fyne.TextWrapWord
-
-		logOptions := container.NewVBox(
-			infoLabel,
-			openFolderBtn,
-			viewAppLogBtn,
-		)
-		dialog.ShowCustom("Logs", "Close", logOptions, s.window)
-	}, s.showBenchmark, s.showBenchmarkHistory, func() {
+	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, s.showBenchmark, s.showBenchmarkHistory, func() {
 		// Toggle sidebar
 		s.sidebarVisible = !s.sidebarVisible
 		s.showMainMenu()
@@ -5144,6 +5113,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		qualitySectionSimple fyne.CanvasObject
 		qualitySectionAdv    fyne.CanvasObject
 		simpleBitrateSelect  *widget.Select
+		crfContainer         *fyne.Container
+		bitrateContainer     *fyne.Container
+		targetSizeContainer  *fyne.Container
 	)
 	var (
 		updateEncodingControls  func()
@@ -5707,6 +5679,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if updateEncodingControls != nil {
 			updateEncodingControls()
 		}
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
 	})
 	bitrateModeSelect.SetSelected(state.convert.BitrateMode)
 
@@ -5716,6 +5691,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	crfEntry.SetText(state.convert.CRF)
 	crfEntry.OnChanged = func(val string) {
 		state.convert.CRF = val
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
 	}
 
 	// Video Bitrate entry (for CBR/VBR)
@@ -5724,7 +5702,23 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoBitrateEntry.SetText(state.convert.VideoBitrate)
 	videoBitrateEntry.OnChanged = func(val string) {
 		state.convert.VideoBitrate = val
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
 	}
+
+	// Create containers for hideable sections
+	crfContainer = container.NewVBox(
+		widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		crfEntry,
+	)
+
+	bitrateContainer = container.NewVBox(
+		widget.NewLabelWithStyle("Video Bitrate (for CBR/VBR)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		videoBitrateEntry,
+		widget.NewLabelWithStyle("Recommended Bitrate Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		bitratePresetSelect,
+	)
 
 	type bitratePreset struct {
 		Label   string
@@ -5869,7 +5863,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	targetFileSizeEntry.SetText(state.convert.TargetFileSize)
 	targetFileSizeEntry.OnChanged = func(val string) {
 		state.convert.TargetFileSize = val
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
 	}
+
+	// Create target size container
+	targetSizeContainer = container.NewVBox(
+		widget.NewLabelWithStyle("Target File Size", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		targetFileSizeSelect,
+		targetFileSizeEntry,
+	)
 
 	encodingHint := widget.NewLabel("")
 	encodingHint.Wrapping = fyne.TextWrapWord
@@ -5909,17 +5913,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		mode := state.convert.BitrateMode
 		isLossless := state.convert.Quality == "Lossless"
 
-		// Default: enable everything
-		crfEntry.Enable()
-		videoBitrateEntry.Enable()
-		targetFileSizeEntry.Enable()
-		targetFileSizeSelect.Enable()
-		bitratePresetSelect.Enable()
-
 		hint := ""
 
 		if isLossless {
-			// Lossless forces CRF 0; ignore bitrate/preset/target size to reduce confusion
+			// Lossless forces CRF 0; hide bitrate/target size
 			if mode != "CRF" {
 				state.convert.BitrateMode = "CRF"
 				bitrateModeSelect.SetSelected("CRF")
@@ -5930,35 +5927,44 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 			state.convert.CRF = "0"
 			crfEntry.Disable()
-			videoBitrateEntry.Disable()
-			targetFileSizeEntry.Disable()
-			targetFileSizeSelect.Disable()
-			bitratePresetSelect.Disable()
+			crfContainer.Show()
+			bitrateContainer.Hide()
+			targetSizeContainer.Hide()
 			hint = "Lossless forces CRF 0 for H.265/AV1; bitrate and target size are ignored."
 		} else {
+			crfEntry.Enable()
 			switch mode {
 			case "CRF", "":
-				videoBitrateEntry.Disable()
-				targetFileSizeEntry.Disable()
-				targetFileSizeSelect.Disable()
-				bitratePresetSelect.Disable()
-				hint = "CRF mode uses the quality preset/CRF only."
-			case "CBR", "VBR":
-				crfEntry.Disable()
-				targetFileSizeEntry.Disable()
-				targetFileSizeSelect.Disable()
-				hint = "Bitrate mode uses the value above; presets auto-fill common choices."
+				// Show only CRF controls
+				crfContainer.Show()
+				bitrateContainer.Hide()
+				targetSizeContainer.Hide()
+				hint = "CRF mode: Constant quality - file size varies. Lower CRF = better quality."
+			case "CBR":
+				// Show only bitrate controls
+				crfContainer.Hide()
+				bitrateContainer.Show()
+				targetSizeContainer.Hide()
+				hint = "CBR mode: Constant bitrate - predictable file size, variable quality. Use for strict size requirements or streaming."
+			case "VBR":
+				// Show only bitrate controls
+				crfContainer.Hide()
+				bitrateContainer.Show()
+				targetSizeContainer.Hide()
+				hint = "VBR mode: Variable bitrate - targets average bitrate. More efficient than CBR. Use 2-pass for accuracy."
 			case "Target Size":
-				crfEntry.Disable()
-				videoBitrateEntry.Disable()
-				bitratePresetSelect.Disable()
-				targetFileSizeEntry.Enable()
-				targetFileSizeSelect.Enable()
-				hint = "Target size calculates bitrate automatically from duration."
+				// Show only target size controls
+				crfContainer.Hide()
+				bitrateContainer.Hide()
+				targetSizeContainer.Show()
+				hint = "Target Size mode: Calculates bitrate to hit exact file size. Best for strict size limits."
 			}
 		}
 
 		encodingHint.SetText(hint)
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
 	}
 	updateEncodingControls()
 
@@ -6319,16 +6325,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		qualitySectionAdv,
 		widget.NewLabelWithStyle("Bitrate Mode", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		bitrateModeSelect,
-		widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		crfEntry,
-		widget.NewLabelWithStyle("Video Bitrate (for CBR/VBR)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		videoBitrateEntry,
-		widget.NewLabelWithStyle("Recommended Bitrate Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		bitratePresetSelect,
+		crfContainer,
+		bitrateContainer,
+		targetSizeContainer,
 		encodingHint,
-		widget.NewLabelWithStyle("Target File Size", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		targetFileSizeSelect,
-		targetFileSizeEntry,
 		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelect,
 		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -6780,41 +6780,41 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		// Build command from current state
 		cfg := state.convert
 		config := map[string]interface{}{
-			"quality":              cfg.Quality,
-			"videoCodec":           cfg.VideoCodec,
-			"encoderPreset":        cfg.EncoderPreset,
-			"crf":                  cfg.CRF,
-			"bitrateMode":          cfg.BitrateMode,
-			"videoBitrate":         cfg.VideoBitrate,
-			"targetFileSize":       cfg.TargetFileSize,
-			"targetResolution":     cfg.TargetResolution,
-			"frameRate":            cfg.FrameRate,
+			"quality":                cfg.Quality,
+			"videoCodec":             cfg.VideoCodec,
+			"encoderPreset":          cfg.EncoderPreset,
+			"crf":                    cfg.CRF,
+			"bitrateMode":            cfg.BitrateMode,
+			"videoBitrate":           cfg.VideoBitrate,
+			"targetFileSize":         cfg.TargetFileSize,
+			"targetResolution":       cfg.TargetResolution,
+			"frameRate":              cfg.FrameRate,
 			"useMotionInterpolation": cfg.UseMotionInterpolation,
-			"pixelFormat":          cfg.PixelFormat,
-			"hardwareAccel":        cfg.HardwareAccel,
-			"h264Profile":          cfg.H264Profile,
-			"h264Level":            cfg.H264Level,
-			"deinterlace":          cfg.Deinterlace,
-			"deinterlaceMethod":    cfg.DeinterlaceMethod,
-			"autoCrop":             cfg.AutoCrop,
-			"cropWidth":            cfg.CropWidth,
-			"cropHeight":           cfg.CropHeight,
-			"cropX":                cfg.CropX,
-			"cropY":                cfg.CropY,
-			"flipHorizontal":       cfg.FlipHorizontal,
-			"flipVertical":         cfg.FlipVertical,
-			"rotation":             cfg.Rotation,
-			"audioCodec":           cfg.AudioCodec,
-			"audioBitrate":         cfg.AudioBitrate,
-			"audioChannels":        cfg.AudioChannels,
-			"normalizeAudio":       cfg.NormalizeAudio,
-			"coverArtPath":         cfg.CoverArtPath,
-			"aspectHandling":       cfg.AspectHandling,
-			"outputAspect":         cfg.OutputAspect,
-			"sourceWidth":          src.Width,
-			"sourceHeight":         src.Height,
-			"sourceDuration":       src.Duration,
-			"fieldOrder":           src.FieldOrder,
+			"pixelFormat":            cfg.PixelFormat,
+			"hardwareAccel":          cfg.HardwareAccel,
+			"h264Profile":            cfg.H264Profile,
+			"h264Level":              cfg.H264Level,
+			"deinterlace":            cfg.Deinterlace,
+			"deinterlaceMethod":      cfg.DeinterlaceMethod,
+			"autoCrop":               cfg.AutoCrop,
+			"cropWidth":              cfg.CropWidth,
+			"cropHeight":             cfg.CropHeight,
+			"cropX":                  cfg.CropX,
+			"cropY":                  cfg.CropY,
+			"flipHorizontal":         cfg.FlipHorizontal,
+			"flipVertical":           cfg.FlipVertical,
+			"rotation":               cfg.Rotation,
+			"audioCodec":             cfg.AudioCodec,
+			"audioBitrate":           cfg.AudioBitrate,
+			"audioChannels":          cfg.AudioChannels,
+			"normalizeAudio":         cfg.NormalizeAudio,
+			"coverArtPath":           cfg.CoverArtPath,
+			"aspectHandling":         cfg.AspectHandling,
+			"outputAspect":           cfg.OutputAspect,
+			"sourceWidth":            src.Width,
+			"sourceHeight":           src.Height,
+			"sourceDuration":         src.Duration,
+			"fieldOrder":             src.FieldOrder,
 		}
 
 		job := &queue.Job{
@@ -9399,9 +9399,21 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			}
 			args = append(args, "-b:v", vb, "-minrate", vb, "-maxrate", vb, "-bufsize", vb)
 		} else if cfg.BitrateMode == "VBR" {
-			// Variable bitrate (2-pass if enabled)
-			if cfg.VideoBitrate != "" {
-				args = append(args, "-b:v", cfg.VideoBitrate)
+			// Variable bitrate - use 2-pass for accuracy
+			vb := cfg.VideoBitrate
+			if vb == "" {
+				vb = defaultBitrate(cfg.VideoCodec, src.Width, sourceBitrate)
+			}
+			args = append(args, "-b:v", vb)
+			// VBR uses maxrate at ~1.5x target for quality peaks
+			bitrateVal, err := utils.ParseInt(strings.TrimSuffix(vb, "k"))
+			if err == nil {
+				maxBitrate := fmt.Sprintf("%dk", int(float64(bitrateVal)*1.5))
+				args = append(args, "-maxrate", maxBitrate)
+			}
+			// Force 2-pass for VBR accuracy
+			if !cfg.TwoPass {
+				cfg.TwoPass = true
 			}
 		} else if cfg.BitrateMode == "Target Size" {
 			// Calculate bitrate from target file size
