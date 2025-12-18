@@ -2,6 +2,72 @@
 
 This file tracks completed features, fixes, and milestones.
 
+## Version 0.1.0-dev19 (2025-12-18) - Convert Module Cleanup & UX Polish
+
+### Features
+- ✅ **History Sidebar Enhancements**
+  - Delete button ("×") on each history entry
+  - Remove individual entries from history
+  - Auto-save and refresh after deletion
+  - Clean, unobtrusive button placement
+
+- ✅ **Command Preview Improvements**
+  - Show/Hide button state based on preview visibility
+  - Disabled when no video source loaded
+  - Displays actual file paths instead of placeholders
+  - Real-time live updates as settings change
+  - Collapsible to save screen space
+
+- ✅ **Format Options Reorganization**
+  - Grouped by codec family (H.264 → H.265 → AV1 → VP9 → ProRes → MPEG-2)
+  - Added descriptive comments for each codec type
+  - Improved dropdown readability and navigation
+  - Easier to find and compare similar formats
+
+- ✅ **Bitrate Mode Clarity**
+  - Descriptive labels in dropdown:
+    - CRF (Constant Rate Factor)
+    - CBR (Constant Bitrate)
+    - VBR (Variable Bitrate)
+    - Target Size (Calculate from file size)
+  - Immediate understanding without documentation
+  - Preserves internal compatibility with short codes
+
+- ✅ **Root Folder Cleanup**
+  - Moved all documentation .md files to docs/ folder
+  - Kept only README.md, TODO.md, DONE.md in root
+  - Cleaner project structure
+  - Better organization for contributors
+
+### Bug Fixes
+- ✅ **Critical Convert Module Crash Fixed**
+  - Fixed nil pointer dereference when opening Convert module
+  - Corrected widget initialization order
+  - bitrateContainer now created after bitratePresetSelect initialized
+  - Eliminated "invalid memory address" panic on startup
+
+- ✅ **Log Viewer Crash Fixed**
+  - Fixed "close of closed channel" panic
+  - Duplicate close handlers removed
+  - Proper dialog cleanup
+
+- ✅ **Bitrate Control Improvements**
+  - CBR: Set bufsize to 2x bitrate for better encoder handling
+  - VBR: Increased maxrate cap from 1.5x to 2x target bitrate
+  - VBR: Added bufsize at 4x target to enforce caps
+  - Prevents runaway bitrates while maintaining quality peaks
+
+### Technical Improvements
+- ✅ **Widget Initialization Order**
+  - Fixed container creation dependencies
+  - All Select widgets initialized before container use
+  - Proper nil checking in UI construction
+
+- ✅ **Bidirectional Label Mapping**
+  - Display labels map to internal storage codes
+  - Config files remain compatible
+  - Clean separation of UI and data layers
+
 ## Version 0.1.0-dev18 (2025-12-15)
 
 ### Features

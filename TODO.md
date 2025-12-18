@@ -1,8 +1,25 @@
-# VideoTools TODO (v0.1.0-dev14 plan)
+# VideoTools TODO (v0.1.0-dev19+ plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Priority Features for dev15 (Post-Windows Compatibility)
+## Current Focus: dev19 - Convert Module Cleanup & Polish
+
+### In Progress
+- [ ] **AI Frame Interpolation Support**
+  - RIFE (Real-Time Intermediate Flow Estimation) - https://github.com/hzwer/ECCV2022-RIFE
+  - FILM (Frame Interpolation for Large Motion) - https://github.com/google-research/frame-interpolation
+  - DAIN (Depth-Aware Video Frame Interpolation) - https://github.com/baowenbo/DAIN
+  - CAIN (Channel Attention Is All You Need) - https://github.com/myungsub/CAIN
+  - Python-based models, need Go bindings or CLI wrappers
+  - Model download/management system
+  - UI controls for model selection
+
+- [ ] **Color Space Preservation**
+  - Fix color space preservation in upscale module
+  - Ensure all conversions preserve color metadata (color_space, color_primaries, color_trc, color_range)
+  - Test with HDR content
+
+## Priority Features for dev20+
 
 ### Quality & Polish Improvements
 - [ ] **UI/UX refinements**
