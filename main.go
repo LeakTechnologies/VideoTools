@@ -4139,6 +4139,278 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	return nil
 }
 
+// buildFFmpegCommandFromJob builds an FFmpeg command string from a queue job with INPUT/OUTPUT placeholders
+func buildFFmpegCommandFromJob(job *queue.Job) string {
+	if job == nil || job.Config == nil {
+		return ""
+	}
+
+	cfg := job.Config
+	args := []string{"-y", "-hide_banner", "-loglevel", "error"}
+
+	// Input
+	args = append(args, "-i", "INPUT")
+
+	// Cover art if present (convert jobs only)
+	if job.Type == queue.JobTypeConvert {
+		if coverArtPath, _ := cfg["coverArtPath"].(string); coverArtPath != "" {
+			args = append(args, "-i", "[COVER_ART]")
+		}
+	}
+
+	// Hardware acceleration
+	if hardwareAccel, _ := cfg["hardwareAccel"].(string); hardwareAccel != "" && hardwareAccel != "none" {
+		switch hardwareAccel {
+		case "vaapi":
+			args = append(args, "-hwaccel", "vaapi")
+		case "qsv":
+			args = append(args, "-hwaccel", "qsv")
+		case "videotoolbox":
+			args = append(args, "-hwaccel", "videotoolbox")
+		}
+	}
+
+	// Build video filters
+	var vf []string
+
+	// Deinterlacing
+	if deinterlaceMode, _ := cfg["deinterlace"].(string); deinterlaceMode == "Force" {
+		deintMethod, _ := cfg["deinterlaceMethod"].(string)
+		if deintMethod == "" || deintMethod == "bwdif" {
+			vf = append(vf, "bwdif=mode=send_frame:parity=auto")
+		} else {
+			vf = append(vf, "yadif=0:-1:0")
+		}
+	}
+
+	// Cropping
+	if autoCrop, _ := cfg["autoCrop"].(bool); autoCrop {
+		if cropWidth, _ := cfg["cropWidth"].(string); cropWidth != "" {
+			cropHeight, _ := cfg["cropHeight"].(string)
+			cropX, _ := cfg["cropX"].(string)
+			cropY, _ := cfg["cropY"].(string)
+			if cropX == "" {
+				cropX = "(in_w-out_w)/2"
+			}
+			if cropY == "" {
+				cropY = "(in_h-out_h)/2"
+			}
+			vf = append(vf, fmt.Sprintf("crop=%s:%s:%s:%s", cropWidth, cropHeight, cropX, cropY))
+		}
+	}
+
+	// Scaling
+	if targetResolution, _ := cfg["targetResolution"].(string); targetResolution != "" && targetResolution != "Source" {
+		var scaleFilter string
+		switch targetResolution {
+		case "360p":
+			scaleFilter = "scale=-2:360"
+		case "480p":
+			scaleFilter = "scale=-2:480"
+		case "540p":
+			scaleFilter = "scale=-2:540"
+		case "720p":
+			scaleFilter = "scale=-2:720"
+		case "1080p":
+			scaleFilter = "scale=-2:1080"
+		case "1440p":
+			scaleFilter = "scale=-2:1440"
+		case "4K":
+			scaleFilter = "scale=-2:2160"
+		case "8K":
+			scaleFilter = "scale=-2:4320"
+		}
+		if scaleFilter != "" {
+			vf = append(vf, scaleFilter)
+		}
+	}
+
+	// Aspect ratio handling (simplified)
+	if outputAspect, _ := cfg["outputAspect"].(string); outputAspect != "" && outputAspect != "Source" {
+		aspectHandling, _ := cfg["aspectHandling"].(string)
+		if aspectHandling == "letterbox" {
+			vf = append(vf, fmt.Sprintf("pad=iw:iw*(%s/(sar*dar)):(ow-iw)/2:(oh-ih)/2", outputAspect))
+		} else if aspectHandling == "crop" {
+			vf = append(vf, "crop=iw:iw/("+outputAspect+"):0:(ih-oh)/2")
+		}
+	}
+
+	// Flipping
+	if flipH, _ := cfg["flipHorizontal"].(bool); flipH {
+		vf = append(vf, "hflip")
+	}
+	if flipV, _ := cfg["flipVertical"].(bool); flipV {
+		vf = append(vf, "vflip")
+	}
+
+	// Rotation
+	if rotation, _ := cfg["rotation"].(string); rotation != "" && rotation != "0" {
+		switch rotation {
+		case "90":
+			vf = append(vf, "transpose=1")
+		case "180":
+			vf = append(vf, "transpose=1,transpose=1")
+		case "270":
+			vf = append(vf, "transpose=2")
+		}
+	}
+
+	// Frame rate
+	if frameRate, _ := cfg["frameRate"].(string); frameRate != "" && frameRate != "Source" {
+		useMotionInterp, _ := cfg["useMotionInterpolation"].(bool)
+		if useMotionInterp {
+			vf = append(vf, fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1", frameRate))
+		} else {
+			vf = append(vf, "fps="+frameRate)
+		}
+	}
+
+	if len(vf) > 0 {
+		args = append(args, "-vf", strings.Join(vf, ","))
+	}
+
+	// Video codec
+	videoCodec, _ := cfg["videoCodec"].(string)
+	if videoCodec == "Copy" {
+		args = append(args, "-c:v", "copy")
+	} else {
+		// Determine codec (simplified)
+		codec := "libx264"
+		hardwareAccel, _ := cfg["hardwareAccel"].(string)
+		switch {
+		case videoCodec == "H.265" && hardwareAccel == "nvenc":
+			codec = "hevc_nvenc"
+		case videoCodec == "H.265" && hardwareAccel == "qsv":
+			codec = "hevc_qsv"
+		case videoCodec == "H.265" && hardwareAccel == "amf":
+			codec = "hevc_amf"
+		case videoCodec == "H.265" && hardwareAccel == "videotoolbox":
+			codec = "hevc_videotoolbox"
+		case videoCodec == "H.265":
+			codec = "libx265"
+		case videoCodec == "H.264" && hardwareAccel == "nvenc":
+			codec = "h264_nvenc"
+		case videoCodec == "H.264" && hardwareAccel == "qsv":
+			codec = "h264_qsv"
+		case videoCodec == "H.264" && hardwareAccel == "amf":
+			codec = "h264_amf"
+		case videoCodec == "H.264" && hardwareAccel == "videotoolbox":
+			codec = "h264_videotoolbox"
+		case videoCodec == "AV1" && hardwareAccel == "nvenc":
+			codec = "av1_nvenc"
+		case videoCodec == "AV1" && hardwareAccel == "qsv":
+			codec = "av1_qsv"
+		case videoCodec == "AV1" && hardwareAccel == "amf":
+			codec = "av1_amf"
+		case videoCodec == "AV1":
+			codec = "libsvtav1"
+		case videoCodec == "VP9":
+			codec = "libvpx-vp9"
+		case videoCodec == "MPEG-2":
+			codec = "mpeg2video"
+		}
+		args = append(args, "-c:v", codec)
+
+		// Quality/bitrate settings
+		bitrateMode, _ := cfg["bitrateMode"].(string)
+		if bitrateMode == "CRF" || bitrateMode == "" {
+			crfStr, _ := cfg["crf"].(string)
+			if crfStr == "" {
+				quality, _ := cfg["quality"].(string)
+				switch quality {
+				case "Lossless":
+					crfStr = "0"
+				case "High":
+					crfStr = "18"
+				case "Medium":
+					crfStr = "23"
+				case "Low":
+					crfStr = "28"
+				default:
+					crfStr = "23"
+				}
+			}
+			if strings.Contains(codec, "264") || strings.Contains(codec, "265") || codec == "libvpx-vp9" {
+				args = append(args, "-crf", crfStr)
+			}
+		} else if bitrateMode == "CBR" {
+			if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
+				args = append(args, "-b:v", videoBitrate, "-minrate", videoBitrate, "-maxrate", videoBitrate, "-bufsize", videoBitrate)
+			}
+		} else if bitrateMode == "VBR" {
+			if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
+				args = append(args, "-b:v", videoBitrate)
+			}
+		}
+
+		// Encoder preset
+		if encoderPreset, _ := cfg["encoderPreset"].(string); encoderPreset != "" {
+			if codec == "libx264" || codec == "libx265" {
+				args = append(args, "-preset", encoderPreset)
+			}
+		}
+
+		// Pixel format
+		if pixelFormat, _ := cfg["pixelFormat"].(string); pixelFormat != "" {
+			args = append(args, "-pix_fmt", pixelFormat)
+		}
+
+		// H.264 profile/level
+		if videoCodec == "H.264" {
+			if h264Profile, _ := cfg["h264Profile"].(string); h264Profile != "" && h264Profile != "Auto" {
+				args = append(args, "-profile:v", h264Profile)
+			}
+			if h264Level, _ := cfg["h264Level"].(string); h264Level != "" && h264Level != "Auto" {
+				args = append(args, "-level:v", h264Level)
+			}
+		}
+	}
+
+	// Audio codec
+	audioCodec, _ := cfg["audioCodec"].(string)
+	if audioCodec == "Copy" {
+		args = append(args, "-c:a", "copy")
+	} else {
+		codec := "aac"
+		switch audioCodec {
+		case "AAC":
+			codec = "aac"
+		case "Opus":
+			codec = "libopus"
+		case "Vorbis":
+			codec = "libvorbis"
+		case "MP3":
+			codec = "libmp3lame"
+		case "FLAC":
+			codec = "flac"
+		case "AC-3":
+			codec = "ac3"
+		}
+		args = append(args, "-c:a", codec)
+
+		if audioBitrate, _ := cfg["audioBitrate"].(string); audioBitrate != "" && codec != "flac" {
+			args = append(args, "-b:a", audioBitrate)
+		}
+
+		// Audio channels
+		if audioChannels, _ := cfg["audioChannels"].(string); audioChannels != "" && audioChannels != "Source" {
+			switch audioChannels {
+			case "Mono":
+				args = append(args, "-ac", "1")
+			case "Stereo":
+				args = append(args, "-ac", "2")
+			case "5.1":
+				args = append(args, "-ac", "6")
+			}
+		}
+	}
+
+	// Output
+	args = append(args, "OUTPUT")
+
+	return "ffmpeg " + strings.Join(args, " ")
+}
+
 func (s *appState) shutdown() {
 	s.persistConvertConfig()
 
