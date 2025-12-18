@@ -593,6 +593,74 @@ func saveBenchmarkConfig(cfg benchmarkConfig) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
+// HistoryEntry represents a completed job in the history
+type HistoryEntry struct {
+	ID          string                 `json:"id"`
+	Type        queue.JobType          `json:"type"`
+	Status      queue.JobStatus        `json:"status"`
+	Title       string                 `json:"title"`
+	InputFile   string                 `json:"input_file"`
+	OutputFile  string                 `json:"output_file"`
+	LogPath     string                 `json:"log_path,omitempty"`
+	Config      map[string]interface{} `json:"config"`
+	CreatedAt   time.Time              `json:"created_at"`
+	StartedAt   *time.Time             `json:"started_at,omitempty"`
+	CompletedAt *time.Time             `json:"completed_at,omitempty"`
+	Error       string                 `json:"error,omitempty"`
+	FFmpegCmd   string                 `json:"ffmpeg_cmd,omitempty"`
+}
+
+// historyConfig holds conversion history
+type historyConfig struct {
+	Entries []HistoryEntry `json:"entries"`
+}
+
+func historyConfigPath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil || configDir == "" {
+		home := os.Getenv("HOME")
+		if home != "" {
+			configDir = filepath.Join(home, ".config")
+		}
+	}
+	if configDir == "" {
+		return "history.json"
+	}
+	return filepath.Join(configDir, "VideoTools", "history.json")
+}
+
+func loadHistoryConfig() (historyConfig, error) {
+	path := historyConfigPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return historyConfig{Entries: []HistoryEntry{}}, nil
+		}
+		return historyConfig{}, err
+	}
+	var cfg historyConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return historyConfig{}, err
+	}
+	return cfg, nil
+}
+
+func saveHistoryConfig(cfg historyConfig) error {
+	// Limit to 20 most recent entries
+	if len(cfg.Entries) > 20 {
+		cfg.Entries = cfg.Entries[:20]
+	}
+	path := historyConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
 type appState struct {
 	window                    fyne.Window
 	active                    string
@@ -697,6 +765,10 @@ type appState struct {
 	// Interlacing detection state
 	interlaceResult    *interlace.DetectionResult
 	interlaceAnalyzing bool
+
+	// History sidebar state
+	historyEntries []HistoryEntry
+	sidebarVisible bool
 }
 
 type mergeClip struct {
@@ -708,6 +780,55 @@ type mergeClip struct {
 func (s *appState) persistConvertConfig() {
 	if err := savePersistedConvertConfig(s.convert); err != nil {
 		logging.Debug(logging.CatSystem, "failed to persist convert config: %v", err)
+	}
+}
+
+// addToHistory adds a completed job to the history
+func (s *appState) addToHistory(job *queue.Job) {
+	if job == nil {
+		return
+	}
+
+	// Only add completed, failed, or cancelled jobs
+	if job.Status != queue.JobStatusCompleted &&
+		job.Status != queue.JobStatusFailed &&
+		job.Status != queue.JobStatusCancelled {
+		return
+	}
+
+	// Build FFmpeg command from job config
+	cmdStr := buildFFmpegCommandFromJob(job)
+
+	entry := HistoryEntry{
+		ID:          job.ID,
+		Type:        job.Type,
+		Status:      job.Status,
+		Title:       job.Title,
+		InputFile:   job.InputFile,
+		OutputFile:  job.OutputFile,
+		LogPath:     job.LogPath,
+		Config:      job.Config,
+		CreatedAt:   job.CreatedAt,
+		StartedAt:   job.StartedAt,
+		CompletedAt: job.CompletedAt,
+		Error:       job.Error,
+		FFmpegCmd:   cmdStr,
+	}
+
+	// Check for duplicates
+	for _, existing := range s.historyEntries {
+		if existing.ID == entry.ID {
+			return // Already in history
+		}
+	}
+
+	// Prepend to history (newest first)
+	s.historyEntries = append([]HistoryEntry{entry}, s.historyEntries...)
+
+	// Save to disk
+	cfg := historyConfig{Entries: s.historyEntries}
+	if err := saveHistoryConfig(cfg); err != nil {
+		logging.Debug(logging.CatSystem, "failed to save history: %v", err)
 	}
 }
 
@@ -4591,6 +4712,15 @@ func runGUI() {
 		logging.Debug(logging.CatSystem, "failed to load persisted convert config: %v", err)
 	}
 
+	// Initialize conversion history
+	if historyCfg, err := loadHistoryConfig(); err == nil {
+		state.historyEntries = historyCfg.Entries
+	} else {
+		state.historyEntries = []HistoryEntry{}
+		logging.Debug(logging.CatSystem, "failed to load history config: %v", err)
+	}
+	state.sidebarVisible = false
+
 	// Initialize conversion stats bar
 	state.statsBar = ui.NewConversionStatsBar(func() {
 		// Clicking the stats bar opens the queue view
@@ -4605,6 +4735,16 @@ func runGUI() {
 			return
 		}
 		app.Driver().DoFromGoroutine(func() {
+			// Add completed jobs to history
+			jobs := state.jobQueue.List()
+			for _, job := range jobs {
+				if job.Status == queue.JobStatusCompleted ||
+					job.Status == queue.JobStatusFailed ||
+					job.Status == queue.JobStatusCancelled {
+					state.addToHistory(job)
+				}
+			}
+
 			state.updateStatsBar()
 			state.updateQueueButtonLabel()
 			if state.active == "queue" {
