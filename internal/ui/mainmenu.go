@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"sort"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -11,6 +12,8 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 // ModuleInfo contains information about a module for display
@@ -20,6 +23,23 @@ type ModuleInfo struct {
 	Color    color.Color
 	Enabled  bool
 	Category string
+}
+
+// HistoryEntry represents a completed job in the history
+type HistoryEntry struct {
+	ID          string
+	Type        queue.JobType
+	Status      queue.JobStatus
+	Title       string
+	InputFile   string
+	OutputFile  string
+	LogPath     string
+	Config      map[string]interface{}
+	CreatedAt   time.Time
+	StartedAt   *time.Time
+	CompletedAt *time.Time
+	Error       string
+	FFmpegCmd   string
 }
 
 // BuildMainMenu creates the main menu view with module tiles grouped by category
@@ -118,4 +138,104 @@ func sortedKeys(m map[string][]fyne.CanvasObject) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// BuildHistorySidebar creates the history sidebar with tabs
+func BuildHistorySidebar(
+	entries []HistoryEntry,
+	onEntryClick func(HistoryEntry),
+	titleColor, bgColor, textColor color.Color,
+) fyne.CanvasObject {
+	// Filter by status
+	var completedEntries, failedEntries []HistoryEntry
+	for _, entry := range entries {
+		if entry.Status == queue.JobStatusCompleted {
+			completedEntries = append(completedEntries, entry)
+		} else {
+			failedEntries = append(failedEntries, entry)
+		}
+	}
+
+	// Build lists
+	completedList := buildHistoryList(completedEntries, onEntryClick, bgColor, textColor)
+	failedList := buildHistoryList(failedEntries, onEntryClick, bgColor, textColor)
+
+	// Tabs
+	tabs := container.NewAppTabs(
+		container.NewTabItem("Completed", container.NewVScroll(completedList)),
+		container.NewTabItem("Failed", container.NewVScroll(failedList)),
+	)
+	tabs.SetTabLocation(container.TabLocationTop)
+
+	// Header
+	title := canvas.NewText("HISTORY", titleColor)
+	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	title.TextSize = 18
+
+	header := container.NewVBox(
+		container.NewCenter(title),
+		widget.NewSeparator(),
+	)
+
+	return container.NewBorder(header, nil, nil, nil, tabs)
+}
+
+func buildHistoryList(
+	entries []HistoryEntry,
+	onEntryClick func(HistoryEntry),
+	bgColor, textColor color.Color,
+) *fyne.Container {
+	if len(entries) == 0 {
+		return container.NewCenter(widget.NewLabel("No entries"))
+	}
+
+	var items []fyne.CanvasObject
+	for _, entry := range entries {
+		items = append(items, buildHistoryItem(entry, onEntryClick, bgColor, textColor))
+	}
+	return container.NewVBox(items...)
+}
+
+func buildHistoryItem(
+	entry HistoryEntry,
+	onEntryClick func(HistoryEntry),
+	bgColor, textColor color.Color,
+) fyne.CanvasObject {
+	// Badge
+	badge := BuildModuleBadge(entry.Type)
+
+	// Title
+	titleLabel := widget.NewLabel(utils.ShortenMiddle(entry.Title, 25))
+	titleLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	// Timestamp
+	timeStr := "Unknown"
+	if entry.CompletedAt != nil {
+		timeStr = entry.CompletedAt.Format("Jan 2, 15:04")
+	}
+	timeLabel := widget.NewLabel(timeStr)
+	timeLabel.TextStyle = fyne.TextStyle{Monospace: true}
+
+	// Status color bar
+	statusColor := GetStatusColor(entry.Status)
+	statusRect := canvas.NewRectangle(statusColor)
+	statusRect.SetMinSize(fyne.NewSize(4, 0))
+
+	content := container.NewBorder(
+		nil, nil, statusRect, nil,
+		container.NewVBox(
+			container.NewHBox(badge, layout.NewSpacer()),
+			titleLabel,
+			timeLabel,
+		),
+	)
+
+	card := canvas.NewRectangle(bgColor)
+	card.CornerRadius = 4
+
+	item := container.NewPadded(container.NewMax(card, content))
+
+	// Capture entry for closure
+	capturedEntry := entry
+	return NewTappable(item, func() { onEntryClick(capturedEntry) })
 }

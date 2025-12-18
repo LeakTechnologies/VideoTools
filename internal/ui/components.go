@@ -15,6 +15,8 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 var (
@@ -706,4 +708,65 @@ func (w *FFmpegCommandWidget) CreateRenderer() fyne.WidgetRenderer {
 	)
 
 	return widget.NewSimpleRenderer(content)
+}
+
+// GetStatusColor returns the color for a job status
+func GetStatusColor(status queue.JobStatus) color.Color {
+	switch status {
+	case queue.JobStatusCompleted:
+		return utils.MustHex("#4CAF50") // Green
+	case queue.JobStatusFailed:
+		return utils.MustHex("#F44336") // Red
+	case queue.JobStatusCancelled:
+		return utils.MustHex("#FF9800") // Orange
+	default:
+		return utils.MustHex("#808080") // Gray
+	}
+}
+
+// BuildModuleBadge creates a small colored badge for the job type
+func BuildModuleBadge(jobType queue.JobType) fyne.CanvasObject {
+	var badgeColor color.Color
+	var badgeText string
+
+	switch jobType {
+	case queue.JobTypeConvert:
+		badgeColor = utils.MustHex("#4A90E2")
+		badgeText = "CONVERT"
+	case queue.JobTypeMerge:
+		badgeColor = utils.MustHex("#E24A90")
+		badgeText = "MERGE"
+	case queue.JobTypeTrim:
+		badgeColor = utils.MustHex("#90E24A")
+		badgeText = "TRIM"
+	case queue.JobTypeFilter:
+		badgeColor = utils.MustHex("#E2904A")
+		badgeText = "FILTER"
+	case queue.JobTypeUpscale:
+		badgeColor = utils.MustHex("#9A4AE2")
+		badgeText = "UPSCALE"
+	case queue.JobTypeAudio:
+		badgeColor = utils.MustHex("#4AE290")
+		badgeText = "AUDIO"
+	case queue.JobTypeThumb:
+		badgeColor = utils.MustHex("#E2E24A")
+		badgeText = "THUMB"
+	case queue.JobTypeSnippet:
+		badgeColor = utils.MustHex("#4AE2E2")
+		badgeText = "SNIPPET"
+	default:
+		badgeColor = utils.MustHex("#808080")
+		badgeText = "OTHER"
+	}
+
+	rect := canvas.NewRectangle(badgeColor)
+	rect.CornerRadius = 3
+	rect.SetMinSize(fyne.NewSize(70, 20))
+
+	text := canvas.NewText(badgeText, color.White)
+	text.Alignment = fyne.TextAlignCenter
+	text.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	text.TextSize = 10
+
+	return container.NewMax(rect, container.NewCenter(text))
 }
