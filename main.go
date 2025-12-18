@@ -688,8 +688,9 @@ type appState struct {
 	compareFile2              *videoSource
 	inspectFile               *videoSource
 	inspectInterlaceResult    *interlace.DetectionResult
-	inspectInterlaceAnalyzing bool
-	autoCompare               bool // Auto-load Compare module after conversion
+	inspectInterlaceAnalyzing  bool
+	autoCompare                bool // Auto-load Compare module after conversion
+	convertCommandPreviewShow bool // Show FFmpeg command preview in Convert module
 
 	// Merge state
 	mergeClips               []mergeClip
@@ -5064,7 +5065,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 
-	backBar := ui.TintedBar(convertColor, container.NewHBox(back, layout.NewSpacer(), navButtons, layout.NewSpacer(), queueBtn))
+	// Command Preview toggle button
+	cmdPreviewBtn := widget.NewButton("Command Preview", func() {
+		state.convertCommandPreviewShow = !state.convertCommandPreviewShow
+		state.showModule("convert")
+	})
+	cmdPreviewBtn.Importance = widget.LowImportance
+
+	backBar := ui.TintedBar(convertColor, container.NewHBox(back, layout.NewSpacer(), navButtons, layout.NewSpacer(), cmdPreviewBtn, queueBtn))
 
 	var updateCover func(string)
 	var coverDisplay *widget.Label
@@ -6737,7 +6745,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var commandPreviewRow *fyne.Container
 
 	buildCommandPreview := func() {
-		if src == nil {
+		if src == nil || !state.convertCommandPreviewShow {
 			if commandPreviewRow != nil {
 				commandPreviewRow.Hide()
 			}
@@ -6789,6 +6797,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			Config: config,
 		}
 		cmdStr := buildFFmpegCommandFromJob(job)
+
+		// Replace INPUT and OUTPUT placeholders with actual file paths for preview
+		inputPath := src.Path
+		outputPath := state.convert.OutputFile()
+		cmdStr = strings.ReplaceAll(cmdStr, "INPUT", inputPath)
+		cmdStr = strings.ReplaceAll(cmdStr, "OUTPUT", outputPath)
+		cmdStr = strings.ReplaceAll(cmdStr, "[COVER_ART]", state.convert.CoverArtPath)
 
 		if commandPreviewWidget == nil {
 			commandPreviewWidget = ui.NewFFmpegCommandWidget(cmdStr, state.window)
@@ -6897,7 +6912,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetRow,
 		widget.NewSeparator(),
 	}
-	if commandPreviewRow != nil {
+	if commandPreviewRow != nil && state.convertCommandPreviewShow {
 		footerSections = append(footerSections, commandPreviewRow)
 	}
 
