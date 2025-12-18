@@ -40,6 +40,7 @@ type HistoryEntry struct {
 	CompletedAt *time.Time
 	Error       string
 	FFmpegCmd   string
+	Progress    float64 // 0.0 to 1.0 for in-progress jobs
 }
 
 // BuildMainMenu creates the main menu view with module tiles grouped by category
@@ -258,6 +259,21 @@ func buildHistoryItem(
 	timeLabel := widget.NewLabel(timeStr)
 	timeLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
+	// Progress bar for in-progress jobs
+	contentItems := []fyne.CanvasObject{
+		container.NewHBox(headerItems...),
+		titleLabel,
+		timeLabel,
+	}
+
+	if entry.Status == queue.JobStatusRunning || entry.Status == queue.JobStatusPending {
+		// Add progress bar for active jobs
+		moduleCol := ModuleColor(entry.Type)
+		progressBar := NewStripedProgress(moduleCol)
+		progressBar.SetProgress(entry.Progress)
+		contentItems = append(contentItems, progressBar)
+	}
+
 	// Status color bar
 	statusColor := GetStatusColor(entry.Status)
 	statusRect := canvas.NewRectangle(statusColor)
@@ -265,11 +281,7 @@ func buildHistoryItem(
 
 	content := container.NewBorder(
 		nil, nil, statusRect, nil,
-		container.NewVBox(
-			container.NewHBox(headerItems...),
-			titleLabel,
-			timeLabel,
-		),
+		container.NewVBox(contentItems...),
 	)
 
 	card := canvas.NewRectangle(bgColor)

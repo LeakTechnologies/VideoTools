@@ -1390,6 +1390,7 @@ func (s *appState) showMainMenu() {
 						CreatedAt:  job.CreatedAt,
 						StartedAt:  job.StartedAt,
 						Error:      job.Error,
+						Progress:   job.Progress / 100.0, // Convert 0-100 to 0.0-1.0
 					}
 					activeJobs = append(activeJobs, entry)
 				}
@@ -5187,16 +5188,29 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		updateEncodingControls  func()
 		updateQualityVisibility func()
 		buildCommandPreview     func()
+		updateQualityOptions    func() // Update quality dropdown based on codec
 	)
 
-	qualityOptions := []string{
+	// Base quality options (without lossless)
+	baseQualityOptions := []string{
 		"Draft (CRF 28)",
 		"Standard (CRF 23)",
 		"Balanced (CRF 20)",
 		"High (CRF 18)",
 		"Near-Lossless (CRF 16)",
-		"Lossless",
 	}
+
+	// Helper function to check if codec supports lossless
+	codecSupportsLossless := func(codec string) bool {
+		return codec == "H.265" || codec == "AV1"
+	}
+
+	// Current quality options (dynamic based on codec)
+	qualityOptions := baseQualityOptions
+	if codecSupportsLossless(state.convert.VideoCodec) {
+		qualityOptions = append(qualityOptions, "Lossless")
+	}
+
 	var syncingQuality bool
 
 	qualitySelectSimple = widget.NewSelect(qualityOptions, func(value string) {
@@ -5242,6 +5256,29 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	qualitySelectSimple.SetSelected(state.convert.Quality)
 	qualitySelectAdv.SetSelected(state.convert.Quality)
+
+	// Update quality options based on codec
+	updateQualityOptions = func() {
+		var newOptions []string
+		if codecSupportsLossless(state.convert.VideoCodec) {
+			// H.265 and AV1 support lossless
+			newOptions = append(baseQualityOptions, "Lossless")
+		} else {
+			// H.264, MPEG-2, etc. don't support lossless
+			newOptions = baseQualityOptions
+			// If currently set to Lossless, fall back to Near-Lossless
+			if state.convert.Quality == "Lossless" {
+				state.convert.Quality = "Near-Lossless (CRF 16)"
+			}
+		}
+
+		qualitySelectSimple.Options = newOptions
+		qualitySelectAdv.Options = newOptions
+		qualitySelectSimple.SetSelected(state.convert.Quality)
+		qualitySelectAdv.SetSelected(state.convert.Quality)
+		qualitySelectSimple.Refresh()
+		qualitySelectAdv.Refresh()
+	}
 
 	outputEntry := widget.NewEntry()
 	outputEntry.SetText(state.convert.OutputBase)
@@ -5528,6 +5565,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoCodecSelect := widget.NewSelect([]string{"H.264", "H.265", "VP9", "AV1", "MPEG-2", "Copy"}, func(value string) {
 		state.convert.VideoCodec = value
 		logging.Debug(logging.CatUI, "video codec set to %s", value)
+		if updateQualityOptions != nil {
+			updateQualityOptions()
+		}
 		if updateQualityVisibility != nil {
 			updateQualityVisibility()
 		}
@@ -6009,25 +6049,40 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	updateEncodingControls = func() {
 		mode := state.convert.BitrateMode
 		isLossless := state.convert.Quality == "Lossless"
+		supportsLossless := codecSupportsLossless(state.convert.VideoCodec)
 
 		hint := ""
 
-		if isLossless {
-			// Lossless forces CRF 0; hide bitrate/target size
-			if mode != "CRF" {
-				state.convert.BitrateMode = "CRF"
-				bitrateModeSelect.SetSelected("CRF")
-				mode = "CRF"
+		if isLossless && supportsLossless {
+			// Lossless with H.265/AV1: Allow all bitrate modes
+			// The lossless quality affects the encoding, but bitrate/target size still control output
+			switch mode {
+			case "CRF", "":
+				if crfEntry.Text != "0" {
+					crfEntry.SetText("0")
+				}
+				state.convert.CRF = "0"
+				crfEntry.Disable()
+				crfContainer.Show()
+				bitrateContainer.Hide()
+				targetSizeContainer.Hide()
+				hint = "Lossless mode with CRF 0. Perfect quality preservation for H.265/AV1."
+			case "CBR":
+				crfContainer.Hide()
+				bitrateContainer.Show()
+				targetSizeContainer.Hide()
+				hint = "Lossless quality with constant bitrate. May achieve smaller file size than pure lossless CRF."
+			case "VBR":
+				crfContainer.Hide()
+				bitrateContainer.Show()
+				targetSizeContainer.Hide()
+				hint = "Lossless quality with variable bitrate. Efficient file size while maintaining lossless quality."
+			case "Target Size":
+				crfContainer.Hide()
+				bitrateContainer.Hide()
+				targetSizeContainer.Show()
+				hint = "Lossless quality with target size. Calculates bitrate to achieve exact file size with best possible quality."
 			}
-			if crfEntry.Text != "0" {
-				crfEntry.SetText("0")
-			}
-			state.convert.CRF = "0"
-			crfEntry.Disable()
-			crfContainer.Show()
-			bitrateContainer.Hide()
-			targetSizeContainer.Hide()
-			hint = "Lossless forces CRF 0 for H.265/AV1; bitrate and target size are ignored."
 		} else {
 			crfEntry.Enable()
 			switch mode {

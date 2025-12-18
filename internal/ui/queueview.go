@@ -16,8 +16,8 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
-// stripedProgress renders a progress bar with a tinted stripe pattern.
-type stripedProgress struct {
+// StripedProgress renders a progress bar with a tinted stripe pattern.
+type StripedProgress struct {
 	widget.BaseWidget
 	progress float64
 	color    color.Color
@@ -25,8 +25,9 @@ type stripedProgress struct {
 	offset   float64
 }
 
-func newStripedProgress(col color.Color) *stripedProgress {
-	sp := &stripedProgress{
+// NewStripedProgress creates a new striped progress bar with the given color
+func NewStripedProgress(col color.Color) *StripedProgress {
+	sp := &StripedProgress{
 		progress: 0,
 		color:    col,
 		bg:       color.RGBA{R: 34, G: 38, B: 48, A: 255}, // dark neutral
@@ -35,7 +36,8 @@ func newStripedProgress(col color.Color) *stripedProgress {
 	return sp
 }
 
-func (s *stripedProgress) SetProgress(p float64) {
+// SetProgress updates the progress value (0.0 to 1.0)
+func (s *StripedProgress) SetProgress(p float64) {
 	if p < 0 {
 		p = 0
 	}
@@ -46,7 +48,7 @@ func (s *stripedProgress) SetProgress(p float64) {
 	s.Refresh()
 }
 
-func (s *stripedProgress) CreateRenderer() fyne.WidgetRenderer {
+func (s *StripedProgress) CreateRenderer() fyne.WidgetRenderer {
 	bgRect := canvas.NewRectangle(s.bg)
 	fillRect := canvas.NewRectangle(applyAlpha(s.color, 200))
 	stripes := canvas.NewRaster(func(w, h int) image.Image {
@@ -79,7 +81,7 @@ func (s *stripedProgress) CreateRenderer() fyne.WidgetRenderer {
 }
 
 type stripedProgressRenderer struct {
-	bar     *stripedProgress
+	bar     *StripedProgress
 	bg      *canvas.Rectangle
 	fill    *canvas.Rectangle
 	stripes *canvas.Raster
@@ -234,7 +236,7 @@ func buildJobItem(
 	descLabel.Wrapping = fyne.TextWrapWord
 
 	// Progress bar (for running jobs)
-	progress := newStripedProgress(moduleColor(job.Type))
+	progress := NewStripedProgress(ModuleColor(job.Type))
 	progress.SetProgress(job.Progress / 100.0)
 	if job.Status == queue.JobStatusCompleted {
 		progress.SetProgress(1.0)
@@ -379,7 +381,8 @@ func getStatusText(job *queue.Job) string {
 }
 
 // moduleColor maps job types to distinct colors matching the main module colors
-func moduleColor(t queue.JobType) color.Color {
+// ModuleColor returns the color for a given job type
+func ModuleColor(t queue.JobType) color.Color {
 	switch t {
 	case queue.JobTypeConvert:
 		return color.RGBA{R: 139, G: 68, B: 255, A: 255} // Violet (#8B44FF)
