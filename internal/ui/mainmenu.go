@@ -154,6 +154,7 @@ func sortedKeys(m map[string][]fyne.CanvasObject) []string {
 func BuildHistorySidebar(
 	entries []HistoryEntry,
 	onEntryClick func(HistoryEntry),
+	onEntryDelete func(HistoryEntry),
 	titleColor, bgColor, textColor color.Color,
 ) fyne.CanvasObject {
 	// Filter by status
@@ -167,8 +168,8 @@ func BuildHistorySidebar(
 	}
 
 	// Build lists
-	completedList := buildHistoryList(completedEntries, onEntryClick, bgColor, textColor)
-	failedList := buildHistoryList(failedEntries, onEntryClick, bgColor, textColor)
+	completedList := buildHistoryList(completedEntries, onEntryClick, onEntryDelete, bgColor, textColor)
+	failedList := buildHistoryList(failedEntries, onEntryClick, onEntryDelete, bgColor, textColor)
 
 	// Tabs
 	tabs := container.NewAppTabs(
@@ -193,6 +194,7 @@ func BuildHistorySidebar(
 func buildHistoryList(
 	entries []HistoryEntry,
 	onEntryClick func(HistoryEntry),
+	onEntryDelete func(HistoryEntry),
 	bgColor, textColor color.Color,
 ) *fyne.Container {
 	if len(entries) == 0 {
@@ -201,7 +203,7 @@ func buildHistoryList(
 
 	var items []fyne.CanvasObject
 	for _, entry := range entries {
-		items = append(items, buildHistoryItem(entry, onEntryClick, bgColor, textColor))
+		items = append(items, buildHistoryItem(entry, onEntryClick, onEntryDelete, bgColor, textColor))
 	}
 	return container.NewVBox(items...)
 }
@@ -209,10 +211,20 @@ func buildHistoryList(
 func buildHistoryItem(
 	entry HistoryEntry,
 	onEntryClick func(HistoryEntry),
+	onEntryDelete func(HistoryEntry),
 	bgColor, textColor color.Color,
 ) fyne.CanvasObject {
 	// Badge
 	badge := BuildModuleBadge(entry.Type)
+
+	// Capture entry for closures
+	capturedEntry := entry
+
+	// Delete button - small "×" button
+	deleteBtn := widget.NewButton("×", func() {
+		onEntryDelete(capturedEntry)
+	})
+	deleteBtn.Importance = widget.LowImportance
 
 	// Title
 	titleLabel := widget.NewLabel(utils.ShortenMiddle(entry.Title, 25))
@@ -234,7 +246,7 @@ func buildHistoryItem(
 	content := container.NewBorder(
 		nil, nil, statusRect, nil,
 		container.NewVBox(
-			container.NewHBox(badge, layout.NewSpacer()),
+			container.NewHBox(badge, layout.NewSpacer(), deleteBtn),
 			titleLabel,
 			timeLabel,
 		),
@@ -245,7 +257,5 @@ func buildHistoryItem(
 
 	item := container.NewPadded(container.NewMax(card, content))
 
-	// Capture entry for closure
-	capturedEntry := entry
 	return NewTappable(item, func() { onEntryClick(capturedEntry) })
 }

@@ -910,8 +910,8 @@ Config:
 
 	// Layout: details at top (scrollable), FFmpeg at bottom (fixed)
 	content := container.NewBorder(
-		detailsScroll,             // Top: job details (scrollable, takes priority)
-		container.NewVBox(         // Bottom: FFmpeg command (fixed)
+		detailsScroll, // Top: job details (scrollable, takes priority)
+		container.NewVBox( // Bottom: FFmpeg command (fixed)
 			ffmpegSection,
 			container.NewHBox(buttons...),
 		),
@@ -923,6 +923,26 @@ Config:
 	d.Resize(fyne.NewSize(750, 650))
 	closeBtn.OnTapped = func() { d.Hide() }
 	d.Show()
+}
+
+func (s *appState) deleteHistoryEntry(entry ui.HistoryEntry) {
+	// Remove entry from history
+	var updated []ui.HistoryEntry
+	for _, e := range s.historyEntries {
+		if e.ID != entry.ID {
+			updated = append(updated, e)
+		}
+	}
+	s.historyEntries = updated
+
+	// Save updated history
+	cfg := historyConfig{Entries: s.historyEntries}
+	if err := saveHistoryConfig(cfg); err != nil {
+		logging.Debug(logging.CatUI, "failed to save history after delete: %v", err)
+	}
+
+	// Refresh main menu to update sidebar
+	s.showMainMenu()
 }
 
 func (s *appState) stopPreview() {
@@ -1349,6 +1369,7 @@ func (s *appState) showMainMenu() {
 		sidebar = ui.BuildHistorySidebar(
 			s.historyEntries,
 			s.showHistoryDetails,
+			s.deleteHistoryEntry,
 			titleColor,
 			utils.MustHex("#1A1F2E"),
 			textColor,
@@ -5712,18 +5733,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	// Create containers for hideable sections
+	// Create CRF container (crfEntry already initialized)
 	crfContainer = container.NewVBox(
 		widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		crfEntry,
 	)
 
-	bitrateContainer = container.NewVBox(
-		widget.NewLabelWithStyle("Video Bitrate (for CBR/VBR)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		videoBitrateEntry,
-		widget.NewLabelWithStyle("Recommended Bitrate Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		bitratePresetSelect,
-	)
+	// Note: bitrateContainer creation moved below after bitratePresetSelect is initialized
 
 	type bitratePreset struct {
 		Label   string
@@ -5774,6 +5790,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	})
 	simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
+
+	// Create bitrate container now that bitratePresetSelect is initialized
+	bitrateContainer = container.NewVBox(
+		widget.NewLabelWithStyle("Video Bitrate (for CBR/VBR)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		videoBitrateEntry,
+		widget.NewLabelWithStyle("Recommended Bitrate Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		bitratePresetSelect,
+	)
 
 	// Simple resolution selector (separate widget to avoid double-parent issues)
 	resolutionSelectSimple := widget.NewSelect([]string{
