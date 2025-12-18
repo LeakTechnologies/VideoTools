@@ -416,7 +416,13 @@ type formatOption struct {
 var formatOptions = []formatOption{
 	{"MP4 (H.264)", ".mp4", "libx264"},
 	{"MP4 (H.265)", ".mp4", "libx265"},
+	{"MP4 (AV1)", ".mp4", "libaom-av1"},
 	{"MKV (H.265)", ".mkv", "libx265"},
+	{"MKV (AV1)", ".mkv", "libaom-av1"},
+	{"WebM (VP9)", ".webm", "libvpx-vp9"},
+	{"WebM (AV1)", ".webm", "libaom-av1"},
+	{"MOV (H.264)", ".mov", "libx264"},
+	{"MOV (H.265)", ".mov", "libx265"},
 	{"MOV (ProRes)", ".mov", "prores_ks"},
 	{"DVD-NTSC (MPEG-2)", ".mpg", "mpeg2video"},
 	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video"},
@@ -5142,6 +5148,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var (
 		updateEncodingControls  func()
 		updateQualityVisibility func()
+		buildCommandPreview     func()
 	)
 
 	qualityOptions := []string{
@@ -5168,6 +5175,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			updateEncodingControls()
 		}
 		syncingQuality = false
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
 	})
 
 	qualitySelectAdv = widget.NewSelect(qualityOptions, func(value string) {
@@ -5184,6 +5194,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			updateEncodingControls()
 		}
 		syncingQuality = false
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
 	})
 
 	if !slices.Contains(qualityOptions, state.convert.Quality) {
@@ -5480,6 +5493,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if updateQualityVisibility != nil {
 			updateQualityVisibility()
 		}
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
 	})
 	videoCodecSelect.SetSelected(state.convert.VideoCodec)
 
@@ -5538,6 +5554,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				if updateQualityVisibility != nil {
 					updateQualityVisibility()
 				}
+				if buildCommandPreview != nil {
+					buildCommandPreview()
+				}
 				break
 			}
 		}
@@ -5584,6 +5603,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.EncoderPreset = value
 		logging.Debug(logging.CatUI, "encoder preset set to %s", value)
 		updateEncoderPresetHint(value)
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
 	})
 	encoderPresetSelect.SetSelected(state.convert.EncoderPreset)
 	updateEncoderPresetHint(state.convert.EncoderPreset)
@@ -5593,6 +5615,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.EncoderPreset = value
 		logging.Debug(logging.CatUI, "simple preset set to %s", value)
 		updateEncoderPresetHint(value)
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
 	})
 	simplePresetSelect.SetSelected(state.convert.EncoderPreset)
 
@@ -6744,7 +6769,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var commandPreviewWidget *ui.FFmpegCommandWidget
 	var commandPreviewRow *fyne.Container
 
-	buildCommandPreview := func() {
+	buildCommandPreview = func() {
 		if src == nil || !state.convertCommandPreviewShow {
 			if commandPreviewRow != nil {
 				commandPreviewRow.Hide()
