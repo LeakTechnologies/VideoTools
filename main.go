@@ -6481,6 +6481,84 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", defaultConvertConfigPath()), state.window)
 	})
 
+	// FFmpeg Command Preview
+	var commandPreviewWidget *ui.FFmpegCommandWidget
+	var commandPreviewRow *fyne.Container
+
+	buildCommandPreview := func() {
+		if src == nil {
+			if commandPreviewRow != nil {
+				commandPreviewRow.Hide()
+			}
+			return
+		}
+
+		// Build command from current state
+		cfg := state.convert
+		config := map[string]interface{}{
+			"quality":              cfg.Quality,
+			"videoCodec":           cfg.VideoCodec,
+			"encoderPreset":        cfg.EncoderPreset,
+			"crf":                  cfg.CRF,
+			"bitrateMode":          cfg.BitrateMode,
+			"videoBitrate":         cfg.VideoBitrate,
+			"targetFileSize":       cfg.TargetFileSize,
+			"targetResolution":     cfg.TargetResolution,
+			"frameRate":            cfg.FrameRate,
+			"useMotionInterpolation": cfg.UseMotionInterpolation,
+			"pixelFormat":          cfg.PixelFormat,
+			"hardwareAccel":        cfg.HardwareAccel,
+			"h264Profile":          cfg.H264Profile,
+			"h264Level":            cfg.H264Level,
+			"deinterlace":          cfg.Deinterlace,
+			"deinterlaceMethod":    cfg.DeinterlaceMethod,
+			"autoCrop":             cfg.AutoCrop,
+			"cropWidth":            cfg.CropWidth,
+			"cropHeight":           cfg.CropHeight,
+			"cropX":                cfg.CropX,
+			"cropY":                cfg.CropY,
+			"flipHorizontal":       cfg.FlipHorizontal,
+			"flipVertical":         cfg.FlipVertical,
+			"rotation":             cfg.Rotation,
+			"audioCodec":           cfg.AudioCodec,
+			"audioBitrate":         cfg.AudioBitrate,
+			"audioChannels":        cfg.AudioChannels,
+			"normalizeAudio":       cfg.NormalizeAudio,
+			"coverArtPath":         cfg.CoverArtPath,
+			"aspectHandling":       cfg.AspectHandling,
+			"outputAspect":         cfg.OutputAspect,
+			"sourceWidth":          src.Width,
+			"sourceHeight":         src.Height,
+			"sourceDuration":       src.Duration,
+			"fieldOrder":           src.FieldOrder,
+		}
+
+		job := &queue.Job{
+			Type:   queue.JobTypeConvert,
+			Config: config,
+		}
+		cmdStr := buildFFmpegCommandFromJob(job)
+
+		if commandPreviewWidget == nil {
+			commandPreviewWidget = ui.NewFFmpegCommandWidget(cmdStr, state.window)
+			commandLabel := widget.NewLabel("FFmpeg Command Preview:")
+			commandLabel.TextStyle = fyne.TextStyle{Bold: true}
+			commandPreviewRow = container.NewVBox(
+				widget.NewSeparator(),
+				commandLabel,
+				commandPreviewWidget,
+			)
+		} else {
+			commandPreviewWidget.SetCommand(cmdStr)
+		}
+		if commandPreviewRow != nil {
+			commandPreviewRow.Show()
+		}
+	}
+
+	// Build initial preview if source is loaded
+	buildCommandPreview()
+
 	leftControls := container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn, autoCompareCheck)
 	rightControls := container.NewHBox(cancelBtn, cancelQueueBtn, viewLogBtn, addQueueBtn, convertBtn)
 	actionBar := container.NewHBox(leftControls, layout.NewSpacer(), rightControls)
@@ -6562,13 +6640,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	scrollableMain := container.NewVScroll(mainContent)
 
+	// Build footer sections
+	footerSections := []fyne.CanvasObject{
+		snippetConfigRow,
+		snippetRow,
+		widget.NewSeparator(),
+	}
+	if commandPreviewRow != nil {
+		footerSections = append(footerSections, commandPreviewRow)
+	}
+
 	mainWithFooter := container.NewBorder(
 		nil,
-		container.NewVBox(
-			snippetConfigRow,
-			snippetRow,
-			widget.NewSeparator(),
-		),
+		container.NewVBox(footerSections...),
 		nil, nil,
 		container.NewMax(scrollableMain),
 	)
