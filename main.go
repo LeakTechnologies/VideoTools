@@ -5713,10 +5713,33 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewSeparator(),
 	)
 
-	// Bitrate Mode
-	bitrateModeSelect = widget.NewSelect([]string{"CRF", "CBR", "VBR", "Target Size"}, func(value string) {
-		state.convert.BitrateMode = value
-		logging.Debug(logging.CatUI, "bitrate mode set to %s", value)
+	// Bitrate Mode with descriptions
+	bitrateModeOptions := []string{
+		"CRF (Constant Rate Factor)",
+		"CBR (Constant Bitrate)",
+		"VBR (Variable Bitrate)",
+		"Target Size (Calculate from file size)",
+	}
+	bitrateModeMap := map[string]string{
+		"CRF (Constant Rate Factor)":         "CRF",
+		"CBR (Constant Bitrate)":             "CBR",
+		"VBR (Variable Bitrate)":             "VBR",
+		"Target Size (Calculate from file size)": "Target Size",
+	}
+	reverseMap := map[string]string{
+		"CRF":         "CRF (Constant Rate Factor)",
+		"CBR":         "CBR (Constant Bitrate)",
+		"VBR":         "VBR (Variable Bitrate)",
+		"Target Size": "Target Size (Calculate from file size)",
+	}
+	bitrateModeSelect = widget.NewSelect(bitrateModeOptions, func(value string) {
+		// Extract short code from label
+		if shortCode, ok := bitrateModeMap[value]; ok {
+			state.convert.BitrateMode = shortCode
+		} else {
+			state.convert.BitrateMode = value
+		}
+		logging.Debug(logging.CatUI, "bitrate mode set to %s", state.convert.BitrateMode)
 		if updateEncodingControls != nil {
 			updateEncodingControls()
 		}
@@ -5724,7 +5747,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			buildCommandPreview()
 		}
 	})
-	bitrateModeSelect.SetSelected(state.convert.BitrateMode)
+	// Set selected using full label
+	if fullLabel, ok := reverseMap[state.convert.BitrateMode]; ok {
+		bitrateModeSelect.SetSelected(fullLabel)
+	} else {
+		bitrateModeSelect.SetSelected(state.convert.BitrateMode)
+	}
 
 	// Manual CRF entry
 	crfEntry = widget.NewEntry()
