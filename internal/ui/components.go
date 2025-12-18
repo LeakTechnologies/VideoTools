@@ -653,3 +653,55 @@ func formatCount(count int, label string) string {
 	}
 	return fmt.Sprintf("%d %s", count, label)
 }
+
+// FFmpegCommandWidget displays an FFmpeg command with copy button
+type FFmpegCommandWidget struct {
+	widget.BaseWidget
+	command      string
+	commandLabel *widget.Label
+	copyButton   *widget.Button
+	window       fyne.Window
+}
+
+// NewFFmpegCommandWidget creates a new FFmpeg command display widget
+func NewFFmpegCommandWidget(command string, window fyne.Window) *FFmpegCommandWidget {
+	w := &FFmpegCommandWidget{
+		command: command,
+		window:  window,
+	}
+	w.ExtendBaseWidget(w)
+
+	w.commandLabel = widget.NewLabel(command)
+	w.commandLabel.Wrapping = fyne.TextWrapBreak
+	w.commandLabel.TextStyle = fyne.TextStyle{Monospace: true}
+
+	w.copyButton = widget.NewButton("Copy Command", func() {
+		window.Clipboard().SetContent(w.command)
+		dialog.ShowInformation("Copied", "FFmpeg command copied to clipboard", window)
+	})
+	w.copyButton.Importance = widget.LowImportance
+
+	return w
+}
+
+// SetCommand updates the displayed command
+func (w *FFmpegCommandWidget) SetCommand(command string) {
+	w.command = command
+	w.commandLabel.SetText(command)
+	w.Refresh()
+}
+
+// CreateRenderer creates the widget renderer
+func (w *FFmpegCommandWidget) CreateRenderer() fyne.WidgetRenderer {
+	scroll := container.NewVScroll(w.commandLabel)
+	scroll.SetMinSize(fyne.NewSize(0, 80))
+
+	content := container.NewBorder(
+		nil,
+		container.NewHBox(layout.NewSpacer(), w.copyButton),
+		nil, nil,
+		scroll,
+	)
+
+	return widget.NewSimpleRenderer(content)
+}
