@@ -6227,19 +6227,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			// Hide bitrate/target-size fields to declutter in locked DVD mode
 			bitratePresetSelect.Hide()
 			simpleBitrateSelect.Hide()
-			targetFileSizeEntry.Hide()
-			targetFileSizeSelect.Hide()
-			crfEntry.Hide()
+			crfContainer.Hide()
+			targetSizeContainer.Hide()
+			// Show bitrate controls since DVD uses CBR
+			bitrateContainer.Show()
 
 			dvdInfoLabel.SetText(fmt.Sprintf("%s\nLocked: resolution, frame rate, aspect, codec, pixel format, bitrate, and GPU toggles for DVD compliance.", dvdNotes))
 		} else {
 			dvdAspectBox.Hide()
-			// Re-show hidden controls
+			// Re-enable normal visibility control through updateEncodingControls
 			bitratePresetSelect.Show()
 			simpleBitrateSelect.Show()
-			targetFileSizeEntry.Show()
-			targetFileSizeSelect.Show()
-			crfEntry.Show()
+			if updateEncodingControls != nil {
+				updateEncodingControls()
+			}
 		}
 	}
 	updateDVDOptions()
