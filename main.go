@@ -1340,6 +1340,20 @@ func (s *appState) refreshQueueView() {
 			text.Disable()
 			dialog.ShowCustom("Conversion Log", "Close", container.NewVScroll(text), s.window)
 		},
+		func(id string) { // onCopyCommand
+			job, err := s.jobQueue.Get(id)
+			if err != nil {
+				logging.Debug(logging.CatSystem, "copy command failed: %v", err)
+				return
+			}
+			cmdStr := buildFFmpegCommandFromJob(job)
+			if cmdStr == "" {
+				dialog.ShowInformation("No Command", "Unable to generate FFmpeg command for this job.", s.window)
+				return
+			}
+			s.window.Clipboard().SetContent(cmdStr)
+			dialog.ShowInformation("Copied", "FFmpeg command copied to clipboard", s.window)
+		},
 		utils.MustHex("#4CE870"), // titleColor
 		gridColor,                // bgColor
 		textColor,                // textColor

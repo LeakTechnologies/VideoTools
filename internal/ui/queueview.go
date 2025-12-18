@@ -138,6 +138,7 @@ func BuildQueueView(
 	onClearAll func(),
 	onCopyError func(string),
 	onViewLog func(string),
+	onCopyCommand func(string),
 	titleColor, bgColor, textColor color.Color,
 ) (fyne.CanvasObject, *container.Scroll) {
 	// Header
@@ -181,7 +182,7 @@ func BuildQueueView(
 		jobItems = append(jobItems, container.NewCenter(emptyMsg))
 	} else {
 		for _, job := range jobs {
-			jobItems = append(jobItems, buildJobItem(job, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, onCopyError, onViewLog, bgColor, textColor))
+			jobItems = append(jobItems, buildJobItem(job, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, onCopyError, onViewLog, onCopyCommand, bgColor, textColor))
 		}
 	}
 
@@ -211,6 +212,7 @@ func buildJobItem(
 	onMoveDown func(string),
 	onCopyError func(string),
 	onViewLog func(string),
+	onCopyCommand func(string),
 	bgColor, textColor color.Color,
 ) fyne.CanvasObject {
 	// Status color
@@ -261,6 +263,7 @@ func buildJobItem(
 	switch job.Status {
 	case queue.JobStatusRunning:
 		buttons = append(buttons,
+			widget.NewButton("Copy Command", func() { onCopyCommand(job.ID) }),
 			widget.NewButton("Pause", func() { onPause(job.ID) }),
 			widget.NewButton("Cancel", func() { onCancel(job.ID) }),
 		)
@@ -271,6 +274,7 @@ func buildJobItem(
 		)
 	case queue.JobStatusPending:
 		buttons = append(buttons,
+			widget.NewButton("Copy Command", func() { onCopyCommand(job.ID) }),
 			widget.NewButton("Cancel", func() { onCancel(job.ID) }),
 		)
 	case queue.JobStatusCompleted, queue.JobStatusFailed, queue.JobStatusCancelled:
