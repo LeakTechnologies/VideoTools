@@ -417,16 +417,22 @@ type formatOption struct {
 }
 
 var formatOptions = []formatOption{
+	// H.264 - Widely compatible, older standard
 	{"MP4 (H.264)", ".mp4", "libx264"},
-	{"MP4 (H.265)", ".mp4", "libx265"},
-	{"MP4 (AV1)", ".mp4", "libaom-av1"},
-	{"MKV (H.265)", ".mkv", "libx265"},
-	{"MKV (AV1)", ".mkv", "libaom-av1"},
-	{"WebM (VP9)", ".webm", "libvpx-vp9"},
-	{"WebM (AV1)", ".webm", "libaom-av1"},
 	{"MOV (H.264)", ".mov", "libx264"},
+	// H.265/HEVC - Better compression than H.264
+	{"MP4 (H.265)", ".mp4", "libx265"},
+	{"MKV (H.265)", ".mkv", "libx265"},
 	{"MOV (H.265)", ".mov", "libx265"},
+	// AV1 - Best compression, slower encode
+	{"MP4 (AV1)", ".mp4", "libaom-av1"},
+	{"MKV (AV1)", ".mkv", "libaom-av1"},
+	{"WebM (AV1)", ".webm", "libaom-av1"},
+	// VP9 - Google codec, good for web
+	{"WebM (VP9)", ".webm", "libvpx-vp9"},
+	// ProRes - Professional/editing codec
 	{"MOV (ProRes)", ".mov", "prores_ks"},
+	// MPEG-2 - DVD standard
 	{"DVD-NTSC (MPEG-2)", ".mpg", "mpeg2video"},
 	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video"},
 }
@@ -5072,6 +5078,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.showModule("convert")
 	})
 	cmdPreviewBtn.Importance = widget.LowImportance
+
+	// Update button text and state based on preview visibility and source
+	if src == nil {
+		cmdPreviewBtn.Disable()
+	} else if state.convertCommandPreviewShow {
+		cmdPreviewBtn.SetText("Hide Preview")
+	} else {
+		cmdPreviewBtn.SetText("Show Preview")
+	}
 
 	backBar := ui.TintedBar(convertColor, container.NewHBox(back, layout.NewSpacer(), navButtons, layout.NewSpacer(), cmdPreviewBtn, queueBtn))
 
