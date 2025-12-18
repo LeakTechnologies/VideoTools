@@ -216,7 +216,7 @@ func buildJobItem(
 	bgColor, textColor color.Color,
 ) fyne.CanvasObject {
 	// Status color
-	statusColor := getStatusColor(job.Status)
+	statusColor := GetStatusColor(job.Status)
 
 	// Status indicator
 	statusRect := canvas.NewRectangle(statusColor)
@@ -242,7 +242,7 @@ func buildJobItem(
 	progressWidget := progress
 
 	// Module badge
-	badge := buildModuleBadge(job.Type)
+	badge := BuildModuleBadge(job.Type)
 
 	// Status text
 	statusText := getStatusText(job)
@@ -329,26 +329,6 @@ func buildJobItem(
 	})
 }
 
-// getStatusColor returns the color for a job status
-func getStatusColor(status queue.JobStatus) color.Color {
-	switch status {
-	case queue.JobStatusPending:
-		return color.RGBA{R: 150, G: 150, B: 150, A: 255} // Gray
-	case queue.JobStatusRunning:
-		return color.RGBA{R: 68, G: 136, B: 255, A: 255} // Blue
-	case queue.JobStatusPaused:
-		return color.RGBA{R: 255, G: 193, B: 7, A: 255} // Yellow
-	case queue.JobStatusCompleted:
-		return color.RGBA{R: 76, G: 232, B: 112, A: 255} // Green
-	case queue.JobStatusFailed:
-		return color.RGBA{R: 255, G: 68, B: 68, A: 255} // Red
-	case queue.JobStatusCancelled:
-		return color.RGBA{R: 255, G: 136, B: 68, A: 255} // Orange
-	default:
-		return color.Gray{Y: 128}
-	}
-}
-
 // getStatusText returns a human-readable status string
 func getStatusText(job *queue.Job) string {
 	switch job.Status {
@@ -396,19 +376,6 @@ func getStatusText(job *queue.Job) string {
 	default:
 		return fmt.Sprintf("Status: %s", job.Status)
 	}
-}
-
-// buildModuleBadge renders a small colored pill to show which module created the job.
-func buildModuleBadge(t queue.JobType) fyne.CanvasObject {
-	label := widget.NewLabel(string(t))
-	label.TextStyle = fyne.TextStyle{Bold: true}
-	label.Alignment = fyne.TextAlignCenter
-
-	bg := canvas.NewRectangle(moduleColor(t))
-	bg.CornerRadius = 6
-	bg.SetMinSize(fyne.NewSize(label.MinSize().Width+12, label.MinSize().Height+6))
-
-	return container.NewMax(bg, container.NewCenter(label))
 }
 
 // moduleColor maps job types to distinct colors matching the main module colors

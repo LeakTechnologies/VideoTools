@@ -593,26 +593,9 @@ func saveBenchmarkConfig(cfg benchmarkConfig) error {
 	return os.WriteFile(path, data, 0o644)
 }
 
-// HistoryEntry represents a completed job in the history
-type HistoryEntry struct {
-	ID          string                 `json:"id"`
-	Type        queue.JobType          `json:"type"`
-	Status      queue.JobStatus        `json:"status"`
-	Title       string                 `json:"title"`
-	InputFile   string                 `json:"input_file"`
-	OutputFile  string                 `json:"output_file"`
-	LogPath     string                 `json:"log_path,omitempty"`
-	Config      map[string]interface{} `json:"config"`
-	CreatedAt   time.Time              `json:"created_at"`
-	StartedAt   *time.Time             `json:"started_at,omitempty"`
-	CompletedAt *time.Time             `json:"completed_at,omitempty"`
-	Error       string                 `json:"error,omitempty"`
-	FFmpegCmd   string                 `json:"ffmpeg_cmd,omitempty"`
-}
-
 // historyConfig holds conversion history
 type historyConfig struct {
-	Entries []HistoryEntry `json:"entries"`
+	Entries []ui.HistoryEntry `json:"entries"`
 }
 
 func historyConfigPath() string {
@@ -634,7 +617,7 @@ func loadHistoryConfig() (historyConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return historyConfig{Entries: []HistoryEntry{}}, nil
+			return historyConfig{Entries: []ui.HistoryEntry{}}, nil
 		}
 		return historyConfig{}, err
 	}
@@ -767,7 +750,7 @@ type appState struct {
 	interlaceAnalyzing bool
 
 	// History sidebar state
-	historyEntries []HistoryEntry
+	historyEntries []ui.HistoryEntry
 	sidebarVisible bool
 }
 
@@ -799,7 +782,7 @@ func (s *appState) addToHistory(job *queue.Job) {
 	// Build FFmpeg command from job config
 	cmdStr := buildFFmpegCommandFromJob(job)
 
-	entry := HistoryEntry{
+	entry := ui.HistoryEntry{
 		ID:          job.ID,
 		Type:        job.Type,
 		Status:      job.Status,
@@ -823,7 +806,7 @@ func (s *appState) addToHistory(job *queue.Job) {
 	}
 
 	// Prepend to history (newest first)
-	s.historyEntries = append([]HistoryEntry{entry}, s.historyEntries...)
+	s.historyEntries = append([]ui.HistoryEntry{entry}, s.historyEntries...)
 
 	// Save to disk
 	cfg := historyConfig{Entries: s.historyEntries}
@@ -4716,7 +4699,7 @@ func runGUI() {
 	if historyCfg, err := loadHistoryConfig(); err == nil {
 		state.historyEntries = historyCfg.Entries
 	} else {
-		state.historyEntries = []HistoryEntry{}
+		state.historyEntries = []ui.HistoryEntry{}
 		logging.Debug(logging.CatSystem, "failed to load history config: %v", err)
 	}
 	state.sidebarVisible = false
