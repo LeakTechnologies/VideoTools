@@ -44,6 +44,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Audio bitrate estimation when metadata is missing
   - Target size unit selector and numeric entry
   - Snippet history updates in sidebar
+  - Non-blocking benchmark error notifications
 
 ## Priority Features for dev20+
 

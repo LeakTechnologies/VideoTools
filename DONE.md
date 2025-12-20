@@ -770,6 +770,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Made target file size input unit-selectable with numeric-only entry
 - ✅ Prevented snippet runaway bitrates when using Match Source Format
 - ✅ History sidebar refreshes when jobs complete (snippet entries now appear)
+- ✅ Benchmark errors now show non-blocking notifications instead of OK popups
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality
