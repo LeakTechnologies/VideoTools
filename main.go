@@ -6860,6 +6860,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		resolutionSelectSimple.SetSelected(state.convert.TargetResolution)
 		resolutionSelect.SetSelected(state.convert.TargetResolution)
 		frameRateSelect.SetSelected(state.convert.FrameRate)
+		updateFrameRateHint()
 		motionInterpCheck.SetChecked(state.convert.UseMotionInterpolation)
 		syncAspect(state.convert.OutputAspect, false)
 		aspectOptions.SetSelected(state.convert.AspectHandling)
@@ -6880,6 +6881,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if updateDVDOptions != nil {
 			updateDVDOptions()
 		}
+		// Re-apply defaults in case DVD options toggled any locks
+		state.convert.TargetResolution = "Source"
+		state.convert.FrameRate = "Source"
+		resolutionSelectSimple.SetSelected("Source")
+		resolutionSelect.SetSelected("Source")
+		frameRateSelect.SetSelected("Source")
+		updateFrameRateHint()
 		if updateEncodingControls != nil {
 			updateEncodingControls()
 		}

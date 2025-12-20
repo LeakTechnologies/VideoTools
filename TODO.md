@@ -52,6 +52,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Upscale target dimensions recomputed from preset for 2X/4X reliability
   - Manual video bitrate uses a unit selector (KB/MB/GB)
   - Reset restores full default convert settings
+  - Reset forces resolution/frame rate back to Source
 
 ## Priority Features for dev20+
 
