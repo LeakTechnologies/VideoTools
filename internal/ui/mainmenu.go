@@ -47,7 +47,7 @@ type HistoryEntry struct {
 func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onBenchmarkClick func(), onBenchmarkHistoryClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int, hasBenchmark bool) fyne.CanvasObject {
 	title := canvas.NewText("VIDEOTOOLS", titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	title.TextSize = 20
+	title.TextSize = 18
 
 	queueTile := buildQueueTile(queueCompleted, queueTotal, queueColor, textColor, onQueueClick)
 
@@ -103,24 +103,23 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 
 	var sections []fyne.CanvasObject
 	for _, cat := range sortedKeys(categorized) {
+		catLabel := canvas.NewText(cat, textColor)
+		catLabel.TextSize = 12
+		catLabel.TextStyle = fyne.TextStyle{Bold: true}
 		sections = append(sections,
-			canvas.NewText(cat, textColor),
+			catLabel,
 			container.NewGridWithColumns(3, categorized[cat]...),
 		)
 	}
 
 	padding := canvas.NewRectangle(color.Transparent)
-	padding.SetMinSize(fyne.NewSize(0, 8))
+	padding.SetMinSize(fyne.NewSize(0, 4))
 
-	// Make the sections scrollable
-	sectionsContent := container.NewVBox(sections...)
-	scroll := container.NewVScroll(sectionsContent)
-
-	// Use border layout with fixed header and scrollable content
-	body := container.NewBorder(
-		container.NewVBox(header, padding),
-		nil, nil, nil,
-		scroll,
+	// Compact body without scrolling
+	body := container.NewVBox(
+		header,
+		padding,
+		container.NewVBox(sections...),
 	)
 
 	// Wrap with HSplit if sidebar is visible
@@ -142,13 +141,13 @@ func buildModuleTile(mod ModuleInfo, tapped func(), dropped func([]fyne.URI)) fy
 // buildQueueTile creates the queue status tile
 func buildQueueTile(completed, total int, queueColor, textColor color.Color, onClick func()) fyne.CanvasObject {
 	rect := canvas.NewRectangle(queueColor)
-	rect.CornerRadius = 8
-	rect.SetMinSize(fyne.NewSize(140, 50))
+	rect.CornerRadius = 6
+	rect.SetMinSize(fyne.NewSize(120, 40))
 
 	text := canvas.NewText(fmt.Sprintf("QUEUE: %d/%d", completed, total), textColor)
 	text.Alignment = fyne.TextAlignCenter
 	text.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	text.TextSize = 16
+	text.TextSize = 14
 
 	tile := container.NewMax(rect, container.NewCenter(text))
 
