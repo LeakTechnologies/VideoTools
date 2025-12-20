@@ -820,6 +820,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Added unit selector for manual video bitrate entry
 - ✅ Reset now restores full default convert settings even with no config file
 - ✅ Reset now forces resolution and frame rate back to Source
+- ✅ Fixed reset handler scope for convert tabs
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality
