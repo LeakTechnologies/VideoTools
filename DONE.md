@@ -822,6 +822,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Reset now forces resolution and frame rate back to Source
 - ✅ Fixed reset handler scope for convert tabs
 - ✅ Restored 25%/33%/50%/75% target size reduction presets
+- ✅ Default bitrate preset set to 2.5 Mbps and added 2.0 Mbps option
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality
