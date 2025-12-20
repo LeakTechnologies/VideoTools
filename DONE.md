@@ -824,6 +824,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Restored 25%/33%/50%/75% target size reduction presets
 - ✅ Default bitrate preset set to 2.5 Mbps and added 2.0 Mbps option
 - ✅ Default encoder preset set to slow
+- ✅ Bitrate mode now strictly hides unrelated controls (CRF only in CRF mode)
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality

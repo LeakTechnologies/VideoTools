@@ -6346,6 +6346,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		supportsLossless := codecSupportsLossless(state.convert.VideoCodec)
 
 		hint := ""
+		showCRF := mode == "CRF" || mode == ""
+		showBitrate := mode == "CBR" || mode == "VBR"
+		showTarget := mode == "Target Size"
 
 		if isLossless && supportsLossless {
 			// Lossless with H.265/AV1: Allow all bitrate modes
@@ -6357,24 +6360,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				}
 				state.convert.CRF = "0"
 				crfEntry.Disable()
-				crfContainer.Show()
-				bitrateContainer.Hide()
-				targetSizeContainer.Hide()
 				hint = "Lossless mode with CRF 0. Perfect quality preservation for H.265/AV1."
 			case "CBR":
-				crfContainer.Hide()
-				bitrateContainer.Show()
-				targetSizeContainer.Hide()
 				hint = "Lossless quality with constant bitrate. May achieve smaller file size than pure lossless CRF."
 			case "VBR":
-				crfContainer.Hide()
-				bitrateContainer.Show()
-				targetSizeContainer.Hide()
 				hint = "Lossless quality with variable bitrate. Efficient file size while maintaining lossless quality."
 			case "Target Size":
-				crfContainer.Hide()
-				bitrateContainer.Hide()
-				targetSizeContainer.Show()
 				hint = "Lossless quality with target size. Calculates bitrate to achieve exact file size with best possible quality."
 			}
 		} else {
@@ -6382,29 +6373,33 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			switch mode {
 			case "CRF", "":
 				// Show only CRF controls
-				crfContainer.Show()
-				bitrateContainer.Hide()
-				targetSizeContainer.Hide()
 				hint = "CRF mode: Constant quality - file size varies. Lower CRF = better quality."
 			case "CBR":
 				// Show only bitrate controls
-				crfContainer.Hide()
-				bitrateContainer.Show()
-				targetSizeContainer.Hide()
 				hint = "CBR mode: Constant bitrate - predictable file size, variable quality. Use for strict size requirements or streaming."
 			case "VBR":
 				// Show only bitrate controls
-				crfContainer.Hide()
-				bitrateContainer.Show()
-				targetSizeContainer.Hide()
 				hint = "VBR mode: Variable bitrate - targets average bitrate with 2x peak cap. Efficient quality. Uses 2-pass encoding."
 			case "Target Size":
 				// Show only target size controls
-				crfContainer.Hide()
-				bitrateContainer.Hide()
-				targetSizeContainer.Show()
 				hint = "Target Size mode: Calculates bitrate to hit exact file size. Best for strict size limits."
 			}
+		}
+
+		if showCRF {
+			crfContainer.Show()
+		} else {
+			crfContainer.Hide()
+		}
+		if showBitrate {
+			bitrateContainer.Show()
+		} else {
+			bitrateContainer.Hide()
+		}
+		if showTarget {
+			targetSizeContainer.Show()
+		} else {
+			targetSizeContainer.Hide()
 		}
 
 		encodingHint.SetText(hint)
