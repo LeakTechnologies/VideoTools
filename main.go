@@ -505,6 +505,56 @@ func (c convertConfig) CoverLabel() string {
 	return filepath.Base(c.CoverArtPath)
 }
 
+func defaultConvertConfig() convertConfig {
+	return convertConfig{
+		SelectedFormat:   formatOptions[0],
+		OutputBase:       "converted",
+		Quality:          "Standard (CRF 23)",
+		Mode:             "Simple",
+		UseAutoNaming:    false,
+		AutoNameTemplate: "<actress> - <studio> - <scene>",
+
+		VideoCodec:             "H.264",
+		EncoderPreset:          "medium",
+		CRF:                    "",
+		BitrateMode:            "CRF",
+		BitratePreset:          "Manual",
+		VideoBitrate:           "5000k",
+		TargetFileSize:         "",
+		TargetResolution:       "Source",
+		FrameRate:              "Source",
+		UseMotionInterpolation: false,
+		PixelFormat:            "yuv420p",
+		HardwareAccel:          "auto",
+		TwoPass:                false,
+		H264Profile:            "main",
+		H264Level:              "4.0",
+		Deinterlace:            "Auto",
+		DeinterlaceMethod:      "bwdif",
+		AutoCrop:               false,
+		CropWidth:              "",
+		CropHeight:             "",
+		CropX:                  "",
+		CropY:                  "",
+		FlipHorizontal:         false,
+		FlipVertical:           false,
+		Rotation:               "0",
+
+		AudioCodec:      "AAC",
+		AudioBitrate:    "192k",
+		AudioChannels:   "Source",
+		AudioSampleRate: "Source",
+		NormalizeAudio:  false,
+
+		InverseTelecine:  true,
+		InverseAutoNotes: "Default smoothing for interlaced footage.",
+		CoverArtPath:     "",
+		AspectHandling:   "Auto",
+		OutputAspect:     "Source",
+		AspectUserSet:    false,
+	}
+}
+
 // defaultConvertConfigPath returns the path to the persisted convert config.
 func defaultConvertConfigPath() string {
 	configDir, err := os.UserConfigDir()
@@ -4865,47 +4915,8 @@ func runGUI() {
 	logging.Debug(logging.CatUI, "window initialized at 800x600 (compact default), manual resizing enabled")
 
 	state := &appState{
-		window: w,
-		convert: convertConfig{
-			OutputBase:       "converted",
-			SelectedFormat:   formatOptions[0],
-			Quality:          "Standard (CRF 23)",
-			Mode:             "Simple",
-			UseAutoNaming:    false,
-			AutoNameTemplate: "<actress> - <studio> - <scene>",
-
-			// Video encoding defaults
-			VideoCodec:        "H.264",
-			EncoderPreset:     "medium",
-			CRF:               "", // Empty means use Quality preset
-			BitrateMode:       "CRF",
-			BitratePreset:     "Manual",
-			VideoBitrate:      "5000k",
-			TargetResolution:  "Source",
-			FrameRate:         "Source",
-			PixelFormat:       "yuv420p",
-			HardwareAccel:     "auto",
-			TwoPass:           false,
-			H264Profile:       "main",
-			H264Level:         "4.0",
-			Deinterlace:       "Auto",
-			DeinterlaceMethod: "bwdif",
-			AutoCrop:          false,
-
-			// Audio encoding defaults
-			AudioCodec:      "AAC",
-			AudioBitrate:    "192k",
-			AudioChannels:   "Source",
-			AudioSampleRate: "Source",
-			NormalizeAudio:  false,
-
-			// Other defaults
-			InverseTelecine:  true,
-			InverseAutoNotes: "Default smoothing for interlaced footage.",
-			OutputAspect:     "Source",
-			AspectHandling:   "Auto",
-			AspectUserSet:    false,
-		},
+		window:        w,
+		convert:       defaultConvertConfig(),
 		mergeChapters: true,
 		player:        player.New(),
 		playerVolume:  100,
@@ -5271,6 +5282,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		crfContainer         *fyne.Container
 		bitrateContainer     *fyne.Container
 		targetSizeContainer  *fyne.Container
+		resetConvertDefaults func()
 	)
 	var (
 		updateEncodingControls  func()
@@ -5767,7 +5779,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		encoderPresetHint.SetText(hint)
 	}
 
-	encoderPresetSelect := widget.NewSelect([]string{"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"}, func(value string) {
+	encoderPresetSelect := widget.NewSelect([]string{"veryslow", "slower", "slow", "medium", "fast", "faster", "veryfast", "superfast", "ultrafast"}, func(value string) {
 		state.convert.EncoderPreset = value
 		logging.Debug(logging.CatUI, "encoder preset set to %s", value)
 		updateEncoderPresetHint(value)
@@ -5779,7 +5791,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	updateEncoderPresetHint(state.convert.EncoderPreset)
 
 	// Simple mode preset dropdown
-	simplePresetSelect := widget.NewSelect([]string{"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow"}, func(value string) {
+	simplePresetSelect := widget.NewSelect([]string{"veryslow", "slower", "slow", "medium", "fast", "faster", "veryfast", "superfast", "ultrafast"}, func(value string) {
 		state.convert.EncoderPreset = value
 		logging.Debug(logging.CatUI, "simple preset set to %s", value)
 		updateEncoderPresetHint(value)
@@ -6063,7 +6075,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	})
 	if state.convert.BitratePreset == "" || bitratePresetLookup[state.convert.BitratePreset].Label == "" {
-		state.convert.BitratePreset = "4.0 Mbps - Good Quality"
+		state.convert.BitratePreset = "2.5 Mbps - Medium Quality"
 	}
 	bitratePresetSelect.SetSelected(state.convert.BitratePreset)
 
