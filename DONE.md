@@ -819,6 +819,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Upscale now recomputes target dimensions from the preset to ensure 2X/4X apply
 - ✅ Added unit selector for manual video bitrate entry
 - ✅ Reset now restores full default convert settings even with no config file
+- ✅ Reset now forces resolution and frame rate back to Source
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality
