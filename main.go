@@ -7238,7 +7238,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	snippetTools := container.NewVBox(snippetConfigRow, snippetRow)
 	snippetTools.Hide()
 	snippetToolsVisible := false
-	snippetToggleBtn := widget.NewButton("Show Snippet Tools", func() {
+	var snippetToggleBtn *widget.Button
+	snippetToggleBtn = widget.NewButton("Show Snippet Tools", func() {
 		if snippetToolsVisible {
 			snippetTools.Hide()
 			snippetToggleBtn.SetText("Show Snippet Tools")

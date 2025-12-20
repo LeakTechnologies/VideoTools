@@ -65,6 +65,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Simple/advanced bitrate presets synced
   - Quality presets hidden when bitrate mode is not CRF
   - Snippet tools collapsed behind a toggle to reduce footer clutter
+  - Snippet toggle scope fixed to eliminate build error
 
 *Last Updated: 2025-12-20*
 
