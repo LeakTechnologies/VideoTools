@@ -60,6 +60,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Bitrate mode hides unrelated controls (CRF only in CRF mode)
   - CRF visibility no longer overridden by quality updates
   - CRF preset dropdown added with Manual option
+  - Bitrate presets expanded to include 0.5/1.0 Mbps and renamed for clarity
 
 *Last Updated: 2025-12-20*
 
