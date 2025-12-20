@@ -240,13 +240,23 @@ func MakeIconButton(symbol, tooltip string, tapped func()) *widget.Button {
 
 // LoadAppIcon loads the application icon from standard locations
 func LoadAppIcon() fyne.Resource {
-	search := []string{
-		filepath.Join("assets", "logo", "VT_Icon.svg"),
+	// Try PNG first (better compatibility), then SVG
+	iconFiles := []string{"VT_Icon.png", "VT_Icon.svg"}
+	var search []string
+
+	// Search in current directory first
+	for _, iconFile := range iconFiles {
+		search = append(search, filepath.Join("assets", "logo", iconFile))
 	}
+
+	// Then search relative to executable
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
-		search = append(search, filepath.Join(dir, "assets", "logo", "VT_Icon.svg"))
+		for _, iconFile := range iconFiles {
+			search = append(search, filepath.Join(dir, "assets", "logo", iconFile))
+		}
 	}
+
 	for _, p := range search {
 		if _, err := os.Stat(p); err == nil {
 			res, err := fyne.LoadResourceFromPath(p)
@@ -254,8 +264,10 @@ func LoadAppIcon() fyne.Resource {
 				logging.Debug(logging.CatUI, "failed to load icon %s: %v", p, err)
 				continue
 			}
+			logging.Debug(logging.CatUI, "loaded app icon from %s", p)
 			return res
 		}
 	}
+	logging.Debug(logging.CatUI, "no app icon found in search paths")
 	return nil
 }

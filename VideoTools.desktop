@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=VideoTools
+Comment=Video conversion and processing tool
+Exec=/home/stu/Projects/VideoTools/VideoTools
+Icon=/home/stu/Projects/VideoTools/assets/logo/VT_Icon.png
+Terminal=false
+Categories=AudioVideo;Video;
+StartupWMClass=VideoTools
