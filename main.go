@@ -1789,7 +1789,10 @@ func (s *appState) showBenchmark() {
 				return
 			}
 			logging.Debug(logging.CatSystem, "failed to generate test video: %v", err)
-			dialog.ShowError(fmt.Errorf("failed to generate test video: %w", err), s.window)
+			fyne.CurrentApp().SendNotification(&fyne.Notification{
+				Title:   "Benchmark Error",
+				Content: fmt.Sprintf("Failed to generate test video: %v", err),
+			})
 			s.showMainMenu()
 			return
 		}
@@ -1812,7 +1815,10 @@ func (s *appState) showBenchmark() {
 				return
 			}
 			logging.Debug(logging.CatSystem, "benchmark failed: %v", err)
-			dialog.ShowError(fmt.Errorf("benchmark failed: %w", err), s.window)
+			fyne.CurrentApp().SendNotification(&fyne.Notification{
+				Title:   "Benchmark Error",
+				Content: fmt.Sprintf("Benchmark failed: %v", err),
+			})
 			s.showMainMenu()
 			return
 		}
