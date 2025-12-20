@@ -88,6 +88,7 @@ var (
 		{"filters", "Filters", utils.MustHex("#44FF88"), "Convert", modules.HandleFilters},       // Green
 		{"upscale", "Upscale", utils.MustHex("#AAFF44"), "Advanced", modules.HandleUpscale},      // Yellow-Green
 		{"audio", "Audio", utils.MustHex("#FFD744"), "Convert", modules.HandleAudio},             // Yellow
+		{"dvd-author", "DVD Author", utils.MustHex("#FFAA44"), "Convert", modules.HandleDVDAuthor}, // Orange
 		{"subtitles", "Subtitles", utils.MustHex("#44A6FF"), "Convert", modules.HandleSubtitles}, // Azure
 		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},         // Orange
 		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},       // Pink
@@ -1410,7 +1411,7 @@ func (s *appState) showMainMenu() {
 			Label:    m.Label,
 			Color:    m.Color,
 			Category: m.Category,
-			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale", // Enabled modules (subtitles placeholder stays disabled)
+		Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale", // Enabled modules (authoring/subtitles placeholders stay disabled)
 		})
 	}
 
@@ -7063,10 +7064,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Initialize snippet settings defaults
 	if state.snippetLength == 0 {
 		state.snippetLength = 20 // Default to 20 seconds
-	}
-	// Default to source format if not set
-	if !state.snippetSourceFormat {
-		state.snippetSourceFormat = true
 	}
 
 	// Snippet length configuration

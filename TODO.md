@@ -109,6 +109,13 @@ This file tracks upcoming features, improvements, and known issues.
   - Creative effects (grayscale, vignette)
   - Real-time preview system
 
+- [ ] **DVD Authoring module**
+  - Output VIDEO_TS folder + burn-ready ISO
+  - Auto-detect NTSC/PAL with manual override
+  - Preserve all audio tracks
+  - Subtitle support (start with SRT)
+  - Chapter sources: existing, manual markers, auto scene length
+
 ### Quality & Compression Improvements
 - [x] **Automatic black bar detection and cropping** (v0.1.0-dev13 - COMPLETED)
   - Implement ffmpeg cropdetect analysis pass
