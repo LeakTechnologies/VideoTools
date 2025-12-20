@@ -825,6 +825,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Default bitrate preset set to 2.5 Mbps and added 2.0 Mbps option
 - ✅ Default encoder preset set to slow
 - ✅ Bitrate mode now strictly hides unrelated controls (CRF only in CRF mode)
+- ✅ Removed CRF visibility toggle from quality updates to prevent CBR/VBR bleed-through
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality

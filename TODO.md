@@ -58,6 +58,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Default bitrate preset set to 2.5 Mbps with added 2.0 Mbps option
   - Default encoder preset set to slow
   - Bitrate mode hides unrelated controls (CRF only in CRF mode)
+  - CRF visibility no longer overridden by quality updates
 
 *Last Updated: 2025-12-20*
 
