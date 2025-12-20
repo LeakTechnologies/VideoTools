@@ -106,10 +106,15 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 	padding := canvas.NewRectangle(color.Transparent)
 	padding.SetMinSize(fyne.NewSize(0, 14))
 
-	body := container.NewVBox(
-		header,
-		padding,
-		container.NewVBox(sections...),
+	// Make the sections scrollable
+	sectionsContent := container.NewVBox(sections...)
+	scroll := container.NewVScroll(sectionsContent)
+
+	// Use border layout with fixed header and scrollable content
+	body := container.NewBorder(
+		container.NewVBox(header, padding),
+		nil, nil, nil,
+		scroll,
 	)
 
 	// Wrap with HSplit if sidebar is visible
