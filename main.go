@@ -1548,13 +1548,9 @@ func (s *appState) refreshQueueView() {
 			s.jobQueue.Clear()
 			s.clearVideo()
 
-			// If queue is now empty, return to previous module
+			// Always return to main menu after clearing
 			if len(s.jobQueue.List()) == 0 {
-				if s.lastModule != "" && s.lastModule != "queue" {
-					s.showModule(s.lastModule)
-				} else {
-					s.showMainMenu()
-				}
+				s.showMainMenu()
 			} else {
 				s.refreshQueueView() // Refresh if jobs remain
 			}
@@ -1562,12 +1558,8 @@ func (s *appState) refreshQueueView() {
 		func() { // onClearAll
 			s.jobQueue.ClearAll()
 			s.clearVideo()
-			// Return to previous module or main menu
-			if s.lastModule != "" && s.lastModule != "queue" {
-				s.showModule(s.lastModule)
-			} else {
-				s.showMainMenu()
-			}
+			// Always return to main menu after clearing all
+			s.showMainMenu()
 		},
 		func(id string) { // onCopyError
 			job, err := s.jobQueue.Get(id)
