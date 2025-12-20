@@ -43,6 +43,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Lossless + Target Size mode support
   - Audio bitrate estimation when metadata is missing
   - Target size unit selector and numeric entry
+  - Snippet history updates in sidebar
 
 ## Priority Features for dev20+
 

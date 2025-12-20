@@ -4089,27 +4089,48 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 				args = append(args, "-b:a", "192k")
 			}
 		} else {
-			// For non-WMV: use source codec or fallback to H.264
-			videoCodec := src.VideoCodec
-			if videoCodec == "" || strings.Contains(strings.ToLower(videoCodec), "wmv") {
+			// For non-WMV: match source codec where possible, but cap bitrate for snippets
+			videoCodec := strings.ToLower(strings.TrimSpace(src.VideoCodec))
+			switch {
+			case strings.Contains(videoCodec, "264"):
+				videoCodec = "libx264"
+			case strings.Contains(videoCodec, "265"), strings.Contains(videoCodec, "hevc"):
+				videoCodec = "libx265"
+			case strings.Contains(videoCodec, "vp9"):
+				videoCodec = "libvpx-vp9"
+			case strings.Contains(videoCodec, "av1"):
+				videoCodec = "libsvtav1"
+			default:
 				videoCodec = "libx264"
 			}
 
 			args = append(args, "-c:v", videoCodec)
 
-			// Apply encoder preset if supported codec
-			if strings.Contains(strings.ToLower(videoCodec), "264") ||
-				strings.Contains(strings.ToLower(videoCodec), "265") {
-				if conv.EncoderPreset != "" {
-					args = append(args, "-preset", conv.EncoderPreset)
-				} else {
-					args = append(args, "-preset", "slow")
-				}
-				if conv.CRF != "" {
-					args = append(args, "-crf", conv.CRF)
-				} else {
-					args = append(args, "-crf", "18")
-				}
+			preset := conv.EncoderPreset
+			if preset == "" {
+				preset = "slow"
+			}
+
+			crfVal := conv.CRF
+			if crfVal == "" {
+				crfVal = "18"
+			}
+			if strings.TrimSpace(crfVal) == "0" {
+				crfVal = "18"
+			}
+
+			targetBitrate := clampSnippetBitrate(strings.TrimSpace(conv.VideoBitrate), src.Width)
+			if targetBitrate == "" {
+				targetBitrate = clampSnippetBitrate(defaultBitrate(conv.VideoCodec, src.Width, src.Bitrate), src.Width)
+			}
+			if targetBitrate == "" {
+				targetBitrate = clampSnippetBitrate("3500k", src.Width)
+			}
+
+			if strings.Contains(videoCodec, "x264") || strings.Contains(videoCodec, "x265") {
+				args = append(args, "-preset", preset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
+			} else if strings.Contains(videoCodec, "vp9") || strings.Contains(videoCodec, "av1") {
+				args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 			}
 
 			// Audio codec
@@ -4817,12 +4838,12 @@ func runGUI() {
 	// Adaptive window sizing for professional cross-resolution support
 	w.SetFixedSize(false) // Allow manual resizing and maximizing
 
-	// Use conservative default size that fits on small laptop screens (1280x768)
-	// Window can be maximized by user using window manager controls
-	w.Resize(fyne.NewSize(1200, 700))
+	// Use compact default size (800x600) that fits on any screen
+	// Window can be resized or maximized by user using window manager controls
+	w.Resize(fyne.NewSize(800, 600))
 	w.CenterOnScreen()
 
-	logging.Debug(logging.CatUI, "window initialized at 1200x700 (fits 1280x768+ screens), manual resizing enabled")
+	logging.Debug(logging.CatUI, "window initialized at 800x600 (compact default), manual resizing enabled")
 
 	state := &appState{
 		window: w,
@@ -4907,6 +4928,7 @@ func runGUI() {
 			return
 		}
 		app.Driver().DoFromGoroutine(func() {
+			historyCount := len(state.historyEntries)
 			// Add completed jobs to history
 			jobs := state.jobQueue.List()
 			for _, job := range jobs {
@@ -4921,6 +4943,11 @@ func runGUI() {
 			state.updateQueueButtonLabel()
 			if state.active == "queue" {
 				state.refreshQueueView()
+			}
+			if state.active == "mainmenu" && state.sidebarVisible && len(state.historyEntries) != historyCount {
+				state.navigationHistorySuppress = true
+				state.showMainMenu()
+				state.navigationHistorySuppress = false
 			}
 		}, false)
 	})
