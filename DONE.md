@@ -2,9 +2,59 @@
 
 This file tracks completed features, fixes, and milestones.
 
-## Version 0.1.0-dev19 (2025-12-18) - Convert Module Cleanup & UX Polish
+## Version 0.1.0-dev19 (2025-12-18 to 2025-12-20) - Convert Module Cleanup & UX Polish
 
-### Features
+### Features (2025-12-20 Session)
+- ✅ **History Sidebar - In Progress Tab**
+  - Added "In Progress" tab to history sidebar
+  - Shows running and pending jobs without opening queue
+  - Animated striped progress bars per module color
+  - Real-time progress updates (0-100%)
+  - No delete button on active jobs (only completed/failed)
+  - Dynamic status text ("Running..." or "Pending")
+
+- ✅ **Benchmark System Overhaul**
+  - **Hardware Detection Module** (`internal/sysinfo/sysinfo.go`)
+    - Cross-platform CPU detection (model, cores, clock speed)
+    - GPU detection with driver version (NVIDIA via nvidia-smi)
+    - RAM detection with human-readable formatting
+    - Linux, Windows, macOS support
+  - **Hardware Info Display**
+    - Shown immediately in benchmark progress view (before tests run)
+    - Displayed in benchmark results view
+    - Saved with each benchmark run for history
+  - **Settings Persistence**
+    - Hardware acceleration settings saved with benchmarks
+    - Settings persist between sessions via config file
+    - GPU automatically detected and used
+  - **UI Polish**
+    - "Run Benchmark" button highlighted (HighImportance) on first run
+    - Returns to normal styling after initial benchmark
+    - Guides new users to run initial benchmark
+
+- ✅ **Bitrate Preset Simplification**
+  - Reduced from 13 confusing options to 6 clear presets
+  - Removed resolution references (no more "1440p" confusion)
+  - Codec-agnostic (presets don't change selected codec)
+  - Quality-based naming: Low/Medium/Good/High/Very High Quality
+  - Focused on common use cases (1.5-8 Mbps range)
+  - Presets only set bitrate and switch to CBR mode
+  - User codec choice (H.264, VP9, AV1, etc.) preserved
+
+- ✅ **Quality Preset Codec Compatibility**
+  - "Lossless" quality option only available for H.265 and AV1
+  - Dynamic quality dropdown based on selected codec
+  - Automatic fallback to "Near-Lossless" when switching to non-lossless codec
+  - Lossless + Target Size bitrate mode now supported for H.265/AV1
+  - Prevents invalid codec/quality combinations
+
+- ✅ **App Icon Improvements**
+  - Regenerated VT_Icon.ico with transparent background
+  - Updated LoadAppIcon() to search PNG first (better Linux support)
+  - Searches both current directory and executable directory
+  - Added debug logging for icon loading troubleshooting
+
+### Features (2025-12-18 Session)
 - ✅ **History Sidebar Enhancements**
   - Delete button ("×") on each history entry
   - Remove individual entries from history
@@ -715,6 +765,7 @@ This file tracks completed features, fixes, and milestones.
 
 ### Recent Fixes
 - ✅ Fixed aspect ratio default from 16:9 to Source (dev7)
+- ✅ Ranked benchmark results by score and added cancel confirmation
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality

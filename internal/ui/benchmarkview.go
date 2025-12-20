@@ -3,20 +3,24 @@ package ui
 import (
 	"fmt"
 	"image/color"
+	"sort"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
 )
 
 // BuildBenchmarkProgressView creates the benchmark progress UI
 func BuildBenchmarkProgressView(
+	hwInfo sysinfo.HardwareInfo,
 	onCancel func(),
 	titleColor, bgColor, textColor color.Color,
 ) *BenchmarkProgressView {
 	view := &BenchmarkProgressView{
+		hwInfo:     hwInfo,
 		titleColor: titleColor,
 		bgColor:    bgColor,
 		textColor:  textColor,
@@ -28,6 +32,7 @@ func BuildBenchmarkProgressView(
 
 // BenchmarkProgressView shows real-time benchmark progress
 type BenchmarkProgressView struct {
+	hwInfo     sysinfo.HardwareInfo
 	titleColor color.Color
 	bgColor    color.Color
 	textColor  color.Color
@@ -55,6 +60,37 @@ func (v *BenchmarkProgressView) build() {
 		nil,
 		v.cancelBtn,
 		container.NewCenter(title),
+	)
+
+	// Hardware info section
+	hwInfoTitle := widget.NewLabel("System Hardware")
+	hwInfoTitle.TextStyle = fyne.TextStyle{Bold: true}
+	hwInfoTitle.Alignment = fyne.TextAlignCenter
+
+	cpuLabel := widget.NewLabel(fmt.Sprintf("CPU: %s (%d cores @ %s)", v.hwInfo.CPU, v.hwInfo.CPUCores, v.hwInfo.CPUMHz))
+	cpuLabel.Wrapping = fyne.TextWrapWord
+
+	gpuLabel := widget.NewLabel(fmt.Sprintf("GPU: %s", v.hwInfo.GPU))
+	gpuLabel.Wrapping = fyne.TextWrapWord
+
+	ramLabel := widget.NewLabel(fmt.Sprintf("RAM: %s", v.hwInfo.RAM))
+
+	driverLabel := widget.NewLabel(fmt.Sprintf("Driver: %s", v.hwInfo.GPUDriver))
+	driverLabel.Wrapping = fyne.TextWrapWord
+
+	hwCard := canvas.NewRectangle(color.RGBA{R: 34, G: 38, B: 48, A: 255})
+	hwCard.CornerRadius = 8
+
+	hwContent := container.NewVBox(
+		hwInfoTitle,
+		cpuLabel,
+		gpuLabel,
+		ramLabel,
+		driverLabel,
+	)
+
+	hwInfoSection := container.NewPadded(
+		container.NewMax(hwCard, hwContent),
 	)
 
 	// Status section
@@ -96,6 +132,8 @@ func (v *BenchmarkProgressView) build() {
 		header,
 		nil, nil, nil,
 		container.NewVBox(
+			hwInfoSection,
+			widget.NewSeparator(),
 			statusSection,
 			widget.NewSeparator(),
 			resultsSection,
@@ -188,6 +226,7 @@ func (v *BenchmarkProgressView) SetComplete() {
 func BuildBenchmarkResultsView(
 	results []benchmark.Result,
 	recommendation benchmark.Result,
+	hwInfo sysinfo.HardwareInfo,
 	onApply func(),
 	onClose func(),
 	titleColor, bgColor, textColor color.Color,
@@ -205,6 +244,37 @@ func BuildBenchmarkResultsView(
 		nil,
 		closeBtn,
 		container.NewCenter(title),
+	)
+
+	// Hardware info section
+	hwInfoTitle := widget.NewLabel("System Hardware")
+	hwInfoTitle.TextStyle = fyne.TextStyle{Bold: true}
+	hwInfoTitle.Alignment = fyne.TextAlignCenter
+
+	cpuLabel := widget.NewLabel(fmt.Sprintf("CPU: %s (%d cores @ %s)", hwInfo.CPU, hwInfo.CPUCores, hwInfo.CPUMHz))
+	cpuLabel.Wrapping = fyne.TextWrapWord
+
+	gpuLabel := widget.NewLabel(fmt.Sprintf("GPU: %s", hwInfo.GPU))
+	gpuLabel.Wrapping = fyne.TextWrapWord
+
+	ramLabel := widget.NewLabel(fmt.Sprintf("RAM: %s", hwInfo.RAM))
+
+	driverLabel := widget.NewLabel(fmt.Sprintf("Driver: %s", hwInfo.GPUDriver))
+	driverLabel.Wrapping = fyne.TextWrapWord
+
+	hwCard := canvas.NewRectangle(color.RGBA{R: 34, G: 38, B: 48, A: 255})
+	hwCard.CornerRadius = 8
+
+	hwContent := container.NewVBox(
+		hwInfoTitle,
+		cpuLabel,
+		gpuLabel,
+		ramLabel,
+		driverLabel,
+	)
+
+	hwInfoSection := container.NewPadded(
+		container.NewMax(hwCard, hwContent),
 	)
 
 	// Recommendation section
@@ -243,12 +313,19 @@ func BuildBenchmarkResultsView(
 		topResultsTitle.TextStyle = fyne.TextStyle{Bold: true}
 		topResultsTitle.Alignment = fyne.TextAlignCenter
 
-		var resultItems []fyne.CanvasObject
-		for i, result := range results {
-			if result.Error != "" {
-				continue
+		var filtered []benchmark.Result
+		for _, result := range results {
+			if result.Error == "" {
+				filtered = append(filtered, result)
 			}
+		}
 
+		sort.Slice(filtered, func(i, j int) bool {
+			return filtered[i].Score > filtered[j].Score
+		})
+
+		var resultItems []fyne.CanvasObject
+		for i, result := range filtered {
 			rankLabel := widget.NewLabel(fmt.Sprintf("#%d", i+1))
 			rankLabel.TextStyle = fyne.TextStyle{Bold: true}
 
@@ -290,6 +367,8 @@ func BuildBenchmarkResultsView(
 			header,
 			nil, nil, nil,
 			container.NewVBox(
+				hwInfoSection,
+				widget.NewSeparator(),
 				recommendationSection,
 				widget.NewSeparator(),
 				resultsSection,
