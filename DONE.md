@@ -55,10 +55,10 @@ This file tracks completed features, fixes, and milestones.
   - Added debug logging for icon loading troubleshooting
 
 - ✅ **UI Scaling for 800x600 Windows** (2025-12-20 continuation)
-  - Reduced module tile size from 220x110 to 150x65 (final)
-  - Reduced title text size from 28 to 18 (final)
-  - Reduced queue tile from 160x60 to 120x40 (final)
-  - Reduced section padding from 14 to 4 pixels (final)
+  - Reduced module tile size from 220x110 to 150x65
+  - Reduced title text size from 28 to 18
+  - Reduced queue tile from 160x60 to 120x40
+  - Reduced section padding from 14 to 4 pixels
   - Reduced category labels to 12px
   - Removed extra padding wrapper around tiles
   - Removed scrolling requirement - everything fits without scrolling
