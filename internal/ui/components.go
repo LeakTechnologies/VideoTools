@@ -555,25 +555,17 @@ func (r *conversionStatsRenderer) Layout(size fyne.Size) {
 	textSize := r.statusText.MinSize()
 	padding := float32(10)
 
-	// If there's a running job, show progress bar
-	if r.bar.running > 0 && r.bar.progress > 0 {
-		// Show progress bar on right side
-		barWidth := float32(120)
-		barHeight := float32(20)
-		barX := size.Width - barWidth - padding
-		barY := (size.Height - barHeight) / 2
+	// Position progress bar on right side
+	barWidth := float32(120)
+	barHeight := float32(20)
+	barX := size.Width - barWidth - padding
+	barY := (size.Height - barHeight) / 2
 
-		r.progressBar.Resize(fyne.NewSize(barWidth, barHeight))
-		r.progressBar.Move(fyne.NewPos(barX, barY))
-		r.progressBar.Show()
+	r.progressBar.Resize(fyne.NewSize(barWidth, barHeight))
+	r.progressBar.Move(fyne.NewPos(barX, barY))
 
-		// Position text on left
-		r.statusText.Move(fyne.NewPos(padding, (size.Height-textSize.Height)/2))
-	} else {
-		// No progress bar, center text
-		r.progressBar.Hide()
-		r.statusText.Move(fyne.NewPos(padding, (size.Height-textSize.Height)/2))
-	}
+	// Position text on left
+	r.statusText.Move(fyne.NewPos(padding, (size.Height-textSize.Height)/2))
 }
 
 func (r *conversionStatsRenderer) MinSize() fyne.Size {
