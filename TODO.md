@@ -49,6 +49,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Target aspect default enforced as Source unless user changes it
   - Target aspect sync across simple/advanced menus
   - Hide manual CRF entry when Lossless quality is active
+  - Upscale target dimensions recomputed from preset for 2X/4X reliability
 
 ## Priority Features for dev20+
 
