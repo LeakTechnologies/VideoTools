@@ -823,6 +823,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Fixed reset handler scope for convert tabs
 - ✅ Restored 25%/33%/50%/75% target size reduction presets
 - ✅ Default bitrate preset set to 2.5 Mbps and added 2.0 Mbps option
+- ✅ Default encoder preset set to slow
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality

@@ -515,7 +515,7 @@ func defaultConvertConfig() convertConfig {
 		AutoNameTemplate: "<actress> - <studio> - <scene>",
 
 		VideoCodec:             "H.264",
-		EncoderPreset:          "medium",
+		EncoderPreset:          "slow",
 		CRF:                    "",
 		BitrateMode:            "CRF",
 		BitratePreset:          "2.5 Mbps - Medium Quality",
