@@ -68,7 +68,7 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 	logsBtn := widget.NewButton("Logs", onLogsClick)
 	logsBtn.Importance = widget.LowImportance
 
-	header := container.New(layout.NewHBoxLayout(), title, layout.NewSpacer(), sidebarToggleBtn, benchmarkBtn, viewResultsBtn, logsBtn, queueTile)
+	header := container.NewHBox(title, layout.NewSpacer(), sidebarToggleBtn, benchmarkBtn, viewResultsBtn, logsBtn, queueTile)
 
 	categorized := map[string][]fyne.CanvasObject{}
 	for i := range modules {
@@ -106,7 +106,7 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 	padding := canvas.NewRectangle(color.Transparent)
 	padding.SetMinSize(fyne.NewSize(0, 14))
 
-	body := container.New(layout.NewVBoxLayout(),
+	body := container.NewVBox(
 		header,
 		padding,
 		container.NewVBox(sections...),
