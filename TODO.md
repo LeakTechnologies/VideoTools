@@ -42,6 +42,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Dynamic dropdown based on codec
   - Lossless + Target Size mode support
   - Audio bitrate estimation when metadata is missing
+  - Target size unit selector and numeric entry
 
 ## Priority Features for dev20+
 

@@ -5966,7 +5966,61 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Target File Size with smart presets + manual entry
 	targetFileSizeEntry = widget.NewEntry()
-	targetFileSizeEntry.SetPlaceHolder("e.g., 25MB, 100MB, 8MB")
+	targetFileSizeEntry.SetPlaceHolder("e.g., 250")
+	targetFileSizeUnitSelect := widget.NewSelect([]string{"KB", "MB", "GB"}, func(value string) {})
+	targetFileSizeUnitSelect.SetSelected("MB")
+	targetSizeManualRow := container.NewBorder(nil, nil, nil, targetFileSizeUnitSelect, targetFileSizeEntry)
+
+	parseSizeParts := func(input string) (string, string, bool) {
+		trimmed := strings.TrimSpace(input)
+		if trimmed == "" {
+			return "", "", false
+		}
+		upper := strings.ToUpper(trimmed)
+		var num float64
+		var unit string
+		if _, err := fmt.Sscanf(upper, "%f%s", &num, &unit); err != nil {
+			return "", "", false
+		}
+		numStr := strconv.FormatFloat(num, 'f', -1, 64)
+		return numStr, unit, true
+	}
+
+	updateTargetSizeState := func() {
+		val := strings.TrimSpace(targetFileSizeEntry.Text)
+		if val == "" {
+			state.convert.TargetFileSize = ""
+			return
+		}
+		if num, unit, ok := parseSizeParts(val); ok && unit != "" {
+			if num != val {
+				targetFileSizeEntry.SetText(num)
+				return
+			}
+			if unit != targetFileSizeUnitSelect.Selected {
+				targetFileSizeUnitSelect.SetSelected(unit)
+				return
+			}
+			val = num
+		}
+		unit := targetFileSizeUnitSelect.Selected
+		if unit == "" {
+			unit = "MB"
+			targetFileSizeUnitSelect.SetSelected(unit)
+		}
+		state.convert.TargetFileSize = val + unit
+		logging.Debug(logging.CatUI, "target file size set to %s", state.convert.TargetFileSize)
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
+	}
+
+	targetFileSizeUnitSelect.OnChanged = func(value string) {
+		if targetFileSizeEntry.Hidden {
+			return
+		}
+		updateTargetSizeState()
+	}
 
 	updateTargetSizeOptions := func() {
 		if src == nil {
@@ -6010,8 +6064,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	targetFileSizeSelect = widget.NewSelect([]string{"Manual", "25MB", "50MB", "100MB", "200MB", "500MB", "1GB"}, func(value string) {
 		if value == "Manual" {
-			targetFileSizeEntry.Show()
-			targetFileSizeEntry.SetText(state.convert.TargetFileSize)
+			targetSizeManualRow.Show()
+			if state.convert.TargetFileSize != "" {
+				if num, unit, ok := parseSizeParts(state.convert.TargetFileSize); ok {
+					targetFileSizeEntry.SetText(num)
+					if unit != "" {
+						targetFileSizeUnitSelect.SetSelected(unit)
+					}
+				} else {
+					targetFileSizeEntry.SetText(state.convert.TargetFileSize)
+				}
+			}
 		} else {
 			// Extract size from selection (handle "XMB (Y% smaller)" format)
 			var sizeStr string
@@ -6023,19 +6086,32 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				sizeStr = value
 			}
 			state.convert.TargetFileSize = sizeStr
-			targetFileSizeEntry.SetText(sizeStr)
-			targetFileSizeEntry.Hide()
+			if num, unit, ok := parseSizeParts(sizeStr); ok {
+				targetFileSizeEntry.SetText(num)
+				if unit != "" {
+					targetFileSizeUnitSelect.SetSelected(unit)
+				}
+			} else {
+				targetFileSizeEntry.SetText(sizeStr)
+			}
+			targetSizeManualRow.Hide()
 		}
 		logging.Debug(logging.CatUI, "target file size set to %s", state.convert.TargetFileSize)
 	})
 	targetFileSizeSelect.SetSelected("Manual")
 	updateTargetSizeOptions()
 
-	targetFileSizeEntry.SetText(state.convert.TargetFileSize)
 	targetFileSizeEntry.OnChanged = func(val string) {
-		state.convert.TargetFileSize = val
-		if buildCommandPreview != nil {
-			buildCommandPreview()
+		updateTargetSizeState()
+	}
+	if state.convert.TargetFileSize != "" {
+		if num, unit, ok := parseSizeParts(state.convert.TargetFileSize); ok {
+			targetFileSizeEntry.SetText(num)
+			if unit != "" {
+				targetFileSizeUnitSelect.SetSelected(unit)
+			}
+		} else {
+			targetFileSizeEntry.SetText(state.convert.TargetFileSize)
 		}
 	}
 
@@ -6043,7 +6119,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	targetSizeContainer = container.NewVBox(
 		widget.NewLabelWithStyle("Target File Size", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetFileSizeSelect,
-		targetFileSizeEntry,
+		targetSizeManualRow,
 	)
 
 	encodingHint := widget.NewLabel("")

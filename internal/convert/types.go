@@ -217,15 +217,18 @@ func ParseFileSize(sizeStr string) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("invalid size format: %s", sizeStr)
 	}
+	if unit == "" {
+		unit = "MB"
+	}
 
 	// Convert to bytes
 	multiplier := int64(1)
 	switch unit {
-	case "KB":
+	case "K", "KB":
 		multiplier = 1024
-	case "MB":
+	case "M", "MB":
 		multiplier = 1024 * 1024
-	case "GB":
+	case "G", "GB":
 		multiplier = 1024 * 1024 * 1024
 	case "B", "":
 		multiplier = 1
