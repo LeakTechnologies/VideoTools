@@ -51,6 +51,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Hide manual CRF entry when Lossless quality is active
   - Upscale target dimensions recomputed from preset for 2X/4X reliability
   - Manual video bitrate uses a unit selector (KB/MB/GB)
+  - Reset restores full default convert settings
 
 ## Priority Features for dev20+
 

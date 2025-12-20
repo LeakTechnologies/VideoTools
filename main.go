@@ -6856,6 +6856,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		autoNameCheck.SetChecked(state.convert.UseAutoNaming)
 		autoNameTemplate.SetText(state.convert.AutoNameTemplate)
 		outputEntry.SetText(state.convert.OutputBase)
+		outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
 		resolutionSelectSimple.SetSelected(state.convert.TargetResolution)
 		resolutionSelect.SetSelected(state.convert.TargetResolution)
 		frameRateSelect.SetSelected(state.convert.FrameRate)
@@ -6868,8 +6869,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		audioCodecSelect.SetSelected(state.convert.AudioCodec)
 		audioBitrateSelect.SetSelected(state.convert.AudioBitrate)
 		audioChannelsSelect.SetSelected(state.convert.AudioChannels)
+		inverseCheck.SetChecked(state.convert.InverseTelecine)
+		inverseHint.SetText(state.convert.InverseAutoNotes)
+		coverLabel.SetText(state.convert.CoverLabel())
+		if coverDisplay != nil {
+			coverDisplay.SetText("Cover Art: " + state.convert.CoverLabel())
+		}
 
 		updateAspectBoxVisibility()
+		if updateDVDOptions != nil {
+			updateDVDOptions()
+		}
 		if updateEncodingControls != nil {
 			updateEncodingControls()
 		}
