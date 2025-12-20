@@ -44,6 +44,12 @@ func HandleAudio(files []string) {
 	fmt.Println("audio", files)
 }
 
+// HandleDVDAuthor handles the DVD authoring module (placeholder)
+func HandleDVDAuthor(files []string) {
+	logging.Debug(logging.CatModule, "dvd author handler invoked with %v", files)
+	fmt.Println("dvd author", files)
+}
+
 // HandleSubtitles handles the subtitles module (placeholder)
 func HandleSubtitles(files []string) {
 	logging.Debug(logging.CatModule, "subtitles handler invoked with %v", files)
