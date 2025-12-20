@@ -44,6 +44,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/thumbnail"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -81,16 +82,17 @@ var (
 	nvencRuntimeOK   bool
 
 	modulesList = []Module{
-		{"convert", "Convert", utils.MustHex("#8B44FF"), "Convert", modules.HandleConvert},  // Violet
-		{"merge", "Merge", utils.MustHex("#4488FF"), "Convert", modules.HandleMerge},        // Blue
-		{"trim", "Trim", utils.MustHex("#44DDFF"), "Convert", modules.HandleTrim},           // Cyan
-		{"filters", "Filters", utils.MustHex("#44FF88"), "Convert", modules.HandleFilters},  // Green
-		{"upscale", "Upscale", utils.MustHex("#AAFF44"), "Advanced", modules.HandleUpscale}, // Yellow-Green
-		{"audio", "Audio", utils.MustHex("#FFD744"), "Convert", modules.HandleAudio},        // Yellow
-		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},    // Orange
-		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},  // Pink
-		{"inspect", "Inspect", utils.MustHex("#FF4444"), "Inspect", modules.HandleInspect},  // Red
-		{"player", "Player", utils.MustHex("#44FFDD"), "Playback", modules.HandlePlayer},    // Teal
+		{"convert", "Convert", utils.MustHex("#8B44FF"), "Convert", modules.HandleConvert},       // Violet
+		{"merge", "Merge", utils.MustHex("#4488FF"), "Convert", modules.HandleMerge},             // Blue
+		{"trim", "Trim", utils.MustHex("#44DDFF"), "Convert", modules.HandleTrim},                // Cyan
+		{"filters", "Filters", utils.MustHex("#44FF88"), "Convert", modules.HandleFilters},       // Green
+		{"upscale", "Upscale", utils.MustHex("#AAFF44"), "Advanced", modules.HandleUpscale},      // Yellow-Green
+		{"audio", "Audio", utils.MustHex("#FFD744"), "Convert", modules.HandleAudio},             // Yellow
+		{"subtitles", "Subtitles", utils.MustHex("#44A6FF"), "Convert", modules.HandleSubtitles}, // Azure
+		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},         // Orange
+		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},       // Pink
+		{"inspect", "Inspect", utils.MustHex("#FF4444"), "Inspect", modules.HandleInspect},       // Red
+		{"player", "Player", utils.MustHex("#44FFDD"), "Playback", modules.HandlePlayer},         // Teal
 	}
 
 	// Platform-specific configuration
@@ -557,12 +559,13 @@ func savePersistedConvertConfig(cfg convertConfig) error {
 
 // benchmarkRun represents a single benchmark test run
 type benchmarkRun struct {
-	Timestamp          time.Time          `json:"timestamp"`
-	Results            []benchmark.Result `json:"results"`
-	RecommendedEncoder string             `json:"recommended_encoder"`
-	RecommendedPreset  string             `json:"recommended_preset"`
-	RecommendedHWAccel string             `json:"recommended_hwaccel"`
-	RecommendedFPS     float64            `json:"recommended_fps"`
+	Timestamp          time.Time            `json:"timestamp"`
+	Results            []benchmark.Result   `json:"results"`
+	RecommendedEncoder string               `json:"recommended_encoder"`
+	RecommendedPreset  string               `json:"recommended_preset"`
+	RecommendedHWAccel string               `json:"recommended_hwaccel"`
+	RecommendedFPS     float64              `json:"recommended_fps"`
+	HardwareInfo       sysinfo.HardwareInfo `json:"hardware_info"`
 }
 
 // benchmarkConfig holds benchmark history
@@ -1355,7 +1358,7 @@ func (s *appState) showMainMenu() {
 			Label:    m.Label,
 			Color:    m.Color,
 			Category: m.Category,
-			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale", // Enabled modules
+			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale", // Enabled modules (subtitles placeholder stays disabled)
 		})
 	}
 
@@ -1408,11 +1411,17 @@ func (s *appState) showMainMenu() {
 		)
 	}
 
+	// Check if benchmark has been run
+	hasBenchmark := false
+	if cfg, err := loadBenchmarkConfig(); err == nil && len(cfg.History) > 0 {
+		hasBenchmark = true
+	}
+
 	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, s.showBenchmark, s.showBenchmarkHistory, func() {
 		// Toggle sidebar
 		s.sidebarVisible = !s.sidebarVisible
 		s.showMainMenu()
-	}, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal)
+	}, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal, hasBenchmark)
 
 	// Update stats bar
 	s.updateStatsBar()
@@ -1733,17 +1742,35 @@ func (s *appState) showBenchmark() {
 	s.stopPlayer()
 	s.active = "benchmark"
 
+	// Detect hardware info upfront
+	hwInfo := sysinfo.Detect()
+	logging.Debug(logging.CatSystem, "detected hardware for benchmark: %s", hwInfo.Summary())
+
 	// Create benchmark suite
 	tmpDir := filepath.Join(os.TempDir(), "videotools-benchmark")
 	_ = os.MkdirAll(tmpDir, 0o755)
 
 	suite := benchmark.NewSuite(platformConfig.FFmpegPath, tmpDir)
 
-	// Build progress view
+	benchComplete := atomic.Bool{}
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Build progress view with hardware info
 	view := ui.BuildBenchmarkProgressView(
+		hwInfo,
 		func() {
-			// Cancel benchmark
-			s.showMainMenu()
+			if benchComplete.Load() {
+				s.showMainMenu()
+				return
+			}
+
+			dialog.ShowConfirm("Cancel Benchmark?", "The benchmark is still running. Cancel it now?", func(ok bool) {
+				if !ok {
+					return
+				}
+				cancel()
+				s.showMainMenu()
+			}, s.window)
 		},
 		utils.MustHex("#4CE870"),
 		utils.MustHex("#1E1E1E"),
@@ -1754,12 +1781,13 @@ func (s *appState) showBenchmark() {
 
 	// Run benchmark in background
 	go func() {
-		ctx := context.Background()
-
 		// Generate test video
 		view.UpdateProgress(0, 100, "Generating test video", "")
 		testPath, err := suite.GenerateTestVideo(ctx, 30)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
 			logging.Debug(logging.CatSystem, "failed to generate test video: %v", err)
 			dialog.ShowError(fmt.Errorf("failed to generate test video: %w", err), s.window)
 			s.showMainMenu()
@@ -1780,6 +1808,9 @@ func (s *appState) showBenchmark() {
 		// Run benchmark suite
 		err = suite.RunFullSuite(ctx, availableEncoders)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
 			logging.Debug(logging.CatSystem, "benchmark failed: %v", err)
 			dialog.ShowError(fmt.Errorf("benchmark failed: %w", err), s.window)
 			s.showMainMenu()
@@ -1793,6 +1824,7 @@ func (s *appState) showBenchmark() {
 
 		// Mark complete
 		view.SetComplete()
+		benchComplete.Store(true)
 
 		// Get recommendation
 		encoder, preset, rec := suite.GetRecommendation()
@@ -1807,10 +1839,13 @@ func (s *appState) showBenchmark() {
 
 			// Show results dialog with option to apply
 			go func() {
+				// Detect hardware info for display
+				hwInfo := sysinfo.Detect()
 				allResults := suite.Results // Show all results, not just top 10
 				resultsView := ui.BuildBenchmarkResultsView(
 					allResults,
 					rec,
+					hwInfo,
 					func() {
 						// Apply recommended settings
 						s.applyBenchmarkRecommendation(encoder, preset)
@@ -1876,6 +1911,10 @@ func (s *appState) saveBenchmarkRun(results []benchmark.Result, encoder, preset 
 		hwAccel = "none"
 	}
 
+	// Detect hardware info
+	hwInfo := sysinfo.Detect()
+	logging.Debug(logging.CatSystem, "detected hardware: %s", hwInfo.Summary())
+
 	// Load existing config
 	cfg, err := loadBenchmarkConfig()
 	if err != nil {
@@ -1891,6 +1930,7 @@ func (s *appState) saveBenchmarkRun(results []benchmark.Result, encoder, preset 
 		RecommendedPreset:  preset,
 		RecommendedHWAccel: hwAccel,
 		RecommendedFPS:     fps,
+		HardwareInfo:       hwInfo,
 	}
 
 	// Add to history (keep last 10 runs)
@@ -1991,6 +2031,7 @@ func (s *appState) showBenchmarkHistory() {
 			resultsView := ui.BuildBenchmarkResultsView(
 				run.Results,
 				rec,
+				run.HardwareInfo,
 				func() {
 					// Apply this recommendation
 					s.applyBenchmarkRecommendation(run.RecommendedEncoder, run.RecommendedPreset)
@@ -5786,9 +5827,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"Target Size (Calculate from file size)",
 	}
 	bitrateModeMap := map[string]string{
-		"CRF (Constant Rate Factor)":         "CRF",
-		"CBR (Constant Bitrate)":             "CBR",
-		"VBR (Variable Bitrate)":             "VBR",
+		"CRF (Constant Rate Factor)":             "CRF",
+		"CBR (Constant Bitrate)":                 "CBR",
+		"VBR (Variable Bitrate)":                 "VBR",
 		"Target Size (Calculate from file size)": "Target Size",
 	}
 	reverseMap := map[string]string{
@@ -5857,18 +5898,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	presets := []bitratePreset{
 		{Label: "Manual", Bitrate: "", Codec: ""},
-		{Label: "AV1 1080p - 1200k (smallest)", Bitrate: "1200k", Codec: "AV1"},
-		{Label: "AV1 1080p - 1400k (sweet spot)", Bitrate: "1400k", Codec: "AV1"},
-		{Label: "AV1 1080p - 1800k (headroom)", Bitrate: "1800k", Codec: "AV1"},
-		{Label: "H.265 1080p - 2000k (balanced)", Bitrate: "2000k", Codec: "H.265"},
-		{Label: "H.265 1080p - 2400k (noisy sources)", Bitrate: "2400k", Codec: "H.265"},
-		{Label: "AV1 1440p - 2600k (balanced)", Bitrate: "2600k", Codec: "AV1"},
-		{Label: "H.265 1440p - 3200k (balanced)", Bitrate: "3200k", Codec: "H.265"},
-		{Label: "H.265 1440p - 4000k (noisy sources)", Bitrate: "4000k", Codec: "H.265"},
-		{Label: "AV1 4K - 5M (balanced)", Bitrate: "5000k", Codec: "AV1"},
-		{Label: "H.265 4K - 6M (balanced)", Bitrate: "6000k", Codec: "H.265"},
-		{Label: "AV1 4K - 7M (archive)", Bitrate: "7000k", Codec: "AV1"},
-		{Label: "H.265 4K - 9M (fast/Topaz)", Bitrate: "9000k", Codec: "H.265"},
+		{Label: "1.5 Mbps - Low Quality", Bitrate: "1500k", Codec: ""},
+		{Label: "2.5 Mbps - Medium Quality", Bitrate: "2500k", Codec: ""},
+		{Label: "4.0 Mbps - Good Quality", Bitrate: "4000k", Codec: ""},
+		{Label: "6.0 Mbps - High Quality", Bitrate: "6000k", Codec: ""},
+		{Label: "8.0 Mbps - Very High Quality", Bitrate: "8000k", Codec: ""},
 	}
 
 	bitratePresetLookup := make(map[string]bitratePreset)

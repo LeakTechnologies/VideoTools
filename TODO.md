@@ -2,10 +2,10 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Current Focus: dev19 - Convert Module Cleanup & Polish
+## Current Focus: dev20+ - Feature Development
 
 ### In Progress
-- [ ] **AI Frame Interpolation Support**
+- [ ] **AI Frame Interpolation Support** (Deferred to dev20+)
   - RIFE (Real-Time Intermediate Flow Estimation) - https://github.com/hzwer/ECCV2022-RIFE
   - FILM (Frame Interpolation for Large Motion) - https://github.com/google-research/frame-interpolation
   - DAIN (Depth-Aware Video Frame Interpolation) - https://github.com/baowenbo/DAIN
@@ -14,10 +14,33 @@ This file tracks upcoming features, improvements, and known issues.
   - Model download/management system
   - UI controls for model selection
 
-- [ ] **Color Space Preservation**
+- [ ] **Color Space Preservation** (Deferred to dev20+)
   - Fix color space preservation in upscale module
   - Ensure all conversions preserve color metadata (color_space, color_primaries, color_trc, color_range)
   - Test with HDR content
+
+### Completed in dev19 (2025-12-20)
+- [x] **History Sidebar - In Progress Tab** ✅ COMPLETED
+  - Shows running/pending jobs without opening full queue
+  - Animated progress bars per module color
+  - Real-time progress updates
+
+- [x] **Benchmark System Overhaul** ✅ COMPLETED
+  - Hardware detection module (CPU, GPU, RAM, drivers)
+  - Hardware info displayed in progress and results views
+  - Settings persistence across sessions
+  - First-run button highlighting
+  - Results ranked by score with cancel confirmation
+
+- [x] **Bitrate Preset Simplification** ✅ COMPLETED
+  - Codec-agnostic quality-based presets
+  - Removed confusing resolution references
+  - 6 clear presets: Manual, Low, Medium, Good, High, Very High
+
+- [x] **Quality Preset Codec Compatibility** ✅ COMPLETED
+  - Lossless option only for H.265/AV1
+  - Dynamic dropdown based on codec
+  - Lossless + Target Size mode support
 
 ## Priority Features for dev20+
 
