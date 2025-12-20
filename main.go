@@ -6208,6 +6208,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		srcSizeMB := float64(srcSize) / (1024 * 1024)
 
 		// Calculate smart reductions
+		size25 := int(srcSizeMB * 0.75) // 25% reduction
 		size33 := int(srcSizeMB * 0.67) // 33% reduction
 		size50 := int(srcSizeMB * 0.50) // 50% reduction
 		size75 := int(srcSizeMB * 0.25) // 75% reduction
@@ -6222,6 +6223,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		if size33 > 15 {
 			options = append(options, fmt.Sprintf("%dMB (33%% smaller)", size33))
+		}
+		if size25 > 20 {
+			options = append(options, fmt.Sprintf("%dMB (25%% smaller)", size25))
 		}
 
 		// Add common sizes

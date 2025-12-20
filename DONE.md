@@ -821,6 +821,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Reset now restores full default convert settings even with no config file
 - ✅ Reset now forces resolution and frame rate back to Source
 - ✅ Fixed reset handler scope for convert tabs
+- ✅ Restored 25%/33%/50%/75% target size reduction presets
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality
