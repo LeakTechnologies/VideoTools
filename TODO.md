@@ -64,8 +64,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Default bitrate preset normalized to 2.5 Mbps to prevent empty select
   - Simple/advanced bitrate presets synced
   - Quality presets hidden when bitrate mode is not CRF
-  - Snippet tools collapsed behind a toggle to reduce footer clutter
-  - Snippet toggle scope fixed to eliminate build error
+  - Snippet UI rearranged into Convert Snippet / Batch / Options with context-sensitive visibility
 
 *Last Updated: 2025-12-20*
 

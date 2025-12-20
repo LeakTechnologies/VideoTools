@@ -7228,30 +7228,29 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	snippetHint := widget.NewLabel("Creates a clip centred on the timeline midpoint.")
 
-	var snippetRow fyne.CanvasObject
-	if snippetAllBtn != nil {
-		snippetRow = container.NewHBox(snippetBtn, snippetAllBtn, layout.NewSpacer(), snippetHint)
-	} else {
-		snippetRow = container.NewHBox(snippetBtn, layout.NewSpacer(), snippetHint)
+	snippetConfigRow.Hide()
+	snippetOptionsVisible := false
+	var snippetOptionsBtn *widget.Button
+	snippetOptionsBtn = widget.NewButton("Convert Options", func() {
+		if snippetOptionsVisible {
+			snippetConfigRow.Hide()
+			snippetOptionsBtn.SetText("Convert Options")
+		} else {
+			snippetConfigRow.Show()
+			snippetOptionsBtn.SetText("Hide Options")
+		}
+		snippetOptionsVisible = !snippetOptionsVisible
+	})
+	snippetOptionsBtn.Importance = widget.LowImportance
+	if src == nil {
+		snippetOptionsBtn.Disable()
 	}
 
-	snippetTools := container.NewVBox(snippetConfigRow, snippetRow)
-	snippetTools.Hide()
-	snippetToolsVisible := false
-	var snippetToggleBtn *widget.Button
-	snippetToggleBtn = widget.NewButton("Show Snippet Tools", func() {
-		if snippetToolsVisible {
-			snippetTools.Hide()
-			snippetToggleBtn.SetText("Show Snippet Tools")
-		} else {
-			snippetTools.Show()
-			snippetToggleBtn.SetText("Hide Snippet Tools")
-		}
-		snippetToolsVisible = !snippetToolsVisible
-	})
-	snippetToggleBtn.Importance = widget.LowImportance
-	if src == nil {
-		snippetToggleBtn.Disable()
+	var snippetRow fyne.CanvasObject
+	if snippetAllBtn != nil {
+		snippetRow = container.NewHBox(snippetBtn, snippetAllBtn, snippetOptionsBtn, layout.NewSpacer(), snippetHint)
+	} else {
+		snippetRow = container.NewHBox(snippetBtn, snippetOptionsBtn, layout.NewSpacer(), snippetHint)
 	}
 
 	// Stack video and metadata directly so metadata sits immediately under the player.
@@ -7577,8 +7576,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Build footer sections
 	footerSections := []fyne.CanvasObject{
-		snippetToggleBtn,
-		snippetTools,
+		snippetRow,
+		snippetConfigRow,
 		widget.NewSeparator(),
 	}
 	if commandPreviewRow != nil && state.convertCommandPreviewShow {
