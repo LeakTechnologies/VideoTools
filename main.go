@@ -6824,16 +6824,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	updateQualityVisibility = func() {
 		hide := strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") ||
 			strings.EqualFold(state.convert.VideoCodec, "H.265")
+		hideQuality := state.convert.BitrateMode != "" && state.convert.BitrateMode != "CRF"
 
 		if qualitySectionSimple != nil {
-			if hide {
+			if hide || hideQuality {
 				qualitySectionSimple.Hide()
 			} else {
 				qualitySectionSimple.Show()
 			}
 		}
 		if qualitySectionAdv != nil {
-			if hide {
+			if hide || hideQuality {
 				qualitySectionAdv.Hide()
 			} else {
 				qualitySectionAdv.Show()
