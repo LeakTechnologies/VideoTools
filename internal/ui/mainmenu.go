@@ -47,14 +47,14 @@ type HistoryEntry struct {
 func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onBenchmarkClick func(), onBenchmarkHistoryClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int, hasBenchmark bool) fyne.CanvasObject {
 	title := canvas.NewText("VIDEOTOOLS", titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	title.TextSize = 28
+	title.TextSize = 20
 
 	queueTile := buildQueueTile(queueCompleted, queueTotal, queueColor, textColor, onQueueClick)
 
-	sidebarToggleBtn := widget.NewButton("☰ History", onToggleSidebar)
+	sidebarToggleBtn := widget.NewButton("☰", onToggleSidebar)
 	sidebarToggleBtn.Importance = widget.LowImportance
 
-	benchmarkBtn := widget.NewButton("Run Benchmark", onBenchmarkClick)
+	benchmarkBtn := widget.NewButton("Benchmark", onBenchmarkClick)
 	// Highlight the benchmark button if no benchmark has been run
 	if !hasBenchmark {
 		benchmarkBtn.Importance = widget.HighImportance
@@ -62,13 +62,19 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 		benchmarkBtn.Importance = widget.LowImportance
 	}
 
-	viewResultsBtn := widget.NewButton("View Results", onBenchmarkHistoryClick)
+	viewResultsBtn := widget.NewButton("Results", onBenchmarkHistoryClick)
 	viewResultsBtn.Importance = widget.LowImportance
 
 	logsBtn := widget.NewButton("Logs", onLogsClick)
 	logsBtn.Importance = widget.LowImportance
 
-	header := container.NewHBox(title, layout.NewSpacer(), sidebarToggleBtn, benchmarkBtn, viewResultsBtn, logsBtn, queueTile)
+	// Compact header - title on left, controls on right
+	header := container.NewBorder(
+		nil, nil,
+		title,
+		container.NewHBox(sidebarToggleBtn, logsBtn, benchmarkBtn, viewResultsBtn, queueTile),
+		nil,
+	)
 
 	categorized := map[string][]fyne.CanvasObject{}
 	for i := range modules {
@@ -104,7 +110,7 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 	}
 
 	padding := canvas.NewRectangle(color.Transparent)
-	padding.SetMinSize(fyne.NewSize(0, 14))
+	padding.SetMinSize(fyne.NewSize(0, 8))
 
 	// Make the sections scrollable
 	sectionsContent := container.NewVBox(sections...)
@@ -130,19 +136,19 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 // buildModuleTile creates a single module tile
 func buildModuleTile(mod ModuleInfo, tapped func(), dropped func([]fyne.URI)) fyne.CanvasObject {
 	logging.Debug(logging.CatUI, "building tile %s color=%v enabled=%v", mod.ID, mod.Color, mod.Enabled)
-	return container.NewPadded(NewModuleTile(mod.Label, mod.Color, mod.Enabled, tapped, dropped))
+	return NewModuleTile(mod.Label, mod.Color, mod.Enabled, tapped, dropped)
 }
 
 // buildQueueTile creates the queue status tile
 func buildQueueTile(completed, total int, queueColor, textColor color.Color, onClick func()) fyne.CanvasObject {
 	rect := canvas.NewRectangle(queueColor)
 	rect.CornerRadius = 8
-	rect.SetMinSize(fyne.NewSize(160, 60))
+	rect.SetMinSize(fyne.NewSize(140, 50))
 
 	text := canvas.NewText(fmt.Sprintf("QUEUE: %d/%d", completed, total), textColor)
 	text.Alignment = fyne.TextAlignCenter
 	text.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	text.TextSize = 18
+	text.TextSize = 16
 
 	tile := container.NewMax(rect, container.NewCenter(text))
 
