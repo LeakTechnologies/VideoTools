@@ -44,7 +44,7 @@ type HistoryEntry struct {
 }
 
 // BuildMainMenu creates the main menu view with module tiles grouped by category
-func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onBenchmarkClick func(), onBenchmarkHistoryClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
+func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onBenchmarkClick func(), onBenchmarkHistoryClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int, hasBenchmark bool) fyne.CanvasObject {
 	title := canvas.NewText("VIDEOTOOLS", titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 28
@@ -55,7 +55,12 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 	sidebarToggleBtn.Importance = widget.LowImportance
 
 	benchmarkBtn := widget.NewButton("Run Benchmark", onBenchmarkClick)
-	benchmarkBtn.Importance = widget.LowImportance
+	// Highlight the benchmark button if no benchmark has been run
+	if !hasBenchmark {
+		benchmarkBtn.Importance = widget.HighImportance
+	} else {
+		benchmarkBtn.Importance = widget.LowImportance
+	}
 
 	viewResultsBtn := widget.NewButton("View Results", onBenchmarkHistoryClick)
 	viewResultsBtn.Importance = widget.LowImportance

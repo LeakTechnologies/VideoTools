@@ -44,6 +44,12 @@ func HandleAudio(files []string) {
 	fmt.Println("audio", files)
 }
 
+// HandleSubtitles handles the subtitles module (placeholder)
+func HandleSubtitles(files []string) {
+	logging.Debug(logging.CatModule, "subtitles handler invoked with %v", files)
+	fmt.Println("subtitles", files)
+}
+
 // HandleThumb handles the thumb module
 func HandleThumb(files []string) {
 	logging.Debug(logging.CatModule, "thumb handler invoked with %v", files)
