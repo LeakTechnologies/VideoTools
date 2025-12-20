@@ -53,6 +53,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Manual video bitrate uses a unit selector (KB/MB/GB)
   - Reset restores full default convert settings
   - Reset forces resolution/frame rate back to Source
+  - Reset handler scope fixed for convert tabs
 
 ## Priority Features for dev20+
 

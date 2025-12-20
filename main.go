@@ -5283,6 +5283,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bitrateContainer     *fyne.Container
 		targetSizeContainer  *fyne.Container
 		resetConvertDefaults func()
+		tabs                 *container.AppTabs
 	)
 	var (
 		updateEncodingControls  func()
@@ -6910,7 +6911,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		updateQualityVisibility()
 	}
 
-	tabs := container.NewAppTabs(
+	tabs = container.NewAppTabs(
 		container.NewTabItem("Simple", simpleScrollBox),
 		container.NewTabItem("Advanced", advancedScrollBox),
 	)
