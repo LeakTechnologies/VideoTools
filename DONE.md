@@ -831,8 +831,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Default bitrate preset normalized to 2.5 Mbps to avoid "select one"
 - ✅ Linked simple and advanced bitrate presets so they stay in sync
 - ✅ Hide quality presets when bitrate mode is not CRF
-- ✅ Collapsed snippet tools behind a toggle in the convert footer
-- ✅ Fixed snippet toggle button scope to avoid build error
+- ✅ Snippet UI now shows Convert Snippet + batch + options with context-sensitive controls
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality
