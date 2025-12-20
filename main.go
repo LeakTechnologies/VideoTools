@@ -5260,6 +5260,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bitratePresetSelect  *widget.Select
 		crfEntry             *widget.Entry
 		videoBitrateEntry    *widget.Entry
+		manualBitrateRow     *fyne.Container
 		targetFileSizeSelect *widget.Select
 		targetFileSizeEntry  *widget.Entry
 		qualitySelectSimple  *widget.Select
@@ -5921,13 +5922,107 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Video Bitrate entry (for CBR/VBR)
 	videoBitrateEntry = widget.NewEntry()
-	videoBitrateEntry.SetPlaceHolder("5000k")
-	videoBitrateEntry.SetText(state.convert.VideoBitrate)
-	videoBitrateEntry.OnChanged = func(val string) {
-		state.convert.VideoBitrate = val
+	videoBitrateEntry.SetPlaceHolder("5000")
+	videoBitrateUnitSelect := widget.NewSelect([]string{"Kbps", "Mbps", "Gbps"}, func(value string) {})
+	videoBitrateUnitSelect.SetSelected("Kbps")
+	manualBitrateInput := container.NewBorder(nil, nil, nil, videoBitrateUnitSelect, videoBitrateEntry)
+
+	parseBitrateParts := func(input string) (string, string, bool) {
+		trimmed := strings.TrimSpace(input)
+		if trimmed == "" {
+			return "", "", false
+		}
+		upper := strings.ToUpper(trimmed)
+		var num float64
+		var unit string
+		if _, err := fmt.Sscanf(upper, "%f%s", &num, &unit); err != nil {
+			return "", "", false
+		}
+		numStr := strconv.FormatFloat(num, 'f', -1, 64)
+		switch unit {
+		case "K", "KBPS":
+			unit = "Kbps"
+		case "M", "MBPS":
+			unit = "Mbps"
+		case "G", "GBPS":
+			unit = "Gbps"
+		}
+		return numStr, unit, true
+	}
+
+	normalizeBitrateUnit := func(label string) string {
+		switch label {
+		case "Kbps":
+			return "k"
+		case "Mbps":
+			return "M"
+		case "Gbps":
+			return "G"
+		default:
+			return "k"
+		}
+	}
+
+	var syncingBitrate bool
+	updateBitrateState := func() {
+		if syncingBitrate {
+			return
+		}
+		val := strings.TrimSpace(videoBitrateEntry.Text)
+		if val == "" {
+			state.convert.VideoBitrate = ""
+			return
+		}
+		if num, unit, ok := parseBitrateParts(val); ok && unit != "" {
+			if num != val {
+				videoBitrateEntry.SetText(num)
+				return
+			}
+			if unit != videoBitrateUnitSelect.Selected {
+				videoBitrateUnitSelect.SetSelected(unit)
+				return
+			}
+			val = num
+		}
+		unit := normalizeBitrateUnit(videoBitrateUnitSelect.Selected)
+		state.convert.VideoBitrate = val + unit
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
+	}
+
+	setManualBitrate := func(value string) {
+		syncingBitrate = true
+		defer func() { syncingBitrate = false }()
+
+		if value == "" {
+			videoBitrateEntry.SetText("")
+			return
+		}
+		if num, unit, ok := parseBitrateParts(value); ok {
+			videoBitrateEntry.SetText(num)
+			if unit != "" {
+				videoBitrateUnitSelect.SetSelected(unit)
+			}
+		} else {
+			videoBitrateEntry.SetText(value)
+		}
+		state.convert.VideoBitrate = value
+	}
+
+	videoBitrateUnitSelect.OnChanged = func(value string) {
+		if manualBitrateRow != nil && manualBitrateRow.Hidden {
+			return
+		}
+		updateBitrateState()
+	}
+
+	videoBitrateEntry.OnChanged = func(val string) {
+		updateBitrateState()
+	}
+
+	if state.convert.VideoBitrate != "" {
+		setManualBitrate(state.convert.VideoBitrate)
 	}
 
 	// Create CRF container (crfEntry already initialized)
@@ -5945,12 +6040,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	presets := []bitratePreset{
-		{Label: "Manual", Bitrate: "", Codec: ""},
 		{Label: "1.5 Mbps - Low Quality", Bitrate: "1500k", Codec: ""},
 		{Label: "2.5 Mbps - Medium Quality", Bitrate: "2500k", Codec: ""},
 		{Label: "4.0 Mbps - Good Quality", Bitrate: "4000k", Codec: ""},
 		{Label: "6.0 Mbps - High Quality", Bitrate: "6000k", Codec: ""},
 		{Label: "8.0 Mbps - Very High Quality", Bitrate: "8000k", Codec: ""},
+		{Label: "Manual", Bitrate: "", Codec: ""},
 	}
 
 	bitratePresetLookup := make(map[string]bitratePreset)
@@ -5968,7 +6063,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	})
 	if state.convert.BitratePreset == "" || bitratePresetLookup[state.convert.BitratePreset].Label == "" {
-		state.convert.BitratePreset = "Manual"
+		state.convert.BitratePreset = "4.0 Mbps - Good Quality"
 	}
 	bitratePresetSelect.SetSelected(state.convert.BitratePreset)
 
@@ -5981,12 +6076,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
 
+	// Manual bitrate row (hidden by default)
+	manualBitrateLabel := widget.NewLabelWithStyle("Manual Bitrate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	manualBitrateRow = container.NewVBox(manualBitrateLabel, manualBitrateInput)
+	manualBitrateRow.Hide()
+
 	// Create bitrate container now that bitratePresetSelect is initialized
 	bitrateContainer = container.NewVBox(
-		widget.NewLabelWithStyle("Video Bitrate (for CBR/VBR)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		videoBitrateEntry,
-		widget.NewLabelWithStyle("Recommended Bitrate Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Bitrate Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		bitratePresetSelect,
+		manualBitrateRow,
 	)
 
 	// Simple resolution selector (separate widget to avoid double-parent issues)
@@ -6043,6 +6142,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	targetFileSizeUnitSelect := widget.NewSelect([]string{"KB", "MB", "GB"}, func(value string) {})
 	targetFileSizeUnitSelect.SetSelected("MB")
 	targetSizeManualRow := container.NewBorder(nil, nil, nil, targetFileSizeUnitSelect, targetFileSizeEntry)
+	targetSizeManualRow.Hide() // Hidden by default, show only when "Manual" is selected
 
 	parseSizeParts := func(input string) (string, string, bool) {
 		trimmed := strings.TrimSpace(input)
@@ -6135,7 +6235,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		targetFileSizeSelect.Options = options
 	}
 
-	targetFileSizeSelect = widget.NewSelect([]string{"Manual", "25MB", "50MB", "100MB", "200MB", "500MB", "1GB"}, func(value string) {
+	targetFileSizeSelect = widget.NewSelect([]string{"25MB", "50MB", "100MB", "200MB", "500MB", "1GB", "Manual"}, func(value string) {
 		if value == "Manual" {
 			targetSizeManualRow.Show()
 			if state.convert.TargetFileSize != "" {
@@ -6171,7 +6271,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		logging.Debug(logging.CatUI, "target file size set to %s", state.convert.TargetFileSize)
 	})
-	targetFileSizeSelect.SetSelected("Manual")
+	targetFileSizeSelect.SetSelected("100MB")
 	updateTargetSizeOptions()
 
 	targetFileSizeEntry.OnChanged = func(val string) {
@@ -6207,6 +6307,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		state.convert.BitratePreset = label
 
+		// Show/hide manual bitrate entry based on selection
+		if label == "Manual" {
+			manualBitrateRow.Show()
+		} else {
+			manualBitrateRow.Hide()
+		}
+
 		// Move to CBR for predictable output when a preset is chosen
 		if preset.Bitrate != "" && state.convert.BitrateMode != "CBR" && state.convert.BitrateMode != "VBR" {
 			state.convert.BitrateMode = "CBR"
@@ -6215,7 +6322,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		if preset.Bitrate != "" {
 			state.convert.VideoBitrate = preset.Bitrate
-			videoBitrateEntry.SetText(preset.Bitrate)
+			if setManualBitrate != nil {
+				setManualBitrate(preset.Bitrate)
+			} else {
+				videoBitrateEntry.SetText(preset.Bitrate)
+			}
 		}
 
 		// Adjust codec to match the preset intent (user can change back)
@@ -6545,7 +6656,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			videoCodecSelect.Disable()
 
 			state.convert.VideoBitrate = dvdBitrate
-			videoBitrateEntry.SetText(dvdBitrate)
+			if setManualBitrate != nil {
+				setManualBitrate(dvdBitrate)
+			} else {
+				videoBitrateEntry.SetText(dvdBitrate)
+			}
 			videoBitrateEntry.Disable()
 			state.convert.BitrateMode = "CBR"
 			bitrateModeSelect.SetSelected("CBR")
