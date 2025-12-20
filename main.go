@@ -5582,10 +5582,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	transformHint.Wrapping = fyne.TextWrapWord
 
 	aspectTargets := []string{"Source", "16:9", "4:3", "5:4", "5:3", "1:1", "9:16", "21:9"}
-	targetAspectSelect := widget.NewSelect(aspectTargets, func(value string) {
-		logging.Debug(logging.CatUI, "target aspect set to %s", value)
-		state.convert.OutputAspect = value
-		state.convert.AspectUserSet = true
+	var (
+		targetAspectSelect       *widget.Select
+		targetAspectSelectSimple *widget.Select
+		syncAspect               func(string, bool)
+		syncingAspect            bool
+	)
+	targetAspectSelect = widget.NewSelect(aspectTargets, func(value string) {
+		if syncAspect != nil {
+			syncAspect(value, true)
+		}
 	})
 	if state.convert.OutputAspect == "" {
 		state.convert.OutputAspect = "Source"
@@ -5624,11 +5630,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 	updateAspectBoxVisibility()
-	targetAspectSelect.OnChanged = func(value string) {
-		logging.Debug(logging.CatUI, "target aspect set to %s", value)
-		state.convert.OutputAspect = value
-		updateAspectBoxVisibility()
-	}
+
 	aspectOptions.OnChanged = func(value string) {
 		logging.Debug(logging.CatUI, "aspect handling set to %s", value)
 		state.convert.AspectHandling = value
@@ -5988,16 +5990,41 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	resolutionSelectSimple.SetSelected(state.convert.TargetResolution)
 
 	// Simple aspect selector (separate widget)
-	targetAspectSelectSimple := widget.NewSelect(aspectTargets, func(value string) {
-		logging.Debug(logging.CatUI, "target aspect set to %s (simple)", value)
-		state.convert.OutputAspect = value
-		state.convert.AspectUserSet = true
-		updateAspectBoxVisibility()
+	targetAspectSelectSimple = widget.NewSelect(aspectTargets, func(value string) {
+		if syncAspect != nil {
+			syncAspect(value, true)
+		}
 	})
 	if state.convert.OutputAspect == "" {
 		state.convert.OutputAspect = "Source"
 	}
 	targetAspectSelectSimple.SetSelected(state.convert.OutputAspect)
+
+	syncAspect = func(value string, userSet bool) {
+		if syncingAspect {
+			return
+		}
+		if value == "" {
+			value = "Source"
+		}
+		syncingAspect = true
+		state.convert.OutputAspect = value
+		if userSet {
+			state.convert.AspectUserSet = true
+		}
+		if targetAspectSelectSimple != nil {
+			targetAspectSelectSimple.SetSelected(value)
+		}
+		if targetAspectSelect != nil {
+			targetAspectSelect.SetSelected(value)
+		}
+		if updateAspectBoxVisibility != nil {
+			updateAspectBoxVisibility()
+		}
+		logging.Debug(logging.CatUI, "target aspect set to %s", value)
+		syncingAspect = false
+	}
+	syncAspect(state.convert.OutputAspect, state.convert.AspectUserSet)
 
 	// Target File Size with smart presets + manual entry
 	targetFileSizeEntry = widget.NewEntry()
