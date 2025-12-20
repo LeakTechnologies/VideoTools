@@ -55,12 +55,13 @@ This file tracks completed features, fixes, and milestones.
   - Added debug logging for icon loading troubleshooting
 
 - ✅ **UI Scaling for 800x600 Windows** (2025-12-20 continuation)
-  - Reduced module tile size from 220x110 to 160x80
-  - Reduced title text size from 28 to 20
-  - Reduced queue tile from 160x60 to 140x50
-  - Reduced section padding from 14 to 8 pixels
+  - Reduced module tile size from 220x110 to 150x65 (final)
+  - Reduced title text size from 28 to 18 (final)
+  - Reduced queue tile from 160x60 to 120x40 (final)
+  - Reduced section padding from 14 to 4 pixels (final)
+  - Reduced category labels to 12px
   - Removed extra padding wrapper around tiles
-  - Made main menu scrollable with fixed header
+  - Removed scrolling requirement - everything fits without scrolling
   - All UI elements fit within 800x600 default window
 
 - ✅ **Header Layout Improvements** (2025-12-20 continuation)
@@ -82,6 +83,17 @@ This file tracks completed features, fixes, and milestones.
   - Layout() can be called from any thread during resize/redraw
   - Show/Hide logic remains only in Refresh() with proper DoFromGoroutine
   - Eliminates threading warnings during UI updates
+
+- ✅ **Preset UX Improvements** (2025-12-20 continuation)
+  - Moved "Manual" option to bottom of all preset dropdowns
+  - Bitrate preset default: "2.5 Mbps - Medium Quality"
+  - Target size preset default: "100MB"
+  - Manual input fields hidden by default
+  - Manual fields appear only when "Manual" is selected
+  - Encourages preset usage while maintaining advanced control
+  - Reversed encoding preset order: veryslow first, ultrafast last
+  - Better quality options now appear at top of list
+  - Applied consistently to both simple and advanced modes
 
 ### Features (2025-12-18 Session)
 - ✅ **History Sidebar Enhancements**
