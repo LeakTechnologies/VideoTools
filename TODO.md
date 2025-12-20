@@ -48,6 +48,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Stats bar updates run on the UI thread
   - Target aspect default enforced as Source unless user changes it
   - Target aspect sync across simple/advanced menus
+  - Hide manual CRF entry when Lossless quality is active
 
 ## Priority Features for dev20+
 
