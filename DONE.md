@@ -827,6 +827,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Bitrate mode now strictly hides unrelated controls (CRF only in CRF mode)
 - ✅ Removed CRF visibility toggle from quality updates to prevent CBR/VBR bleed-through
 - ✅ Added CRF preset dropdown with Manual option
+- ✅ Added 0.5/1.0 Mbps bitrate presets and simplified preset names
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality

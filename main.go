@@ -6073,12 +6073,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	presets := []bitratePreset{
-		{Label: "1.5 Mbps - Low Quality", Bitrate: "1500k", Codec: ""},
-		{Label: "2.0 Mbps - Medium-Low Quality", Bitrate: "2000k", Codec: ""},
-		{Label: "2.5 Mbps - Medium Quality", Bitrate: "2500k", Codec: ""},
-		{Label: "4.0 Mbps - Good Quality", Bitrate: "4000k", Codec: ""},
-		{Label: "6.0 Mbps - High Quality", Bitrate: "6000k", Codec: ""},
-		{Label: "8.0 Mbps - Very High Quality", Bitrate: "8000k", Codec: ""},
+		{Label: "0.5 Mbps - Ultra Low", Bitrate: "500k", Codec: ""},
+		{Label: "1.0 Mbps - Very Low", Bitrate: "1000k", Codec: ""},
+		{Label: "1.5 Mbps - Low", Bitrate: "1500k", Codec: ""},
+		{Label: "2.0 Mbps - Medium-Low", Bitrate: "2000k", Codec: ""},
+		{Label: "2.5 Mbps - Medium", Bitrate: "2500k", Codec: ""},
+		{Label: "4.0 Mbps - Good", Bitrate: "4000k", Codec: ""},
+		{Label: "6.0 Mbps - High", Bitrate: "6000k", Codec: ""},
+		{Label: "8.0 Mbps - Very High", Bitrate: "8000k", Codec: ""},
 		{Label: "Manual", Bitrate: "", Codec: ""},
 	}
 
