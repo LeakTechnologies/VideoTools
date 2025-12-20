@@ -54,6 +54,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Reset restores full default convert settings
   - Reset forces resolution/frame rate back to Source
   - Reset handler scope fixed for convert tabs
+  - Target size reduction presets restored (25/33/50/75%)
 
 ## Priority Features for dev20+
 
