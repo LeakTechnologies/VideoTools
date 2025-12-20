@@ -54,6 +54,35 @@ This file tracks completed features, fixes, and milestones.
   - Searches both current directory and executable directory
   - Added debug logging for icon loading troubleshooting
 
+- ✅ **UI Scaling for 800x600 Windows** (2025-12-20 continuation)
+  - Reduced module tile size from 220x110 to 160x80
+  - Reduced title text size from 28 to 20
+  - Reduced queue tile from 160x60 to 140x50
+  - Reduced section padding from 14 to 8 pixels
+  - Removed extra padding wrapper around tiles
+  - Made main menu scrollable with fixed header
+  - All UI elements fit within 800x600 default window
+
+- ✅ **Header Layout Improvements** (2025-12-20 continuation)
+  - Changed from HBox with spacer to border layout
+  - Title on left, all controls grouped compactly on right
+  - Shortened button labels for space efficiency
+  - "☰ History" → "☰", "Run Benchmark" → "Benchmark", "View Results" → "Results"
+  - Eliminates wasted horizontal space
+
+- ✅ **Queue Clear Behavior Fix** (2025-12-20 continuation)
+  - "Clear Completed" now always returns to main menu
+  - "Clear All" now always returns to main menu
+  - Prevents unwanted navigation to convert module after clearing queue
+  - Consistent and predictable behavior
+
+- ✅ **Threading Safety Fix** (2025-12-20 continuation)
+  - Fixed Fyne threading errors in stats bar component
+  - Removed Show()/Hide() calls from Layout() method
+  - Layout() can be called from any thread during resize/redraw
+  - Show/Hide logic remains only in Refresh() with proper DoFromGoroutine
+  - Eliminates threading warnings during UI updates
+
 ### Features (2025-12-18 Session)
 - ✅ **History Sidebar Enhancements**
   - Delete button ("×") on each history entry
