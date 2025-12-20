@@ -7235,6 +7235,24 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetRow = container.NewHBox(snippetBtn, layout.NewSpacer(), snippetHint)
 	}
 
+	snippetTools := container.NewVBox(snippetConfigRow, snippetRow)
+	snippetTools.Hide()
+	snippetToolsVisible := false
+	snippetToggleBtn := widget.NewButton("Show Snippet Tools", func() {
+		if snippetToolsVisible {
+			snippetTools.Hide()
+			snippetToggleBtn.SetText("Show Snippet Tools")
+		} else {
+			snippetTools.Show()
+			snippetToggleBtn.SetText("Hide Snippet Tools")
+		}
+		snippetToolsVisible = !snippetToolsVisible
+	})
+	snippetToggleBtn.Importance = widget.LowImportance
+	if src == nil {
+		snippetToggleBtn.Disable()
+	}
+
 	// Stack video and metadata directly so metadata sits immediately under the player.
 	leftColumn := container.NewVBox(videoPanel, metaPanel)
 
@@ -7558,8 +7576,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Build footer sections
 	footerSections := []fyne.CanvasObject{
-		snippetConfigRow,
-		snippetRow,
+		snippetToggleBtn,
+		snippetTools,
 		widget.NewSeparator(),
 	}
 	if commandPreviewRow != nil && state.convertCommandPreviewShow {
