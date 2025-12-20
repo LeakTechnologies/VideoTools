@@ -6117,10 +6117,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	var applyBitratePreset func(string)
+	var setBitratePreset func(string)
+	var syncingBitratePreset bool
 
 	bitratePresetSelect = widget.NewSelect(bitratePresetLabels, func(value string) {
-		if applyBitratePreset != nil {
-			applyBitratePreset(value)
+		if syncingBitratePreset {
+			return
+		}
+		if setBitratePreset != nil {
+			setBitratePreset(value)
 		}
 	})
 	state.convert.BitratePreset = normalizePresetLabel(state.convert.BitratePreset)
@@ -6131,9 +6136,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Simple bitrate selector (shares presets)
 	simpleBitrateSelect = widget.NewSelect(bitratePresetLabels, func(value string) {
-		state.convert.BitratePreset = value
-		if applyBitratePreset != nil {
-			applyBitratePreset(value)
+		if syncingBitratePreset {
+			return
+		}
+		if setBitratePreset != nil {
+			setBitratePreset(value)
 		}
 	})
 	simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
@@ -6429,6 +6436,25 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			updateEncodingControls()
 		}
 	}
+
+	setBitratePreset = func(value string) {
+		if syncingBitratePreset {
+			return
+		}
+		syncingBitratePreset = true
+		state.convert.BitratePreset = value
+		if applyBitratePreset != nil {
+			applyBitratePreset(value)
+		}
+		if bitratePresetSelect != nil {
+			bitratePresetSelect.SetSelected(value)
+		}
+		if simpleBitrateSelect != nil {
+			simpleBitrateSelect.SetSelected(value)
+		}
+		syncingBitratePreset = false
+	}
+	setBitratePreset(state.convert.BitratePreset)
 
 	updateEncodingControls = func() {
 		mode := state.convert.BitrateMode
