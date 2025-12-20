@@ -45,6 +45,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Target size unit selector and numeric entry
   - Snippet history updates in sidebar
   - Non-blocking benchmark error notifications
+  - Stats bar updates run on the UI thread
 
 ## Priority Features for dev20+
 
