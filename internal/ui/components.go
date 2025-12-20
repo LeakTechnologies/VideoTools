@@ -468,29 +468,44 @@ func NewConversionStatsBar(onTapped func()) *ConversionStatsBar {
 
 // UpdateStats updates the stats display
 func (c *ConversionStatsBar) UpdateStats(running, pending, completed, failed, cancelled int, progress float64, jobTitle string) {
-	c.running = running
-	c.pending = pending
-	c.completed = completed
-	c.failed = failed
-	c.cancelled = cancelled
-	c.progress = progress
-	c.jobTitle = jobTitle
-	c.Refresh()
+	c.updateStats(func() {
+		c.running = running
+		c.pending = pending
+		c.completed = completed
+		c.failed = failed
+		c.cancelled = cancelled
+		c.progress = progress
+		c.jobTitle = jobTitle
+	})
 }
 
 // UpdateStatsWithDetails updates the stats display with detailed conversion info
 func (c *ConversionStatsBar) UpdateStatsWithDetails(running, pending, completed, failed, cancelled int, progress, fps, speed float64, eta, jobTitle string) {
-	c.running = running
-	c.pending = pending
-	c.completed = completed
-	c.failed = failed
-	c.cancelled = cancelled
-	c.progress = progress
-	c.fps = fps
-	c.speed = speed
-	c.eta = eta
-	c.jobTitle = jobTitle
-	c.Refresh()
+	c.updateStats(func() {
+		c.running = running
+		c.pending = pending
+		c.completed = completed
+		c.failed = failed
+		c.cancelled = cancelled
+		c.progress = progress
+		c.fps = fps
+		c.speed = speed
+		c.eta = eta
+		c.jobTitle = jobTitle
+	})
+}
+
+func (c *ConversionStatsBar) updateStats(update func()) {
+	app := fyne.CurrentApp()
+	if app == nil || app.Driver() == nil {
+		update()
+		c.Refresh()
+		return
+	}
+	app.Driver().DoFromGoroutine(func() {
+		update()
+		c.Refresh()
+	}, false)
 }
 
 // CreateRenderer creates the renderer for the stats bar

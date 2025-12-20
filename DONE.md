@@ -771,6 +771,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Prevented snippet runaway bitrates when using Match Source Format
 - ✅ History sidebar refreshes when jobs complete (snippet entries now appear)
 - ✅ Benchmark errors now show non-blocking notifications instead of OK popups
+- ✅ Fixed stats bar updates to run on the UI thread to avoid Fyne warnings
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality
