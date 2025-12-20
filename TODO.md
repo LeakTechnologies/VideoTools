@@ -63,6 +63,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Bitrate presets expanded to include 0.5/1.0 Mbps and renamed for clarity
   - Default bitrate preset normalized to 2.5 Mbps to prevent empty select
   - Simple/advanced bitrate presets synced
+  - Quality presets hidden when bitrate mode is not CRF
 
 *Last Updated: 2025-12-20*
 
