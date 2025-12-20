@@ -832,6 +832,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Linked simple and advanced bitrate presets so they stay in sync
 - ✅ Hide quality presets when bitrate mode is not CRF
 - ✅ Snippet UI now shows Convert Snippet + batch + options with context-sensitive controls
+- ✅ Reduced module video pane minimum sizes to allow GNOME window snapping
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality

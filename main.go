@@ -11966,7 +11966,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 			metadataText.SetText(formatMetadata(state.inspectFile))
 
 			// Build video player
-			videoContainer = buildVideoPane(state, fyne.NewSize(640, 360), state.inspectFile, nil)
+			videoContainer = buildVideoPane(state, fyne.NewSize(480, 270), state.inspectFile, nil)
 		} else {
 			fileLabel.SetText("No file loaded")
 			metadataText.SetText("No file loaded")
@@ -12125,7 +12125,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	var videoContainer fyne.CanvasObject
 	if state.thumbFile != nil {
 		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.thumbFile.Path)))
-		videoContainer = buildVideoPane(state, fyne.NewSize(640, 360), state.thumbFile, nil)
+		videoContainer = buildVideoPane(state, fyne.NewSize(480, 270), state.thumbFile, nil)
 	} else {
 		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
 	}
@@ -12448,7 +12448,7 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	var videoContainer fyne.CanvasObject
 	if state.playerFile != nil {
 		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.playerFile.Path)))
-		videoContainer = buildVideoPane(state, fyne.NewSize(960, 540), state.playerFile, nil)
+		videoContainer = buildVideoPane(state, fyne.NewSize(640, 360), state.playerFile, nil)
 	} else {
 		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
 	}
@@ -12537,7 +12537,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 	var videoContainer fyne.CanvasObject
 	if state.filtersFile != nil {
 		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.filtersFile.Path)))
-		videoContainer = buildVideoPane(state, fyne.NewSize(640, 360), state.filtersFile, nil)
+		videoContainer = buildVideoPane(state, fyne.NewSize(480, 270), state.filtersFile, nil)
 	} else {
 		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
 	}
@@ -12720,7 +12720,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.upscaleFile.Path)))
 		sourceResLabel = widget.NewLabel(fmt.Sprintf("Source: %dx%d", state.upscaleFile.Width, state.upscaleFile.Height))
 		sourceResLabel.TextStyle = fyne.TextStyle{Italic: true}
-		videoContainer = buildVideoPane(state, fyne.NewSize(640, 360), state.upscaleFile, nil)
+		videoContainer = buildVideoPane(state, fyne.NewSize(480, 270), state.upscaleFile, nil)
 	} else {
 		sourceResLabel = widget.NewLabel("Source: N/A")
 		sourceResLabel.TextStyle = fyne.TextStyle{Italic: true}
