@@ -47,6 +47,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Non-blocking benchmark error notifications
   - Stats bar updates run on the UI thread
   - Target aspect default enforced as Source unless user changes it
+  - Target aspect sync across simple/advanced menus
 
 ## Priority Features for dev20+
 

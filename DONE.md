@@ -773,6 +773,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Benchmark errors now show non-blocking notifications instead of OK popups
 - ✅ Fixed stats bar updates to run on the UI thread to avoid Fyne warnings
 - ✅ Defaulted Target Aspect Ratio back to Source unless user explicitly sets it
+- ✅ Synced Target Aspect Ratio between Simple and Advanced menus
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality
