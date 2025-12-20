@@ -56,6 +56,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Reset handler scope fixed for convert tabs
   - Target size reduction presets restored (25/33/50/75%)
 
+*Last Updated: 2025-12-20*
+
 ## Priority Features for dev20+
 
 ### Quality & Polish Improvements
