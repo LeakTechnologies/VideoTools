@@ -7180,7 +7180,11 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.
 
 	audioBitrate := "--"
 	if src.AudioBitrate > 0 {
-		audioBitrate = fmt.Sprintf("%d kbps", src.AudioBitrate/1000)
+		prefix := ""
+		if src.AudioBitrateEstimated {
+			prefix = "~"
+		}
+		audioBitrate = fmt.Sprintf("%s%d kbps", prefix, src.AudioBitrate/1000)
 	}
 
 	// Format advanced metadata
@@ -10386,6 +10390,7 @@ type videoSource struct {
 	AudioCodec       string
 	Bitrate          int // Video bitrate in bits per second
 	AudioBitrate     int // Audio bitrate in bits per second
+	AudioBitrateEstimated bool
 	FrameRate        float64
 	PixelFormat      string
 	AudioRate        int
@@ -10459,6 +10464,11 @@ func probeVideo(path string) (*videoSource, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
+	var fileSize int64
+	if info, err := os.Stat(path); err == nil {
+		fileSize = info.Size()
+	}
+
 	cmd := exec.CommandContext(ctx, "ffprobe",
 		"-v", "quiet",
 		"-print_format", "json",
@@ -10495,6 +10505,7 @@ func probeVideo(path string) (*videoSource, error) {
 			Channels     int    `json:"channels"`
 			AvgFrameRate string `json:"avg_frame_rate"`
 			FieldOrder   string `json:"field_order"`
+			Tags         map[string]interface{} `json:"tags"`
 			Disposition  struct {
 				AttachedPic int `json:"attached_pic"`
 			} `json:"disposition"`
@@ -10512,7 +10523,9 @@ func probeVideo(path string) (*videoSource, error) {
 		DisplayName: filepath.Base(path),
 		Format:      utils.FirstNonEmpty(result.Format.Format, result.Format.FormatName),
 	}
+	var formatBitrate int
 	if rate, err := utils.ParseInt(result.Format.BitRate); err == nil {
+		formatBitrate = rate
 		src.Bitrate = rate
 	}
 	if durStr := result.Format.Duration; durStr != "" {
@@ -10537,6 +10550,7 @@ func probeVideo(path string) (*videoSource, error) {
 	// Track if we've found the main video stream (not cover art)
 	foundMainVideo := false
 	var coverArtStreamIndex int = -1
+	var videoStreamBitrate int
 
 	for _, stream := range result.Streams {
 		switch stream.CodecType {
@@ -10567,6 +10581,9 @@ func probeVideo(path string) (*videoSource, error) {
 				if stream.PixFmt != "" {
 					src.PixelFormat = stream.PixFmt
 				}
+				if br, err := utils.ParseInt(stream.BitRate); err == nil && br > 0 {
+					videoStreamBitrate = br
+				}
 			}
 			if src.Bitrate == 0 {
 				if br, err := utils.ParseInt(stream.BitRate); err == nil {
@@ -10582,7 +10599,38 @@ func probeVideo(path string) (*videoSource, error) {
 				if stream.Channels > 0 {
 					src.Channels = stream.Channels
 				}
+				if br, err := utils.ParseInt(stream.BitRate); err == nil && br > 0 {
+					src.AudioBitrate = br
+				} else if br := parseBitrateTag(stream.Tags); br > 0 {
+					src.AudioBitrate = br
+				}
 			}
+		}
+	}
+
+	if src.AudioCodec != "" && src.AudioBitrate == 0 {
+		totalBps := 0
+		if formatBitrate > 0 {
+			totalBps = formatBitrate
+		} else if src.Duration > 0 && fileSize > 0 {
+			totalBps = int(float64(fileSize*8) / src.Duration)
+		}
+
+		baseVideo := videoStreamBitrate
+		if baseVideo == 0 && formatBitrate == 0 && src.Bitrate > 0 {
+			baseVideo = src.Bitrate
+		}
+
+		estimated := 0
+		if totalBps > 0 && baseVideo > 0 && totalBps > baseVideo {
+			estimated = totalBps - baseVideo
+		}
+		if estimated == 0 {
+			estimated = defaultAudioBitrate(src.Channels)
+		}
+		if estimated > 0 {
+			src.AudioBitrate = estimated
+			src.AudioBitrateEstimated = true
 		}
 	}
 
@@ -10606,6 +10654,36 @@ func probeVideo(path string) (*videoSource, error) {
 	}
 
 	return src, nil
+}
+
+func parseBitrateTag(tags map[string]interface{}) int {
+	if len(tags) == 0 {
+		return 0
+	}
+	keys := []string{"BPS", "BPS-eng", "bit_rate", "variant_bitrate"}
+	for _, key := range keys {
+		if val, ok := tags[key]; ok {
+			if rate, err := utils.ParseInt(fmt.Sprint(val)); err == nil && rate > 0 {
+				return rate
+			}
+		}
+	}
+	return 0
+}
+
+func defaultAudioBitrate(channels int) int {
+	switch channels {
+	case 1:
+		return 96000
+	case 2:
+		return 128000
+	case 6:
+		return 256000
+	case 8:
+		return 320000
+	default:
+		return 128000
+	}
 }
 
 func normalizeTags(tags map[string]interface{}) map[string]string {

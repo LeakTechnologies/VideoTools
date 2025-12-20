@@ -766,6 +766,7 @@ This file tracks completed features, fixes, and milestones.
 ### Recent Fixes
 - ✅ Fixed aspect ratio default from 16:9 to Source (dev7)
 - ✅ Ranked benchmark results by score and added cancel confirmation
+- ✅ Added estimated audio bitrate fallback when metadata is missing
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality

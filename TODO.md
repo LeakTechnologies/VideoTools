@@ -41,6 +41,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Lossless option only for H.265/AV1
   - Dynamic dropdown based on codec
   - Lossless + Target Size mode support
+  - Audio bitrate estimation when metadata is missing
 
 ## Priority Features for dev20+
 
