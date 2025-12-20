@@ -6091,6 +6091,31 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bitratePresetLabels = append(bitratePresetLabels, p.Label)
 	}
 
+	normalizePresetLabel := func(label string) string {
+		switch label {
+		case "2.5 Mbps - Medium Quality":
+			return "2.5 Mbps - Medium"
+		case "2.0 Mbps - Medium-Low Quality":
+			return "2.0 Mbps - Medium-Low"
+		case "1.5 Mbps - Low Quality":
+			return "1.5 Mbps - Low"
+		case "4.0 Mbps - Good Quality":
+			return "4.0 Mbps - Good"
+		case "6.0 Mbps - High Quality":
+			return "6.0 Mbps - High"
+		case "8.0 Mbps - Very High Quality":
+			return "8.0 Mbps - Very High"
+		case "0.5 Mbps - Ultra Low":
+			return label
+		case "1.0 Mbps - Very Low":
+			return label
+		case "Manual":
+			return "Manual"
+		default:
+			return label
+		}
+	}
+
 	var applyBitratePreset func(string)
 
 	bitratePresetSelect = widget.NewSelect(bitratePresetLabels, func(value string) {
@@ -6098,8 +6123,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			applyBitratePreset(value)
 		}
 	})
+	state.convert.BitratePreset = normalizePresetLabel(state.convert.BitratePreset)
 	if state.convert.BitratePreset == "" || bitratePresetLookup[state.convert.BitratePreset].Label == "" {
-		state.convert.BitratePreset = "2.5 Mbps - Medium Quality"
+		state.convert.BitratePreset = "2.5 Mbps - Medium"
 	}
 	bitratePresetSelect.SetSelected(state.convert.BitratePreset)
 
