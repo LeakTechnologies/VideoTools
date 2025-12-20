@@ -59,6 +59,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Default encoder preset set to slow
   - Bitrate mode hides unrelated controls (CRF only in CRF mode)
   - CRF visibility no longer overridden by quality updates
+  - CRF preset dropdown added with Manual option
 
 *Last Updated: 2025-12-20*
 

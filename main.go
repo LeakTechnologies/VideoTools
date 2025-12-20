@@ -5269,7 +5269,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var (
 		bitrateModeSelect    *widget.Select
 		bitratePresetSelect  *widget.Select
+		crfPresetSelect      *widget.Select
 		crfEntry             *widget.Entry
+		manualCrfRow         *fyne.Container
 		videoBitrateEntry    *widget.Entry
 		manualBitrateRow     *fyne.Container
 		targetFileSizeSelect *widget.Select
@@ -5891,6 +5893,65 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
+	manualCrfRow = container.NewVBox(
+		widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		crfEntry,
+	)
+	manualCrfRow.Hide()
+
+	crfPresetOptions := []string{
+		"Auto (from Quality preset)",
+		"18 (High)",
+		"20 (Balanced)",
+		"23 (Standard)",
+		"28 (Draft)",
+		"Manual",
+	}
+	crfPresetSelect = widget.NewSelect(crfPresetOptions, func(value string) {
+		switch value {
+		case "Auto (from Quality preset)":
+			state.convert.CRF = ""
+			crfEntry.SetText("")
+			manualCrfRow.Hide()
+		case "18 (High)":
+			state.convert.CRF = "18"
+			crfEntry.SetText("18")
+			manualCrfRow.Hide()
+		case "20 (Balanced)":
+			state.convert.CRF = "20"
+			crfEntry.SetText("20")
+			manualCrfRow.Hide()
+		case "23 (Standard)":
+			state.convert.CRF = "23"
+			crfEntry.SetText("23")
+			manualCrfRow.Hide()
+		case "28 (Draft)":
+			state.convert.CRF = "28"
+			crfEntry.SetText("28")
+			manualCrfRow.Hide()
+		case "Manual":
+			manualCrfRow.Show()
+		}
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
+	})
+	switch state.convert.CRF {
+	case "":
+		crfPresetSelect.SetSelected("Auto (from Quality preset)")
+	case "18":
+		crfPresetSelect.SetSelected("18 (High)")
+	case "20":
+		crfPresetSelect.SetSelected("20 (Balanced)")
+	case "23":
+		crfPresetSelect.SetSelected("23 (Standard)")
+	case "28":
+		crfPresetSelect.SetSelected("28 (Draft)")
+	default:
+		crfPresetSelect.SetSelected("Manual")
+		manualCrfRow.Show()
+	}
+
 	// Video Bitrate entry (for CBR/VBR)
 	videoBitrateEntry = widget.NewEntry()
 	videoBitrateEntry.SetPlaceHolder("5000")
@@ -5998,8 +6059,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Create CRF container (crfEntry already initialized)
 	crfContainer = container.NewVBox(
-		widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		crfEntry,
+		widget.NewLabelWithStyle("CRF Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		crfPresetSelect,
+		manualCrfRow,
 	)
 
 	// Note: bitrateContainer creation moved below after bitratePresetSelect is initialized
@@ -6360,6 +6422,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				}
 				state.convert.CRF = "0"
 				crfEntry.Disable()
+				if crfPresetSelect != nil {
+					crfPresetSelect.SetSelected("Manual")
+				}
+				if manualCrfRow != nil {
+					manualCrfRow.Show()
+				}
 				hint = "Lossless mode with CRF 0. Perfect quality preservation for H.265/AV1."
 			case "CBR":
 				hint = "Lossless quality with constant bitrate. May achieve smaller file size than pure lossless CRF."
@@ -6843,6 +6911,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bitratePresetSelect.SetSelected(state.convert.BitratePreset)
 		simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
 		crfEntry.SetText(state.convert.CRF)
+		if crfPresetSelect != nil {
+			crfPresetSelect.SetSelected("Auto (from Quality preset)")
+		}
+		if manualCrfRow != nil {
+			manualCrfRow.Hide()
+		}
 		setManualBitrate(state.convert.VideoBitrate)
 		targetFileSizeSelect.SetSelected("Manual")
 		setTargetFileSize(state.convert.TargetFileSize)
