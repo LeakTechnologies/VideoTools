@@ -804,6 +804,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Defaulted Target Aspect Ratio back to Source unless user explicitly sets it
 - ✅ Synced Target Aspect Ratio between Simple and Advanced menus
 - ✅ Hide manual CRF input when Lossless quality is selected
+- ✅ Upscale now recomputes target dimensions from the preset to ensure 2X/4X apply
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality

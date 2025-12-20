@@ -4322,6 +4322,9 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	method := cfg["method"].(string)
 	targetWidth := int(cfg["targetWidth"].(float64))
 	targetHeight := int(cfg["targetHeight"].(float64))
+	targetPreset, _ := cfg["targetPreset"].(string)
+	sourceWidth := int(toFloat(cfg["sourceWidth"]))
+	sourceHeight := int(toFloat(cfg["sourceHeight"]))
 	preserveAR := true
 	if v, ok := cfg["preserveAR"].(bool); ok {
 		preserveAR = v
@@ -4333,6 +4336,21 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 
 	if progressCallback != nil {
 		progressCallback(0)
+	}
+
+	// Recompute target dimensions from preset to avoid stale values
+	if targetPreset != "" && targetPreset != "Custom" {
+		if sourceWidth <= 0 || sourceHeight <= 0 {
+			if src, err := probeVideo(inputPath); err == nil && src != nil {
+				sourceWidth = src.Width
+				sourceHeight = src.Height
+			}
+		}
+		if w, h, keepAR, err := parseResolutionPreset(targetPreset, sourceWidth, sourceHeight); err == nil {
+			targetWidth = w
+			targetHeight = h
+			preserveAR = keepAR
+		}
 	}
 
 	// Build filter chain
@@ -4351,6 +4369,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 
 	// Add scale filter (preserve aspect by default)
 	scaleFilter := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
+	logging.Debug(logging.CatFFMPEG, "upscale: target=%dx%d preserveAR=%v method=%s filter=%s", targetWidth, targetHeight, preserveAR, method, scaleFilter)
 	filters = append(filters, scaleFilter)
 
 	// Add frame rate conversion if requested
@@ -12618,6 +12637,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 				"method":                 state.upscaleMethod,
 				"targetWidth":            float64(targetWidth),
 				"targetHeight":           float64(targetHeight),
+				"targetPreset":           state.upscaleTargetRes,
+				"sourceWidth":            float64(state.upscaleFile.Width),
+				"sourceHeight":           float64(state.upscaleFile.Height),
 				"preserveAR":             preserveAspect,
 				"useAI":                  state.upscaleAIEnabled && state.upscaleAIAvailable,
 				"aiModel":                state.upscaleAIModel,
