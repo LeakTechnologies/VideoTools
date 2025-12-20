@@ -5806,50 +5806,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	settingsInfoLabel.Alignment = fyne.TextAlignCenter
 
 	resetSettingsBtn := widget.NewButton("Reset to Defaults", func() {
-		state.convert = convertConfig{
-			SelectedFormat:   formatOptions[0],
-			OutputBase:       "converted",
-			Quality:          "Standard (CRF 23)",
-			InverseTelecine:  false,
-			OutputAspect:     "Source",
-			AspectHandling:   "Auto",
-			AspectUserSet:    false,
-			VideoCodec:       "H.264",
-			EncoderPreset:    "medium",
-			BitrateMode:      "CRF",
-			BitratePreset:    "Manual",
-			CRF:              "",
-			VideoBitrate:     "",
-			TargetResolution: "Source",
-			FrameRate:        "Source",
-			PixelFormat:      "yuv420p",
-			HardwareAccel:    "auto",
-			AudioCodec:       "AAC",
-			AudioBitrate:     "192k",
-			AudioChannels:    "Source",
-			UseAutoNaming:    false,
-			AutoNameTemplate: "<actress> - <studio> - <scene>",
-		}
-		logging.Debug(logging.CatUI, "settings reset to defaults")
-		formatSelect.SetSelected(state.convert.SelectedFormat.Label)
-		videoCodecSelect.SetSelected(state.convert.VideoCodec)
-		qualitySelectSimple.SetSelected(state.convert.Quality)
-		qualitySelectAdv.SetSelected(state.convert.Quality)
-		simplePresetSelect.SetSelected(state.convert.EncoderPreset)
-		bitrateModeSelect.SetSelected(state.convert.BitrateMode)
-		bitratePresetSelect.SetSelected(state.convert.BitratePreset)
-		crfEntry.SetText(state.convert.CRF)
-		videoBitrateEntry.SetText(state.convert.VideoBitrate)
-		targetFileSizeSelect.SetSelected("Manual")
-		targetFileSizeEntry.SetText(state.convert.TargetFileSize)
-		autoNameCheck.SetChecked(state.convert.UseAutoNaming)
-		autoNameTemplate.SetText(state.convert.AutoNameTemplate)
-		outputEntry.SetText(state.convert.OutputBase)
-		if updateEncodingControls != nil {
-			updateEncodingControls()
-		}
-		if updateQualityVisibility != nil {
-			updateQualityVisibility()
+		if resetConvertDefaults != nil {
+			resetConvertDefaults()
 		}
 	})
 	resetSettingsBtn.Importance = widget.LowImportance
@@ -6171,7 +6129,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		return numStr, unit, true
 	}
 
+	var syncingTargetSize bool
 	updateTargetSizeState := func() {
+		if syncingTargetSize {
+			return
+		}
 		val := strings.TrimSpace(targetFileSizeEntry.Text)
 		if val == "" {
 			state.convert.TargetFileSize = ""
@@ -6198,6 +6160,26 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
+	}
+
+	setTargetFileSize := func(value string) {
+		syncingTargetSize = true
+		defer func() { syncingTargetSize = false }()
+		if value == "" {
+			targetFileSizeEntry.SetText("")
+			targetFileSizeUnitSelect.SetSelected("MB")
+			state.convert.TargetFileSize = ""
+			return
+		}
+		if num, unit, ok := parseSizeParts(value); ok {
+			targetFileSizeEntry.SetText(num)
+			if unit != "" {
+				targetFileSizeUnitSelect.SetSelected(unit)
+			}
+		} else {
+			targetFileSizeEntry.SetText(value)
+		}
+		state.convert.TargetFileSize = value
 	}
 
 	targetFileSizeUnitSelect.OnChanged = func(value string) {
@@ -6851,6 +6833,52 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		layout.NewSpacer(),
 	)
 
+	resetConvertDefaults = func() {
+		state.convert = defaultConvertConfig()
+		logging.Debug(logging.CatUI, "convert settings reset to defaults")
+
+		tabs.SelectIndex(0)
+		state.convert.Mode = "Simple"
+
+		formatSelect.SetSelected(state.convert.SelectedFormat.Label)
+		videoCodecSelect.SetSelected(state.convert.VideoCodec)
+		qualitySelectSimple.SetSelected(state.convert.Quality)
+		qualitySelectAdv.SetSelected(state.convert.Quality)
+		simplePresetSelect.SetSelected(state.convert.EncoderPreset)
+		encoderPresetSelect.SetSelected(state.convert.EncoderPreset)
+		bitrateModeSelect.SetSelected(reverseMap[state.convert.BitrateMode])
+		bitratePresetSelect.SetSelected(state.convert.BitratePreset)
+		simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
+		crfEntry.SetText(state.convert.CRF)
+		setManualBitrate(state.convert.VideoBitrate)
+		targetFileSizeSelect.SetSelected("Manual")
+		setTargetFileSize(state.convert.TargetFileSize)
+		autoNameCheck.SetChecked(state.convert.UseAutoNaming)
+		autoNameTemplate.SetText(state.convert.AutoNameTemplate)
+		outputEntry.SetText(state.convert.OutputBase)
+		resolutionSelectSimple.SetSelected(state.convert.TargetResolution)
+		resolutionSelect.SetSelected(state.convert.TargetResolution)
+		frameRateSelect.SetSelected(state.convert.FrameRate)
+		motionInterpCheck.SetChecked(state.convert.UseMotionInterpolation)
+		syncAspect(state.convert.OutputAspect, false)
+		aspectOptions.SetSelected(state.convert.AspectHandling)
+		pixelFormatSelect.SetSelected(state.convert.PixelFormat)
+		hwAccelSelect.SetSelected(state.convert.HardwareAccel)
+		twoPassCheck.SetChecked(state.convert.TwoPass)
+		audioCodecSelect.SetSelected(state.convert.AudioCodec)
+		audioBitrateSelect.SetSelected(state.convert.AudioBitrate)
+		audioChannelsSelect.SetSelected(state.convert.AudioChannels)
+
+		updateAspectBoxVisibility()
+		if updateEncodingControls != nil {
+			updateEncodingControls()
+		}
+		if updateQualityVisibility != nil {
+			updateQualityVisibility()
+		}
+		state.persistConvertConfig()
+	}
+
 	// Create tabs for Simple/Advanced modes
 	// Wrap simple options with settings box at top
 	simpleWithSettings := container.NewVBox(settingsBox, simpleOptions)
@@ -7078,23 +7106,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	mainContent := container.NewMax(mainSplit)
 
 	resetBtn := widget.NewButton("Reset", func() {
-		tabs.SelectIndex(0) // Select Simple tab
-		state.convert.Mode = "Simple"
-		formatSelect.SetSelected("MP4 (H.264)")
-		state.convert.Quality = "Standard (CRF 23)"
-		qualitySelectSimple.SetSelected("Standard (CRF 23)")
-		qualitySelectAdv.SetSelected("Standard (CRF 23)")
-		aspectOptions.SetSelected("Auto")
-		targetAspectSelect.SetSelected("Source")
-		updateAspectBoxVisibility()
-		if updateEncodingControls != nil {
-			updateEncodingControls()
+		if resetConvertDefaults != nil {
+			resetConvertDefaults()
 		}
-		if updateQualityVisibility != nil {
-			updateQualityVisibility()
-		}
-		state.persistConvertConfig()
-		logging.Debug(logging.CatUI, "convert settings reset to defaults")
 	})
 	statusLabel := widget.NewLabel("")
 	statusLabel.Wrapping = fyne.TextTruncate // Prevent text wrapping to new line
