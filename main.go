@@ -531,11 +531,13 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return cfg, err
 	}
-	if cfg.OutputAspect == "" {
+	if cfg.OutputAspect == "" || strings.EqualFold(cfg.OutputAspect, "Source") {
 		cfg.OutputAspect = "Source"
 		cfg.AspectUserSet = false
-	} else if !strings.EqualFold(cfg.OutputAspect, "Source") {
-		cfg.AspectUserSet = true
+	} else if !cfg.AspectUserSet {
+		// Treat legacy saved aspects (like 16:9 defaults) as unset
+		cfg.OutputAspect = "Source"
+		cfg.AspectUserSet = false
 	}
 	// Always default FrameRate to Source if not set to avoid unwanted conversions
 	if cfg.FrameRate == "" {
