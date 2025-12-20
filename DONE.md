@@ -829,6 +829,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Added CRF preset dropdown with Manual option
 - ✅ Added 0.5/1.0 Mbps bitrate presets and simplified preset names
 - ✅ Default bitrate preset normalized to 2.5 Mbps to avoid "select one"
+- ✅ Linked simple and advanced bitrate presets so they stay in sync
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality
