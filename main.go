@@ -518,7 +518,7 @@ func defaultConvertConfig() convertConfig {
 		EncoderPreset:          "medium",
 		CRF:                    "",
 		BitrateMode:            "CRF",
-		BitratePreset:          "Manual",
+		BitratePreset:          "2.5 Mbps - Medium Quality",
 		VideoBitrate:           "5000k",
 		TargetFileSize:         "",
 		TargetResolution:       "Source",
@@ -6012,6 +6012,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	presets := []bitratePreset{
 		{Label: "1.5 Mbps - Low Quality", Bitrate: "1500k", Codec: ""},
+		{Label: "2.0 Mbps - Medium-Low Quality", Bitrate: "2000k", Codec: ""},
 		{Label: "2.5 Mbps - Medium Quality", Bitrate: "2500k", Codec: ""},
 		{Label: "4.0 Mbps - Good Quality", Bitrate: "4000k", Codec: ""},
 		{Label: "6.0 Mbps - High Quality", Bitrate: "6000k", Codec: ""},
