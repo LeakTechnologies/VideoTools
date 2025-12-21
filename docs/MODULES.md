@@ -76,18 +76,20 @@ Filters module provides video and audio processing effects:
 
 **Current Status:** Planned for dev15, basic filter system design.
 
-### Upscale 🔄 PLANNED
+### Upscale 🔄 PARTIAL
 Upscale increases video resolution using advanced scaling algorithms:
-- ⏳ **AI-based:** Waifu2x, Real-ESRGAN (via external integration)
-- ⏳ **Traditional:** Lanczos, Bicubic, Spline, Super-resolution
-- ⏳ **Target resolutions:** 720p, 1080p, 1440p, 4K, custom
-- ⏳ Noise reduction and artifact mitigation during upscaling
-- ⏳ Batch processing for multiple files
-- ⏳ Quality presets balancing speed vs. output quality
+- ✅ **AI-based:** Real-ESRGAN (ncnn backend) with presets and model selection
+- ✅ **Traditional:** Lanczos, Bicubic, Spline, Bilinear
+- ✅ **Target resolutions:** Match Source, 2x/4x relative, 720p, 1080p, 1440p, 4K, 8K
+- ✅ Frame extraction → AI upscale → reassemble pipeline
+- ✅ Filters and frame-rate conversion can be applied before AI upscaling
+- ⏳ Noise reduction and artifact mitigation beyond Real-ESRGAN
+- ⏳ Batch processing for multiple files (via queue)
+- ✅ Quality presets balancing speed vs. output quality (AI presets)
 
-**FFmpeg Features:** Scale filter, super-resolution filters
+**FFmpeg Features:** Scale filter, minterpolate, fps
 
-**Current Status:** Planned for dev16, AI integration research phase.
+**Current Status:** AI integration wired (ncnn). Python backend options are documented but not yet executed.
 
 ### Audio 🔄 PLANNED
 Audio module handles all audio track operations:
