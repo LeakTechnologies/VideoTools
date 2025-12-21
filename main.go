@@ -73,7 +73,7 @@ var (
 	logsDirOnce     sync.Once
 	logsDirPath     string
 	feedbackBundler = utils.NewFeedbackBundler()
-	appVersion      = "v0.1.0-dev18"
+	appVersion      = "v0.1.0-dev19"
 
 	hwAccelProbeOnce sync.Once
 	hwAccelSupported atomic.Value // map[string]bool
