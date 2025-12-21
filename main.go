@@ -13135,7 +13135,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	// Check AI availability on first load
 	if state.upscaleAIBackend == "" {
 		state.upscaleAIBackend = detectAIUpscaleBackend()
-		state.upscaleAIAvailable = state.upscaleAIBackend != ""
+		state.upscaleAIAvailable = state.upscaleAIBackend == "ncnn"
 	}
 	if len(state.filterActiveChain) > 0 {
 		state.upscaleFilterChain = append([]string{}, state.filterActiveChain...)
@@ -13529,8 +13529,12 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			widget.NewLabel("Note: AI upscaling is slower but produces higher quality results"),
 		))
 	} else {
+		backendNote := "Real-ESRGAN not detected. Install for enhanced quality:"
+		if state.upscaleAIBackend == "python" {
+			backendNote = "Python Real-ESRGAN detected, but the ncnn backend is required for now."
+		}
 		aiSection = widget.NewCard("AI Upscaling", "Not Available", container.NewVBox(
-			widget.NewLabel("Real-ESRGAN not detected. Install for enhanced quality:"),
+			widget.NewLabel(backendNote),
 			widget.NewLabel("https://github.com/xinntao/Real-ESRGAN"),
 			widget.NewLabel("Traditional scaling methods will be used."),
 		))
