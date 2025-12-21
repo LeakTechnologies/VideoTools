@@ -3041,8 +3041,7 @@ func (s *appState) showMergeView() {
 		container.NewHBox(addQueueBtn, runNowBtn),
 	)
 
-	content := container.NewHSplit(left, right)
-	content.Offset = 0.55
+	content := container.New(&fixedHSplitLayout{ratio: 0.6}, left, right)
 	s.setContent(container.NewBorder(topBar, bottomBar, nil, nil, container.NewPadded(content)))
 
 	buildList()
@@ -7715,9 +7714,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Stack video and metadata directly so metadata sits immediately under the player.
 	leftColumn := container.NewVBox(videoPanel, metaPanel)
 
-	// Split: left side (video + metadata VSplit) takes 55% | right side (options) takes 45%
-	mainSplit := container.NewHSplit(leftColumn, optionsPanel)
-	mainSplit.Offset = 0.55 // Video/metadata column gets 55%, options gets 45%
+	// Split: left side (video + metadata) takes 60% | right side (options) takes 40%
+	mainSplit := container.New(&fixedHSplitLayout{ratio: 0.6}, leftColumn, optionsPanel)
 
 	// Core content now just the split; ancillary controls stack in bottomSection.
 	mainContent := container.NewMax(mainSplit)
@@ -12885,8 +12883,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		settingsPanel,
 	)
 
-	mainContent := container.NewHSplit(leftColumn, rightColumn)
-	mainContent.Offset = 0.55 // Give more space to preview
+	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6}, leftColumn, rightColumn)
 
 	content := container.NewBorder(
 		container.NewVBox(instructions, widget.NewSeparator(), fileLabel, container.NewHBox(loadBtn, clearBtn)),
@@ -13836,11 +13833,10 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	// Adaptive height for small screens
 	settingsScroll.SetMinSize(fyne.NewSize(400, 400))
 
-	mainContent := container.NewHSplit(
+	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6},
 		container.NewVBox(leftPanel, videoContainer),
 		settingsScroll,
 	)
-	mainContent.SetOffset(0.55) // 55% for video preview, 45% for settings
 
 	content := container.NewPadded(mainContent)
 
