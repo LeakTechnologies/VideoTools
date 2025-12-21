@@ -68,6 +68,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Reduce module video pane min sizes to allow GNOME snapping
   - Cache/temp directory setting with SSD recommendation
   - Frame interpolation presets in Filters with Upscale linkage
+  - Real-ESRGAN AI upscale controls with ncnn pipeline (models, presets, tiles, TTA)
 
 *Last Updated: 2025-12-20*
 

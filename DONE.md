@@ -30,7 +30,15 @@ This file tracks completed features, fixes, and milestones.
   - **UI Polish**
     - "Run Benchmark" button highlighted (HighImportance) on first run
     - Returns to normal styling after initial benchmark
-    - Guides new users to run initial benchmark
+  - Guides new users to run initial benchmark
+
+- ✅ **AI Upscale Integration (Real-ESRGAN)**
+  - Added model presets with anime/general variants
+  - Processing presets (Ultra Fast → Maximum Quality) with tile/TTA tuning
+  - Upscale factor selection + output adjustment slider
+  - Tile size, output frame format, GPU and thread controls
+  - ncnn backend pipeline (extract → AI upscale → reassemble)
+  - Filters and frame rate conversion applied before AI upscaling
 
 - ✅ **Bitrate Preset Simplification**
   - Reduced from 13 confusing options to 6 clear presets
