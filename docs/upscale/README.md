@@ -49,7 +49,7 @@ The Upscale module raises video resolution using traditional FFmpeg scaling or A
 ## Traditional Scaling
 - **Algorithms:** Lanczos, Bicubic, Spline, Bilinear.
 - **Target:** Match Source, 2x/4x, or fixed resolutions (720p → 8K).
-- **Output:** Lossless MKV by default (copy audio).
+- **Output Quality:** Lossless (CRF 0), Near-lossless (CRF 16, default), High (CRF 18).
 
 ## Filters and Frame Rate
 - Filters configured in the Filters module can be applied before upscaling.

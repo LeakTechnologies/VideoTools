@@ -824,6 +824,7 @@ type appState struct {
 	upscaleTargetRes           string   // 720p, 1080p, 1440p, 4K, 8K, Custom
 	upscaleCustomWidth         int      // For custom resolution
 	upscaleCustomHeight        int      // For custom resolution
+	upscaleQualityPreset       string   // Lossless, Near-lossless, High
 	upscaleAIEnabled           bool     // Use AI upscaling if available
 	upscaleAIModel             string   // realesrgan, realesrgan-anime, none
 	upscaleAIAvailable         bool     // Runtime detection
@@ -4482,6 +4483,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	frameRate, _ := cfg["frameRate"].(string)
 	useMotionInterp, _ := cfg["useMotionInterpolation"].(bool)
 	sourceFrameRate := toFloat(cfg["sourceFrameRate"])
+	qualityPreset, _ := cfg["qualityPreset"].(string)
 
 	if progressCallback != nil {
 		progressCallback(0)
@@ -4500,6 +4502,16 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			targetHeight = h
 			preserveAR = keepAR
 		}
+	}
+
+	crfValue := 16
+	switch qualityPreset {
+	case "Lossless (CRF 0)":
+		crfValue = 0
+	case "High (CRF 18)":
+		crfValue = 18
+	case "Near-lossless (CRF 16)":
+		crfValue = 16
 	}
 
 	// Build filter chain
@@ -4749,7 +4761,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		reassembleArgs = append(reassembleArgs,
 			"-c:v", "libx264",
 			"-preset", "slow",
-			"-crf", "0",
+			"-crf", strconv.Itoa(crfValue),
 			"-pix_fmt", "yuv420p",
 			"-c:a", "copy",
 			"-shortest",
@@ -4808,7 +4820,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	args = append(args,
 		"-c:v", "libx264",
 		"-preset", "slow",
-		"-crf", "0", // lossless
+		"-crf", strconv.Itoa(crfValue),
 		"-pix_fmt", "yuv420p",
 		"-c:a", "copy",
 		outputPath,
@@ -13152,7 +13164,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 	settingsScroll.SetMinSize(fyne.NewSize(350, 400))
 
 	mainContent := container.NewHSplit(
-		container.NewVBox(leftPanel, videoContainer),
+		container.NewVBox(leftPanel, container.NewCenter(videoContainer)),
 		settingsScroll,
 	)
 	mainContent.SetOffset(0.55) // 55% for video preview, 45% for settings
@@ -13200,6 +13212,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	}
 	if state.upscaleFrameRate == "" {
 		state.upscaleFrameRate = "Source"
+	}
+	if state.upscaleQualityPreset == "" {
+		state.upscaleQualityPreset = "Near-lossless (CRF 16)"
 	}
 	if state.upscaleAIPreset == "" {
 		state.upscaleAIPreset = "Balanced"
@@ -13330,6 +13345,23 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		),
 		resLabel,
 		sourceResLabel,
+	))
+
+	qualitySelect := widget.NewSelect([]string{
+		"Lossless (CRF 0)",
+		"Near-lossless (CRF 16)",
+		"High (CRF 18)",
+	}, func(s string) {
+		state.upscaleQualityPreset = s
+	})
+	qualitySelect.SetSelected(state.upscaleQualityPreset)
+
+	qualitySection := widget.NewCard("Output Quality", "", container.NewVBox(
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Quality:"),
+			qualitySelect,
+		),
+		widget.NewLabel("Lower CRF = higher quality/larger files"),
 	))
 
 	// Frame Rate Section
@@ -13682,6 +13714,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 				"preserveAR":             preserveAspect,
 				"useAI":                  state.upscaleAIEnabled && state.upscaleAIAvailable,
 				"aiModel":                state.upscaleAIModel,
+				"qualityPreset":          state.upscaleQualityPreset,
 				"aiBackend":              state.upscaleAIBackend,
 				"aiPreset":               state.upscaleAIPreset,
 				"aiScale":                state.upscaleAIScale,
@@ -13751,6 +13784,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	settingsPanel := container.NewVBox(
 		traditionalSection,
 		resolutionSection,
+		qualitySection,
 		frameRateSection,
 		aiSection,
 		filterIntegrationSection,
