@@ -3814,6 +3814,18 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 						args = append(args, "-ac", "2")
 					case "5.1":
 						args = append(args, "-ac", "6")
+					case "Left to Stereo":
+						// Copy left channel to both left and right
+						args = append(args, "-af", "pan=stereo|c0=c0|c1=c0")
+					case "Right to Stereo":
+						// Copy right channel to both left and right
+						args = append(args, "-af", "pan=stereo|c0=c1|c1=c1")
+					case "Mix to Stereo":
+						// Downmix both channels together, then duplicate to L+R
+						args = append(args, "-af", "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1")
+					case "Swap L/R":
+						// Swap left and right channels
+						args = append(args, "-af", "pan=stereo|c0=c1|c1=c0")
 					}
 				}
 
@@ -10495,6 +10507,18 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				args = append(args, "-ac", "2")
 			case "5.1":
 				args = append(args, "-ac", "6")
+			case "Left to Stereo":
+				// Copy left channel to both left and right
+				args = append(args, "-af", "pan=stereo|c0=c0|c1=c0")
+			case "Right to Stereo":
+				// Copy right channel to both left and right
+				args = append(args, "-af", "pan=stereo|c0=c1|c1=c1")
+			case "Mix to Stereo":
+				// Downmix both channels together, then duplicate to L+R
+				args = append(args, "-af", "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1")
+			case "Swap L/R":
+				// Swap left and right channels
+				args = append(args, "-af", "pan=stereo|c0=c1|c1=c0")
 			}
 		}
 
@@ -11103,6 +11127,18 @@ func (s *appState) generateSnippet() {
 				args = append(args, "-ac", "2")
 			case "5.1":
 				args = append(args, "-ac", "6")
+			case "Left to Stereo":
+				// Copy left channel to both left and right
+				args = append(args, "-af", "pan=stereo|c0=c0|c1=c0")
+			case "Right to Stereo":
+				// Copy right channel to both left and right
+				args = append(args, "-af", "pan=stereo|c0=c1|c1=c1")
+			case "Mix to Stereo":
+				// Downmix both channels together, then duplicate to L+R
+				args = append(args, "-af", "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1")
+			case "Swap L/R":
+				// Swap left and right channels
+				args = append(args, "-af", "pan=stereo|c0=c1|c1=c0")
 			}
 		}
 	}

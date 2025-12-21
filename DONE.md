@@ -103,6 +103,17 @@ This file tracks completed features, fixes, and milestones.
   - Better quality options now appear at top of list
   - Applied consistently to both simple and advanced modes
 
+- ✅ **Audio Channel Remixing** (2025-12-20 continuation)
+  - Added advanced audio channel options for videos with imbalanced L/R channels
+  - New options using FFmpeg pan filter:
+    - "Left to Stereo" - Copy left channel to both speakers (music only)
+    - "Right to Stereo" - Copy right channel to both speakers (vocals only)
+    - "Mix to Stereo" - Downmix both channels together evenly
+    - "Swap L/R" - Swap left and right channels
+  - Implemented in all 4 command builders (DVD, convert, snippet)
+  - Maintains existing options (Source, Mono, Stereo, 5.1)
+  - Solves problem of videos with music in one ear and vocals in the other
+
 ### Features (2025-12-18 Session)
 - ✅ **History Sidebar Enhancements**
   - Delete button ("×") on each history entry
