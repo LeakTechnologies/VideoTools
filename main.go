@@ -814,6 +814,21 @@ type appState struct {
 	upscaleAIEnabled           bool     // Use AI upscaling if available
 	upscaleAIModel             string   // realesrgan, realesrgan-anime, none
 	upscaleAIAvailable         bool     // Runtime detection
+	upscaleAIBackend           string   // ncnn, python
+	upscaleAIPreset            string   // Ultra Fast, Fast, Balanced, High Quality, Maximum Quality
+	upscaleAIScale             float64  // Base outscale when not matching target
+	upscaleAIScaleUseTarget    bool     // Use target resolution to compute scale
+	upscaleAIOutputAdjust      float64  // Post scale adjustment multiplier
+	upscaleAIFaceEnhance       bool     // Face enhancement (Python only)
+	upscaleAIDenoise           float64  // Denoise strength (0-1, model-specific)
+	upscaleAITile              int      // Tile size for AI upscaling
+	upscaleAIGPU               int      // GPU index (if supported)
+	upscaleAIGPUAuto           bool     // Auto-select GPU
+	upscaleAIThreadsLoad       int      // Threading for load stage
+	upscaleAIThreadsProc       int      // Threading for processing stage
+	upscaleAIThreadsSave       int      // Threading for save stage
+	upscaleAITTA               bool     // Test-time augmentation
+	upscaleAIOutputFormat      string   // png, jpg, webp
 	upscaleApplyFilters        bool     // Apply filters from Filters module
 	upscaleFilterChain         []string // Transferred filters from Filters module
 	upscaleFrameRate           string   // Source, 24, 30, 60, or custom
@@ -4385,10 +4400,29 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	if v, ok := cfg["preserveAR"].(bool); ok {
 		preserveAR = v
 	}
-	// useAI := cfg["useAI"].(bool) // TODO: Implement AI upscaling in future
+	useAI := false
+	if v, ok := cfg["useAI"].(bool); ok {
+		useAI = v
+	}
+	aiBackend, _ := cfg["aiBackend"].(string)
+	aiModel, _ := cfg["aiModel"].(string)
+	aiScale := toFloat(cfg["aiScale"])
+	aiScaleUseTarget, _ := cfg["aiScaleUseTarget"].(bool)
+	aiOutputAdjust := toFloat(cfg["aiOutputAdjust"])
+	aiFaceEnhance, _ := cfg["aiFaceEnhance"].(bool)
+	aiDenoise := toFloat(cfg["aiDenoise"])
+	aiTile := int(toFloat(cfg["aiTile"]))
+	aiGPU := int(toFloat(cfg["aiGPU"]))
+	aiGPUAuto, _ := cfg["aiGPUAuto"].(bool)
+	aiThreadsLoad := int(toFloat(cfg["aiThreadsLoad"]))
+	aiThreadsProc := int(toFloat(cfg["aiThreadsProc"]))
+	aiThreadsSave := int(toFloat(cfg["aiThreadsSave"]))
+	aiTTA, _ := cfg["aiTTA"].(bool)
+	aiOutputFormat, _ := cfg["aiOutputFormat"].(string)
 	applyFilters := cfg["applyFilters"].(bool)
 	frameRate, _ := cfg["frameRate"].(string)
 	useMotionInterp, _ := cfg["useMotionInterpolation"].(bool)
+	sourceFrameRate := toFloat(cfg["sourceFrameRate"])
 
 	if progressCallback != nil {
 		progressCallback(0)
@@ -4410,39 +4444,293 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Build filter chain
-	var filters []string
+	var baseFilters []string
 
 	// Add filters from Filters module if requested
 	if applyFilters {
 		if filterChain, ok := cfg["filterChain"].([]interface{}); ok {
 			for _, f := range filterChain {
 				if filterStr, ok := f.(string); ok {
-					filters = append(filters, filterStr)
+					baseFilters = append(baseFilters, filterStr)
 				}
 			}
+		} else if filterChain, ok := cfg["filterChain"].([]string); ok {
+			baseFilters = append(baseFilters, filterChain...)
 		}
 	}
-
-	// Add scale filter (preserve aspect by default)
-	scaleFilter := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
-	logging.Debug(logging.CatFFMPEG, "upscale: target=%dx%d preserveAR=%v method=%s filter=%s", targetWidth, targetHeight, preserveAR, method, scaleFilter)
-	filters = append(filters, scaleFilter)
 
 	// Add frame rate conversion if requested
 	if frameRate != "" && frameRate != "Source" {
 		if useMotionInterp {
 			// Use motion interpolation for smooth frame rate changes
-			filters = append(filters, fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1", frameRate))
+			baseFilters = append(baseFilters, fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1", frameRate))
 		} else {
 			// Simple frame rate change (duplicates/drops frames)
-			filters = append(filters, "fps="+frameRate)
+			baseFilters = append(baseFilters, "fps="+frameRate)
 		}
 	}
 
+	if useAI {
+		if aiBackend != "ncnn" {
+			return fmt.Errorf("AI upscaling backend not available")
+		}
+
+		if aiModel == "" {
+			aiModel = "realesrgan-x4plus"
+		}
+		if aiOutputFormat == "" {
+			aiOutputFormat = "png"
+		}
+		if aiOutputAdjust <= 0 {
+			aiOutputAdjust = 1.0
+		}
+		if aiScale <= 0 {
+			aiScale = 4.0
+		}
+		if aiThreadsLoad <= 0 {
+			aiThreadsLoad = 1
+		}
+		if aiThreadsProc <= 0 {
+			aiThreadsProc = 2
+		}
+		if aiThreadsSave <= 0 {
+			aiThreadsSave = 2
+		}
+
+		outScale := aiScale
+		if aiScaleUseTarget {
+			switch targetPreset {
+			case "", "Match Source":
+				outScale = 1.0
+			case "2X (relative)":
+				outScale = 2.0
+			case "4X (relative)":
+				outScale = 4.0
+			default:
+				if sourceHeight > 0 && targetHeight > 0 {
+					outScale = float64(targetHeight) / float64(sourceHeight)
+				}
+			}
+		}
+		outScale *= aiOutputAdjust
+		if outScale < 0.1 {
+			outScale = 0.1
+		} else if outScale > 8.0 {
+			outScale = 8.0
+		}
+
+		if progressCallback != nil {
+			progressCallback(1)
+		}
+
+		workDir, err := os.MkdirTemp(utils.TempDir(), "vt-ai-upscale-")
+		if err != nil {
+			return fmt.Errorf("failed to create temp dir: %w", err)
+		}
+		defer os.RemoveAll(workDir)
+
+		inputFramesDir := filepath.Join(workDir, "frames_in")
+		outputFramesDir := filepath.Join(workDir, "frames_out")
+		if err := os.MkdirAll(inputFramesDir, 0o755); err != nil {
+			return fmt.Errorf("failed to create frames dir: %w", err)
+		}
+		if err := os.MkdirAll(outputFramesDir, 0o755); err != nil {
+			return fmt.Errorf("failed to create frames dir: %w", err)
+		}
+
+		var preFilter string
+		if len(baseFilters) > 0 {
+			preFilter = strings.Join(baseFilters, ",")
+		}
+
+		frameExt := strings.ToLower(aiOutputFormat)
+		if frameExt == "jpeg" {
+			frameExt = "jpg"
+		}
+		framePattern := filepath.Join(inputFramesDir, "frame_%08d."+frameExt)
+		extractArgs := []string{"-y", "-hide_banner", "-i", inputPath}
+		if preFilter != "" {
+			extractArgs = append(extractArgs, "-vf", preFilter)
+		}
+		extractArgs = append(extractArgs, "-start_number", "0", framePattern)
+
+		logFile, logPath, _ := createConversionLog(inputPath, outputPath, extractArgs)
+		if logFile != nil {
+			fmt.Fprintln(logFile, "Stage: extract frames for AI upscaling")
+		}
+
+		runFFmpegWithProgress := func(args []string, duration float64, startPct, endPct float64) error {
+			cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+			utils.ApplyNoWindow(cmd)
+			stderr, err := cmd.StderrPipe()
+			if err != nil {
+				return fmt.Errorf("failed to create stderr pipe: %w", err)
+			}
+			if err := cmd.Start(); err != nil {
+				return fmt.Errorf("failed to start ffmpeg: %w", err)
+			}
+			scanner := bufio.NewScanner(stderr)
+			for scanner.Scan() {
+				line := scanner.Text()
+				if logFile != nil {
+					fmt.Fprintln(logFile, line)
+				}
+				if strings.Contains(line, "time=") && duration > 0 {
+					if idx := strings.Index(line, "time="); idx != -1 {
+						timeStr := line[idx+5:]
+						if spaceIdx := strings.Index(timeStr, " "); spaceIdx != -1 {
+							timeStr = timeStr[:spaceIdx]
+						}
+						var h, m int
+						var s float64
+						if _, err := fmt.Sscanf(timeStr, "%d:%d:%f", &h, &m, &s); err == nil {
+							currentTime := float64(h*3600+m*60) + s
+							progress := startPct + ((currentTime / duration) * (endPct - startPct))
+							if progressCallback != nil {
+								progressCallback(progress)
+							}
+						}
+					}
+				}
+			}
+			return cmd.Wait()
+		}
+
+		duration := toFloat(cfg["duration"])
+		if err := runFFmpegWithProgress(extractArgs, duration, 1, 35); err != nil {
+			if logFile != nil {
+				fmt.Fprintf(logFile, "\nStatus: failed during extraction at %s\nError: %v\n", time.Now().Format(time.RFC3339), err)
+				_ = logFile.Close()
+			}
+			return fmt.Errorf("failed to extract frames: %w", err)
+		}
+
+		if progressCallback != nil {
+			progressCallback(40)
+		}
+
+		aiArgs := []string{
+			"-i", inputFramesDir,
+			"-o", outputFramesDir,
+			"-n", aiModel,
+			"-s", fmt.Sprintf("%.2f", outScale),
+			"-j", fmt.Sprintf("%d:%d:%d", aiThreadsLoad, aiThreadsProc, aiThreadsSave),
+			"-f", frameExt,
+		}
+		if aiTile > 0 {
+			aiArgs = append(aiArgs, "-t", strconv.Itoa(aiTile))
+		}
+		if !aiGPUAuto {
+			aiArgs = append(aiArgs, "-g", strconv.Itoa(aiGPU))
+		}
+		if aiTTA {
+			aiArgs = append(aiArgs, "-x")
+		}
+		if aiModel == "realesr-general-x4v3" {
+			aiArgs = append(aiArgs, "-dn", fmt.Sprintf("%.2f", aiDenoise))
+		}
+		if aiFaceEnhance && logFile != nil {
+			fmt.Fprintln(logFile, "Note: face enhancement requested but not supported in ncnn backend")
+		}
+
+		if logFile != nil {
+			fmt.Fprintln(logFile, "Stage: Real-ESRGAN")
+			fmt.Fprintf(logFile, "Command: realesrgan-ncnn-vulkan %s\n", strings.Join(aiArgs, " "))
+		}
+
+		aiCmd := exec.CommandContext(ctx, "realesrgan-ncnn-vulkan", aiArgs...)
+		utils.ApplyNoWindow(aiCmd)
+		aiOut, err := aiCmd.CombinedOutput()
+		if logFile != nil && len(aiOut) > 0 {
+			fmt.Fprintln(logFile, string(aiOut))
+		}
+		if err != nil {
+			if logFile != nil {
+				fmt.Fprintf(logFile, "\nStatus: failed during AI upscale at %s\nError: %v\n", time.Now().Format(time.RFC3339), err)
+				_ = logFile.Close()
+			}
+			return fmt.Errorf("AI upscaling failed: %w", err)
+		}
+
+		if progressCallback != nil {
+			progressCallback(70)
+		}
+
+		if frameRate == "" || frameRate == "Source" {
+			if sourceFrameRate <= 0 {
+				if src, err := probeVideo(inputPath); err == nil && src != nil {
+					sourceFrameRate = src.FrameRate
+				}
+			}
+		} else if fps, err := strconv.ParseFloat(frameRate, 64); err == nil {
+			sourceFrameRate = fps
+		}
+
+		if sourceFrameRate <= 0 {
+			sourceFrameRate = 30.0
+		}
+
+		reassemblePattern := filepath.Join(outputFramesDir, "frame_%08d."+frameExt)
+		reassembleArgs := []string{
+			"-y",
+			"-hide_banner",
+			"-framerate", fmt.Sprintf("%.3f", sourceFrameRate),
+			"-i", reassemblePattern,
+			"-i", inputPath,
+			"-map", "0:v:0",
+			"-map", "1:a?",
+		}
+
+		// Final scale to ensure target height/aspect (optional)
+		if targetPreset != "" && targetPreset != "Match Source" {
+			finalScale := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
+			reassembleArgs = append(reassembleArgs, "-vf", finalScale)
+		}
+
+		reassembleArgs = append(reassembleArgs,
+			"-c:v", "libx264",
+			"-preset", "slow",
+			"-crf", "0",
+			"-pix_fmt", "yuv420p",
+			"-c:a", "copy",
+			"-shortest",
+			outputPath,
+		)
+
+		if logFile != nil {
+			fmt.Fprintln(logFile, "Stage: reassemble")
+		}
+
+		if err := runFFmpegWithProgress(reassembleArgs, duration, 70, 100); err != nil {
+			if logFile != nil {
+				fmt.Fprintf(logFile, "\nStatus: failed during reassemble at %s\nError: %v\n", time.Now().Format(time.RFC3339), err)
+				_ = logFile.Close()
+			}
+			return fmt.Errorf("failed to reassemble upscaled video: %w", err)
+		}
+
+		if logFile != nil {
+			fmt.Fprintf(logFile, "\nStatus: completed at %s\n", time.Now().Format(time.RFC3339))
+			_ = logFile.Close()
+			job.LogPath = logPath
+		}
+
+		if progressCallback != nil {
+			progressCallback(100)
+		}
+
+		return nil
+	}
+
+	// Add scale filter (preserve aspect by default)
+	scaleFilter := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
+	logging.Debug(logging.CatFFMPEG, "upscale: target=%dx%d preserveAR=%v method=%s filter=%s", targetWidth, targetHeight, preserveAR, method, scaleFilter)
+	baseFilters = append(baseFilters, scaleFilter)
+
 	// Combine filters
 	var vfilter string
-	if len(filters) > 0 {
-		vfilter = strings.Join(filters, ",")
+	if len(baseFilters) > 0 {
+		vfilter = strings.Join(baseFilters, ",")
 	}
 
 	// Build FFmpeg command
@@ -4804,6 +5092,18 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 				args = append(args, "-ac", "2")
 			case "5.1":
 				args = append(args, "-ac", "6")
+			case "Left to Stereo":
+				// Copy left channel to both left and right
+				args = append(args, "-af", "pan=stereo|c0=c0|c1=c0")
+			case "Right to Stereo":
+				// Copy right channel to both left and right
+				args = append(args, "-af", "pan=stereo|c0=c1|c1=c1")
+			case "Mix to Stereo":
+				// Downmix both channels together, then duplicate to L+R
+				args = append(args, "-af", "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1")
+			case "Swap L/R":
+				// Swap left and right channels
+				args = append(args, "-af", "pan=stereo|c0=c1|c1=c0")
 			}
 		}
 	}
@@ -6699,7 +6999,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	audioBitrateSelect.SetSelected(state.convert.AudioBitrate)
 
 	// Audio Channels
-	audioChannelsSelect := widget.NewSelect([]string{"Source", "Mono", "Stereo", "5.1"}, func(value string) {
+	audioChannelsSelect := widget.NewSelect([]string{
+		"Source",
+		"Mono",
+		"Stereo",
+		"5.1",
+		"Left to Stereo",
+		"Right to Stereo",
+		"Mix to Stereo",
+		"Swap L/R",
+	}, func(value string) {
 		state.convert.AudioChannels = value
 		logging.Debug(logging.CatUI, "audio channels set to %s", value)
 	})
@@ -12804,15 +13113,29 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		state.upscaleTargetRes = "Match Source"
 	}
 	if state.upscaleAIModel == "" {
-		state.upscaleAIModel = "realesrgan" // General purpose AI model
+		state.upscaleAIModel = "realesrgan-x4plus" // General purpose AI model
 	}
 	if state.upscaleFrameRate == "" {
 		state.upscaleFrameRate = "Source"
 	}
+	if state.upscaleAIPreset == "" {
+		state.upscaleAIPreset = "Balanced"
+		state.upscaleAIScale = 4.0
+		state.upscaleAIScaleUseTarget = true
+		state.upscaleAIOutputAdjust = 1.0
+		state.upscaleAIDenoise = 0.5
+		state.upscaleAITile = 512
+		state.upscaleAIOutputFormat = "png"
+		state.upscaleAIGPUAuto = true
+		state.upscaleAIThreadsLoad = 1
+		state.upscaleAIThreadsProc = 2
+		state.upscaleAIThreadsSave = 2
+	}
 
 	// Check AI availability on first load
-	if !state.upscaleAIAvailable {
-		state.upscaleAIAvailable = checkAIUpscaleAvailable()
+	if state.upscaleAIBackend == "" {
+		state.upscaleAIBackend = detectAIUpscaleBackend()
+		state.upscaleAIAvailable = state.upscaleAIBackend != ""
 	}
 	if len(state.filterActiveChain) > 0 {
 		state.upscaleFilterChain = append([]string{}, state.filterActiveChain...)
@@ -12950,23 +13273,67 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		widget.NewLabel("Motion interpolation creates smooth in-between frames"),
 	))
 
+	aiModelOptions := aiUpscaleModelOptions()
+	aiModelLabel := aiUpscaleModelLabel(state.upscaleAIModel)
+	if aiModelLabel == "" && len(aiModelOptions) > 0 {
+		aiModelLabel = aiModelOptions[0]
+	}
+
 	// AI Upscaling Section
 	var aiSection *widget.Card
 	if state.upscaleAIAvailable {
-		aiModelSelect := widget.NewSelect([]string{
-			"realesrgan (General Purpose)",
-			"realesrgan-anime (Anime/Animation)",
-		}, func(s string) {
-			if strings.Contains(s, "anime") {
-				state.upscaleAIModel = "realesrgan-anime"
-			} else {
-				state.upscaleAIModel = "realesrgan"
+		var aiTileSelect *widget.Select
+		var aiTTACheck *widget.Check
+		var aiDenoiseSlider *widget.Slider
+		var denoiseHint *widget.Label
+
+		applyAIPreset := func(preset string) {
+			state.upscaleAIPreset = preset
+			switch preset {
+			case "Ultra Fast":
+				state.upscaleAITile = 800
+				state.upscaleAITTA = false
+			case "Fast":
+				state.upscaleAITile = 800
+				state.upscaleAITTA = false
+			case "Balanced":
+				state.upscaleAITile = 512
+				state.upscaleAITTA = false
+			case "High Quality":
+				state.upscaleAITile = 256
+				state.upscaleAITTA = false
+			case "Maximum Quality":
+				state.upscaleAITile = 0
+				state.upscaleAITTA = true
 			}
-		})
-		if strings.Contains(state.upscaleAIModel, "anime") {
-			aiModelSelect.SetSelected("realesrgan-anime (Anime/Animation)")
-		} else {
-			aiModelSelect.SetSelected("realesrgan (General Purpose)")
+			if aiTileSelect != nil {
+				switch state.upscaleAITile {
+				case 256:
+					aiTileSelect.SetSelected("256")
+				case 512:
+					aiTileSelect.SetSelected("512")
+				case 800:
+					aiTileSelect.SetSelected("800")
+				default:
+					aiTileSelect.SetSelected("Auto")
+				}
+			}
+			if aiTTACheck != nil {
+				aiTTACheck.SetChecked(state.upscaleAITTA)
+			}
+		}
+
+		updateDenoiseAvailability := func(model string) {
+			if aiDenoiseSlider == nil || denoiseHint == nil {
+				return
+			}
+			if model == "realesr-general-x4v3" {
+				aiDenoiseSlider.Enable()
+				denoiseHint.SetText("Denoise available on General Tiny model")
+			} else {
+				aiDenoiseSlider.Disable()
+				denoiseHint.SetText("Denoise only supported on General Tiny model")
+			}
 		}
 
 		aiEnabledCheck := widget.NewCheck("Use AI Upscaling", func(checked bool) {
@@ -12974,12 +13341,190 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		})
 		aiEnabledCheck.SetChecked(state.upscaleAIEnabled)
 
+		aiModelSelect := widget.NewSelect(aiModelOptions, func(s string) {
+			state.upscaleAIModel = aiUpscaleModelID(s)
+			aiModelLabel = s
+			updateDenoiseAvailability(state.upscaleAIModel)
+		})
+		if aiModelLabel != "" {
+			aiModelSelect.SetSelected(aiModelLabel)
+		}
+
+		aiPresetSelect := widget.NewSelect([]string{"Ultra Fast", "Fast", "Balanced", "High Quality", "Maximum Quality"}, func(s string) {
+			applyAIPreset(s)
+		})
+		aiPresetSelect.SetSelected(state.upscaleAIPreset)
+
+		aiScaleSelect := widget.NewSelect([]string{"Match Target", "1x", "2x", "3x", "4x", "8x"}, func(s string) {
+			if s == "Match Target" {
+				state.upscaleAIScaleUseTarget = true
+				return
+			}
+			state.upscaleAIScaleUseTarget = false
+			switch s {
+			case "1x":
+				state.upscaleAIScale = 1
+			case "2x":
+				state.upscaleAIScale = 2
+			case "3x":
+				state.upscaleAIScale = 3
+			case "4x":
+				state.upscaleAIScale = 4
+			case "8x":
+				state.upscaleAIScale = 8
+			}
+		})
+		if state.upscaleAIScaleUseTarget {
+			aiScaleSelect.SetSelected("Match Target")
+		} else {
+			aiScaleSelect.SetSelected(fmt.Sprintf("%.0fx", state.upscaleAIScale))
+		}
+
+		aiAdjustLabel := widget.NewLabel(fmt.Sprintf("Adjustment: %.2fx", state.upscaleAIOutputAdjust))
+		aiAdjustSlider := widget.NewSlider(0.5, 2.0)
+		aiAdjustSlider.Value = state.upscaleAIOutputAdjust
+		aiAdjustSlider.Step = 0.05
+		aiAdjustSlider.OnChanged = func(v float64) {
+			state.upscaleAIOutputAdjust = v
+			aiAdjustLabel.SetText(fmt.Sprintf("Adjustment: %.2fx", v))
+		}
+
+		aiDenoiseLabel := widget.NewLabel(fmt.Sprintf("Denoise: %.2f", state.upscaleAIDenoise))
+		aiDenoiseSlider = widget.NewSlider(0.0, 1.0)
+		aiDenoiseSlider.Value = state.upscaleAIDenoise
+		aiDenoiseSlider.Step = 0.05
+		aiDenoiseSlider.OnChanged = func(v float64) {
+			state.upscaleAIDenoise = v
+			aiDenoiseLabel.SetText(fmt.Sprintf("Denoise: %.2f", v))
+		}
+
+		aiTileSelect = widget.NewSelect([]string{"Auto", "256", "512", "800"}, func(s string) {
+			switch s {
+			case "Auto":
+				state.upscaleAITile = 0
+			case "256":
+				state.upscaleAITile = 256
+			case "512":
+				state.upscaleAITile = 512
+			case "800":
+				state.upscaleAITile = 800
+			}
+		})
+		switch state.upscaleAITile {
+		case 256:
+			aiTileSelect.SetSelected("256")
+		case 512:
+			aiTileSelect.SetSelected("512")
+		case 800:
+			aiTileSelect.SetSelected("800")
+		default:
+			aiTileSelect.SetSelected("Auto")
+		}
+
+		aiOutputFormatSelect := widget.NewSelect([]string{"PNG", "JPG", "WEBP"}, func(s string) {
+			state.upscaleAIOutputFormat = strings.ToLower(s)
+		})
+		switch strings.ToLower(state.upscaleAIOutputFormat) {
+		case "jpg", "jpeg":
+			aiOutputFormatSelect.SetSelected("JPG")
+		case "webp":
+			aiOutputFormatSelect.SetSelected("WEBP")
+		default:
+			aiOutputFormatSelect.SetSelected("PNG")
+		}
+
+		aiFaceCheck := widget.NewCheck("Face Enhancement (requires Python/GFPGAN)", func(checked bool) {
+			state.upscaleAIFaceEnhance = checked
+		})
+		aiFaceAvailable := checkAIFaceEnhanceAvailable(state.upscaleAIBackend)
+		if !aiFaceAvailable {
+			aiFaceCheck.Disable()
+		}
+		aiFaceCheck.SetChecked(state.upscaleAIFaceEnhance && aiFaceAvailable)
+
+		aiTTACheck = widget.NewCheck("Enable TTA (slower, higher quality)", func(checked bool) {
+			state.upscaleAITTA = checked
+		})
+		aiTTACheck.SetChecked(state.upscaleAITTA)
+
+		aiGPUSelect := widget.NewSelect([]string{"Auto", "0", "1", "2"}, func(s string) {
+			if s == "Auto" {
+				state.upscaleAIGPUAuto = true
+				return
+			}
+			state.upscaleAIGPUAuto = false
+			if gpu, err := strconv.Atoi(s); err == nil {
+				state.upscaleAIGPU = gpu
+			}
+		})
+		if state.upscaleAIGPUAuto {
+			aiGPUSelect.SetSelected("Auto")
+		} else {
+			aiGPUSelect.SetSelected(strconv.Itoa(state.upscaleAIGPU))
+		}
+
+		threadOptions := []string{"1", "2", "3", "4"}
+		aiThreadsLoad := widget.NewSelect(threadOptions, func(s string) {
+			if v, err := strconv.Atoi(s); err == nil {
+				state.upscaleAIThreadsLoad = v
+			}
+		})
+		aiThreadsLoad.SetSelected(strconv.Itoa(state.upscaleAIThreadsLoad))
+
+		aiThreadsProc := widget.NewSelect(threadOptions, func(s string) {
+			if v, err := strconv.Atoi(s); err == nil {
+				state.upscaleAIThreadsProc = v
+			}
+		})
+		aiThreadsProc.SetSelected(strconv.Itoa(state.upscaleAIThreadsProc))
+
+		aiThreadsSave := widget.NewSelect(threadOptions, func(s string) {
+			if v, err := strconv.Atoi(s); err == nil {
+				state.upscaleAIThreadsSave = v
+			}
+		})
+		aiThreadsSave.SetSelected(strconv.Itoa(state.upscaleAIThreadsSave))
+
+		denoiseHint = widget.NewLabel("")
+		denoiseHint.TextStyle = fyne.TextStyle{Italic: true}
+		updateDenoiseAvailability(state.upscaleAIModel)
+
 		aiSection = widget.NewCard("AI Upscaling", "✓ Available", container.NewVBox(
 			widget.NewLabel("Real-ESRGAN detected - enhanced quality available"),
 			aiEnabledCheck,
 			container.NewGridWithColumns(2,
 				widget.NewLabel("AI Model:"),
 				aiModelSelect,
+			),
+			container.NewGridWithColumns(2,
+				widget.NewLabel("Processing Preset:"),
+				aiPresetSelect,
+			),
+			container.NewGridWithColumns(2,
+				widget.NewLabel("Upscale Factor:"),
+				aiScaleSelect,
+			),
+			container.NewVBox(aiAdjustLabel, aiAdjustSlider),
+			container.NewVBox(aiDenoiseLabel, aiDenoiseSlider, denoiseHint),
+			container.NewGridWithColumns(2,
+				widget.NewLabel("Tile Size:"),
+				aiTileSelect,
+			),
+			container.NewGridWithColumns(2,
+				widget.NewLabel("Output Frames:"),
+				aiOutputFormatSelect,
+			),
+			aiFaceCheck,
+			aiTTACheck,
+			widget.NewSeparator(),
+			widget.NewLabel("Advanced (ncnn backend)"),
+			container.NewGridWithColumns(2,
+				widget.NewLabel("GPU:"),
+				aiGPUSelect,
+			),
+			container.NewGridWithColumns(2,
+				widget.NewLabel("Threads (Load/Proc/Save):"),
+				container.NewGridWithColumns(3, aiThreadsLoad, aiThreadsProc, aiThreadsSave),
 			),
 			widget.NewLabel("Note: AI upscaling is slower but produces higher quality results"),
 		))
@@ -13050,9 +13595,25 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 				"preserveAR":             preserveAspect,
 				"useAI":                  state.upscaleAIEnabled && state.upscaleAIAvailable,
 				"aiModel":                state.upscaleAIModel,
+				"aiBackend":              state.upscaleAIBackend,
+				"aiPreset":               state.upscaleAIPreset,
+				"aiScale":                state.upscaleAIScale,
+				"aiScaleUseTarget":        state.upscaleAIScaleUseTarget,
+				"aiOutputAdjust":          state.upscaleAIOutputAdjust,
+				"aiFaceEnhance":           state.upscaleAIFaceEnhance,
+				"aiDenoise":               state.upscaleAIDenoise,
+				"aiTile":                  float64(state.upscaleAITile),
+				"aiGPU":                   float64(state.upscaleAIGPU),
+				"aiGPUAuto":               state.upscaleAIGPUAuto,
+				"aiThreadsLoad":           float64(state.upscaleAIThreadsLoad),
+				"aiThreadsProc":           float64(state.upscaleAIThreadsProc),
+				"aiThreadsSave":           float64(state.upscaleAIThreadsSave),
+				"aiTTA":                   state.upscaleAITTA,
+				"aiOutputFormat":          state.upscaleAIOutputFormat,
 				"applyFilters":           state.upscaleApplyFilters,
 				"filterChain":            state.upscaleFilterChain,
 				"duration":               state.upscaleFile.Duration,
+				"sourceFrameRate":         state.upscaleFile.FrameRate,
 				"frameRate":              state.upscaleFrameRate,
 				"useMotionInterpolation": state.upscaleMotionInterpolation,
 			},
@@ -13124,27 +13685,83 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
 
-// checkAIUpscaleAvailable checks if Real-ESRGAN is available on the system
-func checkAIUpscaleAvailable() bool {
-	// Check for realesrgan-ncnn-vulkan (most common binary distribution)
-	cmd := exec.Command("realesrgan-ncnn-vulkan", "--help")
-	if err := cmd.Run(); err == nil {
-		return true
+// detectAIUpscaleBackend returns the available Real-ESRGAN backend ("ncnn", "python", or "").
+func detectAIUpscaleBackend() string {
+	if _, err := exec.LookPath("realesrgan-ncnn-vulkan"); err == nil {
+		return "ncnn"
 	}
 
-	// Check for Python-based Real-ESRGAN
-	cmd = exec.Command("python3", "-c", "import realesrgan")
+	cmd := exec.Command("python3", "-c", "import realesrgan")
 	if err := cmd.Run(); err == nil {
-		return true
+		return "python"
 	}
 
-	// Check for alternative Python command
 	cmd = exec.Command("python", "-c", "import realesrgan")
 	if err := cmd.Run(); err == nil {
-		return true
+		return "python"
 	}
 
-	return false
+	return ""
+}
+
+// checkAIFaceEnhanceAvailable verifies whether face enhancement tooling is available.
+func checkAIFaceEnhanceAvailable(backend string) bool {
+	if backend != "python" {
+		return false
+	}
+	cmd := exec.Command("python3", "-c", "import realesrgan, gfpgan")
+	if err := cmd.Run(); err == nil {
+		return true
+	}
+	cmd = exec.Command("python", "-c", "import realesrgan, gfpgan")
+	return cmd.Run() == nil
+}
+
+func aiUpscaleModelOptions() []string {
+	return []string{
+		"General (RealESRGAN_x4plus)",
+		"Anime/Illustration (RealESRGAN_x4plus_anime_6B)",
+		"Anime Video (realesr-animevideov3)",
+		"General Tiny (realesr-general-x4v3)",
+		"2x General (RealESRGAN_x2plus)",
+		"Clean Restore (realesrnet-x4plus)",
+	}
+}
+
+func aiUpscaleModelID(label string) string {
+	switch label {
+	case "Anime/Illustration (RealESRGAN_x4plus_anime_6B)":
+		return "realesrgan-x4plus-anime"
+	case "Anime Video (realesr-animevideov3)":
+		return "realesr-animevideov3"
+	case "General Tiny (realesr-general-x4v3)":
+		return "realesr-general-x4v3"
+	case "2x General (RealESRGAN_x2plus)":
+		return "realesrgan-x2plus"
+	case "Clean Restore (realesrnet-x4plus)":
+		return "realesrnet-x4plus"
+	default:
+		return "realesrgan-x4plus"
+	}
+}
+
+func aiUpscaleModelLabel(modelID string) string {
+	switch modelID {
+	case "realesrgan-x4plus-anime":
+		return "Anime/Illustration (RealESRGAN_x4plus_anime_6B)"
+	case "realesr-animevideov3":
+		return "Anime Video (realesr-animevideov3)"
+	case "realesr-general-x4v3":
+		return "General Tiny (realesr-general-x4v3)"
+	case "realesrgan-x2plus":
+		return "2x General (RealESRGAN_x2plus)"
+	case "realesrnet-x4plus":
+		return "Clean Restore (realesrnet-x4plus)"
+	case "realesrgan-x4plus":
+		return "General (RealESRGAN_x4plus)"
+	default:
+		return ""
+	}
 }
 
 // parseResolutionPreset parses resolution preset strings and returns target dimensions and whether to preserve aspect.
