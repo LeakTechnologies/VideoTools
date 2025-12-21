@@ -801,6 +801,9 @@ type appState struct {
 	filterFlipV       bool
 	filterGrayscale   bool
 	filterActiveChain []string // Active filter chain
+	filterInterpEnabled bool
+	filterInterpPreset  string
+	filterInterpFPS     string
 
 	// Upscale module state
 	upscaleFile                *videoSource
@@ -12563,6 +12566,37 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		state.filterSharpness = 0.0  // 0.0 to 5.0
 		state.filterDenoise = 0.0    // 0.0 to 10.0
 	}
+	if state.filterInterpPreset == "" {
+		state.filterInterpPreset = "Balanced"
+	}
+	if state.filterInterpFPS == "" {
+		state.filterInterpFPS = "60"
+	}
+
+	buildFilterChain := func() {
+		var chain []string
+		if state.filterInterpEnabled {
+			fps := state.filterInterpFPS
+			if fps == "" {
+				fps = "60"
+			}
+			var filter string
+			switch state.filterInterpPreset {
+			case "Ultra Fast":
+				filter = fmt.Sprintf("minterpolate=fps=%s:mi_mode=blend", fps)
+			case "Fast":
+				filter = fmt.Sprintf("minterpolate=fps=%s:mi_mode=duplicate", fps)
+			case "High Quality":
+				filter = fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:search_param=32", fps)
+			case "Maximum Quality":
+				filter = fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:search_param=64", fps)
+			default: // Balanced
+				filter = fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=obmc:me_mode=bidir:me=epzs:search_param=16:vsbmc=0", fps)
+			}
+			chain = append(chain, filter)
+		}
+		state.filterActiveChain = chain
+	}
 
 	// File label
 	fileLabel := widget.NewLabel("No file loaded")
@@ -12607,8 +12641,8 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 	upscaleNavBtn := widget.NewButton("Send to Upscale →", func() {
 		if state.filtersFile != nil {
 			state.upscaleFile = state.filtersFile
-			// TODO: Transfer active filter chain to upscale
-			// state.upscaleFilterChain = state.filterActiveChain
+			buildFilterChain()
+			state.upscaleFilterChain = append([]string{}, state.filterActiveChain...)
 		}
 		state.showUpscaleView()
 	})
@@ -12656,14 +12690,50 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		widget.NewCheck("Grayscale", func(b bool) { state.filterGrayscale = b }),
 	))
 
+	// Frame Interpolation Section
+	interpEnabledCheck := widget.NewCheck("Enable Frame Interpolation", func(checked bool) {
+		state.filterInterpEnabled = checked
+		buildFilterChain()
+	})
+	interpEnabledCheck.SetChecked(state.filterInterpEnabled)
+
+	interpPresetSelect := widget.NewSelect([]string{"Ultra Fast", "Fast", "Balanced", "High Quality", "Maximum Quality"}, func(val string) {
+		state.filterInterpPreset = val
+		buildFilterChain()
+	})
+	interpPresetSelect.SetSelected(state.filterInterpPreset)
+
+	interpFPSSelect := widget.NewSelect([]string{"24", "30", "50", "59.94", "60"}, func(val string) {
+		state.filterInterpFPS = val
+		buildFilterChain()
+	})
+	interpFPSSelect.SetSelected(state.filterInterpFPS)
+
+	interpHint := widget.NewLabel("Balanced preset is recommended; higher presets are CPU-intensive.")
+	interpHint.TextStyle = fyne.TextStyle{Italic: true}
+	interpHint.Wrapping = fyne.TextWrapWord
+
+	interpSection := widget.NewCard("Frame Interpolation (Minterpolate)", "", container.NewVBox(
+		widget.NewLabel("Generate smoother motion by interpolating new frames"),
+		interpEnabledCheck,
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Preset:"),
+			interpPresetSelect,
+			widget.NewLabel("Target FPS:"),
+			interpFPSSelect,
+		),
+		interpHint,
+	))
+	buildFilterChain()
+
 	// Apply button
 	applyBtn := widget.NewButton("Apply Filters", func() {
 		if state.filtersFile == nil {
 			dialog.ShowInformation("No Video", "Please load a video first.", state.window)
 			return
 		}
-		// TODO: Implement filter application
-		dialog.ShowInformation("Coming Soon", "Filter application will be implemented soon.", state.window)
+		buildFilterChain()
+		dialog.ShowInformation("Filters", "Filters are now configured and will be applied when sent to Upscale.", state.window)
 	})
 	applyBtn.Importance = widget.HighImportance
 
@@ -12680,6 +12750,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		colorSection,
 		enhanceSection,
 		transformSection,
+		interpSection,
 		creativeSection,
 		applyBtn,
 	)
@@ -12742,6 +12813,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	// Check AI availability on first load
 	if !state.upscaleAIAvailable {
 		state.upscaleAIAvailable = checkAIUpscaleAvailable()
+	}
+	if len(state.filterActiveChain) > 0 {
+		state.upscaleFilterChain = append([]string{}, state.filterActiveChain...)
 	}
 
 	// File label
