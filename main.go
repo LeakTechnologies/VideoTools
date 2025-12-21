@@ -88,7 +88,7 @@ var (
 		{"filters", "Filters", utils.MustHex("#44FF88"), "Convert", modules.HandleFilters},         // Green
 		{"upscale", "Upscale", utils.MustHex("#AAFF44"), "Advanced", modules.HandleUpscale},        // Yellow-Green
 		{"audio", "Audio", utils.MustHex("#FFD744"), "Convert", modules.HandleAudio},               // Yellow
-		{"dvd-author", "DVD Author", utils.MustHex("#FFAA44"), "Convert", modules.HandleDVDAuthor}, // Orange
+		{"author", "Author", utils.MustHex("#FFAA44"), "Convert", modules.HandleAuthor}, // Orange
 		{"subtitles", "Subtitles", utils.MustHex("#44A6FF"), "Convert", modules.HandleSubtitles},   // Azure
 		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},           // Orange
 		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},         // Pink
@@ -845,12 +845,24 @@ type appState struct {
 	// History sidebar state
 	historyEntries []ui.HistoryEntry
 	sidebarVisible bool
+
+	// Author module state
+	authorFile           *videoSource
+	authorChapters       []authorChapter
+	authorSceneThreshold float64
+	authorDetecting      bool
 }
 
 type mergeClip struct {
 	Path     string
 	Chapter  string
 	Duration float64
+}
+
+type authorChapter struct {
+	Timestamp float64 // Timestamp in seconds
+	Title     string  // Chapter title/name
+	Auto      bool    // True if auto-detected, false if manual
 }
 
 func (s *appState) persistConvertConfig() {
@@ -2581,6 +2593,19 @@ func (s *appState) showUpscaleView() {
 	s.lastModule = s.active
 	s.active = "upscale"
 	s.setContent(buildUpscaleView(s))
+}
+
+func (s *appState) showAuthorView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "author"
+
+	// Initialize scene detection threshold if not set
+	if s.authorSceneThreshold == 0 {
+		s.authorSceneThreshold = 0.3
+	}
+
+	s.setContent(buildAuthorView(s))
 }
 
 func (s *appState) showMergeView() {
@@ -13846,6 +13871,125 @@ func parseResolutionPreset(preset string, srcW, srcH int) (width, height int, pr
 }
 
 // buildUpscaleFilter builds the FFmpeg scale filter string with the selected method
+func buildAuthorView(state *appState) fyne.CanvasObject {
+	authorColor := moduleColor("author")
+
+	// Back button
+	backBtn := widget.NewButton("< BACK", func() {
+		state.showMainMenu()
+	})
+	backBtn.Importance = widget.LowImportance
+
+	// Title
+	title := canvas.NewText("AUTHOR", authorColor)
+	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	title.TextSize = 20
+
+	header := container.NewBorder(nil, nil, backBtn, nil, container.NewCenter(title))
+
+	// Create tabs for different authoring tasks
+	tabs := container.NewAppTabs(
+		container.NewTabItem("Chapters", buildChaptersTab(state)),
+		container.NewTabItem("Rip DVD/ISO", buildRipTab(state)),
+		container.NewTabItem("Author Disc", buildAuthorDiscTab(state)),
+	)
+	tabs.SetTabLocation(container.TabLocationTop)
+
+	return container.NewBorder(header, nil, nil, nil, tabs)
+}
+
+func buildChaptersTab(state *appState) fyne.CanvasObject {
+	// File selection
+	var fileLabel *widget.Label
+	if state.authorFile != nil {
+		fileLabel = widget.NewLabel(fmt.Sprintf("File: %s", filepath.Base(state.authorFile.Path)))
+		fileLabel.TextStyle = fyne.TextStyle{Bold: true}
+	} else {
+		fileLabel = widget.NewLabel("No file loaded")
+	}
+
+	selectBtn := widget.NewButton("Select Video", func() {
+		dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
+			if err != nil || uc == nil {
+				return
+			}
+			defer uc.Close()
+			path := uc.URI().Path()
+			src, err := probeVideo(path)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
+				return
+			}
+			state.authorFile = src
+			fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(src.Path)))
+		}, state.window)
+	})
+
+	// Scene detection threshold
+	thresholdLabel := widget.NewLabel(fmt.Sprintf("Detection Sensitivity: %.2f", state.authorSceneThreshold))
+	thresholdSlider := widget.NewSlider(0.1, 0.9)
+	thresholdSlider.Value = state.authorSceneThreshold
+	thresholdSlider.Step = 0.05
+	thresholdSlider.OnChanged = func(v float64) {
+		state.authorSceneThreshold = v
+		thresholdLabel.SetText(fmt.Sprintf("Detection Sensitivity: %.2f", v))
+	}
+
+	// Detect scenes button
+	detectBtn := widget.NewButton("Detect Scenes", func() {
+		if state.authorFile == nil {
+			dialog.ShowInformation("No File", "Please select a video file first", state.window)
+			return
+		}
+		// TODO: Implement scene detection
+		dialog.ShowInformation("Scene Detection", "Scene detection will be implemented in the next step", state.window)
+	})
+	detectBtn.Importance = widget.HighImportance
+
+	// Chapter list (placeholder)
+	chapterList := widget.NewLabel("No chapters detected yet")
+
+	// Add manual chapter button
+	addChapterBtn := widget.NewButton("+ Add Chapter", func() {
+		// TODO: Implement manual chapter addition
+		dialog.ShowInformation("Add Chapter", "Manual chapter addition will be implemented soon", state.window)
+	})
+
+	// Export chapters button
+	exportBtn := widget.NewButton("Export Chapters", func() {
+		// TODO: Implement chapter export
+		dialog.ShowInformation("Export", "Chapter export will be implemented soon", state.window)
+	})
+
+	controls := container.NewVBox(
+		fileLabel,
+		selectBtn,
+		widget.NewSeparator(),
+		widget.NewLabel("Scene Detection:"),
+		thresholdLabel,
+		thresholdSlider,
+		detectBtn,
+		widget.NewSeparator(),
+		widget.NewLabel("Chapters:"),
+		container.NewScroll(chapterList),
+		container.NewHBox(addChapterBtn, exportBtn),
+	)
+
+	return container.NewPadded(controls)
+}
+
+func buildRipTab(state *appState) fyne.CanvasObject {
+	placeholder := widget.NewLabel("DVD/ISO ripping will be implemented here.\n\nFeatures:\n• Mount and scan DVD/ISO\n• Select titles and tracks\n• Rip at highest quality (like FLAC from CD)\n• Preserve all audio and subtitle tracks")
+	placeholder.Wrapping = fyne.TextWrapWord
+	return container.NewCenter(placeholder)
+}
+
+func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
+	placeholder := widget.NewLabel("Disc authoring will be implemented here.\n\nFeatures:\n• Create VIDEO_TS folder structure\n• Generate burn-ready ISO\n• NTSC/PAL selection\n• Menu creation\n• Chapter integration")
+	placeholder.Wrapping = fyne.TextWrapWord
+	return container.NewCenter(placeholder)
+}
+
 func buildUpscaleFilter(targetWidth, targetHeight int, method string, preserveAspect bool) string {
 	// Ensure even dimensions for encoders
 	makeEven := func(v int) int {

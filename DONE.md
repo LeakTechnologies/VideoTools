@@ -114,6 +114,21 @@ This file tracks completed features, fixes, and milestones.
   - Maintains existing options (Source, Mono, Stereo, 5.1)
   - Solves problem of videos with music in one ear and vocals in the other
 
+- ✅ **Author Module Skeleton** (2025-12-20 continuation)
+  - Renamed "DVD Author" module to "Author" for broader scope
+  - Created tabbed interface structure with 3 tabs:
+    - **Chapters Tab** - Scene detection and chapter management
+    - **Rip DVD/ISO Tab** - High-quality disc extraction (like FLAC from CD)
+    - **Author Disc Tab** - VIDEO_TS/ISO creation for burning
+  - Implemented basic Chapters tab UI:
+    - File selection with video probing
+    - Scene detection sensitivity slider (0.1-0.9 threshold)
+    - Placeholder chapter list
+    - Add/Export chapter buttons (to be implemented)
+  - Added authorChapter struct for storing chapter data
+  - Added author module state fields to appState
+  - Foundation for complete disc production workflow
+
 ### Features (2025-12-18 Session)
 - ✅ **History Sidebar Enhancements**
   - Delete button ("×") on each history entry
