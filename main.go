@@ -248,6 +248,7 @@ func hwAccelAvailable(accel string) bool {
 	hwAccelProbeOnce.Do(func() {
 		supported := make(map[string]bool)
 		cmd := exec.Command("ffmpeg", "-hide_banner", "-v", "error", "-hwaccels")
+		utils.ApplyNoWindow(cmd)
 		output, err := cmd.Output()
 		if err != nil {
 			hwAccelSupported.Store(supported)
@@ -313,14 +314,10 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 		dialog.ShowInformation("No Log", "No log available.", s.window)
 		return
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		dialog.ShowError(fmt.Errorf("failed to read log: %w", err), s.window)
-		return
-	}
 
+	// Create UI elements first
 	text := widget.NewMultiLineEntry()
-	text.SetText(string(data))
+	text.SetText("Loading log file...")
 	text.Wrapping = fyne.TextWrapWord
 	text.TextStyle = fyne.TextStyle{Monospace: true}
 	text.Disable()
@@ -330,8 +327,39 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 	scroll.SetMinSize(fyne.NewSize(600, 350))
 
 	stop := make(chan struct{})
-	if live {
-		go func() {
+	var d dialog.Dialog
+	closeBtn := widget.NewButton("Close", func() {
+		if d != nil {
+			d.Hide()
+		}
+	})
+	copyBtn := widget.NewButton("Copy All", func() {
+		s.window.Clipboard().SetContent(text.Text)
+	})
+	buttons := container.NewHBox(copyBtn, layout.NewSpacer(), closeBtn)
+	content := container.NewBorder(nil, buttons, nil, nil, scroll)
+	d = dialog.NewCustom(title, "Close", content, s.window)
+	d.SetOnClosed(func() { close(stop) })
+	d.Show()
+
+	// Read file asynchronously to avoid blocking UI
+	go func() {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				text.SetText(fmt.Sprintf("Failed to read log: %v", err))
+			}, false)
+			return
+		}
+
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			text.SetText(string(data))
+			// Auto-scroll to bottom
+			scroll.ScrollToBottom()
+		}, false)
+
+		// Start live updates if requested
+		if live {
 			ticker := time.NewTicker(1 * time.Second)
 			defer ticker.Stop()
 			for {
@@ -349,23 +377,8 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 					}, false)
 				}
 			}
-		}()
-	}
-
-	var d dialog.Dialog
-	closeBtn := widget.NewButton("Close", func() {
-		if d != nil {
-			d.Hide()
 		}
-	})
-	copyBtn := widget.NewButton("Copy All", func() {
-		s.window.Clipboard().SetContent(text.Text)
-	})
-	buttons := container.NewHBox(copyBtn, layout.NewSpacer(), closeBtn)
-	content := container.NewBorder(nil, buttons, nil, nil, scroll)
-	d = dialog.NewCustom(title, "Close", content, s.window)
-	d.SetOnClosed(func() { close(stop) })
-	d.Show()
+	}()
 }
 
 // openFolder tries to open a folder in the OS file browser.
@@ -1976,6 +1989,7 @@ func (s *appState) detectHardwareEncoders() []string {
 
 	for _, encoder := range encodersToCheck {
 		cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
+		utils.ApplyNoWindow(cmd)
 		output, err := cmd.CombinedOutput()
 		if err == nil && strings.Contains(string(output), encoder) {
 			available = append(available, encoder)
@@ -13765,11 +13779,13 @@ func detectAIUpscaleBackend() string {
 	}
 
 	cmd := exec.Command("python3", "-c", "import realesrgan")
+	utils.ApplyNoWindow(cmd)
 	if err := cmd.Run(); err == nil {
 		return "python"
 	}
 
 	cmd = exec.Command("python", "-c", "import realesrgan")
+	utils.ApplyNoWindow(cmd)
 	if err := cmd.Run(); err == nil {
 		return "python"
 	}
@@ -13783,10 +13799,12 @@ func checkAIFaceEnhanceAvailable(backend string) bool {
 		return false
 	}
 	cmd := exec.Command("python3", "-c", "import realesrgan, gfpgan")
+	utils.ApplyNoWindow(cmd)
 	if err := cmd.Run(); err == nil {
 		return true
 	}
 	cmd = exec.Command("python", "-c", "import realesrgan, gfpgan")
+	utils.ApplyNoWindow(cmd)
 	return cmd.Run() == nil
 }
 

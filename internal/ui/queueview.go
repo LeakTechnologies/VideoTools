@@ -277,7 +277,7 @@ func buildJobItem(
 	case queue.JobStatusPending:
 		buttons = append(buttons,
 			widget.NewButton("Copy Command", func() { onCopyCommand(job.ID) }),
-			widget.NewButton("Cancel", func() { onCancel(job.ID) }),
+			widget.NewButton("Remove", func() { onRemove(job.ID) }),
 		)
 	case queue.JobStatusCompleted, queue.JobStatusFailed, queue.JobStatusCancelled:
 		if job.Status == queue.JobStatusFailed && strings.TrimSpace(job.Error) != "" && onCopyError != nil {
