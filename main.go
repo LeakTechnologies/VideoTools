@@ -1384,15 +1384,23 @@ func (r *mouseButtonRenderer) BackgroundColor() color.Color {
 
 func (s *appState) setContent(body fyne.CanvasObject) {
 	update := func() {
+		// Preserve current window size to prevent auto-resizing when content changes
+		// This ensures the window maintains the size the user set, even when content
+		// like progress bars or queue items change dynamically
+		currentSize := s.window.Canvas().Size()
+
 		bg := canvas.NewRectangle(backgroundColor)
-		// Don't set a minimum size - let content determine layout naturally
 		if body == nil {
 			s.window.SetContent(bg)
+			// Restore window size after setting content
+			s.window.Resize(currentSize)
 			return
 		}
 		// Wrap content with mouse button handler
 		wrapped := newMouseButtonHandler(container.NewMax(bg, body), s)
 		s.window.SetContent(wrapped)
+		// Restore window size after setting content
+		s.window.Resize(currentSize)
 	}
 
 	// Use async Do() instead of DoAndWait() to avoid deadlock when called from main goroutine
