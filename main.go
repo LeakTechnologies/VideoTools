@@ -146,24 +146,14 @@ func (l *fixedHSplitLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) 
 		return
 	}
 
-	minLead := float64(lead.MinSize().Width)
-	minTrail := float64(trail.MinSize().Width)
 	ratio := float64(l.ratio)
 	if ratio <= 0 {
 		ratio = 0.6
 	}
-
-	min := minLead / total
-	max := 1 - (minTrail / total)
-	if min <= max {
-		if ratio < min {
-			ratio = min
-		}
-		if ratio > max {
-			ratio = max
-		}
-	} else {
-		ratio = minLead / (minLead + minTrail)
+	if ratio < 0.1 {
+		ratio = 0.1
+	} else if ratio > 0.9 {
+		ratio = 0.9
 	}
 
 	leadWidth := float32(total * ratio)
