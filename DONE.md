@@ -129,6 +129,25 @@ This file tracks completed features, fixes, and milestones.
   - Added author module state fields to appState
   - Foundation for complete disc production workflow
 
+- ✅ **Real-ESRGAN Automated Setup** (2025-12-20 continuation)
+  - Created automated setup script for Linux (setup-realesrgan-linux.sh)
+  - One-command installation: downloads, installs, configures
+  - Installs binary to ~/.local/bin/realesrgan-ncnn-vulkan
+  - Installs all AI models to ~/.local/share/realesrgan/models/ (45MB)
+  - Includes 5 model sets: animevideov3, x4plus, x4plus-anime
+  - Sets proper permissions and provides PATH setup instructions
+  - Makes AI upscaling fully automated for users
+  - No manual downloads or configuration needed
+
+- ✅ **Window Auto-Resize Fix** (2025-12-20 continuation)
+  - Fixed window resizing itself when content changes
+  - Window now maintains user-set size through all content updates
+  - Progress bars and queue updates no longer trigger window resize
+  - Preserved window size before/after SetContent() calls
+  - User retains full control via manual resize or maximize
+  - Improves professional appearance and stability
+  - Reported by: Jake
+
 ### Features (2025-12-18 Session)
 - ✅ **History Sidebar Enhancements**
   - Delete button ("×") on each history entry
