@@ -833,6 +833,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Hide quality presets when bitrate mode is not CRF
 - ✅ Snippet UI now shows Convert Snippet + batch + options with context-sensitive controls
 - ✅ Reduced module video pane minimum sizes to allow GNOME window snapping
+- ✅ Added cache/temp directory setting with SSD recommendation and override
 - ✅ Snippet defaults now use conversion settings (not Match Source)
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning

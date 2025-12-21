@@ -66,6 +66,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Quality presets hidden when bitrate mode is not CRF
   - Snippet UI rearranged into Convert Snippet / Batch / Options with context-sensitive visibility
   - Reduce module video pane min sizes to allow GNOME snapping
+  - Cache/temp directory setting with SSD recommendation
 
 *Last Updated: 2025-12-20*
 

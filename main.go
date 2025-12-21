@@ -489,6 +489,7 @@ type convertConfig struct {
 	AspectHandling   string
 	OutputAspect     string
 	AspectUserSet    bool // Tracks if user explicitly set OutputAspect
+	TempDir          string // Optional temp/cache directory override
 }
 
 func (c convertConfig) OutputFile() string {
@@ -553,6 +554,7 @@ func defaultConvertConfig() convertConfig {
 		AspectHandling:   "Auto",
 		OutputAspect:     "Source",
 		AspectUserSet:    false,
+		TempDir:          "",
 	}
 }
 
@@ -1792,7 +1794,7 @@ func (s *appState) showBenchmark() {
 	logging.Debug(logging.CatSystem, "detected hardware for benchmark: %s", hwInfo.Summary())
 
 	// Create benchmark suite
-	tmpDir := filepath.Join(os.TempDir(), "videotools-benchmark")
+	tmpDir := filepath.Join(utils.TempDir(), "videotools-benchmark")
 	_ = os.MkdirAll(tmpDir, 0o755)
 
 	suite := benchmark.NewSuite(platformConfig.FFmpegPath, tmpDir)
@@ -3079,7 +3081,7 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 		return fmt.Errorf("need at least two clips to merge")
 	}
 
-	tmpDir := os.TempDir()
+	tmpDir := utils.TempDir()
 	listFile, err := os.CreateTemp(tmpDir, "vt-merge-list-*.txt")
 	if err != nil {
 		return err
@@ -4935,6 +4937,7 @@ func runGUI() {
 	} else if !errors.Is(err, os.ErrNotExist) {
 		logging.Debug(logging.CatSystem, "failed to load persisted convert config: %v", err)
 	}
+	utils.SetTempDir(state.convert.TempDir)
 
 	// Initialize conversion history
 	if historyCfg, err := loadHistoryConfig(); err == nil {
@@ -5809,6 +5812,33 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	settingsInfoLabel := widget.NewLabel("Settings persist across videos. Change them anytime to affect all subsequent videos.")
 	settingsInfoLabel.Alignment = fyne.TextAlignCenter
 
+	cacheDirLabel := widget.NewLabelWithStyle("Cache/Temp Directory", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	cacheDirEntry := widget.NewEntry()
+	cacheDirEntry.SetPlaceHolder("System temp (recommended SSD)")
+	cacheDirEntry.SetText(state.convert.TempDir)
+	cacheDirHint := widget.NewLabel("Use an SSD for best performance. Leave blank to use system temp.")
+	cacheDirHint.Wrapping = fyne.TextWrapWord
+	cacheDirEntry.OnChanged = func(val string) {
+		state.convert.TempDir = strings.TrimSpace(val)
+		utils.SetTempDir(state.convert.TempDir)
+	}
+	cacheBrowseBtn := widget.NewButton("Browse...", func() {
+		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
+			if err != nil || uri == nil {
+				return
+			}
+			cacheDirEntry.SetText(uri.Path())
+			state.convert.TempDir = uri.Path()
+			utils.SetTempDir(state.convert.TempDir)
+		}, state.window)
+	})
+	cacheUseSystemBtn := widget.NewButton("Use System Temp", func() {
+		cacheDirEntry.SetText("")
+		state.convert.TempDir = ""
+		utils.SetTempDir("")
+	})
+	cacheUseSystemBtn.Importance = widget.LowImportance
+
 	resetSettingsBtn := widget.NewButton("Reset to Defaults", func() {
 		if resetConvertDefaults != nil {
 			resetConvertDefaults()
@@ -5818,6 +5848,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	settingsContent := container.NewVBox(
 		settingsInfoLabel,
+		widget.NewSeparator(),
+		cacheDirLabel,
+		container.NewBorder(nil, nil, nil, cacheBrowseBtn, cacheDirEntry),
+		cacheUseSystemBtn,
+		cacheDirHint,
 		resetSettingsBtn,
 	)
 	settingsContent.Hide()
@@ -6993,6 +7028,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		audioCodecSelect.SetSelected(state.convert.AudioCodec)
 		audioBitrateSelect.SetSelected(state.convert.AudioBitrate)
 		audioChannelsSelect.SetSelected(state.convert.AudioChannels)
+		cacheDirEntry.SetText(state.convert.TempDir)
+		utils.SetTempDir(state.convert.TempDir)
 		inverseCheck.SetChecked(state.convert.InverseTelecine)
 		inverseHint.SetText(state.convert.InverseAutoNotes)
 		coverLabel.SetText(state.convert.CoverLabel())
@@ -7913,7 +7950,7 @@ Metadata: %s`,
 					defer cancel()
 
 					// Generate preview at 10 seconds into the video
-					previewPath := filepath.Join(os.TempDir(), fmt.Sprintf("deinterlace_preview_%d.png", time.Now().Unix()))
+					previewPath := filepath.Join(utils.TempDir(), fmt.Sprintf("deinterlace_preview_%d.png", time.Now().Unix()))
 					err := detector.GenerateComparisonPreview(ctx, state.source.Path, 10.0, previewPath)
 
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -8760,7 +8797,7 @@ func (s *appState) showFrameManual(path string, img *canvas.Image) {
 func (s *appState) captureCoverFromCurrent() (string, error) {
 	// If we have a play session active, capture the current playing frame
 	if s.playSess != nil && s.playSess.img != nil && s.playSess.img.Image != nil {
-		dest := filepath.Join(os.TempDir(), fmt.Sprintf("videotools-cover-%d.png", time.Now().UnixNano()))
+		dest := filepath.Join(utils.TempDir(), fmt.Sprintf("videotools-cover-%d.png", time.Now().UnixNano()))
 		f, err := os.Create(dest)
 		if err != nil {
 			return "", err
@@ -8780,7 +8817,7 @@ func (s *appState) captureCoverFromCurrent() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dest := filepath.Join(os.TempDir(), fmt.Sprintf("videotools-cover-%d.png", time.Now().UnixNano()))
+	dest := filepath.Join(utils.TempDir(), fmt.Sprintf("videotools-cover-%d.png", time.Now().UnixNano()))
 	if err := os.WriteFile(dest, data, 0o644); err != nil {
 		return "", err
 	}
@@ -8792,7 +8829,7 @@ func (s *appState) importCoverImage(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dest := filepath.Join(os.TempDir(), fmt.Sprintf("videotools-cover-import-%d%s", time.Now().UnixNano(), filepath.Ext(path)))
+	dest := filepath.Join(utils.TempDir(), fmt.Sprintf("videotools-cover-import-%d%s", time.Now().UnixNano(), filepath.Ext(path)))
 	if err := os.WriteFile(dest, data, 0o644); err != nil {
 		return "", err
 	}
@@ -11089,7 +11126,7 @@ func probeVideo(path string) (*videoSource, error) {
 
 	// Extract embedded cover art if present
 	if coverArtStreamIndex >= 0 {
-		coverPath := filepath.Join(os.TempDir(), fmt.Sprintf("videotools-embedded-cover-%d.png", time.Now().UnixNano()))
+		coverPath := filepath.Join(utils.TempDir(), fmt.Sprintf("videotools-embedded-cover-%d.png", time.Now().UnixNano()))
 		extractCmd := exec.CommandContext(ctx, platformConfig.FFmpegPath,
 			"-i", path,
 			"-map", fmt.Sprintf("0:%d", coverArtStreamIndex),
