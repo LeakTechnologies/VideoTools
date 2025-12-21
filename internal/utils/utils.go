@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
@@ -270,4 +271,26 @@ func LoadAppIcon() fyne.Resource {
 	}
 	logging.Debug(logging.CatUI, "no app icon found in search paths")
 	return nil
+}
+
+var tempDirOverride atomic.Value
+
+// SetTempDir overrides the app temp directory (empty string resets to system temp).
+func SetTempDir(path string) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		tempDirOverride.Store("")
+		return
+	}
+	tempDirOverride.Store(trimmed)
+}
+
+// TempDir returns the app temp directory, falling back to the system temp dir.
+func TempDir() string {
+	if v := tempDirOverride.Load(); v != nil {
+		if s, ok := v.(string); ok && s != "" {
+			return s
+		}
+	}
+	return os.TempDir()
 }

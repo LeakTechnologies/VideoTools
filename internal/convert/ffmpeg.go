@@ -252,7 +252,7 @@ func ProbeVideo(path string) (*VideoSource, error) {
 
 	// Extract embedded cover art if present
 	if coverArtStreamIndex >= 0 {
-		coverPath := filepath.Join(os.TempDir(), fmt.Sprintf("videotools-embedded-cover-%d.png", time.Now().UnixNano()))
+		coverPath := filepath.Join(utils.TempDir(), fmt.Sprintf("videotools-embedded-cover-%d.png", time.Now().UnixNano()))
 		extractCmd := exec.CommandContext(ctx, FFmpegPath,
 			"-i", path,
 			"-map", fmt.Sprintf("0:%d", coverArtStreamIndex),
