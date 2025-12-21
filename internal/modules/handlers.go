@@ -44,10 +44,10 @@ func HandleAudio(files []string) {
 	fmt.Println("audio", files)
 }
 
-// HandleDVDAuthor handles the DVD authoring module (placeholder)
-func HandleDVDAuthor(files []string) {
-	logging.Debug(logging.CatModule, "dvd author handler invoked with %v", files)
-	fmt.Println("dvd author", files)
+// HandleAuthor handles the disc authoring module (DVD/Blu-ray) (placeholder)
+func HandleAuthor(files []string) {
+	logging.Debug(logging.CatModule, "author handler invoked with %v", files)
+	fmt.Println("author", files)
 }
 
 // HandleSubtitles handles the subtitles module (placeholder)
