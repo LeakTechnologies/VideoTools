@@ -131,6 +131,58 @@ func moduleFooter(tint color.Color, content fyne.CanvasObject, bar *ui.Conversio
 	return container.NewVBox(statusStrip(bar), tinted)
 }
 
+type fixedHSplitLayout struct {
+	ratio float32
+}
+
+func (l *fixedHSplitLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	if len(objects) < 2 {
+		return
+	}
+	lead := objects[0]
+	trail := objects[1]
+	total := float64(size.Width)
+	if total <= 0 {
+		return
+	}
+
+	minLead := float64(lead.MinSize().Width)
+	minTrail := float64(trail.MinSize().Width)
+	ratio := float64(l.ratio)
+	if ratio <= 0 {
+		ratio = 0.6
+	}
+
+	min := minLead / total
+	max := 1 - (minTrail / total)
+	if min <= max {
+		if ratio < min {
+			ratio = min
+		}
+		if ratio > max {
+			ratio = max
+		}
+	} else {
+		ratio = minLead / (minLead + minTrail)
+	}
+
+	leadWidth := float32(total * ratio)
+	trailWidth := size.Width - leadWidth
+	lead.Move(fyne.NewPos(0, 0))
+	lead.Resize(fyne.NewSize(leadWidth, size.Height))
+	trail.Move(fyne.NewPos(leadWidth, 0))
+	trail.Resize(fyne.NewSize(trailWidth, size.Height))
+}
+
+func (l *fixedHSplitLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	if len(objects) < 2 {
+		return fyne.NewSize(0, 0)
+	}
+	lead := objects[0].MinSize()
+	trail := objects[1].MinSize()
+	return fyne.NewSize(lead.Width+trail.Width, fyne.Max(lead.Height, trail.Height))
+}
+
 // resolveTargetAspect resolves an aspect ratio value or source aspect
 func resolveTargetAspect(val string, src *videoSource) float64 {
 	if strings.EqualFold(val, "source") {
@@ -13163,11 +13215,10 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 	// Adaptive height for small screens - allow content to flow
 	settingsScroll.SetMinSize(fyne.NewSize(350, 400))
 
-	mainContent := container.NewHSplit(
+	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6},
 		container.NewVBox(leftPanel, container.NewCenter(videoContainer)),
 		settingsScroll,
 	)
-	mainContent.SetOffset(0.55) // 55% for video preview, 45% for settings
 
 	content := container.NewPadded(mainContent)
 
