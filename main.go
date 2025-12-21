@@ -82,18 +82,18 @@ var (
 	nvencRuntimeOK   bool
 
 	modulesList = []Module{
-		{"convert", "Convert", utils.MustHex("#8B44FF"), "Convert", modules.HandleConvert},       // Violet
-		{"merge", "Merge", utils.MustHex("#4488FF"), "Convert", modules.HandleMerge},             // Blue
-		{"trim", "Trim", utils.MustHex("#44DDFF"), "Convert", modules.HandleTrim},                // Cyan
-		{"filters", "Filters", utils.MustHex("#44FF88"), "Convert", modules.HandleFilters},       // Green
-		{"upscale", "Upscale", utils.MustHex("#AAFF44"), "Advanced", modules.HandleUpscale},      // Yellow-Green
-		{"audio", "Audio", utils.MustHex("#FFD744"), "Convert", modules.HandleAudio},             // Yellow
+		{"convert", "Convert", utils.MustHex("#8B44FF"), "Convert", modules.HandleConvert},         // Violet
+		{"merge", "Merge", utils.MustHex("#4488FF"), "Convert", modules.HandleMerge},               // Blue
+		{"trim", "Trim", utils.MustHex("#44DDFF"), "Convert", modules.HandleTrim},                  // Cyan
+		{"filters", "Filters", utils.MustHex("#44FF88"), "Convert", modules.HandleFilters},         // Green
+		{"upscale", "Upscale", utils.MustHex("#AAFF44"), "Advanced", modules.HandleUpscale},        // Yellow-Green
+		{"audio", "Audio", utils.MustHex("#FFD744"), "Convert", modules.HandleAudio},               // Yellow
 		{"dvd-author", "DVD Author", utils.MustHex("#FFAA44"), "Convert", modules.HandleDVDAuthor}, // Orange
-		{"subtitles", "Subtitles", utils.MustHex("#44A6FF"), "Convert", modules.HandleSubtitles}, // Azure
-		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},         // Orange
-		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},       // Pink
-		{"inspect", "Inspect", utils.MustHex("#FF4444"), "Inspect", modules.HandleInspect},       // Red
-		{"player", "Player", utils.MustHex("#44FFDD"), "Playback", modules.HandlePlayer},         // Teal
+		{"subtitles", "Subtitles", utils.MustHex("#44A6FF"), "Convert", modules.HandleSubtitles},   // Azure
+		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},           // Orange
+		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},         // Pink
+		{"inspect", "Inspect", utils.MustHex("#FF4444"), "Inspect", modules.HandleInspect},         // Red
+		{"player", "Player", utils.MustHex("#44FFDD"), "Playback", modules.HandlePlayer},           // Teal
 	}
 
 	// Platform-specific configuration
@@ -488,7 +488,7 @@ type convertConfig struct {
 	CoverArtPath     string
 	AspectHandling   string
 	OutputAspect     string
-	AspectUserSet    bool // Tracks if user explicitly set OutputAspect
+	AspectUserSet    bool   // Tracks if user explicitly set OutputAspect
 	TempDir          string // Optional temp/cache directory override
 }
 
@@ -790,17 +790,17 @@ type appState struct {
 	playerFile *videoSource
 
 	// Filters module state
-	filtersFile       *videoSource
-	filterBrightness  float64
-	filterContrast    float64
-	filterSaturation  float64
-	filterSharpness   float64
-	filterDenoise     float64
-	filterRotation    int // 0, 90, 180, 270
-	filterFlipH       bool
-	filterFlipV       bool
-	filterGrayscale   bool
-	filterActiveChain []string // Active filter chain
+	filtersFile         *videoSource
+	filterBrightness    float64
+	filterContrast      float64
+	filterSaturation    float64
+	filterSharpness     float64
+	filterDenoise       float64
+	filterRotation      int // 0, 90, 180, 270
+	filterFlipH         bool
+	filterFlipV         bool
+	filterGrayscale     bool
+	filterActiveChain   []string // Active filter chain
 	filterInterpEnabled bool
 	filterInterpPreset  string
 	filterInterpFPS     string
@@ -1431,7 +1431,7 @@ func (s *appState) showMainMenu() {
 			Label:    m.Label,
 			Color:    m.Color,
 			Category: m.Category,
-		Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale", // Enabled modules (authoring/subtitles placeholders stay disabled)
+			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale", // Enabled modules (authoring/subtitles placeholders stay disabled)
 		})
 	}
 
@@ -11218,24 +11218,24 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 }
 
 type videoSource struct {
-	Path             string
-	DisplayName      string
-	Format           string
-	Width            int
-	Height           int
-	Duration         float64
-	VideoCodec       string
-	AudioCodec       string
-	Bitrate          int // Video bitrate in bits per second
-	AudioBitrate     int // Audio bitrate in bits per second
+	Path                  string
+	DisplayName           string
+	Format                string
+	Width                 int
+	Height                int
+	Duration              float64
+	VideoCodec            string
+	AudioCodec            string
+	Bitrate               int // Video bitrate in bits per second
+	AudioBitrate          int // Audio bitrate in bits per second
 	AudioBitrateEstimated bool
-	FrameRate        float64
-	PixelFormat      string
-	AudioRate        int
-	Channels         int
-	FieldOrder       string
-	PreviewFrames    []string
-	EmbeddedCoverArt string // Path to extracted embedded cover art, if any
+	FrameRate             float64
+	PixelFormat           string
+	AudioRate             int
+	Channels              int
+	FieldOrder            string
+	PreviewFrames         []string
+	EmbeddedCoverArt      string // Path to extracted embedded cover art, if any
 
 	// Advanced metadata
 	SampleAspectRatio string // Pixel Aspect Ratio (SAR) - e.g., "1:1", "40:33"
@@ -11331,18 +11331,18 @@ func probeVideo(path string) (*videoSource, error) {
 			Tags       map[string]interface{} `json:"tags"`
 		} `json:"format"`
 		Streams []struct {
-			Index        int    `json:"index"`
-			CodecType    string `json:"codec_type"`
-			CodecName    string `json:"codec_name"`
-			Width        int    `json:"width"`
-			Height       int    `json:"height"`
-			Duration     string `json:"duration"`
-			BitRate      string `json:"bit_rate"`
-			PixFmt       string `json:"pix_fmt"`
-			SampleRate   string `json:"sample_rate"`
-			Channels     int    `json:"channels"`
-			AvgFrameRate string `json:"avg_frame_rate"`
-			FieldOrder   string `json:"field_order"`
+			Index        int                    `json:"index"`
+			CodecType    string                 `json:"codec_type"`
+			CodecName    string                 `json:"codec_name"`
+			Width        int                    `json:"width"`
+			Height       int                    `json:"height"`
+			Duration     string                 `json:"duration"`
+			BitRate      string                 `json:"bit_rate"`
+			PixFmt       string                 `json:"pix_fmt"`
+			SampleRate   string                 `json:"sample_rate"`
+			Channels     int                    `json:"channels"`
+			AvgFrameRate string                 `json:"avg_frame_rate"`
+			FieldOrder   string                 `json:"field_order"`
 			Tags         map[string]interface{} `json:"tags"`
 			Disposition  struct {
 				AttachedPic int `json:"attached_pic"`
@@ -13638,22 +13638,22 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 				"aiBackend":              state.upscaleAIBackend,
 				"aiPreset":               state.upscaleAIPreset,
 				"aiScale":                state.upscaleAIScale,
-				"aiScaleUseTarget":        state.upscaleAIScaleUseTarget,
-				"aiOutputAdjust":          state.upscaleAIOutputAdjust,
-				"aiFaceEnhance":           state.upscaleAIFaceEnhance,
-				"aiDenoise":               state.upscaleAIDenoise,
-				"aiTile":                  float64(state.upscaleAITile),
-				"aiGPU":                   float64(state.upscaleAIGPU),
-				"aiGPUAuto":               state.upscaleAIGPUAuto,
-				"aiThreadsLoad":           float64(state.upscaleAIThreadsLoad),
-				"aiThreadsProc":           float64(state.upscaleAIThreadsProc),
-				"aiThreadsSave":           float64(state.upscaleAIThreadsSave),
-				"aiTTA":                   state.upscaleAITTA,
-				"aiOutputFormat":          state.upscaleAIOutputFormat,
+				"aiScaleUseTarget":       state.upscaleAIScaleUseTarget,
+				"aiOutputAdjust":         state.upscaleAIOutputAdjust,
+				"aiFaceEnhance":          state.upscaleAIFaceEnhance,
+				"aiDenoise":              state.upscaleAIDenoise,
+				"aiTile":                 float64(state.upscaleAITile),
+				"aiGPU":                  float64(state.upscaleAIGPU),
+				"aiGPUAuto":              state.upscaleAIGPUAuto,
+				"aiThreadsLoad":          float64(state.upscaleAIThreadsLoad),
+				"aiThreadsProc":          float64(state.upscaleAIThreadsProc),
+				"aiThreadsSave":          float64(state.upscaleAIThreadsSave),
+				"aiTTA":                  state.upscaleAITTA,
+				"aiOutputFormat":         state.upscaleAIOutputFormat,
 				"applyFilters":           state.upscaleApplyFilters,
 				"filterChain":            state.upscaleFilterChain,
 				"duration":               state.upscaleFile.Duration,
-				"sourceFrameRate":         state.upscaleFile.FrameRate,
+				"sourceFrameRate":        state.upscaleFile.FrameRate,
 				"frameRate":              state.upscaleFrameRate,
 				"useMotionInterpolation": state.upscaleMotionInterpolation,
 			},
