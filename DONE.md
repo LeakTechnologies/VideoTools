@@ -835,6 +835,7 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Reduced module video pane minimum sizes to allow GNOME window snapping
 - ✅ Added cache/temp directory setting with SSD recommendation and override
 - ✅ Snippet defaults now use conversion settings (not Match Source)
+- ✅ Added frame interpolation presets to Filters and wired filter chain to Upscale
 - ✅ Stabilized video seeking and embedded rendering
 - ✅ Improved player window positioning
 - ✅ Fixed clear video functionality
