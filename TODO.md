@@ -1,4 +1,4 @@
-# VideoTools TODO (v0.1.0-dev19+ plan)
+# VideoTools TODO (v0.1.0-dev20+ plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
@@ -19,7 +19,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Ensure all conversions preserve color metadata (color_space, color_primaries, color_trc, color_range)
   - Test with HDR content
 
-### Completed in dev19 (2025-12-20)
+### Completed in dev20 (2025-12-20)
 - [x] **History Sidebar - In Progress Tab** ✅ COMPLETED
   - Shows running/pending jobs without opening full queue
   - Animated progress bars per module color
