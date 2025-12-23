@@ -919,6 +919,19 @@ type appState struct {
 	authorTreatAsChapters bool   // Treat multiple clips as chapters
 	authorChapterSource   string // embedded, scenes, clips, manual
 	authorChaptersRefresh func() // Refresh hook for chapter list UI
+
+	// Subtitles module state
+	subtitleVideoPath   string
+	subtitleFilePath    string
+	subtitleCues        []subtitleCue
+	subtitleModelPath   string
+	subtitleBackendPath string
+	subtitleStatus      string
+	subtitleStatusLabel *widget.Label
+	subtitleOutputMode  string
+	subtitleBurnOutput  string
+	subtitleBurnEnabled bool
+	subtitleCuesRefresh func()
 }
 
 type mergeClip struct {
@@ -1527,7 +1540,7 @@ func (s *appState) showMainMenu() {
 			Label:    m.Label,
 			Color:    m.Color,
 			Category: m.Category,
-			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale" || m.ID == "author", // Enabled modules
+			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale" || m.ID == "author" || m.ID == "subtitles", // Enabled modules
 		})
 	}
 
@@ -2248,6 +2261,8 @@ func (s *appState) showModule(id string) {
 		s.showUpscaleView()
 	case "author":
 		s.showAuthorView()
+	case "subtitles":
+		s.showSubtitlesView()
 	case "mainmenu":
 		s.showMainMenu()
 	default:
@@ -2259,6 +2274,10 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 	logging.Debug(logging.CatModule, "handleModuleDrop called: moduleID=%s itemCount=%d", moduleID, len(items))
 	if len(items) == 0 {
 		logging.Debug(logging.CatModule, "handleModuleDrop: no items to process")
+		return
+	}
+	if moduleID == "subtitles" {
+		s.handleSubtitlesModuleDrop(items)
 		return
 	}
 
@@ -2477,6 +2496,17 @@ func (s *appState) isVideoFile(path string) bool {
 	videoExts := []string{".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg", ".3gp", ".ogv"}
 	for _, videoExt := range videoExts {
 		if ext == videoExt {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *appState) isSubtitleFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	subtitleExts := []string{".srt", ".vtt", ".ass", ".ssa"}
+	for _, subtitleExt := range subtitleExts {
+		if ext == subtitleExt {
 			return true
 		}
 	}
