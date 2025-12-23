@@ -37,8 +37,16 @@ function Ensure-DVDStylerTools {
     $toolsRoot = Join-Path $PSScriptRoot "tools"
     $dvdstylerDir = Join-Path $toolsRoot "dvdstyler"
     $dvdstylerBin = Join-Path $dvdstylerDir "bin"
-    $dvdstylerUrlPrimary = "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip"
-    $dvdstylerUrlFallback = "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip/download"
+    $dvdstylerUrls = @(
+        "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
+        "https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
+        "https://cfhcable.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
+        "https://pilotfiber.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
+        "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip/download"
+    )
+    if ($env:VT_DVDSTYLER_URL) {
+        $dvdstylerUrls = @($env:VT_DVDSTYLER_URL) + $dvdstylerUrls
+    }
     $dvdstylerZip = Join-Path $env:TEMP "dvdstyler-win64.zip"
     $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
 
@@ -56,9 +64,23 @@ function Ensure-DVDStylerTools {
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
     $downloaded = $false
-    foreach ($url in @($dvdstylerUrlPrimary, $dvdstylerUrlFallback)) {
+    $lastUrl = ""
+    foreach ($url in $dvdstylerUrls) {
+        $lastUrl = $url
         try {
+            if (Test-Path $dvdstylerZip) {
+                Remove-Item -Force $dvdstylerZip
+            }
             Invoke-WebRequest -Uri $url -OutFile $dvdstylerZip -UseBasicParsing
+        } catch {
+            try {
+                Start-BitsTransfer -Source $url -Destination $dvdstylerZip -ErrorAction Stop
+            } catch {
+                continue
+            }
+        }
+
+        try {
             $fs = [System.IO.File]::OpenRead($dvdstylerZip)
             try {
                 $sig = New-Object byte[] 2
@@ -76,6 +98,8 @@ function Ensure-DVDStylerTools {
     }
     if (-not $downloaded) {
         Write-Host "[ERROR]  Failed to download DVDStyler ZIP (invalid archive)" -ForegroundColor Red
+        Write-Host "Last URL tried: $lastUrl" -ForegroundColor Yellow
+        Write-Host "Tip: Set VT_DVDSTYLER_URL to a direct ZIP link and retry." -ForegroundColor Yellow
         exit 1
     }
 
