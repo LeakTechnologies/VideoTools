@@ -5,8 +5,17 @@
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_OUTPUT="$PROJECT_ROOT/VideoTools"
 
+# Detect platform
+PLATFORM="$(uname -s)"
+case "$PLATFORM" in
+    Linux*) OS="Linux" ;;
+    Darwin*) OS="macOS" ;;
+    CYGWIN*|MINGW*|MSYS*) OS="Windows" ;;
+    *) echo "❌ Unknown platform: $PLATFORM"; exit 1 ;;
+esac
+
 echo "════════════════════════════════════════════════════════════════"
-echo "  VideoTools - Run Script"
+echo "  VideoTools ${OS} Run"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 

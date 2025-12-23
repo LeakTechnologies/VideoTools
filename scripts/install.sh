@@ -27,17 +27,43 @@ spinner() {
 
 # Configuration
 BINARY_NAME="VideoTools"
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEFAULT_INSTALL_PATH="/usr/local/bin"
 USER_INSTALL_PATH="$HOME/.local/bin"
 
+# Platform detection
+UNAME_S="$(uname -s)"
+IS_WINDOWS=false
+IS_DARWIN=false
+IS_LINUX=false
+case "$UNAME_S" in
+	MINGW*|MSYS*|CYGWIN*)
+		IS_WINDOWS=true
+		;;
+	Darwin*)
+		IS_DARWIN=true
+		;;
+	Linux*)
+		IS_LINUX=true
+		;;
+esac
+
+INSTALL_TITLE="VideoTools Installation"
+if [ "$IS_WINDOWS" = true ]; then
+	INSTALL_TITLE="VideoTools Windows Installation"
+elif [ "$IS_DARWIN" = true ]; then
+	INSTALL_TITLE="VideoTools macOS Installation"
+elif [ "$IS_LINUX" = true ]; then
+	INSTALL_TITLE="VideoTools Linux Installation"
+fi
+
 echo "════════════════════════════════════════════════════════════════"
-echo "  VideoTools Professional Installation"
+echo "  $INSTALL_TITLE"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 
 # Step 1: Check if Go is installed
-echo -e "${CYAN}[1/5]${NC} Checking Go installation..."
+echo -e "${CYAN}[1/6]${NC} Checking Go installation..."
 if ! command -v go &> /dev/null; then
     echo -e "${RED}✗ Error: Go is not installed or not in PATH${NC}"
     echo "Please install Go 1.21+ from https://go.dev/dl/"
@@ -47,9 +73,77 @@ fi
 GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
 echo -e "${GREEN}✓${NC} Found Go version: $GO_VERSION"
 
-# Step 2: Build the binary
+# Step 2: Check authoring dependencies
 echo ""
-echo -e "${CYAN}[2/5]${NC} Building VideoTools..."
+echo -e "${CYAN}[2/6]${NC} Checking authoring dependencies..."
+
+if [ "$IS_WINDOWS" = true ]; then
+    echo "Detected Windows environment."
+    if command -v powershell.exe &> /dev/null; then
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1"
+        echo -e "${GREEN}✓${NC} Windows dependency installer completed"
+    else
+        echo -e "${RED}✗ powershell.exe not found.${NC}"
+        echo "Please run: $PROJECT_ROOT\\scripts\\install-deps-windows.ps1"
+        exit 1
+    fi
+else
+    missing_deps=()
+    if ! command -v ffmpeg &> /dev/null; then
+        missing_deps+=("ffmpeg")
+    fi
+    if ! command -v dvdauthor &> /dev/null; then
+        missing_deps+=("dvdauthor")
+    fi
+    if ! command -v mkisofs &> /dev/null && ! command -v genisoimage &> /dev/null && ! command -v xorriso &> /dev/null; then
+        missing_deps+=("iso-tool")
+    fi
+
+    install_deps=false
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        echo -e "${YELLOW}WARNING${NC} Missing dependencies: ${missing_deps[*]}"
+        read -p "Install missing dependencies now? [y/N]: " install_choice
+        if [[ "$install_choice" =~ ^[Yy]$ ]]; then
+            install_deps=true
+        fi
+    else
+        echo -e "${GREEN}✓${NC} All authoring dependencies found"
+    fi
+
+    if [ "$install_deps" = true ]; then
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg dvdauthor genisoimage
+        elif command -v dnf &> /dev/null; then
+            sudo dnf install -y ffmpeg dvdauthor genisoimage
+        elif command -v pacman &> /dev/null; then
+            sudo pacman -Sy --noconfirm ffmpeg dvdauthor cdrtools
+        elif command -v zypper &> /dev/null; then
+            sudo zypper install -y ffmpeg dvdauthor genisoimage
+        elif command -v brew &> /dev/null; then
+            brew install ffmpeg dvdauthor xorriso
+        else
+            echo -e "${RED}✗ No supported package manager found.${NC}"
+            echo "Please install: ffmpeg, dvdauthor, and mkisofs/genisoimage/xorriso"
+            exit 1
+        fi
+    fi
+
+    if ! command -v ffmpeg &> /dev/null || ! command -v dvdauthor &> /dev/null; then
+        echo -e "${RED}✗ Missing required dependencies after install attempt.${NC}"
+        echo "Please install: ffmpeg and dvdauthor"
+        exit 1
+    fi
+    if ! command -v mkisofs &> /dev/null && ! command -v genisoimage &> /dev/null && ! command -v xorriso &> /dev/null; then
+        echo -e "${RED}✗ Missing ISO creation tool after install attempt.${NC}"
+        echo "Please install: mkisofs (cdrtools), genisoimage, or xorriso"
+        exit 1
+    fi
+fi
+
+# Step 3: Build the binary
+echo ""
+echo -e "${CYAN}[3/6]${NC} Building VideoTools..."
 cd "$PROJECT_ROOT"
 CGO_ENABLED=1 go build -o "$BINARY_NAME" . > /tmp/videotools-build.log 2>&1 &
 BUILD_PID=$!
@@ -67,9 +161,9 @@ else
 fi
 rm -f /tmp/videotools-build.log
 
-# Step 3: Determine installation path
+# Step 4: Determine installation path
 echo ""
-echo -e "${CYAN}[3/5]${NC} Installation path selection"
+echo -e "${CYAN}[4/6]${NC} Installation path selection"
 echo ""
 echo "Where would you like to install $BINARY_NAME?"
 echo "  1) System-wide (/usr/local/bin) - requires sudo, available to all users"
@@ -95,15 +189,12 @@ case $choice in
         ;;
 esac
 
-# Step 4: Install the binary
+# Step 5: Install the binary
 echo ""
-echo -e "${CYAN}[4/5]${NC} Installing binary to $INSTALL_PATH..."
+echo -e "${CYAN}[5/6]${NC} Installing binary to $INSTALL_PATH..."
 if [ "$NEEDS_SUDO" = true ]; then
-    sudo install -m 755 "$BINARY_NAME" "$INSTALL_PATH/$BINARY_NAME" > /dev/null 2>&1 &
-    INSTALL_PID=$!
-    spinner $INSTALL_PID "Installing $BINARY_NAME"
-
-    if wait $INSTALL_PID; then
+    echo "Installing $BINARY_NAME (sudo required)..."
+    if sudo install -m 755 "$BINARY_NAME" "$INSTALL_PATH/$BINARY_NAME" > /dev/null 2>&1; then
         echo -e "${GREEN}✓${NC} Installation successful"
     else
         echo -e "${RED}✗ Installation failed${NC}"
@@ -126,9 +217,9 @@ fi
 
 rm -f "$BINARY_NAME"
 
-# Step 5: Setup shell aliases and environment
+# Step 6: Setup shell aliases and environment
 echo ""
-echo -e "${CYAN}[5/5]${NC} Setting up shell environment..."
+echo -e "${CYAN}[6/6]${NC} Setting up shell environment..."
 
 # Detect shell
 if [ -n "$ZSH_VERSION" ]; then
@@ -167,21 +258,21 @@ fi
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"
-echo -e "${GREEN}Installation Complete!${NC}"
+echo "Installation Complete!"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 echo "Next steps:"
 echo ""
-echo "1. ${CYAN}Reload your shell configuration:${NC}"
+echo "1. Reload your shell configuration:"
 echo "   source $SHELL_RC"
 echo ""
-echo "2. ${CYAN}Run VideoTools:${NC}"
+echo "2. Run VideoTools:"
 echo "   VideoTools"
 echo ""
-echo "3. ${CYAN}Available commands:${NC}"
-echo "   • VideoTools              - Run the application"
-echo "   • VideoToolsRebuild       - Force rebuild from source"
-echo "   • VideoToolsClean         - Clean build artifacts and cache"
+echo "3. Available commands:"
+echo "   - VideoTools              - Run the application"
+echo "   - VideoToolsRebuild       - Force rebuild from source"
+echo "   - VideoToolsClean         - Clean build artifacts and cache"
 echo ""
 echo "For more information, see BUILD_AND_RUN.md and DVD_USER_GUIDE.md"
 echo ""
