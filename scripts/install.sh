@@ -31,6 +31,26 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DEFAULT_INSTALL_PATH="/usr/local/bin"
 USER_INSTALL_PATH="$HOME/.local/bin"
 
+# Args
+DVDSTYLER_URL=""
+while [ $# -gt 0 ]; do
+	case "$1" in
+		--dvdstyler-url=*)
+			DVDSTYLER_URL="${1#*=}"
+			shift
+			;;
+		--dvdstyler-url)
+			DVDSTYLER_URL="$2"
+			shift 2
+			;;
+		*)
+			echo "Unknown option: $1"
+			echo "Usage: $0 [--dvdstyler-url URL]"
+			exit 1
+			;;
+	esac
+done
+
 # Platform detection
 UNAME_S="$(uname -s)"
 IS_WINDOWS=false
@@ -80,7 +100,24 @@ echo -e "${CYAN}[2/6]${NC} Checking authoring dependencies..."
 if [ "$IS_WINDOWS" = true ]; then
     echo "Detected Windows environment."
     if command -v powershell.exe &> /dev/null; then
-        powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1"
+        if [ -n "$DVDSTYLER_URL" ]; then
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1" -DvdStylerUrl "$DVDSTYLER_URL"
+        else
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1"
+        fi
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}✗ Windows dependency installer failed.${NC}"
+            echo "If DVDStyler download failed, retry with a direct mirror:"
+            echo ""
+            echo "Git Bash:"
+            echo "  export VT_DVDSTYLER_URL=\"https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip\""
+            echo "  ./scripts/install.sh"
+            echo ""
+            echo "PowerShell:"
+            echo "  \$env:VT_DVDSTYLER_URL=\"https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip\""
+            echo "  .\\scripts\\install-deps-windows.ps1"
+            exit 1
+        fi
         echo -e "${GREEN}✓${NC} Windows dependency installer completed"
     else
         echo -e "${RED}✗ powershell.exe not found.${NC}"

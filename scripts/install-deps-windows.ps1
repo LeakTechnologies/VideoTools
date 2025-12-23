@@ -3,7 +3,8 @@
 
 param(
     [switch]$UseScoop = $false,
-    [switch]$SkipFFmpeg = $false
+    [switch]$SkipFFmpeg = $false,
+    [string]$DvdStylerUrl = ""
 )
 
 Write-Host "===============================================================" -ForegroundColor Cyan
@@ -23,6 +24,10 @@ if (-not $isAdmin) {
         exit 1
     }
     Write-Host ""
+}
+
+if ($DvdStylerUrl) {
+    $env:VT_DVDSTYLER_URL = $DvdStylerUrl
 }
 
 # Function to check if a command exists
