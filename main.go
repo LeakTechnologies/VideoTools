@@ -8682,29 +8682,15 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			return state.playSess != nil
 		}
 
-		// Debounced seeking - only seek after user stops dragging
-		var seekTimer *time.Timer
-		var seekMutex sync.Mutex
+		// Immediate seeking for responsive playback
 		slider.OnChanged = func(val float64) {
 			if updatingProgress {
 				return
 			}
 			updateProgress(val)
-			if !ensureSession() {
-				return
+			if ensureSession() {
+				state.playSess.Seek(val)
 			}
-
-			// Debounce seeking - wait 150ms after last change
-			seekMutex.Lock()
-			if seekTimer != nil {
-				seekTimer.Stop()
-			}
-			seekTimer = time.AfterFunc(150*time.Millisecond, func() {
-				if state.playSess != nil {
-					state.playSess.Seek(val)
-				}
-			})
-			seekMutex.Unlock()
 		}
 		updateVolIcon := func() {
 			if volIcon == nil {
@@ -8963,8 +8949,8 @@ func (p *playSession) StepFrame(delta int) {
 		return
 	}
 
-	// Calculate target frame number
-	currentFrame := p.frameN
+	// Calculate current frame from time position (not from p.frameN which resets on seek)
+	currentFrame := int(p.current * p.fps)
 	targetFrame := currentFrame + delta
 
 	// Clamp to valid range
@@ -8986,10 +8972,8 @@ func (p *playSession) StepFrame(delta int) {
 	}
 
 	// Auto-pause when frame stepping
-	wasPaused := p.paused
 	p.paused = true
 	p.current = offset
-	p.frameN = targetFrame
 	p.stopLocked()
 	p.startLocked(p.current)
 	p.paused = true
@@ -9007,8 +8991,6 @@ func (p *playSession) StepFrame(delta int) {
 	if p.frameFunc != nil {
 		p.frameFunc(targetFrame)
 	}
-
-	_ = wasPaused // Keep for potential future use
 }
 
 // GetCurrentFrame returns the current frame number
