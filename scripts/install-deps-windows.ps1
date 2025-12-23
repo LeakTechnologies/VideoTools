@@ -42,6 +42,7 @@ function Ensure-DVDStylerTools {
     $toolsRoot = Join-Path $PSScriptRoot "tools"
     $dvdstylerDir = Join-Path $toolsRoot "dvdstyler"
     $dvdstylerBin = Join-Path $dvdstylerDir "bin"
+    $dvdstylerReferer = "https://sourceforge.net/projects/dvdstyler/"
     $dvdstylerUrls = @(
         "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
         "https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
@@ -68,26 +69,56 @@ function Ensure-DVDStylerTools {
     }
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
+    $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     $downloaded = $false
     $lastUrl = ""
     foreach ($url in $dvdstylerUrls) {
         $lastUrl = $url
+        $downloadOk = $false
+        if (Test-Path $dvdstylerZip) {
+            Remove-Item -Force $dvdstylerZip
+        }
         try {
-            if (Test-Path $dvdstylerZip) {
-                Remove-Item -Force $dvdstylerZip
+            Invoke-WebRequest -Uri $url -OutFile $dvdstylerZip -UseBasicParsing -MaximumRedirection 10 -UserAgent $userAgent -Headers @{
+                "Referer" = $dvdstylerReferer
+                "Accept"  = "application/zip"
             }
-            Invoke-WebRequest -Uri $url -OutFile $dvdstylerZip -UseBasicParsing -MaximumRedirection 10 -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            $downloadOk = $true
         } catch {
+            $downloadOk = $false
+        }
+
+        if (-not $downloadOk) {
             try {
                 Start-BitsTransfer -Source $url -Destination $dvdstylerZip -ErrorAction Stop
+                $downloadOk = $true
             } catch {
-                continue
+                $downloadOk = $false
             }
+        }
+
+        if (-not $downloadOk -and (Test-Command curl.exe)) {
+            try {
+                & curl.exe -L --retry 3 --user-agent $userAgent -o $dvdstylerZip $url | Out-Null
+                if ($LASTEXITCODE -eq 0) {
+                    $downloadOk = $true
+                }
+            } catch {
+                $downloadOk = $false
+            }
+        }
+
+        if (-not $downloadOk -or -not (Test-Path $dvdstylerZip)) {
+            continue
         }
 
         try {
             $fs = [System.IO.File]::OpenRead($dvdstylerZip)
             try {
+                $fileSize = (Get-Item $dvdstylerZip).Length
+                if ($fileSize -lt 102400) {
+                    continue
+                }
                 $sig = New-Object byte[] 2
                 $null = $fs.Read($sig, 0, 2)
                 if ($sig[0] -eq 0x50 -and $sig[1] -eq 0x4B) {
