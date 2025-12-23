@@ -2241,6 +2241,8 @@ func (s *appState) showModule(id string) {
 		s.showFiltersView()
 	case "upscale":
 		s.showUpscaleView()
+	case "author":
+		s.showAuthorView()
 	case "mainmenu":
 		s.showMainMenu()
 	default:
@@ -8779,7 +8781,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			container.NewHBox(prevFrameBtn, playBtn, nextFrameBtn, fullBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), frameLabel, volBox),
 			progress,
 		)
-	} else{
+	} else {
 		slider := widget.NewSlider(0, math.Max(1, float64(len(src.PreviewFrames)-1)))
 		slider.Step = 1
 		slider.OnChanged = func(val float64) {
