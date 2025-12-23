@@ -933,10 +933,11 @@ type authorChapter struct {
 }
 
 type authorClip struct {
-	Path        string          // Video file path
-	DisplayName string          // Display name in UI
-	Duration    float64         // Video duration
-	Chapters    []authorChapter // Chapters for this clip
+	Path         string          // Video file path
+	DisplayName  string          // Display name in UI
+	Duration     float64         // Video duration
+	Chapters     []authorChapter // Chapters for this clip
+	ChapterTitle string          // Optional chapter title when treating clips as chapters
 }
 
 func (s *appState) persistConvertConfig() {
@@ -13105,10 +13106,21 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	fileLabel := widget.NewLabel("No file loaded")
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
+	// Determine video pane size based on screen resolution
+	screenSize := fyne.CurrentApp().Driver().AllWindows()[0].Canvas().Size()
+	var playerSize fyne.Size
+	if screenSize.Width < 1600 {
+		// Use smaller size for lower resolution displays
+		playerSize = fyne.NewSize(640, 360)
+	} else {
+		// Use larger size for higher resolution displays
+		playerSize = fyne.NewSize(1280, 720)
+	}
+
 	var videoContainer fyne.CanvasObject
 	if state.playerFile != nil {
 		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.playerFile.Path)))
-		videoContainer = buildVideoPane(state, fyne.NewSize(1280, 720), state.playerFile, nil)
+		videoContainer = buildVideoPane(state, playerSize, state.playerFile, nil)
 	} else {
 		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
 	}

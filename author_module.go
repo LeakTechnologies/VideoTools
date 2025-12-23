@@ -95,6 +95,18 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			durationLabel.TextStyle = fyne.TextStyle{Italic: true}
 			durationLabel.Alignment = fyne.TextAlignTrailing
 
+			titleEntry := widget.NewEntry()
+			titleEntry.SetPlaceHolder(fmt.Sprintf("Chapter %d", idx+1))
+			titleEntry.SetText(clip.ChapterTitle)
+			titleEntry.OnChanged = func(val string) {
+				state.authorClips[idx].ChapterTitle = val
+				if state.authorTreatAsChapters {
+					state.authorChapters = chaptersFromClips(state.authorClips)
+					state.authorChapterSource = "clips"
+					state.updateAuthorSummary()
+				}
+			}
+
 			removeBtn := widget.NewButton("Remove", func() {
 				state.authorClips = append(state.authorClips[:idx], state.authorClips[idx+1:]...)
 				rebuildList()
@@ -107,7 +119,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 				nil,
 				nil,
 				container.NewVBox(durationLabel, removeBtn),
-				container.NewVBox(nameLabel),
+				container.NewVBox(nameLabel, titleEntry),
 			)
 			cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
 			cardBg.CornerRadius = 6
@@ -150,9 +162,11 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 	chapterToggle := widget.NewCheck("Treat videos as chapters", func(checked bool) {
 		state.authorTreatAsChapters = checked
 		if checked {
+			state.authorChapters = chaptersFromClips(state.authorClips)
 			state.authorChapterSource = "clips"
 		} else if state.authorChapterSource == "clips" {
 			state.authorChapterSource = ""
+			state.authorChapters = nil
 		}
 		state.updateAuthorSummary()
 	})
@@ -533,10 +547,11 @@ func (s *appState) addAuthorFiles(paths []string) {
 		}
 
 		clip := authorClip{
-			Path:        path,
-			DisplayName: filepath.Base(path),
-			Duration:    src.Duration,
-			Chapters:    []authorChapter{},
+			Path:         path,
+			DisplayName:  filepath.Base(path),
+			Duration:     src.Duration,
+			Chapters:     []authorChapter{},
+			ChapterTitle: strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
 		}
 		s.authorClips = append(s.authorClips, clip)
 	}
@@ -595,12 +610,20 @@ func chaptersFromClips(clips []authorClip) []authorChapter {
 	}
 	var chapters []authorChapter
 	var t float64
-	chapters = append(chapters, authorChapter{Timestamp: 0, Title: "Chapter 1", Auto: true})
+	firstTitle := strings.TrimSpace(clips[0].ChapterTitle)
+	if firstTitle == "" {
+		firstTitle = "Chapter 1"
+	}
+	chapters = append(chapters, authorChapter{Timestamp: 0, Title: firstTitle, Auto: true})
 	for i := 1; i < len(clips); i++ {
 		t += clips[i-1].Duration
+		title := strings.TrimSpace(clips[i].ChapterTitle)
+		if title == "" {
+			title = fmt.Sprintf("Chapter %d", i+1)
+		}
 		chapters = append(chapters, authorChapter{
 			Timestamp: t,
-			Title:     fmt.Sprintf("Chapter %d", i+1),
+			Title:     title,
 			Auto:      true,
 		})
 	}
