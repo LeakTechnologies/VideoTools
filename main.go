@@ -903,19 +903,21 @@ type appState struct {
 	sidebarVisible bool
 
 	// Author module state
-	authorFile           *videoSource
-	authorChapters       []authorChapter
-	authorSceneThreshold float64
-	authorDetecting      bool
-	authorClips          []authorClip // Multiple video clips for compilation
-	authorOutputType     string       // "dvd" or "iso"
-	authorRegion         string       // "NTSC", "PAL", "AUTO"
-	authorAspectRatio    string       // "4:3", "16:9", "AUTO"
-	authorCreateMenu     bool         // Whether to create DVD menu
-	authorTitle          string       // DVD title
-	authorSubtitles      []string     // Subtitle file paths
-	authorAudioTracks    []string     // Additional audio tracks
-	authorSummaryLabel   *widget.Label
+	authorFile            *videoSource
+	authorChapters        []authorChapter
+	authorSceneThreshold  float64
+	authorDetecting       bool
+	authorClips           []authorClip // Multiple video clips for compilation
+	authorOutputType      string       // "dvd" or "iso"
+	authorRegion          string       // "NTSC", "PAL", "AUTO"
+	authorAspectRatio     string       // "4:3", "16:9", "AUTO"
+	authorCreateMenu      bool         // Whether to create DVD menu
+	authorTitle           string       // DVD title
+	authorSubtitles       []string     // Subtitle file paths
+	authorAudioTracks     []string     // Additional audio tracks
+	authorSummaryLabel    *widget.Label
+	authorTreatAsChapters bool   // Treat multiple clips as chapters
+	authorChapterSource   string // embedded, scenes, clips, manual
 }
 
 type mergeClip struct {

@@ -1,12 +1,18 @@
 package main
 
 import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -125,6 +131,8 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 
 	clearBtn := widget.NewButton("Clear All", func() {
 		state.authorClips = []authorClip{}
+		state.authorChapters = nil
+		state.authorChapterSource = ""
 		rebuildList()
 		state.updateAuthorSummary()
 	})
@@ -138,6 +146,17 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 		state.startAuthorGeneration()
 	})
 	compileBtn.Importance = widget.HighImportance
+
+	chapterToggle := widget.NewCheck("Treat videos as chapters", func(checked bool) {
+		state.authorTreatAsChapters = checked
+		if checked {
+			state.authorChapterSource = "clips"
+		} else if state.authorChapterSource == "clips" {
+			state.authorChapterSource = ""
+		}
+		state.updateAuthorSummary()
+	})
+	chapterToggle.SetChecked(state.authorTreatAsChapters)
 
 	dropTarget := ui.NewDroppable(listScroll, func(items []fyne.URI) {
 		var paths []string
@@ -160,7 +179,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 
 	controls := container.NewBorder(
 		widget.NewLabel("Videos:"),
-		container.NewHBox(addBtn, clearBtn, compileBtn),
+		container.NewVBox(chapterToggle, container.NewHBox(addBtn, clearBtn, compileBtn)),
 		nil,
 		nil,
 		listArea,
@@ -176,7 +195,23 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 		fileLabel = widget.NewLabel(fmt.Sprintf("File: %s", filepath.Base(state.authorFile.Path)))
 		fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 	} else {
-		fileLabel = widget.NewLabel("Select a single video file or use clips from Video Clips tab")
+		fileLabel = widget.NewLabel("Select a single video file or use clips from Videos tab")
+	}
+
+	chapterList := container.NewVBox()
+	refreshChapters := func() {
+		chapterList.Objects = nil
+		if len(state.authorChapters) == 0 {
+			chapterList.Add(widget.NewLabel("No chapters detected yet"))
+			return
+		}
+		for i, ch := range state.authorChapters {
+			title := ch.Title
+			if title == "" {
+				title = fmt.Sprintf("Chapter %d", i+1)
+			}
+			chapterList.Add(widget.NewLabel(fmt.Sprintf("%02d. %s (%s)", i+1, title, formatChapterTime(ch.Timestamp))))
+		}
 	}
 
 	selectBtn := widget.NewButton("Select Video", func() {
@@ -193,6 +228,8 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 			}
 			state.authorFile = src
 			fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(src.Path)))
+			state.loadEmbeddedChapters(path)
+			refreshChapters()
 		}, state.window)
 	})
 
@@ -206,18 +243,45 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 	}
 
 	detectBtn := widget.NewButton("Detect Scenes", func() {
-		if state.authorFile == nil && len(state.authorClips) == 0 {
+		targetPath := ""
+		if state.authorFile != nil {
+			targetPath = state.authorFile.Path
+		} else if len(state.authorClips) > 0 {
+			targetPath = state.authorClips[0].Path
+		}
+		if targetPath == "" {
 			dialog.ShowInformation("No File", "Please select a video file first", state.window)
 			return
 		}
-		dialog.ShowInformation("Scene Detection", "Scene detection will be implemented", state.window)
+
+		progress := dialog.NewProgressInfinite("Scene Detection", "Analyzing scene changes with FFmpeg...", state.window)
+		progress.Show()
+		state.authorDetecting = true
+
+		go func() {
+			chapters, err := detectSceneChapters(targetPath, state.authorSceneThreshold)
+			runOnUI(func() {
+				progress.Hide()
+				state.authorDetecting = false
+				if err != nil {
+					dialog.ShowError(err, state.window)
+					return
+				}
+				if len(chapters) == 0 {
+					dialog.ShowInformation("Scene Detection", "No scene changes detected at the current sensitivity.", state.window)
+					return
+				}
+				state.authorChapters = chapters
+				state.authorChapterSource = "scenes"
+				state.updateAuthorSummary()
+				refreshChapters()
+			})
+		}()
 	})
 	detectBtn.Importance = widget.HighImportance
 
-	chapterList := widget.NewLabel("No chapters detected yet")
-
 	addChapterBtn := widget.NewButton("+ Add Chapter", func() {
-		dialog.ShowInformation("Add Chapter", "Manual chapter addition will be implemented", state.window)
+		dialog.ShowInformation("Add Chapter", "Manual chapter addition will be implemented.", state.window)
 	})
 
 	exportBtn := widget.NewButton("Export Chapters", func() {
@@ -238,6 +302,7 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 		container.NewHBox(addChapterBtn, exportBtn),
 	)
 
+	refreshChapters()
 	return container.NewPadded(controls)
 }
 
@@ -445,6 +510,10 @@ func authorSummary(state *appState) string {
 		}
 	}
 
+	if count, label := state.authorChapterSummary(); count > 0 {
+		summary += fmt.Sprintf("%s: %d\n", label, count)
+	}
+
 	summary += fmt.Sprintf("Output Type: %s\n", state.authorOutputType)
 	summary += fmt.Sprintf("Region: %s\n", state.authorRegion)
 	summary += fmt.Sprintf("Aspect Ratio: %s\n", state.authorAspectRatio)
@@ -455,6 +524,7 @@ func authorSummary(state *appState) string {
 }
 
 func (s *appState) addAuthorFiles(paths []string) {
+	wasEmpty := len(s.authorClips) == 0
 	for _, path := range paths {
 		src, err := probeVideo(path)
 		if err != nil {
@@ -470,6 +540,13 @@ func (s *appState) addAuthorFiles(paths []string) {
 		}
 		s.authorClips = append(s.authorClips, clip)
 	}
+
+	if wasEmpty && len(s.authorClips) == 1 {
+		s.loadEmbeddedChapters(s.authorClips[0].Path)
+	} else if len(s.authorClips) > 1 && s.authorChapterSource == "embedded" {
+		s.authorChapters = nil
+		s.authorChapterSource = ""
+	}
 	s.updateAuthorSummary()
 }
 
@@ -478,6 +555,244 @@ func (s *appState) updateAuthorSummary() {
 		return
 	}
 	s.authorSummaryLabel.SetText(authorSummary(s))
+}
+
+func (s *appState) authorChapterSummary() (int, string) {
+	if len(s.authorChapters) > 0 {
+		switch s.authorChapterSource {
+		case "embedded":
+			return len(s.authorChapters), "Embedded Chapters"
+		case "scenes":
+			return len(s.authorChapters), "Scene Chapters"
+		default:
+			return len(s.authorChapters), "Chapters"
+		}
+	}
+	if s.authorTreatAsChapters && len(s.authorClips) > 1 {
+		return len(s.authorClips), "Clip Chapters"
+	}
+	return 0, ""
+}
+
+func (s *appState) loadEmbeddedChapters(path string) {
+	chapters, err := extractChaptersFromFile(path)
+	if err != nil || len(chapters) == 0 {
+		if s.authorChapterSource == "embedded" {
+			s.authorChapters = nil
+			s.authorChapterSource = ""
+			s.updateAuthorSummary()
+		}
+		return
+	}
+	s.authorChapters = chapters
+	s.authorChapterSource = "embedded"
+	s.updateAuthorSummary()
+}
+
+func chaptersFromClips(clips []authorClip) []authorChapter {
+	if len(clips) == 0 {
+		return nil
+	}
+	var chapters []authorChapter
+	var t float64
+	chapters = append(chapters, authorChapter{Timestamp: 0, Title: "Chapter 1", Auto: true})
+	for i := 1; i < len(clips); i++ {
+		t += clips[i-1].Duration
+		chapters = append(chapters, authorChapter{
+			Timestamp: t,
+			Title:     fmt.Sprintf("Chapter %d", i+1),
+			Auto:      true,
+		})
+	}
+	return chapters
+}
+
+func detectSceneChapters(path string, threshold float64) ([]authorChapter, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
+
+	filter := fmt.Sprintf("select='gt(scene,%.2f)',showinfo", threshold)
+	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath,
+		"-hide_banner",
+		"-loglevel", "info",
+		"-i", path,
+		"-vf", filter,
+		"-an",
+		"-f", "null",
+		"-",
+	)
+	utils.ApplyNoWindow(cmd)
+	out, err := cmd.CombinedOutput()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+
+	times := map[float64]struct{}{}
+	scanner := bufio.NewScanner(bytes.NewReader(out))
+	for scanner.Scan() {
+		line := scanner.Text()
+		idx := strings.Index(line, "pts_time:")
+		if idx == -1 {
+			continue
+		}
+		rest := line[idx+len("pts_time:"):]
+		end := strings.IndexAny(rest, " ")
+		if end == -1 {
+			end = len(rest)
+		}
+		valStr := strings.TrimSpace(rest[:end])
+		if valStr == "" {
+			continue
+		}
+		if val, err := utils.ParseFloat(valStr); err == nil {
+			times[val] = struct{}{}
+		}
+	}
+
+	var vals []float64
+	for v := range times {
+		if v < 0.01 {
+			continue
+		}
+		vals = append(vals, v)
+	}
+	sort.Float64s(vals)
+
+	if len(vals) == 0 {
+		if err != nil {
+			return nil, fmt.Errorf("scene detection failed: %s", strings.TrimSpace(string(out)))
+		}
+		return nil, nil
+	}
+
+	chapters := []authorChapter{{Timestamp: 0, Title: "Chapter 1", Auto: true}}
+	for i, v := range vals {
+		chapters = append(chapters, authorChapter{
+			Timestamp: v,
+			Title:     fmt.Sprintf("Chapter %d", i+2),
+			Auto:      true,
+		})
+	}
+	return chapters, nil
+}
+
+func extractChaptersFromFile(path string) ([]authorChapter, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, platformConfig.FFprobePath,
+		"-v", "quiet",
+		"-print_format", "json",
+		"-show_chapters",
+		path,
+	)
+	utils.ApplyNoWindow(cmd)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	var result struct {
+		Chapters []struct {
+			StartTime string                 `json:"start_time"`
+			Tags      map[string]interface{} `json:"tags"`
+		} `json:"chapters"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil {
+		return nil, err
+	}
+
+	var chapters []authorChapter
+	for i, ch := range result.Chapters {
+		t, err := utils.ParseFloat(ch.StartTime)
+		if err != nil {
+			continue
+		}
+		title := ""
+		if ch.Tags != nil {
+			if v, ok := ch.Tags["title"]; ok {
+				title = fmt.Sprintf("%v", v)
+			}
+		}
+		if title == "" {
+			title = fmt.Sprintf("Chapter %d", i+1)
+		}
+		chapters = append(chapters, authorChapter{
+			Timestamp: t,
+			Title:     title,
+			Auto:      true,
+		})
+	}
+
+	return chapters, nil
+}
+
+func chaptersToDVDAuthor(chapters []authorChapter) string {
+	if len(chapters) == 0 {
+		return ""
+	}
+	var times []float64
+	for _, ch := range chapters {
+		if ch.Timestamp < 0 {
+			continue
+		}
+		times = append(times, ch.Timestamp)
+	}
+	if len(times) == 0 {
+		return ""
+	}
+	sort.Float64s(times)
+	if times[0] > 0.01 {
+		times = append([]float64{0}, times...)
+	}
+	seen := map[int]struct{}{}
+	var parts []string
+	for _, t := range times {
+		key := int(t * 1000)
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		parts = append(parts, formatChapterTime(t))
+	}
+	return strings.Join(parts, ",")
+}
+
+func formatChapterTime(sec float64) string {
+	if sec < 0 {
+		sec = 0
+	}
+	d := time.Duration(sec * float64(time.Second))
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	s := int(d.Seconds()) % 60
+	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+}
+
+func concatDVDMpg(inputs []string, output string) error {
+	listPath := filepath.Join(filepath.Dir(output), "concat_list.txt")
+	listFile, err := os.Create(listPath)
+	if err != nil {
+		return fmt.Errorf("failed to create concat list: %w", err)
+	}
+	for _, path := range inputs {
+		fmt.Fprintf(listFile, "file '%s'\n", strings.ReplaceAll(path, "'", "'\\''"))
+	}
+	if err := listFile.Close(); err != nil {
+		return fmt.Errorf("failed to write concat list: %w", err)
+	}
+	defer os.Remove(listPath)
+
+	args := []string{
+		"-hide_banner",
+		"-loglevel", "error",
+		"-f", "concat",
+		"-safe", "0",
+		"-i", listPath,
+		"-c", "copy",
+		output,
+	}
+	return runCommand(platformConfig.FFmpegPath, args)
 }
 
 func (s *appState) startAuthorGeneration() {
@@ -691,8 +1006,32 @@ func (s *appState) runAuthoringPipeline(paths []string, region, aspect, title, o
 		return err
 	}
 
+	chapters := s.authorChapters
+	if len(chapters) == 0 && s.authorTreatAsChapters && len(s.authorClips) > 1 {
+		chapters = chaptersFromClips(s.authorClips)
+		s.authorChapterSource = "clips"
+	}
+	if len(chapters) == 0 && len(mpgPaths) == 1 {
+		if embed, err := extractChaptersFromFile(paths[0]); err == nil && len(embed) > 0 {
+			chapters = embed
+			s.authorChapterSource = "embedded"
+		}
+	}
+
+	if s.authorTreatAsChapters && len(mpgPaths) > 1 {
+		concatPath := filepath.Join(workDir, "titles_joined.mpg")
+		if err := concatDVDMpg(mpgPaths, concatPath); err != nil {
+			return err
+		}
+		mpgPaths = []string{concatPath}
+	}
+
+	if len(mpgPaths) > 1 {
+		chapters = nil
+	}
+
 	xmlPath := filepath.Join(workDir, "dvd.xml")
-	if err := writeDVDAuthorXML(xmlPath, mpgPaths, region, aspect); err != nil {
+	if err := writeDVDAuthorXML(xmlPath, mpgPaths, region, aspect, chapters); err != nil {
 		return err
 	}
 
@@ -808,7 +1147,7 @@ func buildAuthorFFmpegArgs(inputPath, outputPath, region, aspect string, progres
 	return args
 }
 
-func writeDVDAuthorXML(path string, mpgPaths []string, region, aspect string) error {
+func writeDVDAuthorXML(path string, mpgPaths []string, region, aspect string, chapters []authorChapter) error {
 	format := strings.ToLower(region)
 	if format != "pal" {
 		format = "ntsc"
@@ -822,7 +1161,11 @@ func writeDVDAuthorXML(path string, mpgPaths []string, region, aspect string) er
 	b.WriteString(fmt.Sprintf("      <video format=\"%s\" aspect=\"%s\" />\n", format, aspect))
 	for _, mpg := range mpgPaths {
 		b.WriteString("      <pgc>\n")
-		b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(mpg)))
+		if len(chapters) > 0 {
+			b.WriteString(fmt.Sprintf("        <vob file=\"%s\" chapters=\"%s\" />\n", escapeXMLAttr(mpg), chaptersToDVDAuthor(chapters)))
+		} else {
+			b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(mpg)))
+		}
 		b.WriteString("      </pgc>\n")
 	}
 	b.WriteString("    </titles>\n")
