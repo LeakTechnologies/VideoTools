@@ -2,6 +2,40 @@
 
 This file tracks completed features, fixes, and milestones.
 
+## Version 0.1.0-dev20+ (2025-12-23) - Player UX & Installer Polish
+
+### Features (2025-12-23 Session)
+- ✅ **Player Module UI Improvements**
+  - Responsive video player sizing based on screen resolution
+  - Screens < 1600px wide: 640x360 (prevents layout breaking)
+  - Screens ≥ 1600px wide: 1280x720 (larger viewing area)
+  - Dynamically adapts to display when player view is built
+  - Prevents excessive negative space on lower resolution displays
+
+- ✅ **Main Menu Cleanup**
+  - Hidden "Logs" button from main menu (history sidebar replaces it)
+  - Logs button only appears when onLogsClick callback is provided
+  - Cleaner, less cluttered interface
+  - Dynamic header controls based on available functionality
+
+- ✅ **Windows Installer Fix**
+  - Fixed DVDStyler download from SourceForge mirrors
+  - Added `-MaximumRedirection 10` to handle SourceForge redirects
+  - Added browser user agent to prevent rejection
+  - Resolves "invalid archive" error on Windows 11
+  - Reported by: Jake
+
+### Technical Improvements
+- ✅ **Responsive Design Pattern**
+  - Canvas size detection for adaptive UI sizing
+  - Prevents window layout issues on smaller displays
+  - Maintains larger preview on high-resolution screens
+
+- ✅ **PowerShell Download Robustness**
+  - Proper redirect following for mirror systems
+  - User agent spoofing for compatibility
+  - Multiple fallback URLs for resilience
+
 ## Version 0.1.0-dev20 (2025-12-21) - VT_Player Framework Implementation
 
 ### Features (2025-12-21 Session)

@@ -76,7 +76,7 @@ function Ensure-DVDStylerTools {
             if (Test-Path $dvdstylerZip) {
                 Remove-Item -Force $dvdstylerZip
             }
-            Invoke-WebRequest -Uri $url -OutFile $dvdstylerZip -UseBasicParsing
+            Invoke-WebRequest -Uri $url -OutFile $dvdstylerZip -UseBasicParsing -MaximumRedirection 10 -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         } catch {
             try {
                 Start-BitsTransfer -Source $url -Destination $dvdstylerZip -ErrorAction Stop
