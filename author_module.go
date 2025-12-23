@@ -62,31 +62,23 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 
 func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 	list := container.NewVBox()
+	listScroll := container.NewVScroll(list)
 
 	var rebuildList func()
+	var emptyOverlay *fyne.Container
 	rebuildList = func() {
 		list.Objects = nil
 
 		if len(state.authorClips) == 0 {
-			emptyLabel := widget.NewLabel("Drag and drop video files here\nor click 'Add Files' to select videos")
-			emptyLabel.Alignment = fyne.TextAlignCenter
-
-			emptyDrop := ui.NewDroppable(container.NewCenter(emptyLabel), func(items []fyne.URI) {
-				var paths []string
-				for _, uri := range items {
-					if uri.Scheme() == "file" {
-						paths = append(paths, uri.Path())
-					}
-				}
-				if len(paths) > 0 {
-					state.addAuthorFiles(paths)
-				}
-			})
-
-			list.Add(container.NewMax(emptyDrop))
+			if emptyOverlay != nil {
+				emptyOverlay.Show()
+			}
 			return
 		}
 
+		if emptyOverlay != nil {
+			emptyOverlay.Hide()
+		}
 		for i, clip := range state.authorClips {
 			idx := i
 			card := widget.NewCard(clip.DisplayName, fmt.Sprintf("%.2fs", clip.Duration), nil)
@@ -117,6 +109,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			}
 			defer reader.Close()
 			state.addAuthorFiles([]string{reader.URI().Path()})
+			rebuildList()
 		}, state.window)
 	})
 	addBtn.Importance = widget.HighImportance
@@ -136,11 +129,31 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 	})
 	compileBtn.Importance = widget.HighImportance
 
-	controls := container.NewVBox(
+	dropTarget := ui.NewDroppable(listScroll, func(items []fyne.URI) {
+		var paths []string
+		for _, uri := range items {
+			if uri.Scheme() == "file" {
+				paths = append(paths, uri.Path())
+			}
+		}
+		if len(paths) > 0 {
+			state.addAuthorFiles(paths)
+			rebuildList()
+		}
+	})
+
+	emptyLabel := widget.NewLabel("Drag and drop video files here\nor click 'Add Files' to select videos")
+	emptyLabel.Alignment = fyne.TextAlignCenter
+	emptyOverlay = container.NewCenter(emptyLabel)
+
+	listArea := container.NewMax(dropTarget, emptyOverlay)
+
+	controls := container.NewBorder(
 		widget.NewLabel("Video Clips:"),
-		container.NewScroll(list),
-		widget.NewSeparator(),
 		container.NewHBox(addBtn, clearBtn, compileBtn),
+		nil,
+		nil,
+		listArea,
 	)
 
 	rebuildList()
