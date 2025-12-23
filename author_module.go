@@ -169,6 +169,9 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			state.authorChapters = nil
 		}
 		state.updateAuthorSummary()
+		if state.authorChaptersRefresh != nil {
+			state.authorChaptersRefresh()
+		}
 	})
 	chapterToggle.SetChecked(state.authorTreatAsChapters)
 
@@ -213,11 +216,29 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 	}
 
 	chapterList := container.NewVBox()
+	sourceLabel := widget.NewLabel("")
 	refreshChapters := func() {
 		chapterList.Objects = nil
+		sourceLabel.SetText("")
+		if len(state.authorChapters) == 0 {
+			if state.authorTreatAsChapters && len(state.authorClips) > 1 {
+				state.authorChapters = chaptersFromClips(state.authorClips)
+				state.authorChapterSource = "clips"
+			}
+		}
 		if len(state.authorChapters) == 0 {
 			chapterList.Add(widget.NewLabel("No chapters detected yet"))
 			return
+		}
+		switch state.authorChapterSource {
+		case "clips":
+			sourceLabel.SetText("Source: Video clips (treat as chapters)")
+		case "embedded":
+			sourceLabel.SetText("Source: Embedded chapters")
+		case "scenes":
+			sourceLabel.SetText("Source: Scene detection")
+		default:
+			sourceLabel.SetText("Source: Chapters")
 		}
 		for i, ch := range state.authorChapters {
 			title := ch.Title
@@ -227,6 +248,7 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 			chapterList.Add(widget.NewLabel(fmt.Sprintf("%02d. %s (%s)", i+1, title, formatChapterTime(ch.Timestamp))))
 		}
 	}
+	state.authorChaptersRefresh = refreshChapters
 
 	selectBtn := widget.NewButton("Select Video", func() {
 		dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
@@ -312,6 +334,7 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 		detectBtn,
 		widget.NewSeparator(),
 		widget.NewLabel("Chapters:"),
+		sourceLabel,
 		container.NewScroll(chapterList),
 		container.NewHBox(addChapterBtn, exportBtn),
 	)
@@ -596,12 +619,18 @@ func (s *appState) loadEmbeddedChapters(path string) {
 			s.authorChapters = nil
 			s.authorChapterSource = ""
 			s.updateAuthorSummary()
+			if s.authorChaptersRefresh != nil {
+				s.authorChaptersRefresh()
+			}
 		}
 		return
 	}
 	s.authorChapters = chapters
 	s.authorChapterSource = "embedded"
 	s.updateAuthorSummary()
+	if s.authorChaptersRefresh != nil {
+		s.authorChaptersRefresh()
+	}
 }
 
 func chaptersFromClips(clips []authorClip) []authorChapter {
