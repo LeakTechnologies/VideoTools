@@ -9425,6 +9425,32 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		return
 	}
 
+	// If in author module, add video clips
+	if s.active == "author" {
+		var videoPaths []string
+		for _, uri := range items {
+			if uri.Scheme() != "file" {
+				continue
+			}
+			path := uri.Path()
+			if info, err := os.Stat(path); err == nil && info.IsDir() {
+				videos := s.findVideoFiles(path)
+				videoPaths = append(videoPaths, videos...)
+			} else if s.isVideoFile(path) {
+				videoPaths = append(videoPaths, path)
+			}
+		}
+
+		if len(videoPaths) == 0 {
+			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			return
+		}
+
+		s.addAuthorFiles(videoPaths)
+		s.showAuthorView()
+		return
+	}
+
 	// If in compare module, handle up to 2 video files
 	if s.active == "compare" {
 		// Collect all video files from the dropped items
@@ -13079,7 +13105,7 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	var videoContainer fyne.CanvasObject
 	if state.playerFile != nil {
 		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.playerFile.Path)))
-		videoContainer = buildVideoPane(state, fyne.NewSize(640, 360), state.playerFile, nil)
+		videoContainer = buildVideoPane(state, fyne.NewSize(1280, 720), state.playerFile, nil)
 	} else {
 		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
 	}
