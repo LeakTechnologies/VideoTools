@@ -26,10 +26,7 @@ spinner() {
 }
 
 # Configuration
-BINARY_NAME="VideoTools"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEFAULT_INSTALL_PATH="/usr/local/bin"
-USER_INSTALL_PATH="$HOME/.local/bin"
 
 # Args
 DVDSTYLER_URL=""
@@ -83,7 +80,7 @@ echo "════════════════════════�
 echo ""
 
 # Step 1: Check if Go is installed
-echo -e "${CYAN}[1/6]${NC} Checking Go installation..."
+echo -e "${CYAN}[1/2]${NC} Checking Go installation..."
 if ! command -v go &> /dev/null; then
     echo -e "${RED}✗ Error: Go is not installed or not in PATH${NC}"
     echo "Please install Go 1.21+ from https://go.dev/dl/"
@@ -95,7 +92,7 @@ echo -e "${GREEN}✓${NC} Found Go version: $GO_VERSION"
 
 # Step 2: Check authoring dependencies
 echo ""
-echo -e "${CYAN}[2/6]${NC} Checking authoring dependencies..."
+echo -e "${CYAN}[2/2]${NC} Checking authoring dependencies..."
 
 if [ "$IS_WINDOWS" = true ]; then
     echo "Detected Windows environment."
@@ -178,138 +175,18 @@ else
     fi
 fi
 
-# Step 3: Build the binary
-echo ""
-echo -e "${CYAN}[3/6]${NC} Building VideoTools..."
-cd "$PROJECT_ROOT"
-CGO_ENABLED=1 go build -o "$BINARY_NAME" . > /tmp/videotools-build.log 2>&1 &
-BUILD_PID=$!
-spinner $BUILD_PID "Building $BINARY_NAME"
-
-if wait $BUILD_PID; then
-    echo -e "${GREEN}✓${NC} Build successful"
-else
-    echo -e "${RED}✗ Build failed${NC}"
-    echo ""
-    echo "Build log:"
-    cat /tmp/videotools-build.log
-    rm -f /tmp/videotools-build.log
-    exit 1
-fi
-rm -f /tmp/videotools-build.log
-
-# Step 4: Determine installation path
-echo ""
-echo -e "${CYAN}[4/6]${NC} Installation path selection"
-echo ""
-echo "Where would you like to install $BINARY_NAME?"
-echo "  1) System-wide (/usr/local/bin) - requires sudo, available to all users"
-echo "  2) User-local (~/.local/bin) - no sudo needed, available only to you"
-echo ""
-read -p "Enter choice [1 or 2, default 2]: " choice
-choice=${choice:-2}
-
-case $choice in
-    1)
-        INSTALL_PATH="$DEFAULT_INSTALL_PATH"
-        NEEDS_SUDO=true
-        ;;
-    2)
-        INSTALL_PATH="$USER_INSTALL_PATH"
-        NEEDS_SUDO=false
-        mkdir -p "$INSTALL_PATH"
-        ;;
-    *)
-        echo -e "${RED}✗ Invalid choice. Exiting.${NC}"
-        rm -f "$BINARY_NAME"
-        exit 1
-        ;;
-esac
-
-# Step 5: Install the binary
-echo ""
-echo -e "${CYAN}[5/6]${NC} Installing binary to $INSTALL_PATH..."
-if [ "$NEEDS_SUDO" = true ]; then
-    echo "Installing $BINARY_NAME (sudo required)..."
-    if sudo install -m 755 "$BINARY_NAME" "$INSTALL_PATH/$BINARY_NAME" > /dev/null 2>&1; then
-        echo -e "${GREEN}✓${NC} Installation successful"
-    else
-        echo -e "${RED}✗ Installation failed${NC}"
-        rm -f "$BINARY_NAME"
-        exit 1
-    fi
-else
-    install -m 755 "$BINARY_NAME" "$INSTALL_PATH/$BINARY_NAME" > /dev/null 2>&1 &
-    INSTALL_PID=$!
-    spinner $INSTALL_PID "Installing $BINARY_NAME"
-
-    if wait $INSTALL_PID; then
-        echo -e "${GREEN}✓${NC} Installation successful"
-    else
-        echo -e "${RED}✗ Installation failed${NC}"
-        rm -f "$BINARY_NAME"
-        exit 1
-    fi
-fi
-
-rm -f "$BINARY_NAME"
-
-# Step 6: Setup shell aliases and environment
-echo ""
-echo -e "${CYAN}[6/6]${NC} Setting up shell environment..."
-
-# Detect shell
-if [ -n "$ZSH_VERSION" ]; then
-    SHELL_RC="$HOME/.zshrc"
-    SHELL_NAME="zsh"
-elif [ -n "$BASH_VERSION" ]; then
-    SHELL_RC="$HOME/.bashrc"
-    SHELL_NAME="bash"
-else
-    # Default to bash
-    SHELL_RC="$HOME/.bashrc"
-    SHELL_NAME="bash"
-fi
-
-# Create alias setup script
-ALIAS_SCRIPT="$PROJECT_ROOT/scripts/alias.sh"
-
-# Add installation path to PATH if needed
-if [[ ":$PATH:" != *":$INSTALL_PATH:"* ]]; then
-    # Check if PATH export already exists
-    if ! grep -q "export PATH.*$INSTALL_PATH" "$SHELL_RC" 2>/dev/null; then
-        echo "" >> "$SHELL_RC"
-        echo "# VideoTools installation path" >> "$SHELL_RC"
-        echo "export PATH=\"$INSTALL_PATH:\$PATH\"" >> "$SHELL_RC"
-        echo -e "${GREEN}✓${NC} Added $INSTALL_PATH to PATH in $SHELL_RC"
-    fi
-fi
-
-# Add alias sourcing if not already present
-if ! grep -q "source.*alias.sh" "$SHELL_RC" 2>/dev/null; then
-    echo "" >> "$SHELL_RC"
-    echo "# VideoTools convenience aliases" >> "$SHELL_RC"
-    echo "source \"$ALIAS_SCRIPT\"" >> "$SHELL_RC"
-    echo -e "${GREEN}✓${NC} Added VideoTools aliases to $SHELL_RC"
-fi
-
 echo ""
 echo "════════════════════════════════════════════════════════════════"
-echo "Installation Complete!"
+echo "Dependency Installation Complete!"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 echo "Next steps:"
 echo ""
-echo "1. Reload your shell configuration:"
-echo "   source $SHELL_RC"
+echo "1. Build VideoTools:"
+echo "   ./scripts/build.sh"
 echo ""
 echo "2. Run VideoTools:"
-echo "   VideoTools"
-echo ""
-echo "3. Available commands:"
-echo "   - VideoTools              - Run the application"
-echo "   - VideoToolsRebuild       - Force rebuild from source"
-echo "   - VideoToolsClean         - Clean build artifacts and cache"
+echo "   ./scripts/run.sh"
 echo ""
 echo "For more information, see BUILD_AND_RUN.md and DVD_USER_GUIDE.md"
 echo ""
