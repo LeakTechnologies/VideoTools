@@ -30,7 +30,7 @@ VideoTools is a professional-grade video processing application with a modern GU
 ### Installation (One Command)
 
 ```bash
-bash install.sh
+bash scripts/install.sh
 ```
 
 The installer will build, install, and set up everything automatically with a guided wizard!
@@ -43,12 +43,12 @@ VideoTools
 
 ### Alternative: Developer Setup
 
-If you already have the repo cloned:
+If you already have the repo cloned (dev workflow):
 
 ```bash
 cd /path/to/VideoTools
-source scripts/alias.sh
-VideoTools
+bash scripts/build.sh
+bash scripts/run.sh
 ```
 
 For detailed installation options, troubleshooting, and platform-specific notes, see **INSTALLATION.md**.

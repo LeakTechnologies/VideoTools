@@ -7,7 +7,7 @@ param(
 )
 
 Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "  VideoTools Dependency Installer (Windows)" -ForegroundColor Cyan
+Write-Host "  VideoTools Windows Installation" -ForegroundColor Cyan
 Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host ""
 
@@ -30,6 +30,57 @@ function Test-Command {
     param($Command)
     $null = Get-Command $Command -ErrorAction SilentlyContinue
     return $?
+}
+
+# Ensure DVD authoring tools exist on Windows by downloading DVDStyler portable
+function Ensure-DVDStylerTools {
+    $toolsRoot = Join-Path $PSScriptRoot "tools"
+    $dvdstylerDir = Join-Path $toolsRoot "dvdstyler"
+    $dvdstylerBin = Join-Path $dvdstylerDir "bin"
+    $dvdstylerUrl = "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip/download"
+    $dvdstylerZip = Join-Path $env:TEMP "dvdstyler-win64.zip"
+    $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
+
+    if (-not $needsDVDTools) {
+        return
+    }
+
+    Write-Host "Installing DVD authoring tools (DVDStyler portable)..." -ForegroundColor Yellow
+    if (-not (Test-Path $toolsRoot)) {
+        New-Item -ItemType Directory -Force -Path $toolsRoot | Out-Null
+    }
+    if (Test-Path $dvdstylerDir) {
+        Remove-Item -Recurse -Force $dvdstylerDir
+    }
+
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
+    Invoke-WebRequest -Uri $dvdstylerUrl -OutFile $dvdstylerZip
+
+    $extractRoot = Join-Path $env:TEMP ("dvdstyler-extract-" + [System.Guid]::NewGuid().ToString())
+    New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
+    Expand-Archive -Path $dvdstylerZip -DestinationPath $extractRoot -Force
+
+    $entries = Get-ChildItem -Path $extractRoot
+    if ($entries.Count -eq 1 -and $entries[0].PSIsContainer) {
+        Copy-Item -Path (Join-Path $entries[0].FullName "*") -Destination $dvdstylerDir -Recurse -Force
+    } else {
+        Copy-Item -Path (Join-Path $extractRoot "*") -Destination $dvdstylerDir -Recurse -Force
+    }
+
+    Remove-Item -Force $dvdstylerZip
+    Remove-Item -Recurse -Force $extractRoot
+
+    if (Test-Path $dvdstylerBin) {
+        $env:Path = "$dvdstylerBin;$env:Path"
+        $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+        if ($userPath -notmatch [Regex]::Escape($dvdstylerBin)) {
+            [Environment]::SetEnvironmentVariable("Path", "$dvdstylerBin;$userPath", "User")
+        }
+        Write-Host "✓ DVD authoring tools installed to $dvdstylerDir" -ForegroundColor Green
+    } else {
+        Write-Host "❌ DVDStyler tools missing after install" -ForegroundColor Red
+        exit 1
+    }
 }
 
 # Function to install via Chocolatey
@@ -191,6 +242,8 @@ if ($UseScoop) {
     }
 }
 
+Ensure-DVDStylerTools
+
 Write-Host ""
 Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host "✅ DEPENDENCIES INSTALLED" -ForegroundColor Green
@@ -227,6 +280,18 @@ if (Test-Command ffmpeg) {
     } else {
         Write-Host "⚠️  ffmpeg not found in PATH (restart terminal)" -ForegroundColor Yellow
     }
+}
+
+if (Test-Command dvdauthor) {
+    Write-Host "✓ dvdauthor: found" -ForegroundColor Green
+} else {
+    Write-Host "⚠️  dvdauthor not found in PATH (restart terminal)" -ForegroundColor Yellow
+}
+
+if (Test-Command mkisofs) {
+    Write-Host "✓ mkisofs: found" -ForegroundColor Green
+} else {
+    Write-Host "⚠️  mkisofs not found in PATH (restart terminal)" -ForegroundColor Yellow
 }
 
 if (Test-Command git) {

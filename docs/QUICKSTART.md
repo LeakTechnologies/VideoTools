@@ -14,18 +14,20 @@ Get VideoTools running in minutes!
    cd VideoTools
    ```
 
-2. **Run the setup script**:
-   - Double-click `setup-windows.bat`
-   - OR run in PowerShell:
-     ```powershell
-     .\scripts\setup-windows.ps1 -Portable
-     ```
+2. **Install dependencies and build** (Git Bash or similar):
+   ```bash
+   ./scripts/install.sh
+   ```
 
-3. **Done!** FFmpeg will be downloaded automatically and VideoTools will be ready to run.
+   Or install Windows dependencies directly:
+   ```powershell
+   .\scripts\install-deps-windows.ps1
+   ```
 
-4. **Launch VideoTools**:
-   - Navigate to `dist/windows/`
-   - Double-click `VideoTools.exe`
+3. **Run VideoTools**:
+   ```bash
+   ./scripts/run.sh
+   ```
 
 ### If You Need to Build
 
@@ -70,14 +72,14 @@ If `VideoTools.exe` doesn't exist yet:
    sudo pacman -S ffmpeg
    ```
 
-3. **Build VideoTools**:
+3. **Install dependencies and build**:
    ```bash
-   ./scripts/build.sh
+   ./scripts/install.sh
    ```
 
 4. **Run**:
    ```bash
-   ./VideoTools
+   ./scripts/run.sh
    ```
 
 ### Cross-Compile for Windows from Linux
@@ -112,16 +114,16 @@ sudo apt install gcc-mingw-w64  # Ubuntu/Debian
    brew install ffmpeg
    ```
 
-3. **Clone and build**:
+3. **Clone and install dependencies/build**:
    ```bash
    git clone <repository-url>
    cd VideoTools
-   go build -o VideoTools
+   ./scripts/install.sh
    ```
 
 4. **Run**:
    ```bash
-   ./VideoTools
+   ./scripts/run.sh
    ```
 
 ---

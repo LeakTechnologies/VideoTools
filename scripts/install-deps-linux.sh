@@ -5,7 +5,7 @@
 set -e
 
 echo "════════════════════════════════════════════════════════════════"
-echo "  VideoTools Dependency Installer (Linux)"
+echo "  VideoTools Linux Installation"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 

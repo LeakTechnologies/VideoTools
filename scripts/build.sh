@@ -9,11 +9,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_VERSION="$(grep -m1 'appVersion' "$PROJECT_ROOT/main.go" | sed -E 's/.*\"([^\"]+)\".*/\1/')"
 [ -z "$APP_VERSION" ] && APP_VERSION="(version unknown)"
 
-echo "════════════════════════════════════════════════════════════════"
-echo "  VideoTools Universal Build Script"
-echo "════════════════════════════════════════════════════════════════"
-echo ""
-
 # Detect platform
 PLATFORM="$(uname -s)"
 case "$PLATFORM" in
@@ -22,6 +17,11 @@ case "$PLATFORM" in
     CYGWIN*|MINGW*|MSYS*) OS="Windows" ;;
     *) echo "❌ Unknown platform: $PLATFORM"; exit 1 ;;
 esac
+
+echo "════════════════════════════════════════════════════════════════"
+echo "  VideoTools ${OS} Build"
+echo "════════════════════════════════════════════════════════════════"
+echo ""
 echo "🔍 Detected platform: $OS"
 echo ""
 

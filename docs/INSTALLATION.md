@@ -7,7 +7,7 @@ This guide will help you install VideoTools with minimal setup.
 ### One-Command Installation
 
 ```bash
-bash install.sh
+bash scripts/install.sh
 ```
 
 That's it! The installer will:
@@ -43,7 +43,7 @@ VideoTools
 ### Option 1: System-Wide Installation (Recommended for Shared Computers)
 
 ```bash
-bash install.sh
+bash scripts/install.sh
 # Select option 1 when prompted
 # Enter your password if requested
 ```
@@ -61,7 +61,7 @@ bash install.sh
 ### Option 2: User-Local Installation (Recommended for Personal Use)
 
 ```bash
-bash install.sh
+bash scripts/install.sh
 # Select option 2 when prompted (default)
 ```
 
@@ -78,7 +78,7 @@ bash install.sh
 
 ## What the Installer Does
 
-The `install.sh` script performs these steps:
+The `scripts/install.sh` script performs these steps:
 
 ### Step 1: Go Verification
 - Checks if Go 1.21+ is installed
@@ -122,6 +122,19 @@ VideoToolsClean         # Clean build artifacts and cache
 
 ---
 
+## Development Workflow
+
+For day-to-day development:
+
+```bash
+./scripts/build.sh
+./scripts/run.sh
+```
+
+Use `./scripts/install.sh` when you add new system dependencies or want to reinstall.
+
+---
+
 ## Requirements
 
 ### Essential
@@ -135,7 +148,7 @@ VideoToolsClean         # Clean build artifacts and cache
   ```
 
 ### System
-- Linux, macOS, or WSL (Windows Subsystem for Linux)
+- Linux, macOS, or Windows (native)
 - At least 2 GB free disk space
 - Stable internet connection (for dependencies)
 
@@ -157,7 +170,7 @@ go version
 **Solution:** Check build log for specific errors:
 
 ```bash
-bash install.sh
+bash scripts/install.sh
 # Look for error messages in the build log output
 ```
 
@@ -356,4 +369,3 @@ Installation works in WSL environment. Ensure you have WSL with Linux distro ins
 ---
 
 Enjoy using VideoTools! 🎬
-

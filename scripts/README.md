@@ -2,6 +2,18 @@
 
 This directory contains scripts for building and managing VideoTools on different platforms.
 
+## Recommended Workflow
+
+For development on any platform:
+
+```bash
+./scripts/install.sh
+./scripts/build.sh
+./scripts/run.sh
+```
+
+Use `./scripts/install.sh` whenever you add new dependencies or need to reinstall.
+
 ## Linux
 
 ### Install Dependencies
@@ -73,6 +85,7 @@ Run in PowerShell as Administrator:
 - MinGW-w64 (GCC compiler)
 - ffmpeg
 - Git (optional, for development)
+- DVD authoring tools (via DVDStyler portable: dvdauthor + mkisofs)
 
 **Package managers supported:**
 - Chocolatey (default, requires admin)
