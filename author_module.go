@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -81,7 +82,10 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 		}
 		for i, clip := range state.authorClips {
 			idx := i
-			card := widget.NewCard(clip.DisplayName, fmt.Sprintf("%.2fs", clip.Duration), nil)
+			nameLabel := widget.NewLabel(clip.DisplayName)
+			nameLabel.TextStyle = fyne.TextStyle{Bold: true}
+			durationLabel := widget.NewLabel(fmt.Sprintf("%.2fs", clip.Duration))
+			durationLabel.TextStyle = fyne.TextStyle{Italic: true}
 
 			removeBtn := widget.NewButton("Remove", func() {
 				state.authorClips = append(state.authorClips[:idx], state.authorClips[idx+1:]...)
@@ -89,16 +93,17 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			})
 			removeBtn.Importance = widget.MediumImportance
 
-			durationLabel := widget.NewLabel(fmt.Sprintf("Duration: %.2f seconds", clip.Duration))
-			durationLabel.TextStyle = fyne.TextStyle{Italic: true}
-
-			cardContent := container.NewVBox(
-				durationLabel,
-				widget.NewSeparator(),
+			row := container.NewBorder(
+				nil,
+				nil,
+				nil,
 				removeBtn,
+				container.NewVBox(nameLabel, durationLabel),
 			)
-			card.SetContent(cardContent)
-			list.Add(card)
+			cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
+			cardBg.CornerRadius = 6
+			cardBg.SetMinSize(fyne.NewSize(0, nameLabel.MinSize().Height+durationLabel.MinSize().Height+12))
+			list.Add(container.NewPadded(container.NewMax(cardBg, row)))
 		}
 	}
 
