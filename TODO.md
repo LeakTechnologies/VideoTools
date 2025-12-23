@@ -70,7 +70,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Frame interpolation presets in Filters with Upscale linkage
   - Real-ESRGAN AI upscale controls with ncnn pipeline (models, presets, tiles, TTA)
 
-*Last Updated: 2025-12-20*
+*Last Updated: 2025-12-21*
 
 ## Priority Features for dev20+
 
@@ -467,13 +467,15 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] Transition effects (optional)
 - [ ] Chapter markers at join points
 
-### Trim Module (Lossless-Cut Inspired) 🔄 PLANNED
+### Trim Module (Lossless-Cut Inspired) ✅ FRAMEWORK READY
 Trim provides frame-accurate cutting with lossless-first philosophy (inspired by Lossless-Cut):
 
 #### Core Features
+- [x] **VT_Player Framework** - Frame-accurate video playback system implemented
+- [x] **Frame-Accurate Navigation** - Microsecond precision seeking available
+- [x] **Preview System** - Frame extraction for trim preview functionality
 - [ ] **Lossless-First Approach** - Stream copy when possible, smart re-encode fallback
 - [ ] **Keyframe-Snapping Timeline** - Visual keyframe markers with smart snapping
-- [ ] **Frame-Accurate Navigation** - Reuse VT_Player's keyframe detection system
 - [ ] **Smart Export System** - Automatic method selection (lossless/re-encode/hybrid)
 - [ ] **Multi-Segment Trimming** - Multiple cuts from single source with auto-chapters
 

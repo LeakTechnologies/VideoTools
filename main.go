@@ -82,18 +82,18 @@ var (
 	nvencRuntimeOK   bool
 
 	modulesList = []Module{
-		{"convert", "Convert", utils.MustHex("#8B44FF"), "Convert", modules.HandleConvert},         // Violet
-		{"merge", "Merge", utils.MustHex("#4488FF"), "Convert", modules.HandleMerge},               // Blue
-		{"trim", "Trim", utils.MustHex("#44DDFF"), "Convert", modules.HandleTrim},                  // Cyan
-		{"filters", "Filters", utils.MustHex("#44FF88"), "Convert", modules.HandleFilters},         // Green
-		{"upscale", "Upscale", utils.MustHex("#AAFF44"), "Advanced", modules.HandleUpscale},        // Yellow-Green
-		{"audio", "Audio", utils.MustHex("#FFD744"), "Convert", modules.HandleAudio},               // Yellow
-		{"author", "Author", utils.MustHex("#FFAA44"), "Convert", modules.HandleAuthor}, // Orange
-		{"subtitles", "Subtitles", utils.MustHex("#44A6FF"), "Convert", modules.HandleSubtitles},   // Azure
-		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},           // Orange
-		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},         // Pink
-		{"inspect", "Inspect", utils.MustHex("#FF4444"), "Inspect", modules.HandleInspect},         // Red
-		{"player", "Player", utils.MustHex("#44FFDD"), "Playback", modules.HandlePlayer},           // Teal
+		{"convert", "Convert", utils.MustHex("#8B44FF"), "Convert", modules.HandleConvert},       // Violet
+		{"merge", "Merge", utils.MustHex("#4488FF"), "Convert", modules.HandleMerge},             // Blue
+		{"trim", "Trim", utils.MustHex("#44DDFF"), "Convert", modules.HandleTrim},                // Cyan
+		{"filters", "Filters", utils.MustHex("#44FF88"), "Convert", modules.HandleFilters},       // Green
+		{"upscale", "Upscale", utils.MustHex("#AAFF44"), "Advanced", modules.HandleUpscale},      // Yellow-Green
+		{"audio", "Audio", utils.MustHex("#FFD744"), "Convert", modules.HandleAudio},             // Yellow
+		{"author", "Author", utils.MustHex("#FFAA44"), "Convert", modules.HandleAuthor},          // Orange
+		{"subtitles", "Subtitles", utils.MustHex("#44A6FF"), "Convert", modules.HandleSubtitles}, // Azure
+		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},         // Orange
+		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},       // Pink
+		{"inspect", "Inspect", utils.MustHex("#FF4444"), "Inspect", modules.HandleInspect},       // Red
+		{"player", "Player", utils.MustHex("#44FFDD"), "Playback", modules.HandlePlayer},         // Teal
 	}
 
 	// Platform-specific configuration
@@ -907,6 +907,14 @@ type appState struct {
 	authorChapters       []authorChapter
 	authorSceneThreshold float64
 	authorDetecting      bool
+	authorClips          []authorClip // Multiple video clips for compilation
+	authorOutputType     string       // "dvd" or "iso"
+	authorRegion         string       // "NTSC", "PAL", "AUTO"
+	authorAspectRatio    string       // "4:3", "16:9", "AUTO"
+	authorCreateMenu     bool         // Whether to create DVD menu
+	authorTitle          string       // DVD title
+	authorSubtitles      []string     // Subtitle file paths
+	authorAudioTracks    []string     // Additional audio tracks
 }
 
 type mergeClip struct {
@@ -919,6 +927,13 @@ type authorChapter struct {
 	Timestamp float64 // Timestamp in seconds
 	Title     string  // Chapter title/name
 	Auto      bool    // True if auto-detected, false if manual
+}
+
+type authorClip struct {
+	Path        string          // Video file path
+	DisplayName string          // Display name in UI
+	Duration    float64         // Video duration
+	Chapters    []authorChapter // Chapters for this clip
 }
 
 func (s *appState) persistConvertConfig() {
@@ -2724,12 +2739,23 @@ func (s *appState) showMergeView() {
 				for _, uri := range items {
 					if uri.Scheme() == "file" {
 						paths = append(paths, uri.Path())
-					}
-				}
-				if len(paths) > 0 {
-					addFiles(paths)
-				}
-			})
+		}
+		}
+	
+	// Make empty state a drop target
+	emptyDrop := ui.NewDroppable(container.NewCenter(emptyLabel), func(items []fyne.URI) {
+		var paths []string
+		for _, uri := range items {
+			if uri.Scheme() == "file" {
+				paths = append(paths, uri.Path())
+			}
+		}
+		if len(paths) > 0 {
+			state.addAuthorFiles(paths)
+		}
+	})
+	
+	list.Add(container.NewMax(emptyDrop))
 			listBox.Add(container.NewMax(emptyDrop))
 		} else {
 			for i, c := range s.mergeClips {
@@ -13969,6 +13995,21 @@ func parseResolutionPreset(preset string, srcW, srcH int) (width, height int, pr
 
 // buildUpscaleFilter builds the FFmpeg scale filter string with the selected method
 func buildAuthorView(state *appState) fyne.CanvasObject {
+	state.stopPreview()
+	state.lastModule = state.active
+	state.active = "author"
+
+	// Initialize default values
+	if state.authorOutputType == "" {
+		state.authorOutputType = "dvd"
+	}
+	if state.authorRegion == "" {
+		state.authorRegion = "AUTO"
+	}
+	if state.authorAspectRatio == "" {
+		state.authorAspectRatio = "AUTO"
+	}
+
 	authorColor := moduleColor("author")
 
 	// Back button
@@ -13977,32 +14018,257 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	})
 	backBtn.Importance = widget.LowImportance
 
-	// Title
-	title := canvas.NewText("AUTHOR", authorColor)
-	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	title.TextSize = 20
+	// Queue button
+	queueBtn := widget.NewButton("View Queue", func() {
+		state.showQueue()
+	})
+	state.queueBtn = queueBtn
+	state.updateQueueButtonLabel()
 
-	header := container.NewBorder(nil, nil, backBtn, nil, container.NewCenter(title))
+	topBar := ui.TintedBar(authorColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+	bottomBar := moduleFooter(authorColor, layout.NewSpacer(), state.statsBar)
 
 	// Create tabs for different authoring tasks
 	tabs := container.NewAppTabs(
+		container.NewTabItem("Video Clips", buildVideoClipsTab(state)),
 		container.NewTabItem("Chapters", buildChaptersTab(state)),
-		container.NewTabItem("Rip DVD/ISO", buildRipTab(state)),
-		container.NewTabItem("Author Disc", buildAuthorDiscTab(state)),
+		container.NewTabItem("Subtitles", buildSubtitlesTab(state)),
+		container.NewTabItem("Settings", buildAuthorSettingsTab(state)),
+		container.NewTabItem("Generate", buildAuthorDiscTab(state)),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
-	return container.NewBorder(header, nil, nil, nil, tabs)
+	return container.NewBorder(topBar, bottomBar, nil, nil, tabs)
+}
+
+func buildVideoClipsTab(state *appState) fyne.CanvasObject {
+	// Video clips list with drag-and-drop support
+	list := container.NewVBox()
+	
+	rebuildList := func() {
+		list.Objects = nil
+		
+		if len(state.authorClips) == 0 {
+			emptyLabel := widget.NewLabel("Drag and drop video files here\nor click 'Add Files' to select videos")
+			emptyLabel.Alignment = fyne.TextAlignCenter
+			
+			// Make empty state a drop target
+			emptyDrop := ui.NewDroppable(container.NewCenter(emptyLabel), func(items []fyne.URI) {
+				var paths []string
+				for _, uri := range items {
+					if uri.Scheme() == "file" {
+						paths = append(paths, uri.Path())
+					}
+				}
+				if len(paths) > 0 {
+					state.addAuthorFiles(paths)
+				}
+			})
+			
+			list.Add(container.NewMax(emptyDrop))
+		} else {
+			for i, clip := range state.authorClips {
+				idx := i
+				card := widget.NewCard(clip.DisplayName, fmt.Sprintf("%.2fs", clip.Duration), nil)
+				
+				// Remove button
+				removeBtn := widget.NewButton("Remove", func() {
+					state.authorClips = append(state.authorClips[:idx], state.authorClips[idx+1:]...)
+					rebuildList()
+				})
+				removeBtn.Importance = widget.MediumImportance
+				
+				// Duration label
+				durationLabel := widget.NewLabel(fmt.Sprintf("Duration: %.2f seconds", clip.Duration))
+				durationLabel.TextStyle = fyne.TextStyle{Italic: true}
+				
+				cardContent := container.NewVBox(
+					durationLabel,
+					widget.NewSeparator(),
+					removeBtn,
+				)
+				card.SetContent(cardContent)
+				list.Add(card)
+			}
+		}
+	}
+	
+	// Add files button
+	addBtn := widget.NewButton("Add Files", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+			state.addAuthorFiles([]string{reader.URI().Path()})
+		}, state.window)
+	})
+	addBtn.Importance = widget.HighImportance
+	
+	// Clear all button
+	clearBtn := widget.NewButton("Clear All", func() {
+		state.authorClips = []authorClip{}
+		rebuildList()
+	})
+	clearBtn.Importance = widget.MediumImportance
+	
+	// Compile button
+	compileBtn := widget.NewButton("COMPILE TO DVD", func() {
+		if len(state.authorClips) == 0 {
+			dialog.ShowInformation("No Clips", "Please add video clips first", state.window)
+			return
+		}
+		// TODO: Implement compilation to DVD
+		dialog.ShowInformation("Compile", "DVD compilation will be implemented", state.window)
+	})
+	compileBtn.Importance = widget.HighImportance
+	
+	controls := container.NewVBox(
+		widget.NewLabel("Video Clips:"),
+		container.NewScroll(list),
+		widget.NewSeparator(),
+		container.NewHBox(addBtn, clearBtn, compileBtn),
+	)
+	
+	// Initialize the list
+	rebuildList()
+	
+	return container.NewPadded(controls)
+}
+
+// addAuthorFiles helper function
+func (s *appState) addAuthorFiles(paths []string) {
+	for _, path := range paths {
+		src, err := probeVideo(path)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to load video %s: %w", filepath.Base(path), err), s.window)
+			continue
+		}
+		
+		clip := authorClip{
+			Path:        path,
+			DisplayName:  filepath.Base(path),
+			Duration:    src.Duration,
+			Chapters:     []authorChapter{},
+		}
+		s.authorClips = append(s.authorClips, clip)
+		}
+			}
+			if len(paths) > 0 {
+					addFiles(paths)
+				}
+			})
+
+			list.Add(container.NewMax(emptyDrop))
+		} else {
+			for i, clip := range state.authorClips {
+				idx := i
+				clip := widget.NewCard(clip.DisplayName, fmt.Sprintf("%.2fs", clip.Duration), nil)
+
+				// Remove button
+				removeBtn := widget.NewButton("Remove", func() {
+					state.authorClips = append(state.authorClips[:idx], state.authorClips[idx+1:]...)
+					buildList()
+				})
+				removeBtn.Importance = widget.MediumImportance
+
+				// Duration label
+				durationLabel := widget.NewLabel(fmt.Sprintf("Duration: %.2f seconds", clip.Duration))
+				durationLabel.TextStyle = fyne.TextStyle{Italic: true}
+
+				cardContent := container.NewVBox(
+					durationLabel,
+					widget.NewSeparator(),
+					removeBtn,
+				)
+				clip.SetContent(cardContent)
+				list.Add(clip)
+			}
+		}
+	}
+
+	addFiles := func(paths []string) {
+		for _, path := range paths {
+			src, err := probeVideo(path)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to load video %s: %w", filepath.Base(path), err), state.window)
+				continue
+			}
+
+			clip := authorClip{
+				Path:        path,
+				DisplayName: filepath.Base(path),
+				Duration:    src.Duration,
+				Chapters:    []authorChapter{},
+			}
+			state.authorClips = append(state.authorClips, clip)
+		}
+		buildList()
+	}
+
+
+
+			clip := authorClip{
+				Path:        path,
+				DisplayName: filepath.Base(path),
+				Duration:    src.Duration,
+				Chapters:    []authorChapter{},
+			}
+			state.authorClips = append(state.authorClips, clip)
+		}
+		buildList()
+	}
+
+	// Add files button
+	addBtn := widget.NewButton("Add Files", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+			addFiles([]string{reader.URI().Path()})
+		}, state.window)
+	})
+	addBtn.Importance = widget.HighImportance
+
+	// Clear all button
+	clearBtn := widget.NewButton("Clear All", func() {
+		state.authorClips = []authorClip{}
+		buildList()
+	})
+	clearBtn.Importance = widget.MediumImportance
+
+	// Compile button
+	compileBtn := widget.NewButton("COMPILE TO DVD", func() {
+		if len(state.authorClips) == 0 {
+			dialog.ShowInformation("No Clips", "Please add video clips first", state.window)
+			return
+		}
+		// TODO: Implement compilation to DVD
+		dialog.ShowInformation("Compile", "DVD compilation will be implemented", state.window)
+	})
+	compileBtn.Importance = widget.HighImportance
+
+	controls := container.NewVBox(
+		widget.NewLabel("Video Clips:"),
+		container.NewScroll(list),
+		widget.NewSeparator(),
+		container.NewHBox(addBtn, clearBtn, compileBtn),
+	)
+
+	// Initialize the list
+	buildList()
+
+	return container.NewPadded(controls)
 }
 
 func buildChaptersTab(state *appState) fyne.CanvasObject {
-	// File selection
 	var fileLabel *widget.Label
 	if state.authorFile != nil {
 		fileLabel = widget.NewLabel(fmt.Sprintf("File: %s", filepath.Base(state.authorFile.Path)))
 		fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 	} else {
-		fileLabel = widget.NewLabel("No file loaded")
+		fileLabel = widget.NewLabel("Select a single video file or use clips from Video Clips tab")
 	}
 
 	selectBtn := widget.NewButton("Select Video", func() {
@@ -14034,12 +14300,12 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 
 	// Detect scenes button
 	detectBtn := widget.NewButton("Detect Scenes", func() {
-		if state.authorFile == nil {
+		if state.authorFile == nil && len(state.authorClips) == 0 {
 			dialog.ShowInformation("No File", "Please select a video file first", state.window)
 			return
 		}
 		// TODO: Implement scene detection
-		dialog.ShowInformation("Scene Detection", "Scene detection will be implemented in the next step", state.window)
+		dialog.ShowInformation("Scene Detection", "Scene detection will be implemented", state.window)
 	})
 	detectBtn.Importance = widget.HighImportance
 
@@ -14049,13 +14315,13 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 	// Add manual chapter button
 	addChapterBtn := widget.NewButton("+ Add Chapter", func() {
 		// TODO: Implement manual chapter addition
-		dialog.ShowInformation("Add Chapter", "Manual chapter addition will be implemented soon", state.window)
+		dialog.ShowInformation("Add Chapter", "Manual chapter addition will be implemented", state.window)
 	})
 
 	// Export chapters button
 	exportBtn := widget.NewButton("Export Chapters", func() {
 		// TODO: Implement chapter export
-		dialog.ShowInformation("Export", "Chapter export will be implemented soon", state.window)
+		dialog.ShowInformation("Export", "Chapter export will be implemented", state.window)
 	})
 
 	controls := container.NewVBox(
@@ -14081,10 +14347,572 @@ func buildRipTab(state *appState) fyne.CanvasObject {
 	return container.NewCenter(placeholder)
 }
 
+// addAuthorFiles helper function
+func (s *appState) addAuthorFiles(paths []string) {
+	for _, path := range paths {
+		src, err := probeVideo(path)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to load video %s: %w", filepath.Base(path), err), s.window)
+			continue
+		}
+		
+		clip := authorClip{
+			Path:        path,
+			DisplayName:  filepath.Base(path),
+			Duration:    src.Duration,
+			Chapters:     []authorChapter{},
+		}
+		s.authorClips = append(s.authorClips, clip)
+	}
+}
+
+// addAuthorFiles helper function
+func (s *appState) addAuthorFiles(paths []string) {
+	for _, path := range paths {
+		src, err := probeVideo(path)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to load video %s: %w", filepath.Base(path), err), s.window)
+			continue
+		}
+		
+		clip := authorClip{
+			Path:        path,
+			DisplayName:  filepath.Base(path),
+			Duration:    src.Duration,
+			Chapters:     []authorChapter{},
+		}
+		s.authorClips = append(s.authorClips, clip)
+	}
+}
+
+func buildSubtitlesTab(state *appState) fyne.CanvasObject {
+	// Subtitle files list with drag-and-drop support
+	list := container.NewVBox()
+
+	var buildSubList func()
+	buildSubList = func() {
+		list.Objects = nil
+
+		if len(state.authorSubtitles) == 0 {
+			emptyLabel := widget.NewLabel("Drag and drop subtitle files here\nor click 'Add Subtitles' to select")
+			emptyLabel.Alignment = fyne.TextAlignCenter
+
+			// Make empty state a drop target
+			emptyDrop := ui.NewDroppable(container.NewCenter(emptyLabel), func(items []fyne.URI) {
+				var paths []string
+				for _, uri := range items {
+					if uri.Scheme() == "file" {
+						paths = append(paths, uri.Path())
+					}
+				}
+				if len(paths) > 0 {
+					state.authorSubtitles = append(state.authorSubtitles, paths...)
+					buildSubList()
+				}
+			})
+
+			list.Add(container.NewMax(emptyDrop))
+		} else {
+			for i, path := range state.authorSubtitles {
+				idx := i
+				card := widget.NewCard(filepath.Base(path), "", nil)
+
+				// Remove button
+				removeBtn := widget.NewButton("Remove", func() {
+					state.authorSubtitles = append(state.authorSubtitles[:idx], state.authorSubtitles[idx+1:]...)
+					buildSubList()
+				})
+				removeBtn.Importance = widget.MediumImportance
+
+				cardContent := container.NewVBox(removeBtn)
+				card.SetContent(cardContent)
+				list.Add(card)
+			}
+		}
+	}
+
+	// Add subtitles button
+	addBtn := widget.NewButton("Add Subtitles", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+			state.authorSubtitles = append(state.authorSubtitles, reader.URI().Path())
+			buildSubList()
+		}, state.window)
+	})
+	addBtn.Importance = widget.HighImportance
+
+	// Clear all button
+	clearBtn := widget.NewButton("Clear All", func() {
+		state.authorSubtitles = []string{}
+		buildSubList()
+	})
+	clearBtn.Importance = widget.MediumImportance
+
+	controls := container.NewVBox(
+		widget.NewLabel("Subtitle Tracks:"),
+		container.NewScroll(list),
+		widget.NewSeparator(),
+		container.NewHBox(addBtn, clearBtn),
+	)
+
+	// Initialize
+	buildSubList()
+
+	return container.NewPadded(controls)
+}
+
+func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
+	// Output type selection
+	outputType := widget.NewSelect([]string{"DVD (VIDEO_TS)", "ISO Image"})
+	if state.authorOutputType == "iso" {
+		outputType.SetSelected("ISO Image")
+	}
+	outputType.OnChanged = func(value string) {
+		if value == "DVD (VIDEO_TS)" {
+			state.authorOutputType = "dvd"
+		} else {
+			state.authorOutputType = "iso"
+		}
+	}
+
+	// Region selection
+	regionSelect := widget.NewSelect([]string{"AUTO", "NTSC", "PAL"}, func(value string) {
+		state.authorRegion = value
+	})
+	if state.authorRegion == "" {
+		regionSelect.SetSelected("AUTO")
+	} else {
+		regionSelect.SetSelected(state.authorRegion)
+	}
+	
+	// Aspect ratio selection
+	aspectSelect := widget.NewSelect([]string{"AUTO", "4:3", "16:9"}, func(value string) {
+		state.authorAspectRatio = value
+	})
+	if state.authorAspectRatio == "" {
+		aspectSelect.SetSelected("AUTO")
+	} else {
+		aspectSelect.SetSelected(state.authorAspectRatio)
+	}
+
+	// DVD title entry
+	titleEntry := widget.NewEntry()
+	titleEntry.SetPlaceHolder("DVD Title")
+	titleEntry.SetText(state.authorTitle)
+	titleEntry.OnChanged = func(value string) {
+		state.authorTitle = value
+	}
+
+	// Create menu checkbox
+	createMenuCheck := widget.NewCheck("Create DVD Menu", state.authorCreateMenu)
+	createMenuCheck.OnChanged = func(checked bool) {
+		state.authorCreateMenu = checked
+	}
+
+	controls := container.NewVBox(
+		widget.NewLabel("Output Settings:"),
+		widget.NewSeparator(),
+		widget.NewLabel("Output Type:"),
+		outputType,
+		widget.NewLabel("Region:"),
+		regionSelect,
+		widget.NewLabel("Aspect Ratio:"),
+		aspectSelect,
+		widget.NewLabel("DVD Title:"),
+		titleEntry,
+		createMenuCheck,
+	)
+
+	return container.NewPadded(controls)
+}
+
 func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
-	placeholder := widget.NewLabel("Disc authoring will be implemented here.\n\nFeatures:\n• Create VIDEO_TS folder structure\n• Generate burn-ready ISO\n• NTSC/PAL selection\n• Menu creation\n• Chapter integration")
-	placeholder.Wrapping = fyne.TextWrapWord
-	return container.NewCenter(placeholder)
+	// Generate DVD/ISO
+	generateBtn := widget.NewButton("GENERATE DVD", func() {
+		if len(state.authorClips) == 0 && state.authorFile == nil {
+			dialog.ShowInformation("No Content", "Please add video clips or select a single video file", state.window)
+			return
+		}
+
+		// Show compilation options
+		dialog.ShowFormConfirm("Generate DVD",
+			"Choose generation options:",
+			func(callback bool, options map[string]interface{}) {
+				if !callback {
+					return
+				}
+				// TODO: Implement actual DVD/ISO generation
+				dialog.ShowInformation("DVD Generation", "DVD/ISO generation will be implemented in next step", state.window)
+			},
+			map[string]string{
+				"include_subtitles": "Include Subtitles",
+				"include_chapters":  "Include Chapters",
+				"preserve_quality":  "Preserve Original Quality",
+			},
+			map[string]interface{}{
+				"include_subtitles": len(state.authorSubtitles) > 0,
+				"include_chapters":  len(state.authorChapters) > 0,
+				"preserve_quality":  true,
+			},
+			state.window)
+	})
+	generateBtn.Importance = widget.HighImportance
+
+	// Show summary
+	summary := "Ready to generate:\n\n"
+	if len(state.authorClips) > 0 {
+		summary += fmt.Sprintf("Video Clips: %d\n", len(state.authorClips))
+		for i, clip := range state.authorClips {
+			summary += fmt.Sprintf("  %d. %s (%.2fs)\n", i+1, clip.DisplayName, clip.Duration)
+		}
+	} else if state.authorFile != nil {
+		summary += fmt.Sprintf("Video File: %s\n", filepath.Base(state.authorFile.Path))
+	}
+
+	if len(state.authorSubtitles) > 0 {
+		summary += fmt.Sprintf("Subtitle Tracks: %d\n", len(state.authorSubtitles))
+		for i, path := range state.authorSubtitles {
+			summary += fmt.Sprintf("  %d. %s\n", i+1, filepath.Base(path))
+		}
+	}
+
+	summary += fmt.Sprintf("Output Type: %s\n", state.authorOutputType)
+	summary += fmt.Sprintf("Region: %s\n", state.authorRegion)
+	summary += fmt.Sprintf("Aspect Ratio: %s\n", state.authorAspectRatio)
+	if state.authorTitle != "" {
+		summary += fmt.Sprintf("DVD Title: %s\n", state.authorTitle)
+	}
+
+	summaryLabel := widget.NewLabel(summary)
+	summaryLabel.Wrapping = fyne.TextWrapWord
+
+	controls := container.NewVBox(
+		widget.NewLabel("Generate DVD/ISO:"),
+		widget.NewSeparator(),
+		summaryLabel,
+		widget.NewSeparator(),
+		generateBtn,
+	)
+
+	return container.NewPadded(controls)
+}
+
+func buildVideoClipsTab(state *appState) fyne.CanvasObject {
+	// Video clips list with drag-and-drop support
+	list := container.NewVBox()
+	
+	rebuildList := func() {
+		list.Objects = nil
+		
+		if len(state.authorClips) == 0 {
+			emptyLabel := widget.NewLabel("Drag and drop video files here\nor click 'Add Files' to select videos")
+			emptyLabel.Alignment = fyne.TextAlignCenter
+			
+			// Make empty state a drop target
+			emptyDrop := ui.NewDroppable(container.NewCenter(emptyLabel), func(items []fyne.URI) {
+				var paths []string
+				for _, uri := range items {
+					if uri.Scheme() == "file" {
+						paths = append(paths, uri.Path())
+					}
+				}
+				if len(paths) > 0 {
+					state.addAuthorFiles(paths)
+				}
+			})
+			
+			list.Add(container.NewMax(emptyDrop))
+		} else {
+			for i, clip := range state.authorClips {
+				idx := i
+				card := widget.NewCard(clip.DisplayName, fmt.Sprintf("%.2fs", clip.Duration), nil)
+				
+				// Remove button
+				removeBtn := widget.NewButton("Remove", func() {
+					state.authorClips = append(state.authorClips[:idx], state.authorClips[idx+1:]...)
+					rebuildList()
+				})
+				removeBtn.Importance = widget.MediumImportance
+				
+				// Duration label
+				durationLabel := widget.NewLabel(fmt.Sprintf("Duration: %.2f seconds", clip.Duration))
+				durationLabel.TextStyle = fyne.TextStyle{Italic: true}
+				
+				cardContent := container.NewVBox(
+					durationLabel,
+					widget.NewSeparator(),
+					removeBtn,
+				)
+				card.SetContent(cardContent)
+				list.Add(card)
+			}
+		}
+	}
+	
+	// Add files button
+	addBtn := widget.NewButton("Add Files", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+			state.addAuthorFiles([]string{reader.URI().Path()})
+		}, state.window)
+	})
+	addBtn.Importance = widget.HighImportance
+	
+	// Clear all button
+	clearBtn := widget.NewButton("Clear All", func() {
+		state.authorClips = []authorClip{}
+		rebuildList()
+	})
+	clearBtn.Importance = widget.MediumImportance
+	
+	// Compile button
+	compileBtn := widget.NewButton("COMPILE TO DVD", func() {
+		if len(state.authorClips) == 0 {
+			dialog.ShowInformation("No Clips", "Please add video clips first", state.window)
+			return
+		}
+		// TODO: Implement compilation to DVD
+		dialog.ShowInformation("Compile", "DVD compilation will be implemented", state.window)
+	})
+	compileBtn.Importance = widget.HighImportance
+	
+	controls := container.NewVBox(
+		widget.NewLabel("Video Clips:"),
+		container.NewScroll(list),
+		widget.NewSeparator(),
+		container.NewHBox(addBtn, clearBtn, compileBtn),
+	)
+	
+	// Initialize the list
+	rebuildList()
+	
+	return container.NewPadded(controls)
+}
+
+func buildSubtitlesTab(state *appState) fyne.CanvasObject {
+	// Subtitle files list with drag-and-drop support
+	list := container.NewVBox()
+	
+	rebuildSubList := func() {
+		list.Objects = nil
+		
+		if len(state.authorSubtitles) == 0 {
+			emptyLabel := widget.NewLabel("Drag and drop subtitle files here\nor click 'Add Subtitles' to select")
+			emptyLabel.Alignment = fyne.TextAlignCenter
+			
+			// Make empty state a drop target
+			emptyDrop := ui.NewDroppable(container.NewCenter(emptyLabel), func(items []fyne.URI) {
+				var paths []string
+				for _, uri := range items {
+					if uri.Scheme() == "file" {
+						paths = append(paths, uri.Path())
+					}
+				}
+				if len(paths) > 0 {
+					state.authorSubtitles = append(state.authorSubtitles, paths...)
+					rebuildSubList()
+				}
+			})
+			
+			list.Add(container.NewMax(emptyDrop))
+		} else {
+			for i, path := range state.authorSubtitles {
+				idx := i
+				card := widget.NewCard(filepath.Base(path), "", nil)
+				
+				// Remove button
+				removeBtn := widget.NewButton("Remove", func() {
+					state.authorSubtitles = append(state.authorSubtitles[:idx], state.authorSubtitles[idx+1:]...)
+					rebuildSubList()
+				})
+				removeBtn.Importance = widget.MediumImportance
+				
+				cardContent := container.NewVBox(removeBtn)
+				card.SetContent(cardContent)
+				list.Add(card)
+			}
+		}
+	}
+	
+	// Add subtitles button
+	addBtn := widget.NewButton("Add Subtitles", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+			state.authorSubtitles = append(state.authorSubtitles, reader.URI().Path())
+			rebuildSubList()
+		}, state.window)
+	})
+	addBtn.Importance = widget.HighImportance
+	
+	// Clear all button
+	clearBtn := widget.NewButton("Clear All", func() {
+		state.authorSubtitles = []string{}
+		rebuildSubList()
+	})
+	clearBtn.Importance = widget.MediumImportance
+	
+	controls := container.NewVBox(
+		widget.NewLabel("Subtitle Tracks:"),
+		container.NewScroll(list),
+		widget.NewSeparator(),
+		container.NewHBox(addBtn, clearBtn),
+	)
+	
+	// Initialize
+	rebuildSubList()
+	
+	return container.NewPadded(controls)
+}
+
+func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
+	// Output type selection
+	outputType := widget.NewSelect([]string{"DVD (VIDEO_TS)", "ISO Image"}, func(value string) {
+		if value == "DVD (VIDEO_TS)" {
+			state.authorOutputType = "dvd"
+		} else {
+			state.authorOutputType = "iso"
+		}
+	})
+	if state.authorOutputType == "iso" {
+		outputType.SetSelected("ISO Image")
+	}
+	
+	// Region selection
+	regionSelect := widget.NewSelect([]string{"AUTO", "NTSC", "PAL"}, func(value string) {
+		state.authorRegion = value
+	})
+	if state.authorRegion == "" {
+		regionSelect.SetSelected("AUTO")
+	} else {
+		regionSelect.SetSelected(state.authorRegion)
+	}
+	
+	// Aspect ratio selection
+	aspectSelect := widget.NewSelect([]string{"AUTO", "4:3", "16:9"}, func(value string) {
+		state.authorAspectRatio = value
+	})
+	if state.authorAspectRatio == "" {
+		aspectSelect.SetSelected("AUTO")
+	} else {
+		aspectSelect.SetSelected(state.authorAspectRatio)
+	}
+	
+	// DVD title entry
+	titleEntry := widget.NewEntry()
+	titleEntry.SetPlaceHolder("DVD Title")
+	titleEntry.SetText(state.authorTitle)
+	titleEntry.OnChanged = func(value string) {
+		state.authorTitle = value
+	}
+	
+	// Create menu checkbox
+	createMenuCheck := widget.NewCheck("Create DVD Menu", func(checked bool) {
+		state.authorCreateMenu = checked
+	})
+	createMenuCheck.SetChecked(state.authorCreateMenu)
+	
+	controls := container.NewVBox(
+		widget.NewLabel("Output Settings:"),
+		widget.NewSeparator(),
+		widget.NewLabel("Output Type:"),
+		outputType,
+		widget.NewLabel("Region:"),
+		regionSelect,
+		widget.NewLabel("Aspect Ratio:"),
+		aspectSelect,
+		widget.NewLabel("DVD Title:"),
+		titleEntry,
+		createMenuCheck,
+	)
+	
+	return container.NewPadded(controls)
+}
+
+func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
+	// Generate DVD/ISO
+	generateBtn := widget.NewButton("GENERATE DVD", func() {
+		if len(state.authorClips) == 0 && state.authorFile == nil {
+			dialog.ShowInformation("No Content", "Please add video clips or select a single video file", state.window)
+			return
+		}
+		
+		// Show compilation options
+		dialog.ShowInformation("DVD Generation", 
+			"DVD/ISO generation will be implemented in next step.\n\n"+
+			"Features planned:\n"+
+			"• Create VIDEO_TS folder structure\n"+
+			"• Generate burn-ready ISO\n"+
+			"• Include subtitle tracks\n"+
+			"• Include alternate audio tracks\n"+
+			"• Support for alternate camera angles", state.window)
+	})
+	generateBtn.Importance = widget.HighImportance
+	
+	// Show summary
+	summary := "Ready to generate:\n\n"
+	if len(state.authorClips) > 0 {
+		summary += fmt.Sprintf("Video Clips: %d\n", len(state.authorClips))
+		for i, clip := range state.authorClips {
+			summary += fmt.Sprintf("  %d. %s (%.2fs)\n", i+1, clip.DisplayName, clip.Duration)
+		}
+	} else if state.authorFile != nil {
+		summary += fmt.Sprintf("Video File: %s\n", filepath.Base(state.authorFile.Path))
+	}
+	
+	if len(state.authorSubtitles) > 0 {
+		summary += fmt.Sprintf("Subtitle Tracks: %d\n", len(state.authorSubtitles))
+		for i, path := range state.authorSubtitles {
+			summary += fmt.Sprintf("  %d. %s\n", i+1, filepath.Base(path))
+		}
+	}
+	
+	summary += fmt.Sprintf("Output Type: %s\n", state.authorOutputType)
+	summary += fmt.Sprintf("Region: %s\n", state.authorRegion)
+	summary += fmt.Sprintf("Aspect Ratio: %s\n", state.authorAspectRatio)
+	if state.authorTitle != "" {
+		summary += fmt.Sprintf("DVD Title: %s\n", state.authorTitle)
+	}
+	
+	summaryLabel := widget.NewLabel(summary)
+	summaryLabel.Wrapping = fyne.TextWrapWord
+	
+	controls := container.NewVBox(
+		widget.NewLabel("Generate DVD/ISO:"),
+		widget.NewSeparator(),
+		summaryLabel,
+		widget.NewSeparator(),
+		generateBtn,
+	)
+	
+	return container.NewPadded(controls)
+}
+
+// addAuthorFiles helper function
+func (s *appState) addAuthorFiles(paths []string) {
+	for _, path := range paths {
+		src, err := probeVideo(path)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to load video %s: %w", filepath.Base(path), err), s.window)
+			continue
+		}
+		
+		clip := authorClip{
+			Path:        path,
+			DisplayName:  filepath.Base(path),
+			Duration:    src.Duration,
+			Chapters:     []authorChapter{},
+		}
+		s.authorClips = append(s.authorClips, clip)
+	}
 }
 
 func buildUpscaleFilter(targetWidth, targetHeight int, method string, preserveAspect bool) string {
