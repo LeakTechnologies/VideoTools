@@ -52,6 +52,7 @@ bash scripts/run.sh
 ```
 
 For detailed installation options, troubleshooting, and platform-specific notes, see **INSTALLATION.md**.
+For upcoming work and priorities, see **docs/ROADMAP.md**.
 
 ## How to Create a Professional DVD
 
