@@ -918,6 +918,7 @@ type appState struct {
 	authorSummaryLabel    *widget.Label
 	authorTreatAsChapters bool   // Treat multiple clips as chapters
 	authorChapterSource   string // embedded, scenes, clips, manual
+	authorChaptersRefresh func() // Refresh hook for chapter list UI
 }
 
 type mergeClip struct {
