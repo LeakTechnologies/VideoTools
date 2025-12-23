@@ -60,24 +60,12 @@ If `VideoTools.exe` doesn't exist yet:
    cd VideoTools
    ```
 
-2. **Install FFmpeg** (if not already installed):
-   ```bash
-   # Fedora/RHEL
-   sudo dnf install ffmpeg
-
-   # Ubuntu/Debian
-   sudo apt install ffmpeg
-
-   # Arch Linux
-   sudo pacman -S ffmpeg
-   ```
-
-3. **Install dependencies and build**:
+2. **Install dependencies and build**:
    ```bash
    ./scripts/install.sh
    ```
 
-4. **Run**:
+3. **Run**:
    ```bash
    ./scripts/run.sh
    ```
@@ -109,19 +97,14 @@ sudo apt install gcc-mingw-w64  # Ubuntu/Debian
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
 
-2. **Install FFmpeg**:
-   ```bash
-   brew install ffmpeg
-   ```
-
-3. **Clone and install dependencies/build**:
+2. **Clone and install dependencies/build**:
    ```bash
    git clone <repository-url>
    cd VideoTools
    ./scripts/install.sh
    ```
 
-4. **Run**:
+3. **Run**:
    ```bash
    ./scripts/run.sh
    ```

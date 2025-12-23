@@ -133,6 +133,10 @@ For day-to-day development:
 
 Use `./scripts/install.sh` when you add new system dependencies or want to reinstall.
 
+## Roadmap
+
+See `docs/ROADMAP.md` for the current dev focus and priorities.
+
 ---
 
 ## Requirements
