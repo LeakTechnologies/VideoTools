@@ -37,7 +37,8 @@ function Ensure-DVDStylerTools {
     $toolsRoot = Join-Path $PSScriptRoot "tools"
     $dvdstylerDir = Join-Path $toolsRoot "dvdstyler"
     $dvdstylerBin = Join-Path $dvdstylerDir "bin"
-    $dvdstylerUrl = "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip/download"
+    $dvdstylerUrlPrimary = "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip"
+    $dvdstylerUrlFallback = "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip/download"
     $dvdstylerZip = Join-Path $env:TEMP "dvdstyler-win64.zip"
     $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
 
@@ -54,7 +55,29 @@ function Ensure-DVDStylerTools {
     }
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
-    Invoke-WebRequest -Uri $dvdstylerUrl -OutFile $dvdstylerZip
+    $downloaded = $false
+    foreach ($url in @($dvdstylerUrlPrimary, $dvdstylerUrlFallback)) {
+        try {
+            Invoke-WebRequest -Uri $url -OutFile $dvdstylerZip -UseBasicParsing
+            $fs = [System.IO.File]::OpenRead($dvdstylerZip)
+            try {
+                $sig = New-Object byte[] 2
+                $null = $fs.Read($sig, 0, 2)
+                if ($sig[0] -eq 0x50 -and $sig[1] -eq 0x4B) {
+                    $downloaded = $true
+                    break
+                }
+            } finally {
+                $fs.Close()
+            }
+        } catch {
+            # Try next URL
+        }
+    }
+    if (-not $downloaded) {
+        Write-Host "[ERROR]  Failed to download DVDStyler ZIP (invalid archive)" -ForegroundColor Red
+        exit 1
+    }
 
     $extractRoot = Join-Path $env:TEMP ("dvdstyler-extract-" + [System.Guid]::NewGuid().ToString())
     New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
