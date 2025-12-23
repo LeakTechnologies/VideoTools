@@ -1522,7 +1522,7 @@ func (s *appState) showMainMenu() {
 			Label:    m.Label,
 			Color:    m.Color,
 			Category: m.Category,
-			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale", // Enabled modules (authoring/subtitles placeholders stay disabled)
+			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale" || m.ID == "author", // Enabled modules
 		})
 	}
 
@@ -9758,6 +9758,47 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			}
 
 			logging.Debug(logging.CatModule, "added %d clips to merge list", len(videoPaths))
+		}()
+
+		return
+	}
+
+	// If in player module, handle single video file
+	if s.active == "player" {
+		// Collect video files from dropped items
+		var videoPaths []string
+		for _, uri := range items {
+			if uri.Scheme() != "file" {
+				continue
+			}
+			path := uri.Path()
+			if s.isVideoFile(path) {
+				videoPaths = append(videoPaths, path)
+			}
+		}
+
+		if len(videoPaths) == 0 {
+			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			dialog.ShowInformation("VT_Player", "No video files found in dropped items.", s.window)
+			return
+		}
+
+		// Load first video
+		go func() {
+			src, err := probeVideo(videoPaths[0])
+			if err != nil {
+				logging.Debug(logging.CatModule, "failed to load video for player: %v", err)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+				}, false)
+				return
+			}
+
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.playerFile = src
+				s.showPlayerView()
+				logging.Debug(logging.CatModule, "loaded video into player module")
+			}, false)
 		}()
 
 		return
