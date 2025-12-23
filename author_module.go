@@ -87,6 +87,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			nameLabel.TextStyle = fyne.TextStyle{Bold: true}
 			durationLabel := widget.NewLabel(fmt.Sprintf("%.2fs", clip.Duration))
 			durationLabel.TextStyle = fyne.TextStyle{Italic: true}
+			durationLabel.Alignment = fyne.TextAlignTrailing
 
 			removeBtn := widget.NewButton("Remove", func() {
 				state.authorClips = append(state.authorClips[:idx], state.authorClips[idx+1:]...)
@@ -99,8 +100,8 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 				nil,
 				nil,
 				nil,
-				removeBtn,
-				container.NewVBox(nameLabel, durationLabel),
+				container.NewVBox(durationLabel, removeBtn),
+				container.NewVBox(nameLabel),
 			)
 			cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
 			cardBg.CornerRadius = 6
