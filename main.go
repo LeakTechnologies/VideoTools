@@ -8662,24 +8662,49 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 
 	var controls fyne.CanvasObject
 	if usePlayer {
+		// Frame counter label
+		frameLabel := widget.NewLabel("Frame: 0")
+		frameLabel.TextStyle = fyne.TextStyle{Monospace: true}
+		updateFrame := func(frameNum int) {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				frameLabel.SetText(fmt.Sprintf("Frame: %d", frameNum))
+			}, false)
+		}
+
 		var volIcon *widget.Button
 		var updatingVolume bool
 		ensureSession := func() bool {
 			if state.playSess == nil {
-				state.playSess = newPlaySession(src.Path, src.Width, src.Height, src.FrameRate, int(targetWidth-28), int(targetHeight-40), updateProgress, img)
+				state.playSess = newPlaySession(src.Path, src.Width, src.Height, src.FrameRate, src.Duration, int(targetWidth-28), int(targetHeight-40), updateProgress, updateFrame, img)
 				state.playSess.SetVolume(state.playerVolume)
 				state.playerPaused = true
 			}
 			return state.playSess != nil
 		}
+
+		// Debounced seeking - only seek after user stops dragging
+		var seekTimer *time.Timer
+		var seekMutex sync.Mutex
 		slider.OnChanged = func(val float64) {
 			if updatingProgress {
 				return
 			}
 			updateProgress(val)
-			if ensureSession() {
-				state.playSess.Seek(val)
+			if !ensureSession() {
+				return
 			}
+
+			// Debounce seeking - wait 150ms after last change
+			seekMutex.Lock()
+			if seekTimer != nil {
+				seekTimer.Stop()
+			}
+			seekTimer = time.AfterFunc(150*time.Millisecond, func() {
+				if state.playSess != nil {
+					state.playSess.Seek(val)
+				}
+			})
+			seekMutex.Unlock()
 		}
 		updateVolIcon := func() {
 			if volIcon == nil {
@@ -8744,16 +8769,31 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				state.playerPaused = true
 			}
 		})
+
+		// Frame stepping buttons
+		prevFrameBtn := utils.MakeIconButton("◀|", "Previous frame (Left Arrow)", func() {
+			if !ensureSession() {
+				return
+			}
+			state.playSess.StepFrame(-1)
+		})
+		nextFrameBtn := utils.MakeIconButton("|▶", "Next frame (Right Arrow)", func() {
+			if !ensureSession() {
+				return
+			}
+			state.playSess.StepFrame(1)
+		})
+
 		fullBtn := utils.MakeIconButton("⛶", "Toggle fullscreen", func() {
 			// Placeholder: embed fullscreen toggle into playback surface later.
 		})
 		volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
 		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
 		controls = container.NewVBox(
-			container.NewHBox(playBtn, fullBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), volBox),
+			container.NewHBox(prevFrameBtn, playBtn, nextFrameBtn, fullBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), frameLabel, volBox),
 			progress,
 		)
-	} else {
+	} else{
 		slider := widget.NewSlider(0, math.Max(1, float64(len(src.PreviewFrames)-1)))
 		slider.Step = 1
 		slider.OnChanged = func(val float64) {
@@ -8812,24 +8852,26 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 }
 
 type playSession struct {
-	path     string
-	fps      float64
-	width    int
-	height   int
-	targetW  int
-	targetH  int
-	volume   float64
-	muted    bool
-	paused   bool
-	current  float64
-	stop     chan struct{}
-	done     chan struct{}
-	prog     func(float64)
-	img      *canvas.Image
-	mu       sync.Mutex
-	videoCmd *exec.Cmd
-	audioCmd *exec.Cmd
-	frameN   int
+	path      string
+	fps       float64
+	width     int
+	height    int
+	targetW   int
+	targetH   int
+	volume    float64
+	muted     bool
+	paused    bool
+	current   float64
+	stop      chan struct{}
+	done      chan struct{}
+	prog      func(float64)
+	frameFunc func(int) // Callback for frame number updates
+	img       *canvas.Image
+	mu        sync.Mutex
+	videoCmd  *exec.Cmd
+	audioCmd  *exec.Cmd
+	frameN    int
+	duration  float64 // Total duration in seconds
 }
 
 var audioCtxGlobal struct {
@@ -8845,7 +8887,7 @@ func getAudioContext(sampleRate, channels, bytesPerSample int) (*oto.Context, er
 	return audioCtxGlobal.ctx, audioCtxGlobal.err
 }
 
-func newPlaySession(path string, w, h int, fps float64, targetW, targetH int, prog func(float64), img *canvas.Image) *playSession {
+func newPlaySession(path string, w, h int, fps, duration float64, targetW, targetH int, prog func(float64), frameFunc func(int), img *canvas.Image) *playSession {
 	if fps <= 0 {
 		fps = 24
 	}
@@ -8856,17 +8898,19 @@ func newPlaySession(path string, w, h int, fps float64, targetW, targetH int, pr
 		targetH = int(float64(targetW) * (float64(h) / float64(utils.MaxInt(w, 1))))
 	}
 	return &playSession{
-		path:    path,
-		fps:     fps,
-		width:   w,
-		height:  h,
-		targetW: targetW,
-		targetH: targetH,
-		volume:  100,
-		stop:    make(chan struct{}),
-		done:    make(chan struct{}),
-		prog:    prog,
-		img:     img,
+		path:      path,
+		fps:       fps,
+		width:     w,
+		height:    h,
+		targetW:   targetW,
+		targetH:   targetH,
+		volume:    100,
+		duration:  duration,
+		stop:      make(chan struct{}),
+		done:      make(chan struct{}),
+		prog:      prog,
+		frameFunc: frameFunc,
+		img:       img,
 	}
 }
 
@@ -8908,6 +8952,70 @@ func (p *playSession) Seek(offset float64) {
 	if p.prog != nil {
 		p.prog(p.current)
 	}
+}
+
+// StepFrame moves forward or backward by a specific number of frames.
+// Positive delta moves forward, negative moves backward.
+func (p *playSession) StepFrame(delta int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.fps <= 0 {
+		return
+	}
+
+	// Calculate target frame number
+	currentFrame := p.frameN
+	targetFrame := currentFrame + delta
+
+	// Clamp to valid range
+	if targetFrame < 0 {
+		targetFrame = 0
+	}
+	maxFrame := int(p.duration * p.fps)
+	if targetFrame > maxFrame {
+		targetFrame = maxFrame
+	}
+
+	// Convert to time offset
+	offset := float64(targetFrame) / p.fps
+	if offset < 0 {
+		offset = 0
+	}
+	if offset > p.duration {
+		offset = p.duration
+	}
+
+	// Auto-pause when frame stepping
+	wasPaused := p.paused
+	p.paused = true
+	p.current = offset
+	p.frameN = targetFrame
+	p.stopLocked()
+	p.startLocked(p.current)
+	p.paused = true
+
+	// Ensure pause is maintained
+	time.AfterFunc(30*time.Millisecond, func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		p.paused = true
+	})
+
+	if p.prog != nil {
+		p.prog(p.current)
+	}
+	if p.frameFunc != nil {
+		p.frameFunc(targetFrame)
+	}
+
+	_ = wasPaused // Keep for potential future use
+}
+
+// GetCurrentFrame returns the current frame number
+func (p *playSession) GetCurrentFrame() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.frameN
 }
 
 func (p *playSession) SetVolume(v float64) {
@@ -9043,6 +9151,9 @@ func (p *playSession) runVideo(offset float64) {
 			}
 			if p.prog != nil {
 				p.prog(p.current)
+			}
+			if p.frameFunc != nil {
+				p.frameFunc(p.frameN)
 			}
 		}
 	}()
