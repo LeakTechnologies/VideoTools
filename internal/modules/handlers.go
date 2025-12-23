@@ -47,7 +47,8 @@ func HandleAudio(files []string) {
 // HandleAuthor handles the disc authoring module (DVD/Blu-ray) (placeholder)
 func HandleAuthor(files []string) {
 	logging.Debug(logging.CatModule, "author handler invoked with %v", files)
-	fmt.Println("author", files)
+	// This will be handled by the UI drag-and-drop system
+	// File loading is managed in buildAuthorView()
 }
 
 // HandleSubtitles handles the subtitles module (placeholder)
