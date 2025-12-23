@@ -65,14 +65,20 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 	viewResultsBtn := widget.NewButton("Results", onBenchmarkHistoryClick)
 	viewResultsBtn.Importance = widget.LowImportance
 
-	logsBtn := widget.NewButton("Logs", onLogsClick)
-	logsBtn.Importance = widget.LowImportance
+	// Build header controls dynamically - only show logs button if callback is provided
+	headerControls := []fyne.CanvasObject{sidebarToggleBtn}
+	if onLogsClick != nil {
+		logsBtn := widget.NewButton("Logs", onLogsClick)
+		logsBtn.Importance = widget.LowImportance
+		headerControls = append(headerControls, logsBtn)
+	}
+	headerControls = append(headerControls, benchmarkBtn, viewResultsBtn, queueTile)
 
 	// Compact header - title on left, controls on right
 	header := container.NewBorder(
 		nil, nil,
 		title,
-		container.NewHBox(sidebarToggleBtn, logsBtn, benchmarkBtn, viewResultsBtn, queueTile),
+		container.NewHBox(headerControls...),
 		nil,
 	)
 
