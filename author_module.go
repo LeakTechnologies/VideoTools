@@ -50,7 +50,7 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	bottomBar := moduleFooter(authorColor, layout.NewSpacer(), state.statsBar)
 
 	tabs := container.NewAppTabs(
-		container.NewTabItem("Video Clips", buildVideoClipsTab(state)),
+		container.NewTabItem("Videos", buildVideoClipsTab(state)),
 		container.NewTabItem("Chapters", buildChaptersTab(state)),
 		container.NewTabItem("Subtitles", buildSubtitlesTab(state)),
 		container.NewTabItem("Settings", buildAuthorSettingsTab(state)),
@@ -74,6 +74,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			if emptyOverlay != nil {
 				emptyOverlay.Show()
 			}
+			list.Refresh()
 			return
 		}
 
@@ -90,6 +91,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			removeBtn := widget.NewButton("Remove", func() {
 				state.authorClips = append(state.authorClips[:idx], state.authorClips[idx+1:]...)
 				rebuildList()
+				state.updateAuthorSummary()
 			})
 			removeBtn.Importance = widget.MediumImportance
 
@@ -105,6 +107,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			cardBg.SetMinSize(fyne.NewSize(0, nameLabel.MinSize().Height+durationLabel.MinSize().Height+12))
 			list.Add(container.NewPadded(container.NewMax(cardBg, row)))
 		}
+		list.Refresh()
 	}
 
 	addBtn := widget.NewButton("Add Files", func() {
@@ -122,6 +125,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 	clearBtn := widget.NewButton("Clear All", func() {
 		state.authorClips = []authorClip{}
 		rebuildList()
+		state.updateAuthorSummary()
 	})
 	clearBtn.Importance = widget.MediumImportance
 
@@ -154,7 +158,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 	listArea := container.NewMax(dropTarget, emptyOverlay)
 
 	controls := container.NewBorder(
-		widget.NewLabel("Video Clips:"),
+		widget.NewLabel("Videos:"),
 		container.NewHBox(addBtn, clearBtn, compileBtn),
 		nil,
 		nil,
@@ -238,32 +242,24 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 
 func buildSubtitlesTab(state *appState) fyne.CanvasObject {
 	list := container.NewVBox()
+	listScroll := container.NewVScroll(list)
 
 	var buildSubList func()
+	var emptyOverlay *fyne.Container
 	buildSubList = func() {
 		list.Objects = nil
 
 		if len(state.authorSubtitles) == 0 {
-			emptyLabel := widget.NewLabel("Drag and drop subtitle files here\nor click 'Add Subtitles' to select")
-			emptyLabel.Alignment = fyne.TextAlignCenter
-
-			emptyDrop := ui.NewDroppable(container.NewCenter(emptyLabel), func(items []fyne.URI) {
-				var paths []string
-				for _, uri := range items {
-					if uri.Scheme() == "file" {
-						paths = append(paths, uri.Path())
-					}
-				}
-				if len(paths) > 0 {
-					state.authorSubtitles = append(state.authorSubtitles, paths...)
-					buildSubList()
-				}
-			})
-
-			list.Add(container.NewMax(emptyDrop))
+			if emptyOverlay != nil {
+				emptyOverlay.Show()
+			}
+			list.Refresh()
 			return
 		}
 
+		if emptyOverlay != nil {
+			emptyOverlay.Hide()
+		}
 		for i, path := range state.authorSubtitles {
 			idx := i
 			card := widget.NewCard(filepath.Base(path), "", nil)
@@ -271,6 +267,7 @@ func buildSubtitlesTab(state *appState) fyne.CanvasObject {
 			removeBtn := widget.NewButton("Remove", func() {
 				state.authorSubtitles = append(state.authorSubtitles[:idx], state.authorSubtitles[idx+1:]...)
 				buildSubList()
+				state.updateAuthorSummary()
 			})
 			removeBtn.Importance = widget.MediumImportance
 
@@ -278,6 +275,7 @@ func buildSubtitlesTab(state *appState) fyne.CanvasObject {
 			card.SetContent(cardContent)
 			list.Add(card)
 		}
+		list.Refresh()
 	}
 
 	addBtn := widget.NewButton("Add Subtitles", func() {
@@ -288,6 +286,7 @@ func buildSubtitlesTab(state *appState) fyne.CanvasObject {
 			defer reader.Close()
 			state.authorSubtitles = append(state.authorSubtitles, reader.URI().Path())
 			buildSubList()
+			state.updateAuthorSummary()
 		}, state.window)
 	})
 	addBtn.Importance = widget.HighImportance
@@ -295,14 +294,36 @@ func buildSubtitlesTab(state *appState) fyne.CanvasObject {
 	clearBtn := widget.NewButton("Clear All", func() {
 		state.authorSubtitles = []string{}
 		buildSubList()
+		state.updateAuthorSummary()
 	})
 	clearBtn.Importance = widget.MediumImportance
 
-	controls := container.NewVBox(
+	dropTarget := ui.NewDroppable(listScroll, func(items []fyne.URI) {
+		var paths []string
+		for _, uri := range items {
+			if uri.Scheme() == "file" {
+				paths = append(paths, uri.Path())
+			}
+		}
+		if len(paths) > 0 {
+			state.authorSubtitles = append(state.authorSubtitles, paths...)
+			buildSubList()
+			state.updateAuthorSummary()
+		}
+	})
+
+	emptyLabel := widget.NewLabel("Drag and drop subtitle files here\nor click 'Add Subtitles' to select")
+	emptyLabel.Alignment = fyne.TextAlignCenter
+	emptyOverlay = container.NewCenter(emptyLabel)
+
+	listArea := container.NewMax(dropTarget, emptyOverlay)
+
+	controls := container.NewBorder(
 		widget.NewLabel("Subtitle Tracks:"),
-		container.NewScroll(list),
-		widget.NewSeparator(),
 		container.NewHBox(addBtn, clearBtn),
+		nil,
+		nil,
+		listArea,
 	)
 
 	buildSubList()
@@ -316,6 +337,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		} else {
 			state.authorOutputType = "iso"
 		}
+		state.updateAuthorSummary()
 	})
 	if state.authorOutputType == "iso" {
 		outputType.SetSelected("ISO Image")
@@ -325,6 +347,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 
 	regionSelect := widget.NewSelect([]string{"AUTO", "NTSC", "PAL"}, func(value string) {
 		state.authorRegion = value
+		state.updateAuthorSummary()
 	})
 	if state.authorRegion == "" {
 		regionSelect.SetSelected("AUTO")
@@ -334,6 +357,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 
 	aspectSelect := widget.NewSelect([]string{"AUTO", "4:3", "16:9"}, func(value string) {
 		state.authorAspectRatio = value
+		state.updateAuthorSummary()
 	})
 	if state.authorAspectRatio == "" {
 		aspectSelect.SetSelected("AUTO")
@@ -346,10 +370,12 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 	titleEntry.SetText(state.authorTitle)
 	titleEntry.OnChanged = func(value string) {
 		state.authorTitle = value
+		state.updateAuthorSummary()
 	}
 
 	createMenuCheck := widget.NewCheck("Create DVD Menu", func(checked bool) {
 		state.authorCreateMenu = checked
+		state.updateAuthorSummary()
 	})
 	createMenuCheck.SetChecked(state.authorCreateMenu)
 
@@ -387,6 +413,7 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 
 	summaryLabel := widget.NewLabel(authorSummary(state))
 	summaryLabel.Wrapping = fyne.TextWrapWord
+	state.authorSummaryLabel = summaryLabel
 
 	controls := container.NewVBox(
 		widget.NewLabel("Generate DVD/ISO:"),
@@ -402,7 +429,7 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 func authorSummary(state *appState) string {
 	summary := "Ready to generate:\n\n"
 	if len(state.authorClips) > 0 {
-		summary += fmt.Sprintf("Video Clips: %d\n", len(state.authorClips))
+		summary += fmt.Sprintf("Videos: %d\n", len(state.authorClips))
 		for i, clip := range state.authorClips {
 			summary += fmt.Sprintf("  %d. %s (%.2fs)\n", i+1, clip.DisplayName, clip.Duration)
 		}
@@ -442,6 +469,14 @@ func (s *appState) addAuthorFiles(paths []string) {
 		}
 		s.authorClips = append(s.authorClips, clip)
 	}
+	s.updateAuthorSummary()
+}
+
+func (s *appState) updateAuthorSummary() {
+	if s.authorSummaryLabel == nil {
+		return
+	}
+	s.authorSummaryLabel.SetText(authorSummary(s))
 }
 
 func (s *appState) startAuthorGeneration() {

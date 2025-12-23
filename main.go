@@ -915,6 +915,7 @@ type appState struct {
 	authorTitle          string       // DVD title
 	authorSubtitles      []string     // Subtitle file paths
 	authorAudioTracks    []string     // Additional audio tracks
+	authorSummaryLabel   *widget.Label
 }
 
 type mergeClip struct {
