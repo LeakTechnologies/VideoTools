@@ -1,4 +1,4 @@
-# VideoTools Dependency Installer for Windows
+﻿# VideoTools Dependency Installer for Windows
 # Installs all required build and runtime dependencies using Chocolatey or Scoop
 
 param(
@@ -6,16 +6,16 @@ param(
     [switch]$SkipFFmpeg = $false
 )
 
-Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host "  VideoTools Windows Installation" -ForegroundColor Cyan
-Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Check if running as administrator
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 
 if (-not $isAdmin) {
-    Write-Host "⚠️  This script should be run as Administrator for best results" -ForegroundColor Yellow
+    Write-Host "[WARN]   This script should be run as Administrator for best results" -ForegroundColor Yellow
     Write-Host "   Right-click PowerShell and select 'Run as Administrator'" -ForegroundColor Yellow
     Write-Host ""
     $continue = Read-Host "Continue anyway? (y/N)"
@@ -76,16 +76,16 @@ function Ensure-DVDStylerTools {
         if ($userPath -notmatch [Regex]::Escape($dvdstylerBin)) {
             [Environment]::SetEnvironmentVariable("Path", "$dvdstylerBin;$userPath", "User")
         }
-        Write-Host "✓ DVD authoring tools installed to $dvdstylerDir" -ForegroundColor Green
+        Write-Host "[OK]  DVD authoring tools installed to $dvdstylerDir" -ForegroundColor Green
     } else {
-        Write-Host "❌ DVDStyler tools missing after install" -ForegroundColor Red
+        Write-Host "[ERROR]  DVDStyler tools missing after install" -ForegroundColor Red
         exit 1
     }
 }
 
 # Function to install via Chocolatey
 function Install-ViaChocolatey {
-    Write-Host "📦 Using Chocolatey package manager..." -ForegroundColor Green
+    Write-Host " Using Chocolatey package manager..." -ForegroundColor Green
 
     # Check if Chocolatey is installed
     if (-not (Test-Command choco)) {
@@ -95,12 +95,12 @@ function Install-ViaChocolatey {
         Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
 
         if (-not (Test-Command choco)) {
-            Write-Host "❌ Failed to install Chocolatey" -ForegroundColor Red
+            Write-Host "[ERROR]  Failed to install Chocolatey" -ForegroundColor Red
             exit 1
         }
-        Write-Host "✓ Chocolatey installed" -ForegroundColor Green
+        Write-Host "[OK]  Chocolatey installed" -ForegroundColor Green
     } else {
-        Write-Host "✓ Chocolatey already installed" -ForegroundColor Green
+        Write-Host "[OK]  Chocolatey already installed" -ForegroundColor Green
     }
 
     Write-Host ""
@@ -111,7 +111,7 @@ function Install-ViaChocolatey {
         Write-Host "Installing Go..." -ForegroundColor Yellow
         choco install -y golang
     } else {
-        Write-Host "✓ Go already installed" -ForegroundColor Green
+        Write-Host "[OK]  Go already installed" -ForegroundColor Green
     }
 
     # Install GCC (via TDM-GCC or mingw)
@@ -119,7 +119,7 @@ function Install-ViaChocolatey {
         Write-Host "Installing MinGW-w64 (GCC)..." -ForegroundColor Yellow
         choco install -y mingw
     } else {
-        Write-Host "✓ GCC already installed" -ForegroundColor Green
+        Write-Host "[OK]  GCC already installed" -ForegroundColor Green
     }
 
     # Install Git (useful for development)
@@ -127,7 +127,7 @@ function Install-ViaChocolatey {
         Write-Host "Installing Git..." -ForegroundColor Yellow
         choco install -y git
     } else {
-        Write-Host "✓ Git already installed" -ForegroundColor Green
+        Write-Host "[OK]  Git already installed" -ForegroundColor Green
     }
 
     # Install ffmpeg
@@ -136,16 +136,16 @@ function Install-ViaChocolatey {
             Write-Host "Installing ffmpeg..." -ForegroundColor Yellow
             choco install -y ffmpeg
         } else {
-            Write-Host "✓ ffmpeg already installed" -ForegroundColor Green
+            Write-Host "[OK]  ffmpeg already installed" -ForegroundColor Green
         }
     }
 
-    Write-Host "✓ Chocolatey installation complete" -ForegroundColor Green
+    Write-Host "[OK]  Chocolatey installation complete" -ForegroundColor Green
 }
 
 # Function to install via Scoop
 function Install-ViaScoop {
-    Write-Host "📦 Using Scoop package manager..." -ForegroundColor Green
+    Write-Host " Using Scoop package manager..." -ForegroundColor Green
 
     # Check if Scoop is installed
     if (-not (Test-Command scoop)) {
@@ -154,12 +154,12 @@ function Install-ViaScoop {
         Invoke-Expression (New-Object System.Net.WebClient).DownloadString('https://get.scoop.sh')
 
         if (-not (Test-Command scoop)) {
-            Write-Host "❌ Failed to install Scoop" -ForegroundColor Red
+            Write-Host "[ERROR]  Failed to install Scoop" -ForegroundColor Red
             exit 1
         }
-        Write-Host "✓ Scoop installed" -ForegroundColor Green
+        Write-Host "[OK]  Scoop installed" -ForegroundColor Green
     } else {
-        Write-Host "✓ Scoop already installed" -ForegroundColor Green
+        Write-Host "[OK]  Scoop already installed" -ForegroundColor Green
     }
 
     Write-Host ""
@@ -170,7 +170,7 @@ function Install-ViaScoop {
         Write-Host "Installing Go..." -ForegroundColor Yellow
         scoop install go
     } else {
-        Write-Host "✓ Go already installed" -ForegroundColor Green
+        Write-Host "[OK]  Go already installed" -ForegroundColor Green
     }
 
     # Install GCC
@@ -178,7 +178,7 @@ function Install-ViaScoop {
         Write-Host "Installing MinGW-w64 (GCC)..." -ForegroundColor Yellow
         scoop install mingw
     } else {
-        Write-Host "✓ GCC already installed" -ForegroundColor Green
+        Write-Host "[OK]  GCC already installed" -ForegroundColor Green
     }
 
     # Install Git
@@ -186,7 +186,7 @@ function Install-ViaScoop {
         Write-Host "Installing Git..." -ForegroundColor Yellow
         scoop install git
     } else {
-        Write-Host "✓ Git already installed" -ForegroundColor Green
+        Write-Host "[OK]  Git already installed" -ForegroundColor Green
     }
 
     # Install ffmpeg
@@ -195,11 +195,11 @@ function Install-ViaScoop {
             Write-Host "Installing ffmpeg..." -ForegroundColor Yellow
             scoop install ffmpeg
         } else {
-            Write-Host "✓ ffmpeg already installed" -ForegroundColor Green
+            Write-Host "[OK]  ffmpeg already installed" -ForegroundColor Green
         }
     }
 
-    Write-Host "✓ Scoop installation complete" -ForegroundColor Green
+    Write-Host "[OK]  Scoop installation complete" -ForegroundColor Green
 }
 
 # Main installation logic
@@ -211,7 +211,7 @@ $osVersion = [System.Environment]::OSVersion.Version
 Write-Host "Windows Version: $($osVersion.Major).$($osVersion.Minor) (Build $($osVersion.Build))" -ForegroundColor Cyan
 
 if ($osVersion.Major -lt 10) {
-    Write-Host "⚠️  Warning: Windows 10 or later is recommended" -ForegroundColor Yellow
+    Write-Host "[WARN]   Warning: Windows 10 or later is recommended" -ForegroundColor Yellow
 }
 Write-Host ""
 
@@ -245,9 +245,9 @@ if ($UseScoop) {
 Ensure-DVDStylerTools
 
 Write-Host ""
-Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "✅ DEPENDENCIES INSTALLED" -ForegroundColor Green
-Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+Write-Host "===============================================================" -ForegroundColor Cyan
+Write-Host "[OK]  DEPENDENCIES INSTALLED" -ForegroundColor Green
+Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Refresh environment variables
@@ -259,51 +259,51 @@ Write-Host ""
 
 if (Test-Command go) {
     $goVersion = go version
-    Write-Host "✓ Go: $goVersion" -ForegroundColor Green
+    Write-Host "[OK]  Go: $goVersion" -ForegroundColor Green
 } else {
-    Write-Host "⚠️  Go not found in PATH (restart terminal)" -ForegroundColor Yellow
+    Write-Host "[WARN]   Go not found in PATH (restart terminal)" -ForegroundColor Yellow
 }
 
 if (Test-Command gcc) {
     $gccVersion = gcc --version | Select-Object -First 1
-    Write-Host "✓ GCC: $gccVersion" -ForegroundColor Green
+    Write-Host "[OK]  GCC: $gccVersion" -ForegroundColor Green
 } else {
-    Write-Host "⚠️  GCC not found in PATH (restart terminal)" -ForegroundColor Yellow
+    Write-Host "[WARN]   GCC not found in PATH (restart terminal)" -ForegroundColor Yellow
 }
 
 if (Test-Command ffmpeg) {
     $ffmpegVersion = ffmpeg -version | Select-Object -First 1
-    Write-Host "✓ ffmpeg: $ffmpegVersion" -ForegroundColor Green
+    Write-Host "[OK]  ffmpeg: $ffmpegVersion" -ForegroundColor Green
 } else {
     if ($SkipFFmpeg) {
-        Write-Host "ℹ️  ffmpeg skipped (use -SkipFFmpeg:$false to install)" -ForegroundColor Cyan
+        Write-Host "[INFO]   ffmpeg skipped (use -SkipFFmpeg:$false to install)" -ForegroundColor Cyan
     } else {
-        Write-Host "⚠️  ffmpeg not found in PATH (restart terminal)" -ForegroundColor Yellow
+        Write-Host "[WARN]   ffmpeg not found in PATH (restart terminal)" -ForegroundColor Yellow
     }
 }
 
 if (Test-Command dvdauthor) {
-    Write-Host "✓ dvdauthor: found" -ForegroundColor Green
+    Write-Host "[OK]  dvdauthor: found" -ForegroundColor Green
 } else {
-    Write-Host "⚠️  dvdauthor not found in PATH (restart terminal)" -ForegroundColor Yellow
+    Write-Host "[WARN]   dvdauthor not found in PATH (restart terminal)" -ForegroundColor Yellow
 }
 
 if (Test-Command mkisofs) {
-    Write-Host "✓ mkisofs: found" -ForegroundColor Green
+    Write-Host "[OK]  mkisofs: found" -ForegroundColor Green
 } else {
-    Write-Host "⚠️  mkisofs not found in PATH (restart terminal)" -ForegroundColor Yellow
+    Write-Host "[WARN]   mkisofs not found in PATH (restart terminal)" -ForegroundColor Yellow
 }
 
 if (Test-Command git) {
     $gitVersion = git --version
-    Write-Host "✓ Git: $gitVersion" -ForegroundColor Green
+    Write-Host "[OK]  Git: $gitVersion" -ForegroundColor Green
 } else {
-    Write-Host "ℹ️  Git not installed (optional)" -ForegroundColor Cyan
+    Write-Host "[INFO]   Git not installed (optional)" -ForegroundColor Cyan
 }
 
 Write-Host ""
-Write-Host "════════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "🎉 Setup complete!" -ForegroundColor Green
+Write-Host "===============================================================" -ForegroundColor Cyan
+Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "  1. Restart your terminal/PowerShell" -ForegroundColor White
