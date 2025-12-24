@@ -3370,7 +3370,7 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 		"-loglevel", "error",
 	}
 	if format == "mkv-copy" {
-		args = append(args, "-fflags", "+genpts", "-reset_timestamps", "1")
+		args = append(args, "-fflags", "+genpts")
 	}
 	args = append(args,
 		"-f", "concat",
