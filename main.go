@@ -3753,6 +3753,14 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		}
 	}
 
+	// Source metrics (used for filters and bitrate defaults)
+	sourceWidth, _ := cfg["sourceWidth"].(int)
+	sourceHeight, _ := cfg["sourceHeight"].(int)
+	sourceBitrate := 0
+	if v, ok := cfg["sourceBitrate"].(float64); ok {
+		sourceBitrate = int(v)
+	}
+
 	// Video filters
 	var vf []string
 	if !remux {
@@ -3843,13 +3851,6 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			}
 		}
 		// Aspect ratio conversion
-		sourceWidth, _ := cfg["sourceWidth"].(int)
-		sourceHeight, _ := cfg["sourceHeight"].(int)
-		// Get source bitrate if present
-		sourceBitrate := 0
-		if v, ok := cfg["sourceBitrate"].(float64); ok {
-			sourceBitrate = int(v)
-		}
 		srcAspect := utils.AspectRatioFloat(sourceWidth, sourceHeight)
 		outputAspect, _ := cfg["outputAspect"].(string)
 		aspectHandling, _ := cfg["aspectHandling"].(string)
