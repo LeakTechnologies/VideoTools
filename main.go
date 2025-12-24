@@ -2968,7 +2968,6 @@ func (s *appState) showMergeView() {
 		"MP4 (AV1)":                   "av1",
 		"WebM (VP9)":                  "webm-vp9",
 		"DVD Format":                  "dvd",
-		"Blu-ray Format":              "bd-h264",
 	}
 	// Maintain order for dropdown
 	formatKeys := []string{
@@ -2979,7 +2978,6 @@ func (s *appState) showMergeView() {
 		"MP4 (AV1)",
 		"WebM (VP9)",
 		"DVD Format",
-		"Blu-ray Format",
 	}
 
 	keepAllCheck := widget.NewCheck("Keep all audio/subtitle tracks", func(v bool) {
