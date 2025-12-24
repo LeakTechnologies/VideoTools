@@ -741,7 +741,7 @@ func BuildModuleBadge(jobType queue.JobType) fyne.CanvasObject {
 		badgeColor = utils.MustHex("#4A90E2")
 		badgeText = "CONVERT"
 	case queue.JobTypeMerge:
-		badgeColor = utils.MustHex("#E24A90")
+		badgeColor = utils.MustHex("#4488FF")
 		badgeText = "MERGE"
 	case queue.JobTypeTrim:
 		badgeColor = utils.MustHex("#90E24A")
