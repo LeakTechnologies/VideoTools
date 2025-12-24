@@ -122,11 +122,14 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 	padding := canvas.NewRectangle(color.Transparent)
 	padding.SetMinSize(fyne.NewSize(0, 4))
 
-	// Compact body without scrolling
-	body := container.NewVBox(
-		header,
-		padding,
-		container.NewVBox(sections...),
+	sectionsBox := container.NewVBox(sections...)
+	scroll := container.NewVScroll(sectionsBox)
+	scroll.SetMinSize(fyne.NewSize(0, 0))
+
+	body := container.NewBorder(
+		container.NewVBox(header, padding),
+		nil, nil, nil,
+		scroll,
 	)
 
 	// Wrap with HSplit if sidebar is visible
