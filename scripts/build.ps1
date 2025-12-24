@@ -59,8 +59,18 @@ Write-Host ""
 # Fyne needs CGO for GLFW/OpenGL bindings
 $env:CGO_ENABLED = "1"
 
-# Build the application
-go build -o $BUILD_OUTPUT .
+# Detect number of CPU cores for parallel compilation
+$numCores = (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
+if (-not $numCores -or $numCores -lt 1) {
+    $numCores = 4  # Fallback to 4 if detection fails
+}
+Write-Host "Using $numCores parallel build processes" -ForegroundColor Cyan
+
+# Build the application with optimizations
+# -p: Number of parallel build processes (use all cores)
+# -ldflags="-s -w": Strip debug info and symbol table (faster linking, smaller binary)
+# -trimpath: Remove absolute file paths from binary (faster builds, smaller binary)
+go build -p $numCores -ldflags="-s -w" -trimpath -o $BUILD_OUTPUT .
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "✓ Build successful!" -ForegroundColor Green

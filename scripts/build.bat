@@ -183,7 +183,18 @@ echo [INFO] Building VideoTools.exe...
 REM Enable CGO for Windows build (required for Fyne)
 set CGO_ENABLED=1
 
+REM Detect CPU cores for parallel compilation
+for /f "tokens=2 delims==" %%I in ('wmic cpu get NumberOfLogicalProcessors /value ^| find "="') do set NUM_CORES=%%I
+if not defined NUM_CORES set NUM_CORES=4
+echo [INFO] Using %NUM_CORES% parallel build processes
+
+REM Build with optimizations:
+REM -p: Parallel build processes (use all CPU cores)
+REM -trimpath: Remove absolute paths (faster builds, smaller binary)
+REM -ldflags: Strip debug info (-s -w) and use Windows GUI mode (-H windowsgui)
 go build ^
+    -p %NUM_CORES% ^
+    -trimpath ^
     -ldflags="-H windowsgui -s -w" ^
     -o VideoTools.exe ^
     .
