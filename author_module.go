@@ -1469,12 +1469,14 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 
 	err := s.runAuthoringPipeline(ctx, paths, region, aspect, title, outputPath, makeISO, clips, chapters, treatAsChapters, appendLog, updateProgress)
 	if err != nil {
+		friendly := authorFriendlyError(err)
+		appendLog("ERROR: " + friendly)
 		if app != nil && app.Driver() != nil {
 			app.Driver().DoFromGoroutine(func() {
-				s.setAuthorStatus("Authoring failed")
+				s.setAuthorStatus(friendly)
 			}, false)
 		}
-		return err
+		return fmt.Errorf("%s\nSee Authoring Log for details.", friendly)
 	}
 
 	if app != nil && app.Driver() != nil {
@@ -1485,6 +1487,37 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 	}
 	appendLog("Authoring completed successfully.")
 	return nil
+}
+
+func authorFriendlyError(err error) string {
+	if err == nil {
+		return "Authoring failed"
+	}
+	msg := err.Error()
+	lower := strings.ToLower(msg)
+	switch {
+	case strings.Contains(lower, "disk quota exceeded"),
+		strings.Contains(lower, "no space left"),
+		strings.Contains(lower, "not enough space"):
+		return "Not enough disk space for authoring output."
+	case strings.Contains(lower, "output folder must be empty"):
+		return "Output folder must be empty before authoring."
+	case strings.Contains(lower, "dvdauthor not found"):
+		return "dvdauthor not found. Install DVD authoring tools."
+	case strings.Contains(lower, "mkisofs"),
+		strings.Contains(lower, "genisoimage"),
+		strings.Contains(lower, "xorriso"):
+		return "ISO tool not found. Install mkisofs/genisoimage/xorriso."
+	case strings.Contains(lower, "permission denied"):
+		return "Permission denied writing to output folder."
+	case strings.Contains(lower, "ffmpeg"):
+		return "FFmpeg failed during DVD encoding."
+	default:
+		if len(msg) > 140 {
+			return "Authoring failed. See Authoring Log for details."
+		}
+		return msg
+	}
 }
 
 func prepareDiscRoot(path string) error {
