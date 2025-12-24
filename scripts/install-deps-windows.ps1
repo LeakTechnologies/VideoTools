@@ -4,7 +4,8 @@
 param(
     [switch]$UseScoop = $false,
     [switch]$SkipFFmpeg = $false,
-    [string]$DvdStylerUrl = ""
+    [string]$DvdStylerUrl = "",
+    [switch]$SkipDvdStyler = $false
 )
 
 Write-Host "===============================================================" -ForegroundColor Cyan
@@ -39,6 +40,10 @@ function Test-Command {
 
 # Ensure DVD authoring tools exist on Windows by downloading DVDStyler portable
 function Ensure-DVDStylerTools {
+    if ($SkipDvdStyler) {
+        Write-Host "[SKIP] DVD authoring tools skipped (DVDStyler)" -ForegroundColor Yellow
+        return
+    }
     $toolsRoot = Join-Path $PSScriptRoot "tools"
     $dvdstylerDir = Join-Path $toolsRoot "dvdstyler"
     $dvdstylerBin = Join-Path $dvdstylerDir "bin"
@@ -136,6 +141,8 @@ function Ensure-DVDStylerTools {
         Write-Host "[ERROR]  Failed to download DVDStyler ZIP (invalid archive)" -ForegroundColor Red
         Write-Host "Last URL tried: $lastUrl" -ForegroundColor Yellow
         Write-Host "Tip: Set VT_DVDSTYLER_URL to a direct ZIP link and retry." -ForegroundColor Yellow
+        Write-Host "Manual download page: https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/" -ForegroundColor Yellow
+        Write-Host "After download, extract and ensure bin\\dvdauthor.exe and bin\\mkisofs.exe are on PATH." -ForegroundColor Yellow
         exit 1
     }
 
