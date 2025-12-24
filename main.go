@@ -3747,92 +3747,97 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Video filters
+	remux := strings.EqualFold(selectedFormat.VideoCodec, "copy")
+	if vc, ok := cfg["videoCodec"].(string); ok && strings.EqualFold(vc, "Copy") {
+		remux = true
+	}
 	var vf []string
+	if !remux {
+		// Deinterlacing
+		shouldDeinterlace := false
+		deinterlaceMode, _ := cfg["deinterlace"].(string)
+		fieldOrder, _ := cfg["fieldOrder"].(string)
 
-	// Deinterlacing
-	shouldDeinterlace := false
-	deinterlaceMode, _ := cfg["deinterlace"].(string)
-	fieldOrder, _ := cfg["fieldOrder"].(string)
+		if deinterlaceMode == "Force" {
+			shouldDeinterlace = true
+		} else if deinterlaceMode == "Auto" || deinterlaceMode == "" {
+			// Auto-detect based on field order
+			if fieldOrder != "" && fieldOrder != "progressive" && fieldOrder != "unknown" {
+				shouldDeinterlace = true
+			}
+		}
 
-	if deinterlaceMode == "Force" {
-		shouldDeinterlace = true
-	} else if deinterlaceMode == "Auto" || deinterlaceMode == "" {
-		// Auto-detect based on field order
-		if fieldOrder != "" && fieldOrder != "progressive" && fieldOrder != "unknown" {
+		// Legacy support
+		if inverseTelecine, _ := cfg["inverseTelecine"].(bool); inverseTelecine {
 			shouldDeinterlace = true
 		}
-	}
 
-	// Legacy support
-	if inverseTelecine, _ := cfg["inverseTelecine"].(bool); inverseTelecine {
-		shouldDeinterlace = true
-	}
-
-	if shouldDeinterlace {
-		// Choose deinterlacing method
-		deintMethod, _ := cfg["deinterlaceMethod"].(string)
-		if deintMethod == "" {
-			deintMethod = "bwdif" // Default to bwdif (higher quality)
-		}
-
-		if deintMethod == "bwdif" {
-			vf = append(vf, "bwdif=mode=send_frame:parity=auto")
-		} else {
-			vf = append(vf, "yadif=0:-1:0")
-		}
-	}
-
-	// Auto-crop black bars (apply before scaling for best results)
-	if autoCrop, _ := cfg["autoCrop"].(bool); autoCrop {
-		cropWidth, _ := cfg["cropWidth"].(string)
-		cropHeight, _ := cfg["cropHeight"].(string)
-		cropX, _ := cfg["cropX"].(string)
-		cropY, _ := cfg["cropY"].(string)
-
-		if cropWidth != "" && cropHeight != "" {
-			cropW := strings.TrimSpace(cropWidth)
-			cropH := strings.TrimSpace(cropHeight)
-			cropXStr := strings.TrimSpace(cropX)
-			cropYStr := strings.TrimSpace(cropY)
-
-			// Default to center crop if X/Y not specified
-			if cropXStr == "" {
-				cropXStr = "(in_w-out_w)/2"
-			}
-			if cropYStr == "" {
-				cropYStr = "(in_h-out_h)/2"
+		if shouldDeinterlace {
+			// Choose deinterlacing method
+			deintMethod, _ := cfg["deinterlaceMethod"].(string)
+			if deintMethod == "" {
+				deintMethod = "bwdif" // Default to bwdif (higher quality)
 			}
 
-			cropFilter := fmt.Sprintf("crop=%s:%s:%s:%s", cropW, cropH, cropXStr, cropYStr)
-			vf = append(vf, cropFilter)
-			logging.Debug(logging.CatFFMPEG, "applying crop in queue job: %s", cropFilter)
+			if deintMethod == "bwdif" {
+				vf = append(vf, "bwdif=mode=send_frame:parity=auto")
+			} else {
+				vf = append(vf, "yadif=0:-1:0")
+			}
 		}
-	}
 
-	// Scaling/Resolution
-	targetResolution, _ := cfg["targetResolution"].(string)
-	if targetResolution != "" && targetResolution != "Source" {
-		var scaleFilter string
-		switch targetResolution {
-		case "360p":
-			scaleFilter = "scale=-2:360"
-		case "480p":
-			scaleFilter = "scale=-2:480"
-		case "540p":
-			scaleFilter = "scale=-2:540"
-		case "720p":
-			scaleFilter = "scale=-2:720"
-		case "1080p":
-			scaleFilter = "scale=-2:1080"
-		case "1440p":
-			scaleFilter = "scale=-2:1440"
-		case "4K":
-			scaleFilter = "scale=-2:2160"
-		case "8K":
-			scaleFilter = "scale=-2:4320"
+		// Auto-crop black bars (apply before scaling for best results)
+		if autoCrop, _ := cfg["autoCrop"].(bool); autoCrop {
+			cropWidth, _ := cfg["cropWidth"].(string)
+			cropHeight, _ := cfg["cropHeight"].(string)
+			cropX, _ := cfg["cropX"].(string)
+			cropY, _ := cfg["cropY"].(string)
+
+			if cropWidth != "" && cropHeight != "" {
+				cropW := strings.TrimSpace(cropWidth)
+				cropH := strings.TrimSpace(cropHeight)
+				cropXStr := strings.TrimSpace(cropX)
+				cropYStr := strings.TrimSpace(cropY)
+
+				// Default to center crop if X/Y not specified
+				if cropXStr == "" {
+					cropXStr = "(in_w-out_w)/2"
+				}
+				if cropYStr == "" {
+					cropYStr = "(in_h-out_h)/2"
+				}
+
+				cropFilter := fmt.Sprintf("crop=%s:%s:%s:%s", cropW, cropH, cropXStr, cropYStr)
+				vf = append(vf, cropFilter)
+				logging.Debug(logging.CatFFMPEG, "applying crop in queue job: %s", cropFilter)
+			}
 		}
-		if scaleFilter != "" {
-			vf = append(vf, scaleFilter)
+
+		// Scaling/Resolution
+		targetResolution, _ := cfg["targetResolution"].(string)
+		if targetResolution != "" && targetResolution != "Source" {
+			var scaleFilter string
+			switch targetResolution {
+			case "360p":
+				scaleFilter = "scale=-2:360"
+			case "480p":
+				scaleFilter = "scale=-2:480"
+			case "540p":
+				scaleFilter = "scale=-2:540"
+			case "720p":
+				scaleFilter = "scale=-2:720"
+			case "1080p":
+				scaleFilter = "scale=-2:1080"
+			case "1440p":
+				scaleFilter = "scale=-2:1440"
+			case "4K":
+				scaleFilter = "scale=-2:2160"
+			case "8K":
+				scaleFilter = "scale=-2:4320"
+			}
+			if scaleFilter != "" {
+				vf = append(vf, scaleFilter)
+			}
 		}
 	}
 
