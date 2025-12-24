@@ -308,6 +308,9 @@ func buildJobItem(
 	if job.Status == queue.JobStatusRunning {
 		progress.SetActivity(job.Progress <= 0.01)
 		progress.StartAnimation()
+	} else {
+		progress.SetActivity(false)
+		progress.StopAnimation()
 	}
 	progressWidget := progress
 
