@@ -7559,6 +7559,31 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				audioCodecSelect.Enable()
 			}
 		}
+		if remux {
+			state.convert.AspectUserSet = false
+			if syncAspect != nil {
+				syncAspect("Source", false)
+			}
+			if targetAspectSelectSimple != nil {
+				targetAspectSelectSimple.Disable()
+			}
+			if targetAspectSelect != nil {
+				targetAspectSelect.Disable()
+			}
+			aspectOptions.Disable()
+			aspectBox.Hide()
+		} else {
+			if targetAspectSelectSimple != nil {
+				targetAspectSelectSimple.Enable()
+			}
+			if targetAspectSelect != nil {
+				targetAspectSelect.Enable()
+			}
+			aspectOptions.Enable()
+			if updateAspectBoxVisibility != nil {
+				updateAspectBoxVisibility()
+			}
+		}
 	}
 
 	simpleEncodingSection = container.NewVBox(
