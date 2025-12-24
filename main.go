@@ -939,6 +939,9 @@ type appState struct {
 	ripProgressBar *widget.ProgressBar
 	ripStatusLabel *widget.Label
 
+	queueAutoRefreshStop    chan struct{}
+	queueAutoRefreshRunning bool
+
 	// Subtitles module state
 	subtitleVideoPath   string
 	subtitleFilePath    string
@@ -1549,6 +1552,7 @@ func (s *appState) showErrorWithCopy(title string, err error) {
 func (s *appState) showMainMenu() {
 	s.stopPreview()
 	s.stopPlayer()
+	s.stopQueueAutoRefresh()
 	s.active = ""
 
 	// Track navigation history
@@ -1657,6 +1661,7 @@ func (s *appState) showQueue() {
 	s.lastModule = s.active
 	s.active = "queue"
 	s.refreshQueueView()
+	s.startQueueAutoRefresh()
 }
 
 // refreshQueueView rebuilds the queue UI while preserving scroll position and inline active conversion.
@@ -1833,6 +1838,49 @@ func (s *appState) refreshQueueView() {
 	}
 
 	s.setContent(container.NewPadded(view))
+}
+
+func (s *appState) startQueueAutoRefresh() {
+	if s.queueAutoRefreshRunning {
+		return
+	}
+	stop := make(chan struct{})
+	s.queueAutoRefreshStop = stop
+	s.queueAutoRefreshRunning = true
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				if s.active != "queue" {
+					return
+				}
+				app := fyne.CurrentApp()
+				if app == nil || app.Driver() == nil {
+					continue
+				}
+				app.Driver().DoFromGoroutine(func() {
+					if s.active == "queue" {
+						s.refreshQueueView()
+					}
+				}, false)
+			}
+		}
+	}()
+}
+
+func (s *appState) stopQueueAutoRefresh() {
+	if !s.queueAutoRefreshRunning {
+		return
+	}
+	if s.queueAutoRefreshStop != nil {
+		close(s.queueAutoRefreshStop)
+	}
+	s.queueAutoRefreshStop = nil
+	s.queueAutoRefreshRunning = false
 }
 
 // addConvertToQueue adds a conversion job to the queue
@@ -2278,6 +2326,9 @@ func (s *appState) showBenchmarkHistory() {
 }
 
 func (s *appState) showModule(id string) {
+	if id != "queue" {
+		s.stopQueueAutoRefresh()
+	}
 	// Track navigation history
 	s.pushNavigationHistory(id)
 
@@ -9259,31 +9310,45 @@ func (p *playSession) runVideo(offset float64) {
 				return
 			}
 
-			// Adaptive frame timing with drift correction
-			now := time.Now()
-			behind := now.Sub(nextFrameAt)
+			// Sync video to audio master clock
+			videoFrameTime := offset + (float64(p.frameN) / p.fps)
+			p.videoTime = videoFrameTime
 
-			if behind < 0 {
-				// We're ahead of schedule, sleep until next frame time
-				time.Sleep(-behind)
-				nextFrameAt = nextFrameAt.Add(frameDur)
-			} else if behind > frameDur*3 {
-				// We're way behind (>3 frames), drop this frame and resync
-				if p.frameN%30 == 0 { // Log occasionally to avoid spam
-					logging.Debug(logging.CatFFMPEG, "dropping frame %d, %.0fms behind", p.frameN, behind.Seconds()*1000)
-				}
-				nextFrameAt = now
-				p.frameN++
-				if p.fps > 0 {
-					p.current = offset + (float64(p.frameN) / p.fps)
-				}
-				continue
-			} else if behind > frameDur/2 {
-				// We're moderately behind, try to catch up gradually
-				nextFrameAt = now.Add(frameDur / 2)
+			// Get audio clock time
+			var audioClockTime float64
+			if audioTimeVal := p.audioTime.Load(); audioTimeVal != nil {
+				audioClockTime = audioTimeVal.(float64)
 			} else {
-				// We're slightly behind or on time, maintain normal pace
-				nextFrameAt = nextFrameAt.Add(frameDur)
+				audioClockTime = videoFrameTime
+			}
+
+			// Calculate A/V sync difference
+			avDiff := videoFrameTime - audioClockTime
+
+			// Adaptive timing based on A/V sync
+			if avDiff < -frameDur.Seconds()*3 {
+				// Video is way ahead of audio (>3 frames) - wait longer
+				time.Sleep(frameDur * 2)
+				if p.frameN%30 == 0 {
+					logging.Debug(logging.CatFFMPEG, "video ahead %.0fms, slowing down", -avDiff*1000)
+				}
+			} else if avDiff > frameDur.Seconds()*3 {
+				// Video is way behind audio (>3 frames) - drop frame
+				if p.frameN%30 == 0 {
+					logging.Debug(logging.CatFFMPEG, "video behind %.0fms, dropping frame", avDiff*1000)
+				}
+				p.frameN++
+				p.current = offset + (float64(p.frameN) / p.fps)
+				continue
+			} else if avDiff > frameDur.Seconds() {
+				// Video slightly behind - speed up (skip sleep)
+				// No sleep, render frame immediately
+			} else if avDiff < -frameDur.Seconds() {
+				// Video slightly ahead - slow down
+				time.Sleep(frameDur + time.Duration(math.Abs(avDiff)*float64(time.Second)))
+			} else {
+				// In sync - normal timing
+				time.Sleep(frameDur)
 			}
 			// Allocate a fresh frame to avoid concurrent texture reuse issues.
 			frame := image.NewRGBA(image.Rect(0, 0, p.targetW, p.targetH))
