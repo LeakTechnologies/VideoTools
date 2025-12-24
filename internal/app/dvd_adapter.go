@@ -20,11 +20,11 @@ func NewDVDConfig() *DVDConvertConfig {
 func (d *DVDConvertConfig) GetFFmpegArgs(inputPath, outputPath string, videoWidth, videoHeight int, videoFramerate float64, audioSampleRate int, isProgressive bool) []string {
 	// Create a minimal videoSource for passing to BuildDVDFFmpegArgs
 	tempSrc := &convert.VideoSource{
-		Width:           videoWidth,
-		Height:          videoHeight,
-		FrameRate:       videoFramerate,
-		AudioRate:       audioSampleRate,
-		FieldOrder:      fieldOrderFromProgressive(isProgressive),
+		Width:      videoWidth,
+		Height:     videoHeight,
+		FrameRate:  videoFramerate,
+		AudioRate:  audioSampleRate,
+		FieldOrder: fieldOrderFromProgressive(isProgressive),
 	}
 
 	return convert.BuildDVDFFmpegArgs(inputPath, outputPath, d.cfg, tempSrc)
@@ -59,16 +59,16 @@ func fieldOrderFromProgressive(isProgressive bool) string {
 
 // DVDPresetInfo provides information about DVD-NTSC capability
 type DVDPresetInfo struct {
-	Name          string
-	Description   string
-	VideoCodec    string
-	AudioCodec    string
-	Container     string
-	Resolution    string
-	FrameRate     string
+	Name           string
+	Description    string
+	VideoCodec     string
+	AudioCodec     string
+	Container      string
+	Resolution     string
+	FrameRate      string
 	DefaultBitrate string
-	MaxBitrate    string
-	Features      []string
+	MaxBitrate     string
+	Features       []string
 }
 
 // GetDVDPresetInfo returns detailed information about the DVD-NTSC preset

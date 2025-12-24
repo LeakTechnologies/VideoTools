@@ -13,15 +13,15 @@ import (
 
 // HardwareInfo contains system hardware information
 type HardwareInfo struct {
-	CPU        string `json:"cpu"`
-	CPUCores   int    `json:"cpu_cores"`
-	CPUMHz     string `json:"cpu_mhz"`
-	GPU        string `json:"gpu"`
-	GPUDriver  string `json:"gpu_driver"`
-	RAM        string `json:"ram"`
-	RAMMBytes  uint64 `json:"ram_mb"`
-	OS         string `json:"os"`
-	Arch       string `json:"arch"`
+	CPU       string `json:"cpu"`
+	CPUCores  int    `json:"cpu_cores"`
+	CPUMHz    string `json:"cpu_mhz"`
+	GPU       string `json:"gpu"`
+	GPUDriver string `json:"gpu_driver"`
+	RAM       string `json:"ram"`
+	RAMMBytes uint64 `json:"ram_mb"`
+	OS        string `json:"os"`
+	Arch      string `json:"arch"`
 }
 
 // Detect gathers system hardware information

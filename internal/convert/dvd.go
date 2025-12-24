@@ -206,8 +206,8 @@ func normalizeFrameRate(rate float64) string {
 	}
 	// Check for common framerates with tolerance
 	checks := []struct {
-		name      string
-		min, max  float64
+		name     string
+		min, max float64
 	}{
 		{"23.976", 23.9, 24.0},
 		{"24.0", 23.99, 24.01},
