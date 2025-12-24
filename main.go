@@ -2947,6 +2947,8 @@ func (s *appState) showMergeView() {
 		switch {
 		case strings.HasPrefix(format, "dvd"):
 			return ".mpg"
+		case strings.HasPrefix(format, "webm"):
+			return ".webm"
 		case strings.HasPrefix(format, "mkv"), strings.HasPrefix(format, "bd"):
 			return ".mkv"
 		case strings.HasPrefix(format, "mp4"):
@@ -2961,6 +2963,7 @@ func (s *appState) showMergeView() {
 		"Lossless MKV (Best Quality)": "mkv-lossless",
 		"High Quality MP4 (H.264)":    "mp4-h264",
 		"High Quality MP4 (H.265)":    "mp4-h265",
+		"WebM (VP9)":                  "webm-vp9",
 		"DVD Format":                  "dvd",
 		"Blu-ray Format":              "bd-h264",
 	}
@@ -2970,6 +2973,7 @@ func (s *appState) showMergeView() {
 		"Lossless MKV (Best Quality)",
 		"High Quality MP4 (H.264)",
 		"High Quality MP4 (H.265)",
+		"WebM (VP9)",
 		"DVD Format",
 		"Blu-ray Format",
 	}
@@ -3188,6 +3192,8 @@ func (s *appState) addMergeToQueue(startNow bool) error {
 	switch {
 	case strings.HasPrefix(s.mergeFormat, "dvd"):
 		correctExt = ".mpg"
+	case strings.HasPrefix(s.mergeFormat, "webm"):
+		correctExt = ".webm"
 	case strings.HasPrefix(s.mergeFormat, "mkv"), strings.HasPrefix(s.mergeFormat, "bd"):
 		correctExt = ".mkv"
 	case strings.HasPrefix(s.mergeFormat, "mp4"):
@@ -3487,6 +3493,14 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 			"-preset", "slow",
 			"-crf", "18",
 			"-c:a", "flac",
+		)
+	case "webm-vp9":
+		args = append(args,
+			"-c:v", "libvpx-vp9",
+			"-b:v", "0",
+			"-crf", "32",
+			"-c:a", "libopus",
+			"-b:a", "128k",
 		)
 	case "mp4-h264":
 		args = append(args,
