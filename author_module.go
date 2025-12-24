@@ -406,6 +406,19 @@ func buildSubtitlesTab(state *appState) fyne.CanvasObject {
 	})
 	addBtn.Importance = widget.HighImportance
 
+	openSubtitlesBtn := widget.NewButton("Open Subtitles Tool", func() {
+		if state.authorFile != nil {
+			state.subtitleVideoPath = state.authorFile.Path
+		} else if len(state.authorClips) > 0 {
+			state.subtitleVideoPath = state.authorClips[0].Path
+		}
+		if len(state.authorSubtitles) > 0 {
+			state.subtitleFilePath = state.authorSubtitles[0]
+		}
+		state.showSubtitlesView()
+	})
+	openSubtitlesBtn.Importance = widget.MediumImportance
+
 	clearBtn := widget.NewButton("Clear All", func() {
 		state.authorSubtitles = []string{}
 		buildSubList()
@@ -435,7 +448,7 @@ func buildSubtitlesTab(state *appState) fyne.CanvasObject {
 
 	controls := container.NewBorder(
 		widget.NewLabel("Subtitle Tracks:"),
-		container.NewHBox(addBtn, clearBtn),
+		container.NewHBox(addBtn, openSubtitlesBtn, clearBtn),
 		nil,
 		nil,
 		listArea,
