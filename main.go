@@ -5904,10 +5904,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		targetSizeContainer  *fyne.Container
 		resetConvertDefaults func()
 		tabs                 *container.AppTabs
+		simpleEncodingSection      *fyne.Container
+		advancedVideoEncodingBlock *fyne.Container
+		audioEncodingSection       *fyne.Container
+		audioCodecSelect           *widget.Select
 	)
 	var (
 		updateEncodingControls  func()
 		updateQualityVisibility func()
+		updateRemuxVisibility   func()
 		buildCommandPreview     func()
 		updateQualityOptions    func() // Update quality dropdown based on codec
 	)
@@ -6294,6 +6299,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if updateQualityVisibility != nil {
 			updateQualityVisibility()
 		}
+		if updateRemuxVisibility != nil {
+			updateRemuxVisibility()
+		}
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
@@ -6335,7 +6343,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	var audioCodecSelect *widget.Select
 	formatSelect := widget.NewSelect(formatLabels, func(value string) {
 		for _, opt := range formatOptions {
 			if opt.Label == value {
@@ -6363,6 +6370,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				}
 				if updateQualityVisibility != nil {
 					updateQualityVisibility()
+				}
+				if updateRemuxVisibility != nil {
+					updateRemuxVisibility()
 				}
 				if buildCommandPreview != nil {
 					buildCommandPreview()
@@ -7510,6 +7520,58 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
+	updateRemuxVisibility = func() {
+		remux := strings.EqualFold(state.convert.SelectedFormat.VideoCodec, "copy") ||
+			strings.EqualFold(state.convert.VideoCodec, "Copy")
+
+		if simpleEncodingSection != nil {
+			if remux {
+				simpleEncodingSection.Hide()
+			} else {
+				simpleEncodingSection.Show()
+			}
+		}
+		if advancedVideoEncodingBlock != nil {
+			if remux {
+				advancedVideoEncodingBlock.Hide()
+			} else {
+				advancedVideoEncodingBlock.Show()
+			}
+		}
+		if audioEncodingSection != nil {
+			if remux {
+				audioEncodingSection.Hide()
+			} else {
+				audioEncodingSection.Show()
+			}
+		}
+		if videoCodecSelect != nil {
+			if remux {
+				videoCodecSelect.Disable()
+			} else {
+				videoCodecSelect.Enable()
+			}
+		}
+		if audioCodecSelect != nil {
+			if remux {
+				audioCodecSelect.Disable()
+			} else {
+				audioCodecSelect.Enable()
+			}
+		}
+	}
+
+	simpleEncodingSection = container.NewVBox(
+		qualitySectionSimple,
+		widget.NewLabelWithStyle("Encoder Speed/Quality", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabel("Choose slower for better compression, faster for speed"),
+		widget.NewLabelWithStyle("Encoder Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		simplePresetSelect,
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle("Bitrate (simple presets)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		simpleBitrateSelect,
+	)
+
 	// Simple mode options - minimal controls, aspect locked to Source
 	simpleOptions := container.NewVBox(
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
@@ -7521,14 +7583,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		outputEntry,
 		outputHint,
 		widget.NewSeparator(),
-		qualitySectionSimple,
-		widget.NewLabelWithStyle("Encoder Speed/Quality", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Choose slower for better compression, faster for speed"),
-		widget.NewLabelWithStyle("Encoder Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		simplePresetSelect,
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Bitrate (simple presets)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		simpleBitrateSelect,
+		simpleEncodingSection,
 		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelectSimple,
 		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -7541,18 +7596,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	)
 
 	// Advanced mode options - full controls with organized sections
-	advancedOptions := container.NewVBox(
-		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		formatSelect,
-		chapterWarningLabel, // Warning when converting chapters to DVD
-		dvdAspectBox,        // DVD options appear here when DVD format selected
-		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		outputEntry,
-		outputHint,
-		coverDisplay,
-		widget.NewSeparator(),
-
+	advancedVideoEncodingBlock = container.NewVBox(
 		widget.NewLabelWithStyle("═══ VIDEO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Video Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		videoCodecSelect,
@@ -7578,6 +7622,30 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		hwAccelSelect,
 		hwAccelHint,
 		twoPassCheck,
+	)
+
+	audioEncodingSection = container.NewVBox(
+		widget.NewLabelWithStyle("═══ AUDIO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Audio Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		audioCodecSelect,
+		widget.NewLabelWithStyle("Audio Bitrate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		audioBitrateSelect,
+		widget.NewLabelWithStyle("Audio Channels", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		audioChannelsSelect,
+	)
+
+	advancedOptions := container.NewVBox(
+		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		formatSelect,
+		chapterWarningLabel, // Warning when converting chapters to DVD
+		dvdAspectBox,        // DVD options appear here when DVD format selected
+		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		outputEntry,
+		outputHint,
+		coverDisplay,
+		widget.NewSeparator(),
+		advancedVideoEncodingBlock,
 		widget.NewSeparator(),
 
 		widget.NewLabelWithStyle("═══ ASPECT RATIO ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
@@ -7587,13 +7655,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		aspectBox,
 		widget.NewSeparator(),
 
-		widget.NewLabelWithStyle("═══ AUDIO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		widget.NewLabelWithStyle("Audio Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		audioCodecSelect,
-		widget.NewLabelWithStyle("Audio Bitrate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		audioBitrateSelect,
-		widget.NewLabelWithStyle("Audio Channels", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		audioChannelsSelect,
+		audioEncodingSection,
 		widget.NewSeparator(),
 
 		widget.NewLabelWithStyle("═══ AUTO-CROP ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
@@ -7686,6 +7748,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if updateQualityVisibility != nil {
 			updateQualityVisibility()
 		}
+		if updateRemuxVisibility != nil {
+			updateRemuxVisibility()
+		}
 		state.persistConvertConfig()
 	}
 
@@ -7700,6 +7765,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	if updateQualityVisibility != nil {
 		updateQualityVisibility()
+	}
+	if updateRemuxVisibility != nil {
+		updateRemuxVisibility()
 	}
 
 	tabs = container.NewAppTabs(
