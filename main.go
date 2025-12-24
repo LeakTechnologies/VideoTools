@@ -385,36 +385,70 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 	d.SetOnClosed(func() { close(stop) })
 	d.Show()
 
+	readTail := func() string {
+		const maxBytes int64 = 200 * 1024
+		info, err := os.Stat(path)
+		if err != nil {
+			return fmt.Sprintf("Failed to read log: %v", err)
+		}
+		size := info.Size()
+		start := int64(0)
+		if size > maxBytes {
+			start = size - maxBytes
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			return fmt.Sprintf("Failed to read log: %v", err)
+		}
+		defer f.Close()
+		if start > 0 {
+			if _, err := f.Seek(start, io.SeekStart); err != nil {
+				return fmt.Sprintf("Failed to read log: %v", err)
+			}
+		}
+		data, err := io.ReadAll(f)
+		if err != nil {
+			return fmt.Sprintf("Failed to read log: %v", err)
+		}
+		if start > 0 {
+			return fmt.Sprintf("... showing last %d KB ...\n%s", maxBytes/1024, string(data))
+		}
+		return string(data)
+	}
+
 	// Read file asynchronously to avoid blocking UI
 	go func() {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				text.SetText(fmt.Sprintf("Failed to read log: %v", err))
-			}, false)
-			return
-		}
-
+		content := readTail()
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			text.SetText(string(data))
+			text.SetText(content)
 			// Auto-scroll to bottom
 			scroll.ScrollToBottom()
 		}, false)
 
 		// Start live updates if requested
 		if live {
-			ticker := time.NewTicker(1 * time.Second)
+			ticker := time.NewTicker(2 * time.Second)
 			defer ticker.Stop()
+			var lastSize int64 = -1
+			var lastText string
 			for {
 				select {
 				case <-stop:
 					return
 				case <-ticker.C:
-					b, err := os.ReadFile(path)
+					info, err := os.Stat(path)
 					if err != nil {
-						b = []byte(fmt.Sprintf("failed to read log: %v", err))
+						continue
 					}
-					content := string(b)
+					if info.Size() == lastSize {
+						continue
+					}
+					lastSize = info.Size()
+					content := readTail()
+					if content == lastText {
+						continue
+					}
+					lastText = content
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 						text.SetText(content)
 					}, false)
