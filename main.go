@@ -2008,7 +2008,7 @@ func (s *appState) addAllConvertToQueue() (int, error) {
 }
 
 func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used map[string]struct{}) error {
-	outputBase := s.resolveOutputBase(src, true)
+	outputBase := s.resolveOutputBase(src, false)
 	cfg := s.convert
 	cfg.OutputBase = outputBase
 
