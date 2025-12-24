@@ -51,6 +51,12 @@ func HandleAuthor(files []string) {
 	// File loading is managed in buildAuthorView()
 }
 
+// HandleRip handles the rip module (placeholder)
+func HandleRip(files []string) {
+	logging.Debug(logging.CatModule, "rip handler invoked with %v", files)
+	fmt.Println("rip", files)
+}
+
 // HandleSubtitles handles the subtitles module (placeholder)
 func HandleSubtitles(files []string) {
 	logging.Debug(logging.CatModule, "subtitles handler invoked with %v", files)

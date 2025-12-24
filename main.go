@@ -88,6 +88,7 @@ var (
 		{"upscale", "Upscale", utils.MustHex("#AAFF44"), "Advanced", modules.HandleUpscale},      // Yellow-Green
 		{"audio", "Audio", utils.MustHex("#FFD744"), "Convert", modules.HandleAudio},             // Yellow
 		{"author", "Author", utils.MustHex("#FFAA44"), "Convert", modules.HandleAuthor},          // Orange
+		{"rip", "Rip", utils.MustHex("#FF9944"), "Convert", modules.HandleRip},                   // Orange
 		{"subtitles", "Subtitles", utils.MustHex("#44A6FF"), "Convert", modules.HandleSubtitles}, // Azure
 		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},         // Orange
 		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},       // Pink
@@ -927,6 +928,17 @@ type appState struct {
 	authorStatusLabel     *widget.Label
 	authorVideoTSPath     string
 
+	// Rip module state
+	ripSourcePath  string
+	ripOutputPath  string
+	ripFormat      string
+	ripLogText     string
+	ripLogEntry    *widget.Entry
+	ripLogScroll   *container.Scroll
+	ripProgress    float64
+	ripProgressBar *widget.ProgressBar
+	ripStatusLabel *widget.Label
+
 	// Subtitles module state
 	subtitleVideoPath   string
 	subtitleFilePath    string
@@ -1547,7 +1559,7 @@ func (s *appState) showMainMenu() {
 			Label:    m.Label,
 			Color:    m.Color,
 			Category: m.Category,
-			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale" || m.ID == "author" || m.ID == "subtitles", // Enabled modules
+			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale" || m.ID == "author" || m.ID == "subtitles" || m.ID == "rip", // Enabled modules
 		})
 	}
 
@@ -2285,6 +2297,8 @@ func (s *appState) showModule(id string) {
 		s.showUpscaleView()
 	case "author":
 		s.showAuthorView()
+	case "rip":
+		s.showRipView()
 	case "subtitles":
 		s.showSubtitlesView()
 	case "mainmenu":
@@ -2535,6 +2549,15 @@ func (s *appState) isSubtitleFile(path string) bool {
 		}
 	}
 	return false
+}
+
+func firstLocalDropPath(items []fyne.URI) string {
+	for _, uri := range items {
+		if uri.Scheme() == "file" {
+			return uri.Path()
+		}
+	}
+	return ""
 }
 
 // findVideoFiles recursively finds all video files in a directory
@@ -3217,6 +3240,8 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 		return s.executeSnippetJob(ctx, job, progressCallback)
 	case queue.JobTypeAuthor:
 		return s.executeAuthorJob(ctx, job, progressCallback)
+	case queue.JobTypeRip:
+		return s.executeRipJob(ctx, job, progressCallback)
 	default:
 		return fmt.Errorf("unknown job type: %s", job.Type)
 	}
@@ -9603,6 +9628,19 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		s.addAuthorFiles(videoPaths)
 		s.showAuthorView()
+		return
+	}
+
+	// If in rip module, accept DVD/ISO/VIDEO_TS paths
+	if s.active == "rip" {
+		path := firstLocalDropPath(items)
+		if path == "" {
+			logging.Debug(logging.CatUI, "no valid paths in dropped items")
+			return
+		}
+		s.ripSourcePath = path
+		s.ripOutputPath = defaultRipOutputPath(path, s.ripFormat)
+		s.showRipView()
 		return
 	}
 
