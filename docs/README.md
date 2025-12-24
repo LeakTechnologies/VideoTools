@@ -1,6 +1,6 @@
 # VideoTools Documentation
 
-VideoTools is a professional-grade video processing suite with a modern GUI, currently on v0.1.0-dev18. It specializes in creating DVD-compliant videos for authoring and distribution.
+VideoTools is a professional-grade video processing suite with a modern GUI, currently on v0.1.0-dev20. It specializes in creating DVD-compliant videos for authoring and distribution.
 
 ## Documentation Structure
 
@@ -18,7 +18,7 @@ VideoTools is a professional-grade video processing suite with a modern GUI, cur
 - [Upscale](upscale/) - Resolution enhancement *(AI + traditional now wired)*
 - [Audio](audio/) - Audio track operations *(planned)*
 - [Thumb](thumb/) - Thumbnail generation *(planned)*
-- [Rip](rip/) - DVD/Blu-ray extraction *(planned)*
+- [Rip](rip/) - DVD/ISO/VIDEO_TS extraction and conversion
 
 ### Additional Modules (Proposed)
 - [Subtitle](subtitle/) - Subtitle management *(planned)*
