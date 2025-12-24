@@ -9414,6 +9414,7 @@ func (p *playSession) runAudio(offset float64) {
 		// Larger chunks reduce read frequency and improve performance
 		chunk := make([]byte, 16384)
 		loggedFirst := false
+		bytesWritten := int64(0) // Track total audio bytes for master clock
 		for {
 			select {
 			case <-p.stop:
@@ -9434,6 +9435,13 @@ func (p *playSession) runAudio(offset float64) {
 				// Volume is now handled by FFmpeg, just write directly
 				// This eliminates per-sample processing overhead
 				localPlayer.Write(chunk[:n])
+
+				// Update audio master clock for A/V sync
+				bytesWritten += int64(n)
+				// Calculate elapsed audio time: bytes / (sampleRate * channels * bytesPerSample)
+				elapsedTime := float64(bytesWritten) / float64(sampleRate*channels*bytesPerSample)
+				currentAudioTime := offset + elapsedTime
+				p.audioTime.Store(currentAudioTime)
 			}
 			if err != nil {
 				if !errors.Is(err, io.EOF) {
