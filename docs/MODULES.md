@@ -135,20 +135,17 @@ Comprehensive metadata viewer and editor:
 
 **Current Status:** Basic metadata viewing implemented, advanced features planned.
 
-### Rip 🔄 PLANNED
+### Rip ✅ IMPLEMENTED
 Extract and convert content from optical media and disc images:
-- ⏳ Rip directly from DVD/Blu-ray drives to video files
-- ⏳ Extract from ISO, IMG, and other disc image formats
-- ⏳ Title and chapter selection
-- ⏳ Preserve or transcode during extraction
-- ⏳ Handle copy protection (via libdvdcss/libaacs when available)
-- ⏳ Subtitle and audio track selection
-- ⏳ Batch ripping of multiple titles
-- ⏳ Output to lossless or compressed formats
+- ✅ Rip from VIDEO_TS folders
+- ✅ Extract from ISO images (requires `xorriso` or `bsdtar`)
+- ✅ Default lossless DVD → MKV (stream copy)
+- ✅ Optional H.264 MKV/MP4 outputs
+- ✅ Queue-based execution with logs and progress
 
-**FFmpeg Features:** DVD/Blu-ray input, concat, stream copying
+**FFmpeg Features:** concat demuxer, stream copy, H.264 encoding
 
-**Current Status:** Planned for dev16, requires legal research and library integration.
+**Current Status:** Available in dev20+. Physical disc and multi-title selection are still planned.
 
 ### Blu-ray 🔄 PLANNED
 Professional Blu-ray Disc authoring and encoding system:
