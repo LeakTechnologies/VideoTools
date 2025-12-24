@@ -1,4 +1,4 @@
-# VideoTools - Professional Video Processing Suite
+# VideoTools - Video Processing Suite
 
 ## What is VideoTools?
 
