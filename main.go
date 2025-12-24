@@ -2937,10 +2937,6 @@ func (s *appState) showMergeView() {
 			addFiles([]string{path})
 		}, s.window)
 	})
-	clearBtn := widget.NewButton("Clear", func() {
-		s.mergeClips = nil
-		buildList()
-	})
 
 	// Helper to get file extension for format
 	getExtForFormat := func(format string) string {
@@ -2997,6 +2993,13 @@ func (s *appState) showMergeView() {
 	outputEntry.OnChanged = func(val string) {
 		s.mergeOutput = val
 	}
+
+	clearBtn := widget.NewButton("Clear", func() {
+		s.mergeClips = nil
+		s.mergeOutput = ""
+		outputEntry.SetText("")
+		buildList()
+	})
 
 	// Helper to update output path extension (requires outputEntry to exist)
 	updateOutputExt := func() {
@@ -8975,30 +8978,31 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 }
 
 type playSession struct {
-	path       string
-	fps        float64
-	width      int
-	height     int
-	targetW    int
-	targetH    int
-	volume     float64
-	muted      bool
-	paused     bool
-	current    float64
-	stop       chan struct{}
-	done       chan struct{}
-	prog       func(float64)
-	frameFunc  func(int) // Callback for frame number updates
-	img        *canvas.Image
-	mu         sync.Mutex
-	videoCmd   *exec.Cmd
-	audioCmd   *exec.Cmd
-	frameN     int
-	duration   float64 // Total duration in seconds
-	startTime  time.Time
-	audioTime  atomic.Value // float64 - Audio master clock time
-	videoTime  float64      // Last video frame time
-	syncOffset float64      // A/V sync offset for adjustment
+	path        string
+	fps         float64
+	width       int
+	height      int
+	targetW     int
+	targetH     int
+	volume      float64
+	muted       bool
+	paused      bool
+	current     float64
+	stop        chan struct{}
+	done        chan struct{}
+	prog        func(float64)
+	frameFunc   func(int) // Callback for frame number updates
+	img         *canvas.Image
+	mu          sync.Mutex
+	videoCmd    *exec.Cmd
+	audioCmd    *exec.Cmd
+	frameN      int
+	duration    float64 // Total duration in seconds
+	startTime   time.Time
+	audioTime   atomic.Value // float64 - Audio master clock time
+	videoTime   float64      // Last video frame time
+	syncOffset  float64      // A/V sync offset for adjustment
+	audioActive atomic.Bool  // Whether audio stream is running
 }
 
 var audioCtxGlobal struct {
@@ -9304,24 +9308,32 @@ func (p *playSession) runVideo(offset float64) {
 				// Video is way ahead of audio (>3 frames) - wait longer
 				time.Sleep(frameDur * 2)
 				if p.frameN%30 == 0 {
-					logging.Debug(logging.CatFFMPEG, "video ahead %.0fms, slowing down", -avDiff*1000)
+					logging.Debug(logging.CatFFMPEG, "A/V sync: video ahead %.0fms, slowing down", -avDiff*1000)
 				}
 			} else if avDiff > frameDur.Seconds()*3 {
 				// Video is way behind audio (>3 frames) - drop frame
 				if p.frameN%30 == 0 {
-					logging.Debug(logging.CatFFMPEG, "video behind %.0fms, dropping frame", avDiff*1000)
+					logging.Debug(logging.CatFFMPEG, "A/V sync: video behind %.0fms, dropping frame", avDiff*1000)
 				}
 				p.frameN++
 				p.current = offset + (float64(p.frameN) / p.fps)
 				continue
 			} else if avDiff > frameDur.Seconds() {
 				// Video slightly behind - speed up (skip sleep)
-				// No sleep, render frame immediately
+				if p.frameN%60 == 0 {
+					logging.Debug(logging.CatFFMPEG, "A/V sync: video slightly behind %.0fms, catching up", avDiff*1000)
+				}
 			} else if avDiff < -frameDur.Seconds() {
 				// Video slightly ahead - slow down
+				if p.frameN%60 == 0 {
+					logging.Debug(logging.CatFFMPEG, "A/V sync: video slightly ahead %.0fms, waiting", -avDiff*1000)
+				}
 				time.Sleep(frameDur + time.Duration(math.Abs(avDiff)*float64(time.Second)))
 			} else {
 				// In sync - normal timing
+				if p.frameN%180 == 0 && p.frameN > 0 {
+					logging.Debug(logging.CatFFMPEG, "A/V sync: good sync (diff %.1fms)", avDiff*1000)
+				}
 				time.Sleep(frameDur)
 			}
 			// Allocate a fresh frame to avoid concurrent texture reuse issues.
