@@ -30,6 +30,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Args
 DVDSTYLER_URL=""
+SKIP_DVD_TOOLS=""
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--dvdstyler-url=*)
@@ -40,9 +41,13 @@ while [ $# -gt 0 ]; do
 			DVDSTYLER_URL="$2"
 			shift 2
 			;;
+		--skip-dvd)
+			SKIP_DVD_TOOLS=true
+			shift
+			;;
 		*)
 			echo "Unknown option: $1"
-			echo "Usage: $0 [--dvdstyler-url URL]"
+			echo "Usage: $0 [--dvdstyler-url URL] [--skip-dvd]"
 			exit 1
 			;;
 	esac
@@ -96,11 +101,24 @@ echo -e "${CYAN}[2/2]${NC} Checking authoring dependencies..."
 
 if [ "$IS_WINDOWS" = true ]; then
     echo "Detected Windows environment."
-    if command -v powershell.exe &> /dev/null; then
-        if [ -n "$DVDSTYLER_URL" ]; then
-            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1" -DvdStylerUrl "$DVDSTYLER_URL"
+    if [ -z "$SKIP_DVD_TOOLS" ]; then
+        echo ""
+        read -p "Install DVD authoring tools (DVDStyler)? [y/N]: " dvd_choice
+        if [[ "$dvd_choice" =~ ^[Yy]$ ]]; then
+            SKIP_DVD_TOOLS=false
         else
-            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1"
+            SKIP_DVD_TOOLS=true
+        fi
+    fi
+    if command -v powershell.exe &> /dev/null; then
+        PS_ARGS=()
+        if [ "$SKIP_DVD_TOOLS" = true ]; then
+            PS_ARGS+=("-SkipDvdStyler")
+        fi
+        if [ -n "$DVDSTYLER_URL" ]; then
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1" -DvdStylerUrl "$DVDSTYLER_URL" "${PS_ARGS[@]}"
+        else
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1" "${PS_ARGS[@]}"
         fi
         if [ $? -ne 0 ]; then
             echo -e "${RED}✗ Windows dependency installer failed.${NC}"
@@ -126,11 +144,22 @@ else
     if ! command -v ffmpeg &> /dev/null; then
         missing_deps+=("ffmpeg")
     fi
-    if ! command -v dvdauthor &> /dev/null; then
-        missing_deps+=("dvdauthor")
+    if [ -z "$SKIP_DVD_TOOLS" ]; then
+        echo ""
+        read -p "Install DVD authoring tools (dvdauthor + ISO tools)? [y/N]: " dvd_choice
+        if [[ "$dvd_choice" =~ ^[Yy]$ ]]; then
+            SKIP_DVD_TOOLS=false
+        else
+            SKIP_DVD_TOOLS=true
+        fi
     fi
-    if ! command -v mkisofs &> /dev/null && ! command -v genisoimage &> /dev/null && ! command -v xorriso &> /dev/null; then
-        missing_deps+=("iso-tool")
+    if [ "$SKIP_DVD_TOOLS" = false ]; then
+        if ! command -v dvdauthor &> /dev/null; then
+            missing_deps+=("dvdauthor")
+        fi
+        if ! command -v mkisofs &> /dev/null && ! command -v genisoimage &> /dev/null && ! command -v xorriso &> /dev/null; then
+            missing_deps+=("iso-tool")
+        fi
     fi
 
     install_deps=false
@@ -147,15 +176,35 @@ else
     if [ "$install_deps" = true ]; then
         if command -v apt-get &> /dev/null; then
             sudo apt-get update
-            sudo apt-get install -y ffmpeg dvdauthor genisoimage
+            if [ "$SKIP_DVD_TOOLS" = true ]; then
+                sudo apt-get install -y ffmpeg
+            else
+                sudo apt-get install -y ffmpeg dvdauthor genisoimage
+            fi
         elif command -v dnf &> /dev/null; then
-            sudo dnf install -y ffmpeg dvdauthor genisoimage
+            if [ "$SKIP_DVD_TOOLS" = true ]; then
+                sudo dnf install -y ffmpeg
+            else
+                sudo dnf install -y ffmpeg dvdauthor genisoimage
+            fi
         elif command -v pacman &> /dev/null; then
-            sudo pacman -Sy --noconfirm ffmpeg dvdauthor cdrtools
+            if [ "$SKIP_DVD_TOOLS" = true ]; then
+                sudo pacman -Sy --noconfirm ffmpeg
+            else
+                sudo pacman -Sy --noconfirm ffmpeg dvdauthor cdrtools
+            fi
         elif command -v zypper &> /dev/null; then
-            sudo zypper install -y ffmpeg dvdauthor genisoimage
+            if [ "$SKIP_DVD_TOOLS" = true ]; then
+                sudo zypper install -y ffmpeg
+            else
+                sudo zypper install -y ffmpeg dvdauthor genisoimage
+            fi
         elif command -v brew &> /dev/null; then
-            brew install ffmpeg dvdauthor xorriso
+            if [ "$SKIP_DVD_TOOLS" = true ]; then
+                brew install ffmpeg
+            else
+                brew install ffmpeg dvdauthor xorriso
+            fi
         else
             echo -e "${RED}✗ No supported package manager found.${NC}"
             echo "Please install: ffmpeg, dvdauthor, and mkisofs/genisoimage/xorriso"
@@ -163,15 +212,22 @@ else
         fi
     fi
 
-    if ! command -v ffmpeg &> /dev/null || ! command -v dvdauthor &> /dev/null; then
+    if ! command -v ffmpeg &> /dev/null; then
         echo -e "${RED}✗ Missing required dependencies after install attempt.${NC}"
-        echo "Please install: ffmpeg and dvdauthor"
+        echo "Please install: ffmpeg"
         exit 1
     fi
-    if ! command -v mkisofs &> /dev/null && ! command -v genisoimage &> /dev/null && ! command -v xorriso &> /dev/null; then
-        echo -e "${RED}✗ Missing ISO creation tool after install attempt.${NC}"
-        echo "Please install: mkisofs (cdrtools), genisoimage, or xorriso"
-        exit 1
+    if [ "$SKIP_DVD_TOOLS" = false ]; then
+        if ! command -v dvdauthor &> /dev/null; then
+            echo -e "${RED}✗ Missing required dependencies after install attempt.${NC}"
+            echo "Please install: dvdauthor"
+            exit 1
+        fi
+        if ! command -v mkisofs &> /dev/null && ! command -v genisoimage &> /dev/null && ! command -v xorriso &> /dev/null; then
+            echo -e "${RED}✗ Missing ISO creation tool after install attempt.${NC}"
+            echo "Please install: mkisofs (cdrtools), genisoimage, or xorriso"
+            exit 1
+        fi
     fi
 fi
 
