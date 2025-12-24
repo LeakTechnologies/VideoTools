@@ -504,6 +504,7 @@ type convertConfig struct {
 	Mode             string // Simple or Advanced
 	UseAutoNaming    bool
 	AutoNameTemplate string // Template for metadata-driven naming, e.g., "<actress> - <studio> - <scene>"
+	PreserveChapters bool
 
 	// Video encoding settings
 	VideoCodec             string // H.264, H.265, VP9, AV1, Copy
@@ -572,6 +573,7 @@ func defaultConvertConfig() convertConfig {
 		Mode:             "Simple",
 		UseAutoNaming:    false,
 		AutoNameTemplate: "<actress> - <studio> - <scene>",
+		PreserveChapters: true,
 
 		VideoCodec:             "H.264",
 		EncoderPreset:          "slow",
@@ -1929,6 +1931,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource) error {
 		"selectedFormat":    cfg.SelectedFormat,
 		"quality":           cfg.Quality,
 		"mode":              cfg.Mode,
+		"preserveChapters":  cfg.PreserveChapters,
 		"videoCodec":        adjustedCodec,
 		"encoderPreset":     cfg.EncoderPreset,
 		"crf":               cfg.CRF,
@@ -1965,6 +1968,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource) error {
 		"sourceWidth":       src.Width,
 		"sourceHeight":      src.Height,
 		"sourceDuration":    src.Duration,
+		"sourceBitrate":     src.Bitrate,
 		"fieldOrder":        src.FieldOrder,
 		"autoCompare":       s.autoCompare, // Include auto-compare flag
 	}
@@ -2672,9 +2676,10 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"outputPath":        outPath,
 			"outputBase":        outputBase,
 			"selectedFormat":    s.convert.SelectedFormat,
-			"quality":           s.convert.Quality,
-			"mode":              s.convert.Mode,
-			"videoCodec":        s.convert.VideoCodec,
+		"quality":           s.convert.Quality,
+		"mode":              s.convert.Mode,
+		"preserveChapters":  s.convert.PreserveChapters,
+		"videoCodec":        s.convert.VideoCodec,
 			"encoderPreset":     s.convert.EncoderPreset,
 			"crf":               s.convert.CRF,
 			"bitrateMode":       s.convert.BitrateMode,
@@ -2701,7 +2706,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"sourceWidth":       src.Width,
 			"sourceHeight":      src.Height,
 			"sourceBitrate":     src.Bitrate,
-			"sourceDuration":    src.Duration,
+		"sourceDuration":    src.Duration,
 			"fieldOrder":        src.FieldOrder,
 		}
 
@@ -4112,7 +4117,16 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Preserve chapters and metadata
-	args = append(args, "-map_chapters", "0", "-map_metadata", "0")
+	preserveChapters := true
+	if v, ok := cfg["preserveChapters"].(bool); ok {
+		preserveChapters = v
+	}
+	if preserveChapters {
+		args = append(args, "-map_chapters", "0")
+	} else {
+		args = append(args, "-map_chapters", "-1")
+	}
+	args = append(args, "-map_metadata", "0")
 
 	// Copy subtitle streams by default (don't re-encode)
 	args = append(args, "-c:s", "copy")
@@ -5892,6 +5906,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	dvdAspectBox := container.NewVBox(dvdAspectLabel, dvdAspectSelect, dvdInfoLabel)
 	dvdAspectBox.Hide() // Hidden by default
 
+	// Chapter preservation
+	preserveChaptersCheck := widget.NewCheck("Keep chapters", func(checked bool) {
+		state.convert.PreserveChapters = checked
+	})
+	preserveChaptersCheck.SetChecked(state.convert.PreserveChapters)
+
 	// Placeholder for updateDVDOptions - will be defined after resolution/framerate selects are created
 	var updateDVDOptions func()
 
@@ -7615,6 +7635,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
 		chapterWarningLabel, // Warning when converting chapters to DVD
+		preserveChaptersCheck,
 		dvdAspectBox,        // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
@@ -7676,6 +7697,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
 		chapterWarningLabel, // Warning when converting chapters to DVD
+		preserveChaptersCheck,
 		dvdAspectBox,        // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
@@ -7746,6 +7768,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		autoNameTemplate.SetText(state.convert.AutoNameTemplate)
 		outputEntry.SetText(state.convert.OutputBase)
 		outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+		preserveChaptersCheck.SetChecked(state.convert.PreserveChapters)
 		resolutionSelectSimple.SetSelected(state.convert.TargetResolution)
 		resolutionSelect.SetSelected(state.convert.TargetResolution)
 		frameRateSelect.SetSelected(state.convert.FrameRate)
