@@ -1013,15 +1013,27 @@ func (s *appState) startAuthorGeneration() {
 	}
 
 	warnings := authorWarnings(s)
+	uiCall := func(fn func()) {
+		app := fyne.CurrentApp()
+		if app != nil && app.Driver() != nil {
+			app.Driver().DoFromGoroutine(fn, false)
+			return
+		}
+		fn()
+	}
 	continuePrompt := func() {
-		s.promptAuthorOutput(paths, region, aspect, title)
+		uiCall(func() {
+			s.promptAuthorOutput(paths, region, aspect, title)
+		})
 	}
 	if len(warnings) > 0 {
-		dialog.ShowConfirm("Authoring Notes", strings.Join(warnings, "\n")+"\n\nContinue?", func(ok bool) {
-			if ok {
-				continuePrompt()
-			}
-		}, s.window)
+		uiCall(func() {
+			dialog.ShowConfirm("Authoring Notes", strings.Join(warnings, "\n")+"\n\nContinue?", func(ok bool) {
+				if ok {
+					continuePrompt()
+				}
+			}, s.window)
+		})
 		return
 	}
 
