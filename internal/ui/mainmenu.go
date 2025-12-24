@@ -112,9 +112,10 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 		catLabel := canvas.NewText(cat, textColor)
 		catLabel.TextSize = 12
 		catLabel.TextStyle = fyne.TextStyle{Bold: true}
+		tileSize := fyne.NewSize(170, 75)
 		sections = append(sections,
 			catLabel,
-			container.NewGridWithColumns(3, categorized[cat]...),
+			container.NewGridWrap(tileSize, categorized[cat]...),
 		)
 	}
 

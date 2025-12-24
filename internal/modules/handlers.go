@@ -57,6 +57,12 @@ func HandleRip(files []string) {
 	fmt.Println("rip", files)
 }
 
+// HandleBluRay handles the Blu-Ray authoring module (placeholder)
+func HandleBluRay(files []string) {
+	logging.Debug(logging.CatModule, "bluray handler invoked with %v", files)
+	fmt.Println("bluray", files)
+}
+
 // HandleSubtitles handles the subtitles module (placeholder)
 func HandleSubtitles(files []string) {
 	logging.Debug(logging.CatModule, "subtitles handler invoked with %v", files)
