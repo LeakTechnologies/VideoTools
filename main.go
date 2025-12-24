@@ -919,6 +919,7 @@ type appState struct {
 	authorTreatAsChapters bool   // Treat multiple clips as chapters
 	authorChapterSource   string // embedded, scenes, clips, manual
 	authorChaptersRefresh func() // Refresh hook for chapter list UI
+	authorDiscSize        string // "DVD5" or "DVD9"
 
 	// Subtitles module state
 	subtitleVideoPath   string
