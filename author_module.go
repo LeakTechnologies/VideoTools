@@ -1231,6 +1231,24 @@ func authorDefaultOutputPath(outputType, title string, paths []string) string {
 	return uniqueFolderPath(filepath.Join(baseDir, name))
 }
 
+func authorTempRoot(outputPath string) string {
+	trimmed := strings.TrimSpace(outputPath)
+	if trimmed == "" {
+		return utils.TempDir()
+	}
+	lower := strings.ToLower(trimmed)
+	root := trimmed
+	if strings.HasSuffix(lower, ".iso") {
+		root = filepath.Dir(trimmed)
+	} else if ext := filepath.Ext(trimmed); ext != "" {
+		root = filepath.Dir(trimmed)
+	}
+	if root == "" || root == "." {
+		return utils.TempDir()
+	}
+	return root
+}
+
 func uniqueFolderPath(path string) string {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return path
@@ -1360,16 +1378,23 @@ func (s *appState) addAuthorVideoTSToQueue(videoTSPath, title, outputPath string
 }
 
 func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, logFn func(string), progressFn func(float64)) error {
-	workDir, err := os.MkdirTemp(utils.TempDir(), "videotools-author-")
+	tempRoot := authorTempRoot(outputPath)
+	if err := os.MkdirAll(tempRoot, 0755); err != nil {
+		return fmt.Errorf("failed to create temp root: %w", err)
+	}
+	workDir, err := os.MkdirTemp(tempRoot, "videotools-author-")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	defer os.RemoveAll(workDir)
+	if logFn != nil {
+		logFn(fmt.Sprintf("Temp workspace: %s", workDir))
+	}
 
 	discRoot := outputPath
 	var cleanup func()
 	if makeISO {
-		tempRoot, err := os.MkdirTemp(utils.TempDir(), "videotools-dvd-")
+		tempRoot, err := os.MkdirTemp(tempRoot, "videotools-dvd-")
 		if err != nil {
 			return fmt.Errorf("failed to create DVD output directory: %w", err)
 		}

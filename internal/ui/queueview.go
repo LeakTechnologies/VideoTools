@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"strings"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -23,6 +24,9 @@ type StripedProgress struct {
 	color    color.Color
 	bg       color.Color
 	offset   float64
+	activity bool
+	animMu   sync.Mutex
+	animStop chan struct{}
 }
 
 // NewStripedProgress creates a new striped progress bar with the given color
@@ -48,13 +52,68 @@ func (s *StripedProgress) SetProgress(p float64) {
 	s.Refresh()
 }
 
+// SetActivity toggles the full-width animated background when progress is near zero.
+func (s *StripedProgress) SetActivity(active bool) {
+	s.activity = active
+	s.Refresh()
+}
+
+// StartAnimation starts the stripe animation.
+func (s *StripedProgress) StartAnimation() {
+	s.animMu.Lock()
+	if s.animStop != nil {
+		s.animMu.Unlock()
+		return
+	}
+	stop := make(chan struct{})
+	s.animStop = stop
+	s.animMu.Unlock()
+
+	ticker := time.NewTicker(80 * time.Millisecond)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				app := fyne.CurrentApp()
+				if app == nil {
+					continue
+				}
+				app.Driver().RunOnMain(func() {
+					s.Refresh()
+				})
+			case <-stop:
+				return
+			}
+		}
+	}()
+}
+
+// StopAnimation stops the stripe animation.
+func (s *StripedProgress) StopAnimation() {
+	s.animMu.Lock()
+	if s.animStop == nil {
+		s.animMu.Unlock()
+		return
+	}
+	close(s.animStop)
+	s.animStop = nil
+	s.animMu.Unlock()
+}
+
 func (s *StripedProgress) CreateRenderer() fyne.WidgetRenderer {
 	bgRect := canvas.NewRectangle(s.bg)
 	fillRect := canvas.NewRectangle(applyAlpha(s.color, 200))
 	stripes := canvas.NewRaster(func(w, h int) image.Image {
 		img := image.NewRGBA(image.Rect(0, 0, w, h))
-		light := applyAlpha(s.color, 80)
-		dark := applyAlpha(s.color, 220)
+		lightAlpha := uint8(80)
+		darkAlpha := uint8(220)
+		if s.activity && s.progress <= 0 {
+			lightAlpha = 40
+			darkAlpha = 90
+		}
+		light := applyAlpha(s.color, lightAlpha)
+		dark := applyAlpha(s.color, darkAlpha)
 		for y := 0; y < h; y++ {
 			for x := 0; x < w; x++ {
 				// animate diagonal stripes using offset
@@ -93,12 +152,17 @@ func (r *stripedProgressRenderer) Layout(size fyne.Size) {
 	r.bg.Move(fyne.NewPos(0, 0))
 
 	fillWidth := size.Width * float32(r.bar.progress)
+	stripeWidth := fillWidth
+	if r.bar.activity && r.bar.progress <= 0 {
+		stripeWidth = size.Width
+	}
 	fillSize := fyne.NewSize(fillWidth, size.Height)
+	stripeSize := fyne.NewSize(stripeWidth, size.Height)
 
 	r.fill.Resize(fillSize)
 	r.fill.Move(fyne.NewPos(0, 0))
 
-	r.stripes.Resize(fillSize)
+	r.stripes.Resize(stripeSize)
 	r.stripes.Move(fyne.NewPos(0, 0))
 }
 
@@ -116,7 +180,7 @@ func (r *stripedProgressRenderer) Refresh() {
 
 func (r *stripedProgressRenderer) BackgroundColor() color.Color { return color.Transparent }
 func (r *stripedProgressRenderer) Objects() []fyne.CanvasObject { return r.objects }
-func (r *stripedProgressRenderer) Destroy()                     {}
+func (r *stripedProgressRenderer) Destroy()                     { r.bar.StopAnimation() }
 
 func applyAlpha(c color.Color, alpha uint8) color.Color {
 	r, g, b, _ := c.RGBA()
@@ -240,6 +304,10 @@ func buildJobItem(
 	progress.SetProgress(job.Progress / 100.0)
 	if job.Status == queue.JobStatusCompleted {
 		progress.SetProgress(1.0)
+	}
+	if job.Status == queue.JobStatusRunning {
+		progress.SetActivity(job.Progress <= 0.01)
+		progress.StartAnimation()
 	}
 	progressWidget := progress
 
