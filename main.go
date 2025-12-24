@@ -6151,9 +6151,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	outputEntry := widget.NewEntry()
 	outputEntry.SetText(state.convert.OutputBase)
 	var updatingOutput bool
+	var autoNameCheck *widget.Check
 	outputEntry.OnChanged = func(val string) {
 		if updatingOutput {
 			return
+		}
+		if state.convert.UseAutoNaming {
+			state.convert.UseAutoNaming = false
+			if autoNameCheck != nil {
+				autoNameCheck.SetChecked(false)
+			}
 		}
 		state.convert.OutputBase = val
 		outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
@@ -6171,7 +6178,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
 	}
 
-	autoNameCheck := widget.NewCheck("Auto-name from metadata", func(checked bool) {
+	autoNameCheck = widget.NewCheck("Auto-name from metadata", func(checked bool) {
 		state.convert.UseAutoNaming = checked
 		applyAutoName(true)
 	})
