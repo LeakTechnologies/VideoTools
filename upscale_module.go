@@ -170,4 +170,11 @@ func sanitizeForPath(label string) string {
 	return strings.ToLower(r.Replace(label))
 }
 
-// Main module functions will be added here incrementally...
+func (s *appState) showUpscaleView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "upscale"
+	s.setContent(buildUpscaleView(s))
+}
+
+// buildUpscaleView and executeUpscaleJob will be added here incrementally...
