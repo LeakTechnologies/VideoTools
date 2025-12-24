@@ -8957,7 +8957,9 @@ var audioCtxGlobal struct {
 
 func getAudioContext(sampleRate, channels, bytesPerSample int) (*oto.Context, error) {
 	audioCtxGlobal.once.Do(func() {
-		audioCtxGlobal.ctx, audioCtxGlobal.err = oto.NewContext(sampleRate, channels, bytesPerSample, 2048)
+		// Increased from 2048 (42ms) to 8192 (170ms) for smoother playback
+		// Larger buffer prevents audio stuttering and underruns
+		audioCtxGlobal.ctx, audioCtxGlobal.err = oto.NewContext(sampleRate, channels, bytesPerSample, 8192)
 	})
 	return audioCtxGlobal.ctx, audioCtxGlobal.err
 }
@@ -9271,8 +9273,10 @@ func (p *playSession) runAudio(offset float64) {
 	go func() {
 		defer cmd.Process.Kill()
 		defer localPlayer.Close()
-		chunk := make([]byte, 4096)
-		tmp := make([]byte, 4096)
+		// Increased from 4096 (21ms) to 16384 (85ms) for smoother playback
+		// Larger chunks reduce read frequency and improve performance
+		chunk := make([]byte, 16384)
+		tmp := make([]byte, 16384)
 		loggedFirst := false
 		for {
 			select {
