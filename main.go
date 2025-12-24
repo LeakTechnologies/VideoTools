@@ -1757,7 +1757,6 @@ func (s *appState) refreshQueueView() {
 		},
 		func() { // onClear
 			s.jobQueue.Clear()
-			s.clearVideo()
 
 			// Always return to main menu after clearing
 			if len(s.jobQueue.List()) == 0 {
