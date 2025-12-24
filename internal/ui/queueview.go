@@ -79,7 +79,7 @@ func (s *StripedProgress) StartAnimation() {
 				if app == nil {
 					continue
 				}
-				app.Driver().DoFromGoroutine(func() {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					s.Refresh()
 				}, false)
 			case <-stop:
