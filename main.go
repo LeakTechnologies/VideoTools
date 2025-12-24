@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -9094,7 +9093,8 @@ func (p *playSession) GetCurrentFrame() int {
 
 func (p *playSession) SetVolume(v float64) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
+	oldVolume := p.volume
+	oldMuted := p.muted
 	if v < 0 {
 		v = 0
 	}
@@ -9107,6 +9107,35 @@ func (p *playSession) SetVolume(v float64) {
 	} else {
 		p.muted = true
 	}
+	p.mu.Unlock()
+
+	// If volume changed significantly, restart audio with new volume filter
+	// This is necessary because volume is now handled by FFmpeg
+	if math.Abs(oldVolume-v) > 5 || oldMuted != (v <= 0) {
+		p.mu.Lock()
+		if p.audioCmd != nil {
+			// Restart audio with new volume
+			currentPos := p.current
+			p.mu.Unlock()
+			// Stop and restart audio (video keeps playing)
+			p.restartAudio(currentPos)
+		} else {
+			p.mu.Unlock()
+		}
+	}
+}
+
+func (p *playSession) restartAudio(offset float64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	// Kill existing audio
+	if p.audioCmd != nil && p.audioCmd.Process != nil {
+		_ = p.audioCmd.Process.Kill()
+		_ = p.audioCmd.Wait()
+	}
+	p.audioCmd = nil
+	// Start new audio with current volume
+	p.runAudio(offset)
 }
 
 func (p *playSession) Stop() {
@@ -9200,10 +9229,33 @@ func (p *playSession) runVideo(offset float64) {
 				logging.Debug(logging.CatFFMPEG, "video read failed: %v (%s)", err, msg)
 				return
 			}
-			if delay := time.Until(nextFrameAt); delay > 0 {
-				time.Sleep(delay)
+
+			// Adaptive frame timing with drift correction
+			now := time.Now()
+			behind := now.Sub(nextFrameAt)
+
+			if behind < 0 {
+				// We're ahead of schedule, sleep until next frame time
+				time.Sleep(-behind)
+				nextFrameAt = nextFrameAt.Add(frameDur)
+			} else if behind > frameDur*3 {
+				// We're way behind (>3 frames), drop this frame and resync
+				if p.frameN%30 == 0 { // Log occasionally to avoid spam
+					logging.Debug(logging.CatFFMPEG, "dropping frame %d, %.0fms behind", p.frameN, behind.Seconds()*1000)
+				}
+				nextFrameAt = now
+				p.frameN++
+				if p.fps > 0 {
+					p.current = offset + (float64(p.frameN) / p.fps)
+				}
+				continue
+			} else if behind > frameDur/2 {
+				// We're moderately behind, try to catch up gradually
+				nextFrameAt = now.Add(frameDur / 2)
+			} else {
+				// We're slightly behind or on time, maintain normal pace
+				nextFrameAt = nextFrameAt.Add(frameDur)
 			}
-			nextFrameAt = nextFrameAt.Add(frameDur)
 			// Allocate a fresh frame to avoid concurrent texture reuse issues.
 			frame := image.NewRGBA(image.Rect(0, 0, p.targetW, p.targetH))
 			utils.CopyRGBToRGBA(frame.Pix, buf)
@@ -9238,16 +9290,32 @@ func (p *playSession) runAudio(offset float64) {
 	const channels = 2
 	const bytesPerSample = 2
 	var stderr bytes.Buffer
-	cmd := exec.Command(platformConfig.FFmpegPath,
+
+	// Build FFmpeg arguments with volume control moved to FFmpeg
+	args := []string{
 		"-hide_banner", "-loglevel", "error",
 		"-ss", fmt.Sprintf("%.3f", offset),
 		"-i", p.path,
 		"-vn",
 		"-ac", fmt.Sprintf("%d", channels),
 		"-ar", fmt.Sprintf("%d", sampleRate),
-		"-f", "s16le",
-		"-",
-	)
+	}
+
+	// Add volume filter to FFmpeg instead of processing in Go (much faster)
+	p.mu.Lock()
+	volume := p.volume
+	muted := p.muted
+	p.mu.Unlock()
+
+	if muted || volume <= 0 {
+		args = append(args, "-af", "volume=0")
+	} else if math.Abs(volume-100) > 0.1 {
+		args = append(args, "-af", fmt.Sprintf("volume=%.2f", volume/100.0))
+	}
+
+	args = append(args, "-f", "s16le", "-")
+
+	cmd := exec.Command(platformConfig.FFmpegPath, args...)
 	utils.ApplyNoWindow(cmd)
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
@@ -9277,7 +9345,6 @@ func (p *playSession) runAudio(offset float64) {
 		// Increased from 4096 (21ms) to 16384 (85ms) for smoother playback
 		// Larger chunks reduce read frequency and improve performance
 		chunk := make([]byte, 16384)
-		tmp := make([]byte, 16384)
 		loggedFirst := false
 		for {
 			select {
@@ -9296,32 +9363,9 @@ func (p *playSession) runAudio(offset float64) {
 					logging.Debug(logging.CatFFMPEG, "audio stream delivering bytes")
 					loggedFirst = true
 				}
-				gain := p.volume / 100.0
-				if gain < 0 {
-					gain = 0
-				}
-				if gain > 2 {
-					gain = 2
-				}
-				copy(tmp, chunk[:n])
-				if p.muted || gain <= 0 {
-					for i := 0; i < n; i++ {
-						tmp[i] = 0
-					}
-				} else if math.Abs(1-gain) > 0.001 {
-					for i := 0; i+1 < n; i += 2 {
-						sample := int16(binary.LittleEndian.Uint16(tmp[i:]))
-						amp := int(float64(sample) * gain)
-						if amp > math.MaxInt16 {
-							amp = math.MaxInt16
-						}
-						if amp < math.MinInt16 {
-							amp = math.MinInt16
-						}
-						binary.LittleEndian.PutUint16(tmp[i:], uint16(int16(amp)))
-					}
-				}
-				localPlayer.Write(tmp[:n])
+				// Volume is now handled by FFmpeg, just write directly
+				// This eliminates per-sample processing overhead
+				localPlayer.Write(chunk[:n])
 			}
 			if err != nil {
 				if !errors.Is(err, io.EOF) {
