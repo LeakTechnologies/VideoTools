@@ -478,6 +478,8 @@ var formatOptions = []formatOption{
 	// H.264 - Widely compatible, older standard
 	{"MP4 (H.264)", ".mp4", "libx264"},
 	{"MOV (H.264)", ".mov", "libx264"},
+	// Remux - No re-encode
+	{"MKV (Remux)", ".mkv", "copy"},
 	// H.265/HEVC - Better compression than H.264
 	{"MP4 (H.265)", ".mp4", "libx265"},
 	{"MKV (H.265)", ".mkv", "libx265"},
@@ -6302,6 +6304,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	mapFormatCodec := func(codec string) string {
 		codec = strings.ToLower(codec)
 		switch {
+		case strings.Contains(codec, "copy"):
+			return "Copy"
 		case strings.Contains(codec, "265") || strings.Contains(codec, "hevc"):
 			return "H.265"
 		case strings.Contains(codec, "264"):
@@ -6331,6 +6335,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
+	var audioCodecSelect *widget.Select
 	formatSelect := widget.NewSelect(formatLabels, func(value string) {
 		for _, opt := range formatOptions {
 			if opt.Label == value {
@@ -6349,6 +6354,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				if newCodec != "" {
 					state.convert.VideoCodec = newCodec
 					videoCodecSelect.SetSelected(newCodec)
+				}
+				if strings.EqualFold(opt.VideoCodec, "copy") {
+					state.convert.AudioCodec = "Copy"
+					if audioCodecSelect != nil {
+						audioCodecSelect.SetSelected("Copy")
+					}
 				}
 				if updateQualityVisibility != nil {
 					updateQualityVisibility()
@@ -7294,7 +7305,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	twoPassCheck.Checked = state.convert.TwoPass
 
 	// Audio Codec
-	audioCodecSelect := widget.NewSelect([]string{"AAC", "Opus", "MP3", "FLAC", "Copy"}, func(value string) {
+	audioCodecSelect = widget.NewSelect([]string{"AAC", "Opus", "MP3", "FLAC", "Copy"}, func(value string) {
 		state.convert.AudioCodec = value
 		logging.Debug(logging.CatUI, "audio codec set to %s", value)
 	})
