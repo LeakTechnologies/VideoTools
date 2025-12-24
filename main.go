@@ -5770,7 +5770,65 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		cmdPreviewBtn.SetText("Show Preview")
 	}
 
-	backBar := ui.TintedBar(convertColor, container.NewHBox(back, layout.NewSpacer(), navButtons, layout.NewSpacer(), cmdPreviewBtn, queueBtn))
+	var (
+		benchmarkStatus    *canvas.Text
+		benchmarkApplyBtn  *widget.Button
+		benchmarkIndicator fyne.CanvasObject
+	)
+	if cfg, err := loadBenchmarkConfig(); err == nil && len(cfg.History) > 0 {
+		run := cfg.History[0]
+		encoder := run.RecommendedEncoder
+		preset := run.RecommendedPreset
+		benchHW := "none"
+		switch {
+		case strings.Contains(encoder, "nvenc"):
+			benchHW = "nvenc"
+		case strings.Contains(encoder, "qsv"):
+			benchHW = "qsv"
+		case strings.Contains(encoder, "amf"):
+			benchHW = "amf"
+		case strings.Contains(encoder, "videotoolbox"):
+			benchHW = "videotoolbox"
+		}
+		applied := friendlyCodecFromPreset(encoder) == state.convert.VideoCodec &&
+			state.convert.EncoderPreset == preset &&
+			state.convert.HardwareAccel == benchHW
+
+		statusColor := utils.MustHex("#FFC857")
+		statusText := "Benchmark: Not Applied"
+		if applied {
+			statusColor = utils.MustHex("#4CE870")
+			statusText = "Benchmark: Applied"
+		}
+		benchmarkStatus = canvas.NewText(statusText, statusColor)
+		benchmarkStatus.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+		benchmarkStatus.TextSize = 12
+
+		benchmarkApplyBtn = widget.NewButton("Apply Benchmark", func() {
+			state.applyBenchmarkRecommendation(encoder, preset)
+			benchmarkStatus.Text = "Benchmark: Applied"
+			benchmarkStatus.Color = utils.MustHex("#4CE870")
+			benchmarkStatus.Refresh()
+			benchmarkApplyBtn.Disable()
+		})
+		if applied {
+			benchmarkApplyBtn.Disable()
+		} else {
+			benchmarkApplyBtn.Importance = widget.MediumImportance
+		}
+
+		benchmarkIndicator = container.NewHBox(benchmarkStatus, benchmarkApplyBtn)
+	}
+
+	backBar := ui.TintedBar(convertColor, container.NewHBox(
+		back,
+		layout.NewSpacer(),
+		navButtons,
+		layout.NewSpacer(),
+		benchmarkIndicator,
+		cmdPreviewBtn,
+		queueBtn,
+	))
 
 	var updateCover func(string)
 	var coverDisplay *widget.Label
