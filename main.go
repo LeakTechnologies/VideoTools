@@ -926,6 +926,7 @@ type appState struct {
 	authorProgress        float64
 	authorProgressBar     *widget.ProgressBar
 	authorStatusLabel     *widget.Label
+	authorVideoTSPath     string
 
 	// Subtitles module state
 	subtitleVideoPath   string
@@ -9519,17 +9520,36 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 	// If in author module, add video clips
 	if s.active == "author" {
 		var videoPaths []string
+		var videoTSPath string
 		for _, uri := range items {
 			if uri.Scheme() != "file" {
 				continue
 			}
 			path := uri.Path()
 			if info, err := os.Stat(path); err == nil && info.IsDir() {
+				if strings.EqualFold(filepath.Base(path), "VIDEO_TS") {
+					videoTSPath = path
+					break
+				}
+				videoTSChild := filepath.Join(path, "VIDEO_TS")
+				if info, err := os.Stat(videoTSChild); err == nil && info.IsDir() {
+					videoTSPath = videoTSChild
+					break
+				}
 				videos := s.findVideoFiles(path)
 				videoPaths = append(videoPaths, videos...)
 			} else if s.isVideoFile(path) {
 				videoPaths = append(videoPaths, path)
 			}
+		}
+
+		if videoTSPath != "" {
+			s.authorVideoTSPath = videoTSPath
+			s.authorClips = nil
+			s.authorFile = nil
+			s.authorOutputType = "iso"
+			s.showAuthorView()
+			return
 		}
 
 		if len(videoPaths) == 0 {
@@ -12564,7 +12584,6 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
-
 
 // buildThumbView creates the thumbnail generation UI
 func buildThumbView(state *appState) fyne.CanvasObject {
