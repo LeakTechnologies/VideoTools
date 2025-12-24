@@ -3689,6 +3689,10 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		}
 	}
 	isDVD := selectedFormat.Ext == ".mpg"
+	remux := strings.EqualFold(selectedFormat.VideoCodec, "copy")
+	if vc, ok := cfg["videoCodec"].(string); ok && strings.EqualFold(vc, "Copy") {
+		remux = true
+	}
 
 	// DVD presets: enforce compliant codecs and audio settings
 	// Note: We do NOT force resolution - user can choose Source or specific resolution
@@ -3712,6 +3716,9 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		cfg["pixelFormat"] = "yuv420p"
 	}
 
+	if remux {
+		args = append(args, "-fflags", "+genpts")
+	}
 	args = append(args, "-i", inputPath)
 
 	// Add cover art if available
@@ -3747,10 +3754,6 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Video filters
-	remux := strings.EqualFold(selectedFormat.VideoCodec, "copy")
-	if vc, ok := cfg["videoCodec"].(string); ok && strings.EqualFold(vc, "Copy") {
-		remux = true
-	}
 	var vf []string
 	if !remux {
 		// Deinterlacing
@@ -3839,67 +3842,66 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 				vf = append(vf, scaleFilter)
 			}
 		}
-	}
-
-	// Aspect ratio conversion
-	sourceWidth, _ := cfg["sourceWidth"].(int)
-	sourceHeight, _ := cfg["sourceHeight"].(int)
-	// Get source bitrate if present
-	sourceBitrate := 0
-	if v, ok := cfg["sourceBitrate"].(float64); ok {
-		sourceBitrate = int(v)
-	}
-	srcAspect := utils.AspectRatioFloat(sourceWidth, sourceHeight)
-	outputAspect, _ := cfg["outputAspect"].(string)
-	aspectHandling, _ := cfg["aspectHandling"].(string)
-
-	// Create temp source for aspect calculation
-	tempSrc := &videoSource{Width: sourceWidth, Height: sourceHeight}
-	targetAspect := resolveTargetAspect(outputAspect, tempSrc)
-	if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
-		vf = append(vf, aspectFilters(targetAspect, aspectHandling)...)
-	}
-
-	// Flip horizontal
-	flipH, _ := cfg["flipHorizontal"].(bool)
-	if flipH {
-		vf = append(vf, "hflip")
-	}
-
-	// Flip vertical
-	flipV, _ := cfg["flipVertical"].(bool)
-	if flipV {
-		vf = append(vf, "vflip")
-	}
-
-	// Rotation
-	rotation, _ := cfg["rotation"].(string)
-	if rotation != "" && rotation != "0" {
-		switch rotation {
-		case "90":
-			vf = append(vf, "transpose=1") // 90 degrees clockwise
-		case "180":
-			vf = append(vf, "transpose=1,transpose=1") // 180 degrees
-		case "270":
-			vf = append(vf, "transpose=2") // 90 degrees counter-clockwise (= 270 clockwise)
+		// Aspect ratio conversion
+		sourceWidth, _ := cfg["sourceWidth"].(int)
+		sourceHeight, _ := cfg["sourceHeight"].(int)
+		// Get source bitrate if present
+		sourceBitrate := 0
+		if v, ok := cfg["sourceBitrate"].(float64); ok {
+			sourceBitrate = int(v)
 		}
-	}
+		srcAspect := utils.AspectRatioFloat(sourceWidth, sourceHeight)
+		outputAspect, _ := cfg["outputAspect"].(string)
+		aspectHandling, _ := cfg["aspectHandling"].(string)
 
-	// Frame rate
-	frameRate, _ := cfg["frameRate"].(string)
-	useMotionInterp, _ := cfg["useMotionInterpolation"].(bool)
-	if frameRate != "" && frameRate != "Source" {
-		if useMotionInterp {
-			// Use motion interpolation for smooth frame rate changes
-			vf = append(vf, fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1", frameRate))
-		} else {
-			// Simple frame rate change (duplicates/drops frames)
-			vf = append(vf, "fps="+frameRate)
+		// Create temp source for aspect calculation
+		tempSrc := &videoSource{Width: sourceWidth, Height: sourceHeight}
+		targetAspect := resolveTargetAspect(outputAspect, tempSrc)
+		if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
+			vf = append(vf, aspectFilters(targetAspect, aspectHandling)...)
 		}
-	}
 
-	if len(vf) > 0 {
-		args = append(args, "-vf", strings.Join(vf, ","))
+		// Flip horizontal
+		flipH, _ := cfg["flipHorizontal"].(bool)
+		if flipH {
+			vf = append(vf, "hflip")
+		}
+
+		// Flip vertical
+		flipV, _ := cfg["flipVertical"].(bool)
+		if flipV {
+			vf = append(vf, "vflip")
+		}
+
+		// Rotation
+		rotation, _ := cfg["rotation"].(string)
+		if rotation != "" && rotation != "0" {
+			switch rotation {
+			case "90":
+				vf = append(vf, "transpose=1") // 90 degrees clockwise
+			case "180":
+				vf = append(vf, "transpose=1,transpose=1") // 180 degrees
+			case "270":
+				vf = append(vf, "transpose=2") // 90 degrees counter-clockwise (= 270 clockwise)
+			}
+		}
+
+		// Frame rate
+		frameRate, _ := cfg["frameRate"].(string)
+		useMotionInterp, _ := cfg["useMotionInterpolation"].(bool)
+		if frameRate != "" && frameRate != "Source" {
+			if useMotionInterp {
+				// Use motion interpolation for smooth frame rate changes
+				vf = append(vf, fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1", frameRate))
+			} else {
+				// Simple frame rate change (duplicates/drops frames)
+				vf = append(vf, "fps="+frameRate)
+			}
+		}
+
+		if len(vf) > 0 {
+			args = append(args, "-vf", strings.Join(vf, ","))
+		}
 	}
 
 	// Video codec
@@ -4122,14 +4124,18 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	// DVD-specific parameters are set manually in the video codec section below.
 
 	// Fix VFR/desync issues - regenerate timestamps and enforce CFR
-	args = append(args, "-fflags", "+genpts")
-	frameRateStr, _ := cfg["frameRate"].(string)
-	sourceDuration, _ := cfg["sourceDuration"].(float64)
-	if frameRateStr != "" && frameRateStr != "Source" {
-		args = append(args, "-r", frameRateStr)
-	} else if sourceDuration > 0 {
-		// Calculate approximate source frame rate if available
-		args = append(args, "-r", "30") // Safe default
+	if !remux {
+		args = append(args, "-fflags", "+genpts")
+		frameRateStr, _ := cfg["frameRate"].(string)
+		sourceDuration, _ := cfg["sourceDuration"].(float64)
+		if frameRateStr != "" && frameRateStr != "Source" {
+			args = append(args, "-r", frameRateStr)
+		} else if sourceDuration > 0 {
+			// Calculate approximate source frame rate if available
+			args = append(args, "-r", "30") // Safe default
+		}
+	} else {
+		args = append(args, "-avoid_negative_ts", "make_zero")
 	}
 
 	// Progress feed
