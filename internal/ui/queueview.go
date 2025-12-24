@@ -79,9 +79,9 @@ func (s *StripedProgress) StartAnimation() {
 				if app == nil {
 					continue
 				}
-				app.Driver().RunOnMain(func() {
+				app.Driver().DoFromGoroutine(func() {
 					s.Refresh()
-				})
+				}, false)
 			case <-stop:
 				return
 			}
