@@ -30,6 +30,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Args
 DVDSTYLER_URL=""
+DVDSTYLER_ZIP=""
 SKIP_DVD_TOOLS=""
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -41,13 +42,21 @@ while [ $# -gt 0 ]; do
 			DVDSTYLER_URL="$2"
 			shift 2
 			;;
+		--dvdstyler-zip=*)
+			DVDSTYLER_ZIP="${1#*=}"
+			shift
+			;;
+		--dvdstyler-zip)
+			DVDSTYLER_ZIP="$2"
+			shift 2
+			;;
 		--skip-dvd)
 			SKIP_DVD_TOOLS=true
 			shift
 			;;
 		*)
 			echo "Unknown option: $1"
-			echo "Usage: $0 [--dvdstyler-url URL] [--skip-dvd]"
+			echo "Usage: $0 [--dvdstyler-url URL] [--dvdstyler-zip PATH] [--skip-dvd]"
 			exit 1
 			;;
 	esac
@@ -115,7 +124,9 @@ if [ "$IS_WINDOWS" = true ]; then
         if [ "$SKIP_DVD_TOOLS" = true ]; then
             PS_ARGS+=("-SkipDvdStyler")
         fi
-        if [ -n "$DVDSTYLER_URL" ]; then
+        if [ -n "$DVDSTYLER_ZIP" ]; then
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1" -DvdStylerZip "$DVDSTYLER_ZIP" "${PS_ARGS[@]}"
+        elif [ -n "$DVDSTYLER_URL" ]; then
             powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1" -DvdStylerUrl "$DVDSTYLER_URL" "${PS_ARGS[@]}"
         else
             powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1" "${PS_ARGS[@]}"
