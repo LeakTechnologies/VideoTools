@@ -398,6 +398,10 @@ func ModuleColor(t queue.JobType) color.Color {
 		return color.RGBA{R: 255, G: 215, B: 68, A: 255} // Yellow (#FFD744)
 	case queue.JobTypeThumb:
 		return color.RGBA{R: 255, G: 136, B: 68, A: 255} // Orange (#FF8844)
+	case queue.JobTypeAuthor:
+		return color.RGBA{R: 255, G: 170, B: 68, A: 255} // Orange (#FFAA44)
+	case queue.JobTypeRip:
+		return color.RGBA{R: 255, G: 153, B: 68, A: 255} // Orange (#FF9944)
 	default:
 		return color.Gray{Y: 180}
 	}

@@ -761,6 +761,12 @@ func BuildModuleBadge(jobType queue.JobType) fyne.CanvasObject {
 	case queue.JobTypeSnippet:
 		badgeColor = utils.MustHex("#4AE2E2")
 		badgeText = "SNIPPET"
+	case queue.JobTypeAuthor:
+		badgeColor = utils.MustHex("#FFAA44")
+		badgeText = "AUTHOR"
+	case queue.JobTypeRip:
+		badgeColor = utils.MustHex("#FF9944")
+		badgeText = "RIP"
 	default:
 		badgeColor = utils.MustHex("#808080")
 		badgeText = "OTHER"
