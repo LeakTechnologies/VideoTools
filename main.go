@@ -2784,13 +2784,6 @@ func (s *appState) showPlayerView() {
 	s.setContent(buildPlayerView(s))
 }
 
-func (s *appState) showUpscaleView() {
-	s.stopPreview()
-	s.lastModule = s.active
-	s.active = "upscale"
-	s.setContent(buildUpscaleView(s))
-}
-
 func (s *appState) showAuthorView() {
 	s.stopPreview()
 	s.lastModule = s.active
