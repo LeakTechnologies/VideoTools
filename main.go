@@ -1155,6 +1155,9 @@ func (s *appState) stopPreview() {
 }
 
 func toString(v interface{}) string {
+	if v == nil {
+		return ""
+	}
 	switch t := v.(type) {
 	case string:
 		return t
