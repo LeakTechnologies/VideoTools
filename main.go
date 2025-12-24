@@ -1820,9 +1820,11 @@ func (s *appState) addConvertToQueue() error {
 		return fmt.Errorf("no video loaded")
 	}
 
-	src := s.source
+	return s.addConvertToQueueForSource(s.source)
+}
+
+func (s *appState) addConvertToQueueForSource(src *videoSource) error {
 	outputBase := s.resolveOutputBase(src, true)
-	s.convert.OutputBase = outputBase
 	cfg := s.convert
 	cfg.OutputBase = outputBase
 
@@ -1844,7 +1846,6 @@ func (s *appState) addConvertToQueue() error {
 				(strings.EqualFold(adjustedCodec, "H.264") && friendly == "H.265") ||
 				(strings.EqualFold(adjustedCodec, "H.265") && friendly == "H.264") {
 				adjustedCodec = friendly
-				s.convert.VideoCodec = friendly
 			}
 		}
 	}
@@ -1910,6 +1911,22 @@ func (s *appState) addConvertToQueue() error {
 	logging.Debug(logging.CatSystem, "added convert job to queue: %s", job.ID)
 
 	return nil
+}
+
+func (s *appState) addAllConvertToQueue() (int, error) {
+	if len(s.loadedVideos) == 0 {
+		return 0, fmt.Errorf("no videos loaded")
+	}
+
+	count := 0
+	for _, src := range s.loadedVideos {
+		if err := s.addConvertToQueueForSource(src); err != nil {
+			return count, fmt.Errorf("failed to add %s: %w", filepath.Base(src.Path), err)
+		}
+		count++
+	}
+
+	return count, nil
 }
 
 func (s *appState) showBenchmark() {
@@ -5609,11 +5626,28 @@ func (s *appState) executeAddToQueue() {
 	if err := s.addConvertToQueue(); err != nil {
 		dialog.ShowError(err, s.window)
 	} else {
-		dialog.ShowInformation("Queue", "Job added to queue!", s.window)
+		// Update queue button to show new count
+		s.updateQueueButtonLabel()
 		// Auto-start queue if not already running
 		if s.jobQueue != nil && !s.jobQueue.IsRunning() && !s.convertBusy {
 			s.jobQueue.Start()
 			logging.Debug(logging.CatUI, "queue auto-started after adding job")
+		}
+	}
+}
+
+func (s *appState) executeAddAllToQueue() {
+	count, err := s.addAllConvertToQueue()
+	if err != nil {
+		dialog.ShowError(err, s.window)
+	} else {
+		// Update queue button to show new count
+		s.updateQueueButtonLabel()
+		logging.Debug(logging.CatUI, "Added %d jobs to queue", count)
+		// Auto-start queue if not already running
+		if s.jobQueue != nil && !s.jobQueue.IsRunning() && !s.convertBusy {
+			s.jobQueue.Start()
+			logging.Debug(logging.CatUI, "queue auto-started after adding %d jobs", count)
 		}
 	}
 }
@@ -7831,6 +7865,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		addQueueBtn.Disable()
 	}
 
+	// Add All to Queue button (only shown when multiple videos are loaded)
+	addAllQueueBtn := widget.NewButton("Add All to Queue", func() {
+		state.persistConvertConfig()
+		state.executeAddAllToQueue()
+	})
+	addAllQueueBtn.Importance = widget.MediumImportance
+	if len(state.loadedVideos) <= 1 {
+		addAllQueueBtn.Hide()
+	}
+
 	convertBtn = widget.NewButton("CONVERT NOW", func() {
 		state.persistConvertConfig()
 		state.executeConversion()
@@ -7856,6 +7900,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		convertBtn.Disable()
 		cancelBtn.Enable()
 		addQueueBtn.Enable()
+		if len(state.loadedVideos) > 1 {
+			addAllQueueBtn.Enable()
+		}
 		if state.convertActiveLog != "" {
 			viewLogBtn.Enable()
 		}
@@ -7864,6 +7911,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	if state.jobQueue != nil && state.jobQueue.IsRunning() {
 		convertBtn.Disable()
 		addQueueBtn.Enable()
+		if len(state.loadedVideos) > 1 {
+			addAllQueueBtn.Enable()
+		}
 	}
 
 	// Keyboard shortcut: Ctrl+Enter (Cmd+Enter on macOS maps to Super) -> Convert Now
@@ -8004,7 +8054,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	buildCommandPreview()
 
 	leftControls := container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn, autoCompareCheck)
-	rightControls := container.NewHBox(cancelBtn, cancelQueueBtn, viewLogBtn, addQueueBtn, convertBtn)
+	rightControls := container.NewHBox(cancelBtn, cancelQueueBtn, viewLogBtn, addAllQueueBtn, addQueueBtn, convertBtn)
 	actionBar := container.NewHBox(leftControls, layout.NewSpacer(), rightControls)
 
 	// Start a UI refresh ticker to update widgets from state while conversion is active
