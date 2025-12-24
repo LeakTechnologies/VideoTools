@@ -816,6 +816,8 @@ type appState struct {
 	window                    fyne.Window
 	active                    string
 	lastModule                string
+	queueBackTarget           string
+	queueLastRefresh          time.Time
 	navigationHistory         []string // Track module navigation history for back/forward buttons
 	navigationHistoryPosition int      // Current position in navigation history
 	navigationHistorySuppress bool     // Temporarily suppress history tracking during navigation
@@ -1593,6 +1595,7 @@ func (s *appState) showMainMenu() {
 	s.stopPlayer()
 	s.stopQueueAutoRefresh()
 	s.active = ""
+	s.queueBackTarget = ""
 
 	// Track navigation history
 	s.pushNavigationHistory("mainmenu")
@@ -1697,7 +1700,10 @@ func (s *appState) showMainMenu() {
 func (s *appState) showQueue() {
 	s.stopPreview()
 	s.stopPlayer()
-	s.lastModule = s.active
+	if s.active != "queue" {
+		s.lastModule = s.active
+		s.queueBackTarget = s.active
+	}
 	s.active = "queue"
 	s.refreshQueueView()
 	s.startQueueAutoRefresh()
@@ -1705,6 +1711,14 @@ func (s *appState) showQueue() {
 
 // refreshQueueView rebuilds the queue UI while preserving scroll position and inline active conversion.
 func (s *appState) refreshQueueView() {
+	if s.active == "queue" {
+		now := time.Now()
+		if !s.queueLastRefresh.IsZero() && now.Sub(s.queueLastRefresh) < 500*time.Millisecond {
+			return
+		}
+		s.queueLastRefresh = now
+	}
+
 	// Preserve current scroll offset if we already have a view
 	if s.queueScroll != nil {
 		s.queueOffset = s.queueScroll.Offset
@@ -1736,8 +1750,12 @@ func (s *appState) refreshQueueView() {
 	view, scroll := ui.BuildQueueView(
 		jobs,
 		func() { // onBack
-			if s.lastModule != "" && s.lastModule != "queue" && s.lastModule != "menu" {
-				s.showModule(s.lastModule)
+			target := s.queueBackTarget
+			if target == "" {
+				target = s.lastModule
+			}
+			if target != "" && target != "queue" && target != "menu" {
+				s.showModule(target)
 			} else {
 				s.showMainMenu()
 			}
