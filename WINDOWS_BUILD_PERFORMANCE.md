@@ -10,11 +10,14 @@ If you're experiencing very slow build times on Windows, follow these steps to d
 
 We've updated the build scripts with performance optimizations:
 
-```powershell
-# PowerShell (Recommended)
+```bash
+# Git Bash (Most Windows users)
+./scripts/build.sh
+
+# PowerShell
 .\scripts\build.ps1
 
-# Or Command Prompt
+# Command Prompt
 .\scripts\build.bat
 ```
 
@@ -29,7 +32,21 @@ We've updated the build scripts with performance optimizations:
 
 Windows Defender scans every intermediate `.o` file during compilation, adding 2-5 minutes to build time.
 
-#### Add These Exclusions:
+#### Automated Script (Easiest - For Git Bash Users):
+
+**From Git Bash (Run as Administrator):**
+```bash
+# Run the automated exclusion script
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/add-defender-exclusions.ps1
+```
+
+**To run Git Bash as Administrator:**
+1. Search for "Git Bash" in Start Menu
+2. Right-click → "Run as administrator"
+3. Navigate to your VideoTools directory
+4. Run the command above
+
+#### Manual Method (GUI):
 
 1. **Open Windows Security**
    - Press `Win + I` → Update & Security → Windows Security → Virus & threat protection
@@ -40,18 +57,17 @@ Windows Defender scans every intermediate `.o` file during compilation, adding 2
    - `C:\Users\YourName\Projects\VideoTools` - Your project directory
    - `C:\msys64` - MinGW toolchain (if using MSYS2)
 
-#### PowerShell Command (Run as Administrator):
+#### PowerShell Method (If Not Using Git Bash):
+
+Run PowerShell as Administrator:
 ```powershell
-# Add Go build cache
+# Run the automated script
+.\scripts\add-defender-exclusions.ps1
+
+# Or add manually:
 Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\go-build"
-
-# Add Go module cache
 Add-MpPreference -ExclusionPath "$env:USERPROFILE\go"
-
-# Add project directory (adjust path as needed)
 Add-MpPreference -ExclusionPath "C:\Users\$env:USERNAME\Projects\VideoTools"
-
-# Add MinGW if using MSYS2
 Add-MpPreference -ExclusionPath "C:\msys64"
 ```
 
@@ -204,10 +220,33 @@ If you're still experiencing slow builds after following this guide:
    - Windows version
    - Antivirus software in use
 
-## Summary: What Jake Should Do
+## Summary: Quick Start for Git Bash Users
 
-1. ✅ **Add Windows Defender exclusions** (saves 2-5 minutes)
-2. ✅ **Use updated build scripts** (saves 30-60 seconds)
-3. ✅ **Don't use `-Clean` flag** (saves 1-2 minutes on incremental builds)
+**If you're using Git Bash on Windows (most users), do this:**
+
+1. **Open Git Bash as Administrator**
+   - Right-click Git Bash → "Run as administrator"
+
+2. **Navigate to VideoTools:**
+   ```bash
+   cd ~/Projects/VideoTools  # or wherever your project is
+   ```
+
+3. **Add Defender exclusions (ONE TIME ONLY):**
+   ```bash
+   powershell.exe -ExecutionPolicy Bypass -File ./scripts/add-defender-exclusions.ps1
+   ```
+
+4. **Close and reopen Git Bash (normal, not admin)**
+
+5. **Build with optimized script:**
+   ```bash
+   ./scripts/build.sh
+   ```
 
 **Expected result:** 5+ minutes → 30-90 seconds
+
+### What Each Step Does:
+1. ✅ **Add Windows Defender exclusions** (saves 2-5 minutes) - Most important!
+2. ✅ **Use optimized build scripts** (saves 30-60 seconds) - Parallel compilation
+3. ✅ **Avoid clean builds** (saves 1-2 minutes) - Uses Go's build cache
