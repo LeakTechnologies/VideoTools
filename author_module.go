@@ -38,6 +38,9 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	if state.authorAspectRatio == "" {
 		state.authorAspectRatio = "AUTO"
 	}
+	if state.authorDiscSize == "" {
+		state.authorDiscSize = "DVD5"
+	}
 
 	authorColor := moduleColor("author")
 
@@ -482,6 +485,16 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 	})
 	createMenuCheck.SetChecked(state.authorCreateMenu)
 
+	discSizeSelect := widget.NewSelect([]string{"DVD5", "DVD9"}, func(value string) {
+		state.authorDiscSize = value
+		state.updateAuthorSummary()
+	})
+	if state.authorDiscSize == "" {
+		discSizeSelect.SetSelected("DVD5")
+	} else {
+		discSizeSelect.SetSelected(state.authorDiscSize)
+	}
+
 	info := widget.NewLabel("Requires: ffmpeg, dvdauthor, and mkisofs/genisoimage (for ISO).")
 	info.Wrapping = fyne.TextWrapWord
 
@@ -494,6 +507,8 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		regionSelect,
 		widget.NewLabel("Aspect Ratio:"),
 		aspectSelect,
+		widget.NewLabel("Disc Size:"),
+		discSizeSelect,
 		widget.NewLabel("DVD Title:"),
 		titleEntry,
 		createMenuCheck,
@@ -552,10 +567,15 @@ func authorSummary(state *appState) string {
 	}
 
 	summary += fmt.Sprintf("Output Type: %s\n", state.authorOutputType)
+	summary += fmt.Sprintf("Disc Size: %s\n", state.authorDiscSize)
 	summary += fmt.Sprintf("Region: %s\n", state.authorRegion)
 	summary += fmt.Sprintf("Aspect Ratio: %s\n", state.authorAspectRatio)
 	if state.authorTitle != "" {
 		summary += fmt.Sprintf("DVD Title: %s\n", state.authorTitle)
+	}
+	if totalDur := authorTotalDuration(state); totalDur > 0 {
+		bitrate := authorTargetBitrateKbps(state.authorDiscSize, totalDur)
+		summary += fmt.Sprintf("Estimated Target Bitrate: %dkbps\n", bitrate)
 	}
 	return summary
 }
@@ -610,6 +630,42 @@ func (s *appState) authorChapterSummary() (int, string) {
 		return len(s.authorClips), "Clip Chapters"
 	}
 	return 0, ""
+}
+
+func authorTotalDuration(state *appState) float64 {
+	if len(state.authorClips) > 0 {
+		var total float64
+		for _, clip := range state.authorClips {
+			total += clip.Duration
+		}
+		return total
+	}
+	if state.authorFile != nil {
+		return state.authorFile.Duration
+	}
+	return 0
+}
+
+func authorTargetBitrateKbps(discSize string, totalSeconds float64) int {
+	if totalSeconds <= 0 {
+		return 0
+	}
+	var targetBytes float64
+	switch strings.ToUpper(strings.TrimSpace(discSize)) {
+	case "DVD9":
+		targetBytes = 7.3 * 1024 * 1024 * 1024
+	default:
+		targetBytes = 4.1 * 1024 * 1024 * 1024
+	}
+	totalBits := targetBytes * 8
+	kbps := int(totalBits / totalSeconds / 1000)
+	if kbps > 9500 {
+		kbps = 9500
+	}
+	if kbps < 1500 {
+		kbps = 1500
+	}
+	return kbps
 }
 
 func (s *appState) loadEmbeddedChapters(path string) {
@@ -917,6 +973,12 @@ func authorWarnings(state *appState) []string {
 	}
 	if len(state.authorAudioTracks) > 0 {
 		warnings = append(warnings, "Additional audio tracks are not authored yet; they will be ignored.")
+	}
+	if totalDur := authorTotalDuration(state); totalDur > 0 {
+		bitrate := authorTargetBitrateKbps(state.authorDiscSize, totalDur)
+		if bitrate < 3000 {
+			warnings = append(warnings, fmt.Sprintf("Long runtime detected; target bitrate ~%dkbps may reduce quality.", bitrate))
+		}
 	}
 	return warnings
 }
