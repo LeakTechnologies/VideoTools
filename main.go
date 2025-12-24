@@ -3368,10 +3368,15 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 		"-y",
 		"-hide_banner",
 		"-loglevel", "error",
+	}
+	if format == "mkv-copy" {
+		args = append(args, "-fflags", "+genpts", "-reset_timestamps", "1")
+	}
+	args = append(args,
 		"-f", "concat",
 		"-safe", "0",
 		"-i", listFile.Name(),
-	}
+	)
 	if withChapters && chapterFile != nil {
 		args = append(args, "-i", chapterFile.Name(), "-map_metadata", "1", "-map_chapters", "1")
 	}
@@ -3475,7 +3480,7 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 			"-b:a", "256k",
 		)
 	case "mkv-copy":
-		args = append(args, "-c", "copy")
+		args = append(args, "-c", "copy", "-avoid_negative_ts", "make_zero")
 	case "mkv-h264":
 		args = append(args,
 			"-c:v", "libx264",
