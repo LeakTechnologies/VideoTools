@@ -327,7 +327,7 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 		dialog.ShowInformation("Export", "Chapter export will be implemented", state.window)
 	})
 
-	controls := container.NewVBox(
+	controlsTop := container.NewVBox(
 		fileLabel,
 		selectBtn,
 		widget.NewSeparator(),
@@ -338,8 +338,17 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 		widget.NewSeparator(),
 		widget.NewLabel("Chapters:"),
 		sourceLabel,
-		container.NewScroll(chapterList),
-		container.NewHBox(addChapterBtn, exportBtn),
+	)
+
+	listScroll := container.NewScroll(chapterList)
+	bottomRow := container.NewHBox(addChapterBtn, exportBtn)
+
+	controls := container.NewBorder(
+		controlsTop,
+		bottomRow,
+		nil,
+		nil,
+		listScroll,
 	)
 
 	refreshChapters()
