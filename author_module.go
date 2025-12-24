@@ -620,6 +620,9 @@ func authorSummary(state *appState) string {
 	summary += fmt.Sprintf("Disc Size: %s\n", state.authorDiscSize)
 	summary += fmt.Sprintf("Region: %s\n", state.authorRegion)
 	summary += fmt.Sprintf("Aspect Ratio: %s\n", state.authorAspectRatio)
+	if outPath := authorDefaultOutputPath(state.authorOutputType, state.authorTitle, authorSummaryPaths(state)); outPath != "" {
+		summary += fmt.Sprintf("Output Path: %s\n", outPath)
+	}
 	if state.authorTitle != "" {
 		summary += fmt.Sprintf("DVD Title: %s\n", state.authorTitle)
 	}
@@ -694,6 +697,20 @@ func authorTotalDuration(state *appState) float64 {
 		return state.authorFile.Duration
 	}
 	return 0
+}
+
+func authorSummaryPaths(state *appState) []string {
+	if len(state.authorClips) > 0 {
+		paths := make([]string, 0, len(state.authorClips))
+		for _, clip := range state.authorClips {
+			paths = append(paths, clip.Path)
+		}
+		return paths
+	}
+	if state.authorFile != nil {
+		return []string{state.authorFile.Path}
+	}
+	return nil
 }
 
 func authorTargetBitrateKbps(discSize string, totalSeconds float64) int {
@@ -1046,28 +1063,12 @@ func (s *appState) promptAuthorOutput(paths []string, region, aspect, title stri
 		outputType = "dvd"
 	}
 
+	outputPath := authorDefaultOutputPath(outputType, title, paths)
 	if outputType == "iso" {
-		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
-			if err != nil || writer == nil {
-				return
-			}
-			path := writer.URI().Path()
-			writer.Close()
-			if !strings.HasSuffix(strings.ToLower(path), ".iso") {
-				path += ".iso"
-			}
-			s.generateAuthoring(paths, region, aspect, title, path, true)
-		}, s.window)
+		s.generateAuthoring(paths, region, aspect, title, outputPath, true)
 		return
 	}
-
-	dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
-		if err != nil || uri == nil {
-			return
-		}
-		discRoot := filepath.Join(uri.Path(), authorOutputFolderName(title, paths))
-		s.generateAuthoring(paths, region, aspect, title, discRoot, false)
-	}, s.window)
+	s.generateAuthoring(paths, region, aspect, title, outputPath, false)
 }
 
 func authorWarnings(state *appState) []string {
@@ -1165,6 +1166,66 @@ func authorOutputFolderName(title string, paths []string) string {
 		name = "dvd_output"
 	}
 	return name
+}
+
+func authorDefaultOutputDir(outputType string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		home = "."
+	}
+	dir := filepath.Join(home, "Videos")
+	if strings.EqualFold(outputType, "iso") {
+		return filepath.Join(dir, "ISO_Convert")
+	}
+	return filepath.Join(dir, "DVD_Convert")
+}
+
+func authorDefaultOutputPath(outputType, title string, paths []string) string {
+	outputType = strings.ToLower(strings.TrimSpace(outputType))
+	if outputType == "" {
+		outputType = "dvd"
+	}
+	baseDir := authorDefaultOutputDir(outputType)
+	name := strings.TrimSpace(title)
+	if name == "" {
+		name = defaultAuthorTitle(paths)
+	}
+	name = sanitizeForPath(name)
+	if name == "" {
+		name = "dvd_output"
+	}
+	if outputType == "iso" {
+		return uniqueFilePath(filepath.Join(baseDir, name+".iso"))
+	}
+	return uniqueFolderPath(filepath.Join(baseDir, name))
+}
+
+func uniqueFolderPath(path string) string {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return path
+	}
+	for i := 1; i < 1000; i++ {
+		tryPath := fmt.Sprintf("%s-%d", path, i)
+		if _, err := os.Stat(tryPath); os.IsNotExist(err) {
+			return tryPath
+		}
+	}
+	return fmt.Sprintf("%s-%d", path, time.Now().Unix())
+}
+
+func uniqueFilePath(path string) string {
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return path
+	}
+	ext := filepath.Ext(path)
+	base := strings.TrimSuffix(path, ext)
+	for i := 1; i < 1000; i++ {
+		tryPath := fmt.Sprintf("%s-%d%s", base, i, ext)
+		if _, err := os.Stat(tryPath); os.IsNotExist(err) {
+			return tryPath
+		}
+	}
+	return fmt.Sprintf("%s-%d%s", base, time.Now().Unix(), ext)
 }
 
 func (s *appState) generateAuthoring(paths []string, region, aspect, title, outputPath string, makeISO bool) {
