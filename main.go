@@ -9288,52 +9288,57 @@ func (p *playSession) runVideo(offset float64) {
 				return
 			}
 
-			// Sync video to audio master clock
+			// Sync video to audio master clock (if audio is active)
 			videoFrameTime := offset + (float64(p.frameN) / p.fps)
 			p.videoTime = videoFrameTime
 
-			// Get audio clock time
-			var audioClockTime float64
-			if audioTimeVal := p.audioTime.Load(); audioTimeVal != nil {
-				audioClockTime = audioTimeVal.(float64)
-			} else {
-				audioClockTime = videoFrameTime
-			}
+			if p.audioActive.Load() {
+				// Audio is active - sync video to audio master clock
+				var audioClockTime float64
+				if audioTimeVal := p.audioTime.Load(); audioTimeVal != nil {
+					audioClockTime = audioTimeVal.(float64)
+				} else {
+					audioClockTime = videoFrameTime
+				}
 
-			// Calculate A/V sync difference
-			avDiff := videoFrameTime - audioClockTime
+				// Calculate A/V sync difference
+				avDiff := videoFrameTime - audioClockTime
 
-			// Adaptive timing based on A/V sync
-			if avDiff < -frameDur.Seconds()*3 {
-				// Video is way ahead of audio (>3 frames) - wait longer
-				time.Sleep(frameDur * 2)
-				if p.frameN%30 == 0 {
-					logging.Debug(logging.CatFFMPEG, "A/V sync: video ahead %.0fms, slowing down", -avDiff*1000)
+				// Adaptive timing based on A/V sync
+				if avDiff < -frameDur.Seconds()*3 {
+					// Video is way ahead of audio (>3 frames) - wait longer
+					time.Sleep(frameDur * 2)
+					if p.frameN%30 == 0 {
+						logging.Debug(logging.CatFFMPEG, "A/V sync: video ahead %.0fms, slowing down", -avDiff*1000)
+					}
+				} else if avDiff > frameDur.Seconds()*3 {
+					// Video is way behind audio (>3 frames) - drop frame
+					if p.frameN%30 == 0 {
+						logging.Debug(logging.CatFFMPEG, "A/V sync: video behind %.0fms, dropping frame", avDiff*1000)
+					}
+					p.frameN++
+					p.current = offset + (float64(p.frameN) / p.fps)
+					continue
+				} else if avDiff > frameDur.Seconds() {
+					// Video slightly behind - speed up (skip sleep)
+					if p.frameN%60 == 0 {
+						logging.Debug(logging.CatFFMPEG, "A/V sync: video slightly behind %.0fms, catching up", avDiff*1000)
+					}
+				} else if avDiff < -frameDur.Seconds() {
+					// Video slightly ahead - slow down
+					if p.frameN%60 == 0 {
+						logging.Debug(logging.CatFFMPEG, "A/V sync: video slightly ahead %.0fms, waiting", -avDiff*1000)
+					}
+					time.Sleep(frameDur + time.Duration(math.Abs(avDiff)*float64(time.Second)))
+				} else {
+					// In sync - normal timing
+					if p.frameN%180 == 0 && p.frameN > 0 {
+						logging.Debug(logging.CatFFMPEG, "A/V sync: good sync (diff %.1fms)", avDiff*1000)
+					}
+					time.Sleep(frameDur)
 				}
-			} else if avDiff > frameDur.Seconds()*3 {
-				// Video is way behind audio (>3 frames) - drop frame
-				if p.frameN%30 == 0 {
-					logging.Debug(logging.CatFFMPEG, "A/V sync: video behind %.0fms, dropping frame", avDiff*1000)
-				}
-				p.frameN++
-				p.current = offset + (float64(p.frameN) / p.fps)
-				continue
-			} else if avDiff > frameDur.Seconds() {
-				// Video slightly behind - speed up (skip sleep)
-				if p.frameN%60 == 0 {
-					logging.Debug(logging.CatFFMPEG, "A/V sync: video slightly behind %.0fms, catching up", avDiff*1000)
-				}
-			} else if avDiff < -frameDur.Seconds() {
-				// Video slightly ahead - slow down
-				if p.frameN%60 == 0 {
-					logging.Debug(logging.CatFFMPEG, "A/V sync: video slightly ahead %.0fms, waiting", -avDiff*1000)
-				}
-				time.Sleep(frameDur + time.Duration(math.Abs(avDiff)*float64(time.Second)))
 			} else {
-				// In sync - normal timing
-				if p.frameN%180 == 0 && p.frameN > 0 {
-					logging.Debug(logging.CatFFMPEG, "A/V sync: good sync (diff %.1fms)", avDiff*1000)
-				}
+				// No audio - just pace video at its natural frame rate
 				time.Sleep(frameDur)
 			}
 			// Allocate a fresh frame to avoid concurrent texture reuse issues.
@@ -9404,24 +9409,29 @@ func (p *playSession) runAudio(offset float64) {
 		return
 	}
 	if err := cmd.Start(); err != nil {
-		logging.Debug(logging.CatFFMPEG, "audio start failed: %v (%s)", err, strings.TrimSpace(stderr.String()))
+		logging.Debug(logging.CatFFMPEG, "audio start failed (video-only playback): %v (%s)", err, strings.TrimSpace(stderr.String()))
+		p.audioActive.Store(false)
 		return
 	}
 	p.audioCmd = cmd
 	ctx, err := getAudioContext(sampleRate, channels, bytesPerSample)
 	if err != nil {
-		logging.Debug(logging.CatFFMPEG, "audio context error: %v", err)
+		logging.Debug(logging.CatFFMPEG, "audio context error (video-only playback): %v", err)
+		p.audioActive.Store(false)
 		return
 	}
 	player := ctx.NewPlayer()
 	if player == nil {
-		logging.Debug(logging.CatFFMPEG, "audio player creation failed")
+		logging.Debug(logging.CatFFMPEG, "audio player creation failed (video-only playback)")
+		p.audioActive.Store(false)
 		return
 	}
+	p.audioActive.Store(true) // Mark audio as active
 	localPlayer := player
 	go func() {
 		defer cmd.Process.Kill()
 		defer localPlayer.Close()
+		defer p.audioActive.Store(false) // Mark audio as inactive when done
 		// Increased from 4096 (21ms) to 16384 (85ms) for smoother playback
 		// Larger chunks reduce read frequency and improve performance
 		chunk := make([]byte, 16384)
