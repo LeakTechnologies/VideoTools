@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -14,8 +16,10 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -32,10 +36,79 @@ type subtitleCue struct {
 	Text  string
 }
 
+type subtitlesConfig struct {
+	OutputMode  string `json:"outputMode"`
+	ModelPath   string `json:"modelPath"`
+	BackendPath string `json:"backendPath"`
+	BurnOutput  string `json:"burnOutput"`
+}
+
+func defaultSubtitlesConfig() subtitlesConfig {
+	return subtitlesConfig{
+		OutputMode:  subtitleModeExternal,
+		ModelPath:   "",
+		BackendPath: "",
+		BurnOutput:  "",
+	}
+}
+
+func loadPersistedSubtitlesConfig() (subtitlesConfig, error) {
+	var cfg subtitlesConfig
+	path := moduleConfigPath("subtitles")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return cfg, err
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return cfg, err
+	}
+	if cfg.OutputMode == "" {
+		cfg.OutputMode = subtitleModeExternal
+	}
+	return cfg, nil
+}
+
+func savePersistedSubtitlesConfig(cfg subtitlesConfig) error {
+	path := moduleConfigPath("subtitles")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
+func (s *appState) applySubtitlesConfig(cfg subtitlesConfig) {
+	s.subtitleOutputMode = cfg.OutputMode
+	s.subtitleModelPath = cfg.ModelPath
+	s.subtitleBackendPath = cfg.BackendPath
+	s.subtitleBurnOutput = cfg.BurnOutput
+}
+
+func (s *appState) persistSubtitlesConfig() {
+	cfg := subtitlesConfig{
+		OutputMode:  s.subtitleOutputMode,
+		ModelPath:   s.subtitleModelPath,
+		BackendPath: s.subtitleBackendPath,
+		BurnOutput:  s.subtitleBurnOutput,
+	}
+	if err := savePersistedSubtitlesConfig(cfg); err != nil {
+		logging.Debug(logging.CatSystem, "failed to persist subtitles config: %v", err)
+	}
+}
+
 func (s *appState) showSubtitlesView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "subtitles"
+
+	if cfg, err := loadPersistedSubtitlesConfig(); err == nil {
+		s.applySubtitlesConfig(cfg)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		logging.Debug(logging.CatSystem, "failed to load persisted subtitles config: %v", err)
+	}
 
 	if s.subtitleOutputMode == "" {
 		s.subtitleOutputMode = subtitleModeExternal
@@ -80,6 +153,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	modelEntry.SetText(state.subtitleModelPath)
 	modelEntry.OnChanged = func(val string) {
 		state.subtitleModelPath = strings.TrimSpace(val)
+		state.persistSubtitlesConfig()
 	}
 
 	backendEntry := widget.NewEntry()
@@ -87,6 +161,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	backendEntry.SetText(state.subtitleBackendPath)
 	backendEntry.OnChanged = func(val string) {
 		state.subtitleBackendPath = strings.TrimSpace(val)
+		state.persistSubtitlesConfig()
 	}
 
 	outputEntry := widget.NewEntry()
@@ -94,6 +169,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	outputEntry.SetText(state.subtitleBurnOutput)
 	outputEntry.OnChanged = func(val string) {
 		state.subtitleBurnOutput = strings.TrimSpace(val)
+		state.persistSubtitlesConfig()
 	}
 
 	statusLabel := widget.NewLabel("")
@@ -255,6 +331,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		[]string{subtitleModeExternal, subtitleModeEmbed, subtitleModeBurn},
 		func(val string) {
 			state.subtitleOutputMode = val
+			state.persistSubtitlesConfig()
 		},
 	)
 	outputModeSelect.SetSelected(state.subtitleOutputMode)
@@ -263,6 +340,48 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		state.applySubtitlesToVideo()
 	})
 	applyBtn.Importance = widget.HighImportance
+
+	applyControls := func() {
+		outputModeSelect.SetSelected(state.subtitleOutputMode)
+		backendEntry.SetText(state.subtitleBackendPath)
+		modelEntry.SetText(state.subtitleModelPath)
+		outputEntry.SetText(state.subtitleBurnOutput)
+	}
+
+	loadCfgBtn := widget.NewButton("Load Config", func() {
+		cfg, err := loadPersistedSubtitlesConfig()
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				dialog.ShowInformation("No Config", "No saved config found yet. It will save automatically after your first change.", state.window)
+			} else {
+				dialog.ShowError(fmt.Errorf("failed to load config: %w", err), state.window)
+			}
+			return
+		}
+		state.applySubtitlesConfig(cfg)
+		applyControls()
+	})
+
+	saveCfgBtn := widget.NewButton("Save Config", func() {
+		cfg := subtitlesConfig{
+			OutputMode:  state.subtitleOutputMode,
+			ModelPath:   state.subtitleModelPath,
+			BackendPath: state.subtitleBackendPath,
+			BurnOutput:  state.subtitleBurnOutput,
+		}
+		if err := savePersistedSubtitlesConfig(cfg); err != nil {
+			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
+			return
+		}
+		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", moduleConfigPath("subtitles")), state.window)
+	})
+
+	resetBtn := widget.NewButton("Reset", func() {
+		cfg := defaultSubtitlesConfig()
+		state.applySubtitlesConfig(cfg)
+		applyControls()
+		state.persistSubtitlesConfig()
+	})
 
 	left := container.NewVBox(
 		widget.NewLabelWithStyle("Sources", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -278,6 +397,8 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		applyBtn,
 		widget.NewLabelWithStyle("Status", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		statusLabel,
+		widget.NewSeparator(),
+		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
 	)
 
 	right := container.NewBorder(

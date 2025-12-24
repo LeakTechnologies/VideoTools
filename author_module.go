@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,10 +29,105 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
+type authorConfig struct {
+	OutputType      string  `json:"outputType"`
+	Region          string  `json:"region"`
+	AspectRatio     string  `json:"aspectRatio"`
+	DiscSize        string  `json:"discSize"`
+	Title           string  `json:"title"`
+	CreateMenu      bool    `json:"createMenu"`
+	TreatAsChapters bool    `json:"treatAsChapters"`
+	SceneThreshold  float64 `json:"sceneThreshold"`
+}
+
+func defaultAuthorConfig() authorConfig {
+	return authorConfig{
+		OutputType:      "dvd",
+		Region:          "AUTO",
+		AspectRatio:     "AUTO",
+		DiscSize:        "DVD5",
+		Title:           "",
+		CreateMenu:      false,
+		TreatAsChapters: false,
+		SceneThreshold:  0.3,
+	}
+}
+
+func loadPersistedAuthorConfig() (authorConfig, error) {
+	var cfg authorConfig
+	path := moduleConfigPath("author")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return cfg, err
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return cfg, err
+	}
+	if cfg.OutputType == "" {
+		cfg.OutputType = "dvd"
+	}
+	if cfg.Region == "" {
+		cfg.Region = "AUTO"
+	}
+	if cfg.AspectRatio == "" {
+		cfg.AspectRatio = "AUTO"
+	}
+	if cfg.DiscSize == "" {
+		cfg.DiscSize = "DVD5"
+	}
+	if cfg.SceneThreshold <= 0 {
+		cfg.SceneThreshold = 0.3
+	}
+	return cfg, nil
+}
+
+func savePersistedAuthorConfig(cfg authorConfig) error {
+	path := moduleConfigPath("author")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
+func (s *appState) applyAuthorConfig(cfg authorConfig) {
+	s.authorOutputType = cfg.OutputType
+	s.authorRegion = cfg.Region
+	s.authorAspectRatio = cfg.AspectRatio
+	s.authorDiscSize = cfg.DiscSize
+	s.authorTitle = cfg.Title
+	s.authorCreateMenu = cfg.CreateMenu
+	s.authorTreatAsChapters = cfg.TreatAsChapters
+	s.authorSceneThreshold = cfg.SceneThreshold
+}
+
+func (s *appState) persistAuthorConfig() {
+	cfg := authorConfig{
+		OutputType:      s.authorOutputType,
+		Region:          s.authorRegion,
+		AspectRatio:     s.authorAspectRatio,
+		DiscSize:        s.authorDiscSize,
+		Title:           s.authorTitle,
+		CreateMenu:      s.authorCreateMenu,
+		TreatAsChapters: s.authorTreatAsChapters,
+		SceneThreshold:  s.authorSceneThreshold,
+	}
+	if err := savePersistedAuthorConfig(cfg); err != nil {
+		logging.Debug(logging.CatSystem, "failed to persist author config: %v", err)
+	}
+}
+
 func buildAuthorView(state *appState) fyne.CanvasObject {
 	state.stopPreview()
 	state.lastModule = state.active
 	state.active = "author"
+
+	if cfg, err := loadPersistedAuthorConfig(); err == nil {
+		state.applyAuthorConfig(cfg)
+	}
 
 	if state.authorOutputType == "" {
 		state.authorOutputType = "dvd"
@@ -178,6 +274,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			state.authorChapters = nil
 		}
 		state.updateAuthorSummary()
+		state.persistAuthorConfig()
 		if state.authorChaptersRefresh != nil {
 			state.authorChaptersRefresh()
 		}
@@ -285,6 +382,7 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 	thresholdSlider.OnChanged = func(v float64) {
 		state.authorSceneThreshold = v
 		thresholdLabel.SetText(fmt.Sprintf("Detection Sensitivity: %.2f", v))
+		state.persistAuthorConfig()
 	}
 
 	detectBtn := widget.NewButton("Detect Scenes", func() {
@@ -472,6 +570,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 			state.authorOutputType = "iso"
 		}
 		state.updateAuthorSummary()
+		state.persistAuthorConfig()
 	})
 	if state.authorOutputType == "iso" {
 		outputType.SetSelected("ISO Image")
@@ -482,6 +581,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 	regionSelect := widget.NewSelect([]string{"AUTO", "NTSC", "PAL"}, func(value string) {
 		state.authorRegion = value
 		state.updateAuthorSummary()
+		state.persistAuthorConfig()
 	})
 	if state.authorRegion == "" {
 		regionSelect.SetSelected("AUTO")
@@ -492,6 +592,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 	aspectSelect := widget.NewSelect([]string{"AUTO", "4:3", "16:9"}, func(value string) {
 		state.authorAspectRatio = value
 		state.updateAuthorSummary()
+		state.persistAuthorConfig()
 	})
 	if state.authorAspectRatio == "" {
 		aspectSelect.SetSelected("AUTO")
@@ -505,23 +606,92 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 	titleEntry.OnChanged = func(value string) {
 		state.authorTitle = value
 		state.updateAuthorSummary()
+		state.persistAuthorConfig()
 	}
 
 	createMenuCheck := widget.NewCheck("Create DVD Menu", func(checked bool) {
 		state.authorCreateMenu = checked
 		state.updateAuthorSummary()
+		state.persistAuthorConfig()
 	})
 	createMenuCheck.SetChecked(state.authorCreateMenu)
 
 	discSizeSelect := widget.NewSelect([]string{"DVD5", "DVD9"}, func(value string) {
 		state.authorDiscSize = value
 		state.updateAuthorSummary()
+		state.persistAuthorConfig()
 	})
 	if state.authorDiscSize == "" {
 		discSizeSelect.SetSelected("DVD5")
 	} else {
 		discSizeSelect.SetSelected(state.authorDiscSize)
 	}
+
+	applyControls := func() {
+		if state.authorOutputType == "iso" {
+			outputType.SetSelected("ISO Image")
+		} else {
+			outputType.SetSelected("DVD (VIDEO_TS)")
+		}
+		if state.authorRegion == "" {
+			regionSelect.SetSelected("AUTO")
+		} else {
+			regionSelect.SetSelected(state.authorRegion)
+		}
+		if state.authorAspectRatio == "" {
+			aspectSelect.SetSelected("AUTO")
+		} else {
+			aspectSelect.SetSelected(state.authorAspectRatio)
+		}
+		if state.authorDiscSize == "" {
+			discSizeSelect.SetSelected("DVD5")
+		} else {
+			discSizeSelect.SetSelected(state.authorDiscSize)
+		}
+		titleEntry.SetText(state.authorTitle)
+		createMenuCheck.SetChecked(state.authorCreateMenu)
+	}
+
+	loadCfgBtn := widget.NewButton("Load Config", func() {
+		cfg, err := loadPersistedAuthorConfig()
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				dialog.ShowInformation("No Config", "No saved config found yet. It will save automatically after your first change.", state.window)
+			} else {
+				dialog.ShowError(fmt.Errorf("failed to load config: %w", err), state.window)
+			}
+			return
+		}
+		state.applyAuthorConfig(cfg)
+		applyControls()
+		state.updateAuthorSummary()
+	})
+
+	saveCfgBtn := widget.NewButton("Save Config", func() {
+		cfg := authorConfig{
+			OutputType:      state.authorOutputType,
+			Region:          state.authorRegion,
+			AspectRatio:     state.authorAspectRatio,
+			DiscSize:        state.authorDiscSize,
+			Title:           state.authorTitle,
+			CreateMenu:      state.authorCreateMenu,
+			TreatAsChapters: state.authorTreatAsChapters,
+			SceneThreshold:  state.authorSceneThreshold,
+		}
+		if err := savePersistedAuthorConfig(cfg); err != nil {
+			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
+			return
+		}
+		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", moduleConfigPath("author")), state.window)
+	})
+
+	resetBtn := widget.NewButton("Reset", func() {
+		cfg := defaultAuthorConfig()
+		state.applyAuthorConfig(cfg)
+		applyControls()
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	})
 
 	info := widget.NewLabel("Requires: ffmpeg, dvdauthor, and mkisofs/genisoimage (for ISO).")
 	info.Wrapping = fyne.TextWrapWord
@@ -542,6 +712,8 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		createMenuCheck,
 		widget.NewSeparator(),
 		info,
+		widget.NewSeparator(),
+		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
 	)
 
 	return container.NewPadded(controls)

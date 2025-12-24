@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -28,10 +30,67 @@ const (
 	ripFormatH264MP4     = "H.264 MP4 (CRF 18)"
 )
 
+type ripConfig struct {
+	Format string `json:"format"`
+}
+
+func defaultRipConfig() ripConfig {
+	return ripConfig{
+		Format: ripFormatLosslessMKV,
+	}
+}
+
+func loadPersistedRipConfig() (ripConfig, error) {
+	var cfg ripConfig
+	path := moduleConfigPath("rip")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return cfg, err
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return cfg, err
+	}
+	if cfg.Format == "" {
+		cfg.Format = ripFormatLosslessMKV
+	}
+	return cfg, nil
+}
+
+func savePersistedRipConfig(cfg ripConfig) error {
+	path := moduleConfigPath("rip")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
+func (s *appState) applyRipConfig(cfg ripConfig) {
+	s.ripFormat = cfg.Format
+}
+
+func (s *appState) persistRipConfig() {
+	cfg := ripConfig{
+		Format: s.ripFormat,
+	}
+	if err := savePersistedRipConfig(cfg); err != nil {
+		logging.Debug(logging.CatSystem, "failed to persist rip config: %v", err)
+	}
+}
+
 func (s *appState) showRipView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "rip"
+
+	if cfg, err := loadPersistedRipConfig(); err == nil {
+		s.applyRipConfig(cfg)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		logging.Debug(logging.CatSystem, "failed to load persisted rip config: %v", err)
+	}
 
 	if s.ripFormat == "" {
 		s.ripFormat = ripFormatLosslessMKV
@@ -78,6 +137,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		state.ripFormat = val
 		state.ripOutputPath = defaultRipOutputPath(state.ripSourcePath, state.ripFormat)
 		outputEntry.SetText(state.ripOutputPath)
+		state.persistRipConfig()
 	})
 	formatSelect.SetSelected(state.ripFormat)
 
@@ -122,6 +182,45 @@ func buildRipView(state *appState) fyne.CanvasObject {
 	})
 	runNowBtn.Importance = widget.HighImportance
 
+	applyControls := func() {
+		formatSelect.SetSelected(state.ripFormat)
+		outputEntry.SetText(state.ripOutputPath)
+	}
+
+	loadCfgBtn := widget.NewButton("Load Config", func() {
+		cfg, err := loadPersistedRipConfig()
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				dialog.ShowInformation("No Config", "No saved config found yet. It will save automatically after your first change.", state.window)
+			} else {
+				dialog.ShowError(fmt.Errorf("failed to load config: %w", err), state.window)
+			}
+			return
+		}
+		state.applyRipConfig(cfg)
+		state.ripOutputPath = defaultRipOutputPath(state.ripSourcePath, state.ripFormat)
+		applyControls()
+	})
+
+	saveCfgBtn := widget.NewButton("Save Config", func() {
+		cfg := ripConfig{
+			Format: state.ripFormat,
+		}
+		if err := savePersistedRipConfig(cfg); err != nil {
+			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
+			return
+		}
+		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", moduleConfigPath("rip")), state.window)
+	})
+
+	resetBtn := widget.NewButton("Reset", func() {
+		cfg := defaultRipConfig()
+		state.applyRipConfig(cfg)
+		state.ripOutputPath = defaultRipOutputPath(state.ripSourcePath, state.ripFormat)
+		applyControls()
+		state.persistRipConfig()
+	})
+
 	controls := container.NewVBox(
 		widget.NewLabelWithStyle("Source", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
@@ -138,6 +237,8 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		container.NewHBox(addQueueBtn, runNowBtn),
+		widget.NewSeparator(),
+		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Status", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		statusLabel,

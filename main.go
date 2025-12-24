@@ -2957,6 +2957,12 @@ func (s *appState) showMergeView() {
 
 	mergeColor := moduleColor("merge")
 
+	if cfg, err := loadPersistedMergeConfig(); err == nil {
+		s.applyMergeConfig(cfg)
+	} else if !errors.Is(err, os.ErrNotExist) {
+		logging.Debug(logging.CatSystem, "failed to load persisted merge config: %v", err)
+	}
+
 	if s.mergeFormat == "" {
 		s.mergeFormat = "mkv-copy"
 	}
@@ -3130,11 +3136,13 @@ func (s *appState) showMergeView() {
 
 	keepAllCheck := widget.NewCheck("Keep all audio/subtitle tracks", func(v bool) {
 		s.mergeKeepAll = v
+		s.persistMergeConfig()
 	})
 	keepAllCheck.SetChecked(s.mergeKeepAll)
 
 	chapterCheck := widget.NewCheck("Create chapters from each clip", func(v bool) {
 		s.mergeChapters = v
+		s.persistMergeConfig()
 	})
 	chapterCheck.SetChecked(s.mergeChapters)
 
@@ -3169,11 +3177,13 @@ func (s *appState) showMergeView() {
 	// DVD-specific options
 	dvdRegionSelect := widget.NewSelect([]string{"NTSC", "PAL"}, func(val string) {
 		s.mergeDVDRegion = val
+		s.persistMergeConfig()
 	})
 	dvdRegionSelect.SetSelected(s.mergeDVDRegion)
 
 	dvdAspectSelect := widget.NewSelect([]string{"16:9", "4:3"}, func(val string) {
 		s.mergeDVDAspect = val
+		s.persistMergeConfig()
 	})
 	dvdAspectSelect.SetSelected(s.mergeDVDAspect)
 
@@ -3216,6 +3226,7 @@ func (s *appState) showMergeView() {
 			// Update extension of existing path
 			updateOutputExt()
 		}
+		s.persistMergeConfig()
 	})
 	for label, val := range formatMap {
 		if val == s.mergeFormat {
@@ -3234,11 +3245,13 @@ func (s *appState) showMergeView() {
 	// Frame Rate controls
 	frameRateSelect := widget.NewSelect([]string{"Source", "23.976", "24", "25", "29.97", "30", "50", "59.94", "60"}, func(val string) {
 		s.mergeFrameRate = val
+		s.persistMergeConfig()
 	})
 	frameRateSelect.SetSelected(s.mergeFrameRate)
 
 	motionInterpCheck := widget.NewCheck("Use Motion Interpolation (slower, smoother)", func(checked bool) {
 		s.mergeMotionInterpolation = checked
+		s.persistMergeConfig()
 	})
 	motionInterpCheck.SetChecked(s.mergeMotionInterpolation)
 
@@ -3284,6 +3297,66 @@ func (s *appState) showMergeView() {
 		runNowBtn.Disable()
 	}
 
+	applyMergeControls := func() {
+		for label, val := range formatMap {
+			if val == s.mergeFormat {
+				formatSelect.SetSelected(label)
+				break
+			}
+		}
+		keepAllCheck.SetChecked(s.mergeKeepAll)
+		chapterCheck.SetChecked(s.mergeChapters)
+		dvdRegionSelect.SetSelected(s.mergeDVDRegion)
+		dvdAspectSelect.SetSelected(s.mergeDVDAspect)
+		frameRateSelect.SetSelected(s.mergeFrameRate)
+		motionInterpCheck.SetChecked(s.mergeMotionInterpolation)
+		if s.mergeFormat == "dvd" {
+			dvdOptionsContainer.Show()
+		} else {
+			dvdOptionsContainer.Hide()
+		}
+		updateOutputExt()
+	}
+
+	loadCfgBtn := widget.NewButton("Load Config", func() {
+		cfg, err := loadPersistedMergeConfig()
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				dialog.ShowInformation("No Config", "No saved config found yet. It will save automatically after your first change.", s.window)
+			} else {
+				dialog.ShowError(fmt.Errorf("failed to load config: %w", err), s.window)
+			}
+			return
+		}
+		s.applyMergeConfig(cfg)
+		applyMergeControls()
+	})
+
+	saveCfgBtn := widget.NewButton("Save Config", func() {
+		cfg := mergeConfig{
+			Format:              s.mergeFormat,
+			KeepAllStreams:      s.mergeKeepAll,
+			Chapters:            s.mergeChapters,
+			CodecMode:           s.mergeCodecMode,
+			DVDRegion:           s.mergeDVDRegion,
+			DVDAspect:           s.mergeDVDAspect,
+			FrameRate:           s.mergeFrameRate,
+			MotionInterpolation: s.mergeMotionInterpolation,
+		}
+		if err := savePersistedMergeConfig(cfg); err != nil {
+			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), s.window)
+			return
+		}
+		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", moduleConfigPath("merge")), s.window)
+	})
+
+	resetBtn := widget.NewButton("Reset", func() {
+		cfg := defaultMergeConfig()
+		s.applyMergeConfig(cfg)
+		applyMergeControls()
+		s.persistMergeConfig()
+	})
+
 	listScroll := container.NewVScroll(listBox)
 
 	// Use border layout so the list expands to fill available vertical space
@@ -3323,6 +3396,8 @@ func (s *appState) showMergeView() {
 		widget.NewSeparator(),
 		widget.NewLabel("Output Path"),
 		container.NewBorder(nil, nil, nil, browseOut, outputEntry),
+		widget.NewSeparator(),
+		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
 		widget.NewSeparator(),
 		container.NewHBox(addQueueBtn, runNowBtn),
 	)
