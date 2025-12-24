@@ -9,26 +9,26 @@ import (
 type DVDRegion string
 
 const (
-	DVDNTSCRegionFree DVDRegion = "ntsc-region-free"
-	DVDPALRegionFree  DVDRegion = "pal-region-free"
+	DVDNTSCRegionFree  DVDRegion = "ntsc-region-free"
+	DVDPALRegionFree   DVDRegion = "pal-region-free"
 	DVDSECAMRegionFree DVDRegion = "secam-region-free"
 )
 
 // DVDStandard represents the technical specifications for a DVD encoding standard
 type DVDStandard struct {
-	Region          DVDRegion
-	Name            string
-	Resolution      string // "720x480" or "720x576"
-	FrameRate       string // "29.97" or "25.00"
-	VideoFrames     int    // 30 or 25
-	AudioRate       int    // 48000 Hz (universal)
-	Type            string // "NTSC", "PAL", or "SECAM"
-	Countries       []string
-	DefaultBitrate  string // "6000k" for NTSC, "8000k" for PAL
-	MaxBitrate      string // "9000k" for NTSC, "9500k" for PAL
-	AspectRatios    []string
-	InterlaceMode   string // "interlaced" or "progressive"
-	Description     string
+	Region         DVDRegion
+	Name           string
+	Resolution     string // "720x480" or "720x576"
+	FrameRate      string // "29.97" or "25.00"
+	VideoFrames    int    // 30 or 25
+	AudioRate      int    // 48000 Hz (universal)
+	Type           string // "NTSC", "PAL", or "SECAM"
+	Countries      []string
+	DefaultBitrate string // "6000k" for NTSC, "8000k" for PAL
+	MaxBitrate     string // "9000k" for NTSC, "9500k" for PAL
+	AspectRatios   []string
+	InterlaceMode  string // "interlaced" or "progressive"
+	Description    string
 }
 
 // GetDVDStandard returns specifications for a given DVD region

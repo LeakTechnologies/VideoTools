@@ -38,12 +38,12 @@ type BenchmarkProgressView struct {
 	textColor  color.Color
 	onCancel   func()
 
-	container      *fyne.Container
-	statusLabel    *widget.Label
-	progressBar    *widget.ProgressBar
-	currentLabel   *widget.Label
-	resultsBox     *fyne.Container
-	cancelBtn      *widget.Button
+	container    *fyne.Container
+	statusLabel  *widget.Label
+	progressBar  *widget.ProgressBar
+	currentLabel *widget.Label
+	resultsBox   *fyne.Container
+	cancelBtn    *widget.Button
 }
 
 func (v *BenchmarkProgressView) build() {

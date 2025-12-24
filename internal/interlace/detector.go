@@ -13,11 +13,11 @@ import (
 // DetectionResult contains the results of interlacing analysis
 type DetectionResult struct {
 	// Frame counts from idet filter
-	TFF          int     // Top Field First frames
-	BFF          int     // Bottom Field First frames
-	Progressive  int     // Progressive frames
-	Undetermined int     // Undetermined frames
-	TotalFrames  int     // Total frames analyzed
+	TFF          int // Top Field First frames
+	BFF          int // Bottom Field First frames
+	Progressive  int // Progressive frames
+	Undetermined int // Undetermined frames
+	TotalFrames  int // Total frames analyzed
 
 	// Calculated metrics
 	InterlacedPercent float64 // Percentage of interlaced frames
@@ -26,21 +26,21 @@ type DetectionResult struct {
 	Confidence        string  // "High", "Medium", "Low"
 
 	// Recommendations
-	Recommendation    string  // Human-readable recommendation
+	Recommendation     string // Human-readable recommendation
 	SuggestDeinterlace bool   // Whether deinterlacing is recommended
 	SuggestedFilter    string // "yadif", "bwdif", etc.
 }
 
 // Detector analyzes video for interlacing
 type Detector struct {
-	FFmpegPath string
+	FFmpegPath  string
 	FFprobePath string
 }
 
 // NewDetector creates a new interlacing detector
 func NewDetector(ffmpegPath, ffprobePath string) *Detector {
 	return &Detector{
-		FFmpegPath: ffmpegPath,
+		FFmpegPath:  ffmpegPath,
 		FFprobePath: ffprobePath,
 	}
 }
