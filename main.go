@@ -2778,13 +2778,6 @@ func (s *appState) showCompareView() {
 	s.setContent(buildCompareView(s))
 }
 
-func (s *appState) showThumbView() {
-	s.stopPreview()
-	s.lastModule = s.active
-	s.active = "thumb"
-	s.setContent(buildThumbView(s))
-}
-
 func (s *appState) showPlayerView() {
 	s.stopPreview()
 	s.lastModule = s.active
