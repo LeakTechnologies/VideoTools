@@ -75,6 +75,7 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 }
 
 func buildVideoClipsTab(state *appState) fyne.CanvasObject {
+	state.authorVideoTSPath = strings.TrimSpace(state.authorVideoTSPath)
 	list := container.NewVBox()
 	listScroll := container.NewVScroll(list)
 
@@ -152,6 +153,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 		state.authorClips = []authorClip{}
 		state.authorChapters = nil
 		state.authorChapterSource = ""
+		state.authorVideoTSPath = ""
 		rebuildList()
 		state.updateAuthorSummary()
 	})
@@ -596,7 +598,9 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 
 func authorSummary(state *appState) string {
 	summary := "Ready to generate:\n\n"
-	if len(state.authorClips) > 0 {
+	if state.authorVideoTSPath != "" {
+		summary += fmt.Sprintf("VIDEO_TS: %s\n", filepath.Base(filepath.Dir(state.authorVideoTSPath)))
+	} else if len(state.authorClips) > 0 {
 		summary += fmt.Sprintf("Videos: %d\n", len(state.authorClips))
 		for i, clip := range state.authorClips {
 			summary += fmt.Sprintf("  %d. %s (%.2fs)\n", i+1, clip.DisplayName, clip.Duration)
@@ -620,7 +624,7 @@ func authorSummary(state *appState) string {
 	summary += fmt.Sprintf("Disc Size: %s\n", state.authorDiscSize)
 	summary += fmt.Sprintf("Region: %s\n", state.authorRegion)
 	summary += fmt.Sprintf("Aspect Ratio: %s\n", state.authorAspectRatio)
-	if outPath := authorDefaultOutputPath(state.authorOutputType, state.authorTitle, authorSummaryPaths(state)); outPath != "" {
+	if outPath := authorDefaultOutputPath(state.authorOutputType, authorOutputTitle(state), authorSummaryPaths(state)); outPath != "" {
 		summary += fmt.Sprintf("Output Path: %s\n", outPath)
 	}
 	if state.authorTitle != "" {
@@ -700,6 +704,9 @@ func authorTotalDuration(state *appState) float64 {
 }
 
 func authorSummaryPaths(state *appState) []string {
+	if state.authorVideoTSPath != "" {
+		return []string{state.authorVideoTSPath}
+	}
 	if len(state.authorClips) > 0 {
 		paths := make([]string, 0, len(state.authorClips))
 		for _, clip := range state.authorClips {
@@ -711,6 +718,17 @@ func authorSummaryPaths(state *appState) []string {
 		return []string{state.authorFile.Path}
 	}
 	return nil
+}
+
+func authorOutputTitle(state *appState) string {
+	title := strings.TrimSpace(state.authorTitle)
+	if title != "" {
+		return title
+	}
+	if state.authorVideoTSPath != "" {
+		return filepath.Base(filepath.Dir(state.authorVideoTSPath))
+	}
+	return defaultAuthorTitle(authorSummaryPaths(state))
 }
 
 func authorTargetBitrateKbps(discSize string, totalSeconds float64) int {
@@ -1016,6 +1034,19 @@ func (s *appState) setAuthorProgress(percent float64) {
 }
 
 func (s *appState) startAuthorGeneration() {
+	if s.authorVideoTSPath != "" {
+		title := authorOutputTitle(s)
+		outputPath := authorDefaultOutputPath("iso", title, []string{s.authorVideoTSPath})
+		if outputPath == "" {
+			dialog.ShowError(fmt.Errorf("failed to resolve output path"), s.window)
+			return
+		}
+		if err := s.addAuthorVideoTSToQueue(s.authorVideoTSPath, title, outputPath, true); err != nil {
+			dialog.ShowError(err, s.window)
+		}
+		return
+	}
+
 	paths, primary, err := s.authorSourcePaths()
 	if err != nil {
 		dialog.ShowError(err, s.window)
@@ -1300,6 +1331,34 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 	return nil
 }
 
+func (s *appState) addAuthorVideoTSToQueue(videoTSPath, title, outputPath string, startNow bool) error {
+	if s.jobQueue == nil {
+		return fmt.Errorf("queue not initialized")
+	}
+	job := &queue.Job{
+		Type:        queue.JobTypeAuthor,
+		Title:       fmt.Sprintf("Author ISO: %s", title),
+		Description: fmt.Sprintf("VIDEO_TS -> %s", utils.ShortenMiddle(filepath.Base(outputPath), 40)),
+		InputFile:   videoTSPath,
+		OutputFile:  outputPath,
+		Config: map[string]interface{}{
+			"videoTSPath": videoTSPath,
+			"outputPath":  outputPath,
+			"makeISO":     true,
+			"title":       title,
+		},
+	}
+
+	s.resetAuthorLog()
+	s.setAuthorStatus("Queued authoring job...")
+	s.setAuthorProgress(0)
+	s.jobQueue.Add(job)
+	if startNow && !s.jobQueue.IsRunning() {
+		s.jobQueue.Start()
+	}
+	return nil
+}
+
 func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, logFn func(string), progressFn func(float64)) error {
 	workDir, err := os.MkdirTemp(utils.TempDir(), "videotools-author-")
 	if err != nil {
@@ -1437,6 +1496,58 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 	if cfg == nil {
 		return fmt.Errorf("author job config missing")
 	}
+	if videoTSPath := strings.TrimSpace(toString(cfg["videoTSPath"])); videoTSPath != "" {
+		outputPath := toString(cfg["outputPath"])
+		title := toString(cfg["title"])
+		if err := ensureAuthorDependencies(true); err != nil {
+			return err
+		}
+
+		logFile, logPath, logErr := createAuthorLog([]string{videoTSPath}, outputPath, true, "", "", title)
+		if logErr != nil {
+			logging.Debug(logging.CatSystem, "author log open failed: %v", logErr)
+		} else {
+			job.LogPath = logPath
+			defer logFile.Close()
+		}
+
+		appendLog := func(line string) {
+			if logFile != nil {
+				fmt.Fprintln(logFile, line)
+			}
+			app := fyne.CurrentApp()
+			if app != nil && app.Driver() != nil {
+				app.Driver().DoFromGoroutine(func() {
+					s.appendAuthorLog(line)
+				}, false)
+			}
+		}
+
+		updateProgress := func(percent float64) {
+			progressCallback(percent)
+			app := fyne.CurrentApp()
+			if app != nil && app.Driver() != nil {
+				app.Driver().DoFromGoroutine(func() {
+					s.setAuthorProgress(percent)
+				}, false)
+			}
+		}
+
+		appendLog(fmt.Sprintf("Authoring ISO from VIDEO_TS: %s", videoTSPath))
+		tool, args, err := buildISOCommand(outputPath, videoTSPath, title)
+		if err != nil {
+			return err
+		}
+		appendLog(fmt.Sprintf(">> %s %s", tool, strings.Join(args, " ")))
+		updateProgress(10)
+		if err := runCommandWithLogger(ctx, tool, args, appendLog); err != nil {
+			return err
+		}
+		updateProgress(100)
+		appendLog("ISO creation completed successfully.")
+		return nil
+	}
+
 	rawPaths, _ := cfg["paths"].([]interface{})
 	var paths []string
 	for _, p := range rawPaths {
