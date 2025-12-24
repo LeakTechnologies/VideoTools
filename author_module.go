@@ -7,11 +7,13 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -20,6 +22,8 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -555,10 +559,34 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 	summaryLabel.Wrapping = fyne.TextWrapWord
 	state.authorSummaryLabel = summaryLabel
 
+	statusLabel := widget.NewLabel("Ready")
+	statusLabel.Wrapping = fyne.TextWrapWord
+	state.authorStatusLabel = statusLabel
+
+	progressBar := widget.NewProgressBar()
+	progressBar.SetValue(state.authorProgress / 100.0)
+	state.authorProgressBar = progressBar
+
+	logEntry := widget.NewMultiLineEntry()
+	logEntry.Wrapping = fyne.TextWrapOff
+	logEntry.Disable()
+	logEntry.SetText(state.authorLogText)
+	state.authorLogEntry = logEntry
+	logScroll := container.NewVScroll(logEntry)
+	logScroll.SetMinSize(fyne.NewSize(0, 200))
+	state.authorLogScroll = logScroll
+
 	controls := container.NewVBox(
 		widget.NewLabel("Generate DVD/ISO:"),
 		widget.NewSeparator(),
 		summaryLabel,
+		widget.NewSeparator(),
+		widget.NewLabel("Status:"),
+		statusLabel,
+		progressBar,
+		widget.NewSeparator(),
+		widget.NewLabel("Authoring Log:"),
+		logScroll,
 		widget.NewSeparator(),
 		generateBtn,
 	)
@@ -925,6 +953,51 @@ func concatDVDMpg(inputs []string, output string) error {
 	return runCommand(platformConfig.FFmpegPath, args)
 }
 
+func (s *appState) resetAuthorLog() {
+	s.authorLogText = ""
+	if s.authorLogEntry != nil {
+		s.authorLogEntry.SetText("")
+	}
+	if s.authorLogScroll != nil {
+		s.authorLogScroll.ScrollToTop()
+	}
+}
+
+func (s *appState) appendAuthorLog(line string) {
+	if strings.TrimSpace(line) == "" {
+		return
+	}
+	s.authorLogText += line + "\n"
+	if s.authorLogEntry != nil {
+		s.authorLogEntry.SetText(s.authorLogText)
+	}
+	if s.authorLogScroll != nil {
+		s.authorLogScroll.ScrollToBottom()
+	}
+}
+
+func (s *appState) setAuthorStatus(text string) {
+	if text == "" {
+		text = "Ready"
+	}
+	if s.authorStatusLabel != nil {
+		s.authorStatusLabel.SetText(text)
+	}
+}
+
+func (s *appState) setAuthorProgress(percent float64) {
+	if percent < 0 {
+		percent = 0
+	}
+	if percent > 100 {
+		percent = 100
+	}
+	s.authorProgress = percent
+	if s.authorProgressBar != nil {
+		s.authorProgressBar.SetValue(percent / 100.0)
+	}
+}
+
 func (s *appState) startAuthorGeneration() {
 	paths, primary, err := s.authorSourcePaths()
 	if err != nil {
@@ -1083,34 +1156,78 @@ func authorOutputFolderName(title string, paths []string) string {
 }
 
 func (s *appState) generateAuthoring(paths []string, region, aspect, title, outputPath string, makeISO bool) {
-	if err := ensureAuthorDependencies(makeISO); err != nil {
+	if err := s.addAuthorToQueue(paths, region, aspect, title, outputPath, makeISO, true); err != nil {
 		dialog.ShowError(err, s.window)
-		return
 	}
-
-	progress := dialog.NewProgressInfinite("Authoring DVD", "Encoding sources...", s.window)
-	progress.Show()
-
-	go func() {
-		err := s.runAuthoringPipeline(paths, region, aspect, title, outputPath, makeISO)
-		message := "DVD authoring complete."
-		if makeISO {
-			message = fmt.Sprintf("ISO image created:\n%s", outputPath)
-		} else {
-			message = fmt.Sprintf("DVD folders created:\n%s", outputPath)
-		}
-		runOnUI(func() {
-			progress.Hide()
-			if err != nil {
-				dialog.ShowError(err, s.window)
-				return
-			}
-			dialog.ShowInformation("Authoring Complete", message, s.window)
-		})
-	}()
 }
 
-func (s *appState) runAuthoringPipeline(paths []string, region, aspect, title, outputPath string, makeISO bool) error {
+func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outputPath string, makeISO bool, startNow bool) error {
+	if s.jobQueue == nil {
+		return fmt.Errorf("queue not initialized")
+	}
+
+	clips := make([]map[string]interface{}, 0, len(s.authorClips))
+	for _, clip := range s.authorClips {
+		clips = append(clips, map[string]interface{}{
+			"path":         clip.Path,
+			"displayName":  clip.DisplayName,
+			"duration":     clip.Duration,
+			"chapterTitle": clip.ChapterTitle,
+		})
+	}
+	chapters := make([]map[string]interface{}, 0, len(s.authorChapters))
+	for _, ch := range s.authorChapters {
+		chapters = append(chapters, map[string]interface{}{
+			"timestamp": ch.Timestamp,
+			"title":     ch.Title,
+			"auto":      ch.Auto,
+		})
+	}
+
+	config := map[string]interface{}{
+		"paths":            paths,
+		"region":           region,
+		"aspect":           aspect,
+		"title":            title,
+		"outputPath":       outputPath,
+		"makeISO":          makeISO,
+		"treatAsChapters":  s.authorTreatAsChapters,
+		"clips":            clips,
+		"chapters":         chapters,
+		"discSize":         s.authorDiscSize,
+		"outputType":       s.authorOutputType,
+		"authorTitle":      s.authorTitle,
+		"authorRegion":     s.authorRegion,
+		"authorAspect":     s.authorAspectRatio,
+		"chapterSource":    s.authorChapterSource,
+		"subtitleTracks":   append([]string{}, s.authorSubtitles...),
+		"additionalAudios": append([]string{}, s.authorAudioTracks...),
+	}
+
+	titleLabel := title
+	if strings.TrimSpace(titleLabel) == "" {
+		titleLabel = "DVD"
+	}
+	job := &queue.Job{
+		Type:        queue.JobTypeAuthor,
+		Title:       fmt.Sprintf("Author DVD: %s", titleLabel),
+		Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(outputPath), 40)),
+		InputFile:   paths[0],
+		OutputFile:  outputPath,
+		Config:      config,
+	}
+
+	s.resetAuthorLog()
+	s.setAuthorStatus("Queued authoring job...")
+	s.setAuthorProgress(0)
+	s.jobQueue.Add(job)
+	if startNow && !s.jobQueue.IsRunning() {
+		s.jobQueue.Start()
+	}
+	return nil
+}
+
+func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, logFn func(string), progressFn func(float64)) error {
 	workDir, err := os.MkdirTemp(utils.TempDir(), "videotools-author-")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
@@ -1137,25 +1254,56 @@ func (s *appState) runAuthoringPipeline(paths []string, region, aspect, title, o
 		return err
 	}
 
-	mpgPaths, err := encodeAuthorSources(paths, region, aspect, workDir)
-	if err != nil {
-		return err
+	totalSteps := len(paths) + 2
+	if makeISO {
+		totalSteps++
+	}
+	step := 0
+	advance := func(message string) {
+		step++
+		if logFn != nil && message != "" {
+			logFn(message)
+		}
+		if progressFn != nil && totalSteps > 0 {
+			progressFn(float64(step) / float64(totalSteps) * 100.0)
+		}
 	}
 
-	chapters := s.authorChapters
-	if len(chapters) == 0 && s.authorTreatAsChapters && len(s.authorClips) > 1 {
-		chapters = chaptersFromClips(s.authorClips)
-		s.authorChapterSource = "clips"
+	var mpgPaths []string
+	for i, path := range paths {
+		if logFn != nil {
+			logFn(fmt.Sprintf("Encoding %d/%d: %s", i+1, len(paths), filepath.Base(path)))
+		}
+		outPath := filepath.Join(workDir, fmt.Sprintf("title_%02d.mpg", i+1))
+		src, err := probeVideo(path)
+		if err != nil {
+			return fmt.Errorf("failed to probe %s: %w", filepath.Base(path), err)
+		}
+		args := buildAuthorFFmpegArgs(path, outPath, region, aspect, src.IsProgressive())
+		if logFn != nil {
+			logFn(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
+		}
+		if err := runCommandWithLogger(ctx, platformConfig.FFmpegPath, args, logFn); err != nil {
+			return err
+		}
+		mpgPaths = append(mpgPaths, outPath)
+		advance("")
+	}
+
+	if len(chapters) == 0 && treatAsChapters && len(clips) > 1 {
+		chapters = chaptersFromClips(clips)
 	}
 	if len(chapters) == 0 && len(mpgPaths) == 1 {
 		if embed, err := extractChaptersFromFile(paths[0]); err == nil && len(embed) > 0 {
 			chapters = embed
-			s.authorChapterSource = "embedded"
 		}
 	}
 
-	if s.authorTreatAsChapters && len(mpgPaths) > 1 {
+	if treatAsChapters && len(mpgPaths) > 1 {
 		concatPath := filepath.Join(workDir, "titles_joined.mpg")
+		if logFn != nil {
+			logFn("Concatenating chapters into a single title...")
+		}
 		if err := concatDVDMpg(mpgPaths, concatPath); err != nil {
 			return err
 		}
@@ -1171,13 +1319,23 @@ func (s *appState) runAuthoringPipeline(paths []string, region, aspect, title, o
 		return err
 	}
 
-	if err := runCommand("dvdauthor", []string{"-o", discRoot, "-x", xmlPath}); err != nil {
+	if logFn != nil {
+		logFn("Authoring DVD structure...")
+		logFn(fmt.Sprintf(">> dvdauthor -o %s -x %s", discRoot, xmlPath))
+	}
+	if err := runCommandWithLogger(ctx, "dvdauthor", []string{"-o", discRoot, "-x", xmlPath}, logFn); err != nil {
 		return err
 	}
+	advance("")
 
-	if err := runCommand("dvdauthor", []string{"-o", discRoot, "-T"}); err != nil {
+	if logFn != nil {
+		logFn("Building DVD tables...")
+		logFn(fmt.Sprintf(">> dvdauthor -o %s -T", discRoot))
+	}
+	if err := runCommandWithLogger(ctx, "dvdauthor", []string{"-o", discRoot, "-T"}, logFn); err != nil {
 		return err
 	}
+	advance("")
 
 	if err := os.MkdirAll(filepath.Join(discRoot, "AUDIO_TS"), 0755); err != nil {
 		return fmt.Errorf("failed to create AUDIO_TS: %w", err)
@@ -1188,11 +1346,144 @@ func (s *appState) runAuthoringPipeline(paths []string, region, aspect, title, o
 		if err != nil {
 			return err
 		}
-		if err := runCommand(tool, args); err != nil {
+		if logFn != nil {
+			logFn("Creating ISO image...")
+			logFn(fmt.Sprintf(">> %s %s", tool, strings.Join(args, " ")))
+		}
+		if err := runCommandWithLogger(ctx, tool, args, logFn); err != nil {
 			return err
+		}
+		advance("")
+	}
+
+	return nil
+}
+
+func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
+	cfg := job.Config
+	if cfg == nil {
+		return fmt.Errorf("author job config missing")
+	}
+	rawPaths, _ := cfg["paths"].([]interface{})
+	var paths []string
+	for _, p := range rawPaths {
+		paths = append(paths, toString(p))
+	}
+	if len(paths) == 0 {
+		if path, ok := cfg["paths"].([]string); ok {
+			paths = append(paths, path...)
+		}
+	}
+	if len(paths) == 0 {
+		if input, ok := cfg["inputPath"].(string); ok && input != "" {
+			paths = append(paths, input)
+		}
+	}
+	if len(paths) == 0 {
+		return fmt.Errorf("no input paths for author job")
+	}
+
+	region := toString(cfg["region"])
+	aspect := toString(cfg["aspect"])
+	title := toString(cfg["title"])
+	outputPath := toString(cfg["outputPath"])
+	makeISO, _ := cfg["makeISO"].(bool)
+	treatAsChapters, _ := cfg["treatAsChapters"].(bool)
+
+	if err := ensureAuthorDependencies(makeISO); err != nil {
+		return err
+	}
+
+	var clips []authorClip
+	if rawClips, ok := cfg["clips"].([]interface{}); ok {
+		for _, rc := range rawClips {
+			if m, ok := rc.(map[string]interface{}); ok {
+				clips = append(clips, authorClip{
+					Path:         toString(m["path"]),
+					DisplayName:  toString(m["displayName"]),
+					Duration:     toFloat(m["duration"]),
+					ChapterTitle: toString(m["chapterTitle"]),
+				})
+			}
 		}
 	}
 
+	var chapters []authorChapter
+	if rawChapters, ok := cfg["chapters"].([]interface{}); ok {
+		for _, rc := range rawChapters {
+			if m, ok := rc.(map[string]interface{}); ok {
+				chapters = append(chapters, authorChapter{
+					Timestamp: toFloat(m["timestamp"]),
+					Title:     toString(m["title"]),
+					Auto:      toBool(m["auto"]),
+				})
+			}
+		}
+	}
+
+	logFile, logPath, logErr := createAuthorLog(paths, outputPath, makeISO, region, aspect, title)
+	if logErr != nil {
+		logging.Debug(logging.CatSystem, "author log open failed: %v", logErr)
+	} else {
+		job.LogPath = logPath
+		defer logFile.Close()
+	}
+
+	appendLog := func(line string) {
+		if logFile != nil {
+			fmt.Fprintln(logFile, line)
+		}
+		app := fyne.CurrentApp()
+		if app != nil && app.Driver() != nil {
+			app.Driver().DoFromGoroutine(func() {
+				s.appendAuthorLog(line)
+			}, false)
+		}
+	}
+
+	updateProgress := func(percent float64) {
+		progressCallback(percent)
+		app := fyne.CurrentApp()
+		if app != nil && app.Driver() != nil {
+			app.Driver().DoFromGoroutine(func() {
+				s.setAuthorProgress(percent)
+			}, false)
+		}
+	}
+
+	appendLog(fmt.Sprintf("Authoring started: %s", time.Now().Format(time.RFC3339)))
+	appendLog(fmt.Sprintf("Inputs: %s", strings.Join(paths, ", ")))
+	appendLog(fmt.Sprintf("Output: %s", outputPath))
+	if makeISO {
+		appendLog("Output mode: ISO")
+	} else {
+		appendLog("Output mode: VIDEO_TS")
+	}
+
+	app := fyne.CurrentApp()
+	if app != nil && app.Driver() != nil {
+		app.Driver().DoFromGoroutine(func() {
+			s.setAuthorStatus("Authoring in progress...")
+		}, false)
+	}
+
+	err := s.runAuthoringPipeline(ctx, paths, region, aspect, title, outputPath, makeISO, clips, chapters, treatAsChapters, appendLog, updateProgress)
+	if err != nil {
+		if app != nil && app.Driver() != nil {
+			app.Driver().DoFromGoroutine(func() {
+				s.setAuthorStatus("Authoring failed")
+			}, false)
+		}
+		return err
+	}
+
+	if app != nil && app.Driver() != nil {
+		app.Driver().DoFromGoroutine(func() {
+			s.setAuthorStatus("Authoring complete")
+			s.setAuthorProgress(100)
+		}, false)
+	}
+	appendLog("Authoring completed successfully.")
 	return nil
 }
 
@@ -1336,6 +1627,94 @@ func ensureAuthorDependencies(makeISO bool) error {
 		}
 	}
 	return nil
+}
+
+func createAuthorLog(inputs []string, outputPath string, makeISO bool, region, aspect, title string) (*os.File, string, error) {
+	base := strings.TrimSuffix(filepath.Base(outputPath), filepath.Ext(outputPath))
+	if base == "" {
+		base = "author"
+	}
+	logPath := filepath.Join(getLogsDir(), base+"-author"+conversionLogSuffix)
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		return nil, logPath, fmt.Errorf("create log dir: %w", err)
+	}
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return nil, logPath, err
+	}
+	mode := "VIDEO_TS"
+	if makeISO {
+		mode = "ISO"
+	}
+	header := fmt.Sprintf(`VideoTools Authoring Log
+Started: %s
+Inputs: %s
+Output: %s
+Mode: %s
+Region: %s
+Aspect: %s
+Title: %s
+
+`, time.Now().Format(time.RFC3339), strings.Join(inputs, ", "), outputPath, mode, region, aspect, title)
+	if _, err := f.WriteString(header); err != nil {
+		_ = f.Close()
+		return nil, logPath, err
+	}
+	return f, logPath, nil
+}
+
+func runCommandWithLogger(ctx context.Context, name string, args []string, logFn func(string)) error {
+	cmd := exec.CommandContext(ctx, name, args...)
+	utils.ApplyNoWindow(cmd)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("%s stdout: %w", name, err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("%s stderr: %w", name, err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("%s start: %w", name, err)
+	}
+
+	var wg sync.WaitGroup
+	stream := func(r io.Reader) {
+		defer wg.Done()
+		scanner := bufio.NewScanner(r)
+		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+		for scanner.Scan() {
+			if logFn != nil {
+				logFn(scanner.Text())
+			}
+		}
+	}
+	wg.Add(2)
+	go stream(stdout)
+	go stream(stderr)
+
+	err = cmd.Wait()
+	wg.Wait()
+	if err != nil {
+		return fmt.Errorf("%s failed: %w", name, err)
+	}
+	return nil
+}
+
+func toBool(v interface{}) bool {
+	switch val := v.(type) {
+	case bool:
+		return val
+	case string:
+		return strings.EqualFold(val, "true")
+	case float64:
+		return val != 0
+	case int:
+		return val != 0
+	default:
+		return false
+	}
 }
 
 func ensureExecutable(path, label string) error {

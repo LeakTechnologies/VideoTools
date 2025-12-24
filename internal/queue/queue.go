@@ -22,6 +22,7 @@ const (
 	JobTypeAudio   JobType = "audio"
 	JobTypeThumb   JobType = "thumb"
 	JobTypeSnippet JobType = "snippet"
+	JobTypeAuthor  JobType = "author"
 )
 
 // JobStatus represents the current state of a job

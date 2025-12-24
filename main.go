@@ -920,6 +920,12 @@ type appState struct {
 	authorChapterSource   string // embedded, scenes, clips, manual
 	authorChaptersRefresh func() // Refresh hook for chapter list UI
 	authorDiscSize        string // "DVD5" or "DVD9"
+	authorLogText         string
+	authorLogEntry        *widget.Entry
+	authorLogScroll       *container.Scroll
+	authorProgress        float64
+	authorProgressBar     *widget.ProgressBar
+	authorStatusLabel     *widget.Label
 
 	// Subtitles module state
 	subtitleVideoPath   string
@@ -3216,6 +3222,8 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 		return s.executeThumbJob(ctx, job, progressCallback)
 	case queue.JobTypeSnippet:
 		return s.executeSnippetJob(ctx, job, progressCallback)
+	case queue.JobTypeAuthor:
+		return s.executeAuthorJob(ctx, job, progressCallback)
 	default:
 		return fmt.Errorf("unknown job type: %s", job.Type)
 	}
