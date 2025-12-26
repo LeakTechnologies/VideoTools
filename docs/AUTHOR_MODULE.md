@@ -1,471 +1,263 @@
-# Author Module - Complete Guide
+# Author Module Guide
 
-## Overview
+## What Does This Do?
 
-The Author module creates DVD/Blu-ray compliant disc structures from video files. It handles encoding, chapter management, and ISO generation with automatic timestamp correction for maximum compatibility.
-
----
-
-## Quick Start
-
-### Single File to ISO
-
-1. **Select Files Tab** → Click "Select File" → Choose your video
-2. **Settings Tab** → Configure output settings:
-   - Output Type: DVD or Blu-ray
-   - Region: NTSC (29.97fps) or PAL (25fps)
-   - Aspect Ratio: 4:3 or 16:9
-   - Disc Size: DVD5 (4.7GB) or DVD9 (8.5GB)
-3. **Generate Tab** → Click "Generate DVD/ISO"
-4. Output will be VIDEO_TS folder or .iso file
-
-### Multiple Files to Single Disc
-
-1. **Clips Tab** → Click "Add Video" → Add multiple files
-2. Enable "Treat as Chapters" to merge into single title
-3. **Settings Tab** → Configure as above
-4. **Generate Tab** → Create multi-title or chaptered disc
+The Author module turns your video files into DVDs that'll play in any DVD player - the kind you'd hook up to a TV. It handles all the technical stuff so you don't have to worry about it.
 
 ---
 
-## Features
+## Getting Started
 
-### Automatic Chapter Detection
+### Making a Single DVD
 
-Detects scene changes and creates chapter markers automatically.
+1. Click **Author** from the main menu
+2. **Files Tab** → Click "Select File" → Pick your video
+3. **Settings Tab**:
+   - DVD or Blu-ray (pick DVD for now)
+   - NTSC or PAL - pick NTSC if you're in the US
+   - 16:9 or 4:3 - pick 16:9 for widescreen
+4. **Generate Tab** → Click "Generate DVD/ISO"
+5. Wait for it to finish, then burn the .iso file to a DVD-R
 
-**How It Works:**
-1. Load video in Files or Clips tab
-2. **Chapters Tab** → Adjust "Detection Sensitivity" slider
-   - Lower (0.1-0.2): Detects subtle changes, many chapters
-   - Medium (0.3-0.4): Balanced, good for most videos
-   - Higher (0.5-0.7): Only major scene changes
-3. Click "Detect Scenes"
-4. **Visual Preview:**
-   - Thumbnail grid shows first 24 detected chapters
-   - Each thumbnail displays frame at chapter timestamp
-   - Verify detection quality visually
-5. Click "Accept Chapters" to use, or "Reject" to try different sensitivity
-
-**Technical Details:**
-- Uses FFmpeg scene detection filter: `select='gt(scene,threshold)'`
-- Threshold 0.30 = scene score must exceed 30% for detection
-- Thumbnails extracted at 320x180, stored in temp directory
-- Preview limited to 24 chapters for UI performance
-
-**Use Cases:**
-- Movies: Detect major scene changes (use 0.5-0.6)
-- Documentaries: Detect segment breaks (use 0.4-0.5)
-- TV Shows: Detect act breaks (use 0.3-0.4)
-- Music Videos: Detect shot changes (use 0.2-0.3)
-
-### Chapter Management
-
-**Load Embedded Chapters:**
-- Click "Load Embedded" to extract chapters from MKV/MP4 files
-- Preserves original chapter titles and timestamps
-
-**Manual Chapter Addition:**
-- Click "+ Add Chapter" to insert custom chapter point
-- Set timestamp and title manually
-
-**Export Chapters:**
-- Click "Export Chapters" to save chapter list
-- Formats: XML, OGM, or text file
-
-### DVD Timestamp Correction
-
-**Problem Solved:**
-DVD authoring tools (dvdauthor) require perfectly sequential MPEG-2 timestamps. FFmpeg direct encoding sometimes produces backwards-moving SCR (System Clock Reference) values, causing errors:
-```
-ERR: SCR moves backwards at inoffset 0, remultiplex input
-```
-
-**Solution:**
-VideoTools automatically remultiplexes encoded MPEG files:
-```bash
-ffmpeg -fflags +genpts -i encoded.mpg -c copy -f dvd output.mpg
-```
-- `-fflags +genpts`: Regenerate presentation timestamps
-- `-c copy`: No re-encoding (fast, no quality loss)
-- `-f dvd`: Ensure DVD format compliance
-
-**Result:**
-- 100% dvdauthor compatibility
-- Fixes SCR errors on AVI, MKV, MP4 sources
-- Adds ~5 seconds per title (negligible)
+That's it. The DVD will play in any player.
 
 ---
 
-## UI Features
+## Scene Detection - Finding Chapter Points Automatically
 
-### Authoring Log Viewer
+### What Are Chapters?
 
-Real-time log display during DVD generation.
+You know how DVDs let you skip to different parts of the movie? Those are chapters. The Author module can find these automatically by detecting when scenes change.
 
-**Performance Optimizations:**
-- Displays last 100 lines only (tail behavior)
-- Prevents memory bloat on long encodes
-- Full log written to file for reference
+### How to Use It
 
-**Controls:**
-- **Copy Log**: Copies full log from file to clipboard
-- **View Full Log**: Opens complete log in dedicated viewer
-- Shows "Authoring Log (last 100 lines)" label
+1. Load your video (Files or Clips tab)
+2. Go to **Chapters Tab**
+3. Move the "Detection Sensitivity" slider:
+   - Move it **left** for more chapters (catches small changes)
+   - Move it **right** for fewer chapters (only big changes)
+4. Click "Detect Scenes"
+5. Look at the thumbnails that pop up - these show where chapters will be
+6. If it looks good, click "Accept." If not, click "Reject" and try a different sensitivity
 
-**Technical:**
-- Circular buffer maintains fixed 100-line limit
-- O(1) memory usage vs O(n) unbounded growth
-- Rebuilds display text from buffer on each append
-- Log file path tracked for full viewing
+### What Sensitivity Should I Use?
 
-### Progress Tracking
+It depends on your video:
 
-- Real-time progress bar (0-100%)
-- Status messages: "Encoding 1/3", "Authoring DVD structure", etc.
-- Current operation displayed above progress bar
+- **Movies**: Use 0.5 - 0.6 (only major scene changes)
+- **TV shows**: Use 0.3 - 0.4 (catches scene changes between commercial breaks)
+- **Music videos**: Use 0.2 - 0.3 (lots of quick cuts)
+- **Your phone videos**: Use 0.4 - 0.5 (depends on how much you moved around)
 
----
+Don't stress about getting it perfect. Just adjust the slider and click "Detect Scenes" again until the preview looks right.
 
-## Output Formats
+### The Preview Window
 
-### VIDEO_TS Folder Structure
-```
-output/
-  VIDEO_TS/
-    VIDEO_TS.IFO       # DVD table of contents
-    VIDEO_TS.VOB       # Menu video (if applicable)
-    VTS_01_0.IFO       # Title 1 information
-    VTS_01_1.VOB       # Title 1 video data
-    VTS_02_0.IFO       # Title 2 information (if multiple)
-    VTS_02_1.VOB       # Title 2 video data
-  AUDIO_TS/            # Empty (required by DVD spec)
-```
+After detection runs, you'll see a grid of thumbnails. Each thumbnail is a freeze-frame from where a chapter starts. This lets you actually see if the detection makes sense - way better than just seeing a list of timestamps.
 
-### ISO Image
-- Single .iso file containing complete VIDEO_TS structure
-- Burnable to DVD-R/DVD-RW
-- Mountable in virtual drives
-- Playable in VLC, Kodi, standalone players
+The preview shows the first 24 chapters. If more were detected, you'll see a message like "Found 152 chapters (showing first 24)". That's a sign you should increase the sensitivity slider.
 
 ---
 
-## Configuration Options
+## Understanding the Settings
 
 ### Output Type
-- **DVD**: DVD-Video format (MPEG-2, AC-3 audio)
-- **Blu-ray**: Not yet implemented
+
+**DVD** - Standard DVD format. Works everywhere.
+**Blu-ray** - Not ready yet. Stick with DVD.
 
 ### Region
-- **NTSC**: 29.97fps, 720x480, North America/Japan
-- **PAL**: 25fps, 720x576, Europe/Asia/Africa
+
+**NTSC** - US, Canada, Japan. Videos play at 30 frames per second.
+**PAL** - Europe, Australia, most of the world. Videos play at 25 frames per second.
+
+Pick based on where you live. If you're not sure, pick NTSC.
 
 ### Aspect Ratio
-- **4:3**: Standard (old TV format)
-- **16:9**: Widescreen (modern format)
-- **AUTO**: Detect from source video
+
+**16:9** - Widescreen. Use this for videos from phones, cameras, YouTube.
+**4:3** - Old TV shape. Only use if your video is actually in this format (rare now).
+**AUTO** - Let the software decide. Safe choice.
+
+When in doubt, use 16:9.
 
 ### Disc Size
-- **DVD5**: Single-layer, 4.7GB capacity
-- **DVD9**: Dual-layer, 8.5GB capacity
 
-### Create Menu
-- Enable to generate simple title selection menu
-- Requires additional processing time
-- Menu background uses first frame of first title
+**DVD5** - Holds 4.7 GB. Standard blank DVDs you buy at the store.
+**DVD9** - Holds 8.5 GB. Dual-layer discs (more expensive).
 
-### Treat as Chapters
-- Merge multiple clips into single title with chapter points
-- Chapter timestamps auto-calculated from clip durations
-- Useful for episodic content or multi-part videos
+Use DVD5 unless you're making a really long video (over 2 hours).
 
 ---
 
-## Encoding Settings
+## Common Scenarios
 
-### Video
-- Codec: MPEG-2 Video
-- Resolution: 720x480 (NTSC) or 720x576 (PAL)
-- Bitrate: 6000kbps (NTSC) / 8000kbps (PAL)
-- Max Bitrate: 9000kbps (NTSC) / 9500kbps (PAL)
-- GOP Size: 15 frames
-- Pixel Format: YUV 4:2:0
-- Interlacing: Enabled with ILME+ILDCT flags
+### Scenario 1: Burning Home Videos to DVD
 
-### Audio
-- Codec: AC-3 (Dolby Digital)
-- Bitrate: 192kbps
-- Sample Rate: 48kHz
-- Channels: Stereo (2.0)
+You filmed stuff on your phone and want to give it to relatives who don't use computers much.
 
-### Filters
-- Scale to target resolution with aspect preservation
-- Pad with black bars if needed to maintain aspect
-- Force constant frame rate (CFR)
-
----
-
-## Workflow Examples
-
-### Example 1: Single Movie to DVD
-
-**Scenario:** Convert vacation.mp4 to playable DVD
-
-1. Author Module → Files Tab
-2. Click "Select File" → Choose vacation.mp4
-3. Settings Tab:
+1. **Files Tab** → Select your phone video
+2. **Chapters Tab** → Detect scenes with sensitivity around 0.4
+3. Check the preview - should show major moments (birthday, cake, opening presents, etc.)
+4. **Settings Tab**:
    - Output Type: DVD
    - Region: NTSC
    - Aspect Ratio: 16:9
-   - Disc Size: DVD5
-4. Chapters Tab:
-   - Adjust sensitivity to 0.40
-   - Click "Detect Scenes"
-   - Preview thumbnails, verify chapter points
-   - Accept chapters
-5. Generate Tab:
-   - Title: "Family Vacation"
-   - Output Path: ~/Videos/vacation.iso
-   - Click "Generate DVD/ISO"
-6. Monitor progress in authoring log
-7. Burn vacation.iso to DVD-R
+5. **Generate Tab**:
+   - Title: "Birthday 2024"
+   - Pick where to save it
+   - Click Generate
+6. When done, burn the .iso file to a DVD-R
+7. Hand it to grandma - it'll just work in her DVD player
 
-**Result:** Playable DVD with auto-detected chapters
+### Scenario 2: Multiple Episodes on One Disc
 
-### Example 2: TV Series Disc (Multi-Title)
+You downloaded 3 episodes of a show and want them on one disc with a menu.
 
-**Scenario:** Combine 3 episodes onto one DVD
-
-1. Author Module → Clips Tab
-2. Add Videos:
-   - episode1.mkv
-   - episode2.mkv
-   - episode3.mkv
-3. **Do NOT** enable "Treat as Chapters"
-4. Settings Tab:
+1. **Clips Tab** → Click "Add Video" for each episode
+2. Leave "Treat as Chapters" OFF - this keeps them as separate titles
+3. **Settings Tab**:
    - Output Type: DVD
    - Region: NTSC
-   - Create Menu: Yes
-5. Generate Tab:
-   - Title: "Series S01"
-   - Output Path: ~/Videos/series_s01.iso
-   - Generate
-6. Result: 3 separate titles with menu selection
+   - Create Menu: YES (important!)
+4. **Generate Tab** → Generate the disc
+5. The DVD will have a menu where you can pick which episode to watch
 
-### Example 3: Concert with Manual Chapters
+### Scenario 3: Concert Video with Song Chapters
 
-**Scenario:** Concert video with chapters for each song
+You recorded a concert and want to skip to specific songs.
 
-1. Author Module → Files Tab
-2. Select concert.mp4
-3. Chapters Tab:
-   - Manual chapter addition:
-     - 00:00 - "Opening"
-     - 03:45 - "Song 1"
-     - 07:30 - "Song 2"
-     - etc.
-4. Settings Tab → Configure as DVD
-5. Generate → Create ISO with song navigation
+Option A - Automatic:
+1. Load the concert video
+2. **Chapters Tab** → Try sensitivity 0.3 first
+3. Look at preview - if chapters line up with songs, you're done
+4. If not, adjust sensitivity and try again
+
+Option B - Manual:
+1. Play through the video and note the times when songs start
+2. **Chapters Tab** → Click "+ Add Chapter" for each song
+3. Enter the time (like 3:45 for 3 minutes 45 seconds)
+4. Name it (Song 1, Song 2, etc.)
+
+---
+
+## What's Happening Behind the Scenes?
+
+You don't need to know this to use the software, but if you're curious:
+
+### The Encoding Process
+
+When you click Generate:
+
+1. **Encoding**: Your video gets converted to MPEG-2 format (the DVD standard)
+2. **Timestamp Fix**: The software makes sure the timestamps are perfectly sequential (DVDs are picky about this)
+3. **Structure Creation**: It builds the VIDEO_TS folder structure that DVD players expect
+4. **ISO Creation**: If you picked ISO, everything gets packed into one burnable file
+
+### Why Does It Take So Long?
+
+Converting video to MPEG-2 is CPU-intensive. A 90-minute video might take 30-60 minutes to encode, depending on your computer. You can queue multiple jobs and let it run overnight.
+
+### The Timestamp Fix Thing
+
+Some videos, especially .avi files, have timestamps that go slightly backwards occasionally. DVD players hate this and will error out. The software automatically fixes it by running the encoded video through a "remux" step - think of it like reformatting a document to fix the page numbers. Takes a few extra seconds but ensures the DVD actually works.
 
 ---
 
 ## Troubleshooting
 
-### "SCR moves backwards" Error
+### "I got 200 chapters, that's way too many"
 
-**Cause:** MPEG-2 timestamps not DVD-compliant
+Your sensitivity is too low. Move the slider right to 0.5 or higher and try again.
 
-**Solution:** Automatic as of latest version
-- Remux step added after encoding
-- Regenerates timestamps with `-fflags +genpts`
-- Error should not occur anymore
+### "It only found 3 chapters in a 2-hour movie"
 
-**If Still Occurring:**
-- Verify you're using latest VideoTools build
-- Check if source video has corruption
-- Try re-downloading source file
+Sensitivity is too high. Move the slider left to 0.3 or 0.4.
 
-### Chapter Detection Finds Too Many Chapters
+### "The program is really slow when generating"
 
-**Cause:** Sensitivity too low (detects minor changes)
+That's normal. Encoding video is slow. The good news is you can:
+- Queue multiple jobs and walk away
+- Work on other stuff - the encoding happens in the background
+- Check the log to see progress
 
-**Solution:**
-- Increase sensitivity slider (0.5-0.7)
-- Re-run "Detect Scenes"
-- Preview thumbnails to verify
-- Aim for 8-15 chapters per 90-minute video
+### "The authoring log is making everything lag"
 
-### Chapter Detection Finds Too Few Chapters
+This was a bug that's now fixed. The log only shows the last 100 lines. If you want to see everything, click "View Full Log" and it opens in a separate window.
 
-**Cause:** Sensitivity too high (only detects major changes)
+### "My ISO file won't fit on a DVD-R"
 
-**Solution:**
-- Decrease sensitivity slider (0.2-0.3)
-- Re-run detection
-- Verify with visual preview
+Your video is too long or the quality is too high. Options:
+- Use a dual-layer DVD-R (DVD9) instead
+- Split into 2 discs
+- Check if you accidentally loaded multiple long videos
 
-### Authoring Log Causes UI Lag
+### "The DVD plays but skips or stutters"
 
-**Cause:** Large log files (thousands of lines)
-
-**Fixed:** As of latest version
-- Only last 100 lines displayed in UI
-- Full log accessible via "View Full Log" button
-- Memory usage capped
-
-**If Still Slow:**
-- Click "View Full Log" to open in separate viewer
-- Main UI will remain responsive
-
-### ISO File Won't Burn to Disc
-
-**Cause:** File size exceeds disc capacity
-
-**Solution:**
-- Check ISO size: Should be <4.7GB for DVD5
-- If larger, use DVD9 disc or split content
-- Reduce video bitrate in Settings if needed
-
-### Video Playback Stutters on DVD Player
-
-**Cause:** Framerate conversion or interlacing issues
-
-**Solution:**
-- Verify source video is Constant Frame Rate (CFR)
-- If Variable Frame Rate (VFR), convert to CFR first
-- Try enabling/disabling interlacing flags
+This is usually because your original video had variable frame rate (VFR) - phone videos often do this. The software will warn you if it detects this. Solution:
+- Try generating again (sometimes it just works)
+- Convert the source video to constant frame rate first using the Convert module
+- Check if the source video itself plays smoothly
 
 ---
 
-## Technical Implementation
+## File Size Reference
 
-### Encoding Pipeline
+Here's roughly how much video fits on each disc type:
 
-1. **Source Analysis**
-   - Probe video with ffprobe
-   - Detect resolution, framerate, codec
-   - Identify interlacing mode
+**DVD5 (4.7 GB)**
+- About 2 hours of video at standard quality
+- Most movies fit comfortably
 
-2. **MPEG-2 Encoding**
-   ```bash
-   ffmpeg -i input.mp4 \
-     -vf "scale=720:480,setdar=16:9,setsar=1,fps=30000/1001" \
-     -c:v mpeg2video -r 30000/1001 \
-     -b:v 6000k -maxrate 9000k -bufsize 1835k \
-     -g 15 -pix_fmt yuv420p -flags +ilme+ildct \
-     -c:a ac3 -b:a 192k -ar 48000 -ac 2 \
-     output.mpg
-   ```
+**DVD9 (8.5 GB)**
+- About 4 hours of video
+- Good for director's cuts or multiple episodes
 
-3. **Timestamp Remux**
-   ```bash
-   ffmpeg -fflags +genpts -i output.mpg \
-     -c copy -f dvd output_remux.mpg
-   ```
-
-4. **DVD Structure Creation**
-   - Generate dvdauthor XML with chapter markers
-   - Run: `dvdauthor -o VIDEO_TS -x dvd.xml`
-   - Finalize: `dvdauthor -o VIDEO_TS -T`
-   - Create AUDIO_TS folder
-
-5. **ISO Generation** (if requested)
-   - Detect ISO tool: mkisofs, genisoimage, or xorriso
-   - Create ISO: `mkisofs -dvd-video -o output.iso VIDEO_TS/`
-
-### Chapter XML Format
-
-```xml
-<dvdauthor>
-  <vmgm />
-  <titleset>
-    <titles>
-      <video format="ntsc" aspect="16:9" />
-      <pgc>
-        <vob file="title_01.mpg" chapters="0:00,3:45.5,7:30.2" />
-      </pgc>
-    </titles>
-  </titleset>
-</dvdauthor>
-```
-
-### Temporary Files
-
-**Location:** System temp + VideoTools prefix
-- `videotools-author-XXXXXX/`: Encoding workspace
-  - `title_01.mpg`: Initial encode
-  - `title_01_remux.mpg`: Timestamp-corrected version
-  - `dvd.xml`: DVDAuthor configuration
-- `videotools-dvd-XXXXXX/`: VIDEO_TS structure (if making ISO)
-- `videotools-chapter-thumbs/`: Chapter preview thumbnails
-
-**Cleanup:** Automatic on completion or error
+If you're over these limits, split your content across multiple discs.
 
 ---
 
-## Dependencies
+## The Output Files Explained
 
-### Required
-- **ffmpeg**: Video encoding and analysis
-- **dvdauthor**: DVD structure creation
+### VIDEO_TS Folder
 
-### Optional
-- **mkisofs** or **genisoimage** or **xorriso**: ISO generation
-- Only needed if creating .iso files (not needed for VIDEO_TS folders)
+This is what DVD players actually read. It contains:
+- .IFO files - the "table of contents"
+- .VOB files - the actual video data
 
-### Installation
+You can copy this folder to a USB drive and some DVD players can read it directly.
 
-**Fedora/RHEL:**
-```bash
-sudo dnf install ffmpeg dvdauthor genisoimage
-```
+### ISO File
 
-**Ubuntu/Debian:**
-```bash
-sudo apt install ffmpeg dvdauthor genisoimage
-```
-
-**Arch:**
-```bash
-sudo pacman -S ffmpeg dvdauthor cdrtools
-```
+Think of this as a zip file of the VIDEO_TS folder, formatted specifically for burning to disc. When you burn an ISO to a DVD-R, it extracts everything into the right structure automatically.
 
 ---
 
-## Performance Tips
+## Tips
 
-1. **Use SSD for Output**: Faster read/write during authoring
-2. **Limit Concurrent Jobs**: DVD encoding is CPU-intensive
-3. **Preview Before Full Encode**: Test 5-minute segment first
-4. **Batch Similar Files**: Use same settings for multiple encodes
-5. **Monitor Log File Size**: Large logs indicate potential issues
+**Test Before Making Multiple Copies**
+Make one disc, test it in a DVD player, make sure everything works. Then make more copies.
 
----
+**Name Your Files Clearly**
+Use names like "vacation_2024.iso" not "output.iso". Future you will thank you.
 
-## File Size Estimates
+**Keep the Source Files**
+Don't delete your original videos after making DVDs. Hard drives are cheap, memories aren't.
 
-### NTSC (6000kbps video + 192kbps audio)
-- 30 minutes: ~1.3 GB
-- 60 minutes: ~2.6 GB
-- 90 minutes: ~3.9 GB (fits DVD5)
-- 120 minutes: ~5.2 GB (requires DVD9)
+**Preview the Chapters**
+Always check that chapter preview before accepting. It takes 10 seconds and prevents surprises.
 
-### PAL (8000kbps video + 192kbps audio)
-- 30 minutes: ~1.7 GB
-- 60 minutes: ~3.4 GB
-- 90 minutes: ~5.1 GB (requires DVD9)
-- 120 minutes: ~6.8 GB (requires DVD9)
+**Use the Queue**
+Got 5 videos to convert? Add them all to the queue and start it before bed. They'll all be done by morning.
 
 ---
 
-## Keyboard Shortcuts
+## Related Guides
 
-None specific to Author module. Use main application shortcuts.
+- **DVD_USER_GUIDE.md** - How to use the Convert module for DVD encoding
+- **QUEUE_SYSTEM_GUIDE.md** - Managing multiple jobs
+- **MODULES.md** - What all the other modules do
 
 ---
 
-## Related Documentation
-
-- **DVD_USER_GUIDE.md**: Creating DVD-compliant video files
-- **QUEUE_SYSTEM_GUIDE.md**: Job queue management
-- **MODULES.md**: Overview of all VideoTools modules
+That's everything. Load a video, adjust some settings, click Generate. The software handles the complicated parts.
