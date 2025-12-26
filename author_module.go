@@ -414,10 +414,15 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 					dialog.ShowInformation("Scene Detection", "No scene changes detected at the current sensitivity.", state.window)
 					return
 				}
-				state.authorChapters = chapters
-				state.authorChapterSource = "scenes"
-				state.updateAuthorSummary()
-				refreshChapters()
+				// Show chapter preview dialog for visual verification
+				state.showChapterPreview(targetPath, chapters, func(accepted bool) {
+					if accepted {
+						state.authorChapters = chapters
+						state.authorChapterSource = "scenes"
+						state.updateAuthorSummary()
+						refreshChapters()
+					}
+				})
 			})
 		}()
 	})
@@ -2274,6 +2279,116 @@ func runCommand(name string, args []string) error {
 		return fmt.Errorf("%s failed: %s", name, strings.TrimSpace(string(output)))
 	}
 	return nil
+}
+
+func (s *appState) showChapterPreview(videoPath string, chapters []authorChapter, callback func(bool)) {
+	dlg := dialog.NewCustom("Chapter Preview", "Close", container.NewVBox(
+		widget.NewLabel(fmt.Sprintf("Detected %d chapters - generating thumbnails...", len(chapters))),
+		widget.NewProgressBarInfinite(),
+	), s.window)
+	dlg.Resize(fyne.NewSize(800, 600))
+	dlg.Show()
+
+	go func() {
+		// Limit preview to first 24 chapters for performance
+		previewCount := len(chapters)
+		if previewCount > 24 {
+			previewCount = 24
+		}
+
+		thumbnails := make([]fyne.CanvasObject, 0, previewCount)
+		for i := 0; i < previewCount; i++ {
+			ch := chapters[i]
+			thumbPath, err := extractChapterThumbnail(videoPath, ch.Timestamp)
+			if err != nil {
+				logging.Debug(logging.CatSystem, "failed to extract thumbnail at %.2f: %v", ch.Timestamp, err)
+				continue
+			}
+
+			img := canvas.NewImageFromFile(thumbPath)
+			img.FillMode = canvas.ImageFillContain
+			img.SetMinSize(fyne.NewSize(160, 90))
+
+			timeLabel := widget.NewLabel(fmt.Sprintf("%.2fs", ch.Timestamp))
+			timeLabel.Alignment = fyne.TextAlignCenter
+
+			thumbCard := container.NewVBox(
+				container.NewMax(img),
+				timeLabel,
+			)
+			thumbnails = append(thumbnails, thumbCard)
+		}
+
+		runOnUI(func() {
+			dlg.Hide()
+
+			if len(thumbnails) == 0 {
+				dialog.ShowError(fmt.Errorf("failed to generate chapter thumbnails"), s.window)
+				return
+			}
+
+			grid := container.NewGridWrap(fyne.NewSize(170, 120), thumbnails...)
+			scroll := container.NewVScroll(grid)
+			scroll.SetMinSize(fyne.NewSize(780, 500))
+
+			infoText := fmt.Sprintf("Found %d chapters", len(chapters))
+			if len(chapters) > previewCount {
+				infoText += fmt.Sprintf(" (showing first %d)", previewCount)
+			}
+			info := widget.NewLabel(infoText)
+			info.Wrapping = fyne.TextWrapWord
+
+			var previewDlg *dialog.CustomDialog
+			acceptBtn := widget.NewButton("Accept Chapters", func() {
+				previewDlg.Hide()
+				callback(true)
+			})
+			acceptBtn.Importance = widget.HighImportance
+
+			rejectBtn := widget.NewButton("Reject", func() {
+				previewDlg.Hide()
+				callback(false)
+			})
+
+			content := container.NewBorder(
+				container.NewVBox(info, widget.NewSeparator()),
+				container.NewHBox(rejectBtn, acceptBtn),
+				nil,
+				nil,
+				scroll,
+			)
+
+			previewDlg = dialog.NewCustom("Chapter Preview", "Close", content, s.window)
+			previewDlg.Resize(fyne.NewSize(800, 600))
+			previewDlg.Show()
+		})
+	}()
+}
+
+func extractChapterThumbnail(videoPath string, timestamp float64) (string, error) {
+	tmpDir := filepath.Join(os.TempDir(), "videotools-chapter-thumbs")
+	if err := os.MkdirAll(tmpDir, 0755); err != nil {
+		return "", err
+	}
+
+	outputPath := filepath.Join(tmpDir, fmt.Sprintf("thumb_%.2f.jpg", timestamp))
+	args := []string{
+		"-ss", fmt.Sprintf("%.2f", timestamp),
+		"-i", videoPath,
+		"-frames:v", "1",
+		"-q:v", "2",
+		"-vf", "scale=320:180",
+		"-y",
+		outputPath,
+	}
+
+	cmd := exec.Command(platformConfig.FFmpegPath, args...)
+	utils.ApplyNoWindow(cmd)
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+
+	return outputPath, nil
 }
 
 func runOnUI(fn func()) {
