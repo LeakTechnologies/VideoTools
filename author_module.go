@@ -1615,7 +1615,28 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		if err := runCommandWithLogger(ctx, platformConfig.FFmpegPath, args, logFn); err != nil {
 			return err
 		}
-		mpgPaths = append(mpgPaths, outPath)
+
+		// Remultiplex the MPEG to fix timestamps for DVD compliance
+		// This resolves "SCR moves backwards" errors from dvdauthor
+		remuxPath := filepath.Join(workDir, fmt.Sprintf("title_%02d_remux.mpg", i+1))
+		remuxArgs := []string{
+			"-fflags", "+genpts",
+			"-i", outPath,
+			"-c", "copy",
+			"-f", "dvd",
+			"-y",
+			remuxPath,
+		}
+		if logFn != nil {
+			logFn(fmt.Sprintf(">> ffmpeg %s (remuxing for DVD compliance)", strings.Join(remuxArgs, " ")))
+		}
+		if err := runCommandWithLogger(ctx, platformConfig.FFmpegPath, remuxArgs, logFn); err != nil {
+			return fmt.Errorf("remux failed: %w", err)
+		}
+
+		// Remove original encode, use remuxed version
+		os.Remove(outPath)
+		mpgPaths = append(mpgPaths, remuxPath)
 		advance("")
 	}
 

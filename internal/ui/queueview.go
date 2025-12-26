@@ -171,8 +171,14 @@ func (r *stripedProgressRenderer) MinSize() fyne.Size {
 }
 
 func (r *stripedProgressRenderer) Refresh() {
-	// small drift to animate stripes
-	r.bar.offset += 2
+	// Only animate stripes when animation is active
+	r.bar.animMu.Lock()
+	shouldAnimate := r.bar.animStop != nil
+	r.bar.animMu.Unlock()
+
+	if shouldAnimate {
+		r.bar.offset += 2
+	}
 	r.Layout(r.bg.Size())
 	canvas.Refresh(r.bg)
 	canvas.Refresh(r.stripes)
