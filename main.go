@@ -962,6 +962,8 @@ type appState struct {
 	authorChaptersRefresh func() // Refresh hook for chapter list UI
 	authorDiscSize        string // "DVD5" or "DVD9"
 	authorLogText         string
+	authorLogLines        []string // Circular buffer for last N lines
+	authorLogFilePath     string   // Path to log file for full viewing
 	authorLogEntry        *widget.Entry
 	authorLogScroll       *container.Scroll
 	authorProgress        float64

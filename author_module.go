@@ -750,6 +750,42 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 	logScroll.SetMinSize(fyne.NewSize(0, 200))
 	state.authorLogScroll = logScroll
 
+	// Log control buttons
+	copyLogBtn := widget.NewButton("Copy Log", func() {
+		if state.authorLogFilePath != "" {
+			// Copy from file for accuracy
+			if data, err := os.ReadFile(state.authorLogFilePath); err == nil {
+				state.window.Clipboard().SetContent(string(data))
+				dialog.ShowInformation("Copied", "Full authoring log copied to clipboard", state.window)
+				return
+			}
+		}
+		// Fallback to in-memory log
+		state.window.Clipboard().SetContent(state.authorLogText)
+		dialog.ShowInformation("Copied", "Authoring log copied to clipboard", state.window)
+	})
+	copyLogBtn.Importance = widget.LowImportance
+
+	viewFullLogBtn := widget.NewButton("View Full Log", func() {
+		if state.authorLogFilePath == "" || state.authorLogFilePath == "-" {
+			dialog.ShowInformation("No Log File", "No log file available to view", state.window)
+			return
+		}
+		if _, err := os.Stat(state.authorLogFilePath); err != nil {
+			dialog.ShowError(fmt.Errorf("log file not found: %w", err), state.window)
+			return
+		}
+		state.openLogViewer("Authoring Log", state.authorLogFilePath, false)
+	})
+	viewFullLogBtn.Importance = widget.LowImportance
+
+	logControls := container.NewHBox(
+		widget.NewLabel("Authoring Log (last 100 lines):"),
+		layout.NewSpacer(),
+		copyLogBtn,
+		viewFullLogBtn,
+	)
+
 	controls := container.NewVBox(
 		widget.NewLabel("Generate DVD/ISO:"),
 		widget.NewSeparator(),
@@ -759,7 +795,7 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 		statusLabel,
 		progressBar,
 		widget.NewSeparator(),
-		widget.NewLabel("Authoring Log:"),
+		logControls,
 		logScroll,
 		widget.NewSeparator(),
 		generateBtn,
@@ -1162,6 +1198,8 @@ func concatDVDMpg(inputs []string, output string) error {
 
 func (s *appState) resetAuthorLog() {
 	s.authorLogText = ""
+	s.authorLogLines = nil
+	s.authorLogFilePath = ""
 	if s.authorLogEntry != nil {
 		s.authorLogEntry.SetText("")
 	}
@@ -1174,7 +1212,17 @@ func (s *appState) appendAuthorLog(line string) {
 	if strings.TrimSpace(line) == "" {
 		return
 	}
-	s.authorLogText += line + "\n"
+
+	// Keep only last 100 lines for UI display (tail behavior)
+	const maxLines = 100
+	s.authorLogLines = append(s.authorLogLines, line)
+	if len(s.authorLogLines) > maxLines {
+		s.authorLogLines = s.authorLogLines[len(s.authorLogLines)-maxLines:]
+	}
+
+	// Rebuild text from buffer
+	s.authorLogText = strings.Join(s.authorLogLines, "\n")
+
 	if s.authorLogEntry != nil {
 		s.authorLogEntry.SetText(s.authorLogText)
 	}
@@ -1726,6 +1774,7 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 			logging.Debug(logging.CatSystem, "author log open failed: %v", logErr)
 		} else {
 			job.LogPath = logPath
+			s.authorLogFilePath = logPath // Store for UI access
 			defer logFile.Close()
 		}
 
@@ -1828,6 +1877,7 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 		logging.Debug(logging.CatSystem, "author log open failed: %v", logErr)
 	} else {
 		job.LogPath = logPath
+		s.authorLogFilePath = logPath // Store for UI access
 		defer logFile.Close()
 	}
 
