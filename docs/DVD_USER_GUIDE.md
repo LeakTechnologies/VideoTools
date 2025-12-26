@@ -328,5 +328,4 @@ Happy encoding! 📀
 
 ---
 
-*Generated with Claude Code*
-*For support, check the comprehensive guides in the project repository*
+For technical details on DVD authoring with chapters, see AUTHOR_MODULE.md
