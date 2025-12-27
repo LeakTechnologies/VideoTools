@@ -997,6 +997,7 @@ type appState struct {
 	subtitleBurnOutput  string
 	subtitleBurnEnabled bool
 	subtitleCuesRefresh func()
+	subtitleTimeOffset  float64
 }
 
 type mergeClip struct {
