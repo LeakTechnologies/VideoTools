@@ -15,23 +15,23 @@ case "$PLATFORM" in
     Linux*) OS="Linux" ;;
     Darwin*) OS="macOS" ;;
     CYGWIN*|MINGW*|MSYS*) OS="Windows" ;;
-    *) echo "❌ Unknown platform: $PLATFORM"; exit 1 ;;
+    *) echo "Unknown platform: $PLATFORM"; exit 1 ;;
 esac
 
 echo "════════════════════════════════════════════════════════════════"
 echo "  VideoTools ${OS} Build"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
-echo "🔍 Detected platform: $OS"
+echo "Detected platform: $OS"
 echo ""
 
 # Go check
 if ! command -v go >/dev/null 2>&1; then
-    echo "❌ ERROR: Go is not installed. Please install Go 1.21+ (go version currently missing)."
+    echo "ERROR: Go is not installed. Please install Go 1.21+ (go version currently missing)."
     exit 1
 fi
 
-echo "📦 Go version:"
+echo "Go version:"
 go version
 echo ""
 
@@ -50,26 +50,26 @@ case "$OS" in
         echo ""
         cd "$PROJECT_ROOT"
 
-        echo "🧹 Cleaning previous builds..."
+        echo "Cleaning previous builds..."
         rm -f VideoTools.exe 2>/dev/null || true
         # Clear Go cache to avoid permission issues
         go clean -cache -modcache -testcache 2>/dev/null || true
-        echo "✓ Cache cleaned"
+        echo "Cache cleaned"
         echo ""
 
-        echo "⬇️  Downloading dependencies..."
+        echo "Downloading dependencies..."
         go mod download
-        echo "✓ Dependencies downloaded"
+        echo "Dependencies downloaded"
         echo ""
 
-        echo "🔨 Building VideoTools $APP_VERSION for Windows..."
+        echo "Building VideoTools $APP_VERSION for Windows..."
         export CGO_ENABLED=1
         if go build -ldflags="-H windowsgui -s -w" -o VideoTools.exe .; then
-            echo "✓ Build successful! (VideoTools $APP_VERSION)"
+            echo "Build successful! (VideoTools $APP_VERSION)"
             echo ""
             if [ -f "setup-windows.bat" ]; then
                 echo "════════════════════════════════════════════════════════════════"
-                echo "✅ BUILD COMPLETE - $APP_VERSION"
+                echo "BUILD COMPLETE - $APP_VERSION"
                 echo "════════════════════════════════════════════════════════════════"
                 echo ""
                 echo "Output: VideoTools.exe"
@@ -93,11 +93,11 @@ case "$OS" in
                     echo "You can skip if FFmpeg is already installed elsewhere."
                 fi
             else
-                echo "✓ Build complete: VideoTools.exe"
+                echo "Build complete: VideoTools.exe"
                 diagnostics
             fi
         else
-            echo "❌ Build failed! (VideoTools $APP_VERSION)"
+            echo "Build failed! (VideoTools $APP_VERSION)"
             diagnostics
             echo ""
             echo "Help: check the Go error messages above."

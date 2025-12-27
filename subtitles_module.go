@@ -488,8 +488,8 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	rebuildCues()
 
 	content := container.NewGridWithColumns(2, left, right)
-	mainContent := container.NewBorder(topBar, bottomBar, nil, nil, content)
-	return ui.NewDroppable(mainContent, handleDrop)
+	droppableContent := ui.NewDroppable(content, handleDrop)
+	return container.NewBorder(topBar, bottomBar, nil, nil, droppableContent)
 }
 
 func (s *appState) setSubtitleStatus(msg string) {
@@ -536,7 +536,11 @@ func (s *appState) handleSubtitlesModuleDrop(items []fyne.URI) {
 			s.setSubtitleStatus(err.Error())
 		}
 	}
-	s.showSubtitlesView()
+
+	// Refresh the view to show the loaded files
+	if s.active == "subtitles" {
+		s.showSubtitlesView()
+	}
 }
 
 func (s *appState) loadSubtitleFile(path string) error {
