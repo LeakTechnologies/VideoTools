@@ -139,6 +139,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 
 	videoEntry := widget.NewEntry()
 	videoEntry.SetPlaceHolder("Video file path")
+	logging.Debug(logging.CatModule, "buildSubtitlesView: creating videoEntry with subtitleVideoPath=%s", state.subtitleVideoPath)
 	videoEntry.SetText(state.subtitleVideoPath)
 	videoEntry.OnChanged = func(val string) {
 		state.subtitleVideoPath = strings.TrimSpace(val)
@@ -250,25 +251,31 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	state.subtitleCuesRefresh = rebuildCues
 
 	handleDrop := func(items []fyne.URI) {
+		logging.Debug(logging.CatModule, "subtitles handleDrop called with %d items", len(items))
 		var videoPath string
 		var subtitlePath string
 		for _, uri := range items {
+			logging.Debug(logging.CatModule, "subtitles handleDrop: uri scheme=%s path=%s", uri.Scheme(), uri.Path())
 			if uri.Scheme() != "file" {
 				continue
 			}
 			path := uri.Path()
 			if videoPath == "" && state.isVideoFile(path) {
 				videoPath = path
+				logging.Debug(logging.CatModule, "subtitles handleDrop: identified as video: %s", path)
 			}
 			if subtitlePath == "" && state.isSubtitleFile(path) {
 				subtitlePath = path
+				logging.Debug(logging.CatModule, "subtitles handleDrop: identified as subtitle: %s", path)
 			}
 		}
 		if videoPath != "" {
+			logging.Debug(logging.CatModule, "subtitles handleDrop: setting video path to %s", videoPath)
 			state.subtitleVideoPath = videoPath
 			videoEntry.SetText(videoPath)
 		}
 		if subtitlePath != "" {
+			logging.Debug(logging.CatModule, "subtitles handleDrop: setting subtitle path to %s", subtitlePath)
 			subtitleEntry.SetText(subtitlePath)
 			if err := state.loadSubtitleFile(subtitlePath); err != nil {
 				state.setSubtitleStatus(err.Error())
@@ -487,9 +494,11 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 
 	rebuildCues()
 
-	content := container.NewGridWithColumns(2, left, right)
-	droppableContent := ui.NewDroppable(content, handleDrop)
-	return container.NewBorder(topBar, bottomBar, nil, nil, droppableContent)
+	// Wrap both panels in droppable so drops anywhere will work
+	droppableLeft := ui.NewDroppable(left, handleDrop)
+	droppableRight := ui.NewDroppable(right, handleDrop)
+	content := container.NewGridWithColumns(2, droppableLeft, droppableRight)
+	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
 
 func (s *appState) setSubtitleStatus(msg string) {
@@ -511,33 +520,41 @@ func (s *appState) setSubtitleStatusAsync(msg string) {
 }
 
 func (s *appState) handleSubtitlesModuleDrop(items []fyne.URI) {
+	logging.Debug(logging.CatModule, "handleSubtitlesModuleDrop called with %d items", len(items))
 	var videoPath string
 	var subtitlePath string
 	for _, uri := range items {
+		logging.Debug(logging.CatModule, "handleSubtitlesModuleDrop: uri scheme=%s path=%s", uri.Scheme(), uri.Path())
 		if uri.Scheme() != "file" {
 			continue
 		}
 		path := uri.Path()
 		if videoPath == "" && s.isVideoFile(path) {
 			videoPath = path
+			logging.Debug(logging.CatModule, "handleSubtitlesModuleDrop: identified as video: %s", path)
 		}
 		if subtitlePath == "" && s.isSubtitleFile(path) {
 			subtitlePath = path
+			logging.Debug(logging.CatModule, "handleSubtitlesModuleDrop: identified as subtitle: %s", path)
 		}
 	}
 	if videoPath == "" && subtitlePath == "" {
+		logging.Debug(logging.CatModule, "handleSubtitlesModuleDrop: no video or subtitle found, returning")
 		return
 	}
 	if videoPath != "" {
+		logging.Debug(logging.CatModule, "handleSubtitlesModuleDrop: setting subtitleVideoPath to %s", videoPath)
 		s.subtitleVideoPath = videoPath
 	}
 	if subtitlePath != "" {
+		logging.Debug(logging.CatModule, "handleSubtitlesModuleDrop: loading subtitle file %s", subtitlePath)
 		if err := s.loadSubtitleFile(subtitlePath); err != nil {
 			s.setSubtitleStatus(err.Error())
 		}
 	}
 
 	// Switch to subtitles module to show the loaded files
+	logging.Debug(logging.CatModule, "handleSubtitlesModuleDrop: calling showModule(subtitles), subtitleVideoPath=%s", s.subtitleVideoPath)
 	s.showModule("subtitles")
 }
 
