@@ -273,6 +273,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 			logging.Debug(logging.CatModule, "subtitles handleDrop: setting video path to %s", videoPath)
 			state.subtitleVideoPath = videoPath
 			videoEntry.SetText(videoPath)
+			logging.Debug(logging.CatModule, "subtitles handleDrop: videoEntry text set to %s", videoPath)
 		}
 		if subtitlePath != "" {
 			logging.Debug(logging.CatModule, "subtitles handleDrop: setting subtitle path to %s", subtitlePath)
