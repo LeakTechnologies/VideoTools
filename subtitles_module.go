@@ -138,14 +138,14 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	bottomBar := moduleFooter(subtitlesColor, layout.NewSpacer(), state.statsBar)
 
 	videoEntry := widget.NewEntry()
-	videoEntry.SetPlaceHolder("Video file path (drag and drop works here)")
+	videoEntry.SetPlaceHolder("Video file path")
 	videoEntry.SetText(state.subtitleVideoPath)
 	videoEntry.OnChanged = func(val string) {
 		state.subtitleVideoPath = strings.TrimSpace(val)
 	}
 
 	subtitleEntry := widget.NewEntry()
-	subtitleEntry.SetPlaceHolder("Subtitle file path (.srt or .vtt)")
+	subtitleEntry.SetPlaceHolder("Subtitle file (.srt or .vtt)")
 	subtitleEntry.SetText(state.subtitleFilePath)
 	subtitleEntry.OnChanged = func(val string) {
 		state.subtitleFilePath = strings.TrimSpace(val)
