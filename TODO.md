@@ -41,6 +41,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Lossless option only for H.265/AV1
   - Dynamic dropdown based on codec
   - Lossless + Target Size mode support
+  - Dynamic dropdown based on codec
+  - Lossless + Target Size mode support
   - Audio bitrate estimation when metadata is missing
   - Target size unit selector and numeric entry
   - Snippet history updates in sidebar
@@ -70,7 +72,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Frame interpolation presets in Filters with Upscale linkage
   - Real-ESRGAN AI upscale controls with ncnn pipeline (models, presets, tiles, TTA)
 
-*Last Updated: 2025-12-21*
+*Last Updated: 2025-12-26*
 
 ## Priority Features for dev20+
 
@@ -112,7 +114,30 @@ This file tracks upcoming features, improvements, and known issues.
   - Creative effects (grayscale, vignette)
   - Real-time preview system
 
-- [ ] **DVD Authoring module**
+- [ ] **Upscale module implementation**
+  - Design UI for upscaling
+  - Implement traditional scaling (Lanczos, Bicubic)
+  - Integrate Waifu2x (if feasible)
+  - Integrate Real-ESRGAN (if feasible)
+  - Add resolution presets
+  - Quality vs. speed slider
+  - Before/after comparison
+  - Batch upscaling
+
+- [ ] **Audio module implementation**
+  - Design audio extraction UI
+  - Implement audio track extraction
+  - Audio track replacement/addition
+  - Multi-track management
+  - Volume normalization
+  - Audio delay correction
+  - Format conversion
+  - Channel mapping
+  - Audio-only operations
+
+- [x] **DVD Authoring module**
+  - [x] **Real-time progress reporting for FFmpeg encoding**
+  - [x] **"Add to Queue" and "Clear Output Title" functionality**
   - Output VIDEO_TS folder + burn-ready ISO
   - Auto-detect NTSC/PAL with manual override
   - Preserve all audio tracks

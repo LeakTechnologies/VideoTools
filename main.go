@@ -86,9 +86,9 @@ var (
 		{"filters", "Filters", utils.MustHex("#44FF88"), "Convert", modules.HandleFilters},       // Green
 		{"upscale", "Upscale", utils.MustHex("#AAFF44"), "Advanced", modules.HandleUpscale},      // Yellow-Green
 		{"audio", "Audio", utils.MustHex("#FFD744"), "Convert", modules.HandleAudio},             // Yellow
-		{"author", "Author", utils.MustHex("#FFAA44"), "DVD", modules.HandleAuthor},              // Orange
-		{"rip", "Rip", utils.MustHex("#FF9944"), "DVD", modules.HandleRip},                       // Orange
-		{"bluray", "Blu-Ray", utils.MustHex("#4D7CFE"), "Blu-Ray", modules.HandleBluRay},         // Blue
+		{"author", "Author", utils.MustHex("#FFAA44"), "Disc", modules.HandleAuthor},              // Orange
+		{"rip", "Rip", utils.MustHex("#FF9944"), "Disc", modules.HandleRip},                       // Orange
+		{"bluray", "Blu-Ray", utils.MustHex("#4D7CFE"), "Disc", modules.HandleBluRay},         // Blue
 		{"subtitles", "Subtitles", utils.MustHex("#44A6FF"), "Convert", modules.HandleSubtitles}, // Azure
 		{"thumb", "Thumb", utils.MustHex("#FF8844"), "Screenshots", modules.HandleThumb},         // Orange
 		{"compare", "Compare", utils.MustHex("#FF44AA"), "Inspect", modules.HandleCompare},       // Pink
