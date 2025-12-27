@@ -9,21 +9,21 @@ alias VideoTools="bash $PROJECT_ROOT/scripts/run.sh"
 
 # Also create a rebuild function for quick rebuilds
 VideoToolsRebuild() {
-    echo "🔨 Rebuilding VideoTools..."
+    echo "Rebuilding VideoTools..."
     bash "$PROJECT_ROOT/scripts/build.sh"
 }
 
 # Create a clean function
 VideoToolsClean() {
-    echo "🧹 Cleaning VideoTools build artifacts..."
+    echo "Cleaning VideoTools build artifacts..."
     cd "$PROJECT_ROOT"
     go clean -cache -modcache -testcache
     rm -f "$PROJECT_ROOT/VideoTools"
-    echo "✓ Clean complete"
+    echo "Clean complete"
 }
 
 echo "════════════════════════════════════════════════════════════════"
-echo "✅ VideoTools Commands Available"
+echo "VideoTools Commands Available"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 echo "Commands:"

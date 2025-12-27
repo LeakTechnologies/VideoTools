@@ -15,17 +15,17 @@ echo ""
 
 # Check if go is installed
 if ! command -v go &> /dev/null; then
-    echo "❌ ERROR: Go is not installed. Please install Go 1.21 or later."
+    echo "ERROR: Go is not installed. Please install Go 1.21 or later."
     exit 1
 fi
 
-echo "📦 Go version:"
+echo "Go version:"
 go version
 echo ""
 
 # Check if MinGW-w64 is installed
 if ! command -v x86_64-w64-mingw32-gcc &> /dev/null; then
-    echo "❌ ERROR: MinGW-w64 cross-compiler not found!"
+    echo "ERROR: MinGW-w64 cross-compiler not found!"
     echo ""
     echo "To install on Fedora/RHEL:"
     echo "  sudo dnf install mingw64-gcc mingw64-winpthreads-static"
@@ -36,26 +36,26 @@ if ! command -v x86_64-w64-mingw32-gcc &> /dev/null; then
     exit 1
 fi
 
-echo "🔧 MinGW-w64 detected:"
+echo "MinGW-w64 detected:"
 x86_64-w64-mingw32-gcc --version | head -1
 echo ""
 
 # Change to project directory
 cd "$PROJECT_ROOT"
 
-echo "🧹 Cleaning previous Windows builds..."
+echo "Cleaning previous Windows builds..."
 rm -f "$BUILD_OUTPUT" 2>/dev/null || true
 rm -rf "$DIST_DIR" 2>/dev/null || true
-echo "✓ Previous builds cleaned"
+echo "Previous builds cleaned"
 echo ""
 
-echo "⬇️  Downloading and verifying dependencies..."
+echo "Downloading and verifying dependencies..."
 go mod download
 go mod verify
-echo "✓ Dependencies verified"
+echo "Dependencies verified"
 echo ""
 
-echo "🔨 Cross-compiling for Windows (amd64)..."
+echo "Cross-compiling for Windows (amd64)..."
 echo "   Target: windows/amd64"
 echo "   Compiler: x86_64-w64-mingw32-gcc"
 echo ""
@@ -73,27 +73,27 @@ export CXX=x86_64-w64-mingw32-g++
 LDFLAGS="-H windowsgui -s -w"
 
 if go build -ldflags="$LDFLAGS" -o "$BUILD_OUTPUT" .; then
-    echo "✓ Cross-compilation successful!"
+    echo "Cross-compilation successful!"
     echo ""
 else
-    echo "❌ Build failed!"
+    echo "Build failed!"
     exit 1
 fi
 
-echo "📦 Creating distribution package..."
+echo "Creating distribution package..."
 mkdir -p "$DIST_DIR"
 
 # Copy executable
 cp "$BUILD_OUTPUT" "$DIST_DIR/"
-echo "✓ Copied VideoTools.exe"
+echo "Copied VideoTools.exe"
 
 # Copy documentation
-cp README.md "$DIST_DIR/" 2>/dev/null || echo "⚠️  README.md not found"
-cp LICENSE "$DIST_DIR/" 2>/dev/null || echo "⚠️  LICENSE not found"
+cp README.md "$DIST_DIR/" 2>/dev/null || echo "WARNING: README.md not found"
+cp LICENSE "$DIST_DIR/" 2>/dev/null || echo "WARNING: LICENSE not found"
 
 # Download and bundle FFmpeg automatically
 if [ ! -f "ffmpeg.exe" ]; then
-    echo "📥 FFmpeg not found locally, downloading..."
+    echo "FFmpeg not found locally, downloading..."
     FFMPEG_URL="https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
     FFMPEG_ZIP="$PROJECT_ROOT/ffmpeg-windows.zip"
 
@@ -102,14 +102,14 @@ if [ ! -f "ffmpeg.exe" ]; then
     elif command -v curl &> /dev/null; then
         curl -L "$FFMPEG_URL" -o "$FFMPEG_ZIP" --progress-bar
     else
-        echo "⚠️  wget or curl not found. Cannot download FFmpeg automatically."
+        echo "WARNING: wget or curl not found. Cannot download FFmpeg automatically."
         echo "   Please download manually from: $FFMPEG_URL"
         echo "   Extract ffmpeg.exe and ffprobe.exe to project root"
         echo ""
     fi
 
     if [ -f "$FFMPEG_ZIP" ]; then
-        echo "📦 Extracting FFmpeg..."
+        echo "Extracting FFmpeg..."
         unzip -q "$FFMPEG_ZIP" "*/bin/ffmpeg.exe" "*/bin/ffprobe.exe" -d "$PROJECT_ROOT/ffmpeg-temp"
 
         # Find and copy the executables (they're nested in a versioned directory)
@@ -118,28 +118,28 @@ if [ ! -f "ffmpeg.exe" ]; then
 
         # Cleanup
         rm -rf "$PROJECT_ROOT/ffmpeg-temp" "$FFMPEG_ZIP"
-        echo "✓ FFmpeg downloaded and extracted"
+        echo "FFmpeg downloaded and extracted"
     fi
 fi
 
 # Bundle FFmpeg with the distribution
 if [ -f "ffmpeg.exe" ]; then
     cp ffmpeg.exe "$DIST_DIR/"
-    echo "✓ Bundled ffmpeg.exe"
+    echo "Bundled ffmpeg.exe"
 else
-    echo "⚠️  ffmpeg.exe not found - distribution will require separate FFmpeg installation"
+    echo "WARNING: ffmpeg.exe not found - distribution will require separate FFmpeg installation"
 fi
 
 if [ -f "ffprobe.exe" ]; then
     cp ffprobe.exe "$DIST_DIR/"
-    echo "✓ Bundled ffprobe.exe"
+    echo "Bundled ffprobe.exe"
 else
-    echo "⚠️  ffprobe.exe not found"
+    echo "WARNING: ffprobe.exe not found"
 fi
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"
-echo "✅ WINDOWS BUILD COMPLETE"
+echo "WINDOWS BUILD COMPLETE"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 echo "Output directory: $DIST_DIR"

@@ -17,49 +17,49 @@ echo ""
 
 # Check if go is installed
 if ! command -v go &> /dev/null; then
-    echo "❌ ERROR: Go is not installed. Please install Go 1.21 or later."
+    echo "ERROR: Go is not installed. Please install Go 1.21 or later."
     exit 1
 fi
 
-echo "📦 Go version:"
+echo "Go version:"
 go version
 echo ""
 
 # Change to project directory
 cd "$PROJECT_ROOT"
 
-echo "🧹 Cleaning previous builds and cache..."
+echo "Cleaning previous builds and cache..."
 go clean -cache -testcache 2>/dev/null || true
 rm -f "$BUILD_OUTPUT" 2>/dev/null || true
 # Also clear build cache directory to avoid permission issues
 rm -rf "${GOCACHE:-$HOME/.cache/go-build}" 2>/dev/null || true
-echo "✓ Cache cleaned"
+echo "Cache cleaned"
 echo ""
 
-echo "⬇️  Downloading and verifying dependencies (skips if already cached)..."
+echo "Downloading and verifying dependencies (skips if already cached)..."
 if go list -m all >/dev/null 2>&1; then
-    echo "✓ Dependencies already present"
+    echo "Dependencies already present"
 else
     if go mod download && go mod verify; then
-        echo "✓ Dependencies downloaded and verified"
+        echo "Dependencies downloaded and verified"
     else
-        echo "❌ Failed to download/verify modules. Check network/GOPROXY or try again."
+        echo "Failed to download/verify modules. Check network/GOPROXY or try again."
         exit 1
     fi
 fi
 echo ""
 
-echo "🔨 Building VideoTools..."
+echo "Building VideoTools..."
 # Fyne needs cgo for GLFW/OpenGL bindings; build with CGO enabled.
 export CGO_ENABLED=1
 export GOCACHE="$PROJECT_ROOT/.cache/go-build"
 export GOMODCACHE="$PROJECT_ROOT/.cache/go-mod"
 mkdir -p "$GOCACHE" "$GOMODCACHE"
 if go build -o "$BUILD_OUTPUT" .; then
-    echo "✓ Build successful! (VideoTools $APP_VERSION)"
+    echo "Build successful! (VideoTools $APP_VERSION)"
     echo ""
     echo "════════════════════════════════════════════════════════════════"
-    echo "✅ BUILD COMPLETE - $APP_VERSION"
+    echo "BUILD COMPLETE - $APP_VERSION"
     echo "════════════════════════════════════════════════════════════════"
     echo ""
     echo "Output: $BUILD_OUTPUT"
@@ -74,7 +74,7 @@ if go build -o "$BUILD_OUTPUT" .; then
     echo "  VideoTools"
     echo ""
 else
-    echo "❌ Build failed! (VideoTools $APP_VERSION)"
+    echo "Build failed! (VideoTools $APP_VERSION)"
     echo "Diagnostics: version=$APP_VERSION os=$(uname -s) arch=$(uname -m) go=$(go version | awk '{print $3}')"
     echo ""
     echo "Help: check the Go error messages above."
