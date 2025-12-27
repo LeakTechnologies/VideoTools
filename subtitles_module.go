@@ -281,7 +281,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	emptyLabel.Alignment = fyne.TextAlignCenter
 	emptyOverlay = container.NewCenter(emptyLabel)
 
-	listArea := container.NewMax(ui.NewDroppable(listScroll, handleDrop), emptyOverlay)
+	listArea := container.NewMax(listScroll, emptyOverlay)
 
 	addCueBtn := widget.NewButton("Add Cue", func() {
 		start := 0.0
@@ -449,8 +449,8 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 
 	left := container.NewVBox(
 		widget.NewLabelWithStyle("Sources", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewBorder(nil, nil, nil, browseVideoBtn, ui.NewDroppable(videoEntry, handleDrop)),
-		container.NewBorder(nil, nil, nil, browseSubtitleBtn, ui.NewDroppable(subtitleEntry, handleDrop)),
+		container.NewBorder(nil, nil, nil, browseVideoBtn, videoEntry),
+		container.NewBorder(nil, nil, nil, browseSubtitleBtn, subtitleEntry),
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Timing Adjustment", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Shift all subtitle times by offset (seconds):"),
