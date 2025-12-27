@@ -537,10 +537,8 @@ func (s *appState) handleSubtitlesModuleDrop(items []fyne.URI) {
 		}
 	}
 
-	// Refresh the view to show the loaded files
-	if s.active == "subtitles" {
-		s.showSubtitlesView()
-	}
+	// Switch to subtitles module to show the loaded files
+	s.showModule("subtitles")
 }
 
 func (s *appState) loadSubtitleFile(path string) error {
