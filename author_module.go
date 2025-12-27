@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -250,17 +251,27 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 		state.authorChapters = nil
 		state.authorChapterSource = ""
 		state.authorVideoTSPath = ""
+		state.authorTitle = ""
 		rebuildList()
 		state.updateAuthorSummary()
 	})
 	clearBtn.Importance = widget.MediumImportance
+
+	addQueueBtn := widget.NewButton("Add to Queue", func() {
+		if len(state.authorClips) == 0 {
+			dialog.ShowInformation("No Clips", "Please add video clips first", state.window)
+			return
+		}
+		state.startAuthorGeneration(false)
+	})
+	addQueueBtn.Importance = widget.MediumImportance
 
 	compileBtn := widget.NewButton("COMPILE TO DVD", func() {
 		if len(state.authorClips) == 0 {
 			dialog.ShowInformation("No Clips", "Please add video clips first", state.window)
 			return
 		}
-		state.startAuthorGeneration()
+		state.startAuthorGeneration(true)
 	})
 	compileBtn.Importance = widget.HighImportance
 
@@ -302,7 +313,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 
 	controls := container.NewBorder(
 		widget.NewLabel("Videos:"),
-		container.NewVBox(chapterToggle, container.NewHBox(addBtn, clearBtn, compileBtn)),
+		container.NewVBox(chapterToggle, container.NewHBox(addBtn, clearBtn, addQueueBtn, compileBtn)),
 		nil,
 		nil,
 		listArea,
@@ -730,7 +741,7 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 			dialog.ShowInformation("No Content", "Please add video clips or select a single video file", state.window)
 			return
 		}
-		state.startAuthorGeneration()
+		state.startAuthorGeneration(true)
 	})
 	generateBtn.Importance = widget.HighImportance
 
@@ -1258,7 +1269,7 @@ func (s *appState) setAuthorProgress(percent float64) {
 	}
 }
 
-func (s *appState) startAuthorGeneration() {
+func (s *appState) startAuthorGeneration(startNow bool) {
 	if s.authorVideoTSPath != "" {
 		title := authorOutputTitle(s)
 		outputPath := authorDefaultOutputPath("iso", title, []string{s.authorVideoTSPath})
@@ -1266,7 +1277,7 @@ func (s *appState) startAuthorGeneration() {
 			dialog.ShowError(fmt.Errorf("failed to resolve output path"), s.window)
 			return
 		}
-		if err := s.addAuthorVideoTSToQueue(s.authorVideoTSPath, title, outputPath, true); err != nil {
+		if err := s.addAuthorVideoTSToQueue(s.authorVideoTSPath, title, outputPath, startNow); err != nil {
 			dialog.ShowError(err, s.window)
 		}
 		return
@@ -1296,7 +1307,7 @@ func (s *appState) startAuthorGeneration() {
 	}
 	continuePrompt := func() {
 		uiCall(func() {
-			s.promptAuthorOutput(paths, region, aspect, title)
+			s.promptAuthorOutput(paths, region, aspect, title, startNow)
 		})
 	}
 	if len(warnings) > 0 {
@@ -1313,7 +1324,7 @@ func (s *appState) startAuthorGeneration() {
 	continuePrompt()
 }
 
-func (s *appState) promptAuthorOutput(paths []string, region, aspect, title string) {
+func (s *appState) promptAuthorOutput(paths []string, region, aspect, title string, startNow bool) {
 	outputType := strings.ToLower(strings.TrimSpace(s.authorOutputType))
 	if outputType == "" {
 		outputType = "dvd"
@@ -1321,10 +1332,10 @@ func (s *appState) promptAuthorOutput(paths []string, region, aspect, title stri
 
 	outputPath := authorDefaultOutputPath(outputType, title, paths)
 	if outputType == "iso" {
-		s.generateAuthoring(paths, region, aspect, title, outputPath, true)
+		s.generateAuthoring(paths, region, aspect, title, outputPath, true, startNow)
 		return
 	}
-	s.generateAuthoring(paths, region, aspect, title, outputPath, false)
+	s.generateAuthoring(paths, region, aspect, title, outputPath, false, startNow)
 }
 
 func authorWarnings(state *appState) []string {
@@ -1502,8 +1513,8 @@ func uniqueFilePath(path string) string {
 	return fmt.Sprintf("%s-%d%s", base, time.Now().Unix(), ext)
 }
 
-func (s *appState) generateAuthoring(paths []string, region, aspect, title, outputPath string, makeISO bool) {
-	if err := s.addAuthorToQueue(paths, region, aspect, title, outputPath, makeISO, true); err != nil {
+func (s *appState) generateAuthoring(paths []string, region, aspect, title, outputPath string, makeISO, startNow bool) {
+	if err := s.addAuthorToQueue(paths, region, aspect, title, outputPath, makeISO, startNow); err != nil {
 		dialog.ShowError(err, s.window)
 	}
 }
@@ -1636,20 +1647,22 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		return err
 	}
 
-	totalSteps := len(paths) + 2
+	var totalDuration float64
+	for _, path := range paths {
+		src, err := probeVideo(path)
+		if err == nil {
+			totalDuration += src.Duration
+		}
+	}
+
+	encodingProgressShare := 80.0
+	otherStepsProgressShare := 20.0
+	otherStepsCount := 2.0
 	if makeISO {
-		totalSteps++
+		otherStepsCount++
 	}
-	step := 0
-	advance := func(message string) {
-		step++
-		if logFn != nil && message != "" {
-			logFn(message)
-		}
-		if progressFn != nil && totalSteps > 0 {
-			progressFn(float64(step) / float64(totalSteps) * 100.0)
-		}
-	}
+	progressForOtherStep := otherStepsProgressShare / otherStepsCount
+	var accumulatedProgress float64
 
 	var mpgPaths []string
 	for i, path := range paths {
@@ -1661,36 +1674,43 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		if err != nil {
 			return fmt.Errorf("failed to probe %s: %w", filepath.Base(path), err)
 		}
+
+		clipProgressShare := 0.0
+		if totalDuration > 0 {
+			clipProgressShare = (src.Duration / totalDuration) * encodingProgressShare
+		}
+
+		ffmpegProgressFn := func(stepPct float64) {
+			overallPct := accumulatedProgress + (stepPct / 100.0 * clipProgressShare)
+			if progressFn != nil {
+				progressFn(overallPct)
+			}
+		}
+
 		args := buildAuthorFFmpegArgs(path, outPath, region, aspect, src.IsProgressive())
 		if logFn != nil {
 			logFn(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
 		}
-		if err := runCommandWithLogger(ctx, platformConfig.FFmpegPath, args, logFn); err != nil {
+
+		if err := runAuthorFFmpeg(ctx, args, src.Duration, logFn, ffmpegProgressFn); err != nil {
 			return err
 		}
 
-		// Remultiplex the MPEG to fix timestamps for DVD compliance
-		// This resolves "SCR moves backwards" errors from dvdauthor
-		remuxPath := filepath.Join(workDir, fmt.Sprintf("title_%02d_remux.mpg", i+1))
-		remuxArgs := []string{
-			"-fflags", "+genpts",
-			"-i", outPath,
-			"-c", "copy",
-			"-f", "dvd",
-			"-y",
-			remuxPath,
+		accumulatedProgress += clipProgressShare
+		if progressFn != nil {
+			progressFn(accumulatedProgress)
 		}
+
+		remuxPath := filepath.Join(workDir, fmt.Sprintf("title_%02d_remux.mpg", i+1))
+		remuxArgs := []string{"-fflags", "+genpts", "-i", outPath, "-c", "copy", "-f", "dvd", "-y", remuxPath}
 		if logFn != nil {
 			logFn(fmt.Sprintf(">> ffmpeg %s (remuxing for DVD compliance)", strings.Join(remuxArgs, " ")))
 		}
 		if err := runCommandWithLogger(ctx, platformConfig.FFmpegPath, remuxArgs, logFn); err != nil {
 			return fmt.Errorf("remux failed: %w", err)
 		}
-
-		// Remove original encode, use remuxed version
 		os.Remove(outPath)
 		mpgPaths = append(mpgPaths, remuxPath)
-		advance("")
 	}
 
 	if len(chapters) == 0 && treatAsChapters && len(clips) > 1 {
@@ -1701,7 +1721,6 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			chapters = embed
 		}
 	}
-
 	if treatAsChapters && len(mpgPaths) > 1 {
 		concatPath := filepath.Join(workDir, "titles_joined.mpg")
 		if logFn != nil {
@@ -1712,7 +1731,6 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 		mpgPaths = []string{concatPath}
 	}
-
 	if len(mpgPaths) > 1 {
 		chapters = nil
 	}
@@ -1722,23 +1740,21 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		return err
 	}
 
-	if logFn != nil {
-		logFn("Authoring DVD structure...")
-		logFn(fmt.Sprintf(">> dvdauthor -o %s -x %s", discRoot, xmlPath))
-	}
+	logFn("Authoring DVD structure...")
+	logFn(fmt.Sprintf(">> dvdauthor -o %s -x %s", discRoot, xmlPath))
 	if err := runCommandWithLogger(ctx, "dvdauthor", []string{"-o", discRoot, "-x", xmlPath}, logFn); err != nil {
 		return err
 	}
-	advance("")
+	accumulatedProgress += progressForOtherStep
+	progressFn(accumulatedProgress)
 
-	if logFn != nil {
-		logFn("Building DVD tables...")
-		logFn(fmt.Sprintf(">> dvdauthor -o %s -T", discRoot))
-	}
+	logFn("Building DVD tables...")
+	logFn(fmt.Sprintf(">> dvdauthor -o %s -T", discRoot))
 	if err := runCommandWithLogger(ctx, "dvdauthor", []string{"-o", discRoot, "-T"}, logFn); err != nil {
 		return err
 	}
-	advance("")
+	accumulatedProgress += progressForOtherStep
+	progressFn(accumulatedProgress)
 
 	if err := os.MkdirAll(filepath.Join(discRoot, "AUDIO_TS"), 0755); err != nil {
 		return fmt.Errorf("failed to create AUDIO_TS: %w", err)
@@ -1749,18 +1765,82 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		if err != nil {
 			return err
 		}
-		if logFn != nil {
-			logFn("Creating ISO image...")
-			logFn(fmt.Sprintf(">> %s %s", tool, strings.Join(args, " ")))
-		}
+		logFn("Creating ISO image...")
+		logFn(fmt.Sprintf(">> %s %s", tool, strings.Join(args, " ")))
 		if err := runCommandWithLogger(ctx, tool, args, logFn); err != nil {
 			return err
 		}
-		advance("")
+		accumulatedProgress += progressForOtherStep
+		progressFn(accumulatedProgress)
 	}
 
+	progressFn(100.0)
 	return nil
 }
+
+func runAuthorFFmpeg(ctx context.Context, args []string, duration float64, logFn func(string), progressFn func(float64)) error {
+	finalArgs := append([]string{"-progress", "pipe:1", "-nostats"}, args...)
+	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, finalArgs...)
+	utils.ApplyNoWindow(cmd)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("ffmpeg stdout pipe: %w", err)
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("ffmpeg stderr pipe: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("ffmpeg start failed: %w", err)
+	}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		scanner := bufio.NewScanner(stderr)
+		for scanner.Scan() {
+			if logFn != nil {
+				logFn(scanner.Text())
+			}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		scanner := bufio.NewScanner(stdout)
+		for scanner.Scan() {
+			line := scanner.Text()
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) < 2 {
+				continue
+			}
+			key, val := strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+			if key == "out_time_ms" {
+				if ms, err := strconv.ParseInt(val, 10, 64); err == nil && ms > 0 {
+					currentSec := float64(ms) / 1000000.0
+					if duration > 0 {
+						stepPct := (currentSec / duration) * 100.0
+						if stepPct > 100 {
+							stepPct = 100
+						}
+						if progressFn != nil {
+							progressFn(stepPct)
+						}
+					}
+				}
+			}
+			if logFn != nil {
+				logFn(line)
+			}
+		}
+	}()
+	err = cmd.Wait()
+	wg.Wait()
+	if err != nil {
+		return fmt.Errorf("ffmpeg failed: %w", err)
+	}
+	return nil
+}
+
 
 func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
 	cfg := job.Config

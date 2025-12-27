@@ -2,6 +2,27 @@
 
 This file tracks completed features, fixes, and milestones.
 
+## Version 0.1.0-dev20+ (2025-12-26) - Author Module & UI Enhancements
+
+### Features
+- ✅ **Author Module - Real-time Progress Reporting**
+  - Implemented granular progress updates for FFmpeg encoding steps in the Author module.
+  - Progress bar now updates smoothly during video processing, providing better feedback.
+  - Weighted progress calculation based on video durations for accurate overall progress.
+
+- ✅ **Author Module - "Add to Queue" & Output Title Clear**
+  - Added an "Add to Queue" button to the Author module for non-immediate job execution.
+  - Refactored authoring workflow to support queuing jobs via a `startNow` parameter.
+  - Modified "Clear All" functionality to also clear the DVD Output Title, preventing naming conflicts.
+
+- ✅ **Main Menu - "Disc" Category for Author, Rip, and Blu-Ray**
+  - Relocated "Author", "Rip", and "Blu-Ray" buttons to a new "Disc" category on the main menu.
+  - Improved logical grouping of disc-related functionalities.
+
+- ✅ **Subtitles Module - Video File Path Population**
+  - Fixed an issue where dragging and dropping a video file onto the Subtitles module would not populate the "Video File Path" section.
+  - Ensured the video entry widget correctly reflects the dropped video's path.
+
 ## Version 0.1.0-dev20+ (2025-12-23) - Player UX & Installer Polish
 
 ### Features (2025-12-23 Session)
@@ -424,13 +445,11 @@ This file tracks completed features, fixes, and milestones.
   - Filter chain combination support
 
 ### Bug Fixes
-- ✅ Fixed snippet duration issues with dual-mode approach
-  - Default Format: Uses stream copy (keyframe-level precision)
-  - Output Format: Re-encodes for frame-perfect duration
-- ✅ Fixed container/codec mismatch in snippet generation
-  - Now properly matches container to codec (MP4 for h264, source format for stream copy)
-- ✅ Fixed missing audio bitrate in thumbnail metadata
-- ✅ Fixed contact sheet dimensions not accounting for padding
+- ✅ Fixed incorrect thumbnail count in contact sheets (was generating 34 instead of 40 for 5x8 grid)
+- ✅ Fixed frame selection FPS assumption (hardcoded 30fps removed)
+- ✅ Fixed module visibility (added thumb module to enabled check)
+- ✅ Fixed undefined function call (openFileManager → openFolder)
+- ✅ Fixed dynamic total count not updating when changing grid dimensions
 - ✅ Added missing `strings` import to thumbnail/generator.go
 - ✅ Updated snippet UI labels for clarity (Default Format vs Output Format)
 
@@ -709,7 +728,7 @@ This file tracks completed features, fixes, and milestones.
   - Braille character animations
   - Shows current task during build and install
   - Interactive path selection (system-wide or user-local)
-- ✅ Added error dialogs with "Copy Error" button
+  - Added error dialogs with "Copy Error" button
   - One-click error message copying for debugging
   - Applied to all major error scenarios
   - Better user experience when reporting issues
@@ -871,7 +890,6 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Category-based logging (SYS, UI, MODULE, etc.)
 - ✅ Timestamp formatting
 - ✅ Debug output toggle via environment variable
-- ✅ Comprehensive debug messages throughout application
 - ✅ Log file output (videotools.log)
 
 ### Error Handling
@@ -907,6 +925,10 @@ This file tracks completed features, fixes, and milestones.
 - ✅ Audio decoding and playback
 - ✅ Synchronization between audio and video
 - ✅ Embedded playback within application window
+- ✅ Seek functionality with progress bar
+- ✅ Player window sizing based on video aspect ratio
+- ✅ Frame pump system for smooth playback
+- ✅ Audio/video synchronization
 - ✅ Checkpoint system for playback position
 
 ### UI/UX
