@@ -37,10 +37,11 @@ type subtitleCue struct {
 }
 
 type subtitlesConfig struct {
-	OutputMode  string `json:"outputMode"`
-	ModelPath   string `json:"modelPath"`
-	BackendPath string `json:"backendPath"`
-	BurnOutput  string `json:"burnOutput"`
+	OutputMode  string  `json:"outputMode"`
+	ModelPath   string  `json:"modelPath"`
+	BackendPath string  `json:"backendPath"`
+	BurnOutput  string  `json:"burnOutput"`
+	TimeOffset  float64 `json:"timeOffset"`
 }
 
 func defaultSubtitlesConfig() subtitlesConfig {
@@ -85,6 +86,7 @@ func (s *appState) applySubtitlesConfig(cfg subtitlesConfig) {
 	s.subtitleModelPath = cfg.ModelPath
 	s.subtitleBackendPath = cfg.BackendPath
 	s.subtitleBurnOutput = cfg.BurnOutput
+	s.subtitleTimeOffset = cfg.TimeOffset
 }
 
 func (s *appState) persistSubtitlesConfig() {
@@ -93,6 +95,7 @@ func (s *appState) persistSubtitlesConfig() {
 		ModelPath:   s.subtitleModelPath,
 		BackendPath: s.subtitleBackendPath,
 		BurnOutput:  s.subtitleBurnOutput,
+		TimeOffset:  s.subtitleTimeOffset,
 	}
 	if err := savePersistedSubtitlesConfig(cfg); err != nil {
 		logging.Debug(logging.CatSystem, "failed to persist subtitles config: %v", err)
@@ -341,11 +344,71 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	})
 	applyBtn.Importance = widget.HighImportance
 
+	browseVideoBtn := widget.NewButton("Browse", func() {
+		dialog.ShowFileOpen(func(file fyne.URIReadCloser, err error) {
+			if err != nil || file == nil {
+				return
+			}
+			defer file.Close()
+			path := file.URI().Path()
+			state.subtitleVideoPath = path
+			videoEntry.SetText(path)
+		}, state.window)
+	})
+
+	browseSubtitleBtn := widget.NewButton("Browse", func() {
+		dialog.ShowFileOpen(func(file fyne.URIReadCloser, err error) {
+			if err != nil || file == nil {
+				return
+			}
+			defer file.Close()
+			path := file.URI().Path()
+			if err := state.loadSubtitleFile(path); err != nil {
+				state.setSubtitleStatus(err.Error())
+				return
+			}
+			subtitleEntry.SetText(path)
+			rebuildCues()
+		}, state.window)
+	})
+
+	offsetEntry := widget.NewEntry()
+	offsetEntry.SetPlaceHolder("0.0")
+	offsetEntry.SetText(fmt.Sprintf("%.2f", state.subtitleTimeOffset))
+	offsetEntry.OnChanged = func(val string) {
+		if offset, err := strconv.ParseFloat(strings.TrimSpace(val), 64); err == nil {
+			state.subtitleTimeOffset = offset
+			state.persistSubtitlesConfig()
+		}
+	}
+
+	applyOffsetBtn := widget.NewButton("Apply Offset", func() {
+		state.applySubtitleTimeOffset(state.subtitleTimeOffset)
+	})
+	applyOffsetBtn.Importance = widget.HighImportance
+
+	offsetPlus1Btn := widget.NewButton("+1s", func() {
+		state.applySubtitleTimeOffset(1.0)
+	})
+
+	offsetMinus1Btn := widget.NewButton("-1s", func() {
+		state.applySubtitleTimeOffset(-1.0)
+	})
+
+	offsetPlus01Btn := widget.NewButton("+0.1s", func() {
+		state.applySubtitleTimeOffset(0.1)
+	})
+
+	offsetMinus01Btn := widget.NewButton("-0.1s", func() {
+		state.applySubtitleTimeOffset(-0.1)
+	})
+
 	applyControls := func() {
 		outputModeSelect.SetSelected(state.subtitleOutputMode)
 		backendEntry.SetText(state.subtitleBackendPath)
 		modelEntry.SetText(state.subtitleModelPath)
 		outputEntry.SetText(state.subtitleBurnOutput)
+		offsetEntry.SetText(fmt.Sprintf("%.2f", state.subtitleTimeOffset))
 	}
 
 	loadCfgBtn := widget.NewButton("Load Config", func() {
@@ -368,6 +431,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 			ModelPath:   state.subtitleModelPath,
 			BackendPath: state.subtitleBackendPath,
 			BurnOutput:  state.subtitleBurnOutput,
+			TimeOffset:  state.subtitleTimeOffset,
 		}
 		if err := savePersistedSubtitlesConfig(cfg); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
@@ -385,16 +449,25 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 
 	left := container.NewVBox(
 		widget.NewLabelWithStyle("Sources", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		ui.NewDroppable(videoEntry, handleDrop),
-		ui.NewDroppable(subtitleEntry, handleDrop),
+		container.NewBorder(nil, nil, nil, browseVideoBtn, ui.NewDroppable(videoEntry, handleDrop)),
+		container.NewBorder(nil, nil, nil, browseSubtitleBtn, ui.NewDroppable(subtitleEntry, handleDrop)),
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle("Timing Adjustment", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabel("Shift all subtitle times by offset (seconds):"),
+		offsetEntry,
+		container.NewHBox(offsetMinus1Btn, offsetMinus01Btn, offsetPlus01Btn, offsetPlus1Btn),
+		applyOffsetBtn,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Offline Speech-to-Text (whisper.cpp)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		backendEntry,
 		modelEntry,
 		container.NewHBox(generateBtn),
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputModeSelect,
 		outputEntry,
 		applyBtn,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Status", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		statusLabel,
 		widget.NewSeparator(),
@@ -497,6 +570,27 @@ func (s *appState) saveSubtitleFile(path string) error {
 		return fmt.Errorf("failed to write subtitles: %w", err)
 	}
 	return nil
+}
+
+func (s *appState) applySubtitleTimeOffset(offsetSeconds float64) {
+	if len(s.subtitleCues) == 0 {
+		s.setSubtitleStatus("No subtitle cues to adjust")
+		return
+	}
+	for i := range s.subtitleCues {
+		s.subtitleCues[i].Start += offsetSeconds
+		s.subtitleCues[i].End += offsetSeconds
+		if s.subtitleCues[i].Start < 0 {
+			s.subtitleCues[i].Start = 0
+		}
+		if s.subtitleCues[i].End < 0 {
+			s.subtitleCues[i].End = 0
+		}
+	}
+	if s.subtitleCuesRefresh != nil {
+		s.subtitleCuesRefresh()
+	}
+	s.setSubtitleStatus(fmt.Sprintf("Applied %.2fs offset to %d subtitle cues", offsetSeconds, len(s.subtitleCues)))
 }
 
 func (s *appState) generateSubtitlesFromSpeech() {
