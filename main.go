@@ -79,23 +79,23 @@ var (
 	nvencRuntimeOnce sync.Once
 	nvencRuntimeOK   bool
 
-	// Memphis-inspired color palette: bright, geometric, highly navigable
-	// Balanced color distribution with no orange overload
+	// Rainbow color palette: balanced ROYGBIV distribution (2 modules per color)
+	// Bright, vibrant, highly navigable with perfect spectrum balance
 	modulesList = []Module{
-		{"convert", "Convert", utils.MustHex("#00CED1"), "Convert", modules.HandleConvert},       // Turquoise (Memphis primary)
-		{"merge", "Merge", utils.MustHex("#4ECDC4"), "Convert", modules.HandleMerge},             // Medium Turquoise (combining)
-		{"trim", "Trim", utils.MustHex("#5DADE2"), "Convert", modules.HandleTrim},                // Sky Blue (precision)
-		{"filters", "Filters", utils.MustHex("#8B5CF6"), "Convert", modules.HandleFilters},       // Vivid Violet (enhancement)
-		{"upscale", "Upscale", utils.MustHex("#A855F7"), "Advanced", modules.HandleUpscale},      // Purple (AI/tech)
-		{"audio", "Audio", utils.MustHex("#FBBF24"), "Convert", modules.HandleAudio},             // Warm Yellow (Memphis accent)
-		{"author", "Author", utils.MustHex("#EC4899"), "Disc", modules.HandleAuthor},             // Hot Pink (Memphis creative)
-		{"rip", "Rip", utils.MustHex("#F59E0B"), "Disc", modules.HandleRip},                      // Amber Orange (warm extraction)
-		{"bluray", "Blu-Ray", utils.MustHex("#3B82F6"), "Disc", modules.HandleBluRay},            // Royal Blue (clean blue)
-		{"subtitles", "Subtitles", utils.MustHex("#10B981"), "Convert", modules.HandleSubtitles}, // Emerald Green (fresh)
-		{"thumb", "Thumb", utils.MustHex("#06B6D4"), "Screenshots", modules.HandleThumb},         // Cyan (screenshot pop)
-		{"compare", "Compare", utils.MustHex("#F43F5E"), "Inspect", modules.HandleCompare},       // Rose Red (bold comparison)
-		{"inspect", "Inspect", utils.MustHex("#EF4444"), "Inspect", modules.HandleInspect},       // Red (analysis focus)
-		{"player", "Player", utils.MustHex("#6366F1"), "Playback", modules.HandlePlayer},         // Indigo (immersive)
+		{"convert", "Convert", utils.MustHex("#673AB7"), "Convert", modules.HandleConvert},       // Deep Purple (primary conversion)
+		{"merge", "Merge", utils.MustHex("#4CAF50"), "Convert", modules.HandleMerge},             // Green (combining)
+		{"trim", "Trim", utils.MustHex("#FFEB3B"), "Convert", modules.HandleTrim},                // Yellow (precision cut)
+		{"filters", "Filters", utils.MustHex("#00BCD4"), "Convert", modules.HandleFilters},       // Cyan (creative filters)
+		{"upscale", "Upscale", utils.MustHex("#9C27B0"), "Advanced", modules.HandleUpscale},      // Purple (AI/advanced)
+		{"audio", "Audio", utils.MustHex("#FFC107"), "Convert", modules.HandleAudio},             // Amber (sound waves)
+		{"author", "Author", utils.MustHex("#FF5722"), "Disc", modules.HandleAuthor},             // Deep Orange (authoring)
+		{"rip", "Rip", utils.MustHex("#FF9800"), "Disc", modules.HandleRip},                      // Orange (extraction)
+		{"bluray", "Blu-Ray", utils.MustHex("#2196F3"), "Disc", modules.HandleBluRay},            // Blue (Blu-ray brand)
+		{"subtitles", "Subtitles", utils.MustHex("#8BC34A"), "Convert", modules.HandleSubtitles}, // Light Green (text)
+		{"thumb", "Thumb", utils.MustHex("#00ACC1"), "Screenshots", modules.HandleThumb},         // Dark Cyan (capture)
+		{"compare", "Compare", utils.MustHex("#E91E63"), "Inspect", modules.HandleCompare},       // Pink (comparison)
+		{"inspect", "Inspect", utils.MustHex("#F44336"), "Inspect", modules.HandleInspect},       // Red (analysis)
+		{"player", "Player", utils.MustHex("#3F51B5"), "Playback", modules.HandlePlayer},         // Indigo (playback)
 	}
 
 	// Platform-specific configuration

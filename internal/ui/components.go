@@ -738,34 +738,34 @@ func BuildModuleBadge(jobType queue.JobType) fyne.CanvasObject {
 
 	switch jobType {
 	case queue.JobTypeConvert:
-		badgeColor = utils.MustHex("#4A90E2")
+		badgeColor = utils.MustHex("#673AB7") // Deep Purple
 		badgeText = "CONVERT"
 	case queue.JobTypeMerge:
-		badgeColor = utils.MustHex("#4488FF")
+		badgeColor = utils.MustHex("#4CAF50") // Green
 		badgeText = "MERGE"
 	case queue.JobTypeTrim:
-		badgeColor = utils.MustHex("#90E24A")
+		badgeColor = utils.MustHex("#FFEB3B") // Yellow
 		badgeText = "TRIM"
 	case queue.JobTypeFilter:
-		badgeColor = utils.MustHex("#E2904A")
+		badgeColor = utils.MustHex("#00BCD4") // Cyan
 		badgeText = "FILTER"
 	case queue.JobTypeUpscale:
-		badgeColor = utils.MustHex("#9A4AE2")
+		badgeColor = utils.MustHex("#9C27B0") // Purple
 		badgeText = "UPSCALE"
 	case queue.JobTypeAudio:
-		badgeColor = utils.MustHex("#4AE290")
+		badgeColor = utils.MustHex("#FFC107") // Amber
 		badgeText = "AUDIO"
 	case queue.JobTypeThumb:
-		badgeColor = utils.MustHex("#E2E24A")
+		badgeColor = utils.MustHex("#00ACC1") // Dark Cyan
 		badgeText = "THUMB"
 	case queue.JobTypeSnippet:
-		badgeColor = utils.MustHex("#4AE2E2")
+		badgeColor = utils.MustHex("#00BCD4") // Cyan (same as Convert)
 		badgeText = "SNIPPET"
 	case queue.JobTypeAuthor:
-		badgeColor = utils.MustHex("#EC4899")
+		badgeColor = utils.MustHex("#FF5722") // Deep Orange
 		badgeText = "AUTHOR"
 	case queue.JobTypeRip:
-		badgeColor = utils.MustHex("#F59E0B")
+		badgeColor = utils.MustHex("#FF9800") // Orange
 		badgeText = "RIP"
 	default:
 		badgeColor = utils.MustHex("#808080")
