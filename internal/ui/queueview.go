@@ -253,8 +253,18 @@ func BuildQueueView(
 		emptyMsg.Alignment = fyne.TextAlignCenter
 		jobItems = append(jobItems, container.NewCenter(emptyMsg))
 	} else {
+		// Calculate queue positions for pending/paused jobs
+		queuePositions := make(map[string]int)
+		position := 1
 		for _, job := range jobs {
-			jobItems = append(jobItems, buildJobItem(job, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, onCopyError, onViewLog, onCopyCommand, bgColor, textColor))
+			if job.Status == queue.JobStatusPending || job.Status == queue.JobStatusPaused {
+				queuePositions[job.ID] = position
+				position++
+			}
+		}
+
+		for _, job := range jobs {
+			jobItems = append(jobItems, buildJobItem(job, queuePositions, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, onCopyError, onViewLog, onCopyCommand, bgColor, textColor))
 		}
 	}
 
@@ -276,6 +286,7 @@ func BuildQueueView(
 // buildJobItem creates a single job item in the queue list
 func buildJobItem(
 	job *queue.Job,
+	queuePositions map[string]int,
 	onPause func(string),
 	onResume func(string),
 	onCancel func(string),
@@ -324,7 +335,7 @@ func buildJobItem(
 	badge := BuildModuleBadge(job.Type)
 
 	// Status text
-	statusText := getStatusText(job)
+	statusText := getStatusText(job, queuePositions)
 	statusLabel := widget.NewLabel(statusText)
 	statusLabel.TextStyle = fyne.TextStyle{Monospace: true}
 	statusLabel.Wrapping = fyne.TextWrapWord
@@ -409,10 +420,14 @@ func buildJobItem(
 }
 
 // getStatusText returns a human-readable status string
-func getStatusText(job *queue.Job) string {
+func getStatusText(job *queue.Job, queuePositions map[string]int) string {
 	switch job.Status {
 	case queue.JobStatusPending:
-		return fmt.Sprintf("Status: Pending | Priority: %d", job.Priority)
+		// Display position in queue (1 = first to run, 2 = second, etc.)
+		if pos, ok := queuePositions[job.ID]; ok {
+			return fmt.Sprintf("Status: Pending | Queue Position: %d", pos)
+		}
+		return "Status: Pending"
 	case queue.JobStatusRunning:
 		elapsed := ""
 		if job.StartedAt != nil {
@@ -435,6 +450,10 @@ func getStatusText(job *queue.Job) string {
 
 		return fmt.Sprintf("Status: Running | Progress: %.1f%%%s%s", job.Progress, elapsed, extras)
 	case queue.JobStatusPaused:
+		// Display position in queue for paused jobs too
+		if pos, ok := queuePositions[job.ID]; ok {
+			return fmt.Sprintf("Status: Paused | Queue Position: %d", pos)
+		}
 		return "Status: Paused"
 	case queue.JobStatusCompleted:
 		duration := ""

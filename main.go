@@ -985,6 +985,9 @@ type appState struct {
 	queueAutoRefreshStop    chan struct{}
 	queueAutoRefreshRunning bool
 
+	// Main menu refresh throttling
+	mainMenuLastRefresh time.Time
+
 	// Subtitles module state
 	subtitleVideoPath   string
 	subtitleFilePath    string
@@ -1617,12 +1620,18 @@ func (s *appState) showMainMenu() {
 
 	titleColor := utils.MustHex("#4CE870")
 
+	// PERFORMANCE: Cache queue list to avoid multiple expensive copies
+	var queueList []*queue.Job
+	if s.jobQueue != nil {
+		queueList = s.jobQueue.List()
+	}
+
 	// Get queue stats - show completed jobs out of total
 	var queueCompleted, queueTotal int
 	if s.jobQueue != nil {
 		_, _, completed, _, _ := s.jobQueue.Stats()
 		queueCompleted = completed
-		queueTotal = len(s.jobQueue.List())
+		queueTotal = len(queueList)
 	}
 
 	// Build sidebar if visible
@@ -1631,7 +1640,7 @@ func (s *appState) showMainMenu() {
 		// Get active jobs from queue (running/pending)
 		var activeJobs []ui.HistoryEntry
 		if s.jobQueue != nil {
-			for _, job := range s.jobQueue.List() {
+			for _, job := range queueList {
 				if job.Status == queue.JobStatusRunning || job.Status == queue.JobStatusPending {
 					// Convert queue.Job to ui.HistoryEntry
 					entry := ui.HistoryEntry{
@@ -1671,9 +1680,9 @@ func (s *appState) showMainMenu() {
 	}
 
 	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, s.showBenchmark, s.showBenchmarkHistory, func() {
-		// Toggle sidebar
+		// Toggle sidebar - use throttled refresh to prevent lag
 		s.sidebarVisible = !s.sidebarVisible
-		s.showMainMenu()
+		s.refreshMainMenuThrottled()
 	}, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal, hasBenchmark)
 
 	// Update stats bar
@@ -1698,6 +1707,26 @@ func (s *appState) showMainMenu() {
 	)
 
 	s.setContent(content)
+}
+
+// refreshMainMenuThrottled rebuilds main menu but throttles to prevent excessive redraws
+// Windows GUI is sensitive to rapid rebuilds, so we enforce a minimum delay
+func (s *appState) refreshMainMenuThrottled() {
+	now := time.Now()
+	if !s.mainMenuLastRefresh.IsZero() && now.Sub(s.mainMenuLastRefresh) < 300*time.Millisecond {
+		// Too soon since last refresh - skip to prevent lag
+		return
+	}
+	s.mainMenuLastRefresh = now
+	s.showMainMenu()
+}
+
+// refreshMainMenuSidebar is a lightweight refresh for sidebar-only updates
+// This prevents full main menu rebuilds when only history changes
+func (s *appState) refreshMainMenuSidebar() {
+	// For now, use throttled refresh to prevent cascading rebuilds
+	// In the future, could optimize to only update sidebar component
+	s.refreshMainMenuThrottled()
 }
 
 func (s *appState) showQueue() {
@@ -1753,6 +1782,8 @@ func (s *appState) refreshQueueView() {
 	view, scroll := ui.BuildQueueView(
 		jobs,
 		func() { // onBack
+			// Stop auto-refresh before navigating away for snappy response
+			s.stopQueueAutoRefresh()
 			target := s.queueBackTarget
 			if target == "" {
 				target = s.lastModule
@@ -1767,61 +1798,67 @@ func (s *appState) refreshQueueView() {
 			if err := s.jobQueue.Pause(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to pause job: %v", err)
 			}
-			s.refreshQueueView() // Refresh
+			// Queue onChange callback handles refresh automatically
 		},
 		func(id string) { // onResume
 			if err := s.jobQueue.Resume(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to resume job: %v", err)
 			}
-			s.refreshQueueView() // Refresh
+			// Queue onChange callback handles refresh automatically
 		},
 		func(id string) { // onCancel
 			if err := s.jobQueue.Cancel(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to cancel job: %v", err)
 			}
-			s.refreshQueueView() // Refresh
+			// Queue onChange callback handles refresh automatically
 		},
 		func(id string) { // onRemove
 			if err := s.jobQueue.Remove(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to remove job: %v", err)
 			}
-			s.refreshQueueView() // Refresh
+			// Queue onChange callback handles refresh automatically
 		},
 		func(id string) { // onMoveUp
 			if err := s.jobQueue.MoveUp(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to move job up: %v", err)
 			}
-			s.refreshQueueView() // Refresh
+			// Queue onChange callback handles refresh automatically
 		},
 		func(id string) { // onMoveDown
 			if err := s.jobQueue.MoveDown(id); err != nil {
 				logging.Debug(logging.CatSystem, "failed to move job down: %v", err)
 			}
-			s.refreshQueueView() // Refresh
+			// Queue onChange callback handles refresh automatically
 		},
 		func() { // onPauseAll
 			s.jobQueue.PauseAll()
-			s.refreshQueueView()
+			// Queue onChange callback handles refresh automatically
 		},
 		func() { // onResumeAll
 			s.jobQueue.ResumeAll()
-			s.refreshQueueView()
+			// Queue onChange callback handles refresh automatically
 		},
 		func() { // onStart
 			s.jobQueue.ResumeAll()
-			s.refreshQueueView()
+			// Queue onChange callback handles refresh automatically
 		},
 		func() { // onClear
+			// Stop auto-refresh to prevent double UI updates
+			s.stopQueueAutoRefresh()
 			s.jobQueue.Clear()
 
 			// Always return to main menu after clearing
 			if len(s.jobQueue.List()) == 0 {
 				s.showMainMenu()
 			} else {
-				s.refreshQueueView() // Refresh if jobs remain
+				// Restart auto-refresh and do single refresh
+				s.startQueueAutoRefresh()
+				s.refreshQueueView()
 			}
 		},
 		func() { // onClearAll
+			// Stop auto-refresh to prevent double UI updates during navigation
+			s.stopQueueAutoRefresh()
 			s.jobQueue.ClearAll()
 			// Return to the module we were working on if possible
 			if s.lastModule != "" && s.lastModule != "queue" && s.lastModule != "menu" {
@@ -1910,7 +1947,9 @@ func (s *appState) startQueueAutoRefresh() {
 	s.queueAutoRefreshStop = stop
 	s.queueAutoRefreshRunning = true
 	go func() {
-		ticker := time.NewTicker(500 * time.Millisecond)
+		// Use 1-second interval to reduce UI update frequency, especially on Windows
+		// The refreshQueueView method has its own 500ms throttle for other triggers
+		ticker := time.NewTicker(1000 * time.Millisecond)
 		defer ticker.Stop()
 		for {
 			select {
@@ -3940,6 +3979,30 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		remux = true
 	}
 
+	// REMUX SAFETY: Validate compatibility and auto-fix issues
+	if remux {
+		src, probeErr := probeVideo(inputPath)
+		if probeErr != nil {
+			return fmt.Errorf("remux safety check failed - cannot probe source: %w", probeErr)
+		}
+
+		compatible, reason, autoFix := validateRemuxCompatibility(src, selectedFormat.Ext, inputPath)
+		if !compatible {
+			if autoFix {
+				logging.Debug(logging.CatFFMPEG, "remux compatibility issue detected (auto-fixable): %s", reason)
+				// Continue with remux but apply fixes below
+			} else {
+				logging.Debug(logging.CatFFMPEG, "remux not compatible: %s - forcing re-encode", reason)
+				remux = false
+				// Force to safe codec
+				if selectedFormat.VideoCodec == "copy" {
+					selectedFormat.VideoCodec = "libx264"
+					cfg["videoCodec"] = "H.264"
+				}
+			}
+		}
+	}
+
 	// DVD presets: enforce compliant codecs and audio settings
 	// Note: We do NOT force resolution - user can choose Source or specific resolution
 	if isDVD {
@@ -3962,8 +4025,19 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		cfg["pixelFormat"] = "yuv420p"
 	}
 
+	// REMUX SAFETY FLAGS: Add comprehensive timestamp and compatibility fixes
 	if remux {
+		// Regenerate presentation timestamps to fix sync issues
 		args = append(args, "-fflags", "+genpts")
+
+		// Fix negative timestamp issues (common in AVI, FLV, MPEG-TS)
+		args = append(args, "-avoid_negative_ts", "make_zero")
+
+		// Analyze MPEG-2 and MPEG-TS more carefully for proper remuxing
+		sourceExt := strings.ToLower(filepath.Ext(inputPath))
+		if sourceExt == ".ts" || sourceExt == ".m2ts" || sourceExt == ".mts" {
+			args = append(args, "-analyzeduration", "10000000", "-probesize", "10000000")
+		}
 	}
 	args = append(args, "-i", inputPath)
 
@@ -4162,7 +4236,14 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		}
 	}
 	if videoCodec == "Copy" && !isDVD {
+		// REMUX MODE: Copy all streams safely
 		args = append(args, "-c:v", "copy")
+
+		// Map all streams to preserve everything (video, audio, subtitles, etc.)
+		args = append(args, "-map", "0")
+
+		// Preserve chapters if they exist
+		args = append(args, "-map_chapters", "0")
 	} else {
 		// Determine the actual codec to use
 		var actualCodec string
@@ -5784,10 +5865,11 @@ func runGUI() {
 			if state.active == "queue" {
 				state.refreshQueueView()
 			}
+			// PERFORMANCE FIX: Only rebuild main menu if history ACTUALLY changed
+			// This prevents constant rebuilds on every queue progress update
 			if state.active == "mainmenu" && state.sidebarVisible && len(state.historyEntries) != historyCount {
-				state.navigationHistorySuppress = true
-				state.showMainMenu()
-				state.navigationHistorySuppress = false
+				// Only refresh sidebar, not entire menu (much faster)
+				state.refreshMainMenuSidebar()
 			}
 		}, false)
 	})
@@ -12283,6 +12365,155 @@ func (v *videoSource) IsProgressive() bool {
 		return true
 	}
 	return false
+}
+
+// validateRemuxCompatibility checks if source codecs are compatible with target container
+// Returns: (compatible, reason, autoFixable)
+// - compatible: true if remux is safe
+// - reason: explanation of why it's incompatible (if false)
+// - autoFixable: true if we can fix with FFmpeg flags (genpts, avoid_negative_ts, etc)
+func validateRemuxCompatibility(src *videoSource, targetExt string, sourcePath string) (bool, string, bool) {
+	if src == nil {
+		return false, "source probe returned nil", false
+	}
+
+	videoCodec := strings.ToLower(src.VideoCodec)
+	audioCodec := strings.ToLower(src.AudioCodec)
+	sourceExt := strings.ToLower(filepath.Ext(sourcePath))
+	targetExt = strings.ToLower(targetExt)
+
+	// Normalize codec names for comparison
+	videoCodec = normalizeCodecName(videoCodec)
+	audioCodec = normalizeCodecName(audioCodec)
+
+	// === CRITICAL BLOCKS: Must re-encode ===
+
+	// 1. WMV/ASF: Known to have issues with MKV/MP4 remux
+	if sourceExt == ".wmv" || sourceExt == ".asf" {
+		return false, "WMV/ASF containers often have timestamp and codec issues - re-encoding recommended", false
+	}
+
+	// 2. Old FLV with proprietary codecs
+	if sourceExt == ".flv" {
+		if strings.Contains(videoCodec, "sorenson") || strings.Contains(videoCodec, "vp6") {
+			return false, "FLV with legacy codecs (Sorenson/VP6) not well supported - re-encoding required", false
+		}
+		// H.264 FLV can be remuxed but often has timestamp issues (auto-fixable)
+		if strings.Contains(videoCodec, "h264") || strings.Contains(videoCodec, "avc") {
+			return true, "FLV H.264 detected - will apply timestamp fixes", true
+		}
+	}
+
+	// 3. Codec compatibility with target container
+	switch targetExt {
+	case ".mp4":
+		// MP4 supports: H.264, H.265, MPEG-4, AAC, MP3, AC3
+		// Does NOT support: VP8, VP9, AV1 (reliably), Theora, Vorbis, Opus (without tricks)
+		if strings.Contains(videoCodec, "vp8") || strings.Contains(videoCodec, "vp9") {
+			return false, "VP8/VP9 not reliably supported in MP4 - use MKV or WebM", false
+		}
+		if strings.Contains(videoCodec, "av1") {
+			return false, "AV1 in MP4 is experimental - use MKV for better compatibility", false
+		}
+		if strings.Contains(videoCodec, "theora") {
+			return false, "Theora not supported in MP4 - use MKV or re-encode to H.264", false
+		}
+		if strings.Contains(audioCodec, "vorbis") || strings.Contains(audioCodec, "opus") {
+			return false, "Vorbis/Opus not reliably supported in MP4 - use MKV or convert to AAC", false
+		}
+
+	case ".mkv":
+		// MKV is ultra-flexible, supports almost everything
+		// Only block truly broken/exotic codecs
+		if strings.Contains(videoCodec, "wmv") && strings.Contains(videoCodec, "drm") {
+			return false, "DRM-protected WMV cannot be remuxed", false
+		}
+
+	case ".webm":
+		// WebM only supports: VP8, VP9, AV1, Vorbis, Opus
+		if !strings.Contains(videoCodec, "vp8") && !strings.Contains(videoCodec, "vp9") && !strings.Contains(videoCodec, "av1") {
+			return false, fmt.Sprintf("WebM only supports VP8/VP9/AV1 video (source: %s)", videoCodec), false
+		}
+		if !strings.Contains(audioCodec, "vorbis") && !strings.Contains(audioCodec, "opus") && audioCodec != "" {
+			return false, fmt.Sprintf("WebM only supports Vorbis/Opus audio (source: %s)", audioCodec), false
+		}
+
+	case ".mov":
+		// MOV/QuickTime is fairly flexible but has quirks
+		// Generally compatible with H.264, H.265, ProRes, MJPEG
+		// Can have issues with exotic codecs
+	}
+
+	// === AUTO-FIXABLE ISSUES ===
+
+	// AVI files often have timestamp issues (fixable with genpts)
+	if sourceExt == ".avi" {
+		return true, "AVI source - will apply timestamp regeneration (genpts)", true
+	}
+
+	// Old MPEG-TS/PS files may have timestamp issues
+	if sourceExt == ".ts" || sourceExt == ".m2ts" || sourceExt == ".mts" {
+		return true, "MPEG transport stream - will apply timestamp fixes", true
+	}
+
+	// VOB files (DVD rips) often need timestamp fixes
+	if sourceExt == ".vob" {
+		return true, "VOB source - will apply timestamp regeneration", true
+	}
+
+	// All checks passed
+	return true, "", false
+}
+
+// normalizeCodecName standardizes codec names for comparison
+func normalizeCodecName(codec string) string {
+	codec = strings.ToLower(strings.TrimSpace(codec))
+
+	// Map common variations to standard names
+	replacements := map[string]string{
+		"h264":           "h264",
+		"avc":            "h264",
+		"avc1":           "h264",
+		"h.264":          "h264",
+		"x264":           "h264",
+		"h265":           "h265",
+		"hevc":           "h265",
+		"h.265":          "h265",
+		"x265":           "h265",
+		"mpeg4":          "mpeg4",
+		"divx":           "mpeg4",
+		"xvid":           "mpeg4",
+		"mpeg-4":         "mpeg4",
+		"mpeg2":          "mpeg2",
+		"mpeg-2":         "mpeg2",
+		"mpeg2video":     "mpeg2",
+		"aac":            "aac",
+		"mp3":            "mp3",
+		"ac3":            "ac3",
+		"a_ac3":          "ac3",
+		"eac3":           "eac3",
+		"vorbis":         "vorbis",
+		"opus":           "opus",
+		"vp8":            "vp8",
+		"vp9":            "vp9",
+		"av1":            "av1",
+		"libaom-av1":     "av1",
+		"theora":         "theora",
+		"wmv3":           "wmv",
+		"vc1":            "vc1",
+		"prores":         "prores",
+		"prores_ks":      "prores",
+		"mjpeg":          "mjpeg",
+		"png":            "png",
+	}
+
+	for old, new := range replacements {
+		if strings.Contains(codec, old) {
+			return new
+		}
+	}
+
+	return codec
 }
 
 func probeVideo(path string) (*videoSource, error) {
