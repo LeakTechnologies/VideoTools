@@ -478,26 +478,27 @@ func getStatusText(job *queue.Job, queuePositions map[string]int) string {
 
 // moduleColor maps job types to distinct colors matching the main module colors
 // ModuleColor returns the color for a given job type
+// ModuleColor returns Memphis-inspired colors matching main module palette
 func ModuleColor(t queue.JobType) color.Color {
 	switch t {
 	case queue.JobTypeConvert:
-		return color.RGBA{R: 139, G: 68, B: 255, A: 255} // Violet (#8B44FF)
+		return color.RGBA{R: 0, G: 206, B: 209, A: 255} // Turquoise (#00CED1)
 	case queue.JobTypeMerge:
-		return color.RGBA{R: 68, G: 136, B: 255, A: 255} // Blue (#4488FF)
+		return color.RGBA{R: 78, G: 205, B: 196, A: 255} // Medium Turquoise (#4ECDC4)
 	case queue.JobTypeTrim:
-		return color.RGBA{R: 68, G: 221, B: 255, A: 255} // Cyan (#44DDFF)
+		return color.RGBA{R: 93, G: 173, B: 226, A: 255} // Sky Blue (#5DADE2)
 	case queue.JobTypeFilter:
-		return color.RGBA{R: 68, G: 255, B: 136, A: 255} // Green (#44FF88)
+		return color.RGBA{R: 139, G: 92, B: 246, A: 255} // Vivid Violet (#8B5CF6)
 	case queue.JobTypeUpscale:
-		return color.RGBA{R: 122, G: 184, B: 0, A: 255} // Darker Green (#7AB800) - improved contrast
+		return color.RGBA{R: 168, G: 85, B: 247, A: 255} // Purple (#A855F7)
 	case queue.JobTypeAudio:
-		return color.RGBA{R: 255, G: 183, B: 0, A: 255} // Amber (#FFB700) - improved contrast
+		return color.RGBA{R: 251, G: 191, B: 36, A: 255} // Warm Yellow (#FBBF24)
 	case queue.JobTypeThumb:
-		return color.RGBA{R: 255, G: 119, B: 51, A: 255} // Orange (#FF7733) - improved contrast
+		return color.RGBA{R: 6, G: 182, B: 212, A: 255} // Cyan (#06B6D4)
 	case queue.JobTypeAuthor:
-		return color.RGBA{R: 255, G: 153, B: 68, A: 255} // Orange (#FF9944)
+		return color.RGBA{R: 236, G: 72, B: 153, A: 255} // Hot Pink (#EC4899)
 	case queue.JobTypeRip:
-		return color.RGBA{R: 255, G: 136, B: 68, A: 255} // Orange (#FF8844)
+		return color.RGBA{R: 245, G: 158, B: 11, A: 255} // Amber Orange (#F59E0B)
 	default:
 		return color.Gray{Y: 180}
 	}

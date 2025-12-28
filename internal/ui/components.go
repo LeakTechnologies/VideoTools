@@ -762,10 +762,10 @@ func BuildModuleBadge(jobType queue.JobType) fyne.CanvasObject {
 		badgeColor = utils.MustHex("#4AE2E2")
 		badgeText = "SNIPPET"
 	case queue.JobTypeAuthor:
-		badgeColor = utils.MustHex("#FF9944")
+		badgeColor = utils.MustHex("#EC4899")
 		badgeText = "AUTHOR"
 	case queue.JobTypeRip:
-		badgeColor = utils.MustHex("#FF8844")
+		badgeColor = utils.MustHex("#F59E0B")
 		badgeText = "RIP"
 	default:
 		badgeColor = utils.MustHex("#808080")
@@ -782,4 +782,41 @@ func BuildModuleBadge(jobType queue.JobType) fyne.CanvasObject {
 	text.TextSize = 10
 
 	return container.NewMax(rect, container.NewCenter(text))
+}
+
+// SectionHeader creates a color-coded section header for better visual separation
+// Helps fix usability issue where settings sections blend together
+func SectionHeader(title string, accentColor color.Color) fyne.CanvasObject {
+	// Left accent bar (Memphis geometric style)
+	accent := canvas.NewRectangle(accentColor)
+	accent.SetMinSize(fyne.NewSize(4, 20))
+
+	// Title text
+	label := widget.NewLabel(title)
+	label.TextStyle = fyne.TextStyle{Bold: true}
+	label.Importance = widget.HighImportance
+
+	// Combine accent bar + title with padding
+	content := container.NewBorder(
+		nil, nil,
+		accent,
+		nil,
+		container.NewPadded(label),
+	)
+
+	return content
+}
+
+// SectionSpacer creates vertical spacing between sections for better readability
+func SectionSpacer() fyne.CanvasObject {
+	spacer := canvas.NewRectangle(color.Transparent)
+	spacer.SetMinSize(fyne.NewSize(0, 12))
+	return spacer
+}
+
+// ColoredDivider creates a thin horizontal divider with accent color
+func ColoredDivider(accentColor color.Color) fyne.CanvasObject {
+	divider := canvas.NewRectangle(accentColor)
+	divider.SetMinSize(fyne.NewSize(0, 2))
+	return divider
 }
