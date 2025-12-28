@@ -476,29 +476,27 @@ func getStatusText(job *queue.Job, queuePositions map[string]int) string {
 	}
 }
 
-// moduleColor maps job types to distinct colors matching the main module colors
-// ModuleColor returns the color for a given job type
-// ModuleColor returns Memphis-inspired colors matching main module palette
+// ModuleColor returns rainbow ROYGBIV colors matching main module palette
 func ModuleColor(t queue.JobType) color.Color {
 	switch t {
 	case queue.JobTypeConvert:
-		return color.RGBA{R: 0, G: 206, B: 209, A: 255} // Turquoise (#00CED1)
+		return color.RGBA{R: 103, G: 58, B: 183, A: 255} // Deep Purple (#673AB7)
 	case queue.JobTypeMerge:
-		return color.RGBA{R: 78, G: 205, B: 196, A: 255} // Medium Turquoise (#4ECDC4)
+		return color.RGBA{R: 76, G: 175, B: 80, A: 255} // Green (#4CAF50)
 	case queue.JobTypeTrim:
-		return color.RGBA{R: 93, G: 173, B: 226, A: 255} // Sky Blue (#5DADE2)
+		return color.RGBA{R: 255, G: 235, B: 59, A: 255} // Yellow (#FFEB3B)
 	case queue.JobTypeFilter:
-		return color.RGBA{R: 139, G: 92, B: 246, A: 255} // Vivid Violet (#8B5CF6)
+		return color.RGBA{R: 0, G: 188, B: 212, A: 255} // Cyan (#00BCD4)
 	case queue.JobTypeUpscale:
-		return color.RGBA{R: 168, G: 85, B: 247, A: 255} // Purple (#A855F7)
+		return color.RGBA{R: 156, G: 39, B: 176, A: 255} // Purple (#9C27B0)
 	case queue.JobTypeAudio:
-		return color.RGBA{R: 251, G: 191, B: 36, A: 255} // Warm Yellow (#FBBF24)
+		return color.RGBA{R: 255, G: 193, B: 7, A: 255} // Amber (#FFC107)
 	case queue.JobTypeThumb:
-		return color.RGBA{R: 6, G: 182, B: 212, A: 255} // Cyan (#06B6D4)
+		return color.RGBA{R: 0, G: 172, B: 193, A: 255} // Dark Cyan (#00ACC1)
 	case queue.JobTypeAuthor:
-		return color.RGBA{R: 236, G: 72, B: 153, A: 255} // Hot Pink (#EC4899)
+		return color.RGBA{R: 255, G: 87, B: 34, A: 255} // Deep Orange (#FF5722)
 	case queue.JobTypeRip:
-		return color.RGBA{R: 245, G: 158, B: 11, A: 255} // Amber Orange (#F59E0B)
+		return color.RGBA{R: 255, G: 152, B: 0, A: 255} // Orange (#FF9800)
 	default:
 		return color.Gray{Y: 180}
 	}
