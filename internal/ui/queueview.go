@@ -489,15 +489,15 @@ func ModuleColor(t queue.JobType) color.Color {
 	case queue.JobTypeFilter:
 		return color.RGBA{R: 68, G: 255, B: 136, A: 255} // Green (#44FF88)
 	case queue.JobTypeUpscale:
-		return color.RGBA{R: 170, G: 255, B: 68, A: 255} // Yellow-Green (#AAFF44)
+		return color.RGBA{R: 122, G: 184, B: 0, A: 255} // Darker Green (#7AB800) - improved contrast
 	case queue.JobTypeAudio:
-		return color.RGBA{R: 255, G: 215, B: 68, A: 255} // Yellow (#FFD744)
+		return color.RGBA{R: 255, G: 183, B: 0, A: 255} // Amber (#FFB700) - improved contrast
 	case queue.JobTypeThumb:
-		return color.RGBA{R: 255, G: 136, B: 68, A: 255} // Orange (#FF8844)
+		return color.RGBA{R: 255, G: 119, B: 51, A: 255} // Orange (#FF7733) - improved contrast
 	case queue.JobTypeAuthor:
-		return color.RGBA{R: 255, G: 170, B: 68, A: 255} // Orange (#FFAA44)
-	case queue.JobTypeRip:
 		return color.RGBA{R: 255, G: 153, B: 68, A: 255} // Orange (#FF9944)
+	case queue.JobTypeRip:
+		return color.RGBA{R: 255, G: 136, B: 68, A: 255} // Orange (#FF8844)
 	default:
 		return color.Gray{Y: 180}
 	}
