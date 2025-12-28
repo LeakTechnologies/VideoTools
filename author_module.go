@@ -381,6 +381,19 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 			}
 			state.authorFile = src
 			fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(src.Path)))
+            // Clear the custom title so it can be re-derived from the new content.
+            // This addresses the user's request for the title to "reset".
+            state.authorTitle = ""
+            state.updateAuthorSummary()
+            // Update the UI for the title entry if the settings tab is currently visible.
+			if state.active == "author" && state.window.Canvas() != nil {
+				app := fyne.CurrentApp()
+				if app != nil && app.Driver() != nil {
+					app.Driver().DoFromGoroutine(func() {
+						state.showAuthorView() // Rebuild the module to refresh titleEntry
+					}, false)
+				}
+			}
 			state.loadEmbeddedChapters(path)
 			refreshChapters()
 		}, state.window)
@@ -886,7 +899,20 @@ func (s *appState) addAuthorFiles(paths []string) {
 		s.authorChapters = nil
 		s.authorChapterSource = ""
 	}
+	s.authorTitle = ""
 	s.updateAuthorSummary()
+	// Update the UI for the title entry if the settings tab is currently visible.
+	// This ensures the title entry visually resets as well.
+	if s.active == "author" && s.window.Canvas() != nil {
+		app := fyne.CurrentApp()
+		if app != nil && app.Driver() != nil {
+			app.Driver().DoFromGoroutine(func() {
+				// Rebuild the settings tab to refresh its controls.
+				// This is a bit heavy, but ensures the titleEntry reflects the change.
+				s.showAuthorView()
+			}, false)
+		}
+	}
 }
 
 func (s *appState) updateAuthorSummary() {
