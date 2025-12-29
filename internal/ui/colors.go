@@ -12,6 +12,7 @@ import (
 // Container / Format Colors (File Wrapper)
 var (
 	ColorMKV    = utils.MustHex("#00B3B3") // Teal / Cyan - Neutral, modern, flexible container
+	ColorRemux  = utils.MustHex("#06B6D4") // Cyan-Glow - Lossless remux (no re-encoding)
 	ColorMP4    = utils.MustHex("#3B82F6") // Blue - Widely recognised, consumer-friendly
 	ColorMOV    = utils.MustHex("#6366F1") // Indigo - Pro / Apple / QuickTime lineage
 	ColorAVI    = utils.MustHex("#64748B") // Grey-Blue - Legacy container
