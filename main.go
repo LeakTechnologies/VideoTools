@@ -6360,60 +6360,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		cmdPreviewBtn.SetText("Show Preview")
 	}
 
-	var (
-		benchmarkStatus    *canvas.Text
-		benchmarkApplyBtn  *widget.Button
-		benchmarkIndicator fyne.CanvasObject
-	)
-	if cfg, err := loadBenchmarkConfig(); err == nil && len(cfg.History) > 0 {
-		run := cfg.History[0]
-		encoder := run.RecommendedEncoder
-		preset := run.RecommendedPreset
-		benchHW := "none"
-		switch {
-		case strings.Contains(encoder, "nvenc"):
-			benchHW = "nvenc"
-		case strings.Contains(encoder, "qsv"):
-			benchHW = "qsv"
-		case strings.Contains(encoder, "amf"):
-			benchHW = "amf"
-		case strings.Contains(encoder, "videotoolbox"):
-			benchHW = "videotoolbox"
-		}
-		applied := friendlyCodecFromPreset(encoder) == state.convert.VideoCodec &&
-			state.convert.EncoderPreset == preset &&
-			state.convert.HardwareAccel == benchHW
-
-		// Only show benchmark indicator if settings are NOT already applied
-		if !applied {
-			statusColor := utils.MustHex("#FFC857")
-			statusText := "Benchmark: Not Applied"
-			benchmarkStatus = canvas.NewText(statusText, statusColor)
-			benchmarkStatus.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-			benchmarkStatus.TextSize = 12
-
-			benchmarkApplyBtn = widget.NewButton("Apply Benchmark", func() {
-				state.applyBenchmarkRecommendation(encoder, preset)
-				// Hide the entire indicator once applied
-				benchmarkIndicator.Hide()
-			})
-			benchmarkApplyBtn.Importance = widget.MediumImportance
-
-			benchmarkIndicator = container.NewHBox(benchmarkStatus, benchmarkApplyBtn)
-		}
-	}
-
-	// Build back bar with optional benchmark indicator
+	// Build back bar
 	backBarItems := []fyne.CanvasObject{
 		back,
 		layout.NewSpacer(),
 		navButtons,
 		layout.NewSpacer(),
+		cmdPreviewBtn,
+		queueBtn,
 	}
-	if benchmarkIndicator != nil {
-		backBarItems = append(backBarItems, benchmarkIndicator)
-	}
-	backBarItems = append(backBarItems, cmdPreviewBtn, queueBtn)
 
 	backBar := ui.TintedBar(convertColor, container.NewHBox(backBarItems...))
 
