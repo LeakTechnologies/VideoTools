@@ -4,6 +4,13 @@ This file tracks completed features, fixes, and milestones.
 
 ## Version 0.1.0-dev20+ (2025-12-28) - Queue UI Performance & Workflow Improvements
 
+### Bug Fixes
+- ✅ **Player Module Crash Fixed**
+  - Disabled Player module to prevent crashes
+  - Module was using external tools (MPV, VLC, FFplay) which violates VideoTools' self-contained principle
+  - Prevents access to broken functionality until proper internal implementation is added
+  - Future: Implement pure-Go internal player using FFmpeg libraries
+
 ### Workflow Enhancements
 - ✅ **Benchmark Result Caching**
   - Benchmark results now persist across app restarts
