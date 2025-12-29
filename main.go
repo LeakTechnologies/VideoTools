@@ -6307,10 +6307,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 			benchmarkApplyBtn = widget.NewButton("Apply Benchmark", func() {
 				state.applyBenchmarkRecommendation(encoder, preset)
-				benchmarkStatus.Text = "Benchmark: Applied"
-				benchmarkStatus.Color = utils.MustHex("#4CE870")
-				benchmarkStatus.Refresh()
-				benchmarkApplyBtn.Disable()
+				// Hide the entire indicator once applied
+				benchmarkIndicator.Hide()
 			})
 			benchmarkApplyBtn.Importance = widget.MediumImportance
 
