@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 // HardwareInfo contains system hardware information
@@ -103,6 +104,7 @@ func detectCPULinux() (model, mhz string) {
 func detectCPUWindows() (model, mhz string) {
 	// Use wmic to get CPU info
 	cmd := exec.Command("wmic", "cpu", "get", "name,maxclockspeed")
+	utils.ApplyNoWindow(cmd) // Hide command window on Windows
 	output, err := cmd.Output()
 	if err != nil {
 		logging.Debug(logging.CatSystem, "failed to run wmic cpu: %v", err)
@@ -208,6 +210,7 @@ func detectGPULinux() (model, driver string) {
 func detectGPUWindows() (model, driver string) {
 	// Use nvidia-smi if available (NVIDIA GPUs)
 	cmd := exec.Command("nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader")
+	utils.ApplyNoWindow(cmd) // Hide command window on Windows
 	output, err := cmd.Output()
 	if err == nil {
 		parts := strings.Split(strings.TrimSpace(string(output)), ",")
@@ -220,21 +223,41 @@ func detectGPUWindows() (model, driver string) {
 
 	// Try wmic for generic GPU info
 	cmd = exec.Command("wmic", "path", "win32_VideoController", "get", "name,driverversion")
+	utils.ApplyNoWindow(cmd) // Hide command window on Windows
 	output, err = cmd.Output()
 	if err == nil {
 		lines := strings.Split(string(output), "\n")
-		if len(lines) >= 2 {
-			// Skip header, get first GPU
-			line := strings.TrimSpace(lines[1])
-			if line != "" {
-				// Parse: Name  DriverVersion
-				re := regexp.MustCompile(`^(.+?)\s+(\S+)$`)
-				matches := re.FindStringSubmatch(line)
-				if len(matches) == 3 {
-					model = strings.TrimSpace(matches[1])
-					driver = strings.TrimSpace(matches[2])
-					return model, driver
-				}
+		// Iterate through all video controllers, skip virtual/non-physical adapters
+		for i, line := range lines {
+			if i == 0 { // Skip header
+				continue
+			}
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+
+			// Filter out virtual/software adapters
+			lineLower := strings.ToLower(line)
+			if strings.Contains(lineLower, "virtual") ||
+				strings.Contains(lineLower, "microsoft basic") ||
+				strings.Contains(lineLower, "remote") ||
+				strings.Contains(lineLower, "vnc") ||
+				strings.Contains(lineLower, "parsec") ||
+				strings.Contains(lineLower, "teamviewer") {
+				logging.Debug(logging.CatSystem, "skipping virtual GPU: %s", line)
+				continue
+			}
+
+			// Parse: Name  DriverVersion
+			// Use flexible regex to handle varying whitespace
+			re := regexp.MustCompile(`^(.+?)\s+(\S+)$`)
+			matches := re.FindStringSubmatch(line)
+			if len(matches) == 3 {
+				model = strings.TrimSpace(matches[1])
+				driver = strings.TrimSpace(matches[2])
+				logging.Debug(logging.CatSystem, "detected physical GPU: %s (driver: %s)", model, driver)
+				return model, driver
 			}
 		}
 	}
@@ -316,6 +339,7 @@ func detectRAMLinux() (readable string, mb uint64) {
 
 func detectRAMWindows() (readable string, mb uint64) {
 	cmd := exec.Command("wmic", "computersystem", "get", "totalphysicalmemory")
+	utils.ApplyNoWindow(cmd) // Hide command window on Windows
 	output, err := cmd.Output()
 	if err != nil {
 		logging.Debug(logging.CatSystem, "failed to run wmic computersystem: %v", err)
