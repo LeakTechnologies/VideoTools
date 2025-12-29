@@ -9110,34 +9110,43 @@ Metadata: %s`,
 		metadata,
 	)
 
-	info := widget.NewForm(
-		widget.NewFormItem("File", widget.NewLabel(src.DisplayName)),
-		widget.NewFormItem("Format Family", widget.NewLabel(utils.FirstNonEmpty(src.Format, "Unknown"))),
-		widget.NewFormItem("Resolution", widget.NewLabel(fmt.Sprintf("%dx%d", src.Width, src.Height))),
-		widget.NewFormItem("Aspect Ratio", widget.NewLabel(src.AspectRatioString())),
-		widget.NewFormItem("Pixel Aspect Ratio", widget.NewLabel(par)),
-		widget.NewFormItem("Duration", widget.NewLabel(src.DurationString())),
-		widget.NewFormItem("Video Codec", widget.NewLabel(utils.FirstNonEmpty(src.VideoCodec, "Unknown"))),
-		widget.NewFormItem("Video Bitrate", widget.NewLabel(bitrate)),
-		widget.NewFormItem("Frame Rate", widget.NewLabel(fmt.Sprintf("%.2f fps", src.FrameRate))),
-		widget.NewFormItem("Pixel Format", widget.NewLabel(utils.FirstNonEmpty(src.PixelFormat, "Unknown"))),
-		widget.NewFormItem("Interlacing", widget.NewLabel(interlacing)),
-		widget.NewFormItem("Color Space", widget.NewLabel(colorSpace)),
-		widget.NewFormItem("Color Range", widget.NewLabel(colorRange)),
-		widget.NewFormItem("GOP Size", widget.NewLabel(gopSize)),
-		widget.NewFormItem("Audio Codec", widget.NewLabel(utils.FirstNonEmpty(src.AudioCodec, "Unknown"))),
-		widget.NewFormItem("Audio Bitrate", widget.NewLabel(audioBitrate)),
-		widget.NewFormItem("Audio Rate", widget.NewLabel(fmt.Sprintf("%d Hz", src.AudioRate))),
-		widget.NewFormItem("Channels", widget.NewLabel(utils.ChannelLabel(src.Channels))),
-		widget.NewFormItem("Chapters", widget.NewLabel(chapters)),
-		widget.NewFormItem("Metadata", widget.NewLabel(metadata)),
-	)
-	for _, item := range info.Items {
-		if lbl, ok := item.Widget.(*widget.Label); ok {
-			lbl.Wrapping = fyne.TextWrapWord
-			lbl.TextStyle = fyne.TextStyle{} // prevent selection
-		}
+	// Helper function to create compact key-value rows
+	makeRow := func(key, value string) fyne.CanvasObject {
+		keyLabel := widget.NewLabel(key + ":")
+		keyLabel.TextStyle = fyne.TextStyle{Bold: true}
+		valueLabel := widget.NewLabel(value)
+		valueLabel.Wrapping = fyne.TextTruncate
+		return container.NewBorder(nil, nil, keyLabel, nil, container.NewHBox(layout.NewSpacer(), valueLabel))
 	}
+
+	// Organize metadata into a compact two-column grid
+	col1 := container.NewVBox(
+		makeRow("File", src.DisplayName),
+		makeRow("Format", utils.FirstNonEmpty(src.Format, "Unknown")),
+		makeRow("Resolution", fmt.Sprintf("%dx%d", src.Width, src.Height)),
+		makeRow("Aspect Ratio", src.AspectRatioString()),
+		makeRow("Duration", src.DurationString()),
+		makeRow("Frame Rate", fmt.Sprintf("%.2f fps", src.FrameRate)),
+		makeRow("Interlacing", interlacing),
+		makeRow("Color Space", colorSpace),
+		makeRow("Color Range", colorRange),
+		makeRow("GOP Size", gopSize),
+	)
+
+	col2 := container.NewVBox(
+		makeRow("Video Codec", utils.FirstNonEmpty(src.VideoCodec, "Unknown")),
+		makeRow("Video Bitrate", bitrate),
+		makeRow("Pixel Format", utils.FirstNonEmpty(src.PixelFormat, "Unknown")),
+		makeRow("Pixel AR", par),
+		makeRow("Audio Codec", utils.FirstNonEmpty(src.AudioCodec, "Unknown")),
+		makeRow("Audio Bitrate", audioBitrate),
+		makeRow("Audio Rate", fmt.Sprintf("%d Hz", src.AudioRate)),
+		makeRow("Channels", utils.ChannelLabel(src.Channels)),
+		makeRow("Chapters", chapters),
+		makeRow("Metadata", metadata),
+	)
+
+	info := container.NewHBox(col1, col2)
 
 	// Copy metadata button - beside header text
 	copyBtn := widget.NewButton("📋", func() {
