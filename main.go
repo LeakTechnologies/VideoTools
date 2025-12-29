@@ -2251,6 +2251,80 @@ func (s *appState) showBenchmark() {
 	hwInfo := sysinfo.Detect()
 	logging.Debug(logging.CatSystem, "detected hardware for benchmark: %s", hwInfo.Summary())
 
+	// Check if we have recent benchmark results for this hardware
+	cfg, err := loadBenchmarkConfig()
+	if err == nil && len(cfg.History) > 0 {
+		lastRun := cfg.History[0]
+
+		// Check if hardware matches (same GPU)
+		hardwareMatches := lastRun.HardwareInfo.GPU == hwInfo.GPU
+
+		// If hardware matches, show last results instead of auto-running
+		if hardwareMatches && len(lastRun.Results) > 0 {
+			logging.Debug(logging.CatSystem, "found existing benchmark from %s, showing results", lastRun.Timestamp.Format("2006-01-02"))
+
+			// Create recommendation from saved data
+			rec := benchmark.Result{
+				Encoder: lastRun.RecommendedEncoder,
+				Preset:  lastRun.RecommendedPreset,
+				FPS:     lastRun.RecommendedFPS,
+				Score:   lastRun.RecommendedFPS,
+			}
+
+			// Show results with "Run New Benchmark" option
+			resultsView := ui.BuildBenchmarkResultsView(
+				lastRun.Results,
+				rec,
+				lastRun.HardwareInfo,
+				func() {
+					// Apply recommended settings
+					s.applyBenchmarkRecommendation(lastRun.RecommendedEncoder, lastRun.RecommendedPreset)
+					s.showMainMenu()
+				},
+				func() {
+					// Close - go back to main menu
+					s.showMainMenu()
+				},
+				utils.MustHex("#4CE870"),
+				utils.MustHex("#1E1E1E"),
+				utils.MustHex("#FFFFFF"),
+			)
+
+			// Add "Run New Benchmark" button at the bottom
+			runNewBtn := widget.NewButton("Run New Benchmark", func() {
+				s.runNewBenchmark()
+			})
+			runNewBtn.Importance = widget.MediumImportance
+
+			cachedNote := widget.NewLabel(fmt.Sprintf("Showing cached results from %s", lastRun.Timestamp.Format("January 2, 2006 at 3:04 PM")))
+			cachedNote.Alignment = fyne.TextAlignCenter
+			cachedNote.TextStyle = fyne.TextStyle{Italic: true}
+
+			viewWithButton := container.NewBorder(
+				nil,
+				container.NewVBox(
+					widget.NewSeparator(),
+					cachedNote,
+					container.NewCenter(runNewBtn),
+				),
+				nil, nil,
+				resultsView,
+			)
+
+			s.setContent(viewWithButton)
+			return
+		}
+	}
+
+	// No existing benchmark or hardware changed - run new benchmark
+	s.runNewBenchmark()
+}
+
+func (s *appState) runNewBenchmark() {
+	// Detect hardware info upfront
+	hwInfo := sysinfo.Detect()
+	logging.Debug(logging.CatSystem, "starting new benchmark for hardware: %s", hwInfo.Summary())
+
 	// Create benchmark suite
 	tmpDir := filepath.Join(utils.TempDir(), "videotools-benchmark")
 	_ = os.MkdirAll(tmpDir, 0o755)
