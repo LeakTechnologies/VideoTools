@@ -6836,6 +6836,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Settings management for batch operations
 	settingsInfoLabel := widget.NewLabel("Settings persist across videos. Change them anytime to affect all subsequent videos.")
 	settingsInfoLabel.Alignment = fyne.TextAlignCenter
+	settingsInfoLabel.Wrapping = fyne.TextWrapWord
+	// Wrap in padded container for proper text wrapping in narrow windows
+	settingsInfoContainer := container.NewPadded(settingsInfoLabel)
 
 	cacheDirLabel := widget.NewLabelWithStyle("Cache/Temp Directory", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	cacheDirEntry := widget.NewEntry()
@@ -6843,6 +6846,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	cacheDirEntry.SetText(state.convert.TempDir)
 	cacheDirHint := widget.NewLabel("Use an SSD for best performance. Leave blank to use system temp.")
 	cacheDirHint.Wrapping = fyne.TextWrapWord
+	// Wrap in padded container for proper text wrapping in narrow windows
+	cacheDirHintContainer := container.NewPadded(cacheDirHint)
 	cacheDirEntry.OnChanged = func(val string) {
 		state.convert.TempDir = strings.TrimSpace(val)
 		utils.SetTempDir(state.convert.TempDir)
@@ -6872,12 +6877,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	resetSettingsBtn.Importance = widget.LowImportance
 
 	settingsContent := container.NewVBox(
-		settingsInfoLabel,
+		settingsInfoContainer,
 		widget.NewSeparator(),
 		cacheDirLabel,
 		container.NewBorder(nil, nil, nil, cacheBrowseBtn, cacheDirEntry),
 		cacheUseSystemBtn,
-		cacheDirHint,
+		cacheDirHintContainer,
 		resetSettingsBtn,
 	)
 	settingsContent.Hide()
