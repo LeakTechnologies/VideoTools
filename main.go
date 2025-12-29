@@ -6227,6 +6227,35 @@ func (s *appState) executeConversion() {
 	}
 }
 
+// buildFormatBadge creates a color-coded badge for a format option
+// Example: "MKV (AV1)" → teal badge with "MKV (AV1)" text
+func buildFormatBadge(formatLabel string) fyne.CanvasObject {
+	// Parse format label: "MKV (AV1)" → containerName: "mkv"
+	parts := strings.Split(formatLabel, " (")
+	if len(parts) < 1 {
+		return widget.NewLabel(formatLabel)
+	}
+
+	containerName := strings.ToLower(strings.TrimSpace(parts[0]))
+
+	// Get container color
+	badgeColor := ui.GetContainerColor(containerName)
+	
+	// Create colored background
+	bg := canvas.NewRectangle(badgeColor)
+	bg.CornerRadius = 4
+	bg.SetMinSize(fyne.NewSize(120, 32))
+	
+	// Create label
+	label := canvas.NewText(formatLabel, color.White)
+	label.TextStyle = fyne.TextStyle{Bold: true}
+	label.Alignment = fyne.TextAlignCenter
+	label.TextSize = 13
+	
+	// Stack background and label
+	return container.NewMax(bg, container.NewCenter(label))
+}
+
 func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	convertColor := moduleColor("convert")
 
@@ -6859,6 +6888,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
+	// Create format badge with semantic color
+	formatBadgeContainer := container.NewMax()
+	updateFormatBadge := func(label string) {
+		formatBadgeContainer.Objects = []fyne.CanvasObject{buildFormatBadge(label)}
+		formatBadgeContainer.Refresh()
+	}
+	updateFormatBadge(state.convert.SelectedFormat.Label)
 	formatSelect := widget.NewSelect(formatLabels, func(value string) {
 		for _, opt := range formatOptions {
 			if opt.Label == value {
@@ -6893,11 +6929,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				if buildCommandPreview != nil {
 					buildCommandPreview()
 				}
+				updateFormatBadge(value)
 				break
 			}
 		}
 	})
 	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
+
 	updateChapterWarning() // Initial visibility
 
 	if !state.convert.AspectUserSet {
@@ -8141,6 +8179,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
+		formatBadgeContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox,        // DVD options appear here when DVD format selected
@@ -8203,6 +8242,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
+		formatBadgeContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox,        // DVD options appear here when DVD format selected
