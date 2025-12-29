@@ -5,11 +5,14 @@ This file tracks completed features, fixes, and milestones.
 ## Version 0.1.0-dev20+ (2025-12-28) - Queue UI Performance & Workflow Improvements
 
 ### Bug Fixes
-- ✅ **Player Module Crash Fixed**
-  - Disabled Player module to prevent crashes
-  - Module was using external tools (MPV, VLC, FFplay) which violates VideoTools' self-contained principle
-  - Prevents access to broken functionality until proper internal implementation is added
-  - Future: Implement pure-Go internal player using FFmpeg libraries
+- ✅ **Player Module Investigation**
+  - Investigated reported player crash
+  - Discovered player is ALREADY fully internal and lightweight
+  - Uses FFmpeg directly (no external VLC/MPV/FFplay dependencies)
+  - Implementation: FFmpeg pipes raw frames + audio → Oto library for output
+  - Frame-accurate seeking and A/V sync built-in
+  - Error handling: Falls back to video-only playback if audio fails
+  - Player module re-enabled - follows VideoTools' core principles
 
 ### Workflow Enhancements
 - ✅ **Benchmark Result Caching**
