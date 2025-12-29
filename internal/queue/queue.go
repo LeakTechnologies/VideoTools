@@ -95,7 +95,7 @@ func (q *Queue) notifyChange() {
 	}
 }
 
-// Add adds a job to the queue
+// Add adds a job to the queue (at the end)
 func (q *Queue) Add(job *Job) {
 	q.mu.Lock()
 
@@ -110,6 +110,37 @@ func (q *Queue) Add(job *Job) {
 	}
 
 	q.jobs = append(q.jobs, job)
+	q.rebalancePrioritiesLocked()
+	q.mu.Unlock()
+	q.notifyChange()
+}
+
+// AddNext adds a job to the front of the pending queue (right after any running job)
+func (q *Queue) AddNext(job *Job) {
+	q.mu.Lock()
+
+	if job.ID == "" {
+		job.ID = generateID()
+	}
+	if job.CreatedAt.IsZero() {
+		job.CreatedAt = time.Now()
+	}
+	if job.Status == "" {
+		job.Status = JobStatusPending
+	}
+
+	// Find the position after any running jobs
+	insertPos := 0
+	for i, j := range q.jobs {
+		if j.Status == JobStatusRunning {
+			insertPos = i + 1
+		} else {
+			break
+		}
+	}
+
+	// Insert at the calculated position
+	q.jobs = append(q.jobs[:insertPos], append([]*Job{job}, q.jobs[insertPos:]...)...)
 	q.rebalancePrioritiesLocked()
 	q.mu.Unlock()
 	q.notifyChange()
