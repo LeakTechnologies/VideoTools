@@ -6318,15 +6318,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	backBar := ui.TintedBar(convertColor, container.NewHBox(
+	// Build back bar with optional benchmark indicator
+	backBarItems := []fyne.CanvasObject{
 		back,
 		layout.NewSpacer(),
 		navButtons,
 		layout.NewSpacer(),
-		benchmarkIndicator,
-		cmdPreviewBtn,
-		queueBtn,
-	))
+	}
+	if benchmarkIndicator != nil {
+		backBarItems = append(backBarItems, benchmarkIndicator)
+	}
+	backBarItems = append(backBarItems, cmdPreviewBtn, queueBtn)
+
+	backBar := ui.TintedBar(convertColor, container.NewHBox(backBarItems...))
 
 	var updateCover func(string)
 	var coverDisplay *widget.Label
