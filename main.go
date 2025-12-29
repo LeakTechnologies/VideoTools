@@ -986,6 +986,7 @@ type appState struct {
 
 	queueAutoRefreshStop    chan struct{}
 	queueAutoRefreshRunning bool
+	queueActiveProgress     []*ui.StripedProgress // Track active progress animations to prevent goroutine leaks
 
 	// Main menu refresh throttling
 	mainMenuLastRefresh time.Time
@@ -1781,7 +1782,16 @@ func (s *appState) refreshQueueView() {
 		}}, jobs...)
 	}
 
-	view, scroll := ui.BuildQueueView(
+	// CRITICAL: Stop all active progress animations before rebuilding to prevent goroutine leaks
+	// Each refresh creates new StripedProgress widgets, and old animation goroutines must be stopped
+	for _, progress := range s.queueActiveProgress {
+		if progress != nil {
+			progress.StopAnimation()
+		}
+	}
+	s.queueActiveProgress = nil
+
+	view, scroll, activeProgress := ui.BuildQueueView(
 		jobs,
 		func() { // onBack
 			// Stop auto-refresh before navigating away for snappy response
@@ -1938,6 +1948,9 @@ func (s *appState) refreshQueueView() {
 		}()
 	}
 
+	// Store active progress bars to stop them on next refresh
+	s.queueActiveProgress = activeProgress
+
 	s.setContent(container.NewPadded(view))
 }
 
@@ -1984,6 +1997,14 @@ func (s *appState) stopQueueAutoRefresh() {
 	}
 	s.queueAutoRefreshStop = nil
 	s.queueAutoRefreshRunning = false
+
+	// Stop all active progress animations to prevent goroutine leaks when leaving queue view
+	for _, progress := range s.queueActiveProgress {
+		if progress != nil {
+			progress.StopAnimation()
+		}
+	}
+	s.queueActiveProgress = nil
 }
 
 // addConvertToQueue adds a conversion job to the queue

@@ -212,7 +212,9 @@ func BuildQueueView(
 	onViewLog func(string),
 	onCopyCommand func(string),
 	titleColor, bgColor, textColor color.Color,
-) (fyne.CanvasObject, *container.Scroll) {
+) (fyne.CanvasObject, *container.Scroll, []*StripedProgress) {
+	// Track active progress animations to prevent goroutine leaks
+	var activeProgress []*StripedProgress
 	// Header
 	title := canvas.NewText("JOB QUEUE", titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
@@ -264,7 +266,7 @@ func BuildQueueView(
 		}
 
 		for _, job := range jobs {
-			jobItems = append(jobItems, buildJobItem(job, queuePositions, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, onCopyError, onViewLog, onCopyCommand, bgColor, textColor))
+			jobItems = append(jobItems, buildJobItem(job, queuePositions, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, onCopyError, onViewLog, onCopyCommand, bgColor, textColor, &activeProgress))
 		}
 	}
 
@@ -280,7 +282,7 @@ func BuildQueueView(
 		scrollable,
 	)
 
-	return container.NewPadded(body), scrollable
+	return container.NewPadded(body), scrollable, activeProgress
 }
 
 // buildJobItem creates a single job item in the queue list
@@ -297,6 +299,7 @@ func buildJobItem(
 	onViewLog func(string),
 	onCopyCommand func(string),
 	bgColor, textColor color.Color,
+	activeProgress *[]*StripedProgress,
 ) fyne.CanvasObject {
 	// Status color
 	statusColor := GetStatusColor(job.Status)
@@ -325,6 +328,8 @@ func buildJobItem(
 	if job.Status == queue.JobStatusRunning {
 		progress.SetActivity(job.Progress <= 0.01)
 		progress.StartAnimation()
+		// Track active progress to stop animation on next refresh (prevents goroutine leaks)
+		*activeProgress = append(*activeProgress, progress)
 	} else {
 		progress.SetActivity(false)
 		progress.StopAnimation()
