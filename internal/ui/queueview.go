@@ -317,7 +317,7 @@ func buildJobItem(
 
 	descLabel := widget.NewLabel(descText)
 	descLabel.TextStyle = fyne.TextStyle{Italic: true}
-	descLabel.Wrapping = fyne.TextWrapWord
+	descLabel.Wrapping = fyne.TextTruncate
 
 	// Progress bar (for running jobs)
 	progress := NewStripedProgress(ModuleColor(job.Type))
@@ -343,7 +343,7 @@ func buildJobItem(
 	statusText := getStatusText(job, queuePositions)
 	statusLabel := widget.NewLabel(statusText)
 	statusLabel.TextStyle = fyne.TextStyle{Monospace: true}
-	statusLabel.Wrapping = fyne.TextWrapWord
+	statusLabel.Wrapping = fyne.TextTruncate
 
 	// Control buttons
 	var buttons []fyne.CanvasObject
@@ -409,6 +409,7 @@ func buildJobItem(
 	// Card background
 	card := canvas.NewRectangle(bgColor)
 	card.CornerRadius = 4
+	card.SetMinSize(fyne.NewSize(0, 140)) // Fixed minimum height to prevent jumping
 
 	item := container.NewPadded(
 		container.NewMax(card, content),
