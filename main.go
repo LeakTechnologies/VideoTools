@@ -866,7 +866,8 @@ type appState struct {
 	// Merge state
 	mergeClips               []mergeClip
 	mergeFormat              string
-	mergeOutput              string
+	mergeOutputDir           string
+	mergeOutputFilename      string
 	mergeKeepAll             bool
 	mergeCodecMode           string
 	mergeChapters            bool
@@ -2769,9 +2770,11 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 			}
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.mergeClips = append(s.mergeClips, clips...)
-				if len(s.mergeClips) >= 2 && strings.TrimSpace(s.mergeOutput) == "" {
-					first := filepath.Dir(s.mergeClips[0].Path)
-					s.mergeOutput = filepath.Join(first, "merged.mkv")
+				if len(s.mergeClips) >= 2 && strings.TrimSpace(s.mergeOutputDir) == "" {
+					s.mergeOutputDir = filepath.Dir(s.mergeClips[0].Path)
+				}
+				if len(s.mergeClips) >= 2 && strings.TrimSpace(s.mergeOutputFilename) == "" {
+					s.mergeOutputFilename = "merged.mkv"
 				}
 				s.showMergeView()
 			}, false)
@@ -3164,9 +3167,11 @@ func (s *appState) showMergeView() {
 				Duration: src.Duration,
 			})
 		}
-		if len(s.mergeClips) >= 2 && s.mergeOutput == "" {
-			first := filepath.Dir(s.mergeClips[0].Path)
-			s.mergeOutput = filepath.Join(first, "merged.mkv")
+		if len(s.mergeClips) >= 2 && s.mergeOutputDir == "" {
+			s.mergeOutputDir = filepath.Dir(s.mergeClips[0].Path)
+		}
+		if len(s.mergeClips) >= 2 && s.mergeOutputFilename == "" {
+			s.mergeOutputFilename = "merged.mkv"
 		}
 		buildList()
 	}
@@ -3232,31 +3237,40 @@ func (s *appState) showMergeView() {
 	})
 	chapterCheck.SetChecked(s.mergeChapters)
 
-	// Create output entry widget first so it can be referenced in callbacks
-	outputEntry := widget.NewEntry()
-	outputEntry.SetPlaceHolder("merged output path")
-	outputEntry.SetText(s.mergeOutput)
-	outputEntry.OnChanged = func(val string) {
-		s.mergeOutput = val
+	// Create output entry widgets first so they can be referenced in callbacks
+	outputDirEntry := widget.NewEntry()
+	outputDirEntry.SetPlaceHolder("Output folder path")
+	outputDirEntry.SetText(s.mergeOutputDir)
+	outputDirEntry.OnChanged = func(val string) {
+		s.mergeOutputDir = val
+	}
+
+	outputFilenameEntry := widget.NewEntry()
+	outputFilenameEntry.SetPlaceHolder("merged.mkv")
+	outputFilenameEntry.SetText(s.mergeOutputFilename)
+	outputFilenameEntry.OnChanged = func(val string) {
+		s.mergeOutputFilename = val
 	}
 
 	clearBtn := widget.NewButton("Clear", func() {
 		s.mergeClips = nil
-		s.mergeOutput = ""
-		outputEntry.SetText("")
+		s.mergeOutputDir = ""
+		s.mergeOutputFilename = ""
+		outputDirEntry.SetText("")
+		outputFilenameEntry.SetText("")
 		buildList()
 	})
 
-	// Helper to update output path extension (requires outputEntry to exist)
+	// Helper to update output filename extension (requires outputFilenameEntry to exist)
 	updateOutputExt := func() {
-		if s.mergeOutput == "" {
+		if s.mergeOutputFilename == "" {
 			return
 		}
-		currentExt := filepath.Ext(s.mergeOutput)
+		currentExt := filepath.Ext(s.mergeOutputFilename)
 		correctExt := getExtForFormat(s.mergeFormat)
 		if currentExt != correctExt {
-			s.mergeOutput = strings.TrimSuffix(s.mergeOutput, currentExt) + correctExt
-			outputEntry.SetText(s.mergeOutput)
+			s.mergeOutputFilename = strings.TrimSuffix(s.mergeOutputFilename, currentExt) + correctExt
+			outputFilenameEntry.SetText(s.mergeOutputFilename)
 		}
 	}
 
@@ -3294,9 +3308,14 @@ func (s *appState) showMergeView() {
 			dvdOptionsContainer.Hide()
 		}
 
-		// Set default output path if not set
-		if s.mergeOutput == "" && len(s.mergeClips) > 0 {
-			dir := filepath.Dir(s.mergeClips[0].Path)
+		// Set default output directory if not set
+		if s.mergeOutputDir == "" && len(s.mergeClips) > 0 {
+			s.mergeOutputDir = filepath.Dir(s.mergeClips[0].Path)
+			outputDirEntry.SetText(s.mergeOutputDir)
+		}
+
+		// Set default output filename if not set
+		if s.mergeOutputFilename == "" && len(s.mergeClips) > 0 {
 			ext := getExtForFormat(s.mergeFormat)
 			basename := "merged"
 			if strings.HasPrefix(s.mergeFormat, "dvd") || s.mergeFormat == "dvd" {
@@ -3306,10 +3325,10 @@ func (s *appState) showMergeView() {
 			} else if s.mergeFormat == "mkv-lossless" {
 				basename = "merged-lossless"
 			}
-			s.mergeOutput = filepath.Join(dir, basename+ext)
-			outputEntry.SetText(s.mergeOutput)
+			s.mergeOutputFilename = basename + ext
+			outputFilenameEntry.SetText(s.mergeOutputFilename)
 		} else {
-			// Update extension of existing path
+			// Update extension of existing filename
 			updateOutputExt()
 		}
 		s.persistMergeConfig()
@@ -3347,14 +3366,13 @@ func (s *appState) showMergeView() {
 		motionInterpCheck,
 	)
 
-	browseOut := widget.NewButton("Browse", func() {
-		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
-			if err != nil || writer == nil {
+	browseDirBtn := widget.NewButton("Browse Folder", func() {
+		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
+			if err != nil || uri == nil {
 				return
 			}
-			s.mergeOutput = writer.URI().Path()
-			outputEntry.SetText(s.mergeOutput)
-			writer.Close()
+			s.mergeOutputDir = uri.Path()
+			outputDirEntry.SetText(s.mergeOutputDir)
 		}, s.window)
 	})
 
@@ -3480,8 +3498,10 @@ func (s *appState) showMergeView() {
 		keepAllCheck,
 		chapterCheck,
 		widget.NewSeparator(),
-		widget.NewLabel("Output Path"),
-		container.NewBorder(nil, nil, nil, browseOut, outputEntry),
+		widget.NewLabel("Output Folder"),
+		container.NewBorder(nil, nil, nil, browseDirBtn, outputDirEntry),
+		widget.NewLabel("Output Filename"),
+		outputFilenameEntry,
 		widget.NewSeparator(),
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
 		widget.NewSeparator(),
@@ -3499,13 +3519,17 @@ func (s *appState) addMergeToQueue(startNow bool) error {
 	if len(s.mergeClips) < 2 {
 		return fmt.Errorf("add at least two clips")
 	}
-	if strings.TrimSpace(s.mergeOutput) == "" {
-		firstDir := filepath.Dir(s.mergeClips[0].Path)
-		s.mergeOutput = filepath.Join(firstDir, "merged.mkv")
+
+	// Set defaults if not specified
+	if strings.TrimSpace(s.mergeOutputDir) == "" {
+		s.mergeOutputDir = filepath.Dir(s.mergeClips[0].Path)
+	}
+	if strings.TrimSpace(s.mergeOutputFilename) == "" {
+		s.mergeOutputFilename = "merged.mkv"
 	}
 
-	// Ensure output path has correct extension for selected format
-	currentExt := filepath.Ext(s.mergeOutput)
+	// Ensure output filename has correct extension for selected format
+	currentExt := filepath.Ext(s.mergeOutputFilename)
 	var correctExt string
 	switch {
 	case strings.HasPrefix(s.mergeFormat, "dvd"):
@@ -3524,10 +3548,13 @@ func (s *appState) addMergeToQueue(startNow bool) error {
 
 	// Auto-fix extension if missing or wrong
 	if currentExt == "" {
-		s.mergeOutput += correctExt
+		s.mergeOutputFilename += correctExt
 	} else if currentExt != correctExt {
-		s.mergeOutput = strings.TrimSuffix(s.mergeOutput, currentExt) + correctExt
+		s.mergeOutputFilename = strings.TrimSuffix(s.mergeOutputFilename, currentExt) + correctExt
 	}
+
+	// Combine dir and filename to create full output path
+	mergeOutput := filepath.Join(s.mergeOutputDir, s.mergeOutputFilename)
 	clips := make([]map[string]interface{}, 0, len(s.mergeClips))
 	for _, c := range s.mergeClips {
 		name := c.Chapter
@@ -3547,7 +3574,7 @@ func (s *appState) addMergeToQueue(startNow bool) error {
 		"keepAllStreams":         s.mergeKeepAll,
 		"chapters":               s.mergeChapters,
 		"codecMode":              s.mergeCodecMode,
-		"outputPath":             s.mergeOutput,
+		"outputPath":             mergeOutput,
 		"dvdRegion":              s.mergeDVDRegion,
 		"dvdAspect":              s.mergeDVDAspect,
 		"frameRate":              s.mergeFrameRate,
@@ -3557,9 +3584,9 @@ func (s *appState) addMergeToQueue(startNow bool) error {
 	job := &queue.Job{
 		Type:        queue.JobTypeMerge,
 		Title:       fmt.Sprintf("Merge %d clips", len(clips)),
-		Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(s.mergeOutput), 40)),
+		Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(mergeOutput), 40)),
 		InputFile:   clips[0]["path"].(string),
-		OutputFile:  s.mergeOutput,
+		OutputFile:  mergeOutput,
 		Config:      config,
 	}
 	s.jobQueue.Add(job)
@@ -10621,10 +10648,12 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 						Duration: src.Duration,
 					})
 
-					// Set default output path if not set and we have at least 2 clips
-					if len(s.mergeClips) >= 2 && strings.TrimSpace(s.mergeOutput) == "" {
-						first := filepath.Dir(s.mergeClips[0].Path)
-						s.mergeOutput = filepath.Join(first, "merged.mkv")
+					// Set default output dir and filename if not set and we have at least 2 clips
+					if len(s.mergeClips) >= 2 && strings.TrimSpace(s.mergeOutputDir) == "" {
+						s.mergeOutputDir = filepath.Dir(s.mergeClips[0].Path)
+					}
+					if len(s.mergeClips) >= 2 && strings.TrimSpace(s.mergeOutputFilename) == "" {
+						s.mergeOutputFilename = "merged.mkv"
 					}
 
 					// Refresh the merge view to show the new clips
