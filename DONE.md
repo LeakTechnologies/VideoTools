@@ -5,6 +5,15 @@ This file tracks completed features, fixes, and milestones.
 ## Version 0.1.0-dev20+ (2025-12-28) - Queue UI Performance & Workflow Improvements
 
 ### Workflow Enhancements
+- ✅ **Benchmark Result Caching**
+  - Benchmark results now persist across app restarts
+  - Opening Benchmark module shows cached results instead of auto-running
+  - Clear timestamp display (e.g., "Showing cached results from December 28, 2025 at 2:45 PM")
+  - "Run New Benchmark" button available when viewing cached results
+  - Auto-runs only when no previous results exist or hardware has changed (GPU detection)
+  - Saves to `~/.config/VideoTools/benchmark.json` with last 10 runs in history
+  - No more redundant benchmarks every time you open the module
+
 - ✅ **Merge Module Output Path UX Improvement**
   - Split single output path field into separate folder and filename fields
   - "Output Folder" field with "Browse Folder" button for directory selection
