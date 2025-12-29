@@ -8240,8 +8240,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	simpleOptions := container.NewVBox(
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		formatSelect,
-		formatBadgeContainer,
+		container.NewHBox(formatSelect, formatBadgeContainer),
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox,        // DVD options appear here when DVD format selected
@@ -8265,8 +8264,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	advancedVideoEncodingBlock = container.NewVBox(
 		widget.NewLabelWithStyle("═══ VIDEO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Video Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		videoCodecSelect,
-		videoCodecBadgeContainer,
+		container.NewHBox(videoCodecSelect, videoCodecBadgeContainer),
 		widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		encoderPresetSelect,
 		encoderPresetHintContainer,
@@ -8294,8 +8292,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	audioEncodingSection = container.NewVBox(
 		widget.NewLabelWithStyle("═══ AUDIO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Audio Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		audioCodecSelect,
-		audioCodecBadgeContainer,
+		container.NewHBox(audioCodecSelect, audioCodecBadgeContainer),
 		widget.NewLabelWithStyle("Audio Bitrate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioBitrateSelect,
 		widget.NewLabelWithStyle("Audio Channels", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -8305,8 +8302,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	advancedOptions := container.NewVBox(
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		formatSelect,
-		formatBadgeContainer,
+		container.NewHBox(formatSelect, formatBadgeContainer),
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox,        // DVD options appear here when DVD format selected

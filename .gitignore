@@ -5,6 +5,9 @@ logs/
 .cache/
 VideoTools
 
+# Design mockups and assets
+assets/mockup/
+
 # Windows build artifacts
 VideoTools.exe
 ffmpeg.exe
