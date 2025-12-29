@@ -74,6 +74,12 @@ This file tracks completed features, fixes, and milestones.
   - Combined with 500ms manual throttle in refreshQueueView() for optimal balance
 
 ### User Experience Improvements
+- ✅ **Benchmark UI Cleanup**
+  - Hide benchmark indicator in Convert module when settings are already applied
+  - Only show "Benchmark: Not Applied" status when action is needed
+  - Removes clutter from UI when using benchmark settings
+  - Cleaner interface for active conversions with benchmark recommendations
+
 - ✅ **Queue Position Labeling**
   - Fixed confusing priority display in queue view
   - Changed from internal priority numbers (3, 2, 1) to user-friendly queue positions (1, 2, 3)
