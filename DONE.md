@@ -2,7 +2,35 @@
 
 This file tracks completed features, fixes, and milestones.
 
-## Version 0.1.0-dev20+ (2025-12-28) - Queue UI Performance & Remux Safety
+## Version 0.1.0-dev20+ (2025-12-28) - Queue UI Performance & Workflow Improvements
+
+### Workflow Enhancements
+- ✅ **Merge Module Output Path UX Improvement**
+  - Split single output path field into separate folder and filename fields
+  - "Output Folder" field with "Browse Folder" button for directory selection
+  - "Output Filename" field for easy filename editing (e.g., "merged.mkv")
+  - No more navigating through long paths to change filenames
+  - Cleaner, more intuitive interface following standard file dialog patterns
+  - Auto-population sets directory and filename independently
+
+- ✅ **Queue Priority System for Convert Now**
+  - "Convert Now" during active conversions adds job to top of queue (after running job)
+  - "Add to Queue" continues to add to end as expected
+  - Implemented AddNext() method in queue package for priority insertion
+  - User feedback message indicates queue position: "Added to top of queue!" vs "Conversion started!"
+  - Better workflow when adding files during active batch conversions
+
+- ✅ **Auto-Cleanup for Failed Conversions**
+  - Convert jobs now automatically delete incomplete/broken output files on failure
+  - Success tracking ensures complete files are never removed
+  - Prevents accumulation of partial files from crashed/cancelled conversions
+  - Cleaner disk space management and error handling
+
+- ✅ **Queue List Jankiness Reduction**
+  - Increased auto-refresh interval from 1000ms to 2000ms for smoother updates
+  - Reduced scroll restoration delay from 50ms to 10ms for faster position recovery
+  - Fixed race condition in scroll offset saving
+  - Eliminated visible jumping during queue view rebuilds
 
 ### Performance Optimizations
 - ✅ **Queue View Button Responsiveness**
