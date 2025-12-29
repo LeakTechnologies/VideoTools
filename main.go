@@ -1935,13 +1935,15 @@ func (s *appState) refreshQueueView() {
 	// Restore scroll offset
 	s.queueScroll = scroll
 	if s.queueScroll != nil && s.active == "queue" {
-		// Use ScrollTo instead of directly setting Offset to prevent rubber banding
-		// Defer to allow UI to settle first
+		// Restore scroll position immediately to reduce jankiness
+		// Set offset before showing to avoid visible jumping
+		savedOffset := s.queueOffset
 		go func() {
-			time.Sleep(50 * time.Millisecond)
+			// Minimal delay to allow layout calculation
+			time.Sleep(10 * time.Millisecond)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				if s.queueScroll != nil {
-					s.queueScroll.Offset = s.queueOffset
+					s.queueScroll.Offset = savedOffset
 					s.queueScroll.Refresh()
 				}
 			}, false)
@@ -1962,9 +1964,10 @@ func (s *appState) startQueueAutoRefresh() {
 	s.queueAutoRefreshStop = stop
 	s.queueAutoRefreshRunning = true
 	go func() {
-		// Use 1-second interval to reduce UI update frequency, especially on Windows
+		// Use 2-second interval to reduce UI jankiness from frequent rebuilds
+		// Slower refresh = smoother experience, especially with scroll position preservation
 		// The refreshQueueView method has its own 500ms throttle for other triggers
-		ticker := time.NewTicker(1000 * time.Millisecond)
+		ticker := time.NewTicker(2000 * time.Millisecond)
 		defer ticker.Stop()
 		for {
 			select {
