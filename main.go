@@ -2012,15 +2012,15 @@ func (s *appState) stopQueueAutoRefresh() {
 }
 
 // addConvertToQueue adds a conversion job to the queue
-func (s *appState) addConvertToQueue() error {
+func (s *appState) addConvertToQueue(addToTop bool) error {
 	if s.source == nil {
 		return fmt.Errorf("no video loaded")
 	}
 
-	return s.addConvertToQueueForSource(s.source)
+	return s.addConvertToQueueForSource(s.source, addToTop)
 }
 
-func (s *appState) addConvertToQueueForSource(src *videoSource) error {
+func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) error {
 	outputBase := s.resolveOutputBase(src, true)
 	cfg := s.convert
 	cfg.OutputBase = outputBase
@@ -2106,8 +2106,14 @@ func (s *appState) addConvertToQueueForSource(src *videoSource) error {
 		Config:      config,
 	}
 
-	s.jobQueue.Add(job)
-	logging.Debug(logging.CatSystem, "added convert job to queue: %s", job.ID)
+	// Add to top (after running job) if requested and queue is running
+	if addToTop && s.jobQueue.IsRunning() {
+		s.jobQueue.AddNext(job)
+		logging.Debug(logging.CatSystem, "added convert job to top of queue: %s", job.ID)
+	} else {
+		s.jobQueue.Add(job)
+		logging.Debug(logging.CatSystem, "added convert job to queue: %s", job.ID)
+	}
 
 	return nil
 }
@@ -3994,6 +4000,18 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	inputPath := cfg["inputPath"].(string)
 	outputPath := cfg["outputPath"].(string)
 
+	// Track success to clean up broken files on failure
+	var success bool
+	defer func() {
+		if !success && outputPath != "" {
+			// Remove incomplete/broken output file on failure
+			if _, err := os.Stat(outputPath); err == nil {
+				logging.Debug(logging.CatFFMPEG, "removing incomplete output file: %s", outputPath)
+				os.Remove(outputPath)
+			}
+		}
+	}()
+
 	// If a direct conversion is running, wait until it finishes before starting queued jobs.
 	for s.convertBusy {
 		select {
@@ -4706,6 +4724,8 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		}()
 	}
 
+	// Mark as successful to prevent cleanup of output file
+	success = true
 	return nil
 }
 
@@ -6079,7 +6099,8 @@ func runLogsCLI() error {
 }
 
 func (s *appState) executeAddToQueue() {
-	if err := s.addConvertToQueue(); err != nil {
+	// Add to end of queue
+	if err := s.addConvertToQueue(false); err != nil {
 		dialog.ShowError(err, s.window)
 	} else {
 		// Update queue button to show new count
@@ -6109,8 +6130,8 @@ func (s *appState) executeAddAllToQueue() {
 }
 
 func (s *appState) executeConversion() {
-	// Add job to queue and start immediately
-	if err := s.addConvertToQueue(); err != nil {
+	// Add job to queue (at top if queue is already running)
+	if err := s.addConvertToQueue(true); err != nil {
 		dialog.ShowError(err, s.window)
 		return
 	}
@@ -6125,7 +6146,11 @@ func (s *appState) executeConversion() {
 	s.clearVideo()
 
 	// Show success message
-	dialog.ShowInformation("Convert", "Conversion started! View progress in Job Queue.", s.window)
+	if s.jobQueue != nil && s.jobQueue.IsRunning() {
+		dialog.ShowInformation("Convert", "Added to top of queue! View progress in Job Queue.", s.window)
+	} else {
+		dialog.ShowInformation("Convert", "Conversion started! View progress in Job Queue.", s.window)
+	}
 }
 
 func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
