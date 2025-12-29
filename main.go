@@ -1618,7 +1618,7 @@ func (s *appState) showMainMenu() {
 			Label:    m.Label,
 			Color:    m.Color,
 			Category: m.Category,
-			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "filters" || m.ID == "upscale" || m.ID == "author" || m.ID == "subtitles" || m.ID == "rip", // Enabled modules (player disabled - requires internal implementation)
+			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale" || m.ID == "author" || m.ID == "subtitles" || m.ID == "rip", // Enabled modules
 		})
 	}
 
