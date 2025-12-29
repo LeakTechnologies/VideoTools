@@ -6297,30 +6297,25 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			state.convert.EncoderPreset == preset &&
 			state.convert.HardwareAccel == benchHW
 
-		statusColor := utils.MustHex("#FFC857")
-		statusText := "Benchmark: Not Applied"
-		if applied {
-			statusColor = utils.MustHex("#4CE870")
-			statusText = "Benchmark: Applied"
-		}
-		benchmarkStatus = canvas.NewText(statusText, statusColor)
-		benchmarkStatus.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-		benchmarkStatus.TextSize = 12
+		// Only show benchmark indicator if settings are NOT already applied
+		if !applied {
+			statusColor := utils.MustHex("#FFC857")
+			statusText := "Benchmark: Not Applied"
+			benchmarkStatus = canvas.NewText(statusText, statusColor)
+			benchmarkStatus.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+			benchmarkStatus.TextSize = 12
 
-		benchmarkApplyBtn = widget.NewButton("Apply Benchmark", func() {
-			state.applyBenchmarkRecommendation(encoder, preset)
-			benchmarkStatus.Text = "Benchmark: Applied"
-			benchmarkStatus.Color = utils.MustHex("#4CE870")
-			benchmarkStatus.Refresh()
-			benchmarkApplyBtn.Disable()
-		})
-		if applied {
-			benchmarkApplyBtn.Disable()
-		} else {
+			benchmarkApplyBtn = widget.NewButton("Apply Benchmark", func() {
+				state.applyBenchmarkRecommendation(encoder, preset)
+				benchmarkStatus.Text = "Benchmark: Applied"
+				benchmarkStatus.Color = utils.MustHex("#4CE870")
+				benchmarkStatus.Refresh()
+				benchmarkApplyBtn.Disable()
+			})
 			benchmarkApplyBtn.Importance = widget.MediumImportance
-		}
 
-		benchmarkIndicator = container.NewHBox(benchmarkStatus, benchmarkApplyBtn)
+			benchmarkIndicator = container.NewHBox(benchmarkStatus, benchmarkApplyBtn)
+		}
 	}
 
 	backBar := ui.TintedBar(convertColor, container.NewHBox(
