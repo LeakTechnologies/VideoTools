@@ -2554,6 +2554,15 @@ func (s *appState) applyBenchmarkRecommendation(encoder, preset string) {
 	if codec := friendlyCodecFromPreset(encoder); codec != "" {
 		s.convert.VideoCodec = codec
 	}
+
+	// Respect user's quality preference: if they have slow/slower set, upgrade the preset
+	currentPreset := strings.ToLower(s.convert.EncoderPreset)
+	if currentPreset == "slow" || currentPreset == "slower" {
+		// User prefers quality over speed - upgrade benchmark preset to slower
+		preset = "slow"
+		logging.Debug(logging.CatSystem, "user prefers quality - upgraded preset to 'slow'")
+	}
+
 	s.convert.EncoderPreset = preset
 	s.convert.HardwareAccel = hwAccel
 	s.persistConvertConfig()
