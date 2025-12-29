@@ -6855,21 +6855,31 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	settingsContent.Hide()
 
 	settingsVisible := false
+	toggleSettingsLabel := widget.NewLabel("Show Batch Settings")
+	toggleSettingsLabel.Wrapping = fyne.TextWrapWord
+	toggleSettingsLabel.Alignment = fyne.TextAlignCenter
+
 	var toggleSettingsBtn *widget.Button
-	toggleSettingsBtn = widget.NewButton("Show Batch Settings", func() {
+	toggleSettingsBtn = widget.NewButton("", func() {
 		if settingsVisible {
 			settingsContent.Hide()
-			toggleSettingsBtn.SetText("Show Batch Settings")
+			toggleSettingsLabel.SetText("Show Batch Settings")
 		} else {
 			settingsContent.Show()
-			toggleSettingsBtn.SetText("Hide Batch Settings")
+			toggleSettingsLabel.SetText("Hide Batch Settings")
 		}
 		settingsVisible = !settingsVisible
 	})
 	toggleSettingsBtn.Importance = widget.LowImportance
 
-	settingsBox := container.NewVBox(
+	// Replace button text with wrapped label
+	toggleSettingsBtnWithLabel := container.NewStack(
 		toggleSettingsBtn,
+		container.NewPadded(toggleSettingsLabel),
+	)
+
+	settingsBox := container.NewVBox(
+		toggleSettingsBtnWithLabel,
 		settingsContent,
 		widget.NewSeparator(),
 	)
