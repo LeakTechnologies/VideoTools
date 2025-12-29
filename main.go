@@ -6238,8 +6238,13 @@ func buildFormatBadge(formatLabel string) fyne.CanvasObject {
 
 	containerName := strings.ToLower(strings.TrimSpace(parts[0]))
 
-	// Get container color
-	badgeColor := ui.GetContainerColor(containerName)
+	// Get container color - use special color for Remux
+	var badgeColor color.Color
+	if strings.Contains(strings.ToLower(formatLabel), "remux") {
+		badgeColor = ui.ColorRemux
+	} else {
+		badgeColor = ui.GetContainerColor(containerName)
+	}
 	
 	// Create colored background
 	bg := canvas.NewRectangle(badgeColor)
