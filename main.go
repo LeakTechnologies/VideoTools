@@ -6256,6 +6256,50 @@ func buildFormatBadge(formatLabel string) fyne.CanvasObject {
 	return container.NewMax(bg, container.NewCenter(label))
 }
 
+// buildVideoCodecBadge creates a color-coded badge for a video codec
+func buildVideoCodecBadge(codecName string) fyne.CanvasObject {
+	codecLower := strings.ToLower(strings.TrimSpace(codecName))
+	
+	// Get codec color
+	badgeColor := ui.GetVideoCodecColor(codecLower)
+	
+	// Create colored background
+	bg := canvas.NewRectangle(badgeColor)
+	bg.CornerRadius = 4
+	bg.SetMinSize(fyne.NewSize(100, 28))
+	
+	// Create label
+	label := canvas.NewText(codecName, color.White)
+	label.TextStyle = fyne.TextStyle{Bold: true}
+	label.Alignment = fyne.TextAlignCenter
+	label.TextSize = 12
+	
+	// Stack background and label
+	return container.NewMax(bg, container.NewCenter(label))
+}
+
+// buildAudioCodecBadge creates a color-coded badge for an audio codec
+func buildAudioCodecBadge(codecName string) fyne.CanvasObject {
+	codecLower := strings.ToLower(strings.TrimSpace(codecName))
+	
+	// Get codec color
+	badgeColor := ui.GetAudioCodecColor(codecLower)
+	
+	// Create colored background
+	bg := canvas.NewRectangle(badgeColor)
+	bg.CornerRadius = 4
+	bg.SetMinSize(fyne.NewSize(100, 28))
+	
+	// Create label
+	label := canvas.NewText(codecName, color.White)
+	label.TextStyle = fyne.TextStyle{Bold: true}
+	label.Alignment = fyne.TextAlignCenter
+	label.TextSize = 12
+	
+	// Stack background and label
+	return container.NewMax(bg, container.NewCenter(label))
+}
+
 func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	convertColor := moduleColor("convert")
 
@@ -6834,6 +6878,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Cover art display on one line
 	coverDisplay = widget.NewLabel("Cover Art: " + state.convert.CoverLabel())
 
+	// Create video codec badge with semantic color
+	videoCodecBadgeContainer := container.NewMax()
+	updateVideoCodecBadge := func(codecName string) {
+		videoCodecBadgeContainer.Objects = []fyne.CanvasObject{buildVideoCodecBadge(codecName)}
+		videoCodecBadgeContainer.Refresh()
+	}
+
 	// Video Codec selection
 	videoCodecSelect := widget.NewSelect([]string{"H.264", "H.265", "VP9", "AV1", "MPEG-2", "Copy"}, func(value string) {
 		state.convert.VideoCodec = value
@@ -6850,8 +6901,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
+			updateVideoCodecBadge(value)
 	})
 	videoCodecSelect.SetSelected(state.convert.VideoCodec)
+	updateVideoCodecBadge(state.convert.VideoCodec)
 
 	// Map format preset codec names to the UI-facing codec selector value
 	mapFormatCodec := func(codec string) string {
@@ -7891,12 +7944,21 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	twoPassCheck.Checked = state.convert.TwoPass
 
+	// Create audio codec badge with semantic color
+	audioCodecBadgeContainer := container.NewMax()
+	updateAudioCodecBadge := func(codecName string) {
+		audioCodecBadgeContainer.Objects = []fyne.CanvasObject{buildAudioCodecBadge(codecName)}
+		audioCodecBadgeContainer.Refresh()
+	}
+
 	// Audio Codec
 	audioCodecSelect = widget.NewSelect([]string{"AAC", "Opus", "MP3", "FLAC", "Copy"}, func(value string) {
 		state.convert.AudioCodec = value
 		logging.Debug(logging.CatUI, "audio codec set to %s", value)
+		updateAudioCodecBadge(value)
 	})
 	audioCodecSelect.SetSelected(state.convert.AudioCodec)
+	updateAudioCodecBadge(state.convert.AudioCodec)
 
 	// Audio Bitrate
 	audioBitrateSelect := widget.NewSelect([]string{"128k", "192k", "256k", "320k"}, func(value string) {
@@ -8204,6 +8266,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("═══ VIDEO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Video Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		videoCodecSelect,
+		videoCodecBadgeContainer,
 		widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		encoderPresetSelect,
 		encoderPresetHintContainer,
@@ -8232,6 +8295,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("═══ AUDIO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Audio Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioCodecSelect,
+		audioCodecBadgeContainer,
 		widget.NewLabelWithStyle("Audio Bitrate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioBitrateSelect,
 		widget.NewLabelWithStyle("Audio Channels", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
