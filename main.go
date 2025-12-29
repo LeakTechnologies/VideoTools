@@ -6235,6 +6235,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	outputHint := widget.NewLabel(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
 	outputHint.Wrapping = fyne.TextWrapWord
+	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
+	outputHintContainer := container.NewPadded(outputHint)
 
 	// DVD-specific aspect ratio selector (only shown for DVD formats)
 	dvdAspectSelect := widget.NewSelect([]string{"4:3", "16:9"}, func(value string) {
@@ -6633,6 +6635,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	targetAspectSelect.SetSelected(state.convert.OutputAspect)
 	targetAspectHint := widget.NewLabel("Pick desired output aspect (default Source).")
+	targetAspectHint.Wrapping = fyne.TextWrapWord
+	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
+	targetAspectHintContainer := container.NewPadded(targetAspectHint)
 
 	aspectOptions := widget.NewRadioGroup([]string{"Auto", "Crop", "Letterbox", "Pillarbox", "Blur Fill", "Stretch"}, func(value string) {
 		logging.Debug(logging.CatUI, "aspect handling set to %s", value)
@@ -6776,6 +6781,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Encoder Preset with hint
 	encoderPresetHint := widget.NewLabel("")
 	encoderPresetHint.Wrapping = fyne.TextWrapWord
+	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
+	encoderPresetHintContainer := container.NewPadded(encoderPresetHint)
 
 	updateEncoderPresetHint := func(preset string) {
 		var hint string
@@ -7458,6 +7465,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	encodingHint := widget.NewLabel("")
 	encodingHint.Wrapping = fyne.TextWrapWord
+	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
+	encodingHintContainer := container.NewPadded(encodingHint)
 
 	applyBitratePreset = func(label string) {
 		preset, ok := bitratePresetLookup[label]
@@ -7612,6 +7621,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Frame Rate with hint
 	frameRateHint := widget.NewLabel("")
 	frameRateHint.Wrapping = fyne.TextWrapWord
+	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
+	frameRateHintContainer := container.NewPadded(frameRateHint)
 
 	updateFrameRateHint := func() {
 		if src == nil {
@@ -7694,6 +7705,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Hardware Acceleration with hint
 	hwAccelHint := widget.NewLabel("Auto picks the best GPU path; if encode fails, switch to none (software).")
 	hwAccelHint.Wrapping = fyne.TextWrapWord
+	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
+	hwAccelHintContainer := container.NewPadded(hwAccelHint)
 	hwAccelSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "amf", "vaapi", "qsv", "videotoolbox"}, func(value string) {
 		state.convert.HardwareAccel = value
 		logging.Debug(logging.CatUI, "hardware accel set to %s", value)
@@ -8002,7 +8015,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		dvdAspectBox,        // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
-		outputHint,
+		outputHintContainer,
 		widget.NewSeparator(),
 		simpleEncodingSection,
 		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -8012,7 +8025,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		motionInterpCheck,
 		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelectSimple,
-		targetAspectHint,
+		targetAspectHintContainer,
 		layout.NewSpacer(),
 	)
 
@@ -8023,25 +8036,25 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		videoCodecSelect,
 		widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		encoderPresetSelect,
-		encoderPresetHint,
+		encoderPresetHintContainer,
 		qualitySectionAdv,
 		widget.NewLabelWithStyle("Bitrate Mode", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		bitrateModeSelect,
 		crfContainer,
 		bitrateContainer,
 		targetSizeContainer,
-		encodingHint,
+		encodingHintContainer,
 		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelect,
 		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		frameRateSelect,
-		frameRateHint,
+		frameRateHintContainer,
 		motionInterpCheck,
 		widget.NewLabelWithStyle("Pixel Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		pixelFormatSelect,
 		widget.NewLabelWithStyle("Hardware Acceleration", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		hwAccelSelect,
-		hwAccelHint,
+		hwAccelHintContainer,
 		twoPassCheck,
 	)
 
@@ -8064,7 +8077,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		dvdAspectBox,        // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
-		outputHint,
+		outputHintContainer,
 		coverDisplay,
 		widget.NewSeparator(),
 		advancedVideoEncodingBlock,
@@ -8073,7 +8086,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("═══ ASPECT RATIO ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelect,
-		targetAspectHint,
+		targetAspectHintContainer,
 		aspectBox,
 		widget.NewSeparator(),
 
