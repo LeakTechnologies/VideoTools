@@ -226,6 +226,14 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		state.persistRipConfig()
 	})
 
+	clearISOBtn := widget.NewButton("Clear ISO", func() {
+		state.ripSourcePath = ""
+		state.ripOutputPath = ""
+		sourceEntry.SetText("")
+		outputEntry.SetText("")
+	})
+	clearISOBtn.Importance = widget.LowImportance
+
 	controls := container.NewVBox(
 		widget.NewLabelWithStyle("Source", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
@@ -237,6 +245,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 				outputEntry.SetText(state.ripOutputPath)
 			}
 		}),
+		clearISOBtn,
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
 		widget.NewLabelWithStyle("Output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -382,7 +391,7 @@ func defaultRipOutputPath(sourcePath, format string) string {
 	if err != nil || home == "" {
 		home = "."
 	}
-	baseDir := filepath.Join(home, "Videos", "DVD_Rips")
+	baseDir := filepath.Join(home, "Videos", "VideoTools", "DVD_Rips")
 	name := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath))
 	if strings.EqualFold(name, "video_ts") {
 		name = filepath.Base(filepath.Dir(sourcePath))
