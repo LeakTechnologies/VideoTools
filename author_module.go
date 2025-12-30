@@ -1755,6 +1755,28 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		mpgPaths = append(mpgPaths, remuxPath)
 	}
 
+	// Generate clips from paths if clips is empty (fallback for when job didn't save clips)
+	if len(clips) == 0 && len(paths) > 1 {
+		for i, path := range paths {
+			src, err := probeVideo(path)
+			duration := 0.0
+			displayName := filepath.Base(path)
+			if err == nil {
+				duration = src.Duration
+				displayName = src.DisplayName
+			}
+			clips = append(clips, authorClip{
+				Path:         path,
+				DisplayName:  displayName,
+				Duration:     duration,
+				ChapterTitle: fmt.Sprintf("Chapter %d", i+1),
+			})
+		}
+		if logFn != nil {
+			logFn(fmt.Sprintf("Generated %d clips from input paths for chapter markers", len(clips)))
+		}
+	}
+
 	// Generate chapters from clips if available (for professional DVD navigation)
 	if len(chapters) == 0 && len(clips) > 1 {
 		chapters = chaptersFromClips(clips)
