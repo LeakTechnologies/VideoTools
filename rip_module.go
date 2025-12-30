@@ -357,6 +357,12 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 	}
 	defer os.Remove(listFile)
 
+	// Create output directory if it doesn't exist
+	outputDir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
 	args := buildRipFFmpegArgs(listFile, outputPath, format)
 	appendLog(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
 	updateProgress(10)
