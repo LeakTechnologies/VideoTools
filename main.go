@@ -6626,7 +6626,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	appendSuffixCheck := widget.NewCheck("Append \"-convert\" to filename", func(checked bool) {
 		state.convert.AppendSuffix = checked
 		// Recalculate and update the output base to reflect the suffix change
-		newBase := state.resolveOutputBase(src, !state.convert.UseAutoNaming)
+		// Always pass false for keepExisting to regenerate from source
+		newBase := state.resolveOutputBase(src, false)
 		updatingOutput = true
 		state.convert.OutputBase = newBase
 		outputEntry.SetText(newBase)
