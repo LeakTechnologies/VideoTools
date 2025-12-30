@@ -1766,15 +1766,34 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		chapters = nil
 	}
 
+	// Log details about encoded MPG files
+	if logFn != nil {
+		logFn(fmt.Sprintf("Created %d MPEG file(s):", len(mpgPaths)))
+		for i, mpg := range mpgPaths {
+			if info, err := os.Stat(mpg); err == nil {
+				logFn(fmt.Sprintf("  %d. %s (%d bytes)", i+1, filepath.Base(mpg), info.Size()))
+			} else {
+				logFn(fmt.Sprintf("  %d. %s (stat failed: %v)", i+1, filepath.Base(mpg), err))
+			}
+		}
+	}
+
 	xmlPath := filepath.Join(workDir, "dvd.xml")
 	if err := writeDVDAuthorXML(xmlPath, mpgPaths, region, aspect, chapters); err != nil {
 		return err
 	}
 
+	// Log the XML content for debugging
+	if xmlContent, err := os.ReadFile(xmlPath); err == nil {
+		logFn("Generated DVD XML:")
+		logFn(string(xmlContent))
+	}
+
 	logFn("Authoring DVD structure...")
 	logFn(fmt.Sprintf(">> dvdauthor -o %s -x %s", discRoot, xmlPath))
 	if err := runCommandWithLogger(ctx, "dvdauthor", []string{"-o", discRoot, "-x", xmlPath}, logFn); err != nil {
-		return err
+		logFn(fmt.Sprintf("ERROR: dvdauthor failed: %v", err))
+		return fmt.Errorf("dvdauthor structure creation failed: %w", err)
 	}
 	accumulatedProgress += progressForOtherStep
 	progressFn(accumulatedProgress)
@@ -1782,7 +1801,8 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	logFn("Building DVD tables...")
 	logFn(fmt.Sprintf(">> dvdauthor -o %s -T", discRoot))
 	if err := runCommandWithLogger(ctx, "dvdauthor", []string{"-o", discRoot, "-T"}, logFn); err != nil {
-		return err
+		logFn(fmt.Sprintf("ERROR: dvdauthor -T failed: %v", err))
+		return fmt.Errorf("dvdauthor table build failed: %w", err)
 	}
 	accumulatedProgress += progressForOtherStep
 	progressFn(accumulatedProgress)
@@ -1794,15 +1814,24 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	if makeISO {
 		tool, args, err := buildISOCommand(outputPath, discRoot, title)
 		if err != nil {
-			return err
+			logFn(fmt.Sprintf("ERROR: ISO tool not found: %v", err))
+			return fmt.Errorf("ISO creation setup failed: %w", err)
 		}
 		logFn("Creating ISO image...")
 		logFn(fmt.Sprintf(">> %s %s", tool, strings.Join(args, " ")))
 		if err := runCommandWithLogger(ctx, tool, args, logFn); err != nil {
-			return err
+			logFn(fmt.Sprintf("ERROR: ISO creation failed: %v", err))
+			return fmt.Errorf("ISO creation failed: %w", err)
 		}
 		accumulatedProgress += progressForOtherStep
 		progressFn(accumulatedProgress)
+
+		// Verify ISO was created
+		if info, err := os.Stat(outputPath); err == nil {
+			logFn(fmt.Sprintf("ISO created successfully: %s (%d bytes)", filepath.Base(outputPath), info.Size()))
+		} else {
+			logFn(fmt.Sprintf("WARNING: ISO file verification failed: %v", err))
+		}
 	}
 
 	progressFn(100.0)
