@@ -36,8 +36,13 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 
+	clearCompletedBtn := widget.NewButton("⌫", func() {
+		state.clearCompletedJobs()
+	})
+	clearCompletedBtn.Importance = widget.LowImportance
+
 	// Top bar with module color
-	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 	bottomBar := moduleFooter(filtersColor, layout.NewSpacer(), state.statsBar)
 
 	// Instructions

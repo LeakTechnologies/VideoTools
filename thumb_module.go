@@ -42,7 +42,13 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	})
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
-	topBar := ui.TintedBar(thumbColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+
+	clearCompletedBtn := widget.NewButton("⌫", func() {
+		state.clearCompletedJobs()
+	})
+	clearCompletedBtn.Importance = widget.LowImportance
+
+	topBar := ui.TintedBar(thumbColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
 	// Instructions
 	instructions := widget.NewLabel("Generate thumbnails from a video file. Load a video and configure settings.")
