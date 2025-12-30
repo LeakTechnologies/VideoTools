@@ -541,6 +541,7 @@ type convertConfig struct {
 	Mode             string // Simple or Advanced
 	UseAutoNaming    bool
 	AutoNameTemplate string // Template for metadata-driven naming, e.g., "<actress> - <studio> - <scene>"
+	AppendSuffix     bool   // Append "-convert" suffix to output filename (off by default)
 	PreserveChapters bool
 
 	// Video encoding settings
@@ -610,6 +611,7 @@ func defaultConvertConfig() convertConfig {
 		Mode:             "Simple",
 		UseAutoNaming:    false,
 		AutoNameTemplate: "<actress> - <studio> - <scene>",
+		AppendSuffix:     false, // Don't append "-convert" by default
 		PreserveChapters: true,
 
 		VideoCodec:             "H.264",
@@ -6621,6 +6623,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		applyAutoName(true)
 	}
 
+	appendSuffixCheck := widget.NewCheck("Append \"-convert\" to filename", func(checked bool) {
+		state.convert.AppendSuffix = checked
+		if !state.convert.UseAutoNaming {
+			applyAutoName(false)
+		}
+	})
+	appendSuffixCheck.Checked = state.convert.AppendSuffix
+
 	inverseCheck := widget.NewCheck("Smart Inverse Telecine", func(checked bool) {
 		state.convert.InverseTelecine = checked
 	})
@@ -8229,6 +8239,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		outputHintContainer,
+		appendSuffixCheck,
 		widget.NewSeparator(),
 		simpleEncodingSection,
 		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -8291,6 +8302,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		outputHintContainer,
+		appendSuffixCheck,
 		coverDisplay,
 		widget.NewSeparator(),
 		advancedVideoEncodingBlock,
@@ -8355,6 +8367,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		setTargetFileSize(state.convert.TargetFileSize)
 		autoNameCheck.SetChecked(state.convert.UseAutoNaming)
 		autoNameTemplate.SetText(state.convert.AutoNameTemplate)
+		appendSuffixCheck.SetChecked(state.convert.AppendSuffix)
 		outputEntry.SetText(state.convert.OutputBase)
 		outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
 		preserveChaptersCheck.SetChecked(state.convert.PreserveChapters)
