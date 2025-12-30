@@ -52,5 +52,4 @@ VideoTools is a professional-grade video processing suite with a modern GUI, cur
 - [Module Feature Matrix](MODULES.md#module-coverage-summary)
 - [Latest Updates](../LATEST_UPDATES.md) - Recent development changes
 - [Windows Implementation](DEV14_WINDOWS_IMPLEMENTATION.md) - dev14 Windows support
-- [Modern Video Processing Strategy](HANDBRAKE_REPLACEMENT.md) - Next-generation video tools approach
 - [VT_Player Integration](../VT_Player/README.md) - Frame-accurate playback system

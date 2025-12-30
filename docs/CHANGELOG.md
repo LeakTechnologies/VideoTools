@@ -198,14 +198,12 @@
 ### 📚 Documentation Updates
 
 #### New Documentation Added
-- `HANDBRAKE_REPLACEMENT.md` - Comprehensive modern video processing strategy
 - Enhanced `TODO.md` with Lossless-Cut inspired trim module specifications
 - Updated `MODULES.md` with detailed trim module implementation plan
 - Enhanced `docs/README.md` with VT_Player integration links
 
 #### Documentation Enhancements
 - **Trim Module Specifications** - Detailed Lossless-Cut inspired design
-- **HandBrake Parity Analysis** - Feature comparison and migration strategy
 - **VT_Player Integration Notes** - Cross-project component reuse
 - **Implementation Roadmap** - Clear development phases and priorities
 
