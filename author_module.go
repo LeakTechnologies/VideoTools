@@ -1841,6 +1841,10 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	}
 
 	if makeISO {
+		// Create output directory for ISO file if it doesn't exist
+		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+			return fmt.Errorf("failed to create ISO output directory: %w", err)
+		}
 		tool, args, err := buildISOCommand(outputPath, discRoot, title)
 		if err != nil {
 			logFn(fmt.Sprintf("ERROR: ISO tool not found: %v", err))
@@ -1975,6 +1979,10 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 		}
 
 		appendLog(fmt.Sprintf("Authoring ISO from VIDEO_TS: %s", videoTSPath))
+		// Create output directory for ISO file if it doesn't exist
+		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
+			return fmt.Errorf("failed to create ISO output directory: %w", err)
+		}
 		tool, args, err := buildISOCommand(outputPath, videoTSPath, title)
 		if err != nil {
 			return err
