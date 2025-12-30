@@ -1744,26 +1744,34 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		mpgPaths = append(mpgPaths, remuxPath)
 	}
 
-	if len(chapters) == 0 && treatAsChapters && len(clips) > 1 {
+	// Generate chapters from clips if available (for professional DVD navigation)
+	if len(chapters) == 0 && len(clips) > 1 {
 		chapters = chaptersFromClips(clips)
+		if logFn != nil {
+			logFn(fmt.Sprintf("Generated %d chapter markers from video clips", len(chapters)))
+		}
 	}
+
+	// Try to extract embedded chapters from single file
 	if len(chapters) == 0 && len(mpgPaths) == 1 {
 		if embed, err := extractChaptersFromFile(paths[0]); err == nil && len(embed) > 0 {
 			chapters = embed
+			if logFn != nil {
+				logFn(fmt.Sprintf("Extracted %d embedded chapters from source", len(chapters)))
+			}
 		}
 	}
-	if treatAsChapters && len(mpgPaths) > 1 {
+
+	// For professional DVD: always concatenate multiple files into one title with chapters
+	if len(mpgPaths) > 1 {
 		concatPath := filepath.Join(workDir, "titles_joined.mpg")
 		if logFn != nil {
-			logFn("Concatenating chapters into a single title...")
+			logFn(fmt.Sprintf("Combining %d videos into single title with chapter markers...", len(mpgPaths)))
 		}
 		if err := concatDVDMpg(mpgPaths, concatPath); err != nil {
-			return err
+			return fmt.Errorf("failed to concatenate videos: %w", err)
 		}
 		mpgPaths = []string{concatPath}
-	}
-	if len(mpgPaths) > 1 {
-		chapters = nil
 	}
 
 	// Log details about encoded MPG files
@@ -1781,6 +1789,16 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	xmlPath := filepath.Join(workDir, "dvd.xml")
 	if err := writeDVDAuthorXML(xmlPath, mpgPaths, region, aspect, chapters); err != nil {
 		return err
+	}
+
+	// Log chapter information
+	if len(chapters) > 0 {
+		if logFn != nil {
+			logFn(fmt.Sprintf("Final DVD structure: 1 title with %d chapters", len(chapters)))
+			for i, ch := range chapters {
+				logFn(fmt.Sprintf("  Chapter %d: %s at %s", i+1, ch.Title, formatChapterTime(ch.Timestamp)))
+			}
+		}
 	}
 
 	// Log the XML content for debugging
