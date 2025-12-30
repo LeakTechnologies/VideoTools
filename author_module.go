@@ -156,7 +156,12 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 
-	topBar := ui.TintedBar(authorColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+	clearCompletedBtn := widget.NewButton("⌫", func() {
+		state.clearCompletedJobs()
+	})
+	clearCompletedBtn.Importance = widget.LowImportance
+
+	topBar := ui.TintedBar(authorColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 	bottomBar := moduleFooter(authorColor, layout.NewSpacer(), state.statsBar)
 
 	tabs := container.NewAppTabs(

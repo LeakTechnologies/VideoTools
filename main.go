@@ -1745,6 +1745,13 @@ func (s *appState) showQueue() {
 	s.startQueueAutoRefresh()
 }
 
+// clearCompletedJobs removes all completed and failed jobs from the queue
+func (s *appState) clearCompletedJobs() {
+	if s.jobQueue != nil {
+		s.jobQueue.Clear()
+	}
+}
+
 // refreshQueueView rebuilds the queue UI while preserving scroll position and inline active conversion.
 func (s *appState) refreshQueueView() {
 	if s.active == "queue" {
@@ -6344,6 +6351,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 
+	clearCompletedBtn := widget.NewButton("⌫", func() {
+		state.clearCompletedJobs()
+	})
+	clearCompletedBtn.Importance = widget.LowImportance
+
 	// Command Preview toggle button
 	cmdPreviewBtn := widget.NewButton("Command Preview", func() {
 		state.convertCommandPreviewShow = !state.convertCommandPreviewShow
@@ -6367,6 +6379,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		navButtons,
 		layout.NewSpacer(),
 		cmdPreviewBtn,
+		clearCompletedBtn,
 		queueBtn,
 	}
 

@@ -42,7 +42,13 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	})
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
-	topBar := ui.TintedBar(inspectColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+
+	clearCompletedBtn := widget.NewButton("⌫", func() {
+		state.clearCompletedJobs()
+	})
+	clearCompletedBtn.Importance = widget.LowImportance
+
+	topBar := ui.TintedBar(inspectColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 	bottomBar := moduleFooter(inspectColor, layout.NewSpacer(), state.statsBar)
 
 	// Instructions
