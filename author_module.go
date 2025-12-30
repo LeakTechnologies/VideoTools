@@ -1238,6 +1238,9 @@ func concatDVDMpg(inputs []string, output string) error {
 		"-safe", "0",
 		"-i", listPath,
 		"-c", "copy",
+		"-f", "dvd",           // Maintain DVD format
+		"-muxrate", "10080000", // DVD mux rate
+		"-packetsize", "2048",  // DVD packet size
 		output,
 	}
 	return runCommand(platformConfig.FFmpegPath, args)
@@ -1733,7 +1736,15 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 
 		remuxPath := filepath.Join(workDir, fmt.Sprintf("title_%02d_remux.mpg", i+1))
-		remuxArgs := []string{"-fflags", "+genpts", "-i", outPath, "-c", "copy", "-f", "dvd", "-y", remuxPath}
+		remuxArgs := []string{
+			"-fflags", "+genpts",
+			"-i", outPath,
+			"-c", "copy",
+			"-f", "dvd",
+			"-muxrate", "10080000",
+			"-packetsize", "2048",
+			"-y", remuxPath,
+		}
 		if logFn != nil {
 			logFn(fmt.Sprintf(">> ffmpeg %s (remuxing for DVD compliance)", strings.Join(remuxArgs, " ")))
 		}
@@ -2216,6 +2227,9 @@ func buildAuthorFFmpegArgs(inputPath, outputPath, region, aspect string, progres
 		"-b:a", "192k",
 		"-ar", "48000",
 		"-ac", "2",
+		"-f", "dvd",           // DVD-compliant MPEG-PS format
+		"-muxrate", "10080000", // DVD mux rate (10.08 Mbps)
+		"-packetsize", "2048",  // DVD packet size
 		outputPath,
 	)
 
