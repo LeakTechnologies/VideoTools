@@ -6628,6 +6628,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if !state.convert.UseAutoNaming {
 			applyAutoName(false)
 		}
+		// Update output hint to show the change immediately
+		if outputHint != nil {
+			outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+		}
 	})
 	appendSuffixCheck.Checked = state.convert.AppendSuffix
 
