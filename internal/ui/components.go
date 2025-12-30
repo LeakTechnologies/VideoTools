@@ -32,10 +32,19 @@ func SetColors(grid, text color.Color) {
 	TextColor = text
 }
 
-// MonoTheme ensures all text uses a monospace font
+// MonoTheme ensures all text uses a monospace font and swaps hover/selection colors
 type MonoTheme struct{}
 
 func (m *MonoTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+	// Swap hover and selection colors
+	switch name {
+	case theme.ColorNameSelection:
+		// Use the default hover color for selection
+		return theme.DefaultTheme().Color(theme.ColorNameHover, variant)
+	case theme.ColorNameHover:
+		// Use the default selection color for hover
+		return theme.DefaultTheme().Color(theme.ColorNameSelection, variant)
+	}
 	return theme.DefaultTheme().Color(name, variant)
 }
 
