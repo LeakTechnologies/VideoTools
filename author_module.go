@@ -1474,7 +1474,7 @@ func authorDefaultOutputDir(outputType string) string {
 	if err != nil || home == "" {
 		home = "."
 	}
-	dir := filepath.Join(home, "Videos")
+	dir := filepath.Join(home, "Videos", "VideoTools")
 	if strings.EqualFold(outputType, "iso") {
 		return filepath.Join(dir, "ISO_Convert")
 	}
