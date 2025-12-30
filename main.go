@@ -8311,7 +8311,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		outputEntry,
 		outputHintContainer,
 		appendSuffixCheck,
-		coverDisplay,
 		widget.NewSeparator(),
 		advancedVideoEncodingBlock,
 		widget.NewSeparator(),
@@ -9180,7 +9179,9 @@ Metadata: %s`,
 		makeRow("Metadata", metadata),
 	)
 
-	info := container.NewHBox(col1, col2)
+	// Add spacing between the two columns
+	spacer := layout.NewSpacer()
+	info := container.NewHBox(col1, spacer, col2)
 
 	// Copy metadata button - beside header text
 	copyBtn := widget.NewButton("📋", func() {
@@ -9200,33 +9201,10 @@ Metadata: %s`,
 	headerRow := container.NewHBox(header, copyBtn)
 	top = container.NewBorder(nil, nil, nil, clearBtn, headerRow)
 
-	// Cover art display area - 40% larger (168x168)
-	coverImg := canvas.NewImageFromFile("")
-	coverImg.FillMode = canvas.ImageFillContain
-	coverImg.SetMinSize(fyne.NewSize(168, 168))
-
-	placeholderRect := canvas.NewRectangle(utils.MustHex("#0F1529"))
-	placeholderRect.SetMinSize(fyne.NewSize(168, 168))
-	placeholderText := widget.NewLabel("Drop cover\nart here")
-	placeholderText.Alignment = fyne.TextAlignCenter
-	placeholderText.TextStyle = fyne.TextStyle{Italic: true}
-	placeholder := container.NewMax(placeholderRect, container.NewCenter(placeholderText))
-
-	// Update cover art when changed
+	// Cover art support removed - users can add cover art through metadata editor
 	updateCoverDisplay := func() {
-		if state.convert.CoverArtPath != "" {
-			coverImg.File = state.convert.CoverArtPath
-			coverImg.Refresh()
-			placeholder.Hide()
-			coverImg.Show()
-		} else {
-			coverImg.Hide()
-			placeholder.Show()
-		}
+		// No-op: cover art display removed from this panel
 	}
-	updateCoverDisplay()
-
-	coverContainer := container.NewMax(placeholder, coverImg)
 
 	// Interlacing Analysis Section
 	analyzeBtn := widget.NewButton("Analyze Interlacing", func() {
@@ -9409,9 +9387,8 @@ Metadata: %s`,
 		)
 	}
 
-	// Layout: metadata form on left, cover art on right (bottom-aligned)
-	coverColumn := container.NewVBox(layout.NewSpacer(), coverContainer)
-	contentArea := container.NewBorder(nil, nil, nil, coverColumn, info)
+	// Layout: two-column metadata display with spacing
+	contentArea := info
 
 	body := container.NewVBox(
 		top,
