@@ -22,15 +22,5 @@ VideoToolsClean() {
     echo "Clean complete"
 }
 
-echo "════════════════════════════════════════════════════════════════"
-echo "VideoTools Commands Available"
-echo "════════════════════════════════════════════════════════════════"
-echo ""
-echo "Commands:"
-echo "  VideoTools              - Run VideoTools (auto-builds if needed)"
-echo "  VideoToolsRebuild       - Force rebuild of VideoTools"
-echo "  VideoToolsClean         - Clean build artifacts and cache"
-echo ""
-echo "To make these permanent, add this line to your ~/.bashrc or ~/.zshrc:"
-echo "  source $PROJECT_ROOT/scripts/alias.sh"
-echo ""
+# VideoTools commands loaded silently
+# Available commands: VideoTools, VideoToolsRebuild, VideoToolsClean
