@@ -200,6 +200,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 
 		descLabel := widget.NewLabel(dep.Description)
 		descLabel.TextStyle = fyne.TextStyle{Italic: true}
+		descLabel.Wrapping = fyne.TextWrapWord
 
 		installLabel := widget.NewLabel(dep.InstallCmd)
 		installLabel.Wrapping = fyne.TextWrapWord
@@ -223,7 +224,9 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 		)
 
 		if !isInstalled {
-			infoBox.Add(widget.NewLabel("Install: " + installLabel.Text))
+			installCmdLabel := widget.NewLabel("Install: " + installLabel.Text)
+			installCmdLabel.Wrapping = fyne.TextWrapWord
+			infoBox.Add(installCmdLabel)
 		}
 
 		// Check which modules need this dependency
@@ -246,6 +249,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 		if len(modulesNeeding) > 0 {
 			neededLabel := widget.NewLabel("Required by: " + strings.Join(modulesNeeding, ", "))
 			neededLabel.TextStyle = fyne.TextStyle{Italic: true}
+			neededLabel.Wrapping = fyne.TextWrapWord
 			infoBox.Add(neededLabel)
 		}
 
