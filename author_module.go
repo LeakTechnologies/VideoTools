@@ -1260,23 +1260,36 @@ func extractChaptersFromFile(path string) ([]authorChapter, error) {
 }
 
 func extractChaptersFromVideoTS(videoTSPath string) ([]authorChapter, error) {
+	logging.Debug(logging.CatModule, "extractChaptersFromVideoTS: searching for VOB files in: %s", videoTSPath)
+
 	// Try to find the main title VOB files
 	// Usually VTS_01_1.VOB contains the main content
 	vobFiles, err := filepath.Glob(filepath.Join(videoTSPath, "VTS_*_1.VOB"))
-	if err != nil || len(vobFiles) == 0 {
+	if err != nil {
+		logging.Debug(logging.CatModule, "extractChaptersFromVideoTS: glob error: %v", err)
+		return nil, fmt.Errorf("error searching for VOB files: %w", err)
+	}
+	if len(vobFiles) == 0 {
+		logging.Debug(logging.CatModule, "extractChaptersFromVideoTS: no VTS_*_1.VOB files found")
 		return nil, fmt.Errorf("no VOB files found in VIDEO_TS")
 	}
+
+	logging.Debug(logging.CatModule, "extractChaptersFromVideoTS: found %d VOB files: %v", len(vobFiles), vobFiles)
 
 	// Sort to get the first title set (usually the main feature)
 	sort.Strings(vobFiles)
 	mainVOB := vobFiles[0]
 
+	logging.Debug(logging.CatModule, "extractChaptersFromVideoTS: using main VOB: %s", mainVOB)
+
 	// Try to extract chapters from the main VOB using ffprobe
 	chapters, err := extractChaptersFromFile(mainVOB)
 	if err != nil {
+		logging.Debug(logging.CatModule, "extractChaptersFromVideoTS: ffprobe error: %v", err)
 		return nil, err
 	}
 
+	logging.Debug(logging.CatModule, "extractChaptersFromVideoTS: extracted %d chapters", len(chapters))
 	return chapters, nil
 }
 
