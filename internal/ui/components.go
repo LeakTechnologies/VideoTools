@@ -182,7 +182,7 @@ func (r *moduleTileRenderer) Layout(size fyne.Size) {
 }
 
 func (r *moduleTileRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(150, 65)
+	return fyne.NewSize(135, 58)
 }
 
 func (r *moduleTileRenderer) Refresh() {
