@@ -370,12 +370,28 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 
 	listArea := container.NewMax(dropTarget, emptyOverlay)
 
+	// DVD Title entry (synced with Settings tab)
+	dvdTitleEntry := widget.NewEntry()
+	dvdTitleEntry.SetPlaceHolder("DVD Title")
+	dvdTitleEntry.SetText(state.authorTitle)
+	dvdTitleEntry.OnChanged = func(value string) {
+		state.authorTitle = value
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	}
+
 	// Note about chapter names
 	chapterNote := widget.NewLabel("Chapter names are saved for future DVD menu support")
 	chapterNote.TextStyle = fyne.TextStyle{Italic: true}
 
 	controls := container.NewBorder(
-		container.NewVBox(widget.NewLabel("Videos:"), chapterNote),
+		container.NewVBox(
+			widget.NewLabel("DVD Title:"),
+			dvdTitleEntry,
+			widget.NewSeparator(),
+			widget.NewLabel("Videos:"),
+			chapterNote,
+		),
 		container.NewVBox(chapterToggle, container.NewHBox(addBtn, clearBtn, addQueueBtn, compileBtn)),
 		nil,
 		nil,
