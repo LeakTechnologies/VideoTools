@@ -406,6 +406,8 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 			sourceLabel.SetText("Source: Embedded chapters")
 		case "scenes":
 			sourceLabel.SetText("Source: Scene detection")
+		case "videots":
+			sourceLabel.SetText("Source: VIDEO_TS chapters")
 		default:
 			sourceLabel.SetText("Source: Chapters")
 		}
@@ -981,6 +983,8 @@ func (s *appState) authorChapterSummary() (int, string) {
 			return len(s.authorChapters), "Embedded Chapters"
 		case "scenes":
 			return len(s.authorChapters), "Scene Chapters"
+		case "videots":
+			return len(s.authorChapters), "VIDEO_TS Chapters"
 		default:
 			return len(s.authorChapters), "Chapters"
 		}
@@ -1070,6 +1074,28 @@ func (s *appState) loadEmbeddedChapters(path string) {
 	}
 	s.authorChapters = chapters
 	s.authorChapterSource = "embedded"
+	s.updateAuthorSummary()
+	if s.authorChaptersRefresh != nil {
+		s.authorChaptersRefresh()
+	}
+}
+
+func (s *appState) loadVideoTSChapters(videoTSPath string) {
+	chapters, err := extractChaptersFromVideoTS(videoTSPath)
+	if err != nil || len(chapters) == 0 {
+		// No chapters found, clear if previously set
+		if s.authorChapterSource == "videots" {
+			s.authorChapters = nil
+			s.authorChapterSource = ""
+			s.updateAuthorSummary()
+			if s.authorChaptersRefresh != nil {
+				s.authorChaptersRefresh()
+			}
+		}
+		return
+	}
+	s.authorChapters = chapters
+	s.authorChapterSource = "videots"
 	s.updateAuthorSummary()
 	if s.authorChaptersRefresh != nil {
 		s.authorChaptersRefresh()
@@ -1217,6 +1243,27 @@ func extractChaptersFromFile(path string) ([]authorChapter, error) {
 			Title:     title,
 			Auto:      true,
 		})
+	}
+
+	return chapters, nil
+}
+
+func extractChaptersFromVideoTS(videoTSPath string) ([]authorChapter, error) {
+	// Try to find the main title VOB files
+	// Usually VTS_01_1.VOB contains the main content
+	vobFiles, err := filepath.Glob(filepath.Join(videoTSPath, "VTS_*_1.VOB"))
+	if err != nil || len(vobFiles) == 0 {
+		return nil, fmt.Errorf("no VOB files found in VIDEO_TS")
+	}
+
+	// Sort to get the first title set (usually the main feature)
+	sort.Strings(vobFiles)
+	mainVOB := vobFiles[0]
+
+	// Try to extract chapters from the main VOB using ffprobe
+	chapters, err := extractChaptersFromFile(mainVOB)
+	if err != nil {
+		return nil, err
 	}
 
 	return chapters, nil

@@ -10483,6 +10483,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			s.authorClips = nil
 			s.authorFile = nil
 			s.authorOutputType = "iso"
+			s.loadVideoTSChapters(videoTSPath)
 			s.showAuthorView()
 			return
 		}
