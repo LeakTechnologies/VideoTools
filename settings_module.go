@@ -165,7 +165,10 @@ func buildSettingsView(state *appState) fyne.CanvasObject {
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
-	return container.NewBorder(topBar, bottomBar, nil, nil, tabs)
+	// Single scroll container for entire tabs area
+	scrollableTabs := container.NewVScroll(tabs)
+
+	return container.NewBorder(topBar, bottomBar, nil, nil, scrollableTabs)
 }
 
 func buildDependenciesTab(state *appState) fyne.CanvasObject {
@@ -266,7 +269,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 	})
 	content.Add(refreshBtn)
 
-	return container.NewVScroll(content)
+	return content
 }
 
 func buildPreferencesTab(state *appState) fyne.CanvasObject {
@@ -283,7 +286,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	content.Add(widget.NewLabel("• UI theme preferences"))
 	content.Add(widget.NewLabel("• Automatic updates"))
 
-	return container.NewVScroll(content)
+	return content
 }
 
 func (s *appState) showSettingsView() {
