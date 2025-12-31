@@ -266,7 +266,7 @@ func (r *moduleTileRenderer) Refresh() {
 	// Update tile color and text color based on enabled state
 	if r.tile.enabled {
 		r.bg.FillColor = r.tile.color
-		r.label.Color = getContrastColor(r.tile.color)
+		r.label.Color = TextColor // Always white text for enabled modules
 		if r.lockIcon != nil {
 			r.lockIcon.Hide()
 		}
