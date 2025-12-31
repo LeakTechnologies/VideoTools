@@ -101,13 +101,13 @@ echo ""
 # Step 1: Check if Go is installed
 echo -e "${CYAN}[1/2]${NC} Checking Go installation..."
 if ! command -v go &> /dev/null; then
-    echo -e "${RED}✗ Error: Go is not installed or not in PATH${NC}"
+    echo -e "${RED}[ERROR] Error: Go is not installed or not in PATH${NC}"
     echo "Please install Go 1.21+ from https://go.dev/dl/"
     exit 1
 fi
 
 GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
-echo -e "${GREEN}✓${NC} Found Go version: $GO_VERSION"
+echo -e "${GREEN}[OK]${NC} Found Go version: $GO_VERSION"
 
 # Step 2: Check authoring dependencies
 echo ""
@@ -137,7 +137,7 @@ if [ "$IS_WINDOWS" = true ]; then
             powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1" "${PS_ARGS[@]}"
         fi
         if [ $? -ne 0 ]; then
-            echo -e "${RED}✗ Windows dependency installer failed.${NC}"
+            echo -e "${RED}[ERROR] Windows dependency installer failed.${NC}"
             echo "If DVDStyler download failed, retry with a direct mirror:"
             echo ""
             echo "Git Bash:"
@@ -149,9 +149,9 @@ if [ "$IS_WINDOWS" = true ]; then
             echo "  .\\scripts\\install-deps-windows.ps1"
             exit 1
         fi
-        echo -e "${GREEN}✓${NC} Windows dependency installer completed"
+        echo -e "${GREEN}[OK]${NC} Windows dependency installer completed"
     else
-        echo -e "${RED}✗ powershell.exe not found.${NC}"
+        echo -e "${RED}[ERROR] powershell.exe not found.${NC}"
         echo "Please run: $PROJECT_ROOT\\scripts\\install-deps-windows.ps1"
         exit 1
     fi
@@ -196,11 +196,11 @@ else
 
     install_deps=false
     if [ ${#missing_deps[@]} -gt 0 ]; then
-        echo -e "${YELLOW}⚠${NC} Missing dependencies: ${missing_deps[*]}"
+        echo -e "${YELLOW}WARNING:${NC} Missing dependencies: ${missing_deps[*]}"
         echo "Installing missing dependencies..."
         install_deps=true
     else
-        echo -e "${GREEN}✓${NC} All authoring dependencies found"
+        echo -e "${GREEN}[OK]${NC} All authoring dependencies found"
     fi
 
     if [ "$install_deps" = true ]; then
@@ -236,7 +236,7 @@ else
                 brew install ffmpeg dvdauthor xorriso
             fi
         else
-            echo -e "${RED}✗ No supported package manager found.${NC}"
+            echo -e "${RED}[ERROR] No supported package manager found.${NC}"
             echo "Please install: ffmpeg, dvdauthor, and mkisofs/genisoimage/xorriso"
             exit 1
         fi
@@ -251,11 +251,11 @@ else
             if [ "$ARCH" = "x86_64" ]; then
                 ESRGAN_ARCH="ubuntu"
             elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-                echo -e "${YELLOW}⚠${NC} ARM architecture detected. You may need to build realesrgan-ncnn-vulkan from source."
+                echo -e "${YELLOW}WARNING:${NC} ARM architecture detected. You may need to build realesrgan-ncnn-vulkan from source."
                 echo "See: https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan"
                 ESRGAN_ARCH=""
             else
-                echo -e "${YELLOW}⚠${NC} Unsupported architecture: $ARCH"
+                echo -e "${YELLOW}WARNING:${NC} Unsupported architecture: $ARCH"
                 ESRGAN_ARCH=""
             fi
 
@@ -268,7 +268,7 @@ else
                 elif command -v curl &> /dev/null; then
                     curl -sL "$ESRGAN_URL" -o "$TEMP_DIR/realesrgan.zip"
                 else
-                    echo -e "${YELLOW}⚠${NC} Neither wget nor curl found. Cannot download Real-ESRGAN."
+                    echo -e "${YELLOW}WARNING:${NC} Neither wget nor curl found. Cannot download Real-ESRGAN."
                     echo "Please install manually from: https://github.com/xinntao/Real-ESRGAN/releases"
                 fi
 
@@ -276,11 +276,11 @@ else
                     unzip -q "$TEMP_DIR/realesrgan.zip" -d "$TEMP_DIR"
                     sudo install -m 755 "$TEMP_DIR/realesrgan-ncnn-vulkan" /usr/local/bin/ 2>/dev/null || \
                         install -m 755 "$TEMP_DIR/realesrgan-ncnn-vulkan" "$HOME/.local/bin/" 2>/dev/null || \
-                        echo -e "${YELLOW}⚠${NC} Could not install to /usr/local/bin or ~/.local/bin"
+                        echo -e "${YELLOW}WARNING:${NC} Could not install to /usr/local/bin or ~/.local/bin"
                     rm -rf "$TEMP_DIR"
 
                     if command -v realesrgan-ncnn-vulkan &> /dev/null; then
-                        echo -e "${GREEN}✓${NC} Real-ESRGAN NCNN installed successfully"
+                        echo -e "${GREEN}[OK]${NC} Real-ESRGAN NCNN installed successfully"
                     fi
                 fi
             fi
@@ -288,18 +288,18 @@ else
     fi
 
     if ! command -v ffmpeg &> /dev/null; then
-        echo -e "${RED}✗ Missing required dependencies after install attempt.${NC}"
+        echo -e "${RED}[ERROR] Missing required dependencies after install attempt.${NC}"
         echo "Please install: ffmpeg"
         exit 1
     fi
     if [ "$SKIP_DVD_TOOLS" = false ]; then
         if ! command -v dvdauthor &> /dev/null; then
-            echo -e "${RED}✗ Missing required dependencies after install attempt.${NC}"
+            echo -e "${RED}[ERROR] Missing required dependencies after install attempt.${NC}"
             echo "Please install: dvdauthor"
             exit 1
         fi
         if ! command -v xorriso &> /dev/null; then
-            echo -e "${RED}✗ Missing xorriso after install attempt.${NC}"
+            echo -e "${RED}[ERROR] Missing xorriso after install attempt.${NC}"
             echo "Please install: xorriso (required for DVD ISO extraction)"
             exit 1
         fi
