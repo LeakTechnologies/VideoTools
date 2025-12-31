@@ -190,13 +190,13 @@ else
             if [ "$SKIP_DVD_TOOLS" = true ]; then
                 sudo apt-get install -y ffmpeg
             else
-                sudo apt-get install -y ffmpeg dvdauthor genisoimage
+                sudo apt-get install -y ffmpeg dvdauthor xorriso
             fi
         elif command -v dnf &> /dev/null; then
             if [ "$SKIP_DVD_TOOLS" = true ]; then
                 sudo dnf install -y ffmpeg
             else
-                sudo dnf install -y ffmpeg dvdauthor genisoimage
+                sudo dnf install -y ffmpeg dvdauthor xorriso
             fi
         elif command -v pacman &> /dev/null; then
             if [ "$SKIP_DVD_TOOLS" = true ]; then
@@ -208,7 +208,7 @@ else
             if [ "$SKIP_DVD_TOOLS" = true ]; then
                 sudo zypper install -y ffmpeg
             else
-                sudo zypper install -y ffmpeg dvdauthor genisoimage
+                sudo zypper install -y ffmpeg dvdauthor xorriso
             fi
         elif command -v brew &> /dev/null; then
             if [ "$SKIP_DVD_TOOLS" = true ]; then
