@@ -1757,19 +1757,26 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 
 	// Generate clips from paths if clips is empty (fallback for when job didn't save clips)
 	if len(clips) == 0 && len(paths) > 1 {
-		for i, path := range paths {
+		for _, path := range paths {
 			src, err := probeVideo(path)
 			duration := 0.0
 			displayName := filepath.Base(path)
+			chapterTitle := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 			if err == nil {
 				duration = src.Duration
 				displayName = src.DisplayName
+				// Use metadata title if available, otherwise use filename
+				if src.Metadata != nil {
+					if title, ok := src.Metadata["title"]; ok && strings.TrimSpace(title) != "" {
+						chapterTitle = title
+					}
+				}
 			}
 			clips = append(clips, authorClip{
 				Path:         path,
 				DisplayName:  displayName,
 				Duration:     duration,
-				ChapterTitle: fmt.Sprintf("Chapter %d", i+1),
+				ChapterTitle: chapterTitle,
 			})
 		}
 		if logFn != nil {
