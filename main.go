@@ -974,6 +974,7 @@ type appState struct {
 	authorProgress        float64
 	authorProgressBar     *widget.ProgressBar
 	authorStatusLabel     *widget.Label
+	authorCancelBtn       *widget.Button
 	authorVideoTSPath     string
 
 	// Rip module state
