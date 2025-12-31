@@ -186,6 +186,44 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 	rebuildList = func() {
 		list.Objects = nil
 
+		// Show VIDEO_TS folder if loaded
+		if state.authorVideoTSPath != "" {
+			if emptyOverlay != nil {
+				emptyOverlay.Hide()
+			}
+
+			videoTSLabel := widget.NewLabel("VIDEO_TS Folder:")
+			videoTSLabel.TextStyle = fyne.TextStyle{Bold: true}
+			pathLabel := widget.NewLabel(state.authorVideoTSPath)
+			pathLabel.Wrapping = fyne.TextWrapBreak
+
+			removeBtn := widget.NewButton("Remove", func() {
+				state.authorVideoTSPath = ""
+				state.authorOutputType = "dvd"
+				rebuildList()
+				state.updateAuthorSummary()
+			})
+			removeBtn.Importance = widget.MediumImportance
+
+			infoLabel := widget.NewLabel("This VIDEO_TS folder will be burned directly to ISO without re-encoding.")
+			infoLabel.TextStyle = fyne.TextStyle{Italic: true}
+			infoLabel.Wrapping = fyne.TextWrapWord
+
+			row := container.NewBorder(
+				nil,
+				nil,
+				nil,
+				removeBtn,
+				container.NewVBox(videoTSLabel, pathLabel, infoLabel),
+			)
+			cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
+			cardBg.CornerRadius = 6
+			cardBg.SetMinSize(fyne.NewSize(0, videoTSLabel.MinSize().Height+pathLabel.MinSize().Height+infoLabel.MinSize().Height+20))
+			list.Add(container.NewPadded(container.NewMax(cardBg, row)))
+			list.Refresh()
+			return
+		}
+
 		if len(state.authorClips) == 0 {
 			if emptyOverlay != nil {
 				emptyOverlay.Show()
@@ -315,7 +353,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 		}
 	})
 
-	emptyLabel := widget.NewLabel("Drag and drop video files here\nor click 'Add Files' to select videos")
+	emptyLabel := widget.NewLabel("Drag and drop video files or VIDEO_TS folder here\nor click 'Add Files' to select videos")
 	emptyLabel.Alignment = fyne.TextAlignCenter
 	emptyOverlay = container.NewCenter(emptyLabel)
 
