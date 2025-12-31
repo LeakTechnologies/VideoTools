@@ -96,6 +96,7 @@ var (
 		{"compare", "Compare", utils.MustHex("#E91E63"), "Inspect", modules.HandleCompare},       // Pink (comparison)
 		{"inspect", "Inspect", utils.MustHex("#F44336"), "Inspect", modules.HandleInspect},       // Red (analysis)
 		{"player", "Player", utils.MustHex("#3F51B5"), "Playback", modules.HandlePlayer},         // Indigo (playback)
+		{"settings", "Settings", utils.MustHex("#607D8B"), "Settings", nil},                      // Blue Grey (settings)
 	}
 
 	// Platform-specific configuration
@@ -1616,12 +1617,14 @@ func (s *appState) showMainMenu() {
 	// Convert Module slice to ui.ModuleInfo slice
 	var mods []ui.ModuleInfo
 	for _, m := range modulesList {
+		// Settings module is always enabled
+		enabled := m.ID == "settings" || isModuleAvailable(m.ID)
 		mods = append(mods, ui.ModuleInfo{
 			ID:       m.ID,
 			Label:    m.Label,
 			Color:    m.Color,
 			Category: m.Category,
-			Enabled:  m.ID == "convert" || m.ID == "compare" || m.ID == "inspect" || m.ID == "merge" || m.ID == "thumb" || m.ID == "player" || m.ID == "filters" || m.ID == "upscale" || m.ID == "author" || m.ID == "subtitles" || m.ID == "rip", // Enabled modules
+			Enabled:  enabled,
 		})
 	}
 
@@ -2692,6 +2695,8 @@ func (s *appState) showModule(id string) {
 		s.showRipView()
 	case "subtitles":
 		s.showSubtitlesView()
+	case "settings":
+		s.showSettingsView()
 	case "mainmenu":
 		s.showMainMenu()
 	default:
