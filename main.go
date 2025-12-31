@@ -9230,9 +9230,8 @@ Metadata: %s`,
 		makeRow("Metadata", metadata),
 	)
 
-	// Add spacing between the two columns
-	spacer := layout.NewSpacer()
-	twoColGrid := container.NewHBox(col1, spacer, col2)
+	// Two-column grid with proper spacing
+	twoColGrid := container.NewGridWithColumns(2, col1, col2)
 
 	// Combine filename row with two-column grid
 	info := container.NewVBox(fileRow, twoColGrid)
