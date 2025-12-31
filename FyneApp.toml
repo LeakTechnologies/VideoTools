@@ -1,5 +1,5 @@
 [Details]
-Icon = "assets/logo/VT_Icon.png"
+Icon = "assets/logo/VT_Icon.ico"
 Name = "VideoTools"
 ID = "com.leaktechnologies.videotools"
 Version = "0.1.0-dev20"
