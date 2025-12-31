@@ -127,9 +127,27 @@ func (m *ModuleTile) Dropped(pos fyne.Position, items []fyne.URI) {
 	}
 }
 
+// getContrastColor returns black or white text color based on background brightness
+func getContrastColor(bgColor color.Color) color.Color {
+	r, g, b, _ := bgColor.RGBA()
+	// Convert from 16-bit to 8-bit
+	r8 := float64(r >> 8)
+	g8 := float64(g >> 8)
+	b8 := float64(b >> 8)
+
+	// Calculate relative luminance (WCAG formula)
+	luminance := (0.2126*r8 + 0.7152*g8 + 0.0722*b8) / 255.0
+
+	// If bright background, use dark text; if dark background, use light text
+	if luminance > 0.5 {
+		return color.NRGBA{R: 20, G: 20, B: 20, A: 255} // Dark text
+	}
+	return TextColor // Light text
+}
+
 func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 	tileColor := m.color
-	labelColor := TextColor
+	labelColor := getContrastColor(m.color)
 
 	// Dim disabled tiles
 	if !m.enabled {
@@ -137,9 +155,7 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 		if c, ok := m.color.(color.NRGBA); ok {
 			tileColor = color.NRGBA{R: c.R / 3, G: c.G / 3, B: c.B / 3, A: c.A}
 		}
-		if c, ok := TextColor.(color.NRGBA); ok {
-			labelColor = color.NRGBA{R: c.R / 2, G: c.G / 2, B: c.B / 2, A: c.A}
-		}
+		labelColor = color.NRGBA{R: 100, G: 100, B: 100, A: 255}
 	}
 
 	bg := canvas.NewRectangle(tileColor)
