@@ -82,52 +82,76 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 		nil,
 	)
 
-	categorized := map[string][]fyne.CanvasObject{}
-	for i := range modules {
-		mod := modules[i] // Create new variable for this iteration
-		modID := mod.ID   // Capture for closure
-		cat := mod.Category
-		if cat == "" {
-			cat = "General"
+	// Create module map for quick lookup
+	moduleMap := make(map[string]ModuleInfo)
+	for _, mod := range modules {
+		moduleMap[mod.ID] = mod
+	}
+
+	// Helper to build a tile
+	buildTile := func(modID string) fyne.CanvasObject {
+		mod, exists := moduleMap[modID]
+		if !exists {
+			return layout.NewSpacer()
 		}
+
 		var tapFunc func()
 		var dropFunc func([]fyne.URI)
 		if mod.Enabled {
-			// Create new closure with properly captured modID
-			id := modID // Explicit capture
-			tapFunc = func() {
-				onModuleClick(id)
-			}
+			id := modID
+			tapFunc = func() { onModuleClick(id) }
 			dropFunc = func(items []fyne.URI) {
 				logging.Debug(logging.CatUI, "MainMenu dropFunc called for module=%s itemCount=%d", id, len(items))
 				onModuleDrop(id, items)
 			}
 		}
-		logging.Debug(logging.CatUI, "Creating tile for module=%s enabled=%v hasDropFunc=%v", modID, mod.Enabled, dropFunc != nil)
-		categorized[cat] = append(categorized[cat], buildModuleTile(mod, tapFunc, dropFunc))
+		return buildModuleTile(mod, tapFunc, dropFunc)
 	}
 
-	var sections []fyne.CanvasObject
-	for _, cat := range sortedKeys(categorized) {
-		catLabel := canvas.NewText(cat, textColor)
-		catLabel.TextSize = 12
-		catLabel.TextStyle = fyne.TextStyle{Bold: true}
-		tileSize := fyne.NewSize(170, 75)
-		sections = append(sections,
-			catLabel,
-			container.NewGridWrap(tileSize, categorized[cat]...),
-		)
+	// Helper to create category label
+	makeCatLabel := func(text string) *canvas.Text {
+		label := canvas.NewText(text, textColor)
+		label.TextSize = 10
+		label.Alignment = fyne.TextAlignLeading
+		return label
 	}
 
-	padding := canvas.NewRectangle(color.Transparent)
-	padding.SetMinSize(fyne.NewSize(0, 4))
+	// Build rows with category labels above tiles
+	var rows []fyne.CanvasObject
 
-	sectionsBox := container.NewVBox(sections...)
-	scroll := container.NewVScroll(sectionsBox)
+	// Convert section
+	rows = append(rows, makeCatLabel("Convert"))
+	rows = append(rows, container.NewGridWithColumns(3,
+		buildTile("convert"), buildTile("merge"), buildTile("trim"),
+	))
+	rows = append(rows, container.NewGridWithColumns(3,
+		buildTile("filters"), buildTile("audio"), buildTile("subtitles"),
+	))
+
+	// Inspect section
+	rows = append(rows, makeCatLabel("Inspect"))
+	rows = append(rows, container.NewGridWithColumns(3,
+		buildTile("compare"), buildTile("inspect"), buildTile("upscale"),
+	))
+
+	// Disc section
+	rows = append(rows, makeCatLabel("Disc"))
+	rows = append(rows, container.NewGridWithColumns(3,
+		buildTile("author"), buildTile("rip"), buildTile("bluray"),
+	))
+
+	// Playback section
+	rows = append(rows, makeCatLabel("Playback"))
+	rows = append(rows, container.NewGridWithColumns(3,
+		buildTile("player"), buildTile("thumb"), buildTile("settings"),
+	))
+
+	gridBox := container.NewVBox(rows...)
+	scroll := container.NewVScroll(gridBox)
 	scroll.SetMinSize(fyne.NewSize(0, 0))
 
 	body := container.NewBorder(
-		container.NewVBox(header, padding),
+		header,
 		nil, nil, nil,
 		scroll,
 	)
