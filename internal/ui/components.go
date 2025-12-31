@@ -179,24 +179,26 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 
 	// Diagonal stripe overlay for disabled modules
 	disabledStripe := canvas.NewRaster(func(w, h int) image.Image {
-		if m.enabled {
-			return nil
-		}
 		img := image.NewRGBA(image.Rect(0, 0, w, h))
-		// Semi-transparent dark stripes
-		darkStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 100}
-		lightStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 30}
 
-		for y := 0; y < h; y++ {
-			for x := 0; x < w; x++ {
-				// Thicker diagonal stripes (dividing by 8 instead of 4)
-				if ((x + y) / 8 % 2) == 0 {
-					img.Set(x, y, darkStripe)
-				} else {
-					img.Set(x, y, lightStripe)
+		// Only draw stripes if disabled
+		if !m.enabled {
+			// Semi-transparent dark stripes
+			darkStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 100}
+			lightStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 30}
+
+			for y := 0; y < h; y++ {
+				for x := 0; x < w; x++ {
+					// Thicker diagonal stripes (dividing by 8 instead of 4)
+					if ((x + y) / 8 % 2) == 0 {
+						img.Set(x, y, darkStripe)
+					} else {
+						img.Set(x, y, lightStripe)
+					}
 				}
 			}
 		}
+		// Return transparent image for enabled modules
 		return img
 	})
 
