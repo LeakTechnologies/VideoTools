@@ -37,7 +37,6 @@ func SetColors(grid, text color.Color) {
 type MonoTheme struct{}
 
 func (m *MonoTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
-	// Swap hover and selection colors
 	switch name {
 	case theme.ColorNameSelection:
 		// Use the default hover color for selection
@@ -45,6 +44,12 @@ func (m *MonoTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) c
 	case theme.ColorNameHover:
 		// Use the default selection color for hover
 		return theme.DefaultTheme().Color(theme.ColorNameSelection, variant)
+	case theme.ColorNameButton:
+		// Use hover color as default button background
+		return theme.DefaultTheme().Color(theme.ColorNameHover, variant)
+	case theme.ColorNameInputBackground:
+		// Use hover color as default input background (for dropdowns/entries)
+		return theme.DefaultTheme().Color(theme.ColorNameHover, variant)
 	}
 	return theme.DefaultTheme().Color(name, variant)
 }
