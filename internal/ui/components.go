@@ -148,7 +148,8 @@ func getContrastColor(bgColor color.Color) color.Color {
 
 func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 	tileColor := m.color
-	labelColor := getContrastColor(m.color)
+	// Use consistent white text for all modules
+	labelColor := TextColor // White text
 
 	// Dim disabled tiles
 	if !m.enabled {
