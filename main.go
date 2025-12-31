@@ -9149,7 +9149,7 @@ Metadata: %s`,
 		keyLabel := widget.NewLabel(key + ":")
 		keyLabel.TextStyle = fyne.TextStyle{Bold: true}
 		valueLabel := widget.NewLabel(value)
-		valueLabel.Wrapping = fyne.TextWrapWord
+		// Don't wrap - let text flow naturally
 		return container.NewHBox(keyLabel, valueLabel)
 	}
 
