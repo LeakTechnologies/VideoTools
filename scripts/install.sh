@@ -32,6 +32,7 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DVDSTYLER_URL=""
 DVDSTYLER_ZIP=""
 SKIP_DVD_TOOLS=""
+SKIP_AI_TOOLS=""
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--dvdstyler-url=*)
@@ -54,9 +55,13 @@ while [ $# -gt 0 ]; do
 			SKIP_DVD_TOOLS=true
 			shift
 			;;
+		--skip-ai)
+			SKIP_AI_TOOLS=true
+			shift
+			;;
 		*)
 			echo "Unknown option: $1"
-			echo "Usage: $0 [--dvdstyler-url URL] [--dvdstyler-zip PATH] [--skip-dvd]"
+			echo "Usage: $0 [--dvdstyler-url URL] [--dvdstyler-zip PATH] [--skip-dvd] [--skip-ai]"
 			exit 1
 			;;
 	esac
@@ -173,6 +178,22 @@ else
         fi
     fi
 
+    # Ask about AI upscaling tools
+    if [ -z "$SKIP_AI_TOOLS" ]; then
+        echo ""
+        read -p "Install AI upscaling tools (Real-ESRGAN NCNN)? [y/N]: " ai_choice
+        if [[ "$ai_choice" =~ ^[Yy]$ ]]; then
+            SKIP_AI_TOOLS=false
+        else
+            SKIP_AI_TOOLS=true
+        fi
+    fi
+    if [ "$SKIP_AI_TOOLS" = false ]; then
+        if ! command -v realesrgan-ncnn-vulkan &> /dev/null; then
+            missing_deps+=("realesrgan-ncnn-vulkan")
+        fi
+    fi
+
     install_deps=false
     if [ ${#missing_deps[@]} -gt 0 ]; then
         echo -e "${YELLOW}⚠${NC} Missing dependencies: ${missing_deps[*]}"
@@ -218,6 +239,51 @@ else
             echo -e "${RED}✗ No supported package manager found.${NC}"
             echo "Please install: ffmpeg, dvdauthor, and mkisofs/genisoimage/xorriso"
             exit 1
+        fi
+
+        # Install Real-ESRGAN NCNN if requested and not available
+        if [ "$SKIP_AI_TOOLS" = false ] && ! command -v realesrgan-ncnn-vulkan &> /dev/null; then
+            echo ""
+            echo "Installing Real-ESRGAN NCNN..."
+
+            # Detect architecture
+            ARCH=$(uname -m)
+            if [ "$ARCH" = "x86_64" ]; then
+                ESRGAN_ARCH="ubuntu"
+            elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+                echo -e "${YELLOW}⚠${NC} ARM architecture detected. You may need to build realesrgan-ncnn-vulkan from source."
+                echo "See: https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan"
+                ESRGAN_ARCH=""
+            else
+                echo -e "${YELLOW}⚠${NC} Unsupported architecture: $ARCH"
+                ESRGAN_ARCH=""
+            fi
+
+            if [ -n "$ESRGAN_ARCH" ]; then
+                ESRGAN_URL="https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip"
+                TEMP_DIR=$(mktemp -d)
+
+                if command -v wget &> /dev/null; then
+                    wget -q "$ESRGAN_URL" -O "$TEMP_DIR/realesrgan.zip"
+                elif command -v curl &> /dev/null; then
+                    curl -sL "$ESRGAN_URL" -o "$TEMP_DIR/realesrgan.zip"
+                else
+                    echo -e "${YELLOW}⚠${NC} Neither wget nor curl found. Cannot download Real-ESRGAN."
+                    echo "Please install manually from: https://github.com/xinntao/Real-ESRGAN/releases"
+                fi
+
+                if [ -f "$TEMP_DIR/realesrgan.zip" ]; then
+                    unzip -q "$TEMP_DIR/realesrgan.zip" -d "$TEMP_DIR"
+                    sudo install -m 755 "$TEMP_DIR/realesrgan-ncnn-vulkan" /usr/local/bin/ 2>/dev/null || \
+                        install -m 755 "$TEMP_DIR/realesrgan-ncnn-vulkan" "$HOME/.local/bin/" 2>/dev/null || \
+                        echo -e "${YELLOW}⚠${NC} Could not install to /usr/local/bin or ~/.local/bin"
+                    rm -rf "$TEMP_DIR"
+
+                    if command -v realesrgan-ncnn-vulkan &> /dev/null; then
+                        echo -e "${GREEN}✓${NC} Real-ESRGAN NCNN installed successfully"
+                    fi
+                fi
+            fi
         fi
     fi
 
