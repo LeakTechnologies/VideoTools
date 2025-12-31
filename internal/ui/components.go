@@ -148,16 +148,11 @@ func getContrastColor(bgColor color.Color) color.Color {
 
 func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 	tileColor := m.color
-	// Use consistent white text for all modules
-	labelColor := TextColor // White text
+	labelColor := TextColor // White text for all modules
 
-	// Dim disabled tiles
+	// Grey background for disabled tiles
 	if !m.enabled {
-		// Reduce opacity by mixing with dark background
-		if c, ok := m.color.(color.NRGBA); ok {
-			tileColor = color.NRGBA{R: c.R / 3, G: c.G / 3, B: c.B / 3, A: c.A}
-		}
-		labelColor = color.NRGBA{R: 100, G: 100, B: 100, A: 255}
+		tileColor = color.NRGBA{R: 80, G: 80, B: 80, A: 255}
 	}
 
 	bg := canvas.NewRectangle(tileColor)
