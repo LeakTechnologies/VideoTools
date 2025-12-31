@@ -3183,6 +3183,9 @@ func (s *appState) showAuthorView() {
 		s.authorSceneThreshold = 0.3
 	}
 
+	// Clear DVD title for fresh start
+	s.authorTitle = ""
+
 	s.setContent(buildAuthorView(s))
 }
 
