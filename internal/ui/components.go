@@ -65,20 +65,22 @@ func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
 // ModuleTile is a clickable tile widget for module selection
 type ModuleTile struct {
 	widget.BaseWidget
-	label       string
-	color       color.Color
-	enabled     bool
-	onTapped    func()
-	onDropped   func([]fyne.URI)
-	flashing    bool
-	draggedOver bool
+	label               string
+	color               color.Color
+	enabled             bool
+	missingDependencies bool
+	onTapped            func()
+	onDropped           func([]fyne.URI)
+	flashing            bool
+	draggedOver         bool
 }
 
 // NewModuleTile creates a new module tile
-func NewModuleTile(label string, col color.Color, enabled bool, tapped func(), dropped func([]fyne.URI)) *ModuleTile {
+func NewModuleTile(label string, col color.Color, enabled bool, missingDeps bool, tapped func(), dropped func([]fyne.URI)) *ModuleTile {
 	m := &ModuleTile{
-		label:     strings.ToUpper(label),
-		color:     col,
+		label:               strings.ToUpper(label),
+		color:               col,
+		missingDependencies: missingDeps,
 		enabled:   enabled,
 		onTapped:  tapped,
 		onDropped: dropped,
@@ -150,8 +152,11 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 	tileColor := m.color
 	labelColor := TextColor // White text for all modules
 
-	// Grey background for disabled tiles
-	if !m.enabled {
+	// Orange background for modules missing dependencies
+	if m.missingDependencies {
+		tileColor = color.NRGBA{R: 255, G: 152, B: 0, A: 255} // Orange
+	} else if !m.enabled {
+		// Grey background for not implemented modules
 		tileColor = color.NRGBA{R: 80, G: 80, B: 80, A: 255}
 	}
 
