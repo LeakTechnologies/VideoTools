@@ -33,6 +33,7 @@ DVDSTYLER_URL=""
 DVDSTYLER_ZIP=""
 SKIP_DVD_TOOLS=""
 SKIP_AI_TOOLS=""
+SKIP_WHISPER=""
 while [ $# -gt 0 ]; do
 	case "$1" in
 		--dvdstyler-url=*)
@@ -59,9 +60,13 @@ while [ $# -gt 0 ]; do
 			SKIP_AI_TOOLS=true
 			shift
 			;;
+		--skip-whisper)
+			SKIP_WHISPER=true
+			shift
+			;;
 		*)
 			echo "Unknown option: $1"
-			echo "Usage: $0 [--dvdstyler-url URL] [--dvdstyler-zip PATH] [--skip-dvd] [--skip-ai]"
+			echo "Usage: $0 [--dvdstyler-url URL] [--dvdstyler-zip PATH] [--skip-dvd] [--skip-ai] [--skip-whisper]"
 			exit 1
 			;;
 	esac
@@ -194,6 +199,22 @@ else
         fi
     fi
 
+    # Ask about Whisper for subtitling
+    if [ -z "$SKIP_WHISPER" ]; then
+        echo ""
+        read -p "Install Whisper for automated subtitling? [y/N]: " whisper_choice
+        if [[ "$whisper_choice" =~ ^[Yy]$ ]]; then
+            SKIP_WHISPER=false
+        else
+            SKIP_WHISPER=true
+        fi
+    fi
+    if [ "$SKIP_WHISPER" = false ]; then
+        if ! command -v whisper &> /dev/null && ! command -v whisper.cpp &> /dev/null; then
+            missing_deps+=("whisper")
+        fi
+    fi
+
     install_deps=false
     if [ ${#missing_deps[@]} -gt 0 ]; then
         echo -e "${YELLOW}WARNING:${NC} Missing dependencies: ${missing_deps[*]}"
@@ -283,6 +304,35 @@ else
                         echo -e "${GREEN}[OK]${NC} Real-ESRGAN NCNN installed successfully"
                     fi
                 fi
+            fi
+        fi
+
+        # Install Whisper if requested and not available
+        if [ "$SKIP_WHISPER" = false ] && ! command -v whisper &> /dev/null; then
+            echo ""
+            echo "Installing Whisper for automated subtitling..."
+
+            # Check if Python 3 and pip are available
+            if command -v python3 &> /dev/null && command -v pip3 &> /dev/null; then
+                # Install openai-whisper
+                if pip3 install --user openai-whisper 2>/dev/null; then
+                    echo -e "${GREEN}[OK]${NC} Whisper installed successfully"
+                    echo "To download models, run: whisper --model base dummy.mp3"
+                else
+                    echo -e "${YELLOW}WARNING:${NC} Failed to install Whisper via pip3"
+                    echo "You can install it manually with: pip3 install openai-whisper"
+                fi
+            else
+                echo -e "${YELLOW}WARNING:${NC} Python 3 and pip3 are required for Whisper"
+                echo "Please install Python 3 and pip3, then run: pip3 install openai-whisper"
+            fi
+
+            # Ensure ~/.local/bin is in PATH for user-installed packages
+            if [ -d "$HOME/.local/bin" ] && [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+                echo ""
+                echo -e "${YELLOW}NOTE:${NC} Add ~/.local/bin to your PATH to use Whisper:"
+                echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc"
+                echo "  source ~/.bashrc"
             fi
         fi
     fi
