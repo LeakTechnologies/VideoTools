@@ -217,6 +217,11 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 				}
 			}
 
+			// Note about chapter names for future menu support
+			noteLabel := widget.NewLabel("(For future DVD menus)")
+			noteLabel.TextStyle = fyne.TextStyle{Italic: true}
+			noteLabel.Alignment = fyne.TextAlignLeading
+
 			removeBtn := widget.NewButton("Remove", func() {
 				state.authorClips = append(state.authorClips[:idx], state.authorClips[idx+1:]...)
 				rebuildList()
@@ -229,7 +234,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 				nil,
 				nil,
 				container.NewVBox(durationLabel, removeBtn),
-				container.NewVBox(nameLabel, titleEntry),
+				container.NewVBox(nameLabel, titleEntry, noteLabel),
 			)
 			cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
 			cardBg.CornerRadius = 6
