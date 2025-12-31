@@ -84,13 +84,13 @@ var (
 	modulesList = []Module{
 		{"convert", "Convert", utils.MustHex("#673AB7"), "Convert", modules.HandleConvert},       // Deep Purple (primary conversion)
 		{"merge", "Merge", utils.MustHex("#4CAF50"), "Convert", modules.HandleMerge},             // Green (combining)
-		{"trim", "Trim", utils.MustHex("#F9A825"), "Convert", modules.HandleTrim},                // Dark Yellow/Gold (precision cut)
+		{"trim", "Trim", utils.MustHex("#F9A825"), "Convert", nil},                               // Dark Yellow/Gold (not implemented yet)
 		{"filters", "Filters", utils.MustHex("#00BCD4"), "Convert", modules.HandleFilters},       // Cyan (creative filters)
 		{"upscale", "Upscale", utils.MustHex("#9C27B0"), "Advanced", modules.HandleUpscale},      // Purple (AI/advanced)
-		{"audio", "Audio", utils.MustHex("#FF8F00"), "Convert", modules.HandleAudio},             // Dark Amber (sound waves)
+		{"audio", "Audio", utils.MustHex("#FF8F00"), "Convert", nil},                             // Dark Amber (not implemented yet)
 		{"author", "Author", utils.MustHex("#FF5722"), "Disc", modules.HandleAuthor},             // Deep Orange (authoring)
 		{"rip", "Rip", utils.MustHex("#FF9800"), "Disc", modules.HandleRip},                      // Orange (extraction)
-		{"bluray", "Blu-Ray", utils.MustHex("#2196F3"), "Disc", modules.HandleBluRay},            // Blue (Blu-ray brand)
+		{"bluray", "Blu-Ray", utils.MustHex("#2196F3"), "Disc", nil},                             // Blue (not implemented yet)
 		{"subtitles", "Subtitles", utils.MustHex("#689F38"), "Convert", modules.HandleSubtitles}, // Dark Green (text)
 		{"thumb", "Thumb", utils.MustHex("#00ACC1"), "Screenshots", modules.HandleThumb},         // Dark Cyan (capture)
 		{"compare", "Compare", utils.MustHex("#E91E63"), "Inspect", modules.HandleCompare},       // Pink (comparison)
@@ -1617,13 +1617,13 @@ func (s *appState) showMainMenu() {
 	// Convert Module slice to ui.ModuleInfo slice
 	var mods []ui.ModuleInfo
 	for _, m := range modulesList {
-		// Settings module is always enabled
-		enabled := m.ID == "settings" || isModuleAvailable(m.ID)
+		// Module is enabled if: (1) it's Settings (special case) OR (2) it has a handler AND dependencies are available
+		enabled := m.ID == "settings" || (m.Handle != nil && isModuleAvailable(m.ID))
 		mods = append(mods, ui.ModuleInfo{
 			ID:       m.ID,
 			Label:    m.Label,
 			Color:    m.Color,
-			Category: m.Category,
+			Category:m.Category,
 			Enabled:  enabled,
 		})
 	}
