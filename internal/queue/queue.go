@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 // JobType represents the type of job to execute
@@ -373,6 +375,7 @@ func (q *Queue) ResumeAll() {
 
 // processJobs continuously processes pending jobs
 func (q *Queue) processJobs() {
+	defer logging.RecoverPanic() // Catch and log any panics in job processing
 	for {
 		q.mu.Lock()
 		if !q.running {
