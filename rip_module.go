@@ -450,11 +450,18 @@ func resolveVideoTSPath(path string) (string, func(), error) {
 		return "", nil, fmt.Errorf("no VIDEO_TS folder found in %s", path)
 	}
 	if strings.HasSuffix(strings.ToLower(path), ".iso") {
+		// Try mount-based extraction first (works for UDF ISOs)
+		videoTS, cleanup, err := tryMountISO(path)
+		if err == nil {
+			return videoTS, cleanup, nil
+		}
+
+		// Fall back to extraction tools
 		tempDir, err := os.MkdirTemp(utils.TempDir(), "videotools-iso-")
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to create temp dir: %w", err)
 		}
-		cleanup := func() {
+		cleanup = func() {
 			_ = os.RemoveAll(tempDir)
 		}
 		tool, args, err := buildISOExtractCommand(path, tempDir)
@@ -466,7 +473,7 @@ func resolveVideoTSPath(path string) (string, func(), error) {
 			cleanup()
 			return "", nil, err
 		}
-		videoTS := filepath.Join(tempDir, "VIDEO_TS")
+		videoTS = filepath.Join(tempDir, "VIDEO_TS")
 		if info, err := os.Stat(videoTS); err == nil && info.IsDir() {
 			return videoTS, cleanup, nil
 		}
@@ -476,14 +483,76 @@ func resolveVideoTSPath(path string) (string, func(), error) {
 	return "", nil, fmt.Errorf("unsupported source: %s", path)
 }
 
+// tryMountISO attempts to mount the ISO and copy VIDEO_TS to a temp directory
+func tryMountISO(isoPath string) (string, func(), error) {
+	// Create mount point
+	mountPoint, err := os.MkdirTemp(utils.TempDir(), "videotools-mount-")
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create mount point: %w", err)
+	}
+
+	// Try to mount the ISO
+	mountCmd := exec.Command("mount", "-o", "loop,ro", isoPath, mountPoint)
+	if err := mountCmd.Run(); err != nil {
+		os.RemoveAll(mountPoint)
+		return "", nil, fmt.Errorf("mount failed: %w", err)
+	}
+
+	// Check if VIDEO_TS exists
+	videoTSMounted := filepath.Join(mountPoint, "VIDEO_TS")
+	if info, err := os.Stat(videoTSMounted); err != nil || !info.IsDir() {
+		exec.Command("umount", mountPoint).Run()
+		os.RemoveAll(mountPoint)
+		return "", nil, fmt.Errorf("VIDEO_TS not found in mounted ISO")
+	}
+
+	// Copy VIDEO_TS to temp directory
+	tempDir, err := os.MkdirTemp(utils.TempDir(), "videotools-iso-")
+	if err != nil {
+		exec.Command("umount", mountPoint).Run()
+		os.RemoveAll(mountPoint)
+		return "", nil, fmt.Errorf("failed to create temp dir: %w", err)
+	}
+
+	// Use cp to copy VIDEO_TS
+	cpCmd := exec.Command("cp", "-r", videoTSMounted, tempDir)
+	if err := cpCmd.Run(); err != nil {
+		exec.Command("umount", mountPoint).Run()
+		os.RemoveAll(mountPoint)
+		os.RemoveAll(tempDir)
+		return "", nil, fmt.Errorf("copy failed: %w", err)
+	}
+
+	// Unmount and clean up mount point
+	exec.Command("umount", mountPoint).Run()
+	os.RemoveAll(mountPoint)
+
+	// Return path to copied VIDEO_TS
+	videoTS := filepath.Join(tempDir, "VIDEO_TS")
+	cleanup := func() {
+		_ = os.RemoveAll(tempDir)
+	}
+
+	return videoTS, cleanup, nil
+}
+
 func buildISOExtractCommand(isoPath, destDir string) (string, []string, error) {
+	// Try xorriso first (best for UDF and ISO9660)
 	if _, err := exec.LookPath("xorriso"); err == nil {
 		return "xorriso", []string{"-osirrox", "on", "-indev", isoPath, "-extract", "/VIDEO_TS", destDir}, nil
 	}
+
+	// Try 7z (works well with both UDF and ISO9660)
+	if _, err := exec.LookPath("7z"); err == nil {
+		return "7z", []string{"x", "-o" + destDir, isoPath, "VIDEO_TS"}, nil
+	}
+
+	// Try bsdtar (works with ISO9660, may fail on UDF)
 	if _, err := exec.LookPath("bsdtar"); err == nil {
 		return "bsdtar", []string{"-C", destDir, "-xf", isoPath, "VIDEO_TS"}, nil
 	}
-	return "", nil, fmt.Errorf("no ISO extraction tool found (install xorriso or bsdtar)")
+
+	return "", nil, fmt.Errorf("no ISO extraction tool found (install xorriso, 7z, or bsdtar)")
 }
 
 type vobSet struct {

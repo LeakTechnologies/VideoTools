@@ -9148,8 +9148,8 @@ Metadata: %s`,
 		keyLabel := widget.NewLabel(key + ":")
 		keyLabel.TextStyle = fyne.TextStyle{Bold: true}
 		valueLabel := widget.NewLabel(value)
-		valueLabel.Wrapping = fyne.TextTruncate
-		return container.NewBorder(nil, nil, keyLabel, nil, container.NewHBox(layout.NewSpacer(), valueLabel))
+		valueLabel.Wrapping = fyne.TextWrapWord
+		return container.NewHBox(keyLabel, valueLabel)
 	}
 
 	// Organize metadata into a compact two-column grid
