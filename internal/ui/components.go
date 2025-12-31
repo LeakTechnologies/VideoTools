@@ -440,6 +440,58 @@ func (r *droppableRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.content}
 }
 
+// FastVScroll creates a vertical scroll container with faster scroll speed
+type FastVScroll struct {
+	widget.BaseWidget
+	scroll *container.Scroll
+}
+
+// NewFastVScroll creates a new fast-scrolling vertical scroll container
+func NewFastVScroll(content fyne.CanvasObject) *FastVScroll {
+	f := &FastVScroll{
+		scroll: container.NewVScroll(content),
+	}
+	f.ExtendBaseWidget(f)
+	return f
+}
+
+func (f *FastVScroll) CreateRenderer() fyne.WidgetRenderer {
+	return &fastScrollRenderer{scroll: f.scroll}
+}
+
+func (f *FastVScroll) Scrolled(ev *fyne.ScrollEvent) {
+	// Multiply scroll speed by 2.5x for faster scrolling
+	fastEvent := &fyne.ScrollEvent{
+		Scrolled: fyne.Delta{
+			DX: ev.Scrolled.DX * 2.5,
+			DY: ev.Scrolled.DY * 2.5,
+		},
+	}
+	f.scroll.Scrolled(fastEvent)
+}
+
+type fastScrollRenderer struct {
+	scroll *container.Scroll
+}
+
+func (r *fastScrollRenderer) Layout(size fyne.Size) {
+	r.scroll.Resize(size)
+}
+
+func (r *fastScrollRenderer) MinSize() fyne.Size {
+	return r.scroll.MinSize()
+}
+
+func (r *fastScrollRenderer) Refresh() {
+	r.scroll.Refresh()
+}
+
+func (r *fastScrollRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{r.scroll}
+}
+
+func (r *fastScrollRenderer) Destroy() {}
+
 // DraggableVScroll creates a vertical scroll container with draggable track
 type DraggableVScroll struct {
 	widget.BaseWidget
@@ -524,7 +576,14 @@ func (d *DraggableVScroll) Tapped(ev *fyne.PointEvent) {
 
 // Scrolled handles scroll events (mouse wheel)
 func (d *DraggableVScroll) Scrolled(ev *fyne.ScrollEvent) {
-	d.scroll.Scrolled(ev)
+	// Multiply scroll speed by 2.5x for faster scrolling
+	fastEvent := &fyne.ScrollEvent{
+		Scrolled: fyne.Delta{
+			DX: ev.Scrolled.DX * 2.5,
+			DY: ev.Scrolled.DY * 2.5,
+		},
+	}
+	d.scroll.Scrolled(fastEvent)
 }
 
 type draggableScrollRenderer struct {
