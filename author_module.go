@@ -1710,6 +1710,10 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 	if startNow && !s.jobQueue.IsRunning() {
 		s.jobQueue.Start()
 	}
+	// Navigate to queue view when starting a job immediately
+	if startNow {
+		s.showQueue()
+	}
 	return nil
 }
 
@@ -1737,6 +1741,10 @@ func (s *appState) addAuthorVideoTSToQueue(videoTSPath, title, outputPath string
 	s.jobQueue.Add(job)
 	if startNow && !s.jobQueue.IsRunning() {
 		s.jobQueue.Start()
+	}
+	// Navigate to queue view when starting a job immediately
+	if startNow {
+		s.showQueue()
 	}
 	return nil
 }
