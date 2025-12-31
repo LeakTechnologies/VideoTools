@@ -168,10 +168,19 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 	txt.Alignment = fyne.TextAlignCenter
 	txt.TextSize = 20
 
+	// Lock icon for disabled modules
+	lockIcon := canvas.NewText("🔒", color.NRGBA{R: 200, G: 200, B: 200, A: 255})
+	lockIcon.TextSize = 16
+	lockIcon.Alignment = fyne.TextAlignCenter
+	if m.enabled {
+		lockIcon.Hide()
+	}
+
 	return &moduleTileRenderer{
-		tile:  m,
-		bg:    bg,
-		label: txt,
+		tile:     m,
+		bg:       bg,
+		label:    txt,
+		lockIcon: lockIcon,
 	}
 }
 
@@ -182,9 +191,10 @@ func (m *ModuleTile) Tapped(*fyne.PointEvent) {
 }
 
 type moduleTileRenderer struct {
-	tile  *ModuleTile
-	bg    *canvas.Rectangle
-	label *canvas.Text
+	tile     *ModuleTile
+	bg       *canvas.Rectangle
+	label    *canvas.Text
+	lockIcon *canvas.Text
 }
 
 func (r *moduleTileRenderer) Layout(size fyne.Size) {
@@ -195,6 +205,15 @@ func (r *moduleTileRenderer) Layout(size fyne.Size) {
 	x := (size.Width - labelSize.Width) / 2
 	y := (size.Height - labelSize.Height) / 2
 	r.label.Move(fyne.NewPos(x, y))
+
+	// Position lock icon in top-right corner
+	if r.lockIcon != nil {
+		lockSize := r.lockIcon.MinSize()
+		r.lockIcon.Resize(lockSize)
+		lockX := size.Width - lockSize.Width - 4
+		lockY := float32(4)
+		r.lockIcon.Move(fyne.NewPos(lockX, lockY))
+	}
 }
 
 func (r *moduleTileRenderer) MinSize() fyne.Size {
@@ -202,7 +221,23 @@ func (r *moduleTileRenderer) MinSize() fyne.Size {
 }
 
 func (r *moduleTileRenderer) Refresh() {
-	r.bg.FillColor = r.tile.color
+	// Update tile color and text color based on enabled state
+	if r.tile.enabled {
+		r.bg.FillColor = r.tile.color
+		r.label.Color = getContrastColor(r.tile.color)
+		if r.lockIcon != nil {
+			r.lockIcon.Hide()
+		}
+	} else {
+		// Dim disabled tiles
+		if c, ok := r.tile.color.(color.NRGBA); ok {
+			r.bg.FillColor = color.NRGBA{R: c.R / 3, G: c.G / 3, B: c.B / 3, A: c.A}
+		}
+		r.label.Color = color.NRGBA{R: 100, G: 100, B: 100, A: 255}
+		if r.lockIcon != nil {
+			r.lockIcon.Show()
+		}
+	}
 
 	// Apply visual feedback based on state
 	if r.tile.flashing {
@@ -222,12 +257,15 @@ func (r *moduleTileRenderer) Refresh() {
 	r.bg.Refresh()
 	r.label.Text = r.tile.label
 	r.label.Refresh()
+	if r.lockIcon != nil {
+		r.lockIcon.Refresh()
+	}
 }
 
 func (r *moduleTileRenderer) Destroy() {}
 
 func (r *moduleTileRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.bg, r.label}
+	return []fyne.CanvasObject{r.bg, r.label, r.lockIcon}
 }
 
 // TintedBar creates a colored bar container
