@@ -321,8 +321,12 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 
 	listArea := container.NewMax(dropTarget, emptyOverlay)
 
+	// Note about chapter names
+	chapterNote := widget.NewLabel("Chapter names are saved for future DVD menu support")
+	chapterNote.TextStyle = fyne.TextStyle{Italic: true}
+
 	controls := container.NewBorder(
-		widget.NewLabel("Videos:"),
+		container.NewVBox(widget.NewLabel("Videos:"), chapterNote),
 		container.NewVBox(chapterToggle, container.NewHBox(addBtn, clearBtn, addQueueBtn, compileBtn)),
 		nil,
 		nil,
