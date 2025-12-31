@@ -1617,14 +1617,22 @@ func (s *appState) showMainMenu() {
 	// Convert Module slice to ui.ModuleInfo slice
 	var mods []ui.ModuleInfo
 	for _, m := range modulesList {
+		hasHandler := m.Handle != nil
+		depsAvailable := isModuleAvailable(m.ID)
+
 		// Module is enabled if: (1) it's Settings (special case) OR (2) it has a handler AND dependencies are available
-		enabled := m.ID == "settings" || (m.Handle != nil && isModuleAvailable(m.ID))
+		enabled := m.ID == "settings" || (hasHandler && depsAvailable)
+
+		// Missing dependencies = has handler but dependencies not available
+		missingDeps := hasHandler && !depsAvailable && m.ID != "settings"
+
 		mods = append(mods, ui.ModuleInfo{
-			ID:       m.ID,
-			Label:    m.Label,
-			Color:    m.Color,
-			Category:m.Category,
-			Enabled:  enabled,
+			ID:                  m.ID,
+			Label:               m.Label,
+			Color:               m.Color,
+			Category:            m.Category,
+			Enabled:             enabled,
+			MissingDependencies: missingDeps,
 		})
 	}
 
