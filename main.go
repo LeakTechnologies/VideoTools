@@ -8479,7 +8479,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Wrap simple options with settings box at top
 	simpleWithSettings := container.NewVBox(settingsBox, simpleOptions)
 
-	// Both Simple and Advanced get their own fast scrolling (2.5x speed)
+	// Both Simple and Advanced get their own fast scrolling (5x speed)
 	simpleScrollBox := ui.NewFastVScroll(simpleWithSettings)
 	advancedScrollBox := ui.NewFastVScroll(advancedOptions)
 
