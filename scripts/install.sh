@@ -175,11 +175,9 @@ else
 
     install_deps=false
     if [ ${#missing_deps[@]} -gt 0 ]; then
-        echo -e "${YELLOW}WARNING${NC} Missing dependencies: ${missing_deps[*]}"
-        read -p "Install missing dependencies now? [y/N]: " install_choice
-        if [[ "$install_choice" =~ ^[Yy]$ ]]; then
-            install_deps=true
-        fi
+        echo -e "${YELLOW}⚠${NC} Missing dependencies: ${missing_deps[*]}"
+        echo "Installing missing dependencies..."
+        install_deps=true
     else
         echo -e "${GREEN}✓${NC} All authoring dependencies found"
     fi
