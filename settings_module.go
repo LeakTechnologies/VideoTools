@@ -165,7 +165,7 @@ func buildSettingsView(state *appState) fyne.CanvasObject {
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
-	// Single fast scroll container for entire tabs area (5x speed)
+	// Single fast scroll container for entire tabs area (8x speed)
 	scrollableTabs := ui.NewFastVScroll(tabs)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, scrollableTabs)
