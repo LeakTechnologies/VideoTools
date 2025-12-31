@@ -8479,8 +8479,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Wrap simple options with settings box at top
 	simpleWithSettings := container.NewVBox(settingsBox, simpleOptions)
 
-	// Keep Simple lightweight; wrap Advanced in its own scroll to avoid bloating MinSize.
-	simpleScrollBox := simpleWithSettings
+	// Both Simple and Advanced get their own scrolling
+	simpleScrollBox := container.NewVScroll(simpleWithSettings)
+	simpleScrollBox.SetMinSize(fyne.NewSize(0, 0))
 	advancedScrollBox := container.NewVScroll(advancedOptions)
 	advancedScrollBox.SetMinSize(fyne.NewSize(0, 0))
 
@@ -8714,8 +8715,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Split: left side (video + metadata) takes 60% | right side (options) takes 40%
 	mainSplit := container.New(&fixedHSplitLayout{ratio: 0.6}, leftColumn, optionsPanel)
 
-	// Core content now just the split; ancillary controls stack in bottomSection.
-	mainContent := container.NewMax(mainSplit)
+	// Add horizontal padding around the split (10px on each side)
+	mainContent := container.NewPadded(mainSplit)
 
 	resetBtn := widget.NewButton("Reset", func() {
 		if resetConvertDefaults != nil {
@@ -9042,8 +9043,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Update stats bar
 	state.updateStatsBar()
 
-	scrollableMain := container.NewVScroll(mainContent)
-
 	// Build footer sections
 	footerSections := []fyne.CanvasObject{
 		snippetRow,
@@ -9058,7 +9057,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		nil,
 		container.NewVBox(footerSections...),
 		nil, nil,
-		container.NewMax(scrollableMain),
+		mainContent,
 	)
 	return container.NewBorder(backBar, moduleFooter(convertColor, actionBar, state.statsBar), nil, nil, mainWithFooter)
 
