@@ -161,7 +161,18 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	})
 	clearCompletedBtn.Importance = widget.LowImportance
 
-	topBar := ui.TintedBar(authorColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
+	cancelBtn := widget.NewButton("Cancel Job", func() {
+		if state.jobQueue != nil {
+			if job := state.jobQueue.CurrentRunning(); job != nil && job.Type == queue.JobTypeAuthor {
+				state.jobQueue.Cancel(job.ID)
+			}
+		}
+	})
+	cancelBtn.Importance = widget.DangerImportance
+	state.authorCancelBtn = cancelBtn
+	state.updateAuthorCancelButton()
+
+	topBar := ui.TintedBar(authorColor, container.NewHBox(backBtn, layout.NewSpacer(), cancelBtn, clearCompletedBtn, queueBtn))
 	bottomBar := moduleFooter(authorColor, layout.NewSpacer(), state.statsBar)
 
 	tabs := container.NewAppTabs(
@@ -1394,6 +1405,22 @@ func (s *appState) setAuthorProgress(percent float64) {
 	s.authorProgress = percent
 	if s.authorProgressBar != nil {
 		s.authorProgressBar.SetValue(percent / 100.0)
+	}
+}
+
+func (s *appState) updateAuthorCancelButton() {
+	if s.authorCancelBtn == nil {
+		return
+	}
+	if s.jobQueue == nil {
+		s.authorCancelBtn.Hide()
+		return
+	}
+	job := s.jobQueue.CurrentRunning()
+	if job != nil && job.Type == queue.JobTypeAuthor {
+		s.authorCancelBtn.Show()
+	} else {
+		s.authorCancelBtn.Hide()
 	}
 }
 
