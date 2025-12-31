@@ -168,8 +168,8 @@ else
         if ! command -v dvdauthor &> /dev/null; then
             missing_deps+=("dvdauthor")
         fi
-        if ! command -v mkisofs &> /dev/null && ! command -v genisoimage &> /dev/null && ! command -v xorriso &> /dev/null; then
-            missing_deps+=("iso-tool")
+        if ! command -v xorriso &> /dev/null; then
+            missing_deps+=("xorriso")
         fi
     fi
 
@@ -234,9 +234,9 @@ else
             echo "Please install: dvdauthor"
             exit 1
         fi
-        if ! command -v mkisofs &> /dev/null && ! command -v genisoimage &> /dev/null && ! command -v xorriso &> /dev/null; then
-            echo -e "${RED}✗ Missing ISO creation tool after install attempt.${NC}"
-            echo "Please install: mkisofs (cdrtools), genisoimage, or xorriso"
+        if ! command -v xorriso &> /dev/null; then
+            echo -e "${RED}✗ Missing xorriso after install attempt.${NC}"
+            echo "Please install: xorriso (required for DVD ISO extraction)"
             exit 1
         fi
     fi
