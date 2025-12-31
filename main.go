@@ -9197,12 +9197,16 @@ Metadata: %s`,
 		keyLabel := widget.NewLabel(key + ":")
 		keyLabel.TextStyle = fyne.TextStyle{Bold: true}
 		valueLabel := widget.NewLabel(value)
-		valueLabel.Wrapping = fyne.TextWrapWord
+		// Don't wrap metadata values - they're short and wrapping causes vertical text
 		return container.NewHBox(keyLabel, valueLabel)
 	}
 
-	// Filename gets its own full-width row to prevent overlap
-	fileRow := makeRow("File", src.DisplayName)
+	// Filename gets its own full-width VBox layout to prevent vertical text
+	fileKeyLabel := widget.NewLabel("File:")
+	fileKeyLabel.TextStyle = fyne.TextStyle{Bold: true}
+	fileValueLabel := widget.NewLabel(src.DisplayName)
+	fileValueLabel.Wrapping = fyne.TextWrapWord
+	fileRow := container.NewVBox(fileKeyLabel, fileValueLabel)
 
 	// Organize metadata into a compact two-column grid
 	col1 := container.NewVBox(
