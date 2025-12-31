@@ -5945,6 +5945,7 @@ func (s *appState) stopPlayer() {
 func main() {
 	logging.Init()
 	defer logging.Close()
+	defer logging.RecoverPanic() // Catch and log any panics with stack trace
 
 	flag.Parse()
 	logging.SetDebug(*debugFlag || os.Getenv("VIDEOTOOLS_DEBUG") != "")

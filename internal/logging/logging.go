@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"runtime/debug"
 	"time"
 )
 
@@ -79,4 +80,51 @@ func FilePath() string {
 // History returns the log history
 func History() []string {
 	return history
+}
+
+// Error logs an error message with a category (always logged, even when debug is off)
+func Error(cat Category, format string, args ...interface{}) {
+	msg := fmt.Sprintf("%s ERROR: %s", cat, fmt.Sprintf(format, args...))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+	}
+	history = append(history, fmt.Sprintf("%s %s", timestamp, msg))
+	if len(history) > historyMax {
+		history = history[len(history)-historyMax:]
+	}
+	logger.Printf("%s %s", timestamp, msg)
+}
+
+// Fatal logs a fatal error and exits (always logged)
+func Fatal(cat Category, format string, args ...interface{}) {
+	msg := fmt.Sprintf("%s FATAL: %s", cat, fmt.Sprintf(format, args...))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+		file.Sync()
+	}
+	logger.Printf("%s %s", timestamp, msg)
+	os.Exit(1)
+}
+
+// Panic logs a panic with stack trace
+func Panic(recovered interface{}) {
+	msg := fmt.Sprintf("%s PANIC: %v\nStack trace:\n%s", CatSystem, recovered, string(debug.Stack()))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+		file.Sync()
+	}
+	history = append(history, fmt.Sprintf("%s %s", timestamp, msg))
+	logger.Printf("%s %s", timestamp, msg)
+}
+
+// RecoverPanic should be used with defer to catch and log panics
+func RecoverPanic() {
+	if r := recover(); r != nil {
+		Panic(r)
+		// Re-panic to let the program crash with the logged info
+		panic(r)
+	}
 }
