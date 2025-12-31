@@ -9158,9 +9158,11 @@ Metadata: %s`,
 		return container.NewHBox(keyLabel, valueLabel)
 	}
 
+	// Filename gets its own full-width row to prevent overlap
+	fileRow := makeRow("File", src.DisplayName)
+
 	// Organize metadata into a compact two-column grid
 	col1 := container.NewVBox(
-		makeRow("File", src.DisplayName),
 		makeRow("Format", utils.FirstNonEmpty(src.Format, "Unknown")),
 		makeRow("Resolution", fmt.Sprintf("%dx%d", src.Width, src.Height)),
 		makeRow("Aspect Ratio", src.AspectRatioString()),
@@ -9187,7 +9189,10 @@ Metadata: %s`,
 
 	// Add spacing between the two columns
 	spacer := layout.NewSpacer()
-	info := container.NewHBox(col1, spacer, col2)
+	twoColGrid := container.NewHBox(col1, spacer, col2)
+
+	// Combine filename row with two-column grid
+	info := container.NewVBox(fileRow, twoColGrid)
 
 	// Copy metadata button - beside header text
 	copyBtn := widget.NewButton("📋", func() {
