@@ -8749,8 +8749,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetRow = container.NewHBox(snippetBtn, snippetOptionsBtn, layout.NewSpacer(), snippetHint)
 	}
 
-	// Stack video and metadata directly so metadata sits immediately under the player.
-	leftColumn := container.NewVBox(videoPanel, metaPanel)
+	// Stack video and metadata with 10px spacing between them
+	spacer := canvas.NewRectangle(color.Transparent)
+	spacer.SetMinSize(fyne.NewSize(0, 10))
+	leftColumn := container.NewVBox(videoPanel, spacer, metaPanel)
 
 	// Split: left side (video + metadata) takes 60% | right side (options) takes 40%
 	mainSplit := container.New(&fixedHSplitLayout{ratio: 0.6}, leftColumn, optionsPanel)
