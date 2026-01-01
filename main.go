@@ -87,7 +87,7 @@ var (
 		{"trim", "Trim", utils.MustHex("#F9A825"), "Convert", nil},                               // Dark Yellow/Gold (not implemented yet)
 		{"filters", "Filters", utils.MustHex("#00BCD4"), "Convert", modules.HandleFilters},       // Cyan (creative filters)
 		{"upscale", "Upscale", utils.MustHex("#9C27B0"), "Advanced", modules.HandleUpscale},      // Purple (AI/advanced)
-		{"audio", "Audio", utils.MustHex("#FF8F00"), "Convert", nil},                             // Dark Amber (not implemented yet)
+		{"audio", "Audio", utils.MustHex("#FF8F00"), "Convert", modules.HandleAudio}, // Dark Amber - audio extraction
 		{"author", "Author", utils.MustHex("#FF5722"), "Disc", modules.HandleAuthor},             // Deep Orange (authoring)
 		{"rip", "Rip", utils.MustHex("#FF9800"), "Disc", modules.HandleRip},                      // Orange (extraction)
 		{"bluray", "Blu-Ray", utils.MustHex("#2196F3"), "Disc", nil},                             // Blue (not implemented yet)
@@ -1009,6 +1009,26 @@ type appState struct {
 	subtitleBurnEnabled bool
 	subtitleCuesRefresh func()
 	subtitleTimeOffset  float64
+
+	// Audio module state
+	audioFile                 *videoSource
+	audioTracks               []audioTrackInfo
+	audioSelectedTracks       map[int]bool
+	audioOutputFormat         string
+	audioQuality              string
+	audioBitrate              string
+	audioNormalize            bool
+	audioNormTargetLUFS       float64
+	audioNormTruePeak         float64
+	audioOutputDir            string
+	audioBatchMode            bool
+	audioBatchFiles           []*videoSource
+	audioFileInfoLabel        *widget.Label
+	audioTrackListContainer   *fyne.Container
+	audioBitrateEntry         *widget.Entry
+	audioNormOptionsContainer *fyne.Container
+	audioStatusLabel          *widget.Label
+	audioProgressBar          *widget.ProgressBar
 }
 
 type mergeClip struct {
@@ -2732,6 +2752,8 @@ func (s *appState) showModule(id string) {
 		s.showFiltersView()
 	case "upscale":
 		s.showUpscaleView()
+	case "audio":
+		s.showAudioView()
 	case "author":
 		s.showAuthorView()
 	case "rip":
@@ -3769,7 +3791,7 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 	case queue.JobTypeUpscale:
 		return s.executeUpscaleJob(ctx, job, progressCallback)
 	case queue.JobTypeAudio:
-		return fmt.Errorf("audio jobs not yet implemented")
+		return s.executeAudioJob(ctx, job, progressCallback)
 	case queue.JobTypeThumb:
 		return s.executeThumbJob(ctx, job, progressCallback)
 	case queue.JobTypeSnippet:
@@ -6022,15 +6044,30 @@ func runGUI() {
 
 	logging.Debug(logging.CatUI, "window initialized at 800x600 (compact default), manual resizing enabled")
 
+	// Initialize audio module - load persisted config or use defaults
+	audioDefaults, err := loadAudioConfig()
+	if err != nil {
+		logging.Debug(logging.CatSystem, "failed to load audio config, using defaults: %v", err)
+		audioDefaults = defaultAudioConfig()
+	}
+
 	state := &appState{
-		window:        w,
-		convert:       defaultConvertConfig(),
-		mergeChapters: true,
-		player:        player.New(),
-		playerVolume:  100,
-		lastVolume:    100,
-		playerMuted:   false,
-		playerPaused:  true,
+		window:              w,
+		convert:             defaultConvertConfig(),
+		mergeChapters:       true,
+		player:              player.New(),
+		playerVolume:        100,
+		lastVolume:          100,
+		playerMuted:         false,
+		playerPaused:        true,
+		audioOutputFormat:   audioDefaults.OutputFormat,
+		audioQuality:        audioDefaults.Quality,
+		audioBitrate:        audioDefaults.Bitrate,
+		audioNormalize:      audioDefaults.Normalize,
+		audioNormTargetLUFS: audioDefaults.NormTargetLUFS,
+		audioNormTruePeak:   audioDefaults.NormTruePeak,
+		audioOutputDir:      audioDefaults.OutputDir,
+		audioSelectedTracks: make(map[int]bool),
 	}
 
 	if cfg, err := loadPersistedConvertConfig(); err == nil {
