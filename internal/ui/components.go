@@ -454,11 +454,11 @@ func (f *FastVScroll) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (f *FastVScroll) Scrolled(ev *fyne.ScrollEvent) {
-	// Multiply scroll speed by 8x for fast navigation without instability
+	// Multiply scroll speed by 12x for much faster navigation
 	fastEvent := &fyne.ScrollEvent{
 		Scrolled: fyne.Delta{
-			DX: ev.Scrolled.DX * 8.0,
-			DY: ev.Scrolled.DY * 8.0,
+			DX: ev.Scrolled.DX * 12.0,
+			DY: ev.Scrolled.DY * 12.0,
 		},
 	}
 	f.scroll.Scrolled(fastEvent)
