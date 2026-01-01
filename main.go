@@ -1029,6 +1029,10 @@ type appState struct {
 	audioNormOptionsContainer *fyne.Container
 	audioStatusLabel          *widget.Label
 	audioProgressBar          *widget.ProgressBar
+	audioBatchListContainer   *fyne.Container
+	audioLeftPanel            *fyne.Container
+	audioSingleContent        *fyne.Container
+	audioBatchContent         *fyne.Container
 }
 
 type mergeClip struct {

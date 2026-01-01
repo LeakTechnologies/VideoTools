@@ -146,7 +146,14 @@ func buildAudioLeftPanel(state *appState) fyne.CanvasObject {
 
 	dropZone := ui.NewDroppable(dropLabel, func(items []fyne.URI) {
 		if len(items) > 0 {
-			state.loadAudioFile(items[0].Path())
+			if state.audioBatchMode {
+				// Add all dropped files to batch
+				for _, item := range items {
+					state.addAudioBatchFile(item.Path())
+				}
+			} else {
+				state.loadAudioFile(items[0].Path())
+			}
 		}
 	})
 
@@ -154,13 +161,24 @@ func buildAudioLeftPanel(state *appState) fyne.CanvasObject {
 	dropContainer := container.NewPadded(dropZone)
 
 	browseBtn := widget.NewButton("Browse for Video", func() {
-		dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
-			if err != nil || uc == nil {
-				return
-			}
-			defer uc.Close()
-			state.loadAudioFile(uc.URI().Path())
-		}, state.window)
+		if state.audioBatchMode {
+			// Browse for multiple files
+			dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
+				if err != nil || uc == nil {
+					return
+				}
+				defer uc.Close()
+				state.addAudioBatchFile(uc.URI().Path())
+			}, state.window)
+		} else {
+			dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
+				if err != nil || uc == nil {
+					return
+				}
+				defer uc.Close()
+				state.loadAudioFile(uc.URI().Path())
+			}, state.window)
+		}
 	})
 
 	// File info display
@@ -194,7 +212,31 @@ func buildAudioLeftPanel(state *appState) fyne.CanvasObject {
 		state.refreshAudioView()
 	})
 
-	leftContent := container.NewVBox(
+	// Batch files list
+	batchFilesLabel := widget.NewLabel("Batch Files:")
+	batchFilesLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	batchListContainer := container.NewVBox()
+	state.audioBatchListContainer = batchListContainer
+
+	clearBatchBtn := widget.NewButton("Clear All", func() {
+		state.audioBatchFiles = nil
+		state.updateAudioBatchFilesList()
+	})
+	clearBatchBtn.Importance = widget.DangerImportance
+
+	batchContent := container.NewVBox(
+		dropContainer,
+		browseBtn,
+		widget.NewSeparator(),
+		batchFilesLabel,
+		container.NewVScroll(batchListContainer),
+		clearBatchBtn,
+		widget.NewSeparator(),
+		batchCheck,
+	)
+
+	singleContent := container.NewVBox(
 		dropContainer,
 		browseBtn,
 		widget.NewSeparator(),
@@ -206,6 +248,17 @@ func buildAudioLeftPanel(state *appState) fyne.CanvasObject {
 		widget.NewSeparator(),
 		batchCheck,
 	)
+
+	// Choose which content to show based on batch mode
+	leftContent := container.NewMax()
+	if state.audioBatchMode {
+		leftContent.Objects = []fyne.CanvasObject{batchContent}
+	} else {
+		leftContent.Objects = []fyne.CanvasObject{singleContent}
+	}
+	state.audioLeftPanel = leftContent
+	state.audioSingleContent = singleContent
+	state.audioBatchContent = batchContent
 
 	return leftContent
 }
@@ -532,8 +585,73 @@ func (s *appState) selectAllAudioTracks(selectAll bool) {
 }
 
 func (s *appState) refreshAudioView() {
-	// Rebuild the audio view
-	s.setContent(buildAudioView(s))
+	// Switch between single and batch UI
+	if s.audioLeftPanel != nil {
+		if s.audioBatchMode {
+			s.audioLeftPanel.Objects = []fyne.CanvasObject{s.audioBatchContent}
+			s.updateAudioBatchFilesList()
+		} else {
+			s.audioLeftPanel.Objects = []fyne.CanvasObject{s.audioSingleContent}
+			s.updateAudioFileInfo()
+			s.updateAudioTrackList()
+		}
+		s.audioLeftPanel.Refresh()
+	}
+}
+
+func (s *appState) addAudioBatchFile(path string) {
+	// Probe the file
+	src, err := probeVideo(path)
+	if err != nil {
+		logging.Debug(logging.CatUI, "failed to probe video for batch: %v", err)
+		dialog.ShowError(fmt.Errorf("Failed to load file: %v", err), s.window)
+		return
+	}
+
+	// Check for duplicate
+	for _, existing := range s.audioBatchFiles {
+		if existing.Path == path {
+			return // Already added
+		}
+	}
+
+	s.audioBatchFiles = append(s.audioBatchFiles, src)
+	s.updateAudioBatchFilesList()
+	logging.Debug(logging.CatUI, "added batch file: %s", path)
+}
+
+func (s *appState) removeAudioBatchFile(index int) {
+	if index >= 0 && index < len(s.audioBatchFiles) {
+		s.audioBatchFiles = append(s.audioBatchFiles[:index], s.audioBatchFiles[index+1:]...)
+		s.updateAudioBatchFilesList()
+	}
+}
+
+func (s *appState) updateAudioBatchFilesList() {
+	if s.audioBatchListContainer == nil {
+		return
+	}
+
+	s.audioBatchListContainer.Objects = nil
+
+	if len(s.audioBatchFiles) == 0 {
+		s.audioBatchListContainer.Add(widget.NewLabel("No files added"))
+	} else {
+		for i, src := range s.audioBatchFiles {
+			idx := i // Capture for closure
+			fileLabel := widget.NewLabel(fmt.Sprintf("%d. %s", i+1, src.DisplayName))
+			removeBtn := widget.NewButton("Remove", func() {
+				s.removeAudioBatchFile(idx)
+			})
+			removeBtn.Importance = widget.LowImportance
+
+			row := container.NewBorder(nil, nil, nil, removeBtn, fileLabel)
+			s.audioBatchListContainer.Add(row)
+		}
+		s.audioBatchListContainer.Add(widget.NewLabel(fmt.Sprintf("Total: %d files", len(s.audioBatchFiles))))
+	}
+
+	s.audioBatchListContainer.Refresh()
 }
 
 func (s *appState) updateAudioBitrateVisibility() {
@@ -589,25 +707,6 @@ func (s *appState) updateNormalizationVisibility() {
 }
 
 func (s *appState) startAudioExtraction(addToQueue bool) {
-	// Validate inputs
-	if s.audioFile == nil {
-		dialog.ShowError(fmt.Errorf("No file loaded"), s.window)
-		return
-	}
-
-	// Count selected tracks
-	selectedCount := 0
-	for _, selected := range s.audioSelectedTracks {
-		if selected {
-			selectedCount++
-		}
-	}
-
-	if selectedCount == 0 {
-		dialog.ShowError(fmt.Errorf("No audio tracks selected"), s.window)
-		return
-	}
-
 	// Get output directory
 	outputDir := s.audioOutputDir
 	if outputDir == "" {
@@ -621,50 +720,129 @@ func (s *appState) startAudioExtraction(addToQueue bool) {
 		return
 	}
 
-	// Create a job for each selected track
 	jobsCreated := 0
-	baseName := strings.TrimSuffix(filepath.Base(s.audioFile.Path), filepath.Ext(s.audioFile.Path))
 
-	for _, track := range s.audioTracks {
-		if !s.audioSelectedTracks[track.Index] {
-			continue
+	if s.audioBatchMode {
+		// Batch mode: process all batch files
+		if len(s.audioBatchFiles) == 0 {
+			dialog.ShowError(fmt.Errorf("No files added to batch"), s.window)
+			return
 		}
 
-		// Build output filename
-		ext := s.getAudioFileExtension()
-		langSuffix := ""
-		if track.Language != "" && track.Language != "und" {
-			langSuffix = "_" + track.Language
-		}
-		outputPath := filepath.Join(outputDir, fmt.Sprintf("%s_track%d%s.%s", baseName, track.Index, langSuffix, ext))
+		// For each file in batch, extract first audio track (or all tracks if we want to expand this later)
+		for _, src := range s.audioBatchFiles {
+			// Detect audio tracks for this file
+			tracks, err := s.probeAudioTracks(src.Path)
+			if err != nil {
+				logging.Debug(logging.CatUI, "failed to probe audio for %s: %v", src.Path, err)
+				continue
+			}
 
-		// Prepare job config
-		config := map[string]interface{}{
-			"trackIndex":   track.Index,
-			"format":       s.audioOutputFormat,
-			"quality":      s.audioQuality,
-			"bitrate":      s.audioBitrate,
-			"normalize":    s.audioNormalize,
-			"targetLUFS":   s.audioNormTargetLUFS,
-			"truePeak":     s.audioNormTruePeak,
+			if len(tracks) == 0 {
+				logging.Debug(logging.CatUI, "no audio tracks in %s", src.Path)
+				continue
+			}
+
+			// Extract first audio track (or all - configurable later)
+			baseName := strings.TrimSuffix(filepath.Base(src.Path), filepath.Ext(src.Path))
+			track := tracks[0] // Extract first track
+
+			ext := s.getAudioFileExtension()
+			langSuffix := ""
+			if track.Language != "" && track.Language != "und" {
+				langSuffix = "_" + track.Language
+			}
+			outputPath := filepath.Join(outputDir, fmt.Sprintf("%s_track%d%s.%s", baseName, track.Index, langSuffix, ext))
+
+			config := map[string]interface{}{
+				"trackIndex": track.Index,
+				"format":     s.audioOutputFormat,
+				"quality":    s.audioQuality,
+				"bitrate":    s.audioBitrate,
+				"normalize":  s.audioNormalize,
+				"targetLUFS": s.audioNormTargetLUFS,
+				"truePeak":   s.audioNormTruePeak,
+			}
+
+			job := &queue.Job{
+				Type:        queue.JobTypeAudio,
+				Title:       fmt.Sprintf("Extract Audio: %s", baseName),
+				Description: fmt.Sprintf("Track %d → %s", track.Index, filepath.Base(outputPath)),
+				InputFile:   src.Path,
+				OutputFile:  outputPath,
+				Config:      config,
+			}
+
+			if addToQueue {
+				s.jobQueue.Add(job)
+			} else {
+				s.jobQueue.AddNext(job)
+			}
+			jobsCreated++
+		}
+	} else {
+		// Single file mode
+		if s.audioFile == nil {
+			dialog.ShowError(fmt.Errorf("No file loaded"), s.window)
+			return
 		}
 
-		// Create job
-		job := &queue.Job{
-			Type:        queue.JobTypeAudio,
-			Title:       fmt.Sprintf("Extract Audio Track %d", track.Index),
-			Description: fmt.Sprintf("%s → %s", filepath.Base(s.audioFile.Path), filepath.Base(outputPath)),
-			InputFile:   s.audioFile.Path,
-			OutputFile:  outputPath,
-			Config:      config,
+		// Count selected tracks
+		selectedCount := 0
+		for _, selected := range s.audioSelectedTracks {
+			if selected {
+				selectedCount++
+			}
 		}
 
-		if addToQueue {
-			s.jobQueue.Add(job)
-		} else {
-			s.jobQueue.AddNext(job)
+		if selectedCount == 0 {
+			dialog.ShowError(fmt.Errorf("No audio tracks selected"), s.window)
+			return
 		}
-		jobsCreated++
+
+		baseName := strings.TrimSuffix(filepath.Base(s.audioFile.Path), filepath.Ext(s.audioFile.Path))
+
+		for _, track := range s.audioTracks {
+			if !s.audioSelectedTracks[track.Index] {
+				continue
+			}
+
+			// Build output filename
+			ext := s.getAudioFileExtension()
+			langSuffix := ""
+			if track.Language != "" && track.Language != "und" {
+				langSuffix = "_" + track.Language
+			}
+			outputPath := filepath.Join(outputDir, fmt.Sprintf("%s_track%d%s.%s", baseName, track.Index, langSuffix, ext))
+
+			// Prepare job config
+			config := map[string]interface{}{
+				"trackIndex": track.Index,
+				"format":     s.audioOutputFormat,
+				"quality":    s.audioQuality,
+				"bitrate":    s.audioBitrate,
+				"normalize":  s.audioNormalize,
+				"targetLUFS": s.audioNormTargetLUFS,
+				"truePeak":   s.audioNormTruePeak,
+			}
+
+			// Create job
+			job := &queue.Job{
+				Type:        queue.JobTypeAudio,
+				Title:       fmt.Sprintf("Extract Audio Track %d", track.Index),
+				Description: fmt.Sprintf("%s → %s", filepath.Base(s.audioFile.Path), filepath.Base(outputPath)),
+				InputFile:   s.audioFile.Path,
+				OutputFile:  outputPath,
+				Config:      config,
+			}
+
+			if addToQueue {
+				s.jobQueue.Add(job)
+			} else {
+				s.jobQueue.AddNext(job)
+			}
+			jobsCreated++
+		}
 	}
 
 	// Start queue if not already running
@@ -729,46 +907,164 @@ func (s *appState) executeAudioJob(ctx context.Context, job *queue.Job, progress
 	logging.Debug(logging.CatFFMPEG, "Audio extraction: track %d from %s to %s (format: %s, bitrate: %s, normalize: %v)",
 		trackIndex, inputPath, outputPath, format, bitrate, normalize)
 
-	// Build FFmpeg command
-	args := []string{
-		"-y", // Overwrite output
-		"-i", inputPath,
-		"-map", fmt.Sprintf("0:a:%d", trackIndex), // Select specific audio track
-	}
-
-	// Add codec and quality settings based on format
-	switch format {
-	case "MP3":
-		args = append(args, "-c:a", "libmp3lame")
-		if bitrate != "" {
-			args = append(args, "-b:a", bitrate)
-		}
-	case "AAC":
-		args = append(args, "-c:a", "aac")
-		if bitrate != "" {
-			args = append(args, "-b:a", bitrate)
-		}
-	case "FLAC":
-		args = append(args, "-c:a", "flac")
-		// FLAC is lossless, no bitrate
-	case "WAV":
-		args = append(args, "-c:a", "pcm_s16le")
-		// WAV is uncompressed, no bitrate
-	default:
-		return fmt.Errorf("unsupported audio format: %s", format)
-	}
-
-	// TODO: Add normalization support in later step
+	// If normalization is requested, do two-pass loudnorm
 	if normalize {
-		logging.Debug(logging.CatFFMPEG, "Normalization requested but not yet implemented, extracting without normalization")
+		targetLUFS := cfg["targetLUFS"].(float64)
+		truePeak := cfg["truePeak"].(float64)
+
+		logging.Debug(logging.CatFFMPEG, "Running two-pass loudnorm normalization (target LUFS: %.1f, true peak: %.1f)", targetLUFS, truePeak)
+
+		// Pass 1: Analyze audio
+		progressCallback(10.0)
+		normParams, err := s.analyzeLoudnorm(ctx, inputPath, trackIndex, targetLUFS, truePeak)
+		if err != nil {
+			return fmt.Errorf("loudnorm analysis failed: %w", err)
+		}
+
+		progressCallback(30.0)
+
+		// Pass 2: Apply normalization with measured values
+		if err := s.extractAudioWithNormalization(ctx, inputPath, outputPath, trackIndex, format, bitrate, targetLUFS, truePeak, normParams, progressCallback); err != nil {
+			return err
+		}
+	} else {
+		// Simple extraction without normalization
+		if err := s.extractAudioSimple(ctx, inputPath, outputPath, trackIndex, format, bitrate, progressCallback); err != nil {
+			return err
+		}
 	}
 
+	progressCallback(100.0)
+	logging.Debug(logging.CatFFMPEG, "Audio extraction completed: %s", outputPath)
+	return nil
+}
+
+// loudnormParams holds measured values from loudnorm analysis
+type loudnormParams struct {
+	MeasuredI      float64
+	MeasuredTP     float64
+	MeasuredLRA    float64
+	MeasuredThresh float64
+}
+
+// analyzeLoudnorm runs the first pass to analyze audio levels
+func (s *appState) analyzeLoudnorm(ctx context.Context, inputPath string, trackIndex int, targetI, targetTP float64) (*loudnormParams, error) {
+	args := []string{
+		"-i", inputPath,
+		"-map", fmt.Sprintf("0:a:%d", trackIndex),
+		"-af", fmt.Sprintf("loudnorm=I=%.1f:TP=%.1f:print_format=json", targetI, targetTP),
+		"-f", "null",
+		"-",
+	}
+
+	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	logging.Debug(logging.CatFFMPEG, "Loudnorm analysis: %s %v", platformConfig.FFmpegPath, args)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		logging.Debug(logging.CatFFMPEG, "Loudnorm analysis output: %s", string(output))
+		return nil, fmt.Errorf("loudnorm analysis failed: %w", err)
+	}
+
+	// Parse JSON output from loudnorm
+	// The output contains a JSON block at the end
+	outputStr := string(output)
+	jsonStart := strings.Index(outputStr, "{")
+	if jsonStart == -1 {
+		return nil, fmt.Errorf("no JSON output from loudnorm")
+	}
+
+	jsonData := outputStr[jsonStart:]
+	jsonEnd := strings.LastIndex(jsonData, "}")
+	if jsonEnd == -1 {
+		return nil, fmt.Errorf("malformed JSON output from loudnorm")
+	}
+	jsonData = jsonData[:jsonEnd+1]
+
+	var result struct {
+		InputI      string `json:"input_i"`
+		InputTP     string `json:"input_tp"`
+		InputLRA    string `json:"input_lra"`
+		InputThresh string `json:"input_thresh"`
+	}
+
+	if err := json.Unmarshal([]byte(jsonData), &result); err != nil {
+		logging.Debug(logging.CatFFMPEG, "Failed to parse JSON: %s", jsonData)
+		return nil, fmt.Errorf("failed to parse loudnorm JSON: %w", err)
+	}
+
+	params := &loudnormParams{}
+	params.MeasuredI, _ = strconv.ParseFloat(result.InputI, 64)
+	params.MeasuredTP, _ = strconv.ParseFloat(result.InputTP, 64)
+	params.MeasuredLRA, _ = strconv.ParseFloat(result.InputLRA, 64)
+	params.MeasuredThresh, _ = strconv.ParseFloat(result.InputThresh, 64)
+
+	logging.Debug(logging.CatFFMPEG, "Loudnorm measured: I=%.2f, TP=%.2f, LRA=%.2f, thresh=%.2f",
+		params.MeasuredI, params.MeasuredTP, params.MeasuredLRA, params.MeasuredThresh)
+
+	return params, nil
+}
+
+// extractAudioWithNormalization performs the second pass with normalization
+func (s *appState) extractAudioWithNormalization(ctx context.Context, inputPath, outputPath string, trackIndex int, format, bitrate string, targetI, targetTP float64, params *loudnormParams, progressCallback func(float64)) error {
+	args := []string{
+		"-y",
+		"-i", inputPath,
+		"-map", fmt.Sprintf("0:a:%d", trackIndex),
+		"-af", fmt.Sprintf("loudnorm=I=%.1f:TP=%.1f:measured_I=%.2f:measured_TP=%.2f:measured_LRA=%.2f:measured_thresh=%.2f",
+			targetI, targetTP, params.MeasuredI, params.MeasuredTP, params.MeasuredLRA, params.MeasuredThresh),
+	}
+
+	// Add codec settings
+	args = append(args, s.getAudioCodecArgs(format, bitrate)...)
 	args = append(args, outputPath)
 
-	// Execute FFmpeg
-	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	return s.runFFmpegExtraction(ctx, args, progressCallback, 30.0, 100.0)
+}
 
-	logging.Debug(logging.CatFFMPEG, "Running command: %s %v", platformConfig.FFmpegPath, args)
+// extractAudioSimple performs simple extraction without normalization
+func (s *appState) extractAudioSimple(ctx context.Context, inputPath, outputPath string, trackIndex int, format, bitrate string, progressCallback func(float64)) error {
+	args := []string{
+		"-y",
+		"-i", inputPath,
+		"-map", fmt.Sprintf("0:a:%d", trackIndex),
+	}
+
+	// Add codec settings
+	args = append(args, s.getAudioCodecArgs(format, bitrate)...)
+	args = append(args, outputPath)
+
+	return s.runFFmpegExtraction(ctx, args, progressCallback, 0.0, 100.0)
+}
+
+// getAudioCodecArgs returns codec-specific arguments
+func (s *appState) getAudioCodecArgs(format, bitrate string) []string {
+	switch format {
+	case "MP3":
+		args := []string{"-c:a", "libmp3lame"}
+		if bitrate != "" {
+			args = append(args, "-b:a", bitrate)
+		}
+		return args
+	case "AAC":
+		args := []string{"-c:a", "aac"}
+		if bitrate != "" {
+			args = append(args, "-b:a", bitrate)
+		}
+		return args
+	case "FLAC":
+		return []string{"-c:a", "flac"}
+	case "WAV":
+		return []string{"-c:a", "pcm_s16le"}
+	default:
+		return []string{"-c:a", "copy"}
+	}
+}
+
+// runFFmpegExtraction executes FFmpeg and reports progress
+func (s *appState) runFFmpegExtraction(ctx context.Context, args []string, progressCallback func(float64), startPct, endPct float64) error {
+	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	logging.Debug(logging.CatFFMPEG, "Running: %s %v", platformConfig.FFmpegPath, args)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -785,18 +1081,18 @@ func (s *appState) executeAudioJob(ctx context.Context, job *queue.Job, progress
 		line := scanner.Text()
 		logging.Debug(logging.CatFFMPEG, "FFmpeg: %s", line)
 
-		// Simple progress indication - report 50% while processing
+		// Report progress
 		if strings.Contains(line, "time=") {
-			progressCallback(50.0)
+			// Report midpoint between start and end
+			progressCallback(startPct + (endPct-startPct)/2)
 		}
 	}
 
 	if err := cmd.Wait(); err != nil {
-		return fmt.Errorf("FFmpeg extraction failed: %w", err)
+		return fmt.Errorf("FFmpeg failed: %w", err)
 	}
 
-	progressCallback(100.0)
-	logging.Debug(logging.CatFFMPEG, "Audio extraction completed: %s", outputPath)
+	progressCallback(endPct)
 	return nil
 }
 
