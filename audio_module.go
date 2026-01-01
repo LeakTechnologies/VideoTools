@@ -1,0 +1,808 @@
+package main
+
+import (
+	"bufio"
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+)
+
+// audioTrackInfo represents an audio track detected in a video
+type audioTrackInfo struct {
+	Index      int
+	Codec      string
+	Channels   int
+	SampleRate int
+	Bitrate    int
+	Language   string
+	Title      string
+	Default    bool
+}
+
+// audioConfig stores persistent audio extraction settings
+type audioConfig struct {
+	OutputFormat   string  `json:"outputFormat"`
+	Quality        string  `json:"quality"`
+	Bitrate        string  `json:"bitrate"`
+	Normalize      bool    `json:"normalize"`
+	NormTargetLUFS float64 `json:"normTargetLUFS"`
+	NormTruePeak   float64 `json:"normTruePeak"`
+	OutputDir      string  `json:"outputDir"`
+}
+
+// defaultAudioConfig returns default audio extraction settings
+func defaultAudioConfig() audioConfig {
+	return audioConfig{
+		OutputFormat:   "MP3",
+		Quality:        "Medium",
+		Bitrate:        "192k",
+		Normalize:      false,
+		NormTargetLUFS: -23.0,
+		NormTruePeak:   -1.0,
+		OutputDir:      "",
+	}
+}
+
+// audioConfigPath returns the path to the audio config file
+func audioConfigPath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil || configDir == "" {
+		home := os.Getenv("HOME")
+		if home != "" {
+			configDir = filepath.Join(home, ".config")
+		}
+	}
+	return filepath.Join(configDir, "VideoTools", "audio.json")
+}
+
+// loadAudioConfig loads the persisted audio configuration
+func loadAudioConfig() (audioConfig, error) {
+	var cfg audioConfig
+	path := audioConfigPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return defaultAudioConfig(), err
+	}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return defaultAudioConfig(), err
+	}
+	return cfg, nil
+}
+
+// saveAudioConfig saves the audio configuration to disk
+func saveAudioConfig(cfg audioConfig) error {
+	path := audioConfigPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
+}
+
+func buildAudioView(state *appState) fyne.CanvasObject {
+	audioColor := utils.MustHex("#FF8F00") // Dark Amber for audio
+
+	// Top bar with back button
+	backBtn := widget.NewButton("< AUDIO", func() {
+		state.showMainMenu()
+	})
+	backBtn.Importance = widget.LowImportance
+
+	topBar := ui.TintedBar(audioColor, container.NewHBox(backBtn, layout.NewSpacer()))
+
+	// Left panel - File selection and track list
+	leftPanel := buildAudioLeftPanel(state)
+
+	// Right panel - Extraction settings
+	rightPanel := buildAudioRightPanel(state)
+
+	// Main content split
+	mainSplit := container.New(&fixedHSplitLayout{ratio: 0.5}, leftPanel, rightPanel)
+
+	// Action buttons
+	extractBtn := widget.NewButton("Extract Now", func() {
+		state.startAudioExtraction(false)
+	})
+	extractBtn.Importance = widget.HighImportance
+
+	queueBtn := widget.NewButton("Add to Queue", func() {
+		state.startAudioExtraction(true)
+	})
+
+	actionBar := container.NewHBox(
+		layout.NewSpacer(),
+		extractBtn,
+		queueBtn,
+	)
+
+	bottomBar := moduleFooter(audioColor, actionBar, state.statsBar)
+
+	return container.NewBorder(topBar, bottomBar, nil, nil, mainSplit)
+}
+
+func buildAudioLeftPanel(state *appState) fyne.CanvasObject {
+	// Drop zone for video files
+	dropLabel := widget.NewLabel("Drop video file here or click to browse")
+	dropLabel.Alignment = fyne.TextAlignCenter
+
+	dropZone := ui.NewDroppable(dropLabel, func(items []fyne.URI) {
+		if len(items) > 0 {
+			state.loadAudioFile(items[0].Path())
+		}
+	})
+
+	// Wrap drop zone in container with minimum size
+	dropContainer := container.NewPadded(dropZone)
+
+	browseBtn := widget.NewButton("Browse for Video", func() {
+		dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
+			if err != nil || uc == nil {
+				return
+			}
+			defer uc.Close()
+			state.loadAudioFile(uc.URI().Path())
+		}, state.window)
+	})
+
+	// File info display
+	fileInfoLabel := widget.NewLabel("No file loaded")
+	fileInfoLabel.Wrapping = fyne.TextWrapWord
+	state.audioFileInfoLabel = fileInfoLabel
+
+	// Track list
+	trackListLabel := widget.NewLabel("Audio Tracks:")
+	trackListLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	trackListContainer := container.NewVBox()
+	state.audioTrackListContainer = trackListContainer
+
+	// Select all/deselect all buttons
+	selectAllBtn := widget.NewButton("Select All", func() {
+		state.selectAllAudioTracks(true)
+	})
+	selectAllBtn.Importance = widget.LowImportance
+
+	deselectAllBtn := widget.NewButton("Deselect All", func() {
+		state.selectAllAudioTracks(false)
+	})
+	deselectAllBtn.Importance = widget.LowImportance
+
+	trackControls := container.NewHBox(selectAllBtn, deselectAllBtn)
+
+	// Batch mode toggle
+	batchCheck := widget.NewCheck("Batch Mode (multiple videos)", func(checked bool) {
+		state.audioBatchMode = checked
+		state.refreshAudioView()
+	})
+
+	leftContent := container.NewVBox(
+		dropContainer,
+		browseBtn,
+		widget.NewSeparator(),
+		fileInfoLabel,
+		widget.NewSeparator(),
+		trackListLabel,
+		trackControls,
+		container.NewVScroll(trackListContainer),
+		widget.NewSeparator(),
+		batchCheck,
+	)
+
+	return leftContent
+}
+
+func buildAudioRightPanel(state *appState) fyne.CanvasObject {
+	// Output format selection
+	formatLabel := widget.NewLabel("Output Format:")
+	formatLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	formatRadio := widget.NewRadioGroup([]string{"MP3", "AAC", "FLAC", "WAV"}, func(value string) {
+		state.audioOutputFormat = value
+		state.updateAudioBitrateVisibility()
+		state.persistAudioConfig()
+	})
+	formatRadio.Horizontal = true
+	formatRadio.SetSelected(state.audioOutputFormat)
+
+	// Quality preset
+	qualityLabel := widget.NewLabel("Quality Preset:")
+	qualityLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	qualitySelect := widget.NewSelect([]string{"Low", "Medium", "High", "Lossless"}, func(value string) {
+		state.audioQuality = value
+		state.updateAudioBitrateFromQuality()
+		state.persistAudioConfig()
+	})
+	qualitySelect.SetSelected(state.audioQuality)
+
+	// Bitrate entry
+	bitrateLabel := widget.NewLabel("Bitrate:")
+	bitrateEntry := widget.NewEntry()
+	bitrateEntry.SetText(state.audioBitrate)
+	bitrateEntry.OnChanged = func(value string) {
+		state.audioBitrate = value
+		state.persistAudioConfig()
+	}
+	state.audioBitrateEntry = bitrateEntry
+
+	// Normalization section
+	normalizeCheck := widget.NewCheck("Apply EBU R128 Normalization", func(checked bool) {
+		state.audioNormalize = checked
+		state.updateNormalizationVisibility()
+		state.persistAudioConfig()
+	})
+	normalizeCheck.SetChecked(state.audioNormalize)
+
+	// Normalization options
+	lufsLabel := widget.NewLabel(fmt.Sprintf("Target LUFS: %.1f", state.audioNormTargetLUFS))
+	lufsSlider := widget.NewSlider(-30, -10)
+	lufsSlider.SetValue(state.audioNormTargetLUFS)
+	lufsSlider.Step = 0.5
+	lufsSlider.OnChanged = func(value float64) {
+		state.audioNormTargetLUFS = value
+		lufsLabel.SetText(fmt.Sprintf("Target LUFS: %.1f", value))
+		state.persistAudioConfig()
+	}
+
+	peakLabel := widget.NewLabel(fmt.Sprintf("True Peak: %.1f dB", state.audioNormTruePeak))
+	peakSlider := widget.NewSlider(-3, 0)
+	peakSlider.SetValue(state.audioNormTruePeak)
+	peakSlider.Step = 0.1
+	peakSlider.OnChanged = func(value float64) {
+		state.audioNormTruePeak = value
+		peakLabel.SetText(fmt.Sprintf("True Peak: %.1f dB", value))
+		state.persistAudioConfig()
+	}
+
+	normOptions := container.NewVBox(
+		lufsLabel,
+		lufsSlider,
+		peakLabel,
+		peakSlider,
+	)
+	state.audioNormOptionsContainer = normOptions
+
+	// Output directory
+	outputDirLabel := widget.NewLabel("Output Directory:")
+	outputDirLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	outputDirEntry := widget.NewEntry()
+	if state.audioOutputDir == "" {
+		home, _ := os.UserHomeDir()
+		state.audioOutputDir = filepath.Join(home, "Music", "VideoTools", "AudioExtract")
+	}
+	outputDirEntry.SetText(state.audioOutputDir)
+	outputDirEntry.OnChanged = func(value string) {
+		state.audioOutputDir = value
+		state.persistAudioConfig()
+	}
+
+	outputDirBrowseBtn := widget.NewButton("Browse", func() {
+		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
+			if err != nil || uri == nil {
+				return
+			}
+			state.audioOutputDir = uri.Path()
+			outputDirEntry.SetText(uri.Path())
+			state.persistAudioConfig()
+		}, state.window)
+	})
+
+	outputDirRow := container.NewBorder(nil, nil, nil, outputDirBrowseBtn, outputDirEntry)
+
+	// Status and progress
+	statusLabel := widget.NewLabel("Ready")
+	state.audioStatusLabel = statusLabel
+
+	progressBar := widget.NewProgressBar()
+	progressBar.Hide()
+	state.audioProgressBar = progressBar
+
+	rightContent := container.NewVBox(
+		formatLabel,
+		formatRadio,
+		widget.NewSeparator(),
+		qualityLabel,
+		qualitySelect,
+		widget.NewSeparator(),
+		bitrateLabel,
+		bitrateEntry,
+		widget.NewSeparator(),
+		normalizeCheck,
+		normOptions,
+		widget.NewSeparator(),
+		outputDirLabel,
+		outputDirRow,
+		widget.NewSeparator(),
+		statusLabel,
+		progressBar,
+	)
+
+	scrollable := ui.NewFastVScroll(rightContent)
+	return scrollable
+}
+
+// Helper functions for audio module state
+
+// probeAudioTracks detects all audio tracks in a video file
+func (s *appState) probeAudioTracks(path string) ([]audioTrackInfo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, platformConfig.FFprobePath,
+		"-v", "quiet",
+		"-print_format", "json",
+		"-show_streams",
+		"-select_streams", "a",
+		path,
+	)
+
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("ffprobe failed: %w", err)
+	}
+
+	var result struct {
+		Streams []struct {
+			Index       int    `json:"index"`
+			CodecName   string `json:"codec_name"`
+			Channels    int    `json:"channels"`
+			SampleRate  string `json:"sample_rate"`
+			BitRate     string `json:"bit_rate"`
+			Tags        map[string]interface{} `json:"tags"`
+			Disposition struct {
+				Default int `json:"default"`
+			} `json:"disposition"`
+		} `json:"streams"`
+	}
+
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse ffprobe output: %w", err)
+	}
+
+	var tracks []audioTrackInfo
+	for _, stream := range result.Streams {
+		track := audioTrackInfo{
+			Index:    stream.Index,
+			Codec:    stream.CodecName,
+			Channels: stream.Channels,
+			Default:  stream.Disposition.Default == 1,
+		}
+
+		// Parse sample rate
+		if sampleRate, err := strconv.Atoi(stream.SampleRate); err == nil {
+			track.SampleRate = sampleRate
+		}
+
+		// Parse bitrate
+		if bitrate, err := strconv.Atoi(stream.BitRate); err == nil {
+			track.Bitrate = bitrate
+		}
+
+		// Extract language from tags
+		if lang, ok := stream.Tags["language"].(string); ok {
+			track.Language = lang
+		}
+
+		// Extract title from tags
+		if title, ok := stream.Tags["title"].(string); ok {
+			track.Title = title
+		}
+
+		tracks = append(tracks, track)
+	}
+
+	return tracks, nil
+}
+
+func (s *appState) loadAudioFile(path string) {
+	logging.Debug(logging.CatUI, "loading audio file: %s", path)
+	s.audioFileInfoLabel.SetText("Loading: " + filepath.Base(path))
+
+	// Probe the file for metadata
+	src, err := probeVideo(path)
+	if err != nil {
+		logging.Debug(logging.CatUI, "failed to probe video: %v", err)
+		dialog.ShowError(fmt.Errorf("Failed to load file: %v", err), s.window)
+		s.audioFileInfoLabel.SetText("Failed to load file")
+		return
+	}
+
+	s.audioFile = src
+
+	// Detect audio tracks
+	tracks, err := s.probeAudioTracks(path)
+	if err != nil {
+		logging.Debug(logging.CatUI, "failed to probe audio tracks: %v", err)
+		dialog.ShowError(fmt.Errorf("Failed to detect audio tracks: %v", err), s.window)
+		s.audioFileInfoLabel.SetText("Failed to detect audio tracks")
+		return
+	}
+
+	if len(tracks) == 0 {
+		dialog.ShowInformation("No Audio", "This file does not contain any audio tracks.", s.window)
+		s.audioFileInfoLabel.SetText("No audio tracks found")
+		return
+	}
+
+	s.audioTracks = tracks
+	s.audioSelectedTracks = make(map[int]bool)
+
+	// Auto-select all tracks by default
+	for _, track := range tracks {
+		s.audioSelectedTracks[track.Index] = true
+	}
+
+	// Update UI
+	s.updateAudioFileInfo()
+	s.updateAudioTrackList()
+	logging.Debug(logging.CatUI, "loaded %d audio tracks from %s", len(tracks), filepath.Base(path))
+}
+
+func (s *appState) updateAudioFileInfo() {
+	if s.audioFile == nil {
+		s.audioFileInfoLabel.SetText("No file loaded")
+		return
+	}
+
+	info := fmt.Sprintf("File: %s\nDuration: %s\nFormat: %s",
+		s.audioFile.DisplayName,
+		formatShortDuration(s.audioFile.Duration),
+		s.audioFile.Format,
+	)
+	s.audioFileInfoLabel.SetText(info)
+}
+
+func (s *appState) updateAudioTrackList() {
+	s.audioTrackListContainer.Objects = nil
+
+	for _, track := range s.audioTracks {
+		trackCopy := track // Capture for closure
+
+		// Format track info
+		channelStr := fmt.Sprintf("%dch", track.Channels)
+		if track.Channels == 1 {
+			channelStr = "Mono"
+		} else if track.Channels == 2 {
+			channelStr = "Stereo"
+		} else if track.Channels == 6 {
+			channelStr = "5.1"
+		}
+
+		sampleRateStr := fmt.Sprintf("%d Hz", track.SampleRate)
+		bitrateStr := ""
+		if track.Bitrate > 0 {
+			bitrateStr = fmt.Sprintf("%d kbps", track.Bitrate/1000)
+		}
+
+		trackLabel := fmt.Sprintf("[Track %d] %s %s %s",
+			track.Index,
+			track.Codec,
+			channelStr,
+			sampleRateStr,
+		)
+
+		if bitrateStr != "" {
+			trackLabel += " " + bitrateStr
+		}
+
+		if track.Language != "" {
+			trackLabel += fmt.Sprintf(" (%s)", track.Language)
+		}
+
+		if track.Title != "" {
+			trackLabel += fmt.Sprintf(" - %s", track.Title)
+		}
+
+		check := widget.NewCheck(trackLabel, func(checked bool) {
+			s.audioSelectedTracks[trackCopy.Index] = checked
+		})
+		check.SetChecked(s.audioSelectedTracks[trackCopy.Index])
+
+		s.audioTrackListContainer.Add(check)
+	}
+
+	s.audioTrackListContainer.Refresh()
+}
+
+func (s *appState) selectAllAudioTracks(selectAll bool) {
+	for _, track := range s.audioTracks {
+		s.audioSelectedTracks[track.Index] = selectAll
+	}
+	s.updateAudioTrackList()
+}
+
+func (s *appState) refreshAudioView() {
+	// Rebuild the audio view
+	s.setContent(buildAudioView(s))
+}
+
+func (s *appState) updateAudioBitrateVisibility() {
+	// Hide bitrate entry for lossless formats
+	if s.audioOutputFormat == "FLAC" || s.audioOutputFormat == "WAV" {
+		s.audioBitrateEntry.Disable()
+	} else {
+		s.audioBitrateEntry.Enable()
+	}
+}
+
+func (s *appState) updateAudioBitrateFromQuality() {
+	// Update bitrate based on quality preset
+	bitrateMap := map[string]map[string]string{
+		"MP3": {
+			"Low":      "128k",
+			"Medium":   "192k",
+			"High":     "256k",
+			"Lossless": "320k",
+		},
+		"AAC": {
+			"Low":      "128k",
+			"Medium":   "192k",
+			"High":     "256k",
+			"Lossless": "256k",
+		},
+		"FLAC": {
+			"Low":      "",
+			"Medium":   "",
+			"High":     "",
+			"Lossless": "",
+		},
+		"WAV": {
+			"Low":      "",
+			"Medium":   "",
+			"High":     "",
+			"Lossless": "",
+		},
+	}
+
+	if bitrate, ok := bitrateMap[s.audioOutputFormat][s.audioQuality]; ok {
+		s.audioBitrate = bitrate
+		s.audioBitrateEntry.SetText(bitrate)
+	}
+}
+
+func (s *appState) updateNormalizationVisibility() {
+	if s.audioNormalize {
+		s.audioNormOptionsContainer.Show()
+	} else {
+		s.audioNormOptionsContainer.Hide()
+	}
+}
+
+func (s *appState) startAudioExtraction(addToQueue bool) {
+	// Validate inputs
+	if s.audioFile == nil {
+		dialog.ShowError(fmt.Errorf("No file loaded"), s.window)
+		return
+	}
+
+	// Count selected tracks
+	selectedCount := 0
+	for _, selected := range s.audioSelectedTracks {
+		if selected {
+			selectedCount++
+		}
+	}
+
+	if selectedCount == 0 {
+		dialog.ShowError(fmt.Errorf("No audio tracks selected"), s.window)
+		return
+	}
+
+	// Get output directory
+	outputDir := s.audioOutputDir
+	if outputDir == "" {
+		homeDir, _ := os.UserHomeDir()
+		outputDir = filepath.Join(homeDir, "Music", "VideoTools", "AudioExtract")
+	}
+
+	// Create output directory if it doesn't exist
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		dialog.ShowError(fmt.Errorf("Failed to create output directory: %v", err), s.window)
+		return
+	}
+
+	// Create a job for each selected track
+	jobsCreated := 0
+	baseName := strings.TrimSuffix(filepath.Base(s.audioFile.Path), filepath.Ext(s.audioFile.Path))
+
+	for _, track := range s.audioTracks {
+		if !s.audioSelectedTracks[track.Index] {
+			continue
+		}
+
+		// Build output filename
+		ext := s.getAudioFileExtension()
+		langSuffix := ""
+		if track.Language != "" && track.Language != "und" {
+			langSuffix = "_" + track.Language
+		}
+		outputPath := filepath.Join(outputDir, fmt.Sprintf("%s_track%d%s.%s", baseName, track.Index, langSuffix, ext))
+
+		// Prepare job config
+		config := map[string]interface{}{
+			"trackIndex":   track.Index,
+			"format":       s.audioOutputFormat,
+			"quality":      s.audioQuality,
+			"bitrate":      s.audioBitrate,
+			"normalize":    s.audioNormalize,
+			"targetLUFS":   s.audioNormTargetLUFS,
+			"truePeak":     s.audioNormTruePeak,
+		}
+
+		// Create job
+		job := &queue.Job{
+			Type:        queue.JobTypeAudio,
+			Title:       fmt.Sprintf("Extract Audio Track %d", track.Index),
+			Description: fmt.Sprintf("%s → %s", filepath.Base(s.audioFile.Path), filepath.Base(outputPath)),
+			InputFile:   s.audioFile.Path,
+			OutputFile:  outputPath,
+			Config:      config,
+		}
+
+		if addToQueue {
+			s.jobQueue.Add(job)
+		} else {
+			s.jobQueue.AddNext(job)
+		}
+		jobsCreated++
+	}
+
+	// Start queue if not already running
+	if !s.jobQueue.IsRunning() {
+		s.jobQueue.Start()
+	}
+
+	// Update status
+	s.audioStatusLabel.SetText(fmt.Sprintf("Queued %d extraction job(s)", jobsCreated))
+
+	// Navigate to queue view if starting immediately
+	if !addToQueue {
+		s.showQueue()
+	}
+}
+
+func (s *appState) getAudioFileExtension() string {
+	switch s.audioOutputFormat {
+	case "MP3":
+		return "mp3"
+	case "AAC":
+		return "m4a"
+	case "FLAC":
+		return "flac"
+	case "WAV":
+		return "wav"
+	default:
+		return "mp3"
+	}
+}
+
+func (s *appState) persistAudioConfig() {
+	cfg := audioConfig{
+		OutputFormat:   s.audioOutputFormat,
+		Quality:        s.audioQuality,
+		Bitrate:        s.audioBitrate,
+		Normalize:      s.audioNormalize,
+		NormTargetLUFS: s.audioNormTargetLUFS,
+		NormTruePeak:   s.audioNormTruePeak,
+		OutputDir:      s.audioOutputDir,
+	}
+	if err := saveAudioConfig(cfg); err != nil {
+		logging.Debug(logging.CatSystem, "failed to persist audio config: %v", err)
+	}
+}
+
+func (s *appState) executeAudioJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
+	cfg := job.Config
+	if cfg == nil {
+		return fmt.Errorf("audio job config missing")
+	}
+
+	// Extract config
+	trackIndex := int(cfg["trackIndex"].(float64))
+	format := cfg["format"].(string)
+	bitrate := cfg["bitrate"].(string)
+	normalize := cfg["normalize"].(bool)
+
+	inputPath := job.InputFile
+	outputPath := job.OutputFile
+
+	logging.Debug(logging.CatFFMPEG, "Audio extraction: track %d from %s to %s (format: %s, bitrate: %s, normalize: %v)",
+		trackIndex, inputPath, outputPath, format, bitrate, normalize)
+
+	// Build FFmpeg command
+	args := []string{
+		"-y", // Overwrite output
+		"-i", inputPath,
+		"-map", fmt.Sprintf("0:a:%d", trackIndex), // Select specific audio track
+	}
+
+	// Add codec and quality settings based on format
+	switch format {
+	case "MP3":
+		args = append(args, "-c:a", "libmp3lame")
+		if bitrate != "" {
+			args = append(args, "-b:a", bitrate)
+		}
+	case "AAC":
+		args = append(args, "-c:a", "aac")
+		if bitrate != "" {
+			args = append(args, "-b:a", bitrate)
+		}
+	case "FLAC":
+		args = append(args, "-c:a", "flac")
+		// FLAC is lossless, no bitrate
+	case "WAV":
+		args = append(args, "-c:a", "pcm_s16le")
+		// WAV is uncompressed, no bitrate
+	default:
+		return fmt.Errorf("unsupported audio format: %s", format)
+	}
+
+	// TODO: Add normalization support in later step
+	if normalize {
+		logging.Debug(logging.CatFFMPEG, "Normalization requested but not yet implemented, extracting without normalization")
+	}
+
+	args = append(args, outputPath)
+
+	// Execute FFmpeg
+	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+
+	logging.Debug(logging.CatFFMPEG, "Running command: %s %v", platformConfig.FFmpegPath, args)
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stderr pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start FFmpeg: %w", err)
+	}
+
+	// Parse FFmpeg output for progress
+	scanner := bufio.NewScanner(stderr)
+	for scanner.Scan() {
+		line := scanner.Text()
+		logging.Debug(logging.CatFFMPEG, "FFmpeg: %s", line)
+
+		// Simple progress indication - report 50% while processing
+		if strings.Contains(line, "time=") {
+			progressCallback(50.0)
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("FFmpeg extraction failed: %w", err)
+	}
+
+	progressCallback(100.0)
+	logging.Debug(logging.CatFFMPEG, "Audio extraction completed: %s", outputPath)
+	return nil
+}
+
+func (s *appState) showAudioView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "audio"
+	s.setContent(buildAudioView(s))
+}
