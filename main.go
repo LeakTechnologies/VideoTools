@@ -8750,8 +8750,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Stack video and metadata with 10px spacing between them
+	// Create a 10px spacer
 	spacer := canvas.NewRectangle(color.Transparent)
-	spacer.SetMinSize(fyne.NewSize(0, 10))
+	spacer.SetMinSize(fyne.NewSize(1, 10))
+
 	leftColumn := container.NewVBox(videoPanel, spacer, metaPanel)
 
 	// Split: left side (video + metadata) takes 60% | right side (options) takes 40%
