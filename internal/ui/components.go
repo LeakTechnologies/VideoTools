@@ -998,3 +998,16 @@ func ColoredDivider(accentColor color.Color) fyne.CanvasObject {
 	divider.SetMinSize(fyne.NewSize(0, 2))
 	return divider
 }
+
+// NewColorCodedSelectContainer wraps a Select widget with a colored left border
+// The colored border visually indicates the category/type of the selection
+// Returns a container with the border and a pointer to the border rectangle for color updates
+func NewColorCodedSelectContainer(selectWidget *widget.Select, accentColor color.Color) (*fyne.Container, *canvas.Rectangle) {
+	// Create colored left border rectangle
+	border := canvas.NewRectangle(accentColor)
+	border.SetMinSize(fyne.NewSize(4, 44))
+
+	// Return container with [ColoredBorder][Select] and the border for future updates
+	container := container.NewBorder(nil, nil, border, nil, selectWidget)
+	return container, border
+}

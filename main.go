@@ -6972,15 +6972,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Cover art display on one line
 	coverDisplay = widget.NewLabel("Cover Art: " + state.convert.CoverLabel())
 
-	// Create video codec badge with semantic color
-	videoCodecBadgeContainer := container.NewMax()
-	updateVideoCodecBadge := func(codecName string) {
-		videoCodecBadgeContainer.Objects = []fyne.CanvasObject{buildVideoCodecBadge(codecName)}
-		videoCodecBadgeContainer.Refresh()
-	}
+	// Create video codec select widget with color-coded left border
+	videoCodecSelect := widget.NewSelect([]string{"H.264", "H.265", "VP9", "AV1", "MPEG-2", "Copy"}, nil) // Callback set below
 
-	// Video Codec selection
-	videoCodecSelect := widget.NewSelect([]string{"H.264", "H.265", "VP9", "AV1", "MPEG-2", "Copy"}, func(value string) {
+	// Get initial color for selected video codec
+	initialVideoCodecColor := ui.GetVideoCodecColor(state.convert.VideoCodec)
+
+	// Wrap in color-coded container
+	videoCodecContainer, videoCodecBorder := ui.NewColorCodedSelectContainer(videoCodecSelect, initialVideoCodecColor)
+
+	// Set video codec select callback (now that we have videoCodecBorder reference)
+	videoCodecSelect.OnChanged = func(value string) {
 		state.convert.VideoCodec = value
 		logging.Debug(logging.CatUI, "video codec set to %s", value)
 		if updateQualityOptions != nil {
@@ -6995,10 +6997,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-			updateVideoCodecBadge(value)
-	})
+
+		// Update border color to match new codec
+		newColor := ui.GetVideoCodecColor(value)
+		videoCodecBorder.FillColor = newColor
+		videoCodecBorder.Refresh()
+	}
 	videoCodecSelect.SetSelected(state.convert.VideoCodec)
-	updateVideoCodecBadge(state.convert.VideoCodec)
 
 	// Map format preset codec names to the UI-facing codec selector value
 	mapFormatCodec := func(codec string) string {
@@ -7035,14 +7040,32 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	// Create format badge with semantic color
-	formatBadgeContainer := container.NewMax()
-	updateFormatBadge := func(label string) {
-		formatBadgeContainer.Objects = []fyne.CanvasObject{buildFormatBadge(label)}
-		formatBadgeContainer.Refresh()
+	// Create format select widget with color-coded left border
+	formatSelect := widget.NewSelect(formatLabels, nil) // Callback set below
+
+	// Parse format name from label (e.g., "MKV (AV1)" -> "mkv")
+	parseFormat := func(label string) string {
+		// Extract container format from label
+		parts := strings.Split(label, " ")
+		if len(parts) > 0 {
+			format := strings.ToLower(parts[0])
+			// Special case: "REMUX" should use remux color
+			if strings.Contains(strings.ToUpper(label), "REMUX") {
+				return "remux"
+			}
+			return format
+		}
+		return "mp4" // fallback
 	}
-	updateFormatBadge(state.convert.SelectedFormat.Label)
-	formatSelect := widget.NewSelect(formatLabels, func(value string) {
+
+	// Get initial color for selected format
+	initialFormatColor := ui.GetContainerColor(parseFormat(state.convert.SelectedFormat.Label))
+
+	// Wrap in color-coded container
+	formatContainer, formatBorder := ui.NewColorCodedSelectContainer(formatSelect, initialFormatColor)
+
+	// Set format select callback (now that we have formatBorder reference)
+	formatSelect.OnChanged = func(value string) {
 		for _, opt := range formatOptions {
 			if opt.Label == value {
 				logging.Debug(logging.CatUI, "format set to %s", value)
@@ -7076,11 +7099,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				if buildCommandPreview != nil {
 					buildCommandPreview()
 				}
-				updateFormatBadge(value)
+
+				// Update border color to match new format
+				newColor := ui.GetContainerColor(parseFormat(value))
+				formatBorder.FillColor = newColor
+				formatBorder.Refresh()
 				break
 			}
 		}
-	})
+	}
 	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
 
 	updateChapterWarning() // Initial visibility
@@ -8038,21 +8065,26 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	twoPassCheck.Checked = state.convert.TwoPass
 
-	// Create audio codec badge with semantic color
-	audioCodecBadgeContainer := container.NewMax()
-	updateAudioCodecBadge := func(codecName string) {
-		audioCodecBadgeContainer.Objects = []fyne.CanvasObject{buildAudioCodecBadge(codecName)}
-		audioCodecBadgeContainer.Refresh()
-	}
+	// Create audio codec select widget with color-coded left border
+	audioCodecSelect = widget.NewSelect([]string{"AAC", "Opus", "MP3", "FLAC", "Copy"}, nil) // Callback set below
 
-	// Audio Codec
-	audioCodecSelect = widget.NewSelect([]string{"AAC", "Opus", "MP3", "FLAC", "Copy"}, func(value string) {
+	// Get initial color for selected audio codec
+	initialAudioCodecColor := ui.GetAudioCodecColor(state.convert.AudioCodec)
+
+	// Wrap in color-coded container
+	audioCodecContainer, audioCodecBorder := ui.NewColorCodedSelectContainer(audioCodecSelect, initialAudioCodecColor)
+
+	// Set audio codec select callback (now that we have audioCodecBorder reference)
+	audioCodecSelect.OnChanged = func(value string) {
 		state.convert.AudioCodec = value
 		logging.Debug(logging.CatUI, "audio codec set to %s", value)
-		updateAudioCodecBadge(value)
-	})
+
+		// Update border color to match new codec
+		newColor := ui.GetAudioCodecColor(value)
+		audioCodecBorder.FillColor = newColor
+		audioCodecBorder.Refresh()
+	}
 	audioCodecSelect.SetSelected(state.convert.AudioCodec)
-	updateAudioCodecBadge(state.convert.AudioCodec)
 
 	// Audio Bitrate
 	audioBitrateSelect := widget.NewSelect([]string{"128k", "192k", "256k", "320k"}, func(value string) {
@@ -8334,7 +8366,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	simpleOptions := container.NewVBox(
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewHBox(formatSelect, formatBadgeContainer),
+		formatContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox,        // DVD options appear here when DVD format selected
@@ -8359,7 +8391,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	advancedVideoEncodingBlock = container.NewVBox(
 		widget.NewLabelWithStyle("═══ VIDEO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Video Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewHBox(videoCodecSelect, videoCodecBadgeContainer),
+		videoCodecContainer,
 		widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		encoderPresetSelect,
 		encoderPresetHintContainer,
@@ -8387,7 +8419,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	audioEncodingSection = container.NewVBox(
 		widget.NewLabelWithStyle("═══ AUDIO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Audio Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewHBox(audioCodecSelect, audioCodecBadgeContainer),
+		audioCodecContainer,
 		widget.NewLabelWithStyle("Audio Bitrate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioBitrateSelect,
 		widget.NewLabelWithStyle("Audio Channels", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -8397,7 +8429,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	advancedOptions := container.NewVBox(
 		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewHBox(formatSelect, formatBadgeContainer),
+		formatContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox,        // DVD options appear here when DVD format selected
