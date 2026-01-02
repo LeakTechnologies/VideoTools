@@ -5030,8 +5030,34 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 
 			if strings.Contains(videoCodec, "x264") || strings.Contains(videoCodec, "x265") {
 				args = append(args, "-preset", preset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
-			} else if strings.Contains(videoCodec, "vp9") || strings.Contains(videoCodec, "av1") {
+			} else if strings.Contains(videoCodec, "vp9") {
 				args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
+			} else if strings.Contains(videoCodec, "av1") || strings.Contains(videoCodec, "svtav1") {
+				// Map x264/x265 presets to SVT-AV1 presets (0-13, lower=slower/better)
+				var svtPreset string
+				switch preset {
+				case "veryslow":
+					svtPreset = "3"
+				case "slower":
+					svtPreset = "4"
+				case "slow":
+					svtPreset = "5"
+				case "medium":
+					svtPreset = "6"
+				case "fast":
+					svtPreset = "8"
+				case "faster":
+					svtPreset = "9"
+				case "veryfast":
+					svtPreset = "10"
+				case "superfast":
+					svtPreset = "11"
+				case "ultrafast":
+					svtPreset = "12"
+				default:
+					svtPreset = "8" // Fast preset for snippets
+				}
+				args = append(args, "-preset", svtPreset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 			}
 
 			// Audio codec
@@ -5105,7 +5131,31 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 		case "av1":
 			args = append(args, "-c:v", "libsvtav1")
-			args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
+			// Map x264/x265 presets to SVT-AV1 presets (0-13, lower=slower/better)
+			var svtPreset string
+			switch preset {
+			case "veryslow":
+				svtPreset = "3"
+			case "slower":
+				svtPreset = "4"
+			case "slow":
+				svtPreset = "5"
+			case "medium":
+				svtPreset = "6"
+			case "fast":
+				svtPreset = "8"
+			case "faster":
+				svtPreset = "9"
+			case "veryfast":
+				svtPreset = "10"
+			case "superfast":
+				svtPreset = "11"
+			case "ultrafast":
+				svtPreset = "12"
+			default:
+				svtPreset = "8" // Fast preset for snippets
+			}
+			args = append(args, "-preset", svtPreset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 		case "copy":
 			args = append(args, "-c:v", "copy")
 		default:
