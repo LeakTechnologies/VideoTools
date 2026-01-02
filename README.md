@@ -4,6 +4,13 @@
 
 VideoTools is a professional-grade video processing application with a modern GUI. It specializes in creating **DVD-compliant videos** for authoring and distribution.
 
+## Project Status
+
+**This project is under active development, and many documented features are not yet implemented.**
+
+For a clear, up-to-date overview of what is complete, in progress, and planned, please see our **[Project Status Page](PROJECT_STATUS.md)**. This document provides the most accurate reflection of the project's current state.
+
+
 ## Key Features
 
 ### DVD-NTSC & DVD-PAL Output

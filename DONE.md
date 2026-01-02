@@ -1,5 +1,14 @@
 # VideoTools - Completed Features
 
+## Version 0.1.0-dev22 (2026-01-01) - Documentation Overhaul
+
+### Documentation
+- ✅ **Created Project Status Page**
+  - Created `PROJECT_STATUS.md` to provide a single source of truth for project status.
+  - Summarizes implemented, planned, and in-progress features.
+  - Highlights critical known issues, like the player module bugs.
+  - Linked from the main `README.md` to ensure users and developers have a clear, honest overview of the project's state.
+
 This file tracks completed features, fixes, and milestones.
 
 ## Version 0.1.0-dev20+ (2025-12-28) - Queue UI Performance & Workflow Improvements
