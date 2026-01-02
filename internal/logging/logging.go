@@ -22,12 +22,13 @@ const historyMax = 500
 type Category string
 
 const (
-	CatUI     Category = "[UI]"
-	CatCLI    Category = "[CLI]"
-	CatFFMPEG Category = "[FFMPEG]"
-	CatSystem Category = "[SYS]"
-	CatModule Category = "[MODULE]"
-	CatPlayer Category = "[PLAYER]"
+	CatUI      Category = "[UI]"
+	CatCLI     Category = "[CLI]"
+	CatFFMPEG  Category = "[FFMPEG]"
+	CatSystem  Category = "[SYS]"
+	CatModule  Category = "[MODULE]"
+	CatPlayer  Category = "[PLAYER]"
+	CatEnhance Category = "[ENHANCE]"
 )
 
 // Init initializes the logging system
