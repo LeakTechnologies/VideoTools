@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"os/exec"
 	"runtime"
@@ -161,6 +162,7 @@ func buildSettingsView(state *appState) fyne.CanvasObject {
 
 	tabs := container.NewAppTabs(
 		container.NewTabItem("Dependencies", buildDependenciesTab(state)),
+		container.NewTabItem("Benchmark", buildBenchmarkTab(state)),
 		container.NewTabItem("Preferences", buildPreferencesTab(state)),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
@@ -268,6 +270,50 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 		state.showSettingsView()
 	})
 	content.Add(refreshBtn)
+
+	return content
+}
+
+func buildBenchmarkTab(state *appState) fyne.CanvasObject {
+	content := container.NewVBox()
+
+	// Header
+	header := widget.NewLabel("Hardware Benchmark")
+	header.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(header)
+
+	desc := widget.NewLabel("Test your system's video encoding performance to get optimal encoder recommendations.")
+	desc.Wrapping = fyne.TextWrapWord
+	content.Add(desc)
+
+	content.Add(widget.NewSeparator())
+
+	// Run benchmark button
+	runBtn := widget.NewButton("Run Hardware Benchmark", func() {
+		state.showBenchmark()
+	})
+	runBtn.Importance = widget.MediumImportance
+	content.Add(container.NewCenter(runBtn))
+
+	// Show recent results if available
+	cfg, err := loadBenchmarkConfig()
+	if err == nil && len(cfg.History) > 0 {
+		content.Add(widget.NewSeparator())
+
+		recentHeader := widget.NewLabel("Recent Benchmarks")
+		recentHeader.TextStyle = fyne.TextStyle{Bold: true}
+		content.Add(recentHeader)
+
+		for _, run := range cfg.History[:min(3, len(cfg.History))] {
+			timestamp := run.Timestamp.Format("Jan 2, 2006 at 3:04 PM")
+			summary := fmt.Sprintf("%s - Recommended: %s (%s)",
+				timestamp, run.RecommendedEncoder, run.RecommendedPreset)
+
+			runLabel := widget.NewLabel(summary)
+			runLabel.TextStyle = fyne.TextStyle{Italic: true}
+			content.Add(runLabel)
+		}
+	}
 
 	return content
 }
