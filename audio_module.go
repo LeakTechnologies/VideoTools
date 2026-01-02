@@ -401,7 +401,7 @@ func (s *appState) probeAudioTracks(path string) ([]audioTrackInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, platformConfig.FFprobePath,
+	cmd := utils.CreateCommand(ctx, platformConfig.FFprobePath,
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_streams",
@@ -957,7 +957,7 @@ func (s *appState) analyzeLoudnorm(ctx context.Context, inputPath string, trackI
 		"-",
 	}
 
-	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath, args...)
 	logging.Debug(logging.CatFFMPEG, "Loudnorm analysis: %s %v", platformConfig.FFmpegPath, args)
 
 	output, err := cmd.CombinedOutput()
@@ -1063,7 +1063,7 @@ func (s *appState) getAudioCodecArgs(format, bitrate string) []string {
 
 // runFFmpegExtraction executes FFmpeg and reports progress
 func (s *appState) runFFmpegExtraction(ctx context.Context, args []string, progressCallback func(float64), startPct, endPct float64) error {
-	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath, args...)
 	logging.Debug(logging.CatFFMPEG, "Running: %s %v", platformConfig.FFmpegPath, args)
 
 	stderr, err := cmd.StderrPipe()

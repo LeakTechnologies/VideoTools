@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"../utils"
 )
 
 // Result stores the outcome of a single encoder benchmark test
@@ -61,8 +60,7 @@ func (s *Suite) GenerateTestVideo(ctx context.Context, duration int) (string, er
 		testPath,
 	}
 
-	cmd := exec.CommandContext(ctx, s.FFmpegPath, args...)
-	utils.ApplyNoWindow(cmd) // Hide command window on Windows during benchmark test video generation
+	cmd := utils.CreateCommand(ctx, s.FFmpegPath, args...)
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("failed to generate test video: %w", err)
 	}
@@ -133,8 +131,7 @@ func (s *Suite) TestEncoder(ctx context.Context, encoder, preset string) Result 
 
 	// Measure encoding time
 	start := time.Now()
-	cmd := exec.CommandContext(ctx, s.FFmpegPath, args...)
-	utils.ApplyNoWindow(cmd) // Hide command window on Windows during benchmark encoding test
+	cmd := utils.CreateCommand(ctx, s.FFmpegPath, args...)
 
 	if err := cmd.Run(); err != nil {
 		result.Error = fmt.Sprintf("encoding failed: %v", err)

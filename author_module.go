@@ -1160,7 +1160,7 @@ func detectSceneChapters(path string, threshold float64) ([]authorChapter, error
 	defer cancel()
 
 	filter := fmt.Sprintf("select='gt(scene,%.2f)',showinfo", threshold)
-	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath,
+	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath,
 		"-hide_banner",
 		"-loglevel", "info",
 		"-i", path,
@@ -1169,7 +1169,6 @@ func detectSceneChapters(path string, threshold float64) ([]authorChapter, error
 		"-f", "null",
 		"-",
 	)
-	utils.ApplyNoWindow(cmd)
 	out, err := cmd.CombinedOutput()
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
@@ -1228,13 +1227,12 @@ func extractChaptersFromFile(path string) ([]authorChapter, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, platformConfig.FFprobePath,
+	cmd := utils.CreateCommand(ctx, platformConfig.FFprobePath,
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_chapters",
 		path,
 	)
-	utils.ApplyNoWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -1377,7 +1375,8 @@ func concatDVDMpg(inputs []string, output string) error {
 		"-packetsize", "2048",  // DVD packet size
 		output,
 	}
-	return runCommand(platformConfig.FFmpegPath, args)
+	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, args...)
+	return cmd.Run()
 }
 
 func (s *appState) resetAuthorLog() {
