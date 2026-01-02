@@ -8758,8 +8758,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	leftColumn := container.NewVBox(videoPanel, spacer, metaPanel)
 
-	// Split: left side (video + metadata) takes 60% | right side (options) takes 40%
-	mainSplit := container.New(&fixedHSplitLayout{ratio: 0.6}, leftColumn, optionsPanel)
+	// Add 15px spacing between left and right panels
+	horizontalSpacer := canvas.NewRectangle(color.Transparent)
+	horizontalSpacer.SetMinSize(fyne.NewSize(15, 1))
+
+	// Split: left side (video + metadata) takes 50% | right side (options) takes 50%
+	mainSplit := container.New(&fixedHSplitLayout{ratio: 0.5},
+		container.NewHBox(leftColumn, horizontalSpacer),
+		optionsPanel)
 
 	// Add horizontal padding around the split (10px on each side)
 	mainContent := container.NewPadded(mainSplit)
