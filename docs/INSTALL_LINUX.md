@@ -1,0 +1,107 @@
+# VideoTools Installation Guide for Linux, macOS, & WSL
+
+This guide provides detailed instructions for installing VideoTools on Linux, macOS, and Windows Subsystem for Linux (WSL) using the automated script.
+
+---
+
+## One-Command Installation
+
+The recommended method for all Unix-like systems is the `install.sh` script.
+
+```bash
+bash scripts/install.sh
+```
+
+This single command automates the entire setup process.
+
+### What the Installer Does
+
+1.  **Go Verification:** Checks if Go (version 1.21 or later) is installed and available in your `PATH`.
+2.  **Build from Source:** Cleans any previous builds, downloads all necessary Go dependencies, and compiles the `VideoTools` binary.
+3.  **Path Selection:** Prompts you to choose an installation location:
+    *   **System-wide:** `/usr/local/bin` (Requires `sudo` privileges). Recommended for multi-user systems.
+    *   **User-local:** `~/.local/bin` (Default). Recommended for most users as it does not require `sudo`.
+4.  **Install Binary:** Copies the compiled binary to the selected location and makes it executable.
+5.  **Configure Shell:** Detects your shell (`bash` or `zsh`) and updates the corresponding resource file (`~/.bashrc` or `~/.zshrc`) to:
+    *   Add the installation directory to your `PATH`.
+    *   Source the `alias.sh` script for convenience commands.
+
+### After Installation
+
+You must reload your shell for the changes to take effect:
+
+```bash
+# For bash users:
+source ~/.bashrc
+
+# For zsh users:
+source ~/.zshrc
+```
+
+You can now run the application from anywhere by simply typing `VideoTools`.
+
+---
+
+## Convenience Commands
+
+The installation script sets up a few helpful aliases:
+
+-   `VideoTools`: Runs the main application.
+-   `VideoToolsRebuild`: Forces a full rebuild of the application from source.
+-   `VideoToolsClean`: Cleans all build artifacts and clears the Go cache for the project.
+
+---
+
+## Manual Installation
+
+If you prefer to perform the steps manually:
+
+1.  **Build the Binary:**
+    ```bash
+    CGO_ENABLED=1 go build -o VideoTools .
+    ```
+
+2.  **Install the Binary:**
+    *   **User-local:**
+        ```bash
+        mkdir -p ~/.local/bin
+        cp VideoTools ~/.local/bin/
+        ```
+    *   **System-wide:**
+        ```bash
+        sudo cp VideoTools /usr/local/bin/
+        ```
+
+3.  **Update Shell Configuration:**
+    Add the following lines to your `~/.bashrc` or `~/.zshrc` file, replacing `/path/to/VideoTools` with the actual absolute path to the project directory.
+
+    ```bash
+    # Add VideoTools to PATH
+    export PATH="$HOME/.local/bin:$PATH"
+
+    # Source VideoTools aliases
+    source /path/to/VideoTools/scripts/alias.sh
+    ```
+
+4.  **Reload Your Shell:**
+    ```bash
+    source ~/.bashrc  # Or source ~/.zshrc
+    ```
+
+---
+
+## Uninstallation
+
+1.  **Remove the Binary:**
+    *   If installed user-locally: `rm ~/.local/bin/VideoTools`
+    *   If installed system-wide: `sudo rm /usr/local/bin/VideoTools`
+
+2.  **Remove Shell Configuration:**
+    Open your `~/.bashrc` or `~/.zshrc` file and remove the lines that were added for `VideoTools`.
+
+---
+
+## Platform-Specific Notes
+
+-   **macOS:** You may need to install Xcode Command Line Tools first by running `xcode-select --install`.
+-   **WSL:** The Linux instructions work without modification inside a WSL environment.
