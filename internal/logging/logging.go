@@ -27,6 +27,7 @@ const (
 	CatFFMPEG Category = "[FFMPEG]"
 	CatSystem Category = "[SYS]"
 	CatModule Category = "[MODULE]"
+	CatPlayer Category = "[PLAYER]"
 )
 
 // Init initializes the logging system

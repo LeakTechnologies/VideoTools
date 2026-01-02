@@ -985,7 +985,7 @@ func runWhisper(binaryPath, modelPath, inputPath, outputBase string) error {
 }
 
 func runFFmpeg(args []string) error {
-	cmd := exec.Command(platformConfig.FFmpegPath, args...)
+	cmd := exec.Command(utils.GetFFmpegPath(), args...)
 	utils.ApplyNoWindow(cmd)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

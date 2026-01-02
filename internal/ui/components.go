@@ -1011,3 +1011,160 @@ func NewColorCodedSelectContainer(selectWidget *widget.Select, accentColor color
 	container := container.NewBorder(nil, nil, border, nil, selectWidget)
 	return container, border
 }
+
+// ColoredSelect is a custom select widget with color-coded dropdown items
+type ColoredSelect struct {
+	widget.BaseWidget
+	options       []string
+	selected      string
+	colorMap      map[string]color.Color
+	onChanged     func(string)
+	popup         *widget.PopUp
+	window        fyne.Window
+	placeHolder   string
+}
+
+// NewColoredSelect creates a new colored select widget
+// colorMap should contain a color for each option
+func NewColoredSelect(options []string, colorMap map[string]color.Color, onChange func(string), window fyne.Window) *ColoredSelect {
+	cs := &ColoredSelect{
+		options:   options,
+		colorMap:  colorMap,
+		onChanged: onChange,
+		window:    window,
+	}
+	if len(options) > 0 {
+		cs.selected = options[0]
+	}
+	cs.ExtendBaseWidget(cs)
+	return cs
+}
+
+// SetPlaceHolder sets the placeholder text when nothing is selected
+func (cs *ColoredSelect) SetPlaceHolder(text string) {
+	cs.placeHolder = text
+}
+
+// SetSelected sets the currently selected option
+func (cs *ColoredSelect) SetSelected(option string) {
+	cs.selected = option
+	cs.Refresh()
+}
+
+// Selected returns the currently selected option
+func (cs *ColoredSelect) Selected() string {
+	return cs.selected
+}
+
+// CreateRenderer creates the renderer for the colored select
+func (cs *ColoredSelect) CreateRenderer() fyne.WidgetRenderer {
+	// Create the button that shows current selection
+	displayText := cs.selected
+	if displayText == "" && cs.placeHolder != "" {
+		displayText = cs.placeHolder
+	}
+
+	button := widget.NewButton(displayText, func() {
+		cs.showPopup()
+	})
+
+	return &coloredSelectRenderer{
+		select_: cs,
+		button:  button,
+	}
+}
+
+// showPopup displays the dropdown list with colored items
+func (cs *ColoredSelect) showPopup() {
+	if cs.popup != nil {
+		cs.popup.Hide()
+		cs.popup = nil
+		return
+	}
+
+	// Create list items with colors
+	items := make([]fyne.CanvasObject, len(cs.options))
+	for i, option := range cs.options {
+		opt := option // Capture for closure
+
+		// Get color for this option
+		itemColor := cs.colorMap[opt]
+		if itemColor == nil {
+			itemColor = color.NRGBA{R: 80, G: 80, B: 80, A: 255} // Default gray
+		}
+
+		// Create colored indicator bar
+		colorBar := canvas.NewRectangle(itemColor)
+		colorBar.SetMinSize(fyne.NewSize(4, 32))
+
+		// Create label
+		label := widget.NewLabel(opt)
+
+		// Highlight if currently selected
+		if opt == cs.selected {
+			label.TextStyle = fyne.TextStyle{Bold: true}
+		}
+
+		// Create tappable item
+		itemContent := container.NewBorder(nil, nil, colorBar, nil,
+			container.NewPadded(label))
+
+		tappableItem := NewTappable(itemContent, func() {
+			cs.selected = opt
+			if cs.onChanged != nil {
+				cs.onChanged(opt)
+			}
+			cs.popup.Hide()
+			cs.popup = nil
+			cs.Refresh()
+		})
+
+		items[i] = tappableItem
+	}
+
+	// Create scrollable list
+	list := container.NewVBox(items...)
+	scroll := container.NewVScroll(list)
+	scroll.SetMinSize(fyne.NewSize(300, 200))
+
+	// Create popup
+	cs.popup = widget.NewPopUp(scroll, cs.window.Canvas())
+
+	// Position popup below the select widget
+	popupPos := fyne.CurrentApp().Driver().AbsolutePositionForObject(cs)
+	popupPos.Y += cs.Size().Height
+	cs.popup.ShowAtPosition(popupPos)
+}
+
+// Tapped implements the Tappable interface
+func (cs *ColoredSelect) Tapped(*fyne.PointEvent) {
+	cs.showPopup()
+}
+
+type coloredSelectRenderer struct {
+	select_ *ColoredSelect
+	button  *widget.Button
+}
+
+func (r *coloredSelectRenderer) Layout(size fyne.Size) {
+	r.button.Resize(size)
+}
+
+func (r *coloredSelectRenderer) MinSize() fyne.Size {
+	return r.button.MinSize()
+}
+
+func (r *coloredSelectRenderer) Refresh() {
+	displayText := r.select_.selected
+	if displayText == "" && r.select_.placeHolder != "" {
+		displayText = r.select_.placeHolder
+	}
+	r.button.SetText(displayText)
+	r.button.Refresh()
+}
+
+func (r *coloredSelectRenderer) Destroy() {}
+
+func (r *coloredSelectRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{r.button}
+}

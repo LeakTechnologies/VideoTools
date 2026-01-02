@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
+
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -401,7 +401,7 @@ func (s *appState) probeAudioTracks(path string) ([]audioTrackInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	cmd := utils.CreateCommand(ctx, platformConfig.FFprobePath,
+	cmd := utils.CreateCommand(ctx, utils.GetFFprobePath(),
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_streams",
@@ -416,11 +416,11 @@ func (s *appState) probeAudioTracks(path string) ([]audioTrackInfo, error) {
 
 	var result struct {
 		Streams []struct {
-			Index       int    `json:"index"`
-			CodecName   string `json:"codec_name"`
-			Channels    int    `json:"channels"`
-			SampleRate  string `json:"sample_rate"`
-			BitRate     string `json:"bit_rate"`
+			Index       int                    `json:"index"`
+			CodecName   string                 `json:"codec_name"`
+			Channels    int                    `json:"channels"`
+			SampleRate  string                 `json:"sample_rate"`
+			BitRate     string                 `json:"bit_rate"`
 			Tags        map[string]interface{} `json:"tags"`
 			Disposition struct {
 				Default int `json:"default"`
@@ -957,8 +957,8 @@ func (s *appState) analyzeLoudnorm(ctx context.Context, inputPath string, trackI
 		"-",
 	}
 
-	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath, args...)
-	logging.Debug(logging.CatFFMPEG, "Loudnorm analysis: %s %v", platformConfig.FFmpegPath, args)
+	cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(), args...)
+	logging.Debug(logging.CatFFMPEG, "Loudnorm analysis: %s %v", utils.GetFFmpegPath(), args)
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -1063,8 +1063,8 @@ func (s *appState) getAudioCodecArgs(format, bitrate string) []string {
 
 // runFFmpegExtraction executes FFmpeg and reports progress
 func (s *appState) runFFmpegExtraction(ctx context.Context, args []string, progressCallback func(float64), startPct, endPct float64) error {
-	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath, args...)
-	logging.Debug(logging.CatFFMPEG, "Running: %s %v", platformConfig.FFmpegPath, args)
+	cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(), args...)
+	logging.Debug(logging.CatFFMPEG, "Running: %s %v", utils.GetFFmpegPath(), args)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {

@@ -16,7 +16,42 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
-// Color utilities
+// --- FFmpeg Path Management ---
+var (
+	globalFFmpegPath  atomic.Value
+	globalFFprobePath atomic.Value
+)
+
+// SetFFmpegPaths sets the global FFmpeg and FFprobe paths.
+// This should be called early in the application lifecycle after platform detection.
+func SetFFmpegPaths(ffmpegPath, ffprobePath string) {
+	globalFFmpegPath.Store(ffmpegPath)
+	globalFFprobePath.Store(ffprobePath)
+}
+
+// GetFFmpegPath returns the globally configured FFmpeg executable path.
+// It returns "ffmpeg" as a fallback if not explicitly set.
+func GetFFmpegPath() string {
+	if v := globalFFmpegPath.Load(); v != nil {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return "ffmpeg" // Fallback
+}
+
+// GetFFprobePath returns the globally configured FFprobe executable path.
+// It returns "ffprobe" as a fallback if not explicitly set.
+func GetFFprobePath() string {
+	if v := globalFFprobePath.Load(); v != nil {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return "ffprobe" // Fallback
+}
+
+// --- Color utilities ---
 
 // MustHex parses a hex color string or exits on error
 func MustHex(h string) color.NRGBA {

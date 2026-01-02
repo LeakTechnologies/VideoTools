@@ -18,6 +18,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/thumbnail"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 func (s *appState) showThumbView() {
@@ -382,7 +383,7 @@ func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progress
 		progressCallback(0)
 	}
 
-	generator := thumbnail.NewGenerator(platformConfig.FFmpegPath)
+	generator := thumbnail.NewGenerator(utils.GetFFmpegPath())
 	config := thumbnail.Config{
 		VideoPath:     inputPath,
 		OutputDir:     outputDir,

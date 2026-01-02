@@ -216,7 +216,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 
 			// Auto-run interlacing detection in background
 			go func() {
-				detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+				detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 				defer cancel()
 

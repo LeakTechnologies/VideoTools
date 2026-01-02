@@ -375,7 +375,7 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 	args := buildRipFFmpegArgs(listFile, outputPath, format)
 	appendLog(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
 	updateProgress(10)
-	if err := runCommandWithLogger(ctx, platformConfig.FFmpegPath, args, appendLog); err != nil {
+	if err := runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, appendLog); err != nil {
 		return err
 	}
 	updateProgress(100)

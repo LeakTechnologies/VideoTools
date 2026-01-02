@@ -2,6 +2,7 @@ package ui
 
 import (
 	"image/color"
+	"strings"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -131,4 +132,70 @@ func GetPixelFormatColor(pixfmt string) color.Color {
 	default:
 		return ColorSDR
 	}
+}
+
+// BuildFormatColorMap creates a color map for format labels
+// Parses labels like "MKV (AV1)" and returns appropriate container color
+func BuildFormatColorMap(formatLabels []string) map[string]color.Color {
+	colorMap := make(map[string]color.Color)
+	for _, label := range formatLabels {
+		// Parse format from label (e.g., "MKV (AV1)" -> "mkv")
+		parts := strings.Split(label, " ")
+		if len(parts) > 0 {
+			format := strings.ToLower(parts[0])
+			// Special case for Remux
+			if strings.Contains(strings.ToUpper(label), "REMUX") {
+				colorMap[label] = ColorRemux
+				continue
+			}
+			colorMap[label] = GetContainerColor(format)
+		}
+	}
+	return colorMap
+}
+
+// BuildVideoCodecColorMap creates a color map for video codec options
+func BuildVideoCodecColorMap(codecs []string) map[string]color.Color {
+	colorMap := make(map[string]color.Color)
+	for _, codec := range codecs {
+		switch codec {
+		case "H.264":
+			colorMap[codec] = ColorH264
+		case "H.265":
+			colorMap[codec] = ColorHEVC
+		case "VP9":
+			colorMap[codec] = ColorVP9
+		case "AV1":
+			colorMap[codec] = ColorAV1
+		case "MPEG-2":
+			colorMap[codec] = ColorMPEG2
+		case "Copy":
+			colorMap[codec] = ColorRemux // Use remux color for copy
+		default:
+			colorMap[codec] = color.RGBA{100, 100, 100, 255}
+		}
+	}
+	return colorMap
+}
+
+// BuildAudioCodecColorMap creates a color map for audio codec options
+func BuildAudioCodecColorMap(codecs []string) map[string]color.Color {
+	colorMap := make(map[string]color.Color)
+	for _, codec := range codecs {
+		switch codec {
+		case "AAC":
+			colorMap[codec] = ColorAAC
+		case "Opus":
+			colorMap[codec] = ColorOpus
+		case "MP3":
+			colorMap[codec] = ColorMP3
+		case "FLAC":
+			colorMap[codec] = ColorFLAC
+		case "Copy":
+			colorMap[codec] = ColorRemux // Use remux color for copy
+		default:
+			colorMap[codec] = color.RGBA{100, 100, 100, 255}
+		}
+	}
+	return colorMap
 }
