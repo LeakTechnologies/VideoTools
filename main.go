@@ -5832,16 +5832,13 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 		case videoCodec == "H.264" && hardwareAccel == "videotoolbox":
 			codec = "h264_videotoolbox"
 		case videoCodec == "AV1" && hardwareAccel == "nvenc":
-			// Use H.264 NVENC instead of AV1 NVENC for much better performance
-			codec = "h264_nvenc"
+			codec = "av1_nvenc"
 		case videoCodec == "AV1" && hardwareAccel == "qsv":
 			codec = "av1_qsv"
 		case videoCodec == "AV1" && hardwareAccel == "amf":
 			codec = "av1_amf"
 		case videoCodec == "AV1":
-			// Use H.264 instead of AV1 for much better performance
-			// AV1 (libsvtav1) is extremely slow and experimental
-			codec = "libx264"
+			codec = "libsvtav1"
 		case videoCodec == "VP9":
 			codec = "libvpx-vp9"
 		case videoCodec == "MPEG-2":
@@ -5868,7 +5865,7 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 					crfStr = "23"
 				}
 			}
-			if strings.Contains(codec, "264") || strings.Contains(codec, "265") || codec == "libvpx-vp9" {
+			if strings.Contains(codec, "264") || strings.Contains(codec, "265") || codec == "libvpx-vp9" || codec == "libsvtav1" {
 				args = append(args, "-crf", crfStr)
 			}
 		} else if bitrateMode == "CBR" {
@@ -5885,6 +5882,32 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 		if encoderPreset, _ := cfg["encoderPreset"].(string); encoderPreset != "" {
 			if codec == "libx264" || codec == "libx265" {
 				args = append(args, "-preset", encoderPreset)
+			} else if codec == "libsvtav1" {
+				// Map x264/x265 presets to SVT-AV1 presets (0-13, lower=slower/better)
+				var svtPreset string
+				switch encoderPreset {
+				case "veryslow":
+					svtPreset = "3"
+				case "slower":
+					svtPreset = "4"
+				case "slow":
+					svtPreset = "5"
+				case "medium":
+					svtPreset = "6" // Default for reasonable speed
+				case "fast":
+					svtPreset = "8"
+				case "faster":
+					svtPreset = "9"
+				case "veryfast":
+					svtPreset = "10"
+				case "superfast":
+					svtPreset = "11"
+				case "ultrafast":
+					svtPreset = "12"
+				default:
+					svtPreset = "6" // Medium
+				}
+				args = append(args, "-preset", svtPreset)
 			}
 		}
 
