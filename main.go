@@ -36,16 +36,16 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"./internal/benchmark"
+	"./internal/convert"
+	"./internal/interlace"
+	"./internal/logging"
+	"./internal/modules"
+	"./internal/player"
+	"./internal/queue"
+	"./internal/sysinfo"
+	"./internal/ui"
+	"./internal/utils"
 	"github.com/hajimehoshi/oto"
 )
 
@@ -293,8 +293,7 @@ func hwAccelAvailable(accel string) bool {
 
 	hwAccelProbeOnce.Do(func() {
 		supported := make(map[string]bool)
-		cmd := exec.Command("ffmpeg", "-hide_banner", "-v", "error", "-hwaccels")
-		utils.ApplyNoWindow(cmd)
+		cmd := utils.CreateCommandRaw("ffmpeg", "-hide_banner", "-v", "error", "-hwaccels")
 		output, err := cmd.Output()
 		if err != nil {
 			hwAccelSupported.Store(supported)
@@ -337,14 +336,13 @@ func hwAccelAvailable(accel string) bool {
 // nvencRuntimeAvailable runs a lightweight encode probe to verify the NVENC runtime is usable (nvcuda.dll loaded).
 func nvencRuntimeAvailable() bool {
 	nvencRuntimeOnce.Do(func() {
-		cmd := exec.Command(platformConfig.FFmpegPath,
+		cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath,
 			"-hide_banner", "-loglevel", "error",
 			"-f", "lavfi", "-i", "color=size=16x16:rate=1",
 			"-frames:v", "1",
 			"-c:v", "h264_nvenc",
 			"-f", "null", "-",
 		)
-		utils.ApplyNoWindow(cmd)
 		if err := cmd.Run(); err == nil {
 			nvencRuntimeOK = true
 		} else {
@@ -469,13 +467,12 @@ func openFolder(path string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("explorer", path)
+		cmd = utils.CreateCommandRaw("explorer", path)
 	case "darwin":
-		cmd = exec.Command("open", path)
+		cmd = utils.CreateCommandRaw("open", path)
 	default:
-		cmd = exec.Command("xdg-open", path)
+		cmd = utils.CreateCommandRaw("xdg-open", path)
 	}
-	utils.ApplyNoWindow(cmd)
 	return cmd.Start()
 }
 
@@ -2524,8 +2521,7 @@ func (s *appState) detectHardwareEncoders() []string {
 	}
 
 	for _, encoder := range encodersToCheck {
-		cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
-		utils.ApplyNoWindow(cmd)
+		cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
 		output, err := cmd.CombinedOutput()
 		if err == nil && strings.Contains(string(output), encoder) {
 			available = append(available, encoder)
@@ -4094,8 +4090,7 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 	args = append(args, outputPath)
 
 	// Execute
-	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
-	utils.ApplyNoWindow(cmd)
+	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("merge stdout pipe: %w", err)
@@ -4745,8 +4740,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	fmt.Printf("\n=== FFMPEG COMMAND ===\nffmpeg %s\n======================\n\n", strings.Join(args, " "))
 
 	// Execute FFmpeg
-	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
-	utils.ApplyNoWindow(cmd)
+	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
@@ -5155,8 +5149,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	logFile, logPath, _ := createConversionLog(inputPath, outputPath, args)
-	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
-	utils.ApplyNoWindow(cmd)
+	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath, args...)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -9527,10 +9520,6 @@ Metadata: %s`,
 					}, false)
 		}()
 	})
-	detectCropBtn.Importance = widget.MediumImportance
-	if src == nil {
-		detectCropBtn.Disable()
-	}
 
 		var sectionItems []fyne.CanvasObject
 		sectionItems = append(sectionItems,
@@ -10201,8 +10190,7 @@ func (p *playSession) runVideo(offset float64) {
 		"-r", fmt.Sprintf("%.3f", p.fps),
 		"-",
 	}
-	cmd := exec.Command(platformConfig.FFmpegPath, args...)
-	utils.ApplyNoWindow(cmd)
+	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, args...)
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -10356,8 +10344,7 @@ func (p *playSession) runAudio(offset float64) {
 
 	args = append(args, "-f", "s16le", "-")
 
-	cmd := exec.Command(platformConfig.FFmpegPath, args...)
-	utils.ApplyNoWindow(cmd)
+	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, args...)
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -11453,8 +11440,7 @@ func detectBestH264Encoder() string {
 	encoders := []string{"h264_nvenc", "h264_qsv", "h264_vaapi", "libopenh264"}
 
 	for _, encoder := range encoders {
-		cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
-		utils.ApplyNoWindow(cmd)
+		cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
 		output, err := cmd.CombinedOutput()
 		if err == nil {
 			// Check if encoder is in the output
@@ -11466,8 +11452,7 @@ func detectBestH264Encoder() string {
 	}
 
 	// Fallback: check if libx264 is available
-	cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
-	utils.ApplyNoWindow(cmd)
+	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
 	output, err := cmd.CombinedOutput()
 	if err == nil && (strings.Contains(string(output), " libx264 ") || strings.Contains(string(output), " libx264\n")) {
 		logging.Debug(logging.CatFFMPEG, "using software encoder: libx264")
@@ -11483,8 +11468,7 @@ func detectBestH265Encoder() string {
 	encoders := []string{"hevc_nvenc", "hevc_qsv", "hevc_vaapi"}
 
 	for _, encoder := range encoders {
-		cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
-		utils.ApplyNoWindow(cmd)
+		cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
 		output, err := cmd.CombinedOutput()
 		if err == nil {
 			if strings.Contains(string(output), " "+encoder+" ") || strings.Contains(string(output), " "+encoder+"\n") {
@@ -11494,8 +11478,7 @@ func detectBestH265Encoder() string {
 		}
 	}
 
-	cmd := exec.Command(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
-	utils.ApplyNoWindow(cmd)
+	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
 	output, err := cmd.CombinedOutput()
 	if err == nil && (strings.Contains(string(output), " libx265 ") || strings.Contains(string(output), " libx265\n")) {
 		logging.Debug(logging.CatFFMPEG, "using software encoder: libx265")
@@ -12703,7 +12686,7 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 		return nil, err
 	}
 	pattern := filepath.Join(dir, "frame-%03d.png")
-	cmd := exec.Command(platformConfig.FFmpegPath,
+	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath,
 		"-y",
 		"-ss", start,
 		"-i", path,
@@ -12711,7 +12694,6 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 		"-vf", "scale=640:-1:flags=lanczos,fps=8",
 		pattern,
 	)
-	utils.ApplyNoWindow(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		os.RemoveAll(dir)
@@ -12964,7 +12946,7 @@ func probeVideo(path string) (*videoSource, error) {
 		fileSize = info.Size()
 	}
 
-	cmd := exec.CommandContext(ctx, "ffprobe",
+	cmd := utils.CreateCommand(ctx, "ffprobe",
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_format",
@@ -12972,7 +12954,6 @@ func probeVideo(path string) (*videoSource, error) {
 		"-show_chapters",
 		path,
 	)
-	utils.ApplyNoWindow(cmd)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -13132,14 +13113,13 @@ func probeVideo(path string) (*videoSource, error) {
 	// Extract embedded cover art if present
 	if coverArtStreamIndex >= 0 {
 		coverPath := filepath.Join(utils.TempDir(), fmt.Sprintf("videotools-embedded-cover-%d.png", time.Now().UnixNano()))
-		extractCmd := exec.CommandContext(ctx, platformConfig.FFmpegPath,
+		extractCmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath,
 			"-i", path,
 			"-map", fmt.Sprintf("0:%d", coverArtStreamIndex),
 			"-frames:v", "1",
 			"-y",
 			coverPath,
 		)
-		utils.ApplyNoWindow(extractCmd)
 		if err := extractCmd.Run(); err != nil {
 			logging.Debug(logging.CatFFMPEG, "failed to extract embedded cover art: %v", err)
 		} else {
@@ -13226,11 +13206,11 @@ func detectCrop(path string, duration float64) *CropValues {
 	}
 
 	// Run ffmpeg with cropdetect filter
-	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath,
-		"-ss", fmt.Sprintf("%.2f", sampleStart),
+	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath,
+		"-ss", fmt.Sprintf("%.2f", start),
 		"-i", path,
-		"-t", "10",
-		"-vf", "cropdetect=24:16:0",
+		"-t", "10", // 10-second sample
+		"-vf", "cropdetect",
 		"-f", "null",
 		"-",
 	)

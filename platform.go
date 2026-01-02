@@ -167,8 +167,7 @@ func detectHardwareEncoders(cfg *PlatformConfig) []string {
 	var encoders []string
 
 	// Get list of available encoders from ffmpeg
-	cmd := exec.Command(cfg.FFmpegPath, "-hide_banner", "-encoders")
-	utils.ApplyNoWindow(cmd)
+	cmd := utils.CreateCommandRaw(cfg.FFmpegPath, "-hide_banner", "-encoders")
 	output, err := cmd.Output()
 	if err != nil {
 		logging.Debug(logging.CatSystem, "Failed to query ffmpeg encoders: %v", err)

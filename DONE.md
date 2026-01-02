@@ -1,6 +1,21 @@
 # VideoTools - Completed Features
 
-## Version 0.1.0-dev22 (2026-01-01) - Documentation Overhaul
+## Version 0.1.0-dev22 (2026-01-01) - Bug Fixes & Documentation
+
+### Bug Fixes
+- ✅ **Refactored Command Execution (Windows Console Fix Extended to Core Modules)**
+  - Extended the refactoring of command execution to `audio_module.go`, `author_module.go`, and `platform.go`.
+  - All direct calls to `exec.Command` and `exec.CommandContext` in these modules now use `utils.CreateCommand` and `utils.CreateCommandRaw`.
+  - This completes the initial phase of centralizing command execution to further ensure that all external processes (including `ffmpeg` and `ffprobe`) run without spawning console windows on Windows, improving overall application stability and user experience.
+
+- ✅ **Refactored Command Execution (Windows Console Fix Extended)**
+  - Systematically replaced direct calls to `exec.Command` and `exec.CommandContext` across `main.go` and `internal/benchmark/benchmark.go` with `utils.CreateCommand` and `utils.CreateCommandRaw`.
+  - This ensures all external processes (including `ffmpeg` and `ffprobe`) now run without creating console windows on Windows, centralizing command creation logic and resolving disruptive pop-ups.
+
+- ✅ **Fixed Console Pop-ups on Windows**
+  - Created a centralized utility function (`utils.CreateCommand`) that starts external processes without creating a console window on Windows.
+  - Refactored the benchmark module and main application logic to use this new utility.
+  - This resolves the issue where running benchmarks or other operations would cause disruptive `ffmpeg.exe` console windows to appear.
 
 ### Documentation
 - ✅ **Addressed Platform Gaps (Windows Guide)**
