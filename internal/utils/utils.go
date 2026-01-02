@@ -51,6 +51,12 @@ func GetFFprobePath() string {
 	return "ffprobe" // Fallback
 }
 
+// GetFFplayPath returns the globally configured FFplay executable path.
+// It returns "ffplay" as a fallback if not explicitly set.
+func GetFFplayPath() string {
+	return "ffplay" // Fallback
+}
+
 // --- Color utilities ---
 
 // MustHex parses a hex color string or exits on error

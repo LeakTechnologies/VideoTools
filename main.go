@@ -5832,13 +5832,16 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 		case videoCodec == "H.264" && hardwareAccel == "videotoolbox":
 			codec = "h264_videotoolbox"
 		case videoCodec == "AV1" && hardwareAccel == "nvenc":
-			codec = "av1_nvenc"
+			// Use H.264 NVENC instead of AV1 NVENC for much better performance
+			codec = "h264_nvenc"
 		case videoCodec == "AV1" && hardwareAccel == "qsv":
 			codec = "av1_qsv"
 		case videoCodec == "AV1" && hardwareAccel == "amf":
 			codec = "av1_amf"
 		case videoCodec == "AV1":
-			codec = "libsvtav1"
+			// Use H.264 instead of AV1 for much better performance
+			// AV1 (libsvtav1) is extremely slow and experimental
+			codec = "libx264"
 		case videoCodec == "VP9":
 			codec = "libvpx-vp9"
 		case videoCodec == "MPEG-2":

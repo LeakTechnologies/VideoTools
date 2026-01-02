@@ -90,7 +90,7 @@ func ProbeVideo(path string) (*VideoSource, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "ffprobe",
+	cmd := exec.CommandContext(ctx, utils.GetFFprobePath(),
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_format",
@@ -252,7 +252,7 @@ func ProbeVideo(path string) (*VideoSource, error) {
 	// Extract embedded cover art if present
 	if coverArtStreamIndex >= 0 {
 		coverPath := filepath.Join(utils.TempDir(), fmt.Sprintf("videotools-embedded-cover-%d.png", time.Now().UnixNano()))
-		extractCmd := exec.CommandContext(ctx, FFmpegPath,
+		extractCmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(),
 			"-i", path,
 			"-map", fmt.Sprintf("0:%d", coverArtStreamIndex),
 			"-frames:v", "1",
@@ -298,7 +298,7 @@ func normalizeTags(tags map[string]interface{}) map[string]string {
 func detectGOPSize(ctx context.Context, path string) int {
 	// Use ffprobe to show frames and look for key_frame markers
 	// We'll analyze the first 300 frames (about 10 seconds at 30fps)
-	cmd := exec.CommandContext(ctx, "ffprobe",
+	cmd := exec.CommandContext(ctx, utils.GetFFprobePath(),
 		"-v", "quiet",
 		"-select_streams", "v:0",
 		"-show_entries", "frame=pict_type,key_frame",

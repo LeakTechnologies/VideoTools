@@ -39,10 +39,10 @@ type MonoTheme struct{}
 func (m *MonoTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
 	switch name {
 	case theme.ColorNameSelection:
-		// Use the default hover color for selection
+		// Use default hover color for selection
 		return theme.DefaultTheme().Color(theme.ColorNameHover, variant)
 	case theme.ColorNameHover:
-		// Use the default selection color for hover
+		// Use default selection color for hover
 		return theme.DefaultTheme().Color(theme.ColorNameSelection, variant)
 	case theme.ColorNameButton:
 		// Use a slightly lighter blue for buttons (92% of full selection color brightness)
@@ -54,6 +54,15 @@ func (m *MonoTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) c
 		newG := uint8(min(int(float64(g>>8)*lightness), 255))
 		newB := uint8(min(int(float64(b>>8)*lightness), 255))
 		return color.RGBA{R: newR, G: newG, B: newB, A: uint8(a >> 8)}
+	case theme.ColorNameBackground:
+		// Use dark background for Entry widgets instead of grey
+		return utils.MustHex("#2B2B2B")
+	case theme.ColorNameInputBackground:
+		// Use slightly lighter dark for Entry input background
+		return utils.MustHex("#3C3C3C")
+	case theme.ColorNameForeground:
+		// Ensure good contrast on dark backgrounds
+		return color.White
 	}
 	return theme.DefaultTheme().Color(name, variant)
 }
@@ -78,9 +87,9 @@ func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
 	// Make UI elements larger and more readable
 	switch name {
 	case theme.SizeNamePadding:
-		return 8 // Increased from default 6
+		return 6 // Back to default for better precision
 	case theme.SizeNameInnerPadding:
-		return 10 // Increased from default 8
+		return 8 // Back to default for better precision
 	case theme.SizeNameText:
 		return 15 // Increased from default 14
 	case theme.SizeNameHeadingText:
@@ -967,7 +976,7 @@ func BuildModuleBadge(jobType queue.JobType) fyne.CanvasObject {
 
 	rect := canvas.NewRectangle(badgeColor)
 	rect.CornerRadius = 3
-	// rect.SetMinSize(fyne.NewSize(70, 20)) // Removed for flexible sizing
+	rect.SetMinSize(fyne.NewSize(70, 20))
 
 	text := canvas.NewText(badgeText, color.White)
 	text.Alignment = fyne.TextAlignCenter
@@ -982,7 +991,7 @@ func BuildModuleBadge(jobType queue.JobType) fyne.CanvasObject {
 func SectionHeader(title string, accentColor color.Color) fyne.CanvasObject {
 	// Left accent bar (Memphis geometric style)
 	accent := canvas.NewRectangle(accentColor)
-	// accent.SetMinSize(fyne.NewSize(4, 20)) // Removed for flexible sizing
+	accent.SetMinSize(fyne.NewSize(4, 20))
 
 	// Title text
 	label := widget.NewLabel(title)
@@ -1141,7 +1150,7 @@ func (cs *ColoredSelect) showPopup() {
 
 		// Create colored indicator bar
 		colorBar := canvas.NewRectangle(itemColor)
-		// colorBar.SetMinSize(fyne.NewSize(4, 32)) // Removed for flexible sizing
+		colorBar.SetMinSize(fyne.NewSize(4, 24))
 
 		// Create label
 		label := widget.NewLabel(opt)
@@ -1151,9 +1160,9 @@ func (cs *ColoredSelect) showPopup() {
 			label.TextStyle = fyne.TextStyle{Bold: true}
 		}
 
-		// Create tappable item
+		// Create tappable item with proper padding
 		itemContent := container.NewBorder(nil, nil, colorBar, nil,
-			container.NewPadded(label))
+			container.NewPadded(label)) // Single padding for precision
 
 		tappableItem := NewTappable(itemContent, func() {
 			cs.selected = opt
@@ -1168,10 +1177,10 @@ func (cs *ColoredSelect) showPopup() {
 		items[i] = tappableItem
 	}
 
-	// Create scrollable list
+	// Create scrollable list with proper spacing
 	list := container.NewVBox(items...)
 	scroll := container.NewVScroll(list)
-	// scroll.SetMinSize(fyne.NewSize(300, 200)) // Removed for flexible sizing
+	scroll.SetMinSize(fyne.NewSize(300, 200)) // Add back minimum size for usability
 
 	// Create popup
 	cs.popup = widget.NewPopUp(scroll, cs.window.Canvas())

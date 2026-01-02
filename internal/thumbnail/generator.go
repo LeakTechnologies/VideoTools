@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 // Config contains configuration for thumbnail generation
@@ -148,7 +150,7 @@ func (g *Generator) Generate(ctx context.Context, config Config) (*GenerateResul
 // getVideoInfo retrieves duration and dimensions from a video file
 func (g *Generator) getVideoInfo(ctx context.Context, videoPath string) (duration float64, width, height int, err error) {
 	// Use ffprobe to get video information
-	cmd := exec.CommandContext(ctx, "ffprobe",
+	cmd := exec.CommandContext(ctx, utils.GetFFprobePath(),
 		"-v", "error",
 		"-select_streams", "v:0",
 		"-show_entries", "stream=width,height,duration",
