@@ -75,6 +75,21 @@ func (m *MonoTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
 }
 
 func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
+	// Make UI elements larger and more readable
+	switch name {
+	case theme.SizeNamePadding:
+		return 8 // Increased from default 6
+	case theme.SizeNameInnerPadding:
+		return 10 // Increased from default 8
+	case theme.SizeNameText:
+		return 15 // Increased from default 14
+	case theme.SizeNameHeadingText:
+		return 20 // Increased from default 18
+	case theme.SizeNameSubHeadingText:
+		return 17 // Increased from default 16
+	case theme.SizeNameInputBorder:
+		return 2 // Keep default
+	}
 	return theme.DefaultTheme().Size(name)
 }
 
@@ -1125,7 +1140,7 @@ func (cs *ColoredSelect) showPopup() {
 	// Create scrollable list
 	list := container.NewVBox(items...)
 	scroll := container.NewVScroll(list)
-	scroll.SetMinSize(fyne.NewSize(300, 200))
+	// scroll.SetMinSize(fyne.NewSize(300, 200)) // Removed for flexible sizing
 
 	// Create popup
 	cs.popup = widget.NewPopUp(scroll, cs.window.Canvas())

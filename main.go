@@ -156,10 +156,11 @@ func (l *fixedHSplitLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) 
 	if ratio <= 0 {
 		ratio = 0.6
 	}
-	if ratio < 0.1 {
-		ratio = 0.1
-	} else if ratio > 0.9 {
-		ratio = 0.9
+	// Much more flexible split - allow dragging from 5% to 95%
+	if ratio < 0.05 {
+		ratio = 0.05
+	} else if ratio > 0.95 {
+		ratio = 0.95
 	}
 
 	leadWidth := float32(total * ratio)

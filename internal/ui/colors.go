@@ -199,3 +199,68 @@ func BuildAudioCodecColorMap(codecs []string) map[string]color.Color {
 	}
 	return colorMap
 }
+
+// BuildGenericColorMap creates a rainbow color map for any list of options
+// Uses distinct, vibrant colors to make navigation faster
+func BuildGenericColorMap(options []string) map[string]color.Color {
+	colorMap := make(map[string]color.Color)
+
+	// Rainbow palette - vibrant and distinct colors
+	rainbowColors := []color.Color{
+		utils.MustHex("#EF4444"), // Red
+		utils.MustHex("#F97316"), // Orange
+		utils.MustHex("#F59E0B"), // Amber
+		utils.MustHex("#EAB308"), // Yellow
+		utils.MustHex("#84CC16"), // Lime
+		utils.MustHex("#22C55E"), // Green
+		utils.MustHex("#10B981"), // Emerald
+		utils.MustHex("#14B8A6"), // Teal
+		utils.MustHex("#06B6D4"), // Cyan
+		utils.MustHex("#0EA5E9"), // Sky
+		utils.MustHex("#3B82F6"), // Blue
+		utils.MustHex("#6366F1"), // Indigo
+		utils.MustHex("#8B5CF6"), // Violet
+		utils.MustHex("#A855F7"), // Purple
+		utils.MustHex("#D946EF"), // Fuchsia
+		utils.MustHex("#EC4899"), // Pink
+	}
+
+	for i, opt := range options {
+		colorMap[opt] = rainbowColors[i%len(rainbowColors)]
+	}
+	return colorMap
+}
+
+// BuildQualityColorMap creates a gradient-based color map for quality/preset options
+// Higher quality = cooler colors (blue), lower quality = warmer colors (red/orange)
+func BuildQualityColorMap(options []string) map[string]color.Color {
+	colorMap := make(map[string]color.Color)
+
+	// Quality gradient: red (fast/low) -> yellow -> green -> blue (slow/high)
+	qualityColors := []color.Color{
+		utils.MustHex("#EF4444"), // Red - ultrafast/lowest
+		utils.MustHex("#F97316"), // Orange - superfast
+		utils.MustHex("#F59E0B"), // Amber - veryfast
+		utils.MustHex("#EAB308"), // Yellow - faster
+		utils.MustHex("#84CC16"), // Lime - fast
+		utils.MustHex("#22C55E"), // Green - medium
+		utils.MustHex("#10B981"), // Emerald - slow
+		utils.MustHex("#14B8A6"), // Teal - slower
+		utils.MustHex("#06B6D4"), // Cyan - veryslow
+		utils.MustHex("#3B82F6"), // Blue - highest quality
+	}
+
+	for i, opt := range options {
+		colorMap[opt] = qualityColors[i%len(qualityColors)]
+	}
+	return colorMap
+}
+
+// BuildPixelFormatColorMap creates a color map for pixel format options
+func BuildPixelFormatColorMap(formats []string) map[string]color.Color {
+	colorMap := make(map[string]color.Color)
+	for _, format := range formats {
+		colorMap[format] = GetPixelFormatColor(format)
+	}
+	return colorMap
+}

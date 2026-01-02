@@ -149,7 +149,7 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 
 	gridBox := container.NewVBox(rows...)
 	scroll := container.NewVScroll(gridBox)
-	scroll.SetMinSize(fyne.NewSize(0, 0))
+	// scroll.SetMinSize(fyne.NewSize(0, 0)) // Removed for flexible sizing
 
 	body := container.NewBorder(
 		header,
@@ -177,7 +177,7 @@ func buildModuleTile(mod ModuleInfo, tapped func(), dropped func([]fyne.URI)) fy
 func buildQueueTile(completed, total int, queueColor, textColor color.Color, onClick func()) fyne.CanvasObject {
 	rect := canvas.NewRectangle(queueColor)
 	rect.CornerRadius = 6
-	rect.SetMinSize(fyne.NewSize(120, 40))
+	// rect.SetMinSize(fyne.NewSize(120, 40)) // Removed for flexible sizing
 
 	text := canvas.NewText(fmt.Sprintf("QUEUE: %d/%d", completed, total), textColor)
 	text.Alignment = fyne.TextAlignCenter

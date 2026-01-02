@@ -176,7 +176,7 @@ func (v *BenchmarkProgressView) AddResult(result benchmark.Result) {
 
 	// Status indicator
 	statusRect := canvas.NewRectangle(statusColor)
-	statusRect.SetMinSize(fyne.NewSize(6, 0))
+	// statusRect.SetMinSize(fyne.NewSize(6, 0)) // Removed for flexible sizing
 
 	// Encoder label
 	encoderLabel := widget.NewLabel(fmt.Sprintf("%s (%s)", result.Encoder, result.Preset))
@@ -354,7 +354,7 @@ func BuildBenchmarkResultsView(
 
 		resultsBox := container.NewVBox(resultItems...)
 		resultsScroll := container.NewVScroll(resultsBox)
-		resultsScroll.SetMinSize(fyne.NewSize(0, 300))
+		// resultsScroll.SetMinSize(fyne.NewSize(0, 300)) // Removed for flexible sizing
 
 		resultsSection := container.NewBorder(
 			topResultsTitle,
@@ -436,7 +436,7 @@ func BuildBenchmarkHistoryView(
 
 	runsList := container.NewVBox(runItems...)
 	runsScroll := container.NewVScroll(runsList)
-	runsScroll.SetMinSize(fyne.NewSize(0, 400))
+	// runsScroll.SetMinSize(fyne.NewSize(0, 400)) // Removed for flexible sizing
 
 	infoLabel := widget.NewLabel("Click on a benchmark run to view detailed results")
 	infoLabel.Alignment = fyne.TextAlignCenter

@@ -273,7 +273,7 @@ func BuildQueueView(
 	jobList := container.NewVBox(jobItems...)
 	// Use a scroll container anchored to the top to avoid jumpy scroll-to-content behavior.
 	scrollable := container.NewScroll(jobList)
-	scrollable.SetMinSize(fyne.NewSize(0, 0))
+	// scrollable.SetMinSize(fyne.NewSize(0, 0)) // Removed for flexible sizing
 	scrollable.Offset = fyne.NewPos(0, 0)
 
 	body := container.NewBorder(
@@ -409,7 +409,7 @@ func buildJobItem(
 	// Card background
 	card := canvas.NewRectangle(bgColor)
 	card.CornerRadius = 4
-	card.SetMinSize(fyne.NewSize(0, 140)) // Fixed minimum height to prevent jumping
+	// card.SetMinSize(fyne.NewSize(0, 140)) // Removed for flexible sizing
 
 	item := container.NewPadded(
 		container.NewMax(card, content),
