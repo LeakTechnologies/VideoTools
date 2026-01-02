@@ -2,14 +2,14 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Documentation Alignment
+## Documentation: Address Platform Gaps
 
 **Priority:** High
 
-- [ ] **Audit and Tag Planned Features:**
-  - Go through all `.md` files in the `docs/` directory and the root.
-  - For any feature that is described but not yet implemented, add a clear and consistent marker (e.g., `[PLANNED]`).
-  - This will help manage user expectations and provide a more honest representation of the project's capabilities.
+- [ ] **Create Native Windows Guide:**
+  - Create a comprehensive installation and usage guide for native Windows.
+  - This guide should be on par with the existing Linux guide.
+  - Refactor `INSTALLATION.md` to be a central hub linking to platform-specific instructions.
 
 ## Critical Priority: dev22
 
