@@ -3464,19 +3464,17 @@ func (s *appState) showMergeView() {
 
 	// DVD-specific options
 	dvdRegionOptions := []string{"NTSC", "PAL"}
-	dvdRegionColors := ui.BuildGenericColorMap(dvdRegionOptions)
-	dvdRegionSelect := ui.NewColoredSelect(dvdRegionOptions, dvdRegionColors, func(val string) {
+	dvdRegionSelect := widget.NewSelect(dvdRegionOptions, func(val string) {
 		s.mergeDVDRegion = val
 		s.persistMergeConfig()
-	}, s.window)
+	})
 	dvdRegionSelect.SetSelected(s.mergeDVDRegion)
 
 	dvdAspectOptions := []string{"16:9", "4:3"}
-	dvdAspectColors := ui.BuildGenericColorMap(dvdAspectOptions)
-	dvdAspectSelect := ui.NewColoredSelect(dvdAspectOptions, dvdAspectColors, func(val string) {
+	dvdAspectSelect := widget.NewSelect(dvdAspectOptions, func(val string) {
 		s.mergeDVDAspect = val
 		s.persistMergeConfig()
-	}, s.window)
+	})
 	dvdAspectSelect.SetSelected(s.mergeDVDAspect)
 
 	dvdOptionsRow := container.NewHBox(
@@ -3542,11 +3540,10 @@ func (s *appState) showMergeView() {
 
 	// Frame Rate controls
 	frameRateOptions := []string{"Source", "23.976", "24", "25", "29.97", "30", "50", "59.94", "60"}
-	frameRateColors := ui.BuildGenericColorMap(frameRateOptions)
-	frameRateSelect := ui.NewColoredSelect(frameRateOptions, frameRateColors, func(val string) {
+	frameRateSelect := widget.NewSelect(frameRateOptions, func(val string) {
 		s.mergeFrameRate = val
 		s.persistMergeConfig()
-	}, s.window)
+	})
 	frameRateSelect.SetSelected(s.mergeFrameRate)
 
 	motionInterpCheck := widget.NewCheck("Use Motion Interpolation (slower, smoother)", func(checked bool) {
@@ -6536,11 +6533,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// DVD-specific aspect ratio selector (only shown for DVD formats)
 	dvdAspectOpts := []string{"4:3", "16:9"}
-	dvdAspectCols := ui.BuildGenericColorMap(dvdAspectOpts)
-	dvdAspectSelect := ui.NewColoredSelect(dvdAspectOpts, dvdAspectCols, func(value string) {
+	dvdAspectSelect := widget.NewSelect(dvdAspectOpts, func(value string) {
 		logging.Debug(logging.CatUI, "DVD aspect set to %s", value)
 		state.convert.OutputAspect = value
-	}, state.window)
+	})
 	dvdAspectSelect.SetSelected("16:9")
 	dvdAspectLabel := widget.NewLabelWithStyle("DVD Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
@@ -6563,20 +6559,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Forward declarations for encoding controls (used in reset/update callbacks)
 	var (
-		bitrateModeSelect          *ui.ColoredSelect
-		bitratePresetSelect        *ui.ColoredSelect
-		crfPresetSelect            *ui.ColoredSelect
+		bitrateModeSelect          *widget.Select
+		bitratePresetSelect        *widget.Select
+		crfPresetSelect            *widget.Select
 		crfEntry                   *widget.Entry
 		manualCrfRow               *fyne.Container
 		videoBitrateEntry          *widget.Entry
 		manualBitrateRow           *fyne.Container
-		targetFileSizeSelect       *ui.ColoredSelect
+		targetFileSizeSelect       *widget.Select
 		targetFileSizeEntry        *widget.Entry
-		qualitySelectSimple        *ui.ColoredSelect
-		qualitySelectAdv           *ui.ColoredSelect
+		qualitySelectSimple        *widget.Select
+		qualitySelectAdv           *widget.Select
 		qualitySectionSimple       fyne.CanvasObject
 		qualitySectionAdv          fyne.CanvasObject
-		simpleBitrateSelect        *ui.ColoredSelect
+		simpleBitrateSelect        *widget.Select
 		crfContainer               *fyne.Container
 		bitrateContainer           *fyne.Container
 		targetSizeContainer        *fyne.Container
@@ -6617,8 +6613,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	var syncingQuality bool
 
-	qualityColors := ui.BuildQualityColorMap(qualityOptions)
-	qualitySelectSimple = ui.NewColoredSelect(qualityOptions, qualityColors, func(value string) {
+	qualitySelectSimple = widget.NewSelect(qualityOptions, func(value string) {
 		if syncingQuality {
 			return
 		}
@@ -6635,9 +6630,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	}, state.window)
+	})
 
-	qualitySelectAdv = ui.NewColoredSelect(qualityOptions, qualityColors, func(value string) {
+	qualitySelectAdv = widget.NewSelect(qualityOptions, func(value string) {
 		if syncingQuality {
 			return
 		}
@@ -6654,7 +6649,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	}, state.window)
+	})
 
 	if !slices.Contains(qualityOptions, state.convert.Quality) {
 		state.convert.Quality = "Standard (CRF 23)"
@@ -6677,11 +6672,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 
-		newColors := ui.BuildQualityColorMap(newOptions)
-		qualitySelectSimple.UpdateOptions(newOptions, newColors)
-		qualitySelectAdv.UpdateOptions(newOptions, newColors)
+		qualitySelectSimple.Options = newOptions
+		qualitySelectAdv.Options = newOptions
 		qualitySelectSimple.SetSelected(state.convert.Quality)
 		qualitySelectAdv.SetSelected(state.convert.Quality)
+		qualitySelectSimple.Refresh()
+		qualitySelectAdv.Refresh()
 	}
 
 	outputEntry := widget.NewEntry()
@@ -6906,8 +6902,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	flipVerticalCheck.Checked = state.convert.FlipVertical
 
 	rotationOptions := []string{"0°", "90° CW", "180°", "270° CW"}
-	rotationColors := ui.BuildGenericColorMap(rotationOptions)
-	rotationSelect := ui.NewColoredSelect(rotationOptions, rotationColors, func(value string) {
+	rotationSelect := widget.NewSelect(rotationOptions, func(value string) {
 		var rotation string
 		switch value {
 		case "0°":
@@ -6921,7 +6916,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		state.convert.Rotation = rotation
 		logging.Debug(logging.CatUI, "rotation set to %s", rotation)
-	}, state.window)
+	})
 	if state.convert.Rotation == "" {
 		state.convert.Rotation = "0"
 	}
@@ -6937,17 +6932,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	aspectTargets := []string{"Source", "16:9", "4:3", "5:4", "5:3", "1:1", "9:16", "21:9"}
 	var (
-		targetAspectSelect       *ui.ColoredSelect
-		targetAspectSelectSimple *ui.ColoredSelect
+		targetAspectSelect       *widget.Select
+		targetAspectSelectSimple *widget.Select
 		syncAspect               func(string, bool)
 		syncingAspect            bool
 	)
-	aspectColors := ui.BuildGenericColorMap(aspectTargets)
-	targetAspectSelect = ui.NewColoredSelect(aspectTargets, aspectColors, func(value string) {
+	targetAspectSelect = widget.NewSelect(aspectTargets, func(value string) {
 		if syncAspect != nil {
 			syncAspect(value, true)
 		}
-	}, state.window)
+	})
 	if state.convert.OutputAspect == "" {
 		state.convert.OutputAspect = "Source"
 	}
@@ -7140,27 +7134,26 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	encoderPresetOptions := []string{"veryslow", "slower", "slow", "medium", "fast", "faster", "veryfast", "superfast", "ultrafast"}
-	encoderPresetColors := ui.BuildQualityColorMap(encoderPresetOptions)
-	encoderPresetSelect := ui.NewColoredSelect(encoderPresetOptions, encoderPresetColors, func(value string) {
+	encoderPresetSelect := widget.NewSelect(encoderPresetOptions, func(value string) {
 		state.convert.EncoderPreset = value
 		logging.Debug(logging.CatUI, "encoder preset set to %s", value)
 		updateEncoderPresetHint(value)
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	}, state.window)
+	})
 	encoderPresetSelect.SetSelected(state.convert.EncoderPreset)
 	updateEncoderPresetHint(state.convert.EncoderPreset)
 
 	// Simple mode preset dropdown
-	simplePresetSelect := ui.NewColoredSelect(encoderPresetOptions, encoderPresetColors, func(value string) {
+	simplePresetSelect := widget.NewSelect(encoderPresetOptions, func(value string) {
 		state.convert.EncoderPreset = value
 		logging.Debug(logging.CatUI, "simple preset set to %s", value)
 		updateEncoderPresetHint(value)
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	}, state.window)
+	})
 	simplePresetSelect.SetSelected(state.convert.EncoderPreset)
 
 	// Settings management for batch operations
@@ -7267,8 +7260,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"VBR":         "VBR (Variable Bitrate)",
 		"Target Size": "Target Size (Calculate from file size)",
 	}
-	bitrateModeColors := ui.BuildGenericColorMap(bitrateModeOptions)
-	bitrateModeSelect = ui.NewColoredSelect(bitrateModeOptions, bitrateModeColors, func(value string) {
+	bitrateModeSelect = widget.NewSelect(bitrateModeOptions, func(value string) {
 		// Extract short code from label
 		if shortCode, ok := bitrateModeMap[value]; ok {
 			state.convert.BitrateMode = shortCode
@@ -7282,7 +7274,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	}, state.window)
+	})
 	// Set selected using full label
 	if fullLabel, ok := reverseMap[state.convert.BitrateMode]; ok {
 		bitrateModeSelect.SetSelected(fullLabel)
@@ -7315,8 +7307,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"28 (Draft)",
 		"Manual",
 	}
-	crfPresetColors := ui.BuildQualityColorMap(crfPresetOptions)
-	crfPresetSelect = ui.NewColoredSelect(crfPresetOptions, crfPresetColors, func(value string) {
+	crfPresetSelect = widget.NewSelect(crfPresetOptions, func(value string) {
 		switch value {
 		case "Auto (from Quality preset)":
 			state.convert.CRF = ""
@@ -7344,7 +7335,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	}, state.window)
+	})
 	switch state.convert.CRF {
 	case "":
 		crfPresetSelect.SetSelected("Auto (from Quality preset)")
@@ -7579,15 +7570,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var setBitratePreset func(string)
 	var syncingBitratePreset bool
 
-	bitratePresetColors := ui.BuildQualityColorMap(bitratePresetLabels)
-	bitratePresetSelect = ui.NewColoredSelect(bitratePresetLabels, bitratePresetColors, func(value string) {
+	bitratePresetSelect = widget.NewSelect(bitratePresetLabels, func(value string) {
 		if syncingBitratePreset {
 			return
 		}
 		if setBitratePreset != nil {
 			setBitratePreset(value)
 		}
-	}, state.window)
+	})
 	state.convert.BitratePreset = normalizePresetLabel(state.convert.BitratePreset)
 	if state.convert.BitratePreset == "" || bitratePresetLookup[state.convert.BitratePreset].Label == "" {
 		state.convert.BitratePreset = "2.5 Mbps - Medium"
@@ -7595,14 +7585,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	bitratePresetSelect.SetSelected(state.convert.BitratePreset)
 
 	// Simple bitrate selector (shares presets)
-	simpleBitrateSelect = ui.NewColoredSelect(bitratePresetLabels, bitratePresetColors, func(value string) {
+	simpleBitrateSelect = widget.NewSelect(bitratePresetLabels, func(value string) {
 		if syncingBitratePreset {
 			return
 		}
 		if setBitratePreset != nil {
 			setBitratePreset(value)
 		}
-	}, state.window)
+	})
 	simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
 
 	// Manual bitrate row (hidden by default)
@@ -7623,19 +7613,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"2X (relative)", "4X (relative)",
 		"NTSC (720×480)", "PAL (720×540)", "PAL (720×576)",
 	}
-	resolutionColorsSimple := ui.BuildGenericColorMap(resolutionOptionsSimple)
-	resolutionSelectSimple := ui.NewColoredSelect(resolutionOptionsSimple, resolutionColorsSimple, func(value string) {
+	resolutionSelectSimple := widget.NewSelect(resolutionOptionsSimple, func(value string) {
 		state.convert.TargetResolution = value
 		logging.Debug(logging.CatUI, "target resolution set to %s (simple)", value)
-	}, state.window)
+	})
 	resolutionSelectSimple.SetSelected(state.convert.TargetResolution)
 
 	// Simple aspect selector (separate widget)
-	targetAspectSelectSimple = ui.NewColoredSelect(aspectTargets, aspectColors, func(value string) {
+	targetAspectSelectSimple = widget.NewSelect(aspectTargets, func(value string) {
 		if syncAspect != nil {
 			syncAspect(value, true)
 		}
-	}, state.window)
+	})
 	if state.convert.OutputAspect == "" {
 		state.convert.OutputAspect = "Source"
 	}
@@ -7788,13 +7777,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 
-		targetSizeColors := ui.BuildGenericColorMap(options)
-		targetFileSizeSelect.UpdateOptions(options, targetSizeColors)
+		targetFileSizeSelect.Options = options
+		targetFileSizeSelect.Refresh()
 	}
 
 	targetSizeOpts := []string{"25MB", "50MB", "100MB", "200MB", "500MB", "1GB", "Manual"}
-	targetSizeCols := ui.BuildGenericColorMap(targetSizeOpts)
-	targetFileSizeSelect = ui.NewColoredSelect(targetSizeOpts, targetSizeCols, func(value string) {
+	targetFileSizeSelect = widget.NewSelect(targetSizeOpts, func(value string) {
 		if value == "Manual" {
 			targetSizeManualRow.Show()
 			if state.convert.TargetFileSize != "" {
@@ -7829,7 +7817,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			targetSizeManualRow.Hide()
 		}
 		logging.Debug(logging.CatUI, "target file size set to %s", state.convert.TargetFileSize)
-	}, state.window)
+	})
 	targetFileSizeSelect.SetSelected("100MB")
 	updateTargetSizeOptions()
 
@@ -8001,11 +7989,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"2X (relative)", "4X (relative)",
 		"NTSC (720×480)", "PAL (720×540)", "PAL (720×576)",
 	}
-	resolutionColors := ui.BuildGenericColorMap(resolutionOptions)
-	resolutionSelect := ui.NewColoredSelect(resolutionOptions, resolutionColors, func(value string) {
+	resolutionSelect := widget.NewSelect(resolutionOptions, func(value string) {
 		state.convert.TargetResolution = value
 		logging.Debug(logging.CatUI, "target resolution set to %s", value)
-	}, state.window)
+	})
 	if state.convert.TargetResolution == "" {
 		state.convert.TargetResolution = "Source"
 	}
@@ -8074,12 +8061,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	frameRateOptions := []string{"Source", "23.976", "24", "25", "29.97", "30", "50", "59.94", "60"}
-	frameRateColors := ui.BuildGenericColorMap(frameRateOptions)
-	frameRateSelect := ui.NewColoredSelect(frameRateOptions, frameRateColors, func(value string) {
+	frameRateSelect := widget.NewSelect(frameRateOptions, func(value string) {
 		state.convert.FrameRate = value
 		logging.Debug(logging.CatUI, "frame rate set to %s", value)
 		updateFrameRateHint()
-	}, state.window)
+	})
 	frameRateSelect.SetSelected(state.convert.FrameRate)
 	updateFrameRateHint()
 
@@ -8092,11 +8078,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Pixel Format
 	pixelFormatOptions := []string{"yuv420p", "yuv422p", "yuv444p"}
-	pixelFormatColors := ui.BuildPixelFormatColorMap(pixelFormatOptions)
-	pixelFormatSelect := ui.NewColoredSelect(pixelFormatOptions, pixelFormatColors, func(value string) {
+	pixelFormatSelect := widget.NewSelect(pixelFormatOptions, func(value string) {
 		state.convert.PixelFormat = value
 		logging.Debug(logging.CatUI, "pixel format set to %s", value)
-	}, state.window)
+	})
 	pixelFormatSelect.SetSelected(state.convert.PixelFormat)
 
 	// Hardware Acceleration with hint
@@ -8105,11 +8090,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	hwAccelHintContainer := container.NewPadded(hwAccelHint)
 	hwAccelOptions := []string{"auto", "none", "nvenc", "amf", "vaapi", "qsv", "videotoolbox"}
-	hwAccelColors := ui.BuildGenericColorMap(hwAccelOptions)
-	hwAccelSelect := ui.NewColoredSelect(hwAccelOptions, hwAccelColors, func(value string) {
+	hwAccelSelect := widget.NewSelect(hwAccelOptions, func(value string) {
 		state.convert.HardwareAccel = value
 		logging.Debug(logging.CatUI, "hardware accel set to %s", value)
-	}, state.window)
+	})
 	if state.convert.HardwareAccel == "" {
 		state.convert.HardwareAccel = "auto"
 	}
@@ -8133,11 +8117,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Audio Bitrate
 	audioBitrateOptions := []string{"128k", "192k", "256k", "320k"}
-	audioBitrateColors := ui.BuildGenericColorMap(audioBitrateOptions)
-	audioBitrateSelect := ui.NewColoredSelect(audioBitrateOptions, audioBitrateColors, func(value string) {
+	audioBitrateSelect := widget.NewSelect(audioBitrateOptions, func(value string) {
 		state.convert.AudioBitrate = value
 		logging.Debug(logging.CatUI, "audio bitrate set to %s", value)
-	}, state.window)
+	})
 	audioBitrateSelect.SetSelected(state.convert.AudioBitrate)
 
 	// Audio Channels
@@ -8151,11 +8134,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"Mix to Stereo",
 		"Swap L/R",
 	}
-	audioChannelsColors := ui.BuildGenericColorMap(audioChannelsOptions)
-	audioChannelsSelect := ui.NewColoredSelect(audioChannelsOptions, audioChannelsColors, func(value string) {
+	audioChannelsSelect := widget.NewSelect(audioChannelsOptions, func(value string) {
 		state.convert.AudioChannels = value
 		logging.Debug(logging.CatUI, "audio channels set to %s", value)
-	}, state.window)
+	})
 	audioChannelsSelect.SetSelected(state.convert.AudioChannels)
 
 	// Now define updateDVDOptions with access to resolution and framerate selects
@@ -8195,7 +8177,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			)
 
 			// Prefer the explicit DVD aspect select if set; otherwise derive from source
-			targetAR = dvdAspectSelect.Selected()
+			targetAR = dvdAspectSelect.Selected
 
 			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
 				dvdNotes = "NTSC DVD: 720×480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k, 9000k max PS2-safe)"

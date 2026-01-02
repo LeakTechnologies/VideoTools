@@ -31,7 +31,7 @@ var moduleDependencies = map[string][]string{
 	"merge":     {"ffmpeg"},
 	"trim":      {"ffmpeg"},
 	"filters":   {"ffmpeg"},
-	"upscale":   {"ffmpeg", "realesrgan-ncnn-vulkan"},
+	"upscale":   {"ffmpeg"}, // realesrgan-ncnn-vulkan is optional for AI upscaling
 	"audio":     {"ffmpeg"},
 	"author":    {"ffmpeg", "dvdauthor", "xorriso"},
 	"rip":       {"ffmpeg", "xorriso"},
