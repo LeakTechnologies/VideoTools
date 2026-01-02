@@ -3,6 +3,11 @@
 ## Version 0.1.0-dev22 (2026-01-01) - Documentation Overhaul
 
 ### Documentation
+- ✅ **Aligned Documentation with Reality**
+  - Audited and tagged all planned features in the documentation with `[PLANNED]`.
+  - This provides a more honest representation of the project's capabilities.
+  - Removed broken links from the documentation index.
+
 - ✅ **Created Project Status Page**
   - Created `PROJECT_STATUS.md` to provide a single source of truth for project status.
   - Summarizes implemented, planned, and in-progress features.

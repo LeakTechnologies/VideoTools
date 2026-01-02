@@ -469,25 +469,25 @@ After integration, verify:
 
 Once integration is complete, consider:
 
-1. **DVD Menu Support**
+1. **DVD Menu Support** [PLANNED]
    - Simple menu generation
    - Chapter selection
    - Thumbnail previews
 
-2. **Batch Region Conversion**
+2. **Batch Region Conversion** [PLANNED]
    - Convert same video to NTSC/PAL/SECAM in one batch
    - Auto-detect region from source
 
-3. **Preset Management**
+3. **Preset Management** [PLANNED]
    - Save custom DVD presets
    - Share presets between users
 
-4. **Advanced Validation**
+4. **Advanced Validation** [PLANNED]
    - Check minimum file size
    - Estimate disc usage
    - Warn about audio track count
 
-5. **CLI Integration**
+5. **CLI Integration** [PLANNED]
    - `videotools dvd-encode input.mp4 output.mpg --region PAL`
    - Batch encoding from command line
 
