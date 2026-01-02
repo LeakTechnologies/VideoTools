@@ -1169,9 +1169,14 @@ func (cs *ColoredSelect) showPopup() {
 			if cs.onChanged != nil {
 				cs.onChanged(opt)
 			}
-			cs.popup.Hide()
-			cs.popup = nil
-			cs.Refresh()
+			// Hide popup after a short delay to allow the selection to be processed
+			time.AfterFunc(50*time.Millisecond, func() {
+				if cs.popup != nil {
+					cs.popup.Hide()
+					cs.popup = nil
+					cs.Refresh()
+				}
+			})
 		})
 
 		items[i] = tappableItem
