@@ -24,24 +24,28 @@ type AIModel interface {
 
 // ContentAnalysis represents video content analysis results
 type ContentAnalysis struct {
-	Type       string  // "general", "anime", "film", "interlaced"
+	Type       string  // "general", "anime", "film", "interlaced", "adult"
 	Quality    float64 // 0.0-1.0
 	Resolution int64
 	FrameRate  float64
-	Artifacts  []string // ["noise", "compression", "film_grain"]
-	Confidence float64  // AI model confidence in analysis
+	Artifacts  []string          // ["noise", "compression", "film_grain", "skin_tones"]
+	Confidence float64           // AI model confidence in analysis
+	SkinTones  *SkinToneAnalysis // Detailed skin analysis
 }
 
 // EnhancementConfig configures the enhancement process
 type EnhancementConfig struct {
-	Model            string                 // AI model name (auto, basicvsr, realesrgan, etc.)
-	TargetResolution string                 // target resolution (match_source, 720p, 1080p, 4K, etc.)
-	QualityPreset    string                 // fast, balanced, high
-	ContentDetection bool                   // enable content-aware processing
-	GPUAcceleration  bool                   // use GPU acceleration if available
-	TileSize         int                    // tile size for memory-efficient processing
-	PreviewMode      bool                   // enable real-time preview
-	Parameters       map[string]interface{} // model-specific parameters
+	Model             string                 // AI model name (auto, basicvsr, realesrgan, etc.)
+	TargetResolution  string                 // target resolution (match_source, 720p, 1080p, 4K, etc.)
+	QualityPreset     string                 // fast, balanced, high
+	ContentDetection  bool                   // enable content-aware processing
+	GPUAcceleration   bool                   // use GPU acceleration if available
+	TileSize          int                    // tile size for memory-efficient processing
+	PreviewMode       bool                   // enable real-time preview
+	PreserveSkinTones bool                   // preserve natural skin tones (red/pink) instead of washing out
+	SkinToneMode      string                 // off, conservative, balanced, professional
+	AdultContent      bool                   // enable adult content optimization
+	Parameters        map[string]interface{} // model-specific parameters
 }
 
 // EnhancementProgress tracks enhancement progress
@@ -123,7 +127,7 @@ func (m *EnhancementModule) AnalyzeContent(path string) (*ContentAnalysis, error
 	}
 
 	// Parse FFprobe output to extract video characteristics
-	analysis := &ContentAnalysis{
+	contentAnalysis := &ContentAnalysis{
 		Type:       m.detectContentType(path, output),
 		Quality:    m.estimateQuality(output),
 		Resolution: 1920, // Default, will be updated from FFprobe output
@@ -132,10 +136,22 @@ func (m *EnhancementModule) AnalyzeContent(path string) (*ContentAnalysis, error
 		Confidence: 0.8, // Default confidence
 	}
 
-	// TODO: Parse actual FFprobe output for precise values
-	// For now, using defaults that work for most content
+	// TODO: Implement skin tone analysis
+	// For now, use default skin analysis
+	skinAnalysis := &SkinToneAnalysis{
+		DetectedSkinTones:  []string{"neutral"}, // Default tone
+		SkinSaturation:     0.5,                 // Average saturation
+		SkinBrightness:     0.5,                 // Average brightness
+		SkinWarmth:         0.0,                 // Neutral warmth
+		SkinContrast:       1.0,                 // Normal contrast
+		DetectedHemoglobin: []string{"unknown"}, // Would be analyzed from frames
+		IsAdultContent:     false,               // Default until frame analysis
+		RecommendedProfile: "balanced",          // Default profile
+	}
+	// Set skin tone analysis
+	contentAnalysis.SkinTones = skinAnalysis
 
-	logging.Debug(logging.CatEnhance, "Content analysis complete: %+v", analysis)
+	logging.Debug(logging.CatEnhance, "Content analysis complete: %+v", contentAnalysis)
 	return analysis, nil
 }
 
@@ -183,6 +199,19 @@ func (m *EnhancementModule) SelectModel(analysis *ContentAnalysis) string {
 		return "realesrgan-x4plus-anime" // Anime-optimized
 	case "film":
 		return "basicvsr" // Film restoration
+	case "adult":
+		// Adult content optimization - preserve natural tones
+		if analysis.SkinTones != nil {
+			switch m.config.SkinToneMode {
+			case "professional", "conservative":
+				return "realesrgan-x4plus-skin-preserve"
+			case "balanced":
+				return "realesrgan-x4plus-skin-enhance"
+			default:
+				return "realesrgan-x4plus-anime" // Fallback to anime model
+			}
+		}
+		return "realesrgan-x4plus-skin-preserve" // Default for adult content
 	default:
 		return "realesrgan-x4plus" // General purpose
 	}
