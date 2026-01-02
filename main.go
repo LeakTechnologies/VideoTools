@@ -7388,6 +7388,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	var syncingBitrate bool
+	var previousBitrateUnit = "Kbps" // Track previous unit for conversion
 	updateBitrateState := func() {
 		if syncingBitrate {
 			return
@@ -7427,6 +7428,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			videoBitrateEntry.SetText(num)
 			if unit != "" {
 				videoBitrateUnitSelect.SetSelected(unit)
+				previousBitrateUnit = unit // Update tracked unit
 			}
 		} else {
 			videoBitrateEntry.SetText(value)
@@ -7434,10 +7436,58 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.VideoBitrate = value
 	}
 
-	videoBitrateUnitSelect.OnChanged = func(value string) {
+	videoBitrateUnitSelect.OnChanged = func(newUnit string) {
 		if manualBitrateRow != nil && manualBitrateRow.Hidden {
 			return
 		}
+
+		// Convert the numeric value when unit changes
+		if previousBitrateUnit != newUnit {
+			currentText := strings.TrimSpace(videoBitrateEntry.Text)
+			if currentText != "" {
+				if currentValue, err := strconv.ParseFloat(currentText, 64); err == nil {
+					// Convert from previous unit to new unit
+					var convertedValue float64
+
+					// First convert to Kbps (base unit)
+					var valueInKbps float64
+					switch previousBitrateUnit {
+					case "Kbps":
+						valueInKbps = currentValue
+					case "Mbps":
+						valueInKbps = currentValue * 1000
+					case "Gbps":
+						valueInKbps = currentValue * 1000000
+					}
+
+					// Then convert from Kbps to new unit
+					switch newUnit {
+					case "Kbps":
+						convertedValue = valueInKbps
+					case "Mbps":
+						convertedValue = valueInKbps / 1000
+					case "Gbps":
+						convertedValue = valueInKbps / 1000000
+					}
+
+					// Format the converted value, removing unnecessary decimals
+					var formattedValue string
+					if convertedValue == float64(int64(convertedValue)) {
+						// No decimal part
+						formattedValue = strconv.FormatInt(int64(convertedValue), 10)
+					} else {
+						// Has decimal part - format with precision
+						formattedValue = strconv.FormatFloat(convertedValue, 'f', -1, 64)
+					}
+
+					syncingBitrate = true
+					videoBitrateEntry.SetText(formattedValue)
+					syncingBitrate = false
+				}
+			}
+			previousBitrateUnit = newUnit
+		}
+
 		updateBitrateState()
 	}
 
