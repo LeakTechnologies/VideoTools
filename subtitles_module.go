@@ -248,7 +248,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 			row := container.NewBorder(nil, nil, timesCol, removeBtn, textEntry)
 			cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
 			cardBg.CornerRadius = 6
-			cardBg.SetMinSize(fyne.NewSize(0, startEntry.MinSize().Height+endEntry.MinSize().Height+textEntry.MinSize().Height+24))
+			// cardBg.SetMinSize(fyne.NewSize(0, startEntry.MinSize().Height+endEntry.MinSize().Height+textEntry.MinSize().Height+24)) // Removed for flexible sizing
 			cueList.Add(container.NewPadded(container.NewMax(cardBg, row)))
 		}
 		cueList.Refresh()

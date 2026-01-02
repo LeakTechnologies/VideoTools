@@ -75,7 +75,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 
 	// Metadata scroll
 	metadataScroll := container.NewScroll(metadataText)
-	metadataScroll.SetMinSize(fyne.NewSize(400, 200))
+	// metadataScroll.SetMinSize(fyne.NewSize(400, 200)) // Removed for flexible sizing
 
 	// Helper function to format metadata
 	formatMetadata := func(src *videoSource) string {

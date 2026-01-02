@@ -665,7 +665,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 
 	settingsScroll := container.NewVScroll(settingsPanel)
 	// Adaptive height for small screens - allow content to flow
-	settingsScroll.SetMinSize(fyne.NewSize(350, 400))
+	// settingsScroll.SetMinSize(fyne.NewSize(350, 400)) // Removed for flexible sizing
 
 	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6},
 		container.NewVBox(leftPanel, container.NewCenter(videoContainer)),

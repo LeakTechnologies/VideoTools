@@ -371,7 +371,7 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 	bg := canvas.NewRectangle(color.NRGBA{0x15, 0x1a, 0x24, 0xff}) // slightly lighter than app bg
 	scroll := container.NewVScroll(container.NewMax(bg, text))
 	// Adaptive min size - allows proper scaling on small screens
-	scroll.SetMinSize(fyne.NewSize(600, 350))
+	// scroll.SetMinSize(fyne.NewSize(600, 350)) // Removed for flexible sizing
 
 	stop := make(chan struct{})
 	var d dialog.Dialog
@@ -1187,7 +1187,7 @@ Config:
 
 	// Job details in scrollable area
 	detailsScroll := container.NewVScroll(detailsLabel)
-	detailsScroll.SetMinSize(fyne.NewSize(650, 250))
+	// detailsScroll.SetMinSize(fyne.NewSize(650, 250)) // Removed for flexible sizing
 
 	// FFmpeg Command section at bottom
 	var ffmpegSection fyne.CanvasObject
