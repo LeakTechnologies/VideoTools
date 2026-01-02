@@ -97,9 +97,9 @@ func NewModuleTile(label string, col color.Color, enabled bool, missingDeps bool
 		label:               strings.ToUpper(label),
 		color:               col,
 		missingDependencies: missingDeps,
-		enabled:   enabled,
-		onTapped:  tapped,
-		onDropped: dropped,
+		enabled:             enabled,
+		onTapped:            tapped,
+		onDropped:           dropped,
 	}
 	m.ExtendBaseWidget(m)
 	return m
@@ -220,10 +220,10 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 	})
 
 	return &moduleTileRenderer{
-		tile:          m,
-		bg:            bg,
-		label:         txt,
-		lockIcon:      lockIcon,
+		tile:           m,
+		bg:             bg,
+		label:          txt,
+		lockIcon:       lockIcon,
 		disabledStripe: disabledStripe,
 	}
 }
@@ -235,10 +235,10 @@ func (m *ModuleTile) Tapped(*fyne.PointEvent) {
 }
 
 type moduleTileRenderer struct {
-	tile          *ModuleTile
-	bg            *canvas.Rectangle
-	label         *canvas.Text
-	lockIcon      *canvas.Text
+	tile           *ModuleTile
+	bg             *canvas.Rectangle
+	label          *canvas.Text
+	lockIcon       *canvas.Text
 	disabledStripe *canvas.Raster
 }
 
@@ -327,7 +327,7 @@ func (r *moduleTileRenderer) Objects() []fyne.CanvasObject {
 // TintedBar creates a colored bar container
 func TintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 	rect := canvas.NewRectangle(col)
-	rect.SetMinSize(fyne.NewSize(0, 48))
+	// rect.SetMinSize(fyne.NewSize(0, 48)) // Removed for flexible sizing
 	padded := container.NewPadded(body)
 	return container.NewMax(rect, padded)
 }
@@ -883,7 +883,7 @@ func (w *FFmpegCommandWidget) SetCommand(command string) {
 // CreateRenderer creates the widget renderer
 func (w *FFmpegCommandWidget) CreateRenderer() fyne.WidgetRenderer {
 	scroll := container.NewVScroll(w.commandLabel)
-	scroll.SetMinSize(fyne.NewSize(0, 80))
+	// scroll.SetMinSize(fyne.NewSize(0, 80)) // Removed for flexible sizing
 
 	content := container.NewBorder(
 		nil,
@@ -952,7 +952,7 @@ func BuildModuleBadge(jobType queue.JobType) fyne.CanvasObject {
 
 	rect := canvas.NewRectangle(badgeColor)
 	rect.CornerRadius = 3
-	rect.SetMinSize(fyne.NewSize(70, 20))
+	// rect.SetMinSize(fyne.NewSize(70, 20)) // Removed for flexible sizing
 
 	text := canvas.NewText(badgeText, color.White)
 	text.Alignment = fyne.TextAlignCenter
@@ -967,7 +967,7 @@ func BuildModuleBadge(jobType queue.JobType) fyne.CanvasObject {
 func SectionHeader(title string, accentColor color.Color) fyne.CanvasObject {
 	// Left accent bar (Memphis geometric style)
 	accent := canvas.NewRectangle(accentColor)
-	accent.SetMinSize(fyne.NewSize(4, 20))
+	// accent.SetMinSize(fyne.NewSize(4, 20)) // Removed for flexible sizing
 
 	// Title text
 	label := widget.NewLabel(title)
@@ -988,14 +988,14 @@ func SectionHeader(title string, accentColor color.Color) fyne.CanvasObject {
 // SectionSpacer creates vertical spacing between sections for better readability
 func SectionSpacer() fyne.CanvasObject {
 	spacer := canvas.NewRectangle(color.Transparent)
-	spacer.SetMinSize(fyne.NewSize(0, 12))
+	// spacer.SetMinSize(fyne.NewSize(0, 12)) // Removed for flexible sizing
 	return spacer
 }
 
 // ColoredDivider creates a thin horizontal divider with accent color
 func ColoredDivider(accentColor color.Color) fyne.CanvasObject {
 	divider := canvas.NewRectangle(accentColor)
-	divider.SetMinSize(fyne.NewSize(0, 2))
+	// divider.SetMinSize(fyne.NewSize(0, 2)) // Removed for flexible sizing
 	return divider
 }
 
@@ -1005,7 +1005,7 @@ func ColoredDivider(accentColor color.Color) fyne.CanvasObject {
 func NewColorCodedSelectContainer(selectWidget *widget.Select, accentColor color.Color) (*fyne.Container, *canvas.Rectangle) {
 	// Create colored left border rectangle
 	border := canvas.NewRectangle(accentColor)
-	border.SetMinSize(fyne.NewSize(4, 44))
+	// border.SetMinSize(fyne.NewSize(4, 44)) // Removed for flexible sizing
 
 	// Return container with [ColoredBorder][Select] and the border for future updates
 	container := container.NewBorder(nil, nil, border, nil, selectWidget)
@@ -1015,13 +1015,13 @@ func NewColorCodedSelectContainer(selectWidget *widget.Select, accentColor color
 // ColoredSelect is a custom select widget with color-coded dropdown items
 type ColoredSelect struct {
 	widget.BaseWidget
-	options       []string
-	selected      string
-	colorMap      map[string]color.Color
-	onChanged     func(string)
-	popup         *widget.PopUp
-	window        fyne.Window
-	placeHolder   string
+	options     []string
+	selected    string
+	colorMap    map[string]color.Color
+	onChanged   func(string)
+	popup       *widget.PopUp
+	window      fyne.Window
+	placeHolder string
 }
 
 // NewColoredSelect creates a new colored select widget
@@ -1095,7 +1095,7 @@ func (cs *ColoredSelect) showPopup() {
 
 		// Create colored indicator bar
 		colorBar := canvas.NewRectangle(itemColor)
-		colorBar.SetMinSize(fyne.NewSize(4, 32))
+		// colorBar.SetMinSize(fyne.NewSize(4, 32)) // Removed for flexible sizing
 
 		// Create label
 		label := widget.NewLabel(opt)

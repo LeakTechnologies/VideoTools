@@ -217,7 +217,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 
 		statusBg := canvas.NewRectangle(statusColor)
 		statusBg.CornerRadius = 3
-		statusBg.SetMinSize(fyne.NewSize(12, 12))
+		// statusBg.SetMinSize(fyne.NewSize(12, 12)) // Removed for flexible sizing
 
 		statusRow := container.NewHBox(statusBg, statusLabel)
 

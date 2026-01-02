@@ -309,7 +309,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 					img := canvas.NewImageFromFile(contactSheetPath)
 					img.FillMode = canvas.ImageFillContain
 					// Adaptive size for small screens - use scrollable dialog
-					img.SetMinSize(fyne.NewSize(640, 480))
+					// img.SetMinSize(fyne.NewSize(640, 480)) // Removed for flexible sizing
 
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 						// Wrap in scroll container for large contact sheets

@@ -462,11 +462,11 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 			}
 			state.authorFile = src
 			fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(src.Path)))
-            // Clear the custom title so it can be re-derived from the new content.
-            // This addresses the user's request for the title to "reset".
-            state.authorTitle = ""
-            state.updateAuthorSummary()
-            // Update the UI for the title entry if the settings tab is currently visible.
+			// Clear the custom title so it can be re-derived from the new content.
+			// This addresses the user's request for the title to "reset".
+			state.authorTitle = ""
+			state.updateAuthorSummary()
+			// Update the UI for the title entry if the settings tab is currently visible.
 			if state.active == "author" && state.window.Canvas() != nil {
 				app := fyne.CurrentApp()
 				if app != nil && app.Driver() != nil {
@@ -1370,9 +1370,9 @@ func concatDVDMpg(inputs []string, output string) error {
 		"-safe", "0",
 		"-i", listPath,
 		"-c", "copy",
-		"-f", "dvd",           // Maintain DVD format
+		"-f", "dvd", // Maintain DVD format
 		"-muxrate", "10080000", // DVD mux rate
-		"-packetsize", "2048",  // DVD packet size
+		"-packetsize", "2048", // DVD packet size
 		output,
 	}
 	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), args...)
@@ -2120,7 +2120,6 @@ func runAuthorFFmpeg(ctx context.Context, args []string, duration float64, logFn
 	return nil
 }
 
-
 func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
 	cfg := job.Config
 	if cfg == nil {
@@ -2421,9 +2420,9 @@ func buildAuthorFFmpegArgs(inputPath, outputPath, region, aspect string, progres
 		"-b:a", "192k",
 		"-ar", "48000",
 		"-ac", "2",
-		"-f", "dvd",           // DVD-compliant MPEG-PS format
+		"-f", "dvd", // DVD-compliant MPEG-PS format
 		"-muxrate", "10080000", // DVD mux rate (10.08 Mbps)
-		"-packetsize", "2048",  // DVD packet size
+		"-packetsize", "2048", // DVD packet size
 		outputPath,
 	)
 
@@ -2695,7 +2694,7 @@ func (s *appState) showChapterPreview(videoPath string, chapters []authorChapter
 
 			grid := container.NewGridWrap(fyne.NewSize(170, 120), thumbnails...)
 			scroll := container.NewVScroll(grid)
-			scroll.SetMinSize(fyne.NewSize(780, 500))
+			// scroll.SetMinSize(fyne.NewSize(780, 500)) // Removed for flexible sizing
 
 			infoText := fmt.Sprintf("Found %d chapters", len(chapters))
 			if len(chapters) > previewCount {
