@@ -2,14 +2,14 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Documentation: Address Platform Gaps
+## Documentation: Fix Structural Errors
 
 **Priority:** High
 
-- [ ] **Create Native Windows Guide:**
-  - Create a comprehensive installation and usage guide for native Windows.
-  - This guide should be on par with the existing Linux guide.
-  - Refactor `INSTALLATION.md` to be a central hub linking to platform-specific instructions.
+- [ ] **Audit All Docs for Broken Links:**
+  - Systematically check all 46 `.md` files for internal links that point to non-existent files or sections.
+  - Create placeholder stubs for missing documents that are essential (e.g., `CONTRIBUTING.md`) or remove the links if they are not.
+  - This ensures a professional and navigable documentation experience.
 
 ## Critical Priority: dev22
 

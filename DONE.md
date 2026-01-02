@@ -3,6 +3,11 @@
 ## Version 0.1.0-dev22 (2026-01-01) - Documentation Overhaul
 
 ### Documentation
+- ✅ **Addressed Platform Gaps (Windows Guide)**
+  - Created a new, comprehensive installation guide for native Windows (`docs/INSTALL_WINDOWS.md`).
+  - Refactored the main `INSTALLATION.md` into a platform-agnostic hub that now links to the separate, detailed guides for Windows and Linux/macOS.
+  - This provides a clear, user-friendly path for users on all major platforms.
+
 - ✅ **Aligned Documentation with Reality**
   - Audited and tagged all planned features in the documentation with `[PLANNED]`.
   - This provides a more honest representation of the project's capabilities.
