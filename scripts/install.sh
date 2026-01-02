@@ -121,12 +121,18 @@ echo -e "${CYAN}[2/2]${NC} Checking authoring dependencies..."
 if [ "$IS_WINDOWS" = true ]; then
     echo "Detected Windows environment."
     if [ -z "$SKIP_DVD_TOOLS" ]; then
-        echo ""
-        read -p "Install DVD authoring tools (DVDStyler)? [y/N]: " dvd_choice
-        if [[ "$dvd_choice" =~ ^[Yy]$ ]]; then
-            SKIP_DVD_TOOLS=false
-        else
+        # Check if DVDStyler is already installed (Windows)
+        if command -v dvdstyler &> /dev/null || [ -f "/c/Program Files/DVDStyler/DVDStyler.exe" ] || [ -f "C:\\Program Files\\DVDStyler\\DVDStyler.exe" ]; then
+            echo -e "${GREEN}[OK]${NC} DVDStyler already installed"
             SKIP_DVD_TOOLS=true
+        else
+            echo ""
+            read -p "Install DVD authoring tools (DVDStyler)? [y/N]: " dvd_choice
+            if [[ "$dvd_choice" =~ ^[Yy]$ ]]; then
+                SKIP_DVD_TOOLS=false
+            else
+                SKIP_DVD_TOOLS=true
+            fi
         fi
     fi
     if command -v powershell.exe &> /dev/null; then
@@ -166,12 +172,18 @@ else
         missing_deps+=("ffmpeg")
     fi
     if [ -z "$SKIP_DVD_TOOLS" ]; then
-        echo ""
-        read -p "Install DVD authoring tools (dvdauthor + ISO tools)? [y/N]: " dvd_choice
-        if [[ "$dvd_choice" =~ ^[Yy]$ ]]; then
-            SKIP_DVD_TOOLS=false
-        else
+        # Check if DVD tools are already installed
+        if command -v dvdauthor &> /dev/null && command -v xorriso &> /dev/null; then
+            echo -e "${GREEN}[OK]${NC} DVD authoring tools already installed"
             SKIP_DVD_TOOLS=true
+        else
+            echo ""
+            read -p "Install DVD authoring tools (dvdauthor + ISO tools)? [y/N]: " dvd_choice
+            if [[ "$dvd_choice" =~ ^[Yy]$ ]]; then
+                SKIP_DVD_TOOLS=false
+            else
+                SKIP_DVD_TOOLS=true
+            fi
         fi
     fi
     if [ "$SKIP_DVD_TOOLS" = false ]; then
@@ -185,12 +197,18 @@ else
 
     # Ask about AI upscaling tools
     if [ -z "$SKIP_AI_TOOLS" ]; then
-        echo ""
-        read -p "Install AI upscaling tools (Real-ESRGAN NCNN)? [y/N]: " ai_choice
-        if [[ "$ai_choice" =~ ^[Yy]$ ]]; then
-            SKIP_AI_TOOLS=false
-        else
+        # Check if Real-ESRGAN is already installed
+        if command -v realesrgan-ncnn-vulkan &> /dev/null; then
+            echo -e "${GREEN}[OK]${NC} Real-ESRGAN NCNN already installed"
             SKIP_AI_TOOLS=true
+        else
+            echo ""
+            read -p "Install AI upscaling tools (Real-ESRGAN NCNN)? [y/N]: " ai_choice
+            if [[ "$ai_choice" =~ ^[Yy]$ ]]; then
+                SKIP_AI_TOOLS=false
+            else
+                SKIP_AI_TOOLS=true
+            fi
         fi
     fi
     if [ "$SKIP_AI_TOOLS" = false ]; then
@@ -201,12 +219,18 @@ else
 
     # Ask about Whisper for subtitling
     if [ -z "$SKIP_WHISPER" ]; then
-        echo ""
-        read -p "Install Whisper for automated subtitling? [y/N]: " whisper_choice
-        if [[ "$whisper_choice" =~ ^[Yy]$ ]]; then
-            SKIP_WHISPER=false
-        else
+        # Check if Whisper is already installed
+        if command -v whisper &> /dev/null || command -v whisper.cpp &> /dev/null; then
+            echo -e "${GREEN}[OK]${NC} Whisper already installed"
             SKIP_WHISPER=true
+        else
+            echo ""
+            read -p "Install Whisper for automated subtitling? [y/N]: " whisper_choice
+            if [[ "$whisper_choice" =~ ^[Yy]$ ]]; then
+                SKIP_WHISPER=false
+            else
+                SKIP_WHISPER=true
+            fi
         fi
     fi
     if [ "$SKIP_WHISPER" = false ]; then
