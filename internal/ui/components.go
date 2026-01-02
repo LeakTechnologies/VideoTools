@@ -1113,15 +1113,31 @@ func (cs *ColoredSelect) Disable() {
 
 // CreateRenderer creates the renderer for the colored select
 func (cs *ColoredSelect) CreateRenderer() fyne.WidgetRenderer {
-	// Create the button that shows current selection
+	// Create styled dropdown using native Select widget for better appearance
 	displayText := cs.selected
 	if displayText == "" && cs.placeHolder != "" {
 		displayText = cs.placeHolder
 	}
 
-	button := widget.NewButton(displayText, func() {
-		cs.showPopup()
+	// Create native Select widget that supports proper dropdown appearance
+	button := widget.NewSelect(cs.options, func(value string) {
+		cs.selected = value
+		if cs.onChanged != nil {
+			cs.onChanged(value)
+		}
+		// Auto-hide popup when selection is made
+		if cs.popup != nil {
+			cs.popup.Hide()
+			cs.popup = nil
+		}
+		cs.Refresh()
 	})
+	button.SetSelected(displayText)
+
+	// Style to enhance dropdown appearance
+	if theme := fyne.CurrentApp().Settings().Theme(); theme != nil {
+		button.Refresh()
+	}
 
 	return &coloredSelectRenderer{
 		select_: cs,
@@ -1205,7 +1221,7 @@ func (cs *ColoredSelect) Tapped(*fyne.PointEvent) {
 
 type coloredSelectRenderer struct {
 	select_ *ColoredSelect
-	button  *widget.Button
+	button  *widget.Select
 }
 
 func (r *coloredSelectRenderer) Layout(size fyne.Size) {
@@ -1221,7 +1237,7 @@ func (r *coloredSelectRenderer) Refresh() {
 	if displayText == "" && r.select_.placeHolder != "" {
 		displayText = r.select_.placeHolder
 	}
-	r.button.SetText(displayText)
+	r.button.SetSelected(displayText)
 	r.button.Refresh()
 }
 
