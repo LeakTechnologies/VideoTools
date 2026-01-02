@@ -87,7 +87,7 @@ var (
 		{"trim", "Trim", utils.MustHex("#F9A825"), "Convert", nil},                               // Dark Yellow/Gold (not implemented yet)
 		{"filters", "Filters", utils.MustHex("#00BCD4"), "Convert", modules.HandleFilters},       // Cyan (creative filters)
 		{"upscale", "Upscale", utils.MustHex("#9C27B0"), "Advanced", modules.HandleUpscale},      // Purple (AI/advanced)
-		{"audio", "Audio", utils.MustHex("#FF8F00"), "Convert", modules.HandleAudio}, // Dark Amber - audio extraction
+		{"audio", "Audio", utils.MustHex("#FF8F00"), "Convert", modules.HandleAudio},             // Dark Amber - audio extraction
 		{"author", "Author", utils.MustHex("#FF5722"), "Disc", modules.HandleAuthor},             // Deep Orange (authoring)
 		{"rip", "Rip", utils.MustHex("#FF9800"), "Disc", modules.HandleRip},                      // Orange (extraction)
 		{"bluray", "Blu-Ray", utils.MustHex("#2196F3"), "Disc", nil},                             // Blue (not implemented yet)
@@ -906,6 +906,16 @@ type appState struct {
 	filterInterpEnabled bool
 	filterInterpPreset  string
 	filterInterpFPS     string
+
+	// Stylistic effects state
+	filterStylisticMode string  // "None", "70s", "80s", "90s", "VHS", "Webcam"
+	filterScanlines     bool    // CRT scanline effect
+	filterChromaNoise   float64 // 0.0-1.0, analog chroma noise
+	filterColorBleeding bool    // VHS color bleeding effect
+	filterTapeNoise     float64 // 0.0-1.0, magnetic tape noise
+	filterTrackingError float64 // 0.0-1.0, VHS tracking errors
+	filterDropout       float64 // 0.0-1.0, tape dropouts
+	filterInterlacing   string  // "None", "Progressive", "Interlaced"
 
 	// Upscale module state
 	upscaleFile                *videoSource
@@ -3083,10 +3093,10 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"outputPath":        outPath,
 			"outputBase":        outputBase,
 			"selectedFormat":    s.convert.SelectedFormat,
-		"quality":           s.convert.Quality,
-		"mode":              s.convert.Mode,
-		"preserveChapters":  s.convert.PreserveChapters,
-		"videoCodec":        s.convert.VideoCodec,
+			"quality":           s.convert.Quality,
+			"mode":              s.convert.Mode,
+			"preserveChapters":  s.convert.PreserveChapters,
+			"videoCodec":        s.convert.VideoCodec,
 			"encoderPreset":     s.convert.EncoderPreset,
 			"crf":               s.convert.CRF,
 			"bitrateMode":       s.convert.BitrateMode,
@@ -3113,7 +3123,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"sourceWidth":       src.Width,
 			"sourceHeight":      src.Height,
 			"sourceBitrate":     src.Bitrate,
-		"sourceDuration":    src.Duration,
+			"sourceDuration":    src.Duration,
 			"fieldOrder":        src.FieldOrder,
 		}
 
@@ -6357,18 +6367,18 @@ func buildFormatBadge(formatLabel string) fyne.CanvasObject {
 	} else {
 		badgeColor = ui.GetContainerColor(containerName)
 	}
-	
+
 	// Create colored background
 	bg := canvas.NewRectangle(badgeColor)
 	bg.CornerRadius = 4
 	bg.SetMinSize(fyne.NewSize(120, 32))
-	
+
 	// Create label
 	label := canvas.NewText(formatLabel, color.White)
 	label.TextStyle = fyne.TextStyle{Bold: true}
 	label.Alignment = fyne.TextAlignCenter
 	label.TextSize = 13
-	
+
 	// Stack background and label
 	return container.NewMax(bg, container.NewCenter(label))
 }
@@ -6376,21 +6386,21 @@ func buildFormatBadge(formatLabel string) fyne.CanvasObject {
 // buildVideoCodecBadge creates a color-coded badge for a video codec
 func buildVideoCodecBadge(codecName string) fyne.CanvasObject {
 	codecLower := strings.ToLower(strings.TrimSpace(codecName))
-	
+
 	// Get codec color
 	badgeColor := ui.GetVideoCodecColor(codecLower)
-	
+
 	// Create colored background
 	bg := canvas.NewRectangle(badgeColor)
 	bg.CornerRadius = 4
 	bg.SetMinSize(fyne.NewSize(100, 28))
-	
+
 	// Create label
 	label := canvas.NewText(codecName, color.White)
 	label.TextStyle = fyne.TextStyle{Bold: true}
 	label.Alignment = fyne.TextAlignCenter
 	label.TextSize = 12
-	
+
 	// Stack background and label
 	return container.NewMax(bg, container.NewCenter(label))
 }
@@ -6398,21 +6408,21 @@ func buildVideoCodecBadge(codecName string) fyne.CanvasObject {
 // buildAudioCodecBadge creates a color-coded badge for an audio codec
 func buildAudioCodecBadge(codecName string) fyne.CanvasObject {
 	codecLower := strings.ToLower(strings.TrimSpace(codecName))
-	
+
 	// Get codec color
 	badgeColor := ui.GetAudioCodecColor(codecLower)
-	
+
 	// Create colored background
 	bg := canvas.NewRectangle(badgeColor)
 	bg.CornerRadius = 4
 	bg.SetMinSize(fyne.NewSize(100, 28))
-	
+
 	// Create label
 	label := canvas.NewText(codecName, color.White)
 	label.TextStyle = fyne.TextStyle{Bold: true}
 	label.Alignment = fyne.TextAlignCenter
 	label.TextSize = 12
-	
+
 	// Stack background and label
 	return container.NewMax(bg, container.NewCenter(label))
 }
@@ -6542,25 +6552,25 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Forward declarations for encoding controls (used in reset/update callbacks)
 	var (
-		bitrateModeSelect    *widget.Select
-		bitratePresetSelect  *widget.Select
-		crfPresetSelect      *widget.Select
-		crfEntry             *widget.Entry
-		manualCrfRow         *fyne.Container
-		videoBitrateEntry    *widget.Entry
-		manualBitrateRow     *fyne.Container
-		targetFileSizeSelect *widget.Select
-		targetFileSizeEntry  *widget.Entry
-		qualitySelectSimple  *widget.Select
-		qualitySelectAdv     *widget.Select
-		qualitySectionSimple fyne.CanvasObject
-		qualitySectionAdv    fyne.CanvasObject
-		simpleBitrateSelect  *widget.Select
-		crfContainer         *fyne.Container
-		bitrateContainer     *fyne.Container
-		targetSizeContainer  *fyne.Container
-		resetConvertDefaults func()
-		tabs                 *container.AppTabs
+		bitrateModeSelect          *widget.Select
+		bitratePresetSelect        *widget.Select
+		crfPresetSelect            *widget.Select
+		crfEntry                   *widget.Entry
+		manualCrfRow               *fyne.Container
+		videoBitrateEntry          *widget.Entry
+		manualBitrateRow           *fyne.Container
+		targetFileSizeSelect       *widget.Select
+		targetFileSizeEntry        *widget.Entry
+		qualitySelectSimple        *widget.Select
+		qualitySelectAdv           *widget.Select
+		qualitySectionSimple       fyne.CanvasObject
+		qualitySectionAdv          fyne.CanvasObject
+		simpleBitrateSelect        *widget.Select
+		crfContainer               *fyne.Container
+		bitrateContainer           *fyne.Container
+		targetSizeContainer        *fyne.Container
+		resetConvertDefaults       func()
+		tabs                       *container.AppTabs
 		simpleEncodingSection      *fyne.Container
 		advancedVideoEncodingBlock *fyne.Container
 		audioEncodingSection       *fyne.Container
@@ -6805,7 +6815,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}, false)
 		}()
 	})
-	analyzeInterlaceBtn.Importance = widget.MediumImportance
+	analyzeInterlaceBtn.Importance = widget.HighImportance
 
 	// Auto-crop controls
 	autoCropCheck := widget.NewCheck("Auto-Detect Black Bars", func(checked bool) {
@@ -6863,6 +6873,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}, state.window)
 		}()
 	})
+	detectCropBtn.Importance = widget.MediumImportance
 	if src == nil {
 		detectCropBtn.Disable()
 	}
@@ -8372,7 +8383,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		formatContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
-		dvdAspectBox,        // DVD options appear here when DVD format selected
+		dvdAspectBox, // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		outputHintContainer,
@@ -8435,7 +8446,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		formatContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
-		dvdAspectBox,        // DVD options appear here when DVD format selected
+		dvdAspectBox, // DVD options appear here when DVD format selected
 		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		outputHintContainer,
@@ -8793,14 +8804,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	leftColumn := container.NewVBox(videoPanel, spacer, metaPanel)
 
-	// Add 15px spacing between left and right panels
+	// Add minimal spacing (10px) between left and right panels
 	horizontalSpacer := canvas.NewRectangle(color.Transparent)
-	horizontalSpacer.SetMinSize(fyne.NewSize(15, 1))
+	horizontalSpacer.SetMinSize(fyne.NewSize(10, 1))
 
 	// Split: left side (video + metadata) takes 50% | right side (options) takes 50%
-	mainSplit := container.New(&fixedHSplitLayout{ratio: 0.5},
-		container.NewHBox(leftColumn, horizontalSpacer),
+	mainSplit := container.NewHSplit(
+		leftColumn,
 		optionsPanel)
+	mainSplit.SetOffset(0.5) // 50/50 split
 
 	// Add horizontal padding around the split (10px on each side)
 	mainContent := container.NewPadded(mainSplit)
@@ -8889,7 +8901,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		state.openLogViewer("Conversion Log", state.convertActiveLog, state.convertBusy)
 	})
-	viewLogBtn.Importance = widget.LowImportance
+	viewLogBtn.Importance = widget.MediumImportance
 	if state.convertActiveLog == "" {
 		viewLogBtn.Disable()
 	}
@@ -8958,6 +8970,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert = cfg
 		state.showConvertView(state.source)
 	})
+	loadCfgBtn.Importance = widget.MediumImportance
+
 	saveCfgBtn := widget.NewButton("Save Config", func() {
 		if err := savePersistedConvertConfig(state.convert); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
@@ -8965,6 +8979,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", defaultConvertConfigPath()), state.window)
 	})
+	saveCfgBtn.Importance = widget.MediumImportance
 
 	// FFmpeg Command Preview
 	var commandPreviewWidget *ui.FFmpegCommandWidget
@@ -9509,11 +9524,12 @@ Metadata: %s`,
 							}()
 						}
 					}, false)
-				}()
-			})
-			previewBtn.Importance = widget.LowImportance
-			previewSection = previewBtn
-		}
+		}()
+	})
+	detectCropBtn.Importance = widget.MediumImportance
+	if src == nil {
+		detectCropBtn.Disable()
+	}
 
 		var sectionItems []fyne.CanvasObject
 		sectionItems = append(sectionItems,
@@ -12893,40 +12909,40 @@ func normalizeCodecName(codec string) string {
 
 	// Map common variations to standard names
 	replacements := map[string]string{
-		"h264":           "h264",
-		"avc":            "h264",
-		"avc1":           "h264",
-		"h.264":          "h264",
-		"x264":           "h264",
-		"h265":           "h265",
-		"hevc":           "h265",
-		"h.265":          "h265",
-		"x265":           "h265",
-		"mpeg4":          "mpeg4",
-		"divx":           "mpeg4",
-		"xvid":           "mpeg4",
-		"mpeg-4":         "mpeg4",
-		"mpeg2":          "mpeg2",
-		"mpeg-2":         "mpeg2",
-		"mpeg2video":     "mpeg2",
-		"aac":            "aac",
-		"mp3":            "mp3",
-		"ac3":            "ac3",
-		"a_ac3":          "ac3",
-		"eac3":           "eac3",
-		"vorbis":         "vorbis",
-		"opus":           "opus",
-		"vp8":            "vp8",
-		"vp9":            "vp9",
-		"av1":            "av1",
-		"libaom-av1":     "av1",
-		"theora":         "theora",
-		"wmv3":           "wmv",
-		"vc1":            "vc1",
-		"prores":         "prores",
-		"prores_ks":      "prores",
-		"mjpeg":          "mjpeg",
-		"png":            "png",
+		"h264":       "h264",
+		"avc":        "h264",
+		"avc1":       "h264",
+		"h.264":      "h264",
+		"x264":       "h264",
+		"h265":       "h265",
+		"hevc":       "h265",
+		"h.265":      "h265",
+		"x265":       "h265",
+		"mpeg4":      "mpeg4",
+		"divx":       "mpeg4",
+		"xvid":       "mpeg4",
+		"mpeg-4":     "mpeg4",
+		"mpeg2":      "mpeg2",
+		"mpeg-2":     "mpeg2",
+		"mpeg2video": "mpeg2",
+		"aac":        "aac",
+		"mp3":        "mp3",
+		"ac3":        "ac3",
+		"a_ac3":      "ac3",
+		"eac3":       "eac3",
+		"vorbis":     "vorbis",
+		"opus":       "opus",
+		"vp8":        "vp8",
+		"vp9":        "vp9",
+		"av1":        "av1",
+		"libaom-av1": "av1",
+		"theora":     "theora",
+		"wmv3":       "wmv",
+		"vc1":        "vc1",
+		"prores":     "prores",
+		"prores_ks":  "prores",
+		"mjpeg":      "mjpeg",
+		"png":        "png",
 	}
 
 	for old, new := range replacements {
