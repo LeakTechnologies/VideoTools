@@ -44,8 +44,25 @@ func (m *MonoTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) c
 	case theme.ColorNameHover:
 		// Use the default selection color for hover
 		return theme.DefaultTheme().Color(theme.ColorNameSelection, variant)
+	case theme.ColorNameButton:
+		// Use a slightly lighter blue for buttons (92% of full selection color brightness)
+		selectionColor := theme.DefaultTheme().Color(theme.ColorNameSelection, variant)
+		r, g, b, a := selectionColor.RGBA()
+		// Lighten by 8% (multiply by 1.08, capped at 255)
+		lightness := 1.08
+		newR := uint8(min(int(float64(r>>8)*lightness), 255))
+		newG := uint8(min(int(float64(g>>8)*lightness), 255))
+		newB := uint8(min(int(float64(b>>8)*lightness), 255))
+		return color.RGBA{R: newR, G: newG, B: newB, A: uint8(a >> 8)}
 	}
 	return theme.DefaultTheme().Color(name, variant)
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
