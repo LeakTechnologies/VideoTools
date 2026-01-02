@@ -9263,7 +9263,8 @@ func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
 	rect.CornerRadius = 8
 	rect.StrokeColor = gridColor
 	rect.StrokeWidth = 1
-	rect.SetMinSize(min)
+	// Don't set rigid MinSize - let the container be flexible
+	// rect.SetMinSize(min)
 
 	header := widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	desc := widget.NewLabel(body)
@@ -9278,7 +9279,8 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.
 	outer.CornerRadius = 8
 	outer.StrokeColor = gridColor
 	outer.StrokeWidth = 1
-	outer.SetMinSize(min)
+	// Don't set rigid MinSize - let the container be flexible for better splitter movement
+	// outer.SetMinSize(min)
 
 	header := widget.NewLabelWithStyle("Metadata", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	var top fyne.CanvasObject = header
