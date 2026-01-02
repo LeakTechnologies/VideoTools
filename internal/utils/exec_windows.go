@@ -1,3 +1,5 @@
+//go:build windows
+
 package utils
 
 import (
@@ -6,11 +8,11 @@ import (
 	"syscall"
 )
 
-// createCommandWindows is a platform-specific implementation for Windows.
+// CreateCommand is a platform-specific implementation for Windows.
 // It ensures that the command is created without a new console window,
 // preventing disruptive pop-ups when running console applications (like ffmpeg)
 // from a GUI application.
-func createCommandWindows(ctx context.Context, name string, arg ...string) *exec.Cmd {
+func CreateCommand(ctx context.Context, name string, arg ...string) *exec.Cmd {
 	cmd := exec.CommandContext(ctx, name, arg...)
 	// SysProcAttr is used to control process creation parameters on Windows.
 	// HideWindow: If true, the new process's console window will be hidden.
@@ -23,9 +25,9 @@ func createCommandWindows(ctx context.Context, name string, arg ...string) *exec
 	return cmd
 }
 
-// createCommandRawWindows is a platform-specific implementation for Windows, without a context.
+// CreateCommandRaw is a platform-specific implementation for Windows, without a context.
 // It applies the same console hiding behavior as CreateCommand.
-func createCommandRawWindows(name string, arg ...string) *exec.Cmd {
+func CreateCommandRaw(name string, arg ...string) *exec.Cmd {
 	cmd := exec.Command(name, arg...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		HideWindow:    true,

@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 const playerWindowTitle = "VideoToolsPlayer"
@@ -291,7 +293,7 @@ func (c *ffplayController) startLocked(offset float64) error {
 	}
 	args = append(args, input)
 
-	cmd := exec.CommandContext(ctx, "ffplay", args...)
+	cmd := exec.CommandContext(ctx, utils.GetFFplayPath(), args...)
 	env := os.Environ()
 	if c.winX != 0 || c.winY != 0 {
 		// SDL honors SDL_VIDEO_WINDOW_POS for initial window placement.

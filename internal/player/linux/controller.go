@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os/exec"
 	"sync"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 const playerWindowTitle = "videotools-player"
@@ -45,7 +47,7 @@ func (c *Controller) Load(path string, offset float64) error {
 	}
 	args = append(args, path)
 
-	cmd := exec.CommandContext(ctx, "ffplay", args...)
+	cmd := exec.CommandContext(ctx, utils.GetFFplayPath(), args...)
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		cancel()
