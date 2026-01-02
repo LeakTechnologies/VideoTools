@@ -274,7 +274,6 @@ func buildAudioRightPanel(state *appState) fyne.CanvasObject {
 		state.persistAudioConfig()
 	})
 	formatRadio.Horizontal = true
-	formatRadio.SetSelected(state.audioOutputFormat)
 
 	// Quality preset
 	qualityLabel := widget.NewLabel("Quality Preset:")
@@ -296,6 +295,9 @@ func buildAudioRightPanel(state *appState) fyne.CanvasObject {
 		state.persistAudioConfig()
 	}
 	state.audioBitrateEntry = bitrateEntry
+
+	// Set initial format after bitrate entry is initialized
+	formatRadio.SetSelected(state.audioOutputFormat)
 
 	// Normalization section
 	normalizeCheck := widget.NewCheck("Apply EBU R128 Normalization", func(checked bool) {
