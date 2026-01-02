@@ -4,6 +4,10 @@ This document describes all the modules in VideoTools and their purpose. Each mo
 
 ## Core Modules
 
+### Player ✅ CRITICAL FOUNDATION
+
+### Player ✅ CRITICAL FOUNDATION
+
 ### Convert ✅ IMPLEMENTED
 Convert is the primary module for video transcoding and format conversion. This handles:
 - ✅ Codec conversion (H.264, H.265/HEVC, VP9, AV1, etc.)
@@ -219,13 +223,23 @@ Extract still images from video:
 
 ## Module Coverage Summary
 
+**Current Status:** Player module is the critical foundation for all advanced features. Current implementation has fundamental A/V synchronization and frame-accurate seeking issues that block enhancement development. See PLAYER_MODULE.md for detailed architecture plan.
+
 This module set covers all major FFmpeg capabilities:
 
 ### ✅ Currently Implemented
+- ✅ **Video/Audio Playback** - Core FFmpeg-based player with Fyne integration
 - ✅ **Transcoding and format conversion** - Full DVD encoding system
 - ✅ **Metadata viewing and editing** - Basic implementation
 - ✅ **Queue system** - Batch processing with job management
 - ✅ **Cross-platform support** - Linux, Windows (dev14)
+
+### Player 🔄 CRITICAL PRIORITY
+- ⏳ **Rock-solid Go-based player** - Single process with A/V sync, frame-accurate seeking, hardware acceleration
+- ⏳ **Chapter system integration** - Port scene detection from Author module, manual chapter support
+- ⏳ **Frame extraction pipeline** - Keyframe detection, preview system
+- ⏳ **Performance optimization** - Buffer management, adaptive timing, error recovery
+- ⏳ **Cross-platform consistency** - Linux/Windows/macOS parity
 
 ### 🔄 In Development/Planned
 - 🔄 **Concatenation and merging** - Planned for dev15
