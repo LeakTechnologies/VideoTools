@@ -1037,6 +1037,7 @@ type ColoredSelect struct {
 	popup       *widget.PopUp
 	window      fyne.Window
 	placeHolder string
+	disabled    bool
 }
 
 // NewColoredSelect creates a new colored select widget
@@ -1066,9 +1067,39 @@ func (cs *ColoredSelect) SetSelected(option string) {
 	cs.Refresh()
 }
 
+// UpdateOptions updates the available options and their colors
+func (cs *ColoredSelect) UpdateOptions(options []string, colorMap map[string]color.Color) {
+	cs.options = options
+	cs.colorMap = colorMap
+	// If current selection is not in new options, select first option
+	found := false
+	for _, opt := range options {
+		if opt == cs.selected {
+			found = true
+			break
+		}
+	}
+	if !found && len(options) > 0 {
+		cs.selected = options[0]
+	}
+	cs.Refresh()
+}
+
 // Selected returns the currently selected option
 func (cs *ColoredSelect) Selected() string {
 	return cs.selected
+}
+
+// Enable enables the widget
+func (cs *ColoredSelect) Enable() {
+	cs.disabled = false
+	cs.Refresh()
+}
+
+// Disable disables the widget
+func (cs *ColoredSelect) Disable() {
+	cs.disabled = true
+	cs.Refresh()
 }
 
 // CreateRenderer creates the renderer for the colored select
@@ -1153,7 +1184,9 @@ func (cs *ColoredSelect) showPopup() {
 
 // Tapped implements the Tappable interface
 func (cs *ColoredSelect) Tapped(*fyne.PointEvent) {
-	cs.showPopup()
+	if !cs.disabled {
+		cs.showPopup()
+	}
 }
 
 type coloredSelectRenderer struct {

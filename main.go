@@ -3463,16 +3463,20 @@ func (s *appState) showMergeView() {
 	}
 
 	// DVD-specific options
-	dvdRegionSelect := widget.NewSelect([]string{"NTSC", "PAL"}, func(val string) {
+	dvdRegionOptions := []string{"NTSC", "PAL"}
+	dvdRegionColors := ui.BuildGenericColorMap(dvdRegionOptions)
+	dvdRegionSelect := ui.NewColoredSelect(dvdRegionOptions, dvdRegionColors, func(val string) {
 		s.mergeDVDRegion = val
 		s.persistMergeConfig()
-	})
+	}, s.window)
 	dvdRegionSelect.SetSelected(s.mergeDVDRegion)
 
-	dvdAspectSelect := widget.NewSelect([]string{"16:9", "4:3"}, func(val string) {
+	dvdAspectOptions := []string{"16:9", "4:3"}
+	dvdAspectColors := ui.BuildGenericColorMap(dvdAspectOptions)
+	dvdAspectSelect := ui.NewColoredSelect(dvdAspectOptions, dvdAspectColors, func(val string) {
 		s.mergeDVDAspect = val
 		s.persistMergeConfig()
-	})
+	}, s.window)
 	dvdAspectSelect.SetSelected(s.mergeDVDAspect)
 
 	dvdOptionsRow := container.NewHBox(
@@ -3486,7 +3490,8 @@ func (s *appState) showMergeView() {
 	dvdOptionsContainer := container.NewVBox(dvdOptionsRow)
 
 	// Create format selector (after outputEntry and updateOutputExt are defined)
-	formatSelect := widget.NewSelect(formatKeys, func(val string) {
+	formatColors := ui.BuildFormatColorMap(formatKeys)
+	formatSelect := ui.NewColoredSelect(formatKeys, formatColors, func(val string) {
 		s.mergeFormat = formatMap[val]
 
 		// Show/hide DVD options based on selection
@@ -3520,7 +3525,7 @@ func (s *appState) showMergeView() {
 			updateOutputExt()
 		}
 		s.persistMergeConfig()
-	})
+	}, s.window)
 	for label, val := range formatMap {
 		if val == s.mergeFormat {
 			formatSelect.SetSelected(label)
@@ -3536,10 +3541,12 @@ func (s *appState) showMergeView() {
 	}
 
 	// Frame Rate controls
-	frameRateSelect := widget.NewSelect([]string{"Source", "23.976", "24", "25", "29.97", "30", "50", "59.94", "60"}, func(val string) {
+	frameRateOptions := []string{"Source", "23.976", "24", "25", "29.97", "30", "50", "59.94", "60"}
+	frameRateColors := ui.BuildGenericColorMap(frameRateOptions)
+	frameRateSelect := ui.NewColoredSelect(frameRateOptions, frameRateColors, func(val string) {
 		s.mergeFrameRate = val
 		s.persistMergeConfig()
-	})
+	}, s.window)
 	frameRateSelect.SetSelected(s.mergeFrameRate)
 
 	motionInterpCheck := widget.NewCheck("Use Motion Interpolation (slower, smoother)", func(checked bool) {
@@ -6528,10 +6535,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	outputHintContainer := container.NewPadded(outputHint)
 
 	// DVD-specific aspect ratio selector (only shown for DVD formats)
-	dvdAspectSelect := widget.NewSelect([]string{"4:3", "16:9"}, func(value string) {
+	dvdAspectOpts := []string{"4:3", "16:9"}
+	dvdAspectCols := ui.BuildGenericColorMap(dvdAspectOpts)
+	dvdAspectSelect := ui.NewColoredSelect(dvdAspectOpts, dvdAspectCols, func(value string) {
 		logging.Debug(logging.CatUI, "DVD aspect set to %s", value)
 		state.convert.OutputAspect = value
-	})
+	}, state.window)
 	dvdAspectSelect.SetSelected("16:9")
 	dvdAspectLabel := widget.NewLabelWithStyle("DVD Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
@@ -6554,20 +6563,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Forward declarations for encoding controls (used in reset/update callbacks)
 	var (
-		bitrateModeSelect          *widget.Select
-		bitratePresetSelect        *widget.Select
-		crfPresetSelect            *widget.Select
+		bitrateModeSelect          *ui.ColoredSelect
+		bitratePresetSelect        *ui.ColoredSelect
+		crfPresetSelect            *ui.ColoredSelect
 		crfEntry                   *widget.Entry
 		manualCrfRow               *fyne.Container
 		videoBitrateEntry          *widget.Entry
 		manualBitrateRow           *fyne.Container
-		targetFileSizeSelect       *widget.Select
+		targetFileSizeSelect       *ui.ColoredSelect
 		targetFileSizeEntry        *widget.Entry
-		qualitySelectSimple        *widget.Select
-		qualitySelectAdv           *widget.Select
+		qualitySelectSimple        *ui.ColoredSelect
+		qualitySelectAdv           *ui.ColoredSelect
 		qualitySectionSimple       fyne.CanvasObject
 		qualitySectionAdv          fyne.CanvasObject
-		simpleBitrateSelect        *widget.Select
+		simpleBitrateSelect        *ui.ColoredSelect
 		crfContainer               *fyne.Container
 		bitrateContainer           *fyne.Container
 		targetSizeContainer        *fyne.Container
@@ -6608,7 +6617,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	var syncingQuality bool
 
-	qualitySelectSimple = widget.NewSelect(qualityOptions, func(value string) {
+	qualityColors := ui.BuildQualityColorMap(qualityOptions)
+	qualitySelectSimple = ui.NewColoredSelect(qualityOptions, qualityColors, func(value string) {
 		if syncingQuality {
 			return
 		}
@@ -6625,9 +6635,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	})
+	}, state.window)
 
-	qualitySelectAdv = widget.NewSelect(qualityOptions, func(value string) {
+	qualitySelectAdv = ui.NewColoredSelect(qualityOptions, qualityColors, func(value string) {
 		if syncingQuality {
 			return
 		}
@@ -6644,7 +6654,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	})
+	}, state.window)
 
 	if !slices.Contains(qualityOptions, state.convert.Quality) {
 		state.convert.Quality = "Standard (CRF 23)"
@@ -6667,12 +6677,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 
-		qualitySelectSimple.Options = newOptions
-		qualitySelectAdv.Options = newOptions
+		newColors := ui.BuildQualityColorMap(newOptions)
+		qualitySelectSimple.UpdateOptions(newOptions, newColors)
+		qualitySelectAdv.UpdateOptions(newOptions, newColors)
 		qualitySelectSimple.SetSelected(state.convert.Quality)
 		qualitySelectAdv.SetSelected(state.convert.Quality)
-		qualitySelectSimple.Refresh()
-		qualitySelectAdv.Refresh()
 	}
 
 	outputEntry := widget.NewEntry()
@@ -7253,7 +7262,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"VBR":         "VBR (Variable Bitrate)",
 		"Target Size": "Target Size (Calculate from file size)",
 	}
-	bitrateModeSelect = widget.NewSelect(bitrateModeOptions, func(value string) {
+	bitrateModeColors := ui.BuildGenericColorMap(bitrateModeOptions)
+	bitrateModeSelect = ui.NewColoredSelect(bitrateModeOptions, bitrateModeColors, func(value string) {
 		// Extract short code from label
 		if shortCode, ok := bitrateModeMap[value]; ok {
 			state.convert.BitrateMode = shortCode
@@ -7267,7 +7277,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	})
+	}, state.window)
 	// Set selected using full label
 	if fullLabel, ok := reverseMap[state.convert.BitrateMode]; ok {
 		bitrateModeSelect.SetSelected(fullLabel)
@@ -7300,7 +7310,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"28 (Draft)",
 		"Manual",
 	}
-	crfPresetSelect = widget.NewSelect(crfPresetOptions, func(value string) {
+	crfPresetColors := ui.BuildQualityColorMap(crfPresetOptions)
+	crfPresetSelect = ui.NewColoredSelect(crfPresetOptions, crfPresetColors, func(value string) {
 		switch value {
 		case "Auto (from Quality preset)":
 			state.convert.CRF = ""
@@ -7328,7 +7339,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	})
+	}, state.window)
 	switch state.convert.CRF {
 	case "":
 		crfPresetSelect.SetSelected("Auto (from Quality preset)")
@@ -7563,14 +7574,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var setBitratePreset func(string)
 	var syncingBitratePreset bool
 
-	bitratePresetSelect = widget.NewSelect(bitratePresetLabels, func(value string) {
+	bitratePresetColors := ui.BuildQualityColorMap(bitratePresetLabels)
+	bitratePresetSelect = ui.NewColoredSelect(bitratePresetLabels, bitratePresetColors, func(value string) {
 		if syncingBitratePreset {
 			return
 		}
 		if setBitratePreset != nil {
 			setBitratePreset(value)
 		}
-	})
+	}, state.window)
 	state.convert.BitratePreset = normalizePresetLabel(state.convert.BitratePreset)
 	if state.convert.BitratePreset == "" || bitratePresetLookup[state.convert.BitratePreset].Label == "" {
 		state.convert.BitratePreset = "2.5 Mbps - Medium"
@@ -7578,14 +7590,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	bitratePresetSelect.SetSelected(state.convert.BitratePreset)
 
 	// Simple bitrate selector (shares presets)
-	simpleBitrateSelect = widget.NewSelect(bitratePresetLabels, func(value string) {
+	simpleBitrateSelect = ui.NewColoredSelect(bitratePresetLabels, bitratePresetColors, func(value string) {
 		if syncingBitratePreset {
 			return
 		}
 		if setBitratePreset != nil {
 			setBitratePreset(value)
 		}
-	})
+	}, state.window)
 	simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
 
 	// Manual bitrate row (hidden by default)
@@ -7732,50 +7744,50 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	updateTargetSizeOptions := func() {
-		if src == nil {
-			targetFileSizeSelect.Options = []string{"Manual", "25MB", "50MB", "100MB", "200MB", "500MB", "1GB"}
-			return
+		options := []string{"Manual", "25MB", "50MB", "100MB", "200MB", "500MB", "1GB"}
+
+		if src != nil {
+			// Calculate smart reduction options based on source file size
+			srcPath := src.Path
+			fileInfo, err := os.Stat(srcPath)
+			if err == nil {
+				srcSize := fileInfo.Size()
+				srcSizeMB := float64(srcSize) / (1024 * 1024)
+
+				// Calculate smart reductions
+				size25 := int(srcSizeMB * 0.75) // 25% reduction
+				size33 := int(srcSizeMB * 0.67) // 33% reduction
+				size50 := int(srcSizeMB * 0.50) // 50% reduction
+				size75 := int(srcSizeMB * 0.25) // 75% reduction
+
+				smartOptions := []string{"Manual"}
+
+				if size75 > 5 {
+					smartOptions = append(smartOptions, fmt.Sprintf("%dMB (75%% smaller)", size75))
+				}
+				if size50 > 10 {
+					smartOptions = append(smartOptions, fmt.Sprintf("%dMB (50%% smaller)", size50))
+				}
+				if size33 > 15 {
+					smartOptions = append(smartOptions, fmt.Sprintf("%dMB (33%% smaller)", size33))
+				}
+				if size25 > 20 {
+					smartOptions = append(smartOptions, fmt.Sprintf("%dMB (25%% smaller)", size25))
+				}
+
+				// Add common sizes
+				smartOptions = append(smartOptions, "25MB", "50MB", "100MB", "200MB", "500MB", "1GB")
+				options = smartOptions
+			}
 		}
 
-		// Calculate smart reduction options based on source file size
-		srcPath := src.Path
-		fileInfo, err := os.Stat(srcPath)
-		if err != nil {
-			targetFileSizeSelect.Options = []string{"Manual", "25MB", "50MB", "100MB", "200MB", "500MB", "1GB"}
-			return
-		}
-
-		srcSize := fileInfo.Size()
-		srcSizeMB := float64(srcSize) / (1024 * 1024)
-
-		// Calculate smart reductions
-		size25 := int(srcSizeMB * 0.75) // 25% reduction
-		size33 := int(srcSizeMB * 0.67) // 33% reduction
-		size50 := int(srcSizeMB * 0.50) // 50% reduction
-		size75 := int(srcSizeMB * 0.25) // 75% reduction
-
-		options := []string{"Manual"}
-
-		if size75 > 5 {
-			options = append(options, fmt.Sprintf("%dMB (75%% smaller)", size75))
-		}
-		if size50 > 10 {
-			options = append(options, fmt.Sprintf("%dMB (50%% smaller)", size50))
-		}
-		if size33 > 15 {
-			options = append(options, fmt.Sprintf("%dMB (33%% smaller)", size33))
-		}
-		if size25 > 20 {
-			options = append(options, fmt.Sprintf("%dMB (25%% smaller)", size25))
-		}
-
-		// Add common sizes
-		options = append(options, "25MB", "50MB", "100MB", "200MB", "500MB", "1GB")
-
-		targetFileSizeSelect.Options = options
+		targetSizeColors := ui.BuildGenericColorMap(options)
+		targetFileSizeSelect.UpdateOptions(options, targetSizeColors)
 	}
 
-	targetFileSizeSelect = widget.NewSelect([]string{"25MB", "50MB", "100MB", "200MB", "500MB", "1GB", "Manual"}, func(value string) {
+	targetSizeOpts := []string{"25MB", "50MB", "100MB", "200MB", "500MB", "1GB", "Manual"}
+	targetSizeCols := ui.BuildGenericColorMap(targetSizeOpts)
+	targetFileSizeSelect = ui.NewColoredSelect(targetSizeOpts, targetSizeCols, func(value string) {
 		if value == "Manual" {
 			targetSizeManualRow.Show()
 			if state.convert.TargetFileSize != "" {
@@ -7810,7 +7822,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			targetSizeManualRow.Hide()
 		}
 		logging.Debug(logging.CatUI, "target file size set to %s", state.convert.TargetFileSize)
-	})
+	}, state.window)
 	targetFileSizeSelect.SetSelected("100MB")
 	updateTargetSizeOptions()
 
@@ -8164,7 +8176,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			)
 
 			// Prefer the explicit DVD aspect select if set; otherwise derive from source
-			targetAR = dvdAspectSelect.Selected
+			targetAR = dvdAspectSelect.Selected()
 
 			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
 				dvdNotes = "NTSC DVD: 720×480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k, 9000k max PS2-safe)"
