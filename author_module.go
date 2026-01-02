@@ -1160,7 +1160,7 @@ func detectSceneChapters(path string, threshold float64) ([]authorChapter, error
 	defer cancel()
 
 	filter := fmt.Sprintf("select='gt(scene,%.2f)',showinfo", threshold)
-	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath,
+	cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(),
 		"-hide_banner",
 		"-loglevel", "info",
 		"-i", path,
@@ -1227,7 +1227,7 @@ func extractChaptersFromFile(path string) ([]authorChapter, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cmd := utils.CreateCommand(ctx, platformConfig.FFprobePath,
+	cmd := utils.CreateCommand(ctx, utils.GetFFprobePath(),
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_chapters",
@@ -1375,7 +1375,7 @@ func concatDVDMpg(inputs []string, output string) error {
 		"-packetsize", "2048",  // DVD packet size
 		output,
 	}
-	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, args...)
+	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), args...)
 	return cmd.Run()
 }
 
@@ -1905,7 +1905,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		if logFn != nil {
 			logFn(fmt.Sprintf(">> ffmpeg %s (remuxing for DVD compliance)", strings.Join(remuxArgs, " ")))
 		}
-		if err := runCommandWithLogger(ctx, platformConfig.FFmpegPath, remuxArgs, logFn); err != nil {
+		if err := runCommandWithLogger(ctx, utils.GetFFmpegPath(), remuxArgs, logFn); err != nil {
 			return fmt.Errorf("remux failed: %w", err)
 		}
 		os.Remove(outPath)
@@ -2059,7 +2059,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 
 func runAuthorFFmpeg(ctx context.Context, args []string, duration float64, logFn func(string), progressFn func(float64)) error {
 	finalArgs := append([]string{"-progress", "pipe:1", "-nostats"}, args...)
-	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, finalArgs...)
+	cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), finalArgs...)
 	utils.ApplyNoWindow(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -2365,7 +2365,7 @@ func encodeAuthorSources(paths []string, region, aspect, workDir string) ([]stri
 			return nil, fmt.Errorf("failed to probe %s: %w", filepath.Base(path), err)
 		}
 		args := buildAuthorFFmpegArgs(path, outPath, region, aspect, src.IsProgressive())
-		if err := runCommand(platformConfig.FFmpegPath, args); err != nil {
+		if err := runCommand(utils.GetFFmpegPath(), args); err != nil {
 			return nil, err
 		}
 		mpgPaths = append(mpgPaths, outPath)
@@ -2471,7 +2471,7 @@ func escapeXMLAttr(value string) string {
 }
 
 func ensureAuthorDependencies(makeISO bool) error {
-	if err := ensureExecutable(platformConfig.FFmpegPath, "ffmpeg"); err != nil {
+	if err := ensureExecutable(utils.GetFFmpegPath(), "ffmpeg"); err != nil {
 		return err
 	}
 	if _, err := exec.LookPath("dvdauthor"); err != nil {
@@ -2748,7 +2748,7 @@ func extractChapterThumbnail(videoPath string, timestamp float64) (string, error
 		outputPath,
 	}
 
-	cmd := exec.Command(platformConfig.FFmpegPath, args...)
+	cmd := exec.Command(utils.GetFFmpegPath(), args...)
 	utils.ApplyNoWindow(cmd)
 	if err := cmd.Run(); err != nil {
 		return "", err

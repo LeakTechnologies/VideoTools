@@ -3,10 +3,12 @@ package player
 import (
 	"bufio"
 	"context"
+	"encoding/binary"
 	"fmt"
 	"image"
 	"io"
 	"os/exec"
+	"strings"
 	"sync"
 	"time"
 
@@ -82,7 +84,7 @@ func NewUnifiedPlayer(config Config) *UnifiedPlayer {
 			return &image.RGBA{
 				Pix:    make([]uint8, 0),
 				Stride: 0,
-				Rect:   image.Rect{},
+				Rect:   image.Rect(0, 0, 0, 0),
 			}
 		},
 	},
@@ -105,12 +107,8 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 	p.state = StateLoading
 
 	// Create pipes for FFmpeg communication
-	videoR, videoW := io.Pipe()
-	audioR, audioW := io.Pipe()
-	p.videoPipeReader = &io.PipeReader{R: videoR}
-	p.videoPipeWriter = &io.PipeWriter{W: videoW}
-	p.audioPipeReader = &io.PipeReader{R: audioR}
-	p.audioPipeWriter = &io.PipeWriter{W: audioW}
+	p.videoPipeReader, p.videoPipeWriter = io.Pipe()
+	p.audioPipeReader, p.audioPipeWriter = io.Pipe()
 
 	// Build FFmpeg command with unified A/V output
 	args := []string{
@@ -139,9 +137,8 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 	}
 
 	p.cmd = exec.Command(utils.GetFFmpegPath(), args...)
-	p.cmd.Stdin = p.videoPipeWriter
-	p.cmd.Stdout = p.videoPipeReader
-	p.cmd.Stderr = p.videoPipeReader // Redirect stderr to video pipe reader
+	p.cmd.Stdout = p.videoPipeWriter
+	p.cmd.Stderr = p.audioPipeWriter
 
 	utils.ApplyNoWindow(p.cmd)
 
@@ -153,8 +150,7 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 	// Initialize audio buffer
 	p.audioBuffer = make([]byte, 0, p.audioBufferSize)
 
-	// Start goroutines for reading streams
-	go p.readVideoStream()
+	// Start goroutine for reading audio stream
 	go p.readAudioStream()
 
 	// Detect video properties
@@ -163,7 +159,7 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 		return fmt.Errorf("failed to detect video properties: %w", err)
 	}
 
-	logging.Info(logging.CatPlayer, "Loaded video: %s", path)
+	logging.Debug(logging.CatPlayer, "Loaded video: %s", path)
 	return nil
 }
 
@@ -185,7 +181,7 @@ func (p *UnifiedPlayer) Play() error {
 		p.stateCallback(p.state)
 	}
 
-	logging.Info(logging.CatPlayer, "Playback started")
+	logging.Debug(logging.CatPlayer, "Playback started")
 	return nil
 }
 
@@ -201,7 +197,7 @@ func (p *UnifiedPlayer) Pause() error {
 		}
 	}
 
-	logging.Info(logging.CatPlayer, "Playback paused")
+	logging.Debug(logging.CatPlayer, "Playback paused")
 	return nil
 }
 
@@ -234,7 +230,7 @@ func (p *UnifiedPlayer) Stop() error {
 		p.stateCallback(p.state)
 	}
 
-	logging.Info(logging.CatPlayer, "Playback stopped")
+	logging.Debug(logging.CatPlayer, "Playback stopped")
 	return nil
 }
 
@@ -246,9 +242,6 @@ func (p *UnifiedPlayer) SeekToTime(offset time.Duration) error {
 	if offset < 0 {
 		offset = 0
 	}
-
-	wasPlaying := p.state == StatePlaying
-	wasPaused := p.state == StatePaused
 
 	// Seek to exact time without restart
 	seekTime := offset.Seconds()
@@ -277,6 +270,7 @@ func (p *UnifiedPlayer) SeekToFrame(frame int64) error {
 	// Convert frame number to time
 	frameTime := time.Duration(float64(frame) * float64(time.Second) / p.frameRate)
 	return p.SeekToTime(frameTime)
+}
 
 // GetCurrentTime returns the current playback time
 func (p *UnifiedPlayer) GetCurrentTime() time.Duration {
@@ -514,7 +508,7 @@ func (p *UnifiedPlayer) startVideoProcess() error {
 
 				// Notify callback
 				if p.frameCallback != nil {
-					p.frameCallback(p.getCurrentFrame())
+					p.frameCallback(p.GetCurrentFrame())
 				}
 
 				// Sleep until next frame time
@@ -536,33 +530,32 @@ func (p *UnifiedPlayer) readAudioStream() {
 	for {
 		select {
 		case <-p.ctx.Done():
-				logging.Debug(logging.CatPlayer, "Audio reading goroutine stopped")
-				return
+			logging.Debug(logging.CatPlayer, "Audio reading goroutine stopped")
+			return
 
-			default:
-				// Read from audio pipe
-				n, err := p.audioPipeReader.Read(buffer)
-				if err != nil && err.Error() != "EOF" {
-					logging.Error(logging.CatPlayer, "Audio read error: %v", err)
-					continue
-				}
-
-				if n == 0 {
-					continue
-				}
-
-				// Apply volume if not muted
-				if !p.muted && p.volume > 0 {
-					p.applyVolumeToBuffer(buffer[:n])
-				}
-
-				// Send to audio output (this would connect to audio system)
-				// For now, we'll store in buffer for playback sync monitoring
-				p.audioBuffer = append(p.audioBuffer, buffer[:n]...)
-
-				// Simple audio sync timing
-				p.updateAVSync()
+		default:
+			// Read from audio pipe
+			n, err := p.audioPipeReader.Read(buffer)
+			if err != nil && err.Error() != "EOF" {
+				logging.Error(logging.CatPlayer, "Audio read error: %v", err)
+				continue
 			}
+
+			if n == 0 {
+				continue
+			}
+
+			// Apply volume if not muted
+			if !p.muted && p.volume > 0 {
+				p.applyVolumeToBuffer(buffer[:n])
+			}
+
+			// Send to audio output (this would connect to audio system)
+			// For now, we'll store in buffer for playback sync monitoring
+			p.audioBuffer = append(p.audioBuffer, buffer[:n]...)
+
+			// Simple audio sync timing
+			p.updateAVSync()
 		}
 	}
 }
@@ -579,23 +572,6 @@ func (p *UnifiedPlayer) readVideoFrame() (*image.RGBA, error) {
 	}
 
 	if n == 0 {
-		return nil, nil
-	}
-
-	// Get frame from pool
-	img := p.frameBuffer.Get().(*image.RGBA)
-	img.Pix = make([]uint8, frameSize)
-	img.Stride = p.windowW * 3
-	img.Rect = image.Rect(0, 0, p.windowW, p.windowH)
-
-	// Copy RGB data to image
-	copy(img.Pix, frameData[:frameSize])
-
-	return img, nil
-}
-
-	if n != frameSize {
-		logging.Warn(logging.CatPlayer, "Incomplete frame: expected %d bytes, got %d", frameSize, n)
 		return nil, nil
 	}
 
@@ -634,7 +610,8 @@ func (p *UnifiedPlayer) detectVideoProperties() error {
 	for _, line := range lines {
 		if strings.Contains(line, "r_frame_rate=") {
 			if parts := strings.Split(line, "="); len(parts) > 1 {
-				if fr, err := fmt.Sscanf(parts[1], "%f", &p.frameRate); err == nil {
+				var fr float64
+				if _, err := fmt.Sscanf(parts[1], "%f", &fr); err == nil {
 					p.frameRate = fr
 				}
 			}
@@ -674,11 +651,9 @@ func (p *UnifiedPlayer) detectVideoProperties() error {
 
 // writeStringToStdin sends a command to FFmpeg's stdin
 func (p *UnifiedPlayer) writeStringToStdin(cmd string) {
-	if p.cmd != nil && p.cmd.Stdin != nil {
-		if _, err := p.cmd.Stdin.WriteString(cmd + "\n"); err != nil {
-			logging.Error(logging.CatPlayer, "Failed to write command: %v", err)
-		}
-	}
+	// TODO: Implement stdin command writing for interactive FFmpeg control
+	// Currently a no-op as stdin is not configured in this player implementation
+	logging.Debug(logging.CatPlayer, "Stdin command (not implemented): %s", cmd)
 }
 
 // updateAVSync maintains synchronization between audio and video

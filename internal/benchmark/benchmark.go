@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"../utils"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 // Result stores the outcome of a single encoder benchmark test

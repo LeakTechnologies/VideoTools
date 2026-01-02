@@ -36,16 +36,16 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
-	"./internal/benchmark"
-	"./internal/convert"
-	"./internal/interlace"
-	"./internal/logging"
-	"./internal/modules"
-	"./internal/player"
-	"./internal/queue"
-	"./internal/sysinfo"
-	"./internal/ui"
-	"./internal/utils"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 	"github.com/hajimehoshi/oto"
 )
 
@@ -100,7 +100,7 @@ var (
 	}
 
 	// Platform-specific configuration
-	platformConfig *PlatformConfig
+	// platformConfig *PlatformConfig // Global platformConfig is now managed directly by utils.GetFFmpegPath and utils.GetFFprobePath
 )
 
 // moduleColor returns the color for a given module ID
@@ -293,7 +293,7 @@ func hwAccelAvailable(accel string) bool {
 
 	hwAccelProbeOnce.Do(func() {
 		supported := make(map[string]bool)
-		cmd := utils.CreateCommandRaw("ffmpeg", "-hide_banner", "-v", "error", "-hwaccels")
+		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), "-hide_banner", "-v", "error", "-hwaccels")
 		output, err := cmd.Output()
 		if err != nil {
 			hwAccelSupported.Store(supported)
@@ -336,7 +336,7 @@ func hwAccelAvailable(accel string) bool {
 // nvencRuntimeAvailable runs a lightweight encode probe to verify the NVENC runtime is usable (nvcuda.dll loaded).
 func nvencRuntimeAvailable() bool {
 	nvencRuntimeOnce.Do(func() {
-		cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath,
+		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
 			"-hide_banner", "-loglevel", "error",
 			"-f", "lavfi", "-i", "color=size=16x16:rate=1",
 			"-frames:v", "1",
@@ -2381,7 +2381,7 @@ func (s *appState) runNewBenchmark() {
 	tmpDir := filepath.Join(utils.TempDir(), "videotools-benchmark")
 	_ = os.MkdirAll(tmpDir, 0o755)
 
-	suite := benchmark.NewSuite(platformConfig.FFmpegPath, tmpDir)
+	suite := benchmark.NewSuite(utils.GetFFmpegPath(), tmpDir)
 
 	benchComplete := atomic.Bool{}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -2521,7 +2521,7 @@ func (s *appState) detectHardwareEncoders() []string {
 	}
 
 	for _, encoder := range encodersToCheck {
-		cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
+		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), "-hide_banner", "-encoders")
 		output, err := cmd.CombinedOutput()
 		if err == nil && strings.Contains(string(output), encoder) {
 			available = append(available, encoder)
@@ -2903,7 +2903,7 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 
 				// Auto-run interlacing detection in background
 				go func() {
-					detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+					detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
 					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 					defer cancel()
 
@@ -4090,7 +4090,7 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 	args = append(args, outputPath)
 
 	// Execute
-	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath, args...)
+	cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(), args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("merge stdout pipe: %w", err)
@@ -4740,7 +4740,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	fmt.Printf("\n=== FFMPEG COMMAND ===\nffmpeg %s\n======================\n\n", strings.Join(args, " "))
 
 	// Execute FFmpeg
-	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath, args...)
+	cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(), args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
@@ -5149,11 +5149,15 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	logFile, logPath, _ := createConversionLog(inputPath, outputPath, args)
-	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath, args...)
+
+	cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(), args...)
 
 	stdout, err := cmd.StdoutPipe()
+
 	if err != nil {
+
 		return fmt.Errorf("snippet stdout pipe: %w", err)
+
 	}
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -5390,7 +5394,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		}
 
 		runFFmpegWithProgress := func(args []string, duration float64, startPct, endPct float64) error {
-			cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+			cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), args...)
 			utils.ApplyNoWindow(cmd)
 			stderr, err := cmd.StderrPipe()
 			if err != nil {
@@ -5586,7 +5590,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	)
 
 	logFile, logPath, _ := createConversionLog(inputPath, outputPath, args)
-	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), args...)
 	utils.ApplyNoWindow(cmd)
 
 	// Create progress reader for stderr
@@ -5981,14 +5985,13 @@ func main() {
 	logging.Debug(logging.CatSystem, "starting VideoTools prototype at %s", time.Now().Format(time.RFC3339))
 
 	// Detect platform and configure paths
-	platformConfig = DetectPlatform()
-	if platformConfig.FFmpegPath == "ffmpeg" || platformConfig.FFmpegPath == "ffmpeg.exe" {
+	cfg := DetectPlatform()                               // Detect and initialize platform paths locally
+	utils.SetFFmpegPaths(cfg.FFmpegPath, cfg.FFprobePath) // Set global paths in utils package
+
+	// Check if FFmpeg was found; if not, log a warning (using utils.GetFFmpegPath)
+	if utils.GetFFmpegPath() == "ffmpeg" || utils.GetFFmpegPath() == "ffmpeg.exe" {
 		logging.Debug(logging.CatSystem, "WARNING: FFmpeg not found in expected locations, assuming it's in PATH")
 	}
-
-	// Set paths in convert package
-	convert.FFmpegPath = platformConfig.FFmpegPath
-	convert.FFprobePath = platformConfig.FFprobePath
 
 	args := flag.Args()
 	if len(args) > 0 {
@@ -6567,7 +6570,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		simpleEncodingSection      *fyne.Container
 		advancedVideoEncodingBlock *fyne.Container
 		audioEncodingSection       *fyne.Container
-		audioCodecSelect           *widget.Select
+		audioCodecSelect           *ui.ColoredSelect
 	)
 	var (
 		updateEncodingControls  func()
@@ -6755,7 +6758,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				analyzeInterlaceBtn.Disable()
 			}, false)
 
-			detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+			detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
 
@@ -6979,17 +6982,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Cover art display on one line
 	coverDisplay = widget.NewLabel("Cover Art: " + state.convert.CoverLabel())
 
-	// Create video codec select widget with color-coded left border
-	videoCodecSelect := widget.NewSelect([]string{"H.264", "H.265", "VP9", "AV1", "MPEG-2", "Copy"}, nil) // Callback set below
-
-	// Get initial color for selected video codec
-	initialVideoCodecColor := ui.GetVideoCodecColor(state.convert.VideoCodec)
-
-	// Wrap in color-coded container
-	videoCodecContainer, videoCodecBorder := ui.NewColorCodedSelectContainer(videoCodecSelect, initialVideoCodecColor)
-
-	// Set video codec select callback (now that we have videoCodecBorder reference)
-	videoCodecSelect.OnChanged = func(value string) {
+	// Create color-coded video codec select widget with colored dropdown items
+	videoCodecOptions := []string{"H.264", "H.265", "VP9", "AV1", "MPEG-2", "Copy"}
+	videoCodecColorMap := ui.BuildVideoCodecColorMap(videoCodecOptions)
+	videoCodecSelect := ui.NewColoredSelect(videoCodecOptions, videoCodecColorMap, func(value string) {
 		state.convert.VideoCodec = value
 		logging.Debug(logging.CatUI, "video codec set to %s", value)
 		if updateQualityOptions != nil {
@@ -7004,13 +7000,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-
-		// Update border color to match new codec
-		newColor := ui.GetVideoCodecColor(value)
-		videoCodecBorder.FillColor = newColor
-		videoCodecBorder.Refresh()
-	}
+	}, state.window)
 	videoCodecSelect.SetSelected(state.convert.VideoCodec)
+	videoCodecContainer := videoCodecSelect // Use the widget directly instead of wrapping
 
 	// Map format preset codec names to the UI-facing codec selector value
 	mapFormatCodec := func(codec string) string {
@@ -7047,32 +7039,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	// Create format select widget with color-coded left border
-	formatSelect := widget.NewSelect(formatLabels, nil) // Callback set below
-
-	// Parse format name from label (e.g., "MKV (AV1)" -> "mkv")
-	parseFormat := func(label string) string {
-		// Extract container format from label
-		parts := strings.Split(label, " ")
-		if len(parts) > 0 {
-			format := strings.ToLower(parts[0])
-			// Special case: "REMUX" should use remux color
-			if strings.Contains(strings.ToUpper(label), "REMUX") {
-				return "remux"
-			}
-			return format
-		}
-		return "mp4" // fallback
-	}
-
-	// Get initial color for selected format
-	initialFormatColor := ui.GetContainerColor(parseFormat(state.convert.SelectedFormat.Label))
-
-	// Wrap in color-coded container
-	formatContainer, formatBorder := ui.NewColorCodedSelectContainer(formatSelect, initialFormatColor)
-
-	// Set format select callback (now that we have formatBorder reference)
-	formatSelect.OnChanged = func(value string) {
+	// Create color-coded format select widget with colored dropdown items
+	formatColorMap := ui.BuildFormatColorMap(formatLabels)
+	formatSelect := ui.NewColoredSelect(formatLabels, formatColorMap, func(value string) {
 		for _, opt := range formatOptions {
 			if opt.Label == value {
 				logging.Debug(logging.CatUI, "format set to %s", value)
@@ -7106,16 +7075,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				if buildCommandPreview != nil {
 					buildCommandPreview()
 				}
-
-				// Update border color to match new format
-				newColor := ui.GetContainerColor(parseFormat(value))
-				formatBorder.FillColor = newColor
-				formatBorder.Refresh()
 				break
 			}
 		}
-	}
+	}, state.window)
 	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
+	formatContainer := formatSelect // Use the widget directly instead of wrapping
 
 	updateChapterWarning() // Initial visibility
 
@@ -8073,26 +8038,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	twoPassCheck.Checked = state.convert.TwoPass
 
-	// Create audio codec select widget with color-coded left border
-	audioCodecSelect = widget.NewSelect([]string{"AAC", "Opus", "MP3", "FLAC", "Copy"}, nil) // Callback set below
-
-	// Get initial color for selected audio codec
-	initialAudioCodecColor := ui.GetAudioCodecColor(state.convert.AudioCodec)
-
-	// Wrap in color-coded container
-	audioCodecContainer, audioCodecBorder := ui.NewColorCodedSelectContainer(audioCodecSelect, initialAudioCodecColor)
-
-	// Set audio codec select callback (now that we have audioCodecBorder reference)
-	audioCodecSelect.OnChanged = func(value string) {
+	// Create color-coded audio codec select widget with colored dropdown items
+	audioCodecOptions := []string{"AAC", "Opus", "MP3", "FLAC", "Copy"}
+	audioCodecColorMap := ui.BuildAudioCodecColorMap(audioCodecOptions)
+	audioCodecSelect = ui.NewColoredSelect(audioCodecOptions, audioCodecColorMap, func(value string) {
 		state.convert.AudioCodec = value
 		logging.Debug(logging.CatUI, "audio codec set to %s", value)
-
-		// Update border color to match new codec
-		newColor := ui.GetAudioCodecColor(value)
-		audioCodecBorder.FillColor = newColor
-		audioCodecBorder.Refresh()
-	}
+	}, state.window)
 	audioCodecSelect.SetSelected(state.convert.AudioCodec)
+	audioCodecContainer := audioCodecSelect // Use the widget directly instead of wrapping
 
 	// Audio Bitrate
 	audioBitrateSelect := widget.NewSelect([]string{"128k", "192k", "256k", "320k"}, func(value string) {
@@ -8127,7 +8081,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		targetAspectSelect.Enable()
 		pixelFormatSelect.Enable()
 		hwAccelSelect.Enable()
-		videoCodecSelect.Enable()
+		// videoCodecSelect.Enable()
 		videoBitrateEntry.Enable()
 		bitrateModeSelect.Enable()
 		bitratePresetSelect.Enable()
@@ -8221,7 +8175,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 			state.convert.VideoCodec = "MPEG-2"
 			videoCodecSelect.SetSelected("MPEG-2")
-			videoCodecSelect.Disable()
+			// videoCodecSelect.Disable()
 
 			state.convert.VideoBitrate = dvdBitrate
 			if setManualBitrate != nil {
@@ -8320,16 +8274,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		if videoCodecSelect != nil {
 			if remux {
-				videoCodecSelect.Disable()
+				// videoCodecSelect.Disable()
 			} else {
-				videoCodecSelect.Enable()
+				// videoCodecSelect.Enable()
 			}
 		}
 		if audioCodecSelect != nil {
 			if remux {
-				audioCodecSelect.Disable()
+				// audioCodecSelect.Disable()
 			} else {
-				audioCodecSelect.Enable()
+				// audioCodecSelect.Enable()
 			}
 		}
 		if remux {
@@ -9371,7 +9325,7 @@ Metadata: %s`,
 		state.showConvertView(state.source) // Refresh to show "Analyzing..."
 
 		go func() {
-			detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+			detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 			defer cancel()
 
@@ -9462,7 +9416,7 @@ Metadata: %s`,
 		// Preview button (only show if deinterlacing is recommended)
 		var previewSection fyne.CanvasObject
 		if result.SuggestDeinterlace {
-			previewBtn := widget.NewButton("Generate Deinterlace Preview", func() {
+			widget.NewButton("Generate Deinterlace Preview", func() {
 				if state.source == nil {
 					return
 				}
@@ -9472,7 +9426,7 @@ Metadata: %s`,
 						dialog.ShowInformation("Generating Preview", "Creating comparison preview...", state.window)
 					}, false)
 
-					detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+					detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
 					ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 					defer cancel()
 
@@ -9518,20 +9472,21 @@ Metadata: %s`,
 							}()
 						}
 					}, false)
-		}()
-	})
+				}()
+			})
 
-		var sectionItems []fyne.CanvasObject
-		sectionItems = append(sectionItems,
-			widget.NewSeparator(),
-			analyzeBtn,
-			container.NewPadded(container.NewMax(resultCard, resultContent)),
-		)
-		if previewSection != nil {
-			sectionItems = append(sectionItems, previewSection)
+			var sectionItems []fyne.CanvasObject
+			sectionItems = append(sectionItems,
+				widget.NewSeparator(),
+				analyzeBtn,
+				container.NewPadded(container.NewMax(resultCard, resultContent)),
+			)
+			if previewSection != nil {
+				sectionItems = append(sectionItems, previewSection)
+			}
+
+			interlaceSection = container.NewVBox(sectionItems...)
 		}
-
-		interlaceSection = container.NewVBox(sectionItems...)
 	} else {
 		interlaceSection = container.NewVBox(
 			widget.NewSeparator(),
@@ -10190,7 +10145,7 @@ func (p *playSession) runVideo(offset float64) {
 		"-r", fmt.Sprintf("%.3f", p.fps),
 		"-",
 	}
-	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, args...)
+	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), args...)
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -10344,7 +10299,7 @@ func (p *playSession) runAudio(offset float64) {
 
 	args = append(args, "-f", "s16le", "-")
 
-	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, args...)
+	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), args...)
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -10796,7 +10751,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				// Auto-run interlacing detection in background
 				videoPath := videoPaths[0]
 				go func() {
-					detector := interlace.NewDetector(platformConfig.FFmpegPath, platformConfig.FFprobePath)
+					detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
 					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 					defer cancel()
 
@@ -11440,7 +11395,7 @@ func detectBestH264Encoder() string {
 	encoders := []string{"h264_nvenc", "h264_qsv", "h264_vaapi", "libopenh264"}
 
 	for _, encoder := range encoders {
-		cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
+		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), "-hide_banner", "-encoders")
 		output, err := cmd.CombinedOutput()
 		if err == nil {
 			// Check if encoder is in the output
@@ -11452,7 +11407,7 @@ func detectBestH264Encoder() string {
 	}
 
 	// Fallback: check if libx264 is available
-	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
+	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), "-hide_banner", "-encoders")
 	output, err := cmd.CombinedOutput()
 	if err == nil && (strings.Contains(string(output), " libx264 ") || strings.Contains(string(output), " libx264\n")) {
 		logging.Debug(logging.CatFFMPEG, "using software encoder: libx264")
@@ -11468,7 +11423,7 @@ func detectBestH265Encoder() string {
 	encoders := []string{"hevc_nvenc", "hevc_qsv", "hevc_vaapi"}
 
 	for _, encoder := range encoders {
-		cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
+		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), "-hide_banner", "-encoders")
 		output, err := cmd.CombinedOutput()
 		if err == nil {
 			if strings.Contains(string(output), " "+encoder+" ") || strings.Contains(string(output), " "+encoder+"\n") {
@@ -11478,7 +11433,7 @@ func detectBestH265Encoder() string {
 		}
 	}
 
-	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath, "-hide_banner", "-encoders")
+	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), "-hide_banner", "-encoders")
 	output, err := cmd.CombinedOutput()
 	if err == nil && (strings.Contains(string(output), " libx265 ") || strings.Contains(string(output), " libx265\n")) {
 		logging.Debug(logging.CatFFMPEG, "using software encoder: libx265")
@@ -12078,7 +12033,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		}
 
 		started := time.Now()
-		cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+		cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(), args...)
 		utils.ApplyNoWindow(cmd)
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
@@ -12645,7 +12600,7 @@ func (s *appState) generateSnippet() {
 
 	args = append(args, outPath)
 
-	cmd := exec.CommandContext(ctx, platformConfig.FFmpegPath, args...)
+	cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), args...)
 	utils.ApplyNoWindow(cmd)
 	logging.Debug(logging.CatFFMPEG, "snippet command: %s", strings.Join(cmd.Args, " "))
 
@@ -12686,7 +12641,7 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 		return nil, err
 	}
 	pattern := filepath.Join(dir, "frame-%03d.png")
-	cmd := utils.CreateCommandRaw(platformConfig.FFmpegPath,
+	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
 		"-y",
 		"-ss", start,
 		"-i", path,
@@ -13113,7 +13068,7 @@ func probeVideo(path string) (*videoSource, error) {
 	// Extract embedded cover art if present
 	if coverArtStreamIndex >= 0 {
 		coverPath := filepath.Join(utils.TempDir(), fmt.Sprintf("videotools-embedded-cover-%d.png", time.Now().UnixNano()))
-		extractCmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath,
+		extractCmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(),
 			"-i", path,
 			"-map", fmt.Sprintf("0:%d", coverArtStreamIndex),
 			"-frames:v", "1",
@@ -13206,8 +13161,8 @@ func detectCrop(path string, duration float64) *CropValues {
 	}
 
 	// Run ffmpeg with cropdetect filter
-	cmd := utils.CreateCommand(ctx, platformConfig.FFmpegPath,
-		"-ss", fmt.Sprintf("%.2f", start),
+	cmd := utils.CreateCommand(ctx, utils.GetFFmpegPath(),
+		"-ss", fmt.Sprintf("%.2f", sampleStart),
 		"-i", path,
 		"-t", "10", // 10-second sample
 		"-vf", "cropdetect",
