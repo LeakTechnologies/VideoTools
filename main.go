@@ -7214,6 +7214,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			utils.SetTempDir(state.convert.TempDir)
 		}, state.window)
 	})
+	cacheBrowseBtn.Importance = widget.MediumImportance
 	cacheUseSystemBtn := widget.NewButton("Use System Temp", func() {
 		cacheDirEntry.SetText("")
 		state.convert.TempDir = ""
@@ -7226,7 +7227,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			resetConvertDefaults()
 		}
 	})
-	resetSettingsBtn.Importance = widget.LowImportance
+	resetSettingsBtn.Importance = widget.MediumImportance
 
 	settingsContent := container.NewVBox(
 		settingsInfoContainer,
