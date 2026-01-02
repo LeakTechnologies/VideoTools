@@ -5,6 +5,7 @@ go 1.25.1
 require (
 	fyne.io/fyne/v2 v2.7.1
 	github.com/hajimehoshi/oto v0.7.1
+	github.com/yalue/onnxruntime_go v0.0.0-latest
 )
 
 require (

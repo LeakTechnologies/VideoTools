@@ -38,6 +38,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
@@ -82,21 +83,23 @@ var (
 	// Rainbow color palette: balanced ROYGBIV distribution (2 modules per color)
 	// Optimized for white text readability
 	modulesList = []Module{
-		{"convert", "Convert", utils.MustHex("#673AB7"), "Convert", modules.HandleConvert},       // Deep Purple (primary conversion)
-		{"merge", "Merge", utils.MustHex("#4CAF50"), "Convert", modules.HandleMerge},             // Green (combining)
-		{"trim", "Trim", utils.MustHex("#F9A825"), "Convert", nil},                               // Dark Yellow/Gold (not implemented yet)
-		{"filters", "Filters", utils.MustHex("#00BCD4"), "Convert", modules.HandleFilters},       // Cyan (creative filters)
-		{"upscale", "Upscale", utils.MustHex("#9C27B0"), "Advanced", modules.HandleUpscale},      // Purple (AI/advanced)
-		{"audio", "Audio", utils.MustHex("#FF8F00"), "Convert", modules.HandleAudio},             // Dark Amber - audio extraction
-		{"author", "Author", utils.MustHex("#FF5722"), "Disc", modules.HandleAuthor},             // Deep Orange (authoring)
-		{"rip", "Rip", utils.MustHex("#FF9800"), "Disc", modules.HandleRip},                      // Orange (extraction)
-		{"bluray", "Blu-Ray", utils.MustHex("#2196F3"), "Disc", nil},                             // Blue (not implemented yet)
-		{"subtitles", "Subtitles", utils.MustHex("#689F38"), "Convert", modules.HandleSubtitles}, // Dark Green (text)
-		{"thumb", "Thumb", utils.MustHex("#00ACC1"), "Screenshots", modules.HandleThumb},         // Dark Cyan (capture)
-		{"compare", "Compare", utils.MustHex("#E91E63"), "Inspect", modules.HandleCompare},       // Pink (comparison)
-		{"inspect", "Inspect", utils.MustHex("#F44336"), "Inspect", modules.HandleInspect},       // Red (analysis)
-		{"player", "Player", utils.MustHex("#3F51B5"), "Playback", modules.HandlePlayer},         // Indigo (playback)
-		{"settings", "Settings", utils.MustHex("#607D8B"), "Settings", nil},                      // Blue Grey (settings)
+		{"convert", "Convert", utils.MustHex("#673AB7"), "Convert", modules.HandleConvert},          // Deep Purple (primary conversion)
+		{"merge", "Merge", utils.MustHex("#4CAF50"), "Convert", modules.HandleMerge},                // Green (combining)
+		{"trim", "Trim", utils.MustHex("#F9A825"), "Convert", nil},                                  // Dark Yellow/Gold (not implemented yet)
+		{"filters", "Filters", utils.MustHex("#00BCD4"), "Convert", modules.HandleFilters},          // Cyan (creative filters)
+		{"upscale", "Upscale", utils.MustHex("#9C27B0"), "Advanced", modules.HandleUpscale},         // Purple (AI/advanced)
+		{"enhancement", "Enhancement", utils.MustHex("#7C3AED"), "Advanced", modules.HandleEnhance}, // Cyan (AI enhancement)
+		{"audio", "Audio", utils.MustHex("#FF8F00"), "Convert", modules.HandleAudio},                // Dark Amber - audio extraction
+		{"author", "Author", utils.MustHex("#FF5722"), "Disc", modules.HandleAuthor},                // Deep Orange (authoring)
+		{"rip", "Rip", utils.MustHex("#FF9800"), "Disc", modules.HandleRip},                         // Orange (extraction)
+		{"bluray", "Blu-Ray", utils.MustHex("#2196F3"), "Disc", nil},                                // Blue (not implemented yet)
+		{"subtitles", "Subtitles", utils.MustHex("#689F38"), "Convert", modules.HandleSubtitles},    // Dark Green (text)
+		{"enhancement", "Enhancement", utils.MustHex("#7C3AED"), "Advanced", modules.HandleEnhance}, // Cyan (AI enhancement)
+		{"thumb", "Thumb", utils.MustHex("#00ACC1"), "Screenshots", modules.HandleThumb},            // Dark Cyan (capture)
+		{"compare", "Compare", utils.MustHex("#E91E63"), "Inspect", modules.HandleCompare},          // Pink (comparison)
+		{"inspect", "Inspect", utils.MustHex("#F44336"), "Inspect", modules.HandleInspect},          // Red (analysis)
+		{"player", "Player", utils.MustHex("#3F51B5"), "Playback", modules.HandlePlayer},            // Indigo (playback)
+		{"settings", "Settings", utils.MustHex("#607D8B"), "Settings", nil},                         // Blue Grey (settings)
 	}
 
 	// Platform-specific configuration
@@ -2762,6 +2765,8 @@ func (s *appState) showModule(id string) {
 		s.showFiltersView()
 	case "upscale":
 		s.showUpscaleView()
+	// case "enhancement":
+	//	s.showEnhancementView() // TODO: Implement when enhancement module is complete
 	case "audio":
 		s.showAudioView()
 	case "author":
@@ -13876,6 +13881,40 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	bottomBar := moduleFooter(playerColor, layout.NewSpacer(), state.statsBar)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
+}
+
+func buildEnhancementView(state *appState) fyne.CanvasObject {
+	// TODO: Define enhancement color when needed
+
+	// TODO: Implement enhancement view with AI model selection
+	// For now, show placeholder
+	content := container.NewVBox(
+		widget.NewLabel("🚀 Video Enhancement"),
+		widget.NewSeparator(),
+		widget.NewLabel("AI-powered video enhancement is coming soon!"),
+		widget.NewLabel("Features planned:"),
+		widget.NewLabel("• Real-ESRGAN Super-Resolution"),
+		widget.NewLabel("• BasicVSR Video Enhancement"),
+		widget.NewLabel("• Content-Aware Processing"),
+		widget.NewLabel("• Real-time Preview"),
+		widget.NewSeparator(),
+		widget.NewLabel("This will use the unified FFmpeg player foundation"),
+		widget.NewLabel("for frame-accurate enhancement processing."),
+	)
+
+	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
+	outer.CornerRadius = 8
+	outer.StrokeColor = gridColor
+	outer.StrokeWidth = 1
+
+	container := container.NewBorder(
+		widget.NewLabelWithStyle("Enhancement", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		nil, nil, nil,
+		content,
+	)
+
+	// Remove color variable as it's not used
+	return container
 }
 
 // buildUpscaleView creates the Upscale module UI

@@ -3,6 +3,9 @@ package modules
 import (
 	"fmt"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/dialog"
+
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
@@ -91,4 +94,17 @@ func HandleCompare(files []string) {
 func HandlePlayer(files []string) {
 	logging.Debug(logging.CatModule, "player handler invoked with %v", files)
 	fmt.Println("player", files)
+}
+
+func HandleEnhance(files []string) {
+	logging.Debug(logging.CatModule, "enhance handler invoked with %v", files)
+	if len(files) > 0 {
+		dialog.ShowInformation("Enhancement", "Opening multiple files not supported yet. Select single video for enhancement.", fyne.CurrentApp().Driver().AllWindows()[0])
+		return
+	}
+
+	if len(files) == 1 {
+		// TODO: Launch enhancement view with selected file
+		dialog.ShowInformation("Enhancement", "Enhancement module coming soon! This will open: "+files[0], fyne.CurrentApp().Driver().AllWindows()[0])
+	}
 }
