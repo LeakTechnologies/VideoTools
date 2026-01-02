@@ -71,7 +71,7 @@ var (
 	logsDirOnce     sync.Once
 	logsDirPath     string
 	feedbackBundler = utils.NewFeedbackBundler()
-	appVersion      = "v0.1.0-dev20"
+	appVersion      = "v0.1.0-dev21"
 
 	hwAccelProbeOnce sync.Once
 	hwAccelSupported atomic.Value // map[string]bool
@@ -6932,17 +6932,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	targetAspectHintContainer := container.NewPadded(targetAspectHint)
 
-	aspectOptions := widget.NewRadioGroup([]string{"Auto", "Crop", "Letterbox", "Pillarbox", "Blur Fill", "Stretch"}, func(value string) {
+	aspectOptions := widget.NewRadioGroup([]string{"Auto", "Crop", "Letterbox/Pillarbox", "Blur Fill", "Stretch"}, func(value string) {
 		logging.Debug(logging.CatUI, "aspect handling set to %s", value)
 		state.convert.AspectHandling = value
 	})
 	aspectOptions.Horizontal = false
 	aspectOptions.Required = true
+
+	// Map old separate options to new combined option for backwards compatibility
+	if state.convert.AspectHandling == "Letterbox" || state.convert.AspectHandling == "Pillarbox" {
+		state.convert.AspectHandling = "Letterbox/Pillarbox"
+	}
 	aspectOptions.SetSelected(state.convert.AspectHandling)
 
-	aspectOptions.SetSelected(state.convert.AspectHandling)
-
-	backgroundHint := widget.NewLabel("Shown when aspect differs; choose padding/fill style.")
+	backgroundHint := widget.NewLabel("Crop removes edges, Letterbox/Pillarbox adds black bars to fit.")
 	aspectBox := container.NewVBox(
 		widget.NewLabelWithStyle("Aspect Handling", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		aspectOptions,
@@ -12430,7 +12433,14 @@ func aspectFilters(target float64, mode string) []string {
 		return []string{filterStr, "setsar=1"}
 	}
 
-	// Letterbox/Pillarbox: keep source resolution, just pad to target aspect with black bars
+	// Letterbox/Pillarbox: pad with black bars (auto-detects direction based on aspect ratio change)
+	// Also handles legacy "Letterbox" and "Pillarbox" options for backwards compatibility
+	if strings.EqualFold(mode, "Letterbox/Pillarbox") || strings.EqualFold(mode, "Letterbox") || strings.EqualFold(mode, "Pillarbox") {
+		pad := fmt.Sprintf("pad=w='trunc(max(iw,ih*%[1]s)/2)*2':h='trunc(max(ih,iw/%[1]s)/2)*2':x='(ow-iw)/2':y='(oh-ih)/2':color=black", ar)
+		return []string{pad, "setsar=1"}
+	}
+
+	// Default fallback: same as Letterbox/Pillarbox
 	pad := fmt.Sprintf("pad=w='trunc(max(iw,ih*%[1]s)/2)*2':h='trunc(max(ih,iw/%[1]s)/2)*2':x='(ow-iw)/2':y='(oh-ih)/2':color=black", ar)
 	return []string{pad, "setsar=1"}
 }
