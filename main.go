@@ -5862,6 +5862,26 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 		// Determine codec (simplified)
 		codec := "libx264"
 		hardwareAccel, _ := cfg["hardwareAccel"].(string)
+
+		// Resolve "auto" to actual GPU vendor
+		if hardwareAccel == "auto" {
+			hwInfo := sysinfo.Detect()
+			switch hwInfo.GPUVendor {
+			case "nvidia":
+				hardwareAccel = "nvenc"
+				logging.Debug(logging.CatFFMPEG, "auto hardware accel resolved to nvenc (detected NVIDIA GPU)")
+			case "amd":
+				hardwareAccel = "amf"
+				logging.Debug(logging.CatFFMPEG, "auto hardware accel resolved to amf (detected AMD GPU)")
+			case "intel":
+				hardwareAccel = "qsv"
+				logging.Debug(logging.CatFFMPEG, "auto hardware accel resolved to qsv (detected Intel GPU)")
+			default:
+				hardwareAccel = "none"
+				logging.Debug(logging.CatFFMPEG, "auto hardware accel resolved to none (no compatible GPU detected)")
+			}
+		}
+
 		switch {
 		case videoCodec == "H.265" && hardwareAccel == "nvenc":
 			codec = "hevc_nvenc"
