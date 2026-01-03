@@ -1044,6 +1044,9 @@ type appState struct {
 	audioLeftPanel            *fyne.Container
 	audioSingleContent        *fyne.Container
 	audioBatchContent         *fyne.Container
+
+	// Queue editing system
+	editJobManager queue.EditJobManager
 }
 
 type mergeClip struct {
@@ -3820,6 +3823,8 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 		return s.executeAuthorJob(ctx, job, progressCallback)
 	case queue.JobTypeRip:
 		return s.executeRipJob(ctx, job, progressCallback)
+	case queue.JobTypeEditJob:
+		return s.executeEditJob(ctx, job, progressCallback)
 	default:
 		return fmt.Errorf("unknown job type: %s", job.Type)
 	}
@@ -6214,6 +6219,9 @@ func runGUI() {
 
 	// Initialize job queue
 	state.jobQueue = queue.New(state.jobExecutor)
+
+	// Initialize EditJobManager
+	state.editJobManager = queue.NewEditJobManager(state.jobQueue)
 	state.jobQueue.SetChangeCallback(func() {
 		app := fyne.CurrentApp()
 		if app == nil || app.Driver() == nil {
