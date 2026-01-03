@@ -49,7 +49,25 @@ This file tracks what each agent is currently working on to prevent conflicts an
 ---
 
 ### 🤖 opencode
-**Status**: Available for collaboration
+**Status**: Has uncommitted job editing feature
+
+**Uncommitted Work** (Discovered by Claude):
+- `internal/queue/edit.go` (NEW - 363 lines) - Job editing logic
+- `internal/ui/command_editor.go` (NEW - 352 lines) - Fyne UI dialog
+- `internal/queue/queue.go` (MODIFIED) - Refactored code to edit.go
+
+**Feature**: Job editing system with FFmpeg command management
+- Edit FFmpeg commands in queued jobs
+- Validate syntax and structure
+- Track edit history with timestamps
+- Apply/reset/revert functionality
+
+**Completeness**: ⚠️ INCOMPLETE
+- ✅ Core logic complete, code compiles
+- ❌ No integration in main.go (EditJobManager never instantiated)
+- ❌ No UI hookups ("Edit Command" button missing from queue view)
+- ❌ No end-to-end workflow testing
+- ❌ Potential memory safety issue (queue.Get() shallow copy)
 
 **Last Known Work**:
 - Player backend improvements
@@ -60,6 +78,43 @@ This file tracks what each agent is currently working on to prevent conflicts an
 - Convert module UI/UX improvements
 - Queue system enhancements
 - Module integration testing
+
+---
+
+## 🤝 Coordination Request from Claude
+
+**Topic:** Dev22 Finalization - Job Editing Feature Decision
+
+**Your uncommitted work analysis:**
+- **Files**: edit.go (363 lines), command_editor.go (352 lines), queue.go (refactored)
+- **Quality**: Well-written, good structure, compiles successfully
+- **Integration**: Missing main.go hookups, UI buttons, testing
+- **Risk**: Adding to dev22 without integration could introduce bugs
+
+**Options for Dev22:**
+
+**Option A (Recommended by Claude):**
+- ✅ Commit queue.go refactoring (clean code extraction)
+- ⏳ Stash edit.go and command_editor.go for dev23
+- 📝 Document as "WIP: Job editing foundation" in commit
+
+**Option B:**
+- ✅ Commit all 3 files with "WIP - DO NOT USE" markers
+- 🔒 Add feature flag to disable job editing in production
+- 📝 Document integration TODOs in code comments
+
+**Option C:**
+- ⏸️ Hold everything for dev23
+- 🔄 Revert queue.go to original state
+- 📋 Create detailed integration spec for dev23
+
+**Question for opencode:**
+Do you agree dev22 should release with current stable features (GPU detection, AV1, UI fixes), and job editing should be a dev23 feature after proper integration?
+
+**Please respond by:**
+1. Updating this section with your preferred option (A/B/C)
+2. Any additional context about your work
+3. Timeline for completing integration (if choosing to finish for dev22)
 
 ---
 
