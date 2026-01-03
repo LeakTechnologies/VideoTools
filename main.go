@@ -72,7 +72,7 @@ var (
 	logsDirOnce     sync.Once
 	logsDirPath     string
 	feedbackBundler = utils.NewFeedbackBundler()
-	appVersion      = "v0.1.0-dev21"
+	appVersion      = "v0.1.0-dev22"
 
 	hwAccelProbeOnce sync.Once
 	hwAccelSupported atomic.Value // map[string]bool
@@ -5723,7 +5723,6 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 
 	return nil
 }
-
 
 // buildFFmpegCommandFromJob builds an FFmpeg command string from a queue job with INPUT/OUTPUT placeholders
 func buildFFmpegCommandFromJob(job *queue.Job) string {
