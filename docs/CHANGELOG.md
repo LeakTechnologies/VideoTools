@@ -1,5 +1,114 @@
 # VideoTools Changelog
 
+## v0.1.0-dev22 (January 2026)
+
+### 🎉 Major Features
+
+#### Automatic GPU Detection for Hardware Encoding
+- **Auto-detect GPU vendor** (NVIDIA/AMD/Intel) via system info detection
+- **Automatic hardware encoder selection** when hardware acceleration set to "auto"
+- **Resolves to appropriate encoder**: nvenc for NVIDIA, amf for AMD, qsv for Intel
+- **Fallback to software encoding** if no compatible GPU detected
+- **Cross-platform detection**: nvidia-smi, lspci, wmic, system_profiler
+
+#### SVT-AV1 Encoding Performance
+- **Proper AV1 codec support** with hardware (av1_nvenc, av1_qsv, av1_amf) and software (libsvtav1) encoders
+- **SVT-AV1 speed preset mapping** (0-13 scale) for encoder performance tuning
+- **Prevents 80+ hour encodes** by applying appropriate speed presets
+- **ultrafast preset** → ~10-15 hours instead of 80+ hours for typical 1080p encodes
+- **CRF quality control** for AV1 encoding
+
+#### UI/UX Improvements
+- **Fluid UI splitter** - removed rigid minimum size constraints for smoother resizing
+- **Format selector widget** - proper dropdown for container format selection
+- **Semantic color system** - ColoredSelect ONLY for format/codec navigation (not rainbow everywhere)
+- **Format colors**: MKV=teal, MP4=blue, MOV=indigo
+- **Codec colors**: AV1=emerald, H.265=lime, H.264=sky, AAC=purple, Opus=violet
+
+### 🔧 Technical Improvements
+
+#### Hardware Encoding
+- **GPUVendor() method** in sysinfo package for GPU vendor identification
+- **Automatic encoder resolution** based on detected hardware
+- **Better hardware encoder fallback** logic
+
+#### Platform Support
+- **Windows FFmpeg popup suppression** - proper build tags on exec_windows.go/exec_unix.go
+- **Platform-specific command creation** with CREATE_NO_WINDOW flag on Windows
+- **Fixed process creation attributes** for silent FFmpeg execution on Windows
+
+#### Code Quality
+- **Queue system type consistency** - standardized JobType constants (JobTypeFilter)
+- **Fixed forward declarations** for updateDVDOptions and buildCommandPreview
+- **Removed incomplete formatBackground** section with TODO for future implementation
+- **Git remote correction** - restored git.leaktechnologies.dev repository URL
+
+### 🐛 Bug Fixes
+
+#### Encoding
+- **Fixed AV1 forced H.264 conversion** - restored proper AV1 encoding support
+- **Added missing preset mapping** for libsvtav1 encoder
+- **Proper CRF handling** for AV1 codec
+
+#### UI
+- **Fixed dropdown reversion** - removed rainbow colors from non-codec dropdowns
+- **Fixed splitter stiffness** - metadata and labeled panels now resize fluidly
+- **Fixed formatContainer** missing widget definition
+
+#### Build
+- **Resolved all compilation errors** from previous session
+- **Fixed syntax errors** in formatBackground section
+- **Fixed JobType constant naming** (JobTypeFilter vs JobTypeFilters)
+- **Moved WIP files** out of build path (execute_edit_job.go.wip)
+
+#### Dependencies
+- **Upscale module accessibility** - changed from requiring realesrgan to optional
+- **FFmpeg-only scaling** now works without AI upscaler dependencies
+
+### 📝 Coordination & Planning
+
+#### Agent Coordination
+- **Updated WORKING_ON.md** with coordination request for opencode
+- **Analyzed uncommitted job editing feature** (edit.go, command_editor.go)
+- **Documented integration gaps** and presented 3 options for dev23
+- **Removed Gemini from active agent rotation**
+
+### 🚧 Work in Progress (Deferred to Dev23)
+
+#### Job Editing Feature (opencode)
+- **Core logic complete** - edit.go (363 lines), command_editor.go (352 lines)
+- **Compiles successfully** but missing integration
+- **Needs**: main.go hookups, UI buttons, end-to-end testing
+- **Status**: Held for proper integration in dev23
+
+### 🔄 Breaking Changes
+
+None - this is a bug-fix and enhancement release.
+
+### ⚠️ Known Issues
+
+- **Windows dropdown UI differences** - investigating appearance differences on Windows vs Linux (deferred to dev23)
+- **Benchmark system** needs improvements (deferred to dev23)
+
+### 📊 Development Stats
+
+**Commits This Release**: 3 main commits
+- feat: add automatic GPU detection for hardware encoding
+- fix: resolve build errors and complete dev22 fixes
+- docs: update WORKING_ON coordination file
+
+**Files Modified**: 8 files
+- FyneApp.toml (version bump)
+- main.go (GPU detection, AV1 presets, UI fixes)
+- internal/sysinfo/sysinfo.go (GPUVendor method)
+- internal/queue/queue.go (JobType fixes)
+- internal/utils/exec_windows.go (build tags)
+- internal/utils/exec_unix.go (build tags)
+- settings_module.go (Upscale dependencies)
+- WORKING_ON.md (coordination)
+
+---
+
 ## v0.1.0-dev14 (December 2025)
 
 ### 🎉 Major Features

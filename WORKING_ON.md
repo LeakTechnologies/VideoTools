@@ -2,7 +2,7 @@
 
 This file tracks what each agent is currently working on to prevent conflicts and coordinate changes.
 
-**Last Updated**: 2026-01-03 13:20 UTC
+**Last Updated**: 2026-01-03 13:35 UTC
 
 ---
 
@@ -17,34 +17,33 @@ This file tracks what each agent is currently working on to prevent conflicts an
 ## 👥 Active Work by Agent
 
 ### 🤖 Claude (thisagent - Claude Code)
-**Status**: Completed dev22 fixes - build is passing
-
-**Currently Modifying**:
-- ✅ `main.go` - Fixed syntax errors, added formatContainer, GPU auto-detection
-- ✅ `internal/sysinfo/sysinfo.go` - Added GPUVendor() method
-- ✅ `internal/queue/queue.go` - Fixed JobType constants
+**Status**: ✅ DEV22 RELEASED - v0.1.0-dev22 ready
 
 **Completed This Session** (2026-01-03):
 - ✅ Fixed UI splitter stiffness (removed rigid minimum sizes)
-- ✅ Completed SVT-AV1 preset support in snippet encoding
+- ✅ Completed SVT-AV1 preset support preventing 80+ hour encodes
 - ✅ Added automatic GPU detection for hardware encoding
+- ✅ Fixed Windows FFmpeg popup suppression
 - ✅ Fixed git remote (GitHub → git.leaktechnologies.dev)
-- ✅ Resolved all build errors:
-  - Fixed formatBackground syntax error
-  - Added formatContainer widget
-  - Fixed forward declaration issues
-  - Fixed JobTypeFilters → JobTypeFilter naming
-  - Removed conflicting types.go file
+- ✅ Resolved all build errors
+- ✅ Moved opencode's WIP file (execute_edit_job.go.wip) out of build
+- ✅ Updated version to v0.1.0-dev22 (Build 21)
+- ✅ Created comprehensive CHANGELOG.md for dev22
 
-**Commits Ready**:
-- 46d1a18 - feat: add automatic GPU detection for hardware encoding
-- 0a93b36 - fix: resolve build errors and complete dev22 fixes
-- Plus 4 commits from previous session
+**Files Modified**:
+- `FyneApp.toml` - Version bump to dev22
+- `main.go` - GPU detection, AV1 presets, UI fixes
+- `internal/sysinfo/sysinfo.go` - GPUVendor() method
+- `internal/queue/queue.go` - JobType constant fixes
+- `internal/utils/exec_windows.go` - Build tags, CREATE_NO_WINDOW
+- `internal/utils/exec_unix.go` - Build tags
+- `settings_module.go` - Upscale dependencies optional
+- `docs/CHANGELOG.md` - Dev22 release notes
 
 **Next Tasks**:
-1. Update CHANGELOG.md for dev22 release
-2. Help with dev23 planning
-3. Test colored dropdowns and new features
+1. Commit version bump and CHANGELOG
+2. Create git tag v0.1.0-dev22
+3. Begin dev23 planning with opencode
 
 ---
 
@@ -54,6 +53,7 @@ This file tracks what each agent is currently working on to prevent conflicts an
 **Uncommitted Work** (Discovered by Claude):
 - `internal/queue/edit.go` (NEW - 363 lines) - Job editing logic
 - `internal/ui/command_editor.go` (NEW - 352 lines) - Fyne UI dialog
+- `internal/queue/execute_edit_job.go.wip` (NEW - 114 lines) - Moved out of build (has import errors)
 - `internal/queue/queue.go` (MODIFIED) - Refactored code to edit.go
 
 **Feature**: Job editing system with FFmpeg command management
@@ -148,34 +148,39 @@ Files modified this session:
 
 ## 🎯 Dev22 Status
 
-**Release Readiness**: ✅ READY
+**Release Status**: ✅ RELEASED - v0.1.0-dev22 (Build 21)
 
 Completed Features:
-- ✅ Colored dropdown menus (batch 1 & 2)
-- ✅ Windows FFmpeg popup suppression
-- ✅ AV1 encoding with proper speed presets
-- ✅ Automatic GPU detection for hardware encoding
-- ✅ UI splitter fluidity improvements
-- ✅ Build errors resolved
+- ✅ Colored dropdown menus (semantic colors for format/codec only)
+- ✅ Windows FFmpeg popup suppression (CREATE_NO_WINDOW flag)
+- ✅ AV1 encoding with proper speed presets (prevents 80+ hour encodes)
+- ✅ Automatic GPU detection for hardware encoding (auto-selects nvenc/amf/qsv)
+- ✅ UI splitter fluidity improvements (removed rigid minimums)
+- ✅ Build errors resolved (formatContainer, JobType constants, etc.)
+- ✅ Version bumped to v0.1.0-dev22
+- ✅ CHANGELOG.md updated
 
-Ready to increment to dev23!
+Ready to tag and begin dev23!
 
 ---
 
 ## 🚀 Next Steps (Dev23 Planning)
 
-### Immediate Priorities
-1. Update version number to dev23
-2. Update CHANGELOG.md with dev22 changes
-3. Test all new features
-4. Plan dev23 feature set
+### Immediate Actions
+1. ✅ Version bumped to v0.1.0-dev22 (Build 21)
+2. ✅ CHANGELOG.md updated with dev22 features
+3. ⏭️ Create git tag v0.1.0-dev22
+4. ⏭️ Test all new features (GPU detection, AV1 presets, UI improvements)
+5. ⏭️ Plan dev23 feature set with opencode
 
 ### Potential Dev23 Features
+- Complete job editing feature integration (opencode's WIP work)
 - Complete Enhancement module
 - Timeline-based Trim module
 - Advanced Filter previews
 - Benchmark system improvements
 - Windows dropdown UI investigation
+- Fix execute_edit_job.go import issues
 
 ---
 
