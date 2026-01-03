@@ -45,6 +45,21 @@ func Detect() HardwareInfo {
 	return info
 }
 
+// GPUVendor extracts the GPU vendor from the GPU string
+func (h *HardwareInfo) GPUVendor() string {
+	gpuLower := strings.ToLower(h.GPU)
+	switch {
+	case strings.Contains(gpuLower, "nvidia"):
+		return "nvidia"
+	case strings.Contains(gpuLower, "amd") || strings.Contains(gpuLower, "radeon"):
+		return "amd"
+	case strings.Contains(gpuLower, "intel"):
+		return "intel"
+	default:
+		return "unknown"
+	}
+}
+
 // detectCPU returns CPU model and clock speed
 func detectCPU() (model, mhz string) {
 	switch runtime.GOOS {

@@ -5866,7 +5866,7 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 		// Resolve "auto" to actual GPU vendor
 		if hardwareAccel == "auto" {
 			hwInfo := sysinfo.Detect()
-			switch hwInfo.GPUVendor {
+			switch hwInfo.GPUVendor() {
 			case "nvidia":
 				hardwareAccel = "nvenc"
 				logging.Debug(logging.CatFFMPEG, "auto hardware accel resolved to nvenc (detected NVIDIA GPU)")
@@ -6618,10 +6618,33 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200))
 	updateMetaCover = metaCoverUpdate
 
+	// Forward declare functions needed by formatContainer callback
+	var updateDVDOptions func()
+	var buildCommandPreview func()
+
 	var formatLabels []string
 	for _, opt := range formatOptions {
 		formatLabels = append(formatLabels, opt.Label)
 	}
+
+	// Format selector
+	formatContainer := widget.NewSelect(formatLabels, func(selected string) {
+		for _, opt := range formatOptions {
+			if opt.Label == selected {
+				state.convert.SelectedFormat = opt
+				logging.Debug(logging.CatUI, "format selected: %s", selected)
+				if updateDVDOptions != nil {
+					updateDVDOptions()
+				}
+				if buildCommandPreview != nil {
+					buildCommandPreview()
+				}
+				break
+			}
+		}
+	})
+	formatContainer.SetSelected(state.convert.SelectedFormat.Label)
+
 	outputHint := widget.NewLabel(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
 	outputHint.Wrapping = fyne.TextWrapWord
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
@@ -6649,9 +6672,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.PreserveChapters = checked
 	})
 	preserveChaptersCheck.SetChecked(state.convert.PreserveChapters)
-
-	// Placeholder for updateDVDOptions - will be defined after resolution/framerate selects are created
-	var updateDVDOptions func()
 
 	// Forward declarations for encoding controls (used in reset/update callbacks)
 	var (
@@ -6683,7 +6703,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		updateEncodingControls  func()
 		updateQualityVisibility func()
 		updateRemuxVisibility   func()
-		buildCommandPreview     func()
 		updateQualityOptions    func() // Update quality dropdown based on codec
 	)
 
@@ -7112,27 +7131,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoCodecSelect.SetSelected(state.convert.VideoCodec)
 	videoCodecContainer := videoCodecSelect // Use the widget directly instead of wrapping
 
-	// Map format preset codec names to the UI-facing codec selector value
-	mapFormatCodec := func(codec string) string {
-		codec = strings.ToLower(codec)
-		switch {
-		case strings.Contains(codec, "copy"):
-			return "Copy"
-		case strings.Contains(codec, "265") || strings.Contains(codec, "hevc"):
-			return "H.265"
-		case strings.Contains(codec, "264"):
-			return "H.264"
-		case strings.Contains(codec, "vp9"):
-			return "VP9"
-		case strings.Contains(codec, "av1"):
-			return "AV1"
-		case strings.Contains(codec, "mpeg2"):
-			return "MPEG-2"
-		default:
-			return state.convert.VideoCodec
-		}
-	}
-
 	// Chapter warning label (shown when converting file with chapters to DVD)
 	chapterWarningLabel := widget.NewLabel("⚠️  Chapters will be lost - DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.")
 	chapterWarningLabel.Wrapping = fyne.TextWrapWord
@@ -7147,43 +7145,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	// Format Section with navy background and rounded corners
-	formatBackground := container.NewVBox(
-		// Top navy blue section with "FORMAT" heading
-		widget.NewLabelWithStyle("FORMAT", fyne.TextAlignLeading, fyne.TextStyle{Bold: true, ForegroundColor: color.White}),
-		widget.NewSeparator(),
-		
-		// Format content in 30/70 layout
-		container.NewBorder(
-			nil, // top
-			nil, // bottom
-			container.NewHBox(
-				// Left side (30%) with format controls
-				container.NewBorder(
-					container.NewVBox(
-						widget.NewLabel("Format"),
-						widget.NewSeparator(),
-						formatSelect, // Will be implemented with proper dropdown
-					),
-					canvas.NewRectangle(utils.MustHex("#1E3A8F")), // Navy background, rounded corners
-					nil, nil,
-					canvas.NewRectangle(utils.MustHex("#1E3A8F")), // Navy border, rounded corners
-				),
-			),
-			// Right side (70%) with video format info
-				container.NewVBox(
-					// Format information display
-					widget.NewLabel(""),
-					widget.NewCard("", "", container.NewVBox(
-						widget.NewLabel("Container: MP4"),
-						widget.NewLabel("Video Codec: H.264"),
-						widget.NewLabel("Audio Codec: AAC"),
-					)),
-				),
-			),
-			nil, // right
-		),
-	)
+	// Format section UI (commented out - incomplete implementation)
+	// TODO: Implement format section with navy background and codec info display
 
 	updateChapterWarning() // Initial visibility
 
