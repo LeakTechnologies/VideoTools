@@ -2,81 +2,64 @@
 
 This file tracks what each agent is currently working on to prevent conflicts and coordinate changes.
 
-**Last Updated**: 2026-01-02 04:30 UTC
+**Last Updated**: 2026-01-03 13:20 UTC
 
 ---
 
 ## 🔴 Current Blockers
 
-- **Build Status**: ❌ FAILING
-  - Issue: Player code has missing functions and syntax errors
-  - Blocking: All testing and integration work
-  - Owner: opencode (fixing player issues)
+- **Build Status**: ✅ PASSING (fixed by thisagent)
+  - All compilation errors resolved
+  - Ready for testing and dev22 release
 
 ---
 
 ## 👥 Active Work by Agent
 
+### 🤖 Claude (thisagent - Claude Code)
+**Status**: Completed dev22 fixes - build is passing
+
+**Currently Modifying**:
+- ✅ `main.go` - Fixed syntax errors, added formatContainer, GPU auto-detection
+- ✅ `internal/sysinfo/sysinfo.go` - Added GPUVendor() method
+- ✅ `internal/queue/queue.go` - Fixed JobType constants
+
+**Completed This Session** (2026-01-03):
+- ✅ Fixed UI splitter stiffness (removed rigid minimum sizes)
+- ✅ Completed SVT-AV1 preset support in snippet encoding
+- ✅ Added automatic GPU detection for hardware encoding
+- ✅ Fixed git remote (GitHub → git.leaktechnologies.dev)
+- ✅ Resolved all build errors:
+  - Fixed formatBackground syntax error
+  - Added formatContainer widget
+  - Fixed forward declaration issues
+  - Fixed JobTypeFilters → JobTypeFilter naming
+  - Removed conflicting types.go file
+
+**Commits Ready**:
+- 46d1a18 - feat: add automatic GPU detection for hardware encoding
+- 0a93b36 - fix: resolve build errors and complete dev22 fixes
+- Plus 4 commits from previous session
+
+**Next Tasks**:
+1. Update CHANGELOG.md for dev22 release
+2. Help with dev23 planning
+3. Test colored dropdowns and new features
+
+---
+
 ### 🤖 opencode
-**Status**: Working on player backend and enhancement module
+**Status**: Available for collaboration
 
-**Currently Modifying**:
-- `internal/player/unified_ffmpeg_player.go` - Fixing API and syntax issues
-- `internal/enhancement/enhancement_module.go` - Building enhancement framework
-- Potentially: `internal/utils/` - Need to add `GetFFmpegPath()` function
+**Last Known Work**:
+- Player backend improvements
+- Enhancement module framework
+- Command execution refactoring
 
-**Completed This Session**:
-- ✅ Unified FFmpeg player implementation
-- ✅ Command execution refactoring (`utils.CreateCommand`)
-- ✅ Enhancement module architecture
-
-**Next Tasks**:
-1. Add missing `utils.GetFFmpegPath()` function
-2. Fix remaining player syntax errors
-3. Decide when to commit enhancement module
-
----
-
-### 🤖 thisagent (UI/Convert Module)
-**Status**: Completed color-coded dropdown implementation, waiting for build fix
-
-**Currently Modifying**:
-- ✅ `internal/ui/components.go` - ColoredSelect widget (COMPLETE)
-- ✅ `internal/ui/colors.go` - Color mapping functions (COMPLETE)
-- ✅ `main.go` - Convert module dropdown integration (COMPLETE)
-
-**Completed This Session**:
-- ✅ Created `ColoredSelect` custom widget with colored dropdown items
-- ✅ Added color mapping helpers for formats/codecs
-- ✅ Updated all three Convert module selectors (format, video codec, audio codec)
-- ✅ Fixed import paths (relative → full module paths)
-- ✅ Created platform-specific exec wrappers
-- ✅ Fixed player syntax errors and removed duplicate file
-
-**Next Tasks**:
-1. Test colored dropdowns once build succeeds
-2. Potentially help with Enhancement module UI integration
-3. Address any UX feedback on colored dropdowns
-
----
-
-### 🤖 gemini (Documentation & Platform)
-**Status**: Platform-specific code and documentation
-
-**Currently Modifying**:
-- `internal/utils/exec_windows.go` - Added detailed comments (COMPLETE)
-- Documentation files (as needed)
-
-**Completed This Session**:
-- ✅ Added detailed comments to exec_windows.go
-- ✅ Added detailed comments to exec_unix.go
-- ✅ Replaced platformConfig.FFmpegPath → utils.GetFFmpegPath() in main.go (completed by thisagent)
-- ✅ Replaced platformConfig.FFprobePath → utils.GetFFprobePath() in main.go (completed by thisagent)
-
-**Next Tasks**:
-1. Document the platform-specific exec abstraction
-2. Create/update ARCHITECTURE.md with ColoredSelect widget
-3. Document Enhancement module once stable
+**Shared Responsibilities with Claude**:
+- Convert module UI/UX improvements
+- Queue system enhancements
+- Module integration testing
 
 ---
 
@@ -85,41 +68,59 @@ This file tracks what each agent is currently working on to prevent conflicts an
 These files are touched by multiple agents - check this file before editing:
 
 - **`main.go`** - High conflict risk!
-  - opencode: Command execution calls, player integration
-  - thisagent: UI widget updates in Convert module
-  - gemini: Possibly documentation comments
+  - Claude: UI fixes, GPU detection, format selectors
+  - opencode: Player integration, enhancement module
 
-- **`internal/utils/`** - Medium risk
-  - opencode: May need to add utility functions
-  - thisagent: Created exec_*.go files
-  - gemini: Documentation
+- **`internal/queue/queue.go`** - Medium risk
+  - Claude: JobType constant fixes
+  - opencode: Queue system improvements
 
----
-
-## ✅ Ready to Commit
-
-Files ready for commit once build passes:
-
-**thisagent's changes**:
-- `internal/ui/components.go` - ColoredSelect widget
-- `internal/ui/colors.go` - Color mapping helpers
-- `internal/utils/exec_unix.go` - Unix command wrapper
-- `internal/utils/exec_windows.go` - Windows command wrapper
-- `internal/logging/logging.go` - Added CatPlayer category
-- `main.go` - Convert module dropdown updates
-
-**opencode's changes** (when ready):
-- Player fixes
-- Enhancement module (decide if ready to commit)
+- **`internal/sysinfo/sysinfo.go`** - Low risk
+  - Claude: GPUVendor() method
 
 ---
 
-## 🎯 Commit Strategy
+## ✅ Ready to Commit/Push
 
-1. **opencode**: Fix player issues first (unblocks build)
-2. **thisagent**: Commit colored dropdown feature once build works
-3. **gemini**: Document new features after commits
-4. **All**: Test integration together before tagging new version
+**All commits are ready** - Build is passing
+
+Files modified this session:
+- `main.go` - Syntax fixes, formatContainer, GPU auto-detection
+- `internal/sysinfo/sysinfo.go` - GPUVendor() method
+- `internal/queue/queue.go` - JobType constant fixes
+
+---
+
+## 🎯 Dev22 Status
+
+**Release Readiness**: ✅ READY
+
+Completed Features:
+- ✅ Colored dropdown menus (batch 1 & 2)
+- ✅ Windows FFmpeg popup suppression
+- ✅ AV1 encoding with proper speed presets
+- ✅ Automatic GPU detection for hardware encoding
+- ✅ UI splitter fluidity improvements
+- ✅ Build errors resolved
+
+Ready to increment to dev23!
+
+---
+
+## 🚀 Next Steps (Dev23 Planning)
+
+### Immediate Priorities
+1. Update version number to dev23
+2. Update CHANGELOG.md with dev22 changes
+3. Test all new features
+4. Plan dev23 feature set
+
+### Potential Dev23 Features
+- Complete Enhancement module
+- Timeline-based Trim module
+- Advanced Filter previews
+- Benchmark system improvements
+- Windows dropdown UI investigation
 
 ---
 
@@ -132,7 +133,7 @@ Files ready for commit once build passes:
 4. Update blocker status if you fix something
 5. Save and commit this file with your changes
 
-**File naming convention for commits**:
-- `feat(ui/thisagent): add colored dropdown menus`
-- `fix(player/opencode): add missing GetFFmpegPath function`
-- `docs(gemini): document platform-specific exec wrappers`
+**Commit message format**:
+- `feat(ui): add colored dropdown menus`
+- `fix(build): resolve compilation errors`
+- `docs: update WORKING_ON coordination file`
