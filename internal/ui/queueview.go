@@ -370,6 +370,8 @@ func buildJobItem(
 	case queue.JobStatusPending:
 		buttons = append(buttons,
 			widget.NewButton("Copy Command", func() { onCopyCommand(job.ID) }),
+		)
+		buttons = append(buttons,
 			widget.NewButton("Remove", func() { onRemove(job.ID) }),
 		)
 	case queue.JobStatusCompleted, queue.JobStatusFailed, queue.JobStatusCancelled:
