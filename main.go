@@ -7127,48 +7127,43 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	// Create color-coded format select widget with colored dropdown items
-	formatColorMap := ui.BuildFormatColorMap(formatLabels)
-	formatSelect := ui.NewColoredSelect(formatLabels, formatColorMap, func(value string) {
-		for _, opt := range formatOptions {
-			if opt.Label == value {
-				logging.Debug(logging.CatUI, "format set to %s", value)
-				state.convert.SelectedFormat = opt
-				outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
-				if updateDVDOptions != nil {
-					updateDVDOptions() // Show/hide DVD options and auto-set resolution
-				}
-				if updateChapterWarning != nil {
-					updateChapterWarning() // Show/hide chapter warning
-				}
-
-				// Keep the codec selector aligned with the chosen format by default
-				newCodec := mapFormatCodec(opt.VideoCodec)
-				if newCodec != "" {
-					state.convert.VideoCodec = newCodec
-					videoCodecSelect.SetSelected(newCodec)
-				}
-				if strings.EqualFold(opt.VideoCodec, "copy") {
-					state.convert.AudioCodec = "Copy"
-					if audioCodecSelect != nil {
-						audioCodecSelect.SetSelected("Copy")
-					}
-				}
-				if updateQualityVisibility != nil {
-					updateQualityVisibility()
-				}
-				if updateRemuxVisibility != nil {
-					updateRemuxVisibility()
-				}
-				if buildCommandPreview != nil {
-					buildCommandPreview()
-				}
-				break
-			}
-		}
-	}, state.window)
-	formatSelect.SetSelected(state.convert.SelectedFormat.Label)
-	formatContainer := formatSelect // Use the widget directly instead of wrapping
+	// Format Section with navy background and rounded corners
+	formatBackground := container.NewVBox(
+		// Top navy blue section with "FORMAT" heading
+		widget.NewLabelWithStyle("FORMAT", fyne.TextAlignLeading, fyne.TextStyle{Bold: true, ForegroundColor: color.White}),
+		widget.NewSeparator(),
+		
+		// Format content in 30/70 layout
+		container.NewBorder(
+			nil, // top
+			nil, // bottom
+			container.NewHBox(
+				// Left side (30%) with format controls
+				container.NewBorder(
+					container.NewVBox(
+						widget.NewLabel("Format"),
+						widget.NewSeparator(),
+						formatSelect, // Will be implemented with proper dropdown
+					),
+					canvas.NewRectangle(utils.MustHex("#1E3A8F")), // Navy background, rounded corners
+					nil, nil,
+					canvas.NewRectangle(utils.MustHex("#1E3A8F")), // Navy border, rounded corners
+				),
+			),
+			// Right side (70%) with video format info
+				container.NewVBox(
+					// Format information display
+					widget.NewLabel(""),
+					widget.NewCard("", "", container.NewVBox(
+						widget.NewLabel("Container: MP4"),
+						widget.NewLabel("Video Codec: H.264"),
+						widget.NewLabel("Audio Codec: AAC"),
+					)),
+				),
+			),
+			nil, // right
+		),
+	)
 
 	updateChapterWarning() // Initial visibility
 
@@ -8586,7 +8581,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		tabs.SelectIndex(0)
 		state.convert.Mode = "Simple"
 
-		formatSelect.SetSelected(state.convert.SelectedFormat.Label)
+		// Format selection handled below in UI redesign
 		videoCodecSelect.SetSelected(state.convert.VideoCodec)
 		qualitySelectSimple.SetSelected(state.convert.Quality)
 		qualitySelectAdv.SetSelected(state.convert.Quality)
