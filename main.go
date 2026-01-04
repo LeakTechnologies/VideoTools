@@ -519,7 +519,7 @@ func (s *appState) showAbout() {
 		if _, err := os.Stat(p); err == nil {
 			img := canvas.NewImageFromFile(p)
 			img.FillMode = canvas.ImageFillContain
-			img.SetMinSize(fyne.NewSize(64, 64))
+			img.SetMinSize(fyne.NewSize(96, 96))
 			ltLogo = img
 			break
 		}
