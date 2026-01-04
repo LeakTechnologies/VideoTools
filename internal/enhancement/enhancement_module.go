@@ -156,6 +156,7 @@ func (m *EnhancementModule) AnalyzeContent(path string) (*ContentAnalysis, error
 	contentAnalysis.RecommendedProfile = advancedSkinAnalysis.RecommendedProfile
 	
 	logging.Debug(logging.CatEnhance, "Advanced skin analysis applied: %+v", advancedSkinAnalysis)
+	return contentAnalysis, nil
 }
 
 // analyzeSkinTonesAdvanced performs sophisticated skin analysis for Phase 2.5
@@ -174,8 +175,8 @@ func (m *EnhancementModule) analyzeSkinTonesAdvanced(ffprobeOutput []byte) *Skin
 		}
 	}
 	
-	// Parse FFprobe output for advanced skin analysis
-	lines := strings.Split(string(ffprobeOutput), "\n")
+	// Parse FFprobe output for advanced skin analysis (placeholder for future use)
+	_ = strings.Split(string(ffprobeOutput), "\n")
 	
 	// Initialize advanced analysis structure
 	analysis := &SkinToneAnalysis{
@@ -202,22 +203,6 @@ func (m *EnhancementModule) analyzeSkinTonesAdvanced(ffprobeOutput []byte) *Skin
 	// Here we detect dominant skin tones and distribution across frames
 	
 	return analysis
-}
-	skinAnalysis := &SkinToneAnalysis{
-		DetectedSkinTones:  []string{"neutral"}, // Default tone
-		SkinSaturation:     0.5,                 // Average saturation
-		SkinBrightness:     0.5,                 // Average brightness
-		SkinWarmth:         0.0,                 // Neutral warmth
-		SkinContrast:       1.0,                 // Normal contrast
-		DetectedHemoglobin: []string{"unknown"}, // Would be analyzed from frames
-		IsAdultContent:     false,               // Default until frame analysis
-		RecommendedProfile: "balanced",          // Default profile
-	}
-	// Set skin tone analysis
-	contentAnalysis.SkinTones = skinAnalysis
-
-	logging.Debug(logging.CatEnhance, "Content analysis complete: %+v", contentAnalysis)
-	return analysis, nil
 }
 
 // detectContentType determines if content is anime, film, or general
