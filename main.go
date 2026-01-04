@@ -6872,9 +6872,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			cb(val)
 		}
 		callCallback("updateEncodingControls")
-		if updateEncodingControls != nil {
-			updateEncodingControls()
-		}
 	}
 
 	setResolution := func(val string) {
