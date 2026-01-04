@@ -899,6 +899,7 @@ type appState struct {
 
 	// Thumbnail module state
 	thumbFile           *videoSource
+	thumbFiles          []*videoSource
 	thumbCount          int
 	thumbWidth          int
 	thumbContactSheet   bool
@@ -11120,24 +11121,32 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			return
 		}
 
-		// Multi-drop: add jobs for each file and set first as current preview
+		// Multi-drop: load list and add jobs for each file
 		go func() {
-			src, err := probeVideo(videoPaths[0])
-			if err != nil {
-				logging.Debug(logging.CatModule, "failed to load video for thumb: %v", err)
+			var sources []*videoSource
+			for _, path := range videoPaths {
+				src, err := probeVideo(path)
+				if err != nil {
+					logging.Debug(logging.CatModule, "failed to load video for thumb: %v", err)
+					continue
+				}
+				sources = append(sources, src)
+			}
+			if len(sources) == 0 {
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+					dialog.ShowError(fmt.Errorf("failed to load video files for thumbnails"), s.window)
 				}, false)
 				return
 			}
 
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				s.thumbFile = src
+				s.thumbFiles = sources
+				s.thumbFile = sources[0]
 				s.showThumbView()
-				logging.Debug(logging.CatModule, "loaded video into thumb module")
+				logging.Debug(logging.CatModule, "loaded %d videos into thumb module", len(sources))
 			}, false)
 
-			if len(videoPaths) > 1 && s.jobQueue != nil {
+			if s.jobQueue != nil {
 				for _, path := range videoPaths {
 					s.jobQueue.Add(s.createThumbJobForPath(path))
 				}

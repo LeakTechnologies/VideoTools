@@ -27,6 +27,18 @@ func (s *appState) showThumbView() {
 	s.setContent(buildThumbView(s))
 }
 
+func (s *appState) addThumbSource(src *videoSource) {
+	if src == nil {
+		return
+	}
+	for _, existing := range s.thumbFiles {
+		if existing != nil && existing.Path == src.Path {
+			return
+		}
+	}
+	s.thumbFiles = append(s.thumbFiles, src)
+}
+
 func buildThumbView(state *appState) fyne.CanvasObject {
 	thumbColor := moduleColor("thumb")
 
@@ -100,6 +112,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			}
 
 			state.thumbFile = src
+			state.addThumbSource(src)
 			state.showThumbView()
 			logging.Debug(logging.CatModule, "loaded thumbnail file: %s", path)
 		}, state.window)
@@ -108,6 +121,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	// Clear button
 	clearBtn := widget.NewButton("Clear", func() {
 		state.thumbFile = nil
+		state.thumbFiles = nil
 		state.showThumbView()
 	})
 	clearBtn.Importance = widget.LowImportance
@@ -360,9 +374,44 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	)
 
 	// Main content - split layout with preview on left, settings on right
-	leftColumn := container.NewVBox(
-		videoContainer,
-	)
+	leftColumn := container.NewVBox(videoContainer)
+	if len(state.thumbFiles) > 1 {
+		list := widget.NewList(
+			func() int { return len(state.thumbFiles) },
+			func() fyne.CanvasObject { return widget.NewLabel("") },
+			func(i widget.ListItemID, o fyne.CanvasObject) {
+				if i < 0 || i >= len(state.thumbFiles) {
+					return
+				}
+				label := o.(*widget.Label)
+				src := state.thumbFiles[i]
+				if src == nil {
+					label.SetText("")
+					return
+				}
+				label.SetText(utils.ShortenMiddle(filepath.Base(src.Path), 60))
+			},
+		)
+		list.OnSelected = func(id widget.ListItemID) {
+			if id < 0 || id >= len(state.thumbFiles) {
+				return
+			}
+			state.thumbFile = state.thumbFiles[id]
+			state.showThumbView()
+		}
+		if state.thumbFile != nil {
+			for i, src := range state.thumbFiles {
+				if src != nil && src.Path == state.thumbFile.Path {
+					list.Select(i)
+					break
+				}
+			}
+		}
+		listScroll := container.NewVScroll(list)
+		listScroll.SetMinSize(fyne.NewSize(0, 140))
+		leftColumn.Add(widget.NewLabel("Loaded Videos:"))
+		leftColumn.Add(listScroll)
+	}
 
 	rightColumn := container.NewVBox(
 		settingsPanel,
