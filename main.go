@@ -510,6 +510,23 @@ func (s *appState) showAbout() {
 
 	versionText := widget.NewLabel(version)
 	devText := widget.NewLabel(fmt.Sprintf("Developer: %s", dev))
+
+	var ltLogo fyne.CanvasObject
+	logoCandidates := []string{filepath.Join("assets", "logo", "LT_Logo-26.png")}
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		logoCandidates = append(logoCandidates, filepath.Join(dir, "assets", "logo", "LT_Logo-26.png"))
+	}
+	for _, p := range logoCandidates {
+		if _, err := os.Stat(p); err == nil {
+			img := canvas.NewImageFromFile(p)
+			img.FillMode = canvas.ImageFillContain
+			img.SetMinSize(fyne.NewSize(48, 48))
+			ltLogo = container.NewCenter(img)
+			break
+		}
+	}
+
 	logsLink := widget.NewButton("Open Logs Folder", func() {
 		if err := openFolder(logsPath); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to open logs folder: %w", err), s.window)
@@ -520,13 +537,19 @@ func (s *appState) showAbout() {
 	donateURL, _ := url.Parse("https://leaktechnologies.dev/support")
 	donateLink := widget.NewHyperlink("Support development", donateURL)
 
-	body := container.NewVBox(
+	bodyItems := []fyne.CanvasObject{
 		versionText,
 		devText,
+	}
+	if ltLogo != nil {
+		bodyItems = append(bodyItems, ltLogo)
+	}
+	bodyItems = append(bodyItems,
 		logsLink,
 		donateLink,
 		widget.NewLabel("Feedback: use the Logs button on the main menu to view logs; send issues with attached logs."),
 	)
+	body := container.NewVBox(bodyItems...)
 	dialog.ShowCustom("About & Support", "Close", body, s.window)
 }
 
