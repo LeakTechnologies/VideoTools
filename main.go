@@ -13,7 +13,6 @@ import (
 	"image/png"
 	"io"
 	"math"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -506,34 +505,38 @@ func (s *appState) showAbout() {
 	dev := "Leak Technologies"
 	logsPath := getLogsDir()
 
+	title := canvas.NewText("About / Support", textColor)
+	title.TextSize = 20
+
 	versionText := widget.NewLabel(version)
 	devText := widget.NewLabel(fmt.Sprintf("Developer: %s", dev))
 
-	var ltLogo fyne.CanvasObject
-	logoCandidates := []string{filepath.Join("assets", "logo", "LT_Logo-26.png")}
-	if exe, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exe)
-		logoCandidates = append(logoCandidates, filepath.Join(dir, "assets", "logo", "LT_Logo-26.png"))
-	}
-	for _, p := range logoCandidates {
-		if _, err := os.Stat(p); err == nil {
-			img := canvas.NewImageFromFile(p)
-			img.FillMode = canvas.ImageFillContain
-			img.SetMinSize(fyne.NewSize(96, 96))
-			ltLogo = img
-			break
+	loadLogo := func(name string, size float32) fyne.CanvasObject {
+		candidates := []string{filepath.Join("assets", "logo", name)}
+		if exe, err := os.Executable(); err == nil {
+			dir := filepath.Dir(exe)
+			candidates = append(candidates, filepath.Join(dir, "assets", "logo", name))
 		}
+		for _, p := range candidates {
+			if _, err := os.Stat(p); err == nil {
+				img := canvas.NewImageFromFile(p)
+				img.FillMode = canvas.ImageFillContain
+				img.SetMinSize(fyne.NewSize(size, size))
+				return img
+			}
+		}
+		return nil
 	}
 
-	logsLink := widget.NewButton("Open Logs Folder", func() {
+	vtLogo := loadLogo("VT_Icon.png", 72)
+	ltLogo := loadLogo("LT_Logo-26.png", 96)
+
+	logsLink := widget.NewButton("Logs Folder", func() {
 		if err := openFolder(logsPath); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to open logs folder: %w", err), s.window)
 		}
 	})
 	logsLink.Importance = widget.LowImportance
-
-	donateURL, _ := url.Parse("https://leaktechnologies.dev/support")
-	donateLink := widget.NewHyperlink("Support development", donateURL)
 
 	feedbackLabel := widget.NewLabel("Feedback: use the Logs button on the main menu to view logs; send issues with attached logs.")
 	feedbackLabel.Wrapping = fyne.TextWrapWord
@@ -541,20 +544,30 @@ func (s *appState) showAbout() {
 	mainContent := container.NewVBox(
 		versionText,
 		devText,
-		logsLink,
-		donateLink,
+		widget.NewLabel(""),
+		widget.NewLabel("Support Development"),
 		feedbackLabel,
 	)
-	scrollContent := container.NewVScroll(mainContent)
-	scrollContent.SetMinSize(fyne.NewSize(420, 220))
 
-	var body fyne.CanvasObject
-	if ltLogo != nil {
-		topRow := container.NewHBox(layout.NewSpacer(), ltLogo)
-		body = container.NewBorder(topRow, nil, nil, nil, scrollContent)
-	} else {
-		body = scrollContent
+	logoColumn := container.NewVBox()
+	if vtLogo != nil {
+		logoColumn.Add(vtLogo)
 	}
+	if ltLogo != nil {
+		logoColumn.Add(ltLogo)
+	}
+	logoColumn.Add(layout.NewSpacer())
+	logoColumn.Add(logsLink)
+
+	body := container.NewBorder(
+		container.NewHBox(title),
+		nil,
+		nil,
+		logoColumn,
+		mainContent,
+	)
+	body = container.NewPadded(body)
+	body.SetMinSize(fyne.NewSize(560, 280))
 	dialog.ShowCustom("About & Support", "Close", body, s.window)
 }
 
