@@ -1,4 +1,4 @@
-# VideoTools TODO (v0.1.0-dev22+ plan)
+# VideoTools TODO (v0.1.0-dev23+ plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
@@ -11,7 +11,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Create placeholder stubs for missing documents that are essential (e.g., `CONTRIBUTING.md`) or remove the links if they are not.
   - This ensures a professional and navigable documentation experience.
 
-## Critical Priority: dev22
+## Critical Priority: dev23
 
 ### VIDEO PLAYER IMPLEMENTATION
 
@@ -191,7 +191,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Create enhancement integration guide** - How modules work together
 - [ ] **API documentation** - Player interface for module developers
 
-## Future Enhancements (dev23+)
+## Future Enhancements (dev24+)
 
 ### AI Model Expansion
 - [ ] **Diffusion-based models** - SeedVR2, SVFR integration

@@ -1,5 +1,16 @@
 # VideoTools - Completed Features
 
+## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
+
+### UI/UX
+- ✅ **Colored select polish** - one-click dropdown, left accent bar, softer blue-grey background, rounded corners, larger text
+- ✅ **Panel input styling** - input and panel backgrounds aligned to dropdown tone
+- ✅ **Convert panel buttons** - Auto-crop and interlace actions styled to match settings panel
+- ✅ **About / Support redesign** - mockup-aligned layout, VT + LT logos, Logs Folder placement, support placeholder
+
+### Stability
+- ✅ **Audio module crash fix** - prevent nil entry panic on initial quality selection
+
 ## Version 0.1.0-dev22 (2026-01-01) - Bug Fixes & Documentation
 
 ### Bug Fixes
