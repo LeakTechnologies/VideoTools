@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -282,8 +283,12 @@ func MakeIconButton(symbol, tooltip string, tapped func()) *widget.Button {
 
 // LoadAppIcon loads the application icon from standard locations
 func LoadAppIcon() fyne.Resource {
-	// Try PNG first (better compatibility), then SVG
-	iconFiles := []string{"VT_Icon.png", "VT_Icon.svg"}
+	var iconFiles []string
+	if runtime.GOOS == "windows" {
+		iconFiles = []string{"VT_Icon.ico", "VT_Icon.png", "VT_Icon.svg"}
+	} else {
+		iconFiles = []string{"VT_Icon.png", "VT_Icon.svg", "VT_Icon.ico"}
+	}
 	var search []string
 
 	// Search in current directory first
