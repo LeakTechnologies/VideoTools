@@ -10047,6 +10047,27 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	targetWidth := float32(baseWidth)
 	_ = defaultAspect
 	targetHeight := float32(min.Height)
+	if state != nil && state.window != nil {
+		winSize := state.window.Canvas().Size()
+		if winSize.Height >= 900 {
+			desiredHeight := float32(360)
+			desiredWidth := desiredHeight / float32(defaultAspect)
+			maxWidth := winSize.Width - 48
+			maxHeight := winSize.Height - 200
+			if maxWidth > 0 && desiredWidth > maxWidth {
+				desiredWidth = maxWidth
+				desiredHeight = desiredWidth * float32(defaultAspect)
+			}
+			if maxHeight > 0 && desiredHeight > maxHeight {
+				desiredHeight = maxHeight
+				desiredWidth = desiredHeight / float32(defaultAspect)
+			}
+			if desiredWidth > 0 && desiredHeight > 0 {
+				targetWidth = desiredWidth
+				targetHeight = desiredHeight
+			}
+		}
+	}
 	// Don't set rigid MinSize - let the outer container be flexible
 	// outer.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 
