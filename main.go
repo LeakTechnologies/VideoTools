@@ -7204,7 +7204,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	outputEntry := widget.NewEntry()
 	outputEntry.SetText(state.convert.OutputBase)
-	outputEntry.SetMinSize(fyne.NewSize(0, 36))
 	var updatingOutput bool
 	var autoNameCheck *widget.Check
 	outputEntry.OnChanged = func(val string) {
@@ -7224,7 +7223,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	outputDirEntry := widget.NewEntry()
 	outputDirEntry.SetPlaceHolder("Output folder path")
 	outputDirEntry.SetText(state.convert.OutputDir)
-	outputDirEntry.SetMinSize(fyne.NewSize(0, 36))
 	outputDirEntry.OnChanged = func(val string) {
 		state.convert.OutputDir = val
 		updateOutputHint()
