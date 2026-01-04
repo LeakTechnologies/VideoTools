@@ -162,6 +162,13 @@ func buildRipView(state *appState) fyne.CanvasObject {
 	logScroll := container.NewVScroll(logEntry)
 	// logScroll.SetMinSize(fyne.NewSize(0, 200)) // Removed for flexible sizing
 	state.ripLogScroll = logScroll
+	copyLogBtn := widget.NewButton("Copy Log", func() {
+		if strings.TrimSpace(state.ripLogText) == "" {
+			return
+		}
+		state.window.Clipboard().SetContent(state.ripLogText)
+	})
+	copyLogBtn.Importance = widget.LowImportance
 
 	addQueueBtn := widget.NewButton("Add Rip to Queue", func() {
 		if err := state.addRipToQueue(false); err != nil {
@@ -258,7 +265,11 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		statusLabel,
 		progressBar,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Rip Log", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		container.NewHBox(
+			widget.NewLabelWithStyle("Rip Log", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			layout.NewSpacer(),
+			copyLogBtn,
+		),
 		logScroll,
 	)
 
