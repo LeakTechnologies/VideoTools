@@ -246,13 +246,6 @@ function Install-ViaChocolatey {
         }
     }
 
-    # Install qrencode
-    if (-not (Test-Command qrencode)) {
-        Write-Host "Installing qrencode..." -ForegroundColor Yellow
-        choco install -y qrencode
-    } else {
-        Write-Host "[OK]  qrencode already installed" -ForegroundColor Green
-    }
 
     Write-Host "[OK]  Chocolatey installation complete" -ForegroundColor Green
 }
@@ -313,13 +306,6 @@ function Install-ViaScoop {
         }
     }
 
-    # Install qrencode
-    if (-not (Test-Command qrencode)) {
-        Write-Host "Installing qrencode..." -ForegroundColor Yellow
-        scoop install qrencode
-    } else {
-        Write-Host "[OK]  qrencode already installed" -ForegroundColor Green
-    }
 
     Write-Host "[OK]  Scoop installation complete" -ForegroundColor Green
 }
@@ -404,12 +390,6 @@ if (Test-Command ffmpeg) {
     }
 }
 
-if (Test-Command qrencode) {
-    Write-Host "[OK]  qrencode: found" -ForegroundColor Green
-} else {
-    Write-Host "[ERROR]  qrencode not found in PATH" -ForegroundColor Red
-    exit 1
-}
 
 if (Test-Command dvdauthor) {
     Write-Host "[OK]  dvdauthor: found" -ForegroundColor Green
