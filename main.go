@@ -15,6 +15,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -23,6 +24,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
@@ -31,14 +33,17 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/enhancement"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/metadata"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 
+	"github.com/ebitengine/oto/v3"
 	"github.com/skip2/go-qrcode"
 )
 
@@ -493,21 +498,6 @@ func generatePixelatedQRCode() (fyne.CanvasObject, error) {
 	return img, nil
 }
 
-	// Generate to memory
-	var buf bytes.Buffer
-	w := standard.NewWithWriter(&buf, standard.WithQRWidth(6))
-	if err := qrc.Save(w); err != nil {
-		return nil, err
-	}
-
-	// Convert to Fyne image with pixelated look
-	img := canvas.NewImageFromReader(&buf, "qrcode.png")
-	img.FillMode = canvas.ImageFillOriginal // Keep pixelated look
-	img.SetMinSize(fyne.NewSize(160, 160))
-
-	return img, nil
-}
-
 func (s *appState) showAbout() {
 	version := fmt.Sprintf("VideoTools %s", appVersion)
 	dev := "Leak Technologies"
@@ -549,13 +539,21 @@ func (s *appState) showAbout() {
 	feedbackLabel := widget.NewLabel("Feedback: use the Logs button on the main menu to view logs; send issues with attached logs.")
 	feedbackLabel.Wrapping = fyne.TextWrapWord
 
+	btcAddress := "bc1qcq5hmtvckhhh9c6y3gvm9wu9856fmet25yfr0v"
+	btcLabel := widget.NewLabel(fmt.Sprintf("Bitcoin (BTC): %s", btcAddress))
+	copyBtcBtn := widget.NewButton("Copy", func() {
+		s.window.Clipboard().SetContent(btcAddress)
+		dialog.ShowInformation("Copied", "Bitcoin address copied to clipboard", s.window)
+	})
+	copyBtcBtn.Importance = widget.LowImportance
+
 	mainContent := container.NewVBox(
 		versionText,
 		devText,
 		widget.NewLabel(""),
 		widget.NewLabel("Support Development"),
 		widget.NewLabel("Support VideoTools development (optional):"),
-		widget.NewLabel("Bitcoin (BTC): bc1qcq5hmtvckhhh9c6y3gvm9wu9856fmet25yfr0v"),
+		container.NewBorder(nil, nil, nil, copyBtcBtn, btcLabel),
 		feedbackLabel,
 	)
 
