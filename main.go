@@ -8735,12 +8735,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	)
 
 	// Advanced mode options - full controls with organized sections
+	videoCodecLabel := widget.NewLabelWithStyle("Video Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	presetLabel := widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	videoCodecRow := container.NewGridWithColumns(2, videoCodecLabel, presetLabel)
+	videoCodecControls := container.NewGridWithColumns(2, videoCodecContainer, encoderPresetSelect)
+
 	advancedVideoEncodingBlock = container.NewVBox(
 		widget.NewLabelWithStyle("═══ VIDEO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		widget.NewLabelWithStyle("Video Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		videoCodecContainer,
-		widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		encoderPresetSelect,
+		videoCodecRow,
+		videoCodecControls,
 		encoderPresetHintContainer,
 		qualitySectionAdv,
 		widget.NewLabelWithStyle("Bitrate Mode", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
