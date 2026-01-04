@@ -1120,20 +1120,38 @@ func (cs *ColoredSelect) Disable() {
 
 // CreateRenderer creates the renderer for the colored select
 func (cs *ColoredSelect) CreateRenderer() fyne.WidgetRenderer {
-	// Create simple dropdown with minimal changes to avoid freezing
 	displayText := cs.selected
 	if displayText == "" && cs.placeHolder != "" {
 		displayText = cs.placeHolder
 	}
 
-	// Create simple button that shows popup (using basic button)
-	button := widget.NewButton(displayText, func() {
-		cs.showPopup()
+	bg := canvas.NewRectangle(selectBackgroundColor())
+	bar := canvas.NewRectangle(selectAccentColor(cs.selected, cs.colorMap))
+	bar.SetMinSize(fyne.NewSize(6, 24))
+
+	label := canvas.NewText(displayText, selectTextColor())
+	label.Alignment = fyne.TextAlignLeading
+	label.TextSize = 14
+
+	caret := canvas.NewText("▼", selectTextColor())
+	caret.TextSize = 12
+
+	content := container.NewBorder(nil, nil, bar, nil,
+		container.NewPadded(container.NewBorder(nil, nil, nil, caret, label)))
+
+	tappable := NewTappable(container.NewMax(bg, content), func() {
+		if !cs.disabled {
+			cs.showPopup()
+		}
 	})
 
 	return &coloredSelectRenderer{
-		select_: cs,
-		button:  button,
+		select_:  cs,
+		bg:       bg,
+		bar:      bar,
+		label:    label,
+		caret:    caret,
+		tappable: tappable,
 	}
 }
 
@@ -1220,32 +1238,70 @@ func (cs *ColoredSelect) Tapped(*fyne.PointEvent) {
 }
 
 type coloredSelectRenderer struct {
-	select_ *ColoredSelect
-	button  *widget.Button
+	select_  *ColoredSelect
+	bg       *canvas.Rectangle
+	bar      *canvas.Rectangle
+	label    *canvas.Text
+	caret    *canvas.Text
+	tappable *Tappable
 }
 
 func (r *coloredSelectRenderer) Layout(size fyne.Size) {
-	r.button.Resize(size)
+	r.tappable.Resize(size)
 }
 
 func (r *coloredSelectRenderer) MinSize() fyne.Size {
-	return r.button.MinSize()
+	return r.tappable.MinSize()
 }
 
 func (r *coloredSelectRenderer) Refresh() {
-	// Update display text
-	if r.select_.selected != "" {
-		r.button.SetText(r.select_.selected)
-	} else if r.select_.placeHolder != "" {
-		r.button.SetText(r.select_.placeHolder)
-	} else {
-		r.button.SetText("")
+	displayText := r.select_.selected
+	if displayText == "" && r.select_.placeHolder != "" {
+		displayText = r.select_.placeHolder
 	}
-	r.button.Refresh()
+
+	if r.select_.disabled {
+		r.bg.FillColor = color.NRGBA{R: 42, G: 46, B: 54, A: 255}
+		r.label.Color = color.NRGBA{R: 140, G: 150, B: 160, A: 255}
+		r.caret.Color = color.NRGBA{R: 140, G: 150, B: 160, A: 255}
+	} else {
+		r.bg.FillColor = selectBackgroundColor()
+		r.label.Color = selectTextColor()
+		r.caret.Color = selectTextColor()
+	}
+
+	r.bar.FillColor = selectAccentColor(r.select_.selected, r.select_.colorMap)
+	r.label.Text = displayText
+
+	r.bg.Refresh()
+	r.bar.Refresh()
+	r.label.Refresh()
+	r.caret.Refresh()
+	r.tappable.Refresh()
 }
 
 func (r *coloredSelectRenderer) Destroy() {}
 
 func (r *coloredSelectRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.button}
+	return []fyne.CanvasObject{r.tappable}
+}
+
+func selectBackgroundColor() color.Color {
+	return color.NRGBA{R: 54, G: 72, B: 96, A: 255}
+}
+
+func selectTextColor() color.Color {
+	return color.NRGBA{R: 230, G: 236, B: 245, A: 255}
+}
+
+func selectAccentColor(selected string, colorMap map[string]color.Color) color.Color {
+	if selected == "" {
+		return color.NRGBA{R: 90, G: 90, B: 90, A: 255}
+	}
+	if colorMap != nil {
+		if col := colorMap[selected]; col != nil {
+			return col
+		}
+	}
+	return color.NRGBA{R: 90, G: 90, B: 90, A: 255}
 }
