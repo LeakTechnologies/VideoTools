@@ -6839,6 +6839,24 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		uiState.quality = val
 		state.convert.Quality = val
+		if val == manualQualityOption {
+			if strings.TrimSpace(state.convert.CRF) == "" {
+				state.convert.CRF = "23"
+				if crfEntry != nil {
+					crfEntry.SetText("23")
+				}
+			}
+		} else {
+			if state.convert.CRF != "" {
+				state.convert.CRF = ""
+			}
+			if crfEntry != nil && crfEntry.Text != "" {
+				crfEntry.SetText("")
+			}
+			if manualCrfRow != nil {
+				manualCrfRow.Hide()
+			}
+		}
 
 		// Update all registered widgets silently (no callback loops)
 		for _, w := range uiState.qualityWidgets {
@@ -7099,7 +7117,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var (
 		bitrateModeSelect          *widget.Select
 		bitratePresetSelect        *widget.Select
-		crfPresetSelect            *widget.Select
 		crfEntry                   *widget.Entry
 		manualCrfRow               *fyne.Container
 		videoBitrateEntry          *widget.Entry
@@ -7128,7 +7145,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		updateQualityOptions    func() // Update quality dropdown based on codec
 	)
 
-	// Base quality options (without lossless)
+	manualQualityOption := "Manual (CRF)"
+	// Base quality options (without lossless or manual)
 	baseQualityOptions := []string{
 		"Draft (CRF 28)",
 		"Standard (CRF 23)",
@@ -7143,10 +7161,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Current quality options (dynamic based on codec)
-	qualityOptions := baseQualityOptions
+	qualityOptions := append([]string{}, baseQualityOptions...)
 	if codecSupportsLossless(state.convert.VideoCodec) {
 		qualityOptions = append(qualityOptions, "Lossless")
 	}
+	qualityOptions = append(qualityOptions, manualQualityOption)
 
 	// Quality select widgets - use state manager to eliminate sync flags
 	// Convert quality selects to ColoredSelect and register with state manager
@@ -7182,15 +7201,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		var newOptions []string
 		if codecSupportsLossless(state.convert.VideoCodec) {
 			// H.265 and AV1 support lossless
-			newOptions = append(baseQualityOptions, "Lossless")
+			newOptions = append([]string{}, baseQualityOptions...)
+			newOptions = append(newOptions, "Lossless")
 		} else {
 			// H.264, MPEG-2, etc. don't support lossless
-			newOptions = baseQualityOptions
+			newOptions = append([]string{}, baseQualityOptions...)
 			// If currently set to Lossless, fall back to Near-Lossless
 			if state.convert.Quality == "Lossless" {
 				state.convert.Quality = "Near-Lossless (CRF 16)"
 			}
 		}
+		newOptions = append(newOptions, manualQualityOption)
 
 		// Update options and color map for all registered quality widgets
 		qualityColorMap := ui.BuildQualityColorMap(newOptions)
@@ -7826,62 +7847,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		crfEntry,
 	)
-	manualCrfRow.Hide()
-
-	crfPresetOptions := []string{
-		"Auto (from Quality preset)",
-		"18 (High)",
-		"20 (Balanced)",
-		"23 (Standard)",
-		"28 (Draft)",
-		"Manual",
-	}
-	crfPresetSelect = widget.NewSelect(crfPresetOptions, func(value string) {
-		switch value {
-		case "Auto (from Quality preset)":
-			state.convert.CRF = ""
-			crfEntry.SetText("")
-			manualCrfRow.Hide()
-		case "18 (High)":
-			state.convert.CRF = "18"
-			crfEntry.SetText("18")
-			manualCrfRow.Hide()
-		case "20 (Balanced)":
-			state.convert.CRF = "20"
-			crfEntry.SetText("20")
-			manualCrfRow.Hide()
-		case "23 (Standard)":
+	if state.convert.Quality == manualQualityOption {
+		if strings.TrimSpace(state.convert.CRF) == "" {
 			state.convert.CRF = "23"
 			crfEntry.SetText("23")
-			manualCrfRow.Hide()
-		case "28 (Draft)":
-			state.convert.CRF = "28"
-			crfEntry.SetText("28")
-			manualCrfRow.Hide()
-		case "Manual":
-			manualCrfRow.Show()
 		}
-		if updateQualityVisibility != nil {
-			updateQualityVisibility()
-		}
-		if buildCommandPreview != nil {
-			buildCommandPreview()
-		}
-	})
-	switch state.convert.CRF {
-	case "":
-		crfPresetSelect.SetSelected("Auto (from Quality preset)")
-	case "18":
-		crfPresetSelect.SetSelected("18 (High)")
-	case "20":
-		crfPresetSelect.SetSelected("20 (Balanced)")
-	case "23":
-		crfPresetSelect.SetSelected("23 (Standard)")
-	case "28":
-		crfPresetSelect.SetSelected("28 (Draft)")
-	default:
-		crfPresetSelect.SetSelected("Manual")
-		manualCrfRow.Show()
+	} else {
+		manualCrfRow.Hide()
 	}
 
 	// Video Bitrate entry (for CBR/VBR) with validation
@@ -8038,12 +8010,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		setManualBitrate(state.convert.VideoBitrate)
 	}
 
-	// Create CRF container (crfEntry already initialized)
-	crfContainer = container.NewVBox(
-		widget.NewLabelWithStyle("CRF Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		crfPresetSelect,
-		manualCrfRow,
-	)
+	// Create CRF container (manual entry shown when quality is Manual)
+	crfContainer = container.NewVBox(manualCrfRow)
 
 	// Note: bitrateContainer creation moved below after bitratePresetSelect is initialized
 
@@ -8405,6 +8373,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		showCRF := mode == "CRF" || mode == ""
 		showBitrate := mode == "CBR" || mode == "VBR"
 		showTarget := mode == "Target Size"
+		showManualCRF := strings.EqualFold(state.convert.Quality, manualQualityOption)
 
 		if isLossless && supportsLossless {
 			// Lossless with H.265/AV1: Allow all bitrate modes
@@ -8416,12 +8385,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				}
 				state.convert.CRF = "0"
 				crfEntry.Disable()
-				if crfPresetSelect != nil {
-					crfPresetSelect.SetSelected("Manual")
-				}
-				if manualCrfRow != nil {
-					manualCrfRow.Show()
-				}
 				hint = "Lossless mode with CRF 0. Perfect quality preservation for H.265/AV1."
 			case "CBR":
 				hint = "Lossless quality with constant bitrate. May achieve smaller file size than pure lossless CRF."
@@ -8448,7 +8411,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 
-		if showCRF {
+		if showCRF && showManualCRF {
 			crfContainer.Show()
 		} else {
 			crfContainer.Hide()
@@ -8788,12 +8751,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		hide := strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") ||
 			strings.EqualFold(state.convert.VideoCodec, "H.265")
 		hideQuality := state.convert.BitrateMode != "" && state.convert.BitrateMode != "CRF"
-		if !hideQuality && strings.EqualFold(state.convert.BitrateMode, "CRF") && strings.TrimSpace(state.convert.CRF) != "" {
-			hideQuality = true
-		}
-		if !hideQuality && crfPresetSelect != nil && crfPresetSelect.Selected != "Auto (from Quality preset)" {
-			hideQuality = true
-		}
 
 		if qualitySectionSimple != nil {
 			if hide || hideQuality {
@@ -9075,9 +9032,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bitratePresetSelect.SetSelected(state.convert.BitratePreset)
 		simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
 		crfEntry.SetText(state.convert.CRF)
-		if crfPresetSelect != nil {
-			crfPresetSelect.SetSelected("Auto (from Quality preset)")
-		}
 		if manualCrfRow != nil {
 			manualCrfRow.Hide()
 		}
