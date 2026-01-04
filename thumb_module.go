@@ -352,32 +352,30 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			return
 		}
 
-		// If contact sheet mode, try to show contact sheet image
+		// If contact sheet mode, try to open contact sheet image
 		if state.thumbContactSheet {
 			contactSheetPath := filepath.Join(outputDir, fmt.Sprintf("%s_contact_sheet.jpg", videoBaseName))
 			if _, err := os.Stat(contactSheetPath); err == nil {
-				// Show contact sheet in a dialog
-				go func() {
-					img := canvas.NewImageFromFile(contactSheetPath)
-					img.FillMode = canvas.ImageFillContain
-					// Adaptive size for small screens - use scrollable dialog
-					// img.SetMinSize(fyne.NewSize(640, 480)) // Removed for flexible sizing
-
-					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						// Wrap in scroll container for large contact sheets
-						scroll := container.NewScroll(img)
-						d := dialog.NewCustom("Contact Sheet", "Close", scroll, state.window)
-						// Adaptive dialog size that fits on 1280x768 screens
-						d.Resize(fyne.NewSize(700, 600))
-						d.Show()
-					}, false)
-				}()
+				if err := openFile(contactSheetPath); err != nil {
+					dialog.ShowError(fmt.Errorf("failed to open contact sheet: %w", err), state.window)
+				}
 				return
 			}
 		}
 
-		// Otherwise, open folder
-		openFolder(outputDir)
+		// Otherwise, open first thumbnail
+		firstThumb := filepath.Join(outputDir, "thumb_0001.jpg")
+		if _, err := os.Stat(firstThumb); err == nil {
+			if err := openFile(firstThumb); err != nil {
+				dialog.ShowError(fmt.Errorf("failed to open thumbnail: %w", err), state.window)
+			}
+			return
+		}
+
+		// Fall back to opening the folder if no images found
+		if err := openFolder(outputDir); err != nil {
+			dialog.ShowError(fmt.Errorf("failed to open results folder: %w", err), state.window)
+		}
 	})
 	viewResultsBtn.Importance = widget.MediumImportance
 	if state.thumbFile == nil {

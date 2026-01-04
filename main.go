@@ -480,6 +480,23 @@ func openFolder(path string) error {
 	return cmd.Start()
 }
 
+// openFile tries to open a file in the OS default viewer.
+func openFile(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("path is empty")
+	}
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = utils.CreateCommandRaw("explorer", path)
+	case "darwin":
+		cmd = utils.CreateCommandRaw("open", path)
+	default:
+		cmd = utils.CreateCommandRaw("xdg-open", path)
+	}
+	return cmd.Start()
+}
+
 func (s *appState) showAbout() {
 	version := fmt.Sprintf("VideoTools %s", appVersion)
 	dev := "Leak Technologies"
