@@ -136,101 +136,11 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 		}
 	}
 
-	p.cmd = exec.Command(utils.GetFFmpegPath(), args...)
-	p.cmd.Stdout = p.videoPipeWriter
-	p.cmd.Stderr = p.audioPipeWriter
-
-	utils.ApplyNoWindow(p.cmd)
-
-	if err := p.cmd.Start(); err != nil {
-		logging.Error(logging.CatPlayer, "Failed to start FFmpeg: %v", err)
-		return fmt.Errorf("failed to start FFmpeg: %w", err)
-	}
-
-	// Initialize audio buffer
-	p.audioBuffer = make([]byte, 0, p.audioBufferSize)
-
-	// Start goroutine for reading audio stream
-	go p.readAudioStream()
-
-	// Detect video properties
-	if err := p.detectVideoProperties(); err != nil {
-		logging.Error(logging.CatPlayer, "Failed to detect video properties: %w", err)
-		return fmt.Errorf("failed to detect video properties: %w", err)
-	}
-
-	logging.Debug(logging.CatPlayer, "Loaded video: %s", path)
-	return nil
-}
-
-// Play starts or resumes playback
-func (p *UnifiedPlayer) Play() error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.state == StateStopped {
-		if err := p.startVideoProcess(); err != nil {
-			return err
-		}
-		p.state = StatePlaying
-	} else if p.state == StatePaused {
-		p.state = StatePlaying
-	}
-
-	if p.stateCallback != nil {
-		p.stateCallback(p.state)
-	}
-
-	logging.Debug(logging.CatPlayer, "Playback started")
-	return nil
-}
-
-// Pause pauses playback
-func (p *UnifiedPlayer) Pause() error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.state == StatePlaying {
-		p.state = StatePaused
-		if p.stateCallback != nil {
-			p.stateCallback(p.state)
-		}
-	}
-
-	logging.Debug(logging.CatPlayer, "Playback paused")
-	return nil
-}
-
-// Stop stops playback and cleans up resources
-func (p *UnifiedPlayer) Stop() error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.cancel != nil {
-		p.cancel()
-	}
-
-	// Close pipes
-	if p.videoPipeReader != nil {
-		p.videoPipeReader.Close()
-		p.videoPipeWriter.Close()
-	}
-	if p.audioPipeReader != nil {
-		p.audioPipeReader.Close()
-		p.audioPipeWriter.Close()
-	}
-
-	// Wait for process to finish
-	if p.cmd != nil && p.cmd.Process != nil {
-		p.cmd.Process.Wait()
-	}
-
+	// TODO: wire up FFmpeg process startup and pipe handling.
 	p.state = StateStopped
 	if p.stateCallback != nil {
 		p.stateCallback(p.state)
 	}
-
-	logging.Debug(logging.CatPlayer, "Playback stopped")
 	return nil
 }
 
@@ -243,21 +153,24 @@ func (p *UnifiedPlayer) SeekToTime(offset time.Duration) error {
 		offset = 0
 	}
 
-	// Seek to exact time without restart
 	seekTime := offset.Seconds()
 	logging.Debug(logging.CatPlayer, "Seeking to time: %.3f seconds", seekTime)
-
-	// Send seek command to FFmpeg
 	p.writeStringToStdin(fmt.Sprintf("seek %.3f\n", seekTime))
 
 	p.currentTime = offset
+	if p.frameRate > 0 {
+		p.currentFrame = int64(seekTime * p.frameRate)
+	}
 	p.syncClock = time.Now()
 
 	if p.timeCallback != nil {
 		p.timeCallback(offset)
 	}
+	if p.frameCallback != nil {
+		p.frameCallback(p.currentFrame)
+	}
 
-	logging.Debug(logging.CatPlayer, "Seek completed to %.3f seconds", offset.Seconds())
+	logging.Debug(logging.CatPlayer, "Seek completed to %.3f seconds", seekTime)
 	return nil
 }
 
