@@ -459,14 +459,14 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	// Padding is added between tiles: (cols-1) horizontal gaps and (rows-1) vertical gaps
 	sheetWidth := (thumbWidth * config.Columns) + (padding * (config.Columns - 1))
 	sheetHeight := (thumbHeight * config.Rows) + (padding * (config.Rows - 1))
-	headerHeight := 110
+	headerHeight := 130
 
 	// Build metadata text lines
 	// Line 1: Filename and file size
 	line1 := fmt.Sprintf("%s (%.1f MB)", filename, fileSizeMB)
-	// Line 2: Resolution and frame rate
-	line2 := fmt.Sprintf("%dx%d @ %.2f fps", videoWidth, videoHeight, fps)
-	// Line 3: Codecs with audio bitrate, overall bitrate, and duration
+	// Line 2: Resolution, frame rate, and duration
+	line2 := fmt.Sprintf("%dx%d @ %.2f fps | %s", videoWidth, videoHeight, fps, durationStr)
+	// Line 3: Codecs with audio bitrate and overall bitrate
 	bitrateKbps := int(bitrate / 1000)
 	var audioInfo string
 	if audioBitrate > 0 {
@@ -475,7 +475,7 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	} else {
 		audioInfo = audioCodec
 	}
-	line3 := fmt.Sprintf("Video\\: %s | Audio\\: %s | %d kbps | %s", videoCodec, audioInfo, bitrateKbps, durationStr)
+	line3 := fmt.Sprintf("Video\\: %s | Audio\\: %s | %d kbps", videoCodec, audioInfo, bitrateKbps)
 
 	// Create filter that:
 	// 1. Generates contact sheet from selected frames
@@ -485,9 +485,9 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	// App background color: #0B0F1A (dark navy blue)
 	baseFilter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=15:font='DejaVu Sans Mono':x=10:y=12,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=13:font='DejaVu Sans Mono':x=10:y=40,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=12:font='DejaVu Sans Mono':x=10:y=68",
+			"drawtext=text='%s':fontcolor=white:fontsize=20:font='DejaVu Sans Mono':x=10:y=12,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=16:font='DejaVu Sans Mono':x=10:y=50,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=16:font='DejaVu Sans Mono':x=10:y=82",
 		selectFilter,
 		tileFilter,
 		sheetWidth,
