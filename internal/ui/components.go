@@ -55,11 +55,11 @@ func (m *MonoTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) c
 		newB := uint8(min(int(float64(b>>8)*lightness), 255))
 		return color.RGBA{R: newR, G: newG, B: newB, A: uint8(a >> 8)}
 	case theme.ColorNameBackground:
-		// Use dark background for Entry widgets instead of grey
-		return utils.MustHex("#2B2B2B")
+		// Match dropdown background tone for panels/inputs
+		return utils.MustHex("#344256")
 	case theme.ColorNameInputBackground:
-		// Use slightly lighter dark for Entry input background
-		return utils.MustHex("#3C3C3C")
+		// Match dropdown background tone for input fields
+		return utils.MustHex("#344256")
 	case theme.ColorNameForeground:
 		// Ensure good contrast on dark backgrounds
 		return color.White
