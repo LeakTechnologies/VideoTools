@@ -8581,8 +8581,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			if crfEntry != nil {
 				crfEntry.Enable()
 			}
+			if manualCrfRow != nil {
+				manualCrfRow.Show()
+			}
 			crfContainer.Show()
 		} else {
+			if manualCrfRow != nil {
+				manualCrfRow.Hide()
+			}
 			crfContainer.Hide()
 		}
 		if showBitrate {
