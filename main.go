@@ -7021,11 +7021,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Forward declare functions needed by formatContainer callback
 	var updateDVDOptions func()
 	var buildCommandPreview func()
+	var updateChapterWarning func()
 
 	// Declare output widgets early to fix variable order issues
 	var outputExtLabel *widget.Label
 	var outputExtBG *canvas.Rectangle
 	var updateOutputHint func()
+	var videoCodecSelect *ui.ColoredSelect
 
 	var formatLabels []string
 	for _, opt := range formatOptions {
@@ -7034,27 +7036,57 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Format selector
 	formatColors := ui.BuildFormatColorMap(formatLabels)
+	var syncingFormat bool
+	applySelectedFormat := func(opt formatOption) {
+		state.convert.SelectedFormat = opt
+		logging.Debug(logging.CatUI, "format selected: %s", opt.Label)
+		friendlyCodec := friendlyCodecFromPreset(opt.VideoCodec)
+		if opt.VideoCodec == "copy" {
+			friendlyCodec = "Copy"
+		}
+		if friendlyCodec != "" && state.convert.VideoCodec != friendlyCodec {
+			state.convert.VideoCodec = friendlyCodec
+			if videoCodecSelect != nil {
+				videoCodecSelect.SetSelected(friendlyCodec)
+			}
+			if updateQualityOptions != nil {
+				updateQualityOptions()
+			}
+			if updateQualityVisibility != nil {
+				updateQualityVisibility()
+			}
+			if updateRemuxVisibility != nil {
+				updateRemuxVisibility()
+			}
+		}
+		if updateDVDOptions != nil {
+			updateDVDOptions()
+		}
+		if outputExtLabel != nil {
+			outputExtLabel.SetText(state.convert.SelectedFormat.Ext)
+		}
+		if outputExtBG != nil {
+			outputExtBG.FillColor = ui.GetContainerColor(strings.TrimPrefix(state.convert.SelectedFormat.Ext, "."))
+			outputExtBG.Refresh()
+		}
+		if updateOutputHint != nil {
+			updateOutputHint()
+		}
+		if updateChapterWarning != nil {
+			updateChapterWarning()
+		}
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
+	}
+
 	formatContainer := ui.NewColoredSelect(formatLabels, formatColors, func(selected string) {
+		if syncingFormat {
+			return
+		}
 		for _, opt := range formatOptions {
 			if opt.Label == selected {
-				state.convert.SelectedFormat = opt
-				logging.Debug(logging.CatUI, "format selected: %s", selected)
-				if updateDVDOptions != nil {
-					updateDVDOptions()
-				}
-				if outputExtLabel != nil {
-					outputExtLabel.SetText(state.convert.SelectedFormat.Ext)
-				}
-				if outputExtBG != nil {
-					outputExtBG.FillColor = ui.GetContainerColor(strings.TrimPrefix(state.convert.SelectedFormat.Ext, "."))
-					outputExtBG.Refresh()
-				}
-				if updateOutputHint != nil {
-					updateOutputHint()
-				}
-				if buildCommandPreview != nil {
-					buildCommandPreview()
-				}
+				applySelectedFormat(opt)
 				break
 			}
 		}
@@ -7598,9 +7630,40 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Create color-coded video codec select widget with colored dropdown items
 	videoCodecOptions := []string{"H.264", "H.265", "VP9", "AV1", "MPEG-2", "Copy"}
 	videoCodecColorMap := ui.BuildVideoCodecColorMap(videoCodecOptions)
-	videoCodecSelect := ui.NewColoredSelect(videoCodecOptions, videoCodecColorMap, func(value string) {
+	videoCodecSelect = ui.NewColoredSelect(videoCodecOptions, videoCodecColorMap, func(value string) {
 		state.convert.VideoCodec = value
 		logging.Debug(logging.CatUI, "video codec set to %s", value)
+		var preferredExt string
+		if state.convert.SelectedFormat.Ext != "" {
+			preferredExt = state.convert.SelectedFormat.Ext
+		}
+		var match *formatOption
+		var fallback *formatOption
+		for _, opt := range formatOptions {
+			friendly := friendlyCodecFromPreset(opt.VideoCodec)
+			if opt.VideoCodec == "copy" {
+				friendly = "Copy"
+			}
+			if friendly != value {
+				continue
+			}
+			if preferredExt != "" && opt.Ext == preferredExt {
+				match = &opt
+				break
+			}
+			if fallback == nil {
+				fallback = &opt
+			}
+		}
+		if match == nil {
+			match = fallback
+		}
+		if match != nil && match.Label != state.convert.SelectedFormat.Label {
+			syncingFormat = true
+			applySelectedFormat(*match)
+			formatContainer.SetSelected(match.Label)
+			syncingFormat = false
+		}
 		if updateQualityOptions != nil {
 			updateQualityOptions()
 		}
@@ -7621,7 +7684,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	chapterWarningLabel := widget.NewLabel("⚠️  Chapters will be lost - DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.")
 	chapterWarningLabel.Wrapping = fyne.TextWrapWord
 	chapterWarningLabel.TextStyle = fyne.TextStyle{Italic: true}
-	var updateChapterWarning func()
 	updateChapterWarning = func() {
 		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
 		if src != nil && src.HasChapters && isDVD {
