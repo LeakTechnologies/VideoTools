@@ -8519,6 +8519,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 
 		encodingHint.SetText(hint)
+		if updateQualityVisibility != nil {
+			updateQualityVisibility()
+		}
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
