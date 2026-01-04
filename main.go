@@ -7169,9 +7169,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	inverseCheck.Checked = state.convert.InverseTelecine
 	inverseHint := widget.NewLabel(state.convert.InverseAutoNotes)
 
+	makePanelButton := func(label string, onTap func()) (*widget.Button, fyne.CanvasObject) {
+		btn := widget.NewButton(label, onTap)
+		btn.Importance = widget.LowImportance
+		bg := canvas.NewRectangle(utils.MustHex("#344256"))
+		bg.CornerRadius = 8
+		bg.SetMinSize(fyne.NewSize(0, 36))
+		return btn, container.NewMax(bg, container.NewPadded(btn))
+	}
+
 	// Interlacing Analysis Button (Simple Menu)
 	var analyzeInterlaceBtn *widget.Button
-	analyzeInterlaceBtn = widget.NewButton("Analyze Interlacing", func() {
+	var analyzeInterlaceView fyne.CanvasObject
+	analyzeInterlaceBtn, analyzeInterlaceView = makePanelButton("Analyze Interlacing", func() {
 		if src == nil {
 			dialog.ShowInformation("Interlacing Analysis", "Load a video first.", state.window)
 			return
@@ -7235,7 +7245,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}, false)
 		}()
 	})
-	analyzeInterlaceBtn.Importance = widget.HighImportance
 
 	// Auto-crop controls
 	autoCropCheck := widget.NewCheck("Auto-Detect Black Bars", func(checked bool) {
@@ -7245,7 +7254,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	autoCropCheck.Checked = state.convert.AutoCrop
 
 	var detectCropBtn *widget.Button
-	detectCropBtn = widget.NewButton("Detect Crop", func() {
+	var detectCropView fyne.CanvasObject
+	detectCropBtn, detectCropView = makePanelButton("Detect Crop", func() {
 		if src == nil {
 			dialog.ShowInformation("Auto-Crop", "Load a video first.", state.window)
 			return
@@ -7293,7 +7303,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}, state.window)
 		}()
 	})
-	detectCropBtn.Importance = widget.MediumImportance
 	if src == nil {
 		detectCropBtn.Disable()
 	}
@@ -8791,7 +8800,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		widget.NewLabelWithStyle("═══ AUTO-CROP ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		autoCropCheck,
-		detectCropBtn,
+		detectCropView,
 		autoCropHint,
 		widget.NewSeparator(),
 
@@ -8804,7 +8813,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewSeparator(),
 
 		widget.NewLabelWithStyle("═══ DEINTERLACING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
-		analyzeInterlaceBtn,
+		analyzeInterlaceView,
 		inverseCheck,
 		inverseHint,
 		layout.NewSpacer(),
