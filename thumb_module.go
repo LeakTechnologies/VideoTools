@@ -117,6 +117,11 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	})
 	contactSheetCheck.Checked = state.thumbContactSheet
 
+	timestampCheck := widget.NewCheck("Show timestamps on thumbnails", func(checked bool) {
+		state.thumbShowTimestamps = checked
+	})
+	timestampCheck.Checked = state.thumbShowTimestamps
+
 	// Conditional settings based on contact sheet mode
 	var settingsOptions fyne.CanvasObject
 	if state.thumbContactSheet {
@@ -219,6 +224,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 				"count":        float64(count),
 				"width":        float64(width),
 				"contactSheet": state.thumbContactSheet,
+				"showTimestamp": state.thumbShowTimestamps,
 				"columns":      float64(state.thumbColumns),
 				"rows":         float64(state.thumbRows),
 			},
@@ -302,7 +308,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 
 		// If contact sheet mode, try to show contact sheet image
 		if state.thumbContactSheet {
-			contactSheetPath := filepath.Join(outputDir, "contact_sheet.jpg")
+			contactSheetPath := filepath.Join(outputDir, fmt.Sprintf("%s_contact_sheet.jpg", videoBaseName))
 			if _, err := os.Stat(contactSheetPath); err == nil {
 				// Show contact sheet in a dialog
 				go func() {
@@ -337,6 +343,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		widget.NewLabel("Settings:"),
 		widget.NewSeparator(),
 		contactSheetCheck,
+		timestampCheck,
 		settingsOptions,
 		widget.NewSeparator(),
 		generateNowBtn,
@@ -376,6 +383,12 @@ func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progress
 	count := int(cfg["count"].(float64))
 	width := int(cfg["width"].(float64))
 	contactSheet := cfg["contactSheet"].(bool)
+	showTimestamp := false
+	if raw, ok := cfg["showTimestamp"]; ok {
+		if v, ok := raw.(bool); ok {
+			showTimestamp = v
+		}
+	}
 	columns := int(cfg["columns"].(float64))
 	rows := int(cfg["rows"].(float64))
 
@@ -394,7 +407,7 @@ func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progress
 		ContactSheet:  contactSheet,
 		Columns:       columns,
 		Rows:          rows,
-		ShowTimestamp: false, // Disabled to avoid font issues
+		ShowTimestamp: showTimestamp,
 		ShowMetadata:  contactSheet,
 	}
 

@@ -331,7 +331,7 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 		args := []string{
 			"-ss", fmt.Sprintf("%.2f", ts),
 			"-i", config.VideoPath,
-			"-vf", fmt.Sprintf("scale=%d:%d", thumbWidth, thumbHeight),
+			"-vf", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp),
 			"-frames:v", "1",
 			"-y",
 		}
@@ -339,25 +339,6 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 		// Add quality settings
 		if config.Format == "jpg" {
 			args = append(args, "-q:v", fmt.Sprintf("%d", 31-(config.Quality*30/100)))
-		}
-
-		// Add timestamp overlay if requested
-		if config.ShowTimestamp {
-			hours := int(ts) / 3600
-			minutes := (int(ts) % 3600) / 60
-			seconds := int(ts) % 60
-			timeStr := fmt.Sprintf("%02d:%02d:%02d", hours, minutes, seconds)
-
-			drawTextFilter := fmt.Sprintf("scale=%d:%d,drawtext=text='%s':fontcolor=white:fontsize=20:font='DejaVu Sans Mono':box=1:boxcolor=black@0.5:boxborderw=5:x=(w-text_w)/2:y=h-th-10",
-				thumbWidth, thumbHeight, timeStr)
-
-			// Replace scale filter with combined filter
-			for j, arg := range args {
-				if arg == "-vf" && j+1 < len(args) {
-					args[j+1] = drawTextFilter
-					break
-				}
-			}
 		}
 
 		args = append(args, outputPath)
@@ -408,13 +389,14 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 		// Select frame at or after this timestamp, limiting to one frame per timestamp
 		selectFilter += fmt.Sprintf("gte(t\\,%.2f)*lt(t\\,%.2f)", ts, ts+0.1)
 	}
-	selectFilter += "',setpts=N/TB"
+	selectFilter += "'"
 
-	outputPath := filepath.Join(config.OutputDir, fmt.Sprintf("contact_sheet.%s", config.Format))
+	baseName := strings.TrimSuffix(filepath.Base(config.VideoPath), filepath.Ext(config.VideoPath))
+	outputPath := filepath.Join(config.OutputDir, fmt.Sprintf("%s_contact_sheet.%s", baseName, config.Format))
 
 	// Build tile filter with padding between thumbnails
 	padding := 8 // Pixels of padding between each thumbnail
-	tileFilter := fmt.Sprintf("scale=%d:%d,tile=%dx%d:padding=%d", thumbWidth, thumbHeight, config.Columns, config.Rows, padding)
+	tileFilter := fmt.Sprintf("%s,setpts=N/TB,tile=%dx%d:padding=%d", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp), config.Columns, config.Rows, padding)
 
 	// Build video filter
 	var vfilter string
@@ -497,7 +479,7 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	// 3. Draws metadata text on header (using monospace font)
 	// 4. Stacks header on top of contact sheet
 	// App background color: #0B0F1A (dark navy blue)
-	filter := fmt.Sprintf(
+	baseFilter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
 			"drawtext=text='%s':fontcolor=white:fontsize=13:font='DejaVu Sans Mono':x=10:y=10,"+
 			"drawtext=text='%s':fontcolor=white:fontsize=12:font='DejaVu Sans Mono':x=10:y=35,"+
@@ -512,7 +494,56 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 		line3,
 	)
 
+	logoPath := g.findLogoPath()
+	if logoPath == "" {
+		return baseFilter
+	}
+
+	logoScale := 28
+	logoFilter := fmt.Sprintf("%s[sheet];movie='%s',scale=%d:%d[logo];[sheet][logo]overlay=x=main_w-overlay_w-10:y=10",
+		baseFilter,
+		escapeFilterPath(logoPath),
+		logoScale,
+		logoScale,
+	)
+
+	return logoFilter
+}
+
+func (g *Generator) buildThumbFilter(thumbWidth, thumbHeight int, showTimestamp bool) string {
+	filter := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2",
+		thumbWidth,
+		thumbHeight,
+		thumbWidth,
+		thumbHeight,
+	)
+	if showTimestamp {
+		filter += ",drawtext=text='%{pts\\:hms}':fontcolor=white:fontsize=18:font='DejaVu Sans Mono':box=1:boxcolor=black@0.5:boxborderw=4:x=w-text_w-6:y=h-text_h-6"
+	}
 	return filter
+}
+
+func (g *Generator) findLogoPath() string {
+	search := []string{
+		filepath.Join("assets", "logo", "VT_Icon.png"),
+	}
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		search = append(search, filepath.Join(dir, "assets", "logo", "VT_Icon.png"))
+	}
+	for _, p := range search {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+func escapeFilterPath(path string) string {
+	escaped := strings.ReplaceAll(path, "\\", "\\\\")
+	escaped = strings.ReplaceAll(escaped, ":", "\\:")
+	escaped = strings.ReplaceAll(escaped, "'", "\\'")
+	return escaped
 }
 
 // calculateTimestamps generates timestamps for thumbnail extraction
