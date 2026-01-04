@@ -171,6 +171,9 @@ else
     if ! command -v ffmpeg &> /dev/null; then
         missing_deps+=("ffmpeg")
     fi
+    if ! command -v qrencode &> /dev/null; then
+        missing_deps+=("qrencode")
+    fi
     if [ -z "$SKIP_DVD_TOOLS" ]; then
         # Check if DVD tools are already installed
         if command -v dvdauthor &> /dev/null && command -v xorriso &> /dev/null; then
@@ -252,33 +255,33 @@ else
         if command -v apt-get &> /dev/null; then
             sudo apt-get update
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo apt-get install -y ffmpeg
+                sudo apt-get install -y ffmpeg qrencode
             else
-                sudo apt-get install -y ffmpeg dvdauthor xorriso
+                sudo apt-get install -y ffmpeg dvdauthor xorriso qrencode
             fi
         elif command -v dnf &> /dev/null; then
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo dnf install -y ffmpeg
+                sudo dnf install -y ffmpeg qrencode
             else
-                sudo dnf install -y ffmpeg dvdauthor xorriso
+                sudo dnf install -y ffmpeg dvdauthor xorriso qrencode
             fi
         elif command -v pacman &> /dev/null; then
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo pacman -Sy --noconfirm ffmpeg
+                sudo pacman -Sy --noconfirm ffmpeg qrencode
             else
-                sudo pacman -Sy --noconfirm ffmpeg dvdauthor cdrtools
+                sudo pacman -Sy --noconfirm ffmpeg dvdauthor cdrtools qrencode
             fi
         elif command -v zypper &> /dev/null; then
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo zypper install -y ffmpeg
+                sudo zypper install -y ffmpeg qrencode
             else
-                sudo zypper install -y ffmpeg dvdauthor xorriso
+                sudo zypper install -y ffmpeg dvdauthor xorriso qrencode
             fi
         elif command -v brew &> /dev/null; then
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                brew install ffmpeg
+                brew install ffmpeg qrencode
             else
-                brew install ffmpeg dvdauthor xorriso
+                brew install ffmpeg dvdauthor xorriso qrencode
             fi
         else
             echo -e "${RED}[ERROR] No supported package manager found.${NC}"
@@ -364,6 +367,11 @@ else
     if ! command -v ffmpeg &> /dev/null; then
         echo -e "${RED}[ERROR] Missing required dependencies after install attempt.${NC}"
         echo "Please install: ffmpeg"
+        exit 1
+    fi
+    if ! command -v qrencode &> /dev/null; then
+        echo -e "${RED}[ERROR] Missing required dependencies after install attempt.${NC}"
+        echo "Please install: qrencode"
         exit 1
     fi
     if [ "$SKIP_DVD_TOOLS" = false ]; then
