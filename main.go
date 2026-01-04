@@ -6872,6 +6872,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			cb(val)
 		}
 		callCallback("updateEncodingControls")
+		if updateEncodingControls != nil {
+			updateEncodingControls()
+		}
 	}
 
 	setResolution := func(val string) {
@@ -7804,6 +7807,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"VBR":         "VBR (Variable Bitrate)",
 		"Target Size": "Target Size (Calculate from file size)",
 	}
+	normalizeBitrateMode := func(mode string) string {
+		if shortCode, ok := bitrateModeMap[mode]; ok {
+			return shortCode
+		}
+		return mode
+	}
 	bitrateModeSelect = widget.NewSelect(bitrateModeOptions, func(value string) {
 		// Extract short code from label
 		if shortCode, ok := bitrateModeMap[value]; ok {
@@ -7828,6 +7837,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	} else {
 		bitrateModeSelect.SetSelected(state.convert.BitrateMode)
 	}
+	state.convert.BitrateMode = normalizeBitrateMode(state.convert.BitrateMode)
 
 	// Manual CRF entry
 	// CRF entry with debouncing (300ms delay) and validation
@@ -8366,7 +8376,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	setBitratePreset(state.convert.BitratePreset)
 
 	updateEncodingControls = func() {
-		mode := state.convert.BitrateMode
+		mode := normalizeBitrateMode(state.convert.BitrateMode)
 		isLossless := state.convert.Quality == "Lossless"
 		supportsLossless := codecSupportsLossless(state.convert.VideoCodec)
 
