@@ -1303,7 +1303,7 @@ func (cs *ColoredSelect) showPopup() {
 			}
 			// Hide popup after a short delay to allow the selection to be processed
 			time.AfterFunc(50*time.Millisecond, func() {
-				fyne.CurrentApp().Driver().RunOnMain(func() {
+				fyne.Do(func() {
 					if cs.popup != nil {
 						cs.popup.Hide()
 						cs.popup = nil
