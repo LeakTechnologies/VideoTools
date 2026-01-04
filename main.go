@@ -7204,6 +7204,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	outputEntry := widget.NewEntry()
 	outputEntry.SetText(state.convert.OutputBase)
+	outputEntry.SetMinSize(fyne.NewSize(0, 36))
 	var updatingOutput bool
 	var autoNameCheck *widget.Check
 	outputEntry.OnChanged = func(val string) {
@@ -7223,6 +7224,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	outputDirEntry := widget.NewEntry()
 	outputDirEntry.SetPlaceHolder("Output folder path")
 	outputDirEntry.SetText(state.convert.OutputDir)
+	outputDirEntry.SetMinSize(fyne.NewSize(0, 36))
 	outputDirEntry.OnChanged = func(val string) {
 		state.convert.OutputDir = val
 		updateOutputHint()
@@ -7652,26 +7654,30 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	encoderPresetOptions := []string{"veryslow", "slower", "slow", "medium", "fast", "faster", "veryfast", "superfast", "ultrafast"}
-	encoderPresetSelect := widget.NewSelect(encoderPresetOptions, func(value string) {
+	presetColorMap := make(map[string]color.Color, len(encoderPresetOptions))
+	for _, opt := range encoderPresetOptions {
+		presetColorMap[opt] = utils.MustHex("#344256")
+	}
+	encoderPresetSelect := ui.NewColoredSelect(encoderPresetOptions, presetColorMap, func(value string) {
 		state.convert.EncoderPreset = value
 		logging.Debug(logging.CatUI, "encoder preset set to %s", value)
 		updateEncoderPresetHint(value)
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	})
+	}, state.window)
 	encoderPresetSelect.SetSelected(state.convert.EncoderPreset)
 	updateEncoderPresetHint(state.convert.EncoderPreset)
 
 	// Simple mode preset dropdown
-	simplePresetSelect := widget.NewSelect(encoderPresetOptions, func(value string) {
+	simplePresetSelect := ui.NewColoredSelect(encoderPresetOptions, presetColorMap, func(value string) {
 		state.convert.EncoderPreset = value
 		logging.Debug(logging.CatUI, "simple preset set to %s", value)
 		updateEncoderPresetHint(value)
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	})
+	}, state.window)
 	simplePresetSelect.SetSelected(state.convert.EncoderPreset)
 
 	// Settings management for batch operations
@@ -8950,11 +8956,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Advanced mode options - full controls with organized sections
 	videoCodecLabel := widget.NewLabelWithStyle("Video Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	presetLabel := widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	videoCodecRow := ui.NewRatioRow(videoCodecLabel, presetLabel, 0.3)
-	videoCodecControls := ui.NewRatioRow(
+	videoCodecRow := ui.NewRatioRowWithGap(videoCodecLabel, presetLabel, 0.3, 10)
+	videoCodecControls := ui.NewRatioRowWithGap(
 		container.NewPadded(videoCodecContainer),
 		container.NewPadded(encoderPresetSelect),
 		0.3,
+		10,
 	)
 
 	advancedVideoEncodingBlock = container.NewVBox(
@@ -9164,7 +9171,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				return false
 			}
 			switch c.Focused().(type) {
-			case *widget.Entry, *widget.MultiLineEntry:
+			case *widget.Entry:
 				return true
 			default:
 				return false
