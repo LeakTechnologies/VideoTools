@@ -13,8 +13,9 @@ This roadmap is intentionally lightweight. It captures the next few high-priorit
 - dev21 focused on stylistic filters and enhancement module planning.
 - Filters module now includes decade-based authentic effects (8mm, 16mm, B&W Film, Silent Film, VHS, Webcam).
 - Player stability identified as critical blocker for enhancement development.
+- dev23 delivered UI cleanup (dropdown styling, settings panel polish, about/support layout).
 
-## Now (dev22 focus)
+## Now (dev24 focus)
 
 - **Rock-solid video player implementation** - CRITICAL PRIORITY
   - Fix fundamental A/V synchronization issues
@@ -32,7 +33,7 @@ This roadmap is intentionally lightweight. It captures the next few high-priorit
   - Before/after preview system
   - Real-time enhancement feedback
 
-## Next (dev23+)
+## Next (dev25+)
 
 - **Enhancement module completion** - DEPENDS ON PLAYER
   - Open-source AI model integration (BasicVSR, RIFE, RealCUGan)

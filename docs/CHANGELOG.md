@@ -1,5 +1,19 @@
 # VideoTools Changelog
 
+## v0.1.0-dev23 (January 2026)
+
+### 🎉 UI Cleanup
+- **Colored select refinement** - one-click open, left accent bar, rounded corners, larger labels
+- **Unified input styling** - settings panel backgrounds match dropdown tone
+- **Convert panel polish** - Auto-crop and Interlacing actions match panel styling
+
+### 🧩 About / Support
+- **Mockup-aligned layout** - title row, VT + LT logos on the right, Logs Folder action
+- **Support placeholder** - “Support coming soon” until donation details are available
+
+### 🐛 Fixes
+- **Audio module crash** - guarded initial quality selection to avoid nil entry panic
+
 ## v0.1.0-dev22 (January 2026)
 
 ### 🎉 Major Features
