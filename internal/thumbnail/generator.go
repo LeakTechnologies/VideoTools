@@ -433,8 +433,8 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 	args = append(args, outputPath)
 
 	if config.Progress != nil {
-		args = append(args, "-progress", "pipe:1", "-nostats")
-		if err := runFFmpegWithProgress(ctx, g.FFmpegPath, args, duration, config.Progress); err != nil {
+		args = append(args, "-progress", "pipe:1", "-stats_period", "0.2", "-nostats")
+		if err := runFFmpegWithProgress(ctx, g.FFmpegPath, args, availableDuration, totalThumbs, config.Progress); err != nil {
 			return "", fmt.Errorf("failed to generate contact sheet: %w", err)
 		}
 	} else {
@@ -565,7 +565,7 @@ func escapeFilterPath(path string) string {
 	return escaped
 }
 
-func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string, totalDuration float64, progress func(float64)) error {
+func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string, totalDuration float64, expectedFrames int, progress func(float64)) error {
 	cmd := exec.CommandContext(ctx, ffmpegPath, args...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -583,30 +583,45 @@ func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string
 	}
 
 	go func() {
-		if progress == nil || totalDuration <= 0 {
+		if progress == nil {
 			return
 		}
 		scanner := bufio.NewScanner(stdout)
 		var lastPct float64
+		var lastFrame int
 		for scanner.Scan() {
 			line := scanner.Text()
 			parts := strings.SplitN(line, "=", 2)
 			if len(parts) != 2 {
 				continue
 			}
-			if parts[0] != "out_time_ms" {
+			key, val := parts[0], parts[1]
+			var pct float64
+			updated := false
+			if key == "out_time_ms" && totalDuration > 0 {
+				if ms, err := strconv.ParseFloat(val, 64); err == nil {
+					currentSec := ms / 1000000.0
+					pct = (currentSec / totalDuration) * 100
+					updated = true
+				}
+			} else if key == "frame" && expectedFrames > 0 {
+				if frame, err := strconv.Atoi(val); err == nil {
+					if frame > lastFrame {
+						lastFrame = frame
+					}
+					pct = (float64(lastFrame) / float64(expectedFrames)) * 100
+					updated = true
+				}
+			}
+			if !updated {
 				continue
 			}
-			if ms, err := strconv.ParseFloat(parts[1], 64); err == nil {
-				currentSec := ms / 1000000.0
-				pct := (currentSec / totalDuration) * 100
-				if pct > 100 {
-					pct = 100
-				}
-				if pct-lastPct >= 0.5 || pct >= 100 {
-					lastPct = pct
-					progress(pct)
-				}
+			if pct > 100 {
+				pct = 100
+			}
+			if pct-lastPct >= 0.5 || pct >= 100 {
+				lastPct = pct
+				progress(pct)
 			}
 		}
 	}()
