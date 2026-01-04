@@ -60,6 +60,12 @@ func (m *MonoTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) c
 	case theme.ColorNameInputBackground:
 		// Match dropdown background tone for input fields
 		return utils.MustHex("#344256")
+	case theme.ColorNameInputBorder:
+		// Keep input borders visually flat against the background
+		return utils.MustHex("#344256")
+	case theme.ColorNameFocus:
+		// Avoid bright focus outlines on dark input fields
+		return utils.MustHex("#344256")
 	case theme.ColorNameForeground:
 		// Ensure good contrast on dark backgrounds
 		return color.White
@@ -358,11 +364,17 @@ func TintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 
 // NewRatioRow lays out two objects with a fixed width ratio for the left item.
 func NewRatioRow(left, right fyne.CanvasObject, leftRatio float32) *fyne.Container {
-	return container.New(&ratioRowLayout{leftRatio: leftRatio}, left, right)
+	return NewRatioRowWithGap(left, right, leftRatio, 0)
+}
+
+// NewRatioRowWithGap lays out two objects with a fixed width ratio and a gap between them.
+func NewRatioRowWithGap(left, right fyne.CanvasObject, leftRatio float32, gap float32) *fyne.Container {
+	return container.New(&ratioRowLayout{leftRatio: leftRatio, gap: gap}, left, right)
 }
 
 type ratioRowLayout struct {
 	leftRatio float32
+	gap       float32
 }
 
 func (r *ratioRowLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
@@ -370,12 +382,20 @@ func (r *ratioRowLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 		return
 	}
 	ratio := clampRatio(r.leftRatio)
-	leftWidth := size.Width * ratio
-	rightWidth := size.Width - leftWidth
+	gap := float32(0)
+	if r.gap > 0 {
+		gap = r.gap
+	}
+	availableWidth := size.Width - gap
+	if availableWidth < 0 {
+		availableWidth = 0
+	}
+	leftWidth := availableWidth * ratio
+	rightWidth := availableWidth - leftWidth
 
 	objects[0].Move(fyne.NewPos(0, 0))
 	objects[0].Resize(fyne.NewSize(leftWidth, size.Height))
-	objects[1].Move(fyne.NewPos(leftWidth, 0))
+	objects[1].Move(fyne.NewPos(leftWidth+gap, 0))
 	objects[1].Resize(fyne.NewSize(rightWidth, size.Height))
 }
 
@@ -1303,11 +1323,16 @@ func (cs *ColoredSelect) showPopup() {
 	if dropWidth < 200 {
 		dropWidth = 200
 	}
-	scroll.SetMinSize(fyne.NewSize(dropWidth, 300))
+	visibleItems := min(len(cs.options), 6)
+	popupHeight := float32(visibleItems) * 36
+	if popupHeight < 144 {
+		popupHeight = 144
+	}
+	scroll.SetMinSize(fyne.NewSize(dropWidth, popupHeight))
 
 	// Create popup
 	cs.popup = widget.NewPopUp(scroll, cs.window.Canvas())
-	cs.popup.Resize(fyne.NewSize(dropWidth, 300))
+	cs.popup.Resize(fyne.NewSize(dropWidth, popupHeight))
 
 	// Position popup below the select widget
 	popupPos := fyne.CurrentApp().Driver().AbsolutePositionForObject(cs)
