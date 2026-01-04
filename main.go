@@ -12,12 +12,12 @@ import (
 	"image/color"
 	"image/png"
 	"io"
-	"log"
 	"math"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"sort"
@@ -31,20 +31,16 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/enhancement"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/metadata"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
@@ -475,6 +471,23 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 
 // openFolder tries to open a folder in the OS file browser.
 func openFolder(path string) error {
+	if strings.TrimSpace(path) == "" {
+		return fmt.Errorf("path is empty")
+	}
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		cmd = utils.CreateCommandRaw("explorer", path)
+	case "darwin":
+		cmd = utils.CreateCommandRaw("open", path)
+	default:
+		cmd = utils.CreateCommandRaw("xdg-open", path)
+	}
+	return cmd.Start()
+}
+
+// openFile tries to open a file in the OS default viewer.
+func openFile(path string) error {
 	if strings.TrimSpace(path) == "" {
 		return fmt.Errorf("path is empty")
 	}
