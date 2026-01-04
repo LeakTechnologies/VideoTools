@@ -97,7 +97,7 @@ func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
 	case theme.SizeNameSubHeadingText:
 		return 17 // Increased from default 16
 	case theme.SizeNameInputBorder:
-		return 2 // Keep default
+		return 0 // Remove input borders for cleaner fields
 	}
 	return theme.DefaultTheme().Size(name)
 }
