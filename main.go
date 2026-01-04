@@ -1002,7 +1002,7 @@ type appState struct {
 
 	queueAutoRefreshStop    chan struct{}
 	queueAutoRefreshRunning bool
-	queueActiveProgress     []*ui.StripedProgress // Track active progress animations to prevent goroutine leaks
+	queueView               *ui.QueueView
 
 	// Main menu refresh throttling
 	mainMenuLastRefresh time.Time
@@ -1643,6 +1643,9 @@ func (s *appState) showMainMenu() {
 	s.stopPreview()
 	s.stopPlayer()
 	s.stopQueueAutoRefresh()
+	if s.queueView != nil {
+		s.queueView.StopAnimations()
+	}
 	s.active = ""
 	s.queueBackTarget = ""
 
@@ -1791,6 +1794,9 @@ func (s *appState) showQueue() {
 	}
 	s.active = "queue"
 	s.refreshQueueView()
+	if s.queueView != nil {
+		s.setContent(s.queueView.Root)
+	}
 	s.startQueueAutoRefresh()
 }
 
@@ -1839,178 +1845,159 @@ func (s *appState) refreshQueueView() {
 		}}, jobs...)
 	}
 
-	// CRITICAL: Stop all active progress animations before rebuilding to prevent goroutine leaks
-	// Each refresh creates new StripedProgress widgets, and old animation goroutines must be stopped
-	for _, progress := range s.queueActiveProgress {
-		if progress != nil {
-			progress.StopAnimation()
-		}
-	}
-	s.queueActiveProgress = nil
-
-	view, scroll, activeProgress := ui.BuildQueueView(
-		jobs,
-		func() { // onBack
-			// Stop auto-refresh before navigating away for snappy response
-			s.stopQueueAutoRefresh()
-			target := s.queueBackTarget
-			if target == "" {
-				target = s.lastModule
-			}
-			if target != "" && target != "queue" && target != "menu" {
-				s.showModule(target)
-			} else {
-				s.showMainMenu()
-			}
-		},
-		func(id string) { // onPause
-			if err := s.jobQueue.Pause(id); err != nil {
-				logging.Debug(logging.CatSystem, "failed to pause job: %v", err)
-			}
-			// Queue onChange callback handles refresh automatically
-		},
-		func(id string) { // onResume
-			if err := s.jobQueue.Resume(id); err != nil {
-				logging.Debug(logging.CatSystem, "failed to resume job: %v", err)
-			}
-			// Queue onChange callback handles refresh automatically
-		},
-		func(id string) { // onCancel
-			if err := s.jobQueue.Cancel(id); err != nil {
-				logging.Debug(logging.CatSystem, "failed to cancel job: %v", err)
-			}
-			// Queue onChange callback handles refresh automatically
-		},
-		func(id string) { // onRemove
-			if err := s.jobQueue.Remove(id); err != nil {
-				logging.Debug(logging.CatSystem, "failed to remove job: %v", err)
-			}
-			// Queue onChange callback handles refresh automatically
-		},
-		func(id string) { // onMoveUp
-			if err := s.jobQueue.MoveUp(id); err != nil {
-				logging.Debug(logging.CatSystem, "failed to move job up: %v", err)
-			}
-			// Queue onChange callback handles refresh automatically
-		},
-		func(id string) { // onMoveDown
-			if err := s.jobQueue.MoveDown(id); err != nil {
-				logging.Debug(logging.CatSystem, "failed to move job down: %v", err)
-			}
-			// Queue onChange callback handles refresh automatically
-		},
-		func() { // onPauseAll
-			s.jobQueue.PauseAll()
-			// Queue onChange callback handles refresh automatically
-		},
-		func() { // onResumeAll
-			s.jobQueue.ResumeAll()
-			// Queue onChange callback handles refresh automatically
-		},
-		func() { // onStart
-			s.jobQueue.ResumeAll()
-			// Queue onChange callback handles refresh automatically
-		},
-		func() { // onClear
-			// Stop auto-refresh to prevent double UI updates
-			s.stopQueueAutoRefresh()
-			s.jobQueue.Clear()
-
-			// Always return to main menu after clearing
-			if len(s.jobQueue.List()) == 0 {
-				s.showMainMenu()
-			} else {
-				// Restart auto-refresh and do single refresh
-				s.startQueueAutoRefresh()
-				s.refreshQueueView()
-			}
-		},
-		func() { // onClearAll
-			// Stop auto-refresh to prevent double UI updates during navigation
-			s.stopQueueAutoRefresh()
-			s.jobQueue.ClearAll()
-			// Return to the module we were working on if possible
-			if s.lastModule != "" && s.lastModule != "queue" && s.lastModule != "menu" {
-				s.showModule(s.lastModule)
-			} else {
-				s.showMainMenu()
-			}
-		},
-		func(id string) { // onCopyError
-			job, err := s.jobQueue.Get(id)
-			if err != nil {
-				logging.Debug(logging.CatSystem, "copy error text failed: %v", err)
-				return
-			}
-			text := strings.TrimSpace(job.Error)
-			if text == "" {
-				text = fmt.Sprintf("%s: no error message available", job.Title)
-			}
-			s.window.Clipboard().SetContent(text)
-		},
-		func(id string) { // onViewLog
-			job, err := s.jobQueue.Get(id)
-			if err != nil {
-				logging.Debug(logging.CatSystem, "view log failed: %v", err)
-				return
-			}
-			path := strings.TrimSpace(job.LogPath)
-			if path == "" {
-				dialog.ShowInformation("No Log", "No log path recorded for this job.", s.window)
-				return
-			}
-			data, err := os.ReadFile(path)
-			if err != nil {
-				dialog.ShowError(fmt.Errorf("failed to read log: %w", err), s.window)
-				return
-			}
-			text := widget.NewMultiLineEntry()
-			text.SetText(string(data))
-			text.Wrapping = fyne.TextWrapWord
-			text.Disable()
-			dialog.ShowCustom("Conversion Log", "Close", container.NewVScroll(text), s.window)
-		},
-		func(id string) { // onCopyCommand
-			job, err := s.jobQueue.Get(id)
-			if err != nil {
-				logging.Debug(logging.CatSystem, "copy command failed: %v", err)
-				return
-			}
-			cmdStr := buildFFmpegCommandFromJob(job)
-			if cmdStr == "" {
-				dialog.ShowInformation("No Command", "Unable to generate FFmpeg command for this job.", s.window)
-				return
-			}
-			s.window.Clipboard().SetContent(cmdStr)
-			dialog.ShowInformation("Copied", "FFmpeg command copied to clipboard", s.window)
-		},
-		utils.MustHex("#4CE870"), // titleColor
-		gridColor,                // bgColor
-		textColor,                // textColor
-	)
-
-	// Restore scroll offset
-	s.queueScroll = scroll
-	if s.queueScroll != nil && s.active == "queue" {
-		// Restore scroll position immediately to reduce jankiness
-		// Set offset before showing to avoid visible jumping
-		savedOffset := s.queueOffset
-		go func() {
-			// Minimal delay to allow layout calculation
-			time.Sleep(10 * time.Millisecond)
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				if s.queueScroll != nil {
-					s.queueScroll.Offset = savedOffset
-					s.queueScroll.Refresh()
+	if s.queueView == nil {
+		view := ui.BuildQueueView(
+			jobs,
+			func() { // onBack
+				// Stop auto-refresh before navigating away for snappy response
+				s.stopQueueAutoRefresh()
+				target := s.queueBackTarget
+				if target == "" {
+					target = s.lastModule
 				}
-			}, false)
-		}()
+				if target != "" && target != "queue" && target != "menu" {
+					s.showModule(target)
+				} else {
+					s.showMainMenu()
+				}
+			},
+			func(id string) { // onPause
+				if err := s.jobQueue.Pause(id); err != nil {
+					logging.Debug(logging.CatSystem, "failed to pause job: %v", err)
+				}
+			},
+			func(id string) { // onResume
+				if err := s.jobQueue.Resume(id); err != nil {
+					logging.Debug(logging.CatSystem, "failed to resume job: %v", err)
+				}
+			},
+			func(id string) { // onCancel
+				if err := s.jobQueue.Cancel(id); err != nil {
+					logging.Debug(logging.CatSystem, "failed to cancel job: %v", err)
+				}
+			},
+			func(id string) { // onRemove
+				if err := s.jobQueue.Remove(id); err != nil {
+					logging.Debug(logging.CatSystem, "failed to remove job: %v", err)
+				}
+			},
+			func(id string) { // onMoveUp
+				if err := s.jobQueue.MoveUp(id); err != nil {
+					logging.Debug(logging.CatSystem, "failed to move job up: %v", err)
+				}
+			},
+			func(id string) { // onMoveDown
+				if err := s.jobQueue.MoveDown(id); err != nil {
+					logging.Debug(logging.CatSystem, "failed to move job down: %v", err)
+				}
+			},
+			func() { // onPauseAll
+				s.jobQueue.PauseAll()
+			},
+			func() { // onResumeAll
+				s.jobQueue.ResumeAll()
+			},
+			func() { // onStart
+				s.jobQueue.ResumeAll()
+			},
+			func() { // onClear
+				// Stop auto-refresh to prevent double UI updates
+				s.stopQueueAutoRefresh()
+				s.jobQueue.Clear()
+
+				// Always return to main menu after clearing
+				if len(s.jobQueue.List()) == 0 {
+					s.showMainMenu()
+				} else {
+					// Restart auto-refresh and do single refresh
+					s.startQueueAutoRefresh()
+					s.refreshQueueView()
+				}
+			},
+			func() { // onClearAll
+				// Stop auto-refresh to prevent double UI updates during navigation
+				s.stopQueueAutoRefresh()
+				s.jobQueue.ClearAll()
+				// Return to the module we were working on if possible
+				if s.lastModule != "" && s.lastModule != "queue" && s.lastModule != "menu" {
+					s.showModule(s.lastModule)
+				} else {
+					s.showMainMenu()
+				}
+			},
+			func(id string) { // onCopyError
+				job, err := s.jobQueue.Get(id)
+				if err != nil {
+					logging.Debug(logging.CatSystem, "copy error text failed: %v", err)
+					return
+				}
+				text := strings.TrimSpace(job.Error)
+				if text == "" {
+					text = fmt.Sprintf("%s: no error message available", job.Title)
+				}
+				s.window.Clipboard().SetContent(text)
+			},
+			func(id string) { // onViewLog
+				job, err := s.jobQueue.Get(id)
+				if err != nil {
+					logging.Debug(logging.CatSystem, "view log failed: %v", err)
+					return
+				}
+				path := strings.TrimSpace(job.LogPath)
+				if path == "" {
+					dialog.ShowInformation("No Log", "No log path recorded for this job.", s.window)
+					return
+				}
+				data, err := os.ReadFile(path)
+				if err != nil {
+					dialog.ShowError(fmt.Errorf("failed to read log: %w", err), s.window)
+					return
+				}
+				text := widget.NewMultiLineEntry()
+				text.SetText(string(data))
+				text.Wrapping = fyne.TextWrapWord
+				text.Disable()
+				dialog.ShowCustom("Conversion Log", "Close", container.NewVScroll(text), s.window)
+			},
+			func(id string) { // onCopyCommand
+				job, err := s.jobQueue.Get(id)
+				if err != nil {
+					logging.Debug(logging.CatSystem, "copy command failed: %v", err)
+					return
+				}
+				cmdStr := buildFFmpegCommandFromJob(job)
+				if cmdStr == "" {
+					dialog.ShowInformation("No Command", "Unable to generate FFmpeg command for this job.", s.window)
+					return
+				}
+				s.window.Clipboard().SetContent(cmdStr)
+				dialog.ShowInformation("Copied", "FFmpeg command copied to clipboard", s.window)
+			},
+			utils.MustHex("#4CE870"), // titleColor
+			gridColor,                // bgColor
+			textColor,                // textColor
+		)
+
+		s.queueView = view
+		s.queueScroll = view.Scroll
+		s.setContent(view.Root)
+
+		// Restore scroll offset
+		if s.queueScroll != nil && s.active == "queue" {
+			savedOffset := s.queueOffset
+			go func() {
+				time.Sleep(10 * time.Millisecond)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					if s.queueScroll != nil {
+						s.queueScroll.Offset = savedOffset
+						s.queueScroll.Refresh()
+					}
+				}, false)
+			}()
+		}
+	} else {
+		s.queueView.UpdateJobs(jobs)
 	}
-
-	// Store active progress bars to stop them on next refresh
-	s.queueActiveProgress = activeProgress
-
-	s.setContent(container.NewPadded(view))
 }
 
 func (s *appState) startQueueAutoRefresh() {
@@ -2058,13 +2045,9 @@ func (s *appState) stopQueueAutoRefresh() {
 	s.queueAutoRefreshStop = nil
 	s.queueAutoRefreshRunning = false
 
-	// Stop all active progress animations to prevent goroutine leaks when leaving queue view
-	for _, progress := range s.queueActiveProgress {
-		if progress != nil {
-			progress.StopAnimation()
-		}
+	if s.queueView != nil {
+		s.queueView.StopAnimations()
 	}
-	s.queueActiveProgress = nil
 }
 
 // addConvertToQueue adds a conversion job to the queue
@@ -2738,6 +2721,9 @@ func (s *appState) showMissingDependenciesDialog(moduleID string) {
 func (s *appState) showModule(id string) {
 	if id != "queue" {
 		s.stopQueueAutoRefresh()
+		if s.queueView != nil {
+			s.queueView.StopAnimations()
+		}
 	}
 
 	// Check if module has missing dependencies
@@ -6629,7 +6615,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Format selector
-	formatContainer := widget.NewSelect(formatLabels, func(selected string) {
+	formatColors := ui.BuildFormatColorMap(formatLabels)
+	formatContainer := ui.NewColoredSelect(formatLabels, formatColors, func(selected string) {
 		for _, opt := range formatOptions {
 			if opt.Label == selected {
 				state.convert.SelectedFormat = opt
@@ -6643,7 +6630,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				break
 			}
 		}
-	})
+	}, state.window)
 	formatContainer.SetSelected(state.convert.SelectedFormat.Label)
 
 	outputHint := widget.NewLabel(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))

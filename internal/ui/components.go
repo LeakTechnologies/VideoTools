@@ -1186,10 +1186,18 @@ func (cs *ColoredSelect) showPopup() {
 	// Create scrollable list with proper spacing
 	list := container.NewVBox(items...)
 	scroll := container.NewVScroll(list)
-	scroll.SetMinSize(fyne.NewSize(300, 200)) // Add back minimum size for usability
+	dropWidth := cs.Size().Width
+	if dropWidth <= 0 {
+		dropWidth = cs.MinSize().Width
+	}
+	if dropWidth < 200 {
+		dropWidth = 200
+	}
+	scroll.SetMinSize(fyne.NewSize(dropWidth, 200))
 
 	// Create popup
 	cs.popup = widget.NewPopUp(scroll, cs.window.Canvas())
+	cs.popup.Resize(fyne.NewSize(dropWidth, 200))
 
 	// Position popup below the select widget
 	popupPos := fyne.CurrentApp().Driver().AbsolutePositionForObject(cs)

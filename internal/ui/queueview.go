@@ -193,6 +193,54 @@ func applyAlpha(c color.Color, alpha uint8) color.Color {
 	return color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: alpha}
 }
 
+type queueCallbacks struct {
+	onBack        func()
+	onPause       func(string)
+	onResume      func(string)
+	onCancel      func(string)
+	onRemove      func(string)
+	onMoveUp      func(string)
+	onMoveDown    func(string)
+	onPauseAll    func()
+	onResumeAll   func()
+	onStart       func()
+	onClear       func()
+	onClearAll    func()
+	onCopyError   func(string)
+	onViewLog     func(string)
+	onCopyCommand func(string)
+}
+
+type queueItemWidgets struct {
+	jobID       string
+	status      queue.JobStatus
+	container   fyne.CanvasObject
+	titleLabel  *widget.Label
+	descLabel   *widget.Label
+	statusLabel *widget.Label
+	progress    *StripedProgress
+	buttonBox   *fyne.Container
+}
+
+type QueueView struct {
+	Root       fyne.CanvasObject
+	Scroll     *container.Scroll
+	jobList    *fyne.Container
+	emptyLabel fyne.CanvasObject
+	items      map[string]*queueItemWidgets
+	callbacks  queueCallbacks
+	bgColor    color.Color
+	textColor  color.Color
+}
+
+func (v *QueueView) StopAnimations() {
+	for _, item := range v.items {
+		if item != nil && item.progress != nil {
+			item.progress.StopAnimation()
+		}
+	}
+}
+
 // BuildQueueView creates the queue viewer UI
 func BuildQueueView(
 	jobs []*queue.Job,
@@ -212,9 +260,7 @@ func BuildQueueView(
 	onViewLog func(string),
 	onCopyCommand func(string),
 	titleColor, bgColor, textColor color.Color,
-) (fyne.CanvasObject, *container.Scroll, []*StripedProgress) {
-	// Track active progress animations to prevent goroutine leaks
-	var activeProgress []*StripedProgress
+) *QueueView {
 	// Header
 	title := canvas.NewText("JOB QUEUE", titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
@@ -247,30 +293,11 @@ func BuildQueueView(
 		container.NewCenter(title),
 	)
 
-	// Job list
-	var jobItems []fyne.CanvasObject
+	jobList := container.NewVBox()
+	emptyMsg := widget.NewLabel("No jobs in queue")
+	emptyMsg.Alignment = fyne.TextAlignCenter
+	emptyLabel := container.NewCenter(emptyMsg)
 
-	if len(jobs) == 0 {
-		emptyMsg := widget.NewLabel("No jobs in queue")
-		emptyMsg.Alignment = fyne.TextAlignCenter
-		jobItems = append(jobItems, container.NewCenter(emptyMsg))
-	} else {
-		// Calculate queue positions for pending/paused jobs
-		queuePositions := make(map[string]int)
-		position := 1
-		for _, job := range jobs {
-			if job.Status == queue.JobStatusPending || job.Status == queue.JobStatusPaused {
-				queuePositions[job.ID] = position
-				position++
-			}
-		}
-
-		for _, job := range jobs {
-			jobItems = append(jobItems, buildJobItem(job, queuePositions, onPause, onResume, onCancel, onRemove, onMoveUp, onMoveDown, onCopyError, onViewLog, onCopyCommand, bgColor, textColor, &activeProgress))
-		}
-	}
-
-	jobList := container.NewVBox(jobItems...)
 	// Use a scroll container anchored to the top to avoid jumpy scroll-to-content behavior.
 	scrollable := container.NewScroll(jobList)
 	// scrollable.SetMinSize(fyne.NewSize(0, 0)) // Removed for flexible sizing
@@ -282,25 +309,43 @@ func BuildQueueView(
 		scrollable,
 	)
 
-	return container.NewPadded(body), scrollable, activeProgress
+	view := &QueueView{
+		Root:       container.NewPadded(body),
+		Scroll:     scrollable,
+		jobList:    jobList,
+		emptyLabel: emptyLabel,
+		items:      make(map[string]*queueItemWidgets),
+		callbacks: queueCallbacks{
+			onBack:        onBack,
+			onPause:       onPause,
+			onResume:      onResume,
+			onCancel:      onCancel,
+			onRemove:      onRemove,
+			onMoveUp:      onMoveUp,
+			onMoveDown:    onMoveDown,
+			onPauseAll:    onPauseAll,
+			onResumeAll:   onResumeAll,
+			onStart:       onStart,
+			onClear:       onClear,
+			onClearAll:    onClearAll,
+			onCopyError:   onCopyError,
+			onViewLog:     onViewLog,
+			onCopyCommand: onCopyCommand,
+		},
+		bgColor:   bgColor,
+		textColor: textColor,
+	}
+	view.UpdateJobs(jobs)
+	return view
 }
 
 // buildJobItem creates a single job item in the queue list
 func buildJobItem(
 	job *queue.Job,
 	queuePositions map[string]int,
-	onPause func(string),
-	onResume func(string),
-	onCancel func(string),
-	onRemove func(string),
-	onMoveUp func(string),
-	onMoveDown func(string),
-	onCopyError func(string),
-	onViewLog func(string),
-	onCopyCommand func(string),
+	callbacks queueCallbacks,
 	bgColor, textColor color.Color,
-	activeProgress *[]*StripedProgress,
-) fyne.CanvasObject {
+) *queueItemWidgets {
 	// Status color
 	statusColor := GetStatusColor(job.Status)
 
@@ -328,8 +373,6 @@ func buildJobItem(
 	if job.Status == queue.JobStatusRunning {
 		progress.SetActivity(job.Progress <= 0.01)
 		progress.StartAnimation()
-		// Track active progress to stop animation on next refresh (prevents goroutine leaks)
-		*activeProgress = append(*activeProgress, progress)
 	} else {
 		progress.SetActivity(false)
 		progress.StopAnimation()
@@ -345,52 +388,7 @@ func buildJobItem(
 	statusLabel.TextStyle = fyne.TextStyle{Monospace: true}
 	statusLabel.Wrapping = fyne.TextTruncate
 
-	// Control buttons
-	var buttons []fyne.CanvasObject
-	// Reorder arrows for pending/paused jobs
-	if job.Status == queue.JobStatusPending || job.Status == queue.JobStatusPaused {
-		buttons = append(buttons,
-			widget.NewButton("↑", func() { onMoveUp(job.ID) }),
-			widget.NewButton("↓", func() { onMoveDown(job.ID) }),
-		)
-	}
-
-	switch job.Status {
-	case queue.JobStatusRunning:
-		buttons = append(buttons,
-			widget.NewButton("Copy Command", func() { onCopyCommand(job.ID) }),
-			widget.NewButton("Pause", func() { onPause(job.ID) }),
-			widget.NewButton("Cancel", func() { onCancel(job.ID) }),
-		)
-	case queue.JobStatusPaused:
-		buttons = append(buttons,
-			widget.NewButton("Resume", func() { onResume(job.ID) }),
-			widget.NewButton("Cancel", func() { onCancel(job.ID) }),
-		)
-	case queue.JobStatusPending:
-		buttons = append(buttons,
-			widget.NewButton("Copy Command", func() { onCopyCommand(job.ID) }),
-		)
-		buttons = append(buttons,
-			widget.NewButton("Remove", func() { onRemove(job.ID) }),
-		)
-	case queue.JobStatusCompleted, queue.JobStatusFailed, queue.JobStatusCancelled:
-		if job.Status == queue.JobStatusFailed && strings.TrimSpace(job.Error) != "" && onCopyError != nil {
-			buttons = append(buttons,
-				widget.NewButton("Copy Error", func() { onCopyError(job.ID) }),
-			)
-		}
-		if job.LogPath != "" && onViewLog != nil {
-			buttons = append(buttons,
-				widget.NewButton("View Log", func() { onViewLog(job.ID) }),
-			)
-		}
-		buttons = append(buttons,
-			widget.NewButton("Remove", func() { onRemove(job.ID) }),
-		)
-	}
-
-	buttonBox := container.NewHBox(buttons...)
+	buttonBox := buildJobButtons(job, callbacks)
 
 	// Info section
 	infoBox := container.NewVBox(
@@ -418,13 +416,136 @@ func buildJobItem(
 	)
 
 	// Wrap with draggable to allow drag-to-reorder (up/down by drag direction)
-	return newDraggableJobItem(job.ID, item, func(id string, dir int) {
+	wrapped := newDraggableJobItem(job.ID, item, func(id string, dir int) {
 		if dir < 0 {
-			onMoveUp(id)
+			callbacks.onMoveUp(id)
 		} else if dir > 0 {
-			onMoveDown(id)
+			callbacks.onMoveDown(id)
 		}
 	})
+
+	return &queueItemWidgets{
+		jobID:       job.ID,
+		status:      job.Status,
+		container:   wrapped,
+		titleLabel:  titleLabel,
+		descLabel:   descLabel,
+		statusLabel: statusLabel,
+		progress:    progress,
+		buttonBox:   buttonBox,
+	}
+}
+
+func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
+	var buttons []fyne.CanvasObject
+
+	if job.Status == queue.JobStatusPending || job.Status == queue.JobStatusPaused {
+		buttons = append(buttons,
+			widget.NewButton("↑", func() { callbacks.onMoveUp(job.ID) }),
+			widget.NewButton("↓", func() { callbacks.onMoveDown(job.ID) }),
+		)
+	}
+
+	switch job.Status {
+	case queue.JobStatusRunning:
+		buttons = append(buttons,
+			widget.NewButton("Copy Command", func() { callbacks.onCopyCommand(job.ID) }),
+			widget.NewButton("Pause", func() { callbacks.onPause(job.ID) }),
+			widget.NewButton("Cancel", func() { callbacks.onCancel(job.ID) }),
+		)
+	case queue.JobStatusPaused:
+		buttons = append(buttons,
+			widget.NewButton("Resume", func() { callbacks.onResume(job.ID) }),
+			widget.NewButton("Cancel", func() { callbacks.onCancel(job.ID) }),
+		)
+	case queue.JobStatusPending:
+		buttons = append(buttons,
+			widget.NewButton("Copy Command", func() { callbacks.onCopyCommand(job.ID) }),
+			widget.NewButton("Remove", func() { callbacks.onRemove(job.ID) }),
+		)
+	case queue.JobStatusCompleted, queue.JobStatusFailed, queue.JobStatusCancelled:
+		if job.Status == queue.JobStatusFailed && strings.TrimSpace(job.Error) != "" && callbacks.onCopyError != nil {
+			buttons = append(buttons,
+				widget.NewButton("Copy Error", func() { callbacks.onCopyError(job.ID) }),
+			)
+		}
+		if job.LogPath != "" && callbacks.onViewLog != nil {
+			buttons = append(buttons,
+				widget.NewButton("View Log", func() { callbacks.onViewLog(job.ID) }),
+			)
+		}
+		buttons = append(buttons,
+			widget.NewButton("Remove", func() { callbacks.onRemove(job.ID) }),
+		)
+	}
+
+	return container.NewHBox(buttons...)
+}
+
+func updateJobItem(item *queueItemWidgets, job *queue.Job, queuePositions map[string]int, callbacks queueCallbacks) {
+	item.titleLabel.SetText(utils.ShortenMiddle(job.Title, 60))
+	item.descLabel.SetText(utils.ShortenMiddle(job.Description, 90))
+	item.statusLabel.SetText(getStatusText(job, queuePositions))
+
+	if job.Status == queue.JobStatusCompleted {
+		item.progress.SetProgress(1.0)
+	} else {
+		item.progress.SetProgress(job.Progress / 100.0)
+	}
+
+	if job.Status == queue.JobStatusRunning {
+		item.progress.SetActivity(job.Progress <= 0.01)
+		item.progress.StartAnimation()
+	} else {
+		item.progress.SetActivity(false)
+		item.progress.StopAnimation()
+	}
+
+	if item.status != job.Status {
+		item.status = job.Status
+		item.buttonBox.Objects = buildJobButtons(job, callbacks).Objects
+		item.buttonBox.Refresh()
+	}
+}
+
+func (v *QueueView) UpdateJobs(jobs []*queue.Job) {
+	if len(jobs) == 0 {
+		v.jobList.Objects = []fyne.CanvasObject{v.emptyLabel}
+		v.jobList.Refresh()
+		return
+	}
+
+	queuePositions := make(map[string]int)
+	position := 1
+	for _, job := range jobs {
+		if job.Status == queue.JobStatusPending || job.Status == queue.JobStatusPaused {
+			queuePositions[job.ID] = position
+			position++
+		}
+	}
+
+	ordered := make([]fyne.CanvasObject, 0, len(jobs))
+	seen := make(map[string]struct{}, len(jobs))
+	for _, job := range jobs {
+		seen[job.ID] = struct{}{}
+		item := v.items[job.ID]
+		if item == nil {
+			item = buildJobItem(job, queuePositions, v.callbacks, v.bgColor, v.textColor)
+			v.items[job.ID] = item
+		} else {
+			updateJobItem(item, job, queuePositions, v.callbacks)
+		}
+		ordered = append(ordered, item.container)
+	}
+
+	for id := range v.items {
+		if _, ok := seen[id]; !ok {
+			delete(v.items, id)
+		}
+	}
+
+	v.jobList.Objects = ordered
+	v.jobList.Refresh()
 }
 
 // getStatusText returns a human-readable status string
