@@ -388,6 +388,24 @@ func (p *UnifiedPlayer) Close() {
 	p.audioBuffer = nil
 }
 
+// Stop halts playback and tears down the FFmpeg process.
+func (p *UnifiedPlayer) Stop() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.cancel != nil {
+		p.cancel()
+	}
+	if p.cmd != nil && p.cmd.Process != nil {
+		_ = p.cmd.Process.Kill()
+	}
+	p.state = StateStopped
+	if p.stateCallback != nil {
+		p.stateCallback(p.state)
+	}
+	return nil
+}
+
 // Helper methods
 
 // startVideoProcess starts the video processing goroutine
