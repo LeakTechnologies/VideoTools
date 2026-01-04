@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
-	"math"
-	"sort"
 	"strings"
 	"time"
 
@@ -23,6 +20,18 @@ type AIModel interface {
 	Load() error
 	ProcessFrame(frame *image.RGBA) (*image.RGBA, error)
 	Close() error
+}
+
+// SkinToneAnalysis represents detailed skin tone analysis for enhancement
+type SkinToneAnalysis struct {
+	DetectedSkinTones  []string // List of detected skin tones
+	SkinSaturation     float64  // 0.0-1.0
+	SkinBrightness     float64  // 0.0-1.0
+	SkinWarmth         float64  // -1.0 to 1.0 (negative=cool, positive=warm)
+	SkinContrast       float64  // 0.0-2.0 (1.0=normal)
+	DetectedHemoglobin []string // Detected hemoglobin levels/characteristics
+	IsAdultContent     bool     // Whether adult content was detected
+	RecommendedProfile string   // Recommended enhancement profile
 }
 
 // ContentAnalysis represents video content analysis results
@@ -144,17 +153,10 @@ func (m *EnhancementModule) AnalyzeContent(path string) (*ContentAnalysis, error
 	
 	// Advanced skin analysis for Phase 2.5
 	advancedSkinAnalysis := m.analyzeSkinTonesAdvanced(output)
-	
+
 	// Update content analysis with advanced skin tone information
-	contentAnalysis.SkinTones = advancedSkinAnalysis.DetectedSkinTones
-	contentAnalysis.SkinSaturation = advancedSkinAnalysis.SkinSaturation
-	contentAnalysis.SkinBrightness = advancedSkinAnalysis.SkinBrightness
-	contentAnalysis.SkinWarmth = advancedSkinAnalysis.SkinWarmth
-	contentAnalysis.SkinContrast = advancedSkinAnalysis.SkinContrast
-	contentAnalysis.DetectedHemoglobin = advancedSkinAnalysis.DetectedHemoglobin
-	contentAnalysis.IsAdultContent = advancedSkinAnalysis.IsAdultContent
-	contentAnalysis.RecommendedProfile = advancedSkinAnalysis.RecommendedProfile
-	
+	contentAnalysis.SkinTones = advancedSkinAnalysis
+
 	logging.Debug(logging.CatEnhance, "Advanced skin analysis applied: %+v", advancedSkinAnalysis)
 	return contentAnalysis, nil
 }
@@ -190,18 +192,12 @@ func (m *EnhancementModule) analyzeSkinTonesAdvanced(ffprobeOutput []byte) *Skin
 		RecommendedProfile:  "balanced",        // Default enhancement profile
 	}
 	
-	// Advanced frame-by-frame skin tone detection
-	frameCount := 0
-	skinToneHistogram := make(map[string]int) // [skin_tone]count
-	totalSaturation := 0.0
-	totalBrightness := 0.0
-	totalWarmth := 0.0
-	totalCoolness := 0.0
-	
-	// For now, simulate frame-by-frame skin analysis
-	// In production, this would process actual video frames
-	// Here we detect dominant skin tones and distribution across frames
-	
+	// TODO: Advanced frame-by-frame skin tone detection would use:
+	// - frameCount for tracking processed frames
+	// - skinToneHistogram for tone distribution
+	// - totalSaturation, totalBrightness, totalWarmth, totalCoolness for averages
+	// This will be implemented when video frame processing is added
+
 	return analysis
 }
 
