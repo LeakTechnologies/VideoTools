@@ -6519,6 +6519,121 @@ func buildAudioCodecBadge(codecName string) fyne.CanvasObject {
 func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	convertColor := moduleColor("convert")
 
+	// Convert UI State Manager - eliminates sync boolean flags and widget duplication
+	type convertUIState struct {
+		// Quality
+		quality       string
+		qualityWidgets []*ui.ColoredSelect
+		onQualityChange []func(string)
+
+		// Resolution
+		resolution       string
+		resolutionWidgets []*widget.Select
+		onResolutionChange []func(string)
+
+		// Aspect Ratio
+		aspect       string
+		aspectWidgets []*widget.Select
+		onAspectChange []func(string)
+
+		// Bitrate Preset
+		bitratePreset       string
+		bitratePresetWidgets []*widget.Select
+		onBitratePresetChange []func(string)
+
+		// Callbacks for state updates
+		updateEncodingControls func()
+		updateAspectBoxVisibility func()
+		buildCommandPreview func()
+	}
+
+	uiState := &convertUIState{
+		quality:       state.convert.Quality,
+		resolution:    state.convert.TargetResolution,
+		aspect:        state.convert.OutputAspect,
+		bitratePreset: state.convert.BitratePreset,
+	}
+
+	// State setters with automatic widget synchronization
+	setQuality := func(val string) {
+		if uiState.quality == val {
+			return // No change
+		}
+		uiState.quality = val
+		state.convert.Quality = val
+
+		// Update all registered widgets silently (no callback loops)
+		for _, w := range uiState.qualityWidgets {
+			w.SetSelectedSilent(val)
+		}
+
+		// Trigger callbacks
+		for _, cb := range uiState.onQualityChange {
+			cb(val)
+		}
+		if uiState.updateEncodingControls != nil {
+			uiState.updateEncodingControls()
+		}
+	}
+
+	setResolution := func(val string) {
+		if uiState.resolution == val {
+			return
+		}
+		uiState.resolution = val
+		state.convert.TargetResolution = val
+
+		for _, w := range uiState.resolutionWidgets {
+			w.SetSelected(val)
+		}
+
+		for _, cb := range uiState.onResolutionChange {
+			cb(val)
+		}
+	}
+
+	setAspect := func(val string, userSet bool) {
+		if val == "" {
+			val = "Source"
+		}
+		if uiState.aspect == val && state.convert.AspectUserSet == userSet {
+			return
+		}
+		uiState.aspect = val
+		state.convert.OutputAspect = val
+		if userSet {
+			state.convert.AspectUserSet = true
+		}
+
+		for _, w := range uiState.aspectWidgets {
+			w.SetSelected(val)
+		}
+
+		for _, cb := range uiState.onAspectChange {
+			cb(val)
+		}
+		if uiState.updateAspectBoxVisibility != nil {
+			uiState.updateAspectBoxVisibility()
+		}
+		logging.Debug(logging.CatUI, "target aspect set to %s", val)
+	}
+
+	setBitratePreset := func(val string) {
+		if uiState.bitratePreset == val {
+			return
+		}
+		uiState.bitratePreset = val
+		state.convert.BitratePreset = val
+
+		for _, w := range uiState.bitratePresetWidgets {
+			w.SetSelected(val)
+		}
+
+		for _, cb := range uiState.onBitratePresetChange {
+			cb(val)
+		}
+	}
+
 	back := widget.NewButton("< CONVERT", func() {
 		state.showMainMenu()
 	})
@@ -6714,41 +6829,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		qualityOptions = append(qualityOptions, "Lossless")
 	}
 
-	var syncingQuality bool
-
+	// Quality select widgets - use state manager to eliminate sync flags
 	qualitySelectSimple = widget.NewSelect(qualityOptions, func(value string) {
-		if syncingQuality {
-			return
-		}
-		syncingQuality = true
 		logging.Debug(logging.CatUI, "quality preset %s (simple)", value)
-		state.convert.Quality = value
-		if qualitySelectAdv != nil {
-			qualitySelectAdv.SetSelected(value)
-		}
-		if updateEncodingControls != nil {
-			updateEncodingControls()
-		}
-		syncingQuality = false
+		setQuality(value)
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
 	})
 
 	qualitySelectAdv = widget.NewSelect(qualityOptions, func(value string) {
-		if syncingQuality {
-			return
-		}
-		syncingQuality = true
 		logging.Debug(logging.CatUI, "quality preset %s (advanced)", value)
-		state.convert.Quality = value
-		if qualitySelectSimple != nil {
-			qualitySelectSimple.SetSelected(value)
-		}
-		if updateEncodingControls != nil {
-			updateEncodingControls()
-		}
-		syncingQuality = false
+		setQuality(value)
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
@@ -7037,13 +7129,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var (
 		targetAspectSelect       *widget.Select
 		targetAspectSelectSimple *widget.Select
-		syncAspect               func(string, bool)
-		syncingAspect            bool
 	)
+	// Aspect select widget - uses state manager to eliminate sync flag
 	targetAspectSelect = widget.NewSelect(aspectTargets, func(value string) {
-		if syncAspect != nil {
-			syncAspect(value, true)
-		}
+		setAspect(value, true)
 	})
 	if state.convert.OutputAspect == "" {
 		state.convert.OutputAspect = "Source"
@@ -7609,15 +7698,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	var applyBitratePreset func(string)
-	var setBitratePreset func(string)
-	var syncingBitratePreset bool
 
+	// Bitrate preset select - uses state manager
 	bitratePresetSelect = widget.NewSelect(bitratePresetLabels, func(value string) {
-		if syncingBitratePreset {
-			return
-		}
-		if setBitratePreset != nil {
-			setBitratePreset(value)
+		setBitratePreset(value)
+		if applyBitratePreset != nil {
+			applyBitratePreset(value)
 		}
 	})
 	state.convert.BitratePreset = normalizePresetLabel(state.convert.BitratePreset)
@@ -7626,13 +7712,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	bitratePresetSelect.SetSelected(state.convert.BitratePreset)
 
-	// Simple bitrate selector (shares presets)
+	// Simple bitrate selector (shares presets) - uses state manager
 	simpleBitrateSelect = widget.NewSelect(bitratePresetLabels, func(value string) {
-		if syncingBitratePreset {
-			return
-		}
-		if setBitratePreset != nil {
-			setBitratePreset(value)
+		setBitratePreset(value)
+		if applyBitratePreset != nil {
+			applyBitratePreset(value)
 		}
 	})
 	simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
@@ -7655,48 +7739,27 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"2X (relative)", "4X (relative)",
 		"NTSC (720×480)", "PAL (720×540)", "PAL (720×576)",
 	}
+	// Resolution select (Simple mode) - uses state manager
 	resolutionSelectSimple := widget.NewSelect(resolutionOptionsSimple, func(value string) {
-		state.convert.TargetResolution = value
 		logging.Debug(logging.CatUI, "target resolution set to %s (simple)", value)
+		setResolution(value)
 	})
 	resolutionSelectSimple.SetSelected(state.convert.TargetResolution)
 
-	// Simple aspect selector (separate widget)
+	// Simple aspect selector (separate widget) - uses state manager
 	targetAspectSelectSimple = widget.NewSelect(aspectTargets, func(value string) {
-		if syncAspect != nil {
-			syncAspect(value, true)
-		}
+		setAspect(value, true)
 	})
 	if state.convert.OutputAspect == "" {
 		state.convert.OutputAspect = "Source"
 	}
 	targetAspectSelectSimple.SetSelected(state.convert.OutputAspect)
 
-	syncAspect = func(value string, userSet bool) {
-		if syncingAspect {
-			return
-		}
-		if value == "" {
-			value = "Source"
-		}
-		syncingAspect = true
-		state.convert.OutputAspect = value
-		if userSet {
-			state.convert.AspectUserSet = true
-		}
-		if targetAspectSelectSimple != nil {
-			targetAspectSelectSimple.SetSelected(value)
-		}
-		if targetAspectSelect != nil {
-			targetAspectSelect.SetSelected(value)
-		}
-		if updateAspectBoxVisibility != nil {
-			updateAspectBoxVisibility()
-		}
-		logging.Debug(logging.CatUI, "target aspect set to %s", value)
-		syncingAspect = false
-	}
-	syncAspect(state.convert.OutputAspect, state.convert.AspectUserSet)
+	// Register updateAspectBoxVisibility callback with state manager
+	uiState.updateAspectBoxVisibility = updateAspectBoxVisibility
+
+	// Initialize aspect state
+	setAspect(state.convert.OutputAspect, state.convert.AspectUserSet)
 
 	// Target File Size with smart presets + manual entry
 	targetFileSizeEntry = widget.NewEntry()
@@ -7931,23 +7994,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	setBitratePreset = func(value string) {
-		if syncingBitratePreset {
-			return
-		}
-		syncingBitratePreset = true
-		state.convert.BitratePreset = value
-		if applyBitratePreset != nil {
-			applyBitratePreset(value)
-		}
-		if bitratePresetSelect != nil {
-			bitratePresetSelect.SetSelected(value)
-		}
-		if simpleBitrateSelect != nil {
-			simpleBitrateSelect.SetSelected(value)
-		}
-		syncingBitratePreset = false
-	}
+	// Initialize bitrate preset through state manager
 	setBitratePreset(state.convert.BitratePreset)
 
 	updateEncodingControls = func() {
@@ -8031,9 +8078,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"2X (relative)", "4X (relative)",
 		"NTSC (720×480)", "PAL (720×540)", "PAL (720×576)",
 	}
+	// Resolution select (Advanced mode) - uses state manager
 	resolutionSelect := widget.NewSelect(resolutionOptions, func(value string) {
-		state.convert.TargetResolution = value
 		logging.Debug(logging.CatUI, "target resolution set to %s", value)
+		setResolution(value)
 	})
 	if state.convert.TargetResolution == "" {
 		state.convert.TargetResolution = "Source"
@@ -8398,10 +8446,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 		if remux {
-			state.convert.AspectUserSet = false
-			if syncAspect != nil {
-				syncAspect("Source", false)
-			}
+			setAspect("Source", false)
 			if targetAspectSelectSimple != nil {
 				targetAspectSelectSimple.Disable()
 			}
@@ -8582,7 +8627,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		frameRateSelect.SetSelected(state.convert.FrameRate)
 		updateFrameRateHint()
 		motionInterpCheck.SetChecked(state.convert.UseMotionInterpolation)
-		syncAspect(state.convert.OutputAspect, false)
+		setAspect(state.convert.OutputAspect, false)
 		aspectOptions.SetSelected(state.convert.AspectHandling)
 		pixelFormatSelect.SetSelected(state.convert.PixelFormat)
 		hwAccelSelect.SetSelected(state.convert.HardwareAccel)

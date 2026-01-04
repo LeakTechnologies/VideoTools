@@ -1070,8 +1070,15 @@ func (cs *ColoredSelect) SetPlaceHolder(text string) {
 	cs.placeHolder = text
 }
 
-// SetSelected sets the currently selected option
+// SetSelected sets the currently selected option and triggers onChange callback if tapped by user
 func (cs *ColoredSelect) SetSelected(option string) {
+	cs.selected = option
+	cs.Refresh()
+}
+
+// SetSelectedSilent sets the currently selected option WITHOUT triggering onChange callback
+// Use this when synchronizing multiple widgets to avoid callback loops
+func (cs *ColoredSelect) SetSelectedSilent(option string) {
 	cs.selected = option
 	cs.Refresh()
 }
