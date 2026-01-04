@@ -628,6 +628,7 @@ var formatOptions = []formatOption{
 
 type convertConfig struct {
 	OutputBase       string
+	OutputDir        string
 	SelectedFormat   formatOption
 	Quality          string // Preset quality (Draft/Standard/High/Lossless)
 	Mode             string // Simple or Advanced
@@ -699,6 +700,7 @@ func defaultConvertConfig() convertConfig {
 	return convertConfig{
 		SelectedFormat:   formatOptions[0],
 		OutputBase:       "converted",
+		OutputDir:        "",
 		Quality:          "Standard (CRF 23)",
 		Mode:             "Simple",
 		UseAutoNaming:    false,
@@ -2202,7 +2204,10 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 	cfg := s.convert
 	cfg.OutputBase = outputBase
 
-	outDir := filepath.Dir(src.Path)
+	outDir := strings.TrimSpace(cfg.OutputDir)
+	if outDir == "" {
+		outDir = filepath.Dir(src.Path)
+	}
 	outName := cfg.OutputFile()
 	if outName == "" {
 		outName = "converted" + cfg.SelectedFormat.Ext
@@ -2228,6 +2233,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 	config := map[string]interface{}{
 		"inputPath":         src.Path,
 		"outputPath":        outPath,
+		"outputDir":         outDir,
 		"outputBase":        cfg.OutputBase,
 		"selectedFormat":    cfg.SelectedFormat,
 		"quality":           cfg.Quality,
@@ -6981,6 +6987,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				if updateDVDOptions != nil {
 					updateDVDOptions()
 				}
+				if outputExtLabel != nil {
+					outputExtLabel.SetText(state.convert.SelectedFormat.Ext)
+				}
+				if outputExtBG != nil {
+					outputExtBG.FillColor = ui.GetContainerColor(strings.TrimPrefix(state.convert.SelectedFormat.Ext, "."))
+					outputExtBG.Refresh()
+				}
+				if updateOutputHint != nil {
+					updateOutputHint()
+				}
 				if buildCommandPreview != nil {
 					buildCommandPreview()
 				}
@@ -6990,10 +7006,36 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}, state.window)
 	formatContainer.SetSelected(state.convert.SelectedFormat.Label)
 
-	outputHint := widget.NewLabel(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+	var outputExtLabel *widget.Label
+	var outputExtBG *canvas.Rectangle
+	var updateOutputHint func()
+
+	getOutputDir := func() string {
+		if strings.TrimSpace(state.convert.OutputDir) != "" {
+			return state.convert.OutputDir
+		}
+		if src != nil {
+			return filepath.Dir(src.Path)
+		}
+		return ""
+	}
+
+	getOutputPathPreview := func() string {
+		outDir := getOutputDir()
+		if outDir == "" {
+			return state.convert.OutputFile()
+		}
+		return filepath.Join(outDir, state.convert.OutputFile())
+	}
+
+	outputHint := widget.NewLabel(fmt.Sprintf("Output file: %s", getOutputPathPreview()))
 	outputHint.Wrapping = fyne.TextWrapWord
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	outputHintContainer := container.NewPadded(outputHint)
+
+	updateOutputHint = func() {
+		outputHint.SetText(fmt.Sprintf("Output file: %s", getOutputPathPreview()))
+	}
 
 	// DVD-specific aspect ratio selector (only shown for DVD formats)
 	dvdAspectOpts := []string{"4:3", "16:9"}
@@ -7072,27 +7114,33 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Quality select widgets - use state manager to eliminate sync flags
-	qualitySelectSimple = widget.NewSelect(qualityOptions, func(value string) {
+	// Convert quality selects to ColoredSelect and register with state manager
+	qualityColorMap := ui.BuildQualityColorMap(qualityOptions)
+
+	qualitySelectSimple = ui.NewColoredSelect(qualityOptions, qualityColorMap, func(value string) {
 		logging.Debug(logging.CatUI, "quality preset %s (simple)", value)
 		setQuality(value)
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	})
+	}, state.window)
 
-	qualitySelectAdv = widget.NewSelect(qualityOptions, func(value string) {
+	qualitySelectAdv = ui.NewColoredSelect(qualityOptions, qualityColorMap, func(value string) {
 		logging.Debug(logging.CatUI, "quality preset %s (advanced)", value)
 		setQuality(value)
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	})
+	}, state.window)
 
 	if !slices.Contains(qualityOptions, state.convert.Quality) {
 		state.convert.Quality = "Standard (CRF 23)"
 	}
 	qualitySelectSimple.SetSelected(state.convert.Quality)
 	qualitySelectAdv.SetSelected(state.convert.Quality)
+
+	// Register both quality widgets with state manager for automatic synchronization
+	uiState.qualityWidgets = []*ui.ColoredSelect{qualitySelectSimple, qualitySelectAdv}
 
 	// Update quality options based on codec
 	updateQualityOptions = func() {
@@ -7109,12 +7157,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 
-		qualitySelectSimple.Options = newOptions
-		qualitySelectAdv.Options = newOptions
-		qualitySelectSimple.SetSelected(state.convert.Quality)
-		qualitySelectAdv.SetSelected(state.convert.Quality)
-		qualitySelectSimple.Refresh()
-		qualitySelectAdv.Refresh()
+		// Update options and color map for all registered quality widgets
+		qualityColorMap := ui.BuildQualityColorMap(newOptions)
+		for _, w := range uiState.qualityWidgets {
+			w.Options = newOptions
+			w.ColorMap = qualityColorMap
+			w.Refresh()
+		}
+
+		// Use state manager to synchronize selected value across all widgets
+		setQuality(state.convert.Quality)
 	}
 
 	outputEntry := widget.NewEntry()
@@ -7132,8 +7184,59 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 		state.convert.OutputBase = val
-		outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+		updateOutputHint()
 	}
+
+	outputDirEntry := widget.NewEntry()
+	outputDirEntry.SetPlaceHolder("Output folder path")
+	outputDirEntry.SetText(state.convert.OutputDir)
+	outputDirEntry.OnChanged = func(val string) {
+		state.convert.OutputDir = val
+		updateOutputHint()
+		state.persistConvertConfig()
+	}
+
+	browseOutputDir := func() {
+		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
+			if err != nil {
+				dialog.ShowError(err, state.window)
+				return
+			}
+			if uri == nil {
+				return
+			}
+			state.convert.OutputDir = uri.Path()
+			outputDirEntry.SetText(state.convert.OutputDir)
+			updateOutputHint()
+			state.persistConvertConfig()
+		}, state.window)
+	}
+
+	outputDirBtnLabel := canvas.NewText("Browse", textColor)
+	outputDirBtnLabel.Alignment = fyne.TextAlignCenter
+	outputDirBtnLabel.TextSize = 14
+	outputDirBtnBG := canvas.NewRectangle(utils.MustHex("#344256"))
+	outputDirBtnBG.CornerRadius = 8
+	outputDirBtnBG.SetMinSize(fyne.NewSize(92, 36))
+	outputDirBtn := ui.NewTappable(container.NewMax(outputDirBtnBG, container.NewPadded(outputDirBtnLabel)), browseOutputDir)
+
+	outputExtLabel = widget.NewLabel(state.convert.SelectedFormat.Ext)
+	outputExtLabel.Alignment = fyne.TextAlignCenter
+	outputExtBG = canvas.NewRectangle(ui.GetContainerColor(strings.TrimPrefix(state.convert.SelectedFormat.Ext, ".")))
+	outputExtBG.CornerRadius = 8
+	outputExtBG.SetMinSize(fyne.NewSize(72, 36))
+	outputExtPill := container.NewMax(outputExtBG, container.NewPadded(outputExtLabel))
+
+	buildOutputRow := func(entry *widget.Entry, right fyne.CanvasObject) fyne.CanvasObject {
+		bg := canvas.NewRectangle(utils.MustHex("#344256"))
+		bg.CornerRadius = 8
+		bg.SetMinSize(fyne.NewSize(0, 36))
+		row := container.NewBorder(nil, nil, nil, right, entry)
+		return container.NewMax(bg, container.NewPadded(row))
+	}
+
+	outputDirRow := buildOutputRow(outputDirEntry, outputDirBtn)
+	outputNameRow := buildOutputRow(outputEntry, outputExtPill)
 
 	applyAutoName := func(force bool) {
 		if !force && !state.convert.UseAutoNaming {
@@ -7144,7 +7247,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.OutputBase = newBase
 		outputEntry.SetText(newBase)
 		updatingOutput = false
-		outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+		updateOutputHint()
 	}
 
 	autoNameCheck = widget.NewCheck("Auto-name from metadata", func(checked bool) {
@@ -7182,7 +7285,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		updatingOutput = false
 		// Update output hint to show the change immediately
 		if outputHint != nil {
-			outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+			updateOutputHint()
 		}
 	})
 	appendSuffixCheck.Checked = state.convert.AppendSuffix
@@ -8741,8 +8844,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox, // DVD options appear here when DVD format selected
-		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		outputEntry,
+		widget.NewLabelWithStyle("Output Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		outputDirRow,
+		widget.NewLabelWithStyle("Output Filename", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		outputNameRow,
 		outputHintContainer,
 		appendSuffixCheck,
 		widget.NewSeparator(),
@@ -8807,8 +8912,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox, // DVD options appear here when DVD format selected
-		widget.NewLabelWithStyle("Output Name", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		outputEntry,
+		widget.NewLabelWithStyle("Output Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		outputDirRow,
+		widget.NewLabelWithStyle("Output Filename", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		outputNameRow,
 		outputHintContainer,
 		appendSuffixCheck,
 		widget.NewSeparator(),
@@ -8876,7 +8983,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		autoNameTemplate.SetText(state.convert.AutoNameTemplate)
 		appendSuffixCheck.SetChecked(state.convert.AppendSuffix)
 		outputEntry.SetText(state.convert.OutputBase)
-		outputHint.SetText(fmt.Sprintf("Output file: %s", state.convert.OutputFile()))
+		outputDirEntry.SetText(state.convert.OutputDir)
+		updateOutputHint()
 		preserveChaptersCheck.SetChecked(state.convert.PreserveChapters)
 		resolutionSelectSimple.SetSelected(state.convert.TargetResolution)
 		resolutionSelect.SetSelected(state.convert.TargetResolution)
@@ -9401,7 +9509,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		// Replace INPUT and OUTPUT placeholders with actual file paths for preview
 		inputPath := src.Path
-		outputPath := state.convert.OutputFile()
+		outputPath := getOutputPathPreview()
 		cmdStr = strings.ReplaceAll(cmdStr, "INPUT", inputPath)
 		cmdStr = strings.ReplaceAll(cmdStr, "OUTPUT", outputPath)
 		cmdStr = strings.ReplaceAll(cmdStr, "[COVER_ART]", state.convert.CoverArtPath)
