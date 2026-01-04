@@ -11132,38 +11132,10 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			return
 		}
 
-		// Multi-drop: add lightweight list entries and queue jobs
-		go func() {
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				var sources []*videoSource
-				for _, path := range videoPaths {
-					sources = append(sources, &videoSource{
-						Path:        path,
-						DisplayName: filepath.Base(path),
-					})
-				}
-				s.thumbFiles = sources
-				s.thumbFile = sources[0]
-				s.showThumbView()
-				s.loadThumbSourceAtIndex(0)
-				logging.Debug(logging.CatModule, "loaded %d videos into thumb module (lazy probe)", len(sources))
-			}, false)
-
-			if s.jobQueue != nil {
-				for _, path := range videoPaths {
-					s.jobQueue.Add(s.createThumbJobForPath(path))
-				}
-				if !s.jobQueue.IsRunning() {
-					s.jobQueue.Start()
-				}
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					dialog.ShowInformation("Thumbnails", fmt.Sprintf("Queued %d thumbnail jobs.", len(videoPaths)), s.window)
-				}, false)
-			}
-		}()
+		go s.loadMultipleThumbVideos(videoPaths)
 
 		return
-	 }
+	}
 
 	// If in filters module, handle single video file
 	if s.active == "filters" {
