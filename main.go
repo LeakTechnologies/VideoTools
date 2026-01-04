@@ -477,7 +477,11 @@ func openFolder(path string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = utils.CreateCommandRaw("explorer", path)
+		p := filepath.Clean(filepath.FromSlash(path))
+		if abs, err := filepath.Abs(p); err == nil {
+			p = abs
+		}
+		cmd = utils.CreateCommandRaw("cmd", "/c", "start", "", p)
 	case "darwin":
 		cmd = utils.CreateCommandRaw("open", path)
 	default:
@@ -494,7 +498,11 @@ func openFile(path string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = utils.CreateCommandRaw("explorer", path)
+		p := filepath.Clean(filepath.FromSlash(path))
+		if abs, err := filepath.Abs(p); err == nil {
+			p = abs
+		}
+		cmd = utils.CreateCommandRaw("cmd", "/c", "start", "", p)
 	case "darwin":
 		cmd = utils.CreateCommandRaw("open", path)
 	default:
