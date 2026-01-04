@@ -519,8 +519,8 @@ func (s *appState) showAbout() {
 		if _, err := os.Stat(p); err == nil {
 			img := canvas.NewImageFromFile(p)
 			img.FillMode = canvas.ImageFillContain
-			img.SetMinSize(fyne.NewSize(48, 48))
-			ltLogo = container.NewCenter(img)
+			img.SetMinSize(fyne.NewSize(64, 64))
+			ltLogo = img
 			break
 		}
 	}
@@ -535,19 +535,21 @@ func (s *appState) showAbout() {
 	donateURL, _ := url.Parse("https://leaktechnologies.dev/support")
 	donateLink := widget.NewHyperlink("Support development", donateURL)
 
-	bodyItems := []fyne.CanvasObject{
+	mainContent := container.NewVBox(
 		versionText,
 		devText,
-	}
-	if ltLogo != nil {
-		bodyItems = append(bodyItems, ltLogo)
-	}
-	bodyItems = append(bodyItems,
 		logsLink,
 		donateLink,
 		widget.NewLabel("Feedback: use the Logs button on the main menu to view logs; send issues with attached logs."),
 	)
-	body := container.NewVBox(bodyItems...)
+
+	var body fyne.CanvasObject
+	if ltLogo != nil {
+		topRow := container.NewHBox(layout.NewSpacer(), ltLogo)
+		body = container.NewBorder(topRow, nil, nil, nil, mainContent)
+	} else {
+		body = mainContent
+	}
 	dialog.ShowCustom("About & Support", "Close", body, s.window)
 }
 
@@ -6618,29 +6620,29 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Convert UI State Manager - eliminates sync boolean flags and widget duplication
 	type convertUIState struct {
 		// Quality
-		quality       string
-		qualityWidgets []*ui.ColoredSelect
+		quality         string
+		qualityWidgets  []*ui.ColoredSelect
 		onQualityChange []func(string)
 
 		// Resolution
-		resolution       string
-		resolutionWidgets []*widget.Select
+		resolution         string
+		resolutionWidgets  []*widget.Select
 		onResolutionChange []func(string)
 
 		// Aspect Ratio
-		aspect       string
-		aspectWidgets []*widget.Select
+		aspect         string
+		aspectWidgets  []*widget.Select
 		onAspectChange []func(string)
 
 		// Bitrate Preset
-		bitratePreset       string
-		bitratePresetWidgets []*widget.Select
+		bitratePreset         string
+		bitratePresetWidgets  []*widget.Select
 		onBitratePresetChange []func(string)
 
 		// Callbacks for state updates
-		updateEncodingControls func()
+		updateEncodingControls    func()
 		updateAspectBoxVisibility func()
-		buildCommandPreview func()
+		buildCommandPreview       func()
 	}
 
 	uiState := &convertUIState{
