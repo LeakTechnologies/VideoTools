@@ -815,6 +815,11 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 	if cfg.FrameRate == "" {
 		cfg.FrameRate = "Source"
 	}
+	switch cfg.BitrateMode {
+	case "CRF", "CBR", "VBR", "Target Size":
+	default:
+		cfg.BitrateMode = "CBR"
+	}
 	return cfg, nil
 }
 
@@ -9226,6 +9231,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	if updateRemuxVisibility != nil {
 		updateRemuxVisibility()
+	}
+	if updateEncodingControls != nil {
+		updateEncodingControls()
 	}
 
 	tabs = container.NewAppTabs(
