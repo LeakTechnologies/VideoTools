@@ -8407,7 +8407,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		// Move to CBR for predictable output when a preset is chosen
 		if preset.Bitrate != "" && state.convert.BitrateMode != "CBR" && state.convert.BitrateMode != "VBR" {
 			state.convert.BitrateMode = "CBR"
-			bitrateModeSelect.SetSelected("CBR")
+			if label, ok := reverseMap["CBR"]; ok {
+				bitrateModeSelect.SetSelected(label)
+			} else {
+				bitrateModeSelect.SetSelected("CBR (Constant Bitrate)")
+			}
 		}
 
 		if preset.Bitrate != "" {
@@ -8435,9 +8439,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	updateEncodingControls = func() {
 		mode := normalizeBitrateMode(state.convert.BitrateMode)
-		if bitrateModeSelect != nil && strings.TrimSpace(bitrateModeSelect.Selected) != "" {
-			mode = normalizeBitrateMode(bitrateModeSelect.Selected)
-		}
 		isLossless := state.convert.Quality == "Lossless"
 		supportsLossless := codecSupportsLossless(state.convert.VideoCodec)
 
@@ -8823,9 +8824,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		hide := strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") ||
 			strings.EqualFold(state.convert.VideoCodec, "H.265")
 		mode := normalizeBitrateMode(state.convert.BitrateMode)
-		if bitrateModeSelect != nil && strings.TrimSpace(bitrateModeSelect.Selected) != "" {
-			mode = normalizeBitrateMode(bitrateModeSelect.Selected)
-		}
 		hideQuality := mode != "" && mode != "CRF"
 
 		if qualitySectionSimple != nil {
