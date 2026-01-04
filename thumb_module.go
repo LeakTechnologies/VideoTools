@@ -63,6 +63,9 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	if state.thumbWidth == 0 {
 		state.thumbWidth = 320
 	}
+	if state.thumbSheetWidth == 0 {
+		state.thumbSheetWidth = 360
+	}
 	if state.thumbColumns == 0 {
 		state.thumbColumns = 4 // 4 columns works well for widescreen videos
 	}
@@ -110,17 +113,29 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	})
 	clearBtn.Importance = widget.LowImportance
 
-	// Contact sheet checkbox
-	contactSheetCheck := widget.NewCheck("Generate Contact Sheet (single image)", func(checked bool) {
+	// Contact sheet checkbox (wrapped)
+	contactSheetCheck := widget.NewCheck("", func(checked bool) {
 		state.thumbContactSheet = checked
 		state.showThumbView()
 	})
 	contactSheetCheck.Checked = state.thumbContactSheet
+	contactSheetLabel := widget.NewLabel("Generate Contact Sheet (single image)")
+	contactSheetLabel.Wrapping = fyne.TextWrapWord
+	contactSheetToggle := ui.NewTappable(contactSheetLabel, func() {
+		contactSheetCheck.SetChecked(!contactSheetCheck.Checked)
+	})
+	contactSheetRow := container.NewBorder(nil, nil, contactSheetCheck, nil, contactSheetToggle)
 
-	timestampCheck := widget.NewCheck("Show timestamps on thumbnails", func(checked bool) {
+	timestampCheck := widget.NewCheck("", func(checked bool) {
 		state.thumbShowTimestamps = checked
 	})
 	timestampCheck.Checked = state.thumbShowTimestamps
+	timestampLabel := widget.NewLabel("Show timestamps on thumbnails")
+	timestampLabel.Wrapping = fyne.TextWrapWord
+	timestampToggle := ui.NewTappable(timestampLabel, func() {
+		timestampCheck.SetChecked(!timestampCheck.Checked)
+	})
+	timestampRow := container.NewBorder(nil, nil, timestampCheck, nil, timestampToggle)
 
 	// Conditional settings based on contact sheet mode
 	var settingsOptions fyne.CanvasObject
@@ -132,6 +147,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		totalThumbs := state.thumbColumns * state.thumbRows
 		totalLabel := widget.NewLabel(fmt.Sprintf("Total thumbnails: %d", totalThumbs))
 		totalLabel.TextStyle = fyne.TextStyle{Italic: true}
+		totalLabel.Wrapping = fyne.TextWrapWord
 
 		colSlider := widget.NewSlider(2, 12)
 		colSlider.Value = float64(state.thumbColumns)
@@ -151,9 +167,39 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			totalLabel.SetText(fmt.Sprintf("Total thumbnails: %d", state.thumbColumns*state.thumbRows))
 		}
 
+		sizeOptions := []string{"240 px", "300 px", "360 px", "420 px", "480 px"}
+		sizeSelect := widget.NewSelect(sizeOptions, func(val string) {
+			switch val {
+			case "240 px":
+				state.thumbSheetWidth = 240
+			case "300 px":
+				state.thumbSheetWidth = 300
+			case "360 px":
+				state.thumbSheetWidth = 360
+			case "420 px":
+				state.thumbSheetWidth = 420
+			case "480 px":
+				state.thumbSheetWidth = 480
+			}
+		})
+		switch state.thumbSheetWidth {
+		case 240:
+			sizeSelect.SetSelected("240 px")
+		case 300:
+			sizeSelect.SetSelected("300 px")
+		case 420:
+			sizeSelect.SetSelected("420 px")
+		case 480:
+			sizeSelect.SetSelected("480 px")
+		default:
+			sizeSelect.SetSelected("360 px")
+		}
+
 		settingsOptions = container.NewVBox(
 			widget.NewSeparator(),
 			widget.NewLabel("Contact Sheet Grid:"),
+			widget.NewLabel("Thumbnail Size:"),
+			sizeSelect,
 			colLabel,
 			colSlider,
 			rowLabel,
@@ -203,7 +249,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		if state.thumbContactSheet {
 			// Contact sheet: count is determined by grid, use larger width for analyzable screenshots
 			count = state.thumbColumns * state.thumbRows
-			width = 360 // Larger width for contact sheets to improve readability when zooming
+			width = state.thumbSheetWidth
 			description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", state.thumbColumns, state.thumbRows, count)
 		} else {
 			// Individual thumbnails: use user settings
@@ -342,8 +388,8 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	settingsPanel := container.NewVBox(
 		widget.NewLabel("Settings:"),
 		widget.NewSeparator(),
-		contactSheetCheck,
-		timestampCheck,
+		contactSheetRow,
+		timestampRow,
 		settingsOptions,
 		widget.NewSeparator(),
 		generateNowBtn,

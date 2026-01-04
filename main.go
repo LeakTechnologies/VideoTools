@@ -886,6 +886,7 @@ type appState struct {
 	thumbWidth          int
 	thumbContactSheet   bool
 	thumbShowTimestamps bool
+	thumbSheetWidth     int
 	thumbColumns        int
 	thumbRows           int
 	thumbLastOutputPath string // Path to last generated output
