@@ -7266,7 +7266,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bg := canvas.NewRectangle(utils.MustHex("#344256"))
 		bg.CornerRadius = 8
 		bg.SetMinSize(fyne.NewSize(0, 36))
-		row := container.NewBorder(nil, nil, nil, right, container.NewCenter(entry))
+		row := container.NewBorder(nil, nil, nil, right, container.NewMax(entry))
 		return container.NewMax(bg, container.NewPadded(row))
 	}
 
