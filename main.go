@@ -7927,6 +7927,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			state.convert.BitrateMode = value
 		}
 		logging.Debug(logging.CatUI, "bitrate mode set to %s", state.convert.BitrateMode)
+		if state.convert.BitrateMode == "CRF" && state.convert.Quality == manualQualityOption {
+			if crfEntry != nil {
+				crfEntry.Enable()
+			}
+			if manualCrfRow != nil {
+				manualCrfRow.Show()
+			}
+		} else if manualCrfRow != nil {
+			manualCrfRow.Hide()
+		}
 		if updateEncodingControls != nil {
 			updateEncodingControls()
 		}
@@ -7944,6 +7954,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bitrateModeSelect.SetSelected(state.convert.BitrateMode)
 	}
 	state.convert.BitrateMode = normalizeBitrateMode(state.convert.BitrateMode)
+	if state.convert.BitrateMode != "CRF" && manualCrfRow != nil {
+		manualCrfRow.Hide()
+	}
 
 	// Manual CRF entry
 	// CRF entry with debouncing (300ms delay) and validation
