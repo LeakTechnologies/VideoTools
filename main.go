@@ -563,11 +563,16 @@ func (s *appState) showAbout() {
 
 	btcAddress := "bc1qcq5hmtvckhhh9c6y3gvm9wu9856fmet25yfr0v"
 	btcLabel := widget.NewLabel(fmt.Sprintf("Bitcoin (BTC): %s", btcAddress))
-	copyBtcBtn := widget.NewButton("Copy", func() {
+	copyBg := canvas.NewRectangle(utils.MustHex("#344256"))
+	copyBg.CornerRadius = 8
+	copyBg.SetMinSize(fyne.NewSize(72, 32))
+	copyText := canvas.NewText("Copy", textColor)
+	copyText.Alignment = fyne.TextAlignCenter
+	copyBtn := ui.NewTappable(container.NewMax(copyBg, container.NewPadded(copyText)), func() {
 		s.window.Clipboard().SetContent(btcAddress)
 		dialog.ShowInformation("Copied", "Bitcoin address copied to clipboard", s.window)
 	})
-	copyBtcBtn.Importance = widget.LowImportance
+	copyRow := container.NewBorder(nil, nil, nil, copyBtn, btcLabel)
 
 	mainContent := container.NewVBox(
 		versionText,
@@ -575,7 +580,7 @@ func (s *appState) showAbout() {
 		widget.NewLabel(""),
 		widget.NewLabel("Support Development"),
 		widget.NewLabel("Support VideoTools development (optional):"),
-		container.NewBorder(nil, nil, nil, copyBtcBtn, btcLabel),
+		copyRow,
 		feedbackLabel,
 	)
 
