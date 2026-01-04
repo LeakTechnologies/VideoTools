@@ -91,7 +91,7 @@ func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
 	case theme.SizeNameInnerPadding:
 		return 8 // Back to default for better precision
 	case theme.SizeNameText:
-		return 15 // Increased from default 14
+		return 16 // Increased for readability
 	case theme.SizeNameHeadingText:
 		return 20 // Increased from default 18
 	case theme.SizeNameSubHeadingText:
@@ -1181,7 +1181,7 @@ func (cs *ColoredSelect) CreateRenderer() fyne.WidgetRenderer {
 
 	label := canvas.NewText(displayText, selectTextColor())
 	label.Alignment = fyne.TextAlignLeading
-	label.TextSize = 15
+	label.TextSize = 16
 
 	caret := canvas.NewText("▼", selectTextColor())
 	caret.TextSize = 12
