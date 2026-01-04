@@ -9247,7 +9247,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			return simpleScrollBox
 		}
 
-		state.window.Canvas().AddShortcut(&fyne.ShortcutKey{KeyName: fyne.KeySpace}, func(_ fyne.Shortcut) {
+		state.window.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeySpace}, func(_ fyne.Shortcut) {
 			if state.active != "convert" || isTextEntryFocused() {
 				return
 			}
@@ -9257,7 +9257,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 			scroll.ScrollBy(scroll.PageStep())
 		})
-		state.window.Canvas().AddShortcut(&fyne.ShortcutKey{KeyName: fyne.KeySpace, Modifier: fyne.KeyModifierControl}, func(_ fyne.Shortcut) {
+		state.window.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeySpace, Modifier: fyne.KeyModifierControl}, func(_ fyne.Shortcut) {
 			if state.active != "convert" || isTextEntryFocused() {
 				return
 			}
