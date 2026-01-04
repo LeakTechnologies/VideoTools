@@ -8,7 +8,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"image"
 	"image/color"
+	"image/png"
 	"io"
 	"log"
 	"math"
@@ -7166,9 +7168,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		// Update options and color map for all registered quality widgets
 		qualityColorMap := ui.BuildQualityColorMap(newOptions)
 		for _, w := range uiState.qualityWidgets {
-			w.Options = newOptions
-			w.ColorMap = qualityColorMap
-			w.Refresh()
+			w.UpdateOptions(newOptions, qualityColorMap)
 		}
 
 		// Use state manager to synchronize selected value across all widgets
@@ -10464,9 +10464,19 @@ var audioCtxGlobal struct {
 
 func getAudioContext(sampleRate, channels, bytesPerSample int) (*oto.Context, error) {
 	audioCtxGlobal.once.Do(func() {
-		// Increased from 2048 (42ms) to 8192 (170ms) for smoother playback
+		_ = bytesPerSample
 		// Larger buffer prevents audio stuttering and underruns
-		audioCtxGlobal.ctx, audioCtxGlobal.err = oto.NewContext(sampleRate, channels, bytesPerSample, 8192)
+		ctx, ready, err := oto.NewContext(&oto.NewContextOptions{
+			SampleRate:   sampleRate,
+			ChannelCount: channels,
+			Format:       oto.FormatSignedInt16LE,
+			BufferSize:   170 * time.Millisecond,
+		})
+		if err == nil && ready != nil {
+			<-ready
+		}
+		audioCtxGlobal.ctx = ctx
+		audioCtxGlobal.err = err
 	})
 	return audioCtxGlobal.ctx, audioCtxGlobal.err
 }
@@ -10869,17 +10879,21 @@ func (p *playSession) runAudio(offset float64) {
 		p.audioActive.Store(false)
 		return
 	}
-	player := ctx.NewPlayer()
+	pr, pw := io.Pipe()
+	player := ctx.NewPlayer(pr)
 	if player == nil {
 		logging.Debug(logging.CatFFMPEG, "audio player creation failed (video-only playback)")
 		p.audioActive.Store(false)
 		return
 	}
+	player.Play()
 	p.audioActive.Store(true) // Mark audio as active
 	localPlayer := player
 	go func() {
 		defer cmd.Process.Kill()
 		defer localPlayer.Close()
+		defer pr.Close()
+		defer pw.Close()
 		defer p.audioActive.Store(false) // Mark audio as inactive when done
 		// Increased from 4096 (21ms) to 16384 (85ms) for smoother playback
 		// Larger chunks reduce read frequency and improve performance
@@ -10905,7 +10919,10 @@ func (p *playSession) runAudio(offset float64) {
 				}
 				// Volume is now handled by FFmpeg, just write directly
 				// This eliminates per-sample processing overhead
-				localPlayer.Write(chunk[:n])
+				if _, werr := pw.Write(chunk[:n]); werr != nil {
+					logging.Debug(logging.CatFFMPEG, "audio write failed: %v", werr)
+					return
+				}
 
 				// Update audio master clock for A/V sync
 				bytesWritten += int64(n)
