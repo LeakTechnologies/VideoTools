@@ -44,7 +44,7 @@ var (
 // Audio Codec Colors (Secondary but Distinct)
 var (
 	ColorOpus   = utils.MustHex("#8B5CF6") // Violet - Modern audio
-	ColorAAC    = utils.MustHex("#7C3AED") // Purple-Blue - Common audio
+	ColorAAC    = utils.MustHex("#06B6D4") // Cyan - Common audio (distinct from purple codecs)
 	ColorFLAC   = utils.MustHex("#EC4899") // Magenta - Lossless audio
 	ColorMP3    = utils.MustHex("#F43F5E") // Rose - Legacy audio
 	ColorAC3    = utils.MustHex("#F97316") // Orange-Red - Surround audio
