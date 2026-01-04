@@ -505,18 +505,18 @@ func openFile(path string) error {
 
 func generatePixelatedQRCode() (fyne.CanvasObject, error) {
 	docURL := "https://docs.leaktechnologies.dev/VideoTools"
-	
+
 	// Generate QR code with fewer pixels for a chunkier, blockier look
 	qrBytes, err := qrcode.Encode(docURL, qrcode.Low, 112)
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert to Fyne image with pixelated look
 	img := canvas.NewImageFromReader(bytes.NewReader(qrBytes), "qrcode.png")
 	img.FillMode = canvas.ImageFillOriginal // Keep pixelated look
 	img.SetMinSize(fyne.NewSize(112, 112))
-	
+
 	return img, nil
 }
 
@@ -985,6 +985,7 @@ type appState struct {
 	inspectInterlaceAnalyzing bool
 	autoCompare               bool // Auto-load Compare module after conversion
 	convertCommandPreviewShow bool // Show FFmpeg command preview in Convert module
+	convertScrollShortcuts    bool
 
 	// Merge state
 	mergeClips               []mergeClip
@@ -6999,6 +7000,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var updateDVDOptions func()
 	var buildCommandPreview func()
 
+	// Declare output widgets early to fix variable order issues
+	var outputExtLabel *widget.Label
+	var outputExtBG *canvas.Rectangle
+	var updateOutputHint func()
+
 	var formatLabels []string
 	for _, opt := range formatOptions {
 		formatLabels = append(formatLabels, opt.Label)
@@ -9095,6 +9101,50 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			state.convert.Mode = "Advanced"
 			logging.Debug(logging.CatUI, "convert mode selected: Advanced")
 		}
+	}
+
+	if !state.convertScrollShortcuts && state.window != nil {
+		state.convertScrollShortcuts = true
+		isTextEntryFocused := func() bool {
+			c := state.window.Canvas()
+			if c == nil {
+				return false
+			}
+			switch c.Focused().(type) {
+			case *widget.Entry, *widget.MultiLineEntry:
+				return true
+			default:
+				return false
+			}
+		}
+
+		scrollActive := func() *ui.FastVScroll {
+			if tabs.Selected() != nil && tabs.Selected().Text == "Advanced" {
+				return advancedScrollBox
+			}
+			return simpleScrollBox
+		}
+
+		state.window.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeySpace}, func(_ fyne.Shortcut) {
+			if state.active != "convert" || isTextEntryFocused() {
+				return
+			}
+			scroll := scrollActive()
+			if scroll == nil {
+				return
+			}
+			scroll.ScrollBy(scroll.PageStep())
+		})
+		state.window.Canvas().AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeySpace, Modifier: fyne.KeyModifierControl}, func(_ fyne.Shortcut) {
+			if state.active != "convert" || isTextEntryFocused() {
+				return
+			}
+			scroll := scrollActive()
+			if scroll == nil {
+				return
+			}
+			scroll.ScrollBy(-scroll.PageStep())
+		})
 	}
 
 	optionsRect := canvas.NewRectangle(utils.MustHex("#13182B"))

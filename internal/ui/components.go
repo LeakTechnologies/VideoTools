@@ -551,6 +551,39 @@ func (f *FastVScroll) Scrolled(ev *fyne.ScrollEvent) {
 	f.scroll.Scrolled(fastEvent)
 }
 
+// ScrollBy scrolls the content by a delta in pixels (positive = down).
+func (f *FastVScroll) ScrollBy(delta float32) {
+	if f == nil || f.scroll == nil || f.scroll.Content == nil {
+		return
+	}
+	max := f.scroll.Content.MinSize().Height - f.scroll.Size().Height
+	if max < 0 {
+		max = 0
+	}
+	newY := f.scroll.Offset.Y + delta
+	if newY < 0 {
+		newY = 0
+	} else if newY > max {
+		newY = max
+	}
+	f.scroll.ScrollToOffset(fyne.NewPos(f.scroll.Offset.X, newY))
+}
+
+// PageStep returns a reasonable scroll step based on the current viewport.
+func (f *FastVScroll) PageStep() float32 {
+	if f == nil || f.scroll == nil {
+		return 0
+	}
+	height := f.scroll.Size().Height
+	if height <= 0 {
+		height = f.scroll.MinSize().Height
+	}
+	if height <= 0 {
+		height = 240
+	}
+	return height * 0.85
+}
+
 type fastScrollRenderer struct {
 	scroll *container.Scroll
 }
