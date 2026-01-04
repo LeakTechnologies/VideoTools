@@ -548,6 +548,32 @@ func (v *QueueView) UpdateJobs(jobs []*queue.Job) {
 	v.jobList.Refresh()
 }
 
+// UpdateRunningStatus updates elapsed/progress text for running jobs without rebuilding the list.
+func (v *QueueView) UpdateRunningStatus(jobs []*queue.Job) {
+	if len(jobs) == 0 {
+		return
+	}
+	queuePositions := make(map[string]int)
+	position := 1
+	for _, job := range jobs {
+		if job.Status == queue.JobStatusPending || job.Status == queue.JobStatusPaused {
+			queuePositions[job.ID] = position
+			position++
+		}
+	}
+
+	for _, job := range jobs {
+		if job.Status != queue.JobStatusRunning {
+			continue
+		}
+		item := v.items[job.ID]
+		if item == nil {
+			continue
+		}
+		updateJobItem(item, job, queuePositions, v.callbacks)
+	}
+}
+
 // getStatusText returns a human-readable status string
 func getStatusText(job *queue.Job, queuePositions map[string]int) string {
 	switch job.Status {
