@@ -11132,29 +11132,21 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			return
 		}
 
-		// Multi-drop: load list and add jobs for each file
+		// Multi-drop: add lightweight list entries and queue jobs
 		go func() {
-			var sources []*videoSource
-			for _, path := range videoPaths {
-				src, err := probeVideo(path)
-				if err != nil {
-					logging.Debug(logging.CatModule, "failed to load video for thumb: %v", err)
-					continue
-				}
-				sources = append(sources, src)
-			}
-			if len(sources) == 0 {
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					dialog.ShowError(fmt.Errorf("failed to load video files for thumbnails"), s.window)
-				}, false)
-				return
-			}
-
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				var sources []*videoSource
+				for _, path := range videoPaths {
+					sources = append(sources, &videoSource{
+						Path:        path,
+						DisplayName: filepath.Base(path),
+					})
+				}
 				s.thumbFiles = sources
 				s.thumbFile = sources[0]
 				s.showThumbView()
-				logging.Debug(logging.CatModule, "loaded %d videos into thumb module", len(sources))
+				s.loadThumbSourceAtIndex(0)
+				logging.Debug(logging.CatModule, "loaded %d videos into thumb module (lazy probe)", len(sources))
 			}, false)
 
 			if s.jobQueue != nil {

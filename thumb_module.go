@@ -42,6 +42,34 @@ func (s *appState) addThumbSource(src *videoSource) {
 	s.thumbFiles = append(s.thumbFiles, src)
 }
 
+func (s *appState) loadThumbSourceAtIndex(idx int) {
+	if idx < 0 || idx >= len(s.thumbFiles) {
+		return
+	}
+	current := s.thumbFiles[idx]
+	if current == nil || current.Path == "" {
+		return
+	}
+	if current.Width > 0 || current.Height > 0 || current.Duration > 0 {
+		return
+	}
+	path := current.Path
+	go func() {
+		probed, err := probeVideo(path)
+		if err != nil {
+			logging.Debug(logging.CatModule, "failed to probe thumbnail source: %v", err)
+			return
+		}
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			s.thumbFiles[idx] = probed
+			if s.thumbFile != nil && s.thumbFile.Path == path {
+				s.thumbFile = probed
+			}
+			s.showThumbView()
+		}, false)
+	}()
+}
+
 func buildThumbView(state *appState) fyne.CanvasObject {
 	thumbColor := moduleColor("thumb")
 
@@ -92,7 +120,10 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	var videoContainer fyne.CanvasObject
-	if state.thumbFile != nil {
+	if state.thumbFile != nil && state.thumbFile.Width == 0 && state.thumbFile.Height == 0 {
+		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.thumbFile.Path)))
+		videoContainer = container.NewCenter(widget.NewLabel("Loading preview..."))
+	} else if state.thumbFile != nil {
 		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.thumbFile.Path)))
 		videoContainer = buildVideoPane(state, fyne.NewSize(480, 270), state.thumbFile, nil)
 	} else {
@@ -407,6 +438,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 				return
 			}
 			state.thumbFile = state.thumbFiles[id]
+			state.loadThumbSourceAtIndex(id)
 			state.showThumbView()
 		}
 		if state.thumbFile != nil {
