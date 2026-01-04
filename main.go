@@ -554,7 +554,8 @@ func (s *appState) showAbout() {
 		devText,
 		widget.NewLabel(""),
 		widget.NewLabel("Support Development"),
-		widget.NewLabel("Support coming soon"),
+		widget.NewLabel("Support VideoTools development (optional):"),
+		widget.NewLabel("Bitcoin (BTC): bc1qcq5hmtvckhhh9c6y3gvm9wu9856fmet25yfr0v"),
 		feedbackLabel,
 	)
 
