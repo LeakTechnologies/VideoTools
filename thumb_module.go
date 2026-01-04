@@ -203,7 +203,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		if state.thumbContactSheet {
 			// Contact sheet: count is determined by grid, use larger width for analyzable screenshots
 			count = state.thumbColumns * state.thumbRows
-			width = 280 // Larger width for contact sheets to make screenshots analyzable (4x8 grid = ~1144x1416)
+			width = 360 // Larger width for contact sheets to improve readability when zooming
 			description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", state.thumbColumns, state.thumbRows, count)
 		} else {
 			// Individual thumbnails: use user settings
