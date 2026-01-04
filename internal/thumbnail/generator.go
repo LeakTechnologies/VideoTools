@@ -517,7 +517,7 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 		return baseFilter
 	}
 
-	logoScale := 68
+	logoScale := 82
 	logoFilter := fmt.Sprintf("%s[sheet];movie='%s',scale=%d:%d[logo];[sheet][logo]overlay=x=main_w-overlay_w-32:y=(%d-overlay_h)/2",
 		baseFilter,
 		escapeFilterPath(logoPath),
