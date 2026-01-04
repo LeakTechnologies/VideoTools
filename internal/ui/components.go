@@ -1270,11 +1270,11 @@ func (cs *ColoredSelect) showPopup() {
 	if dropWidth < 200 {
 		dropWidth = 200
 	}
-	scroll.SetMinSize(fyne.NewSize(dropWidth, 200))
+	scroll.SetMinSize(fyne.NewSize(dropWidth, 300))
 
 	// Create popup
 	cs.popup = widget.NewPopUp(scroll, cs.window.Canvas())
-	cs.popup.Resize(fyne.NewSize(dropWidth, 200))
+	cs.popup.Resize(fyne.NewSize(dropWidth, 300))
 
 	// Position popup below the select widget
 	popupPos := fyne.CurrentApp().Driver().AbsolutePositionForObject(cs)
