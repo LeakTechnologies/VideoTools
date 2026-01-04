@@ -7795,6 +7795,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if updateEncodingControls != nil {
 			updateEncodingControls()
 		}
+		if updateQualityVisibility != nil {
+			updateQualityVisibility()
+		}
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
@@ -7859,6 +7862,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			manualCrfRow.Hide()
 		case "Manual":
 			manualCrfRow.Show()
+		}
+		if updateQualityVisibility != nil {
+			updateQualityVisibility()
 		}
 		if buildCommandPreview != nil {
 			buildCommandPreview()
@@ -8784,6 +8790,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		hide := strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") ||
 			strings.EqualFold(state.convert.VideoCodec, "H.265")
 		hideQuality := state.convert.BitrateMode != "" && state.convert.BitrateMode != "CRF"
+		if !hideQuality && crfPresetSelect != nil && crfPresetSelect.Selected != "Auto (from Quality preset)" {
+			hideQuality = true
+		}
 
 		if qualitySectionSimple != nil {
 			if hide || hideQuality {
