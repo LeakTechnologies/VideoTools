@@ -452,6 +452,11 @@ func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progress
 		Rows:          rows,
 		ShowTimestamp: showTimestamp,
 		ShowMetadata:  contactSheet,
+		Progress: func(pct float64) {
+			if progressCallback != nil {
+				progressCallback(pct)
+			}
+		},
 	}
 
 	result, err := generator.Generate(ctx, config)

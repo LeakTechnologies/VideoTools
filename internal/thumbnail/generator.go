@@ -1,6 +1,8 @@
 package thumbnail
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -30,6 +32,7 @@ type Config struct {
 	Rows          int     // Contact sheet rows (if ContactSheet=true)
 	ShowTimestamp bool    // Overlay timestamp on thumbnails
 	ShowMetadata  bool    // Show metadata header on contact sheet
+	Progress      func(float64)
 }
 
 // Generator creates thumbnails from videos
@@ -322,6 +325,7 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 
 	// Calculate timestamps
 	timestamps := g.calculateTimestamps(config, duration)
+	total := len(timestamps)
 
 	// Generate each thumbnail
 	for i, ts := range timestamps {
@@ -361,6 +365,9 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 			Height:    thumbHeight,
 			Size:      fi.Size(),
 		})
+		if config.Progress != nil && total > 0 {
+			config.Progress((float64(i+1) / float64(total)) * 100)
+		}
 	}
 
 	return thumbnails, nil
@@ -425,9 +432,16 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 
 	args = append(args, outputPath)
 
-	cmd := exec.CommandContext(ctx, g.FFmpegPath, args...)
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to generate contact sheet: %w", err)
+	if config.Progress != nil {
+		args = append(args, "-progress", "pipe:1", "-nostats")
+		if err := runFFmpegWithProgress(ctx, g.FFmpegPath, args, duration, config.Progress); err != nil {
+			return "", fmt.Errorf("failed to generate contact sheet: %w", err)
+		}
+	} else {
+		cmd := exec.CommandContext(ctx, g.FFmpegPath, args...)
+		if err := cmd.Run(); err != nil {
+			return "", fmt.Errorf("failed to generate contact sheet: %w", err)
+		}
 	}
 
 	return outputPath, nil
@@ -549,6 +563,65 @@ func escapeFilterPath(path string) string {
 	escaped = strings.ReplaceAll(escaped, ":", "\\:")
 	escaped = strings.ReplaceAll(escaped, "'", "\\'")
 	return escaped
+}
+
+func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string, totalDuration float64, progress func(float64)) error {
+	cmd := exec.CommandContext(ctx, ffmpegPath, args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("ffmpeg stdout pipe: %w", err)
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if progress != nil {
+		progress(0)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("ffmpeg start failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
+	}
+
+	go func() {
+		if progress == nil || totalDuration <= 0 {
+			return
+		}
+		scanner := bufio.NewScanner(stdout)
+		var lastPct float64
+		for scanner.Scan() {
+			line := scanner.Text()
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			if parts[0] != "out_time_ms" {
+				continue
+			}
+			if ms, err := strconv.ParseFloat(parts[1], 64); err == nil {
+				currentSec := ms / 1000000.0
+				pct := (currentSec / totalDuration) * 100
+				if pct > 100 {
+					pct = 100
+				}
+				if pct-lastPct >= 0.5 || pct >= 100 {
+					lastPct = pct
+					progress(pct)
+				}
+			}
+		}
+	}()
+
+	err = cmd.Wait()
+	if progress != nil {
+		progress(100)
+	}
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("ffmpeg failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
+	}
+	return nil
 }
 
 // calculateTimestamps generates timestamps for thumbnail extraction
