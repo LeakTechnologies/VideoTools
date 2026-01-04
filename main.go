@@ -28,31 +28,18 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"git.leaktechnologies.dev/stu/VideoTools/audio_module"
-	"git.leaktechnologies.dev/stu/VideoTools/author_module"
-	"git.leaktechnologies.dev/stu/VideoTools/filters_module"
-	"git.leaktechnologies.dev/stu/VideoTools/inspect_module"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/convert/presets"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/enhancement"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/metadata"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/thumb"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
-	"git.leaktechnologies.dev/stu/VideoTools/rip_module"
-	"git.leaktechnologies.dev/stu/VideoTools/settings_module"
-	"git.leaktechnologies.dev/stu/VideoTools/subtitles_module"
-	"git.leaktechnologies.dev/stu/VideoTools/thumb_module"
-	"git.leaktechnologies.dev/stu/VideoTools/upscale_module"
 
-	"github.com/yeqown/go-qrcode/v2"
-	"github.com/yeqown/go-qrcode/writer/standard"
+	"github.com/skip2/go-qrcode"
 )
 
 // Module describes a high level tool surface that gets a tile on the menu.
@@ -489,35 +476,22 @@ func openFolder(path string) error {
 	return cmd.Start()
 }
 
-// openFile tries to open a file in the OS default viewer.
-func openFile(path string) error {
-	if strings.TrimSpace(path) == "" {
-		return fmt.Errorf("path is empty")
-	}
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "windows":
-		cmd = utils.CreateCommandRaw("explorer", path)
-	case "darwin":
-		cmd = utils.CreateCommandRaw("open", path)
-	default:
-		cmd = utils.CreateCommandRaw("xdg-open", path)
-	}
-	return cmd.Start()
-}
-
 func generatePixelatedQRCode() (fyne.CanvasObject, error) {
 	docURL := "https://docs.leaktechnologies.dev/VideoTools"
-
-	// Create chunky QR code with large pixel blocks
-	qrc, err := qrcode.New(docURL,
-		qrcode.WithQRWidth(6),     // Large pixel blocks for chunky look
-		qrcode.WithBorderWidth(2), // Small border
-		qrcode.WithErrorCorrectionLevel(qrcode.ErrorCorrectionMedium),
-	)
+	
+	// Generate QR code with large pixels for blocky look
+	qrBytes, err := qrcode.Encode(docURL, qrcode.Medium, 160)
 	if err != nil {
 		return nil, err
 	}
+	
+	// Convert to Fyne image with pixelated look
+	img := canvas.NewImageFromBytes(qrBytes)
+	img.FillMode = canvas.ImageFillOriginal  // Keep pixelated look
+	img.SetMinSize(fyne.NewSize(160, 160))
+	
+	return img, nil
+}
 
 	// Generate to memory
 	var buf bytes.Buffer
