@@ -8843,6 +8843,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Quality Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		qualitySelectAdv,
 	)
+	qualitySectionAdv.Hide()
 
 	updateQualityVisibility = func() {
 		hide := strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") ||
