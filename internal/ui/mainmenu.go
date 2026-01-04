@@ -184,7 +184,7 @@ func buildQueueTile(completed, total int, queueColor, textColor color.Color, onC
 	text.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	text.TextSize = 14
 
-	tile := container.NewMax(rect, container.NewCenter(text))
+	tile := container.NewMax(rect, container.NewPadded(container.NewCenter(text)))
 
 	// Make it tappable
 	tappable := NewTappable(tile, onClick)
