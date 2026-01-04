@@ -8886,7 +8886,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoCodecLabel := widget.NewLabelWithStyle("Video Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	presetLabel := widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	videoCodecRow := ui.NewRatioRow(videoCodecLabel, presetLabel, 0.3)
-	videoCodecControls := ui.NewRatioRow(videoCodecContainer, encoderPresetSelect, 0.3)
+	videoCodecControls := ui.NewRatioRow(
+		container.NewPadded(videoCodecContainer),
+		container.NewPadded(encoderPresetSelect),
+		0.3,
+	)
 
 	advancedVideoEncodingBlock = container.NewVBox(
 		widget.NewLabelWithStyle("═══ VIDEO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
