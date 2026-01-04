@@ -24,6 +24,9 @@ func (s *appState) showThumbView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "thumb"
+	if cfg, err := loadPersistedThumbConfig(); err == nil {
+		s.applyThumbConfig(cfg)
+	}
 	s.setContent(buildThumbView(s))
 }
 
@@ -81,7 +84,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		state.thumbColumns = 4 // 4 columns works well for widescreen videos
 	}
 	if state.thumbRows == 0 {
-		state.thumbRows = 6 // 4x6 = 24 thumbnails
+		state.thumbRows = 8 // 4x8 = 32 thumbnails
 	}
 
 	// File label and video preview
@@ -129,6 +132,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	// Contact sheet checkbox (wrapped)
 	contactSheetCheck := widget.NewCheck("", func(checked bool) {
 		state.thumbContactSheet = checked
+		state.persistThumbConfig()
 		state.showThumbView()
 	})
 	contactSheetCheck.Checked = state.thumbContactSheet
@@ -141,6 +145,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 
 	timestampCheck := widget.NewCheck("", func(checked bool) {
 		state.thumbShowTimestamps = checked
+		state.persistThumbConfig()
 	})
 	timestampCheck.Checked = state.thumbShowTimestamps
 	timestampLabel := widget.NewLabel("Show timestamps on thumbnails")
@@ -169,6 +174,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			state.thumbColumns = int(val)
 			colLabel.SetText(fmt.Sprintf("Columns: %d", int(val)))
 			totalLabel.SetText(fmt.Sprintf("Total thumbnails: %d", state.thumbColumns*state.thumbRows))
+			state.persistThumbConfig()
 		}
 
 		rowSlider := widget.NewSlider(2, 12)
@@ -178,6 +184,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			state.thumbRows = int(val)
 			rowLabel.SetText(fmt.Sprintf("Rows: %d", int(val)))
 			totalLabel.SetText(fmt.Sprintf("Total thumbnails: %d", state.thumbColumns*state.thumbRows))
+			state.persistThumbConfig()
 		}
 
 		sizeOptions := []string{"240 px", "300 px", "360 px", "420 px", "480 px"}
@@ -194,6 +201,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			case "480 px":
 				state.thumbSheetWidth = 480
 			}
+			state.persistThumbConfig()
 		})
 		switch state.thumbSheetWidth {
 		case 240:
@@ -228,6 +236,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		countSlider.OnChanged = func(val float64) {
 			state.thumbCount = int(val)
 			countLabel.SetText(fmt.Sprintf("Thumbnail Count: %d", int(val)))
+			state.persistThumbConfig()
 		}
 
 		widthLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Width: %d px", state.thumbWidth))
@@ -237,6 +246,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		widthSlider.OnChanged = func(val float64) {
 			state.thumbWidth = int(val)
 			widthLabel.SetText(fmt.Sprintf("Thumbnail Width: %d px", int(val)))
+			state.persistThumbConfig()
 		}
 
 		settingsOptions = container.NewVBox(
