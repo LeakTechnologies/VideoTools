@@ -8519,8 +8519,21 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 
 		encodingHint.SetText(hint)
-		if updateQualityVisibility != nil {
-			updateQualityVisibility()
+		if qualitySectionSimple != nil {
+			if showCRF && !strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") &&
+				!strings.EqualFold(state.convert.VideoCodec, "H.265") {
+				qualitySectionSimple.Show()
+			} else {
+				qualitySectionSimple.Hide()
+			}
+		}
+		if qualitySectionAdv != nil {
+			if showCRF && !strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") &&
+				!strings.EqualFold(state.convert.VideoCodec, "H.265") {
+				qualitySectionAdv.Show()
+			} else {
+				qualitySectionAdv.Hide()
+			}
 		}
 		if buildCommandPreview != nil {
 			buildCommandPreview()
