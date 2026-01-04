@@ -8448,6 +8448,24 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		showTarget := mode == "Target Size"
 		showManualCRF := strings.EqualFold(state.convert.Quality, manualQualityOption)
 
+		if !showCRF && state.convert.Quality == manualQualityOption {
+			state.convert.Quality = "Standard (CRF 23)"
+			for _, w := range uiState.qualityWidgets {
+				w.SetSelectedSilent(state.convert.Quality)
+			}
+			showManualCRF = false
+		}
+
+		if !showCRF {
+			state.convert.CRF = ""
+			if crfEntry != nil && crfEntry.Text != "" {
+				crfEntry.SetText("")
+			}
+			if manualCrfRow != nil {
+				manualCrfRow.Hide()
+			}
+		}
+
 		if isLossless && supportsLossless {
 			// Lossless with H.265/AV1: Allow all bitrate modes
 			// The lossless quality affects the encoding, but bitrate/target size still control output
@@ -8506,6 +8524,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 	updateEncodingControls()
+	if updateQualityVisibility != nil {
+		updateQualityVisibility()
+	}
 
 	// Target Resolution (advanced)
 	resolutionOptions := []string{
