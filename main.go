@@ -7022,6 +7022,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var updateDVDOptions func()
 	var buildCommandPreview func()
 	var updateChapterWarning func()
+	var updateQualityOptions func()
+	var updateQualityVisibility func()
+	var updateRemuxVisibility func()
+	var updateEncodingControls func()
 
 	// Declare output widgets early to fix variable order issues
 	var outputExtLabel *widget.Label
@@ -7172,12 +7176,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		audioEncodingSection       *fyne.Container
 		audioCodecSelect           *ui.ColoredSelect
 	)
-	var (
-		updateEncodingControls  func()
-		updateQualityVisibility func()
-		updateRemuxVisibility   func()
-		updateQualityOptions    func() // Update quality dropdown based on codec
-	)
+	// updateQualityOptions: Update quality dropdown based on codec
 
 	// Base quality options (without lossless or manual)
 	baseQualityOptions := []string{
