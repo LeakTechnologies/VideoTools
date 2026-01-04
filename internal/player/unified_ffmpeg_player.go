@@ -12,20 +12,20 @@ import (
 	"sync"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 // UnifiedPlayer implements rock-solid video playback with proper A/V synchronization
 // and frame-accurate seeking using a single FFmpeg process
 type UnifiedPlayer struct {
-	mu sync.RWMutex
-	ctx context.Context
+	mu     sync.RWMutex
+	ctx    context.Context
 	cancel context.CancelFunc
 
 	// FFmpeg process
-	cmd *exec.Cmd
-	stdin *bufio.Writer
+	cmd    *exec.Cmd
+	stdin  *bufio.Writer
 	stdout *bufio.Reader
 	stderr *bufio.Reader
 
@@ -36,30 +36,30 @@ type UnifiedPlayer struct {
 	audioPipeWriter *io.PipeWriter
 
 	// State tracking
-	currentPath string
-	currentTime time.Duration
+	currentPath  string
+	currentTime  time.Duration
 	currentFrame int64
-	duration time.Duration
-	frameRate float64
-	state PlayerState
-	volume float64
-	speed float64
-	muted bool
-	fullscreen bool
-	previewMode bool
+	duration     time.Duration
+	frameRate    float64
+	state        PlayerState
+	volume       float64
+	speed        float64
+	muted        bool
+	fullscreen   bool
+	previewMode  bool
 
 	// Video info
 	videoInfo *VideoInfo
 
 	// Synchronization
 	syncClock time.Time
-	videoPTS int64
-	audioPTS int64
+	videoPTS  int64
+	audioPTS  int64
 	ptsOffset int64
 
 	// Buffer management
-	frameBuffer *sync.Pool
-	audioBuffer []byte
+	frameBuffer     *sync.Pool
+	audioBuffer     []byte
 	audioBufferSize int
 
 	// Window state
@@ -67,7 +67,7 @@ type UnifiedPlayer struct {
 	windowW, windowH int
 
 	// Callbacks
-	timeCallback func(time.Duration)
+	timeCallback  func(time.Duration)
 	frameCallback func(int64)
 	stateCallback func(PlayerState)
 
@@ -80,14 +80,14 @@ func NewUnifiedPlayer(config Config) *UnifiedPlayer {
 	player := &UnifiedPlayer{
 		config: config,
 		frameBuffer: &sync.Pool{
-		New: func() interface{} {
-			return &image.RGBA{
-				Pix:    make([]uint8, 0),
-				Stride: 0,
-				Rect:   image.Rect(0, 0, 0, 0),
-			}
+			New: func() interface{} {
+				return &image.RGBA{
+					Pix:    make([]uint8, 0),
+					Stride: 0,
+					Rect:   image.Rect(0, 0, 0, 0),
+				}
+			},
 		},
-	},
 		audioBufferSize: 32768, // 170ms at 48kHz for smooth playback
 	}
 
@@ -555,26 +555,25 @@ func (p *UnifiedPlayer) detectVideoProperties() error {
 		}
 	}
 
-
 	if p.frameRate > 0 && p.duration > 0 {
 		p.videoInfo = &VideoInfo{
-			Width:     p.windowW,
-			Height:    p.windowH,
-			Duration:  p.duration,
-			FrameRate: p.frameRate,
+			Width:      p.windowW,
+			Height:     p.windowH,
+			Duration:   p.duration,
+			FrameRate:  p.frameRate,
 			FrameCount: int64(p.duration.Seconds() * p.frameRate),
 		}
 	} else {
 		p.videoInfo = &VideoInfo{
-			Width:     p.windowW,
-			Height:    p.windowH,
-			Duration:  p.duration,
-			FrameRate: p.frameRate,
+			Width:      p.windowW,
+			Height:     p.windowH,
+			Duration:   p.duration,
+			FrameRate:  p.frameRate,
 			FrameCount: 0,
 		}
 	}
 
-	logging.Debug(logging.CatPlayer, "Video properties: %dx%d@%.3ffps, %.2fs", 
+	logging.Debug(logging.CatPlayer, "Video properties: %dx%d@%.3ffps, %.2fs",
 		p.windowW, p.windowH, p.frameRate, p.duration.Seconds())
 
 	return nil
@@ -589,13 +588,18 @@ func (p *UnifiedPlayer) writeStringToStdin(cmd string) {
 
 // updateAVSync maintains synchronization between audio and video
 func (p *UnifiedPlayer) updateAVSync() {
-	// Simple drift correction using master clock reference
+	// PTS-based drift correction with adaptive timing
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
 	if p.audioPTS > 0 && p.videoPTS > 0 {
 		drift := p.audioPTS - p.videoPTS
-		if abs(drift) > 1000 { // More than 1 frame of drift
+		if abs(drift) > 900 { // More than 10ms of drift (at 90kHz)
 			logging.Debug(logging.CatPlayer, "A/V sync drift: %d PTS", drift)
-			// Adjust sync clock gradually
-			p.ptsOffset += drift / 100
+			// Gradual adjustment to avoid audio glitches
+			p.ptsOffset += drift / 10 // 10% correction per frame
+		} else {
+			logging.Debug(logging.CatPlayer, "A/V sync drift: %d PTS", drift)
 		}
 	}
 }
@@ -604,7 +608,7 @@ func (p *UnifiedPlayer) updateAVSync() {
 func (p *UnifiedPlayer) addHardwareAcceleration(args []string) []string {
 	// This is a placeholder - actual implementation would detect available hardware
 	// and add appropriate flags like "-hwaccel cuda", "-c:v h264_nvenc"
-	
+
 	// For now, just log that hardware acceleration is considered
 	logging.Debug(logging.CatPlayer, "Hardware acceleration requested but not yet implemented")
 	return args
@@ -624,14 +628,14 @@ func (p *UnifiedPlayer) applyVolumeToBuffer(buffer []byte) {
 			if i+1 < len(buffer) {
 				sample := int16(binary.LittleEndian.Uint16(buffer[i : i+2]))
 				adjusted := int(float64(sample) * gain)
-				
+
 				// Clamp to int16 range
 				if adjusted > 32767 {
 					adjusted = 32767
 				} else if adjusted < -32768 {
 					adjusted = -32768
 				}
-				
+
 				binary.LittleEndian.PutUint16(buffer[i:i+2], uint16(adjusted))
 			}
 		}

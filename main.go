@@ -6883,6 +6883,22 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	manualQualityOption := "Manual (CRF)"
 	var crfEntry *widget.Entry
 	var manualCrfRow *fyne.Container
+	var crfContainer *fyne.Container
+
+	normalizeBitrateMode := func(mode string) string {
+		switch {
+		case strings.HasPrefix(mode, "CRF"):
+			return "CRF"
+		case strings.HasPrefix(mode, "CBR"):
+			return "CBR"
+		case strings.HasPrefix(mode, "VBR"):
+			return "VBR"
+		case strings.HasPrefix(mode, "Target Size"):
+			return "Target Size"
+		default:
+			return mode
+		}
+	}
 
 	// State setters with automatic widget synchronization
 	setQuality := func(val string) {
@@ -6896,6 +6912,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				state.convert.CRF = "23"
 				if crfEntry != nil {
 					crfEntry.SetText("23")
+				}
+			}
+			if normalizeBitrateMode(state.convert.BitrateMode) == "CRF" {
+				if manualCrfRow != nil {
+					manualCrfRow.Show()
+				}
+				if crfEntry != nil {
+					crfEntry.Enable()
+				}
+				if crfContainer != nil {
+					crfContainer.Show()
 				}
 			}
 		} else {
@@ -7214,7 +7241,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		qualitySectionSimple       fyne.CanvasObject
 		qualitySectionAdv          fyne.CanvasObject
 		simpleBitrateSelect        *widget.Select
-		crfContainer               *fyne.Container
 		bitrateContainer           *fyne.Container
 		targetSizeContainer        *fyne.Container
 		resetConvertDefaults       func()
@@ -7912,12 +7938,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"CBR":         "CBR (Constant Bitrate)",
 		"VBR":         "VBR (Variable Bitrate)",
 		"Target Size": "Target Size (Calculate from file size)",
-	}
-	normalizeBitrateMode := func(mode string) string {
-		if shortCode, ok := bitrateModeMap[mode]; ok {
-			return shortCode
-		}
-		return mode
 	}
 	bitrateModeSelect = widget.NewSelect(bitrateModeOptions, func(value string) {
 		// Extract short code from label
