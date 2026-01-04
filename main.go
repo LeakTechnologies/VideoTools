@@ -1022,6 +1022,8 @@ type appState struct {
 	queueAutoRefreshStop    chan struct{}
 	queueAutoRefreshRunning bool
 	queueView               *ui.QueueView
+	queueElapsedStop        chan struct{}
+	queueElapsedRunning     bool
 
 	// Main menu refresh throttling
 	mainMenuLastRefresh time.Time
@@ -1662,6 +1664,7 @@ func (s *appState) showMainMenu() {
 	s.stopPreview()
 	s.stopPlayer()
 	s.stopQueueAutoRefresh()
+	s.stopQueueElapsedTicker()
 	if s.queueView != nil {
 		s.queueView.StopAnimations()
 	}
@@ -1817,6 +1820,7 @@ func (s *appState) showQueue() {
 		s.setContent(s.queueView.Root)
 	}
 	s.startQueueAutoRefresh()
+	s.startQueueElapsedTicker()
 }
 
 // clearCompletedJobs removes all completed and failed jobs from the queue
@@ -2065,6 +2069,49 @@ func (s *appState) stopQueueAutoRefresh() {
 	if s.queueView != nil {
 		s.queueView.StopAnimations()
 	}
+}
+
+func (s *appState) startQueueElapsedTicker() {
+	if s.queueElapsedRunning {
+		return
+	}
+	stop := make(chan struct{})
+	s.queueElapsedStop = stop
+	s.queueElapsedRunning = true
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ticker.C:
+				if s.active != "queue" || s.queueView == nil {
+					return
+				}
+				app := fyne.CurrentApp()
+				if app == nil || app.Driver() == nil {
+					continue
+				}
+				app.Driver().DoFromGoroutine(func() {
+					if s.active == "queue" && s.queueView != nil {
+						s.queueView.UpdateRunningStatus(s.jobQueue.List())
+					}
+				}, false)
+			}
+		}
+	}()
+}
+
+func (s *appState) stopQueueElapsedTicker() {
+	if !s.queueElapsedRunning {
+		return
+	}
+	if s.queueElapsedStop != nil {
+		close(s.queueElapsedStop)
+	}
+	s.queueElapsedStop = nil
+	s.queueElapsedRunning = false
 }
 
 // addConvertToQueue adds a conversion job to the queue
@@ -2738,6 +2785,7 @@ func (s *appState) showMissingDependenciesDialog(moduleID string) {
 func (s *appState) showModule(id string) {
 	if id != "queue" {
 		s.stopQueueAutoRefresh()
+		s.stopQueueElapsedTicker()
 		if s.queueView != nil {
 			s.queueView.StopAnimations()
 		}
