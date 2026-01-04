@@ -70,6 +70,43 @@ func (s *appState) loadThumbSourceAtIndex(idx int) {
 	}()
 }
 
+func (s *appState) loadMultipleThumbVideos(paths []string) {
+	if len(paths) == 0 {
+		return
+	}
+	logging.Debug(logging.CatModule, "loading %d videos into thumbnails", len(paths))
+
+	var valid []*videoSource
+	var failed []string
+	for _, path := range paths {
+		src, err := probeVideo(path)
+		if err != nil {
+			logging.Debug(logging.CatFFMPEG, "ffprobe failed for %s: %v", path, err)
+			failed = append(failed, filepath.Base(path))
+			continue
+		}
+		valid = append(valid, src)
+	}
+
+	if len(valid) == 0 {
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			msg := fmt.Sprintf("Failed to analyze %d file(s):\n%s", len(failed), strings.Join(failed, ", "))
+			s.showErrorWithCopy("Load Failed", fmt.Errorf("%s", msg))
+		}, false)
+		return
+	}
+
+	s.thumbFiles = valid
+	s.thumbFile = valid[0]
+
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		s.showThumbView()
+		if len(failed) > 0 {
+			logging.Debug(logging.CatModule, "%d file(s) failed to analyze: %s", len(failed), strings.Join(failed, ", "))
+		}
+	}, false)
+}
+
 func buildThumbView(state *appState) fyne.CanvasObject {
 	thumbColor := moduleColor("thumb")
 
@@ -347,6 +384,25 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		addQueueBtn.Disable()
 	}
 
+	addAllBtn := widget.NewButton("Add All to Queue", func() {
+		if len(state.thumbFiles) == 0 {
+			dialog.ShowInformation("No Videos", "Load videos first to add to queue.", state.window)
+			return
+		}
+		if state.jobQueue == nil {
+			dialog.ShowInformation("Queue", "Queue not initialized.", state.window)
+			return
+		}
+		for _, src := range state.thumbFiles {
+			if src == nil || src.Path == "" {
+				continue
+			}
+			state.jobQueue.Add(state.createThumbJobForPath(src.Path))
+		}
+		dialog.ShowInformation("Queue", fmt.Sprintf("Queued %d thumbnail jobs.", len(state.thumbFiles)), state.window)
+	})
+	addAllBtn.Importance = widget.MediumImportance
+
 	// View Queue button
 	viewQueueBtn := widget.NewButton("View Queue", func() {
 		state.showQueue()
@@ -410,6 +466,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		widget.NewSeparator(),
 		generateNowBtn,
 		addQueueBtn,
+		addAllBtn,
 		viewQueueBtn,
 		viewResultsBtn,
 	)
