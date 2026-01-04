@@ -1830,7 +1830,7 @@ func (s *appState) clearCompletedJobs() {
 func (s *appState) refreshQueueView() {
 	if s.active == "queue" {
 		now := time.Now()
-		if !s.queueLastRefresh.IsZero() && now.Sub(s.queueLastRefresh) < 500*time.Millisecond {
+		if !s.queueLastRefresh.IsZero() && now.Sub(s.queueLastRefresh) < 200*time.Millisecond {
 			return
 		}
 		s.queueLastRefresh = now
@@ -2027,10 +2027,8 @@ func (s *appState) startQueueAutoRefresh() {
 	s.queueAutoRefreshStop = stop
 	s.queueAutoRefreshRunning = true
 	go func() {
-		// Use 2-second interval to reduce UI jankiness from frequent rebuilds
-		// Slower refresh = smoother experience, especially with scroll position preservation
-		// The refreshQueueView method has its own 500ms throttle for other triggers
-		ticker := time.NewTicker(2000 * time.Millisecond)
+		// Short interval keeps elapsed/progress responsive with incremental UI updates.
+		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
 		for {
 			select {
