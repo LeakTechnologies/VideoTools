@@ -7064,7 +7064,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	updateOutputHint = func() {
 		outputHint.SetText(fmt.Sprintf("Output file: %s", getOutputPathPreview()))
+		if strings.TrimSpace(state.convert.OutputBase) == "" {
+			outputHintContainer.Show()
+		} else {
+			outputHintContainer.Hide()
+		}
 	}
+	updateOutputHint()
 
 	// DVD-specific aspect ratio selector (only shown for DVD formats)
 	dvdAspectOpts := []string{"4:3", "16:9"}
@@ -7258,7 +7264,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bg := canvas.NewRectangle(utils.MustHex("#344256"))
 		bg.CornerRadius = 8
 		bg.SetMinSize(fyne.NewSize(0, 36))
-		row := container.NewBorder(nil, nil, nil, right, entry)
+		row := container.NewBorder(nil, nil, nil, right, container.NewCenter(entry))
 		return container.NewMax(bg, container.NewPadded(row))
 	}
 
