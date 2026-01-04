@@ -148,7 +148,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		totalLabel.TextStyle = fyne.TextStyle{Italic: true}
 		totalLabel.Wrapping = fyne.TextWrapWord
 
-		colSlider := widget.NewSlider(2, 12)
+		colSlider := widget.NewSlider(2, 9)
 		colSlider.Value = float64(state.thumbColumns)
 		colSlider.Step = 1
 		colSlider.OnChanged = func(val float64) {
