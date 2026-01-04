@@ -6832,6 +6832,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Suppress unused warning - will be used when we replace nil checks
 	_ = registerCallback
 
+	manualQualityOption := "Manual (CRF)"
+	var crfEntry *widget.Entry
+	var manualCrfRow *fyne.Container
+
 	// State setters with automatic widget synchronization
 	setQuality := func(val string) {
 		if uiState.quality == val {
@@ -7117,8 +7121,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var (
 		bitrateModeSelect          *widget.Select
 		bitratePresetSelect        *widget.Select
-		crfEntry                   *widget.Entry
-		manualCrfRow               *fyne.Container
 		videoBitrateEntry          *widget.Entry
 		manualBitrateRow           *fyne.Container
 		targetFileSizeSelect       *widget.Select
@@ -7145,7 +7147,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		updateQualityOptions    func() // Update quality dropdown based on codec
 	)
 
-	manualQualityOption := "Manual (CRF)"
 	// Base quality options (without lossless or manual)
 	baseQualityOptions := []string{
 		"Draft (CRF 28)",
