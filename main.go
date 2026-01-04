@@ -7010,10 +7010,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		formatLabels = append(formatLabels, opt.Label)
 	}
 
-	var outputExtLabel *widget.Label
-	var outputExtBG *canvas.Rectangle
-	var updateOutputHint func()
-
 	// Format selector
 	formatColors := ui.BuildFormatColorMap(formatLabels)
 	formatContainer := ui.NewColoredSelect(formatLabels, formatColors, func(selected string) {
@@ -8805,31 +8801,82 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 		if advancedVideoEncodingBlock != nil {
-			if remux {
-				advancedVideoEncodingBlock.Hide()
-			} else {
-				advancedVideoEncodingBlock.Show()
-			}
+			advancedVideoEncodingBlock.Show()
 		}
 		if audioEncodingSection != nil {
-			if remux {
-				audioEncodingSection.Hide()
-			} else {
-				audioEncodingSection.Show()
-			}
+			audioEncodingSection.Show()
 		}
 		if videoCodecSelect != nil {
-			if remux {
-				// videoCodecSelect.Disable()
-			} else {
-				// videoCodecSelect.Enable()
-			}
+			videoCodecSelect.Enable()
 		}
 		if audioCodecSelect != nil {
 			if remux {
-				// audioCodecSelect.Disable()
+				audioCodecSelect.Disable()
 			} else {
-				// audioCodecSelect.Enable()
+				audioCodecSelect.Enable()
+			}
+		}
+		if qualitySectionAdv != nil {
+			if remux {
+				qualitySectionAdv.Hide()
+			} else {
+				qualitySectionAdv.Show()
+			}
+		}
+		if encoderPresetSelect != nil {
+			if remux {
+				encoderPresetSelect.Disable()
+			} else {
+				encoderPresetSelect.Enable()
+			}
+		}
+		if bitrateModeSelect != nil {
+			if remux {
+				bitrateModeSelect.Disable()
+			} else {
+				bitrateModeSelect.Enable()
+			}
+		}
+		if crfContainer != nil {
+			if remux {
+				crfContainer.Hide()
+			} else {
+				crfContainer.Show()
+			}
+		}
+		if bitrateContainer != nil {
+			if remux {
+				bitrateContainer.Hide()
+			} else {
+				bitrateContainer.Show()
+			}
+		}
+		if targetSizeContainer != nil {
+			if remux {
+				targetSizeContainer.Hide()
+			} else {
+				targetSizeContainer.Show()
+			}
+		}
+		if encodingHintContainer != nil {
+			if remux {
+				encodingHintContainer.Hide()
+			} else {
+				encodingHintContainer.Show()
+			}
+		}
+		if audioBitrateSelect != nil {
+			if remux {
+				audioBitrateSelect.Disable()
+			} else {
+				audioBitrateSelect.Enable()
+			}
+		}
+		if audioChannelsSelect != nil {
+			if remux {
+				audioChannelsSelect.Disable()
+			} else {
+				audioChannelsSelect.Enable()
 			}
 		}
 		if remux {
