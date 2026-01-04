@@ -885,6 +885,7 @@ type appState struct {
 	thumbCount          int
 	thumbWidth          int
 	thumbContactSheet   bool
+	thumbShowTimestamps bool
 	thumbColumns        int
 	thumbRows           int
 	thumbLastOutputPath string // Path to last generated output
@@ -6554,6 +6555,108 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bitratePreset: state.convert.BitratePreset,
 	}
 
+	// Debouncing helper - delays function execution until user stops typing
+	createDebouncedCallback := func(delay time.Duration, callback func(string)) func(string) {
+		var timer *time.Timer
+		var mu sync.Mutex
+
+		return func(value string) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			if timer != nil {
+				timer.Stop()
+			}
+
+			timer = time.AfterFunc(delay, func() {
+				callback(value)
+			})
+		}
+	}
+
+	// Input validation helpers
+	validateCRF := func(input string) error {
+		if input == "" {
+			return nil // Empty is valid (uses quality preset)
+		}
+		val, err := strconv.Atoi(input)
+		if err != nil {
+			return fmt.Errorf("CRF must be a number")
+		}
+		if val < 0 || val > 51 {
+			return fmt.Errorf("CRF must be between 0 and 51")
+		}
+		return nil
+	}
+
+	validateBitrate := func(input string, unit string) error {
+		if input == "" {
+			return nil // Empty is valid
+		}
+		val, err := strconv.ParseFloat(input, 64)
+		if err != nil {
+			return fmt.Errorf("Bitrate must be a number")
+		}
+		if val <= 0 {
+			return fmt.Errorf("Bitrate must be positive")
+		}
+		// Warn on extremes
+		kbps := val
+		switch unit {
+		case "Mbps":
+			kbps *= 1000
+		case "Gbps":
+			kbps *= 1000000
+		}
+		// Warnings logged but don't fail validation
+		if kbps < 100 {
+			logging.Debug(logging.CatUI, "Very low bitrate (%.0f kbps) may produce poor quality", kbps)
+		}
+		if kbps > 50000 {
+			logging.Debug(logging.CatUI, "Very high bitrate (%.0f kbps) approaching lossless", kbps)
+		}
+		return nil
+	}
+
+	validateFileSize := func(input string) error {
+		if input == "" {
+			return nil // Empty is valid
+		}
+		val, err := strconv.ParseFloat(input, 64)
+		if err != nil {
+			return fmt.Errorf("File size must be a number")
+		}
+		if val <= 0 {
+			return fmt.Errorf("File size must be positive")
+		}
+		return nil
+	}
+
+	// Callback registry - eliminates nil checks and provides logging
+	type callbackRegistry struct {
+		callbacks map[string]func()
+	}
+
+	callbacks := &callbackRegistry{
+		callbacks: make(map[string]func()),
+	}
+
+	registerCallback := func(name string, fn func()) {
+		callbacks.callbacks[name] = fn
+		logging.Debug(logging.CatUI, "registered callback: %s", name)
+	}
+
+	callCallback := func(name string) {
+		if fn, exists := callbacks.callbacks[name]; exists {
+			fn()
+		} else {
+			logging.Debug(logging.CatUI, "callback not registered: %s", name)
+		}
+	}
+
+	// Suppress unused warning - will be used when we replace nil checks
+	_ = registerCallback
+
 	// State setters with automatic widget synchronization
 	setQuality := func(val string) {
 		if uiState.quality == val {
@@ -6571,9 +6674,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		for _, cb := range uiState.onQualityChange {
 			cb(val)
 		}
-		if uiState.updateEncodingControls != nil {
-			uiState.updateEncodingControls()
-		}
+		callCallback("updateEncodingControls")
 	}
 
 	setResolution := func(val string) {
@@ -7414,15 +7515,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Manual CRF entry
+	// CRF entry with debouncing (300ms delay) and validation
 	crfEntry = widget.NewEntry()
 	crfEntry.SetPlaceHolder("Auto (from Quality preset)")
 	crfEntry.SetText(state.convert.CRF)
-	crfEntry.OnChanged = func(val string) {
-		state.convert.CRF = val
-		if buildCommandPreview != nil {
-			buildCommandPreview()
+	crfEntry.Validator = validateCRF
+	crfEntry.OnChanged = createDebouncedCallback(300*time.Millisecond, func(val string) {
+		if validateCRF(val) == nil {
+			state.convert.CRF = val
+			if buildCommandPreview != nil {
+				buildCommandPreview()
+			}
 		}
-	}
+	})
 
 	manualCrfRow = container.NewVBox(
 		widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -7483,11 +7588,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		manualCrfRow.Show()
 	}
 
-	// Video Bitrate entry (for CBR/VBR)
+	// Video Bitrate entry (for CBR/VBR) with validation
 	videoBitrateEntry = widget.NewEntry()
 	videoBitrateEntry.SetPlaceHolder("5000")
 	videoBitrateUnitSelect := widget.NewSelect([]string{"Kbps", "Mbps", "Gbps"}, func(value string) {})
 	videoBitrateUnitSelect.SetSelected("Kbps")
+	videoBitrateEntry.Validator = func(input string) error {
+		return validateBitrate(input, videoBitrateUnitSelect.Selected)
+	}
 	manualBitrateInput := container.NewBorder(nil, nil, nil, videoBitrateUnitSelect, videoBitrateEntry)
 
 	parseBitrateParts := func(input string) (string, string, bool) {
@@ -7526,12 +7634,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	var syncingBitrate bool
 	var previousBitrateUnit = "Kbps" // Track previous unit for conversion
 	updateBitrateState := func() {
-		if syncingBitrate {
-			return
-		}
 		val := strings.TrimSpace(videoBitrateEntry.Text)
 		if val == "" {
 			state.convert.VideoBitrate = ""
@@ -7556,9 +7660,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	setManualBitrate := func(value string) {
-		syncingBitrate = true
-		defer func() { syncingBitrate = false }()
-
 		if value == "" {
 			videoBitrateEntry.SetText("")
 			return
@@ -7619,9 +7720,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 						formattedValue = strconv.FormatFloat(convertedValue, 'f', -1, 64)
 					}
 
-					syncingBitrate = true
+					// Update entry with converted value (debouncing handles update delays)
 					videoBitrateEntry.SetText(formattedValue)
-					syncingBitrate = false
 				}
 			}
 			previousBitrateUnit = newUnit
@@ -7630,8 +7730,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		updateBitrateState()
 	}
 
-	videoBitrateEntry.OnChanged = func(val string) {
+	// Apply debouncing to bitrate entry (300ms delay)
+	debouncedBitrateUpdate := createDebouncedCallback(300*time.Millisecond, func(val string) {
 		updateBitrateState()
+	})
+	videoBitrateEntry.OnChanged = func(val string) {
+		debouncedBitrateUpdate(val)
 	}
 
 	if state.convert.VideoBitrate != "" {
@@ -7761,9 +7865,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Initialize aspect state
 	setAspect(state.convert.OutputAspect, state.convert.AspectUserSet)
 
-	// Target File Size with smart presets + manual entry
+	// Target File Size with smart presets + manual entry and validation
 	targetFileSizeEntry = widget.NewEntry()
 	targetFileSizeEntry.SetPlaceHolder("e.g., 250")
+	targetFileSizeEntry.Validator = validateFileSize
 	targetFileSizeUnitSelect := widget.NewSelect([]string{"KB", "MB", "GB"}, func(value string) {})
 	targetFileSizeUnitSelect.SetSelected("MB")
 	targetSizeManualRow := container.NewBorder(nil, nil, nil, targetFileSizeUnitSelect, targetFileSizeEntry)
@@ -7784,11 +7889,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		return numStr, unit, true
 	}
 
-	var syncingTargetSize bool
 	updateTargetSizeState := func() {
-		if syncingTargetSize {
-			return
-		}
 		val := strings.TrimSpace(targetFileSizeEntry.Text)
 		if val == "" {
 			state.convert.TargetFileSize = ""
@@ -7818,8 +7919,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	setTargetFileSize := func(value string) {
-		syncingTargetSize = true
-		defer func() { syncingTargetSize = false }()
 		if value == "" {
 			targetFileSizeEntry.SetText("")
 			targetFileSizeUnitSelect.SetSelected("MB")
@@ -7926,8 +8025,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	targetFileSizeSelect.SetSelected("100MB")
 	updateTargetSizeOptions()
 
-	targetFileSizeEntry.OnChanged = func(val string) {
+	// Apply debouncing to target file size entry (300ms delay)
+	debouncedTargetSizeUpdate := createDebouncedCallback(300*time.Millisecond, func(val string) {
 		updateTargetSizeState()
+	})
+	targetFileSizeEntry.OnChanged = func(val string) {
+		debouncedTargetSizeUpdate(val)
 	}
 	if state.convert.TargetFileSize != "" {
 		if num, unit, ok := parseSizeParts(state.convert.TargetFileSize); ok {
