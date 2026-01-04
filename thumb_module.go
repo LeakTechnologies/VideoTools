@@ -419,11 +419,8 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		videoDir := filepath.Dir(state.thumbFile.Path)
 		videoBaseName := strings.TrimSuffix(filepath.Base(state.thumbFile.Path), filepath.Ext(state.thumbFile.Path))
 		outputDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
-
-		// Check if output exists
-		if _, err := os.Stat(outputDir); os.IsNotExist(err) {
-			dialog.ShowInformation("No Results", "No generated thumbnails found. Generate thumbnails first.", state.window)
-			return
+		if state.thumbContactSheet {
+			outputDir = videoDir
 		}
 
 		// If contact sheet mode, try to open contact sheet image
@@ -435,6 +432,22 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 				}
 				return
 			}
+			legacyDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
+			legacyPath := filepath.Join(legacyDir, fmt.Sprintf("%s_contact_sheet.jpg", videoBaseName))
+			if _, err := os.Stat(legacyPath); err == nil {
+				if err := openFile(legacyPath); err != nil {
+					dialog.ShowError(fmt.Errorf("failed to open contact sheet: %w", err), state.window)
+				}
+				return
+			}
+			dialog.ShowInformation("No Results", "No generated contact sheet found. Generate one first.", state.window)
+			return
+		}
+
+		// Check if output exists
+		if _, err := os.Stat(outputDir); os.IsNotExist(err) {
+			dialog.ShowInformation("No Results", "No generated thumbnails found. Generate thumbnails first.", state.window)
+			return
 		}
 
 		// Otherwise, open first thumbnail
@@ -587,6 +600,11 @@ func (s *appState) createThumbJobForPath(path string) *queue.Job {
 	videoDir := filepath.Dir(path)
 	videoBaseName := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	outputDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
+	outputFile := outputDir
+	if s.thumbContactSheet {
+		outputDir = videoDir
+		outputFile = filepath.Join(videoDir, fmt.Sprintf("%s_contact_sheet.jpg", videoBaseName))
+	}
 
 	var count, width int
 	var description string
@@ -605,7 +623,7 @@ func (s *appState) createThumbJobForPath(path string) *queue.Job {
 		Title:       "Thumbnails: " + filepath.Base(path),
 		Description: description,
 		InputFile:   path,
-		OutputFile:  outputDir,
+		OutputFile:  outputFile,
 		Config: map[string]interface{}{
 			"inputPath":     path,
 			"outputDir":     outputDir,
