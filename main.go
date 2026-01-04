@@ -738,7 +738,7 @@ func defaultConvertConfig() convertConfig {
 		VideoCodec:             "H.264",
 		EncoderPreset:          "slow",
 		CRF:                    "",
-		BitrateMode:            "CRF",
+		BitrateMode:            "CBR",
 		BitratePreset:          "2.5 Mbps - Medium Quality",
 		VideoBitrate:           "5000k",
 		TargetFileSize:         "",
