@@ -8503,6 +8503,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 
 		if showCRF && showManualCRF {
+			if crfEntry != nil {
+				crfEntry.Enable()
+			}
 			crfContainer.Show()
 		} else {
 			crfContainer.Hide()
