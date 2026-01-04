@@ -373,30 +373,34 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 		totalThumbs = config.Count
 	}
 
-	// Calculate timestamps
-	tempConfig := config
-	tempConfig.Count = totalThumbs
-	tempConfig.Interval = 0
-	timestamps := g.calculateTimestamps(tempConfig, duration)
-
-	// Build select filter using timestamps (more reliable than frame numbers)
-	// Use gte(t,timestamp) approach to select frames closest to target times
-	selectFilter := "select='"
-	for i, ts := range timestamps {
-		if i > 0 {
-			selectFilter += "+"
-		}
-		// Select frame at or after this timestamp, limiting to one frame per timestamp
-		selectFilter += fmt.Sprintf("gte(t\\,%.2f)*lt(t\\,%.2f)", ts, ts+0.1)
+	startTime := config.StartOffset
+	endTime := duration - config.EndOffset
+	if endTime <= startTime {
+		endTime = duration
 	}
-	selectFilter += "'"
+	availableDuration := endTime - startTime
+	if availableDuration <= 0 {
+		availableDuration = duration
+	}
+	sampleFPS := float64(totalThumbs) / availableDuration
+	if sampleFPS <= 0 {
+		sampleFPS = 0.01
+	}
+
+	// Build select filter using trim + fps to evenly sample across duration
+	selectFilter := fmt.Sprintf("trim=start=%.2f:end=%.2f,fps=%.6f,setpts=PTS-STARTPTS+%.2f/TB",
+		startTime,
+		endTime,
+		sampleFPS,
+		startTime,
+	)
 
 	baseName := strings.TrimSuffix(filepath.Base(config.VideoPath), filepath.Ext(config.VideoPath))
 	outputPath := filepath.Join(config.OutputDir, fmt.Sprintf("%s_contact_sheet.%s", baseName, config.Format))
 
 	// Build tile filter with padding between thumbnails
 	padding := 8 // Pixels of padding between each thumbnail
-	tileFilter := fmt.Sprintf("%s,setpts=N/TB,tile=%dx%d:padding=%d", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp), config.Columns, config.Rows, padding)
+	tileFilter := fmt.Sprintf("%s,tile=%dx%d:padding=%d", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp), config.Columns, config.Rows, padding)
 
 	// Build video filter
 	var vfilter string
@@ -455,7 +459,7 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	// Padding is added between tiles: (cols-1) horizontal gaps and (rows-1) vertical gaps
 	sheetWidth := (thumbWidth * config.Columns) + (padding * (config.Columns - 1))
 	sheetHeight := (thumbHeight * config.Rows) + (padding * (config.Rows - 1))
-	headerHeight := 100
+	headerHeight := 110
 
 	// Build metadata text lines
 	// Line 1: Filename and file size
@@ -481,9 +485,9 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	// App background color: #0B0F1A (dark navy blue)
 	baseFilter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=13:font='DejaVu Sans Mono':x=10:y=10,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=12:font='DejaVu Sans Mono':x=10:y=35,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=11:font='DejaVu Sans Mono':x=10:y=60",
+			"drawtext=text='%s':fontcolor=white:fontsize=15:font='DejaVu Sans Mono':x=10:y=12,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=13:font='DejaVu Sans Mono':x=10:y=40,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=12:font='DejaVu Sans Mono':x=10:y=68",
 		selectFilter,
 		tileFilter,
 		sheetWidth,
@@ -499,7 +503,7 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 		return baseFilter
 	}
 
-	logoScale := 84
+	logoScale := 68
 	logoFilter := fmt.Sprintf("%s[sheet];movie='%s',scale=%d:%d[logo];[sheet][logo]overlay=x=main_w-overlay_w-12:y=(%d-overlay_h)/2",
 		baseFilter,
 		escapeFilterPath(logoPath),
