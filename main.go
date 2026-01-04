@@ -498,7 +498,7 @@ func generatePixelatedQRCode() (fyne.CanvasObject, error) {
 	}
 	
 	// Convert to Fyne image with pixelated look
-	img := canvas.NewImageFromBytes(qrBytes)
+	img := canvas.NewImageFromReader(bytes.NewReader(qrBytes), "qrcode.png")
 	img.FillMode = canvas.ImageFillOriginal  // Keep pixelated look
 	img.SetMinSize(fyne.NewSize(160, 160))
 	
@@ -6983,6 +6983,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		formatLabels = append(formatLabels, opt.Label)
 	}
 
+	var outputExtLabel *widget.Label
+	var outputExtBG *canvas.Rectangle
+	var updateOutputHint func()
+
 	// Format selector
 	formatColors := ui.BuildFormatColorMap(formatLabels)
 	formatContainer := ui.NewColoredSelect(formatLabels, formatColors, func(selected string) {
@@ -7011,10 +7015,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}, state.window)
 	formatContainer.SetSelected(state.convert.SelectedFormat.Label)
-
-	var outputExtLabel *widget.Label
-	var outputExtBG *canvas.Rectangle
-	var updateOutputHint func()
 
 	getOutputDir := func() string {
 		if strings.TrimSpace(state.convert.OutputDir) != "" {
@@ -7077,8 +7077,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		manualBitrateRow           *fyne.Container
 		targetFileSizeSelect       *widget.Select
 		targetFileSizeEntry        *widget.Entry
-		qualitySelectSimple        *widget.Select
-		qualitySelectAdv           *widget.Select
+		qualitySelectSimple        *ui.ColoredSelect
+		qualitySelectAdv           *ui.ColoredSelect
 		qualitySectionSimple       fyne.CanvasObject
 		qualitySectionAdv          fyne.CanvasObject
 		simpleBitrateSelect        *widget.Select
