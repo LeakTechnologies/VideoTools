@@ -175,10 +175,8 @@ func (l *fixedHSplitLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	if len(objects) < 2 {
 		return fyne.NewSize(0, 0)
 	}
-	lead := objects[0].MinSize()
-	trail := objects[1].MinSize()
-	// Avoid forcing the window to expand to the sum of both sides.
-	return fyne.NewSize(fyne.Max(lead.Width, trail.Width), fyne.Max(lead.Height, trail.Height))
+	// Allow the window to shrink without being constrained by child min sizes.
+	return fyne.NewSize(0, 0)
 }
 
 // resolveTargetAspect resolves an aspect ratio value or source aspect

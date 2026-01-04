@@ -512,9 +512,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		leftColumn.Add(listScroll)
 	}
 
-	rightColumn := container.NewVBox(
-		settingsPanel,
-	)
+	rightColumn := container.NewVScroll(settingsPanel)
 
 	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6}, leftColumn, rightColumn)
 
