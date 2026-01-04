@@ -7943,7 +7943,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	crfEntry.SetPlaceHolder("Auto (from Quality preset)")
 	crfEntry.SetText(state.convert.CRF)
 	crfEntry.Validator = validateCRF
+	crfEntryBg := canvas.NewRectangle(utils.MustHex("#344256"))
+	crfEntryBg.CornerRadius = 8
+	crfEntryBg.SetMinSize(fyne.NewSize(0, 36))
+	crfEntryWrapper := container.NewMax(crfEntryBg, container.NewPadded(crfEntry))
+	updateCRFEntryState := func(val string) {
+		if validateCRF(val) == nil {
+			crfEntryBg.FillColor = utils.MustHex("#344256")
+		} else {
+			crfEntryBg.FillColor = utils.MustHex("#5A2A2A")
+		}
+		crfEntryBg.Refresh()
+	}
 	crfEntry.OnChanged = createDebouncedCallback(300*time.Millisecond, func(val string) {
+		updateCRFEntryState(val)
 		if validateCRF(val) == nil {
 			state.convert.CRF = val
 			if buildCommandPreview != nil {
@@ -7954,13 +7967,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	manualCrfRow = container.NewVBox(
 		widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		crfEntry,
+		crfEntryWrapper,
 	)
 	if state.convert.Quality == manualQualityOption {
 		if strings.TrimSpace(state.convert.CRF) == "" {
 			state.convert.CRF = "23"
 			crfEntry.SetText("23")
 		}
+		updateCRFEntryState(crfEntry.Text)
 	} else {
 		manualCrfRow.Hide()
 	}
