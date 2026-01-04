@@ -568,8 +568,9 @@ func (s *appState) showAbout() {
 		mainContent,
 	)
 	body = container.NewPadded(body)
-	body.SetMinSize(fyne.NewSize(560, 280))
-	dialog.ShowCustom("About & Support", "Close", body, s.window)
+	sizeShim := canvas.NewRectangle(color.Transparent)
+	sizeShim.SetMinSize(fyne.NewSize(560, 280))
+	dialog.ShowCustom("About & Support", "Close", container.NewMax(sizeShim, body), s.window)
 }
 
 type formatOption struct {
