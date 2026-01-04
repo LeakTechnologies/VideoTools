@@ -237,43 +237,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 
 	// Helper function to create thumbnail job
 	createThumbJob := func() *queue.Job {
-		// Create output directory in same folder as video
-		videoDir := filepath.Dir(state.thumbFile.Path)
-		videoBaseName := strings.TrimSuffix(filepath.Base(state.thumbFile.Path), filepath.Ext(state.thumbFile.Path))
-		outputDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
-
-		// Configure based on mode
-		var count, width int
-		var description string
-		if state.thumbContactSheet {
-			// Contact sheet: count is determined by grid, use larger width for analyzable screenshots
-			count = state.thumbColumns * state.thumbRows
-			width = state.thumbSheetWidth
-			description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", state.thumbColumns, state.thumbRows, count)
-		} else {
-			// Individual thumbnails: use user settings
-			count = state.thumbCount
-			width = state.thumbWidth
-			description = fmt.Sprintf("%d individual thumbnails (%dpx width)", count, width)
-		}
-
-		return &queue.Job{
-			Type:        queue.JobTypeThumb,
-			Title:       "Thumbnails: " + filepath.Base(state.thumbFile.Path),
-			Description: description,
-			InputFile:   state.thumbFile.Path,
-			OutputFile:  outputDir,
-			Config: map[string]interface{}{
-				"inputPath":    state.thumbFile.Path,
-				"outputDir":    outputDir,
-				"count":        float64(count),
-				"width":        float64(width),
-				"contactSheet": state.thumbContactSheet,
-				"showTimestamp": state.thumbShowTimestamps,
-				"columns":      float64(state.thumbColumns),
-				"rows":         float64(state.thumbRows),
-			},
-		}
+		return state.createThumbJobForPath(state.thumbFile.Path)
 	}
 
 	// Generate Now button - adds to queue and starts it
@@ -471,4 +435,40 @@ func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progress
 	}
 
 	return nil
+}
+
+func (s *appState) createThumbJobForPath(path string) *queue.Job {
+	videoDir := filepath.Dir(path)
+	videoBaseName := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
+	outputDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
+
+	var count, width int
+	var description string
+	if s.thumbContactSheet {
+		count = s.thumbColumns * s.thumbRows
+		width = s.thumbSheetWidth
+		description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", s.thumbColumns, s.thumbRows, count)
+	} else {
+		count = s.thumbCount
+		width = s.thumbWidth
+		description = fmt.Sprintf("%d individual thumbnails (%dpx width)", count, width)
+	}
+
+	return &queue.Job{
+		Type:        queue.JobTypeThumb,
+		Title:       "Thumbnails: " + filepath.Base(path),
+		Description: description,
+		InputFile:   path,
+		OutputFile:  outputDir,
+		Config: map[string]interface{}{
+			"inputPath":     path,
+			"outputDir":     outputDir,
+			"count":         float64(count),
+			"width":         float64(width),
+			"contactSheet":  s.thumbContactSheet,
+			"showTimestamp": s.thumbShowTimestamps,
+			"columns":       float64(s.thumbColumns),
+			"rows":          float64(s.thumbRows),
+		},
+	}
 }

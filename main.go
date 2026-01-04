@@ -11074,7 +11074,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			return
 		}
 
-		// Load first video
+		// Multi-drop: add jobs for each file and set first as current preview
 		go func() {
 			src, err := probeVideo(videoPaths[0])
 			if err != nil {
@@ -11090,10 +11090,22 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				s.showThumbView()
 				logging.Debug(logging.CatModule, "loaded video into thumb module")
 			}, false)
+
+			if len(videoPaths) > 1 && s.jobQueue != nil {
+				for _, path := range videoPaths {
+					s.jobQueue.Add(s.createThumbJobForPath(path))
+				}
+				if !s.jobQueue.IsRunning() {
+					s.jobQueue.Start()
+				}
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowInformation("Thumbnails", fmt.Sprintf("Queued %d thumbnail jobs.", len(videoPaths)), s.window)
+				}, false)
+			}
 		}()
 
 		return
-	}
+	 }
 
 	// If in filters module, handle single video file
 	if s.active == "filters" {
