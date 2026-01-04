@@ -221,13 +221,19 @@ Command: ffmpeg %s
 
 func getLogsDir() string {
 	logsDirOnce.Do(func() {
-		// Prefer a logs folder next to the executable
-		if exe, err := os.Executable(); err == nil {
-			if dir := filepath.Dir(exe); dir != "" {
-				logsDirPath = filepath.Join(dir, "logs")
+		// Prefer user config dir for logs
+		if cfgDir, err := os.UserConfigDir(); err == nil && cfgDir != "" {
+			logsDirPath = filepath.Join(cfgDir, "VideoTools", "logs")
+		}
+		// Fallback to logs folder next to the executable
+		if logsDirPath == "" {
+			if exe, err := os.Executable(); err == nil {
+				if dir := filepath.Dir(exe); dir != "" {
+					logsDirPath = filepath.Join(dir, "logs")
+				}
 			}
 		}
-		// Fallback to cwd/logs
+		// Final fallback to cwd/logs
 		if logsDirPath == "" {
 			logsDirPath = filepath.Join(".", "logs")
 		}
@@ -6134,6 +6140,9 @@ func (s *appState) stopPlayer() {
 }
 
 func main() {
+	if os.Getenv("VIDEOTOOLS_LOG_FILE") == "" {
+		_ = os.Setenv("VIDEOTOOLS_LOG_FILE", filepath.Join(getLogsDir(), "videotools.log"))
+	}
 	logging.Init()
 	defer logging.Close()
 	defer logging.RecoverPanic() // Catch and log any panics with stack trace
