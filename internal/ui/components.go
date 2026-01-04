@@ -356,6 +356,52 @@ func TintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 	return container.NewMax(rect, padded)
 }
 
+// NewRatioRow lays out two objects with a fixed width ratio for the left item.
+func NewRatioRow(left, right fyne.CanvasObject, leftRatio float32) *fyne.Container {
+	return container.New(&ratioRowLayout{leftRatio: leftRatio}, left, right)
+}
+
+type ratioRowLayout struct {
+	leftRatio float32
+}
+
+func (r *ratioRowLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	if len(objects) < 2 {
+		return
+	}
+	ratio := clampRatio(r.leftRatio)
+	leftWidth := size.Width * ratio
+	rightWidth := size.Width - leftWidth
+
+	objects[0].Move(fyne.NewPos(0, 0))
+	objects[0].Resize(fyne.NewSize(leftWidth, size.Height))
+	objects[1].Move(fyne.NewPos(leftWidth, 0))
+	objects[1].Resize(fyne.NewSize(rightWidth, size.Height))
+}
+
+func (r *ratioRowLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	if len(objects) < 2 {
+		return fyne.NewSize(0, 0)
+	}
+	leftMin := objects[0].MinSize()
+	rightMin := objects[1].MinSize()
+	height := leftMin.Height
+	if rightMin.Height > height {
+		height = rightMin.Height
+	}
+	return fyne.NewSize(leftMin.Width+rightMin.Width, height)
+}
+
+func clampRatio(ratio float32) float32 {
+	if ratio < 0.1 {
+		return 0.1
+	}
+	if ratio > 0.9 {
+		return 0.9
+	}
+	return ratio
+}
+
 // Tappable wraps any canvas object and makes it tappable
 type Tappable struct {
 	widget.BaseWidget

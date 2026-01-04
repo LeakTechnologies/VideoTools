@@ -1,52 +1,58 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
-	"image"
 	"image/color"
-	"image/png"
-	"io"
-	"math"
+	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"runtime"
 	"slices"
-	"sort"
-	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/data/binding"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"git.leaktechnologies.dev/stu/VideoTools/audio_module"
+	"git.leaktechnologies.dev/stu/VideoTools/author_module"
+	"git.leaktechnologies.dev/stu/VideoTools/filters_module"
+	"git.leaktechnologies.dev/stu/VideoTools/inspect_module"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
-
-	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/convert/presets"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/enhancement"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/metadata"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/thumb"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
-	"github.com/hajimehoshi/oto"
+	"git.leaktechnologies.dev/stu/VideoTools/rip_module"
+	"git.leaktechnologies.dev/stu/VideoTools/settings_module"
+	"git.leaktechnologies.dev/stu/VideoTools/subtitles_module"
+	"git.leaktechnologies.dev/stu/VideoTools/thumb_module"
+	"git.leaktechnologies.dev/stu/VideoTools/upscale_module"
+
+	"github.com/yeqown/go-qrcode/v2"
+	"github.com/yeqown/go-qrcode/writer/standard"
 )
 
 // Module describes a high level tool surface that gets a tile on the menu.
@@ -500,6 +506,34 @@ func openFile(path string) error {
 	return cmd.Start()
 }
 
+func generatePixelatedQRCode() (fyne.CanvasObject, error) {
+	docURL := "https://docs.leaktechnologies.dev/VideoTools"
+
+	// Create chunky QR code with large pixel blocks
+	qrc, err := qrcode.New(docURL,
+		qrcode.WithQRWidth(6),     // Large pixel blocks for chunky look
+		qrcode.WithBorderWidth(2), // Small border
+		qrcode.WithErrorCorrectionLevel(qrcode.ErrorCorrectionMedium),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Generate to memory
+	var buf bytes.Buffer
+	w := standard.NewWithWriter(&buf, standard.WithQRWidth(6))
+	if err := qrc.Save(w); err != nil {
+		return nil, err
+	}
+
+	// Convert to Fyne image with pixelated look
+	img := canvas.NewImageFromReader(&buf, "qrcode.png")
+	img.FillMode = canvas.ImageFillOriginal // Keep pixelated look
+	img.SetMinSize(fyne.NewSize(160, 160))
+
+	return img, nil
+}
+
 func (s *appState) showAbout() {
 	version := fmt.Sprintf("VideoTools %s", appVersion)
 	dev := "Leak Technologies"
@@ -557,6 +591,22 @@ func (s *appState) showAbout() {
 	if ltLogo != nil {
 		logoColumn.Add(ltLogo)
 	}
+
+	// Add QR code for documentation
+	qrCode, err := generatePixelatedQRCode()
+	if err != nil {
+		// Fallback to hyperlink if QR generation fails
+		docURL, _ := url.Parse("https://docs.leaktechnologies.dev/VideoTools")
+		fallbackLink := widget.NewHyperlink("View Documentation", docURL)
+		logoColumn.Add(fallbackLink)
+	} else {
+		// Add QR code with label
+		qrLabel := widget.NewLabel("Scan for docs")
+		qrLabel.Alignment = fyne.TextAlignCenter
+		logoColumn.Add(qrCode)
+		logoColumn.Add(qrLabel)
+	}
+
 	logoColumn.Add(layout.NewSpacer())
 	logoColumn.Add(logsLink)
 
@@ -8737,8 +8787,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Advanced mode options - full controls with organized sections
 	videoCodecLabel := widget.NewLabelWithStyle("Video Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	presetLabel := widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	videoCodecRow := container.NewGridWithColumns(2, videoCodecLabel, presetLabel)
-	videoCodecControls := container.NewGridWithColumns(2, videoCodecContainer, encoderPresetSelect)
+	videoCodecRow := ui.NewRatioRow(videoCodecLabel, presetLabel, 0.3)
+	videoCodecControls := ui.NewRatioRow(videoCodecContainer, encoderPresetSelect, 0.3)
 
 	advancedVideoEncodingBlock = container.NewVBox(
 		widget.NewLabelWithStyle("═══ VIDEO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
