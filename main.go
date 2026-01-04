@@ -8519,22 +8519,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 
 		encodingHint.SetText(hint)
-		if qualitySectionSimple != nil {
-			if showCRF && !strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") &&
-				!strings.EqualFold(state.convert.VideoCodec, "H.265") {
-				qualitySectionSimple.Show()
-			} else {
-				qualitySectionSimple.Hide()
-			}
+
+		// Let updateQualityVisibility() handle showing/hiding quality sections
+		// to avoid duplicate logic and conflicts
+		if updateQualityVisibility != nil {
+			updateQualityVisibility()
 		}
-		if qualitySectionAdv != nil {
-			if showCRF && !strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") &&
-				!strings.EqualFold(state.convert.VideoCodec, "H.265") {
-				qualitySectionAdv.Show()
-			} else {
-				qualitySectionAdv.Hide()
-			}
-		}
+
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
@@ -8703,6 +8694,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	audioChannelsSelect.SetSelected(state.convert.AudioChannels)
 
 	// Now define updateDVDOptions with access to resolution and framerate selects
+	wasDVD := false
 	updateDVDOptions = func() {
 		// Clear locks by default so non-DVD formats remain flexible
 		resolutionSelectSimple.Enable()
@@ -8728,6 +8720,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
 		if isDVD {
+			if !strings.EqualFold(state.convert.TargetResolution, "NTSC (720×480)") &&
+				!strings.EqualFold(state.convert.TargetResolution, "PAL (720×540)") &&
+				!strings.EqualFold(state.convert.TargetResolution, "PAL (720×576)") {
+				state.convert.TargetResolution = "Source"
+			}
+			if !strings.EqualFold(state.convert.FrameRate, "29.97") &&
+				!strings.EqualFold(state.convert.FrameRate, "25") {
+				state.convert.FrameRate = "Source"
+			}
+			if !strings.EqualFold(state.convert.OutputAspect, "4:3") &&
+				!strings.EqualFold(state.convert.OutputAspect, "16:9") {
+				state.convert.OutputAspect = "Source"
+				state.convert.AspectUserSet = false
+			}
 			dvdAspectBox.Show()
 
 			var (
@@ -8838,6 +8844,21 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			dvdInfoLabel.SetText(fmt.Sprintf("%s\nLocked: resolution, frame rate, aspect, codec, pixel format, bitrate, and GPU toggles for DVD compliance.", dvdNotes))
 		} else {
 			dvdAspectBox.Hide()
+			// Reset DVD-locked values back to Source defaults when leaving DVD formats.
+			if wasDVD {
+				state.convert.TargetResolution = "Source"
+				state.convert.FrameRate = "Source"
+				state.convert.OutputAspect = "Source"
+				state.convert.AspectUserSet = false
+				resolutionSelectSimple.SetSelected("Source")
+				resolutionSelect.SetSelected("Source")
+				frameRateSelect.SetSelected("Source")
+				targetAspectSelectSimple.SetSelected("Source")
+				targetAspectSelect.SetSelected("Source")
+				if src != nil {
+					updateAspectBoxVisibility()
+				}
+			}
 			// Re-enable normal visibility control through updateEncodingControls
 			bitratePresetSelect.Show()
 			simpleBitrateSelect.Show()
@@ -8845,6 +8866,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				updateEncodingControls()
 			}
 		}
+		wasDVD = isDVD
 	}
 	updateDVDOptions()
 
@@ -8856,29 +8878,32 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Quality Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		qualitySelectAdv,
 	)
-	qualitySectionAdv.Hide()
 
 	updateQualityVisibility = func() {
 		hide := strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") ||
 			strings.EqualFold(state.convert.VideoCodec, "H.265")
 		mode := normalizeBitrateMode(state.convert.BitrateMode)
 		hideQuality := mode != "" && mode != "CRF"
+		remux := strings.EqualFold(state.convert.SelectedFormat.VideoCodec, "copy") ||
+			strings.EqualFold(state.convert.VideoCodec, "Copy")
 
 		if qualitySectionSimple != nil {
-			if hide || hideQuality {
+			if hide || hideQuality || remux {
 				qualitySectionSimple.Hide()
 			} else {
 				qualitySectionSimple.Show()
 			}
 		}
 		if qualitySectionAdv != nil {
-			if hide || hideQuality {
+			if hide || hideQuality || remux {
 				qualitySectionAdv.Hide()
 			} else {
 				qualitySectionAdv.Show()
 			}
 		}
 	}
+	// Call updateQualityVisibility now that the sections are created
+	updateQualityVisibility()
 
 	updateRemuxVisibility = func() {
 		remux := strings.EqualFold(state.convert.SelectedFormat.VideoCodec, "copy") ||
@@ -8907,12 +8932,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				audioCodecSelect.Enable()
 			}
 		}
-		if qualitySectionAdv != nil {
-			if remux {
-				qualitySectionAdv.Hide()
-			} else {
-				qualitySectionAdv.Show()
-			}
+
+		// Don't directly show/hide quality sections here - let updateQualityVisibility handle it
+		// based on both remux state AND bitrate mode
+		if updateQualityVisibility != nil {
+			updateQualityVisibility()
 		}
 		if encoderPresetSelect != nil {
 			if remux {
@@ -8928,26 +8952,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				bitrateModeSelect.Enable()
 			}
 		}
-		if crfContainer != nil {
-			if remux {
-				crfContainer.Hide()
-			} else {
-				crfContainer.Show()
-			}
-		}
-		if bitrateContainer != nil {
-			if remux {
-				bitrateContainer.Hide()
-			} else {
-				bitrateContainer.Show()
-			}
-		}
-		if targetSizeContainer != nil {
-			if remux {
-				targetSizeContainer.Hide()
-			} else {
-				targetSizeContainer.Show()
-			}
+		// Don't show/hide encoding containers here - let updateEncodingControls handle it
+		// based on the selected bitrate mode (CRF/CBR/VBR/Target Size)
+		if updateEncodingControls != nil {
+			updateEncodingControls()
 		}
 		if encodingHintContainer != nil {
 			if remux {
