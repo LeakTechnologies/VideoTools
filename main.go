@@ -506,16 +506,16 @@ func openFile(path string) error {
 func generatePixelatedQRCode() (fyne.CanvasObject, error) {
 	docURL := "https://docs.leaktechnologies.dev/VideoTools"
 	
-	// Generate QR code with large pixels for blocky look
-	qrBytes, err := qrcode.Encode(docURL, qrcode.Medium, 160)
+	// Generate QR code with fewer pixels for a chunkier, blockier look
+	qrBytes, err := qrcode.Encode(docURL, qrcode.Low, 112)
 	if err != nil {
 		return nil, err
 	}
 	
 	// Convert to Fyne image with pixelated look
 	img := canvas.NewImageFromReader(bytes.NewReader(qrBytes), "qrcode.png")
-	img.FillMode = canvas.ImageFillOriginal  // Keep pixelated look
-	img.SetMinSize(fyne.NewSize(160, 160))
+	img.FillMode = canvas.ImageFillOriginal // Keep pixelated look
+	img.SetMinSize(fyne.NewSize(112, 112))
 	
 	return img, nil
 }
@@ -548,8 +548,8 @@ func (s *appState) showAbout() {
 		return nil
 	}
 
-	vtLogo := loadLogo("VT_Icon.png", 72)
-	ltLogo := loadLogo("LT_Logo-26.png", 96)
+	vtLogo := loadLogo("VT_Icon.png", 96)
+	ltLogo := loadLogo("LT_Logo-26.png", 72)
 
 	logsLink := widget.NewButton("Logs Folder", func() {
 		if err := openFolder(logsPath); err != nil {
