@@ -1523,9 +1523,6 @@ func (s *appState) promptAuthorOutput(paths []string, region, aspect, title stri
 
 func authorWarnings(state *appState) []string {
 	var warnings []string
-	if state.authorCreateMenu {
-		warnings = append(warnings, "DVD menus are not implemented yet; the disc will play titles directly.")
-	}
 	if len(state.authorSubtitles) > 0 {
 		warnings = append(warnings, "Subtitle tracks are not authored yet; they will be ignored.")
 	}
@@ -1740,6 +1737,7 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 		"authorTitle":      s.authorTitle,
 		"authorRegion":     s.authorRegion,
 		"authorAspect":     s.authorAspectRatio,
+		"createMenu":       s.authorCreateMenu,
 		"chapterSource":    s.authorChapterSource,
 		"subtitleTracks":   append([]string{}, s.authorSubtitles...),
 		"additionalAudios": append([]string{}, s.authorAudioTracks...),
@@ -1804,7 +1802,7 @@ func (s *appState) addAuthorVideoTSToQueue(videoTSPath, title, outputPath string
 	return nil
 }
 
-func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, logFn func(string), progressFn func(float64)) error {
+func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, createMenu bool, logFn func(string), progressFn func(float64)) error {
 	tempRoot := authorTempRoot(outputPath)
 	if err := os.MkdirAll(tempRoot, 0755); err != nil {
 		return fmt.Errorf("failed to create temp root: %w", err)
@@ -1983,8 +1981,17 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 	}
 
+	var menuMpg string
+	var menuButtons []dvdMenuButton
+	if createMenu {
+		menuMpg, menuButtons, err = buildDVDMenuAssets(ctx, workDir, title, region, aspect, chapters, logFn)
+		if err != nil {
+			return err
+		}
+	}
+
 	xmlPath := filepath.Join(workDir, "dvd.xml")
-	if err := writeDVDAuthorXML(xmlPath, mpgPaths, region, aspect, chapters); err != nil {
+	if err := writeDVDAuthorXML(xmlPath, mpgPaths, region, aspect, chapters, menuMpg, menuButtons); err != nil {
 		return err
 	}
 
@@ -2128,7 +2135,7 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 	if videoTSPath := strings.TrimSpace(toString(cfg["videoTSPath"])); videoTSPath != "" {
 		outputPath := toString(cfg["outputPath"])
 		title := toString(cfg["title"])
-		if err := ensureAuthorDependencies(true); err != nil {
+		if err := ensureAuthorDependencies(true, false); err != nil {
 			return err
 		}
 
@@ -2207,8 +2214,9 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 	outputPath := toString(cfg["outputPath"])
 	makeISO, _ := cfg["makeISO"].(bool)
 	treatAsChapters, _ := cfg["treatAsChapters"].(bool)
+	createMenu := toBool(cfg["createMenu"])
 
-	if err := ensureAuthorDependencies(makeISO); err != nil {
+	if err := ensureAuthorDependencies(makeISO, createMenu); err != nil {
 		return err
 	}
 
@@ -2286,7 +2294,7 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 		}, false)
 	}
 
-	err := s.runAuthoringPipeline(ctx, paths, region, aspect, title, outputPath, makeISO, clips, chapters, treatAsChapters, appendLog, updateProgress)
+	err := s.runAuthoringPipeline(ctx, paths, region, aspect, title, outputPath, makeISO, clips, chapters, treatAsChapters, createMenu, appendLog, updateProgress)
 	if err != nil {
 		friendly := authorFriendlyError(err)
 		appendLog("ERROR: " + friendly)
@@ -2429,7 +2437,7 @@ func buildAuthorFFmpegArgs(inputPath, outputPath, region, aspect string, progres
 	return args
 }
 
-func writeDVDAuthorXML(path string, mpgPaths []string, region, aspect string, chapters []authorChapter) error {
+func writeDVDAuthorXML(path string, mpgPaths []string, region, aspect string, chapters []authorChapter, menuMpg string, menuButtons []dvdMenuButton) error {
 	format := strings.ToLower(region)
 	if format != "pal" {
 		format = "ntsc"
@@ -2437,7 +2445,20 @@ func writeDVDAuthorXML(path string, mpgPaths []string, region, aspect string, ch
 
 	var b strings.Builder
 	b.WriteString("<dvdauthor>\n")
-	b.WriteString("  <vmgm />\n")
+	if menuMpg != "" && len(menuButtons) > 0 {
+		b.WriteString("  <vmgm>\n")
+		b.WriteString("    <menus>\n")
+		b.WriteString("      <pgc entry=\"root\">\n")
+		b.WriteString(fmt.Sprintf("        <vob file=\"%s\" pause=\"inf\" />\n", escapeXMLAttr(menuMpg)))
+		for _, btn := range menuButtons {
+			b.WriteString(fmt.Sprintf("        <button>%s</button>\n", btn.Command))
+		}
+		b.WriteString("      </pgc>\n")
+		b.WriteString("    </menus>\n")
+		b.WriteString("  </vmgm>\n")
+	} else {
+		b.WriteString("  <vmgm />\n")
+	}
 	b.WriteString("  <titleset>\n")
 	b.WriteString("    <titles>\n")
 	b.WriteString(fmt.Sprintf("      <video format=\"%s\" aspect=\"%s\" />\n", format, aspect))
@@ -2469,12 +2490,17 @@ func escapeXMLAttr(value string) string {
 	return strings.ReplaceAll(escaped, "\"", "&quot;")
 }
 
-func ensureAuthorDependencies(makeISO bool) error {
+func ensureAuthorDependencies(makeISO bool, createMenu bool) error {
 	if err := ensureExecutable(utils.GetFFmpegPath(), "ffmpeg"); err != nil {
 		return err
 	}
 	if _, err := exec.LookPath("dvdauthor"); err != nil {
 		return fmt.Errorf("dvdauthor not found in PATH")
+	}
+	if createMenu {
+		if _, err := exec.LookPath("spumux"); err != nil {
+			return fmt.Errorf("spumux not found in PATH")
+		}
 	}
 	if makeISO {
 		if _, _, err := buildISOCommand("output.iso", "output", "VIDEO_TOOLS"); err != nil {
