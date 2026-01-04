@@ -562,7 +562,7 @@ func (s *appState) showAbout() {
 	feedbackLabel.Wrapping = fyne.TextWrapWord
 
 	btcAddress := "bc1qcq5hmtvckhhh9c6y3gvm9wu9856fmet25yfr0v"
-	btcLabel := widget.NewLabel(fmt.Sprintf("Bitcoin (BTC): %s", btcAddress))
+	btcLabel := widget.NewLabel("Bitcoin (BTC):")
 	copyBg := canvas.NewRectangle(utils.MustHex("#344256"))
 	copyBg.CornerRadius = 8
 	copyBg.SetMinSize(fyne.NewSize(72, 32))
@@ -573,14 +573,15 @@ func (s *appState) showAbout() {
 		dialog.ShowInformation("Copied", "Bitcoin address copied to clipboard", s.window)
 	})
 	copyRow := container.NewBorder(nil, nil, nil, copyBtn, btcLabel)
+	addressLabel := widget.NewLabel(btcAddress)
 
 	mainContent := container.NewVBox(
 		versionText,
 		devText,
 		widget.NewLabel(""),
 		widget.NewLabel("Support Development"),
-		widget.NewLabel("Support VideoTools development (optional):"),
 		copyRow,
+		addressLabel,
 		feedbackLabel,
 	)
 
