@@ -552,6 +552,7 @@ func NewFastVScroll(content fyne.CanvasObject) *FastVScroll {
 	f := &FastVScroll{
 		scroll: container.NewVScroll(content),
 	}
+	f.scroll.SetMinSize(fyne.NewSize(0, 0))
 	f.ExtendBaseWidget(f)
 	return f
 }
