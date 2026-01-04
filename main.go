@@ -535,20 +535,25 @@ func (s *appState) showAbout() {
 	donateURL, _ := url.Parse("https://leaktechnologies.dev/support")
 	donateLink := widget.NewHyperlink("Support development", donateURL)
 
+	feedbackLabel := widget.NewLabel("Feedback: use the Logs button on the main menu to view logs; send issues with attached logs.")
+	feedbackLabel.Wrapping = fyne.TextWrapWord
+
 	mainContent := container.NewVBox(
 		versionText,
 		devText,
 		logsLink,
 		donateLink,
-		widget.NewLabel("Feedback: use the Logs button on the main menu to view logs; send issues with attached logs."),
+		feedbackLabel,
 	)
+	scrollContent := container.NewVScroll(mainContent)
+	scrollContent.SetMinSize(fyne.NewSize(420, 220))
 
 	var body fyne.CanvasObject
 	if ltLogo != nil {
 		topRow := container.NewHBox(layout.NewSpacer(), ltLogo)
-		body = container.NewBorder(topRow, nil, nil, nil, mainContent)
+		body = container.NewBorder(topRow, nil, nil, nil, scrollContent)
 	} else {
-		body = mainContent
+		body = scrollContent
 	}
 	dialog.ShowCustom("About & Support", "Close", body, s.window)
 }
