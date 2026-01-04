@@ -106,7 +106,6 @@ func (m *ONNXModel) enhancePixel(c color.RGBA) color.RGBA {
 	// Simple enhancement: increase contrast and sharpness
 	g := float64(c.G)
 	b := float64(c.B)
-	a := float64(c.A)
 
 	// Boost contrast (1.1x)
 	g = min(255, g*1.1)

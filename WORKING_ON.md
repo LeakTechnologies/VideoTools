@@ -2,100 +2,111 @@
 
 This file tracks what each agent is currently working on to prevent conflicts and coordinate changes.
 
-**Last Updated**: 2026-01-04 02:30 UTC
+**Last Updated**: 2026-01-04 10:00 UTC
 
 ---
 
 ## 🔴 Current Blockers
 
-- **Build Status**: ✅ PASSING (dev23 UI cleanup complete)
+- **Build Status**: ⚠️ NEARLY PASSING - 3 compilation errors remain (lines 500, 6995-7003 in main.go)
 
 ---
 
 ## 👥 Active Work by Agent
 
 ### 🤖 Claude (thisagent - Claude Code)
-**Status**: ✅ DEV23 COMPLETE - v0.1.0-dev23 ready
+**Status**: ⚠️ IN PROGRESS - Widget deduplication + compilation fixes
 
-**Completed This Session** (2026-01-04):
-- ✅ Refined colored dropdowns (accent bar, rounded corners, improved legibility)
-- ✅ Aligned settings panel input backgrounds to dropdown tone
-- ✅ Styled Auto-Crop and Interlacing actions to match panel UI
-- ✅ Rebuilt About / Support dialog to match mockup
-- ✅ Fixed Audio module crash on initial quality select
-- ✅ Bumped version to v0.1.0-dev23
+**Completed This Session** (2026-01-04 10:00):
+- ✅ **Quality Widget Deduplication** (main.go:7075-7128)
+  - Converted qualitySelectSimple/Adv to ColoredSelect
+  - Registered both with state manager for auto-sync
+  - Updated updateQualityOptions to use state manager
+  - Eliminated manual synchronization code
+- ✅ **Enhancement Module Fixes** (internal/enhancement/)
+  - Defined SkinToneAnalysis struct
+  - Fixed invalid ContentAnalysis field assignments
+  - Removed unused imports and variables
+  - Fixed onnx_model.go unused variable
+- ✅ **Missing Imports Restored** (main.go:3-48)
+  - Added: atomic, json, sort, io, errors, bufio, strconv, math
+  - Added: fyne.io/fyne/v2/driver/desktop
+  - Added: internal/interlace, internal/sysinfo
+  - Added: github.com/ebitengine/oto/v3
+- ✅ **Code Cleanup**
+  - Removed duplicate QR code function
 
 **Files Modified**:
-- `main.go` - About dialog layout, UI polish, audio crash fix, version bump
-- `internal/ui/components.go` - Colored select styling + input background tone
-- `FyneApp.toml` - Version bump to dev23
-- `docs/CHANGELOG.md` - Dev23 release notes
+- `main.go` - Quality widget deduplication, missing imports, duplicate code removal
+- `internal/enhancement/enhancement_module.go` - SkinToneAnalysis struct, field fixes
+- `internal/enhancement/onnx_model.go` - Unused variable cleanup
+- `go.mod`, `go.sum` - Added oto/v3 dependency
 
-**Next Tasks**:
-1. Update docs to dev23 (ROADMAP/TODO/WORKING_ON/DONE)
-2. Create git tag v0.1.0-dev23
-3. Begin dev24 planning with Jake
+**⚠️ Remaining Compilation Errors** (HANDOFF TO opencode):
+1. Line 500: `canvas.NewImageFromBytes` undefined - QR code generation
+2. Lines 6995-7003: `outputExtLabel`, `outputExtBG`, `updateOutputHint` undefined - Convert UI
+
+**Next Tasks for opencode**:
+1. Fix 3 remaining compilation errors in main.go
+2. Continue widget deduplication (4 remaining pairs)
+3. Convert 32 remaining widget.Select to ColoredSelect
 
 ---
 
 ### 🤖 opencode
-**Status**: Has uncommitted job editing feature
+**Status**: 🎯 PRIORITY HANDOFF - Fix compilation errors + widget deduplication
 
-**Uncommitted Work** (Discovered by Claude):
-- `internal/queue/edit.go` (NEW - 363 lines) - Job editing logic
-- `internal/ui/command_editor.go` (NEW - 352 lines) - Fyne UI dialog
-- `internal/queue/execute_edit_job.go.wip` (NEW - 114 lines) - Moved out of build (has import errors)
-- `internal/queue/queue.go` (MODIFIED) - Refactored code to edit.go
+**🔥 IMMEDIATE TASKS** (from Claude):
+1. **Fix 3 Compilation Errors** in main.go:
+   - Line 500: `canvas.NewImageFromBytes` undefined
+     - Context: QR code generation in `generatePixelatedQRCode()`
+     - May need to use `canvas.NewImageFromResource()` or similar
+   - Lines 6995-7003: `outputExtLabel`, `outputExtBG`, `updateOutputHint` undefined
+     - Context: Convert UI output file extension handling
+     - Variables were likely removed/renamed - need to investigate and restore proper implementation
 
-**Feature**: Job editing system with FFmpeg command management
-- Edit FFmpeg commands in queued jobs
-- Validate syntax and structure
-- Track edit history with timestamps
-- Apply/reset/revert functionality
+2. **Widget Deduplication** (4 remaining pairs):
+   - resolutionSelectSimple & resolutionSelect (lines ~8009, 8347)
+   - targetAspectSelect & targetAspectSelectSimple (lines ~7397, 8016)
+   - encoderPresetSelect & simplePresetSelect (lines ~7531, 7543)
+   - bitratePresetSelect & simpleBitrateSelect (lines ~7969, 7982)
+   - **Pattern**: Follow quality widget example at main.go:7075-7128
 
-**Completeness**: ⚠️ INCOMPLETE
-- ✅ Core logic complete, code compiles
-- ❌ No integration in main.go (EditJobManager never instantiated)
-- ❌ No UI hookups ("Edit Command" button missing from queue view)
-- ❌ No end-to-end workflow testing
-- ❌ Potential memory safety issue (queue.Get() shallow copy)
+3. **ColoredSelect Expansion** (32 remaining widgets):
+   - Resolution, aspect, preset, bitrate, frame rate, etc.
+   - Use appropriate color maps (BuildGenericColorMap, BuildQualityColorMap, etc.)
 
-**Last Known Work**:
-- Player backend improvements
+**Uncommitted Work** (Defer to later):
+- `internal/queue/edit.go` - Job editing logic (keep for future dev24+)
+- `internal/ui/command_editor.go` - Fyne UI dialog
 - Enhancement module framework
-- Command execution refactoring
 
-**Shared Responsibilities with Claude**:
-- Convert module UI/UX improvements
-- Queue system enhancements
-- Module integration testing
+**Coordination**:
+- Jake will be using Codex for UI work this week
+- Focus on build stability and widget conversions first
 
 ---
 
 ## 🤝 Coordination Status
 
-**Opencode's Recommendation**: ✅ ACCEPTED - Option A
+**Current Handoff**: Claude → opencode
 
-**Actions Taken by Claude**:
-1. ✅ Removed partial job editing integration from queueview.go:
-   - Removed onEditJob parameter from buildJobItem signature
-   - Removed Edit button code for JobTypeEditJob
-   - Added missing "image" import
-2. ✅ Removed job editing integration from main.go:
-   - Removed editJobManager field from appState struct
-   - Removed JobTypeEditJob case statement
-   - Removed executeEditJob function (150 lines)
-   - Removed editJobManager initialization
-3. ✅ Preserved WIP files for dev23:
-   - internal/queue/edit.go (not committed, ready for dev23)
-   - internal/ui/command_editor.go (not committed, ready for dev23)
-   - internal/queue/execute_edit_job.go.wip (needs import fixes)
-4. ✅ Build passing and ready for testing
+**Claude's Handoff** (2026-01-04 10:00):
+1. ✅ Quality widget deduplication complete (pattern established)
+2. ✅ Enhancement module compilation fixed
+3. ✅ Missing imports restored
+4. ⚠️ 3 compilation errors remain - handed off to opencode
+5. 📋 4 widget pairs still need deduplication
+6. 📋 32 widgets need ColoredSelect conversion
 
-**Next Steps**:
-- Test dev22 features (GPU detection, AV1 presets, UI improvements)
-- Push to remote: `git push origin master --tags`
-- Begin dev23 planning with job editing integration as priority feature
+**For opencode**:
+- Priority 1: Fix 3 compilation errors (blocking build)
+- Priority 2: Complete widget deduplication using established pattern
+- Priority 3: ColoredSelect expansion for remaining 32 widgets
+
+**Coordination Notes**:
+- User will be using Codex for UI work this week - coordinate visual changes
+- Build must pass before UI work can continue
 
 ---
 
