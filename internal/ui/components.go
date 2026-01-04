@@ -1126,18 +1126,24 @@ func (cs *ColoredSelect) CreateRenderer() fyne.WidgetRenderer {
 	}
 
 	bg := canvas.NewRectangle(selectBackgroundColor())
+	bg.CornerRadius = 8
 	bar := canvas.NewRectangle(selectAccentColor(cs.selected, cs.colorMap))
-	bar.SetMinSize(fyne.NewSize(6, 24))
+	bar.SetMinSize(fyne.NewSize(6, 28))
+	bar.CornerRadius = 8
+	bar.TopRightCornerRadius = 0
+	bar.BottomRightCornerRadius = 0
 
 	label := canvas.NewText(displayText, selectTextColor())
 	label.Alignment = fyne.TextAlignLeading
-	label.TextSize = 14
+	label.TextSize = 15
 
 	caret := canvas.NewText("▼", selectTextColor())
 	caret.TextSize = 12
 
 	content := container.NewBorder(nil, nil, bar, nil,
 		container.NewPadded(container.NewBorder(nil, nil, nil, caret, label)))
+
+	bg.SetMinSize(fyne.NewSize(0, 36))
 
 	tappable := NewTappable(container.NewMax(bg, content), func() {
 		if !cs.disabled {
@@ -1287,7 +1293,7 @@ func (r *coloredSelectRenderer) Objects() []fyne.CanvasObject {
 }
 
 func selectBackgroundColor() color.Color {
-	return color.NRGBA{R: 54, G: 72, B: 96, A: 255}
+	return color.NRGBA{R: 52, G: 66, B: 86, A: 255}
 }
 
 func selectTextColor() color.Color {
