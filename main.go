@@ -2960,7 +2960,7 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 		return
 	}
 
-	// Collect all video files (including from folders)
+	// Collect all video files (and audio files for audio module)
 	var videoPaths []string
 	for _, uri := range items {
 		logging.Debug(logging.CatModule, "handleModuleDrop: processing uri scheme=%s path=%s", uri.Scheme(), uri.Path())
@@ -2975,7 +2975,7 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 			logging.Debug(logging.CatModule, "processing directory: %s", path)
 			videos := s.findVideoFiles(path)
 			videoPaths = append(videoPaths, videos...)
-		} else if s.isVideoFile(path) {
+		} else if s.isVideoFile(path) || (moduleID == "audio" && s.isAudioFile(path)) {
 			videoPaths = append(videoPaths, path)
 		}
 	}
@@ -3155,6 +3155,30 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 		return
 	}
 
+	// If audio module, load audio/video file into audio slot
+	if moduleID == "audio" {
+		path := videoPaths[0]
+		go func() {
+			src, err := probeVideo(path)
+			if err != nil {
+				logging.Debug(logging.CatModule, "failed to load file for audio: %v", err)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowError(fmt.Errorf("failed to load file: %w", err), s.window)
+				}, false)
+				return
+			}
+
+			// Update state and show module (with small delay to allow flash animation)
+			time.Sleep(350 * time.Millisecond)
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.audioFile = src
+				s.showModule(moduleID)
+				logging.Debug(logging.CatModule, "loaded file for audio module")
+			}, false)
+		}()
+		return
+	}
+
 	// Single file or non-convert module: load first video and show module
 	path := videoPaths[0]
 	logging.Debug(logging.CatModule, "drop on module %s path=%s - starting load", moduleID, path)
@@ -3177,6 +3201,17 @@ func (s *appState) isVideoFile(path string) bool {
 	videoExts := []string{".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg", ".3gp", ".ogv"}
 	for _, videoExt := range videoExts {
 		if ext == videoExt {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *appState) isAudioFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	audioExts := []string{".mp3", ".flac", ".aac", ".opus", ".m4a", ".wav", ".ogg", ".wma", ".alac", ".ape"}
+	for _, audioExt := range audioExts {
+		if ext == audioExt {
 			return true
 		}
 	}
@@ -8538,6 +8573,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			buildCommandPreview()
 		}
 	}
+	uiState.onQualityChange = append(uiState.onQualityChange, func(string) {
+		updateEncodingControls()
+	})
 	updateEncodingControls()
 	if updateQualityVisibility != nil {
 		updateQualityVisibility()
