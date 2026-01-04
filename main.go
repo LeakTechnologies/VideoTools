@@ -546,6 +546,7 @@ func (s *appState) showAbout() {
 		devText,
 		widget.NewLabel(""),
 		widget.NewLabel("Support Development"),
+		widget.NewLabel("Support coming soon"),
 		feedbackLabel,
 	)
 
