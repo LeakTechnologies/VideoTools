@@ -284,7 +284,6 @@ func buildAudioRightPanel(state *appState) fyne.CanvasObject {
 		state.updateAudioBitrateFromQuality()
 		state.persistAudioConfig()
 	})
-	qualitySelect.SetSelected(state.audioQuality)
 
 	// Bitrate entry
 	bitrateLabel := widget.NewLabel("Bitrate:")
@@ -295,6 +294,9 @@ func buildAudioRightPanel(state *appState) fyne.CanvasObject {
 		state.persistAudioConfig()
 	}
 	state.audioBitrateEntry = bitrateEntry
+
+	// Set initial quality after bitrate entry is initialized
+	qualitySelect.SetSelected(state.audioQuality)
 
 	// Set initial format after bitrate entry is initialized
 	formatRadio.SetSelected(state.audioOutputFormat)
@@ -696,7 +698,9 @@ func (s *appState) updateAudioBitrateFromQuality() {
 
 	if bitrate, ok := bitrateMap[s.audioOutputFormat][s.audioQuality]; ok {
 		s.audioBitrate = bitrate
-		s.audioBitrateEntry.SetText(bitrate)
+		if s.audioBitrateEntry != nil {
+			s.audioBitrateEntry.SetText(bitrate)
+		}
 	}
 }
 
