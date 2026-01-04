@@ -11391,6 +11391,41 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		return
 	}
 
+	// If in audio module, handle dropped video files
+	if s.active == "audio" {
+		var videoPaths []string
+		for _, uri := range items {
+			if uri.Scheme() != "file" {
+				continue
+			}
+			path := uri.Path()
+			logging.Debug(logging.CatModule, "drop received path=%s", path)
+			if info, err := os.Stat(path); err == nil && info.IsDir() {
+				videos := s.findVideoFiles(path)
+				videoPaths = append(videoPaths, videos...)
+			} else if s.isVideoFile(path) {
+				videoPaths = append(videoPaths, path)
+			}
+		}
+
+		if len(videoPaths) == 0 {
+			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			return
+		}
+
+		if s.audioBatchMode {
+			fyne.Do(func() {
+				for _, path := range videoPaths {
+					s.addAudioBatchFile(path)
+				}
+			})
+			return
+		}
+
+		go s.loadAudioFile(videoPaths[0])
+		return
+	}
+
 	// If in author module, add video clips
 	if s.active == "author" {
 		var videoPaths []string
