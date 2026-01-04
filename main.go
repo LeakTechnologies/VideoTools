@@ -10018,7 +10018,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		dlg.Show()
 	})
 
-	usePlayer := true
+	usePlayer := state.active != "thumb"
 
 	currentTime := widget.NewLabel("0:00")
 	totalTime := widget.NewLabel(src.DurationString())
@@ -10204,7 +10204,9 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 
 	overlay := container.NewVBox(layout.NewSpacer(), overlayBar)
 	videoWithOverlay := container.NewMax(videoStage, overlay)
-	state.setPlayerSurface(videoStage, int(targetWidth-12), int(targetHeight-12))
+	if usePlayer {
+		state.setPlayerSurface(videoStage, int(targetWidth-12), int(targetHeight-12))
+	}
 
 	stack := container.NewVBox(
 		container.NewPadded(videoWithOverlay),
