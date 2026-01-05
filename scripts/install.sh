@@ -332,33 +332,25 @@ else
         fi
 
         # Install Whisper if requested and not available
-        if [ "$SKIP_WHISPER" = false ] && ! command -v whisper &> /dev/null; then
+        if [ "$SKIP_WHISPER" = false ] && ! command -v whisper &> /dev/null && ! command -v whisper.cpp &> /dev/null; then
             echo ""
-            echo "Installing Whisper for automated subtitling..."
-
-            # Check if Python 3 and pip are available
-            if command -v python3 &> /dev/null && command -v pip3 &> /dev/null; then
-                # Install openai-whisper
-                if pip3 install --user openai-whisper 2>/dev/null; then
-                    echo -e "${GREEN}[OK]${NC} Whisper installed successfully"
-                    echo "To download models, run: whisper --model base dummy.mp3"
-                else
-                    echo -e "${YELLOW}WARNING:${NC} Failed to install Whisper via pip3"
-                    echo "You can install it manually with: pip3 install openai-whisper"
-                fi
-            else
-                echo -e "${YELLOW}WARNING:${NC} Python 3 and pip3 are required for Whisper"
-                echo "Please install Python 3 and pip3, then run: pip3 install openai-whisper"
-            fi
-
-            # Ensure ~/.local/bin is in PATH for user-installed packages
-            if [ -d "$HOME/.local/bin" ] && [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-                echo ""
-                echo -e "${YELLOW}NOTE:${NC} Add ~/.local/bin to your PATH to use Whisper:"
-                echo "  echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc"
-                echo "  source ~/.bashrc"
-            fi
+            echo -e "${YELLOW}WARNING:${NC} Whisper backend not found."
+            echo "Install whisper.cpp manually and ensure its binary is on your PATH."
         fi
+    fi
+
+    # Seed whisper.cpp model from bundled offline assets (base model)
+    whisper_model_src="$(cd "$(dirname "$0")/.." && pwd)/vendor/whisper/ggml-base.bin"
+    whisper_model_dir="$HOME/.local/share/whisper.cpp/models"
+    if [ -f "$whisper_model_src" ]; then
+        mkdir -p "$whisper_model_dir"
+        if [ ! -f "$whisper_model_dir/ggml-base.bin" ]; then
+            cp "$whisper_model_src" "$whisper_model_dir/ggml-base.bin"
+            echo -e "${GREEN}[OK]${NC} Whisper base model installed to $whisper_model_dir"
+        fi
+    else
+        echo -e "${YELLOW}NOTE:${NC} Offline Whisper model not found at vendor/whisper/ggml-base.bin"
+        echo "Place ggml-base.bin there to auto-configure subtitles."
     fi
 
     if ! command -v ffmpeg &> /dev/null; then
