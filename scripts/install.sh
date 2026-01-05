@@ -217,26 +217,12 @@ else
         fi
     fi
 
-    # Ask about Whisper for subtitling
-    if [ -z "$SKIP_WHISPER" ]; then
-        # Check if Whisper is already installed
-        if command -v whisper &> /dev/null || command -v whisper.cpp &> /dev/null; then
-            echo -e "${GREEN}[OK]${NC} Whisper already installed"
-            SKIP_WHISPER=true
-        else
-            echo ""
-            read -p "Install Whisper for automated subtitling? [y/N]: " whisper_choice
-            if [[ "$whisper_choice" =~ ^[Yy]$ ]]; then
-                SKIP_WHISPER=false
-            else
-                SKIP_WHISPER=true
-            fi
-        fi
-    fi
-    if [ "$SKIP_WHISPER" = false ]; then
-        if ! command -v whisper &> /dev/null && ! command -v whisper.cpp &> /dev/null; then
-            missing_deps+=("whisper")
-        fi
+    # Whisper backend check (offline-only, no prompts)
+    if command -v whisper &> /dev/null || command -v whisper.cpp &> /dev/null; then
+        echo -e "${GREEN}[OK]${NC} Whisper backend found"
+    else
+        echo -e "${YELLOW}WARNING:${NC} Whisper backend not found; offline speech-to-text will be unavailable"
+        echo "Install whisper.cpp manually and ensure its binary is on your PATH."
     fi
 
     install_deps=false
@@ -331,12 +317,7 @@ else
             fi
         fi
 
-        # Install Whisper if requested and not available
-        if [ "$SKIP_WHISPER" = false ] && ! command -v whisper &> /dev/null && ! command -v whisper.cpp &> /dev/null; then
-            echo ""
-            echo -e "${YELLOW}WARNING:${NC} Whisper backend not found."
-            echo "Install whisper.cpp manually and ensure its binary is on your PATH."
-        fi
+        # Whisper backend is offline-only; no auto-install here.
     fi
 
     # Seed whisper.cpp model from bundled offline assets (base model)
@@ -349,8 +330,9 @@ else
             echo -e "${GREEN}[OK]${NC} Whisper base model installed to $whisper_model_dir"
         fi
     else
-        echo -e "${YELLOW}NOTE:${NC} Offline Whisper model not found at vendor/whisper/ggml-base.bin"
-        echo "Place ggml-base.bin there to auto-configure subtitles."
+        echo -e "${RED}[ERROR]${NC} Offline Whisper model not found at vendor/whisper/ggml-base.bin"
+        echo "Place ggml-base.bin there to keep installs fully offline."
+        exit 1
     fi
 
     if ! command -v ffmpeg &> /dev/null; then
