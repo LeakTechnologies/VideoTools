@@ -123,6 +123,19 @@ func (s *appState) showSubtitlesView() {
 func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	subtitlesColor := moduleColor("subtitles")
 
+	if strings.TrimSpace(state.subtitleBackendPath) == "" {
+		if detected := detectWhisperBackend(); detected != "" {
+			state.subtitleBackendPath = detected
+			state.persistSubtitlesConfig()
+		}
+	}
+	if strings.TrimSpace(state.subtitleModelPath) == "" {
+		if detected := detectWhisperModel(); detected != "" {
+			state.subtitleModelPath = detected
+			state.persistSubtitlesConfig()
+		}
+	}
+
 	backBtn := widget.NewButton("< BACK", func() {
 		state.showMainMenu()
 	})
@@ -963,6 +976,50 @@ func detectWhisperBackend() string {
 		if found, err := exec.LookPath(candidate); err == nil {
 			return found
 		}
+	}
+	return ""
+}
+
+func detectWhisperModel() string {
+	preferred := []string{
+		filepath.Join("models", "ggml-base.bin"),
+		filepath.Join("models", "ggml-small.bin"),
+		filepath.Join("models", "ggml-medium.bin"),
+		filepath.Join("models", "ggml-large.bin"),
+	}
+	for _, candidate := range preferred {
+		if path, err := filepath.Abs(candidate); err == nil {
+			if _, statErr := os.Stat(path); statErr == nil {
+				return path
+			}
+		}
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+
+	home, _ := os.UserHomeDir()
+	search := []string{}
+	if home != "" {
+		search = append(search,
+			filepath.Join(home, ".cache", "whisper"),
+			filepath.Join(home, ".local", "share", "whisper.cpp"),
+			filepath.Join(home, "whisper.cpp", "models"),
+		)
+	}
+
+	for _, dir := range search {
+		matches, _ := filepath.Glob(filepath.Join(dir, "ggml-*.bin"))
+		if len(matches) == 0 {
+			continue
+		}
+		for _, match := range matches {
+			base := filepath.Base(match)
+			if base == "ggml-base.bin" {
+				return match
+			}
+		}
+		return matches[0]
 	}
 	return ""
 }
