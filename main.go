@@ -2071,11 +2071,40 @@ func (s *appState) refreshQueueView() {
 					logging.Debug(logging.CatSystem, "copy error text failed: %v", err)
 					return
 				}
-				text := strings.TrimSpace(job.Error)
-				if text == "" {
-					text = fmt.Sprintf("%s: no error message available", job.Title)
+				var b strings.Builder
+				b.WriteString("VideoTools Job Error\n")
+				b.WriteString(fmt.Sprintf("Title: %s\n", job.Title))
+				b.WriteString(fmt.Sprintf("Module: %s\n", string(job.Type)))
+				if job.InputFile != "" {
+					b.WriteString(fmt.Sprintf("Input: %s\n", job.InputFile))
 				}
-				s.window.Clipboard().SetContent(text)
+				if job.OutputFile != "" {
+					b.WriteString(fmt.Sprintf("Output: %s\n", job.OutputFile))
+				}
+				errText := strings.TrimSpace(job.Error)
+				if errText == "" {
+					errText = "No error message recorded."
+				}
+				b.WriteString(fmt.Sprintf("Error: %s\n", errText))
+				if job.LogPath != "" {
+					b.WriteString(fmt.Sprintf("Log Path: %s\n", job.LogPath))
+					const maxLines = 30
+					if data, readErr := os.ReadFile(job.LogPath); readErr == nil {
+						lines := strings.Split(string(data), "\n")
+						if len(lines) > maxLines {
+							lines = lines[len(lines)-maxLines:]
+						}
+						b.WriteString("Log Tail:\n")
+						for _, line := range lines {
+							if strings.TrimSpace(line) != "" {
+								b.WriteString("  " + line + "\n")
+							}
+						}
+					} else {
+						b.WriteString(fmt.Sprintf("Log Tail: failed to read log (%v)\n", readErr))
+					}
+				}
+				s.window.Clipboard().SetContent(strings.TrimSpace(b.String()))
 			},
 			func(id string) { // onViewLog
 				job, err := s.jobQueue.Get(id)
