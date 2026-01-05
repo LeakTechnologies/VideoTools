@@ -64,6 +64,9 @@ case "$OS" in
 
         echo "Building VideoTools $APP_VERSION for Windows..."
         export CGO_ENABLED=1
+        if [ -d "$PROJECT_ROOT/vendor" ] && [ ! -f "$PROJECT_ROOT/vendor/modules.txt" ]; then
+            export GOFLAGS="${GOFLAGS:-} -mod=mod"
+        fi
         if go build -ldflags="-H windowsgui -s -w" -o VideoTools.exe .; then
             echo "Build successful! (VideoTools $APP_VERSION)"
             echo ""

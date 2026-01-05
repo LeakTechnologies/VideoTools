@@ -55,6 +55,9 @@ export CGO_ENABLED=1
 export GOCACHE="$PROJECT_ROOT/.cache/go-build"
 export GOMODCACHE="$PROJECT_ROOT/.cache/go-mod"
 mkdir -p "$GOCACHE" "$GOMODCACHE"
+if [ -d "$PROJECT_ROOT/vendor" ] && [ ! -f "$PROJECT_ROOT/vendor/modules.txt" ]; then
+    export GOFLAGS="${GOFLAGS:-} -mod=mod"
+fi
 if go build -o "$BUILD_OUTPUT" .; then
     echo "Build successful! (VideoTools $APP_VERSION)"
     echo ""
