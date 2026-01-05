@@ -186,6 +186,26 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		state.persistSubtitlesConfig()
 	}
 
+	backendLabel := widget.NewLabel("")
+	modelLabel := widget.NewLabel("")
+	refreshWhisperUI := func() {
+		if strings.TrimSpace(state.subtitleBackendPath) != "" {
+			backendLabel.SetText(fmt.Sprintf("Whisper backend: %s", state.subtitleBackendPath))
+			backendEntry.Hide()
+		} else {
+			backendLabel.SetText("")
+			backendEntry.Show()
+		}
+		if strings.TrimSpace(state.subtitleModelPath) != "" {
+			modelLabel.SetText(fmt.Sprintf("Whisper model: %s", state.subtitleModelPath))
+			modelEntry.Hide()
+		} else {
+			modelLabel.SetText("")
+			modelEntry.Show()
+		}
+	}
+	refreshWhisperUI()
+
 	outputEntry := widget.NewEntry()
 	outputEntry.SetPlaceHolder("Output video path (for embed/burn)")
 	outputEntry.SetText(state.subtitleBurnOutput)
@@ -435,6 +455,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		modelEntry.SetText(state.subtitleModelPath)
 		outputEntry.SetText(state.subtitleBurnOutput)
 		offsetEntry.SetText(fmt.Sprintf("%.2f", state.subtitleTimeOffset))
+		refreshWhisperUI()
 	}
 
 	loadCfgBtn := widget.NewButton("Load Config", func() {
@@ -485,7 +506,9 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		applyOffsetBtn,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Offline Speech-to-Text (whisper.cpp)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		backendLabel,
 		backendEntry,
+		modelLabel,
 		modelEntry,
 		container.NewHBox(generateBtn),
 		widget.NewSeparator(),
