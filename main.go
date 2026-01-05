@@ -474,18 +474,31 @@ func openFolder(path string) error {
 	if strings.TrimSpace(path) == "" {
 		return fmt.Errorf("path is empty")
 	}
+	p := filepath.Clean(filepath.FromSlash(path))
+	if abs, err := filepath.Abs(p); err == nil {
+		p = abs
+	}
+	info, err := os.Stat(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			if mkErr := os.MkdirAll(p, 0o755); mkErr != nil {
+				return fmt.Errorf("failed to create folder: %w", mkErr)
+			}
+		} else {
+			return err
+		}
+	} else if !info.IsDir() {
+		p = filepath.Dir(p)
+	}
+
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		p := filepath.Clean(filepath.FromSlash(path))
-		if abs, err := filepath.Abs(p); err == nil {
-			p = abs
-		}
-		cmd = utils.CreateCommandRaw("cmd", "/c", "start", "", p)
+		cmd = utils.CreateCommandRaw("explorer", p)
 	case "darwin":
-		cmd = utils.CreateCommandRaw("open", path)
+		cmd = utils.CreateCommandRaw("open", p)
 	default:
-		cmd = utils.CreateCommandRaw("xdg-open", path)
+		cmd = utils.CreateCommandRaw("xdg-open", p)
 	}
 	return cmd.Start()
 }
