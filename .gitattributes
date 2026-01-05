@@ -3,16 +3,13 @@
 
 # Go files should use LF
 *.go text eol=lf
-
 # Markdown files should use LF
 *.md text eol=lf
-
 # YAML files should use LF
 *.yml text eol=lf
 *.yaml text eol=lf
-
 # JSON files should use LF
 *.json text eol=lf
-
 # Default behavior for text files
 * text=auto
+vendor/whisper/ggml-base.bin filter=lfs diff=lfs merge=lfs -text
