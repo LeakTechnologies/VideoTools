@@ -1009,6 +1009,12 @@ func detectWhisperModel() string {
 		filepath.Join("models", "ggml-small.bin"),
 		filepath.Join("models", "ggml-medium.bin"),
 		filepath.Join("models", "ggml-large.bin"),
+		filepath.Join("vendor", "whisper", "ggml-base.bin"),
+	}
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		preferred = append(preferred, filepath.Join(dir, "vendor", "whisper", "ggml-base.bin"))
+		preferred = append(preferred, filepath.Join(dir, "models", "ggml-base.bin"))
 	}
 	for _, candidate := range preferred {
 		if path, err := filepath.Abs(candidate); err == nil {
