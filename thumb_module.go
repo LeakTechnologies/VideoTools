@@ -520,7 +520,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			}
 		}
 		listScroll := container.NewVScroll(list)
-		listScroll.SetMinSize(fyne.NewSize(0, 140))
+		listScroll.SetMinSize(fyne.NewSize(0, 0))
 		leftColumn.Add(widget.NewLabel("Loaded Videos:"))
 		leftColumn.Add(listScroll)
 	}
