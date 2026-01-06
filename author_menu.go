@@ -415,8 +415,7 @@ func writeSpumuxXML(path, overlayPath, highlightPath, selectPath string, buttons
 	var b strings.Builder
 	b.WriteString("<subpictures>\n")
 	b.WriteString("  <stream>\n")
-	b.WriteString(fmt.Sprintf("    <spu start=\"00:00:00.00\" end=\"00:00:30.00\" image=\"%s\" highlight=\"%s\" select=\"%s\" force=\"yes\">
-",
+	b.WriteString(fmt.Sprintf("    <spu start=\"00:00:00.00\" end=\"00:00:30.00\" image=\"%s\" highlight=\"%s\" select=\"%s\" force=\"yes\"/>",
 		escapeXMLAttr(overlayPath),
 		escapeXMLAttr(highlightPath),
 		escapeXMLAttr(selectPath),
@@ -475,9 +474,9 @@ func findVTLogoPath() string {
 }
 
 func escapeDrawtextText(text string) string {
-	escaped := strings.ReplaceAll(text, "\", "\\\\")
+	escaped := strings.ReplaceAll(text, "\\", "\\\\")
 	escaped = strings.ReplaceAll(escaped, ":", "\\:")
-	escaped = strings.ReplaceAll(escaped, "'", "\' ")
+	escaped = strings.ReplaceAll(escaped, "'", "\\'")
 	escaped = strings.ReplaceAll(escaped, "%", "\\%")
 	return escaped
 }

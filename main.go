@@ -10996,12 +10996,6 @@ func newPlaySession(path string, w, h int, fps, duration float64, targetW, targe
 		unifiedAdapter: unifiedAdapter,
 	}
 }
-	if targetW <= 0 {
-		targetW = 640
-	}
-	if targetH <= 0 {
-		targetH = int(float64(targetW) * (float64(h) / float64(utils.MaxInt(w, 1))))
-	}
 
 	// Create UnifiedPlayer adapter instead of dual-process player
 	adapter := player.NewUnifiedPlayerAdapter(path, w, h, fps, duration, targetW, targetH, prog, frameFunc, img)
