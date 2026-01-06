@@ -1096,6 +1096,8 @@ type appState struct {
 	upscaleFilterChain         []string // Transferred filters from Filters module
 	upscaleFrameRate           string   // Source, 24, 30, 60, or custom
 	upscaleMotionInterpolation bool     // Use motion interpolation for frame rate changes
+	upscaleBlurEnabled         bool     // Apply blur in upscale pipeline
+	upscaleBlurSigma           float64  // Blur strength (sigma)
 
 	// Snippet settings
 	snippetLength       int  // Length of snippet in seconds (default: 20)
@@ -5556,6 +5558,8 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	useMotionInterp, _ := cfg["useMotionInterpolation"].(bool)
 	sourceFrameRate := toFloat(cfg["sourceFrameRate"])
 	qualityPreset, _ := cfg["qualityPreset"].(string)
+	blurEnabled, _ := cfg["blurEnabled"].(bool)
+	blurSigma := toFloat(cfg["blurSigma"])
 
 	if progressCallback != nil {
 		progressCallback(0)
@@ -5611,6 +5615,10 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			// Simple frame rate change (duplicates/drops frames)
 			baseFilters = append(baseFilters, "fps="+frameRate)
 		}
+	}
+
+	if blurEnabled && blurSigma > 0 {
+		baseFilters = append(baseFilters, fmt.Sprintf("gblur=sigma=%.2f", blurSigma))
 	}
 
 	if useAI {
@@ -14934,6 +14942,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		state.upscaleAIThreadsProc = 2
 		state.upscaleAIThreadsSave = 2
 	}
+	if state.upscaleBlurSigma <= 0 {
+		state.upscaleBlurSigma = 1.5
+	}
 
 	// Check AI availability on first load
 	if state.upscaleAIBackend == "" {
@@ -15067,6 +15078,36 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			qualitySelect,
 		),
 		widget.NewLabel("Lower CRF = higher quality/larger files"),
+	))
+
+	blurLabel := widget.NewLabel(fmt.Sprintf("Blur Strength: %.2f", state.upscaleBlurSigma))
+	blurSlider := widget.NewSlider(0.0, 8.0)
+	blurSlider.Step = 0.1
+	blurSlider.Value = state.upscaleBlurSigma
+	blurSlider.OnChanged = func(v float64) {
+		state.upscaleBlurSigma = v
+		blurLabel.SetText(fmt.Sprintf("Blur Strength: %.2f", v))
+	}
+
+	blurCheck := widget.NewCheck("Enable Blur", func(checked bool) {
+		state.upscaleBlurEnabled = checked
+		if checked {
+			blurSlider.Enable()
+		} else {
+			blurSlider.Disable()
+		}
+	})
+	blurCheck.SetChecked(state.upscaleBlurEnabled)
+	if state.upscaleBlurEnabled {
+		blurSlider.Enable()
+	} else {
+		blurSlider.Disable()
+	}
+
+	blurSection := widget.NewCard("Blur (Optional)", "", container.NewVBox(
+		widget.NewLabel("Apply a soft blur during upscale processing"),
+		blurCheck,
+		container.NewVBox(blurLabel, blurSlider),
 	))
 
 	// Frame Rate Section
@@ -15437,6 +15478,8 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 				"aiOutputFormat":         state.upscaleAIOutputFormat,
 				"applyFilters":           state.upscaleApplyFilters,
 				"filterChain":            state.upscaleFilterChain,
+				"blurEnabled":            state.upscaleBlurEnabled,
+				"blurSigma":              state.upscaleBlurSigma,
 				"duration":               state.upscaleFile.Duration,
 				"sourceFrameRate":        state.upscaleFile.FrameRate,
 				"frameRate":              state.upscaleFrameRate,
@@ -15490,6 +15533,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		traditionalSection,
 		resolutionSection,
 		qualitySection,
+		blurSection,
 		frameRateSection,
 		aiSection,
 		filterIntegrationSection,
