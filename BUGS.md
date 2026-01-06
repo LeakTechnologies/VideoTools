@@ -93,12 +93,12 @@ None currently open.
 ## 🧭 Feature Requests (Planned)
 
 ### FEAT-003: Enhancement module blur control
-- **Status**: 🧭 PLANNED
+- **Status**: 🧭 IN PROGRESS
 - **Reporter**: Jake (2026-01-06)
 - **Module**: Enhancement
 - **Description**: Enhancement panel should include a blur control in addition to sharpen/denoise.
 - **Impact**: Medium - expected control in enhancement workflow
-- **Notes**: Add to enhancement UI alongside existing sliders.
+- **Notes**: Implemented blur controls in Upscale first; Enhancement UI still pending.
 
 ### FEAT-004: Upscale output quality should use Bitrate Mode controls
 - **Status**: 🧭 PLANNED
