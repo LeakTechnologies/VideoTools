@@ -569,7 +569,7 @@ func (s *appState) showAbout() {
 		return nil
 	}
 
-	vtLogo := loadLogo("VT_Icon.png", 96)
+	vtLogo := loadLogo("VT_Logo.png", 96)
 	ltLogo := loadLogo("LT_Logo-26.png", 72)
 
 	logsLink := widget.NewButton("Logs Folder", func() {
