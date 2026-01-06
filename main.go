@@ -44,6 +44,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	statepkg "git.leaktechnologies.dev/stu/VideoTools/internal/state"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -1116,35 +1117,35 @@ type appState struct {
 	sidebarVisible bool
 
 	// Author module state
-	authorFile            *videoSource
-	authorChapters        []authorChapter
-	authorSceneThreshold  float64
-	authorDetecting       bool
-	authorClips           []authorClip // Multiple video clips for compilation
-	authorOutputType      string       // "dvd" or "iso"
-	authorRegion          string       // "NTSC", "PAL", "AUTO"
-	authorAspectRatio     string       // "4:3", "16:9", "AUTO"
-	authorCreateMenu      bool         // Whether to create DVD menu
-	authorMenuTemplate    string       // "Simple", "Dark", "Poster"
-	authorMenuBackgroundImage string   // Path to a user-selected background image
-	authorTitle           string       // DVD title
-	authorSubtitles       []string     // Subtitle file paths
-	authorAudioTracks     []string     // Additional audio tracks
-	authorSummaryLabel    *widget.Label
-	authorTreatAsChapters bool   // Treat multiple clips as chapters
-	authorChapterSource   string // embedded, scenes, clips, manual
-	authorChaptersRefresh func() // Refresh hook for chapter list UI
-	authorDiscSize        string // "DVD5" or "DVD9"
-	authorLogText         string
-	authorLogLines        []string // Circular buffer for last N lines
-	authorLogFilePath     string   // Path to log file for full viewing
-	authorLogEntry        *widget.Entry
-	authorLogScroll       *container.Scroll
-	authorProgress        float64
-	authorProgressBar     *widget.ProgressBar
-	authorStatusLabel     *widget.Label
-	authorCancelBtn       *widget.Button
-	authorVideoTSPath     string
+	authorFile                *videoSource
+	authorChapters            []authorChapter
+	authorSceneThreshold      float64
+	authorDetecting           bool
+	authorClips               []authorClip // Multiple video clips for compilation
+	authorOutputType          string       // "dvd" or "iso"
+	authorRegion              string       // "NTSC", "PAL", "AUTO"
+	authorAspectRatio         string       // "4:3", "16:9", "AUTO"
+	authorCreateMenu          bool         // Whether to create DVD menu
+	authorMenuTemplate        string       // "Simple", "Dark", "Poster"
+	authorMenuBackgroundImage string       // Path to a user-selected background image
+	authorTitle               string       // DVD title
+	authorSubtitles           []string     // Subtitle file paths
+	authorAudioTracks         []string     // Additional audio tracks
+	authorSummaryLabel        *widget.Label
+	authorTreatAsChapters     bool   // Treat multiple clips as chapters
+	authorChapterSource       string // embedded, scenes, clips, manual
+	authorChaptersRefresh     func() // Refresh hook for chapter list UI
+	authorDiscSize            string // "DVD5" or "DVD9"
+	authorLogText             string
+	authorLogLines            []string // Circular buffer for last N lines
+	authorLogFilePath         string   // Path to log file for full viewing
+	authorLogEntry            *widget.Entry
+	authorLogScroll           *container.Scroll
+	authorProgress            float64
+	authorProgressBar         *widget.ProgressBar
+	authorStatusLabel         *widget.Label
+	authorCancelBtn           *widget.Button
+	authorVideoTSPath         string
 
 	// Rip module state
 	ripSourcePath  string
@@ -7035,6 +7036,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	_ = registerCallback
 
 	manualQualityOption := "Manual (CRF)"
+	stateMgr := statepkg.NewStateManager(state.convert.Quality, state.convert.BitrateMode, manualQualityOption)
 	var crfEntry *widget.Entry
 	var manualCrfRow *fyne.Container
 	var crfContainer *fyne.Container
@@ -7055,7 +7057,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// State setters with automatic widget synchronization
-	setQuality := func(val string) {
+	applyQuality := func(val string) {
 		if uiState.quality == val {
 			return // No change
 		}
@@ -7101,6 +7103,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			cb(val)
 		}
 		callCallback("updateEncodingControls")
+	}
+
+	stateMgr.OnQualityChange(applyQuality)
+
+	setQuality := func(val string) {
+		stateMgr.SetQuality(val)
 	}
 
 	setResolution := func(val string) {
@@ -8093,24 +8101,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		"VBR":         "VBR (Variable Bitrate)",
 		"Target Size": "Target Size (Calculate from file size)",
 	}
-	bitrateModeSelect = widget.NewSelect(bitrateModeOptions, func(value string) {
-		// Extract short code from label
-		if shortCode, ok := bitrateModeMap[value]; ok {
-			state.convert.BitrateMode = shortCode
-		} else {
-			state.convert.BitrateMode = value
-		}
+	applyBitrateMode := func(value string) {
+		state.convert.BitrateMode = normalizeBitrateMode(value)
 		logging.Debug(logging.CatUI, "bitrate mode set to %s", state.convert.BitrateMode)
-		if state.convert.BitrateMode == "CRF" && state.convert.Quality == manualQualityOption {
-			if crfEntry != nil {
-				crfEntry.Enable()
-			}
-			if manualCrfRow != nil {
-				manualCrfRow.Show()
-			}
-		} else if manualCrfRow != nil {
-			manualCrfRow.Hide()
-		}
 		if updateEncodingControls != nil {
 			updateEncodingControls()
 		}
@@ -8120,6 +8113,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
+	}
+	stateMgr.OnBitrateModeChange(applyBitrateMode)
+	bitrateModeSelect = widget.NewSelect(bitrateModeOptions, func(value string) {
+		// Extract short code from label
+		if shortCode, ok := bitrateModeMap[value]; ok {
+			stateMgr.SetBitrateMode(shortCode)
+		} else {
+			stateMgr.SetBitrateMode(value)
+		}
 	})
 	// Set selected using full label
 	if fullLabel, ok := reverseMap[state.convert.BitrateMode]; ok {
@@ -8128,9 +8130,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bitrateModeSelect.SetSelected(state.convert.BitrateMode)
 	}
 	state.convert.BitrateMode = normalizeBitrateMode(state.convert.BitrateMode)
-	if state.convert.BitrateMode != "CRF" && manualCrfRow != nil {
-		manualCrfRow.Hide()
-	}
+	stateMgr.SetBitrateMode(state.convert.BitrateMode)
 
 	// Manual CRF entry
 	// CRF entry with debouncing (300ms delay) and validation
@@ -8654,8 +8654,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 
 		// Move to CBR for predictable output when a preset is chosen
-		if preset.Bitrate != "" && state.convert.BitrateMode != "CBR" && state.convert.BitrateMode != "VBR" {
-			state.convert.BitrateMode = "CBR"
+		if preset.Bitrate != "" && stateMgr.BitrateMode() != "CBR" && stateMgr.BitrateMode() != "VBR" {
+			stateMgr.SetBitrateMode("CBR")
 			if label, ok := reverseMap["CBR"]; ok {
 				bitrateModeSelect.SetSelected(label)
 			} else {
@@ -11172,7 +11172,8 @@ func (p *playSession) startLocked(offset float64) {
 	p.syncOffset = 0
 	logging.Debug(logging.CatFFMPEG, "playSession start path=%s offset=%.3f fps=%.3f target=%dx%d", p.path, offset, p.fps, p.targetW, p.targetH)
 	p.runVideo(offset)
-	p.runAudio(offset)
+	// TEMPORARY: Disable audio to prevent A/V sync crashes
+	// p.runAudio(offset) will be re-enabled when UnifiedPlayer is properly integrated
 }
 
 func (p *playSession) runVideo(offset float64) {
@@ -14818,11 +14819,11 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 	// Scrollable metadata area for file 1 - use smaller minimum
 	file1InfoScroll := container.NewVScroll(file1Info)
-// Avoid rigid min sizes so window snapping works across modules.
+	// Avoid rigid min sizes so window snapping works across modules.
 
 	// Scrollable metadata area for file 2 - use smaller minimum
 	file2InfoScroll := container.NewVScroll(file2Info)
-// Avoid rigid min sizes so window snapping works across modules.
+	// Avoid rigid min sizes so window snapping works across modules.
 
 	// File 1 column: header, video player, metadata (using Border to make metadata expand)
 	file1Column := container.NewBorder(
