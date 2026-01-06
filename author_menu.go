@@ -463,7 +463,7 @@ func findVTLogoPath() string {
 	}
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
-		search = append(search, filepath.Join(dir, "assets", "logo", "VT_Icon.png")),
+		search = append(search, filepath.Join(dir, "assets", "logo", "VT_Icon.png"))
 	}
 	for _, p := range search {
 		if _, err := os.Stat(p); err == nil {

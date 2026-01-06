@@ -10996,30 +10996,6 @@ func newPlaySession(path string, w, h int, fps, duration float64, targetW, targe
 		unifiedAdapter: unifiedAdapter,
 	}
 }
-
-	// Create UnifiedPlayer adapter instead of dual-process player
-	adapter := player.NewUnifiedPlayerAdapter(path, w, h, fps, duration, targetW, targetH, prog, frameFunc, img)
-
-	// Create playSession wrapper to maintain interface compatibility
-	return &playSession{
-		// Store adapter in videoCmd to avoid breaking existing code
-		videoCmd: (*exec.Cmd)(unsafe.Pointer(adapter)), // Type hack to store adapter pointer
-
-		// Keep interface fields for compatibility
-		path:      path,
-		fps:       fps,
-		width:     w,
-		height:    h,
-		targetW:   targetW,
-		targetH:   targetH,
-		volume:    100,
-		duration:  duration,
-		stop:      make(chan struct{}),
-		done:      make(chan struct{}),
-		prog:      prog,
-		frameFunc: frameFunc,
-		img:       img,
-	}
 }
 
 func (p *playSession) Play() {
@@ -11223,32 +11199,6 @@ func (p *playSession) SetVolume(v float64) {
 		// Send volume command to FFmpeg
 		cmd := fmt.Sprintf("volume %.1f\n", v/100.0)
 		p.writeStringToStdin(cmd)
-	}
-}
-	if v > 100 {
-		v = 100
-	}
-	p.volume = v
-	if v > 0 {
-		p.muted = false
-	} else {
-		p.muted = true
-	}
-	p.mu.Unlock()
-
-	// If volume changed significantly, restart audio with new volume filter
-	// This is necessary because volume is now handled by FFmpeg
-	if math.Abs(oldVolume-v) > 5 || oldMuted != (v <= 0) {
-		p.mu.Lock()
-		if p.audioCmd != nil {
-			// Restart audio with new volume
-			currentPos := p.current
-			p.mu.Unlock()
-			// Stop and restart audio (video keeps playing)
-			p.restartAudio(currentPos)
-		} else {
-			p.mu.Unlock()
-		}
 	}
 }
 
