@@ -5703,36 +5703,47 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		}
 
 		runFFmpegWithProgress := func(args []string, duration float64, startPct, endPct float64) error {
+			if len(args) > 0 {
+				last := args[len(args)-1]
+				args = append(args[:len(args)-1], "-progress", "pipe:1", "-nostats", last)
+			}
 			cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), args...)
 			utils.ApplyNoWindow(cmd)
-			stderr, err := cmd.StderrPipe()
+			stdout, err := cmd.StdoutPipe()
 			if err != nil {
-				return fmt.Errorf("failed to create stderr pipe: %w", err)
+				return fmt.Errorf("failed to create stdout pipe: %w", err)
+			}
+			if logFile != nil {
+				cmd.Stderr = logFile
+			} else {
+				cmd.Stderr = io.Discard
 			}
 			if err := cmd.Start(); err != nil {
 				return fmt.Errorf("failed to start ffmpeg: %w", err)
 			}
-			scanner := bufio.NewScanner(stderr)
+			scanner := bufio.NewScanner(stdout)
 			for scanner.Scan() {
 				line := scanner.Text()
 				if logFile != nil {
 					fmt.Fprintln(logFile, line)
 				}
-				if strings.Contains(line, "time=") && duration > 0 {
-					if idx := strings.Index(line, "time="); idx != -1 {
-						timeStr := line[idx+5:]
-						if spaceIdx := strings.Index(timeStr, " "); spaceIdx != -1 {
-							timeStr = timeStr[:spaceIdx]
-						}
-						var h, m int
-						var s float64
-						if _, err := fmt.Sscanf(timeStr, "%d:%d:%f", &h, &m, &s); err == nil {
-							currentTime := float64(h*3600+m*60) + s
-							progress := startPct + ((currentTime / duration) * (endPct - startPct))
-							if progressCallback != nil {
-								progressCallback(progress)
-							}
-						}
+				if duration <= 0 {
+					continue
+				}
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) != 2 {
+					continue
+				}
+				key, val := parts[0], parts[1]
+				if key == "out_time_ms" {
+					ms, err := strconv.ParseFloat(val, 64)
+					if err != nil {
+						continue
+					}
+					currentTime := ms / 1000000.0
+					progress := startPct + ((currentTime / duration) * (endPct - startPct))
+					if progressCallback != nil {
+						progressCallback(progress)
 					}
 				}
 			}
@@ -5895,6 +5906,8 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		"-crf", strconv.Itoa(crfValue),
 		"-pix_fmt", "yuv420p",
 		"-c:a", "copy",
+		"-progress", "pipe:1",
+		"-nostats",
 		outputPath,
 	)
 
@@ -5902,49 +5915,47 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), args...)
 	utils.ApplyNoWindow(cmd)
 
-	// Create progress reader for stderr
-	stderr, err := cmd.StderrPipe()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return fmt.Errorf("failed to create stderr pipe: %w", err)
+		return fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+	if logFile != nil {
+		cmd.Stderr = logFile
+	} else {
+		cmd.Stderr = io.Discard
 	}
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start upscale: %w", err)
 	}
 
-	// Parse progress from FFmpeg stderr
+	// Parse progress from FFmpeg stdout (-progress pipe:1)
 	go func() {
-		scanner := bufio.NewScanner(stderr)
+		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			line := scanner.Text()
 			if logFile != nil {
 				fmt.Fprintln(logFile, line)
 			}
 
-			// Parse progress from "time=00:01:23.45"
-			if strings.Contains(line, "time=") {
-				// Get duration from job config
-				if duration, ok := cfg["duration"].(float64); ok && duration > 0 {
-					// Extract time from FFmpeg output
-					if idx := strings.Index(line, "time="); idx != -1 {
-						timeStr := line[idx+5:]
-						if spaceIdx := strings.Index(timeStr, " "); spaceIdx != -1 {
-							timeStr = timeStr[:spaceIdx]
-						}
-
-						// Parse time string (HH:MM:SS.ms)
-						var h, m int
-						var s float64
-						if _, err := fmt.Sscanf(timeStr, "%d:%d:%f", &h, &m, &s); err == nil {
-							currentTime := float64(h*3600+m*60) + s
-							progress := (currentTime / duration) * 100.0
-							if progress > 100.0 {
-								progress = 100.0
-							}
-							if progressCallback != nil {
-								progressCallback(progress)
-							}
-						}
+			if duration, ok := cfg["duration"].(float64); ok && duration > 0 {
+				parts := strings.SplitN(line, "=", 2)
+				if len(parts) != 2 {
+					continue
+				}
+				key, val := parts[0], parts[1]
+				if key == "out_time_ms" {
+					ms, err := strconv.ParseFloat(val, 64)
+					if err != nil {
+						continue
+					}
+					currentTime := ms / 1000000.0
+					progress := (currentTime / duration) * 100.0
+					if progress > 100.0 {
+						progress = 100.0
+					}
+					if progressCallback != nil {
+						progressCallback(progress)
 					}
 				}
 			}
