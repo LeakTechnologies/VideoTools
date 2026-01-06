@@ -2,13 +2,13 @@
 
 This file tracks what each agent is currently working on to prevent conflicts and coordinate changes.
 
-**Last Updated**: 2026-01-04 21:10 UTC
+**Last Updated**: 2026-01-06 19:05 UTC
 
 ---
 
 ## 🔴 Current Blockers
 
-- **Build Status**: ✅ PASSING
+- **Build Status**: ❌ FAILING (main.go syntax errors introduced by unified player changes)
 - **Critical Bug**: BUG-005 - CRF quality settings not showing when CRF mode selected (see BUGS.md)
 
 ---
@@ -59,7 +59,7 @@ This file tracks what each agent is currently working on to prevent conflicts an
 ---
 
 ### 🤖 opencode
-**Status**: 🎯 PRIORITY HANDOFF - Fix critical bug + widget deduplication
+**Status**: 🧩 IN PROGRESS - Unified player integration + CRF fixes
 
 **🔥 IMMEDIATE TASKS** (from Claude):
 1. **FIX BUG-005** (CRITICAL): CRF quality settings not showing
@@ -113,6 +113,20 @@ This file tracks what each agent is currently working on to prevent conflicts an
 **Coordination Notes**:
 - User will be using Codex for UI work this week - coordinate visual changes
 - Build must pass before UI work can continue
+
+---
+
+### 🤖 Codex (UI focus)
+**Status**: 🧱 ACTIVE - UI palette separation + state manager scaffolding
+
+**Working On Now** (2026-01-06):
+- ✅ Added `internal/state/convert_manager.go` (state manager scaffolding for Convert)
+- ✅ Updated codec palette separation to make format/audio/video colors more distinct
+
+**Next for Codex**:
+1. Wire `ConvertManager` into convert UI (quality + bitrate mode visibility)
+2. Validate CRF visibility paths once build passes
+3. Review any cross-category color clashes in dropdown lists
 
 ---
 

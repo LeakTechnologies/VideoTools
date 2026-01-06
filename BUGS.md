@@ -2,7 +2,7 @@
 
 Track all bugs, issues, and behavioral problems here. Update this file whenever you discover or fix a bug.
 
-**Last Updated**: 2026-01-05 16:05 UTC
+**Last Updated**: 2026-01-06 19:35 UTC
 
 ---
 
@@ -59,7 +59,22 @@ Track all bugs, issues, and behavioral problems here. Update this file whenever 
 
 ## 🟠 High Priority Bugs (Major Issues)
 
-None currently open.
+### BUG-010: Upscale jobs show no progress during FFmpeg conversions
+- **Status**: ✅ FIXED (2026-01-06, needs verification)
+- **Reporter**: Jake (2026-01-06)
+- **Module**: Upscale / Queue
+- **Description**: Upscale jobs that rely on FFmpeg conversions stay at 0.0% progress even while running; status updates do not advance until completion.
+- **Steps to Reproduce**:
+  1. Run Upscale job that uses FFmpeg conversion
+  2. Observe queue progress
+  3. Expected: Progress updates during conversion
+  4. Actual: Progress remains 0.0% until completion
+- **Impact**: High - No feedback during long-running jobs
+- **Root Cause**: FFmpeg progress parsing relied on stderr time updates; piped output used CR-only updates.
+- **Files to Check**:
+  - `main.go:executeUpscaleJob` (progress pipe parsing)
+- **Fixed By**: Codex
+- **Verified**: No
 
 ---
 
@@ -72,6 +87,26 @@ None currently open.
 ## 🟢 Low Priority Bugs (Minor Issues)
 
 None currently open.
+
+---
+
+## 🧭 Feature Requests (Planned)
+
+### FEAT-003: Enhancement module blur control
+- **Status**: 🧭 PLANNED
+- **Reporter**: Jake (2026-01-06)
+- **Module**: Enhancement
+- **Description**: Enhancement panel should include a blur control in addition to sharpen/denoise.
+- **Impact**: Medium - expected control in enhancement workflow
+- **Notes**: Add to enhancement UI alongside existing sliders.
+
+### FEAT-004: Upscale output quality should use Bitrate Mode controls
+- **Status**: 🧭 PLANNED
+- **Reporter**: Jake (2026-01-06)
+- **Module**: Upscale
+- **Description**: Replace Upscale "Output Quality" with the Bitrate Mode controls used in Convert Advanced.
+- **Impact**: Medium - consistent workflow across modules
+- **Notes**: Reuse Convert bitrate UI pattern once state manager is stable.
 
 ---
 

@@ -28,10 +28,15 @@ This roadmap is intentionally lightweight. It captures the next few high-priorit
 - **Enhancement module foundation** - DEPENDS ON PLAYER
   - Unified Filters + Upscale workflow
   - Content-type aware processing (general/anime/film)
+  - Add blur control alongside sharpen/denoise
   - AI model management system (extensible for future models)
   - Multi-pass processing pipeline
   - Before/after preview system
   - Real-time enhancement feedback
+
+- **Upscale workflow parity**
+  - Replace Upscale output quality with Convert-style Bitrate Mode controls
+  - Ensure FFmpeg-based upscale jobs report progress in queue
 
 ## Next (dev25+)
 

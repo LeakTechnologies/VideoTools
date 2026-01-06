@@ -12,43 +12,43 @@ import (
 
 // Container / Format Colors (File Wrapper)
 var (
-	ColorMKV    = utils.MustHex("#0EA5E9") // Blue-Sky - Flexible container
+	ColorMKV    = utils.MustHex("#2563EB") // Deep Blue - Flexible container
 	ColorRemux  = utils.MustHex("#9CA3AF") // Neutral Grey - Lossless remux
-	ColorMP4    = utils.MustHex("#2563EB") // Deep Blue - Consumer-friendly
-	ColorMOV    = utils.MustHex("#7C3AED") // Violet - Pro / Apple lineage
-	ColorAVI    = utils.MustHex("#6B7280") // Grey - Legacy container
-	ColorWEBM   = utils.MustHex("#10B981") // Emerald - Web-native
-	ColorTS     = utils.MustHex("#F59E0B") // Amber - Broadcast / transport streams
-	ColorM2TS   = utils.MustHex("#F97316") // Orange - Broadcast / transport streams
+	ColorMP4    = utils.MustHex("#1D4ED8") // Navy Blue - Consumer-friendly
+	ColorMOV    = utils.MustHex("#6366F1") // Indigo - Pro / Apple lineage
+	ColorAVI    = utils.MustHex("#64748B") // Slate - Legacy container
+	ColorWEBM   = utils.MustHex("#059669") // Emerald - Web-native
+	ColorTS     = utils.MustHex("#D97706") // Amber - Broadcast / transport streams
+	ColorM2TS   = utils.MustHex("#EA580C") // Orange - Broadcast / transport streams
 )
 
 // Video Codec Colors (Compression Method)
 // Modern / Efficient Codecs
 var (
 	ColorAV1    = utils.MustHex("#22C55E") // Green - Modern, efficient
-	ColorHEVC   = utils.MustHex("#A855F7") // Purple - Modern, efficient
-	ColorH265   = utils.MustHex("#A855F7") // Purple - Same as HEVC
-	ColorVP9    = utils.MustHex("#14B8A6") // Teal - Modern, efficient
+	ColorHEVC   = utils.MustHex("#0D9488") // Teal - Modern, efficient
+	ColorH265   = utils.MustHex("#0D9488") // Teal - Same as HEVC
+	ColorVP9    = utils.MustHex("#06B6D4") // Cyan - Modern, efficient
 )
 
 // Established / Legacy Video Codecs
 var (
-	ColorH264   = utils.MustHex("#3B82F6") // Blue - Compatibility
-	ColorAVC    = utils.MustHex("#3B82F6") // Blue - Same as H.264
-	ColorMPEG2  = utils.MustHex("#EAB308") // Yellow-Amber - Legacy / broadcast
-	ColorDivX   = utils.MustHex("#F97316") // Orange - Legacy
-	ColorXviD   = utils.MustHex("#F97316") // Orange - Legacy
-	ColorMPEG4  = utils.MustHex("#F97316") // Orange - Legacy
+	ColorH264   = utils.MustHex("#38BDF8") // Sky - Compatibility
+	ColorAVC    = utils.MustHex("#38BDF8") // Sky - Same as H.264
+	ColorMPEG2  = utils.MustHex("#FBBF24") // Amber - Legacy / broadcast
+	ColorDivX   = utils.MustHex("#FB7185") // Rose - Legacy
+	ColorXviD   = utils.MustHex("#FB7185") // Rose - Legacy
+	ColorMPEG4  = utils.MustHex("#FB7185") // Rose - Legacy
 )
 
 // Audio Codec Colors (Secondary but Distinct)
 var (
-	ColorOpus   = utils.MustHex("#EC4899") // Magenta - Modern audio
-	ColorAAC    = utils.MustHex("#F59E0B") // Amber - Common audio
-	ColorFLAC   = utils.MustHex("#8B5CF6") // Violet - Lossless audio
+	ColorOpus   = utils.MustHex("#DB2777") // Magenta - Modern audio
+	ColorAAC    = utils.MustHex("#FB7185") // Rose - Common audio
+	ColorFLAC   = utils.MustHex("#C084FC") // Violet - Lossless audio
 	ColorMP3    = utils.MustHex("#EF4444") // Red - Legacy audio
-	ColorAC3    = utils.MustHex("#22C55E") // Green - Surround audio
-	ColorVorbis = utils.MustHex("#06B6D4") // Cyan - Open codec
+	ColorAC3    = utils.MustHex("#F59E0B") // Amber - Surround audio
+	ColorVorbis = utils.MustHex("#F97316") // Orange - Open codec
 )
 
 // Pixel Format / Colour Data (Technical Metadata)
