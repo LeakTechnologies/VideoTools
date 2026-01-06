@@ -10,9 +10,9 @@ import (
 	"fyne.io/fyne/v2/canvas"
 )
 
-// unifiedPlayerAdapter wraps UnifiedPlayer to provide playSession interface compatibility
+// UnifiedPlayerAdapter wraps UnifiedPlayer to provide playSession interface compatibility
 // This allows seamless replacement of the dual-process player with UnifiedPlayer
-type unifiedPlayerAdapter struct {
+type UnifiedPlayerAdapter struct {
 	// Core UnifiedPlayer
 	player *UnifiedPlayer
 
@@ -43,8 +43,8 @@ type unifiedPlayerAdapter struct {
 }
 
 // NewUnifiedPlayerAdapter creates a new adapter that wraps UnifiedPlayer
-func NewUnifiedPlayerAdapter(path string, width, height int, fps, duration float64, targetW, targetH int, prog func(float64), frameFunc func(int), img *canvas.Image) *unifiedPlayerAdapter {
-	adapter := &unifiedPlayerAdapter{
+func NewUnifiedPlayerAdapter(path string, width, height int, fps, duration float64, targetW, targetH int, prog func(float64), frameFunc func(int), img *canvas.Image) *UnifiedPlayerAdapter {
+	adapter := &UnifiedPlayerAdapter{
 		path:      path,
 		fps:       fps,
 		width:     width,
@@ -105,7 +105,7 @@ func NewUnifiedPlayerAdapter(path string, width, height int, fps, duration float
 }
 
 // Play starts or resumes playback
-func (p *unifiedPlayerAdapter) Play() {
+func (p *UnifiedPlayerAdapter) Play() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -129,7 +129,7 @@ func (p *unifiedPlayerAdapter) Play() {
 }
 
 // Pause pauses playback
-func (p *unifiedPlayerAdapter) Pause() {
+func (p *UnifiedPlayerAdapter) Pause() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -138,7 +138,7 @@ func (p *unifiedPlayerAdapter) Pause() {
 }
 
 // Seek seeks to the specified time offset
-func (p *unifiedPlayerAdapter) Seek(offset float64) {
+func (p *UnifiedPlayerAdapter) Seek(offset float64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -171,7 +171,7 @@ func (p *unifiedPlayerAdapter) Seek(offset float64) {
 }
 
 // StepFrame moves forward or backward by a specific number of frames
-func (p *unifiedPlayerAdapter) StepFrame(delta int) {
+func (p *UnifiedPlayerAdapter) StepFrame(delta int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -216,14 +216,14 @@ func (p *unifiedPlayerAdapter) StepFrame(delta int) {
 }
 
 // GetCurrentFrame returns the current frame number
-func (p *unifiedPlayerAdapter) GetCurrentFrame() int {
+func (p *UnifiedPlayerAdapter) GetCurrentFrame() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.frameN
 }
 
 // SetVolume sets the audio volume (0-100)
-func (p *unifiedPlayerAdapter) SetVolume(v float64) {
+func (p *UnifiedPlayerAdapter) SetVolume(v float64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -239,7 +239,7 @@ func (p *unifiedPlayerAdapter) SetVolume(v float64) {
 }
 
 // Stop stops playback and cleans up resources
-func (p *unifiedPlayerAdapter) Stop() {
+func (p *UnifiedPlayerAdapter) Stop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -259,7 +259,7 @@ func (p *unifiedPlayerAdapter) Stop() {
 }
 
 // startUpdateLoop starts the update loop for progress tracking
-func (p *unifiedPlayerAdapter) startUpdateLoop() {
+func (p *UnifiedPlayerAdapter) startUpdateLoop() {
 	if p.updateTicker != nil {
 		return // Already running
 	}
@@ -298,7 +298,7 @@ func (p *unifiedPlayerAdapter) startUpdateLoop() {
 }
 
 // stopUpdateLoop stops the update loop
-func (p *unifiedPlayerAdapter) stopUpdateLoop() {
+func (p *UnifiedPlayerAdapter) stopUpdateLoop() {
 	if p.updateTicker != nil {
 		p.updateTicker.Stop()
 		p.updateTicker = nil
@@ -306,7 +306,7 @@ func (p *unifiedPlayerAdapter) stopUpdateLoop() {
 }
 
 // GetVideoFrame returns the current video frame for display
-func (p *unifiedPlayerAdapter) GetVideoFrame() *image.RGBA {
+func (p *UnifiedPlayerAdapter) GetVideoFrame() *image.RGBA {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -330,20 +330,20 @@ func (p *unifiedPlayerAdapter) GetVideoFrame() *image.RGBA {
 }
 
 // IsPlaying returns whether playback is active
-func (p *unifiedPlayerAdapter) IsPlaying() bool {
+func (p *UnifiedPlayerAdapter) IsPlaying() bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return !p.paused
 }
 
 // GetDuration returns the total duration in seconds
-func (p *unifiedPlayerAdapter) GetDuration() float64 {
+func (p *UnifiedPlayerAdapter) GetDuration() float64 {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.duration
 }
 
 // Close closes the adapter and cleans up resources
-func (p *unifiedPlayerAdapter) Close() {
+func (p *UnifiedPlayerAdapter) Close() {
 	p.Stop()
 }
