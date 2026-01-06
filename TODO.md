@@ -1,4 +1,4 @@
-# VideoTools TODO (v0.1.0-dev23+ plan)
+# VideoTools TODO (v0.1.0-dev24+ plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
@@ -11,7 +11,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Create placeholder stubs for missing documents that are essential (e.g., `CONTRIBUTING.md`) or remove the links if they are not.
   - This ensures a professional and navigable documentation experience.
 
-## Critical Priority: dev23
+## Critical Priority: dev24
 
 ### VIDEO PLAYER IMPLEMENTATION
 
