@@ -37,6 +37,10 @@ This roadmap is intentionally lightweight. It captures the next few high-priorit
 - **Upscale workflow parity**
   - Replace Upscale output quality with Convert-style Bitrate Mode controls
   - Ensure FFmpeg-based upscale jobs report progress in queue
+- **Authoring structure upgrade**
+  - Feature/Extras/Gallery content types with subtype grouping
+  - Chapter thumbnails auto-generated for Feature only
+  - Galleries authored as still-image slideshows under Extras
 
 ## Next (dev25+)
 

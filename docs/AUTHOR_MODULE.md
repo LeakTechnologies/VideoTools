@@ -23,6 +23,59 @@ That's it. The DVD will play in any player.
 
 ---
 
+## Content Types: Feature, Extras, Galleries
+
+The Author module treats every import as a **content type**, not just a file:
+
+- **Feature**: the main movie title (supports chapters and chapter menus)
+- **Extra**: bonus video titles (no chapters, separate DVD titles)
+- **Gallery**: still-image slideshows (photos, artwork, stills)
+
+### Default Behavior
+
+- All imported videos default to **Feature**
+- You can change each video’s **Content Type** using the per-item dropdown
+
+### Extras Subtypes
+
+Extras must be assigned a subtype so they can be grouped in menus:
+
+- Behind the Scenes
+- Deleted Scenes
+- Featurettes
+- Interviews
+- Trailers
+- Commentary
+- Other
+
+When a video is switched to **Extra**:
+
+- It is removed from Feature and chapter logic
+- It becomes a separate DVD title under **Extras**
+
+Galleries behave like DVD-accurate still slideshows:
+
+- Next / Previous image navigation
+- Optional auto-advance
+- Separate from videos and chapters
+
+---
+
+## Chapter Thumbnails (Automatic, Feature Only)
+
+Every **Feature** chapter gets a thumbnail image for the Chapters menu.
+
+### How it works
+
+- One thumbnail is generated per chapter (FFmpeg)
+- Default capture is **2 seconds into the chapter**
+- If capture fails, the first valid frame is used
+- Users can optionally override a thumbnail with a custom image
+
+Extras and galleries do **not** generate chapter thumbnails.
+
+---
+
 ## Scene Detection - Finding Chapter Points Automatically
 
 ### What Are Chapters?
