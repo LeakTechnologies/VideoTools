@@ -10996,7 +10996,6 @@ func newPlaySession(path string, w, h int, fps, duration float64, targetW, targe
 		unifiedAdapter: unifiedAdapter,
 	}
 }
-}
 
 func (p *playSession) Play() {
 	p.mu.Lock()
@@ -11123,50 +11122,6 @@ func (p *playSession) StepFrame(delta int) {
 
 	if p.prog != nil {
 		p.prog(p.current)
-	}
-}
-
-	// Calculate current frame from time position (not from p.frameN which resets on seek)
-	currentFrame := int(p.current * p.fps)
-	targetFrame := currentFrame + delta
-
-	// Clamp to valid range
-	if targetFrame < 0 {
-		targetFrame = 0
-	}
-	maxFrame := int(p.duration * p.fps)
-	if targetFrame > maxFrame {
-		targetFrame = maxFrame
-	}
-
-	// Convert to time offset
-	offset := float64(targetFrame) / p.fps
-	if offset < 0 {
-		offset = 0
-	}
-	if offset > p.duration {
-		offset = p.duration
-	}
-
-	// Auto-pause when frame stepping
-	p.paused = true
-	p.current = offset
-	p.stopLocked()
-	p.startLocked(p.current)
-	p.paused = true
-
-	// Ensure pause is maintained
-	time.AfterFunc(30*time.Millisecond, func() {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		p.paused = true
-	})
-
-	if p.prog != nil {
-		p.prog(p.current)
-	}
-	if p.frameFunc != nil {
-		p.frameFunc(targetFrame)
 	}
 }
 
