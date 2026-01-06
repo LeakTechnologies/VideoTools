@@ -1098,6 +1098,10 @@ type appState struct {
 	upscaleMotionInterpolation bool     // Use motion interpolation for frame rate changes
 	upscaleBlurEnabled         bool     // Apply blur in upscale pipeline
 	upscaleBlurSigma           float64  // Blur strength (sigma)
+	upscaleEncoderPreset       string   // libx264 preset for upscale output
+	upscaleBitrateMode         string   // CRF, CBR, VBR
+	upscaleBitratePreset       string   // preset label for bitrate modes
+	upscaleManualBitrate       string   // manual bitrate value (e.g., 2500k)
 
 	// Snippet settings
 	snippetLength       int  // Length of snippet in seconds (default: 20)
@@ -5558,6 +5562,10 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	useMotionInterp, _ := cfg["useMotionInterpolation"].(bool)
 	sourceFrameRate := toFloat(cfg["sourceFrameRate"])
 	qualityPreset, _ := cfg["qualityPreset"].(string)
+	encoderPreset, _ := cfg["encoderPreset"].(string)
+	bitrateMode, _ := cfg["bitrateMode"].(string)
+	bitratePreset, _ := cfg["bitratePreset"].(string)
+	manualBitrate, _ := cfg["manualBitrate"].(string)
 	blurEnabled, _ := cfg["blurEnabled"].(bool)
 	blurSigma := toFloat(cfg["blurSigma"])
 
@@ -5588,6 +5596,91 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		crfValue = 18
 	case "Near-lossless (CRF 16)":
 		crfValue = 16
+	}
+
+	resolveBitrate := func() string {
+		if strings.TrimSpace(manualBitrate) != "" {
+			return manualBitrate
+		}
+		switch bitratePreset {
+		case "0.5 Mbps - Ultra Low":
+			return "500k"
+		case "1.0 Mbps - Very Low":
+			return "1000k"
+		case "1.5 Mbps - Low":
+			return "1500k"
+		case "2.0 Mbps - Medium-Low":
+			return "2000k"
+		case "2.5 Mbps - Medium":
+			return "2500k"
+		case "4.0 Mbps - Good":
+			return "4000k"
+		case "6.0 Mbps - High":
+			return "6000k"
+		case "8.0 Mbps - Very High":
+			return "8000k"
+		default:
+			return "2500k"
+		}
+	}
+
+	parseBitrateKbps := func(val string) int {
+		v := strings.TrimSpace(strings.ToLower(val))
+		if v == "" {
+			return 0
+		}
+		mult := 1.0
+		if strings.HasSuffix(v, "k") {
+			v = strings.TrimSuffix(v, "k")
+			mult = 1
+		} else if strings.HasSuffix(v, "m") {
+			v = strings.TrimSuffix(v, "m")
+			mult = 1000
+		}
+		num, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return 0
+		}
+		return int(num * mult)
+	}
+
+	normalizeBitrateMode := func(mode string) string {
+		switch {
+		case strings.HasPrefix(strings.ToUpper(mode), "CBR"):
+			return "CBR"
+		case strings.HasPrefix(strings.ToUpper(mode), "VBR"):
+			return "VBR"
+		default:
+			return "CRF"
+		}
+	}
+
+	appendEncodingArgs := func(args []string) []string {
+		preset := encoderPreset
+		if strings.TrimSpace(preset) == "" {
+			preset = "slow"
+		}
+		mode := normalizeBitrateMode(bitrateMode)
+		args = append(args, "-preset", preset)
+		switch mode {
+		case "CBR", "VBR":
+			bitrateVal := resolveBitrate()
+			args = append(args, "-b:v", bitrateVal)
+			kbps := parseBitrateKbps(bitrateVal)
+			if kbps > 0 {
+				maxrate := kbps
+				bufsize := kbps * 2
+				if mode == "VBR" {
+					maxrate = kbps * 2
+					bufsize = kbps * 4
+				}
+				args = append(args, "-maxrate", fmt.Sprintf("%dk", maxrate))
+				args = append(args, "-bufsize", fmt.Sprintf("%dk", bufsize))
+			}
+		default:
+			args = append(args, "-crf", strconv.Itoa(crfValue))
+		}
+		return args
 	}
 
 	// Build filter chain
@@ -5849,10 +5942,9 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			reassembleArgs = append(reassembleArgs, "-vf", finalScale)
 		}
 
+		reassembleArgs = append(reassembleArgs, "-c:v", "libx264")
+		reassembleArgs = appendEncodingArgs(reassembleArgs)
 		reassembleArgs = append(reassembleArgs,
-			"-c:v", "libx264",
-			"-preset", "slow",
-			"-crf", strconv.Itoa(crfValue),
 			"-pix_fmt", "yuv420p",
 			"-c:a", "copy",
 			"-shortest",
@@ -5908,10 +6000,9 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Use lossless MKV by default for upscales; copy audio
+	args = append(args, "-c:v", "libx264")
+	args = appendEncodingArgs(args)
 	args = append(args,
-		"-c:v", "libx264",
-		"-preset", "slow",
-		"-crf", strconv.Itoa(crfValue),
 		"-pix_fmt", "yuv420p",
 		"-c:a", "copy",
 		"-progress", "pipe:1",
@@ -11267,8 +11358,22 @@ func (p *playSession) runAudio(offset float64) {
 		p.audioActive.Store(false)
 		return
 	}
-	pr, pw := io.Pipe()
-	player := ctx.NewPlayer(pr)
+	// Use new UnifiedPlayer with proper A/V synchronization
+	unifiedPlayer := player.NewUnifiedPlayer(pr)
+	if player == nil {
+		logging.Error(logging.CatPlayer, "audio player creation failed (video-only playback)")
+		return
+	}
+	defer pr.Close()
+	defer pw.Close()
+
+	player.Play()
+	p.audioActive.Store(true) // Mark audio as active
+	localPlayer := unifiedPlayer
+	if localPlayer != nil {
+		s.window.Canvas().SetContent(localPlayer)
+	}
+	return localPlayer, nil
 	if player == nil {
 		logging.Debug(logging.CatFFMPEG, "audio player creation failed (video-only playback)")
 		p.audioActive.Store(false)
@@ -14725,11 +14830,11 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 	// Scrollable metadata area for file 1 - use smaller minimum
 	file1InfoScroll := container.NewVScroll(file1Info)
-// Avoid rigid min sizes so window snapping works across modules.
+	// Avoid rigid min sizes so window snapping works across modules.
 
 	// Scrollable metadata area for file 2 - use smaller minimum
 	file2InfoScroll := container.NewVScroll(file2Info)
-// Avoid rigid min sizes so window snapping works across modules.
+	// Avoid rigid min sizes so window snapping works across modules.
 
 	// File 1 column: header, video player, metadata (using Border to make metadata expand)
 	file1Column := container.NewBorder(
@@ -14929,6 +15034,18 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	if state.upscaleQualityPreset == "" {
 		state.upscaleQualityPreset = "Near-lossless (CRF 16)"
 	}
+	if state.upscaleEncoderPreset == "" {
+		state.upscaleEncoderPreset = "slow"
+	}
+	if state.upscaleBitrateMode == "" {
+		state.upscaleBitrateMode = "CRF"
+	}
+	if state.upscaleBitratePreset == "" {
+		state.upscaleBitratePreset = "2.5 Mbps - Medium"
+	}
+	if state.upscaleManualBitrate == "" {
+		state.upscaleManualBitrate = "2500k"
+	}
 	if state.upscaleAIPreset == "" {
 		state.upscaleAIPreset = "Balanced"
 		state.upscaleAIScale = 4.0
@@ -15024,62 +15141,6 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	methodInfo.TextStyle = fyne.TextStyle{Italic: true}
 	methodInfo.Wrapping = fyne.TextWrapWord
 
-	traditionalSection := widget.NewCard("Traditional Scaling (FFmpeg)", "", container.NewVBox(
-		widget.NewLabel("Classic upscaling methods - always available"),
-		container.NewGridWithColumns(2,
-			widget.NewLabel("Scaling Algorithm:"),
-			methodSelect,
-		),
-		methodLabel,
-		widget.NewSeparator(),
-		methodInfo,
-	))
-
-	// Resolution Selection Section
-	resLabel := widget.NewLabel(fmt.Sprintf("Target: %s", state.upscaleTargetRes))
-	resSelect := widget.NewSelect([]string{
-		"Match Source",
-		"2X (relative)",
-		"4X (relative)",
-		"720p (1280x720)",
-		"1080p (1920x1080)",
-		"1440p (2560x1440)",
-		"4K (3840x2160)",
-		"8K (7680x4320)",
-		"Custom",
-	}, func(s string) {
-		state.upscaleTargetRes = s
-		resLabel.SetText(fmt.Sprintf("Target: %s", s))
-	})
-	resSelect.SetSelected(state.upscaleTargetRes)
-
-	resolutionSection := widget.NewCard("Target Resolution", "", container.NewVBox(
-		widget.NewLabel("Select output resolution"),
-		container.NewGridWithColumns(2,
-			widget.NewLabel("Resolution:"),
-			resSelect,
-		),
-		resLabel,
-		sourceResLabel,
-	))
-
-	qualitySelect := widget.NewSelect([]string{
-		"Lossless (CRF 0)",
-		"Near-lossless (CRF 16)",
-		"High (CRF 18)",
-	}, func(s string) {
-		state.upscaleQualityPreset = s
-	})
-	qualitySelect.SetSelected(state.upscaleQualityPreset)
-
-	qualitySection := widget.NewCard("Output Quality", "", container.NewVBox(
-		container.NewGridWithColumns(2,
-			widget.NewLabel("Quality:"),
-			qualitySelect,
-		),
-		widget.NewLabel("Lower CRF = higher quality/larger files"),
-	))
-
 	blurLabel := widget.NewLabel(fmt.Sprintf("Blur Strength: %.2f", state.upscaleBlurSigma))
 	blurSlider := widget.NewSlider(0.0, 8.0)
 	blurSlider.Step = 0.1
@@ -15104,10 +15165,178 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		blurSlider.Disable()
 	}
 
-	blurSection := widget.NewCard("Blur (Optional)", "", container.NewVBox(
-		widget.NewLabel("Apply a soft blur during upscale processing"),
-		blurCheck,
-		container.NewVBox(blurLabel, blurSlider),
+	mediumBlue := utils.MustHex("#13182B")
+	navyBlue := utils.MustHex("#191F35")
+
+	buildUpscaleBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
+		bg := canvas.NewRectangle(navyBlue)
+		bg.CornerRadius = 10
+		bg.StrokeColor = gridColor
+		bg.StrokeWidth = 1
+		body := container.NewVBox(
+			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewSeparator(),
+			content,
+		)
+		return container.NewMax(bg, container.NewPadded(body))
+	}
+
+	// Resolution Selection Section
+	resLabel := widget.NewLabel(fmt.Sprintf("Target: %s", state.upscaleTargetRes))
+	resSelect := widget.NewSelect([]string{
+		"Match Source",
+		"2X (relative)",
+		"4X (relative)",
+		"720p (1280x720)",
+		"1080p (1920x1080)",
+		"1440p (2560x1440)",
+		"4K (3840x2160)",
+		"8K (7680x4320)",
+		"Custom",
+	}, func(s string) {
+		state.upscaleTargetRes = s
+		resLabel.SetText(fmt.Sprintf("Target: %s", s))
+	})
+	resSelect.SetSelected(state.upscaleTargetRes)
+
+	resolutionSection := buildUpscaleBox("Target Resolution", container.NewVBox(
+		widget.NewLabel("Select output resolution"),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Resolution:"),
+			resSelect,
+		),
+		resLabel,
+		sourceResLabel,
+	))
+
+	qualitySelect := widget.NewSelect([]string{
+		"Lossless (CRF 0)",
+		"Near-lossless (CRF 16)",
+		"High (CRF 18)",
+	}, func(s string) {
+		state.upscaleQualityPreset = s
+	})
+	qualitySelect.SetSelected(state.upscaleQualityPreset)
+
+	encoderPresetSelect := widget.NewSelect([]string{
+		"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow",
+	}, func(s string) {
+		state.upscaleEncoderPreset = s
+	})
+	encoderPresetSelect.SetSelected(state.upscaleEncoderPreset)
+
+	var updateEncodingVisibility func()
+
+	bitrateModeSelect := widget.NewSelect([]string{
+		"CRF (Constant Rate Factor)",
+		"CBR (Constant Bitrate)",
+		"VBR (Variable Bitrate)",
+	}, func(s string) {
+		switch {
+		case strings.HasPrefix(s, "CRF"):
+			state.upscaleBitrateMode = "CRF"
+		case strings.HasPrefix(s, "CBR"):
+			state.upscaleBitrateMode = "CBR"
+		case strings.HasPrefix(s, "VBR"):
+			state.upscaleBitrateMode = "VBR"
+		default:
+			state.upscaleBitrateMode = s
+		}
+		if updateEncodingVisibility != nil {
+			updateEncodingVisibility()
+		}
+	})
+	switch state.upscaleBitrateMode {
+	case "CBR":
+		bitrateModeSelect.SetSelected("CBR (Constant Bitrate)")
+	case "VBR":
+		bitrateModeSelect.SetSelected("VBR (Variable Bitrate)")
+	default:
+		bitrateModeSelect.SetSelected("CRF (Constant Rate Factor)")
+	}
+
+	type bitratePreset struct {
+		Label   string
+		Bitrate string
+	}
+	presets := []bitratePreset{
+		{Label: "0.5 Mbps - Ultra Low", Bitrate: "500k"},
+		{Label: "1.0 Mbps - Very Low", Bitrate: "1000k"},
+		{Label: "1.5 Mbps - Low", Bitrate: "1500k"},
+		{Label: "2.0 Mbps - Medium-Low", Bitrate: "2000k"},
+		{Label: "2.5 Mbps - Medium", Bitrate: "2500k"},
+		{Label: "4.0 Mbps - Good", Bitrate: "4000k"},
+		{Label: "6.0 Mbps - High", Bitrate: "6000k"},
+		{Label: "8.0 Mbps - Very High", Bitrate: "8000k"},
+		{Label: "Manual", Bitrate: ""},
+	}
+	bitratePresetLookup := make(map[string]bitratePreset)
+	var bitratePresetLabels []string
+	for _, p := range presets {
+		bitratePresetLookup[p.Label] = p
+		bitratePresetLabels = append(bitratePresetLabels, p.Label)
+	}
+
+	manualBitrateEntry := widget.NewEntry()
+	manualBitrateEntry.SetPlaceHolder("e.g., 2500k")
+	manualBitrateEntry.SetText(state.upscaleManualBitrate)
+	manualBitrateEntry.OnChanged = func(val string) {
+		state.upscaleManualBitrate = val
+	}
+
+	bitratePresetSelect := widget.NewSelect(bitratePresetLabels, func(s string) {
+		state.upscaleBitratePreset = s
+		preset := bitratePresetLookup[s]
+		if preset.Bitrate == "" {
+			manualBitrateEntry.Show()
+		} else {
+			state.upscaleManualBitrate = preset.Bitrate
+			manualBitrateEntry.SetText(preset.Bitrate)
+			manualBitrateEntry.Hide()
+		}
+	})
+	bitratePresetSelect.SetSelected(state.upscaleBitratePreset)
+	if bitratePresetLookup[state.upscaleBitratePreset].Bitrate == "" {
+		manualBitrateEntry.Show()
+	} else {
+		manualBitrateEntry.Hide()
+	}
+
+	updateEncodingVisibility = func() {
+		mode := state.upscaleBitrateMode
+		if mode == "" || mode == "CRF" {
+			qualitySelect.Enable()
+			bitratePresetSelect.Hide()
+			manualBitrateEntry.Hide()
+		} else {
+			qualitySelect.Disable()
+			bitratePresetSelect.Show()
+			if bitratePresetLookup[state.upscaleBitratePreset].Bitrate == "" {
+				manualBitrateEntry.Show()
+			}
+		}
+	}
+	updateEncodingVisibility()
+
+	encodingSection := buildUpscaleBox("Video Encoding", container.NewVBox(
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Encoder Preset:"),
+			encoderPresetSelect,
+		),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Quality Preset:"),
+			qualitySelect,
+		),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Bitrate Mode:"),
+			bitrateModeSelect,
+		),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Bitrate Preset:"),
+			bitratePresetSelect,
+		),
+		manualBitrateEntry,
+		widget.NewLabel("CRF mode controls quality; bitrate modes control size."),
 	))
 
 	// Frame Rate Section
@@ -15123,7 +15352,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	})
 	motionInterpCheck.SetChecked(state.upscaleMotionInterpolation)
 
-	frameRateSection := widget.NewCard("Frame Rate", "", container.NewVBox(
+	frameRateSection := buildUpscaleBox("Frame Rate", container.NewVBox(
 		widget.NewLabel("Convert frame rate (optional)"),
 		container.NewGridWithColumns(2,
 			widget.NewLabel("Target FPS:"),
@@ -15140,8 +15369,8 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		aiModelLabel = aiModelOptions[0]
 	}
 
-	// AI Upscaling Section
-	var aiSection *widget.Card
+	// AI Upscaling Section (nested under Scaling)
+	var aiContent fyne.CanvasObject
 	if state.upscaleAIAvailable {
 		var aiTileSelect *widget.Select
 		var aiTTACheck *widget.Check
@@ -15350,7 +15579,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		denoiseHint.TextStyle = fyne.TextStyle{Italic: true}
 		updateDenoiseAvailability(state.upscaleAIModel)
 
-		aiSection = widget.NewCard("AI Upscaling", "✓ Available", container.NewVBox(
+		aiContent = container.NewVBox(
 			widget.NewLabel("Real-ESRGAN detected - enhanced quality available"),
 			aiEnabledCheck,
 			container.NewGridWithColumns(2,
@@ -15388,18 +15617,41 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 				container.NewGridWithColumns(3, aiThreadsLoad, aiThreadsProc, aiThreadsSave),
 			),
 			widget.NewLabel("Note: AI upscaling is slower but produces higher quality results"),
-		))
+		)
 	} else {
 		backendNote := "Real-ESRGAN not detected. Install for enhanced quality:"
 		if state.upscaleAIBackend == "python" {
 			backendNote = "Python Real-ESRGAN detected, but the ncnn backend is required for now."
 		}
-		aiSection = widget.NewCard("AI Upscaling", "Not Available", container.NewVBox(
+		aiContent = container.NewVBox(
 			widget.NewLabel(backendNote),
 			widget.NewLabel("https://github.com/xinntao/Real-ESRGAN"),
 			widget.NewLabel("Traditional scaling methods will be used."),
-		))
+		)
 	}
+
+	aiSection := container.NewVBox(
+		widget.NewLabelWithStyle("AI Upscaling", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewSeparator(),
+		aiContent,
+	)
+
+	traditionalSection := buildUpscaleBox("Scaling", container.NewVBox(
+		widget.NewLabel("Classic upscaling methods - always available"),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Scaling Algorithm:"),
+			methodSelect,
+		),
+		methodLabel,
+		widget.NewSeparator(),
+		methodInfo,
+		widget.NewSeparator(),
+		widget.NewLabel("Optional blur"),
+		blurCheck,
+		container.NewVBox(blurLabel, blurSlider),
+		widget.NewSeparator(),
+		aiSection,
+	))
 
 	// Filter Integration Section
 	applyFiltersCheck := widget.NewCheck("Apply filters before upscaling", func(checked bool) {
@@ -15407,7 +15659,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	})
 	applyFiltersCheck.SetChecked(state.upscaleApplyFilters)
 
-	filterIntegrationSection := widget.NewCard("Filter Integration", "", container.NewVBox(
+	filterIntegrationSection := buildUpscaleBox("Filter Integration", container.NewVBox(
 		widget.NewLabel("Apply color correction and filters from Filters module"),
 		applyFiltersCheck,
 		widget.NewLabel("Filters will be applied before upscaling for best quality"),
@@ -15452,6 +15704,10 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 				"inputPath":              state.upscaleFile.Path,
 				"outputPath":             outputPath,
 				"method":                 state.upscaleMethod,
+				"encoderPreset":          state.upscaleEncoderPreset,
+				"bitrateMode":            state.upscaleBitrateMode,
+				"bitratePreset":          state.upscaleBitratePreset,
+				"manualBitrate":          state.upscaleManualBitrate,
 				"targetWidth":            float64(targetWidth),
 				"targetHeight":           float64(targetHeight),
 				"targetPreset":           state.upscaleTargetRes,
@@ -15521,22 +15777,38 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	addQueueBtn.Importance = widget.MediumImportance
 
 	// Main content
+	spacing := func() fyne.CanvasObject {
+		spacer := canvas.NewRectangle(color.Transparent)
+		spacer.SetMinSize(fyne.NewSize(0, 10))
+		return spacer
+	}
+
+	metaPanel, _ := buildMetadataPanel(state, state.upscaleFile, fyne.NewSize(0, 200))
+
 	leftPanel := container.NewVBox(
 		instructions,
-		widget.NewSeparator(),
-		fileLabel,
-		loadBtn,
-		filtersNavBtn,
+		spacing(),
+		buildUpscaleBox("Video", container.NewVBox(
+			fileLabel,
+			loadBtn,
+			filtersNavBtn,
+			videoContainer,
+		)),
+		spacing(),
+		metaPanel,
 	)
 
 	settingsPanel := container.NewVBox(
 		traditionalSection,
+		spacing(),
 		resolutionSection,
-		qualitySection,
-		blurSection,
+		spacing(),
+		encodingSection,
+		spacing(),
 		frameRateSection,
-		aiSection,
+		spacing(),
 		filterIntegrationSection,
+		spacing(),
 		container.NewGridWithColumns(2, applyBtn, addQueueBtn),
 	)
 
@@ -15544,12 +15816,14 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	// Adaptive height for small screens
 	// Avoid rigid min sizes so window snapping works across modules.
 
-	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6},
-		container.NewVBox(leftPanel, videoContainer),
-		settingsScroll,
-	)
+	split := container.NewHSplit(leftPanel, settingsScroll)
+	split.Offset = 0.58
+	mainContent := split
 
-	content := container.NewPadded(mainContent)
+	content := container.NewMax(
+		canvas.NewRectangle(mediumBlue),
+		container.NewPadded(mainContent),
+	)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
