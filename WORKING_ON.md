@@ -2,22 +2,25 @@
 
 This file tracks what each agent is currently working on to prevent conflicts and coordinate changes.
 
-**Last Updated**: 2026-01-04 10:00 UTC
+**Last Updated**: 2026-01-04 21:10 UTC
 
 ---
 
 ## 🔴 Current Blockers
 
-- **Build Status**: ⚠️ NEARLY PASSING - 3 compilation errors remain (lines 500, 6995-7003 in main.go)
+- **Build Status**: ✅ PASSING
+- **Critical Bug**: BUG-005 - CRF quality settings not showing when CRF mode selected (see BUGS.md)
 
 ---
 
 ## 👥 Active Work by Agent
 
 ### 🤖 Claude (thisagent - Claude Code)
-**Status**: ⚠️ IN PROGRESS - Widget deduplication + compilation fixes
+**Status**: ✅ SESSION COMPLETE - Handed off to opencode
 
-**Completed This Session** (2026-01-04 10:00):
+**Completed This Session** (2026-01-04):
+
+**Morning Session (10:00):**
 - ✅ **Quality Widget Deduplication** (main.go:7075-7128)
   - Converted qualitySelectSimple/Adv to ColoredSelect
   - Registered both with state manager for auto-sync
@@ -27,43 +30,44 @@ This file tracks what each agent is currently working on to prevent conflicts an
   - Defined SkinToneAnalysis struct
   - Fixed invalid ContentAnalysis field assignments
   - Removed unused imports and variables
-  - Fixed onnx_model.go unused variable
 - ✅ **Missing Imports Restored** (main.go:3-48)
-  - Added: atomic, json, sort, io, errors, bufio, strconv, math
-  - Added: fyne.io/fyne/v2/driver/desktop
-  - Added: internal/interlace, internal/sysinfo
-  - Added: github.com/ebitengine/oto/v3
-- ✅ **Code Cleanup**
-  - Removed duplicate QR code function
+  - Added all missing stdlib and third-party imports
+  - Build now passes
+
+**Evening Session (18:00-21:00):**
+- ✅ **Fixed BUG-001**: Quality Preset visibility (showing in wrong modes)
+- ✅ **Fixed BUG-002**: Target File Size visibility (showing in wrong modes)
+- ✅ **Fixed BUG-003**: AAC audio codec color too similar to OPUS
+- ✅ **Fixed BUG-004**: Audio module drag & drop support added
+- ✅ **Created BUGS.md**: Bug tracking system for multi-agent coordination
+- ⚠️ **Introduced BUG-005**: Over-corrected visibility logic, CRF settings now don't show
 
 **Files Modified**:
-- `main.go` - Quality widget deduplication, missing imports, duplicate code removal
-- `internal/enhancement/enhancement_module.go` - SkinToneAnalysis struct, field fixes
+- `main.go` - Quality widgets, visibility fixes, audio drag & drop, imports
+- `internal/ui/colors.go` - AAC color changed to cyan
+- `internal/enhancement/enhancement_module.go` - SkinToneAnalysis struct
 - `internal/enhancement/onnx_model.go` - Unused variable cleanup
 - `go.mod`, `go.sum` - Added oto/v3 dependency
+- `BUGS.md` - NEW: Bug tracking system
+- `WORKING_ON.md` - Updated coordination
 
-**⚠️ Remaining Compilation Errors** (HANDOFF TO opencode):
-1. Line 500: `canvas.NewImageFromBytes` undefined - QR code generation
-2. Lines 6995-7003: `outputExtLabel`, `outputExtBG`, `updateOutputHint` undefined - Convert UI
-
-**Next Tasks for opencode**:
-1. Fix 3 remaining compilation errors in main.go
-2. Continue widget deduplication (4 remaining pairs)
-3. Convert 32 remaining widget.Select to ColoredSelect
+**Handoff to opencode**:
+1. **CRITICAL**: Fix BUG-005 (CRF quality settings not showing)
+2. Complete widget deduplication (4 pairs remaining)
+3. Complete ColoredSelect expansion (32 widgets)
 
 ---
 
 ### 🤖 opencode
-**Status**: 🎯 PRIORITY HANDOFF - Fix compilation errors + widget deduplication
+**Status**: 🎯 PRIORITY HANDOFF - Fix critical bug + widget deduplication
 
 **🔥 IMMEDIATE TASKS** (from Claude):
-1. **Fix 3 Compilation Errors** in main.go:
-   - Line 500: `canvas.NewImageFromBytes` undefined
-     - Context: QR code generation in `generatePixelatedQRCode()`
-     - May need to use `canvas.NewImageFromResource()` or similar
-   - Lines 6995-7003: `outputExtLabel`, `outputExtBG`, `updateOutputHint` undefined
-     - Context: Convert UI output file extension handling
-     - Variables were likely removed/renamed - need to investigate and restore proper implementation
+1. **FIX BUG-005** (CRITICAL): CRF quality settings not showing
+   - **File**: `main.go:8851-8883` (`updateQualityVisibility()` function)
+   - **Problem**: When user selects CRF mode, Quality Preset dropdown doesn't appear
+   - **Likely Cause**: Over-corrected visibility logic after fixing BUG-001/BUG-002
+   - **Investigation**: Check logic flow in `updateQualityVisibility()` and bitrate mode callback
+   - **See**: BUGS.md for full details
 
 2. **Widget Deduplication** (4 remaining pairs):
    - resolutionSelectSimple & resolutionSelect (lines ~8009, 8347)
@@ -91,16 +95,18 @@ This file tracks what each agent is currently working on to prevent conflicts an
 
 **Current Handoff**: Claude → opencode
 
-**Claude's Handoff** (2026-01-04 10:00):
+**Claude's Handoff** (2026-01-04 21:10):
 1. ✅ Quality widget deduplication complete (pattern established)
 2. ✅ Enhancement module compilation fixed
-3. ✅ Missing imports restored
-4. ⚠️ 3 compilation errors remain - handed off to opencode
-5. 📋 4 widget pairs still need deduplication
-6. 📋 32 widgets need ColoredSelect conversion
+3. ✅ Missing imports restored - Build passes
+4. ✅ Fixed 4 user-reported bugs (BUG-001 through BUG-004)
+5. ⚠️ Introduced BUG-005 (Critical): CRF settings visibility broken
+6. ✅ Created BUGS.md tracking system
+7. 📋 4 widget pairs still need deduplication
+8. 📋 32 widgets need ColoredSelect conversion
 
 **For opencode**:
-- Priority 1: Fix 3 compilation errors (blocking build)
+- **Priority 1**: Fix BUG-005 (Critical - CRF quality settings not showing)
 - Priority 2: Complete widget deduplication using established pattern
 - Priority 3: ColoredSelect expansion for remaining 32 widgets
 

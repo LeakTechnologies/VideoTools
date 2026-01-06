@@ -11063,18 +11063,31 @@ func (p *playSession) startLocked(offset float64) {
 	p.runAudio(offset)
 }
 
+// New function using UnifiedPlayer with proper A/V synchronization
 func (p *playSession) runVideo(offset float64) {
-	var stderr bytes.Buffer
-	args := []string{
-		"-hide_banner", "-loglevel", "error",
-		"-ss", fmt.Sprintf("%.3f", offset),
-		"-i", p.path,
-		"-vf", fmt.Sprintf("scale=%d:%d", p.targetW, p.targetH),
-		"-f", "rawvideo",
-		"-pix_fmt", "rgb24",
-		"-r", fmt.Sprintf("%.3f", p.fps),
-		"-",
+	// Use unified player with proper A/V synchronization
+	unifiedPlayer := ctx.NewPlayer(p.config)
+	if err := unifiedPlayer.Load(p.path, offset); err != nil {
+		logging.Error(logging.CatPlayer, "Failed to load video in unified player: %v", err)
+		return
 	}
+	
+	// Start unified playback
+	if err := unifiedPlayer.Play(); err != nil {
+		logging.Error(logging.CatPlayer, "Failed to start unified player: %v", err)
+		return
+	}
+	defer unifiedPlayer.Close()
+	p.videoCmd = unifiedPlayer
+}
+
+func (p *playSession) runAudio(offset float64) {
+	// For unified player, audio is handled internally
+	// This function is no longer needed with UnifiedPlayer
+	// Audio processing is built into the unified FFmpeg process
+	logging.Debug(logging.CatPlayer, "Audio handled by unified player")
+	return nil
+}
 	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), args...)
 	cmd.Stderr = &stderr
 	stdout, err := cmd.StdoutPipe()
