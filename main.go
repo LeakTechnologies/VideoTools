@@ -14706,11 +14706,11 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 	// Scrollable metadata area for file 1 - use smaller minimum
 	file1InfoScroll := container.NewVScroll(file1Info)
-	file1InfoScroll.SetMinSize(fyne.NewSize(250, 150))
+// Avoid rigid min sizes so window snapping works across modules.
 
 	// Scrollable metadata area for file 2 - use smaller minimum
 	file2InfoScroll := container.NewVScroll(file2Info)
-	file2InfoScroll.SetMinSize(fyne.NewSize(250, 150))
+// Avoid rigid min sizes so window snapping works across modules.
 
 	// File 1 column: header, video player, metadata (using Border to make metadata expand)
 	file1Column := container.NewBorder(
@@ -15487,7 +15487,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 
 	settingsScroll := container.NewVScroll(settingsPanel)
 	// Adaptive height for small screens
-	settingsScroll.SetMinSize(fyne.NewSize(400, 400))
+	// Avoid rigid min sizes so window snapping works across modules.
 
 	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6},
 		container.NewVBox(leftPanel, videoContainer),
