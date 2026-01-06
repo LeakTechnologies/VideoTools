@@ -1,6 +1,22 @@
 # VideoTools - Completed Features
 
+## Version 0.1.0-dev24 (2026-01-06) - DVD Menu Templating System
+
+### Features
+- ✅ **DVD Menu Templating System**
+  - Refactored `author_menu.go` to support multiple, selectable menu templates.
+  - Implemented a `MenuTemplate` interface for easy extensibility.
+  - Created three initial menu templates:
+    - **Simple**: The default, clean menu style.
+    - **Dark**: A dark-themed menu for a more cinematic feel.
+    - **Poster**: A template that uses a user-provided image as the background.
+- ✅ **Menu Customization UI**
+  - Added a "Menu Template" dropdown to the authoring settings tab.
+  - Added a "Select Background Image" button that appears when the "Poster" template is selected.
+  - User's menu template and background image choices are persisted in the configuration.
+
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
+
 
 ### UI/UX
 - ✅ **Colored select polish** - one-click dropdown, left accent bar, softer blue-grey background, rounded corners, larger text

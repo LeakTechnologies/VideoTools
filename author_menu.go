@@ -21,7 +21,22 @@ type dvdMenuButton struct {
 	Y1      int
 }
 
-func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, logFn func(string)) (string, []dvdMenuButton, error) {
+// MenuTemplate defines the interface for a DVD menu generator.
+type MenuTemplate interface {
+	Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, logFn func(string)) (string, []dvdMenuButton, error)
+}
+
+var menuTemplates = map[string]MenuTemplate{
+	"Simple": &SimpleMenu{},
+	"Dark":   &DarkMenu{},
+	"Poster": &PosterMenu{},
+}
+
+// SimpleMenu is a basic menu template.
+type SimpleMenu struct{}
+
+// Generate creates a simple DVD menu.
+func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildDVDMenuButtons(chapters, width, height)
 	if len(buttons) == 0 {
@@ -29,6 +44,9 @@ func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect stri
 	}
 
 	bgPath := filepath.Join(workDir, "menu_bg.png")
+	if backgroundImage != "" {
+		bgPath = backgroundImage
+	}
 	overlayPath := filepath.Join(workDir, "menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "menu_highlight.png")
 	selectPath := filepath.Join(workDir, "menu_select.png")
@@ -37,12 +55,15 @@ func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect stri
 	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
 
 	if logFn != nil {
-		logFn("Building DVD menu assets...")
+		logFn("Building DVD menu assets with SimpleMenu template...")
 	}
 
-	if err := buildMenuBackground(ctx, bgPath, title, buttons, width, height); err != nil {
-		return "", nil, err
+	if backgroundImage == "" {
+		if err := buildMenuBackground(ctx, bgPath, title, buttons, width, height); err != nil {
+			return "", nil, err
+		}
 	}
+
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height); err != nil {
 		return "", nil, err
 	}
@@ -59,6 +80,111 @@ func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect stri
 		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
 	}
 	return menuSpu, buttons, nil
+}
+
+// DarkMenu is a dark-themed menu template.
+type DarkMenu struct{}
+
+// Generate creates a dark-themed DVD menu.
+func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, logFn func(string)) (string, []dvdMenuButton, error) {
+	width, height := dvdMenuDimensions(region)
+	buttons := buildDVDMenuButtons(chapters, width, height)
+	if len(buttons) == 0 {
+		return "", nil, nil
+	}
+
+	bgPath := filepath.Join(workDir, "menu_bg.png")
+	if backgroundImage != "" {
+		bgPath = backgroundImage
+	}
+	overlayPath := filepath.Join(workDir, "menu_overlay.png")
+	highlightPath := filepath.Join(workDir, "menu_highlight.png")
+	selectPath := filepath.Join(workDir, "menu_select.png")
+	menuMpg := filepath.Join(workDir, "menu.mpg")
+	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
+	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
+
+	if logFn != nil {
+		logFn("Building DVD menu assets with DarkMenu template...")
+	}
+
+	if backgroundImage == "" {
+		if err := buildDarkMenuBackground(ctx, bgPath, title, buttons, width, height); err != nil {
+			return "", nil, err
+		}
+	}
+
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height); err != nil {
+		return "", nil, err
+	}
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect); err != nil {
+		return "", nil, err
+	}
+	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
+		return "", nil, err
+	}
+	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
+		return "", nil, err
+	}
+	if logFn != nil {
+		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
+	}
+	return menuSpu, buttons, nil
+}
+
+// PosterMenu is a template that uses a poster image as a background.
+type PosterMenu struct{}
+
+// Generate creates a poster-themed DVD menu.
+func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, logFn func(string)) (string, []dvdMenuButton, error) {
+	width, height := dvdMenuDimensions(region)
+	buttons := buildDVDMenuButtons(chapters, width, height)
+	if len(buttons) == 0 {
+		return "", nil, nil
+	}
+
+	bgPath := filepath.Join(workDir, "menu_bg.png")
+	if backgroundImage == "" {
+		return "", nil, fmt.Errorf("poster menu requires a background image")
+	}
+	overlayPath := filepath.Join(workDir, "menu_overlay.png")
+	highlightPath := filepath.Join(workDir, "menu_highlight.png")
+	selectPath := filepath.Join(workDir, "menu_select.png")
+	menuMpg := filepath.Join(workDir, "menu.mpg")
+	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
+	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
+
+	if logFn != nil {
+		logFn("Building DVD menu assets with PosterMenu template...")
+	}
+
+	if err := buildPosterMenuBackground(ctx, bgPath, title, buttons, width, height, backgroundImage); err != nil {
+		return "", nil, err
+	}
+
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height); err != nil {
+		return "", nil, err
+	}
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect); err != nil {
+		return "", nil, err
+	}
+	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
+		return "", nil, err
+	}
+	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
+		return "", nil, err
+	}
+	if logFn != nil {
+		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
+	}
+	return menuSpu, buttons, nil
+}
+
+func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, logFn func(string), template MenuTemplate, backgroundImage string) (string, []dvdMenuButton, error) {
+	if template == nil {
+		template = &SimpleMenu{}
+	}
+	return template.Generate(ctx, workDir, title, region, aspect, chapters, backgroundImage, logFn)
 }
 
 func dvdMenuDimensions(region string) (int, int) {
@@ -150,6 +276,81 @@ func buildMenuBackground(ctx context.Context, outputPath, title string, buttons 
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
 }
 
+func buildDarkMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int) error {
+	logoPath := findVTLogoPath()
+	if logoPath == "" {
+		return fmt.Errorf("VT logo not found for menu rendering")
+	}
+
+	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
+	if safeTitle == "" {
+		safeTitle = "DVD Menu"
+	}
+
+	bgColor := "0x000000"
+	headerColor := "0x111111"
+	textColor := "white"
+	accentColor := "0xeeeeee"
+
+	filterParts := []string{
+		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
+		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=28:x=36:y=20:text='%s'", textColor, escapeDrawtextText("VideoTools DVD")),
+		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=18:x=36:y=80:text='%s'", textColor, escapeDrawtextText(safeTitle)),
+		fmt.Sprintf("drawbox=x=36:y=108:w=%d:h=2:color=%s:t=fill", width-72, accentColor),
+		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=16:x=36:y=122:text='%s'", textColor, escapeDrawtextText("Select a title or chapter to play")),
+	}
+
+	for i, btn := range buttons {
+		label := escapeDrawtextText(btn.Label)
+		y := 184 + i*34
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=20:x=110:y=%d:text='%s'", textColor, y, label))
+	}
+
+	filterChain := strings.Join(filterParts, ",")
+
+	args := []string{
+		"-y",
+		"-f", "lavfi",
+		"-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height),
+		"-i", logoPath,
+		"-filter_complex", fmt.Sprintf("[0:v]%s[bg];[1:v]scale=72:-1[logo];[bg][logo]overlay=W-w-36:18", filterChain),
+		"-frames:v", "1",
+		outputPath,
+	}
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
+}
+
+func buildPosterMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, backgroundImage string) error {
+	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
+	if safeTitle == "" {
+		safeTitle = "DVD Menu"
+	}
+
+	textColor := "white"
+
+	filterParts := []string{
+		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=28:x=36:y=20:text='%s'", textColor, escapeDrawtextText("VideoTools DVD")),
+		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=18:x=36:y=80:text='%s'", textColor, escapeDrawtextText(safeTitle)),
+	}
+
+	for i, btn := range buttons {
+		label := escapeDrawtextText(btn.Label)
+		y := 184 + i*34
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=20:x=110:y=%d:text='%s'", textColor, y, label))
+	}
+
+	filterChain := strings.Join(filterParts, ",")
+
+	args := []string{
+		"-y",
+		"-i", backgroundImage,
+		"-vf", fmt.Sprintf("scale=%d:%d,%s", width, height, filterChain),
+		"-frames:v", "1",
+		outputPath,
+	}
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
+}
+
 func buildMenuOverlays(ctx context.Context, overlayPath, highlightPath, selectPath string, buttons []dvdMenuButton, width, height int) error {
 	if err := buildMenuOverlay(ctx, overlayPath, buttons, width, height, "0x000000@0.0"); err != nil {
 		return err
@@ -214,7 +415,8 @@ func writeSpumuxXML(path, overlayPath, highlightPath, selectPath string, buttons
 	var b strings.Builder
 	b.WriteString("<subpictures>\n")
 	b.WriteString("  <stream>\n")
-	b.WriteString(fmt.Sprintf("    <spu start=\"00:00:00.00\" end=\"00:00:30.00\" image=\"%s\" highlight=\"%s\" select=\"%s\" force=\"yes\">\n",
+	b.WriteString(fmt.Sprintf("    <spu start=\"00:00:00.00\" end=\"00:00:30.00\" image=\"%s\" highlight=\"%s\" select=\"%s\" force=\"yes\">
+",
 		escapeXMLAttr(overlayPath),
 		escapeXMLAttr(highlightPath),
 		escapeXMLAttr(selectPath),
@@ -230,7 +432,7 @@ func writeSpumuxXML(path, overlayPath, highlightPath, selectPath string, buttons
 }
 
 func runSpumux(ctx context.Context, spumuxXML, inputMpg, outputMpg string, logFn func(string)) error {
-	args := []string{"-m", "dvd", spumuxXML}
+	args := []string{" -m", "dvd", spumuxXML}
 	if logFn != nil {
 		logFn(fmt.Sprintf(">> spumux -m dvd %s < %s > %s", spumuxXML, filepath.Base(inputMpg), filepath.Base(outputMpg)))
 	}
@@ -262,7 +464,7 @@ func findVTLogoPath() string {
 	}
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
-		search = append(search, filepath.Join(dir, "assets", "logo", "VT_Icon.png"))
+		search = append(search, filepath.Join(dir, "assets", "logo", "VT_Icon.png")),
 	}
 	for _, p := range search {
 		if _, err := os.Stat(p); err == nil {
@@ -273,9 +475,9 @@ func findVTLogoPath() string {
 }
 
 func escapeDrawtextText(text string) string {
-	escaped := strings.ReplaceAll(text, "\\", "\\\\")
+	escaped := strings.ReplaceAll(text, "\", "\\\\")
 	escaped = strings.ReplaceAll(escaped, ":", "\\:")
-	escaped = strings.ReplaceAll(escaped, "'", "\\'")
+	escaped = strings.ReplaceAll(escaped, "'", "\' ")
 	escaped = strings.ReplaceAll(escaped, "%", "\\%")
 	return escaped
 }

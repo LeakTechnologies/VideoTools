@@ -103,6 +103,7 @@ func (s *appState) applyAuthorConfig(cfg authorConfig) {
 	s.authorCreateMenu = cfg.CreateMenu
 	s.authorTreatAsChapters = cfg.TreatAsChapters
 	s.authorSceneThreshold = cfg.SceneThreshold
+	s.authorMenuTemplate = cfg.MenuTemplate
 }
 
 func (s *appState) persistAuthorConfig() {
@@ -115,6 +116,7 @@ func (s *appState) persistAuthorConfig() {
 		CreateMenu:      s.authorCreateMenu,
 		TreatAsChapters: s.authorTreatAsChapters,
 		SceneThreshold:  s.authorSceneThreshold,
+		MenuTemplate:    s.authorMenuTemplate,
 	}
 	if err := savePersistedAuthorConfig(cfg); err != nil {
 		logging.Debug(logging.CatSystem, "failed to persist author config: %v", err)
@@ -726,6 +728,36 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 	})
 	createMenuCheck.SetChecked(state.authorCreateMenu)
 
+	menuTemplateSelect := widget.NewSelect([]string{"Simple", "Dark", "Poster"}, func(value string) {
+		state.authorMenuTemplate = value
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	})
+	menuTemplateSelect.SetSelected(state.authorMenuTemplate)
+
+	bgImageLabel := widget.NewLabel(state.authorMenuBackgroundImage)
+	bgImageButton := widget.NewButton("Select Background Image", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+			state.authorMenuBackgroundImage = reader.URI().Path()
+			bgImageLabel.SetText(state.authorMenuBackgroundImage)
+			state.updateAuthorSummary()
+			state.persistAuthorConfig()
+		}, state.window)
+	})
+	bgImageButton.Importance = widget.HighImportance
+	bgImageButton.Hidden = state.authorMenuTemplate != "Poster"
+
+	menuTemplateSelect.OnChanged = func(value string) {
+		state.authorMenuTemplate = value
+		bgImageButton.Hidden = value != "Poster"
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	}
+
 	discSizeSelect := widget.NewSelect([]string{"DVD5", "DVD9"}, func(value string) {
 		state.authorDiscSize = value
 		state.updateAuthorSummary()
@@ -760,6 +792,9 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		}
 		titleEntry.SetText(state.authorTitle)
 		createMenuCheck.SetChecked(state.authorCreateMenu)
+		menuTemplateSelect.SetSelected(state.authorMenuTemplate)
+		bgImageLabel.SetText(state.authorMenuBackgroundImage)
+		bgImageButton.Hidden = state.authorMenuTemplate != "Poster"
 	}
 
 	loadCfgBtn := widget.NewButton("Load Config", func() {
@@ -787,6 +822,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 			CreateMenu:      state.authorCreateMenu,
 			TreatAsChapters: state.authorTreatAsChapters,
 			SceneThreshold:  state.authorSceneThreshold,
+			MenuTemplate:    state.authorMenuTemplate,
 		}
 		if err := savePersistedAuthorConfig(cfg); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
@@ -820,6 +856,10 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		widget.NewLabel("DVD Title:"),
 		titleEntry,
 		createMenuCheck,
+		widget.NewLabel("Menu Template:"),
+		menuTemplateSelect,
+		bgImageLabel,
+		bgImageButton,
 		widget.NewSeparator(),
 		info,
 		widget.NewSeparator(),
@@ -1741,6 +1781,8 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 		"chapterSource":    s.authorChapterSource,
 		"subtitleTracks":   append([]string{}, s.authorSubtitles...),
 		"additionalAudios": append([]string{}, s.authorAudioTracks...),
+		"menuTemplate":     s.authorMenuTemplate,
+		"menuBackgroundImage": s.authorMenuBackgroundImage,
 	}
 
 	titleLabel := title
@@ -1802,7 +1844,7 @@ func (s *appState) addAuthorVideoTSToQueue(videoTSPath, title, outputPath string
 	return nil
 }
 
-func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, createMenu bool, logFn func(string), progressFn func(float64)) error {
+func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, createMenu bool, menuTemplate string, menuBackgroundImage string, logFn func(string), progressFn func(float64)) error {
 	tempRoot := authorTempRoot(outputPath)
 	if err := os.MkdirAll(tempRoot, 0755); err != nil {
 		return fmt.Errorf("failed to create temp root: %w", err)
@@ -1984,7 +2026,11 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	var menuMpg string
 	var menuButtons []dvdMenuButton
 	if createMenu {
-		menuMpg, menuButtons, err = buildDVDMenuAssets(ctx, workDir, title, region, aspect, chapters, logFn)
+		template, ok := menuTemplates[menuTemplate]
+		if !ok {
+			template = &SimpleMenu{}
+		}
+		menuMpg, menuButtons, err = buildDVDMenuAssets(ctx, workDir, title, region, aspect, chapters, logFn, template, menuBackgroundImage)
 		if err != nil {
 			return err
 		}
@@ -2294,7 +2340,7 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 		}, false)
 	}
 
-	err := s.runAuthoringPipeline(ctx, paths, region, aspect, title, outputPath, makeISO, clips, chapters, treatAsChapters, createMenu, appendLog, updateProgress)
+	err := s.runAuthoringPipeline(ctx, paths, region, aspect, title, outputPath, makeISO, clips, chapters, treatAsChapters, createMenu, toString(cfg["menuTemplate"]), toString(cfg["menuBackgroundImage"]), appendLog, updateProgress)
 	if err != nil {
 		friendly := authorFriendlyError(err)
 		appendLog("ERROR: " + friendly)
