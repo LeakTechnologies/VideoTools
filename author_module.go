@@ -103,7 +103,7 @@ func (s *appState) applyAuthorConfig(cfg authorConfig) {
 	s.authorCreateMenu = cfg.CreateMenu
 	s.authorTreatAsChapters = cfg.TreatAsChapters
 	s.authorSceneThreshold = cfg.SceneThreshold
-	s.authorMenuTemplate = cfg.MenuTemplate
+	// MenuTemplate field doesn't exist in authorConfig struct - remove this line
 }
 
 func (s *appState) persistAuthorConfig() {
@@ -116,7 +116,6 @@ func (s *appState) persistAuthorConfig() {
 		CreateMenu:      s.authorCreateMenu,
 		TreatAsChapters: s.authorTreatAsChapters,
 		SceneThreshold:  s.authorSceneThreshold,
-		MenuTemplate:    s.authorMenuTemplate,
 	}
 	if err := savePersistedAuthorConfig(cfg); err != nil {
 		logging.Debug(logging.CatSystem, "failed to persist author config: %v", err)
@@ -822,7 +821,6 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 			CreateMenu:      state.authorCreateMenu,
 			TreatAsChapters: state.authorTreatAsChapters,
 			SceneThreshold:  state.authorSceneThreshold,
-			MenuTemplate:    state.authorMenuTemplate,
 		}
 		if err := savePersistedAuthorConfig(cfg); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
@@ -1763,25 +1761,25 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 	}
 
 	config := map[string]interface{}{
-		"paths":            paths,
-		"region":           region,
-		"aspect":           aspect,
-		"title":            title,
-		"outputPath":       outputPath,
-		"makeISO":          makeISO,
-		"treatAsChapters":  s.authorTreatAsChapters,
-		"clips":            clips,
-		"chapters":         chapters,
-		"discSize":         s.authorDiscSize,
-		"outputType":       s.authorOutputType,
-		"authorTitle":      s.authorTitle,
-		"authorRegion":     s.authorRegion,
-		"authorAspect":     s.authorAspectRatio,
-		"createMenu":       s.authorCreateMenu,
-		"chapterSource":    s.authorChapterSource,
-		"subtitleTracks":   append([]string{}, s.authorSubtitles...),
-		"additionalAudios": append([]string{}, s.authorAudioTracks...),
-		"menuTemplate":     s.authorMenuTemplate,
+		"paths":               paths,
+		"region":              region,
+		"aspect":              aspect,
+		"title":               title,
+		"outputPath":          outputPath,
+		"makeISO":             makeISO,
+		"treatAsChapters":     s.authorTreatAsChapters,
+		"clips":               clips,
+		"chapters":            chapters,
+		"discSize":            s.authorDiscSize,
+		"outputType":          s.authorOutputType,
+		"authorTitle":         s.authorTitle,
+		"authorRegion":        s.authorRegion,
+		"authorAspect":        s.authorAspectRatio,
+		"createMenu":          s.authorCreateMenu,
+		"chapterSource":       s.authorChapterSource,
+		"subtitleTracks":      append([]string{}, s.authorSubtitles...),
+		"additionalAudios":    append([]string{}, s.authorAudioTracks...),
+		"menuTemplate":        s.authorMenuTemplate,
 		"menuBackgroundImage": s.authorMenuBackgroundImage,
 	}
 
