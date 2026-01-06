@@ -4,7 +4,6 @@ import (
 	"image"
 	"image/color"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2/canvas"
@@ -66,7 +65,7 @@ func NewUnifiedPlayerAdapter(path string, width, height int, fps, duration float
 
 	// Create UnifiedPlayer with proper configuration
 	config := Config{
-		Backend:       BackendUnified,
+		Backend:       BackendAuto, // Use auto for UnifiedPlayer
 		WindowX:       0,
 		WindowY:       0,
 		WindowWidth:   targetW,
