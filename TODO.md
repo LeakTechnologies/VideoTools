@@ -13,6 +13,27 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Critical Priority: dev24
 
+### AUTHOR MODULE: CONTENT TYPES + GALLERIES + CHAPTER THUMBS
+
+- [ ] **Content classification (Feature/Extra/Gallery)**
+  - Feature: supports chapters + chapter menus
+  - Extra: separate DVD titles; no chapters
+  - Gallery: still-image slideshow title under Extras
+  - Extras require subtype (behind_the_scenes, deleted_scenes, featurettes, interviews, trailers, commentary, other)
+- [ ] **Chapter screenshot generation (Feature only)**
+  - Auto-generate one still per chapter (default 2s offset)
+  - Fallback to first valid frame on failure
+  - Allow per-chapter override image
+- [ ] **Menu structure rules**
+  - Main: Play Feature, Chapters (if any), Extras (if extras/galleries)
+  - Extras menu groups by subtype; galleries listed separately
+- [ ] **UI layout guardrails**
+  - Separate Feature / Extras / Galleries sections
+  - Chapters disabled when content type is not Feature
+- [ ] **Schema + config updates**
+  - Add content_type per video, gallery assets list, chapter thumb config
+  - Persist extras subtype and gallery behavior (auto-advance, loop)
+
 ### VIDEO PLAYER IMPLEMENTATION
 
 **CRITICAL BLOCKER:** All advanced features (enhancement, trim, advanced filters) depend on stable player foundation.
