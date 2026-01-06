@@ -10975,24 +10975,24 @@ func newPlaySession(path string, w, h int, fps, duration float64, targetW, targe
 	if targetH <= 0 {
 		targetH = int(float64(targetW) * (float64(h) / float64(utils.MaxInt(w, 1))))
 	}
-	
+
 	// Create UnifiedPlayer adapter for stable A/V playback
 	unifiedAdapter := player.NewUnifiedPlayerAdapter(path, w, h, fps, duration, targetW, targetH, prog, frameFunc, img)
-	
+
 	return &playSession{
-		path:      path,
-		fps:       fps,
-		width:     w,
-		height:    h,
-		targetW:   targetW,
-		targetH:   targetH,
-		volume:    100,
-		duration:  duration,
-		stop:      make(chan struct{}),
-		done:      make(chan struct{}),
-		prog:      prog,
-		frameFunc: frameFunc,
-		img:       img,
+		path:           path,
+		fps:            fps,
+		width:          w,
+		height:         h,
+		targetW:        targetW,
+		targetH:        targetH,
+		volume:         100,
+		duration:       duration,
+		stop:           make(chan struct{}),
+		done:           make(chan struct{}),
+		prog:           prog,
+		frameFunc:      frameFunc,
+		img:            img,
 		unifiedAdapter: unifiedAdapter,
 	}
 }
@@ -11000,14 +11000,14 @@ func newPlaySession(path string, w, h int, fps, duration float64, targetW, targe
 func (p *playSession) Play() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	// Use UnifiedPlayer adapter if available
 	if p.unifiedAdapter != nil {
 		p.unifiedAdapter.Play()
 		p.paused = false
 		return
 	}
-	
+
 	// Fallback to dual-process
 	if p.videoCmd == nil && p.audioCmd == nil {
 		p.startLocked(p.current)
@@ -11019,14 +11019,14 @@ func (p *playSession) Play() {
 func (p *playSession) Pause() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	// Use UnifiedPlayer adapter if available
 	if p.unifiedAdapter != nil {
 		p.unifiedAdapter.Pause()
 		p.paused = true
 		return
 	}
-	
+
 	p.paused = true
 }
 
@@ -11036,7 +11036,7 @@ func (p *playSession) Seek(offset float64) {
 	if offset < 0 {
 		offset = 0
 	}
-	
+
 	// Use UnifiedPlayer adapter if available
 	if p.unifiedAdapter != nil {
 		p.unifiedAdapter.Seek(offset)
@@ -11044,7 +11044,7 @@ func (p *playSession) Seek(offset float64) {
 		p.paused = p.unifiedAdapter.IsPlaying() == false
 		return
 	}
-	
+
 	// Fallback to dual-process
 	paused := p.paused
 	p.current = offset
@@ -11076,7 +11076,7 @@ func (p *playSession) StepFrame(delta int) {
 	// Use UnifiedPlayer adapter if available
 	if p.unifiedAdapter != nil {
 		p.unifiedAdapter.StepFrame(delta)
-		p.current = p.unifiedAdapter.GetCurrentFrame() / p.fps
+		p.current = float64(p.unifiedAdapter.GetCurrentFrame()) / p.fps
 		p.paused = true
 		return
 	}
@@ -11129,12 +11129,12 @@ func (p *playSession) StepFrame(delta int) {
 func (p *playSession) GetCurrentFrame() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	// Use UnifiedPlayer adapter if available
 	if p.unifiedAdapter != nil {
 		return p.unifiedAdapter.GetCurrentFrame()
 	}
-	
+
 	return p.frameN
 }
 
@@ -11142,19 +11142,26 @@ func (p *playSession) SetVolume(v float64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.volume = v
-	
+
 	// Use UnifiedPlayer adapter if available
 	if p.unifiedAdapter != nil {
 		p.unifiedAdapter.SetVolume(v)
 		return
 	}
-	
+
 	// Fallback to dual-process
 	if p.audioCmd != nil && p.audioCmd.Process != nil {
 		// Send volume command to FFmpeg
 		cmd := fmt.Sprintf("volume %.1f\n", v/100.0)
 		p.writeStringToStdin(cmd)
 	}
+}
+
+// writeStringToStdin writes a command to the stdin of audio FFmpeg process
+func (p *playSession) writeStringToStdin(cmd string) {
+	// This would require setting up stdin pipe in audio cmd creation
+	// For now, just log the command as dual-process audio is deprecated
+	logging.Debug(logging.CatFFMPEG, "writeStringToStdin called with: %s", cmd)
 }
 
 func (p *playSession) restartAudio(offset float64) {
@@ -11173,13 +11180,13 @@ func (p *playSession) restartAudio(offset float64) {
 func (p *playSession) Stop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	
+
 	// Use UnifiedPlayer adapter if available
 	if p.unifiedAdapter != nil {
 		p.unifiedAdapter.Stop()
 		return
 	}
-	
+
 	// Fallback to dual-process
 	p.stopLocked()
 }
@@ -11190,7 +11197,7 @@ func (p *playSession) stopLocked() {
 		p.unifiedAdapter.Stop()
 		return
 	}
-	
+
 	// Fallback to dual-process cleanup
 	select {
 	case <-p.stop:
@@ -11220,14 +11227,14 @@ func (p *playSession) startLocked(offset float64) {
 	p.videoTime = offset
 	p.syncOffset = 0
 	logging.Debug(logging.CatFFMPEG, "playSession start path=%s offset=%.3f fps=%.3f target=%dx%d", p.path, offset, p.fps, p.targetW, p.targetH)
-	
+
 	// If using UnifiedPlayer adapter, no need to run dual-process
 	if p.unifiedAdapter != nil {
 		// UnifiedPlayer handles A/V sync internally
 		p.unifiedAdapter.Seek(offset)
 		return
 	}
-	
+
 	// Fallback to dual-process (old method)
 	p.runVideo(offset)
 	p.runAudio(offset)
