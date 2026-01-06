@@ -1,6 +1,5 @@
 # Ensure shell scripts always use LF line endings
 *.sh text eol=lf
-
 # Go files should use LF
 *.go text eol=lf
 # Markdown files should use LF
