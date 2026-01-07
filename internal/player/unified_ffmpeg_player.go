@@ -47,6 +47,7 @@ type UnifiedPlayer struct {
 	muted        bool
 	fullscreen   bool
 	previewMode  bool
+	paused       bool // Playback paused state
 
 	// Video info
 	videoInfo *VideoInfo
@@ -136,12 +137,8 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 		}
 	}
 
-	// TODO: wire up FFmpeg process startup and pipe handling.
-	p.state = StateStopped
-	if p.stateCallback != nil {
-		p.stateCallback(p.state)
-	}
-	return nil
+	// Start FFmpeg process for unified A/V output
+	return p.startVideoProcess()
 }
 
 // SeekToTime seeks to a specific time without restarting processes
@@ -207,6 +204,19 @@ func (p *UnifiedPlayer) GetDuration() time.Duration {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.duration
+}
+
+// GetFrameImage reads and returns the current video frame as an RGBA image
+// This is the main method for getting video frames to display in the UI
+func (p *UnifiedPlayer) GetFrameImage() (*image.RGBA, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.state != StatePlaying || p.paused {
+		return nil, nil
+	}
+
+	return p.readVideoFrame()
 }
 
 // GetFrameRate returns the video frame rate
@@ -400,16 +410,115 @@ func (p *UnifiedPlayer) Stop() error {
 		_ = p.cmd.Process.Kill()
 	}
 	p.state = StateStopped
+	p.paused = false
 	if p.stateCallback != nil {
 		p.stateCallback(p.state)
 	}
 	return nil
 }
 
+// Play starts or resumes video playback
+func (p *UnifiedPlayer) Play() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.state == StateStopped {
+		// Need to load first
+		return fmt.Errorf("no video loaded")
+	}
+
+	p.paused = false
+	p.state = StatePlaying
+	p.syncClock = time.Now()
+
+	logging.Debug(logging.CatPlayer, "UnifiedPlayer: Play() called, state=%v", p.state)
+
+	if p.stateCallback != nil {
+		p.stateCallback(p.state)
+	}
+	return nil
+}
+
+// Pause pauses video playback
+func (p *UnifiedPlayer) Pause() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.state != StatePlaying {
+		return nil // Already paused or stopped
+	}
+
+	p.paused = true
+	p.state = StatePaused
+
+	logging.Debug(logging.CatPlayer, "UnifiedPlayer: Pause() called, state=%v", p.state)
+
+	if p.stateCallback != nil {
+		p.stateCallback(p.state)
+	}
+	return nil
+}
+
+// IsPaused returns whether playback is paused
+func (p *UnifiedPlayer) IsPaused() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.paused
+}
+
+// IsPlaying returns whether playback is active
+func (p *UnifiedPlayer) IsPlaying() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.state == StatePlaying && !p.paused
+}
+
 // Helper methods
 
-// startVideoProcess starts the video processing goroutine
+// startVideoProcess starts the video processing goroutine and FFmpeg process
 func (p *UnifiedPlayer) startVideoProcess() error {
+	// Build FFmpeg command for unified A/V output
+	args := []string{
+		"-hide_banner", "-loglevel", "error",
+		"-ss", fmt.Sprintf("%.3f", p.currentTime.Seconds()),
+		"-i", p.currentPath,
+		// Video stream to pipe 4
+		"-map", "0:v:0",
+		"-f", "rawvideo",
+		"-pix_fmt", "rgb24",
+		"-r", "24", // We'll detect actual framerate
+		"pipe:4",
+		// Audio stream to pipe 5
+		"-map", "0:a:0",
+		"-ac", "2",
+		"-ar", "48000",
+		"-f", "s16le",
+		"pipe:5",
+	}
+
+	// Add hardware acceleration if available
+	if p.config.HardwareAccel {
+		if args = p.addHardwareAcceleration(args); args != nil {
+			logging.Debug(logging.CatPlayer, "Hardware acceleration enabled: %v", args)
+		}
+	}
+
+	// Create FFmpeg command
+	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), args...)
+	cmd.Stdin = nil
+	cmd.Stdout = p.videoPipeWriter
+	cmd.Stderr = nil // We'll handle errors through logging
+
+	// Start FFmpeg process
+	if err := cmd.Start(); err != nil {
+		logging.Error(logging.CatPlayer, "Failed to start FFmpeg: %v", err)
+		return err
+	}
+
+	// Store command reference
+	p.cmd = cmd
+
+	// Start video frame reading goroutine
 	go func() {
 		frameDuration := time.Second / time.Duration(p.frameRate)
 		frameTime := p.syncClock
@@ -493,27 +602,51 @@ func (p *UnifiedPlayer) readAudioStream() {
 
 // readVideoStream reads video frames from the video pipe
 func (p *UnifiedPlayer) readVideoFrame() (*image.RGBA, error) {
-	// Read RGB24 frame data
-	frameSize := p.windowW * p.windowH * 3 // RGB24 = 3 bytes per pixel
-	frameData := make([]byte, frameSize)
-	n, err := p.videoPipeReader.Read(frameData)
-
-	if err != nil && err.Error() != "EOF" {
-		return nil, fmt.Errorf("video read error: %w", err)
-	}
-
-	if n == 0 {
+	// Check if paused - skip reading frames while paused
+	if p.paused {
 		return nil, nil
 	}
 
-	// Get frame from pool
-	img := p.frameBuffer.Get().(*image.RGBA)
-	img.Pix = make([]uint8, frameSize)
-	img.Stride = p.windowW * 3
-	img.Rect = image.Rect(0, 0, p.windowW, p.windowH)
+	// Read RGB24 frame data from FFmpeg pipe
+	frameSize := p.windowW * p.windowH * 3 // RGB24 = 3 bytes per pixel
+	frameData := make([]byte, frameSize)
 
-	// Copy RGB data to image
-	copy(img.Pix, frameData[:frameSize])
+	// Read full frame - io.ReadFull ensures we get the complete frame
+	n, err := io.ReadFull(p.videoPipeReader, frameData)
+	if err != nil {
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			return nil, nil // End of stream
+		}
+		return nil, fmt.Errorf("video read error: %w", err)
+	}
+
+	if n != frameSize {
+		return nil, fmt.Errorf("incomplete frame: got %d bytes, expected %d", n, frameSize)
+	}
+
+	// Create RGBA image (Fyne requires RGBA, not RGB)
+	img := image.NewRGBA(image.Rect(0, 0, p.windowW, p.windowH))
+
+	// Convert RGB24 to RGBA (add alpha channel)
+	for y := 0; y < p.windowH; y++ {
+		for x := 0; x < p.windowW; x++ {
+			srcIdx := (y*p.windowW + x) * 3
+			dstIdx := (y*p.windowW + x) * 4
+
+			img.Pix[dstIdx+0] = frameData[srcIdx+0] // R
+			img.Pix[dstIdx+1] = frameData[srcIdx+1] // G
+			img.Pix[dstIdx+2] = frameData[srcIdx+2] // B
+			img.Pix[dstIdx+3] = 255                 // A (fully opaque)
+		}
+	}
+
+	// Update frame counter
+	p.currentFrame++
+
+	// Notify time callback
+	if p.timeCallback != nil {
+		p.timeCallback(p.currentTime)
+	}
 
 	return img, nil
 }

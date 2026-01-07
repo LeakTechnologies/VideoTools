@@ -597,6 +597,17 @@ func (s *appState) showAbout() {
 	copyRow := container.NewBorder(nil, nil, nil, copyBtn, btcLabel)
 	addressLabel := widget.NewLabel(btcAddress)
 
+	// X (Twitter) account
+	xURL := "https://x.com/VT_VideoTools"
+	xLabel := widget.NewLabel("X: @VT_VideoTools")
+	xBtn := widget.NewButton("Open", func() {
+		if err := openURL(xURL); err != nil {
+			dialog.ShowError(fmt.Errorf("failed to open X profile: %w", err), s.window)
+		}
+	})
+	xBtn.Importance = widget.LowImportance
+	xRow := container.NewHBox(xLabel, xBtn)
+
 	mainContent := container.NewVBox(
 		versionText,
 		devText,
@@ -604,6 +615,7 @@ func (s *appState) showAbout() {
 		widget.NewLabel("Support Development"),
 		copyRow,
 		addressLabel,
+		xRow,
 		feedbackLabel,
 	)
 
@@ -1128,6 +1140,12 @@ type appState struct {
 	authorCreateMenu          bool         // Whether to create DVD menu
 	authorMenuTemplate        string       // "Simple", "Dark", "Poster"
 	authorMenuBackgroundImage string       // Path to a user-selected background image
+	authorMenuTheme           string       // "VideoTools"
+	authorMenuLogoEnabled     bool
+	authorMenuLogoPath        string // Path to menu logo image
+	authorMenuLogoPosition    string // "Top Left", "Top Right", "Bottom Left", "Bottom Right", "Center"
+	authorMenuLogoScale       float64
+	authorMenuLogoMargin      int
 	authorTitle               string       // DVD title
 	authorSubtitles           []string     // Subtitle file paths
 	authorAudioTracks         []string     // Additional audio tracks

@@ -21,9 +21,27 @@ type dvdMenuButton struct {
 	Y1      int
 }
 
+type menuTheme struct {
+	Name            string
+	BackgroundColor string
+	HeaderColor     string
+	TextColor       string
+	AccentColor     string
+	FontName        string
+	FontPath        string
+}
+
+type menuLogoOptions struct {
+	Enabled  bool
+	Path     string
+	Position string
+	Scale    float64
+	Margin   int
+}
+
 // MenuTemplate defines the interface for a DVD menu generator.
 type MenuTemplate interface {
-	Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, logFn func(string)) (string, []dvdMenuButton, error)
+	Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *menuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error)
 }
 
 var menuTemplates = map[string]MenuTemplate{
@@ -32,11 +50,23 @@ var menuTemplates = map[string]MenuTemplate{
 	"Poster": &PosterMenu{},
 }
 
+var menuThemes = map[string]*menuTheme{
+	"VideoTools": {
+		Name:            "VideoTools",
+		BackgroundColor: "0x0f172a",
+		HeaderColor:     "0x1f2937",
+		TextColor:       "0xE1EEFF",
+		AccentColor:     "0x7c3aed",
+		FontName:        "IBM Plex Mono",
+		FontPath:        findMenuFontPath(),
+	},
+}
+
 // SimpleMenu is a basic menu template.
 type SimpleMenu struct{}
 
 // Generate creates a simple DVD menu.
-func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, logFn func(string)) (string, []dvdMenuButton, error) {
+func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *menuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildDVDMenuButtons(chapters, width, height)
 	if len(buttons) == 0 {
@@ -59,12 +89,12 @@ func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	}
 
 	if backgroundImage == "" {
-		if err := buildMenuBackground(ctx, bgPath, title, buttons, width, height); err != nil {
+		if err := buildMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo); err != nil {
 			return "", nil, err
 		}
 	}
 
-	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height); err != nil {
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme)); err != nil {
 		return "", nil, err
 	}
 	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect); err != nil {
@@ -86,7 +116,7 @@ func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspec
 type DarkMenu struct{}
 
 // Generate creates a dark-themed DVD menu.
-func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, logFn func(string)) (string, []dvdMenuButton, error) {
+func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *menuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildDVDMenuButtons(chapters, width, height)
 	if len(buttons) == 0 {
@@ -109,12 +139,12 @@ func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 	}
 
 	if backgroundImage == "" {
-		if err := buildDarkMenuBackground(ctx, bgPath, title, buttons, width, height); err != nil {
+		if err := buildDarkMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo); err != nil {
 			return "", nil, err
 		}
 	}
 
-	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height); err != nil {
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme)); err != nil {
 		return "", nil, err
 	}
 	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect); err != nil {
@@ -136,7 +166,7 @@ func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 type PosterMenu struct{}
 
 // Generate creates a poster-themed DVD menu.
-func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, logFn func(string)) (string, []dvdMenuButton, error) {
+func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *menuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildDVDMenuButtons(chapters, width, height)
 	if len(buttons) == 0 {
@@ -158,11 +188,11 @@ func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspec
 		logFn("Building DVD menu assets with PosterMenu template...")
 	}
 
-	if err := buildPosterMenuBackground(ctx, bgPath, title, buttons, width, height, backgroundImage); err != nil {
+	if err := buildPosterMenuBackground(ctx, bgPath, title, buttons, width, height, backgroundImage, resolveMenuTheme(theme), logo); err != nil {
 		return "", nil, err
 	}
 
-	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height); err != nil {
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme)); err != nil {
 		return "", nil, err
 	}
 	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect); err != nil {
@@ -180,11 +210,11 @@ func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	return menuSpu, buttons, nil
 }
 
-func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, logFn func(string), template MenuTemplate, backgroundImage string) (string, []dvdMenuButton, error) {
+func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, logFn func(string), template MenuTemplate, backgroundImage string, theme *menuTheme, logo menuLogoOptions) (string, []dvdMenuButton, error) {
 	if template == nil {
 		template = &SimpleMenu{}
 	}
-	return template.Generate(ctx, workDir, title, region, aspect, chapters, backgroundImage, logFn)
+	return template.Generate(ctx, workDir, title, region, aspect, chapters, backgroundImage, resolveMenuTheme(theme), logo, logFn)
 }
 
 func dvdMenuDimensions(region string) (int, int) {
@@ -232,55 +262,53 @@ func buildDVDMenuButtons(chapters []authorChapter, width, height int) []dvdMenuB
 	return buttons
 }
 
-func buildMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int) error {
-	logoPath := findVTLogoPath()
-	if logoPath == "" {
-		return fmt.Errorf("VT logo not found for menu rendering")
-	}
+func buildMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *menuTheme, logo menuLogoOptions) error {
+	theme = resolveMenuTheme(theme)
 
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
 	if safeTitle == "" {
 		safeTitle = "DVD Menu"
 	}
 
-	bgColor := "0x0f172a"
-	headerColor := "0x1f2937"
-	textColor := "white"
-	accentColor := "0x7c3aed"
+	bgColor := theme.BackgroundColor
+	headerColor := theme.HeaderColor
+	textColor := theme.TextColor
+	accentColor := theme.AccentColor
+	fontArg := menuFontArg(theme)
 
 	filterParts := []string{
 		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
-		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=28:x=36:y=20:text='%s'", textColor, escapeDrawtextText("VideoTools DVD")),
-		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=18:x=36:y=80:text='%s'", textColor, escapeDrawtextText(safeTitle)),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text='%s'", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text='%s'", fontArg, textColor, escapeDrawtextText(safeTitle)),
 		fmt.Sprintf("drawbox=x=36:y=108:w=%d:h=2:color=%s:t=fill", width-72, accentColor),
-		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=16:x=36:y=122:text='%s'", textColor, escapeDrawtextText("Select a title or chapter to play")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=122:text='%s'", fontArg, textColor, escapeDrawtextText("Select a title or chapter to play")),
 	}
 
 	for i, btn := range buttons {
 		label := escapeDrawtextText(btn.Label)
 		y := 184 + i*34
-		filterParts = append(filterParts, fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=20:x=110:y=%d:text='%s'", textColor, y, label))
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=20:x=110:y=%d:text='%s'", fontArg, textColor, y, label))
 	}
 
 	filterChain := strings.Join(filterParts, ",")
 
-	args := []string{
-		"-y",
-		"-f", "lavfi",
-		"-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height),
-		"-i", logoPath,
-		"-filter_complex", fmt.Sprintf("[0:v]%s[bg];[1:v]scale=72:-1[logo];[bg][logo]overlay=W-w-36:18", filterChain),
-		"-frames:v", "1",
-		outputPath,
+	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
+	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+	if logo.Enabled {
+		logoPath := resolveMenuLogoPath(logo)
+		if logoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo, width, height)
+			scaleExpr := fmt.Sprintf("scale=iw*%.2f:ih*%.2f", resolveMenuLogoScale(logo), resolveMenuLogoScale(logo))
+			args = append(args, "-i", logoPath)
+			filterExpr = fmt.Sprintf("[0:v]%s[bg];[1:v]%s[logo];[bg][logo]overlay=%s", filterChain, scaleExpr, posExpr)
+		}
 	}
+	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
 }
 
-func buildDarkMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int) error {
-	logoPath := findVTLogoPath()
-	if logoPath == "" {
-		return fmt.Errorf("VT logo not found for menu rendering")
-	}
+func buildDarkMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *menuTheme, logo menuLogoOptions) error {
+	theme = resolveMenuTheme(theme)
 
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
 	if safeTitle == "" {
@@ -289,76 +317,89 @@ func buildDarkMenuBackground(ctx context.Context, outputPath, title string, butt
 
 	bgColor := "0x000000"
 	headerColor := "0x111111"
-	textColor := "white"
-	accentColor := "0xeeeeee"
+	textColor := theme.TextColor
+	accentColor := theme.AccentColor
+	fontArg := menuFontArg(theme)
 
 	filterParts := []string{
 		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
-		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=28:x=36:y=20:text='%s'", textColor, escapeDrawtextText("VideoTools DVD")),
-		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=18:x=36:y=80:text='%s'", textColor, escapeDrawtextText(safeTitle)),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text='%s'", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text='%s'", fontArg, textColor, escapeDrawtextText(safeTitle)),
 		fmt.Sprintf("drawbox=x=36:y=108:w=%d:h=2:color=%s:t=fill", width-72, accentColor),
-		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=16:x=36:y=122:text='%s'", textColor, escapeDrawtextText("Select a title or chapter to play")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=122:text='%s'", fontArg, textColor, escapeDrawtextText("Select a title or chapter to play")),
 	}
 
 	for i, btn := range buttons {
 		label := escapeDrawtextText(btn.Label)
 		y := 184 + i*34
-		filterParts = append(filterParts, fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=20:x=110:y=%d:text='%s'", textColor, y, label))
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=20:x=110:y=%d:text='%s'", fontArg, textColor, y, label))
 	}
 
 	filterChain := strings.Join(filterParts, ",")
 
-	args := []string{
-		"-y",
-		"-f", "lavfi",
-		"-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height),
-		"-i", logoPath,
-		"-filter_complex", fmt.Sprintf("[0:v]%s[bg];[1:v]scale=72:-1[logo];[bg][logo]overlay=W-w-36:18", filterChain),
-		"-frames:v", "1",
-		outputPath,
+	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
+	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+	if logo.Enabled {
+		logoPath := resolveMenuLogoPath(logo)
+		if logoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo, width, height)
+			scaleExpr := fmt.Sprintf("scale=iw*%.2f:ih*%.2f", resolveMenuLogoScale(logo), resolveMenuLogoScale(logo))
+			args = append(args, "-i", logoPath)
+			filterExpr = fmt.Sprintf("[0:v]%s[bg];[1:v]%s[logo];[bg][logo]overlay=%s", filterChain, scaleExpr, posExpr)
+		}
 	}
+	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
 }
 
-func buildPosterMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, backgroundImage string) error {
+func buildPosterMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, backgroundImage string, theme *menuTheme, logo menuLogoOptions) error {
+	theme = resolveMenuTheme(theme)
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
 	if safeTitle == "" {
 		safeTitle = "DVD Menu"
 	}
 
-	textColor := "white"
+	textColor := theme.TextColor
+	fontArg := menuFontArg(theme)
 
 	filterParts := []string{
-		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=28:x=36:y=20:text='%s'", textColor, escapeDrawtextText("VideoTools DVD")),
-		fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=18:x=36:y=80:text='%s'", textColor, escapeDrawtextText(safeTitle)),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text='%s'", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text='%s'", fontArg, textColor, escapeDrawtextText(safeTitle)),
 	}
 
 	for i, btn := range buttons {
 		label := escapeDrawtextText(btn.Label)
 		y := 184 + i*34
-		filterParts = append(filterParts, fmt.Sprintf("drawtext=font='DejaVu Sans Mono':fontcolor=%s:fontsize=20:x=110:y=%d:text='%s'", textColor, y, label))
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=20:x=110:y=%d:text='%s'", fontArg, textColor, y, label))
 	}
 
 	filterChain := strings.Join(filterParts, ",")
 
-	args := []string{
-		"-y",
-		"-i", backgroundImage,
-		"-vf", fmt.Sprintf("scale=%d:%d,%s", width, height, filterChain),
-		"-frames:v", "1",
-		outputPath,
+	args := []string{"-y", "-i", backgroundImage}
+	filterExpr := fmt.Sprintf("[0:v]scale=%d:%d,%s[bg]", width, height, filterChain)
+	if logo.Enabled {
+		logoPath := resolveMenuLogoPath(logo)
+		if logoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo, width, height)
+			scaleExpr := fmt.Sprintf("scale=iw*%.2f:ih*%.2f", resolveMenuLogoScale(logo), resolveMenuLogoScale(logo))
+			args = append(args, "-i", logoPath)
+			filterExpr = fmt.Sprintf("[0:v]scale=%d:%d,%s[bg];[1:v]%s[logo];[bg][logo]overlay=%s", width, height, filterChain, scaleExpr, posExpr)
+		}
 	}
+	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
 }
 
-func buildMenuOverlays(ctx context.Context, overlayPath, highlightPath, selectPath string, buttons []dvdMenuButton, width, height int) error {
+func buildMenuOverlays(ctx context.Context, overlayPath, highlightPath, selectPath string, buttons []dvdMenuButton, width, height int, theme *menuTheme) error {
+	theme = resolveMenuTheme(theme)
+	accent := theme.AccentColor
 	if err := buildMenuOverlay(ctx, overlayPath, buttons, width, height, "0x000000@0.0"); err != nil {
 		return err
 	}
-	if err := buildMenuOverlay(ctx, highlightPath, buttons, width, height, "0xf59e0b@0.35"); err != nil {
+	if err := buildMenuOverlay(ctx, highlightPath, buttons, width, height, fmt.Sprintf("%s@0.35", accent)); err != nil {
 		return err
 	}
-	if err := buildMenuOverlay(ctx, selectPath, buttons, width, height, "0xf59e0b@0.65"); err != nil {
+	if err := buildMenuOverlay(ctx, selectPath, buttons, width, height, fmt.Sprintf("%s@0.65", accent)); err != nil {
 		return err
 	}
 	return nil
@@ -471,6 +512,84 @@ func findVTLogoPath() string {
 		}
 	}
 	return ""
+}
+
+func findMenuFontPath() string {
+	search := []string{
+		filepath.Join("assets", "fonts", "IBMPlexMono-Regular.ttf"),
+	}
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		search = append(search, filepath.Join(dir, "assets", "fonts", "IBMPlexMono-Regular.ttf"))
+	}
+	for _, p := range search {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+func resolveMenuTheme(theme *menuTheme) *menuTheme {
+	if theme == nil {
+		return menuThemes["VideoTools"]
+	}
+	if theme.Name == "" {
+		return menuThemes["VideoTools"]
+	}
+	if resolved, ok := menuThemes[theme.Name]; ok {
+		return resolved
+	}
+	return menuThemes["VideoTools"]
+}
+
+func menuFontArg(theme *menuTheme) string {
+	if theme != nil && theme.FontPath != "" {
+		return fmt.Sprintf("fontfile='%s'", theme.FontPath)
+	}
+	if theme != nil && theme.FontName != "" {
+		return fmt.Sprintf("font='%s'", theme.FontName)
+	}
+	return "font='DejaVu Sans Mono'"
+}
+
+func resolveMenuLogoPath(logo menuLogoOptions) string {
+	if strings.TrimSpace(logo.Path) != "" {
+		return logo.Path
+	}
+	return filepath.Join("assets", "logo", "VT_Logo.png")
+}
+
+func resolveMenuLogoScale(logo menuLogoOptions) float64 {
+	if logo.Scale <= 0 {
+		return 1.0
+	}
+	if logo.Scale < 0.2 {
+		return 0.2
+	}
+	if logo.Scale > 2.0 {
+		return 2.0
+	}
+	return logo.Scale
+}
+
+func resolveMenuLogoPosition(logo menuLogoOptions, width, height int) string {
+	margin := logo.Margin
+	if margin < 0 {
+		margin = 0
+	}
+	switch logo.Position {
+	case "Top Left":
+		return fmt.Sprintf("%d:%d", margin, margin)
+	case "Bottom Left":
+		return fmt.Sprintf("%d:H-h-%d", margin, margin)
+	case "Bottom Right":
+		return fmt.Sprintf("W-w-%d:H-h-%d", margin, margin)
+	case "Center":
+		return "(W-w)/2:(H-h)/2"
+	default:
+		return fmt.Sprintf("W-w-%d:%d", margin, margin)
+	}
 }
 
 func escapeDrawtextText(text string) string {
