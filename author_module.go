@@ -1223,11 +1223,12 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	info := widget.NewLabel("DVD menus are generated using the VideoTools theme and IBM Plex Mono. Menu settings apply only to disc authoring.")
 	info.Wrapping = fyne.TextWrapWord
 
-	previewBox := buildMenuBox("Logo Preview", container.NewVBox(
+	logoPreviewGroup := container.NewVBox(
+		widget.NewLabel("Logo Preview:"),
 		logoPreviewLabel,
 		logoPreview,
 		logoPreviewSize,
-	))
+	)
 
 	menuCore := buildMenuBox("Menu Core", container.NewVBox(
 		createMenuCheck,
@@ -1247,6 +1248,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		widget.NewLabel("Logo Path:"),
 		logoLabel,
 		logoPickButton,
+		logoPreviewGroup,
 		widget.NewLabel("Logo Position:"),
 		logoPositionSelect,
 		widget.NewLabel("Logo Scale:"),
@@ -1269,8 +1271,6 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		branding,
 		sectionGap(),
 		navigation,
-		sectionGap(),
-		previewBox,
 		sectionGap(),
 		info,
 	)

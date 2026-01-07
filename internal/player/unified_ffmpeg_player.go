@@ -122,7 +122,6 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Crash(logging.CatPlayer, "Panic in Load(): %v", r)
-			return fmt.Errorf("panic during video loading: %v", r)
 		}
 	}()
 
@@ -159,8 +158,7 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 	// Initialize audio context for playback
 	sampleRate := 48000
 	channels := 2
-	bytesPerSample := 2 // 16-bit = 2 bytes
-	
+
 	ctx, ready, err := oto.NewContext(&oto.NewContextOptions{
 		SampleRate:   sampleRate,
 		ChannelCount: channels,
@@ -188,7 +186,6 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 	go p.readAudioStream()
 
 	return nil
-}
 }
 
 // SeekToTime seeks to a specific time without restarting processes
@@ -639,72 +636,21 @@ func (p *UnifiedPlayer) readAudioStream() {
 		}
 	}()
 
-	buffer := make([]byte, 4096) // 85ms chunks
-
-	for {
-		select {
-		case <-p.ctx.Done():
-			logging.Debug(logging.CatPlayer, "Audio reading goroutine stopped")
-			return
-
-		default:
-			// Read from audio pipe
-			n, err := p.audioPipeReader.Read(buffer)
-			if err != nil && err.Error() != "EOF" {
-				logging.Error(logging.CatPlayer, "Audio read error: %v", err)
-				continue
-			}
-
-			if n == 0 {
-				continue
-			}
-
-			// Initialize audio player if needed
-			if p.audioPlayer == nil && p.audioContext != nil {
-				player, err := p.audioContext.NewPlayer(p.audioPipeReader)
-				if err != nil {
-					logging.Error(logging.CatPlayer, "Failed to create audio player: %v", err)
-					return
-				}
-				p.audioPlayer = player
-				logging.Info(logging.CatPlayer, "Audio player created successfully")
-			}
-
-			// Write audio data to player buffer
-			if p.audioPlayer != nil {
-				p.audioPlayer.Write(buffer[:n])
-			}
-
-			// Buffer for sync monitoring (keep small to avoid memory issues)
-			if len(p.audioBuffer) > 32768 { // Max 1 second at 48kHz
-				p.audioBuffer = p.audioBuffer[len(p.audioBuffer)-16384:] // Keep half
-			}
-
-			// Simple audio sync timing
-			p.updateAVSync()
-		}
+	if p.audioContext == nil {
+		logging.Error(logging.CatPlayer, "Audio context is not initialized")
+		return
 	}
-}
 
 	p.mu.Lock()
 	if p.audioPlayer == nil {
 		p.audioPlayer = p.audioContext.NewPlayer(p.audioPipeReader)
 		p.audioPlayer.Play()
+		logging.Info(logging.CatPlayer, "Audio player created successfully")
 	}
 	p.mu.Unlock()
 
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-p.ctx.Done():
-			logging.Debug(logging.CatPlayer, "Audio reading goroutine stopped")
-			return
-		case <-ticker.C:
-			p.updateAVSync()
-		}
-	}
+	<-p.ctx.Done()
+	logging.Debug(logging.CatPlayer, "Audio reading goroutine stopped")
 }
 
 // readVideoStream reads video frames from the video pipe
