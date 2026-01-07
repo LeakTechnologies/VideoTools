@@ -1321,7 +1321,9 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	updateLogoPreview()
 	updateMenuControls(state.authorCreateMenu)
 
-	return container.NewPadded(controls)
+	scroll := container.NewVScroll(container.NewPadded(controls))
+	scroll.SetMinSize(fyne.NewSize(0, 420))
+	return scroll
 }
 
 func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
