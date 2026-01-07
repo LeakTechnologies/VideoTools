@@ -582,7 +582,8 @@ func (p *UnifiedPlayer) startVideoProcess() error {
 	p.cmd = cmd
 
 	// Start video frame reading goroutine
-	go func() {
+	if !p.previewMode {
+		go func() {
 		rate := p.frameRate
 		if rate <= 0 {
 			rate = 24
@@ -626,7 +627,8 @@ func (p *UnifiedPlayer) startVideoProcess() error {
 				}
 			}
 		}
-	}()
+		}()
+	}
 
 	return nil
 }

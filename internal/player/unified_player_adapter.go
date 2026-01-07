@@ -75,7 +75,7 @@ func NewUnifiedPlayerAdapter(path string, width, height int, fps, duration float
 		Muted:         false,
 		AutoPlay:      false,
 		HardwareAccel: false,
-		PreviewMode:   false,
+		PreviewMode:   true,
 		AudioOutput:   "auto",
 		VideoOutput:   "rgb24",
 		CacheEnabled:  true,
@@ -287,9 +287,15 @@ func (p *UnifiedPlayerAdapter) startUpdateLoop() {
 			case <-p.updateTicker.C:
 				p.mu.Lock()
 				if !p.paused && p.player != nil {
-					// Get current time from UnifiedPlayer
-					currentTime := p.player.GetCurrentTime()
-					p.current = currentTime.Seconds()
+					// Drive timeline locally to avoid fighting the frame reader.
+					elapsed := time.Since(p.startTime).Seconds()
+					if elapsed < 0 {
+						elapsed = 0
+					}
+					if p.duration > 0 && elapsed > p.duration {
+						elapsed = p.duration
+					}
+					p.current = elapsed
 					p.frameN = int(p.current * p.fps)
 
 					// Update UI callbacks
