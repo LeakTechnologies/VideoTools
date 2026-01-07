@@ -134,67 +134,19 @@ func Error(cat Category, format string, args ...interface{}) {
 	logger.Printf("%s %s", timestamp, msg)
 }
 
-// Crash logs a critical error with stack trace for debugging crashes
-func Crash(cat Category, format string, args ...interface{}) {
-	msg := fmt.Sprintf("%s CRASH: %s", cat, fmt.Sprintf(format, args...))
-	timestamp := time.Now().Format(time.RFC3339Nano)
-	
-	// Log to main log file
-	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
-	}
-	logger.Printf("%s %s", timestamp, msg)
-	
-	// Also log to dedicated crash log
-	if crashFile, err := os.OpenFile(GetCrashLogPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
-		fmt.Fprintf(crashFile, "%s %s\n", timestamp, msg)
-		fmt.Fprintf(crashFile, "Stack trace:\n%s\n", timestamp, getStackTrace())
-		crashFile.Sync()
-	}
-}
-func Crash(cat Category, format string, args ...interface{}) {
-	msg := fmt.Sprintf("%s CRASH: %s", cat, fmt.Sprintf(format, args...))
-	timestamp := time.Now().Format(time.RFC3339Nano)
-	
-	// Log to main log file
-	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
-	}
-	logger.Printf("%s %s", timestamp, msg)
-	
-	// Also log to dedicated crash log
-	if crashFile, err := os.OpenFile(GetCrashLogPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
-		fmt.Fprintf(crashFile, "%s %s\n", timestamp, msg)
-		fmt.Fprintf(crashFile, "Stack trace:\n%s\n", timestamp, getStackTrace())
-		crashFile.Sync()
-	}
-}
-
-// Fatal logs a fatal error and exits (always logged, even when debug is off)
-func Fatal(cat Category, format string, args ...interface{}) {
-	msg := fmt.Sprintf("%s FATAL: %s", cat, fmt.Sprintf(format, args...))
-	timestamp := time.Now().Format(time.RFC3339Nano)
-	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
-		file.Sync()
-	}
-	logger.Printf("%s %s", timestamp, msg)
-	os.Exit(1)
-}
-
-// Fatal logs a fatal error and exits (always logged, even when debug is off)
-func Fatal(cat Category, format string, args ...interface{}) {
-	msg := fmt.Sprintf("%s FATAL: %s", cat, fmt.Sprintf(format, args...))
-	timestamp := time.Now().Format(time.RFC3339Nano)
-	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
-		file.Sync()
-	}
-	logger.Printf("%s %s", timestamp, msg)
-	os.Exit(1)
-}
-
 // Note: history tracking is disabled during fatal exit to avoid infinite loops
+
+// Fatal logs a fatal error and exits (always logged, even when debug is off)
+func Fatal(cat Category, format string, args ...interface{}) {
+	msg := fmt.Sprintf("%s FATAL: %s", cat, fmt.Sprintf(format, args...))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+		file.Sync()
+	}
+	logger.Printf("%s %s", timestamp, msg)
+	os.Exit(1)
+}
 	if len(history) > historyMax {
 		history = history[len(history)-historyMax:]
 	}
