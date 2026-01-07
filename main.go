@@ -6977,7 +6977,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		// Callbacks for state updates
 		updateEncodingControls    func()
 		updateAspectBoxVisibility func()
-		buildCommandPreview       func()
+		buildCommandPreview       func() fyne.CanvasObject
 	}
 
 	uiState := &convertUIState{
@@ -7258,20 +7258,68 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	clearCompletedBtn.Importance = widget.LowImportance
 
-	// Command Preview toggle button
-	cmdPreviewBtn := widget.NewButton("Command Preview", func() {
-		state.convertCommandPreviewShow = !state.convertCommandPreviewShow
-		state.showModule("convert")
+	var commandDrawer *widget.PopUp
+	var snippetDrawer *widget.PopUp
+	drawerWidth := float32(420)
+	drawerInset := float32(8)
+	buildDrawer := func(title string, body fyne.CanvasObject, onClose func()) *widget.PopUp {
+		closeBtn := widget.NewButton("✕", func() {
+			if onClose != nil {
+				onClose()
+			}
+		})
+		closeBtn.Importance = widget.LowImportance
+		header := container.NewBorder(nil, nil,
+			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			closeBtn,
+		)
+		bodyScroll := container.NewVScroll(body)
+		bodyScroll.SetMinSize(fyne.NewSize(0, 200))
+		panel := container.NewBorder(header, nil, nil, nil, bodyScroll)
+
+		bg := canvas.NewRectangle(utils.MustHex("#13182B"))
+		bg.CornerRadius = 10
+		bg.StrokeColor = gridColor
+		bg.StrokeWidth = 1
+		drawer := container.NewMax(bg, container.NewPadded(panel))
+
+		pop := widget.NewPopUp(drawer, state.window.Canvas())
+		canvasSize := state.window.Canvas().Size()
+		height := canvasSize.Height - (drawerInset * 2)
+		if height < 220 {
+			height = 220
+		}
+		pop.Resize(fyne.NewSize(drawerWidth, height))
+		pop.ShowAtPosition(fyne.NewPos(canvasSize.Width-drawerWidth-drawerInset, drawerInset))
+		return pop
+	}
+	toggleDrawer := func(active **widget.PopUp, title string, body fyne.CanvasObject) {
+		if *active != nil {
+			(*active).Hide()
+			*active = nil
+			return
+		}
+		*active = buildDrawer(title, body, func() {
+			if *active != nil {
+				(*active).Hide()
+				*active = nil
+			}
+		})
+	}
+
+	// Command Preview toggle button (drawer)
+	cmdPreviewBtn := widget.NewButton("Command Preview…", func() {
+		if src == nil {
+			return
+		}
+		body := buildCommandPreview()
+		toggleDrawer(&commandDrawer, "FFmpeg Command Preview", body)
 	})
 	cmdPreviewBtn.Importance = widget.LowImportance
 
 	// Update button text and state based on preview visibility and source
 	if src == nil {
 		cmdPreviewBtn.Disable()
-	} else if state.convertCommandPreviewShow {
-		cmdPreviewBtn.SetText("Hide Preview")
-	} else {
-		cmdPreviewBtn.SetText("Show Preview")
 	}
 
 	// Build back bar
@@ -7313,7 +7361,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Forward declare functions needed by formatContainer callback
 	var updateDVDOptions func()
-	var buildCommandPreview func()
+	var buildCommandPreview func() fyne.CanvasObject
 	var updateChapterWarning func()
 	var updateQualityOptions func()
 	var updateQualityVisibility func()
@@ -9712,9 +9760,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetModeCheck,
 		snippetModeHint,
 	)
-	snippetConfigScroll := container.NewVScroll(snippetConfigRow)
-	snippetConfigScroll.SetMinSize(fyne.NewSize(0, 140))
-	snippetConfigScroll.Hide()
 
 	snippetBtn := widget.NewButton("Generate Snippet", func() {
 		if state.source == nil {
@@ -9847,17 +9892,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	snippetHint := widget.NewLabel("Creates a clip centred on the timeline midpoint.")
 
-	snippetOptionsVisible := false
 	var snippetOptionsBtn *widget.Button
-	snippetOptionsBtn = widget.NewButton("Convert Options", func() {
-		if snippetOptionsVisible {
-			snippetConfigScroll.Hide()
-			snippetOptionsBtn.SetText("Convert Options")
-		} else {
-			snippetConfigScroll.Show()
-			snippetOptionsBtn.SetText("Hide Options")
-		}
-		snippetOptionsVisible = !snippetOptionsVisible
+	snippetOptionsBtn = widget.NewButton("Snippet Options…", func() {
+		toggleDrawer(&snippetDrawer, "Snippet Options", snippetConfigRow)
 	})
 	snippetOptionsBtn.Importance = widget.LowImportance
 	if src == nil {
@@ -10059,14 +10096,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// FFmpeg Command Preview
 	var commandPreviewWidget *ui.FFmpegCommandWidget
-	var commandPreviewRow *fyne.Container
+	var commandPreviewBody *fyne.Container
 
-	buildCommandPreview = func() {
-		if src == nil || !state.convertCommandPreviewShow {
-			if commandPreviewRow != nil {
-				commandPreviewRow.Hide()
-			}
-			return
+	buildCommandPreview = func() fyne.CanvasObject {
+		if src == nil {
+			return widget.NewLabel("Load a video to see the FFmpeg command.")
 		}
 
 		// Build command from current state
@@ -10124,23 +10158,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		if commandPreviewWidget == nil {
 			commandPreviewWidget = ui.NewFFmpegCommandWidget(cmdStr, state.window)
-			commandLabel := widget.NewLabel("FFmpeg Command Preview:")
-			commandLabel.TextStyle = fyne.TextStyle{Bold: true}
-			commandPreviewRow = container.NewVBox(
-				widget.NewSeparator(),
-				commandLabel,
-				commandPreviewWidget,
-			)
+			commandPreviewBody = container.NewVBox(commandPreviewWidget)
 		} else {
 			commandPreviewWidget.SetCommand(cmdStr)
 		}
-		if commandPreviewRow != nil {
-			commandPreviewRow.Show()
-		}
+		return commandPreviewBody
 	}
 
 	// Build initial preview if source is loaded
-	buildCommandPreview()
+	_ = buildCommandPreview()
 
 	leftControls := container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn, autoCompareCheck)
 	rightControls := container.NewHBox(cancelBtn, cancelQueueBtn, viewLogBtn, addAllQueueBtn, addQueueBtn, convertBtn)
@@ -10224,11 +10250,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Build footer sections
 	footerSections := []fyne.CanvasObject{
 		snippetRow,
-		snippetConfigScroll,
 		widget.NewSeparator(),
-	}
-	if commandPreviewRow != nil && state.convertCommandPreviewShow {
-		footerSections = append(footerSections, commandPreviewRow)
 	}
 
 	mainWithFooter := container.NewBorder(
