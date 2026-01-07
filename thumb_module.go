@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -562,6 +563,20 @@ func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progress
 		progressCallback(0)
 	}
 
+	totalThumbs := count
+	if contactSheet {
+		totalThumbs = columns * rows
+	}
+	perThumb := 20 * time.Second
+	timeout := time.Duration(totalThumbs) * perThumb
+	if timeout < 2*time.Minute {
+		timeout = 2 * time.Minute
+	} else if timeout > 20*time.Minute {
+		timeout = 20 * time.Minute
+	}
+	jobCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
 	generator := thumbnail.NewGenerator(utils.GetFFmpegPath())
 	config := thumbnail.Config{
 		VideoPath:     inputPath,
@@ -582,7 +597,7 @@ func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progress
 		},
 	}
 
-	result, err := generator.Generate(ctx, config)
+	result, err := generator.Generate(jobCtx, config)
 	if err != nil {
 		return fmt.Errorf("thumbnail generation failed: %w", err)
 	}
@@ -590,7 +605,7 @@ func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progress
 	logging.Debug(logging.CatSystem, "generated %d thumbnails", len(result.Thumbnails))
 
 	if progressCallback != nil {
-		progressCallback(1)
+		progressCallback(100)
 	}
 
 	return nil
