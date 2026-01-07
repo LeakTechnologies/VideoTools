@@ -6530,6 +6530,8 @@ func runGUI() {
 	// Initialize UI colors
 	ui.SetColors(gridColor, textColor)
 
+	utils.EnsureLinuxDesktopEntry("com.leaktechnologies.videotools", "VideoTools")
+
 	a := app.NewWithID("com.leaktechnologies.videotools")
 
 	// Always start with a clean slate: wipe any persisted app storage (queue or otherwise)
