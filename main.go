@@ -9913,6 +9913,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	} else {
 		snippetRow = container.NewHBox(snippetBtn, snippetOptionsBtn, layout.NewSpacer(), snippetHint)
 	}
+	snippetPad := canvas.NewRectangle(color.Transparent)
+	snippetPad.SetMinSize(fyne.NewSize(10, 0))
+	snippetRow = container.NewBorder(nil, nil, snippetPad, snippetPad, snippetRow)
 
 	// Left column: player on top, metadata pinned to bottom.
 	leftColumn := container.NewBorder(nil, metaPanel, nil, nil, videoPanel)
