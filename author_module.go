@@ -1044,7 +1044,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		logoPreviewBorder,
 		container.NewPadded(logoPreview),
 	)
-	var updateBrandingTitle func()
+	updateBrandingTitle := func() {}
 
 	menuPreviewSize := func() (int, int) {
 		width := 720
