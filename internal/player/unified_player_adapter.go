@@ -113,7 +113,7 @@ func (p *UnifiedPlayerAdapter) Play() {
 	}
 
 	if p.paused {
-		// Start playback if not already started
+		// Load video if not already loaded
 		if p.current == 0 {
 			err := p.player.Load(p.path, 0)
 			if err != nil {
@@ -121,9 +121,15 @@ func (p *UnifiedPlayerAdapter) Play() {
 			}
 		}
 
+		// Start playback in UnifiedPlayer
+		if err := p.player.Play(); err != nil {
+			return
+		}
+
 		p.paused = false
 		p.startTime = time.Now().Add(-time.Duration(p.current * float64(time.Second)))
 		p.startUpdateLoop()
+		p.startFrameDisplayLoop()
 	}
 }
 
@@ -132,6 +138,9 @@ func (p *UnifiedPlayerAdapter) Pause() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	if p.player != nil {
+		p.player.Pause()
+	}
 	p.paused = true
 	p.stopUpdateLoop()
 }
@@ -304,6 +313,39 @@ func (p *UnifiedPlayerAdapter) stopUpdateLoop() {
 	}
 }
 
+// startFrameDisplayLoop starts the loop that reads frames and displays them
+func (p *UnifiedPlayerAdapter) startFrameDisplayLoop() {
+	if p.player == nil || p.img == nil {
+		return
+	}
+
+	go func() {
+		// Display at frame rate
+		frameDuration := time.Second / time.Duration(p.fps)
+		ticker := time.NewTicker(frameDuration)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-p.stop:
+				return
+			case <-ticker.C:
+				p.mu.Lock()
+				if !p.paused && p.player != nil {
+					// Get frame from UnifiedPlayer
+					frame, err := p.player.GetFrameImage()
+					if err == nil && frame != nil {
+						// Update the Fyne canvas image
+						p.img.Image = frame
+						p.img.Refresh()
+					}
+				}
+				p.mu.Unlock()
+			}
+		}
+	}()
+}
+
 // GetVideoFrame returns the current video frame for display
 func (p *UnifiedPlayerAdapter) GetVideoFrame() *image.RGBA {
 	p.mu.Lock()
@@ -313,16 +355,18 @@ func (p *UnifiedPlayerAdapter) GetVideoFrame() *image.RGBA {
 		return nil
 	}
 
-	// Create a placeholder frame for now
-	// In full implementation, this would get frame from UnifiedPlayer
-	rect := image.Rect(0, 0, p.targetW, p.targetH)
-	frame := image.NewRGBA(rect)
-
-	// Fill with black background
-	for y := 0; y < p.targetH; y++ {
-		for x := 0; x < p.targetW; x++ {
-			frame.SetRGBA(x, y, color.RGBA{0, 0, 0, 255})
+	// Get real frame from UnifiedPlayer
+	frame, err := p.player.GetFrameImage()
+	if err != nil || frame == nil {
+		// Return black frame on error
+		rect := image.Rect(0, 0, p.targetW, p.targetH)
+		blackFrame := image.NewRGBA(rect)
+		for y := 0; y < p.targetH; y++ {
+			for x := 0; x < p.targetW; x++ {
+				blackFrame.SetRGBA(x, y, color.RGBA{0, 0, 0, 255})
+			}
 		}
+		return blackFrame
 	}
 
 	return frame

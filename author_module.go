@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,26 +32,42 @@ import (
 )
 
 type authorConfig struct {
-	OutputType      string  `json:"outputType"`
-	Region          string  `json:"region"`
-	AspectRatio     string  `json:"aspectRatio"`
-	DiscSize        string  `json:"discSize"`
-	Title           string  `json:"title"`
-	CreateMenu      bool    `json:"createMenu"`
-	TreatAsChapters bool    `json:"treatAsChapters"`
-	SceneThreshold  float64 `json:"sceneThreshold"`
+	OutputType          string  `json:"outputType"`
+	Region              string  `json:"region"`
+	AspectRatio         string  `json:"aspectRatio"`
+	DiscSize            string  `json:"discSize"`
+	Title               string  `json:"title"`
+	CreateMenu          bool    `json:"createMenu"`
+	MenuTemplate        string  `json:"menuTemplate"`
+	MenuTheme           string  `json:"menuTheme"`
+	MenuBackgroundImage string  `json:"menuBackgroundImage"`
+	MenuLogoEnabled     bool    `json:"menuLogoEnabled"`
+	MenuLogoPath        string  `json:"menuLogoPath"`
+	MenuLogoPosition    string  `json:"menuLogoPosition"`
+	MenuLogoScale       float64 `json:"menuLogoScale"`
+	MenuLogoMargin      int     `json:"menuLogoMargin"`
+	TreatAsChapters     bool    `json:"treatAsChapters"`
+	SceneThreshold      float64 `json:"sceneThreshold"`
 }
 
 func defaultAuthorConfig() authorConfig {
 	return authorConfig{
-		OutputType:      "dvd",
-		Region:          "AUTO",
-		AspectRatio:     "AUTO",
-		DiscSize:        "DVD5",
-		Title:           "",
-		CreateMenu:      false,
-		TreatAsChapters: false,
-		SceneThreshold:  0.3,
+		OutputType:          "dvd",
+		Region:              "AUTO",
+		AspectRatio:         "AUTO",
+		DiscSize:            "DVD5",
+		Title:               "",
+		CreateMenu:          false,
+		MenuTemplate:        "Simple",
+		MenuTheme:           "VideoTools",
+		MenuBackgroundImage: "",
+		MenuLogoEnabled:     true,
+		MenuLogoPath:        "",
+		MenuLogoPosition:    "Top Right",
+		MenuLogoScale:       1.0,
+		MenuLogoMargin:      24,
+		TreatAsChapters:     false,
+		SceneThreshold:      0.3,
 	}
 }
 
@@ -75,6 +92,21 @@ func loadPersistedAuthorConfig() (authorConfig, error) {
 	}
 	if cfg.DiscSize == "" {
 		cfg.DiscSize = "DVD5"
+	}
+	if cfg.MenuTemplate == "" {
+		cfg.MenuTemplate = "Simple"
+	}
+	if cfg.MenuTheme == "" {
+		cfg.MenuTheme = "VideoTools"
+	}
+	if cfg.MenuLogoPosition == "" {
+		cfg.MenuLogoPosition = "Top Right"
+	}
+	if cfg.MenuLogoScale == 0 {
+		cfg.MenuLogoScale = 1.0
+	}
+	if cfg.MenuLogoMargin == 0 {
+		cfg.MenuLogoMargin = 24
 	}
 	if cfg.SceneThreshold <= 0 {
 		cfg.SceneThreshold = 0.3
@@ -101,21 +133,36 @@ func (s *appState) applyAuthorConfig(cfg authorConfig) {
 	s.authorDiscSize = cfg.DiscSize
 	s.authorTitle = cfg.Title
 	s.authorCreateMenu = cfg.CreateMenu
+	s.authorMenuTemplate = cfg.MenuTemplate
+	s.authorMenuTheme = cfg.MenuTheme
+	s.authorMenuBackgroundImage = cfg.MenuBackgroundImage
+	s.authorMenuLogoEnabled = cfg.MenuLogoEnabled
+	s.authorMenuLogoPath = cfg.MenuLogoPath
+	s.authorMenuLogoPosition = cfg.MenuLogoPosition
+	s.authorMenuLogoScale = cfg.MenuLogoScale
+	s.authorMenuLogoMargin = cfg.MenuLogoMargin
 	s.authorTreatAsChapters = cfg.TreatAsChapters
 	s.authorSceneThreshold = cfg.SceneThreshold
-	// MenuTemplate field doesn't exist in authorConfig struct - remove this line
 }
 
 func (s *appState) persistAuthorConfig() {
 	cfg := authorConfig{
-		OutputType:      s.authorOutputType,
-		Region:          s.authorRegion,
-		AspectRatio:     s.authorAspectRatio,
-		DiscSize:        s.authorDiscSize,
-		Title:           s.authorTitle,
-		CreateMenu:      s.authorCreateMenu,
-		TreatAsChapters: s.authorTreatAsChapters,
-		SceneThreshold:  s.authorSceneThreshold,
+		OutputType:          s.authorOutputType,
+		Region:              s.authorRegion,
+		AspectRatio:         s.authorAspectRatio,
+		DiscSize:            s.authorDiscSize,
+		Title:               s.authorTitle,
+		CreateMenu:          s.authorCreateMenu,
+		MenuTemplate:        s.authorMenuTemplate,
+		MenuTheme:           s.authorMenuTheme,
+		MenuBackgroundImage: s.authorMenuBackgroundImage,
+		MenuLogoEnabled:     s.authorMenuLogoEnabled,
+		MenuLogoPath:        s.authorMenuLogoPath,
+		MenuLogoPosition:    s.authorMenuLogoPosition,
+		MenuLogoScale:       s.authorMenuLogoScale,
+		MenuLogoMargin:      s.authorMenuLogoMargin,
+		TreatAsChapters:     s.authorTreatAsChapters,
+		SceneThreshold:      s.authorSceneThreshold,
 	}
 	if err := savePersistedAuthorConfig(cfg); err != nil {
 		logging.Debug(logging.CatSystem, "failed to persist author config: %v", err)
@@ -142,6 +189,21 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	}
 	if state.authorDiscSize == "" {
 		state.authorDiscSize = "DVD5"
+	}
+	if state.authorMenuTemplate == "" {
+		state.authorMenuTemplate = "Simple"
+	}
+	if state.authorMenuTheme == "" {
+		state.authorMenuTheme = "VideoTools"
+	}
+	if state.authorMenuLogoPosition == "" {
+		state.authorMenuLogoPosition = "Top Right"
+	}
+	if state.authorMenuLogoScale == 0 {
+		state.authorMenuLogoScale = 1.0
+	}
+	if state.authorMenuLogoMargin == 0 {
+		state.authorMenuLogoMargin = 24
 	}
 
 	authorColor := moduleColor("author")
@@ -180,6 +242,7 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 		container.NewTabItem("Videos", buildVideoClipsTab(state)),
 		container.NewTabItem("Chapters", buildChaptersTab(state)),
 		container.NewTabItem("Subtitles", buildSubtitlesTab(state)),
+		container.NewTabItem("Menu", buildAuthorMenuTab(state)),
 		container.NewTabItem("Settings", buildAuthorSettingsTab(state)),
 		container.NewTabItem("Generate", buildAuthorDiscTab(state)),
 	)
@@ -720,43 +783,6 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		state.persistAuthorConfig()
 	}
 
-	createMenuCheck := widget.NewCheck("Create DVD Menu", func(checked bool) {
-		state.authorCreateMenu = checked
-		state.updateAuthorSummary()
-		state.persistAuthorConfig()
-	})
-	createMenuCheck.SetChecked(state.authorCreateMenu)
-
-	menuTemplateSelect := widget.NewSelect([]string{"Simple", "Dark", "Poster"}, func(value string) {
-		state.authorMenuTemplate = value
-		state.updateAuthorSummary()
-		state.persistAuthorConfig()
-	})
-	menuTemplateSelect.SetSelected(state.authorMenuTemplate)
-
-	bgImageLabel := widget.NewLabel(state.authorMenuBackgroundImage)
-	bgImageButton := widget.NewButton("Select Background Image", func() {
-		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
-			if err != nil || reader == nil {
-				return
-			}
-			defer reader.Close()
-			state.authorMenuBackgroundImage = reader.URI().Path()
-			bgImageLabel.SetText(state.authorMenuBackgroundImage)
-			state.updateAuthorSummary()
-			state.persistAuthorConfig()
-		}, state.window)
-	})
-	bgImageButton.Importance = widget.HighImportance
-	bgImageButton.Hidden = state.authorMenuTemplate != "Poster"
-
-	menuTemplateSelect.OnChanged = func(value string) {
-		state.authorMenuTemplate = value
-		bgImageButton.Hidden = value != "Poster"
-		state.updateAuthorSummary()
-		state.persistAuthorConfig()
-	}
-
 	discSizeSelect := widget.NewSelect([]string{"DVD5", "DVD9"}, func(value string) {
 		state.authorDiscSize = value
 		state.updateAuthorSummary()
@@ -790,10 +816,6 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 			discSizeSelect.SetSelected(state.authorDiscSize)
 		}
 		titleEntry.SetText(state.authorTitle)
-		createMenuCheck.SetChecked(state.authorCreateMenu)
-		menuTemplateSelect.SetSelected(state.authorMenuTemplate)
-		bgImageLabel.SetText(state.authorMenuBackgroundImage)
-		bgImageButton.Hidden = state.authorMenuTemplate != "Poster"
 	}
 
 	loadCfgBtn := widget.NewButton("Load Config", func() {
@@ -813,14 +835,22 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 
 	saveCfgBtn := widget.NewButton("Save Config", func() {
 		cfg := authorConfig{
-			OutputType:      state.authorOutputType,
-			Region:          state.authorRegion,
-			AspectRatio:     state.authorAspectRatio,
-			DiscSize:        state.authorDiscSize,
-			Title:           state.authorTitle,
-			CreateMenu:      state.authorCreateMenu,
-			TreatAsChapters: state.authorTreatAsChapters,
-			SceneThreshold:  state.authorSceneThreshold,
+			OutputType:          state.authorOutputType,
+			Region:              state.authorRegion,
+			AspectRatio:         state.authorAspectRatio,
+			DiscSize:            state.authorDiscSize,
+			Title:               state.authorTitle,
+			CreateMenu:          state.authorCreateMenu,
+			MenuTemplate:        state.authorMenuTemplate,
+			MenuTheme:           state.authorMenuTheme,
+			MenuBackgroundImage: state.authorMenuBackgroundImage,
+			MenuLogoEnabled:     state.authorMenuLogoEnabled,
+			MenuLogoPath:        state.authorMenuLogoPath,
+			MenuLogoPosition:    state.authorMenuLogoPosition,
+			MenuLogoScale:       state.authorMenuLogoScale,
+			MenuLogoMargin:      state.authorMenuLogoMargin,
+			TreatAsChapters:     state.authorTreatAsChapters,
+			SceneThreshold:      state.authorSceneThreshold,
 		}
 		if err := savePersistedAuthorConfig(cfg); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
@@ -853,15 +883,160 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		discSizeSelect,
 		widget.NewLabel("DVD Title:"),
 		titleEntry,
-		createMenuCheck,
-		widget.NewLabel("Menu Template:"),
-		menuTemplateSelect,
-		bgImageLabel,
-		bgImageButton,
 		widget.NewSeparator(),
 		info,
 		widget.NewSeparator(),
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
+	)
+
+	return container.NewPadded(controls)
+}
+
+func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
+	createMenuCheck := widget.NewCheck("Enable DVD Menus", func(checked bool) {
+		state.authorCreateMenu = checked
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	})
+	createMenuCheck.SetChecked(state.authorCreateMenu)
+
+	menuThemeSelect := widget.NewSelect([]string{"VideoTools"}, func(value string) {
+		state.authorMenuTheme = value
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	})
+	if state.authorMenuTheme == "" {
+		state.authorMenuTheme = "VideoTools"
+	}
+	menuThemeSelect.SetSelected(state.authorMenuTheme)
+
+	menuTemplateSelect := widget.NewSelect([]string{"Simple", "Dark", "Poster"}, func(value string) {
+		state.authorMenuTemplate = value
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	})
+	if state.authorMenuTemplate == "" {
+		state.authorMenuTemplate = "Simple"
+	}
+	menuTemplateSelect.SetSelected(state.authorMenuTemplate)
+
+	bgImageLabel := widget.NewLabel(state.authorMenuBackgroundImage)
+	bgImageLabel.Wrapping = fyne.TextWrapWord
+	bgImageButton := widget.NewButton("Select Background Image", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+			state.authorMenuBackgroundImage = reader.URI().Path()
+			bgImageLabel.SetText(state.authorMenuBackgroundImage)
+			state.updateAuthorSummary()
+			state.persistAuthorConfig()
+		}, state.window)
+	})
+	bgImageButton.Importance = widget.HighImportance
+	bgImageButton.Hidden = state.authorMenuTemplate != "Poster"
+	bgImageLabel.Hidden = state.authorMenuTemplate != "Poster"
+
+	menuTemplateSelect.OnChanged = func(value string) {
+		state.authorMenuTemplate = value
+		showPoster := value == "Poster"
+		bgImageButton.Hidden = !showPoster
+		bgImageLabel.Hidden = !showPoster
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	}
+
+	logoEnableCheck := widget.NewCheck("Embed Logo", func(checked bool) {
+		state.authorMenuLogoEnabled = checked
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	})
+	logoEnableCheck.SetChecked(state.authorMenuLogoEnabled)
+
+	logoLabel := widget.NewLabel(state.authorMenuLogoPath)
+	logoLabel.Wrapping = fyne.TextWrapWord
+	logoPickButton := widget.NewButton("Select Logo", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+			state.authorMenuLogoPath = reader.URI().Path()
+			logoLabel.SetText(state.authorMenuLogoPath)
+			state.updateAuthorSummary()
+			state.persistAuthorConfig()
+		}, state.window)
+	})
+	logoPickButton.Importance = widget.MediumImportance
+
+	logoPositionSelect := widget.NewSelect([]string{
+		"Top Left",
+		"Top Right",
+		"Bottom Left",
+		"Bottom Right",
+		"Center",
+	}, func(value string) {
+		state.authorMenuLogoPosition = value
+		state.persistAuthorConfig()
+	})
+	if state.authorMenuLogoPosition == "" {
+		state.authorMenuLogoPosition = "Top Right"
+	}
+	logoPositionSelect.SetSelected(state.authorMenuLogoPosition)
+
+	if state.authorMenuLogoScale == 0 {
+		state.authorMenuLogoScale = 1.0
+	}
+	scaleLabel := widget.NewLabel(fmt.Sprintf("Logo Scale: %.0f%%", state.authorMenuLogoScale*100))
+	scaleSlider := widget.NewSlider(0.2, 2.0)
+	scaleSlider.Step = 0.05
+	scaleSlider.Value = state.authorMenuLogoScale
+	scaleSlider.OnChanged = func(v float64) {
+		state.authorMenuLogoScale = v
+		scaleLabel.SetText(fmt.Sprintf("Logo Scale: %.0f%%", v*100))
+		state.persistAuthorConfig()
+	}
+
+	if state.authorMenuLogoMargin == 0 {
+		state.authorMenuLogoMargin = 24
+	}
+	marginLabel := widget.NewLabel(fmt.Sprintf("Logo Margin: %dpx", state.authorMenuLogoMargin))
+	marginSlider := widget.NewSlider(0, 60)
+	marginSlider.Step = 2
+	marginSlider.Value = float64(state.authorMenuLogoMargin)
+	marginSlider.OnChanged = func(v float64) {
+		state.authorMenuLogoMargin = int(math.Round(v))
+		marginLabel.SetText(fmt.Sprintf("Logo Margin: %dpx", state.authorMenuLogoMargin))
+		state.persistAuthorConfig()
+	}
+
+	info := widget.NewLabel("DVD menus use the VideoTools theme and IBM Plex Mono. Menu settings apply only to disc authoring.")
+	info.Wrapping = fyne.TextWrapWord
+
+	controls := container.NewVBox(
+		widget.NewLabel("DVD Menu Settings:"),
+		widget.NewSeparator(),
+		createMenuCheck,
+		widget.NewLabel("Theme:"),
+		menuThemeSelect,
+		widget.NewLabel("Template:"),
+		menuTemplateSelect,
+		bgImageLabel,
+		bgImageButton,
+		widget.NewSeparator(),
+		logoEnableCheck,
+		widget.NewLabel("Logo Path:"),
+		logoLabel,
+		logoPickButton,
+		widget.NewLabel("Logo Position:"),
+		logoPositionSelect,
+		scaleLabel,
+		scaleSlider,
+		marginLabel,
+		marginSlider,
+		widget.NewSeparator(),
+		info,
 	)
 
 	return container.NewPadded(controls)
@@ -1781,6 +1956,12 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 		"additionalAudios":    append([]string{}, s.authorAudioTracks...),
 		"menuTemplate":        s.authorMenuTemplate,
 		"menuBackgroundImage": s.authorMenuBackgroundImage,
+		"menuTheme":           s.authorMenuTheme,
+		"menuLogoEnabled":     s.authorMenuLogoEnabled,
+		"menuLogoPath":        s.authorMenuLogoPath,
+		"menuLogoPosition":    s.authorMenuLogoPosition,
+		"menuLogoScale":       s.authorMenuLogoScale,
+		"menuLogoMargin":      s.authorMenuLogoMargin,
 	}
 
 	titleLabel := title
@@ -1842,7 +2023,7 @@ func (s *appState) addAuthorVideoTSToQueue(videoTSPath, title, outputPath string
 	return nil
 }
 
-func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, createMenu bool, menuTemplate string, menuBackgroundImage string, logFn func(string), progressFn func(float64)) error {
+func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, createMenu bool, menuTemplate string, menuBackgroundImage string, menuTheme string, menuLogoEnabled bool, menuLogoPath, menuLogoPosition string, menuLogoScale float64, menuLogoMargin int, logFn func(string), progressFn func(float64)) error {
 	tempRoot := authorTempRoot(outputPath)
 	if err := os.MkdirAll(tempRoot, 0755); err != nil {
 		return fmt.Errorf("failed to create temp root: %w", err)
@@ -2028,7 +2209,25 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		if !ok {
 			template = &SimpleMenu{}
 		}
-		menuMpg, menuButtons, err = buildDVDMenuAssets(ctx, workDir, title, region, aspect, chapters, logFn, template, menuBackgroundImage)
+		menuMpg, menuButtons, err = buildDVDMenuAssets(
+			ctx,
+			workDir,
+			title,
+			region,
+			aspect,
+			chapters,
+			logFn,
+			template,
+			menuBackgroundImage,
+			&menuTheme{Name: menuTheme},
+			menuLogoOptions{
+				Enabled:  menuLogoEnabled,
+				Path:     menuLogoPath,
+				Position: menuLogoPosition,
+				Scale:    menuLogoScale,
+				Margin:   menuLogoMargin,
+			},
+		)
 		if err != nil {
 			return err
 		}
@@ -2338,7 +2537,29 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 		}, false)
 	}
 
-	err := s.runAuthoringPipeline(ctx, paths, region, aspect, title, outputPath, makeISO, clips, chapters, treatAsChapters, createMenu, toString(cfg["menuTemplate"]), toString(cfg["menuBackgroundImage"]), appendLog, updateProgress)
+	err := s.runAuthoringPipeline(
+		ctx,
+		paths,
+		region,
+		aspect,
+		title,
+		outputPath,
+		makeISO,
+		clips,
+		chapters,
+		treatAsChapters,
+		createMenu,
+		toString(cfg["menuTemplate"]),
+		toString(cfg["menuBackgroundImage"]),
+		toString(cfg["menuTheme"]),
+		toBool(cfg["menuLogoEnabled"]),
+		toString(cfg["menuLogoPath"]),
+		toString(cfg["menuLogoPosition"]),
+		toFloat(cfg["menuLogoScale"]),
+		int(toFloat(cfg["menuLogoMargin"])),
+		appendLog,
+		updateProgress,
+	)
 	if err != nil {
 		friendly := authorFriendlyError(err)
 		appendLog("ERROR: " + friendly)
