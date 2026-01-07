@@ -7307,6 +7307,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		})
 	}
 
+	// Forward declare drawer-backed preview builder.
+	var buildCommandPreview func() fyne.CanvasObject
+
 	// Command Preview toggle button (drawer)
 	cmdPreviewBtn := widget.NewButton("Command Preview…", func() {
 		if src == nil {
@@ -7361,7 +7364,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Forward declare functions needed by formatContainer callback
 	var updateDVDOptions func()
-	var buildCommandPreview func() fyne.CanvasObject
 	var updateChapterWarning func()
 	var updateQualityOptions func()
 	var updateQualityVisibility func()
