@@ -14,7 +14,7 @@ import (
 
 const (
 	noiseTileSize  = 128
-	noiseAlpha     = uint8(8)  // ~3% opacity
+	noiseAlpha     = uint8(5)  // ~2% opacity
 	noiseVariance  = uint8(6)  // low contrast
 	noiseMeanValue = uint8(128)
 )
