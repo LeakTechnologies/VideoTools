@@ -6897,6 +6897,26 @@ func buildAudioCodecBadge(codecName string) fyne.CanvasObject {
 
 func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	convertColor := moduleColor("convert")
+	navyBlue := utils.MustHex("#191F35")
+
+	buildConvertBox := func(title string, content fyne.CanvasObject) *fyne.Container {
+		bg := canvas.NewRectangle(navyBlue)
+		bg.CornerRadius = 10
+		bg.StrokeColor = gridColor
+		bg.StrokeWidth = 1
+		body := container.NewVBox(
+			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewSeparator(),
+			content,
+		)
+		return container.NewMax(bg, container.NewPadded(body))
+	}
+
+	sectionGap := func() fyne.CanvasObject {
+		gap := canvas.NewRectangle(color.Transparent)
+		gap.SetMinSize(fyne.NewSize(0, 10))
+		return gap
+	}
 
 	// Convert UI State Manager - eliminates sync boolean flags and widget duplication
 	type convertUIState struct {
@@ -9263,7 +9283,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	simpleEncodingSection = container.NewVBox(
+	simpleEncodingSection = buildConvertBox("Video Encoding", container.NewVBox(
 		qualitySectionSimple,
 		widget.NewLabelWithStyle("Encoder Speed/Quality", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Choose slower for better compression, faster for speed"),
@@ -9272,11 +9292,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Bitrate (simple presets)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		simpleBitrateSelect,
-	)
+	))
 
-	// Simple mode options - minimal controls, aspect locked to Source
-	simpleOptions := container.NewVBox(
-		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+	outputSectionSimple := buildConvertBox("Output", container.NewVBox(
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
@@ -9288,16 +9306,31 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		outputNameRow,
 		outputHintContainer,
 		appendSuffixCheck,
-		widget.NewSeparator(),
-		simpleEncodingSection,
+	))
+
+	resolutionSectionSimple := buildConvertBox("Resolution & Frame Rate", container.NewVBox(
 		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelectSimple,
 		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		frameRateSelect,
 		motionInterpCheck,
+	))
+
+	aspectSectionSimple := buildConvertBox("Aspect Ratio", container.NewVBox(
 		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelectSimple,
 		targetAspectHintContainer,
+	))
+
+	// Simple mode options - minimal controls, aspect locked to Source
+	simpleOptions := container.NewVBox(
+		outputSectionSimple,
+		sectionGap(),
+		simpleEncodingSection,
+		sectionGap(),
+		resolutionSectionSimple,
+		sectionGap(),
+		aspectSectionSimple,
 		layout.NewSpacer(),
 	)
 
@@ -9312,8 +9345,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		10,
 	)
 
-	advancedVideoEncodingBlock = container.NewVBox(
-		widget.NewLabelWithStyle("═══ VIDEO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+	advancedVideoEncodingBlock = buildConvertBox("Video Encoding", container.NewVBox(
 		videoCodecRow,
 		videoCodecControls,
 		encoderPresetHintContainer,
@@ -9336,20 +9368,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		hwAccelSelect,
 		hwAccelHintContainer,
 		twoPassCheck,
-	)
+	))
 
-	audioEncodingSection = container.NewVBox(
-		widget.NewLabelWithStyle("═══ AUDIO ENCODING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+	audioEncodingSection = buildConvertBox("Audio Encoding", container.NewVBox(
 		widget.NewLabelWithStyle("Audio Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioCodecContainer,
 		widget.NewLabelWithStyle("Audio Bitrate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioBitrateSelect,
 		widget.NewLabelWithStyle("Audio Channels", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioChannelsSelect,
-	)
+	))
 
-	advancedOptions := container.NewVBox(
-		widget.NewLabelWithStyle("═══ OUTPUT ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+	outputSectionAdvanced := buildConvertBox("Output", container.NewVBox(
 		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
@@ -9361,38 +9391,49 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		outputNameRow,
 		outputHintContainer,
 		appendSuffixCheck,
-		widget.NewSeparator(),
-		advancedVideoEncodingBlock,
-		widget.NewSeparator(),
+	))
 
-		widget.NewLabelWithStyle("═══ ASPECT RATIO ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+	aspectSectionAdvanced := buildConvertBox("Aspect Ratio", container.NewVBox(
 		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelect,
 		targetAspectHintContainer,
 		aspectBox,
-		widget.NewSeparator(),
+	))
 
-		audioEncodingSection,
-		widget.NewSeparator(),
-
-		widget.NewLabelWithStyle("═══ AUTO-CROP ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+	autoCropSection := buildConvertBox("Auto-Crop", container.NewVBox(
 		autoCropCheck,
 		detectCropView,
 		autoCropHint,
-		widget.NewSeparator(),
+	))
 
-		widget.NewLabelWithStyle("═══ VIDEO TRANSFORMATIONS ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+	transformSection := buildConvertBox("Video Transformations", container.NewVBox(
 		flipHorizontalCheck,
 		flipVerticalCheck,
 		widget.NewLabelWithStyle("Rotation", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		rotationSelect,
 		transformHint,
-		widget.NewSeparator(),
+	))
 
-		widget.NewLabelWithStyle("═══ DEINTERLACING ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+	deinterlaceSection := buildConvertBox("Deinterlacing", container.NewVBox(
 		analyzeInterlaceView,
 		inverseCheck,
 		inverseHint,
+	))
+
+	advancedOptions := container.NewVBox(
+		outputSectionAdvanced,
+		sectionGap(),
+		advancedVideoEncodingBlock,
+		sectionGap(),
+		aspectSectionAdvanced,
+		sectionGap(),
+		audioEncodingSection,
+		sectionGap(),
+		autoCropSection,
+		sectionGap(),
+		transformSection,
+		sectionGap(),
+		deinterlaceSection,
 		layout.NewSpacer(),
 	)
 
