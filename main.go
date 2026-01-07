@@ -7060,6 +7060,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var crfEntry *widget.Entry
 	var manualCrfRow *fyne.Container
 	var crfContainer *fyne.Container
+	var manualCrfLabel *widget.Label
 
 	normalizeBitrateMode := func(mode string) string {
 		switch {
@@ -8181,7 +8182,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 
 	manualCrfRow = container.NewVBox(
-		widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		func() *widget.Label {
+			manualCrfLabel = widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+			return manualCrfLabel
+		}(),
 		crfEntryWrapper,
 	)
 	if state.convert.Quality == manualQualityOption {
@@ -8771,19 +8775,34 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 
-		if showCRF && showManualCRF {
-			if crfEntry != nil {
-				crfEntry.Enable()
+		if showCRF {
+			if manualCrfLabel != nil {
+				if showManualCRF {
+					manualCrfLabel.SetText("Manual CRF (overrides Quality preset)")
+				} else {
+					manualCrfLabel.SetText("CRF (auto from Quality preset)")
+				}
 			}
 			if manualCrfRow != nil {
 				manualCrfRow.Show()
 			}
-			crfContainer.Show()
+			if crfEntry != nil {
+				if showManualCRF {
+					crfEntry.Enable()
+				} else {
+					crfEntry.Disable()
+				}
+			}
+			if crfContainer != nil {
+				crfContainer.Show()
+			}
 		} else {
 			if manualCrfRow != nil {
 				manualCrfRow.Hide()
 			}
-			crfContainer.Hide()
+			if crfContainer != nil {
+				crfContainer.Hide()
+			}
 		}
 		if showBitrate {
 			bitrateContainer.Show()
@@ -9161,22 +9180,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	)
 
 	updateQualityVisibility = func() {
-		hide := strings.Contains(strings.ToLower(state.convert.SelectedFormat.Label), "h.265") ||
-			strings.EqualFold(state.convert.VideoCodec, "H.265")
 		mode := normalizeBitrateMode(state.convert.BitrateMode)
 		hideQuality := mode != "" && mode != "CRF"
 		remux := strings.EqualFold(state.convert.SelectedFormat.VideoCodec, "copy") ||
 			strings.EqualFold(state.convert.VideoCodec, "Copy")
 
 		if qualitySectionSimple != nil {
-			if hide || hideQuality || remux {
+			if hideQuality || remux {
 				qualitySectionSimple.Hide()
 			} else {
 				qualitySectionSimple.Show()
 			}
 		}
 		if qualitySectionAdv != nil {
-			if hide || hideQuality || remux {
+			if hideQuality || remux {
 				qualitySectionAdv.Hide()
 			} else {
 				qualitySectionAdv.Show()
