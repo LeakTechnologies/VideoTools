@@ -60,9 +60,22 @@ Write-Host ""
 $rcFile = Join-Path $PROJECT_ROOT "scripts\videotools.rc"
 $sysoFile = Join-Path $PROJECT_ROOT "videotools_windows_amd64.syso"
 if (Test-Path $rcFile) {
-    $windres = Get-Command windres -ErrorAction SilentlyContinue
-    if ($windres) {
-        & $windres.Path $rcFile -O coff -o $sysoFile | Out-Null
+    $windresCandidates = @()
+    $windresCmd = Get-Command windres -ErrorAction SilentlyContinue
+    if ($windresCmd) {
+        $windresCandidates += $windresCmd.Path
+    }
+    $windresCandidates += @(
+        "C:\msys64\mingw64\bin\windres.exe",
+        "C:\msys64\usr\bin\windres.exe",
+        "C:\MinGW\bin\windres.exe"
+    )
+    $windresPath = $windresCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+    if ($windresPath) {
+        & $windresPath $rcFile -O coff -o $sysoFile | Out-Null
+        if (-not (Test-Path $sysoFile)) {
+            Write-Host "⚠️  windres did not produce $sysoFile; icon may be missing" -ForegroundColor Yellow
+        }
     } else {
         Write-Host "⚠️  windres not found; Windows icon will not be embedded in the EXE" -ForegroundColor Yellow
     }

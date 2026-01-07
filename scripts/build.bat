@@ -177,9 +177,23 @@ echo.
 REM ----------------------------
 REM Embed Windows icon (if windres is available)
 REM ----------------------------
+set WINDRES_PATH=
 where windres >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    windres scripts\videotools.rc -O coff -o videotools_windows_amd64.syso
+    for /f "delims=" %%I in ('where windres') do set WINDRES_PATH=%%I
+) else if exist "C:\msys64\mingw64\bin\windres.exe" (
+    set WINDRES_PATH=C:\msys64\mingw64\bin\windres.exe
+) else if exist "C:\msys64\usr\bin\windres.exe" (
+    set WINDRES_PATH=C:\msys64\usr\bin\windres.exe
+) else if exist "C:\MinGW\bin\windres.exe" (
+    set WINDRES_PATH=C:\MinGW\bin\windres.exe
+)
+
+if not "%WINDRES_PATH%"=="" (
+    "%WINDRES_PATH%" scripts\videotools.rc -O coff -o videotools_windows_amd64.syso
+    if not exist videotools_windows_amd64.syso (
+        echo [WARN] windres did not produce videotools_windows_amd64.syso; icon may be missing
+    )
 ) else (
     echo [WARN] windres not found; Windows icon will not be embedded in the EXE
 )
