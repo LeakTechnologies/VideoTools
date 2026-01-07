@@ -8,6 +8,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"image/color"
 	"io"
 	"math"
 	"os"
@@ -46,6 +47,9 @@ type authorConfig struct {
 	MenuLogoPosition    string  `json:"menuLogoPosition"`
 	MenuLogoScale       float64 `json:"menuLogoScale"`
 	MenuLogoMargin      int     `json:"menuLogoMargin"`
+	MenuStructure       string  `json:"menuStructure"`
+	MenuExtrasEnabled   bool    `json:"menuExtrasEnabled"`
+	MenuChapterThumbSrc string  `json:"menuChapterThumbSrc"`
 	TreatAsChapters     bool    `json:"treatAsChapters"`
 	SceneThreshold      float64 `json:"sceneThreshold"`
 }
@@ -66,6 +70,9 @@ func defaultAuthorConfig() authorConfig {
 		MenuLogoPosition:    "Top Right",
 		MenuLogoScale:       1.0,
 		MenuLogoMargin:      24,
+		MenuStructure:       "Feature + Chapters",
+		MenuExtrasEnabled:   false,
+		MenuChapterThumbSrc: "Auto",
 		TreatAsChapters:     false,
 		SceneThreshold:      0.3,
 	}
@@ -108,6 +115,12 @@ func loadPersistedAuthorConfig() (authorConfig, error) {
 	if cfg.MenuLogoMargin == 0 {
 		cfg.MenuLogoMargin = 24
 	}
+	if cfg.MenuStructure == "" {
+		cfg.MenuStructure = "Feature + Chapters"
+	}
+	if cfg.MenuChapterThumbSrc == "" {
+		cfg.MenuChapterThumbSrc = "Auto"
+	}
 	if cfg.SceneThreshold <= 0 {
 		cfg.SceneThreshold = 0.3
 	}
@@ -141,6 +154,9 @@ func (s *appState) applyAuthorConfig(cfg authorConfig) {
 	s.authorMenuLogoPosition = cfg.MenuLogoPosition
 	s.authorMenuLogoScale = cfg.MenuLogoScale
 	s.authorMenuLogoMargin = cfg.MenuLogoMargin
+	s.authorMenuStructure = cfg.MenuStructure
+	s.authorMenuExtrasEnabled = cfg.MenuExtrasEnabled
+	s.authorMenuChapterThumbSrc = cfg.MenuChapterThumbSrc
 	s.authorTreatAsChapters = cfg.TreatAsChapters
 	s.authorSceneThreshold = cfg.SceneThreshold
 }
@@ -161,6 +177,9 @@ func (s *appState) persistAuthorConfig() {
 		MenuLogoPosition:    s.authorMenuLogoPosition,
 		MenuLogoScale:       s.authorMenuLogoScale,
 		MenuLogoMargin:      s.authorMenuLogoMargin,
+		MenuStructure:       s.authorMenuStructure,
+		MenuExtrasEnabled:   s.authorMenuExtrasEnabled,
+		MenuChapterThumbSrc: s.authorMenuChapterThumbSrc,
 		TreatAsChapters:     s.authorTreatAsChapters,
 		SceneThreshold:      s.authorSceneThreshold,
 	}
@@ -204,6 +223,12 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	}
 	if state.authorMenuLogoMargin == 0 {
 		state.authorMenuLogoMargin = 24
+	}
+	if state.authorMenuStructure == "" {
+		state.authorMenuStructure = "Feature + Chapters"
+	}
+	if state.authorMenuChapterThumbSrc == "" {
+		state.authorMenuChapterThumbSrc = "Auto"
 	}
 
 	authorColor := moduleColor("author")
@@ -849,6 +874,9 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 			MenuLogoPosition:    state.authorMenuLogoPosition,
 			MenuLogoScale:       state.authorMenuLogoScale,
 			MenuLogoMargin:      state.authorMenuLogoMargin,
+			MenuStructure:       state.authorMenuStructure,
+			MenuExtrasEnabled:   state.authorMenuExtrasEnabled,
+			MenuChapterThumbSrc: state.authorMenuChapterThumbSrc,
 			TreatAsChapters:     state.authorTreatAsChapters,
 			SceneThreshold:      state.authorSceneThreshold,
 		}
@@ -893,12 +921,41 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 }
 
 func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
+	navyBlue := utils.MustHex("#191F35")
+	boxAccent := gridColor
+	var updateMenuControls func(bool)
+
+	buildMenuBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
+		bg := canvas.NewRectangle(navyBlue)
+		bg.CornerRadius = 10
+		bg.StrokeColor = boxAccent
+		bg.StrokeWidth = 1
+		body := container.NewVBox(
+			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewSeparator(),
+			content,
+		)
+		return container.NewMax(bg, container.NewPadded(body))
+	}
+
+	sectionGap := func() fyne.CanvasObject {
+		gap := canvas.NewRectangle(color.Transparent)
+		gap.SetMinSize(fyne.NewSize(0, 10))
+		return gap
+	}
+
 	createMenuCheck := widget.NewCheck("Enable DVD Menus", func(checked bool) {
 		state.authorCreateMenu = checked
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
+		if updateMenuControls != nil {
+			updateMenuControls(checked)
+		}
 	})
 	createMenuCheck.SetChecked(state.authorCreateMenu)
+	menuDisabledNote := widget.NewLabel("DVD menus will not be generated unless enabled.")
+	menuDisabledNote.TextStyle = fyne.TextStyle{Italic: true}
+	menuDisabledNote.Wrapping = fyne.TextWrapWord
 
 	menuThemeSelect := widget.NewSelect([]string{"VideoTools"}, func(value string) {
 		state.authorMenuTheme = value
@@ -910,15 +967,36 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 	menuThemeSelect.SetSelected(state.authorMenuTheme)
 
-	menuTemplateSelect := widget.NewSelect([]string{"Simple", "Dark", "Poster"}, func(value string) {
-		state.authorMenuTemplate = value
+	templateOptions := []string{
+		"Simple (Title + Buttons)",
+		"Poster (Grid Thumbnails)",
+		"Classic (Title + Buttons)",
+	}
+	templateValueByLabel := map[string]string{
+		"Simple (Title + Buttons)":  "Simple",
+		"Poster (Grid Thumbnails)":  "Poster",
+		"Classic (Title + Buttons)": "Dark",
+	}
+	templateLabelByValue := map[string]string{
+		"Simple": "Simple (Title + Buttons)",
+		"Poster": "Poster (Grid Thumbnails)",
+		"Dark":   "Classic (Title + Buttons)",
+	}
+
+	menuTemplateSelect := widget.NewSelect(templateOptions, func(value string) {
+		state.authorMenuTemplate = templateValueByLabel[value]
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
 	})
 	if state.authorMenuTemplate == "" {
 		state.authorMenuTemplate = "Simple"
 	}
-	menuTemplateSelect.SetSelected(state.authorMenuTemplate)
+	templateLabel := templateLabelByValue[state.authorMenuTemplate]
+	if templateLabel == "" {
+		templateLabel = templateOptions[0]
+		state.authorMenuTemplate = templateValueByLabel[templateLabel]
+	}
+	menuTemplateSelect.SetSelected(templateLabel)
 
 	bgImageLabel := widget.NewLabel(state.authorMenuBackgroundImage)
 	bgImageLabel.Wrapping = fyne.TextWrapWord
@@ -939,19 +1017,15 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	bgImageLabel.Hidden = state.authorMenuTemplate != "Poster"
 
 	menuTemplateSelect.OnChanged = func(value string) {
-		state.authorMenuTemplate = value
-		showPoster := value == "Poster"
+		state.authorMenuTemplate = templateValueByLabel[value]
+		showPoster := state.authorMenuTemplate == "Poster"
 		bgImageButton.Hidden = !showPoster
 		bgImageLabel.Hidden = !showPoster
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
 	}
 
-	logoEnableCheck := widget.NewCheck("Embed Logo", func(checked bool) {
-		state.authorMenuLogoEnabled = checked
-		state.updateAuthorSummary()
-		state.persistAuthorConfig()
-	})
+	logoEnableCheck := widget.NewCheck("Embed Logo", nil)
 	logoEnableCheck.SetChecked(state.authorMenuLogoEnabled)
 
 	logoLabel := widget.NewLabel(state.authorMenuLogoPath)
@@ -985,18 +1059,38 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 	logoPositionSelect.SetSelected(state.authorMenuLogoPosition)
 
+	scaleOptions := []string{"50%", "75%", "100%", "125%", "150%", "200%"}
+	scaleValueByLabel := map[string]float64{
+		"50%":  0.5,
+		"75%":  0.75,
+		"100%": 1.0,
+		"125%": 1.25,
+		"150%": 1.5,
+		"200%": 2.0,
+	}
+	scaleLabelByValue := map[float64]string{
+		0.5:  "50%",
+		0.75: "75%",
+		1.0:  "100%",
+		1.25: "125%",
+		1.5:  "150%",
+		2.0:  "200%",
+	}
 	if state.authorMenuLogoScale == 0 {
 		state.authorMenuLogoScale = 1.0
 	}
-	scaleLabel := widget.NewLabel(fmt.Sprintf("Logo Scale: %.0f%%", state.authorMenuLogoScale*100))
-	scaleSlider := widget.NewSlider(0.2, 2.0)
-	scaleSlider.Step = 0.05
-	scaleSlider.Value = state.authorMenuLogoScale
-	scaleSlider.OnChanged = func(v float64) {
-		state.authorMenuLogoScale = v
-		scaleLabel.SetText(fmt.Sprintf("Logo Scale: %.0f%%", v*100))
-		state.persistAuthorConfig()
+	logoScaleSelect := widget.NewSelect(scaleOptions, func(value string) {
+		if scale, ok := scaleValueByLabel[value]; ok {
+			state.authorMenuLogoScale = scale
+			state.persistAuthorConfig()
+		}
+	})
+	scaleLabel := scaleLabelByValue[state.authorMenuLogoScale]
+	if scaleLabel == "" {
+		scaleLabel = "100%"
+		state.authorMenuLogoScale = 1.0
 	}
+	logoScaleSelect.SetSelected(scaleLabel)
 
 	if state.authorMenuLogoMargin == 0 {
 		state.authorMenuLogoMargin = 24
@@ -1011,33 +1105,140 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		state.persistAuthorConfig()
 	}
 
-	info := widget.NewLabel("DVD menus use the VideoTools theme and IBM Plex Mono. Menu settings apply only to disc authoring.")
+	safeAreaNote := widget.NewLabel("Logos are constrained to DVD safe areas.")
+	safeAreaNote.TextStyle = fyne.TextStyle{Italic: true}
+	safeAreaNote.Wrapping = fyne.TextWrapWord
+
+	menuStructureSelect := widget.NewSelect([]string{
+		"Feature Only",
+		"Feature + Chapters",
+		"Feature + Extras",
+		"Feature + Chapters + Extras",
+	}, func(value string) {
+		state.authorMenuStructure = value
+		state.persistAuthorConfig()
+	})
+	if state.authorMenuStructure == "" {
+		state.authorMenuStructure = "Feature + Chapters"
+	}
+	menuStructureSelect.SetSelected(state.authorMenuStructure)
+
+	extrasMenuCheck := widget.NewCheck("Enable Extras Menu", func(checked bool) {
+		state.authorMenuExtrasEnabled = checked
+		state.persistAuthorConfig()
+	})
+	extrasMenuCheck.SetChecked(state.authorMenuExtrasEnabled)
+	extrasNote := widget.NewLabel("Videos marked as Extras appear in a separate menu.")
+	extrasNote.Wrapping = fyne.TextWrapWord
+
+	thumbSourceSelect := widget.NewSelect([]string{
+		"Auto",
+		"First Frame",
+		"Midpoint",
+		"Custom (Advanced)",
+	}, func(value string) {
+		state.authorMenuChapterThumbSrc = value
+		state.persistAuthorConfig()
+	})
+	if state.authorMenuChapterThumbSrc == "" {
+		state.authorMenuChapterThumbSrc = "Auto"
+	}
+	thumbSourceSelect.SetSelected(state.authorMenuChapterThumbSrc)
+
+	info := widget.NewLabel("DVD menus are generated using the VideoTools theme and IBM Plex Mono. Menu settings apply only to disc authoring.")
 	info.Wrapping = fyne.TextWrapWord
 
-	controls := container.NewVBox(
-		widget.NewLabel("DVD Menu Settings:"),
-		widget.NewSeparator(),
+	previewBox := buildMenuBox("Preview", widget.NewLabel("Menu preview is generated during authoring."))
+
+	menuCore := buildMenuBox("Menu Core", container.NewVBox(
 		createMenuCheck,
+		menuDisabledNote,
 		widget.NewLabel("Theme:"),
 		menuThemeSelect,
 		widget.NewLabel("Template:"),
 		menuTemplateSelect,
 		bgImageLabel,
 		bgImageButton,
-		widget.NewSeparator(),
+		widget.NewLabel("Menu Structure:"),
+		menuStructureSelect,
+	))
+
+	branding := buildMenuBox("Branding", container.NewVBox(
 		logoEnableCheck,
 		widget.NewLabel("Logo Path:"),
 		logoLabel,
 		logoPickButton,
 		widget.NewLabel("Logo Position:"),
 		logoPositionSelect,
-		scaleLabel,
-		scaleSlider,
+		widget.NewLabel("Logo Scale:"),
+		logoScaleSelect,
 		marginLabel,
 		marginSlider,
-		widget.NewSeparator(),
+		safeAreaNote,
+	))
+
+	navigation := buildMenuBox("Navigation", container.NewVBox(
+		extrasMenuCheck,
+		extrasNote,
+		widget.NewLabel("Chapter Thumbnail Source:"),
+		thumbSourceSelect,
+	))
+
+	controls := container.NewVBox(
+		menuCore,
+		sectionGap(),
+		branding,
+		sectionGap(),
+		navigation,
+		sectionGap(),
+		previewBox,
+		sectionGap(),
 		info,
 	)
+
+	updateMenuControls = func(enabled bool) {
+		menuDisabledNote.Hidden = enabled
+		setEnabled := func(on bool, items ...fyne.Disableable) {
+			for _, item := range items {
+				if on {
+					item.Enable()
+				} else {
+					item.Disable()
+				}
+			}
+		}
+
+		setEnabled(enabled,
+			menuThemeSelect,
+			menuTemplateSelect,
+			bgImageButton,
+			menuStructureSelect,
+			logoEnableCheck,
+			logoPickButton,
+			logoPositionSelect,
+			logoScaleSelect,
+			marginSlider,
+			extrasMenuCheck,
+			thumbSourceSelect,
+		)
+
+		logoControlsEnabled := enabled && state.authorMenuLogoEnabled
+		setEnabled(logoControlsEnabled,
+			logoPickButton,
+			logoPositionSelect,
+			logoScaleSelect,
+			marginSlider,
+		)
+	}
+
+	logoEnableCheck.OnChanged = func(checked bool) {
+		state.authorMenuLogoEnabled = checked
+		updateMenuControls(state.authorCreateMenu)
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	}
+
+	updateMenuControls(state.authorCreateMenu)
 
 	return container.NewPadded(controls)
 }
@@ -1962,6 +2163,9 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 		"menuLogoPosition":    s.authorMenuLogoPosition,
 		"menuLogoScale":       s.authorMenuLogoScale,
 		"menuLogoMargin":      s.authorMenuLogoMargin,
+		"menuStructure":       s.authorMenuStructure,
+		"menuExtrasEnabled":   s.authorMenuExtrasEnabled,
+		"menuChapterThumbSrc": s.authorMenuChapterThumbSrc,
 	}
 
 	titleLabel := title

@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ebitengine/oto/v3"
+
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -34,6 +36,10 @@ type UnifiedPlayer struct {
 	videoPipeWriter *io.PipeWriter
 	audioPipeReader *io.PipeReader
 	audioPipeWriter *io.PipeWriter
+
+	// Audio output
+	audioContext *oto.Context
+	audioPlayer  *oto.Player
 
 	// State tracking
 	currentPath  string
@@ -137,8 +143,40 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 		}
 	}
 
+	// Initialize audio context for playback
+	sampleRate := 48000
+	channels := 2
+	bytesPerSample := 2 // 16-bit = 2 bytes
+
+	ctx, ready, err := oto.NewContext(&oto.NewContextOptions{
+		SampleRate:   sampleRate,
+		ChannelCount: channels,
+		Format:       oto.FormatSignedInt16LE,
+		BufferSize:   4096, // 85ms chunks for smooth playback
+	})
+	if err != nil {
+		logging.Error(logging.CatPlayer, "Failed to create audio context: %v", err)
+		return err
+	}
+	if ready != nil {
+		<-ready
+	}
+
+	p.audioContext = ctx
+
+	// Initialize audio buffer
+	p.audioBuffer = make([]byte, 0, 0) // Will grow as needed
+
 	// Start FFmpeg process for unified A/V output
-	return p.startVideoProcess()
+	err = p.startVideoProcess()
+	if err != nil {
+		return err
+	}
+
+	// Start audio stream processing
+	go p.readAudioStream()
+
+	return nil
 }
 
 // SeekToTime seeks to a specific time without restarting processes
@@ -396,6 +434,15 @@ func (p *UnifiedPlayer) Close() {
 
 	p.frameBuffer = nil
 	p.audioBuffer = nil
+
+	// Close audio context and player
+	if p.audioContext != nil {
+		p.audioContext = nil
+	}
+	if p.audioPlayer != nil {
+		p.audioPlayer.Close()
+		p.audioPlayer = nil
+	}
 }
 
 // Stop halts playback and tears down the FFmpeg process.
@@ -585,14 +632,25 @@ func (p *UnifiedPlayer) readAudioStream() {
 				continue
 			}
 
-			// Apply volume if not muted
-			if !p.muted && p.volume > 0 {
-				p.applyVolumeToBuffer(buffer[:n])
+			// Initialize audio player if needed
+			if p.audioPlayer == nil && p.audioContext != nil {
+				player, err := p.audioContext.NewPlayer(p.audioPipeReader)
+				if err != nil {
+					logging.Error(logging.CatPlayer, "Failed to create audio player: %v", err)
+					return
+				}
+				p.audioPlayer = player
 			}
 
-			// Send to audio output (this would connect to audio system)
-			// For now, we'll store in buffer for playback sync monitoring
-			p.audioBuffer = append(p.audioBuffer, buffer[:n]...)
+			// Write audio data to player buffer
+			if p.audioPlayer != nil {
+				p.audioPlayer.Write(buffer[:n])
+			}
+
+			// Buffer for sync monitoring (keep small to avoid memory issues)
+			if len(p.audioBuffer) > 32768 { // Max 1 second at 48kHz
+				p.audioBuffer = p.audioBuffer[len(p.audioBuffer)-16384:] // Keep half
+			}
 
 			// Simple audio sync timing
 			p.updateAVSync()
@@ -611,7 +669,12 @@ func (p *UnifiedPlayer) readVideoFrame() (*image.RGBA, error) {
 	frameSize := p.windowW * p.windowH * 3 // RGB24 = 3 bytes per pixel
 	frameData := make([]byte, frameSize)
 
-	// Read full frame - io.ReadFull ensures we get the complete frame
+	// Check for paused state before reading
+	if p.paused {
+		return nil, fmt.Errorf("player is paused")
+	}
+
+	// Read full frame - io.ReadFull ensures we get complete frame
 	n, err := io.ReadFull(p.videoPipeReader, frameData)
 	if err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {

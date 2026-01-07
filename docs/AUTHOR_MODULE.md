@@ -156,12 +156,14 @@ You filmed stuff on your phone and want to give it to relatives who don't use co
    - Output Type: DVD
    - Region: NTSC
    - Aspect Ratio: 16:9
-5. **Generate Tab**:
+5. **Menu Tab** (optional):
+   - Enable DVD Menus if you want a playable menu
+6. **Generate Tab**:
    - Title: "Birthday 2024"
    - Pick where to save it
    - Click Generate
-6. When done, burn the .iso file to a DVD-R
-7. Hand it to grandma - it'll just work in her DVD player
+7. When done, burn the .iso file to a DVD-R
+8. Hand it to grandma - it'll just work in her DVD player
 
 ### Scenario 2: Multiple Episodes on One Disc
 
@@ -172,9 +174,11 @@ You downloaded 3 episodes of a show and want them on one disc with a menu.
 3. **Settings Tab**:
    - Output Type: DVD
    - Region: NTSC
-   - Create Menu: YES (important!)
-4. **Generate Tab** → Generate the disc
-5. The DVD will have a menu where you can pick which episode to watch
+4. **Menu Tab**:
+   - Enable DVD Menus
+   - Menu Structure: Feature + Extras
+5. **Generate Tab** → Generate the disc
+6. The DVD will have a menu where you can pick which episode to watch
 
 ### Scenario 3: Concert Video with Song Chapters
 
