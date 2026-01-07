@@ -2219,7 +2219,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			logFn,
 			template,
 			menuBackgroundImage,
-			&menuTheme{Name: menuTheme},
+			&MenuTheme{Name: menuTheme},
 			menuLogoOptions{
 				Enabled:  menuLogoEnabled,
 				Path:     menuLogoPath,
