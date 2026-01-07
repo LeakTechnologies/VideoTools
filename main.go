@@ -119,6 +119,17 @@ func moduleColor(id string) color.Color {
 	return queueColor
 }
 
+func openURL(url string) error {
+	switch runtime.GOOS {
+	case "darwin":
+		return exec.Command("open", url).Start()
+	case "windows":
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	default:
+		return exec.Command("xdg-open", url).Start()
+	}
+}
+
 // statusStrip renders a consistent dark status area with the shared stats bar.
 func statusStrip(bar *ui.ConversionStatsBar) fyne.CanvasObject {
 	bg := canvas.NewRectangle(color.NRGBA{R: 34, G: 34, B: 34, A: 255})
@@ -1146,9 +1157,9 @@ type appState struct {
 	authorMenuLogoPosition    string // "Top Left", "Top Right", "Bottom Left", "Bottom Right", "Center"
 	authorMenuLogoScale       float64
 	authorMenuLogoMargin      int
-	authorTitle               string       // DVD title
-	authorSubtitles           []string     // Subtitle file paths
-	authorAudioTracks         []string     // Additional audio tracks
+	authorTitle               string   // DVD title
+	authorSubtitles           []string // Subtitle file paths
+	authorAudioTracks         []string // Additional audio tracks
 	authorSummaryLabel        *widget.Label
 	authorTreatAsChapters     bool   // Treat multiple clips as chapters
 	authorChapterSource       string // embedded, scenes, clips, manual

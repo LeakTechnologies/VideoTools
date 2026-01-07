@@ -21,7 +21,7 @@ type dvdMenuButton struct {
 	Y1      int
 }
 
-type menuTheme struct {
+type MenuTheme struct {
 	Name            string
 	BackgroundColor string
 	HeaderColor     string
@@ -41,7 +41,7 @@ type menuLogoOptions struct {
 
 // MenuTemplate defines the interface for a DVD menu generator.
 type MenuTemplate interface {
-	Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *menuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error)
+	Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error)
 }
 
 var menuTemplates = map[string]MenuTemplate{
@@ -50,7 +50,7 @@ var menuTemplates = map[string]MenuTemplate{
 	"Poster": &PosterMenu{},
 }
 
-var menuThemes = map[string]*menuTheme{
+var menuThemes = map[string]*MenuTheme{
 	"VideoTools": {
 		Name:            "VideoTools",
 		BackgroundColor: "0x0f172a",
@@ -66,7 +66,7 @@ var menuThemes = map[string]*menuTheme{
 type SimpleMenu struct{}
 
 // Generate creates a simple DVD menu.
-func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *menuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildDVDMenuButtons(chapters, width, height)
 	if len(buttons) == 0 {
@@ -116,7 +116,7 @@ func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspec
 type DarkMenu struct{}
 
 // Generate creates a dark-themed DVD menu.
-func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *menuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildDVDMenuButtons(chapters, width, height)
 	if len(buttons) == 0 {
@@ -166,7 +166,7 @@ func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 type PosterMenu struct{}
 
 // Generate creates a poster-themed DVD menu.
-func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *menuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildDVDMenuButtons(chapters, width, height)
 	if len(buttons) == 0 {
@@ -210,7 +210,7 @@ func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	return menuSpu, buttons, nil
 }
 
-func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, logFn func(string), template MenuTemplate, backgroundImage string, theme *menuTheme, logo menuLogoOptions) (string, []dvdMenuButton, error) {
+func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, logFn func(string), template MenuTemplate, backgroundImage string, theme *MenuTheme, logo menuLogoOptions) (string, []dvdMenuButton, error) {
 	if template == nil {
 		template = &SimpleMenu{}
 	}
@@ -262,7 +262,7 @@ func buildDVDMenuButtons(chapters []authorChapter, width, height int) []dvdMenuB
 	return buttons
 }
 
-func buildMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *menuTheme, logo menuLogoOptions) error {
+func buildMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions) error {
 	theme = resolveMenuTheme(theme)
 
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
@@ -307,7 +307,7 @@ func buildMenuBackground(ctx context.Context, outputPath, title string, buttons 
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
 }
 
-func buildDarkMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *menuTheme, logo menuLogoOptions) error {
+func buildDarkMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions) error {
 	theme = resolveMenuTheme(theme)
 
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
@@ -352,7 +352,7 @@ func buildDarkMenuBackground(ctx context.Context, outputPath, title string, butt
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
 }
 
-func buildPosterMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, backgroundImage string, theme *menuTheme, logo menuLogoOptions) error {
+func buildPosterMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, backgroundImage string, theme *MenuTheme, logo menuLogoOptions) error {
 	theme = resolveMenuTheme(theme)
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
 	if safeTitle == "" {
@@ -390,7 +390,7 @@ func buildPosterMenuBackground(ctx context.Context, outputPath, title string, bu
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
 }
 
-func buildMenuOverlays(ctx context.Context, overlayPath, highlightPath, selectPath string, buttons []dvdMenuButton, width, height int, theme *menuTheme) error {
+func buildMenuOverlays(ctx context.Context, overlayPath, highlightPath, selectPath string, buttons []dvdMenuButton, width, height int, theme *MenuTheme) error {
 	theme = resolveMenuTheme(theme)
 	accent := theme.AccentColor
 	if err := buildMenuOverlay(ctx, overlayPath, buttons, width, height, "0x000000@0.0"); err != nil {
@@ -530,7 +530,7 @@ func findMenuFontPath() string {
 	return ""
 }
 
-func resolveMenuTheme(theme *menuTheme) *menuTheme {
+func resolveMenuTheme(theme *MenuTheme) *MenuTheme {
 	if theme == nil {
 		return menuThemes["VideoTools"]
 	}
@@ -543,7 +543,7 @@ func resolveMenuTheme(theme *menuTheme) *menuTheme {
 	return menuThemes["VideoTools"]
 }
 
-func menuFontArg(theme *menuTheme) string {
+func menuFontArg(theme *MenuTheme) string {
 	if theme != nil && theme.FontPath != "" {
 		return fmt.Sprintf("fontfile='%s'", theme.FontPath)
 	}
