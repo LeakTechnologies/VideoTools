@@ -7305,10 +7305,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	// Make panel sizes responsive with modest minimums to avoid forcing the window beyond the screen
-	// Use a smaller minimum size to allow window to be more flexible
-	// The video pane will scale to fit available space
-	videoPanel := buildVideoPane(state, fyne.NewSize(320, 180), src, updateCover)
+	// Make panel sizes responsive with modest minimums to avoid forcing the window beyond the screen.
+	// The video pane should be the primary region; keep a stronger minimum.
+	videoPanel := buildVideoPane(state, fyne.NewSize(640, 360), src, updateCover)
 	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200))
 	updateMetaCover = metaCoverUpdate
 
@@ -9872,24 +9871,24 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetRow = container.NewHBox(snippetBtn, snippetOptionsBtn, layout.NewSpacer(), snippetHint)
 	}
 
-	// Stack video and metadata with 10px spacing between them
-	// Create a 10px spacer using a container with fixed size
+	// Stack options and metadata with a small gap on the right.
 	spacerRect := canvas.NewRectangle(color.Transparent)
 	spacerRect.SetMinSize(fyne.NewSize(1, 10))
 	spacer := container.NewMax(spacerRect)
 	spacer.Resize(fyne.NewSize(1, 10))
 
-	leftColumn := container.NewVBox(videoPanel, spacer, metaPanel)
+	leftColumn := container.NewVBox(videoPanel)
+	rightColumn := container.NewVBox(optionsPanel, spacer, metaPanel)
 
 	// Add minimal spacing (10px) between left and right panels
 	horizontalSpacer := canvas.NewRectangle(color.Transparent)
 	horizontalSpacer.SetMinSize(fyne.NewSize(10, 1))
 
-	// Split: left side (video + metadata) takes 50% | right side (options) takes 50%
+	// Split: left side (player) takes priority | right side (controls + metadata).
 	mainSplit := container.NewHSplit(
 		leftColumn,
-		optionsPanel)
-	mainSplit.SetOffset(0.5) // 50/50 split
+		rightColumn)
+	mainSplit.SetOffset(0.65) // 65/35 split
 
 	// Add horizontal padding around the split (10px on each side)
 	mainContent := container.NewPadded(mainSplit)
@@ -10642,34 +10641,24 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	outer.CornerRadius = 8
 	outer.StrokeColor = gridColor
 	outer.StrokeWidth = 1
-	defaultAspect := 9.0 / 16.0
+	defaultAspect := 16.0 / 9.0
 	if src != nil && src.Width > 0 && src.Height > 0 {
-		defaultAspect = float64(src.Height) / float64(src.Width)
+		defaultAspect = float64(src.Width) / float64(src.Height)
 	}
-	baseWidth := float64(min.Width)
-	targetWidth := float32(baseWidth)
-	_ = defaultAspect
+	targetWidth := float32(min.Width)
 	targetHeight := float32(min.Height)
-	if state != nil && state.window != nil {
-		winSize := state.window.Canvas().Size()
-		if winSize.Height >= 900 {
-			desiredHeight := float32(360)
-			desiredWidth := desiredHeight / float32(defaultAspect)
-			maxWidth := winSize.Width - 48
-			maxHeight := winSize.Height - 200
-			if maxWidth > 0 && desiredWidth > maxWidth {
-				desiredWidth = maxWidth
-				desiredHeight = desiredWidth * float32(defaultAspect)
-			}
-			if maxHeight > 0 && desiredHeight > maxHeight {
-				desiredHeight = maxHeight
-				desiredWidth = desiredHeight / float32(defaultAspect)
-			}
-			if desiredWidth > 0 && desiredHeight > 0 {
-				targetWidth = desiredWidth
-				targetHeight = desiredHeight
-			}
-		}
+	if targetWidth <= 0 {
+		targetWidth = 320
+	}
+	if targetHeight <= 0 {
+		targetHeight = 180
+	}
+	aspect := float32(defaultAspect)
+	stageWidth := targetWidth
+	stageHeight := stageWidth / aspect
+	if stageHeight < targetHeight {
+		stageHeight = targetHeight
+		stageWidth = stageHeight * aspect
 	}
 	// Don't set rigid MinSize - let the outer container be flexible
 	// outer.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
@@ -10756,13 +10745,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	stage := canvas.NewRectangle(utils.MustHex("#0F1529"))
 	stage.CornerRadius = 6
 	// Set minimum size based on source aspect ratio
-	stageWidth := float32(200)
-	stageHeight := float32(113) // Default 16:9
-	if src != nil && src.Width > 0 && src.Height > 0 {
-		// Calculate height based on actual aspect ratio
-		aspectRatio := float32(src.Width) / float32(src.Height)
-		stageHeight = stageWidth / aspectRatio
-	}
+	// Set minimum size based on source aspect ratio.
 	stage.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
 	// Overlay the image directly so it fills the stage while preserving aspect.
 	videoStage := container.NewMax(stage, img)
@@ -10965,12 +10948,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		fullBtn := utils.MakeIconButton("⛶", "Toggle fullscreen", func() {
 			// Placeholder: embed fullscreen toggle into playback surface later.
 		})
-		volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
-		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
-		controls = container.NewVBox(
-			container.NewHBox(prevFrameBtn, playBtn, nextFrameBtn, fullBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), frameLabel, volBox),
-			progress,
-		)
+			volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
+			progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
+			controls = container.NewVBox(
+				container.NewHBox(prevFrameBtn, playBtn, nextFrameBtn, fullBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), frameLabel, volBox),
+				progress,
+			)
 	} else {
 		slider := widget.NewSlider(0, math.Max(1, float64(len(src.PreviewFrames)-1)))
 		slider.Step = 1
@@ -11016,17 +10999,17 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	}
 
 	barBg := canvas.NewRectangle(color.NRGBA{R: 12, G: 17, B: 31, A: 180})
-	barBg.SetMinSize(fyne.NewSize(targetWidth-32, 72))
-	overlayBar := container.NewMax(barBg, container.NewPadded(controls))
+	barBg.SetMinSize(fyne.NewSize(0, 72))
+	transportBar := container.NewMax(barBg, container.NewPadded(controls))
 
-	overlay := container.NewVBox(layout.NewSpacer(), overlayBar)
-	videoWithOverlay := container.NewMax(videoStage, overlay)
+	videoWithOverlay := videoStage
 	if usePlayer {
-		state.setPlayerSurface(videoStage, int(targetWidth-12), int(targetHeight-12))
+		state.setPlayerSurface(videoStage, int(stageWidth), int(stageHeight))
 	}
 
 	stack := container.NewVBox(
 		container.NewPadded(videoWithOverlay),
+		container.NewPadded(transportBar),
 	)
 	return container.NewMax(outer, container.NewPadded(stack))
 }
