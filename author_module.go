@@ -1029,8 +1029,8 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	logoEnableCheck := widget.NewCheck("Embed Logo", nil)
 	logoEnableCheck.SetChecked(state.authorMenuLogoEnabled)
 
-	logoLabel := widget.NewLabel("")
-	logoLabel.Wrapping = fyne.TextWrapWord
+	logoFileEntry := widget.NewEntry()
+	logoFileEntry.Disable()
 	logoPreview := canvas.NewImageFromFile("")
 	logoPreview.FillMode = canvas.ImageFillContain
 	logoPreview.SetMinSize(fyne.NewSize(96, 96))
@@ -1064,7 +1064,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 
 	updateLogoPreview := func() {
-		logoLabel.SetText(logoDisplayName())
+		logoFileEntry.SetText(logoDisplayName())
 		if !state.authorMenuLogoEnabled {
 			logoPreviewBox.Hide()
 			logoPreviewLabel.SetText("Logo disabled")
@@ -1125,7 +1125,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 			}
 			defer reader.Close()
 			state.authorMenuLogoPath = reader.URI().Path()
-			logoLabel.SetText(logoDisplayName())
+			logoFileEntry.SetText(logoDisplayName())
 			updateLogoPreview()
 			updateBrandingTitle()
 			state.updateAuthorSummary()
@@ -1135,7 +1135,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	logoPickButton.Importance = widget.MediumImportance
 	logoClearButton := widget.NewButton("Clear", func() {
 		state.authorMenuLogoPath = ""
-		logoLabel.SetText(logoDisplayName())
+		logoFileEntry.SetText(logoDisplayName())
 		logoEnableCheck.SetChecked(false)
 	})
 
@@ -1282,12 +1282,11 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		logoPreviewSize,
 	)
 
-	logoFileRow := container.NewHBox(
-		logoLabel,
-		layout.NewSpacer(),
+	logoButtonRow := container.NewHBox(
 		logoPickButton,
 		logoClearButton,
 	)
+	logoFileRow := container.NewBorder(nil, nil, nil, logoButtonRow, logoFileEntry)
 
 	logoPositionRow := container.NewHBox(
 		widget.NewLabel("Position:"),
@@ -1320,18 +1319,16 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		menuStructureSelect,
 	))
 
-	brandingContent := container.NewGridWithColumns(2,
-		container.NewVBox(
-			logoEnableCheck,
-			widget.NewLabel("Logo File:"),
-			logoFileRow,
-			logoPositionRow,
-			logoScaleRow,
-			logoMarginRow,
-			safeAreaNote,
-		),
-		logoPreviewGroup,
+	brandingLeft := container.NewVBox(
+		logoEnableCheck,
+		widget.NewLabel("Logo File:"),
+		logoFileRow,
+		logoPositionRow,
+		logoScaleRow,
+		logoMarginRow,
+		safeAreaNote,
 	)
+	brandingContent := container.NewBorder(nil, nil, nil, logoPreviewGroup, brandingLeft)
 	brandingItem := widget.NewAccordionItem("Branding (Logo Overlay)", brandingContent)
 	brandingItem.Open = false
 	brandingAccordion := widget.NewAccordion(brandingItem)
