@@ -35,6 +35,14 @@ install_fedora() {
         libXxf86vm-devel \
         mesa-libGL-devel \
         alsa-lib-devel \
+        gstreamer1 \
+        gstreamer1-plugins-base \
+        gstreamer1-plugins-good \
+        gstreamer1-plugins-bad-free \
+        gstreamer1-plugins-ugly-free \
+        gstreamer1-libav \
+        gstreamer1-devel \
+        gstreamer1-plugins-base-devel \
         ffmpeg-free \
         golang
     echo "✓ Fedora dependencies installed"
@@ -55,6 +63,14 @@ install_ubuntu() {
         libxi-dev \
         libxxf86vm-dev \
         libasound2-dev \
+        gstreamer1.0-tools \
+        gstreamer1.0-plugins-base \
+        gstreamer1.0-plugins-good \
+        gstreamer1.0-plugins-bad \
+        gstreamer1.0-plugins-ugly \
+        gstreamer1.0-libav \
+        libgstreamer1.0-dev \
+        libgstreamer-plugins-base1.0-dev \
         ffmpeg \
         golang-go
     echo "✓ Ubuntu/Debian dependencies installed"
@@ -74,6 +90,12 @@ install_arch() {
         libxi \
         libxxf86vm \
         alsa-lib \
+        gstreamer \
+        gst-plugins-base \
+        gst-plugins-good \
+        gst-plugins-bad \
+        gst-plugins-ugly \
+        gst-libav \
         ffmpeg \
         go
     echo "✓ Arch Linux dependencies installed"
@@ -93,6 +115,13 @@ install_opensuse() {
         libXi-devel \
         libXxf86vm-devel \
         alsa-devel \
+        gstreamer \
+        gstreamer-plugins-base \
+        gstreamer-plugins-good \
+        gstreamer-plugins-bad \
+        gstreamer-plugins-ugly \
+        gstreamer-plugins-libav \
+        gstreamer-devel \
         ffmpeg \
         go
     echo "✓ openSUSE dependencies installed"
@@ -121,6 +150,7 @@ case "$DISTRO" in
         echo "  - OpenGL development libraries"
         echo "  - X11 development libraries (libX11, libXcursor, libXrandr, libXinerama, libXi, libXxf86vm)"
         echo "  - ALSA development libraries"
+        echo "  - GStreamer runtime + dev headers"
         echo "  - ffmpeg"
         echo "  - Go 1.21 or later"
         exit 1
@@ -156,6 +186,13 @@ if command -v ffmpeg &> /dev/null; then
     echo "✓ ffmpeg: $(ffmpeg -version | head -1)"
 else
     echo "⚠️  ffmpeg not found in PATH"
+fi
+
+# Check GStreamer
+if command -v gst-launch-1.0 &> /dev/null; then
+    echo "✓ gstreamer: $(gst-launch-1.0 --version | head -1)"
+else
+    echo "⚠️  gstreamer not found in PATH"
 fi
 
 # Check pkg-config

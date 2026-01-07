@@ -171,6 +171,9 @@ else
     if ! command -v ffmpeg &> /dev/null; then
         missing_deps+=("ffmpeg")
     fi
+    if ! command -v gst-launch-1.0 &> /dev/null; then
+        missing_deps+=("gstreamer")
+    fi
     if [ -z "$SKIP_DVD_TOOLS" ]; then
         # Check if DVD tools are already installed
         if command -v dvdauthor &> /dev/null && command -v xorriso &> /dev/null; then
@@ -238,33 +241,33 @@ else
         if command -v apt-get &> /dev/null; then
             sudo apt-get update
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo apt-get install -y ffmpeg
+                sudo apt-get install -y ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
             else
-                sudo apt-get install -y ffmpeg dvdauthor xorriso
+                sudo apt-get install -y ffmpeg dvdauthor xorriso gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
             fi
         elif command -v dnf &> /dev/null; then
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo dnf install -y ffmpeg
+                sudo dnf install -y ffmpeg gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free gstreamer1-libav gstreamer1-devel gstreamer1-plugins-base-devel
             else
-                sudo dnf install -y ffmpeg dvdauthor xorriso
+                sudo dnf install -y ffmpeg dvdauthor xorriso gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free gstreamer1-libav gstreamer1-devel gstreamer1-plugins-base-devel
             fi
         elif command -v pacman &> /dev/null; then
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo pacman -Sy --noconfirm ffmpeg
+                sudo pacman -Sy --noconfirm ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav
             else
-                sudo pacman -Sy --noconfirm ffmpeg dvdauthor cdrtools
+                sudo pacman -Sy --noconfirm ffmpeg dvdauthor cdrtools gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav
             fi
         elif command -v zypper &> /dev/null; then
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo zypper install -y ffmpeg
+                sudo zypper install -y ffmpeg gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-devel
             else
-                sudo zypper install -y ffmpeg dvdauthor xorriso
+                sudo zypper install -y ffmpeg dvdauthor xorriso gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-devel
             fi
         elif command -v brew &> /dev/null; then
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                brew install ffmpeg
+                brew install ffmpeg gstreamer
             else
-                brew install ffmpeg dvdauthor xorriso
+                brew install ffmpeg dvdauthor xorriso gstreamer
             fi
         else
             echo -e "${RED}[ERROR] No supported package manager found.${NC}"

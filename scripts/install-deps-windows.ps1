@@ -4,6 +4,7 @@
 param(
     [switch]$UseScoop = $false,
     [switch]$SkipFFmpeg = $false,
+    [switch]$SkipGStreamer = $false,
     [string]$DvdStylerUrl = "",
     [string]$DvdStylerZip = "",
     [switch]$SkipDvdStyler = $false
@@ -246,6 +247,16 @@ function Install-ViaChocolatey {
         }
     }
 
+    # Install GStreamer
+    if (-not $SkipGStreamer) {
+        if (-not (Test-Command gst-launch-1.0)) {
+            Write-Host "Installing GStreamer..." -ForegroundColor Yellow
+            choco install -y gstreamer gstreamer-devel
+        } else {
+            Write-Host "[OK]  GStreamer already installed" -ForegroundColor Green
+        }
+    }
+
 
     Write-Host "[OK]  Chocolatey installation complete" -ForegroundColor Green
 }
@@ -303,6 +314,17 @@ function Install-ViaScoop {
             scoop install ffmpeg
         } else {
             Write-Host "[OK]  ffmpeg already installed" -ForegroundColor Green
+        }
+    }
+
+    # Install GStreamer
+    if (-not $SkipGStreamer) {
+        if (-not (Test-Command gst-launch-1.0)) {
+            Write-Host "Installing GStreamer..." -ForegroundColor Yellow
+            scoop bucket add extras | Out-Null
+            scoop install gstreamer
+        } else {
+            Write-Host "[OK]  GStreamer already installed" -ForegroundColor Green
         }
     }
 
@@ -387,6 +409,17 @@ if (Test-Command ffmpeg) {
         Write-Host "[INFO]   ffmpeg skipped (use -SkipFFmpeg:$false to install)" -ForegroundColor Cyan
     } else {
         Write-Host "[WARN]   ffmpeg not found in PATH (restart terminal)" -ForegroundColor Yellow
+    }
+}
+
+if (Test-Command gst-launch-1.0) {
+    $gstVersion = gst-launch-1.0 --version | Select-Object -First 1
+    Write-Host "[OK]  gstreamer: $gstVersion" -ForegroundColor Green
+} else {
+    if ($SkipGStreamer) {
+        Write-Host "[INFO]   gstreamer skipped (use -SkipGStreamer:\$false to install)" -ForegroundColor Cyan
+    } else {
+        Write-Host "[WARN]   gstreamer not found in PATH (restart terminal)" -ForegroundColor Yellow
     }
 }
 
