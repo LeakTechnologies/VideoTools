@@ -200,6 +200,19 @@ func AspectRatioFloat(w, h int) float64 {
 	return float64(w) / float64(h)
 }
 
+// DisplayAspectRatioFloat calculates display aspect ratio using SAR when available.
+func DisplayAspectRatioFloat(w, h int, sar string) float64 {
+	base := AspectRatioFloat(w, h)
+	if base <= 0 {
+		return 0
+	}
+	sarVal := ParseAspectValue(strings.TrimSpace(sar))
+	if sarVal <= 0 {
+		return base
+	}
+	return base * sarVal
+}
+
 // ParseAspectValue parses an aspect ratio string like "16:9"
 func ParseAspectValue(val string) float64 {
 	val = strings.TrimSpace(val)
