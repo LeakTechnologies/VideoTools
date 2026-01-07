@@ -175,6 +175,17 @@ echo [OK] Dependencies downloaded
 echo.
 
 REM ----------------------------
+REM Embed Windows icon (if windres is available)
+REM ----------------------------
+where windres >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    windres scripts\videotools.rc -O coff -o videotools_windows_amd64.syso
+) else (
+    echo [WARN] windres not found; Windows icon will not be embedded in the EXE
+)
+echo.
+
+REM ----------------------------
 REM Build VideoTools (Windows GUI mode)
 REM Note: CGO is required for Fyne/OpenGL on Windows
 REM ----------------------------

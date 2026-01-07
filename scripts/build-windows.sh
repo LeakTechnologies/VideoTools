@@ -60,6 +60,19 @@ echo "   Target: windows/amd64"
 echo "   Compiler: x86_64-w64-mingw32-gcc"
 echo ""
 
+# Generate Windows resource file for app icon (if windres is available)
+RC_FILE="$PROJECT_ROOT/scripts/videotools.rc"
+SYMBOL_FILE="$PROJECT_ROOT/videotools_windows_amd64.syso"
+if [ -f "$RC_FILE" ]; then
+    if command -v x86_64-w64-mingw32-windres &> /dev/null; then
+        x86_64-w64-mingw32-windres "$RC_FILE" -O coff -o "$SYMBOL_FILE" || true
+    elif command -v windres &> /dev/null; then
+        windres "$RC_FILE" -O coff -o "$SYMBOL_FILE" || true
+    else
+        echo "WARNING: windres not found; Windows icon will not be embedded in the EXE"
+    fi
+fi
+
 # Set Windows build environment
 export GOOS=windows
 export GOARCH=amd64
