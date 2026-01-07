@@ -8676,6 +8676,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		} else {
 			manualBitrateRow.Hide()
 		}
+		if manualBitrateRow != nil {
+			manualBitrateRow.Refresh()
+		}
+		if bitrateContainer != nil {
+			bitrateContainer.Refresh()
+		}
 
 		// Move to CBR for predictable output when a preset is chosen
 		if preset.Bitrate != "" && stateMgr.BitrateMode() != "CBR" && stateMgr.BitrateMode() != "VBR" {
@@ -8709,6 +8715,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Initialize bitrate preset through state manager
 	setBitratePreset(state.convert.BitratePreset)
+	if applyBitratePreset != nil {
+		applyBitratePreset(state.convert.BitratePreset)
+	}
 
 	updateEncodingControls = func() {
 		mode := normalizeBitrateMode(state.convert.BitrateMode)
