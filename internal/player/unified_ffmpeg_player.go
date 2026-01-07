@@ -97,6 +97,12 @@ func NewUnifiedPlayer(config Config) *UnifiedPlayer {
 		},
 		audioBufferSize: 32768, // 170ms at 48kHz for smooth playback
 	}
+	if config.WindowWidth > 0 {
+		player.windowW = config.WindowWidth
+	}
+	if config.WindowHeight > 0 {
+		player.windowH = config.WindowHeight
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	player.ctx = ctx
@@ -155,26 +161,28 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 		}
 	}
 
-	// Initialize audio context for playback
-	sampleRate := 48000
-	channels := 2
+	if !p.previewMode {
+		// Initialize audio context for playback
+		sampleRate := 48000
+		channels := 2
 
-	ctx, ready, err := oto.NewContext(&oto.NewContextOptions{
-		SampleRate:   sampleRate,
-		ChannelCount: channels,
-		Format:       oto.FormatSignedInt16LE,
-		BufferSize:   4096, // 85ms chunks for smooth playback
-	})
-	if err != nil {
-		logging.Error(logging.CatPlayer, "Failed to create audio context: %v", err)
-		return err
+		ctx, ready, err := oto.NewContext(&oto.NewContextOptions{
+			SampleRate:   sampleRate,
+			ChannelCount: channels,
+			Format:       oto.FormatSignedInt16LE,
+			BufferSize:   4096, // 85ms chunks for smooth playback
+		})
+		if err != nil {
+			logging.Error(logging.CatPlayer, "Failed to create audio context: %v", err)
+			return err
+		}
+		if ready != nil {
+			<-ready
+		}
+
+		p.audioContext = ctx
+		logging.Info(logging.CatPlayer, "Audio context initialized successfully")
 	}
-	if ready != nil {
-		<-ready
-	}
-	
-	p.audioContext = ctx
-	logging.Info(logging.CatPlayer, "Audio context initialized successfully")
 
 	// Start FFmpeg process for unified A/V output
 	err = p.startVideoProcess()
@@ -183,7 +191,9 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 	}
 
 	// Start audio stream processing
-	go p.readAudioStream()
+	if !p.previewMode {
+		go p.readAudioStream()
+	}
 
 	return nil
 }
@@ -545,18 +555,31 @@ func (p *UnifiedPlayer) startVideoProcess() error {
 		"-hide_banner", "-loglevel", "error",
 		"-ss", fmt.Sprintf("%.3f", p.currentTime.Seconds()),
 		"-i", p.currentPath,
-		// Video stream to pipe 4
-		"-map", "0:v:0",
-		"-f", "rawvideo",
-		"-pix_fmt", "rgb24",
-		"-r", "24", // We'll detect actual framerate
-		"pipe:4",
-		// Audio stream to pipe 5
-		"-map", "0:a:0",
-		"-ac", "2",
-		"-ar", "48000",
-		"-f", "s16le",
-		"pipe:5",
+	}
+	if p.previewMode {
+		args = append(args,
+			"-map", "0:v:0",
+			"-an",
+			"-f", "rawvideo",
+			"-pix_fmt", "rgb24",
+			"-r", "24",
+			"pipe:1",
+		)
+	} else {
+		args = append(args,
+			// Video stream to pipe 4
+			"-map", "0:v:0",
+			"-f", "rawvideo",
+			"-pix_fmt", "rgb24",
+			"-r", "24", // We'll detect actual framerate
+			"pipe:4",
+			// Audio stream to pipe 5
+			"-map", "0:a:0",
+			"-ac", "2",
+			"-ar", "48000",
+			"-f", "s16le",
+			"pipe:5",
+		)
 	}
 
 	// Add hardware acceleration if available
