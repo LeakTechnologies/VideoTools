@@ -8,6 +8,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"image"
 	"image/color"
 	"io"
 	"math"
@@ -1030,6 +1031,78 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 
 	logoLabel := widget.NewLabel(state.authorMenuLogoPath)
 	logoLabel.Wrapping = fyne.TextWrapWord
+	logoPreview := canvas.NewImageFromFile("")
+	logoPreview.FillMode = canvas.ImageFillContain
+	logoPreview.SetMinSize(fyne.NewSize(220, 120))
+	logoPreviewLabel := widget.NewLabel("No logo selected")
+	logoPreviewLabel.Wrapping = fyne.TextWrapWord
+	logoPreviewSize := widget.NewLabel("")
+	logoPreviewSize.Wrapping = fyne.TextWrapWord
+
+	menuPreviewSize := func() (int, int) {
+		width := 720
+		height := 480
+		switch strings.ToUpper(strings.TrimSpace(state.authorRegion)) {
+		case "PAL":
+			height = 576
+		}
+		return width, height
+	}
+
+	updateLogoPreview := func() {
+		if !state.authorMenuLogoEnabled {
+			logoPreview.Hide()
+			logoPreviewLabel.SetText("Logo preview disabled")
+			logoPreviewSize.SetText("")
+			return
+		}
+
+		path := state.authorMenuLogoPath
+		if strings.TrimSpace(path) == "" {
+			path = filepath.Join("assets", "logo", "VT_Logo.png")
+		}
+
+		if _, err := os.Stat(path); err != nil {
+			logoPreview.Hide()
+			logoPreviewLabel.SetText("Logo file not found")
+			logoPreviewSize.SetText("")
+			return
+		}
+
+		logoPreview.Show()
+		logoPreviewLabel.SetText(filepath.Base(path))
+		logoPreview.File = path
+		logoPreview.Refresh()
+
+		file, err := os.Open(path)
+		if err != nil {
+			logoPreviewSize.SetText("")
+			return
+		}
+		defer file.Close()
+
+		cfg, _, err := image.DecodeConfig(file)
+		if err != nil {
+			logoPreviewSize.SetText("")
+			return
+		}
+
+		menuW, menuH := menuPreviewSize()
+		maxW := int(float64(menuW) * 0.25)
+		maxH := int(float64(menuH) * 0.25)
+		scale := state.authorMenuLogoScale
+		targetW := int(math.Round(float64(cfg.Width) * scale))
+		targetH := int(math.Round(float64(cfg.Height) * scale))
+		if targetW > maxW || targetH > maxH {
+			ratioW := float64(maxW) / float64(targetW)
+			ratioH := float64(maxH) / float64(targetH)
+			ratio := math.Min(ratioW, ratioH)
+			targetW = int(math.Round(float64(targetW) * ratio))
+			targetH = int(math.Round(float64(targetH) * ratio))
+		}
+
+		logoPreviewSize.SetText(fmt.Sprintf("Logo size: %dx%d (max %dx%d)", targetW, targetH, maxW, maxH))
+	}
 	logoPickButton := widget.NewButton("Select Logo", func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
@@ -1038,6 +1111,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 			defer reader.Close()
 			state.authorMenuLogoPath = reader.URI().Path()
 			logoLabel.SetText(state.authorMenuLogoPath)
+			updateLogoPreview()
 			state.updateAuthorSummary()
 			state.persistAuthorConfig()
 		}, state.window)
@@ -1082,6 +1156,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	logoScaleSelect := widget.NewSelect(scaleOptions, func(value string) {
 		if scale, ok := scaleValueByLabel[value]; ok {
 			state.authorMenuLogoScale = scale
+			updateLogoPreview()
 			state.persistAuthorConfig()
 		}
 	})
@@ -1148,7 +1223,11 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	info := widget.NewLabel("DVD menus are generated using the VideoTools theme and IBM Plex Mono. Menu settings apply only to disc authoring.")
 	info.Wrapping = fyne.TextWrapWord
 
-	previewBox := buildMenuBox("Preview", widget.NewLabel("Menu preview is generated during authoring."))
+	previewBox := buildMenuBox("Logo Preview", container.NewVBox(
+		logoPreviewLabel,
+		logoPreview,
+		logoPreviewSize,
+	))
 
 	menuCore := buildMenuBox("Menu Core", container.NewVBox(
 		createMenuCheck,
@@ -1233,11 +1312,13 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 
 	logoEnableCheck.OnChanged = func(checked bool) {
 		state.authorMenuLogoEnabled = checked
+		updateLogoPreview()
 		updateMenuControls(state.authorCreateMenu)
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
 	}
 
+	updateLogoPreview()
 	updateMenuControls(state.authorCreateMenu)
 
 	return container.NewPadded(controls)

@@ -298,7 +298,7 @@ func buildMenuBackground(ctx context.Context, outputPath, title string, buttons 
 		logoPath := resolveMenuLogoPath(logo)
 		if logoPath != "" {
 			posExpr := resolveMenuLogoPosition(logo, width, height)
-			scaleExpr := fmt.Sprintf("scale=iw*%.2f:ih*%.2f", resolveMenuLogoScale(logo), resolveMenuLogoScale(logo))
+			scaleExpr := resolveMenuLogoScaleExpr(logo, width, height)
 			args = append(args, "-i", logoPath)
 			filterExpr = fmt.Sprintf("[0:v]%s[bg];[1:v]%s[logo];[bg][logo]overlay=%s", filterChain, scaleExpr, posExpr)
 		}
@@ -343,7 +343,7 @@ func buildDarkMenuBackground(ctx context.Context, outputPath, title string, butt
 		logoPath := resolveMenuLogoPath(logo)
 		if logoPath != "" {
 			posExpr := resolveMenuLogoPosition(logo, width, height)
-			scaleExpr := fmt.Sprintf("scale=iw*%.2f:ih*%.2f", resolveMenuLogoScale(logo), resolveMenuLogoScale(logo))
+			scaleExpr := resolveMenuLogoScaleExpr(logo, width, height)
 			args = append(args, "-i", logoPath)
 			filterExpr = fmt.Sprintf("[0:v]%s[bg];[1:v]%s[logo];[bg][logo]overlay=%s", filterChain, scaleExpr, posExpr)
 		}
@@ -381,7 +381,7 @@ func buildPosterMenuBackground(ctx context.Context, outputPath, title string, bu
 		logoPath := resolveMenuLogoPath(logo)
 		if logoPath != "" {
 			posExpr := resolveMenuLogoPosition(logo, width, height)
-			scaleExpr := fmt.Sprintf("scale=iw*%.2f:ih*%.2f", resolveMenuLogoScale(logo), resolveMenuLogoScale(logo))
+			scaleExpr := resolveMenuLogoScaleExpr(logo, width, height)
 			args = append(args, "-i", logoPath)
 			filterExpr = fmt.Sprintf("[0:v]scale=%d:%d,%s[bg];[1:v]%s[logo];[bg][logo]overlay=%s", width, height, filterChain, scaleExpr, posExpr)
 		}
@@ -571,6 +571,13 @@ func resolveMenuLogoScale(logo menuLogoOptions) float64 {
 		return 2.0
 	}
 	return logo.Scale
+}
+
+func resolveMenuLogoScaleExpr(logo menuLogoOptions, width, height int) string {
+	scale := resolveMenuLogoScale(logo)
+	maxW := float64(width) * 0.25
+	maxH := float64(height) * 0.25
+	return fmt.Sprintf("scale=w='min(iw*%.2f,%.0f)':h='min(ih*%.2f,%.0f)':force_original_aspect_ratio=decrease", scale, maxW, scale, maxH)
 }
 
 func resolveMenuLogoPosition(logo menuLogoOptions, width, height int) string {
