@@ -334,6 +334,7 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 		// Build FFmpeg command
 		args := []string{
 			"-ss", fmt.Sprintf("%.2f", ts),
+			"-nostdin",
 			"-i", config.VideoPath,
 			"-vf", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp),
 			"-frames:v", "1",
@@ -420,6 +421,7 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 
 	// Build FFmpeg command
 	args := []string{
+		"-nostdin",
 		"-i", config.VideoPath,
 		"-vf", vfilter,
 		"-frames:v", "1",
