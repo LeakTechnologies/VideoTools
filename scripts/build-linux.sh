@@ -50,6 +50,8 @@ fi
 echo ""
 
 echo "Building VideoTools..."
+# Build timer
+build_start=$(date +%s)
 # Fyne needs cgo for GLFW/OpenGL bindings; build with CGO enabled.
 export CGO_ENABLED=1
 export GOCACHE="$PROJECT_ROOT/.cache/go-build"
@@ -70,7 +72,10 @@ if [ -n "$GST_TAG" ]; then
     export GOFLAGS="${GOFLAGS:-} -tags ${GST_TAG}"
 fi
 if go build -o "$BUILD_OUTPUT" .; then
+    build_end=$(date +%s)
+    build_secs=$((build_end - build_start))
     echo "Build successful! (VideoTools $APP_VERSION)"
+    echo "Build time: ${build_secs}s"
     echo ""
     echo "════════════════════════════════════════════════════════════════"
     echo "BUILD COMPLETE - $APP_VERSION"

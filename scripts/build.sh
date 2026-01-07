@@ -49,6 +49,7 @@ case "$OS" in
         echo "→ Building VideoTools $APP_VERSION for Windows..."
         echo ""
         cd "$PROJECT_ROOT"
+        build_start=$(date +%s)
 
         echo "Cleaning previous builds..."
         rm -f VideoTools.exe 2>/dev/null || true
@@ -71,7 +72,10 @@ case "$OS" in
             export GOFLAGS="${GOFLAGS:-} -mod=mod"
         fi
         if go build -ldflags="-H windowsgui -s -w" -o VideoTools.exe .; then
+            build_end=$(date +%s)
+            build_secs=$((build_end - build_start))
             echo "Build successful! (VideoTools $APP_VERSION)"
+            echo "Build time: ${build_secs}s"
             echo ""
             if [ -f "setup-windows.bat" ]; then
                 echo "════════════════════════════════════════════════════════════════"
