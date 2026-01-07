@@ -56,6 +56,18 @@ Write-Host ""
 Write-Host "🔨 Building VideoTools..." -ForegroundColor Yellow
 Write-Host ""
 
+# Embed Windows icon if windres is available
+$rcFile = Join-Path $PROJECT_ROOT "scripts\videotools.rc"
+$sysoFile = Join-Path $PROJECT_ROOT "videotools_windows_amd64.syso"
+if (Test-Path $rcFile) {
+    $windres = Get-Command windres -ErrorAction SilentlyContinue
+    if ($windres) {
+        & $windres.Path $rcFile -O coff -o $sysoFile | Out-Null
+    } else {
+        Write-Host "⚠️  windres not found; Windows icon will not be embedded in the EXE" -ForegroundColor Yellow
+    }
+}
+
 # Fyne needs CGO for GLFW/OpenGL bindings
 $env:CGO_ENABLED = "1"
 
