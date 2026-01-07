@@ -6943,7 +6943,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			widget.NewSeparator(),
 			content,
 		)
-		return container.NewMax(bg, container.NewPadded(body))
+		layers := ui.NoisyBackgroundObjects(bg)
+		layers = append(layers, container.NewPadded(body))
+		return container.NewMax(layers...)
 	}
 
 	sectionGap := func() fyne.CanvasObject {
@@ -10268,7 +10270,9 @@ func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
 	desc.Wrapping = fyne.TextWrapWord
 
 	box := container.NewVBox(header, desc, layout.NewSpacer())
-	return container.NewMax(rect, container.NewPadded(box))
+	layers := ui.NoisyBackgroundObjects(rect)
+	layers = append(layers, container.NewPadded(box))
+	return container.NewMax(layers...)
 }
 
 func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.CanvasObject, func()) {
@@ -10289,7 +10293,9 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.
 			widget.NewLabel("Load a clip to inspect its technical details."),
 			layout.NewSpacer(),
 		)
-		return container.NewMax(outer, container.NewPadded(body)), func() {}
+		layers := ui.NoisyBackgroundObjects(outer)
+		layers = append(layers, container.NewPadded(body))
+		return container.NewMax(layers...), func() {}
 	}
 
 	bitrate := "--"
@@ -10649,7 +10655,9 @@ Metadata: %s`,
 	)
 	scroll := container.NewVScroll(body)
 	scroll.SetMinSize(fyne.NewSize(0, 220))
-	return container.NewMax(outer, container.NewPadded(scroll)), updateCoverDisplay
+	layers := ui.NoisyBackgroundObjects(outer)
+	layers = append(layers, container.NewPadded(scroll))
+	return container.NewMax(layers...), updateCoverDisplay
 }
 
 func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover func(string)) fyne.CanvasObject {
@@ -15313,7 +15321,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			widget.NewSeparator(),
 			content,
 		)
-		return container.NewMax(bg, container.NewPadded(body))
+		layers := ui.NoisyBackgroundObjects(bg)
+		layers = append(layers, container.NewPadded(body))
+		return container.NewMax(layers...)
 	}
 
 	// Scaling (method + blur)
@@ -15936,8 +15946,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	mainContent := split
 
 	content := container.NewMax(
-		canvas.NewRectangle(mediumBlue),
-		container.NewPadded(mainContent),
+		append(ui.NoisyBackgroundObjects(canvas.NewRectangle(mediumBlue)), container.NewPadded(mainContent))...,
 	)
 
 	actionBar := container.NewHBox(layout.NewSpacer(), applyBtn, addQueueBtn)
