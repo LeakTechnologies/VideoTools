@@ -1786,14 +1786,16 @@ func (s *appState) setContent(body fyne.CanvasObject) {
 		currentSize := s.window.Canvas().Size()
 
 		bg := canvas.NewRectangle(backgroundColor)
+		sizeGuard := canvas.NewRectangle(color.Transparent)
+		sizeGuard.SetMinSize(fyne.NewSize(800, 600))
 		if body == nil {
-			s.window.SetContent(bg)
+			s.window.SetContent(container.NewMax(bg, sizeGuard))
 			// Restore window size after setting content
 			s.window.Resize(currentSize)
 			return
 		}
 		// Wrap content with mouse button handler
-		wrapped := newMouseButtonHandler(container.NewMax(bg, body), s)
+		wrapped := newMouseButtonHandler(container.NewMax(bg, sizeGuard, body), s)
 		s.window.SetContent(wrapped)
 		// Restore window size after setting content
 		s.window.Resize(currentSize)
@@ -6551,7 +6553,6 @@ func runGUI() {
 	}
 	// Adaptive window sizing for professional cross-resolution support
 	w.SetFixedSize(false) // Allow manual resizing and maximizing
-	w.SetMinSize(fyne.NewSize(800, 600))
 
 	// Use compact default size (800x600) that fits on any screen
 	// Window can be resized or maximized by user using window manager controls
