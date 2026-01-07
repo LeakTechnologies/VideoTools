@@ -9910,23 +9910,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetRow = container.NewHBox(snippetBtn, snippetOptionsBtn, layout.NewSpacer(), snippetHint)
 	}
 
-	// Stack options and metadata with a small gap on the right.
-	spacerRect := canvas.NewRectangle(color.Transparent)
-	spacerRect.SetMinSize(fyne.NewSize(1, 10))
-	spacer := container.NewMax(spacerRect)
-	spacer.Resize(fyne.NewSize(1, 10))
+	// Split left column vertically: player (top) + metadata (bottom).
+	leftSplit := container.NewVSplit(videoPanel, metaPanel)
+	leftSplit.SetOffset(0.65)
 
-	leftColumn := container.NewVBox(videoPanel)
-	rightColumn := container.NewVBox(optionsPanel, spacer, metaPanel)
-
-	// Add minimal spacing (10px) between left and right panels
-	horizontalSpacer := canvas.NewRectangle(color.Transparent)
-	horizontalSpacer.SetMinSize(fyne.NewSize(10, 1))
-
-	// Split: left side (player) takes priority | right side (controls + metadata).
+	// Split: left side (player + metadata) takes priority | right side (settings).
 	mainSplit := container.NewHSplit(
-		leftColumn,
-		rightColumn)
+		leftSplit,
+		optionsPanel)
 	mainSplit.SetOffset(0.65) // 65/35 split
 
 	// Add horizontal padding around the split (10px on each side)
@@ -10657,7 +10648,9 @@ Metadata: %s`,
 		contentArea,
 		interlaceSection,
 	)
-	return container.NewMax(outer, container.NewPadded(body)), updateCoverDisplay
+	scroll := container.NewVScroll(body)
+	scroll.SetMinSize(fyne.NewSize(0, 180))
+	return container.NewMax(outer, container.NewPadded(scroll)), updateCoverDisplay
 }
 
 func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover func(string)) fyne.CanvasObject {
