@@ -58,6 +58,17 @@ mkdir -p "$GOCACHE" "$GOMODCACHE"
 if [ -d "$PROJECT_ROOT/vendor" ] && [ ! -f "$PROJECT_ROOT/vendor/modules.txt" ]; then
     export GOFLAGS="${GOFLAGS:-} -mod=mod"
 fi
+GST_TAG=""
+if [ -n "$VT_GSTREAMER" ]; then
+    GST_TAG="gstreamer"
+elif command -v pkg-config &> /dev/null; then
+    if pkg-config --exists gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0; then
+        GST_TAG="gstreamer"
+    fi
+fi
+if [ -n "$GST_TAG" ]; then
+    export GOFLAGS="${GOFLAGS:-} -tags ${GST_TAG}"
+fi
 if go build -o "$BUILD_OUTPUT" .; then
     echo "Build successful! (VideoTools $APP_VERSION)"
     echo ""

@@ -13,8 +13,8 @@ import (
 // UnifiedPlayerAdapter wraps UnifiedPlayer to provide playSession interface compatibility
 // This allows seamless replacement of the dual-process player with UnifiedPlayer
 type UnifiedPlayerAdapter struct {
-	// Core UnifiedPlayer
-	player *UnifiedPlayer
+	// Frame-capable player backend
+	player framePlayer
 
 	// Interface compatibility fields (from playSession)
 	path      string
@@ -64,7 +64,7 @@ func NewUnifiedPlayerAdapter(path string, width, height int, fps, duration float
 		startTime: time.Now(),
 	}
 
-	// Create UnifiedPlayer with proper configuration
+	// Create frame-capable player with proper configuration
 	config := Config{
 		Backend:       BackendAuto, // Use auto for UnifiedPlayer
 		WindowX:       0,
@@ -83,23 +83,10 @@ func NewUnifiedPlayerAdapter(path string, width, height int, fps, duration float
 		LogLevel:      3,                // Debug
 	}
 
-	adapter.player = NewUnifiedPlayer(config)
-
-	// Set up callbacks for progress and frame updates
-	adapter.player.SetTimeCallback(func(d time.Duration) {
-		seconds := d.Seconds()
-		adapter.current = seconds
-		if adapter.prog != nil {
-			adapter.prog(seconds)
-		}
-	})
-
-	adapter.player.SetFrameCallback(func(frame int64) {
-		adapter.frameN = int(frame)
-		if adapter.frameFunc != nil {
-			adapter.frameFunc(int(frame))
-		}
-	})
+	playerBackend, err := newFramePlayer(config)
+	if err == nil {
+		adapter.player = playerBackend
+	}
 
 	return adapter
 }
@@ -328,7 +315,11 @@ func (p *UnifiedPlayerAdapter) startFrameDisplayLoop() {
 
 	go func() {
 		// Display at frame rate
-		frameDuration := time.Second / time.Duration(p.fps)
+		fps := p.fps
+		if fps <= 0 {
+			fps = 24
+		}
+		frameDuration := time.Second / time.Duration(fps)
 		ticker := time.NewTicker(frameDuration)
 		defer ticker.Stop()
 
