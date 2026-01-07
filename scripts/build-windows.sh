@@ -71,6 +71,9 @@ if [ -f "$RC_FILE" ]; then
     else
         echo "WARNING: windres not found; Windows icon will not be embedded in the EXE"
     fi
+    if [ ! -f "$SYMBOL_FILE" ]; then
+        echo "WARNING: windres did not produce $SYMBOL_FILE; icon may be missing"
+    fi
 fi
 
 # Set Windows build environment
