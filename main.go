@@ -10685,6 +10685,8 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	// outer.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 
 	if src == nil {
+		sizeRect := canvas.NewRectangle(color.Transparent)
+		sizeRect.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 		icon := canvas.NewText("▶", utils.MustHex("#4CE870"))
 		icon.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 		icon.TextSize = 42
@@ -10736,7 +10738,8 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			container.NewCenter(hintSub),
 			container.NewHBox(open, addMultiple),
 		)
-		return container.NewMax(outer, container.NewCenter(container.NewPadded(placeholder)))
+		placeholderBox := container.NewMax(sizeRect, container.NewCenter(container.NewPadded(placeholder)))
+		return container.NewMax(outer, placeholderBox)
 	}
 
 	state.stopPreview()
