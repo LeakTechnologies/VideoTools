@@ -6551,6 +6551,7 @@ func runGUI() {
 	}
 	// Adaptive window sizing for professional cross-resolution support
 	w.SetFixedSize(false) // Allow manual resizing and maximizing
+	w.SetMinSize(fyne.NewSize(800, 600))
 
 	// Use compact default size (800x600) that fits on any screen
 	// Window can be resized or maximized by user using window manager controls
@@ -15087,16 +15088,8 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	fileLabel := widget.NewLabel("No file loaded")
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	// Determine video pane size based on screen resolution
-	screenSize := fyne.CurrentApp().Driver().AllWindows()[0].Canvas().Size()
-	var playerSize fyne.Size
-	if screenSize.Width < 1600 {
-		// Use smaller size for lower resolution displays
-		playerSize = fyne.NewSize(640, 360)
-	} else {
-		// Use larger size for higher resolution displays
-		playerSize = fyne.NewSize(1280, 720)
-	}
+	// Use a stable base size; the player container handles aspect-safe scaling.
+	playerSize := fyne.NewSize(640, 360)
 
 	var videoContainer fyne.CanvasObject
 	if state.playerFile != nil {
