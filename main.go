@@ -8816,23 +8816,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 
-		if showCRF {
+		if showCRF && showManualCRF {
 			if manualCrfLabel != nil {
-				if showManualCRF {
-					manualCrfLabel.SetText("Manual CRF (overrides Quality preset)")
-				} else {
-					manualCrfLabel.SetText("CRF (auto from Quality preset)")
-				}
+				manualCrfLabel.SetText("Manual CRF (overrides Quality preset)")
 			}
 			if manualCrfRow != nil {
 				manualCrfRow.Show()
 			}
 			if crfEntry != nil {
-				if showManualCRF {
-					crfEntry.Enable()
-				} else {
-					crfEntry.Disable()
-				}
+				crfEntry.Enable()
 			}
 			if crfContainer != nil {
 				crfContainer.Show()
@@ -8840,6 +8832,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		} else {
 			if manualCrfRow != nil {
 				manualCrfRow.Hide()
+			}
+			if crfEntry != nil {
+				crfEntry.Disable()
 			}
 			if crfContainer != nil {
 				crfContainer.Hide()
