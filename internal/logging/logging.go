@@ -181,7 +181,20 @@ func Fatal(cat Category, format string, args ...interface{}) {
 	logger.Printf("%s %s", timestamp, msg)
 	os.Exit(1)
 }
-	history = append(history, fmt.Sprintf("%s %s", timestamp, msg))
+
+// Fatal logs a fatal error and exits (always logged, even when debug is off)
+func Fatal(cat Category, format string, args ...interface{}) {
+	msg := fmt.Sprintf("%s FATAL: %s", cat, fmt.Sprintf(format, args...))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+		file.Sync()
+	}
+	logger.Printf("%s %s", timestamp, msg)
+	os.Exit(1)
+}
+
+// Note: history tracking is disabled during fatal exit to avoid infinite loops
 	if len(history) > historyMax {
 		history = history[len(history)-historyMax:]
 	}
