@@ -9910,13 +9910,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetRow = container.NewHBox(snippetBtn, snippetOptionsBtn, layout.NewSpacer(), snippetHint)
 	}
 
-	// Split left column vertically: player (top) + metadata (bottom).
-	leftSplit := container.NewVSplit(videoPanel, metaPanel)
-	leftSplit.SetOffset(0.65)
+	// Left column: player on top, metadata pinned to bottom.
+	leftColumn := container.NewBorder(nil, metaPanel, nil, nil, videoPanel)
 
 	// Split: left side (player + metadata) takes priority | right side (settings).
 	mainSplit := container.NewHSplit(
-		leftSplit,
+		leftColumn,
 		optionsPanel)
 	mainSplit.SetOffset(0.65) // 65/35 split
 
@@ -10649,7 +10648,7 @@ Metadata: %s`,
 		interlaceSection,
 	)
 	scroll := container.NewVScroll(body)
-	scroll.SetMinSize(fyne.NewSize(0, 180))
+	scroll.SetMinSize(fyne.NewSize(0, 220))
 	return container.NewMax(outer, container.NewPadded(scroll)), updateCoverDisplay
 }
 
