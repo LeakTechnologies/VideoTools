@@ -562,14 +562,8 @@ func (f *FastVScroll) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (f *FastVScroll) Scrolled(ev *fyne.ScrollEvent) {
-	// Multiply scroll speed by 12x for much faster navigation
-	fastEvent := &fyne.ScrollEvent{
-		Scrolled: fyne.Delta{
-			DX: ev.Scrolled.DX * 12.0,
-			DY: ev.Scrolled.DY * 12.0,
-		},
-	}
-	f.scroll.Scrolled(fastEvent)
+	// Increase scroll speed moderately without overshooting content bounds.
+	f.ScrollBy(ev.Scrolled.DY * 4.0)
 }
 
 // ScrollBy scrolls the content by a delta in pixels (positive = down).
@@ -577,7 +571,11 @@ func (f *FastVScroll) ScrollBy(delta float32) {
 	if f == nil || f.scroll == nil || f.scroll.Content == nil {
 		return
 	}
-	max := f.scroll.Content.MinSize().Height - f.scroll.Size().Height
+	content := f.scroll.Content
+	max := content.Size().Height - f.scroll.Size().Height
+	if max <= 0 {
+		max = content.MinSize().Height - f.scroll.Size().Height
+	}
 	if max < 0 {
 		max = 0
 	}
@@ -655,7 +653,10 @@ func (d *DraggableVScroll) CreateRenderer() fyne.WidgetRenderer {
 func (d *DraggableVScroll) Dragged(ev *fyne.DragEvent) {
 	// Calculate the scroll position based on drag position
 	size := d.scroll.Size()
-	contentSize := d.content.MinSize()
+	contentSize := d.content.Size()
+	if contentSize.Height == 0 {
+		contentSize = d.content.MinSize()
+	}
 
 	if contentSize.Height <= size.Height {
 		return // No scrolling needed
@@ -688,7 +689,10 @@ func (d *DraggableVScroll) DragEnd() {
 func (d *DraggableVScroll) Tapped(ev *fyne.PointEvent) {
 	// Jump to tapped position
 	size := d.scroll.Size()
-	contentSize := d.content.MinSize()
+	contentSize := d.content.Size()
+	if contentSize.Height == 0 {
+		contentSize = d.content.MinSize()
+	}
 
 	if contentSize.Height <= size.Height {
 		return
@@ -711,14 +715,22 @@ func (d *DraggableVScroll) Tapped(ev *fyne.PointEvent) {
 
 // Scrolled handles scroll events (mouse wheel)
 func (d *DraggableVScroll) Scrolled(ev *fyne.ScrollEvent) {
-	// Multiply scroll speed by 2.5x for faster scrolling
-	fastEvent := &fyne.ScrollEvent{
-		Scrolled: fyne.Delta{
-			DX: ev.Scrolled.DX * 2.5,
-			DY: ev.Scrolled.DY * 2.5,
-		},
+	// Increase scroll speed modestly while clamping to content bounds.
+	contentSize := d.content.Size()
+	if contentSize.Height == 0 {
+		contentSize = d.content.MinSize()
 	}
-	d.scroll.Scrolled(fastEvent)
+	max := contentSize.Height - d.scroll.Size().Height
+	if max < 0 {
+		max = 0
+	}
+	newY := d.scroll.Offset.Y + (ev.Scrolled.DY * 2.0)
+	if newY < 0 {
+		newY = 0
+	} else if newY > max {
+		newY = max
+	}
+	d.scroll.ScrollToOffset(fyne.NewPos(d.scroll.Offset.X, newY))
 }
 
 type draggableScrollRenderer struct {

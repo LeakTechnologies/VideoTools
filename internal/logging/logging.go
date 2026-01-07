@@ -14,6 +14,7 @@ var (
 	logger     = log.New(os.Stderr, "[videotools] ", log.LstdFlags|log.Lmicroseconds)
 	filePath   string
 	historyMax = 500
+	debugOn    = false
 )
 
 const (
@@ -73,6 +74,14 @@ func getStackTrace() string {
 	return string(buf[:n])
 }
 
+// RecoverPanic logs a recovered panic with a stack trace.
+// Intended for use in deferred calls inside goroutines.
+func RecoverPanic() {
+	if r := recover(); r != nil {
+		Crash(CatSystem, "Recovered panic: %v", r)
+	}
+}
+
 // Error logs an error message with a category (always logged, even when debug is off)
 func Error(cat Category, format string, args ...interface{}) {
 	msg := fmt.Sprintf("%s ERROR: %s", cat, fmt.Sprintf(format, args...))
@@ -89,6 +98,9 @@ func Error(cat Category, format string, args ...interface{}) {
 
 // Debug logs a debug message with a category
 func Debug(cat Category, format string, args ...interface{}) {
+	if !debugOn {
+		return
+	}
 	msg := fmt.Sprintf("%s %s", cat, fmt.Sprintf(format, args...))
 	timestamp := time.Now().Format(time.RFC3339Nano)
 	if file != nil {
@@ -143,4 +155,14 @@ func Close() {
 	if file != nil {
 		file.Close()
 	}
+}
+
+// SetDebug enables or disables debug logging.
+func SetDebug(enabled bool) {
+	debugOn = enabled
+}
+
+// FilePath returns the active log file path, if initialized.
+func FilePath() string {
+	return filePath
 }
