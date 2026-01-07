@@ -7093,6 +7093,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var manualCrfRow *fyne.Container
 	var crfContainer *fyne.Container
 	var manualCrfLabel *widget.Label
+	var twoPassCheck *widget.Check
+	var twoPassNote *widget.Label
 
 	normalizeBitrateMode := func(mode string) string {
 		switch {
@@ -8853,6 +8855,24 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		encodingHint.SetText(hint)
 
+		if twoPassCheck != nil {
+			if mode == "CRF" || mode == "" {
+				if state.convert.TwoPass {
+					state.convert.TwoPass = false
+					twoPassCheck.SetChecked(false)
+				}
+				twoPassCheck.Disable()
+				if twoPassNote != nil {
+					twoPassNote.Show()
+				}
+			} else {
+				twoPassCheck.Enable()
+				if twoPassNote != nil {
+					twoPassNote.Hide()
+				}
+			}
+		}
+
 		// Let updateQualityVisibility() handle showing/hiding quality sections
 		// to avoid duplicate logic and conflicts
 		if updateQualityVisibility != nil {
@@ -8989,10 +9009,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	hwAccelSelect.SetSelected(state.convert.HardwareAccel)
 
 	// Two-Pass encoding
-	twoPassCheck := widget.NewCheck("Enable Two-Pass Encoding", func(checked bool) {
+	twoPassCheck = widget.NewCheck("Enable Two-Pass Encoding", func(checked bool) {
 		state.convert.TwoPass = checked
 	})
 	twoPassCheck.Checked = state.convert.TwoPass
+	twoPassNote = widget.NewLabel("Two-pass encoding is ignored in CRF mode.")
+	twoPassNote.Wrapping = fyne.TextWrapWord
+	twoPassNote.Hide()
 
 	// Create color-coded audio codec select widget with colored dropdown items
 	audioCodecOptions := []string{"AAC", "Opus", "MP3", "FLAC", "Copy"}
@@ -9421,6 +9444,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		hwAccelSelect,
 		hwAccelHintContainer,
 		twoPassCheck,
+		twoPassNote,
 	))
 
 	audioEncodingSection = buildConvertBox("Audio Encoding", container.NewVBox(
