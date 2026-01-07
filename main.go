@@ -10661,13 +10661,18 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	if src != nil && src.Width > 0 && src.Height > 0 {
 		defaultAspect = float64(src.Width) / float64(src.Height)
 	}
+	if defaultAspect < 0.6 {
+		defaultAspect = 0.6
+	} else if defaultAspect > 2.4 {
+		defaultAspect = 2.4
+	}
 	targetWidth := float32(min.Width)
 	targetHeight := float32(min.Height)
 	if targetWidth <= 0 {
-		targetWidth = 320
+		targetWidth = 480
 	}
 	if targetHeight <= 0 {
-		targetHeight = 180
+		targetHeight = 360
 	}
 	aspect := float32(defaultAspect)
 	stageWidth := targetWidth
