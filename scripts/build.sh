@@ -64,6 +64,9 @@ case "$OS" in
 
         echo "Building VideoTools $APP_VERSION for Windows..."
         export CGO_ENABLED=1
+        if [ -n "$VT_GSTREAMER" ] || command -v gst-launch-1.0 &> /dev/null; then
+            export GOFLAGS="${GOFLAGS:-} -tags gstreamer"
+        fi
         if [ -d "$PROJECT_ROOT/vendor" ] && [ ! -f "$PROJECT_ROOT/vendor/modules.txt" ]; then
             export GOFLAGS="${GOFLAGS:-} -mod=mod"
         fi
