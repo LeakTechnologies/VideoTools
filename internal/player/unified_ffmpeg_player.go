@@ -66,6 +66,7 @@ type UnifiedPlayer struct {
 
 	// Buffer management
 	frameBuffer     *sync.Pool
+	videoBuffer     []byte
 	audioBuffer     []byte
 	audioBufferSize int
 
@@ -97,6 +98,7 @@ func NewUnifiedPlayer(config Config) *UnifiedPlayer {
 		},
 		audioBufferSize: 32768, // 170ms at 48kHz for smooth playback
 	}
+	player.previewMode = config.PreviewMode
 	if config.WindowWidth > 0 {
 		player.windowW = config.WindowWidth
 	}
@@ -691,7 +693,9 @@ func (p *UnifiedPlayer) readVideoFrame() (*image.RGBA, error) {
 
 	// Read RGB24 frame data from FFmpeg pipe
 	frameSize := p.windowW * p.windowH * 3 // RGB24 = 3 bytes per pixel
-	frameData := make([]byte, frameSize)
+	if len(p.videoBuffer) != frameSize {
+		p.videoBuffer = make([]byte, frameSize)
+	}
 
 	// Check for paused state before reading
 	if p.paused {
@@ -699,7 +703,7 @@ func (p *UnifiedPlayer) readVideoFrame() (*image.RGBA, error) {
 	}
 
 	// Read full frame - io.ReadFull ensures we get complete frame
-	n, err := io.ReadFull(p.videoPipeReader, frameData)
+	n, err := io.ReadFull(p.videoPipeReader, p.videoBuffer)
 	if err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			return nil, nil // End of stream
@@ -711,21 +715,14 @@ func (p *UnifiedPlayer) readVideoFrame() (*image.RGBA, error) {
 		return nil, fmt.Errorf("incomplete frame: got %d bytes, expected %d", n, frameSize)
 	}
 
-	// Create RGBA image (Fyne requires RGBA, not RGB)
-	img := image.NewRGBA(image.Rect(0, 0, p.windowW, p.windowH))
-
-	// Convert RGB24 to RGBA (add alpha channel)
-	for y := 0; y < p.windowH; y++ {
-		for x := 0; x < p.windowW; x++ {
-			srcIdx := (y*p.windowW + x) * 3
-			dstIdx := (y*p.windowW + x) * 4
-
-			img.Pix[dstIdx+0] = frameData[srcIdx+0] // R
-			img.Pix[dstIdx+1] = frameData[srcIdx+1] // G
-			img.Pix[dstIdx+2] = frameData[srcIdx+2] // B
-			img.Pix[dstIdx+3] = 255                 // A (fully opaque)
-		}
+	// Create RGBA image (Fyne requires RGBA, not RGB), reuse buffer.
+	img := p.frameBuffer.Get().(*image.RGBA)
+	if img.Rect.Dx() != p.windowW || img.Rect.Dy() != p.windowH {
+		img.Rect = image.Rect(0, 0, p.windowW, p.windowH)
+		img.Stride = p.windowW * 4
+		img.Pix = make([]uint8, p.windowW*p.windowH*4)
 	}
+	utils.CopyRGBToRGBA(img.Pix, p.videoBuffer)
 
 	// Update frame counter
 	p.currentFrame++
