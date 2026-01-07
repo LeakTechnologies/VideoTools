@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime/debug"
+	"runtime"
 	"time"
 )
 
@@ -33,9 +33,17 @@ const (
 
 // Init initializes the logging system
 func Init() {
+	// Create logs directory if it doesn't exist
+	logsDir := "logs"
+	if err := os.MkdirAll(logsDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "videotools: cannot create logs directory: %v\n", err)
+		return
+	}
+
+	// Use environment variable or default
 	filePath = os.Getenv("VIDEOTOOLS_LOG_FILE")
 	if filePath == "" {
-		filePath = "videotools.log"
+		filePath = "logs/videotools.log"
 	}
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
@@ -65,6 +73,27 @@ func Debug(cat Category, format string, args ...interface{}) {
 	if file != nil {
 		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
 	}
+	logger.Printf("%s %s", timestamp, msg)
+}
+
+// Crash logs a critical error with stack trace for debugging crashes
+func Crash(cat Category, format string, args ...interface{}) {
+	msg := fmt.Sprintf("%s CRASH: %s", cat, fmt.Sprintf(format, args...))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	
+	// Log to main log file
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+	}
+	logger.Printf("%s %s", timestamp, msg)
+	
+	// Also log to dedicated crash log
+	if crashFile, err := os.OpenFile(GetCrashLogPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
+		fmt.Fprintf(crashFile, "%s %s\n", timestamp, msg)
+		fmt.Fprintf(crashFile, "Stack trace:\n%s\n", timestamp, getStackTrace())
+		crashFile.Sync()
+	}
+}
 	history = append(history, fmt.Sprintf("%s %s", timestamp, msg))
 	if len(history) > historyMax {
 		history = history[len(history)-historyMax:]
@@ -84,6 +113,13 @@ func History() []string {
 	return history
 }
 
+// getStackTrace returns current goroutine stack trace
+func getStackTrace() string {
+	buf := make([]byte, 4096)
+	n := runtime.Stack(buf, false)
+	return string(buf[:n])
+}
+
 // Error logs an error message with a category (always logged, even when debug is off)
 func Error(cat Category, format string, args ...interface{}) {
 	msg := fmt.Sprintf("%s ERROR: %s", cat, fmt.Sprintf(format, args...))
@@ -91,6 +127,43 @@ func Error(cat Category, format string, args ...interface{}) {
 	if file != nil {
 		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
 	}
+	history = append(history, fmt.Sprintf("%s %s", timestamp, msg))
+	if len(history) > historyMax {
+		history = history[len(history)-historyMax:]
+	}
+	logger.Printf("%s %s", timestamp, msg)
+}
+
+// Crash logs a critical error with stack trace for debugging crashes
+func Crash(cat Category, format string, args ...interface{}) {
+	msg := fmt.Sprintf("%s CRASH: %s", cat, fmt.Sprintf(format, args...))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	
+	// Log to main log file
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+	}
+	logger.Printf("%s %s", timestamp, msg)
+	
+	// Also log to dedicated crash log
+	if crashFile, err := os.OpenFile(GetCrashLogPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
+		fmt.Fprintf(crashFile, "%s %s\n", timestamp, msg)
+		fmt.Fprintf(crashFile, "Stack trace:\n%s\n", timestamp, getStackTrace())
+		crashFile.Sync()
+	}
+}
+
+// Fatal logs a fatal error and exits (always logged, even when debug is off)
+func Fatal(cat Category, format string, args ...interface{}) {
+	msg := fmt.Sprintf("%s FATAL: %s", cat, fmt.Sprintf(format, args...))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+		file.Sync()
+	}
+	logger.Printf("%s %s", timestamp, msg)
+	os.Exit(1)
+}
 	history = append(history, fmt.Sprintf("%s %s", timestamp, msg))
 	if len(history) > historyMax {
 		history = history[len(history)-historyMax:]
