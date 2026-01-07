@@ -1157,6 +1157,9 @@ type appState struct {
 	authorMenuLogoPosition    string // "Top Left", "Top Right", "Bottom Left", "Bottom Right", "Center"
 	authorMenuLogoScale       float64
 	authorMenuLogoMargin      int
+	authorMenuStructure       string   // Feature only, Chapters, Extras
+	authorMenuExtrasEnabled   bool     // Show extras menu
+	authorMenuChapterThumbSrc string   // Auto, First Frame, Midpoint, Custom
 	authorTitle               string   // DVD title
 	authorSubtitles           []string // Subtitle file paths
 	authorAudioTracks         []string // Additional audio tracks
