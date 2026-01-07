@@ -185,8 +185,7 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 	}
 
 	// Start FFmpeg process for unified A/V output
-	err = p.startVideoProcess()
-	if err != nil {
+	if err := p.startVideoProcess(); err != nil {
 		return err
 	}
 
