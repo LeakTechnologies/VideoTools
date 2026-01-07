@@ -583,7 +583,12 @@ func (p *UnifiedPlayer) startVideoProcess() error {
 
 	// Start video frame reading goroutine
 	go func() {
-		frameDuration := time.Second / time.Duration(p.frameRate)
+		rate := p.frameRate
+		if rate <= 0 {
+			rate = 24
+			logging.Debug(logging.CatPlayer, "Frame rate unavailable; defaulting to %.0f fps", rate)
+		}
+		frameDuration := time.Second / time.Duration(rate)
 		frameTime := p.syncClock
 
 		for {
