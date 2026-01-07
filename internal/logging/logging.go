@@ -9,17 +9,12 @@ import (
 )
 
 var (
-	filePath     string
-	file         *os.File
-	history      []string
-	debugEnabled bool
-	logger       = log.New(os.Stderr, "[videotools] ", log.LstdFlags|log.Lmicroseconds)
+	file       *os.File
+	history    []string
+	logger     = log.New(os.Stderr, "[videotools] ", log.LstdFlags|log.Lmicroseconds)
+	filePath   string
+	historyMax = 500
 )
-
-const historyMax = 500
-
-// Category represents a log category
-type Category string
 
 const (
 	CatUI      Category = "[UI]"
@@ -31,7 +26,10 @@ const (
 	CatEnhance Category = "[ENHANCE]"
 )
 
-// Init initializes the logging system
+// Categories represents a log category
+type Category string
+
+// Init initializes logging system with organized log folders
 func Init() {
 	// Create logs directory if it doesn't exist
 	logsDir := "logs"
@@ -45,7 +43,7 @@ func Init() {
 	if filePath == "" {
 		filePath = "logs/videotools.log"
 	}
-	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "videotools: cannot open log file %s: %v\n", filePath, err)
 		return
@@ -53,64 +51,19 @@ func Init() {
 	file = f
 }
 
-// Close closes the log file
-func Close() {
-	if file != nil {
-		file.Close()
-	}
+// GetCrashLogPath returns path for crash-specific log file
+func GetCrashLogPath() string {
+	return "logs/crashes.log"
 }
 
-// SetDebug enables or disables debug logging
-func SetDebug(on bool) {
-	debugEnabled = on
-	Debug(CatSystem, "debug logging toggled -> %v (VIDEOTOOLS_DEBUG=%s)", on, os.Getenv("VIDEOTOOLS_DEBUG"))
+// GetConversionLogPath returns path for conversion-specific log file
+func GetConversionLogPath() string {
+	return "logs/conversion.log"
 }
 
-// Debug logs a debug message with a category
-func Debug(cat Category, format string, args ...interface{}) {
-	msg := fmt.Sprintf("%s %s", cat, fmt.Sprintf(format, args...))
-	timestamp := time.Now().Format(time.RFC3339Nano)
-	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
-	}
-	logger.Printf("%s %s", timestamp, msg)
-}
-
-// Crash logs a critical error with stack trace for debugging crashes
-func Crash(cat Category, format string, args ...interface{}) {
-	msg := fmt.Sprintf("%s CRASH: %s", cat, fmt.Sprintf(format, args...))
-	timestamp := time.Now().Format(time.RFC3339Nano)
-	
-	// Log to main log file
-	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
-	}
-	logger.Printf("%s %s", timestamp, msg)
-	
-	// Also log to dedicated crash log
-	if crashFile, err := os.OpenFile(GetCrashLogPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
-		fmt.Fprintf(crashFile, "%s %s\n", timestamp, msg)
-		fmt.Fprintf(crashFile, "Stack trace:\n%s\n", timestamp, getStackTrace())
-		crashFile.Sync()
-	}
-}
-	history = append(history, fmt.Sprintf("%s %s", timestamp, msg))
-	if len(history) > historyMax {
-		history = history[len(history)-historyMax:]
-	}
-	if debugEnabled {
-		logger.Printf("%s %s", timestamp, msg)
-	}
-}
-
-// FilePath returns the current log file path
-func FilePath() string {
-	return filePath
-}
-
-// History returns the log history
-func History() []string {
-	return history
+// GetPlayerLogPath returns path for player-specific log file
+func GetPlayerLogPath() string {
+	return "logs/player.log"
 }
 
 // getStackTrace returns current goroutine stack trace
@@ -134,7 +87,44 @@ func Error(cat Category, format string, args ...interface{}) {
 	logger.Printf("%s %s", timestamp, msg)
 }
 
-// Note: history tracking is disabled during fatal exit to avoid infinite loops
+// Debug logs a debug message with a category
+func Debug(cat Category, format string, args ...interface{}) {
+	msg := fmt.Sprintf("%s %s", cat, fmt.Sprintf(format, args...))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+	}
+	logger.Printf("%s %s", timestamp, msg)
+}
+
+// Info logs an informational message
+func Info(cat Category, format string, args ...interface{}) {
+	msg := fmt.Sprintf("%s INFO: %s", cat, fmt.Sprintf(format, args...))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+	}
+	logger.Printf("%s %s", timestamp, msg)
+}
+
+// Crash logs a critical error with stack trace for debugging crashes
+func Crash(cat Category, format string, args ...interface{}) {
+	msg := fmt.Sprintf("%s CRASH: %s", cat, fmt.Sprintf(format, args...))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+
+	// Log to main log file
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+	}
+	logger.Printf("%s %s", timestamp, msg)
+
+	// Also log to dedicated crash log
+	if crashFile, err := os.OpenFile(GetCrashLogPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
+		fmt.Fprintf(crashFile, "%s %s\n", timestamp, msg)
+		fmt.Fprintf(crashFile, "Stack trace:\n%s\n", timestamp, getStackTrace())
+		crashFile.Sync()
+	}
+}
 
 // Fatal logs a fatal error and exits (always logged, even when debug is off)
 func Fatal(cat Category, format string, args ...interface{}) {
@@ -147,41 +137,10 @@ func Fatal(cat Category, format string, args ...interface{}) {
 	logger.Printf("%s %s", timestamp, msg)
 	os.Exit(1)
 }
-	if len(history) > historyMax {
-		history = history[len(history)-historyMax:]
-	}
-	logger.Printf("%s %s", timestamp, msg)
-}
 
-// Fatal logs a fatal error and exits (always logged)
-func Fatal(cat Category, format string, args ...interface{}) {
-	msg := fmt.Sprintf("%s FATAL: %s", cat, fmt.Sprintf(format, args...))
-	timestamp := time.Now().Format(time.RFC3339Nano)
+// Close closes log file
+func Close() {
 	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
-		file.Sync()
-	}
-	logger.Printf("%s %s", timestamp, msg)
-	os.Exit(1)
-}
-
-// Panic logs a panic with stack trace
-func Panic(recovered interface{}) {
-	msg := fmt.Sprintf("%s PANIC: %v\nStack trace:\n%s", CatSystem, recovered, string(debug.Stack()))
-	timestamp := time.Now().Format(time.RFC3339Nano)
-	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
-		file.Sync()
-	}
-	history = append(history, fmt.Sprintf("%s %s", timestamp, msg))
-	logger.Printf("%s %s", timestamp, msg)
-}
-
-// RecoverPanic should be used with defer to catch and log panics
-func RecoverPanic() {
-	if r := recover(); r != nil {
-		Panic(r)
-		// Re-panic to let the program crash with the logged info
-		panic(r)
+		file.Close()
 	}
 }
