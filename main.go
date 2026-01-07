@@ -9711,6 +9711,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetModeCheck,
 		snippetModeHint,
 	)
+	snippetConfigScroll := container.NewVScroll(snippetConfigRow)
+	snippetConfigScroll.SetMinSize(fyne.NewSize(0, 140))
+	snippetConfigScroll.Hide()
 
 	snippetBtn := widget.NewButton("Generate Snippet", func() {
 		if state.source == nil {
@@ -9843,15 +9846,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	snippetHint := widget.NewLabel("Creates a clip centred on the timeline midpoint.")
 
-	snippetConfigRow.Hide()
 	snippetOptionsVisible := false
 	var snippetOptionsBtn *widget.Button
 	snippetOptionsBtn = widget.NewButton("Convert Options", func() {
 		if snippetOptionsVisible {
-			snippetConfigRow.Hide()
+			snippetConfigScroll.Hide()
 			snippetOptionsBtn.SetText("Convert Options")
 		} else {
-			snippetConfigRow.Show()
+			snippetConfigScroll.Show()
 			snippetOptionsBtn.SetText("Hide Options")
 		}
 		snippetOptionsVisible = !snippetOptionsVisible
@@ -10221,7 +10223,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Build footer sections
 	footerSections := []fyne.CanvasObject{
 		snippetRow,
-		snippetConfigRow,
+		snippetConfigScroll,
 		widget.NewSeparator(),
 	}
 	if commandPreviewRow != nil && state.convertCommandPreviewShow {
