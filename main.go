@@ -197,7 +197,7 @@ func (l *fixedHSplitLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 func resolveTargetAspect(val string, src *videoSource) float64 {
 	if strings.EqualFold(val, "source") {
 		if src != nil {
-			return utils.AspectRatioFloat(src.Width, src.Height)
+			return utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio)
 		}
 		return 0
 	}
@@ -7955,7 +7955,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			return
 		}
 		target := resolveTargetAspect(state.convert.OutputAspect, src)
-		srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
+		srcAspect := utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio)
 		if target == 0 || srcAspect == 0 || utils.RatiosApproxEqual(target, srcAspect, 0.01) {
 			aspectBox.Hide()
 		} else {
@@ -9187,7 +9187,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			// If aspect still unset, derive from source
 			if targetAR == "" || strings.EqualFold(targetAR, "Source") {
 				if src != nil {
-					if ar := utils.AspectRatioFloat(src.Width, src.Height); ar > 0 && ar < 1.6 {
+					if ar := utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio); ar > 0 && ar < 1.6 {
 						targetAR = "4:3"
 					} else {
 						targetAR = "16:9"
@@ -10985,12 +10985,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		fullBtn := utils.MakeIconButton("⛶", "Toggle fullscreen", func() {
 			// Placeholder: embed fullscreen toggle into playback surface later.
 		})
-			volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
-			progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
-			controls = container.NewVBox(
-				container.NewHBox(prevFrameBtn, playBtn, nextFrameBtn, fullBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), frameLabel, volBox),
-				progress,
-			)
+		volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
+		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
+		controls = container.NewVBox(
+			container.NewHBox(prevFrameBtn, playBtn, nextFrameBtn, fullBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), frameLabel, volBox),
+			progress,
+		)
 	} else {
 		slider := widget.NewSlider(0, math.Max(1, float64(len(src.PreviewFrames)-1)))
 		slider.Step = 1
@@ -13048,12 +13048,17 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 	// Aspect ratio conversion (only if user explicitly changed from Source)
 	if cfg.OutputAspect != "" && !strings.EqualFold(cfg.OutputAspect, "source") {
-		srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
+		srcAspect := utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio)
 		targetAspect := resolveTargetAspect(cfg.OutputAspect, src)
 		if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
 			vf = append(vf, aspectFilters(targetAspect, cfg.AspectHandling)...)
 			logging.Debug(logging.CatFFMPEG, "converting aspect ratio from %.2f to %.2f using %s mode", srcAspect, targetAspect, cfg.AspectHandling)
 		}
+	}
+
+	targetAspect := resolveTargetAspect(cfg.OutputAspect, src)
+	if targetAspect > 0 && len(vf) > 0 {
+		vf = appendAspectMetadata(vf, targetAspect)
 	}
 
 	// Flip horizontal
@@ -13633,19 +13638,20 @@ func aspectFilters(target float64, mode string) []string {
 		return nil
 	}
 	ar := fmt.Sprintf("%.6f", target)
+	setDAR := fmt.Sprintf("setdar=%s", ar)
 
 	// Crop mode: center crop to target aspect ratio
 	if strings.EqualFold(mode, "Crop") || strings.EqualFold(mode, "Auto") {
 		// Crop to target aspect ratio with even dimensions for H.264 encoding
 		// Use trunc/2*2 to ensure even dimensions
 		crop := fmt.Sprintf("crop=w='trunc(if(gt(a,%[1]s),ih*%[1]s,iw)/2)*2':h='trunc(if(gt(a,%[1]s),ih,iw/%[1]s)/2)*2':x='(iw-out_w)/2':y='(ih-out_h)/2'", ar)
-		return []string{crop, "setsar=1"}
+		return []string{crop, setDAR, "setsar=1"}
 	}
 
 	// Stretch mode: just change the aspect ratio without cropping or padding
 	if strings.EqualFold(mode, "Stretch") {
 		scale := fmt.Sprintf("scale=w='trunc(ih*%[1]s/2)*2':h='trunc(iw/%[1]s/2)*2'", ar)
-		return []string{scale, "setsar=1"}
+		return []string{scale, setDAR, "setsar=1"}
 	}
 
 	// Blur Fill: create blurred background then overlay original video
@@ -13660,19 +13666,41 @@ func aspectFilters(target float64, mode string) []string {
 
 		// Filter: split[bg][fg]; [bg]scale=outW:outH,boxblur=20:5[blurred]; [blurred][fg]overlay=(W-w)/2:(H-h)/2
 		filterStr := fmt.Sprintf("split[bg][fg];[bg]scale=%s:%s:force_original_aspect_ratio=increase,boxblur=20:5[blurred];[blurred][fg]overlay=(W-w)/2:(H-h)/2", outW, outH)
-		return []string{filterStr, "setsar=1"}
+		return []string{filterStr, setDAR, "setsar=1"}
 	}
 
 	// Letterbox/Pillarbox: pad with black bars (auto-detects direction based on aspect ratio change)
 	// Also handles legacy "Letterbox" and "Pillarbox" options for backwards compatibility
 	if strings.EqualFold(mode, "Letterbox/Pillarbox") || strings.EqualFold(mode, "Letterbox") || strings.EqualFold(mode, "Pillarbox") {
 		pad := fmt.Sprintf("pad=w='trunc(max(iw,ih*%[1]s)/2)*2':h='trunc(max(ih,iw/%[1]s)/2)*2':x='(ow-iw)/2':y='(oh-ih)/2':color=black", ar)
-		return []string{pad, "setsar=1"}
+		return []string{pad, setDAR, "setsar=1"}
 	}
 
 	// Default fallback: same as Letterbox/Pillarbox
 	pad := fmt.Sprintf("pad=w='trunc(max(iw,ih*%[1]s)/2)*2':h='trunc(max(ih,iw/%[1]s)/2)*2':x='(ow-iw)/2':y='(oh-ih)/2':color=black", ar)
-	return []string{pad, "setsar=1"}
+	return []string{pad, setDAR, "setsar=1"}
+}
+
+func appendAspectMetadata(vf []string, dar float64) []string {
+	if dar <= 0 {
+		return vf
+	}
+	hasSetDAR := false
+	hasSetSAR := false
+	for _, f := range vf {
+		if strings.HasPrefix(f, "setdar=") {
+			hasSetDAR = true
+		} else if strings.HasPrefix(f, "setsar=") {
+			hasSetSAR = true
+		}
+	}
+	if !hasSetDAR {
+		vf = append(vf, fmt.Sprintf("setdar=%.6f", dar))
+	}
+	if !hasSetSAR {
+		vf = append(vf, "setsar=1")
+	}
+	return vf
 }
 
 func (s *appState) generateSnippet() {
@@ -13735,12 +13763,15 @@ func (s *appState) generateSnippet() {
 	// Check if aspect ratio conversion is needed (only if user explicitly set OutputAspect)
 	aspectExplicit := s.convert.OutputAspect != "" && !strings.EqualFold(s.convert.OutputAspect, "Source")
 	if aspectExplicit {
-		srcAspect := utils.AspectRatioFloat(src.Width, src.Height)
+		srcAspect := utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio)
 		targetAspect := resolveTargetAspect(s.convert.OutputAspect, src)
 		aspectConversionNeeded := targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01)
 		if aspectConversionNeeded {
 			vf = append(vf, aspectFilters(targetAspect, s.convert.AspectHandling)...)
 		}
+	}
+	if targetAspect := resolveTargetAspect(s.convert.OutputAspect, src); targetAspect > 0 && len(vf) > 0 {
+		vf = appendAspectMetadata(vf, targetAspect)
 	}
 
 	// Frame rate conversion (only if explicitly set and different from source)
@@ -15130,12 +15161,22 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	})
 	loadBtn.Importance = widget.HighImportance
 
+	// Clear video button
+	clearBtn := widget.NewButton("Clear Video", func() {
+		state.playerFile = nil
+		state.showPlayerView()
+	})
+	clearBtn.Importance = widget.MediumImportance
+
+	// Button container
+	buttonContainer := container.NewHBox(loadBtn, clearBtn)
+
 	// Main content
 	mainContent := container.NewVBox(
 		instructions,
 		widget.NewSeparator(),
 		fileLabel,
-		loadBtn,
+		buttonContainer,
 		videoContainer,
 	)
 

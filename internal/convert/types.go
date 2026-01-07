@@ -156,7 +156,7 @@ func FormatClock(sec float64) string {
 func ResolveTargetAspect(val string, src *VideoSource) float64 {
 	if strings.EqualFold(val, "source") {
 		if src != nil {
-			return utils.AspectRatioFloat(src.Width, src.Height)
+			return utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio)
 		}
 		return 0
 	}
@@ -245,19 +245,20 @@ func AspectFilters(target float64, mode string) []string {
 		return nil
 	}
 	ar := fmt.Sprintf("%.6f", target)
+	setDAR := fmt.Sprintf("setdar=%s", ar)
 
 	// Crop mode: center crop to target aspect ratio
 	if strings.EqualFold(mode, "Crop") || strings.EqualFold(mode, "Auto") {
 		// Crop to target aspect ratio with even dimensions for H.264 encoding
 		// Use trunc/2*2 to ensure even dimensions
 		crop := fmt.Sprintf("crop=w='trunc(if(gt(a,%[1]s),ih*%[1]s,iw)/2)*2':h='trunc(if(gt(a,%[1]s),ih,iw/%[1]s)/2)*2':x='(iw-out_w)/2':y='(ih-out_h)/2'", ar)
-		return []string{crop, "setsar=1"}
+		return []string{crop, setDAR, "setsar=1"}
 	}
 
 	// Stretch mode: just change the aspect ratio without cropping or padding
 	if strings.EqualFold(mode, "Stretch") {
 		scale := fmt.Sprintf("scale=w='trunc(ih*%[1]s/2)*2':h='trunc(iw/%[1]s/2)*2'", ar)
-		return []string{scale, "setsar=1"}
+		return []string{scale, setDAR, "setsar=1"}
 	}
 
 	// Blur Fill: create blurred background then overlay original video
@@ -272,10 +273,10 @@ func AspectFilters(target float64, mode string) []string {
 
 		// Filter: split[bg][fg]; [bg]scale=outW:outH,boxblur=20:5[blurred]; [blurred][fg]overlay=(W-w)/2:(H-h)/2
 		filterStr := fmt.Sprintf("split[bg][fg];[bg]scale=%s:%s:force_original_aspect_ratio=increase,boxblur=20:5[blurred];[blurred][fg]overlay=(W-w)/2:(H-h)/2", outW, outH)
-		return []string{filterStr, "setsar=1"}
+		return []string{filterStr, setDAR, "setsar=1"}
 	}
 
 	// Letterbox/Pillarbox: keep source resolution, just pad to target aspect with black bars
 	pad := fmt.Sprintf("pad=w='trunc(max(iw,ih*%[1]s)/2)*2':h='trunc(max(ih,iw/%[1]s)/2)*2':x='(ow-iw)/2':y='(oh-ih)/2':color=black", ar)
-	return []string{pad, "setsar=1"}
+	return []string{pad, setDAR, "setsar=1"}
 }
