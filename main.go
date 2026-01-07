@@ -15193,12 +15193,6 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 
 	// Top bar with module color
 	topBar := ui.TintedBar(upscaleColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-	bottomBar := moduleFooter(upscaleColor, layout.NewSpacer(), state.statsBar)
-
-	// Instructions
-	instructions := widget.NewLabel("Upscale your video to higher resolution using traditional or AI-powered methods.")
-	instructions.Wrapping = fyne.TextWrapWord
-	instructions.Alignment = fyne.TextAlignCenter
 
 	// Initialize state defaults
 	if state.upscaleMethod == "" {
@@ -15407,8 +15401,6 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	})
 	encoderPresetSelect.SetSelected(state.upscaleEncoderPreset)
 
-	var updateEncodingVisibility func()
-
 	bitrateModeSelect := widget.NewSelect([]string{
 		"CRF (Constant Rate Factor)",
 		"CBR (Constant Bitrate)",
@@ -15424,9 +15416,6 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		default:
 			state.upscaleBitrateMode = s
 		}
-		if updateEncodingVisibility != nil {
-			updateEncodingVisibility()
-		}
 	})
 	switch state.upscaleBitrateMode {
 	case "CBR":
@@ -15436,69 +15425,6 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	default:
 		bitrateModeSelect.SetSelected("CRF (Constant Rate Factor)")
 	}
-
-	type bitratePreset struct {
-		Label   string
-		Bitrate string
-	}
-	presets := []bitratePreset{
-		{Label: "0.5 Mbps - Ultra Low", Bitrate: "500k"},
-		{Label: "1.0 Mbps - Very Low", Bitrate: "1000k"},
-		{Label: "1.5 Mbps - Low", Bitrate: "1500k"},
-		{Label: "2.0 Mbps - Medium-Low", Bitrate: "2000k"},
-		{Label: "2.5 Mbps - Medium", Bitrate: "2500k"},
-		{Label: "4.0 Mbps - Good", Bitrate: "4000k"},
-		{Label: "6.0 Mbps - High", Bitrate: "6000k"},
-		{Label: "8.0 Mbps - Very High", Bitrate: "8000k"},
-		{Label: "Manual", Bitrate: ""},
-	}
-	bitratePresetLookup := make(map[string]bitratePreset)
-	var bitratePresetLabels []string
-	for _, p := range presets {
-		bitratePresetLookup[p.Label] = p
-		bitratePresetLabels = append(bitratePresetLabels, p.Label)
-	}
-
-	manualBitrateEntry := widget.NewEntry()
-	manualBitrateEntry.SetPlaceHolder("e.g., 2500k")
-	manualBitrateEntry.SetText(state.upscaleManualBitrate)
-	manualBitrateEntry.OnChanged = func(val string) {
-		state.upscaleManualBitrate = val
-	}
-
-	bitratePresetSelect := widget.NewSelect(bitratePresetLabels, func(s string) {
-		state.upscaleBitratePreset = s
-		preset := bitratePresetLookup[s]
-		if preset.Bitrate == "" {
-			manualBitrateEntry.Show()
-		} else {
-			state.upscaleManualBitrate = preset.Bitrate
-			manualBitrateEntry.SetText(preset.Bitrate)
-			manualBitrateEntry.Hide()
-		}
-	})
-	bitratePresetSelect.SetSelected(state.upscaleBitratePreset)
-	if bitratePresetLookup[state.upscaleBitratePreset].Bitrate == "" {
-		manualBitrateEntry.Show()
-	} else {
-		manualBitrateEntry.Hide()
-	}
-
-	updateEncodingVisibility = func() {
-		mode := state.upscaleBitrateMode
-		if mode == "" || mode == "CRF" {
-			qualitySelect.Enable()
-			bitratePresetSelect.Hide()
-			manualBitrateEntry.Hide()
-		} else {
-			qualitySelect.Disable()
-			bitratePresetSelect.Show()
-			if bitratePresetLookup[state.upscaleBitratePreset].Bitrate == "" {
-				manualBitrateEntry.Show()
-			}
-		}
-	}
-	updateEncodingVisibility()
 
 	encodingSection := buildUpscaleBox("Video Encoding", container.NewVBox(
 		container.NewGridWithColumns(2,
@@ -15513,12 +15439,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			widget.NewLabel("Bitrate Mode:"),
 			bitrateModeSelect,
 		),
-		container.NewGridWithColumns(2,
-			widget.NewLabel("Bitrate Preset:"),
-			bitratePresetSelect,
-		),
-		manualBitrateEntry,
-		widget.NewLabel("CRF mode controls quality; bitrate modes control size."),
+		widget.NewLabel("CRF controls quality; bitrate modes target size."),
 	))
 
 	// Frame Rate
@@ -15835,15 +15756,24 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	))
 
 	// Filter Integration Section
-	applyFiltersCheck := widget.NewCheck("Apply filters before upscaling", func(checked bool) {
-		state.upscaleApplyFilters = checked
+	filterIntegrationSelect := widget.NewSelect([]string{
+		"None",
+		"Apply filters before upscaling",
+	}, func(s string) {
+		state.upscaleApplyFilters = s == "Apply filters before upscaling"
 	})
-	applyFiltersCheck.SetChecked(state.upscaleApplyFilters)
+	if state.upscaleApplyFilters {
+		filterIntegrationSelect.SetSelected("Apply filters before upscaling")
+	} else {
+		filterIntegrationSelect.SetSelected("None")
+	}
 
 	filterIntegrationSection := buildUpscaleBox("Filter Integration", container.NewVBox(
-		widget.NewLabel("Apply color correction and filters from Filters module"),
-		applyFiltersCheck,
-		widget.NewLabel("Filters will be applied before upscaling for best quality"),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Filter Integration:"),
+			filterIntegrationSelect,
+		),
+		widget.NewLabel("Filters from the Filters module are applied before upscaling."),
 	))
 
 	// Helper function to create upscale job
@@ -15967,8 +15897,6 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	metaPanel, _ := buildMetadataPanel(state, state.upscaleFile, fyne.NewSize(0, 200))
 
 	leftPanel := container.NewVBox(
-		instructions,
-		spacing(),
 		buildUpscaleBox("Video", container.NewVBox(
 			fileLabel,
 			loadBtn,
@@ -15989,15 +15917,21 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		frameRateSection,
 		spacing(),
 		filterIntegrationSection,
-		spacing(),
-		container.NewGridWithColumns(2, applyBtn, addQueueBtn),
 	)
 
 	settingsScroll := container.NewVScroll(settingsPanel)
 	// Adaptive height for small screens
 	// Avoid rigid min sizes so window snapping works across modules.
 
-	split := container.NewHSplit(leftPanel, settingsScroll)
+	leftMin := canvas.NewRectangle(color.Transparent)
+	leftMin.SetMinSize(fyne.NewSize(560, 0))
+	leftWrapped := container.NewMax(leftMin, leftPanel)
+
+	rightMin := canvas.NewRectangle(color.Transparent)
+	rightMin.SetMinSize(fyne.NewSize(400, 0))
+	rightWrapped := container.NewMax(rightMin, settingsScroll)
+
+	split := container.NewHSplit(leftWrapped, rightWrapped)
 	split.Offset = 0.58
 	mainContent := split
 
@@ -16005,6 +15939,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		canvas.NewRectangle(mediumBlue),
 		container.NewPadded(mainContent),
 	)
+
+	actionBar := container.NewHBox(layout.NewSpacer(), applyBtn, addQueueBtn)
+	bottomBar := moduleFooter(upscaleColor, actionBar, state.statsBar)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
