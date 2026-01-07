@@ -1029,15 +1029,22 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	logoEnableCheck := widget.NewCheck("Embed Logo", nil)
 	logoEnableCheck.SetChecked(state.authorMenuLogoEnabled)
 
-	logoLabel := widget.NewLabel(state.authorMenuLogoPath)
+	logoLabel := widget.NewLabel("")
 	logoLabel.Wrapping = fyne.TextWrapWord
 	logoPreview := canvas.NewImageFromFile("")
 	logoPreview.FillMode = canvas.ImageFillContain
-	logoPreview.SetMinSize(fyne.NewSize(220, 120))
+	logoPreview.SetMinSize(fyne.NewSize(96, 96))
 	logoPreviewLabel := widget.NewLabel("No logo selected")
 	logoPreviewLabel.Wrapping = fyne.TextWrapWord
 	logoPreviewSize := widget.NewLabel("")
 	logoPreviewSize.Wrapping = fyne.TextWrapWord
+	logoPreviewBorder := canvas.NewRectangle(color.NRGBA{R: 80, G: 86, B: 100, A: 120})
+	logoPreviewBorder.SetMinSize(fyne.NewSize(120, 96))
+	logoPreviewBox := container.NewMax(
+		logoPreviewBorder,
+		container.NewPadded(logoPreview),
+	)
+	var updateBrandingTitle func()
 
 	menuPreviewSize := func() (int, int) {
 		width := 720
@@ -1049,10 +1056,18 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		return width, height
 	}
 
+	logoDisplayName := func() string {
+		if strings.TrimSpace(state.authorMenuLogoPath) == "" {
+			return "VT_Logo.png (default)"
+		}
+		return filepath.Base(state.authorMenuLogoPath)
+	}
+
 	updateLogoPreview := func() {
+		logoLabel.SetText(logoDisplayName())
 		if !state.authorMenuLogoEnabled {
-			logoPreview.Hide()
-			logoPreviewLabel.SetText("Logo preview disabled")
+			logoPreviewBox.Hide()
+			logoPreviewLabel.SetText("Logo disabled")
 			logoPreviewSize.SetText("")
 			return
 		}
@@ -1063,13 +1078,13 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		}
 
 		if _, err := os.Stat(path); err != nil {
-			logoPreview.Hide()
+			logoPreviewBox.Hide()
 			logoPreviewLabel.SetText("Logo file not found")
 			logoPreviewSize.SetText("")
 			return
 		}
 
-		logoPreview.Show()
+		logoPreviewBox.Show()
 		logoPreviewLabel.SetText(filepath.Base(path))
 		logoPreview.File = path
 		logoPreview.Refresh()
@@ -1110,13 +1125,19 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 			}
 			defer reader.Close()
 			state.authorMenuLogoPath = reader.URI().Path()
-			logoLabel.SetText(state.authorMenuLogoPath)
+			logoLabel.SetText(logoDisplayName())
 			updateLogoPreview()
+			updateBrandingTitle()
 			state.updateAuthorSummary()
 			state.persistAuthorConfig()
 		}, state.window)
 	})
 	logoPickButton.Importance = widget.MediumImportance
+	logoClearButton := widget.NewButton("Clear", func() {
+		state.authorMenuLogoPath = ""
+		logoLabel.SetText(logoDisplayName())
+		logoEnableCheck.SetChecked(false)
+	})
 
 	logoPositionSelect := widget.NewSelect([]string{
 		"Top Left",
@@ -1126,6 +1147,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		"Center",
 	}, func(value string) {
 		state.authorMenuLogoPosition = value
+		updateBrandingTitle()
 		state.persistAuthorConfig()
 	})
 	if state.authorMenuLogoPosition == "" {
@@ -1157,6 +1179,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		if scale, ok := scaleValueByLabel[value]; ok {
 			state.authorMenuLogoScale = scale
 			updateLogoPreview()
+			updateBrandingTitle()
 			state.persistAuthorConfig()
 		}
 	})
@@ -1170,15 +1193,44 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	if state.authorMenuLogoMargin == 0 {
 		state.authorMenuLogoMargin = 24
 	}
-	marginLabel := widget.NewLabel(fmt.Sprintf("Logo Margin: %dpx", state.authorMenuLogoMargin))
-	marginSlider := widget.NewSlider(0, 60)
-	marginSlider.Step = 2
-	marginSlider.Value = float64(state.authorMenuLogoMargin)
-	marginSlider.OnChanged = func(v float64) {
-		state.authorMenuLogoMargin = int(math.Round(v))
-		marginLabel.SetText(fmt.Sprintf("Logo Margin: %dpx", state.authorMenuLogoMargin))
+	marginEntry := widget.NewEntry()
+	marginEntry.SetText(strconv.Itoa(state.authorMenuLogoMargin))
+	updatingMargin := false
+	updateMargin := func(value int, updateEntry bool) {
+		if value < 0 {
+			value = 0
+		}
+		if value > 60 {
+			value = 60
+		}
+		state.authorMenuLogoMargin = value
+		if updateEntry {
+			updatingMargin = true
+			marginEntry.SetText(strconv.Itoa(value))
+			updatingMargin = false
+		}
 		state.persistAuthorConfig()
 	}
+	marginEntry.OnChanged = func(value string) {
+		if updatingMargin {
+			return
+		}
+		if strings.TrimSpace(value) == "" {
+			return
+		}
+		if v, err := strconv.Atoi(value); err == nil {
+			if v == state.authorMenuLogoMargin {
+				return
+			}
+			updateMargin(v, true)
+		}
+	}
+	marginMinus := widget.NewButton("-", func() {
+		updateMargin(state.authorMenuLogoMargin-2, true)
+	})
+	marginPlus := widget.NewButton("+", func() {
+		updateMargin(state.authorMenuLogoMargin+2, true)
+	})
 
 	safeAreaNote := widget.NewLabel("Logos are constrained to DVD safe areas.")
 	safeAreaNote.TextStyle = fyne.TextStyle{Italic: true}
@@ -1224,10 +1276,35 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	info.Wrapping = fyne.TextWrapWord
 
 	logoPreviewGroup := container.NewVBox(
-		widget.NewLabel("Logo Preview:"),
+		widget.NewLabel("Preview:"),
 		logoPreviewLabel,
-		logoPreview,
+		logoPreviewBox,
 		logoPreviewSize,
+	)
+
+	logoFileRow := container.NewHBox(
+		logoLabel,
+		layout.NewSpacer(),
+		logoPickButton,
+		logoClearButton,
+	)
+
+	logoPositionRow := container.NewHBox(
+		widget.NewLabel("Position:"),
+		layout.NewSpacer(),
+		logoPositionSelect,
+	)
+	logoScaleRow := container.NewHBox(
+		widget.NewLabel("Scale:"),
+		layout.NewSpacer(),
+		logoScaleSelect,
+	)
+	logoMarginRow := container.NewHBox(
+		widget.NewLabel("Margin:"),
+		marginMinus,
+		marginEntry,
+		marginPlus,
+		widget.NewLabel("px"),
 	)
 
 	menuCore := buildMenuBox("Menu Core", container.NewVBox(
@@ -1243,20 +1320,30 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		menuStructureSelect,
 	))
 
-	branding := buildMenuBox("Branding", container.NewVBox(
-		logoEnableCheck,
-		widget.NewLabel("Logo Path:"),
-		logoLabel,
-		logoPickButton,
+	brandingContent := container.NewGridWithColumns(2,
+		container.NewVBox(
+			logoEnableCheck,
+			widget.NewLabel("Logo File:"),
+			logoFileRow,
+			logoPositionRow,
+			logoScaleRow,
+			logoMarginRow,
+			safeAreaNote,
+		),
 		logoPreviewGroup,
-		widget.NewLabel("Logo Position:"),
-		logoPositionSelect,
-		widget.NewLabel("Logo Scale:"),
-		logoScaleSelect,
-		marginLabel,
-		marginSlider,
-		safeAreaNote,
-	))
+	)
+	brandingItem := widget.NewAccordionItem("Branding (Logo Overlay)", brandingContent)
+	brandingItem.Open = false
+	brandingAccordion := widget.NewAccordion(brandingItem)
+	branding := container.NewMax(
+		canvas.NewRectangle(navyBlue),
+		container.NewPadded(brandingAccordion),
+	)
+	if bg, ok := branding.Objects[0].(*canvas.Rectangle); ok {
+		bg.CornerRadius = 10
+		bg.StrokeColor = boxAccent
+		bg.StrokeWidth = 1
+	}
 
 	navigation := buildMenuBox("Navigation", container.NewVBox(
 		extrasMenuCheck,
@@ -1294,9 +1381,12 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 			menuStructureSelect,
 			logoEnableCheck,
 			logoPickButton,
+			logoClearButton,
 			logoPositionSelect,
 			logoScaleSelect,
-			marginSlider,
+			marginEntry,
+			marginMinus,
+			marginPlus,
 			extrasMenuCheck,
 			thumbSourceSelect,
 		)
@@ -1304,21 +1394,41 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		logoControlsEnabled := enabled && state.authorMenuLogoEnabled
 		setEnabled(logoControlsEnabled,
 			logoPickButton,
+			logoClearButton,
 			logoPositionSelect,
 			logoScaleSelect,
-			marginSlider,
+			marginEntry,
+			marginMinus,
+			marginPlus,
 		)
+	}
+
+	updateBrandingTitle = func() {
+		if !state.authorMenuLogoEnabled {
+			brandingItem.Title = "Branding: Disabled"
+			brandingAccordion.Refresh()
+			return
+		}
+		scaleText := scaleLabelByValue[state.authorMenuLogoScale]
+		if scaleText == "" {
+			scaleText = "100%"
+		}
+		name := logoDisplayName()
+		brandingItem.Title = fmt.Sprintf("Branding: %s (%s, %s)", name, state.authorMenuLogoPosition, scaleText)
+		brandingAccordion.Refresh()
 	}
 
 	logoEnableCheck.OnChanged = func(checked bool) {
 		state.authorMenuLogoEnabled = checked
 		updateLogoPreview()
+		updateBrandingTitle()
 		updateMenuControls(state.authorCreateMenu)
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
 	}
 
 	updateLogoPreview()
+	updateBrandingTitle()
 	updateMenuControls(state.authorCreateMenu)
 
 	scroll := container.NewVScroll(container.NewPadded(controls))
