@@ -97,11 +97,11 @@ func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
 	case theme.SizeNameInnerPadding:
 		return 8 // Back to default for better precision
 	case theme.SizeNameText:
-		return 16 // Increased for readability
+		return 14 // Slightly smaller for a less cramped UI
 	case theme.SizeNameHeadingText:
-		return 20 // Increased from default 18
+		return 18 // Slightly smaller for a less cramped UI
 	case theme.SizeNameSubHeadingText:
-		return 17 // Increased from default 16
+		return 15 // Slightly smaller for a less cramped UI
 	case theme.SizeNameInputBorder:
 		return 0 // Remove input borders for cleaner fields
 	}
