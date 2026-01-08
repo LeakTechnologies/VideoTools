@@ -329,16 +329,16 @@ func (p *UnifiedPlayerAdapter) startFrameDisplayLoop() {
 				return
 			case <-ticker.C:
 				p.mu.Lock()
-					if !p.paused && p.player != nil {
-						// Get frame from UnifiedPlayer
-						frame, err := p.player.GetFrameImage()
-						if err == nil && frame != nil {
-							fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-								p.img.Image = frame
-								p.img.Refresh()
-							}, false)
-						}
+				// Always try to get frames, even when paused for UI updates
+				if p.player != nil {
+					frame, err := p.player.GetFrameImage()
+					if err == nil && frame != nil {
+						fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+							p.img.Image = frame
+							p.img.Refresh()
+						}, false)
 					}
+				}
 				p.mu.Unlock()
 			}
 		}

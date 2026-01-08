@@ -750,6 +750,7 @@ type convertConfig struct {
 	AspectHandling   string
 	OutputAspect     string
 	AspectUserSet    bool   // Tracks if user explicitly set OutputAspect
+	ForceAspect      bool   // Force DAR/SAR metadata even when no aspect conversion
 	TempDir          string // Optional temp/cache directory override
 }
 
@@ -818,6 +819,7 @@ func defaultConvertConfig() convertConfig {
 		AspectHandling:   "Auto",
 		OutputAspect:     "Source",
 		AspectUserSet:    false,
+		ForceAspect:      true,
 		TempDir:          "",
 	}
 }
@@ -845,8 +847,13 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 	if err != nil {
 		return cfg, err
 	}
+	var raw map[string]json.RawMessage
+	_ = json.Unmarshal(data, &raw)
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return cfg, err
+	}
+	if _, ok := raw["ForceAspect"]; !ok {
+		cfg.ForceAspect = true
 	}
 	if cfg.OutputAspect == "" || strings.EqualFold(cfg.OutputAspect, "Source") {
 		cfg.OutputAspect = "Source"
@@ -1236,6 +1243,14 @@ type appState struct {
 	audioLeftPanel            *fyne.Container
 	audioSingleContent        *fyne.Container
 	audioBatchContent         *fyne.Container
+
+	// Application Preferences
+	defaultOutputDir     string
+	defaultVideoCodec    string // "libx264", "libx265", etc.
+	defaultAudioCodec    string // "aac", "libmp3lame", etc.
+	hardwareAcceleration string // "auto", "none", "nvenc", "qsv", "vaapi"
+	uiTheme              string // "Dark", "Light", "System"
+	autoPreview          bool   // Enable auto-preview functionality
 }
 
 type mergeClip struct {
@@ -2398,8 +2413,10 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		"coverArtPath":      cfg.CoverArtPath,
 		"aspectHandling":    cfg.AspectHandling,
 		"outputAspect":      cfg.OutputAspect,
+		"forceAspect":       cfg.ForceAspect,
 		"sourceWidth":       src.Width,
 		"sourceHeight":      src.Height,
+		"sampleAspectRatio": src.SampleAspectRatio,
 		"sourceDuration":    src.Duration,
 		"sourceBitrate":     src.Bitrate,
 		"fieldOrder":        src.FieldOrder,
@@ -2528,8 +2545,10 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 		"coverArtPath":      cfg.CoverArtPath,
 		"aspectHandling":    cfg.AspectHandling,
 		"outputAspect":      cfg.OutputAspect,
+		"forceAspect":       cfg.ForceAspect,
 		"sourceWidth":       src.Width,
 		"sourceHeight":      src.Height,
+		"sampleAspectRatio": src.SampleAspectRatio,
 		"sourceDuration":    src.Duration,
 		"sourceBitrate":     src.Bitrate,
 		"fieldOrder":        src.FieldOrder,
@@ -3414,8 +3433,10 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"coverArtPath":      "",
 			"aspectHandling":    s.convert.AspectHandling,
 			"outputAspect":      s.convert.OutputAspect,
+			"forceAspect":       s.convert.ForceAspect,
 			"sourceWidth":       src.Width,
 			"sourceHeight":      src.Height,
+			"sampleAspectRatio": src.SampleAspectRatio,
 			"sourceBitrate":     src.Bitrate,
 			"sourceDuration":    src.Duration,
 			"fieldOrder":        src.FieldOrder,
@@ -4624,6 +4645,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	// Source metrics (used for filters and bitrate defaults)
 	sourceWidth, _ := cfg["sourceWidth"].(int)
 	sourceHeight, _ := cfg["sourceHeight"].(int)
+	sampleAspectRatio, _ := cfg["sampleAspectRatio"].(string)
 	sourceBitrate := 0
 	if v, ok := cfg["sourceBitrate"].(float64); ok {
 		sourceBitrate = int(v)
@@ -4719,15 +4741,26 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			}
 		}
 		// Aspect ratio conversion
-		srcAspect := utils.AspectRatioFloat(sourceWidth, sourceHeight)
+		srcAspect := utils.DisplayAspectRatioFloat(sourceWidth, sourceHeight, sampleAspectRatio)
 		outputAspect, _ := cfg["outputAspect"].(string)
 		aspectHandling, _ := cfg["aspectHandling"].(string)
+		forceAspect := true
+		if v, ok := cfg["forceAspect"].(bool); ok {
+			forceAspect = v
+		}
 
 		// Create temp source for aspect calculation
-		tempSrc := &videoSource{Width: sourceWidth, Height: sourceHeight}
+		tempSrc := &videoSource{Width: sourceWidth, Height: sourceHeight, SampleAspectRatio: sampleAspectRatio}
 		targetAspect := resolveTargetAspect(outputAspect, tempSrc)
 		if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
 			vf = append(vf, aspectFilters(targetAspect, aspectHandling)...)
+		}
+		if forceAspect && targetAspect > 0 {
+			if len(vf) == 0 {
+				vf = append(vf, fmt.Sprintf("setdar=%.6f", targetAspect), "setsar=1")
+			} else {
+				vf = appendAspectMetadata(vf, targetAspect)
+			}
 		}
 
 		// Flip horizontal
@@ -6207,12 +6240,33 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 	}
 
 	// Aspect ratio handling (simplified)
-	if outputAspect, _ := cfg["outputAspect"].(string); outputAspect != "" && outputAspect != "Source" {
+	outputAspect, _ := cfg["outputAspect"].(string)
+	if outputAspect != "" && outputAspect != "Source" {
 		aspectHandling, _ := cfg["aspectHandling"].(string)
 		if aspectHandling == "letterbox" {
 			vf = append(vf, fmt.Sprintf("pad=iw:iw*(%s/(sar*dar)):(ow-iw)/2:(oh-ih)/2", outputAspect))
 		} else if aspectHandling == "crop" {
 			vf = append(vf, "crop=iw:iw/("+outputAspect+"):0:(ih-oh)/2")
+		}
+	}
+
+	// Force aspect metadata when enabled
+	forceAspect := true
+	if v, ok := cfg["forceAspect"].(bool); ok {
+		forceAspect = v
+	}
+	if forceAspect {
+		sourceWidth, _ := cfg["sourceWidth"].(int)
+		sourceHeight, _ := cfg["sourceHeight"].(int)
+		sampleAspectRatio, _ := cfg["sampleAspectRatio"].(string)
+		tempSrc := &videoSource{Width: sourceWidth, Height: sourceHeight, SampleAspectRatio: sampleAspectRatio}
+		outputAspect, _ := cfg["outputAspect"].(string)
+		if targetAspect := resolveTargetAspect(outputAspect, tempSrc); targetAspect > 0 {
+			if len(vf) == 0 {
+				vf = append(vf, fmt.Sprintf("setdar=%.6f", targetAspect), "setsar=1")
+			} else {
+				vf = appendAspectMetadata(vf, targetAspect)
+			}
 		}
 	}
 
@@ -6585,6 +6639,13 @@ func runGUI() {
 		audioNormTruePeak:   audioDefaults.NormTruePeak,
 		audioOutputDir:      audioDefaults.OutputDir,
 		audioSelectedTracks: make(map[int]bool),
+		// Application Preferences defaults
+		defaultOutputDir:     "",
+		defaultVideoCodec:    "libx264",
+		defaultAudioCodec:    "aac",
+		hardwareAcceleration: "auto",
+		uiTheme:              "Dark",
+		autoPreview:          true,
 	}
 
 	if cfg, err := loadPersistedConvertConfig(); err == nil {
@@ -7916,6 +7977,26 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		targetAspectSelect       *widget.Select
 		targetAspectSelectSimple *widget.Select
 	)
+	var forceAspectChecks []*widget.Check
+	syncForceAspect := func(checked bool) {
+		state.convert.ForceAspect = checked
+		for _, c := range forceAspectChecks {
+			if c.Checked != checked {
+				c.SetChecked(checked)
+			}
+		}
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
+	}
+	makeForceAspectCheck := func() *widget.Check {
+		check := widget.NewCheck("Force aspect metadata (DAR/SAR)", func(checked bool) {
+			syncForceAspect(checked)
+		})
+		check.SetChecked(state.convert.ForceAspect)
+		forceAspectChecks = append(forceAspectChecks, check)
+		return check
+	}
 	// Aspect select widget - uses state manager to eliminate sync flag
 	targetAspectSelect = widget.NewSelect(aspectTargets, func(value string) {
 		setAspect(value, true)
@@ -9451,6 +9532,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelectSimple,
 		targetAspectHintContainer,
+		makeForceAspectCheck(),
 	))
 
 	// Simple mode options - minimal controls, aspect locked to Source
@@ -9530,6 +9612,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		targetAspectSelect,
 		targetAspectHintContainer,
 		aspectBox,
+		makeForceAspectCheck(),
 	))
 
 	autoCropSection := buildConvertBox("Auto-Crop", container.NewVBox(
@@ -10136,8 +10219,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			"coverArtPath":           cfg.CoverArtPath,
 			"aspectHandling":         cfg.AspectHandling,
 			"outputAspect":           cfg.OutputAspect,
+			"forceAspect":            cfg.ForceAspect,
 			"sourceWidth":            src.Width,
 			"sourceHeight":           src.Height,
+			"sampleAspectRatio":      src.SampleAspectRatio,
 			"sourceDuration":         src.Duration,
 			"fieldOrder":             src.FieldOrder,
 		}
@@ -13057,8 +13142,12 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	}
 
 	targetAspect := resolveTargetAspect(cfg.OutputAspect, src)
-	if targetAspect > 0 && len(vf) > 0 {
-		vf = appendAspectMetadata(vf, targetAspect)
+	if cfg.ForceAspect && targetAspect > 0 {
+		if len(vf) == 0 {
+			vf = append(vf, fmt.Sprintf("setdar=%.6f", targetAspect), "setsar=1")
+		} else {
+			vf = appendAspectMetadata(vf, targetAspect)
+		}
 	}
 
 	// Flip horizontal
@@ -13770,8 +13859,12 @@ func (s *appState) generateSnippet() {
 			vf = append(vf, aspectFilters(targetAspect, s.convert.AspectHandling)...)
 		}
 	}
-	if targetAspect := resolveTargetAspect(s.convert.OutputAspect, src); targetAspect > 0 && len(vf) > 0 {
-		vf = appendAspectMetadata(vf, targetAspect)
+	if targetAspect := resolveTargetAspect(s.convert.OutputAspect, src); s.convert.ForceAspect && targetAspect > 0 {
+		if len(vf) == 0 {
+			vf = append(vf, fmt.Sprintf("setdar=%.6f", targetAspect), "setsar=1")
+		} else {
+			vf = appendAspectMetadata(vf, targetAspect)
+		}
 	}
 
 	// Frame rate conversion (only if explicitly set and different from source)
