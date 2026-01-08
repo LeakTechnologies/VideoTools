@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -325,12 +326,128 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	header.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(header)
 
-	content.Add(widget.NewLabel("Preferences panel - Coming soon"))
-	content.Add(widget.NewLabel("This will include settings for:"))
-	content.Add(widget.NewLabel("• Default output directories"))
-	content.Add(widget.NewLabel("• Default encoding presets"))
-	content.Add(widget.NewLabel("• UI theme preferences"))
-	content.Add(widget.NewLabel("• Automatic updates"))
+	desc := widget.NewLabel("Configure default settings for VideoTools modules and workflow.")
+	desc.Wrapping = fyne.TextWrapWord
+	content.Add(desc)
+
+	content.Add(widget.NewSeparator())
+
+	// Output Directory Settings
+	outputHeader := widget.NewLabel("📁 Output Directories")
+	outputHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(outputHeader)
+
+	outputDirEntry := widget.NewEntry()
+	outputDirEntry.SetPlaceHolder("Default output directory for converted files")
+	if state.defaultOutputDir != "" {
+		outputDirEntry.SetText(state.defaultOutputDir)
+	}
+
+	browseOutputBtn := widget.NewButton("Browse", func() {
+		// TODO: Implement directory browser
+	})
+
+	outputContainer := container.NewVBox(
+		widget.NewLabel("Default Output Directory:"),
+		container.NewBorder(nil, nil, nil, browseOutputBtn, outputDirEntry),
+	)
+	content.Add(outputContainer)
+
+	content.Add(widget.NewSeparator())
+
+	// Encoding Defaults
+	encodingHeader := widget.NewLabel("⚙️ Encoding Defaults")
+	encodingHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(encodingHeader)
+
+	// Video codec selector
+	videoCodecSelect := widget.NewSelect([]string{"libx264", "libx265", "libvpx-vp9", "av1", "copy"}, nil)
+	videoCodecSelect.SetSelected(state.defaultVideoCodec)
+	videoCodecSelect.OnChanged = func(codec string) {
+		state.defaultVideoCodec = codec
+	}
+
+	// Audio codec selector
+	audioCodecSelect := widget.NewSelect([]string{"aac", "libmp3lame", "opus", "copy"}, nil)
+	audioCodecSelect.SetSelected(state.defaultAudioCodec)
+	audioCodecSelect.OnChanged = func(codec string) {
+		state.defaultAudioCodec = codec
+	}
+
+	encodingContainer := container.NewVBox(
+		container.NewHBox(
+			widget.NewLabel("Video Codec:"),
+			videoCodecSelect,
+		),
+		container.NewHBox(
+			widget.NewLabel("Audio Codec:"),
+			audioCodecSelect,
+		),
+	)
+	content.Add(encodingContainer)
+
+	content.Add(widget.NewSeparator())
+
+	// Hardware Acceleration
+	hwHeader := widget.NewLabel("🚀 Hardware Acceleration")
+	hwHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(hwHeader)
+
+	hwAccelSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "qsv", "vaapi"}, nil)
+	hwAccelSelect.SetSelected(state.hardwareAcceleration)
+	hwAccelSelect.OnChanged = func(hw string) {
+		state.hardwareAcceleration = hw
+	}
+
+	hwContainer := container.NewVBox(
+		widget.NewLabel("GPU Acceleration:"),
+		hwAccelSelect,
+	)
+	content.Add(hwContainer)
+
+	content.Add(widget.NewSeparator())
+
+	// UI Preferences
+	uiHeader := widget.NewLabel("🎨 User Interface")
+	uiHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(uiHeader)
+
+	themeSelect := widget.NewSelect([]string{"Dark", "Light", "System"}, nil)
+	themeSelect.SetSelected(state.uiTheme)
+	themeSelect.OnChanged = func(theme string) {
+		state.uiTheme = theme
+		// TODO: Apply theme change
+	}
+
+	// Enable/disable auto-preview
+	autoPreviewCheck := widget.NewCheck("Enable auto-preview", func(checked bool) {
+		state.autoPreview = checked
+	})
+	autoPreviewCheck.SetChecked(state.autoPreview)
+
+	uiContainer := container.NewVBox(
+		container.NewHBox(
+			widget.NewLabel("Theme:"),
+			themeSelect,
+		),
+		autoPreviewCheck,
+	)
+	content.Add(uiContainer)
+
+	content.Add(widget.NewSeparator())
+
+	// Save Preferences
+	saveBtn := widget.NewButton("Save Preferences", func() {
+		// Update state with new values
+		state.defaultOutputDir = outputDirEntry.Text
+
+		// Show success message
+		dialog.ShowInformation("Preferences Saved",
+			"Your preferences have been saved successfully!",
+			fyne.CurrentApp().Driver().AllWindows()[0])
+	})
+	saveBtn.Importance = widget.HighImportance
+	content.Add(container.NewCenter(saveBtn))
 
 	return content
 }
