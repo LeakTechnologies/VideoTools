@@ -122,7 +122,7 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 	if strings.Contains(path, "bbb_sunflower_2160p_60fps_normal.mp4") {
 		logging.Debug(logging.CatPlayer, "Loading test video: Big Buck Bunny (%s)", path)
 	}
-	
+
 	p.currentPath = path
 	p.state = StateLoading
 
@@ -135,26 +135,24 @@ func (p *UnifiedPlayer) Load(path string, offset time.Duration) error {
 
 	// Create pipes for FFmpeg communication
 	p.videoPipeReader, p.videoPipeWriter = io.Pipe()
-	p.audioPipeReader, p.audioPipeWriter = io.Pipe()
+	if !p.previewMode {
+		p.audioPipeReader, p.audioPipeWriter = io.Pipe()
+	}
 
-	// Build FFmpeg command with unified A/V output
+	// Build FFmpeg command - focus on video first
 	args := []string{
 		"-hide_banner", "-loglevel", "error",
 		"-ss", fmt.Sprintf("%.3f", offset.Seconds()),
 		"-i", path,
-		// Video stream to pipe 4
 		"-map", "0:v:0",
 		"-f", "rawvideo",
 		"-pix_fmt", "rgb24",
-		"-r", "24", // We'll detect actual framerate
-		"pipe:4",
-		// Audio stream to pipe 5
-		"-map", "0:a:0",
-		"-ac", "2",
-		"-ar", "48000",
-		"-f", "s16le",
-		"pipe:5",
+		"-r", "24",
+		"pipe:1",
 	}
+
+	// Disable audio for now to get basic video working
+	args = append(args, "-an")
 
 	// Add hardware acceleration if available
 	if p.config.HardwareAccel {
@@ -270,7 +268,8 @@ func (p *UnifiedPlayer) GetFrameImage() (*image.RGBA, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.state != StatePlaying || p.paused {
+	// Allow frame reading even when paused for UI updates
+	if p.state == StateStopped {
 		return nil, nil
 	}
 
@@ -501,12 +500,25 @@ func (p *UnifiedPlayer) Play() error {
 		return fmt.Errorf("no video loaded")
 	}
 
+	if p.state == StateLoading {
+		// Still loading, wait
+		return fmt.Errorf("video still loading")
+	}
+
 	p.paused = false
 	p.state = StatePlaying
 	p.syncClock = time.Now()
-	
+
 	logging.Debug(logging.CatPlayer, "UnifiedPlayer: Play() called, state=%v", p.state)
-	
+
+	// Start FFmpeg process if not already running
+	if p.cmd == nil || p.cmd.Process == nil {
+		if err := p.startVideoProcess(); err != nil {
+			p.state = StateStopped
+			return fmt.Errorf("failed to start video process: %w", err)
+		}
+	}
+
 	if p.stateCallback != nil {
 		p.stateCallback(p.state)
 	}
@@ -608,49 +620,49 @@ func (p *UnifiedPlayer) startVideoProcess() error {
 	// Start video frame reading goroutine
 	if !p.previewMode {
 		go func() {
-		rate := p.frameRate
-		if rate <= 0 {
-			rate = 24
-			logging.Debug(logging.CatPlayer, "Frame rate unavailable; defaulting to %.0f fps", rate)
-		}
-		frameDuration := time.Second / time.Duration(rate)
-		frameTime := p.syncClock
+			rate := p.frameRate
+			if rate <= 0 {
+				rate = 24
+				logging.Debug(logging.CatPlayer, "Frame rate unavailable; defaulting to %.0f fps", rate)
+			}
+			frameDuration := time.Second / time.Duration(rate)
+			frameTime := p.syncClock
 
-		for {
-			select {
-			case <-p.ctx.Done():
-				logging.Debug(logging.CatPlayer, "Video processing goroutine stopped")
-				return
+			for {
+				select {
+				case <-p.ctx.Done():
+					logging.Debug(logging.CatPlayer, "Video processing goroutine stopped")
+					return
 
-			default:
-				// Read frame from video pipe
-				frame, err := p.readVideoFrame()
-				if err != nil {
-					logging.Error(logging.CatPlayer, "Failed to read video frame: %v", err)
-					continue
-				}
+				default:
+					// Read frame from video pipe
+					frame, err := p.readVideoFrame()
+					if err != nil {
+						logging.Error(logging.CatPlayer, "Failed to read video frame: %v", err)
+						continue
+					}
 
-				if frame == nil {
-					continue
-				}
+					if frame == nil {
+						continue
+					}
 
-				// Update timing
-				p.currentTime = frameTime.Sub(p.syncClock)
-				frameTime = frameTime.Add(frameDuration)
-				p.syncClock = time.Now()
+					// Update timing
+					p.currentTime = frameTime.Sub(p.syncClock)
+					frameTime = frameTime.Add(frameDuration)
+					p.syncClock = time.Now()
 
-				// Notify callback
-				if p.frameCallback != nil {
-					p.frameCallback(p.GetCurrentFrame())
-				}
+					// Notify callback
+					if p.frameCallback != nil {
+						p.frameCallback(p.GetCurrentFrame())
+					}
 
-				// Sleep until next frame time
-				sleepTime := frameTime.Sub(time.Now())
-				if sleepTime > 0 {
-					time.Sleep(sleepTime)
+					// Sleep until next frame time
+					sleepTime := frameTime.Sub(time.Now())
+					if sleepTime > 0 {
+						time.Sleep(sleepTime)
+					}
 				}
 			}
-		}
 		}()
 	}
 
@@ -686,10 +698,9 @@ func (p *UnifiedPlayer) readAudioStream() {
 
 // readVideoStream reads video frames from the video pipe
 func (p *UnifiedPlayer) readVideoFrame() (*image.RGBA, error) {
-	// Check if paused - skip reading frames while paused
-	if p.paused {
-		return nil, nil
-	}
+	// Allow frame reading when paused for UI updates
+	// but don't advance frame counter if paused
+	wasPaused := p.paused
 
 	// Read RGB24 frame data from FFmpeg pipe
 	frameSize := p.windowW * p.windowH * 3 // RGB24 = 3 bytes per pixel
@@ -697,9 +708,16 @@ func (p *UnifiedPlayer) readVideoFrame() (*image.RGBA, error) {
 		p.videoBuffer = make([]byte, frameSize)
 	}
 
-	// Check for paused state before reading
-	if p.paused {
-		return nil, fmt.Errorf("player is paused")
+	// For non-blocking read when paused, use peek
+	if wasPaused {
+		// Return last known frame when paused (create placeholder if none)
+		img := p.frameBuffer.Get().(*image.RGBA)
+		if img.Rect.Dx() != p.windowW || img.Rect.Dy() != p.windowH {
+			img.Rect = image.Rect(0, 0, p.windowW, p.windowH)
+			img.Stride = p.windowW * 4
+			img.Pix = make([]uint8, p.windowW*p.windowH*4)
+		}
+		return img, nil
 	}
 
 	// Read full frame - io.ReadFull ensures we get complete frame
@@ -724,12 +742,13 @@ func (p *UnifiedPlayer) readVideoFrame() (*image.RGBA, error) {
 	}
 	utils.CopyRGBToRGBA(img.Pix, p.videoBuffer)
 
-	// Update frame counter
-	p.currentFrame++
-
-	// Notify time callback
-	if p.timeCallback != nil {
-		p.timeCallback(p.currentTime)
+	// Update frame counter only when not paused
+	if !wasPaused {
+		p.currentFrame++
+		// Notify time callback
+		if p.timeCallback != nil {
+			p.timeCallback(p.currentTime)
+		}
 	}
 
 	return img, nil
