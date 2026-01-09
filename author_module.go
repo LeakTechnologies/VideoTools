@@ -1031,6 +1031,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 
 	logoFileEntry := widget.NewEntry()
 	logoFileEntry.Disable()
+	logoFileEntry.SetPlaceHolder("No logo selected")
 	logoPreview := canvas.NewImageFromFile("")
 	logoPreview.FillMode = canvas.ImageFillContain
 	logoPreview.SetMinSize(fyne.NewSize(96, 96))
@@ -1042,7 +1043,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	logoPreviewBorder.SetMinSize(fyne.NewSize(120, 96))
 	logoPreviewBox := container.NewMax(
 		logoPreviewBorder,
-		container.NewPadded(logoPreview),
+		container.NewPadded(container.NewCenter(logoPreview)),
 	)
 	previewMin := canvas.NewRectangle(color.NRGBA{A: 0})
 	previewMin.SetMinSize(fyne.NewSize(220, 0))
@@ -1139,6 +1140,10 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		state.authorMenuLogoPath = ""
 		logoFileEntry.SetText(logoDisplayName())
 		logoEnableCheck.SetChecked(false)
+		updateLogoPreview()
+		updateBrandingTitle()
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
 	})
 
 	logoPositionSelect := widget.NewSelect([]string{
