@@ -63,11 +63,18 @@ case "$OS" in
         echo "Dependencies downloaded"
         echo ""
 
+        echo "Checking for GStreamer (required for player)..."
+        if ! pkg-config --exists gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0 2>/dev/null; then
+            echo "WARNING: GStreamer development libraries not found."
+            echo "Player functionality will be limited. Install GStreamer for full functionality."
+        else
+            echo "GStreamer found ($(pkg-config --modversion gstreamer-1.0 2>/dev/null || echo 'version unknown'))"
+        fi
+        echo ""
         echo "Building VideoTools $APP_VERSION for Windows..."
         export CGO_ENABLED=1
-        if [ -n "$VT_GSTREAMER" ] || command -v gst-launch-1.0 &> /dev/null; then
-            export GOFLAGS="${GOFLAGS:-} -tags gstreamer"
-        fi
+        # GStreamer is always enabled (mandatory dependency on supported platforms)
+        export GOFLAGS="${GOFLAGS:-} -tags gstreamer"
         if [ -d "$PROJECT_ROOT/vendor" ] && [ ! -f "$PROJECT_ROOT/vendor/modules.txt" ]; then
             export GOFLAGS="${GOFLAGS:-} -mod=mod"
         fi

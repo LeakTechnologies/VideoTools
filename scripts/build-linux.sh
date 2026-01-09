@@ -49,7 +49,24 @@ else
 fi
 echo ""
 
-echo "Building VideoTools..."
+echo "Checking for GStreamer (required for player)..."
+# GStreamer is now mandatory - verify it's installed
+if ! command -v pkg-config &> /dev/null; then
+    echo "ERROR: pkg-config not found. Install pkg-config to build VideoTools."
+    exit 1
+fi
+if ! pkg-config --exists gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0; then
+    echo "ERROR: GStreamer development libraries not found."
+    echo "Please run: ./scripts/install.sh"
+    echo "Or install manually:"
+    echo "  Fedora: sudo dnf install gstreamer1-devel gstreamer1-plugins-base-devel"
+    echo "  Ubuntu: sudo apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev"
+    exit 1
+fi
+echo "GStreamer found ($(pkg-config --modversion gstreamer-1.0))"
+echo ""
+
+echo "Building VideoTools with GStreamer player..."
 # Build timer
 build_start=$(date +%s)
 # Fyne needs cgo for GLFW/OpenGL bindings; build with CGO enabled.
@@ -60,18 +77,8 @@ mkdir -p "$GOCACHE" "$GOMODCACHE"
 if [ -d "$PROJECT_ROOT/vendor" ] && [ ! -f "$PROJECT_ROOT/vendor/modules.txt" ]; then
     export GOFLAGS="${GOFLAGS:-} -mod=mod"
 fi
-GST_TAG=""
-if [ -n "$VT_GSTREAMER" ]; then
-    GST_TAG="gstreamer"
-elif command -v pkg-config &> /dev/null; then
-    if pkg-config --exists gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0; then
-        GST_TAG="gstreamer"
-    fi
-fi
-if [ -n "$GST_TAG" ]; then
-    export GOFLAGS="${GOFLAGS:-} -tags ${GST_TAG}"
-fi
-if go build -o "$BUILD_OUTPUT" .; then
+# GStreamer is always enabled now (mandatory dependency)
+if go build -tags gstreamer -o "$BUILD_OUTPUT" .; then
     build_end=$(date +%s)
     build_secs=$((build_end - build_start))
     echo "Build successful! (VideoTools $APP_VERSION)"

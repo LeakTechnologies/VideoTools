@@ -196,7 +196,7 @@ func (p *GStreamerPlayer) seekLocked(offset time.Duration) error {
 		return errors.New("no pipeline loaded")
 	}
 	nanos := C.gint64(offset.Nanoseconds())
-	flags := C.GST_SEEK_FLAG_FLUSH | C.GST_SEEK_FLAG_KEY_UNIT
+	flags := C.GstSeekFlags(C.GST_SEEK_FLAG_FLUSH | C.GST_SEEK_FLAG_KEY_UNIT)
 	if C.gst_element_seek_simple(p.pipeline, C.GST_FORMAT_TIME, flags, nanos) == 0 {
 		return errors.New("gstreamer seek failed")
 	}
@@ -296,6 +296,33 @@ func (p *GStreamerPlayer) SetVolume(level float64) error {
 		volumeName := C.CString("volume")
 		C.vt_gst_set_float(p.pipeline, volumeName, C.gdouble(level))
 		C.free(unsafe.Pointer(volumeName))
+	}
+	return nil
+}
+
+func (p *GStreamerPlayer) SetWindow(x, y, w, h int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	// GStreamer with appsink doesn't need window positioning
+	// The frames are extracted and displayed by Fyne
+	// Store dimensions for frame sizing
+	if w > 0 && h > 0 {
+		p.width = w
+		p.height = h
+	}
+}
+
+func (p *GStreamerPlayer) SetFullScreen(fullscreen bool) error {
+	// Fullscreen is handled by the application window, not GStreamer
+	// GStreamer with appsink just provides frames
+	return nil
+}
+
+func (p *GStreamerPlayer) Stop() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.pipeline != nil {
+		C.gst_element_set_state(p.pipeline, C.GST_STATE_NULL)
 	}
 	return nil
 }

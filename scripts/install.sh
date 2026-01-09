@@ -168,11 +168,17 @@ if [ "$IS_WINDOWS" = true ]; then
     fi
 else
     missing_deps=()
+    # Core dependencies (always required)
     if ! command -v ffmpeg &> /dev/null; then
         missing_deps+=("ffmpeg")
     fi
+    # GStreamer is now mandatory for player functionality (replacing FFmpeg pipe-based player)
     if ! command -v gst-launch-1.0 &> /dev/null; then
         missing_deps+=("gstreamer")
+    fi
+    # Check for GStreamer development headers (required for Go CGO bindings)
+    if ! pkg-config --exists gstreamer-1.0 2>/dev/null; then
+        missing_deps+=("gstreamer-devel")
     fi
     if [ -z "$SKIP_DVD_TOOLS" ]; then
         # Check if DVD tools are already installed
@@ -239,35 +245,50 @@ else
 
     if [ "$install_deps" = true ]; then
         if command -v apt-get &> /dev/null; then
+            echo "Installing core dependencies (FFmpeg + GStreamer)..."
             sudo apt-get update
+            # Core packages (always installed) - GStreamer is mandatory for player
+            CORE_PKGS="ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev"
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo apt-get install -y ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+                sudo apt-get install -y $CORE_PKGS
             else
-                sudo apt-get install -y ffmpeg dvdauthor xorriso gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+                sudo apt-get install -y $CORE_PKGS dvdauthor xorriso
             fi
         elif command -v dnf &> /dev/null; then
+            echo "Installing core dependencies (FFmpeg + GStreamer)..."
+            # Core packages (always installed) - GStreamer is mandatory for player
+            CORE_PKGS="ffmpeg gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free gstreamer1-libav gstreamer1-devel gstreamer1-plugins-base-devel"
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo dnf install -y ffmpeg gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free gstreamer1-libav gstreamer1-devel gstreamer1-plugins-base-devel
+                sudo dnf install -y $CORE_PKGS
             else
-                sudo dnf install -y ffmpeg dvdauthor xorriso gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free gstreamer1-libav gstreamer1-devel gstreamer1-plugins-base-devel
+                sudo dnf install -y $CORE_PKGS dvdauthor xorriso
             fi
         elif command -v pacman &> /dev/null; then
+            echo "Installing core dependencies (FFmpeg + GStreamer)..."
+            # Core packages (always installed)
+            CORE_PKGS="ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav"
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo pacman -Sy --noconfirm ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav
+                sudo pacman -Sy --noconfirm $CORE_PKGS
             else
-                sudo pacman -Sy --noconfirm ffmpeg dvdauthor cdrtools gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav
+                sudo pacman -Sy --noconfirm $CORE_PKGS dvdauthor cdrtools
             fi
         elif command -v zypper &> /dev/null; then
+            echo "Installing core dependencies (FFmpeg + GStreamer)..."
+            # Core packages (always installed)
+            CORE_PKGS="ffmpeg gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-devel"
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo zypper install -y ffmpeg gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-devel
+                sudo zypper install -y $CORE_PKGS
             else
-                sudo zypper install -y ffmpeg dvdauthor xorriso gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-devel
+                sudo zypper install -y $CORE_PKGS dvdauthor xorriso
             fi
         elif command -v brew &> /dev/null; then
+            echo "Installing core dependencies (FFmpeg + GStreamer)..."
+            # Core packages (always installed)
+            CORE_PKGS="ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav"
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                brew install ffmpeg gstreamer
+                brew install $CORE_PKGS
             else
-                brew install ffmpeg dvdauthor xorriso gstreamer
+                brew install $CORE_PKGS dvdauthor xorriso
             fi
         else
             echo -e "${RED}[ERROR] No supported package manager found.${NC}"
@@ -338,9 +359,20 @@ else
         exit 1
     fi
 
+    # Verify core dependencies were installed successfully
     if ! command -v ffmpeg &> /dev/null; then
-        echo -e "${RED}[ERROR] Missing required dependencies after install attempt.${NC}"
+        echo -e "${RED}[ERROR] Missing required dependency after install attempt.${NC}"
         echo "Please install: ffmpeg"
+        exit 1
+    fi
+    if ! command -v gst-launch-1.0 &> /dev/null; then
+        echo -e "${RED}[ERROR] Missing required dependency after install attempt.${NC}"
+        echo "Please install: gstreamer"
+        exit 1
+    fi
+    if ! pkg-config --exists gstreamer-1.0 2>/dev/null; then
+        echo -e "${RED}[ERROR] Missing GStreamer development headers after install attempt.${NC}"
+        echo "Please install: gstreamer-devel (or libgstreamer1.0-dev on Debian/Ubuntu)"
         exit 1
     fi
     if [ "$SKIP_DVD_TOOLS" = false ]; then
