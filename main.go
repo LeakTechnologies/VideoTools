@@ -11163,8 +11163,8 @@ type playSession struct {
 	syncOffset  float64      // A/V sync offset for adjustment
 	audioActive atomic.Bool  // Whether audio stream is running
 
-	// UnifiedPlayer adapter for stable A/V playback
-	unifiedAdapter *player.UnifiedPlayerAdapter
+	// GStreamer player for stable A/V playback
+	gstPlayer *player.GStreamerPlayer
 }
 
 var audioCtxGlobal struct {
@@ -11203,58 +11203,84 @@ func newPlaySession(path string, w, h int, fps, duration float64, targetW, targe
 		targetH = int(float64(targetW) * (float64(h) / float64(utils.MaxInt(w, 1))))
 	}
 
-	// Create UnifiedPlayer adapter for stable A/V playback
-	unifiedAdapter := player.NewUnifiedPlayerAdapter(path, w, h, fps, duration, targetW, targetH, prog, frameFunc, img)
+	// Create GStreamer player for stable A/V playback
+	gstPlayer, err := player.NewGStreamerPlayer(player.Config{
+		Backend:       player.BackendAuto,
+		WindowWidth:   targetW,
+		WindowHeight:  targetH,
+		Volume:        1.0,
+		Muted:         false,
+		AutoPlay:      false,
+		HardwareAccel: false,
+		PreviewMode:   false, // Full playback with audio
+		AudioOutput:   "auto",
+		VideoOutput:   "rgb24",
+		CacheEnabled:  true,
+		CacheSize:     64 * 1024 * 1024,
+		LogLevel:      player.LogInfo,
+	})
+	if err != nil {
+		logging.Error(logging.CatPlayer, "Failed to create GStreamer player for playback: %v", err)
+		return nil
+	}
 
-	return &playSession{
+	sess := &playSession{
 		path:           path,
 		fps:            fps,
 		width:          w,
 		height:         h,
 		targetW:        targetW,
 		targetH:        targetH,
-		volume:         100,
-		duration:       duration,
-		stop:           make(chan struct{}),
-		done:           make(chan struct{}),
-		prog:           prog,
-		frameFunc:      frameFunc,
-		img:            img,
-		unifiedAdapter: unifiedAdapter,
+		volume:    100,
+		duration:  duration,
+		stop:      make(chan struct{}),
+		done:      make(chan struct{}),
+		prog:      prog,
+		frameFunc: frameFunc,
+		img:       img,
+		gstPlayer: gstPlayer,
 	}
+
+	// Load the video in GStreamer
+	if err := gstPlayer.Load(path, 0); err != nil {
+		logging.Error(logging.CatPlayer, "Failed to load video in GStreamer: %v", err)
+		return nil
+	}
+
+	// Start frame display loop
+	go sess.frameDisplayLoop()
+
+	return sess
 }
 
 func (p *playSession) Play() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Use UnifiedPlayer adapter if available
-	if p.unifiedAdapter != nil {
-		p.unifiedAdapter.Play()
+	// Use GStreamer player
+	if p.gstPlayer != nil {
+		p.gstPlayer.Play()
 		p.paused = false
+		logging.Debug(logging.CatPlayer, "playSession: Play called")
 		return
 	}
 
-	// Fallback to dual-process
-	if p.videoCmd == nil && p.audioCmd == nil {
-		p.startLocked(p.current)
-		return
-	}
-	p.paused = false
+	logging.Error(logging.CatPlayer, "playSession: GStreamer player not available")
 }
 
 func (p *playSession) Pause() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Use UnifiedPlayer adapter if available
-	if p.unifiedAdapter != nil {
-		p.unifiedAdapter.Pause()
+	// Use GStreamer player
+	if p.gstPlayer != nil {
+		p.gstPlayer.Pause()
 		p.paused = true
+		logging.Debug(logging.CatPlayer, "playSession: Pause called")
 		return
 	}
 
-	p.paused = true
+	logging.Error(logging.CatPlayer, "playSession: GStreamer player not available")
 }
 
 func (p *playSession) Seek(offset float64) {
@@ -11264,31 +11290,18 @@ func (p *playSession) Seek(offset float64) {
 		offset = 0
 	}
 
-	// Use UnifiedPlayer adapter if available
-	if p.unifiedAdapter != nil {
-		p.unifiedAdapter.Seek(offset)
+	// Use GStreamer player
+	if p.gstPlayer != nil {
+		p.gstPlayer.SeekToTime(time.Duration(offset * float64(time.Second)))
 		p.current = offset
-		p.paused = p.unifiedAdapter.IsPlaying() == false
+		logging.Debug(logging.CatPlayer, "playSession: Seek to %.2fs", offset)
+		if p.prog != nil {
+			p.prog(p.current)
+		}
 		return
 	}
 
-	// Fallback to dual-process
-	paused := p.paused
-	p.current = offset
-	p.stopLocked()
-	p.startLocked(p.current)
-	p.paused = paused
-	if p.paused {
-		// Ensure loops honor paused right after restart.
-		time.AfterFunc(30*time.Millisecond, func() {
-			p.mu.Lock()
-			defer p.mu.Unlock()
-			p.paused = true
-		})
-	}
-	if p.prog != nil {
-		p.prog(p.current)
-	}
+	logging.Error(logging.CatPlayer, "playSession: GStreamer player not available")
 }
 
 // StepFrame moves forward or backward by a specific number of frames.
@@ -11300,68 +11313,106 @@ func (p *playSession) StepFrame(delta int) {
 		return
 	}
 
-	// Use UnifiedPlayer adapter if available
-	if p.unifiedAdapter != nil {
-		p.unifiedAdapter.StepFrame(delta)
-		p.current = float64(p.unifiedAdapter.GetCurrentFrame()) / p.fps
+	// Use GStreamer player
+	if p.gstPlayer != nil {
+		currentFrame := int(p.current * p.fps)
+		targetFrame := currentFrame + delta
+
+		// Clamp to valid range
+		if targetFrame < 0 {
+			targetFrame = 0
+		}
+		maxFrame := int(p.duration * p.fps)
+		if targetFrame > maxFrame {
+			targetFrame = maxFrame
+		}
+
+		// Seek to target frame
+		p.gstPlayer.SeekToFrame(int64(targetFrame))
+		p.current = float64(targetFrame) / p.fps
 		p.paused = true
+		p.frameN = targetFrame
+
+		if p.frameFunc != nil {
+			p.frameFunc(targetFrame)
+		}
+		if p.prog != nil {
+			p.prog(p.current)
+		}
+		logging.Debug(logging.CatPlayer, "playSession: StepFrame delta=%d to frame %d", delta, targetFrame)
 		return
 	}
 
-	// Fallback to dual-process
-	currentFrame := int(p.current * p.fps)
-	targetFrame := currentFrame + delta
+	logging.Error(logging.CatPlayer, "playSession: GStreamer player not available")
+}
 
-	// Clamp to valid range
-	if targetFrame < 0 {
-		targetFrame = 0
+// frameDisplayLoop continuously pulls frames from GStreamer and updates the UI
+func (p *playSession) frameDisplayLoop() {
+	if p.fps <= 0 {
+		p.fps = 24
 	}
-	maxFrame := int(p.duration * p.fps)
-	if targetFrame > maxFrame {
-		targetFrame = maxFrame
-	}
+	frameDuration := time.Second / time.Duration(p.fps)
+	ticker := time.NewTicker(frameDuration)
+	defer ticker.Stop()
 
-	// Convert to time offset
-	offset := float64(targetFrame) / p.fps
-	if offset < 0 {
-		offset = 0
-	}
-	if offset > p.duration {
-		offset = p.duration
-	}
+	frameCount := 0
+	logging.Debug(logging.CatPlayer, "playSession: frameDisplayLoop started (fps=%.2f)", p.fps)
 
-	// Auto-pause when frame stepping
-	p.paused = true
-	p.current = offset
+	for {
+		select {
+		case <-p.stop:
+			logging.Debug(logging.CatPlayer, "playSession: frameDisplayLoop stopped")
+			return
 
-	// Seek to new position
-	if offset >= 0 {
-		p.stopLocked()
-		p.startLocked(offset)
-	}
+		case <-ticker.C:
+			if p.gstPlayer == nil {
+				continue
+			}
 
-	// Ensure loops honor paused right after restart.
-	time.AfterFunc(30*time.Millisecond, func() {
-		p.mu.Lock()
-		defer p.mu.Unlock()
-		p.paused = true
-	})
+			// Skip frame updates when paused
+			if p.paused {
+				continue
+			}
 
-	if p.prog != nil {
-		p.prog(p.current)
+			// Get current frame from GStreamer
+			frame, err := p.gstPlayer.GetFrameImage()
+			if err != nil {
+				logging.Debug(logging.CatPlayer, "Frame read error: %v", err)
+				continue
+			}
+
+			if frame == nil {
+				continue
+			}
+
+			// Update frame counter
+			frameCount++
+			p.mu.Lock()
+			p.frameN = frameCount
+			currentTime := p.gstPlayer.GetCurrentTime()
+			p.current = currentTime.Seconds()
+			p.mu.Unlock()
+
+			// Update UI on main thread
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				if p.img != nil {
+					p.img.Image = frame
+					p.img.Refresh()
+				}
+				if p.prog != nil {
+					p.prog(p.current)
+				}
+				if p.frameFunc != nil {
+					p.frameFunc(frameCount)
+				}
+			}, false)
+		}
 	}
 }
 
-// GetCurrentFrame returns the current frame number
 func (p *playSession) GetCurrentFrame() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
-	// Use UnifiedPlayer adapter if available
-	if p.unifiedAdapter != nil {
-		return p.unifiedAdapter.GetCurrentFrame()
-	}
-
 	return p.frameN
 }
 
@@ -11370,17 +11421,10 @@ func (p *playSession) SetVolume(v float64) {
 	defer p.mu.Unlock()
 	p.volume = v
 
-	// Use UnifiedPlayer adapter if available
-	if p.unifiedAdapter != nil {
-		p.unifiedAdapter.SetVolume(v)
-		return
-	}
-
-	// Fallback to dual-process
-	if p.audioCmd != nil && p.audioCmd.Process != nil {
-		// Send volume command to FFmpeg
-		cmd := fmt.Sprintf("volume %.1f\n", v/100.0)
-		p.writeStringToStdin(cmd)
+	// Use GStreamer player (volume is 0.0-1.0 range)
+	if p.gstPlayer != nil {
+		p.gstPlayer.SetVolume(v / 100.0)
+		logging.Debug(logging.CatPlayer, "playSession: SetVolume to %.1f%%", v)
 	}
 }
 
@@ -11408,9 +11452,11 @@ func (p *playSession) Stop() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Use UnifiedPlayer adapter if available
-	if p.unifiedAdapter != nil {
-		p.unifiedAdapter.Stop()
+	// Use GStreamer player
+	if p.gstPlayer != nil {
+		p.gstPlayer.Stop()
+		close(p.stop)
+		logging.Debug(logging.CatPlayer, "playSession: Stop called")
 		return
 	}
 
@@ -11419,10 +11465,9 @@ func (p *playSession) Stop() {
 }
 
 func (p *playSession) stopLocked() {
-	// Use UnifiedPlayer adapter if available
-	if p.unifiedAdapter != nil {
-		p.unifiedAdapter.Stop()
-		return
+	// Stop GStreamer player
+	if p.gstPlayer != nil {
+		p.gstPlayer.Stop()
 	}
 
 	// Fallback to dual-process cleanup
@@ -11453,18 +11498,15 @@ func (p *playSession) startLocked(offset float64) {
 	p.audioTime.Store(offset)
 	p.videoTime = offset
 	p.syncOffset = 0
-	logging.Debug(logging.CatFFMPEG, "playSession start path=%s offset=%.3f fps=%.3f target=%dx%d", p.path, offset, p.fps, p.targetW, p.targetH)
+	logging.Debug(logging.CatPlayer, "playSession start path=%s offset=%.3f fps=%.3f target=%dx%d", p.path, offset, p.fps, p.targetW, p.targetH)
 
-	// If using UnifiedPlayer adapter, no need to run dual-process
-	if p.unifiedAdapter != nil {
-		// UnifiedPlayer handles A/V sync internally
-		p.unifiedAdapter.Seek(offset)
+	// GStreamer handles playback internally - just seek to position
+	if p.gstPlayer != nil {
+		p.gstPlayer.SeekToTime(time.Duration(offset * float64(time.Second)))
 		return
 	}
 
-	// Fallback to dual-process (old method)
-	p.runVideo(offset)
-	p.runAudio(offset)
+	logging.Error(logging.CatPlayer, "playSession: GStreamer player not available in startLocked")
 }
 
 func (p *playSession) runVideo(offset float64) {
