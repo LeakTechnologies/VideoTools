@@ -2372,12 +2372,25 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 	if strings.TrimSpace(titleLabel) == "" {
 		titleLabel = "DVD"
 	}
+
+	// Sanitize output path to ensure no special characters in filesystem operations
+	sanitizedOutputPath := outputPath
+	dir := filepath.Dir(outputPath)
+	base := filepath.Base(outputPath)
+	ext := filepath.Ext(base)
+	nameWithoutExt := strings.TrimSuffix(base, ext)
+	sanitizedName := sanitizeForPath(nameWithoutExt)
+	if sanitizedName == "" {
+		sanitizedName = "dvd_output"
+	}
+	sanitizedOutputPath = filepath.Join(dir, sanitizedName+ext)
+
 	job := &queue.Job{
 		Type:        queue.JobTypeAuthor,
 		Title:       fmt.Sprintf("Author DVD: %s", titleLabel),
-		Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(outputPath), 40)),
+		Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(sanitizedOutputPath), 40)),
 		InputFile:   paths[0],
-		OutputFile:  outputPath,
+		OutputFile:  sanitizedOutputPath,
 		Config:      config,
 	}
 
@@ -2399,15 +2412,28 @@ func (s *appState) addAuthorVideoTSToQueue(videoTSPath, title, outputPath string
 	if s.jobQueue == nil {
 		return fmt.Errorf("queue not initialized")
 	}
+
+	// Sanitize output path to ensure no special characters in filesystem operations
+	sanitizedOutputPath := outputPath
+	dir := filepath.Dir(outputPath)
+	base := filepath.Base(outputPath)
+	ext := filepath.Ext(base)
+	nameWithoutExt := strings.TrimSuffix(base, ext)
+	sanitizedName := sanitizeForPath(nameWithoutExt)
+	if sanitizedName == "" {
+		sanitizedName = "dvd_output"
+	}
+	sanitizedOutputPath = filepath.Join(dir, sanitizedName+ext)
+
 	job := &queue.Job{
 		Type:        queue.JobTypeAuthor,
 		Title:       fmt.Sprintf("Author ISO: %s", title),
-		Description: fmt.Sprintf("VIDEO_TS -> %s", utils.ShortenMiddle(filepath.Base(outputPath), 40)),
+		Description: fmt.Sprintf("VIDEO_TS -> %s", utils.ShortenMiddle(filepath.Base(sanitizedOutputPath), 40)),
 		InputFile:   videoTSPath,
-		OutputFile:  outputPath,
+		OutputFile:  sanitizedOutputPath,
 		Config: map[string]interface{}{
 			"videoTSPath": videoTSPath,
-			"outputPath":  outputPath,
+			"outputPath":  sanitizedOutputPath,
 			"makeISO":     true,
 			"title":       title,
 		},
