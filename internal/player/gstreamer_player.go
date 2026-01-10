@@ -134,10 +134,18 @@ func (p *GStreamerPlayer) Load(path string, offset time.Duration) error {
 	}
 	C.free(unsafe.Pointer(syncName))
 	maxBuffers := C.CString("max-buffers")
-	C.vt_gst_set_int(appsink, maxBuffers, C.gint(2))
+	if p.preview {
+		C.vt_gst_set_int(appsink, maxBuffers, C.gint(2))
+	} else {
+		C.vt_gst_set_int(appsink, maxBuffers, C.gint(1))
+	}
 	C.free(unsafe.Pointer(maxBuffers))
 	dropName := C.CString("drop")
-	C.vt_gst_set_bool(appsink, dropName, C.gboolean(1))
+	if p.preview {
+		C.vt_gst_set_bool(appsink, dropName, C.gboolean(1))
+	} else {
+		C.vt_gst_set_bool(appsink, dropName, C.gboolean(0))
+	}
 	C.free(unsafe.Pointer(dropName))
 
 	var audioSink *C.GstElement
@@ -366,11 +374,25 @@ func (p *GStreamerPlayer) primeAfterSeekLocked() {
 	if p.appsink == nil {
 		return
 	}
+	p.drainPendingLocked()
 	frame, err := p.readFrameLocked(C.GstClockTime(200 * 1000 * 1000))
 	if err != nil || frame == nil {
 		return
 	}
 	p.queued = frame
+}
+
+func (p *GStreamerPlayer) drainPendingLocked() {
+	if p.appsink == nil {
+		return
+	}
+	for i := 0; i < 5; i++ {
+		sample := C.gst_app_sink_try_pull_sample((*C.GstAppSink)(unsafe.Pointer(p.appsink)), C.GstClockTime(0))
+		if sample == nil {
+			return
+		}
+		C.gst_sample_unref(sample)
+	}
 }
 
 func (p *GStreamerPlayer) SetVolume(level float64) error {
