@@ -635,7 +635,7 @@ func (s *appState) createThumbJobForPath(path string) *queue.Job {
 
 	return &queue.Job{
 		Type:        queue.JobTypeThumb,
-		Title:       "Thumbnails: " + filepath.Base(path),
+		Title:       filepath.Base(path),
 		Description: description,
 		InputFile:   path,
 		OutputFile:  outputFile,
