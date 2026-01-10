@@ -8,6 +8,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Extract app version from main.go (avoid grep warnings on Git Bash)
 APP_VERSION="$(grep -m1 'appVersion' "$PROJECT_ROOT/main.go" | sed -E 's/.*\"([^\"]+)\".*/\1/')"
 [ -z "$APP_VERSION" ] && APP_VERSION="(version unknown)"
+GIT_COMMIT=""
+if command -v git >/dev/null 2>&1; then
+    GIT_COMMIT="$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
+fi
+if [ -n "$GIT_COMMIT" ]; then
+    FULL_VERSION="${APP_VERSION}_${GIT_COMMIT}"
+else
+    FULL_VERSION="$APP_VERSION"
+fi
 
 # Detect platform
 PLATFORM="$(uname -s)"
@@ -36,17 +45,17 @@ go version
 echo ""
 
 diagnostics() {
-    echo "Diagnostics: version=$APP_VERSION os=$OS arch=$(uname -m) go=$(go version | awk '{print $3}')"
+    echo "Diagnostics: version=$FULL_VERSION os=$OS arch=$(uname -m) go=$(go version | awk '{print $3}')"
 }
 
 case "$OS" in
     Linux|macOS)
-        echo "→ Building VideoTools $APP_VERSION for $OS..."
+        echo "→ Building VideoTools $FULL_VERSION for $OS..."
         echo ""
         exec "$SCRIPT_DIR/build-linux.sh"
         ;;
     Windows)
-        echo "→ Building VideoTools $APP_VERSION for Windows..."
+        echo "→ Building VideoTools $FULL_VERSION for Windows..."
         echo ""
         cd "$PROJECT_ROOT"
         build_start=$(date +%s)
@@ -71,22 +80,26 @@ case "$OS" in
             echo "GStreamer found ($(pkg-config --modversion gstreamer-1.0 2>/dev/null || echo 'version unknown'))"
         fi
         echo ""
-        echo "Building VideoTools $APP_VERSION for Windows..."
+        echo "Building VideoTools $FULL_VERSION for Windows..."
         export CGO_ENABLED=1
         # GStreamer is always enabled (mandatory dependency on supported platforms)
         export GOFLAGS="${GOFLAGS:-} -tags gstreamer"
         if [ -d "$PROJECT_ROOT/vendor" ] && [ ! -f "$PROJECT_ROOT/vendor/modules.txt" ]; then
             export GOFLAGS="${GOFLAGS:-} -mod=mod"
         fi
-        if go build -ldflags="-H windowsgui -s -w" -o VideoTools.exe .; then
+        LDFLAGS="-H windowsgui -s -w"
+        if [ -n "$GIT_COMMIT" ]; then
+            LDFLAGS="$LDFLAGS -X main.buildCommit=$GIT_COMMIT"
+        fi
+        if go build -ldflags="$LDFLAGS" -o VideoTools.exe .; then
             build_end=$(date +%s)
             build_secs=$((build_end - build_start))
-            echo "Build successful! (VideoTools $APP_VERSION)"
+            echo "Build successful! (VideoTools $FULL_VERSION)"
             echo "Build time: ${build_secs}s"
             echo ""
             if [ -f "setup-windows.bat" ]; then
                 echo "════════════════════════════════════════════════════════════════"
-                echo "BUILD COMPLETE - $APP_VERSION"
+                echo "BUILD COMPLETE - $FULL_VERSION"
                 echo "════════════════════════════════════════════════════════════════"
                 echo ""
                 echo "Output: VideoTools.exe"
@@ -114,7 +127,7 @@ case "$OS" in
                 diagnostics
             fi
         else
-            echo "Build failed! (VideoTools $APP_VERSION)"
+            echo "Build failed! (VideoTools $FULL_VERSION)"
             diagnostics
             echo ""
             echo "Help: check the Go error messages above."

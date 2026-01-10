@@ -76,6 +76,7 @@ var (
 	logsDirPath     string
 	feedbackBundler = utils.NewFeedbackBundler()
 	appVersion      = "v0.1.0-dev24"
+	buildCommit     = "dev"
 
 	hwAccelProbeOnce sync.Once
 	hwAccelSupported atomic.Value // map[string]bool
@@ -137,6 +138,13 @@ func statusStrip(bar *ui.ConversionStatsBar) fyne.CanvasObject {
 	// Make the entire bar area clickable by letting the bar fill the strip
 	content := container.NewPadded(container.NewMax(bar))
 	return container.NewMax(bg, content)
+}
+
+func fullVersion() string {
+	if buildCommit == "" || buildCommit == "dev" {
+		return appVersion
+	}
+	return fmt.Sprintf("%s_%s", appVersion, buildCommit)
 }
 
 // moduleFooter stacks a dark status strip above a tinted action/footer band.
@@ -554,7 +562,7 @@ func generatePixelatedQRCode() (fyne.CanvasObject, error) {
 }
 
 func (s *appState) showAbout() {
-	version := fmt.Sprintf("VideoTools %s", appVersion)
+	version := fmt.Sprintf("VideoTools %s", fullVersion())
 	dev := "Leak Technologies"
 	logsPath := getLogsDir()
 
@@ -2009,7 +2017,7 @@ func (s *appState) showMainMenu() {
 	s.updateStatsBar()
 
 	// Footer with version info and a small About/Support button
-	versionLabel := widget.NewLabel(fmt.Sprintf("VideoTools %s", appVersion))
+	versionLabel := widget.NewLabel(fmt.Sprintf("VideoTools %s", fullVersion()))
 	versionLabel.Alignment = fyne.TextAlignLeading
 	aboutBtn := widget.NewButton("About / Support", func() {
 		s.showAbout()
@@ -6595,7 +6603,7 @@ func main() {
 
 	flag.Parse()
 	logging.SetDebug(*debugFlag || os.Getenv("VIDEOTOOLS_DEBUG") != "")
-	logging.Debug(logging.CatSystem, "starting VideoTools prototype at %s", time.Now().Format(time.RFC3339))
+	logging.Debug(logging.CatSystem, "starting VideoTools %s at %s", fullVersion(), time.Now().Format(time.RFC3339))
 
 	// Detect platform and configure paths
 	cfg := DetectPlatform()                               // Detect and initialize platform paths locally
