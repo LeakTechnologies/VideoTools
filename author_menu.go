@@ -593,7 +593,7 @@ func resolveMenuLogoScaleExpr(logo menuLogoOptions, width, height int) string {
 	scale := resolveMenuLogoScale(logo)
 	maxW := float64(width) * 0.25
 	maxH := float64(height) * 0.25
-	return fmt.Sprintf("scale=w='min(iw*%.2f,%.0f)':h='min(ih*%.2f,%.0f)':force_original_aspect_ratio=decrease", scale, maxW, scale, maxH)
+	return fmt.Sprintf("scale=w=min(iw*%.2f,%.0f):h=min(ih*%.2f,%.0f):force_original_aspect_ratio=decrease", scale, maxW, scale, maxH)
 }
 
 func resolveMenuLogoPosition(logo menuLogoOptions, width, height int) string {
