@@ -3184,6 +3184,11 @@ func createAuthorLog(inputs []string, outputPath string, makeISO bool, region, a
 	if base == "" {
 		base = "author"
 	}
+	// Sanitize log filename to remove special characters
+	base = sanitizeForPath(base)
+	if base == "" {
+		base = "author"
+	}
 	logPath := filepath.Join(getLogsDir(), base+"-author"+conversionLogSuffix)
 	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 		return nil, logPath, fmt.Errorf("create log dir: %w", err)
