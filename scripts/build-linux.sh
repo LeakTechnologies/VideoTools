@@ -9,6 +9,15 @@ BUILD_OUTPUT="$PROJECT_ROOT/VideoTools"
 # Extract app version from main.go (avoid grep warnings on Git Bash)
 APP_VERSION="$(grep -m1 'appVersion' "$PROJECT_ROOT/main.go" | sed -E 's/.*\"([^\"]+)\".*/\1/')"
 [ -z "$APP_VERSION" ] && APP_VERSION="(version unknown)"
+GIT_COMMIT=""
+if command -v git >/dev/null 2>&1; then
+    GIT_COMMIT="$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
+fi
+if [ -n "$GIT_COMMIT" ]; then
+    FULL_VERSION="${APP_VERSION}_${GIT_COMMIT}"
+else
+    FULL_VERSION="$APP_VERSION"
+fi
 
 echo "════════════════════════════════════════════════════════════════"
 echo "  VideoTools Build Script"
@@ -78,19 +87,23 @@ if [ -d "$PROJECT_ROOT/vendor" ] && [ ! -f "$PROJECT_ROOT/vendor/modules.txt" ];
     export GOFLAGS="${GOFLAGS:-} -mod=mod"
 fi
 # GStreamer is always enabled now (mandatory dependency)
-if go build -tags gstreamer -o "$BUILD_OUTPUT" .; then
+LDFLAGS=""
+if [ -n "$GIT_COMMIT" ]; then
+    LDFLAGS="-X main.buildCommit=$GIT_COMMIT"
+fi
+if go build -tags gstreamer -ldflags="$LDFLAGS" -o "$BUILD_OUTPUT" .; then
     build_end=$(date +%s)
     build_secs=$((build_end - build_start))
-    echo "Build successful! (VideoTools $APP_VERSION)"
+    echo "Build successful! (VideoTools $FULL_VERSION)"
     echo "Build time: ${build_secs}s"
     echo ""
     echo "════════════════════════════════════════════════════════════════"
-    echo "BUILD COMPLETE - $APP_VERSION"
+    echo "BUILD COMPLETE - $FULL_VERSION"
     echo "════════════════════════════════════════════════════════════════"
     echo ""
     echo "Output: $BUILD_OUTPUT"
     echo "Size: $(du -h "$BUILD_OUTPUT" | cut -f1)"
-    echo "Diagnostics: version=$APP_VERSION os=$(uname -s) arch=$(uname -m) go=$(go version | awk '{print $3}')"
+    echo "Diagnostics: version=$FULL_VERSION os=$(uname -s) arch=$(uname -m) go=$(go version | awk '{print $3}')"
     echo ""
     echo "To run:"
     echo "  $PROJECT_ROOT/VideoTools"
@@ -100,8 +113,8 @@ if go build -tags gstreamer -o "$BUILD_OUTPUT" .; then
     echo "  VideoTools"
     echo ""
 else
-    echo "Build failed! (VideoTools $APP_VERSION)"
-    echo "Diagnostics: version=$APP_VERSION os=$(uname -s) arch=$(uname -m) go=$(go version | awk '{print $3}')"
+    echo "Build failed! (VideoTools $FULL_VERSION)"
+    echo "Diagnostics: version=$FULL_VERSION os=$(uname -s) arch=$(uname -m) go=$(go version | awk '{print $3}')"
     echo ""
     echo "Help: check the Go error messages above."
     echo " - Undefined symbol/identifier: usually a missing variable or typo in source; see the referenced file:line."

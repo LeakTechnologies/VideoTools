@@ -7,6 +7,17 @@ set -e
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_OUTPUT="$PROJECT_ROOT/VideoTools.exe"
 DIST_DIR="$PROJECT_ROOT/dist/windows"
+APP_VERSION="$(grep -m1 'appVersion' "$PROJECT_ROOT/main.go" | sed -E 's/.*\"([^\"]+)\".*/\1/')"
+[ -z "$APP_VERSION" ] && APP_VERSION="(version unknown)"
+GIT_COMMIT=""
+if command -v git >/dev/null 2>&1; then
+    GIT_COMMIT="$(git -C "$PROJECT_ROOT" rev-parse --short HEAD 2>/dev/null || true)"
+fi
+if [ -n "$GIT_COMMIT" ]; then
+    FULL_VERSION="${APP_VERSION}_${GIT_COMMIT}"
+else
+    FULL_VERSION="$APP_VERSION"
+fi
 
 echo "════════════════════════════════════════════════════════════════"
 echo "  VideoTools Windows Build Script (Cross-Compilation)"
@@ -87,6 +98,9 @@ export CXX=x86_64-w64-mingw32-g++
 # -H windowsgui: Hide console window (GUI application)
 # -s -w: Strip debug symbols (smaller binary)
 LDFLAGS="-H windowsgui -s -w"
+if [ -n "$GIT_COMMIT" ]; then
+    LDFLAGS="$LDFLAGS -X main.buildCommit=$GIT_COMMIT"
+fi
 
 if go build -ldflags="$LDFLAGS" -o "$BUILD_OUTPUT" .; then
     echo "Cross-compilation successful!"
