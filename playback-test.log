@@ -1,0 +1,78 @@
+[videotools] 2026/01/09 21:01:38.464010 2026-01-09T21:01:38.463963223-05:00 [SYS] starting VideoTools prototype at 2026-01-09T21:01:38-05:00
+[videotools] 2026/01/09 21:01:38.464102 2026-01-09T21:01:38.464092996-05:00 [SYS] Found ffmpeg in PATH: /usr/bin/ffmpeg
+[videotools] 2026/01/09 21:01:38.660447 2026-01-09T21:01:38.660388777-05:00 [SYS] Detected VAAPI encoder
+[videotools] 2026/01/09 21:01:38.660509 2026-01-09T21:01:38.660502309-05:00 [SYS] Detected NVENC encoder
+[videotools] 2026/01/09 21:01:38.660530 2026-01-09T21:01:38.660523879-05:00 [SYS] Detected QSV encoder
+[videotools] 2026/01/09 21:01:38.660541 2026-01-09T21:01:38.660534419-05:00 [SYS] Platform detected: linux/amd64
+[videotools] 2026/01/09 21:01:38.660550 2026-01-09T21:01:38.660543857-05:00 [SYS] FFmpeg path: /usr/bin/ffmpeg
+[videotools] 2026/01/09 21:01:38.660558 2026-01-09T21:01:38.660553014-05:00 [SYS] FFprobe path: /usr/bin/ffprobe
+[videotools] 2026/01/09 21:01:38.660567 2026-01-09T21:01:38.660561379-05:00 [SYS] Temp directory: /tmp/videotools
+[videotools] 2026/01/09 21:01:38.660592 2026-01-09T21:01:38.660585945-05:00 [SYS] Hardware encoders: [vaapi nvenc qsv]
+[videotools] 2026/01/09 21:01:38.660625 2026-01-09T21:01:38.660612545-05:00 [UI] Wayland display server detected: WAYLAND_DISPLAY=wayland-0
+[videotools] 2026/01/09 21:01:38.660639 2026-01-09T21:01:38.660633614-05:00 [UI] Session type: wayland
+2026/01/09 21:01:38 Fyne error:  Settings watch error:
+2026/01/09 21:01:38   Cause: no such file or directory
+[videotools] 2026/01/09 21:01:38.661564 2026-01-09T21:01:38.66155227-05:00 [UI] created fyne app: &app.fyneApp{driver:(*glfw.gLDriver)(0xc0003ce000), clipboard:glfw.clipboard{}, icon:fyne.Resource(nil), uniqueID:"com.leaktechnologies.videotools", cloud:fyne.CloudProvider(nil), lifecycle:app.Lifecycle{onForeground:(func())(nil), onBackground:(func())(nil), onStarted:(func())(nil), onStopped:(func())(nil), onStoppedHookExecuted:(func())(0xb56460), eventQueue:(*async.UnboundedChan[func()])(0xc00039e120)}, settings:(*app.settings)(0xc0003ae750), storage:(*app.store)(0xc000396540), prefs:(*app.preferences)(0xc0003be040)}
+2026/01/09 21:01:38   At: /home/stu/Projects/VideoTools/vendor/fyne.io/fyne/v2/app/settings_desktop.go:19
+[videotools] 2026/01/09 21:01:38.737212 2026-01-09T21:01:38.737178718-05:00 [UI] loaded app icon from assets/logo/VT_Icon.png
+[videotools] 2026/01/09 21:01:38.737344 2026-01-09T21:01:38.737336302-05:00 [UI] app icon loaded and applied
+[videotools] 2026/01/09 21:01:38.737424 2026-01-09T21:01:38.737394601-05:00 [UI] window initialized at 800x600 (compact default), manual resizing enabled
+[videotools] 2026/01/09 21:01:38.757316 2026-01-09T21:01:38.757273213-05:00 [PLAYER] INFO: GStreamer controller initialized (GStreamer 1.26+)
+[videotools] 2026/01/09 21:01:38.760348 2026-01-09T21:01:38.760308211-05:00 [UI] building tile convert color={103 58 183 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760369 2026-01-09T21:01:38.760362402-05:00 [UI] building tile merge color={76 175 80 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760378 2026-01-09T21:01:38.760372701-05:00 [UI] building tile trim color={249 168 37 255} enabled=false missingDeps=false
+[videotools] 2026/01/09 21:01:38.760388 2026-01-09T21:01:38.76038256-05:00 [UI] building tile filters color={0 188 212 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760399 2026-01-09T21:01:38.760392538-05:00 [UI] building tile audio color={255 143 0 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760409 2026-01-09T21:01:38.760403309-05:00 [UI] building tile subtitles color={104 159 56 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760419 2026-01-09T21:01:38.760413548-05:00 [UI] building tile compare color={233 30 99 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760429 2026-01-09T21:01:38.760423456-05:00 [UI] building tile inspect color={244 67 54 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760440 2026-01-09T21:01:38.760433876-05:00 [UI] building tile upscale color={156 39 176 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760450 2026-01-09T21:01:38.760444916-05:00 [UI] building tile author color={255 87 34 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760461 2026-01-09T21:01:38.760454975-05:00 [UI] building tile rip color={255 152 0 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760471 2026-01-09T21:01:38.760465394-05:00 [UI] building tile bluray color={33 150 243 255} enabled=false missingDeps=false
+[videotools] 2026/01/09 21:01:38.760479 2026-01-09T21:01:38.760474672-05:00 [UI] building tile player color={63 81 181 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760488 2026-01-09T21:01:38.760483338-05:00 [UI] building tile thumb color={0 172 193 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.760497 2026-01-09T21:01:38.760491704-05:00 [UI] building tile settings color={96 125 139 255} enabled=true missingDeps=false
+[videotools] 2026/01/09 21:01:38.876175 2026-01-09T21:01:38.876146132-05:00 [UI] main menu rendered with 17 modules
+[videotools] 2026/01/09 21:24:12.075370 2026-01-09T21:24:12.068829983-05:00 [UI] player window target pos=(0,0) size=640x360
+[videotools] 2026/01/09 21:24:12.075442 2026-01-09T21:24:12.075419871-05:00 [MODULE] loaded video into player module
+[videotools] 2026/01/09 21:24:27.395432 2026-01-09T21:24:27.395403435-05:00 [PLAYER] INFO: GStreamer loaded video: /home/stu/Videos/Test Footage/bbb_sunflower_2160p_60fps_normal.mp4 (60.00 fps, 612x320)
+[videotools] 2026/01/09 21:24:27.395560 2026-01-09T21:24:27.395542896-05:00 [PLAYER] INFO: playSession: frameDisplayLoop started (fps=60.00, interval=16.666666ms)
+[videotools] 2026/01/09 21:24:27.395795 2026-01-09T21:24:27.395729875-05:00 [PLAYER] playSession: SetVolume to 100.0%
+[videotools] 2026/01/09 21:24:27.396338 2026-01-09T21:24:27.396328454-05:00 [PLAYER] playSession: Play called
+[videotools] 2026/01/09 21:24:27.451411 2026-01-09T21:24:27.451380951-05:00 [PLAYER] Frame 1 updated (0.04s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.496824 2026-01-09T21:24:27.496795532-05:00 [PLAYER] Frame 2 updated (0.09s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.564804 2026-01-09T21:24:27.564750487-05:00 [PLAYER] Frame 3 updated (0.16s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.602671 2026-01-09T21:24:27.602625234-05:00 [PLAYER] Frame 4 updated (0.17s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.628470 2026-01-09T21:24:27.628371521-05:00 [PLAYER] Frame 5 updated (0.21s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.662033 2026-01-09T21:24:27.66198912-05:00 [PLAYER] Frame 6 updated (0.24s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.707839 2026-01-09T21:24:27.707790134-05:00 [PLAYER] Frame 7 updated (0.29s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.746562 2026-01-09T21:24:27.746528005-05:00 [PLAYER] Frame 9 updated (0.34s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.754397 2026-01-09T21:24:27.754369422-05:00 [PLAYER] Frame 9 updated (0.34s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.785155 2026-01-09T21:24:27.785123299-05:00 [PLAYER] Frame 10 updated (0.38s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.819318 2026-01-09T21:24:27.819283182-05:00 [PLAYER] Frame 11 updated (0.41s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.874848 2026-01-09T21:24:27.874767376-05:00 [PLAYER] Frame 12 updated (0.45s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.908088 2026-01-09T21:24:27.908046123-05:00 [PLAYER] Frame 13 updated (0.47s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.932341 2026-01-09T21:24:27.932306702-05:00 [PLAYER] Frame 14 updated (0.52s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:27.982781 2026-01-09T21:24:27.982733081-05:00 [PLAYER] Frame 15 updated (0.57s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.034175 2026-01-09T21:24:28.034118784-05:00 [PLAYER] Frame 17 updated (0.63s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.081042 2026-01-09T21:24:28.074553066-05:00 [PLAYER] Frame 18 updated (0.67s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.113598 2026-01-09T21:24:28.113521137-05:00 [PLAYER] Frame 18 updated (0.67s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.157376 2026-01-09T21:24:28.157319757-05:00 [PLAYER] Frame 19 updated (0.72s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.193074 2026-01-09T21:24:28.193032734-05:00 [PLAYER] Frame 21 updated (0.79s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.225241 2026-01-09T21:24:28.225212165-05:00 [PLAYER] Frame 22 updated (0.82s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.235108 2026-01-09T21:24:28.235053932-05:00 [PLAYER] Frame 22 updated (0.82s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.267262 2026-01-09T21:24:28.267209288-05:00 [PLAYER] Frame 23 updated (0.85s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.309876 2026-01-09T21:24:28.309821411-05:00 [PLAYER] Frame 24 updated (0.89s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.341272 2026-01-09T21:24:28.341231474-05:00 [PLAYER] Frame 25 updated (0.92s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.371357 2026-01-09T21:24:28.37133193-05:00 [PLAYER] Frame 26 updated (0.96s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.401294 2026-01-09T21:24:28.401268909-05:00 [PLAYER] Frame 27 updated (0.99s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.432303 2026-01-09T21:24:28.43224406-05:00 [PLAYER] Frame 28 updated (1.02s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.464329 2026-01-09T21:24:28.464301523-05:00 [PLAYER] Frame 29 updated (1.05s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.502348 2026-01-09T21:24:28.502319027-05:00 [PLAYER] Frame 30 updated (1.09s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.530081 2026-01-09T21:24:28.530050595-05:00 [PLAYER] Frame 31 updated (1.12s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.567645 2026-01-09T21:24:28.567618388-05:00 [PLAYER] Frame 32 updated (1.16s, paused=false, size=3840x2160)
+[videotools] 2026/01/09 21:24:28.591011 2026-01-09T21:24:28.59085311-05:00 [PLAYER] playSession: Pause called
+[videotools] 2026/01/09 21:24:28.604764 2026-01-09T21:24:28.604734898-05:00 [PLAYER] Frame 33 updated (1.19s, paused=true, size=3840x2160)
+[videotools] 2026/01/09 21:30:56.926763 2026-01-09T21:30:56.926305928-05:00 [PLAYER] playSession: Stop called
+[videotools] 2026/01/09 21:30:56.926831 2026-01-09T21:30:56.926375819-05:00 [PLAYER] INFO: playSession: frameDisplayLoop stopped

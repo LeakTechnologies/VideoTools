@@ -8,7 +8,7 @@ VideoTools is a modular application for video processing. While many features ar
 
 ## 🚨 Critical Known Issues
 
-*   **Player Module:** The core player has fundamental A/V synchronization and frame-accurate seeking issues. This blocks the development of several planned features that depend on it (e.g., Trim, Filters). A major rework of the player is a critical priority.
+*None currently*
 
 ## Module Implementation Status
 
@@ -16,11 +16,11 @@ VideoTools is a modular application for video processing. While many features ar
 
 | Module  | Status                      | Notes                                                                  |
 | :------ | :-------------------------- | :--------------------------------------------------------------------- |
-| Player  | 🟡 **Partial / Buggy**      | Core playback works, but critical bugs block further development.      |
+| Player  | ✅ **Implemented**            | GStreamer-based player with stable A/V sync and frame-accurate seeking. |
 | Convert | ✅ **Implemented**            | Fully implemented with DVD encoding and professional validation.       |
 | Merge   | 🔄 **Planned**                | Planned for a future release.                                          |
-| Trim    | 🔄 **Planned**                | Planned. Depends on Player module fixes.                               |
-| Filters | 🔄 **Planned**                | Planned. Depends on Player module fixes.                               |
+| Trim    | 🔄 **Planned**                | Planned for a future release.                                          |
+| Filters | 🔄 **Planned**                | Planned for a future release.                                          |
 | Upscale | 🟡 **Partial**              | AI-based upscaling (Real-ESRGAN) is integrated.                        |
 | Audio   | 🔄 **Planned**                | Planned for a future release.                                          |
 | Thumb   | 🔄 **Planned**                | Planned for a future release.                                          |
