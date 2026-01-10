@@ -43,6 +43,9 @@ static void vt_gst_free_error(char* msg) {
 		g_free(msg);
 	}
 }
+static gboolean vt_gst_message_is_error(GstMessage* msg) {
+	return GST_MESSAGE_TYPE(msg) == GST_MESSAGE_ERROR;
+}
 */
 import "C"
 
@@ -189,7 +192,7 @@ func (p *GStreamerPlayer) Load(path string, offset time.Duration) error {
 		// Wait up to 5 seconds for preroll
 		msg := C.gst_bus_timed_pop_filtered(bus, 5000000000, C.GST_MESSAGE_ASYNC_DONE|C.GST_MESSAGE_ERROR)
 		if msg != nil {
-			if C.GST_MESSAGE_TYPE(msg) == C.GST_MESSAGE_ERROR {
+			if C.vt_gst_message_is_error(msg) != 0 {
 				errMsg := C.vt_gst_error_from_message(msg)
 				C.gst_message_unref(msg)
 				p.closeLocked()
