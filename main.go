@@ -1412,11 +1412,15 @@ Config:
 	}
 
 	// Layout: details at top (scrollable), FFmpeg at bottom (fixed)
+	bottomItems := []fyne.CanvasObject{}
+	if ffmpegSection != nil {
+		bottomItems = append(bottomItems, ffmpegSection)
+	}
+	bottomItems = append(bottomItems, container.NewHBox(buttons...))
 	content := container.NewBorder(
 		detailsScroll, // Top: job details (scrollable, takes priority)
 		container.NewVBox( // Bottom: FFmpeg command (fixed)
-			ffmpegSection,
-			container.NewHBox(buttons...),
+			bottomItems...,
 		),
 		nil, nil,
 		nil, // No center content - top and bottom fill the space
