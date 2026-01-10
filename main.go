@@ -11209,6 +11209,8 @@ type playSession struct {
 	frameFunc   func(int) // Callback for frame number updates
 	img         *canvas.Image
 	mu          sync.Mutex
+	seekTimer   *time.Timer
+	seekPending float64
 	videoCmd    *exec.Cmd
 	audioCmd    *exec.Cmd
 	frameN      int
@@ -11350,47 +11352,59 @@ func (p *playSession) Seek(offset float64) {
 		offset = 0
 	}
 
-	// Use GStreamer player
-	if p.gstPlayer != nil {
-		paused := p.paused
-		_ = p.gstPlayer.SeekToTime(time.Duration(offset * float64(time.Second)))
-		if paused {
-			_ = p.gstPlayer.Pause()
-		} else {
-			_ = p.gstPlayer.Play()
-		}
-		p.current = offset
-		p.frameN = int(p.current * p.fps)
-		logging.Debug(logging.CatPlayer, "playSession: Seek to %.2fs", offset)
-		prog := p.prog
-		frameFunc := p.frameFunc
-		img := p.img
-		p.mu.Unlock()
+	p.seekPending = offset
+	if p.seekTimer != nil {
+		p.seekTimer.Stop()
+	}
+	p.seekTimer = time.AfterFunc(120*time.Millisecond, func() {
+		p.seekNow()
+	})
+	p.mu.Unlock()
+}
 
-		if prog != nil {
-			prog(p.current)
-		}
-		if frameFunc != nil {
-			frameFunc(p.frameN)
-		}
-		if paused {
-			frame, err := p.gstPlayer.GetFrameImage()
-			if err == nil && frame != nil {
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					if img != nil {
-						img.Resource = nil
-						img.File = ""
-						img.Image = frame
-						img.Refresh()
-					}
-				}, false)
-			}
-		}
+func (p *playSession) seekNow() {
+	p.mu.Lock()
+	offset := p.seekPending
+	paused := p.paused
+	gstPlayer := p.gstPlayer
+	prog := p.prog
+	frameFunc := p.frameFunc
+	img := p.img
+	if gstPlayer == nil {
+		p.mu.Unlock()
 		return
 	}
-
+	p.current = offset
+	p.frameN = int(p.current * p.fps)
 	p.mu.Unlock()
-	logging.Error(logging.CatPlayer, "playSession: GStreamer player not available")
+
+	_ = gstPlayer.SeekToTime(time.Duration(offset * float64(time.Second)))
+	if paused {
+		_ = gstPlayer.Pause()
+	} else {
+		_ = gstPlayer.Play()
+	}
+	logging.Debug(logging.CatPlayer, "playSession: Seek to %.2fs", offset)
+
+	if prog != nil {
+		prog(offset)
+	}
+	if frameFunc != nil {
+		frameFunc(int(offset * p.fps))
+	}
+	if paused {
+		frame, err := gstPlayer.GetFrameImage()
+		if err == nil && frame != nil {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				if img != nil {
+					img.Resource = nil
+					img.File = ""
+					img.Image = frame
+					img.Refresh()
+				}
+			}, false)
+		}
+	}
 }
 
 // StepFrame moves forward or backward by a specific number of frames.
@@ -11611,6 +11625,10 @@ func (p *playSession) stopLocked() {
 	// Stop GStreamer player
 	if p.gstPlayer != nil {
 		p.gstPlayer.Stop()
+	}
+	if p.seekTimer != nil {
+		p.seekTimer.Stop()
+		p.seekTimer = nil
 	}
 
 	// Fallback to dual-process cleanup
