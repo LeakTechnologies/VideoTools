@@ -11528,6 +11528,22 @@ func (p *playSession) Stop() {
 	p.stopLocked()
 }
 
+func (p *playSession) Close() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.stopLocked()
+	if p.gstPlayer != nil {
+		p.gstPlayer.Close()
+		p.gstPlayer = nil
+	}
+	if p.img != nil {
+		p.img.Resource = nil
+		p.img.File = ""
+		p.img.Image = nil
+	}
+}
+
 func (p *playSession) stopLocked() {
 	// Stop GStreamer player
 	if p.gstPlayer != nil {
@@ -12660,6 +12676,7 @@ func (s *appState) loadMultipleVideos(paths []string) {
 
 func (s *appState) clearVideo() {
 	logging.Debug(logging.CatModule, "clearing loaded video")
+	s.releasePlaybackSession()
 	s.stopPlayer()
 	s.source = nil
 	s.loadedVideos = nil
@@ -12674,6 +12691,14 @@ func (s *appState) clearVideo() {
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(nil)
 	}, false)
+}
+
+func (s *appState) releasePlaybackSession() {
+	s.stopPreview()
+	if s.playSess != nil {
+		s.playSess.Close()
+		s.playSess = nil
+	}
 }
 
 // loadVideos loads multiple videos for navigation
@@ -15362,6 +15387,8 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 
 	// Clear video button
 	clearBtn := widget.NewButton("Clear Video", func() {
+		state.releasePlaybackSession()
+		state.stopPlayer()
 		state.playerFile = nil
 		state.showPlayerView()
 	})
