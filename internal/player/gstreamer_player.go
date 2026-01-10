@@ -24,6 +24,25 @@ static void vt_gst_set_float(GstElement* elem, const char* name, gdouble value) 
 static void vt_gst_set_obj(GstElement* elem, const char* name, gpointer value) {
 	g_object_set(G_OBJECT(elem), name, value, NULL);
 }
+static char* vt_gst_error_from_message(GstMessage* msg) {
+	GError* err = NULL;
+	gchar* debug = NULL;
+	gst_message_parse_error(msg, &err, &debug);
+	if (debug != NULL) {
+		g_free(debug);
+	}
+	if (err == NULL) {
+		return NULL;
+	}
+	char* out = g_strdup(err->message != NULL ? err->message : "gstreamer error");
+	g_error_free(err);
+	return out;
+}
+static void vt_gst_free_error(char* msg) {
+	if (msg != NULL) {
+		g_free(msg);
+	}
+}
 */
 import "C"
 
@@ -104,7 +123,11 @@ func (p *GStreamerPlayer) Load(path string, offset time.Duration) error {
 	C.vt_gst_set_bool(appsink, emitSignals, C.gboolean(0))
 	C.free(unsafe.Pointer(emitSignals))
 	syncName := C.CString("sync")
-	C.vt_gst_set_bool(appsink, syncName, C.gboolean(0))
+	if p.preview {
+		C.vt_gst_set_bool(appsink, syncName, C.gboolean(0))
+	} else {
+		C.vt_gst_set_bool(appsink, syncName, C.gboolean(1))
+	}
 	C.free(unsafe.Pointer(syncName))
 	maxBuffers := C.CString("max-buffers")
 	C.vt_gst_set_int(appsink, maxBuffers, C.gint(2))
@@ -154,7 +177,10 @@ func (p *GStreamerPlayer) Load(path string, offset time.Duration) error {
 	p.paused = true
 
 	// Set to PAUSED to preroll (loads first frame)
-	C.gst_element_set_state(playbin, C.GST_STATE_PAUSED)
+	if C.gst_element_set_state(playbin, C.GST_STATE_PAUSED) == C.GST_STATE_CHANGE_FAILURE {
+		p.closeLocked()
+		return errors.New("gstreamer failed to enter paused state")
+	}
 
 	// Wait for preroll to complete (first frame ready)
 	bus := C.gst_element_get_bus(playbin)
@@ -163,6 +189,16 @@ func (p *GStreamerPlayer) Load(path string, offset time.Duration) error {
 		// Wait up to 5 seconds for preroll
 		msg := C.gst_bus_timed_pop_filtered(bus, 5000000000, C.GST_MESSAGE_ASYNC_DONE|C.GST_MESSAGE_ERROR)
 		if msg != nil {
+			if C.GST_MESSAGE_TYPE(msg) == C.GST_MESSAGE_ERROR {
+				errMsg := C.vt_gst_error_from_message(msg)
+				C.gst_message_unref(msg)
+				p.closeLocked()
+				if errMsg != nil {
+					defer C.vt_gst_free_error(errMsg)
+					return errors.New(C.GoString(errMsg))
+				}
+				return errors.New("gstreamer error while loading")
+			}
 			C.gst_message_unref(msg)
 		}
 	}
@@ -181,7 +217,9 @@ func (p *GStreamerPlayer) Play() error {
 	if p.pipeline == nil {
 		return errors.New("no pipeline loaded")
 	}
-	C.gst_element_set_state(p.pipeline, C.GST_STATE_PLAYING)
+	if C.gst_element_set_state(p.pipeline, C.GST_STATE_PLAYING) == C.GST_STATE_CHANGE_FAILURE {
+		return errors.New("gstreamer failed to enter playing state")
+	}
 	p.paused = false
 	return nil
 }
@@ -193,7 +231,9 @@ func (p *GStreamerPlayer) Pause() error {
 	if p.pipeline == nil {
 		return errors.New("no pipeline loaded")
 	}
-	C.gst_element_set_state(p.pipeline, C.GST_STATE_PAUSED)
+	if C.gst_element_set_state(p.pipeline, C.GST_STATE_PAUSED) == C.GST_STATE_CHANGE_FAILURE {
+		return errors.New("gstreamer failed to enter paused state")
+	}
 	p.paused = true
 	return nil
 }
@@ -246,7 +286,8 @@ func (p *GStreamerPlayer) GetFrameImage() (*image.RGBA, error) {
 	if p.appsink == nil {
 		return nil, errors.New("gstreamer appsink unavailable")
 	}
-	sample := C.gst_app_sink_try_pull_sample((*C.GstAppSink)(unsafe.Pointer(p.appsink)), 0)
+	const pullTimeout = C.gint64(50 * 1000 * 1000)
+	sample := C.gst_app_sink_try_pull_sample((*C.GstAppSink)(unsafe.Pointer(p.appsink)), pullTimeout)
 	if sample == nil {
 		return nil, nil
 	}
@@ -318,11 +359,6 @@ func (p *GStreamerPlayer) SetWindow(x, y, w, h int) {
 	defer p.mu.Unlock()
 	// GStreamer with appsink doesn't need window positioning
 	// The frames are extracted and displayed by Fyne
-	// Store dimensions for frame sizing
-	if w > 0 && h > 0 {
-		p.width = w
-		p.height = h
-	}
 }
 
 func (p *GStreamerPlayer) SetFullScreen(fullscreen bool) error {
