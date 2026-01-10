@@ -11437,9 +11437,12 @@ func (p *playSession) frameDisplayLoop() {
 
 			// Get current time from GStreamer
 			currentTime := p.gstPlayer.GetCurrentTime()
+			p.mu.Lock()
+			isPaused := p.paused
+			p.mu.Unlock()
 
 			// Skip if this is the same frame as last time (optimization)
-			if currentTime == lastFrameTime && frameCount > 0 {
+			if currentTime == lastFrameTime && frameCount > 0 && !isPaused {
 				continue
 			}
 			lastFrameTime = currentTime
@@ -11452,7 +11455,6 @@ func (p *playSession) frameDisplayLoop() {
 			p.mu.Lock()
 			p.frameN = actualFrameNumber
 			p.current = currentTime.Seconds()
-			isPaused := p.paused
 			p.mu.Unlock()
 
 			// Update UI on main thread
