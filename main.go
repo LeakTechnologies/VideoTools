@@ -1970,10 +1970,17 @@ func (s *appState) showMainMenu() {
 			}
 		}
 
+		onHistoryClick := func(entry ui.HistoryEntry) {
+			if entry.Status == queue.JobStatusRunning || entry.Status == queue.JobStatusPending {
+				s.showQueue()
+				return
+			}
+			s.showHistoryDetails(entry)
+		}
 		sidebar = ui.BuildHistorySidebar(
 			s.historyEntries,
 			activeJobs,
-			s.showHistoryDetails,
+			onHistoryClick,
 			s.deleteHistoryEntry,
 			s.clearHistoryEntries,
 			s.historyTabIdx,
