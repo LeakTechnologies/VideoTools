@@ -11401,10 +11401,13 @@ func (p *playSession) frameDisplayLoop() {
 			}
 			lastFrameTime = currentTime
 
-			// Update frame counter
+			// Calculate actual video frame number from current time
+			actualFrameNumber := int(currentTime.Seconds() * p.fps)
+
+			// Update frame counter (for display tracking)
 			frameCount++
 			p.mu.Lock()
-			p.frameN = frameCount
+			p.frameN = actualFrameNumber
 			p.current = currentTime.Seconds()
 			isPaused := p.paused
 			p.mu.Unlock()
@@ -11421,7 +11424,7 @@ func (p *playSession) frameDisplayLoop() {
 					p.prog(p.current)
 				}
 				if p.frameFunc != nil {
-					p.frameFunc(frameCount)
+					p.frameFunc(actualFrameNumber)
 				}
 			}, false)
 		}
