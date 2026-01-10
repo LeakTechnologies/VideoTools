@@ -11356,42 +11356,60 @@ func (p *playSession) Seek(offset float64) {
 // Positive delta moves forward, negative moves backward.
 func (p *playSession) StepFrame(delta int) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	if p.fps <= 0 {
+		p.mu.Unlock()
+		return
+	}
+	gstPlayer := p.gstPlayer
+	if gstPlayer == nil {
+		p.mu.Unlock()
+		logging.Error(logging.CatPlayer, "playSession: GStreamer player not available")
 		return
 	}
 
-	// Use GStreamer player
-	if p.gstPlayer != nil {
-		currentFrame := int(p.current * p.fps)
-		targetFrame := currentFrame + delta
+	currentFrame := int(p.current * p.fps)
+	targetFrame := currentFrame + delta
 
-		// Clamp to valid range
-		if targetFrame < 0 {
-			targetFrame = 0
-		}
-		maxFrame := int(p.duration * p.fps)
-		if targetFrame > maxFrame {
-			targetFrame = maxFrame
-		}
-
-		// Seek to target frame
-		p.gstPlayer.SeekToFrame(int64(targetFrame))
-		p.current = float64(targetFrame) / p.fps
-		p.paused = true
-		p.frameN = targetFrame
-
-		if p.frameFunc != nil {
-			p.frameFunc(targetFrame)
-		}
-		if p.prog != nil {
-			p.prog(p.current)
-		}
-		logging.Debug(logging.CatPlayer, "playSession: StepFrame delta=%d to frame %d", delta, targetFrame)
-		return
+	// Clamp to valid range
+	if targetFrame < 0 {
+		targetFrame = 0
+	}
+	maxFrame := int(p.duration * p.fps)
+	if targetFrame > maxFrame {
+		targetFrame = maxFrame
 	}
 
-	logging.Error(logging.CatPlayer, "playSession: GStreamer player not available")
+	// Seek to target frame
+	_ = gstPlayer.SeekToFrame(int64(targetFrame))
+	p.current = float64(targetFrame) / p.fps
+	p.paused = true
+	p.frameN = targetFrame
+
+	prog := p.prog
+	frameFunc := p.frameFunc
+	img := p.img
+	p.mu.Unlock()
+
+	if frameFunc != nil {
+		frameFunc(targetFrame)
+	}
+	if prog != nil {
+		prog(p.current)
+	}
+
+	frame, err := gstPlayer.GetFrameImage()
+	if err == nil && frame != nil {
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			if img != nil {
+				img.Resource = nil
+				img.File = ""
+				img.Image = frame
+				img.Refresh()
+			}
+		}, false)
+	}
+
+	logging.Debug(logging.CatPlayer, "playSession: StepFrame delta=%d to frame %d", delta, targetFrame)
 }
 
 // frameDisplayLoop continuously pulls frames from GStreamer and updates the UI
