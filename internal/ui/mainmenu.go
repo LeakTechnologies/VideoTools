@@ -207,6 +207,9 @@ func BuildHistorySidebar(
 	activeJobs []HistoryEntry,
 	onEntryClick func(HistoryEntry),
 	onEntryDelete func(HistoryEntry),
+	onClearAll func(),
+	selectedTab int,
+	onTabChanged func(int),
 	titleColor, bgColor, textColor color.Color,
 ) fyne.CanvasObject {
 	// Filter by status
@@ -231,14 +234,34 @@ func BuildHistorySidebar(
 		container.NewTabItem("Failed", container.NewVScroll(failedList)),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
+	if selectedTab >= 0 && selectedTab < len(tabs.Items) {
+		tabs.SelectIndex(selectedTab)
+	}
+	tabs.OnSelected = func(item *container.TabItem) {
+		if onTabChanged == nil {
+			return
+		}
+		for idx, tab := range tabs.Items {
+			if tab == item {
+				onTabChanged(idx)
+				return
+			}
+		}
+	}
 
 	// Header
 	title := canvas.NewText("HISTORY", titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 18
+	clearBtn := widget.NewButton("Clear All", func() {
+		if onClearAll != nil {
+			onClearAll()
+		}
+	})
+	clearBtn.Importance = widget.LowImportance
 
 	header := container.NewVBox(
-		container.NewCenter(title),
+		container.NewBorder(nil, nil, title, clearBtn, nil),
 		widget.NewSeparator(),
 	)
 
