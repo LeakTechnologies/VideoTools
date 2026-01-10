@@ -1145,6 +1145,7 @@ type appState struct {
 	// History sidebar state
 	historyEntries []ui.HistoryEntry
 	sidebarVisible bool
+	historyTabIdx  int
 
 	// Author module state
 	authorFile                *videoSource
@@ -1436,6 +1437,10 @@ func (s *appState) deleteHistoryEntry(entry ui.HistoryEntry) {
 		_ = s.jobQueue.Remove(entry.ID)
 	}
 
+	if entry.LogPath != "" {
+		_ = os.Remove(entry.LogPath)
+	}
+
 	// Remove entry from history
 	var updated []ui.HistoryEntry
 	for _, e := range s.historyEntries {
@@ -1452,6 +1457,20 @@ func (s *appState) deleteHistoryEntry(entry ui.HistoryEntry) {
 	}
 
 	// Refresh main menu to update sidebar
+	s.refreshMainMenuThrottled()
+}
+
+func (s *appState) clearHistoryEntries() {
+	for _, entry := range s.historyEntries {
+		if entry.LogPath != "" {
+			_ = os.Remove(entry.LogPath)
+		}
+	}
+	s.historyEntries = nil
+	cfg := historyConfig{Entries: s.historyEntries}
+	if err := saveHistoryConfig(cfg); err != nil {
+		logging.Debug(logging.CatUI, "failed to save history after clear: %v", err)
+	}
 	s.refreshMainMenuThrottled()
 }
 
@@ -1941,6 +1960,11 @@ func (s *appState) showMainMenu() {
 			activeJobs,
 			s.showHistoryDetails,
 			s.deleteHistoryEntry,
+			s.clearHistoryEntries,
+			s.historyTabIdx,
+			func(idx int) {
+				s.historyTabIdx = idx
+			},
 			titleColor,
 			utils.MustHex("#1A1F2E"),
 			textColor,
