@@ -11101,12 +11101,14 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			if !ensureSession() {
 				return
 			}
+			state.playerPaused = true
 			state.playSess.StepFrame(-1)
 		})
 		nextFrameBtn := utils.MakeIconButton("|▶", "Next frame (Right Arrow)", func() {
 			if !ensureSession() {
 				return
 			}
+			state.playerPaused = true
 			state.playSess.StepFrame(1)
 		})
 
@@ -11341,6 +11343,11 @@ func (p *playSession) Seek(offset float64) {
 	// Use GStreamer player
 	if p.gstPlayer != nil {
 		p.gstPlayer.SeekToTime(time.Duration(offset * float64(time.Second)))
+		if p.paused {
+			_ = p.gstPlayer.Pause()
+		} else {
+			_ = p.gstPlayer.Play()
+		}
 		p.current = offset
 		logging.Debug(logging.CatPlayer, "playSession: Seek to %.2fs", offset)
 		if p.prog != nil {
@@ -11380,7 +11387,9 @@ func (p *playSession) StepFrame(delta int) {
 	}
 
 	// Seek to target frame
+	_ = gstPlayer.Pause()
 	_ = gstPlayer.SeekToFrame(int64(targetFrame))
+	_ = gstPlayer.Pause()
 	p.current = float64(targetFrame) / p.fps
 	p.paused = true
 	p.frameN = targetFrame
