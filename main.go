@@ -1460,13 +1460,24 @@ func (s *appState) deleteHistoryEntry(entry ui.HistoryEntry) {
 	s.refreshMainMenuThrottled()
 }
 
-func (s *appState) clearHistoryEntries() {
-	for _, entry := range s.historyEntries {
-		if entry.LogPath != "" {
-			_ = os.Remove(entry.LogPath)
-		}
+func (s *appState) clearHistoryEntries(tabIndex int) {
+	if tabIndex == 0 {
+		return
 	}
-	s.historyEntries = nil
+	keep := s.historyEntries[:0]
+	for _, entry := range s.historyEntries {
+		isCompleted := entry.Status == queue.JobStatusCompleted
+		isFailed := entry.Status != queue.JobStatusCompleted
+		shouldClear := (tabIndex == 1 && isCompleted) || (tabIndex == 2 && isFailed)
+		if shouldClear {
+			if entry.LogPath != "" {
+				_ = os.Remove(entry.LogPath)
+			}
+			continue
+		}
+		keep = append(keep, entry)
+	}
+	s.historyEntries = keep
 	cfg := historyConfig{Entries: s.historyEntries}
 	if err := saveHistoryConfig(cfg); err != nil {
 		logging.Debug(logging.CatUI, "failed to save history after clear: %v", err)

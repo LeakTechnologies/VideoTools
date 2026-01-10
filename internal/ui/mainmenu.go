@@ -207,7 +207,7 @@ func BuildHistorySidebar(
 	activeJobs []HistoryEntry,
 	onEntryClick func(HistoryEntry),
 	onEntryDelete func(HistoryEntry),
-	onClearAll func(),
+	onClearAll func(int),
 	selectedTab int,
 	onTabChanged func(int),
 	titleColor, bgColor, textColor color.Color,
@@ -254,9 +254,17 @@ func BuildHistorySidebar(
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 18
 	clearBtn := widget.NewButton("Clear All", func() {
-		if onClearAll != nil {
-			onClearAll()
+		if onClearAll == nil {
+			return
 		}
+		idx := 0
+		for i, tab := range tabs.Items {
+			if tab == tabs.Selected() {
+				idx = i
+				break
+			}
+		}
+		onClearAll(idx)
 	})
 	clearBtn.Importance = widget.LowImportance
 
