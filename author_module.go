@@ -3215,7 +3215,10 @@ func createAuthorLog(inputs []string, outputPath string, makeISO bool, region, a
 	if base == "" {
 		base = "author"
 	}
-	logPath := filepath.Join(getLogsDir(), base+"-author"+conversionLogSuffix)
+	// Add timestamp prefix for chronological sorting and uniqueness
+	timestamp := time.Now().Format("20060102_150405")
+	logFilename := fmt.Sprintf("%s-%s-author%s", timestamp, base, conversionLogSuffix)
+	logPath := filepath.Join(getLogsDir(), logFilename)
 	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
 		return nil, logPath, fmt.Errorf("create log dir: %w", err)
 	}
