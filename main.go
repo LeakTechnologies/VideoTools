@@ -11398,6 +11398,8 @@ func (p *playSession) frameDisplayLoop() {
 			// Update UI on main thread
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				if p.img != nil {
+					// Clear file reference so Fyne uses the Image field
+					p.img.File = ""
 					p.img.Image = frame
 					p.img.Refresh()
 					logging.Debug(logging.CatPlayer, "Frame %d updated (%.2fs, paused=%v, size=%dx%d)",
