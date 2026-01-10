@@ -72,6 +72,7 @@ type GStreamerPlayer struct {
 	width    int
 	height   int
 	fps      float64
+	queued   *image.RGBA
 }
 
 func NewGStreamerPlayer(config Config) (*GStreamerPlayer, error) {
@@ -248,14 +249,18 @@ func (p *GStreamerPlayer) SeekToTime(offset time.Duration) error {
 }
 
 func (p *GStreamerPlayer) seekLocked(offset time.Duration) error {
+	return p.seekLockedWithFlags(offset, C.GST_SEEK_FLAG_FLUSH|C.GST_SEEK_FLAG_KEY_UNIT)
+}
+
+func (p *GStreamerPlayer) seekLockedWithFlags(offset time.Duration, flags C.GstSeekFlags) error {
 	if p.pipeline == nil {
 		return errors.New("no pipeline loaded")
 	}
 	nanos := C.gint64(offset.Nanoseconds())
-	flags := C.GstSeekFlags(C.GST_SEEK_FLAG_FLUSH | C.GST_SEEK_FLAG_KEY_UNIT)
 	if C.gst_element_seek_simple(p.pipeline, C.GST_FORMAT_TIME, flags, nanos) == 0 {
 		return errors.New("gstreamer seek failed")
 	}
+	p.primeAfterSeekLocked()
 	return nil
 }
 
@@ -266,7 +271,8 @@ func (p *GStreamerPlayer) SeekToFrame(frame int64) error {
 		return nil
 	}
 	seconds := float64(frame) / p.fps
-	return p.seekLocked(time.Duration(seconds * float64(time.Second)))
+	flags := C.GstSeekFlags(C.GST_SEEK_FLAG_FLUSH | C.GST_SEEK_FLAG_ACCURATE)
+	return p.seekLockedWithFlags(time.Duration(seconds*float64(time.Second)), flags)
 }
 
 func (p *GStreamerPlayer) GetCurrentTime() time.Duration {
@@ -289,8 +295,19 @@ func (p *GStreamerPlayer) GetFrameImage() (*image.RGBA, error) {
 	if p.appsink == nil {
 		return nil, errors.New("gstreamer appsink unavailable")
 	}
-	pullTimeout := C.GstClockTime(50 * 1000 * 1000)
-	sample := C.gst_app_sink_try_pull_sample((*C.GstAppSink)(unsafe.Pointer(p.appsink)), pullTimeout)
+	if p.queued != nil {
+		frame := p.queued
+		p.queued = nil
+		return frame, nil
+	}
+	return p.readFrameLocked(C.GstClockTime(50 * 1000 * 1000))
+}
+
+func (p *GStreamerPlayer) readFrameLocked(timeout C.GstClockTime) (*image.RGBA, error) {
+	if p.appsink == nil {
+		return nil, errors.New("gstreamer appsink unavailable")
+	}
+	sample := C.gst_app_sink_try_pull_sample((*C.GstAppSink)(unsafe.Pointer(p.appsink)), timeout)
 	if sample == nil {
 		return nil, nil
 	}
@@ -343,6 +360,17 @@ func (p *GStreamerPlayer) GetFrameImage() (*image.RGBA, error) {
 	data := unsafe.Slice((*byte)(unsafe.Pointer(mapInfo.data)), frameSize)
 	copy(img.Pix, data)
 	return img, nil
+}
+
+func (p *GStreamerPlayer) primeAfterSeekLocked() {
+	if p.appsink == nil {
+		return
+	}
+	frame, err := p.readFrameLocked(C.GstClockTime(200 * 1000 * 1000))
+	if err != nil || frame == nil {
+		return
+	}
+	p.queued = frame
 }
 
 func (p *GStreamerPlayer) SetVolume(level float64) error {
