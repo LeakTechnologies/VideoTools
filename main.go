@@ -11356,12 +11356,18 @@ func (p *playSession) frameDisplayLoop() {
 	if p.fps <= 0 {
 		p.fps = 24
 	}
-	frameDuration := time.Second / time.Duration(p.fps)
+	// Use 30fps max for UI updates to reduce overhead (even for 60fps video)
+	displayFPS := p.fps
+	if displayFPS > 30 {
+		displayFPS = 30
+	}
+	frameDuration := time.Second / time.Duration(displayFPS)
 	ticker := time.NewTicker(frameDuration)
 	defer ticker.Stop()
 
 	frameCount := 0
-	logging.Info(logging.CatPlayer, "playSession: frameDisplayLoop started (fps=%.2f, interval=%v)", p.fps, frameDuration)
+	lastFrameTime := time.Duration(0)
+	logging.Info(logging.CatPlayer, "playSession: frameDisplayLoop started (video fps=%.2f, display fps=%.2f, interval=%v)", p.fps, displayFPS, frameDuration)
 
 	for {
 		select {
@@ -11386,11 +11392,19 @@ func (p *playSession) frameDisplayLoop() {
 				continue
 			}
 
+			// Get current time from GStreamer
+			currentTime := p.gstPlayer.GetCurrentTime()
+
+			// Skip if this is the same frame as last time (optimization)
+			if currentTime == lastFrameTime && frameCount > 0 {
+				continue
+			}
+			lastFrameTime = currentTime
+
 			// Update frame counter
 			frameCount++
 			p.mu.Lock()
 			p.frameN = frameCount
-			currentTime := p.gstPlayer.GetCurrentTime()
 			p.current = currentTime.Seconds()
 			isPaused := p.paused
 			p.mu.Unlock()
@@ -11402,8 +11416,6 @@ func (p *playSession) frameDisplayLoop() {
 					p.img.File = ""
 					p.img.Image = frame
 					p.img.Refresh()
-					logging.Debug(logging.CatPlayer, "Frame %d updated (%.2fs, paused=%v, size=%dx%d)",
-						frameCount, p.current, isPaused, frame.Bounds().Dx(), frame.Bounds().Dy())
 				}
 				if p.prog != nil && !isPaused {
 					p.prog(p.current)
