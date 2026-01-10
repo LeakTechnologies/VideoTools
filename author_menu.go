@@ -89,15 +89,15 @@ func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	}
 
 	if backgroundImage == "" {
-		if err := buildMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo); err != nil {
+		if err := buildMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo, logFn); err != nil {
 			return "", nil, err
 		}
 	}
 
-	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme)); err != nil {
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect); err != nil {
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
 		return "", nil, err
 	}
 	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
@@ -139,15 +139,15 @@ func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 	}
 
 	if backgroundImage == "" {
-		if err := buildDarkMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo); err != nil {
+		if err := buildDarkMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo, logFn); err != nil {
 			return "", nil, err
 		}
 	}
 
-	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme)); err != nil {
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect); err != nil {
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
 		return "", nil, err
 	}
 	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
@@ -188,14 +188,14 @@ func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspec
 		logFn("Building DVD menu assets with PosterMenu template...")
 	}
 
-	if err := buildPosterMenuBackground(ctx, bgPath, title, buttons, width, height, backgroundImage, resolveMenuTheme(theme), logo); err != nil {
+	if err := buildPosterMenuBackground(ctx, bgPath, title, buttons, width, height, backgroundImage, resolveMenuTheme(theme), logo, logFn); err != nil {
 		return "", nil, err
 	}
 
-	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme)); err != nil {
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect); err != nil {
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
 		return "", nil, err
 	}
 	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
@@ -262,7 +262,7 @@ func buildDVDMenuButtons(chapters []authorChapter, width, height int) []dvdMenuB
 	return buttons
 }
 
-func buildMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions) error {
+func buildMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
 
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
@@ -304,10 +304,10 @@ func buildMenuBackground(ctx context.Context, outputPath, title string, buttons 
 		}
 	}
 	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
-	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
 
-func buildDarkMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions) error {
+func buildDarkMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
 
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
@@ -349,10 +349,10 @@ func buildDarkMenuBackground(ctx context.Context, outputPath, title string, butt
 		}
 	}
 	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
-	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
 
-func buildPosterMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, backgroundImage string, theme *MenuTheme, logo menuLogoOptions) error {
+func buildPosterMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
 	if safeTitle == "" {
@@ -387,25 +387,25 @@ func buildPosterMenuBackground(ctx context.Context, outputPath, title string, bu
 		}
 	}
 	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
-	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
 
-func buildMenuOverlays(ctx context.Context, overlayPath, highlightPath, selectPath string, buttons []dvdMenuButton, width, height int, theme *MenuTheme) error {
+func buildMenuOverlays(ctx context.Context, overlayPath, highlightPath, selectPath string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
 	accent := theme.AccentColor
-	if err := buildMenuOverlay(ctx, overlayPath, buttons, width, height, "0x000000@0.0"); err != nil {
+	if err := buildMenuOverlay(ctx, overlayPath, buttons, width, height, "0x000000@0.0", logFn); err != nil {
 		return err
 	}
-	if err := buildMenuOverlay(ctx, highlightPath, buttons, width, height, fmt.Sprintf("%s@0.35", accent)); err != nil {
+	if err := buildMenuOverlay(ctx, highlightPath, buttons, width, height, fmt.Sprintf("%s@0.35", accent), logFn); err != nil {
 		return err
 	}
-	if err := buildMenuOverlay(ctx, selectPath, buttons, width, height, fmt.Sprintf("%s@0.65", accent)); err != nil {
+	if err := buildMenuOverlay(ctx, selectPath, buttons, width, height, fmt.Sprintf("%s@0.65", accent), logFn); err != nil {
 		return err
 	}
 	return nil
 }
 
-func buildMenuOverlay(ctx context.Context, outputPath string, buttons []dvdMenuButton, width, height int, boxColor string) error {
+func buildMenuOverlay(ctx context.Context, outputPath string, buttons []dvdMenuButton, width, height int, boxColor string, logFn func(string)) error {
 	filterParts := []string{}
 	for _, btn := range buttons {
 		filterParts = append(filterParts, fmt.Sprintf("drawbox=x=%d:y=%d:w=%d:h=%d:color=%s:t=fill",
@@ -424,10 +424,10 @@ func buildMenuOverlay(ctx context.Context, outputPath string, buttons []dvdMenuB
 		"-frames:v", "1",
 		outputPath,
 	}
-	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
 
-func buildMenuMPEG(ctx context.Context, bgPath, outputPath, region, aspect string) error {
+func buildMenuMPEG(ctx context.Context, bgPath, outputPath, region, aspect string, logFn func(string)) error {
 	scale := "720:480"
 	if strings.ToLower(region) == "pal" {
 		scale = "720:576"
@@ -449,7 +449,7 @@ func buildMenuMPEG(ctx context.Context, bgPath, outputPath, region, aspect strin
 		"-f", "dvd",
 		outputPath,
 	}
-	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, nil)
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
 
 func writeSpumuxXML(path, overlayPath, highlightPath, selectPath string, buttons []dvdMenuButton) error {
