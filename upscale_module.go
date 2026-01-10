@@ -154,7 +154,24 @@ func buildUpscaleFilter(targetWidth, targetHeight int, method string, preserveAs
 
 // sanitizeForPath creates a simple slug for filenames from user-visible labels
 func sanitizeForPath(label string) string {
-	r := strings.NewReplacer(" ", "", "(", "", ")", "", "×", "x", "/", "-", "\\", "-", ":", "-", ",", "", ".", "", "_", "")
+	r := strings.NewReplacer(
+		" ", "",
+		"(", "",
+		")", "",
+		"×", "x",
+		"/", "-",
+		"\\", "-",
+		":", "-",
+		",", "",
+		".", "",
+		"_", "",
+		"'", "",
+		"\"", "",
+		"`", "",
+		"!", "",
+		"?", "",
+		"&", "and",
+	)
 	return strings.ToLower(r.Replace(label))
 }
 
