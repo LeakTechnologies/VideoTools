@@ -289,7 +289,7 @@ func (p *GStreamerPlayer) GetFrameImage() (*image.RGBA, error) {
 	if p.appsink == nil {
 		return nil, errors.New("gstreamer appsink unavailable")
 	}
-	const pullTimeout = C.gint64(50 * 1000 * 1000)
+	pullTimeout := C.GstClockTime(50 * 1000 * 1000)
 	sample := C.gst_app_sink_try_pull_sample((*C.GstAppSink)(unsafe.Pointer(p.appsink)), pullTimeout)
 	if sample == nil {
 		return nil, nil
