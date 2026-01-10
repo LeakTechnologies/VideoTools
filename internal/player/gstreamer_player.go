@@ -46,6 +46,12 @@ static void vt_gst_free_error(char* msg) {
 static gboolean vt_gst_message_is_error(GstMessage* msg) {
 	return GST_MESSAGE_TYPE(msg) == GST_MESSAGE_ERROR;
 }
+static GstSample* vt_gst_pull_sample(GstAppSink* sink, GstClockTime timeout, gboolean paused) {
+	if (paused) {
+		return gst_app_sink_try_pull_preroll(sink, timeout);
+	}
+	return gst_app_sink_try_pull_sample(sink, timeout);
+}
 */
 import "C"
 
@@ -308,14 +314,22 @@ func (p *GStreamerPlayer) GetFrameImage() (*image.RGBA, error) {
 		p.queued = nil
 		return frame, nil
 	}
-	return p.readFrameLocked(C.GstClockTime(50 * 1000 * 1000))
+	pullTimeout := C.GstClockTime(50 * 1000 * 1000)
+	if p.paused {
+		pullTimeout = C.GstClockTime(200 * 1000 * 1000)
+	}
+	return p.readFrameLocked(pullTimeout)
 }
 
 func (p *GStreamerPlayer) readFrameLocked(timeout C.GstClockTime) (*image.RGBA, error) {
 	if p.appsink == nil {
 		return nil, errors.New("gstreamer appsink unavailable")
 	}
-	sample := C.gst_app_sink_try_pull_sample((*C.GstAppSink)(unsafe.Pointer(p.appsink)), timeout)
+	paused := C.gboolean(0)
+	if p.paused {
+		paused = C.gboolean(1)
+	}
+	sample := C.vt_gst_pull_sample((*C.GstAppSink)(unsafe.Pointer(p.appsink)), timeout, paused)
 	if sample == nil {
 		return nil, nil
 	}
