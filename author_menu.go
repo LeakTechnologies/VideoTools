@@ -544,13 +544,29 @@ func resolveMenuTheme(theme *MenuTheme) *MenuTheme {
 }
 
 func menuFontArg(theme *MenuTheme) string {
+	// Try FontPath first (specific font file)
 	if theme != nil && theme.FontPath != "" {
-		return fmt.Sprintf("fontfile='%s'", theme.FontPath)
+		if _, err := os.Stat(theme.FontPath); err == nil {
+			return fmt.Sprintf("fontfile='%s'", theme.FontPath)
+		}
 	}
+	// FontPath doesn't exist or is empty - use system-wide fonts
+	// Only use FontName if it's a known universally available font
 	if theme != nil && theme.FontName != "" {
-		return fmt.Sprintf("font='%s'", theme.FontName)
+		safeFonts := map[string]bool{
+			"DejaVu Sans Mono":   true,
+			"DejaVu Sans":        true,
+			"Liberation Mono":    true,
+			"Liberation Sans":    true,
+			"FreeMono":           true,
+			"FreeSans":           true,
+		}
+		if safeFonts[theme.FontName] {
+			return fmt.Sprintf("font='%s'", theme.FontName)
+		}
 	}
-	return "font='DejaVu Sans Mono'"
+	// Fallback to most universally available monospace font on Linux
+	return "font='monospace'"
 }
 
 func resolveMenuLogoPath(logo menuLogoOptions) string {
