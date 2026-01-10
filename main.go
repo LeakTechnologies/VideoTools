@@ -1428,6 +1428,14 @@ Config:
 }
 
 func (s *appState) deleteHistoryEntry(entry ui.HistoryEntry) {
+	if entry.Status == queue.JobStatusRunning || entry.Status == queue.JobStatusPending {
+		return
+	}
+
+	if s.jobQueue != nil {
+		_ = s.jobQueue.Remove(entry.ID)
+	}
+
 	// Remove entry from history
 	var updated []ui.HistoryEntry
 	for _, e := range s.historyEntries {
@@ -1444,7 +1452,7 @@ func (s *appState) deleteHistoryEntry(entry ui.HistoryEntry) {
 	}
 
 	// Refresh main menu to update sidebar
-	s.showMainMenu()
+	s.refreshMainMenuThrottled()
 }
 
 func (s *appState) stopPreview() {
