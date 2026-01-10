@@ -3248,6 +3248,11 @@ Title: %s
 }
 
 func runCommandWithLogger(ctx context.Context, name string, args []string, logFn func(string)) error {
+	// Log the command being executed for debugging
+	if logFn != nil {
+		logFn(fmt.Sprintf(">> %s %s", name, strings.Join(args, " ")))
+	}
+
 	cmd := exec.CommandContext(ctx, name, args...)
 	utils.ApplyNoWindow(cmd)
 	stdout, err := cmd.StdoutPipe()
@@ -3260,6 +3265,9 @@ func runCommandWithLogger(ctx context.Context, name string, args []string, logFn
 	}
 
 	if err := cmd.Start(); err != nil {
+		if logFn != nil {
+			logFn(fmt.Sprintf("ERROR starting command: %v", err))
+		}
 		return fmt.Errorf("%s start: %w", name, err)
 	}
 
@@ -3281,6 +3289,9 @@ func runCommandWithLogger(ctx context.Context, name string, args []string, logFn
 	err = cmd.Wait()
 	wg.Wait()
 	if err != nil {
+		if logFn != nil {
+			logFn(fmt.Sprintf("ERROR command failed: %v (exit code: %v)", err, cmd.ProcessState.ExitCode()))
+		}
 		return fmt.Errorf("%s failed: %w", name, err)
 	}
 	return nil
