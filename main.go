@@ -11335,27 +11335,50 @@ func (p *playSession) Pause() {
 
 func (p *playSession) Seek(offset float64) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	if offset < 0 {
 		offset = 0
 	}
 
 	// Use GStreamer player
 	if p.gstPlayer != nil {
-		p.gstPlayer.SeekToTime(time.Duration(offset * float64(time.Second)))
-		if p.paused {
+		paused := p.paused
+		_ = p.gstPlayer.SeekToTime(time.Duration(offset * float64(time.Second)))
+		if paused {
 			_ = p.gstPlayer.Pause()
 		} else {
 			_ = p.gstPlayer.Play()
 		}
 		p.current = offset
+		p.frameN = int(p.current * p.fps)
 		logging.Debug(logging.CatPlayer, "playSession: Seek to %.2fs", offset)
-		if p.prog != nil {
-			p.prog(p.current)
+		prog := p.prog
+		frameFunc := p.frameFunc
+		img := p.img
+		p.mu.Unlock()
+
+		if prog != nil {
+			prog(p.current)
+		}
+		if frameFunc != nil {
+			frameFunc(p.frameN)
+		}
+		if paused {
+			frame, err := p.gstPlayer.GetFrameImage()
+			if err == nil && frame != nil {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					if img != nil {
+						img.Resource = nil
+						img.File = ""
+						img.Image = frame
+						img.Refresh()
+					}
+				}, false)
+			}
 		}
 		return
 	}
 
+	p.mu.Unlock()
 	logging.Error(logging.CatPlayer, "playSession: GStreamer player not available")
 }
 
