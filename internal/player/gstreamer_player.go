@@ -111,17 +111,10 @@ type busEvent struct {
 	State C.GstState
 }
 
-type PlayerState int
-
 const (
-	StateIdle PlayerState = iota
-	StateLoading
-	StatePaused
-	StatePlaying
+	StateIdle PlayerState = iota + 100
 	StateSeeking
 	StateStepping
-	StateStopped
-	StateError
 	StateEOS
 )
 
