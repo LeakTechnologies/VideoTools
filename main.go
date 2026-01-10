@@ -11247,8 +11247,13 @@ func newPlaySession(path string, w, h int, fps, duration float64, targetW, targe
 		return nil
 	}
 
+	logging.Info(logging.CatPlayer, "GStreamer loaded video: %s (%.2f fps, %dx%d)", path, fps, targetW, targetH)
+
 	// Start frame display loop
 	go sess.frameDisplayLoop()
+
+	// Pause initially (GStreamer is already paused after Load)
+	sess.paused = true
 
 	return sess
 }
@@ -11356,12 +11361,12 @@ func (p *playSession) frameDisplayLoop() {
 	defer ticker.Stop()
 
 	frameCount := 0
-	logging.Debug(logging.CatPlayer, "playSession: frameDisplayLoop started (fps=%.2f)", p.fps)
+	logging.Info(logging.CatPlayer, "playSession: frameDisplayLoop started (fps=%.2f, interval=%v)", p.fps, frameDuration)
 
 	for {
 		select {
 		case <-p.stop:
-			logging.Debug(logging.CatPlayer, "playSession: frameDisplayLoop stopped")
+			logging.Info(logging.CatPlayer, "playSession: frameDisplayLoop stopped")
 			return
 
 		case <-ticker.C:
@@ -11369,12 +11374,7 @@ func (p *playSession) frameDisplayLoop() {
 				continue
 			}
 
-			// Skip frame updates when paused
-			if p.paused {
-				continue
-			}
-
-			// Get current frame from GStreamer
+			// Get current frame from GStreamer (even when paused, for seeking)
 			frame, err := p.gstPlayer.GetFrameImage()
 			if err != nil {
 				logging.Debug(logging.CatPlayer, "Frame read error: %v", err)
@@ -11382,6 +11382,7 @@ func (p *playSession) frameDisplayLoop() {
 			}
 
 			if frame == nil {
+				// No frame available yet - pipeline may be buffering
 				continue
 			}
 
@@ -11391,6 +11392,7 @@ func (p *playSession) frameDisplayLoop() {
 			p.frameN = frameCount
 			currentTime := p.gstPlayer.GetCurrentTime()
 			p.current = currentTime.Seconds()
+			isPaused := p.paused
 			p.mu.Unlock()
 
 			// Update UI on main thread
@@ -11398,8 +11400,10 @@ func (p *playSession) frameDisplayLoop() {
 				if p.img != nil {
 					p.img.Image = frame
 					p.img.Refresh()
+					logging.Debug(logging.CatPlayer, "Frame %d updated (%.2fs, paused=%v, size=%dx%d)",
+						frameCount, p.current, isPaused, frame.Bounds().Dx(), frame.Bounds().Dy())
 				}
-				if p.prog != nil {
+				if p.prog != nil && !isPaused {
 					p.prog(p.current)
 				}
 				if p.frameFunc != nil {

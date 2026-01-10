@@ -153,7 +153,20 @@ func (p *GStreamerPlayer) Load(path string, offset time.Duration) error {
 	p.appsink = appsink
 	p.paused = true
 
+	// Set to PAUSED to preroll (loads first frame)
 	C.gst_element_set_state(playbin, C.GST_STATE_PAUSED)
+
+	// Wait for preroll to complete (first frame ready)
+	bus := C.gst_element_get_bus(playbin)
+	if bus != nil {
+		defer C.gst_object_unref(C.gpointer(bus))
+		// Wait up to 5 seconds for preroll
+		msg := C.gst_bus_timed_pop_filtered(bus, 5000000000, C.GST_MESSAGE_ASYNC_DONE|C.GST_MESSAGE_ERROR)
+		if msg != nil {
+			C.gst_message_unref(msg)
+		}
+	}
+
 	if offset > 0 {
 		_ = p.seekLocked(offset)
 	}
