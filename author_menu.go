@@ -547,7 +547,10 @@ func menuFontArg(theme *MenuTheme) string {
 	// Try FontPath first (specific font file)
 	if theme != nil && theme.FontPath != "" {
 		if _, err := os.Stat(theme.FontPath); err == nil {
-			return fmt.Sprintf("fontfile='%s'", theme.FontPath)
+			// Escape the font path for FFmpeg filter - replace : and ' with escaped versions
+			escapedPath := strings.ReplaceAll(theme.FontPath, ":", "\\:")
+			escapedPath = strings.ReplaceAll(escapedPath, "'", "\\'")
+			return fmt.Sprintf("fontfile=%s", escapedPath)
 		}
 	}
 	// FontPath doesn't exist or is empty - use system-wide fonts
@@ -562,11 +565,11 @@ func menuFontArg(theme *MenuTheme) string {
 			"FreeSans":           true,
 		}
 		if safeFonts[theme.FontName] {
-			return fmt.Sprintf("font='%s'", theme.FontName)
+			return fmt.Sprintf("font=%s", theme.FontName)
 		}
 	}
 	// Fallback to most universally available monospace font on Linux
-	return "font='monospace'"
+	return "font=monospace"
 }
 
 func resolveMenuLogoPath(logo menuLogoOptions) string {
