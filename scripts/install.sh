@@ -344,18 +344,18 @@ else
         # Whisper backend is offline-only; no auto-install here.
     fi
 
-    # Seed whisper.cpp model from bundled offline assets (base model)
-    whisper_model_src="$(cd "$(dirname "$0")/.." && pwd)/vendor/whisper/ggml-base.bin"
+    # Seed whisper.cpp model from bundled offline assets (small model)
+    whisper_model_src="$(cd "$(dirname "$0")/.." && pwd)/vendor/whisper/ggml-small.bin"
     whisper_model_dir="$HOME/.local/share/whisper.cpp/models"
     if [ -f "$whisper_model_src" ]; then
         mkdir -p "$whisper_model_dir"
-        if [ ! -f "$whisper_model_dir/ggml-base.bin" ]; then
-            cp "$whisper_model_src" "$whisper_model_dir/ggml-base.bin"
-            echo -e "${GREEN}[OK]${NC} Whisper base model installed to $whisper_model_dir"
+        if [ ! -f "$whisper_model_dir/ggml-small.bin" ]; then
+            cp "$whisper_model_src" "$whisper_model_dir/ggml-small.bin"
+            echo -e "${GREEN}[OK]${NC} Whisper small model installed to $whisper_model_dir"
         fi
     else
-        echo -e "${RED}[ERROR]${NC} Offline Whisper model not found at vendor/whisper/ggml-base.bin"
-        echo "Place ggml-base.bin there to keep installs fully offline."
+        echo -e "${RED}[ERROR]${NC} Offline Whisper model not found at vendor/whisper/ggml-small.bin"
+        echo "Place ggml-small.bin there to keep installs fully offline."
         exit 1
     fi
 
