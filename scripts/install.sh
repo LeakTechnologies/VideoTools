@@ -344,19 +344,31 @@ else
         # Whisper backend is offline-only; no auto-install here.
     fi
 
-    # Seed whisper.cpp model from bundled offline assets (small model)
+    # Seed whisper.cpp model (small model) - prefer bundled, otherwise download.
     whisper_model_src="$(cd "$(dirname "$0")/.." && pwd)/vendor/whisper/ggml-small.bin"
     whisper_model_dir="$HOME/.local/share/whisper.cpp/models"
+    whisper_model_dest="$whisper_model_dir/ggml-small.bin"
+    whisper_model_url="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+    mkdir -p "$whisper_model_dir"
     if [ -f "$whisper_model_src" ]; then
-        mkdir -p "$whisper_model_dir"
-        if [ ! -f "$whisper_model_dir/ggml-small.bin" ]; then
-            cp "$whisper_model_src" "$whisper_model_dir/ggml-small.bin"
+        if [ ! -f "$whisper_model_dest" ]; then
+            cp "$whisper_model_src" "$whisper_model_dest"
             echo -e "${GREEN}[OK]${NC} Whisper small model installed to $whisper_model_dir"
         fi
     else
-        echo -e "${RED}[ERROR]${NC} Offline Whisper model not found at vendor/whisper/ggml-small.bin"
-        echo "Place ggml-small.bin there to keep installs fully offline."
-        exit 1
+        if [ ! -f "$whisper_model_dest" ]; then
+            echo "Whisper small model not found locally. Downloading..."
+            if command -v wget &> /dev/null; then
+                wget -q --show-progress "$whisper_model_url" -O "$whisper_model_dest"
+            elif command -v curl &> /dev/null; then
+                curl -L "$whisper_model_url" -o "$whisper_model_dest" --progress-bar
+            else
+                echo -e "${RED}[ERROR]${NC} wget or curl is required to download ggml-small.bin"
+                echo "Install one of them or place ggml-small.bin at $whisper_model_src"
+                exit 1
+            fi
+            echo -e "${GREEN}[OK]${NC} Whisper small model downloaded to $whisper_model_dir"
+        fi
     fi
 
     # Verify core dependencies were installed successfully
