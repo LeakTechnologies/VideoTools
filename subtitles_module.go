@@ -554,7 +554,9 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	droppableLeft := ui.NewDroppable(left, handleDrop)
 	droppableRight := ui.NewDroppable(right, handleDrop)
 	content := container.NewGridWithColumns(2, droppableLeft, droppableRight)
-	return container.NewBorder(topBar, bottomBar, nil, nil, content)
+	scroll := container.NewVScroll(content)
+	scroll.SetMinSize(fyne.NewSize(0, 0))
+	return container.NewBorder(topBar, bottomBar, nil, nil, scroll)
 }
 
 func (s *appState) setSubtitleStatus(msg string) {
