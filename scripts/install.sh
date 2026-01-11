@@ -349,6 +349,7 @@ else
     whisper_model_dir="$HOME/.local/share/whisper.cpp/models"
     whisper_model_dest="$whisper_model_dir/ggml-small.bin"
     whisper_model_url="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+    whisper_sha_url="https://huggingface.co/ggerganov/whisper.cpp/raw/main/ggml-small.bin"
     mkdir -p "$whisper_model_dir"
     if [ -f "$whisper_model_src" ]; then
         if [ ! -f "$whisper_model_dest" ]; then
@@ -366,6 +367,32 @@ else
                 echo -e "${RED}[ERROR]${NC} wget or curl is required to download ggml-small.bin"
                 echo "Install one of them or place ggml-small.bin at $whisper_model_src"
                 exit 1
+            fi
+            # Verify checksum using official LFS pointer when possible.
+            if command -v sha256sum &> /dev/null || command -v shasum &> /dev/null; then
+                if command -v curl &> /dev/null; then
+                    whisper_sha="$(curl -sL "$whisper_sha_url" | awk '/oid sha256:/ {print $3}' | cut -d: -f2)"
+                elif command -v wget &> /dev/null; then
+                    whisper_sha="$(wget -qO- "$whisper_sha_url" | awk '/oid sha256:/ {print $3}' | cut -d: -f2)"
+                fi
+                if [ -n "$whisper_sha" ]; then
+                    if command -v sha256sum &> /dev/null; then
+                        actual_sha="$(sha256sum "$whisper_model_dest" | awk '{print $1}')"
+                    else
+                        actual_sha="$(shasum -a 256 "$whisper_model_dest" | awk '{print $1}')"
+                    fi
+                    if [ "$actual_sha" != "$whisper_sha" ]; then
+                        echo -e "${RED}[ERROR]${NC} Whisper model checksum mismatch."
+                        echo "Expected: $whisper_sha"
+                        echo "Actual:   $actual_sha"
+                        exit 1
+                    fi
+                    echo -e "${GREEN}[OK]${NC} Whisper model checksum verified"
+                else
+                    echo -e "${YELLOW}WARNING:${NC} Could not fetch official checksum; skipping verification."
+                fi
+            else
+                echo -e "${YELLOW}WARNING:${NC} sha256sum/shasum not available; skipping checksum verification."
             fi
             echo -e "${GREEN}[OK]${NC} Whisper small model downloaded to $whisper_model_dir"
         fi
