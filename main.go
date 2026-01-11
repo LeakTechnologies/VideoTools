@@ -1285,6 +1285,7 @@ type authorClip struct {
 	Duration     float64         // Video duration
 	Chapters     []authorChapter // Chapters for this clip
 	ChapterTitle string          // Optional chapter title when treating clips as chapters
+	IsExtra      bool            // Mark this clip as an extra
 }
 
 func (s *appState) persistConvertConfig() {
@@ -11644,7 +11645,7 @@ func (p *playSession) rebuildPipeline() {
 		return
 	}
 	newSess.SetVolume(volume)
-	_ = newSess.Seek(offset)
+	newSess.Seek(offset)
 	newSess.Pause()
 
 	p.mu.Lock()
@@ -12210,6 +12211,12 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			logging.Debug(logging.CatUI, "single video dropped in convert module; loading: %s", videoPaths[0])
 			go s.loadVideo(videoPaths[0])
 		}
+		return
+	}
+
+	// If in subtitles module, handle video/subtitle files
+	if s.active == "subtitles" {
+		s.handleSubtitlesModuleDrop(items)
 		return
 	}
 
