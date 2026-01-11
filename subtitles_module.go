@@ -221,6 +221,19 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		statusLabel.SetText(state.subtitleStatus)
 	}
 
+	// Create copy button for status text
+	copyStatusBtn := widget.NewButton("Copy Status", func() {
+		if state.subtitleStatus != "" {
+			state.window.Clipboard().SetContent(state.subtitleStatus)
+			dialog.ShowInformation("Copied", "Status text copied to clipboard", state.window)
+		}
+	})
+	copyStatusBtn.Importance = widget.LowImportance
+
+	// Create scrollable status container
+	statusScroll := container.NewVScroll(statusLabel)
+	statusScroll.SetMinSize(fyne.NewSize(0, 60))
+
 	var rebuildCues func()
 	cueList := container.NewVBox()
 	listScroll := container.NewVScroll(cueList)
@@ -518,7 +531,8 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		applyBtn,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Status", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		statusLabel,
+		statusScroll,
+		container.NewHBox(copyStatusBtn),
 		widget.NewSeparator(),
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
 	)
@@ -1060,12 +1074,58 @@ func runWhisper(binaryPath, modelPath, inputPath, outputBase string) error {
 		"-of", outputBase,
 		"-osrt",
 	}
+	stderr, err := runWhisperCommand(binaryPath, args)
+	if err == nil {
+		return nil
+	}
+
+	lower := strings.ToLower(stderr)
+	if strings.Contains(lower, "usage: whisper") ||
+		strings.Contains(lower, "argument --output_format") ||
+		strings.Contains(lower, "unrecognized arguments: -m") {
+		return runPythonWhisper(binaryPath, modelPath, inputPath, outputBase)
+	}
+	return fmt.Errorf("whisper failed: %w (%s)", err, strings.TrimSpace(stderr))
+}
+
+func runWhisperCommand(binaryPath string, args []string) (string, error) {
 	cmd := exec.Command(binaryPath, args...)
 	utils.ApplyNoWindow(cmd)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("whisper failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
+	err := cmd.Run()
+	return strings.TrimSpace(stderr.String()), err
+}
+
+func runPythonWhisper(binaryPath, modelPath, inputPath, outputBase string) error {
+	model := strings.TrimSpace(modelPath)
+	if model == "" {
+		return fmt.Errorf("whisper model is required")
+	}
+	if strings.HasSuffix(strings.ToLower(model), ".bin") || strings.Contains(model, string(os.PathSeparator)) {
+		return fmt.Errorf("whisper backend is python CLI; set model name (e.g., base, small) or use whisper.cpp with ggml models")
+	}
+
+	outputDir := filepath.Dir(outputBase)
+	base := strings.TrimSuffix(filepath.Base(inputPath), filepath.Ext(inputPath))
+	target := outputBase + ".srt"
+
+	args := []string{
+		"--model", model,
+		"--output_format", "srt",
+		"--output_dir", outputDir,
+		inputPath,
+	}
+	stderr, err := runWhisperCommand(binaryPath, args)
+	if err != nil {
+		return fmt.Errorf("whisper failed: %w (%s)", err, strings.TrimSpace(stderr))
+	}
+
+	generated := filepath.Join(outputDir, base+".srt")
+	if generated != target {
+		if err := os.Rename(generated, target); err != nil {
+			return fmt.Errorf("whisper output rename failed: %w", err)
+		}
 	}
 	return nil
 }
