@@ -1021,15 +1021,18 @@ func detectWhisperBackend() string {
 
 func detectWhisperModel() string {
 	preferred := []string{
-		filepath.Join("models", "ggml-base.bin"),
 		filepath.Join("models", "ggml-small.bin"),
+		filepath.Join("models", "ggml-base.bin"),
 		filepath.Join("models", "ggml-medium.bin"),
 		filepath.Join("models", "ggml-large.bin"),
+		filepath.Join("vendor", "whisper", "ggml-small.bin"),
 		filepath.Join("vendor", "whisper", "ggml-base.bin"),
 	}
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
+		preferred = append(preferred, filepath.Join(dir, "vendor", "whisper", "ggml-small.bin"))
 		preferred = append(preferred, filepath.Join(dir, "vendor", "whisper", "ggml-base.bin"))
+		preferred = append(preferred, filepath.Join(dir, "models", "ggml-small.bin"))
 		preferred = append(preferred, filepath.Join(dir, "models", "ggml-base.bin"))
 	}
 	for _, candidate := range preferred {
@@ -1057,6 +1060,12 @@ func detectWhisperModel() string {
 		matches, _ := filepath.Glob(filepath.Join(dir, "ggml-*.bin"))
 		if len(matches) == 0 {
 			continue
+		}
+		for _, match := range matches {
+			base := filepath.Base(match)
+			if base == "ggml-small.bin" {
+				return match
+			}
 		}
 		for _, match := range matches {
 			base := filepath.Base(match)
