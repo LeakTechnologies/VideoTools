@@ -360,9 +360,9 @@ else
         if [ ! -f "$whisper_model_dest" ]; then
             echo "Whisper small model not found locally. Downloading..."
             if command -v wget &> /dev/null; then
-                wget -q --show-progress "$whisper_model_url" -O "$whisper_model_dest"
+                wget --quiet --show-progress --progress=bar:force -O "$whisper_model_dest" "$whisper_model_url"
             elif command -v curl &> /dev/null; then
-                curl -L "$whisper_model_url" -o "$whisper_model_dest" --progress-bar
+                curl -L --progress-bar -o "$whisper_model_dest" "$whisper_model_url"
             else
                 echo -e "${RED}[ERROR]${NC} wget or curl is required to download ggml-small.bin"
                 echo "Install one of them or place ggml-small.bin at $whisper_model_src"
@@ -371,9 +371,9 @@ else
             # Verify checksum using official LFS pointer when possible.
             if command -v sha256sum &> /dev/null || command -v shasum &> /dev/null; then
                 if command -v curl &> /dev/null; then
-                    whisper_sha="$(curl -sL "$whisper_sha_url" | awk '/oid sha256:/ {print $3}' | cut -d: -f2)"
+                    whisper_sha="$(curl -sL "$whisper_sha_url" | awk '/oid sha256:/ {print $2}' | cut -d: -f2)"
                 elif command -v wget &> /dev/null; then
-                    whisper_sha="$(wget -qO- "$whisper_sha_url" | awk '/oid sha256:/ {print $3}' | cut -d: -f2)"
+                    whisper_sha="$(wget -qO- "$whisper_sha_url" | awk '/oid sha256:/ {print $2}' | cut -d: -f2)"
                 fi
                 if [ -n "$whisper_sha" ]; then
                     if command -v sha256sum &> /dev/null; then
