@@ -188,7 +188,15 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 
 	backendLabel := widget.NewLabel("")
 	modelLabel := widget.NewLabel("")
+	offlineHint := widget.NewLabel("Offline STT uses bundled ggml-small.bin (vendor/whisper).")
+	offlineHint.Wrapping = fyne.TextWrapWord
 	refreshWhisperUI := func() {
+		missingModel := strings.TrimSpace(state.subtitleModelPath) == ""
+		if missingModel {
+			offlineHint.SetText("Offline STT uses bundled ggml-small.bin (vendor/whisper).")
+		} else {
+			offlineHint.SetText("Offline STT uses the selected ggml model.")
+		}
 		if strings.TrimSpace(state.subtitleBackendPath) != "" {
 			backendLabel.SetText(fmt.Sprintf("Whisper backend: %s", state.subtitleBackendPath))
 			backendEntry.Hide()
@@ -519,6 +527,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		applyOffsetBtn,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Offline Speech-to-Text (whisper.cpp)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		offlineHint,
 		backendLabel,
 		backendEntry,
 		modelLabel,
@@ -683,7 +692,7 @@ func (s *appState) generateSubtitlesFromSpeech() {
 	}
 	modelPath := strings.TrimSpace(s.subtitleModelPath)
 	if modelPath == "" {
-		s.setSubtitleStatus("Set a whisper model path.")
+		s.setSubtitleStatus("Whisper model missing. Install ggml-small.bin (vendor/whisper) or set a model path.")
 		return
 	}
 	backendPath := strings.TrimSpace(s.subtitleBackendPath)
