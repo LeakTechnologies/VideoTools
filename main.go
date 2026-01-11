@@ -1167,13 +1167,18 @@ type appState struct {
 	authorCreateMenu          bool         // Whether to create DVD menu
 	authorMenuTemplate        string       // "Simple", "Dark", "Poster"
 	authorMenuBackgroundImage string       // Path to a user-selected background image
-	authorMenuTheme           string       // "VideoTools"
-	authorMenuLogoEnabled     bool
-	authorMenuLogoPath        string // Path to menu logo image
-	authorMenuLogoPosition    string // "Top Left", "Top Right", "Bottom Left", "Bottom Right", "Center"
-	authorMenuLogoScale       float64
-	authorMenuLogoMargin      int
-	authorMenuStructure       string   // Feature only, Chapters, Extras
+	authorMenuTheme              string  // "VideoTools"
+	authorMenuTitleLogoEnabled   bool    // Enable title logo (main logo above menu)
+	authorMenuTitleLogoPath      string  // Path to title logo image
+	authorMenuTitleLogoPosition  string  // Position for title logo
+	authorMenuTitleLogoScale     float64 // Scale for title logo
+	authorMenuTitleLogoMargin    int     // Margin for title logo
+	authorMenuStudioLogoEnabled  bool    // Enable studio logo (corner logo)
+	authorMenuStudioLogoPath     string  // Path to studio logo image
+	authorMenuStudioLogoPosition string  // "Top Left", "Top Right", "Bottom Left", "Bottom Right"
+	authorMenuStudioLogoScale    float64 // Scale for studio logo
+	authorMenuStudioLogoMargin   int     // Margin for studio logo
+	authorMenuStructure          string  // Feature only, Chapters, Extras
 	authorMenuExtrasEnabled   bool     // Show extras menu
 	authorMenuChapterThumbSrc string   // Auto, First Frame, Midpoint, Custom
 	authorTitle               string   // DVD title
@@ -11228,6 +11233,8 @@ type playSession struct {
 	videoTime   float64      // Last video frame time
 	syncOffset  float64      // A/V sync offset for adjustment
 	audioActive atomic.Bool  // Whether audio stream is running
+	stallCount  int
+	lastFrameAt time.Time
 
 	// GStreamer player for stable A/V playback
 	gstPlayer *player.GStreamerPlayer
@@ -11493,6 +11500,8 @@ func (p *playSession) frameDisplayLoop() {
 
 	frameCount := 0
 	lastFrameTime := time.Duration(0)
+	lastPos := time.Duration(0)
+	lastPosAt := time.Now()
 	logging.Info(logging.CatPlayer, "playSession: frameDisplayLoop started (video fps=%.2f, display fps=%.2f, interval=%v)", p.fps, displayFPS, frameDuration)
 
 	for {
@@ -11515,6 +11524,7 @@ func (p *playSession) frameDisplayLoop() {
 
 			if frame == nil {
 				// No frame available yet - pipeline may be buffering
+				p.checkStall(lastPos, &lastPosAt)
 				continue
 			}
 
@@ -11522,6 +11532,8 @@ func (p *playSession) frameDisplayLoop() {
 			currentTime := p.gstPlayer.GetCurrentTime()
 			p.mu.Lock()
 			isPaused := p.paused
+			p.lastFrameAt = time.Now()
+			p.stallCount = 0
 			p.mu.Unlock()
 
 			// Skip if this is the same frame as last time (optimization)
@@ -11555,6 +11567,96 @@ func (p *playSession) frameDisplayLoop() {
 					p.frameFunc(actualFrameNumber)
 				}
 			}, false)
+
+			lastPos = currentTime
+		}
+	}
+}
+
+func (p *playSession) checkStall(lastPos time.Duration, lastPosAt *time.Time) {
+	p.mu.Lock()
+	if p.paused || p.gstPlayer == nil {
+		p.mu.Unlock()
+		return
+	}
+	if p.lastFrameAt.IsZero() {
+		p.lastFrameAt = time.Now()
+		p.mu.Unlock()
+		return
+	}
+	if time.Since(p.lastFrameAt) < 1500*time.Millisecond {
+		p.mu.Unlock()
+		return
+	}
+	p.stallCount++
+	stalls := p.stallCount
+	p.mu.Unlock()
+
+	pos := p.gstPlayer.GetCurrentTime()
+	now := time.Now()
+	if pos != lastPos {
+		*lastPosAt = now
+		return
+	}
+	if now.Sub(*lastPosAt) < 2*time.Second {
+		return
+	}
+
+	switch stalls {
+	case 1:
+		logging.Debug(logging.CatPlayer, "stall watchdog: soft reset (pause/play)")
+		_ = p.gstPlayer.Pause()
+		_ = p.gstPlayer.Play()
+	case 2:
+		logging.Debug(logging.CatPlayer, "stall watchdog: reseek to %.2fs", p.current)
+		_ = p.gstPlayer.SeekToTime(time.Duration(p.current * float64(time.Second)))
+	case 3:
+		logging.Debug(logging.CatPlayer, "stall watchdog: rebuild pipeline")
+		p.rebuildPipeline()
+	default:
+		if stalls%5 == 0 {
+			logging.Debug(logging.CatPlayer, "stall watchdog: still stalled (%d attempts)", stalls)
+		}
+	}
+}
+
+func (p *playSession) rebuildPipeline() {
+	p.mu.Lock()
+	path := p.path
+	w := p.width
+	h := p.height
+	fps := p.fps
+	duration := p.duration
+	targetW := p.targetW
+	targetH := p.targetH
+	volume := p.volume
+	offset := p.current
+	img := p.img
+	prog := p.prog
+	frameFunc := p.frameFunc
+	p.mu.Unlock()
+
+	if path == "" || w == 0 || h == 0 {
+		return
+	}
+	newSess := newPlaySession(path, w, h, fps, duration, targetW, targetH, prog, frameFunc, img)
+	if newSess == nil {
+		return
+	}
+	newSess.SetVolume(volume)
+	_ = newSess.Seek(offset)
+	newSess.Pause()
+
+	p.mu.Lock()
+	oldStop := p.stop
+	p.stop = make(chan struct{})
+	p.mu.Unlock()
+
+	if oldStop != nil {
+		select {
+		case <-oldStop:
+		default:
+			close(oldStop)
 		}
 	}
 }
@@ -11604,6 +11706,8 @@ func (p *playSession) Stop() {
 	// Use GStreamer player
 	if p.gstPlayer != nil {
 		p.gstPlayer.Stop()
+		p.stallCount = 0
+		p.lastFrameAt = time.Time{}
 		close(p.stop)
 		logging.Debug(logging.CatPlayer, "playSession: Stop called")
 		return
