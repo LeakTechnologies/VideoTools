@@ -265,12 +265,12 @@ else
             fi
         elif command -v pacman &> /dev/null; then
             echo "Installing core dependencies (FFmpeg + GStreamer)..."
-            # Core packages (always installed)
-            CORE_PKGS="ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav"
+            # Core packages (always installed) - includes pkgconf for pkg-config and base-devel for CGO compilation
+            CORE_PKGS="base-devel pkgconf ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav"
             if [ "$SKIP_DVD_TOOLS" = true ]; then
-                sudo pacman -Sy --noconfirm $CORE_PKGS
+                sudo pacman -Sy --needed --noconfirm $CORE_PKGS
             else
-                sudo pacman -Sy --noconfirm $CORE_PKGS dvdauthor cdrtools
+                sudo pacman -Sy --needed --noconfirm $CORE_PKGS dvdauthor xorriso cdrtools
             fi
         elif command -v zypper &> /dev/null; then
             echo "Installing core dependencies (FFmpeg + GStreamer)..."
@@ -424,6 +424,35 @@ else
             echo -e "${RED}[ERROR] Missing xorriso after install attempt.${NC}"
             echo "Please install: xorriso (required for DVD ISO extraction)"
             exit 1
+        fi
+    fi
+
+    # Check for graphics drivers (warning only, don't install)
+    if command -v lspci &> /dev/null; then
+        gpu_info=$(lspci 2>/dev/null | grep -iE "VGA|3D")
+        if echo "$gpu_info" | grep -qi "nvidia"; then
+            if ! lsmod 2>/dev/null | grep -q "^nvidia"; then
+                echo ""
+                echo -e "${YELLOW}WARNING:${NC} NVIDIA GPU detected but NVIDIA drivers not loaded"
+                echo "VideoTools GUI requires proper graphics drivers for OpenGL support."
+                echo ""
+                echo "To install NVIDIA drivers on Manjaro/Arch:"
+                echo "  sudo mhwd -a pci nonfree 0300"
+                echo ""
+                echo "Or manually install:"
+                echo "  sudo pacman -S nvidia nvidia-utils"
+                echo ""
+            fi
+        elif echo "$gpu_info" | grep -qi "amd\|radeon"; then
+            if ! lsmod 2>/dev/null | grep -qE "^amdgpu|^radeon"; then
+                echo ""
+                echo -e "${YELLOW}WARNING:${NC} AMD GPU detected but drivers may not be loaded"
+                echo "VideoTools GUI requires proper graphics drivers for OpenGL support."
+                echo ""
+                echo "AMD drivers should be installed via:"
+                echo "  sudo pacman -S mesa xf86-video-amdgpu vulkan-radeon"
+                echo ""
+            fi
         fi
     fi
 fi
