@@ -34,25 +34,30 @@ import (
 )
 
 type authorConfig struct {
-	OutputType          string  `json:"outputType"`
-	Region              string  `json:"region"`
-	AspectRatio         string  `json:"aspectRatio"`
-	DiscSize            string  `json:"discSize"`
-	Title               string  `json:"title"`
-	CreateMenu          bool    `json:"createMenu"`
-	MenuTemplate        string  `json:"menuTemplate"`
-	MenuTheme           string  `json:"menuTheme"`
-	MenuBackgroundImage string  `json:"menuBackgroundImage"`
-	MenuLogoEnabled     bool    `json:"menuLogoEnabled"`
-	MenuLogoPath        string  `json:"menuLogoPath"`
-	MenuLogoPosition    string  `json:"menuLogoPosition"`
-	MenuLogoScale       float64 `json:"menuLogoScale"`
-	MenuLogoMargin      int     `json:"menuLogoMargin"`
-	MenuStructure       string  `json:"menuStructure"`
-	MenuExtrasEnabled   bool    `json:"menuExtrasEnabled"`
-	MenuChapterThumbSrc string  `json:"menuChapterThumbSrc"`
-	TreatAsChapters     bool    `json:"treatAsChapters"`
-	SceneThreshold      float64 `json:"sceneThreshold"`
+	OutputType               string  `json:"outputType"`
+	Region                   string  `json:"region"`
+	AspectRatio              string  `json:"aspectRatio"`
+	DiscSize                 string  `json:"discSize"`
+	Title                    string  `json:"title"`
+	CreateMenu               bool    `json:"createMenu"`
+	MenuTemplate             string  `json:"menuTemplate"`
+	MenuTheme                string  `json:"menuTheme"`
+	MenuBackgroundImage      string  `json:"menuBackgroundImage"`
+	MenuTitleLogoEnabled     bool    `json:"menuTitleLogoEnabled"`
+	MenuTitleLogoPath        string  `json:"menuTitleLogoPath"`
+	MenuTitleLogoPosition    string  `json:"menuTitleLogoPosition"`
+	MenuTitleLogoScale       float64 `json:"menuTitleLogoScale"`
+	MenuTitleLogoMargin      int     `json:"menuTitleLogoMargin"`
+	MenuStudioLogoEnabled    bool    `json:"menuStudioLogoEnabled"`
+	MenuStudioLogoPath       string  `json:"menuStudioLogoPath"`
+	MenuStudioLogoPosition   string  `json:"menuStudioLogoPosition"`
+	MenuStudioLogoScale      float64 `json:"menuStudioLogoScale"`
+	MenuStudioLogoMargin     int     `json:"menuStudioLogoMargin"`
+	MenuStructure            string  `json:"menuStructure"`
+	MenuExtrasEnabled        bool    `json:"menuExtrasEnabled"`
+	MenuChapterThumbSrc      string  `json:"menuChapterThumbSrc"`
+	TreatAsChapters          bool    `json:"treatAsChapters"`
+	SceneThreshold           float64 `json:"sceneThreshold"`
 }
 
 func defaultAuthorConfig() authorConfig {
@@ -62,16 +67,21 @@ func defaultAuthorConfig() authorConfig {
 		AspectRatio:         "AUTO",
 		DiscSize:            "DVD5",
 		Title:               "",
-		CreateMenu:          false,
-		MenuTemplate:        "Simple",
-		MenuTheme:           "VideoTools",
-		MenuBackgroundImage: "",
-		MenuLogoEnabled:     true,
-		MenuLogoPath:        "",
-		MenuLogoPosition:    "Top Right",
-		MenuLogoScale:       1.0,
-		MenuLogoMargin:      24,
-		MenuStructure:       "Feature + Chapters",
+		CreateMenu:               false,
+		MenuTemplate:             "Simple",
+		MenuTheme:                "VideoTools",
+		MenuBackgroundImage:      "",
+		MenuTitleLogoEnabled:     false,
+		MenuTitleLogoPath:        "",
+		MenuTitleLogoPosition:    "Center",
+		MenuTitleLogoScale:       1.0,
+		MenuTitleLogoMargin:      24,
+		MenuStudioLogoEnabled:    true,
+		MenuStudioLogoPath:       "",
+		MenuStudioLogoPosition:   "Top Right",
+		MenuStudioLogoScale:      1.0,
+		MenuStudioLogoMargin:     24,
+		MenuStructure:            "Feature + Chapters",
 		MenuExtrasEnabled:   false,
 		MenuChapterThumbSrc: "Auto",
 		TreatAsChapters:     false,
@@ -107,14 +117,23 @@ func loadPersistedAuthorConfig() (authorConfig, error) {
 	if cfg.MenuTheme == "" {
 		cfg.MenuTheme = "VideoTools"
 	}
-	if cfg.MenuLogoPosition == "" {
-		cfg.MenuLogoPosition = "Top Right"
+	if cfg.MenuTitleLogoPosition == "" {
+		cfg.MenuTitleLogoPosition = "Center"
 	}
-	if cfg.MenuLogoScale == 0 {
-		cfg.MenuLogoScale = 1.0
+	if cfg.MenuTitleLogoScale == 0 {
+		cfg.MenuTitleLogoScale = 1.0
 	}
-	if cfg.MenuLogoMargin == 0 {
-		cfg.MenuLogoMargin = 24
+	if cfg.MenuTitleLogoMargin == 0 {
+		cfg.MenuTitleLogoMargin = 24
+	}
+	if cfg.MenuStudioLogoPosition == "" {
+		cfg.MenuStudioLogoPosition = "Top Right"
+	}
+	if cfg.MenuStudioLogoScale == 0 {
+		cfg.MenuStudioLogoScale = 1.0
+	}
+	if cfg.MenuStudioLogoMargin == 0 {
+		cfg.MenuStudioLogoMargin = 24
 	}
 	if cfg.MenuStructure == "" {
 		cfg.MenuStructure = "Feature + Chapters"
@@ -150,11 +169,16 @@ func (s *appState) applyAuthorConfig(cfg authorConfig) {
 	s.authorMenuTemplate = cfg.MenuTemplate
 	s.authorMenuTheme = cfg.MenuTheme
 	s.authorMenuBackgroundImage = cfg.MenuBackgroundImage
-	s.authorMenuLogoEnabled = cfg.MenuLogoEnabled
-	s.authorMenuLogoPath = cfg.MenuLogoPath
-	s.authorMenuLogoPosition = cfg.MenuLogoPosition
-	s.authorMenuLogoScale = cfg.MenuLogoScale
-	s.authorMenuLogoMargin = cfg.MenuLogoMargin
+	s.authorMenuTitleLogoEnabled = cfg.MenuTitleLogoEnabled
+	s.authorMenuTitleLogoPath = cfg.MenuTitleLogoPath
+	s.authorMenuTitleLogoPosition = cfg.MenuTitleLogoPosition
+	s.authorMenuTitleLogoScale = cfg.MenuTitleLogoScale
+	s.authorMenuTitleLogoMargin = cfg.MenuTitleLogoMargin
+	s.authorMenuStudioLogoEnabled = cfg.MenuStudioLogoEnabled
+	s.authorMenuStudioLogoPath = cfg.MenuStudioLogoPath
+	s.authorMenuStudioLogoPosition = cfg.MenuStudioLogoPosition
+	s.authorMenuStudioLogoScale = cfg.MenuStudioLogoScale
+	s.authorMenuStudioLogoMargin = cfg.MenuStudioLogoMargin
 	s.authorMenuStructure = cfg.MenuStructure
 	s.authorMenuExtrasEnabled = cfg.MenuExtrasEnabled
 	s.authorMenuChapterThumbSrc = cfg.MenuChapterThumbSrc
@@ -172,13 +196,18 @@ func (s *appState) persistAuthorConfig() {
 		CreateMenu:          s.authorCreateMenu,
 		MenuTemplate:        s.authorMenuTemplate,
 		MenuTheme:           s.authorMenuTheme,
-		MenuBackgroundImage: s.authorMenuBackgroundImage,
-		MenuLogoEnabled:     s.authorMenuLogoEnabled,
-		MenuLogoPath:        s.authorMenuLogoPath,
-		MenuLogoPosition:    s.authorMenuLogoPosition,
-		MenuLogoScale:       s.authorMenuLogoScale,
-		MenuLogoMargin:      s.authorMenuLogoMargin,
-		MenuStructure:       s.authorMenuStructure,
+		MenuBackgroundImage:      s.authorMenuBackgroundImage,
+		MenuTitleLogoEnabled:     s.authorMenuTitleLogoEnabled,
+		MenuTitleLogoPath:        s.authorMenuTitleLogoPath,
+		MenuTitleLogoPosition:    s.authorMenuTitleLogoPosition,
+		MenuTitleLogoScale:       s.authorMenuTitleLogoScale,
+		MenuTitleLogoMargin:      s.authorMenuTitleLogoMargin,
+		MenuStudioLogoEnabled:    s.authorMenuStudioLogoEnabled,
+		MenuStudioLogoPath:       s.authorMenuStudioLogoPath,
+		MenuStudioLogoPosition:   s.authorMenuStudioLogoPosition,
+		MenuStudioLogoScale:      s.authorMenuStudioLogoScale,
+		MenuStudioLogoMargin:     s.authorMenuStudioLogoMargin,
+		MenuStructure:            s.authorMenuStructure,
 		MenuExtrasEnabled:   s.authorMenuExtrasEnabled,
 		MenuChapterThumbSrc: s.authorMenuChapterThumbSrc,
 		TreatAsChapters:     s.authorTreatAsChapters,
@@ -216,14 +245,23 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	if state.authorMenuTheme == "" {
 		state.authorMenuTheme = "VideoTools"
 	}
-	if state.authorMenuLogoPosition == "" {
-		state.authorMenuLogoPosition = "Top Right"
+	if state.authorMenuTitleLogoPosition == "" {
+		state.authorMenuTitleLogoPosition = "Center"
 	}
-	if state.authorMenuLogoScale == 0 {
-		state.authorMenuLogoScale = 1.0
+	if state.authorMenuTitleLogoScale == 0 {
+		state.authorMenuTitleLogoScale = 1.0
 	}
-	if state.authorMenuLogoMargin == 0 {
-		state.authorMenuLogoMargin = 24
+	if state.authorMenuTitleLogoMargin == 0 {
+		state.authorMenuTitleLogoMargin = 24
+	}
+	if state.authorMenuStudioLogoPosition == "" {
+		state.authorMenuStudioLogoPosition = "Top Right"
+	}
+	if state.authorMenuStudioLogoScale == 0 {
+		state.authorMenuStudioLogoScale = 1.0
+	}
+	if state.authorMenuStudioLogoMargin == 0 {
+		state.authorMenuStudioLogoMargin = 24
 	}
 	if state.authorMenuStructure == "" {
 		state.authorMenuStructure = "Feature + Chapters"
@@ -350,16 +388,26 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			titleEntry.OnChanged = func(val string) {
 				state.authorClips[idx].ChapterTitle = val
 				if state.authorTreatAsChapters {
-					state.authorChapters = chaptersFromClips(state.authorClips)
+					state.authorChapters = chaptersFromClips(featureClipsOnly(state.authorClips))
 					state.authorChapterSource = "clips"
 					state.updateAuthorSummary()
 				}
 			}
 
-			// Note about chapter names for future menu support
-			noteLabel := widget.NewLabel("(For future DVD menus)")
-			noteLabel.TextStyle = fyne.TextStyle{Italic: true}
-			noteLabel.Alignment = fyne.TextAlignLeading
+			extraCheck := widget.NewCheck("Mark as Extra", func(checked bool) {
+				state.authorClips[idx].IsExtra = checked
+				// Refresh chapters to exclude/include this clip
+				if state.authorTreatAsChapters {
+					state.authorChapters = chaptersFromClips(featureClipsOnly(state.authorClips))
+					state.authorChapterSource = "clips"
+					if state.authorChaptersRefresh != nil {
+						state.authorChaptersRefresh()
+					}
+				}
+				state.updateAuthorSummary()
+				state.persistAuthorConfig()
+			})
+			extraCheck.SetChecked(clip.IsExtra)
 
 			removeBtn := widget.NewButton("Remove", func() {
 				state.authorClips = append(state.authorClips[:idx], state.authorClips[idx+1:]...)
@@ -373,7 +421,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 				nil,
 				nil,
 				container.NewVBox(durationLabel, removeBtn),
-				container.NewVBox(nameLabel, titleEntry, noteLabel),
+				container.NewVBox(nameLabel, titleEntry, extraCheck),
 			)
 			cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
 			cardBg.CornerRadius = 6
@@ -427,7 +475,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 	chapterToggle := widget.NewCheck("Treat videos as chapters", func(checked bool) {
 		state.authorTreatAsChapters = checked
 		if checked {
-			state.authorChapters = chaptersFromClips(state.authorClips)
+			state.authorChapters = chaptersFromClips(featureClipsOnly(state.authorClips))
 			state.authorChapterSource = "clips"
 		} else if state.authorChapterSource == "clips" {
 			state.authorChapterSource = ""
@@ -470,17 +518,12 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 		state.persistAuthorConfig()
 	}
 
-	// Note about chapter names
-	chapterNote := widget.NewLabel("Chapter names are saved for future DVD menu support")
-	chapterNote.TextStyle = fyne.TextStyle{Italic: true}
-
 	controls := container.NewBorder(
 		container.NewVBox(
 			widget.NewLabel("DVD Title:"),
 			dvdTitleEntry,
 			widget.NewSeparator(),
 			widget.NewLabel("Videos:"),
-			chapterNote,
 		),
 		container.NewVBox(chapterToggle, container.NewHBox(addBtn, clearBtn, addQueueBtn, compileBtn)),
 		nil,
@@ -508,7 +551,7 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 		sourceLabel.SetText("")
 		if len(state.authorChapters) == 0 {
 			if state.authorTreatAsChapters && len(state.authorClips) > 1 {
-				state.authorChapters = chaptersFromClips(state.authorClips)
+				state.authorChapters = chaptersFromClips(featureClipsOnly(state.authorClips))
 				state.authorChapterSource = "clips"
 			}
 		}
@@ -869,13 +912,18 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 			CreateMenu:          state.authorCreateMenu,
 			MenuTemplate:        state.authorMenuTemplate,
 			MenuTheme:           state.authorMenuTheme,
-			MenuBackgroundImage: state.authorMenuBackgroundImage,
-			MenuLogoEnabled:     state.authorMenuLogoEnabled,
-			MenuLogoPath:        state.authorMenuLogoPath,
-			MenuLogoPosition:    state.authorMenuLogoPosition,
-			MenuLogoScale:       state.authorMenuLogoScale,
-			MenuLogoMargin:      state.authorMenuLogoMargin,
-			MenuStructure:       state.authorMenuStructure,
+			MenuBackgroundImage:      state.authorMenuBackgroundImage,
+			MenuTitleLogoEnabled:     state.authorMenuTitleLogoEnabled,
+			MenuTitleLogoPath:        state.authorMenuTitleLogoPath,
+			MenuTitleLogoPosition:    state.authorMenuTitleLogoPosition,
+			MenuTitleLogoScale:       state.authorMenuTitleLogoScale,
+			MenuTitleLogoMargin:      state.authorMenuTitleLogoMargin,
+			MenuStudioLogoEnabled:    state.authorMenuStudioLogoEnabled,
+			MenuStudioLogoPath:       state.authorMenuStudioLogoPath,
+			MenuStudioLogoPosition:   state.authorMenuStudioLogoPosition,
+			MenuStudioLogoScale:      state.authorMenuStudioLogoScale,
+			MenuStudioLogoMargin:     state.authorMenuStudioLogoMargin,
+			MenuStructure:            state.authorMenuStructure,
 			MenuExtrasEnabled:   state.authorMenuExtrasEnabled,
 			MenuChapterThumbSrc: state.authorMenuChapterThumbSrc,
 			TreatAsChapters:     state.authorTreatAsChapters,
@@ -1027,7 +1075,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 
 	logoEnableCheck := widget.NewCheck("Embed Logo", nil)
-	logoEnableCheck.SetChecked(state.authorMenuLogoEnabled)
+	logoEnableCheck.SetChecked(state.authorMenuStudioLogoEnabled)
 
 	logoFileEntry := widget.NewEntry()
 	logoFileEntry.Disable()
@@ -1060,22 +1108,22 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 
 	logoDisplayName := func() string {
-		if strings.TrimSpace(state.authorMenuLogoPath) == "" {
+		if strings.TrimSpace(state.authorMenuStudioLogoPath) == "" {
 			return "VT_Logo.png (default)"
 		}
-		return filepath.Base(state.authorMenuLogoPath)
+		return filepath.Base(state.authorMenuStudioLogoPath)
 	}
 
 	updateLogoPreview := func() {
 		logoFileEntry.SetText(logoDisplayName())
-		if !state.authorMenuLogoEnabled {
+		if !state.authorMenuStudioLogoEnabled {
 			logoPreviewBox.Hide()
 			logoPreviewLabel.SetText("Logo disabled")
 			logoPreviewSize.SetText("")
 			return
 		}
 
-		path := state.authorMenuLogoPath
+		path := state.authorMenuStudioLogoPath
 		if strings.TrimSpace(path) == "" {
 			path = filepath.Join("assets", "logo", "VT_Logo.png")
 		}
@@ -1108,7 +1156,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		menuW, menuH := menuPreviewSize()
 		maxW := int(float64(menuW) * 0.25)
 		maxH := int(float64(menuH) * 0.25)
-		scale := state.authorMenuLogoScale
+		scale := state.authorMenuStudioLogoScale
 		targetW := int(math.Round(float64(cfg.Width) * scale))
 		targetH := int(math.Round(float64(cfg.Height) * scale))
 		if targetW > maxW || targetH > maxH {
@@ -1127,7 +1175,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 				return
 			}
 			defer reader.Close()
-			state.authorMenuLogoPath = reader.URI().Path()
+			state.authorMenuStudioLogoPath = reader.URI().Path()
 			logoFileEntry.SetText(logoDisplayName())
 			updateLogoPreview()
 			updateBrandingTitle()
@@ -1137,7 +1185,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	})
 	logoPickButton.Importance = widget.MediumImportance
 	logoClearButton := widget.NewButton("Clear", func() {
-		state.authorMenuLogoPath = ""
+		state.authorMenuStudioLogoPath = ""
 		logoFileEntry.SetText(logoDisplayName())
 		logoEnableCheck.SetChecked(false)
 		updateLogoPreview()
@@ -1153,14 +1201,14 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		"Bottom Right",
 		"Center",
 	}, func(value string) {
-		state.authorMenuLogoPosition = value
+		state.authorMenuStudioLogoPosition = value
 		updateBrandingTitle()
 		state.persistAuthorConfig()
 	})
-	if state.authorMenuLogoPosition == "" {
-		state.authorMenuLogoPosition = "Top Right"
+	if state.authorMenuStudioLogoPosition == "" {
+		state.authorMenuStudioLogoPosition = "Top Right"
 	}
-	logoPositionSelect.SetSelected(state.authorMenuLogoPosition)
+	logoPositionSelect.SetSelected(state.authorMenuStudioLogoPosition)
 
 	scaleOptions := []string{"50%", "75%", "100%", "125%", "150%", "200%"}
 	scaleValueByLabel := map[string]float64{
@@ -1179,29 +1227,29 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		1.5:  "150%",
 		2.0:  "200%",
 	}
-	if state.authorMenuLogoScale == 0 {
-		state.authorMenuLogoScale = 1.0
+	if state.authorMenuStudioLogoScale == 0 {
+		state.authorMenuStudioLogoScale = 1.0
 	}
 	logoScaleSelect := widget.NewSelect(scaleOptions, func(value string) {
 		if scale, ok := scaleValueByLabel[value]; ok {
-			state.authorMenuLogoScale = scale
+			state.authorMenuStudioLogoScale = scale
 			updateLogoPreview()
 			updateBrandingTitle()
 			state.persistAuthorConfig()
 		}
 	})
-	scaleLabel := scaleLabelByValue[state.authorMenuLogoScale]
+	scaleLabel := scaleLabelByValue[state.authorMenuStudioLogoScale]
 	if scaleLabel == "" {
 		scaleLabel = "100%"
-		state.authorMenuLogoScale = 1.0
+		state.authorMenuStudioLogoScale = 1.0
 	}
 	logoScaleSelect.SetSelected(scaleLabel)
 
-	if state.authorMenuLogoMargin == 0 {
-		state.authorMenuLogoMargin = 24
+	if state.authorMenuStudioLogoMargin == 0 {
+		state.authorMenuStudioLogoMargin = 24
 	}
 	marginEntry := widget.NewEntry()
-	marginEntry.SetText(strconv.Itoa(state.authorMenuLogoMargin))
+	marginEntry.SetText(strconv.Itoa(state.authorMenuStudioLogoMargin))
 	updatingMargin := false
 	updateMargin := func(value int, updateEntry bool) {
 		if value < 0 {
@@ -1210,7 +1258,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		if value > 60 {
 			value = 60
 		}
-		state.authorMenuLogoMargin = value
+		state.authorMenuStudioLogoMargin = value
 		if updateEntry {
 			updatingMargin = true
 			marginEntry.SetText(strconv.Itoa(value))
@@ -1226,17 +1274,17 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 			return
 		}
 		if v, err := strconv.Atoi(value); err == nil {
-			if v == state.authorMenuLogoMargin {
+			if v == state.authorMenuStudioLogoMargin {
 				return
 			}
 			updateMargin(v, true)
 		}
 	}
 	marginMinus := widget.NewButton("-", func() {
-		updateMargin(state.authorMenuLogoMargin-2, true)
+		updateMargin(state.authorMenuStudioLogoMargin-2, true)
 	})
 	marginPlus := widget.NewButton("+", func() {
-		updateMargin(state.authorMenuLogoMargin+2, true)
+		updateMargin(state.authorMenuStudioLogoMargin+2, true)
 	})
 
 	safeAreaNote := widget.NewLabel("Logos are constrained to DVD safe areas.")
@@ -1398,7 +1446,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 			thumbSourceSelect,
 		)
 
-		logoControlsEnabled := enabled && state.authorMenuLogoEnabled
+		logoControlsEnabled := enabled && state.authorMenuStudioLogoEnabled
 		setEnabled(logoControlsEnabled,
 			logoPickButton,
 			logoClearButton,
@@ -1411,22 +1459,22 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 
 	updateBrandingTitle = func() {
-		if !state.authorMenuLogoEnabled {
+		if !state.authorMenuStudioLogoEnabled {
 			brandingItem.Title = "Branding: Disabled"
 			brandingAccordion.Refresh()
 			return
 		}
-		scaleText := scaleLabelByValue[state.authorMenuLogoScale]
+		scaleText := scaleLabelByValue[state.authorMenuStudioLogoScale]
 		if scaleText == "" {
 			scaleText = "100%"
 		}
 		name := logoDisplayName()
-		brandingItem.Title = fmt.Sprintf("Branding: %s (%s, %s)", name, state.authorMenuLogoPosition, scaleText)
+		brandingItem.Title = fmt.Sprintf("Branding: %s (%s, %s)", name, state.authorMenuStudioLogoPosition, scaleText)
 		brandingAccordion.Refresh()
 	}
 
 	logoEnableCheck.OnChanged = func(checked bool) {
-		state.authorMenuLogoEnabled = checked
+		state.authorMenuStudioLogoEnabled = checked
 		updateLogoPreview()
 		updateBrandingTitle()
 		updateMenuControls(state.authorCreateMenu)
@@ -1741,6 +1789,16 @@ func (s *appState) loadVideoTSChapters(videoTSPath string) {
 	if s.authorChaptersRefresh != nil {
 		s.authorChaptersRefresh()
 	}
+}
+
+func featureClipsOnly(clips []authorClip) []authorClip {
+	var features []authorClip
+	for _, clip := range clips {
+		if !clip.IsExtra {
+			features = append(features, clip)
+		}
+	}
+	return features
 }
 
 func chaptersFromClips(clips []authorClip) []authorChapter {
@@ -2325,6 +2383,7 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 			"displayName":  clip.DisplayName,
 			"duration":     clip.Duration,
 			"chapterTitle": clip.ChapterTitle,
+			"isExtra":      clip.IsExtra,
 		})
 	}
 	chapters := make([]map[string]interface{}, 0, len(s.authorChapters))
@@ -2355,15 +2414,20 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 		"chapterSource":       s.authorChapterSource,
 		"subtitleTracks":      append([]string{}, s.authorSubtitles...),
 		"additionalAudios":    append([]string{}, s.authorAudioTracks...),
-		"menuTemplate":        s.authorMenuTemplate,
-		"menuBackgroundImage": s.authorMenuBackgroundImage,
-		"menuTheme":           s.authorMenuTheme,
-		"menuLogoEnabled":     s.authorMenuLogoEnabled,
-		"menuLogoPath":        s.authorMenuLogoPath,
-		"menuLogoPosition":    s.authorMenuLogoPosition,
-		"menuLogoScale":       s.authorMenuLogoScale,
-		"menuLogoMargin":      s.authorMenuLogoMargin,
-		"menuStructure":       s.authorMenuStructure,
+		"menuTemplate":             s.authorMenuTemplate,
+		"menuBackgroundImage":      s.authorMenuBackgroundImage,
+		"menuTheme":                s.authorMenuTheme,
+		"menuTitleLogoEnabled":     s.authorMenuTitleLogoEnabled,
+		"menuTitleLogoPath":        s.authorMenuTitleLogoPath,
+		"menuTitleLogoPosition":    s.authorMenuTitleLogoPosition,
+		"menuTitleLogoScale":       s.authorMenuTitleLogoScale,
+		"menuTitleLogoMargin":      s.authorMenuTitleLogoMargin,
+		"menuStudioLogoEnabled":    s.authorMenuStudioLogoEnabled,
+		"menuStudioLogoPath":       s.authorMenuStudioLogoPath,
+		"menuStudioLogoPosition":   s.authorMenuStudioLogoPosition,
+		"menuStudioLogoScale":      s.authorMenuStudioLogoScale,
+		"menuStudioLogoMargin":     s.authorMenuStudioLogoMargin,
+		"menuStructure":            s.authorMenuStructure,
 		"menuExtrasEnabled":   s.authorMenuExtrasEnabled,
 		"menuChapterThumbSrc": s.authorMenuChapterThumbSrc,
 	}
@@ -2453,7 +2517,7 @@ func (s *appState) addAuthorVideoTSToQueue(videoTSPath, title, outputPath string
 	return nil
 }
 
-func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, createMenu bool, menuTemplate string, menuBackgroundImage string, menuTheme string, menuLogoEnabled bool, menuLogoPath, menuLogoPosition string, menuLogoScale float64, menuLogoMargin int, logFn func(string), progressFn func(float64)) error {
+func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, createMenu bool, menuTemplate string, menuBackgroundImage string, menuTheme string, logos menuLogoOptions, logFn func(string), progressFn func(float64)) error {
 	tempRoot := authorTempRoot(outputPath)
 	if err := os.MkdirAll(tempRoot, 0755); err != nil {
 		return fmt.Errorf("failed to create temp root: %w", err)
@@ -2487,6 +2551,24 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		return err
 	}
 
+	// Separate paths into features and extras based on clips
+	var featurePaths []string
+	var extraPaths []string
+
+	if len(clips) > 0 {
+		// We have clip metadata, use it to separate features and extras
+		for _, clip := range clips {
+			if clip.IsExtra {
+				extraPaths = append(extraPaths, clip.Path)
+			} else {
+				featurePaths = append(featurePaths, clip.Path)
+			}
+		}
+	} else {
+		// No clip metadata, treat all as features
+		featurePaths = paths
+	}
+
 	var totalDuration float64
 	for _, path := range paths {
 		src, err := probeVideo(path)
@@ -2504,8 +2586,9 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	progressForOtherStep := otherStepsProgressShare / otherStepsCount
 	var accumulatedProgress float64
 
-	var mpgPaths []string
-	for i, path := range paths {
+	// Encode features first
+	var featureMpgPaths []string
+	for i, path := range featurePaths {
 		if logFn != nil {
 			logFn(fmt.Sprintf("Encoding %d/%d: %s", i+1, len(paths), filepath.Base(path)))
 		}
@@ -2558,12 +2641,70 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			return fmt.Errorf("remux failed: %w", err)
 		}
 		os.Remove(outPath)
-		mpgPaths = append(mpgPaths, remuxPath)
+		featureMpgPaths = append(featureMpgPaths, remuxPath)
+	}
+
+	// Encode extras as separate titles
+	var extraMpgPaths []string
+	for i, path := range extraPaths {
+		if logFn != nil {
+			logFn(fmt.Sprintf("Encoding Extra %d/%d: %s", i+1, len(extraPaths), filepath.Base(path)))
+		}
+		outPath := filepath.Join(workDir, fmt.Sprintf("extra_%02d.mpg", i+1))
+		src, err := probeVideo(path)
+		if err != nil {
+			return fmt.Errorf("failed to probe extra %s: %w", filepath.Base(path), err)
+		}
+
+		clipProgressShare := 0.0
+		if totalDuration > 0 {
+			clipProgressShare = (src.Duration / totalDuration) * encodingProgressShare
+		}
+
+		ffmpegProgressFn := func(stepPct float64) {
+			overallPct := accumulatedProgress + (stepPct / 100.0 * clipProgressShare)
+			if progressFn != nil {
+				progressFn(overallPct)
+			}
+		}
+
+		args := buildAuthorFFmpegArgs(path, outPath, region, aspect, src.IsProgressive())
+		if logFn != nil {
+			logFn(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
+		}
+
+		if err := runAuthorFFmpeg(ctx, args, src.Duration, logFn, ffmpegProgressFn); err != nil {
+			return err
+		}
+
+		accumulatedProgress += clipProgressShare
+		if progressFn != nil {
+			progressFn(accumulatedProgress)
+		}
+
+		remuxPath := filepath.Join(workDir, fmt.Sprintf("extra_%02d_remux.mpg", i+1))
+		remuxArgs := []string{
+			"-fflags", "+genpts",
+			"-i", outPath,
+			"-c", "copy",
+			"-f", "dvd",
+			"-muxrate", "10080000",
+			"-packetsize", "2048",
+			"-y", remuxPath,
+		}
+		if logFn != nil {
+			logFn(fmt.Sprintf(">> ffmpeg %s (remuxing for DVD compliance)", strings.Join(remuxArgs, " ")))
+		}
+		if err := runCommandWithLogger(ctx, utils.GetFFmpegPath(), remuxArgs, logFn); err != nil {
+			return fmt.Errorf("remux failed: %w", err)
+		}
+		os.Remove(outPath)
+		extraMpgPaths = append(extraMpgPaths, remuxPath)
 	}
 
 	// Generate clips from paths if clips is empty (fallback for when job didn't save clips)
-	if len(clips) == 0 && len(paths) > 1 {
-		for _, path := range paths {
+	if len(clips) == 0 && len(featurePaths) > 1 {
+		for _, path := range featurePaths {
 			src, err := probeVideo(path)
 			duration := 0.0
 			displayName := filepath.Base(path)
@@ -2590,17 +2731,52 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 	}
 
+	// Separate clips into features and extras
+	var featureClips []authorClip
+	var extraClips []authorClip
+	for _, clip := range clips {
+		if clip.IsExtra {
+			extraClips = append(extraClips, clip)
+		} else {
+			featureClips = append(featureClips, clip)
+		}
+	}
+
+	// Filter chapters to remove any that correspond to extra clips
+	// This handles the case where chapters were generated from all clips before separation
+	if len(chapters) > 0 && len(extraClips) > 0 {
+		filteredChapters := []authorChapter{}
+		for _, ch := range chapters {
+			// Check if this chapter title matches any extra clip
+			isExtra := false
+			for _, extra := range extraClips {
+				if ch.Title == extra.ChapterTitle {
+					isExtra = true
+					break
+				}
+			}
+			if !isExtra {
+				filteredChapters = append(filteredChapters, ch)
+			}
+		}
+		chapters = filteredChapters
+		if logFn != nil && len(filteredChapters) < len(chapters) {
+			logFn(fmt.Sprintf("Filtered out %d extra chapters, keeping %d feature chapters", len(chapters)-len(filteredChapters), len(filteredChapters)))
+		}
+	}
+
 	// Generate chapters from clips if available (for professional DVD navigation)
-	if len(chapters) == 0 && len(clips) > 1 {
-		chapters = chaptersFromClips(clips)
+	// Only use non-extra clips for chapters
+	if len(chapters) == 0 && len(featureClips) > 1 {
+		chapters = chaptersFromClips(featureClips)
 		if logFn != nil {
 			logFn(fmt.Sprintf("Generated %d chapter markers from video clips", len(chapters)))
 		}
 	}
 
 	// Try to extract embedded chapters from single file
-	if len(chapters) == 0 && len(mpgPaths) == 1 {
-		if embed, err := extractChaptersFromFile(paths[0]); err == nil && len(embed) > 0 {
+	if len(chapters) == 0 && len(featureMpgPaths) == 1 {
+		if embed, err := extractChaptersFromFile(featurePaths[0]); err == nil && len(embed) > 0 {
 			chapters = embed
 			if logFn != nil {
 				logFn(fmt.Sprintf("Extracted %d embedded chapters from source", len(chapters)))
@@ -2608,55 +2784,69 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 	}
 
-	// For professional DVD: always concatenate multiple files into one title with chapters
-	if len(mpgPaths) > 1 {
+	// For professional DVD: always concatenate multiple feature files into one title with chapters
+	if len(featureMpgPaths) > 1 {
 		concatPath := filepath.Join(workDir, "titles_joined.mpg")
 		if logFn != nil {
-			logFn(fmt.Sprintf("Combining %d videos into single title with chapter markers...", len(mpgPaths)))
+			logFn(fmt.Sprintf("Combining %d videos into single title with chapter markers...", len(featureMpgPaths)))
 		}
-		if err := concatDVDMpg(mpgPaths, concatPath); err != nil {
+		if err := concatDVDMpg(featureMpgPaths, concatPath); err != nil {
 			return fmt.Errorf("failed to concatenate videos: %w", err)
 		}
-		mpgPaths = []string{concatPath}
+		featureMpgPaths = []string{concatPath}
 	}
 
 	// Log details about encoded MPG files
 	if logFn != nil {
-		logFn(fmt.Sprintf("Created %d MPEG file(s):", len(mpgPaths)))
-		for i, mpg := range mpgPaths {
+		totalMpgs := len(featureMpgPaths) + len(extraMpgPaths)
+		logFn(fmt.Sprintf("Created %d MPEG file(s):", totalMpgs))
+		for i, mpg := range featureMpgPaths {
 			if info, err := os.Stat(mpg); err == nil {
 				logFn(fmt.Sprintf("  %d. %s (%d bytes)", i+1, filepath.Base(mpg), info.Size()))
 			} else {
 				logFn(fmt.Sprintf("  %d. %s (stat failed: %v)", i+1, filepath.Base(mpg), err))
 			}
 		}
+		for i, mpg := range extraMpgPaths {
+			if info, err := os.Stat(mpg); err == nil {
+				logFn(fmt.Sprintf("  %d. %s (EXTRA) (%d bytes)", len(featureMpgPaths)+i+1, filepath.Base(mpg), info.Size()))
+			} else {
+				logFn(fmt.Sprintf("  %d. %s (EXTRA) (stat failed: %v)", len(featureMpgPaths)+i+1, filepath.Base(mpg), err))
+			}
+		}
 	}
 
-	var menuMpg string
-	var menuButtons []dvdMenuButton
+	// Build extras list for menu (title numbers start after main feature)
+	// Extras menu appears automatically when clips are marked as extras
+	var extras []extraItem
+	if len(extraClips) > 0 {
+		for i, clip := range extraClips {
+			extras = append(extras, extraItem{
+				Title:    clip.ChapterTitle,
+				TitleNum: i + 2, // Title 1 is main feature, extras start at title 2
+			})
+		}
+	}
+
+	var menuSet dvdMenuSet
 	if createMenu {
 		template, ok := menuTemplates[menuTemplate]
 		if !ok {
 			template = &SimpleMenu{}
 		}
-		menuMpg, menuButtons, err = buildDVDMenuAssets(
+		menuSet, err = buildDVDMenuAssets(
 			ctx,
 			workDir,
 			title,
 			region,
 			aspect,
 			chapters,
+			extras,
 			logFn,
 			template,
 			menuBackgroundImage,
 			&MenuTheme{Name: menuTheme},
-			menuLogoOptions{
-				Enabled:  menuLogoEnabled,
-				Path:     menuLogoPath,
-				Position: menuLogoPosition,
-				Scale:    menuLogoScale,
-				Margin:   menuLogoMargin,
-			},
+			logos,
 		)
 		if err != nil {
 			return err
@@ -2664,7 +2854,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	}
 
 	xmlPath := filepath.Join(workDir, "dvd.xml")
-	if err := writeDVDAuthorXML(xmlPath, mpgPaths, region, aspect, chapters, menuMpg, menuButtons); err != nil {
+	if err := writeDVDAuthorXML(xmlPath, featureMpgPaths, extraMpgPaths, region, aspect, chapters, menuSet); err != nil {
 		return err
 	}
 
@@ -2902,6 +3092,7 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 					DisplayName:  toString(m["displayName"]),
 					Duration:     toFloat(m["duration"]),
 					ChapterTitle: toString(m["chapterTitle"]),
+					IsExtra:      toBool(m["isExtra"]),
 				})
 			}
 		}
@@ -2982,11 +3173,22 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 		toString(cfg["menuTemplate"]),
 		toString(cfg["menuBackgroundImage"]),
 		toString(cfg["menuTheme"]),
-		toBool(cfg["menuLogoEnabled"]),
-		toString(cfg["menuLogoPath"]),
-		toString(cfg["menuLogoPosition"]),
-		toFloat(cfg["menuLogoScale"]),
-		int(toFloat(cfg["menuLogoMargin"])),
+		menuLogoOptions{
+			TitleLogo: menuLogo{
+				Enabled:  toBool(cfg["menuTitleLogoEnabled"]),
+				Path:     toString(cfg["menuTitleLogoPath"]),
+				Position: toString(cfg["menuTitleLogoPosition"]),
+				Scale:    toFloat(cfg["menuTitleLogoScale"]),
+				Margin:   int(toFloat(cfg["menuTitleLogoMargin"])),
+			},
+			StudioLogo: menuLogo{
+				Enabled:  toBool(cfg["menuStudioLogoEnabled"]),
+				Path:     toString(cfg["menuStudioLogoPath"]),
+				Position: toString(cfg["menuStudioLogoPosition"]),
+				Scale:    toFloat(cfg["menuStudioLogoScale"]),
+				Margin:   int(toFloat(cfg["menuStudioLogoMargin"])),
+			},
+		},
 		appendLog,
 		updateProgress,
 	)
@@ -3132,7 +3334,7 @@ func buildAuthorFFmpegArgs(inputPath, outputPath, region, aspect string, progres
 	return args
 }
 
-func writeDVDAuthorXML(path string, mpgPaths []string, region, aspect string, chapters []authorChapter, menuMpg string, menuButtons []dvdMenuButton) error {
+func writeDVDAuthorXML(path string, featureMpgPaths []string, extraMpgPaths []string, region, aspect string, chapters []authorChapter, menuSet dvdMenuSet) error {
 	format := strings.ToLower(region)
 	if format != "pal" {
 		format = "ntsc"
@@ -3140,32 +3342,79 @@ func writeDVDAuthorXML(path string, mpgPaths []string, region, aspect string, ch
 
 	var b strings.Builder
 	b.WriteString("<dvdauthor>\n")
-	if menuMpg != "" && len(menuButtons) > 0 {
-		b.WriteString("  <vmgm>\n")
-		b.WriteString("    <menus>\n")
-		b.WriteString("      <pgc entry=\"root\">\n")
-		b.WriteString(fmt.Sprintf("        <vob file=\"%s\" pause=\"inf\" />\n", escapeXMLAttr(menuMpg)))
-		for _, btn := range menuButtons {
-			b.WriteString(fmt.Sprintf("        <button>%s</button>\n", btn.Command))
-		}
-		b.WriteString("      </pgc>\n")
-		b.WriteString("    </menus>\n")
-		b.WriteString("  </vmgm>\n")
-	} else {
-		b.WriteString("  <vmgm />\n")
-	}
+	b.WriteString("  <vmgm />\n")
 	b.WriteString("  <titleset>\n")
+
+	// Write menus section if we have menus
+	if menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
+		b.WriteString("    <menus>\n")
+
+		// Main menu (PGC 1)
+		b.WriteString("      <pgc entry=\"root\">\n")
+		b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(menuSet.MainMpg)))
+		for i, btn := range menuSet.MainButtons {
+			b.WriteString(fmt.Sprintf("        <button name=\"b%d\">%s</button>\n", i+1, btn.Command))
+		}
+		b.WriteString("        <post>jump menu entry root;</post>\n")
+		b.WriteString("      </pgc>\n")
+
+		// Chapters menu (PGC 2) if present
+		if menuSet.ChaptersMpg != "" && len(menuSet.ChaptersButtons) > 0 {
+			b.WriteString("      <pgc>\n")
+			b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(menuSet.ChaptersMpg)))
+			for i, btn := range menuSet.ChaptersButtons {
+				b.WriteString(fmt.Sprintf("        <button name=\"b%d\">%s</button>\n", i+1, btn.Command))
+			}
+			b.WriteString("        <post>jump menu 2;</post>\n") // Loop chapters menu back to itself
+			b.WriteString("      </pgc>\n")
+		}
+
+		// Extras menu (PGC 2 or 3) if present
+		if menuSet.ExtrasMpg != "" && len(menuSet.ExtrasButtons) > 0 {
+			b.WriteString("      <pgc>\n")
+			b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(menuSet.ExtrasMpg)))
+			for i, btn := range menuSet.ExtrasButtons {
+				b.WriteString(fmt.Sprintf("        <button name=\"b%d\">%s</button>\n", i+1, btn.Command))
+			}
+			// Loop extras menu back to itself (PGC 3 if chapters exist, PGC 2 otherwise)
+			extrasMenuPGC := 2
+			if menuSet.ChaptersMpg != "" {
+				extrasMenuPGC = 3
+			}
+			b.WriteString(fmt.Sprintf("        <post>jump menu %d;</post>\n", extrasMenuPGC))
+			b.WriteString("      </pgc>\n")
+		}
+
+		b.WriteString("    </menus>\n")
+	}
+
 	b.WriteString("    <titles>\n")
 	b.WriteString(fmt.Sprintf("      <video format=\"%s\" aspect=\"%s\" />\n", format, aspect))
-	for _, mpg := range mpgPaths {
+
+	// Write main feature title (Title 1) with chapters
+	for _, mpg := range featureMpgPaths {
 		b.WriteString("      <pgc>\n")
 		if len(chapters) > 0 {
 			b.WriteString(fmt.Sprintf("        <vob file=\"%s\" chapters=\"%s\" />\n", escapeXMLAttr(mpg), chaptersToDVDAuthor(chapters)))
 		} else {
 			b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(mpg)))
 		}
+		if menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
+			b.WriteString("        <post>call menu;</post>\n")
+		}
 		b.WriteString("      </pgc>\n")
 	}
+
+	// Write extras as separate titles (Title 2, Title 3, etc.)
+	for _, mpg := range extraMpgPaths {
+		b.WriteString("      <pgc>\n")
+		b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(mpg)))
+		if menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
+			b.WriteString("        <post>call menu;</post>\n")
+		}
+		b.WriteString("      </pgc>\n")
+	}
+
 	b.WriteString("    </titles>\n")
 	b.WriteString("  </titleset>\n")
 	b.WriteString("</dvdauthor>\n")

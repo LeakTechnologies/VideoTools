@@ -32,6 +32,11 @@ type MenuTheme struct {
 }
 
 type menuLogoOptions struct {
+	TitleLogo  menuLogo
+	StudioLogo menuLogo
+}
+
+type menuLogo struct {
 	Enabled  bool
 	Path     string
 	Position string
@@ -68,7 +73,7 @@ type SimpleMenu struct{}
 // Generate creates a simple DVD menu.
 func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
-	buttons := buildDVDMenuButtons(chapters, width, height)
+	buttons := buildDVDMenuButtons(chapters, false, width, height) // hasExtras=false for template compatibility
 	if len(buttons) == 0 {
 		return "", nil, nil
 	}
@@ -118,7 +123,7 @@ type DarkMenu struct{}
 // Generate creates a dark-themed DVD menu.
 func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
-	buttons := buildDVDMenuButtons(chapters, width, height)
+	buttons := buildDVDMenuButtons(chapters, false, width, height) // hasExtras=false for template compatibility
 	if len(buttons) == 0 {
 		return "", nil, nil
 	}
@@ -168,7 +173,7 @@ type PosterMenu struct{}
 // Generate creates a poster-themed DVD menu.
 func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
-	buttons := buildDVDMenuButtons(chapters, width, height)
+	buttons := buildDVDMenuButtons(chapters, false, width, height) // hasExtras=false for template compatibility
 	if len(buttons) == 0 {
 		return "", nil, nil
 	}
@@ -210,11 +215,179 @@ func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	return menuSpu, buttons, nil
 }
 
-func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, logFn func(string), template MenuTemplate, backgroundImage string, theme *MenuTheme, logo menuLogoOptions) (string, []dvdMenuButton, error) {
+type dvdMenuSet struct {
+	MainMpg          string
+	MainButtons      []dvdMenuButton
+	ChaptersMpg      string
+	ChaptersButtons  []dvdMenuButton
+	ExtrasMpg        string
+	ExtrasButtons    []dvdMenuButton
+}
+
+func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, extras []extraItem, logFn func(string), template MenuTemplate, backgroundImage string, theme *MenuTheme, logo menuLogoOptions) (dvdMenuSet, error) {
 	if template == nil {
 		template = &SimpleMenu{}
 	}
-	return template.Generate(ctx, workDir, title, region, aspect, chapters, backgroundImage, resolveMenuTheme(theme), logo, logFn)
+
+	// Determine main menu buttons based on chapters and extras
+	width, height := dvdMenuDimensions(region)
+	hasExtras := len(extras) > 0
+	mainButtons := buildDVDMenuButtons(chapters, hasExtras, width, height)
+
+	// Generate main menu MPEG set
+	mainMpg, err := buildMainMenuMPEGSet(ctx, workDir, title, region, aspect, mainButtons, backgroundImage, theme, logo, logFn)
+	if err != nil {
+		return dvdMenuSet{}, err
+	}
+
+	result := dvdMenuSet{
+		MainMpg:     mainMpg,
+		MainButtons: mainButtons,
+	}
+
+	// Generate chapters menu if there are multiple chapters
+	if len(chapters) > 1 {
+		chaptersMenuMpg, chaptersButtons, err := buildChaptersMenuMPEGSet(ctx, workDir, title, region, aspect, chapters, theme, logFn)
+		if err != nil {
+			return dvdMenuSet{}, err
+		}
+		result.ChaptersMpg = chaptersMenuMpg
+		result.ChaptersButtons = chaptersButtons
+	}
+
+	// Generate extras menu if there are extras
+	if len(extras) > 0 {
+		extrasMenuMpg, extrasButtons, err := buildExtrasMenuMPEGSet(ctx, workDir, title, region, aspect, extras, theme, logFn)
+		if err != nil {
+			return dvdMenuSet{}, err
+		}
+		result.ExtrasMpg = extrasMenuMpg
+		result.ExtrasButtons = extrasButtons
+	}
+
+	return result, nil
+}
+
+func buildMainMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, buttons []dvdMenuButton, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, error) {
+	width, height := dvdMenuDimensions(region)
+
+	bgPath := filepath.Join(workDir, "menu_bg.png")
+	if backgroundImage != "" {
+		bgPath = backgroundImage
+	}
+	overlayPath := filepath.Join(workDir, "menu_overlay.png")
+	highlightPath := filepath.Join(workDir, "menu_highlight.png")
+	selectPath := filepath.Join(workDir, "menu_select.png")
+	menuMpg := filepath.Join(workDir, "menu.mpg")
+	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
+	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
+
+	if logFn != nil {
+		logFn("Building DVD menu assets with SimpleMenu template...")
+	}
+
+	if backgroundImage == "" {
+		if err := buildMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo, logFn); err != nil {
+			return "", err
+		}
+	}
+
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
+		return "", err
+	}
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
+		return "", err
+	}
+	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
+		return "", err
+	}
+	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
+		return "", err
+	}
+	if logFn != nil {
+		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
+	}
+	return menuSpu, nil
+}
+
+func buildExtrasMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, extras []extraItem, theme *MenuTheme, logFn func(string)) (string, []dvdMenuButton, error) {
+	width, height := dvdMenuDimensions(region)
+	buttons := buildExtrasMenuButtons(extras, width, height)
+	if len(buttons) == 0 {
+		return "", nil, nil
+	}
+
+	bgPath := filepath.Join(workDir, "extras_menu_bg.png")
+	overlayPath := filepath.Join(workDir, "extras_menu_overlay.png")
+	highlightPath := filepath.Join(workDir, "extras_menu_highlight.png")
+	selectPath := filepath.Join(workDir, "extras_menu_select.png")
+	menuMpg := filepath.Join(workDir, "extras_menu.mpg")
+	menuSpu := filepath.Join(workDir, "extras_menu_spu.mpg")
+	spumuxXML := filepath.Join(workDir, "extras_menu_spu.xml")
+
+	if logFn != nil {
+		logFn("Building extras menu assets...")
+	}
+
+	if err := buildExtrasMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
+		return "", nil, err
+	}
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
+		return "", nil, err
+	}
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
+		return "", nil, err
+	}
+	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
+		return "", nil, err
+	}
+	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
+		return "", nil, err
+	}
+	if logFn != nil {
+		logFn(fmt.Sprintf("Extras menu created: %s", filepath.Base(menuSpu)))
+	}
+	return menuSpu, buttons, nil
+}
+
+func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, theme *MenuTheme, logFn func(string)) (string, []dvdMenuButton, error) {
+	width, height := dvdMenuDimensions(region)
+	buttons := buildChapterMenuButtons(chapters, width, height)
+	if len(buttons) == 0 {
+		return "", nil, nil
+	}
+
+	bgPath := filepath.Join(workDir, "chapters_menu_bg.png")
+	overlayPath := filepath.Join(workDir, "chapters_menu_overlay.png")
+	highlightPath := filepath.Join(workDir, "chapters_menu_highlight.png")
+	selectPath := filepath.Join(workDir, "chapters_menu_select.png")
+	menuMpg := filepath.Join(workDir, "chapters_menu.mpg")
+	menuSpu := filepath.Join(workDir, "chapters_menu_spu.mpg")
+	spumuxXML := filepath.Join(workDir, "chapters_menu_spu.xml")
+
+	if logFn != nil {
+		logFn("Building chapters menu assets...")
+	}
+
+	if err := buildChaptersMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
+		return "", nil, err
+	}
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
+		return "", nil, err
+	}
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
+		return "", nil, err
+	}
+	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
+		return "", nil, err
+	}
+	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
+		return "", nil, err
+	}
+	if logFn != nil {
+		logFn(fmt.Sprintf("Chapters menu created: %s", filepath.Base(menuSpu)))
+	}
+	return menuSpu, buttons, nil
 }
 
 func dvdMenuDimensions(region string) (int, int) {
@@ -224,7 +397,7 @@ func dvdMenuDimensions(region string) (int, int) {
 	return 720, 480
 }
 
-func buildDVDMenuButtons(chapters []authorChapter, width, height int) []dvdMenuButton {
+func buildDVDMenuButtons(chapters []authorChapter, hasExtras bool, width, height int) []dvdMenuButton {
 	buttons := []dvdMenuButton{
 		{
 			Label:   "Play",
@@ -232,21 +405,27 @@ func buildDVDMenuButtons(chapters []authorChapter, width, height int) []dvdMenuB
 		},
 	}
 
-	maxChapters := 8
-	if len(chapters) < maxChapters {
-		maxChapters = len(chapters)
-	}
-	for i := 0; i < maxChapters; i++ {
-		label := fmt.Sprintf("Chapter %d", i+1)
-		if title := strings.TrimSpace(chapters[i].Title); title != "" {
-			label = fmt.Sprintf("Chapter %d: %s", i+1, utils.ShortenMiddle(title, 34))
-		}
+	// Add Chapters button if there are multiple chapters
+	if len(chapters) > 1 {
 		buttons = append(buttons, dvdMenuButton{
-			Label:   label,
-			Command: fmt.Sprintf("jump title 1 chapter %d;", i+1),
+			Label:   "Chapters",
+			Command: "jump menu 2;", // Jump to chapters menu (second PGC)
 		})
 	}
 
+	// Add Extras button if extras are present
+	if hasExtras {
+		extrasMenuIndex := 2
+		if len(chapters) > 1 {
+			extrasMenuIndex = 3 // Chapters menu is PGC 2, so extras is PGC 3
+		}
+		buttons = append(buttons, dvdMenuButton{
+			Label:   "Extras",
+			Command: fmt.Sprintf("jump menu %d;", extrasMenuIndex),
+		})
+	}
+
+	// Position buttons
 	startY := 180
 	rowHeight := 34
 	boxHeight := 28
@@ -259,6 +438,81 @@ func buildDVDMenuButtons(chapters []authorChapter, width, height int) []dvdMenuB
 		buttons[i].Y0 = y0
 		buttons[i].Y1 = y0 + boxHeight
 	}
+	return buttons
+}
+
+func buildChapterMenuButtons(chapters []authorChapter, width, height int) []dvdMenuButton {
+	buttons := []dvdMenuButton{}
+
+	// Add a button for each chapter
+	for i, ch := range chapters {
+		buttons = append(buttons, dvdMenuButton{
+			Label:   ch.Title,
+			Command: fmt.Sprintf("jump title 1 chapter %d;", i+1),
+		})
+	}
+
+	// Add Back button at the end
+	buttons = append(buttons, dvdMenuButton{
+		Label:   "Back",
+		Command: "jump menu 1;", // Jump back to main menu (first PGC)
+	})
+
+	// Position buttons - allow more buttons to fit
+	startY := 120
+	rowHeight := 32
+	boxHeight := 26
+	x0 := 60
+	x1 := width - 60
+
+	for i := range buttons {
+		y0 := startY + i*rowHeight
+		buttons[i].X0 = x0
+		buttons[i].X1 = x1
+		buttons[i].Y0 = y0
+		buttons[i].Y1 = y0 + boxHeight
+	}
+
+	return buttons
+}
+
+type extraItem struct {
+	Title     string
+	TitleNum  int // DVD title number for this extra
+}
+
+func buildExtrasMenuButtons(extras []extraItem, width, height int) []dvdMenuButton {
+	buttons := []dvdMenuButton{}
+
+	// Add a button for each extra
+	for _, extra := range extras {
+		buttons = append(buttons, dvdMenuButton{
+			Label:   extra.Title,
+			Command: fmt.Sprintf("jump title %d;", extra.TitleNum),
+		})
+	}
+
+	// Add Back button at the end
+	buttons = append(buttons, dvdMenuButton{
+		Label:   "Back",
+		Command: "jump menu 1;", // Jump back to main menu (first PGC)
+	})
+
+	// Position buttons - allow more buttons to fit
+	startY := 120
+	rowHeight := 32
+	boxHeight := 26
+	x0 := 60
+	x1 := width - 60
+
+	for i := range buttons {
+		y0 := startY + i*rowHeight
+		buttons[i].X0 = x0
+		buttons[i].X1 = x1
+		buttons[i].Y0 = y0
+		buttons[i].Y1 = y0 + boxHeight
+	}
+
 	return buttons
 }
 
@@ -278,31 +532,51 @@ func buildMenuBackground(ctx context.Context, outputPath, title string, buttons 
 
 	filterParts := []string{
 		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text='%s'", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text='%s'", fontArg, textColor, escapeDrawtextText(safeTitle)),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
 		fmt.Sprintf("drawbox=x=36:y=108:w=%d:h=2:color=%s:t=fill", width-72, accentColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=122:text='%s'", fontArg, textColor, escapeDrawtextText("Select a title or chapter to play")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=122:text=%s", fontArg, textColor, escapeDrawtextText("Select a title or chapter to play")),
 	}
 
 	for i, btn := range buttons {
 		label := escapeDrawtextText(btn.Label)
 		y := 184 + i*34
-		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=20:x=110:y=%d:text='%s'", fontArg, textColor, y, label))
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=20:x=110:y=%d:text=%s", fontArg, textColor, y, label))
 	}
 
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
 	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
-	if logo.Enabled {
-		logoPath := resolveMenuLogoPath(logo)
-		if logoPath != "" {
-			posExpr := resolveMenuLogoPosition(logo, width, height)
-			scaleExpr := resolveMenuLogoScaleExpr(logo, width, height)
-			args = append(args, "-i", logoPath)
-			filterExpr = fmt.Sprintf("[0:v]%s[bg];[1:v]%s[logo];[bg][logo]overlay=%s", filterChain, scaleExpr, posExpr)
+
+	// Handle title logo and studio logo overlays
+	inputIndex := 1
+	baseLayer := "[bg]"
+
+	// Add title logo if enabled
+	if logo.TitleLogo.Enabled {
+		titleLogoPath := resolveMenuLogoPath(logo.TitleLogo)
+		if titleLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.TitleLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.TitleLogo, width, height)
+			args = append(args, "-i", titleLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[titlelogo];%s[titlelogo]overlay=%s[tmp%d]", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr, inputIndex)
+			baseLayer = fmt.Sprintf("[tmp%d]", inputIndex)
+			inputIndex++
 		}
 	}
+
+	// Add studio logo if enabled
+	if logo.StudioLogo.Enabled {
+		studioLogoPath := resolveMenuLogoPath(logo.StudioLogo)
+		if studioLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.StudioLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.StudioLogo, width, height)
+			args = append(args, "-i", studioLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[studiologo];%s[studiologo]overlay=%s", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr)
+		}
+	}
+
 	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
@@ -323,31 +597,51 @@ func buildDarkMenuBackground(ctx context.Context, outputPath, title string, butt
 
 	filterParts := []string{
 		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text='%s'", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text='%s'", fontArg, textColor, escapeDrawtextText(safeTitle)),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
 		fmt.Sprintf("drawbox=x=36:y=108:w=%d:h=2:color=%s:t=fill", width-72, accentColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=122:text='%s'", fontArg, textColor, escapeDrawtextText("Select a title or chapter to play")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=122:text=%s", fontArg, textColor, escapeDrawtextText("Select a title or chapter to play")),
 	}
 
 	for i, btn := range buttons {
 		label := escapeDrawtextText(btn.Label)
 		y := 184 + i*34
-		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=20:x=110:y=%d:text='%s'", fontArg, textColor, y, label))
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=20:x=110:y=%d:text=%s", fontArg, textColor, y, label))
 	}
 
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
 	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
-	if logo.Enabled {
-		logoPath := resolveMenuLogoPath(logo)
-		if logoPath != "" {
-			posExpr := resolveMenuLogoPosition(logo, width, height)
-			scaleExpr := resolveMenuLogoScaleExpr(logo, width, height)
-			args = append(args, "-i", logoPath)
-			filterExpr = fmt.Sprintf("[0:v]%s[bg];[1:v]%s[logo];[bg][logo]overlay=%s", filterChain, scaleExpr, posExpr)
+
+	// Handle title logo and studio logo overlays
+	inputIndex := 1
+	baseLayer := "[bg]"
+
+	// Add title logo if enabled
+	if logo.TitleLogo.Enabled {
+		titleLogoPath := resolveMenuLogoPath(logo.TitleLogo)
+		if titleLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.TitleLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.TitleLogo, width, height)
+			args = append(args, "-i", titleLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[titlelogo];%s[titlelogo]overlay=%s[tmp%d]", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr, inputIndex)
+			baseLayer = fmt.Sprintf("[tmp%d]", inputIndex)
+			inputIndex++
 		}
 	}
+
+	// Add studio logo if enabled
+	if logo.StudioLogo.Enabled {
+		studioLogoPath := resolveMenuLogoPath(logo.StudioLogo)
+		if studioLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.StudioLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.StudioLogo, width, height)
+			args = append(args, "-i", studioLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[studiologo];%s[studiologo]overlay=%s", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr)
+		}
+	}
+
 	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
@@ -363,30 +657,136 @@ func buildPosterMenuBackground(ctx context.Context, outputPath, title string, bu
 	fontArg := menuFontArg(theme)
 
 	filterParts := []string{
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text='%s'", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text='%s'", fontArg, textColor, escapeDrawtextText(safeTitle)),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
 	}
 
 	for i, btn := range buttons {
 		label := escapeDrawtextText(btn.Label)
 		y := 184 + i*34
-		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=20:x=110:y=%d:text='%s'", fontArg, textColor, y, label))
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=20:x=110:y=%d:text=%s", fontArg, textColor, y, label))
 	}
 
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-i", backgroundImage}
 	filterExpr := fmt.Sprintf("[0:v]scale=%d:%d,%s[bg]", width, height, filterChain)
-	if logo.Enabled {
-		logoPath := resolveMenuLogoPath(logo)
-		if logoPath != "" {
-			posExpr := resolveMenuLogoPosition(logo, width, height)
-			scaleExpr := resolveMenuLogoScaleExpr(logo, width, height)
-			args = append(args, "-i", logoPath)
-			filterExpr = fmt.Sprintf("[0:v]scale=%d:%d,%s[bg];[1:v]%s[logo];[bg][logo]overlay=%s", width, height, filterChain, scaleExpr, posExpr)
+
+	// Handle title logo and studio logo overlays
+	inputIndex := 1
+	baseLayer := "[bg]"
+
+	// Add title logo if enabled
+	if logo.TitleLogo.Enabled {
+		titleLogoPath := resolveMenuLogoPath(logo.TitleLogo)
+		if titleLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.TitleLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.TitleLogo, width, height)
+			args = append(args, "-i", titleLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[titlelogo];%s[titlelogo]overlay=%s[tmp%d]", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr, inputIndex)
+			baseLayer = fmt.Sprintf("[tmp%d]", inputIndex)
+			inputIndex++
 		}
 	}
+
+	// Add studio logo if enabled
+	if logo.StudioLogo.Enabled {
+		studioLogoPath := resolveMenuLogoPath(logo.StudioLogo)
+		if studioLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.StudioLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.StudioLogo, width, height)
+			args = append(args, "-i", studioLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[studiologo];%s[studiologo]overlay=%s", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr)
+		}
+	}
+
 	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
+}
+
+func buildExtrasMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logFn func(string)) error {
+	theme = resolveMenuTheme(theme)
+
+	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
+	if safeTitle == "" {
+		safeTitle = "DVD Menu"
+	}
+
+	bgColor := theme.BackgroundColor
+	headerColor := theme.HeaderColor
+	textColor := theme.TextColor
+	accentColor := theme.AccentColor
+	fontArg := menuFontArg(theme)
+
+	filterParts := []string{
+		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText("Extras")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=52:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
+		fmt.Sprintf("drawbox=x=36:y=80:w=%d:h=2:color=%s:t=fill", width-72, accentColor),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=14:x=36:y=94:text=%s", fontArg, textColor, escapeDrawtextText("Select an extra to play")),
+	}
+
+	for i, btn := range buttons {
+		label := escapeDrawtextText(btn.Label)
+		// Truncate long names for display
+		if len(label) > 50 {
+			label = label[:47] + "..."
+		}
+		y := 120 + i*32
+		fontSize := 18
+		if btn.Label == "Back" {
+			fontSize = 20 // Make Back button slightly larger
+		}
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=%d:x=80:y=%d:text=%s", fontArg, textColor, fontSize, y, label))
+	}
+
+	filterChain := strings.Join(filterParts, ",")
+
+	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
+	args = append(args, "-filter_complex", fmt.Sprintf("[0:v]%s", filterChain), "-frames:v", "1", outputPath)
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
+}
+
+func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logFn func(string)) error {
+	theme = resolveMenuTheme(theme)
+
+	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
+	if safeTitle == "" {
+		safeTitle = "DVD Menu"
+	}
+
+	bgColor := theme.BackgroundColor
+	headerColor := theme.HeaderColor
+	textColor := theme.TextColor
+	accentColor := theme.AccentColor
+	fontArg := menuFontArg(theme)
+
+	filterParts := []string{
+		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText("Chapter Selection")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=52:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
+		fmt.Sprintf("drawbox=x=36:y=80:w=%d:h=2:color=%s:t=fill", width-72, accentColor),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=14:x=36:y=94:text=%s", fontArg, textColor, escapeDrawtextText("Select a chapter to play")),
+	}
+
+	for i, btn := range buttons {
+		label := escapeDrawtextText(btn.Label)
+		// Truncate long chapter names for display
+		if len(label) > 50 {
+			label = label[:47] + "..."
+		}
+		y := 120 + i*32
+		fontSize := 18
+		if btn.Label == "Back" {
+			fontSize = 20 // Make Back button slightly larger
+		}
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=%d:x=80:y=%d:text=%s", fontArg, textColor, fontSize, y, label))
+	}
+
+	filterChain := strings.Join(filterParts, ",")
+
+	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
+	args = append(args, "-filter_complex", fmt.Sprintf("[0:v]%s", filterChain), "-frames:v", "1", outputPath)
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
 
@@ -456,7 +856,7 @@ func writeSpumuxXML(path, overlayPath, highlightPath, selectPath string, buttons
 	var b strings.Builder
 	b.WriteString("<subpictures>\n")
 	b.WriteString("  <stream>\n")
-	b.WriteString(fmt.Sprintf("    <spu start=\"00:00:00.00\" end=\"00:00:30.00\" image=\"%s\" highlight=\"%s\" select=\"%s\" force=\"yes\"/>",
+	b.WriteString(fmt.Sprintf("    <spu start=\"00:00:00.00\" end=\"00:00:30.00\" image=\"%s\" highlight=\"%s\" select=\"%s\" force=\"yes\">\n",
 		escapeXMLAttr(overlayPath),
 		escapeXMLAttr(highlightPath),
 		escapeXMLAttr(selectPath),
@@ -472,7 +872,7 @@ func writeSpumuxXML(path, overlayPath, highlightPath, selectPath string, buttons
 }
 
 func runSpumux(ctx context.Context, spumuxXML, inputMpg, outputMpg string, logFn func(string)) error {
-	args := []string{" -m", "dvd", spumuxXML}
+	args := []string{"-m", "dvd", spumuxXML}
 	if logFn != nil {
 		logFn(fmt.Sprintf(">> spumux -m dvd %s < %s > %s", spumuxXML, filepath.Base(inputMpg), filepath.Base(outputMpg)))
 	}
@@ -515,14 +915,18 @@ func findVTLogoPath() string {
 }
 
 func findMenuFontPath() string {
-	search := []string{
-		filepath.Join("assets", "fonts", "IBMPlexMono-Regular.ttf"),
+	// Get absolute path to working directory
+	wd, err := os.Getwd()
+	if err == nil {
+		p := filepath.Join(wd, "assets", "fonts", "IBMPlexMono-Regular.ttf")
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
 	}
+	// Try executable directory
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
-		search = append(search, filepath.Join(dir, "assets", "fonts", "IBMPlexMono-Regular.ttf"))
-	}
-	for _, p := range search {
+		p := filepath.Join(dir, "assets", "fonts", "IBMPlexMono-Regular.ttf")
 		if _, err := os.Stat(p); err == nil {
 			return p
 		}
@@ -572,14 +976,14 @@ func menuFontArg(theme *MenuTheme) string {
 	return "font=monospace"
 }
 
-func resolveMenuLogoPath(logo menuLogoOptions) string {
+func resolveMenuLogoPath(logo menuLogo) string {
 	if strings.TrimSpace(logo.Path) != "" {
 		return logo.Path
 	}
 	return filepath.Join("assets", "logo", "VT_Logo.png")
 }
 
-func resolveMenuLogoScale(logo menuLogoOptions) float64 {
+func resolveMenuLogoScale(logo menuLogo) float64 {
 	if logo.Scale <= 0 {
 		return 1.0
 	}
@@ -592,14 +996,15 @@ func resolveMenuLogoScale(logo menuLogoOptions) float64 {
 	return logo.Scale
 }
 
-func resolveMenuLogoScaleExpr(logo menuLogoOptions, width, height int) string {
+func resolveMenuLogoScaleExpr(logo menuLogo, width, height int) string {
 	scale := resolveMenuLogoScale(logo)
 	maxW := float64(width) * 0.25
 	maxH := float64(height) * 0.25
-	return fmt.Sprintf("scale=w=min(iw*%.2f,%.0f):h=min(ih*%.2f,%.0f):force_original_aspect_ratio=decrease", scale, maxW, scale, maxH)
+	// Use simpler scale syntax without w=/h= named parameters
+	return fmt.Sprintf("scale='min(iw*%.2f,%.0f)':'min(ih*%.2f,%.0f)':force_original_aspect_ratio=decrease", scale, maxW, scale, maxH)
 }
 
-func resolveMenuLogoPosition(logo menuLogoOptions, width, height int) string {
+func resolveMenuLogoPosition(logo menuLogo, width, height int) string {
 	margin := logo.Margin
 	if margin < 0 {
 		margin = 0
@@ -619,9 +1024,14 @@ func resolveMenuLogoPosition(logo menuLogoOptions, width, height int) string {
 }
 
 func escapeDrawtextText(text string) string {
-	escaped := strings.ReplaceAll(text, "\\", "\\\\")
-	escaped = strings.ReplaceAll(escaped, ":", "\\:")
-	escaped = strings.ReplaceAll(escaped, "'", "\\'")
-	escaped = strings.ReplaceAll(escaped, "%", "\\%")
-	return escaped
+	// Strip ALL special characters - only keep letters, numbers, and spaces
+	var result strings.Builder
+	for _, r := range text {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == ' ' {
+			result.WriteRune(r)
+		}
+	}
+	// Clean up multiple spaces
+	cleaned := strings.Join(strings.Fields(result.String()), " ")
+	return cleaned
 }
