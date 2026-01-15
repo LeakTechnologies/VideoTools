@@ -48,10 +48,19 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	guitutils "git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 
 	"github.com/ebitengine/oto/v3"
 	"github.com/skip2/go-qrcode"
 )
+
+// abs returns the absolute value of an int32
+func abs(x int32) int32 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
 
 // Module describes a high level tool surface that gets a tile on the menu.
 type Module struct {
@@ -1156,49 +1165,49 @@ type appState struct {
 	historyTabIdx  int
 
 	// Author module state
-	authorFile                *videoSource
-	authorChapters            []authorChapter
-	authorSceneThreshold      float64
-	authorDetecting           bool
-	authorClips               []authorClip // Multiple video clips for compilation
-	authorOutputType          string       // "dvd" or "iso"
-	authorRegion              string       // "NTSC", "PAL", "AUTO"
-	authorAspectRatio         string       // "4:3", "16:9", "AUTO"
-	authorCreateMenu          bool         // Whether to create DVD menu
-	authorMenuTemplate        string       // "Simple", "Dark", "Poster"
-	authorMenuBackgroundImage string       // Path to a user-selected background image
-	authorMenuTheme              string  // "VideoTools"
-	authorMenuTitleLogoEnabled   bool    // Enable title logo (main logo above menu)
-	authorMenuTitleLogoPath      string  // Path to title logo image
-	authorMenuTitleLogoPosition  string  // Position for title logo
-	authorMenuTitleLogoScale     float64 // Scale for title logo
-	authorMenuTitleLogoMargin    int     // Margin for title logo
-	authorMenuStudioLogoEnabled  bool    // Enable studio logo (corner logo)
-	authorMenuStudioLogoPath     string  // Path to studio logo image
-	authorMenuStudioLogoPosition string  // "Top Left", "Top Right", "Bottom Left", "Bottom Right"
-	authorMenuStudioLogoScale    float64 // Scale for studio logo
-	authorMenuStudioLogoMargin   int     // Margin for studio logo
-	authorMenuStructure          string  // Feature only, Chapters, Extras
-	authorMenuExtrasEnabled   bool     // Show extras menu
-	authorMenuChapterThumbSrc string   // Auto, First Frame, Midpoint, Custom
-	authorTitle               string   // DVD title
-	authorSubtitles           []string // Subtitle file paths
-	authorAudioTracks         []string // Additional audio tracks
-	authorSummaryLabel        *widget.Label
-	authorTreatAsChapters     bool   // Treat multiple clips as chapters
-	authorChapterSource       string // embedded, scenes, clips, manual
-	authorChaptersRefresh     func() // Refresh hook for chapter list UI
-	authorDiscSize            string // "DVD5" or "DVD9"
-	authorLogText             string
-	authorLogLines            []string // Circular buffer for last N lines
-	authorLogFilePath         string   // Path to log file for full viewing
-	authorLogEntry            *widget.Entry
-	authorLogScroll           *container.Scroll
-	authorProgress            float64
-	authorProgressBar         *widget.ProgressBar
-	authorStatusLabel         *widget.Label
-	authorCancelBtn           *widget.Button
-	authorVideoTSPath         string
+	authorFile                   *videoSource
+	authorChapters               []authorChapter
+	authorSceneThreshold         float64
+	authorDetecting              bool
+	authorClips                  []authorClip // Multiple video clips for compilation
+	authorOutputType             string       // "dvd" or "iso"
+	authorRegion                 string       // "NTSC", "PAL", "AUTO"
+	authorAspectRatio            string       // "4:3", "16:9", "AUTO"
+	authorCreateMenu             bool         // Whether to create DVD menu
+	authorMenuTemplate           string       // "Simple", "Dark", "Poster"
+	authorMenuBackgroundImage    string       // Path to a user-selected background image
+	authorMenuTheme              string       // "VideoTools"
+	authorMenuTitleLogoEnabled   bool         // Enable title logo (main logo above menu)
+	authorMenuTitleLogoPath      string       // Path to title logo image
+	authorMenuTitleLogoPosition  string       // Position for title logo
+	authorMenuTitleLogoScale     float64      // Scale for title logo
+	authorMenuTitleLogoMargin    int          // Margin for title logo
+	authorMenuStudioLogoEnabled  bool         // Enable studio logo (corner logo)
+	authorMenuStudioLogoPath     string       // Path to studio logo image
+	authorMenuStudioLogoPosition string       // "Top Left", "Top Right", "Bottom Left", "Bottom Right"
+	authorMenuStudioLogoScale    float64      // Scale for studio logo
+	authorMenuStudioLogoMargin   int          // Margin for studio logo
+	authorMenuStructure          string       // Feature only, Chapters, Extras
+	authorMenuExtrasEnabled      bool         // Show extras menu
+	authorMenuChapterThumbSrc    string       // Auto, First Frame, Midpoint, Custom
+	authorTitle                  string       // DVD title
+	authorSubtitles              []string     // Subtitle file paths
+	authorAudioTracks            []string     // Additional audio tracks
+	authorSummaryLabel           *widget.Label
+	authorTreatAsChapters        bool   // Treat multiple clips as chapters
+	authorChapterSource          string // embedded, scenes, clips, manual
+	authorChaptersRefresh        func() // Refresh hook for chapter list UI
+	authorDiscSize               string // "DVD5" or "DVD9"
+	authorLogText                string
+	authorLogLines               []string // Circular buffer for last N lines
+	authorLogFilePath            string   // Path to log file for full viewing
+	authorLogEntry               *widget.Entry
+	authorLogScroll              *container.Scroll
+	authorProgress               float64
+	authorProgressBar            *widget.ProgressBar
+	authorStatusLabel            *widget.Label
+	authorCancelBtn              *widget.Button
+	authorVideoTSPath            string
 
 	// Rip module state
 	ripSourcePath  string
@@ -1851,25 +1860,21 @@ func (r *mouseButtonRenderer) BackgroundColor() color.Color {
 
 func (s *appState) setContent(body fyne.CanvasObject) {
 	update := func() {
-		// Preserve current window size to prevent auto-resizing when content changes
-		// This ensures the window maintains the size the user set, even when content
-		// like progress bars or queue items change dynamically
 		currentSize := s.window.Canvas().Size()
-
 		bg := canvas.NewRectangle(backgroundColor)
 		sizeGuard := canvas.NewRectangle(color.Transparent)
-		sizeGuard.SetMinSize(fyne.NewSize(800, 600))
+		if currentSize.Width > 0 && currentSize.Height > 0 {
+			sizeGuard.SetMinSize(currentSize)
+		} else {
+			sizeGuard.SetMinSize(fyne.NewSize(800, 600))
+		}
 		if body == nil {
 			s.window.SetContent(container.NewMax(bg, sizeGuard))
-			// Restore window size after setting content
-			s.window.Resize(currentSize)
 			return
 		}
 		// Wrap content with mouse button handler
 		wrapped := newMouseButtonHandler(container.NewMax(bg, sizeGuard, body), s)
 		s.window.SetContent(wrapped)
-		// Restore window size after setting content
-		s.window.Resize(currentSize)
 	}
 
 	// Use async Do() instead of DoAndWait() to avoid deadlock when called from main goroutine
@@ -1905,6 +1910,7 @@ func (s *appState) showErrorWithCopy(title string, err error) {
 }
 
 func (s *appState) showMainMenu() {
+	_ = guitutils.DetectGUIEnvironment() // Use GUI utilities to ensure import is used
 	s.stopPreview()
 	s.stopPlayer()
 	s.stopQueueAutoRefresh()
@@ -6673,15 +6679,26 @@ func runGUI() {
 	} else {
 		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
+	// Enhanced cross-platform GUI detection and window sizing
+	guiEnv := guitutils.DetectGUIEnvironment()
+	logging.Debug(logging.CatUI, "detected GUI environment: %s", guiEnv.String())
+
 	// Adaptive window sizing for professional cross-resolution support
 	w.SetFixedSize(false) // Allow manual resizing and maximizing
 
-	// Use compact default size (800x600) that fits on any screen
-	// Window can be resized or maximized by user using window manager controls
-	w.Resize(fyne.NewSize(800, 600))
+	// Use GUI environment to determine optimal window size
+	optimalSize := guiEnv.GetOptimalWindowSize(800, 600)
+	w.Resize(optimalSize)
 	w.CenterOnScreen()
 
-	logging.Debug(logging.CatUI, "window initialized at 800x600 (compact default), manual resizing enabled")
+	// Log GPU acceleration support
+	if guiEnv.SupportsGPUAcceleration() {
+		logging.Debug(logging.CatUI, "GPU acceleration should be available on %s %s", guiEnv.GPUInfo.Vendor, guiEnv.GPUInfo.Model)
+	} else {
+		logging.Debug(logging.CatUI, "GPU acceleration may not be available - using software rendering")
+	}
+
+	logging.Debug(logging.CatUI, "window initialized at %v (auto-detected environment), manual resizing enabled", optimalSize)
 
 	// Initialize audio module - load persisted config or use defaults
 	audioDefaults, err := loadAudioConfig()
@@ -11299,12 +11316,12 @@ func newPlaySession(path string, w, h int, fps, duration float64, targetW, targe
 	}
 
 	sess := &playSession{
-		path:           path,
-		fps:            fps,
-		width:          w,
-		height:         h,
-		targetW:        targetW,
-		targetH:        targetH,
+		path:      path,
+		fps:       fps,
+		width:     w,
+		height:    h,
+		targetW:   targetW,
+		targetH:   targetH,
 		volume:    100,
 		duration:  duration,
 		stop:      make(chan struct{}),

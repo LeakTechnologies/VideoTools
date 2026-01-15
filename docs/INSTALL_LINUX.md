@@ -24,7 +24,7 @@ This single command automates the entire setup process.
 4.  **Install Binary:** Copies the compiled binary to the selected location and makes it executable.
 5.  **Configure Shell:** Detects your shell (`bash` or `zsh`) and updates the corresponding resource file (`~/.bashrc` or `~/.zshrc`) to:
     *   Add the installation directory to your `PATH`.
-    *   Source the `alias.sh` script for convenience commands.
+    *   Source the matching alias script (`alias.sh` for bash, `alias.zsh` for zsh).
 
 ### After Installation
 
@@ -36,6 +36,9 @@ source ~/.bashrc
 
 # For zsh users:
 source ~/.zshrc
+
+# For fish users (manual setup required):
+source ~/.config/fish/config.fish
 ```
 
 You can now run the application from anywhere by simply typing `VideoTools`.
@@ -80,7 +83,9 @@ If you prefer to perform the steps manually:
     export PATH="$HOME/.local/bin:$PATH"
 
     # Source VideoTools aliases
-    source /path/to/VideoTools/scripts/alias.sh
+    source /path/to/VideoTools/scripts/alias.sh   # bash
+    # source /path/to/VideoTools/scripts/alias.zsh # zsh
+    # source /path/to/VideoTools/scripts/alias.fish # fish
     ```
 
 4.  **Reload Your Shell:**

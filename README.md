@@ -44,7 +44,7 @@ The installer will build, install, and set up everything automatically with a gu
 
 **After installation:**
 ```bash
-source ~/.bashrc    # (or ~/.zshrc for zsh)
+source ~/.bashrc    # (or ~/.zshrc, or ~/.config/fish/config.fish)
 VideoTools
 ```
 
@@ -91,6 +91,7 @@ Output is professional quality, ready for:
 - **DVD_IMPLEMENTATION_SUMMARY.md** - Technical specifications
 - **INTEGRATION_GUIDE.md** - System architecture and integration
 - **QUEUE_SYSTEM_GUIDE.md** - Queue system reference
+- **localization-policy.md** - Localization strategy and implementation guide
 
 ## Requirements
 
@@ -112,7 +113,9 @@ VideoTools has a modular architecture:
 ### Build & Run
 ```bash
 # One-time setup
-source scripts/alias.sh
+source scripts/alias.sh    # bash
+# source scripts/alias.zsh  # zsh
+# source scripts/alias.fish # fish
 
 # Run the application
 VideoTools

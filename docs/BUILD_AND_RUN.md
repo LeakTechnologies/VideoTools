@@ -6,7 +6,9 @@
 
 ```bash
 cd /home/stu/Projects/VideoTools
-source scripts/alias.sh
+source scripts/alias.sh    # bash
+# source scripts/alias.zsh  # zsh
+# source scripts/alias.fish # fish
 VideoTools
 ```
 
@@ -15,7 +17,7 @@ This will:
 2. Build the application (if needed)
 3. Run VideoTools GUI
 
-**Available commands after sourcing alias.sh:**
+**Available commands after sourcing the alias script:**
 - `VideoTools` - Run the application
 - `VideoToolsRebuild` - Force a clean rebuild
 - `VideoToolsClean` - Clean all build artifacts
@@ -67,12 +69,23 @@ source ~/.bashrc
 ### For Zsh users:
 Add this line to `~/.zshrc`:
 ```bash
-source /home/stu/Projects/VideoTools/scripts/alias.sh
+source /home/stu/Projects/VideoTools/scripts/alias.zsh
 ```
 
 Then reload:
 ```bash
 source ~/.zshrc
+```
+
+### For Fish users:
+Add this line to `~/.config/fish/config.fish`:
+```fish
+source /home/stu/Projects/VideoTools/scripts/alias.fish
+```
+
+Reload fish:
+```fish
+source ~/.config/fish/config.fish
 ```
 
 ### After setting up:
@@ -133,9 +146,15 @@ bash scripts/run.sh
 - No manual steps needed
 - Always runs the latest code
 
-### alias.sh
+### alias.sh / alias.zsh / alias.fish
 ```bash
 source scripts/alias.sh
+```
+```bash
+source scripts/alias.zsh
+```
+```fish
+source scripts/alias.fish
 ```
 
 **Purpose:** Creates convenient shell commands
@@ -440,4 +459,3 @@ VideoTools
 ```
 
 **That's it!** The scripts handle everything else automatically.
-
