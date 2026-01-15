@@ -1862,19 +1862,16 @@ func (s *appState) setContent(body fyne.CanvasObject) {
 	update := func() {
 		currentSize := s.window.Canvas().Size()
 		bg := canvas.NewRectangle(backgroundColor)
-		sizeGuard := canvas.NewRectangle(color.Transparent)
-		if currentSize.Width > 0 && currentSize.Height > 0 {
-			sizeGuard.SetMinSize(currentSize)
-		} else {
-			sizeGuard.SetMinSize(fyne.NewSize(800, 600))
-		}
 		if body == nil {
-			s.window.SetContent(container.NewMax(bg, sizeGuard))
+			s.window.SetContent(bg)
 			return
 		}
 		// Wrap content with mouse button handler
-		wrapped := newMouseButtonHandler(container.NewMax(bg, sizeGuard, body), s)
+		wrapped := newMouseButtonHandler(container.NewMax(bg, body), s)
 		s.window.SetContent(wrapped)
+		if currentSize.Width > 0 && currentSize.Height > 0 {
+			wrapped.Resize(currentSize)
+		}
 	}
 
 	// Use async Do() instead of DoAndWait() to avoid deadlock when called from main goroutine
