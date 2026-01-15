@@ -1,6 +1,11 @@
 #!/bin/bash
-# VideoTools Convenience Script
-# Source this file in your shell to add the 'VideoTools' command
+# VideoTools Convenience Script (bash)
+# Source this file in bash to add the 'VideoTools' command
+
+if [ -z "$BASH_VERSION" ]; then
+    echo "This script is for bash. Use scripts/alias.zsh or scripts/alias.fish instead."
+    return 1
+fi
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
