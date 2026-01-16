@@ -1860,7 +1860,6 @@ func (r *mouseButtonRenderer) BackgroundColor() color.Color {
 
 func (s *appState) setContent(body fyne.CanvasObject) {
 	update := func() {
-		currentSize := s.window.Canvas().Size()
 		bg := canvas.NewRectangle(backgroundColor)
 		if body == nil {
 			s.window.SetContent(bg)
@@ -1869,9 +1868,6 @@ func (s *appState) setContent(body fyne.CanvasObject) {
 		// Wrap content with mouse button handler
 		wrapped := newMouseButtonHandler(container.NewMax(bg, body), s)
 		s.window.SetContent(wrapped)
-		if currentSize.Width > 0 && currentSize.Height > 0 {
-			wrapped.Resize(currentSize)
-		}
 	}
 
 	// Use async Do() instead of DoAndWait() to avoid deadlock when called from main goroutine
