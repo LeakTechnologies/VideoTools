@@ -96,23 +96,23 @@ var (
 	// Rainbow color palette: balanced ROYGBIV distribution (2 modules per color)
 	// Optimized for white text readability
 	modulesList = []Module{
-		{"convert", "Convert", utils.MustHex("#673AB7"), "Convert", modules.HandleConvert},          // Deep Purple (primary conversion)
-		{"merge", "Merge", utils.MustHex("#4CAF50"), "Convert", modules.HandleMerge},                // Green (combining)
-		{"trim", "Trim", utils.MustHex("#F9A825"), "Convert", nil},                                  // Dark Yellow/Gold (not implemented yet)
-		{"filters", "Filters", utils.MustHex("#00BCD4"), "Convert", modules.HandleFilters},          // Cyan (creative filters)
-		{"upscale", "Upscale", utils.MustHex("#9C27B0"), "Advanced", modules.HandleUpscale},         // Purple (AI/advanced)
-		{"enhancement", "Enhancement", utils.MustHex("#7C3AED"), "Advanced", modules.HandleEnhance}, // Cyan (AI enhancement)
-		{"audio", "Audio", utils.MustHex("#FF8F00"), "Convert", modules.HandleAudio},                // Dark Amber - audio extraction
-		{"author", "Author", utils.MustHex("#FF5722"), "Disc", modules.HandleAuthor},                // Deep Orange (authoring)
-		{"rip", "Rip", utils.MustHex("#FF9800"), "Disc", modules.HandleRip},                         // Orange (extraction)
-		{"bluray", "Blu-Ray", utils.MustHex("#2196F3"), "Disc", nil},                                // Blue (not implemented yet)
-		{"subtitles", "Subtitles", utils.MustHex("#689F38"), "Convert", modules.HandleSubtitles},    // Dark Green (text)
-		{"enhancement", "Enhancement", utils.MustHex("#7C3AED"), "Advanced", modules.HandleEnhance}, // Cyan (AI enhancement)
-		{"thumb", "Thumb", utils.MustHex("#00ACC1"), "Screenshots", modules.HandleThumb},            // Dark Cyan (capture)
-		{"compare", "Compare", utils.MustHex("#E91E63"), "Inspect", modules.HandleCompare},          // Pink (comparison)
-		{"inspect", "Inspect", utils.MustHex("#F44336"), "Inspect", modules.HandleInspect},          // Red (analysis)
-		{"player", "Player", utils.MustHex("#3F51B5"), "Playback", modules.HandlePlayer},            // Indigo (playback)
-		{"settings", "Settings", utils.MustHex("#607D8B"), "Settings", nil},                         // Blue Grey (settings)
+		{"convert", "Convert", utils.MustHex("#673AB7"), "Convert", modules.HandleConvert},           // Deep Purple (primary conversion)
+		{"merge", "Merge", utils.MustHex("#4CAF50"), "Convert", modules.HandleMerge},                 // Green (combining)
+		{"trim", "Trim", utils.MustHex("#F9A825"), "Convert", nil},                                   // Dark Yellow/Gold (not implemented yet)
+		{"filters", "Filters", utils.MustHex("#00BCD4"), "Convert", modules.HandleFilters},           // Cyan (creative filters)
+		{"upscale", "Upscale", utils.MustHex("#9C27B0"), "Advanced", modules.HandleUpscale},          // Purple (AI/advanced)
+		{"enhancement", "Enhancement", utils.MustHex("#7C3AED"), "Advanced", modules.HandleEnhance},  // Cyan (AI enhancement)
+		{"audio", "Audio", utils.MustHex("#FF8F00"), "Convert", modules.HandleAudio},                 // Dark Amber - audio extraction
+		{"author", "Author", utils.MustHex("#FF5722"), "Disc", modules.HandleAuthor},                 // Deep Orange (authoring)
+		{"rip", "Rip", utils.MustHex("#FF9800"), "Disc", modules.HandleRip},                          // Orange (extraction)
+		{"bluray", "Blu-Ray", utils.MustHex("#2196F3"), "Disc", nil},                                 // Blue (not implemented yet)
+		{"subtitles", "Subtitles", utils.MustHex("#689F38"), "Convert", modules.HandleSubtitles},     // Dark Green (text)
+		{"enhancement", "Enhancement", utils.MustHex("#7C3AED"), "Advanced", modules.HandleEnhance},  // Cyan (AI enhancement)
+		{"thumbnail", "Thumbnail", utils.MustHex("#00ACC1"), "Screenshots", modules.HandleThumbnail}, // Dark Cyan (capture)
+		{"compare", "Compare", utils.MustHex("#E91E63"), "Inspect", modules.HandleCompare},           // Pink (comparison)
+		{"inspect", "Inspect", utils.MustHex("#F44336"), "Inspect", modules.HandleInspect},           // Red (analysis)
+		{"player", "Player", utils.MustHex("#3F51B5"), "Playback", modules.HandlePlayer},             // Indigo (playback)
+		{"settings", "Settings", utils.MustHex("#607D8B"), "Settings", nil},                          // Blue Grey (settings)
 	}
 
 	// Platform-specific configuration
@@ -1075,16 +1075,16 @@ type appState struct {
 	mergeMotionInterpolation bool   // Use motion interpolation for frame rate changes
 
 	// Thumbnail module state
-	thumbFile           *videoSource
-	thumbFiles          []*videoSource
-	thumbCount          int
-	thumbWidth          int
-	thumbContactSheet   bool
-	thumbShowTimestamps bool
-	thumbSheetWidth     int
-	thumbColumns        int
-	thumbRows           int
-	thumbLastOutputPath string // Path to last generated output
+	thumbnailFile           *videoSource
+	thumbnailFiles          []*videoSource
+	thumbnailCount          int
+	thumbnailWidth          int
+	thumbnailContactSheet   bool
+	thumbnailShowTimestamps bool
+	thumbnailSheetWidth     int
+	thumbnailColumns        int
+	thumbnailRows           int
+	thumbnailLastOutputPath string // Path to last generated output
 
 	// Player module state
 	playerFile *videoSource
@@ -1165,49 +1165,49 @@ type appState struct {
 	historyTabIdx  int
 
 	// Author module state
-	authorFile                   *videoSource
-	authorChapters               []authorChapter
-	authorSceneThreshold         float64
-	authorDetecting              bool
-	authorClips                  []authorClip // Multiple video clips for compilation
-	authorOutputType             string       // "dvd" or "iso"
-	authorRegion                 string       // "NTSC", "PAL", "AUTO"
-	authorAspectRatio            string       // "4:3", "16:9", "AUTO"
-	authorCreateMenu             bool         // Whether to create DVD menu
-	authorMenuTemplate           string       // "Simple", "Dark", "Poster"
-	authorMenuBackgroundImage    string       // Path to a user-selected background image
-	authorMenuTheme              string       // "VideoTools"
-	authorMenuTitleLogoEnabled   bool         // Enable title logo (main logo above menu)
-	authorMenuTitleLogoPath      string       // Path to title logo image
-	authorMenuTitleLogoPosition  string       // Position for title logo
-	authorMenuTitleLogoScale     float64      // Scale for title logo
-	authorMenuTitleLogoMargin    int          // Margin for title logo
-	authorMenuStudioLogoEnabled  bool         // Enable studio logo (corner logo)
-	authorMenuStudioLogoPath     string       // Path to studio logo image
-	authorMenuStudioLogoPosition string       // "Top Left", "Top Right", "Bottom Left", "Bottom Right"
-	authorMenuStudioLogoScale    float64      // Scale for studio logo
-	authorMenuStudioLogoMargin   int          // Margin for studio logo
-	authorMenuStructure          string       // Feature only, Chapters, Extras
-	authorMenuExtrasEnabled      bool         // Show extras menu
-	authorMenuChapterThumbSrc    string       // Auto, First Frame, Midpoint, Custom
-	authorTitle                  string       // DVD title
-	authorSubtitles              []string     // Subtitle file paths
-	authorAudioTracks            []string     // Additional audio tracks
-	authorSummaryLabel           *widget.Label
-	authorTreatAsChapters        bool   // Treat multiple clips as chapters
-	authorChapterSource          string // embedded, scenes, clips, manual
-	authorChaptersRefresh        func() // Refresh hook for chapter list UI
-	authorDiscSize               string // "DVD5" or "DVD9"
-	authorLogText                string
-	authorLogLines               []string // Circular buffer for last N lines
-	authorLogFilePath            string   // Path to log file for full viewing
-	authorLogEntry               *widget.Entry
-	authorLogScroll              *container.Scroll
-	authorProgress               float64
-	authorProgressBar            *widget.ProgressBar
-	authorStatusLabel            *widget.Label
-	authorCancelBtn              *widget.Button
-	authorVideoTSPath            string
+	authorFile                    *videoSource
+	authorChapters                []authorChapter
+	authorSceneThreshold          float64
+	authorDetecting               bool
+	authorClips                   []authorClip // Multiple video clips for compilation
+	authorOutputType              string       // "dvd" or "iso"
+	authorRegion                  string       // "NTSC", "PAL", "AUTO"
+	authorAspectRatio             string       // "4:3", "16:9", "AUTO"
+	authorCreateMenu              bool         // Whether to create DVD menu
+	authorMenuTemplate            string       // "Simple", "Dark", "Poster"
+	authorMenuBackgroundImage     string       // Path to a user-selected background image
+	authorMenuTheme               string       // "VideoTools"
+	authorMenuTitleLogoEnabled    bool         // Enable title logo (main logo above menu)
+	authorMenuTitleLogoPath       string       // Path to title logo image
+	authorMenuTitleLogoPosition   string       // Position for title logo
+	authorMenuTitleLogoScale      float64      // Scale for title logo
+	authorMenuTitleLogoMargin     int          // Margin for title logo
+	authorMenuStudioLogoEnabled   bool         // Enable studio logo (corner logo)
+	authorMenuStudioLogoPath      string       // Path to studio logo image
+	authorMenuStudioLogoPosition  string       // "Top Left", "Top Right", "Bottom Left", "Bottom Right"
+	authorMenuStudioLogoScale     float64      // Scale for studio logo
+	authorMenuStudioLogoMargin    int          // Margin for studio logo
+	authorMenuStructure           string       // Feature only, Chapters, Extras
+	authorMenuExtrasEnabled       bool         // Show extras menu
+	authorMenuChapterThumbnailSrc string       // Auto, First Frame, Midpoint, Custom
+	authorTitle                   string       // DVD title
+	authorSubtitles               []string     // Subtitle file paths
+	authorAudioTracks             []string     // Additional audio tracks
+	authorSummaryLabel            *widget.Label
+	authorTreatAsChapters         bool   // Treat multiple clips as chapters
+	authorChapterSource           string // embedded, scenes, clips, manual
+	authorChaptersRefresh         func() // Refresh hook for chapter list UI
+	authorDiscSize                string // "DVD5" or "DVD9"
+	authorLogText                 string
+	authorLogLines                []string // Circular buffer for last N lines
+	authorLogFilePath             string   // Path to log file for full viewing
+	authorLogEntry                *widget.Entry
+	authorLogScroll               *container.Scroll
+	authorProgress                float64
+	authorProgressBar             *widget.ProgressBar
+	authorStatusLabel             *widget.Label
+	authorCancelBtn               *widget.Button
+	authorVideoTSPath             string
 
 	// Rip module state
 	ripSourcePath  string
@@ -3101,8 +3101,8 @@ func (s *appState) showModule(id string) {
 		s.showCompareView()
 	case "inspect":
 		s.showInspectView()
-	case "thumb":
-		s.showThumbView()
+	case "thumbnail":
+		s.showThumbnailView()
 	case "player":
 		s.showPlayerView()
 	case "filters":
@@ -3310,13 +3310,13 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 		return
 	}
 
-	// If thumb module, load video into thumb slot
-	if moduleID == "thumb" {
+	// If thumbnail module, load video into thumbnail slot
+	if moduleID == "thumbnail" {
 		path := videoPaths[0]
 		go func() {
 			src, err := probeVideo(path)
 			if err != nil {
-				logging.Debug(logging.CatModule, "failed to load video for thumb: %v", err)
+				logging.Debug(logging.CatModule, "failed to load video for thumbnail: %v", err)
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
 				}, false)
@@ -3326,9 +3326,9 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 			// Update state and show module (with small delay to allow flash animation)
 			time.Sleep(350 * time.Millisecond)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				s.thumbFile = src
+				s.thumbnailFile = src
 				s.showModule(moduleID)
-				logging.Debug(logging.CatModule, "loaded video for thumb module")
+				logging.Debug(logging.CatModule, "loaded video for thumbnail module")
 			}, false)
 		}()
 		return
@@ -4192,8 +4192,8 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 		return s.executeUpscaleJob(ctx, job, progressCallback)
 	case queue.JobTypeAudio:
 		return s.executeAudioJob(ctx, job, progressCallback)
-	case queue.JobTypeThumb:
-		return s.executeThumbJob(ctx, job, progressCallback)
+	case queue.JobTypeThumbnail:
+		return s.executeThumbnailJob(ctx, job, progressCallback)
 	case queue.JobTypeSnippet:
 		return s.executeSnippetJob(ctx, job, progressCallback)
 	case queue.JobTypeAuthor:
@@ -6828,8 +6828,8 @@ func runCLI(args []string) error {
 		modules.HandleUpscale(cmdArgs)
 	case "audio":
 		modules.HandleAudio(cmdArgs)
-	case "thumb":
-		modules.HandleThumb(cmdArgs)
+	case "thumbnail":
+		modules.HandleThumbnail(cmdArgs)
 	case "compare":
 		modules.HandleCompare(cmdArgs)
 	case "inspect":
@@ -6895,7 +6895,7 @@ func printUsage() {
 	fmt.Println("  videotools filters <args>")
 	fmt.Println("  videotools upscale <args>")
 	fmt.Println("  videotools audio <args>")
-	fmt.Println("  videotools thumb <args>")
+	fmt.Println("  videotools thumbnail <args>")
 	fmt.Println("  videotools compare <file1> <file2>")
 	fmt.Println("  videotools inspect <args>")
 	fmt.Println("  videotools logs                 # tail recent log lines")
@@ -11018,7 +11018,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		dlg.Show()
 	})
 
-	usePlayer := state.active != "thumb"
+	usePlayer := state.active != "thumbnail"
 
 	currentTime := widget.NewLabel("0:00")
 	totalTime := widget.NewLabel(src.DurationString())
@@ -12483,8 +12483,8 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		return
 	}
 
-	// If in thumb module, handle single video file
-	if s.active == "thumb" {
+	// If in thumbnail module, handle single video file
+	if s.active == "thumbnail" {
 		// Collect video files from dropped items
 		var videoPaths []string
 		for _, uri := range items {

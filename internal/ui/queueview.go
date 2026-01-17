@@ -646,7 +646,7 @@ func ModuleColor(t queue.JobType) color.Color {
 		return color.RGBA{R: 156, G: 39, B: 176, A: 255} // Purple (#9C27B0)
 	case queue.JobTypeAudio:
 		return color.RGBA{R: 255, G: 193, B: 7, A: 255} // Amber (#FFC107)
-	case queue.JobTypeThumb:
+	case queue.JobTypeThumbnail:
 		return color.RGBA{R: 0, G: 172, B: 193, A: 255} // Dark Cyan (#00ACC1)
 	case queue.JobTypeAuthor:
 		return color.RGBA{R: 255, G: 87, B: 34, A: 255} // Deep Orange (#FF5722)

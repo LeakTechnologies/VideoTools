@@ -21,33 +21,33 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
-func (s *appState) showThumbView() {
+func (s *appState) showThumbnailView() {
 	s.stopPreview()
 	s.lastModule = s.active
-	s.active = "thumb"
-	if cfg, err := loadPersistedThumbConfig(); err == nil {
-		s.applyThumbConfig(cfg)
+	s.active = "thumbnail"
+	if cfg, err := loadPersistedThumbnailConfig(); err == nil {
+		s.applyThumbnailConfig(cfg)
 	}
-	s.setContent(buildThumbView(s))
+	s.setContent(buildThumbnailView(s))
 }
 
-func (s *appState) addThumbSource(src *videoSource) {
+func (s *appState) addThumbnailSource(src *videoSource) {
 	if src == nil {
 		return
 	}
-	for _, existing := range s.thumbFiles {
+	for _, existing := range s.thumbnailFiles {
 		if existing != nil && existing.Path == src.Path {
 			return
 		}
 	}
-	s.thumbFiles = append(s.thumbFiles, src)
+	s.thumbnailFiles = append(s.thumbnailFiles, src)
 }
 
-func (s *appState) loadThumbSourceAtIndex(idx int) {
-	if idx < 0 || idx >= len(s.thumbFiles) {
+func (s *appState) loadThumbnailSourceAtIndex(idx int) {
+	if idx < 0 || idx >= len(s.thumbnailFiles) {
 		return
 	}
-	current := s.thumbFiles[idx]
+	current := s.thumbnailFiles[idx]
 	if current == nil || current.Path == "" {
 		return
 	}
@@ -62,16 +62,16 @@ func (s *appState) loadThumbSourceAtIndex(idx int) {
 			return
 		}
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			s.thumbFiles[idx] = probed
-			if s.thumbFile != nil && s.thumbFile.Path == path {
-				s.thumbFile = probed
+			s.thumbnailFiles[idx] = probed
+			if s.thumbnailFile != nil && s.thumbnailFile.Path == path {
+				s.thumbnailFile = probed
 			}
-			s.showThumbView()
+			s.showThumbnailView()
 		}, false)
 	}()
 }
 
-func (s *appState) loadMultipleThumbVideos(paths []string) {
+func (s *appState) loadMultipleThumbnailVideos(paths []string) {
 	if len(paths) == 0 {
 		return
 	}
@@ -97,19 +97,19 @@ func (s *appState) loadMultipleThumbVideos(paths []string) {
 		return
 	}
 
-	s.thumbFiles = valid
-	s.thumbFile = valid[0]
+	s.thumbnailFiles = valid
+	s.thumbnailFile = valid[0]
 
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-		s.showThumbView()
+		s.showThumbnailView()
 		if len(failed) > 0 {
 			logging.Debug(logging.CatModule, "%d file(s) failed to analyze: %s", len(failed), strings.Join(failed, ", "))
 		}
 	}, false)
 }
 
-func buildThumbView(state *appState) fyne.CanvasObject {
-	thumbColor := moduleColor("thumb")
+func buildThumbnailView(state *appState) fyne.CanvasObject {
+	thumbColor := moduleColor("thumbnail")
 
 	// Back button
 	backBtn := widget.NewButton("< THUMBNAILS", func() {
@@ -137,20 +137,20 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	instructions.Alignment = fyne.TextAlignCenter
 
 	// Initialize state defaults
-	if state.thumbCount == 0 {
-		state.thumbCount = 24 // Default to 24 thumbnails (good for contact sheets)
+	if state.thumbnailCount == 0 {
+		state.thumbnailCount = 24 // Default to 24 thumbnails (good for contact sheets)
 	}
-	if state.thumbWidth == 0 {
-		state.thumbWidth = 320
+	if state.thumbnailWidth == 0 {
+		state.thumbnailWidth = 320
 	}
-	if state.thumbSheetWidth == 0 {
-		state.thumbSheetWidth = 360
+	if state.thumbnailSheetWidth == 0 {
+		state.thumbnailSheetWidth = 360
 	}
-	if state.thumbColumns == 0 {
-		state.thumbColumns = 4 // 4 columns works well for widescreen videos
+	if state.thumbnailColumns == 0 {
+		state.thumbnailColumns = 4 // 4 columns works well for widescreen videos
 	}
-	if state.thumbRows == 0 {
-		state.thumbRows = 8 // 4x8 = 32 thumbnails
+	if state.thumbnailRows == 0 {
+		state.thumbnailRows = 8 // 4x8 = 32 thumbnails
 	}
 
 	// File label and video preview
@@ -158,12 +158,12 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	var videoContainer fyne.CanvasObject
-	if state.thumbFile != nil && state.thumbFile.Width == 0 && state.thumbFile.Height == 0 {
-		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.thumbFile.Path)))
+	if state.thumbnailFile != nil && state.thumbnailFile.Width == 0 && state.thumbnailFile.Height == 0 {
+		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.thumbnailFile.Path)))
 		videoContainer = container.NewCenter(widget.NewLabel("Loading preview..."))
-	} else if state.thumbFile != nil {
-		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.thumbFile.Path)))
-		videoContainer = buildVideoPane(state, fyne.NewSize(480, 270), state.thumbFile, nil)
+	} else if state.thumbnailFile != nil {
+		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.thumbnailFile.Path)))
+		videoContainer = buildVideoPane(state, fyne.NewSize(480, 270), state.thumbnailFile, nil)
 	} else {
 		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
 	}
@@ -183,28 +183,28 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 				return
 			}
 
-			state.thumbFile = src
-			state.addThumbSource(src)
-			state.showThumbView()
+			state.thumbnailFile = src
+			state.addThumbnailSource(src)
+			state.showThumbnailView()
 			logging.Debug(logging.CatModule, "loaded thumbnail file: %s", path)
 		}, state.window)
 	})
 
 	// Clear button
 	clearBtn := widget.NewButton("Clear", func() {
-		state.thumbFile = nil
-		state.thumbFiles = nil
-		state.showThumbView()
+		state.thumbnailFile = nil
+		state.thumbnailFiles = nil
+		state.showThumbnailView()
 	})
 	clearBtn.Importance = widget.LowImportance
 
 	// Contact sheet checkbox (wrapped)
 	contactSheetCheck := widget.NewCheck("", func(checked bool) {
-		state.thumbContactSheet = checked
-		state.persistThumbConfig()
-		state.showThumbView()
+		state.thumbnailContactSheet = checked
+		state.persistThumbnailConfig()
+		state.showThumbnailView()
 	})
-	contactSheetCheck.Checked = state.thumbContactSheet
+	contactSheetCheck.Checked = state.thumbnailContactSheet
 	contactSheetLabel := widget.NewLabel("Generate Contact Sheet (single image)")
 	contactSheetLabel.Wrapping = fyne.TextWrapWord
 	contactSheetToggle := ui.NewTappable(contactSheetLabel, func() {
@@ -213,10 +213,10 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	contactSheetRow := container.NewBorder(nil, nil, contactSheetCheck, nil, contactSheetToggle)
 
 	timestampCheck := widget.NewCheck("", func(checked bool) {
-		state.thumbShowTimestamps = checked
-		state.persistThumbConfig()
+		state.thumbnailShowTimestamps = checked
+		state.persistThumbnailConfig()
 	})
-	timestampCheck.Checked = state.thumbShowTimestamps
+	timestampCheck.Checked = state.thumbnailShowTimestamps
 	timestampLabel := widget.NewLabel("Show timestamps on thumbnails")
 	timestampLabel.Wrapping = fyne.TextWrapWord
 	timestampToggle := ui.NewTappable(timestampLabel, func() {
@@ -226,53 +226,53 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 
 	// Conditional settings based on contact sheet mode
 	var settingsOptions fyne.CanvasObject
-	if state.thumbContactSheet {
+	if state.thumbnailContactSheet {
 		// Contact sheet mode: show columns and rows
-		colLabel := widget.NewLabel(fmt.Sprintf("Columns: %d", state.thumbColumns))
-		rowLabel := widget.NewLabel(fmt.Sprintf("Rows: %d", state.thumbRows))
+		colLabel := widget.NewLabel(fmt.Sprintf("Columns: %d", state.thumbnailColumns))
+		rowLabel := widget.NewLabel(fmt.Sprintf("Rows: %d", state.thumbnailRows))
 
-		totalThumbs := state.thumbColumns * state.thumbRows
+		totalThumbs := state.thumbnailColumns * state.thumbnailRows
 		totalLabel := widget.NewLabel(fmt.Sprintf("Total thumbnails: %d", totalThumbs))
 		totalLabel.TextStyle = fyne.TextStyle{Italic: true}
 		totalLabel.Wrapping = fyne.TextWrapWord
 
 		colSlider := widget.NewSlider(2, 9)
-		colSlider.Value = float64(state.thumbColumns)
+		colSlider.Value = float64(state.thumbnailColumns)
 		colSlider.Step = 1
 		colSlider.OnChanged = func(val float64) {
-			state.thumbColumns = int(val)
+			state.thumbnailColumns = int(val)
 			colLabel.SetText(fmt.Sprintf("Columns: %d", int(val)))
-			totalLabel.SetText(fmt.Sprintf("Total thumbnails: %d", state.thumbColumns*state.thumbRows))
-			state.persistThumbConfig()
+			totalLabel.SetText(fmt.Sprintf("Total thumbnails: %d", state.thumbnailColumns*state.thumbnailRows))
+			state.persistThumbnailConfig()
 		}
 
 		rowSlider := widget.NewSlider(2, 12)
-		rowSlider.Value = float64(state.thumbRows)
+		rowSlider.Value = float64(state.thumbnailRows)
 		rowSlider.Step = 1
 		rowSlider.OnChanged = func(val float64) {
-			state.thumbRows = int(val)
+			state.thumbnailRows = int(val)
 			rowLabel.SetText(fmt.Sprintf("Rows: %d", int(val)))
-			totalLabel.SetText(fmt.Sprintf("Total thumbnails: %d", state.thumbColumns*state.thumbRows))
-			state.persistThumbConfig()
+			totalLabel.SetText(fmt.Sprintf("Total thumbnails: %d", state.thumbnailColumns*state.thumbnailRows))
+			state.persistThumbnailConfig()
 		}
 
 		sizeOptions := []string{"240 px", "300 px", "360 px", "420 px", "480 px"}
 		sizeSelect := widget.NewSelect(sizeOptions, func(val string) {
 			switch val {
 			case "240 px":
-				state.thumbSheetWidth = 240
+				state.thumbnailSheetWidth = 240
 			case "300 px":
-				state.thumbSheetWidth = 300
+				state.thumbnailSheetWidth = 300
 			case "360 px":
-				state.thumbSheetWidth = 360
+				state.thumbnailSheetWidth = 360
 			case "420 px":
-				state.thumbSheetWidth = 420
+				state.thumbnailSheetWidth = 420
 			case "480 px":
-				state.thumbSheetWidth = 480
+				state.thumbnailSheetWidth = 480
 			}
-			state.persistThumbConfig()
+			state.persistThumbnailConfig()
 		})
-		switch state.thumbSheetWidth {
+		switch state.thumbnailSheetWidth {
 		case 240:
 			sizeSelect.SetSelected("240 px")
 		case 300:
@@ -298,24 +298,24 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		)
 	} else {
 		// Individual thumbnails mode: show count and width
-		countLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Count: %d", state.thumbCount))
+		countLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Count: %d", state.thumbnailCount))
 		countSlider := widget.NewSlider(3, 50)
-		countSlider.Value = float64(state.thumbCount)
+		countSlider.Value = float64(state.thumbnailCount)
 		countSlider.Step = 1
 		countSlider.OnChanged = func(val float64) {
-			state.thumbCount = int(val)
+			state.thumbnailCount = int(val)
 			countLabel.SetText(fmt.Sprintf("Thumbnail Count: %d", int(val)))
-			state.persistThumbConfig()
+			state.persistThumbnailConfig()
 		}
 
-		widthLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Width: %d px", state.thumbWidth))
+		widthLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Width: %d px", state.thumbnailWidth))
 		widthSlider := widget.NewSlider(160, 640)
-		widthSlider.Value = float64(state.thumbWidth)
+		widthSlider.Value = float64(state.thumbnailWidth)
 		widthSlider.Step = 32
 		widthSlider.OnChanged = func(val float64) {
-			state.thumbWidth = int(val)
+			state.thumbnailWidth = int(val)
 			widthLabel.SetText(fmt.Sprintf("Thumbnail Width: %d px", int(val)))
-			state.persistThumbConfig()
+			state.persistThumbnailConfig()
 		}
 
 		settingsOptions = container.NewVBox(
@@ -330,12 +330,12 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 
 	// Helper function to create thumbnail job
 	createThumbJob := func() *queue.Job {
-		return state.createThumbJobForPath(state.thumbFile.Path)
+		return state.createThumbnailJobForPath(state.thumbnailFile.Path)
 	}
 
 	// Generate Now button - adds to queue and starts it
 	generateNowBtn := widget.NewButton("GENERATE NOW", func() {
-		if state.thumbFile == nil {
+		if state.thumbnailFile == nil {
 			dialog.ShowInformation("No Video", "Please load a video file first.", state.window)
 			return
 		}
@@ -358,13 +358,13 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	})
 	generateNowBtn.Importance = widget.HighImportance
 
-	if state.thumbFile == nil {
+	if state.thumbnailFile == nil {
 		generateNowBtn.Disable()
 	}
 
 	// Add to Queue button
 	addQueueBtn := widget.NewButton("Add to Queue", func() {
-		if state.thumbFile == nil {
+		if state.thumbnailFile == nil {
 			dialog.ShowInformation("No Video", "Please load a video file first.", state.window)
 			return
 		}
@@ -381,12 +381,12 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	})
 	addQueueBtn.Importance = widget.MediumImportance
 
-	if state.thumbFile == nil {
+	if state.thumbnailFile == nil {
 		addQueueBtn.Disable()
 	}
 
 	addAllBtn := widget.NewButton("Add All to Queue", func() {
-		if len(state.thumbFiles) == 0 {
+		if len(state.thumbnailFiles) == 0 {
 			dialog.ShowInformation("No Videos", "Load videos first to add to queue.", state.window)
 			return
 		}
@@ -394,13 +394,13 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			dialog.ShowInformation("Queue", "Queue not initialized.", state.window)
 			return
 		}
-		for _, src := range state.thumbFiles {
+		for _, src := range state.thumbnailFiles {
 			if src == nil || src.Path == "" {
 				continue
 			}
-			state.jobQueue.Add(state.createThumbJobForPath(src.Path))
+			state.jobQueue.Add(state.createThumbnailJobForPath(src.Path))
 		}
-		dialog.ShowInformation("Queue", fmt.Sprintf("Queued %d thumbnail jobs.", len(state.thumbFiles)), state.window)
+		dialog.ShowInformation("Queue", fmt.Sprintf("Queued %d thumbnail jobs.", len(state.thumbnailFiles)), state.window)
 	})
 	addAllBtn.Importance = widget.MediumImportance
 
@@ -412,20 +412,20 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 
 	// View Results button - shows output folder if it exists
 	viewResultsBtn := widget.NewButton("View Results", func() {
-		if state.thumbFile == nil {
+		if state.thumbnailFile == nil {
 			dialog.ShowInformation("No Video", "Load a video first to locate results.", state.window)
 			return
 		}
 
-		videoDir := filepath.Dir(state.thumbFile.Path)
-		videoBaseName := strings.TrimSuffix(filepath.Base(state.thumbFile.Path), filepath.Ext(state.thumbFile.Path))
+		videoDir := filepath.Dir(state.thumbnailFile.Path)
+		videoBaseName := strings.TrimSuffix(filepath.Base(state.thumbnailFile.Path), filepath.Ext(state.thumbnailFile.Path))
 		outputDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
-		if state.thumbContactSheet {
+		if state.thumbnailContactSheet {
 			outputDir = videoDir
 		}
 
 		// If contact sheet mode, try to open contact sheet image
-		if state.thumbContactSheet {
+		if state.thumbnailContactSheet {
 			contactSheetPath := filepath.Join(outputDir, fmt.Sprintf("%s_contact_sheet.jpg", videoBaseName))
 			if _, err := os.Stat(contactSheetPath); err == nil {
 				if err := openFile(contactSheetPath); err != nil {
@@ -452,9 +452,9 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		}
 
 		// Otherwise, open first thumbnail
-		firstThumb := filepath.Join(outputDir, "thumb_0001.jpg")
-		if _, err := os.Stat(firstThumb); err == nil {
-			if err := openFile(firstThumb); err != nil {
+		firstThumbnail := filepath.Join(outputDir, "thumbnail_0001.jpg")
+		if _, err := os.Stat(firstThumbnail); err == nil {
+			if err := openFile(firstThumbnail); err != nil {
 				dialog.ShowError(fmt.Errorf("failed to open thumbnail: %w", err), state.window)
 			}
 			return
@@ -466,7 +466,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 		}
 	})
 	viewResultsBtn.Importance = widget.MediumImportance
-	if state.thumbFile == nil {
+	if state.thumbnailFile == nil {
 		viewResultsBtn.Disable()
 	}
 
@@ -487,16 +487,16 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 
 	// Main content - split layout with preview on left, settings on right
 	leftColumn := container.NewVBox(videoContainer)
-	if len(state.thumbFiles) > 1 {
+	if len(state.thumbnailFiles) > 1 {
 		list := widget.NewList(
-			func() int { return len(state.thumbFiles) },
+			func() int { return len(state.thumbnailFiles) },
 			func() fyne.CanvasObject { return widget.NewLabel("") },
 			func(i widget.ListItemID, o fyne.CanvasObject) {
-				if i < 0 || i >= len(state.thumbFiles) {
+				if i < 0 || i >= len(state.thumbnailFiles) {
 					return
 				}
 				label := o.(*widget.Label)
-				src := state.thumbFiles[i]
+				src := state.thumbnailFiles[i]
 				if src == nil {
 					label.SetText("")
 					return
@@ -505,16 +505,16 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 			},
 		)
 		list.OnSelected = func(id widget.ListItemID) {
-			if id < 0 || id >= len(state.thumbFiles) {
+			if id < 0 || id >= len(state.thumbnailFiles) {
 				return
 			}
-			state.thumbFile = state.thumbFiles[id]
-			state.loadThumbSourceAtIndex(id)
-			state.showThumbView()
+			state.thumbnailFile = state.thumbnailFiles[id]
+			state.loadThumbnailSourceAtIndex(id)
+			state.showThumbnailView()
 		}
-		if state.thumbFile != nil {
-			for i, src := range state.thumbFiles {
-				if src != nil && src.Path == state.thumbFile.Path {
+		if state.thumbnailFile != nil {
+			for i, src := range state.thumbnailFiles {
+				if src != nil && src.Path == state.thumbnailFile.Path {
 					list.Select(i)
 					break
 				}
@@ -543,7 +543,7 @@ func buildThumbView(state *appState) fyne.CanvasObject {
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
 
-func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
+func (s *appState) executeThumbnailJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
 	cfg := job.Config
 	inputPath := cfg["inputPath"].(string)
 	outputDir := cfg["outputDir"].(string)
@@ -611,30 +611,30 @@ func (s *appState) executeThumbJob(ctx context.Context, job *queue.Job, progress
 	return nil
 }
 
-func (s *appState) createThumbJobForPath(path string) *queue.Job {
+func (s *appState) createThumbnailJobForPath(path string) *queue.Job {
 	videoDir := filepath.Dir(path)
 	videoBaseName := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	outputDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
 	outputFile := outputDir
-	if s.thumbContactSheet {
+	if s.thumbnailContactSheet {
 		outputDir = videoDir
 		outputFile = filepath.Join(videoDir, fmt.Sprintf("%s_contact_sheet.jpg", videoBaseName))
 	}
 
 	var count, width int
 	var description string
-	if s.thumbContactSheet {
-		count = s.thumbColumns * s.thumbRows
-		width = s.thumbSheetWidth
-		description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", s.thumbColumns, s.thumbRows, count)
+	if s.thumbnailContactSheet {
+		count = s.thumbnailColumns * s.thumbnailRows
+		width = s.thumbnailSheetWidth
+		description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", s.thumbnailColumns, s.thumbnailRows, count)
 	} else {
-		count = s.thumbCount
-		width = s.thumbWidth
+		count = s.thumbnailCount
+		width = s.thumbnailWidth
 		description = fmt.Sprintf("%d individual thumbnails (%dpx width)", count, width)
 	}
 
 	return &queue.Job{
-		Type:        queue.JobTypeThumb,
+		Type:        queue.JobTypeThumbnail,
 		Title:       filepath.Base(path),
 		Description: description,
 		InputFile:   path,
@@ -644,10 +644,10 @@ func (s *appState) createThumbJobForPath(path string) *queue.Job {
 			"outputDir":     outputDir,
 			"count":         float64(count),
 			"width":         float64(width),
-			"contactSheet":  s.thumbContactSheet,
-			"showTimestamp": s.thumbShowTimestamps,
-			"columns":       float64(s.thumbColumns),
-			"rows":          float64(s.thumbRows),
+			"contactSheet":  s.thumbnailContactSheet,
+			"showTimestamp": s.thumbnailShowTimestamps,
+			"columns":       float64(s.thumbnailColumns),
+			"rows":          float64(s.thumbnailRows),
 		},
 	}
 }

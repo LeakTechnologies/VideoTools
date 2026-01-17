@@ -34,58 +34,58 @@ import (
 )
 
 type authorConfig struct {
-	OutputType               string  `json:"outputType"`
-	Region                   string  `json:"region"`
-	AspectRatio              string  `json:"aspectRatio"`
-	DiscSize                 string  `json:"discSize"`
-	Title                    string  `json:"title"`
-	CreateMenu               bool    `json:"createMenu"`
-	MenuTemplate             string  `json:"menuTemplate"`
-	MenuTheme                string  `json:"menuTheme"`
-	MenuBackgroundImage      string  `json:"menuBackgroundImage"`
-	MenuTitleLogoEnabled     bool    `json:"menuTitleLogoEnabled"`
-	MenuTitleLogoPath        string  `json:"menuTitleLogoPath"`
-	MenuTitleLogoPosition    string  `json:"menuTitleLogoPosition"`
-	MenuTitleLogoScale       float64 `json:"menuTitleLogoScale"`
-	MenuTitleLogoMargin      int     `json:"menuTitleLogoMargin"`
-	MenuStudioLogoEnabled    bool    `json:"menuStudioLogoEnabled"`
-	MenuStudioLogoPath       string  `json:"menuStudioLogoPath"`
-	MenuStudioLogoPosition   string  `json:"menuStudioLogoPosition"`
-	MenuStudioLogoScale      float64 `json:"menuStudioLogoScale"`
-	MenuStudioLogoMargin     int     `json:"menuStudioLogoMargin"`
-	MenuStructure            string  `json:"menuStructure"`
-	MenuExtrasEnabled        bool    `json:"menuExtrasEnabled"`
-	MenuChapterThumbSrc      string  `json:"menuChapterThumbSrc"`
-	TreatAsChapters          bool    `json:"treatAsChapters"`
-	SceneThreshold           float64 `json:"sceneThreshold"`
+	OutputType             string  `json:"outputType"`
+	Region                 string  `json:"region"`
+	AspectRatio            string  `json:"aspectRatio"`
+	DiscSize               string  `json:"discSize"`
+	Title                  string  `json:"title"`
+	CreateMenu             bool    `json:"createMenu"`
+	MenuTemplate           string  `json:"menuTemplate"`
+	MenuTheme              string  `json:"menuTheme"`
+	MenuBackgroundImage    string  `json:"menuBackgroundImage"`
+	MenuTitleLogoEnabled   bool    `json:"menuTitleLogoEnabled"`
+	MenuTitleLogoPath      string  `json:"menuTitleLogoPath"`
+	MenuTitleLogoPosition  string  `json:"menuTitleLogoPosition"`
+	MenuTitleLogoScale     float64 `json:"menuTitleLogoScale"`
+	MenuTitleLogoMargin    int     `json:"menuTitleLogoMargin"`
+	MenuStudioLogoEnabled  bool    `json:"menuStudioLogoEnabled"`
+	MenuStudioLogoPath     string  `json:"menuStudioLogoPath"`
+	MenuStudioLogoPosition string  `json:"menuStudioLogoPosition"`
+	MenuStudioLogoScale    float64 `json:"menuStudioLogoScale"`
+	MenuStudioLogoMargin   int     `json:"menuStudioLogoMargin"`
+	MenuStructure          string  `json:"menuStructure"`
+	MenuExtrasEnabled      bool    `json:"menuExtrasEnabled"`
+	MenuChapterThumbSrc    string  `json:"menuChapterThumbSrc"`
+	TreatAsChapters        bool    `json:"treatAsChapters"`
+	SceneThreshold         float64 `json:"sceneThreshold"`
 }
 
 func defaultAuthorConfig() authorConfig {
 	return authorConfig{
-		OutputType:          "dvd",
-		Region:              "AUTO",
-		AspectRatio:         "AUTO",
-		DiscSize:            "DVD5",
-		Title:               "",
-		CreateMenu:               false,
-		MenuTemplate:             "Simple",
-		MenuTheme:                "VideoTools",
-		MenuBackgroundImage:      "",
-		MenuTitleLogoEnabled:     false,
-		MenuTitleLogoPath:        "",
-		MenuTitleLogoPosition:    "Center",
-		MenuTitleLogoScale:       1.0,
-		MenuTitleLogoMargin:      24,
-		MenuStudioLogoEnabled:    true,
-		MenuStudioLogoPath:       "",
-		MenuStudioLogoPosition:   "Top Right",
-		MenuStudioLogoScale:      1.0,
-		MenuStudioLogoMargin:     24,
-		MenuStructure:            "Feature + Chapters",
-		MenuExtrasEnabled:   false,
-		MenuChapterThumbSrc: "Auto",
-		TreatAsChapters:     false,
-		SceneThreshold:      0.3,
+		OutputType:             "dvd",
+		Region:                 "AUTO",
+		AspectRatio:            "AUTO",
+		DiscSize:               "DVD5",
+		Title:                  "",
+		CreateMenu:             false,
+		MenuTemplate:           "Simple",
+		MenuTheme:              "VideoTools",
+		MenuBackgroundImage:    "",
+		MenuTitleLogoEnabled:   false,
+		MenuTitleLogoPath:      "",
+		MenuTitleLogoPosition:  "Center",
+		MenuTitleLogoScale:     1.0,
+		MenuTitleLogoMargin:    24,
+		MenuStudioLogoEnabled:  true,
+		MenuStudioLogoPath:     "",
+		MenuStudioLogoPosition: "Top Right",
+		MenuStudioLogoScale:    1.0,
+		MenuStudioLogoMargin:   24,
+		MenuStructure:          "Feature + Chapters",
+		MenuExtrasEnabled:      false,
+		MenuChapterThumbSrc:    "Auto",
+		TreatAsChapters:        false,
+		SceneThreshold:         0.3,
 	}
 }
 
@@ -181,37 +181,37 @@ func (s *appState) applyAuthorConfig(cfg authorConfig) {
 	s.authorMenuStudioLogoMargin = cfg.MenuStudioLogoMargin
 	s.authorMenuStructure = cfg.MenuStructure
 	s.authorMenuExtrasEnabled = cfg.MenuExtrasEnabled
-	s.authorMenuChapterThumbSrc = cfg.MenuChapterThumbSrc
+	s.authorMenuChapterThumbnailSrc = cfg.MenuChapterThumbSrc
 	s.authorTreatAsChapters = cfg.TreatAsChapters
 	s.authorSceneThreshold = cfg.SceneThreshold
 }
 
 func (s *appState) persistAuthorConfig() {
 	cfg := authorConfig{
-		OutputType:          s.authorOutputType,
-		Region:              s.authorRegion,
-		AspectRatio:         s.authorAspectRatio,
-		DiscSize:            s.authorDiscSize,
-		Title:               s.authorTitle,
-		CreateMenu:          s.authorCreateMenu,
-		MenuTemplate:        s.authorMenuTemplate,
-		MenuTheme:           s.authorMenuTheme,
-		MenuBackgroundImage:      s.authorMenuBackgroundImage,
-		MenuTitleLogoEnabled:     s.authorMenuTitleLogoEnabled,
-		MenuTitleLogoPath:        s.authorMenuTitleLogoPath,
-		MenuTitleLogoPosition:    s.authorMenuTitleLogoPosition,
-		MenuTitleLogoScale:       s.authorMenuTitleLogoScale,
-		MenuTitleLogoMargin:      s.authorMenuTitleLogoMargin,
-		MenuStudioLogoEnabled:    s.authorMenuStudioLogoEnabled,
-		MenuStudioLogoPath:       s.authorMenuStudioLogoPath,
-		MenuStudioLogoPosition:   s.authorMenuStudioLogoPosition,
-		MenuStudioLogoScale:      s.authorMenuStudioLogoScale,
-		MenuStudioLogoMargin:     s.authorMenuStudioLogoMargin,
-		MenuStructure:            s.authorMenuStructure,
-		MenuExtrasEnabled:   s.authorMenuExtrasEnabled,
-		MenuChapterThumbSrc: s.authorMenuChapterThumbSrc,
-		TreatAsChapters:     s.authorTreatAsChapters,
-		SceneThreshold:      s.authorSceneThreshold,
+		OutputType:             s.authorOutputType,
+		Region:                 s.authorRegion,
+		AspectRatio:            s.authorAspectRatio,
+		DiscSize:               s.authorDiscSize,
+		Title:                  s.authorTitle,
+		CreateMenu:             s.authorCreateMenu,
+		MenuTemplate:           s.authorMenuTemplate,
+		MenuTheme:              s.authorMenuTheme,
+		MenuBackgroundImage:    s.authorMenuBackgroundImage,
+		MenuTitleLogoEnabled:   s.authorMenuTitleLogoEnabled,
+		MenuTitleLogoPath:      s.authorMenuTitleLogoPath,
+		MenuTitleLogoPosition:  s.authorMenuTitleLogoPosition,
+		MenuTitleLogoScale:     s.authorMenuTitleLogoScale,
+		MenuTitleLogoMargin:    s.authorMenuTitleLogoMargin,
+		MenuStudioLogoEnabled:  s.authorMenuStudioLogoEnabled,
+		MenuStudioLogoPath:     s.authorMenuStudioLogoPath,
+		MenuStudioLogoPosition: s.authorMenuStudioLogoPosition,
+		MenuStudioLogoScale:    s.authorMenuStudioLogoScale,
+		MenuStudioLogoMargin:   s.authorMenuStudioLogoMargin,
+		MenuStructure:          s.authorMenuStructure,
+		MenuExtrasEnabled:      s.authorMenuExtrasEnabled,
+		MenuChapterThumbSrc:    s.authorMenuChapterThumbnailSrc,
+		TreatAsChapters:        s.authorTreatAsChapters,
+		SceneThreshold:         s.authorSceneThreshold,
 	}
 	if err := savePersistedAuthorConfig(cfg); err != nil {
 		logging.Debug(logging.CatSystem, "failed to persist author config: %v", err)
@@ -266,8 +266,8 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	if state.authorMenuStructure == "" {
 		state.authorMenuStructure = "Feature + Chapters"
 	}
-	if state.authorMenuChapterThumbSrc == "" {
-		state.authorMenuChapterThumbSrc = "Auto"
+	if state.authorMenuChapterThumbnailSrc == "" {
+		state.authorMenuChapterThumbnailSrc = "Auto"
 	}
 
 	authorColor := moduleColor("author")
@@ -904,30 +904,30 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 
 	saveCfgBtn := widget.NewButton("Save Config", func() {
 		cfg := authorConfig{
-			OutputType:          state.authorOutputType,
-			Region:              state.authorRegion,
-			AspectRatio:         state.authorAspectRatio,
-			DiscSize:            state.authorDiscSize,
-			Title:               state.authorTitle,
-			CreateMenu:          state.authorCreateMenu,
-			MenuTemplate:        state.authorMenuTemplate,
-			MenuTheme:           state.authorMenuTheme,
-			MenuBackgroundImage:      state.authorMenuBackgroundImage,
-			MenuTitleLogoEnabled:     state.authorMenuTitleLogoEnabled,
-			MenuTitleLogoPath:        state.authorMenuTitleLogoPath,
-			MenuTitleLogoPosition:    state.authorMenuTitleLogoPosition,
-			MenuTitleLogoScale:       state.authorMenuTitleLogoScale,
-			MenuTitleLogoMargin:      state.authorMenuTitleLogoMargin,
-			MenuStudioLogoEnabled:    state.authorMenuStudioLogoEnabled,
-			MenuStudioLogoPath:       state.authorMenuStudioLogoPath,
-			MenuStudioLogoPosition:   state.authorMenuStudioLogoPosition,
-			MenuStudioLogoScale:      state.authorMenuStudioLogoScale,
-			MenuStudioLogoMargin:     state.authorMenuStudioLogoMargin,
-			MenuStructure:            state.authorMenuStructure,
-			MenuExtrasEnabled:   state.authorMenuExtrasEnabled,
-			MenuChapterThumbSrc: state.authorMenuChapterThumbSrc,
-			TreatAsChapters:     state.authorTreatAsChapters,
-			SceneThreshold:      state.authorSceneThreshold,
+			OutputType:             state.authorOutputType,
+			Region:                 state.authorRegion,
+			AspectRatio:            state.authorAspectRatio,
+			DiscSize:               state.authorDiscSize,
+			Title:                  state.authorTitle,
+			CreateMenu:             state.authorCreateMenu,
+			MenuTemplate:           state.authorMenuTemplate,
+			MenuTheme:              state.authorMenuTheme,
+			MenuBackgroundImage:    state.authorMenuBackgroundImage,
+			MenuTitleLogoEnabled:   state.authorMenuTitleLogoEnabled,
+			MenuTitleLogoPath:      state.authorMenuTitleLogoPath,
+			MenuTitleLogoPosition:  state.authorMenuTitleLogoPosition,
+			MenuTitleLogoScale:     state.authorMenuTitleLogoScale,
+			MenuTitleLogoMargin:    state.authorMenuTitleLogoMargin,
+			MenuStudioLogoEnabled:  state.authorMenuStudioLogoEnabled,
+			MenuStudioLogoPath:     state.authorMenuStudioLogoPath,
+			MenuStudioLogoPosition: state.authorMenuStudioLogoPosition,
+			MenuStudioLogoScale:    state.authorMenuStudioLogoScale,
+			MenuStudioLogoMargin:   state.authorMenuStudioLogoMargin,
+			MenuStructure:          state.authorMenuStructure,
+			MenuExtrasEnabled:      state.authorMenuExtrasEnabled,
+			MenuChapterThumbSrc:    state.authorMenuChapterThumbnailSrc,
+			TreatAsChapters:        state.authorTreatAsChapters,
+			SceneThreshold:         state.authorSceneThreshold,
 		}
 		if err := savePersistedAuthorConfig(cfg); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
@@ -1319,13 +1319,13 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		"Midpoint",
 		"Custom (Advanced)",
 	}, func(value string) {
-		state.authorMenuChapterThumbSrc = value
+		state.authorMenuChapterThumbnailSrc = value
 		state.persistAuthorConfig()
 	})
-	if state.authorMenuChapterThumbSrc == "" {
-		state.authorMenuChapterThumbSrc = "Auto"
+	if state.authorMenuChapterThumbnailSrc == "" {
+		state.authorMenuChapterThumbnailSrc = "Auto"
 	}
-	thumbSourceSelect.SetSelected(state.authorMenuChapterThumbSrc)
+	thumbSourceSelect.SetSelected(state.authorMenuChapterThumbnailSrc)
 
 	info := widget.NewLabel("DVD menus are generated using the VideoTools theme and IBM Plex Mono. Menu settings apply only to disc authoring.")
 	info.Wrapping = fyne.TextWrapWord
@@ -2396,40 +2396,40 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 	}
 
 	config := map[string]interface{}{
-		"paths":               paths,
-		"region":              region,
-		"aspect":              aspect,
-		"title":               title,
-		"outputPath":          outputPath,
-		"makeISO":             makeISO,
-		"treatAsChapters":     s.authorTreatAsChapters,
-		"clips":               clips,
-		"chapters":            chapters,
-		"discSize":            s.authorDiscSize,
-		"outputType":          s.authorOutputType,
-		"authorTitle":         s.authorTitle,
-		"authorRegion":        s.authorRegion,
-		"authorAspect":        s.authorAspectRatio,
-		"createMenu":          s.authorCreateMenu,
-		"chapterSource":       s.authorChapterSource,
-		"subtitleTracks":      append([]string{}, s.authorSubtitles...),
-		"additionalAudios":    append([]string{}, s.authorAudioTracks...),
-		"menuTemplate":             s.authorMenuTemplate,
-		"menuBackgroundImage":      s.authorMenuBackgroundImage,
-		"menuTheme":                s.authorMenuTheme,
-		"menuTitleLogoEnabled":     s.authorMenuTitleLogoEnabled,
-		"menuTitleLogoPath":        s.authorMenuTitleLogoPath,
-		"menuTitleLogoPosition":    s.authorMenuTitleLogoPosition,
-		"menuTitleLogoScale":       s.authorMenuTitleLogoScale,
-		"menuTitleLogoMargin":      s.authorMenuTitleLogoMargin,
-		"menuStudioLogoEnabled":    s.authorMenuStudioLogoEnabled,
-		"menuStudioLogoPath":       s.authorMenuStudioLogoPath,
-		"menuStudioLogoPosition":   s.authorMenuStudioLogoPosition,
-		"menuStudioLogoScale":      s.authorMenuStudioLogoScale,
-		"menuStudioLogoMargin":     s.authorMenuStudioLogoMargin,
-		"menuStructure":            s.authorMenuStructure,
-		"menuExtrasEnabled":   s.authorMenuExtrasEnabled,
-		"menuChapterThumbSrc": s.authorMenuChapterThumbSrc,
+		"paths":                  paths,
+		"region":                 region,
+		"aspect":                 aspect,
+		"title":                  title,
+		"outputPath":             outputPath,
+		"makeISO":                makeISO,
+		"treatAsChapters":        s.authorTreatAsChapters,
+		"clips":                  clips,
+		"chapters":               chapters,
+		"discSize":               s.authorDiscSize,
+		"outputType":             s.authorOutputType,
+		"authorTitle":            s.authorTitle,
+		"authorRegion":           s.authorRegion,
+		"authorAspect":           s.authorAspectRatio,
+		"createMenu":             s.authorCreateMenu,
+		"chapterSource":          s.authorChapterSource,
+		"subtitleTracks":         append([]string{}, s.authorSubtitles...),
+		"additionalAudios":       append([]string{}, s.authorAudioTracks...),
+		"menuTemplate":           s.authorMenuTemplate,
+		"menuBackgroundImage":    s.authorMenuBackgroundImage,
+		"menuTheme":              s.authorMenuTheme,
+		"menuTitleLogoEnabled":   s.authorMenuTitleLogoEnabled,
+		"menuTitleLogoPath":      s.authorMenuTitleLogoPath,
+		"menuTitleLogoPosition":  s.authorMenuTitleLogoPosition,
+		"menuTitleLogoScale":     s.authorMenuTitleLogoScale,
+		"menuTitleLogoMargin":    s.authorMenuTitleLogoMargin,
+		"menuStudioLogoEnabled":  s.authorMenuStudioLogoEnabled,
+		"menuStudioLogoPath":     s.authorMenuStudioLogoPath,
+		"menuStudioLogoPosition": s.authorMenuStudioLogoPosition,
+		"menuStudioLogoScale":    s.authorMenuStudioLogoScale,
+		"menuStudioLogoMargin":   s.authorMenuStudioLogoMargin,
+		"menuStructure":          s.authorMenuStructure,
+		"menuExtrasEnabled":      s.authorMenuExtrasEnabled,
+		"menuChapterThumbSrc":    s.authorMenuChapterThumbnailSrc,
 	}
 
 	titleLabel := title
@@ -3725,7 +3725,7 @@ func extractChapterThumbnail(videoPath string, timestamp float64) (string, error
 		return "", err
 	}
 
-	outputPath := filepath.Join(tmpDir, fmt.Sprintf("thumb_%.2f.jpg", timestamp))
+	outputPath := filepath.Join(tmpDir, fmt.Sprintf("thumbnail_%.2f.jpg", timestamp))
 	args := []string{
 		"-ss", fmt.Sprintf("%.2f", timestamp),
 		"-i", videoPath,
