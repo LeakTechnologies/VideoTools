@@ -106,9 +106,63 @@ echo ""
 # Step 1: Check if Go is installed
 echo -e "${CYAN}[1/2]${NC} Checking Go installation..."
 if ! command -v go &> /dev/null; then
-    echo -e "${RED}[ERROR] Error: Go is not installed or not in PATH${NC}"
-    echo "Please install Go 1.21+ from https://go.dev/dl/"
-    exit 1
+    echo -e "${YELLOW}WARNING:${NC} Go is not installed or not in PATH"
+    echo ""
+    read -p "Install Go (required dependency)? [y/N]: " go_choice
+    if [[ "$go_choice" =~ ^[Yy]$ ]]; then
+        echo "Installing Go..."
+        install_go=false
+        
+        # Detect OS and install Go
+        if [ "$IS_WINDOWS" = true ]; then
+            echo "Please download and install Go from https://go.dev/dl/ manually"
+            echo "After installation, run this script again."
+            exit 1
+        elif [ "$IS_DARWIN" = true ]; then
+            if command -v brew &> /dev/null; then
+                brew install go
+                install_go=true
+            else
+                echo "Homebrew not found. Please install Go from https://go.dev/dl/"
+                exit 1
+            fi
+        elif [ "$IS_LINUX" = true ]; then
+            if command -v apt-get &> /dev/null; then
+                sudo apt-get update
+                sudo apt-get install -y golang-go
+                install_go=true
+            elif command -v dnf &> /dev/null; then
+                sudo dnf install -y golang
+                install_go=true
+            elif command -v pacman &> /dev/null; then
+                sudo pacman -Sy --needed --noconfirm go
+                install_go=true
+            elif command -v zypper &> /dev/null; then
+                sudo zypper install -y go
+                install_go=true
+            elif command -v brew &> /dev/null; then
+                brew install go
+                install_go=true
+            else
+                echo "No supported package manager found for Go installation."
+                echo "Please install Go manually from https://go.dev/dl/"
+                exit 1
+            fi
+        fi
+        
+        if [ "$install_go" = true ]; then
+            # Verify Go was installed successfully
+            if command -v go &> /dev/null; then
+                echo -e "${GREEN}[OK]${NC} Go installed successfully"
+            else
+                echo -e "${RED}[ERROR]${NC} Go installation failed. Please install manually from https://go.dev/dl/"
+                exit 1
+            fi
+        fi
+    else
+        echo -e "${RED}[ERROR]${NC} Go is required. Please install Go 1.21+ from https://go.dev/dl/"
+        exit 1
+    fi
 fi
 
 GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
@@ -265,12 +319,98 @@ else
             fi
         elif command -v pacman &> /dev/null; then
             echo "Installing core dependencies (FFmpeg + GStreamer)..."
-            # Core packages (always installed) - includes pkgconf for pkg-config and base-devel for CGO compilation
-            CORE_PKGS="base-devel pkgconf ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav"
-            if [ "$SKIP_DVD_TOOLS" = true ]; then
+            # Enhanced Arch Linux installation with GUI environment detection
+            install_arch() {
+                # Core packages (always installed) - includes pkgconf for pkg-config and base-devel for CGO compilation
+                CORE_PKGS="base-devel pkgconf ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav"
+                
+                echo "🔧 Detecting Arch Linux configuration..."
+                
+                # Detect display server for proper GUI support
+                if [ -n "$WAYLAND_DISPLAY" ]; then
+                    DISPLAY_SERVER="wayland"
+                    echo "   Display Server: Wayland detected"
+                elif [ -n "$DISPLAY" ]; then
+                    DISPLAY_SERVER="x11"
+                    echo "   Display Server: X11 detected"
+                else
+                    DISPLAY_SERVER="headless"
+                    echo "   Display Server: Headless/Server mode"
+                fi
+                
+                # Detect desktop environment
+                if [ -n "$XDG_CURRENT_DESKTOP" ]; then
+                    DESKTOP_ENV="$XDG_CURRENT_DESKTOP"
+                    echo "   Desktop Environment: $DESKTOP_ENV"
+                else
+                    DESKTOP_ENV="unknown"
+                    echo "   Desktop Environment: Unknown/WM-only"
+                fi
+                
+                # GPU driver detection and recommendations
+                if command -v lspci &> /dev/null; then
+                    GPU_INFO=$(lspci 2>/dev/null | grep -iE "VGA|3D" | head -1)
+                    if echo "$GPU_INFO" | grep -qi "nvidia"; then
+                        echo "   GPU: NVIDIA detected - ensuring proper driver setup"
+                        if ! lsmod 2>/dev/null | grep -q "^nvidia"; then
+                            echo "   ⚠️  NVIDIA GPU detected but drivers not loaded"
+                            echo "   💡 Install NVIDIA drivers: sudo mhwd -a pci nonfree 0300"
+                            echo "   💡 Or manually: sudo pacman -S nvidia nvidia-utils nvidia-settings"
+                        fi
+                    elif echo "$GPU_INFO" | grep -qi "amd\|radeon"; then
+                        echo "   GPU: AMD detected - ensuring proper driver setup"
+                        if ! lsmod 2>/dev/null | grep -qE "^amdgpu|^radeon"; then
+                            echo "   ⚠️  AMD GPU detected but drivers may not be loaded"
+                            echo "   💡 Install AMD drivers: sudo pacman -S mesa xf86-video-amdgpu vulkan-radeon"
+                        fi
+                    elif echo "$GPU_INFO" | grep -qi "intel"; then
+                        echo "   GPU: Intel detected"
+                        echo "   💡 Intel drivers should be included with mesa package"
+                    else
+                        echo "   GPU: Unknown/Integrated graphics"
+                    fi
+                fi
+                
+                # Install core dependencies
+                echo "📦 Installing core packages..."
                 sudo pacman -Sy --needed --noconfirm $CORE_PKGS
-            else
-                sudo pacman -Sy --needed --noconfirm $CORE_PKGS dvdauthor xorriso cdrtools
+                
+                # Install display server specific packages
+                case "$DISPLAY_SERVER" in
+                    "wayland")
+                        echo "🖥️  Installing Wayland-specific packages..."
+                        sudo pacman -Sy --needed --noconfirm wayland-protocols wayland-utils
+                        ;;
+                    "x11")
+                        echo "🖥️  Installing X11-specific packages..."
+                        sudo pacman -Sy --needed --noconfirm xorg-server xorg-xinit
+                        ;;
+                esac
+                
+                # Install desktop environment specific packages if detectable
+                case "$DESKTOP_ENV" in
+                    *"GNOME"*)
+                        echo "🖥️  Installing GNOME-specific packages..."
+                        sudo pacman -Sy --needed --noconfirm gnome-shell gsettings-desktop-schemas
+                        ;;
+                    *"KDE"*)
+                        echo "🖥️  Installing KDE-specific packages..."
+                        sudo pacman -Sy --needed --noconfirm plasma-desktop kde-cli-tools
+                        ;;
+                    *"XFCE"*)
+                        echo "🖥️  Installing XFCE-specific packages..."
+                        sudo pacman -Sy --needed --noconfirm xfce4 xfce4-goodies
+                        ;;
+                esac
+                
+                echo "✅ Arch Linux core dependencies installed"
+            }
+            
+            install_arch
+            
+            if [ "$SKIP_DVD_TOOLS" = false ]; then
+                echo "📀 Installing DVD authoring tools..."
+                sudo pacman -Sy --needed --noconfirm dvdauthor xorriso cdrtools
             fi
         elif command -v zypper &> /dev/null; then
             echo "Installing core dependencies (FFmpeg + GStreamer)..."
