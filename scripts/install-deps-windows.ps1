@@ -1,4 +1,4 @@
-﻿# VideoTools Dependency Installer for Windows
+# VideoTools Dependency Installer for Windows
 # Installs all required build and runtime dependencies using Chocolatey or Scoop
 
 param(
@@ -38,6 +38,112 @@ function Test-Command {
     param($Command)
     $null = Get-Command $Command -ErrorAction SilentlyContinue
     return $?
+}
+
+# Enhanced Windows 11 detection and configuration
+function Get-Windows11Info {
+    $os = Get-WmiObject -Class Win32_OperatingSystem
+    $version = [System.Version]$os.Version
+    $build = $os.BuildNumber
+    $edition = $os.Caption
+    
+    # Windows 11 specific features
+    $w11Features = @{
+        BuildNumber = $build
+        HasWSA = Get-Command -ErrorAction SilentlyContinue "wsa.exe"
+        HasWSL = Get-Command -ErrorAction SilentlyContinue "wsl.exe"
+        IsWindows11 = $build -ge 22000
+        Edition = $edition
+        DisplayScale = Get-WindowsDisplayScale
+        GPUInfo = Get-WindowsGPUInfo
+    }
+    return $w11Features
+}
+
+function Get-WindowsDisplayScale {
+    try {
+        # Get display scaling from registry (Windows 10/11 compatible)
+        $dpiAwareness = Get-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "LogPixels" -ErrorAction SilentlyContinue
+        if ($dpiAwareness) {
+            return $dpiAwareness.LogPixels / 96.0
+        }
+        
+        # Fallback: try to detect from system settings
+        Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class DisplayScale {
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetDC(IntPtr ptr);
+    
+    [DllImport("gdi32.dll")]
+    public static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
+    
+    [DllImport("user32.dll")]
+    public static extern int ReleaseDC(IntPtr ptr, IntPtr hdc);
+    
+    public const int LOGPIXELSX = 88;
+    
+    public static double GetScale() {
+        IntPtr hdc = GetDC(IntPtr.Zero);
+        int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
+        ReleaseDC(IntPtr.Zero, hdc);
+        return dpi / 96.0;
+    }
+}
+"@
+        
+        return [DisplayScale]::GetScale()
+    } catch {
+        return 1.0 # Default fallback
+    }
+}
+
+function Get-WindowsGPUInfo {
+    try {
+        $gpu = Get-WmiObject -Class Win32_VideoController
+        $dx12Support = Test-DirectX12Support
+        
+        return @{
+            Name = $gpu.Name
+            HasNVIDIA = $gpu.Name -match "NVIDIA"
+            HasAMD = $gpu.Name -match "AMD|Radeon"
+            HasIntel = $gpu.Name -match "Intel"
+            SupportsDirectX12 = $dx12Support
+            DriverVersion = $gpu.DriverVersion
+            AdapterRAM = $gpu.AdapterRAM
+            VideoProcessor = $gpu.VideoProcessor
+        }
+    } catch {
+        return @{Name = "Unknown"; HasNVIDIA = $false; HasAMD = $false; HasIntel = $false}
+    }
+}
+
+function Test-DirectX12Support {
+    try {
+        # Check for DirectX 12 support by trying to load d3d12.dll
+        Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class DirectXChecker {
+    [DllImport("kernel32.dll")]
+    public static extern IntPtr LoadLibrary(string lpFileName);
+    
+    [DllImport("kernel32.dll")]
+    public static extern bool FreeLibrary(IntPtr hModule);
+    
+    public static bool IsDirectX12Supported() {
+        IntPtr handle = LoadLibrary("d3d12.dll");
+        bool supported = handle != IntPtr.Zero;
+        if (supported) FreeLibrary(handle);
+        return supported;
+    }
+}
+"@
+        return [DirectXChecker]::IsDirectX12Supported()
+    } catch {
+        return $false
+    }
 }
 
 # Ensure DVD authoring tools exist on Windows by downloading DVDStyler portable
@@ -190,7 +296,108 @@ function Ensure-DVDStylerTools {
     }
 }
 
-# Function to install via Chocolatey
+# Enhanced Windows 11 Native Installation Function
+function Install-Windows11Native {
+    Write-Host "🖥️  Installing for Windows 11 (Native - No WSL Required)..." -ForegroundColor Cyan
+    
+    # Get Windows 11 specific information
+    $win11Info = Get-Windows11Info
+    Write-Host "   Windows 11 Build: $($win11Info.BuildNumber)" -ForegroundColor Gray
+    Write-Host "   Edition: $($win11Info.Edition)" -ForegroundColor Gray
+    Write-Host "   Display Scale: $($win11Info.DisplayScale)x" -ForegroundColor Gray
+    Write-Host "   GPU: $($win11Info.GPUInfo.Name)" -ForegroundColor Gray
+    
+    if ($win11Info.GPUInfo.SupportsDirectX12) {
+        Write-Host "   DirectX 12: ✅ Supported" -ForegroundColor Green
+    } else {
+        Write-Host "   DirectX 12: ❌ Not detected" -ForegroundColor Yellow
+    }
+    
+    Write-Host ""
+    Write-Host "📦 Installing native Windows dependencies..." -ForegroundColor Yellow
+    
+    # Check if Chocolatey is installed
+    if (-not (Test-Command choco)) {
+        Write-Host "   Installing Chocolatey..." -ForegroundColor Yellow
+        Set-ExecutionPolicy Bypass -Scope Process -Force
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+        if (-not (Test-Command choco)) {
+            Write-Host "[ERROR]  Failed to install Chocolatey" -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "   ✅ Chocolatey installed" -ForegroundColor Green
+    } else {
+        Write-Host "   ✅ Chocolatey already installed" -ForegroundColor Green
+    }
+
+    # Refresh environment variables
+    refreshenv
+
+    # Install Go (required for building)
+    if (-not (Test-Command go)) {
+        Write-Host "   Installing Go (for building VideoTools)..." -ForegroundColor Yellow
+        choco install -y golang --accept-license
+        
+        # Add Go to PATH for current session
+        $goPath = "C:\Program Files\Go\bin"
+        if (Test-Path $goPath) {
+            $env:Path = "$goPath;$env:Path"
+        }
+    } else {
+        $goVersion = & go version 2>$null
+        Write-Host "   ✅ Go already installed ($goVersion)" -ForegroundColor Green
+    }
+
+    # Install FFmpeg (core dependency)
+    if (-not (Test-Command ffmpeg)) {
+        Write-Host "   Installing FFmpeg (video processing)..." -ForegroundColor Yellow
+        choco install -y ffmpeg --accept-license
+    } else {
+        $ffmpegVersion = & ffmpeg -version 2>&1 | Select-String "ffmpeg version"
+        Write-Host "   ✅ FFmpeg already installed ($($ffmpegVersion.Line))" -ForegroundColor Green
+    }
+
+    # Install GStreamer (required for player)
+    if (-not (Test-Command gst-launch-1.0)) {
+        Write-Host "   Installing GStreamer (video player)..." -ForegroundColor Yellow
+        choco install -y gstreamer --accept-license
+        choco install -y gstreamer-devel --accept-license
+    } else {
+        Write-Host "   ✅ GStreamer already installed" -ForegroundColor Green
+    }
+
+    # Windows 11 specific optimizations
+    if ($win11Info.IsWindows11) {
+        Write-Host ""
+        Write-Host "🚀 Applying Windows 11 optimizations..." -ForegroundColor Cyan
+        
+        # Check for GPU drivers and recommend updates if needed
+        if ($win11Info.GPUInfo.HasNVIDIA) {
+            Write-Host "   NVIDIA GPU detected - ensure GeForce Experience is updated" -ForegroundColor Gray
+            Write-Host "   💡 For best performance: Update NVIDIA Game Ready Drivers" -ForegroundColor Cyan
+        } elseif ($win11Info.GPUInfo.HasAMD) {
+            Write-Host "   AMD GPU detected - ensure Adrenalin Software is updated" -ForegroundColor Gray
+            Write-Host "   💡 For best performance: Update AMD Adrenalin Edition" -ForegroundColor Cyan
+        } elseif ($win11Info.GPUInfo.HasIntel) {
+            Write-Host "   Intel GPU detected - drivers are included with Windows Updates" -ForegroundColor Gray
+            Write-Host "   💡 For best performance: Check for Intel Driver updates" -ForegroundColor Cyan
+        }
+        
+        # DPI awareness setup
+        if ($win11Info.DisplayScale -gt 1.0) {
+            Write-Host "   High DPI display detected ($($win11Info.DisplayScale)x)" -ForegroundColor Gray
+            Write-Host "   💡 VideoTools will automatically scale for your display" -ForegroundColor Cyan
+        }
+    }
+    
+    Write-Host ""
+    Write-Host "✅ Windows 11 native installation complete!" -ForegroundColor Green
+    Write-Host "   No WSL or Linux subsystems required" -ForegroundColor Gray
+}
+
+# Function to install via Chocolatey (legacy function for Windows 10)
 function Install-ViaChocolatey {
     Write-Host " Using Chocolatey package manager..." -ForegroundColor Green
 
@@ -345,29 +552,41 @@ if ($osVersion.Major -lt 10) {
 }
 Write-Host ""
 
-# Choose package manager
-if ($UseScoop) {
-    Install-ViaScoop
-} else {
-    # Check if either package manager is already installed
-    $hasChoco = Test-Command choco
-    $hasScoop = Test-Command scoop
+# Windows version detection and smart installer selection
+$win11Info = Get-Windows11Info
 
-    if ($hasChoco) {
-        Install-ViaChocolatey
-    } elseif ($hasScoop) {
+if ($win11Info.IsWindows11) {
+    Write-Host "🪟 Windows 11 detected - using native installer (no WSL required)" -ForegroundColor Cyan
+    Write-Host ""
+    Install-Windows11Native
+} else {
+    Write-Host "🪟 Windows 10 or earlier detected - using legacy installer" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Choose package manager for legacy Windows
+    if ($UseScoop) {
         Install-ViaScoop
     } else {
-        Write-Host "No package manager detected. Choose one:" -ForegroundColor Yellow
-        Write-Host "  1. Chocolatey (recommended, requires admin)" -ForegroundColor White
-        Write-Host "  2. Scoop (user-level, no admin required)" -ForegroundColor White
-        Write-Host ""
-        $choice = Read-Host "Enter choice (1 or 2)"
+        # Check if either package manager is already installed
+        $hasChoco = Test-Command choco
+        $hasScoop = Test-Command scoop
 
-        if ($choice -eq "2") {
+        if ($hasChoco) {
+            Install-ViaChocolatey
+        } elseif ($hasScoop) {
             Install-ViaScoop
         } else {
-            Install-ViaChocolatey
+            Write-Host "No package manager detected. Choose one:" -ForegroundColor Yellow
+            Write-Host "  1. Chocolatey (recommended, requires admin)" -ForegroundColor White
+            Write-Host "  2. Scoop (user-level, no admin required)" -ForegroundColor White
+            Write-Host ""
+            $choice = Read-Host "Enter choice (1 or 2)"
+
+            if ($choice -eq "2") {
+                Install-ViaScoop
+            } else {
+                Install-ViaChocolatey
+            }
         }
     }
 }

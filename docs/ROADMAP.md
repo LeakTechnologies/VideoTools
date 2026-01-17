@@ -64,6 +64,32 @@ This roadmap is intentionally lightweight. It captures the next few high-priorit
   - Cross-platform frame extraction
   - Hardware-accelerated enhancement pipeline
 
+## Localization Implementation (Parallel Track)
+
+- **Localization Infrastructure Foundation**
+  - Core localization system with go-i18n integration
+  - Language pack structure and key architecture
+  - Canadian English (en-CA) as authoritative source
+  - Fyne integration limits (system dialogs only)
+
+- **Module-by-Module Localization**
+  - Common UI elements (menus, dialogs, status messages)
+  - Convert module localization (technical terminology)
+  - Queue system localization (job management, progress)
+  - Error messages and status indicators
+
+- **Indigenous Language Support**
+  - Inuktitut dual-script support (syllabics + romanized)
+  - Cree syllabics integration
+  - Human-review workflow and cultural validation
+  - Community contribution guidelines
+
+- **Quality Assurance Framework**
+  - Pseudo-language testing (long strings, RTL simulation)
+  - Automated translation completeness checking
+  - UI layout expansion validation
+  - Script rendering and font support testing
+
 ## Later
 
 - **Advanced AI features**
@@ -78,6 +104,12 @@ This roadmap is intentionally lightweight. It captures the next few high-priorit
   - Subtitle processing and burning
   - Multi-track management
   - Advanced metadata editing
+
+- **Global Language Expansion**
+  - European languages (German, Spanish, Italian)
+  - Asian languages (Japanese, Chinese, Korean)
+  - Right-to-left language support
+  - Cultural adaptation for regional markets
 
 ## Versioning Note
 
