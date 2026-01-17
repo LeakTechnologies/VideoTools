@@ -144,7 +144,7 @@ func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDro
 	// Playback section
 	rows = append(rows, makeCatLabel("Playback"))
 	rows = append(rows, container.NewGridWithColumns(3,
-		buildTile("player"), buildTile("thumb"), buildTile("settings"),
+		buildTile("player"), buildTile("thumbnail"), buildTile("settings"),
 	))
 
 	gridBox := container.NewVBox(rows...)
