@@ -12503,7 +12503,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			return
 		}
 
-		go s.loadMultipleThumbVideos(videoPaths)
+		go s.loadMultipleThumbnailVideos(videoPaths)
 
 		return
 	}
