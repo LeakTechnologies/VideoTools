@@ -34,7 +34,7 @@ const (
     JobTypeFilter  JobType = "filter"   // Effects/filters
     JobTypeUpscale JobType = "upscale"  // Video enhancement
     JobTypeAudio   JobType = "audio"    // Audio processing
-    JobTypeThumb   JobType = "thumb"    // Thumbnail generation
+    JobTypeThumbnail JobType = "thumbnail" // Thumbnail generation
 )
 ```
 

@@ -71,10 +71,10 @@ func HandleSubtitles(files []string) {
 	fmt.Println("subtitles", files)
 }
 
-// HandleThumb handles the thumb module
-func HandleThumb(files []string) {
-	logging.Debug(logging.CatModule, "thumb handler invoked with %v", files)
-	fmt.Println("thumb", files)
+// HandleThumbnail handles the thumbnail module
+func HandleThumbnail(files []string) {
+	logging.Debug(logging.CatModule, "thumbnail handler invoked with %v", files)
+	fmt.Println("thumbnail", files)
 }
 
 // HandleInspect handles the inspect module

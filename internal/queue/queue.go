@@ -26,7 +26,7 @@ const (
 	JobTypeRip       JobType = "rip"
 	JobTypeBluray    JobType = "bluray"
 	JobTypeSubtitles JobType = "subtitles"
-	JobTypeThumb     JobType = "thumb"
+	JobTypeThumbnail JobType = "thumbnail"
 	JobTypeInspect   JobType = "inspect"
 	JobTypeCompare   JobType = "compare"
 	JobTypePlayer    JobType = "player"

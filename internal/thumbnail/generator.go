@@ -329,7 +329,7 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 
 	// Generate each thumbnail
 	for i, ts := range timestamps {
-		outputPath := filepath.Join(config.OutputDir, fmt.Sprintf("thumb_%04d.%s", i+1, config.Format))
+		outputPath := filepath.Join(config.OutputDir, fmt.Sprintf("thumbnail_%04d.%s", i+1, config.Format))
 
 		// Build FFmpeg command
 		args := []string{
