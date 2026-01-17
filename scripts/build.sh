@@ -82,8 +82,7 @@ case "$OS" in
         echo ""
         echo "Building VideoTools $FULL_VERSION for Windows..."
         export CGO_ENABLED=1
-        # GStreamer is always enabled (mandatory dependency on supported platforms)
-        export GOFLAGS="${GOFLAGS:-} -tags gstreamer"
+        # Set module flag if needed
         if [ -d "$PROJECT_ROOT/vendor" ] && [ ! -f "$PROJECT_ROOT/vendor/modules.txt" ]; then
             export GOFLAGS="${GOFLAGS:-} -mod=mod"
         fi
@@ -91,7 +90,7 @@ case "$OS" in
         if [ -n "$GIT_COMMIT" ]; then
             LDFLAGS="$LDFLAGS -X main.buildCommit=$GIT_COMMIT"
         fi
-        if go build -ldflags="$LDFLAGS" -o VideoTools.exe .; then
+        if go build -tags gstreamer -ldflags="$LDFLAGS" -o VideoTools.exe .; then
             build_end=$(date +%s)
             build_secs=$((build_end - build_start))
             echo "Build successful! (VideoTools $FULL_VERSION)"
