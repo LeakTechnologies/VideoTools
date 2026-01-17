@@ -107,7 +107,6 @@ var (
 		{"rip", "Rip", utils.MustHex("#FF9800"), "Disc", modules.HandleRip},                          // Orange (extraction)
 		{"bluray", "Blu-Ray", utils.MustHex("#2196F3"), "Disc", nil},                                 // Blue (not implemented yet)
 		{"subtitles", "Subtitles", utils.MustHex("#689F38"), "Convert", modules.HandleSubtitles},     // Dark Green (text)
-		{"enhancement", "Enhancement", utils.MustHex("#7C3AED"), "Advanced", modules.HandleEnhance},  // Cyan (AI enhancement)
 		{"thumbnail", "Thumbnail", utils.MustHex("#00ACC1"), "Screenshots", modules.HandleThumbnail}, // Dark Cyan (capture)
 		{"compare", "Compare", utils.MustHex("#E91E63"), "Inspect", modules.HandleCompare},           // Pink (comparison)
 		{"inspect", "Inspect", utils.MustHex("#F44336"), "Inspect", modules.HandleInspect},           // Red (analysis)

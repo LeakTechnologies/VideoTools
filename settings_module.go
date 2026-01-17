@@ -1,15 +1,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"image/color"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -18,11 +23,198 @@ import (
 
 // Dependency represents a system dependency
 type Dependency struct {
-	Name        string
-	Command     string // Command to check if installed
-	Required    bool   // If true, core functionality requires this
-	Description string
-	InstallCmd  string // Command to install (platform-specific)
+	Name         string
+	Command      string // Command to check if installed
+	Required     bool   // If true, core functionality requires this
+	Description  string
+	InstallCmd   string // Command to install (platform-specific)
+	UninstallCmd string // Command to uninstall (platform-specific, optional)
+}
+
+// dependencyCommand represents a command with optional arguments
+// command must be non-empty; args may be empty
+type dependencyCommand struct {
+	command string
+	args    []string
+}
+
+// dependencyCommandPair holds install/uninstall commands
+// nil entries mean unavailable for current platform
+type dependencyCommandPair struct {
+	install   *dependencyCommand
+	uninstall *dependencyCommand
+}
+
+func projectRoot() string {
+	if exe, err := os.Executable(); err == nil {
+		if dir := filepath.Dir(exe); dir != "" {
+			return dir
+		}
+	}
+	if wd, err := os.Getwd(); err == nil {
+		return wd
+	}
+	return "."
+}
+
+func detectPkgManager() string {
+	managers := []string{"apt-get", "dnf", "pacman", "zypper"}
+	for _, m := range managers {
+		if _, err := exec.LookPath(m); err == nil {
+			return m
+		}
+	}
+	return ""
+}
+
+func pkgManagerInstall(pkg string) *dependencyCommand {
+	switch runtime.GOOS {
+	case "darwin":
+		if _, err := exec.LookPath("brew"); err == nil {
+			return &dependencyCommand{command: "brew", args: []string{"install", pkg}}
+		}
+	case "linux":
+		switch detectPkgManager() {
+		case "apt-get":
+			return &dependencyCommand{command: "sudo", args: []string{"apt-get", "install", "-y", pkg}}
+		case "dnf":
+			return &dependencyCommand{command: "sudo", args: []string{"dnf", "install", "-y", pkg}}
+		case "pacman":
+			return &dependencyCommand{command: "sudo", args: []string{"pacman", "-S", "--needed", "--noconfirm", pkg}}
+		case "zypper":
+			return &dependencyCommand{command: "sudo", args: []string{"zypper", "install", "-y", pkg}}
+		}
+	case "windows":
+		if _, err := exec.LookPath("choco"); err == nil {
+			return &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", fmt.Sprintf("choco install -y %s", pkg)}}
+		}
+	}
+	return nil
+}
+
+func pkgManagerUninstall(pkg string) *dependencyCommand {
+	switch runtime.GOOS {
+	case "darwin":
+		if _, err := exec.LookPath("brew"); err == nil {
+			return &dependencyCommand{command: "brew", args: []string{"uninstall", pkg}}
+		}
+	case "linux":
+		switch detectPkgManager() {
+		case "apt-get":
+			return &dependencyCommand{command: "sudo", args: []string{"apt-get", "remove", "-y", pkg}}
+		case "dnf":
+			return &dependencyCommand{command: "sudo", args: []string{"dnf", "remove", "-y", pkg}}
+		case "pacman":
+			return &dependencyCommand{command: "sudo", args: []string{"pacman", "-Rns", "--noconfirm", pkg}}
+		case "zypper":
+			return &dependencyCommand{command: "sudo", args: []string{"zypper", "remove", "-y", pkg}}
+		}
+	case "windows":
+		if _, err := exec.LookPath("choco"); err == nil {
+			return &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", fmt.Sprintf("choco uninstall -y %s", pkg)}}
+		}
+	}
+	return nil
+}
+
+func getDependencyCommands(depName string) dependencyCommandPair {
+	root := projectRoot()
+	switch depName {
+	case "dvdauthor":
+		// Windows: reuse installer to pull DVDStyler tools; skip ffmpeg/gst to keep scope smaller
+		if runtime.GOOS == "windows" {
+			script := filepath.Join(root, "scripts", "install-deps-windows.ps1")
+			return dependencyCommandPair{
+				install: &dependencyCommand{
+					command: "powershell",
+					args:    []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-SkipFFmpeg:$true", "-SkipGStreamer:$true", "-SkipDvdStyler:$false"},
+				},
+			}
+		}
+		return dependencyCommandPair{
+			install:   pkgManagerInstall("dvdauthor"),
+			uninstall: pkgManagerUninstall("dvdauthor"),
+		}
+	case "xorriso":
+		if runtime.GOOS == "windows" {
+			script := filepath.Join(root, "scripts", "install-deps-windows.ps1")
+			return dependencyCommandPair{
+				install: &dependencyCommand{
+					command: "powershell",
+					args:    []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-SkipFFmpeg:$true", "-SkipGStreamer:$true", "-SkipDvdStyler:$false"},
+				},
+			}
+		}
+		return dependencyCommandPair{
+			install:   pkgManagerInstall("xorriso"),
+			uninstall: pkgManagerUninstall("xorriso"),
+		}
+	case "realesrgan-ncnn-vulkan":
+		// Best-effort: invoke existing installer with AI enabled
+		installScript := filepath.Join(root, "scripts", "install.sh")
+		switch runtime.GOOS {
+		case "linux", "darwin":
+			return dependencyCommandPair{
+				install: &dependencyCommand{command: "bash", args: []string{installScript, "--skip-ai=false", "--skip-dvd", "--skip-whisper"}},
+			}
+		case "windows":
+			// Not readily available via package manager; fall back to warning
+			return dependencyCommandPair{}
+		}
+	case "whisper":
+		if runtime.GOOS == "windows" {
+			return dependencyCommandPair{
+				install:   &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "py -m pip install --user openai-whisper"}},
+				uninstall: &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "py -m pip uninstall -y openai-whisper"}},
+			}
+		}
+		return dependencyCommandPair{
+			install:   &dependencyCommand{command: "python3", args: []string{"-m", "pip", "install", "--user", "openai-whisper"}},
+			uninstall: &dependencyCommand{command: "python3", args: []string{"-m", "pip", "uninstall", "-y", "openai-whisper"}},
+		}
+	}
+	return dependencyCommandPair{}
+}
+
+func runDependencyCommandWithProgress(win fyne.Window, title, message string, depCmd *dependencyCommand, onDone func(output string, err error)) {
+	if depCmd == nil {
+		dialog.ShowError(fmt.Errorf("no command available for this platform"), win)
+		return
+	}
+	progress := dialog.NewProgressInfinite(title, message, win)
+	progress.Show()
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+		defer cancel()
+
+		cmd := utils.CreateCommand(ctx, depCmd.command, depCmd.args...)
+		cmd.Dir = projectRoot()
+		output, err := cmd.CombinedOutput()
+		trimmed := strings.TrimSpace(string(output))
+
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.Hide()
+			onDone(trimmed, err)
+		}, false)
+	}()
+}
+
+func showCommandResult(win fyne.Window, title string, output string, err error) {
+	const maxLen = 2000
+	if len(output) > maxLen {
+		output = output[:maxLen] + "..."
+	}
+
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("command failed: %w\n%s", err, output), win)
+		return
+	}
+	if output == "" {
+		dialog.ShowInformation(title, "Completed successfully.", win)
+		return
+	}
+	dialog.ShowInformation(title, output, win)
 }
 
 // ModuleDependencies maps module IDs to their required dependencies
@@ -37,7 +229,7 @@ var moduleDependencies = map[string][]string{
 	"rip":       {"ffmpeg", "xorriso"},
 	"bluray":    {"ffmpeg"},
 	"subtitles": {"ffmpeg", "whisper"},
-	"thumb":     {"ffmpeg"},
+	"thumbnail": {"ffmpeg"},
 	"compare":   {"ffmpeg"},
 	"inspect":   {"ffmpeg"},
 	"player":    {"ffmpeg"},
@@ -219,9 +411,44 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 
 		statusBg := canvas.NewRectangle(statusColor)
 		statusBg.CornerRadius = 3
-		// statusBg.SetMinSize(fyne.NewSize(12, 12)) // Removed for flexible sizing
 
 		statusRow := container.NewHBox(statusBg, statusLabel)
+
+		actions := container.NewHBox()
+		cmds := getDependencyCommands(depName)
+
+		if cmds.install != nil {
+			installBtn := widget.NewButton("Install", func() {
+				runDependencyCommandWithProgress(state.window, fmt.Sprintf("Installing %s", dep.Name), dep.InstallCmd, cmds.install, func(out string, err error) {
+					showCommandResult(state.window, fmt.Sprintf("%s Install", dep.Name), out, err)
+					state.showSettingsView()
+				})
+			})
+			installBtn.Importance = widget.HighImportance
+			if isInstalled {
+				installBtn.Disable()
+			}
+			actions.Add(installBtn)
+		}
+
+		if cmds.uninstall != nil {
+			uninstallBtn := widget.NewButton("Uninstall", func() {
+				dialog.ShowConfirm(fmt.Sprintf("Uninstall %s?", dep.Name), "This will attempt to remove the dependency using your package manager.", func(ok bool) {
+					if !ok {
+						return
+					}
+					runDependencyCommandWithProgress(state.window, fmt.Sprintf("Uninstalling %s", dep.Name), dep.InstallCmd, cmds.uninstall, func(out string, err error) {
+						showCommandResult(state.window, fmt.Sprintf("%s Uninstall", dep.Name), out, err)
+						state.showSettingsView()
+					})
+				}, state.window)
+			})
+			uninstallBtn.Importance = widget.LowImportance
+			if !isInstalled {
+				uninstallBtn.Disable()
+			}
+			actions.Add(uninstallBtn)
+		}
 
 		infoBox := container.NewVBox(
 			container.NewHBox(nameLabel, layout.NewSpacer(), statusRow),
@@ -232,6 +459,11 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 			installCmdLabel := widget.NewLabel("Install: " + installLabel.Text)
 			installCmdLabel.Wrapping = fyne.TextWrapWord
 			infoBox.Add(installCmdLabel)
+		}
+
+		if actions.Objects != nil && len(actions.Objects) > 0 {
+			actionsContainer := container.NewHBox(actions.Objects...)
+			infoBox.Add(actionsContainer)
 		}
 
 		// Check which modules need this dependency
