@@ -83,26 +83,37 @@ import (
 var gstInitOnce sync.Once
 
 type GStreamerPlayer struct {
-	mu       sync.Mutex
-	seekMu   sync.Mutex
 	pipeline *C.GstElement
-	appsink  *C.GstElement
 	bus      *C.GstBus
-	busQuit  chan struct{}
-	busDone  chan struct{}
-	events   chan busEvent
-	paused   bool
-	volume   float64
-	preview  bool
-	width    int
-	height   int
-	fps      float64
-	queued   *image.RGBA
-	lastErr  string
-	eos      bool
-	state    C.GstState
+	appsink  *C.GstElement
+
+	width   int
+	height  int
+	fps     float64
+	mode    PlayerState
+	paused  bool
+	volume  float64
+	queued  *image.RGBA
+	lastErr string
+	backend Backend
+	config  Config
+	seekMu  sync.Mutex
+	events  chan busEvent
+
+	mu sync.Mutex
+
+	// Cached duration
 	duration time.Duration
-	mode     PlayerState
+
+	// Bus handling
+	busCh chan *C.GstMessage
+
+	// Bus loop controls
+	busStop chan struct{}
+	busDone chan struct{}
+
+	// Seek coalescing
+	lastSeekTarget time.Duration
 }
 
 type busEvent struct {
@@ -163,9 +174,9 @@ func (p *GStreamerPlayer) Load(path string, offset time.Duration) error {
 	caps := C.gst_caps_from_string(capsStr)
 	C.free(unsafe.Pointer(capsStr))
 	if caps != nil {
-	capsName := C.CString("caps")
-	C.vt_gst_set_obj(appsink, capsName, C.gpointer(caps))
-	C.free(unsafe.Pointer(capsName))
+		capsName := C.CString("caps")
+		C.vt_gst_set_obj(appsink, capsName, C.gpointer(caps))
+		C.free(unsafe.Pointer(capsName))
 		C.gst_caps_unref(caps)
 	}
 	emitSignals := C.CString("emit-signals")
@@ -309,7 +320,8 @@ func (p *GStreamerPlayer) Pause() error {
 
 func (p *GStreamerPlayer) SeekToTime(offset time.Duration) error {
 	p.seekMu.Lock()
-	defer p.seekMu.Unlock()
+	p.lastSeekTarget = offset
+	p.seekMu.Unlock()
 
 	p.mu.Lock()
 	prevMode := p.mode
@@ -471,7 +483,7 @@ func (p *GStreamerPlayer) primeAfterSeekLocked() {
 		return
 	}
 	p.drainPendingLocked()
-	frame, err := p.readFrameLocked(C.GstClockTime(200 * 1000 * 1000))
+	frame, err := p.readFrameLocked(C.GstClockTime(120 * 1000 * 1000))
 	if err != nil || frame == nil {
 		return
 	}

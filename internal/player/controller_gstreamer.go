@@ -9,8 +9,16 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
+// DisableGStreamer forces fallback to the stub controller even when the gstreamer build tag is set.
+var DisableGStreamer bool
+
 // newController creates a GStreamer-based controller for embedded video playback
 func newController() Controller {
+	if DisableGStreamer {
+		logging.Info(logging.CatPlayer, "GStreamer disabled by settings; using stub controller")
+		return &stubController{}
+	}
+
 	config := Config{
 		Backend:       BackendAuto,
 		WindowWidth:   640,
@@ -132,5 +140,5 @@ func (s *stubController) SetVolume(level float64) error {
 	return fmt.Errorf("GStreamer player not available")
 }
 func (s *stubController) FullScreen() error { return fmt.Errorf("GStreamer player not available") }
-func (s *stubController) Stop() error        { return fmt.Errorf("GStreamer player not available") }
-func (s *stubController) Close()             {}
+func (s *stubController) Stop() error       { return fmt.Errorf("GStreamer player not available") }
+func (s *stubController) Close()            {}
