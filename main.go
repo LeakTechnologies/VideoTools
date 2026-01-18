@@ -6609,6 +6609,11 @@ func main() {
 	logging.SetDebug(*debugFlag || os.Getenv("VIDEOTOOLS_DEBUG") != "")
 	logging.Debug(logging.CatSystem, "starting VideoTools %s at %s", fullVersion(), time.Now().Format(time.RFC3339))
 
+	// Best effort: ensure GStreamer bin is on PATH for Windows before initializing players.
+	if runtime.GOOS == "windows" {
+		utils.EnsureGStreamerOnPath()
+	}
+
 	// Detect platform and configure paths
 	cfg := DetectPlatform()                               // Detect and initialize platform paths locally
 	utils.SetFFmpegPaths(cfg.FFmpegPath, cfg.FFprobePath) // Set global paths in utils package
