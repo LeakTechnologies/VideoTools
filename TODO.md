@@ -2,6 +2,11 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
+## Maintenance
+
+- [X] **Installer dependency parity**
+  - Ensure pip is installed on Linux/Windows and skip Go/pip when already present.
+
 ## Documentation: Fix Structural Errors
 
 **Priority:** High
