@@ -15,6 +15,10 @@
   - Added a "Select Background Image" button that appears when the "Poster" template is selected.
   - User's menu template and background image choices are persisted in the configuration.
 
+### Maintenance
+- ✅ **Git author cleanup**
+  - Rewrote commit history to set all non-Jake commits to "Stu Leak <leaktechnologies@proton.me>" for consistent attribution.
+
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
 
