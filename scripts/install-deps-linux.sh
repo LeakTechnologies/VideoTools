@@ -24,28 +24,35 @@ echo ""
 # Function to install on Fedora/RHEL/CentOS
 install_fedora() {
     echo "Installing dependencies for Fedora/RHEL..."
+    local packages=(
+        gcc
+        pkg-config
+        libX11-devel
+        libXcursor-devel
+        libXrandr-devel
+        libXinerama-devel
+        libXi-devel
+        libXxf86vm-devel
+        mesa-libGL-devel
+        alsa-lib-devel
+        gstreamer1
+        gstreamer1-plugins-base
+        gstreamer1-plugins-good
+        gstreamer1-plugins-bad-free
+        gstreamer1-plugins-ugly-free
+        gstreamer1-libav
+        gstreamer1-devel
+        gstreamer1-plugins-base-devel
+        ffmpeg-free
+    )
+    if ! command -v go &> /dev/null; then
+        packages+=(golang)
+    fi
+    if ! command -v pip3 &> /dev/null && ! command -v pip &> /dev/null; then
+        packages+=(python3-pip)
+    fi
     sudo dnf install -y \
-        gcc \
-        pkg-config \
-        libX11-devel \
-        libXcursor-devel \
-        libXrandr-devel \
-        libXinerama-devel \
-        libXi-devel \
-        libXxf86vm-devel \
-        mesa-libGL-devel \
-        alsa-lib-devel \
-        gstreamer1 \
-        gstreamer1-plugins-base \
-        gstreamer1-plugins-good \
-        gstreamer1-plugins-bad-free \
-        gstreamer1-plugins-ugly-free \
-        gstreamer1-libav \
-        gstreamer1-devel \
-        gstreamer1-plugins-base-devel \
-        ffmpeg-free \
-        golang \
-        python3-pip
+        "${packages[@]}"
     echo "✓ Fedora dependencies installed"
 }
 
@@ -53,81 +60,102 @@ install_fedora() {
 install_ubuntu() {
     echo "Installing dependencies for Ubuntu/Debian..."
     sudo apt-get update
+    local packages=(
+        gcc
+        pkg-config
+        libgl1-mesa-dev
+        libx11-dev
+        libxcursor-dev
+        libxrandr-dev
+        libxinerama-dev
+        libxi-dev
+        libxxf86vm-dev
+        libasound2-dev
+        gstreamer1.0-tools
+        gstreamer1.0-plugins-base
+        gstreamer1.0-plugins-good
+        gstreamer1.0-plugins-bad
+        gstreamer1.0-plugins-ugly
+        gstreamer1.0-libav
+        libgstreamer1.0-dev
+        libgstreamer-plugins-base1.0-dev
+        ffmpeg
+    )
+    if ! command -v go &> /dev/null; then
+        packages+=(golang-go)
+    fi
+    if ! command -v pip3 &> /dev/null && ! command -v pip &> /dev/null; then
+        packages+=(python3-pip)
+    fi
     sudo apt-get install -y \
-        gcc \
-        pkg-config \
-        libgl1-mesa-dev \
-        libx11-dev \
-        libxcursor-dev \
-        libxrandr-dev \
-        libxinerama-dev \
-        libxi-dev \
-        libxxf86vm-dev \
-        libasound2-dev \
-        gstreamer1.0-tools \
-        gstreamer1.0-plugins-base \
-        gstreamer1.0-plugins-good \
-        gstreamer1.0-plugins-bad \
-        gstreamer1.0-plugins-ugly \
-        gstreamer1.0-libav \
-        libgstreamer1.0-dev \
-        libgstreamer-plugins-base1.0-dev \
-        ffmpeg \
-        golang-go \
-        python3-pip
+        "${packages[@]}"
     echo "✓ Ubuntu/Debian dependencies installed"
 }
 
 # Function to install on Arch Linux
 install_arch() {
     echo "Installing dependencies for Arch Linux..."
+    local packages=(
+        gcc
+        pkgconf
+        mesa
+        libx11
+        libxcursor
+        libxrandr
+        libxinerama
+        libxi
+        libxxf86vm
+        alsa-lib
+        gstreamer
+        gst-plugins-base
+        gst-plugins-good
+        gst-plugins-bad
+        gst-plugins-ugly
+        gst-libav
+        ffmpeg
+    )
+    if ! command -v go &> /dev/null; then
+        packages+=(go)
+    fi
+    if ! command -v pip3 &> /dev/null && ! command -v pip &> /dev/null; then
+        packages+=(python-pip)
+    fi
     sudo pacman -S --needed --noconfirm \
-        gcc \
-        pkgconf \
-        mesa \
-        libx11 \
-        libxcursor \
-        libxrandr \
-        libxinerama \
-        libxi \
-        libxxf86vm \
-        alsa-lib \
-        gstreamer \
-        gst-plugins-base \
-        gst-plugins-good \
-        gst-plugins-bad \
-        gst-plugins-ugly \
-        gst-libav \
-        ffmpeg \
-        go \
-        python-pip
+        "${packages[@]}"
     echo "✓ Arch Linux dependencies installed"
 }
 
 # Function to install on openSUSE
 install_opensuse() {
     echo "Installing dependencies for openSUSE..."
+    local packages=(
+        gcc
+        pkg-config
+        Mesa-libGL-devel
+        libX11-devel
+        libXcursor-devel
+        libXrandr-devel
+        libXinerama-devel
+        libXi-devel
+        libXxf86vm-devel
+        alsa-devel
+        gstreamer
+        gstreamer-plugins-base
+        gstreamer-plugins-good
+        gstreamer-plugins-bad
+        gstreamer-plugins-ugly
+        gstreamer-plugins-libav
+        gstreamer-devel
+        ffmpeg
+    )
+    if ! command -v go &> /dev/null; then
+        packages+=(go)
+    fi
+    if ! command -v pip3 &> /dev/null && ! command -v pip &> /dev/null; then
+        packages+=(python3-pip)
+    fi
     sudo zypper install -y \
-        gcc \
-        pkg-config \
-        Mesa-libGL-devel \
-        libX11-devel \
-        libXcursor-devel \
-        libXrandr-devel \
-        libXinerama-devel \
-        libXi-devel \
-        libXxf86vm-devel \
-        alsa-devel \
-        gstreamer \
-        gstreamer-plugins-base \
-        gstreamer-plugins-good \
-        gstreamer-plugins-bad \
-        gstreamer-plugins-ugly \
-        gstreamer-plugins-libav \
-        gstreamer-devel \
-        ffmpeg \
-        go \
-        python3-pip
+        "${packages[@]}"
     echo "✓ openSUSE dependencies installed"
 }
 
