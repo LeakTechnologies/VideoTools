@@ -17,7 +17,9 @@
 
 ### Maintenance
 - ✅ **Git author cleanup**
-  - Rewrote commit history to set all non-Jake commits to "Stu Leak <leaktechnologies@proton.me>" for consistent attribution.
+  - Rewrote commit history to set commits to "Stu Leak <leaktechnologies@proton.me>" for consistent attribution.
+- ✅ **Installer dependency parity**
+  - Ensured pip is installed (Linux/Windows) and skipped Go/pip installs when already present.
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
@@ -123,7 +125,7 @@ This file tracks completed features, fixes, and milestones.
   - Queue onChange callback now handles all refreshes automatically - removed duplicate manual calls
   - Added stopQueueAutoRefresh() before navigation to prevent conflicting UI updates
   - Result: Instant button response on Windows (was 1-3 second lag)
-  - Reported by: Jake & Stu
+  - Reported by: contributor
 
 - ✅ **Main Menu Performance**
   - Fixed main menu lag when sidebar visible and queue active
@@ -247,7 +249,7 @@ This file tracks completed features, fixes, and milestones.
   - Added `-MaximumRedirection 10` to handle SourceForge redirects
   - Added browser user agent to prevent rejection
   - Resolves "invalid archive" error on Windows 11
-  - Reported by: Jake
+  - Reported by: contributor
 
 ### Technical Improvements
 - ✅ **Responsive Design Pattern**
@@ -474,7 +476,7 @@ This file tracks completed features, fixes, and milestones.
   - Preserved window size before/after SetContent() calls
   - User retains full control via manual resize or maximize
   - Improves professional appearance and stability
-  - Reported by: Jake
+  - Reported by: contributor
 
 ### Features (2025-12-18 Session)
 - ✅ **History Sidebar Enhancements**

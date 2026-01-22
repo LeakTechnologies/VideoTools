@@ -251,7 +251,7 @@ The `scripts/test-cross-platform.sh` script provides:
 - ✅ **Desktop Awareness**: GNOME/KDE/XFCE specific handling
 - ✅ **Dependency Accuracy**: Pacman-specific package management
 
-### For Jake (Windows 11)
+### Windows 11 Notes
 - ✅ **Native Windows Experience**: No WSL required
 - ✅ **Modern Windows Support**: Windows 11 specific optimizations
 - ✅ **GPU Acceleration**: DirectX 12 and vendor support
