@@ -245,7 +245,7 @@ The `scripts/test-cross-platform.sh` script provides:
 
 ## 🎯 Benefits Achieved
 
-### For You (Arch Linux)
+### Arch Linux Notes
 - ✅ **Perfect Arch Integration**: Detects your exact setup
 - ✅ **GPU Optimization**: Proper driver recommendations  
 - ✅ **Desktop Awareness**: GNOME/KDE/XFCE specific handling

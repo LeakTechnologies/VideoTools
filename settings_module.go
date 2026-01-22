@@ -557,12 +557,25 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	header.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(header)
 
-	content.Add(widget.NewLabel("Preferences panel - Coming soon"))
-	content.Add(widget.NewLabel("This will include settings for:"))
-	content.Add(widget.NewLabel("• Default output directories"))
-	content.Add(widget.NewLabel("• Default encoding presets"))
-	content.Add(widget.NewLabel("• UI theme preferences"))
-	content.Add(widget.NewLabel("• Automatic updates"))
+	// Language selection (persisted UI language)
+	langLabel := widget.NewLabel("Language")
+	langSelect := widget.NewSelect([]string{"System", "en", "es", "fr", "de", "ja", "zh"}, func(selected string) {
+		state.convert.Language = selected
+		state.persistConvertConfig()
+	})
+	langSelect.SetSelected(state.convert.Language)
+	content.Add(container.NewVBox(langLabel, langSelect))
+
+	content.Add(widget.NewSeparator())
+
+	// Hardware acceleration default (used globally and by benchmark)
+	hwLabel := widget.NewLabel("Hardware Acceleration")
+	hwSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "qsv", "amf", "vaapi", "videotoolbox"}, func(selected string) {
+		state.convert.HardwareAccel = selected
+		state.persistConvertConfig()
+	})
+	hwSelect.SetSelected(state.convert.HardwareAccel)
+	content.Add(container.NewVBox(hwLabel, hwSelect))
 
 	return content
 }

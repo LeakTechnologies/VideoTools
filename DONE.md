@@ -17,7 +17,7 @@
 
 ### Maintenance
 - ✅ **Git author cleanup**
-  - Rewrote commit history to set commits to "Stu Leak <leaktechnologies@proton.me>" for consistent attribution.
+  - Rewrote commit history to ensure consistent commit attribution.
 - ✅ **Installer dependency parity**
   - Ensured pip is installed (Linux/Windows) and skipped Go/pip installs when already present.
 
@@ -125,7 +125,7 @@ This file tracks completed features, fixes, and milestones.
   - Queue onChange callback now handles all refreshes automatically - removed duplicate manual calls
   - Added stopQueueAutoRefresh() before navigation to prevent conflicting UI updates
   - Result: Instant button response on Windows (was 1-3 second lag)
-  - Reported by: contributor
+  - Reported by: user report
 
 - ✅ **Main Menu Performance**
   - Fixed main menu lag when sidebar visible and queue active
@@ -249,7 +249,7 @@ This file tracks completed features, fixes, and milestones.
   - Added `-MaximumRedirection 10` to handle SourceForge redirects
   - Added browser user agent to prevent rejection
   - Resolves "invalid archive" error on Windows 11
-  - Reported by: contributor
+  - Reported by: user report
 
 ### Technical Improvements
 - ✅ **Responsive Design Pattern**
@@ -476,7 +476,7 @@ This file tracks completed features, fixes, and milestones.
   - Preserved window size before/after SetContent() calls
   - User retains full control via manual resize or maximize
   - Improves professional appearance and stability
-  - Reported by: contributor
+  - Reported by: user report
 
 ### Features (2025-12-18 Session)
 - ✅ **History Sidebar Enhancements**
