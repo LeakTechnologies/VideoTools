@@ -40,6 +40,24 @@ function Test-Command {
     return $?
 }
 
+function Test-Pip {
+    if (Test-Command pip) {
+        return $true
+    }
+    if (Test-Command pip3) {
+        return $true
+    }
+    if (Test-Command python) {
+        try {
+            & python -m pip --version | Out-Null
+            return $true
+        } catch {
+            return $false
+        }
+    }
+    return $false
+}
+
 # Enhanced Windows 11 detection and configuration
 function Get-Windows11Info {
     $os = Get-WmiObject -Class Win32_OperatingSystem
@@ -368,6 +386,14 @@ function Install-Windows11Native {
         Write-Host "   ✅ GStreamer already installed" -ForegroundColor Green
     }
 
+    # Install Python (includes pip)
+    if (-not (Test-Pip)) {
+        Write-Host "   Installing Python (for pip)..." -ForegroundColor Yellow
+        choco install -y python --accept-license
+    } else {
+        Write-Host "   ✅ pip already available" -ForegroundColor Green
+    }
+
     # Windows 11 specific optimizations
     if ($win11Info.IsWindows11) {
         Write-Host ""
@@ -464,6 +490,14 @@ function Install-ViaChocolatey {
         }
     }
 
+    # Install Python (includes pip)
+    if (-not (Test-Pip)) {
+        Write-Host "Installing Python (for pip)..." -ForegroundColor Yellow
+        choco install -y python
+    } else {
+        Write-Host "[OK]  pip already available" -ForegroundColor Green
+    }
+
 
     Write-Host "[OK]  Chocolatey installation complete" -ForegroundColor Green
 }
@@ -533,6 +567,14 @@ function Install-ViaScoop {
         } else {
             Write-Host "[OK]  GStreamer already installed" -ForegroundColor Green
         }
+    }
+
+    # Install Python (includes pip)
+    if (-not (Test-Pip)) {
+        Write-Host "Installing Python (for pip)..." -ForegroundColor Yellow
+        scoop install python
+    } else {
+        Write-Host "[OK]  pip already available" -ForegroundColor Green
     }
 
 
@@ -640,6 +682,24 @@ if (Test-Command gst-launch-1.0) {
     } else {
         Write-Host "[WARN]   gstreamer not found in PATH (restart terminal)" -ForegroundColor Yellow
     }
+}
+
+if (Test-Pip) {
+    $pipVersion = ""
+    if (Test-Command pip) {
+        $pipVersion = pip --version
+    } elseif (Test-Command pip3) {
+        $pipVersion = pip3 --version
+    } elseif (Test-Command python) {
+        $pipVersion = python -m pip --version
+    }
+    if ($pipVersion) {
+        Write-Host "[OK]  pip: $pipVersion" -ForegroundColor Green
+    } else {
+        Write-Host "[OK]  pip: available" -ForegroundColor Green
+    }
+} else {
+    Write-Host "[WARN]   pip not found in PATH (restart terminal)" -ForegroundColor Yellow
 }
 
 

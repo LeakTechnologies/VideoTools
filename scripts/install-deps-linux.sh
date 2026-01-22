@@ -44,7 +44,8 @@ install_fedora() {
         gstreamer1-devel \
         gstreamer1-plugins-base-devel \
         ffmpeg-free \
-        golang
+        golang \
+        python3-pip
     echo "✓ Fedora dependencies installed"
 }
 
@@ -72,7 +73,8 @@ install_ubuntu() {
         libgstreamer1.0-dev \
         libgstreamer-plugins-base1.0-dev \
         ffmpeg \
-        golang-go
+        golang-go \
+        python3-pip
     echo "✓ Ubuntu/Debian dependencies installed"
 }
 
@@ -97,7 +99,8 @@ install_arch() {
         gst-plugins-ugly \
         gst-libav \
         ffmpeg \
-        go
+        go \
+        python-pip
     echo "✓ Arch Linux dependencies installed"
 }
 
@@ -123,7 +126,8 @@ install_opensuse() {
         gstreamer-plugins-libav \
         gstreamer-devel \
         ffmpeg \
-        go
+        go \
+        python3-pip
     echo "✓ openSUSE dependencies installed"
 }
 
@@ -200,6 +204,15 @@ if command -v pkg-config &> /dev/null; then
     echo "✓ pkg-config: $(pkg-config --version)"
 else
     echo "⚠️  pkg-config not found"
+fi
+
+# Check pip
+if command -v pip3 &> /dev/null; then
+    echo "✓ pip: $(pip3 --version)"
+elif command -v pip &> /dev/null; then
+    echo "✓ pip: $(pip --version)"
+else
+    echo "⚠️  pip not found in PATH"
 fi
 
 echo ""
