@@ -234,6 +234,9 @@ else
     if ! pkg-config --exists gstreamer-1.0 2>/dev/null; then
         missing_deps+=("gstreamer-devel")
     fi
+    if ! command -v pip3 &> /dev/null && ! command -v pip &> /dev/null; then
+        missing_deps+=("pip")
+    fi
     if [ -z "$SKIP_DVD_TOOLS" ]; then
         # Check if DVD tools are already installed
         if command -v dvdauthor &> /dev/null && command -v xorriso &> /dev/null; then
@@ -302,7 +305,7 @@ else
             echo "Installing core dependencies (FFmpeg + GStreamer)..."
             sudo apt-get update
             # Core packages (always installed) - GStreamer is mandatory for player
-            CORE_PKGS="ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev"
+            CORE_PKGS="ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly gstreamer1.0-libav libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev python3-pip"
             if [ "$SKIP_DVD_TOOLS" = true ]; then
                 sudo apt-get install -y $CORE_PKGS
             else
@@ -311,7 +314,7 @@ else
         elif command -v dnf &> /dev/null; then
             echo "Installing core dependencies (FFmpeg + GStreamer)..."
             # Core packages (always installed) - GStreamer is mandatory for player
-            CORE_PKGS="ffmpeg gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free gstreamer1-libav gstreamer1-devel gstreamer1-plugins-base-devel"
+            CORE_PKGS="ffmpeg gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good gstreamer1-plugins-bad-free gstreamer1-plugins-ugly-free gstreamer1-libav gstreamer1-devel gstreamer1-plugins-base-devel python3-pip"
             if [ "$SKIP_DVD_TOOLS" = true ]; then
                 sudo dnf install -y $CORE_PKGS
             else
@@ -322,7 +325,7 @@ else
             # Enhanced Arch Linux installation with GUI environment detection
             install_arch() {
                 # Core packages (always installed) - includes pkgconf for pkg-config and base-devel for CGO compilation
-                CORE_PKGS="base-devel pkgconf ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav"
+                CORE_PKGS="base-devel pkgconf ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav python-pip"
                 
                 echo "🔧 Detecting Arch Linux configuration..."
                 
@@ -415,7 +418,7 @@ else
         elif command -v zypper &> /dev/null; then
             echo "Installing core dependencies (FFmpeg + GStreamer)..."
             # Core packages (always installed)
-            CORE_PKGS="ffmpeg gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-devel"
+            CORE_PKGS="ffmpeg gstreamer gstreamer-plugins-base gstreamer-plugins-good gstreamer-plugins-bad gstreamer-plugins-ugly gstreamer-plugins-libav gstreamer-devel python3-pip"
             if [ "$SKIP_DVD_TOOLS" = true ]; then
                 sudo zypper install -y $CORE_PKGS
             else
@@ -424,7 +427,7 @@ else
         elif command -v brew &> /dev/null; then
             echo "Installing core dependencies (FFmpeg + GStreamer)..."
             # Core packages (always installed)
-            CORE_PKGS="ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav"
+            CORE_PKGS="ffmpeg gstreamer gst-plugins-base gst-plugins-good gst-plugins-bad gst-plugins-ugly gst-libav python"
             if [ "$SKIP_DVD_TOOLS" = true ]; then
                 brew install $CORE_PKGS
             else
