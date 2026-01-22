@@ -95,10 +95,12 @@ type GStreamerPlayer struct {
 	volume  float64
 	queued  *image.RGBA
 	lastErr string
-	backend Backend
+	backend BackendType
 	config  Config
 	seekMu  sync.Mutex
 	events  chan busEvent
+	preview bool
+	lastSeekTarget time.Duration
 
 	mu sync.Mutex
 
@@ -107,13 +109,10 @@ type GStreamerPlayer struct {
 
 	// Bus handling
 	busCh chan *C.GstMessage
-
-	// Bus loop controls
-	busStop chan struct{}
+	eos    chan struct{}
 	busDone chan struct{}
+}
 
-	// Seek coalescing
-	lastSeekTarget time.Duration
 }
 
 type busEvent struct {
@@ -613,6 +612,72 @@ func (p *GStreamerPlayer) busLoop() {
 			return
 		default:
 		}
+		p.mu.Lock()
+		bus := p.bus
+		p.mu.Unlock()
+		if bus == nil {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+
+		msg := C.gst_bus_timed_pop_filtered(bus, 200*1000*1000, C.vt_gst_message_mask())
+		if msg == nil {
+			continue
+		}
+
+		msgType := C.vt_gst_message_type(msg)
+		switch msgType {
+		case C.GST_MESSAGE_ERROR:
+			p.mu.Lock()
+			if errMsg != nil {
+				p.lastErr = C.GoString(errMsg)
+				C.vt_gst_free_error(errMsg)
+			} else {
+				p.lastErr = "gstreamer error"
+			}
+			p.mode = StateError
+			p.mu.Unlock()
+			p.pushEvent(busEvent{Kind: "error", Info: p.lastErr})
+		case C.GST_MESSAGE_EOS:
+			p.mu.Lock()
+			p.eos = true
+			p.mode = StateEOS
+			p.mu.Unlock()
+			p.pushEvent(busEvent{Kind: "eos"})
+		case C.GST_MESSAGE_STATE_CHANGED:
+			var oldState C.GstState
+			var newState C.GstState
+			var pending C.GstState
+			C.vt_gst_parse_state_changed(msg, &oldState, &newState, &pending)
+			p.mu.Lock()
+			p.state = newState
+			p.mu.Unlock()
+			p.pushEvent(busEvent{Kind: "state_changed", State: newState})
+		case C.GST_MESSAGE_DURATION_CHANGED:
+			p.updateDuration()
+			p.pushEvent(busEvent{Kind: "duration_changed"})
+		case C.GST_MESSAGE_CLOCK_LOST:
+			p.mu.Lock()
+			shouldRecover := !p.paused && p.pipeline != nil
+			p.mu.Unlock()
+			if shouldRecover {
+				C.gst_element_set_state(p.pipeline, C.GST_STATE_PAUSED)
+				C.gst_element_set_state(p.pipeline, C.GST_STATE_PLAYING)
+			}
+			p.pushEvent(busEvent{Kind: "clock_lost"})
+		}
+		C.gst_message_unref(msg)
+	}
+}
+		p.mu.Unlock()
+	}()
+
+	for {
+		select {
+		case <-p.busQuit:
+			return
+		default:
+		}
 
 		p.mu.Lock()
 		bus := p.bus
@@ -644,7 +709,7 @@ func (p *GStreamerPlayer) busLoop() {
 			p.pushEvent(evt)
 		case C.GST_MESSAGE_EOS:
 			p.mu.Lock()
-			p.eos = true
+		p.eos = true
 			p.mode = StateEOS
 			p.mu.Unlock()
 			p.pushEvent(busEvent{Kind: "eos"})
@@ -668,6 +733,12 @@ func (p *GStreamerPlayer) busLoop() {
 				C.gst_element_set_state(p.pipeline, C.GST_STATE_PAUSED)
 				C.gst_element_set_state(p.pipeline, C.GST_STATE_PLAYING)
 			}
+			p.pushEvent(busEvent{Kind: "clock_lost"})
+		}
+		C.gst_message_unref(msg)
+	default:
+	}
+	p.mu.Unlock()
 			p.pushEvent(busEvent{Kind: "clock_lost"})
 		}
 		C.gst_message_unref(msg)

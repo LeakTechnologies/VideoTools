@@ -768,6 +768,7 @@ type convertConfig struct {
 	AspectUserSet    bool   // Tracks if user explicitly set OutputAspect
 	ForceAspect      bool   // Force DAR/SAR metadata even when no aspect conversion
 	TempDir          string // Optional temp/cache directory override
+	Language         string // UI language preference ("System" or BCP47 tag)
 }
 
 func (c convertConfig) OutputFile() string {
@@ -837,6 +838,7 @@ func defaultConvertConfig() convertConfig {
 		AspectUserSet:    false,
 		ForceAspect:      true,
 		TempDir:          "",
+		Language:         "System",
 	}
 }
 
@@ -2930,8 +2932,8 @@ func (s *appState) saveBenchmarkRun(results []benchmark.Result, encoder, preset 
 func (s *appState) applyBenchmarkRecommendation(encoder, preset string) {
 	logging.Debug(logging.CatSystem, "applied benchmark recommendation: encoder=%s preset=%s", encoder, preset)
 
-	// Map encoder to hardware acceleration setting
-	hwAccel := "none"
+	// Map encoder to hardware acceleration setting only; do not touch codec/preset.
+	hwAccel := s.convert.HardwareAccel
 	switch {
 	case strings.Contains(encoder, "nvenc"):
 		hwAccel = "nvenc"
@@ -2943,26 +2945,11 @@ func (s *appState) applyBenchmarkRecommendation(encoder, preset string) {
 		hwAccel = "videotoolbox"
 	}
 
-	// Map encoder to friendly codec to align Convert defaults
-	if codec := friendlyCodecFromPreset(encoder); codec != "" {
-		s.convert.VideoCodec = codec
-	}
-
-	// Respect user's quality preference: if they have slow/slower set, upgrade the preset
-	currentPreset := strings.ToLower(s.convert.EncoderPreset)
-	if currentPreset == "slow" || currentPreset == "slower" {
-		// User prefers quality over speed - upgrade benchmark preset to slower
-		preset = "slow"
-		logging.Debug(logging.CatSystem, "user prefers quality - upgraded preset to 'slow'")
-	}
-
-	s.convert.EncoderPreset = preset
 	s.convert.HardwareAccel = hwAccel
 	s.persistConvertConfig()
 
-	dialog.ShowInformation("Benchmark Settings Applied",
-		fmt.Sprintf("Applied recommended defaults:\n\nEncoder: %s\nPreset: %s\nHardware Accel: %s\n\nThese are now set as your Convert defaults.",
-			encoder, preset, hwAccel), s.window)
+	// Minimal notice without confirmation loops.
+	logging.Info(logging.CatSystem, "benchmark applied hardware acceleration: %s", hwAccel)
 }
 
 func (s *appState) showBenchmarkHistory() {

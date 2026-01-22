@@ -1,4 +1,4 @@
-//go:build !gstreamer
+//go:build !gstreamer && windows
 
 package player
 
