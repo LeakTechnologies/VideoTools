@@ -1,4 +1,4 @@
-//go:build linux && !gstreamer
+//go:build linux && !gstreamer && !gstreamer
 
 package player
 
