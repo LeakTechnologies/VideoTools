@@ -18,6 +18,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Keep Windows installs in the same Git Bash terminal using `winpty` when available.
 - [X] **Windows root entrypoints**
   - Provide `install.bat` and `install.ps1` for PowerShell-first installs.
+- [X] **Windows scripts entrypoints**
+  - Provide `scripts/install.ps1` and `scripts/install.bat` to avoid Git Bash pop-ups.
 
 ## Documentation: Fix Structural Errors
 

@@ -105,17 +105,11 @@ echo ""
 
 # Windows uses a dedicated installer to avoid Git Bash/PowerShell chaining.
 if [ "$IS_WINDOWS" = true ]; then
-    if command -v winpty &> /dev/null; then
-        winpty powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1"
-        exit $?
-    fi
-    if command -v powershell.exe &> /dev/null; then
-        powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1"
-        exit $?
-    fi
-    echo -e "${RED}[ERROR]${NC} powershell.exe not found."
-    echo "Please run: $PROJECT_ROOT\\scripts\\setup-windows.bat"
-    exit 1
+    echo -e "${YELLOW}NOTICE:${NC} Windows detected."
+    echo "Run one of these from PowerShell or CMD instead:"
+    echo "  - $PROJECT_ROOT\\scripts\\install.ps1"
+    echo "  - $PROJECT_ROOT\\scripts\\install.bat"
+    exit 0
 fi
 
 # Step 1: Check if Go is installed

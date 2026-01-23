@@ -11,7 +11,7 @@ Welcome to the VideoTools installation guide. Please select your operating syste
 For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers both automated and manual setup.
 
 - **[➡️ View Windows Installation Guide](./INSTALL_WINDOWS.md)**
-  - Use `install.bat` or `install.ps1` on Windows.
+  - Use `scripts\install.bat` or `scripts\install.ps1` on Windows.
 
 ### 🐧 Linux & macOS
 
