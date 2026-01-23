@@ -24,6 +24,8 @@
   - Normalized PowerShell here-strings to prevent parse errors during installation.
 - ✅ **Go auto-install on Windows**
   - Removed the Go prompt in `install.sh`; missing Go is now installed automatically.
+- ✅ **Windows install workflow split**
+  - `install.sh` now delegates to the Windows installer to avoid mixed-shell prompts.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 

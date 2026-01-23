@@ -10,6 +10,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Normalize PowerShell here-strings to prevent parser errors.
 - [X] **Go auto-install in install.sh**
   - Skip prompting for Go and install automatically when missing.
+- [X] **Windows install workflow split**
+  - Route Windows to the dedicated installer to avoid mixed-shell prompts.
 
 ## Documentation: Fix Structural Errors
 

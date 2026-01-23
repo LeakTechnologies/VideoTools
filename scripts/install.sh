@@ -103,6 +103,17 @@ echo "  $INSTALL_TITLE"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 
+# Windows uses a dedicated installer to avoid Git Bash/PowerShell chaining.
+if [ "$IS_WINDOWS" = true ]; then
+    if command -v powershell.exe &> /dev/null; then
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1"
+        exit $?
+    fi
+    echo -e "${RED}[ERROR]${NC} powershell.exe not found."
+    echo "Please run: $PROJECT_ROOT\\scripts\\setup-windows.bat"
+    exit 1
+fi
+
 # Step 1: Check if Go is installed
 echo -e "${CYAN}[1/2]${NC} Checking Go installation..."
 if ! command -v go &> /dev/null; then
@@ -110,9 +121,7 @@ if ! command -v go &> /dev/null; then
     echo "Installing Go..."
     install_go=false
 
-    if [ "$IS_WINDOWS" = true ]; then
-        echo "Go will be installed by the Windows dependency installer."
-    elif [ "$IS_DARWIN" = true ]; then
+    if [ "$IS_DARWIN" = true ]; then
         if command -v brew &> /dev/null; then
             brew install go
             install_go=true
