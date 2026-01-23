@@ -14,6 +14,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Route Windows to the dedicated installer to avoid mixed-shell prompts.
 - [X] **Windows installer entrypoint**
   - Provide a PowerShell entrypoint and direct Windows users to it from install.sh.
+- [X] **Git Bash handoff**
+  - Keep Windows installs in the same Git Bash terminal using `winpty` when available.
 
 ## Documentation: Fix Structural Errors
 
