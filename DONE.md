@@ -20,6 +20,8 @@
   - Rewrote commit history to ensure consistent commit attribution.
 - ✅ **Installer dependency parity**
   - Ensured pip is installed (Linux/Windows) and skipped Go/pip installs when already present.
+- ✅ **Windows installer parse fix**
+  - Normalized PowerShell here-strings to prevent parse errors during installation.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 

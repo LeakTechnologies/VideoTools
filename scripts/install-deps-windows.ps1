@@ -87,21 +87,21 @@ function Get-WindowsDisplayScale {
         }
         
         # Fallback: try to detect from system settings
-        Add-Type -TypeDefinition @"
+        Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 public class DisplayScale {
     [DllImport("user32.dll")]
     public static extern IntPtr GetDC(IntPtr ptr);
-    
+
     [DllImport("gdi32.dll")]
     public static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
-    
+
     [DllImport("user32.dll")]
     public static extern int ReleaseDC(IntPtr ptr, IntPtr hdc);
-    
+
     public const int LOGPIXELSX = 88;
-    
+
     public static double GetScale() {
         IntPtr hdc = GetDC(IntPtr.Zero);
         int dpi = GetDeviceCaps(hdc, LOGPIXELSX);
@@ -109,7 +109,7 @@ public class DisplayScale {
         return dpi / 96.0;
     }
 }
-"@
+'@
         
         return [DisplayScale]::GetScale()
     } catch {
@@ -140,16 +140,16 @@ function Get-WindowsGPUInfo {
 function Test-DirectX12Support {
     try {
         # Check for DirectX 12 support by trying to load d3d12.dll
-        Add-Type -TypeDefinition @"
+        Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 public class DirectXChecker {
     [DllImport("kernel32.dll")]
     public static extern IntPtr LoadLibrary(string lpFileName);
-    
+
     [DllImport("kernel32.dll")]
     public static extern bool FreeLibrary(IntPtr hModule);
-    
+
     public static bool IsDirectX12Supported() {
         IntPtr handle = LoadLibrary("d3d12.dll");
         bool supported = handle != IntPtr.Zero;
@@ -157,7 +157,7 @@ public class DirectXChecker {
         return supported;
     }
 }
-"@
+'@
         return [DirectXChecker]::IsDirectX12Supported()
     } catch {
         return $false

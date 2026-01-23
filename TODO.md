@@ -6,6 +6,8 @@ This file tracks upcoming features, improvements, and known issues.
 
 - [X] **Installer dependency parity**
   - Ensure pip is installed on Linux/Windows and skip Go/pip when already present.
+- [X] **Windows installer parse fix**
+  - Normalize PowerShell here-strings to prevent parser errors.
 
 ## Documentation: Fix Structural Errors
 
