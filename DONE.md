@@ -9,17 +9,31 @@
   - Created three initial menu templates:
     - **Simple**: The default, clean menu style.
     - **Dark**: A dark-themed menu for a more cinematic feel.
-    - **Poster**: A template that uses a user-provided image as the background.
+    - **Poster**: A template that uses a user-provided image as a background.
 - ✅ **Menu Customization UI**
   - Added a "Menu Template" dropdown to the authoring settings tab.
   - Added a "Select Background Image" button that appears when the "Poster" template is selected.
-  - User's menu template and background image choices are persisted in the configuration.
+  - User's menu template and background image choices are persisted in configuration.
 
 ### Maintenance
 - ✅ **Git author cleanup**
   - Rewrote commit history to ensure consistent commit attribution.
 - ✅ **Installer dependency parity**
   - Ensured pip is installed (Linux/Windows) and skipped Go/pip installs when already present.
+
+## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
+
+### Features
+- ✅ **Language & Hardware Acceleration in Settings**
+  - Added `Language` string to convertConfig (default: "System").
+  - Decoupled benchmark: now only sets HardwareAccel; no codec/preset changes or confirmation dialogs.
+  - Implemented Settings > Preferences UI with working selectors:
+    - Language dropdown (System/en/es/fr/de/ja/zh) persists to convertConfig.Language.
+    - Hardware Acceleration dropdown (auto/none/nvenc/qsv/amf/vaapi/videotoolbox) persists to convertConfig.HardwareAccel.
+  - Removed placeholder "Coming soon" text; UI is functional and logical.
+
+### Documentation
+- ✅ **TODO.md extended** to track remaining Preferences items (output directories, UI theme, auto-updates, reset/import).
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
