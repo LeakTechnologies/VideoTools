@@ -107,66 +107,57 @@ echo ""
 echo -e "${CYAN}[1/2]${NC} Checking Go installation..."
 if ! command -v go &> /dev/null; then
     echo -e "${YELLOW}WARNING:${NC} Go is not installed or not in PATH"
-    echo ""
-    read -p "Install Go (required dependency)? [y/N]: " go_choice
-    if [[ "$go_choice" =~ ^[Yy]$ ]]; then
-        echo "Installing Go..."
-        install_go=false
-        
-        # Detect OS and install Go
-        if [ "$IS_WINDOWS" = true ]; then
-            echo "Please download and install Go from https://go.dev/dl/ manually"
-            echo "After installation, run this script again."
+    echo "Installing Go..."
+    install_go=false
+
+    if [ "$IS_WINDOWS" = true ]; then
+        echo "Go will be installed by the Windows dependency installer."
+    elif [ "$IS_DARWIN" = true ]; then
+        if command -v brew &> /dev/null; then
+            brew install go
+            install_go=true
+        else
+            echo "Homebrew not found. Please install Go from https://go.dev/dl/"
             exit 1
-        elif [ "$IS_DARWIN" = true ]; then
-            if command -v brew &> /dev/null; then
-                brew install go
-                install_go=true
-            else
-                echo "Homebrew not found. Please install Go from https://go.dev/dl/"
-                exit 1
-            fi
-        elif [ "$IS_LINUX" = true ]; then
-            if command -v apt-get &> /dev/null; then
-                sudo apt-get update
-                sudo apt-get install -y golang-go
-                install_go=true
-            elif command -v dnf &> /dev/null; then
-                sudo dnf install -y golang
-                install_go=true
-            elif command -v pacman &> /dev/null; then
-                sudo pacman -Sy --needed --noconfirm go
-                install_go=true
-            elif command -v zypper &> /dev/null; then
-                sudo zypper install -y go
-                install_go=true
-            elif command -v brew &> /dev/null; then
-                brew install go
-                install_go=true
-            else
-                echo "No supported package manager found for Go installation."
-                echo "Please install Go manually from https://go.dev/dl/"
-                exit 1
-            fi
         fi
-        
-        if [ "$install_go" = true ]; then
-            # Verify Go was installed successfully
-            if command -v go &> /dev/null; then
-                echo -e "${GREEN}[OK]${NC} Go installed successfully"
-            else
-                echo -e "${RED}[ERROR]${NC} Go installation failed. Please install manually from https://go.dev/dl/"
-                exit 1
-            fi
+    elif [ "$IS_LINUX" = true ]; then
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y golang-go
+            install_go=true
+        elif command -v dnf &> /dev/null; then
+            sudo dnf install -y golang
+            install_go=true
+        elif command -v pacman &> /dev/null; then
+            sudo pacman -Sy --needed --noconfirm go
+            install_go=true
+        elif command -v zypper &> /dev/null; then
+            sudo zypper install -y go
+            install_go=true
+        elif command -v brew &> /dev/null; then
+            brew install go
+            install_go=true
+        else
+            echo "No supported package manager found for Go installation."
+            echo "Please install Go manually from https://go.dev/dl/"
+            exit 1
         fi
-    else
-        echo -e "${RED}[ERROR]${NC} Go is required. Please install Go 1.21+ from https://go.dev/dl/"
-        exit 1
+    fi
+
+    if [ "$install_go" = true ]; then
+        if command -v go &> /dev/null; then
+            echo -e "${GREEN}[OK]${NC} Go installed successfully"
+        else
+            echo -e "${RED}[ERROR]${NC} Go installation failed. Please install manually from https://go.dev/dl/"
+            exit 1
+        fi
     fi
 fi
 
-GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
-echo -e "${GREEN}[OK]${NC} Found Go version: $GO_VERSION"
+if command -v go &> /dev/null; then
+    GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
+    echo -e "${GREEN}[OK]${NC} Found Go version: $GO_VERSION"
+fi
 
 # Step 2: Check authoring dependencies
 echo ""

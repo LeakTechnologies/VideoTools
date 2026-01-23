@@ -8,6 +8,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Ensure pip is installed on Linux/Windows and skip Go/pip when already present.
 - [X] **Windows installer parse fix**
   - Normalize PowerShell here-strings to prevent parser errors.
+- [X] **Go auto-install in install.sh**
+  - Skip prompting for Go and install automatically when missing.
 
 ## Documentation: Fix Structural Errors
 
