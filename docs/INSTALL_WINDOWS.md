@@ -27,6 +27,8 @@ If you haven't already, download the project files as a ZIP and extract them to 
 
 Once the script finishes, you can run the application by double-clicking `run.bat` in the main project folder.
 
+> **Note:** On Windows, use `setup-windows.bat` instead of `scripts/install.sh` to avoid mixed-shell prompts.
+
 ---
 
 ## Method 2: Manual Installation
