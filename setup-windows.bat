@@ -1,6 +1,6 @@
 @echo off
 REM VideoTools Windows Setup Launcher
-REM This batch file launches the PowerShell setup script
+REM This batch file launches the scripts installer entrypoint
 
 echo ================================================================
 echo   VideoTools Windows Setup
@@ -21,8 +21,8 @@ if %ERRORLEVEL% NEQ 0 (
 echo Starting setup...
 echo.
 
-REM Run the PowerShell script with portable installation by default
-powershell -ExecutionPolicy Bypass -File "%~dp0scripts\setup-windows.ps1" -Portable
+REM Run the scripts entrypoint (keeps Windows workflow consistent)
+call "%~dp0scripts\install.bat"
 
 echo.
 pause
