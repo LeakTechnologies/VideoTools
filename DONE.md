@@ -36,6 +36,8 @@
   - Added `scripts/install.ps1` and `scripts/install.bat` to keep the Windows workflow inside PowerShell/CMD.
 - ✅ **Windows setup launcher alignment**
   - `setup-windows.bat` now delegates to `scripts/install.bat` for a single Windows flow.
+- ✅ **Agent workflow rules**
+  - Added `AGENTS.md` to enforce staging, commits, and documentation updates.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 

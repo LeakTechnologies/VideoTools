@@ -22,6 +22,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Provide `scripts/install.ps1` and `scripts/install.bat` to avoid Git Bash pop-ups.
 - [X] **Windows setup launcher alignment**
   - Route `setup-windows.bat` through `scripts/install.bat`.
+- [X] **Agent workflow rules**
+  - Add `AGENTS.md` to enforce staging, commits, and documentation updates.
 
 ## Documentation: Fix Structural Errors
 
