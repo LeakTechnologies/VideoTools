@@ -28,6 +28,8 @@
   - `install.sh` now delegates to the Windows installer to avoid mixed-shell prompts.
 - ✅ **Windows installer entrypoint**
   - Added `install-windows.ps1` and made `install.sh` Windows-safe with a clear handoff message.
+- ✅ **Git Bash Windows handoff**
+  - `install.sh` now runs the Windows installer in the same terminal via `winpty` when available.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
