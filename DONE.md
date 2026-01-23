@@ -30,6 +30,8 @@
   - Added `install-windows.ps1` and made `install.sh` Windows-safe with a clear handoff message.
 - ✅ **Git Bash Windows handoff**
   - `install.sh` now runs the Windows installer in the same terminal via `winpty` when available.
+- ✅ **Windows root entrypoints**
+  - Added `install.bat` and `install.ps1` to avoid Git Bash popping up from PowerShell.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 

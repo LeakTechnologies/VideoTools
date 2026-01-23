@@ -15,8 +15,10 @@ If you haven't already, download the project files as a ZIP and extract them to 
 ### Step 2: Run the Setup Script
 
 1.  Open the project folder in File Explorer.
-2.  Find and double-click on `setup-windows.bat`.
-    - Alternatively, run `scripts\install-windows.ps1` from PowerShell.
+2.  Choose one of these entrypoints:
+    - Double-click `install.bat` (recommended).
+    - Run `.\install.ps1` from PowerShell.
+    - Run `scripts\install-windows.ps1` from PowerShell.
 3.  A terminal window will open and run the PowerShell setup script. This will:
     *   **Download FFmpeg:** The script automatically fetches the latest stable version of FFmpeg, which is required for all video operations.
     *   **Install Dependencies:** It places the necessary files in the correct directories.
@@ -28,7 +30,7 @@ If you haven't already, download the project files as a ZIP and extract them to 
 
 Once the script finishes, you can run the application by double-clicking `run.bat` in the main project folder.
 
-> **Note:** If you run `scripts/install.sh` from Git Bash, it will stay in the same terminal and hand off to PowerShell automatically.
+> **Note:** `scripts/install.sh` is for Bash shells. From PowerShell, use `install.ps1` to avoid Git Bash popping up.
 
 ---
 

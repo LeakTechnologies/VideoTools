@@ -16,6 +16,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Provide a PowerShell entrypoint and direct Windows users to it from install.sh.
 - [X] **Git Bash handoff**
   - Keep Windows installs in the same Git Bash terminal using `winpty` when available.
+- [X] **Windows root entrypoints**
+  - Provide `install.bat` and `install.ps1` for PowerShell-first installs.
 
 ## Documentation: Fix Structural Errors
 
