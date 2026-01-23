@@ -12,6 +12,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Skip prompting for Go and install automatically when missing.
 - [X] **Windows install workflow split**
   - Route Windows to the dedicated installer to avoid mixed-shell prompts.
+- [X] **Windows installer entrypoint**
+  - Provide a PowerShell entrypoint and direct Windows users to it from install.sh.
 
 ## Documentation: Fix Structural Errors
 

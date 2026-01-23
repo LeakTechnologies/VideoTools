@@ -26,6 +26,8 @@
   - Removed the Go prompt in `install.sh`; missing Go is now installed automatically.
 - ✅ **Windows install workflow split**
   - `install.sh` now delegates to the Windows installer to avoid mixed-shell prompts.
+- ✅ **Windows installer entrypoint**
+  - Added `install-windows.ps1` and made `install.sh` Windows-safe with a clear handoff message.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
