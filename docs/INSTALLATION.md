@@ -24,7 +24,7 @@ For Linux (Ubuntu, Fedora, Arch, etc.), macOS, and Windows Subsystem for Linux (
 
 Before you begin, ensure your system meets these basic requirements:
 
-- **Go:** Version 1.21 or later is required to build the application.
+- **Go:** Version 1.21 or later is required to build the application; the installer will auto-install it when missing.
 - **FFmpeg:** Required for all video and audio processing. Our platform-specific guides cover how to install this.
 - **Python + pip:** Required for AI tooling and optional modules; the installers will set this up automatically where possible.
 - **Disk Space:** At least 2 GB of free disk space for the application and its dependencies.

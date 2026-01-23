@@ -22,6 +22,8 @@
   - Ensured pip is installed (Linux/Windows) and skipped Go/pip installs when already present.
 - ✅ **Windows installer parse fix**
   - Normalized PowerShell here-strings to prevent parse errors during installation.
+- ✅ **Go auto-install on Windows**
+  - Removed the Go prompt in `install.sh`; missing Go is now installed automatically.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
