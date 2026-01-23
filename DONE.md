@@ -34,6 +34,8 @@
   - Added `install.bat` and `install.ps1` to avoid Git Bash popping up from PowerShell.
 - ✅ **Windows scripts entrypoints**
   - Added `scripts/install.ps1` and `scripts/install.bat` to keep the Windows workflow inside PowerShell/CMD.
+- ✅ **Windows setup launcher alignment**
+  - `setup-windows.bat` now delegates to `scripts/install.bat` for a single Windows flow.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 

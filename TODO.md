@@ -20,6 +20,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Provide `install.bat` and `install.ps1` for PowerShell-first installs.
 - [X] **Windows scripts entrypoints**
   - Provide `scripts/install.ps1` and `scripts/install.bat` to avoid Git Bash pop-ups.
+- [X] **Windows setup launcher alignment**
+  - Route `setup-windows.bat` through `scripts/install.bat`.
 
 ## Documentation: Fix Structural Errors
 
