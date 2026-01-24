@@ -24,6 +24,9 @@ This file tracks upcoming features, improvements, and known issues.
   - Route `setup-windows.bat` through `scripts/install.bat`.
 - [X] **Agent workflow rules**
   - Add `AGENTS.md` to enforce staging, commits, and documentation updates.
+- [ ] **Windows packaging prep**
+  - Draft MSIX + WinGet layout under `dist/windows/`.
+  - Keep Windows installer aligned with MSIX/WinGet production path.
 - [ ] **Windows installer validation**
   - Test `scripts\install-deps-windows.ps1` Scoop flow and GStreamer MSI install on Windows 10/11.
 
