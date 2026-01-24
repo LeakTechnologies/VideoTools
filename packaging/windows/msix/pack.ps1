@@ -56,11 +56,24 @@ Copy-Item $iconSrc -Destination (Join-Path $assetsDir "Square44x44Logo.png") -Fo
 Copy-Item $iconSrc -Destination (Join-Path $assetsDir "Square150x150Logo.png") -Force
 Copy-Item $iconSrc -Destination (Join-Path $assetsDir "Wide310x150Logo.png") -Force
 
-$manifest = Get-Content $manifestSrc -Raw
-$manifest = $manifest -replace '(<Identity[^>]*\sVersion=")[^"]+(")', "`$1$Version`$2"
-$manifest = $manifest -replace '(<Identity[^>]*\sPublisher=")[^"]+(")', "`$1$Publisher`$2"
-$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-[System.IO.File]::WriteAllText($manifestDest, $manifest, $utf8NoBom)
+$xml = New-Object System.Xml.XmlDocument
+$xml.PreserveWhitespace = $false
+$xml.Load($manifestSrc)
+$ns = New-Object System.Xml.XmlNamespaceManager($xml.NameTable)
+$ns.AddNamespace("appx", "http://schemas.microsoft.com/appx/manifest/foundation/windows10")
+$identity = $xml.SelectSingleNode("/appx:Package/appx:Identity", $ns)
+if (-not $identity) {
+    throw "Identity element not found in AppxManifest.xml"
+}
+$identity.SetAttribute("Version", $Version)
+$identity.SetAttribute("Publisher", $Publisher)
+
+$settings = New-Object System.Xml.XmlWriterSettings
+$settings.Encoding = New-Object System.Text.UTF8Encoding($false)
+$settings.Indent = $false
+$writer = [System.Xml.XmlWriter]::Create($manifestDest, $settings)
+$xml.Save($writer)
+$writer.Close()
 
 $makeAppx = Resolve-MakeAppx
 New-Item -ItemType Directory -Force -Path $outPath | Out-Null
