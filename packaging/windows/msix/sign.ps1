@@ -39,7 +39,7 @@ if (-not (Test-Path $msixFullPath)) {
 }
 
 if ($CreateDevCert) {
-    $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Leak Technologies Dev" -CertStoreLocation Cert:\CurrentUser\My
+    $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Leak Technologies Dev" -CertStoreLocation Cert:\CurrentUser\My -KeyExportPolicy Exportable -KeySpec Signature -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256
     $pwd = ConvertTo-SecureString -String $PfxPassword -Force -AsPlainText
     New-Item -ItemType Directory -Force -Path (Split-Path -Parent $pfxFullPath) | Out-Null
     Export-PfxCertificate -Cert $cert -FilePath $pfxFullPath -Password $pwd | Out-Null
