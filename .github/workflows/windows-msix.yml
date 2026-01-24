@@ -1,0 +1,57 @@
+name: Windows MSIX Package
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/windows-msix.yml"
+      - "packaging/windows/**"
+      - "scripts/**.ps1"
+      - "scripts/**.bat"
+      - "install.ps1"
+      - "install.bat"
+      - "setup-windows.bat"
+      - "docs/INSTALL_WINDOWS.md"
+      - "docs/WINDOWS_PACKAGING.md"
+      - "internal/**/windows*"
+      - "internal/**/*_windows.go"
+      - "main.go"
+
+jobs:
+  build-msix:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build Windows binary
+        shell: pwsh
+        run: |
+          $env:GOOS = "windows"
+          $env:GOARCH = "amd64"
+          $env:CGO_ENABLED = "1"
+          New-Item -ItemType Directory -Force dist\windows | Out-Null
+          go build -ldflags "-H windowsgui" -o dist/windows/VideoTools.exe
+
+      - name: Package MSIX
+        shell: pwsh
+        run: |
+          ./packaging/windows/msix/pack.ps1 -InputExe dist/windows/VideoTools.exe -Version 0.1.1.0
+
+      - name: Upload MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoTools-msix
+          path: dist/windows/msix/VideoTools.msix
+
+      - name: Upload WinGet manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: VideoTools-winget
+          path: packaging/windows/winget/VideoTools.yaml

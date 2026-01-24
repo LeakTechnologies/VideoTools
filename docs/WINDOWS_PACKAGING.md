@@ -7,6 +7,14 @@ This document tracks the Windows packaging plan for VideoTools.
 - MSIX installer for clean install/uninstall.
 - WinGet manifest for easy discovery and updates.
 
+## GitHub Actions
+
+Workflow: `.github/workflows/windows-msix.yml`
+
+Output artifacts:
+- `VideoTools.msix`
+- `packaging/windows/winget/VideoTools.yaml`
+
 ## Build Outputs (Planned)
 
 - `packaging/windows/msix/` for MSIX packages and signing artifacts.
