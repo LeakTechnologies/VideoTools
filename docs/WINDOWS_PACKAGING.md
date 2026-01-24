@@ -13,12 +13,17 @@ Workflow: `.github/workflows/windows-msix.yml`
 
 Output artifacts:
 - `VideoTools.msix`
-- `packaging/windows/winget/VideoTools.yaml`
+- `dist/windows/winget/VideoTools.yaml`
 
 ## Release Hosting
 
 - Dev builds: `git.leaktechnologies.dev` (internal).
 - Public builds: GitHub releases at `https://github.com/LeakTechnologies/VideoTools`.
+
+## Release Flow
+
+- Tag a release like `v0.1.1` in the public GitHub repo.
+- GitHub Actions builds `VideoTools.msix`, generates the WinGet manifest, and uploads both to the release.
 
 ## Build Outputs (Planned)
 

@@ -61,6 +61,7 @@
 - [x] Windows installer makes build tools optional and installs FFmpeg directly to avoid Scoop bloat.
 - [x] Drafted Windows packaging layout under `packaging/windows/` with MSIX and WinGet stubs.
 - [x] Added GitHub Actions workflow to build Windows MSIX and WinGet artifacts.
+- [x] GitHub Actions now uploads MSIX and WinGet manifest to tag releases.
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 

@@ -3,6 +3,8 @@ name: Windows MSIX Package
 on:
   workflow_dispatch:
   push:
+    tags:
+      - "v*"
     paths:
       - ".github/workflows/windows-msix.yml"
       - "packaging/windows/**"
@@ -20,6 +22,8 @@ on:
 jobs:
   build-msix:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,10 +43,35 @@ jobs:
           New-Item -ItemType Directory -Force dist\windows | Out-Null
           go build -ldflags "-H windowsgui" -o dist/windows/VideoTools.exe
 
+      - name: Set version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${env:GITHUB_REF_NAME}"
+          if ($tag -match '^v(\d+\.\d+\.\d+)$') {
+            $version = $Matches[1]
+          } else {
+            $version = "0.1.1"
+          }
+          $msixVersion = "$version.0"
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "msix_version=$msixVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
       - name: Package MSIX
         shell: pwsh
         run: |
-          ./packaging/windows/msix/pack.ps1 -InputExe dist/windows/VideoTools.exe -Version 0.1.1.0
+          ./packaging/windows/msix/pack.ps1 -InputExe dist/windows/VideoTools.exe -Version ${{ steps.version.outputs.msix_version }}
+
+      - name: Generate WinGet manifest
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $msixPath = "dist/windows/msix/VideoTools.msix"
+          $sha = (Get-FileHash -Path $msixPath -Algorithm SHA256).Hash
+          $template = Get-Content packaging/windows/winget/VideoTools.template.yaml -Raw
+          $content = $template.Replace('${VERSION}', $version).Replace('${SHA256}', $sha)
+          New-Item -ItemType Directory -Force dist/windows/winget | Out-Null
+          Set-Content -Path dist/windows/winget/VideoTools.yaml -Value $content
 
       - name: Upload MSIX artifact
         uses: actions/upload-artifact@v4
@@ -54,4 +83,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: VideoTools-winget
-          path: packaging/windows/winget/VideoTools.yaml
+          path: dist/windows/winget/VideoTools.yaml
+
+      - name: Upload release assets
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/windows/msix/VideoTools.msix
+            dist/windows/winget/VideoTools.yaml

@@ -26,7 +26,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Add `AGENTS.md` to enforce staging, commits, and documentation updates.
 - [ ] **Windows packaging prep**
   - [x] Draft MSIX + WinGet layout under `packaging/windows/`.
-  - [x] Add GitHub Actions workflow to build MSIX artifacts.
+  - [x] Add GitHub Actions workflow to build MSIX and upload release artifacts.
   - [ ] Wire signing step (SignTool) once certificate is available.
   - [ ] Keep Windows installer aligned with MSIX/WinGet production path.
 - [ ] **Windows installer validation**
