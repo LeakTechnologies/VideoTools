@@ -319,7 +319,7 @@ Keep `framePlayer`, remove or simplify `VTPlayer`.
 
 Once everything works:
 
-1. **Update PROJECT_STATUS.md**
+1. **Update ./PROJECT_STATUS.md**
    ```markdown
    | Player | ✅ **Implemented** | GStreamer-based, stable playback |
    ```
@@ -358,6 +358,6 @@ You'll know this migration is complete when:
 2. ✅ All player features work correctly
 3. ✅ No UnifiedPlayer code remains
 4. ✅ You can implement Trim module without player bugs
-5. ✅ PROJECT_STATUS.md shows Player as "Implemented"
+5. ✅ ./PROJECT_STATUS.md shows Player as "Implemented"
 
 **Estimated completion: Tomorrow** (vs. weeks fighting pipes)

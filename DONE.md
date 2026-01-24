@@ -63,6 +63,7 @@
 - [x] Added GitHub Actions workflow to build Windows MSIX and WinGet artifacts.
 - [x] GitHub Actions now uploads MSIX and WinGet manifest to tag releases.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
+- [x] Cleaned internal doc links after moving documentation.
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
