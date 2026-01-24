@@ -1,5 +1,5 @@
 PackageIdentifier: LeakTechnologies.VideoTools
-PackageVersion: 0.1.1
+PackageVersion: ${VERSION}
 PackageLocale: en-US
 Publisher: Leak Technologies
 PackageName: VideoTools
@@ -8,5 +8,5 @@ License: Proprietary
 InstallerType: msix
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/LeakTechnologies/VideoTools/releases/download/v0.1.1/VideoTools.msix
-    InstallerSha256: TODO_SHA256
+    InstallerUrl: https://github.com/LeakTechnologies/VideoTools/releases/download/v${VERSION}/VideoTools.msix
+    InstallerSha256: ${SHA256}
