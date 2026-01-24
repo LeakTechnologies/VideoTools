@@ -9,13 +9,13 @@ This document tracks the Windows packaging plan for VideoTools.
 
 ## Build Outputs (Planned)
 
-- `dist/windows/msix/` for MSIX packages and signing artifacts.
-- `dist/windows/winget/` for WinGet manifests and release metadata.
+- `packaging/windows/msix/` for MSIX packages and signing artifacts.
+- `packaging/windows/winget/` for WinGet manifests and release metadata.
 
 ## Versioning Notes
 
-- Current dev train: `v0.1.0-dev25`.
-- First user build will be promoted to `v0.1.1`.
+- Current dev train: `v0.1.0-dev25` with platform suffix (`_win`).
+- First user build will be promoted to `v0.1.1` and tagged as `v0.1.1-<hash>_win`.
 - Next dev line becomes `v0.1.1-dev26`.
 
 ## Scope Guardrails

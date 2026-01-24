@@ -152,7 +152,7 @@ func fullVersion() string {
 	if buildCommit == "" || buildCommit == "dev" {
 		return appVersion
 	}
-	return fmt.Sprintf("%s_%s", appVersion, buildCommit)
+	return fmt.Sprintf("%s-%s", appVersion, buildCommit)
 }
 
 func mainMenuTitle() string {
