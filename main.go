@@ -155,6 +155,19 @@ func fullVersion() string {
 	return fmt.Sprintf("%s_%s", appVersion, buildCommit)
 }
 
+func mainMenuTitle() string {
+	platform := "linux"
+	switch runtime.GOOS {
+	case "windows":
+		platform = "win"
+	case "linux":
+		platform = "linux"
+	default:
+		platform = runtime.GOOS
+	}
+	return fmt.Sprintf("VIDEOTOOLS %s_%s", fullVersion(), platform)
+}
+
 // moduleFooter stacks a dark status strip above a tinted action/footer band.
 // If content is nil, a spacer is used for consistent height/color.
 func moduleFooter(tint color.Color, content fyne.CanvasObject, bar *ui.ConversionStatsBar) fyne.CanvasObject {
@@ -2013,7 +2026,7 @@ func (s *appState) showMainMenu() {
 		hasBenchmark = true
 	}
 
-	menu := ui.BuildMainMenu(mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, s.showBenchmark, s.showBenchmarkHistory, func() {
+	menu := ui.BuildMainMenu(mainMenuTitle(), mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, s.showBenchmark, s.showBenchmarkHistory, func() {
 		// Toggle sidebar - use throttled refresh to prevent lag
 		s.sidebarVisible = !s.sidebarVisible
 		s.refreshMainMenuThrottled()

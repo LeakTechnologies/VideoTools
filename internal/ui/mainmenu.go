@@ -45,8 +45,8 @@ type HistoryEntry struct {
 }
 
 // BuildMainMenu creates the main menu view with module tiles grouped by category
-func BuildMainMenu(modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onBenchmarkClick func(), onBenchmarkHistoryClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int, hasBenchmark bool) fyne.CanvasObject {
-	title := canvas.NewText("VIDEOTOOLS", titleColor)
+func BuildMainMenu(titleText string, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onBenchmarkClick func(), onBenchmarkHistoryClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int, hasBenchmark bool) fyne.CanvasObject {
+	title := canvas.NewText(titleText, titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 18
 
