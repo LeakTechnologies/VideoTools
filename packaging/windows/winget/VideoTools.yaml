@@ -8,5 +8,5 @@ License: Proprietary
 InstallerType: msix
 Installers:
   - Architecture: x64
-    InstallerUrl: https://example.invalid/VideoTools.msix
+    InstallerUrl: https://github.com/LeakTechnologies/VideoTools/releases/download/v0.1.1/VideoTools.msix
     InstallerSha256: TODO_SHA256
