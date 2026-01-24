@@ -18,21 +18,21 @@ If you haven't already, download the project files as a ZIP and extract them to 
 2.  Choose one of these entrypoints:
     - Run `.\scripts\install.bat` (recommended).
     - Run `.\scripts\install.ps1` from PowerShell.
-3.  A terminal window will open and run the PowerShell installer. It installs core dependencies via Chocolatey or Scoop:
+3.  A terminal window will open and run the PowerShell installer. It installs core dependencies via Scoop:
     *   Go (build toolchain)
     *   MinGW (gcc for CGO builds)
     *   FFmpeg (video processing)
     *   GStreamer (player backend)
     *   Python (pip for optional tooling)
+    *   Note: GStreamer installs via MSI and requires an Administrator PowerShell window.
 
 Optional flags:
-- `-UseScoop` to force Scoop instead of Chocolatey.
 - `-SkipFFmpeg` or `-SkipGStreamer` to skip those dependencies.
 - `-InstallPython` to install Python + pip for AI tooling.
 - `-SkipPython` to skip Python + pip.
 - `-SkipDvdStyler` to skip DVD authoring tools.
 
-The installer will prompt before optional modules (Python + pip, DVD authoring tools) when they are missing.
+The installer will prompt before optional modules (Python + pip, DVD authoring tools) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
 
 > **Note:** If Windows Defender SmartScreen appears, click "More info" and then "Run anyway". This is expected as the application is not yet digitally signed.
 

@@ -1,15 +1,16 @@
 # VideoTools Dependency Installer for Windows
-# Installs build and runtime dependencies using Chocolatey or Scoop
+# Installs build and runtime dependencies using Scoop
 
 param(
-    [switch]$UseScoop = $false,
     [switch]$SkipFFmpeg = $false,
     [switch]$SkipGStreamer = $false,
     [switch]$InstallPython = $false,
     [switch]$SkipPython = $false,
     [string]$DvdStylerUrl = "",
     [string]$DvdStylerZip = "",
-    [switch]$SkipDvdStyler = $false
+    [switch]$SkipDvdStyler = $false,
+    [string]$GStreamerRuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.8.msi",
+    [string]$GStreamerDevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-1.24.8.msi"
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,22 +20,11 @@ Write-Host "  VideoTools Windows Installation" -ForegroundColor Cyan
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host ""
 
-# Check if running as administrator
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-
 if (-not $isAdmin) {
-    Write-Host "[WARN]   This script should be run as Administrator for best results" -ForegroundColor Yellow
-    Write-Host "   Right-click PowerShell and select 'Run as Administrator'" -ForegroundColor Yellow
+    Write-Host "[WARN]   Running without Administrator privileges." -ForegroundColor Yellow
+    Write-Host "         GStreamer install requires Administrator when missing." -ForegroundColor Yellow
     Write-Host ""
-    $continue = Read-Host "Continue anyway? (y/N)"
-    if ($continue -ne "y" -and $continue -ne "Y") {
-        exit 1
-    }
-    Write-Host ""
-}
-
-if ($DvdStylerUrl) {
-    $env:VT_DVDSTYLER_URL = $DvdStylerUrl
 }
 
 function Test-Command {
@@ -50,32 +40,7 @@ function Test-Pip {
     if (Test-Command pip3) {
         return $true
     }
-    if (Test-Command python) {
-        try {
-            & python -m pip --version | Out-Null
-            return $true
-        } catch {
-            return $false
-        }
-    }
     return $false
-}
-
-function Ensure-Chocolatey {
-    if (-not (Test-Command choco)) {
-        Write-Host "Installing Chocolatey..." -ForegroundColor Yellow
-        Set-ExecutionPolicy Bypass -Scope Process -Force
-        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-        Invoke-Expression ((New-Object System.Net.WebClient).DownloadString("https://community.chocolatey.org/install.ps1"))
-
-        if (-not (Test-Command choco)) {
-            Write-Host "[ERROR]  Failed to install Chocolatey" -ForegroundColor Red
-            exit 1
-        }
-        Write-Host "[OK]  Chocolatey installed" -ForegroundColor Green
-    } else {
-        Write-Host "[OK]  Chocolatey already installed" -ForegroundColor Green
-    }
 }
 
 function Ensure-Scoop {
@@ -94,37 +59,6 @@ function Ensure-Scoop {
     }
 }
 
-function Install-ViaChocolatey {
-    Write-Host "Using Chocolatey package manager..." -ForegroundColor Green
-    Ensure-Chocolatey
-
-    $packages = New-Object System.Collections.Generic.List[string]
-    if (-not (Test-Command go)) {
-        $packages.Add("golang")
-    }
-    if (-not (Test-Command gcc)) {
-        $packages.Add("mingw")
-    }
-    if (-not $SkipFFmpeg -and -not (Test-Command ffmpeg)) {
-        $packages.Add("ffmpeg")
-    }
-    if (-not $SkipGStreamer -and -not (Test-Command gst-launch-1.0)) {
-        $packages.Add("gstreamer")
-        $packages.Add("gstreamer-devel")
-    }
-    if ($InstallPython -and -not (Test-Pip)) {
-        $packages.Add("python")
-    }
-
-    if ($packages.Count -eq 0) {
-        Write-Host "[OK]  Dependencies already installed" -ForegroundColor Green
-        return
-    }
-
-    Write-Host "Installing: $($packages -join ', ')" -ForegroundColor Yellow
-    choco install -y @packages --accept-license
-}
-
 function Install-ViaScoop {
     Write-Host "Using Scoop package manager..." -ForegroundColor Green
     Ensure-Scoop
@@ -139,9 +73,6 @@ function Install-ViaScoop {
     if (-not $SkipFFmpeg -and -not (Test-Command ffmpeg)) {
         $packages.Add("ffmpeg")
     }
-    if (-not $SkipGStreamer -and -not (Test-Command gst-launch-1.0)) {
-        $packages.Add("gstreamer")
-    }
     if ($InstallPython -and -not (Test-Pip)) {
         $packages.Add("python")
     }
@@ -151,12 +82,48 @@ function Install-ViaScoop {
         return
     }
 
-    if ($packages -contains "gstreamer") {
-        scoop bucket add extras | Out-Null
-    }
-
     Write-Host "Installing: $($packages -join ', ')" -ForegroundColor Yellow
     scoop install @packages
+}
+
+function Install-GStreamerMsi {
+    param(
+        [string]$RuntimeUrl,
+        [string]$DevelUrl
+    )
+
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdmin) {
+        Write-Host "[ERROR]  GStreamer requires Administrator privileges to install." -ForegroundColor Red
+        Write-Host "Run PowerShell as Administrator and re-run this installer." -ForegroundColor Yellow
+        exit 1
+    }
+
+    $tempDir = Join-Path $env:TEMP ("gstreamer-" + [System.Guid]::NewGuid().ToString())
+    New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+
+    $runtimeMsi = Join-Path $tempDir "gstreamer-runtime.msi"
+    $develMsi = Join-Path $tempDir "gstreamer-devel.msi"
+
+    Write-Host "Downloading GStreamer runtime..." -ForegroundColor Yellow
+    Invoke-WebRequest -Uri $RuntimeUrl -OutFile $runtimeMsi -UseBasicParsing
+
+    Write-Host "Downloading GStreamer development files..." -ForegroundColor Yellow
+    Invoke-WebRequest -Uri $DevelUrl -OutFile $develMsi -UseBasicParsing
+
+    Write-Host "Installing GStreamer runtime..." -ForegroundColor Yellow
+    $runtime = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$runtimeMsi`" /qn /norestart" -Wait -PassThru
+    if ($runtime.ExitCode -ne 0) {
+        throw "GStreamer runtime install failed with exit code $($runtime.ExitCode)"
+    }
+
+    Write-Host "Installing GStreamer development files..." -ForegroundColor Yellow
+    $devel = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$develMsi`" /qn /norestart" -Wait -PassThru
+    if ($devel.ExitCode -ne 0) {
+        throw "GStreamer dev install failed with exit code $($devel.ExitCode)"
+    }
+
+    Remove-Item -Recurse -Force $tempDir
 }
 
 function Ensure-DVDStylerTools {
@@ -179,9 +146,6 @@ function Ensure-DVDStylerTools {
         "https://ufpr.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
         "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip/download"
     )
-    if ($env:VT_DVDSTYLER_URL) {
-        $dvdstylerUrls = @($env:VT_DVDSTYLER_URL) + $dvdstylerUrls
-    }
     $dvdstylerZip = Join-Path $env:TEMP "dvdstyler-win64.zip"
     $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
 
@@ -189,15 +153,13 @@ function Ensure-DVDStylerTools {
         return
     }
 
-    if (-not $SkipDvdStyler) {
-        Write-Host ""
-        Write-Host "Optional module: DVD authoring tools (DVDStyler portable)" -ForegroundColor Yellow
-        $dvdChoice = Read-Host "Install DVD authoring tools? (y/N)"
-        if ($dvdChoice -ne "y" -and $dvdChoice -ne "Y") {
-            $SkipDvdStyler = $true
-            Write-Host "[SKIP] DVD authoring tools skipped" -ForegroundColor Yellow
-            return
-        }
+    Write-Host ""
+    Write-Host "Optional module: DVD authoring tools (DVDStyler portable)" -ForegroundColor Yellow
+    $dvdChoice = Read-Host "Install DVD authoring tools? (y/N)"
+    if ($dvdChoice -ne "y" -and $dvdChoice -ne "Y") {
+        $SkipDvdStyler = $true
+        Write-Host "[SKIP] DVD authoring tools skipped" -ForegroundColor Yellow
+        return
     }
 
     Write-Host "Installing DVD authoring tools (DVDStyler portable)..." -ForegroundColor Yellow
@@ -208,11 +170,18 @@ function Ensure-DVDStylerTools {
         Remove-Item -Recurse -Force $dvdstylerDir
     }
 
+    $dvdZipProvided = $PSBoundParameters.ContainsKey("DvdStylerZip") -and $DvdStylerZip
+    $dvdUrlProvided = $PSBoundParameters.ContainsKey("DvdStylerUrl") -and $DvdStylerUrl
+    if ($dvdUrlProvided) {
+        $env:VT_DVDSTYLER_URL = $DvdStylerUrl
+        $dvdstylerUrls = @($DvdStylerUrl) + $dvdstylerUrls
+    }
+
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
     $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     $downloaded = $false
     $lastUrl = ""
-    if ($DvdStylerZip) {
+    if ($dvdZipProvided) {
         if (Test-Path $DvdStylerZip) {
             Copy-Item -Path $DvdStylerZip -Destination $dvdstylerZip -Force
             $downloaded = $true
@@ -343,29 +312,11 @@ if (-not (Test-Pip)) {
     }
 }
 
-if ($UseScoop) {
-    Install-ViaScoop
-} else {
-    $hasChoco = Test-Command choco
-    $hasScoop = Test-Command scoop
+Install-ViaScoop
 
-    if ($hasChoco) {
-        Install-ViaChocolatey
-    } elseif ($hasScoop) {
-        Install-ViaScoop
-    } else {
-        Write-Host "No package manager detected. Choose one:" -ForegroundColor Yellow
-        Write-Host "  1. Chocolatey (recommended, requires admin)" -ForegroundColor White
-        Write-Host "  2. Scoop (user-level, no admin required)" -ForegroundColor White
-        Write-Host ""
-        $choice = Read-Host "Enter choice (1 or 2)"
-
-        if ($choice -eq "2") {
-            Install-ViaScoop
-        } else {
-            Install-ViaChocolatey
-        }
-    }
+if (-not $SkipGStreamer -and -not (Test-Command gst-launch-1.0)) {
+    Write-Host "GStreamer is required for VideoTools playback." -ForegroundColor Yellow
+    Install-GStreamerMsi -RuntimeUrl $GStreamerRuntimeUrl -DevelUrl $GStreamerDevelUrl
 }
 
 Ensure-DVDStylerTools
@@ -419,18 +370,12 @@ if (Test-Command gst-launch-1.0) {
 }
 
 if (Test-Pip) {
-    $pipVersion = ""
     if (Test-Command pip) {
         $pipVersion = pip --version
+        Write-Host "[OK]  pip: $pipVersion" -ForegroundColor Green
     } elseif (Test-Command pip3) {
         $pipVersion = pip3 --version
-    } elseif (Test-Command python) {
-        $pipVersion = python -m pip --version
-    }
-    if ($pipVersion) {
         Write-Host "[OK]  pip: $pipVersion" -ForegroundColor Green
-    } else {
-        Write-Host "[OK]  pip: available" -ForegroundColor Green
     }
 } else {
     if ($SkipPython) {

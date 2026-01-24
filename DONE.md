@@ -56,6 +56,7 @@
 ### Maintenance
 - [x] Windows installer cleanup (minimal dependency flow, ASCII output; removed Windows 11-specific detection).
 - [x] Windows installer now prompts before optional modules (Python + pip, DVD authoring tools).
+- [x] Windows installer is Scoop-only, uses MSI fallback for required GStreamer, and removes duplicate headers.
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
