@@ -2,7 +2,7 @@
 
 VideoTools is a professional-grade video processing suite with a modern GUI. It specializes in creating DVD-compliant videos for authoring and distribution.
 
-**For a high-level overview of what is currently implemented, in progress, or planned, please see the [Project Status Page](../PROJECT_STATUS.md).**
+**For a high-level overview of what is currently implemented, in progress, or planned, please see the [Project Status Page](./PROJECT_STATUS.md).**
 
 ## Documentation Structure
 
@@ -33,7 +33,7 @@ VideoTools is a professional-grade video processing suite with a modern GUI. It 
 - **Screenshots** - [PLANNED] Frame extraction.
 
 ## Implementation Documents
-- [DVD Implementation Summary](../DVD_IMPLEMENTATION_SUMMARY.md) - Technical details of the DVD encoding system.
+- [DVD Implementation Summary](./DVD_IMPLEMENTATION_SUMMARY.md) - Technical details of the DVD encoding system.
 - [Windows Compatibility](WINDOWS_COMPATIBILITY.md) - Notes on cross-platform support.
 - [Queue System Guide](../QUEUE_SYSTEM_GUIDE.md) - Deep dive into the batch processing system.
 - [Module Overview](MODULES.md) - The complete feature list for all modules (implemented and planned).

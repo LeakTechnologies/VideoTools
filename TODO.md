@@ -24,6 +24,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Route `setup-windows.bat` through `scripts/install.bat`.
 - [X] **Agent workflow rules**
   - Add `AGENTS.md` to enforce staging, commits, and documentation updates.
+- [ ] **Main package layout cleanup**
+  - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**
   - [x] Draft MSIX + WinGet layout under `packaging/windows/`.
   - [x] Add GitHub Actions workflow to build MSIX and upload release artifacts.
@@ -68,7 +70,7 @@ This file tracks upcoming features, improvements, and known issues.
 
 **CRITICAL BLOCKER:** All advanced features (enhancement, trim, advanced filters) depend on stable player foundation.
 
-#### Current Player Issues (from PLAYER_PERFORMANCE_ISSUES.md):
+#### Current Player Issues (from docs/PLAYER_PERFORMANCE_ISSUES.md):
 
 1. **Separate A/V Processes** (lines 10184-10185 in main.go)
    - Video and audio run in completely separate FFmpeg processes

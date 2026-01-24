@@ -8,7 +8,7 @@ VideoTools is a professional-grade video processing application with a modern GU
 
 **This project is under active development, and many documented features are not yet implemented.**
 
-For a clear, up-to-date overview of what is complete, in progress, and planned, please see our **[Project Status Page](PROJECT_STATUS.md)**. This document provides the most accurate reflection of the project's current state.
+For a clear, up-to-date overview of what is complete, in progress, and planned, please see our **[Project Status Page](docs/PROJECT_STATUS.md)**. This document provides the most accurate reflection of the project's current state.
 
 
 ## Key Features
