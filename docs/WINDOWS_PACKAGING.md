@@ -25,6 +25,21 @@ Output artifacts:
 - Tag a release like `v0.1.1` in the public GitHub repo.
 - GitHub Actions builds `VideoTools.msix`, generates the WinGet manifest, and uploads both to the release.
 
+## Local Signing (Dev)
+
+Create a dev signing cert and sign the MSIX:
+
+```
+.\packaging\windows\msix\sign.ps1 -CreateDevCert -InstallCert
+.\packaging\windows\msix\sign.ps1
+```
+
+Then install:
+
+```
+Add-AppxPackage -Path dist/windows/msix/VideoTools.msix
+```
+
 ## Build Outputs (Planned)
 
 - `packaging/windows/msix/` for MSIX packages and signing artifacts.
