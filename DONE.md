@@ -62,6 +62,7 @@
 - [x] Drafted Windows packaging layout under `packaging/windows/` with MSIX and WinGet stubs.
 - [x] Added GitHub Actions workflow to build Windows MSIX and WinGet artifacts.
 - [x] GitHub Actions now uploads MSIX and WinGet manifest to tag releases.
+- [x] Moved non-core documentation from repo root into `docs/` and updated references.
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
@@ -104,7 +105,7 @@
   - Removed broken links from the documentation index.
 
 - ✅ **Created Project Status Page**
-  - Created `PROJECT_STATUS.md` to provide a single source of truth for project status.
+  - Created `docs/PROJECT_STATUS.md` to provide a single source of truth for project status.
   - Summarizes implemented, planned, and in-progress features.
   - Highlights critical known issues, like the player module bugs.
   - Linked from the main `README.md` to ensure users and developers have a clear, honest overview of the project's state.
