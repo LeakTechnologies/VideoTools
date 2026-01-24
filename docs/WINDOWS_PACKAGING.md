@@ -34,6 +34,12 @@ Create a dev signing cert and sign the MSIX:
 .\packaging\windows\msix\sign.ps1
 ```
 
+If SignTool fails, use Authenticode signing:
+
+```
+.\packaging\windows\msix\sign.ps1 -UseAuthenticode
+```
+
 Then install:
 
 ```

@@ -6,7 +6,8 @@ param(
     [string]$PfxPassword = "devpass",
     [string]$SignToolPath = "",
     [switch]$CreateDevCert,
-    [switch]$InstallCert
+    [switch]$InstallCert,
+    [switch]$UseAuthenticode
 )
 
 $ErrorActionPreference = "Stop"
@@ -54,6 +55,17 @@ if ($CreateDevCert) {
 
 if (-not (Test-Path $pfxFullPath)) {
     throw "PFX not found: $pfxFullPath (use -CreateDevCert)"
+}
+
+if ($UseAuthenticode) {
+    $pwd = ConvertTo-SecureString -String $PfxPassword -Force -AsPlainText
+    $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($pfxFullPath, $pwd, [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable)
+    $result = Set-AuthenticodeSignature -FilePath $msixFullPath -Certificate $cert -HashAlgorithm SHA256
+    if ($result.Status -ne "Valid") {
+        throw "Authenticode signing failed: $($result.StatusMessage)"
+    }
+    Write-Host "[OK] Signed MSIX with Authenticode: $msixFullPath" -ForegroundColor Green
+    return
 }
 
 $signTool = $SignToolPath
