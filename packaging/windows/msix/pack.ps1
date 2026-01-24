@@ -57,8 +57,8 @@ Copy-Item $iconSrc -Destination (Join-Path $assetsDir "Square150x150Logo.png") -
 Copy-Item $iconSrc -Destination (Join-Path $assetsDir "Wide310x150Logo.png") -Force
 
 $manifest = Get-Content $manifestSrc -Raw
-$manifest = $manifest -replace 'Version="[^"]+"', "Version=`"$Version`""
-$manifest = $manifest -replace 'Publisher="[^"]+"', "Publisher=`"$Publisher`""
+$manifest = $manifest -replace '(<Identity[^>]*\sVersion=")[^"]+(")', "`$1$Version`$2"
+$manifest = $manifest -replace '(<Identity[^>]*\sPublisher=")[^"]+(")', "`$1$Publisher`$2"
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($manifestDest, $manifest, $utf8NoBom)
 
