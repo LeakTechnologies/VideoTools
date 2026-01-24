@@ -59,6 +59,7 @@
 - [x] Windows installer is Scoop-only, uses MSI fallback for required GStreamer, and removes duplicate headers.
 - [x] Main menu title now includes build version with platform suffix (_win/_linux).
 - [x] Windows installer makes build tools optional and installs FFmpeg directly to avoid Scoop bloat.
+- [x] Drafted Windows packaging layout under `packaging/windows/` with MSIX and WinGet stubs.
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
