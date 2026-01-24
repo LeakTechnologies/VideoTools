@@ -4,6 +4,7 @@ param(
     [string]$MsixPath = "dist/windows/msix/VideoTools.msix",
     [string]$PfxPath = "packaging/windows/msix/VideoToolsDev.pfx",
     [string]$PfxPassword = "devpass",
+    [string]$SignToolPath = "",
     [switch]$CreateDevCert,
     [switch]$InstallCert
 )
@@ -55,8 +56,11 @@ if (-not (Test-Path $pfxFullPath)) {
     throw "PFX not found: $pfxFullPath (use -CreateDevCert)"
 }
 
-$signTool = Resolve-SignTool
-& $signTool sign /fd SHA256 /a /f $pfxFullPath /p $PfxPassword $msixFullPath
+$signTool = $SignToolPath
+if (-not $signTool) {
+    $signTool = Resolve-SignTool
+}
+& $signTool sign /fd SHA256 /td SHA256 /a /f $pfxFullPath /p $PfxPassword $msixFullPath
 if ($LASTEXITCODE -ne 0) {
     throw "SignTool failed with exit code $LASTEXITCODE"
 }

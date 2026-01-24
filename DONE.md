@@ -69,6 +69,7 @@
 - [x] Fixed MSIX manifest tile logo schema to use DefaultTile attributes.
 - [x] Added runFullTrust capability to MSIX manifest.
 - [x] Added local MSIX signing helper for dev testing.
+- [x] MSIX signing helper now allows explicit signtool path and uses SHA256 digest flags.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
 - [x] Cleaned internal doc links after moving documentation.
 
