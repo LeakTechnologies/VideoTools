@@ -12,6 +12,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
 
 - **[View Windows Installation Guide](./INSTALL_WINDOWS.md)**
   - Use `scripts\install.bat` or `scripts\install.ps1` on Windows.
+- **[Windows Packaging Roadmap](./WINDOWS_PACKAGING.md)**
 
 ### Linux & macOS
 

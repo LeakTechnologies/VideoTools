@@ -8,6 +8,8 @@ This guide provides step-by-step instructions for installing VideoTools on Windo
 
 This method uses a script to automatically download and configure all necessary dependencies.
 
+> **Note:** This dev installer is temporary. The production installer plan is MSIX + WinGet. See `docs/WINDOWS_PACKAGING.md`.
+
 ### Step 1: Download the Project
 
 If you haven't already, download the project files as a ZIP and extract them to a folder on your computer (e.g., `C:\Users\YourUser\Documents\VideoTools`).
