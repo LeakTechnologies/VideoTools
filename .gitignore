@@ -15,6 +15,7 @@ ffprobe.exe
 ffmpeg-windows.zip
 ffmpeg-temp/
 dist/
+packaging/windows/msix/*.pfx
 
 # Ignore sample media/output in git_converter helper
 scripts/git_converter/Converted/
