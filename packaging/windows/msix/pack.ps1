@@ -1,0 +1,66 @@
+# VideoTools MSIX packaging helper
+
+param(
+    [string]$InputExe = "dist/windows/VideoTools.exe",
+    [string]$Version = "0.1.1.0",
+    [string]$Publisher = "CN=Leak Technologies",
+    [string]$OutDir = "dist/windows/msix"
+)
+
+$ErrorActionPreference = "Stop"
+
+function Resolve-MakeAppx {
+    $cmd = Get-Command makeappx.exe -ErrorAction SilentlyContinue
+    if ($cmd) {
+        return $cmd.Path
+    }
+    $kitsRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+    if (-not (Test-Path $kitsRoot)) {
+        throw "MakeAppx not found. Install Windows 10/11 SDK."
+    }
+    $candidates = Get-ChildItem -Path $kitsRoot -Directory | Sort-Object Name -Descending
+    foreach ($dir in $candidates) {
+        $path = Join-Path $dir.FullName "x64\makeappx.exe"
+        if (Test-Path $path) {
+            return $path
+        }
+    }
+    throw "MakeAppx not found under Windows Kits."
+}
+
+if (-not (Test-Path $InputExe)) {
+    throw "Input exe not found: $InputExe"
+}
+
+$layoutDir = Join-Path $OutDir "layout"
+$assetsDir = Join-Path $layoutDir "Assets"
+$manifestSrc = Join-Path $PSScriptRoot "AppxManifest.xml"
+$manifestDest = Join-Path $layoutDir "AppxManifest.xml"
+$iconSrc = Join-Path $PSScriptRoot "..\..\..\assets\logo\VT_Icon.png"
+
+New-Item -ItemType Directory -Force -Path $layoutDir | Out-Null
+New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
+
+Copy-Item $InputExe -Destination (Join-Path $layoutDir "VideoTools.exe") -Force
+
+if (-not (Test-Path $iconSrc)) {
+    throw "Icon not found: $iconSrc"
+}
+
+Copy-Item $iconSrc -Destination (Join-Path $assetsDir "StoreLogo.png") -Force
+Copy-Item $iconSrc -Destination (Join-Path $assetsDir "Square44x44Logo.png") -Force
+Copy-Item $iconSrc -Destination (Join-Path $assetsDir "Square150x150Logo.png") -Force
+Copy-Item $iconSrc -Destination (Join-Path $assetsDir "Wide310x150Logo.png") -Force
+
+$manifest = Get-Content $manifestSrc -Raw
+$manifest = $manifest -replace 'Version="[^"]+"', "Version=`"$Version`""
+$manifest = $manifest -replace 'Publisher="[^"]+"', "Publisher=`"$Publisher`""
+$manifest | Set-Content $manifestDest
+
+$makeAppx = Resolve-MakeAppx
+New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+$packagePath = Join-Path $OutDir "VideoTools.msix"
+
+& $makeAppx pack /d $layoutDir /p $packagePath /o
+
+Write-Host "[OK] MSIX created at $packagePath" -ForegroundColor Green

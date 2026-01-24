@@ -26,6 +26,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Add `AGENTS.md` to enforce staging, commits, and documentation updates.
 - [ ] **Windows packaging prep**
   - [x] Draft MSIX + WinGet layout under `packaging/windows/`.
+  - [x] Add GitHub Actions workflow to build MSIX artifacts.
+  - [ ] Wire signing step (SignTool) once certificate is available.
   - [ ] Keep Windows installer aligned with MSIX/WinGet production path.
 - [ ] **Windows installer validation**
   - Test `scripts\install-deps-windows.ps1` Scoop flow and GStreamer MSI install on Windows 10/11.
