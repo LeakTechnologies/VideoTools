@@ -55,12 +55,16 @@ Copy-Item $iconSrc -Destination (Join-Path $assetsDir "Wide310x150Logo.png") -Fo
 $manifest = Get-Content $manifestSrc -Raw
 $manifest = $manifest -replace 'Version="[^"]+"', "Version=`"$Version`""
 $manifest = $manifest -replace 'Publisher="[^"]+"', "Publisher=`"$Publisher`""
-$manifest | Set-Content $manifestDest
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($manifestDest, $manifest, $utf8NoBom)
 
 $makeAppx = Resolve-MakeAppx
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $packagePath = Join-Path $OutDir "VideoTools.msix"
 
 & $makeAppx pack /d $layoutDir /p $packagePath /o
+if ($LASTEXITCODE -ne 0) {
+    throw "MakeAppx failed with exit code $LASTEXITCODE"
+}
 
 Write-Host "[OK] MSIX created at $packagePath" -ForegroundColor Green
