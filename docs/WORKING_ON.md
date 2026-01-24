@@ -9,7 +9,7 @@ This file tracks what each agent is currently working on to prevent conflicts an
 ## 🔴 Current Blockers
 
 - **Build Status**: ❌ FAILING (main.go syntax errors introduced by unified player changes)
-- **Critical Bug**: BUG-005 - CRF quality settings not showing when CRF mode selected (see BUGS.md)
+- **Critical Bug**: BUG-005 - CRF quality settings not showing when CRF mode selected (see ./BUGS.md)
 
 ---
 
@@ -67,7 +67,7 @@ This file tracks what each agent is currently working on to prevent conflicts an
    - **Problem**: When user selects CRF mode, Quality Preset dropdown doesn't appear
    - **Likely Cause**: Over-corrected visibility logic after fixing BUG-001/BUG-002
    - **Investigation**: Check logic flow in `updateQualityVisibility()` and bitrate mode callback
-   - **See**: BUGS.md for full details
+   - **See**: ./BUGS.md for full details
 
 2. **Widget Deduplication** (4 remaining pairs):
    - resolutionSelectSimple & resolutionSelect (lines ~8009, 8347)
