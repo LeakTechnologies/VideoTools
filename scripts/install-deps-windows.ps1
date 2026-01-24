@@ -4,6 +4,8 @@
 param(
     [switch]$SkipFFmpeg = $false,
     [switch]$SkipGStreamer = $false,
+    [switch]$InstallBuildTools = $false,
+    [switch]$SkipBuildTools = $false,
     [switch]$InstallPython = $false,
     [switch]$SkipPython = $false,
     [string]$DvdStylerUrl = "",
@@ -64,14 +66,13 @@ function Install-ViaScoop {
     Ensure-Scoop
 
     $packages = New-Object System.Collections.Generic.List[string]
-    if (-not (Test-Command go)) {
-        $packages.Add("go")
-    }
-    if (-not (Test-Command gcc)) {
-        $packages.Add("mingw")
-    }
-    if (-not $SkipFFmpeg -and -not (Test-Command ffmpeg)) {
-        $packages.Add("ffmpeg")
+    if ($InstallBuildTools) {
+        if (-not (Test-Command go)) {
+            $packages.Add("go")
+        }
+        if (-not (Test-Command gcc)) {
+            $packages.Add("mingw")
+        }
     }
     if ($InstallPython -and -not (Test-Pip)) {
         $packages.Add("python")
@@ -84,6 +85,51 @@ function Install-ViaScoop {
 
     Write-Host "Installing: $($packages -join ', ')" -ForegroundColor Yellow
     scoop install @packages
+}
+
+function Install-FFmpegPortable {
+    param(
+        [string]$Url
+    )
+
+    $ffmpegRoot = Join-Path $env:LOCALAPPDATA "VideoTools\ffmpeg\bin"
+    if (-not (Test-Path $ffmpegRoot)) {
+        New-Item -ItemType Directory -Path $ffmpegRoot -Force | Out-Null
+    }
+
+    $ffmpegZip = Join-Path $env:TEMP "ffmpeg-windows.zip"
+    $ffmpegExtract = Join-Path $env:TEMP ("ffmpeg-extract-" + [System.Guid]::NewGuid().ToString())
+
+    Write-Host "Downloading FFmpeg..." -ForegroundColor Yellow
+    Invoke-WebRequest -Uri $Url -OutFile $ffmpegZip -UseBasicParsing
+
+    Write-Host "Extracting FFmpeg..." -ForegroundColor Yellow
+    Expand-Archive -Path $ffmpegZip -DestinationPath $ffmpegExtract -Force
+
+    $binDir = Get-ChildItem -Path $ffmpegExtract -Recurse -Directory -Filter "bin" | Select-Object -First 1
+    if (-not $binDir) {
+        throw "FFmpeg bin directory not found in downloaded archive"
+    }
+
+    $ffmpegExe = Join-Path $binDir.FullName "ffmpeg.exe"
+    $ffprobeExe = Join-Path $binDir.FullName "ffprobe.exe"
+    if (-not (Test-Path $ffmpegExe)) {
+        throw "FFmpeg executable not found in downloaded archive"
+    }
+
+    Copy-Item $ffmpegExe -Destination $ffmpegRoot -Force
+    Copy-Item $ffprobeExe -Destination $ffmpegRoot -Force
+
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    if ($userPath -notmatch [Regex]::Escape($ffmpegRoot)) {
+        [Environment]::SetEnvironmentVariable("Path", "$ffmpegRoot;$userPath", "User")
+    }
+    $env:Path = "$ffmpegRoot;$env:Path"
+
+    Remove-Item -Force $ffmpegZip
+    Remove-Item -Recurse -Force $ffmpegExtract
+
+    Write-Host "[OK]  FFmpeg installed to $ffmpegRoot" -ForegroundColor Green
 }
 
 function Install-GStreamerMsi {
@@ -312,7 +358,32 @@ if (-not (Test-Pip)) {
     }
 }
 
+if (-not (Test-Command gst-launch-1.0) -and -not $SkipGStreamer -and -not $isAdmin) {
+    Write-Host "[ERROR]  GStreamer requires Administrator privileges to install." -ForegroundColor Red
+    Write-Host "Run PowerShell as Administrator and re-run this installer." -ForegroundColor Yellow
+    exit 1
+}
+
+if ($InstallBuildTools -eq $false -and $SkipBuildTools -eq $false) {
+    $needsBuildTools = (-not (Test-Command go)) -or (-not (Test-Command gcc))
+    if ($needsBuildTools) {
+        Write-Host "Optional module: Build tools (Go + MinGW)" -ForegroundColor Yellow
+        $buildChoice = Read-Host "Install build tools for compiling VideoTools? (y/N)"
+        if ($buildChoice -eq "y" -or $buildChoice -eq "Y") {
+            $InstallBuildTools = $true
+        } else {
+            $SkipBuildTools = $true
+        }
+        Write-Host ""
+    }
+}
+
 Install-ViaScoop
+
+if (-not $SkipFFmpeg -and -not (Test-Command ffmpeg)) {
+    $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+    Install-FFmpegPortable -Url $ffmpegUrl
+}
 
 if (-not $SkipGStreamer -and -not (Test-Command gst-launch-1.0)) {
     Write-Host "GStreamer is required for VideoTools playback." -ForegroundColor Yellow
