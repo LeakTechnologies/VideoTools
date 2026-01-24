@@ -63,6 +63,7 @@
 - [x] Added GitHub Actions workflow to build Windows MSIX and WinGet artifacts.
 - [x] GitHub Actions now uploads MSIX and WinGet manifest to tag releases.
 - [x] Fixed MSIX manifest encoding and packaging error handling.
+- [x] MSIX pack script now resolves paths from repo root.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
 - [x] Cleaned internal doc links after moving documentation.
 

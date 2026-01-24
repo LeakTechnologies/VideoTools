@@ -28,11 +28,15 @@ function Resolve-MakeAppx {
     throw "MakeAppx not found under Windows Kits."
 }
 
-if (-not (Test-Path $InputExe)) {
-    throw "Input exe not found: $InputExe"
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..\..")
+$inputPath = Join-Path $repoRoot $InputExe
+$outPath = Join-Path $repoRoot $OutDir
+
+if (-not (Test-Path $inputPath)) {
+    throw "Input exe not found: $inputPath"
 }
 
-$layoutDir = Join-Path $OutDir "layout"
+$layoutDir = Join-Path $outPath "layout"
 $assetsDir = Join-Path $layoutDir "Assets"
 $manifestSrc = Join-Path $PSScriptRoot "AppxManifest.xml"
 $manifestDest = Join-Path $layoutDir "AppxManifest.xml"
@@ -41,7 +45,7 @@ $iconSrc = Join-Path $PSScriptRoot "..\..\..\assets\logo\VT_Icon.png"
 New-Item -ItemType Directory -Force -Path $layoutDir | Out-Null
 New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
 
-Copy-Item $InputExe -Destination (Join-Path $layoutDir "VideoTools.exe") -Force
+Copy-Item $inputPath -Destination (Join-Path $layoutDir "VideoTools.exe") -Force
 
 if (-not (Test-Path $iconSrc)) {
     throw "Icon not found: $iconSrc"
@@ -59,8 +63,8 @@ $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText($manifestDest, $manifest, $utf8NoBom)
 
 $makeAppx = Resolve-MakeAppx
-New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
-$packagePath = Join-Path $OutDir "VideoTools.msix"
+New-Item -ItemType Directory -Force -Path $outPath | Out-Null
+$packagePath = Join-Path $outPath "VideoTools.msix"
 
 & $makeAppx pack /d $layoutDir /p $packagePath /o
 if ($LASTEXITCODE -ne 0) {
