@@ -12,22 +12,42 @@ This method uses a script to automatically download and configure all necessary 
 
 If you haven't already, download the project files as a ZIP and extract them to a folder on your computer (e.g., `C:\Users\YourUser\Documents\VideoTools`).
 
-### Step 2: Run the Setup Script
+### Step 2: Run the Dependency Installer
 
 1.  Open the project folder in File Explorer.
 2.  Choose one of these entrypoints:
     - Run `.\scripts\install.bat` (recommended).
     - Run `.\scripts\install.ps1` from PowerShell.
-3.  A terminal window will open and run the PowerShell setup script. This will:
-    *   **Download FFmpeg:** The script automatically fetches the latest stable version of FFmpeg, which is required for all video operations.
-    *   **Install Dependencies:** It places the necessary files in the correct directories.
-    *   **Configure for Portability:** By default, it sets up VideoTools as a "portable" application, meaning all its components (like `ffmpeg.exe`) are stored directly within the project's `scripts/` folder.
+3.  A terminal window will open and run the PowerShell installer. It installs core dependencies via Chocolatey or Scoop:
+    *   Go (build toolchain)
+    *   MinGW (gcc for CGO builds)
+    *   FFmpeg (video processing)
+    *   GStreamer (player backend)
+    *   Python (pip for optional tooling)
+
+Optional flags:
+- `-UseScoop` to force Scoop instead of Chocolatey.
+- `-SkipFFmpeg` or `-SkipGStreamer` to skip those dependencies.
+- `-InstallPython` to install Python + pip for AI tooling.
+- `-SkipPython` to skip Python + pip.
+- `-SkipDvdStyler` to skip DVD authoring tools.
+
+The installer will prompt before optional modules (Python + pip, DVD authoring tools) when they are missing.
 
 > **Note:** If Windows Defender SmartScreen appears, click "More info" and then "Run anyway". This is expected as the application is not yet digitally signed.
 
-### Step 3: Run VideoTools
+### Step 3: Build and Run VideoTools
 
-Once the script finishes, you can run the application by double-clicking `run.bat` in the main project folder.
+1.  Build the app:
+    - `.\scripts\build.bat`
+2.  Run the executable:
+    - `.\dist\windows\VideoTools.exe`
+
+If you want a portable FFmpeg bundle placed next to the Windows executable, run:
+- `.\scripts\setup-windows.ps1 -Portable`
+
+For a system-wide FFmpeg install (PATH), use:
+- `.\scripts\setup-windows.ps1 -System`
 
 > **Note:** On Windows, use `scripts\install.ps1` or `scripts\install.bat`. Running `scripts\install.sh` from PowerShell will open Git Bash.
 

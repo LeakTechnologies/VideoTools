@@ -53,6 +53,10 @@
 ### Documentation
 - ✅ **TODO.md extended** to track remaining Preferences items (output directories, UI theme, auto-updates, reset/import).
 
+### Maintenance
+- [x] Windows installer cleanup (minimal dependency flow, ASCII output; removed Windows 11-specific detection).
+- [x] Windows installer now prompts before optional modules (Python + pip, DVD authoring tools).
+
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
 

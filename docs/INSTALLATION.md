@@ -6,18 +6,18 @@ Welcome to the VideoTools installation guide. Please select your operating syste
 
 ## Supported Platforms
 
-### 🖥️ Windows
+### Windows
 
 For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers both automated and manual setup.
 
-- **[➡️ View Windows Installation Guide](./INSTALL_WINDOWS.md)**
+- **[View Windows Installation Guide](./INSTALL_WINDOWS.md)**
   - Use `scripts\install.bat` or `scripts\install.ps1` on Windows.
 
-### 🐧 Linux & macOS
+### Linux & macOS
 
 For Linux (Ubuntu, Fedora, Arch, etc.), macOS, and Windows Subsystem for Linux (WSL), the installation is handled by a single, powerful script.
 
-- **[➡️ View Linux, macOS, & WSL Installation Guide](./INSTALL_LINUX.md)**
+- **[View Linux, macOS, & WSL Installation Guide](./INSTALL_LINUX.md)**
 
 ---
 

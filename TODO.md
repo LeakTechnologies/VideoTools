@@ -24,6 +24,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Route `setup-windows.bat` through `scripts/install.bat`.
 - [X] **Agent workflow rules**
   - Add `AGENTS.md` to enforce staging, commits, and documentation updates.
+- [ ] **Windows installer validation**
+  - Test `scripts\install-deps-windows.ps1` with Chocolatey and Scoop on Windows 10/11.
 
 ## Documentation: Fix Structural Errors
 
