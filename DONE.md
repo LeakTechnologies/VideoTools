@@ -66,6 +66,7 @@
 - [x] MSIX pack script now resolves paths from repo root.
 - [x] MSIX pack script now updates Identity version without breaking XML declaration.
 - [x] MSIX pack script now edits manifest via XML writer to avoid schema errors.
+- [x] Fixed MSIX manifest tile logo schema to use DefaultTile attributes.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
 - [x] Cleaned internal doc links after moving documentation.
 
