@@ -15,6 +15,11 @@ Output artifacts:
 - `VideoTools.msix`
 - `packaging/windows/winget/VideoTools.yaml`
 
+## Release Hosting
+
+- Dev builds: `git.leaktechnologies.dev` (internal).
+- Public builds: GitHub releases at `https://github.com/LeakTechnologies/VideoTools`.
+
 ## Build Outputs (Planned)
 
 - `packaging/windows/msix/` for MSIX packages and signing artifacts.
