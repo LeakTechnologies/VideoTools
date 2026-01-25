@@ -74,6 +74,7 @@
 - [x] MSIX signing helper supports Authenticode fallback.
 - [x] Removed duplicate Windows installer header from scripts/install.bat.
 - [x] Windows installer now prompts for elevation when required.
+- [x] Windows installer now relaunches itself with explicit UAC prompt guidance.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
 - [x] Cleaned internal doc links after moving documentation.
 
