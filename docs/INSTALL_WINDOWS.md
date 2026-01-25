@@ -28,6 +28,7 @@ If you haven't already, download the project files as a ZIP and extract them to 
     *   Python (pip for optional tooling)
     *   Note: GStreamer installs via MSI and requires an Administrator PowerShell window.
     *   Note: Build tools are optional; the installer will ask before installing Go/MinGW.
+    *   Note: The installer will prompt for elevation when required.
 
 Optional flags:
 - `-SkipFFmpeg` or `-SkipGStreamer` to skip those dependencies.
