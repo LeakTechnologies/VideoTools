@@ -72,6 +72,7 @@
 - [x] MSIX signing helper now allows explicit signtool path and uses SHA256 digest flags.
 - [x] MSIX dev cert now uses exportable RSA key for signing reliability.
 - [x] MSIX signing helper supports Authenticode fallback.
+- [x] Removed duplicate Windows installer header from scripts/install.bat.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
 - [x] Cleaned internal doc links after moving documentation.
 
