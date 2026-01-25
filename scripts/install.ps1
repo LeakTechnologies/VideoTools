@@ -7,6 +7,7 @@ if (-not $isAdmin) {
     try {
         $args = @(
             "-NoProfile",
+            "-NoExit",
             "-ExecutionPolicy", "Bypass",
             "-File", $PSCommandPath
         )
