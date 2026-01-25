@@ -151,11 +151,59 @@ function Install-GStreamerMsi {
     $runtimeMsi = Join-Path $tempDir "gstreamer-runtime.msi"
     $develMsi = Join-Path $tempDir "gstreamer-devel.msi"
 
+    $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
     Write-Host "Downloading GStreamer runtime..." -ForegroundColor Yellow
-    Invoke-WebRequest -Uri $RuntimeUrl -OutFile $runtimeMsi -UseBasicParsing
+    $runtimeOk = $false
+    try {
+        Invoke-WebRequest -Uri $RuntimeUrl -OutFile $runtimeMsi -UseBasicParsing -UserAgent $userAgent
+        $runtimeOk = $true
+    } catch {
+        $runtimeOk = $false
+    }
+    if (-not $runtimeOk) {
+        try {
+            Start-BitsTransfer -Source $RuntimeUrl -Destination $runtimeMsi -ErrorAction Stop
+            $runtimeOk = $true
+        } catch {
+            $runtimeOk = $false
+        }
+    }
+    if (-not $runtimeOk -and (Test-Command curl.exe)) {
+        & curl.exe -L --retry 3 --user-agent $userAgent -o $runtimeMsi $RuntimeUrl | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $runtimeOk = $true
+        }
+    }
+    if (-not $runtimeOk) {
+        throw "Failed to download GStreamer runtime MSI."
+    }
 
     Write-Host "Downloading GStreamer development files..." -ForegroundColor Yellow
-    Invoke-WebRequest -Uri $DevelUrl -OutFile $develMsi -UseBasicParsing
+    $develOk = $false
+    try {
+        Invoke-WebRequest -Uri $DevelUrl -OutFile $develMsi -UseBasicParsing -UserAgent $userAgent
+        $develOk = $true
+    } catch {
+        $develOk = $false
+    }
+    if (-not $develOk) {
+        try {
+            Start-BitsTransfer -Source $DevelUrl -Destination $develMsi -ErrorAction Stop
+            $develOk = $true
+        } catch {
+            $develOk = $false
+        }
+    }
+    if (-not $develOk -and (Test-Command curl.exe)) {
+        & curl.exe -L --retry 3 --user-agent $userAgent -o $develMsi $DevelUrl | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            $develOk = $true
+        }
+    }
+    if (-not $develOk) {
+        throw "Failed to download GStreamer development MSI."
+    }
 
     Write-Host "Installing GStreamer runtime..." -ForegroundColor Yellow
     $runtime = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$runtimeMsi`" /qn /norestart" -Wait -PassThru

@@ -76,6 +76,7 @@
 - [x] Windows installer now prompts for elevation when required.
 - [x] Windows installer now relaunches itself with explicit UAC prompt guidance.
 - [x] Windows installer keeps elevated PowerShell window open for errors/logs.
+- [x] Added GStreamer MSI download fallbacks to avoid 418 download failures.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
 - [x] Cleaned internal doc links after moving documentation.
 
