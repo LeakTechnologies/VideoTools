@@ -5,6 +5,11 @@ It provides a graphical interface for converting, inspecting, and preparing vide
 
 **For a high-level overview of what is currently implemented, in progress, or planned, please see the [Project Status Page](../PROJECT_STATUS.md).**
 
+## Builds
+
+- **Daily (dev):** https://git.leaktechnologies.dev
+- **Stable (public):** https://github.com/LeakTechnologes/VideoTools
+
 ## Documentation Structure
 
 ### Core Modules (Implementation Status)

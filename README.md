@@ -13,6 +13,11 @@ It includes tools for video conversion, batch processing, media inspection, merg
 
 For a clear, up-to-date overview of what is complete, in progress, and planned, please see our **[Project Status Page](PROJECT_STATUS.md)**. This document provides the most accurate reflection of the project's current state.
 
+## Builds
+
+- **Daily (dev):** https://git.leaktechnologies.dev
+- **Stable (public):** https://github.com/LeakTechnologes/VideoTools
+
 
 ## Capabilities
 
