@@ -64,6 +64,9 @@
 ### UI/UX
 - ✅ **Module palette contrast** - Updated module and queue colors to contrast-friendly palette.
 
+### Release
+- ✅ **GitHub remote** - Added `github` SSH remote for stable build pushes.
+
 ### Maintenance
 - [x] Windows installer cleanup (minimal dependency flow, ASCII output; removed Windows 11-specific detection).
 - [x] Windows installer now prompts before optional modules (Python + pip, DVD authoring tools).
