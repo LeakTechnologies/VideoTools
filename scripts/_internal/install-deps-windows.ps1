@@ -12,8 +12,9 @@ param(
     [string]$DvdStylerZip = "",
     [switch]$SkipDvdStyler = $false,
     [switch]$PreferWinget = $false,
-    [string]$GStreamerRuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.8.msi",
-    [string]$GStreamerDevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-1.24.8.msi",
+    [string]$GStreamerVersion = "1.26.10",
+    [string]$GStreamerRuntimeUrl = "",
+    [string]$GStreamerDevelUrl = "",
     [string]$GStreamerRuntimeMsi = "",
     [string]$GStreamerDevelMsi = ""
 )
@@ -238,14 +239,15 @@ function Install-GStreamerMsi {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
     $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
-    $defaultRuntimeUrls = @(
-        "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.8.msi",
-        "https://download.gstreamer.com/gstreamer-1.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.8.msi"
-    )
-    $defaultDevelUrls = @(
-        "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-1.24.8.msi",
-        "https://download.gstreamer.com/gstreamer-1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-1.24.8.msi"
-    )
+    if (-not $RuntimeUrl) {
+        $RuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-msvc-x86_64-$GStreamerVersion.msi"
+    }
+    if (-not $DevelUrl) {
+        $DevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-devel-msvc-x86_64-$GStreamerVersion.msi"
+    }
+
+    $defaultRuntimeUrls = @($RuntimeUrl)
+    $defaultDevelUrls = @($DevelUrl)
 
     function Get-UrlCandidates {
         param(
@@ -424,7 +426,7 @@ function Install-GStreamerMsi {
         $runtimeOk = Invoke-DownloadFile -Urls $runtimeUrls -Destination $runtimeMsiPath
         if (-not $runtimeOk) {
             Write-Host "[ERROR]  Failed to download GStreamer runtime MSI." -ForegroundColor Red
-            Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/" -ForegroundColor Yellow
+            Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/" -ForegroundColor Yellow
             Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
             if (-not $PreferWinget) {
                 $wingetRuntimeIds = @("GStreamer.GStreamer")
@@ -448,7 +450,7 @@ function Install-GStreamerMsi {
         $develOk = Invoke-DownloadFile -Urls $develUrls -Destination $develMsiPath
         if (-not $develOk) {
             Write-Host "[ERROR]  Failed to download GStreamer development MSI." -ForegroundColor Red
-            Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/" -ForegroundColor Yellow
+            Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/" -ForegroundColor Yellow
             Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
             if (-not $PreferWinget) {
                 $wingetRuntimeIds = @("GStreamer.GStreamer")
