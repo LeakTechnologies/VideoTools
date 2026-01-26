@@ -635,23 +635,23 @@ func getStatusText(job *queue.Job, queuePositions map[string]int) string {
 func ModuleColor(t queue.JobType) color.Color {
 	switch t {
 	case queue.JobTypeConvert:
-		return color.RGBA{R: 103, G: 58, B: 183, A: 255} // Deep Purple (#673AB7)
+		return color.RGBA{R: 111, G: 66, B: 193, A: 255} // Purple (#6F42C1)
 	case queue.JobTypeMerge:
-		return color.RGBA{R: 76, G: 175, B: 80, A: 255} // Green (#4CAF50)
+		return color.RGBA{R: 46, G: 125, B: 50, A: 255} // Green (#2E7D32)
 	case queue.JobTypeTrim:
-		return color.RGBA{R: 255, G: 235, B: 59, A: 255} // Yellow (#FFEB3B)
+		return color.RGBA{R: 239, G: 108, B: 0, A: 255} // Orange (#EF6C00)
 	case queue.JobTypeFilter:
-		return color.RGBA{R: 0, G: 188, B: 212, A: 255} // Cyan (#00BCD4)
+		return color.RGBA{R: 63, G: 81, B: 181, A: 255} // Blue (#3F51B5)
 	case queue.JobTypeUpscale:
-		return color.RGBA{R: 156, G: 39, B: 176, A: 255} // Purple (#9C27B0)
+		return color.RGBA{R: 194, G: 24, B: 91, A: 255} // Pink (#C2185B)
 	case queue.JobTypeAudio:
-		return color.RGBA{R: 255, G: 193, B: 7, A: 255} // Amber (#FFC107)
+		return color.RGBA{R: 46, G: 125, B: 50, A: 255} // Green (#2E7D32)
 	case queue.JobTypeThumbnail:
-		return color.RGBA{R: 0, G: 172, B: 193, A: 255} // Dark Cyan (#00ACC1)
+		return color.RGBA{R: 63, G: 81, B: 181, A: 255} // Blue (#3F51B5)
 	case queue.JobTypeAuthor:
-		return color.RGBA{R: 255, G: 87, B: 34, A: 255} // Deep Orange (#FF5722)
+		return color.RGBA{R: 239, G: 108, B: 0, A: 255} // Orange (#EF6C00)
 	case queue.JobTypeRip:
-		return color.RGBA{R: 255, G: 152, B: 0, A: 255} // Orange (#FF9800)
+		return color.RGBA{R: 46, G: 125, B: 50, A: 255} // Green (#2E7D32)
 	default:
 		return color.Gray{Y: 180}
 	}
