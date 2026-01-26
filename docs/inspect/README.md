@@ -243,5 +243,5 @@ ffprobe -v quiet -select_streams v:0 -show_frames input.mp4
 
 ## See Also
 - [Convert Module](../convert/) - Use inspection data to inform conversion settings
-- [Filters Module](../filters/) - Understand color space before applying filters
-- [Streams Module](../streams/) - Manage individual streams found in inspection
+- [Filters Module](../MODULES.md) - Understand color space before applying filters
+- [Streams Module](../MODULES.md) - Manage individual streams found in inspection

@@ -119,9 +119,7 @@ cancelBtn := widget.NewButton(localization.Generic("Cancel"), onClick)
 
 ## Resources
 
-For complete policy details, see: [localization-policy.md](../.opencode/plans/videotools-localization-policy.md)
-
 For module-specific localization guides, see:
-- [Convert Module Localization](convert/LOCALIZATION.md)
-- [Player Module Localization](../internal/player/LOCALIZATION.md)
-- [UI Components Localization](../internal/ui/LOCALIZATION.md)
+- Convert Module Localization (planned)
+- Player Module Localization (planned)
+- UI Components Localization (planned)
