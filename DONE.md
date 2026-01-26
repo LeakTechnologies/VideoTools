@@ -103,6 +103,7 @@
 - [x] GStreamer and DVDStyler winget installs now add PATH for current session.
 - [x] Installer now detects existing GStreamer/DVDStyler installs outside PATH.
 - [x] Fixed DVDStyler install detection order in Windows installer.
+- [x] Installer now re-checks PATH for GStreamer/DVDStyler before warning.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.

@@ -47,6 +47,45 @@ function Test-Pip {
     return $false
 }
 
+function Find-GStreamerBin {
+    $paths = @(
+        "$env:ProgramFiles\GStreamer\1.0\msvc_x86_64\bin",
+        "${env:ProgramFiles(x86)}\GStreamer\1.0\msvc_x86_64\bin",
+        "C:\gstreamer\1.0\msvc_x86_64\bin",
+        "C:\gstreamer\1.0\x86_64\bin"
+    )
+    foreach ($path in $paths) {
+        if (-not $path) {
+            continue
+        }
+        $gstExe = Join-Path $path "gst-launch-1.0.exe"
+        if (Test-Path $gstExe) {
+            return $path
+        }
+    }
+    return $null
+}
+
+function Find-DVDStylerBin {
+    $paths = @(
+        "${env:ProgramFiles}\DVDStyler\bin",
+        "${env:ProgramFiles(x86)}\DVDStyler\bin",
+        "${env:ProgramFiles}\DVDStyler",
+        "${env:ProgramFiles(x86)}\DVDStyler"
+    )
+    foreach ($path in $paths) {
+        if (-not $path) {
+            continue
+        }
+        $dvdauthor = Join-Path $path "dvdauthor.exe"
+        $mkisofs = Join-Path $path "mkisofs.exe"
+        if ((Test-Path $dvdauthor) -and (Test-Path $mkisofs)) {
+            return $path
+        }
+    }
+    return $null
+}
+
 function Add-ToUserPath {
     param(
         [string]$PathItem
@@ -317,25 +356,6 @@ function Install-GStreamerMsi {
         return $false
     }
 
-    function Find-GStreamerBin {
-        $paths = @(
-            "$env:ProgramFiles\GStreamer\1.0\msvc_x86_64\bin",
-            "${env:ProgramFiles(x86)}\GStreamer\1.0\msvc_x86_64\bin",
-            "C:\gstreamer\1.0\msvc_x86_64\bin",
-            "C:\gstreamer\1.0\x86_64\bin"
-        )
-        foreach ($path in $paths) {
-            if (-not $path) {
-                continue
-            }
-            $gstExe = Join-Path $path "gst-launch-1.0.exe"
-            if (Test-Path $gstExe) {
-                return $path
-            }
-        }
-        return $null
-    }
-
     $existingGstBin = Find-GStreamerBin
     if ($existingGstBin) {
         Add-ToUserPath -PathItem $existingGstBin
@@ -431,26 +451,6 @@ function Ensure-DVDStylerTools {
         "https://ufpr.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
         "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip/download"
     )
-    function Find-DVDStylerBin {
-        $paths = @(
-            "${env:ProgramFiles}\DVDStyler\bin",
-            "${env:ProgramFiles(x86)}\DVDStyler\bin",
-            "${env:ProgramFiles}\DVDStyler",
-            "${env:ProgramFiles(x86)}\DVDStyler"
-        )
-        foreach ($path in $paths) {
-            if (-not $path) {
-                continue
-            }
-            $dvdauthor = Join-Path $path "dvdauthor.exe"
-            $mkisofs = Join-Path $path "mkisofs.exe"
-            if ((Test-Path $dvdauthor) -and (Test-Path $mkisofs)) {
-                return $path
-            }
-        }
-        return $null
-    }
-
     function Install-DVDStylerViaWinget {
         if (-not (Test-Command winget)) {
             return $false
@@ -725,7 +725,16 @@ if (Test-Command gst-launch-1.0) {
     $gstVersion = gst-launch-1.0 --version | Select-Object -First 1
     Write-Host "[OK]  gstreamer: $gstVersion" -ForegroundColor Green
 } else {
-    if ($SkipGStreamer) {
+    if (-not $SkipGStreamer) {
+        $gstBin = Find-GStreamerBin
+        if ($gstBin) {
+            Add-ToUserPath -PathItem $gstBin
+        }
+    }
+    if (Test-Command gst-launch-1.0) {
+        $gstVersion = gst-launch-1.0 --version | Select-Object -First 1
+        Write-Host "[OK]  gstreamer: $gstVersion" -ForegroundColor Green
+    } elseif ($SkipGStreamer) {
         Write-Host "[INFO]   gstreamer skipped (use -SkipGStreamer:`$false to install)" -ForegroundColor Cyan
     } else {
         Write-Host "[WARN]   gstreamer not found in PATH (restart terminal)" -ForegroundColor Yellow
@@ -751,13 +760,29 @@ if (Test-Pip) {
 if (Test-Command dvdauthor) {
     Write-Host "[OK]  dvdauthor: found" -ForegroundColor Green
 } else {
-    Write-Host "[WARN]   dvdauthor not found in PATH (restart terminal)" -ForegroundColor Yellow
+    $dvdBin = Find-DVDStylerBin
+    if ($dvdBin) {
+        Add-ToUserPath -PathItem $dvdBin
+    }
+    if (Test-Command dvdauthor) {
+        Write-Host "[OK]  dvdauthor: found" -ForegroundColor Green
+    } else {
+        Write-Host "[WARN]   dvdauthor not found in PATH (restart terminal)" -ForegroundColor Yellow
+    }
 }
 
 if (Test-Command mkisofs) {
     Write-Host "[OK]  mkisofs: found" -ForegroundColor Green
 } else {
-    Write-Host "[WARN]   mkisofs not found in PATH (restart terminal)" -ForegroundColor Yellow
+    $dvdBin = Find-DVDStylerBin
+    if ($dvdBin) {
+        Add-ToUserPath -PathItem $dvdBin
+    }
+    if (Test-Command mkisofs) {
+        Write-Host "[OK]  mkisofs: found" -ForegroundColor Green
+    } else {
+        Write-Host "[WARN]   mkisofs not found in PATH (restart terminal)" -ForegroundColor Yellow
+    }
 }
 
 Write-Host ""
