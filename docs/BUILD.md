@@ -19,6 +19,7 @@ That's it! The script will:
 - Output packages are written to `dist/<os>/<channel>/`.
 - The build script writes `build.json` alongside the zip artifact.
 - Set `VT_BUILD_CHANNEL=stable` to produce stable artifacts; default is `dev`.
+- Stable builds are pushed to GitHub via the `github` remote (SSH).
 
 ---
 
