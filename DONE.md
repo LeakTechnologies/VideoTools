@@ -55,6 +55,7 @@
 - ✅ **Documentation alignment** - Updated README, module overview, and project status to reflect current implementation and TODO/DONE state.
 - ✅ **README technical section** - Added preset codec and frame rate targets.
 - ✅ **README balance pass** - Updated capabilities, added status/doc links, and clarified DVD frame rate locking.
+- ✅ **Build links** - Added Daily (dev) and Stable (public) build locations to README and docs index.
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
