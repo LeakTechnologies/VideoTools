@@ -45,7 +45,7 @@ Run the test script to verify Arch Linux support:
 
 ### Native Installation (No WSL Required)
 
-The `scripts/install-deps-windows.ps1` script now provides:
+The `scripts/_internal/install-deps-windows.ps1` script now provides:
 
 #### Windows 11 Detection
 - **Build Number Detection**: Distinguishes Windows 11 (22000+) from Windows 10
@@ -176,7 +176,7 @@ The `scripts/test-cross-platform.sh` script provides:
 
 #### Installation Scripts
 - `scripts/install.sh`: Enhanced Arch Linux detection and GPU handling
-- `scripts/install-deps-windows.ps1`: Windows 11 native installation
+- `scripts/_internal/install-deps-windows.ps1`: Windows 11 native installation
 
 #### Core Application
 - `main.go`: Integrated GUI environment detection and adaptive sizing
@@ -227,7 +227,7 @@ The `scripts/test-cross-platform.sh` script provides:
 
 ```powershell
 # 1. Run enhanced PowerShell installer (as Administrator)
-.\scripts\install-deps-windows.ps1
+.\scripts\_internal\install-deps-windows.ps1
 
 # 2. Build VideoTools
 .\scripts\build.ps1

@@ -35,7 +35,7 @@
 - ✅ **Windows scripts entrypoints**
   - Added `scripts/install.ps1` and `scripts/install.bat` to keep the Windows workflow inside PowerShell/CMD.
 - ✅ **Windows setup launcher alignment**
-  - `setup-windows.bat` now delegates to `scripts/install.bat` for a single Windows flow.
+  - `scripts/_internal/setup-windows.bat` now delegates to `scripts/install.bat` for a single Windows flow.
 - ✅ **Agent workflow rules**
   - Added `AGENTS.md` to enforce staging, commits, and documentation updates.
 
@@ -83,6 +83,8 @@
 - [x] Windows installer keeps elevated PowerShell window open for errors/logs.
 - [x] Added GStreamer MSI download fallbacks to avoid 418 download failures.
 - [x] Added local MSI override and size validation for GStreamer install.
+- [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
+- [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
 - [x] Cleaned internal doc links after moving documentation.
 

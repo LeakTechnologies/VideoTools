@@ -30,6 +30,8 @@ If you haven't already, download the project files as a ZIP and extract them to 
     *   Note: Build tools are optional; the installer will ask before installing Go/MinGW.
     *   Note: The installer will prompt for elevation when required and keep the admin window open for logs.
 
+Support scripts are stored in `scripts/_internal/` and should not be run directly unless noted.
+
 Optional flags:
 - `-SkipFFmpeg` or `-SkipGStreamer` to skip those dependencies.
 - `-InstallBuildTools` to install Go + MinGW without a prompt.
@@ -51,10 +53,10 @@ The installer will prompt before optional modules (Python + pip, build tools, DV
     - `.\dist\windows\VideoTools.exe`
 
 If you want a portable FFmpeg bundle placed next to the Windows executable, run:
-- `.\scripts\setup-windows.ps1 -Portable`
+- `.\scripts\_internal\setup-windows.ps1 -Portable`
 
 For a system-wide FFmpeg install (PATH), use:
-- `.\scripts\setup-windows.ps1 -System`
+- `.\scripts\_internal\setup-windows.ps1 -System`
 
 > **Note:** On Windows, use `scripts\install.ps1` or `scripts\install.bat`. Running `scripts\install.sh` from PowerShell will open Git Bash.
 
@@ -123,6 +125,6 @@ This makes FFmpeg available to all applications on your system.
 ## Troubleshooting
 
 -   **"FFmpeg not found" Error:** This means VideoTools can't locate `ffmpeg.exe`. Ensure it's either in the same folder as `VideoTools.exe` or that the system-wide installation path is correct.
--   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `setup-windows.bat`.
+-   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `scripts\_internal\setup-windows.bat`.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.

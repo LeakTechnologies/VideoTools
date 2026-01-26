@@ -17,7 +17,7 @@ $BUILD_OUTPUT = Join-Path $PROJECT_ROOT "VideoTools.exe"
 
 # Check if Go is installed
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
-    Write-Host "❌ ERROR: Go is not installed. Please run install-deps-windows.ps1 first." -ForegroundColor Red
+    Write-Host "❌ ERROR: Go is not installed. Please run scripts\_internal\install-deps-windows.ps1 first." -ForegroundColor Red
     exit 1
 }
 
@@ -120,7 +120,7 @@ if ($LASTEXITCODE -eq 0) {
     if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
         Write-Host "⚠️  Warning: ffmpeg not found in PATH" -ForegroundColor Yellow
         Write-Host "   VideoTools requires ffmpeg to convert videos" -ForegroundColor Yellow
-        Write-Host "   Run: .\scripts\install-deps-windows.ps1" -ForegroundColor Yellow
+        Write-Host "   Run: .\scripts\_internal\install-deps-windows.ps1" -ForegroundColor Yellow
         Write-Host ""
     }
 

@@ -243,14 +243,14 @@ echo.
 REM ----------------------------
 REM Offer to run FFmpeg setup
 REM ----------------------------
-if exist "%~dp0setup-windows.ps1" (
+if exist "%~dp0_internal\setup-windows.ps1" (
     echo Would you like to download FFmpeg now? ^(Y/N^):
     set /p choice=
 
     if /I "!choice!"=="Y" (
-        powershell -ExecutionPolicy Bypass -File "%~dp0setup-windows.ps1" -Portable
+        powershell -ExecutionPolicy Bypass -File "%~dp0_internal\setup-windows.ps1" -Portable
     ) else (
-        echo Skipping FFmpeg setup. You can run setup-windows.ps1 later.
+        echo Skipping FFmpeg setup. You can run scripts\_internal\setup-windows.ps1 later.
     )
 )
 

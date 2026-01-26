@@ -104,10 +104,10 @@ The script will:
 **Automatic FFmpeg Setup:**
 ```bash
 # The build script will offer this automatically, or run manually:
-./setup-windows.bat
+./scripts/_internal/setup-windows.bat
 
 # Or in PowerShell:
-.\scripts\setup-windows.ps1 -Portable
+.\scripts\_internal\setup-windows.ps1 -Portable
 ```
 
 ---

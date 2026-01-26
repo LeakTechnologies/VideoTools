@@ -14,6 +14,12 @@ For development on any platform:
 
 Use `./scripts/install.sh` whenever you add new dependencies or need to reinstall.
 
+## Layout
+
+- Entry points live in `scripts/`.
+- Support scripts live in `scripts/_internal/`.
+- Optional tools and legacy helpers live in `scripts/tools/` and `scripts/legacy/`.
+
 ## Linux
 
 ### Install Dependencies
@@ -21,7 +27,7 @@ Use `./scripts/install.sh` whenever you add new dependencies or need to reinstal
 Automatically installs all required dependencies for your Linux distribution:
 
 ```bash
-./scripts/install-deps-linux.sh
+./scripts/_internal/install-deps-linux.sh
 ```
 
 **Supported distributions:**
@@ -73,23 +79,25 @@ Adds a `VideoTools` command to your current shell session.
 Run in PowerShell as Administrator:
 
 ```powershell
-.\scripts\install-deps-windows.ps1
+.\scripts\_internal\install-deps-windows.ps1
 ```
 
 **Options:**
-- `-UseScoop` - Use Scoop package manager instead of Chocolatey
 - `-SkipFFmpeg` - Skip ffmpeg installation (if you already have it)
+- `-SkipGStreamer` - Skip GStreamer installation (not recommended)
+- `-InstallBuildTools` - Install Go + MinGW
+- `-SkipBuildTools` - Skip Go + MinGW
+- `-InstallPython` - Install Python + pip
+- `-SkipPython` - Skip Python + pip
+- `-GStreamerRuntimeMsi` - Use local GStreamer runtime MSI
+- `-GStreamerDevelMsi` - Use local GStreamer development MSI
 
 **Installs:**
-- Go 1.21+
-- MinGW-w64 (GCC compiler)
-- ffmpeg
-- Git (optional, for development)
-- DVD authoring tools (via DVDStyler portable: dvdauthor + mkisofs)
-
-**Package managers supported:**
-- Chocolatey (default, requires admin)
-- Scoop (user-level, no admin)
+- FFmpeg (portable, user-level)
+- GStreamer (MSI, required for playback)
+- Optional: Go + MinGW (build tools)
+- Optional: Python + pip
+- Optional: DVD authoring tools (DVDStyler portable)
 
 ### Build VideoTools
 
@@ -168,16 +176,16 @@ sudo pacman -S mesa
 
 ### Windows: MinGW not in PATH
 
-After installing MinGW, restart PowerShell or add to PATH manually:
+After installing build tools, restart PowerShell or add to PATH manually:
 
 ```powershell
-$env:Path += ";C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+$env:Path += ";$env:USERPROFILE\\scoop\\apps\\mingw\\current\\bin"
 ```
 
 ### Build fails with "cgo: C compiler not found"
 
 **Linux:** Install gcc
-**Windows:** Install MinGW via `install-deps-windows.ps1`
+**Windows:** Install MinGW via `scripts/_internal/install-deps-windows.ps1`
 
 ### ffmpeg not found
 
@@ -189,9 +197,7 @@ sudo apt install ffmpeg       # Ubuntu
 
 **Windows:**
 ```powershell
-choco install ffmpeg
-# or
-scoop install ffmpeg
+.\scripts\_internal\install-deps-windows.ps1
 ```
 
 ### GPU encoding not working
