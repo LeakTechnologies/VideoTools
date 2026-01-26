@@ -61,6 +61,9 @@
 - ✅ **Build metadata outputs** - Build scripts now emit zip artifacts and `build.json` metadata per channel and OS.
 - ✅ **Build docs update** - Documented `VT_BUILD_CHANNEL` and artifact locations in build/install guides.
 
+### UI/UX
+- ✅ **Module palette contrast** - Updated module and queue colors to contrast-friendly palette.
+
 ### Maintenance
 - [x] Windows installer cleanup (minimal dependency flow, ASCII output; removed Windows 11-specific detection).
 - [x] Windows installer now prompts before optional modules (Python + pip, DVD authoring tools).
