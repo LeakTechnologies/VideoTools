@@ -53,6 +53,7 @@
 ### Documentation
 - ✅ **TODO.md extended** to track remaining Preferences items (output directories, UI theme, auto-updates, reset/import).
 - ✅ **Documentation alignment** - Updated README, module overview, and project status to reflect current implementation and TODO/DONE state.
+- ✅ **README technical section** - Added preset codec and frame rate targets.
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
