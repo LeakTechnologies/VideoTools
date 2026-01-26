@@ -499,16 +499,18 @@ function Ensure-DVDStylerTools {
     $dvdstylerDir = Join-Path $toolsRoot "dvdstyler"
     $dvdstylerBin = Join-Path $dvdstylerDir "bin"
     $dvdstylerReferer = "https://sourceforge.net/projects/dvdstyler/"
+    $dvdstylerVersion = "3.2.2"
+    $dvdstylerZipName = "DVDStyler-$dvdstylerVersion-win64.zip"
     $dvdstylerUrls = @(
-        "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
-        "https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
-        "https://cfhcable.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
-        "https://pilotfiber.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
-        "https://versaweb.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
-        "https://liquidtelecom.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
-        "https://master.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
-        "https://ufpr.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
-        "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip/download"
+        "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
+        "https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
+        "https://cfhcable.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
+        "https://pilotfiber.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
+        "https://versaweb.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
+        "https://liquidtelecom.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
+        "https://master.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
+        "https://ufpr.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
+        "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/$dvdstylerVersion/$dvdstylerZipName/download"
     )
     function Install-DVDStylerViaWinget {
         if (-not $PreferWinget) {
@@ -668,7 +670,7 @@ function Ensure-DVDStylerTools {
         Write-Host "[WARN]  Failed to download DVDStyler ZIP (invalid archive)" -ForegroundColor Yellow
         Write-Host "Last URL tried: $lastUrl" -ForegroundColor Yellow
         Write-Host "Tip: Set VT_DVDSTYLER_URL to a direct ZIP link and retry." -ForegroundColor Yellow
-        Write-Host "Manual download page: https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/" -ForegroundColor Yellow
+        Write-Host "Manual download page: https://sourceforge.net/projects/dvdstyler/files/DVDStyler/$dvdstylerVersion/" -ForegroundColor Yellow
         Write-Host "After download, extract and ensure bin\\dvdauthor.exe and bin\\mkisofs.exe are on PATH." -ForegroundColor Yellow
         Write-Host "[SKIP] DVD authoring tools skipped due to download failure" -ForegroundColor Yellow
         return
