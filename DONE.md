@@ -106,6 +106,7 @@
 - [x] Installer now re-checks PATH for GStreamer/DVDStyler before warning.
 - [x] Added MSI fallback when winget installs do not expose required binaries.
 - [x] Added fallback disk search for GStreamer/DVDStyler executables.
+- [x] Defaulted Windows installer back to MSI-first with optional winget.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.

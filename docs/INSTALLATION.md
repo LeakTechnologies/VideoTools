@@ -12,8 +12,8 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
 
 - **[View Windows Installation Guide](./INSTALL_WINDOWS.md)**
   - Use `scripts\install.bat` or `scripts\install.ps1` on Windows.
-  - The Windows installer will try `winget` first for GStreamer and fall back to MSI or local overrides from the Windows guide.
-  - Optional DVD authoring tools use `winget` first and then fall back to a portable ZIP.
+  - The Windows installer defaults to MSI downloads for GStreamer; use `-PreferWinget` to try winget first.
+  - Optional DVD authoring tools default to the portable ZIP and can use winget with `-PreferWinget`.
   - Windows build scripts will prompt for elevation when needed.
 - **[Windows Packaging Roadmap](./WINDOWS_PACKAGING.md)**
 

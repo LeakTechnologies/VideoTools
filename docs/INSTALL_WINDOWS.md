@@ -41,12 +41,13 @@ Optional flags:
 - `-SkipDvdStyler` to skip DVD authoring tools.
 - `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi` to install from local MSI files.
 - `-GStreamerRuntimeUrl` and `-GStreamerDevelUrl` to override the download URLs.
+- `-PreferWinget` to prefer winget installs when available.
 
 The installer will prompt before optional modules (Python + pip, build tools, DVD authoring tools) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
 
-The installer will attempt to install GStreamer via `winget` first (if available). If that fails, it falls back to MSI downloads. If MSI downloads fail, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`.
+The installer defaults to MSI downloads for GStreamer. If MSI downloads fail, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`. Use `-PreferWinget` if you want the installer to try winget first.
 
-DVDStyler will attempt a `winget` install first when available. If that fails, the installer falls back to the portable ZIP. If both fail, the optional module is skipped.
+DVDStyler defaults to the portable ZIP. If downloads fail and `-PreferWinget` is set, the installer tries winget before skipping the optional module.
 
 > **Note:** If Windows Defender SmartScreen appears, click "More info" and then "Run anyway". This is expected as the application is not yet digitally signed.
 

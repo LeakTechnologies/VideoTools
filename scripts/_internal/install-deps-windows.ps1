@@ -11,6 +11,7 @@ param(
     [string]$DvdStylerUrl = "",
     [string]$DvdStylerZip = "",
     [switch]$SkipDvdStyler = $false,
+    [switch]$PreferWinget = $false,
     [string]$GStreamerRuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.8.msi",
     [string]$GStreamerDevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-1.24.8.msi",
     [string]$GStreamerRuntimeMsi = "",
@@ -18,6 +19,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$PreferWinget = $PSBoundParameters.ContainsKey("PreferWinget")
 
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host "  VideoTools Windows Installation" -ForegroundColor Cyan
@@ -328,6 +330,9 @@ function Install-GStreamerMsi {
             [string[]]$DevelIds
         )
 
+        if (-not $PreferWinget) {
+            return $false
+        }
         if (-not (Test-Command winget)) {
             return $false
         }
@@ -400,7 +405,7 @@ function Install-GStreamerMsi {
         }
     }
 
-    if (-not $RuntimeMsi -and -not $DevelMsi) {
+    if ($PreferWinget -and -not $RuntimeMsi -and -not $DevelMsi) {
         $wingetRuntimeIds = @("GStreamer.GStreamer")
         $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
         if (Install-GStreamerViaWinget -RuntimeIds $wingetRuntimeIds -DevelIds $wingetDevelIds) {
@@ -421,6 +426,13 @@ function Install-GStreamerMsi {
             Write-Host "[ERROR]  Failed to download GStreamer runtime MSI." -ForegroundColor Red
             Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/" -ForegroundColor Yellow
             Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
+            if (-not $PreferWinget) {
+                $wingetRuntimeIds = @("GStreamer.GStreamer")
+                $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
+                if (Install-GStreamerViaWinget -RuntimeIds $wingetRuntimeIds -DevelIds $wingetDevelIds) {
+                    return
+                }
+            }
             throw "Failed to download GStreamer runtime MSI."
         }
     }
@@ -438,6 +450,13 @@ function Install-GStreamerMsi {
             Write-Host "[ERROR]  Failed to download GStreamer development MSI." -ForegroundColor Red
             Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/" -ForegroundColor Yellow
             Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
+            if (-not $PreferWinget) {
+                $wingetRuntimeIds = @("GStreamer.GStreamer")
+                $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
+                if (Install-GStreamerViaWinget -RuntimeIds $wingetRuntimeIds -DevelIds $wingetDevelIds) {
+                    return
+                }
+            }
             throw "Failed to download GStreamer development MSI."
         }
     }
@@ -490,6 +509,9 @@ function Ensure-DVDStylerTools {
         "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip/download"
     )
     function Install-DVDStylerViaWinget {
+        if (-not $PreferWinget) {
+            return $false
+        }
         if (-not (Test-Command winget)) {
             return $false
         }
@@ -548,9 +570,6 @@ function Ensure-DVDStylerTools {
     }
 
     Write-Host "Installing DVD authoring tools (DVDStyler portable)..." -ForegroundColor Yellow
-    if (Install-DVDStylerViaWinget) {
-        return
-    }
     if (-not (Test-Path $toolsRoot)) {
         New-Item -ItemType Directory -Force -Path $toolsRoot | Out-Null
     }
@@ -641,6 +660,9 @@ function Ensure-DVDStylerTools {
         }
     }
     if (-not $downloaded) {
+        if (Install-DVDStylerViaWinget) {
+            return
+        }
         Write-Host "[WARN]  Failed to download DVDStyler ZIP (invalid archive)" -ForegroundColor Yellow
         Write-Host "Last URL tried: $lastUrl" -ForegroundColor Yellow
         Write-Host "Tip: Set VT_DVDSTYLER_URL to a direct ZIP link and retry." -ForegroundColor Yellow
