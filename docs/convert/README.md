@@ -250,6 +250,6 @@ Multiple filters are chained automatically:
 - Try re-encoding audio track
 
 ## See Also
-- [Filters Module](../filters/) - Apply effects before converting
+- [Filters Module](../MODULES.md) - Apply effects before converting
 - [Inspect Module](../inspect/) - View detailed source information
 - [Persistent Video Context](../PERSISTENT_VIDEO_CONTEXT.md) - Using video across modules

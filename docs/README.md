@@ -3,7 +3,7 @@
 VideoTools is a desktop video processing application built on FFmpeg.
 It provides a graphical interface for converting, inspecting, and preparing video.
 
-**For a high-level overview of what is currently implemented, in progress, or planned, please see the [Project Status Page](./PROJECT_STATUS.md).**
+**For a high-level overview of what is currently implemented, in progress, or planned, please see the [Project Status Page](../PROJECT_STATUS.md).**
 
 ## Builds
 
@@ -24,7 +24,7 @@ It provides a graphical interface for converting, inspecting, and preparing vide
 - **Compare** - Side-by-side playback comparison.
 - [Rip](rip/) - Extraction from `VIDEO_TS` folders and `.iso` images.
 - **Author** - DVD authoring and menu generation.
-- [Queue System](../QUEUE_SYSTEM_GUIDE.md) - Batch processing with job management.
+- [Queue System](QUEUE_SYSTEM_GUIDE.md) - Batch processing with job management.
 - **Settings** - Preferences for language and hardware acceleration.
 
 #### 🟡 Implemented With Known Issues / Partial
@@ -44,28 +44,28 @@ It provides a graphical interface for converting, inspecting, and preparing vide
 - **Screenshots** - [PLANNED] Frame extraction.
 
 ## Implementation Documents
-- [DVD Implementation Summary](./DVD_IMPLEMENTATION_SUMMARY.md) - Technical details of the DVD encoding system.
+- [DVD Implementation Summary](DVD_IMPLEMENTATION_SUMMARY.md) - Technical details of the DVD encoding system.
 - [Windows Compatibility](WINDOWS_COMPATIBILITY.md) - Notes on cross-platform support.
-- [Queue System Guide](../QUEUE_SYSTEM_GUIDE.md) - Deep dive into the batch processing system.
+- [Queue System Guide](QUEUE_SYSTEM_GUIDE.md) - Deep dive into the batch processing system.
 - [Module Overview](MODULES.md) - The complete feature list for all modules (implemented and planned).
 - [Persistent Video Context](PERSISTENT_VIDEO_CONTEXT.md) - Design for cross-module video state management.
 - [Custom Video Player](VIDEO_PLAYER.md) - Documentation for the embedded playback implementation.
 
 ## Development Documentation
-- [Integration Guide](../INTEGRATION_GUIDE.md) - System architecture and integration plans.
-- [Build and Run Guide](../BUILD_AND_RUN.md) - Instructions for setting up a development environment.
+- [Integration Guide](INTEGRATION_GUIDE.md) - System architecture and integration plans.
+- [Build and Run Guide](BUILD_AND_RUN.md) - Instructions for setting up a development environment.
 - **FFmpeg Integration** - [PLANNED] Documentation on FFmpeg command building.
 - **Contributing** - [PLANNED] Contribution guidelines.
 
 ## User Guides
-- [Installation Guide](../INSTALLATION.md) - Comprehensive installation instructions.
-- [DVD User Guide](../DVD_USER_GUIDE.md) - A step-by-step guide to the DVD encoding workflow.
+- [Installation Guide](INSTALLATION.md) - Comprehensive installation instructions.
+- [DVD User Guide](DVD_USER_GUIDE.md) - A step-by-step guide to the DVD encoding workflow.
 - [Quick Start](../README.md#quick-start) - The fastest way to get up and running.
 - **Workflows** - [PLANNED] Guides for common multi-module tasks.
 - **Keyboard Shortcuts** - [PLANNED] A reference for all keyboard shortcuts.
 
 ## Quick Links
 - [Module Feature Matrix](MODULES.md#module-coverage-summary)
-- [Latest Updates](../LATEST_UPDATES.md) - Recent development changes.
+- [Latest Updates](LATEST_UPDATES.md) - Recent development changes.
 - [Windows Implementation Notes](DEV14_WINDOWS_IMPLEMENTATION.md)
 - **VT_Player Integration** - [PLANNED] Frame-accurate playback system.

@@ -604,8 +604,8 @@ type Controller interface {
 ## See Also
 
 - [Convert Module](convert/) - Uses player for video preview
-- [FFmpeg Integration](ffmpeg/) - FFmpeg command building *(coming soon)*
-- [Architecture](architecture/) - Overall application structure *(coming soon)*
+- FFmpeg Integration *(planned)*
+- Architecture *(planned)*
 
 ## Developer Notes
 

@@ -57,6 +57,7 @@
 - ✅ **README balance pass** - Updated capabilities, added status/doc links, and clarified DVD frame rate locking.
 - ✅ **Build links** - Added Daily (dev) and Stable (public) build locations to README and docs index.
 - ✅ **Build link fix** - Corrected Daily (dev) URL.
+- ✅ **Broken link audit** - Fixed internal doc links in README and docs, removed stale placeholders.
 
 ### Maintenance
 - [x] Windows installer cleanup (minimal dependency flow, ASCII output; removed Windows 11-specific detection).

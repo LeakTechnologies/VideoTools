@@ -210,7 +210,7 @@ VideoToolsClean         # Remove build artifacts
 - Native Windows builds planned for future release
 - Hardware acceleration (NVENC, QSV, AMF)
 
-**For detailed Windows setup, see:** [Windows Compatibility Guide](docs/WINDOWS_COMPATIBILITY.md)
+**For detailed Windows setup, see:** [Windows Compatibility Guide](WINDOWS_COMPATIBILITY.md)
 
 ---
 
