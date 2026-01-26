@@ -37,6 +37,7 @@ Optional flags:
 - `-InstallPython` to install Python + pip for AI tooling.
 - `-SkipPython` to skip Python + pip.
 - `-SkipDvdStyler` to skip DVD authoring tools.
+- `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi` to install from local MSI files.
 
 The installer will prompt before optional modules (Python + pip, build tools, DVD authoring tools) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
 

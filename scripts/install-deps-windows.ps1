@@ -12,7 +12,9 @@ param(
     [string]$DvdStylerZip = "",
     [switch]$SkipDvdStyler = $false,
     [string]$GStreamerRuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.8.msi",
-    [string]$GStreamerDevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-1.24.8.msi"
+    [string]$GStreamerDevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-1.24.8.msi",
+    [string]$GStreamerRuntimeMsi = "",
+    [string]$GStreamerDevelMsi = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -135,7 +137,9 @@ function Install-FFmpegPortable {
 function Install-GStreamerMsi {
     param(
         [string]$RuntimeUrl,
-        [string]$DevelUrl
+        [string]$DevelUrl,
+        [string]$RuntimeMsi,
+        [string]$DevelMsi
     )
 
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -153,56 +157,77 @@ function Install-GStreamerMsi {
 
     $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
-    Write-Host "Downloading GStreamer runtime..." -ForegroundColor Yellow
-    $runtimeOk = $false
-    try {
-        Invoke-WebRequest -Uri $RuntimeUrl -OutFile $runtimeMsi -UseBasicParsing -UserAgent $userAgent
-        $runtimeOk = $true
-    } catch {
+    if ($RuntimeMsi) {
+        if (-not (Test-Path $RuntimeMsi)) {
+            throw "GStreamer runtime MSI not found: $RuntimeMsi"
+        }
+        Copy-Item -Path $RuntimeMsi -Destination $runtimeMsi -Force
+    } else {
+        Write-Host "Downloading GStreamer runtime..." -ForegroundColor Yellow
         $runtimeOk = $false
-    }
-    if (-not $runtimeOk) {
         try {
-            Start-BitsTransfer -Source $RuntimeUrl -Destination $runtimeMsi -ErrorAction Stop
+            Invoke-WebRequest -Uri $RuntimeUrl -OutFile $runtimeMsi -UseBasicParsing -UserAgent $userAgent
             $runtimeOk = $true
         } catch {
             $runtimeOk = $false
         }
-    }
-    if (-not $runtimeOk -and (Test-Command curl.exe)) {
-        & curl.exe -L --retry 3 --user-agent $userAgent -o $runtimeMsi $RuntimeUrl | Out-Null
-        if ($LASTEXITCODE -eq 0) {
-            $runtimeOk = $true
+        if (-not $runtimeOk) {
+            try {
+                Start-BitsTransfer -Source $RuntimeUrl -Destination $runtimeMsi -ErrorAction Stop
+                $runtimeOk = $true
+            } catch {
+                $runtimeOk = $false
+            }
+        }
+        if (-not $runtimeOk -and (Test-Command curl.exe)) {
+            & curl.exe -L --retry 3 --user-agent $userAgent -o $runtimeMsi $RuntimeUrl | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $runtimeOk = $true
+            }
+        }
+        if (-not $runtimeOk) {
+            throw "Failed to download GStreamer runtime MSI."
         }
     }
-    if (-not $runtimeOk) {
-        throw "Failed to download GStreamer runtime MSI."
-    }
 
-    Write-Host "Downloading GStreamer development files..." -ForegroundColor Yellow
-    $develOk = $false
-    try {
-        Invoke-WebRequest -Uri $DevelUrl -OutFile $develMsi -UseBasicParsing -UserAgent $userAgent
-        $develOk = $true
-    } catch {
+    if ($DevelMsi) {
+        if (-not (Test-Path $DevelMsi)) {
+            throw "GStreamer development MSI not found: $DevelMsi"
+        }
+        Copy-Item -Path $DevelMsi -Destination $develMsi -Force
+    } else {
+        Write-Host "Downloading GStreamer development files..." -ForegroundColor Yellow
         $develOk = $false
-    }
-    if (-not $develOk) {
         try {
-            Start-BitsTransfer -Source $DevelUrl -Destination $develMsi -ErrorAction Stop
+            Invoke-WebRequest -Uri $DevelUrl -OutFile $develMsi -UseBasicParsing -UserAgent $userAgent
             $develOk = $true
         } catch {
             $develOk = $false
         }
-    }
-    if (-not $develOk -and (Test-Command curl.exe)) {
-        & curl.exe -L --retry 3 --user-agent $userAgent -o $develMsi $DevelUrl | Out-Null
-        if ($LASTEXITCODE -eq 0) {
-            $develOk = $true
+        if (-not $develOk) {
+            try {
+                Start-BitsTransfer -Source $DevelUrl -Destination $develMsi -ErrorAction Stop
+                $develOk = $true
+            } catch {
+                $develOk = $false
+            }
+        }
+        if (-not $develOk -and (Test-Command curl.exe)) {
+            & curl.exe -L --retry 3 --user-agent $userAgent -o $develMsi $DevelUrl | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $develOk = $true
+            }
+        }
+        if (-not $develOk) {
+            throw "Failed to download GStreamer development MSI."
         }
     }
-    if (-not $develOk) {
-        throw "Failed to download GStreamer development MSI."
+
+    if ((Get-Item $runtimeMsi).Length -lt 1048576) {
+        throw "GStreamer runtime MSI download is too small. Provide a local MSI with -GStreamerRuntimeMsi."
+    }
+    if ((Get-Item $develMsi).Length -lt 1048576) {
+        throw "GStreamer development MSI download is too small. Provide a local MSI with -GStreamerDevelMsi."
     }
 
     Write-Host "Installing GStreamer runtime..." -ForegroundColor Yellow
@@ -435,7 +460,7 @@ if (-not $SkipFFmpeg -and -not (Test-Command ffmpeg)) {
 
 if (-not $SkipGStreamer -and -not (Test-Command gst-launch-1.0)) {
     Write-Host "GStreamer is required for VideoTools playback." -ForegroundColor Yellow
-    Install-GStreamerMsi -RuntimeUrl $GStreamerRuntimeUrl -DevelUrl $GStreamerDevelUrl
+    Install-GStreamerMsi -RuntimeUrl $GStreamerRuntimeUrl -DevelUrl $GStreamerDevelUrl -RuntimeMsi $GStreamerRuntimeMsi -DevelMsi $GStreamerDevelMsi
 }
 
 Ensure-DVDStylerTools
