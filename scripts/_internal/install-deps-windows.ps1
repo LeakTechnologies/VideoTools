@@ -336,6 +336,12 @@ function Install-GStreamerMsi {
         return $null
     }
 
+    $existingGstBin = Find-GStreamerBin
+    if ($existingGstBin) {
+        Add-ToUserPath -PathItem $existingGstBin
+        return
+    }
+
     if (-not $RuntimeMsi -and -not $DevelMsi) {
         $wingetRuntimeIds = @("GStreamer.GStreamer")
         $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
@@ -427,6 +433,13 @@ function Ensure-DVDStylerTools {
     )
     $dvdstylerZip = Join-Path $env:TEMP "dvdstyler-win64.zip"
     $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
+    if ($needsDVDTools) {
+        $existingBin = Find-DVDStylerBin
+        if ($existingBin) {
+            Add-ToUserPath -PathItem $existingBin
+            $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
+        }
+    }
 
     if (-not $needsDVDTools) {
         return
