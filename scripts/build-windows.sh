@@ -6,7 +6,6 @@ set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_OUTPUT="$PROJECT_ROOT/VideoTools.exe"
-DIST_DIR="$PROJECT_ROOT/dist/windows"
 APP_VERSION="$(grep -m1 'appVersion' "$PROJECT_ROOT/main.go" | sed -E 's/.*\"([^\"]+)\".*/\1/')"
 [ -z "$APP_VERSION" ] && APP_VERSION="(version unknown)"
 GIT_COMMIT=""
@@ -18,6 +17,24 @@ if [ -n "$GIT_COMMIT" ]; then
 else
     FULL_VERSION="$APP_VERSION"
 fi
+
+channel="${VT_BUILD_CHANNEL:-dev}"
+case "${channel,,}" in
+    stable|public|release) channel="stable" ;;
+    *) channel="dev" ;;
+esac
+
+version="$APP_VERSION"
+if [ "$channel" = "stable" ]; then
+    version="$(echo "$APP_VERSION" | sed -E 's/-dev[0-9]+$//')"
+fi
+if [ -z "$GIT_COMMIT" ]; then
+    GIT_COMMIT="nogit"
+fi
+
+os_tag="win"
+dist_dir="$PROJECT_ROOT/dist/windows/$channel"
+artifact_name="${version}-${GIT_COMMIT}_${os_tag}.zip"
 
 echo "════════════════════════════════════════════════════════════════"
 echo "  VideoTools Windows Build Script (Cross-Compilation)"
@@ -56,7 +73,7 @@ cd "$PROJECT_ROOT"
 
 echo "Cleaning previous Windows builds..."
 rm -f "$BUILD_OUTPUT" 2>/dev/null || true
-rm -rf "$DIST_DIR" 2>/dev/null || true
+rm -rf "$dist_dir" 2>/dev/null || true
 echo "Previous builds cleaned"
 echo ""
 
@@ -111,15 +128,15 @@ else
 fi
 
 echo "Creating distribution package..."
-mkdir -p "$DIST_DIR"
+mkdir -p "$dist_dir"
 
 # Copy executable
-cp "$BUILD_OUTPUT" "$DIST_DIR/"
+cp "$BUILD_OUTPUT" "$dist_dir/"
 echo "Copied VideoTools.exe"
 
 # Copy documentation
-cp README.md "$DIST_DIR/" 2>/dev/null || echo "WARNING: README.md not found"
-cp LICENSE "$DIST_DIR/" 2>/dev/null || echo "WARNING: LICENSE not found"
+cp README.md "$dist_dir/" 2>/dev/null || echo "WARNING: README.md not found"
+cp LICENSE "$dist_dir/" 2>/dev/null || echo "WARNING: LICENSE not found"
 
 # Download and bundle FFmpeg automatically
 if [ ! -f "ffmpeg.exe" ]; then
@@ -154,30 +171,80 @@ fi
 
 # Bundle FFmpeg with the distribution
 if [ -f "ffmpeg.exe" ]; then
-    cp ffmpeg.exe "$DIST_DIR/"
+    cp ffmpeg.exe "$dist_dir/"
     echo "Bundled ffmpeg.exe"
 else
     echo "WARNING: ffmpeg.exe not found - distribution will require separate FFmpeg installation"
 fi
 
 if [ -f "ffprobe.exe" ]; then
-    cp ffprobe.exe "$DIST_DIR/"
+    cp ffprobe.exe "$dist_dir/"
     echo "Bundled ffprobe.exe"
 else
     echo "WARNING: ffprobe.exe not found"
 fi
+
+echo "Packaging build artifacts..."
+pkg_dir="$(mktemp -d)"
+cp "$dist_dir/VideoTools.exe" "$pkg_dir/"
+if [ -f "$PROJECT_ROOT/README.md" ]; then
+    cp "$PROJECT_ROOT/README.md" "$pkg_dir/"
+fi
+if [ -f "$PROJECT_ROOT/LICENSE" ]; then
+    cp "$PROJECT_ROOT/LICENSE" "$pkg_dir/"
+fi
+if [ -f "$dist_dir/ffmpeg.exe" ]; then
+    cp "$dist_dir/ffmpeg.exe" "$pkg_dir/"
+fi
+if [ -f "$dist_dir/ffprobe.exe" ]; then
+    cp "$dist_dir/ffprobe.exe" "$pkg_dir/"
+fi
+
+if command -v python3 >/dev/null 2>&1; then
+    python3 - <<PY
+import os
+import zipfile
+pkg_dir = r"$pkg_dir"
+artifact = r"$dist_dir/$artifact_name"
+with zipfile.ZipFile(artifact, "w", zipfile.ZIP_DEFLATED) as zf:
+    for root, _, files in os.walk(pkg_dir):
+        for name in files:
+            full = os.path.join(root, name)
+            rel = os.path.relpath(full, pkg_dir)
+            zf.write(full, rel)
+PY
+elif command -v zip >/dev/null 2>&1; then
+    (cd "$pkg_dir" && zip -qr "$dist_dir/$artifact_name" .)
+else
+    echo "WARNING: zip/python3 not found; skipping artifact packaging"
+fi
+
+published_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+cat > "$dist_dir/build.json" <<EOF
+{
+  "channel": "$channel",
+  "version": "$version",
+  "git": "$GIT_COMMIT",
+  "published_at": "$published_at",
+  "artifact": "$artifact_name"
+}
+EOF
+
+rm -rf "$pkg_dir"
+echo "Build package: $dist_dir/$artifact_name"
+echo "Build metadata: $dist_dir/build.json"
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"
 echo "WINDOWS BUILD COMPLETE"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
-echo "Output directory: $DIST_DIR"
+echo "Output directory: $dist_dir"
 echo "Contents:"
-ls -lh "$DIST_DIR"
+ls -lh "$dist_dir"
 echo ""
-echo "Windows executable: $DIST_DIR/VideoTools.exe"
-echo "Size: $(du -h "$DIST_DIR/VideoTools.exe" | cut -f1)"
+echo "Windows executable: $dist_dir/VideoTools.exe"
+echo "Size: $(du -h "$dist_dir/VideoTools.exe" | cut -f1)"
 echo ""
 echo "Next steps:"
 echo "  1. Test on Windows 10/11"

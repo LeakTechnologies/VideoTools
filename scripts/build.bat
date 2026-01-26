@@ -153,6 +153,30 @@ REM ----------------------------
 REM Move to project root
 REM ----------------------------
 pushd "%~dp0\.."
+set "PROJECT_ROOT=%CD%"
+
+REM ----------------------------
+REM Build channel (dev/stable)
+REM ----------------------------
+if "%VT_BUILD_CHANNEL%"=="" set "VT_BUILD_CHANNEL=dev"
+set "CHANNEL=%VT_BUILD_CHANNEL%"
+if /I "%CHANNEL%"=="stable" (
+    set "CHANNEL=stable"
+) else if /I "%CHANNEL%"=="public" (
+    set "CHANNEL=stable"
+) else if /I "%CHANNEL%"=="release" (
+    set "CHANNEL=stable"
+) else (
+    set "CHANNEL=dev"
+)
+
+REM ----------------------------
+REM Version + git metadata
+REM ----------------------------
+for /f "delims=" %%A in ('powershell -NoProfile -Command "$v=(Select-String -Path main.go -Pattern \"appVersion\" | Select-Object -First 1).Line; if ($v -match '\"\"([^\""]+)\"\"') { $matches[1] }"') do set "APP_VERSION=%%A"
+if "%APP_VERSION%"=="" set "APP_VERSION=(version unknown)"
+for /f "delims=" %%A in ('git rev-parse --short HEAD 2^>nul') do set "GIT_COMMIT=%%A"
+if "%GIT_COMMIT%"=="" set "GIT_COMMIT=nogit"
 
 REM ----------------------------
 REM Clean previous build
@@ -253,6 +277,35 @@ if exist "%~dp0_internal\setup-windows.ps1" (
         echo Skipping FFmpeg setup. You can run scripts\_internal\setup-windows.ps1 later.
     )
 )
+
+REM ----------------------------
+REM Package build + metadata
+REM ----------------------------
+powershell -NoProfile -Command ^
+    "$projectRoot = '%PROJECT_ROOT%';" ^
+    "$channel = '%CHANNEL%';" ^
+    "$appVersion = '%APP_VERSION%';" ^
+    "$git = '%GIT_COMMIT%';" ^
+    "if ($channel -eq 'stable') { $version = $appVersion -replace '-dev\\d+$','' } else { $version = $appVersion }" ^
+    "$osTag = 'win';" ^
+    "$distDir = Join-Path $projectRoot \"dist\\windows\\$channel\";" ^
+    "New-Item -ItemType Directory -Path $distDir -Force | Out-Null;" ^
+    "$pkgDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP \"vt-build-$([Guid]::NewGuid())\") -Force;" ^
+    "Copy-Item (Join-Path $projectRoot 'VideoTools.exe') -Destination $pkgDir.FullName -Force;" ^
+    "if (Test-Path (Join-Path $projectRoot 'README.md')) { Copy-Item (Join-Path $projectRoot 'README.md') -Destination $pkgDir.FullName -Force }" ^
+    "if (Test-Path (Join-Path $projectRoot 'LICENSE')) { Copy-Item (Join-Path $projectRoot 'LICENSE') -Destination $pkgDir.FullName -Force }" ^
+    "if (Test-Path (Join-Path $projectRoot 'ffmpeg.exe')) { Copy-Item (Join-Path $projectRoot 'ffmpeg.exe') -Destination $pkgDir.FullName -Force }" ^
+    "if (Test-Path (Join-Path $projectRoot 'ffprobe.exe')) { Copy-Item (Join-Path $projectRoot 'ffprobe.exe') -Destination $pkgDir.FullName -Force }" ^
+    "$artifactName = \"$version-$git`_$osTag.zip\";" ^
+    "$artifactPath = Join-Path $distDir $artifactName;" ^
+    "if (Test-Path $artifactPath) { Remove-Item $artifactPath -Force }" ^
+    "Compress-Archive -Path (Join-Path $pkgDir.FullName '*') -DestinationPath $artifactPath;" ^
+    "$publishedAt = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ');" ^
+    "$buildJson = @{ channel = $channel; version = $version; git = $git; published_at = $publishedAt; artifact = $artifactName } | ConvertTo-Json -Depth 3;" ^
+    "Set-Content -Path (Join-Path $distDir 'build.json') -Value $buildJson -Encoding UTF8;" ^
+    "Remove-Item $pkgDir.FullName -Recurse -Force;" ^
+    "Write-Host \"Build package: $artifactPath\";" ^
+    "Write-Host \"Build metadata: $(Join-Path $distDir 'build.json')\";"
 
 popd
 exit /b 0

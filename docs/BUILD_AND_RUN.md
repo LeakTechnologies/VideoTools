@@ -42,7 +42,7 @@ bash scripts/run.sh
 ```bash
 cd /home/stu/Projects/VideoTools
 bash scripts/build-windows.sh
-# Output: dist/windows/VideoTools.exe
+# Output: dist/windows/<channel>/vX.Y.Z-<git>_win.zip
 ```
 
 **Requirements for Windows build:**
@@ -377,7 +377,7 @@ sudo apt-get install gcc-mingw-w64
 # Cross-compile for Windows
 bash scripts/build-windows.sh
 
-# Output: dist/windows/VideoTools.exe
+# Output: dist/windows/<channel>/vX.Y.Z-<git>_win.zip
 ```
 
 ### Multi-Platform Build Script

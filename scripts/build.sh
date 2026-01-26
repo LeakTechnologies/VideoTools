@@ -18,6 +18,20 @@ else
     FULL_VERSION="$APP_VERSION"
 fi
 
+channel="${VT_BUILD_CHANNEL:-dev}"
+case "${channel,,}" in
+    stable|public|release) channel="stable" ;;
+    *) channel="dev" ;;
+esac
+
+version="$APP_VERSION"
+if [ "$channel" = "stable" ]; then
+    version="$(echo "$APP_VERSION" | sed -E 's/-dev[0-9]+$//')"
+fi
+if [ -z "$GIT_COMMIT" ]; then
+    GIT_COMMIT="nogit"
+fi
+
 # Detect platform
 PLATFORM="$(uname -s)"
 case "$PLATFORM" in
@@ -125,6 +139,58 @@ case "$OS" in
                 echo "Build complete: VideoTools.exe"
                 diagnostics
             fi
+
+            dist_dir="$PROJECT_ROOT/dist/windows/$channel"
+            artifact_name="${version}-${GIT_COMMIT}_win.zip"
+            mkdir -p "$dist_dir"
+            pkg_dir="$(mktemp -d)"
+            cp "$PROJECT_ROOT/VideoTools.exe" "$pkg_dir/"
+            if [ -f "$PROJECT_ROOT/README.md" ]; then
+                cp "$PROJECT_ROOT/README.md" "$pkg_dir/"
+            fi
+            if [ -f "$PROJECT_ROOT/LICENSE" ]; then
+                cp "$PROJECT_ROOT/LICENSE" "$pkg_dir/"
+            fi
+            if [ -f "$PROJECT_ROOT/ffmpeg.exe" ]; then
+                cp "$PROJECT_ROOT/ffmpeg.exe" "$pkg_dir/"
+            fi
+            if [ -f "$PROJECT_ROOT/ffprobe.exe" ]; then
+                cp "$PROJECT_ROOT/ffprobe.exe" "$pkg_dir/"
+            fi
+
+            if command -v python3 >/dev/null 2>&1; then
+                python3 - <<PY
+import os
+import zipfile
+pkg_dir = r"$pkg_dir"
+artifact = r"$dist_dir/$artifact_name"
+with zipfile.ZipFile(artifact, "w", zipfile.ZIP_DEFLATED) as zf:
+    for root, _, files in os.walk(pkg_dir):
+        for name in files:
+            full = os.path.join(root, name)
+            rel = os.path.relpath(full, pkg_dir)
+            zf.write(full, rel)
+PY
+            elif command -v zip >/dev/null 2>&1; then
+                (cd "$pkg_dir" && zip -qr "$dist_dir/$artifact_name" .)
+            else
+                echo "WARNING: zip/python3 not found; skipping artifact packaging"
+            fi
+
+            published_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            cat > "$dist_dir/build.json" <<EOF
+{
+  "channel": "$channel",
+  "version": "$version",
+  "git": "$GIT_COMMIT",
+  "published_at": "$published_at",
+  "artifact": "$artifact_name"
+}
+EOF
+
+            rm -rf "$pkg_dir"
+            echo "Build package: $dist_dir/$artifact_name"
+            echo "Build metadata: $dist_dir/build.json"
         else
             echo "Build failed! (VideoTools $FULL_VERSION)"
             diagnostics
