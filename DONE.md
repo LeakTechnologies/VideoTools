@@ -77,6 +77,7 @@
 - [x] Windows installer now relaunches itself with explicit UAC prompt guidance.
 - [x] Windows installer keeps elevated PowerShell window open for errors/logs.
 - [x] Added GStreamer MSI download fallbacks to avoid 418 download failures.
+- [x] Added local MSI override and size validation for GStreamer install.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
 - [x] Cleaned internal doc links after moving documentation.
 
