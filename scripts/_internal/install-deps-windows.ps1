@@ -431,20 +431,6 @@ function Ensure-DVDStylerTools {
         "https://ufpr.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip",
         "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip/download"
     )
-    $dvdstylerZip = Join-Path $env:TEMP "dvdstyler-win64.zip"
-    $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
-    if ($needsDVDTools) {
-        $existingBin = Find-DVDStylerBin
-        if ($existingBin) {
-            Add-ToUserPath -PathItem $existingBin
-            $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
-        }
-    }
-
-    if (-not $needsDVDTools) {
-        return
-    }
-
     function Find-DVDStylerBin {
         $paths = @(
             "${env:ProgramFiles}\DVDStyler\bin",
@@ -485,6 +471,20 @@ function Ensure-DVDStylerTools {
             }
         }
         return $false
+    }
+
+    $dvdstylerZip = Join-Path $env:TEMP "dvdstyler-win64.zip"
+    $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
+    if ($needsDVDTools) {
+        $existingBin = Find-DVDStylerBin
+        if ($existingBin) {
+            Add-ToUserPath -PathItem $existingBin
+            $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
+        }
+    }
+
+    if (-not $needsDVDTools) {
+        return
     }
 
     Write-Host ""
