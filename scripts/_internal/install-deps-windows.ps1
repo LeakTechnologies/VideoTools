@@ -350,16 +350,21 @@ function Install-GStreamerMsi {
         $binPath = Find-GStreamerBin
         if ($binPath) {
             Add-ToUserPath -PathItem $binPath
-            return $true
+            if (Test-Command gst-launch-1.0) {
+                return $true
+            }
         }
 
+        Write-Host "[WARN]  GStreamer winget install did not expose gst-launch-1.0. Falling back to MSI." -ForegroundColor Yellow
         return $false
     }
 
     $existingGstBin = Find-GStreamerBin
     if ($existingGstBin) {
         Add-ToUserPath -PathItem $existingGstBin
-        return
+        if (Test-Command gst-launch-1.0) {
+            return
+        }
     }
 
     if (-not $RuntimeMsi -and -not $DevelMsi) {
@@ -464,9 +469,12 @@ function Ensure-DVDStylerTools {
                 $binPath = Find-DVDStylerBin
                 if ($binPath) {
                     Add-ToUserPath -PathItem $binPath
-                    Write-Host "[OK]  DVD authoring tools installed via winget" -ForegroundColor Green
-                    return $true
+                    if (Test-Command dvdauthor -and Test-Command mkisofs) {
+                        Write-Host "[OK]  DVD authoring tools installed via winget" -ForegroundColor Green
+                        return $true
+                    }
                 }
+                Write-Host "[WARN]  DVDStyler winget install missing dvdauthor/mkisofs. Falling back to portable ZIP." -ForegroundColor Yellow
                 return $false
             }
         }
