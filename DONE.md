@@ -96,6 +96,8 @@
 - [x] Added GStreamer MSI mirror fallback and stricter download validation.
 - [x] Added manual GStreamer MSI download hint on installer failures.
 - [x] Added winget fallback when GStreamer MSI downloads fail.
+- [x] Defaulted GStreamer install to winget first, MSI fallback second.
+- [x] DVDStyler download failures no longer block Windows installs.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
