@@ -37,3 +37,4 @@ Before you begin, ensure your system meets these basic requirements:
 ## Development
 
 If you are a developer looking to contribute to the project, please see the [Build and Run Guide](./BUILD_AND_RUN.md) for instructions on setting up a development environment.
+Build scripts write packaged artifacts to `dist/<os>/<channel>/` and emit a `build.json` file alongside each zip.

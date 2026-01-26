@@ -50,7 +50,7 @@ The installer will prompt before optional modules (Python + pip, build tools, DV
 1.  Build the app:
     - `.\scripts\build.bat`
 2.  Run the executable:
-    - `.\dist\windows\VideoTools.exe`
+    - `.\VideoTools.exe`
 
 If you want a portable FFmpeg bundle placed next to the Windows executable, run:
 - `.\scripts\_internal\setup-windows.ps1 -Portable`
@@ -59,6 +59,14 @@ For a system-wide FFmpeg install (PATH), use:
 - `.\scripts\_internal\setup-windows.ps1 -System`
 
 > **Note:** On Windows, use `scripts\install.ps1` or `scripts\install.bat`. Running `scripts\install.sh` from PowerShell will open Git Bash.
+
+---
+
+## Build Artifacts
+
+- Build packages are written to `dist/windows/<channel>/`.
+- Each build writes a `build.json` file alongside the zip artifact.
+- Set `VT_BUILD_CHANNEL=stable` for stable artifacts; default is `dev`.
 
 ---
 

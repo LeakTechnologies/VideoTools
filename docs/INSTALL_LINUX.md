@@ -55,6 +55,14 @@ The installation script sets up a few helpful aliases:
 
 ---
 
+## Build Artifacts
+
+- Build packages are written to `dist/linux/<channel>/` (or `dist/macos/<channel>/` on macOS).
+- Each build writes a `build.json` file alongside the zip artifact.
+- Set `VT_BUILD_CHANNEL=stable` for stable artifacts; default is `dev`.
+
+---
+
 ## Manual Installation
 
 If you prefer to perform the steps manually:

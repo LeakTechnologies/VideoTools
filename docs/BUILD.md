@@ -15,6 +15,11 @@ That's it! The script will:
 - ✅ Build the appropriate executable
 - ✅ On Windows: Offer to download FFmpeg automatically
 
+**Build artifacts and metadata:**
+- Output packages are written to `dist/<os>/<channel>/`.
+- The build script writes `build.json` alongside the zip artifact.
+- Set `VT_BUILD_CHANNEL=stable` to produce stable artifacts; default is `dev`.
+
 ---
 
 ## Platform-Specific Details
@@ -93,12 +98,13 @@ brew install ffmpeg
 The script will:
 1. Build `VideoTools.exe`
 2. Prompt to download FFmpeg automatically
-3. Set up everything in `dist/windows/`
+3. Create a zip package and `build.json` in `dist/windows/<channel>/`
 
 **Output:** `VideoTools.exe` (Windows GUI executable)
+**Package:** `dist/windows/<channel>/vX.Y.Z-<git>_win.zip` + `build.json`
 
 **Run:**
-- Double-click `VideoTools.exe` in `dist/windows/`
+- Double-click `VideoTools.exe` in the project root
 - Or: `./VideoTools.exe` from Git Bash
 
 **Automatic FFmpeg Setup:**
@@ -129,7 +135,7 @@ sudo apt install gcc-mingw-w64  # Ubuntu/Debian
 # Cross-compile
 ./scripts/build-windows.sh
 
-# Output: dist/windows/VideoTools.exe (with FFmpeg bundled)
+# Output: dist/windows/<channel>/vX.Y.Z-<git>_win.zip (with FFmpeg bundled)
 ```
 
 ---
@@ -203,9 +209,9 @@ VideoTools/
 ├── VideoTools.exe      # Main executable
 └── dist/
     └── windows/
-        ├── VideoTools.exe
-        ├── ffmpeg.exe      # (after setup)
-        └── ffprobe.exe     # (after setup)
+        └── dev/
+            ├── vX.Y.Z-<git>_win.zip
+            └── build.json
 ```
 
 ---

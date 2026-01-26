@@ -14,6 +14,36 @@ Write-Host ""
 # Get project root (parent of scripts directory)
 $PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
 $BUILD_OUTPUT = Join-Path $PROJECT_ROOT "VideoTools.exe"
+$appVersion = (Get-Content (Join-Path $PROJECT_ROOT "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
+if ($appVersion -match '"([^"]+)"') {
+    $appVersion = $matches[1]
+} else {
+    $appVersion = "(version unknown)"
+}
+$gitCommit = ""
+if (Get-Command git -ErrorAction SilentlyContinue) {
+    $gitCommit = (git -C $PROJECT_ROOT rev-parse --short HEAD 2>$null).Trim()
+}
+if ([string]::IsNullOrWhiteSpace($gitCommit)) {
+    $gitCommit = "nogit"
+}
+$channel = $env:VT_BUILD_CHANNEL
+if ([string]::IsNullOrWhiteSpace($channel)) {
+    $channel = "dev"
+}
+switch ($channel.ToLower()) {
+    "stable" { $channel = "stable" }
+    "public" { $channel = "stable" }
+    "release" { $channel = "stable" }
+    default { $channel = "dev" }
+}
+$version = $appVersion
+if ($channel -eq "stable") {
+    $version = $version -replace "-dev\\d+$", ""
+}
+$osTag = "win"
+$distDir = Join-Path $PROJECT_ROOT "dist\\windows\\$channel"
+$artifactName = "$version-$gitCommit`_$osTag.zip"
 
 # Check if Go is installed
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
@@ -114,6 +144,47 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host ""
     Write-Host "To run:" -ForegroundColor Yellow
     Write-Host "  .\VideoTools.exe" -ForegroundColor White
+    Write-Host ""
+
+    Write-Host "📦 Packaging build artifacts..." -ForegroundColor Yellow
+    if (-not (Test-Path $distDir)) {
+        New-Item -ItemType Directory -Path $distDir -Force | Out-Null
+    }
+
+    $pkgDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "vt-build-$([Guid]::NewGuid())") -Force
+    Copy-Item $BUILD_OUTPUT -Destination $pkgDir.FullName -Force
+    if (Test-Path (Join-Path $PROJECT_ROOT "README.md")) {
+        Copy-Item (Join-Path $PROJECT_ROOT "README.md") -Destination $pkgDir.FullName -Force
+    }
+    if (Test-Path (Join-Path $PROJECT_ROOT "LICENSE")) {
+        Copy-Item (Join-Path $PROJECT_ROOT "LICENSE") -Destination $pkgDir.FullName -Force
+    }
+    if (Test-Path (Join-Path $PROJECT_ROOT "ffmpeg.exe")) {
+        Copy-Item (Join-Path $PROJECT_ROOT "ffmpeg.exe") -Destination $pkgDir.FullName -Force
+    }
+    if (Test-Path (Join-Path $PROJECT_ROOT "ffprobe.exe")) {
+        Copy-Item (Join-Path $PROJECT_ROOT "ffprobe.exe") -Destination $pkgDir.FullName -Force
+    }
+
+    $artifactPath = Join-Path $distDir $artifactName
+    if (Test-Path $artifactPath) {
+        Remove-Item $artifactPath -Force
+    }
+    Compress-Archive -Path (Join-Path $pkgDir.FullName "*") -DestinationPath $artifactPath
+
+    $publishedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $buildJson = @{
+        channel = $channel
+        version = $version
+        git = $gitCommit
+        published_at = $publishedAt
+        artifact = $artifactName
+    } | ConvertTo-Json -Depth 3
+    Set-Content -Path (Join-Path $distDir "build.json") -Value $buildJson -Encoding UTF8
+
+    Remove-Item $pkgDir.FullName -Recurse -Force
+    Write-Host "Build package: $artifactPath" -ForegroundColor White
+    Write-Host "Build metadata: $(Join-Path $distDir "build.json")" -ForegroundColor White
     Write-Host ""
 
     # Check if ffmpeg is available
