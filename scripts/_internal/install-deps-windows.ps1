@@ -47,6 +47,24 @@ function Test-Pip {
     return $false
 }
 
+function Add-ToUserPath {
+    param(
+        [string]$PathItem
+    )
+    if (-not $PathItem) {
+        return
+    }
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    if ($env:Path -match [Regex]::Escape($PathItem)) {
+        return
+    }
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    if ($userPath -notmatch [Regex]::Escape($PathItem)) {
+        [Environment]::SetEnvironmentVariable("Path", "$PathItem;$userPath", "User")
+    }
+    $env:Path = "$PathItem;$env:Path"
+}
+
 function Ensure-Scoop {
     if (-not (Test-Command scoop)) {
         Write-Host "Installing Scoop..." -ForegroundColor Yellow
@@ -282,7 +300,40 @@ function Install-GStreamerMsi {
             }
         }
 
-        return $develOk
+        if (-not $develOk) {
+            return $false
+        }
+
+        if (Test-Command gst-launch-1.0) {
+            return $true
+        }
+
+        $binPath = Find-GStreamerBin
+        if ($binPath) {
+            Add-ToUserPath -PathItem $binPath
+            return $true
+        }
+
+        return $false
+    }
+
+    function Find-GStreamerBin {
+        $paths = @(
+            "$env:ProgramFiles\GStreamer\1.0\msvc_x86_64\bin",
+            "${env:ProgramFiles(x86)}\GStreamer\1.0\msvc_x86_64\bin",
+            "C:\gstreamer\1.0\msvc_x86_64\bin",
+            "C:\gstreamer\1.0\x86_64\bin"
+        )
+        foreach ($path in $paths) {
+            if (-not $path) {
+                continue
+            }
+            $gstExe = Join-Path $path "gst-launch-1.0.exe"
+            if (Test-Path $gstExe) {
+                return $path
+            }
+        }
+        return $null
     }
 
     if (-not $RuntimeMsi -and -not $DevelMsi) {
@@ -344,6 +395,11 @@ function Install-GStreamerMsi {
     $devel = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$develMsiPath`" /qn /norestart" -Wait -PassThru
     if ($devel.ExitCode -ne 0) {
         throw "GStreamer dev install failed with exit code $($devel.ExitCode)"
+    }
+
+    $gstBin = Find-GStreamerBin
+    if ($gstBin) {
+        Add-ToUserPath -PathItem $gstBin
     }
 
     Remove-Item -Recurse -Force $tempDir
@@ -408,11 +464,7 @@ function Ensure-DVDStylerTools {
             if ($LASTEXITCODE -eq 0) {
                 $binPath = Find-DVDStylerBin
                 if ($binPath) {
-                    $env:Path = "$binPath;$env:Path"
-                    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
-                    if ($userPath -notmatch [Regex]::Escape($binPath)) {
-                        [Environment]::SetEnvironmentVariable("Path", "$binPath;$userPath", "User")
-                    }
+                    Add-ToUserPath -PathItem $binPath
                     Write-Host "[OK]  DVD authoring tools installed via winget" -ForegroundColor Green
                     return $true
                 }
