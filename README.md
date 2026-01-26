@@ -21,7 +21,9 @@ For a clear, up-to-date overview of what is complete, in progress, and planned, 
 - Media inspection and analysis
 - Merge, filters, and audio extraction
 - Thumbnail generation
-- DVD-compliant encoding and ripping tools
+- Compare playback
+- DVD authoring, encoding, and ripping tools
+- Settings for language and hardware acceleration
 - Optional AI-assisted upscaling (where supported)
 
 ## Codecs and Frame Rates
@@ -36,6 +38,7 @@ For a clear, up-to-date overview of what is complete, in progress, and planned, 
 **Frame rate targets:**
 - Source, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60
 - Optional motion interpolation for frame-rate changes
+- DVD presets lock to NTSC (29.97) or PAL (25) frame rates
 
 ## Quick Start
 
@@ -45,7 +48,7 @@ For a clear, up-to-date overview of what is complete, in progress, and planned, 
 bash scripts/install.sh
 ```
 
-The installer will build, install, and set up everything automatically with a guided wizard!
+The installer will build, install, and set up shell aliases.
 
 **After installation:**
 ```bash
@@ -80,7 +83,9 @@ For upcoming work and priorities, see **docs/ROADMAP.md**.
 ## Documentation
 
 **Getting Started:**
+- **PROJECT_STATUS.md** - Current implementation status
 - **INSTALLATION.md** - Comprehensive installation guide (read this first!)
+- **docs/README.md** - Documentation index
 
 **For Users:**
 - **BUILD_AND_RUN.md** - How to build and run VideoTools
@@ -150,6 +155,7 @@ go run . logs
 ## Getting Help
 
 1. Read **BUILD_AND_RUN.md** for setup issues
-2. Read **DVD_USER_GUIDE.md** for how-to questions
-3. Check **videotools.log** for error details
-4. Review documentation in project root
+2. Read **docs/README.md** for module and guide links
+3. Read **DVD_USER_GUIDE.md** for DVD-specific workflows
+4. Check **videotools.log** for error details
+5. Review documentation in project root
