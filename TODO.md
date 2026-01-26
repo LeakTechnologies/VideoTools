@@ -36,6 +36,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Move git_converter workflow into the main VT UI and retire legacy scripts.
 - [ ] **Windows installer validation**
   - Test `scripts\_internal\install-deps-windows.ps1` Scoop flow and GStreamer MSI install on Windows 10/11.
+  - Re-test GStreamer MSI download and local MSI override after variable fix.
 
 ## Documentation: Fix Structural Errors
 
