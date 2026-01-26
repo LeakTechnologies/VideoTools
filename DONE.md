@@ -94,6 +94,7 @@
 - [x] Added local MSI override and size validation for GStreamer install.
 - [x] Fixed GStreamer MSI override variable collision in Windows installer.
 - [x] Added GStreamer MSI mirror fallback and stricter download validation.
+- [x] Added manual GStreamer MSI download hint on installer failures.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.

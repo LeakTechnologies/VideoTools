@@ -254,6 +254,9 @@ function Install-GStreamerMsi {
         $runtimeUrls = Get-UrlCandidates -PrimaryUrl $RuntimeUrl -Fallbacks $defaultRuntimeUrls
         $runtimeOk = Invoke-DownloadFile -Urls $runtimeUrls -Destination $runtimeMsiPath
         if (-not $runtimeOk) {
+            Write-Host "[ERROR]  Failed to download GStreamer runtime MSI." -ForegroundColor Red
+            Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/" -ForegroundColor Yellow
+            Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
             throw "Failed to download GStreamer runtime MSI."
         }
     }
@@ -268,6 +271,9 @@ function Install-GStreamerMsi {
         $develUrls = Get-UrlCandidates -PrimaryUrl $DevelUrl -Fallbacks $defaultDevelUrls
         $develOk = Invoke-DownloadFile -Urls $develUrls -Destination $develMsiPath
         if (-not $develOk) {
+            Write-Host "[ERROR]  Failed to download GStreamer development MSI." -ForegroundColor Red
+            Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/" -ForegroundColor Yellow
+            Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
             throw "Failed to download GStreamer development MSI."
         }
     }
