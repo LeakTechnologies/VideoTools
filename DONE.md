@@ -101,6 +101,7 @@
 - [x] Added winget fallback for optional DVDStyler tools before ZIP download.
 - [x] Windows build scripts now auto-elevate to avoid admin errors.
 - [x] GStreamer and DVDStyler winget installs now add PATH for current session.
+- [x] Installer now detects existing GStreamer/DVDStyler installs outside PATH.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
