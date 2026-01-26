@@ -155,7 +155,94 @@ function Install-GStreamerMsi {
     $runtimeMsiPath = Join-Path $tempDir "gstreamer-runtime.msi"
     $develMsiPath = Join-Path $tempDir "gstreamer-devel.msi"
 
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
     $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+    $defaultRuntimeUrls = @(
+        "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.8.msi",
+        "https://download.gstreamer.com/gstreamer-1.0/msvc/gstreamer-1.0-msvc-x86_64-1.24.8.msi"
+    )
+    $defaultDevelUrls = @(
+        "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-1.24.8.msi",
+        "https://download.gstreamer.com/gstreamer-1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-1.24.8.msi"
+    )
+
+    function Get-UrlCandidates {
+        param(
+            [string]$PrimaryUrl,
+            [string[]]$Fallbacks
+        )
+        $urls = New-Object System.Collections.Generic.List[string]
+        if ($PrimaryUrl) {
+            $urls.Add($PrimaryUrl)
+        }
+        foreach ($fallback in $Fallbacks) {
+            if (-not $urls.Contains($fallback)) {
+                $urls.Add($fallback)
+            }
+        }
+        return $urls
+    }
+
+    function Invoke-DownloadFile {
+        param(
+            [string[]]$Urls,
+            [string]$Destination
+        )
+
+        $lastUrl = ""
+        foreach ($url in $Urls) {
+            $lastUrl = $url
+            $downloadOk = $false
+            if (Test-Path $Destination) {
+                Remove-Item -Force $Destination
+            }
+            try {
+                Invoke-WebRequest -Uri $url -OutFile $Destination -UseBasicParsing -UserAgent $userAgent -Headers @{
+                    "Accept" = "application/octet-stream"
+                } -MaximumRedirection 10
+                $downloadOk = $true
+            } catch {
+                $downloadOk = $false
+            }
+
+            if (-not $downloadOk) {
+                try {
+                    Start-BitsTransfer -Source $url -Destination $Destination -ErrorAction Stop
+                    $downloadOk = $true
+                } catch {
+                    $downloadOk = $false
+                }
+            }
+
+            if (-not $downloadOk -and (Test-Command curl.exe)) {
+                & curl.exe -L --retry 3 --user-agent $userAgent -o $Destination $url | Out-Null
+                if ($LASTEXITCODE -eq 0) {
+                    $downloadOk = $true
+                }
+            }
+
+            if (-not $downloadOk) {
+                continue
+            }
+
+            if (-not (Test-Path $Destination)) {
+                continue
+            }
+
+            $fileSize = (Get-Item $Destination).Length
+            if ($fileSize -lt 1048576) {
+                continue
+            }
+
+            return $true
+        }
+
+        if ($lastUrl) {
+            Write-Host "[ERROR]  Failed to download GStreamer MSI from: $lastUrl" -ForegroundColor Red
+        }
+        return $false
+    }
 
     if ($RuntimeMsi) {
         if (-not (Test-Path $RuntimeMsi)) {
@@ -164,27 +251,8 @@ function Install-GStreamerMsi {
         Copy-Item -Path $RuntimeMsi -Destination $runtimeMsiPath -Force
     } else {
         Write-Host "Downloading GStreamer runtime..." -ForegroundColor Yellow
-        $runtimeOk = $false
-        try {
-            Invoke-WebRequest -Uri $RuntimeUrl -OutFile $runtimeMsiPath -UseBasicParsing -UserAgent $userAgent
-            $runtimeOk = $true
-        } catch {
-            $runtimeOk = $false
-        }
-        if (-not $runtimeOk) {
-            try {
-                Start-BitsTransfer -Source $RuntimeUrl -Destination $runtimeMsiPath -ErrorAction Stop
-                $runtimeOk = $true
-            } catch {
-                $runtimeOk = $false
-            }
-        }
-        if (-not $runtimeOk -and (Test-Command curl.exe)) {
-            & curl.exe -L --retry 3 --user-agent $userAgent -o $runtimeMsiPath $RuntimeUrl | Out-Null
-            if ($LASTEXITCODE -eq 0) {
-                $runtimeOk = $true
-            }
-        }
+        $runtimeUrls = Get-UrlCandidates -PrimaryUrl $RuntimeUrl -Fallbacks $defaultRuntimeUrls
+        $runtimeOk = Invoke-DownloadFile -Urls $runtimeUrls -Destination $runtimeMsiPath
         if (-not $runtimeOk) {
             throw "Failed to download GStreamer runtime MSI."
         }
@@ -197,27 +265,8 @@ function Install-GStreamerMsi {
         Copy-Item -Path $DevelMsi -Destination $develMsiPath -Force
     } else {
         Write-Host "Downloading GStreamer development files..." -ForegroundColor Yellow
-        $develOk = $false
-        try {
-            Invoke-WebRequest -Uri $DevelUrl -OutFile $develMsiPath -UseBasicParsing -UserAgent $userAgent
-            $develOk = $true
-        } catch {
-            $develOk = $false
-        }
-        if (-not $develOk) {
-            try {
-                Start-BitsTransfer -Source $DevelUrl -Destination $develMsiPath -ErrorAction Stop
-                $develOk = $true
-            } catch {
-                $develOk = $false
-            }
-        }
-        if (-not $develOk -and (Test-Command curl.exe)) {
-            & curl.exe -L --retry 3 --user-agent $userAgent -o $develMsiPath $DevelUrl | Out-Null
-            if ($LASTEXITCODE -eq 0) {
-                $develOk = $true
-            }
-        }
+        $develUrls = Get-UrlCandidates -PrimaryUrl $DevelUrl -Fallbacks $defaultDevelUrls
+        $develOk = Invoke-DownloadFile -Urls $develUrls -Destination $develMsiPath
         if (-not $develOk) {
             throw "Failed to download GStreamer development MSI."
         }
