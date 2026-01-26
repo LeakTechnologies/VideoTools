@@ -24,6 +24,19 @@ For a clear, up-to-date overview of what is complete, in progress, and planned, 
 - DVD-compliant encoding and ripping tools
 - Optional AI-assisted upscaling (where supported)
 
+## Codecs and Frame Rates
+
+**Preset output formats:**
+- MP4: H.264, H.265, AV1
+- MOV: H.264, H.265, ProRes
+- MKV: Remux (copy), H.265, AV1
+- WebM: VP9, AV1
+- DVD: NTSC/PAL (MPEG-2)
+
+**Frame rate targets:**
+- Source, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60
+- Optional motion interpolation for frame-rate changes
+
 ## Quick Start
 
 ### Installation (One Command)
