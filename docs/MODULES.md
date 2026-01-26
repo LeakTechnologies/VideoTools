@@ -5,8 +5,9 @@ This document describes all the modules in VideoTools and their purpose. Each mo
 ## Core Modules
 
 ### Player ✅ CRITICAL FOUNDATION
+Embedded playback used across modules for preview and inspection.
 
-### Player ✅ CRITICAL FOUNDATION
+**Current Status:** Implemented with known performance issues (see `PLAYER_PERFORMANCE_ISSUES.md`).
 
 ### Convert ✅ IMPLEMENTED
 Convert is the primary module for video transcoding and format conversion. This handles:
@@ -24,18 +25,19 @@ Convert is the primary module for video transcoding and format conversion. This 
 
 **Current Status:** Fully implemented with DVD encoding support, auto-resolution, and professional validation system.
 
-### Merge 🔄 PLANNED
+### Merge ✅ IMPLEMENTED
 Merge joins multiple video clips into a single output file. Features include:
-- ⏳ Concatenate clips with different formats, codecs, or resolutions
-- ⏳ Automatic transcoding to unified output format
-- ⏳ Re-encoding or stream copying (when formats match)
-- ⏳ Maintains or normalizes audio levels across clips
-- ⏳ Handles mixed framerates and aspect ratios
-- ⏳ Optional transition effects between clips
+- ✅ Concatenate multiple clips into a single output
+- ✅ Format presets for copy or transcode output
+- ✅ Output folder + filename control
+- ✅ Optional chapter naming
+- ✅ DVD region/aspect settings for DVD output
+- ✅ Frame rate selection with optional motion interpolation
+- ✅ Queue-based execution with progress/logs
 
 **FFmpeg Features:** Concat demuxer/filter, stream mapping
 
-**Current Status:** Planned for dev15, UI design phase.
+**Current Status:** Implemented with queue support.
 
 ### Trim 🔄 PLANNED (Lossless-Cut Inspired)
 Trim provides frame-accurate cutting with lossless-first philosophy (inspired by Lossless-Cut). Features include:
@@ -63,22 +65,20 @@ Trim provides frame-accurate cutting with lossless-first philosophy (inspired by
 
 **FFmpeg Features:** Seeking, segment muxer, stream copying, smart re-encoding
 **Integration:** Reuses VT_Player's keyframe detector and timeline widget
-**Current Status:** Planning complete, implementation ready for dev15
+**Current Status:** Planned; depends on player stability work.
 **Inspiration:** Lossless-Cut's lossless-first philosophy with modern enhancements
 
-### Filters 🔄 PLANNED
+### Filters ✅ IMPLEMENTED
 Filters module provides video and audio processing effects:
-- ⏳ **Color Correction:** Brightness, contrast, saturation, hue, color balance
-- ⏳ **Image Enhancement:** Sharpen, blur, denoise, deband
-- ⏳ **Video Effects:** Grayscale, sepia, vignette, fade in/out
-- ⏳ **Audio Effects:** Normalize, equalize, noise reduction, tempo change
-- ⏳ **Correction:** Stabilization, deshake, lens distortion
-- ⏳ **Creative:** Speed adjustment, reverse playback, rotation/flip
-- ⏳ **Overlay:** Watermarks, logos, text, timecode burn-in
+- ✅ **Color Correction:** Brightness, contrast, saturation, hue, color balance
+- ✅ **Image Enhancement:** Sharpen, blur, denoise
+- ✅ **Video Effects:** Stylized presets and analog emulation
+- ✅ **Correction:** Crop, rotate, flip, and aspect controls
+- ✅ **Creative:** Speed and frame-rate adjustments
 
 **FFmpeg Features:** Video/audio filter graphs, complex filters
 
-**Current Status:** Planned for dev15, basic filter system design.
+**Current Status:** Implemented with FFmpeg filter chains.
 
 ### Upscale 🔄 PARTIAL
 Upscale increases video resolution using advanced scaling algorithms:
@@ -95,40 +95,35 @@ Upscale increases video resolution using advanced scaling algorithms:
 
 **Current Status:** AI integration wired (ncnn). Python backend options are documented but not yet executed.
 
-### Audio 🔄 PLANNED
-Audio module handles all audio track operations:
-- ⏳ Extract audio tracks to separate files (MP3, AAC, FLAC, WAV, OGG)
-- ⏳ Replace or add audio tracks to video
-- ⏳ Audio format conversion and codec changes
-- ⏳ Multi-track management (select, reorder, remove tracks)
-- ⏳ Volume normalization and adjustment
-- ⏳ Audio delay/sync correction
-- ⏳ Stereo/mono/surround channel mapping
-- ⏳ Sample rate and bitrate conversion
+### Audio ✅ IMPLEMENTED
+Audio module handles audio extraction from video files:
+- ✅ Extract audio tracks to separate files (MP3, AAC, FLAC, WAV, OGG)
+- ✅ Track selection and batch extraction
+- ✅ Quality presets and bitrate selection
+- ✅ Loudness normalization (LUFS/true peak targets)
 
 **FFmpeg Features:** Audio stream mapping, audio encoding, audio filters
 
-**Current Status:** Planned for dev15, basic audio operations design.
+**Current Status:** Implemented with extraction and batch tools.
 
-### Thumb 🔄 PLANNED
+### Thumb ✅ IMPLEMENTED
 Thumbnail and preview generation module:
-- ⏳ Generate single or grid thumbnails from video
-- ⏳ Contact sheet creation with customizable layouts
-- ⏳ Extract frames at specific timestamps or intervals
-- ⏳ Animated thumbnails (short preview clips)
-- ⏳ Smart scene detection for representative frames
-- ⏳ Batch thumbnail generation
-- ⏳ Custom resolution and quality settings
+- ✅ Generate single or grid thumbnails from video
+- ✅ Contact sheet creation with customizable layouts
+- ✅ Extract frames at specific timestamps or intervals
+- ✅ Batch thumbnail generation
+- ✅ Custom resolution and quality settings
 
 **FFmpeg Features:** Frame extraction, select filter, tile filter
 
-**Current Status:** Planned for dev15, thumbnail system design.
+**Current Status:** Implemented with grid and contact sheet output.
 
-### Inspect ✅ PARTIALLY IMPLEMENTED
+### Inspect ✅ IMPLEMENTED
 Comprehensive metadata viewer and editor:
 - ✅ **Technical Details:** Codec, resolution, framerate, bitrate, pixel format
 - ✅ **Stream Information:** All video/audio/subtitle streams with full details
 - ✅ **Container Metadata:** Title, artist, album, year, genre, cover art
+- ✅ **Interlacing Analysis:** Quick detection and recommendations
 - ⏳ **Advanced Info:** Color space, HDR metadata, field order, GOP structure
 - ⏳ **Chapter Viewer:** Display and edit chapter markers
 - ⏳ **Subtitle Info:** List all subtitle tracks and languages
@@ -137,7 +132,14 @@ Comprehensive metadata viewer and editor:
 
 **FFmpeg Features:** ffprobe, metadata filters
 
-**Current Status:** Basic metadata viewing implemented, advanced features planned.
+**Current Status:** Implemented with advanced features planned.
+
+### Compare ✅ IMPLEMENTED
+Side-by-side comparison of two videos with synchronized playback controls.
+
+**FFmpeg Features:** FFmpeg-backed decode pipeline
+
+**Current Status:** Implemented.
 
 ### Rip ✅ IMPLEMENTED
 Extract and convert content from optical media and disc images:
@@ -150,6 +152,17 @@ Extract and convert content from optical media and disc images:
 **FFmpeg Features:** concat demuxer, stream copy, H.264 encoding
 
 **Current Status:** Available in dev20+. Physical disc and multi-title selection are still planned.
+
+### Author ✅ IMPLEMENTED
+DVD authoring and menu generation:
+- ✅ DVD output type and region selection (NTSC/PAL/AUTO)
+- ✅ Menu templates with optional background image support
+- ✅ Chapter handling and menu layout options
+- ✅ Queue-based execution with logs and progress
+
+**FFmpeg Features:** DVD-Video encoding, muxing, and asset generation
+
+**Current Status:** Implemented for DVD output. Blu-ray is planned.
 
 ### Blu-ray 🔄 PLANNED
 Professional Blu-ray Disc authoring and encoding system:
@@ -164,7 +177,7 @@ Professional Blu-ray Disc authoring and encoding system:
 
 **FFmpeg Features:** H.264/HEVC encoding, transport stream muxing, HDR metadata
 
-**Current Status:** Comprehensive planning complete, implementation planned for dev15+. See TODO.md for detailed specifications.
+**Current Status:** Comprehensive planning complete; implementation is planned. See TODO.md for detailed specifications.
 
 ## Additional Suggested Modules
 
@@ -223,42 +236,20 @@ Extract still images from video:
 
 ## Module Coverage Summary
 
-**Current Status:** Player module is the critical foundation for all advanced features. Current implementation has fundamental A/V synchronization and frame-accurate seeking issues that block enhancement development. See PLAYER_MODULE.md for detailed architecture plan.
-
-This module set covers all major FFmpeg capabilities:
+**Current Status:** Core playback works but has known A/V sync and seeking issues. See `PLAYER_PERFORMANCE_ISSUES.md` for details.
 
 ### ✅ Currently Implemented
-- ✅ **Video/Audio Playback** - Core FFmpeg-based player with Fyne integration
-- ✅ **Transcoding and format conversion** - Full DVD encoding system
-- ✅ **Metadata viewing and editing** - Basic implementation
-- ✅ **Queue system** - Batch processing with job management
-- ✅ **Cross-platform support** - Linux, Windows (dev14)
+- ✅ **Video conversion and DVD encoding**
+- ✅ **Merge, filters, and audio extraction**
+- ✅ **Upscale (traditional + optional AI)**
+- ✅ **Metadata inspection and compare**
+- ✅ **Rip and DVD authoring**
+- ✅ **Thumbnail generation**
+- ✅ **Queue system and history**
 
-### Player 🔄 CRITICAL PRIORITY
-- ⏳ **Rock-solid Go-based player** - Single process with A/V sync, frame-accurate seeking, hardware acceleration
-- ⏳ **Chapter system integration** - Port scene detection from Author module, manual chapter support
-- ⏳ **Frame extraction pipeline** - Keyframe detection, preview system
-- ⏳ **Performance optimization** - Buffer management, adaptive timing, error recovery
-- ⏳ **Cross-platform consistency** - Linux/Windows/macOS parity
-
-### 🔄 In Development/Planned
-- 🔄 **Concatenation and merging** - Planned for dev15
-- 🔄 **Trimming and splitting** - Planned for dev15
-- 🔄 **Video/audio filtering and effects** - Planned for dev15
-- 🔄 **Scaling and upscaling** - Planned for dev16
-- 🔄 **Audio extraction and manipulation** - Planned for dev15
-- 🔄 **Thumbnail generation** - Planned for dev15
-- 🔄 **Optical media ripping** - Planned for dev16
-- 🔄 **Blu-ray authoring** - Comprehensive planning complete
-- 🔄 **Subtitle handling** - Planned for dev15
-- 🔄 **Stream management** - Planned for dev15
-- 🔄 **GIF creation** - Planned for dev16
-- 🔄 **Cropping** - Planned for dev15
-- 🔄 **Screenshot capture** - Planned for dev16
-
-### 📊 Implementation Progress
-- **Core Modules:** 1/8 fully implemented (Convert)
-- **Additional Modules:** 0/7 implemented
-- **Overall Progress:** ~12% complete
-- **Next Major Release:** dev15 (Merge, Trim, Filters modules)
-- **Future Focus:** Blu-ray professional authoring system 
+### 🔄 Planned / In Progress
+- 🔄 **Player stabilization** (single-process A/V sync, frame-accurate seeking)
+- 🔄 **Trim module**
+- 🔄 **Subtitles**
+- 🔄 **Blu-ray authoring**
+- 🔄 **Enhancement pipeline**

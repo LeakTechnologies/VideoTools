@@ -8,7 +8,10 @@ VideoTools is a modular application for video processing. While many features ar
 
 ## 🚨 Critical Known Issues
 
-*None currently*
+- **Player performance and sync issues**
+  - Video/audio playback uses separate processes and can drift.
+  - Seeking and frame pacing are not yet frame-accurate.
+  - See `PLAYER_PERFORMANCE_ISSUES.md` for details and plan.
 
 ## Module Implementation Status
 
@@ -16,16 +19,20 @@ VideoTools is a modular application for video processing. While many features ar
 
 | Module  | Status                      | Notes                                                                  |
 | :------ | :-------------------------- | :--------------------------------------------------------------------- |
-| Player  | ✅ **Implemented**            | GStreamer-based player with stable A/V sync and frame-accurate seeking. |
-| Convert | ✅ **Implemented**            | Fully implemented with DVD encoding and professional validation.       |
-| Merge   | 🔄 **Planned**                | Planned for a future release.                                          |
-| Trim    | 🔄 **Planned**                | Planned for a future release.                                          |
-| Filters | 🔄 **Planned**                | Planned for a future release.                                          |
-| Upscale | 🟡 **Partial**              | AI-based upscaling (Real-ESRGAN) is integrated.                        |
-| Audio   | 🔄 **Planned**                | Planned for a future release.                                          |
-| Thumb   | 🔄 **Planned**                | Planned for a future release.                                          |
-| Inspect | 🟡 **Partial**              | Basic metadata viewing is implemented. Advanced features are planned.  |
+| Player  | 🟡 **Implemented (Issues)**   | Core playback works but has known performance and sync issues.         |
+| Convert | ✅ **Implemented**            | Fully implemented with DVD encoding and validation.                    |
+| Merge   | ✅ **Implemented**            | Clip merge with format presets and queue support.                      |
+| Trim    | 🔄 **Planned**                | Planned for a future release (depends on player work).                 |
+| Filters | ✅ **Implemented**            | FFmpeg filter chains and stylistic presets.                            |
+| Upscale | 🟡 **Partial**              | Traditional scaling + Real-ESRGAN (ncnn) integration.                  |
+| Audio   | ✅ **Implemented**            | Audio extraction with presets and batch mode.                          |
+| Thumb   | ✅ **Implemented**            | Thumbnail/contact sheet generation.                                    |
+| Inspect | ✅ **Implemented**            | Metadata viewing with interlace detection; advanced features planned.  |
+| Compare | ✅ **Implemented**            | Side-by-side playback comparison.                                      |
 | Rip     | ✅ **Implemented**            | Ripping from `VIDEO_TS` folders and ISO images is implemented.         |
+| Author  | ✅ **Implemented**            | DVD authoring with menu templates.                                     |
+| Queue   | ✅ **Implemented**            | Job queue management with history.                                     |
+| Settings| ✅ **Implemented**            | Preferences for language and hardware acceleration.                    |
 | Blu-ray | 🔄 **Planned**                | Comprehensive planning is complete. Implementation is for a future release. |
 
 ### Suggested Modules (All Planned)
