@@ -67,6 +67,9 @@
 ### Release
 - ✅ **GitHub remote** - Added `github` SSH remote for stable build pushes.
 
+### Windows Install
+- ✅ **GStreamer MSI version** - Updated default GStreamer MSI version and added override flag in docs.
+
 ### Maintenance
 - [x] Windows installer cleanup (minimal dependency flow, ASCII output; removed Windows 11-specific detection).
 - [x] Windows installer now prompts before optional modules (Python + pip, DVD authoring tools).
