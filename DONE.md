@@ -98,6 +98,7 @@
 - [x] Added winget fallback when GStreamer MSI downloads fail.
 - [x] Defaulted GStreamer install to winget first, MSI fallback second.
 - [x] DVDStyler download failures no longer block Windows installs.
+- [x] Added winget fallback for optional DVDStyler tools before ZIP download.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.

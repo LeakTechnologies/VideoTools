@@ -40,6 +40,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Confirm mirror fallback works when the primary download returns HTML.
   - Verify winget fallback works when MSI downloads fail.
   - Confirm winget-first flow succeeds on clean Windows VM.
+  - Verify DVDStyler winget fallback sets dvdauthor/mkisofs on PATH.
 
 ## Documentation: Fix Structural Errors
 

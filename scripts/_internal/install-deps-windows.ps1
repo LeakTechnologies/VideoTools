@@ -376,6 +376,52 @@ function Ensure-DVDStylerTools {
         return
     }
 
+    function Find-DVDStylerBin {
+        $paths = @(
+            "${env:ProgramFiles}\DVDStyler\bin",
+            "${env:ProgramFiles(x86)}\DVDStyler\bin",
+            "${env:ProgramFiles}\DVDStyler",
+            "${env:ProgramFiles(x86)}\DVDStyler"
+        )
+        foreach ($path in $paths) {
+            if (-not $path) {
+                continue
+            }
+            $dvdauthor = Join-Path $path "dvdauthor.exe"
+            $mkisofs = Join-Path $path "mkisofs.exe"
+            if ((Test-Path $dvdauthor) -and (Test-Path $mkisofs)) {
+                return $path
+            }
+        }
+        return $null
+    }
+
+    function Install-DVDStylerViaWinget {
+        if (-not (Test-Command winget)) {
+            return $false
+        }
+        Write-Host "Attempting DVDStyler install via winget..." -ForegroundColor Yellow
+        $wingetArgs = @("--silent", "--accept-package-agreements", "--accept-source-agreements")
+        $wingetIds = @("DVDStyler.DVDStyler")
+        foreach ($id in $wingetIds) {
+            & winget install --id $id @wingetArgs
+            if ($LASTEXITCODE -eq 0) {
+                $binPath = Find-DVDStylerBin
+                if ($binPath) {
+                    $env:Path = "$binPath;$env:Path"
+                    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+                    if ($userPath -notmatch [Regex]::Escape($binPath)) {
+                        [Environment]::SetEnvironmentVariable("Path", "$binPath;$userPath", "User")
+                    }
+                    Write-Host "[OK]  DVD authoring tools installed via winget" -ForegroundColor Green
+                    return $true
+                }
+                return $false
+            }
+        }
+        return $false
+    }
+
     Write-Host ""
     Write-Host "Optional module: DVD authoring tools (DVDStyler portable)" -ForegroundColor Yellow
     $dvdChoice = Read-Host "Install DVD authoring tools? (y/N)"
@@ -386,6 +432,9 @@ function Ensure-DVDStylerTools {
     }
 
     Write-Host "Installing DVD authoring tools (DVDStyler portable)..." -ForegroundColor Yellow
+    if (Install-DVDStylerViaWinget) {
+        return
+    }
     if (-not (Test-Path $toolsRoot)) {
         New-Item -ItemType Directory -Force -Path $toolsRoot | Out-Null
     }
