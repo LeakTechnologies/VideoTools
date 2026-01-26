@@ -38,6 +38,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Test `scripts\_internal\install-deps-windows.ps1` Scoop flow and GStreamer MSI install on Windows 10/11.
   - Re-test GStreamer MSI download and local MSI override after variable fix.
   - Confirm mirror fallback works when the primary download returns HTML.
+  - Verify winget fallback works when MSI downloads fail.
 
 ## Documentation: Fix Structural Errors
 

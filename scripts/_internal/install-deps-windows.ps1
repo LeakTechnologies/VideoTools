@@ -244,6 +244,47 @@ function Install-GStreamerMsi {
         return $false
     }
 
+    function Install-GStreamerViaWinget {
+        param(
+            [string[]]$RuntimeIds,
+            [string[]]$DevelIds
+        )
+
+        if (-not (Test-Command winget)) {
+            return $false
+        }
+
+        Write-Host "Attempting GStreamer install via winget..." -ForegroundColor Yellow
+        $wingetArgs = @("--silent", "--accept-package-agreements", "--accept-source-agreements")
+
+        $runtimeOk = $false
+        foreach ($id in $RuntimeIds) {
+            & winget install --id $id @wingetArgs
+            if ($LASTEXITCODE -eq 0) {
+                $runtimeOk = $true
+                break
+            }
+        }
+
+        if (-not $runtimeOk) {
+            return $false
+        }
+
+        $develOk = $true
+        if ($DevelIds.Count -gt 0) {
+            $develOk = $false
+            foreach ($id in $DevelIds) {
+                & winget install --id $id @wingetArgs
+                if ($LASTEXITCODE -eq 0) {
+                    $develOk = $true
+                    break
+                }
+            }
+        }
+
+        return $develOk
+    }
+
     if ($RuntimeMsi) {
         if (-not (Test-Path $RuntimeMsi)) {
             throw "GStreamer runtime MSI not found: $RuntimeMsi"
@@ -254,6 +295,12 @@ function Install-GStreamerMsi {
         $runtimeUrls = Get-UrlCandidates -PrimaryUrl $RuntimeUrl -Fallbacks $defaultRuntimeUrls
         $runtimeOk = Invoke-DownloadFile -Urls $runtimeUrls -Destination $runtimeMsiPath
         if (-not $runtimeOk) {
+            $wingetRuntimeIds = @("GStreamer.GStreamer")
+            $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
+            if (Install-GStreamerViaWinget -RuntimeIds $wingetRuntimeIds -DevelIds $wingetDevelIds) {
+                return
+            }
+
             Write-Host "[ERROR]  Failed to download GStreamer runtime MSI." -ForegroundColor Red
             Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/" -ForegroundColor Yellow
             Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
@@ -271,6 +318,12 @@ function Install-GStreamerMsi {
         $develUrls = Get-UrlCandidates -PrimaryUrl $DevelUrl -Fallbacks $defaultDevelUrls
         $develOk = Invoke-DownloadFile -Urls $develUrls -Destination $develMsiPath
         if (-not $develOk) {
+            $wingetRuntimeIds = @("GStreamer.GStreamer")
+            $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
+            if (Install-GStreamerViaWinget -RuntimeIds $wingetRuntimeIds -DevelIds $wingetDevelIds) {
+                return
+            }
+
             Write-Host "[ERROR]  Failed to download GStreamer development MSI." -ForegroundColor Red
             Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/" -ForegroundColor Yellow
             Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
