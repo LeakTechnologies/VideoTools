@@ -2,7 +2,10 @@
 
 ## What is VideoTools?
 
-VideoTools is a professional-grade video processing application with a modern GUI. It specializes in creating **DVD-compliant videos** for authoring and distribution.
+VideoTools is a desktop video processing application built on FFmpeg.
+It provides a graphical interface for converting, inspecting, and preparing video.
+
+It includes tools for video conversion, batch processing, media inspection, merging, filtering, audio extraction, thumbnail generation, ripping, DVD-compliant output, and upscaling where supported.
 
 ## Project Status
 
@@ -10,27 +13,37 @@ VideoTools is a professional-grade video processing application with a modern GU
 
 For a clear, up-to-date overview of what is complete, in progress, and planned, please see our **[Project Status Page](docs/PROJECT_STATUS.md)**. This document provides the most accurate reflection of the project's current state.
 
+## Builds
 
-## Key Features
+- **Daily (dev):** https://git.leaktechnologies.dev/Leak_Technologies/VideoTools
+- **Stable (public):** https://github.com/LeakTechnologes/VideoTools
 
-### DVD-NTSC & DVD-PAL Output
-- **Professional MPEG-2 encoding** (720×480 @ 29.97fps for NTSC, 720×576 @ 25fps for PAL)
-- **AC-3 Dolby Digital audio** (192 kbps, 48 kHz)
-- **DVDStyler compatible** (no re-encoding warnings)
-- **PS2 compatible** (PS2-safe bitrate limits)
-- **Region-free format** (works worldwide)
 
-### Batch Processing
-- Queue multiple videos
-- Pause/resume jobs
-- Real-time progress tracking
-- Job history and persistence
+## Capabilities
 
-### Smart Features
-- Automatic framerate conversion (23.976p, 24p, 30p, 60p, VFR → 29.97fps)
-- Automatic audio resampling (any rate → 48 kHz)
-- Aspect ratio preservation with intelligent handling
-- Comprehensive validation with helpful warnings
+- Video conversion via FFmpeg
+- Queue-based batch processing
+- Media inspection and analysis
+- Merge, filters, and audio extraction
+- Thumbnail generation
+- Compare playback
+- DVD authoring, encoding, and ripping tools
+- Settings for language and hardware acceleration
+- Optional AI-assisted upscaling (where supported)
+
+## Codecs and Frame Rates
+
+**Preset output formats:**
+- MP4: H.264, H.265, AV1
+- MOV: H.264, H.265, ProRes
+- MKV: Remux (copy), H.265, AV1
+- WebM: VP9, AV1
+- DVD: NTSC/PAL (MPEG-2)
+
+**Frame rate targets:**
+- Source, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60
+- Optional motion interpolation for frame-rate changes
+- DVD presets lock to NTSC (29.97) or PAL (25) frame rates
 
 ## Quick Start
 
@@ -40,7 +53,7 @@ For a clear, up-to-date overview of what is complete, in progress, and planned, 
 bash scripts/install.sh
 ```
 
-The installer will build, install, and set up everything automatically with a guided wizard!
+The installer will build, install, and set up shell aliases.
 
 **After installation:**
 ```bash
@@ -61,7 +74,7 @@ bash scripts/run.sh
 For detailed installation options, troubleshooting, and platform-specific notes, see **INSTALLATION.md**.
 For upcoming work and priorities, see **docs/ROADMAP.md**.
 
-## How to Create a Professional DVD
+## DVD Workflow (Optional)
 
 1. **Start VideoTools** → `VideoTools`
 2. **Load a video** → Drag & drop into Convert module
@@ -72,16 +85,12 @@ For upcoming work and priorities, see **docs/ROADMAP.md**.
 7. **Encode** → Click "View Queue" → "Start Queue"
 8. **Export** → Use the .mpg file in DVDStyler
 
-Output is professional quality, ready for:
-- DVDStyler authoring (no re-encoding needed)
-- DVD menu creation
-- Burning to disc
-- PS2 playback
-
 ## Documentation
 
 **Getting Started:**
+- **PROJECT_STATUS.md** - Current implementation status
 - **INSTALLATION.md** - Comprehensive installation guide (read this first!)
+- **docs/README.md** - Documentation index
 
 **For Users:**
 - **BUILD_AND_RUN.md** - How to build and run VideoTools
@@ -148,33 +157,10 @@ go run . logs
 - Check **videotools.log** for detailed error messages
 - Use `VIDEOTOOLS_DEBUG=1` for verbose logging
 
-## Professional Use Cases
-
-- Home video archival to physical media
-- Professional DVD authoring workflows
-- Multi-region video distribution
-- Content preservation on optical media
-- PS2 compatible video creation
-
-## Professional Quality Specifications
-
-### DVD-NTSC
-- **Resolution:** 720 × 480 pixels
-- **Framerate:** 29.97 fps (NTSC standard)
-- **Video:** MPEG-2 codec, 6000 kbps
-- **Audio:** AC-3 stereo, 192 kbps, 48 kHz
-- **Regions:** USA, Canada, Japan, Australia
-
-### DVD-PAL
-- **Resolution:** 720 × 576 pixels
-- **Framerate:** 25.00 fps (PAL standard)
-- **Video:** MPEG-2 codec, 8000 kbps
-- **Audio:** AC-3 stereo, 192 kbps, 48 kHz
-- **Regions:** Europe, Africa, Asia, Australia
-
 ## Getting Help
 
 1. Read **BUILD_AND_RUN.md** for setup issues
-2. Read **DVD_USER_GUIDE.md** for how-to questions
-3. Check **videotools.log** for error details
-4. Review documentation in project root
+2. Read **docs/README.md** for module and guide links
+3. Read **DVD_USER_GUIDE.md** for DVD-specific workflows
+4. Check **videotools.log** for error details
+5. Review documentation in project root
