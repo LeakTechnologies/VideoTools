@@ -40,7 +40,7 @@ install_arch() {
 ```
 
 ### 2. Windows 11 Native Installation  
-**File**: `scripts/install-deps-windows.ps1`
+**File**: `scripts/_internal/install-deps-windows.ps1`
 
 #### New Features Added:
 - **Windows 11 Detection**: Build number 22000+ identification

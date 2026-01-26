@@ -20,5 +20,5 @@ if (-not $isAdmin) {
     exit 0
 }
 
-& "$PSScriptRoot\install-deps-windows.ps1"
+& "$PSScriptRoot\_internal\install-deps-windows.ps1"
 exit $LASTEXITCODE

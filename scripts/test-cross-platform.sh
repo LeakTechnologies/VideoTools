@@ -258,20 +258,20 @@ test_install_scripts() {
     fi
     
     # Test Windows install script enhancement
-    if [ -f "scripts/install-deps-windows.ps1" ]; then
-        if grep -q "Get-Windows11Info" scripts/install-deps-windows.ps1; then
+    if [ -f "scripts/_internal/install-deps-windows.ps1" ]; then
+        if grep -q "Get-Windows11Info" scripts/_internal/install-deps-windows.ps1; then
             echo -e "${GREEN}   ✅ Windows 11 detection function present${NC}"
         else
             echo -e "${RED}   ❌ Windows 11 detection missing${NC}"
         fi
         
-        if grep -q "Install-Windows11Native" scripts/install-deps-windows.ps1; then
+        if grep -q "Install-Windows11Native" scripts/_internal/install-deps-windows.ps1; then
             echo -e "${GREEN}   ✅ Windows 11 native install function present${NC}"
         else
             echo -e "${RED}   ❌ Windows 11 native install missing${NC}"
         fi
         
-        if grep -q "No WSL" scripts/install-deps-windows.ps1; then
+        if grep -q "No WSL" scripts/_internal/install-deps-windows.ps1; then
             echo -e "${GREEN}   ✅ No WSL requirement present${NC}"
         else
             echo -e "${YELLOW}   ⚠️  WSL dependency may still be required${NC}"

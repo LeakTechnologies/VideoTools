@@ -21,7 +21,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [X] **Windows scripts entrypoints**
   - Provide `scripts/install.ps1` and `scripts/install.bat` to avoid Git Bash pop-ups.
 - [X] **Windows setup launcher alignment**
-  - Route `setup-windows.bat` through `scripts/install.bat`.
+  - Route `scripts/_internal/setup-windows.bat` through `scripts/install.bat`.
 - [X] **Agent workflow rules**
   - Add `AGENTS.md` to enforce staging, commits, and documentation updates.
 - [ ] **Main package layout cleanup**
@@ -31,8 +31,11 @@ This file tracks upcoming features, improvements, and known issues.
   - [x] Add GitHub Actions workflow to build MSIX and upload release artifacts.
   - [ ] Wire signing step (SignTool) once certificate is available.
   - [ ] Keep Windows installer aligned with MSIX/WinGet production path.
+
+- [ ] **Git converter integration**
+  - Move git_converter workflow into the main VT UI and retire legacy scripts.
 - [ ] **Windows installer validation**
-  - Test `scripts\install-deps-windows.ps1` Scoop flow and GStreamer MSI install on Windows 10/11.
+  - Test `scripts\_internal\install-deps-windows.ps1` Scoop flow and GStreamer MSI install on Windows 10/11.
 
 ## Documentation: Fix Structural Errors
 

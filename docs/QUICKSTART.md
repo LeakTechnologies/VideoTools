@@ -21,7 +21,7 @@ Get VideoTools running in minutes!
 
    Or install Windows dependencies directly:
    ```powershell
-   .\scripts\install-deps-windows.ps1
+   .\scripts\_internal\install-deps-windows.ps1
    ```
 
 3. **Run VideoTools**:
@@ -36,7 +36,7 @@ If `VideoTools.exe` doesn't exist yet:
 **Option A - Get Pre-built Binary** (easiest):
 - Check the Releases page for pre-built Windows binaries
 - Download and extract
-- Run `setup-windows.bat`
+- Run `scripts/_internal/setup-windows.bat`
 
 **Option B - Build from Source**:
 1. Install Go 1.21+ from https://go.dev/dl/
@@ -46,7 +46,7 @@ If `VideoTools.exe` doesn't exist yet:
    set CGO_ENABLED=1
    go build -ldflags="-H windowsgui" -o VideoTools.exe
    ```
-4. Run `setup-windows.bat` to get FFmpeg
+4. Run `scripts/_internal/setup-windows.bat` to get FFmpeg
 
 ---
 
@@ -179,7 +179,7 @@ All files in one folder - can run from USB stick!
 ## Troubleshooting
 
 ### Windows: "FFmpeg not found"
-- Run `setup-windows.bat` again
+- Run `scripts/_internal/setup-windows.bat` again
 - Or manually download from: https://github.com/BtbN/FFmpeg-Builds/releases
 - Place `ffmpeg.exe` next to `VideoTools.exe`
 

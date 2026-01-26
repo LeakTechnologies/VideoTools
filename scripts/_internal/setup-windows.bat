@@ -22,7 +22,7 @@ echo Starting setup...
 echo.
 
 REM Run the scripts entrypoint (keeps Windows workflow consistent)
-call "%~dp0scripts\install.bat"
+call "%~dp0..\\install.bat"
 
 echo.
 pause

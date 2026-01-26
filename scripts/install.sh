@@ -193,11 +193,11 @@ if [ "$IS_WINDOWS" = true ]; then
             PS_ARGS+=("-SkipDvdStyler")
         fi
         if [ -n "$DVDSTYLER_ZIP" ]; then
-            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1" -DvdStylerZip "$DVDSTYLER_ZIP" "${PS_ARGS[@]}"
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/_internal/install-deps-windows.ps1" -DvdStylerZip "$DVDSTYLER_ZIP" "${PS_ARGS[@]}"
         elif [ -n "$DVDSTYLER_URL" ]; then
-            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1" -DvdStylerUrl "$DVDSTYLER_URL" "${PS_ARGS[@]}"
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/_internal/install-deps-windows.ps1" -DvdStylerUrl "$DVDSTYLER_URL" "${PS_ARGS[@]}"
         else
-            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/install-deps-windows.ps1" "${PS_ARGS[@]}"
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/_internal/install-deps-windows.ps1" "${PS_ARGS[@]}"
         fi
         if [ $? -ne 0 ]; then
             echo -e "${RED}[ERROR] Windows dependency installer failed.${NC}"
@@ -209,13 +209,13 @@ if [ "$IS_WINDOWS" = true ]; then
             echo ""
             echo "PowerShell:"
             echo "  \$env:VT_DVDSTYLER_URL=\"https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip\""
-            echo "  .\\scripts\\install-deps-windows.ps1"
+            echo "  .\\scripts\\_internal\\install-deps-windows.ps1"
             exit 1
         fi
         echo -e "${GREEN}[OK]${NC} Windows dependency installer completed"
     else
         echo -e "${RED}[ERROR] powershell.exe not found.${NC}"
-        echo "Please run: $PROJECT_ROOT\\scripts\\install-deps-windows.ps1"
+        echo "Please run: $PROJECT_ROOT\\scripts\\_internal\\install-deps-windows.ps1"
         exit 1
     fi
 else
