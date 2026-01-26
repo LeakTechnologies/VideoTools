@@ -104,6 +104,27 @@ function Add-ToUserPath {
     $env:Path = "$PathItem;$env:Path"
 }
 
+function Find-ExeInRoots {
+    param(
+        [string]$ExeName,
+        [string[]]$Roots
+    )
+    foreach ($root in $Roots) {
+        if (-not $root -or -not (Test-Path $root)) {
+            continue
+        }
+        try {
+            $match = Get-ChildItem -Path $root -Recurse -Filter $ExeName -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($match) {
+                return $match.DirectoryName
+            }
+        } catch {
+            # Ignore search errors and continue.
+        }
+    }
+    return $null
+}
+
 function Ensure-Scoop {
     if (-not (Test-Command scoop)) {
         Write-Host "Installing Scoop..." -ForegroundColor Yellow
@@ -367,6 +388,18 @@ function Install-GStreamerMsi {
         }
     }
 
+    $gstBinFromDisk = Find-ExeInRoots -ExeName "gst-launch-1.0.exe" -Roots @(
+        "$env:ProgramFiles",
+        "$env:ProgramFiles(x86)",
+        "C:\gstreamer"
+    )
+    if ($gstBinFromDisk) {
+        Add-ToUserPath -PathItem $gstBinFromDisk
+        if (Test-Command gst-launch-1.0) {
+            return
+        }
+    }
+
     if (-not $RuntimeMsi -and -not $DevelMsi) {
         $wingetRuntimeIds = @("GStreamer.GStreamer")
         $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
@@ -487,6 +520,16 @@ function Ensure-DVDStylerTools {
         $existingBin = Find-DVDStylerBin
         if ($existingBin) {
             Add-ToUserPath -PathItem $existingBin
+            $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
+        }
+    }
+    if ($needsDVDTools) {
+        $dvdBinFromDisk = Find-ExeInRoots -ExeName "dvdauthor.exe" -Roots @(
+            "$env:ProgramFiles",
+            "$env:ProgramFiles(x86)"
+        )
+        if ($dvdBinFromDisk) {
+            Add-ToUserPath -PathItem $dvdBinFromDisk
             $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
         }
     }
