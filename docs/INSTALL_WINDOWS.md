@@ -44,7 +44,7 @@ Optional flags:
 
 The installer will prompt before optional modules (Python + pip, build tools, DVD authoring tools) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
 
-If the GStreamer download fails, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`.
+If the GStreamer download fails, the installer will attempt a `winget` fallback (if installed). If that also fails, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`.
 
 > **Note:** If Windows Defender SmartScreen appears, click "More info" and then "Run anyway". This is expected as the application is not yet digitally signed.
 
