@@ -152,8 +152,8 @@ function Install-GStreamerMsi {
     $tempDir = Join-Path $env:TEMP ("gstreamer-" + [System.Guid]::NewGuid().ToString())
     New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
 
-    $runtimeMsi = Join-Path $tempDir "gstreamer-runtime.msi"
-    $develMsi = Join-Path $tempDir "gstreamer-devel.msi"
+    $runtimeMsiPath = Join-Path $tempDir "gstreamer-runtime.msi"
+    $develMsiPath = Join-Path $tempDir "gstreamer-devel.msi"
 
     $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
@@ -161,26 +161,26 @@ function Install-GStreamerMsi {
         if (-not (Test-Path $RuntimeMsi)) {
             throw "GStreamer runtime MSI not found: $RuntimeMsi"
         }
-        Copy-Item -Path $RuntimeMsi -Destination $runtimeMsi -Force
+        Copy-Item -Path $RuntimeMsi -Destination $runtimeMsiPath -Force
     } else {
         Write-Host "Downloading GStreamer runtime..." -ForegroundColor Yellow
         $runtimeOk = $false
         try {
-            Invoke-WebRequest -Uri $RuntimeUrl -OutFile $runtimeMsi -UseBasicParsing -UserAgent $userAgent
+            Invoke-WebRequest -Uri $RuntimeUrl -OutFile $runtimeMsiPath -UseBasicParsing -UserAgent $userAgent
             $runtimeOk = $true
         } catch {
             $runtimeOk = $false
         }
         if (-not $runtimeOk) {
             try {
-                Start-BitsTransfer -Source $RuntimeUrl -Destination $runtimeMsi -ErrorAction Stop
+                Start-BitsTransfer -Source $RuntimeUrl -Destination $runtimeMsiPath -ErrorAction Stop
                 $runtimeOk = $true
             } catch {
                 $runtimeOk = $false
             }
         }
         if (-not $runtimeOk -and (Test-Command curl.exe)) {
-            & curl.exe -L --retry 3 --user-agent $userAgent -o $runtimeMsi $RuntimeUrl | Out-Null
+            & curl.exe -L --retry 3 --user-agent $userAgent -o $runtimeMsiPath $RuntimeUrl | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 $runtimeOk = $true
             }
@@ -194,26 +194,26 @@ function Install-GStreamerMsi {
         if (-not (Test-Path $DevelMsi)) {
             throw "GStreamer development MSI not found: $DevelMsi"
         }
-        Copy-Item -Path $DevelMsi -Destination $develMsi -Force
+        Copy-Item -Path $DevelMsi -Destination $develMsiPath -Force
     } else {
         Write-Host "Downloading GStreamer development files..." -ForegroundColor Yellow
         $develOk = $false
         try {
-            Invoke-WebRequest -Uri $DevelUrl -OutFile $develMsi -UseBasicParsing -UserAgent $userAgent
+            Invoke-WebRequest -Uri $DevelUrl -OutFile $develMsiPath -UseBasicParsing -UserAgent $userAgent
             $develOk = $true
         } catch {
             $develOk = $false
         }
         if (-not $develOk) {
             try {
-                Start-BitsTransfer -Source $DevelUrl -Destination $develMsi -ErrorAction Stop
+                Start-BitsTransfer -Source $DevelUrl -Destination $develMsiPath -ErrorAction Stop
                 $develOk = $true
             } catch {
                 $develOk = $false
             }
         }
         if (-not $develOk -and (Test-Command curl.exe)) {
-            & curl.exe -L --retry 3 --user-agent $userAgent -o $develMsi $DevelUrl | Out-Null
+            & curl.exe -L --retry 3 --user-agent $userAgent -o $develMsiPath $DevelUrl | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 $develOk = $true
             }
@@ -223,21 +223,21 @@ function Install-GStreamerMsi {
         }
     }
 
-    if ((Get-Item $runtimeMsi).Length -lt 1048576) {
+    if ((Get-Item $runtimeMsiPath).Length -lt 1048576) {
         throw "GStreamer runtime MSI download is too small. Provide a local MSI with -GStreamerRuntimeMsi."
     }
-    if ((Get-Item $develMsi).Length -lt 1048576) {
+    if ((Get-Item $develMsiPath).Length -lt 1048576) {
         throw "GStreamer development MSI download is too small. Provide a local MSI with -GStreamerDevelMsi."
     }
 
     Write-Host "Installing GStreamer runtime..." -ForegroundColor Yellow
-    $runtime = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$runtimeMsi`" /qn /norestart" -Wait -PassThru
+    $runtime = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$runtimeMsiPath`" /qn /norestart" -Wait -PassThru
     if ($runtime.ExitCode -ne 0) {
         throw "GStreamer runtime install failed with exit code $($runtime.ExitCode)"
     }
 
     Write-Host "Installing GStreamer development files..." -ForegroundColor Yellow
-    $devel = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$develMsi`" /qn /norestart" -Wait -PassThru
+    $devel = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$develMsiPath`" /qn /norestart" -Wait -PassThru
     if ($devel.ExitCode -ne 0) {
         throw "GStreamer dev install failed with exit code $($devel.ExitCode)"
     }
