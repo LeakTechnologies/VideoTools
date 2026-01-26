@@ -39,6 +39,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Re-test GStreamer MSI download and local MSI override after variable fix.
   - Confirm mirror fallback works when the primary download returns HTML.
   - Verify winget fallback works when MSI downloads fail.
+  - Confirm winget-first flow succeeds on clean Windows VM.
 
 ## Documentation: Fix Structural Errors
 

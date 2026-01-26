@@ -285,6 +285,14 @@ function Install-GStreamerMsi {
         return $develOk
     }
 
+    if (-not $RuntimeMsi -and -not $DevelMsi) {
+        $wingetRuntimeIds = @("GStreamer.GStreamer")
+        $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
+        if (Install-GStreamerViaWinget -RuntimeIds $wingetRuntimeIds -DevelIds $wingetDevelIds) {
+            return
+        }
+    }
+
     if ($RuntimeMsi) {
         if (-not (Test-Path $RuntimeMsi)) {
             throw "GStreamer runtime MSI not found: $RuntimeMsi"
@@ -295,12 +303,6 @@ function Install-GStreamerMsi {
         $runtimeUrls = Get-UrlCandidates -PrimaryUrl $RuntimeUrl -Fallbacks $defaultRuntimeUrls
         $runtimeOk = Invoke-DownloadFile -Urls $runtimeUrls -Destination $runtimeMsiPath
         if (-not $runtimeOk) {
-            $wingetRuntimeIds = @("GStreamer.GStreamer")
-            $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
-            if (Install-GStreamerViaWinget -RuntimeIds $wingetRuntimeIds -DevelIds $wingetDevelIds) {
-                return
-            }
-
             Write-Host "[ERROR]  Failed to download GStreamer runtime MSI." -ForegroundColor Red
             Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/" -ForegroundColor Yellow
             Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
@@ -318,12 +320,6 @@ function Install-GStreamerMsi {
         $develUrls = Get-UrlCandidates -PrimaryUrl $DevelUrl -Fallbacks $defaultDevelUrls
         $develOk = Invoke-DownloadFile -Urls $develUrls -Destination $develMsiPath
         if (-not $develOk) {
-            $wingetRuntimeIds = @("GStreamer.GStreamer")
-            $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
-            if (Install-GStreamerViaWinget -RuntimeIds $wingetRuntimeIds -DevelIds $wingetDevelIds) {
-                return
-            }
-
             Write-Host "[ERROR]  Failed to download GStreamer development MSI." -ForegroundColor Red
             Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/" -ForegroundColor Yellow
             Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
@@ -480,12 +476,13 @@ function Ensure-DVDStylerTools {
         }
     }
     if (-not $downloaded) {
-        Write-Host "[ERROR]  Failed to download DVDStyler ZIP (invalid archive)" -ForegroundColor Red
+        Write-Host "[WARN]  Failed to download DVDStyler ZIP (invalid archive)" -ForegroundColor Yellow
         Write-Host "Last URL tried: $lastUrl" -ForegroundColor Yellow
         Write-Host "Tip: Set VT_DVDSTYLER_URL to a direct ZIP link and retry." -ForegroundColor Yellow
         Write-Host "Manual download page: https://sourceforge.net/projects/dvdstyler/files/DVDStyler/3.2.1/" -ForegroundColor Yellow
         Write-Host "After download, extract and ensure bin\\dvdauthor.exe and bin\\mkisofs.exe are on PATH." -ForegroundColor Yellow
-        exit 1
+        Write-Host "[SKIP] DVD authoring tools skipped due to download failure" -ForegroundColor Yellow
+        return
     }
 
     $extractRoot = Join-Path $env:TEMP ("dvdstyler-extract-" + [System.Guid]::NewGuid().ToString())
