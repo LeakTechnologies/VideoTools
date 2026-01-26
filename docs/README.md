@@ -1,8 +1,14 @@
 # VideoTools Documentation
 
-VideoTools is a professional-grade video processing suite with a modern GUI. It specializes in creating DVD-compliant videos for authoring and distribution.
+VideoTools is a desktop video processing application built on FFmpeg.
+It provides a graphical interface for converting, inspecting, and preparing video.
 
 **For a high-level overview of what is currently implemented, in progress, or planned, please see the [Project Status Page](./PROJECT_STATUS.md).**
+
+## Builds
+
+- **Daily (dev):** https://git.leaktechnologies.dev/Leak_Technologies/VideoTools
+- **Stable (public):** https://github.com/LeakTechnologes/VideoTools
 
 ## Documentation Structure
 
@@ -10,23 +16,28 @@ VideoTools is a professional-grade video processing suite with a modern GUI. It 
 
 #### ✅ Implemented
 - [Convert](convert/) - Video transcoding and format conversion with DVD presets.
-- [Inspect](inspect/) - Basic metadata viewing.
+- **Merge** - Join multiple clips with format presets and queue support.
+- **Filters** - FFmpeg filter chains and stylistic presets.
+- **Audio** - Audio extraction and batch output tools.
+- **Thumb** - Thumbnail/contact sheet generation.
+- [Inspect](inspect/) - Metadata viewing with interlacing analysis.
+- **Compare** - Side-by-side playback comparison.
 - [Rip](rip/) - Extraction from `VIDEO_TS` folders and `.iso` images.
+- **Author** - DVD authoring and menu generation.
 - [Queue System](../QUEUE_SYSTEM_GUIDE.md) - Batch processing with job management.
+- **Settings** - Preferences for language and hardware acceleration.
 
-#### 🟡 Partially Implemented / Buggy
-- **Player** - Core video playback is functional but has critical bugs blocking development.
-- **Upscale** - AI-based upscaling (Real-ESRGAN) is integrated.
+#### 🟡 Implemented With Known Issues / Partial
+- **Player** - Core playback works but has critical issues. See [PLAYER_PERFORMANCE_ISSUES.md](../PLAYER_PERFORMANCE_ISSUES.md).
+- **Upscale** - Traditional scaling plus Real-ESRGAN (ncnn) integration.
 
 #### 🔄 Planned
-- **Merge** - [PLANNED] Join multiple video clips.
 - **Trim** - [PLANNED] Cut and split videos.
-- **Filters** - [PLANNED] Video and audio effects.
-- **Audio** - [PLANNED] Audio track operations.
-- **Thumb** - [PLANNED] Thumbnail generation.
+- **Subtitles** - [PLANNED] Subtitle management.
+- **Blu-ray** - [PLANNED] Disc authoring pipeline.
+- **Enhancement** - [PLANNED] Unified enhancement pipeline (post-player).
 
 ### Additional Modules (All Planned)
-- **Subtitle** - [PLANNED] Subtitle management.
 - **Streams** - [PLANNED] Multi-stream handling.
 - **GIF** - [PLANNED] Animated GIF creation.
 - **Crop** - [PLANNED] Video cropping tools.
