@@ -1,6 +1,17 @@
 @echo off
 setlocal enabledelayedexpansion
 
+REM ----------------------------
+REM Ensure admin privileges
+REM ----------------------------
+net session >nul 2>&1
+if %ERRORLEVEL% neq 0 (
+    echo [INFO] Elevation required for Windows build tools.
+    echo        Approve the UAC prompt to continue.
+    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -ArgumentList '%*' -Verb RunAs"
+    exit /b 0
+)
+
 echo ================================================================
 echo   VideoTools Windows Build Script
 echo ================================================================

@@ -57,6 +57,8 @@ DVDStyler will attempt a `winget` install first when available. If that fails, t
 2.  Run the executable:
     - `.\VideoTools.exe`
 
+> **Note:** `scripts\build.bat` and `scripts\build.ps1` will prompt for elevation to ensure build tools are available.
+
 If you want a portable FFmpeg bundle placed next to the Windows executable, run:
 - `.\scripts\_internal\setup-windows.ps1 -Portable`
 
