@@ -84,7 +84,7 @@ var (
 	logsDirOnce     sync.Once
 	logsDirPath     string
 	feedbackBundler = utils.NewFeedbackBundler()
-	appVersion      = "v0.1.0-dev24"
+	appVersion      = "v0.1.0-dev25"
 	buildCommit     = "dev"
 
 	hwAccelProbeOnce sync.Once
