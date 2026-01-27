@@ -312,9 +312,14 @@ func (r *moduleTileRenderer) Refresh() {
 			r.lockIcon.Hide()
 		}
 	} else {
-		// Dim disabled tiles
+		// Dim disabled tiles but preserve hue
 		if c, ok := r.tile.color.(color.NRGBA); ok {
-			r.bg.FillColor = color.NRGBA{R: c.R / 3, G: c.G / 3, B: c.B / 3, A: c.A}
+			r.bg.FillColor = color.NRGBA{
+				R: uint8(float32(c.R) * 0.55),
+				G: uint8(float32(c.G) * 0.55),
+				B: uint8(float32(c.B) * 0.55),
+				A: c.A,
+			}
 		}
 		r.label.Color = color.NRGBA{R: 100, G: 100, B: 100, A: 255}
 		if r.lockIcon != nil {

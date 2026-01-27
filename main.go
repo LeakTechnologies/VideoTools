@@ -97,15 +97,15 @@ var (
 	// Convert color remains constant.
 	modulesList = []Module{
 		{"convert", "Convert", utils.MustHex("#6F42C1"), "Convert", modules.HandleConvert},           // Violet (constant)
-		{"merge", "Merge", utils.MustHex("#2E8B57"), "Convert", modules.HandleMerge},                 // Emerald green
-		{"trim", "Trim", utils.MustHex("#455A64"), "Convert", nil},                                   // Steel blue-grey
+		{"merge", "Merge", utils.MustHex("#1F6F55"), "Convert", modules.HandleMerge},                 // Deep emerald
+		{"trim", "Trim", utils.MustHex("#4A5D73"), "Convert", nil},                                   // Steel blue-violet
 		{"filters", "Filters", utils.MustHex("#005F5F"), "Convert", modules.HandleFilters},           // Deep petrol teal
 		{"upscale", "Upscale", utils.MustHex("#C2185B"), "Advanced", modules.HandleUpscale},          // Magenta
 		{"enhancement", "Enhancement", utils.MustHex("#00897B"), "Advanced", modules.HandleEnhance},  // Teal
 		{"audio", "Audio", utils.MustHex("#9A7500"), "Convert", modules.HandleAudio},                 // Dark amber
 		{"author", "Author", utils.MustHex("#C62828"), "Disc", modules.HandleAuthor},                 // Crimson red
 		{"rip", "Rip", utils.MustHex("#7A6A2F"), "Disc", modules.HandleRip},                          // Olive bronze
-		{"bluray", "Blu-Ray", utils.MustHex("#004C97"), "Disc", nil},                                 // Royal blue
+		{"bluray", "Blu-Ray", utils.MustHex("#0B4EA2"), "Disc", nil},                                 // Royal blue
 		{"subtitles", "Subtitles", utils.MustHex("#6E3B2E"), "Convert", modules.HandleSubtitles},     // Burnt copper
 		{"thumbnail", "Thumbnail", utils.MustHex("#5E35B1"), "Screenshots", modules.HandleThumbnail}, // Violet
 		{"compare", "Compare", utils.MustHex("#E64A19"), "Inspect", modules.HandleCompare},           // Vermilion
