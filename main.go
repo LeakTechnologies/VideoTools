@@ -109,7 +109,7 @@ var (
 		{"subtitles", "Subtitles", utils.MustHex("#E91E63"), "Convert", modules.HandleSubtitles},     // Pink
 		{"thumbnail", "Thumbnail", utils.MustHex("#512DA8"), "Screenshots", modules.HandleThumbnail}, // Deep purple
 		{"compare", "Compare", utils.MustHex("#F4511E"), "Inspect", modules.HandleCompare},           // Orange
-		{"inspect", "Inspect", utils.MustHex("#546E7A"), "Inspect", modules.HandleInspect},           // Slate
+		{"inspect", "Inspect", utils.MustHex("#00C853"), "Inspect", modules.HandleInspect},           // Neon green
 		{"player", "Player", utils.MustHex("#1565C0"), "Playback", modules.HandlePlayer},             // Deep blue
 		{"settings", "Settings", utils.MustHex("#6B717A"), "Settings", nil},                          // Steel grey
 	}

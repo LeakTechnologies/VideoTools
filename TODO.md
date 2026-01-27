@@ -42,6 +42,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Keep a stable player footprint before media loads.
 - [X] **Main menu palette tuning**
   - Adjust audio/compare/subtitles colors for clearer separation.
+- [X] **Main menu vibrancy pass**
+  - Remove monochrome tiles outside Settings.
 - [ ] **Main package layout cleanup**
   - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**
