@@ -1,5 +1,11 @@
 # VideoTools Changelog
 
+## v0.1.0-dev24 (January 2026)
+
+### 🎨 Main Menu Palette
+- **Rainbow+ palette refresh** - restored diverse, eye-friendly module colors with improved readability
+- **Convert color preserved** - Convert remains the visual anchor across the UI
+
 ## v0.1.0-dev23 (January 2026)
 
 ### 🎉 UI Cleanup

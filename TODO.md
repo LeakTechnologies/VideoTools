@@ -30,6 +30,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Stop playback cleanly on EOS and expose duration/FPS from GStreamer.
 - [X] **Main menu title cleanup**
   - Header shows "VideoTools" only; platform suffix moved to footer version label.
+- [X] **Main menu palette refresh**
+  - Restore a diverse, eye-friendly rainbow palette while keeping Convert constant.
 - [ ] **Main package layout cleanup**
   - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**
