@@ -38,6 +38,8 @@ func (p *GStreamerPlayer) GetCurrentTime() time.Duration { return 0 }
 func (p *GStreamerPlayer) GetFrameImage() (*image.RGBA, error) {
 	return nil, errors.New("gstreamer not available")
 }
+func (p *GStreamerPlayer) GetDuration() time.Duration { return 0 }
+func (p *GStreamerPlayer) GetFrameRate() float64     { return 0 }
 func (p *GStreamerPlayer) SetVolume(level float64) error {
 	return errors.New("gstreamer not available")
 }

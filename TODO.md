@@ -26,6 +26,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Add `AGENTS.md` to enforce staging, commits, and documentation updates.
 - [X] **Player fullscreen toggle**
   - Add fullscreen toggle to the Player module controls.
+- [X] **Player EOS handling + metadata access**
+  - Stop playback cleanly on EOS and expose duration/FPS from GStreamer.
 - [ ] **Main package layout cleanup**
   - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**
