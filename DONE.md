@@ -50,6 +50,8 @@
   - Increased tile label size and adjusted colors for better contrast.
 - ✅ **Main menu contrast tuning**
   - Audio, Rip, and Settings colors refined for legibility.
+- ✅ **Main menu layout cleanup**
+  - Removed scroll container so the main menu scales without scroll bars.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
