@@ -48,6 +48,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Assign unique hue families to each module for maximum legibility.
 - [X] **Locked tile hue preservation**
   - Keep disabled modules colored while subdued.
+- [X] **Locked hue visibility**
+  - Reduce stripe opacity and raise label brightness.
 - [ ] **Main package layout cleanup**
   - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**

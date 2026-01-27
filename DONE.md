@@ -62,6 +62,8 @@
   - Assigned unique hue families to each module for maximum legibility.
 - ✅ **Locked tile hue preservation**
   - Disabled modules stay colored while appearing subdued.
+- ✅ **Locked hue visibility**
+  - Reduced stripe opacity and raised label brightness.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
