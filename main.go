@@ -11532,6 +11532,20 @@ func (p *playSession) frameDisplayLoop() {
 			if p.gstPlayer == nil {
 				continue
 			}
+			if p.gstPlayer.State() == player.StateEOS {
+				p.mu.Lock()
+				p.paused = true
+				p.current = p.duration
+				p.frameN = int(p.duration * p.fps)
+				p.mu.Unlock()
+				if p.prog != nil {
+					p.prog(p.current)
+				}
+				if p.frameFunc != nil {
+					p.frameFunc(p.frameN)
+				}
+				return
+			}
 
 			// Get current frame from GStreamer (even when paused, for seeking)
 			frame, err := p.gstPlayer.GetFrameImage()
