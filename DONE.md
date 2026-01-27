@@ -54,6 +54,8 @@
   - Removed scroll container so the main menu scales without scroll bars.
 - ✅ **Player silhouette placeholder**
   - Player pane keeps a stable footprint before media loads.
+- ✅ **Main menu palette tuning**
+  - Adjusted audio/compare/subtitles colors for better separation.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
