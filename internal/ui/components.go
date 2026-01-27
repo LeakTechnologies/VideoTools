@@ -214,7 +214,7 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 	txt := canvas.NewText(m.label, labelColor)
 	txt.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	txt.Alignment = fyne.TextAlignCenter
-	txt.TextSize = 26
+	txt.TextSize = 28
 
 	// Lock icon for disabled modules
 	lockIcon := canvas.NewText("🔒", color.NRGBA{R: 200, G: 200, B: 200, A: 255})
@@ -300,7 +300,7 @@ func (r *moduleTileRenderer) Layout(size fyne.Size) {
 }
 
 func (r *moduleTileRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(160, 70)
+	return fyne.NewSize(170, 72)
 }
 
 func (r *moduleTileRenderer) Refresh() {

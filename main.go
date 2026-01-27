@@ -99,19 +99,19 @@ var (
 		{"convert", "Convert", utils.MustHex("#6F42C1"), "Convert", modules.HandleConvert},           // Violet (constant)
 		{"merge", "Merge", utils.MustHex("#2E7D32"), "Convert", modules.HandleMerge},                 // Green
 		{"trim", "Trim", utils.MustHex("#EF6C00"), "Convert", nil},                                   // Orange
-		{"filters", "Filters", utils.MustHex("#0097A7"), "Convert", modules.HandleFilters},           // Cyan
+		{"filters", "Filters", utils.MustHex("#00ACC1"), "Convert", modules.HandleFilters},           // Bright cyan
 		{"upscale", "Upscale", utils.MustHex("#C2185B"), "Advanced", modules.HandleUpscale},          // Magenta
 		{"enhancement", "Enhancement", utils.MustHex("#00897B"), "Advanced", modules.HandleEnhance},  // Teal
 		{"audio", "Audio", utils.MustHex("#B57B00"), "Convert", modules.HandleAudio},                 // Amber
 		{"author", "Author", utils.MustHex("#D32F2F"), "Disc", modules.HandleAuthor},                 // Red
-		{"rip", "Rip", utils.MustHex("#558B2F"), "Disc", modules.HandleRip},                          // Olive
+		{"rip", "Rip", utils.MustHex("#43A047"), "Disc", modules.HandleRip},                          // Green
 		{"bluray", "Blu-Ray", utils.MustHex("#1976D2"), "Disc", nil},                                 // Blue
 		{"subtitles", "Subtitles", utils.MustHex("#8E24AA"), "Convert", modules.HandleSubtitles},     // Purple
-		{"thumbnail", "Thumbnail", utils.MustHex("#6A1B9A"), "Screenshots", modules.HandleThumbnail}, // Purple
+		{"thumbnail", "Thumbnail", utils.MustHex("#512DA8"), "Screenshots", modules.HandleThumbnail}, // Deep purple
 		{"compare", "Compare", utils.MustHex("#F57F17"), "Inspect", modules.HandleCompare},           // Gold
 		{"inspect", "Inspect", utils.MustHex("#546E7A"), "Inspect", modules.HandleInspect},           // Slate
 		{"player", "Player", utils.MustHex("#1565C0"), "Playback", modules.HandlePlayer},             // Deep blue
-		{"settings", "Settings", utils.MustHex("#5F646B"), "Settings", nil},                          // Gunmetal
+		{"settings", "Settings", utils.MustHex("#6B717A"), "Settings", nil},                          // Steel grey
 	}
 
 	// Platform-specific configuration
@@ -10873,11 +10873,14 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	// outer.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 
 	if src == nil {
-		sizeRect := canvas.NewRectangle(color.Transparent)
-		sizeRect.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
-		icon := canvas.NewText("▶", utils.MustHex("#4CE870"))
-		icon.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-		icon.TextSize = 42
+		stage := canvas.NewRectangle(utils.MustHex("#0F1529"))
+		stage.CornerRadius = 6
+		stage.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
+
+		silhouette := canvas.NewText("▶", utils.MustHex("#4CE870"))
+		silhouette.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+		silhouette.TextSize = 42
+
 		hintMain := widget.NewLabelWithStyle("Drop a video or open one to start playback", fyne.TextAlignCenter, fyne.TextStyle{Monospace: true, Bold: true})
 		hintSub := widget.NewLabel("MP4, MOV, MKV and more")
 		hintSub.Alignment = fyne.TextAlignCenter
@@ -10921,12 +10924,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 
 		placeholder := container.NewVBox(
-			container.NewCenter(icon),
 			container.NewCenter(hintMain),
 			container.NewCenter(hintSub),
 			container.NewHBox(open, addMultiple),
 		)
-		placeholderBox := container.NewMax(sizeRect, container.NewCenter(container.NewPadded(placeholder)))
+		stageBox := container.NewMax(stage, container.NewCenter(silhouette))
+		placeholderBox := container.NewVBox(stageBox, container.NewCenter(container.NewPadded(placeholder)))
 		return container.NewMax(outer, placeholderBox)
 	}
 
