@@ -231,8 +231,8 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 		// Only draw stripes if disabled
 		if !m.enabled {
 			// Semi-transparent dark stripes
-			darkStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 100}
-			lightStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 30}
+			darkStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 70}
+			lightStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 20}
 
 			for y := 0; y < h; y++ {
 				for x := 0; x < w; x++ {
@@ -315,13 +315,13 @@ func (r *moduleTileRenderer) Refresh() {
 		// Dim disabled tiles but preserve hue
 		if c, ok := r.tile.color.(color.NRGBA); ok {
 			r.bg.FillColor = color.NRGBA{
-				R: uint8(float32(c.R) * 0.55),
-				G: uint8(float32(c.G) * 0.55),
-				B: uint8(float32(c.B) * 0.55),
+				R: uint8(float32(c.R) * 0.65),
+				G: uint8(float32(c.G) * 0.65),
+				B: uint8(float32(c.B) * 0.65),
 				A: c.A,
 			}
 		}
-		r.label.Color = color.NRGBA{R: 100, G: 100, B: 100, A: 255}
+		r.label.Color = color.NRGBA{R: 200, G: 200, B: 200, A: 255}
 		if r.lockIcon != nil {
 			r.lockIcon.Show()
 		}

@@ -11,6 +11,7 @@
 - **Module silhouette** - player area keeps a steady footprint before media loads
 - **Bespoke hues** - each module now has its own distinct color identity
 - **Locked state clarity** - disabled modules keep their hue with subdued brightness
+- **Locked hue visibility** - reduced stripe opacity and raised label brightness
 
 ## v0.1.0-dev23 (January 2026)
 
