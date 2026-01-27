@@ -44,6 +44,8 @@
   - Stop playback cleanly on EOS and expose duration/FPS from GStreamer.
 - ✅ **Main menu title cleanup**
   - Header now shows "VideoTools" only; platform suffix moved to the footer version label.
+- ✅ **Main menu palette refresh**
+  - Restored a diverse, eye-friendly rainbow palette while keeping Convert constant.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
