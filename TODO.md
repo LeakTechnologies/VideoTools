@@ -40,6 +40,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Remove the scroll container so the main menu scales without scroll bars.
 - [X] **Player silhouette placeholder**
   - Keep a stable player footprint before media loads.
+- [X] **Main menu palette tuning**
+  - Adjust audio/compare/subtitles colors for clearer separation.
 - [ ] **Main package layout cleanup**
   - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**
