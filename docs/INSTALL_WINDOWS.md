@@ -40,6 +40,8 @@ Optional flags:
 - `-SkipPython` to skip Python + pip.
 - `-SkipDvdStyler` to skip DVD authoring tools.
 - `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi` to install from local MSI files.
+- `-GStreamerVersion` to override the default MSI version (default: 1.26.10).
+- `-GStreamerRuntimeUrl` and `-GStreamerDevelUrl` to override download URLs.
 - `-GStreamerRuntimeUrl` and `-GStreamerDevelUrl` to override the download URLs.
 - `-PreferWinget` to prefer winget installs when available.
 
