@@ -24,6 +24,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Route `scripts/_internal/setup-windows.bat` through `scripts/install.bat`.
 - [X] **Agent workflow rules**
   - Add `AGENTS.md` to enforce staging, commits, and documentation updates.
+- [X] **Player fullscreen toggle**
+  - Add fullscreen toggle to the Player module controls.
 - [ ] **Main package layout cleanup**
   - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**

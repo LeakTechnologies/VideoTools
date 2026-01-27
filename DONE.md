@@ -38,6 +38,8 @@
   - `scripts/_internal/setup-windows.bat` now delegates to `scripts/install.bat` for a single Windows flow.
 - ✅ **Agent workflow rules**
   - Added `AGENTS.md` to enforce staging, commits, and documentation updates.
+- ✅ **Player fullscreen toggle**
+  - Added fullscreen toggle to the Player module controls.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
