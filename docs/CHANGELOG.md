@@ -8,6 +8,7 @@
 - **Larger tile labels** - main menu button text is larger for accessibility
 - **Contrast tuning** - audio/rip/settings colors adjusted for clarity
 - **Scrollbar removed** - main menu now scales without a scroll bar
+- **Module silhouette** - player area keeps a steady footprint before media loads
 
 ## v0.1.0-dev23 (January 2026)
 

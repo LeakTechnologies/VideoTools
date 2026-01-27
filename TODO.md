@@ -38,6 +38,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Refine Audio, Rip, and Settings colors for legibility.
 - [X] **Main menu layout cleanup**
   - Remove the scroll container so the main menu scales without scroll bars.
+- [X] **Player silhouette placeholder**
+  - Keep a stable player footprint before media loads.
 - [ ] **Main package layout cleanup**
   - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**
