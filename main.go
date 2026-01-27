@@ -155,7 +155,7 @@ func fullVersion() string {
 	return fmt.Sprintf("%s-%s", appVersion, buildCommit)
 }
 
-func mainMenuTitle() string {
+func platformTag() string {
 	platform := "linux"
 	switch runtime.GOOS {
 	case "windows":
@@ -165,7 +165,15 @@ func mainMenuTitle() string {
 	default:
 		platform = runtime.GOOS
 	}
-	return fmt.Sprintf("VIDEOTOOLS %s_%s", fullVersion(), platform)
+	return platform
+}
+
+func versionWithPlatform() string {
+	return fmt.Sprintf("%s_%s", fullVersion(), platformTag())
+}
+
+func mainMenuTitle() string {
+	return "VideoTools"
 }
 
 // moduleFooter stacks a dark status strip above a tinted action/footer band.
@@ -583,7 +591,7 @@ func generatePixelatedQRCode() (fyne.CanvasObject, error) {
 }
 
 func (s *appState) showAbout() {
-	version := fmt.Sprintf("VideoTools %s", fullVersion())
+	version := fmt.Sprintf("VideoTools %s", versionWithPlatform())
 	dev := "Leak Technologies"
 	logsPath := getLogsDir()
 
@@ -2036,7 +2044,7 @@ func (s *appState) showMainMenu() {
 	s.updateStatsBar()
 
 	// Footer with version info and a small About/Support button
-	versionLabel := widget.NewLabel(fmt.Sprintf("VideoTools %s", fullVersion()))
+	versionLabel := widget.NewLabel(fmt.Sprintf("VideoTools %s", versionWithPlatform()))
 	versionLabel.Alignment = fyne.TextAlignLeading
 	aboutBtn := widget.NewButton("About / Support", func() {
 		s.showAbout()

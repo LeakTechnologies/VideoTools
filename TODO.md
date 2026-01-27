@@ -28,6 +28,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Add fullscreen toggle to the Player module controls.
 - [X] **Player EOS handling + metadata access**
   - Stop playback cleanly on EOS and expose duration/FPS from GStreamer.
+- [X] **Main menu title cleanup**
+  - Header shows "VideoTools" only; platform suffix moved to footer version label.
 - [ ] **Main package layout cleanup**
   - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**
