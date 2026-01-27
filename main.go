@@ -11152,7 +11152,10 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 
 		fullBtn := utils.MakeIconButton("⛶", "Toggle fullscreen", func() {
-			// Placeholder: embed fullscreen toggle into playback surface later.
+			if state.window == nil {
+				return
+			}
+			state.window.SetFullScreen(!state.window.FullScreen())
 		})
 		volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
 		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))

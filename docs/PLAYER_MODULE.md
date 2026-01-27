@@ -4,6 +4,8 @@
 
 The Player module provides rock-solid video playback with frame-accurate capabilities, serving as the foundation for advanced features like enhancement, trimming, and chapter management.
 
+**Current UI:** Includes a fullscreen toggle in the player controls.
+
 ## Architecture Philosophy
 
 **Player stability is critical blocker** for all advanced features. The current implementation follows VideoTools' core principles:
