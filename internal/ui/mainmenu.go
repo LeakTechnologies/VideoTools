@@ -148,13 +148,11 @@ func BuildMainMenu(titleText string, modules []ModuleInfo, onModuleClick func(st
 	))
 
 	gridBox := container.NewVBox(rows...)
-	scroll := container.NewVScroll(gridBox)
-	// scroll.SetMinSize(fyne.NewSize(0, 0)) // Removed for flexible sizing
 
 	body := container.NewBorder(
 		header,
 		nil, nil, nil,
-		scroll,
+		gridBox,
 	)
 
 	// Wrap with HSplit if sidebar is visible

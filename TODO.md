@@ -36,6 +36,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Increase tile label size and adjust low-contrast colors.
 - [X] **Main menu contrast tuning**
   - Refine Audio, Rip, and Settings colors for legibility.
+- [X] **Main menu layout cleanup**
+  - Remove the scroll container so the main menu scales without scroll bars.
 - [ ] **Main package layout cleanup**
   - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**

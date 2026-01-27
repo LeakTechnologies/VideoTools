@@ -99,19 +99,19 @@ var (
 		{"convert", "Convert", utils.MustHex("#6F42C1"), "Convert", modules.HandleConvert},           // Violet (constant)
 		{"merge", "Merge", utils.MustHex("#2E7D32"), "Convert", modules.HandleMerge},                 // Green
 		{"trim", "Trim", utils.MustHex("#EF6C00"), "Convert", nil},                                   // Orange
-		{"filters", "Filters", utils.MustHex("#1E88E5"), "Convert", modules.HandleFilters},           // Blue
+		{"filters", "Filters", utils.MustHex("#0097A7"), "Convert", modules.HandleFilters},           // Cyan
 		{"upscale", "Upscale", utils.MustHex("#C2185B"), "Advanced", modules.HandleUpscale},          // Magenta
 		{"enhancement", "Enhancement", utils.MustHex("#00897B"), "Advanced", modules.HandleEnhance},  // Teal
 		{"audio", "Audio", utils.MustHex("#B57B00"), "Convert", modules.HandleAudio},                 // Amber
 		{"author", "Author", utils.MustHex("#D32F2F"), "Disc", modules.HandleAuthor},                 // Red
-		{"rip", "Rip", utils.MustHex("#00838F"), "Disc", modules.HandleRip},                          // Teal
+		{"rip", "Rip", utils.MustHex("#558B2F"), "Disc", modules.HandleRip},                          // Olive
 		{"bluray", "Blu-Ray", utils.MustHex("#1976D2"), "Disc", nil},                                 // Blue
 		{"subtitles", "Subtitles", utils.MustHex("#8E24AA"), "Convert", modules.HandleSubtitles},     // Purple
-		{"thumbnail", "Thumbnail", utils.MustHex("#0097A7"), "Screenshots", modules.HandleThumbnail}, // Cyan
+		{"thumbnail", "Thumbnail", utils.MustHex("#6A1B9A"), "Screenshots", modules.HandleThumbnail}, // Purple
 		{"compare", "Compare", utils.MustHex("#F57F17"), "Inspect", modules.HandleCompare},           // Gold
 		{"inspect", "Inspect", utils.MustHex("#546E7A"), "Inspect", modules.HandleInspect},           // Slate
 		{"player", "Player", utils.MustHex("#1565C0"), "Playback", modules.HandlePlayer},             // Deep blue
-		{"settings", "Settings", utils.MustHex("#5C6168"), "Settings", nil},                          // Gunmetal
+		{"settings", "Settings", utils.MustHex("#5F646B"), "Settings", nil},                          // Gunmetal
 	}
 
 	// Platform-specific configuration

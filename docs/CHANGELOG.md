@@ -7,6 +7,7 @@
 - **Convert color preserved** - Convert remains the visual anchor across the UI
 - **Larger tile labels** - main menu button text is larger for accessibility
 - **Contrast tuning** - audio/rip/settings colors adjusted for clarity
+- **Scrollbar removed** - main menu now scales without a scroll bar
 
 ## v0.1.0-dev23 (January 2026)
 
