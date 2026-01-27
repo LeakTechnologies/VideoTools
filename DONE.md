@@ -58,6 +58,8 @@
   - Adjusted audio/compare/subtitles colors for better separation.
 - ✅ **Main menu vibrancy pass**
   - Removed monochrome tiles outside Settings.
+- ✅ **Main menu bespoke hues**
+  - Assigned unique hue families to each module for maximum legibility.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 

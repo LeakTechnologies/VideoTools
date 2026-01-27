@@ -9,6 +9,7 @@
 - **Contrast tuning** - audio/rip/settings colors adjusted for clarity
 - **Scrollbar removed** - main menu now scales without a scroll bar
 - **Module silhouette** - player area keeps a steady footprint before media loads
+- **Bespoke hues** - each module now has its own distinct color identity
 
 ## v0.1.0-dev23 (January 2026)
 
