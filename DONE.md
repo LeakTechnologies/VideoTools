@@ -48,6 +48,8 @@
   - Restored a diverse, eye-friendly rainbow palette while keeping Convert constant.
 - ✅ **Main menu readability**
   - Increased tile label size and adjusted colors for better contrast.
+- ✅ **Main menu contrast tuning**
+  - Audio, Rip, and Settings colors refined for legibility.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
