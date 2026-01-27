@@ -104,14 +104,14 @@ var (
 		{"enhancement", "Enhancement", utils.MustHex("#00897B"), "Advanced", modules.HandleEnhance},  // Teal
 		{"audio", "Audio", utils.MustHex("#6D4C41"), "Convert", modules.HandleAudio},                 // Brown
 		{"author", "Author", utils.MustHex("#D32F2F"), "Disc", modules.HandleAuthor},                 // Red
-		{"rip", "Rip", utils.MustHex("#7CB342"), "Disc", modules.HandleRip},                          // Lime
-		{"bluray", "Blu-Ray", utils.MustHex("#3949AB"), "Disc", nil},                                 // Indigo
+		{"rip", "Rip", utils.MustHex("#1B5E20"), "Disc", modules.HandleRip},                          // Deep green
+		{"bluray", "Blu-Ray", utils.MustHex("#1976D2"), "Disc", nil},                                 // Blue
 		{"subtitles", "Subtitles", utils.MustHex("#8E24AA"), "Convert", modules.HandleSubtitles},     // Purple
 		{"thumbnail", "Thumbnail", utils.MustHex("#0097A7"), "Screenshots", modules.HandleThumbnail}, // Cyan
 		{"compare", "Compare", utils.MustHex("#F57F17"), "Inspect", modules.HandleCompare},           // Gold
 		{"inspect", "Inspect", utils.MustHex("#546E7A"), "Inspect", modules.HandleInspect},           // Slate
 		{"player", "Player", utils.MustHex("#1565C0"), "Playback", modules.HandlePlayer},             // Deep blue
-		{"settings", "Settings", utils.MustHex("#1A2230"), "Settings", nil},                          // Dark active
+		{"settings", "Settings", utils.MustHex("#4A4F57"), "Settings", nil},                          // Grey
 	}
 
 	// Platform-specific configuration

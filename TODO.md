@@ -32,6 +32,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Header shows "VideoTools" only; platform suffix moved to footer version label.
 - [X] **Main menu palette refresh**
   - Restore a diverse, eye-friendly rainbow palette while keeping Convert constant.
+- [X] **Main menu readability**
+  - Increase tile label size and adjust low-contrast colors.
 - [ ] **Main package layout cleanup**
   - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**
