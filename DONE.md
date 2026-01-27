@@ -56,6 +56,8 @@
   - Player pane keeps a stable footprint before media loads.
 - ✅ **Main menu palette tuning**
   - Adjusted audio/compare/subtitles colors for better separation.
+- ✅ **Main menu vibrancy pass**
+  - Removed monochrome tiles outside Settings.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
