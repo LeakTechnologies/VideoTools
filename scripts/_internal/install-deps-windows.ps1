@@ -12,6 +12,7 @@ param(
     [string]$DvdStylerZip = "",
     [switch]$SkipDvdStyler = $false,
     [switch]$PreferWinget = $false,
+    [string]$MirrorBase = "",
     [string]$GStreamerVersion = "1.26.10",
     [string]$GStreamerRuntimeUrl = "",
     [string]$GStreamerDevelUrl = "",
@@ -21,6 +22,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 $PreferWinget = $PSBoundParameters.ContainsKey("PreferWinget")
+$mirrorEnv = $env:VT_MIRROR_BASE
+if (-not $MirrorBase -and $mirrorEnv) {
+    $MirrorBase = $mirrorEnv.TrimEnd("/")
+}
 
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host "  VideoTools Windows Installation" -ForegroundColor Cyan
@@ -126,6 +131,17 @@ function Find-ExeInRoots {
         }
     }
     return $null
+}
+
+function Get-MirrorUrl {
+    param(
+        [string]$RelativePath
+    )
+    if (-not $MirrorBase) {
+        return ""
+    }
+    $path = $RelativePath.TrimStart("/")
+    return "$MirrorBase/$path"
 }
 
 function Ensure-Scoop {
@@ -239,15 +255,27 @@ function Install-GStreamerMsi {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
     $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
+    $runtimeRelative = "gstreamer/$GStreamerVersion/gstreamer-1.0-msvc-x86_64-$GStreamerVersion.msi"
+    $develRelative = "gstreamer/$GStreamerVersion/gstreamer-1.0-devel-msvc-x86_64-$GStreamerVersion.msi"
     if (-not $RuntimeUrl) {
-        $RuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-msvc-x86_64-$GStreamerVersion.msi"
+        $RuntimeUrl = Get-MirrorUrl -RelativePath $runtimeRelative
+        if (-not $RuntimeUrl) {
+            $RuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-msvc-x86_64-$GStreamerVersion.msi"
+        }
     }
     if (-not $DevelUrl) {
-        $DevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-devel-msvc-x86_64-$GStreamerVersion.msi"
+        $DevelUrl = Get-MirrorUrl -RelativePath $develRelative
+        if (-not $DevelUrl) {
+            $DevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-devel-msvc-x86_64-$GStreamerVersion.msi"
+        }
     }
 
     $defaultRuntimeUrls = @($RuntimeUrl)
     $defaultDevelUrls = @($DevelUrl)
+    if ($MirrorBase) {
+        $defaultRuntimeUrls += "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-msvc-x86_64-$GStreamerVersion.msi"
+        $defaultDevelUrls += "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-devel-msvc-x86_64-$GStreamerVersion.msi"
+    }
 
     function Get-UrlCandidates {
         param(
@@ -501,7 +529,12 @@ function Ensure-DVDStylerTools {
     $dvdstylerReferer = "https://sourceforge.net/projects/dvdstyler/"
     $dvdstylerVersion = "3.2.2"
     $dvdstylerZipName = "DVDStyler-$dvdstylerVersion-win64.zip"
-    $dvdstylerUrls = @(
+    $dvdstylerUrls = @()
+    $dvdstylerMirror = Get-MirrorUrl -RelativePath "dvdstyler/$dvdstylerVersion/$dvdstylerZipName"
+    if ($dvdstylerMirror) {
+        $dvdstylerUrls += $dvdstylerMirror
+    }
+    $dvdstylerUrls += @(
         "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
         "https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
         "https://cfhcable.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
@@ -783,7 +816,10 @@ if ($InstallBuildTools -eq $false -and $SkipBuildTools -eq $false) {
 Install-ViaScoop
 
 if (-not $SkipFFmpeg -and -not (Test-Command ffmpeg)) {
-    $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+    $ffmpegUrl = Get-MirrorUrl -RelativePath "ffmpeg/ffmpeg-master-latest-win64-gpl.zip"
+    if (-not $ffmpegUrl) {
+        $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+    }
     Install-FFmpegPortable -Url $ffmpegUrl
 }
 

@@ -16,6 +16,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - Use `-GStreamerVersion` to override the default MSI version when needed.
   - Optional DVD authoring tools default to the portable ZIP and fall back to winget, then MSYS2, if downloads fail.
   - Windows build scripts will prompt for elevation when needed.
+  - Set `VT_MIRROR_BASE` to prefer downloads from `mirror.leaktechnologies.dev` once available.
 - **[Windows Packaging Roadmap](./WINDOWS_PACKAGING.md)**
 
 ### Linux & macOS
