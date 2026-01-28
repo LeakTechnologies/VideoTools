@@ -543,6 +543,33 @@ function Ensure-DVDStylerTools {
         return $false
     }
 
+    function Install-DVDToolsViaMsys2 {
+        if (-not (Test-Command winget)) {
+            return $false
+        }
+
+        $msysBash = "C:\msys64\usr\bin\bash.exe"
+        if (-not (Test-Path $msysBash)) {
+            Write-Host "Attempting MSYS2 install via winget (DVD tools)..." -ForegroundColor Yellow
+            & winget install --id MSYS2.MSYS2 --silent --accept-package-agreements --accept-source-agreements
+        }
+
+        if (-not (Test-Path $msysBash)) {
+            return $false
+        }
+
+        Write-Host "Installing dvdauthor and cdrtools via MSYS2..." -ForegroundColor Yellow
+        & $msysBash -lc "pacman -Sy --noconfirm dvdauthor cdrtools" | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            return $false
+        }
+
+        Add-ToUserPath -PathItem "C:\msys64\usr\bin"
+        Add-ToUserPath -PathItem "C:\msys64\mingw64\bin"
+
+        return (Test-Command dvdauthor) -and (Test-Command mkisofs)
+    }
+
     $dvdstylerZip = Join-Path $env:TEMP "dvdstyler-win64.zip"
     $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
     if ($needsDVDTools) {
@@ -668,6 +695,9 @@ function Ensure-DVDStylerTools {
     }
     if (-not $downloaded) {
         if (Install-DVDStylerViaWinget -Force) {
+            return
+        }
+        if (Install-DVDToolsViaMsys2) {
             return
         }
         Write-Host "[WARN]  Failed to download DVDStyler ZIP (invalid archive)" -ForegroundColor Yellow
