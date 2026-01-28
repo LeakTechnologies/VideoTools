@@ -513,7 +513,10 @@ function Ensure-DVDStylerTools {
         "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/$dvdstylerVersion/$dvdstylerZipName/download"
     )
     function Install-DVDStylerViaWinget {
-        if (-not $PreferWinget) {
+        param(
+            [switch]$Force = $false
+        )
+        if (-not $PreferWinget -and -not $Force) {
             return $false
         }
         if (-not (Test-Command winget)) {
@@ -664,7 +667,7 @@ function Ensure-DVDStylerTools {
         }
     }
     if (-not $downloaded) {
-        if (Install-DVDStylerViaWinget) {
+        if (Install-DVDStylerViaWinget -Force) {
             return
         }
         Write-Host "[WARN]  Failed to download DVDStyler ZIP (invalid archive)" -ForegroundColor Yellow
