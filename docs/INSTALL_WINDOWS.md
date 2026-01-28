@@ -49,7 +49,7 @@ The installer will prompt before optional modules (Python + pip, build tools, DV
 
 The installer defaults to MSI downloads for GStreamer. If MSI downloads fail, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`. Use `-PreferWinget` if you want the installer to try winget first.
 
-DVDStyler defaults to the portable ZIP. If downloads fail and `-PreferWinget` is set, the installer tries winget before skipping the optional module.
+DVDStyler defaults to the portable ZIP. If downloads fail, the installer will try winget before skipping the optional module.
 
 > **Note:** If Windows Defender SmartScreen appears, click "More info" and then "Run anyway". This is expected as the application is not yet digitally signed.
 
