@@ -1,4 +1,4 @@
-# VideoTools TODO (v0.1.0-dev24+ plan)
+# VideoTools TODO (v0.1.0-dev25+ plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
@@ -24,6 +24,32 @@ This file tracks upcoming features, improvements, and known issues.
   - Route `scripts/_internal/setup-windows.bat` through `scripts/install.bat`.
 - [X] **Agent workflow rules**
   - Add `AGENTS.md` to enforce staging, commits, and documentation updates.
+- [X] **Player fullscreen toggle**
+  - Add fullscreen toggle to the Player module controls.
+- [X] **Player EOS handling + metadata access**
+  - Stop playback cleanly on EOS and expose duration/FPS from GStreamer.
+- [X] **Main menu title cleanup**
+  - Header shows "VideoTools" only; platform suffix moved to footer version label.
+- [X] **Main menu palette refresh**
+  - Restore a diverse, eye-friendly rainbow palette while keeping Convert constant.
+- [X] **Main menu readability**
+  - Increase tile label size and adjust low-contrast colors.
+- [X] **Main menu contrast tuning**
+  - Refine Audio, Rip, and Settings colors for legibility.
+- [X] **Main menu layout cleanup**
+  - Remove the scroll container so the main menu scales without scroll bars.
+- [X] **Player silhouette placeholder**
+  - Keep a stable player footprint before media loads.
+- [X] **Main menu palette tuning**
+  - Adjust audio/compare/subtitles colors for clearer separation.
+- [X] **Main menu vibrancy pass**
+  - Remove monochrome tiles outside Settings.
+- [X] **Main menu bespoke hues**
+  - Assign unique hue families to each module for maximum legibility.
+- [X] **Locked tile hue preservation**
+  - Keep disabled modules colored while subdued.
+- [X] **Locked hue visibility**
+  - Reduce stripe opacity and raise label brightness.
 - [ ] **Main package layout cleanup**
   - Move root `package main` files into `cmd/videotools` when the build is stable.
 - [ ] **Windows packaging prep**

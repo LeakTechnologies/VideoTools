@@ -48,7 +48,7 @@ type HistoryEntry struct {
 func BuildMainMenu(titleText string, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onBenchmarkClick func(), onBenchmarkHistoryClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int, hasBenchmark bool) fyne.CanvasObject {
 	title := canvas.NewText(titleText, titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	title.TextSize = 18
+	title.TextSize = 20
 
 	queueTile := buildQueueTile(queueCompleted, queueTotal, queueColor, textColor, onQueueClick)
 
@@ -112,7 +112,7 @@ func BuildMainMenu(titleText string, modules []ModuleInfo, onModuleClick func(st
 	// Helper to create category label
 	makeCatLabel := func(text string) *canvas.Text {
 		label := canvas.NewText(text, textColor)
-		label.TextSize = 10
+		label.TextSize = 12
 		label.Alignment = fyne.TextAlignLeading
 		return label
 	}
@@ -148,13 +148,11 @@ func BuildMainMenu(titleText string, modules []ModuleInfo, onModuleClick func(st
 	))
 
 	gridBox := container.NewVBox(rows...)
-	scroll := container.NewVScroll(gridBox)
-	// scroll.SetMinSize(fyne.NewSize(0, 0)) // Removed for flexible sizing
 
 	body := container.NewBorder(
 		header,
 		nil, nil, nil,
-		scroll,
+		gridBox,
 	)
 
 	// Wrap with HSplit if sidebar is visible

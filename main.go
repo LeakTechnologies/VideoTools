@@ -84,7 +84,7 @@ var (
 	logsDirOnce     sync.Once
 	logsDirPath     string
 	feedbackBundler = utils.NewFeedbackBundler()
-	appVersion      = "v0.1.0-dev24"
+	appVersion      = "v0.1.0-dev25"
 	buildCommit     = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -93,25 +93,25 @@ var (
 	nvencRuntimeOnce sync.Once
 	nvencRuntimeOK   bool
 
-	// Rainbow color palette: balanced ROYGBIV distribution (2 modules per color)
-	// Optimized for white text readability
+	// Rainbow+ palette: distinct, eye-friendly colors with high readability.
+	// Convert color remains constant.
 	modulesList = []Module{
-		{"convert", "Convert", utils.MustHex("#6F42C1"), "Convert", modules.HandleConvert},           // Purple
-		{"merge", "Merge", utils.MustHex("#2E7D32"), "Convert", modules.HandleMerge},                 // Green
-		{"trim", "Trim", utils.MustHex("#EF6C00"), "Convert", nil},                                   // Orange
-		{"filters", "Filters", utils.MustHex("#3F51B5"), "Convert", modules.HandleFilters},           // Blue
-		{"upscale", "Upscale", utils.MustHex("#C2185B"), "Advanced", modules.HandleUpscale},          // Pink
-		{"enhancement", "Enhancement", utils.MustHex("#6F42C1"), "Advanced", modules.HandleEnhance},  // Purple
-		{"audio", "Audio", utils.MustHex("#2E7D32"), "Convert", modules.HandleAudio},                 // Green
-		{"author", "Author", utils.MustHex("#EF6C00"), "Disc", modules.HandleAuthor},                 // Orange
-		{"rip", "Rip", utils.MustHex("#2E7D32"), "Disc", modules.HandleRip},                          // Green
-		{"bluray", "Blu-Ray", utils.MustHex("#3F51B5"), "Disc", nil},                                 // Blue
-		{"subtitles", "Subtitles", utils.MustHex("#C2185B"), "Convert", modules.HandleSubtitles},     // Pink
-		{"thumbnail", "Thumbnail", utils.MustHex("#3F51B5"), "Screenshots", modules.HandleThumbnail}, // Blue
-		{"compare", "Compare", utils.MustHex("#C2185B"), "Inspect", modules.HandleCompare},           // Pink
-		{"inspect", "Inspect", utils.MustHex("#6F42C1"), "Inspect", modules.HandleInspect},           // Purple
-		{"player", "Player", utils.MustHex("#3F51B5"), "Playback", modules.HandlePlayer},             // Blue
-		{"settings", "Settings", utils.MustHex("#1A2230"), "Settings", nil},                          // Dark active
+		{"convert", "Convert", utils.MustHex("#6F42C1"), "Convert", modules.HandleConvert},           // Violet (constant)
+		{"merge", "Merge", utils.MustHex("#1F6F55"), "Convert", modules.HandleMerge},                 // Deep emerald
+		{"trim", "Trim", utils.MustHex("#4A5D73"), "Convert", nil},                                   // Steel blue-violet
+		{"filters", "Filters", utils.MustHex("#005F5F"), "Convert", modules.HandleFilters},           // Deep petrol teal
+		{"upscale", "Upscale", utils.MustHex("#C2185B"), "Advanced", modules.HandleUpscale},          // Magenta
+		{"enhancement", "Enhancement", utils.MustHex("#00897B"), "Advanced", modules.HandleEnhance},  // Teal
+		{"audio", "Audio", utils.MustHex("#9A7500"), "Convert", modules.HandleAudio},                 // Dark amber
+		{"author", "Author", utils.MustHex("#C62828"), "Disc", modules.HandleAuthor},                 // Crimson red
+		{"rip", "Rip", utils.MustHex("#7A6A2F"), "Disc", modules.HandleRip},                          // Olive bronze
+		{"bluray", "Blu-Ray", utils.MustHex("#0B4EA2"), "Disc", nil},                                 // Royal blue
+		{"subtitles", "Subtitles", utils.MustHex("#6E3B2E"), "Convert", modules.HandleSubtitles},     // Burnt copper
+		{"thumbnail", "Thumbnail", utils.MustHex("#5E35B1"), "Screenshots", modules.HandleThumbnail}, // Violet
+		{"compare", "Compare", utils.MustHex("#E64A19"), "Inspect", modules.HandleCompare},           // Vermilion
+		{"inspect", "Inspect", utils.MustHex("#3A3F9F"), "Inspect", modules.HandleInspect},           // Deep indigo
+		{"player", "Player", utils.MustHex("#1565C0"), "Playback", modules.HandlePlayer},             // Cobalt blue
+		{"settings", "Settings", utils.MustHex("#6B717A"), "Settings", nil},                          // Steel grey
 	}
 
 	// Platform-specific configuration
@@ -155,7 +155,7 @@ func fullVersion() string {
 	return fmt.Sprintf("%s-%s", appVersion, buildCommit)
 }
 
-func mainMenuTitle() string {
+func platformTag() string {
 	platform := "linux"
 	switch runtime.GOOS {
 	case "windows":
@@ -165,7 +165,15 @@ func mainMenuTitle() string {
 	default:
 		platform = runtime.GOOS
 	}
-	return fmt.Sprintf("VIDEOTOOLS %s_%s", fullVersion(), platform)
+	return platform
+}
+
+func versionWithPlatform() string {
+	return fmt.Sprintf("%s_%s", fullVersion(), platformTag())
+}
+
+func mainMenuTitle() string {
+	return "VideoTools"
 }
 
 // moduleFooter stacks a dark status strip above a tinted action/footer band.
@@ -583,7 +591,7 @@ func generatePixelatedQRCode() (fyne.CanvasObject, error) {
 }
 
 func (s *appState) showAbout() {
-	version := fmt.Sprintf("VideoTools %s", fullVersion())
+	version := fmt.Sprintf("VideoTools %s", versionWithPlatform())
 	dev := "Leak Technologies"
 	logsPath := getLogsDir()
 
@@ -2036,7 +2044,7 @@ func (s *appState) showMainMenu() {
 	s.updateStatsBar()
 
 	// Footer with version info and a small About/Support button
-	versionLabel := widget.NewLabel(fmt.Sprintf("VideoTools %s", fullVersion()))
+	versionLabel := widget.NewLabel(fmt.Sprintf("VideoTools %s", versionWithPlatform()))
 	versionLabel.Alignment = fyne.TextAlignLeading
 	aboutBtn := widget.NewButton("About / Support", func() {
 		s.showAbout()
@@ -10865,11 +10873,14 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	// outer.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 
 	if src == nil {
-		sizeRect := canvas.NewRectangle(color.Transparent)
-		sizeRect.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
-		icon := canvas.NewText("▶", utils.MustHex("#4CE870"))
-		icon.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-		icon.TextSize = 42
+		stage := canvas.NewRectangle(utils.MustHex("#0F1529"))
+		stage.CornerRadius = 6
+		stage.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
+
+		silhouette := canvas.NewText("▶", utils.MustHex("#4CE870"))
+		silhouette.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+		silhouette.TextSize = 42
+
 		hintMain := widget.NewLabelWithStyle("Drop a video or open one to start playback", fyne.TextAlignCenter, fyne.TextStyle{Monospace: true, Bold: true})
 		hintSub := widget.NewLabel("MP4, MOV, MKV and more")
 		hintSub.Alignment = fyne.TextAlignCenter
@@ -10913,12 +10924,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 
 		placeholder := container.NewVBox(
-			container.NewCenter(icon),
 			container.NewCenter(hintMain),
 			container.NewCenter(hintSub),
 			container.NewHBox(open, addMultiple),
 		)
-		placeholderBox := container.NewMax(sizeRect, container.NewCenter(container.NewPadded(placeholder)))
+		stageBox := container.NewMax(stage, container.NewCenter(silhouette))
+		placeholderBox := container.NewVBox(stageBox, container.NewCenter(container.NewPadded(placeholder)))
 		return container.NewMax(outer, placeholderBox)
 	}
 
@@ -11152,7 +11163,10 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 
 		fullBtn := utils.MakeIconButton("⛶", "Toggle fullscreen", func() {
-			// Placeholder: embed fullscreen toggle into playback surface later.
+			if state.window == nil {
+				return
+			}
+			state.window.SetFullScreen(!state.window.FullScreen())
 		})
 		volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
 		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
@@ -11528,6 +11542,20 @@ func (p *playSession) frameDisplayLoop() {
 		case <-ticker.C:
 			if p.gstPlayer == nil {
 				continue
+			}
+			if p.gstPlayer.State() == player.StateEOS {
+				p.mu.Lock()
+				p.paused = true
+				p.current = p.duration
+				p.frameN = int(p.duration * p.fps)
+				p.mu.Unlock()
+				if p.prog != nil {
+					p.prog(p.current)
+				}
+				if p.frameFunc != nil {
+					p.frameFunc(p.frameN)
+				}
+				return
 			}
 
 			// Get current frame from GStreamer (even when paused, for seeking)

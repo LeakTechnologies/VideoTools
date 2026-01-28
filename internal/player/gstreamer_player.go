@@ -231,9 +231,6 @@ func (p *GStreamerPlayer) Load(path string, offset time.Duration) error {
 	C.vt_gst_set_obj(playbin, audioSinkName, C.gpointer(audioSink))
 	C.free(unsafe.Pointer(audioSinkName))
 
-	if p.volume <= 0 {
-		p.volume = 1.0
-	}
 	volumeName := C.CString("volume")
 	C.vt_gst_set_float(playbin, volumeName, C.gdouble(p.volume))
 	C.free(unsafe.Pointer(volumeName))
@@ -504,6 +501,11 @@ func (p *GStreamerPlayer) drainPendingLocked() {
 func (p *GStreamerPlayer) SetVolume(level float64) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if level < 0 {
+		level = 0
+	} else if level > 1.0 {
+		level = 1.0
+	}
 	p.volume = level
 	if p.pipeline != nil {
 		volumeName := C.CString("volume")
@@ -511,6 +513,18 @@ func (p *GStreamerPlayer) SetVolume(level float64) error {
 		C.free(unsafe.Pointer(volumeName))
 	}
 	return nil
+}
+
+func (p *GStreamerPlayer) GetDuration() time.Duration {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.duration
+}
+
+func (p *GStreamerPlayer) GetFrameRate() float64 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.fps
 }
 
 func (p *GStreamerPlayer) SetWindow(x, y, w, h int) {

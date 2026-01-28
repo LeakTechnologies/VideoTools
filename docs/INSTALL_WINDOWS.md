@@ -59,6 +59,7 @@ DVDStyler defaults to the portable ZIP. If downloads fail and `-PreferWinget` is
     - `.\scripts\build.bat`
 2.  Run the executable:
     - `.\VideoTools.exe`
+    - The Player module includes a fullscreen toggle in the playback controls.
 
 > **Note:** `scripts\build.bat` and `scripts\build.ps1` will prompt for elevation to ensure build tools are available.
 
