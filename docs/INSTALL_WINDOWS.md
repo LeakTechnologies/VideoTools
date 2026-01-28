@@ -42,7 +42,7 @@ Optional flags:
 - `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi` to install from local MSI files.
 - `-GStreamerVersion` to override the default MSI version (default: 1.26.10).
 - `-GStreamerRuntimeUrl` and `-GStreamerDevelUrl` to override download URLs.
-- `-GStreamerRuntimeUrl` and `-GStreamerDevelUrl` to override the download URLs.
+- `-MirrorBase` or `VT_MIRROR_BASE` to prefer your mirror for downloads.
 - `-PreferWinget` to prefer winget installs when available.
 
 The installer will prompt before optional modules (Python + pip, build tools, DVD authoring tools) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
@@ -50,6 +50,8 @@ The installer will prompt before optional modules (Python + pip, build tools, DV
 The installer defaults to MSI downloads for GStreamer. If MSI downloads fail, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`. Use `-PreferWinget` if you want the installer to try winget first.
 
 DVDStyler defaults to the portable ZIP. If downloads fail, the installer will try winget, then fall back to MSYS2 (dvdauthor + cdrtools) before skipping the optional module.
+
+If you host a mirror (e.g. `mirror.leaktechnologies.dev`), set `VT_MIRROR_BASE` to point at it so downloads prefer your mirror.
 
 > **Note:** If Windows Defender SmartScreen appears, click "More info" and then "Run anyway". This is expected as the application is not yet digitally signed.
 

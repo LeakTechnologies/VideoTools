@@ -139,6 +139,7 @@
 - [x] Updated DVDStyler download URLs to current release.
 - [x] DVDStyler now falls back to winget when ZIP downloads fail.
 - [x] Added MSYS2 fallback for DVD authoring tools when ZIP/winget fail.
+- [x] Added mirror base support for Windows dependency downloads.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
