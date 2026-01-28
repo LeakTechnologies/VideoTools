@@ -68,6 +68,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Confirm winget-first flow succeeds on clean Windows VM.
   - Verify DVDStyler winget fallback sets dvdauthor/mkisofs on PATH.
   - Validate MSI-first flow installs GStreamer and DVDStyler without winget.
+  - Validate that GStreamer devel MSI is skipped unless build tools are selected.
 
 ## Documentation: Fix Structural Errors
 
