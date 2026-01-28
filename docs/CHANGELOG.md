@@ -1,5 +1,18 @@
 # VideoTools Changelog
 
+## v0.1.0-dev24 (January 2026)
+
+### 🎨 Main Menu Palette
+- **Rainbow+ palette refresh** - restored diverse, eye-friendly module colors with improved readability
+- **Convert color preserved** - Convert remains the visual anchor across the UI
+- **Larger tile labels** - main menu button text is larger for accessibility
+- **Contrast tuning** - audio/rip/settings colors adjusted for clarity
+- **Scrollbar removed** - main menu now scales without a scroll bar
+- **Module silhouette** - player area keeps a steady footprint before media loads
+- **Bespoke hues** - each module now has its own distinct color identity
+- **Locked state clarity** - disabled modules keep their hue with subdued brightness
+- **Locked hue visibility** - reduced stripe opacity and raised label brightness
+
 ## v0.1.0-dev23 (January 2026)
 
 ### 🎉 UI Cleanup

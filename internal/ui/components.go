@@ -214,7 +214,7 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 	txt := canvas.NewText(m.label, labelColor)
 	txt.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	txt.Alignment = fyne.TextAlignCenter
-	txt.TextSize = 20
+	txt.TextSize = 28
 
 	// Lock icon for disabled modules
 	lockIcon := canvas.NewText("🔒", color.NRGBA{R: 200, G: 200, B: 200, A: 255})
@@ -231,8 +231,8 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 		// Only draw stripes if disabled
 		if !m.enabled {
 			// Semi-transparent dark stripes
-			darkStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 100}
-			lightStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 30}
+			darkStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 70}
+			lightStripe := color.NRGBA{R: 0, G: 0, B: 0, A: 20}
 
 			for y := 0; y < h; y++ {
 				for x := 0; x < w; x++ {
@@ -300,7 +300,7 @@ func (r *moduleTileRenderer) Layout(size fyne.Size) {
 }
 
 func (r *moduleTileRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(135, 58)
+	return fyne.NewSize(170, 72)
 }
 
 func (r *moduleTileRenderer) Refresh() {
@@ -312,11 +312,16 @@ func (r *moduleTileRenderer) Refresh() {
 			r.lockIcon.Hide()
 		}
 	} else {
-		// Dim disabled tiles
+		// Dim disabled tiles but preserve hue
 		if c, ok := r.tile.color.(color.NRGBA); ok {
-			r.bg.FillColor = color.NRGBA{R: c.R / 3, G: c.G / 3, B: c.B / 3, A: c.A}
+			r.bg.FillColor = color.NRGBA{
+				R: uint8(float32(c.R) * 0.65),
+				G: uint8(float32(c.G) * 0.65),
+				B: uint8(float32(c.B) * 0.65),
+				A: c.A,
+			}
 		}
-		r.label.Color = color.NRGBA{R: 100, G: 100, B: 100, A: 255}
+		r.label.Color = color.NRGBA{R: 200, G: 200, B: 200, A: 255}
 		if r.lockIcon != nil {
 			r.lockIcon.Show()
 		}

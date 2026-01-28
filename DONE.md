@@ -38,6 +38,32 @@
   - `scripts/_internal/setup-windows.bat` now delegates to `scripts/install.bat` for a single Windows flow.
 - ✅ **Agent workflow rules**
   - Added `AGENTS.md` to enforce staging, commits, and documentation updates.
+- ✅ **Player fullscreen toggle**
+  - Added fullscreen toggle to the Player module controls.
+- ✅ **Player EOS handling + metadata access**
+  - Stop playback cleanly on EOS and expose duration/FPS from GStreamer.
+- ✅ **Main menu title cleanup**
+  - Header now shows "VideoTools" only; platform suffix moved to the footer version label.
+- ✅ **Main menu palette refresh**
+  - Restored a diverse, eye-friendly rainbow palette while keeping Convert constant.
+- ✅ **Main menu readability**
+  - Increased tile label size and adjusted colors for better contrast.
+- ✅ **Main menu contrast tuning**
+  - Audio, Rip, and Settings colors refined for legibility.
+- ✅ **Main menu layout cleanup**
+  - Removed scroll container so the main menu scales without scroll bars.
+- ✅ **Player silhouette placeholder**
+  - Player pane keeps a stable footprint before media loads.
+- ✅ **Main menu palette tuning**
+  - Adjusted audio/compare/subtitles colors for better separation.
+- ✅ **Main menu vibrancy pass**
+  - Removed monochrome tiles outside Settings.
+- ✅ **Main menu bespoke hues**
+  - Assigned unique hue families to each module for maximum legibility.
+- ✅ **Locked tile hue preservation**
+  - Disabled modules stay colored while appearing subdued.
+- ✅ **Locked hue visibility**
+  - Reduced stripe opacity and raised label brightness.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
