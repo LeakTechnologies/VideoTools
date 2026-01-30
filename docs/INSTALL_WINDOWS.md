@@ -66,7 +66,7 @@ Whisper uses the Leak Technologies mirror by default and can be overridden with 
 ### Step 3: Build and Run VideoTools
 
 1.  Build the app:
-    - `.\scripts\build.bat`
+    - `.\scripts\build.bat` (delegates to `build.ps1` and handles elevation)
 2.  Run the executable:
     - `.\VideoTools.exe`
     - The Player module includes a fullscreen toggle in the playback controls.
