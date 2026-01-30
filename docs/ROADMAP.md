@@ -41,6 +41,7 @@ This roadmap is intentionally lightweight. It captures the next few high-priorit
   - Feature/Extras/Gallery content types with subtype grouping
   - Chapter thumbnails auto-generated for Feature only
   - Galleries authored as still-image slideshows under Extras
+  - Cross-platform DVD authoring parity (same dvdauthor XML + ISO flags)
 
 ## Next (dev25+)
 

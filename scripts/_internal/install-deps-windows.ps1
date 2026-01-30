@@ -12,7 +12,6 @@ param(
     [string]$DvdStylerZip = "",
     [switch]$SkipDvdStyler = $false,
     [switch]$PreferWinget = $false,
-    [string]$MirrorBase = "",
     [string]$GStreamerVersion = "1.26.10",
     [string]$GStreamerRuntimeUrl = "",
     [string]$GStreamerDevelUrl = "",
@@ -22,10 +21,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 $PreferWinget = $PSBoundParameters.ContainsKey("PreferWinget")
-$mirrorEnv = $env:VT_MIRROR_BASE
-if (-not $MirrorBase -and $mirrorEnv) {
-    $MirrorBase = $mirrorEnv.TrimEnd("/")
-}
 
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host "  VideoTools Windows Installation" -ForegroundColor Cyan
@@ -133,17 +128,6 @@ function Find-ExeInRoots {
     return $null
 }
 
-function Get-MirrorUrl {
-    param(
-        [string]$RelativePath
-    )
-    if (-not $MirrorBase) {
-        return ""
-    }
-    $path = $RelativePath.TrimStart("/")
-    return "$MirrorBase/$path"
-}
-
 function Ensure-Scoop {
     if (-not (Test-Command scoop)) {
         Write-Host "Installing Scoop..." -ForegroundColor Yellow
@@ -236,8 +220,7 @@ function Install-GStreamerMsi {
         [string]$RuntimeUrl,
         [string]$DevelUrl,
         [string]$RuntimeMsi,
-        [string]$DevelMsi,
-        [switch]$InstallDevel = $false
+        [string]$DevelMsi
     )
 
     $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -252,37 +235,19 @@ function Install-GStreamerMsi {
 
     $runtimeMsiPath = Join-Path $tempDir "gstreamer-runtime.msi"
     $develMsiPath = Join-Path $tempDir "gstreamer-devel.msi"
-    $installDevel = $InstallDevel -or $DevelMsi -or $DevelUrl
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
     $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 
-    $runtimeRelative = "gstreamer/$GStreamerVersion/gstreamer-1.0-msvc-x86_64-$GStreamerVersion.msi"
-    $develRelative = "gstreamer/$GStreamerVersion/gstreamer-1.0-devel-msvc-x86_64-$GStreamerVersion.msi"
     if (-not $RuntimeUrl) {
-        $RuntimeUrl = Get-MirrorUrl -RelativePath $runtimeRelative
-        if (-not $RuntimeUrl) {
-            $RuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-msvc-x86_64-$GStreamerVersion.msi"
-        }
+        $RuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-msvc-x86_64-$GStreamerVersion.msi"
     }
-    if ($installDevel -and -not $DevelUrl) {
-        $DevelUrl = Get-MirrorUrl -RelativePath $develRelative
-        if (-not $DevelUrl) {
-            $DevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-devel-msvc-x86_64-$GStreamerVersion.msi"
-        }
+    if (-not $DevelUrl) {
+        $DevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-devel-msvc-x86_64-$GStreamerVersion.msi"
     }
 
     $defaultRuntimeUrls = @($RuntimeUrl)
-    $defaultDevelUrls = @()
-    if ($installDevel) {
-        $defaultDevelUrls += $DevelUrl
-    }
-    if ($MirrorBase) {
-        $defaultRuntimeUrls += "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-msvc-x86_64-$GStreamerVersion.msi"
-        if ($installDevel) {
-            $defaultDevelUrls += "https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/gstreamer-1.0-devel-msvc-x86_64-$GStreamerVersion.msi"
-        }
-    }
+    $defaultDevelUrls = @($DevelUrl)
 
     function Get-UrlCandidates {
         param(
@@ -444,10 +409,7 @@ function Install-GStreamerMsi {
 
     if ($PreferWinget -and -not $RuntimeMsi -and -not $DevelMsi) {
         $wingetRuntimeIds = @("GStreamer.GStreamer")
-        $wingetDevelIds = @()
-        if ($installDevel) {
-            $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
-        }
+        $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
         if (Install-GStreamerViaWinget -RuntimeIds $wingetRuntimeIds -DevelIds $wingetDevelIds) {
             return
         }
@@ -477,36 +439,34 @@ function Install-GStreamerMsi {
         }
     }
 
-    if ($installDevel) {
-        if ($DevelMsi) {
-            if (-not (Test-Path $DevelMsi)) {
-                throw "GStreamer development MSI not found: $DevelMsi"
-            }
-            Copy-Item -Path $DevelMsi -Destination $develMsiPath -Force
-        } else {
-            Write-Host "Downloading GStreamer development files..." -ForegroundColor Yellow
-            $develUrls = Get-UrlCandidates -PrimaryUrl $DevelUrl -Fallbacks $defaultDevelUrls
-            $develOk = Invoke-DownloadFile -Urls $develUrls -Destination $develMsiPath
-            if (-not $develOk) {
-                Write-Host "[ERROR]  Failed to download GStreamer development MSI." -ForegroundColor Red
-                Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/" -ForegroundColor Yellow
-                Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
-                if (-not $PreferWinget) {
-                    $wingetRuntimeIds = @("GStreamer.GStreamer")
-                    $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
-                    if (Install-GStreamerViaWinget -RuntimeIds $wingetRuntimeIds -DevelIds $wingetDevelIds) {
-                        return
-                    }
+    if ($DevelMsi) {
+        if (-not (Test-Path $DevelMsi)) {
+            throw "GStreamer development MSI not found: $DevelMsi"
+        }
+        Copy-Item -Path $DevelMsi -Destination $develMsiPath -Force
+    } else {
+        Write-Host "Downloading GStreamer development files..." -ForegroundColor Yellow
+        $develUrls = Get-UrlCandidates -PrimaryUrl $DevelUrl -Fallbacks $defaultDevelUrls
+        $develOk = Invoke-DownloadFile -Urls $develUrls -Destination $develMsiPath
+        if (-not $develOk) {
+            Write-Host "[ERROR]  Failed to download GStreamer development MSI." -ForegroundColor Red
+            Write-Host "Manual download: https://gstreamer.freedesktop.org/data/pkg/windows/$GStreamerVersion/msvc/" -ForegroundColor Yellow
+            Write-Host "Then re-run with -GStreamerRuntimeMsi and -GStreamerDevelMsi." -ForegroundColor Yellow
+            if (-not $PreferWinget) {
+                $wingetRuntimeIds = @("GStreamer.GStreamer")
+                $wingetDevelIds = @("GStreamer.GStreamer.Devel", "GStreamer.GStreamer.Dev")
+                if (Install-GStreamerViaWinget -RuntimeIds $wingetRuntimeIds -DevelIds $wingetDevelIds) {
+                    return
                 }
-                throw "Failed to download GStreamer development MSI."
             }
+            throw "Failed to download GStreamer development MSI."
         }
     }
 
     if ((Get-Item $runtimeMsiPath).Length -lt 1048576) {
         throw "GStreamer runtime MSI download is too small. Provide a local MSI with -GStreamerRuntimeMsi."
     }
-    if ($installDevel -and (Get-Item $develMsiPath).Length -lt 1048576) {
+    if ((Get-Item $develMsiPath).Length -lt 1048576) {
         throw "GStreamer development MSI download is too small. Provide a local MSI with -GStreamerDevelMsi."
     }
 
@@ -516,12 +476,10 @@ function Install-GStreamerMsi {
         throw "GStreamer runtime install failed with exit code $($runtime.ExitCode)"
     }
 
-    if ($installDevel) {
-        Write-Host "Installing GStreamer development files..." -ForegroundColor Yellow
-        $devel = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$develMsiPath`" /qn /norestart" -Wait -PassThru
-        if ($devel.ExitCode -ne 0) {
-            throw "GStreamer dev install failed with exit code $($devel.ExitCode)"
-        }
+    Write-Host "Installing GStreamer development files..." -ForegroundColor Yellow
+    $devel = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$develMsiPath`" /qn /norestart" -Wait -PassThru
+    if ($devel.ExitCode -ne 0) {
+        throw "GStreamer dev install failed with exit code $($devel.ExitCode)"
     }
 
     $gstBin = Find-GStreamerBin
@@ -543,12 +501,8 @@ function Ensure-DVDStylerTools {
     $dvdstylerReferer = "https://sourceforge.net/projects/dvdstyler/"
     $dvdstylerVersion = "3.2.2"
     $dvdstylerZipName = "DVDStyler-$dvdstylerVersion-win64.zip"
-    $dvdstylerUrls = @()
-    $dvdstylerMirror = Get-MirrorUrl -RelativePath "dvdstyler/$dvdstylerVersion/$dvdstylerZipName"
-    if ($dvdstylerMirror) {
-        $dvdstylerUrls += $dvdstylerMirror
-    }
-    $dvdstylerUrls += @(
+    $dvdstylerUrls = @(
+        "https://git.leaktechnologies.dev/lt_mirror/DVDStyler/src/branch/master/DVDStyler-3.2.1-win64.exe",
         "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
         "https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
         "https://cfhcable.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
@@ -560,10 +514,7 @@ function Ensure-DVDStylerTools {
         "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/$dvdstylerVersion/$dvdstylerZipName/download"
     )
     function Install-DVDStylerViaWinget {
-        param(
-            [switch]$Force = $false
-        )
-        if (-not $PreferWinget -and -not $Force) {
+        if (-not $PreferWinget) {
             return $false
         }
         if (-not (Test-Command winget)) {
@@ -590,34 +541,8 @@ function Ensure-DVDStylerTools {
         return $false
     }
 
-    function Install-DVDToolsViaMsys2 {
-        if (-not (Test-Command winget)) {
-            return $false
-        }
-
-        $msysBash = "C:\msys64\usr\bin\bash.exe"
-        if (-not (Test-Path $msysBash)) {
-            Write-Host "Attempting MSYS2 install via winget (DVD tools)..." -ForegroundColor Yellow
-            & winget install --id MSYS2.MSYS2 --silent --accept-package-agreements --accept-source-agreements
-        }
-
-        if (-not (Test-Path $msysBash)) {
-            return $false
-        }
-
-        Write-Host "Installing dvdauthor and cdrtools via MSYS2..." -ForegroundColor Yellow
-        & $msysBash -lc "pacman -Sy --noconfirm dvdauthor cdrtools" | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            return $false
-        }
-
-        Add-ToUserPath -PathItem "C:\msys64\usr\bin"
-        Add-ToUserPath -PathItem "C:\msys64\mingw64\bin"
-
-        return (Test-Command dvdauthor) -and (Test-Command mkisofs)
-    }
-
     $dvdstylerZip = Join-Path $env:TEMP "dvdstyler-win64.zip"
+    $dvdstylerExe = Join-Path $env:TEMP "dvdstyler-win64.exe"
     $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
     if ($needsDVDTools) {
         $existingBin = Find-DVDStylerBin
@@ -668,12 +593,40 @@ function Ensure-DVDStylerTools {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
     $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     $downloaded = $false
+    $downloadedType = ""
+    $downloadedPath = ""
     $lastUrl = ""
     if ($dvdZipProvided) {
         if (Test-Path $DvdStylerZip) {
             Copy-Item -Path $DvdStylerZip -Destination $dvdstylerZip -Force
-            $downloaded = $true
             $lastUrl = $DvdStylerZip
+            try {
+                $fs = [System.IO.File]::OpenRead($dvdstylerZip)
+                try {
+                    $fileSize = (Get-Item $dvdstylerZip).Length
+                    if ($fileSize -ge 102400) {
+                        $sig = New-Object byte[] 2
+                        $null = $fs.Read($sig, 0, 2)
+                        if ($sig[0] -eq 0x50 -and $sig[1] -eq 0x4B) {
+                            $downloaded = $true
+                            $downloadedType = "zip"
+                            $downloadedPath = $dvdstylerZip
+                        } elseif ($sig[0] -eq 0x4D -and $sig[1] -eq 0x5A) {
+                            $downloaded = $true
+                            $downloadedType = "exe"
+                            $downloadedPath = $dvdstylerZip
+                        }
+                    }
+                } finally {
+                    $fs.Close()
+                }
+            } catch {
+                # Fall through to error handling below.
+            }
+            if (-not $downloaded) {
+                Write-Host "[ERROR]  Provided DVDStyler archive is not a valid ZIP or EXE: $DvdStylerZip" -ForegroundColor Red
+                exit 1
+            }
         } else {
             Write-Host "[ERROR]  Provided DVDStyler ZIP not found: $DvdStylerZip" -ForegroundColor Red
             exit 1
@@ -682,13 +635,19 @@ function Ensure-DVDStylerTools {
         foreach ($url in $dvdstylerUrls) {
             $lastUrl = $url
             $downloadOk = $false
-            if (Test-Path $dvdstylerZip) {
-                Remove-Item -Force $dvdstylerZip
+            $downloadTarget = $dvdstylerZip
+            $acceptHeader = "application/zip"
+            if ($url.ToLower().EndsWith(".exe")) {
+                $downloadTarget = $dvdstylerExe
+                $acceptHeader = "application/octet-stream"
+            }
+            if (Test-Path $downloadTarget) {
+                Remove-Item -Force $downloadTarget
             }
             try {
-                Invoke-WebRequest -Uri $url -OutFile $dvdstylerZip -UseBasicParsing -MaximumRedirection 10 -UserAgent $userAgent -Headers @{
+                Invoke-WebRequest -Uri $url -OutFile $downloadTarget -UseBasicParsing -MaximumRedirection 10 -UserAgent $userAgent -Headers @{
                     "Referer" = $dvdstylerReferer
-                    "Accept"  = "application/zip"
+                    "Accept"  = $acceptHeader
                 }
                 $downloadOk = $true
             } catch {
@@ -697,7 +656,7 @@ function Ensure-DVDStylerTools {
 
             if (-not $downloadOk) {
                 try {
-                    Start-BitsTransfer -Source $url -Destination $dvdstylerZip -ErrorAction Stop
+                    Start-BitsTransfer -Source $url -Destination $downloadTarget -ErrorAction Stop
                     $downloadOk = $true
                 } catch {
                     $downloadOk = $false
@@ -706,7 +665,7 @@ function Ensure-DVDStylerTools {
 
             if (-not $downloadOk -and (Test-Command curl.exe)) {
                 try {
-                    & curl.exe -L --retry 3 --user-agent $userAgent -o $dvdstylerZip $url | Out-Null
+                    & curl.exe -L --retry 3 --user-agent $userAgent -o $downloadTarget $url | Out-Null
                     if ($LASTEXITCODE -eq 0) {
                         $downloadOk = $true
                     }
@@ -715,14 +674,14 @@ function Ensure-DVDStylerTools {
                 }
             }
 
-            if (-not $downloadOk -or -not (Test-Path $dvdstylerZip)) {
+            if (-not $downloadOk -or -not (Test-Path $downloadTarget)) {
                 continue
             }
 
             try {
-                $fs = [System.IO.File]::OpenRead($dvdstylerZip)
+                $fs = [System.IO.File]::OpenRead($downloadTarget)
                 try {
-                    $fileSize = (Get-Item $dvdstylerZip).Length
+                    $fileSize = (Get-Item $downloadTarget).Length
                     if ($fileSize -lt 102400) {
                         continue
                     }
@@ -730,6 +689,14 @@ function Ensure-DVDStylerTools {
                     $null = $fs.Read($sig, 0, 2)
                     if ($sig[0] -eq 0x50 -and $sig[1] -eq 0x4B) {
                         $downloaded = $true
+                        $downloadedType = "zip"
+                        $downloadedPath = $downloadTarget
+                        break
+                    }
+                    if ($sig[0] -eq 0x4D -and $sig[1] -eq 0x5A) {
+                        $downloaded = $true
+                        $downloadedType = "exe"
+                        $downloadedPath = $downloadTarget
                         break
                     }
                 } finally {
@@ -741,18 +708,47 @@ function Ensure-DVDStylerTools {
         }
     }
     if (-not $downloaded) {
-        if (Install-DVDStylerViaWinget -Force) {
+        if (Install-DVDStylerViaWinget) {
             return
         }
-        if (Install-DVDToolsViaMsys2) {
-            return
-        }
-        Write-Host "[WARN]  Failed to download DVDStyler ZIP (invalid archive)" -ForegroundColor Yellow
+        Write-Host "[WARN]  Failed to download DVDStyler archive (invalid ZIP/EXE)" -ForegroundColor Yellow
         Write-Host "Last URL tried: $lastUrl" -ForegroundColor Yellow
         Write-Host "Tip: Set VT_DVDSTYLER_URL to a direct ZIP link and retry." -ForegroundColor Yellow
         Write-Host "Manual download page: https://sourceforge.net/projects/dvdstyler/files/DVDStyler/$dvdstylerVersion/" -ForegroundColor Yellow
         Write-Host "After download, extract and ensure bin\\dvdauthor.exe and bin\\mkisofs.exe are on PATH." -ForegroundColor Yellow
         Write-Host "[SKIP] DVD authoring tools skipped due to download failure" -ForegroundColor Yellow
+        return
+    }
+
+    if ($downloadedType -eq "exe") {
+        Write-Host "Installing DVDStyler from installer..." -ForegroundColor Yellow
+        try {
+            $proc = Start-Process -FilePath $downloadedPath -ArgumentList "/S" -Wait -PassThru
+            if ($proc.ExitCode -ne 0) {
+                throw "DVDStyler installer returned exit code $($proc.ExitCode)"
+            }
+        } catch {
+            Write-Host "[WARN]  DVDStyler installer failed: $($_.Exception.Message)" -ForegroundColor Yellow
+            if (Install-DVDStylerViaWinget) {
+                return
+            }
+            Write-Host "[SKIP] DVD authoring tools skipped due to installer failure" -ForegroundColor Yellow
+            return
+        } finally {
+            if (Test-Path $downloadedPath) {
+                Remove-Item -Force $downloadedPath
+            }
+        }
+        $binPath = Find-DVDStylerBin
+        if ($binPath) {
+            Add-ToUserPath -PathItem $binPath
+        }
+        if (Test-Command dvdauthor -and Test-Command mkisofs) {
+            Write-Host "[OK]  DVD authoring tools installed via DVDStyler installer" -ForegroundColor Green
+            return
+        }
+        Write-Host "[WARN]  DVDStyler installer did not expose dvdauthor/mkisofs on PATH." -ForegroundColor Yellow
+        Write-Host "[SKIP] DVD authoring tools skipped after installer" -ForegroundColor Yellow
         return
     }
 
@@ -830,16 +826,13 @@ if ($InstallBuildTools -eq $false -and $SkipBuildTools -eq $false) {
 Install-ViaScoop
 
 if (-not $SkipFFmpeg -and -not (Test-Command ffmpeg)) {
-    $ffmpegUrl = Get-MirrorUrl -RelativePath "ffmpeg/ffmpeg-master-latest-win64-gpl.zip"
-    if (-not $ffmpegUrl) {
-        $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
-    }
+    $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
     Install-FFmpegPortable -Url $ffmpegUrl
 }
 
 if (-not $SkipGStreamer -and -not (Test-Command gst-launch-1.0)) {
     Write-Host "GStreamer is required for VideoTools playback." -ForegroundColor Yellow
-    Install-GStreamerMsi -RuntimeUrl $GStreamerRuntimeUrl -DevelUrl $GStreamerDevelUrl -RuntimeMsi $GStreamerRuntimeMsi -DevelMsi $GStreamerDevelMsi -InstallDevel:$InstallBuildTools
+    Install-GStreamerMsi -RuntimeUrl $GStreamerRuntimeUrl -DevelUrl $GStreamerDevelUrl -RuntimeMsi $GStreamerRuntimeMsi -DevelMsi $GStreamerDevelMsi
 }
 
 Ensure-DVDStylerTools

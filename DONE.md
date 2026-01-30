@@ -137,10 +137,8 @@
 - [x] Added fallback disk search for GStreamer/DVDStyler executables.
 - [x] Defaulted Windows installer back to MSI-first with optional winget.
 - [x] Updated DVDStyler download URLs to current release.
-- [x] DVDStyler now falls back to winget when ZIP downloads fail.
-- [x] Added MSYS2 fallback for DVD authoring tools when ZIP/winget fail.
-- [x] Added mirror base support for Windows dependency downloads.
-- [x] GStreamer development package now installs only with build tools.
+- [x] Added Leak Technologies DVDStyler mirror with EXE fallback support.
+- [x] Added Leak Technologies mirror for whisper.cpp small model downloads.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
