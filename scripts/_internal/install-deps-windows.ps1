@@ -56,6 +56,19 @@ function Test-Pip {
     return $false
 }
 
+function Test-Gcc {
+    $tempDir = Join-Path $env:TEMP "vt-gcc-test"
+    New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+    $cfile = Join-Path $tempDir "test.c"
+    $ofile = Join-Path $tempDir "test.o"
+    Set-Content -Path $cfile -Value "int main(){return 0;}" -Encoding ASCII
+    & gcc -c $cfile -o $ofile 2>$null | Out-Null
+    $ok = Test-Path $ofile
+    if (Test-Path $cfile) { Remove-Item $cfile -Force }
+    if (Test-Path $ofile) { Remove-Item $ofile -Force }
+    return $ok
+}
+
 function Get-MirrorHeaders {
     param(
         [string]$Accept = "application/octet-stream"
@@ -965,6 +978,25 @@ if ($InstallBuildTools -eq $false -and $SkipBuildTools -eq $false) {
 }
 
 Install-ViaScoop
+
+if ($InstallBuildTools -and (Test-Command gcc)) {
+    if (-not (Test-Gcc)) {
+        Write-Host "[WARN]  GCC test compile failed. The MinGW toolchain may be incomplete." -ForegroundColor Yellow
+        if (Test-Command scoop) {
+            $repairChoice = Read-Host "Reinstall MinGW via Scoop now? (y/N)"
+            if ($repairChoice -eq "y" -or $repairChoice -eq "Y") {
+                Write-Host "Reinstalling MinGW..." -ForegroundColor Yellow
+                scoop uninstall mingw | Out-Null
+                scoop install mingw | Out-Null
+                if (Test-Gcc) {
+                    Write-Host "[OK]  GCC toolchain repaired" -ForegroundColor Green
+                } else {
+                    Write-Host "[WARN]  GCC still failing after reinstall" -ForegroundColor Yellow
+                }
+            }
+        }
+    }
+}
 
 if (-not $SkipFFmpeg -and -not (Test-Command ffmpeg)) {
     $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
