@@ -502,6 +502,7 @@ function Ensure-DVDStylerTools {
     $dvdstylerVersion = "3.2.2"
     $dvdstylerZipName = "DVDStyler-$dvdstylerVersion-win64.zip"
     $dvdstylerUrls = @(
+        "https://git.leaktechnologies.dev/lt_mirror/DVDStyler/src/branch/master/DVDStyler-3.2.1-win64.exe",
         "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
         "https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
         "https://cfhcable.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
@@ -541,6 +542,7 @@ function Ensure-DVDStylerTools {
     }
 
     $dvdstylerZip = Join-Path $env:TEMP "dvdstyler-win64.zip"
+    $dvdstylerExe = Join-Path $env:TEMP "dvdstyler-win64.exe"
     $needsDVDTools = (-not (Test-Command dvdauthor)) -or (-not (Test-Command mkisofs))
     if ($needsDVDTools) {
         $existingBin = Find-DVDStylerBin
@@ -591,12 +593,40 @@ function Ensure-DVDStylerTools {
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
     $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     $downloaded = $false
+    $downloadedType = ""
+    $downloadedPath = ""
     $lastUrl = ""
     if ($dvdZipProvided) {
         if (Test-Path $DvdStylerZip) {
             Copy-Item -Path $DvdStylerZip -Destination $dvdstylerZip -Force
-            $downloaded = $true
             $lastUrl = $DvdStylerZip
+            try {
+                $fs = [System.IO.File]::OpenRead($dvdstylerZip)
+                try {
+                    $fileSize = (Get-Item $dvdstylerZip).Length
+                    if ($fileSize -ge 102400) {
+                        $sig = New-Object byte[] 2
+                        $null = $fs.Read($sig, 0, 2)
+                        if ($sig[0] -eq 0x50 -and $sig[1] -eq 0x4B) {
+                            $downloaded = $true
+                            $downloadedType = "zip"
+                            $downloadedPath = $dvdstylerZip
+                        } elseif ($sig[0] -eq 0x4D -and $sig[1] -eq 0x5A) {
+                            $downloaded = $true
+                            $downloadedType = "exe"
+                            $downloadedPath = $dvdstylerZip
+                        }
+                    }
+                } finally {
+                    $fs.Close()
+                }
+            } catch {
+                # Fall through to error handling below.
+            }
+            if (-not $downloaded) {
+                Write-Host "[ERROR]  Provided DVDStyler archive is not a valid ZIP or EXE: $DvdStylerZip" -ForegroundColor Red
+                exit 1
+            }
         } else {
             Write-Host "[ERROR]  Provided DVDStyler ZIP not found: $DvdStylerZip" -ForegroundColor Red
             exit 1
@@ -605,13 +635,19 @@ function Ensure-DVDStylerTools {
         foreach ($url in $dvdstylerUrls) {
             $lastUrl = $url
             $downloadOk = $false
-            if (Test-Path $dvdstylerZip) {
-                Remove-Item -Force $dvdstylerZip
+            $downloadTarget = $dvdstylerZip
+            $acceptHeader = "application/zip"
+            if ($url.ToLower().EndsWith(".exe")) {
+                $downloadTarget = $dvdstylerExe
+                $acceptHeader = "application/octet-stream"
+            }
+            if (Test-Path $downloadTarget) {
+                Remove-Item -Force $downloadTarget
             }
             try {
-                Invoke-WebRequest -Uri $url -OutFile $dvdstylerZip -UseBasicParsing -MaximumRedirection 10 -UserAgent $userAgent -Headers @{
+                Invoke-WebRequest -Uri $url -OutFile $downloadTarget -UseBasicParsing -MaximumRedirection 10 -UserAgent $userAgent -Headers @{
                     "Referer" = $dvdstylerReferer
-                    "Accept"  = "application/zip"
+                    "Accept"  = $acceptHeader
                 }
                 $downloadOk = $true
             } catch {
@@ -620,7 +656,7 @@ function Ensure-DVDStylerTools {
 
             if (-not $downloadOk) {
                 try {
-                    Start-BitsTransfer -Source $url -Destination $dvdstylerZip -ErrorAction Stop
+                    Start-BitsTransfer -Source $url -Destination $downloadTarget -ErrorAction Stop
                     $downloadOk = $true
                 } catch {
                     $downloadOk = $false
@@ -629,7 +665,7 @@ function Ensure-DVDStylerTools {
 
             if (-not $downloadOk -and (Test-Command curl.exe)) {
                 try {
-                    & curl.exe -L --retry 3 --user-agent $userAgent -o $dvdstylerZip $url | Out-Null
+                    & curl.exe -L --retry 3 --user-agent $userAgent -o $downloadTarget $url | Out-Null
                     if ($LASTEXITCODE -eq 0) {
                         $downloadOk = $true
                     }
@@ -638,14 +674,14 @@ function Ensure-DVDStylerTools {
                 }
             }
 
-            if (-not $downloadOk -or -not (Test-Path $dvdstylerZip)) {
+            if (-not $downloadOk -or -not (Test-Path $downloadTarget)) {
                 continue
             }
 
             try {
-                $fs = [System.IO.File]::OpenRead($dvdstylerZip)
+                $fs = [System.IO.File]::OpenRead($downloadTarget)
                 try {
-                    $fileSize = (Get-Item $dvdstylerZip).Length
+                    $fileSize = (Get-Item $downloadTarget).Length
                     if ($fileSize -lt 102400) {
                         continue
                     }
@@ -653,6 +689,14 @@ function Ensure-DVDStylerTools {
                     $null = $fs.Read($sig, 0, 2)
                     if ($sig[0] -eq 0x50 -and $sig[1] -eq 0x4B) {
                         $downloaded = $true
+                        $downloadedType = "zip"
+                        $downloadedPath = $downloadTarget
+                        break
+                    }
+                    if ($sig[0] -eq 0x4D -and $sig[1] -eq 0x5A) {
+                        $downloaded = $true
+                        $downloadedType = "exe"
+                        $downloadedPath = $downloadTarget
                         break
                     }
                 } finally {
@@ -667,12 +711,44 @@ function Ensure-DVDStylerTools {
         if (Install-DVDStylerViaWinget) {
             return
         }
-        Write-Host "[WARN]  Failed to download DVDStyler ZIP (invalid archive)" -ForegroundColor Yellow
+        Write-Host "[WARN]  Failed to download DVDStyler archive (invalid ZIP/EXE)" -ForegroundColor Yellow
         Write-Host "Last URL tried: $lastUrl" -ForegroundColor Yellow
         Write-Host "Tip: Set VT_DVDSTYLER_URL to a direct ZIP link and retry." -ForegroundColor Yellow
         Write-Host "Manual download page: https://sourceforge.net/projects/dvdstyler/files/DVDStyler/$dvdstylerVersion/" -ForegroundColor Yellow
         Write-Host "After download, extract and ensure bin\\dvdauthor.exe and bin\\mkisofs.exe are on PATH." -ForegroundColor Yellow
         Write-Host "[SKIP] DVD authoring tools skipped due to download failure" -ForegroundColor Yellow
+        return
+    }
+
+    if ($downloadedType -eq "exe") {
+        Write-Host "Installing DVDStyler from installer..." -ForegroundColor Yellow
+        try {
+            $proc = Start-Process -FilePath $downloadedPath -ArgumentList "/S" -Wait -PassThru
+            if ($proc.ExitCode -ne 0) {
+                throw "DVDStyler installer returned exit code $($proc.ExitCode)"
+            }
+        } catch {
+            Write-Host "[WARN]  DVDStyler installer failed: $($_.Exception.Message)" -ForegroundColor Yellow
+            if (Install-DVDStylerViaWinget) {
+                return
+            }
+            Write-Host "[SKIP] DVD authoring tools skipped due to installer failure" -ForegroundColor Yellow
+            return
+        } finally {
+            if (Test-Path $downloadedPath) {
+                Remove-Item -Force $downloadedPath
+            }
+        }
+        $binPath = Find-DVDStylerBin
+        if ($binPath) {
+            Add-ToUserPath -PathItem $binPath
+        }
+        if (Test-Command dvdauthor -and Test-Command mkisofs) {
+            Write-Host "[OK]  DVD authoring tools installed via DVDStyler installer" -ForegroundColor Green
+            return
+        }
+        Write-Host "[WARN]  DVDStyler installer did not expose dvdauthor/mkisofs on PATH." -ForegroundColor Yellow
+        Write-Host "[SKIP] DVD authoring tools skipped after installer" -ForegroundColor Yellow
         return
     }
 
