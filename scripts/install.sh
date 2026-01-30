@@ -490,7 +490,7 @@ else
     whisper_model_dir="$HOME/.local/share/whisper.cpp/models"
     whisper_model_dest="$whisper_model_dir/ggml-small.bin"
     whisper_model_urls=(
-        "https://git.leaktechnologies.dev/lt_mirror/whisper/raw/branch/master/ggml-small.bin"
+        "https://git.leaktechnologies.dev/lt_mirror/whisper/src/branch/master/ggml-small.bin"
         "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
     )
     whisper_sha_url="https://huggingface.co/ggerganov/whisper.cpp/raw/main/ggml-small.bin"
