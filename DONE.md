@@ -143,6 +143,7 @@
 - [x] Added DVDStyler EXE installer path + silent install support for Windows.
 - [x] Defaulted DVDStyler to Leak Technologies mirror and made SourceForge fallback opt-in on Windows.
 - [x] Fixed Whisper model installer scope and expanded DVDStyler mirror URL variants.
+- [x] Defaulted Whisper model to LT media mirror with fallback URL variants.
 - [x] DVD authoring skip now prints info messages instead of warnings.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
