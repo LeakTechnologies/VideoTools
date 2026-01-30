@@ -16,6 +16,12 @@ function Write-Section {
     Write-Host ""
 }
 
+function Test-Command {
+    param([string]$Command)
+    $null = Get-Command $Command -ErrorAction SilentlyContinue
+    return $?
+}
+
 function Use-Toolchain {
     $candidates = @(
         "C:\msys64\mingw64\bin",
@@ -152,8 +158,8 @@ if (-not (Test-Command gcc)) {
 
 if (-not (Test-Gcc)) {
     Write-Host " ERROR: GCC failed a test compile. The toolchain appears incomplete." -ForegroundColor Red
-    Write-Host " Recommended fix: install MSYS2 and mingw-w64-x86_64-gcc, then retry." -ForegroundColor Yellow
-    Write-Host " If you prefer Scoop, reinstall mingw to restore runtime DLLs." -ForegroundColor Yellow
+    Write-Host " Recommended fix: reinstall Scoop mingw to restore the toolchain." -ForegroundColor Yellow
+    Write-Host " Optional fallback: MSYS2 + mingw-w64-x86_64-gcc if Scoop continues to fail." -ForegroundColor Yellow
     exit 1
 }
 
