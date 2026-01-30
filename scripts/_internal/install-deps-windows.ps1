@@ -74,6 +74,40 @@ function Get-MirrorHeaders {
     return $headers
 }
 
+function Download-File {
+    param(
+        [string]$Url,
+        [string]$Destination,
+        [string]$UserAgent,
+        [hashtable]$Headers = $null
+    )
+    if (Test-Path $Destination) {
+        Remove-Item -Force $Destination
+    }
+    if (Test-Command curl.exe) {
+        $curlArgs = @("-L", "--retry", "3", "--progress-bar", "--user-agent", $UserAgent, "-o", $Destination)
+        if ($Headers) {
+            foreach ($key in $Headers.Keys) {
+                $curlArgs += @("-H", "$key: $($Headers[$key])")
+            }
+        }
+        $curlArgs += $Url
+        & curl.exe @curlArgs | Out-Null
+        return ($LASTEXITCODE -eq 0) -and (Test-Path $Destination)
+    }
+
+    $progressPreference = $ProgressPreference
+    $ProgressPreference = "SilentlyContinue"
+    try {
+        Invoke-WebRequest -Uri $Url -OutFile $Destination -UseBasicParsing -UserAgent $UserAgent -Headers $Headers -MaximumRedirection 10
+        return Test-Path $Destination
+    } catch {
+        return $false
+    } finally {
+        $ProgressPreference = $progressPreference
+    }
+}
+
 function Find-GStreamerBin {
     $paths = @(
         "$env:ProgramFiles\GStreamer\1.0\msvc_x86_64\bin",
@@ -690,34 +724,9 @@ function Ensure-DVDStylerTools {
             if (Test-Path $downloadTarget) {
                 Remove-Item -Force $downloadTarget
             }
-            try {
-                $headers = Get-MirrorHeaders -Accept $acceptHeader
-                $headers["Referer"] = $dvdstylerReferer
-                Invoke-WebRequest -Uri $url -OutFile $downloadTarget -UseBasicParsing -MaximumRedirection 10 -UserAgent $userAgent -Headers $headers
-                $downloadOk = $true
-            } catch {
-                $downloadOk = $false
-            }
-
-            if (-not $downloadOk) {
-                try {
-                    Start-BitsTransfer -Source $url -Destination $downloadTarget -ErrorAction Stop
-                    $downloadOk = $true
-                } catch {
-                    $downloadOk = $false
-                }
-            }
-
-            if (-not $downloadOk -and (Test-Command curl.exe)) {
-                try {
-                    & curl.exe -L --retry 3 --user-agent $userAgent -o $downloadTarget $url | Out-Null
-                    if ($LASTEXITCODE -eq 0) {
-                        $downloadOk = $true
-                    }
-                } catch {
-                    $downloadOk = $false
-                }
-            }
+            $headers = Get-MirrorHeaders -Accept $acceptHeader
+            $headers["Referer"] = $dvdstylerReferer
+            $downloadOk = Download-File -Url $url -Destination $downloadTarget -UserAgent $userAgent -Headers $headers
 
             if (-not $downloadOk -or -not (Test-Path $downloadTarget)) {
                 continue
@@ -878,33 +887,8 @@ function Ensure-WhisperModel {
         if (Test-Path $WhisperModelPath) {
             Remove-Item -Force $WhisperModelPath
         }
-        try {
-            $headers = Get-MirrorHeaders -Accept "application/octet-stream"
-            Invoke-WebRequest -Uri $url -OutFile $WhisperModelPath -UseBasicParsing -UserAgent $userAgent -Headers $headers -MaximumRedirection 10
-            $downloadOk = $true
-        } catch {
-            $downloadOk = $false
-        }
-
-        if (-not $downloadOk) {
-            try {
-                Start-BitsTransfer -Source $url -Destination $WhisperModelPath -ErrorAction Stop
-                $downloadOk = $true
-            } catch {
-                $downloadOk = $false
-            }
-        }
-
-        if (-not $downloadOk -and (Test-Command curl.exe)) {
-            try {
-                & curl.exe -L --retry 3 --user-agent $userAgent -o $WhisperModelPath $url | Out-Null
-                if ($LASTEXITCODE -eq 0) {
-                    $downloadOk = $true
-                }
-            } catch {
-                $downloadOk = $false
-            }
-        }
+        $headers = Get-MirrorHeaders -Accept "application/octet-stream"
+        $downloadOk = Download-File -Url $url -Destination $WhisperModelPath -UserAgent $userAgent -Headers $headers
 
         if (-not $downloadOk -or -not (Test-Path $WhisperModelPath)) {
             continue
