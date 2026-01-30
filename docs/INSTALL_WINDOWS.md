@@ -67,6 +67,7 @@ Whisper uses the Leak Technologies mirror by default and can be overridden with 
 
 1.  Build the app:
     - `.\scripts\build.bat` (delegates to `build.ps1` and handles elevation)
+    - If the build reports a GCC toolchain failure, install MSYS2 and `mingw-w64-x86_64-gcc`.
 2.  Run the executable:
     - `.\VideoTools.exe`
     - The Player module includes a fullscreen toggle in the playback controls.

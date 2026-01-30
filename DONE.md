@@ -147,6 +147,7 @@
 - [x] Added optional mirror authentication headers for private LT mirrors.
 - [x] Switched optional module downloads to curl progress bar when available.
 - [x] Build batch file now delegates to build.ps1 with UAC elevation.
+- [x] Build script now validates GCC toolchain and prints clear MSYS2 fallback guidance.
 - [x] DVD authoring skip now prints info messages instead of warnings.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
