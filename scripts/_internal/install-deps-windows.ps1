@@ -9,8 +9,14 @@ param(
     [switch]$InstallPython = $false,
     [switch]$SkipPython = $false,
     [string]$DvdStylerUrl = "",
+    [string]$DvdStylerExeUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1.-win64.exe",
+    [string]$DvdStylerExeArgs = "/S",
     [string]$DvdStylerZip = "",
     [switch]$SkipDvdStyler = $false,
+    [switch]$InstallWhisper = $false,
+    [switch]$SkipWhisper = $false,
+    [string]$WhisperModelUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/whisper-model.bin",
+    [string]$WhisperModelPath = "",
     [switch]$PreferWinget = $false,
     [string]$GStreamerVersion = "1.26.10",
     [string]$GStreamerRuntimeUrl = "",
@@ -501,8 +507,9 @@ function Ensure-DVDStylerTools {
     $dvdstylerReferer = "https://sourceforge.net/projects/dvdstyler/"
     $dvdstylerVersion = "3.2.2"
     $dvdstylerZipName = "DVDStyler-$dvdstylerVersion-win64.zip"
+    $dvdstylerExeUrl = ""
     $dvdstylerUrls = @(
-        "https://git.leaktechnologies.dev/lt_mirror/DVDStyler/src/branch/master/DVDStyler-3.2.1-win64.exe",
+        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1.-win64.exe",
         "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
         "https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
         "https://cfhcable.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
@@ -585,9 +592,16 @@ function Ensure-DVDStylerTools {
 
     $dvdZipProvided = $PSBoundParameters.ContainsKey("DvdStylerZip") -and $DvdStylerZip
     $dvdUrlProvided = $PSBoundParameters.ContainsKey("DvdStylerUrl") -and $DvdStylerUrl
+    $dvdExeProvided = $PSBoundParameters.ContainsKey("DvdStylerExeUrl") -and $DvdStylerExeUrl
+    if ($dvdExeProvided) {
+        $dvdstylerExeUrl = $DvdStylerExeUrl
+    }
     if ($dvdUrlProvided) {
         $env:VT_DVDSTYLER_URL = $DvdStylerUrl
         $dvdstylerUrls = @($DvdStylerUrl) + $dvdstylerUrls
+    }
+    if ($dvdExeProvided) {
+        $dvdstylerUrls = @($DvdStylerExeUrl) + $dvdstylerUrls
     }
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
@@ -713,7 +727,7 @@ function Ensure-DVDStylerTools {
         }
         Write-Host "[WARN]  Failed to download DVDStyler archive (invalid ZIP/EXE)" -ForegroundColor Yellow
         Write-Host "Last URL tried: $lastUrl" -ForegroundColor Yellow
-        Write-Host "Tip: Set VT_DVDSTYLER_URL to a direct ZIP link and retry." -ForegroundColor Yellow
+        Write-Host "Tip: Set VT_DVDSTYLER_URL to a direct ZIP or EXE link and retry." -ForegroundColor Yellow
         Write-Host "Manual download page: https://sourceforge.net/projects/dvdstyler/files/DVDStyler/$dvdstylerVersion/" -ForegroundColor Yellow
         Write-Host "After download, extract and ensure bin\\dvdauthor.exe and bin\\mkisofs.exe are on PATH." -ForegroundColor Yellow
         Write-Host "[SKIP] DVD authoring tools skipped due to download failure" -ForegroundColor Yellow
@@ -723,7 +737,7 @@ function Ensure-DVDStylerTools {
     if ($downloadedType -eq "exe") {
         Write-Host "Installing DVDStyler from installer..." -ForegroundColor Yellow
         try {
-            $proc = Start-Process -FilePath $downloadedPath -ArgumentList "/S" -Wait -PassThru
+            $proc = Start-Process -FilePath $downloadedPath -ArgumentList $DvdStylerExeArgs -Wait -PassThru
             if ($proc.ExitCode -ne 0) {
                 throw "DVDStyler installer returned exit code $($proc.ExitCode)"
             }
@@ -836,6 +850,7 @@ if (-not $SkipGStreamer -and -not (Test-Command gst-launch-1.0)) {
 }
 
 Ensure-DVDStylerTools
+Ensure-WhisperModel
 
 Write-Host ""
 Write-Host "===============================================================" -ForegroundColor Cyan
@@ -928,6 +943,98 @@ if (Test-Command dvdauthor) {
     }
 }
 
+function Ensure-WhisperModel {
+    if ($SkipWhisper) {
+        Write-Host "[SKIP] Whisper model skipped" -ForegroundColor Yellow
+        return
+    }
+
+    if (-not $WhisperModelPath) {
+        $WhisperModelPath = Join-Path $env:LOCALAPPDATA "VideoTools\whisper\whisper-model.bin"
+    }
+
+    if (Test-Path $WhisperModelPath) {
+        return
+    }
+
+    if (-not $InstallWhisper) {
+        Write-Host ""
+        Write-Host "Optional module: Subtitle transcription (Whisper small model)" -ForegroundColor Yellow
+        $whisperChoice = Read-Host "Install Whisper model? (y/N)"
+        if ($whisperChoice -eq "y" -or $whisperChoice -eq "Y") {
+            $InstallWhisper = $true
+        } else {
+            $SkipWhisper = $true
+        }
+        Write-Host ""
+    }
+
+    if ($SkipWhisper -or -not $InstallWhisper) {
+        Write-Host "[SKIP] Whisper model skipped" -ForegroundColor Yellow
+        return
+    }
+
+    $modelDir = Split-Path -Parent $WhisperModelPath
+    if (-not (Test-Path $modelDir)) {
+        New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
+    }
+
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
+    $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+    Write-Host "Downloading Whisper model..." -ForegroundColor Yellow
+    $downloadOk = $false
+    if (Test-Path $WhisperModelPath) {
+        Remove-Item -Force $WhisperModelPath
+    }
+    try {
+        Invoke-WebRequest -Uri $WhisperModelUrl -OutFile $WhisperModelPath -UseBasicParsing -UserAgent $userAgent -Headers @{
+            "Accept" = "application/octet-stream"
+        } -MaximumRedirection 10
+        $downloadOk = $true
+    } catch {
+        $downloadOk = $false
+    }
+
+    if (-not $downloadOk) {
+        try {
+            Start-BitsTransfer -Source $WhisperModelUrl -Destination $WhisperModelPath -ErrorAction Stop
+            $downloadOk = $true
+        } catch {
+            $downloadOk = $false
+        }
+    }
+
+    if (-not $downloadOk -and (Test-Command curl.exe)) {
+        try {
+            & curl.exe -L --retry 3 --user-agent $userAgent -o $WhisperModelPath $WhisperModelUrl | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $downloadOk = $true
+            }
+        } catch {
+            $downloadOk = $false
+        }
+    }
+
+    if (-not $downloadOk -or -not (Test-Path $WhisperModelPath)) {
+        Write-Host "[WARN]  Failed to download Whisper model." -ForegroundColor Yellow
+        Write-Host "URL: $WhisperModelUrl" -ForegroundColor Yellow
+        Write-Host "[SKIP] Whisper model skipped due to download failure" -ForegroundColor Yellow
+        return
+    }
+
+    $fileSize = (Get-Item $WhisperModelPath).Length
+    if ($fileSize -lt 1048576) {
+        Write-Host "[WARN]  Whisper model download is too small." -ForegroundColor Yellow
+        Write-Host "URL: $WhisperModelUrl" -ForegroundColor Yellow
+        Write-Host "[SKIP] Whisper model skipped due to download failure" -ForegroundColor Yellow
+        Remove-Item -Force $WhisperModelPath
+        return
+    }
+
+    Write-Host "[OK]  Whisper model downloaded to $WhisperModelPath" -ForegroundColor Green
+}
+
 if (Test-Command mkisofs) {
     Write-Host "[OK]  mkisofs: found" -ForegroundColor Green
 } else {
@@ -943,6 +1050,19 @@ if (Test-Command mkisofs) {
     } else {
         Write-Host "[WARN]   mkisofs not found in PATH (restart terminal)" -ForegroundColor Yellow
     }
+    }
+}
+
+if (-not $WhisperModelPath) {
+    $WhisperModelPath = Join-Path $env:LOCALAPPDATA "VideoTools\whisper\whisper-model.bin"
+}
+if (Test-Path $WhisperModelPath) {
+    Write-Host "[OK]  whisper model: found" -ForegroundColor Green
+} else {
+    if ($SkipWhisper) {
+        Write-Host "[INFO]   whisper model skipped" -ForegroundColor Cyan
+    } else {
+        Write-Host "[WARN]   whisper model not found (rerun installer to download)" -ForegroundColor Yellow
     }
 }
 
