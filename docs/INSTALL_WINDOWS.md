@@ -54,6 +54,7 @@ The installer uses curl with a progress bar when available for large downloads (
 - `-PreferWinget` to prefer winget installs when available.
 
 The installer will prompt before optional modules (Python + pip, build tools, DVD authoring tools, Whisper model) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
+If you opt into build tools and GCC fails a test compile, the installer will offer to reinstall MinGW via Scoop.
 
 The installer defaults to MSI downloads for GStreamer. If MSI downloads fail, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`. Use `-PreferWinget` if you want the installer to try winget first.
 

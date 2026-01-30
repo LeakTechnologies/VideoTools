@@ -19,6 +19,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - Use `VT_MIRROR_TOKEN` or `VT_MIRROR_BASIC` if Leak Technologies mirrors are private.
   - `scripts\build.bat` delegates to PowerShell for elevation and build output.
   - If GCC fails the build preflight, use MSYS2 with `mingw-w64-x86_64-gcc`.
+  - The Windows installer can auto-reinstall MinGW via Scoop if GCC fails a test compile.
   - Whisper model downloads use the Leak Technologies mirror by default and are optional on Windows.
   - Windows build scripts will prompt for elevation when needed.
 - **[Windows Packaging Roadmap](./WINDOWS_PACKAGING.md)**
