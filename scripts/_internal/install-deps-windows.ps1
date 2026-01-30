@@ -508,8 +508,10 @@ function Ensure-DVDStylerTools {
     $dvdstylerVersion = "3.2.2"
     $dvdstylerZipName = "DVDStyler-$dvdstylerVersion-win64.zip"
     $dvdstylerExeUrl = ""
-    $dvdstylerUrls = @(
-        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1.-win64.exe",
+    $mirrorUrls = @(
+        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1.-win64.exe"
+    )
+    $sourceForgeUrls = @(
         "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
         "https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
         "https://cfhcable.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
@@ -520,6 +522,7 @@ function Ensure-DVDStylerTools {
         "https://ufpr.dl.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
         "https://sourceforge.net/projects/dvdstyler/files/DVDStyler/$dvdstylerVersion/$dvdstylerZipName/download"
     )
+    $dvdstylerUrls = @()
     function Install-DVDStylerViaWinget {
         if (-not $PreferWinget) {
             return $false
@@ -598,10 +601,16 @@ function Ensure-DVDStylerTools {
     }
     if ($dvdUrlProvided) {
         $env:VT_DVDSTYLER_URL = $DvdStylerUrl
-        $dvdstylerUrls = @($DvdStylerUrl) + $dvdstylerUrls
+        $dvdstylerUrls += @($DvdStylerUrl)
     }
     if ($dvdExeProvided) {
-        $dvdstylerUrls = @($DvdStylerExeUrl) + $dvdstylerUrls
+        $dvdstylerUrls += @($DvdStylerExeUrl)
+    }
+    if ($dvdstylerUrls.Count -eq 0) {
+        $dvdstylerUrls += $mirrorUrls
+    }
+    if ($env:VT_DVDSTYLER_ALLOW_SOURCEFORGE -eq "1") {
+        $dvdstylerUrls += $sourceForgeUrls
     }
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072

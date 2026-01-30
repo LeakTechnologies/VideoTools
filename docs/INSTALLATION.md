@@ -14,8 +14,8 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - Use `scripts\install.bat` or `scripts\install.ps1` on Windows.
   - The Windows installer defaults to MSI downloads for GStreamer; use `-PreferWinget` to try winget first.
   - Use `-GStreamerVersion` to override the default MSI version when needed.
-  - Optional DVD authoring tools default to the portable ZIP and can use winget with `-PreferWinget`.
-  - DVDStyler mirrors include the Leak Technologies archive for Windows fallback installs.
+  - Optional DVD authoring tools default to the Leak Technologies mirror installer and can use winget with `-PreferWinget`.
+  - SourceForge DVDStyler mirrors are opt-in on Windows via `VT_DVDSTYLER_ALLOW_SOURCEFORGE=1`.
   - Whisper model downloads use the Leak Technologies mirror by default and are optional on Windows.
   - Windows build scripts will prompt for elevation when needed.
 - **[Windows Packaging Roadmap](./WINDOWS_PACKAGING.md)**
