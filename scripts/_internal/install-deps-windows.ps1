@@ -509,7 +509,10 @@ function Ensure-DVDStylerTools {
     $dvdstylerZipName = "DVDStyler-$dvdstylerVersion-win64.zip"
     $dvdstylerExeUrl = ""
     $mirrorUrls = @(
-        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1.-win64.exe"
+        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1.-win64.exe",
+        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1-win64.exe",
+        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1.-win64.exe?download=1",
+        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1-win64.exe?download=1"
     )
     $sourceForgeUrls = @(
         "https://downloads.sourceforge.net/project/dvdstyler/DVDStyler/$dvdstylerVersion/$dvdstylerZipName",
@@ -802,6 +805,98 @@ function Ensure-DVDStylerTools {
     }
 }
 
+function Ensure-WhisperModel {
+    if ($SkipWhisper) {
+        Write-Host "[SKIP] Whisper model skipped" -ForegroundColor Yellow
+        return
+    }
+
+    if (-not $WhisperModelPath) {
+        $WhisperModelPath = Join-Path $env:LOCALAPPDATA "VideoTools\whisper\whisper-model.bin"
+    }
+
+    if (Test-Path $WhisperModelPath) {
+        return
+    }
+
+    if (-not $InstallWhisper) {
+        Write-Host ""
+        Write-Host "Optional module: Subtitle transcription (Whisper small model)" -ForegroundColor Yellow
+        $whisperChoice = Read-Host "Install Whisper model? (y/N)"
+        if ($whisperChoice -eq "y" -or $whisperChoice -eq "Y") {
+            $InstallWhisper = $true
+        } else {
+            $SkipWhisper = $true
+        }
+        Write-Host ""
+    }
+
+    if ($SkipWhisper -or -not $InstallWhisper) {
+        Write-Host "[SKIP] Whisper model skipped" -ForegroundColor Yellow
+        return
+    }
+
+    $modelDir = Split-Path -Parent $WhisperModelPath
+    if (-not (Test-Path $modelDir)) {
+        New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
+    }
+
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
+    $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+    Write-Host "Downloading Whisper model..." -ForegroundColor Yellow
+    $downloadOk = $false
+    if (Test-Path $WhisperModelPath) {
+        Remove-Item -Force $WhisperModelPath
+    }
+    try {
+        Invoke-WebRequest -Uri $WhisperModelUrl -OutFile $WhisperModelPath -UseBasicParsing -UserAgent $userAgent -Headers @{
+            "Accept" = "application/octet-stream"
+        } -MaximumRedirection 10
+        $downloadOk = $true
+    } catch {
+        $downloadOk = $false
+    }
+
+    if (-not $downloadOk) {
+        try {
+            Start-BitsTransfer -Source $WhisperModelUrl -Destination $WhisperModelPath -ErrorAction Stop
+            $downloadOk = $true
+        } catch {
+            $downloadOk = $false
+        }
+    }
+
+    if (-not $downloadOk -and (Test-Command curl.exe)) {
+        try {
+            & curl.exe -L --retry 3 --user-agent $userAgent -o $WhisperModelPath $WhisperModelUrl | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $downloadOk = $true
+            }
+        } catch {
+            $downloadOk = $false
+        }
+    }
+
+    if (-not $downloadOk -or -not (Test-Path $WhisperModelPath)) {
+        Write-Host "[WARN]  Failed to download Whisper model." -ForegroundColor Yellow
+        Write-Host "URL: $WhisperModelUrl" -ForegroundColor Yellow
+        Write-Host "[SKIP] Whisper model skipped due to download failure" -ForegroundColor Yellow
+        return
+    }
+
+    $fileSize = (Get-Item $WhisperModelPath).Length
+    if ($fileSize -lt 1048576) {
+        Write-Host "[WARN]  Whisper model download is too small." -ForegroundColor Yellow
+        Write-Host "URL: $WhisperModelUrl" -ForegroundColor Yellow
+        Write-Host "[SKIP] Whisper model skipped due to download failure" -ForegroundColor Yellow
+        Remove-Item -Force $WhisperModelPath
+        return
+    }
+
+    Write-Host "[OK]  Whisper model downloaded to $WhisperModelPath" -ForegroundColor Green
+}
+
 Write-Host "Checking system..." -ForegroundColor Yellow
 Write-Host ""
 
@@ -950,98 +1045,6 @@ if (Test-Command dvdauthor) {
         Write-Host "[WARN]   dvdauthor not found in PATH (restart terminal)" -ForegroundColor Yellow
     }
     }
-}
-
-function Ensure-WhisperModel {
-    if ($SkipWhisper) {
-        Write-Host "[SKIP] Whisper model skipped" -ForegroundColor Yellow
-        return
-    }
-
-    if (-not $WhisperModelPath) {
-        $WhisperModelPath = Join-Path $env:LOCALAPPDATA "VideoTools\whisper\whisper-model.bin"
-    }
-
-    if (Test-Path $WhisperModelPath) {
-        return
-    }
-
-    if (-not $InstallWhisper) {
-        Write-Host ""
-        Write-Host "Optional module: Subtitle transcription (Whisper small model)" -ForegroundColor Yellow
-        $whisperChoice = Read-Host "Install Whisper model? (y/N)"
-        if ($whisperChoice -eq "y" -or $whisperChoice -eq "Y") {
-            $InstallWhisper = $true
-        } else {
-            $SkipWhisper = $true
-        }
-        Write-Host ""
-    }
-
-    if ($SkipWhisper -or -not $InstallWhisper) {
-        Write-Host "[SKIP] Whisper model skipped" -ForegroundColor Yellow
-        return
-    }
-
-    $modelDir = Split-Path -Parent $WhisperModelPath
-    if (-not (Test-Path $modelDir)) {
-        New-Item -ItemType Directory -Force -Path $modelDir | Out-Null
-    }
-
-    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
-    $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-
-    Write-Host "Downloading Whisper model..." -ForegroundColor Yellow
-    $downloadOk = $false
-    if (Test-Path $WhisperModelPath) {
-        Remove-Item -Force $WhisperModelPath
-    }
-    try {
-        Invoke-WebRequest -Uri $WhisperModelUrl -OutFile $WhisperModelPath -UseBasicParsing -UserAgent $userAgent -Headers @{
-            "Accept" = "application/octet-stream"
-        } -MaximumRedirection 10
-        $downloadOk = $true
-    } catch {
-        $downloadOk = $false
-    }
-
-    if (-not $downloadOk) {
-        try {
-            Start-BitsTransfer -Source $WhisperModelUrl -Destination $WhisperModelPath -ErrorAction Stop
-            $downloadOk = $true
-        } catch {
-            $downloadOk = $false
-        }
-    }
-
-    if (-not $downloadOk -and (Test-Command curl.exe)) {
-        try {
-            & curl.exe -L --retry 3 --user-agent $userAgent -o $WhisperModelPath $WhisperModelUrl | Out-Null
-            if ($LASTEXITCODE -eq 0) {
-                $downloadOk = $true
-            }
-        } catch {
-            $downloadOk = $false
-        }
-    }
-
-    if (-not $downloadOk -or -not (Test-Path $WhisperModelPath)) {
-        Write-Host "[WARN]  Failed to download Whisper model." -ForegroundColor Yellow
-        Write-Host "URL: $WhisperModelUrl" -ForegroundColor Yellow
-        Write-Host "[SKIP] Whisper model skipped due to download failure" -ForegroundColor Yellow
-        return
-    }
-
-    $fileSize = (Get-Item $WhisperModelPath).Length
-    if ($fileSize -lt 1048576) {
-        Write-Host "[WARN]  Whisper model download is too small." -ForegroundColor Yellow
-        Write-Host "URL: $WhisperModelUrl" -ForegroundColor Yellow
-        Write-Host "[SKIP] Whisper model skipped due to download failure" -ForegroundColor Yellow
-        Remove-Item -Force $WhisperModelPath
-        return
-    }
-
-    Write-Host "[OK]  Whisper model downloaded to $WhisperModelPath" -ForegroundColor Green
 }
 
 if (Test-Command mkisofs) {
