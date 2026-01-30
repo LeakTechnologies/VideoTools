@@ -25,6 +25,7 @@ This single command automates the entire setup process.
 5.  **Configure Shell:** Detects your shell (`bash` or `zsh`) and updates the corresponding resource file (`~/.bashrc` or `~/.zshrc`) to:
     *   Add the installation directory to your `PATH`.
     *   Source the matching alias script (`alias.sh` for bash, `alias.zsh` for zsh).
+6.  **Whisper Model Seed (Optional):** Downloads the whisper.cpp small model from the Leak Technologies mirror (fallback to upstream) when missing.
 
 ### After Installation
 
