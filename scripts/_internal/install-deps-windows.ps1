@@ -15,7 +15,7 @@ param(
     [switch]$SkipDvdStyler = $false,
     [switch]$InstallWhisper = $false,
     [switch]$SkipWhisper = $false,
-    [string]$WhisperModelUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/whisper-model.bin",
+    [string]$WhisperModelUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/media/branch/master/mirrors/raw/whisper-model.bin",
     [string]$WhisperModelPath = "",
     [switch]$PreferWinget = $false,
     [string]$GStreamerVersion = "1.26.10",
@@ -845,44 +845,64 @@ function Ensure-WhisperModel {
 
     [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
     $userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    $whisperUrls = @(
+        $WhisperModelUrl,
+        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/media/branch/master/mirrors/raw/whisper-model.bin?download=1",
+        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/whisper-model.bin",
+        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/whisper-model.bin?download=1"
+    )
 
     Write-Host "Downloading Whisper model..." -ForegroundColor Yellow
     $downloadOk = $false
-    if (Test-Path $WhisperModelPath) {
-        Remove-Item -Force $WhisperModelPath
-    }
-    try {
-        Invoke-WebRequest -Uri $WhisperModelUrl -OutFile $WhisperModelPath -UseBasicParsing -UserAgent $userAgent -Headers @{
-            "Accept" = "application/octet-stream"
-        } -MaximumRedirection 10
-        $downloadOk = $true
-    } catch {
-        $downloadOk = $false
-    }
-
-    if (-not $downloadOk) {
+    $lastWhisperUrl = ""
+    foreach ($url in $whisperUrls) {
+        $lastWhisperUrl = $url
+        if (Test-Path $WhisperModelPath) {
+            Remove-Item -Force $WhisperModelPath
+        }
         try {
-            Start-BitsTransfer -Source $WhisperModelUrl -Destination $WhisperModelPath -ErrorAction Stop
+            Invoke-WebRequest -Uri $url -OutFile $WhisperModelPath -UseBasicParsing -UserAgent $userAgent -Headers @{
+                "Accept" = "application/octet-stream"
+            } -MaximumRedirection 10
             $downloadOk = $true
         } catch {
             $downloadOk = $false
         }
-    }
 
-    if (-not $downloadOk -and (Test-Command curl.exe)) {
-        try {
-            & curl.exe -L --retry 3 --user-agent $userAgent -o $WhisperModelPath $WhisperModelUrl | Out-Null
-            if ($LASTEXITCODE -eq 0) {
+        if (-not $downloadOk) {
+            try {
+                Start-BitsTransfer -Source $url -Destination $WhisperModelPath -ErrorAction Stop
                 $downloadOk = $true
+            } catch {
+                $downloadOk = $false
             }
-        } catch {
-            $downloadOk = $false
         }
+
+        if (-not $downloadOk -and (Test-Command curl.exe)) {
+            try {
+                & curl.exe -L --retry 3 --user-agent $userAgent -o $WhisperModelPath $url | Out-Null
+                if ($LASTEXITCODE -eq 0) {
+                    $downloadOk = $true
+                }
+            } catch {
+                $downloadOk = $false
+            }
+        }
+
+        if (-not $downloadOk -or -not (Test-Path $WhisperModelPath)) {
+            continue
+        }
+
+        $fileSize = (Get-Item $WhisperModelPath).Length
+        if ($fileSize -ge 1048576) {
+            break
+        }
+        $downloadOk = $false
     }
 
     if (-not $downloadOk -or -not (Test-Path $WhisperModelPath)) {
         Write-Host "[WARN]  Failed to download Whisper model." -ForegroundColor Yellow
-        Write-Host "URL: $WhisperModelUrl" -ForegroundColor Yellow
+        Write-Host "Last URL tried: $lastWhisperUrl" -ForegroundColor Yellow
         Write-Host "[SKIP] Whisper model skipped due to download failure" -ForegroundColor Yellow
         return
     }
@@ -890,7 +910,7 @@ function Ensure-WhisperModel {
     $fileSize = (Get-Item $WhisperModelPath).Length
     if ($fileSize -lt 1048576) {
         Write-Host "[WARN]  Whisper model download is too small." -ForegroundColor Yellow
-        Write-Host "URL: $WhisperModelUrl" -ForegroundColor Yellow
+        Write-Host "Last URL tried: $lastWhisperUrl" -ForegroundColor Yellow
         Write-Host "[SKIP] Whisper model skipped due to download failure" -ForegroundColor Yellow
         Remove-Item -Force $WhisperModelPath
         return
