@@ -913,6 +913,9 @@ if (Test-Pip) {
 if (Test-Command dvdauthor) {
     Write-Host "[OK]  dvdauthor: found" -ForegroundColor Green
 } else {
+    if ($SkipDvdStyler) {
+        Write-Host "[INFO]   dvdauthor skipped (DVD authoring not installed)" -ForegroundColor Cyan
+    } else {
     $dvdBin = Find-DVDStylerBin
     if ($dvdBin) {
         Add-ToUserPath -PathItem $dvdBin
@@ -922,11 +925,15 @@ if (Test-Command dvdauthor) {
     } else {
         Write-Host "[WARN]   dvdauthor not found in PATH (restart terminal)" -ForegroundColor Yellow
     }
+    }
 }
 
 if (Test-Command mkisofs) {
     Write-Host "[OK]  mkisofs: found" -ForegroundColor Green
 } else {
+    if ($SkipDvdStyler) {
+        Write-Host "[INFO]   mkisofs skipped (DVD authoring not installed)" -ForegroundColor Cyan
+    } else {
     $dvdBin = Find-DVDStylerBin
     if ($dvdBin) {
         Add-ToUserPath -PathItem $dvdBin
@@ -935,6 +942,7 @@ if (Test-Command mkisofs) {
         Write-Host "[OK]  mkisofs: found" -ForegroundColor Green
     } else {
         Write-Host "[WARN]   mkisofs not found in PATH (restart terminal)" -ForegroundColor Yellow
+    }
     }
 }
 
