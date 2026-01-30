@@ -88,7 +88,7 @@ function Download-File {
         $curlArgs = @("-L", "--retry", "3", "--progress-bar", "--user-agent", $UserAgent, "-o", $Destination)
         if ($Headers) {
             foreach ($key in $Headers.Keys) {
-                $curlArgs += @("-H", "$key: $($Headers[$key])")
+                $curlArgs += @("-H", "${key}: $($Headers[$key])")
             }
         }
         $curlArgs += $Url
