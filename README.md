@@ -16,7 +16,7 @@ For a clear, up-to-date overview of what is complete, in progress, and planned, 
 ## Builds
 
 - **Daily (dev):** https://git.leaktechnologies.dev/Leak_Technologies/VideoTools
-- **Stable (public):** https://github.com/LeakTechnologes/VideoTools
+- **Stable (public):** https://github.com/LeakTechnologies/VideoTools
 
 
 ## Capabilities
