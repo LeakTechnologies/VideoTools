@@ -509,6 +509,8 @@ function Ensure-DVDStylerTools {
     $dvdstylerZipName = "DVDStyler-$dvdstylerVersion-win64.zip"
     $dvdstylerExeUrl = ""
     $mirrorUrls = @(
+        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/media/branch/master/mirrors/raw/DVDStyler-3.2.1-win64.exe",
+        "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/media/branch/master/mirrors/raw/DVDStyler-3.2.1-win64.exe?download=1",
         "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1.-win64.exe",
         "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1-win64.exe",
         "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/src/branch/master/mirrors/raw/DVDStyler-3.2.1.-win64.exe?download=1",
