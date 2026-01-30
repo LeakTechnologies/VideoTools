@@ -18,6 +18,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - SourceForge DVDStyler mirrors are opt-in on Windows via `VT_DVDSTYLER_ALLOW_SOURCEFORGE=1`.
   - Use `VT_MIRROR_TOKEN` or `VT_MIRROR_BASIC` if Leak Technologies mirrors are private.
   - `scripts\build.bat` delegates to PowerShell for elevation and build output.
+  - If GCC fails the build preflight, use MSYS2 with `mingw-w64-x86_64-gcc`.
   - Whisper model downloads use the Leak Technologies mirror by default and are optional on Windows.
   - Windows build scripts will prompt for elevation when needed.
 - **[Windows Packaging Roadmap](./WINDOWS_PACKAGING.md)**

@@ -6,6 +6,54 @@ param(
     [switch]$SkipTests = $false
 )
 
+function Write-Section {
+    param(
+        [string]$Title
+    )
+    Write-Host "===============================================================" -ForegroundColor Cyan
+    Write-Host "  $Title" -ForegroundColor Cyan
+    Write-Host "===============================================================" -ForegroundColor Cyan
+    Write-Host ""
+}
+
+function Use-Toolchain {
+    $candidates = @(
+        "C:\msys64\mingw64\bin",
+        "$env:USERPROFILE\scoop\apps\mingw\current\bin"
+    )
+    foreach ($path in $candidates) {
+        if (-not $path -or -not (Test-Path $path)) {
+            continue
+        }
+        if ($env:Path -notmatch [Regex]::Escape($path)) {
+            $env:Path = "$path;$env:Path"
+        }
+        $gccPath = Join-Path $path "gcc.exe"
+        $gxxPath = Join-Path $path "g++.exe"
+        if (Test-Path $gccPath) {
+            $env:CC = $gccPath
+        }
+        if (Test-Path $gxxPath) {
+            $env:CXX = $gxxPath
+        }
+        return $path
+    }
+    return $null
+}
+
+function Test-Gcc {
+    $tempDir = Join-Path $env:TEMP "vt-gcc-test"
+    New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+    $cfile = Join-Path $tempDir "test.c"
+    $ofile = Join-Path $tempDir "test.o"
+    Set-Content -Path $cfile -Value "int main(){return 0;}" -Encoding ASCII
+    & gcc -c $cfile -o $ofile 2>$null | Out-Null
+    $ok = Test-Path $ofile
+    if (Test-Path $cfile) { Remove-Item $cfile -Force }
+    if (Test-Path $ofile) { Remove-Item $ofile -Force }
+    return $ok
+}
+
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     Write-Host "[INFO]  Elevation required for Windows build tools." -ForegroundColor Yellow
@@ -37,10 +85,7 @@ if (-not $isAdmin) {
     exit 0
 }
 
-Write-Host "" -ForegroundColor Cyan
-Write-Host "  VideoTools Build Script (Windows)" -ForegroundColor Cyan
-Write-Host "" -ForegroundColor Cyan
-Write-Host ""
+Write-Section "VideoTools Windows Build"
 
 # Get project root (parent of scripts directory)
 $PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
@@ -91,6 +136,27 @@ Write-Host " Go version:" -ForegroundColor Green
 go version
 Write-Host ""
 
+# Ensure toolchain PATH and compiler env vars are set
+$toolchainPath = Use-Toolchain
+if ($toolchainPath) {
+    Write-Host " Toolchain: $toolchainPath" -ForegroundColor Green
+} else {
+    Write-Host " WARNING: GCC toolchain not found in PATH." -ForegroundColor Yellow
+}
+
+if (-not (Test-Command gcc)) {
+    Write-Host " ERROR: GCC is required for CGO builds on Windows." -ForegroundColor Red
+    Write-Host " Run scripts\\install.ps1 and enable build tools." -ForegroundColor Yellow
+    exit 1
+}
+
+if (-not (Test-Gcc)) {
+    Write-Host " ERROR: GCC failed a test compile. The toolchain appears incomplete." -ForegroundColor Red
+    Write-Host " Recommended fix: install MSYS2 and mingw-w64-x86_64-gcc, then retry." -ForegroundColor Yellow
+    Write-Host " If you prefer Scoop, reinstall mingw to restore runtime DLLs." -ForegroundColor Yellow
+    exit 1
+}
+
 # Change to project directory
 Set-Location $PROJECT_ROOT
 
@@ -104,7 +170,8 @@ if ($Clean) {
     Write-Host ""
 }
 
-Write-Host "  Downloading and verifying dependencies..." -ForegroundColor Yellow
+Write-Section "Dependencies"
+Write-Host "Downloading and verifying dependencies..." -ForegroundColor Yellow
 go mod download
 if ($LASTEXITCODE -ne 0) {
     Write-Host " Failed to download dependencies" -ForegroundColor Red
@@ -119,7 +186,8 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host " Dependencies verified" -ForegroundColor Green
 Write-Host ""
 
-Write-Host " Building VideoTools..." -ForegroundColor Yellow
+Write-Section "Build"
+Write-Host "Building VideoTools..." -ForegroundColor Yellow
 Write-Host ""
 
 # Embed Windows icon if windres is available
@@ -166,10 +234,7 @@ go build -p $numCores -ldflags="-s -w" -trimpath -o $BUILD_OUTPUT .
 if ($LASTEXITCODE -eq 0) {
     Write-Host " Build successful!" -ForegroundColor Green
     Write-Host ""
-    Write-Host "" -ForegroundColor Cyan
-    Write-Host " BUILD COMPLETE" -ForegroundColor Green
-    Write-Host "" -ForegroundColor Cyan
-    Write-Host ""
+    Write-Section "Build Complete"
 
     # Get file size
     $fileSize = (Get-Item $BUILD_OUTPUT).Length
@@ -182,7 +247,8 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "  .\VideoTools.exe" -ForegroundColor White
     Write-Host ""
 
-    Write-Host " Packaging build artifacts..." -ForegroundColor Yellow
+    Write-Section "Packaging"
+    Write-Host "Packaging build artifacts..." -ForegroundColor Yellow
     if (-not (Test-Path $distDir)) {
         New-Item -ItemType Directory -Path $distDir -Force | Out-Null
     }
