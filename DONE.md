@@ -137,6 +137,7 @@
 - [x] Added fallback disk search for GStreamer/DVDStyler executables.
 - [x] Defaulted Windows installer back to MSI-first with optional winget.
 - [x] Updated DVDStyler download URLs to current release.
+- [x] Added Leak Technologies DVDStyler mirror with EXE fallback support.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
