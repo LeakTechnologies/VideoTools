@@ -139,6 +139,7 @@
 - [x] Updated DVDStyler download URLs to current release.
 - [x] Added Leak Technologies DVDStyler mirror with EXE fallback support.
 - [x] Added Leak Technologies mirror for whisper.cpp small model downloads.
+- [x] DVD authoring skip now prints info messages instead of warnings.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
