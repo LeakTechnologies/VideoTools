@@ -489,7 +489,10 @@ else
     whisper_model_src="$(cd "$(dirname "$0")/.." && pwd)/vendor/whisper/ggml-small.bin"
     whisper_model_dir="$HOME/.local/share/whisper.cpp/models"
     whisper_model_dest="$whisper_model_dir/ggml-small.bin"
-    whisper_model_url="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+    whisper_model_urls=(
+        "https://git.leaktechnologies.dev/lt_mirror/whisper/src/branch/master/ggml-small.bin"
+        "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+    )
     whisper_sha_url="https://huggingface.co/ggerganov/whisper.cpp/raw/main/ggml-small.bin"
     mkdir -p "$whisper_model_dir"
     if [ -f "$whisper_model_src" ]; then
@@ -500,13 +503,32 @@ else
     else
         if [ ! -f "$whisper_model_dest" ]; then
             echo "Whisper small model not found locally. Downloading..."
+            download_ok=false
+            last_url=""
             if command -v wget &> /dev/null; then
-                wget --quiet --show-progress --progress=bar:force -O "$whisper_model_dest" "$whisper_model_url"
+                for url in "${whisper_model_urls[@]}"; do
+                    last_url="$url"
+                    if wget --quiet --show-progress --progress=bar:force -O "$whisper_model_dest" "$url"; then
+                        download_ok=true
+                        break
+                    fi
+                done
             elif command -v curl &> /dev/null; then
-                curl -L --progress-bar -o "$whisper_model_dest" "$whisper_model_url"
+                for url in "${whisper_model_urls[@]}"; do
+                    last_url="$url"
+                    if curl -L --progress-bar -o "$whisper_model_dest" "$url"; then
+                        download_ok=true
+                        break
+                    fi
+                done
             else
                 echo -e "${RED}[ERROR]${NC} wget or curl is required to download ggml-small.bin"
                 echo "Install one of them or place ggml-small.bin at $whisper_model_src"
+                exit 1
+            fi
+            if [ "$download_ok" != true ]; then
+                echo -e "${RED}[ERROR]${NC} Failed to download whisper small model."
+                echo "Last URL tried: $last_url"
                 exit 1
             fi
             # Verify checksum using official LFS pointer when possible.

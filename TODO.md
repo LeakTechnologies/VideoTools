@@ -14,6 +14,10 @@ This file tracks upcoming features, improvements, and known issues.
   - Route Windows to the dedicated installer to avoid mixed-shell prompts.
 - [X] **Windows installer entrypoint**
   - Provide a PowerShell entrypoint and direct Windows users to it from install.sh.
+- [X] **Windows DVDStyler mirror fallback**
+  - Added Leak Technologies mirror URL and EXE fallback for DVD authoring tools.
+- [X] **Whisper model mirror fallback**
+  - Prefer Leak Technologies mirror for whisper.cpp small model downloads.
 - [X] **Git Bash handoff**
   - Keep Windows installs in the same Git Bash terminal using `winpty` when available.
 - [X] **Windows root entrypoints**
@@ -88,6 +92,9 @@ This file tracks upcoming features, improvements, and known issues.
   - Extra: separate DVD titles; no chapters
   - Gallery: still-image slideshow title under Extras
   - Extras require subtype (behind_the_scenes, deleted_scenes, featurettes, interviews, trailers, commentary, other)
+- [ ] **Cross-platform DVD authoring parity**
+  - Ensure Windows and Linux use the same dvdauthor XML + ISO tool flags
+  - Treat DVDStyler as a CLI tool bundle only (no GUI authoring dependency)
 - [ ] **Chapter screenshot generation (Feature only)**
   - Auto-generate one still per chapter (default 2s offset)
   - Fallback to first valid frame on failure

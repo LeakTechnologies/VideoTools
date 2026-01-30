@@ -12,11 +12,11 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
 
 - **[View Windows Installation Guide](./INSTALL_WINDOWS.md)**
   - Use `scripts\install.bat` or `scripts\install.ps1` on Windows.
-  - The Windows installer defaults to MSI downloads for GStreamer runtime; the development package is only installed when build tools are selected.
+  - The Windows installer defaults to MSI downloads for GStreamer; use `-PreferWinget` to try winget first.
   - Use `-GStreamerVersion` to override the default MSI version when needed.
-  - Optional DVD authoring tools default to the portable ZIP and fall back to winget, then MSYS2, if downloads fail.
+  - Optional DVD authoring tools default to the portable ZIP and can use winget with `-PreferWinget`.
+  - DVDStyler mirrors include the Leak Technologies archive for Windows fallback installs.
   - Windows build scripts will prompt for elevation when needed.
-  - Set `VT_MIRROR_BASE` to prefer downloads from `mirror.leaktechnologies.dev` once available.
 - **[Windows Packaging Roadmap](./WINDOWS_PACKAGING.md)**
 
 ### Linux & macOS
@@ -24,6 +24,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
 For Linux (Ubuntu, Fedora, Arch, etc.), macOS, and Windows Subsystem for Linux (WSL), the installation is handled by a single, powerful script.
 
 - **[View Linux, macOS, & WSL Installation Guide](./INSTALL_LINUX.md)**
+  - Whisper model downloads use the Leak Technologies mirror with upstream fallback.
 
 ---
 
