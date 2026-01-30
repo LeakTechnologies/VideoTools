@@ -45,6 +45,9 @@ Optional flags:
 - `-SkipWhisper` to skip the Whisper model.
 - `-WhisperModelUrl` to override the Whisper model download URL.
 - `-WhisperModelPath` to set a custom model path.
+Environment overrides:
+- `VT_MIRROR_TOKEN` to authenticate against private Leak Technologies mirrors.
+- `VT_MIRROR_BASIC` to authenticate against private mirrors using `user:pass`.
 - `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi` to install from local MSI files.
 - `-GStreamerVersion` to override the default MSI version (default: 1.26.10).
 - `-PreferWinget` to prefer winget installs when available.
