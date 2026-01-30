@@ -87,6 +87,9 @@ This file tracks upcoming features, improvements, and known issues.
   - Extra: separate DVD titles; no chapters
   - Gallery: still-image slideshow title under Extras
   - Extras require subtype (behind_the_scenes, deleted_scenes, featurettes, interviews, trailers, commentary, other)
+- [ ] **Cross-platform DVD authoring parity**
+  - Ensure Windows and Linux use the same dvdauthor XML + ISO tool flags
+  - Treat DVDStyler as a CLI tool bundle only (no GUI authoring dependency)
 - [ ] **Chapter screenshot generation (Feature only)**
   - Auto-generate one still per chapter (default 2s offset)
   - Fallback to first valid frame on failure
