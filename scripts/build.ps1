@@ -1,4 +1,4 @@
-﻿# VideoTools Build Script for Windows
+# VideoTools Build Script for Windows
 # Builds the VideoTools application with proper error handling
 
 param(
@@ -37,18 +37,23 @@ if (-not $isAdmin) {
     exit 0
 }
 
-Write-Host "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•" -ForegroundColor Cyan
+Write-Host "" -ForegroundColor Cyan
 Write-Host "  VideoTools Build Script (Windows)" -ForegroundColor Cyan
-Write-Host "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•" -ForegroundColor Cyan
+Write-Host "" -ForegroundColor Cyan
 Write-Host ""
 
 # Get project root (parent of scripts directory)
 $PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
 $BUILD_OUTPUT = Join-Path $PROJECT_ROOT "VideoTools.exe"
-$appVersion = (Get-Content (Join-Path $PROJECT_ROOT "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
-if ($appVersion -match '"([^"]+)"') {
-    $appVersion = $matches[1]
-} else {
+$appVersionLine = (Get-Content (Join-Path $PROJECT_ROOT "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
+$appVersion = ""
+if ($appVersionLine) {
+    $parts = $appVersionLine -split ([char]34)
+    if ($parts.Length -ge 2) {
+        $appVersion = $parts[1]
+    }
+}
+if ([string]::IsNullOrWhiteSpace($appVersion)) {
     $appVersion = "(version unknown)"
 }
 $gitCommit = ""
@@ -78,11 +83,11 @@ $artifactName = "$version-$gitCommit`_$osTag.zip"
 
 # Check if Go is installed
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
-    Write-Host "âŒ ERROR: Go is not installed. Please run scripts\_internal\install-deps-windows.ps1 first." -ForegroundColor Red
+    Write-Host " ERROR: Go is not installed. Please run scripts\_internal\install-deps-windows.ps1 first." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "ðŸ“¦ Go version:" -ForegroundColor Green
+Write-Host " Go version:" -ForegroundColor Green
 go version
 Write-Host ""
 
@@ -90,31 +95,31 @@ Write-Host ""
 Set-Location $PROJECT_ROOT
 
 if ($Clean) {
-    Write-Host "ðŸ§¹ Cleaning previous builds and cache..." -ForegroundColor Yellow
+    Write-Host "Cleaning previous builds and cache..." -ForegroundColor Yellow
     go clean -cache -modcache -testcache 2>$null
     if (Test-Path $BUILD_OUTPUT) {
         Remove-Item $BUILD_OUTPUT -Force
     }
-    Write-Host "âœ“ Cache cleaned" -ForegroundColor Green
+    Write-Host "Cache cleaned" -ForegroundColor Green
     Write-Host ""
 }
 
-Write-Host "â¬‡ï¸  Downloading and verifying dependencies..." -ForegroundColor Yellow
+Write-Host "  Downloading and verifying dependencies..." -ForegroundColor Yellow
 go mod download
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "âŒ Failed to download dependencies" -ForegroundColor Red
+    Write-Host " Failed to download dependencies" -ForegroundColor Red
     exit 1
 }
 
 go mod verify
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "âŒ Failed to verify dependencies" -ForegroundColor Red
+    Write-Host " Failed to verify dependencies" -ForegroundColor Red
     exit 1
 }
-Write-Host "âœ“ Dependencies verified" -ForegroundColor Green
+Write-Host " Dependencies verified" -ForegroundColor Green
 Write-Host ""
 
-Write-Host "ðŸ”¨ Building VideoTools..." -ForegroundColor Yellow
+Write-Host " Building VideoTools..." -ForegroundColor Yellow
 Write-Host ""
 
 # Embed Windows icon if windres is available
@@ -135,10 +140,10 @@ if (Test-Path $rcFile) {
     if ($windresPath) {
         & $windresPath $rcFile -O coff -o $sysoFile | Out-Null
         if (-not (Test-Path $sysoFile)) {
-            Write-Host "âš ï¸  windres did not produce $sysoFile; icon may be missing" -ForegroundColor Yellow
+            Write-Host "  windres did not produce $sysoFile; icon may be missing" -ForegroundColor Yellow
         }
     } else {
-        Write-Host "âš ï¸  windres not found; Windows icon will not be embedded in the EXE" -ForegroundColor Yellow
+        Write-Host "  windres not found; Windows icon will not be embedded in the EXE" -ForegroundColor Yellow
     }
 }
 
@@ -159,11 +164,11 @@ Write-Host "Using $numCores parallel build processes" -ForegroundColor Cyan
 go build -p $numCores -ldflags="-s -w" -trimpath -o $BUILD_OUTPUT .
 
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "âœ“ Build successful!" -ForegroundColor Green
+    Write-Host " Build successful!" -ForegroundColor Green
     Write-Host ""
-    Write-Host "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•" -ForegroundColor Cyan
-    Write-Host "âœ… BUILD COMPLETE" -ForegroundColor Green
-    Write-Host "â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•" -ForegroundColor Cyan
+    Write-Host "" -ForegroundColor Cyan
+    Write-Host " BUILD COMPLETE" -ForegroundColor Green
+    Write-Host "" -ForegroundColor Cyan
     Write-Host ""
 
     # Get file size
@@ -177,7 +182,7 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "  .\VideoTools.exe" -ForegroundColor White
     Write-Host ""
 
-    Write-Host "ðŸ“¦ Packaging build artifacts..." -ForegroundColor Yellow
+    Write-Host " Packaging build artifacts..." -ForegroundColor Yellow
     if (-not (Test-Path $distDir)) {
         New-Item -ItemType Directory -Path $distDir -Force | Out-Null
     }
@@ -215,12 +220,12 @@ if ($LASTEXITCODE -eq 0) {
 
     Remove-Item $pkgDir.FullName -Recurse -Force
     Write-Host "Build package: $artifactPath" -ForegroundColor White
-    Write-Host "Build metadata: $(Join-Path $distDir "build.json")" -ForegroundColor White
+    Write-Host "Build metadata: $(Join-Path $distDir 'build.json')" -ForegroundColor White
     Write-Host ""
 
     # Check if ffmpeg is available
     if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
-        Write-Host "âš ï¸  Warning: ffmpeg not found in PATH" -ForegroundColor Yellow
+        Write-Host "  Warning: ffmpeg not found in PATH" -ForegroundColor Yellow
         Write-Host "   VideoTools requires ffmpeg to convert videos" -ForegroundColor Yellow
         Write-Host "   Run: .\scripts\_internal\install-deps-windows.ps1" -ForegroundColor Yellow
         Write-Host ""
@@ -230,7 +235,7 @@ if ($LASTEXITCODE -eq 0) {
     try {
         $nvidiaGpu = Get-WmiObject Win32_VideoController | Where-Object { $_.Name -like "*NVIDIA*" }
         if ($nvidiaGpu) {
-            Write-Host "ðŸŽ® NVIDIA GPU detected: $($nvidiaGpu.Name)" -ForegroundColor Green
+            Write-Host " NVIDIA GPU detected: $($nvidiaGpu.Name)" -ForegroundColor Green
             Write-Host "   Hardware encoding (NVENC) will be available" -ForegroundColor Green
             Write-Host ""
         }
@@ -239,6 +244,7 @@ if ($LASTEXITCODE -eq 0) {
     }
 
 } else {
-    Write-Host "âŒ Build failed!" -ForegroundColor Red
+    Write-Host "Build failed!" -ForegroundColor Red
     exit 1
 }
+
