@@ -24,6 +24,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
 For Linux (Ubuntu, Fedora, Arch, etc.), macOS, and Windows Subsystem for Linux (WSL), the installation is handled by a single, powerful script.
 
 - **[View Linux, macOS, & WSL Installation Guide](./INSTALL_LINUX.md)**
+  - Whisper model downloads use the Leak Technologies mirror with upstream fallback.
 
 ---
 

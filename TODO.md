@@ -16,6 +16,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Provide a PowerShell entrypoint and direct Windows users to it from install.sh.
 - [X] **Windows DVDStyler mirror fallback**
   - Added Leak Technologies mirror URL and EXE fallback for DVD authoring tools.
+- [X] **Whisper model mirror fallback**
+  - Prefer Leak Technologies mirror for whisper.cpp small model downloads.
 - [X] **Git Bash handoff**
   - Keep Windows installs in the same Git Bash terminal using `winpty` when available.
 - [X] **Windows root entrypoints**
