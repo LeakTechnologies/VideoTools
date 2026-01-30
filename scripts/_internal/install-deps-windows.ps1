@@ -56,6 +56,24 @@ function Test-Pip {
     return $false
 }
 
+function Get-MirrorHeaders {
+    param(
+        [string]$Accept = "application/octet-stream"
+    )
+    $headers = @{
+        "Accept" = $Accept
+    }
+    $token = $env:VT_MIRROR_TOKEN
+    $basic = $env:VT_MIRROR_BASIC
+    if ($token) {
+        $headers["Authorization"] = "token $token"
+    } elseif ($basic) {
+        $bytes = [Text.Encoding]::UTF8.GetBytes($basic)
+        $headers["Authorization"] = "Basic " + [Convert]::ToBase64String($bytes)
+    }
+    return $headers
+}
+
 function Find-GStreamerBin {
     $paths = @(
         "$env:ProgramFiles\GStreamer\1.0\msvc_x86_64\bin",
@@ -673,10 +691,9 @@ function Ensure-DVDStylerTools {
                 Remove-Item -Force $downloadTarget
             }
             try {
-                Invoke-WebRequest -Uri $url -OutFile $downloadTarget -UseBasicParsing -MaximumRedirection 10 -UserAgent $userAgent -Headers @{
-                    "Referer" = $dvdstylerReferer
-                    "Accept"  = $acceptHeader
-                }
+                $headers = Get-MirrorHeaders -Accept $acceptHeader
+                $headers["Referer"] = $dvdstylerReferer
+                Invoke-WebRequest -Uri $url -OutFile $downloadTarget -UseBasicParsing -MaximumRedirection 10 -UserAgent $userAgent -Headers $headers
                 $downloadOk = $true
             } catch {
                 $downloadOk = $false
@@ -711,6 +728,7 @@ function Ensure-DVDStylerTools {
                 try {
                     $fileSize = (Get-Item $downloadTarget).Length
                     if ($fileSize -lt 102400) {
+                        Write-Host "[WARN]  DVDStyler mirror download is too small. If the mirror is private, set VT_MIRROR_TOKEN or VT_MIRROR_BASIC." -ForegroundColor Yellow
                         continue
                     }
                     $sig = New-Object byte[] 2
@@ -861,9 +879,8 @@ function Ensure-WhisperModel {
             Remove-Item -Force $WhisperModelPath
         }
         try {
-            Invoke-WebRequest -Uri $url -OutFile $WhisperModelPath -UseBasicParsing -UserAgent $userAgent -Headers @{
-                "Accept" = "application/octet-stream"
-            } -MaximumRedirection 10
+            $headers = Get-MirrorHeaders -Accept "application/octet-stream"
+            Invoke-WebRequest -Uri $url -OutFile $WhisperModelPath -UseBasicParsing -UserAgent $userAgent -Headers $headers -MaximumRedirection 10
             $downloadOk = $true
         } catch {
             $downloadOk = $false
@@ -909,7 +926,7 @@ function Ensure-WhisperModel {
 
     $fileSize = (Get-Item $WhisperModelPath).Length
     if ($fileSize -lt 1048576) {
-        Write-Host "[WARN]  Whisper model download is too small." -ForegroundColor Yellow
+        Write-Host "[WARN]  Whisper model download is too small. If the mirror is private, set VT_MIRROR_TOKEN or VT_MIRROR_BASIC." -ForegroundColor Yellow
         Write-Host "Last URL tried: $lastWhisperUrl" -ForegroundColor Yellow
         Write-Host "[SKIP] Whisper model skipped due to download failure" -ForegroundColor Yellow
         Remove-Item -Force $WhisperModelPath

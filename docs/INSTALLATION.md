@@ -16,6 +16,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - Use `-GStreamerVersion` to override the default MSI version when needed.
   - Optional DVD authoring tools default to the Leak Technologies mirror installer and can use winget with `-PreferWinget`.
   - SourceForge DVDStyler mirrors are opt-in on Windows via `VT_DVDSTYLER_ALLOW_SOURCEFORGE=1`.
+  - Use `VT_MIRROR_TOKEN` or `VT_MIRROR_BASIC` if Leak Technologies mirrors are private.
   - Whisper model downloads use the Leak Technologies mirror by default and are optional on Windows.
   - Windows build scripts will prompt for elevation when needed.
 - **[Windows Packaging Roadmap](./WINDOWS_PACKAGING.md)**
