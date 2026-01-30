@@ -48,6 +48,7 @@ Optional flags:
 Environment overrides:
 - `VT_MIRROR_TOKEN` to authenticate against private Leak Technologies mirrors.
 - `VT_MIRROR_BASIC` to authenticate against private mirrors using `user:pass`.
+The installer uses curl with a progress bar when available for large downloads (DVDStyler, Whisper).
 - `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi` to install from local MSI files.
 - `-GStreamerVersion` to override the default MSI version (default: 1.26.10).
 - `-PreferWinget` to prefer winget installs when available.

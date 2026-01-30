@@ -145,6 +145,7 @@
 - [x] Fixed Whisper model installer scope and expanded DVDStyler mirror URL variants.
 - [x] Defaulted Whisper model to LT media mirror with fallback URL variants.
 - [x] Added optional mirror authentication headers for private LT mirrors.
+- [x] Switched optional module downloads to curl progress bar when available.
 - [x] DVD authoring skip now prints info messages instead of warnings.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
