@@ -73,6 +73,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Verify DVDStyler winget fallback sets dvdauthor/mkisofs on PATH.
   - Validate MSI-first flow installs GStreamer and DVDStyler without winget.
   - Validate that GStreamer devel MSI is skipped unless build tools are selected.
+  - Verify Whisper model prompt/download and mirror override on Windows.
 
 ## Documentation: Fix Structural Errors
 

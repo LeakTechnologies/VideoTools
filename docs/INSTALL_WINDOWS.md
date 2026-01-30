@@ -39,19 +39,23 @@ Optional flags:
 - `-InstallPython` to install Python + pip for AI tooling.
 - `-SkipPython` to skip Python + pip.
 - `-SkipDvdStyler` to skip DVD authoring tools.
-- `-DvdStylerUrl` or `-DvdStylerZip` to force a custom DVDStyler download.
+- `-DvdStylerUrl`, `-DvdStylerExeUrl`, or `-DvdStylerZip` to force a custom DVDStyler download.
+- `-DvdStylerExeArgs` to override the DVDStyler installer arguments (default: `/S`).
+- `-InstallWhisper` to install the Whisper small model for subtitles.
+- `-SkipWhisper` to skip the Whisper model.
+- `-WhisperModelUrl` to override the Whisper model download URL.
+- `-WhisperModelPath` to set a custom model path.
 - `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi` to install from local MSI files.
 - `-GStreamerVersion` to override the default MSI version (default: 1.26.10).
-- `-GStreamerRuntimeUrl` and `-GStreamerDevelUrl` to override download URLs.
-- `-GStreamerRuntimeUrl` and `-GStreamerDevelUrl` to override the download URLs.
 - `-PreferWinget` to prefer winget installs when available.
 
-The installer will prompt before optional modules (Python + pip, build tools, DVD authoring tools) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
+The installer will prompt before optional modules (Python + pip, build tools, DVD authoring tools, Whisper model) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
 
 The installer defaults to MSI downloads for GStreamer. If MSI downloads fail, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`. Use `-PreferWinget` if you want the installer to try winget first.
 
 DVDStyler defaults to the portable ZIP. If downloads fail and `-PreferWinget` is set, the installer tries winget before skipping the optional module.
 If SourceForge mirrors fail, the installer can also use the Leak Technologies mirror installer (`DVDStyler-3.2.1-win64.exe`).
+Whisper uses the Leak Technologies mirror by default and can be overridden with `-WhisperModelUrl`.
 
 > **Note:** If Windows Defender SmartScreen appears, click "More info" and then "Run anyway". This is expected as the application is not yet digitally signed.
 
