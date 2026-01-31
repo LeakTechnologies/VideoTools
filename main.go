@@ -8980,9 +8980,43 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	updateEncodingControls = func() {
+		remux := strings.EqualFold(state.convert.SelectedFormat.VideoCodec, "copy") ||
+			strings.EqualFold(state.convert.VideoCodec, "Copy")
 		mode := normalizeBitrateMode(state.convert.BitrateMode)
 		isLossless := state.convert.Quality == "Lossless"
 		supportsLossless := codecSupportsLossless(state.convert.VideoCodec)
+
+		if remux {
+			// Remux = stream copy, no encoding controls
+			if manualCrfRow != nil {
+				manualCrfRow.Hide()
+			}
+			if crfContainer != nil {
+				crfContainer.Hide()
+			}
+			if bitrateContainer != nil {
+				bitrateContainer.Hide()
+			}
+			if targetSizeContainer != nil {
+				targetSizeContainer.Hide()
+			}
+			if twoPassCheck != nil {
+				twoPassCheck.Disable()
+				if twoPassNote != nil {
+					twoPassNote.Show()
+				}
+			}
+			if encodingHint != nil {
+				encodingHint.SetText("Remux mode: stream copy. Encoding controls are disabled.")
+			}
+			if updateQualityVisibility != nil {
+				updateQualityVisibility()
+			}
+			if buildCommandPreview != nil {
+				buildCommandPreview()
+			}
+			return
+		}
 
 		hint := ""
 		showCRF := mode == "CRF" || mode == ""
@@ -9506,10 +9540,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			audioEncodingSection.Show()
 		}
 		if videoCodecSelect != nil {
-			videoCodecSelect.Enable()
+			if remux {
+				state.convert.VideoCodec = "Copy"
+				videoCodecSelect.SetSelected("Copy")
+				videoCodecSelect.Disable()
+			} else {
+				videoCodecSelect.Enable()
+			}
 		}
 		if audioCodecSelect != nil {
 			if remux {
+				state.convert.AudioCodec = "Copy"
+				audioCodecSelect.SetSelected("Copy")
 				audioCodecSelect.Disable()
 			} else {
 				audioCodecSelect.Enable()
@@ -9559,6 +9601,102 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				audioChannelsSelect.Disable()
 			} else {
 				audioChannelsSelect.Enable()
+			}
+		}
+		if videoBitrateEntry != nil {
+			if remux {
+				videoBitrateEntry.Disable()
+			} else {
+				videoBitrateEntry.Enable()
+			}
+		}
+		if bitratePresetSelect != nil {
+			if remux {
+				bitratePresetSelect.Disable()
+			} else {
+				bitratePresetSelect.Enable()
+			}
+		}
+		if simpleBitrateSelect != nil {
+			if remux {
+				simpleBitrateSelect.Disable()
+			} else {
+				simpleBitrateSelect.Enable()
+			}
+		}
+		if targetFileSizeEntry != nil {
+			if remux {
+				targetFileSizeEntry.Disable()
+			} else {
+				targetFileSizeEntry.Enable()
+			}
+		}
+		if targetFileSizeSelect != nil {
+			if remux {
+				targetFileSizeSelect.Disable()
+			} else {
+				targetFileSizeSelect.Enable()
+			}
+		}
+		if crfEntry != nil {
+			if remux {
+				crfEntry.Disable()
+			} else {
+				crfEntry.Enable()
+			}
+		}
+		if motionInterpCheck != nil {
+			if remux {
+				motionInterpCheck.Disable()
+			} else {
+				motionInterpCheck.Enable()
+			}
+		}
+		if twoPassCheck != nil {
+			if remux {
+				twoPassCheck.Disable()
+			} else {
+				twoPassCheck.Enable()
+			}
+		}
+		if resolutionSelectSimple != nil {
+			if remux {
+				state.convert.TargetResolution = "Source"
+				resolutionSelectSimple.SetSelected("Source")
+				resolutionSelectSimple.Disable()
+			} else {
+				resolutionSelectSimple.Enable()
+			}
+		}
+		if resolutionSelect != nil {
+			if remux {
+				resolutionSelect.SetSelected("Source")
+				resolutionSelect.Disable()
+			} else {
+				resolutionSelect.Enable()
+			}
+		}
+		if frameRateSelect != nil {
+			if remux {
+				state.convert.FrameRate = "Source"
+				frameRateSelect.SetSelected("Source")
+				frameRateSelect.Disable()
+			} else {
+				frameRateSelect.Enable()
+			}
+		}
+		if pixelFormatSelect != nil {
+			if remux {
+				pixelFormatSelect.Disable()
+			} else {
+				pixelFormatSelect.Enable()
+			}
+		}
+		if hwAccelSelect != nil {
+			if remux {
+				hwAccelSelect.Disable()
+			} else {
+				hwAccelSelect.Enable()
 			}
 		}
 		if remux {
