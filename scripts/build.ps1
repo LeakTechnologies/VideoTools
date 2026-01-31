@@ -42,7 +42,26 @@ function Use-Toolchain {
         if (Test-Path $gxxPath) {
             $env:CXX = $gxxPath
         }
-        return $path
+        
+        # Test if the toolchain actually works
+        $tempDir = Join-Path $env:TEMP "vt-gcc-test"
+        try {
+            New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+            $cfile = Join-Path $tempDir "test.c"
+            $ofile = Join-Path $tempDir "test.o"
+            Set-Content -Path $cfile -Value "int main(){return 0;}" -Encoding ASCII
+            & gcc -c $cfile -o $ofile 2>$null | Out-Null
+            $ok = Test-Path $ofile
+            if (Test-Path $cfile) { Remove-Item $cfile -Force }
+            if (Test-Path $ofile) { Remove-Item $ofile -Force }
+            if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
+            
+            if ($ok) {
+                return $path
+            }
+        } catch {
+            if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
+        }
     }
     return $null
 }
