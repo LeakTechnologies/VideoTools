@@ -10090,10 +10090,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	snippetPad.SetMinSize(fyne.NewSize(10, 0))
 	snippetRow = container.NewBorder(nil, nil, snippetPad, snippetPad, snippetRow)
 
-	// Left column: player stacked directly above metadata to avoid large empty gaps.
+	// Left column: player fixed at top, metadata expands to fill remaining space.
 	leftGap := canvas.NewRectangle(color.Transparent)
 	leftGap.SetMinSize(fyne.NewSize(0, 6))
-	leftColumn := container.NewVBox(videoPanel, leftGap, metaPanel)
+	leftColumn := container.NewBorder(container.NewVBox(videoPanel, leftGap), nil, nil, nil, metaPanel)
 
 	// Split: left side (player + metadata) takes priority | right side (settings).
 	mainSplit := container.NewHSplit(

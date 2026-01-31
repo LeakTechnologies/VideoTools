@@ -154,6 +154,7 @@
 - [x] DVD authoring skip now prints info messages instead of warnings.
 - [x] Player placeholder buttons now sit inside the player silhouette to prevent overlap on small screens.
 - [x] Convert view stacks player and metadata to remove excess blank space and keep metadata visible.
+- [x] Convert metadata panel now expands to fill remaining space under the player.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
