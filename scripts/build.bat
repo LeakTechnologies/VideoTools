@@ -1,4 +1,5 @@
 @echo off
+REM Requires MSYS2 MinGW-w64 toolchain on PATH
 setlocal enabledelayedexpansion
 
 REM ----------------------------
@@ -20,3 +21,4 @@ if %ERRORLEVEL% neq 0 (
 
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PS1_PATH%" %*
 exit /b %ERRORLEVEL%
+

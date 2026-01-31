@@ -1,4 +1,4 @@
-# VideoTools TODO (v0.1.1-dev26+ plan)
+﻿# VideoTools TODO (v0.1.1-dev26+ plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
@@ -65,7 +65,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Git converter integration**
   - Move git_converter workflow into the main VT UI and retire legacy scripts.
 - [ ] **Windows installer validation**
-  - Test `scripts\_internal\install-deps-windows.ps1` Scoop flow and GStreamer MSI install on Windows 10/11.
+  - Test `scripts\_internal\install-deps-windows.ps1` MSYS2 flow and GStreamer MSI install on Windows 10/11.
   - Re-test GStreamer MSI download and local MSI override after variable fix.
   - Confirm mirror fallback works when the primary download returns HTML.
   - Verify winget fallback works when MSI downloads fail.
@@ -328,3 +328,4 @@ This file tracks upcoming features, improvements, and known issues.
 - **Go implementation preferred**: Maintains single codebase, excellent testing ecosystem
 - **Open-source focus**: No commercial dependencies, community-driven model ecosystem
 - **Modular design**: Each enhancement system can be developed and tested independently
+

@@ -1,74 +1,74 @@
-# VideoTools - Completed Features
+﻿# VideoTools - Completed Features
 
 ## Version 0.1.0-dev24 (2026-01-06) - DVD Menu Templating System
 
 ### Features
-- ✅ **DVD Menu Templating System**
+- âœ… **DVD Menu Templating System**
   - Refactored `author_menu.go` to support multiple, selectable menu templates.
   - Implemented a `MenuTemplate` interface for easy extensibility.
   - Created three initial menu templates:
     - **Simple**: The default, clean menu style.
     - **Dark**: A dark-themed menu for a more cinematic feel.
     - **Poster**: A template that uses a user-provided image as a background.
-- ✅ **Menu Customization UI**
+- âœ… **Menu Customization UI**
   - Added a "Menu Template" dropdown to the authoring settings tab.
   - Added a "Select Background Image" button that appears when the "Poster" template is selected.
   - User's menu template and background image choices are persisted in configuration.
 
 ### Maintenance
-- ✅ **Git author cleanup**
+- âœ… **Git author cleanup**
   - Rewrote commit history to ensure consistent commit attribution.
-- ✅ **Installer dependency parity**
+- âœ… **Installer dependency parity**
   - Ensured pip is installed (Linux/Windows) and skipped Go/pip installs when already present.
-- ✅ **Windows installer parse fix**
+- âœ… **Windows installer parse fix**
   - Normalized PowerShell here-strings to prevent parse errors during installation.
-- ✅ **Go auto-install on Windows**
+- âœ… **Go auto-install on Windows**
   - Removed the Go prompt in `install.sh`; missing Go is now installed automatically.
-- ✅ **Windows install workflow split**
+- âœ… **Windows install workflow split**
   - `install.sh` now delegates to the Windows installer to avoid mixed-shell prompts.
-- ✅ **Windows installer entrypoint**
+- âœ… **Windows installer entrypoint**
   - Added `install-windows.ps1` and made `install.sh` Windows-safe with a clear handoff message.
-- ✅ **Git Bash Windows handoff**
+- âœ… **Git Bash Windows handoff**
   - `install.sh` now runs the Windows installer in the same terminal via `winpty` when available.
-- ✅ **Windows root entrypoints**
+- âœ… **Windows root entrypoints**
   - Added `install.bat` and `install.ps1` to avoid Git Bash popping up from PowerShell.
-- ✅ **Windows scripts entrypoints**
+- âœ… **Windows scripts entrypoints**
   - Added `scripts/install.ps1` and `scripts/install.bat` to keep the Windows workflow inside PowerShell/CMD.
-- ✅ **Windows setup launcher alignment**
+- âœ… **Windows setup launcher alignment**
   - `scripts/_internal/setup-windows.bat` now delegates to `scripts/install.bat` for a single Windows flow.
-- ✅ **Agent workflow rules**
+- âœ… **Agent workflow rules**
   - Added `AGENTS.md` to enforce staging, commits, and documentation updates.
-- ✅ **Player fullscreen toggle**
+- âœ… **Player fullscreen toggle**
   - Added fullscreen toggle to the Player module controls.
-- ✅ **Player EOS handling + metadata access**
+- âœ… **Player EOS handling + metadata access**
   - Stop playback cleanly on EOS and expose duration/FPS from GStreamer.
-- ✅ **Main menu title cleanup**
+- âœ… **Main menu title cleanup**
   - Header now shows "VideoTools" only; platform suffix moved to the footer version label.
-- ✅ **Main menu palette refresh**
+- âœ… **Main menu palette refresh**
   - Restored a diverse, eye-friendly rainbow palette while keeping Convert constant.
-- ✅ **Main menu readability**
+- âœ… **Main menu readability**
   - Increased tile label size and adjusted colors for better contrast.
-- ✅ **Main menu contrast tuning**
+- âœ… **Main menu contrast tuning**
   - Audio, Rip, and Settings colors refined for legibility.
-- ✅ **Main menu layout cleanup**
+- âœ… **Main menu layout cleanup**
   - Removed scroll container so the main menu scales without scroll bars.
-- ✅ **Player silhouette placeholder**
+- âœ… **Player silhouette placeholder**
   - Player pane keeps a stable footprint before media loads.
-- ✅ **Main menu palette tuning**
+- âœ… **Main menu palette tuning**
   - Adjusted audio/compare/subtitles colors for better separation.
-- ✅ **Main menu vibrancy pass**
+- âœ… **Main menu vibrancy pass**
   - Removed monochrome tiles outside Settings.
-- ✅ **Main menu bespoke hues**
+- âœ… **Main menu bespoke hues**
   - Assigned unique hue families to each module for maximum legibility.
-- ✅ **Locked tile hue preservation**
+- âœ… **Locked tile hue preservation**
   - Disabled modules stay colored while appearing subdued.
-- ✅ **Locked hue visibility**
+- âœ… **Locked hue visibility**
   - Reduced stripe opacity and raised label brightness.
 
 ## Version 0.1.0-dev25 (2026-01-22) - Settings Preferences Expansion
 
 ### Features
-- ✅ **Language & Hardware Acceleration in Settings**
+- âœ… **Language & Hardware Acceleration in Settings**
   - Added `Language` string to convertConfig (default: "System").
   - Decoupled benchmark: now only sets HardwareAccel; no codec/preset changes or confirmation dialogs.
   - Implemented Settings > Preferences UI with working selectors:
@@ -77,141 +77,63 @@
   - Removed placeholder "Coming soon" text; UI is functional and logical.
 
 ### Documentation
-- ✅ **TODO.md extended** to track remaining Preferences items (output directories, UI theme, auto-updates, reset/import).
-- ✅ **Documentation alignment** - Updated README, module overview, and project status to reflect current implementation and TODO/DONE state.
-- ✅ **README technical section** - Added preset codec and frame rate targets.
-- ✅ **README balance pass** - Updated capabilities, added status/doc links, and clarified DVD frame rate locking.
-- ✅ **Build links** - Added Daily (dev) and Stable (public) build locations to README and docs index.
-- ✅ **Build link fix** - Corrected Daily (dev) URL.
-- ✅ **Broken link audit** - Fixed internal doc links in README and docs, removed stale placeholders.
-- ✅ **Build metadata outputs** - Build scripts now emit zip artifacts and `build.json` metadata per channel and OS.
-- ✅ **Build docs update** - Documented `VT_BUILD_CHANNEL` and artifact locations in build/install guides.
+- âœ… **TODO.md extended** to track remaining Preferences items (output directories, UI theme, auto-updates, reset/import).
+- âœ… **Documentation alignment** - Updated README, module overview, and project status to reflect current implementation and TODO/DONE state.
+- âœ… **README technical section** - Added preset codec and frame rate targets.
+- âœ… **README balance pass** - Updated capabilities, added status/doc links, and clarified DVD frame rate locking.
+- âœ… **Build links** - Added Daily (dev) and Stable (public) build locations to README and docs index.
+- âœ… **Build link fix** - Corrected Daily (dev) URL.
+- âœ… **Broken link audit** - Fixed internal doc links in README and docs, removed stale placeholders.
+- âœ… **Build metadata outputs** - Build scripts now emit zip artifacts and `build.json` metadata per channel and OS.
+- âœ… **Build docs update** - Documented `VT_BUILD_CHANNEL` and artifact locations in build/install guides.
 
 ### UI/UX
-- ✅ **Module palette contrast** - Updated module and queue colors to contrast-friendly palette.
-
-### Release
-- ✅ **GitHub remote** - Added `github` SSH remote for stable build pushes.
-
-### Windows Install
-- ✅ **GStreamer MSI version** - Updated default GStreamer MSI version and added override flag in docs.
+- [x] Module palette contrast - Updated module and queue colors to contrast-friendly palette.
 
 ### Maintenance
-- [x] Windows installer cleanup (minimal dependency flow, ASCII output; removed Windows 11-specific detection).
-- [x] Windows installer now prompts before optional modules (Python + pip, DVD authoring tools).
-- [x] Windows installer is Scoop-only, uses MSI fallback for required GStreamer, and removes duplicate headers.
-- [x] Main menu title now includes build version with platform suffix (_win/_linux).
-- [x] Windows installer makes build tools optional and installs FFmpeg directly to avoid Scoop bloat.
-- [x] Drafted Windows packaging layout under `packaging/windows/` with MSIX and WinGet stubs.
-- [x] Added GitHub Actions workflow to build Windows MSIX and WinGet artifacts.
-- [x] GitHub Actions now uploads MSIX and WinGet manifest to tag releases.
-- [x] Fixed MSIX manifest encoding and packaging error handling.
-- [x] MSIX pack script now resolves paths from repo root.
-- [x] MSIX pack script now updates Identity version without breaking XML declaration.
-- [x] MSIX pack script now edits manifest via XML writer to avoid schema errors.
-- [x] Fixed MSIX manifest tile logo schema to use DefaultTile attributes.
-- [x] Added runFullTrust capability to MSIX manifest.
-- [x] Added local MSIX signing helper for dev testing.
-- [x] MSIX signing helper now allows explicit signtool path and uses SHA256 digest flags.
-- [x] MSIX dev cert now uses exportable RSA key for signing reliability.
-- [x] MSIX signing helper supports Authenticode fallback.
-- [x] Removed duplicate Windows installer header from scripts/install.bat.
-- [x] Windows installer now prompts for elevation when required.
-- [x] Windows installer now relaunches itself with explicit UAC prompt guidance.
-- [x] Windows installer keeps elevated PowerShell window open for errors/logs.
-- [x] Added GStreamer MSI download fallbacks to avoid 418 download failures.
-- [x] Added local MSI override and size validation for GStreamer install.
-- [x] Fixed GStreamer MSI override variable collision in Windows installer.
-- [x] Added GStreamer MSI mirror fallback and stricter download validation.
-- [x] Added manual GStreamer MSI download hint on installer failures.
-- [x] Added winget fallback when GStreamer MSI downloads fail.
-- [x] Defaulted GStreamer install to winget first, MSI fallback second.
-- [x] DVDStyler download failures no longer block Windows installs.
-- [x] Added winget fallback for optional DVDStyler tools before ZIP download.
-- [x] Windows build scripts now auto-elevate to avoid admin errors.
-- [x] GStreamer and DVDStyler winget installs now add PATH for current session.
-- [x] Installer now detects existing GStreamer/DVDStyler installs outside PATH.
-- [x] Fixed DVDStyler install detection order in Windows installer.
-- [x] Installer now re-checks PATH for GStreamer/DVDStyler before warning.
-- [x] Added MSI fallback when winget installs do not expose required binaries.
-- [x] Added fallback disk search for GStreamer/DVDStyler executables.
-- [x] Defaulted Windows installer back to MSI-first with optional winget.
-- [x] Updated DVDStyler download URLs to current release.
-- [x] Added Leak Technologies DVDStyler mirror with EXE fallback support.
-- [x] Added Leak Technologies mirror for whisper.cpp small model downloads.
-- [x] Added optional Whisper model install prompt and download to Windows installer.
-- [x] Added DVDStyler EXE installer path + silent install support for Windows.
-- [x] Defaulted DVDStyler to Leak Technologies mirror and made SourceForge fallback opt-in on Windows.
-- [x] Fixed Whisper model installer scope and expanded DVDStyler mirror URL variants.
-- [x] Defaulted Whisper model to LT media mirror with fallback URL variants.
-- [x] Added optional mirror authentication headers for private LT mirrors.
-- [x] Switched optional module downloads to curl progress bar when available.
-- [x] Build batch file now delegates to build.ps1 with UAC elevation.
-- [x] Build scripts now format preflight output and provide clearer failure banners.
-- [x] Build preflight now validates build command presence and favors Scoop guidance when missing.
-- [x] Build script now validates GCC toolchain and prints clear MSYS2 fallback guidance.
-- [x] Windows installer can auto-reinstall MinGW via Scoop when GCC test compile fails.
-- [x] DVD authoring skip now prints info messages instead of warnings.
-- [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
-- [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
-- [x] Moved non-core documentation from repo root into `docs/` and updated references.
-- [x] Cleaned internal doc links after moving documentation.
-
-## Version 0.1.1-dev26 (2026-01-31) - Convert Metadata & Remux UX
-
-### UI/UX
-- [x] Player placeholder buttons now sit inside the player silhouette to prevent overlap on small screens.
-- [x] Convert view stacks player and metadata to remove excess blank space and keep metadata visible.
-- [x] Convert metadata panel now expands to fill remaining space under the player.
-- [x] Convert metadata panel now uses pill-style value rows with codec badges to match the mockup.
-- [x] Remux format now locks encoding/bitrate controls to prevent edits during stream copy.
-- [x] Remux format hides bitrate mode and preset dropdowns to avoid misleading options.
-- [x] Metadata codec badges now render as compact chips instead of full-width bars.
-- [x] Metadata codec rows now use a small color chip plus neutral value pill (matching mockup).
-- [x] Metadata codec pills now use a left-edge chip and stretch to fill available width.
-- [x] Slightly thickened metadata codec color chips for visibility.
+- [x] Replaced Scoop dependency with MSYS2 toolchain across Windows install/build scripts and docs.
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
 
 ### UI/UX
-- ✅ **Colored select polish** - one-click dropdown, left accent bar, softer blue-grey background, rounded corners, larger text
-- ✅ **Panel input styling** - input and panel backgrounds aligned to dropdown tone
-- ✅ **Convert panel buttons** - Auto-crop and interlace actions styled to match settings panel
-- ✅ **About / Support redesign** - mockup-aligned layout, VT + LT logos, Logs Folder placement, support placeholder
+- âœ… **Colored select polish** - one-click dropdown, left accent bar, softer blue-grey background, rounded corners, larger text
+- âœ… **Panel input styling** - input and panel backgrounds aligned to dropdown tone
+- âœ… **Convert panel buttons** - Auto-crop and interlace actions styled to match settings panel
+- âœ… **About / Support redesign** - mockup-aligned layout, VT + LT logos, Logs Folder placement, support placeholder
 
 ### Stability
-- ✅ **Audio module crash fix** - prevent nil entry panic on initial quality selection
+- âœ… **Audio module crash fix** - prevent nil entry panic on initial quality selection
 
 ## Version 0.1.0-dev22 (2026-01-01) - Bug Fixes & Documentation
 
 ### Bug Fixes
-- ✅ **Refactored Command Execution (Windows Console Fix Extended to Core Modules)**
+- âœ… **Refactored Command Execution (Windows Console Fix Extended to Core Modules)**
   - Extended the refactoring of command execution to `audio_module.go`, `author_module.go`, and `platform.go`.
   - All direct calls to `exec.Command` and `exec.CommandContext` in these modules now use `utils.CreateCommand` and `utils.CreateCommandRaw`.
   - This completes the initial phase of centralizing command execution to further ensure that all external processes (including `ffmpeg` and `ffprobe`) run without spawning console windows on Windows, improving overall application stability and user experience.
 
-- ✅ **Refactored Command Execution (Windows Console Fix Extended)**
+- âœ… **Refactored Command Execution (Windows Console Fix Extended)**
   - Systematically replaced direct calls to `exec.Command` and `exec.CommandContext` across `main.go` and `internal/benchmark/benchmark.go` with `utils.CreateCommand` and `utils.CreateCommandRaw`.
   - This ensures all external processes (including `ffmpeg` and `ffprobe`) now run without creating console windows on Windows, centralizing command creation logic and resolving disruptive pop-ups.
 
-- ✅ **Fixed Console Pop-ups on Windows**
+- âœ… **Fixed Console Pop-ups on Windows**
   - Created a centralized utility function (`utils.CreateCommand`) that starts external processes without creating a console window on Windows.
   - Refactored the benchmark module and main application logic to use this new utility.
   - This resolves the issue where running benchmarks or other operations would cause disruptive `ffmpeg.exe` console windows to appear.
 
 ### Documentation
-- ✅ **Addressed Platform Gaps (Windows Guide)**
+- âœ… **Addressed Platform Gaps (Windows Guide)**
   - Created a new, comprehensive installation guide for native Windows (`docs/INSTALL_WINDOWS.md`).
   - Refactored the main `INSTALLATION.md` into a platform-agnostic hub that now links to the separate, detailed guides for Windows and Linux/macOS.
   - This provides a clear, user-friendly path for users on all major platforms.
 
-- ✅ **Aligned Documentation with Reality**
+- âœ… **Aligned Documentation with Reality**
   - Audited and tagged all planned features in the documentation with `[PLANNED]`.
   - This provides a more honest representation of the project's capabilities.
   - Removed broken links from the documentation index.
 
-- ✅ **Created Project Status Page**
+- âœ… **Created Project Status Page**
   - Created `docs/PROJECT_STATUS.md` to provide a single source of truth for project status.
   - Summarizes implemented, planned, and in-progress features.
   - Highlights critical known issues, like the player module bugs.
@@ -222,17 +144,17 @@ This file tracks completed features, fixes, and milestones.
 ## Version 0.1.0-dev20+ (2025-12-28) - Queue UI Performance & Workflow Improvements
 
 ### Bug Fixes
-- ✅ **Player Module Investigation**
+- âœ… **Player Module Investigation**
   - Investigated reported player crash
   - Discovered player is ALREADY fully internal and lightweight
   - Uses FFmpeg directly (no external VLC/MPV/FFplay dependencies)
-  - Implementation: FFmpeg pipes raw frames + audio → Oto library for output
+  - Implementation: FFmpeg pipes raw frames + audio â†’ Oto library for output
   - Frame-accurate seeking and A/V sync built-in
   - Error handling: Falls back to video-only playback if audio fails
   - Player module re-enabled - follows VideoTools' core principles
 
 ### Workflow Enhancements
-- ✅ **Benchmark Result Caching**
+- âœ… **Benchmark Result Caching**
   - Benchmark results now persist across app restarts
   - Opening Benchmark module shows cached results instead of auto-running
   - Clear timestamp display (e.g., "Showing cached results from December 28, 2025 at 2:45 PM")
@@ -241,7 +163,7 @@ This file tracks completed features, fixes, and milestones.
   - Saves to `~/.config/VideoTools/benchmark.json` with last 10 runs in history
   - No more redundant benchmarks every time you open the module
 
-- ✅ **Merge Module Output Path UX Improvement**
+- âœ… **Merge Module Output Path UX Improvement**
   - Split single output path field into separate folder and filename fields
   - "Output Folder" field with "Browse Folder" button for directory selection
   - "Output Filename" field for easy filename editing (e.g., "merged.mkv")
@@ -249,27 +171,27 @@ This file tracks completed features, fixes, and milestones.
   - Cleaner, more intuitive interface following standard file dialog patterns
   - Auto-population sets directory and filename independently
 
-- ✅ **Queue Priority System for Convert Now**
+- âœ… **Queue Priority System for Convert Now**
   - "Convert Now" during active conversions adds job to top of queue (after running job)
   - "Add to Queue" continues to add to end as expected
   - Implemented AddNext() method in queue package for priority insertion
   - User feedback message indicates queue position: "Added to top of queue!" vs "Conversion started!"
   - Better workflow when adding files during active batch conversions
 
-- ✅ **Auto-Cleanup for Failed Conversions**
+- âœ… **Auto-Cleanup for Failed Conversions**
   - Convert jobs now automatically delete incomplete/broken output files on failure
   - Success tracking ensures complete files are never removed
   - Prevents accumulation of partial files from crashed/cancelled conversions
   - Cleaner disk space management and error handling
 
-- ✅ **Queue List Jankiness Reduction**
+- âœ… **Queue List Jankiness Reduction**
   - Increased auto-refresh interval from 1000ms to 2000ms for smoother updates
   - Reduced scroll restoration delay from 50ms to 10ms for faster position recovery
   - Fixed race condition in scroll offset saving
   - Eliminated visible jumping during queue view rebuilds
 
 ### Performance Optimizations
-- ✅ **Queue View Button Responsiveness**
+- âœ… **Queue View Button Responsiveness**
   - Fixed Windows-specific button lag after conversion completion
   - Eliminated redundant UI refreshes in queue button handlers (Pause, Resume, Cancel, Remove, Move Up/Down, etc.)
   - Queue onChange callback now handles all refreshes automatically - removed duplicate manual calls
@@ -277,7 +199,7 @@ This file tracks completed features, fixes, and milestones.
   - Result: Instant button response on Windows (was 1-3 second lag)
   - Reported by: user report
 
-- ✅ **Main Menu Performance**
+- âœ… **Main Menu Performance**
   - Fixed main menu lag when sidebar visible and queue active
   - Implemented 300ms throttling for main menu rebuilds (prevents excessive redraws)
   - Cached jobQueue.List() calls to eliminate multiple expensive copies (was 2-3 copies per refresh)
@@ -285,19 +207,19 @@ This file tracks completed features, fixes, and milestones.
   - Result: 3-5x improvement in main menu responsiveness, especially on Windows
   - RAM usage confirmed: 220MB (lean and efficient for video processing app)
 
-- ✅ **Queue Auto-Refresh Optimization**
+- âœ… **Queue Auto-Refresh Optimization**
   - Reduced auto-refresh interval from 500ms to 1000ms (1 second)
   - Reduces UI thread pressure on Windows while maintaining smooth progress updates
   - Combined with 500ms manual throttle in refreshQueueView() for optimal balance
 
 ### User Experience Improvements
-- ✅ **Benchmark UI Cleanup**
+- âœ… **Benchmark UI Cleanup**
   - Hide benchmark indicator in Convert module when settings are already applied
   - Only show "Benchmark: Not Applied" status when action is needed
   - Removes clutter from UI when using benchmark settings
   - Cleaner interface for active conversions with benchmark recommendations
 
-- ✅ **Queue Position Labeling**
+- âœ… **Queue Position Labeling**
   - Fixed confusing priority display in queue view
   - Changed from internal priority numbers (3, 2, 1) to user-friendly queue positions (1, 2, 3)
   - Now displays "Queue Position: 1" for first job, "Queue Position: 2" for second, etc.
@@ -305,31 +227,31 @@ This file tracks completed features, fixes, and milestones.
   - Much clearer for users to understand execution order
 
 ### Remux Safety System (Fool-Proof Implementation)
-- ✅ **Comprehensive Codec Compatibility Validation**
+- âœ… **Comprehensive Codec Compatibility Validation**
   - Added validateRemuxCompatibility() function with format-specific checks
   - Automatically detects incompatible codec/container combinations
   - Validates before ANY remux operation to prevent silent failures
 
-- ✅ **Container-Specific Validation**
+- âœ… **Container-Specific Validation**
   - MP4: Blocks VP8, VP9, AV1, Theora, Vorbis, Opus (not reliably supported)
   - MKV: Allows almost everything (ultra-flexible)
   - WebM: Enforces VP8/VP9/AV1 video + Vorbis/Opus audio only
   - MOV: Apple-friendly codecs (H.264, H.265, ProRes, MJPEG)
 
-- ✅ **Automatic Fallback to Re-encoding**
+- âœ… **Automatic Fallback to Re-encoding**
   - WMV/ASF sources automatically re-encode (timestamp/codec issues)
   - FLV with legacy codecs (Sorenson/VP6) auto re-encode
   - Incompatible codec/container pairs auto re-encode to safe default (H.264)
   - User never gets broken files - system handles it transparently
 
-- ✅ **Auto-Fixable Format Detection**
+- âœ… **Auto-Fixable Format Detection**
   - AVI: Applies -fflags +genpts for timestamp regeneration
   - FLV (H.264): Applies timestamp fixes
   - MPEG-TS/M2TS/MTS: Extended analysis + timestamp fixes
   - VOB (DVD rips): Full timestamp regeneration
   - All apply -avoid_negative_ts make_zero automatically
 
-- ✅ **Enhanced FFmpeg Safety Flags**
+- âœ… **Enhanced FFmpeg Safety Flags**
   - All remux operations now include:
     - `-fflags +genpts` (regenerate timestamps)
     - `-avoid_negative_ts make_zero` (fix negative timestamps)
@@ -338,21 +260,21 @@ This file tracks completed features, fixes, and milestones.
   - MPEG-TS sources get extended analysis parameters
   - Result: Robust, reliable remuxing with zero risk of corruption
 
-- ✅ **Codec Name Normalization**
+- âœ… **Codec Name Normalization**
   - Added normalizeCodecName() to handle codec name variations
-  - Maps h264/avc/avc1/h.264/x264 → h264
-  - Maps h265/hevc/h.265/x265 → h265
-  - Maps divx/xvid/mpeg-4 → mpeg4
+  - Maps h264/avc/avc1/h.264/x264 â†’ h264
+  - Maps h265/hevc/h.265/x265 â†’ h265
+  - Maps divx/xvid/mpeg-4 â†’ mpeg4
   - Ensures accurate validation regardless of FFprobe output variations
 
 ### Technical Improvements
-- ✅ **Smart UI Update Strategy**
+- âœ… **Smart UI Update Strategy**
   - Throttled refreshes prevent cascading rebuilds
   - Conditional updates only when state actually changes
   - Queue list caching eliminates redundant memory allocations
   - Windows-optimized rendering pipeline
 
-- ✅ **Debug Logging**
+- âœ… **Debug Logging**
   - Added comprehensive logging for remux compatibility decisions
   - Clear messages when auto-fixing vs auto re-encoding
   - Helps debugging and user understanding
@@ -360,41 +282,41 @@ This file tracks completed features, fixes, and milestones.
 ## Version 0.1.0-dev20+ (2025-12-26) - Author Module & UI Enhancements
 
 ### Features
-- ✅ **Author Module - Real-time Progress Reporting**
+- âœ… **Author Module - Real-time Progress Reporting**
   - Implemented granular progress updates for FFmpeg encoding steps in the Author module.
   - Progress bar now updates smoothly during video processing, providing better feedback.
   - Weighted progress calculation based on video durations for accurate overall progress.
 
-- ✅ **Author Module - "Add to Queue" & Output Title Clear**
+- âœ… **Author Module - "Add to Queue" & Output Title Clear**
   - Added an "Add to Queue" button to the Author module for non-immediate job execution.
   - Refactored authoring workflow to support queuing jobs via a `startNow` parameter.
   - Modified "Clear All" functionality to also clear the DVD Output Title, preventing naming conflicts.
 
-- ✅ **Main Menu - "Disc" Category for Author, Rip, and Blu-Ray**
+- âœ… **Main Menu - "Disc" Category for Author, Rip, and Blu-Ray**
   - Relocated "Author", "Rip", and "Blu-Ray" buttons to a new "Disc" category on the main menu.
   - Improved logical grouping of disc-related functionalities.
 
-- ✅ **Subtitles Module - Video File Path Population**
+- âœ… **Subtitles Module - Video File Path Population**
   - Fixed an issue where dragging and dropping a video file onto the Subtitles module would not populate the "Video File Path" section.
   - Ensured the video entry widget correctly reflects the dropped video's path.
 
 ## Version 0.1.0-dev20+ (2025-12-23) - Player UX & Installer Polish
 
 ### Features (2025-12-23 Session)
-- ✅ **Player Module UI Improvements**
+- âœ… **Player Module UI Improvements**
   - Responsive video player sizing based on screen resolution
   - Screens < 1600px wide: 640x360 (prevents layout breaking)
-  - Screens ≥ 1600px wide: 1280x720 (larger viewing area)
+  - Screens â‰¥ 1600px wide: 1280x720 (larger viewing area)
   - Dynamically adapts to display when player view is built
   - Prevents excessive negative space on lower resolution displays
 
-- ✅ **Main Menu Cleanup**
+- âœ… **Main Menu Cleanup**
   - Hidden "Logs" button from main menu (history sidebar replaces it)
   - Logs button only appears when onLogsClick callback is provided
   - Cleaner, less cluttered interface
   - Dynamic header controls based on available functionality
 
-- ✅ **Windows Installer Fix**
+- âœ… **Windows Installer Fix**
   - Fixed DVDStyler download from SourceForge mirrors
   - Added `-MaximumRedirection 10` to handle SourceForge redirects
   - Added browser user agent to prevent rejection
@@ -402,12 +324,12 @@ This file tracks completed features, fixes, and milestones.
   - Reported by: user report
 
 ### Technical Improvements
-- ✅ **Responsive Design Pattern**
+- âœ… **Responsive Design Pattern**
   - Canvas size detection for adaptive UI sizing
   - Prevents window layout issues on smaller displays
   - Maintains larger preview on high-resolution screens
 
-- ✅ **PowerShell Download Robustness**
+- âœ… **PowerShell Download Robustness**
   - Proper redirect following for mirror systems
   - User agent spoofing for compatibility
   - Multiple fallback URLs for resilience
@@ -415,7 +337,7 @@ This file tracks completed features, fixes, and milestones.
 ## Version 0.1.0-dev20 (2025-12-21) - VT_Player Framework Implementation
 
 ### Features (2025-12-21 Session)
-- ✅ **VT_Player Module - Complete Framework Implementation**
+- âœ… **VT_Player Module - Complete Framework Implementation**
   - **Frame-Accurate Video Player Interface** (`internal/player/vtplayer.go`)
     - Microsecond precision seeking with `SeekToTime()` and `SeekToFrame()`
     - Frame extraction capabilities for preview systems (`ExtractFrame()`, `ExtractCurrentFrame()`)
@@ -477,15 +399,15 @@ This file tracks completed features, fixes, and milestones.
 - **Convert Module**: Video loading and preview integration
 
 ### Documentation
-- ✅ Created comprehensive implementation documentation (`docs/VT_PLAYER_IMPLEMENTATION.md`)
-- ✅ Documented architecture decisions and backend selection logic
-- ✅ Provided integration examples for module developers
-- ✅ Outlined future enhancement roadmap
+- âœ… Created comprehensive implementation documentation (`docs/VT_PLAYER_IMPLEMENTATION.md`)
+- âœ… Documented architecture decisions and backend selection logic
+- âœ… Provided integration examples for module developers
+- âœ… Outlined future enhancement roadmap
 
 ## Version 0.1.0-dev20 (2025-12-18 to 2025-12-20) - Convert Module Cleanup & UX Polish
 
 ### Features (2025-12-20 Session)
-- ✅ **History Sidebar - In Progress Tab**
+- âœ… **History Sidebar - In Progress Tab**
   - Added "In Progress" tab to history sidebar
   - Shows running and pending jobs without opening queue
   - Animated striped progress bars per module color
@@ -493,7 +415,7 @@ This file tracks completed features, fixes, and milestones.
   - No delete button on active jobs (only completed/failed)
   - Dynamic status text ("Running..." or "Pending")
 
-- ✅ **Benchmark System Overhaul**
+- âœ… **Benchmark System Overhaul**
   - **Hardware Detection Module** (`internal/sysinfo/sysinfo.go`)
     - Cross-platform CPU detection (model, cores, clock speed)
     - GPU detection with driver version (NVIDIA via nvidia-smi)
@@ -512,15 +434,15 @@ This file tracks completed features, fixes, and milestones.
     - Returns to normal styling after initial benchmark
   - Guides new users to run initial benchmark
 
-- ✅ **AI Upscale Integration (Real-ESRGAN)**
+- âœ… **AI Upscale Integration (Real-ESRGAN)**
   - Added model presets with anime/general variants
-  - Processing presets (Ultra Fast → Maximum Quality) with tile/TTA tuning
+  - Processing presets (Ultra Fast â†’ Maximum Quality) with tile/TTA tuning
   - Upscale factor selection + output adjustment slider
   - Tile size, output frame format, GPU and thread controls
-  - ncnn backend pipeline (extract → AI upscale → reassemble)
+  - ncnn backend pipeline (extract â†’ AI upscale â†’ reassemble)
   - Filters and frame rate conversion applied before AI upscaling
 
-- ✅ **Bitrate Preset Simplification**
+- âœ… **Bitrate Preset Simplification**
   - Reduced from 13 confusing options to 6 clear presets
   - Removed resolution references (no more "1440p" confusion)
   - Codec-agnostic (presets don't change selected codec)
@@ -529,20 +451,20 @@ This file tracks completed features, fixes, and milestones.
   - Presets only set bitrate and switch to CBR mode
   - User codec choice (H.264, VP9, AV1, etc.) preserved
 
-- ✅ **Quality Preset Codec Compatibility**
+- âœ… **Quality Preset Codec Compatibility**
   - "Lossless" quality option only available for H.265 and AV1
   - Dynamic quality dropdown based on selected codec
   - Automatic fallback to "Near-Lossless" when switching to non-lossless codec
   - Lossless + Target Size bitrate mode now supported for H.265/AV1
   - Prevents invalid codec/quality combinations
 
-- ✅ **App Icon Improvements**
+- âœ… **App Icon Improvements**
   - Regenerated VT_Icon.ico with transparent background
   - Updated LoadAppIcon() to search PNG first (better Linux support)
   - Searches both current directory and executable directory
   - Added debug logging for icon loading troubleshooting
 
-- ✅ **UI Scaling for 800x600 Windows** (2025-12-20 continuation)
+- âœ… **UI Scaling for 800x600 Windows** (2025-12-20 continuation)
   - Reduced module tile size from 220x110 to 150x65
   - Reduced title text size from 28 to 18
   - Reduced queue tile from 160x60 to 120x40
@@ -552,27 +474,27 @@ This file tracks completed features, fixes, and milestones.
   - Removed scrolling requirement - everything fits without scrolling
   - All UI elements fit within 800x600 default window
 
-- ✅ **Header Layout Improvements** (2025-12-20 continuation)
+- âœ… **Header Layout Improvements** (2025-12-20 continuation)
   - Changed from HBox with spacer to border layout
   - Title on left, all controls grouped compactly on right
   - Shortened button labels for space efficiency
-  - "☰ History" → "☰", "Run Benchmark" → "Benchmark", "View Results" → "Results"
+  - "â˜° History" â†’ "â˜°", "Run Benchmark" â†’ "Benchmark", "View Results" â†’ "Results"
   - Eliminates wasted horizontal space
 
-- ✅ **Queue Clear Behavior Fix** (2025-12-20 continuation)
+- âœ… **Queue Clear Behavior Fix** (2025-12-20 continuation)
   - "Clear Completed" now always returns to main menu
   - "Clear All" now always returns to main menu
   - Prevents unwanted navigation to convert module after clearing queue
   - Consistent and predictable behavior
 
-- ✅ **Threading Safety Fix** (2025-12-20 continuation)
+- âœ… **Threading Safety Fix** (2025-12-20 continuation)
   - Fixed Fyne threading errors in stats bar component
   - Removed Show()/Hide() calls from Layout() method
   - Layout() can be called from any thread during resize/redraw
   - Show/Hide logic remains only in Refresh() with proper DoFromGoroutine
   - Eliminates threading warnings during UI updates
 
-- ✅ **Preset UX Improvements** (2025-12-20 continuation)
+- âœ… **Preset UX Improvements** (2025-12-20 continuation)
   - Moved "Manual" option to bottom of all preset dropdowns
   - Bitrate preset default: "2.5 Mbps - Medium Quality"
   - Target size preset default: "100MB"
@@ -583,7 +505,7 @@ This file tracks completed features, fixes, and milestones.
   - Better quality options now appear at top of list
   - Applied consistently to both simple and advanced modes
 
-- ✅ **Audio Channel Remixing** (2025-12-20 continuation)
+- âœ… **Audio Channel Remixing** (2025-12-20 continuation)
   - Added advanced audio channel options for videos with imbalanced L/R channels
   - New options using FFmpeg pan filter:
     - "Left to Stereo" - Copy left channel to both speakers (music only)
@@ -594,7 +516,7 @@ This file tracks completed features, fixes, and milestones.
   - Maintains existing options (Source, Mono, Stereo, 5.1)
   - Solves problem of videos with music in one ear and vocals in the other
 
-- ✅ **Author Module Skeleton** (2025-12-20 continuation)
+- âœ… **Author Module Skeleton** (2025-12-20 continuation)
   - Renamed "DVD Author" module to "Author" for broader scope
   - Created tabbed interface structure with 3 tabs:
     - **Chapters Tab** - Scene detection and chapter management
@@ -609,7 +531,7 @@ This file tracks completed features, fixes, and milestones.
   - Added author module state fields to appState
   - Foundation for complete disc production workflow
 
-- ✅ **Real-ESRGAN Automated Setup** (2025-12-20 continuation)
+- âœ… **Real-ESRGAN Automated Setup** (2025-12-20 continuation)
   - Created automated setup script for Linux (setup-realesrgan-linux.sh)
   - One-command installation: downloads, installs, configures
   - Installs binary to ~/.local/bin/realesrgan-ncnn-vulkan
@@ -619,7 +541,7 @@ This file tracks completed features, fixes, and milestones.
   - Makes AI upscaling fully automated for users
   - No manual downloads or configuration needed
 
-- ✅ **Window Auto-Resize Fix** (2025-12-20 continuation)
+- âœ… **Window Auto-Resize Fix** (2025-12-20 continuation)
   - Fixed window resizing itself when content changes
   - Window now maintains user-set size through all content updates
   - Progress bars and queue updates no longer trigger window resize
@@ -629,26 +551,26 @@ This file tracks completed features, fixes, and milestones.
   - Reported by: user report
 
 ### Features (2025-12-18 Session)
-- ✅ **History Sidebar Enhancements**
-  - Delete button ("×") on each history entry
+- âœ… **History Sidebar Enhancements**
+  - Delete button ("Ã—") on each history entry
   - Remove individual entries from history
   - Auto-save and refresh after deletion
   - Clean, unobtrusive button placement
 
-- ✅ **Command Preview Improvements**
+- âœ… **Command Preview Improvements**
   - Show/Hide button state based on preview visibility
   - Disabled when no video source loaded
   - Displays actual file paths instead of placeholders
   - Real-time live updates as settings change
   - Collapsible to save screen space
 
-- ✅ **Format Options Reorganization**
-  - Grouped by codec family (H.264 → H.265 → AV1 → VP9 → ProRes → MPEG-2)
+- âœ… **Format Options Reorganization**
+  - Grouped by codec family (H.264 â†’ H.265 â†’ AV1 â†’ VP9 â†’ ProRes â†’ MPEG-2)
   - Added descriptive comments for each codec type
   - Improved dropdown readability and navigation
   - Easier to find and compare similar formats
 
-- ✅ **Bitrate Mode Clarity**
+- âœ… **Bitrate Mode Clarity**
   - Descriptive labels in dropdown:
     - CRF (Constant Rate Factor)
     - CBR (Constant Bitrate)
@@ -657,37 +579,37 @@ This file tracks completed features, fixes, and milestones.
   - Immediate understanding without documentation
   - Preserves internal compatibility with short codes
 
-- ✅ **Root Folder Cleanup**
+- âœ… **Root Folder Cleanup**
   - Moved all documentation .md files to docs/ folder
   - Kept only README.md, TODO.md, DONE.md in root
   - Cleaner project structure
   - Better organization for contributors
 
 ### Bug Fixes
-- ✅ **Critical Convert Module Crash Fixed**
+- âœ… **Critical Convert Module Crash Fixed**
   - Fixed nil pointer dereference when opening Convert module
   - Corrected widget initialization order
   - bitrateContainer now created after bitratePresetSelect initialized
   - Eliminated "invalid memory address" panic on startup
 
-- ✅ **Log Viewer Crash Fixed**
+- âœ… **Log Viewer Crash Fixed**
   - Fixed "close of closed channel" panic
   - Duplicate close handlers removed
   - Proper dialog cleanup
 
-- ✅ **Bitrate Control Improvements**
+- âœ… **Bitrate Control Improvements**
   - CBR: Set bufsize to 2x bitrate for better encoder handling
   - VBR: Increased maxrate cap from 1.5x to 2x target bitrate
   - VBR: Added bufsize at 4x target to enforce caps
   - Prevents runaway bitrates while maintaining quality peaks
 
 ### Technical Improvements
-- ✅ **Widget Initialization Order**
+- âœ… **Widget Initialization Order**
   - Fixed container creation dependencies
   - All Select widgets initialized before container use
   - Proper nil checking in UI construction
 
-- ✅ **Bidirectional Label Mapping**
+- âœ… **Bidirectional Label Mapping**
   - Display labels map to internal storage codes
   - Config files remain compatible
   - Clean separation of UI and data layers
@@ -695,7 +617,7 @@ This file tracks completed features, fixes, and milestones.
 ## Version 0.1.0-dev18 (2025-12-15)
 
 ### Features
-- ✅ **Thumbnail Module Enhancements**
+- âœ… **Thumbnail Module Enhancements**
   - Enhanced metadata display with 3 lines of comprehensive technical data
   - Added 8px padding between thumbnails in contact sheets
   - Increased thumbnail width to 280px for analyzable screenshots (4x8 grid = ~1144x1416)
@@ -704,13 +626,13 @@ This file tracks completed features, fixes, and milestones.
   - Video codec, audio codec, FPS, and overall bitrate shown in metadata
   - Navy blue background (#0B0F1A) for professional appearance
 
-- ✅ **Player Module**
+- âœ… **Player Module**
   - New Player button on main menu (Teal #44FFDD)
   - Access to VT_Player for video playback
   - Video loading and preview integration
   - Module handler for CLI support
 
-- ✅ **Filters Module - UI Complete**
+- âœ… **Filters Module - UI Complete**
   - Color correction controls (brightness, contrast, saturation)
   - Enhancement tools (sharpness, denoise)
   - Transform operations (rotation, flip horizontal/vertical)
@@ -718,7 +640,7 @@ This file tracks completed features, fixes, and milestones.
   - Navigation to Upscale module with video transfer
   - Full state management for filter settings
 
-- ✅ **Upscale Module - Fully Functional**
+- âœ… **Upscale Module - Fully Functional**
   - Traditional FFmpeg scaling methods: Lanczos (sharp), Bicubic (smooth), Spline (balanced), Bilinear (fast)
   - Resolution presets: 720p, 1080p, 1440p, 4K, 8K
   - "UPSCALE NOW" button for immediate processing
@@ -728,13 +650,13 @@ This file tracks completed features, fixes, and milestones.
   - High quality encoding (libx264, preset slow, CRF 18)
   - Navigation back to Filters module
 
-- ✅ **Snippet System Overhaul - Dual Output Modes**
+- âœ… **Snippet System Overhaul - Dual Output Modes**
   - **"Snippet to Default Format" (Checkbox CHECKED - Default)**:
     - Stream copy mode preserves exact source format, codec, bitrate
     - Zero quality loss - bit-perfect copy of source
-    - Outputs to source container (.wmv → .wmv, .avi → .avi, etc.)
+    - Outputs to source container (.wmv â†’ .wmv, .avi â†’ .avi, etc.)
     - Fast processing (no re-encoding)
-    - Duration: Keyframe-level precision (may vary ±1-2s)
+    - Duration: Keyframe-level precision (may vary Â±1-2s)
     - Perfect for merge testing without quality changes
   - **"Snippet to Output Format" (Checkbox UNCHECKED)**:
     - Uses configured conversion settings from Convert tab
@@ -745,78 +667,78 @@ This file tracks completed features, fixes, and milestones.
     - Frame-perfect duration control (exactly configured length)
     - Perfect preview of final conversion output
 
-- ✅ **Configurable Snippet Length**
+- âœ… **Configurable Snippet Length**
   - Adjustable snippet length (5-60 seconds, default: 20)
   - Slider control with real-time display
   - Snippets centered on video midpoint
   - Length persists across video loads
 
-- ✅ **Batch Snippet Generation**
+- âœ… **Batch Snippet Generation**
   - "Generate All Snippets" button for multiple loaded videos
   - Processes all videos with same configured length
   - Consistent timestamp for uniform naming
   - Efficient queue integration
   - Shows confirmation with count of jobs added
 
-- ✅ **Smart Job Descriptions**
+- âœ… **Smart Job Descriptions**
   - Displays snippet length and mode in job queue
   - "10s snippet centred on midpoint (source format)"
   - "20s snippet centred on midpoint (conversion settings)"
 
 ### Technical Improvements
-- ✅ **Dual-Mode Snippet System Implementation**
+- âœ… **Dual-Mode Snippet System Implementation**
   - Default Format mode: Stream copy for bit-perfect source preservation
   - Output Format mode: Full conversion using user's configured settings
   - Automatic container/codec matching based on mode selection
   - Integration with conversion config (video/audio codecs, presets, CRF)
   - Smart extension handling (source format vs. selected output format)
-- ✅ **Queue/Status UI polish**
+- âœ… **Queue/Status UI polish**
   - Animated striped progress bars per module color with faster motion for visibility
   - Footer refactor: consistent dark status strip + tinted action bar across modules
   - Status bar tap restored to open Job Queue; full-width clickable strip
-- ✅ **Snippet progress reporting**
-  - Live progress from ffmpeg `-progress` output; 0–100% updates in status bar and queue
+- âœ… **Snippet progress reporting**
+  - Live progress from ffmpeg `-progress` output; 0â€“100% updates in status bar and queue
   - Error/log capture preserved for snippet jobs
 
-- ✅ **Metadata Enhancement System**
+- âœ… **Metadata Enhancement System**
   - New `getDetailedVideoInfo()` function using FFprobe
   - Extracts video codec, audio codec, FPS, video bitrate, audio bitrate
   - Multiple ffprobe calls for comprehensive data
   - Graceful fallback to format-level bitrate if stream bitrate unavailable
 
-- ✅ **Module Navigation Pattern**
+- âœ… **Module Navigation Pattern**
   - Bidirectional navigation between Filters and Upscale
   - Video file transfer between modules
   - Filter chain transfer capability (foundation for future)
 
-- ✅ **Resolution Parsing System**
+- âœ… **Resolution Parsing System**
   - `parseResolutionPreset()` function for preset strings
   - Maps "1080p (1920x1080)" format to width/height integers
   - Support for custom resolution input (foundation)
 
-- ✅ **Upscale Filter Builder**
+- âœ… **Upscale Filter Builder**
   - `buildUpscaleFilter()` constructs FFmpeg scale filters
   - Method-specific scaling: lanczos, bicubic, spline, bilinear
   - Filter chain combination support
 
 ### Bug Fixes
-- ✅ Fixed incorrect thumbnail count in contact sheets (was generating 34 instead of 40 for 5x8 grid)
-- ✅ Fixed frame selection FPS assumption (hardcoded 30fps removed)
-- ✅ Fixed module visibility (added thumb module to enabled check)
-- ✅ Fixed undefined function call (openFileManager → openFolder)
-- ✅ Fixed dynamic total count not updating when changing grid dimensions
-- ✅ Added missing `strings` import to thumbnail/generator.go
-- ✅ Updated snippet UI labels for clarity (Default Format vs Output Format)
+- âœ… Fixed incorrect thumbnail count in contact sheets (was generating 34 instead of 40 for 5x8 grid)
+- âœ… Fixed frame selection FPS assumption (hardcoded 30fps removed)
+- âœ… Fixed module visibility (added thumb module to enabled check)
+- âœ… Fixed undefined function call (openFileManager â†’ openFolder)
+- âœ… Fixed dynamic total count not updating when changing grid dimensions
+- âœ… Added missing `strings` import to thumbnail/generator.go
+- âœ… Updated snippet UI labels for clarity (Default Format vs Output Format)
 
 ### Documentation
-- ✅ Updated ai-speak.md with comprehensive dev18 documentation
-- ✅ Created 24-item testing checklist for dev18
-- ✅ Documented all implementation details and technical decisions
+- âœ… Updated ai-speak.md with comprehensive dev18 documentation
+- âœ… Created 24-item testing checklist for dev18
+- âœ… Documented all implementation details and technical decisions
 
 ## Version 0.1.0-dev17 (2025-12-14)
 
 ### Features
-- ✅ **Thumbnail Module - Complete Implementation**
+- âœ… **Thumbnail Module - Complete Implementation**
   - Individual thumbnail generation with customizable count (3-50 thumbnails)
   - Contact sheet generation with metadata headers
   - Customizable grid layouts (2-12 columns, 2-12 rows)
@@ -828,7 +750,7 @@ This file tracks completed features, fixes, and milestones.
   - App background color (#0B0F1A) for contact sheet padding
   - Dynamic total count display for grid layouts
 
-- ✅ **Thumbnail UI Integration**
+- âœ… **Thumbnail UI Integration**
   - Video preview window (640x360) in thumbnail module
   - Mode-specific controls (contact sheet: columns/rows, individual: count/width)
   - Dual button system:
@@ -839,58 +761,58 @@ This file tracks completed features, fixes, and milestones.
   - Drag-and-drop support for video files (universal across app)
   - Real-time grid total calculation as columns/rows change
 
-- ✅ **Job Queue Integration for Thumbnails**
+- âœ… **Job Queue Integration for Thumbnails**
   - Background thumbnail generation with progress tracking
   - Job queue support with live progress updates
   - Can queue multiple thumbnail jobs from different videos
   - Progress callback integration for thumbnail extraction
   - Proper context cancellation support
 
-- ✅ **Snippet Tool Improvement**
+- âœ… **Snippet Tool Improvement**
   - Changed from re-encoding to stream copy (`-c copy`)
   - Instant 20-second snippet extraction with zero quality loss
   - No encoding overhead - extracts source streams directly
   - Removed 148 lines of unnecessary encoding logic
 
 ### Technical Improvements
-- ✅ **Timestamp-based Frame Selection**
+- âœ… **Timestamp-based Frame Selection**
   - Fixed frame selection from FPS-dependent (`eq(n,frame_num)`) to timestamp-based (`gte(t,timestamp)`)
   - Ensures correct thumbnail count regardless of video frame rate
   - Works reliably with VFR (Variable Frame Rate) content
   - Uses `setpts=N/TB` for proper timestamp reset in contact sheets
 
-- ✅ **FFmpeg Filter Optimization**
+- âœ… **FFmpeg Filter Optimization**
   - Tile filter for grid layouts: `tile=COLUMNSxROWS`
   - Select filter with timestamp-based frame extraction
   - Pad filter with hex color codes for app background matching
   - Drawtext filter with font specification and positioning
   - Scale filter maintaining aspect ratios
 
-- ✅ **Module Architecture**
+- âœ… **Module Architecture**
   - Added thumbnail state fields to appState (thumbFile, thumbCount, thumbWidth, thumbContactSheet, thumbColumns, thumbRows, thumbLastOutputPath)
   - Implemented `showThumbView()` for thumbnail module UI
   - Implemented `buildThumbView()` for split layout (preview 55%, settings 45%)
   - Implemented `executeThumbJob()` for job queue integration
   - Universal drag-and-drop handler for all modules
 
-- ✅ **Error Handling**
+- âœ… **Error Handling**
   - Disabled timestamp overlay on individual thumbnails to avoid font availability issues
   - Graceful handling of missing output directories
   - Proper error dialogs with context-specific messages
   - Exit status 234 resolution (font-related errors)
 
 ### Bug Fixes
-- ✅ Fixed incorrect thumbnail count in contact sheets (was generating 34 instead of 40 for 5x8 grid)
-- ✅ Fixed frame selection FPS assumption (hardcoded 30fps removed)
-- ✅ Fixed module visibility (added thumb module to enabled check)
-- ✅ Fixed undefined function call (openFileManager → openFolder)
-- ✅ Fixed dynamic total count not updating when changing grid dimensions
-- ✅ Fixed font-related crash on systems without DejaVu Sans Mono
+- âœ… Fixed incorrect thumbnail count in contact sheets (was generating 34 instead of 40 for 5x8 grid)
+- âœ… Fixed frame selection FPS assumption (hardcoded 30fps removed)
+- âœ… Fixed module visibility (added thumb module to enabled check)
+- âœ… Fixed undefined function call (openFileManager â†’ openFolder)
+- âœ… Fixed dynamic total count not updating when changing grid dimensions
+- âœ… Fixed font-related crash on systems without DejaVu Sans Mono
 
 ## Version 0.1.0-dev16 (2025-12-14)
 
 ### Features
-- ✅ **Interlacing Detection Module - Complete Implementation**
+- âœ… **Interlacing Detection Module - Complete Implementation**
   - Automatic interlacing analysis using FFmpeg idet filter
   - Field order detection (TFF - Top Field First, BFF - Bottom Field First)
   - Frame-by-frame analysis with classifications:
@@ -904,20 +826,20 @@ This file tracks completed features, fixes, and milestones.
   - Quick analyze mode (500 frames) for fast detection
   - Full video analysis option for comprehensive results
 
-- ✅ **Deinterlacing Recommendations**
+- âœ… **Deinterlacing Recommendations**
   - Automatic deinterlacing recommendations based on analysis
   - Suggested filter selection (yadif for compatibility)
   - Human-readable recommendations
   - SuggestDeinterlace boolean flag for programmatic use
 
-- ✅ **Preview Generation**
+- âœ… **Preview Generation**
   - Deinterlace preview at specific timestamps
   - Side-by-side comparison (original vs deinterlaced)
   - Uses yadif filter for preview generation
   - Frame extraction with proper scaling
 
 ### Technical Improvements
-- ✅ **Detector Implementation**
+- âœ… **Detector Implementation**
   - Created `/internal/interlace/detector.go` package
   - NewDetector() constructor accepting ffmpeg and ffprobe paths
   - Analyze() method with configurable sample frame count
@@ -925,28 +847,28 @@ This file tracks completed features, fixes, and milestones.
   - Regex-based parsing of idet filter output
   - Multi-frame detection statistics extraction
 
-- ✅ **Detection Result Structure**
+- âœ… **Detection Result Structure**
   - Comprehensive DetectionResult type with all metrics
   - String() method for formatted output
   - Percentage calculations for interlaced content
   - Field order determination logic
   - Confidence calculation based on undetermined ratio
 
-- ✅ **FFmpeg Integration**
+- âœ… **FFmpeg Integration**
   - idet filter integration for interlacing detection
   - Proper stderr pipe handling for filter statistics
   - Context-aware command execution with cancellation support
   - Null output format for analysis-only operations
 
 ### Documentation
-- ✅ Added interlacing detection to module list
-- ✅ Documented detection algorithms and thresholds
-- ✅ Explained field order types and their implications
+- âœ… Added interlacing detection to module list
+- âœ… Documented detection algorithms and thresholds
+- âœ… Explained field order types and their implications
 
 ## Version 0.1.0-dev13 (In Progress - 2025-12-03)
 
 ### Features
-- ✅ **Automatic Black Bar Detection and Cropping**
+- âœ… **Automatic Black Bar Detection and Cropping**
   - Detects and removes black bars to reduce file size (15-30% typical reduction)
   - One-click "Detect Crop" button analyzes video using FFmpeg cropdetect
   - Samples 10 seconds from middle of video for stable detection
@@ -958,27 +880,27 @@ This file tracks completed features, fixes, and milestones.
   - Proper handling for videos without black bars
   - 30-second timeout protection for detection process
 
-- ✅ **Frame Rate Conversion UI with Size Estimates**
+- âœ… **Frame Rate Conversion UI with Size Estimates**
   - Comprehensive frame rate options: Source, 23.976, 24, 25, 29.97, 30, 50, 59.94, 60
-  - Intelligent file size reduction estimates (40-50% for 60→30 fps)
-  - Real-time hints showing "Converting X → Y fps: ~Z% smaller file"
+  - Intelligent file size reduction estimates (40-50% for 60â†’30 fps)
+  - Real-time hints showing "Converting X â†’ Y fps: ~Z% smaller file"
   - Warning for upscaling attempts with judder notice
   - Automatic calculation based on source and target frame rates
   - Dynamic updates when video or frame rate changes
   - Supports both film (24 fps) and broadcast standards (25/29.97/30)
   - Uses FFmpeg fps filter for frame rate conversion
 
-- ✅ **Encoder Preset Descriptions with Speed/Quality Trade-offs**
+- âœ… **Encoder Preset Descriptions with Speed/Quality Trade-offs**
   - Detailed information for all 9 preset options
   - Speed comparisons relative to "slow" and "medium" baselines
   - File size impact percentages for each preset
-  - Visual icons indicating speed categories (⚡⏩⚖️🎯🐌)
+  - Visual icons indicating speed categories (âš¡â©âš–ï¸ðŸŽ¯ðŸŒ)
   - Recommends "slow" as best quality/size ratio
   - Dynamic hint updates when preset changes
   - Helps users make informed encoding time decisions
   - Ranges from ultrafast (~10x faster, ~30% larger) to veryslow (~5x slower, ~15-20% smaller)
 
-- ✅ **Compare Module**
+- âœ… **Compare Module**
   - Side-by-side video comparison interface
   - Load two videos and compare detailed metadata
   - Displays format, resolution, codecs, bitrates, frame rate, pixel format
@@ -987,7 +909,7 @@ This file tracks completed features, fixes, and milestones.
   - Accessible via GUI button (pink color) or CLI: `videotools compare <file1> <file2>`
   - Added formatBitrate() helper function for consistent bitrate display
 
-- ✅ **Target File Size Encoding Mode**
+- âœ… **Target File Size Encoding Mode**
   - New "Target Size" bitrate mode in convert module
   - Specify desired output file size (e.g., "25MB", "100MB", "8MB")
   - Automatically calculates required video bitrate based on:
@@ -1001,85 +923,85 @@ This file tracks completed features, fixes, and milestones.
   - Minimum bitrate sanity check (100 kbps) to prevent invalid outputs
 
 ### Technical Improvements
-- ✅ Added compare command to CLI help text
-- ✅ Consistent "Target Size" naming throughout UI and code
-- ✅ Added compareFile1 and compareFile2 to appState for video comparison
-- ✅ Module button grid updated with compare button (pink/magenta color)
+- âœ… Added compare command to CLI help text
+- âœ… Consistent "Target Size" naming throughout UI and code
+- âœ… Added compareFile1 and compareFile2 to appState for video comparison
+- âœ… Module button grid updated with compare button (pink/magenta color)
 
 ## Version 0.1.0-dev12 (2025-12-02)
 
 ### Features
-- ✅ **Automatic hardware encoder detection and selection**
+- âœ… **Automatic hardware encoder detection and selection**
   - Prioritizes NVIDIA NVENC > Intel QSV > VA-API > OpenH264
   - Falls back to software encoders (libx264/libx265) if no hardware acceleration available
   - Automatically uses best available encoder without user configuration
   - Significant performance improvement on systems with GPU encoding support
 
-- ✅ **iPhone/mobile device compatibility settings**
+- âœ… **iPhone/mobile device compatibility settings**
   - H.264 profile selection (baseline, main, high)
   - H.264 level selection (3.0, 3.1, 4.0, 4.1, 5.0, 5.1)
   - Defaults to main profile, level 4.0 for maximum compatibility
   - Ensures videos play on iPhone 4 and newer devices
 
-- ✅ **Advanced deinterlacing with dual methods**
+- âœ… **Advanced deinterlacing with dual methods**
   - Added bwdif (Bob Weaver) deinterlacing - higher quality than yadif
   - Kept yadif for faster processing when speed is priority
   - Auto-detect interlaced content based on field_order metadata
   - Deinterlace modes: Auto (detect and apply), Force, Off
   - Defaults to bwdif for best quality
 
-- ✅ **Audio normalization for compatibility**
+- âœ… **Audio normalization for compatibility**
   - Force stereo (2 channels) output
   - Force 48kHz sample rate
   - Ensures consistent playback across all devices
   - Optional toggle for maximum compatibility mode
 
-- ✅ **10-bit encoding for better compression**
+- âœ… **10-bit encoding for better compression**
   - Changed default pixel format from yuv420p to yuv420p10le
   - Provides 10-20% file size reduction at same visual quality
   - Better handling of color gradients and banding
   - Automatic for all H.264/H.265 conversions
 
-- ✅ **Browser desync fix**
+- âœ… **Browser desync fix**
   - Added `-fflags +genpts` to regenerate timestamps
   - Added `-r` flag to enforce constant frame rate (CFR)
   - Fixes "desync after multiple plays" issue in Chromium browsers (Chrome, Edge, Vivaldi)
   - Eliminates gradual audio drift when scrubbing/seeking
 
-- ✅ **Extended resolution support**
+- âœ… **Extended resolution support**
   - Added 8K (4320p) resolution option
   - Supports: 720p, 1080p, 1440p, 4K (2160p), 8K (4320p)
   - Prepared for future VR and ultra-high-resolution content
 
-- ✅ **Black bar cropping infrastructure**
+- âœ… **Black bar cropping infrastructure**
   - Added AutoCrop configuration option
   - Cropdetect filter support for future auto-detection
   - Foundation for 15-30% file size reduction in dev13
 
 ### Technical Improvements
-- ✅ All new settings propagate to both direct convert and queue processing
-- ✅ Backward compatible with legacy InverseTelecine setting
-- ✅ Comprehensive logging for all encoding decisions
-- ✅ Settings persist across video loads
+- âœ… All new settings propagate to both direct convert and queue processing
+- âœ… Backward compatible with legacy InverseTelecine setting
+- âœ… Comprehensive logging for all encoding decisions
+- âœ… Settings persist across video loads
 
 ### Bug Fixes
-- ✅ Fixed VFR (Variable Frame Rate) handling that caused desync
-- ✅ Prevented timestamp drift in long videos
-- ✅ Improved browser playback compatibility
+- âœ… Fixed VFR (Variable Frame Rate) handling that caused desync
+- âœ… Prevented timestamp drift in long videos
+- âœ… Improved browser playback compatibility
 
 ## Version 0.1.0-dev11 (2025-11-30)
 
 ### Features
-- ✅ Added persistent conversion stats bar visible on all screens
+- âœ… Added persistent conversion stats bar visible on all screens
   - Real-time progress updates for running jobs
   - Displays pending/completed/failed job counts
   - Clickable to open queue view
   - Shows job title and progress percentage
-- ✅ Added multi-video navigation with Prev/Next buttons
+- âœ… Added multi-video navigation with Prev/Next buttons
   - Load multiple videos for batch queue setup
   - Switch between loaded videos to review settings before queuing
   - Shows "Video X of Y" counter
-- ✅ Added installation script with animated loading spinner
+- âœ… Added installation script with animated loading spinner
   - Braille character animations
   - Shows current task during build and install
   - Interactive path selection (system-wide or user-local)
@@ -1089,45 +1011,45 @@ This file tracks completed features, fixes, and milestones.
   - Better user experience when reporting issues
 
 ### Improvements
-- ✅ Align direct convert and queue behavior
+- âœ… Align direct convert and queue behavior
   - Show active direct convert inline in queue with live progress
   - Preserve queue scroll position during updates
   - Back button from queue returns to originating module
   - Queue badge includes active direct conversions
   - Allow adding to queue while a convert is running
-- ✅ DVD-compliant outputs
+- âœ… DVD-compliant outputs
   - Enforce MPEG-2 video + AC-3 audio, yuv420p
   - Apply NTSC/PAL targets with correct fps/resolution
   - Disable cover art for DVD targets to avoid mux errors
   - Unified settings for direct and queued jobs
-- ✅ Updated queue tile to show active/total jobs instead of completed/total
+- âœ… Updated queue tile to show active/total jobs instead of completed/total
   - Shows pending + running jobs out of total
   - More intuitive status at a glance
-- ✅ Fixed critical deadlock in queue callback system
+- âœ… Fixed critical deadlock in queue callback system
   - Callbacks now run in goroutines to prevent blocking
   - Prevents app freezing when adding jobs to queue
-- ✅ Improved batch file handling with detailed error reporting
+- âœ… Improved batch file handling with detailed error reporting
   - Shows which specific files failed to analyze
   - Continues processing valid files when some fail
   - Clear summary messages
-- ✅ Fixed queue status display
+- âœ… Fixed queue status display
   - Always shows progress percentage (even at 0%)
   - Clearer indication when job is running vs. pending
-- ✅ Fixed queue deserialization for formatOption struct
+- âœ… Fixed queue deserialization for formatOption struct
   - Handles JSON map conversion properly
   - Prevents panic when reloading saved queue on startup
 
 ### Bug Fixes
-- ✅ Fixed crash when dragging multiple files
+- âœ… Fixed crash when dragging multiple files
   - Better error handling in batch processing
   - Graceful degradation for problematic files
-- ✅ Fixed deadlock when queue callbacks tried to read stats
-- ✅ Fixed formatOption deserialization from saved queue
+- âœ… Fixed deadlock when queue callbacks tried to read stats
+- âœ… Fixed formatOption deserialization from saved queue
 
 ## Version 0.1.0-dev7 (2025-11-23)
 
 ### Features
-- ✅ Changed default aspect ratio from 16:9 to Source across all instances
+- âœ… Changed default aspect ratio from 16:9 to Source across all instances
   - Updated initial state default
   - Updated empty fallback default
   - Updated reset button behavior
@@ -1135,163 +1057,163 @@ This file tracks completed features, fixes, and milestones.
   - Updated hint label text
 
 ### Documentation
-- ✅ Created comprehensive MODULES.md with all planned modules
-- ✅ Created PERSISTENT_VIDEO_CONTEXT.md design document
-- ✅ Created VIDEO_PLAYER.md documenting custom player implementation
-- ✅ Reorganized docs into module-specific folders
-- ✅ Created detailed Convert module documentation
-- ✅ Created detailed Inspect module documentation
-- ✅ Created detailed Rip module documentation
-- ✅ Created docs/README.md navigation hub
-- ✅ Created TODO.md and DONE.md tracking files
+- âœ… Created comprehensive MODULES.md with all planned modules
+- âœ… Created PERSISTENT_VIDEO_CONTEXT.md design document
+- âœ… Created VIDEO_PLAYER.md documenting custom player implementation
+- âœ… Reorganized docs into module-specific folders
+- âœ… Created detailed Convert module documentation
+- âœ… Created detailed Inspect module documentation
+- âœ… Created detailed Rip module documentation
+- âœ… Created docs/README.md navigation hub
+- âœ… Created TODO.md and DONE.md tracking files
 
 ## Version 0.1.0-dev6 and Earlier
 
 ### Core Application
-- ✅ Fyne-based GUI framework
-- ✅ Multi-module architecture with tile-based main menu
-- ✅ Application icon and branding
-- ✅ Debug logging system (VIDEOTOOLS_DEBUG environment variable)
-- ✅ Cross-module state management
-- ✅ Window initialization and sizing
+- âœ… Fyne-based GUI framework
+- âœ… Multi-module architecture with tile-based main menu
+- âœ… Application icon and branding
+- âœ… Debug logging system (VIDEOTOOLS_DEBUG environment variable)
+- âœ… Cross-module state management
+- âœ… Window initialization and sizing
 
 ### Convert Module (Partial Implementation)
-- ✅ Basic video conversion functionality
-- ✅ Format selection (MP4, MKV, WebM, MOV, AVI)
-- ✅ Codec selection (H.264, H.265, VP9)
-- ✅ Quality presets (CRF-based encoding)
-- ✅ Output aspect ratio selection
+- âœ… Basic video conversion functionality
+- âœ… Format selection (MP4, MKV, WebM, MOV, AVI)
+- âœ… Codec selection (H.264, H.265, VP9)
+- âœ… Quality presets (CRF-based encoding)
+- âœ… Output aspect ratio selection
   - Source, 16:9, 4:3, 1:1, 9:16, 21:9
-- ✅ Aspect ratio handling methods
+- âœ… Aspect ratio handling methods
   - Auto, Letterbox, Pillarbox, Blur Fill
-- ✅ Deinterlacing options
+- âœ… Deinterlacing options
   - Inverse telecine with default smoothing
-- ✅ Mode toggle (Simple/Advanced)
-- ✅ Output filename customization
-- ✅ Default output naming ("-convert" suffix)
-- ✅ Status indicator during conversion
-- ✅ Cancelable conversion process
-- ✅ FFmpeg command construction
-- ✅ Process management and execution
+- âœ… Mode toggle (Simple/Advanced)
+- âœ… Output filename customization
+- âœ… Default output naming ("-convert" suffix)
+- âœ… Status indicator during conversion
+- âœ… Cancelable conversion process
+- âœ… FFmpeg command construction
+- âœ… Process management and execution
 
 ### Video Loading & Metadata
-- ✅ File selection dialog
-- ✅ FFprobe integration for metadata parsing
-- ✅ Video source structure with comprehensive metadata
+- âœ… File selection dialog
+- âœ… FFprobe integration for metadata parsing
+- âœ… Video source structure with comprehensive metadata
   - Path, format, resolution, duration
   - Video/audio codecs
   - Bitrate, framerate, pixel format
   - Field order detection
-- ✅ Preview frame generation (24 frames)
-- ✅ Temporary directory management for previews
+- âœ… Preview frame generation (24 frames)
+- âœ… Temporary directory management for previews
 
 ### Media Player
-- ✅ Embedded video playback using FFmpeg
-- ✅ Audio playback with SDL2
-- ✅ Frame-accurate rendering
-- ✅ Playback controls (play/pause)
-- ✅ Volume control
-- ✅ Seek functionality with progress bar
-- ✅ Player window sizing based on video aspect ratio
-- ✅ Frame pump system for smooth playback
-- ✅ Audio/video synchronization
-- ✅ Stable seeking and embedded video rendering
+- âœ… Embedded video playback using FFmpeg
+- âœ… Audio playback with SDL2
+- âœ… Frame-accurate rendering
+- âœ… Playback controls (play/pause)
+- âœ… Volume control
+- âœ… Seek functionality with progress bar
+- âœ… Player window sizing based on video aspect ratio
+- âœ… Frame pump system for smooth playback
+- âœ… Audio/video synchronization
+- âœ… Stable seeking and embedded video rendering
 
 ### Metadata Display
-- ✅ Metadata panel showing key video information
-- ✅ Resolution display
-- ✅ Duration formatting
-- ✅ Codec information
-- ✅ Aspect ratio display
-- ✅ Field order indication
+- âœ… Metadata panel showing key video information
+- âœ… Resolution display
+- âœ… Duration formatting
+- âœ… Codec information
+- âœ… Aspect ratio display
+- âœ… Field order indication
 
 ### Inspect Module (Basic)
-- ✅ Video metadata viewing
-- ✅ Technical details display
-- ✅ Comprehensive information in Convert module metadata panel
-- ✅ Cover art preview capability
+- âœ… Video metadata viewing
+- âœ… Technical details display
+- âœ… Comprehensive information in Convert module metadata panel
+- âœ… Cover art preview capability
 
 ### UI Components
-- ✅ Main menu with 8 module tiles
+- âœ… Main menu with 8 module tiles
   - Convert, Merge, Trim, Filters, Upscale, Audio, Thumb, Inspect
-- ✅ Module color coding for visual identification
-- ✅ Clear video control in metadata panel
-- ✅ Reset button for Convert settings
-- ✅ Status label for operation feedback
-- ✅ Progress indication during operations
+- âœ… Module color coding for visual identification
+- âœ… Clear video control in metadata panel
+- âœ… Reset button for Convert settings
+- âœ… Status label for operation feedback
+- âœ… Progress indication during operations
 
 ### Git & Version Control
-- ✅ Git repository initialization
-- ✅ .gitignore configuration
-- ✅ Version tagging system (v0.1.0-dev1 through dev7)
-- ✅ Commit message formatting
-- ✅ Binary exclusion from repository
-- ✅ Build cache exclusion
+- âœ… Git repository initialization
+- âœ… .gitignore configuration
+- âœ… Version tagging system (v0.1.0-dev1 through dev7)
+- âœ… Commit message formatting
+- âœ… Binary exclusion from repository
+- âœ… Build cache exclusion
 
 ### Build System
-- ✅ Go modules setup
-- ✅ Fyne dependencies integration
-- ✅ FFmpeg/FFprobe external tool integration
-- ✅ SDL2 integration for audio
-- ✅ OpenGL bindings (go-gl) for video rendering
-- ✅ Cross-platform file path handling
+- âœ… Go modules setup
+- âœ… Fyne dependencies integration
+- âœ… FFmpeg/FFprobe external tool integration
+- âœ… SDL2 integration for audio
+- âœ… OpenGL bindings (go-gl) for video rendering
+- âœ… Cross-platform file path handling
 
 ### Asset Management
-- ✅ Application icon (VT_Icon.svg)
-- ✅ Icon export to PNG format
-- ✅ Icon embedding in application
+- âœ… Application icon (VT_Icon.svg)
+- âœ… Icon export to PNG format
+- âœ… Icon embedding in application
 
 ### Logging & Debugging
-- ✅ Category-based logging (SYS, UI, MODULE, etc.)
-- ✅ Timestamp formatting
-- ✅ Debug output toggle via environment variable
-- ✅ Log file output (videotools.log)
+- âœ… Category-based logging (SYS, UI, MODULE, etc.)
+- âœ… Timestamp formatting
+- âœ… Debug output toggle via environment variable
+- âœ… Log file output (videotools.log)
 
 ### Error Handling
-- ✅ FFmpeg execution error capture
-- ✅ File selection cancellation handling
-- ✅ Video parsing error messages
-- ✅ Process cancellation cleanup
+- âœ… FFmpeg execution error capture
+- âœ… File selection cancellation handling
+- âœ… Video parsing error messages
+- âœ… Process cancellation cleanup
 
 ### Utility Functions
-- ✅ Duration formatting (seconds to HH:MM:SS)
-- ✅ Aspect ratio parsing and calculation
-- ✅ File path manipulation
-- ✅ Temporary directory creation and cleanup
+- âœ… Duration formatting (seconds to HH:MM:SS)
+- âœ… Aspect ratio parsing and calculation
+- âœ… File path manipulation
+- âœ… Temporary directory creation and cleanup
 
 ## Technical Achievements
 
 ### Architecture
-- ✅ Clean separation between UI and business logic
-- ✅ Shared state management across modules
-- ✅ Modular design allowing easy addition of new modules
-- ✅ Event-driven UI updates
+- âœ… Clean separation between UI and business logic
+- âœ… Shared state management across modules
+- âœ… Modular design allowing easy addition of new modules
+- âœ… Event-driven UI updates
 
 ### FFmpeg Integration
-- ✅ Dynamic FFmpeg command building
-- ✅ Filter chain construction for complex operations
-- ✅ Stream mapping for video/audio handling
-- ✅ Process execution with proper cleanup
-- ✅ Progress parsing from FFmpeg output (basic)
+- âœ… Dynamic FFmpeg command building
+- âœ… Filter chain construction for complex operations
+- âœ… Stream mapping for video/audio handling
+- âœ… Process execution with proper cleanup
+- âœ… Progress parsing from FFmpeg output (basic)
 
 ### Media Playback
-- ✅ Custom media player implementation
-- ✅ Frame extraction and display pipeline
-- ✅ Audio decoding and playback
-- ✅ Synchronization between audio and video
-- ✅ Embedded playback within application window
-- ✅ Seek functionality with progress bar
-- ✅ Player window sizing based on video aspect ratio
-- ✅ Frame pump system for smooth playback
-- ✅ Audio/video synchronization
-- ✅ Checkpoint system for playback position
+- âœ… Custom media player implementation
+- âœ… Frame extraction and display pipeline
+- âœ… Audio decoding and playback
+- âœ… Synchronization between audio and video
+- âœ… Embedded playback within application window
+- âœ… Seek functionality with progress bar
+- âœ… Player window sizing based on video aspect ratio
+- âœ… Frame pump system for smooth playback
+- âœ… Audio/video synchronization
+- âœ… Checkpoint system for playback position
 
 ### UI/UX
-- ✅ Responsive layout adapting to content
-- ✅ Intuitive module selection
-- ✅ Clear visual feedback during operations
-- ✅ Logical grouping of related controls
-- ✅ Helpful hint labels for user guidance
+- âœ… Responsive layout adapting to content
+- âœ… Intuitive module selection
+- âœ… Clear visual feedback during operations
+- âœ… Logical grouping of related controls
+- âœ… Helpful hint labels for user guidance
 
 ## Milestones
 
@@ -1325,62 +1247,62 @@ This file tracks completed features, fixes, and milestones.
 
 ### Documentation Status
 - **Module Documentation**: 30% complete
-  - ✅ Convert: Complete
-  - ✅ Inspect: Complete
-  - ✅ Rip: Complete
-  - ⏳ Others: Pending
+  - âœ… Convert: Complete
+  - âœ… Inspect: Complete
+  - âœ… Rip: Complete
+  - â³ Others: Pending
 - **Design Documents**: 50% complete
-  - ✅ Persistent Video Context
-  - ✅ Module Overview
-  - ⏳ Architecture
-  - ⏳ FFmpeg Integration
+  - âœ… Persistent Video Context
+  - âœ… Module Overview
+  - â³ Architecture
+  - â³ FFmpeg Integration
 - **User Guides**: 0% complete
 
 ## Bug Fixes & Improvements
 
 ### Recent Fixes
-- ✅ Fixed aspect ratio default from 16:9 to Source (dev7)
-- ✅ Ranked benchmark results by score and added cancel confirmation
-- ✅ Added estimated audio bitrate fallback when metadata is missing
-- ✅ Made target file size input unit-selectable with numeric-only entry
-- ✅ Prevented snippet runaway bitrates when using Match Source Format
-- ✅ History sidebar refreshes when jobs complete (snippet entries now appear)
-- ✅ Benchmark errors now show non-blocking notifications instead of OK popups
-- ✅ Fixed stats bar updates to run on the UI thread to avoid Fyne warnings
-- ✅ Defaulted Target Aspect Ratio back to Source unless user explicitly sets it
-- ✅ Synced Target Aspect Ratio between Simple and Advanced menus
-- ✅ Hide manual CRF input when Lossless quality is selected
-- ✅ Upscale now recomputes target dimensions from the preset to ensure 2X/4X apply
-- ✅ Added unit selector for manual video bitrate entry
-- ✅ Reset now restores full default convert settings even with no config file
-- ✅ Reset now forces resolution and frame rate back to Source
-- ✅ Fixed reset handler scope for convert tabs
-- ✅ Restored 25%/33%/50%/75% target size reduction presets
-- ✅ Default bitrate preset set to 2.5 Mbps and added 2.0 Mbps option
-- ✅ Default encoder preset set to slow
-- ✅ Bitrate mode now strictly hides unrelated controls (CRF only in CRF mode)
-- ✅ Removed CRF visibility toggle from quality updates to prevent CBR/VBR bleed-through
-- ✅ Added CRF preset dropdown with Manual option
-- ✅ Added 0.5/1.0 Mbps bitrate presets and simplified preset names
-- ✅ Default bitrate preset normalized to 2.5 Mbps to avoid "select one"
-- ✅ Linked simple and advanced bitrate presets so they stay in sync
-- ✅ Hide quality presets when bitrate mode is not CRF
-- ✅ Snippet UI now shows Convert Snippet + batch + options with context-sensitive controls
-- ✅ Reduced module video pane minimum sizes to allow GNOME window snapping
-- ✅ Added cache/temp directory setting with SSD recommendation and override
-- ✅ Snippet defaults now use conversion settings (not Match Source)
-- ✅ Added frame interpolation presets to Filters and wired filter chain to Upscale
-- ✅ Stabilized video seeking and embedded rendering
-- ✅ Improved player window positioning
-- ✅ Fixed clear video functionality
-- ✅ Resolved build caching issues
-- ✅ Removed binary from git repository
+- âœ… Fixed aspect ratio default from 16:9 to Source (dev7)
+- âœ… Ranked benchmark results by score and added cancel confirmation
+- âœ… Added estimated audio bitrate fallback when metadata is missing
+- âœ… Made target file size input unit-selectable with numeric-only entry
+- âœ… Prevented snippet runaway bitrates when using Match Source Format
+- âœ… History sidebar refreshes when jobs complete (snippet entries now appear)
+- âœ… Benchmark errors now show non-blocking notifications instead of OK popups
+- âœ… Fixed stats bar updates to run on the UI thread to avoid Fyne warnings
+- âœ… Defaulted Target Aspect Ratio back to Source unless user explicitly sets it
+- âœ… Synced Target Aspect Ratio between Simple and Advanced menus
+- âœ… Hide manual CRF input when Lossless quality is selected
+- âœ… Upscale now recomputes target dimensions from the preset to ensure 2X/4X apply
+- âœ… Added unit selector for manual video bitrate entry
+- âœ… Reset now restores full default convert settings even with no config file
+- âœ… Reset now forces resolution and frame rate back to Source
+- âœ… Fixed reset handler scope for convert tabs
+- âœ… Restored 25%/33%/50%/75% target size reduction presets
+- âœ… Default bitrate preset set to 2.5 Mbps and added 2.0 Mbps option
+- âœ… Default encoder preset set to slow
+- âœ… Bitrate mode now strictly hides unrelated controls (CRF only in CRF mode)
+- âœ… Removed CRF visibility toggle from quality updates to prevent CBR/VBR bleed-through
+- âœ… Added CRF preset dropdown with Manual option
+- âœ… Added 0.5/1.0 Mbps bitrate presets and simplified preset names
+- âœ… Default bitrate preset normalized to 2.5 Mbps to avoid "select one"
+- âœ… Linked simple and advanced bitrate presets so they stay in sync
+- âœ… Hide quality presets when bitrate mode is not CRF
+- âœ… Snippet UI now shows Convert Snippet + batch + options with context-sensitive controls
+- âœ… Reduced module video pane minimum sizes to allow GNOME window snapping
+- âœ… Added cache/temp directory setting with SSD recommendation and override
+- âœ… Snippet defaults now use conversion settings (not Match Source)
+- âœ… Added frame interpolation presets to Filters and wired filter chain to Upscale
+- âœ… Stabilized video seeking and embedded rendering
+- âœ… Improved player window positioning
+- âœ… Fixed clear video functionality
+- âœ… Resolved build caching issues
+- âœ… Removed binary from git repository
 
 ### Performance Improvements
-- ✅ Optimized preview frame generation
-- ✅ Efficient FFmpeg process management
-- ✅ Proper cleanup of temporary files
-- ✅ Responsive UI during long operations
+- âœ… Optimized preview frame generation
+- âœ… Efficient FFmpeg process management
+- âœ… Proper cleanup of temporary files
+- âœ… Responsive UI during long operations
 
 ## Acknowledgments
 
@@ -1399,3 +1321,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
+
+
+

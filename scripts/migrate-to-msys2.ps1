@@ -1,37 +1,27 @@
-# VideoTools: Migrate from Scoop MinGW to MSYS2
-# This script helps users switch from problematic Scoop MinGW to MSYS2
+﻿# VideoTools: Ensure MSYS2 toolchain
+# This script installs the MSYS2 MinGW-w64 toolchain for Windows builds
 
 Write-Host "===============================================================" -ForegroundColor Cyan
-Write-Host "  VideoTools Toolchain Migration" -ForegroundColor Cyan
+Write-Host "  VideoTools Toolchain Setup" -ForegroundColor Cyan
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "This script will:" -ForegroundColor Yellow
-Write-Host "1. Remove Scoop MinGW (if problematic)" -ForegroundColor White
-Write-Host "2. Install MSYS2 (recommended)" -ForegroundColor White
-Write-Host "3. Update build script paths" -ForegroundColor White
+Write-Host "1. Install MSYS2 (if missing)" -ForegroundColor White
+Write-Host "2. Install MinGW-w64 GCC via MSYS2" -ForegroundColor White
 Write-Host ""
 
-$confirm = Read-Host "Proceed with migration? (y/N)"
+$confirm = Read-Host "Proceed with MSYS2 setup? (y/N)"
 if ($confirm -ne "y" -and $confirm -ne "Y") {
-    Write-Host "Migration cancelled." -ForegroundColor Yellow
+    Write-Host "Setup cancelled." -ForegroundColor Yellow
     exit 0
 }
 
-Write-Host "Removing Scoop MinGW..." -ForegroundColor Yellow
-try {
-    scoop uninstall mingw
-    Write-Host "[OK]  Scoop MinGW removed" -ForegroundColor Green
-} catch {
-    Write-Host "[WARN]  Could not remove Scoop MinGW: $($_.Exception.Message)" -ForegroundColor Yellow
-}
-
-Write-Host "Installing MSYS2..." -ForegroundColor Yellow
+Write-Host "Installing MSYS2 toolchain..." -ForegroundColor Yellow
 $installScript = Join-Path $PSScriptRoot "_internal/install-deps-windows.ps1"
 $installArgs = @(
     "-SkipFFmpeg",
-    "-SkipGStreamer", 
+    "-SkipGStreamer",
     "-InstallBuildTools",
-    "-UseMSYS2",
     "-SkipPython",
     "-SkipDvdStyler",
     "-SkipWhisper"
@@ -41,7 +31,7 @@ $installArgs = @(
 
 Write-Host ""
 Write-Host "===============================================================" -ForegroundColor Cyan
-Write-Host " Migration complete!" -ForegroundColor Green
+Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "1. Restart your terminal/PowerShell" -ForegroundColor White

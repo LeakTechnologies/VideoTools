@@ -11,7 +11,7 @@ if "%~1"=="" (
 
 where ffprobe >nul 2>&1 && where ffmpeg >nul 2>&1
 if errorlevel 1 (
-    echo ffmpeg/ffprobe not found in PATH. Install via winget/choco/scoop or run setup-windows.
+    echo ffmpeg/ffprobe not found in PATH. Install via winget/choco or run setup-windows.
     pause
     exit /b 1
 )
@@ -64,3 +64,4 @@ if !TOTAL! GTR 0 (
 echo.
 echo Done.
 pause
+

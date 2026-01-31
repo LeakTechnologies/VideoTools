@@ -1,4 +1,4 @@
-# VideoTools Build Scripts
+﻿# VideoTools Build Scripts
 
 This directory contains scripts for building and managing VideoTools on different platforms.
 
@@ -85,8 +85,8 @@ Run in PowerShell as Administrator:
 **Options:**
 - `-SkipFFmpeg` - Skip ffmpeg installation (if you already have it)
 - `-SkipGStreamer` - Skip GStreamer installation (not recommended)
-- `-InstallBuildTools` - Install Go + MinGW
-- `-SkipBuildTools` - Skip Go + MinGW
+- `-InstallBuildTools` - Install Go + MSYS2 MinGW-w64
+- `-SkipBuildTools` - Skip Go + MSYS2 MinGW-w64
 - `-InstallPython` - Install Python + pip
 - `-SkipPython` - Skip Python + pip
 - `-GStreamerRuntimeMsi` - Use local GStreamer runtime MSI
@@ -95,7 +95,7 @@ Run in PowerShell as Administrator:
 **Installs:**
 - FFmpeg (portable, user-level)
 - GStreamer (MSI, required for playback)
-- Optional: Go + MinGW (build tools)
+- Optional: Go + MSYS2 MinGW-w64 (build tools)
 - Optional: Python + pip
 - Optional: DVD authoring tools (DVDStyler portable)
 
@@ -123,7 +123,7 @@ Run in PowerShell:
 
 VideoTools uses [Fyne](https://fyne.io/) for its GUI, which requires CGO (C bindings) for OpenGL support. This means:
 
-1. **C compiler required** (GCC on Linux, MinGW on Windows)
+1. **C compiler required** (GCC on Linux, MSYS2 MinGW-w64 on Windows)
 2. **OpenGL libraries required** (system-dependent)
 3. **Build time is longer** than pure Go applications
 
@@ -132,7 +132,7 @@ VideoTools uses [Fyne](https://fyne.io/) for its GUI, which requires CGO (C bind
 VideoTools requires `ffmpeg` to be available in the system PATH:
 
 - **Linux**: Installed via package manager
-- **Windows**: Installed via Chocolatey/Scoop or manually
+- **Windows**: Installed via winget/Chocolatey or manually
 
 The application will auto-detect available hardware encoders:
 - NVIDIA: NVENC (h264_nvenc, hevc_nvenc)
@@ -144,7 +144,7 @@ The application will auto-detect available hardware encoders:
 
 For best performance with hardware encoding:
 
-**NVIDIA (Recommended for Jake's setup):**
+**NVIDIA (Recommended in user report):**
 - Install latest NVIDIA drivers
 - GTX 1060 and newer support NVENC
 - Reduces 2-hour encode from 6-9 hours to <1 hour
@@ -174,18 +174,18 @@ sudo apt install libgl1-mesa-dev
 sudo pacman -S mesa
 ```
 
-### Windows: MinGW not in PATH
+### Windows: MSYS2 MinGW-w64 not in PATH
 
 After installing build tools, restart PowerShell or add to PATH manually:
 
 ```powershell
-$env:Path += ";$env:USERPROFILE\\scoop\\apps\\mingw\\current\\bin"
+$env:Path += ";C:\\msys64\\mingw64\\bin"
 ```
 
 ### Build fails with "cgo: C compiler not found"
 
 **Linux:** Install gcc
-**Windows:** Install MinGW via `scripts/_internal/install-deps-windows.ps1`
+**Windows:** Install MSYS2 MinGW-w64 via `scripts/_internal/install-deps-windows.ps1`
 
 ### ffmpeg not found
 
@@ -273,3 +273,5 @@ Some antivirus software may flag the built executable. This is common with Go ap
 
 VideoTools build scripts are part of the VideoTools project.
 See the main project LICENSE file for details.
+
+

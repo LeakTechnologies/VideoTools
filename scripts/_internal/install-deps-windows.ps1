@@ -1,5 +1,5 @@
-# VideoTools Dependency Installer for Windows
-# Installs build and runtime dependencies using Scoop
+﻿# VideoTools Dependency Installer for Windows
+# Installs build and runtime dependencies using MSYS2 + winget
 
 param(
     [switch]$SkipFFmpeg = $false,
@@ -199,109 +199,87 @@ function Find-ExeInRoots {
     return $null
 }
 
-function Ensure-Scoop {
-    if (-not (Test-Command scoop)) {
-        Write-Host "Installing Scoop..." -ForegroundColor Yellow
-        try {
-            Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-        } catch {
-            Write-Host "[WARN]  Execution policy could not be set: $($_.Exception.Message)" -ForegroundColor Yellow
-            Write-Host "[INFO]  Continuing with Scoop installation..." -ForegroundColor Cyan
-        }
-        
-        # Clean up any existing partial installations
-        $scoopDir = Join-Path $env:USERPROFILE "scoop"
-        if (Test-Path $scoopDir) {
-            try {
-                Write-Host "[INFO]  Removing existing Scoop directory..." -ForegroundColor Cyan
-                Remove-Item -Path $scoopDir -Recurse -Force
-            } catch {
-                Write-Host "[WARN]  Could not remove existing Scoop directory: $($_.Exception.Message)" -ForegroundColor Yellow
-            }
-        }
-        
-        # Use a simpler installation method
-        try {
-            Write-Host "[INFO]  Downloading Scoop installer..." -ForegroundColor Cyan
-            $installerScript = Join-Path $env:TEMP "install-scoop.ps1"
-            (New-Object System.Net.WebClient).DownloadString("https://get.scoop.sh") | Out-File -FilePath $installerScript -Encoding UTF8
-            
-            # Execute installer in a new PowerShell session to avoid variable conflicts
-            $installArgs = @(
-                "-NoProfile",
-                "-ExecutionPolicy", "Bypass", 
-                "-File", $installerScript
-            )
-            Start-Process -FilePath "powershell.exe" -ArgumentList $installArgs -Wait -NoNewWindow
-            
-            Remove-Item $installerScript -Force
-        } catch {
-            Write-Host "[ERROR]  Scoop installation failed: $($_.Exception.Message)" -ForegroundColor Red
-            exit 1
-        }
-
-        # Refresh PATH and test again
-        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-        
-        # Add scoop shims to PATH if not already present
-        $scoopShims = Join-Path $scoopDir "shims"
-        if (Test-Path $scoopShims) {
-            $env:Path = "$scoopShims;$env:Path"
-        }
-
-        if (-not (Test-Command scoop)) {
-            Write-Host "[ERROR]  Failed to install Scoop" -ForegroundColor Red
-            exit 1
-        }
-        Write-Host "[OK]  Scoop installed" -ForegroundColor Green
-    } else {
-        Write-Host "[OK]  Scoop already installed" -ForegroundColor Green
+function Ensure-Msys2 {
+    $msysRoot = "C:\msys64"
+    $pacmanPath = Join-Path $msysRoot "usr\bin\pacman.exe"
+    if (Test-Path $pacmanPath) {
+        Write-Host "[OK]  MSYS2 already installed" -ForegroundColor Green
+        return $true
     }
+
+    if (Test-Command winget) {
+        Write-Host "Installing MSYS2 via winget..." -ForegroundColor Yellow
+        & winget install --id MSYS2.MSYS2 --silent --accept-package-agreements --accept-source-agreements
+        if ($LASTEXITCODE -eq 0 -and (Test-Path $pacmanPath)) {
+            Write-Host "[OK]  MSYS2 installed" -ForegroundColor Green
+            return $true
+        }
+    }
+
+    Write-Host "[ERROR]  MSYS2 not found and winget is unavailable." -ForegroundColor Red
+    Write-Host "Install MSYS2 from https://www.msys2.org/ and re-run this installer." -ForegroundColor Yellow
+    return $false
 }
 
-function Install-ViaScoop {
-    Write-Host "Using Scoop package manager..." -ForegroundColor Green
-    Ensure-Scoop
-
-    # Ensure Scoop shims are in PATH for this session
-    $scoopShims = Join-Path $env:USERPROFILE "scoop\shims"
-    if ($env:Path -notmatch [Regex]::Escape($scoopShims)) {
-        $env:Path = "$scoopShims;$env:Path"
+function Install-Msys2Packages {
+    param(
+        [string[]]$Packages
+    )
+    if (-not $Packages -or $Packages.Count -eq 0) {
+        return $true
     }
 
-    $packages = New-Object System.Collections.Generic.List[string]
-    if ($InstallBuildTools) {
-        if (-not (Test-Command go)) {
-            $packages.Add("go")
-        }
-        if (-not (Test-Command gcc)) {
-            $packages.Add("mingw")
-        }
-    }
-    if ($InstallPython -and -not (Test-Pip)) {
-        $packages.Add("python")
+    if (-not (Ensure-Msys2)) {
+        return $false
     }
 
-    if ($packages.Count -eq 0) {
-        Write-Host "[OK]  Dependencies already installed" -ForegroundColor Green
-        return
+    $pacmanPath = "C:\msys64\usr\bin\pacman.exe"
+    if (-not (Test-Path $pacmanPath)) {
+        Write-Host "[ERROR]  pacman not found after MSYS2 install." -ForegroundColor Red
+        return $false
     }
 
-    Write-Host "Installing: $($packages -join ', ')" -ForegroundColor Yellow
-    scoop install @packages
-
-    # After installation, add common tool paths to PATH for this session
-    if ($InstallBuildTools) {
-        $goPath = Join-Path $env:USERPROFILE "go\bin"
-        $mingwPath = Join-Path $env:USERPROFILE "scoop\apps\mingw\current\bin"
-        
-        if (Test-Path $goPath -and $env:Path -notmatch [Regex]::Escape($goPath)) {
-            $env:Path = "$goPath;$env:Path"
-        }
-        if (Test-Path $mingwPath -and $env:Path -notmatch [Regex]::Escape($mingwPath)) {
-            $env:Path = "$mingwPath;$env:Path"
-        }
+    Write-Host "Installing MSYS2 packages: $($Packages -join ', ')" -ForegroundColor Yellow
+    & $pacmanPath -S --needed --noconfirm @Packages | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "[WARN]  MSYS2 package install failed. Open the MSYS2 shell and run:" -ForegroundColor Yellow
+        Write-Host "        pacman -S --needed --noconfirm $($Packages -join ' ')" -ForegroundColor Yellow
+        return $false
     }
+
+    $mingwBin = "C:\msys64\mingw64\bin"
+    if (Test-Path $mingwBin) {
+        Add-ToUserPath -PathItem $mingwBin
+    }
+    return $true
+}
+
+function Install-GoViaWinget {
+    if (Test-Command go) {
+        return $true
+    }
+    if (-not (Test-Command winget)) {
+        Write-Host "[WARN]  winget not available; install Go from https://go.dev/dl/." -ForegroundColor Yellow
+        return $false
+    }
+    Write-Host "Installing Go via winget..." -ForegroundColor Yellow
+    & winget install --id GoLang.Go --silent --accept-package-agreements --accept-source-agreements
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    return (Test-Command go)
+}
+
+function Install-PythonViaWinget {
+    if (Test-Pip) {
+        return $true
+    }
+    if (-not (Test-Command winget)) {
+        Write-Host "[WARN]  winget not available; install Python from https://www.python.org/downloads/." -ForegroundColor Yellow
+        return $false
+    }
+    Write-Host "Installing Python via winget..." -ForegroundColor Yellow
+    & winget install --id Python.Python.3 --silent --accept-package-agreements --accept-source-agreements
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+    return (Test-Pip)
 }
 
 function Install-FFmpegPortable {
@@ -1029,7 +1007,7 @@ if (-not (Test-Command gst-launch-1.0) -and -not $SkipGStreamer -and -not $isAdm
 if ($InstallBuildTools -eq $false -and $SkipBuildTools -eq $false) {
     $needsBuildTools = (-not (Test-Command go)) -or (-not (Test-Command gcc))
     if ($needsBuildTools) {
-        Write-Host "Optional module: Build tools (Go + MinGW)" -ForegroundColor Yellow
+        Write-Host "Optional module: Build tools (Go + MSYS2 MinGW-w64)" -ForegroundColor Yellow
         $buildChoice = Read-Host "Install build tools for compiling VideoTools? (y/N)"
         if ($buildChoice -eq "y" -or $buildChoice -eq "Y") {
             $InstallBuildTools = $true
@@ -1040,22 +1018,43 @@ if ($InstallBuildTools -eq $false -and $SkipBuildTools -eq $false) {
     }
 }
 
-Install-ViaScoop
+if ($InstallBuildTools) {
+    $goOk = Install-GoViaWinget
+    if (-not $goOk) {
+        Write-Host "[WARN]  Go install not completed; build tools may be incomplete." -ForegroundColor Yellow
+    }
+
+    if (-not (Test-Command gcc)) {
+        $gccOk = Install-Msys2Packages -Packages @("mingw-w64-x86_64-gcc")
+        if (-not $gccOk) {
+            Write-Host "[WARN]  MSYS2 GCC install did not complete; GCC may be unavailable." -ForegroundColor Yellow
+        }
+    } else {
+        $mingwBin = "C:\msys64\mingw64\bin"
+        if (Test-Path $mingwBin) {
+            Add-ToUserPath -PathItem $mingwBin
+        }
+    }
+}
+
+if ($InstallPython) {
+    $pythonOk = Install-PythonViaWinget
+    if (-not $pythonOk) {
+        Write-Host "[WARN]  Python install not completed; pip may be unavailable." -ForegroundColor Yellow
+    }
+}
 
 if ($InstallBuildTools -and (Test-Command gcc)) {
     if (-not (Test-Gcc)) {
-        Write-Host "[WARN]  GCC test compile failed. The MinGW toolchain may be incomplete." -ForegroundColor Yellow
-        if (Test-Command scoop) {
-            $repairChoice = Read-Host "Reinstall MinGW via Scoop now? (y/N)"
-            if ($repairChoice -eq "y" -or $repairChoice -eq "Y") {
-                Write-Host "Reinstalling MinGW..." -ForegroundColor Yellow
-                scoop uninstall mingw | Out-Null
-                scoop install mingw | Out-Null
-                if (Test-Gcc) {
-                    Write-Host "[OK]  GCC toolchain repaired" -ForegroundColor Green
-                } else {
-                    Write-Host "[WARN]  GCC still failing after reinstall" -ForegroundColor Yellow
-                }
+        Write-Host "[WARN]  GCC test compile failed. The MSYS2 toolchain may be incomplete." -ForegroundColor Yellow
+        $repairChoice = Read-Host "Reinstall MSYS2 GCC package now? (y/N)"
+        if ($repairChoice -eq "y" -or $repairChoice -eq "Y") {
+            Write-Host "Reinstalling MSYS2 GCC..." -ForegroundColor Yellow
+            Install-Msys2Packages -Packages @("mingw-w64-x86_64-gcc") | Out-Null
+            if (Test-Gcc) {
+                Write-Host "[OK]  GCC toolchain repaired" -ForegroundColor Green
+            } else {
+                Write-Host "[WARN]  GCC still failing after reinstall" -ForegroundColor Yellow
             }
         }
     }
@@ -1204,3 +1203,9 @@ Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "  1. Restart your terminal/PowerShell" -ForegroundColor White
 Write-Host "  2. Build: .\\scripts\\build.ps1" -ForegroundColor White
 Write-Host ""
+
+
+
+
+
+
