@@ -1,4 +1,4 @@
-# VideoTools Build Script for Windows
+﻿# VideoTools Build Script for Windows
 # Builds the VideoTools application with proper error handling
 
 param(
@@ -24,9 +24,9 @@ function Test-Command {
 
 function Use-Toolchain {
     $candidates = @(
-        "C:\msys64\mingw64\bin",
-        "$env:USERPROFILE\scoop\apps\mingw\current\bin"
+        "C:\msys64\mingw64\bin"
     )
+    $returnedPath = $null
     foreach ($path in $candidates) {
         if (-not $path -or -not (Test-Path $path)) {
             continue
@@ -42,13 +42,7 @@ function Use-Toolchain {
         if (Test-Path $gxxPath) {
             $env:CXX = $gxxPath
         }
-        
-        # MSYS2 is prioritized as first option for reliability
-        if ($path -eq "C:\msys64\mingw64\bin") {
-            return $path
-        }
-        
-        # Test if the toolchain actually works
+
         $tempDir = Join-Path $env:TEMP "vt-gcc-test"
         try {
             New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
@@ -60,7 +54,7 @@ function Use-Toolchain {
             if (Test-Path $cfile) { Remove-Item $cfile -Force }
             if (Test-Path $ofile) { Remove-Item $ofile -Force }
             if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
-            
+
             if ($ok) {
                 $returnedPath = $path
             }
@@ -68,13 +62,11 @@ function Use-Toolchain {
             if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
         }
     }
-    
-    # If MSYS2 worked, skip Scoop MinGW (it's more reliable)
-    if ($returnedPath -and $returnedPath -eq "C:\msys64\mingw64\bin") {
-        Write-Host "[OK]  Using MSYS2 toolchain (preferred)" -ForegroundColor Green
+
+    if ($returnedPath) {
         return $returnedPath
     }
-    
+
     return $null
 }
 
@@ -189,8 +181,8 @@ if (-not (Test-Command gcc)) {
 
 if (-not (Test-Gcc)) {
     Write-Host " ERROR: GCC failed a test compile. The toolchain appears incomplete." -ForegroundColor Red
-    Write-Host " Recommended fix: reinstall Scoop mingw to restore the toolchain." -ForegroundColor Yellow
-    Write-Host " Optional fallback: MSYS2 + mingw-w64-x86_64-gcc if Scoop continues to fail." -ForegroundColor Yellow
+    Write-Host " Recommended fix: reinstall MSYS2 MinGW-w64 (pacman -S --needed mingw-w64-x86_64-gcc)." -ForegroundColor Yellow
+    Write-Host " If MSYS2 is missing, install it and re-run scripts\\install.ps1." -ForegroundColor Yellow
     exit 1
 }
 
@@ -350,4 +342,7 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "Build failed!" -ForegroundColor Red
     exit 1
 }
+
+
+
 

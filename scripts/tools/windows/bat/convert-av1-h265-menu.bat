@@ -1,12 +1,12 @@
 @echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul
-title AV1 / H265 Converter — Bitrate Menu
+title AV1 / H265 Converter ??? Bitrate Menu
 
 REM Simple ffmpeg/ffprobe check
 where ffmpeg >nul 2>&1 && where ffprobe >nul 2>&1
 if errorlevel 1 (
-    echo ffmpeg/ffprobe not found in PATH. Install via winget/choco/scoop or run setup-windows.
+    echo ffmpeg/ffprobe not found in PATH. Install via winget/choco or run setup-windows.
     pause
     exit /b 1
 )
@@ -124,3 +124,4 @@ echo ========================================================
 echo All finished!
 echo ========================================================
 pause
+

@@ -1,4 +1,4 @@
-# VideoTools Installation Guide for Windows
+﻿# VideoTools Installation Guide for Windows
 
 This guide provides step-by-step instructions for installing VideoTools on Windows 10 and 11.
 
@@ -22,20 +22,20 @@ If you haven't already, download the project files as a ZIP and extract them to 
     - Run `.\scripts\install.ps1` from PowerShell.
 3.  A terminal window will open and run the PowerShell installer. It installs core dependencies with minimal changes:
     *   Go (build toolchain)
-    *   MinGW (gcc for CGO builds)
+    *   MSYS2 MinGW-w64 (gcc for CGO builds)
     *   FFmpeg (video processing)
     *   GStreamer (player backend)
     *   Python (pip for optional tooling)
     *   Note: GStreamer installs via MSI and requires an Administrator PowerShell window.
-    *   Note: Build tools are optional; the installer will ask before installing Go/MinGW.
+    *   Note: Build tools are optional; the installer will ask before installing Go/MSYS2.
     *   Note: The installer will prompt for elevation when required and keep the admin window open for logs.
 
 Support scripts are stored in `scripts/_internal/` and should not be run directly unless noted.
 
 Optional flags:
 - `-SkipFFmpeg` or `-SkipGStreamer` to skip those dependencies.
-- `-InstallBuildTools` to install Go + MinGW without a prompt.
-- `-SkipBuildTools` to skip Go + MinGW.
+- `-InstallBuildTools` to install Go + MSYS2 MinGW-w64 without a prompt.
+- `-SkipBuildTools` to skip Go + MSYS2 MinGW-w64.
 - `-InstallPython` to install Python + pip for AI tooling.
 - `-SkipPython` to skip Python + pip.
 - `-SkipDvdStyler` to skip DVD authoring tools.
@@ -54,7 +54,7 @@ The installer uses curl with a progress bar when available for large downloads (
 - `-PreferWinget` to prefer winget installs when available.
 
 The installer will prompt before optional modules (Python + pip, build tools, DVD authoring tools, Whisper model) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
-If you opt into build tools and GCC fails a test compile, the installer will offer to reinstall MinGW via Scoop.
+If you opt into build tools and GCC fails a test compile, the installer will offer to reinstall MSYS2 MinGW-w64.
 
 The installer defaults to MSI downloads for GStreamer. If MSI downloads fail, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`. Use `-PreferWinget` if you want the installer to try winget first.
 
@@ -103,14 +103,23 @@ If you prefer to set up the dependencies yourself, follow these steps.
 2.  **Install:** Run the installer and follow the on-screen instructions.
 3.  **Verify:** Open a Command Prompt and type `go version`. You should see the installed Go version.
 
-### Step 2: Download FFmpeg
+### Step 2: Install MSYS2 (MinGW-w64)
+
+1.  **Download:** Go to https://www.msys2.org/ and download the installer.
+2.  **Install:** Use the default install path (`C:\msys64`).
+3.  **Install GCC:** Open "MSYS2 MinGW x64" and run:
+    ```
+    pacman -S --needed mingw-w64-x86_64-gcc
+    ```
+4.  **PATH:** Ensure `C:\msys64\mingw64\bin` is on your PATH (restart terminals after install).
+### Step 3: Download FFmpeg
 
 FFmpeg is the engine that powers VideoTools.
 
 1.  **Download:** Go to the recommended FFmpeg builds page: [github.com/BtbN/FFmpeg-Builds/releases](https://github.com/BtbN/FFmpeg-Builds/releases)
 2.  Download the file named `ffmpeg-master-latest-win64-gpl.zip`.
 
-### Step 3: Place FFmpeg Files
+### Step 4: Place FFmpeg Files
 
 You have two options for where to place the FFmpeg files:
 
@@ -145,7 +154,7 @@ This makes FFmpeg available to all applications on your system.
     *   Click "New" and add the path to your FFmpeg `bin` folder (e.g., `C:\Program Files\ffmpeg\bin`).
 3.  **Verify:** Open a Command Prompt and type `ffmpeg -version`. You should see the version information.
 
-### Step 4: Build and Run
+### Step 5: Build and Run
 
 1.  Open a Command Prompt in the VideoTools project directory.
 2.  Run the build script: `scripts\build.bat`
@@ -159,3 +168,5 @@ This makes FFmpeg available to all applications on your system.
 -   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `scripts\_internal\setup-windows.bat`.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.
+
+

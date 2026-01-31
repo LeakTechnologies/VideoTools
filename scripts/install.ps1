@@ -1,4 +1,4 @@
-param()
+﻿param()
 
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -24,5 +24,7 @@ if (-not $isAdmin) {
     exit 0
 }
 
+Write-Host "[INFO]  Build tools are provided via MSYS2 (MinGW-w64)." -ForegroundColor Cyan
 & "$PSScriptRoot\_internal\install-deps-windows.ps1" @args
 exit $LASTEXITCODE
+
