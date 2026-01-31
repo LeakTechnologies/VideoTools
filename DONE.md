@@ -147,6 +147,8 @@
 - [x] Added optional mirror authentication headers for private LT mirrors.
 - [x] Switched optional module downloads to curl progress bar when available.
 - [x] Build batch file now delegates to build.ps1 with UAC elevation.
+- [x] Build scripts now format preflight output and provide clearer failure banners.
+- [x] Build preflight now validates build command presence and favors Scoop guidance when missing.
 - [x] Build script now validates GCC toolchain and prints clear MSYS2 fallback guidance.
 - [x] Windows installer can auto-reinstall MinGW via Scoop when GCC test compile fails.
 - [x] DVD authoring skip now prints info messages instead of warnings.
