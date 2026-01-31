@@ -152,6 +152,7 @@
 - [x] Build script now validates GCC toolchain and prints clear MSYS2 fallback guidance.
 - [x] Windows installer can auto-reinstall MinGW via Scoop when GCC test compile fails.
 - [x] DVD authoring skip now prints info messages instead of warnings.
+- [x] Player placeholder buttons now sit inside the player silhouette to prevent overlap on small screens.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.

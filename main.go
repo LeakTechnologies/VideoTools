@@ -10924,13 +10924,13 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 
 		placeholder := container.NewVBox(
+			container.NewCenter(silhouette),
 			container.NewCenter(hintMain),
 			container.NewCenter(hintSub),
-			container.NewHBox(open, addMultiple),
+			container.NewCenter(container.NewHBox(open, addMultiple)),
 		)
-		stageBox := container.NewMax(stage, container.NewCenter(silhouette))
-		placeholderBox := container.NewVBox(stageBox, container.NewCenter(container.NewPadded(placeholder)))
-		return container.NewMax(outer, placeholderBox)
+		stageBox := container.NewMax(stage, container.NewPadded(placeholder))
+		return container.NewMax(outer, container.NewPadded(stageBox))
 	}
 
 	state.stopPreview()
