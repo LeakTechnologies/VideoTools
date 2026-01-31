@@ -7048,13 +7048,13 @@ func buildVideoCodecBadge(codecName string) fyne.CanvasObject {
 	// Create colored background
 	bg := canvas.NewRectangle(badgeColor)
 	bg.CornerRadius = 4
-	bg.SetMinSize(fyne.NewSize(100, 28))
+	bg.SetMinSize(fyne.NewSize(72, 22))
 
 	// Create label
 	label := canvas.NewText(codecName, color.White)
 	label.TextStyle = fyne.TextStyle{Bold: true}
 	label.Alignment = fyne.TextAlignCenter
-	label.TextSize = 12
+	label.TextSize = 11
 
 	// Stack background and label
 	return container.NewMax(bg, container.NewCenter(label))
@@ -7070,13 +7070,13 @@ func buildAudioCodecBadge(codecName string) fyne.CanvasObject {
 	// Create colored background
 	bg := canvas.NewRectangle(badgeColor)
 	bg.CornerRadius = 4
-	bg.SetMinSize(fyne.NewSize(100, 28))
+	bg.SetMinSize(fyne.NewSize(72, 22))
 
 	// Create label
 	label := canvas.NewText(codecName, color.White)
 	label.TextStyle = fyne.TextStyle{Bold: true}
 	label.Alignment = fyne.TextAlignCenter
-	label.TextSize = 12
+	label.TextSize = 11
 
 	// Stack background and label
 	return container.NewMax(bg, container.NewCenter(label))
@@ -10740,6 +10740,9 @@ Metadata: %s`,
 		keyLabel.TextStyle = fyne.TextStyle{Bold: true}
 		return container.NewBorder(nil, nil, keyLabel, nil, value)
 	}
+	makeBadgeValue := func(badge fyne.CanvasObject) fyne.CanvasObject {
+		return container.NewHBox(badge, layout.NewSpacer())
+	}
 
 	// Filename gets its own full-width VBox layout to prevent vertical text
 	fileValue := makeValuePill(src.DisplayName)
@@ -10759,9 +10762,9 @@ Metadata: %s`,
 	)
 
 	videoCodec := utils.FirstNonEmpty(src.VideoCodec, "Unknown")
-	videoCodecBadge := buildVideoCodecBadge(videoCodec)
+	videoCodecBadge := makeBadgeValue(buildVideoCodecBadge(videoCodec))
 	audioCodec := utils.FirstNonEmpty(src.AudioCodec, "Unknown")
-	audioCodecBadge := buildAudioCodecBadge(audioCodec)
+	audioCodecBadge := makeBadgeValue(buildAudioCodecBadge(audioCodec))
 
 	col2 := container.NewVBox(
 		makeRow("Video Codec", videoCodecBadge),
