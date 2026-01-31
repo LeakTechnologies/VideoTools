@@ -220,13 +220,21 @@ function Ensure-Scoop {
             }
         }
         
-        # Set environment variables for Scoop installation
-        $env:SCOOP = $scoopDir
-        $env:SCOOP_GLOBAL = 'C:\ProgramData\scoop'
-        
-        # Install Scoop using the official installer with error handling
+        # Use a simpler installation method
         try {
-            Invoke-Expression (New-Object System.Net.WebClient).DownloadString("https://get.scoop.sh")
+            Write-Host "[INFO]  Downloading Scoop installer..." -ForegroundColor Cyan
+            $installerScript = Join-Path $env:TEMP "install-scoop.ps1"
+            (New-Object System.Net.WebClient).DownloadString("https://get.scoop.sh") | Out-File -FilePath $installerScript -Encoding UTF8
+            
+            # Execute installer in a new PowerShell session to avoid variable conflicts
+            $installArgs = @(
+                "-NoProfile",
+                "-ExecutionPolicy", "Bypass", 
+                "-File", $installerScript
+            )
+            Start-Process -FilePath "powershell.exe" -ArgumentList $installArgs -Wait -NoNewWindow
+            
+            Remove-Item $installerScript -Force
         } catch {
             Write-Host "[ERROR]  Scoop installation failed: $($_.Exception.Message)" -ForegroundColor Red
             exit 1
