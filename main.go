@@ -10576,46 +10576,60 @@ Metadata: %s`,
 		metadata,
 	)
 
-	// Helper function to create compact key-value rows
-	makeRow := func(key, value string) fyne.CanvasObject {
+	valueBg := utils.MustHex("#2B334A")
+	valueBorder := utils.MustHex("#3A4360")
+
+	makeValuePill := func(text string) fyne.CanvasObject {
+		bg := canvas.NewRectangle(valueBg)
+		bg.CornerRadius = 6
+		bg.StrokeColor = valueBorder
+		bg.StrokeWidth = 1
+		label := widget.NewLabel(text)
+		label.TextStyle = fyne.TextStyle{Monospace: true}
+		label.Wrapping = fyne.TextTruncate
+		pillContent := container.NewPadded(label)
+		return container.NewMax(bg, pillContent)
+	}
+
+	makeRow := func(key string, value fyne.CanvasObject) fyne.CanvasObject {
 		keyLabel := widget.NewLabel(key + ":")
 		keyLabel.TextStyle = fyne.TextStyle{Bold: true}
-		valueLabel := widget.NewLabel(value)
-		// Don't wrap metadata values - they're short and wrapping causes vertical text
-		return container.NewHBox(keyLabel, valueLabel)
+		return container.NewBorder(nil, nil, keyLabel, nil, value)
 	}
 
 	// Filename gets its own full-width VBox layout to prevent vertical text
-	fileKeyLabel := widget.NewLabel("File:")
-	fileKeyLabel.TextStyle = fyne.TextStyle{Bold: true}
-	fileValueLabel := widget.NewLabel(src.DisplayName)
-	fileValueLabel.Wrapping = fyne.TextWrapWord
-	fileRow := container.NewVBox(fileKeyLabel, fileValueLabel)
+	fileValue := makeValuePill(src.DisplayName)
+	fileRow := makeRow("File", fileValue)
 
 	// Organize metadata into a compact two-column grid
 	col1 := container.NewVBox(
-		makeRow("Format", utils.FirstNonEmpty(src.Format, "Unknown")),
-		makeRow("Resolution", fmt.Sprintf("%dx%d", src.Width, src.Height)),
-		makeRow("Aspect Ratio", src.AspectRatioString()),
-		makeRow("Duration", src.DurationString()),
-		makeRow("Frame Rate", fmt.Sprintf("%.2f fps", src.FrameRate)),
-		makeRow("Interlacing", interlacing),
-		makeRow("Color Space", colorSpace),
-		makeRow("Color Range", colorRange),
-		makeRow("GOP Size", gopSize),
+		makeRow("Format", makeValuePill(utils.FirstNonEmpty(src.Format, "Unknown"))),
+		makeRow("Resolution", makeValuePill(fmt.Sprintf("%dx%d", src.Width, src.Height))),
+		makeRow("Aspect Ratio", makeValuePill(src.AspectRatioString())),
+		makeRow("Duration", makeValuePill(src.DurationString())),
+		makeRow("Frame Rate", makeValuePill(fmt.Sprintf("%.2f fps", src.FrameRate))),
+		makeRow("Interlacing", makeValuePill(interlacing)),
+		makeRow("Color Space", makeValuePill(colorSpace)),
+		makeRow("Color Range", makeValuePill(colorRange)),
+		makeRow("GOP Size", makeValuePill(gopSize)),
 	)
 
+	videoCodec := utils.FirstNonEmpty(src.VideoCodec, "Unknown")
+	videoCodecBadge := buildVideoCodecBadge(videoCodec)
+	audioCodec := utils.FirstNonEmpty(src.AudioCodec, "Unknown")
+	audioCodecBadge := buildAudioCodecBadge(audioCodec)
+
 	col2 := container.NewVBox(
-		makeRow("Video Codec", utils.FirstNonEmpty(src.VideoCodec, "Unknown")),
-		makeRow("Video Bitrate", bitrate),
-		makeRow("Pixel Format", utils.FirstNonEmpty(src.PixelFormat, "Unknown")),
-		makeRow("Pixel AR", par),
-		makeRow("Audio Codec", utils.FirstNonEmpty(src.AudioCodec, "Unknown")),
-		makeRow("Audio Bitrate", audioBitrate),
-		makeRow("Audio Rate", fmt.Sprintf("%d Hz", src.AudioRate)),
-		makeRow("Channels", utils.ChannelLabel(src.Channels)),
-		makeRow("Chapters", chapters),
-		makeRow("Metadata", metadata),
+		makeRow("Video Codec", videoCodecBadge),
+		makeRow("Video Bitrate", makeValuePill(bitrate)),
+		makeRow("Pixel Format", makeValuePill(utils.FirstNonEmpty(src.PixelFormat, "Unknown"))),
+		makeRow("Pixel AR", makeValuePill(par)),
+		makeRow("Audio Codec", audioCodecBadge),
+		makeRow("Audio Bitrate", makeValuePill(audioBitrate)),
+		makeRow("Audio Rate", makeValuePill(fmt.Sprintf("%d Hz", src.AudioRate))),
+		makeRow("Channels", makeValuePill(utils.ChannelLabel(src.Channels))),
+		makeRow("Chapters", makeValuePill(chapters)),
+		makeRow("Metadata", makeValuePill(metadata)),
 	)
 
 	// Two-column grid with proper spacing
