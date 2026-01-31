@@ -10740,8 +10740,11 @@ Metadata: %s`,
 		keyLabel.TextStyle = fyne.TextStyle{Bold: true}
 		return container.NewBorder(nil, nil, keyLabel, nil, value)
 	}
-	makeBadgeValue := func(badge fyne.CanvasObject) fyne.CanvasObject {
-		return container.NewHBox(badge, layout.NewSpacer())
+	makeCodecChip := func(codec string, getColor func(string) color.Color) fyne.CanvasObject {
+		chip := canvas.NewRectangle(getColor(codec))
+		chip.CornerRadius = 4
+		chip.SetMinSize(fyne.NewSize(22, 16))
+		return chip
 	}
 
 	// Filename gets its own full-width VBox layout to prevent vertical text
@@ -10762,16 +10765,24 @@ Metadata: %s`,
 	)
 
 	videoCodec := utils.FirstNonEmpty(src.VideoCodec, "Unknown")
-	videoCodecBadge := makeBadgeValue(buildVideoCodecBadge(videoCodec))
+	videoCodecValue := container.NewHBox(
+		makeCodecChip(strings.ToLower(videoCodec), ui.GetVideoCodecColor),
+		makeValuePill(videoCodec),
+		layout.NewSpacer(),
+	)
 	audioCodec := utils.FirstNonEmpty(src.AudioCodec, "Unknown")
-	audioCodecBadge := makeBadgeValue(buildAudioCodecBadge(audioCodec))
+	audioCodecValue := container.NewHBox(
+		makeCodecChip(strings.ToLower(audioCodec), ui.GetAudioCodecColor),
+		makeValuePill(audioCodec),
+		layout.NewSpacer(),
+	)
 
 	col2 := container.NewVBox(
-		makeRow("Video Codec", videoCodecBadge),
+		makeRow("Video Codec", videoCodecValue),
 		makeRow("Video Bitrate", makeValuePill(bitrate)),
 		makeRow("Pixel Format", makeValuePill(utils.FirstNonEmpty(src.PixelFormat, "Unknown"))),
 		makeRow("Pixel AR", makeValuePill(par)),
-		makeRow("Audio Codec", audioCodecBadge),
+		makeRow("Audio Codec", audioCodecValue),
 		makeRow("Audio Bitrate", makeValuePill(audioBitrate)),
 		makeRow("Audio Rate", makeValuePill(fmt.Sprintf("%d Hz", src.AudioRate))),
 		makeRow("Channels", makeValuePill(utils.ChannelLabel(src.Channels))),
