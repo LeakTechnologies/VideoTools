@@ -10734,17 +10734,28 @@ Metadata: %s`,
 		pillContent := container.NewPadded(label)
 		return container.NewMax(bg, pillContent)
 	}
+	makeValuePillWithChip := func(text string, chipColor color.Color) fyne.CanvasObject {
+		bg := canvas.NewRectangle(valueBg)
+		bg.CornerRadius = 6
+		bg.StrokeColor = valueBorder
+		bg.StrokeWidth = 1
+		chip := canvas.NewRectangle(chipColor)
+		chip.CornerRadius = 4
+		chip.SetMinSize(fyne.NewSize(6, 0))
+		label := widget.NewLabel(text)
+		label.TextStyle = fyne.TextStyle{Monospace: true}
+		label.Wrapping = fyne.TextTruncate
+		pillContent := container.NewBorder(nil, nil, chip, nil, container.NewPadded(label))
+		return container.NewMax(bg, pillContent)
+	}
 
 	makeRow := func(key string, value fyne.CanvasObject) fyne.CanvasObject {
 		keyLabel := widget.NewLabel(key + ":")
 		keyLabel.TextStyle = fyne.TextStyle{Bold: true}
 		return container.NewBorder(nil, nil, keyLabel, nil, value)
 	}
-	makeCodecChip := func(codec string, getColor func(string) color.Color) fyne.CanvasObject {
-		chip := canvas.NewRectangle(getColor(codec))
-		chip.CornerRadius = 4
-		chip.SetMinSize(fyne.NewSize(22, 16))
-		return chip
+	makeCodecPill := func(codec string, getColor func(string) color.Color) fyne.CanvasObject {
+		return makeValuePillWithChip(codec, getColor(codec))
 	}
 
 	// Filename gets its own full-width VBox layout to prevent vertical text
@@ -10765,17 +10776,9 @@ Metadata: %s`,
 	)
 
 	videoCodec := utils.FirstNonEmpty(src.VideoCodec, "Unknown")
-	videoCodecValue := container.NewHBox(
-		makeCodecChip(strings.ToLower(videoCodec), ui.GetVideoCodecColor),
-		makeValuePill(videoCodec),
-		layout.NewSpacer(),
-	)
+	videoCodecValue := container.NewMax(makeCodecPill(videoCodec, ui.GetVideoCodecColor))
 	audioCodec := utils.FirstNonEmpty(src.AudioCodec, "Unknown")
-	audioCodecValue := container.NewHBox(
-		makeCodecChip(strings.ToLower(audioCodec), ui.GetAudioCodecColor),
-		makeValuePill(audioCodec),
-		layout.NewSpacer(),
-	)
+	audioCodecValue := container.NewMax(makeCodecPill(audioCodec, ui.GetAudioCodecColor))
 
 	col2 := container.NewVBox(
 		makeRow("Video Codec", videoCodecValue),
