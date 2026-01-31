@@ -208,7 +208,38 @@ function Ensure-Scoop {
             Write-Host "[WARN]  Execution policy could not be set: $($_.Exception.Message)" -ForegroundColor Yellow
             Write-Host "[INFO]  Continuing with Scoop installation..." -ForegroundColor Cyan
         }
-        Invoke-Expression (New-Object System.Net.WebClient).DownloadString("https://get.scoop.sh")
+        
+        # Clean up any existing partial installations
+        $scoopDir = Join-Path $env:USERPROFILE "scoop"
+        if (Test-Path $scoopDir) {
+            try {
+                Write-Host "[INFO]  Removing existing Scoop directory..." -ForegroundColor Cyan
+                Remove-Item -Path $scoopDir -Recurse -Force
+            } catch {
+                Write-Host "[WARN]  Could not remove existing Scoop directory: $($_.Exception.Message)" -ForegroundColor Yellow
+            }
+        }
+        
+        # Set environment variables for Scoop installation
+        $env:SCOOP = $scoopDir
+        $env:SCOOP_GLOBAL = 'C:\ProgramData\scoop'
+        
+        # Install Scoop using the official installer with error handling
+        try {
+            Invoke-Expression (New-Object System.Net.WebClient).DownloadString("https://get.scoop.sh")
+        } catch {
+            Write-Host "[ERROR]  Scoop installation failed: $($_.Exception.Message)" -ForegroundColor Red
+            exit 1
+        }
+
+        # Refresh PATH and test again
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+        
+        # Add scoop shims to PATH if not already present
+        $scoopShims = Join-Path $scoopDir "shims"
+        if (Test-Path $scoopShims) {
+            $env:Path = "$scoopShims;$env:Path"
+        }
 
         if (-not (Test-Command scoop)) {
             Write-Host "[ERROR]  Failed to install Scoop" -ForegroundColor Red
