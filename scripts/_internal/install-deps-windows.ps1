@@ -263,6 +263,12 @@ function Install-ViaScoop {
     Write-Host "Using Scoop package manager..." -ForegroundColor Green
     Ensure-Scoop
 
+    # Ensure Scoop shims are in PATH for this session
+    $scoopShims = Join-Path $env:USERPROFILE "scoop\shims"
+    if ($env:Path -notmatch [Regex]::Escape($scoopShims)) {
+        $env:Path = "$scoopShims;$env:Path"
+    }
+
     $packages = New-Object System.Collections.Generic.List[string]
     if ($InstallBuildTools) {
         if (-not (Test-Command go)) {
@@ -283,6 +289,19 @@ function Install-ViaScoop {
 
     Write-Host "Installing: $($packages -join ', ')" -ForegroundColor Yellow
     scoop install @packages
+
+    # After installation, add common tool paths to PATH for this session
+    if ($InstallBuildTools) {
+        $goPath = Join-Path $env:USERPROFILE "go\bin"
+        $mingwPath = Join-Path $env:USERPROFILE "scoop\apps\mingw\current\bin"
+        
+        if (Test-Path $goPath -and $env:Path -notmatch [Regex]::Escape($goPath)) {
+            $env:Path = "$goPath;$env:Path"
+        }
+        if (Test-Path $mingwPath -and $env:Path -notmatch [Regex]::Escape($mingwPath)) {
+            $env:Path = "$mingwPath;$env:Path"
+        }
+    }
 }
 
 function Install-FFmpegPortable {
