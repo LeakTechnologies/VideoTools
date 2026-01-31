@@ -161,6 +161,7 @@
 - [x] Metadata codec badges now render as compact chips instead of full-width bars.
 - [x] Metadata codec rows now use a small color chip plus neutral value pill (matching mockup).
 - [x] Metadata codec pills now use a left-edge chip and stretch to fill available width.
+- [x] Slightly thickened metadata codec color chips for visibility.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.

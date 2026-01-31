@@ -10741,7 +10741,7 @@ Metadata: %s`,
 		bg.StrokeWidth = 1
 		chip := canvas.NewRectangle(chipColor)
 		chip.CornerRadius = 4
-		chip.SetMinSize(fyne.NewSize(6, 0))
+		chip.SetMinSize(fyne.NewSize(8, 0))
 		label := widget.NewLabel(text)
 		label.TextStyle = fyne.TextStyle{Monospace: true}
 		label.Wrapping = fyne.TextTruncate
