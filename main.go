@@ -9572,8 +9572,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		if bitrateModeSelect != nil {
 			if remux {
+				bitrateModeSelect.Hide()
 				bitrateModeSelect.Disable()
 			} else {
+				bitrateModeSelect.Show()
 				bitrateModeSelect.Enable()
 			}
 		}
@@ -9612,15 +9614,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		if bitratePresetSelect != nil {
 			if remux {
+				bitratePresetSelect.Hide()
 				bitratePresetSelect.Disable()
 			} else {
+				bitratePresetSelect.Show()
 				bitratePresetSelect.Enable()
 			}
 		}
 		if simpleBitrateSelect != nil {
 			if remux {
+				simpleBitrateSelect.Hide()
 				simpleBitrateSelect.Disable()
 			} else {
+				simpleBitrateSelect.Show()
 				simpleBitrateSelect.Enable()
 			}
 		}
