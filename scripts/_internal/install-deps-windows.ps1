@@ -611,7 +611,7 @@ function Install-GStreamerMsi {
     }
 
     Write-Host "Installing GStreamer development files..." -ForegroundColor Yellow
-    $devel = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$develMsiPath`" /qn /norestart" -Wait -PassThru
+    $devel = Start-Process -FilePath "msiexec.exe" -ArgumentList "/i `"$develMsiPath`" /qn /norestart" -Wait -PassThru -Timeout 300
     if ($devel.ExitCode -ne 0) {
         throw "GStreamer dev install failed with exit code $($devel.ExitCode)"
     }
