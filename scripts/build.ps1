@@ -43,6 +43,11 @@ function Use-Toolchain {
             $env:CXX = $gxxPath
         }
         
+        # MSYS2 is prioritized as first option for reliability
+        if ($path -eq "C:\msys64\mingw64\bin") {
+            return $path
+        }
+        
         # Test if the toolchain actually works
         $tempDir = Join-Path $env:TEMP "vt-gcc-test"
         try {
@@ -57,12 +62,19 @@ function Use-Toolchain {
             if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
             
             if ($ok) {
-                return $path
+                $returnedPath = $path
             }
         } catch {
             if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
         }
     }
+    
+    # If MSYS2 worked, skip Scoop MinGW (it's more reliable)
+    if ($returnedPath -and $returnedPath -eq "C:\msys64\mingw64\bin") {
+        Write-Host "[OK]  Using MSYS2 toolchain (preferred)" -ForegroundColor Green
+        return $returnedPath
+    }
+    
     return $null
 }
 
