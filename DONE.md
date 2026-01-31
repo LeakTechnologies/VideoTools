@@ -152,6 +152,14 @@
 - [x] Build script now validates GCC toolchain and prints clear MSYS2 fallback guidance.
 - [x] Windows installer can auto-reinstall MinGW via Scoop when GCC test compile fails.
 - [x] DVD authoring skip now prints info messages instead of warnings.
+- [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
+- [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
+- [x] Moved non-core documentation from repo root into `docs/` and updated references.
+- [x] Cleaned internal doc links after moving documentation.
+
+## Version 0.1.1-dev26 (2026-01-31) - Convert Metadata & Remux UX
+
+### UI/UX
 - [x] Player placeholder buttons now sit inside the player silhouette to prevent overlap on small screens.
 - [x] Convert view stacks player and metadata to remove excess blank space and keep metadata visible.
 - [x] Convert metadata panel now expands to fill remaining space under the player.
@@ -162,10 +170,6 @@
 - [x] Metadata codec rows now use a small color chip plus neutral value pill (matching mockup).
 - [x] Metadata codec pills now use a left-edge chip and stretch to fill available width.
 - [x] Slightly thickened metadata codec color chips for visibility.
-- [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
-- [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
-- [x] Moved non-core documentation from repo root into `docs/` and updated references.
-- [x] Cleaned internal doc links after moving documentation.
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
