@@ -156,6 +156,7 @@
 - [x] Convert view stacks player and metadata to remove excess blank space and keep metadata visible.
 - [x] Convert metadata panel now expands to fill remaining space under the player.
 - [x] Convert metadata panel now uses pill-style value rows with codec badges to match the mockup.
+- [x] Remux format now locks encoding/bitrate controls to prevent edits during stream copy.
 - [x] Consolidated support scripts under `scripts/_internal` and moved legacy helpers to `scripts/legacy`.
 - [x] Removed root installer entrypoints; all scripts now live under `scripts/`.
 - [x] Moved non-core documentation from repo root into `docs/` and updated references.
