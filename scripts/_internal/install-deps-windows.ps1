@@ -202,7 +202,12 @@ function Find-ExeInRoots {
 function Ensure-Scoop {
     if (-not (Test-Command scoop)) {
         Write-Host "Installing Scoop..." -ForegroundColor Yellow
-        Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+        try {
+            Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+        } catch {
+            Write-Host "[WARN]  Execution policy could not be set: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "[INFO]  Continuing with Scoop installation..." -ForegroundColor Cyan
+        }
         Invoke-Expression (New-Object System.Net.WebClient).DownloadString("https://get.scoop.sh")
 
         if (-not (Test-Command scoop)) {
