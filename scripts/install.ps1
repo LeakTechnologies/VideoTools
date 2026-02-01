@@ -1,5 +1,4 @@
 ﻿param()
-
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     Write-Host "[INFO]  Elevation required for Windows dependencies (GStreamer MSI)." -ForegroundColor Yellow
@@ -11,7 +10,6 @@ if (-not $isAdmin) {
         }
         $args = @(
             "-NoProfile",
-            "-NoExit",
             "-ExecutionPolicy", "Bypass",
             "-File", $PSCommandPath
         ) + $passThrough
@@ -23,8 +21,8 @@ if (-not $isAdmin) {
     }
     exit 0
 }
-
 Write-Host "[INFO]  Build tools are provided via MSYS2 (MinGW-w64)." -ForegroundColor Cyan
 & "$PSScriptRoot\_internal\install-deps-windows.ps1" @args
 exit $LASTEXITCODE
+
 

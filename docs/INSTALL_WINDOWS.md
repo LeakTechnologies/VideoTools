@@ -29,6 +29,7 @@ If you haven't already, download the project files as a ZIP and extract them to 
     *   Note: GStreamer installs via MSI and requires an Administrator PowerShell window.
     *   Note: Build tools are optional; the installer will auto-install Go/MSYS2 when missing unless -SkipBuildTools is set.
     *   Note: The installer will prompt for elevation when required and keep the admin window open for logs.
+    *   Note: On success, the installer waits for a keypress before closing the window.
 
 Support scripts are stored in `scripts/_internal/` and should not be run directly unless noted.
 
@@ -168,6 +169,7 @@ This makes FFmpeg available to all applications on your system.
 -   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `scripts\_internal\setup-windows.bat`.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.
+
 
 
 
