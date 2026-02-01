@@ -1126,6 +1126,7 @@ if (Test-Msys2Gcc) {
     }
     $gccVersion = & $gccPath --version | Select-Object -First 1
     Write-Host "[OK]  GCC: $gccVersion" -ForegroundColor Green
+
     $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
     $expectedRoot = $null
     if ($root) {
@@ -1133,9 +1134,13 @@ if (Test-Msys2Gcc) {
     }
     if (-not $gccCmd) {
         Write-Host "[INFO]  GCC is available via MSYS2 but not in PATH; restart your terminal." -ForegroundColor Cyan
-    } elseif ($expectedRoot -and ($gccCmd.Path -notmatch [Regex]::Escape($expectedRoot))) {
-        Write-Host "[WARN]   GCC in PATH is not MSYS2: $($gccCmd.Path)" -ForegroundColor Yellow
-        Write-Host "[WARN]   Restart your terminal or remove the non-MSYS2 GCC from PATH." -ForegroundColor Yellow
+    } elseif ($expectedRoot) {
+        $expectedRoot = [System.IO.Path]::GetFullPath($expectedRoot)
+        $gccInPath = [System.IO.Path]::GetFullPath($gccCmd.Path)
+        if (-not $gccInPath.StartsWith($expectedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Write-Host "[WARN]   GCC in PATH is not MSYS2: $($gccCmd.Path)" -ForegroundColor Yellow
+            Write-Host "[WARN]   Restart your terminal or remove the non-MSYS2 GCC from PATH." -ForegroundColor Yellow
+        }
     }
 } else {
     $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
@@ -1253,6 +1258,8 @@ Write-Host "  2. Build: .\\scripts\\build.ps1" -ForegroundColor White
 Write-Host ""
 Write-Host "Press any key to close..." -ForegroundColor Cyan
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+
 
 
 
