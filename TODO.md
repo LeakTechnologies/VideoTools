@@ -7,6 +7,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [X] **Installer dependency parity**
   - Ensure pip is installed on Linux/Windows and skip Go/pip when already present.
 - [X] **Windows installer parse fix**
+- [X] **Windows GCC PATH verification** - Align MSYS2 GCC detection with PATH checks.
   - Normalize PowerShell here-strings to prevent parser errors.
 - [X] **Go auto-install in install.sh**
   - Skip prompting for Go and install automatically when missing.
@@ -328,4 +329,5 @@ This file tracks upcoming features, improvements, and known issues.
 - **Go implementation preferred**: Maintains single codebase, excellent testing ecosystem
 - **Open-source focus**: No commercial dependencies, community-driven model ecosystem
 - **Modular design**: Each enhancement system can be developed and tested independently
+
 
