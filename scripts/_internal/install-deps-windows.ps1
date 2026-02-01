@@ -1063,7 +1063,7 @@ if ($InstallBuildTools) {
     }
 }
 
-if ($InstallPython) { {
+if ($InstallPython) {
     $pythonOk = Install-PythonViaWinget
     if (-not $pythonOk) {
         Write-Host "[WARN]  Python install not completed; pip may be unavailable." -ForegroundColor Yellow
@@ -1246,6 +1246,8 @@ Write-Host "  2. Build: .\\scripts\\build.ps1" -ForegroundColor White
 Write-Host ""
 Write-Host "Press any key to close..." -ForegroundColor Cyan
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+
 
 
 
