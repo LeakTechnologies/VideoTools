@@ -27,7 +27,7 @@ If you haven't already, download the project files as a ZIP and extract them to 
     *   GStreamer (player backend)
     *   Python (pip for optional tooling)
     *   Note: GStreamer installs via MSI and requires an Administrator PowerShell window.
-    *   Note: Build tools are optional; the installer will auto-install Go/MSYS2 when missing unless -SkipBuildTools is set.
+    *   Note: Build tools are optional; the installer will auto-install Go/MSYS2 when missing unless -SkipBuildTools is set. MSYS2 requires winget or a manual install to C:\\msys64.
     *   Note: The installer will prompt for elevation when required and keep the admin window open for logs.
     *   Note: On success, the installer waits for a keypress before closing the window.
 
@@ -55,7 +55,7 @@ The installer uses curl with a progress bar when available for large downloads (
 - `-PreferWinget` to prefer winget installs when available.
 
 The installer will prompt before optional modules (Python + pip, build tools, DVD authoring tools, Whisper model) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
-If you opt into build tools and GCC fails a test compile, the installer will offer to reinstall MSYS2 MinGW-w64.
+If you opt into build tools and GCC fails a test compile, the installer will offer to reinstall MSYS2 MinGW-w64. GCC from Scoop is ignored.
 
 The installer defaults to MSI downloads for GStreamer. If MSI downloads fail, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`. Use `-PreferWinget` if you want the installer to try winget first.
 
@@ -169,6 +169,7 @@ This makes FFmpeg available to all applications on your system.
 -   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `scripts\_internal\setup-windows.bat`.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.
+
 
 
 
