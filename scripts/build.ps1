@@ -84,7 +84,7 @@ function Use-Toolchain {
     return $null
 }
 
-function Test-Gcc { {
+function Test-Gcc {
     $tempDir = Join-Path $env:TEMP "vt-gcc-test"
     New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
     $cfile = Join-Path $tempDir "test.c"
@@ -208,7 +208,7 @@ if ($gccCmd -and $msys2Root) {
     exit 1
 }
 
-if (-not (Test-Gcc)) { {
+if (-not (Test-Gcc)) {
     Write-Host " ERROR: GCC failed a test compile. The toolchain appears incomplete." -ForegroundColor Red
     Write-Host " Recommended fix: reinstall MSYS2 MinGW-w64 (pacman -S --needed mingw-w64-x86_64-gcc)." -ForegroundColor Yellow
     Write-Host " If MSYS2 is missing, install it and re-run scripts\\install.ps1." -ForegroundColor Yellow
@@ -371,6 +371,7 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "Build failed!" -ForegroundColor Red
     exit 1
 }
+
 
 
 
