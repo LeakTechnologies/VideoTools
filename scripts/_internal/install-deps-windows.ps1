@@ -1198,12 +1198,5 @@ Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "  1. Restart your terminal/PowerShell" -ForegroundColor White
 Write-Host "  2. Build: .\\scripts\\build.ps1" -ForegroundColor White
 Write-Host ""
-
-
-
-
-
-
-
-
-
+Write-Host "Press any key to close..." -ForegroundColor Cyan
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
