@@ -1070,7 +1070,7 @@ if ($InstallPython) {
     }
 }
 
-if ($InstallBuildTools -and (Test-Command gcc)) {
+if ($InstallBuildTools -and (Test-Msys2Gcc)) {
     if (-not (Test-Gcc)) {
         Write-Host "[WARN]  GCC test compile failed. The MSYS2 toolchain may be incomplete." -ForegroundColor Yellow
         $repairChoice = Read-Host "Reinstall MSYS2 GCC package now? (y/N)"
@@ -1122,10 +1122,21 @@ if (Test-Msys2Gcc) {
     $root = Find-Msys2Root
     $gccPath = $null
     if ($root) {
-        $gccPath = Join-Path $root "mingw64\\bin\\gcc.exe"
+        $gccPath = Join-Path $root "mingw64\bin\gcc.exe"
     }
-    $gccVersion = gcc --version | Select-Object -First 1
+    $gccVersion = & $gccPath --version | Select-Object -First 1
     Write-Host "[OK]  GCC: $gccVersion" -ForegroundColor Green
+    $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
+    $expectedRoot = $null
+    if ($root) {
+        $expectedRoot = Join-Path $root "mingw64\bin"
+    }
+    if (-not $gccCmd) {
+        Write-Host "[INFO]  GCC is available via MSYS2 but not in PATH; restart your terminal." -ForegroundColor Cyan
+    } elseif ($expectedRoot -and ($gccCmd.Path -notmatch [Regex]::Escape($expectedRoot))) {
+        Write-Host "[WARN]   GCC in PATH is not MSYS2: $($gccCmd.Path)" -ForegroundColor Yellow
+        Write-Host "[WARN]   Restart your terminal or remove the non-MSYS2 GCC from PATH." -ForegroundColor Yellow
+    }
 } else {
     $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
     if ($gccCmd) {
@@ -1134,10 +1145,6 @@ if (Test-Msys2Gcc) {
     } else {
         Write-Host "[WARN]   GCC not found in PATH (restart terminal)" -ForegroundColor Yellow
     }
-}
-
-if (Test-Command ffmpeg) {
-    Write-Host "[WARN]   GCC not found in PATH (restart terminal)" -ForegroundColor Yellow
 }
 
 if (Test-Command ffmpeg) {
@@ -1246,6 +1253,12 @@ Write-Host "  2. Build: .\\scripts\\build.ps1" -ForegroundColor White
 Write-Host ""
 Write-Host "Press any key to close..." -ForegroundColor Cyan
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+
+
+
+
+
 
 
 
