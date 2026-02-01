@@ -23,6 +23,13 @@ if (-not $isAdmin) {
 }
 Write-Host "[INFO]  Build tools are provided via MSYS2 (MinGW-w64)." -ForegroundColor Cyan
 & "$PSScriptRoot\_internal\install-deps-windows.ps1" @args
-exit $LASTEXITCODE
+$exitCode = $LASTEXITCODE
+if ($exitCode -ne 0) {
+    Write-Host "[ERROR]  Install failed with exit code $exitCode." -ForegroundColor Red
+    Write-Host "Press any key to close..." -ForegroundColor Cyan
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+}
+exit $exitCode
+
 
 
