@@ -240,6 +240,7 @@ function Install-Msys2Packages {
     }
 
     Write-Host "Installing MSYS2 packages: $($Packages -join ', ')" -ForegroundColor Yellow
+    & $pacmanPath -Sy --noconfirm --noprogressbar | Out-Null
     & $pacmanPath -S --needed --noconfirm @Packages | Out-Null
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[WARN]  MSYS2 package install failed. Open the MSYS2 shell and run:" -ForegroundColor Yellow
@@ -1007,14 +1008,8 @@ if (-not (Test-Command gst-launch-1.0) -and -not $SkipGStreamer -and -not $isAdm
 if ($InstallBuildTools -eq $false -and $SkipBuildTools -eq $false) {
     $needsBuildTools = (-not (Test-Command go)) -or (-not (Test-Command gcc))
     if ($needsBuildTools) {
-        Write-Host "Optional module: Build tools (Go + MSYS2 MinGW-w64)" -ForegroundColor Yellow
-        $buildChoice = Read-Host "Install build tools for compiling VideoTools? (y/N)"
-        if ($buildChoice -eq "y" -or $buildChoice -eq "Y") {
-            $InstallBuildTools = $true
-        } else {
-            $SkipBuildTools = $true
-        }
-        Write-Host ""
+        Write-Host "Build tools missing; installing Go + MSYS2 MinGW-w64 automatically." -ForegroundColor Yellow
+        $InstallBuildTools = $true
     }
 }
 
@@ -1203,6 +1198,9 @@ Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "  1. Restart your terminal/PowerShell" -ForegroundColor White
 Write-Host "  2. Build: .\\scripts\\build.ps1" -ForegroundColor White
 Write-Host ""
+
+
+
 
 
 
