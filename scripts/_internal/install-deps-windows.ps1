@@ -178,6 +178,22 @@ function Add-ToUserPath {
     $env:Path = "$PathItem;$env:Path"
 }
 
+function Find-Msys2Root {
+    $candidates = @(
+        "C:\\msys64",
+        "C:\\msys2",
+        (Join-Path $env:LOCALAPPDATA "Programs\\MSYS2"),
+        (Join-Path $env:ProgramFiles "MSYS2")
+    )
+    foreach ($root in $candidates) {
+        if (-not $root) { continue }
+        $pacman = Join-Path $root "usr\\bin\\pacman.exe"
+        if (Test-Path $pacman) {
+            return $root
+        }
+    }
+    return $null
+}
 function Find-ExeInRoots {
     param(
         [string]$ExeName,
@@ -200,9 +216,8 @@ function Find-ExeInRoots {
 }
 
 function Ensure-Msys2 {
-    $msysRoot = "C:\msys64"
-    $pacmanPath = Join-Path $msysRoot "usr\bin\pacman.exe"
-    if (Test-Path $pacmanPath) {
+    $script:Msys2Root = Find-Msys2Root
+    if ($script:Msys2Root) {
         Write-Host "[OK]  MSYS2 already installed" -ForegroundColor Green
         return $true
     }
@@ -210,14 +225,15 @@ function Ensure-Msys2 {
     if (Test-Command winget) {
         Write-Host "Installing MSYS2 via winget..." -ForegroundColor Yellow
         & winget install --id MSYS2.MSYS2 --silent --accept-package-agreements --accept-source-agreements
-        if ($LASTEXITCODE -eq 0 -and (Test-Path $pacmanPath)) {
+        $script:Msys2Root = Find-Msys2Root
+        if ($LASTEXITCODE -eq 0 -and $script:Msys2Root) {
             Write-Host "[OK]  MSYS2 installed" -ForegroundColor Green
             return $true
         }
     }
 
-    Write-Host "[ERROR]  MSYS2 not found and winget is unavailable." -ForegroundColor Red
-    Write-Host "Install MSYS2 from https://www.msys2.org/ and re-run this installer." -ForegroundColor Yellow
+    Write-Host "[ERROR]  MSYS2 not found and winget is unavailable or failed." -ForegroundColor Red
+    Write-Host "Install MSYS2 from https://www.msys2.org/ (default: C:\\msys64) and re-run this installer." -ForegroundColor Yellow
     return $false
 }
 
@@ -233,7 +249,10 @@ function Install-Msys2Packages {
         return $false
     }
 
-    $pacmanPath = "C:\msys64\usr\bin\pacman.exe"
+    if (-not $script:Msys2Root) {
+        $script:Msys2Root = Find-Msys2Root
+    }
+    $pacmanPath = Join-Path $script:Msys2Root "usr\\bin\\pacman.exe"
     if (-not (Test-Path $pacmanPath)) {
         Write-Host "[ERROR]  pacman not found after MSYS2 install." -ForegroundColor Red
         return $false
@@ -248,7 +267,7 @@ function Install-Msys2Packages {
         return $false
     }
 
-    $mingwBin = "C:\msys64\mingw64\bin"
+    $mingwBin = Join-Path $script:Msys2Root "mingw64\\bin"
     if (Test-Path $mingwBin) {
         Add-ToUserPath -PathItem $mingwBin
     }
@@ -283,6 +302,14 @@ function Install-PythonViaWinget {
     return (Test-Pip)
 }
 
+function Test-Msys2Gcc {
+    $root = Find-Msys2Root
+    if (-not $root) {
+        return $false
+    }
+    $gccPath = Join-Path $root "mingw64\\bin\\gcc.exe"
+    return (Test-Path $gccPath)
+}
 function Install-FFmpegPortable {
     param(
         [string]$Url
@@ -1006,7 +1033,7 @@ if (-not (Test-Command gst-launch-1.0) -and -not $SkipGStreamer -and -not $isAdm
 }
 
 if ($InstallBuildTools -eq $false -and $SkipBuildTools -eq $false) {
-    $needsBuildTools = (-not (Test-Command go)) -or (-not (Test-Command gcc))
+    $needsBuildTools = (-not (Test-Command go)) -or (-not (Test-Msys2Gcc))
     if ($needsBuildTools) {
         Write-Host "Build tools missing; installing Go + MSYS2 MinGW-w64 automatically." -ForegroundColor Yellow
         $InstallBuildTools = $true
@@ -1019,20 +1046,24 @@ if ($InstallBuildTools) {
         Write-Host "[WARN]  Go install not completed; build tools may be incomplete." -ForegroundColor Yellow
     }
 
-    if (-not (Test-Command gcc)) {
+    if (-not (Test-Msys2Gcc)) {
         $gccOk = Install-Msys2Packages -Packages @("mingw-w64-x86_64-gcc")
         if (-not $gccOk) {
-            Write-Host "[WARN]  MSYS2 GCC install did not complete; GCC may be unavailable." -ForegroundColor Yellow
+            Write-Host "[ERROR]  MSYS2 GCC install failed; build tools are unavailable." -ForegroundColor Red
+            exit 1
         }
     } else {
-        $mingwBin = "C:\msys64\mingw64\bin"
-        if (Test-Path $mingwBin) {
-            Add-ToUserPath -PathItem $mingwBin
+        $root = Find-Msys2Root
+        if ($root) {
+            $mingwBin = Join-Path $root "mingw64\\bin"
+            if (Test-Path $mingwBin) {
+                Add-ToUserPath -PathItem $mingwBin
+            }
         }
     }
 }
 
-if ($InstallPython) {
+if ($InstallPython) { {
     $pythonOk = Install-PythonViaWinget
     if (-not $pythonOk) {
         Write-Host "[WARN]  Python install not completed; pip may be unavailable." -ForegroundColor Yellow
@@ -1087,10 +1118,25 @@ if (Test-Command go) {
     Write-Host "[WARN]   Go not found in PATH (restart terminal)" -ForegroundColor Yellow
 }
 
-if (Test-Command gcc) {
+if (Test-Msys2Gcc) {
+    $root = Find-Msys2Root
+    $gccPath = $null
+    if ($root) {
+        $gccPath = Join-Path $root "mingw64\\bin\\gcc.exe"
+    }
     $gccVersion = gcc --version | Select-Object -First 1
     Write-Host "[OK]  GCC: $gccVersion" -ForegroundColor Green
 } else {
+    $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
+    if ($gccCmd) {
+        Write-Host "[WARN]   GCC found but not from MSYS2: $($gccCmd.Path)" -ForegroundColor Yellow
+        Write-Host "[WARN]   MSYS2 MinGW-w64 is required; rerun scripts\\install.ps1." -ForegroundColor Yellow
+    } else {
+        Write-Host "[WARN]   GCC not found in PATH (restart terminal)" -ForegroundColor Yellow
+    }
+}
+
+if (Test-Command ffmpeg) {
     Write-Host "[WARN]   GCC not found in PATH (restart terminal)" -ForegroundColor Yellow
 }
 
@@ -1200,3 +1246,11 @@ Write-Host "  2. Build: .\\scripts\\build.ps1" -ForegroundColor White
 Write-Host ""
 Write-Host "Press any key to close..." -ForegroundColor Cyan
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+
+
+
+
+
+
+

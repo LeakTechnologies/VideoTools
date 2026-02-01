@@ -22,44 +22,58 @@ function Test-Command {
     return $?
 }
 
-function Use-Toolchain {
+function Find-Msys2Root {
     $candidates = @(
-        "C:\msys64\mingw64\bin"
+        "C:\\msys64",
+        "C:\\msys2",
+        (Join-Path $env:LOCALAPPDATA "Programs\\MSYS2"),
+        (Join-Path $env:ProgramFiles "MSYS2")
     )
-    $returnedPath = $null
-    foreach ($path in $candidates) {
-        if (-not $path -or -not (Test-Path $path)) {
-            continue
-        }
-        if ($env:Path -notmatch [Regex]::Escape($path)) {
-            $env:Path = "$path;$env:Path"
-        }
-        $gccPath = Join-Path $path "gcc.exe"
-        $gxxPath = Join-Path $path "g++.exe"
+    foreach ($root in $candidates) {
+        if (-not $root) { continue }
+        $gccPath = Join-Path $root "mingw64\\bin\\gcc.exe"
         if (Test-Path $gccPath) {
-            $env:CC = $gccPath
+            return $root
         }
-        if (Test-Path $gxxPath) {
-            $env:CXX = $gxxPath
-        }
-
-        $tempDir = Join-Path $env:TEMP "vt-gcc-test"
-        try {
-            New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
-            $cfile = Join-Path $tempDir "test.c"
-            $ofile = Join-Path $tempDir "test.o"
-            Set-Content -Path $cfile -Value "int main(){return 0;}" -Encoding ASCII
-            & gcc -c $cfile -o $ofile 2>$null | Out-Null
-            $ok = Test-Path $ofile
-            if (Test-Path $cfile) { Remove-Item $cfile -Force }
-            if (Test-Path $ofile) { Remove-Item $ofile -Force }
-            if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
-
-            if ($ok) {
-                $returnedPath = $path
+    }
+    return $null
+}
+function Use-Toolchain {
+    $returnedPath = $null
+    $msys2Root = Find-Msys2Root
+    if ($msys2Root) {
+        $path = Join-Path $msys2Root "mingw64\\bin"
+        if (Test-Path $path) {
+            if ($env:Path -notmatch [Regex]::Escape($path)) {
+                $env:Path = "$path;$env:Path"
             }
-        } catch {
-            if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
+            $gccPath = Join-Path $path "gcc.exe"
+            $gxxPath = Join-Path $path "g++.exe"
+            if (Test-Path $gccPath) {
+                $env:CC = $gccPath
+            }
+            if (Test-Path $gxxPath) {
+                $env:CXX = $gxxPath
+            }
+
+            $tempDir = Join-Path $env:TEMP "vt-gcc-test"
+            try {
+                New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
+                $cfile = Join-Path $tempDir "test.c"
+                $ofile = Join-Path $tempDir "test.o"
+                Set-Content -Path $cfile -Value "int main(){return 0;}" -Encoding ASCII
+                & gcc -c $cfile -o $ofile 2>$null | Out-Null
+                $ok = Test-Path $ofile
+                if (Test-Path $cfile) { Remove-Item $cfile -Force }
+                if (Test-Path $ofile) { Remove-Item $ofile -Force }
+                if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
+
+                if ($ok) {
+                    $returnedPath = $path
+                }
+            } catch {
+                if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
+            }
         }
     }
 
@@ -70,7 +84,7 @@ function Use-Toolchain {
     return $null
 }
 
-function Test-Gcc {
+function Test-Gcc { {
     $tempDir = Join-Path $env:TEMP "vt-gcc-test"
     New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
     $cfile = Join-Path $tempDir "test.c"
@@ -175,11 +189,26 @@ if ($toolchainPath) {
 
 if (-not (Test-Command gcc)) {
     Write-Host " ERROR: GCC is required for CGO builds on Windows." -ForegroundColor Red
-    Write-Host " Run scripts\\install.ps1 and enable build tools." -ForegroundColor Yellow
+    Write-Host " Run scripts\\install.ps1 and enable MSYS2 build tools." -ForegroundColor Yellow
     exit 1
 }
 
-if (-not (Test-Gcc)) {
+$gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
+$msys2Root = Find-Msys2Root
+if ($gccCmd -and $msys2Root) {
+    $expectedRoot = Join-Path $msys2Root "mingw64\\bin"
+    if ($gccCmd.Path -notmatch [Regex]::Escape($expectedRoot)) {
+        Write-Host " ERROR: GCC found, but not from MSYS2: $($gccCmd.Path)" -ForegroundColor Red
+        Write-Host " Install MSYS2 MinGW-w64 and re-run scripts\\install.ps1." -ForegroundColor Yellow
+        exit 1
+    }
+} elseif ($gccCmd -and -not $msys2Root) {
+    Write-Host " ERROR: GCC found, but MSYS2 is missing: $($gccCmd.Path)" -ForegroundColor Red
+    Write-Host " Install MSYS2 MinGW-w64 and re-run scripts\\install.ps1." -ForegroundColor Yellow
+    exit 1
+}
+
+if (-not (Test-Gcc)) { {
     Write-Host " ERROR: GCC failed a test compile. The toolchain appears incomplete." -ForegroundColor Red
     Write-Host " Recommended fix: reinstall MSYS2 MinGW-w64 (pacman -S --needed mingw-w64-x86_64-gcc)." -ForegroundColor Yellow
     Write-Host " If MSYS2 is missing, install it and re-run scripts\\install.ps1." -ForegroundColor Yellow
@@ -342,6 +371,10 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "Build failed!" -ForegroundColor Red
     exit 1
 }
+
+
+
+
 
 
 

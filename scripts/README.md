@@ -95,7 +95,7 @@ Run in PowerShell as Administrator:
 **Installs:**
 - FFmpeg (portable, user-level)
 - GStreamer (MSI, required for playback)
-- Optional: Go + MSYS2 MinGW-w64 (build tools, auto-installed when missing)
+- Optional: Go + MSYS2 MinGW-w64 (build tools, auto-installed when missing; Scoop GCC is ignored)
 - Optional: Python + pip
 - Optional: DVD authoring tools (DVDStyler portable)
 
@@ -273,6 +273,7 @@ Some antivirus software may flag the built executable. This is common with Go ap
 
 VideoTools build scripts are part of the VideoTools project.
 See the main project LICENSE file for details.
+
 
 
 
