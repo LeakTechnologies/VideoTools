@@ -224,7 +224,7 @@ func (env *GUIEnvironment) detectWindowsGUI() {
 func (env *GPUInfo) detectWindowsGPU() {
 	if cmd, err := exec.Command("powershell", "-Command", "Get-WmiObject Win32_VideoController | Select-Object Name").Output(); err == nil {
 		gpuName := strings.TrimSpace(string(cmd))
-		env.Model = gpuName
+		env.Model = strings.ReplaceAll(gpuName, "\r", "")
 
 		gpuNameLower := strings.ToLower(gpuName)
 		if strings.Contains(gpuNameLower, "nvidia") {
@@ -238,6 +238,31 @@ func (env *GPUInfo) detectWindowsGPU() {
 			env.Supported = true
 		}
 	}
+}
+
+// IsLikelySoftwareOnlyAdapter returns true when the GPU name maps to a VM/basic display adapter.
+func (env GPUInfo) IsLikelySoftwareOnlyAdapter() (bool, string) {
+	if env.Model == "" {
+		return false, ""
+	}
+	name := strings.ToLower(env.Model)
+	markers := []string{
+		"microsoft basic display adapter",
+		"microsoft basic render driver",
+		"vmware svga",
+		"virtualbox",
+		"parallels",
+		"qxl",
+		"virtio",
+		"hyper-v",
+		"remote display",
+	}
+	for _, marker := range markers {
+		if strings.Contains(name, marker) {
+			return true, marker
+		}
+	}
+	return false, ""
 }
 
 // detectWindowsScale detects display scaling on Windows
