@@ -19,6 +19,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Provide a PowerShell entrypoint and direct Windows users to it from install.sh.
 - [X] **Windows DVDStyler mirror fallback**
   - Added Leak Technologies mirror URL and EXE fallback for DVD authoring tools.
+- [X] **Windows script output alignment**
+  - Match Linux-style headers and show build metadata in build.ps1 output.
 - [X] **Whisper model mirror fallback**
   - Prefer Leak Technologies mirror for whisper.cpp small model downloads.
 - [X] **Git Bash handoff**
@@ -331,4 +333,3 @@ This file tracks upcoming features, improvements, and known issues.
 - **Go implementation preferred**: Maintains single codebase, excellent testing ecosystem
 - **Open-source focus**: No commercial dependencies, community-driven model ecosystem
 - **Modular design**: Each enhancement system can be developed and tested independently
-
