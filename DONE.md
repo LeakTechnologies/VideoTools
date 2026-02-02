@@ -96,6 +96,9 @@
 ### Windows Install
 - [x] GCC preflight failures trigger MSYS2 MinGW-w64 reinstall offers; Scoop toolchains are ignored.
 
+### Docs
+- [x] Removed personal names from documentation in favor of user report/dev report labels.
+
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
 
@@ -1324,7 +1327,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
 
