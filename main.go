@@ -6676,9 +6676,42 @@ func failGUIStartup(reason interface{}) {
 		fmt.Fprintln(os.Stderr, "If you're running in a VM or over Remote Desktop, GPU/OpenGL may be unavailable.")
 	}
 	fmt.Fprintln(os.Stderr, "Install/upgrade your GPU drivers and try again.")
+	if runtime.GOOS == "windows" {
+		fmt.Fprintln(os.Stderr, "Press any key to close...")
+		_, _ = bufio.NewReader(os.Stdin).ReadByte()
+	}
 	os.Exit(1)
 }
+
+func preflightOpenGL() {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	info := sysinfo.Detect()
+	gpu := strings.ToLower(info.GPU)
+	if gpu == "" {
+		return
+	}
+	badGPU := []string{
+		"microsoft basic",
+		"microsoft remote display",
+		"vmware",
+		"virtualbox",
+		"virtio",
+		"qxl",
+		"hyper-v",
+		"llvmpipe",
+		"svga",
+	}
+	for _, token := range badGPU {
+		if strings.Contains(gpu, token) {
+			failGUIStartup(fmt.Sprintf("OpenGL unavailable (%s)", info.GPU))
+		}
+	}
+}
+
 func runGUI() {
+	preflightOpenGL()
 	defer func() {
 		if r := recover(); r != nil {
 			failGUIStartup(r)
@@ -16775,6 +16808,8 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
+
+
 
 
 

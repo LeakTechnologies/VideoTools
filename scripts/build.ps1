@@ -16,6 +16,18 @@ function Write-Section {
     Write-Host ""
 }
 
+function Pause-IfInteractive {
+    if ($Host.UI -and $Host.UI.RawUI) {
+        Write-Host "Press any key to close..." -ForegroundColor Cyan
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    }
+}
+
+function Exit-WithPause {
+    param([int]$Code)
+    Pause-IfInteractive
+    exit $Code
+}
 function Test-Command {
     param([string]$Command)
     $null = Get-Command $Command -ErrorAction SilentlyContinue
@@ -156,7 +168,7 @@ if (-not $isAdmin) {
     } catch {
         Write-Host "[ERROR]  Failed to prompt for elevation." -ForegroundColor Red
         Write-Host "        Run this script from an Administrator PowerShell." -ForegroundColor Yellow
-        exit 1
+        Exit-WithPause 1
     }
     exit 0
 }
@@ -205,7 +217,7 @@ $artifactName = "$version-$gitCommit`_$osTag.zip"
 # Check if Go is installed
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
     Write-Host " ERROR: Go is not installed. Please run scripts\_internal\install-deps-windows.ps1 first." -ForegroundColor Red
-    exit 1
+    Exit-WithPause 1
 }
 
 Write-Host " Go version:" -ForegroundColor Green
@@ -223,7 +235,7 @@ if ($toolchainPath) {
 if (-not (Test-Command gcc)) {
     Write-Host " ERROR: GCC is required for CGO builds on Windows." -ForegroundColor Red
     Write-Host " Run scripts\\install.ps1 and enable MSYS2 build tools." -ForegroundColor Yellow
-    exit 1
+    Exit-WithPause 1
 }
 
 $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
@@ -233,19 +245,19 @@ if ($gccCmd -and $msys2Root) {
     if ($gccCmd.Path -notmatch [Regex]::Escape($expectedRoot)) {
         Write-Host " ERROR: GCC found, but not from MSYS2: $($gccCmd.Path)" -ForegroundColor Red
         Write-Host " Install MSYS2 MinGW-w64 and re-run scripts\\install.ps1." -ForegroundColor Yellow
-        exit 1
+        Exit-WithPause 1
     }
 } elseif ($gccCmd -and -not $msys2Root) {
     Write-Host " ERROR: GCC found, but MSYS2 is missing: $($gccCmd.Path)" -ForegroundColor Red
     Write-Host " Install MSYS2 MinGW-w64 and re-run scripts\\install.ps1." -ForegroundColor Yellow
-    exit 1
+    Exit-WithPause 1
 }
 
 if (-not (Test-Gcc)) {
     Write-Host " ERROR: GCC failed a test compile. The toolchain appears incomplete." -ForegroundColor Red
     Write-Host " Recommended fix: reinstall MSYS2 MinGW-w64 (pacman -S --needed mingw-w64-x86_64-gcc)." -ForegroundColor Yellow
     Write-Host " If MSYS2 is missing, install it and re-run scripts\\install.ps1." -ForegroundColor Yellow
-    exit 1
+    Exit-WithPause 1
 }
 
 # Change to project directory
@@ -266,13 +278,13 @@ Write-Host "Downloading and verifying dependencies..." -ForegroundColor Yellow
 go mod download
 if ($LASTEXITCODE -ne 0) {
     Write-Host " Failed to download dependencies" -ForegroundColor Red
-    exit 1
+    Exit-WithPause 1
 }
 
 go mod verify
 if ($LASTEXITCODE -ne 0) {
     Write-Host " Failed to verify dependencies" -ForegroundColor Red
-    exit 1
+    Exit-WithPause 1
 }
 Write-Host " Dependencies verified" -ForegroundColor Green
 Write-Host ""
@@ -402,10 +414,12 @@ if ($LASTEXITCODE -eq 0) {
         # GPU detection failed, not critical
     }
 
+    Pause-IfInteractive
 } else {
     Write-Host "Build failed!" -ForegroundColor Red
-    exit 1
+    Exit-WithPause 1
 }
+
 
 
 
