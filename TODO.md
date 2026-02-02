@@ -4,6 +4,8 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Maintenance
 
+- [ ] **Documentation naming hygiene**
+  - Review new docs for personal names; use user report/dev report labels only.
 - [X] **Installer dependency parity**
   - Ensure pip is installed on Linux/Windows and skip Go/pip when already present.
 - [X] **Windows installer parse fix**
@@ -329,5 +331,4 @@ This file tracks upcoming features, improvements, and known issues.
 - **Go implementation preferred**: Maintains single codebase, excellent testing ecosystem
 - **Open-source focus**: No commercial dependencies, community-driven model ecosystem
 - **Modular design**: Each enhancement system can be developed and tested independently
-
 

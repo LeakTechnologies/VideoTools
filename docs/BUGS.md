@@ -61,7 +61,7 @@ Track all bugs, issues, and behavioral problems here. Update this file whenever 
 
 ### BUG-010: Upscale jobs show no progress during FFmpeg conversions
 - **Status**: ✅ FIXED (2026-01-06, needs verification)
-- **Reporter**: Jake (2026-01-06)
+- **Reporter**: user report (2026-01-06)
 - **Module**: Upscale / Queue
 - **Description**: Upscale jobs that rely on FFmpeg conversions stay at 0.0% progress even while running; status updates do not advance until completion.
 - **Steps to Reproduce**:
@@ -94,7 +94,7 @@ None currently open.
 
 ### FEAT-003: Enhancement module blur control
 - **Status**: 🧭 IN PROGRESS
-- **Reporter**: Jake (2026-01-06)
+- **Reporter**: user report (2026-01-06)
 - **Module**: Enhancement
 - **Description**: Enhancement panel should include a blur control in addition to sharpen/denoise.
 - **Impact**: Medium - expected control in enhancement workflow
@@ -102,7 +102,7 @@ None currently open.
 
 ### FEAT-004: Upscale output quality should use Bitrate Mode controls
 - **Status**: 🧭 PLANNED
-- **Reporter**: Jake (2026-01-06)
+- **Reporter**: user report (2026-01-06)
 - **Module**: Upscale
 - **Description**: Replace Upscale "Output Quality" with the Bitrate Mode controls used in Convert Advanced.
 - **Impact**: Medium - consistent workflow across modules

@@ -86,7 +86,7 @@ This file tracks what each agent is currently working on to prevent conflicts an
 - Enhancement module framework
 
 **Coordination**:
-- Jake will be using Codex for UI work this week
+- A dev report indicates Codex will be used for UI work this week
 - Focus on build stability and widget conversions first
 
 ---
