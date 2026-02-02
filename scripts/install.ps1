@@ -1,5 +1,16 @@
 ﻿param()
 
+function Write-Header {
+    param(
+        [string]$Title
+    )
+    $line = "════════════════════════════════════════════════════════════════"
+    Write-Host $line -ForegroundColor Cyan
+    Write-Host "  $Title" -ForegroundColor Cyan
+    Write-Host $line -ForegroundColor Cyan
+    Write-Host ""
+}
+
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     Write-Host "[INFO]  Elevation required for Windows dependencies (GStreamer MSI)." -ForegroundColor Yellow
@@ -22,6 +33,8 @@ if (-not $isAdmin) {
     }
     exit 0
 }
+
+Write-Header "VideoTools Windows Installation"
 
 Write-Host "[INFO]  Build tools are provided via MSYS2 (MinGW-w64)." -ForegroundColor Cyan
 

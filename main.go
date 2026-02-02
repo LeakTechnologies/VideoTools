@@ -6722,6 +6722,16 @@ func runGUI() {
 
 	utils.EnsureLinuxDesktopEntry("com.leaktechnologies.videotools", "VideoTools")
 
+	// Preflight GUI environment before creating the Fyne app.
+	guiEnv := guitutils.DetectGUIEnvironment()
+	logging.Debug(logging.CatUI, "detected GUI environment: %s", guiEnv.String())
+	if runtime.GOOS == "windows" {
+		if isSoftware, _ := guiEnv.GPUInfo.IsLikelySoftwareOnlyAdapter(); isSoftware {
+			failGUIStartup(fmt.Sprintf("VideoTools could not start the GUI because the detected display adapter does not support OpenGL acceleration.\n\nDetected adapter:\n%s\n\nIf you are running in a VM, enable 3D acceleration or install GPU drivers, then try again.", guiEnv.GPUInfo.Model))
+			return
+		}
+	}
+
 	a := app.NewWithID("com.leaktechnologies.videotools")
 
 	// Always start with a clean slate: wipe any persisted app storage (queue or otherwise)
@@ -6742,10 +6752,6 @@ func runGUI() {
 	} else {
 		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
-	// Enhanced cross-platform GUI detection and window sizing
-	guiEnv := guitutils.DetectGUIEnvironment()
-	logging.Debug(logging.CatUI, "detected GUI environment: %s", guiEnv.String())
-
 	// Adaptive window sizing for professional cross-resolution support
 	w.SetFixedSize(false) // Allow manual resizing and maximizing
 
@@ -6878,6 +6884,17 @@ func runGUI() {
 	}()
 
 	w.ShowAndRun()
+}
+
+func failGUIStartup(message string) {
+	fmt.Fprintln(os.Stderr, message)
+	if runtime.GOOS != "windows" {
+		return
+	}
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Press any key to close...")
+	reader := bufio.NewReader(os.Stdin)
+	_, _ = reader.ReadByte()
 }
 
 func runCLI(args []string) error {
