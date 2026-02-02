@@ -20,6 +20,18 @@ Output artifacts:
 - Dev builds: `git.leaktechnologies.dev` (internal).
 - Public builds: GitHub releases at `https://github.com/LeakTechnologies/VideoTools`.
 
+## Forgejo Actions (Dev Builds)
+
+Workflow: `.forgejo/workflows/dev-packages.yml`
+
+Outputs:
+- `dist/windows/dev/*.zip` (dev package + build.json)
+- `dist/windows/msix/VideoTools.msix` when Windows SDK is available on the runner.
+
+Notes:
+- Requires a Windows runner with MSYS2 (mingw-w64-x86_64-gcc).
+- Linux dev packaging runs on Ubuntu runners and installs GStreamer dev packages.
+
 ## Release Flow
 
 - Tag a release like `v0.1.1` in the public GitHub repo.

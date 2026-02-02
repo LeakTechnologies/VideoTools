@@ -100,6 +100,9 @@
 - [x] Aligned Windows script output headers with Linux styling and printed build metadata.
 - [x] Windows build script now refreshes PATH and can auto-repair missing MSYS2 GCC via pacman.
 
+### Packaging
+- [x] Added Forgejo Actions workflow for dev Windows/Linux packaging and artifacts.
+
 ### Docs
 - [x] Removed personal names from documentation in favor of user report/dev report labels.
 
@@ -1331,7 +1334,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
 
