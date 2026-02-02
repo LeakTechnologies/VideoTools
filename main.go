@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"bufio"
@@ -2515,7 +2515,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
-		Description: fmt.Sprintf("Output: %s → %s", utils.ShortenMiddle(filepath.Base(src.Path), 40), utils.ShortenMiddle(filepath.Base(outPath), 40)),
+		Description: fmt.Sprintf("Output: %s â†’ %s", utils.ShortenMiddle(filepath.Base(src.Path), 40), utils.ShortenMiddle(filepath.Base(outPath), 40)),
 		InputFile:   src.Path,
 		OutputFile:  outPath,
 		Config:      config,
@@ -2647,7 +2647,7 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
-		Description: fmt.Sprintf("Output: %s → %s", utils.ShortenMiddle(filepath.Base(src.Path), 40), utils.ShortenMiddle(filepath.Base(outPath), 40)),
+		Description: fmt.Sprintf("Output: %s â†’ %s", utils.ShortenMiddle(filepath.Base(src.Path), 40), utils.ShortenMiddle(filepath.Base(outPath), 40)),
 		InputFile:   src.Path,
 		OutputFile:  outPath,
 		Config:      config,
@@ -3066,7 +3066,7 @@ func (s *appState) showMissingDependenciesDialog(moduleID string) {
 
 	for _, depName := range missing {
 		if dep, ok := allDependencies[depName]; ok {
-			message.WriteString(fmt.Sprintf("• %s\n", dep.Name))
+			message.WriteString(fmt.Sprintf("â€¢ %s\n", dep.Name))
 			if dep.InstallCmd != "" {
 				message.WriteString(fmt.Sprintf("  Install: %s\n\n", dep.InstallCmd))
 			}
@@ -3519,7 +3519,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 		job := &queue.Job{
 			Type:        queue.JobTypeConvert,
 			Title:       fmt.Sprintf("Convert %s", filepath.Base(path)),
-			Description: fmt.Sprintf("Output: %s → %s", filepath.Base(path), filepath.Base(outPath)),
+			Description: fmt.Sprintf("Output: %s â†’ %s", filepath.Base(path), filepath.Base(outPath)),
 			InputFile:   path,
 			OutputFile:  outPath,
 			Config:      config,
@@ -3689,13 +3689,13 @@ func (s *appState) showMergeView() {
 				chEntry.OnChanged = func(val string) {
 					s.mergeClips[idx].Chapter = val
 				}
-				upBtn := widget.NewButton("↑", func() {
+				upBtn := widget.NewButton("â†‘", func() {
 					if idx > 0 {
 						s.mergeClips[idx-1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx-1]
 						buildList()
 					}
 				})
-				downBtn := widget.NewButton("↓", func() {
+				downBtn := widget.NewButton("â†“", func() {
 					if idx < len(s.mergeClips)-1 {
 						s.mergeClips[idx+1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx+1]
 						buildList()
@@ -3751,7 +3751,7 @@ func (s *appState) showMergeView() {
 		buildList()
 	}
 
-	addBtn := widget.NewButton("Add Files…", func() {
+	addBtn := widget.NewButton("Add Filesâ€¦", func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -6661,7 +6661,29 @@ func main() {
 	runGUI()
 }
 
+func failGUIStartup(reason interface{}) {
+	msg := fmt.Sprint(reason)
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "ERROR: VideoTools failed to start the GUI.")
+	if strings.TrimSpace(msg) != "" {
+		fmt.Fprintln(os.Stderr, "Reason:", msg)
+	}
+	lower := strings.ToLower(msg)
+	if strings.Contains(lower, "opengl") || strings.Contains(lower, "wgl") || strings.Contains(lower, "glfw") || strings.Contains(lower, "apiunavailable") {
+		fmt.Fprintln(os.Stderr, "This usually means your graphics driver or VM does not support OpenGL.")
+		fmt.Fprintln(os.Stderr, "If you're running in a VM (e.g., GNOME Boxes), enable 3D acceleration or run on the host OS.")
+	} else {
+		fmt.Fprintln(os.Stderr, "If you're running in a VM or over Remote Desktop, GPU/OpenGL may be unavailable.")
+	}
+	fmt.Fprintln(os.Stderr, "Install/upgrade your GPU drivers and try again.")
+	os.Exit(1)
+}
 func runGUI() {
+	defer func() {
+		if r := recover(); r != nil {
+			failGUIStartup(r)
+		}
+	}()
 	// Initialize UI colors
 	ui.SetColors(gridColor, textColor)
 
@@ -6677,6 +6699,9 @@ func runGUI() {
 	a.Settings().SetTheme(&ui.MonoTheme{})
 	logging.Debug(logging.CatUI, "created fyne app: %#v", a)
 	w := a.NewWindow("VideoTools")
+	if w == nil {
+		failGUIStartup("window creation failed")
+	}
 	if icon := utils.LoadAppIcon(); icon != nil {
 		a.SetIcon(icon)
 		w.SetIcon(icon)
@@ -7005,9 +7030,9 @@ func (s *appState) executeConversion() {
 }
 
 // buildFormatBadge creates a color-coded badge for a format option
-// Example: "MKV (AV1)" → teal badge with "MKV (AV1)" text
+// Example: "MKV (AV1)" â†’ teal badge with "MKV (AV1)" text
 func buildFormatBadge(formatLabel string) fyne.CanvasObject {
-	// Parse format label: "MKV (AV1)" → containerName: "mkv"
+	// Parse format label: "MKV (AV1)" â†’ containerName: "mkv"
 	parts := strings.Split(formatLabel, " (")
 	if len(parts) < 1 {
 		return widget.NewLabel(formatLabel)
@@ -7389,10 +7414,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Navigation buttons for multiple loaded videos
 	var navButtons fyne.CanvasObject
 	if len(state.loadedVideos) > 1 {
-		prevBtn := widget.NewButton("◀ Prev", func() {
+		prevBtn := widget.NewButton("â—€ Prev", func() {
 			state.prevVideo()
 		})
-		nextBtn := widget.NewButton("Next ▶", func() {
+		nextBtn := widget.NewButton("Next â–¶", func() {
 			state.nextVideo()
 		})
 		videoCounter := widget.NewLabel(fmt.Sprintf("Video %d of %d", state.currentIndex+1, len(state.loadedVideos)))
@@ -7408,7 +7433,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 
-	clearCompletedBtn := widget.NewButton("⌫", func() {
+	clearCompletedBtn := widget.NewButton("âŒ«", func() {
 		state.clearCompletedJobs()
 	})
 	clearCompletedBtn.Importance = widget.LowImportance
@@ -7418,7 +7443,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	drawerWidth := float32(420)
 	drawerInset := float32(8)
 	buildDrawer := func(title string, body fyne.CanvasObject, onClose func()) *widget.PopUp {
-		closeBtn := widget.NewButton("✕", func() {
+		closeBtn := widget.NewButton("âœ•", func() {
 			if onClose != nil {
 				onClose()
 			}
@@ -7466,7 +7491,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var buildCommandPreview func() fyne.CanvasObject
 
 	// Command Preview toggle button (drawer)
-	cmdPreviewBtn := widget.NewButton("Command Preview…", func() {
+	cmdPreviewBtn := widget.NewButton("Command Previewâ€¦", func() {
 		if src == nil {
 			return
 		}
@@ -8033,17 +8058,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	flipVerticalCheck.Checked = state.convert.FlipVertical
 
-	rotationOptions := []string{"0°", "90° CW", "180°", "270° CW"}
+	rotationOptions := []string{"0Â°", "90Â° CW", "180Â°", "270Â° CW"}
 	rotationSelect := widget.NewSelect(rotationOptions, func(value string) {
 		var rotation string
 		switch value {
-		case "0°":
+		case "0Â°":
 			rotation = "0"
-		case "90° CW":
+		case "90Â° CW":
 			rotation = "90"
-		case "180°":
+		case "180Â°":
 			rotation = "180"
-		case "270° CW":
+		case "270Â° CW":
 			rotation = "270"
 		}
 		state.convert.Rotation = rotation
@@ -8052,11 +8077,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	if state.convert.Rotation == "" {
 		state.convert.Rotation = "0"
 	}
-	rotationMap := map[string]string{"0": "0°", "90": "90° CW", "180": "180°", "270": "270° CW"}
+	rotationMap := map[string]string{"0": "0Â°", "90": "90Â° CW", "180": "180Â°", "270": "270Â° CW"}
 	if label, ok := rotationMap[state.convert.Rotation]; ok {
 		rotationSelect.SetSelected(label)
 	} else {
-		rotationSelect.SetSelected("0°")
+		rotationSelect.SetSelected("0Â°")
 	}
 
 	transformHint := widget.NewLabel("Apply flips and rotation to correct video orientation")
@@ -8197,7 +8222,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoCodecContainer := videoCodecSelect // Use the widget directly instead of wrapping
 
 	// Chapter warning label (shown when converting file with chapters to DVD)
-	chapterWarningLabel := widget.NewLabel("⚠️  Chapters will be lost - DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.")
+	chapterWarningLabel := widget.NewLabel("âš ï¸  Chapters will be lost - DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.")
 	chapterWarningLabel.Wrapping = fyne.TextWrapWord
 	chapterWarningLabel.TextStyle = fyne.TextStyle{Italic: true}
 	updateChapterWarning = func() {
@@ -8228,23 +8253,23 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		var hint string
 		switch preset {
 		case "ultrafast":
-			hint = "⚡ Ultrafast: Fastest encoding, largest files (~10x faster than slow, ~30% larger files)"
+			hint = "âš¡ Ultrafast: Fastest encoding, largest files (~10x faster than slow, ~30% larger files)"
 		case "superfast":
-			hint = "⚡ Superfast: Very fast encoding, large files (~7x faster than slow, ~20% larger files)"
+			hint = "âš¡ Superfast: Very fast encoding, large files (~7x faster than slow, ~20% larger files)"
 		case "veryfast":
-			hint = "⚡ Very Fast: Fast encoding, moderately large files (~5x faster than slow, ~15% larger files)"
+			hint = "âš¡ Very Fast: Fast encoding, moderately large files (~5x faster than slow, ~15% larger files)"
 		case "faster":
-			hint = "⏩ Faster: Quick encoding, slightly large files (~3x faster than slow, ~10% larger files)"
+			hint = "â© Faster: Quick encoding, slightly large files (~3x faster than slow, ~10% larger files)"
 		case "fast":
-			hint = "⏩ Fast: Good speed, slightly large files (~2x faster than slow, ~5% larger files)"
+			hint = "â© Fast: Good speed, slightly large files (~2x faster than slow, ~5% larger files)"
 		case "medium":
-			hint = "⚖️ Medium (default): Balanced speed and quality (baseline for comparison)"
+			hint = "âš–ï¸ Medium (default): Balanced speed and quality (baseline for comparison)"
 		case "slow":
-			hint = "🎯 Slow (recommended): Best quality/size ratio (~2x slower than medium, ~5-10% smaller)"
+			hint = "ðŸŽ¯ Slow (recommended): Best quality/size ratio (~2x slower than medium, ~5-10% smaller)"
 		case "slower":
-			hint = "🎯 Slower: Excellent compression (~3x slower than medium, ~10-15% smaller files)"
+			hint = "ðŸŽ¯ Slower: Excellent compression (~3x slower than medium, ~10-15% smaller files)"
 		case "veryslow":
-			hint = "🐌 Very Slow: Maximum compression (~5x slower than medium, ~15-20% smaller files)"
+			hint = "ðŸŒ Very Slow: Maximum compression (~5x slower than medium, ~15-20% smaller files)"
 		default:
 			hint = ""
 		}
@@ -8707,7 +8732,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	resolutionOptionsSimple := []string{
 		"Source", "360p", "480p", "540p", "720p", "1080p", "1440p", "4K", "8K",
 		"2X (relative)", "4X (relative)",
-		"NTSC (720×480)", "PAL (720×540)", "PAL (720×576)",
+		"NTSC (720Ã—480)", "PAL (720Ã—540)", "PAL (720Ã—576)",
 	}
 	// Resolution select (Simple mode) - uses state manager
 	resolutionSelectSimple := widget.NewSelect(resolutionOptionsSimple, func(value string) {
@@ -9155,7 +9180,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	resolutionOptions := []string{
 		"Source", "720p", "1080p", "1440p", "4K", "8K",
 		"2X (relative)", "4X (relative)",
-		"NTSC (720×480)", "PAL (720×540)", "PAL (720×576)",
+		"NTSC (720Ã—480)", "PAL (720Ã—540)", "PAL (720Ã—576)",
 	}
 	// Resolution select (Advanced mode) - uses state manager
 	resolutionSelect := widget.NewSelect(resolutionOptions, func(value string) {
@@ -9219,10 +9244,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if targetFPS < sourceFPS {
 			ratio := targetFPS / sourceFPS
 			reduction := (1.0 - ratio) * 100
-			frameRateHint.SetText(fmt.Sprintf("Converting %.0f → %.0f fps: ~%.0f%% smaller file",
+			frameRateHint.SetText(fmt.Sprintf("Converting %.0f â†’ %.0f fps: ~%.0f%% smaller file",
 				sourceFPS, targetFPS, reduction))
 		} else if targetFPS > sourceFPS {
-			frameRateHint.SetText(fmt.Sprintf("⚠ Upscaling from %.0f to %.0f fps (may cause judder)",
+			frameRateHint.SetText(fmt.Sprintf("âš  Upscaling from %.0f to %.0f fps (may cause judder)",
 				sourceFPS, targetFPS))
 		} else {
 			frameRateHint.SetText("")
@@ -9339,9 +9364,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
 		if isDVD {
-			if !strings.EqualFold(state.convert.TargetResolution, "NTSC (720×480)") &&
-				!strings.EqualFold(state.convert.TargetResolution, "PAL (720×540)") &&
-				!strings.EqualFold(state.convert.TargetResolution, "PAL (720×576)") {
+			if !strings.EqualFold(state.convert.TargetResolution, "NTSC (720Ã—480)") &&
+				!strings.EqualFold(state.convert.TargetResolution, "PAL (720Ã—540)") &&
+				!strings.EqualFold(state.convert.TargetResolution, "PAL (720Ã—576)") {
 				state.convert.TargetResolution = "Source"
 			}
 			if !strings.EqualFold(state.convert.FrameRate, "29.97") &&
@@ -9367,18 +9392,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			targetAR = dvdAspectSelect.Selected
 
 			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
-				dvdNotes = "NTSC DVD: 720×480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k, 9000k max PS2-safe)"
-				targetRes = "NTSC (720×480)"
+				dvdNotes = "NTSC DVD: 720Ã—480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k, 9000k max PS2-safe)"
+				targetRes = "NTSC (720Ã—480)"
 				targetFPS = "29.97"
 				dvdBitrate = "8000k"
 			} else if strings.Contains(state.convert.SelectedFormat.Label, "PAL") {
-				dvdNotes = "PAL DVD: 720×540 @ 25fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k default, 9500k max)"
-				targetRes = "PAL (720×540)"
+				dvdNotes = "PAL DVD: 720Ã—540 @ 25fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k default, 9500k max)"
+				targetRes = "PAL (720Ã—540)"
 				targetFPS = "25"
 				dvdBitrate = "8000k"
 			} else {
 				dvdNotes = "DVD format selected"
-				targetRes = "NTSC (720×480)"
+				targetRes = "NTSC (720Ã—480)"
 				targetFPS = "29.97"
 				dvdBitrate = "8000k"
 			}
@@ -9490,7 +9515,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	updateDVDOptions()
 
 	qualitySectionSimple = container.NewVBox(
-		widget.NewLabelWithStyle("═══ QUALITY ═══", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("â•â•â• QUALITY â•â•â•", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		qualitySelectSimple,
 	)
 	qualitySectionAdv = container.NewVBox(
@@ -10216,7 +10241,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	snippetHint := widget.NewLabel("Creates a clip centred on the timeline midpoint.")
 
 	var snippetOptionsBtn *widget.Button
-	snippetOptionsBtn = widget.NewButton("Snippet Options…", func() {
+	snippetOptionsBtn = widget.NewButton("Snippet Optionsâ€¦", func() {
 		toggleDrawer(&snippetDrawer, "Snippet Options", snippetConfigRow)
 	})
 	snippetOptionsBtn.Importance = widget.LowImportance
@@ -10800,7 +10825,7 @@ Metadata: %s`,
 	info := container.NewVBox(fileRow, twoColGrid)
 
 	// Copy metadata button - beside header text
-	copyBtn := widget.NewButton("📋", func() {
+	copyBtn := widget.NewButton("ðŸ“‹", func() {
 		state.window.Clipboard().SetContent(metadataText)
 		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
 	})
@@ -11054,7 +11079,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		stage.CornerRadius = 6
 		stage.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
 
-		silhouette := canvas.NewText("▶", utils.MustHex("#4CE870"))
+		silhouette := canvas.NewText("â–¶", utils.MustHex("#4CE870"))
 		silhouette.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 		silhouette.TextSize = 42
 
@@ -11062,7 +11087,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		hintSub := widget.NewLabel("MP4, MOV, MKV and more")
 		hintSub.Alignment = fyne.TextAlignCenter
 
-		open := widget.NewButton("Open File…", func() {
+		open := widget.NewButton("Open Fileâ€¦", func() {
 			logging.Debug(logging.CatUI, "convert open file dialog requested")
 			dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 				if err != nil {
@@ -11080,7 +11105,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			dlg.Show()
 		})
 
-		addMultiple := widget.NewButton("Add Multiple…", func() {
+		addMultiple := widget.NewButton("Add Multipleâ€¦", func() {
 			logging.Debug(logging.CatUI, "convert add multiple files dialog requested")
 			dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 				if err != nil {
@@ -11142,7 +11167,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	// Overlay the image directly so it fills the stage while preserving aspect.
 	videoStage := container.NewMax(stage, img)
 
-	coverBtn := utils.MakeIconButton("⌾", "Set current frame as cover art", func() {
+	coverBtn := utils.MakeIconButton("âŒ¾", "Set current frame as cover art", func() {
 		path, err := state.captureCoverFromCurrent()
 		if err != nil {
 			dialog.ShowError(err, state.window)
@@ -11153,7 +11178,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		}
 	})
 
-	saveFrameBtn := utils.MakeIconButton("💾", "Save current frame as PNG", func() {
+	saveFrameBtn := utils.MakeIconButton("ðŸ’¾", "Save current frame as PNG", func() {
 		framePath, err := state.captureCoverFromCurrent()
 		if err != nil {
 			dialog.ShowError(err, state.window)
@@ -11187,7 +11212,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		dlg.Show()
 	})
 
-	importBtn := utils.MakeIconButton("⬆", "Import cover art file", func() {
+	importBtn := utils.MakeIconButton("â¬†", "Import cover art file", func() {
 		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 			if err != nil {
 				dialog.ShowError(err, state.window)
@@ -11264,12 +11289,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				return
 			}
 			if state.playerMuted || state.playerVolume <= 0 {
-				volIcon.SetText("🔇")
+				volIcon.SetText("ðŸ”‡")
 			} else {
-				volIcon.SetText("🔊")
+				volIcon.SetText("ðŸ”Š")
 			}
 		}
-		volIcon = utils.MakeIconButton("🔊", "Mute/Unmute", func() {
+		volIcon = utils.MakeIconButton("ðŸ”Š", "Mute/Unmute", func() {
 			if !ensureSession() {
 				return
 			}
@@ -11310,7 +11335,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		}
 		updateVolIcon()
 		volSlider.Refresh()
-		playBtn := utils.MakeIconButton("▶/⏸", "Play/Pause", func() {
+		playBtn := utils.MakeIconButton("â–¶/â¸", "Play/Pause", func() {
 			if !ensureSession() {
 				return
 			}
@@ -11324,14 +11349,14 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 
 		// Frame stepping buttons
-		prevFrameBtn := utils.MakeIconButton("◀|", "Previous frame (Left Arrow)", func() {
+		prevFrameBtn := utils.MakeIconButton("â—€|", "Previous frame (Left Arrow)", func() {
 			if !ensureSession() {
 				return
 			}
 			state.playerPaused = true
 			state.playSess.StepFrame(-1)
 		})
-		nextFrameBtn := utils.MakeIconButton("|▶", "Next frame (Right Arrow)", func() {
+		nextFrameBtn := utils.MakeIconButton("|â–¶", "Next frame (Right Arrow)", func() {
 			if !ensureSession() {
 				return
 			}
@@ -11339,7 +11364,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			state.playSess.StepFrame(1)
 		})
 
-		fullBtn := utils.MakeIconButton("⛶", "Toggle fullscreen", func() {
+		fullBtn := utils.MakeIconButton("â›¶", "Toggle fullscreen", func() {
 			if state.window == nil {
 				return
 			}
@@ -11367,7 +11392,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				}
 			}
 		}
-		playBtn := utils.MakeIconButton("▶/⏸", "Play/Pause", func() {
+		playBtn := utils.MakeIconButton("â–¶/â¸", "Play/Pause", func() {
 			if len(src.PreviewFrames) == 0 {
 				return
 			}
@@ -11385,7 +11410,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		volSlider.Disable()
 		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
 		controls = container.NewVBox(
-			container.NewHBox(playBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), widget.NewLabel("🔇"), container.NewMax(volSlider)),
+			container.NewHBox(playBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), widget.NewLabel("ðŸ”‡"), container.NewMax(volSlider)),
 			progress,
 		)
 		if len(src.PreviewFrames) > 1 {
@@ -13455,7 +13480,7 @@ func (s *appState) cancelConvert(cancelBtn, btn *widget.Button, spinner *widget.
 	if s.convertCancel == nil {
 		return
 	}
-	s.convertStatus = "Cancelling…"
+	s.convertStatus = "Cancellingâ€¦"
 	// Widget states will be updated by the UI refresh ticker
 	s.convertCancel()
 }
@@ -13513,10 +13538,10 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	// Note: We do NOT force resolution - user can choose Source or specific resolution
 	if isDVD {
 		if strings.Contains(cfg.SelectedFormat.Label, "PAL") {
-			cfg.TargetResolution = "PAL (720×540)"
+			cfg.TargetResolution = "PAL (720Ã—540)"
 			cfg.FrameRate = "25"
 		} else {
-			cfg.TargetResolution = "NTSC (720×480)"
+			cfg.TargetResolution = "NTSC (720Ã—480)"
 			cfg.FrameRate = "29.97"
 		}
 		cfg.VideoBitrate = "8000k"
@@ -13657,11 +13682,11 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			scaleFilter = "scale=-2:2160"
 		case "8K":
 			scaleFilter = "scale=-2:4320"
-		case "NTSC (720×480)":
+		case "NTSC (720Ã—480)":
 			scaleFilter = "scale=720:480"
-		case "PAL (720×540)":
+		case "PAL (720Ã—540)":
 			scaleFilter = "scale=720:540"
-		case "PAL (720×576)":
+		case "PAL (720Ã—576)":
 			scaleFilter = "scale=720:576"
 		case "2X (relative)":
 			if src != nil {
@@ -13937,7 +13962,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		s.convertActiveLog = logPath
 	}
 	_ = logPath
-	setStatus("Preparing conversion…")
+	setStatus("Preparing conversionâ€¦")
 	// Widget states will be updated by the UI refresh ticker
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -13945,7 +13970,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 	go func() {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			setStatus("Running ffmpeg…")
+			setStatus("Running ffmpegâ€¦")
 		}, false)
 		if logFile != nil {
 			defer logFile.Close()
@@ -14035,9 +14060,9 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 					// Build status with FPS
 					var lbl string
 					if currentFPS > 0 {
-						lbl = fmt.Sprintf("Converting… %.0f%% | %.0f fps | elapsed %s | ETA %s | %.2fx", pct, currentFPS, formatShortDuration(elapsedWall), etaOrDash(eta), speed)
+						lbl = fmt.Sprintf("Convertingâ€¦ %.0f%% | %.0f fps | elapsed %s | ETA %s | %.2fx", pct, currentFPS, formatShortDuration(elapsedWall), etaOrDash(eta), speed)
 					} else {
-						lbl = fmt.Sprintf("Converting… %.0f%% | elapsed %s | ETA %s | %.2fx", pct, formatShortDuration(elapsedWall), etaOrDash(eta), speed)
+						lbl = fmt.Sprintf("Convertingâ€¦ %.0f%% | elapsed %s | ETA %s | %.2fx", pct, formatShortDuration(elapsedWall), etaOrDash(eta), speed)
 					}
 
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -14130,7 +14155,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 						// Auto failed; fall back to software for next runs
 						s.convert.HardwareAccel = "none"
 					}
-					errorMsg = fmt.Errorf("Hardware encoding (%s→%s) failed - no compatible hardware found.\n\nSwitched hardware acceleration to 'none'. Please try again (software encoding).\n\nFFmpeg output:\n%s", chosen, resolvedAccel, stderrOutput)
+					errorMsg = fmt.Errorf("Hardware encoding (%sâ†’%s) failed - no compatible hardware found.\n\nSwitched hardware acceleration to 'none'. Please try again (software encoding).\n\nFFmpeg output:\n%s", chosen, resolvedAccel, stderrOutput)
 				} else {
 					baseMsg := "convert failed: " + err.Error()
 					if errorExplanation != "" {
@@ -14158,7 +14183,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			fmt.Fprintf(logFile, "\nStatus: completed OK at %s\n", time.Now().Format(time.RFC3339))
 		}
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			setStatus("Validating output…")
+			setStatus("Validating outputâ€¦")
 		}, false)
 		if _, probeErr := probeVideo(outPath); probeErr != nil {
 			logging.Debug(logging.CatFFMPEG, "convert probe failed: %v", probeErr)
@@ -15278,9 +15303,9 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 		// Format side-by-side comparison
 		var comparisonText strings.Builder
-		comparisonText.WriteString("═══════════════════════════════════════════════════════════════════════\n")
+		comparisonText.WriteString("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n")
 		comparisonText.WriteString("                        VIDEO COMPARISON REPORT\n")
-		comparisonText.WriteString("═══════════════════════════════════════════════════════════════════════\n\n")
+		comparisonText.WriteString("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n\n")
 
 		// File names header
 		file1Name := "Not loaded"
@@ -15294,18 +15319,18 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 		comparisonText.WriteString(fmt.Sprintf("FILE 1: %s\n", file1Name))
 		comparisonText.WriteString(fmt.Sprintf("FILE 2: %s\n", file2Name))
-		comparisonText.WriteString("───────────────────────────────────────────────────────────────────────\n\n")
+		comparisonText.WriteString("â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€\n\n")
 
 		// Helper to get field value or placeholder
 		getField := func(src *videoSource, getter func(*videoSource) string) string {
 			if src == nil {
-				return "—"
+				return "â€”"
 			}
 			return getter(src)
 		}
 
 		// File Info section
-		comparisonText.WriteString("━━━ FILE INFO ━━━\n")
+		comparisonText.WriteString("â”â”â” FILE INFO â”â”â”\n")
 
 		var file1SizeBytes int64
 		file1Size := getField(state.compareFile1, func(src *videoSource) string {
@@ -15332,7 +15357,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			getField(state.compareFile2, func(s *videoSource) string { return s.Format })))
 
 		// Video section
-		comparisonText.WriteString("\n━━━ VIDEO ━━━\n")
+		comparisonText.WriteString("\nâ”â”â” VIDEO â”â”â”\n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Codec:",
 			getField(state.compareFile1, func(s *videoSource) string { return s.VideoCodec }),
@@ -15380,7 +15405,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%d", s.GOPSize) })))
 
 		// Audio section
-		comparisonText.WriteString("\n━━━ AUDIO ━━━\n")
+		comparisonText.WriteString("\nâ”â”â” AUDIO â”â”â”\n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Codec:",
 			getField(state.compareFile1, func(s *videoSource) string { return s.AudioCodec }),
@@ -15399,7 +15424,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%d", s.Channels) })))
 
 		// Other section
-		comparisonText.WriteString("\n━━━ OTHER ━━━\n")
+		comparisonText.WriteString("\nâ”â”â” OTHER â”â”â”\n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Duration:",
 			getField(state.compareFile1, func(s *videoSource) string { return s.DurationString() }),
@@ -15417,7 +15442,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			getField(state.compareFile1, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasMetadata) }),
 			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasMetadata) })))
 
-		comparisonText.WriteString("\n═══════════════════════════════════════════════════════════════════════\n")
+		comparisonText.WriteString("\nâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n")
 
 		state.window.Clipboard().SetContent(comparisonText.String())
 		dialog.ShowInformation("Copied", "Comparison metadata copied to clipboard", state.window)
@@ -15493,11 +15518,11 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		}
 
 		return fmt.Sprintf(
-			"━━━ FILE INFO ━━━\n"+
+			"â”â”â” FILE INFO â”â”â”\n"+
 				"Path: %s\n"+
 				"File Size: %s\n"+
 				"Format Family: %s\n"+
-				"\n━━━ VIDEO ━━━\n"+
+				"\nâ”â”â” VIDEO â”â”â”\n"+
 				"Codec: %s\n"+
 				"Resolution: %dx%d\n"+
 				"Aspect Ratio: %s\n"+
@@ -15508,12 +15533,12 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 				"Color Range: %s\n"+
 				"Field Order: %s\n"+
 				"GOP Size: %d\n"+
-				"\n━━━ AUDIO ━━━\n"+
+				"\nâ”â”â” AUDIO â”â”â”\n"+
 				"Codec: %s\n"+
 				"Bitrate: %s\n"+
 				"Sample Rate: %d Hz\n"+
 				"Channels: %d\n"+
-				"\n━━━ OTHER ━━━\n"+
+				"\nâ”â”â” OTHER â”â”â”\n"+
 				"Duration: %s\n"+
 				"SAR (Pixel Aspect): %s\n"+
 				"Chapters: %v\n"+
@@ -15837,14 +15862,14 @@ func buildEnhancementView(state *appState) fyne.CanvasObject {
 	// TODO: Implement enhancement view with AI model selection
 	// For now, show placeholder
 	content := container.NewVBox(
-		widget.NewLabel("🚀 Video Enhancement"),
+		widget.NewLabel("ðŸš€ Video Enhancement"),
 		widget.NewSeparator(),
 		widget.NewLabel("AI-powered video enhancement is coming soon!"),
 		widget.NewLabel("Features planned:"),
-		widget.NewLabel("• Real-ESRGAN Super-Resolution"),
-		widget.NewLabel("• BasicVSR Video Enhancement"),
-		widget.NewLabel("• Content-Aware Processing"),
-		widget.NewLabel("• Real-time Preview"),
+		widget.NewLabel("â€¢ Real-ESRGAN Super-Resolution"),
+		widget.NewLabel("â€¢ BasicVSR Video Enhancement"),
+		widget.NewLabel("â€¢ Content-Aware Processing"),
+		widget.NewLabel("â€¢ Real-time Preview"),
 		widget.NewSeparator(),
 		widget.NewLabel("This will use the unified FFmpeg player foundation"),
 		widget.NewLabel("for frame-accurate enhancement processing."),
@@ -15984,7 +16009,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	loadBtn.Importance = widget.HighImportance
 
 	// Navigation to Filters module
-	filtersNavBtn := widget.NewButton("← Adjust Filters", func() {
+	filtersNavBtn := widget.NewButton("â† Adjust Filters", func() {
 		if state.upscaleFile != nil {
 			state.filtersFile = state.upscaleFile
 		}
@@ -16497,7 +16522,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			description += fmt.Sprintf(" + AI (%s)", state.upscaleAIModel)
 		}
 
-		desc := fmt.Sprintf("%s → %s", description, filepath.Base(outputPath))
+		desc := fmt.Sprintf("%s â†’ %s", description, filepath.Base(outputPath))
 
 		return &queue.Job{
 			Type:        queue.JobTypeUpscale,
@@ -16696,7 +16721,7 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 	file2Label.Alignment = fyne.TextAlignCenter
 
 	// Synchronized playback controls (note: actual sync would require VT_Player API enhancement)
-	playBtn := widget.NewButton("▶ Play Both", func() {
+	playBtn := widget.NewButton("â–¶ Play Both", func() {
 		// TODO: When VT_Player API supports it, trigger synchronized playback
 		dialog.ShowInformation("Synchronized Playback",
 			"Synchronized playback control will be available when VT_Player API is enhanced.\n\n"+
@@ -16705,7 +16730,7 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 	})
 	playBtn.Importance = widget.HighImportance
 
-	pauseBtn := widget.NewButton("⏸ Pause Both", func() {
+	pauseBtn := widget.NewButton("â¸ Pause Both", func() {
 		// TODO: Synchronized pause
 		dialog.ShowInformation("Synchronized Playback",
 			"Synchronized playback control will be available when VT_Player API is enhanced.",
@@ -16750,3 +16775,6 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
+
+
+
