@@ -21,7 +21,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - If GCC fails the build preflight, use MSYS2 with `mingw-w64-x86_64-gcc`.
   - The Windows installer can reinstall MSYS2 MinGW-w64 if GCC fails a test compile and will auto-install build tools when missing (Scoop GCC is ignored).
   - Whisper model downloads use the Leak Technologies mirror by default and are optional on Windows.
-  - Windows build scripts will prompt for elevation when needed.
+  - Windows build scripts will prompt for elevation when needed and pause for a keypress on success or failure.
   - The Windows GUI requires OpenGL; VM/Remote Desktop sessions without 3D acceleration will exit with a clear error.
   - The Windows installer waits for a keypress before closing on success.
   - On failure, the Windows installer pauses so you can copy the error before closing.
@@ -54,6 +54,7 @@ Before you begin, ensure your system meets these basic requirements:
 
 If you are a developer looking to contribute to the project, please see the [Build and Run Guide](./BUILD_AND_RUN.md) for instructions on setting up a development environment.
 Build scripts write packaged artifacts to `dist/<os>/<channel>/` and emit a `build.json` file alongside each zip.
+
 
 
 

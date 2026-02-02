@@ -76,7 +76,7 @@ After the installer runs, a Start Menu folder named "VideoTools" is created. It 
     - `.\VideoTools.exe`
     - The Player module includes a fullscreen toggle in the playback controls.
 
-> **Note:** `scripts\build.bat` and `scripts\build.ps1` will prompt for elevation to ensure build tools are available.
+> **Note:** `scripts\build.bat` and `scripts\build.ps1` will prompt for elevation to ensure build tools are available. The build window pauses for a keypress on success or failure so you can read any output.
 
 If you want a portable FFmpeg bundle placed next to the Windows executable, run:
 - `.\scripts\_internal\setup-windows.ps1 -Portable`
@@ -173,6 +173,7 @@ This makes FFmpeg available to all applications on your system.
 -   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `scripts\_internal\setup-windows.bat`.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.
+
 
 
 
