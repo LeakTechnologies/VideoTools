@@ -21,6 +21,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Added Leak Technologies mirror URL and EXE fallback for DVD authoring tools.
 - [X] **Windows script output alignment**
   - Match Linux-style headers and show build metadata in build.ps1 output.
+- [X] **Windows build toolchain repair**
+  - Refresh PATH and auto-repair missing MSYS2 GCC during builds when possible.
 - [X] **Whisper model mirror fallback**
   - Prefer Leak Technologies mirror for whisper.cpp small model downloads.
 - [X] **Git Bash handoff**
