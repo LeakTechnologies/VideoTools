@@ -1,4 +1,4 @@
-package player
+﻿package player
 
 import (
 	"image"
@@ -70,11 +70,18 @@ type VideoInfo struct {
 type PlayerState int
 
 const (
-	StateStopped PlayerState = iota
-	StatePlaying
-	StatePaused
-	StateLoading
-	StateError
+    StateStopped PlayerState = iota
+    StatePlaying
+    StatePaused
+    StateLoading
+    StateError
+)
+
+const (
+    StateIdle PlayerState = iota + 100
+    StateSeeking
+    StateStepping
+    StateEOS
 )
 
 // BackendType represents the player backend being used
@@ -115,3 +122,5 @@ const (
 	LogInfo
 	LogDebug
 )
+
+
