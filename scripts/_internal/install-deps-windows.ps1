@@ -916,6 +916,47 @@ function Ensure-DVDStylerTools {
     }
 }
 
+function Create-StartMenuShortcuts {
+    param(
+        [string]$ProjectRoot
+    )
+
+    if (-not $ProjectRoot) {
+        return
+    }
+
+    $startMenuRoot = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
+    $vtFolder = Join-Path $startMenuRoot "VideoTools"
+    if (-not (Test-Path $vtFolder)) {
+        New-Item -ItemType Directory -Path $vtFolder -Force | Out-Null
+    }
+
+    try {
+        $shell = New-Object -ComObject WScript.Shell
+    } catch {
+        Write-Host "[WARN]  Unable to create Start Menu shortcuts." -ForegroundColor Yellow
+        return
+    }
+
+    $exePath = Join-Path $ProjectRoot "VideoTools.exe"
+    if (Test-Path $exePath) {
+        $exeShortcut = Join-Path $vtFolder "VideoTools.lnk"
+        $shortcut = $shell.CreateShortcut($exeShortcut)
+        $shortcut.TargetPath = $exePath
+        $shortcut.WorkingDirectory = $ProjectRoot
+        $shortcut.Save()
+        Write-Host "[OK]  Start Menu shortcut created: VideoTools" -ForegroundColor Green
+    } else {
+        Write-Host "[INFO]  VideoTools.exe not found yet; build first to get an app shortcut." -ForegroundColor Cyan
+    }
+
+    $buildShortcut = Join-Path $vtFolder "Build VideoTools.lnk"
+    $shortcut = $shell.CreateShortcut($buildShortcut)
+    $shortcut.TargetPath = "powershell.exe"
+    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$ProjectRoot\scripts\build.ps1`""
+    $shortcut.WorkingDirectory = $ProjectRoot
+    $shortcut.Save()
+}
 function Ensure-WhisperModel {
     if ($SkipWhisper) {
         Write-Host "[SKIP] Whisper model skipped" -ForegroundColor Yellow
@@ -1099,6 +1140,9 @@ if (-not $SkipGStreamer -and -not (Test-Command gst-launch-1.0)) {
 Ensure-DVDStylerTools
 Ensure-WhisperModel
 
+$projectRoot = Split-Path -Parent $PSScriptRoot
+Create-StartMenuShortcuts -ProjectRoot $projectRoot
+
 Write-Host ""
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host "[OK]  DEPENDENCIES INSTALLED" -ForegroundColor Green
@@ -1258,6 +1302,8 @@ Write-Host "  2. Build: .\\scripts\\build.ps1" -ForegroundColor White
 Write-Host ""
 Write-Host "Press any key to close..." -ForegroundColor Cyan
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+
+
 
 
 
