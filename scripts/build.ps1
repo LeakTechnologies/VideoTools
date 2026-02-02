@@ -38,6 +38,39 @@ function Find-Msys2Root {
     }
     return $null
 }
+function Create-StartMenuShortcut {
+    param(
+        [string]$ProjectRoot,
+        [string]$ExePath
+    )
+
+    if (-not $ProjectRoot -or -not $ExePath) {
+        return
+    }
+    if (-not (Test-Path $ExePath)) {
+        return
+    }
+
+    $startMenuRoot = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs"
+    $vtFolder = Join-Path $startMenuRoot "VideoTools"
+    if (-not (Test-Path $vtFolder)) {
+        New-Item -ItemType Directory -Path $vtFolder -Force | Out-Null
+    }
+
+    try {
+        $shell = New-Object -ComObject WScript.Shell
+    } catch {
+        Write-Host "[WARN]  Unable to create Start Menu shortcut." -ForegroundColor Yellow
+        return
+    }
+
+    $exeShortcut = Join-Path $vtFolder "VideoTools.lnk"
+    $shortcut = $shell.CreateShortcut($exeShortcut)
+    $shortcut.TargetPath = $ExePath
+    $shortcut.WorkingDirectory = $ProjectRoot
+    $shortcut.Save()
+    Write-Host "[OK]  Start Menu shortcut created: VideoTools" -ForegroundColor Green
+}
 function Use-Toolchain {
     $returnedPath = $null
     $msys2Root = Find-Msys2Root
@@ -301,6 +334,8 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "Output: $BUILD_OUTPUT" -ForegroundColor White
     Write-Host "Size: $fileSizeMB MB" -ForegroundColor White
     Write-Host ""
+    Create-StartMenuShortcut -ProjectRoot $PROJECT_ROOT -ExePath $BUILD_OUTPUT
+
     Write-Host "To run:" -ForegroundColor Yellow
     Write-Host "  .\VideoTools.exe" -ForegroundColor White
     Write-Host ""
@@ -371,6 +406,10 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "Build failed!" -ForegroundColor Red
     exit 1
 }
+
+
+
+
 
 
 
