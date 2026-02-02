@@ -167,10 +167,13 @@ This makes FFmpeg available to all applications on your system.
 
 ## Troubleshooting
 
+-   **OpenGL not available (VM/Remote Desktop):** VideoTools requires OpenGL for the GUI. If you see a window creation/OpenGL error, enable 3D acceleration in your VM or run on the host OS.
+
 -   **"FFmpeg not found" Error:** This means VideoTools can't locate `ffmpeg.exe`. Ensure it's either in the same folder as `VideoTools.exe` or that the system-wide installation path is correct.
 -   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `scripts\_internal\setup-windows.bat`.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.
+
 
 
 
