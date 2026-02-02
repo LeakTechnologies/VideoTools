@@ -23,6 +23,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Match Linux-style headers and show build metadata in build.ps1 output.
 - [X] **Windows build toolchain repair**
   - Refresh PATH and auto-repair missing MSYS2 GCC during builds when possible.
+- [X] **Forgejo dev packaging**
+  - Add Forgejo Actions workflow for Windows/Linux dev packages and artifacts.
 - [X] **Whisper model mirror fallback**
   - Prefer Leak Technologies mirror for whisper.cpp small model downloads.
 - [X] **Git Bash handoff**
