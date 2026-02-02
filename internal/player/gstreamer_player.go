@@ -1,4 +1,4 @@
-//go:build gstreamer
+﻿//go:build gstreamer
 
 package player
 
@@ -119,13 +119,6 @@ type busEvent struct {
 	Info  string
 	State C.GstState
 }
-
-const (
-	StateIdle PlayerState = iota + 100
-	StateSeeking
-	StateStepping
-	StateEOS
-)
 
 func NewGStreamerPlayer(config Config) (*GStreamerPlayer, error) {
 	var initErr error
@@ -719,3 +712,4 @@ func fileURI(path string) string {
 	u := url.URL{Scheme: "file", Path: abs}
 	return u.String()
 }
+
