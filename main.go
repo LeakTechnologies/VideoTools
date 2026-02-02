@@ -6886,16 +6886,6 @@ func runGUI() {
 	w.ShowAndRun()
 }
 
-func failGUIStartup(message string) {
-	fmt.Fprintln(os.Stderr, message)
-	if runtime.GOOS != "windows" {
-		return
-	}
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "Press any key to close...")
-	reader := bufio.NewReader(os.Stdin)
-	_, _ = reader.ReadByte()
-}
 
 func runCLI(args []string) error {
 	cmd := strings.ToLower(args[0])
@@ -16825,6 +16815,7 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
+
 
 
 
