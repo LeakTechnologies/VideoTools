@@ -67,6 +67,8 @@ Whisper uses the Leak Technologies mirror by default and can be overridden with 
 
 ### Step 3: Build and Run VideoTools
 
+After the installer runs, a Start Menu folder named "VideoTools" is created. It includes a "Build VideoTools" shortcut and, once you build, a "VideoTools" app shortcut.
+
 1.  Build the app:
     - `.\scripts\build.bat` (delegates to `build.ps1` and handles elevation)
     - If the build reports a GCC toolchain failure, install MSYS2 and `mingw-w64-x86_64-gcc`.
@@ -169,6 +171,7 @@ This makes FFmpeg available to all applications on your system.
 -   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `scripts\_internal\setup-windows.bat`.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.
+
 
 
 
