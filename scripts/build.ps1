@@ -27,18 +27,6 @@ function Write-Section {
     Write-Host ""
 }
 
-function Pause-IfInteractive {
-    if ($Host.UI -and $Host.UI.RawUI) {
-        Write-Host "Press any key to close..." -ForegroundColor Cyan
-        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-    }
-}
-
-function Exit-WithPause {
-    param([int]$Code)
-    Pause-IfInteractive
-    exit $Code
-}
 function Test-Command {
     param([string]$Command)
     $null = Get-Command $Command -ErrorAction SilentlyContinue
@@ -454,14 +442,15 @@ if ($LASTEXITCODE -eq 0) {
     } catch {
         # GPU detection failed, not critical
     }
-
-    Pause-IfInteractive
 } else {
     Write-Host "Build failed!" -ForegroundColor Red
     Exit-WithPause 1
 }
 
 Exit-WithPause 0
+
+
+
 
 
 
