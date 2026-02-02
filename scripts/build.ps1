@@ -33,6 +33,10 @@ function Test-Command {
     return $?
 }
 
+function Refresh-Path {
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+}
+
 function Wait-ForKey {
     param(
         [string]$Message = "Press any key to close..."
@@ -74,6 +78,52 @@ function Find-Msys2Root {
     }
     return $null
 }
+
+function Find-Msys2RootByPacman {
+    $candidates = @(
+        "C:\\msys64",
+        "C:\\msys2",
+        (Join-Path $env:LOCALAPPDATA "Programs\\MSYS2"),
+        (Join-Path $env:ProgramFiles "MSYS2")
+    )
+    foreach ($root in $candidates) {
+        if (-not $root) { continue }
+        $pacmanPath = Join-Path $root "usr\\bin\\pacman.exe"
+        if (Test-Path $pacmanPath) {
+            return $root
+        }
+    }
+    return $null
+}
+
+function Resolve-Msys2Root {
+    $root = Find-Msys2Root
+    if (-not $root) {
+        $root = Find-Msys2RootByPacman
+    }
+    return $root
+}
+
+function Install-Msys2Gcc {
+    param(
+        [string]$Msys2Root
+    )
+    if (-not $Msys2Root) {
+        return $false
+    }
+    $pacmanPath = Join-Path $Msys2Root "usr\\bin\\pacman.exe"
+    if (-not (Test-Path $pacmanPath)) {
+        return $false
+    }
+    Write-Host "Installing MSYS2 GCC toolchain..." -ForegroundColor Yellow
+    & $pacmanPath -Sy --noconfirm --noprogressbar | Out-Null
+    & $pacmanPath -S --needed --noconfirm mingw-w64-x86_64-gcc | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host " MSYS2 GCC install failed (exit $LASTEXITCODE)." -ForegroundColor Yellow
+        return $false
+    }
+    return $true
+}
 function Create-StartMenuShortcut {
     param(
         [string]$ProjectRoot,
@@ -109,7 +159,7 @@ function Create-StartMenuShortcut {
 }
 function Use-Toolchain {
     $returnedPath = $null
-    $msys2Root = Find-Msys2Root
+    $msys2Root = Resolve-Msys2Root
     if ($msys2Root) {
         $path = Join-Path $msys2Root "mingw64\\bin"
         if (Test-Path $path) {
@@ -243,6 +293,8 @@ Write-Host (" Commit: {0}" -f $gitCommit) -ForegroundColor Cyan
 Write-Host (" Output: {0}" -f $BUILD_OUTPUT) -ForegroundColor Cyan
 Write-Host ""
 
+Refresh-Path
+
 # Check if Go is installed
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
     Write-Host " ERROR: Go is not installed. Please run scripts\_internal\install-deps-windows.ps1 first." -ForegroundColor Red
@@ -262,13 +314,21 @@ if ($toolchainPath) {
 }
 
 if (-not (Test-Command gcc)) {
+    $msys2Root = Resolve-Msys2Root
+    if ($msys2Root -and (Install-Msys2Gcc -Msys2Root $msys2Root)) {
+        Refresh-Path
+        $toolchainPath = Use-Toolchain
+    }
+}
+
+if (-not (Test-Command gcc)) {
     Write-Host " ERROR: GCC is required for CGO builds on Windows." -ForegroundColor Red
     Write-Host " Run scripts\\install.ps1 and enable MSYS2 build tools." -ForegroundColor Yellow
     Exit-WithPause 1
 }
 
 $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
-$msys2Root = Find-Msys2Root
+$msys2Root = Resolve-Msys2Root
 if ($gccCmd -and $msys2Root) {
     $expectedRoot = Join-Path $msys2Root "mingw64\\bin"
     if ($gccCmd.Path -notmatch [Regex]::Escape($expectedRoot)) {
@@ -283,10 +343,20 @@ if ($gccCmd -and $msys2Root) {
 }
 
 if (-not (Test-Gcc)) {
-    Write-Host " ERROR: GCC failed a test compile. The toolchain appears incomplete." -ForegroundColor Red
-    Write-Host " Recommended fix: reinstall MSYS2 MinGW-w64 (pacman -S --needed mingw-w64-x86_64-gcc)." -ForegroundColor Yellow
-    Write-Host " If MSYS2 is missing, install it and re-run scripts\\install.ps1." -ForegroundColor Yellow
-    Exit-WithPause 1
+    if ($msys2Root -and (Install-Msys2Gcc -Msys2Root $msys2Root)) {
+        Refresh-Path
+        if (-not (Test-Gcc)) {
+            Write-Host " ERROR: GCC failed a test compile. The toolchain appears incomplete." -ForegroundColor Red
+            Write-Host " Recommended fix: reinstall MSYS2 MinGW-w64 (pacman -S --needed mingw-w64-x86_64-gcc)." -ForegroundColor Yellow
+            Write-Host " If MSYS2 is missing, install it and re-run scripts\\install.ps1." -ForegroundColor Yellow
+            Exit-WithPause 1
+        }
+    } else {
+        Write-Host " ERROR: GCC failed a test compile. The toolchain appears incomplete." -ForegroundColor Red
+        Write-Host " Recommended fix: reinstall MSYS2 MinGW-w64 (pacman -S --needed mingw-w64-x86_64-gcc)." -ForegroundColor Yellow
+        Write-Host " If MSYS2 is missing, install it and re-run scripts\\install.ps1." -ForegroundColor Yellow
+        Exit-WithPause 1
+    }
 }
 
 # Change to project directory
@@ -449,7 +519,6 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 Exit-WithPause 0
-
 
 
 
