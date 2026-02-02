@@ -97,6 +97,7 @@
 - [x] GCC preflight failures trigger MSYS2 MinGW-w64 reinstall offers; Scoop toolchains are ignored.
 - [x] Added Windows GUI preflight to flag VM/basic display adapters before Fyne startup.
 - [x] Windows build script pauses for a keypress on success or failure.
+- [x] Aligned Windows script output headers with Linux styling and printed build metadata.
 
 ### Docs
 - [x] Removed personal names from documentation in favor of user report/dev report labels.
@@ -1329,7 +1330,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
 

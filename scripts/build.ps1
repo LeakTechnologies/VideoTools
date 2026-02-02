@@ -6,6 +6,17 @@ param(
     [switch]$SkipTests = $false
 )
 
+function Write-Header {
+    param(
+        [string]$Title
+    )
+    $line = "════════════════════════════════════════════════════════════════"
+    Write-Host $line -ForegroundColor Cyan
+    Write-Host "  $Title" -ForegroundColor Cyan
+    Write-Host $line -ForegroundColor Cyan
+    Write-Host ""
+}
+
 function Write-Section {
     param(
         [string]$Title
@@ -186,7 +197,7 @@ if (-not $isAdmin) {
     exit 0
 }
 
-Write-Section "VideoTools Windows Build"
+Write-Header "VideoTools Windows Build"
 
 # Get project root (parent of scripts directory)
 $PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
@@ -226,6 +237,11 @@ if ($channel -eq "stable") {
 $osTag = "win"
 $distDir = Join-Path $PROJECT_ROOT "dist\\windows\\$channel"
 $artifactName = "$version-$gitCommit`_$osTag.zip"
+
+Write-Host (" Build: {0} ({1})" -f $version, $channel) -ForegroundColor Cyan
+Write-Host (" Commit: {0}" -f $gitCommit) -ForegroundColor Cyan
+Write-Host (" Output: {0}" -f $BUILD_OUTPUT) -ForegroundColor Cyan
+Write-Host ""
 
 # Check if Go is installed
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
@@ -433,7 +449,6 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 Exit-WithPause 0
-
 
 
 
