@@ -94,7 +94,7 @@
 - [x] Replaced Scoop dependency with MSYS2 toolchain across Windows install/build scripts and docs.
 
 ### Windows Install
-- [x] Scoop setup now continues if execution policy is locked by higher scope, with a warning instead of a hard stop.
+- [x] GCC preflight failures trigger MSYS2 MinGW-w64 reinstall offers; Scoop toolchains are ignored.
 
 ## Version 0.1.0-dev23 (2026-01-04) - UI Cleanup & About Dialog
 
@@ -1324,7 +1324,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
 
