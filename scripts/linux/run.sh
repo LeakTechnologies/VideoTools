@@ -23,7 +23,7 @@ echo ""
 if [ ! -f "$BUILD_OUTPUT" ]; then
     echo "⚠️  Binary not found. Building..."
     echo ""
-    bash "$PROJECT_ROOT/scripts/build.sh"
+    bash "$PROJECT_ROOT/scripts/linux/build.sh"
     echo ""
 fi
 

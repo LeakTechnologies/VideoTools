@@ -233,7 +233,7 @@ function Ensure-Msys2 {
     if (-not $script:Msys2Root) {
         $script:Msys2Root = Join-Path $script:ProjectRoot "Tools\\msys64"
     }
-    $ensureScript = Join-Path $script:ProjectRoot "scripts\\_internal\\ensure-msys2.ps1"
+    $ensureScript = Join-Path $script:ProjectRoot "scripts\\windows\\support\\ensure-msys2.ps1"
     if (-not (Test-Path $ensureScript)) {
         Write-Host "[ERROR]  ensure-msys2.ps1 not found." -ForegroundColor Red
         return $false
@@ -979,7 +979,7 @@ function Create-StartMenuShortcuts {
     $buildShortcut = Join-Path $vtFolder "Build VideoTools.lnk"
     $shortcut = $shell.CreateShortcut($buildShortcut)
     $shortcut.TargetPath = "powershell.exe"
-    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$ProjectRoot\scripts\build.ps1`""
+    $shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$ProjectRoot\scripts\windows\build.ps1`""
     $shortcut.WorkingDirectory = $ProjectRoot
     $shortcut.Save()
 }
@@ -1208,7 +1208,7 @@ if (Test-Msys2Gcc) {
     }
     if (-not $gccCmd) {
         if (Is-RepoLocalMsys2 -Root $root) {
-            Write-Host "[INFO]  GCC is available via MSYS2 but not in PATH; use scripts\\windows\\vt-dev-shell.cmd or build.ps1." -ForegroundColor Cyan
+        Write-Host "[INFO]  GCC is available via MSYS2 but not in PATH; use scripts\\windows\\vt-dev-shell.cmd or scripts\\windows\\build.ps1." -ForegroundColor Cyan
         } else {
             Write-Host "[INFO]  GCC is available via MSYS2 but not in PATH; restart your terminal." -ForegroundColor Cyan
         }
@@ -1332,14 +1332,10 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "  1. Restart your terminal/PowerShell" -ForegroundColor White
-Write-Host "  2. Build: .\\scripts\\build.ps1" -ForegroundColor White
+Write-Host "  2. Build: .\\scripts\\windows\\build.ps1" -ForegroundColor White
 Write-Host ""
 Write-Host "Press any key to close..." -ForegroundColor Cyan
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-
-
-
-
 
 
 

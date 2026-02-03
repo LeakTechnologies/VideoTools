@@ -18,8 +18,8 @@ If you haven't already, download the project files as a ZIP and extract them to 
 
 1.  Open the project folder in File Explorer.
 2.  Choose one of these entrypoints:
-    - Run `.\scripts\install.bat` (recommended).
-    - Run `.\scripts\install.ps1` from PowerShell.
+    - Run `.\scripts\windows\install.bat` (recommended).
+    - Run `.\scripts\windows\install.ps1` from PowerShell.
 3.  A terminal window will open and run the PowerShell installer. It installs core dependencies with minimal changes:
     *   Go (build toolchain)
     *   MSYS2 UCRT64 toolchain (gcc for CGO builds)
@@ -31,7 +31,7 @@ If you haven't already, download the project files as a ZIP and extract them to 
     *   Note: The installer will prompt for elevation when required and keep the admin window open for logs.
     *   Note: On success, the installer waits for a keypress before closing the window.
 
-Support scripts are stored in `scripts/_internal/` and should not be run directly unless noted.
+Support scripts are stored in `scripts/windows/support/`. Wrappers remain in `scripts/` for convenience and documentation stability.
 
 Optional flags:
 - `-SkipFFmpeg` or `-SkipGStreamer` to skip those dependencies.
@@ -72,25 +72,25 @@ Whisper uses the Leak Technologies mirror by default and can be overridden with 
 After the installer runs, a Start Menu folder named "VideoTools" is created. It includes a "Build VideoTools" shortcut and, once you build, a "VideoTools" app shortcut. The build script refreshes the app shortcut after a successful build.
 
 1.  Build the app:
-    - `.\scripts\build.bat` (delegates to `build.ps1` and handles elevation)
+    - `.\scripts\windows\build.bat` (delegates to `build.ps1` and handles elevation)
     - If the build reports a GCC toolchain failure, install MSYS2 and `mingw-w64-ucrt-x86_64-toolchain`.
 2.  Run the executable:
     - `.\VideoTools.exe`
     - The Player module includes a fullscreen toggle in the playback controls.
 
-> **Note:** `scripts\build.bat` and `scripts\build.ps1` will prompt for elevation to ensure build tools are available.
+> **Note:** `scripts\windows\build.bat` and `scripts\windows\build.ps1` will prompt for elevation to ensure build tools are available.
 The build script pauses for a keypress on success or failure so you can review the output before the window closes.
 If you are running inside a VM and see an OpenGL preflight warning, enable 3D acceleration or install GPU drivers before retrying.
 
 Optional: use `scripts\windows\vt-dev-shell.cmd` to open a shell with the MSYS2 toolchain on PATH.
 
 If you want a portable FFmpeg bundle placed next to the Windows executable, run:
-- `.\scripts\_internal\setup-windows.ps1 -Portable`
+- `.\scripts\windows\support\setup-windows.ps1 -Portable`
 
 For a system-wide FFmpeg install (PATH), use:
-- `.\scripts\_internal\setup-windows.ps1 -System`
+- `.\scripts\windows\support\setup-windows.ps1 -System`
 
-> **Note:** On Windows, use `scripts\install.ps1` or `scripts\install.bat`. Running `scripts\install.sh` from PowerShell will open Git Bash.
+> **Note:** On Windows, use `scripts\windows\install.ps1` or `scripts\windows\install.bat`. Running `scripts\linux\install.sh` from PowerShell will open Git Bash.
 
 ---
 
@@ -166,7 +166,7 @@ This makes FFmpeg available to all applications on your system.
 ### Step 5: Build and Run
 
 1.  Open a Command Prompt in the VideoTools project directory.
-2.  Run the build script: `scripts\build.bat`
+2.  Run the build script: `scripts\windows\build.bat`
 3.  Run the application: `run.bat`
 
 ---
@@ -174,9 +174,6 @@ This makes FFmpeg available to all applications on your system.
 ## Troubleshooting
 
 -   **"FFmpeg not found" Error:** This means VideoTools can't locate `ffmpeg.exe`. Ensure it's either in the same folder as `VideoTools.exe` or that the system-wide installation path is correct.
--   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `scripts\_internal\setup-windows.bat`.
+-   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `scripts\windows\support\setup-windows.bat`.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.
-
-
-

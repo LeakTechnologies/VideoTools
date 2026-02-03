@@ -193,11 +193,11 @@ if [ "$IS_WINDOWS" = true ]; then
             PS_ARGS+=("-SkipDvdStyler")
         fi
         if [ -n "$DVDSTYLER_ZIP" ]; then
-            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/_internal/install-deps-windows.ps1" -DvdStylerZip "$DVDSTYLER_ZIP" "${PS_ARGS[@]}"
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/windows/support/install-deps-windows.ps1" -DvdStylerZip "$DVDSTYLER_ZIP" "${PS_ARGS[@]}"
         elif [ -n "$DVDSTYLER_URL" ]; then
-            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/_internal/install-deps-windows.ps1" -DvdStylerUrl "$DVDSTYLER_URL" "${PS_ARGS[@]}"
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/windows/support/install-deps-windows.ps1" -DvdStylerUrl "$DVDSTYLER_URL" "${PS_ARGS[@]}"
         else
-            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/_internal/install-deps-windows.ps1" "${PS_ARGS[@]}"
+            powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PROJECT_ROOT/scripts/windows/support/install-deps-windows.ps1" "${PS_ARGS[@]}"
         fi
         if [ $? -ne 0 ]; then
             echo -e "${RED}[ERROR] Windows dependency installer failed.${NC}"
@@ -205,17 +205,17 @@ if [ "$IS_WINDOWS" = true ]; then
             echo ""
             echo "Git Bash:"
             echo "  export VT_DVDSTYLER_URL=\"https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip\""
-            echo "  ./scripts/install.sh"
+            echo "  ./scripts/linux/install.sh"
             echo ""
             echo "PowerShell:"
             echo "  \$env:VT_DVDSTYLER_URL=\"https://netcologne.dl.sourceforge.net/project/dvdstyler/DVDStyler/3.2.1/DVDStyler-3.2.1-win64.zip\""
-            echo "  .\\scripts\\_internal\\install-deps-windows.ps1"
+            echo "  .\\scripts\\windows\\support\\install-deps-windows.ps1"
             exit 1
         fi
         echo -e "${GREEN}[OK]${NC} Windows dependency installer completed"
     else
         echo -e "${RED}[ERROR] powershell.exe not found.${NC}"
-        echo "Please run: $PROJECT_ROOT\\scripts\\_internal\\install-deps-windows.ps1"
+        echo "Please run: $PROJECT_ROOT\\scripts\\windows\\support\\install-deps-windows.ps1"
         exit 1
     fi
 else
@@ -628,10 +628,10 @@ echo ""
 echo "Next steps:"
 echo ""
 echo "1. Build VideoTools:"
-echo "   ./scripts/build.sh"
+echo "   ./scripts/linux/build.sh"
 echo ""
 echo "2. Run VideoTools:"
-echo "   ./scripts/run.sh"
+echo "   ./scripts/linux/run.sh"
 echo ""
 echo "For more information, see BUILD_AND_RUN.md and DVD_USER_GUIDE.md"
 echo ""

@@ -66,7 +66,7 @@ case "$OS" in
     Linux|macOS)
         echo "→ Building VideoTools $FULL_VERSION for $OS..."
         echo ""
-        exec "$SCRIPT_DIR/build-linux.sh"
+        exec "$SCRIPT_DIR/linux/build-linux.sh"
         ;;
     Windows)
         echo "→ Building VideoTools $FULL_VERSION for Windows..."
@@ -110,7 +110,7 @@ case "$OS" in
             echo "Build successful! (VideoTools $FULL_VERSION)"
             echo "Build time: ${build_secs}s"
             echo ""
-            if [ -f "scripts/_internal/setup-windows.bat" ]; then
+            if [ -f "scripts/windows/support/setup-windows.bat" ]; then
                 echo "════════════════════════════════════════════════════════════════"
                 echo "BUILD COMPLETE - $FULL_VERSION"
                 echo "════════════════════════════════════════════════════════════════"
@@ -123,16 +123,16 @@ case "$OS" in
                 diagnostics
                 echo ""
                 echo "Next step: Get FFmpeg"
-                echo "  Run: scripts/_internal/setup-windows.bat"
-                echo "  Or:  .\\scripts\\_internal\\setup-windows.ps1 -Portable"
+                echo "  Run: scripts/windows/support/setup-windows.bat"
+                echo "  Or:  .\\scripts\\windows\\support\\setup-windows.ps1 -Portable"
                 echo ""
                 if ffmpeg -version >/dev/null 2>&1 && ffprobe -version >/dev/null 2>&1; then
                     echo "FFmpeg detected on PATH. Skipping bundled download."
                 else
                     echo "FFmpeg not detected on PATH."
                     echo "Next step: Get FFmpeg"
-                    echo "  Run: scripts/_internal/setup-windows.bat"
-                    echo "  Or:  .\\scripts\\_internal\\setup-windows.ps1 -Portable"
+                    echo "  Run: scripts/windows/support/setup-windows.bat"
+                    echo "  Or:  .\\scripts\\windows\\support\\setup-windows.ps1 -Portable"
                     echo "You can skip if FFmpeg is already installed elsewhere."
                 fi
             else

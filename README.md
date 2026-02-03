@@ -50,7 +50,7 @@ For a clear, up-to-date overview of what is complete, in progress, and planned, 
 ### Installation (One Command)
 
 ```bash
-bash scripts/install.sh
+bash scripts/linux/install.sh
 ```
 
 The installer will build, install, and set up shell aliases.
@@ -67,8 +67,8 @@ If you already have the repo cloned (dev workflow):
 
 ```bash
 cd /path/to/VideoTools
-bash scripts/build.sh
-bash scripts/run.sh
+bash scripts/linux/build.sh
+bash scripts/linux/run.sh
 ```
 
 For detailed installation options, troubleshooting, and platform-specific notes, see **INSTALLATION.md**.

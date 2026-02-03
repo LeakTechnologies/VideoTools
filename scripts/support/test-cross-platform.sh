@@ -235,20 +235,20 @@ test_install_scripts() {
     echo ""
     
     # Test Arch install script enhancement
-    if [ -f "scripts/install.sh" ]; then
-        if grep -q "install_arch" scripts/install.sh; then
+    if [ -f "scripts/linux/install.sh" ]; then
+        if grep -q "install_arch" scripts/linux/install.sh; then
             echo -e "${GREEN}   ✅ Arch install function present${NC}"
         else
             echo -e "${RED}   ❌ Arch install function missing${NC}"
         fi
         
-        if grep -q "Display Server.*detected" scripts/install.sh; then
+        if grep -q "Display Server.*detected" scripts/linux/install.sh; then
             echo -e "${GREEN}   ✅ Display server detection enhanced${NC}"
         else
             echo -e "${YELLOW}   ⚠️  Display server detection may be missing${NC}"
         fi
         
-        if grep -q "GPU.*detected" scripts/install.sh; then
+        if grep -q "GPU.*detected" scripts/linux/install.sh; then
             echo -e "${GREEN}   ✅ GPU detection enhanced${NC}"
         else
             echo -e "${YELLOW}   ⚠️  GPU detection may be missing${NC}"
@@ -258,20 +258,20 @@ test_install_scripts() {
     fi
     
     # Test Windows install script enhancement
-    if [ -f "scripts/_internal/install-deps-windows.ps1" ]; then
-        if grep -q "Get-Windows11Info" scripts/_internal/install-deps-windows.ps1; then
+    if [ -f "scripts/windows/support/install-deps-windows.ps1" ]; then
+        if grep -q "Get-Windows11Info" scripts/windows/support/install-deps-windows.ps1; then
             echo -e "${GREEN}   ✅ Windows 11 detection function present${NC}"
         else
             echo -e "${RED}   ❌ Windows 11 detection missing${NC}"
         fi
         
-        if grep -q "Install-Windows11Native" scripts/_internal/install-deps-windows.ps1; then
+        if grep -q "Install-Windows11Native" scripts/windows/support/install-deps-windows.ps1; then
             echo -e "${GREEN}   ✅ Windows 11 native install function present${NC}"
         else
             echo -e "${RED}   ❌ Windows 11 native install missing${NC}"
         fi
         
-        if grep -q "No WSL" scripts/_internal/install-deps-windows.ps1; then
+        if grep -q "No WSL" scripts/windows/support/install-deps-windows.ps1; then
             echo -e "${GREEN}   ✅ No WSL requirement present${NC}"
         else
             echo -e "${YELLOW}   ⚠️  WSL dependency may still be required${NC}"

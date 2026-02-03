@@ -36,4 +36,4 @@ else
 fi
 
 echo ""
-echo "✅ Done. Re-run ./scripts/build.sh to rebuild VideoTools."
+echo "✅ Done. Re-run ./scripts/linux/build.sh to rebuild VideoTools."

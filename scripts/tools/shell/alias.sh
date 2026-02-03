@@ -10,12 +10,12 @@ fi
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Create alias and function for VideoTools
-alias VideoTools="bash $PROJECT_ROOT/scripts/run.sh"
+alias VideoTools="bash $PROJECT_ROOT/scripts/linux/run.sh"
 
 # Also create a rebuild function for quick rebuilds
 VideoToolsRebuild() {
     echo "Rebuilding VideoTools..."
-    bash "$PROJECT_ROOT/scripts/build.sh"
+    bash "$PROJECT_ROOT/scripts/linux/build.sh"
 }
 
 # Create a clean function

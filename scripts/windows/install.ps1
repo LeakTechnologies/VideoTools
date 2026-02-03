@@ -39,7 +39,7 @@ Write-Header "VideoTools Windows Installation"
 Write-Host "[INFO]  Build tools are provided via MSYS2 (UCRT64 toolchain)." -ForegroundColor Cyan
 
 try {
-    & "$PSScriptRoot\_internal\install-deps-windows.ps1" @args
+    & "$PSScriptRoot\support\install-deps-windows.ps1" @args
 } catch {
     Write-Host "[ERROR]  Unexpected error: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "Press any key to close..." -ForegroundColor Cyan

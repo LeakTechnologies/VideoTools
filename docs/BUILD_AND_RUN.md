@@ -26,7 +26,7 @@ This will:
 
 ```bash
 cd /home/stu/Projects/VideoTools
-bash scripts/build.sh
+bash scripts/linux/build.sh
 ./VideoTools
 ```
 
@@ -34,14 +34,14 @@ bash scripts/build.sh
 
 ```bash
 cd /home/stu/Projects/VideoTools
-bash scripts/run.sh
+bash scripts/linux/run.sh
 ```
 
 ### Option 4: Windows Cross-Compilation
 
 ```bash
 cd /home/stu/Projects/VideoTools
-bash scripts/build-windows.sh
+bash scripts/windows/build-windows.sh
 # Output: dist/windows/<channel>/vX.Y.Z-<git>_win.zip
 ```
 
@@ -100,7 +100,7 @@ VideoTools
 
 ### build.sh
 ```bash
-bash scripts/build.sh
+bash scripts/linux/build.sh
 ```
 
 **Purpose:** Builds VideoTools from source with full dependency management
@@ -125,7 +125,7 @@ bash scripts/build.sh
 
 ### run.sh
 ```bash
-bash scripts/run.sh
+bash scripts/linux/run.sh
 ```
 
 **Purpose:** Runs VideoTools, building first if needed
@@ -160,7 +160,7 @@ source scripts/alias.fish
 **Purpose:** Creates convenient shell commands
 
 **What it does:**
-1. Adds `VideoTools` command (alias for `scripts/run.sh`)
+1. Adds `VideoTools` command (alias for `scripts/linux/run.sh`)
 2. Adds `VideoToolsRebuild` function
 3. Adds `VideoToolsClean` function
 4. Prints help text
@@ -205,7 +205,7 @@ VideoToolsClean         # Remove build artifacts
 - X11 and Wayland display server support
 
 ### Windows ✅ (New in dev14)
-- Cross-compilation from Linux: `bash scripts/build-windows.sh`
+- Cross-compilation from Linux: `bash scripts/windows/build-windows.sh`
 - Requires MinGW-w64 toolchain for cross-compilation
 - Native Windows builds planned for future release
 - Hardware acceleration (NVENC, QSV, AMF)
@@ -226,20 +226,20 @@ VideoToolsClean         # Remove build artifacts
 **Solution:** The script already handles this with `CGO_ENABLED=0`. If you still get errors:
 ```bash
 export CGO_ENABLED=0
-bash scripts/build.sh
+bash scripts/linux/build.sh
 ```
 
 ### Problem: "Permission denied" on scripts
 **Solution:**
 ```bash
 chmod +x scripts/*.sh
-bash scripts/build.sh
+bash scripts/linux/build.sh
 ```
 
 ### Problem: Out of disk space
 **Solution:** Clean the cache
 ```bash
-bash scripts/build.sh
+bash scripts/linux/build.sh
 # Or manually:
 go clean -cache -modcache
 ```
@@ -249,7 +249,7 @@ go clean -cache -modcache
 ```bash
 rm -rf go.mod go.sum
 go mod init git.leaktechnologies.dev/stu/VideoTools
-bash scripts/build.sh
+bash scripts/linux/build.sh
 ```
 
 ### Problem: Binary won't run
@@ -261,7 +261,7 @@ file VideoTools
 
 If missing, rebuild:
 ```bash
-bash scripts/build.sh
+bash scripts/linux/build.sh
 ```
 
 ---
@@ -276,13 +276,13 @@ VideoToolsRebuild
 VideoTools
 
 # Or in one command:
-bash scripts/build.sh && ./VideoTools
+bash scripts/linux/build.sh && ./VideoTools
 ```
 
 ### Quick test loop:
 ```bash
 # Terminal 1: Watch for changes and rebuild
-while true; do bash scripts/build.sh; sleep 2; done
+while true; do bash scripts/linux/build.sh; sleep 2; done
 
 # Terminal 2: Test the app
 VideoTools
@@ -375,7 +375,7 @@ sudo dnf install mingw64-gcc mingw64-winpthreads-static
 sudo apt-get install gcc-mingw-w64
 
 # Cross-compile for Windows
-bash scripts/build-windows.sh
+bash scripts/windows/build-windows.sh
 
 # Output: dist/windows/<channel>/vX.Y.Z-<git>_win.zip
 ```
@@ -431,7 +431,7 @@ ls -lh VideoTools
 ### Debug a build:
 ```bash
 # Verbose output
-bash scripts/build.sh 2>&1 | tee build.log
+bash scripts/linux/build.sh 2>&1 | tee build.log
 
 # Check go environment
 go env

@@ -7,7 +7,7 @@ VideoTools uses a universal build script that automatically detects your platfor
 ## Quick Start (All Platforms)
 
 ```bash
-./scripts/build.sh
+./scripts/linux/build.sh
 ```
 
 That's it! The script will:
@@ -46,7 +46,7 @@ sudo pacman -S ffmpeg
 
 **Build:**
 ```bash
-./scripts/build.sh
+./scripts/linux/build.sh
 ```
 
 **Output:** `VideoTools` (native executable)
@@ -72,7 +72,7 @@ brew install ffmpeg
 
 **Build:**
 ```bash
-./scripts/build.sh
+./scripts/linux/build.sh
 ```
 
 **Output:** `VideoTools` (native executable)
@@ -93,7 +93,7 @@ brew install ffmpeg
 
 **Build:**
 ```bash
-./scripts/build.sh
+./scripts/linux/build.sh
 ```
 
 The script will:
@@ -111,10 +111,10 @@ The script will:
 **Automatic FFmpeg Setup:**
 ```bash
 # The build script will offer this automatically, or run manually:
-./scripts/_internal/setup-windows.bat
+./scripts/windows/support/setup-windows.bat
 
 # Or in PowerShell:
-.\scripts\_internal\setup-windows.ps1 -Portable
+.\scripts\windows\support\setup-windows.ps1 -Portable
 ```
 
 ---
@@ -123,7 +123,7 @@ The script will:
 
 ### Linux/macOS Native Build
 ```bash
-./scripts/build-linux.sh
+./scripts/linux/build-linux.sh
 ```
 
 ### Windows Cross-Compile (from Linux)
@@ -134,7 +134,7 @@ sudo dnf install mingw64-gcc mingw64-winpthreads-static  # Fedora
 sudo apt install gcc-mingw-w64  # Ubuntu/Debian
 
 # Cross-compile
-./scripts/build-windows.sh
+./scripts/windows/build-windows.sh
 
 # Output: dist/windows/<channel>/vX.Y.Z-<git>_win.zip (with FFmpeg bundled)
 ```
@@ -146,7 +146,7 @@ sudo apt install gcc-mingw-w64  # Ubuntu/Debian
 ### Clean Build
 ```bash
 # The build script automatically cleans cache
-./scripts/build.sh
+./scripts/linux/build.sh
 ```
 
 ### Debug Build
@@ -175,7 +175,7 @@ Install Go 1.21+ from https://go.dev/dl/
 CGO is required for Fyne (GUI framework):
 ```bash
 export CGO_ENABLED=1
-./scripts/build.sh
+./scripts/linux/build.sh
 ```
 
 ### "ffmpeg not found" (Linux/macOS)
@@ -241,7 +241,7 @@ The build scripts are designed to work in CI/CD environments:
 ```yaml
 # Example GitHub Actions
 - name: Build VideoTools
-  run: ./scripts/build.sh
+  run: ./scripts/linux/build.sh
 ```
 
 ---

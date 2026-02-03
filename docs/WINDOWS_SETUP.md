@@ -167,7 +167,7 @@ If you're building for Windows from Linux:
 
 2. **Build**:
    ```bash
-   ./scripts/build-windows.sh
+   ./scripts/windows/build-windows.sh
    ```
 
 3. **Output**:

@@ -88,7 +88,7 @@ if ! command -v pkg-config &> /dev/null; then
 fi
 if ! pkg-config --exists gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0; then
     echo "ERROR: GStreamer development libraries not found."
-    echo "Please run: ./scripts/install.sh"
+    echo "Please run: ./scripts/linux/install.sh"
     echo "Or install manually:"
     echo "  Fedora: sudo dnf install gstreamer1-devel gstreamer1-plugins-base-devel"
     echo "  Ubuntu: sudo apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev"

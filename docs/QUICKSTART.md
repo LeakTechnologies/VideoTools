@@ -16,17 +16,17 @@ Get VideoTools running in minutes!
 
 2. **Install dependencies and build** (Git Bash or similar):
    ```bash
-   ./scripts/install.sh
+   ./scripts/linux/install.sh
    ```
 
    Or install Windows dependencies directly:
    ```powershell
-   .\scripts\_internal\install-deps-windows.ps1
+   .\scripts\windows\support\install-deps-windows.ps1
    ```
 
 3. **Run VideoTools**:
    ```bash
-   ./scripts/run.sh
+   ./scripts/linux/run.sh
    ```
 
 ### If You Need to Build
@@ -36,7 +36,7 @@ If `VideoTools.exe` doesn't exist yet:
 **Option A - Get Pre-built Binary** (easiest):
 - Check the Releases page for pre-built Windows binaries
 - Download and extract
-- Run `scripts/_internal/setup-windows.bat`
+- Run `scripts/windows/support/setup-windows.bat`
 
 **Option B - Build from Source**:
 1. Install Go 1.21+ from https://go.dev/dl/
@@ -46,7 +46,7 @@ If `VideoTools.exe` doesn't exist yet:
    set CGO_ENABLED=1
    go build -ldflags="-H windowsgui" -o VideoTools.exe
    ```
-4. Run `scripts/_internal/setup-windows.bat` to get FFmpeg
+4. Run `scripts/windows/support/setup-windows.bat` to get FFmpeg
 
 ---
 
@@ -62,12 +62,12 @@ If `VideoTools.exe` doesn't exist yet:
 
 2. **Install dependencies and build**:
    ```bash
-   ./scripts/install.sh
+   ./scripts/linux/install.sh
    ```
 
 3. **Run**:
    ```bash
-   ./scripts/run.sh
+   ./scripts/linux/run.sh
    ```
 
 ### Cross-Compile for Windows from Linux
@@ -81,7 +81,7 @@ sudo dnf install mingw64-gcc mingw64-winpthreads-static  # Fedora/RHEL
 sudo apt install gcc-mingw-w64  # Ubuntu/Debian
 
 # Build for Windows (will auto-download FFmpeg)
-./scripts/build-windows.sh
+./scripts/windows/build-windows.sh
 
 # Output will be in dist/windows/
 ```
@@ -101,12 +101,12 @@ sudo apt install gcc-mingw-w64  # Ubuntu/Debian
    ```bash
    git clone <repository-url>
    cd VideoTools
-   ./scripts/install.sh
+   ./scripts/linux/install.sh
    ```
 
 3. **Run**:
    ```bash
-   ./scripts/run.sh
+   ./scripts/linux/run.sh
    ```
 
 ---
@@ -179,7 +179,7 @@ All files in one folder - can run from USB stick!
 ## Troubleshooting
 
 ### Windows: "FFmpeg not found"
-- Run `scripts/_internal/setup-windows.bat` again
+- Run `scripts/windows/support/setup-windows.bat` again
 - Or manually download from: https://github.com/BtbN/FFmpeg-Builds/releases
 - Place `ffmpeg.exe` next to `VideoTools.exe`
 

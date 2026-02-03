@@ -78,6 +78,6 @@ Write-Host "Expected build time improvement: 5+ minutes → 30-90 seconds" -Fore
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "  1. Close and reopen your terminal" -ForegroundColor White
-Write-Host "  2. Run: ./scripts/build.ps1 (PowerShell) or ./scripts/build.bat" -ForegroundColor White
-Write-Host "  3. Or from Git Bash: ./scripts/build.sh" -ForegroundColor White
+Write-Host "  2. Run: ./scripts/windows/build.ps1 (PowerShell) or ./scripts/windows/build.bat" -ForegroundColor White
+Write-Host "  3. Or from Git Bash: ./scripts/linux/build-linux.sh" -ForegroundColor White
 Write-Host ""

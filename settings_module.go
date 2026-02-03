@@ -123,7 +123,7 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 	case "dvdauthor":
 		// Windows: reuse installer to pull DVDStyler tools; skip ffmpeg/gst to keep scope smaller
 		if runtime.GOOS == "windows" {
-			script := filepath.Join(root, "scripts", "install-deps-windows.ps1")
+			script := filepath.Join(root, "scripts", "windows", "support", "install-deps-windows.ps1")
 			return dependencyCommandPair{
 				install: &dependencyCommand{
 					command: "powershell",
@@ -137,7 +137,7 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 		}
 	case "xorriso":
 		if runtime.GOOS == "windows" {
-			script := filepath.Join(root, "scripts", "install-deps-windows.ps1")
+			script := filepath.Join(root, "scripts", "windows", "support", "install-deps-windows.ps1")
 			return dependencyCommandPair{
 				install: &dependencyCommand{
 					command: "powershell",
@@ -294,7 +294,7 @@ func getDVDAuthorInstallCmd() string {
 	case "darwin":
 		return "brew install dvdauthor"
 	default:
-		return "./scripts/install.sh"
+		return "./scripts/linux/install.sh"
 	}
 }
 
@@ -305,7 +305,7 @@ func getXorrisoInstallCmd() string {
 	case "darwin":
 		return "brew install xorriso"
 	default:
-		return "./scripts/install.sh"
+		return "./scripts/linux/install.sh"
 	}
 }
 

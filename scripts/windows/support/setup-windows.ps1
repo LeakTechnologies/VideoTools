@@ -119,7 +119,7 @@ try {
             Write-Host "  3. Run this script again with -System flag" -ForegroundColor White
             Write-Host ""
             Write-Host "Or use portable installation instead:" -ForegroundColor Yellow
-            Write-Host "  .\\scripts\\_internal\\setup-windows.ps1 -Portable" -ForegroundColor White
+            Write-Host "  .\\scripts\\windows\\support\\setup-windows.ps1 -Portable" -ForegroundColor White
             Write-Host ""
             exit 1
         }

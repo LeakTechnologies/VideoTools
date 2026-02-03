@@ -7,17 +7,17 @@ This directory contains scripts for building and managing VideoTools on differen
 For development on any platform:
 
 ```bash
-./scripts/install.sh
-./scripts/build.sh
-./scripts/run.sh
+./scripts/linux/install.sh
+./scripts/linux/build.sh
+./scripts/linux/run.sh
 ```
 
-Use `./scripts/install.sh` whenever you add new dependencies or need to reinstall.
+Use `./scripts/linux/install.sh` whenever you add new dependencies or need to reinstall.
 
 ## Layout
 
-- Entry points live in `scripts/`.
-- Support scripts live in `scripts/_internal/`.
+- Entry points live in `scripts/windows/` and `scripts/linux/`.
+- Support scripts live in `scripts/windows/support/` and `scripts/linux/support/`.
 - Optional tools and legacy helpers live in `scripts/tools/` and `scripts/legacy/`.
 
 ## Linux
@@ -27,7 +27,7 @@ Use `./scripts/install.sh` whenever you add new dependencies or need to reinstal
 Automatically installs all required dependencies for your Linux distribution:
 
 ```bash
-./scripts/_internal/install-deps-linux.sh
+./scripts/linux/support/install-deps-linux.sh
 ```
 
 **Supported distributions:**
@@ -47,7 +47,7 @@ Automatically installs all required dependencies for your Linux distribution:
 ### Build VideoTools
 
 ```bash
-./scripts/build.sh
+./scripts/linux/build.sh
 ```
 
 **Features:**
@@ -59,7 +59,7 @@ Automatically installs all required dependencies for your Linux distribution:
 ### Run VideoTools
 
 ```bash
-./scripts/run.sh
+./scripts/linux/run.sh
 ```
 
 Runs VideoTools with proper library paths configured.
@@ -67,7 +67,7 @@ Runs VideoTools with proper library paths configured.
 ### Shell Alias
 
 ```bash
-source ./scripts/alias.sh
+source ./scripts/tools/shell/alias.sh
 ```
 
 Adds a `VideoTools` command to your current shell session.
@@ -79,7 +79,7 @@ Adds a `VideoTools` command to your current shell session.
 Run in PowerShell as Administrator:
 
 ```powershell
-.\scripts\_internal\install-deps-windows.ps1
+.\scripts\windows\support\install-deps-windows.ps1
 ```
 
 **Options:**
@@ -104,7 +104,7 @@ Run in PowerShell as Administrator:
 Run in PowerShell:
 
 ```powershell
-.\scripts\build.ps1
+.\scripts\windows\build.ps1
 ```
 
 **Options:**
@@ -187,7 +187,7 @@ $env:Path += ";C:\\msys64\\mingw64\\bin"
 ### Build fails with "cgo: C compiler not found"
 
 **Linux:** Install gcc
-**Windows:** Install MSYS2 MinGW-w64 via `scripts/_internal/install-deps-windows.ps1`
+**Windows:** Install MSYS2 toolchain via `scripts/windows/support/install-deps-windows.ps1`
 
 ### ffmpeg not found
 
@@ -199,7 +199,7 @@ sudo apt install ffmpeg       # Ubuntu
 
 **Windows:**
 ```powershell
-.\scripts\_internal\install-deps-windows.ps1
+.\scripts\windows\support\install-deps-windows.ps1
 ```
 
 ### GPU encoding not working
@@ -219,7 +219,7 @@ sudo apt install ffmpeg       # Ubuntu
 
 Linux:
 ```bash
-./scripts/build.sh && ./scripts/run.sh
+./scripts/linux/build.sh && ./scripts/linux/run.sh
 ```
 
 Windows:
@@ -231,7 +231,7 @@ Windows:
 
 Linux:
 ```bash
-./scripts/build.sh  # Includes automatic cleaning
+./scripts/linux/build.sh  # Includes automatic cleaning
 ```
 
 Windows:
@@ -275,4 +275,3 @@ Some antivirus software may flag the built executable. This is common with Go ap
 
 VideoTools build scripts are part of the VideoTools project.
 See the main project LICENSE file for details.
-
