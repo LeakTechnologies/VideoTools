@@ -513,11 +513,9 @@ if ($LASTEXITCODE -eq 0) {
     } catch {
         # GPU detection failed, not critical
     }
-
 } else {
     Write-Host "Build failed!" -ForegroundColor Red
     Exit-WithPause 1
 }
 
 Exit-WithPause 0
-
