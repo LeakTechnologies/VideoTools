@@ -63,23 +63,13 @@ function Exit-WithPause {
 }
 
 function Find-Msys2Root {
-    $candidates = @(
-        "C:\\msys64",
-        "C:\\msys2",
-        (Join-Path $env:LOCALAPPDATA "Programs\\MSYS2"),
-        (Join-Path $env:ProgramFiles "MSYS2")
-    )
-    foreach ($root in $candidates) {
-        if (-not $root) { continue }
-        $gccPath = Join-Path $root "mingw64\\bin\\gcc.exe"
-        if (Test-Path $gccPath) {
-            return $root
-        }
+    if ($env:VT_MSYS2_ROOT) {
+        return $env:VT_MSYS2_ROOT
     }
-    return $null
-}
-
-function Find-Msys2RootByPacman {
+    $repoLocal = Join-Path (Split-Path -Parent $PSScriptRoot) "Tools\\msys64"
+    if (Test-Path (Join-Path $repoLocal "usr\\bin\\bash.exe")) {
+        return $repoLocal
+    }
     $candidates = @(
         "C:\\msys64",
         "C:\\msys2",
@@ -88,8 +78,8 @@ function Find-Msys2RootByPacman {
     )
     foreach ($root in $candidates) {
         if (-not $root) { continue }
-        $pacmanPath = Join-Path $root "usr\\bin\\pacman.exe"
-        if (Test-Path $pacmanPath) {
+        $gccPath = Join-Path $root "ucrt64\\bin\\gcc.exe"
+        if (Test-Path $gccPath) {
             return $root
         }
     }
@@ -98,31 +88,36 @@ function Find-Msys2RootByPacman {
 
 function Resolve-Msys2Root {
     $root = Find-Msys2Root
-    if (-not $root) {
-        $root = Find-Msys2RootByPacman
+    if ($root) {
+        return $root
     }
-    return $root
+    return (Join-Path (Split-Path -Parent $PSScriptRoot) "Tools\\msys64")
 }
 
-function Install-Msys2Gcc {
+function Resolve-Msys2Flavor {
+    if ($env:VT_MSYS2_FLAVOR) {
+        return $env:VT_MSYS2_FLAVOR
+    }
+    return "ucrt64"
+}
+
+function Ensure-Msys2Toolchain {
     param(
         [string]$Msys2Root
     )
-    if (-not $Msys2Root) {
+    $flavor = Resolve-Msys2Flavor
+    $ensureScript = Join-Path (Split-Path -Parent $PSScriptRoot) "scripts\\_internal\\ensure-msys2.ps1"
+    if (-not (Test-Path $ensureScript)) {
+        Write-Host " ensure-msys2.ps1 not found; skipping auto-provision." -ForegroundColor Yellow
         return $false
     }
-    $pacmanPath = Join-Path $Msys2Root "usr\\bin\\pacman.exe"
-    if (-not (Test-Path $pacmanPath)) {
+    try {
+        & $ensureScript -Root $Msys2Root -Flavor $flavor -Packages @("base-devel", "mingw-w64-ucrt-x86_64-toolchain")
+        return $true
+    } catch {
+        Write-Host " MSYS2 toolchain provisioning failed: $($_.Exception.Message)" -ForegroundColor Yellow
         return $false
     }
-    Write-Host "Installing MSYS2 GCC toolchain..." -ForegroundColor Yellow
-    & $pacmanPath -Sy --noconfirm --noprogressbar | Out-Null
-    & $pacmanPath -S --needed --noconfirm mingw-w64-x86_64-gcc | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host " MSYS2 GCC install failed (exit $LASTEXITCODE)." -ForegroundColor Yellow
-        return $false
-    }
-    return $true
 }
 function Create-StartMenuShortcut {
     param(
@@ -161,7 +156,8 @@ function Use-Toolchain {
     $returnedPath = $null
     $msys2Root = Resolve-Msys2Root
     if ($msys2Root) {
-        $path = Join-Path $msys2Root "mingw64\\bin"
+        $flavor = Resolve-Msys2Flavor
+        $path = Join-Path $msys2Root "$flavor\\bin"
         if (Test-Path $path) {
             if ($env:Path -notmatch [Regex]::Escape($path)) {
                 $env:Path = "$path;$env:Path"
@@ -315,7 +311,7 @@ if ($toolchainPath) {
 
 if (-not (Test-Command gcc)) {
     $msys2Root = Resolve-Msys2Root
-    if ($msys2Root -and (Install-Msys2Gcc -Msys2Root $msys2Root)) {
+    if ($msys2Root -and (Ensure-Msys2Toolchain -Msys2Root $msys2Root)) {
         Refresh-Path
         $toolchainPath = Use-Toolchain
     }
@@ -330,30 +326,30 @@ if (-not (Test-Command gcc)) {
 $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
 $msys2Root = Resolve-Msys2Root
 if ($gccCmd -and $msys2Root) {
-    $expectedRoot = Join-Path $msys2Root "mingw64\\bin"
+    $expectedRoot = Join-Path $msys2Root "$(Resolve-Msys2Flavor)\\bin"
     if ($gccCmd.Path -notmatch [Regex]::Escape($expectedRoot)) {
         Write-Host " ERROR: GCC found, but not from MSYS2: $($gccCmd.Path)" -ForegroundColor Red
-        Write-Host " Install MSYS2 MinGW-w64 and re-run scripts\\install.ps1." -ForegroundColor Yellow
+        Write-Host " Install the MSYS2 toolchain and re-run scripts\\install.ps1." -ForegroundColor Yellow
         Exit-WithPause 1
     }
 } elseif ($gccCmd -and -not $msys2Root) {
     Write-Host " ERROR: GCC found, but MSYS2 is missing: $($gccCmd.Path)" -ForegroundColor Red
-    Write-Host " Install MSYS2 MinGW-w64 and re-run scripts\\install.ps1." -ForegroundColor Yellow
+    Write-Host " Install the MSYS2 toolchain and re-run scripts\\install.ps1." -ForegroundColor Yellow
     Exit-WithPause 1
 }
 
 if (-not (Test-Gcc)) {
-    if ($msys2Root -and (Install-Msys2Gcc -Msys2Root $msys2Root)) {
+    if ($msys2Root -and (Ensure-Msys2Toolchain -Msys2Root $msys2Root)) {
         Refresh-Path
         if (-not (Test-Gcc)) {
             Write-Host " ERROR: GCC failed a test compile. The toolchain appears incomplete." -ForegroundColor Red
-            Write-Host " Recommended fix: reinstall MSYS2 MinGW-w64 (pacman -S --needed mingw-w64-x86_64-gcc)." -ForegroundColor Yellow
+            Write-Host " Recommended fix: reinstall the MSYS2 toolchain (pacman -S --needed mingw-w64-ucrt-x86_64-toolchain)." -ForegroundColor Yellow
             Write-Host " If MSYS2 is missing, install it and re-run scripts\\install.ps1." -ForegroundColor Yellow
             Exit-WithPause 1
         }
     } else {
         Write-Host " ERROR: GCC failed a test compile. The toolchain appears incomplete." -ForegroundColor Red
-        Write-Host " Recommended fix: reinstall MSYS2 MinGW-w64 (pacman -S --needed mingw-w64-x86_64-gcc)." -ForegroundColor Yellow
+        Write-Host " Recommended fix: reinstall the MSYS2 toolchain (pacman -S --needed mingw-w64-ucrt-x86_64-toolchain)." -ForegroundColor Yellow
         Write-Host " If MSYS2 is missing, install it and re-run scripts\\install.ps1." -ForegroundColor Yellow
         Exit-WithPause 1
     }
@@ -401,8 +397,13 @@ if (Test-Path $rcFile) {
     if ($windresCmd) {
         $windresCandidates += $windresCmd.Path
     }
+    $msys2Flavor = Resolve-Msys2Flavor
+    $msys2Root = Resolve-Msys2Root
+    if ($msys2Root) {
+        $windresCandidates += (Join-Path $msys2Root "$msys2Flavor\\bin\\windres.exe")
+    }
     $windresCandidates += @(
-        "C:\msys64\mingw64\bin\windres.exe",
+        "C:\msys64\$msys2Flavor\bin\windres.exe",
         "C:\msys64\usr\bin\windres.exe",
         "C:\MinGW\bin\windres.exe"
     )
@@ -519,13 +520,4 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 Exit-WithPause 0
-
-
-
-
-
-
-
-
-
 

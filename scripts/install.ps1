@@ -36,7 +36,7 @@ if (-not $isAdmin) {
 
 Write-Header "VideoTools Windows Installation"
 
-Write-Host "[INFO]  Build tools are provided via MSYS2 (MinGW-w64)." -ForegroundColor Cyan
+Write-Host "[INFO]  Build tools are provided via MSYS2 (UCRT64 toolchain)." -ForegroundColor Cyan
 
 try {
     & "$PSScriptRoot\_internal\install-deps-windows.ps1" @args

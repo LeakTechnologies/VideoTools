@@ -28,6 +28,13 @@ param(
 $ErrorActionPreference = "Stop"
 $PreferWinget = $PSBoundParameters.ContainsKey("PreferWinget")
 
+$script:ProjectRoot = Split-Path -Parent $PSScriptRoot
+$script:Msys2Root = ""
+$script:Msys2Flavor = "ucrt64"
+if ($env:VT_MSYS2_FLAVOR) {
+    $script:Msys2Flavor = $env:VT_MSYS2_FLAVOR
+}
+
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host "  VideoTools Windows Installation" -ForegroundColor Cyan
 Write-Host "===============================================================" -ForegroundColor Cyan
@@ -178,19 +185,25 @@ function Add-ToUserPath {
     $env:Path = "$PathItem;$env:Path"
 }
 
-function Find-Msys2Root {
-    $candidates = @(
-        "C:\\msys64",
-        "C:\\msys2",
-        (Join-Path $env:LOCALAPPDATA "Programs\\MSYS2"),
-        (Join-Path $env:ProgramFiles "MSYS2")
+function Is-RepoLocalMsys2 {
+    param(
+        [string]$Root
     )
-    foreach ($root in $candidates) {
-        if (-not $root) { continue }
-        $pacman = Join-Path $root "usr\\bin\\pacman.exe"
-        if (Test-Path $pacman) {
-            return $root
-        }
+    if (-not $Root) {
+        return $false
+    }
+    $fullRoot = [System.IO.Path]::GetFullPath($Root)
+    $fullProject = [System.IO.Path]::GetFullPath($script:ProjectRoot)
+    return $fullRoot.StartsWith($fullProject, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Find-Msys2Root {
+    if ($env:VT_MSYS2_ROOT) {
+        return $env:VT_MSYS2_ROOT
+    }
+    $repoLocal = Join-Path $script:ProjectRoot "Tools\\msys64"
+    if (Test-Path (Join-Path $repoLocal "usr\\bin\\pacman.exe")) {
+        return $repoLocal
     }
     return $null
 }
@@ -217,24 +230,22 @@ function Find-ExeInRoots {
 
 function Ensure-Msys2 {
     $script:Msys2Root = Find-Msys2Root
-    if ($script:Msys2Root) {
-        Write-Host "[OK]  MSYS2 already installed" -ForegroundColor Green
+    if (-not $script:Msys2Root) {
+        $script:Msys2Root = Join-Path $script:ProjectRoot "Tools\\msys64"
+    }
+    $ensureScript = Join-Path $script:ProjectRoot "scripts\\_internal\\ensure-msys2.ps1"
+    if (-not (Test-Path $ensureScript)) {
+        Write-Host "[ERROR]  ensure-msys2.ps1 not found." -ForegroundColor Red
+        return $false
+    }
+    try {
+        & $ensureScript -Root $script:Msys2Root -Flavor $script:Msys2Flavor -Packages @()
+        Write-Host "[OK]  MSYS2 ready at $script:Msys2Root" -ForegroundColor Green
         return $true
+    } catch {
+        Write-Host "[ERROR]  MSYS2 provisioning failed: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
     }
-
-    if (Test-Command winget) {
-        Write-Host "Installing MSYS2 via winget..." -ForegroundColor Yellow
-        & winget install --id MSYS2.MSYS2 --silent --accept-package-agreements --accept-source-agreements
-        $script:Msys2Root = Find-Msys2Root
-        if ($LASTEXITCODE -eq 0 -and $script:Msys2Root) {
-            Write-Host "[OK]  MSYS2 installed" -ForegroundColor Green
-            return $true
-        }
-    }
-
-    Write-Host "[ERROR]  MSYS2 not found and winget is unavailable or failed." -ForegroundColor Red
-    Write-Host "Install MSYS2 from https://www.msys2.org/ (default: C:\\msys64) and re-run this installer." -ForegroundColor Yellow
-    return $false
 }
 
 function Install-Msys2Packages {
@@ -259,17 +270,32 @@ function Install-Msys2Packages {
     }
 
     Write-Host "Installing MSYS2 packages: $($Packages -join ', ')" -ForegroundColor Yellow
-    & $pacmanPath -Sy --noconfirm --noprogressbar | Out-Null
-    & $pacmanPath -S --needed --noconfirm @Packages | Out-Null
+    $bashPath = Join-Path $script:Msys2Root "usr\\bin\\bash.exe"
+    if (-not (Test-Path $bashPath)) {
+        Write-Host "[ERROR]  bash not found after MSYS2 install." -ForegroundColor Red
+        return $false
+    }
+    $oldMsystem = $env:MSYSTEM
+    $oldChere = $env:CHERE_INVOKING
+    $env:MSYSTEM = $script:Msys2Flavor.ToUpper()
+    $env:CHERE_INVOKING = "1"
+    & $bashPath -lc "pacman -Sy --noconfirm --noprogressbar" | Out-Null
+    & $bashPath -lc "pacman -S --needed --noconfirm $($Packages -join ' ')" | Out-Null
+    $env:MSYSTEM = $oldMsystem
+    $env:CHERE_INVOKING = $oldChere
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[WARN]  MSYS2 package install failed. Open the MSYS2 shell and run:" -ForegroundColor Yellow
         Write-Host "        pacman -S --needed --noconfirm $($Packages -join ' ')" -ForegroundColor Yellow
         return $false
     }
 
-    $mingwBin = Join-Path $script:Msys2Root "mingw64\\bin"
-    if (Test-Path $mingwBin) {
-        Add-ToUserPath -PathItem $mingwBin
+    $ucrtBin = Join-Path $script:Msys2Root "ucrt64\\bin"
+    if (Test-Path $ucrtBin) {
+        if (Is-RepoLocalMsys2 -Root $script:Msys2Root) {
+            $env:Path = "$ucrtBin;$env:Path"
+        } else {
+            Add-ToUserPath -PathItem $ucrtBin
+        }
     }
     return $true
 }
@@ -307,7 +333,7 @@ function Test-Msys2Gcc {
     if (-not $root) {
         return $false
     }
-    $gccPath = Join-Path $root "mingw64\\bin\\gcc.exe"
+    $gccPath = Join-Path $root "ucrt64\\bin\\gcc.exe"
     return (Test-Path $gccPath)
 }
 function Install-FFmpegPortable {
@@ -1076,7 +1102,7 @@ if (-not (Test-Command gst-launch-1.0) -and -not $SkipGStreamer -and -not $isAdm
 if ($InstallBuildTools -eq $false -and $SkipBuildTools -eq $false) {
     $needsBuildTools = (-not (Test-Command go)) -or (-not (Test-Msys2Gcc))
     if ($needsBuildTools) {
-        Write-Host "Build tools missing; installing Go + MSYS2 MinGW-w64 automatically." -ForegroundColor Yellow
+        Write-Host "Build tools missing; installing Go + MSYS2 UCRT64 toolchain automatically." -ForegroundColor Yellow
         $InstallBuildTools = $true
     }
 }
@@ -1088,7 +1114,7 @@ if ($InstallBuildTools) {
     }
 
     if (-not (Test-Msys2Gcc)) {
-        $gccOk = Install-Msys2Packages -Packages @("mingw-w64-x86_64-gcc")
+        $gccOk = Install-Msys2Packages -Packages @("base-devel", "mingw-w64-ucrt-x86_64-toolchain")
         if (-not $gccOk) {
             Write-Host "[ERROR]  MSYS2 GCC install failed; build tools are unavailable." -ForegroundColor Red
             exit 1
@@ -1096,9 +1122,13 @@ if ($InstallBuildTools) {
     } else {
         $root = Find-Msys2Root
         if ($root) {
-            $mingwBin = Join-Path $root "mingw64\\bin"
-            if (Test-Path $mingwBin) {
-                Add-ToUserPath -PathItem $mingwBin
+            $ucrtBin = Join-Path $root "ucrt64\\bin"
+            if (Test-Path $ucrtBin) {
+                if (Is-RepoLocalMsys2 -Root $root) {
+                    $env:Path = "$ucrtBin;$env:Path"
+                } else {
+                    Add-ToUserPath -PathItem $ucrtBin
+                }
             }
         }
     }
@@ -1117,7 +1147,7 @@ if ($InstallBuildTools -and (Test-Msys2Gcc)) {
         $repairChoice = Read-Host "Reinstall MSYS2 GCC package now? (y/N)"
         if ($repairChoice -eq "y" -or $repairChoice -eq "Y") {
             Write-Host "Reinstalling MSYS2 GCC..." -ForegroundColor Yellow
-            Install-Msys2Packages -Packages @("mingw-w64-x86_64-gcc") | Out-Null
+            Install-Msys2Packages -Packages @("base-devel", "mingw-w64-ucrt-x86_64-toolchain") | Out-Null
             if (Test-Gcc) {
                 Write-Host "[OK]  GCC toolchain repaired" -ForegroundColor Green
             } else {
@@ -1166,7 +1196,7 @@ if (Test-Msys2Gcc) {
     $root = Find-Msys2Root
     $gccPath = $null
     if ($root) {
-        $gccPath = Join-Path $root "mingw64\bin\gcc.exe"
+        $gccPath = Join-Path $root "ucrt64\bin\gcc.exe"
     }
     $gccVersion = & $gccPath --version | Select-Object -First 1
     Write-Host "[OK]  GCC: $gccVersion" -ForegroundColor Green
@@ -1174,10 +1204,14 @@ if (Test-Msys2Gcc) {
     $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
     $expectedRoot = $null
     if ($root) {
-        $expectedRoot = Join-Path $root "mingw64\bin"
+        $expectedRoot = Join-Path $root "ucrt64\bin"
     }
     if (-not $gccCmd) {
-        Write-Host "[INFO]  GCC is available via MSYS2 but not in PATH; restart your terminal." -ForegroundColor Cyan
+        if (Is-RepoLocalMsys2 -Root $root) {
+            Write-Host "[INFO]  GCC is available via MSYS2 but not in PATH; use scripts\\windows\\vt-dev-shell.cmd or build.ps1." -ForegroundColor Cyan
+        } else {
+            Write-Host "[INFO]  GCC is available via MSYS2 but not in PATH; restart your terminal." -ForegroundColor Cyan
+        }
     } elseif ($expectedRoot) {
         $expectedRoot = [System.IO.Path]::GetFullPath($expectedRoot)
         $gccInPath = [System.IO.Path]::GetFullPath($gccCmd.Path)
@@ -1190,7 +1224,7 @@ if (Test-Msys2Gcc) {
     $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
     if ($gccCmd) {
         Write-Host "[WARN]   GCC found but not from MSYS2: $($gccCmd.Path)" -ForegroundColor Yellow
-        Write-Host "[WARN]   MSYS2 MinGW-w64 is required; rerun scripts\\install.ps1." -ForegroundColor Yellow
+        Write-Host "[WARN]   MSYS2 UCRT64 toolchain is required; rerun scripts\\install.ps1." -ForegroundColor Yellow
     } else {
         Write-Host "[WARN]   GCC not found in PATH (restart terminal)" -ForegroundColor Yellow
     }
@@ -1302,12 +1336,6 @@ Write-Host "  2. Build: .\\scripts\\build.ps1" -ForegroundColor White
 Write-Host ""
 Write-Host "Press any key to close..." -ForegroundColor Cyan
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-
-
-
-
-
-
 
 
 
