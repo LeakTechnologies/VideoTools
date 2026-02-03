@@ -12,13 +12,13 @@ We've updated the build scripts with performance optimizations:
 
 ```bash
 # Git Bash (Most Windows users)
-./scripts/build.sh
+./scripts/linux/build.sh
 
 # PowerShell
-.\scripts\build.ps1
+.\scripts\windows\build.ps1
 
 # Command Prompt
-.\scripts\build.bat
+.\scripts\windows\build.bat
 ```
 
 **New Optimizations:**
@@ -130,7 +130,7 @@ $env:GOMAXPROCS = 16
 Set-MpPreference -DisableRealtimeMonitoring $true
 
 # Build your project
-.\scripts\build.ps1
+.\scripts\windows\build.ps1
 
 # Re-enable immediately after
 Set-MpPreference -DisableRealtimeMonitoring $false
@@ -142,10 +142,10 @@ Time your build to measure improvements:
 
 ```powershell
 # PowerShell
-Measure-Command { .\scripts\build.ps1 }
+Measure-Command { .\scripts\windows\build.ps1 }
 
 # Command Prompt
-echo %time% && .\scripts\build.bat && echo %time%
+echo %time% && .\scripts\windows\build.bat && echo %time%
 ```
 
 ## Expected Build Times
@@ -241,7 +241,7 @@ If you're still experiencing slow builds after following this guide:
 
 5. **Build with optimized script:**
    ```bash
-   ./scripts/build.sh
+   ./scripts/linux/build.sh
    ```
 
 **Expected result:** 5+ minutes → 30-90 seconds

@@ -106,7 +106,7 @@ function Ensure-Msys2Toolchain {
         [string]$Msys2Root
     )
     $flavor = Resolve-Msys2Flavor
-    $ensureScript = Join-Path (Split-Path -Parent $PSScriptRoot) "scripts\\_internal\\ensure-msys2.ps1"
+    $ensureScript = Join-Path $PSScriptRoot "support\\ensure-msys2.ps1"
     if (-not (Test-Path $ensureScript)) {
         Write-Host " ensure-msys2.ps1 not found; skipping auto-provision." -ForegroundColor Yellow
         return $false
@@ -293,7 +293,7 @@ Refresh-Path
 
 # Check if Go is installed
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
-    Write-Host " ERROR: Go is not installed. Please run scripts\_internal\install-deps-windows.ps1 first." -ForegroundColor Red
+    Write-Host " ERROR: Go is not installed. Please run scripts\\windows\\support\\install-deps-windows.ps1 first." -ForegroundColor Red
     Exit-WithPause 1
 }
 
@@ -498,7 +498,7 @@ if ($LASTEXITCODE -eq 0) {
     if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
         Write-Host "  Warning: ffmpeg not found in PATH" -ForegroundColor Yellow
         Write-Host "   VideoTools requires ffmpeg to convert videos" -ForegroundColor Yellow
-        Write-Host "   Run: .\scripts\_internal\install-deps-windows.ps1" -ForegroundColor Yellow
+        Write-Host "   Run: .\scripts\\windows\\support\\install-deps-windows.ps1" -ForegroundColor Yellow
         Write-Host ""
     }
 

@@ -9,7 +9,7 @@ echo   Delegating to PowerShell for full dependency setup
 echo ========================================================
 echo.
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install-deps-windows.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\\..\\windows\\support\\install-deps-windows.ps1"
 set EXIT_CODE=%errorlevel%
 
 if not %EXIT_CODE%==0 (

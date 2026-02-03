@@ -8,7 +8,7 @@ VideoTools has been enhanced to provide seamless support for Arch Linux and Wind
 
 ### Installation Improvements
 
-The `scripts/install.sh` script has been enhanced with:
+The `scripts/linux/install.sh` script has been enhanced with:
 
 #### GUI Environment Detection
 - **Display Server Detection**: Automatically detects Wayland vs X11
@@ -38,14 +38,14 @@ The `scripts/install.sh` script has been enhanced with:
 
 Run the test script to verify Arch Linux support:
 ```bash
-./scripts/test-cross-platform.sh arch
+./scripts/support/test-cross-platform.sh arch
 ```
 
 ## 🪟 Windows 11 Enhancements
 
 ### Native Installation (No WSL Required)
 
-The `scripts/_internal/install-deps-windows.ps1` script now provides:
+The `scripts/windows/support/install-deps-windows.ps1` script now provides:
 
 #### Windows 11 Detection
 - **Build Number Detection**: Distinguishes Windows 11 (22000+) from Windows 10
@@ -79,7 +79,7 @@ $win11Info.GPUInfo.SupportsDirectX12  # boolean
 Run the test script to verify Windows 11 support:
 ```powershell
 # From Git Bash (on Windows)
-./scripts/test-cross-platform.sh windows
+./scripts/support/test-cross-platform.sh windows
 
 # From PowerShell
 .\scripts\test-cross-platform.sh windows
@@ -132,7 +132,7 @@ queueSize := guiEnv.GetModuleSpecificSize("queue")       // 700x500 base
 
 ### Comprehensive Test Script
 
-The `scripts/test-cross-platform.sh` script provides:
+The `scripts/support/test-cross-platform.sh` script provides:
 
 #### Test Categories
 1. **Arch Linux Support**: Display server, GPU, dependencies
@@ -143,13 +143,13 @@ The `scripts/test-cross-platform.sh` script provides:
 #### Usage Examples
 ```bash
 # Test all platforms
-./scripts/test-cross-platform.sh all
+./scripts/support/test-cross-platform.sh all
 
 # Test specific components
-./scripts/test-cross-platform.sh arch
-./scripts/test-cross-platform.sh windows
-./scripts/test-cross-platform.sh gui
-./scripts/test-cross-platform.sh scripts
+./scripts/support/test-cross-platform.sh arch
+./scripts/support/test-cross-platform.sh windows
+./scripts/support/test-cross-platform.sh gui
+./scripts/support/test-cross-platform.sh scripts
 ```
 
 #### Sample Output
@@ -175,15 +175,15 @@ The `scripts/test-cross-platform.sh` script provides:
 ### Files Modified
 
 #### Installation Scripts
-- `scripts/install.sh`: Enhanced Arch Linux detection and GPU handling
-- `scripts/_internal/install-deps-windows.ps1`: Windows 11 native installation
+- `scripts/linux/install.sh`: Enhanced Arch Linux detection and GPU handling
+- `scripts/windows/support/install-deps-windows.ps1`: Windows 11 native installation
 
 #### Core Application
 - `main.go`: Integrated GUI environment detection and adaptive sizing
 - `internal/utils/gui_detection.go`: New cross-platform GUI system
 
 #### Testing
-- `scripts/test-cross-platform.sh`: Comprehensive validation script
+- `scripts/support/test-cross-platform.sh`: Comprehensive validation script
 
 ### Key Features
 
@@ -214,23 +214,23 @@ The `scripts/test-cross-platform.sh` script provides:
 
 ```bash
 # 1. Run enhanced installer
-./scripts/install.sh
+./scripts/linux/install.sh
 
 # 2. Build VideoTools
-./scripts/build.sh
+./scripts/linux/build.sh
 
 # 3. Run VideoTools
-./scripts/run.sh
+./scripts/linux/run.sh
 ```
 
 ### For Windows 11 Users
 
 ```powershell
 # 1. Run enhanced PowerShell installer (as Administrator)
-.\scripts\_internal\install-deps-windows.ps1
+.\scripts\windows\support\install-deps-windows.ps1
 
 # 2. Build VideoTools
-.\scripts\build.ps1
+.\scripts\windows\build.ps1
 
 # 3. Run VideoTools
 .\scripts\run.ps1
@@ -240,7 +240,7 @@ The `scripts/test-cross-platform.sh` script provides:
 
 ```bash
 # Verify cross-platform compatibility
-./scripts/test-cross-platform.sh all
+./scripts/support/test-cross-platform.sh all
 ```
 
 ## 🎯 Benefits Achieved

@@ -17,7 +17,7 @@ if ($confirm -ne "y" -and $confirm -ne "Y") {
 }
 
 Write-Host "Installing MSYS2 toolchain..." -ForegroundColor Yellow
-$installScript = Join-Path $PSScriptRoot "_internal/install-deps-windows.ps1"
+$installScript = Join-Path $PSScriptRoot "..\\..\\windows\\support\\install-deps-windows.ps1"
 $installArgs = @(
     "-SkipFFmpeg",
     "-SkipGStreamer",

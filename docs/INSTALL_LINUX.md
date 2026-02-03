@@ -6,10 +6,10 @@ This guide provides detailed instructions for installing VideoTools on Linux, ma
 
 ## One-Command Installation
 
-The recommended method for all Unix-like systems is the `install.sh` script.
+The recommended method for all Unix-like systems is the `scripts/linux/install.sh` script.
 
 ```bash
-bash scripts/install.sh
+bash scripts/linux/install.sh
 ```
 
 This single command automates the entire setup process.

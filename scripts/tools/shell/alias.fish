@@ -10,11 +10,11 @@ end
 set -l script_path (status -f)
 set -l project_root (dirname (dirname $script_path))
 
-alias VideoTools="bash $project_root/scripts/run.sh"
+alias VideoTools="bash $project_root/scripts/linux/run.sh"
 
 function VideoToolsRebuild
     echo "Rebuilding VideoTools..."
-    bash "$project_root/scripts/build.sh"
+    bash "$project_root/scripts/linux/build.sh"
 end
 
 function VideoToolsClean

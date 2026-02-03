@@ -265,7 +265,7 @@ go func() {
 1. Install GStreamer (user runs command)
 2. Create `controller_gstreamer.go`
 3. Update `playSession` in `main.go`
-4. Build with `./scripts/build.sh`
+4. Build with `./scripts/linux/build.sh`
 5. Test Player module
 6. Test Convert preview
 7. Verify no crashes
@@ -303,7 +303,7 @@ git checkout HEAD -- internal/player/controller_gstreamer.go
 git checkout HEAD -- main.go
 
 # Rebuild without GStreamer
-GOFLAGS="" ./scripts/build.sh
+GOFLAGS="" ./scripts/linux/build.sh
 ```
 
 ---

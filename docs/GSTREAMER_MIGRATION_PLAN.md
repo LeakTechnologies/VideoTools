@@ -44,7 +44,7 @@ pkg-config --modversion gstreamer-1.0
 2. **Build with GStreamer**
    ```bash
    cd /home/stu/Projects/VideoTools
-   ./scripts/build.sh
+   ./scripts/linux/build.sh
    ```
 
    **Expected output:**
@@ -73,7 +73,7 @@ pkg-config --modversion gstreamer-1.0
 
 ### Troubleshooting
 **Build Error: "Package gstreamer-1.0 was not found"**
-- Solution: Run `./scripts/install.sh` to install GStreamer
+- Solution: Run `./scripts/linux/install.sh` to install GStreamer
 
 **Runtime Error: "gstreamer playbin unavailable"**
 - Solution: Install GStreamer plugins: `sudo dnf install gstreamer1-plugins-base`
@@ -120,7 +120,7 @@ grep -r "UnifiedPlayer" internal/player/
 # Should return nothing (or only comments)
 
 # Rebuild and test
-./scripts/build.sh
+./scripts/linux/build.sh
 ./VideoTools
 ```
 

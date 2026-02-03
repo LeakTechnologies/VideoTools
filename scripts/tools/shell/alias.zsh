@@ -10,11 +10,11 @@ fi
 SCRIPT_PATH="${(%):-%N}"
 PROJECT_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 
-alias VideoTools="bash $PROJECT_ROOT/scripts/run.sh"
+alias VideoTools="bash $PROJECT_ROOT/scripts/linux/run.sh"
 
 VideoToolsRebuild() {
     echo "Rebuilding VideoTools..."
-    bash "$PROJECT_ROOT/scripts/build.sh"
+    bash "$PROJECT_ROOT/scripts/linux/build.sh"
 }
 
 VideoToolsClean() {

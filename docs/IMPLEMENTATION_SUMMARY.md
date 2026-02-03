@@ -3,7 +3,7 @@
 ## ✅ COMPLETED IMPLEMENTATIONS
 
 ### 1. Arch Linux Enhanced Installation
-**File**: `scripts/install.sh`
+**File**: `scripts/linux/install.sh`
 
 #### New Features Added:
 - **GUI Environment Detection**: Wayland/X11 detection
@@ -40,7 +40,7 @@ install_arch() {
 ```
 
 ### 2. Windows 11 Native Installation  
-**File**: `scripts/_internal/install-deps-windows.ps1`
+**File**: `scripts/windows/support/install-deps-windows.ps1`
 
 #### New Features Added:
 - **Windows 11 Detection**: Build number 22000+ identification
@@ -119,7 +119,7 @@ w.Resize(optimalSize)
 ```
 
 ### 5. Comprehensive Testing Framework
-**File**: `scripts/test-cross-platform.sh`
+**File**: `scripts/support/test-cross-platform.sh`
 
 #### Test Capabilities:
 - **Platform-Specific Testing**: Arch Linux and Windows 11 validation

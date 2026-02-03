@@ -66,7 +66,7 @@ Created a comprehensive platform detection and configuration system:
 
 ### 3. Cross-Compilation Build Script
 
-**File**: `scripts/build-windows.sh` (155 lines)
+**File**: `scripts/windows/build-windows.sh` (155 lines)
 
 **Features**:
 - Cross-compiles from Linux to Windows (amd64)
@@ -238,7 +238,7 @@ VideoTools/
 ├── platform.go                              # NEW: Platform detection
 ├── scripts/
 │   ├── build.sh                            # Existing Linux build
-│   └── build-windows.sh                    # NEW: Windows cross-compile
+│   └── windows/build-windows.sh            # NEW: Windows cross-compile
 ├── docs/
 │   ├── WINDOWS_COMPATIBILITY.md            # Planning document
 │   └── DEV14_WINDOWS_IMPLEMENTATION.md     # This file
@@ -255,7 +255,7 @@ VideoTools/
 - **Platform detection**: See `platform.go:29-53`
 - **FFmpeg discovery**: See `platform.go:56-103`
 - **Encoder detection**: See `platform.go:164-220`
-- **Build script**: See `scripts/build-windows.sh`
+- **Build script**: See `scripts/windows/build-windows.sh`
 
 ---
 
@@ -283,7 +283,7 @@ go build -o VideoTools
 
 ### Test Windows cross-compilation:
 ```bash
-./scripts/build-windows.sh
+./scripts/windows/build-windows.sh
 ```
 
 ### Verify Windows executable (from Windows):

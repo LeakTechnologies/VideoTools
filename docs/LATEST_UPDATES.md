@@ -88,7 +88,7 @@ The queue view now displays:
 
 ### New Files
 
-1. **Enhanced `scripts/install.sh`** - One-command installation
+1. **Enhanced `scripts/linux/install.sh`** - One-command installation
 2. **New `INSTALLATION.md`** - Comprehensive installation guide
 
 ### install.sh Features
@@ -96,7 +96,7 @@ The queue view now displays:
 The installer now performs all setup automatically:
 
 ```bash
-bash scripts/install.sh
+bash scripts/linux/install.sh
 ```
 
 This handles:
@@ -113,13 +113,13 @@ This handles:
 
 **Option 1: System-Wide (for shared computers)**
 ```bash
-bash scripts/install.sh
+bash scripts/linux/install.sh
 # Select option 1 when prompted
 ```
 
 **Option 2: User-Local (default, no sudo required)**
 ```bash
-bash scripts/install.sh
+bash scripts/linux/install.sh
 # Select option 2 when prompted (or just press Enter)
 ```
 
@@ -180,7 +180,7 @@ The player controller now auto-detects the display server:
 
 ### Major Changes
 1. **main.go** - Auto-resolution for DVD formats (~50 lines added)
-2. **install.sh** - Complete rewrite for professional setup (~150 lines)
+2. **linux/install.sh** - Complete rewrite for professional setup (~150 lines)
 3. **INSTALLATION.md** - New comprehensive guide (~280 lines)
 4. **README.md** - Updated Quick Start section
 
@@ -235,7 +235,7 @@ All features are built and ready:
 3. Test reordering with up/down arrows
 
 ### For Testing Installation
-1. Run `bash scripts/install.sh` on a clean system
+1. Run `bash scripts/linux/install.sh` on a clean system
 2. Verify binary is in PATH
 3. Verify aliases are available
 
@@ -293,4 +293,3 @@ All changes follow best practices:
 ---
 
 Enjoy the improvements! 🎬
-

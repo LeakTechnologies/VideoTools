@@ -146,10 +146,10 @@ None - this is a bug-fix and enhancement release.
 - **FFmpeg path abstraction** supporting bundled and system installations
 - **Hardware encoder detection** for Windows (NVENC, QSV, AMF)
 - **Windows-specific process handling** and path validation
-- **Cross-compilation script** (`scripts/build-windows.sh`)
+- **Cross-compilation script** (`scripts/windows/build-windows.sh`)
 
 #### Professional Installation System
-- **One-command installer** (`scripts/install.sh`) with guided wizard
+- **One-command installer** (`scripts/linux/install.sh`) with guided wizard
 - **Automatic shell detection** (bash/zsh) and configuration
 - **System-wide vs user-local installation** options
 - **Convenience aliases** (`VideoTools`, `VideoToolsRebuild`, `VideoToolsClean`)

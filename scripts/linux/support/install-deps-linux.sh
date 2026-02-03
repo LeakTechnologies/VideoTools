@@ -245,5 +245,5 @@ fi
 
 echo ""
 echo "Dependencies ready! You can now run:"
-echo "  ./scripts/build.sh"
+echo "  ./scripts/linux/build.sh"
 echo ""

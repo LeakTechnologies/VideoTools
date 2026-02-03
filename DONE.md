@@ -101,6 +101,7 @@
 - [x] Aligned Windows script output headers with Linux styling and printed build metadata.
 - [x] Windows build script now refreshes PATH and can auto-repair missing MSYS2 GCC via pacman.
 - [x] Standardized Windows build tooling on repo-local MSYS2 UCRT64 with a deterministic provisioner.
+- [x] Reorganized scripts into platform-specific folders and removed top-level wrappers.
 
 ### Packaging
 - [x] Added Forgejo Actions workflow for dev Windows/Linux packaging and artifacts.

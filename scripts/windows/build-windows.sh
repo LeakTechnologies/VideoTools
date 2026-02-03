@@ -256,5 +256,5 @@ echo "  wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmp
 echo "  unzip ffmpeg-master-latest-win64-gpl.zip"
 echo "  cp ffmpeg-master-latest-win64-gpl/bin/ffmpeg.exe ."
 echo "  cp ffmpeg-master-latest-win64-gpl/bin/ffprobe.exe ."
-echo "  ./scripts/build-windows.sh  # Rebuild to include FFmpeg"
+echo "  ./scripts/windows/build-windows.sh  # Rebuild to include FFmpeg"
 echo ""

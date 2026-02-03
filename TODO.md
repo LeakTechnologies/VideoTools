@@ -4,6 +4,8 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Maintenance
 
+- [ ] **Git converter retirement**
+  - Preserve presets, then deprecate `scripts/legacy/git_converter`.
 - [ ] **Documentation naming hygiene**
   - Review new docs for personal names; use user report/dev report labels only.
 - [X] **Installer dependency parity**

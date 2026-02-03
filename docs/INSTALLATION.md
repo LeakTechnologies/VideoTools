@@ -11,13 +11,13 @@ Welcome to the VideoTools installation guide. Please select your operating syste
 For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers both automated and manual setup.
 
 - **[View Windows Installation Guide](./INSTALL_WINDOWS.md)**
-  - Use `scripts\install.bat` or `scripts\install.ps1` on Windows.
+  - Use `scripts\windows\install.bat` or `scripts\windows\install.ps1` on Windows.
   - The Windows installer defaults to MSI downloads for GStreamer; use `-PreferWinget` to try winget first.
   - Use `-GStreamerVersion` to override the default MSI version when needed.
   - Optional DVD authoring tools default to the Leak Technologies mirror installer and can use winget with `-PreferWinget`.
   - SourceForge DVDStyler mirrors are opt-in on Windows via `VT_DVDSTYLER_ALLOW_SOURCEFORGE=1`.
   - Use `VT_MIRROR_TOKEN` or `VT_MIRROR_BASIC` if Leak Technologies mirrors are private.
-  - `scripts\build.bat` delegates to PowerShell for elevation and build output.
+  - `scripts\windows\build.bat` delegates to PowerShell for elevation and build output.
   - If GCC fails the build preflight, use MSYS2 UCRT64 with `mingw-w64-ucrt-x86_64-toolchain`.
   - The Windows installer provisions a repo-local MSYS2 toolchain at `Tools\msys64` (UCRT64). Override with `VT_MSYS2_ROOT` or `VT_MSYS2_FLAVOR`.
   - The Windows installer can reinstall the MSYS2 toolchain if GCC fails a test compile and will auto-install build tools when missing (Scoop GCC is ignored).
@@ -57,4 +57,3 @@ Before you begin, ensure your system meets these basic requirements:
 
 If you are a developer looking to contribute to the project, please see the [Build and Run Guide](./BUILD_AND_RUN.md) for instructions on setting up a development environment.
 Build scripts write packaged artifacts to `dist/<os>/<channel>/` and emit a `build.json` file alongside each zip.
-
