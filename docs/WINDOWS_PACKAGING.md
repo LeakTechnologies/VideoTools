@@ -29,7 +29,7 @@ Outputs:
 - `dist/windows/msix/VideoTools.msix` when Windows SDK is available on the runner.
 
 Notes:
-- Requires a Windows runner with MSYS2 (mingw-w64-x86_64-gcc).
+- Requires a Windows runner with MSYS2 UCRT64 toolchain.
 - Linux dev packaging runs on Ubuntu runners and installs GStreamer dev packages.
 - Release upload requires `FORGEJO_TOKEN` (repo scope) and optional `FORGEJO_API_URL` secrets.
 

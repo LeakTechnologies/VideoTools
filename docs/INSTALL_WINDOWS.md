@@ -22,12 +22,12 @@ If you haven't already, download the project files as a ZIP and extract them to 
     - Run `.\scripts\install.ps1` from PowerShell.
 3.  A terminal window will open and run the PowerShell installer. It installs core dependencies with minimal changes:
     *   Go (build toolchain)
-    *   MSYS2 MinGW-w64 (gcc for CGO builds)
+    *   MSYS2 UCRT64 toolchain (gcc for CGO builds)
     *   FFmpeg (video processing)
     *   GStreamer (player backend)
     *   Python (pip for optional tooling)
     *   Note: GStreamer installs via MSI and requires an Administrator PowerShell window.
-    *   Note: Build tools are optional; the installer will auto-install Go/MSYS2 when missing unless -SkipBuildTools is set. MSYS2 requires winget or a manual install to C:\\msys64.
+    *   Note: Build tools are optional; the installer will auto-install Go/MSYS2 when missing unless -SkipBuildTools is set.
     *   Note: The installer will prompt for elevation when required and keep the admin window open for logs.
     *   Note: On success, the installer waits for a keypress before closing the window.
 
@@ -35,8 +35,8 @@ Support scripts are stored in `scripts/_internal/` and should not be run directl
 
 Optional flags:
 - `-SkipFFmpeg` or `-SkipGStreamer` to skip those dependencies.
-- `-InstallBuildTools` to force install Go + MSYS2 MinGW-w64 without a prompt.
-- `-SkipBuildTools` to skip Go + MSYS2 MinGW-w64.
+- `-InstallBuildTools` to force install Go + MSYS2 UCRT64 toolchain without a prompt.
+- `-SkipBuildTools` to skip Go + MSYS2 UCRT64 toolchain.
 - `-InstallPython` to install Python + pip for AI tooling.
 - `-SkipPython` to skip Python + pip.
 - `-SkipDvdStyler` to skip DVD authoring tools.
@@ -55,7 +55,8 @@ The installer uses curl with a progress bar when available for large downloads (
 - `-PreferWinget` to prefer winget installs when available.
 
 The installer will prompt before optional modules (Python + pip, build tools, DVD authoring tools, Whisper model) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
-If you opt into build tools and GCC fails a test compile, the installer will offer to reinstall MSYS2 MinGW-w64. GCC from Scoop is ignored.
+Build tools are provisioned via a repo-local MSYS2 UCRT64 toolchain at `Tools\msys64`. Override with `VT_MSYS2_ROOT` or `VT_MSYS2_FLAVOR`.
+If you opt into build tools and GCC fails a test compile, the installer will offer to reinstall the MSYS2 toolchain. GCC from Scoop is ignored.
 The build script attempts to repair missing MSYS2 GCC packages automatically when possible.
 
 The installer defaults to MSI downloads for GStreamer. If MSI downloads fail, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`. Use `-PreferWinget` if you want the installer to try winget first.
@@ -72,7 +73,7 @@ After the installer runs, a Start Menu folder named "VideoTools" is created. It 
 
 1.  Build the app:
     - `.\scripts\build.bat` (delegates to `build.ps1` and handles elevation)
-    - If the build reports a GCC toolchain failure, install MSYS2 and `mingw-w64-x86_64-gcc`.
+    - If the build reports a GCC toolchain failure, install MSYS2 and `mingw-w64-ucrt-x86_64-toolchain`.
 2.  Run the executable:
     - `.\VideoTools.exe`
     - The Player module includes a fullscreen toggle in the playback controls.
@@ -80,6 +81,8 @@ After the installer runs, a Start Menu folder named "VideoTools" is created. It 
 > **Note:** `scripts\build.bat` and `scripts\build.ps1` will prompt for elevation to ensure build tools are available.
 The build script pauses for a keypress on success or failure so you can review the output before the window closes.
 If you are running inside a VM and see an OpenGL preflight warning, enable 3D acceleration or install GPU drivers before retrying.
+
+Optional: use `scripts\windows\vt-dev-shell.cmd` to open a shell with the MSYS2 toolchain on PATH.
 
 If you want a portable FFmpeg bundle placed next to the Windows executable, run:
 - `.\scripts\_internal\setup-windows.ps1 -Portable`
@@ -109,15 +112,15 @@ If you prefer to set up the dependencies yourself, follow these steps.
 2.  **Install:** Run the installer and follow the on-screen instructions.
 3.  **Verify:** Open a Command Prompt and type `go version`. You should see the installed Go version.
 
-### Step 2: Install MSYS2 (MinGW-w64)
+### Step 2: Install MSYS2 (UCRT64)
 
 1.  **Download:** Go to https://www.msys2.org/ and download the installer.
 2.  **Install:** Use the default install path (`C:\msys64`).
-3.  **Install GCC:** Open "MSYS2 MinGW x64" and run:
+3.  **Install GCC:** Open "MSYS2 UCRT64" and run:
     ```
-    pacman -S --needed mingw-w64-x86_64-gcc
+    pacman -S --needed base-devel mingw-w64-ucrt-x86_64-toolchain
     ```
-4.  **PATH:** Ensure `C:\msys64\mingw64\bin` is on your PATH (restart terminals after install).
+4.  **PATH:** Ensure `C:\msys64\ucrt64\bin` is on your PATH (restart terminals after install).
 ### Step 3: Download FFmpeg
 
 FFmpeg is the engine that powers VideoTools.
@@ -174,8 +177,6 @@ This makes FFmpeg available to all applications on your system.
 -   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `scripts\_internal\setup-windows.bat`.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.
-
-
 
 
 

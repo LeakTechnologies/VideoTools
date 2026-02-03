@@ -85,8 +85,8 @@ Run in PowerShell as Administrator:
 **Options:**
 - `-SkipFFmpeg` - Skip ffmpeg installation (if you already have it)
 - `-SkipGStreamer` - Skip GStreamer installation (not recommended)
-- `-InstallBuildTools` - Install Go + MSYS2 MinGW-w64
-- `-SkipBuildTools` - Skip Go + MSYS2 MinGW-w64
+- `-InstallBuildTools` - Install Go + MSYS2 UCRT64 toolchain
+- `-SkipBuildTools` - Skip Go + MSYS2 UCRT64 toolchain
 - `-InstallPython` - Install Python + pip
 - `-SkipPython` - Skip Python + pip
 - `-GStreamerRuntimeMsi` - Use local GStreamer runtime MSI
@@ -95,7 +95,7 @@ Run in PowerShell as Administrator:
 **Installs:**
 - FFmpeg (portable, user-level)
 - GStreamer (MSI, required for playback)
-- Optional: Go + MSYS2 MinGW-w64 (build tools, auto-installed when missing; Scoop GCC is ignored)
+- Optional: Go + MSYS2 UCRT64 toolchain (repo-local `Tools\msys64`, auto-installed when missing; Scoop GCC is ignored)
 - Optional: Python + pip
 - Optional: DVD authoring tools (DVDStyler portable)
 
@@ -117,13 +117,15 @@ Run in PowerShell:
 - File size reporting
 - Build status indicators
 
+Optional: open a shell with MSYS2 on PATH via `scripts\windows\vt-dev-shell.cmd`.
+
 ## Cross-Platform Notes
 
 ### CGO Requirements
 
 VideoTools uses [Fyne](https://fyne.io/) for its GUI, which requires CGO (C bindings) for OpenGL support. This means:
 
-1. **C compiler required** (GCC on Linux, MSYS2 MinGW-w64 on Windows)
+1. **C compiler required** (GCC on Linux, MSYS2 UCRT64 toolchain on Windows)
 2. **OpenGL libraries required** (system-dependent)
 3. **Build time is longer** than pure Go applications
 
@@ -273,7 +275,4 @@ Some antivirus software may flag the built executable. This is common with Go ap
 
 VideoTools build scripts are part of the VideoTools project.
 See the main project LICENSE file for details.
-
-
-
 

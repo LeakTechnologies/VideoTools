@@ -1,5 +1,5 @@
 ﻿# VideoTools: Ensure MSYS2 toolchain
-# This script installs the MSYS2 MinGW-w64 toolchain for Windows builds
+# This script installs the MSYS2 UCRT64 toolchain for Windows builds
 
 Write-Host "===============================================================" -ForegroundColor Cyan
 Write-Host "  VideoTools Toolchain Setup" -ForegroundColor Cyan
@@ -7,7 +7,7 @@ Write-Host "===============================================================" -Fo
 Write-Host ""
 Write-Host "This script will:" -ForegroundColor Yellow
 Write-Host "1. Install MSYS2 (if missing)" -ForegroundColor White
-Write-Host "2. Install MinGW-w64 GCC via MSYS2" -ForegroundColor White
+Write-Host "2. Install UCRT64 GCC toolchain via MSYS2" -ForegroundColor White
 Write-Host ""
 
 $confirm = Read-Host "Proceed with MSYS2 setup? (y/N)"

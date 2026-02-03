@@ -99,6 +99,7 @@
 - [x] Windows build script pauses for a keypress on success or failure.
 - [x] Aligned Windows script output headers with Linux styling and printed build metadata.
 - [x] Windows build script now refreshes PATH and can auto-repair missing MSYS2 GCC via pacman.
+- [x] Standardized Windows build tooling on repo-local MSYS2 UCRT64 with a deterministic provisioner.
 
 ### Packaging
 - [x] Added Forgejo Actions workflow for dev Windows/Linux packaging and artifacts.
@@ -1335,7 +1336,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
 
