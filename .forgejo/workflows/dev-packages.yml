@@ -166,3 +166,76 @@ jobs:
           path: |
             dist/windows/dev/*
             dist/windows/msix/VideoTools.msix
+
+  publish-release:
+    runs-on: ubuntu-latest
+    needs:
+      - linux-package
+      - windows-package
+    env:
+      FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
+      FORGEJO_API_URL: ${{ secrets.FORGEJO_API_URL }}
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Publish Forgejo release (dev)
+        if: env.FORGEJO_TOKEN != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          api_url="${FORGEJO_API_URL:-${GITHUB_SERVER_URL}/api/v1}"
+          repo="${GITHUB_REPOSITORY}"
+          short_sha="${GITHUB_SHA::7}"
+          tag="dev-${short_sha}"
+          name="Dev build ${short_sha}"
+
+          release_payload=$(cat <<JSON
+          {
+            "tag_name": "${tag}",
+            "name": "${name}",
+            "body": "Automated dev build from ${GITHUB_SHA}.",
+            "draft": false,
+            "prerelease": true,
+            "target_commitish": "master"
+          }
+JSON
+          )
+
+          release_json=$(curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" -H "Content-Type: application/json" \
+            -X POST "${api_url}/repos/${repo}/releases" -d "${release_payload}" || true)
+
+          release_id=$(echo "${release_json}" | jq -r '.id // empty')
+          if [ -z "${release_id}" ]; then
+            release_json=$(curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
+              "${api_url}/repos/${repo}/releases/tags/${tag}" || true)
+            release_id=$(echo "${release_json}" | jq -r '.id // empty')
+          fi
+
+          if [ -z "${release_id}" ]; then
+            echo "Failed to create or find release for tag ${tag}."
+            echo "${release_json}"
+            exit 1
+          fi
+
+          find dist/VideoTools-linux-dev dist/VideoTools-windows-dev -type f -print0 | while IFS= read -r -d '' file; do
+            name=$(basename "${file}")
+            echo "Uploading ${name}..."
+            curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @"${file}" \
+              "${api_url}/repos/${repo}/releases/${release_id}/assets?name=${name}" >/dev/null
+          done
+
+      - name: Skip release upload (missing token)
+        if: env.FORGEJO_TOKEN == ''
+        run: |
+          echo "FORGEJO_TOKEN not set; skipping release upload."

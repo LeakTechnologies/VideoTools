@@ -25,6 +25,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Refresh PATH and auto-repair missing MSYS2 GCC during builds when possible.
 - [X] **Forgejo dev packaging**
   - Add Forgejo Actions workflow for Windows/Linux dev packages and artifacts.
+- [X] **Forgejo dev release upload**
+  - Upload dev artifacts to a Forgejo release when a token is provided.
 - [X] **Whisper model mirror fallback**
   - Prefer Leak Technologies mirror for whisper.cpp small model downloads.
 - [X] **Git Bash handoff**
