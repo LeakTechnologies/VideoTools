@@ -102,6 +102,7 @@
 
 ### Packaging
 - [x] Added Forgejo Actions workflow for dev Windows/Linux packaging and artifacts.
+- [x] Added Forgejo dev release upload (optional, requires token).
 
 ### Docs
 - [x] Removed personal names from documentation in favor of user report/dev report labels.
@@ -1334,7 +1335,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
 

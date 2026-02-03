@@ -31,6 +31,7 @@ Outputs:
 Notes:
 - Requires a Windows runner with MSYS2 (mingw-w64-x86_64-gcc).
 - Linux dev packaging runs on Ubuntu runners and installs GStreamer dev packages.
+- Release upload requires `FORGEJO_TOKEN` (repo scope) and optional `FORGEJO_API_URL` secrets.
 
 ## Release Flow
 
