@@ -25,13 +25,13 @@ Output artifacts:
 Workflow: `.forgejo/workflows/dev-packages.yml`
 
 Outputs:
-- `dist/windows/dev/*.zip` (dev package + build.json)
-- `dist/windows/msix/VideoTools.msix` when Windows SDK is available on the runner.
+- `dist/windows/<channel>/<version>_windows.zip` (package + build.json)
+- `dist/windows/msix/<version>_windows.msix` when Windows SDK is available on the runner.
 
 Notes:
 - Requires a Windows runner with MSYS2 UCRT64 toolchain.
 - Linux dev packaging runs on the `ubuntu` runner label.
-- Release upload requires `FORGEJO_TOKEN` (repo scope) and optional `FORGEJO_API_URL` secrets.
+- Release upload requires `FORGEJO_TOKEN` (repo scope) and `FORGEJO_API_URL`.
 - Optional signing uses secrets: `VT_SIGN_EXE=1`, `VT_SIGN_PFX_B64` (preferred), `VT_SIGN_PASSWORD`, `VT_SIGN_TIMESTAMP`.
 
 ## Release Flow
@@ -67,9 +67,8 @@ Add-AppxPackage -Path dist/windows/msix/VideoTools.msix
 
 ## Versioning Notes
 
-- Current dev train: `v0.1.0-dev25` with platform suffix (`_win`).
-- First user build will be promoted to `v0.1.1` and tagged as `v0.1.1-<hash>_win`.
-- Next dev line becomes `v0.1.1-dev26`.
+- Dev builds use `v0.1.1-dev26` and publish platform artifacts as `v0.1.1-dev26_windows`.
+- Stable builds use `v0.1.1` and publish platform artifacts as `v0.1.1_windows`.
 
 ## Scope Guardrails
 
