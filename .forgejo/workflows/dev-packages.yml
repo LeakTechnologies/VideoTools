@@ -224,17 +224,18 @@ jobs:
           tag="dev-${short_sha}"
           name="Dev build ${short_sha}"
 
-          release_payload=$(cat <<JSON
-          {
-            "tag_name": "${tag}",
-            "name": "${name}",
-            "body": "Automated dev build from ${GITHUB_SHA}.",
-            "draft": false,
-            "prerelease": true,
-            "target_commitish": "master"
-          }
-JSON
-          )
+          release_payload=$(jq -n \
+            --arg tag "${tag}" \
+            --arg name "${name}" \
+            --arg body "Automated dev build from ${GITHUB_SHA}." \
+            '{
+              tag_name: $tag,
+              name: $name,
+              body: $body,
+              draft: false,
+              prerelease: true,
+              target_commitish: "master"
+            }')
 
           release_json=$(curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" -H "Content-Type: application/json" \
             -X POST "${api_url}/repos/${repo}/releases" -d "${release_payload}" || true)
