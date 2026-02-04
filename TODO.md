@@ -31,6 +31,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Upload dev artifacts to a Forgejo release when a token is provided.
 - [ ] **Windows signing**
   - Provide production signing cert and wire it into Forgejo secrets for signed releases.
+- [ ] **Forgejo runner labels**
+  - Register Linux runners with labels: debian, ubuntu, arch, fedora, opensuse, rocky.
 - [X] **Whisper model mirror fallback**
   - Prefer Leak Technologies mirror for whisper.cpp small model downloads.
 - [X] **Git Bash handoff**

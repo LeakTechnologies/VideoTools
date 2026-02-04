@@ -30,7 +30,7 @@ Outputs:
 
 Notes:
 - Requires a Windows runner with MSYS2 UCRT64 toolchain.
-- Linux dev packaging runs on Ubuntu runners and installs GStreamer dev packages.
+- Linux dev packaging runs on labeled runners: `debian`, `ubuntu`, `arch`, `fedora`, `opensuse`, `rocky`.
 - Release upload requires `FORGEJO_TOKEN` (repo scope) and optional `FORGEJO_API_URL` secrets.
 - Optional signing uses secrets: `VT_SIGN_EXE=1`, `VT_SIGN_PFX_B64` (preferred), `VT_SIGN_PASSWORD`, `VT_SIGN_TIMESTAMP`.
 

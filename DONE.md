@@ -108,6 +108,7 @@
 - [x] Added Forgejo dev release upload (optional, requires token).
 - [x] Added optional EXE signing step for Forgejo dev builds.
 - [x] Added self-signed dev cert generator and MSIX signing in Forgejo pipeline.
+- [x] Added multi-distro Forgejo Linux packaging matrix (debian/ubuntu/arch/fedora/opensuse/rocky).
 
 ### Docs
 - [x] Removed personal names from documentation in favor of user report/dev report labels.
