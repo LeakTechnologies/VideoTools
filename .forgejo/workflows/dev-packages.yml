@@ -84,6 +84,7 @@ jobs:
           VT_BUILD_CHANNEL: dev
           VT_SIGN_EXE: ${{ secrets.VT_SIGN_EXE }}
           VT_SIGN_PFX: ${{ secrets.VT_SIGN_PFX }}
+          VT_SIGN_PFX_B64: ${{ secrets.VT_SIGN_PFX_B64 }}
           VT_SIGN_PASSWORD: ${{ secrets.VT_SIGN_PASSWORD }}
           VT_SIGN_TIMESTAMP: ${{ secrets.VT_SIGN_TIMESTAMP }}
         run: |
@@ -111,6 +112,12 @@ jobs:
           $version = $appVersion
           $distDir = Join-Path $projectRoot "dist\\windows\\$channel"
           $artifactName = "$version-$gitCommit`_win.zip"
+
+          if ($env:VT_SIGN_PFX_B64) {
+            $pfxPath = Join-Path $env:TEMP "vt-sign.pfx"
+            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:VT_SIGN_PFX_B64))
+            $env:VT_SIGN_PFX = $pfxPath
+          }
 
           $env:CGO_ENABLED = "1"
           go mod download
@@ -169,6 +176,13 @@ jobs:
             ./packaging/windows/msix/pack.ps1 -InputExe $buildOutput -Version $msixVersion
           } catch {
             Write-Host "[WARN] MSIX packaging skipped: $($_.Exception.Message)" -ForegroundColor Yellow
+          }
+
+          if ($env:VT_SIGN_EXE -and $env:VT_SIGN_EXE -ne "0") {
+            $msixPath = Join-Path $projectRoot "dist\\windows\\msix\\VideoTools.msix"
+            if (Test-Path $msixPath) {
+              ./packaging/windows/msix/sign.ps1 -MsixPath $msixPath -PfxPath $env:VT_SIGN_PFX -PfxPassword $env:VT_SIGN_PASSWORD
+            }
           }
 
       - name: Upload Windows artifacts

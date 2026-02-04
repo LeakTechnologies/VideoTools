@@ -32,7 +32,7 @@ Notes:
 - Requires a Windows runner with MSYS2 UCRT64 toolchain.
 - Linux dev packaging runs on Ubuntu runners and installs GStreamer dev packages.
 - Release upload requires `FORGEJO_TOKEN` (repo scope) and optional `FORGEJO_API_URL` secrets.
-- Optional EXE signing uses secrets: `VT_SIGN_EXE=1`, `VT_SIGN_PFX` (PFX path on runner), `VT_SIGN_PASSWORD`, `VT_SIGN_TIMESTAMP`.
+- Optional signing uses secrets: `VT_SIGN_EXE=1`, `VT_SIGN_PFX_B64` (preferred), `VT_SIGN_PASSWORD`, `VT_SIGN_TIMESTAMP`.
 
 ## Release Flow
 
@@ -44,8 +44,8 @@ Notes:
 Create a dev signing cert and sign the MSIX:
 
 ```
-.\packaging\windows\msix\sign.ps1 -CreateDevCert -InstallCert
-.\packaging\windows\msix\sign.ps1
+.\scripts\windows\support\new-dev-cert.ps1
+.\packaging\windows\msix\sign.ps1 -PfxPath packaging\windows\msix\VideoToolsDev.pfx -PfxPassword <password>
 ```
 
 If SignTool fails, use Authenticode signing:

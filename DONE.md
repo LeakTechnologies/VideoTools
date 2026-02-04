@@ -107,6 +107,7 @@
 - [x] Added Forgejo Actions workflow for dev Windows/Linux packaging and artifacts.
 - [x] Added Forgejo dev release upload (optional, requires token).
 - [x] Added optional EXE signing step for Forgejo dev builds.
+- [x] Added self-signed dev cert generator and MSIX signing in Forgejo pipeline.
 
 ### Docs
 - [x] Removed personal names from documentation in favor of user report/dev report labels.
