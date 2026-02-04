@@ -39,6 +39,7 @@
 - âœ… **Agent workflow rules**
   - Added `AGENTS.md` to enforce staging, commits, and documentation updates.
 - Fixed Linux script paths after scripts reorg (build/install/run).
+- Updated Forgejo dev packaging to use appVersion-based artifacts and stable/dev release tagging.
 - âœ… **Player fullscreen toggle**
   - Added fullscreen toggle to the Player module controls.
 - âœ… **Player EOS handling + metadata access**

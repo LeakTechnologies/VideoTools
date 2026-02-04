@@ -23,6 +23,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Prepare build metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_base="$(grep -m1 'appVersion' main.go | sed -E 's/.*"([^"]+)".*/\1/')"
+          if [ -z "$version_base" ]; then
+            version_base="v0.1.1-dev"
+          fi
+          channel="stable"
+          if echo "$version_base" | grep -q '\-dev'; then
+            channel="dev"
+          fi
+          echo "version_base=$version_base" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -47,22 +62,53 @@ jobs:
 
       - name: Build Linux package
         env:
-          VT_BUILD_CHANNEL: dev
+          VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
         run: |
           chmod +x scripts/linux/build.sh
           ./scripts/linux/build.sh
 
-      - name: Upload Linux artifact
+      - name: Normalize Linux artifact name
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="${{ steps.meta.outputs.channel }}"
+          version_base="${{ steps.meta.outputs.version_base }}"
+          artifact_src="$(ls dist/linux/${channel}/*.zip | head -n1)"
+          artifact_dst="dist/linux/${channel}/${version_base}_linux.zip"
+          mv "$artifact_src" "$artifact_dst"
+
+      - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: VideoTools-linux-dev
-          path: dist/linux/dev/*
+          name: VideoTools-linux
+          path: dist/linux/${{ steps.meta.outputs.channel }}/*
 
   windows-package:
     runs-on: windows
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Prepare build metadata
+        id: meta
+        shell: pwsh
+        run: |
+          $appVersionLine = (Get-Content "main.go" | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
+          $versionBase = ""
+          if ($appVersionLine) {
+            $parts = $appVersionLine -split ([char]34)
+            if ($parts.Length -ge 2) {
+              $versionBase = $parts[1]
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($versionBase)) {
+            $versionBase = "v0.1.1-dev"
+          }
+          $channel = "stable"
+          if ($versionBase -match "-dev") {
+            $channel = "dev"
+          }
+          "version_base=$versionBase" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "channel=$channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -81,7 +127,7 @@ jobs:
       - name: Build Windows package
         shell: pwsh
         env:
-          VT_BUILD_CHANNEL: dev
+          VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
           VT_SIGN_EXE: ${{ secrets.VT_SIGN_EXE }}
           VT_SIGN_PFX: ${{ secrets.VT_SIGN_PFX }}
           VT_SIGN_PFX_B64: ${{ secrets.VT_SIGN_PFX_B64 }}
@@ -185,13 +231,31 @@ jobs:
             }
           }
 
+      - name: Normalize Windows artifact names
+        shell: pwsh
+        run: |
+          $projectRoot = Resolve-Path "."
+          $channel = "${{ steps.meta.outputs.channel }}"
+          $versionBase = "${{ steps.meta.outputs.version_base }}"
+          $distDir = Join-Path $projectRoot "dist\\windows\\$channel"
+          $zip = Get-ChildItem -Path $distDir -Filter *.zip | Select-Object -First 1
+          if ($zip) {
+            $target = Join-Path $distDir "$versionBase`_windows.zip"
+            Move-Item -Path $zip.FullName -Destination $target -Force
+          }
+          $msixPath = Join-Path $projectRoot "dist\\windows\\msix\\VideoTools.msix"
+          if (Test-Path $msixPath) {
+            $msixTarget = Join-Path $projectRoot "dist\\windows\\msix\\$versionBase`_windows.msix"
+            Move-Item -Path $msixPath -Destination $msixTarget -Force
+          }
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: VideoTools-windows-dev
+          name: VideoTools-windows
           path: |
-            dist/windows/dev/*
-            dist/windows/msix/VideoTools.msix
+            dist/windows/${{ steps.meta.outputs.channel }}/*
+            dist/windows/msix/*
 
   publish-release:
     runs-on: ubuntu
@@ -202,6 +266,8 @@ jobs:
       FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
       FORGEJO_API_URL: ${{ secrets.FORGEJO_API_URL }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -223,23 +289,34 @@ jobs:
             exit 1
           fi
 
+          version_base="$(grep -m1 'appVersion' main.go | sed -E 's/.*"([^"]+)".*/\1/')"
+          if [ -z "$version_base" ]; then
+            version_base="v0.1.1-dev"
+          fi
+          channel="stable"
+          prerelease="false"
+          if echo "$version_base" | grep -q '\-dev'; then
+            channel="dev"
+            prerelease="true"
+          fi
+
           api_url="${FORGEJO_API_URL}"
           repo="${GITHUB_REPOSITORY}"
-          short_sha="${GITHUB_SHA::7}"
-          tag="dev-${short_sha}"
-          name="Dev build ${short_sha}"
+          tag="${version_base}"
+          name="Build ${version_base}"
 
           release_payload=$(jq -n \
             --arg tag "${tag}" \
             --arg name "${name}" \
-            --arg body "Automated dev build from ${GITHUB_SHA}." \
+            --arg body "Automated build from ${GITHUB_SHA}." \
             --arg target "${GITHUB_SHA}" \
+            --argjson prerelease "${prerelease}" \
             '{
               tag_name: $tag,
               name: $name,
               body: $body,
               draft: false,
-              prerelease: true,
+              prerelease: $prerelease,
               target_commitish: $target
             }')
 
@@ -259,7 +336,7 @@ jobs:
             exit 1
           fi
 
-          find dist/VideoTools-linux-dev dist/VideoTools-windows-dev -type f -print0 | while IFS= read -r -d '' file; do
+          find dist/VideoTools-linux dist/VideoTools-windows -type f -print0 | while IFS= read -r -d '' file; do
             name=$(basename "${file}")
             echo "Uploading ${name}..."
             curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
