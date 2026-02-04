@@ -38,6 +38,7 @@
   - `scripts/_internal/setup-windows.bat` now delegates to `scripts/install.bat` for a single Windows flow.
 - âœ… **Agent workflow rules**
   - Added `AGENTS.md` to enforce staging, commits, and documentation updates.
+- Fixed Linux script paths after scripts reorg (build/install/run).
 - âœ… **Player fullscreen toggle**
   - Added fullscreen toggle to the Player module controls.
 - âœ… **Player EOS handling + metadata access**

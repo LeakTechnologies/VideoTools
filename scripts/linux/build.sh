@@ -2,7 +2,7 @@
 # VideoTools Universal Build Script (Linux/macOS/Windows via Git Bash)
 set -e
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Extract app version from main.go (avoid grep warnings on Git Bash)
@@ -66,7 +66,7 @@ case "$OS" in
     Linux|macOS)
         echo "→ Building VideoTools $FULL_VERSION for $OS..."
         echo ""
-        exec "$SCRIPT_DIR/linux/build-linux.sh"
+        exec "$SCRIPT_DIR/build-linux.sh"
         ;;
     Windows)
         echo "→ Building VideoTools $FULL_VERSION for Windows..."

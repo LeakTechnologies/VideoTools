@@ -38,6 +38,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [X] **Git Bash handoff**
   - Keep Windows installs in the same Git Bash terminal using `winpty` when available.
 - [X] **Windows root entrypoints**
+- [X] **Linux script path fix**
+  - Correct Linux build/install/run paths after scripts reorg.
   - Provide `install.bat` and `install.ps1` for PowerShell-first installs.
 - [X] **Windows scripts entrypoints**
   - Provide `scripts/install.ps1` and `scripts/install.bat` to avoid Git Bash pop-ups.
