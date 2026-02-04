@@ -32,7 +32,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Windows signing**
   - Provide production signing cert and wire it into Forgejo secrets for signed releases.
 - [ ] **Forgejo runner labels**
-  - Register Linux runners with labels: debian, ubuntu, arch, fedora, opensuse, rocky.
+  - Ensure runners are online with labels: ubuntu (Linux) and windows.
 - [X] **Whisper model mirror fallback**
   - Prefer Leak Technologies mirror for whisper.cpp small model downloads.
 - [X] **Git Bash handoff**

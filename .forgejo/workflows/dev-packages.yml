@@ -19,23 +19,7 @@ on:
 
 jobs:
   linux-package:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - id: debian
-            runner: debian
-          - id: ubuntu
-            runner: ubuntu
-          - id: arch
-            runner: arch
-          - id: fedora
-            runner: fedora
-          - id: opensuse
-            runner: opensuse
-          - id: rocky
-            runner: rocky
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,64 +31,19 @@ jobs:
           cache: true
 
       - name: Install build deps
-        shell: bash
         run: |
-          set -euo pipefail
-          case "${{ matrix.id }}" in
-            debian|ubuntu)
-              sudo apt-get update
-              sudo apt-get install -y \
-                pkg-config \
-                libgl1-mesa-dev \
-                libx11-dev \
-                libxcursor-dev \
-                libxrandr-dev \
-                libxinerama-dev \
-                libxi-dev \
-                libxxf86vm-dev \
-                libgstreamer1.0-dev \
-                libgstreamer-plugins-base1.0-dev
-              ;;
-            arch)
-              sudo pacman -Sy --needed --noconfirm \
-                pkgconf \
-                mesa \
-                libx11 \
-                libxcursor \
-                libxrandr \
-                libxinerama \
-                libxi \
-                libxxf86vm \
-                gstreamer \
-                gst-plugins-base
-              ;;
-            fedora|rocky)
-              sudo dnf install -y \
-                pkgconfig \
-                mesa-libGL-devel \
-                libX11-devel \
-                libXcursor-devel \
-                libXrandr-devel \
-                libXinerama-devel \
-                libXi-devel \
-                libXxf86vm-devel \
-                gstreamer1-devel \
-                gstreamer1-plugins-base-devel
-              ;;
-            opensuse)
-              sudo zypper --non-interactive install \
-                pkg-config \
-                Mesa-libGL-devel \
-                libX11-devel \
-                libXcursor-devel \
-                libXrandr-devel \
-                libXinerama-devel \
-                libXi-devel \
-                libXxf86vm-devel \
-                gstreamer-devel \
-                gstreamer-plugins-base-devel
-              ;;
-          esac
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libgl1-mesa-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxi-dev \
+            libxxf86vm-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev
 
       - name: Build Linux package
         env:
@@ -116,11 +55,11 @@ jobs:
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VideoTools-linux-${{ matrix.id }}-dev
+          name: VideoTools-linux-dev
           path: dist/linux/dev/*
 
   windows-package:
-    runs-on: windows-latest
+    runs-on: windows
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -255,7 +194,7 @@ jobs:
             dist/windows/msix/VideoTools.msix
 
   publish-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu
     needs:
       - linux-package
       - windows-package
@@ -279,7 +218,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          api_url="${FORGEJO_API_URL:-${GITHUB_SERVER_URL}/api/v1}"
+          if [ -z "${FORGEJO_API_URL:-}" ]; then
+            echo "FORGEJO_API_URL is required in secrets."
+            exit 1
+          fi
+
+          api_url="${FORGEJO_API_URL}"
           repo="${GITHUB_REPOSITORY}"
           short_sha="${GITHUB_SHA::7}"
           tag="dev-${short_sha}"
@@ -289,13 +233,14 @@ jobs:
             --arg tag "${tag}" \
             --arg name "${name}" \
             --arg body "Automated dev build from ${GITHUB_SHA}." \
+            --arg target "${GITHUB_SHA}" \
             '{
               tag_name: $tag,
               name: $name,
               body: $body,
               draft: false,
               prerelease: true,
-              target_commitish: "master"
+              target_commitish: $target
             }')
 
           release_json=$(curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" -H "Content-Type: application/json" \
