@@ -19,7 +19,23 @@ on:
 
 jobs:
   linux-package:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: debian
+            runner: debian
+          - id: ubuntu
+            runner: ubuntu
+          - id: arch
+            runner: arch
+          - id: fedora
+            runner: fedora
+          - id: opensuse
+            runner: opensuse
+          - id: rocky
+            runner: rocky
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,31 +47,76 @@ jobs:
           cache: true
 
       - name: Install build deps
+        shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            pkg-config \
-            libgl1-mesa-dev \
-            libx11-dev \
-            libxcursor-dev \
-            libxrandr-dev \
-            libxinerama-dev \
-            libxi-dev \
-            libxxf86vm-dev \
-            libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev
+          set -euo pipefail
+          case "${{ matrix.id }}" in
+            debian|ubuntu)
+              sudo apt-get update
+              sudo apt-get install -y \
+                pkg-config \
+                libgl1-mesa-dev \
+                libx11-dev \
+                libxcursor-dev \
+                libxrandr-dev \
+                libxinerama-dev \
+                libxi-dev \
+                libxxf86vm-dev \
+                libgstreamer1.0-dev \
+                libgstreamer-plugins-base1.0-dev
+              ;;
+            arch)
+              sudo pacman -Sy --needed --noconfirm \
+                pkgconf \
+                mesa \
+                libx11 \
+                libxcursor \
+                libxrandr \
+                libxinerama \
+                libxi \
+                libxxf86vm \
+                gstreamer \
+                gst-plugins-base
+              ;;
+            fedora|rocky)
+              sudo dnf install -y \
+                pkgconfig \
+                mesa-libGL-devel \
+                libX11-devel \
+                libXcursor-devel \
+                libXrandr-devel \
+                libXinerama-devel \
+                libXi-devel \
+                libXxf86vm-devel \
+                gstreamer1-devel \
+                gstreamer1-plugins-base-devel
+              ;;
+            opensuse)
+              sudo zypper --non-interactive install \
+                pkg-config \
+                Mesa-libGL-devel \
+                libX11-devel \
+                libXcursor-devel \
+                libXrandr-devel \
+                libXinerama-devel \
+                libXi-devel \
+                libXxf86vm-devel \
+                gstreamer-devel \
+                gstreamer-plugins-base-devel
+              ;;
+          esac
 
       - name: Build Linux package
         env:
           VT_BUILD_CHANNEL: dev
         run: |
-          chmod +x scripts/build-linux.sh
-          ./scripts/build-linux.sh
+          chmod +x scripts/linux/build.sh
+          ./scripts/linux/build.sh
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VideoTools-linux-dev
+          name: VideoTools-linux-${{ matrix.id }}-dev
           path: dist/linux/dev/*
 
   windows-package:
