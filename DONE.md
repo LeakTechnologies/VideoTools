@@ -106,6 +106,7 @@
 ### Packaging
 - [x] Added Forgejo Actions workflow for dev Windows/Linux packaging and artifacts.
 - [x] Added Forgejo dev release upload (optional, requires token).
+- [x] Added optional EXE signing step for Forgejo dev builds.
 
 ### Docs
 - [x] Removed personal names from documentation in favor of user report/dev report labels.

@@ -29,6 +29,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Add Forgejo Actions workflow for Windows/Linux dev packages and artifacts.
 - [X] **Forgejo dev release upload**
   - Upload dev artifacts to a Forgejo release when a token is provided.
+- [ ] **Windows signing**
+  - Provide production signing cert and wire it into Forgejo secrets for signed dev builds.
 - [X] **Whisper model mirror fallback**
   - Prefer Leak Technologies mirror for whisper.cpp small model downloads.
 - [X] **Git Bash handoff**

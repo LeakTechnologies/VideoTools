@@ -82,6 +82,10 @@ jobs:
         shell: pwsh
         env:
           VT_BUILD_CHANNEL: dev
+          VT_SIGN_EXE: ${{ secrets.VT_SIGN_EXE }}
+          VT_SIGN_PFX: ${{ secrets.VT_SIGN_PFX }}
+          VT_SIGN_PASSWORD: ${{ secrets.VT_SIGN_PASSWORD }}
+          VT_SIGN_TIMESTAMP: ${{ secrets.VT_SIGN_TIMESTAMP }}
         run: |
           $projectRoot = Resolve-Path "."
           $buildOutput = Join-Path $projectRoot "VideoTools.exe"
@@ -112,6 +116,13 @@ jobs:
           go mod download
           go mod verify
           go build -p 4 -ldflags="-s -w" -trimpath -o $buildOutput .
+
+          if ($env:VT_SIGN_EXE -and $env:VT_SIGN_EXE -ne "0") {
+            $signScript = Join-Path $projectRoot "scripts\\windows\\support\\sign-exe.ps1"
+            if (Test-Path $signScript) {
+              & $signScript -ExePath $buildOutput -CertPath $env:VT_SIGN_PFX -CertPassword $env:VT_SIGN_PASSWORD -TimestampUrl $env:VT_SIGN_TIMESTAMP
+            }
+          }
 
           if (-not (Test-Path $distDir)) {
             New-Item -ItemType Directory -Force -Path $distDir | Out-Null

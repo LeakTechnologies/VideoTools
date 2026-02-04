@@ -32,6 +32,7 @@ Notes:
 - Requires a Windows runner with MSYS2 UCRT64 toolchain.
 - Linux dev packaging runs on Ubuntu runners and installs GStreamer dev packages.
 - Release upload requires `FORGEJO_TOKEN` (repo scope) and optional `FORGEJO_API_URL` secrets.
+- Optional EXE signing uses secrets: `VT_SIGN_EXE=1`, `VT_SIGN_PFX` (PFX path on runner), `VT_SIGN_PASSWORD`, `VT_SIGN_TIMESTAMP`.
 
 ## Release Flow
 
