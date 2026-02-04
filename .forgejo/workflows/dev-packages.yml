@@ -57,6 +57,7 @@ jobs:
             libxinerama-dev \
             libxi-dev \
             libxxf86vm-dev \
+            libasound2-dev \
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev
 
