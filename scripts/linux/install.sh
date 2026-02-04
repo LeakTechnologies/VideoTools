@@ -26,7 +26,7 @@ spinner() {
 }
 
 # Configuration
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 # Args
 DVDSTYLER_URL=""
@@ -107,8 +107,8 @@ echo ""
 if [ "$IS_WINDOWS" = true ]; then
     echo -e "${YELLOW}NOTICE:${NC} Windows detected."
     echo "Run one of these from PowerShell or CMD instead:"
-    echo "  - $PROJECT_ROOT\\scripts\\install.ps1"
-    echo "  - $PROJECT_ROOT\\scripts\\install.bat"
+    echo "  - $PROJECT_ROOT\\scripts\\windows\\install.ps1"
+    echo "  - $PROJECT_ROOT\\scripts\\windows\\install.bat"
     exit 0
 fi
 
