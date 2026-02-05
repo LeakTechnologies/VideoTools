@@ -1,4 +1,4 @@
-name: Forgejo Dev Packages
+﻿name: Forgejo Dev Packages
 
 on:
   workflow_dispatch:
@@ -134,14 +134,66 @@ jobs:
         with:
           update: true
           msystem: UCRT64
+          location: C:\mysys64
           install: >-
             mingw-w64-ucrt-x86_64-toolchain
+
+      - name: Windows runner diagnostics
+        shell: pwsh
+        run: |
+          $reportDir = Join-Path $env:GITHUB_WORKSPACE "dist\\windows\\diagnostics"
+          New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
+          $reportPath = Join-Path $reportDir "windows-runner.txt"
+
+          function Resolve-KitTool {
+            param([string]$exeName)
+            $cmd = Get-Command $exeName -ErrorAction SilentlyContinue
+            if ($cmd) { return $cmd.Path }
+            $kitsRoot = "${env:ProgramFiles(x86)}\\Windows Kits\\10\\bin"
+            if (-not (Test-Path $kitsRoot)) { return "" }
+            $candidates = Get-ChildItem -Path $kitsRoot -Directory | Sort-Object Name -Descending
+            foreach ($dir in $candidates) {
+              $path = Join-Path $dir.FullName "x64\\$exeName"
+              if (Test-Path $path) { return $path }
+            }
+            return ""
+          }
+
+          $osInfo = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber
+          $goVersion = ""
+          if (Get-Command go -ErrorAction SilentlyContinue) { $goVersion = (go version) }
+          $gccVersion = ""
+          if (Get-Command gcc -ErrorAction SilentlyContinue) { $gccVersion = (gcc --version | Select-Object -First 1) }
+          $windresVersion = ""
+          if (Get-Command windres -ErrorAction SilentlyContinue) { $windresVersion = (windres --version | Select-Object -First 1) }
+          $makeappxPath = Resolve-KitTool -exeName "makeappx.exe"
+          $signtoolPath = Resolve-KitTool -exeName "signtool.exe"
+
+          $msys2Root = "C:\mysys64"
+          $msys2Bin = Join-Path $msys2Root "ucrt64\\bin"
+
+          @(
+            "OS: $($osInfo.Caption) $($osInfo.Version) (Build $($osInfo.BuildNumber))",
+            "Go: $goVersion",
+            "GCC: $gccVersion",
+            "windres: $windresVersion",
+            "makeappx.exe: " + ($(if ($makeappxPath) { $makeappxPath } else { "MISSING" })),
+            "signtool.exe: " + ($(if ($signtoolPath) { $signtoolPath } else { "MISSING" })),
+            "MSYS2 root: $msys2Root",
+            "MSYS2 UCRT64 bin: " + ($(if (Test-Path $msys2Bin) { $msys2Bin } else { "MISSING" }))
+          ) | Out-File -FilePath $reportPath -Encoding UTF8
+
+      - name: Upload Windows diagnostics
+        uses: actions/upload-artifact@v3
+        with:
+          name: VideoTools-windows-diagnostics
+          path: dist/windows/diagnostics/windows-runner.txt
+
 
       - name: Build Windows package
         shell: pwsh
         env:
-          VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
-          VT_MSYS2_ROOT: C:\msys64
+          VT_MSYS2_ROOT: C:\mysys64
           VT_MSYS2_FLAVOR: ucrt64
           VT_SIGN_EXE: ${{ secrets.VT_SIGN_EXE }}
           VT_SIGN_PFX: ${{ secrets.VT_SIGN_PFX }}
@@ -151,6 +203,12 @@ jobs:
         run: |
           $projectRoot = Resolve-Path "."
           $buildOutput = Join-Path $projectRoot "VideoTools.exe"
+          $toolchainBin = "C:\mysys64\ucrt64\bin"
+          if (Test-Path $toolchainBin) {
+            $env:Path = "$toolchainBin;$env:Path"
+            $env:CC = Join-Path $toolchainBin "gcc.exe"
+            $env:CXX = Join-Path $toolchainBin "g++.exe"
+          }
           $appVersionLine = (Get-Content (Join-Path $projectRoot "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
           $appVersion = ""
           if ($appVersionLine) {
@@ -169,10 +227,13 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($gitCommit)) {
             $gitCommit = "nogit"
           }
-          $channel = "dev"
+          $channel = "stable"
+          if ($appVersion -match "-dev") {
+            $channel = "dev"
+          }
           $version = $appVersion
           $distDir = Join-Path $projectRoot "dist\\windows\\$channel"
-          $artifactName = "$version-$gitCommit`_win.zip"
+          $artifactName = "$version`_windows.zip"
 
           if ($env:VT_SIGN_PFX_B64) {
             $pfxPath = Join-Path $env:TEMP "vt-sign.pfx"
@@ -275,13 +336,28 @@ jobs:
         shell: pwsh
         run: |
           $projectRoot = Resolve-Path "."
-          $channel = "${{ steps.meta.outputs.channel }}"
-          $versionBase = "${{ steps.meta.outputs.version_base }}"
+          $appVersionLine = (Get-Content (Join-Path $projectRoot "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
+          $versionBase = ""
+          if ($appVersionLine) {
+            $parts = $appVersionLine -split ([char]34)
+            if ($parts.Length -ge 2) {
+              $versionBase = $parts[1]
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($versionBase)) {
+            $versionBase = "v0.1.1-dev"
+          }
+          $channel = "stable"
+          if ($versionBase -match "-dev") {
+            $channel = "dev"
+          }
           $distDir = Join-Path $projectRoot "dist\\windows\\$channel"
           $zip = Get-ChildItem -Path $distDir -Filter *.zip | Select-Object -First 1
           if ($zip) {
             $target = Join-Path $distDir "$versionBase`_windows.zip"
-            Move-Item -Path $zip.FullName -Destination $target -Force
+            if ($zip.FullName -ne $target) {
+              Move-Item -Path $zip.FullName -Destination $target -Force
+            }
           }
           $msixPath = Join-Path $projectRoot "dist\\windows\\msix\\VideoTools.msix"
           if (Test-Path $msixPath) {
@@ -294,8 +370,7 @@ jobs:
         with:
           name: VideoTools-windows
           path: |
-            dist/windows/${{ steps.meta.outputs.channel }}/*
-            dist/windows/msix/*
+            dist/windows/**
 
   publish-release:
     runs-on: ubuntu
@@ -389,3 +464,5 @@ jobs:
         if: env.FORGEJO_TOKEN == ''
         run: |
           echo "FORGEJO_TOKEN not set; skipping release upload."
+
+
