@@ -98,13 +98,30 @@ jobs:
 
   windows-package:
     runs-on: windows
-    env:
-      VT_BUILD_CHANNEL: dev
-      VT_MSYS2_ROOT: C:\msys64
-      VT_MSYS2_FLAVOR: ucrt64
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Prepare build metadata
+        id: meta
+        shell: pwsh
+        run: |
+          $appVersionLine = (Get-Content "main.go" | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
+          $versionBase = ""
+          if ($appVersionLine) {
+            $parts = $appVersionLine -split ([char]34)
+            if ($parts.Length -ge 2) {
+              $versionBase = $parts[1]
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($versionBase)) {
+            $versionBase = "v0.1.1-dev"
+          }
+          $channel = "stable"
+          if ($versionBase -match "-dev") {
+            $channel = "dev"
+          }
+          "version_base=$versionBase" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "channel=$channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -123,6 +140,9 @@ jobs:
       - name: Build Windows package
         shell: pwsh
         env:
+          VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
+          VT_MSYS2_ROOT: C:\msys64
+          VT_MSYS2_FLAVOR: ucrt64
           VT_SIGN_EXE: ${{ secrets.VT_SIGN_EXE }}
           VT_SIGN_PFX: ${{ secrets.VT_SIGN_PFX }}
           VT_SIGN_PFX_B64: ${{ secrets.VT_SIGN_PFX_B64 }}
@@ -131,12 +151,6 @@ jobs:
         run: |
           $projectRoot = Resolve-Path "."
           $buildOutput = Join-Path $projectRoot "VideoTools.exe"
-          if ($env:VT_MSYS2_ROOT) {
-            $ucrtBin = Join-Path $env:VT_MSYS2_ROOT "ucrt64\bin"
-            $env:Path = "$ucrtBin;$env:Path"
-            $env:CC = Join-Path $ucrtBin "gcc.exe"
-            $env:CXX = Join-Path $ucrtBin "g++.exe"
-          }
           $appVersionLine = (Get-Content (Join-Path $projectRoot "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
           $appVersion = ""
           if ($appVersionLine) {
@@ -155,13 +169,10 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($gitCommit)) {
             $gitCommit = "nogit"
           }
-          $channel = $env:VT_BUILD_CHANNEL
-          if ([string]::IsNullOrWhiteSpace($channel)) {
-            $channel = "dev"
-          }
+          $channel = "dev"
           $version = $appVersion
           $distDir = Join-Path $projectRoot "dist\\windows\\$channel"
-          $artifactName = "$version`_windows.zip"
+          $artifactName = "$version-$gitCommit`_win.zip"
 
           if ($env:VT_SIGN_PFX_B64) {
             $pfxPath = Join-Path $env:TEMP "vt-sign.pfx"
@@ -259,38 +270,32 @@ jobs:
               ./packaging/windows/msix/sign.ps1 -MsixPath $msixPath -PfxPath $env:VT_SIGN_PFX -PfxPassword $env:VT_SIGN_PASSWORD
             }
           }
-          $msixPath = Join-Path $projectRoot "dist\\windows\\msix\\VideoTools.msix"
-          if (Test-Path $msixPath) {
-            $msixTarget = Join-Path $projectRoot "dist\\windows\\msix\\$version`_windows.msix"
-            Move-Item -Path $msixPath -Destination $msixTarget -Force
-          }
 
-      - name: Windows diagnostics
+      - name: Normalize Windows artifact names
         shell: pwsh
         run: |
           $projectRoot = Resolve-Path "."
-          $diagDir = Join-Path $projectRoot "dist\\windows\\diagnostics"
-          New-Item -ItemType Directory -Force -Path $diagDir | Out-Null
-          $diagPath = Join-Path $diagDir "windows-build.txt"
-          $lines = @()
-          $lines += "OS: $([System.Environment]::OSVersion.VersionString)"
-          $lines += "Go: $(go version 2>$null)"
-          $lines += "MSYS2_ROOT: $env:VT_MSYS2_ROOT"
-          $lines += "PATH: $env:Path"
-          $lines += "gcc: $(Get-Command gcc -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)"
-          $lines += "windres: $(Get-Command windres -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)"
-          $lines += "makeappx: $(Get-Command makeappx -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)"
-          $lines += "signtool: $(Get-Command signtool -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)"
-          $lines | Out-File -FilePath $diagPath -Encoding UTF8
+          $channel = "${{ steps.meta.outputs.channel }}"
+          $versionBase = "${{ steps.meta.outputs.version_base }}"
+          $distDir = Join-Path $projectRoot "dist\\windows\\$channel"
+          $zip = Get-ChildItem -Path $distDir -Filter *.zip | Select-Object -First 1
+          if ($zip) {
+            $target = Join-Path $distDir "$versionBase`_windows.zip"
+            Move-Item -Path $zip.FullName -Destination $target -Force
+          }
+          $msixPath = Join-Path $projectRoot "dist\\windows\\msix\\VideoTools.msix"
+          if (Test-Path $msixPath) {
+            $msixTarget = Join-Path $projectRoot "dist\\windows\\msix\\$versionBase`_windows.msix"
+            Move-Item -Path $msixPath -Destination $msixTarget -Force
+          }
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v3
         with:
           name: VideoTools-windows
           path: |
-            dist/windows/${{ env.VT_BUILD_CHANNEL }}/*
+            dist/windows/${{ steps.meta.outputs.channel }}/*
             dist/windows/msix/*
-            dist/windows/diagnostics/*
 
   publish-release:
     runs-on: ubuntu
