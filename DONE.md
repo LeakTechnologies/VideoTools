@@ -39,6 +39,7 @@
 - Adjusted Forgejo artifact actions to v3 for runner compatibility.
 - Added Windows CI icon embedding via windres when available.
 - Moved default logs to ~/Videos/VideoTools/logs with user override in Settings.
+- Added Linux AppImage packaging in Forgejo builds with embedded VT icon.
 - âœ… **Agent workflow rules**
   - Added `AGENTS.md` to enforce staging, commits, and documentation updates.
 - Fixed Linux script paths after scripts reorg (build/install/run).

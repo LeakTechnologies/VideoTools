@@ -68,6 +68,18 @@ jobs:
           chmod +x scripts/linux/build.sh
           ./scripts/linux/build.sh
 
+      - name: Build Linux AppImage
+        env:
+          VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
+          VT_VERSION_BASE: ${{ steps.meta.outputs.version_base }}
+        run: |
+          mkdir -p .cache/appimage
+          curl -L -o .cache/appimage/linuxdeploy-x86_64.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -L -o .cache/appimage/appimagetool-x86_64.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x .cache/appimage/linuxdeploy-x86_64.AppImage .cache/appimage/appimagetool-x86_64.AppImage
+          chmod +x scripts/linux/package-appimage.sh
+          ./scripts/linux/package-appimage.sh
+
       - name: Normalize Linux artifact name
         shell: bash
         run: |
