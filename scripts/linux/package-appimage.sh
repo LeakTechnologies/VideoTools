@@ -28,6 +28,7 @@ if [ ! -f "$bin_src" ]; then
 fi
 
 export PATH="$PROJECT_ROOT/.cache/appimage:$PATH"
+export APPIMAGE_EXTRACT_AND_RUN=1
 if ! command -v linuxdeploy-x86_64.AppImage >/dev/null 2>&1; then
     echo "ERROR: linuxdeploy-x86_64.AppImage not found in PATH"
     exit 1
@@ -39,7 +40,10 @@ fi
 
 cp "$bin_src" "$PROJECT_ROOT/.cache/appimage/VideoTools"
 
-"$PROJECT_ROOT/.cache/appimage/linuxdeploy-x86_64.AppImage" \
+LINUXDEPLOY="$PROJECT_ROOT/.cache/appimage/linuxdeploy-x86_64.AppImage"
+APPIMAGETOOL="$PROJECT_ROOT/.cache/appimage/appimagetool-x86_64.AppImage"
+
+"$LINUXDEPLOY" \
     --appdir "$appdir" \
     --executable "$PROJECT_ROOT/.cache/appimage/VideoTools" \
     --desktop-file "$PROJECT_ROOT/packaging/linux/VideoTools.desktop" \
