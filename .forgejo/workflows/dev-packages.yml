@@ -79,7 +79,7 @@ jobs:
           mv "$artifact_src" "$artifact_dst"
 
       - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: VideoTools-linux
           path: dist/linux/${{ steps.meta.outputs.channel }}/*
@@ -251,7 +251,7 @@ jobs:
           }
 
       - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: VideoTools-windows
           path: |
@@ -270,7 +270,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
           path: dist
 
