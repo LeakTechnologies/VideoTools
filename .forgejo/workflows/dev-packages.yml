@@ -129,6 +129,8 @@ jobs:
         shell: pwsh
         env:
           VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
+          VT_MSYS2_ROOT: C:\msys64
+          VT_MSYS2_FLAVOR: ucrt64
           VT_SIGN_EXE: ${{ secrets.VT_SIGN_EXE }}
           VT_SIGN_PFX: ${{ secrets.VT_SIGN_PFX }}
           VT_SIGN_PFX_B64: ${{ secrets.VT_SIGN_PFX_B64 }}
@@ -164,6 +166,31 @@ jobs:
             $pfxPath = Join-Path $env:TEMP "vt-sign.pfx"
             [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:VT_SIGN_PFX_B64))
             $env:VT_SIGN_PFX = $pfxPath
+          }
+
+          $rcFile = Join-Path $projectRoot "scripts\\videotools.rc"
+          $sysoFile = Join-Path $projectRoot "videotools_windows_amd64.syso"
+          if (Test-Path $rcFile) {
+            $windresCandidates = @()
+            $windresCmd = Get-Command windres -ErrorAction SilentlyContinue
+            if ($windresCmd) {
+              $windresCandidates += $windresCmd.Path
+            }
+            if ($env:VT_MSYS2_ROOT) {
+              $windresCandidates += (Join-Path $env:VT_MSYS2_ROOT "ucrt64\\bin\\windres.exe")
+              $windresCandidates += (Join-Path $env:VT_MSYS2_ROOT "usr\\bin\\windres.exe")
+            }
+            $windresCandidates += @(
+              "C:\\msys64\\ucrt64\\bin\\windres.exe",
+              "C:\\msys64\\usr\\bin\\windres.exe",
+              "C:\\MinGW\\bin\\windres.exe"
+            )
+            $windresPath = $windresCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+            if ($windresPath) {
+              & $windresPath $rcFile -O coff -o $sysoFile | Out-Null
+            } else {
+              Write-Host "[WARN] windres not found; Windows icon will not be embedded." -ForegroundColor Yellow
+            }
           }
 
           $env:CGO_ENABLED = "1"
