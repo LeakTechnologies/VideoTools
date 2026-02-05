@@ -59,6 +59,7 @@ Build tools are provisioned via a repo-local MSYS2 UCRT64 toolchain at `Tools\ms
 If you opt into build tools and GCC fails a test compile, the installer will offer to reinstall the MSYS2 toolchain. GCC from Scoop is ignored.
 The build script attempts to repair missing MSYS2 GCC packages automatically when possible.
 When the MSYS2 windres tool is available, the build embeds the VT icon in the Windows executable.
+Logs default to `~/Videos/VideoTools/logs` and can be changed in Settings.
 
 The installer defaults to MSI downloads for GStreamer. If MSI downloads fail, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`. Use `-PreferWinget` if you want the installer to try winget first.
 

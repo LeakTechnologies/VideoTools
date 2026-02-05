@@ -118,5 +118,7 @@ If you prefer to perform the steps manually:
 
 ## Platform-Specific Notes
 
+- Logs default to `~/Videos/VideoTools/logs` and can be changed in Settings.
+
 -   **macOS:** You may need to install Xcode Command Line Tools first by running `xcode-select --install`.
 -   **WSL:** The Linux instructions work without modification inside a WSL environment.

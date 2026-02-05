@@ -23,6 +23,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - The Windows installer can reinstall the MSYS2 toolchain if GCC fails a test compile and will auto-install build tools when missing (Scoop GCC is ignored).
   - The Windows build script attempts to repair missing MSYS2 GCC packages automatically when possible.
   - Windows builds embed the VT icon when the MSYS2 windres tool is available.
+  - Logs default to `~/Videos/VideoTools/logs` and can be changed in Settings.
   - Windows builds pause on success or failure so you can review output before the window closes.
   - On Windows VMs with basic/virtual display adapters, VideoTools will show a preflight warning and exit; enable 3D acceleration or install GPU drivers.
   - Whisper model downloads use the Leak Technologies mirror by default and are optional on Windows.
