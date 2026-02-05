@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"bufio"
@@ -81,11 +81,13 @@ var (
 
 	conversionLogSuffix = ".videotools.log"
 
-	logsDirOnce     sync.Once
-	logsDirPath     string
-	feedbackBundler = utils.NewFeedbackBundler()
-	appVersion      = "v0.1.1-dev26"
-	buildCommit     = "dev"
+	logsDirDefaultOnce sync.Once
+	logsDirDefault     string
+	logsDirOverride    string
+	logsDirMu          sync.RWMutex
+	feedbackBundler    = utils.NewFeedbackBundler()
+	appVersion         = "v0.1.1-dev26"
+	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
 	hwAccelSupported atomic.Value // map[string]bool
@@ -268,27 +270,42 @@ Command: ffmpeg %s
 	return f, logPath, nil
 }
 
-func getLogsDir() string {
-	logsDirOnce.Do(func() {
-		// Prefer user config dir for logs
-		if cfgDir, err := os.UserConfigDir(); err == nil && cfgDir != "" {
-			logsDirPath = filepath.Join(cfgDir, "VideoTools", "logs")
+func defaultVideoToolsRoot() string {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return filepath.Join(home, "Videos", "VideoTools")
+	}
+	if cfgDir, err := os.UserConfigDir(); err == nil && cfgDir != "" {
+		return filepath.Join(cfgDir, "VideoTools")
+	}
+	return ""
+}
+
+func defaultLogsDir() string {
+	logsDirDefaultOnce.Do(func() {
+		root := defaultVideoToolsRoot()
+		if root != "" {
+			logsDirDefault = filepath.Join(root, "logs")
+		} else {
+			logsDirDefault = filepath.Join(".", "logs")
 		}
-		// Fallback to logs folder next to the executable
-		if logsDirPath == "" {
-			if exe, err := os.Executable(); err == nil {
-				if dir := filepath.Dir(exe); dir != "" {
-					logsDirPath = filepath.Join(dir, "logs")
-				}
-			}
-		}
-		// Final fallback to cwd/logs
-		if logsDirPath == "" {
-			logsDirPath = filepath.Join(".", "logs")
-		}
-		_ = os.MkdirAll(logsDirPath, 0o755)
 	})
-	return logsDirPath
+	return logsDirDefault
+}
+
+func setLogsDirOverride(dir string) {
+	logsDirMu.Lock()
+	logsDirOverride = strings.TrimSpace(dir)
+	logsDirMu.Unlock()
+}
+
+func getLogsDir() string {
+	logsDirMu.RLock()
+	override := logsDirOverride
+	logsDirMu.RUnlock()
+	if override != "" {
+		return override
+	}
+	return defaultLogsDir()
 }
 
 // defaultBitrate picks a sane default when user leaves bitrate empty in bitrate modes.
@@ -789,6 +806,7 @@ type convertConfig struct {
 	AspectUserSet    bool   // Tracks if user explicitly set OutputAspect
 	ForceAspect      bool   // Force DAR/SAR metadata even when no aspect conversion
 	TempDir          string // Optional temp/cache directory override
+	LogDir           string // Optional log directory override
 	Language         string // UI language preference ("System" or BCP47 tag)
 }
 
@@ -859,6 +877,7 @@ func defaultConvertConfig() convertConfig {
 		AspectUserSet:    false,
 		ForceAspect:      true,
 		TempDir:          "",
+		LogDir:           "",
 		Language:         "System",
 	}
 }
@@ -6606,9 +6625,12 @@ func (s *appState) stopPlayer() {
 }
 
 func main() {
-	if os.Getenv("VIDEOTOOLS_LOG_FILE") == "" {
-		_ = os.Setenv("VIDEOTOOLS_LOG_FILE", filepath.Join(getLogsDir(), "videotools.log"))
+	if cfg, err := loadPersistedConvertConfig(); err == nil {
+		if strings.TrimSpace(cfg.LogDir) != "" {
+			setLogsDirOverride(cfg.LogDir)
+		}
 	}
+	logging.SetLogsDir(getLogsDir())
 	logging.Init()
 	defer logging.Close()
 	defer logging.RecoverPanic() // Catch and log any panics with stack trace
@@ -6885,7 +6907,6 @@ func runGUI() {
 
 	w.ShowAndRun()
 }
-
 
 func runCLI(args []string) error {
 	cmd := strings.ToLower(args[0])
@@ -8380,6 +8401,37 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	cacheUseSystemBtn.Importance = widget.LowImportance
 
+	logsDirLabel := widget.NewLabelWithStyle("Logs Directory", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	logsDirEntry := widget.NewEntry()
+	logsDirEntry.SetPlaceHolder(defaultLogsDir())
+	logsDirEntry.SetText(state.convert.LogDir)
+	logsDirHint := widget.NewLabel(fmt.Sprintf("Default: %s", defaultLogsDir()))
+	logsDirHint.Wrapping = fyne.TextWrapWord
+	logsDirHintContainer := container.NewPadded(logsDirHint)
+	applyLogsDir := func(val string) {
+		state.convert.LogDir = strings.TrimSpace(val)
+		setLogsDirOverride(state.convert.LogDir)
+		logging.SetLogsDir(getLogsDir())
+		logging.Reopen()
+		state.persistConvertConfig()
+	}
+	logsDirEntry.OnChanged = func(val string) {
+		applyLogsDir(val)
+	}
+	logsBrowseBtn := widget.NewButton("Browse...", func() {
+		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
+			if err != nil || uri == nil {
+				return
+			}
+			logsDirEntry.SetText(uri.Path())
+		}, state.window)
+	})
+	logsBrowseBtn.Importance = widget.MediumImportance
+	logsUseDefaultBtn := widget.NewButton("Use Default", func() {
+		logsDirEntry.SetText("")
+	})
+	logsUseDefaultBtn.Importance = widget.LowImportance
+
 	resetSettingsBtn := widget.NewButton("Reset to Defaults", func() {
 		if resetConvertDefaults != nil {
 			resetConvertDefaults()
@@ -8394,6 +8446,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		container.NewBorder(nil, nil, nil, cacheBrowseBtn, cacheDirEntry),
 		cacheUseSystemBtn,
 		cacheDirHintContainer,
+		widget.NewSeparator(),
+		logsDirLabel,
+		container.NewBorder(nil, nil, nil, logsBrowseBtn, logsDirEntry),
+		logsUseDefaultBtn,
+		logsDirHintContainer,
 		resetSettingsBtn,
 	)
 	settingsContent.Hide()
@@ -9996,6 +10053,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		audioChannelsSelect.SetSelected(state.convert.AudioChannels)
 		cacheDirEntry.SetText(state.convert.TempDir)
 		utils.SetTempDir(state.convert.TempDir)
+		logsDirEntry.SetText(state.convert.LogDir)
+		setLogsDirOverride(state.convert.LogDir)
+		logging.SetLogsDir(getLogsDir())
+		logging.Reopen()
 		inverseCheck.SetChecked(state.convert.InverseTelecine)
 		inverseHint.SetText(state.convert.InverseAutoNotes)
 		coverLabel.SetText(state.convert.CoverLabel())
@@ -16815,9 +16876,3 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
-
-
-
-
-
-

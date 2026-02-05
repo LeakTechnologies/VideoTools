@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"runtime"
 	"time"
 )
@@ -15,6 +16,7 @@ var (
 	filePath   string
 	historyMax = 500
 	debugOn    = false
+	logsDir    string
 )
 
 const (
@@ -32,18 +34,20 @@ type Category string
 
 // Init initializes logging system with organized log folders
 func Init() {
+	// Use environment variable or configured default
+	filePath = os.Getenv("VIDEOTOOLS_LOG_FILE")
+	if filePath == "" {
+		filePath = logFilePath("videotools.log")
+	} else {
+		logsDir = filepath.Dir(filePath)
+	}
+
 	// Create logs directory if it doesn't exist
-	logsDir := "logs"
-	if err := os.MkdirAll(logsDir, 0755); err != nil {
+	if err := os.MkdirAll(LogsDir(), 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "videotools: cannot create logs directory: %v\n", err)
 		return
 	}
 
-	// Use environment variable or default
-	filePath = os.Getenv("VIDEOTOOLS_LOG_FILE")
-	if filePath == "" {
-		filePath = "logs/videotools.log"
-	}
 	f, err := os.OpenFile(filePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "videotools: cannot open log file %s: %v\n", filePath, err)
@@ -54,17 +58,17 @@ func Init() {
 
 // GetCrashLogPath returns path for crash-specific log file
 func GetCrashLogPath() string {
-	return "logs/crashes.log"
+	return logFilePath("crashes.log")
 }
 
 // GetConversionLogPath returns path for conversion-specific log file
 func GetConversionLogPath() string {
-	return "logs/conversion.log"
+	return logFilePath("conversion.log")
 }
 
 // GetPlayerLogPath returns path for player-specific log file
 func GetPlayerLogPath() string {
-	return "logs/player.log"
+	return logFilePath("player.log")
 }
 
 // getStackTrace returns current goroutine stack trace
@@ -157,6 +161,15 @@ func Close() {
 	}
 }
 
+// Reopen re-initializes logging output with the current configuration.
+func Reopen() {
+	if file != nil {
+		_ = file.Close()
+		file = nil
+	}
+	Init()
+}
+
 // SetDebug enables or disables debug logging.
 func SetDebug(enabled bool) {
 	debugOn = enabled
@@ -165,4 +178,21 @@ func SetDebug(enabled bool) {
 // FilePath returns the active log file path, if initialized.
 func FilePath() string {
 	return filePath
+}
+
+// SetLogsDir sets the base directory for log files.
+func SetLogsDir(dir string) {
+	logsDir = dir
+}
+
+// LogsDir returns the active log directory.
+func LogsDir() string {
+	if logsDir != "" {
+		return logsDir
+	}
+	return "logs"
+}
+
+func logFilePath(name string) string {
+	return filepath.Join(LogsDir(), name)
 }

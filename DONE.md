@@ -38,6 +38,7 @@
   - `scripts/_internal/setup-windows.bat` now delegates to `scripts/install.bat` for a single Windows flow.
 - Adjusted Forgejo artifact actions to v3 for runner compatibility.
 - Added Windows CI icon embedding via windres when available.
+- Moved default logs to ~/Videos/VideoTools/logs with user override in Settings.
 - âœ… **Agent workflow rules**
   - Added `AGENTS.md` to enforce staging, commits, and documentation updates.
 - Fixed Linux script paths after scripts reorg (build/install/run).
