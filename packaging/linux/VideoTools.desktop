@@ -3,6 +3,6 @@ Type=Application
 Name=VideoTools
 Comment=VideoTools media toolkit
 Exec=VideoTools
-Icon=VideoTools
+Icon=VT_Logo
 Terminal=false
 Categories=AudioVideo;Video;Utility;
