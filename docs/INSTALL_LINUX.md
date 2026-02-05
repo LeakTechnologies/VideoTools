@@ -62,6 +62,7 @@ The installation script sets up a few helpful aliases:
 - Build packages are written to `dist/linux/<channel>/` (or `dist/macos/<channel>/` on macOS).
 - Each build writes a `build.json` file alongside the zip artifact.
 - Set `VT_BUILD_CHANNEL=stable` for stable artifacts; default is `dev`.
+- Forgejo dev builds also publish an AppImage (`<version>_linux.AppImage`) with the VT icon embedded.
 
 ---
 

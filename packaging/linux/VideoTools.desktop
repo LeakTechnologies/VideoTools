@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=VideoTools
+Comment=VideoTools media toolkit
+Exec=VideoTools
+Icon=VideoTools
+Terminal=false
+Categories=AudioVideo;Video;Utility;
