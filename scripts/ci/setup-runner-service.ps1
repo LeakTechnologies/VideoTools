@@ -20,7 +20,7 @@ if (-not (Test-Path $configFile)) {
     exit 1
 }
 
-Write-Host "Files verified ✓" -ForegroundColor Green
+Write-Host "Files verified" -ForegroundColor Green
 
 # Install service
 Write-Host "Installing service with NSSM..." -ForegroundColor Yellow
@@ -52,18 +52,18 @@ $serviceStatus = & $nssmPath status ForgejoRunner
 Write-Host "Service status: $serviceStatus" -ForegroundColor Cyan
 
 if ($serviceStatus -like "RUNNING") {
-    Write-Host "✅ SUCCESS: Forgejo Runner service is running!" -ForegroundColor Green
+    Write-Host "SUCCESS: Forgejo Runner service is running!" -ForegroundColor Green
     Write-Host ""
     Write-Host "The runner will automatically start on boot and connect to Forgejo." -ForegroundColor White
     Write-Host ""
-    Write-Host "You can check the service status anytime with:" -ForegroundColor Cyan
+    Write-Host "You can check.service status anytime with:" -ForegroundColor Cyan
     Write-Host "  nssm status ForgejoRunner" -ForegroundColor White
     Write-Host ""
-    Write-Host "To stop the service: nssm stop ForgejoRunner" -ForegroundColor Yellow
+    Write-Host "To stop service: nssm stop ForgejoRunner" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "To restart: nssm restart ForgejoRunner" -ForegroundColor White
 } else {
-    Write-Host "❌ ERROR: Service failed to start" -ForegroundColor Red
+    Write-Host "ERROR: Service failed to start" -ForegroundColor Red
     Write-Host "Status: $serviceStatus" -ForegroundColor Red
     exit 1
 }
