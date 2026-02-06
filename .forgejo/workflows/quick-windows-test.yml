@@ -1,0 +1,25 @@
+name: Quick Windows Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  quick-test:
+    runs-on: windows
+    steps:
+      - name: Quick Check
+        shell: pwsh
+        run: |
+          Write-Host "Windows runner test - $(Get-Date)" -ForegroundColor Green
+          Write-Host "OS: $([System.Environment]::OSVersion)" -ForegroundColor White
+          
+      - name: Create Test File
+        shell: pwsh
+        run: |
+          "Test successful" | Out-File -FilePath "test-output.txt" -Encoding utf8
+          
+      - name: Upload Test Result
+        uses: actions/upload-artifact@v3
+        with:
+          name: quick-test-result
+          path: test-output.txt
