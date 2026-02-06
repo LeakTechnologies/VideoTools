@@ -4,7 +4,7 @@
 Write-Host "Setting up Forgejo Runner as Windows Service..." -ForegroundColor Cyan
 
 # Define paths (using repository relative paths)
-$runnerPath = ".\ForgejoRunner"
+$runnerPath = "C:\ForgejoRunner"
 $runnerBinary = "$runnerPath\bin\forgejo-runner.exe"
 $configFile = "$runnerPath\config\runner.yaml"
 $nssmPath = "C:\Program Files\NSSM\nssm.exe"
