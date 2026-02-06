@@ -1,0 +1,246 @@
+name: VideoTools Windows Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    paths:
+      - "internal/**"
+      - "main.go"
+      - "go.mod"
+      - "go.sum"
+      - "scripts/**"
+      - "packaging/windows/**"
+  pull_request:
+    branches: [master, main]
+    paths:
+      - "internal/**"
+      - "main.go"
+      - "go.mod"
+      - "go.sum"
+      - "scripts/**"
+      - "packaging/windows/**"
+
+jobs:
+  windows-build:
+    runs-on: windows
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+          
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          msystem: UCRT64
+          location: C:\msys64
+          install: >-
+            mingw-w64-ucrt-x86_64-toolchain
+            
+      - name: Prepare build metadata
+        id: meta
+        shell: pwsh
+        run: |
+          $appVersionLine = (Get-Content "main.go" | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
+          $versionBase = ""
+          if ($appVersionLine) {
+            $parts = $appVersionLine -split ([char]34)
+            if ($parts.Length -ge 2) {
+              $versionBase = $parts[1]
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($versionBase)) {
+            $versionBase = "v0.1.1-dev"
+          }
+          $channel = "stable"
+          if ($versionBase -match "-dev") {
+            $channel = "dev"
+          }
+          "version_base=$versionBase" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "channel=$channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Windows runner diagnostics
+        shell: pwsh
+        run: |
+          $reportDir = Join-Path $env:GITHUB_WORKSPACE "dist\windows\diagnostics"
+          New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
+          $reportPath = Join-Path $reportDir "windows-runner.txt"
+
+          function Resolve-KitTool {
+            param([string]$exeName)
+            $cmd = Get-Command $exeName -ErrorAction SilentlyContinue
+            if ($cmd) { return $cmd.Path }
+            $kitsRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+            if (-not (Test-Path $kitsRoot)) { return "" }
+            $candidates = Get-ChildItem -Path $kitsRoot -Directory | Sort-Object Name -Descending
+            foreach ($dir in $candidates) {
+              $path = Join-Path $dir.FullName "x64\$exeName"
+              if (Test-Path $path) { return $path }
+            }
+            return ""
+          }
+
+          $osInfo = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber
+          $goVersion = ""
+          if (Get-Command go -ErrorAction SilentlyContinue) { $goVersion = (go version) }
+          $gccVersion = ""
+          if (Get-Command gcc -ErrorAction SilentlyContinue) { $gccVersion = (gcc --version | Select-Object -First 1) }
+          $windresVersion = ""
+          if (Get-Command windres -ErrorAction SilentlyContinue) { $windresVersion = (windres --version | Select-Object -First 1) }
+          $makeappxPath = Resolve-KitTool -exeName "makeappx.exe"
+          $signtoolPath = Resolve-KitTool -exeName "signtool.exe"
+
+          $msys2Root = "C:\msys64"
+          $msys2Bin = Join-Path $msys2Root "ucrt64\bin"
+
+          @(
+            "OS: $($osInfo.Caption) $($osInfo.Version) (Build $($osInfo.BuildNumber))",
+            "Go: $goVersion",
+            "GCC: $gccVersion",
+            "windres: $windresVersion",
+            "makeappx.exe: " + ($(if ($makeappxPath) { $makeappxPath } else { "MISSING" })),
+            "signtool.exe: " + ($(if ($signtoolPath) { $signtoolPath } else { "MISSING" })),
+            "MSYS2 root: $msys2Root",
+            "MSYS2 UCRT64 bin: " + ($(if (Test-Path $msys2Bin) { $msys2Bin } else { "MISSING" }))
+          ) | Out-File -FilePath $reportPath -Encoding UTF8
+
+      - name: Upload Windows diagnostics
+        uses: actions/upload-artifact@v3
+        with:
+          name: VideoTools-windows-diagnostics
+          path: dist/windows/diagnostics/windows-runner.txt
+          
+      - name: Build VideoTools
+        shell: pwsh
+        env:
+          VT_MSYS2_ROOT: C:\msys64
+          VT_MSYS2_FLAVOR: ucrt64
+          VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
+        run: |
+          $projectRoot = Resolve-Path "."
+          $buildOutput = Join-Path $projectRoot "VideoTools.exe"
+          $toolchainBin = "C:\msys64\ucrt64\bin"
+          if (Test-Path $toolchainBin) {
+            $env:Path = "$toolchainBin;$env:Path"
+            $env:CC = Join-Path $toolchainBin "gcc.exe"
+            $env:CXX = Join-Path $toolchainBin "g++.exe"
+          }
+          
+          $appVersionLine = (Get-Content (Join-Path $projectRoot "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
+          $appVersion = ""
+          if ($appVersionLine) {
+            $parts = $appVersionLine -split ([char]34)
+            if ($parts.Length -ge 2) {
+              $appVersion = $parts[1]
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($appVersion)) {
+            $appVersion = "0.1.1-dev"
+          }
+          $gitCommit = ""
+          if (Get-Command git -ErrorAction SilentlyContinue) {
+            $gitCommit = (git -C $projectRoot rev-parse --short HEAD 2>$null).Trim()
+          }
+          if ([string]::IsNullOrWhiteSpace($gitCommit)) {
+            $gitCommit = "nogit"
+          }
+          $channel = $env:VT_BUILD_CHANNEL
+          if ([string]::IsNullOrWhiteSpace($channel)) {
+            $channel = "dev"
+          }
+          $version = $appVersion
+          $distDir = Join-Path $projectRoot "dist\windows\$channel"
+          $artifactName = "$version`_windows.zip"
+
+          # Embed Windows icon if windres is available
+          $rcFile = Join-Path $projectRoot "scripts\videotools.rc"
+          $sysoFile = Join-Path $projectRoot "videotools_windows_amd64.syso"
+          if (Test-Path $rcFile) {
+            $windresCandidates = @()
+            $windresCmd = Get-Command windres -ErrorAction SilentlyContinue
+            if ($windresCmd) {
+              $windresCandidates += $windresCmd.Path
+            }
+            if ($env:VT_MSYS2_ROOT) {
+              $windresCandidates += (Join-Path $env:VT_MSYS2_ROOT "ucrt64\bin\windres.exe")
+              $windresCandidates += (Join-Path $env:VT_MSYS2_ROOT "usr\bin\windres.exe")
+            }
+            $windresCandidates += @(
+              "C:\msys64\ucrt64\bin\windres.exe",
+              "C:\msys64\usr\bin\windres.exe",
+              "C:\MinGW\bin\windres.exe"
+            )
+            $windresPath = $windresCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+            if ($windresPath) {
+              & $windresPath $rcFile -O coff -o $sysoFile | Out-Null
+            } else {
+              Write-Host "[WARN] windres not found; Windows icon will not be embedded." -ForegroundColor Yellow
+            }
+          }
+
+          $env:CGO_ENABLED = "1"
+          go mod download
+          go mod verify
+          go build -p 4 -ldflags="-s -w" -trimpath -o $buildOutput .
+
+          # Package artifacts
+          if (-not (Test-Path $distDir)) {
+            New-Item -ItemType Directory -Force -Path $distDir | Out-Null
+          }
+          $pkgDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "vt-build-$([Guid]::NewGuid())") -Force
+          Copy-Item $buildOutput -Destination $pkgDir.FullName -Force
+          if (Test-Path (Join-Path $projectRoot "README.md")) {
+            Copy-Item (Join-Path $projectRoot "README.md") -Destination $pkgDir.FullName -Force
+          }
+          if (Test-Path (Join-Path $projectRoot "LICENSE")) {
+            Copy-Item (Join-Path $projectRoot "LICENSE") -Destination $pkgDir.FullName -Force
+          }
+          if (Test-Path (Join-Path $projectRoot "ffmpeg.exe")) {
+            Copy-Item (Join-Path $projectRoot "ffmpeg.exe") -Destination $pkgDir.FullName -Force
+          }
+          if (Test-Path (Join-Path $projectRoot "ffprobe.exe")) {
+            Copy-Item (Join-Path $projectRoot "ffprobe.exe") -Destination $pkgDir.FullName -Force
+          }
+          $artifactPath = Join-Path $distDir $artifactName
+          if (Test-Path $artifactPath) {
+            Remove-Item $artifactPath -Force
+          }
+          Compress-Archive -Path (Join-Path $pkgDir.FullName "*") -DestinationPath $artifactPath
+          Remove-Item $pkgDir.FullName -Recurse -Force
+
+          $publishedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+          $buildJson = @{
+            channel = $channel
+            version = $version
+            git = $gitCommit
+            published_at = $publishedAt
+            artifact = $artifactName
+          } | ConvertTo-Json -Depth 3
+          Set-Content -Path (Join-Path $distDir "build.json") -Value $buildJson -Encoding UTF8
+          
+      - name: Run Tests
+        shell: pwsh
+        env:
+          VT_MSYS2_ROOT: C:\msys64
+          VT_MSYS2_FLAVOR: ucrt64
+        run: |
+          $toolchainBin = "C:\msys64\ucrt64\bin"
+          $env:Path = "$toolchainBin;$env:Path"
+          $env:CC = "gcc.exe"
+          $env:CXX = "g++.exe"
+          $env:CGO_ENABLED = "1"
+          
+          go test -v ./...
+          
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: VideoTools-windows
+          path: |
+            dist/windows/**
