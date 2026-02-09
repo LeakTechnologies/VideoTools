@@ -1,4 +1,4 @@
-﻿# VideoTools MSYS2 provisioning (repo-local by default)
+# VideoTools MSYS2 provisioning (repo-local by default)
 
 param(
     [string]$Root = "",
@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Resolve-ProjectRoot {
-    return Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+    return Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
 }
 
 function Resolve-Msys2Root {
@@ -21,7 +21,7 @@ function Resolve-Msys2Root {
         return $Root
     }
     $projectRoot = Resolve-ProjectRoot
-    return (Join-Path $projectRoot "Tools\\msys64")
+    return (Join-Path $projectRoot "Tools\msys64")
 }
 
 function Resolve-Flavor {
@@ -41,7 +41,7 @@ function Write-Info {
 
 function Ensure-Msys2Root {
     param([string]$Msys2Root)
-    if (Test-Path (Join-Path $Msys2Root "usr\\bin\\bash.exe")) {
+    if (Test-Path (Join-Path $Msys2Root "usr\bin\bash.exe")) {
         return
     }
 
@@ -60,7 +60,7 @@ function Ensure-Msys2Root {
     & tar -xf $archivePath -C $targetRoot
     Remove-Item -Force $archivePath
 
-    if (-not (Test-Path (Join-Path $Msys2Root "usr\\bin\\bash.exe"))) {
+        if (-not (Test-Path (Join-Path $Msys2Root "usr\bin\bash.exe"))) {
         throw "MSYS2 extraction failed: $Msys2Root"
     }
 }
@@ -72,7 +72,7 @@ function Invoke-Msys2 {
         [string]$Command
     )
 
-    $bashPath = Join-Path $Msys2Root "usr\\bin\\bash.exe"
+    $bashPath = Join-Path $Msys2Root "usr\bin\bash.exe"
     if (-not (Test-Path $bashPath)) {
         throw "MSYS2 bash not found: $bashPath"
     }
@@ -82,7 +82,7 @@ function Invoke-Msys2 {
     $oldPath = $env:Path
     $env:MSYSTEM = $Flavor.ToUpper()
     $env:CHERE_INVOKING = "1"
-    $env:Path = (Join-Path $Msys2Root "usr\\bin") + ";" + $env:Path
+    $env:Path = (Join-Path $Msys2Root "usr\bin") + ";" + $env:Path
     try {
         & $bashPath -lc $Command
         if ($LASTEXITCODE -ne 0) {
@@ -102,7 +102,7 @@ function Write-Manifest {
         [string[]]$Packages
     )
     $projectRoot = Resolve-ProjectRoot
-    $manifestPath = Join-Path $projectRoot "Tools\\msys2-packages.lock"
+    $manifestPath = Join-Path $projectRoot "Tools\msys2-packages.lock"
     $content = @(
         "root=$Msys2Root",
         "flavor=$Flavor",
