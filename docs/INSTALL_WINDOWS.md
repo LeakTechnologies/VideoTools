@@ -6,9 +6,9 @@ This guide provides step-by-step instructions for installing VideoTools on Windo
 
 ## Method 1: Automated Installation (Recommended)
 
-This method uses a script to automatically download and configure all necessary dependencies.
+This method uses Chocolatey package manager to automatically download and configure all necessary dependencies.
 
-> **Note:** This dev installer is temporary. The production installer plan is MSIX + WinGet. See `docs/WINDOWS_PACKAGING.md`.
+> **Note:** This dev installer uses Chocolatey for maximum reliability. The production installer plan is MSIX + WinGet. See `docs/WINDOWS_PACKAGING.md`.
 
 ### Step 1: Download the Project
 
@@ -22,12 +22,12 @@ If you haven't already, download the project files as a ZIP and extract them to 
     - Run `.\scripts\windows\install.ps1` from PowerShell.
 3.  A terminal window will open and run the PowerShell installer. It installs core dependencies with minimal changes:
     *   Go (build toolchain)
-    *   MSYS2 UCRT64 toolchain (gcc for CGO builds)
+    *   Git (version control)
     *   FFmpeg (video processing)
     *   GStreamer (player backend)
     *   Python (pip for optional tooling)
     *   Note: GStreamer installs via MSI and requires an Administrator PowerShell window.
-    *   Note: Build tools are optional; the installer will auto-install Go/MSYS2 when missing unless -SkipBuildTools is set.
+    *   Note: Build tools are optional; the installer will auto-install Go/Git via Chocolatey when missing unless -SkipBuildTools is set.
     *   Note: The installer will prompt for elevation when required and keep the admin window open for logs.
     *   Note: On success, the installer waits for a keypress before closing the window.
 
@@ -35,8 +35,8 @@ Support scripts are stored in `scripts/windows/support/`. Wrappers remain in `sc
 
 Optional flags:
 - `-SkipFFmpeg` or `-SkipGStreamer` to skip those dependencies.
-- `-InstallBuildTools` to force install Go + MSYS2 UCRT64 toolchain without a prompt.
-- `-SkipBuildTools` to skip Go + MSYS2 UCRT64 toolchain.
+- `-InstallBuildTools` to force install Go + Git via Chocolatey without a prompt.
+- `-SkipBuildTools` to skip Go + Git via Chocolatey.
 - `-InstallPython` to install Python + pip for AI tooling.
 - `-SkipPython` to skip Python + pip.
 - `-SkipDvdStyler` to skip DVD authoring tools.
@@ -55,10 +55,9 @@ The installer uses curl with a progress bar when available for large downloads (
 - `-PreferWinget` to prefer winget installs when available.
 
 The installer will prompt before optional modules (Python + pip, build tools, DVD authoring tools, Whisper model) when they are missing. GStreamer is required and will be installed automatically (MSI) if not already present.
-Build tools are provisioned via a repo-local MSYS2 UCRT64 toolchain at `Tools\msys64`. Override with `VT_MSYS2_ROOT` or `VT_MSYS2_FLAVOR`.
-If you opt into build tools and GCC fails a test compile, the installer will offer to reinstall the MSYS2 toolchain. GCC from Scoop is ignored.
-The build script attempts to repair missing MSYS2 GCC packages automatically when possible.
-When the MSYS2 windres tool is available, the build embeds the VT icon in the Windows executable.
+Build tools are provided via Chocolatey package manager for system-wide consistency and reliability.
+If you opt into build tools, Go and Git will be installed automatically via Chocolatey packages.
+The build script uses Chocolatey-installed toolchain for all compilation and packaging operations.
 Logs default to `~/Videos/VideoTools/logs` and can be changed in Settings.
 
 The installer defaults to MSI downloads for GStreamer. If MSI downloads fail, grab the MSI files from https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/ and re-run the installer with `-GStreamerRuntimeMsi` and `-GStreamerDevelMsi`. Use `-PreferWinget` if you want the installer to try winget first.
@@ -75,7 +74,7 @@ After the installer runs, a Start Menu folder named "VideoTools" is created. It 
 
 1.  Build the app:
     - `.\scripts\windows\build.bat` (delegates to `build.ps1` and handles elevation)
-    - If the build reports a GCC toolchain failure, install MSYS2 and `mingw-w64-ucrt-x86_64-toolchain`.
+    - If the build reports a toolchain failure, ensure Go and Git are installed via Chocolatey.
 2.  Run the executable:
     - `.\VideoTools.exe`
     - The Player module includes a fullscreen toggle in the playback controls.
@@ -84,7 +83,7 @@ After the installer runs, a Start Menu folder named "VideoTools" is created. It 
 The build script pauses for a keypress on success or failure so you can review the output before the window closes.
 If you are running inside a VM and see an OpenGL preflight warning, enable 3D acceleration or install GPU drivers before retrying.
 
-Optional: use `scripts\windows\vt-dev-shell.cmd` to open a shell with the MSYS2 toolchain on PATH.
+Optional: Chocolatey packages are automatically added to system PATH during installation.
 
 If you want a portable FFmpeg bundle placed next to the Windows executable, run:
 - `.\scripts\windows\support\setup-windows.ps1 -Portable`
@@ -117,7 +116,7 @@ To completely remove VideoTools from your system:
 - `-Force` - Skip confirmation prompts
 - `-RemoveAll` - Remove ALL components including shared dependencies
 - `-RemoveFFmpeg` - Remove bundled FFmpeg binaries (not system-wide FFmpeg)
-- `-KeepBuildTools` - Preserve MSYS2 toolchain in project directory
+- `-KeepBuildTools` - Preserve Chocolatey-installed build tools
 - `-WhatIf` - Show what would be removed without actually removing
 
 ### Examples
@@ -165,15 +164,13 @@ If you prefer to set up the dependencies yourself, follow these steps.
 2.  **Install:** Run the installer and follow the on-screen instructions.
 3.  **Verify:** Open a Command Prompt and type `go version`. You should see the installed Go version.
 
-### Step 2: Install MSYS2 (UCRT64)
+### Step 2: Install Chocolatey
 
-1.  **Download:** Go to https://www.msys2.org/ and download the installer.
-2.  **Install:** Use the default install path (`C:\msys64`).
-3.  **Install GCC:** Open "MSYS2 UCRT64" and run:
+1.  **Install:** Open PowerShell as Administrator and run:
     ```
-    pacman -S --needed base-devel mingw-w64-ucrt-x86_64-toolchain
+    Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
     ```
-4.  **PATH:** Ensure `C:\msys64\ucrt64\bin` is on your PATH (restart terminals after install).
+2.  **Verify:** Close and reopen PowerShell, then run `choco --version` to verify installation.
 ### Step 3: Download FFmpeg
 
 FFmpeg is the engine that powers VideoTools.
