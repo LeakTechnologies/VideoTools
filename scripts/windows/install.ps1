@@ -47,11 +47,5 @@ try {
     exit 1
 }
 
-$exitCode = $LASTEXITCODE
-if ($exitCode -ne 0) {
-    Write-Host "[ERROR]  Install failed with exit code $exitCode." -ForegroundColor Red
-    Write-Host "Press any key to close..." -ForegroundColor Cyan
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-}
-
-exit $exitCode
+Write-Host "Press any key to close..." -ForegroundColor Cyan
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
