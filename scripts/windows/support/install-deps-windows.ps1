@@ -139,8 +139,8 @@ function Install-GStreamer {
     # MSI installation approach
     try {
         # Use mirror when available, fallback to official
-        $runtimeUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/raw/branch/main/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
-        $develUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/raw/branch/main/gstreamer-1.0-devel-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
+        $runtimeUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/-/raw/main/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
+        $develUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/-/raw/main/gstreamer-1.0-devel-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
         $fallbackRuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
         $fallbackDevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
         
@@ -213,7 +213,7 @@ function Install-WhisperModel {
             return
         }
 
-        $modelUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/raw/branch/main/ggml-small.bin"
+        $modelUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/-/raw/main/ggml-small.bin"
         $fallbackModelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
         Write-Color "Downloading Whisper model..." $YELLOW
         try {
@@ -334,8 +334,8 @@ try {
 Write-Color "[SUCCESS] VideoTools dependencies installation completed!" $GREEN
 Write-Host ""
 Write-Color "Next steps:" $CYAN
-Write-Color "  1. Run: .\scripts\windows\build.bat" $WHITE
-Write-Color "  2. Run: .\VideoTools.exe" $WHITE
+Write-Color "  1. Run: .\scripts\windows\build.bat" $NC
+Write-Color "  2. Run: .\VideoTools.exe" $NC
 Write-Host ""
 Write-Host "Press any key to close..." $CYAN
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
