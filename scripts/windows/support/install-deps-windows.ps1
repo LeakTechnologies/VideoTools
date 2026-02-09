@@ -1,4 +1,4 @@
-﻿# VideoTools Dependency Installer for Windows
+# VideoTools Dependency Installer for Windows
 # Installs build and runtime dependencies using MSYS2 + winget
 
 param(
@@ -28,7 +28,7 @@ param(
 $ErrorActionPreference = "Stop"
 $PreferWinget = $PSBoundParameters.ContainsKey("PreferWinget")
 
-$script:ProjectRoot = Split-Path -Parent $PSScriptRoot
+$script:ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $script:Msys2Root = ""
 $script:Msys2Flavor = "ucrt64"
 if ($env:VT_MSYS2_FLAVOR) {

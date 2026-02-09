@@ -1,4 +1,4 @@
-﻿# VideoTools Installation Guide for Windows
+# VideoTools Installation Guide for Windows
 
 This guide provides step-by-step instructions for installing VideoTools on Windows 10 and 11.
 
@@ -93,6 +93,57 @@ For a system-wide FFmpeg install (PATH), use:
 - `.\scripts\windows\support\setup-windows.ps1 -System`
 
 > **Note:** On Windows, use `scripts\windows\install.ps1` or `scripts\windows\install.bat`. Running `scripts\linux\install.sh` from PowerShell will open Git Bash.
+
+---
+
+## Uninstalling VideoTools
+
+To completely remove VideoTools from your system:
+
+### Method 1: Automated Uninstall (Recommended)
+
+1.  Run the uninstaller from PowerShell as Administrator:
+    - `.\scripts\windows\uninstall.bat` (recommended)
+    - `.\scripts\windows\uninstall.ps1` from PowerShell
+
+2.  The uninstaller preserves shared dependencies by default:
+    *   **FFmpeg** - Kept (used by many video applications)
+    *   **GStreamer** - Kept (media framework for other apps)
+    *   **Go** - Kept (programming language used by other tools)
+    *   **Python packages** - Removed if installed specifically for VideoTools
+
+### Uninstall Options
+
+- `-Force` - Skip confirmation prompts
+- `-RemoveAll` - Remove ALL components including shared dependencies
+- `-RemoveFFmpeg` - Remove bundled FFmpeg binaries (not system-wide FFmpeg)
+- `-KeepBuildTools` - Preserve MSYS2 toolchain in project directory
+- `-WhatIf` - Show what would be removed without actually removing
+
+### Examples
+
+```powershell
+# Standard uninstall (preserves shared dependencies)
+.\scripts\windows\uninstall.bat
+
+# Force uninstall without prompts
+.\scripts\windows\uninstall.bat -Force
+
+# Remove everything including bundled FFmpeg
+.\scripts\windows\windows\uninstall.bat -RemoveAll -RemoveFFmpeg
+
+# Preview what would be removed
+.\scripts\windows\uninstall.ps1 -WhatIf
+```
+
+### Manual Cleanup (if needed)
+
+After uninstall, you may want to manually check:
+
+- **System PATH**: Remove any VideoTools entries from Environment Variables
+- **Start Menu**: Verify the VideoTools folder is removed
+- **Desktop**: Check for any remaining shortcuts
+- **App Data**: `C:\Users\YourUser\AppData\Local\VideoTools` (should be removed automatically)
 
 ---
 
