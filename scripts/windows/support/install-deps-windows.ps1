@@ -138,14 +138,19 @@ function Install-GStreamer {
 
     # MSI installation approach
     try {
-        $runtimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
-        $develUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
+        # Use mirror when available, fallback to official
+        $runtimeUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/raw/branch/main/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
+        $develUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/raw/branch/main/gstreamer-1.0-devel-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
+        $fallbackRuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
+        $fallbackDevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
         
         if ($GStreamerRuntimeMsi) {
             $runtimeUrl = $GStreamerRuntimeMsi
+            $fallbackRuntimeUrl = $GStreamerRuntimeMsi
         }
         if ($GStreamerDevelMsi) {
             $develUrl = $GStreamerDevelMsi
+            $fallbackDevelUrl = $GStreamerDevelMsi
         }
 
         Write-Color "Downloading GStreamer runtime..." $YELLOW
@@ -153,8 +158,13 @@ function Install-GStreamer {
         try {
             Invoke-WebRequest -Uri $runtimeUrl -OutFile $runtimeMsi -UseBasicParsing
         } catch {
-            Write-Color "[ERROR] Failed to download GStreamer runtime: $($_.Exception.Message)" $RED
-            return $false
+            Write-Color "Mirror failed, trying official source..." $YELLOW
+            try {
+                Invoke-WebRequest -Uri $fallbackRuntimeUrl -OutFile $runtimeMsi -UseBasicParsing
+            } catch {
+                Write-Color "[ERROR] Failed to download GStreamer runtime from both mirror and official source: $($_.Exception.Message)" $RED
+                return $false
+            }
         }
 
         Write-Color "Downloading GStreamer development..." $YELLOW
@@ -162,8 +172,13 @@ function Install-GStreamer {
         try {
             Invoke-WebRequest -Uri $develUrl -OutFile $develMsi -UseBasicParsing
         } catch {
-            Write-Color "[ERROR] Failed to download GStreamer development: $($_.Exception.Message)" $RED
-            return $false
+            Write-Color "Mirror failed, trying official source..." $YELLOW
+            try {
+                Invoke-WebRequest -Uri $fallbackDevelUrl -OutFile $develMsi -UseBasicParsing
+            } catch {
+                Write-Color "[ERROR] Failed to download GStreamer development from both mirror and official source: $($_.Exception.Message)" $RED
+                return $false
+            }
         }
 
         Write-Color "Installing GStreamer packages..." $YELLOW
@@ -198,13 +213,19 @@ function Install-WhisperModel {
             return
         }
 
-        $modelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+        $modelUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/raw/branch/main/ggml-small.bin"
+        $fallbackModelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
         Write-Color "Downloading Whisper model..." $YELLOW
         try {
             Invoke-WebRequest -Uri $modelUrl -OutFile $modelPath -UseBasicParsing
         } catch {
-            Write-Color "[SKIP] Failed to download Whisper model: $($_.Exception.Message)" $YELLOW
-            return
+            Write-Color "Mirror failed, trying official source..." $YELLOW
+            try {
+                Invoke-WebRequest -Uri $fallbackModelUrl -OutFile $modelPath -UseBasicParsing
+            } catch {
+                Write-Color "[SKIP] Failed to download Whisper model from both mirror and official source: $($_.Exception.Message)" $YELLOW
+                return
+            }
         }
         Write-Color "[OK] Whisper model installed" $GREEN
     } catch {
