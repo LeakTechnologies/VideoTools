@@ -1,48 +1,47 @@
+# VideoTools Dependency Installer for Windows
+# Installs build and runtime dependencies using Chocolatey
+
 param(
-    [switch]$Force,
-    [switch]$SkipBuildTools,
-    [switch]$InstallBuildTools,
-    [switch]$SkipFFmpeg,
-    [switch]$SkipGStreamer,
-    [switch]$InstallPython,
-    [switch]$SkipPython,
-    [switch]$SkipWhisper,
-    [switch]$InstallWhisper,
+    [switch]$SkipFFmpeg = $false,
+    [switch]$SkipGStreamer = $false,
+    [switch]$InstallBuildTools = $false,
+    [switch]$SkipBuildTools = $false,
+    [switch]$InstallPython = $false,
+    [switch]$SkipPython = $false,
+    [switch]$SkipWhisper = $false,
+    [switch]$InstallWhisper = $false,
     [string]$GStreamerVersion = "1.26.10",
-    [string]$GStreamerRuntimeMsi,
-    [string]$GStreamerDevelMsi,
-    [switch]$PreferWinget
+    [string]$GStreamerRuntimeMsi = "",
+    [string]$GStreamerDevelMsi = "",
+    [switch]$PreferWinget = $false
 )
 
-function Write-Header {
+# Colors for output
+$RED = [ConsoleColor]::Red
+$GREEN = [ConsoleColor]::Green
+$YELLOW = [ConsoleColor]::Yellow
+$BLUE = [ConsoleColor]::Blue
+$CYAN = [ConsoleColor]::Cyan
+$NC = [ConsoleColor]::White
+
+# Configuration
+$PROJECT_ROOT = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+
+function Write-Color {
     param(
-        [string]$Title
+        [string]$Message,
+        [ConsoleColor]$Color = $NC
     )
+    Write-Host $Message -ForegroundColor $Color
+}
+
+function Write-Header {
+    param([string]$Title)
     $line = "════════════════════════════════════════════════════════════════"
-    Write-Host $line -ForegroundColor Cyan
-    Write-Host "  $Title" -ForegroundColor Cyan
-    Write-Host $line -ForegroundColor Cyan
+    Write-Color $line $CYAN
+    Write-Color "  $Title" $CYAN
+    Write-Color $line $CYAN
     Write-Host ""
-}
-
-function Write-Info {
-    param([string]$Message)
-    Write-Host "[INFO]  $Message" -ForegroundColor Cyan
-}
-
-function Write-Success {
-    param([string]$Message)
-    Write-Host "[SUCCESS] $Message" -ForegroundColor Green
-}
-
-function Write-Error {
-    param([string]$Message)
-    Write-Host "[ERROR]  $Message" -ForegroundColor Red
-}
-
-function Write-Skip {
-    param([string]$Message)
-    Write-Host "[SKIP]  $Message" -ForegroundColor Yellow
 }
 
 function Test-Command {
@@ -56,7 +55,7 @@ function Test-Command {
 }
 
 function Install-Chocolatey {
-    Write-Info "Installing Chocolatey package manager..."
+    Write-Color "[1/4] Installing Chocolatey package manager..." $CYAN
     try {
         Set-ExecutionPolicy Bypass -Scope Process -Force
         [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
@@ -66,13 +65,13 @@ function Install-Chocolatey {
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
         
         if (Test-Command choco) {
-            Write-Success "Chocolatey installed successfully"
+            Write-Color "[OK] Chocolatey installed successfully" $GREEN
             choco upgrade -y
         } else {
             throw "Chocolatey installation failed"
         }
     } catch {
-        Write-Error "Failed to install Chocolatey: $($_.Exception.Message)"
+        Write-Color "[ERROR] Failed to install Chocolatey: $($_.Exception.Message)" $RED
         return $false
     }
     return $true
@@ -89,26 +88,26 @@ function Install-Package {
         try {
             $installed = choco list --exact $PackageName --local-only --exact
             if ($installed -match $PackageName -and -not $Force) {
-                Write-Skip "$DisplayName already installed"
+                Write-Color "[OK] $DisplayName already installed" $GREEN
                 return $true
             } else {
-                Write-Info "Installing $DisplayName..."
+                Write-Color "Installing $DisplayName..." $YELLOW
                 $result = choco install $PackageName -y --accept-license --ignore-package-exit-codes
                 if ($LASTEXITCODE -eq 0 -or $LASTEXITCODE -eq 3010) {
-                    Write-Success "$DisplayName installed successfully"
+                    Write-Color "[OK] $DisplayName installed successfully" $GREEN
                     return $true
                 } else {
                     if ($Required) {
-                        Write-Error "Failed to install required package $DisplayName"
+                        Write-Color "[ERROR] Failed to install required package $DisplayName" $RED
                         return $false
                     } else {
-                        Write-Skip "Failed to install $DisplayName (optional)"
+                        Write-Color "[SKIP] Failed to install $DisplayName (optional)" $YELLOW
                         return $true
                     }
                 }
             }
         } catch {
-            Write-Error "Error installing $DisplayName`: $($_.Exception.Message)"
+            Write-Color "[ERROR] Error installing $DisplayName`: $($_.Exception.Message)" $RED
             if ($Required) { return $false }
             return $true
         }
@@ -118,22 +117,22 @@ function Install-Package {
 
 function Install-GStreamer {
     if ($SkipGStreamer) {
-        Write-Skip "Skipping GStreamer installation"
+        Write-Color "[SKIP] Skipping GStreamer installation" $YELLOW
         return $true
     }
 
-    Write-Info "Installing GStreamer (required for video playback)..."
+    Write-Color "[3/4] Installing GStreamer (required for video playback)..." $CYAN
     
     if ($PreferWinget -and (Test-Command winget)) {
         try {
-            Write-Info "Attempting to install GStreamer via winget..."
+            Write-Color "Attempting to install GStreamer via winget..." $YELLOW
             winget install --id GStreamer.GStreamer -e --accept-package-agreements --accept-source-agreements
             if ($LASTEXITCODE -eq 0) {
-                Write-Success "GStreamer installed via winget"
+                Write-Color "[OK] GStreamer installed via winget" $GREEN
                 return $true
             }
         } catch {
-            Write-Info "Winget installation failed, trying MSI approach..."
+            Write-Color "Winget installation failed, trying MSI approach..." $YELLOW
         }
     }
 
@@ -149,34 +148,34 @@ function Install-GStreamer {
             $develUrl = $GStreamerDevelMsi
         }
 
-        Write-Info "Downloading GStreamer runtime..."
+        Write-Color "Downloading GStreamer runtime..." $YELLOW
         $runtimeMsi = Join-Path $env:TEMP "gstreamer-runtime.msi"
         Invoke-WebRequest -Uri $runtimeUrl -OutFile $runtimeMsi -UseBasicParsing
 
-        Write-Info "Downloading GStreamer development..."
+        Write-Color "Downloading GStreamer development..." $YELLOW
         $develMsi = Join-Path $env:TEMP "gstreamer-devel.msi"
         Invoke-WebRequest -Uri $develUrl -OutFile $develMsi -UseBasicParsing
 
-        Write-Info "Installing GStreamer packages..."
+        Write-Color "Installing GStreamer packages..." $YELLOW
         Start-Process -FilePath "msiexec" -ArgumentList "/i", "`"$runtimeMsi`"", "/quiet", "ADDLOCAL=ALL" -Wait -NoNewWindow
         Start-Process -FilePath "msiexec" -ArgumentList "/i", "`"$develMsi`"", "/quiet", "ADDLOCAL=ALL" -Wait -NoNewWindow
 
         Remove-Item $runtimeMsi, $develMsi -ErrorAction SilentlyContinue
-        Write-Success "GStreamer installed successfully"
+        Write-Color "[OK] GStreamer installed successfully" $GREEN
         return $true
     } catch {
-        Write-Error "Failed to install GStreamer: $($_.Exception.Message)"
+        Write-Color "[ERROR] Failed to install GStreamer: $($_.Exception.Message)" $RED
         return $false
     }
 }
 
 function Install-WhisperModel {
     if ($SkipWhisper) {
-        Write-Skip "Skipping Whisper model installation"
+        Write-Color "[SKIP] Skipping Whisper model installation" $YELLOW
         return
     }
 
-    Write-Info "Installing Whisper model for subtitles..."
+    Write-Color "Installing Whisper model for subtitles..." $CYAN
     try {
         $modelDir = Join-Path $env:USERPROFILE "Videos\VideoTools\models"
         if (-not (Test-Path $modelDir)) {
@@ -185,29 +184,36 @@ function Install-WhisperModel {
 
         $modelPath = Join-Path $modelDir "whisper-small.bin"
         if (Test-Path $modelPath -and -not $Force) {
-            Write-Skip "Whisper model already exists"
+            Write-Color "[OK] Whisper model already exists" $GREEN
             return
         }
 
         $modelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
-        Write-Info "Downloading Whisper model..."
+        Write-Color "Downloading Whisper model..." $YELLOW
         Invoke-WebRequest -Uri $modelUrl -OutFile $modelPath -UseBasicParsing
-        Write-Success "Whisper model installed"
+        Write-Color "[OK] Whisper model installed" $GREEN
     } catch {
-        Write-Skip "Failed to download Whisper model: $($_.Exception.Message)"
+        Write-Color "[SKIP] Failed to download Whisper model: $($_.Exception.Message)" $YELLOW
     }
 }
 
 # Main installation flow
 Write-Header "VideoTools Windows Installation"
 
-Write-Info "Build tools are provided via Chocolatey."
-Write-Info "This replaces the previous MSYS2 UCRT64 toolchain approach."
+# Check admin privileges for GStreamer MSI
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not $isAdmin) {
+    Write-Color "[WARN] Running without Administrator privileges." $YELLOW
+    Write-Color "       GStreamer install requires Administrator when missing." $YELLOW
+    Write-Host ""
+}
 
 # Install Chocolatey
 if (-not (Test-Command choco)) {
     if (-not (Install-Chocolatey)) {
-        Write-Error "Chocolatey installation failed. Cannot proceed."
+        Write-Color "[ERROR] Chocolatey installation failed. Cannot proceed." $RED
+        Write-Host "Press any key to close..." $CYAN
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         exit 1
     }
 }
@@ -222,48 +228,48 @@ else {
 
 # Install core packages
 if ($installBuild) {
-    Write-Info "Installing build tools..."
+    Write-Color "[2/4] Installing build tools..." $CYAN
     Install-Package -PackageName "golang" -DisplayName "Go programming language" -Required
     Install-Package -PackageName "git" -DisplayName "Git version control" -Required
 } else {
-    Write-Skip "Skipping build tools installation"
+    Write-Color "[SKIP] Skipping build tools installation" $YELLOW
 }
 
 # Install FFmpeg
 if (-not $SkipFFmpeg) {
     Install-Package -PackageName "ffmpeg" -DisplayName "FFmpeg video processing"
 } else {
-    Write-Skip "Skipping FFmpeg installation"
+    Write-Color "[SKIP] Skipping FFmpeg installation" $YELLOW
 }
 
 # Install Python
 if ($InstallPython) {
     Install-Package -PackageName "python" -DisplayName "Python with pip"
 } elseif (-not $SkipPython) {
-    Write-Host "Install Python + pip? (y/N): " -ForegroundColor Yellow -NoNewline
+    Write-Host "Install Python + pip? [y/N]: " -ForegroundColor Yellow -NoNewline
     $response = Read-Host
     if ($response -match '^[Yy]') {
         Install-Package -PackageName "python" -DisplayName "Python with pip"
     } else {
-        Write-Skip "Skipping Python installation"
+        Write-Color "[SKIP] Skipping Python installation" $YELLOW
     }
 }
 
 # Install GStreamer (required)
 if (-not (Install-GStreamer)) {
-    Write-Error "GStreamer installation failed. Video playback may not work."
+    Write-Color "[ERROR] GStreamer installation failed. Video playback may not work." $RED
 }
 
 # Install Whisper model
 if ($InstallWhisper) {
     Install-WhisperModel
 } elseif (-not $SkipWhisper) {
-    Write-Host "Install Whisper model for subtitles? (y/N): " -ForegroundColor Yellow -NoNewline
+    Write-Host "Install Whisper model for subtitles? [y/N]: " -ForegroundColor Yellow -NoNewline
     $response = Read-Host
     if ($response -match '^[Yy]') {
         Install-WhisperModel
     } else {
-        Write-Skip "Skipping Whisper model installation"
+        Write-Color "[SKIP] Skipping Whisper model installation" $YELLOW
     }
 }
 
@@ -284,12 +290,16 @@ try {
     $shortcut.WorkingDirectory = $PSScriptRoot
     $shortcut.Save()
     
-    Write-Success "Start menu shortcuts created"
+    Write-Color "[OK] Start menu shortcuts created" $GREEN
 } catch {
-    Write-Skip "Failed to create shortcuts: $($_.Exception.Message)"
+    Write-Color "[SKIP] Failed to create shortcuts: $($_.Exception.Message)" $YELLOW
 }
 
-Write-Success "VideoTools dependencies installation completed!"
-Write-Info "Next steps:"
-Write-Info "  1. Run: .\scripts\windows\build.bat"
-Write-Info "  2. Run: .\VideoTools.exe"
+Write-Color "[SUCCESS] VideoTools dependencies installation completed!" $GREEN
+Write-Host ""
+Write-Color "Next steps:" $CYAN
+Write-Color "  1. Run: .\scripts\windows\build.bat" $WHITE
+Write-Color "  2. Run: .\VideoTools.exe" $WHITE
+Write-Host ""
+Write-Host "Press any key to close..." $CYAN
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
