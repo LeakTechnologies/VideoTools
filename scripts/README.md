@@ -1,4 +1,4 @@
-﻿# VideoTools Build Scripts
+# VideoTools Build Scripts
 
 This directory contains scripts for building and managing VideoTools on different platforms.
 
@@ -52,9 +52,28 @@ Automatically installs all required dependencies for your Linux distribution:
 
 **Features:**
 - Automatic dependency verification
-- Clean build option
 - Progress indicators
 - Error handling
+
+### Uninstall VideoTools
+
+Run in PowerShell as Administrator:
+
+```powershell
+.\scripts\windows\uninstall.ps1
+```
+
+**Options:**
+- `-Force` - Skip confirmation prompts
+- `-RemoveAll` - Remove ALL components
+- `-RemoveFFmpeg` - Remove bundled FFmpeg binaries only
+- `-KeepBuildTools` - Preserve MSYS2 toolchain
+- `-WhatIf` - Preview what would be removed
+
+**Preserves by default:**
+- System-wide FFmpeg (shared dependency)
+- GStreamer (shared media framework)
+- Go (shared development tool)
 
 ### Run VideoTools
 
