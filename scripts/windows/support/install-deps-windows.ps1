@@ -28,7 +28,8 @@ param(
 $ErrorActionPreference = "Stop"
 $PreferWinget = $PSBoundParameters.ContainsKey("PreferWinget")
 
-$script:ProjectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+# Get the project root by going up three levels from the support directory
+$script:ProjectRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
 $script:Msys2Root = ""
 $script:Msys2Flavor = "ucrt64"
 if ($env:VT_MSYS2_FLAVOR) {
@@ -201,7 +202,7 @@ function Find-Msys2Root {
     if ($env:VT_MSYS2_ROOT) {
         return $env:VT_MSYS2_ROOT
     }
-    $repoLocal = Join-Path $script:ProjectRoot "Tools\\msys64"
+    $repoLocal = Join-Path $script:ProjectRoot "Tools\msys64"
     if (Test-Path (Join-Path $repoLocal "usr\\bin\\pacman.exe")) {
         return $repoLocal
     }
@@ -231,9 +232,9 @@ function Find-ExeInRoots {
 function Ensure-Msys2 {
     $script:Msys2Root = Find-Msys2Root
     if (-not $script:Msys2Root) {
-        $script:Msys2Root = Join-Path $script:ProjectRoot "Tools\\msys64"
+        $script:Msys2Root = Join-Path $script:ProjectRoot "Tools\msys64"
     }
-    $ensureScript = Join-Path $script:ProjectRoot "scripts\\windows\\support\\ensure-msys2.ps1"
+    $ensureScript = Join-Path $script:ProjectRoot "scripts\windows\support\ensure-msys2.ps1"
     if (-not (Test-Path $ensureScript)) {
         Write-Host "[ERROR]  ensure-msys2.ps1 not found." -ForegroundColor Red
         return $false
@@ -263,14 +264,14 @@ function Install-Msys2Packages {
     if (-not $script:Msys2Root) {
         $script:Msys2Root = Find-Msys2Root
     }
-    $pacmanPath = Join-Path $script:Msys2Root "usr\\bin\\pacman.exe"
+    $pacmanPath = Join-Path $script:Msys2Root "usr\bin\pacman.exe"
     if (-not (Test-Path $pacmanPath)) {
         Write-Host "[ERROR]  pacman not found after MSYS2 install." -ForegroundColor Red
         return $false
     }
 
     Write-Host "Installing MSYS2 packages: $($Packages -join ', ')" -ForegroundColor Yellow
-    $bashPath = Join-Path $script:Msys2Root "usr\\bin\\bash.exe"
+    $bashPath = Join-Path $script:Msys2Root "usr\bin\bash.exe"
     if (-not (Test-Path $bashPath)) {
         Write-Host "[ERROR]  bash not found after MSYS2 install." -ForegroundColor Red
         return $false
