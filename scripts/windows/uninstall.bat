@@ -9,9 +9,12 @@ echo   VideoTools Uninstaller for Windows
 echo ════════════════════════════════════════════════════════════════
 echo.
 echo This uninstaller removes VideoTools while preserving:
-echo   - FFmpeg (video processing - used by many apps)
+echo   - FFmpeg (NEVER removed - system dependency managed by user)
 echo   - GStreamer (media framework - used by other apps)
-echo   - System-wide Go installation
+echo   - Go (programming language used by other tools)
+echo.
+echo Use -RemoveAll to remove ALL VideoTools-managed components
+echo Use -Force to skip confirmation prompts
 echo.
 echo Use -RemoveAll to remove ALL components
 echo Use -RemoveFFmpeg to remove bundled FFmpeg binaries

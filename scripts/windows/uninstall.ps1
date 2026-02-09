@@ -4,7 +4,6 @@
 param(
     [switch]$RemoveAll = $false,
     [switch]$KeepBuildTools = $false,
-    [switch]$RemoveFFmpeg = $false,
     [switch]$KeepGStreamer = $false,
     [switch]$Force = $false,
     [switch]$WhatIf = $false
@@ -172,6 +171,35 @@ function Remove-BuildTools {
         return
     }
     
+    # Only remove MSYS2 if it was installed by VideoTools (check for manifest)
+    $manifestPath = "$script:ProjectRoot\Tools\msys2-packages.lock"
+    $msys2Path = "$script:ProjectRoot\Tools\msys64"
+    
+    if ((Test-Path $manifestPath) -and (Test-Path $msys2Path)) {
+        Write-Info "Removing VideoTools-installed MSYS2 toolchain..."
+        Remove-IfExists -Path $msys2Path -Description "MSYS2 toolchain" -Recurse
+        Remove-IfExists -Path $manifestPath -Description "MSYS2 package manifest"
+    } else {
+        Write-Info "MSYS2 not installed by VideoTools (no manifest found) - preserving"
+    }
+    
+    # Remove tools directory if empty
+    $toolsPath = "$script:ProjectRoot\Tools"
+    if (Test-Path $toolsPath) {
+        try {
+            $items = Get-ChildItem -Path $toolsPath -ErrorAction SilentlyContinue
+            if (-not $items -or $items.Count -eq 0) {
+                Remove-IfExists -Path $toolsPath -Description "Empty Tools directory" -Recurse
+            }
+        } catch {
+            # Ignore errors checking directory contents
+        }
+    }
+    
+    # Note: We don't automatically remove system-wide Go as it wasn't installed by VT
+    Write-Info "System-wide Go installation preserved (not installed by VideoTools)"
+}
+    
     # Remove repo-local MSYS2 installation
     $msys2Path = "$script:ProjectRoot\Tools\msys64"
     Remove-IfExists -Path $msys2Path -Description "MSYS2 toolchain" -Recurse
@@ -199,23 +227,28 @@ function Remove-BuildTools {
 }
 
 function Remove-FFmpeg {
-    if (-not $RemoveFFmpeg) {
-        Write-Warning "Skipping FFmpeg removal (preserve by default - use -RemoveFFmpeg to remove)"
-        return
-    }
+    Write-Info "FFmpeg not removed (not installed by VideoTools)"
     
-    # Remove portable FFmpeg if bundled with VideoTools
     $ffmpegPaths = @(
         "$script:ProjectRoot\ffmpeg.exe",
         "$script:ProjectRoot\ffprobe.exe"
     )
     
     foreach ($path in $ffmpegPaths) {
-        Remove-IfExists -Path $path -Description "FFmpeg binary"
+        if (Test-Path $path) {
+            Write-Info "FFmpeg binary preserved at project root"
+        }
     }
-    
-    # Note: We don't remove system-wide FFmpeg as it might be used by other apps
-    Write-Warning "System-wide FFmpeg preserved (may be used by other applications)"
+}
+    }
+}
+    }
+}
+    }
+}
+    }
+}
+    }
 }
 
 function Remove-GStreamer {
@@ -224,9 +257,21 @@ function Remove-GStreamer {
         return
     }
     
-    # Remove GStreamer if it was installed via MSI and no other apps are using it
-    # This is conservative - we only remove if explicitly told to do so
-    if ($RemoveAll -or $Force) {
+    # VideoTools only installs GStreamer via MSI installer
+    # We should be very careful here - only remove if explicitly requested via -RemoveAll
+    if ($RemoveAll) {
+        Write-Warning "WARNING: -RemoveAll specified - this will remove GStreamer system-wide"
+        Write-Warning "Only proceed if you're sure no other applications use GStreamer"
+        
+        if (-not $Force) {
+            $response = Read-Host "Are you sure you want to remove GStreamer system-wide? (y/N)"
+            if ($response -notmatch '^[Yy]') {
+                Write-Info "Skipping GStreamer removal"
+                return
+            }
+        }
+        
+        # Remove GStreamer registry entries (only those added by VideoTools installer)
         $gstreamerKeys = @(
             "HKLM:\SOFTWARE\GStreamer",
             "HKLM:\SOFTWARE\Wow6432Node\GStreamer"
@@ -236,66 +281,181 @@ function Remove-GStreamer {
             Remove-RegistryValue -Key $key -Description "GStreamer registry entries"
         }
         
-        # Remove GStreamer from PATH if added by VideoTools
-        $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
-        if ($envPath -like "*GStreamer*") {
-            Write-Warning "GStreamer found in system PATH - manual cleanup may be required"
-            Write-Warning "Check System Environment Variables: PATH"
-        }
+        Write-Warning "GStreamer removed - you may need to manually clean PATH entries"
+        Write-Warning "Check System Environment Variables for remaining GStreamer paths"
     } else {
-        Write-Warning "GStreamer preserved (may be used by other applications)"
+        Write-Info "GStreamer preserved (system-wide installation - use -RemoveAll to remove)"
+        Write-Info "VideoTools does not manage system-wide GStreamer unless explicitly installed via VT installer"
     }
 }
 
 function Remove-PythonPackages {
-    # Remove Python packages installed by VideoTools
+    # Only remove Python packages that were installed by VideoTools
+    # Check if VideoTools has a record of installing these packages
+    $vtPythonMarker = "$script:ProjectRoot\.vt-python-installed"
+    
+    if (-not (Test-Path $vtPythonMarker)) {
+        Write-Info "No record of VideoTools-installed Python packages found - preserving"
+        return
+    }
+    
     if (Test-Command pip) {
         try {
+            Write-Info "Removing Python packages installed by VideoTools..."
             $packages = @("openai-whisper", "torch", "torchaudio", "numpy")
+            $removedCount = 0
+            
             foreach ($package in $packages) {
-                pip uninstall -y $package 2>$null
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Success "Removed Python package: $package"
+                # Check if package is actually installed before trying to remove
+                $packageInfo = pip show $package 2>$null
+                if ($packageInfo -and $LASTEXITCODE -eq 0) {
+                    pip uninstall -y $package 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Success "Removed Python package: $package"
+                        $removedCount++
+                    } else {
+                        Write-Warning "Failed to remove Python package: $package"
+                    }
                 }
             }
+            
+            if ($removedCount -gt 0) {
+                Write-Info "Removed $removedCount Python packages installed by VideoTools"
+            }
+            
+            # Remove the marker file
+            Remove-IfExists -Path $vtPythonMarker -Description "VideoTools Python installation marker"
+            
         } catch {
-            Write-Warning "Failed to remove some Python packages"
+            Write-Warning "Failed to remove some Python packages (may require manual cleanup)"
         }
+    } else {
+        Write-Info "pip not found - cannot remove Python packages"
     }
 }
 
 function Remove-WhisperModels {
-    # Remove Whisper model files
-    $modelPaths = @(
-        "$script:ProjectRoot\models",
-        "$env:USERPROFILE\.cache\whisper",
-        "$env:LOCALAPPDATA\whisper"
-    )
+    # Only remove Whisper models that were downloaded by VideoTools
+    $vtModelsPath = "$script:ProjectRoot\models"
+    $vtWhisperMarker = "$script:ProjectRoot\.vt-whisper-downloaded"
     
-    foreach ($path in $modelPaths) {
-        Remove-IfExists -Path $path -Description "Whisper models" -Recurse
+    $removedCount = 0
+    
+    # Remove VideoTools-local models first
+    if (Remove-IfExists -Path $vtModelsPath -Description "VideoTools local Whisper models" -Recurse) {
+        $removedCount++
+    }
+    
+    # Only remove user cache if VideoTools has a record of downloading there
+    if (Test-Path $vtWhisperMarker) {
+        $userCachePaths = @(
+            "$env:USERPROFILE\.cache\whisper",
+            "$env:LOCALAPPDATA\whisper"
+        )
+        
+        foreach ($path in $userCachePaths) {
+            if (Remove-IfExists -Path $path -Description "Whisper cache (downloaded by VideoTools)" -Recurse) {
+                $removedCount++
+            }
+        }
+        
+        # Remove the marker file
+        Remove-IfExists -Path $vtWhisperMarker -Description "VideoTools Whisper download marker"
+    } else {
+        Write-Info "No record of VideoTools-downloaded Whisper models in user cache"
+    }
+    
+    if ($removedCount -gt 0) {
+        Write-Info "Cleaned up Whisper models downloaded by VideoTools"
     }
 }
 
 function Remove-DVDTools {
-    # Remove DVD authoring tools if installed by VideoTools
+    # Only remove DVD tools that were installed by VideoTools
+    $vtDvdMarker = "$script:ProjectRoot\.vt-dvdstyler-installed"
+    
+    if (-not (Test-Path $vtDvdMarker)) {
+        Write-Info "No record of VideoTools-installed DVD tools found"
+        return
+    }
+    
     $dvdPaths = @(
         "$script:ProjectRoot\DVDStyler",
-        "$script:ProjectRoot\DVDStyler.exe"
+        "$script:ProjectRoot\DVDStyler.exe",
+        "$script:ProjectRoot\Tools\DVDStyler"
     )
     
+    $removedCount = 0
     foreach ($path in $dvdPaths) {
-        Remove-IfExists -Path $path -Description "DVD authoring tools" -Recurse
+        if (Remove-IfExists -Path $path -Description "DVD tools installed by VideoTools" -Recurse) {
+            $removedCount++
+        }
     }
+    
+    if ($removedCount -gt 0) {
+        Write-Info "Removed DVD tools installed by VideoTools"
+    }
+    
+    # Remove the marker file
+    Remove-IfExists -Path $vtDvdMarker -Description "VideoTools DVD tools installation marker"
 }
 
 function Show-Summary {
     Write-Header "Uninstall Summary"
     
     Write-Info "VideoTools files and cache removed"
-    if (-not $KeepBuildTools) {
-        Write-Info "Build tools (MSYS2) removed from project directory"
+    Write-Info "Start Menu items removed"
+    Write-Info "Desktop shortcuts removed"
+    
+    $msys2Manifest = "$script:ProjectRoot\Tools\msys2-packages.lock"
+    if ((Test-Path $msys2Manifest) -and -not $KeepBuildTools) {
+        Write-Info "VideoTools-installed MSYS2 toolchain removed"
+    } elseif (-not $KeepBuildTools) {
+        Write-Info "MSYS2 preserved (not installed by VideoTools)"
     }
+    
+    Write-Info "FFmpeg preserved (not installed by VideoTools)"
+    
+    if ($RemoveAll) {
+        Write-Warning "System-wide GStreamer removed (explicitly requested)"
+    } else {
+        Write-Info "GStreamer preserved (system-wide installation)"
+    }
+    
+    Write-Host ""
+    Write-Info "Project directory at: $script:ProjectRoot"
+}
+    
+    Write-Info "FFmpeg preserved (not installed by VideoTools)"
+    
+    if ($RemoveAll) {
+        Write-Warning "GStreamer removed"
+    } else {
+        Write-Info "GStreamer preserved"
+    }
+    
+    Write-Host ""
+    Write-Info "Project directory at: $script:ProjectRoot"
+}
+    
+    Write-Info "FFmpeg preserved (not installed by VideoTools)"
+    
+    if ($RemoveAll) {
+        Write-Warning "System-wide GStreamer removed (explicitly requested)"
+    } else {
+        Write-Info "GStreamer preserved (system-wide installation)"
+    }
+    
+    Write-Host ""
+    Write-Info "VideoTools only removes components it specifically installed:"
+    Write-Info "- System-wide installations (Go, FFmpeg, GStreamer) are preserved by default"
+    Write-Info "- Only project-local tools and bundled binaries are removed automatically"
+    Write-Info "- Installation markers are checked before removing any dependencies"
+    
+    Write-Host ""
+    Write-Info "Project directory at: $script:ProjectRoot"
+    Write-Info "Installation markers and cache cleaned"
+}
     if ($RemoveFFmpeg) {
         Write-Info "Portable FFmpeg binaries removed"
     }
@@ -309,9 +469,7 @@ function Show-Summary {
         Write-Warning "- System-wide Go installation (if exists)"
         Write-Warning "- System-wide MSYS2 installation (if exists)"
     }
-    if (-not $RemoveFFmpeg) {
-        Write-Warning "- System-wide FFmpeg installation (preserved by default)"
-    }
+    Write-Warning "- System-wide FFmpeg installation (VideoTools never removes FFmpeg)"
     if ($KeepGStreamer -or -not $RemoveAll) {
         Write-Warning "- System-wide GStreamer installation"
         Write-Warning "- GStreamer PATH entries (manual cleanup may be needed)"

@@ -1,4 +1,4 @@
-﻿param()
+param()
 
 function Write-Header {
     param(
@@ -36,7 +36,7 @@ if (-not $isAdmin) {
 
 Write-Header "VideoTools Windows Installation"
 
-Write-Host "[INFO]  Build tools are provided via MSYS2 (UCRT64 toolchain)." -ForegroundColor Cyan
+Write-Host "[INFO]  Build tools are provided via Chocolatey package manager." -ForegroundColor Cyan
 
 try {
     & "$PSScriptRoot\support\install-deps-windows.ps1" @args
