@@ -37,7 +37,7 @@ function Write-Color {
 
 function Write-Header {
     param([string]$Title)
-    $line = "════════════════════════════════════════════════════════════════"
+    $line = "==============================================================="
     Write-Color $line $CYAN
     Write-Color "  $Title" $CYAN
     Write-Color $line $CYAN
@@ -150,11 +150,21 @@ function Install-GStreamer {
 
         Write-Color "Downloading GStreamer runtime..." $YELLOW
         $runtimeMsi = Join-Path $env:TEMP "gstreamer-runtime.msi"
-        Invoke-WebRequest -Uri $runtimeUrl -OutFile $runtimeMsi -UseBasicParsing
+        try {
+            Invoke-WebRequest -Uri $runtimeUrl -OutFile $runtimeMsi -UseBasicParsing
+        } catch {
+            Write-Color "[ERROR] Failed to download GStreamer runtime: $($_.Exception.Message)" $RED
+            return $false
+        }
 
         Write-Color "Downloading GStreamer development..." $YELLOW
         $develMsi = Join-Path $env:TEMP "gstreamer-devel.msi"
-        Invoke-WebRequest -Uri $develUrl -OutFile $develMsi -UseBasicParsing
+        try {
+            Invoke-WebRequest -Uri $develUrl -OutFile $develMsi -UseBasicParsing
+        } catch {
+            Write-Color "[ERROR] Failed to download GStreamer development: $($_.Exception.Message)" $RED
+            return $false
+        }
 
         Write-Color "Installing GStreamer packages..." $YELLOW
         Start-Process -FilePath "msiexec" -ArgumentList "/i", "`"$runtimeMsi`"", "/quiet", "ADDLOCAL=ALL" -Wait -NoNewWindow
@@ -190,7 +200,12 @@ function Install-WhisperModel {
 
         $modelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
         Write-Color "Downloading Whisper model..." $YELLOW
-        Invoke-WebRequest -Uri $modelUrl -OutFile $modelPath -UseBasicParsing
+        try {
+            Invoke-WebRequest -Uri $modelUrl -OutFile $modelPath -UseBasicParsing
+        } catch {
+            Write-Color "[SKIP] Failed to download Whisper model: $($_.Exception.Message)" $YELLOW
+            return
+        }
         Write-Color "[OK] Whisper model installed" $GREEN
     } catch {
         Write-Color "[SKIP] Failed to download Whisper model: $($_.Exception.Message)" $YELLOW
