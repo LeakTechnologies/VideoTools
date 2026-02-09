@@ -213,19 +213,13 @@ function Install-WhisperModel {
             return
         }
 
-        $modelUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/-/raw/main/ggml-small.bin"
-        $fallbackModelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+        $modelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
         Write-Color "Downloading Whisper model..." $YELLOW
         try {
             Invoke-WebRequest -Uri $modelUrl -OutFile $modelPath -UseBasicParsing
         } catch {
-            Write-Color "Mirror failed, trying official source..." $YELLOW
-            try {
-                Invoke-WebRequest -Uri $fallbackModelUrl -OutFile $modelPath -UseBasicParsing
-            } catch {
-                Write-Color "[SKIP] Failed to download Whisper model from both mirror and official source: $($_.Exception.Message)" $YELLOW
-                return
-            }
+            Write-Color "[SKIP] Failed to download Whisper model: $($_.Exception.Message)" $YELLOW
+            return
         }
         Write-Color "[OK] Whisper model installed" $GREEN
     } catch {
@@ -291,9 +285,10 @@ if ($InstallPython) {
     }
 }
 
-# Install GStreamer (required)
+# Install GStreamer (optional - mirror not available)
 if (-not (Install-GStreamer)) {
-    Write-Color "[ERROR] GStreamer installation failed. Video playback may not work." $RED
+    Write-Color "[WARN] GStreamer installation failed. Video playback may not work." $YELLOW
+    Write-Color "       You can install GStreamer manually from: https://gstreamer.freedesktop.org/download/" $YELLOW
 }
 
 # Install Whisper model
