@@ -4,6 +4,7 @@
 param(
     [switch]$SkipFFmpeg = $false,
     [switch]$SkipGStreamer = $false,
+    [switch]$SkipDVDStyler = $false,
     [switch]$InstallBuildTools = $false,
     [switch]$SkipBuildTools = $false,
     [switch]$InstallPython = $false,
@@ -216,17 +217,39 @@ function Install-WhisperModel {
             return
         }
 
-        $modelUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
-        Write-Color "Downloading Whisper model..." $YELLOW
+        # Use lt_mirror for Whisper model (sourcing issues from HuggingFace)
+        $tempRepo = Join-Path $env:TEMP "lt_mirror_temp"
+        
         try {
-            Invoke-WebRequest -Uri $modelUrl -OutFile $modelPath -UseBasicParsing
+            # Clone mirror repo locally to get Whisper model
+            if (Test-Path $tempRepo) {
+                Remove-Item $tempRepo -Recurse -Force
+            }
+            
+            Write-Color "Getting Whisper model from lt_mirror..." $YELLOW
+            & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $sourceFile = Join-Path $tempRepo "mirrors\raw\whisper-model.bin"
+                if (Test-Path $sourceFile) {
+                    Copy-Item $sourceFile $modelPath
+                    Write-Color "[OK] Whisper model installed from mirror" $GREEN
+                } else {
+                    throw "Whisper model not found in mirror"
+                }
+            } else {
+                throw "Failed to clone mirror repository"
+            }
         } catch {
-            Write-Color "[SKIP] Failed to download Whisper model: $($_.Exception.Message)" $YELLOW
-            return
+            Write-Color "[SKIP] Failed to get Whisper model from mirror: $($_.Exception.Message)" $YELLOW
+            Write-Color "       Manual install required" $YELLOW
+        } finally {
+            # Clean up temporary repository
+            if (Test-Path $tempRepo) {
+                Remove-Item $tempRepo -Recurse -Force -ErrorAction SilentlyContinue
+            }
         }
-        Write-Color "[OK] Whisper model installed" $GREEN
     } catch {
-        Write-Color "[SKIP] Failed to download Whisper model: $($_.Exception.Message)" $YELLOW
+        Write-Color "[SKIP] Whisper model installation failed: $($_.Exception.Message)" $YELLOW
     }
 }
 
@@ -294,6 +317,68 @@ if (-not (Install-GStreamer)) {
     Write-Color "       You can install GStreamer manually from: https://gstreamer.freedesktop.org/download/" $YELLOW
 }
 
+function Install-DVDStyler {
+    if ($SkipDVDStyler) {
+        Write-Color "[SKIP] Skipping DVDStyler installation" $YELLOW
+        return $true
+    }
+
+    Write-Color "[4/4] Installing DVDStyler (optional DVD authoring)..." $CYAN
+    
+    # Try winget first if available and preferred
+    if ($PreferWinget -and (Test-Command winget)) {
+        try {
+            Write-Color "Attempting to install DVDStyler via winget..." $YELLOW
+            winget install --id DVDStyler.DVDStyler -e --accept-package-agreements --accept-source-agreements
+            if ($LASTEXITCODE -eq 0) {
+                Write-Color "[OK] DVDStyler installed via winget" $GREEN
+                return $true
+            }
+        } catch {
+            Write-Color "Winget installation failed, trying mirror..." $YELLOW
+        }
+    }
+
+    # Use lt_mirror for DVDStyler
+    $installerExe = Join-Path $env:TEMP "DVDStyler-setup.exe"
+    $tempRepo = Join-Path $env:TEMP "lt_mirror_temp"
+    
+    try {
+        # Clone mirror repo locally to get DVDStyler
+        if (Test-Path $tempRepo) {
+            Remove-Item $tempRepo -Recurse -Force
+        }
+        
+        Write-Color "Getting DVDStyler from lt_mirror..." $YELLOW
+        & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $sourceFile = Join-Path $tempRepo "mirrors\raw\DVDStyler-3.2.1-win64.exe"
+            if (Test-Path $sourceFile) {
+                Copy-Item $sourceFile $installerExe
+                Write-Color "Installing DVDStyler..." $YELLOW
+                Start-Process -FilePath $installerExe -ArgumentList "/S" -Wait -NoNewWindow
+                Write-Color "[OK] DVDStyler installed from mirror" $GREEN
+                return $true
+            } else {
+                throw "DVDStyler not found in mirror"
+            }
+        } else {
+            throw "Failed to clone mirror repository"
+        }
+    } catch {
+        Write-Color "[SKIP] Failed to install DVDStyler from mirror: $($_.Exception.Message)" $YELLOW
+        return $false
+    } finally {
+        # Clean up temporary files
+        if (Test-Path $tempRepo) {
+            Remove-Item $tempRepo -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path $installerExe) {
+            Remove-Item $installerExe -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 # Install Whisper model
 if ($InstallWhisper) {
     Install-WhisperModel
@@ -305,6 +390,11 @@ if ($InstallWhisper) {
     } else {
         Write-Color "[SKIP] Skipping Whisper model installation" $YELLOW
     }
+}
+
+# Install DVDStyler
+if (-not (Install-DVDStyler)) {
+    Write-Color "[INFO] DVDStyler installation failed. DVD authoring tools unavailable." $YELLOW
 }
 
 # Create shortcuts
@@ -334,6 +424,11 @@ Write-Host ""
 Write-Color "Next steps:" $CYAN
 Write-Color "  1. Run: .\scripts\windows\build.bat" $NC
 Write-Color "  2. Run: .\VideoTools.exe" $NC
+Write-Host ""
+Write-Color "Optional components installed:" $CYAN
+Write-Color "  - GStreamer: Video playback support" $NC
+Write-Color "  - Whisper: AI subtitle generation" $NC
+Write-Color "  - DVDStyler: DVD authoring tools" $NC
 Write-Host ""
 Write-Host "Press any key to close..." $CYAN
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
