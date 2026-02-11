@@ -138,8 +138,8 @@ function Install-GStreamer {
 
     # MSI installation approach
     try {
-        # Use mirror when available, fallback to official
-        $installerUrl = "https://git.leaktechnologies.dev/api/v4/projects/lt_mirror%2Flt_mirror/repository/files/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe/raw?ref=master"
+        # Use Forgejo LFS API when available, fallback to official
+        $installerUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git/info/lfs/objects/$(git ls-remote https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git master | cut -f1)/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
         $fallbackInstallerUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
         
         if ($GStreamerRuntimeMsi) {
@@ -153,15 +153,39 @@ function Install-GStreamer {
 
         Write-Color "Downloading GStreamer installer..." $YELLOW
         $installerExe = Join-Path $env:TEMP "gstreamer-installer.exe"
+        $tempRepo = Join-Path $env:TEMP "lt_mirror_temp"
+        
         try {
-            Invoke-WebRequest -Uri $installerUrl -OutFile $installerExe -UseBasicParsing
+            # Clone mirror repo locally to get LFS files
+            if (Test-Path $tempRepo) {
+                Remove-Item $tempRepo -Recurse -Force
+            }
+            
+            Write-Color "Cloning mirror repository for LFS files..." $YELLOW
+            & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo
+            if ($LASTEXITCODE -eq 0) {
+                $sourceFile = Join-Path $tempRepo "gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
+                if (Test-Path $sourceFile) {
+                    Copy-Item $sourceFile $installerExe
+                    Write-Color "[OK] GStreamer installer extracted from mirror" $GREEN
+                } else {
+                    throw "GStreamer file not found in cloned repository"
+                }
+            } else {
+                throw "Failed to clone mirror repository"
+            }
         } catch {
-            Write-Color "Mirror failed, trying official source..." $YELLOW
+            Write-Color "Mirror clone failed, trying official source..." $YELLOW
             try {
                 Invoke-WebRequest -Uri $fallbackInstallerUrl -OutFile $installerExe -UseBasicParsing
             } catch {
                 Write-Color "[ERROR] Failed to download GStreamer installer from both mirror and official source: $($_.Exception.Message)" $RED
                 return $false
+            }
+        } finally {
+            # Clean up temporary repository
+            if (Test-Path $tempRepo) {
+                Remove-Item $tempRepo -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
 
