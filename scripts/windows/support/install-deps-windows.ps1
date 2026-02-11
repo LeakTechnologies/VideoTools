@@ -139,7 +139,7 @@ function Install-GStreamer {
     # MSI installation approach
     try {
         # Use mirror when available, fallback to official
-        $installerUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/-/raw/master/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
+        $installerUrl = "https://git.leaktechnologies.dev/api/v4/projects/lt_mirror%2Flt_mirror/repository/files/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe/raw?ref=master"
         $fallbackInstallerUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
         
         if ($GStreamerRuntimeMsi) {
