@@ -165,7 +165,7 @@ function Install-GStreamer {
             Write-Color "Cloning mirror repository (GStreamer site blocks direct downloads)..." $YELLOW
             & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
             if ($LASTEXITCODE -eq 0) {
-                $sourceFile = Join-Path $tempRepo "gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
+                $sourceFile = Join-Path $tempRepo "mirrors\raw\gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
                 if (Test-Path $sourceFile) {
                     Copy-Item $sourceFile $installerExe
                     Write-Color "[OK] GStreamer installer extracted from mirror" $GREEN
