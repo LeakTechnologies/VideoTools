@@ -151,18 +151,18 @@ function Install-GStreamer {
             $fallbackDevelUrl = $GStreamerDevelMsi
         }
 
-        Write-Color "Downloading GStreamer installer..." $YELLOW
+        Write-Color "Downloading GStreamer installer from mirror..." $YELLOW
         $installerExe = Join-Path $env:TEMP "gstreamer-installer.exe"
         $tempRepo = Join-Path $env:TEMP "lt_mirror_temp"
         
         try {
-            # Clone mirror repo locally to get LFS files
+            # Clone mirror repo locally to get LFS files (GStreamer site blocks bots)
             if (Test-Path $tempRepo) {
                 Remove-Item $tempRepo -Recurse -Force
             }
             
-            Write-Color "Cloning mirror repository for LFS files..." $YELLOW
-            & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo
+            Write-Color "Cloning mirror repository (GStreamer site blocks direct downloads)..." $YELLOW
+            & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
             if ($LASTEXITCODE -eq 0) {
                 $sourceFile = Join-Path $tempRepo "gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
                 if (Test-Path $sourceFile) {
@@ -175,13 +175,9 @@ function Install-GStreamer {
                 throw "Failed to clone mirror repository"
             }
         } catch {
-            Write-Color "Mirror clone failed, trying official source..." $YELLOW
-            try {
-                Invoke-WebRequest -Uri $fallbackInstallerUrl -OutFile $installerExe -UseBasicParsing
-            } catch {
-                Write-Color "[ERROR] Failed to download GStreamer installer from both mirror and official source: $($_.Exception.Message)" $RED
-                return $false
-            }
+            Write-Color "[ERROR] Failed to get GStreamer from mirror: $($_.Exception.Message)" $RED
+            Write-Color "       Manual install required: https://gstreamer.freedesktop.org/download/" $YELLOW
+            return $false
         } finally {
             # Clean up temporary repository
             if (Test-Path $tempRepo) {
