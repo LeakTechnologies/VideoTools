@@ -10,7 +10,7 @@ param(
     [switch]$SkipPython = $false,
     [switch]$SkipWhisper = $false,
     [switch]$InstallWhisper = $false,
-    [string]$GStreamerVersion = "1.26.10",
+    [string]$GStreamerVersion = "1.28.0",
     [string]$GStreamerRuntimeMsi = "",
     [string]$GStreamerDevelMsi = "",
     [switch]$PreferWinget = $false
@@ -139,10 +139,8 @@ function Install-GStreamer {
     # MSI installation approach
     try {
         # Use mirror when available, fallback to official
-        $runtimeUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/-/raw/main/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
-        $develUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/-/raw/main/gstreamer-1.0-devel-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
-        $fallbackRuntimeUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
-        $fallbackDevelUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-devel-msvc-x86_64-$($GStreamerVersion)-msvc.msi"
+        $installerUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror/-/raw/main/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
+        $fallbackInstallerUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
         
         if ($GStreamerRuntimeMsi) {
             $runtimeUrl = $GStreamerRuntimeMsi
@@ -153,39 +151,24 @@ function Install-GStreamer {
             $fallbackDevelUrl = $GStreamerDevelMsi
         }
 
-        Write-Color "Downloading GStreamer runtime..." $YELLOW
-        $runtimeMsi = Join-Path $env:TEMP "gstreamer-runtime.msi"
+        Write-Color "Downloading GStreamer installer..." $YELLOW
+        $installerExe = Join-Path $env:TEMP "gstreamer-installer.exe"
         try {
-            Invoke-WebRequest -Uri $runtimeUrl -OutFile $runtimeMsi -UseBasicParsing
+            Invoke-WebRequest -Uri $installerUrl -OutFile $installerExe -UseBasicParsing
         } catch {
             Write-Color "Mirror failed, trying official source..." $YELLOW
             try {
-                Invoke-WebRequest -Uri $fallbackRuntimeUrl -OutFile $runtimeMsi -UseBasicParsing
+                Invoke-WebRequest -Uri $fallbackInstallerUrl -OutFile $installerExe -UseBasicParsing
             } catch {
-                Write-Color "[ERROR] Failed to download GStreamer runtime from both mirror and official source: $($_.Exception.Message)" $RED
+                Write-Color "[ERROR] Failed to download GStreamer installer from both mirror and official source: $($_.Exception.Message)" $RED
                 return $false
             }
         }
 
-        Write-Color "Downloading GStreamer development..." $YELLOW
-        $develMsi = Join-Path $env:TEMP "gstreamer-devel.msi"
-        try {
-            Invoke-WebRequest -Uri $develUrl -OutFile $develMsi -UseBasicParsing
-        } catch {
-            Write-Color "Mirror failed, trying official source..." $YELLOW
-            try {
-                Invoke-WebRequest -Uri $fallbackDevelUrl -OutFile $develMsi -UseBasicParsing
-            } catch {
-                Write-Color "[ERROR] Failed to download GStreamer development from both mirror and official source: $($_.Exception.Message)" $RED
-                return $false
-            }
-        }
+        Write-Color "Installing GStreamer..." $YELLOW
+        Start-Process -FilePath $installerExe -ArgumentList "/S" -Wait -NoNewWindow
 
-        Write-Color "Installing GStreamer packages..." $YELLOW
-        Start-Process -FilePath "msiexec" -ArgumentList "/i", "`"$runtimeMsi`"", "/quiet", "ADDLOCAL=ALL" -Wait -NoNewWindow
-        Start-Process -FilePath "msiexec" -ArgumentList "/i", "`"$develMsi`"", "/quiet", "ADDLOCAL=ALL" -Wait -NoNewWindow
-
-        Remove-Item $runtimeMsi, $develMsi -ErrorAction SilentlyContinue
+        Remove-Item $installerExe -ErrorAction SilentlyContinue
         Write-Color "[OK] GStreamer installed successfully" $GREEN
         return $true
     } catch {
