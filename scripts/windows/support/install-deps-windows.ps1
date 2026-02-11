@@ -55,6 +55,19 @@ function Test-Command {
     }
 }
 
+function Test-PackageInstalled {
+    param([string]$PackageName)
+    if (Test-Command choco) {
+        try {
+            $installed = choco list --exact $PackageName --local-only --exact
+            return $installed -match $PackageName
+        } catch {
+            return $false
+        }
+    }
+    return $false
+}
+
 function Install-Chocolatey {
     Write-Color "[1/4] Installing Chocolatey package manager..." $CYAN
     try {
@@ -87,8 +100,7 @@ function Install-Package {
     
     if (Test-Command choco) {
         try {
-            $installed = choco list --exact $PackageName --local-only --exact
-            if ($installed -match $PackageName) {
+            if (Test-PackageInstalled -PackageName $PackageName) {
                 Write-Color "[OK] $DisplayName already installed" $GREEN
                 return $true
             } else {
@@ -119,6 +131,12 @@ function Install-Package {
 function Install-GStreamer {
     if ($SkipGStreamer) {
         Write-Color "[SKIP] Skipping GStreamer installation" $YELLOW
+        return $true
+    }
+
+    # Check if GStreamer is already installed
+    if (Test-Path "C:\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll") {
+        Write-Color "[OK] GStreamer already installed" $GREEN
         return $true
     }
 
@@ -200,7 +218,7 @@ function Install-WhisperModel {
         }
 
         $modelPath = Join-Path $modelDir "whisper-small.bin"
-        if (Test-Path $modelPath -and -not $Force) {
+        if (Test-Path $modelPath) {
             Write-Color "[OK] Whisper model already exists" $GREEN
             return
         }
@@ -308,6 +326,12 @@ if (-not (Install-GStreamer)) {
 function Install-DVDStyler {
     if ($SkipDVDStyler) {
         Write-Color "[SKIP] Skipping DVDStyler installation" $YELLOW
+        return $true
+    }
+
+    # Check if DVDStyler is already installed
+    if (Test-Path "C:\Program Files\DVDStyler\DVDStyler.exe") {
+        Write-Color "[OK] DVDStyler already installed" $GREEN
         return $true
     }
 
