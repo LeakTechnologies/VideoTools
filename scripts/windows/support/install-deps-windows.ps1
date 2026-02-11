@@ -137,20 +137,8 @@ function Install-GStreamer {
         }
     }
 
-    # MSI installation approach
+    # Mirror installation approach
     try {
-        # Use Forgejo LFS API when available, fallback to official
-        $installerUrl = "https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git/info/lfs/objects/$(git ls-remote https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git master | cut -f1)/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
-        $fallbackInstallerUrl = "https://gstreamer.freedesktop.org/data/pkg/windows/1.0/msvc/gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
-        
-        if ($GStreamerRuntimeMsi) {
-            $runtimeUrl = $GStreamerRuntimeMsi
-            $fallbackRuntimeUrl = $GStreamerRuntimeMsi
-        }
-        if ($GStreamerDevelMsi) {
-            $develUrl = $GStreamerDevelMsi
-            $fallbackDevelUrl = $GStreamerDevelMsi
-        }
 
         Write-Color "Downloading GStreamer installer from mirror..." $YELLOW
         $installerExe = Join-Path $env:TEMP "gstreamer-installer.exe"
