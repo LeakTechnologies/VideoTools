@@ -88,7 +88,7 @@ function Install-Package {
     if (Test-Command choco) {
         try {
             $installed = choco list --exact $PackageName --local-only --exact
-            if ($installed -match $PackageName -and -not $Force) {
+            if ($installed -match $PackageName) {
                 Write-Color "[OK] $DisplayName already installed" $GREEN
                 return $true
             } else {
