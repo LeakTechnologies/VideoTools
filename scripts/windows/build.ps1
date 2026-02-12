@@ -161,6 +161,7 @@ $env:CGO_ENABLED = "1"
 # Build flags
 $ldflags = @(
     "-s", "-w",  # Strip symbols
+    "-H=windowsgui",  # Remove console window
     "-X main.BuildChannel=$BUILD_CHANNEL",
     "-X main.BuildDate=$(Get-Date -Format 'yyyy-MM-dd')",
     "-X main.BuildVersion=$(git describe --tags --always 2>$null)"
@@ -194,14 +195,10 @@ $progressIndex = 0
 # Build with verbose output to show progress
 Write-Host "Compiling..." -NoNewline
 $buildJob = Start-Job -ScriptBlock {
-    param($ldflags, $output, $projectRoot, $useGui)
+    param($ldflags, $output, $projectRoot)
     Set-Location $projectRoot
-    if ($useGui) {
-        go build -v -ldflags $ldflags -o $output -H=windowsgui .
-    } else {
-        go build -v -ldflags $ldflags -o $output .
-    }
-} -ArgumentList $ldflags, $BUILD_OUTPUT, $PROJECT_ROOT, $true
+    go build -v -ldflags $ldflags -o $output .
+} -ArgumentList $ldflags, $BUILD_OUTPUT, $PROJECT_ROOT
 
 # Show progress while building
 while ($buildJob.State -eq "Running") {
