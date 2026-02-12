@@ -134,9 +134,24 @@ function Install-GStreamer {
         return $true
     }
 
-    # Check if GStreamer is already installed
-    if (Test-Path "C:\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll") {
+    # Check if GStreamer is already installed (multiple possible paths)
+    $gstreamerPaths = @(
+        "C:\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
+        "C:\Program Files\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
+        "C:\Program Files (x86)\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll"
+    )
+    
+    $gstreamerInstalled = $false
+    foreach ($path in $gstreamerPaths) {
+        if (Test-Path $path) {
+            $gstreamerInstalled = $true
+            break
+        }
+    }
+    
+    if ($gstreamerInstalled) {
         Write-Color "[OK] GStreamer already installed" $GREEN
+        Write-Color "       Found at: $path" $CYAN
         return $true
     }
 
@@ -218,7 +233,23 @@ function Install-WhisperModel {
         }
 
         $modelPath = Join-Path $modelDir "whisper-small.bin"
-        if (Test-Path $modelPath) {
+        
+        # Check if Whisper model already exists (multiple possible names)
+        $whisperPaths = @(
+            $modelPath,
+            Join-Path $modelDir "ggml-small.bin",
+            Join-Path $modelDir "whisper-model.bin"
+        )
+        
+        $whisperInstalled = $false
+        foreach ($path in $whisperPaths) {
+            if (Test-Path $path) {
+                $whisperInstalled = $true
+                break
+            }
+        }
+        
+        if ($whisperInstalled) {
             Write-Color "[OK] Whisper model already exists" $GREEN
             return
         }
@@ -329,8 +360,22 @@ function Install-DVDStyler {
         return $true
     }
 
-    # Check if DVDStyler is already installed
-    if (Test-Path "C:\Program Files\DVDStyler\DVDStyler.exe") {
+    # Check if DVDStyler is already installed (multiple possible paths)
+    $dvdstylerPaths = @(
+        "C:\Program Files\DVDStyler\DVDStyler.exe",
+        "C:\Program Files (x86)\DVDStyler\DVDStyler.exe",
+        "C:\DVDStyler\DVDStyler.exe"
+    )
+    
+    $dvdstylerInstalled = $false
+    foreach ($path in $dvdstylerPaths) {
+        if (Test-Path $path) {
+            $dvdstylerInstalled = $true
+            break
+        }
+    }
+    
+    if ($dvdstylerInstalled) {
         Write-Color "[OK] DVDStyler already installed" $GREEN
         return $true
     }
