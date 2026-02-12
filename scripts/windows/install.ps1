@@ -1,4 +1,7 @@
-param()
+param(
+    [switch]$Silent,
+    [switch]$Auto
+)
 
 function Write-Header {
     param(
@@ -43,5 +46,7 @@ try {
     exit 1
 }
 
-Write-Host "Press any key to close..." -ForegroundColor Cyan
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+if (-not $Silent) {
+    Write-Host "Press any key to close..." -ForegroundColor Cyan
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+}
