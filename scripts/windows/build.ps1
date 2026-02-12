@@ -167,9 +167,15 @@ $ldflags = @(
     "-X main.BuildVersion=$(git describe --tags --always 2>$null)"
 ) -join " "
 
-# Build the application - run via PowerShell to suppress popup windows
+# Build the application - suppress CGO console popups
 Write-Host "Compiling..." -NoNewline
-$pwshCmd = "Set-Location '$PROJECT_ROOT'; go build -ldflags '$ldflags' -o '$BUILD_OUTPUT' . 2>`$null; exit `$LASTEXITCODE"
+# Set environment variables to suppress console windows during CGO compilation
+$env:CGO_CFLAGS = "-mwindows"
+$env:CGO_LDFLAGS = "-mwindows"
+$env:GCCGO = "gccgo"
+
+# Run build via hidden PowerShell to suppress popup windows
+$pwshCmd = "Set-Location '$PROJECT_ROOT'; `$env:CGO_CFLAGS='-mwindows'; `$env:CGO_LDFLAGS='-mwindows'; go build -ldflags '$ldflags' -o '$BUILD_OUTPUT' . 2>`$null; exit `$LASTEXITCODE"
 $pwshArgs = "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", $pwshCmd
 $buildProc = Start-Process -FilePath "powershell.exe" -ArgumentList $pwshArgs -NoNewWindow -Wait -PassThru
 $exitCode = $buildProc.ExitCode
