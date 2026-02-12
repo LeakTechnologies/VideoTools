@@ -274,6 +274,62 @@ function Copy-FileWithProgress {
     }
 }
 
+function Test-InstallerExitCode {
+    param([int]$ExitCode, [string]$ComponentName)
+    
+    switch ($ExitCode) {
+        0 { 
+            Write-Color "[OK] $ComponentName installation completed" $GREEN
+            return $true 
+        }
+        3010 { 
+            Write-Color "[OK] $ComponentName installation completed (reboot required)" $GREEN
+            return $true 
+        }
+        1602 { 
+            Write-Color "[CANCELLED] User cancelled $ComponentName installation" $YELLOW
+            return $false 
+        }
+        1603 { 
+            Write-Color "[ERROR] $ComponentName installation failed" $RED
+            return $false 
+        }
+        1641 { 
+            Write-Color "[OK] $ComponentName installation completed (reboot initiated)" $GREEN
+            return $true 
+        }
+        default { 
+            Write-Color "[ERROR] $ComponentName installation failed (code: $ExitCode)" $RED
+            return $false 
+        }
+    }
+}
+
+function Test-InstallationComplete {
+    param(
+        [string]$ComponentName,
+        [hashtable]$ExpectedFiles
+    )
+    
+    $allFilesFound = $true
+    foreach ($file in $ExpectedFiles.GetEnumerator()) {
+        if (Test-Path $file.Value) {
+            Write-Color "[OK] Verified: $($file.Key)" $GREEN
+        } else {
+            Write-Color "[ERROR] Missing: $($file.Key)" $RED
+            $allFilesFound = $false
+        }
+    }
+    
+    if ($allFilesFound) {
+        Write-Color "[OK] $ComponentName verification completed" $GREEN
+        return $true
+    } else {
+        Write-Color "[ERROR] $ComponentName verification failed" $RED
+        return $false
+    }
+}
+
 function Test-Command {
     param([string]$Command)
     try {
@@ -398,9 +454,9 @@ function Install-GStreamer {
             }
             
             Write-Color "Cloning mirror repository (GStreamer site blocks direct downloads)..." $YELLOW
-            Write-ProgressBar -Activity "Cloning mirror repository" -Status "Downloading git repository..." -PercentComplete 25
-            & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
-            Write-ProgressBar -Activity "Cloning mirror repository" -Completed
+            Write-ProgressBar -Activity "Downloading GStreamer" -Status "Connecting to repository..." -PercentComplete 10
+            & git clone --depth 1 --progress https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo
+            Write-ProgressBar -Activity "Downloading GStreamer" -Completed
             if ($LASTEXITCODE -eq 0) {
                 $sourceFile = Join-Path $tempRepo "mirrors\raw\gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
                 if (Test-Path $sourceFile) {
@@ -424,11 +480,27 @@ function Install-GStreamer {
         }
 
         Write-Color "Installing GStreamer..." $YELLOW
-        Start-Process -FilePath $installerExe -ArgumentList "/S" -Wait -NoNewWindow
-
-        Remove-Item $installerExe -ErrorAction SilentlyContinue
-        Write-Color "[OK] GStreamer installed successfully" $GREEN
-        return $true
+        $process = Start-Process -FilePath $installerExe -ArgumentList "/S" -Wait -PassThru -NoNewWindow
+        
+        $installSuccess = Test-InstallerExitCode -ExitCode $process.ExitCode -ComponentName "GStreamer"
+        if ($installSuccess) {
+            # Verify installation
+            $expectedFiles = @{
+                "GStreamer DLL" = "C:\Program Files\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll"
+            }
+            $verificationSuccess = Test-InstallationComplete -ComponentName "GStreamer" -ExpectedFiles $expectedFiles
+            
+            if ($verificationSuccess) {
+                $global:DependencyStatus.gstreamer = $true
+                return $true
+            } else {
+                Write-Color "[ERROR] GStreamer installation verification failed" $RED
+                return $false
+            }
+        } else {
+            Write-Color "[ERROR] GStreamer installation failed or was cancelled" $RED
+            return $false
+        }
     } catch {
         Write-Color "[ERROR] Failed to install GStreamer: $($_.Exception.Message)" $RED
         return $false
@@ -466,9 +538,9 @@ function Install-WhisperModel {
             }
             
             Write-Color "Getting Whisper model from lt_mirror..." $YELLOW
-            Write-ProgressBar -Activity "Cloning mirror repository" -Status "Downloading git repository..." -PercentComplete 25
-            & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
-            Write-ProgressBar -Activity "Cloning mirror repository" -Completed
+            Write-ProgressBar -Activity "Downloading Whisper model" -Status "Connecting to repository..." -PercentComplete 10
+            & git clone --depth 1 --progress https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo
+            Write-ProgressBar -Activity "Downloading Whisper model" -Completed
             if ($LASTEXITCODE -eq 0) {
                 $sourceFile = Join-Path $tempRepo "mirrors\raw\whisper-model.bin"
                 if (Test-Path $sourceFile) {
@@ -533,17 +605,35 @@ function Install-DVDStyler {
         }
         
         Write-Color "Getting DVDStyler from lt_mirror..." $YELLOW
-        Write-ProgressBar -Activity "Cloning mirror repository" -Status "Downloading git repository..." -PercentComplete 25
-        & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
-        Write-ProgressBar -Activity "Cloning mirror repository" -Completed
+        Write-ProgressBar -Activity "Downloading DVDStyler" -Status "Connecting to repository..." -PercentComplete 10
+        & git clone --depth 1 --progress https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo
+        Write-ProgressBar -Activity "Downloading DVDStyler" -Completed
         if ($LASTEXITCODE -eq 0) {
             $sourceFile = Join-Path $tempRepo "mirrors\raw\DVDStyler-3.2.1-win64.exe"
             if (Test-Path $sourceFile) {
                 Copy-FileWithProgress -Source $sourceFile -Destination $installerExe -Activity "Downloading DVDStyler"
                 Write-Color "Installing DVDStyler..." $YELLOW
-                Start-Process -FilePath $installerExe -ArgumentList "/S" -Wait -NoNewWindow
-                Write-Color "[OK] DVDStyler installed from mirror" $GREEN
-                return $true
+                $process = Start-Process -FilePath $installerExe -ArgumentList "/S" -Wait -PassThru -NoNewWindow
+                
+                $installSuccess = Test-InstallerExitCode -ExitCode $process.ExitCode -ComponentName "DVDStyler"
+                if ($installSuccess) {
+                    # Verify installation
+                    $expectedFiles = @{
+                        "DVDStyler executable" = "C:\Program Files\DVDStyler\bin\DVDStyler.exe"
+                    }
+                    $verificationSuccess = Test-InstallationComplete -ComponentName "DVDStyler" -ExpectedFiles $expectedFiles
+                    
+                    if ($verificationSuccess) {
+                        $global:DependencyStatus.dvdstyler = $true
+                        return $true
+                    } else {
+                        Write-Color "[ERROR] DVDStyler installation verification failed" $RED
+                        return $false
+                    }
+                } else {
+                    Write-Color "[ERROR] DVDStyler installation failed or was cancelled" $RED
+                    return $false
+                }
             } else {
                 throw "DVDStyler not found in mirror"
             }
