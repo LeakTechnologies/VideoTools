@@ -14,7 +14,9 @@ param(
     [string]$GStreamerVersion = "1.28.0",
     [string]$GStreamerRuntimeMsi = "",
     [string]$GStreamerDevelMsi = "",
-    [switch]$PreferWinget = $false
+    [switch]$PreferWinget = $false,
+    [switch]$Silent = $false,
+    [switch]$Auto = $false
 )
 
 # Colors for output
@@ -338,7 +340,12 @@ if (-not $SkipFFmpeg) {
 # Install Python
 if ($InstallPython) {
     Install-Package -PackageName "python" -DisplayName "Python with pip"
-} elseif (-not $SkipPython) {
+} elseif ($SkipPython) {
+    Write-Color "[SKIP] Skipping Python installation" $YELLOW
+} elseif ($Silent -or $Auto) {
+    # In silent/auto mode, skip Python (optional)
+    Write-Color "[SKIP] Skipping Python installation (silent mode)" $YELLOW
+} else {
     Write-Host "Install Python + pip? [y/N]: " -ForegroundColor Yellow -NoNewline
     $response = Read-Host
     if ($response -match '^[Yy]') {
@@ -439,7 +446,12 @@ function Install-DVDStyler {
 # Install Whisper model
 if ($InstallWhisper) {
     Install-WhisperModel
-} elseif (-not $SkipWhisper) {
+} elseif ($SkipWhisper) {
+    Write-Color "[SKIP] Skipping Whisper model installation" $YELLOW
+} elseif ($Silent -or $Auto) {
+    # In silent/auto mode, install Whisper automatically
+    Install-WhisperModel
+} else {
     Write-Host "Install Whisper model for subtitles? [y/N]: " -ForegroundColor Yellow -NoNewline
     $response = Read-Host
     if ($response -match '^[Yy]') {
@@ -450,8 +462,13 @@ if ($InstallWhisper) {
 }
 
 # Install DVDStyler
-if (-not (Install-DVDStyler)) {
-    Write-Color "[INFO] DVDStyler installation failed. DVD authoring tools unavailable." $YELLOW
+if ($Silent -or $Auto) {
+    # In silent/auto mode, install DVDStyler automatically
+    Install-DVDStyler
+} else {
+    if (-not (Install-DVDStyler)) {
+        Write-Color "[INFO] DVDStyler installation failed. DVD authoring tools unavailable." $YELLOW
+    }
 }
 
 # Create shortcuts
@@ -478,14 +495,18 @@ try {
 
 Write-Color "[SUCCESS] VideoTools dependencies installation completed!" $GREEN
 Write-Host ""
-Write-Color "Next steps:" $CYAN
-Write-Color "  1. Run: .\scripts\windows\build.bat" $NC
-Write-Color "  2. Run: .\VideoTools.exe" $NC
+if (-not $Silent) {
+    Write-Color "Next steps:" $CYAN
+    Write-Color "  1. Run: .\scripts\windows\build.bat" $NC
+    Write-Color "  2. Run: .\VideoTools.exe" $NC
+    Write-Host ""
+    Write-Color "Optional components installed:" $CYAN
+    Write-Color "  - GStreamer: Video playback support" $NC
+    Write-Color "  - Whisper: AI subtitle generation" $NC
+    Write-Color "  - DVDStyler: DVD authoring tools" $NC
+}
 Write-Host ""
-Write-Color "Optional components installed:" $CYAN
-Write-Color "  - GStreamer: Video playback support" $NC
-Write-Color "  - Whisper: AI subtitle generation" $NC
-Write-Color "  - DVDStyler: DVD authoring tools" $NC
-Write-Host ""
-Write-Host "Press any key to close..." $CYAN
-$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+if (-not $Silent) {
+    Write-Host "Press any key to close..." $CYAN
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+}
