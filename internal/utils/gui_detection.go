@@ -192,11 +192,11 @@ func (env *GUIEnvironment) detectWindowsGUI() {
 	env.DisplayServer = "windows"
 
 	// Get Windows version info
-	if cmd, err := exec.Command("cmd", "/c", "ver").Output(); err == nil {
+	if cmd, err := HideWindowExec("cmd", "/c", "ver").Output(); err == nil {
 		version := string(cmd)
 		if strings.Contains(version, "10.0.") {
 			// Check build number to distinguish Windows 11
-			if buildCmd, err := exec.Command("powershell", "-Command", "(Get-CimInstance Win32_OperatingSystem).BuildNumber").Output(); err == nil {
+			if buildCmd, err := HideWindowExec("powershell", "-Command", "(Get-CimInstance Win32_OperatingSystem).BuildNumber").Output(); err == nil {
 				buildStr := strings.TrimSpace(string(buildCmd))
 				if build, err := strconv.Atoi(buildStr); err == nil {
 					if build >= 22000 {
@@ -222,7 +222,7 @@ func (env *GUIEnvironment) detectWindowsGUI() {
 
 // detectWindowsGPU performs GPU detection on Windows
 func (env *GPUInfo) detectWindowsGPU() {
-	if cmd, err := exec.Command("powershell", "-Command", "Get-WmiObject Win32_VideoController | Select-Object Name").Output(); err == nil {
+	if cmd, err := HideWindowExec("powershell", "-Command", "Get-WmiObject Win32_VideoController | Select-Object Name").Output(); err == nil {
 		gpuName := strings.TrimSpace(string(cmd))
 		env.Model = strings.ReplaceAll(gpuName, "\r", "")
 
@@ -268,7 +268,7 @@ func (env GPUInfo) IsLikelySoftwareOnlyAdapter() (bool, string) {
 // detectWindowsScale detects display scaling on Windows
 func (env *GUIEnvironment) detectWindowsScale() {
 	// Try to get DPI from PowerShell
-	if cmd, err := exec.Command("powershell", "-Command", "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class DPI { [DllImport(\"user32.dll\")] public static extern IntPtr GetDC(IntPtr ptr); [DllImport(\"gdi32.dll\")] public static extern int GetDeviceCaps(IntPtr hdc, int nIndex); [DllImport(\"user32.dll\")] public static extern int ReleaseDC(IntPtr ptr, IntPtr hdc); public const int LOGPIXELSX = 88; public static double GetScale() { IntPtr hdc = GetDC(IntPtr.Zero); int dpi = GetDeviceCaps(hdc, LOGPIXELSX); ReleaseDC(IntPtr.Zero, hdc); return dpi / 96.0; } }; [DPI]::GetScale()").Output(); err == nil {
+	if cmd, err := HideWindowExec("powershell", "-Command", "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public class DPI { [DllImport(\"user32.dll\")] public static extern IntPtr GetDC(IntPtr ptr); [DllImport(\"gdi32.dll\")] public static extern int GetDeviceCaps(IntPtr hdc, int nIndex); [DllImport(\"user32.dll\")] public static extern int ReleaseDC(IntPtr ptr, IntPtr hdc); public const int LOGPIXELSX = 88; public static double GetScale() { IntPtr hdc = GetDC(IntPtr.Zero); int dpi = GetDeviceCaps(hdc, LOGPIXELSX); ReleaseDC(IntPtr.Zero, hdc); return dpi / 96.0; } }; [DPI]::GetScale()").Output(); err == nil {
 		if scaleStr := strings.TrimSpace(string(cmd)); scaleStr != "" {
 			if scale, err := strconv.ParseFloat(scaleStr, 64); err == nil {
 				env.ScaleFactor = scale
@@ -278,7 +278,7 @@ func (env *GUIEnvironment) detectWindowsScale() {
 
 	// Fallback to registry if PowerShell method fails
 	if env.ScaleFactor == 1.0 {
-		if cmd, err := exec.Command("reg", "query", "HKCU\\Control Panel\\Desktop", "/v", "LogPixels").Output(); err == nil {
+		if cmd, err := HideWindowExec("reg", "query", "HKCU\\Control Panel\\Desktop", "/v", "LogPixels").Output(); err == nil {
 			output := string(cmd)
 			if strings.Contains(output, "0x") {
 				// Parse hex value
