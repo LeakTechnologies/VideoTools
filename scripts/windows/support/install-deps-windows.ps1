@@ -809,6 +809,8 @@ if ($installDVDStyler) {
     } else {
         Write-Color "[SKIP] DVDStyler already installed, skipping" $GREEN
     }
+} elseif ($DependencyStatus.dvdstyler) {
+    Write-Color "[SKIP] DVDStyler already installed, skipping" $GREEN
 } else {
     Write-Color "[SKIP] DVDStyler installation declined" $YELLOW
 }
