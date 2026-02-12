@@ -239,8 +239,8 @@ function Install-WhisperModel {
         # Check if Whisper model already exists (multiple possible names)
         $whisperPaths = @(
             $modelPath,
-            Join-Path $modelDir "ggml-small.bin",
-            Join-Path $modelDir "whisper-model.bin"
+            (Join-Path $modelDir "ggml-small.bin"),
+            (Join-Path $modelDir "whisper-model.bin")
         )
         
         $whisperInstalled = $false
