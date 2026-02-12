@@ -71,40 +71,93 @@ function Test-AllDependencies {
         }
     }
     
-    # Check GStreamer - comprehensive search (case-insensitive)
+    # Check GStreamer - FIXED: Look for correct DLL name and add directory fallback
     $gstreamerPaths = @(
-        "C:\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
-        "C:\Program Files\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
-        "C:\Program Files (x86)\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
-        "C:\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
-        "C:\Program Files\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
-        "C:\Program Files (x86)\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
-        "C:\msys64\mingw64\bin\gstreamer-1.0.dll",
-        "C:\GStreamer\1.0\x86_64\bin\gstreamer-1.0.dll",
-        "C:\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0"
+        "C:\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll",
+        "C:\Program Files\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll",
+        "C:\Program Files (x86)\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll",
+        "C:\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll",
+        "C:\Program Files\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll",
+        "C:\Program Files (x86)\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll",
+        "C:\msys64\mingw64\bin\gstreamer-1.0-0.dll",
+        "C:\GStreamer\1.0\x86_64\bin\gstreamer-1.0-0.dll",
+        "C:\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll"
     )
     
+    $foundGStreamer = $false
     foreach ($path in $gstreamerPaths) {
         if (Test-Path $path) {
             $global:DependencyStatus.gstreamer = $true
             Write-Color "[OK] GStreamer already installed" $GREEN
             Write-Color "       Found at: $path" $CYAN
+            $foundGStreamer = $true
             break
         }
     }
     
-    # Check DVDStyler
+    # Fallback: Check for GStreamer directory existence if DLL not found
+    if (-not $foundGStreamer) {
+        $gstreamerDirs = @(
+            "C:\Program Files\GStreamer",
+            "C:\Program Files (x86)\GStreamer",
+            "C:\GStreamer",
+            "C:\gstreamer"
+        )
+        
+        foreach ($dir in $gstreamerDirs) {
+            if (Test-Path $dir) {
+                # Check if bin subdirectory exists with any gstreamer DLL
+                $binPath = Join-Path $dir "1.0\msvc_x86_64\bin"
+                if (Test-Path $binPath) {
+                    $gstreamerDlls = Get-ChildItem -Path $binPath -Filter "gstreamer*.dll" -ErrorAction SilentlyContinue
+                    if ($gstreamerDlls.Count -gt 0) {
+                        $global:DependencyStatus.gstreamer = $true
+                        Write-Color "[OK] GStreamer already installed" $GREEN
+                        Write-Color "       Found at: $dir" $CYAN
+                        $foundGStreamer = $true
+                        break
+                    }
+                }
+            }
+        }
+    }
+    
+    # Check DVDStyler - FIXED: Add more comprehensive search
     $dvdstylerPaths = @(
         "C:\Program Files\DVDStyler\DVDStyler.exe",
         "C:\Program Files (x86)\DVDStyler\DVDStyler.exe",
         "C:\DVDStyler\DVDStyler.exe"
     )
     
+    $foundDVDStyler = $false
     foreach ($path in $dvdstylerPaths) {
         if (Test-Path $path) {
             $global:DependencyStatus.dvdstyler = $true
             Write-Color "[OK] DVDStyler already installed" $GREEN
+            $foundDVDStyler = $true
             break
+        }
+    }
+    
+    # Fallback: Check for DVDStyler directory existence
+    if (-not $foundDVDStyler) {
+        $dvdstylerDirs = @(
+            "C:\Program Files\DVDStyler",
+            "C:\Program Files (x86)\DVDStyler",
+            "C:\DVDStyler"
+        )
+        
+        foreach ($dir in $dvdstylerDirs) {
+            if (Test-Path $dir) {
+                # Check if main executable exists
+                $exeFiles = Get-ChildItem -Path $dir -Filter "DVDStyler.exe" -ErrorAction SilentlyContinue
+                if ($exeFiles.Count -gt 0) {
+                    $global:DependencyStatus.dvdstyler = $true
+                    Write-Color "[OK] DVDStyler already installed" $GREEN
+                    $foundDVDStyler = $true
+                    break
+                }
+            }
         }
     }
     
@@ -158,7 +211,7 @@ function Test-PackageInstalled {
     param([string]$PackageName)
     if (Test-Command choco) {
         try {
-            $installed = choco list
+            $installed = choco list --local-only --exact $PackageName
             return $installed -match "$PackageName\s+\d"
         } catch {
             return $false
@@ -360,6 +413,74 @@ function Install-WhisperModel {
     }
 }
 
+function Install-DVDStyler {
+    if ($SkipDVDStyler) {
+        Write-Color "[SKIP] Skipping DVDStyler installation" $YELLOW
+        return $true
+    }
+
+    # Check if already installed globally (before any operations)
+    if ($global:DependencyStatus.dvdstyler) {
+        Write-Color "[SKIP] DVDStyler already installed, skipping" $GREEN
+        return $true
+    }
+
+    Write-Color "[4/4] Installing DVDStyler (optional DVD authoring)..." $CYAN
+    
+    # Try winget first if available and preferred
+    if ($PreferWinget -and (Test-Command winget)) {
+        try {
+            Write-Color "Attempting to install DVDStyler via winget..." $YELLOW
+            winget install --id DVDStyler.DVDStyler -e --accept-package-agreements --accept-source-agreements
+            if ($LASTEXITCODE -eq 0) {
+                Write-Color "[OK] DVDStyler installed via winget" $GREEN
+                return $true
+            }
+        } catch {
+            Write-Color "Winget installation failed, trying mirror..." $YELLOW
+        }
+    }
+
+    # Use lt_mirror for DVDStyler
+    $installerExe = Join-Path $env:TEMP "DVDStyler-setup.exe"
+    $tempRepo = Join-Path $env:TEMP "lt_mirror_temp"
+    
+    try {
+        # Clone mirror repo locally to get DVDStyler
+        if (Test-Path $tempRepo) {
+            Remove-Item $tempRepo -Recurse -Force
+        }
+        
+        Write-Color "Getting DVDStyler from lt_mirror..." $YELLOW
+        & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $sourceFile = Join-Path $tempRepo "mirrors\raw\DVDStyler-3.2.1-win64.exe"
+            if (Test-Path $sourceFile) {
+                Copy-Item $sourceFile $installerExe
+                Write-Color "Installing DVDStyler..." $YELLOW
+                Start-Process -FilePath $installerExe -ArgumentList "/S" -Wait -NoNewWindow
+                Write-Color "[OK] DVDStyler installed from mirror" $GREEN
+                return $true
+            } else {
+                throw "DVDStyler not found in mirror"
+            }
+        } else {
+            throw "Failed to clone mirror repository"
+        }
+    } catch {
+        Write-Color "[SKIP] Failed to install DVDStyler from mirror: $($_.Exception.Message)" $YELLOW
+        return $false
+    } finally {
+        # Clean up temporary files
+        if (Test-Path $tempRepo) {
+            Remove-Item $tempRepo -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        if (Test-Path $installerExe) {
+            Remove-Item $installerExe -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 # Main installation flow
 Write-Header "VideoTools Windows Installation"
 
@@ -440,7 +561,7 @@ if ($InstallPython) {
     }
 }
 
-# Install GStreamer
+# Install GStreamer - FIXED: Respect dependency status in all modes
 if (-not $global:DependencyStatus.gstreamer) {
     if (-not (Install-GStreamer)) {
         Write-Color "[WARN] GStreamer installation failed. Video playback may not work." $YELLOW
@@ -448,74 +569,6 @@ if (-not $global:DependencyStatus.gstreamer) {
     }
 } else {
     Write-Color "[SKIP] GStreamer already installed, skipping" $GREEN
-}
-
-function Install-DVDStyler {
-    if ($SkipDVDStyler) {
-        Write-Color "[SKIP] Skipping DVDStyler installation" $YELLOW
-        return $true
-    }
-
-    # Check if already installed globally (before any operations)
-    if ($global:DependencyStatus.dvdstyler) {
-        Write-Color "[SKIP] DVDStyler already installed, skipping" $GREEN
-        return $true
-    }
-
-    Write-Color "[4/4] Installing DVDStyler (optional DVD authoring)..." $CYAN
-    
-    # Try winget first if available and preferred
-    if ($PreferWinget -and (Test-Command winget)) {
-        try {
-            Write-Color "Attempting to install DVDStyler via winget..." $YELLOW
-            winget install --id DVDStyler.DVDStyler -e --accept-package-agreements --accept-source-agreements
-            if ($LASTEXITCODE -eq 0) {
-                Write-Color "[OK] DVDStyler installed via winget" $GREEN
-                return $true
-            }
-        } catch {
-            Write-Color "Winget installation failed, trying mirror..." $YELLOW
-        }
-    }
-
-    # Use lt_mirror for DVDStyler
-    $installerExe = Join-Path $env:TEMP "DVDStyler-setup.exe"
-    $tempRepo = Join-Path $env:TEMP "lt_mirror_temp"
-    
-    try {
-        # Clone mirror repo locally to get DVDStyler
-        if (Test-Path $tempRepo) {
-            Remove-Item $tempRepo -Recurse -Force
-        }
-        
-        Write-Color "Getting DVDStyler from lt_mirror..." $YELLOW
-        & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            $sourceFile = Join-Path $tempRepo "mirrors\raw\DVDStyler-3.2.1-win64.exe"
-            if (Test-Path $sourceFile) {
-                Copy-Item $sourceFile $installerExe
-                Write-Color "Installing DVDStyler..." $YELLOW
-                Start-Process -FilePath $installerExe -ArgumentList "/S" -Wait -NoNewWindow
-                Write-Color "[OK] DVDStyler installed from mirror" $GREEN
-                return $true
-            } else {
-                throw "DVDStyler not found in mirror"
-            }
-        } else {
-            throw "Failed to clone mirror repository"
-        }
-    } catch {
-        Write-Color "[SKIP] Failed to install DVDStyler from mirror: $($_.Exception.Message)" $YELLOW
-        return $false
-    } finally {
-        # Clean up temporary files
-        if (Test-Path $tempRepo) {
-            Remove-Item $tempRepo -Recurse -Force -ErrorAction SilentlyContinue
-        }
-        if (Test-Path $installerExe) {
-            Remove-Item $installerExe -ErrorAction SilentlyContinue
-        }
-    }
 }
 
 # Install Whisper model
@@ -538,9 +591,9 @@ if ($InstallWhisper) {
     }
 }
 
-# Install DVDStyler
+# Install DVDStyler - FIXED: Respect dependency status in all modes
 if ($Silent -or $Auto) {
-    # In silent/auto mode, install DVDStyler automatically
+    # In silent/auto mode, install DVDStyler automatically if not present
     if (-not $DependencyStatus.dvdstyler) {
         Install-DVDStyler
     } else {
