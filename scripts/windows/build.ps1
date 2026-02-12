@@ -1,14 +1,14 @@
 # VideoTools Build Script for Windows
 # Builds the VideoTools application using Chocolatey-installed toolchain
 
-# Set console encoding to UTF-8
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$OutputEncoding = [System.Text.Encoding]::UTF8
-
 param(
     [switch]$Clean,
     [switch]$SkipTests
 )
+
+# Set console encoding to UTF-8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
 
 function Write-Header {
     param(
