@@ -429,7 +429,9 @@ if ($InstallPython) {
 }
 
 # Install GStreamer
+Write-Color "Debug: DependencyStatus.gstreamer = $DependencyStatus.gstreamer" $YELLOW
 if (-not $DependencyStatus.gstreamer) {
+    Write-Color "Debug: Will attempt GStreamer installation" $YELLOW
     if (-not (Install-GStreamer)) {
         Write-Color "[WARN] GStreamer installation failed. Video playback may not work." $YELLOW
         Write-Color "       You can install GStreamer manually from: https://gstreamer.freedesktop.org/download/" $YELLOW
