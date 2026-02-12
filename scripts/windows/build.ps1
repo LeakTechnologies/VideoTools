@@ -170,21 +170,16 @@ $ldflags = @(
 # Build the application - suppress CGO console popups
 Write-Host "Compiling..." -NoNewline
 
-# Create a wrapper script to build with suppressed windows
-$buildScript = @"
-`$env:CGO_CFLAGS = "-mwindows"
-`$env:CGO_LDFLAGS = "-mwindows"
-Set-Location "$($PROJECT_ROOT.Replace('\', '\\'))"
-go build -ldflags "$ldflags" -o "$($BUILD_OUTPUT.Replace('\', '\\'))" . 2>`$null
-exit `$LASTEXITCODE
-"@
+# Run build via Start-Process with hidden window to suppress all popups
+$buildArgs = @(
+    "-NoProfile",
+    "-ExecutionPolicy", "Bypass",
+    "-Command",
+    "Set-Location '$PROJECT_ROOT'; `$env:CGO_CFLAGS='-mwindows'; `$env:CGO_LDFLAGS='-mwindows'; go build -ldflags '$ldflags' -o '$BUILD_OUTPUT' ."
+)
 
-$scriptPath = Join-Path $env:TEMP "vt_build.ps1"
-$buildScript | Out-File -FilePath $scriptPath -Encoding UTF8
-
-# Run via cmd /c start to suppress windows - /b prevents new window, /wait waits for completion
-$buildCmd = "cmd /c start /b /wait powershell -ExecutionPolicy Bypass -File `"$scriptPath`""
-$exitCode = (cmd /c $buildCmd) 2>$null
+$buildProc = Start-Process -FilePath "powershell.exe" -ArgumentList $buildArgs -WindowStyle Hidden -Wait -PassThru
+$exitCode = $buildProc.ExitCode
 
 if ($exitCode -ne 0) {
     Write-Host " Build failed" -ForegroundColor Red
