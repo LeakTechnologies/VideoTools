@@ -10,7 +10,7 @@ function Write-Header {
     param(
         [string]$Title
     )
-    $line = "════════════════════════════════════════════════════════════════"
+    $line = "==============================================================="
     Write-Host $line -ForegroundColor Cyan
     Write-Host "  $Title" -ForegroundColor Cyan
     Write-Host $line -ForegroundColor Cyan
@@ -46,7 +46,7 @@ function Wait-ForKey {
     }
     try {
         if ($Host -and $Host.Name -eq "ConsoleHost" -and $Host.UI -and $Host.UI.RawUI) {
-            Write-Host $Message -ForegroundColor Cyan
+            Write-Host $Message
             $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         }
     } catch {
