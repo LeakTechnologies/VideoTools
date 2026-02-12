@@ -170,33 +170,23 @@ $ldflags = @(
 # Build the application - suppress CGO console popups
 Write-Host "Compiling..." -NoNewline
 
-# Create a hidden gcc wrapper using VBScript (most reliable for hiding windows)
-$vbsWrapper = @"
-Set WshShell = CreateObject("WScript.Shell")
-Set oExec = WshShell.Exec("gcc " & WScript.Arguments(0))
-Do While oExec.Status = 0
-    WScript.Sleep 100
-Loop
-WScript.Quit oExec.ExitCode
+# Create a simple batch wrapper that uses cmd /c to suppress window
+$batWrapper = @"
+@echo off
+cmd /c gcc %*
 "@
 
-$vbsPath = Join-Path $env:TEMP "gcc_hidden.vbs"
-$vbsWrapper | Out-File -FilePath $vbsPath -Encoding UTF8
+$batPath = Join-Path $env:TEMP "gcc_hidden.bat"
+$batWrapper | Out-File -FilePath $batPath -Encoding ASCII
 
-# Set CC to use the VBS wrapper via PowerShell
-$ps1Wrapper = @"
-`$args = `$MyInvocation.UnboundArguments -join ' '
-Start-Process -FilePath 'cscript.exe' -ArgumentList '//Nologo', `"$vbsPath`", `$args -NoNewWindow -Wait -PassThru | Out-Null
-exit `$LASTEXITCODE
-"@
+# Set CC to use wrapper
+$env:CC = $batPath
 
-$ps1Path = Join-Path $env:TEMP "gcc_wrapper.ps1"
-$ps1Wrapper | Out-File -FilePath $ps1Path -Encoding UTF8
+# Also suppress CGO output
+$env:CGO_CFLAGS = "-w"
+$env:CGO_LDFLAGS = "-w"
 
-# Set CC environment variable to use our wrapper
-$env:CC = "powershell.exe -ExecutionPolicy Bypass -File `"$ps1Path`""
-
-# Build via direct go command
+# Build via Process with CreateNoWindow
 Set-Location $PROJECT_ROOT
 
 $pinfo = New-Object System.Diagnostics.ProcessStartInfo
@@ -216,8 +206,7 @@ $p.WaitForExit()
 $exitCode = $p.ExitCode
 
 # Cleanup
-Remove-Item $vbsPath -ErrorAction SilentlyContinue
-Remove-Item $ps1Path -ErrorAction SilentlyContinue
+Remove-Item $batPath -ErrorAction SilentlyContinue
 
 if ($exitCode -ne 0) {
     Write-Host " Build failed" -ForegroundColor Red
