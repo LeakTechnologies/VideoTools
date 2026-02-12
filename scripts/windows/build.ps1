@@ -124,20 +124,20 @@ if ($Clean) {
     Write-Host ""
 }
 
-Write-Section "Dependencies"
-Write-Host "Downloading and verifying dependencies..." -ForegroundColor Yellow
+Write-Section "Go Modules"
+Write-Host "Preparing Go modules..." -ForegroundColor Yellow
 go mod download
 if ($LASTEXITCODE -ne 0) {
-    Write-Host " Failed to download dependencies" -ForegroundColor Red
+    Write-Host " Failed to download Go modules" -ForegroundColor Red
     Exit-WithPause 1
 }
 
 go mod verify
 if ($LASTEXITCODE -ne 0) {
-    Write-Host " Failed to verify dependencies" -ForegroundColor Red
+    Write-Host " Failed to verify Go modules" -ForegroundColor Red
     Exit-WithPause 1
 }
-Write-Host " Dependencies verified" -ForegroundColor Green
+Write-Host " Go modules ready" -ForegroundColor Green
 Write-Host ""
 
 Write-Section "Build"
