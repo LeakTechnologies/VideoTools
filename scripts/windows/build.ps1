@@ -167,55 +167,10 @@ $ldflags = @(
     "-X main.BuildVersion=$(git describe --tags --always 2>$null)"
 ) -join " "
 
-# Compile resource file for icon
-$resourceFile = Join-Path $PSScriptRoot "..\videotools.rc"
-$resourceOutput = Join-Path $PROJECT_ROOT "icon.syso"
-if (Test-Path $resourceFile) {
-    Write-Host "Compiling resource file..." -ForegroundColor Yellow
-    $assetPath = Join-Path $PSScriptRoot "..\..\assets\logo\VT_Icon.ico"
-    $rcContent = @"
-1 ICON "$assetPath"
-"@
-    $rcFile = Join-Path $env:TEMP "videotools.rc"
-    $rcContent | Out-File -FilePath $rcFile -Encoding ASCII
-    
-    # Compile with windres (from MinGW)
-    if (Test-Command windres) {
-        & windres -i $rcFile -o $resourceOutput -O coff 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host " Resource file compiled" -ForegroundColor Green
-        }
-    }
-}
-
-# Progress indicator
-$progressChars = @("|", "/", "-", "\")
-$progressIndex = 0
-
-# Build with verbose output to show progress
+# Build the application directly (simpler, uses less memory)
 Write-Host "Compiling..." -NoNewline
-$buildJob = Start-Job -ScriptBlock {
-    param($ldflags, $output, $projectRoot)
-    Set-Location $projectRoot
-    go build -v -ldflags $ldflags -o $output .
-} -ArgumentList $ldflags, $BUILD_OUTPUT, $PROJECT_ROOT
-
-# Show progress while building
-while ($buildJob.State -eq "Running") {
-    Write-Host "`rCompiling... $($progressChars[$progressIndex])" -NoNewline
-    $progressIndex = ($progressIndex + 1) % 4
-    Start-Sleep -Milliseconds 250
-}
-
-# Wait for job to complete and get result
-$result = Receive-Job -Job $buildJob
-Remove-Job -Job $buildJob -Force
-
-# Show completed output
-Write-Host "`rCompiling... Done" -ForegroundColor Green
-if ($result) {
-    $result | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
-}
+go build -v -ldflags $ldflags -o $BUILD_OUTPUT . 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+Write-Host " Done" -ForegroundColor Green
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host " Build failed" -ForegroundColor Red
