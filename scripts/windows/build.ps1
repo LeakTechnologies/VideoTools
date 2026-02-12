@@ -167,16 +167,18 @@ $ldflags = @(
     "-X main.BuildVersion=$(git describe --tags --always 2>$null)"
 ) -join " "
 
-# Build the application - suppress verbose output to prevent popup windows
+# Build the application - run via PowerShell to suppress popup windows
 Write-Host "Compiling..." -NoNewline
-$env:GOFLAGS = "-v"  # Enable verbose in Go env
-go build -ldflags $ldflags -o $BUILD_OUTPUT . 2>&1 | Out-Null
-Write-Host " Done" -ForegroundColor Green
+$pwshCmd = "Set-Location '$PROJECT_ROOT'; go build -ldflags '$ldflags' -o '$BUILD_OUTPUT' . 2>`$null; exit `$LASTEXITCODE"
+$pwshArgs = "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", $pwshCmd
+$buildProc = Start-Process -FilePath "powershell.exe" -ArgumentList $pwshArgs -NoNewWindow -Wait -PassThru
+$exitCode = $buildProc.ExitCode
 
-if ($LASTEXITCODE -ne 0) {
+if ($exitCode -ne 0) {
     Write-Host " Build failed" -ForegroundColor Red
     Exit-WithPause 1
 }
+Write-Host " Done" -ForegroundColor Green
 
 if (Test-Path $BUILD_OUTPUT) {
     $size = [math]::Round((Get-Item $BUILD_OUTPUT).Length / 1MB, 2)
