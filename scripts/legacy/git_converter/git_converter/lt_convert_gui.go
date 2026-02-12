@@ -13,7 +13,7 @@ func main() {
 	w.Resize(fyne.NewSize(900, 700))
 
 	// Title section
-	title := widget.NewLabelWithStyle("LT-CONVERT", fyne.TextStyle{Bold: true})
+	title := widget.NewLabelWithStyle("LT-CONVERT", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
 
 	// Simple button layout that works
 	content := container.NewVBox(

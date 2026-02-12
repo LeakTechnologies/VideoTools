@@ -137,7 +137,7 @@ func Crash(cat Category, format string, args ...interface{}) {
 	// Also log to dedicated crash log
 	if crashFile, err := os.OpenFile(GetCrashLogPath(), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err == nil {
 		fmt.Fprintf(crashFile, "%s %s\n", timestamp, msg)
-		fmt.Fprintf(crashFile, "Stack trace:\n%s\n", timestamp, getStackTrace())
+		fmt.Fprintf(crashFile, "Stack trace:\n%s\n", getStackTrace())
 		crashFile.Sync()
 	}
 }
