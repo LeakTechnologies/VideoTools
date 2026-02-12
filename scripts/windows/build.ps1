@@ -127,11 +127,18 @@ if ($Clean) {
 }
 
 Write-Section "Go Modules"
-Write-Host "Preparing Go modules..." -ForegroundColor Yellow
-go mod download
-if ($LASTEXITCODE -ne 0) {
-    Write-Host " Failed to download Go modules" -ForegroundColor Red
-    Exit-WithPause 1
+
+# Check if modules are already downloaded (skip if already built)
+$moduleCache = Join-Path $env:USERPROFILE "go\pkg\mod"
+if ((Test-Path $moduleCache) -and (Get-ChildItem $moduleCache -ErrorAction SilentlyContinue | Measure-Object).Count -gt 0) {
+    Write-Host "Using cached Go modules" -ForegroundColor Green
+} else {
+    Write-Host "Downloading Go modules..." -ForegroundColor Yellow
+    go mod download
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host " Failed to download Go modules" -ForegroundColor Red
+        Exit-WithPause 1
+    }
 }
 
 go mod verify
