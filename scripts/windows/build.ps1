@@ -167,9 +167,10 @@ $ldflags = @(
     "-X main.BuildVersion=$(git describe --tags --always 2>$null)"
 ) -join " "
 
-# Build the application directly (simpler, uses less memory)
+# Build the application - suppress verbose output to prevent popup windows
 Write-Host "Compiling..." -NoNewline
-go build -v -ldflags $ldflags -o $BUILD_OUTPUT . 2>&1 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+$env:GOFLAGS = "-v"  # Enable verbose in Go env
+go build -ldflags $ldflags -o $BUILD_OUTPUT . 2>&1 | Out-Null
 Write-Host " Done" -ForegroundColor Green
 
 if ($LASTEXITCODE -ne 0) {
