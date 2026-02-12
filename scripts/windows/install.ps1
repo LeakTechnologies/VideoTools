@@ -46,4 +46,8 @@ try {
     exit 1
 }
 
-# Note: install-deps-windows.ps1 handles user interaction closing
+# Ensure prompt shows even if dependency script didn't show it
+if (-not $env:CI) {
+    Write-Host "Press any key to close..." -ForegroundColor Cyan
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+}

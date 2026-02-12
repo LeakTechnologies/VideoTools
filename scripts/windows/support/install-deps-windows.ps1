@@ -875,7 +875,7 @@ if (-not $Silent) {
     }
 }
 Write-Host ""
-if (-not $Silent) {
+if (-not $env:CI) {
     Write-Host "Press any key to close..." -ForegroundColor Cyan
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }

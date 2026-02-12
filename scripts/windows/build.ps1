@@ -48,11 +48,9 @@ function Wait-ForKey {
     if ($env:CI) {
         return
     }
+    Write-Host $Message
     try {
-        if ($Host -and $Host.Name -eq "ConsoleHost" -and $Host.UI -and $Host.UI.RawUI) {
-            Write-Host $Message
-            $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-        }
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     } catch {
         # Ignore key read errors in non-interactive environments
     }
