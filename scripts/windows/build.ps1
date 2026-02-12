@@ -194,10 +194,14 @@ $progressIndex = 0
 # Build with verbose output to show progress
 Write-Host "Compiling..." -NoNewline
 $buildJob = Start-Job -ScriptBlock {
-    param($ldflags, $output, $projectRoot)
+    param($ldflags, $output, $projectRoot, $useGui)
     Set-Location $projectRoot
-    go build -v -ldflags $ldflags -o $output .
-} -ArgumentList $ldflags, $BUILD_OUTPUT, $PROJECT_ROOT
+    if ($useGui) {
+        go build -v -ldflags $ldflags -o $output -H=windowsgui .
+    } else {
+        go build -v -ldflags $ldflags -o $output .
+    }
+} -ArgumentList $ldflags, $BUILD_OUTPUT, $PROJECT_ROOT, $true
 
 # Show progress while building
 while ($buildJob.State -eq "Running") {
