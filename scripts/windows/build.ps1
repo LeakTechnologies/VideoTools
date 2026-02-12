@@ -166,6 +166,27 @@ $ldflags = @(
     "-X main.BuildVersion=$(git describe --tags --always 2>$null)"
 ) -join " "
 
+# Compile resource file for icon
+$resourceFile = Join-Path $PSScriptRoot "..\videotools.rc"
+$resourceOutput = Join-Path $PROJECT_ROOT "icon.syso"
+if (Test-Path $resourceFile) {
+    Write-Host "Compiling resource file..." -ForegroundColor Yellow
+    $assetPath = Join-Path $PSScriptRoot "..\..\assets\logo\VT_Icon.ico"
+    $rcContent = @"
+1 ICON "$assetPath"
+"@
+    $rcFile = Join-Path $env:TEMP "videotools.rc"
+    $rcContent | Out-File -FilePath $rcFile -Encoding ASCII
+    
+    # Compile with windres (from MinGW)
+    if (Test-Command windres) {
+        & windres -i $rcFile -o $resourceOutput -O coff 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host " Resource file compiled" -ForegroundColor Green
+        }
+    }
+}
+
 # Progress indicator
 $progressChars = @("|", "/", "-", "\")
 $progressIndex = 0
