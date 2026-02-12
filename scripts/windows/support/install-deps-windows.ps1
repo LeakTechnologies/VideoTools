@@ -98,9 +98,9 @@ function Test-AllDependencies {
     # Check Whisper model
     $modelDir = Join-Path $env:USERPROFILE "Videos\VideoTools\models"
     $whisperPaths = @(
-        Join-Path $modelDir "whisper-small.bin",
-        Join-Path $modelDir "ggml-small.bin",
-        Join-Path $modelDir "whisper-model.bin"
+        (Join-Path $modelDir "whisper-small.bin"),
+        (Join-Path $modelDir "ggml-small.bin"),
+        (Join-Path $modelDir "whisper-model.bin")
     )
     
     foreach ($path in $whisperPaths) {
