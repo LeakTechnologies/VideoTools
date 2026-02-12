@@ -71,36 +71,25 @@ function Test-AllDependencies {
         }
     }
     
-    # Check GStreamer - more comprehensive search
+    # Check GStreamer - comprehensive search (case-insensitive)
     $gstreamerPaths = @(
         "C:\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
         "C:\Program Files\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
         "C:\Program Files (x86)\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
+        "C:\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
+        "C:\Program Files\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
+        "C:\Program Files (x86)\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
         "C:\msys64\mingw64\bin\gstreamer-1.0.dll",
-        "C:\GStreamer\1.0\x86_64\bin\gstreamer-1.0.dll"
+        "C:\GStreamer\1.0\x86_64\bin\gstreamer-1.0.dll",
+        "C:\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0"
     )
     
-    # Add debug info
-    Write-Color "Debug: Checking GStreamer paths..." $YELLOW
-    $foundGStreamer = $false
-    
     foreach ($path in $gstreamerPaths) {
-        Write-Color "Debug: Checking $path" $YELLOW
         if (Test-Path $path) {
             $DependencyStatus.gstreamer = $true
-            $foundGStreamer = $true
             Write-Color "[OK] GStreamer already installed" $GREEN
             Write-Color "       Found at: $path" $CYAN
             break
-        }
-    }
-    
-    # If not found in standard paths, check PATH
-    if (-not $foundGStreamer) {
-        Write-Color "Debug: Checking PATH for gstreamer..." $YELLOW
-        if (Get-Command gstreamer-1.0 -ErrorAction SilentlyContinue) {
-            $DependencyStatus.gstreamer = $true
-            Write-Color "[OK] GStreamer found in PATH" $GREEN
         }
     }
     
