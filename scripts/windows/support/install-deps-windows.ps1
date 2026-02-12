@@ -34,6 +34,7 @@ $PROJECT_ROOT = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSSc
 $global:DependencyStatus = @{
     "golang" = $false
     "git" = $false
+    "gcc" = $false
     "ffmpeg" = $false
     "python" = $false
     "gstreamer" = $false
@@ -56,6 +57,12 @@ function Test-AllDependencies {
         if ($gitResult) {
             $global:DependencyStatus.git = $true
             Write-Color "[OK] Git version control already installed" $GREEN
+        }
+        
+        # Check for gcc directly via command (required for CGO/GStreamer)
+        if (Test-Command gcc) {
+            $global:DependencyStatus.gcc = $true
+            Write-Color "[OK] MinGW-w64 (gcc) already installed" $GREEN
         }
         
         $ffmpegResult = Test-PackageInstalled -PackageName "ffmpeg"
@@ -731,6 +738,12 @@ if ($installBuild) {
         Install-Package -PackageName "git" -DisplayName "Git version control" -Required
     } else {
         Write-Color "[SKIP] Git already installed, skipping" $GREEN
+    }
+    # Install MinGW-w64 for CGO support (required for GStreamer integration)
+    if (-not (Test-Command gcc)) {
+        Install-Package -PackageName "mingw" -DisplayName "MinGW-w64 C Compiler (CGO)" -Required
+    } else {
+        Write-Color "[SKIP] MinGW-w64 (gcc) already installed, skipping" $GREEN
     }
 } else {
     Write-Color "[SKIP] Skipping build tools installation" $YELLOW
