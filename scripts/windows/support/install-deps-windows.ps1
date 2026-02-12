@@ -30,6 +30,90 @@ $NC = [ConsoleColor]::White
 # Configuration
 $PROJECT_ROOT = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
 
+# Dependency status tracking
+$DependencyStatus = @{
+    "golang" = $false
+    "git" = $false
+    "ffmpeg" = $false
+    "python" = $false
+    "gstreamer" = $false
+    "whisper" = $false
+    "dvdstyler" = $false
+}
+
+function Test-AllDependencies {
+    Write-Color "Checking existing dependencies..." $CYAN
+    
+    # Check Chocolatey packages
+    if (Test-Command choco) {
+        if (Test-PackageInstalled -PackageName "golang") {
+            $DependencyStatus.golang = $true
+            Write-Color "[OK] Go programming language already installed" $GREEN
+        }
+        if (Test-PackageInstalled -PackageName "git") {
+            $DependencyStatus.git = $true
+            Write-Color "[OK] Git version control already installed" $GREEN
+        }
+        if (Test-PackageInstalled -PackageName "ffmpeg") {
+            $DependencyStatus.ffmpeg = $true
+            Write-Color "[OK] FFmpeg video processing already installed" $GREEN
+        }
+        if (Test-PackageInstalled -PackageName "python") {
+            $DependencyStatus.python = $true
+            Write-Color "[OK] Python with pip already installed" $GREEN
+        }
+    }
+    
+    # Check GStreamer
+    $gstreamerPaths = @(
+        "C:\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
+        "C:\Program Files\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
+        "C:\Program Files (x86)\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll"
+    )
+    
+    foreach ($path in $gstreamerPaths) {
+        if (Test-Path $path) {
+            $DependencyStatus.gstreamer = $true
+            Write-Color "[OK] GStreamer already installed" $GREEN
+            Write-Color "       Found at: $path" $CYAN
+            break
+        }
+    }
+    
+    # Check DVDStyler
+    $dvdstylerPaths = @(
+        "C:\Program Files\DVDStyler\DVDStyler.exe",
+        "C:\Program Files (x86)\DVDStyler\DVDStyler.exe",
+        "C:\DVDStyler\DVDStyler.exe"
+    )
+    
+    foreach ($path in $dvdstylerPaths) {
+        if (Test-Path $path) {
+            $DependencyStatus.dvdstyler = $true
+            Write-Color "[OK] DVDStyler already installed" $GREEN
+            break
+        }
+    }
+    
+    # Check Whisper model
+    $modelDir = Join-Path $env:USERPROFILE "Videos\VideoTools\models"
+    $whisperPaths = @(
+        Join-Path $modelDir "whisper-small.bin",
+        Join-Path $modelDir "ggml-small.bin",
+        Join-Path $modelDir "whisper-model.bin"
+    )
+    
+    foreach ($path in $whisperPaths) {
+        if (Test-Path $path) {
+            $DependencyStatus.whisper = $true
+            Write-Color "[OK] Whisper model already exists" $GREEN
+            break
+        }
+    }
+    
+    Write-Host ""
+}
+
 function Write-Color {
     param(
         [string]$Message,
@@ -136,27 +220,6 @@ function Install-GStreamer {
         return $true
     }
 
-    # Check if GStreamer is already installed (multiple possible paths)
-    $gstreamerPaths = @(
-        "C:\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
-        "C:\Program Files\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll",
-        "C:\Program Files (x86)\GStreamer\1.0\msvc_x86_64\bin\gstreamer-1.0.dll"
-    )
-    
-    $gstreamerInstalled = $false
-    foreach ($path in $gstreamerPaths) {
-        if (Test-Path $path) {
-            $gstreamerInstalled = $true
-            break
-        }
-    }
-    
-    if ($gstreamerInstalled) {
-        Write-Color "[OK] GStreamer already installed" $GREEN
-        Write-Color "       Found at: $path" $CYAN
-        return $true
-    }
-
     Write-Color "[3/4] Installing GStreamer (required for video playback)..." $CYAN
     
     if ($PreferWinget -and (Test-Command winget)) {
@@ -235,26 +298,6 @@ function Install-WhisperModel {
         }
 
         $modelPath = Join-Path $modelDir "whisper-small.bin"
-        
-        # Check if Whisper model already exists (multiple possible names)
-        $whisperPaths = @(
-            $modelPath,
-            (Join-Path $modelDir "ggml-small.bin"),
-            (Join-Path $modelDir "whisper-model.bin")
-        )
-        
-        $whisperInstalled = $false
-        foreach ($path in $whisperPaths) {
-            if (Test-Path $path) {
-                $whisperInstalled = $true
-                break
-            }
-        }
-        
-        if ($whisperInstalled) {
-            Write-Color "[OK] Whisper model already exists" $GREEN
-            return
-        }
 
         # Use lt_mirror for Whisper model (sourcing issues from HuggingFace)
         $tempRepo = Join-Path $env:TEMP "lt_mirror_temp"
@@ -295,6 +338,9 @@ function Install-WhisperModel {
 # Main installation flow
 Write-Header "VideoTools Windows Installation"
 
+# Check all dependencies first
+Test-AllDependencies
+
 # Check admin privileges for GStreamer MSI
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -324,15 +370,27 @@ else {
 # Install core packages
 if ($installBuild) {
     Write-Color "[2/4] Installing build tools..." $CYAN
-    Install-Package -PackageName "golang" -DisplayName "Go programming language" -Required
-    Install-Package -PackageName "git" -DisplayName "Git version control" -Required
+    if (-not $DependencyStatus.golang) {
+        Install-Package -PackageName "golang" -DisplayName "Go programming language" -Required
+    } else {
+        Write-Color "[SKIP] Go already installed, skipping" $GREEN
+    }
+    if (-not $DependencyStatus.git) {
+        Install-Package -PackageName "git" -DisplayName "Git version control" -Required
+    } else {
+        Write-Color "[SKIP] Git already installed, skipping" $GREEN
+    }
 } else {
     Write-Color "[SKIP] Skipping build tools installation" $YELLOW
 }
 
 # Install FFmpeg
 if (-not $SkipFFmpeg) {
-    Install-Package -PackageName "ffmpeg" -DisplayName "FFmpeg video processing"
+    if (-not $DependencyStatus.ffmpeg) {
+        Install-Package -PackageName "ffmpeg" -DisplayName "FFmpeg video processing"
+    } else {
+        Write-Color "[SKIP] FFmpeg already installed, skipping" $GREEN
+    }
 } else {
     Write-Color "[SKIP] Skipping FFmpeg installation" $YELLOW
 }
@@ -342,6 +400,8 @@ if ($InstallPython) {
     Install-Package -PackageName "python" -DisplayName "Python with pip"
 } elseif ($SkipPython) {
     Write-Color "[SKIP] Skipping Python installation" $YELLOW
+} elseif ($DependencyStatus.python) {
+    Write-Color "[SKIP] Python already installed, skipping" $GREEN
 } elseif ($Silent -or $Auto) {
     # In silent/auto mode, skip Python (optional)
     Write-Color "[SKIP] Skipping Python installation (silent mode)" $YELLOW
@@ -355,35 +415,19 @@ if ($InstallPython) {
     }
 }
 
-# Install GStreamer (optional - mirror not available)
-if (-not (Install-GStreamer)) {
-    Write-Color "[WARN] GStreamer installation failed. Video playback may not work." $YELLOW
-    Write-Color "       You can install GStreamer manually from: https://gstreamer.freedesktop.org/download/" $YELLOW
+# Install GStreamer
+if (-not $DependencyStatus.gstreamer) {
+    if (-not (Install-GStreamer)) {
+        Write-Color "[WARN] GStreamer installation failed. Video playback may not work." $YELLOW
+        Write-Color "       You can install GStreamer manually from: https://gstreamer.freedesktop.org/download/" $YELLOW
+    }
+} else {
+    Write-Color "[SKIP] GStreamer already installed, skipping" $GREEN
 }
 
 function Install-DVDStyler {
     if ($SkipDVDStyler) {
         Write-Color "[SKIP] Skipping DVDStyler installation" $YELLOW
-        return $true
-    }
-
-    # Check if DVDStyler is already installed (multiple possible paths)
-    $dvdstylerPaths = @(
-        "C:\Program Files\DVDStyler\DVDStyler.exe",
-        "C:\Program Files (x86)\DVDStyler\DVDStyler.exe",
-        "C:\DVDStyler\DVDStyler.exe"
-    )
-    
-    $dvdstylerInstalled = $false
-    foreach ($path in $dvdstylerPaths) {
-        if (Test-Path $path) {
-            $dvdstylerInstalled = $true
-            break
-        }
-    }
-    
-    if ($dvdstylerInstalled) {
-        Write-Color "[OK] DVDStyler already installed" $GREEN
         return $true
     }
 
@@ -448,6 +492,8 @@ if ($InstallWhisper) {
     Install-WhisperModel
 } elseif ($SkipWhisper) {
     Write-Color "[SKIP] Skipping Whisper model installation" $YELLOW
+} elseif ($DependencyStatus.whisper) {
+    Write-Color "[SKIP] Whisper model already exists, skipping" $GREEN
 } elseif ($Silent -or $Auto) {
     # In silent/auto mode, install Whisper automatically
     Install-WhisperModel
@@ -464,10 +510,18 @@ if ($InstallWhisper) {
 # Install DVDStyler
 if ($Silent -or $Auto) {
     # In silent/auto mode, install DVDStyler automatically
-    Install-DVDStyler
+    if (-not $DependencyStatus.dvdstyler) {
+        Install-DVDStyler
+    } else {
+        Write-Color "[SKIP] DVDStyler already installed, skipping" $GREEN
+    }
 } else {
-    if (-not (Install-DVDStyler)) {
-        Write-Color "[INFO] DVDStyler installation failed. DVD authoring tools unavailable." $YELLOW
+    if (-not $DependencyStatus.dvdstyler) {
+        if (-not (Install-DVDStyler)) {
+            Write-Color "[INFO] DVDStyler installation failed. DVD authoring tools unavailable." $YELLOW
+        }
+    } else {
+        Write-Color "[SKIP] DVDStyler already installed, skipping" $GREEN
     }
 }
 
