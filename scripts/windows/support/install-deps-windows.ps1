@@ -66,8 +66,13 @@ function Test-AllDependencies {
         
         $pythonResult = Test-PackageInstalled -PackageName "python"
         if ($pythonResult) {
-            $global:DependencyStatus.python = $true
-            Write-Color "[OK] Python with pip already installed" $GREEN
+            # Also check for pip command availability
+            if (Test-Command pip) {
+                $global:DependencyStatus.python = $true
+                Write-Color "[OK] Python with pip already installed" $GREEN
+            } else {
+                Write-Color "[WARN] Python installed but pip not found in PATH" $YELLOW
+            }
         }
     }
     
@@ -126,7 +131,10 @@ function Test-AllDependencies {
     $dvdstylerPaths = @(
         "C:\Program Files\DVDStyler\DVDStyler.exe",
         "C:\Program Files (x86)\DVDStyler\DVDStyler.exe",
-        "C:\DVDStyler\DVDStyler.exe"
+        "C:\DVDStyler\DVDStyler.exe",
+        "C:\Program Files\DVDStyler\bin\DVDStyler.exe",
+        "C:\Program Files (x86)\DVDStyler\bin\DVDStyler.exe",
+        "C:\DVDStyler\bin\DVDStyler.exe"
     )
     
     $foundDVDStyler = $false
