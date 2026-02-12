@@ -1,6 +1,10 @@
 # VideoTools Build Script for Windows
 # Builds the VideoTools application using Chocolatey-installed toolchain
 
+# Set console encoding to UTF-8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 param(
     [switch]$Clean = $false,
     [switch]$SkipTests = $false
@@ -157,8 +161,34 @@ $ldflags = @(
     "-X main.BuildVersion=$(git describe --tags --always 2>$null)"
 ) -join " "
 
-# Build the application
-go build -ldflags "$ldflags" -o "$BUILD_OUTPUT" .
+# Progress indicator
+$progressChars = @("|", "/", "-", "\")
+$progressIndex = 0
+
+# Build with verbose output to show progress
+Write-Host "Compiling..." -NoNewline
+$buildJob = Start-Job -ScriptBlock {
+    param($ldflags, $output)
+    go build -v -ldflags $ldflags -o $output .
+} -ArgumentList $ldflags, $BUILD_OUTPUT
+
+# Show progress while building
+while ($buildJob.State -eq "Running") {
+    Write-Host "`rCompiling... $($progressChars[$progressIndex])" -NoNewline
+    $progressIndex = ($progressIndex + 1) % 4
+    Start-Sleep -Milliseconds 250
+}
+
+# Wait for job to complete and get result
+$result = Receive-Job -Job $buildJob
+Remove-Job -Job $buildJob -Force
+
+# Show completed output
+Write-Host "`rCompiling... Done" -ForegroundColor Green
+if ($result) {
+    $result | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
+}
+
 if ($LASTEXITCODE -ne 0) {
     Write-Host " Build failed" -ForegroundColor Red
     Exit-WithPause 1
