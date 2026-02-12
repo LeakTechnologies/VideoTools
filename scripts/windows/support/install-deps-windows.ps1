@@ -30,8 +30,8 @@ $NC = [ConsoleColor]::White
 # Configuration
 $PROJECT_ROOT = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
 
-# Dependency status tracking
-$DependencyStatus = @{
+# Dependency status tracking (global scope)
+$global:DependencyStatus = @{
     "golang" = $false
     "git" = $false
     "ffmpeg" = $false
@@ -48,25 +48,25 @@ function Test-AllDependencies {
     if (Test-Command choco) {
         $golangResult = Test-PackageInstalled -PackageName "golang"
         if ($golangResult) {
-            $DependencyStatus.golang = $true
+            $global:DependencyStatus.golang = $true
             Write-Color "[OK] Go programming language already installed" $GREEN
         }
         
         $gitResult = Test-PackageInstalled -PackageName "git"
         if ($gitResult) {
-            $DependencyStatus.git = $true
+            $global:DependencyStatus.git = $true
             Write-Color "[OK] Git version control already installed" $GREEN
         }
         
         $ffmpegResult = Test-PackageInstalled -PackageName "ffmpeg"
         if ($ffmpegResult) {
-            $DependencyStatus.ffmpeg = $true
+            $global:DependencyStatus.ffmpeg = $true
             Write-Color "[OK] FFmpeg video processing already installed" $GREEN
         }
         
         $pythonResult = Test-PackageInstalled -PackageName "python"
         if ($pythonResult) {
-            $DependencyStatus.python = $true
+            $global:DependencyStatus.python = $true
             Write-Color "[OK] Python with pip already installed" $GREEN
         }
     }
@@ -86,7 +86,7 @@ function Test-AllDependencies {
     
     foreach ($path in $gstreamerPaths) {
         if (Test-Path $path) {
-            $DependencyStatus.gstreamer = $true
+            $global:DependencyStatus.gstreamer = $true
             Write-Color "[OK] GStreamer already installed" $GREEN
             Write-Color "       Found at: $path" $CYAN
             break
@@ -102,7 +102,7 @@ function Test-AllDependencies {
     
     foreach ($path in $dvdstylerPaths) {
         if (Test-Path $path) {
-            $DependencyStatus.dvdstyler = $true
+            $global:DependencyStatus.dvdstyler = $true
             Write-Color "[OK] DVDStyler already installed" $GREEN
             break
         }
@@ -118,7 +118,7 @@ function Test-AllDependencies {
     
     foreach ($path in $whisperPaths) {
         if (Test-Path $path) {
-            $DependencyStatus.whisper = $true
+            $global:DependencyStatus.whisper = $true
             Write-Color "[OK] Whisper model already exists" $GREEN
             break
         }
