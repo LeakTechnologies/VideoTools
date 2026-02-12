@@ -46,7 +46,4 @@ try {
     exit 1
 }
 
-if (-not $Silent) {
-    Write-Host "Press any key to close..." -ForegroundColor Cyan
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-}
+# Note: install-deps-windows.ps1 handles user interaction closing

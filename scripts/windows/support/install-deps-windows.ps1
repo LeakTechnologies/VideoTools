@@ -660,7 +660,7 @@ Write-Header "VideoTools Windows Installation"
 # Check all dependencies first
 Test-AllDependencies
 
-# Ask user about optional features (unless silent mode)
+# Ask user about optional features (unless silent mode or already installed)
 $installDVDStyler = $false
 $installWhisper = $false
 
@@ -669,16 +669,26 @@ if (-not ($Silent -or $Auto)) {
     Write-Color "Optional Features:" $CYAN
     Write-Host ""
     
-    Write-Host "Install DVD Authoring Tools (DVDStyler)? [y/N]: " -ForegroundColor Yellow -NoNewline
-    $responseDVD = Read-Host
-    if ($responseDVD -match '^[Yy]') {
-        $installDVDStyler = $true
+    # Only ask about DVDStyler if not already installed
+    if (-not $global:DependencyStatus.dvdstyler) {
+        Write-Host "Install DVD Authoring Tools (DVDStyler)? [y/N]: " -ForegroundColor Yellow -NoNewline
+        $responseDVD = Read-Host
+        if ($responseDVD -match '^[Yy]') {
+            $installDVDStyler = $true
+        }
+    } else {
+        Write-Color "[SKIP] DVDStyler already installed, skipping prompt" $GREEN
     }
     
-    Write-Host "Install AI Subtitle Generation (Whisper models)? [y/N]: " -ForegroundColor Yellow -NoNewline
-    $responseWhisper = Read-Host
-    if ($responseWhisper -match '^[Yy]') {
-        $installWhisper = $true
+    # Only ask about Whisper if not already installed
+    if (-not $global:DependencyStatus.whisper) {
+        Write-Host "Install AI Subtitle Generation (Whisper models)? [y/N]: " -ForegroundColor Yellow -NoNewline
+        $responseWhisper = Read-Host
+        if ($responseWhisper -match '^[Yy]') {
+            $installWhisper = $true
+        }
+    } else {
+        Write-Color "[SKIP] Whisper model already exists, skipping prompt" $GREEN
     }
     Write-Host ""
 }
