@@ -208,6 +208,72 @@ function Write-Header {
     Write-Host ""
 }
 
+function Write-ProgressBar {
+    param(
+        [string]$Activity,
+        [string]$Status = "Processing...",
+        [int]$PercentComplete = 0,
+        [int]$SecondsRemaining = -1
+    )
+    
+    $progressParams = @{
+        Activity = $Activity
+        Status = $Status
+        PercentComplete = $PercentComplete
+    }
+    
+    if ($SecondsRemaining -ge 0) {
+        $progressParams.SecondsRemaining = $SecondsRemaining
+    }
+    
+    Write-Progress @progressParams
+}
+
+function Copy-FileWithProgress {
+    param(
+        [string]$Source,
+        [string]$Destination,
+        [string]$Activity = "Copying file"
+    )
+    
+    try {
+        $sourceFile = Get-Item $Source -ErrorAction Stop
+        $totalBytes = $sourceFile.Length
+        $bytesCopied = 0
+        
+        # Create file stream for reading
+        $fileStream = [System.IO.File]::OpenRead($Source)
+        $memoryStream = New-Object System.IO.MemoryStream
+        $buffer = New-Object byte[] 8192
+        
+        try {
+            # Copy with progress tracking
+            while (($bytesRead = $fileStream.Read($buffer, 0, $buffer.Length)) -gt 0) {
+                $memoryStream.Write($buffer, 0, $bytesRead)
+                $bytesCopied += $bytesRead
+                
+                $percentComplete = [math]::Round(($bytesCopied / $totalBytes) * 100, 1)
+                Write-ProgressBar -Activity $Activity -Status "Copying... ($([math]::Round($bytesCopied/1MB, 1))MB / $([math]::Round($totalBytes/1MB, 1))MB)" -PercentComplete $percentComplete
+            }
+            
+            # Write to destination
+            $destinationBytes = $memoryStream.ToArray()
+            [System.IO.File]::WriteAllBytes($Destination, $destinationBytes)
+            
+            Write-Progress -Activity $Activity -Completed
+            Write-Color "[OK] File copied successfully" $GREEN
+            
+        } finally {
+            $fileStream.Dispose()
+            $memoryStream.Dispose()
+        }
+    } catch {
+        Write-Progress -Activity $Activity -Completed
+        Write-Color "[ERROR] Failed to copy file: $($_.Exception.Message)" $RED
+        throw
+    }
+}
+
 function Test-Command {
     param([string]$Command)
     try {
@@ -332,11 +398,13 @@ function Install-GStreamer {
             }
             
             Write-Color "Cloning mirror repository (GStreamer site blocks direct downloads)..." $YELLOW
+            Write-ProgressBar -Activity "Cloning mirror repository" -Status "Downloading git repository..." -PercentComplete 25
             & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
+            Write-ProgressBar -Activity "Cloning mirror repository" -Completed
             if ($LASTEXITCODE -eq 0) {
                 $sourceFile = Join-Path $tempRepo "mirrors\raw\gstreamer-1.0-msvc-x86_64-$($GStreamerVersion).exe"
                 if (Test-Path $sourceFile) {
-                    Copy-Item $sourceFile $installerExe
+                    Copy-FileWithProgress -Source $sourceFile -Destination $installerExe -Activity "Downloading GStreamer installer"
                     Write-Color "[OK] GStreamer installer extracted from mirror" $GREEN
                 } else {
                     throw "GStreamer file not found in cloned repository"
@@ -398,11 +466,13 @@ function Install-WhisperModel {
             }
             
             Write-Color "Getting Whisper model from lt_mirror..." $YELLOW
+            Write-ProgressBar -Activity "Cloning mirror repository" -Status "Downloading git repository..." -PercentComplete 25
             & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
+            Write-ProgressBar -Activity "Cloning mirror repository" -Completed
             if ($LASTEXITCODE -eq 0) {
                 $sourceFile = Join-Path $tempRepo "mirrors\raw\whisper-model.bin"
                 if (Test-Path $sourceFile) {
-                    Copy-Item $sourceFile $modelPath
+                    Copy-FileWithProgress -Source $sourceFile -Destination $modelPath -Activity "Downloading Whisper model"
                     Write-Color "[OK] Whisper model installed from mirror" $GREEN
                 } else {
                     throw "Whisper model not found in mirror"
@@ -463,11 +533,13 @@ function Install-DVDStyler {
         }
         
         Write-Color "Getting DVDStyler from lt_mirror..." $YELLOW
+        Write-ProgressBar -Activity "Cloning mirror repository" -Status "Downloading git repository..." -PercentComplete 25
         & git clone --depth 1 https://git.leaktechnologies.dev/lt_mirror/lt_mirror.git $tempRepo 2>$null
+        Write-ProgressBar -Activity "Cloning mirror repository" -Completed
         if ($LASTEXITCODE -eq 0) {
             $sourceFile = Join-Path $tempRepo "mirrors\raw\DVDStyler-3.2.1-win64.exe"
             if (Test-Path $sourceFile) {
-                Copy-Item $sourceFile $installerExe
+                Copy-FileWithProgress -Source $sourceFile -Destination $installerExe -Activity "Downloading DVDStyler"
                 Write-Color "Installing DVDStyler..." $YELLOW
                 Start-Process -FilePath $installerExe -ArgumentList "/S" -Wait -NoNewWindow
                 Write-Color "[OK] DVDStyler installed from mirror" $GREEN
