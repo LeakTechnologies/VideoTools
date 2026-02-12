@@ -46,19 +46,26 @@ function Test-AllDependencies {
     
     # Check Chocolatey packages
     if (Test-Command choco) {
-        if (Test-PackageInstalled -PackageName "golang") {
+        $golangResult = Test-PackageInstalled -PackageName "golang"
+        if ($golangResult) {
             $DependencyStatus.golang = $true
             Write-Color "[OK] Go programming language already installed" $GREEN
         }
-        if (Test-PackageInstalled -PackageName "git") {
+        
+        $gitResult = Test-PackageInstalled -PackageName "git"
+        if ($gitResult) {
             $DependencyStatus.git = $true
             Write-Color "[OK] Git version control already installed" $GREEN
         }
-        if (Test-PackageInstalled -PackageName "ffmpeg") {
+        
+        $ffmpegResult = Test-PackageInstalled -PackageName "ffmpeg"
+        if ($ffmpegResult) {
             $DependencyStatus.ffmpeg = $true
             Write-Color "[OK] FFmpeg video processing already installed" $GREEN
         }
-        if (Test-PackageInstalled -PackageName "python") {
+        
+        $pythonResult = Test-PackageInstalled -PackageName "python"
+        if ($pythonResult) {
             $DependencyStatus.python = $true
             Write-Color "[OK] Python with pip already installed" $GREEN
         }
