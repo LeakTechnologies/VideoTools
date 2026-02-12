@@ -152,8 +152,8 @@ function Test-PackageInstalled {
     param([string]$PackageName)
     if (Test-Command choco) {
         try {
-            $installed = choco list --exact $PackageName --local-only --exact
-            return $installed -match $PackageName
+            $installed = choco list
+            return $installed -match "$PackageName\s+\d"
         } catch {
             return $false
         }
