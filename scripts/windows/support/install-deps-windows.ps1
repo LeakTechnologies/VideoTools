@@ -233,6 +233,12 @@ function Install-GStreamer {
         return $true
     }
 
+    # Check if already installed globally (before any operations)
+    if ($global:DependencyStatus.gstreamer) {
+        Write-Color "[SKIP] GStreamer already installed, skipping" $GREEN
+        return $true
+    }
+
     Write-Color "[3/4] Installing GStreamer (required for video playback)..." $CYAN
     
     if ($PreferWinget -and (Test-Command winget)) {
@@ -300,6 +306,12 @@ function Install-GStreamer {
 function Install-WhisperModel {
     if ($SkipWhisper) {
         Write-Color "[SKIP] Skipping Whisper model installation" $YELLOW
+        return
+    }
+
+    # Check if already installed globally (before any operations)
+    if ($global:DependencyStatus.whisper) {
+        Write-Color "[SKIP] Whisper model already exists, skipping" $GREEN
         return
     }
 
@@ -429,9 +441,7 @@ if ($InstallPython) {
 }
 
 # Install GStreamer
-Write-Color "Debug: DependencyStatus.gstreamer = $DependencyStatus.gstreamer" $YELLOW
-if (-not $DependencyStatus.gstreamer) {
-    Write-Color "Debug: Will attempt GStreamer installation" $YELLOW
+if (-not $global:DependencyStatus.gstreamer) {
     if (-not (Install-GStreamer)) {
         Write-Color "[WARN] GStreamer installation failed. Video playback may not work." $YELLOW
         Write-Color "       You can install GStreamer manually from: https://gstreamer.freedesktop.org/download/" $YELLOW
@@ -443,6 +453,12 @@ if (-not $DependencyStatus.gstreamer) {
 function Install-DVDStyler {
     if ($SkipDVDStyler) {
         Write-Color "[SKIP] Skipping DVDStyler installation" $YELLOW
+        return $true
+    }
+
+    # Check if already installed globally (before any operations)
+    if ($global:DependencyStatus.dvdstyler) {
+        Write-Color "[SKIP] DVDStyler already installed, skipping" $GREEN
         return $true
     }
 
