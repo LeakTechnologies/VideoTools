@@ -660,6 +660,29 @@ Write-Header "VideoTools Windows Installation"
 # Check all dependencies first
 Test-AllDependencies
 
+# Ask user about optional features (unless silent mode)
+$installDVDStyler = $false
+$installWhisper = $false
+
+if (-not ($Silent -or $Auto)) {
+    Write-Host ""
+    Write-Color "Optional Features:" $CYAN
+    Write-Host ""
+    
+    Write-Host "Install DVD Authoring Tools (DVDStyler)? [y/N]: " -ForegroundColor Yellow -NoNewline
+    $responseDVD = Read-Host
+    if ($responseDVD -match '^[Yy]') {
+        $installDVDStyler = $true
+    }
+    
+    Write-Host "Install AI Subtitle Generation (Whisper models)? [y/N]: " -ForegroundColor Yellow -NoNewline
+    $responseWhisper = Read-Host
+    if ($responseWhisper -match '^[Yy]') {
+        $installWhisper = $true
+    }
+    Write-Host ""
+}
+
 # Check admin privileges for GStreamer MSI
 $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -745,7 +768,7 @@ if (-not $global:DependencyStatus.gstreamer) {
 }
 
 # Install Whisper model
-if ($InstallWhisper) {
+if ($installWhisper) {
     Install-WhisperModel
 } elseif ($SkipWhisper) {
     Write-Color "[SKIP] Skipping Whisper model installation" $YELLOW
@@ -755,24 +778,11 @@ if ($InstallWhisper) {
     # In silent/auto mode, install Whisper automatically
     Install-WhisperModel
 } else {
-    Write-Host "Install Whisper model for subtitles? [y/N]: " -ForegroundColor Yellow -NoNewline
-    $response = Read-Host
-    if ($response -match '^[Yy]') {
-        Install-WhisperModel
-    } else {
-        Write-Color "[SKIP] Skipping Whisper model installation" $YELLOW
-    }
+    Write-Color "[SKIP] Whisper model installation declined" $YELLOW
 }
 
 # Install DVDStyler - FIXED: Respect dependency status in all modes
-if ($Silent -or $Auto) {
-    # In silent/auto mode, install DVDStyler automatically if not present
-    if (-not $DependencyStatus.dvdstyler) {
-        Install-DVDStyler
-    } else {
-        Write-Color "[SKIP] DVDStyler already installed, skipping" $GREEN
-    }
-} else {
+if ($installDVDStyler) {
     if (-not $DependencyStatus.dvdstyler) {
         if (-not (Install-DVDStyler)) {
             Write-Color "[INFO] DVDStyler installation failed. DVD authoring tools unavailable." $YELLOW
@@ -780,6 +790,17 @@ if ($Silent -or $Auto) {
     } else {
         Write-Color "[SKIP] DVDStyler already installed, skipping" $GREEN
     }
+} elseif ($SkipDVDStyler) {
+    Write-Color "[SKIP] Skipping DVDStyler installation" $YELLOW
+} elseif ($Silent -or $Auto) {
+    # In silent/auto mode, install DVDStyler automatically if not present
+    if (-not $DependencyStatus.dvdstyler) {
+        Install-DVDStyler
+    } else {
+        Write-Color "[SKIP] DVDStyler already installed, skipping" $GREEN
+    }
+} else {
+    Write-Color "[SKIP] DVDStyler installation declined" $YELLOW
 }
 
 # Create shortcuts
@@ -811,13 +832,25 @@ if (-not $Silent) {
     Write-Color "  1. Run: .\scripts\windows\build.bat" $NC
     Write-Color "  2. Run: .\VideoTools.exe" $NC
     Write-Host ""
-    Write-Color "Optional components installed:" $CYAN
-    Write-Color "  - GStreamer: Video playback support" $NC
-    Write-Color "  - Whisper: AI subtitle generation" $NC
-    Write-Color "  - DVDStyler: DVD authoring tools" $NC
+        Write-Color "Optional components status:" $CYAN
+    if ($global:DependencyStatus.gstreamer) {
+        Write-Color "  - GStreamer: Video playback support (installed)" $GREEN
+    } else {
+        Write-Color "  - GStreamer: Video playback support (not installed)" $NC
+    }
+    if ($global:DependencyStatus.whisper) {
+        Write-Color "  - Whisper: AI subtitle generation (installed)" $GREEN
+    } else {
+        Write-Color "  - Whisper: AI subtitle generation (not installed)" $NC
+    }
+    if ($global:DependencyStatus.dvdstyler) {
+        Write-Color "  - DVDStyler: DVD authoring tools (installed)" $GREEN
+    } else {
+        Write-Color "  - DVDStyler: DVD authoring tools (not installed)" $NC
+    }
 }
 Write-Host ""
 if (-not $Silent) {
-    Write-Host "Press any key to close..." $CYAN
+    Write-Host "Press any key to close..." -ForegroundColor Cyan
     $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
