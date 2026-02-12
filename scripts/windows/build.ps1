@@ -167,19 +167,13 @@ $ldflags = @(
     "-X main.BuildVersion=$(git describe --tags --always 2>$null)"
 ) -join " "
 
-# Build the application - suppress CGO console popups
+# Build the application
 Write-Host "Compiling..." -NoNewline
 
-# Run build via Start-Process with hidden window to suppress all popups
-$buildArgs = @(
-    "-NoProfile",
-    "-ExecutionPolicy", "Bypass",
-    "-Command",
-    "Set-Location '$PROJECT_ROOT'; `$env:CGO_CFLAGS='-mwindows'; `$env:CGO_LDFLAGS='-mwindows'; go build -ldflags '$ldflags' -o '$BUILD_OUTPUT' ."
-)
-
-$buildProc = Start-Process -FilePath "powershell.exe" -ArgumentList $buildArgs -WindowStyle Hidden -Wait -PassThru
-$exitCode = $buildProc.ExitCode
+# Direct build - CGO may spawn some console windows during compilation but that's expected on Windows
+Set-Location $PROJECT_ROOT
+go build -ldflags "$ldflags" -o "$BUILD_OUTPUT" . 2>$null
+$exitCode = $LASTEXITCODE
 
 if ($exitCode -ne 0) {
     Write-Host " Build failed" -ForegroundColor Red
