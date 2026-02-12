@@ -173,9 +173,10 @@ $progressIndex = 0
 # Build with verbose output to show progress
 Write-Host "Compiling..." -NoNewline
 $buildJob = Start-Job -ScriptBlock {
-    param($ldflags, $output)
+    param($ldflags, $output, $projectRoot)
+    Set-Location $projectRoot
     go build -v -ldflags $ldflags -o $output .
-} -ArgumentList $ldflags, $BUILD_OUTPUT
+} -ArgumentList $ldflags, $BUILD_OUTPUT, $PROJECT_ROOT
 
 # Show progress while building
 while ($buildJob.State -eq "Running") {
