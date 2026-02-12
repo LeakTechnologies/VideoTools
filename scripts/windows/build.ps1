@@ -167,13 +167,30 @@ $ldflags = @(
     "-X main.BuildVersion=$(git describe --tags --always 2>$null)"
 ) -join " "
 
-# Build the application
+# Build the application - suppress CGO console popups
 Write-Host "Compiling..." -NoNewline
 
-# Direct build - CGO may spawn some console windows during compilation but that's expected on Windows
-Set-Location $PROJECT_ROOT
-go build -ldflags "$ldflags" -o "$BUILD_OUTPUT" . 2>$null
-$exitCode = $LASTEXITCODE
+# Set CGO environment to minimize console output
+$env:CGO_CFLAGS = "-w"
+$env:CGO_LDFLAGS = "-w"
+
+# Run build using cmd /c start /b to suppress console windows
+# /b runs in same window, /wait waits for completion
+$buildCmd = "cmd /c /q `"cd /d `"$PROJECT_ROOT`" && go build -ldflags `"$ldflags`" -o `"$BUILD_OUTPUT`" .`""
+$pinfo = New-Object System.Diagnostics.ProcessStartInfo
+$pinfo.FileName = "cmd.exe"
+$pinfo.Arguments = "/c $buildCmd"
+$pinfo.UseShellExecute = $false
+$pinfo.RedirectStandardOutput = $true
+$pinfo.RedirectStandardError = $true
+$pinfo.CreateNoWindow = $true
+$pinfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
+
+$p = New-Object System.Diagnostics.Process
+$p.StartInfo = $pinfo
+$p.Start() | Out-Null
+$p.WaitForExit()
+$exitCode = $p.ExitCode
 
 if ($exitCode -ne 0) {
     Write-Host " Build failed" -ForegroundColor Red
