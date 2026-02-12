@@ -64,14 +64,17 @@ function Test-AllDependencies {
             Write-Color "[OK] FFmpeg video processing already installed" $GREEN
         }
         
-        $pythonResult = Test-PackageInstalled -PackageName "python"
-        if ($pythonResult) {
-            # Also check for pip command availability
+        # Check for Python directly via command first, then fallback to Chocolatey
+        if ((Test-Command python) -and (Test-Command pip)) {
+            $global:DependencyStatus.python = $true
+            Write-Color "[OK] Python with pip already installed" $GREEN
+        } elseif (Test-PackageInstalled -PackageName "python") {
+            # Fallback: Check if Chocolatey has it but pip might not be in PATH yet
             if (Test-Command pip) {
                 $global:DependencyStatus.python = $true
                 Write-Color "[OK] Python with pip already installed" $GREEN
             } else {
-                Write-Color "[WARN] Python installed but pip not found in PATH" $YELLOW
+                Write-Color "[WARN] Python installed via Chocolatey but pip not found in PATH" $YELLOW
             }
         }
     }
