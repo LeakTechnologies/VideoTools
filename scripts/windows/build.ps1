@@ -6,8 +6,8 @@
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
 param(
-    [switch]$Clean = $false,
-    [switch]$SkipTests = $false
+    [switch]$Clean,
+    [switch]$SkipTests
 )
 
 function Write-Header {
