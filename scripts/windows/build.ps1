@@ -170,16 +170,13 @@ $ldflags = @(
 # Build the application - suppress CGO console popups
 Write-Host "Compiling..." -NoNewline
 
-# Set CGO environment to minimize console output
-$env:CGO_CFLAGS = "-w"
-$env:CGO_LDFLAGS = "-w"
+# Build via direct go command with proper escaping
+Set-Location $PROJECT_ROOT
 
-# Run build using cmd /c start /b to suppress console windows
-# /b runs in same window, /wait waits for completion
-$buildCmd = "cmd /c /q `"cd /d `"$PROJECT_ROOT`" && go build -ldflags `"$ldflags`" -o `"$BUILD_OUTPUT`" .`""
 $pinfo = New-Object System.Diagnostics.ProcessStartInfo
-$pinfo.FileName = "cmd.exe"
-$pinfo.Arguments = "/c $buildCmd"
+$pinfo.FileName = "go"
+$pinfo.Arguments = "build -ldflags `"$ldflags`" -o `"$BUILD_OUTPUT`" ."
+$pinfo.WorkingDirectory = $PROJECT_ROOT
 $pinfo.UseShellExecute = $false
 $pinfo.RedirectStandardOutput = $true
 $pinfo.RedirectStandardError = $true
