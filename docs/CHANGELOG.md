@@ -8,13 +8,15 @@
 ## v0.1.1-dev26 (January 2026)
 
 ### Infrastructure
-- **Mirror hosting** - Created lt_mirror repository on git.leaktechnologies.dev for hosting installers when source sites block bots (fallback for GStreamer, DVDStyler, Whisper, FFmpeg)
-- **Forgejo CI/CD** - Added self-hosted Forgejo runner setup, Windows/Linux CI workflows, artifact versioning, optional EXE signing
+- **Mirror hosting** - Created lt_mirror repository on git.leaktechnologies.dev for downloads when source sites block bots (GStreamer, DVDStyler, Whisper, FFmpeg)
+- **Forgejo CI/CD** - Self-hosted runner setup, CI workflows, artifact versioning, optional EXE signing
 
 ### Windows Build System
-- **Installer overhaul** - Replaced Scoop with Chocolatey, added MSYS2 toolchain, comprehensive dependency checking with early exit, progress bars, robust verification
-- **Build scripts** - Console popup suppression, icon embedding, windowsgui flag, Go module caching, Unicode encoding fixes
-- **Documentation** - Added Forgejo runner and Windows service setup docs
+- **Installer** - Switched from Scoop to Chocolatey, added MSYS2, dependency checking with early exit, progress bars, verification
+- **Build scripts** - Console popup suppression, icon embedding, windowsgui flag, Go module caching, Unicode fixes
+
+### Documentation
+- Added Forgejo runner and Windows service setup docs
 
 ## v0.1.0-dev24 (January 2026)
 
