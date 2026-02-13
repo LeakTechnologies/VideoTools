@@ -5,6 +5,11 @@ logs/
 .cache/
 .opencode/
 VideoTools
+.env
+*.pem
+*.key
+credentials.json
+secrets.*
 
 # Design mockups and assets
 assets/mockup/
