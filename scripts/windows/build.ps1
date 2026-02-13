@@ -205,8 +205,11 @@ $p.Start() | Out-Null
 $p.WaitForExit()
 $exitCode = $p.ExitCode
 
-# Cleanup
+# Cleanup - remove temp wrapper and reset environment
 Remove-Item $batPath -ErrorAction SilentlyContinue
+$env:CC = $null
+$env:CGO_CFLAGS = $null
+$env:CGO_LDFLAGS = $null
 
 if ($exitCode -ne 0) {
     Write-Host " Build failed" -ForegroundColor Red
