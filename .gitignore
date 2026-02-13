@@ -3,6 +3,7 @@ logs/
 .gocache/
 .gomodcache/
 .cache/
+.opencode/
 VideoTools
 
 # Design mockups and assets
