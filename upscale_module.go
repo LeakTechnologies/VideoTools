@@ -179,6 +179,7 @@ func (s *appState) showUpscaleView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "upscale"
+	s.maximizeWindow()
 	s.setContent(buildUpscaleView(s))
 }
 

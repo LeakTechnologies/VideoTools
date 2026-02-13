@@ -1915,6 +1915,25 @@ func (s *appState) setContent(body fyne.CanvasObject) {
 	fyne.Do(update)
 }
 
+func (s *appState) maximizeWindow() {
+	if s.window == nil {
+		return
+	}
+	canvas := s.window.Canvas()
+	if canvas != nil {
+		size := canvas.Size()
+		s.window.Resize(size)
+	}
+}
+
+func (s *appState) unmaximizeWindow() {
+	if s.window == nil {
+		return
+	}
+	s.window.Resize(fyne.NewSize(1024, 768))
+	s.window.CenterOnScreen()
+}
+
 // showErrorWithCopy displays an error dialog with a "Copy Error" button
 func (s *appState) showErrorWithCopy(title string, err error) {
 	errMsg := err.Error()
@@ -1952,6 +1971,7 @@ func (s *appState) showMainMenu() {
 	if s.queueView != nil {
 		s.queueView.StopAnimations()
 	}
+	s.unmaximizeWindow()
 	s.active = ""
 	s.queueBackTarget = ""
 
@@ -3588,6 +3608,7 @@ func (s *appState) showConvertView(file *videoSource) {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "convert"
+	s.maximizeWindow()
 	if file != nil {
 		s.source = file
 	}
@@ -3607,6 +3628,7 @@ func (s *appState) showCompareView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "compare"
+	s.maximizeWindow()
 	s.setContent(buildCompareView(s))
 }
 
@@ -3614,6 +3636,7 @@ func (s *appState) showPlayerView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "player"
+	s.maximizeWindow()
 	s.setContent(buildPlayerView(s))
 }
 
@@ -3621,6 +3644,7 @@ func (s *appState) showAuthorView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "author"
+	s.maximizeWindow()
 
 	// Initialize scene detection threshold if not set
 	if s.authorSceneThreshold == 0 {
@@ -3637,6 +3661,7 @@ func (s *appState) showMergeView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "merge"
+	s.maximizeWindow()
 
 	mergeColor := moduleColor("merge")
 

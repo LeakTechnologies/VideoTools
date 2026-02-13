@@ -1106,5 +1106,6 @@ func (s *appState) showAudioView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "audio"
+	s.maximizeWindow()
 	s.setContent(buildAudioView(s))
 }
