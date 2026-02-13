@@ -3,10 +3,7 @@
 ## Version 0.1.1-dev27 (2026-02-13) - Windows Build Artifact Cleanup
 
 ### Maintenance
-- ✅ **Added .syso to .gitignore**
-  - Windows build artifacts (*.syso) now excluded from version control.
-- ✅ **Added .opencode/ to .gitignore**
-  - Agent working directory excluded from version control.
+- ✅ **.gitignore updates** - Excluded Windows build artifacts (*.syso) and agent working directory (.opencode/).
 
 ## Version 0.1.0-dev24 (2026-01-06) - DVD Menu Templating System
 

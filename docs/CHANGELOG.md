@@ -3,7 +3,7 @@
 ## v0.1.1-dev27 (February 2026)
 
 ### Maintenance
-- **.gitignore updates** - Added *.syso and .opencode/ to exclude build artifacts.
+- **.gitignore updates** - Excluded Windows build artifacts and agent working directory.
 
 ## v0.1.0-dev24 (January 2026)
 
