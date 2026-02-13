@@ -191,11 +191,14 @@ $env:CGO_LDFLAGS = $null
 
 # Direct build
 Set-Location $PROJECT_ROOT
-go build -ldflags "$ldflags" -o "$BUILD_OUTPUT" . 2>$null
+$buildOutput = go build -ldflags "$ldflags" -o "$BUILD_OUTPUT" . 2>&1
 $exitCode = $LASTEXITCODE
 
 if ($exitCode -ne 0) {
     Write-Host " Build failed" -ForegroundColor Red
+    if ($buildOutput) {
+        Write-Host $buildOutput -ForegroundColor Yellow
+    }
     Exit-WithPause 1
 }
 Write-Host " Done" -ForegroundColor Green
