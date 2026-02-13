@@ -1971,7 +1971,6 @@ func (s *appState) showMainMenu() {
 	if s.queueView != nil {
 		s.queueView.StopAnimations()
 	}
-	s.unmaximizeWindow()
 	s.active = ""
 	s.queueBackTarget = ""
 
