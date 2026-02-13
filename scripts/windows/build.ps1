@@ -167,49 +167,18 @@ $ldflags = @(
     "-X main.BuildVersion=$(git describe --tags --always 2>$null)"
 ) -join " "
 
-# Build the application - suppress CGO console popups
+# Build the application - straightforward build
 Write-Host "Compiling..." -NoNewline
 
-# Create a simple batch wrapper that uses cmd /c to suppress window
-$batWrapper = @"
-@echo off
-cmd /c gcc %*
-"@
-
-$batPath = Join-Path $env:TEMP "gcc_hidden.bat"
-$batWrapper | Out-File -FilePath $batPath -Encoding ASCII
-
-# Set CC to use wrapper
-$env:CC = $batPath
-
-# Also suppress CGO output
-$env:CGO_CFLAGS = "-w"
-$env:CGO_LDFLAGS = "-w"
-
-# Build via Process with CreateNoWindow
-Set-Location $PROJECT_ROOT
-
-$pinfo = New-Object System.Diagnostics.ProcessStartInfo
-$pinfo.FileName = "go"
-$pinfo.Arguments = "build -ldflags `"$ldflags`" -o `"$BUILD_OUTPUT`" ."
-$pinfo.WorkingDirectory = $PROJECT_ROOT
-$pinfo.UseShellExecute = $false
-$pinfo.RedirectStandardOutput = $true
-$pinfo.RedirectStandardError = $true
-$pinfo.CreateNoWindow = $true
-$pinfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Hidden
-
-$p = New-Object System.Diagnostics.Process
-$p.StartInfo = $pinfo
-$p.Start() | Out-Null
-$p.WaitForExit()
-$exitCode = $p.ExitCode
-
-# Cleanup - remove temp wrapper and reset environment
-Remove-Item $batPath -ErrorAction SilentlyContinue
+# Clean build - reset any environment variables
 $env:CC = $null
 $env:CGO_CFLAGS = $null
 $env:CGO_LDFLAGS = $null
+
+# Direct build
+Set-Location $PROJECT_ROOT
+go build -ldflags "$ldflags" -o "$BUILD_OUTPUT" . 2>$null
+$exitCode = $LASTEXITCODE
 
 if ($exitCode -ne 0) {
     Write-Host " Build failed" -ForegroundColor Red
