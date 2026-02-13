@@ -23,6 +23,7 @@ func (s *appState) showInspectView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "inspect"
+	s.window.Maximize()
 	s.setContent(buildInspectView(s))
 }
 
