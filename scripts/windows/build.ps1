@@ -171,7 +171,6 @@ $ldflags = @(
 $iconPath = Join-Path $PROJECT_ROOT "assets\logo\VT_Icon.ico"
 $resourceOutput = Join-Path $PROJECT_ROOT "icon.syso"
 if ((Test-Path $iconPath) -and (Test-Command windres)) {
-    Write-Host "Compiling icon..." -ForegroundColor Yellow
     $rcContent = "1 ICON `"$iconPath`""
     $rcFile = Join-Path $env:TEMP "videotools.rc"
     $rcContent | Out-File -FilePath $rcFile -Encoding ASCII
@@ -253,3 +252,4 @@ Write-Host "To run the application:" -ForegroundColor Cyan
 Write-Host "  .\VideoTools.exe" -ForegroundColor White
 Write-Host ""
 Exit-WithPause 0
+
