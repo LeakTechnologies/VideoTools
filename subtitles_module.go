@@ -106,6 +106,7 @@ func (s *appState) showSubtitlesView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "subtitles"
+	s.maximizeWindow()
 
 	if cfg, err := loadPersistedSubtitlesConfig(); err == nil {
 		s.applySubtitlesConfig(cfg)
