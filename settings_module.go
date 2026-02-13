@@ -584,6 +584,5 @@ func (s *appState) showSettingsView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "settings"
-	s.window.Maximize()
 	s.setContent(buildSettingsView(s))
 }

@@ -197,7 +197,8 @@ $exitCode = $LASTEXITCODE
 if ($exitCode -ne 0) {
     Write-Host " Build failed" -ForegroundColor Red
     if ($buildOutput) {
-        Write-Host $buildOutput -ForegroundColor Yellow
+        $errors = $buildOutput | Select-Object -Last 5
+        Write-Host $errors -ForegroundColor Yellow
     }
     Exit-WithPause 1
 }
