@@ -10,6 +10,7 @@ assets/mockup/
 
 # Windows build artifacts
 VideoTools.exe
+*.syso
 videotools_windows_amd64.syso
 ffmpeg.exe
 ffprobe.exe
