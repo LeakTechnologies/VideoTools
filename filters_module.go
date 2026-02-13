@@ -17,7 +17,6 @@ func (s *appState) showFiltersView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "filters"
-	s.window.Maximize()
 	s.setContent(buildFiltersView(s))
 }
 
