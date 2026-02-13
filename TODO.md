@@ -1,4 +1,4 @@
-﻿# VideoTools TODO (v0.1.1-dev26+ plan)
+# VideoTools TODO (v0.1.1-dev27+ plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
