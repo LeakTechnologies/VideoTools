@@ -167,6 +167,21 @@ $ldflags = @(
     "-X main.BuildVersion=$(git describe --tags --always 2>$null)"
 ) -join " "
 
+# Compile icon resource file if icon exists
+$iconPath = Join-Path $PROJECT_ROOT "assets\logo\VT_Icon.ico"
+$resourceOutput = Join-Path $PROJECT_ROOT "icon.syso"
+if ((Test-Path $iconPath) -and (Test-Command windres)) {
+    Write-Host "Compiling icon..." -ForegroundColor Yellow
+    $rcContent = "1 ICON `"$iconPath`""
+    $rcFile = Join-Path $env:TEMP "videotools.rc"
+    $rcContent | Out-File -FilePath $rcFile -Encoding ASCII
+    
+    & windres -i $rcFile -o $resourceOutput -O coff 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host " Icon compiled" -ForegroundColor Green
+    }
+}
+
 # Build the application - straightforward build
 Write-Host "Compiling..." -NoNewline
 
