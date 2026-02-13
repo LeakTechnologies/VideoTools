@@ -1952,6 +1952,7 @@ func (s *appState) showMainMenu() {
 	if s.queueView != nil {
 		s.queueView.StopAnimations()
 	}
+	s.window.Unmaximize()
 	s.active = ""
 	s.queueBackTarget = ""
 
@@ -3588,6 +3589,7 @@ func (s *appState) showConvertView(file *videoSource) {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "convert"
+	s.window.Maximize()
 	if file != nil {
 		s.source = file
 	}
@@ -3607,6 +3609,7 @@ func (s *appState) showCompareView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "compare"
+	s.window.Maximize()
 	s.setContent(buildCompareView(s))
 }
 
@@ -3614,6 +3617,7 @@ func (s *appState) showPlayerView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "player"
+	s.window.Maximize()
 	s.setContent(buildPlayerView(s))
 }
 
@@ -3621,6 +3625,7 @@ func (s *appState) showAuthorView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "author"
+	s.window.Maximize()
 
 	// Initialize scene detection threshold if not set
 	if s.authorSceneThreshold == 0 {
@@ -3637,6 +3642,7 @@ func (s *appState) showMergeView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "merge"
+	s.window.Maximize()
 
 	mergeColor := moduleColor("merge")
 

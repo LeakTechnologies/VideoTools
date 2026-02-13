@@ -85,6 +85,7 @@ func (s *appState) showRipView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "rip"
+	s.window.Maximize()
 
 	if cfg, err := loadPersistedRipConfig(); err == nil {
 		s.applyRipConfig(cfg)

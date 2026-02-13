@@ -25,6 +25,7 @@ func (s *appState) showThumbnailView() {
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "thumbnail"
+	s.window.Maximize()
 	if cfg, err := loadPersistedThumbnailConfig(); err == nil {
 		s.applyThumbnailConfig(cfg)
 	}
