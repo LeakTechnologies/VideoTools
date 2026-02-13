@@ -5,6 +5,40 @@
 ### Maintenance
 - ✅ **.gitignore updates** - Excluded Windows build artifacts (*.syso) and agent working directory (.opencode/).
 
+## Version 0.1.1-dev26 (2026-01-XX) - Windows Build System & Mirror Infrastructure
+
+### Infrastructure
+- ✅ **Mirror hosting on git.leaktechnologies.dev**
+  - Created lt_mirror repository for hosting installers when source sites block bots
+  - Added mirror fallbacks for GStreamer, DVDStyler, Whisper, and FFmpeg
+  - Supports both direct downloads and git.leaktechnologies.dev/raw fallback
+- ✅ **Forgejo CI/CD**
+  - Added self-hosted Forgejo runner setup for Windows
+  - Implemented Windows and Linux CI workflows
+  - Added artifact actions for versioned platform builds
+  - Optional EXE signing support
+
+### Windows Build System
+- ✅ **Complete Windows installer overhaul**
+  - Replaced Scoop with Chocolatey for dependency management
+  - Added MSYS2 for native Windows build toolchain
+  - Implemented comprehensive dependency checking with early exit
+  - Added progress bars for file downloads
+  - Robust installer verification for GStreamer and DVDStyler
+  - Silent installation support for all dependencies
+  - Case-insensitive path detection
+- ✅ **Build script improvements**
+  - Console popup suppression for CGO compilation
+  - Windows icon embedding (icon.syso)
+  - Added windowsgui flag to remove console window
+  - Optimized Go modules to skip downloads if cached
+  - Fixed Unicode encoding issues in script headers
+
+### Documentation
+- ✅ Added Windows Forgejo runner setup documentation
+- ✅ Added Windows service setup script documentation
+- ✅ Added Chocolatey installation guide
+
 ## Version 0.1.0-dev24 (2026-01-06) - DVD Menu Templating System
 
 ### Features
