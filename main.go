@@ -135,7 +135,7 @@ func openURL(url string) error {
 	case "darwin":
 		return exec.Command("open", url).Start()
 	case "windows":
-		return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+		return utils.HideWindowExec("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	default:
 		return exec.Command("xdg-open", url).Start()
 	}
