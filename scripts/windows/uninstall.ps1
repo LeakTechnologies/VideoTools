@@ -17,7 +17,7 @@ function Write-Header {
     param(
         [string]$Title
     )
-    $line = "════════════════════════════════════════════════════════════════"
+    $line = "==============================================================="
     Write-Host $line -ForegroundColor Yellow
     Write-Host "  $Title" -ForegroundColor Yellow
     Write-Host $line -ForegroundColor Yellow
