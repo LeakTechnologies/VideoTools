@@ -158,6 +158,13 @@ $env:GOOS = "windows"
 $env:GOARCH = "amd64"
 $env:CGO_ENABLED = "1"
 
+# Set GCC compiler explicitly if available
+$gccPath = (Get-Command gcc -ErrorAction SilentlyContinue).Source
+if ($gccPath) {
+    $env:CC = $gccPath
+    $env:CXX = $gccPath -replace "gcc\.exe$", "g++.exe"
+}
+
 # Build flags
 $ldflags = @(
     "-s", "-w",  # Strip symbols
@@ -183,11 +190,6 @@ if ((Test-Path $iconPath) -and (Test-Command windres)) {
 
 # Build the application - straightforward build
 Write-Host "Compiling..." -NoNewline
-
-# Clean build - reset any environment variables
-$env:CC = $null
-$env:CGO_CFLAGS = $null
-$env:CGO_LDFLAGS = $null
 
 # Direct build
 Set-Location $PROJECT_ROOT
