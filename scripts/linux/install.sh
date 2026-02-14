@@ -348,6 +348,12 @@ else
                     echo "   Desktop Environment: Unknown/WM-only"
                 fi
                 
+                # Fix: Remove conflicting VA-API plugin that blocks GStreamer updates
+                if pacman -Q gst-plugin-va &>/dev/null; then
+                    echo "   Removing conflicting gst-plugin-va..."
+                    sudo pacman -R --noconfirm gst-plugin-va 2>/dev/null || true
+                fi
+                
                 # GPU driver detection and recommendations
                 if command -v lspci &> /dev/null; then
                     GPU_INFO=$(lspci 2>/dev/null | grep -iE "VGA|3D" | head -1)
