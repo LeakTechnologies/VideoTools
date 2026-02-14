@@ -95,6 +95,13 @@ install_ubuntu() {
 # Function to install on Arch Linux
 install_arch() {
     echo "Installing dependencies for Arch Linux..."
+    
+    # Fix: Remove conflicting VA-API plugin that blocks GStreamer updates
+    if pacman -Q gst-plugin-va &>/dev/null; then
+        echo "Removing conflicting gst-plugin-va..."
+        sudo pacman -R --noconfirm gst-plugin-va 2>/dev/null || true
+    fi
+    
     local packages=(
         gcc
         pkgconf
