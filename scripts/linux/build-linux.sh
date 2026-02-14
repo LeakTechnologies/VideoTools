@@ -98,7 +98,15 @@ fi
 echo "GStreamer found ($(pkg-config --modversion gstreamer-1.0))"
 echo ""
 
-echo "Building VideoTools with GStreamer player..."
+# Check if GStreamer should be used (optional)
+GSTREAMER_TAG=""
+if pkg-config --exists gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0 2>/dev/null; then
+    echo "Building VideoTools with GStreamer player..."
+    GSTREAMER_TAG="-tags gstreamer"
+else
+    echo "Building VideoTools with fallback players (MPV/FFplay/VLC)..."
+    echo "Note: Install GStreamer for native player: sudo apt-get install libgstreamer1.0-dev"
+fi
 # Build timer
 build_start=$(date +%s)
 # Fyne needs cgo for GLFW/OpenGL bindings; build with CGO enabled.
@@ -114,7 +122,7 @@ LDFLAGS=""
 if [ -n "$GIT_COMMIT" ]; then
     LDFLAGS="-X main.buildCommit=$GIT_COMMIT"
 fi
-if go build -tags gstreamer -ldflags="$LDFLAGS" -o "$BUILD_OUTPUT" .; then
+if go build $GSTREAMER_TAG -ldflags="$LDFLAGS" -o "$BUILD_OUTPUT" .; then
     build_end=$(date +%s)
     build_secs=$((build_end - build_start))
     echo "Build successful! (VideoTools $FULL_VERSION)"
