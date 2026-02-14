@@ -4,9 +4,9 @@ REM Preserves shared dependencies by default
 setlocal
 
 echo.
-echo ════════════════════════════════════════════════════════════════
+echo =============================================================
 echo   VideoTools Uninstaller for Windows
-echo ════════════════════════════════════════════════════════════════
+echo =============================================================
 echo.
 echo This uninstaller removes VideoTools while preserving:
 echo   - FFmpeg (NEVER removed - system dependency managed by user)
