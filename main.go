@@ -54,6 +54,18 @@ import (
 	"github.com/skip2/go-qrcode"
 )
 
+func init() {
+	if os.Getenv("GST_DEBUG") == "" {
+		os.Setenv("GST_DEBUG", "0")
+	}
+	if os.Getenv("GST_REGISTRY") == "" {
+		os.Setenv("GST_REGISTRY", "/dev/null")
+	}
+	if os.Getenv("GST_PLUGIN_SCANNER") == "" {
+		os.Setenv("GST_PLUGIN_SCANNER", "/dev/null")
+	}
+}
+
 // abs returns the absolute value of an int32
 func abs(x int32) int32 {
 	if x < 0 {
