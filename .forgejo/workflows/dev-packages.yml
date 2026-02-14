@@ -24,12 +24,14 @@ jobs:
         with:
           name: VideoTools-linux
           path: dist/linux
+        continue-on-error: true
 
       - name: Download Windows artifacts
         uses: actions/download-artifact@v3
         with:
           name: VideoTools-windows
           path: dist/windows
+        continue-on-error: true
 
       - name: Install jq
         run: |
@@ -94,14 +96,28 @@ jobs:
             exit 1
           fi
 
-          find dist/ -type f -print0 | while IFS= read -r -d '' file; do
-            name=$(basename "${file}")
-            echo "Uploading ${name}..."
-            curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
-              -H "Content-Type: application/octet-stream" \
-              --data-binary @"${file}" \
-              "${api_url}/repos/${repo}/releases/${release_id}/assets?name=${name}" >/dev/null
-          done
+          # Upload only existing artifacts
+          if [ -d "dist/linux" ] && [ "$(ls -A dist/linux 2>/dev/null)" ]; then
+            for file in dist/linux/*; do
+              name=$(basename "${file}")
+              echo "Uploading ${name}..."
+              curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"${file}" \
+                "${api_url}/repos/${repo}/releases/${release_id}/assets?name=${name}" >/dev/null
+            done
+          fi
+
+          if [ -d "dist/windows" ] && [ "$(ls -A dist/windows 2>/dev/null)" ]; then
+            for file in dist/windows/*; do
+              name=$(basename "${file}")
+              echo "Uploading ${name}..."
+              curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"${file}" \
+                "${api_url}/repos/${repo}/releases/${release_id}/assets?name=${name}" >/dev/null
+            done
+          fi
 
       - name: Skip release upload (missing token)
         if: env.FORGEJO_TOKEN == ''
