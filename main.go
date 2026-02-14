@@ -11406,6 +11406,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		ensureSession := func() bool {
 			if state.playSess == nil {
 				state.playSess = newPlaySession(src.Path, src.Width, src.Height, src.FrameRate, src.Duration, int(targetWidth-28), int(targetHeight-40), updateProgress, updateFrame, img)
+				if state.playSess == nil {
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						dialog.ShowInformation("Playback Unavailable", "Embedded video playback requires GStreamer to be installed correctly.\n\nPlease either:\n1. Install/fix GStreamer on your system\n2. Use the Preview slider for frame-by-frame preview\n3. Use an external player (mpv, VLC, or ffplay)", state.window)
+					}, false)
+					return false
+				}
 				state.playSess.SetVolume(state.playerVolume)
 				state.playerPaused = true
 			}
