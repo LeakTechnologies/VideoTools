@@ -12,6 +12,7 @@ on:
 jobs:
   publish-release:
     runs-on: ubuntu
+    needs: [linux-package, windows-package]
     env:
       FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
       FORGEJO_API_URL: ${{ secrets.FORGEJO_API_URL }}
