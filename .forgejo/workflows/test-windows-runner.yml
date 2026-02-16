@@ -8,7 +8,7 @@ jobs:
     runs-on: windows
     steps:
       - name: Test echo
-        shell: pwsh
+        shell: powershell
         run: |
           Write-Host "Windows runner is working!" -ForegroundColor Green
           Write-Host "Computer: $env:COMPUTERNAME" -ForegroundColor Cyan
