@@ -1,0 +1,15 @@
+name: Windows Runner Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-windows-runner:
+    runs-on: windows
+    steps:
+      - name: Test echo
+        shell: pwsh
+        run: |
+          Write-Host "Windows runner is working!" -ForegroundColor Green
+          Write-Host "Computer: $env:COMPUTERNAME" -ForegroundColor Cyan
+          Write-Host "User: $env:USERNAME" -ForegroundColor Cyan
