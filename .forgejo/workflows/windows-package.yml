@@ -57,7 +57,7 @@ jobs:
         with:
           update: true
           msystem: UCRT64
-          location: C:\mysys64
+          location: C:\msys64
           install: >-
             mingw-w64-ucrt-x86_64-toolchain
 
@@ -92,7 +92,7 @@ jobs:
           $makeappxPath = Resolve-KitTool -exeName "makeappx.exe"
           $signtoolPath = Resolve-KitTool -exeName "signtool.exe"
 
-          $msys2Root = "C:\mysys64"
+          $msys2Root = "C:\msys64"
           $msys2Bin = Join-Path $msys2Root "ucrt64\\bin"
 
           @(
@@ -115,7 +115,7 @@ jobs:
       - name: Build Windows package
         shell: pwsh
         env:
-          VT_MSYS2_ROOT: C:\mysys64
+          VT_MSYS2_ROOT: C:\msys64
           VT_MSYS2_FLAVOR: ucrt64
           VT_SIGN_EXE: ${{ secrets.VT_SIGN_EXE }}
           VT_SIGN_PFX: ${{ secrets.VT_SIGN_PFX }}
@@ -125,7 +125,7 @@ jobs:
         run: |
           $projectRoot = Resolve-Path "."
           $buildOutput = Join-Path $projectRoot "VideoTools.exe"
-          $toolchainBin = "C:\mysys64\ucrt64\bin"
+          $toolchainBin = "C:\msys64\ucrt64\bin"
           if (Test-Path $toolchainBin) {
             $env:Path = "$toolchainBin;$env:Path"
             $env:CC = Join-Path $toolchainBin "gcc.exe"
