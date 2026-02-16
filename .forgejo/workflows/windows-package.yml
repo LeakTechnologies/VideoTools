@@ -210,25 +210,7 @@ jobs:
           } | ConvertTo-Json -Depth 3
           Set-Content -Path (Join-Path $distDir "build.json") -Value $buildJson -Encoding UTF8
 
-          $msixBaseVersion = ""
-          if ($appVersion -match '^v?(\d+\.\d+\.\d+)') {
-            $msixBaseVersion = $Matches[1]
-          } else {
-            $msixBaseVersion = "0.1.1"
-          }
-          $msixVersion = "$msixBaseVersion.0"
-          try {
-            ./packaging/windows/msix/pack.ps1 -InputExe $buildOutput -Version $msixVersion
-          } catch {
-            Write-Host "[WARN] MSIX packaging skipped: $($_.Exception.Message)" -ForegroundColor Yellow
-          }
-
-          if ($env:VT_SIGN_EXE -and $env:VT_SIGN_EXE -ne "0") {
-            $msixPath = Join-Path $projectRoot "dist\\windows\\msix\\VideoTools.msix"
-            if (Test-Path $msixPath) {
-              ./packaging/windows/msix/sign.ps1 -MsixPath $msixPath -PfxPath $env:VT_SIGN_PFX -PfxPassword $env:VT_SIGN_PASSWORD
-            }
-          }
+          Write-Host "[INFO] MSIX packaging skipped for host runner mode" -ForegroundColor Yellow
 
       - name: Normalize Windows artifact names
         run: |
@@ -256,12 +238,6 @@ jobs:
               Move-Item -Path $zip.FullName -Destination $target -Force
             }
           }
-          $msixPath = Join-Path $projectRoot "dist\\windows\\msix\\VideoTools.msix"
-          if (Test-Path $msixPath) {
-            $msixTarget = Join-Path $projectRoot "dist\\windows\\msix\\$versionBase`_windows.msix"
-            Move-Item -Path $msixPath -Destination $msixTarget -Force
-          }
-
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v3
         with:
