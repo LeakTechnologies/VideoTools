@@ -6,9 +6,12 @@ on:
 jobs:
   test-windows-runner:
     runs-on: windows
+    defaults:
+      run:
+        shell: powershell
     steps:
       - name: Test echo
         run: |
-          powershell -Command "Write-Host 'Windows runner is working!' -ForegroundColor Green"
-          powershell -Command "Write-Host Computer: $env:COMPUTERNAME"
-          powershell -Command "Write-Host User: $env:USERNAME"
+          Write-Host "Windows runner is working!" -ForegroundColor Green
+          Write-Host "Computer: $env:COMPUTERNAME"
+          Write-Host "User: $env:USERNAME"
