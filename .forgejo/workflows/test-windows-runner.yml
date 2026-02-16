@@ -8,7 +8,8 @@ jobs:
     runs-on: windows
     steps:
       - name: Test echo
-        shell: bash
+        shell: pwsh
         run: |
-          echo "Windows runner is working!"
-          echo "Computer: $HOSTNAME"
+          Write-Host "Windows runner is working!" -ForegroundColor Green
+          Write-Host "Computer: $env:COMPUTERNAME" -ForegroundColor Cyan
+          Write-Host "User: $env:USERNAME" -ForegroundColor Cyan
