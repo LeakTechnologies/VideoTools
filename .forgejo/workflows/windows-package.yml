@@ -20,13 +20,15 @@ on:
 jobs:
   windows-package:
     runs-on: windows
+    defaults:
+      run:
+        shell: powershell
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Prepare build metadata
         id: meta
-        shell: pwsh
         run: |
           $appVersionLine = (Get-Content "main.go" | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
           $versionBase = ""
@@ -62,7 +64,6 @@ jobs:
             mingw-w64-ucrt-x86_64-toolchain
 
       - name: Windows runner diagnostics
-        shell: pwsh
         run: |
           $reportDir = Join-Path $env:GITHUB_WORKSPACE "dist\\windows\\diagnostics"
           New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
@@ -113,7 +114,6 @@ jobs:
           path: dist/windows/diagnostics/windows-runner.txt
 
       - name: Build Windows package
-        shell: pwsh
         env:
           VT_MSYS2_ROOT: C:\msys64
           VT_MSYS2_FLAVOR: ucrt64
@@ -255,7 +255,6 @@ jobs:
           }
 
       - name: Normalize Windows artifact names
-        shell: pwsh
         run: |
           $projectRoot = Resolve-Path "."
           $appVersionLine = (Get-Content (Join-Path $projectRoot "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
