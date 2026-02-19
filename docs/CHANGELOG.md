@@ -17,6 +17,7 @@
 - **Forgejo release assets** - Purge existing assets before upload to avoid duplicates.
 - **Forgejo release assets** - Fail publish step on unauthorized asset deletion/upload.
 - **Forgejo mirror** - Use built-in push mirror settings for Codeberg.
+- **Forgejo dev release notes** - Use a nightly build release note body.
 
 ## v0.1.1-dev26 (January 2026)
 

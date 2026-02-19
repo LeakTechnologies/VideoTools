@@ -350,7 +350,7 @@ jobs:
           release_payload=$(jq -n \
             --arg tag "${tag}" \
             --arg name "${name}" \
-            --arg body "Automated build from ${GITHUB_SHA}." \
+            --arg body "Nightly build from ${GITHUB_SHA} (Forgejo dev pipeline). Assets are replaced each run." \
             --arg target "${GITHUB_SHA}" \
             --argjson prerelease "${prerelease}" \
             '{
