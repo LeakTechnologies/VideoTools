@@ -17,6 +17,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Confirm release assets exclude build metadata files.
 - [ ] **Forgejo workflow validation**
   - Confirm redundant Windows workflow removal doesn’t break release publishing.
+  - Confirm test trigger workflow removal doesn’t affect CI visibility.
 - [ ] **Documentation naming hygiene**
   - Review new docs for personal names; use user report/dev report labels only.
 - [X] **Installer dependency parity**
