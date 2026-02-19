@@ -192,15 +192,6 @@ jobs:
           if (Test-Path (Join-Path $projectRoot "README.md")) {
             Copy-Item (Join-Path $projectRoot "README.md") -Destination $pkgDir.FullName -Force
           }
-          if (Test-Path (Join-Path $projectRoot "LICENSE")) {
-            Copy-Item (Join-Path $projectRoot "LICENSE") -Destination $pkgDir.FullName -Force
-          }
-          if (Test-Path (Join-Path $projectRoot "ffmpeg.exe")) {
-            Copy-Item (Join-Path $projectRoot "ffmpeg.exe") -Destination $pkgDir.FullName -Force
-          }
-          if (Test-Path (Join-Path $projectRoot "ffprobe.exe")) {
-            Copy-Item (Join-Path $projectRoot "ffprobe.exe") -Destination $pkgDir.FullName -Force
-          }
           $artifactPath = Join-Path $distDir $artifactName
           if (Test-Path $artifactPath) {
             Remove-Item $artifactPath -Force
