@@ -53,11 +53,8 @@ jobs:
             $channel = "dev"
           }
           $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-          [System.IO.File]::AppendAllLines(
-            $env:GITHUB_OUTPUT,
-            @("version_base=$versionBase", "channel=$channel"),
-            $utf8NoBom
-          )
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "version_base=$versionBase`n", $utf8NoBom)
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "channel=$channel`n", $utf8NoBom)
 
       - name: Setup Go
         uses: actions/setup-go@v5
