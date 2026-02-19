@@ -232,4 +232,4 @@ jobs:
         with:
           name: VideoTools-windows
           path: |
-            dist/windows/**
+            dist/windows/*.zip
