@@ -4,6 +4,7 @@
 
 ### Maintenance
 - **.gitignore updates** - Excluded Windows build artifacts and agent working directory.
+- **Forgejo Windows outputs** - Emit `GITHUB_OUTPUT` as UTF-8 (no BOM) to prevent host-runner post-step failures.
 
 ## v0.1.1-dev26 (January 2026)
 

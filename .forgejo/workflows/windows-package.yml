@@ -33,6 +33,10 @@ jobs:
       - name: Prepare build metadata
         id: meta
         run: |
+          if ([string]::IsNullOrWhiteSpace($env:GITHUB_OUTPUT)) {
+            Write-Error "GITHUB_OUTPUT is not set; cannot emit workflow outputs."
+            exit 1
+          }
           $appVersionLine = (Get-Content "main.go" | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
           $versionBase = ""
           if ($appVersionLine) {
@@ -48,8 +52,12 @@ jobs:
           if ($versionBase -match "-dev") {
             $channel = "dev"
           }
-          "version_base=$versionBase" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "channel=$channel" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+          [System.IO.File]::AppendAllLines(
+            $env:GITHUB_OUTPUT,
+            @("version_base=$versionBase", "channel=$channel"),
+            $utf8NoBom
+          )
 
       - name: Setup Go
         uses: actions/setup-go@v5
