@@ -232,5 +232,6 @@ This makes FFmpeg available to all applications on your system.
 -   **Release assets:** Dev/stable releases upload only the Windows zip for Windows (no build metadata files).
 -   **Duplicate assets:** Dev/stable releases delete existing assets with the same name before uploading new ones.
 -   **Release cleanup:** Dev/stable releases purge existing assets before uploading to prevent duplicates.
+-   **Release auth:** Dev/stable releases fail if asset deletion/upload is unauthorized.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.
