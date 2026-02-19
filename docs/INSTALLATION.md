@@ -30,7 +30,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - Forgejo dev release workflow now builds Linux and Windows artifacts in the same run before publishing (replaces the standalone Windows packaging workflow).
   - Forgejo dev releases upload only Linux AppImage/zip and Windows zip (no build metadata files).
   - Forgejo dev releases delete existing assets with the same name before uploading new ones.
-  - Forgejo mirrors the repository to Codeberg via SSH (`CODEBERG_SSH_KEY` secret).
+  - Forgejo mirrors the repository to Codeberg using built-in push mirror settings.
   - Windows builds pause on success or failure so you can review output before the window closes.
   - On Windows VMs with basic/virtual display adapters, VideoTools will show a preflight warning and exit; enable 3D acceleration or install GPU drivers.
   - Whisper model downloads use the Leak Technologies mirror by default and are optional on Windows.

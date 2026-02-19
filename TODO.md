@@ -20,7 +20,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Confirm redundant Windows workflow removal doesn’t break release publishing.
   - Confirm test trigger workflow removal doesn’t affect CI visibility.
 - [ ] **Forgejo mirror validation**
-  - Confirm Codeberg mirror workflow pushes all refs successfully.
+  - Confirm built-in push mirror updates Codeberg successfully.
 - [ ] **Documentation naming hygiene**
   - Review new docs for personal names; use user report/dev report labels only.
 - [X] **Installer dependency parity**
