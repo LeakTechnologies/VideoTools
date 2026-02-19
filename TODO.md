@@ -8,6 +8,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Preserve presets, then deprecate `scripts/legacy/git_converter`.
 - [ ] **Forgejo Windows runner validation**
   - Confirm the Windows packaging workflow completes without context canceled after the UTF-8 `GITHUB_OUTPUT` fix.
+- [ ] **Forgejo Windows package validation**
+  - Confirm Windows zip contains only `VideoTools.exe` and `README.md`.
 - [ ] **Documentation naming hygiene**
   - Review new docs for personal names; use user report/dev report labels only.
 - [X] **Installer dependency parity**
