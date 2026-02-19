@@ -22,6 +22,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Forgejo workflow validation**
   - Confirm redundant Windows workflow removal doesn’t break release publishing.
   - Confirm test trigger workflow removal doesn’t affect CI visibility.
+- [ ] **Forgejo workflow validation**
+  - Confirm redundant Linux workflow removal doesn’t break release publishing.
 - [ ] **Forgejo mirror validation**
   - Confirm built-in push mirror updates Codeberg successfully.
 - [ ] **Documentation naming hygiene**

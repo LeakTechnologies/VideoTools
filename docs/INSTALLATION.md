@@ -27,7 +27,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - Forgejo dev builds produce a Linux AppImage with the VT icon embedded.
   - Forgejo Windows packaging workflows emit `GITHUB_OUTPUT` as UTF-8 (no BOM) to avoid host-runner post-step failures.
   - Forgejo Windows packages are built as GUI-only binaries (no console window) and include only `VideoTools.exe` plus `README.md` in the zip at `dist/windows/` (artifacts upload only the zip).
-  - Forgejo dev release workflow now builds Linux and Windows artifacts in the same run before publishing (replaces the standalone Windows packaging workflow).
+  - Forgejo dev release workflow now builds Linux and Windows artifacts in the same run before publishing (replaces standalone Windows/Linux packaging workflows).
   - Forgejo dev releases upload only Linux AppImage/zip and Windows zip (no build metadata files).
   - Forgejo dev releases delete existing assets with the same name before uploading new ones.
   - Forgejo dev releases now purge existing release assets before uploading to prevent duplicates.
