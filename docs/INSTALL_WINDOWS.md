@@ -226,5 +226,6 @@ This makes FFmpeg available to all applications on your system.
 -   **"FFmpeg not found" Error:** This means VideoTools can't locate `ffmpeg.exe`. Ensure it's either in the same folder as `VideoTools.exe` or that the system-wide installation path is correct.
 -   **Installer Parse Errors:** If the setup script reports PowerShell parse errors, update the repository to the latest version and re-run `scripts\windows\support\setup-windows.bat`.
 -   **Forgejo runner output errors:** If a Windows Forgejo runner logs `invalid format '', expected a line with '=' or '<<'`, ensure the workflow writes `GITHUB_OUTPUT` using UTF-8 without BOM.
+-   **Console window closes app:** Windows Forgejo packages are built as GUI-only binaries; a console window should not appear when launching the packaged `.exe`.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.
