@@ -31,6 +31,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - Forgejo dev releases upload only Linux AppImage/zip and Windows zip (no build metadata files).
   - Forgejo dev releases delete existing assets with the same name before uploading new ones.
   - Forgejo dev releases now purge existing release assets before uploading to prevent duplicates.
+  - Forgejo dev releases fail if asset purge or upload calls are unauthorized.
   - Forgejo mirrors the repository to Codeberg using built-in push mirror settings.
   - Windows builds pause on success or failure so you can review output before the window closes.
   - On Windows VMs with basic/virtual display adapters, VideoTools will show a preflight warning and exit; enable 3D acceleration or install GPU drivers.
