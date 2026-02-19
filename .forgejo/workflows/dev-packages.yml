@@ -370,11 +370,29 @@ jobs:
             exit 1
           fi
 
+          delete_existing_asset() {
+            local asset_name="$1"
+            local assets_json
+            assets_json=$(curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
+              "${api_url}/repos/${repo}/releases/${release_id}/assets" || true)
+            if [ -z "${assets_json}" ]; then
+              return
+            fi
+            echo "${assets_json}" | jq -r --arg name "${asset_name}" '.[] | select(.name == $name) | .id' | while read -r asset_id; do
+              if [ -n "${asset_id}" ] && [ "${asset_id}" != "null" ]; then
+                echo "Removing existing asset ${asset_name} (id=${asset_id})..."
+                curl -sS -X DELETE -H "Authorization: token ${FORGEJO_TOKEN}" \
+                  "${api_url}/repos/${repo}/releases/assets/${asset_id}" >/dev/null || true
+              fi
+            done
+          }
+
           # Upload only existing artifacts
           if [ -d "dist/linux" ]; then
             for file in dist/linux/*.zip dist/linux/*.AppImage; do
               if [ -f "${file}" ]; then
                 name=$(basename "${file}")
+                delete_existing_asset "${name}"
                 echo "Uploading ${name}..."
                 curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
                   -H "Content-Type: application/octet-stream" \
@@ -388,6 +406,7 @@ jobs:
             for file in dist/windows/*.zip; do
               if [ -f "${file}" ]; then
                 name=$(basename "${file}")
+                delete_existing_asset "${name}"
                 echo "Uploading ${name}..."
                 curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
                   -H "Content-Type: application/octet-stream" \
