@@ -229,5 +229,6 @@ This makes FFmpeg available to all applications on your system.
 -   **Console window closes app:** Windows Forgejo packages are built as GUI-only binaries; a console window should not appear when launching the packaged `.exe`.
 -   **Extra files in package:** Forgejo Windows packages ship only `VideoTools.exe` and `README.md` inside the zip at `dist/windows/`. Artifact uploads include the zip only.
 -   **Dev release pipeline:** Forgejo dev release workflow builds Windows artifacts in the same run before publishing.
+-   **Release assets:** Dev/stable releases upload only the Windows zip for Windows (no build metadata files).
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.

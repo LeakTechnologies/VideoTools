@@ -87,7 +87,9 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: VideoTools-linux
-          path: dist/linux/${{ steps.meta.outputs.channel }}/*
+          path: |
+            dist/linux/${{ steps.meta.outputs.channel }}/*.zip
+            dist/linux/${{ steps.meta.outputs.channel }}/*.AppImage
 
   windows-package:
     runs-on: windows
@@ -369,25 +371,29 @@ jobs:
           fi
 
           # Upload only existing artifacts
-          if [ -d "dist/linux" ] && [ "$(ls -A dist/linux 2>/dev/null)" ]; then
-            for file in dist/linux/*; do
-              name=$(basename "${file}")
-              echo "Uploading ${name}..."
-              curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
-                -H "Content-Type: application/octet-stream" \
-                --data-binary @"${file}" \
-                "${api_url}/repos/${repo}/releases/${release_id}/assets?name=${name}" >/dev/null
+          if [ -d "dist/linux" ]; then
+            for file in dist/linux/*.zip dist/linux/*.AppImage; do
+              if [ -f "${file}" ]; then
+                name=$(basename "${file}")
+                echo "Uploading ${name}..."
+                curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
+                  -H "Content-Type: application/octet-stream" \
+                  --data-binary @"${file}" \
+                  "${api_url}/repos/${repo}/releases/${release_id}/assets?name=${name}" >/dev/null
+              fi
             done
           fi
 
-          if [ -d "dist/windows" ] && [ "$(ls -A dist/windows 2>/dev/null)" ]; then
-            for file in dist/windows/*; do
-              name=$(basename "${file}")
-              echo "Uploading ${name}..."
-              curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
-                -H "Content-Type: application/octet-stream" \
-                --data-binary @"${file}" \
-                "${api_url}/repos/${repo}/releases/${release_id}/assets?name=${name}" >/dev/null
+          if [ -d "dist/windows" ]; then
+            for file in dist/windows/*.zip; do
+              if [ -f "${file}" ]; then
+                name=$(basename "${file}")
+                echo "Uploading ${name}..."
+                curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
+                  -H "Content-Type: application/octet-stream" \
+                  --data-binary @"${file}" \
+                  "${api_url}/repos/${repo}/releases/${release_id}/assets?name=${name}" >/dev/null
+              fi
             done
           fi
 
