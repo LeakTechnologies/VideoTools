@@ -1,4 +1,4 @@
-name: Forgejo Publish Release
+﻿name: Forgejo Publish Release
 
 on:
   workflow_dispatch:
@@ -10,8 +10,280 @@ on:
       - "docs/**"
 
 jobs:
+  linux-package:
+    runs-on: ubuntu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare build metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_base="$(grep -m1 'appVersion' main.go | sed -E 's/.*"([^"]+)".*/\1/')"
+          if [ -z "$version_base" ]; then
+            version_base="v0.1.1-dev"
+          fi
+          channel="stable"
+          if echo "$version_base" | grep -q '\-dev'; then
+            channel="dev"
+          fi
+          echo "version_base=$version_base" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install build deps
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            pkg-config \
+            libgl1-mesa-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxi-dev \
+            libxxf86vm-dev \
+            libasound2-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev
+
+      - name: Build Linux package
+        env:
+          VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
+        run: |
+          chmod +x scripts/linux/build.sh
+          ./scripts/linux/build.sh
+
+      - name: Build Linux AppImage
+        env:
+          VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
+          VT_VERSION_BASE: ${{ steps.meta.outputs.version_base }}
+        run: |
+          mkdir -p .cache/appimage
+          curl -L -o .cache/appimage/linuxdeploy-x86_64.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          curl -L -o .cache/appimage/appimagetool-x86_64.AppImage https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x .cache/appimage/linuxdeploy-x86_64.AppImage .cache/appimage/appimagetool-x86_64.AppImage
+          chmod +x scripts/linux/package-appimage.sh
+          ./scripts/linux/package-appimage.sh
+
+      - name: Normalize Linux artifact name
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="${{ steps.meta.outputs.channel }}"
+          version_base="${{ steps.meta.outputs.version_base }}"
+          artifact_src="$(ls dist/linux/${channel}/*.zip | head -n1)"
+          artifact_dst="dist/linux/${channel}/${version_base}_linux.zip"
+          mv "$artifact_src" "$artifact_dst"
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: VideoTools-linux
+          path: dist/linux/${{ steps.meta.outputs.channel }}/*
+
+  windows-package:
+    runs-on: windows
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Prepare build metadata
+        id: meta
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GITHUB_OUTPUT)) {
+            Write-Error "GITHUB_OUTPUT is not set; cannot emit workflow outputs."
+            exit 1
+          }
+          $appVersionLine = (Get-Content "main.go" | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
+          $versionBase = ""
+          if ($appVersionLine) {
+            $parts = $appVersionLine -split ([char]34)
+            if ($parts.Length -ge 2) {
+              $versionBase = $parts[1]
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($versionBase)) {
+            $versionBase = "v0.1.1-dev"
+          }
+          $channel = "stable"
+          if ($versionBase -match "-dev") {
+            $channel = "dev"
+          }
+          $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "version_base=$versionBase`n", $utf8NoBom)
+          [System.IO.File]::AppendAllText($env:GITHUB_OUTPUT, "channel=$channel`n", $utf8NoBom)
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Windows runner diagnostics
+        run: |
+          $reportDir = Join-Path $env:GITHUB_WORKSPACE "dist\\windows\\diagnostics"
+          New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
+          $reportPath = Join-Path $reportDir "windows-runner.txt"
+
+          function Resolve-KitTool {
+            param([string]$exeName)
+            $cmd = Get-Command $exeName -ErrorAction SilentlyContinue
+            if ($cmd) { return $cmd.Path }
+            $kitsRoot = "${env:ProgramFiles(x86)}\\Windows Kits\\10\\bin"
+            if (-not (Test-Path $kitsRoot)) { return "" }
+            $candidates = Get-ChildItem -Path $kitsRoot -Directory | Sort-Object Name -Descending
+            foreach ($dir in $candidates) {
+              $path = Join-Path $dir.FullName "x64\\$exeName"
+              if (Test-Path $path) { return $path }
+            }
+            return ""
+          }
+
+          $osInfo = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber
+          $goVersion = ""
+          if (Get-Command go -ErrorAction SilentlyContinue) { $goVersion = (go version) }
+          $gccVersion = ""
+          if (Get-Command gcc -ErrorAction SilentlyContinue) { $gccVersion = (gcc --version | Select-Object -First 1) }
+          $windresVersion = ""
+          if (Get-Command windres -ErrorAction SilentlyContinue) { $windresVersion = (windres --version | Select-Object -First 1) }
+          $makeappxPath = Resolve-KitTool -exeName "makeappx.exe"
+          $signtoolPath = Resolve-KitTool -exeName "signtool.exe"
+
+          @(
+            "OS: $($osInfo.Caption) $($osInfo.Version) (Build $($osInfo.BuildNumber))",
+            "Go: $goVersion",
+            "GCC: $gccVersion",
+            "windres: $windresVersion",
+            "makeappx.exe: " + ($(if ($makeappxPath) { $makeappxPath } else { "MISSING" })),
+            "signtool.exe: " + ($(if ($signtoolPath) { $signtoolPath } else { "MISSING" }))
+          ) | Out-File -FilePath $reportPath -Encoding UTF8
+
+      - name: Upload Windows diagnostics
+        uses: actions/upload-artifact@v3
+        with:
+          name: VideoTools-windows-diagnostics
+          path: dist/windows/diagnostics/windows-runner.txt
+
+      - name: Build Windows package
+        env:
+          VT_SIGN_EXE: ${{ secrets.VT_SIGN_EXE }}
+          VT_SIGN_PFX: ${{ secrets.VT_SIGN_PFX }}
+          VT_SIGN_PFX_B64: ${{ secrets.VT_SIGN_PFX_B64 }}
+          VT_SIGN_PASSWORD: ${{ secrets.VT_SIGN_PASSWORD }}
+          VT_SIGN_TIMESTAMP: ${{ secrets.VT_SIGN_TIMESTAMP }}
+        run: |
+          $projectRoot = Resolve-Path "."
+          $buildOutput = Join-Path $projectRoot "VideoTools.exe"
+          $gccPath = (Get-Command gcc -ErrorAction SilentlyContinue).Source
+          if ($gccPath) {
+            $env:CC = $gccPath
+            $env:CXX = $gccPath -replace "gcc\.exe$", "g++.exe"
+          }
+          $appVersionLine = (Get-Content (Join-Path $projectRoot "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
+          $appVersion = ""
+          if ($appVersionLine) {
+            $parts = $appVersionLine -split ([char]34)
+            if ($parts.Length -ge 2) {
+              $appVersion = $parts[1]
+            }
+          }
+          if ([string]::IsNullOrWhiteSpace($appVersion)) {
+            $appVersion = "0.1.1-dev"
+          }
+          $gitCommit = ""
+          if (Get-Command git -ErrorAction SilentlyContinue) {
+            $gitCommit = (git -C $projectRoot rev-parse --short HEAD 2>$null).Trim()
+          }
+          if ([string]::IsNullOrWhiteSpace($gitCommit)) {
+            $gitCommit = "nogit"
+          }
+          $channel = "stable"
+          if ($appVersion -match "-dev") {
+            $channel = "dev"
+          }
+          $version = $appVersion
+          $distDir = Join-Path $projectRoot "dist\\windows"
+          $artifactName = "$version`_windows.zip"
+
+          if ($env:VT_SIGN_PFX_B64) {
+            $pfxPath = Join-Path $env:TEMP "vt-sign.pfx"
+            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:VT_SIGN_PFX_B64))
+            $env:VT_SIGN_PFX = $pfxPath
+          }
+
+          $rcFile = Join-Path $projectRoot "scripts\\videotools.rc"
+          $sysoFile = Join-Path $projectRoot "videotools_windows_amd64.syso"
+          if (Test-Path $rcFile) {
+            $windresCandidates = @()
+            $windresCmd = Get-Command windres -ErrorAction SilentlyContinue
+            if ($windresCmd) {
+              $windresCandidates += $windresCmd.Path
+            }
+            $windresCandidates += "C:\\ProgramData\\chocolatey\\bin\\windres.exe"
+            $windresCandidates += "C:\\MinGW\\bin\\windres.exe"
+            $windresPath = $windresCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+            if ($windresPath) {
+              & $windresPath $rcFile -O coff -o $sysoFile | Out-Null
+            } else {
+              Write-Host "[WARN] windres not found; Windows icon will not be embedded." -ForegroundColor Yellow
+            }
+          }
+
+          $env:CGO_ENABLED = "1"
+          go mod download
+          go mod verify
+          go build -p 4 -ldflags="-s -w -H windowsgui" -trimpath -o $buildOutput .
+
+          if ($env:VT_SIGN_EXE -and $env:VT_SIGN_EXE -ne "0") {
+            $signScript = Join-Path $projectRoot "scripts\\windows\\support\\sign-exe.ps1"
+            if (Test-Path $signScript) {
+              & $signScript -ExePath $buildOutput -CertPath $env:VT_SIGN_PFX -CertPassword $env:VT_SIGN_PASSWORD -TimestampUrl $env:VT_SIGN_TIMESTAMP
+            }
+          }
+
+          if (-not (Test-Path $distDir)) {
+            New-Item -ItemType Directory -Force -Path $distDir | Out-Null
+          }
+          $pkgDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "vt-build-$([Guid]::NewGuid())") -Force
+          Copy-Item $buildOutput -Destination $pkgDir.FullName -Force
+          if (Test-Path (Join-Path $projectRoot "README.md")) {
+            Copy-Item (Join-Path $projectRoot "README.md") -Destination $pkgDir.FullName -Force
+          }
+          $artifactPath = Join-Path $distDir $artifactName
+          if (Test-Path $artifactPath) {
+            Remove-Item $artifactPath -Force
+          }
+          Compress-Archive -Path (Join-Path $pkgDir.FullName "*") -DestinationPath $artifactPath
+          Remove-Item $pkgDir.FullName -Recurse -Force
+
+          Write-Host "[INFO] MSIX packaging skipped for host runner mode" -ForegroundColor Yellow
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: VideoTools-windows
+          path: |
+            dist/windows/*.zip
+
   publish-release:
     runs-on: ubuntu
+    needs:
+      - linux-package
+      - windows-package
     env:
       FORGEJO_TOKEN: ${{ secrets.FORGEJO_TOKEN }}
       FORGEJO_API_URL: ${{ secrets.FORGEJO_API_URL }}
@@ -35,8 +307,8 @@ jobs:
 
       - name: Install jq
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y jq
 
       - name: Publish Forgejo release (dev)
         if: env.FORGEJO_TOKEN != ''
