@@ -15,6 +15,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Forgejo dev release validation**
   - Confirm dev release workflow builds Linux and Windows artifacts before publish steps.
   - Confirm release assets exclude build metadata files.
+- [ ] **Forgejo workflow validation**
+  - Confirm redundant Windows workflow removal doesn’t break release publishing.
 - [ ] **Documentation naming hygiene**
   - Review new docs for personal names; use user report/dev report labels only.
 - [X] **Installer dependency parity**
