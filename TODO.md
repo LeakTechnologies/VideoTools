@@ -16,6 +16,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Confirm dev release workflow builds Linux and Windows artifacts before publish steps.
   - Confirm release assets exclude build metadata files.
   - Confirm release assets replace existing files with the same name.
+  - Confirm release assets are purged before upload (no duplicates remain).
 - [ ] **Forgejo workflow validation**
   - Confirm redundant Windows workflow removal doesn’t break release publishing.
   - Confirm test trigger workflow removal doesn’t affect CI visibility.
