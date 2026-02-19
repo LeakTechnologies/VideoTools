@@ -145,7 +145,7 @@ jobs:
             $channel = "dev"
           }
           $version = $appVersion
-          $distDir = Join-Path $projectRoot "dist\\windows\\$channel"
+          $distDir = Join-Path $projectRoot "dist\\windows"
           $artifactName = "$version`_windows.zip"
 
           if ($env:VT_SIGN_PFX_B64) {
@@ -199,16 +199,6 @@ jobs:
           Compress-Archive -Path (Join-Path $pkgDir.FullName "*") -DestinationPath $artifactPath
           Remove-Item $pkgDir.FullName -Recurse -Force
 
-          $publishedAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-          $buildJson = @{
-            channel = $channel
-            version = $version
-            git = $gitCommit
-            published_at = $publishedAt
-            artifact = $artifactName
-          } | ConvertTo-Json -Depth 3
-          Set-Content -Path (Join-Path $distDir "build.json") -Value $buildJson -Encoding UTF8
-
           Write-Host "[INFO] MSIX packaging skipped for host runner mode" -ForegroundColor Yellow
 
       - name: Normalize Windows artifact names
@@ -229,7 +219,7 @@ jobs:
           if ($versionBase -match "-dev") {
             $channel = "dev"
           }
-          $distDir = Join-Path $projectRoot "dist\\windows\\$channel"
+          $distDir = Join-Path $projectRoot "dist\\windows"
           $zip = Get-ChildItem -Path $distDir -Filter *.zip | Select-Object -First 1
           if ($zip) {
             $target = Join-Path $distDir "$versionBase`_windows.zip"

@@ -7,6 +7,7 @@
 - **Forgejo Windows outputs** - Emit `GITHUB_OUTPUT` as UTF-8 (no BOM) with PowerShell-compatible append to prevent host-runner post-step failures.
 - **Forgejo Windows GUI build** - Package the Windows exe with `-H windowsgui` to avoid console windows.
 - **Forgejo Windows package contents** - Limit zip contents to `VideoTools.exe` and `README.md`.
+- **Forgejo Windows artifact layout** - Write zip directly to `dist/windows/` and drop build metadata files.
 
 ## v0.1.1-dev26 (January 2026)
 
