@@ -11,6 +11,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Forgejo Windows package validation**
   - Confirm Windows zip contains only `VideoTools.exe` and `README.md`.
   - Confirm Windows zip is written to `dist/windows/` with no build metadata files.
+  - Confirm diagnostics folder is not included in uploaded artifacts.
 - [ ] **Documentation naming hygiene**
   - Review new docs for personal names; use user report/dev report labels only.
 - [X] **Installer dependency parity**
