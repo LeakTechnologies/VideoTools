@@ -12,6 +12,7 @@
 - **Forgejo dev release workflow** - Build Linux/Windows artifacts in the same workflow run before publishing releases.
 - **Forgejo release assets** - Upload only Linux AppImage/zip and Windows zip (skip build metadata files).
 - **Forgejo workflow cleanup** - Remove redundant Windows packaging workflow.
+- **Forgejo workflow cleanup** - Remove redundant test trigger workflow.
 
 ## v0.1.1-dev26 (January 2026)
 
