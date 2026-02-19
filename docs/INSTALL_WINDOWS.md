@@ -230,5 +230,6 @@ This makes FFmpeg available to all applications on your system.
 -   **Extra files in package:** Forgejo Windows packages ship only `VideoTools.exe` and `README.md` inside the zip at `dist/windows/`. Artifact uploads include the zip only.
 -   **Dev release pipeline:** Forgejo dev release workflow builds Windows artifacts in the same run before publishing (standalone Windows workflow removed).
 -   **Release assets:** Dev/stable releases upload only the Windows zip for Windows (no build metadata files).
+-   **Duplicate assets:** Dev/stable releases delete existing assets with the same name before uploading new ones.
 -   **Application Doesn't Start:** Make sure you have a 64-bit version of Windows 10 or 11 and that your graphics drivers are up to date.
 -   **Antivirus Warnings:** Some antivirus programs may flag the unsigned executable. This is a false positive.
