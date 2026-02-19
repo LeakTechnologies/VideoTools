@@ -18,6 +18,7 @@
 - **Forgejo release assets** - Fail publish step on unauthorized asset deletion/upload.
 - **Forgejo mirror** - Use built-in push mirror settings for Codeberg.
 - **Forgejo dev release notes** - Use a nightly build release note body.
+- **Forgejo workflow cleanup** - Remove redundant Linux packaging workflow.
 
 ## v0.1.1-dev26 (January 2026)
 
