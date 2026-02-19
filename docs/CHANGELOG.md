@@ -9,6 +9,7 @@
 - **Forgejo Windows package contents** - Limit zip contents to `VideoTools.exe` and `README.md`.
 - **Forgejo Windows artifact layout** - Write zip directly to `dist/windows/` and drop build metadata files.
 - **Forgejo Windows artifact upload** - Upload only the zip file, excluding diagnostics and folders.
+- **Forgejo dev release workflow** - Build Linux/Windows artifacts in the same workflow run before publishing releases.
 
 ## v0.1.1-dev26 (January 2026)
 
