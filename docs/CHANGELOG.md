@@ -14,6 +14,7 @@
 - **Forgejo workflow cleanup** - Remove redundant Windows packaging workflow.
 - **Forgejo workflow cleanup** - Remove redundant test trigger workflow.
 - **Forgejo release assets** - Delete existing assets with the same name before upload to avoid duplicates.
+- **Forgejo mirror** - Add Codeberg mirror workflow using SSH deploy key.
 
 ## v0.1.1-dev26 (January 2026)
 
