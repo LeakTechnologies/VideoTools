@@ -9,6 +9,10 @@ on:
       - "**.md"
       - "docs/**"
 
+concurrency:
+  group: dev-packages-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linux-package:
     runs-on: ubuntu
