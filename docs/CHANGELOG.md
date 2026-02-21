@@ -7,6 +7,10 @@
 - **Module lock recovery** - Main menu now offers a direct fix path on clean Windows machines instead of leaving users in a settings-only workflow.
 - **App-local FFmpeg discovery** - Platform detection now checks `%LOCALAPPDATA%\VideoTools\bin` before PATH/common locations, so bootstrap installs persist across launches.
 
+### Cross-Platform
+- **Settings dependency ordering** - Dependencies in Settings are now listed with core requirements first, then alphabetically.
+- **Settings FFmpeg actions** - FFmpeg install actions are available in Settings on supported platforms (Windows app-local install; Linux package-manager actions).
+
 ## v0.1.1-dev27 (February 2026)
 
 ### Maintenance
@@ -327,7 +331,7 @@ None - this is a bug-fix and enhancement release.
 
 #### Platform Enhancements
 - Native Windows builds
-- macOS app bundle creation
+- Linux AppImage bundle creation
 - Linux package distribution (.deb, .rpm)
 - Auto-update mechanism
 
