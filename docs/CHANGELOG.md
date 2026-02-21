@@ -1,5 +1,12 @@
 # VideoTools Changelog
 
+## v0.1.1-dev28 (February 2026)
+
+### Windows
+- **First-run FFmpeg bootstrap** - Added an in-app Windows prompt that installs FFmpeg/FFprobe into `%LOCALAPPDATA%\VideoTools\bin` when missing.
+- **Module lock recovery** - Main menu now offers a direct fix path on clean Windows machines instead of leaving users in a settings-only workflow.
+- **App-local FFmpeg discovery** - Platform detection now checks `%LOCALAPPDATA%\VideoTools\bin` before PATH/common locations, so bootstrap installs persist across launches.
+
 ## v0.1.1-dev27 (February 2026)
 
 ### Maintenance

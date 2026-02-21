@@ -77,13 +77,30 @@ func findFFmpeg(cfg *PlatformConfig) string {
 		}
 	}
 
-	// Priority 3: System PATH
+	// Priority 3: App-local user bin (Windows)
+	if cfg.IsWindows {
+		localAppData := strings.TrimSpace(os.Getenv("LOCALAPPDATA"))
+		if localAppData == "" {
+			if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
+				localAppData = filepath.Join(home, "AppData", "Local")
+			}
+		}
+		if localAppData != "" {
+			appLocalPath := filepath.Join(localAppData, "VideoTools", "bin", "ffmpeg.exe")
+			if _, err := os.Stat(appLocalPath); err == nil {
+				logging.Debug(logging.CatSystem, "Found app-local ffmpeg: %s", appLocalPath)
+				return appLocalPath
+			}
+		}
+	}
+
+	// Priority 4: System PATH
 	if path, err := exec.LookPath(exeName); err == nil {
 		logging.Debug(logging.CatSystem, "Found ffmpeg in PATH: %s", path)
 		return path
 	}
 
-	// Priority 4: Common install locations (Windows)
+	// Priority 5: Common install locations (Windows)
 	if cfg.IsWindows {
 		commonPaths := []string{
 			filepath.Join(os.Getenv("ProgramFiles"), "ffmpeg", "bin", "ffmpeg.exe"),
@@ -127,7 +144,23 @@ func findFFprobe(cfg *PlatformConfig) string {
 		}
 	}
 
-	// Priority 3: System PATH
+	// Priority 3: App-local user bin (Windows)
+	if cfg.IsWindows {
+		localAppData := strings.TrimSpace(os.Getenv("LOCALAPPDATA"))
+		if localAppData == "" {
+			if home, err := os.UserHomeDir(); err == nil && strings.TrimSpace(home) != "" {
+				localAppData = filepath.Join(home, "AppData", "Local")
+			}
+		}
+		if localAppData != "" {
+			appLocalPath := filepath.Join(localAppData, "VideoTools", "bin", "ffprobe.exe")
+			if _, err := os.Stat(appLocalPath); err == nil {
+				return appLocalPath
+			}
+		}
+	}
+
+	// Priority 4: System PATH
 	if path, err := exec.LookPath(exeName); err == nil {
 		return path
 	}

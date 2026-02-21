@@ -4,6 +4,10 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Maintenance
 
+- [ ] **Windows dev28 dependency bootstrap validation**
+  - Verify first-run FFmpeg bootstrap on a clean Windows machine with no FFmpeg in PATH.
+  - Confirm modules unlock immediately after in-app install without restarting the app.
+
 - [ ] **Git converter retirement**
   - Preserve presets, then deprecate `scripts/legacy/git_converter`.
 - [ ] **Forgejo Windows runner validation**

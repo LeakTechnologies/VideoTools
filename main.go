@@ -98,7 +98,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion         = "v0.1.1-dev27"
+	appVersion         = "v0.1.1-dev28"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once
@@ -6926,6 +6926,7 @@ func runGUI() {
 		state.handleDrop(pos, items)
 	})
 	state.showMainMenu()
+	state.maybePromptWindowsDependencyBootstrap()
 	logging.Debug(logging.CatUI, "main menu rendered with %d modules", len(modulesList))
 
 	// Start stats bar update loop on a timer

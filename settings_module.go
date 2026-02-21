@@ -1,9 +1,12 @@
 package main
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
+	"io"
 	"image/color"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,6 +47,8 @@ type dependencyCommandPair struct {
 	install   *dependencyCommand
 	uninstall *dependencyCommand
 }
+
+const windowsFFmpegZipURL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
 
 func projectRoot() string {
 	if exe, err := os.Executable(); err == nil {
@@ -311,8 +316,199 @@ func getXorrisoInstallCmd() string {
 
 // checkDependency checks if a command is available
 func checkDependency(command string) bool {
+	if command == "ffmpeg" {
+		// Respect app-configured runtime paths so app-local FFmpeg bootstrap counts as installed.
+		ffmpegPath := utils.GetFFmpegPath()
+		if ffmpegPath != "" && ffmpegPath != "ffmpeg" && ffmpegPath != "ffmpeg.exe" {
+			if _, err := os.Stat(ffmpegPath); err == nil {
+				return true
+			}
+		}
+	}
 	_, err := exec.LookPath(command)
 	return err == nil
+}
+
+func windowsAppLocalFFmpegPaths() (ffmpegPath, ffprobePath string, ok bool) {
+	if runtime.GOOS != "windows" {
+		return "", "", false
+	}
+	base := strings.TrimSpace(os.Getenv("LOCALAPPDATA"))
+	if base == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", "", false
+		}
+		base = filepath.Join(home, "AppData", "Local")
+	}
+	binDir := filepath.Join(base, "VideoTools", "bin")
+	ffmpegPath = filepath.Join(binDir, "ffmpeg.exe")
+	ffprobePath = filepath.Join(binDir, "ffprobe.exe")
+	return ffmpegPath, ffprobePath, true
+}
+
+func ensureWindowsAppLocalFFmpeg() (ffmpegPath, ffprobePath string, installed bool, err error) {
+	ffmpegPath, ffprobePath, ok := windowsAppLocalFFmpegPaths()
+	if !ok {
+		return "", "", false, fmt.Errorf("unsupported platform")
+	}
+
+	if _, errFFmpeg := os.Stat(ffmpegPath); errFFmpeg == nil {
+		if _, errFFprobe := os.Stat(ffprobePath); errFFprobe == nil {
+			return ffmpegPath, ffprobePath, false, nil
+		}
+	}
+
+	if err := os.MkdirAll(filepath.Dir(ffmpegPath), 0o755); err != nil {
+		return "", "", false, fmt.Errorf("create local ffmpeg directory: %w", err)
+	}
+
+	zipFile, err := os.CreateTemp("", "videotools-ffmpeg-*.zip")
+	if err != nil {
+		return "", "", false, fmt.Errorf("create temp zip: %w", err)
+	}
+	zipPath := zipFile.Name()
+	_ = zipFile.Close()
+	defer os.Remove(zipPath)
+
+	client := &http.Client{Timeout: 10 * time.Minute}
+	resp, err := client.Get(windowsFFmpegZipURL)
+	if err != nil {
+		return "", "", false, fmt.Errorf("download ffmpeg package: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", "", false, fmt.Errorf("download ffmpeg package: unexpected status %d", resp.StatusCode)
+	}
+
+	out, err := os.Create(zipPath)
+	if err != nil {
+		return "", "", false, fmt.Errorf("open temp zip for write: %w", err)
+	}
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		_ = out.Close()
+		return "", "", false, fmt.Errorf("write ffmpeg package: %w", err)
+	}
+	if err := out.Close(); err != nil {
+		return "", "", false, fmt.Errorf("finalize ffmpeg package: %w", err)
+	}
+
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return "", "", false, fmt.Errorf("open ffmpeg package: %w", err)
+	}
+	defer zr.Close()
+
+	var copiedFFmpeg, copiedFFprobe bool
+	for _, f := range zr.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		base := strings.ToLower(filepath.Base(f.Name))
+		var target string
+		switch base {
+		case "ffmpeg.exe":
+			target = ffmpegPath
+		case "ffprobe.exe":
+			target = ffprobePath
+		default:
+			continue
+		}
+
+		src, err := f.Open()
+		if err != nil {
+			return "", "", false, fmt.Errorf("extract %s: %w", base, err)
+		}
+		dst, err := os.Create(target)
+		if err != nil {
+			_ = src.Close()
+			return "", "", false, fmt.Errorf("create %s: %w", target, err)
+		}
+		if _, err := io.Copy(dst, src); err != nil {
+			_ = dst.Close()
+			_ = src.Close()
+			return "", "", false, fmt.Errorf("write %s: %w", target, err)
+		}
+		if err := dst.Close(); err != nil {
+			_ = src.Close()
+			return "", "", false, fmt.Errorf("close %s: %w", target, err)
+		}
+		_ = src.Close()
+
+		if base == "ffmpeg.exe" {
+			copiedFFmpeg = true
+		}
+		if base == "ffprobe.exe" {
+			copiedFFprobe = true
+		}
+		if copiedFFmpeg && copiedFFprobe {
+			break
+		}
+	}
+
+	if !copiedFFmpeg || !copiedFFprobe {
+		return "", "", false, fmt.Errorf("ffmpeg package missing ffmpeg.exe or ffprobe.exe")
+	}
+
+	return ffmpegPath, ffprobePath, true, nil
+}
+
+func (s *appState) maybePromptWindowsDependencyBootstrap() {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	if checkDependency("ffmpeg") {
+		return
+	}
+
+	message := widget.NewLabel("Core dependency FFmpeg is missing.\n\nInstall now to unlock most modules.\n\nInstall target:\n%LOCALAPPDATA%\\VideoTools\\bin")
+	message.Wrapping = fyne.TextWrapWord
+
+	var prompt dialog.Dialog
+	installBtn := widget.NewButton("Install FFmpeg Now", func() {
+		progress := dialog.NewProgressInfinite("Installing FFmpeg", "Downloading and extracting FFmpeg. This may take a minute.", s.window)
+		progress.Show()
+
+		go func() {
+			ffmpegPath, ffprobePath, _, err := ensureWindowsAppLocalFFmpeg()
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				progress.Hide()
+				if err != nil {
+					dialog.ShowError(fmt.Errorf("failed to install FFmpeg: %w", err), s.window)
+					return
+				}
+				utils.SetFFmpegPaths(ffmpegPath, ffprobePath)
+				if prompt != nil {
+					prompt.Hide()
+				}
+				s.showMainMenu()
+				dialog.ShowInformation("FFmpeg Ready", "FFmpeg is installed for this user. Video modules are now available.", s.window)
+			}, false)
+		}()
+	})
+	installBtn.Importance = widget.HighImportance
+
+	settingsBtn := widget.NewButton("Open Settings", func() {
+		if prompt != nil {
+			prompt.Hide()
+		}
+		s.showSettingsView()
+	})
+	continueBtn := widget.NewButton("Continue Limited Mode", func() {
+		if prompt != nil {
+			prompt.Hide()
+		}
+	})
+
+	content := container.NewVBox(
+		message,
+		widget.NewSeparator(),
+		container.NewHBox(installBtn, settingsBtn, continueBtn),
+	)
+
+	prompt = dialog.NewCustom("First Run Dependency Setup", "Close", content, s.window)
+	prompt.Resize(fyne.NewSize(560, 220))
+	prompt.Show()
 }
 
 // getModuleDependencyStatus checks which dependencies a module is missing
