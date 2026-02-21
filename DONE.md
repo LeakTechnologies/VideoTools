@@ -1,5 +1,13 @@
 ﻿# VideoTools - Completed Features
 
+## Version 0.1.1-dev28 (2026-02-21) - Windows First-Run Dependency Bootstrap
+
+### Windows Dependencies
+- [x] Added first-run in-app FFmpeg bootstrap prompt when FFmpeg is missing.
+- [x] Added app-local FFmpeg install flow to `%LOCALAPPDATA%\VideoTools\bin` (downloads official Windows portable package and extracts `ffmpeg.exe` + `ffprobe.exe`).
+- [x] Added app-local FFmpeg discovery in platform detection so installed binaries are reused on later launches.
+- [x] Updated dependency checks to treat configured app-local FFmpeg paths as installed.
+
 ## Version 0.1.1-dev27 (2026-02-13) - Windows Build Artifact Cleanup
 
 ### Maintenance
@@ -1366,7 +1374,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
 

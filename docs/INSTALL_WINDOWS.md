@@ -78,6 +78,7 @@ After the installer runs, a Start Menu folder named "VideoTools" is created. It 
 2.  Run the executable:
     - `.\VideoTools.exe`
     - The Player module includes a fullscreen toggle in the playback controls.
+    - If FFmpeg is missing on first launch, VideoTools will offer an in-app install to `%LOCALAPPDATA%\VideoTools\bin`.
 
 > **Note:** `scripts\windows\build.bat` and `scripts\windows\build.ps1` will prompt for elevation to ensure build tools are available.
 The build script pauses for a keypress on success or failure so you can review the output before the window closes.

@@ -22,6 +22,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - The Windows installer provisions a repo-local MSYS2 toolchain at `Tools\msys64` (UCRT64). Override with `VT_MSYS2_ROOT` or `VT_MSYS2_FLAVOR`.
   - The Windows installer can reinstall the MSYS2 toolchain if GCC fails a test compile and will auto-install build tools when missing (Scoop GCC is ignored).
   - The Windows build script attempts to repair missing MSYS2 GCC packages automatically when possible.
+  - On Windows first run, if FFmpeg is missing, the app can install a user-local FFmpeg bundle to `%LOCALAPPDATA%\VideoTools\bin` from inside the UI.
   - Windows builds embed the VT icon when the MSYS2 windres tool is available.
   - Logs default to `~/Videos/VideoTools/logs` and can be changed in Settings.
   - Forgejo dev builds produce a Linux AppImage with the VT icon embedded.
