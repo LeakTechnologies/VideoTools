@@ -1,6 +1,6 @@
-# VideoTools Installation Guide for Linux, macOS, & WSL
+# VideoTools Installation Guide for Linux & WSL
 
-This guide provides detailed instructions for installing VideoTools on Linux, macOS, and Windows Subsystem for Linux (WSL) using the automated script.
+This guide provides detailed instructions for installing VideoTools on Linux and Windows Subsystem for Linux (WSL) using the automated script.
 
 ---
 
@@ -26,6 +26,7 @@ This single command automates the entire setup process.
     *   Add the installation directory to your `PATH`.
     *   Source the matching alias script (`alias.sh` for bash, `alias.zsh` for zsh).
 6.  **Whisper Model Seed (Optional):** Downloads the whisper.cpp small model from the Leak Technologies mirror (fallback to upstream) when missing.
+7.  **In-App Dependency Actions:** Settings > Dependencies now includes FFmpeg install/uninstall actions using your detected Linux package manager.
 
 ### After Installation
 
@@ -59,7 +60,7 @@ The installation script sets up a few helpful aliases:
 
 ## Build Artifacts
 
-- Build packages are written to `dist/linux/<channel>/` (or `dist/macos/<channel>/` on macOS).
+- Build packages are written to `dist/linux/<channel>/`.
 - Each build writes a `build.json` file alongside the zip artifact.
 - Set `VT_BUILD_CHANNEL=stable` for stable artifacts; default is `dev`.
 - Forgejo dev builds also publish an AppImage (`<version>_linux.AppImage`) with the VT icon embedded.
@@ -121,5 +122,4 @@ If you prefer to perform the steps manually:
 
 - Logs default to `~/Videos/VideoTools/logs` and can be changed in Settings.
 
--   **macOS:** You may need to install Xcode Command Line Tools first by running `xcode-select --install`.
 -   **WSL:** The Linux instructions work without modification inside a WSL environment.

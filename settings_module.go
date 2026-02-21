@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -125,6 +126,15 @@ func pkgManagerUninstall(pkg string) *dependencyCommand {
 func getDependencyCommands(depName string) dependencyCommandPair {
 	root := projectRoot()
 	switch depName {
+	case "ffmpeg":
+		if runtime.GOOS == "windows" {
+			// Windows uses the app-local installer from the Settings UI.
+			return dependencyCommandPair{}
+		}
+		return dependencyCommandPair{
+			install:   pkgManagerInstall("ffmpeg"),
+			uninstall: pkgManagerUninstall("ffmpeg"),
+		}
 	case "dvdauthor":
 		// Windows: reuse installer to pull DVDStyler tools; skip ffmpeg/gst to keep scope smaller
 		if runtime.GOOS == "windows" {
@@ -282,11 +292,11 @@ var allDependencies = map[string]Dependency{
 func getFFmpegInstallCmd() string {
 	switch runtime.GOOS {
 	case "linux":
-		return "sudo apt-get install ffmpeg  # or dnf/pacman/zypper"
+		return "Install from Settings (recommended) or run: ./scripts/linux/install.sh"
 	case "darwin":
-		return "brew install ffmpeg"
+		return "Install from Settings (recommended) or run: brew install ffmpeg"
 	case "windows":
-		return "Download from ffmpeg.org"
+		return "Install from Settings (recommended) or run: .\\scripts\\windows\\install.ps1"
 	default:
 		return "See ffmpeg.org for installation"
 	}
@@ -453,6 +463,26 @@ func ensureWindowsAppLocalFFmpeg() (ffmpegPath, ffprobePath string, installed bo
 	return ffmpegPath, ffprobePath, true, nil
 }
 
+func (s *appState) installWindowsFFmpegFromUI(onSuccess func()) {
+	progress := dialog.NewProgressInfinite("Installing FFmpeg", "Downloading and extracting FFmpeg. This may take a minute.", s.window)
+	progress.Show()
+
+	go func() {
+		ffmpegPath, ffprobePath, _, err := ensureWindowsAppLocalFFmpeg()
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.Hide()
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to install FFmpeg: %w", err), s.window)
+				return
+			}
+			utils.SetFFmpegPaths(ffmpegPath, ffprobePath)
+			if onSuccess != nil {
+				onSuccess()
+			}
+		}, false)
+	}()
+}
+
 func (s *appState) maybePromptWindowsDependencyBootstrap() {
 	if runtime.GOOS != "windows" {
 		return
@@ -466,25 +496,13 @@ func (s *appState) maybePromptWindowsDependencyBootstrap() {
 
 	var prompt dialog.Dialog
 	installBtn := widget.NewButton("Install FFmpeg Now", func() {
-		progress := dialog.NewProgressInfinite("Installing FFmpeg", "Downloading and extracting FFmpeg. This may take a minute.", s.window)
-		progress.Show()
-
-		go func() {
-			ffmpegPath, ffprobePath, _, err := ensureWindowsAppLocalFFmpeg()
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				progress.Hide()
-				if err != nil {
-					dialog.ShowError(fmt.Errorf("failed to install FFmpeg: %w", err), s.window)
-					return
-				}
-				utils.SetFFmpegPaths(ffmpegPath, ffprobePath)
-				if prompt != nil {
-					prompt.Hide()
-				}
-				s.showMainMenu()
-				dialog.ShowInformation("FFmpeg Ready", "FFmpeg is installed for this user. Video modules are now available.", s.window)
-			}, false)
-		}()
+		s.installWindowsFFmpegFromUI(func() {
+			if prompt != nil {
+				prompt.Hide()
+			}
+			s.showMainMenu()
+			dialog.ShowInformation("FFmpeg Ready", "FFmpeg is installed for this user. Video modules are now available.", s.window)
+		})
 	})
 	installBtn.Importance = widget.HighImportance
 
@@ -575,8 +593,23 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 
 	content.Add(widget.NewSeparator())
 
+	// Required dependencies first, then alphabetical.
+	depNames := make([]string, 0, len(allDependencies))
+	for depName := range allDependencies {
+		depNames = append(depNames, depName)
+	}
+	sort.Slice(depNames, func(i, j int) bool {
+		di := allDependencies[depNames[i]]
+		dj := allDependencies[depNames[j]]
+		if di.Required != dj.Required {
+			return di.Required && !dj.Required
+		}
+		return strings.ToLower(di.Name) < strings.ToLower(dj.Name)
+	})
+
 	// Check all dependencies
-	for depName, dep := range allDependencies {
+	for _, depName := range depNames {
+		dep := allDependencies[depName]
 		isInstalled := checkDependency(dep.Command)
 
 		nameLabel := widget.NewLabel(dep.Name)
@@ -612,6 +645,20 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 
 		actions := container.NewHBox()
 		cmds := getDependencyCommands(depName)
+
+		if depName == "ffmpeg" && runtime.GOOS == "windows" {
+			installBtn := widget.NewButton("Install", func() {
+				state.installWindowsFFmpegFromUI(func() {
+					dialog.ShowInformation("FFmpeg Ready", "FFmpeg is installed for this user and now available in the app.", state.window)
+					state.showSettingsView()
+				})
+			})
+			installBtn.Importance = widget.HighImportance
+			if isInstalled {
+				installBtn.Disable()
+			}
+			actions.Add(installBtn)
+		}
 
 		if cmds.install != nil {
 			installBtn := widget.NewButton("Install", func() {
@@ -650,6 +697,11 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 			container.NewHBox(nameLabel, layout.NewSpacer(), statusRow),
 			descLabel,
 		)
+		if dep.Required {
+			requiredLabel := widget.NewLabel("Core dependency")
+			requiredLabel.TextStyle = fyne.TextStyle{Italic: true}
+			infoBox.Add(requiredLabel)
+		}
 
 		if !isInstalled {
 			installCmdLabel := widget.NewLabel("Install: " + installLabel.Text)
@@ -680,6 +732,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 		}
 
 		if len(modulesNeeding) > 0 {
+			sort.Strings(modulesNeeding)
 			neededLabel := widget.NewLabel("Required by: " + strings.Join(modulesNeeding, ", "))
 			neededLabel.TextStyle = fyne.TextStyle{Italic: true}
 			neededLabel.Wrapping = fyne.TextWrapWord

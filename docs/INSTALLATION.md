@@ -23,6 +23,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - The Windows installer can reinstall the MSYS2 toolchain if GCC fails a test compile and will auto-install build tools when missing (Scoop GCC is ignored).
   - The Windows build script attempts to repair missing MSYS2 GCC packages automatically when possible.
   - On Windows first run, if FFmpeg is missing, the app can install a user-local FFmpeg bundle to `%LOCALAPPDATA%\VideoTools\bin` from inside the UI.
+  - The Settings > Dependencies tab now prioritizes core dependencies and provides install actions for FFmpeg across platforms (Windows app-local install, Linux package manager commands).
   - Windows builds embed the VT icon when the MSYS2 windres tool is available.
   - Logs default to `~/Videos/VideoTools/logs` and can be changed in Settings.
   - Forgejo dev builds produce a Linux AppImage with the VT icon embedded.
@@ -45,11 +46,11 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - The Windows installer creates Start Menu shortcuts under "VideoTools" (Build shortcut plus app shortcut after build).
 - **[Windows Packaging Roadmap](./WINDOWS_PACKAGING.md)**
 
-### Linux & macOS
+### Linux
 
-For Linux (Ubuntu, Fedora, Arch, etc.), macOS, and Windows Subsystem for Linux (WSL), the installation is handled by a single, powerful script.
+For Linux (Ubuntu, Fedora, Arch, etc.) and Windows Subsystem for Linux (WSL), the installation is handled by a single, powerful script.
 
-- **[View Linux, macOS, & WSL Installation Guide](./INSTALL_LINUX.md)**
+- **[View Linux & WSL Installation Guide](./INSTALL_LINUX.md)**
   - Whisper model downloads use the Leak Technologies mirror with upstream fallback.
 
 ---

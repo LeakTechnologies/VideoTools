@@ -7,6 +7,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Windows dev28 dependency bootstrap validation**
   - Verify first-run FFmpeg bootstrap on a clean Windows machine with no FFmpeg in PATH.
   - Confirm modules unlock immediately after in-app install without restarting the app.
+- [ ] **Cross-platform dependency actions validation**
+  - Verify Settings > Dependencies FFmpeg install/uninstall buttons behave correctly on Linux package managers (apt/dnf/pacman/zypper).
 
 - [ ] **Git converter retirement**
   - Preserve presets, then deprecate `scripts/legacy/git_converter`.
@@ -349,7 +351,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Module communication** - Seamless data flow between modules
 - [ ] **Unified settings** - Shared configuration across modules
 - [ ] **Performance monitoring** - Resource usage tracking and optimization
-- [ ] **Cross-platform testing** - Linux, Windows, macOS parity
+- [ ] **Cross-platform testing** - Linux and Windows parity
 
 ## Technical Debt Addressed
 

@@ -7,6 +7,11 @@
 - [x] Added app-local FFmpeg install flow to `%LOCALAPPDATA%\VideoTools\bin` (downloads official Windows portable package and extracts `ffmpeg.exe` + `ffprobe.exe`).
 - [x] Added app-local FFmpeg discovery in platform detection so installed binaries are reused on later launches.
 - [x] Updated dependency checks to treat configured app-local FFmpeg paths as installed.
+- [x] Added a Settings > Dependencies FFmpeg install action on Windows using the same app-local bootstrap flow.
+
+### Cross-Platform Dependencies
+- [x] Sorted Settings > Dependencies with required dependencies first and stable alphabetical ordering.
+- [x] Added Settings > Dependencies FFmpeg install/uninstall actions for Linux via package-manager commands.
 
 ## Version 0.1.1-dev27 (2026-02-13) - Windows Build Artifact Cleanup
 
@@ -178,7 +183,7 @@
 ### Documentation
 - Ã¢Å“â€¦ **Addressed Platform Gaps (Windows Guide)**
   - Created a new, comprehensive installation guide for native Windows (`docs/INSTALL_WINDOWS.md`).
-  - Refactored the main `INSTALLATION.md` into a platform-agnostic hub that now links to the separate, detailed guides for Windows and Linux/macOS.
+  - Refactored the main `INSTALLATION.md` into a platform-agnostic hub that now links to the separate, detailed guides for Windows and Linux/WSL.
   - This provides a clear, user-friendly path for users on all major platforms.
 
 - Ã¢Å“â€¦ **Aligned Documentation with Reality**
@@ -473,7 +478,7 @@ This file tracks completed features, fixes, and milestones.
     - Cross-platform CPU detection (model, cores, clock speed)
     - GPU detection with driver version (NVIDIA via nvidia-smi)
     - RAM detection with human-readable formatting
-    - Linux, Windows, macOS support
+    - Linux and Windows support
   - **Hardware Info Display**
     - Shown immediately in benchmark progress view (before tests run)
     - Displayed in benchmark results view
@@ -1374,9 +1379,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
-
-
 
 
 
