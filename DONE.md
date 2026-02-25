@@ -12,6 +12,10 @@
 ### Cross-Platform Dependencies
 - [x] Sorted Settings > Dependencies with required dependencies first and stable alphabetical ordering.
 - [x] Added Settings > Dependencies FFmpeg install/uninstall actions for Linux via package-manager commands.
+- [x] Replaced Convert UI Unicode/emoji labels with ASCII-safe strings to prevent mojibake in Windows terminal/font environments.
+
+### UI
+- [x] Removed the Bitcoin address from the About/Support dialog.
 
 ## Version 0.1.1-dev27 (2026-02-13) - Windows Build Artifact Cleanup
 
@@ -1379,8 +1383,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
-
 
 
 
