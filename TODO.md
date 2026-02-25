@@ -4,11 +4,15 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Maintenance
 
+- [X] **About dialog cleanup**
+  - Remove the Bitcoin address from the About/Support page.
 - [ ] **Windows dev28 dependency bootstrap validation**
   - Verify first-run FFmpeg bootstrap on a clean Windows machine with no FFmpeg in PATH.
   - Confirm modules unlock immediately after in-app install without restarting the app.
 - [ ] **Cross-platform dependency actions validation**
   - Verify Settings > Dependencies FFmpeg install/uninstall buttons behave correctly on Linux package managers (apt/dnf/pacman/zypper).
+- [ ] **Convert UI icon pass**
+  - Replace temporary ASCII-safe Convert control labels with proper icon resources once the icon set is finalized.
 
 - [ ] **Git converter retirement**
   - Preserve presets, then deprecate `scripts/legacy/git_converter`.

@@ -660,20 +660,6 @@ func (s *appState) showAbout() {
 	feedbackLabel := widget.NewLabel("Feedback: use the Logs button on the main menu to view logs; send issues with attached logs.")
 	feedbackLabel.Wrapping = fyne.TextWrapWord
 
-	btcAddress := "bc1qcq5hmtvckhhh9c6y3gvm9wu9856fmet25yfr0v"
-	btcLabel := widget.NewLabel("Bitcoin (BTC):")
-	copyBg := canvas.NewRectangle(utils.MustHex("#344256"))
-	copyBg.CornerRadius = 8
-	copyBg.SetMinSize(fyne.NewSize(72, 32))
-	copyText := canvas.NewText("Copy", textColor)
-	copyText.Alignment = fyne.TextAlignCenter
-	copyBtn := ui.NewTappable(container.NewMax(copyBg, container.NewPadded(copyText)), func() {
-		s.window.Clipboard().SetContent(btcAddress)
-		dialog.ShowInformation("Copied", "Bitcoin address copied to clipboard", s.window)
-	})
-	copyRow := container.NewBorder(nil, nil, nil, copyBtn, btcLabel)
-	addressLabel := widget.NewLabel(btcAddress)
-
 	// X (Twitter) account
 	xURL := "https://x.com/VT_VideoTools"
 	xLabel := widget.NewLabel("X: @VT_VideoTools")
@@ -689,9 +675,6 @@ func (s *appState) showAbout() {
 		versionText,
 		devText,
 		widget.NewLabel(""),
-		widget.NewLabel("Support Development"),
-		copyRow,
-		addressLabel,
 		xRow,
 		feedbackLabel,
 	)

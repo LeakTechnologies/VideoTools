@@ -10,6 +10,8 @@
 ### Cross-Platform
 - **Settings dependency ordering** - Dependencies in Settings are now listed with core requirements first, then alphabetically.
 - **Settings FFmpeg actions** - FFmpeg install actions are available in Settings on supported platforms (Windows app-local install; Linux package-manager actions).
+- **Convert UI text safety** - Replaced mojibake-prone Unicode/emoji labels in the Convert workflow with ASCII-safe text labels.
+- **About page cleanup** - Removed the Bitcoin address from the About/Support dialog.
 
 ## v0.1.1-dev27 (February 2026)
 
