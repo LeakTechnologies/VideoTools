@@ -10,6 +10,10 @@ This file tracks upcoming features, improvements, and known issues.
   - Fall back to available AV1 encoders (or H.264) when `libsvtav1` is missing.
 - [X] **Adaptive scroll speed**
   - Smooth settings and long panels across different window sizes.
+- [X] **Settings tab scrolling**
+  - Scroll within tabs while keeping the Settings header visible.
+- [ ] **Main.go modularization pass**
+  - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [ ] **Windows dev28 dependency bootstrap validation**
   - Verify first-run FFmpeg bootstrap on a clean Windows machine with no FFmpeg in PATH.
   - Confirm modules unlock immediately after in-app install without restarting the app.

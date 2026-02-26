@@ -567,16 +567,13 @@ func buildSettingsView(state *appState) fyne.CanvasObject {
 	bottomBar := moduleFooter(settingsColor, layout.NewSpacer(), state.statsBar)
 
 	tabs := container.NewAppTabs(
-		container.NewTabItem("Dependencies", buildDependenciesTab(state)),
-		container.NewTabItem("Benchmark", buildBenchmarkTab(state)),
-		container.NewTabItem("Preferences", buildPreferencesTab(state)),
+		container.NewTabItem("Dependencies", ui.NewFastVScroll(container.NewPadded(buildDependenciesTab(state)))),
+		container.NewTabItem("Benchmark", ui.NewFastVScroll(container.NewPadded(buildBenchmarkTab(state)))),
+		container.NewTabItem("Preferences", ui.NewFastVScroll(container.NewPadded(buildPreferencesTab(state)))),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
-	// Single fast scroll container for entire tabs area (12x speed)
-	scrollableTabs := ui.NewFastVScroll(tabs)
-
-	return container.NewBorder(topBar, bottomBar, nil, nil, scrollableTabs)
+	return container.NewBorder(topBar, bottomBar, nil, nil, tabs)
 }
 
 func buildDependenciesTab(state *appState) fyne.CanvasObject {
