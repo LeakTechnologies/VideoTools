@@ -2931,6 +2931,54 @@ func (s *appState) detectHardwareEncoders() []string {
 	return available
 }
 
+var ffmpegEncoderOnce sync.Once
+var ffmpegEncoderOutput string
+
+func getFFmpegEncoders() string {
+	ffmpegEncoderOnce.Do(func() {
+		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), "-hide_banner", "-encoders")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			logging.Debug(logging.CatFFMPEG, "failed to query ffmpeg encoders: %v", err)
+			return
+		}
+		ffmpegEncoderOutput = string(output)
+	})
+	return ffmpegEncoderOutput
+}
+
+func hasFFmpegEncoder(name string) bool {
+	encoders := getFFmpegEncoders()
+	if encoders == "" {
+		return false
+	}
+	return strings.Contains(encoders, " "+name+" ") || strings.Contains(encoders, " "+name+"\n")
+}
+
+func resolveAV1Encoder(hardwareAccel string) (string, bool) {
+	switch hardwareAccel {
+	case "nvenc":
+		if hasFFmpegEncoder("av1_nvenc") {
+			return "av1_nvenc", true
+		}
+	case "qsv":
+		if hasFFmpegEncoder("av1_qsv") {
+			return "av1_qsv", true
+		}
+	case "amf":
+		if hasFFmpegEncoder("av1_amf") {
+			return "av1_amf", true
+		}
+	}
+	if hasFFmpegEncoder("libsvtav1") {
+		return "libsvtav1", true
+	}
+	if hasFFmpegEncoder("libaom-av1") {
+		return "libaom-av1", true
+	}
+	return "libx264", false
+}
+
 func (s *appState) saveBenchmarkRun(results []benchmark.Result, encoder, preset string, fps float64) error {
 	// Map encoder to hardware acceleration setting
 	var hwAccel string
@@ -5438,7 +5486,11 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			case strings.Contains(videoCodec, "vp9"):
 				videoCodec = "libvpx-vp9"
 			case strings.Contains(videoCodec, "av1"):
-				videoCodec = "libsvtav1"
+				resolved, ok := resolveAV1Encoder("none")
+				if !ok {
+					logging.Debug(logging.CatFFMPEG, "AV1 encoder unavailable for snippet; falling back to %s", resolved)
+				}
+				videoCodec = resolved
 			default:
 				videoCodec = "libx264"
 			}
@@ -5470,7 +5522,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 				args = append(args, "-preset", preset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 			} else if strings.Contains(videoCodec, "vp9") {
 				args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
-			} else if strings.Contains(videoCodec, "av1") || strings.Contains(videoCodec, "svtav1") {
+			} else if strings.Contains(videoCodec, "svtav1") {
 				// Map x264/x265 presets to SVT-AV1 presets (0-13, lower=slower/better)
 				var svtPreset string
 				switch preset {
@@ -5496,6 +5548,8 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 					svtPreset = "8" // Fast preset for snippets
 				}
 				args = append(args, "-preset", svtPreset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
+			} else if strings.Contains(videoCodec, "av1") {
+				args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 			}
 
 			// Audio codec
@@ -5568,32 +5622,41 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			args = append(args, "-c:v", "libvpx-vp9")
 			args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 		case "av1":
-			args = append(args, "-c:v", "libsvtav1")
-			// Map x264/x265 presets to SVT-AV1 presets (0-13, lower=slower/better)
-			var svtPreset string
-			switch preset {
-			case "veryslow":
-				svtPreset = "3"
-			case "slower":
-				svtPreset = "4"
-			case "slow":
-				svtPreset = "5"
-			case "medium":
-				svtPreset = "6"
-			case "fast":
-				svtPreset = "8"
-			case "faster":
-				svtPreset = "9"
-			case "veryfast":
-				svtPreset = "10"
-			case "superfast":
-				svtPreset = "11"
-			case "ultrafast":
-				svtPreset = "12"
-			default:
-				svtPreset = "8" // Fast preset for snippets
+			resolved, ok := resolveAV1Encoder("none")
+			if !ok {
+				logging.Debug(logging.CatFFMPEG, "AV1 encoder unavailable for snippet conversion; falling back to %s", resolved)
 			}
-			args = append(args, "-preset", svtPreset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
+			args = append(args, "-c:v", resolved)
+			if resolved == "libsvtav1" {
+				// Map x264/x265 presets to SVT-AV1 presets (0-13, lower=slower/better)
+				var svtPreset string
+				switch preset {
+				case "veryslow":
+					svtPreset = "3"
+				case "slower":
+					svtPreset = "4"
+				case "slow":
+					svtPreset = "5"
+				case "medium":
+					svtPreset = "6"
+				case "fast":
+					svtPreset = "8"
+				case "faster":
+					svtPreset = "9"
+				case "veryfast":
+					svtPreset = "10"
+				case "superfast":
+					svtPreset = "11"
+				case "ultrafast":
+					svtPreset = "12"
+				default:
+					svtPreset = "8" // Fast preset for snippets
+				}
+				args = append(args, "-preset", svtPreset)
+			} else if resolved == "libx264" || resolved == "libx265" {
+				args = append(args, "-preset", preset)
+			}
+			args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 		case "copy":
 			args = append(args, "-c:v", "copy")
 		default:
@@ -6464,14 +6527,12 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 			codec = "h264_amf"
 		case videoCodec == "H.264" && hardwareAccel == "videotoolbox":
 			codec = "h264_videotoolbox"
-		case videoCodec == "AV1" && hardwareAccel == "nvenc":
-			codec = "av1_nvenc"
-		case videoCodec == "AV1" && hardwareAccel == "qsv":
-			codec = "av1_qsv"
-		case videoCodec == "AV1" && hardwareAccel == "amf":
-			codec = "av1_amf"
 		case videoCodec == "AV1":
-			codec = "libsvtav1"
+			resolved, ok := resolveAV1Encoder(hardwareAccel)
+			if !ok {
+				logging.Debug(logging.CatFFMPEG, "AV1 encoder unavailable; falling back to %s", resolved)
+			}
+			codec = resolved
 		case videoCodec == "VP9":
 			codec = "libvpx-vp9"
 		case videoCodec == "MPEG-2":
@@ -6498,7 +6559,7 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 					crfStr = "23"
 				}
 			}
-			if strings.Contains(codec, "264") || strings.Contains(codec, "265") || codec == "libvpx-vp9" || codec == "libsvtav1" {
+			if strings.Contains(codec, "264") || strings.Contains(codec, "265") || codec == "libvpx-vp9" || codec == "libsvtav1" || codec == "libaom-av1" {
 				args = append(args, "-crf", crfStr)
 			}
 		} else if bitrateMode == "CBR" {

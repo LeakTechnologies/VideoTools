@@ -6,6 +6,8 @@ This file tracks upcoming features, improvements, and known issues.
 
 - [X] **About dialog cleanup**
   - Remove the Bitcoin address from the About/Support page.
+- [X] **Snippet AV1 fallback**
+  - Fall back to available AV1 encoders (or H.264) when `libsvtav1` is missing.
 - [ ] **Windows dev28 dependency bootstrap validation**
   - Verify first-run FFmpeg bootstrap on a clean Windows machine with no FFmpeg in PATH.
   - Confirm modules unlock immediately after in-app install without restarting the app.
