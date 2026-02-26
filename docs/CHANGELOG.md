@@ -13,6 +13,7 @@
 - **Convert UI text safety** - Replaced mojibake-prone Unicode/emoji labels in the Convert workflow with ASCII-safe text labels.
 - **About page cleanup** - Removed the Bitcoin address from the About/Support dialog.
 - **Snippet AV1 fallback** - Snippet generation now falls back when `libsvtav1` is unavailable.
+- **Adaptive scrolling** - Settings and other long panels use adaptive scroll speed for smoother navigation across screen sizes.
 
 ## v0.1.1-dev27 (February 2026)
 
