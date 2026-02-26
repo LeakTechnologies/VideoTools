@@ -65,6 +65,8 @@ Before you begin, ensure your system meets these basic requirements:
 - **Disk Space:** At least 2 GB of free disk space for the application and its dependencies.
 - **Internet Connection:** Required for downloading dependencies during the build process.
 - **Player Controls:** Fullscreen toggle is available in the Player module after install.
+- **UI Layout:** The main menu adapts to window width; resize the window to change tile density.
+- **Scrolling:** Settings and long panels use adaptive scroll speed for smoother navigation at different window sizes.
 
 ---
 

@@ -117,35 +117,33 @@ func BuildMainMenu(titleText string, modules []ModuleInfo, onModuleClick func(st
 		return label
 	}
 
+	const tileMinWidth = 180
+	buildGrid := func(ids ...string) fyne.CanvasObject {
+		tiles := make([]fyne.CanvasObject, 0, len(ids))
+		for _, id := range ids {
+			tiles = append(tiles, buildTile(id))
+		}
+		return container.New(layout.NewAdaptiveGridLayout(tileMinWidth), tiles...)
+	}
+
 	// Build rows with category labels above tiles
 	var rows []fyne.CanvasObject
 
 	// Convert section
 	rows = append(rows, makeCatLabel("Convert"))
-	rows = append(rows, container.NewGridWithColumns(3,
-		buildTile("convert"), buildTile("merge"), buildTile("trim"),
-	))
-	rows = append(rows, container.NewGridWithColumns(3,
-		buildTile("filters"), buildTile("audio"), buildTile("subtitles"),
-	))
+	rows = append(rows, buildGrid("convert", "merge", "trim", "filters", "audio", "subtitles"))
 
 	// Inspect section
 	rows = append(rows, makeCatLabel("Inspect"))
-	rows = append(rows, container.NewGridWithColumns(3,
-		buildTile("compare"), buildTile("inspect"), buildTile("upscale"),
-	))
+	rows = append(rows, buildGrid("compare", "inspect", "upscale"))
 
 	// Disc section
 	rows = append(rows, makeCatLabel("Disc"))
-	rows = append(rows, container.NewGridWithColumns(3,
-		buildTile("author"), buildTile("rip"), buildTile("bluray"),
-	))
+	rows = append(rows, buildGrid("author", "rip", "bluray"))
 
 	// Playback section
 	rows = append(rows, makeCatLabel("Playback"))
-	rows = append(rows, container.NewGridWithColumns(3,
-		buildTile("player"), buildTile("thumbnail"), buildTile("settings"),
-	))
+	rows = append(rows, buildGrid("player", "thumbnail", "settings"))
 
 	gridBox := container.NewVBox(rows...)
 

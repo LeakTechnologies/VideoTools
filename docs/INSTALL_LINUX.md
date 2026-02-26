@@ -45,6 +45,7 @@ source ~/.config/fish/config.fish
 
 You can now run the application from anywhere by simply typing `VideoTools`.
 The Player module includes a fullscreen toggle in the playback controls.
+Settings and long panels use adaptive scroll speed for smoother navigation.
 
 ---
 

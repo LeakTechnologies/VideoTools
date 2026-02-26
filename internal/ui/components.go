@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"math"
 	"strings"
 	"time"
 
@@ -567,8 +568,16 @@ func (f *FastVScroll) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (f *FastVScroll) Scrolled(ev *fyne.ScrollEvent) {
-	// Increase scroll speed moderately without overshooting content bounds.
-	f.ScrollBy(ev.Scrolled.DY * 4.0)
+	// Adaptive scroll speed based on viewport height for smoother feel across resolutions.
+	height := f.scroll.Size().Height
+	if height <= 0 {
+		height = f.scroll.MinSize().Height
+	}
+	if height <= 0 {
+		height = 480
+	}
+	scale := float32(1.2 + math.Min(float64(height)/500.0, 1.8)) // ~1.2x to ~3.0x
+	f.ScrollBy(ev.Scrolled.DY * scale)
 }
 
 // ScrollBy scrolls the content by a delta in pixels (positive = down).

@@ -78,6 +78,8 @@ After the installer runs, a Start Menu folder named "VideoTools" is created. It 
 2.  Run the executable:
     - `.\VideoTools.exe`
     - The Player module includes a fullscreen toggle in the playback controls.
+    - The main menu adapts to window width; resize the window to change tile density.
+    - Settings and long panels use adaptive scroll speed for smoother navigation.
     - If FFmpeg is missing on first launch, VideoTools will offer an in-app install to `%LOCALAPPDATA%\VideoTools\bin`.
     - The same app-local FFmpeg install action is available in Settings > Dependencies.
 
