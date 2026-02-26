@@ -14,6 +14,7 @@
 - **About page cleanup** - Removed the Bitcoin address from the About/Support dialog.
 - **Snippet AV1 fallback** - Snippet generation now falls back when `libsvtav1` is unavailable.
 - **Adaptive scrolling** - Settings and other long panels use adaptive scroll speed for smoother navigation across screen sizes.
+- **Settings tab scrolling** - Each Settings tab now scrolls independently so the header stays in view.
 
 ## v0.1.1-dev27 (February 2026)
 
