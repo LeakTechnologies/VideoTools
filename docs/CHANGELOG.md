@@ -12,6 +12,7 @@
 - **Settings FFmpeg actions** - FFmpeg install actions are available in Settings on supported platforms (Windows app-local install; Linux package-manager actions).
 - **Convert UI text safety** - Replaced mojibake-prone Unicode/emoji labels in the Convert workflow with ASCII-safe text labels.
 - **About page cleanup** - Removed the Bitcoin address from the About/Support dialog.
+- **Snippet AV1 fallback** - Snippet generation now falls back when `libsvtav1` is unavailable.
 
 ## v0.1.1-dev27 (February 2026)
 

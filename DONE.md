@@ -17,6 +17,9 @@
 ### UI
 - [x] Removed the Bitcoin address from the About/Support dialog.
 
+### Snippet
+- [x] Added AV1 encoder fallback when `libsvtav1` is unavailable.
+
 ## Version 0.1.1-dev27 (2026-02-13) - Windows Build Artifact Cleanup
 
 ### Maintenance
@@ -1383,7 +1386,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
 
