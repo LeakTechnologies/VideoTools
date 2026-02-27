@@ -187,6 +187,31 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 			install:   &dependencyCommand{command: "python3", args: []string{"-m", "pip", "install", "--user", "openai-whisper"}},
 			uninstall: &dependencyCommand{command: "python3", args: []string{"-m", "pip", "uninstall", "-y", "openai-whisper"}},
 		}
+	case "tesseract":
+		switch runtime.GOOS {
+		case "windows":
+			if _, err := exec.LookPath("choco"); err == nil {
+				return dependencyCommandPair{
+					install:   &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "choco install -y tesseract"}},
+					uninstall: &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "choco uninstall -y tesseract"}},
+				}
+			}
+			return dependencyCommandPair{}
+		case "darwin":
+			return dependencyCommandPair{
+				install:   pkgManagerInstall("tesseract"),
+				uninstall: pkgManagerUninstall("tesseract"),
+			}
+		default:
+			pkg := "tesseract"
+			if detectPkgManager() == "apt-get" {
+				pkg = "tesseract-ocr"
+			}
+			return dependencyCommandPair{
+				install:   pkgManagerInstall(pkg),
+				uninstall: pkgManagerUninstall(pkg),
+			}
+		}
 	}
 	return dependencyCommandPair{}
 }
@@ -243,7 +268,7 @@ var moduleDependencies = map[string][]string{
 	"author":    {"ffmpeg", "dvdauthor", "xorriso"},
 	"rip":       {"ffmpeg", "xorriso"},
 	"bluray":    {"ffmpeg"},
-	"subtitles": {"ffmpeg", "whisper"},
+	"subtitles": {"ffmpeg"},
 	"thumbnail": {"ffmpeg"},
 	"compare":   {"ffmpeg"},
 	"inspect":   {"ffmpeg"},
@@ -286,6 +311,13 @@ var allDependencies = map[string]Dependency{
 		Required:    false,
 		Description: "AI subtitle generation",
 		InstallCmd:  "pip3 install --user openai-whisper",
+	},
+	"tesseract": {
+		Name:        "Tesseract OCR",
+		Command:     "tesseract",
+		Required:    false,
+		Description: "OCR for image-based subtitles",
+		InstallCmd:  "Install via package manager (tesseract-ocr)",
 	},
 }
 
