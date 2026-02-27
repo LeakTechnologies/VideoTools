@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	subtitleModeExternal = "External SRT"
+	subtitleModeExternal = "External Subtitle File"
 	subtitleModeEmbed    = "Embed Subtitle Track"
 	subtitleModeBurn     = "Burn In Subtitles"
 )
@@ -34,6 +34,17 @@ type subtitleCue struct {
 	Start float64
 	End   float64
 	Text  string
+}
+
+type subtitleStreamInfo struct {
+	Index    int
+	Codec    string
+	Language string
+	Title    string
+	Default  bool
+	Forced   bool
+	IsText   bool
+	IsImage  bool
 }
 
 type subtitlesConfig struct {
@@ -64,6 +75,9 @@ func loadPersistedSubtitlesConfig() (subtitlesConfig, error) {
 		return cfg, err
 	}
 	if cfg.OutputMode == "" {
+		cfg.OutputMode = subtitleModeExternal
+	}
+	if cfg.OutputMode == "External SRT" {
 		cfg.OutputMode = subtitleModeExternal
 	}
 	return cfg, nil
@@ -102,6 +116,169 @@ func (s *appState) persistSubtitlesConfig() {
 	}
 }
 
+func isTextSubtitleCodec(codec string) bool {
+	switch strings.ToLower(codec) {
+	case "subrip", "srt", "ass", "ssa", "mov_text", "webvtt", "text", "ttml":
+		return true
+	default:
+		return false
+	}
+}
+
+func isImageSubtitleCodec(codec string) bool {
+	switch strings.ToLower(codec) {
+	case "hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle", "xsub":
+		return true
+	default:
+		return false
+	}
+}
+
+func subtitleStreamLabel(info subtitleStreamInfo) string {
+	lang := strings.TrimSpace(info.Language)
+	if lang == "" {
+		lang = "und"
+	}
+	title := strings.TrimSpace(info.Title)
+	if title != "" {
+		title = " - " + title
+	}
+	flags := []string{}
+	if info.Default {
+		flags = append(flags, "default")
+	}
+	if info.Forced {
+		flags = append(flags, "forced")
+	}
+	flagText := ""
+	if len(flags) > 0 {
+		flagText = " (" + strings.Join(flags, ", ") + ")"
+	}
+	return fmt.Sprintf("#%d | %s | %s%s%s", info.Index, strings.ToUpper(lang), info.Codec, title, flagText)
+}
+
+func probeSubtitleStreams(path string) ([]subtitleStreamInfo, error) {
+	if strings.TrimSpace(path) == "" {
+		return nil, fmt.Errorf("subtitle source path is empty")
+	}
+	cmd := exec.Command(utils.GetFFprobePath(),
+		"-hide_banner",
+		"-v", "error",
+		"-select_streams", "s",
+		"-show_streams",
+		"-of", "json",
+		path,
+	)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("ffprobe failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
+	}
+
+	type ffprobeStream struct {
+		Index       int               `json:"index"`
+		CodecName   string            `json:"codec_name"`
+		CodecType   string            `json:"codec_type"`
+		Tags        map[string]string `json:"tags"`
+		Disposition map[string]int    `json:"disposition"`
+	}
+	type ffprobeResp struct {
+		Streams []ffprobeStream `json:"streams"`
+	}
+	var resp ffprobeResp
+	if err := json.Unmarshal(stdout.Bytes(), &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse ffprobe output: %w", err)
+	}
+
+	var results []subtitleStreamInfo
+	for _, s := range resp.Streams {
+		if s.CodecType != "subtitle" {
+			continue
+		}
+		lang := ""
+		title := ""
+		if s.Tags != nil {
+			lang = s.Tags["language"]
+			if lang == "" {
+				lang = s.Tags["LANGUAGE"]
+			}
+			title = s.Tags["title"]
+			if title == "" {
+				title = s.Tags["TITLE"]
+			}
+		}
+		info := subtitleStreamInfo{
+			Index:    s.Index,
+			Codec:    s.CodecName,
+			Language: lang,
+			Title:    title,
+			Default:  s.Disposition != nil && s.Disposition["default"] == 1,
+			Forced:   s.Disposition != nil && s.Disposition["forced"] == 1,
+			IsText:   isTextSubtitleCodec(s.CodecName),
+			IsImage:  isImageSubtitleCodec(s.CodecName),
+		}
+		results = append(results, info)
+	}
+
+	return results, nil
+}
+
+func subtitleRipOutputPath(videoPath string, info subtitleStreamInfo, mode string) string {
+	dir := filepath.Dir(videoPath)
+	base := strings.TrimSuffix(filepath.Base(videoPath), filepath.Ext(videoPath))
+	lang := strings.TrimSpace(info.Language)
+	if lang == "" {
+		lang = "und"
+	}
+	suffix := fmt.Sprintf("subtrack%d-%s", info.Index, sanitizeForPath(lang))
+	ext := ".srt"
+	if strings.Contains(strings.ToLower(mode), "original") {
+		ext = ".mks"
+	}
+	return filepath.Join(dir, fmt.Sprintf("%s.%s%s", base, suffix, ext))
+}
+
+func extractSubtitleStream(videoPath string, info subtitleStreamInfo, mode string) (string, error) {
+	outputPath := subtitleRipOutputPath(videoPath, info, mode)
+	args := []string{
+		"-y",
+		"-i", videoPath,
+		"-map", fmt.Sprintf("0:%d", info.Index),
+	}
+
+	if strings.Contains(strings.ToLower(mode), "original") {
+		args = append(args, "-c:s", "copy")
+	} else {
+		args = append(args, "-c:s", "srt", "-f", "srt")
+	}
+	args = append(args, outputPath)
+
+	if err := runFFmpeg(args); err != nil {
+		return "", err
+	}
+	return outputPath, nil
+}
+
+func subtitleCodecForFile(subPath, outputPath string) string {
+	ext := strings.ToLower(filepath.Ext(subPath))
+	switch ext {
+	case ".ass":
+		return "ass"
+	case ".ssa":
+		return "ssa"
+	case ".vtt", ".webvtt":
+		return "webvtt"
+	case ".srt":
+		return subtitleCodecForOutput(outputPath)
+	case ".mks":
+		return "copy"
+	default:
+		return subtitleCodecForOutput(outputPath)
+	}
+}
+
 func (s *appState) showSubtitlesView() {
 	s.stopPreview()
 	s.lastModule = s.active
@@ -136,6 +313,9 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 			state.persistSubtitlesConfig()
 		}
 	}
+	if strings.TrimSpace(state.subtitleRipMode) == "" {
+		state.subtitleRipMode = "SRT (text only)"
+	}
 
 	backBtn := widget.NewButton("< BACK", func() {
 		state.showMainMenu()
@@ -165,7 +345,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	}
 
 	subtitleEntry := widget.NewEntry()
-	subtitleEntry.SetPlaceHolder("Subtitle file (.srt or .vtt)")
+	subtitleEntry.SetPlaceHolder("Subtitle file (.srt, .vtt, or .mks)")
 	subtitleEntry.SetText(state.subtitleFilePath)
 	subtitleEntry.OnChanged = func(val string) {
 		state.subtitleFilePath = strings.TrimSpace(val)
@@ -440,6 +620,108 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		}, state.window)
 	})
 
+	streamSelect := widget.NewSelect([]string{}, func(val string) {
+		for i, info := range state.subtitleRipStreams {
+			if subtitleStreamLabel(info) == val {
+				state.subtitleRipIndex = i
+				return
+			}
+		}
+	})
+
+	ripModeSelect := widget.NewSelect([]string{"SRT (text only)", "Original (lossless)"}, func(val string) {
+		state.subtitleRipMode = val
+	})
+	ripModeSelect.SetSelected(state.subtitleRipMode)
+
+	refreshRipStreams := func() {
+		options := []string{}
+		for _, info := range state.subtitleRipStreams {
+			options = append(options, subtitleStreamLabel(info))
+		}
+		if len(options) == 0 {
+			streamSelect.SetOptions([]string{})
+			streamSelect.ClearSelected()
+			state.subtitleRipIndex = 0
+			return
+		}
+		streamSelect.SetOptions(options)
+		if state.subtitleRipIndex < 0 || state.subtitleRipIndex >= len(options) {
+			state.subtitleRipIndex = 0
+		}
+		streamSelect.SetSelected(options[state.subtitleRipIndex])
+	}
+
+	detectStreamsBtn := widget.NewButton("Detect Streams", func() {
+		videoPath := strings.TrimSpace(state.subtitleVideoPath)
+		if videoPath == "" {
+			state.setSubtitleStatus("Set a video file before detecting subtitle streams.")
+			return
+		}
+		streams, err := probeSubtitleStreams(videoPath)
+		if err != nil {
+			state.setSubtitleStatus(err.Error())
+			return
+		}
+		if len(streams) == 0 {
+			state.subtitleRipStreams = nil
+			refreshRipStreams()
+			state.setSubtitleStatus("No embedded subtitle streams found.")
+			return
+		}
+		state.subtitleRipStreams = streams
+		refreshRipStreams()
+		state.setSubtitleStatus(fmt.Sprintf("Detected %d subtitle streams.", len(streams)))
+	})
+
+	ripBtn := widget.NewButton("Extract Selected", func() {
+		videoPath := strings.TrimSpace(state.subtitleVideoPath)
+		if videoPath == "" {
+			state.setSubtitleStatus("Set a video file before extracting subtitles.")
+			return
+		}
+		if len(state.subtitleRipStreams) == 0 {
+			state.setSubtitleStatus("No subtitle streams detected yet.")
+			return
+		}
+		if state.subtitleRipIndex < 0 || state.subtitleRipIndex >= len(state.subtitleRipStreams) {
+			state.setSubtitleStatus("Select a subtitle stream to extract.")
+			return
+		}
+		stream := state.subtitleRipStreams[state.subtitleRipIndex]
+		if strings.Contains(strings.ToLower(state.subtitleRipMode), "srt") && !stream.IsText {
+			state.setSubtitleStatus("Selected subtitle stream is image-based. Use Original (lossless) or configure OCR.")
+			return
+		}
+		state.setSubtitleStatus("Extracting subtitles...")
+		go func() {
+			outputPath, err := extractSubtitleStream(videoPath, stream, state.subtitleRipMode)
+			if err != nil {
+				state.setSubtitleStatusAsync(err.Error())
+				return
+			}
+			state.subtitleRipOutput = outputPath
+			state.subtitleFilePath = outputPath
+			app := fyne.CurrentApp()
+			if app != nil && app.Driver() != nil {
+				app.Driver().DoFromGoroutine(func() {
+					subtitleEntry.SetText(outputPath)
+					if state.isSubtitleFile(outputPath) {
+						if err := state.loadSubtitleFile(outputPath); err != nil {
+							state.setSubtitleStatus(err.Error())
+							return
+						}
+						rebuildCues()
+					}
+					state.setSubtitleStatus(fmt.Sprintf("Extracted subtitles to %s", filepath.Base(outputPath)))
+				}, false)
+			} else {
+				state.setSubtitleStatusAsync(fmt.Sprintf("Extracted subtitles to %s", filepath.Base(outputPath)))
+			}
+		}()
+	})
+	ripBtn.Importance = widget.HighImportance
+
 	offsetEntry := widget.NewEntry()
 	offsetEntry.SetPlaceHolder("0.0")
 	offsetEntry.SetText(fmt.Sprintf("%.2f", state.subtitleTimeOffset))
@@ -479,6 +761,8 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		offsetEntry.SetText(fmt.Sprintf("%.2f", state.subtitleTimeOffset))
 		refreshWhisperUI()
 	}
+
+	refreshRipStreams()
 
 	loadCfgBtn := widget.NewButton("Load Config", func() {
 		cfg, err := loadPersistedSubtitlesConfig()
@@ -520,6 +804,12 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Sources", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		container.NewBorder(nil, nil, nil, browseVideoBtn, videoEntry),
 		container.NewBorder(nil, nil, nil, browseSubtitleBtn, subtitleEntry),
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle("Rip Embedded Subtitles", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabel("Extract embedded subtitle tracks from DVD/BD files or media containers."),
+		streamSelect,
+		container.NewHBox(detectStreamsBtn, ripBtn),
+		ripModeSelect,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Timing Adjustment", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Shift all subtitle times by offset (seconds):"),
@@ -778,13 +1068,23 @@ func (s *appState) applySubtitlesToVideo() {
 		s.subtitleFilePath = subPath
 	}
 
-	if err := s.saveSubtitleFile(subPath); err != nil {
-		s.setSubtitleStatus(err.Error())
-		return
+	if s.isSubtitleFile(subPath) {
+		if err := s.saveSubtitleFile(subPath); err != nil {
+			s.setSubtitleStatus(err.Error())
+			return
+		}
 	}
 
 	if mode == subtitleModeExternal {
-		s.setSubtitleStatus(fmt.Sprintf("Saved subtitles to %s", filepath.Base(subPath)))
+		if s.isSubtitleFile(subPath) {
+			s.setSubtitleStatus(fmt.Sprintf("Saved subtitles to %s", filepath.Base(subPath)))
+		} else {
+			s.setSubtitleStatus(fmt.Sprintf("Using subtitle file: %s", filepath.Base(subPath)))
+		}
+		return
+	}
+	if _, err := os.Stat(subPath); err != nil {
+		s.setSubtitleStatus("Subtitle file not found.")
 		return
 	}
 
@@ -799,7 +1099,16 @@ func (s *appState) applySubtitlesToVideo() {
 		var args []string
 		switch mode {
 		case subtitleModeEmbed:
-			subCodec := subtitleCodecForOutput(outputPath)
+			subCodec := subtitleCodecForFile(subPath, outputPath)
+			outExt := strings.ToLower(filepath.Ext(outputPath))
+			if subCodec == "copy" && outExt != ".mkv" {
+				s.setSubtitleStatusAsync("Lossless subtitle embedding requires MKV output. Choose a .mkv output or convert to SRT.")
+				return
+			}
+			if (outExt == ".mp4" || outExt == ".mov" || outExt == ".m4v") && subCodec != "mov_text" {
+				s.setSubtitleStatusAsync("MP4/MOV output requires mov_text subtitles. Convert subtitles to SRT first.")
+				return
+			}
 			args = []string{
 				"-y",
 				"-i", videoPath,
@@ -807,10 +1116,16 @@ func (s *appState) applySubtitlesToVideo() {
 				"-map", "0",
 				"-map", "1",
 				"-c", "copy",
-				"-c:s", subCodec,
-				outputPath,
 			}
+			if subCodec != "copy" {
+				args = append(args, "-c:s", subCodec)
+			}
+			args = append(args, outputPath)
 		case subtitleModeBurn:
+			if !s.isSubtitleFile(subPath) {
+				s.setSubtitleStatusAsync("Burn-in requires a text subtitle file (SRT/VTT/ASS/SSA).")
+				return
+			}
 			filterPath := escapeFFmpegFilterPath(subPath)
 			args = []string{
 				"-y",

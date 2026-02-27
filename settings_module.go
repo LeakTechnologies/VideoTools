@@ -803,6 +803,100 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	header.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(header)
 
+	content.Add(widget.NewSeparator())
+
+	masterHeader := widget.NewLabel("Master Settings")
+	masterHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(masterHeader)
+
+	hwLabel := widget.NewLabel("Hardware Acceleration (Global)")
+	hwLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	hwStatus := widget.NewLabel("")
+	hwStatus.TextStyle = fyne.TextStyle{Italic: true}
+	hwStatus.Wrapping = fyne.TextWrapWord
+
+	updateHwStatus := func() {
+		detected := detectBestHardwareAccel()
+		if detected == "" {
+			detected = "none"
+		}
+		hwStatus.SetText(fmt.Sprintf("Detected: %s", detected))
+	}
+
+	hwSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "qsv", "amf", "vaapi", "videotoolbox"}, func(selected string) {
+		state.convert.HardwareAccel = selected
+		state.persistConvertConfig()
+		updateHwStatus()
+	})
+	hwSelect.SetSelected(state.convert.HardwareAccel)
+
+	detectBtn := widget.NewButton("Detect", func() {
+		best := detectBestHardwareAccel()
+		if best == "" {
+			best = "none"
+		}
+		hwSelect.SetSelected(best)
+		state.convert.HardwareAccel = best
+		state.persistConvertConfig()
+		updateHwStatus()
+	})
+	detectBtn.Importance = widget.HighImportance
+
+	autoBtn := widget.NewButton("Use Auto", func() {
+		hwSelect.SetSelected("auto")
+		state.convert.HardwareAccel = "auto"
+		state.persistConvertConfig()
+		updateHwStatus()
+	})
+	autoBtn.Importance = widget.MediumImportance
+
+	updateHwStatus()
+
+	content.Add(container.NewVBox(
+		hwLabel,
+		hwSelect,
+		container.NewHBox(detectBtn, autoBtn),
+		hwStatus,
+	))
+
+	content.Add(widget.NewSeparator())
+
+	moduleHeader := widget.NewLabel("Module Visibility")
+	moduleHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(moduleHeader)
+
+	showUpscale := widget.NewCheck("Show Upscale module", func(checked bool) {
+		state.convert.ShowUpscale = checked
+		state.persistConvertConfig()
+	})
+	showUpscale.SetChecked(state.convert.ShowUpscale)
+
+	showAuthor := widget.NewCheck("Show Author module", func(checked bool) {
+		state.convert.ShowAuthor = checked
+		state.persistConvertConfig()
+	})
+	showAuthor.SetChecked(state.convert.ShowAuthor)
+
+	showRip := widget.NewCheck("Show Rip module", func(checked bool) {
+		state.convert.ShowRip = checked
+		state.persistConvertConfig()
+	})
+	showRip.SetChecked(state.convert.ShowRip)
+
+	visibilityHint := widget.NewLabel("Module visibility applies on the main menu.")
+	visibilityHint.TextStyle = fyne.TextStyle{Italic: true}
+	visibilityHint.Wrapping = fyne.TextWrapWord
+
+	content.Add(container.NewVBox(
+		showUpscale,
+		showAuthor,
+		showRip,
+		visibilityHint,
+	))
+
+	content.Add(widget.NewSeparator())
+
 	// Language selection (persisted UI language)
 	langLabel := widget.NewLabel("Language")
 	langSelect := widget.NewSelect([]string{"System", "en", "es", "fr", "de", "ja", "zh"}, func(selected string) {
@@ -811,17 +905,6 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	})
 	langSelect.SetSelected(state.convert.Language)
 	content.Add(container.NewVBox(langLabel, langSelect))
-
-	content.Add(widget.NewSeparator())
-
-	// Hardware acceleration default (used globally and by benchmark)
-	hwLabel := widget.NewLabel("Hardware Acceleration")
-	hwSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "qsv", "amf", "vaapi", "videotoolbox"}, func(selected string) {
-		state.convert.HardwareAccel = selected
-		state.persistConvertConfig()
-	})
-	hwSelect.SetSelected(state.convert.HardwareAccel)
-	content.Add(container.NewVBox(hwLabel, hwSelect))
 
 	return content
 }

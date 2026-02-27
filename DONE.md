@@ -18,6 +18,11 @@
 - [x] Removed the Bitcoin address from the About/Support dialog.
 - [x] Added adaptive scroll speed for long panels to improve multi-resolution navigation.
 - [x] Made Settings tabs scroll independently to keep tab headers visible.
+- [x] Promoted master settings for hardware acceleration and module visibility.
+
+### Subtitles
+- [x] Added embedded subtitle extraction with lossless and text (SRT) modes.
+- [x] Added safer subtitle embedding that preserves sync and warns on incompatible outputs.
 
 ### Snippet
 - [x] Added AV1 encoder fallback when `libsvtav1` is unavailable.
@@ -1388,7 +1393,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
 

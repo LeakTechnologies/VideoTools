@@ -68,6 +68,8 @@ Before you begin, ensure your system meets these basic requirements:
 - **UI Layout:** The main menu adapts to window width; resize the window to change tile density.
 - **Scrolling:** Settings and long panels use adaptive scroll speed for smoother navigation at different window sizes.
 - **Settings Tabs:** Each Settings tab scrolls independently so the tab header stays visible.
+- **Master Settings:** Preferences include global hardware acceleration detection and module visibility toggles.
+- **Subtitles:** The Subtitles module can extract embedded tracks losslessly or export text-based tracks to SRT.
 
 ---
 
