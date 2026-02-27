@@ -931,11 +931,28 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 
 	// Language selection (persisted UI language)
 	langLabel := widget.NewLabel("Language")
-	langSelect := widget.NewSelect([]string{"System", "en", "es", "fr", "de", "ja", "zh"}, func(selected string) {
-		state.convert.Language = selected
+	langOptions := map[string]string{
+		"System":          "System",
+		"English (Canada)": "en-CA",
+		"French (Canada)":  "fr-CA",
+		"Inuktitut":        "iu-Cans",
+	}
+	langSelect := widget.NewSelect([]string{"System", "English (Canada)", "French (Canada)", "Inuktitut"}, func(selected string) {
+		value := langOptions[selected]
+		if value == "" {
+			value = "System"
+		}
+		state.convert.Language = value
 		state.persistConvertConfig()
 	})
-	langSelect.SetSelected(state.convert.Language)
+	selectedLabel := "System"
+	for label, value := range langOptions {
+		if value == state.convert.Language {
+			selectedLabel = label
+			break
+		}
+	}
+	langSelect.SetSelected(selectedLabel)
 	content.Add(container.NewVBox(langLabel, langSelect))
 
 	return content
