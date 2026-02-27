@@ -15,6 +15,8 @@
 - **Snippet AV1 fallback** - Snippet generation now falls back when `libsvtav1` is unavailable.
 - **Adaptive scrolling** - Settings and other long panels use adaptive scroll speed for smoother navigation across screen sizes.
 - **Settings tab scrolling** - Each Settings tab now scrolls independently so the header stays in view.
+- **Master settings** - Preferences now surface global hardware acceleration with auto-detect plus module visibility toggles.
+- **Subtitle ripping** - Subtitles can be extracted from embedded tracks (lossless or SRT for text-based) and re-embedded without sync drift.
 
 ## v0.1.1-dev27 (February 2026)
 

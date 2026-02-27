@@ -372,6 +372,43 @@ func effectiveHardwareAccel(cfg convertConfig) string {
 	}
 }
 
+// detectBestHardwareAccel probes available hardware acceleration backends.
+// Returns "none" if no known backend is available.
+func detectBestHardwareAccel() string {
+	switch runtime.GOOS {
+	case "darwin":
+		if hwAccelAvailable("videotoolbox") {
+			return "videotoolbox"
+		}
+		return "none"
+	case "windows":
+		if hwAccelAvailable("nvenc") {
+			return "nvenc"
+		}
+		if hwAccelAvailable("qsv") {
+			return "qsv"
+		}
+		if hwAccelAvailable("amf") {
+			return "amf"
+		}
+		return "none"
+	default:
+		if hwAccelAvailable("nvenc") {
+			return "nvenc"
+		}
+		if hwAccelAvailable("qsv") {
+			return "qsv"
+		}
+		if hwAccelAvailable("vaapi") {
+			return "vaapi"
+		}
+		if hwAccelAvailable("amf") {
+			return "amf"
+		}
+		return "none"
+	}
+}
+
 // hwAccelAvailable checks ffmpeg -hwaccels once and caches the result.
 func hwAccelAvailable(accel string) bool {
 	accel = strings.ToLower(accel)
@@ -803,6 +840,11 @@ type convertConfig struct {
 	TempDir          string // Optional temp/cache directory override
 	LogDir           string // Optional log directory override
 	Language         string // UI language preference ("System" or BCP47 tag)
+
+	// Master settings
+	ShowUpscale bool
+	ShowAuthor  bool
+	ShowRip     bool
 }
 
 func (c convertConfig) OutputFile() string {
@@ -874,6 +916,9 @@ func defaultConvertConfig() convertConfig {
 		TempDir:          "",
 		LogDir:           "",
 		Language:         "System",
+		ShowUpscale:      true,
+		ShowAuthor:       true,
+		ShowRip:          true,
 	}
 }
 
@@ -907,6 +952,15 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 	}
 	if _, ok := raw["ForceAspect"]; !ok {
 		cfg.ForceAspect = true
+	}
+	if _, ok := raw["ShowUpscale"]; !ok {
+		cfg.ShowUpscale = true
+	}
+	if _, ok := raw["ShowAuthor"]; !ok {
+		cfg.ShowAuthor = true
+	}
+	if _, ok := raw["ShowRip"]; !ok {
+		cfg.ShowRip = true
 	}
 	if cfg.OutputAspect == "" || strings.EqualFold(cfg.OutputAspect, "Source") {
 		cfg.OutputAspect = "Source"
@@ -1278,6 +1332,10 @@ type appState struct {
 	subtitleBurnEnabled bool
 	subtitleCuesRefresh func()
 	subtitleTimeOffset  float64
+	subtitleRipStreams  []subtitleStreamInfo
+	subtitleRipIndex    int
+	subtitleRipMode     string
+	subtitleRipOutput   string
 
 	// Audio module state
 	audioFile                 *videoSource
@@ -1976,6 +2034,20 @@ func (s *appState) showMainMenu() {
 	// Convert Module slice to ui.ModuleInfo slice
 	var mods []ui.ModuleInfo
 	for _, m := range modulesList {
+		switch m.ID {
+		case "upscale":
+			if !s.convert.ShowUpscale {
+				continue
+			}
+		case "author":
+			if !s.convert.ShowAuthor {
+				continue
+			}
+		case "rip":
+			if !s.convert.ShowRip {
+				continue
+			}
+		}
 		hasHandler := m.Handle != nil
 		depsAvailable := isModuleAvailable(m.ID)
 

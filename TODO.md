@@ -14,6 +14,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Scroll within tabs while keeping the Settings header visible.
 - [ ] **Main.go modularization pass**
   - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
+- [ ] **Subtitle OCR support**
+  - Enable OCR for image-based DVD/BD subtitle tracks (VobSub/PGS) to produce SRT.
 - [ ] **Windows dev28 dependency bootstrap validation**
   - Verify first-run FFmpeg bootstrap on a clean Windows machine with no FFmpeg in PATH.
   - Confirm modules unlock immediately after in-app install without restarting the app.
