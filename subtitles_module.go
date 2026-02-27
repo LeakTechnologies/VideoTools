@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -53,6 +54,8 @@ type subtitlesConfig struct {
 	BackendPath string  `json:"backendPath"`
 	BurnOutput  string  `json:"burnOutput"`
 	TimeOffset  float64 `json:"timeOffset"`
+	OCRLanguage string  `json:"ocrLanguage"`
+	OCROutput   string  `json:"ocrOutput"`
 }
 
 func defaultSubtitlesConfig() subtitlesConfig {
@@ -61,6 +64,8 @@ func defaultSubtitlesConfig() subtitlesConfig {
 		ModelPath:   "",
 		BackendPath: "",
 		BurnOutput:  "",
+		OCRLanguage: "eng",
+		OCROutput:   "srt",
 	}
 }
 
@@ -79,6 +84,12 @@ func loadPersistedSubtitlesConfig() (subtitlesConfig, error) {
 	}
 	if cfg.OutputMode == "External SRT" {
 		cfg.OutputMode = subtitleModeExternal
+	}
+	if cfg.OCRLanguage == "" {
+		cfg.OCRLanguage = "eng"
+	}
+	if cfg.OCROutput == "" {
+		cfg.OCROutput = "srt"
 	}
 	return cfg, nil
 }
@@ -101,6 +112,8 @@ func (s *appState) applySubtitlesConfig(cfg subtitlesConfig) {
 	s.subtitleBackendPath = cfg.BackendPath
 	s.subtitleBurnOutput = cfg.BurnOutput
 	s.subtitleTimeOffset = cfg.TimeOffset
+	s.subtitleOCRLanguage = cfg.OCRLanguage
+	s.subtitleOCROutput = cfg.OCROutput
 }
 
 func (s *appState) persistSubtitlesConfig() {
@@ -110,6 +123,8 @@ func (s *appState) persistSubtitlesConfig() {
 		BackendPath: s.subtitleBackendPath,
 		BurnOutput:  s.subtitleBurnOutput,
 		TimeOffset:  s.subtitleTimeOffset,
+		OCRLanguage: s.subtitleOCRLanguage,
+		OCROutput:   s.subtitleOCROutput,
 	}
 	if err := savePersistedSubtitlesConfig(cfg); err != nil {
 		logging.Debug(logging.CatSystem, "failed to persist subtitles config: %v", err)
@@ -225,7 +240,201 @@ func probeSubtitleStreams(path string) ([]subtitleStreamInfo, error) {
 	return results, nil
 }
 
-func subtitleRipOutputPath(videoPath string, info subtitleStreamInfo, mode string) string {
+type subtitlePacketInfo struct {
+	Start    float64
+	Duration float64
+}
+
+func probeSubtitlePackets(path string, streamIndex int) ([]subtitlePacketInfo, error) {
+	cmd := exec.Command(utils.GetFFprobePath(),
+		"-hide_banner",
+		"-v", "error",
+		"-show_packets",
+		"-of", "json",
+		path,
+	)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("ffprobe packets failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
+	}
+
+	type ffprobePacket struct {
+		StreamIndex  int    `json:"stream_index"`
+		PtsTime      string `json:"pts_time"`
+		DtsTime      string `json:"dts_time"`
+		DurationTime string `json:"duration_time"`
+	}
+	type ffprobeResp struct {
+		Packets []ffprobePacket `json:"packets"`
+	}
+	var resp ffprobeResp
+	if err := json.Unmarshal(stdout.Bytes(), &resp); err != nil {
+		return nil, fmt.Errorf("failed to parse ffprobe packets: %w", err)
+	}
+
+	var packets []subtitlePacketInfo
+	for _, p := range resp.Packets {
+		if p.StreamIndex != streamIndex {
+			continue
+		}
+		startStr := strings.TrimSpace(p.PtsTime)
+		if startStr == "" {
+			startStr = strings.TrimSpace(p.DtsTime)
+		}
+		if startStr == "" {
+			continue
+		}
+		start, err := strconv.ParseFloat(startStr, 64)
+		if err != nil {
+			continue
+		}
+		duration := 0.0
+		if strings.TrimSpace(p.DurationTime) != "" {
+			if d, err := strconv.ParseFloat(strings.TrimSpace(p.DurationTime), 64); err == nil {
+				duration = d
+			}
+		}
+		packets = append(packets, subtitlePacketInfo{Start: start, Duration: duration})
+	}
+	return normalizeSubtitlePackets(packets), nil
+}
+
+func normalizeSubtitlePackets(packets []subtitlePacketInfo) []subtitlePacketInfo {
+	if len(packets) == 0 {
+		return packets
+	}
+	for i := range packets {
+		if packets[i].Duration > 0 {
+			continue
+		}
+		if i+1 < len(packets) {
+			next := packets[i+1].Start - packets[i].Start
+			if next > 0 {
+				packets[i].Duration = next
+				continue
+			}
+		}
+		packets[i].Duration = 2.0
+	}
+	return packets
+}
+
+func extractSubtitleFrames(videoPath string, info subtitleStreamInfo, dir string) ([]string, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+	pattern := filepath.Join(dir, "sub_%05d.png")
+	args := []string{
+		"-y",
+		"-i", videoPath,
+		"-map", fmt.Sprintf("0:%d", info.Index),
+		"-vsync", "0",
+		"-f", "image2",
+		"-c:v", "png",
+		pattern,
+	}
+	if err := runFFmpeg(args); err != nil {
+		return nil, err
+	}
+	frames, err := filepath.Glob(filepath.Join(dir, "sub_*.png"))
+	if err != nil {
+		return nil, err
+	}
+	sort.Strings(frames)
+	return frames, nil
+}
+
+func ocrSubtitleStream(videoPath string, info subtitleStreamInfo, outputPath string, ocrLang string, ocrOutput string) (string, error) {
+	if _, err := exec.LookPath("tesseract"); err != nil {
+		return "", fmt.Errorf("tesseract not found; install it to OCR image-based subtitles")
+	}
+	tmpDir, err := os.MkdirTemp("", "vt-sub-ocr-*")
+	if err != nil {
+		return "", err
+	}
+	defer os.RemoveAll(tmpDir)
+
+	packets, err := probeSubtitlePackets(videoPath, info.Index)
+	if err != nil {
+		return "", err
+	}
+	if len(packets) == 0 {
+		return "", fmt.Errorf("no subtitle packets found for OCR")
+	}
+
+	frames, err := extractSubtitleFrames(videoPath, info, tmpDir)
+	if err != nil {
+		return "", err
+	}
+	if len(frames) == 0 {
+		return "", fmt.Errorf("no subtitle images extracted for OCR")
+	}
+
+	count := len(packets)
+	if len(frames) < count {
+		count = len(frames)
+	}
+
+	var cues []subtitleCue
+	for i := 0; i < count; i++ {
+		text, err := runTesseract(frames[i], ocrLang)
+		if err != nil {
+			return "", err
+		}
+		text = strings.TrimSpace(text)
+		if text == "" {
+			continue
+		}
+		start := packets[i].Start
+		end := packets[i].Start + packets[i].Duration
+		if end <= start {
+			end = start + 2.0
+		}
+		cues = append(cues, subtitleCue{
+			Start: start,
+			End:   end,
+			Text:  text,
+		})
+	}
+
+	if len(cues) == 0 {
+		return "", fmt.Errorf("OCR completed but produced no subtitle text")
+	}
+
+	var payload string
+	if strings.EqualFold(strings.TrimSpace(ocrOutput), "ass") {
+		payload = formatASS(cues)
+	} else {
+		payload = formatSRT(cues)
+	}
+
+	if err := os.WriteFile(outputPath, []byte(payload), 0o644); err != nil {
+		return "", fmt.Errorf("failed to write OCR subtitles: %w", err)
+	}
+	return outputPath, nil
+}
+
+func runTesseract(imagePath string, lang string) (string, error) {
+	if strings.TrimSpace(lang) == "" {
+		lang = "eng"
+	}
+	args := []string{imagePath, "stdout", "-l", lang, "--dpi", "300"}
+	cmd := exec.Command("tesseract", args...)
+	utils.ApplyNoWindow(cmd)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("tesseract failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
+	}
+	return stdout.String(), nil
+}
+
+func subtitleRipOutputPath(videoPath string, info subtitleStreamInfo, mode string, outputFormat string) string {
 	dir := filepath.Dir(videoPath)
 	base := strings.TrimSuffix(filepath.Base(videoPath), filepath.Ext(videoPath))
 	lang := strings.TrimSpace(info.Language)
@@ -236,12 +445,14 @@ func subtitleRipOutputPath(videoPath string, info subtitleStreamInfo, mode strin
 	ext := ".srt"
 	if strings.Contains(strings.ToLower(mode), "original") {
 		ext = ".mks"
+	} else if strings.EqualFold(strings.TrimSpace(outputFormat), "ass") {
+		ext = ".ass"
 	}
 	return filepath.Join(dir, fmt.Sprintf("%s.%s%s", base, suffix, ext))
 }
 
-func extractSubtitleStream(videoPath string, info subtitleStreamInfo, mode string) (string, error) {
-	outputPath := subtitleRipOutputPath(videoPath, info, mode)
+func extractSubtitleStream(videoPath string, info subtitleStreamInfo, mode string, ocrLang string, ocrOutput string) (string, error) {
+	outputPath := subtitleRipOutputPath(videoPath, info, mode, ocrOutput)
 	args := []string{
 		"-y",
 		"-i", videoPath,
@@ -250,8 +461,14 @@ func extractSubtitleStream(videoPath string, info subtitleStreamInfo, mode strin
 
 	if strings.Contains(strings.ToLower(mode), "original") {
 		args = append(args, "-c:s", "copy")
+	} else if info.IsText {
+		if strings.EqualFold(strings.TrimSpace(ocrOutput), "ass") {
+			args = append(args, "-c:s", "ass")
+		} else {
+			args = append(args, "-c:s", "srt", "-f", "srt")
+		}
 	} else {
-		args = append(args, "-c:s", "srt", "-f", "srt")
+		return ocrSubtitleStream(videoPath, info, outputPath, ocrLang, ocrOutput)
 	}
 	args = append(args, outputPath)
 
@@ -314,7 +531,13 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		}
 	}
 	if strings.TrimSpace(state.subtitleRipMode) == "" {
-		state.subtitleRipMode = "SRT (text only)"
+		state.subtitleRipMode = "Text (SRT/ASS)"
+	}
+	if strings.TrimSpace(state.subtitleOCRLanguage) == "" {
+		state.subtitleOCRLanguage = "eng"
+	}
+	if strings.TrimSpace(state.subtitleOCROutput) == "" {
+		state.subtitleOCROutput = "srt"
 	}
 
 	backBtn := widget.NewButton("< BACK", func() {
@@ -629,10 +852,28 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		}
 	})
 
-	ripModeSelect := widget.NewSelect([]string{"SRT (text only)", "Original (lossless)"}, func(val string) {
+	ripModeSelect := widget.NewSelect([]string{"Text (SRT/ASS)", "Original (lossless)"}, func(val string) {
 		state.subtitleRipMode = val
 	})
 	ripModeSelect.SetSelected(state.subtitleRipMode)
+
+	ocrOutputSelect := widget.NewSelect([]string{"SRT", "ASS"}, func(val string) {
+		state.subtitleOCROutput = strings.ToLower(val)
+		state.persistSubtitlesConfig()
+	})
+	if strings.EqualFold(state.subtitleOCROutput, "ass") {
+		ocrOutputSelect.SetSelected("ASS")
+	} else {
+		ocrOutputSelect.SetSelected("SRT")
+	}
+
+	ocrLangEntry := widget.NewEntry()
+	ocrLangEntry.SetPlaceHolder("eng")
+	ocrLangEntry.SetText(state.subtitleOCRLanguage)
+	ocrLangEntry.OnChanged = func(val string) {
+		state.subtitleOCRLanguage = strings.TrimSpace(val)
+		state.persistSubtitlesConfig()
+	}
 
 	refreshRipStreams := func() {
 		options := []string{}
@@ -689,13 +930,15 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 			return
 		}
 		stream := state.subtitleRipStreams[state.subtitleRipIndex]
-		if strings.Contains(strings.ToLower(state.subtitleRipMode), "srt") && !stream.IsText {
-			state.setSubtitleStatus("Selected subtitle stream is image-based. Use Original (lossless) or configure OCR.")
-			return
+		if strings.Contains(strings.ToLower(state.subtitleRipMode), "text") && !stream.IsText {
+			if _, err := exec.LookPath("tesseract"); err != nil {
+				state.setSubtitleStatus("Selected subtitle stream is image-based. Install Tesseract or use Original (lossless).")
+				return
+			}
 		}
 		state.setSubtitleStatus("Extracting subtitles...")
 		go func() {
-			outputPath, err := extractSubtitleStream(videoPath, stream, state.subtitleRipMode)
+			outputPath, err := extractSubtitleStream(videoPath, stream, state.subtitleRipMode, state.subtitleOCRLanguage, state.subtitleOCROutput)
 			if err != nil {
 				state.setSubtitleStatusAsync(err.Error())
 				return
@@ -706,7 +949,8 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 			if app != nil && app.Driver() != nil {
 				app.Driver().DoFromGoroutine(func() {
 					subtitleEntry.SetText(outputPath)
-					if state.isSubtitleFile(outputPath) {
+					ext := strings.ToLower(filepath.Ext(outputPath))
+					if ext == ".srt" || ext == ".vtt" {
 						if err := state.loadSubtitleFile(outputPath); err != nil {
 							state.setSubtitleStatus(err.Error())
 							return
@@ -759,6 +1003,12 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		modelEntry.SetText(state.subtitleModelPath)
 		outputEntry.SetText(state.subtitleBurnOutput)
 		offsetEntry.SetText(fmt.Sprintf("%.2f", state.subtitleTimeOffset))
+		if strings.EqualFold(state.subtitleOCROutput, "ass") {
+			ocrOutputSelect.SetSelected("ASS")
+		} else {
+			ocrOutputSelect.SetSelected("SRT")
+		}
+		ocrLangEntry.SetText(state.subtitleOCRLanguage)
 		refreshWhisperUI()
 	}
 
@@ -785,6 +1035,8 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 			BackendPath: state.subtitleBackendPath,
 			BurnOutput:  state.subtitleBurnOutput,
 			TimeOffset:  state.subtitleTimeOffset,
+			OCRLanguage: state.subtitleOCRLanguage,
+			OCROutput:   state.subtitleOCROutput,
 		}
 		if err := savePersistedSubtitlesConfig(cfg); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
@@ -810,6 +1062,10 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		streamSelect,
 		container.NewHBox(detectStreamsBtn, ripBtn),
 		ripModeSelect,
+		widget.NewLabel("OCR output (image-based subtitles only):"),
+		ocrOutputSelect,
+		widget.NewLabel("OCR language (tesseract, e.g. eng, spa, jpn):"),
+		ocrLangEntry,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Timing Adjustment", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Shift all subtitle times by offset (seconds):"),
@@ -1068,7 +1324,7 @@ func (s *appState) applySubtitlesToVideo() {
 		s.subtitleFilePath = subPath
 	}
 
-	if s.isSubtitleFile(subPath) {
+	if ext := strings.ToLower(filepath.Ext(subPath)); ext == ".srt" || ext == ".vtt" {
 		if err := s.saveSubtitleFile(subPath); err != nil {
 			s.setSubtitleStatus(err.Error())
 			return
@@ -1076,7 +1332,7 @@ func (s *appState) applySubtitlesToVideo() {
 	}
 
 	if mode == subtitleModeExternal {
-		if s.isSubtitleFile(subPath) {
+		if ext := strings.ToLower(filepath.Ext(subPath)); ext == ".srt" || ext == ".vtt" {
 			s.setSubtitleStatus(fmt.Sprintf("Saved subtitles to %s", filepath.Base(subPath)))
 		} else {
 			s.setSubtitleStatus(fmt.Sprintf("Using subtitle file: %s", filepath.Base(subPath)))
@@ -1291,6 +1547,40 @@ func formatSRT(cues []subtitleCue) string {
 		b.WriteString(fmt.Sprintf("%s --> %s\n", formatSRTTimestamp(cue.Start), formatSRTTimestamp(cue.End)))
 		b.WriteString(strings.TrimSpace(cue.Text))
 		b.WriteString("\n\n")
+	}
+	return b.String()
+}
+
+func formatASSTimestamp(seconds float64) string {
+	if seconds < 0 {
+		seconds = 0
+	}
+	totalCs := int64(seconds*100 + 0.5)
+	hours := totalCs / 360000
+	minutes := (totalCs % 360000) / 6000
+	secs := (totalCs % 6000) / 100
+	cs := totalCs % 100
+	return fmt.Sprintf("%d:%02d:%02d.%02d", hours, minutes, secs, cs)
+}
+
+func formatASS(cues []subtitleCue) string {
+	var b strings.Builder
+	b.WriteString("[Script Info]\n")
+	b.WriteString("ScriptType: v4.00+\n")
+	b.WriteString("PlayResX: 1920\n")
+	b.WriteString("PlayResY: 1080\n")
+	b.WriteString("WrapStyle: 0\n")
+	b.WriteString("\n")
+	b.WriteString("[V4+ Styles]\n")
+	b.WriteString("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n")
+	b.WriteString("Style: Default,Arial,48,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,0,0,100,100,0,0,1,2,1,2,50,50,50,1\n")
+	b.WriteString("\n")
+	b.WriteString("[Events]\n")
+	b.WriteString("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n")
+	for _, cue := range cues {
+		text := strings.TrimSpace(cue.Text)
+		text = strings.ReplaceAll(text, "\n", "\\N")
+		b.WriteString(fmt.Sprintf("Dialogue: 0,%s,%s,Default,,0,0,0,,%s\n", formatASSTimestamp(cue.Start), formatASSTimestamp(cue.End), text))
 	}
 	return b.String()
 }

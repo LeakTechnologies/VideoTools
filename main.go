@@ -1336,6 +1336,8 @@ type appState struct {
 	subtitleRipIndex    int
 	subtitleRipMode     string
 	subtitleRipOutput   string
+	subtitleOCRLanguage string
+	subtitleOCROutput   string
 
 	// Audio module state
 	audioFile                 *videoSource
@@ -3560,7 +3562,7 @@ func (s *appState) isAudioFile(path string) bool {
 
 func (s *appState) isSubtitleFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
-	subtitleExts := []string{".srt", ".vtt", ".ass", ".ssa"}
+	subtitleExts := []string{".srt", ".vtt", ".ass", ".ssa", ".mks"}
 	for _, subtitleExt := range subtitleExts {
 		if ext == subtitleExt {
 			return true
