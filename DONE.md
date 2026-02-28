@@ -23,6 +23,7 @@
 - [x] Refactored main menu flow into a dedicated module file for easier maintenance.
 - [x] Improved aspect ratio handling using display aspect ratio metadata and added a 17:9 target.
 - [x] Show the detected source aspect ratio alongside the Source aspect option.
+- [x] Added lightweight logging for source/target aspect details and ignored stale auto-crop values when auto-crop is off.
 
 ### Packaging
 - [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.

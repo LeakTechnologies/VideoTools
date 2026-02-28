@@ -2467,6 +2467,18 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		"fieldOrder":        src.FieldOrder,
 		"autoCompare":       s.autoCompare, // Include auto-compare flag
 	}
+	if !cfg.AutoCrop {
+		config["cropWidth"] = ""
+		config["cropHeight"] = ""
+		config["cropX"] = ""
+		config["cropY"] = ""
+	}
+	if !cfg.AutoCrop {
+		config["cropWidth"] = ""
+		config["cropHeight"] = ""
+		config["cropX"] = ""
+		config["cropY"] = ""
+	}
 
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
@@ -6302,8 +6314,9 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 		}
 	}
 
+	autoCrop, _ := cfg["autoCrop"].(bool)
 	// Cropping
-	if autoCrop, _ := cfg["autoCrop"].(bool); autoCrop {
+	if autoCrop {
 		if cropWidth, _ := cfg["cropWidth"].(string); cropWidth != "" {
 			cropHeight, _ := cfg["cropHeight"].(string)
 			cropX, _ := cfg["cropX"].(string)
@@ -6359,6 +6372,27 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 	forceAspect := true
 	if v, ok := cfg["forceAspect"].(bool); ok {
 		forceAspect = v
+	}
+	if srcAspect := displayAspectRatioFromConfig(cfg); srcAspect > 0 {
+		sourceWidth, _ := cfg["sourceWidth"].(int)
+		sourceHeight, _ := cfg["sourceHeight"].(int)
+		sampleAspectRatio, _ := cfg["sampleAspectRatio"].(string)
+		displayAspectRatio, _ := cfg["displayAspectRatio"].(string)
+		rotation, _ := cfg["rotation"].(string)
+		logging.Debug(
+			logging.CatFFMPEG,
+			"aspect: source=%dx%d sar=%s dar=%s rotation=%s sourceAR=%.4f target=%s handling=%s force=%v autoCrop=%v",
+			sourceWidth,
+			sourceHeight,
+			strings.TrimSpace(sampleAspectRatio),
+			strings.TrimSpace(displayAspectRatio),
+			strings.TrimSpace(rotation),
+			srcAspect,
+			strings.TrimSpace(outputAspect),
+			strings.TrimSpace(fmt.Sprint(cfg["aspectHandling"])),
+			forceAspect,
+			autoCrop,
+		)
 	}
 	if forceAspect {
 		sourceWidth, _ := cfg["sourceWidth"].(int)
