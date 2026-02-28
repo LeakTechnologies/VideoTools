@@ -24,6 +24,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Ensure aspect conversion uses target resolution so outputs land on exact sizes (e.g., 1920x1080).
 - [X] **Window resize stability**
   - Avoid resizing the main window on every module switch to prevent misclicks.
+- [X] **Conversion stability**
+  - Catch conversion worker panics and surface a failure dialog instead of closing the UI.
 - [ ] **Main.go modularization pass**
   - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization**

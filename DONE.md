@@ -28,6 +28,7 @@
 - [x] Aligned aspect conversion with target resolution to avoid odd output sizes (e.g., 1920x1082).
 - [x] Stopped auto-resizing the window on each module switch to prevent misclicks.
 - [x] Cleaned mojibake/garbled UI characters in core UI labels.
+- [x] Conversion worker panics now surface a failure dialog instead of closing the UI.
 
 ### Packaging
 - [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.

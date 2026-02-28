@@ -14338,6 +14338,21 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	s.convertCancel = cancel
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logging.Crash(logging.CatFFMPEG, "convert worker panic: %v", r)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					s.showErrorWithCopy("Conversion Failed", fmt.Errorf("conversion worker crashed: %v", r))
+					s.convertBusy = false
+					s.convertActiveIn = ""
+					s.convertActiveOut = ""
+					s.convertActiveLog = ""
+					s.convertProgress = 0
+					setStatus("Failed")
+				}, false)
+				s.convertCancel = nil
+			}
+		}()
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			setStatus("Running ffmpeg")
 		}, false)
@@ -14368,6 +14383,11 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 		progressQuit := make(chan struct{})
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logging.Crash(logging.CatFFMPEG, "convert progress panic: %v", r)
+				}
+			}()
 			stdoutReader := io.Reader(stdout)
 			if logFile != nil {
 				stdoutReader = io.TeeReader(stdout, logFile)
