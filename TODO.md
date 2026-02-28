@@ -12,6 +12,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Smooth settings and long panels across different window sizes.
 - [X] **Settings tab scrolling**
   - Scroll within tabs while keeping the Settings header visible.
+- [X] **Aspect ratio handling**
+  - Use display aspect ratio metadata when available and surface a 17:9 target for non-16:9 sources (user report).
 - [ ] **Main.go modularization pass**
   - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization**

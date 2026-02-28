@@ -240,11 +240,36 @@ func (l *fixedHSplitLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	return fyne.NewSize(0, 0)
 }
 
+func displayAspectRatioForSource(src *videoSource) float64 {
+	if src == nil {
+		return 0
+	}
+	if val := utils.ParseAspectValue(strings.TrimSpace(src.DisplayAspectRatio)); val > 0 {
+		return val
+	}
+	return utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio)
+}
+
+func displayAspectRatioFromConfig(cfg map[string]interface{}) float64 {
+	if cfg == nil {
+		return 0
+	}
+	if dar, ok := cfg["displayAspectRatio"].(string); ok {
+		if val := utils.ParseAspectValue(strings.TrimSpace(dar)); val > 0 {
+			return val
+		}
+	}
+	sourceWidth, _ := cfg["sourceWidth"].(int)
+	sourceHeight, _ := cfg["sourceHeight"].(int)
+	sampleAspectRatio, _ := cfg["sampleAspectRatio"].(string)
+	return utils.DisplayAspectRatioFloat(sourceWidth, sourceHeight, sampleAspectRatio)
+}
+
 // resolveTargetAspect resolves an aspect ratio value or source aspect
 func resolveTargetAspect(val string, src *videoSource) float64 {
 	if strings.EqualFold(val, "source") {
 		if src != nil {
-			return utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio)
+			return displayAspectRatioForSource(src)
 		}
 		return 0
 	}
@@ -2436,6 +2461,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		"sourceWidth":       src.Width,
 		"sourceHeight":      src.Height,
 		"sampleAspectRatio": src.SampleAspectRatio,
+		"displayAspectRatio": src.DisplayAspectRatio,
 		"sourceDuration":    src.Duration,
 		"sourceBitrate":     src.Bitrate,
 		"fieldOrder":        src.FieldOrder,
@@ -2568,6 +2594,7 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 		"sourceWidth":       src.Width,
 		"sourceHeight":      src.Height,
 		"sampleAspectRatio": src.SampleAspectRatio,
+		"displayAspectRatio": src.DisplayAspectRatio,
 		"sourceDuration":    src.Duration,
 		"sourceBitrate":     src.Bitrate,
 		"fieldOrder":        src.FieldOrder,
@@ -4798,7 +4825,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			}
 		}
 		// Aspect ratio conversion
-		srcAspect := utils.DisplayAspectRatioFloat(sourceWidth, sourceHeight, sampleAspectRatio)
+		srcAspect := displayAspectRatioFromConfig(cfg)
 		outputAspect, _ := cfg["outputAspect"].(string)
 		aspectHandling, _ := cfg["aspectHandling"].(string)
 		forceAspect := true
@@ -4807,7 +4834,13 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		}
 
 		// Create temp source for aspect calculation
-		tempSrc := &videoSource{Width: sourceWidth, Height: sourceHeight, SampleAspectRatio: sampleAspectRatio}
+		displayAspectRatio, _ := cfg["displayAspectRatio"].(string)
+		tempSrc := &videoSource{
+			Width:              sourceWidth,
+			Height:             sourceHeight,
+			SampleAspectRatio:  sampleAspectRatio,
+			DisplayAspectRatio: displayAspectRatio,
+		}
 		targetAspect := resolveTargetAspect(outputAspect, tempSrc)
 		if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
 			vf = append(vf, aspectFilters(targetAspect, aspectHandling)...)
@@ -6331,7 +6364,13 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 		sourceWidth, _ := cfg["sourceWidth"].(int)
 		sourceHeight, _ := cfg["sourceHeight"].(int)
 		sampleAspectRatio, _ := cfg["sampleAspectRatio"].(string)
-		tempSrc := &videoSource{Width: sourceWidth, Height: sourceHeight, SampleAspectRatio: sampleAspectRatio}
+		displayAspectRatio, _ := cfg["displayAspectRatio"].(string)
+		tempSrc := &videoSource{
+			Width:              sourceWidth,
+			Height:             sourceHeight,
+			SampleAspectRatio:  sampleAspectRatio,
+			DisplayAspectRatio: displayAspectRatio,
+		}
 		outputAspect, _ := cfg["outputAspect"].(string)
 		if targetAspect := resolveTargetAspect(outputAspect, tempSrc); targetAspect > 0 {
 			if len(vf) == 0 {
@@ -8126,7 +8165,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	transformHint := widget.NewLabel("Apply flips and rotation to correct video orientation")
 	transformHint.Wrapping = fyne.TextWrapWord
 
-	aspectTargets := []string{"Source", "16:9", "4:3", "5:4", "5:3", "1:1", "9:16", "21:9"}
+	aspectTargets := []string{"Source", "16:9", "17:9", "4:3", "5:4", "5:3", "1:1", "9:16", "21:9"}
 	var (
 		targetAspectSelect       *widget.Select
 		targetAspectSelectSimple *widget.Select
@@ -8190,7 +8229,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			return
 		}
 		target := resolveTargetAspect(state.convert.OutputAspect, src)
-		srcAspect := utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio)
+		srcAspect := displayAspectRatioForSource(src)
 		if target == 0 || srcAspect == 0 || utils.RatiosApproxEqual(target, srcAspect, 0.01) {
 			aspectBox.Hide()
 		} else {
@@ -9492,7 +9531,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			// If aspect still unset, derive from source
 			if targetAR == "" || strings.EqualFold(targetAR, "Source") {
 				if src != nil {
-					if ar := utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio); ar > 0 && ar < 1.6 {
+					if ar := displayAspectRatioForSource(src); ar > 0 && ar < 1.6 {
 						targetAR = "4:3"
 					} else {
 						targetAR = "16:9"
@@ -10563,6 +10602,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			"sourceWidth":            src.Width,
 			"sourceHeight":           src.Height,
 			"sampleAspectRatio":      src.SampleAspectRatio,
+			"displayAspectRatio":     src.DisplayAspectRatio,
 			"sourceDuration":         src.Duration,
 			"fieldOrder":             src.FieldOrder,
 		}
@@ -13793,7 +13833,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 	// Aspect ratio conversion (only if user explicitly changed from Source)
 	if cfg.OutputAspect != "" && !strings.EqualFold(cfg.OutputAspect, "source") {
-		srcAspect := utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio)
+		srcAspect := displayAspectRatioForSource(src)
 		targetAspect := resolveTargetAspect(cfg.OutputAspect, src)
 		if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
 			vf = append(vf, aspectFilters(targetAspect, cfg.AspectHandling)...)
@@ -14512,7 +14552,7 @@ func (s *appState) generateSnippet() {
 	// Check if aspect ratio conversion is needed (only if user explicitly set OutputAspect)
 	aspectExplicit := s.convert.OutputAspect != "" && !strings.EqualFold(s.convert.OutputAspect, "Source")
 	if aspectExplicit {
-		srcAspect := utils.DisplayAspectRatioFloat(src.Width, src.Height, src.SampleAspectRatio)
+		srcAspect := displayAspectRatioForSource(src)
 		targetAspect := resolveTargetAspect(s.convert.OutputAspect, src)
 		aspectConversionNeeded := targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01)
 		if aspectConversionNeeded {
@@ -14743,6 +14783,7 @@ type videoSource struct {
 
 	// Advanced metadata
 	SampleAspectRatio string // Pixel Aspect Ratio (SAR) - e.g., "1:1", "40:33"
+	DisplayAspectRatio string // Display Aspect Ratio (DAR) - e.g., "16:9"
 	ColorSpace        string // Color space/primaries - e.g., "bt709", "bt601"
 	ColorRange        string // Color range - "tv" (limited) or "pc" (full)
 	GOPSize           int    // GOP size / keyframe interval
@@ -14768,6 +14809,11 @@ func (v *videoSource) DurationString() string {
 func (v *videoSource) AspectRatioString() string {
 	if v.Width <= 0 || v.Height <= 0 {
 		return "--"
+	}
+	if dar := strings.TrimSpace(v.DisplayAspectRatio); dar != "" && dar != "0:1" {
+		if ratio := utils.ParseAspectValue(dar); ratio > 0 {
+			return fmt.Sprintf("%s (%.2f:1)", dar, ratio)
+		}
 	}
 	num, den := utils.SimplifyRatio(v.Width, v.Height)
 	if num == 0 || den == 0 {
@@ -14995,6 +15041,8 @@ func probeVideo(path string) (*videoSource, error) {
 			Channels     int                    `json:"channels"`
 			AvgFrameRate string                 `json:"avg_frame_rate"`
 			FieldOrder   string                 `json:"field_order"`
+			SampleAspect string                 `json:"sample_aspect_ratio"`
+			DisplayAspect string                `json:"display_aspect_ratio"`
 			Tags         map[string]interface{} `json:"tags"`
 			Disposition  struct {
 				AttachedPic int `json:"attached_pic"`
@@ -15070,6 +15118,12 @@ func probeVideo(path string) (*videoSource, error) {
 				}
 				if stream.PixFmt != "" {
 					src.PixelFormat = stream.PixFmt
+				}
+				if stream.SampleAspect != "" && stream.SampleAspect != "0:1" {
+					src.SampleAspectRatio = stream.SampleAspect
+				}
+				if stream.DisplayAspect != "" && stream.DisplayAspect != "0:1" {
+					src.DisplayAspectRatio = stream.DisplayAspect
 				}
 				if br, err := utils.ParseInt(stream.BitRate); err == nil && br > 0 {
 					videoStreamBitrate = br

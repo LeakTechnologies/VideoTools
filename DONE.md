@@ -21,6 +21,7 @@
 - [x] Promoted master settings for hardware acceleration and module visibility.
 - [x] Focused language options on Canadian English/French and Inuktitut.
 - [x] Refactored main menu flow into a dedicated module file for easier maintenance.
+- [x] Improved aspect ratio handling using display aspect ratio metadata and added a 17:9 target.
 
 ### Packaging
 - [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.
@@ -1401,4 +1402,3 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
