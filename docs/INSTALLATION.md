@@ -70,6 +70,7 @@ Before you begin, ensure your system meets these basic requirements:
 - **Settings Tabs:** Each Settings tab scrolls independently so the tab header stays visible.
 - **Master Settings:** Preferences include global hardware acceleration detection and module visibility toggles.
 - **Subtitles:** The Subtitles module can extract embedded tracks losslessly or OCR image-based tracks to SRT/ASS (requires Tesseract). OCR language codes: `eng`, `fra`, `iku`.
+- **Conversion Stability:** Conversion workers now catch internal panics and surface a failure dialog instead of closing the UI.
 
 ---
 

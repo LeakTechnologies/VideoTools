@@ -83,6 +83,7 @@ After the installer runs, a Start Menu folder named "VideoTools" is created. It 
     - Settings tabs scroll independently so the tab header stays visible.
     - Preferences include hardware acceleration detection and module visibility toggles.
     - The Subtitles module can extract embedded tracks losslessly or OCR image-based tracks to SRT/ASS (requires Tesseract).
+    - Conversion workers now catch internal panics and surface a failure dialog instead of closing the UI.
     - If FFmpeg is missing on first launch, VideoTools will offer an in-app install to `%LOCALAPPDATA%\VideoTools\bin`.
     - The same app-local FFmpeg install action is available in Settings > Dependencies.
 
