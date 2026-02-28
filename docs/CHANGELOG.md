@@ -19,6 +19,10 @@
 - **Aspect ratio handling** - Source aspect now honors display aspect ratio metadata and adds a 17:9 target option.
 - **Aspect ratio UI** - The Source aspect option now shows the detected source aspect ratio.
 - **Aspect ratio logging** - Conversion logs now include source/target aspect details and ignore stale auto-crop values when auto-crop is disabled.
+- **Custom aspect input** - Added a Custom... option for cinema/ultrawide ratios without cluttering the dropdown.
+- **Aspect/scale alignment** - Aspect conversion now uses target resolution to avoid odd output sizes.
+- **Window resize stability** - Module switches no longer auto-resize the window.
+- **UI text cleanup** - Removed garbled characters from UI labels and prompts.
 - **Main menu refactor** - Main menu builder and refresh helpers moved into a dedicated module file.
 - **Subtitle ripping** - Subtitles can be extracted from embedded tracks (lossless or OCR/SRT/ASS for text) and re-embedded without sync drift.
 - **Subtitle OCR** - Image-based DVD/BD subtitle tracks can be OCR’d with Tesseract into SRT or ASS.

@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"bufio"
@@ -1124,6 +1124,7 @@ func saveHistoryConfig(cfg historyConfig) error {
 
 type appState struct {
 	window                    fyne.Window
+	windowAutoSized           bool
 	active                    string
 	lastModule                string
 	queueBackTarget           string
@@ -1995,11 +1996,15 @@ func (s *appState) maximizeWindow() {
 	if s.window == nil {
 		return
 	}
+	if s.windowAutoSized {
+		return
+	}
 	canvas := s.window.Canvas()
 	if canvas != nil {
 		size := canvas.Size()
 		s.window.Resize(size)
 		s.window.CenterOnScreen()
+		s.windowAutoSized = true
 	}
 }
 
@@ -2483,7 +2488,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
-		Description: fmt.Sprintf("Output: %s â†’ %s", utils.ShortenMiddle(filepath.Base(src.Path), 40), utils.ShortenMiddle(filepath.Base(outPath), 40)),
+		Description: fmt.Sprintf("Output: %s  %s", utils.ShortenMiddle(filepath.Base(src.Path), 40), utils.ShortenMiddle(filepath.Base(outPath), 40)),
 		InputFile:   src.Path,
 		OutputFile:  outPath,
 		Config:      config,
@@ -2616,7 +2621,7 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
-		Description: fmt.Sprintf("Output: %s â†’ %s", utils.ShortenMiddle(filepath.Base(src.Path), 40), utils.ShortenMiddle(filepath.Base(outPath), 40)),
+		Description: fmt.Sprintf("Output: %s  %s", utils.ShortenMiddle(filepath.Base(src.Path), 40), utils.ShortenMiddle(filepath.Base(outPath), 40)),
 		InputFile:   src.Path,
 		OutputFile:  outPath,
 		Config:      config,
@@ -3083,7 +3088,7 @@ func (s *appState) showMissingDependenciesDialog(moduleID string) {
 
 	for _, depName := range missing {
 		if dep, ok := allDependencies[depName]; ok {
-			message.WriteString(fmt.Sprintf("â€¢ %s\n", dep.Name))
+			message.WriteString(fmt.Sprintf(" %s\n", dep.Name))
 			if dep.InstallCmd != "" {
 				message.WriteString(fmt.Sprintf("  Install: %s\n\n", dep.InstallCmd))
 			}
@@ -3536,7 +3541,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 		job := &queue.Job{
 			Type:        queue.JobTypeConvert,
 			Title:       fmt.Sprintf("Convert %s", filepath.Base(path)),
-			Description: fmt.Sprintf("Output: %s â†’ %s", filepath.Base(path), filepath.Base(outPath)),
+			Description: fmt.Sprintf("Output: %s  %s", filepath.Base(path), filepath.Base(outPath)),
 			InputFile:   path,
 			OutputFile:  outPath,
 			Config:      config,
@@ -3711,13 +3716,13 @@ func (s *appState) showMergeView() {
 				chEntry.OnChanged = func(val string) {
 					s.mergeClips[idx].Chapter = val
 				}
-				upBtn := widget.NewButton("â†‘", func() {
+				upBtn := widget.NewButton("", func() {
 					if idx > 0 {
 						s.mergeClips[idx-1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx-1]
 						buildList()
 					}
 				})
-				downBtn := widget.NewButton("â†“", func() {
+				downBtn := widget.NewButton("", func() {
 					if idx < len(s.mergeClips)-1 {
 						s.mergeClips[idx+1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx+1]
 						buildList()
@@ -3773,7 +3778,7 @@ func (s *appState) showMergeView() {
 		buildList()
 	}
 
-	addBtn := widget.NewButton("Add Filesâ€¦", func() {
+	addBtn := widget.NewButton("Add Files", func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -4810,9 +4815,88 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			}
 		}
 
-		// Scaling/Resolution
+		// Scaling/Resolution + Aspect ratio conversion
 		targetResolution, _ := cfg["targetResolution"].(string)
-		if targetResolution != "" && targetResolution != "Source" {
+		outputAspect, _ := cfg["outputAspect"].(string)
+		aspectHandling, _ := cfg["aspectHandling"].(string)
+		displayAspectRatio, _ := cfg["displayAspectRatio"].(string)
+
+		tempSrc := &videoSource{
+			Width:              sourceWidth,
+			Height:             sourceHeight,
+			SampleAspectRatio:  sampleAspectRatio,
+			DisplayAspectRatio: displayAspectRatio,
+		}
+		targetAspect := resolveTargetAspect(outputAspect, tempSrc)
+		srcAspect := displayAspectRatioFromConfig(cfg)
+		targetW, targetH := targetResolutionDims(targetResolution)
+
+		aspectConversionNeeded := outputAspect != "" &&
+			!strings.EqualFold(outputAspect, "source") &&
+			targetAspect > 0 &&
+			srcAspect > 0 &&
+			!utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01)
+
+		useAspectScaling := aspectConversionNeeded && targetW > 0 && targetH > 0
+		if aspectConversionNeeded {
+			vf = append(vf, aspectFiltersWithTarget(targetAspect, aspectHandling, srcAspect, targetW, targetH)...)
+			logging.Debug(logging.CatFFMPEG, "converting aspect ratio from %.2f to %.2f using %s mode", srcAspect, targetAspect, aspectHandling)
+		}
+
+		if targetResolution != "" && targetResolution != "Source" && !useAspectScaling {
+			var scaleFilter string
+			makeEven := func(v int) int {
+				if v%2 != 0 {
+					return v + 1
+				}
+				return v
+			}
+			switch targetResolution {
+			case "720p":
+				scaleFilter = "scale=-2:720"
+			case "1080p":
+				scaleFilter = "scale=-2:1080"
+			case "1440p":
+				scaleFilter = "scale=-2:1440"
+			case "4K":
+				scaleFilter = "scale=-2:2160"
+			case "8K":
+				scaleFilter = "scale=-2:4320"
+			case "NTSC (720x480)":
+				scaleFilter = "scale=720:480"
+			case "PAL (720x540)":
+				scaleFilter = "scale=720:540"
+			case "PAL (720x576)":
+				scaleFilter = "scale=720:576"
+			case "2X (relative)":
+				if sourceWidth > 0 && sourceHeight > 0 {
+					w := makeEven(sourceWidth * 2)
+					h := makeEven(sourceHeight * 2)
+					scaleFilter = fmt.Sprintf("scale=%d:%d", w, h)
+				}
+			case "4X (relative)":
+				if sourceWidth > 0 && sourceHeight > 0 {
+					w := makeEven(sourceWidth * 4)
+					h := makeEven(sourceHeight * 4)
+					scaleFilter = fmt.Sprintf("scale=%d:%d", w, h)
+				}
+			}
+			if scaleFilter != "" {
+				vf = append(vf, scaleFilter)
+			}
+		}
+
+targetAspect := resolveTargetAspect(outputAspect, tempSrc)
+		useAspectScaling := false
+		if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
+			vf = append(vf, aspectFiltersWithTarget(targetAspect, aspectHandling, srcAspect, targetW, targetH)...)
+			if targetW > 0 && targetH > 0 {
+				useAspectScaling = true
+			}
+		}
+
+		// Apply scaling if aspect conversion did not already handle it.
+		if !useAspectScaling && targetResolution != "" && targetResolution != "Source" {
 			var scaleFilter string
 			switch targetResolution {
 			case "360p":
@@ -4835,27 +4919,6 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			if scaleFilter != "" {
 				vf = append(vf, scaleFilter)
 			}
-		}
-		// Aspect ratio conversion
-		srcAspect := displayAspectRatioFromConfig(cfg)
-		outputAspect, _ := cfg["outputAspect"].(string)
-		aspectHandling, _ := cfg["aspectHandling"].(string)
-		forceAspect := true
-		if v, ok := cfg["forceAspect"].(bool); ok {
-			forceAspect = v
-		}
-
-		// Create temp source for aspect calculation
-		displayAspectRatio, _ := cfg["displayAspectRatio"].(string)
-		tempSrc := &videoSource{
-			Width:              sourceWidth,
-			Height:             sourceHeight,
-			SampleAspectRatio:  sampleAspectRatio,
-			DisplayAspectRatio: displayAspectRatio,
-		}
-		targetAspect := resolveTargetAspect(outputAspect, tempSrc)
-		if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
-			vf = append(vf, aspectFilters(targetAspect, aspectHandling)...)
 		}
 		if forceAspect && targetAspect > 0 {
 			if len(vf) == 0 {
@@ -7142,9 +7205,9 @@ func (s *appState) executeConversion() {
 }
 
 // buildFormatBadge creates a color-coded badge for a format option
-// Example: "MKV (AV1)" â†’ teal badge with "MKV (AV1)" text
+// Example: "MKV (AV1)"  teal badge with "MKV (AV1)" text
 func buildFormatBadge(formatLabel string) fyne.CanvasObject {
-	// Parse format label: "MKV (AV1)" â†’ containerName: "mkv"
+	// Parse format label: "MKV (AV1)"  containerName: "mkv"
 	parts := strings.Split(formatLabel, " (")
 	if len(parts) < 1 {
 		return widget.NewLabel(formatLabel)
@@ -7289,11 +7352,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if strings.EqualFold(val, "source") || val == "" {
 			return sourceAspectLabel
 		}
-		return val
+		if isStandardAspect(val) {
+			return val
+		}
+		return customAspectLabel
 	}
 	aspectValueForLabel := func(label string) string {
 		if label == sourceAspectLabel {
 			return "Source"
+		}
+		if label == customAspectLabel {
+			return strings.TrimSpace(state.convert.OutputAspect)
 		}
 		return label
 	}
@@ -7507,6 +7576,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if userSet {
 			state.convert.AspectUserSet = true
 		}
+		if strings.EqualFold(val, "source") || isStandardAspect(val) {
+			customAspectActive = false
+		} else {
+			customAspectActive = true
+			customAspectValue = val
+		}
+		updateCustomAspectUI()
 
 		for _, w := range uiState.aspectWidgets {
 			w.SetSelected(aspectLabelForValue(val))
@@ -7545,10 +7621,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Navigation buttons for multiple loaded videos
 	var navButtons fyne.CanvasObject
 	if len(state.loadedVideos) > 1 {
-		prevBtn := widget.NewButton("â—€ Prev", func() {
+		prevBtn := widget.NewButton("- Prev", func() {
 			state.prevVideo()
 		})
-		nextBtn := widget.NewButton("Next â–¶", func() {
+		nextBtn := widget.NewButton("Next -", func() {
 			state.nextVideo()
 		})
 		videoCounter := widget.NewLabel(fmt.Sprintf("Video %d of %d", state.currentIndex+1, len(state.loadedVideos)))
@@ -7564,7 +7640,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 
-	clearCompletedBtn := widget.NewButton("âŒ«", func() {
+	clearCompletedBtn := widget.NewButton("", func() {
 		state.clearCompletedJobs()
 	})
 	clearCompletedBtn.Importance = widget.LowImportance
@@ -7574,7 +7650,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	drawerWidth := float32(420)
 	drawerInset := float32(8)
 	buildDrawer := func(title string, body fyne.CanvasObject, onClose func()) *widget.PopUp {
-		closeBtn := widget.NewButton("âœ•", func() {
+		closeBtn := widget.NewButton("-", func() {
 			if onClose != nil {
 				onClose()
 			}
@@ -7622,7 +7698,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var buildCommandPreview func() fyne.CanvasObject
 
 	// Command Preview toggle button (drawer)
-	cmdPreviewBtn := widget.NewButton("Command Previewâ€¦", func() {
+	cmdPreviewBtn := widget.NewButton("Command Preview", func() {
 		if src == nil {
 			return
 		}
@@ -8189,17 +8265,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	flipVerticalCheck.Checked = state.convert.FlipVertical
 
-	rotationOptions := []string{"0Â°", "90Â° CW", "180Â°", "270Â° CW"}
+	rotationOptions := []string{"0 deg", "90 deg CW", "180 deg", "270 deg CW"}
 	rotationSelect := widget.NewSelect(rotationOptions, func(value string) {
 		var rotation string
 		switch value {
-		case "0Â°":
+		case "0 deg":
 			rotation = "0"
-		case "90Â° CW":
+		case "90 deg CW":
 			rotation = "90"
-		case "180Â°":
+		case "180 deg":
 			rotation = "180"
-		case "270Â° CW":
+		case "270 deg CW":
 			rotation = "270"
 		}
 		state.convert.Rotation = rotation
@@ -8208,17 +8284,26 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	if state.convert.Rotation == "" {
 		state.convert.Rotation = "0"
 	}
-	rotationMap := map[string]string{"0": "0Â°", "90": "90Â° CW", "180": "180Â°", "270": "270Â° CW"}
+	rotationMap := map[string]string{"0": "0 deg", "90": "90 deg CW", "180": "180 deg", "270": "270 deg CW"}
 	if label, ok := rotationMap[state.convert.Rotation]; ok {
 		rotationSelect.SetSelected(label)
 	} else {
-		rotationSelect.SetSelected("0Â°")
+		rotationSelect.SetSelected("0 deg")
 	}
 
 	transformHint := widget.NewLabel("Apply flips and rotation to correct video orientation")
 	transformHint.Wrapping = fyne.TextWrapWord
 
-	aspectTargets := []string{sourceAspectLabel, "16:9", "17:9", "4:3", "5:4", "5:3", "1:1", "9:16", "21:9"}
+	customAspectLabel := "Custom..."
+	isStandardAspect := func(val string) bool {
+		switch strings.TrimSpace(strings.ToLower(val)) {
+		case "16:9", "4:3", "1:1", "9:16", "21:9":
+			return true
+		default:
+			return false
+		}
+	}
+	aspectTargets := []string{sourceAspectLabel, "16:9", "4:3", "1:1", "9:16", "21:9", customAspectLabel}
 	var (
 		targetAspectSelect       *widget.Select
 		targetAspectSelectSimple *widget.Select
@@ -8243,9 +8328,65 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		forceAspectChecks = append(forceAspectChecks, check)
 		return check
 	}
+	customAspectActive := false
+	customAspectValue := ""
+	if val := strings.TrimSpace(state.convert.OutputAspect); val != "" &&
+		!strings.EqualFold(val, "source") &&
+		!isStandardAspect(val) {
+		customAspectActive = true
+		customAspectValue = val
+	}
+	var customAspectEntries []*widget.Entry
+	var customAspectBoxes []*fyne.Container
+	var customAspectHintLabels []*widget.Label
+	updateCustomAspectUI := func() {
+		show := customAspectActive
+		for _, entry := range customAspectEntries {
+			if entry.Text != customAspectValue {
+				entry.SetText(customAspectValue)
+			}
+		}
+		for _, box := range customAspectBoxes {
+			if show {
+				box.Show()
+			} else {
+				box.Hide()
+			}
+		}
+	}
+	applyCustomAspect := func(val string) {
+		val = strings.TrimSpace(val)
+		if val == "" {
+			return
+		}
+		if utils.ParseAspectValue(val) <= 0 {
+			for _, hint := range customAspectHintLabels {
+				hint.SetText("Enter a ratio like 1.90 or 256:135.")
+			}
+			return
+		}
+		for _, hint := range customAspectHintLabels {
+			hint.SetText("Custom aspect ratio in use.")
+		}
+		customAspectValue = val
+		customAspectActive = true
+		setAspect(val, true)
+		updateCustomAspectUI()
+	}
+
 	// Aspect select widget - uses state manager to eliminate sync flag
 	targetAspectSelect = widget.NewSelect(aspectTargets, func(value string) {
+		if value == customAspectLabel {
+			customAspectActive = true
+			updateCustomAspectUI()
+			if strings.TrimSpace(customAspectValue) != "" {
+				applyCustomAspect(customAspectValue)
+			}
+			return
+		}
+		customAspectActive = false
 		setAspect(aspectValueForLabel(value), true)
+		updateCustomAspectUI()
 	})
 	if state.convert.OutputAspect == "" {
 		state.convert.OutputAspect = "Source"
@@ -8255,6 +8396,23 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	targetAspectHint.Wrapping = fyne.TextWrapWord
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	targetAspectHintContainer := container.NewPadded(targetAspectHint)
+
+	customAspectEntry := widget.NewEntry()
+	customAspectEntry.SetPlaceHolder("e.g. 1.90 or 256:135")
+	customAspectEntry.OnChanged = func(val string) {
+		applyCustomAspect(val)
+	}
+	customAspectHint := widget.NewLabel("Custom aspect ratio in use.")
+	customAspectHint.Wrapping = fyne.TextWrapWord
+	customAspectBox := container.NewVBox(
+		widget.NewLabelWithStyle("Custom Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		customAspectEntry,
+		customAspectHint,
+	)
+	customAspectEntries = append(customAspectEntries, customAspectEntry)
+	customAspectBoxes = append(customAspectBoxes, customAspectBox)
+	customAspectHintLabels = append(customAspectHintLabels, customAspectHint)
+	updateCustomAspectUI()
 
 	aspectOptions := widget.NewRadioGroup([]string{"Auto", "Crop", "Letterbox/Pillarbox", "Blur Fill", "Stretch"}, func(value string) {
 		logging.Debug(logging.CatUI, "aspect handling set to %s", value)
@@ -8353,7 +8511,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoCodecContainer := videoCodecSelect // Use the widget directly instead of wrapping
 
 	// Chapter warning label (shown when converting file with chapters to DVD)
-	chapterWarningLabel := widget.NewLabel("âš ï¸  Chapters will be lost - DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.")
+	chapterWarningLabel := widget.NewLabel("  Chapters will be lost - DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.")
 	chapterWarningLabel.Wrapping = fyne.TextWrapWord
 	chapterWarningLabel.TextStyle = fyne.TextStyle{Italic: true}
 	updateChapterWarning = func() {
@@ -8384,23 +8542,23 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		var hint string
 		switch preset {
 		case "ultrafast":
-			hint = "âš¡ Ultrafast: Fastest encoding, largest files (~10x faster than slow, ~30% larger files)"
+			hint = " Ultrafast: Fastest encoding, largest files (~10x faster than slow, ~30% larger files)"
 		case "superfast":
-			hint = "âš¡ Superfast: Very fast encoding, large files (~7x faster than slow, ~20% larger files)"
+			hint = " Superfast: Very fast encoding, large files (~7x faster than slow, ~20% larger files)"
 		case "veryfast":
-			hint = "âš¡ Very Fast: Fast encoding, moderately large files (~5x faster than slow, ~15% larger files)"
+			hint = " Very Fast: Fast encoding, moderately large files (~5x faster than slow, ~15% larger files)"
 		case "faster":
-			hint = "â© Faster: Quick encoding, slightly large files (~3x faster than slow, ~10% larger files)"
+			hint = " Faster: Quick encoding, slightly large files (~3x faster than slow, ~10% larger files)"
 		case "fast":
-			hint = "â© Fast: Good speed, slightly large files (~2x faster than slow, ~5% larger files)"
+			hint = " Fast: Good speed, slightly large files (~2x faster than slow, ~5% larger files)"
 		case "medium":
-			hint = "âš–ï¸ Medium (default): Balanced speed and quality (baseline for comparison)"
+			hint = "- Medium (default): Balanced speed and quality (baseline for comparison)"
 		case "slow":
-			hint = "ðŸŽ¯ Slow (recommended): Best quality/size ratio (~2x slower than medium, ~5-10% smaller)"
+			hint = " Slow (recommended): Best quality/size ratio (~2x slower than medium, ~5-10% smaller)"
 		case "slower":
-			hint = "ðŸŽ¯ Slower: Excellent compression (~3x slower than medium, ~10-15% smaller files)"
+			hint = " Slower: Excellent compression (~3x slower than medium, ~10-15% smaller files)"
 		case "veryslow":
-			hint = "ðŸŒ Very Slow: Maximum compression (~5x slower than medium, ~15-20% smaller files)"
+			hint = " Very Slow: Maximum compression (~5x slower than medium, ~15-20% smaller files)"
 		default:
 			hint = ""
 		}
@@ -8899,7 +9057,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	resolutionOptionsSimple := []string{
 		"Source", "360p", "480p", "540p", "720p", "1080p", "1440p", "4K", "8K",
 		"2X (relative)", "4X (relative)",
-		"NTSC (720Ã—480)", "PAL (720Ã—540)", "PAL (720Ã—576)",
+		"NTSC (720x480)", "PAL (720x540)", "PAL (720x576)",
 	}
 	// Resolution select (Simple mode) - uses state manager
 	resolutionSelectSimple := widget.NewSelect(resolutionOptionsSimple, func(value string) {
@@ -8910,12 +9068,39 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Simple aspect selector (separate widget) - uses state manager
 	targetAspectSelectSimple = widget.NewSelect(aspectTargets, func(value string) {
+		if value == customAspectLabel {
+			customAspectActive = true
+			updateCustomAspectUI()
+			if strings.TrimSpace(customAspectValue) != "" {
+				applyCustomAspect(customAspectValue)
+			}
+			return
+		}
+		customAspectActive = false
 		setAspect(aspectValueForLabel(value), true)
+		updateCustomAspectUI()
 	})
 	if state.convert.OutputAspect == "" {
 		state.convert.OutputAspect = "Source"
 	}
 	targetAspectSelectSimple.SetSelected(aspectLabelForValue(state.convert.OutputAspect))
+
+	customAspectEntrySimple := widget.NewEntry()
+	customAspectEntrySimple.SetPlaceHolder("e.g. 1.90 or 256:135")
+	customAspectEntrySimple.OnChanged = func(val string) {
+		applyCustomAspect(val)
+	}
+	customAspectHintSimple := widget.NewLabel("Custom aspect ratio in use.")
+	customAspectHintSimple.Wrapping = fyne.TextWrapWord
+	customAspectBoxSimple := container.NewVBox(
+		widget.NewLabelWithStyle("Custom Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		customAspectEntrySimple,
+		customAspectHintSimple,
+	)
+	customAspectEntries = append(customAspectEntries, customAspectEntrySimple)
+	customAspectBoxes = append(customAspectBoxes, customAspectBoxSimple)
+	customAspectHintLabels = append(customAspectHintLabels, customAspectHintSimple)
+	updateCustomAspectUI()
 
 	// Register updateAspectBoxVisibility callback with state manager
 	uiState.updateAspectBoxVisibility = updateAspectBoxVisibility
@@ -9347,7 +9532,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	resolutionOptions := []string{
 		"Source", "720p", "1080p", "1440p", "4K", "8K",
 		"2X (relative)", "4X (relative)",
-		"NTSC (720Ã—480)", "PAL (720Ã—540)", "PAL (720Ã—576)",
+		"NTSC (720x480)", "PAL (720x540)", "PAL (720x576)",
 	}
 	// Resolution select (Advanced mode) - uses state manager
 	resolutionSelect := widget.NewSelect(resolutionOptions, func(value string) {
@@ -9411,10 +9596,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if targetFPS < sourceFPS {
 			ratio := targetFPS / sourceFPS
 			reduction := (1.0 - ratio) * 100
-			frameRateHint.SetText(fmt.Sprintf("Converting %.0f â†’ %.0f fps: ~%.0f%% smaller file",
+			frameRateHint.SetText(fmt.Sprintf("Converting %.0f  %.0f fps: ~%.0f%% smaller file",
 				sourceFPS, targetFPS, reduction))
 		} else if targetFPS > sourceFPS {
-			frameRateHint.SetText(fmt.Sprintf("âš  Upscaling from %.0f to %.0f fps (may cause judder)",
+			frameRateHint.SetText(fmt.Sprintf(" Upscaling from %.0f to %.0f fps (may cause judder)",
 				sourceFPS, targetFPS))
 		} else {
 			frameRateHint.SetText("")
@@ -9531,9 +9716,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		isDVD := state.convert.SelectedFormat.Ext == ".mpg"
 		if isDVD {
-			if !strings.EqualFold(state.convert.TargetResolution, "NTSC (720Ã—480)") &&
-				!strings.EqualFold(state.convert.TargetResolution, "PAL (720Ã—540)") &&
-				!strings.EqualFold(state.convert.TargetResolution, "PAL (720Ã—576)") {
+			if !strings.EqualFold(state.convert.TargetResolution, "NTSC (720x480)") &&
+				!strings.EqualFold(state.convert.TargetResolution, "PAL (720x540)") &&
+				!strings.EqualFold(state.convert.TargetResolution, "PAL (720x576)") {
 				state.convert.TargetResolution = "Source"
 			}
 			if !strings.EqualFold(state.convert.FrameRate, "29.97") &&
@@ -9559,18 +9744,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			targetAR = dvdAspectSelect.Selected
 
 			if strings.Contains(state.convert.SelectedFormat.Label, "NTSC") {
-				dvdNotes = "NTSC DVD: 720Ã—480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k, 9000k max PS2-safe)"
-				targetRes = "NTSC (720Ã—480)"
+				dvdNotes = "NTSC DVD: 720x480 @ 29.97fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k, 9000k max PS2-safe)"
+				targetRes = "NTSC (720x480)"
 				targetFPS = "29.97"
 				dvdBitrate = "8000k"
 			} else if strings.Contains(state.convert.SelectedFormat.Label, "PAL") {
-				dvdNotes = "PAL DVD: 720Ã—540 @ 25fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k default, 9500k max)"
-				targetRes = "PAL (720Ã—540)"
+				dvdNotes = "PAL DVD: 720x540 @ 25fps, MPEG-2 Video, AC-3 Stereo 48kHz (bitrate 8000k default, 9500k max)"
+				targetRes = "PAL (720x540)"
 				targetFPS = "25"
 				dvdBitrate = "8000k"
 			} else {
 				dvdNotes = "DVD format selected"
-				targetRes = "NTSC (720Ã—480)"
+				targetRes = "NTSC (720x480)"
 				targetFPS = "29.97"
 				dvdBitrate = "8000k"
 			}
@@ -9682,7 +9867,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	updateDVDOptions()
 
 	qualitySectionSimple = container.NewVBox(
-		widget.NewLabelWithStyle("â•â•â• QUALITY â•â•â•", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("--- QUALITY ---", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
 		qualitySelectSimple,
 	)
 	qualitySectionAdv = container.NewVBox(
@@ -9958,6 +10143,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelectSimple,
 		targetAspectHintContainer,
+		customAspectBoxSimple,
 		makeForceAspectCheck(),
 	))
 
@@ -10037,6 +10223,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelect,
 		targetAspectHintContainer,
+		customAspectBox,
 		aspectBox,
 		makeForceAspectCheck(),
 	))
@@ -10412,7 +10599,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	snippetHint := widget.NewLabel("Creates a clip centred on the timeline midpoint.")
 
 	var snippetOptionsBtn *widget.Button
-	snippetOptionsBtn = widget.NewButton("Snippet Optionsâ€¦", func() {
+	snippetOptionsBtn = widget.NewButton("Snippet Options", func() {
 		toggleDrawer(&snippetDrawer, "Snippet Options", snippetConfigRow)
 	})
 	snippetOptionsBtn.Importance = widget.LowImportance
@@ -10997,7 +11184,7 @@ Metadata: %s`,
 	info := container.NewVBox(fileRow, twoColGrid)
 
 	// Copy metadata button - beside header text
-	copyBtn := widget.NewButton("ðŸ“‹", func() {
+	copyBtn := widget.NewButton("", func() {
 		state.window.Clipboard().SetContent(metadataText)
 		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
 	})
@@ -11251,7 +11438,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		stage.CornerRadius = 6
 		stage.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
 
-		silhouette := canvas.NewText("â–¶", utils.MustHex("#4CE870"))
+		silhouette := canvas.NewText("-", utils.MustHex("#4CE870"))
 		silhouette.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 		silhouette.TextSize = 42
 
@@ -11259,7 +11446,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		hintSub := widget.NewLabel("MP4, MOV, MKV and more")
 		hintSub.Alignment = fyne.TextAlignCenter
 
-		open := widget.NewButton("Open Fileâ€¦", func() {
+		open := widget.NewButton("Open File", func() {
 			logging.Debug(logging.CatUI, "convert open file dialog requested")
 			dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 				if err != nil {
@@ -11277,7 +11464,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			dlg.Show()
 		})
 
-		addMultiple := widget.NewButton("Add Multipleâ€¦", func() {
+		addMultiple := widget.NewButton("Add Multiple", func() {
 			logging.Debug(logging.CatUI, "convert add multiple files dialog requested")
 			dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 				if err != nil {
@@ -11339,7 +11526,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	// Overlay the image directly so it fills the stage while preserving aspect.
 	videoStage := container.NewMax(stage, img)
 
-	coverBtn := utils.MakeIconButton("âŒ¾", "Set current frame as cover art", func() {
+	coverBtn := utils.MakeIconButton("", "Set current frame as cover art", func() {
 		path, err := state.captureCoverFromCurrent()
 		if err != nil {
 			dialog.ShowError(err, state.window)
@@ -11350,7 +11537,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		}
 	})
 
-	saveFrameBtn := utils.MakeIconButton("ðŸ’¾", "Save current frame as PNG", func() {
+	saveFrameBtn := utils.MakeIconButton("", "Save current frame as PNG", func() {
 		framePath, err := state.captureCoverFromCurrent()
 		if err != nil {
 			dialog.ShowError(err, state.window)
@@ -11384,7 +11571,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		dlg.Show()
 	})
 
-	importBtn := utils.MakeIconButton("â¬†", "Import cover art file", func() {
+	importBtn := utils.MakeIconButton("", "Import cover art file", func() {
 		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 			if err != nil {
 				dialog.ShowError(err, state.window)
@@ -11467,12 +11654,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				return
 			}
 			if state.playerMuted || state.playerVolume <= 0 {
-				volIcon.SetText("ðŸ”‡")
+				volIcon.SetText("")
 			} else {
-				volIcon.SetText("ðŸ”Š")
+				volIcon.SetText("")
 			}
 		}
-		volIcon = utils.MakeIconButton("ðŸ”Š", "Mute/Unmute", func() {
+		volIcon = utils.MakeIconButton("", "Mute/Unmute", func() {
 			if !ensureSession() {
 				return
 			}
@@ -11513,7 +11700,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		}
 		updateVolIcon()
 		volSlider.Refresh()
-		playBtn := utils.MakeIconButton("â–¶/â¸", "Play/Pause", func() {
+		playBtn := utils.MakeIconButton("-/", "Play/Pause", func() {
 			if !ensureSession() {
 				return
 			}
@@ -11527,14 +11714,14 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 
 		// Frame stepping buttons
-		prevFrameBtn := utils.MakeIconButton("â—€|", "Previous frame (Left Arrow)", func() {
+		prevFrameBtn := utils.MakeIconButton("-|", "Previous frame (Left Arrow)", func() {
 			if !ensureSession() {
 				return
 			}
 			state.playerPaused = true
 			state.playSess.StepFrame(-1)
 		})
-		nextFrameBtn := utils.MakeIconButton("|â–¶", "Next frame (Right Arrow)", func() {
+		nextFrameBtn := utils.MakeIconButton("|-", "Next frame (Right Arrow)", func() {
 			if !ensureSession() {
 				return
 			}
@@ -11542,7 +11729,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			state.playSess.StepFrame(1)
 		})
 
-		fullBtn := utils.MakeIconButton("â›¶", "Toggle fullscreen", func() {
+		fullBtn := utils.MakeIconButton("", "Toggle fullscreen", func() {
 			if state.window == nil {
 				return
 			}
@@ -11570,7 +11757,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				}
 			}
 		}
-		playBtn := utils.MakeIconButton("â–¶/â¸", "Play/Pause", func() {
+		playBtn := utils.MakeIconButton("-/", "Play/Pause", func() {
 			if len(src.PreviewFrames) == 0 {
 				return
 			}
@@ -11588,7 +11775,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		volSlider.Disable()
 		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
 		controls = container.NewVBox(
-			container.NewHBox(playBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), widget.NewLabel("ðŸ”‡"), container.NewMax(volSlider)),
+			container.NewHBox(playBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), widget.NewLabel(""), container.NewMax(volSlider)),
 			progress,
 		)
 		if len(src.PreviewFrames) > 1 {
@@ -13658,7 +13845,7 @@ func (s *appState) cancelConvert(cancelBtn, btn *widget.Button, spinner *widget.
 	if s.convertCancel == nil {
 		return
 	}
-	s.convertStatus = "Cancellingâ€¦"
+	s.convertStatus = "Cancelling"
 	// Widget states will be updated by the UI refresh ticker
 	s.convertCancel()
 }
@@ -13716,10 +13903,10 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	// Note: We do NOT force resolution - user can choose Source or specific resolution
 	if isDVD {
 		if strings.Contains(cfg.SelectedFormat.Label, "PAL") {
-			cfg.TargetResolution = "PAL (720Ã—540)"
+			cfg.TargetResolution = "PAL (720x540)"
 			cfg.FrameRate = "25"
 		} else {
-			cfg.TargetResolution = "NTSC (720Ã—480)"
+			cfg.TargetResolution = "NTSC (720x480)"
 			cfg.FrameRate = "29.97"
 		}
 		cfg.VideoBitrate = "8000k"
@@ -13840,8 +14027,18 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		}
 	}
 
+	targetW, targetH := targetResolutionDims(cfg.TargetResolution)
+	srcAspect := displayAspectRatioForSource(src)
+	targetAspect := resolveTargetAspect(cfg.OutputAspect, src)
+	aspectConversionNeeded := cfg.OutputAspect != "" &&
+		!strings.EqualFold(cfg.OutputAspect, "source") &&
+		targetAspect > 0 &&
+		srcAspect > 0 &&
+		!utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01)
+	useAspectScaling := aspectConversionNeeded && targetW > 0 && targetH > 0
+
 	// Scaling/Resolution
-	if cfg.TargetResolution != "" && cfg.TargetResolution != "Source" {
+	if cfg.TargetResolution != "" && cfg.TargetResolution != "Source" && !useAspectScaling {
 		var scaleFilter string
 		makeEven := func(v int) int {
 			if v%2 != 0 {
@@ -13860,11 +14057,11 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			scaleFilter = "scale=-2:2160"
 		case "8K":
 			scaleFilter = "scale=-2:4320"
-		case "NTSC (720Ã—480)":
+		case "NTSC (720x480)":
 			scaleFilter = "scale=720:480"
-		case "PAL (720Ã—540)":
+		case "PAL (720x540)":
 			scaleFilter = "scale=720:540"
-		case "PAL (720Ã—576)":
+		case "PAL (720x576)":
 			scaleFilter = "scale=720:576"
 		case "2X (relative)":
 			if src != nil {
@@ -13885,16 +14082,10 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	}
 
 	// Aspect ratio conversion (only if user explicitly changed from Source)
-	if cfg.OutputAspect != "" && !strings.EqualFold(cfg.OutputAspect, "source") {
-		srcAspect := displayAspectRatioForSource(src)
-		targetAspect := resolveTargetAspect(cfg.OutputAspect, src)
-		if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
-			vf = append(vf, aspectFilters(targetAspect, cfg.AspectHandling)...)
-			logging.Debug(logging.CatFFMPEG, "converting aspect ratio from %.2f to %.2f using %s mode", srcAspect, targetAspect, cfg.AspectHandling)
-		}
+	if aspectConversionNeeded {
+		vf = append(vf, aspectFiltersWithTarget(targetAspect, cfg.AspectHandling, srcAspect, targetW, targetH)...)
+		logging.Debug(logging.CatFFMPEG, "converting aspect ratio from %.2f to %.2f using %s mode", srcAspect, targetAspect, cfg.AspectHandling)
 	}
-
-	targetAspect := resolveTargetAspect(cfg.OutputAspect, src)
 	if cfg.ForceAspect && targetAspect > 0 {
 		if len(vf) == 0 {
 			vf = append(vf, fmt.Sprintf("setdar=%.6f", targetAspect), "setsar=1")
@@ -14140,7 +14331,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		s.convertActiveLog = logPath
 	}
 	_ = logPath
-	setStatus("Preparing conversionâ€¦")
+	setStatus("Preparing conversion")
 	// Widget states will be updated by the UI refresh ticker
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -14148,7 +14339,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 	go func() {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			setStatus("Running ffmpegâ€¦")
+			setStatus("Running ffmpeg")
 		}, false)
 		if logFile != nil {
 			defer logFile.Close()
@@ -14238,9 +14429,9 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 					// Build status with FPS
 					var lbl string
 					if currentFPS > 0 {
-						lbl = fmt.Sprintf("Convertingâ€¦ %.0f%% | %.0f fps | elapsed %s | ETA %s | %.2fx", pct, currentFPS, formatShortDuration(elapsedWall), etaOrDash(eta), speed)
+						lbl = fmt.Sprintf("Converting %.0f%% | %.0f fps | elapsed %s | ETA %s | %.2fx", pct, currentFPS, formatShortDuration(elapsedWall), etaOrDash(eta), speed)
 					} else {
-						lbl = fmt.Sprintf("Convertingâ€¦ %.0f%% | elapsed %s | ETA %s | %.2fx", pct, formatShortDuration(elapsedWall), etaOrDash(eta), speed)
+						lbl = fmt.Sprintf("Converting %.0f%% | elapsed %s | ETA %s | %.2fx", pct, formatShortDuration(elapsedWall), etaOrDash(eta), speed)
 					}
 
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -14333,7 +14524,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 						// Auto failed; fall back to software for next runs
 						s.convert.HardwareAccel = "none"
 					}
-					errorMsg = fmt.Errorf("Hardware encoding (%sâ†’%s) failed - no compatible hardware found.\n\nSwitched hardware acceleration to 'none'. Please try again (software encoding).\n\nFFmpeg output:\n%s", chosen, resolvedAccel, stderrOutput)
+					errorMsg = fmt.Errorf("Hardware encoding (%s%s) failed - no compatible hardware found.\n\nSwitched hardware acceleration to 'none'. Please try again (software encoding).\n\nFFmpeg output:\n%s", chosen, resolvedAccel, stderrOutput)
 				} else {
 					baseMsg := "convert failed: " + err.Error()
 					if errorExplanation != "" {
@@ -14361,7 +14552,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			fmt.Fprintf(logFile, "\nStatus: completed OK at %s\n", time.Now().Format(time.RFC3339))
 		}
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			setStatus("Validating outputâ€¦")
+			setStatus("Validating output")
 		}, false)
 		if _, probeErr := probeVideo(outPath); probeErr != nil {
 			logging.Debug(logging.CatFFMPEG, "convert probe failed: %v", probeErr)
@@ -14543,6 +14734,86 @@ func appendAspectMetadata(vf []string, dar float64) []string {
 		vf = append(vf, "setsar=1")
 	}
 	return vf
+}
+
+func targetResolutionDims(label string) (int, int) {
+	label = strings.TrimSpace(label)
+	switch label {
+	case "360p":
+		return 640, 360
+	case "480p":
+		return 854, 480
+	case "540p":
+		return 960, 540
+	case "720p":
+		return 1280, 720
+	case "1080p":
+		return 1920, 1080
+	case "1440p":
+		return 2560, 1440
+	case "4K":
+		return 3840, 2160
+	case "8K":
+		return 7680, 4320
+	}
+	if label == "" || strings.EqualFold(label, "Source") {
+		return 0, 0
+	}
+	re := regexp.MustCompile(`(\d{3,5})\D+(\d{3,5})`)
+	m := re.FindStringSubmatch(label)
+	if len(m) == 3 {
+		if w, err := strconv.Atoi(m[1]); err == nil {
+			if h, err := strconv.Atoi(m[2]); err == nil {
+				if w%2 != 0 {
+					w++
+				}
+				if h%2 != 0 {
+					h++
+				}
+				return w, h
+			}
+		}
+	}
+	return 0, 0
+}
+
+func aspectFiltersWithTarget(target float64, mode string, srcAspect float64, targetW int, targetH int) []string {
+	if target <= 0 {
+		return nil
+	}
+	ar := fmt.Sprintf("%.6f", target)
+	setDAR := fmt.Sprintf("setdar=%s", ar)
+
+	if strings.EqualFold(mode, "Auto") {
+		if srcAspect > 0 && !utils.RatiosApproxEqual(srcAspect, target, 0.01) {
+			if srcAspect < target {
+				mode = "Letterbox/Pillarbox"
+			} else {
+				mode = "Crop"
+			}
+		}
+	}
+
+	if targetW > 0 && targetH > 0 {
+		switch {
+		case strings.EqualFold(mode, "Crop"):
+			scale := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=increase", targetW, targetH)
+			crop := fmt.Sprintf("crop=%d:%d:(in_w-%d)/2:(in_h-%d)/2", targetW, targetH, targetW, targetH)
+			return []string{scale, crop, setDAR, "setsar=1"}
+		case strings.EqualFold(mode, "Letterbox/Pillarbox") || strings.EqualFold(mode, "Letterbox") || strings.EqualFold(mode, "Pillarbox"):
+			scale := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=decrease", targetW, targetH)
+			pad := fmt.Sprintf("pad=%d:%d:(ow-iw)/2:(oh-ih)/2:color=black", targetW, targetH)
+			return []string{scale, pad, setDAR, "setsar=1"}
+		case strings.EqualFold(mode, "Stretch"):
+			scale := fmt.Sprintf("scale=%d:%d", targetW, targetH)
+			return []string{scale, setDAR, "setsar=1"}
+		case strings.EqualFold(mode, "Blur Fill"):
+			filterStr := fmt.Sprintf("split[bg][fg];[bg]scale=%d:%d:force_original_aspect_ratio=decrease,boxblur=20:5[blurred];[blurred][fg]overlay=(W-w)/2:(H-h)/2", targetW, targetH)
+			return []string{filterStr, setDAR, "setsar=1"}
+		}
+	}
+
+	return aspectFilters(target, mode)
 }
 
 func (s *appState) generateSnippet() {
@@ -15495,9 +15766,9 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 		// Format side-by-side comparison
 		var comparisonText strings.Builder
-		comparisonText.WriteString("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n")
+		comparisonText.WriteString("-----------------------------------------------------------------------\n")
 		comparisonText.WriteString("                        VIDEO COMPARISON REPORT\n")
-		comparisonText.WriteString("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n\n")
+		comparisonText.WriteString("-----------------------------------------------------------------------\n\n")
 
 		// File names header
 		file1Name := "Not loaded"
@@ -15511,18 +15782,18 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 		comparisonText.WriteString(fmt.Sprintf("FILE 1: %s\n", file1Name))
 		comparisonText.WriteString(fmt.Sprintf("FILE 2: %s\n", file2Name))
-		comparisonText.WriteString("â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€\n\n")
+		comparisonText.WriteString("\n\n")
 
 		// Helper to get field value or placeholder
 		getField := func(src *videoSource, getter func(*videoSource) string) string {
 			if src == nil {
-				return "â€”"
+				return ""
 			}
 			return getter(src)
 		}
 
 		// File Info section
-		comparisonText.WriteString("â”â”â” FILE INFO â”â”â”\n")
+		comparisonText.WriteString(" FILE INFO \n")
 
 		var file1SizeBytes int64
 		file1Size := getField(state.compareFile1, func(src *videoSource) string {
@@ -15549,7 +15820,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			getField(state.compareFile2, func(s *videoSource) string { return s.Format })))
 
 		// Video section
-		comparisonText.WriteString("\nâ”â”â” VIDEO â”â”â”\n")
+		comparisonText.WriteString("\n VIDEO \n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Codec:",
 			getField(state.compareFile1, func(s *videoSource) string { return s.VideoCodec }),
@@ -15597,7 +15868,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%d", s.GOPSize) })))
 
 		// Audio section
-		comparisonText.WriteString("\nâ”â”â” AUDIO â”â”â”\n")
+		comparisonText.WriteString("\n AUDIO \n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Codec:",
 			getField(state.compareFile1, func(s *videoSource) string { return s.AudioCodec }),
@@ -15616,7 +15887,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%d", s.Channels) })))
 
 		// Other section
-		comparisonText.WriteString("\nâ”â”â” OTHER â”â”â”\n")
+		comparisonText.WriteString("\n OTHER \n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Duration:",
 			getField(state.compareFile1, func(s *videoSource) string { return s.DurationString() }),
@@ -15634,7 +15905,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			getField(state.compareFile1, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasMetadata) }),
 			getField(state.compareFile2, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasMetadata) })))
 
-		comparisonText.WriteString("\nâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n")
+		comparisonText.WriteString("\n-----------------------------------------------------------------------\n")
 
 		state.window.Clipboard().SetContent(comparisonText.String())
 		dialog.ShowInformation("Copied", "Comparison metadata copied to clipboard", state.window)
@@ -15710,11 +15981,11 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		}
 
 		return fmt.Sprintf(
-			"â”â”â” FILE INFO â”â”â”\n"+
+			" FILE INFO \n"+
 				"Path: %s\n"+
 				"File Size: %s\n"+
 				"Format Family: %s\n"+
-				"\nâ”â”â” VIDEO â”â”â”\n"+
+				"\n VIDEO \n"+
 				"Codec: %s\n"+
 				"Resolution: %dx%d\n"+
 				"Aspect Ratio: %s\n"+
@@ -15725,12 +15996,12 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 				"Color Range: %s\n"+
 				"Field Order: %s\n"+
 				"GOP Size: %d\n"+
-				"\nâ”â”â” AUDIO â”â”â”\n"+
+				"\n AUDIO \n"+
 				"Codec: %s\n"+
 				"Bitrate: %s\n"+
 				"Sample Rate: %d Hz\n"+
 				"Channels: %d\n"+
-				"\nâ”â”â” OTHER â”â”â”\n"+
+				"\n OTHER \n"+
 				"Duration: %s\n"+
 				"SAR (Pixel Aspect): %s\n"+
 				"Chapters: %v\n"+
@@ -16054,14 +16325,14 @@ func buildEnhancementView(state *appState) fyne.CanvasObject {
 	// TODO: Implement enhancement view with AI model selection
 	// For now, show placeholder
 	content := container.NewVBox(
-		widget.NewLabel("ðŸš€ Video Enhancement"),
+		widget.NewLabel(" Video Enhancement"),
 		widget.NewSeparator(),
 		widget.NewLabel("AI-powered video enhancement is coming soon!"),
 		widget.NewLabel("Features planned:"),
-		widget.NewLabel("â€¢ Real-ESRGAN Super-Resolution"),
-		widget.NewLabel("â€¢ BasicVSR Video Enhancement"),
-		widget.NewLabel("â€¢ Content-Aware Processing"),
-		widget.NewLabel("â€¢ Real-time Preview"),
+		widget.NewLabel(" Real-ESRGAN Super-Resolution"),
+		widget.NewLabel(" BasicVSR Video Enhancement"),
+		widget.NewLabel(" Content-Aware Processing"),
+		widget.NewLabel(" Real-time Preview"),
 		widget.NewSeparator(),
 		widget.NewLabel("This will use the unified FFmpeg player foundation"),
 		widget.NewLabel("for frame-accurate enhancement processing."),
@@ -16201,7 +16472,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	loadBtn.Importance = widget.HighImportance
 
 	// Navigation to Filters module
-	filtersNavBtn := widget.NewButton("â† Adjust Filters", func() {
+	filtersNavBtn := widget.NewButton(" Adjust Filters", func() {
 		if state.upscaleFile != nil {
 			state.filtersFile = state.upscaleFile
 		}
@@ -16714,7 +16985,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			description += fmt.Sprintf(" + AI (%s)", state.upscaleAIModel)
 		}
 
-		desc := fmt.Sprintf("%s â†’ %s", description, filepath.Base(outputPath))
+		desc := fmt.Sprintf("%s  %s", description, filepath.Base(outputPath))
 
 		return &queue.Job{
 			Type:        queue.JobTypeUpscale,
@@ -16913,7 +17184,7 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 	file2Label.Alignment = fyne.TextAlignCenter
 
 	// Synchronized playback controls (note: actual sync would require VT_Player API enhancement)
-	playBtn := widget.NewButton("â–¶ Play Both", func() {
+	playBtn := widget.NewButton("- Play Both", func() {
 		// TODO: When VT_Player API supports it, trigger synchronized playback
 		dialog.ShowInformation("Synchronized Playback",
 			"Synchronized playback control will be available when VT_Player API is enhanced.\n\n"+
@@ -16922,7 +17193,7 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 	})
 	playBtn.Importance = widget.HighImportance
 
-	pauseBtn := widget.NewButton("â¸ Pause Both", func() {
+	pauseBtn := widget.NewButton(" Pause Both", func() {
 		// TODO: Synchronized pause
 		dialog.ShowInformation("Synchronized Playback",
 			"Synchronized playback control will be available when VT_Player API is enhanced.",
@@ -16967,3 +17238,8 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
+
+
+
+
+

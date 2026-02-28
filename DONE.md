@@ -24,6 +24,10 @@
 - [x] Improved aspect ratio handling using display aspect ratio metadata and added a 17:9 target.
 - [x] Show the detected source aspect ratio alongside the Source aspect option.
 - [x] Added lightweight logging for source/target aspect details and ignored stale auto-crop values when auto-crop is off.
+- [x] Added a Custom aspect option for clean ultrawide support with minimal UI clutter.
+- [x] Aligned aspect conversion with target resolution to avoid odd output sizes (e.g., 1920x1082).
+- [x] Stopped auto-resizing the window on each module switch to prevent misclicks.
+- [x] Cleaned mojibake/garbled UI characters in core UI labels.
 
 ### Packaging
 - [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.
