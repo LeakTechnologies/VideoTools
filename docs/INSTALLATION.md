@@ -69,7 +69,16 @@ Before you begin, ensure your system meets these basic requirements:
 - **Scrolling:** Settings and long panels use adaptive scroll speed for smoother navigation at different window sizes.
 - **Settings Tabs:** Each Settings tab scrolls independently so the tab header stays visible.
 - **Master Settings:** Preferences include global hardware acceleration detection and module visibility toggles.
-- **Subtitles:** The Subtitles module can extract embedded tracks losslessly or OCR image-based tracks to SRT/ASS (requires Tesseract).
+- **Subtitles:** The Subtitles module can extract embedded tracks losslessly or OCR image-based tracks to SRT/ASS (requires Tesseract). OCR language codes: `eng`, `fra`, `iku`.
+
+---
+
+## Bundled vs Standard Downloads
+
+- **Standard package:** App only (dependencies installed via Settings or scripts).
+- **Bundled package:** App + FFmpeg + Tesseract (with `eng`/`fra`/`iku` data when available). Use the bundled launcher to run with bundled dependencies:
+  - Linux: `run-bundled.sh`
+  - Windows: `run-bundled.ps1` or `run-bundled.bat`
 
 ---
 

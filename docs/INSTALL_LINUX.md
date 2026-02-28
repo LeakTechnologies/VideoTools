@@ -50,6 +50,8 @@ Settings tabs scroll independently so the tab header stays visible.
 Preferences include hardware acceleration detection and module visibility toggles.
 The Subtitles module can extract embedded tracks losslessly or OCR image-based tracks to SRT/ASS (requires Tesseract).
 
+> **Bundled package:** Includes FFmpeg and Tesseract. Launch with `run-bundled.sh` so the bundled dependencies are used.
+
 ---
 
 ## Convenience Commands

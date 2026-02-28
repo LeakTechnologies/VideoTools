@@ -1064,7 +1064,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		ripModeSelect,
 		widget.NewLabel("OCR output (image-based subtitles only):"),
 		ocrOutputSelect,
-		widget.NewLabel("OCR language (tesseract, e.g. eng, spa, jpn):"),
+		widget.NewLabel("OCR language (tesseract, e.g. eng, fra, iku):"),
 		ocrLangEntry,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Timing Adjustment", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),

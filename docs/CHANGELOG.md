@@ -19,6 +19,7 @@
 - **Subtitle ripping** - Subtitles can be extracted from embedded tracks (lossless or OCR/SRT/ASS for text) and re-embedded without sync drift.
 - **Subtitle OCR** - Image-based DVD/BD subtitle tracks can be OCR’d with Tesseract into SRT or ASS.
 - **Language options** - Preferences now focus on Canadian English, Canadian French, and Inuktitut.
+- **Bundled packages** - Added bundled builds with FFmpeg and Tesseract for Windows and Linux.
 
 ## v0.1.1-dev27 (February 2026)
 

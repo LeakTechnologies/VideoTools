@@ -56,7 +56,12 @@ jobs:
             libxxf86vm-dev \
             libasound2-dev \
             libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev
+            libgstreamer-plugins-base1.0-dev \
+            ffmpeg \
+            tesseract-ocr \
+            tesseract-ocr-eng \
+            tesseract-ocr-fra
+          DEBIAN_FRONTEND=noninteractive apt-get install -y tesseract-ocr-iku || true
 
       - name: Build Linux package
         env:
@@ -86,6 +91,56 @@ jobs:
           artifact_src="$(ls dist/linux/${channel}/*.zip | head -n1)"
           artifact_dst="dist/linux/${channel}/${version_base}_linux.zip"
           mv "$artifact_src" "$artifact_dst"
+
+      - name: Build Linux bundled package
+        shell: bash
+        run: |
+          set -euo pipefail
+          channel="${{ steps.meta.outputs.channel }}"
+          version_base="${{ steps.meta.outputs.version_base }}"
+          dist_dir="dist/linux/${channel}"
+          bundle_dir="$(mktemp -d)"
+
+          cp VideoTools "$bundle_dir/VideoTools"
+          if [ -f README.md ]; then cp README.md "$bundle_dir/"; fi
+          if [ -f LICENSE ]; then cp LICENSE "$bundle_dir/"; fi
+          if [ -f scripts/linux/run-bundled.sh ]; then
+            cp scripts/linux/run-bundled.sh "$bundle_dir/run-bundled.sh"
+            chmod +x "$bundle_dir/run-bundled.sh"
+          fi
+
+          mkdir -p "$bundle_dir/deps/bin"
+          if [ -f /usr/bin/ffmpeg ]; then cp /usr/bin/ffmpeg "$bundle_dir/deps/bin/"; fi
+          if [ -f /usr/bin/ffprobe ]; then cp /usr/bin/ffprobe "$bundle_dir/deps/bin/"; fi
+          if [ -f /usr/bin/tesseract ]; then cp /usr/bin/tesseract "$bundle_dir/deps/bin/"; fi
+
+          tess_paths=(
+            "/usr/share/tesseract-ocr/5/tessdata"
+            "/usr/share/tesseract-ocr/4.00/tessdata"
+            "/usr/share/tessdata"
+          )
+          for path in "${tess_paths[@]}"; do
+            if [ -d "$path" ]; then
+              mkdir -p "$bundle_dir/deps/tessdata"
+              for lang in eng fra iku; do
+                if [ -f "$path/${lang}.traineddata" ]; then
+                  cp "$path/${lang}.traineddata" "$bundle_dir/deps/tessdata/"
+                fi
+              done
+              break
+            fi
+          done
+
+          cat > "$bundle_dir/deps/README.txt" <<'EOF'
+          VideoTools bundled dependencies
+          - ffmpeg/ffprobe (portable)
+          - tesseract OCR + language data (eng/fra/iku if available)
+          Use run-bundled.sh to launch with deps on PATH.
+          EOF
+
+          bundle_zip="${dist_dir}/${version_base}_linux-bundled.zip"
+          (cd "$bundle_dir" && zip -qr "$bundle_zip" .)
+          rm -rf "$bundle_dir"
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v3
@@ -275,6 +330,81 @@ jobs:
           }
           Compress-Archive -Path (Join-Path $pkgDir.FullName "*") -DestinationPath $artifactPath
           Remove-Item $pkgDir.FullName -Recurse -Force
+
+          # Bundled package (with deps)
+          $bundleDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "vt-bundle-$([Guid]::NewGuid())") -Force
+          Copy-Item $buildOutput -Destination $bundleDir.FullName -Force
+          if (Test-Path (Join-Path $projectRoot "README.md")) {
+            Copy-Item (Join-Path $projectRoot "README.md") -Destination $bundleDir.FullName -Force
+          }
+          if (Test-Path (Join-Path $projectRoot "LICENSE")) {
+            Copy-Item (Join-Path $projectRoot "LICENSE") -Destination $bundleDir.FullName -Force
+          }
+          if (Test-Path (Join-Path $projectRoot "scripts\\windows\\run-bundled.ps1")) {
+            Copy-Item (Join-Path $projectRoot "scripts\\windows\\run-bundled.ps1") -Destination $bundleDir.FullName -Force
+          }
+          if (Test-Path (Join-Path $projectRoot "scripts\\windows\\run-bundled.bat")) {
+            Copy-Item (Join-Path $projectRoot "scripts\\windows\\run-bundled.bat") -Destination $bundleDir.FullName -Force
+          }
+
+          $depsBin = Join-Path $bundleDir.FullName "deps\\bin"
+          New-Item -ItemType Directory -Force -Path $depsBin | Out-Null
+
+          # FFmpeg bundle
+          $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+          $ffmpegZip = Join-Path $env:TEMP "ffmpeg-bundle.zip"
+          try {
+            Invoke-WebRequest -Uri $ffmpegUrl -OutFile $ffmpegZip -UseBasicParsing
+            $ffmpegTemp = Join-Path $env:TEMP "ffmpeg-bundle"
+            if (Test-Path $ffmpegTemp) { Remove-Item $ffmpegTemp -Recurse -Force }
+            Expand-Archive -Path $ffmpegZip -DestinationPath $ffmpegTemp -Force
+            $ffmpegExe = Get-ChildItem -Path $ffmpegTemp -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+            $ffprobeExe = Get-ChildItem -Path $ffmpegTemp -Recurse -Filter "ffprobe.exe" | Select-Object -First 1
+            if ($ffmpegExe) { Copy-Item $ffmpegExe.FullName -Destination $depsBin -Force }
+            if ($ffprobeExe) { Copy-Item $ffprobeExe.FullName -Destination $depsBin -Force }
+          } catch {
+            Write-Host "[WARN] Failed to download FFmpeg bundle: $($_.Exception.Message)" -ForegroundColor Yellow
+          }
+
+          # Tesseract bundle (best-effort via Chocolatey)
+          $tessRoot = Join-Path $env:ProgramFiles "Tesseract-OCR"
+          try {
+            if (-not (Test-Path $tessRoot) -and (Get-Command choco -ErrorAction SilentlyContinue)) {
+              choco install -y tesseract --no-progress
+            }
+          } catch {
+            Write-Host "[WARN] Failed to install Tesseract via Chocolatey: $($_.Exception.Message)" -ForegroundColor Yellow
+          }
+          if (Test-Path $tessRoot) {
+            $tessExe = Join-Path $tessRoot "tesseract.exe"
+            if (Test-Path $tessExe) {
+              Copy-Item $tessExe -Destination $depsBin -Force
+            }
+            $tessDataSrc = Join-Path $tessRoot "tessdata"
+            $tessDataDst = Join-Path $bundleDir.FullName "deps\\tessdata"
+            if (Test-Path $tessDataSrc) {
+              New-Item -ItemType Directory -Force -Path $tessDataDst | Out-Null
+              foreach ($lang in @("eng", "fra", "iku")) {
+                $src = Join-Path $tessDataSrc "$lang.traineddata"
+                if (Test-Path $src) {
+                  Copy-Item $src -Destination $tessDataDst -Force
+                }
+              }
+            }
+          }
+
+          $depsNote = @"
+VideoTools bundled dependencies
+- ffmpeg/ffprobe (portable)
+- tesseract OCR + language data (eng/fra/iku if available)
+Use run-bundled.ps1 or run-bundled.bat to launch with deps on PATH.
+"@
+          $depsNote | Out-File -FilePath (Join-Path $bundleDir.FullName "deps\\README.txt") -Encoding UTF8
+
+          $bundleZip = Join-Path $distDir "$version`_windows-bundled.zip"
+          if (Test-Path $bundleZip) { Remove-Item $bundleZip -Force }
+          Compress-Archive -Path (Join-Path $bundleDir.FullName "*") -DestinationPath $bundleZip
+          Remove-Item $bundleDir.FullName -Recurse -Force
 
           Write-Host "[INFO] MSIX packaging skipped for host runner mode" -ForegroundColor Yellow
 

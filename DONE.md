@@ -21,6 +21,9 @@
 - [x] Promoted master settings for hardware acceleration and module visibility.
 - [x] Focused language options on Canadian English/French and Inuktitut.
 
+### Packaging
+- [x] Added bundled Windows/Linux packages with FFmpeg and Tesseract plus bundled launchers.
+
 ### Subtitles
 - [x] Added embedded subtitle extraction with lossless and text (SRT) modes.
 - [x] Added safer subtitle embedding that preserves sync and warns on incompatible outputs.
@@ -1395,7 +1398,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
 
