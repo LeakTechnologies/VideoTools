@@ -1,0 +1,192 @@
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/guitutils"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+)
+
+func mainMenuTitle() string {
+	return "VideoTools"
+}
+
+func (s *appState) showMainMenu() {
+	_ = guitutils.DetectGUIEnvironment() // Use GUI utilities to ensure import is used
+	s.stopPreview()
+	s.stopPlayer()
+	s.stopQueueAutoRefresh()
+	s.stopQueueElapsedTicker()
+	if s.queueView != nil {
+		s.queueView.StopAnimations()
+	}
+	s.active = ""
+	s.queueBackTarget = ""
+
+	// Track navigation history
+	s.pushNavigationHistory("mainmenu")
+
+	// Convert Module slice to ui.ModuleInfo slice
+	var mods []ui.ModuleInfo
+	for _, m := range modulesList {
+		switch m.ID {
+		case "upscale":
+			if !s.convert.ShowUpscale {
+				continue
+			}
+		case "author":
+			if !s.convert.ShowAuthor {
+				continue
+			}
+		case "rip":
+			if !s.convert.ShowRip {
+				continue
+			}
+		}
+		hasHandler := m.Handle != nil
+		depsAvailable := isModuleAvailable(m.ID)
+
+		// Module is enabled if: (1) it's Settings (special case) OR (2) it has a handler AND dependencies are available
+		enabled := m.ID == "settings" || (hasHandler && depsAvailable)
+
+		// Missing dependencies = has handler but dependencies not available
+		missingDeps := hasHandler && !depsAvailable && m.ID != "settings"
+
+		mods = append(mods, ui.ModuleInfo{
+			ID:                  m.ID,
+			Label:               m.Label,
+			Color:               m.Color,
+			Category:            m.Category,
+			Enabled:             enabled,
+			MissingDependencies: missingDeps,
+		})
+	}
+
+	titleColor := utils.MustHex("#4CE870")
+
+	// PERFORMANCE: Cache queue list to avoid multiple expensive copies
+	var queueList []*queue.Job
+	if s.jobQueue != nil {
+		queueList = s.jobQueue.List()
+	}
+
+	// Get queue stats - show completed jobs out of total
+	var queueCompleted, queueTotal int
+	if s.jobQueue != nil {
+		_, _, completed, _, _ := s.jobQueue.Stats()
+		queueCompleted = completed
+		queueTotal = len(queueList)
+	}
+
+	// Build sidebar if visible
+	var sidebar fyne.CanvasObject
+	if s.sidebarVisible {
+		// Get active jobs from queue (running/pending)
+		var activeJobs []ui.HistoryEntry
+		if s.jobQueue != nil {
+			for _, job := range queueList {
+				if job.Status == queue.JobStatusRunning || job.Status == queue.JobStatusPending {
+					// Convert queue.Job to ui.HistoryEntry
+					entry := ui.HistoryEntry{
+						ID:         job.ID,
+						Type:       job.Type,
+						Status:     job.Status,
+						Title:      job.Title,
+						InputFile:  job.InputFile,
+						OutputFile: job.OutputFile,
+						LogPath:    job.LogPath,
+						Config:     job.Config,
+						CreatedAt:  job.CreatedAt,
+						StartedAt:  job.StartedAt,
+						Error:      job.Error,
+						Progress:   job.Progress / 100.0, // Convert 0-100 to 0.0-1.0
+					}
+					activeJobs = append(activeJobs, entry)
+				}
+			}
+		}
+
+		onHistoryClick := func(entry ui.HistoryEntry) {
+			if entry.Status == queue.JobStatusRunning || entry.Status == queue.JobStatusPending {
+				s.showQueue()
+				return
+			}
+			s.showHistoryDetails(entry)
+		}
+		sidebar = ui.BuildHistorySidebar(
+			s.historyEntries,
+			activeJobs,
+			onHistoryClick,
+			s.deleteHistoryEntry,
+			s.clearHistoryEntries,
+			s.historyTabIdx,
+			func(idx int) {
+				s.historyTabIdx = idx
+			},
+			titleColor,
+			utils.MustHex("#1A1F2E"),
+			textColor,
+		)
+	}
+
+	// Check if benchmark has been run
+	hasBenchmark := false
+	if cfg, err := loadBenchmarkConfig(); err == nil && len(cfg.History) > 0 {
+		hasBenchmark = true
+	}
+
+	menu := ui.BuildMainMenu(mainMenuTitle(), mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, s.showBenchmark, s.showBenchmarkHistory, func() {
+		// Toggle sidebar - use throttled refresh to prevent lag
+		s.sidebarVisible = !s.sidebarVisible
+		s.refreshMainMenuThrottled()
+	}, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal, hasBenchmark)
+
+	// Update stats bar
+	s.updateStatsBar()
+
+	// Footer with version info and a small About/Support button
+	versionLabel := widget.NewLabel(fmt.Sprintf("VideoTools %s", versionWithPlatform()))
+	versionLabel.Alignment = fyne.TextAlignLeading
+	aboutBtn := widget.NewButton("About / Support", func() {
+		s.showAbout()
+	})
+	aboutBtn.Importance = widget.LowImportance
+	footer := container.NewBorder(nil, nil, nil, aboutBtn, versionLabel)
+
+	// Add stats bar at the bottom of the menu
+	content := container.NewBorder(
+		nil,                                   // top
+		container.NewVBox(s.statsBar, footer), // bottom
+		nil,                                   // left
+		nil,                                   // right
+		container.NewPadded(menu),             // center
+	)
+
+	s.setContent(content)
+}
+
+// refreshMainMenuThrottled rebuilds main menu but throttles to prevent excessive redraws
+// Windows GUI is sensitive to rapid rebuilds, so we enforce a minimum delay
+func (s *appState) refreshMainMenuThrottled() {
+	now := time.Now()
+	if !s.mainMenuLastRefresh.IsZero() && now.Sub(s.mainMenuLastRefresh) < 300*time.Millisecond {
+		// Too soon since last refresh - skip to prevent lag
+		return
+	}
+	s.mainMenuLastRefresh = now
+	s.showMainMenu()
+}
+
+// refreshMainMenuSidebar is a lightweight refresh for sidebar-only updates
+// This prevents full main menu rebuilds when only history changes
+func (s *appState) refreshMainMenuSidebar() {
+	// For now, use throttled refresh to prevent cascading rebuilds
+	// In the future, could optimize to only update sidebar component
+	s.refreshMainMenuThrottled()
+}
