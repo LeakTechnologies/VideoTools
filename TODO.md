@@ -14,6 +14,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Scroll within tabs while keeping the Settings header visible.
 - [X] **Aspect ratio handling**
   - Use display aspect ratio metadata when available and surface a 17:9 target for non-16:9 sources (user report).
+- [X] **Aspect ratio UI clarity**
+  - Show the detected source aspect ratio next to the Source aspect option.
 - [ ] **Main.go modularization pass**
   - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization**
