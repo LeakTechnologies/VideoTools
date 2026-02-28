@@ -322,6 +322,62 @@ func normalizeSubtitlePackets(packets []subtitlePacketInfo) []subtitlePacketInfo
 	return packets
 }
 
+func normalizeOCRText(text string) string {
+	clean := strings.TrimSpace(text)
+	if clean == "" {
+		return ""
+	}
+	clean = strings.ReplaceAll(clean, "\r\n", "\n")
+	clean = strings.ReplaceAll(clean, "\r", "\n")
+	lines := strings.Split(clean, "\n")
+	var kept []string
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		kept = append(kept, trimmed)
+	}
+	clean = strings.Join(kept, "\n")
+	clean = strings.Join(strings.Fields(clean), " ")
+	return clean
+}
+
+func mergeOCRCues(cues []subtitleCue) []subtitleCue {
+	if len(cues) == 0 {
+		return cues
+	}
+	var merged []subtitleCue
+	for _, cue := range cues {
+		text := normalizeOCRText(cue.Text)
+		if text == "" {
+			continue
+		}
+		cue.Text = text
+		if len(merged) == 0 {
+			merged = append(merged, cue)
+			continue
+		}
+		last := &merged[len(merged)-1]
+		// Merge identical text within a small gap.
+		if strings.EqualFold(last.Text, cue.Text) && cue.Start <= last.End+0.25 {
+			if cue.End > last.End {
+				last.End = cue.End
+			}
+			continue
+		}
+		// Clamp overlaps.
+		if cue.Start < last.End {
+			cue.Start = last.End
+		}
+		if cue.End <= cue.Start {
+			cue.End = cue.Start + 1.5
+		}
+		merged = append(merged, cue)
+	}
+	return merged
+}
+
 func extractSubtitleFrames(videoPath string, info subtitleStreamInfo, dir string) ([]string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
@@ -400,6 +456,7 @@ func ocrSubtitleStream(videoPath string, info subtitleStreamInfo, outputPath str
 		})
 	}
 
+	cues = mergeOCRCues(cues)
 	if len(cues) == 0 {
 		return "", fmt.Errorf("OCR completed but produced no subtitle text")
 	}
