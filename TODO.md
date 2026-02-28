@@ -18,6 +18,12 @@ This file tracks upcoming features, improvements, and known issues.
   - Show the detected source aspect ratio next to the Source aspect option.
 - [X] **Aspect ratio logging + crop hygiene**
   - Log source/target aspect details and ignore stored crop values when auto-crop is disabled.
+- [X] **Custom aspect ratio input**
+  - Provide a Custom... option instead of bloating the dropdown with cinema ratios.
+- [X] **Aspect/scale alignment**
+  - Ensure aspect conversion uses target resolution so outputs land on exact sizes (e.g., 1920x1080).
+- [X] **Window resize stability**
+  - Avoid resizing the main window on every module switch to prevent misclicks.
 - [ ] **Main.go modularization pass**
   - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization**

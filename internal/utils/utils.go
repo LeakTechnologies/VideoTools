@@ -236,6 +236,9 @@ func ParseAspectValue(val string) float64 {
 			return n / d
 		}
 	}
+	if f, err := strconv.ParseFloat(val, 64); err == nil && f > 0 {
+		return f
+	}
 	return 0
 }
 
