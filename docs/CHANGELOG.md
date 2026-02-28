@@ -18,8 +18,10 @@
 - **Master settings** - Preferences now surface global hardware acceleration with auto-detect plus module visibility toggles.
 - **Subtitle ripping** - Subtitles can be extracted from embedded tracks (lossless or OCR/SRT/ASS for text) and re-embedded without sync drift.
 - **Subtitle OCR** - Image-based DVD/BD subtitle tracks can be OCR’d with Tesseract into SRT or ASS.
+- **Subtitle OCR cleanup** - OCR output is normalized and consecutive duplicate cues are merged for cleaner timing.
 - **Language options** - Preferences now focus on Canadian English, Canadian French, and Inuktitut.
 - **Bundled packages** - Added bundled builds with FFmpeg, Tesseract, and GStreamer for Windows and Linux.
+- **Bundled whisper model** - Bundled packages now include the whisper.cpp small model and enforce required dependency payloads.
 
 ## v0.1.1-dev27 (February 2026)
 

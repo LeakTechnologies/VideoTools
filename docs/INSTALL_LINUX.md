@@ -50,7 +50,7 @@ Settings tabs scroll independently so the tab header stays visible.
 Preferences include hardware acceleration detection and module visibility toggles.
 The Subtitles module can extract embedded tracks losslessly or OCR image-based tracks to SRT/ASS (requires Tesseract).
 
-> **Bundled package:** Includes FFmpeg, Tesseract, and GStreamer. Launch with `run-bundled.sh` so the bundled dependencies are used.
+> **Bundled package:** Includes FFmpeg, Tesseract (eng/fra required, iku optional), GStreamer, and the whisper.cpp small model (`ggml-small.bin`). Launch with `run-bundled.sh` so the bundled dependencies are used.
 
 ---
 

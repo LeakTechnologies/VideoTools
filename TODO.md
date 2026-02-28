@@ -16,6 +16,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Subtitle OCR support**
   - Enable OCR for image-based DVD/BD subtitle tracks (VobSub/PGS) to produce SRT/ASS.
+- [X] **Subtitle OCR cleanup**
+  - Normalize OCR text and merge consecutive duplicate cues for cleaner timing.
 - [ ] **Windows dev28 dependency bootstrap validation**
   - Verify first-run FFmpeg bootstrap on a clean Windows machine with no FFmpeg in PATH.
   - Confirm modules unlock immediately after in-app install without restarting the app.
@@ -67,6 +69,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Refresh PATH and auto-repair missing MSYS2 GCC during builds when possible.
 - [X] **Forgejo dev packaging**
   - Add Forgejo Actions workflow for Windows/Linux dev packages and artifacts.
+- [X] **Bundled whisper model**
+  - Include the whisper.cpp small model in bundled Windows/Linux packages.
 - [X] **Forgejo dev release upload**
   - Upload dev artifacts to a Forgejo release when a token is provided.
 - [ ] **Windows signing**

@@ -86,7 +86,7 @@ After the installer runs, a Start Menu folder named "VideoTools" is created. It 
     - If FFmpeg is missing on first launch, VideoTools will offer an in-app install to `%LOCALAPPDATA%\VideoTools\bin`.
     - The same app-local FFmpeg install action is available in Settings > Dependencies.
 
-> **Bundled package:** Includes FFmpeg, Tesseract, and GStreamer. Launch with `run-bundled.ps1` (or `run-bundled.bat`) so the bundled dependencies are used.
+> **Bundled package:** Includes FFmpeg, Tesseract (eng/fra required, iku optional), GStreamer, and the whisper.cpp small model (`ggml-small.bin`). Launch with `run-bundled.ps1` (or `run-bundled.bat`) so the bundled dependencies are used.
 
 > **Note:** `scripts\windows\build.bat` and `scripts\windows\build.ps1` will prompt for elevation to ensure build tools are available.
 The build script pauses for a keypress on success or failure so you can review the output before the window closes.

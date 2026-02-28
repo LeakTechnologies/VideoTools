@@ -23,11 +23,13 @@
 
 ### Packaging
 - [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.
+- [x] Bundled packages now include the whisper.cpp small model and enforce required dependency payloads.
 
 ### Subtitles
 - [x] Added embedded subtitle extraction with lossless and text (SRT) modes.
 - [x] Added safer subtitle embedding that preserves sync and warns on incompatible outputs.
 - [x] Integrated Tesseract OCR for image-based subtitles with SRT/ASS output.
+- [x] Normalized OCR output and merged consecutive duplicate cues for cleaner timing.
 
 ### Snippet
 - [x] Added AV1 encoder fallback when `libsvtav1` is unavailable.
@@ -1398,6 +1400,5 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
