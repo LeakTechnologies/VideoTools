@@ -110,9 +110,41 @@ jobs:
           fi
 
           mkdir -p "$bundle_dir/deps/bin"
+          mkdir -p "$bundle_dir/deps/lib"
           if [ -f /usr/bin/ffmpeg ]; then cp /usr/bin/ffmpeg "$bundle_dir/deps/bin/"; fi
           if [ -f /usr/bin/ffprobe ]; then cp /usr/bin/ffprobe "$bundle_dir/deps/bin/"; fi
           if [ -f /usr/bin/tesseract ]; then cp /usr/bin/tesseract "$bundle_dir/deps/bin/"; fi
+
+          gst_bin_paths=(
+            "/usr/bin/gst-plugin-scanner"
+          )
+          for path in "${gst_bin_paths[@]}"; do
+            if [ -f "$path" ]; then
+              cp "$path" "$bundle_dir/deps/bin/" || true
+              break
+            fi
+          done
+
+          gst_lib_paths=(
+            "/usr/lib/x86_64-linux-gnu"
+            "/usr/lib64"
+            "/usr/lib"
+          )
+          for path in "${gst_lib_paths[@]}"; do
+            if [ -d "$path/gstreamer-1.0" ]; then
+              cp -a "$path/gstreamer-1.0" "$bundle_dir/deps/lib/" || true
+            fi
+            if ls "$path"/libgstreamer-1.0.so* >/dev/null 2>&1; then
+              cp -a "$path"/libgstreamer-1.0.so* "$bundle_dir/deps/lib/" || true
+            fi
+            if ls "$path"/libgst*.so* >/dev/null 2>&1; then
+              cp -a "$path"/libgst*.so* "$bundle_dir/deps/lib/" || true
+            fi
+            if [ -d "$path/gio/modules" ]; then
+              mkdir -p "$bundle_dir/deps/lib/gio"
+              cp -a "$path/gio/modules" "$bundle_dir/deps/lib/gio/" || true
+            fi
+          done
 
           tess_paths=(
             "/usr/share/tesseract-ocr/5/tessdata"
@@ -135,6 +167,7 @@ jobs:
           VideoTools bundled dependencies
           - ffmpeg/ffprobe (portable)
           - tesseract OCR + language data (eng/fra/iku if available)
+          - gstreamer runtime + plugins (best-effort)
           Use run-bundled.sh to launch with deps on PATH.
           EOF
 
@@ -393,11 +426,43 @@ jobs:
             }
           }
 
+          # GStreamer bundle (best-effort)
+          $gstRoot = Join-Path ${env:ProgramFiles} "GStreamer\\1.0\\msvc_x86_64"
+          try {
+            if (-not (Test-Path $gstRoot) -and (Get-Command winget -ErrorAction SilentlyContinue)) {
+              winget install --id GStreamer.GStreamer -e --accept-package-agreements --accept-source-agreements
+            }
+          } catch {
+            Write-Host "[WARN] Failed to install GStreamer via winget: $($_.Exception.Message)" -ForegroundColor Yellow
+          }
+          if (Test-Path $gstRoot) {
+            $gstBin = Join-Path $gstRoot "bin"
+            $gstLib = Join-Path $gstRoot "lib"
+            if (Test-Path $gstBin) {
+              Copy-Item -Path (Join-Path $gstBin "*.dll") -Destination $depsBin -Force -ErrorAction SilentlyContinue
+              $gstScanner = Join-Path $gstBin "gst-plugin-scanner.exe"
+              if (Test-Path $gstScanner) {
+                Copy-Item $gstScanner -Destination $depsBin -Force
+              }
+            }
+            if (Test-Path (Join-Path $gstLib "gstreamer-1.0")) {
+              $gstPluginDst = Join-Path $bundleDir.FullName "deps\\lib\\gstreamer-1.0"
+              New-Item -ItemType Directory -Force -Path $gstPluginDst | Out-Null
+              Copy-Item -Path (Join-Path $gstLib "gstreamer-1.0\\*") -Destination $gstPluginDst -Recurse -Force -ErrorAction SilentlyContinue
+            }
+            if (Test-Path (Join-Path $gstLib "gio\\modules")) {
+              $gioDst = Join-Path $bundleDir.FullName "deps\\lib\\gio\\modules"
+              New-Item -ItemType Directory -Force -Path $gioDst | Out-Null
+              Copy-Item -Path (Join-Path $gstLib "gio\\modules\\*") -Destination $gioDst -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+
           $depsNote = @"
-VideoTools bundled dependencies
-- ffmpeg/ffprobe (portable)
-- tesseract OCR + language data (eng/fra/iku if available)
-Use run-bundled.ps1 or run-bundled.bat to launch with deps on PATH.
+          VideoTools bundled dependencies
+          - ffmpeg/ffprobe (portable)
+          - tesseract OCR + language data (eng/fra/iku if available)
+          - gstreamer runtime + plugins (best-effort)
+          Use run-bundled.ps1 or run-bundled.bat to launch with deps on PATH.
 "@
           $depsNote | Out-File -FilePath (Join-Path $bundleDir.FullName "deps\\README.txt") -Encoding UTF8
 

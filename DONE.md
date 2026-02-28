@@ -22,7 +22,7 @@
 - [x] Focused language options on Canadian English/French and Inuktitut.
 
 ### Packaging
-- [x] Added bundled Windows/Linux packages with FFmpeg and Tesseract plus bundled launchers.
+- [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.
 
 ### Subtitles
 - [x] Added embedded subtitle extraction with lossless and text (SRT) modes.
@@ -1398,7 +1398,6 @@ This file tracks completed features, fixes, and milestones.
 ---
 
 *Last Updated: 2025-12-21*
-
 
 
 
