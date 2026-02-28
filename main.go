@@ -7245,6 +7245,25 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bitratePreset: state.convert.BitratePreset,
 	}
 
+	sourceAspectLabel := "Source"
+	if src != nil {
+		if aspectDesc := src.AspectRatioString(); aspectDesc != "--" {
+			sourceAspectLabel = fmt.Sprintf("Source (%s)", aspectDesc)
+		}
+	}
+	aspectLabelForValue := func(val string) string {
+		if strings.EqualFold(val, "source") || val == "" {
+			return sourceAspectLabel
+		}
+		return val
+	}
+	aspectValueForLabel := func(label string) string {
+		if label == sourceAspectLabel {
+			return "Source"
+		}
+		return label
+	}
+
 	// Debouncing helper - delays function execution until user stops typing
 	createDebouncedCallback := func(delay time.Duration, callback func(string)) func(string) {
 		var timer *time.Timer
@@ -7456,7 +7475,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 
 		for _, w := range uiState.aspectWidgets {
-			w.SetSelected(val)
+			w.SetSelected(aspectLabelForValue(val))
 		}
 
 		for _, cb := range uiState.onAspectChange {
@@ -8165,7 +8184,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	transformHint := widget.NewLabel("Apply flips and rotation to correct video orientation")
 	transformHint.Wrapping = fyne.TextWrapWord
 
-	aspectTargets := []string{"Source", "16:9", "17:9", "4:3", "5:4", "5:3", "1:1", "9:16", "21:9"}
+	aspectTargets := []string{sourceAspectLabel, "16:9", "17:9", "4:3", "5:4", "5:3", "1:1", "9:16", "21:9"}
 	var (
 		targetAspectSelect       *widget.Select
 		targetAspectSelectSimple *widget.Select
@@ -8192,12 +8211,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	// Aspect select widget - uses state manager to eliminate sync flag
 	targetAspectSelect = widget.NewSelect(aspectTargets, func(value string) {
-		setAspect(value, true)
+		setAspect(aspectValueForLabel(value), true)
 	})
 	if state.convert.OutputAspect == "" {
 		state.convert.OutputAspect = "Source"
 	}
-	targetAspectSelect.SetSelected(state.convert.OutputAspect)
+	targetAspectSelect.SetSelected(aspectLabelForValue(state.convert.OutputAspect))
 	targetAspectHint := widget.NewLabel("Pick desired output aspect (default Source).")
 	targetAspectHint.Wrapping = fyne.TextWrapWord
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
@@ -8857,12 +8876,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Simple aspect selector (separate widget) - uses state manager
 	targetAspectSelectSimple = widget.NewSelect(aspectTargets, func(value string) {
-		setAspect(value, true)
+		setAspect(aspectValueForLabel(value), true)
 	})
 	if state.convert.OutputAspect == "" {
 		state.convert.OutputAspect = "Source"
 	}
-	targetAspectSelectSimple.SetSelected(state.convert.OutputAspect)
+	targetAspectSelectSimple.SetSelected(aspectLabelForValue(state.convert.OutputAspect))
 
 	// Register updateAspectBoxVisibility callback with state manager
 	uiState.updateAspectBoxVisibility = updateAspectBoxVisibility

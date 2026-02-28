@@ -22,6 +22,7 @@
 - [x] Focused language options on Canadian English/French and Inuktitut.
 - [x] Refactored main menu flow into a dedicated module file for easier maintenance.
 - [x] Improved aspect ratio handling using display aspect ratio metadata and added a 17:9 target.
+- [x] Show the detected source aspect ratio alongside the Source aspect option.
 
 ### Packaging
 - [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.
