@@ -16,6 +16,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Use display aspect ratio metadata when available and surface a 17:9 target for non-16:9 sources (user report).
 - [X] **Aspect ratio UI clarity**
   - Show the detected source aspect ratio next to the Source aspect option.
+- [X] **Aspect ratio logging + crop hygiene**
+  - Log source/target aspect details and ignore stored crop values when auto-crop is disabled.
 - [ ] **Main.go modularization pass**
   - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization**

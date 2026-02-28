@@ -18,6 +18,7 @@
 - **Master settings** - Preferences now surface global hardware acceleration with auto-detect plus module visibility toggles.
 - **Aspect ratio handling** - Source aspect now honors display aspect ratio metadata and adds a 17:9 target option.
 - **Aspect ratio UI** - The Source aspect option now shows the detected source aspect ratio.
+- **Aspect ratio logging** - Conversion logs now include source/target aspect details and ignore stale auto-crop values when auto-crop is disabled.
 - **Main menu refactor** - Main menu builder and refresh helpers moved into a dedicated module file.
 - **Subtitle ripping** - Subtitles can be extracted from embedded tracks (lossless or OCR/SRT/ASS for text) and re-embedded without sync drift.
 - **Subtitle OCR** - Image-based DVD/BD subtitle tracks can be OCR’d with Tesseract into SRT or ASS.
