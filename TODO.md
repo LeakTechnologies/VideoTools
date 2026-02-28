@@ -14,6 +14,10 @@ This file tracks upcoming features, improvements, and known issues.
   - Scroll within tabs while keeping the Settings header visible.
 - [ ] **Main.go modularization pass**
   - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
+- [X] **Main menu modularization**
+  - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
+- [X] **Settings modularization**
+  - Settings view lives in `settings_module.go` (no main.go UI builder).
 - [X] **Subtitle OCR support**
   - Enable OCR for image-based DVD/BD subtitle tracks (VobSub/PGS) to produce SRT/ASS.
 - [X] **Subtitle OCR cleanup**

@@ -16,6 +16,7 @@
 - **Adaptive scrolling** - Settings and other long panels use adaptive scroll speed for smoother navigation across screen sizes.
 - **Settings tab scrolling** - Each Settings tab now scrolls independently so the header stays in view.
 - **Master settings** - Preferences now surface global hardware acceleration with auto-detect plus module visibility toggles.
+- **Main menu refactor** - Main menu builder and refresh helpers moved into a dedicated module file.
 - **Subtitle ripping** - Subtitles can be extracted from embedded tracks (lossless or OCR/SRT/ASS for text) and re-embedded without sync drift.
 - **Subtitle OCR** - Image-based DVD/BD subtitle tracks can be OCR’d with Tesseract into SRT or ASS.
 - **Subtitle OCR cleanup** - OCR output is normalized and consecutive duplicate cues are merged for cleaner timing.
