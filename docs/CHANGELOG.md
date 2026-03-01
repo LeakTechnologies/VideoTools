@@ -24,6 +24,7 @@
 - **Window resize stability** - Module switches no longer auto-resize the window.
 - **UI text cleanup** - Removed garbled characters from UI labels and prompts.
 - **Conversion stability** - Conversion workers now catch internal panics and surface a failure dialog instead of closing the UI.
+- **Conversion recovery notice** - The app now records active conversions and shows a notice on next launch if one was running.
 - **Main menu refactor** - Main menu builder and refresh helpers moved into a dedicated module file.
 - **Subtitle ripping** - Subtitles can be extracted from embedded tracks (lossless or OCR/SRT/ASS for text) and re-embedded without sync drift.
 - **Subtitle OCR** - Image-based DVD/BD subtitle tracks can be OCR’d with Tesseract into SRT or ASS.

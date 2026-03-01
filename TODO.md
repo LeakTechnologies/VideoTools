@@ -26,6 +26,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Avoid resizing the main window on every module switch to prevent misclicks.
 - [X] **Conversion stability**
   - Catch conversion worker panics and surface a failure dialog instead of closing the UI.
+- [X] **Conversion recovery notice**
+  - Persist the last conversion state and show a lightweight notice on next launch if it was active.
 - [ ] **Main.go modularization pass**
   - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization**
