@@ -868,6 +868,14 @@ type convertConfig struct {
 	ShowRip     bool
 }
 
+type convertRecoveryState struct {
+	Active    bool   `json:"active"`
+	StartedAt string `json:"startedAt"`
+	Input     string `json:"input"`
+	Output    string `json:"output"`
+	LogPath   string `json:"logPath"`
+}
+
 func (c convertConfig) OutputFile() string {
 	base := strings.TrimSpace(c.OutputBase)
 	if base == "" {
@@ -956,6 +964,45 @@ func defaultConvertConfigPath() string {
 		return "convert.json"
 	}
 	return filepath.Join(configDir, "VideoTools", "convert.json")
+}
+
+func convertRecoveryPath() string {
+	configDir, err := os.UserConfigDir()
+	if err != nil || configDir == "" {
+		home := os.Getenv("HOME")
+		if home != "" {
+			configDir = filepath.Join(home, ".config")
+		}
+	}
+	if configDir == "" {
+		return "convert-recovery.json"
+	}
+	return filepath.Join(configDir, "VideoTools", "convert-recovery.json")
+}
+
+func loadConvertRecovery() (convertRecoveryState, error) {
+	var state convertRecoveryState
+	path := convertRecoveryPath()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return state, err
+	}
+	if err := json.Unmarshal(data, &state); err != nil {
+		return state, err
+	}
+	return state, nil
+}
+
+func saveConvertRecovery(state convertRecoveryState) error {
+	path := convertRecoveryPath()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644)
 }
 
 // loadPersistedConvertConfig loads the saved convert configuration from disk.
@@ -6935,6 +6982,14 @@ func runGUI() {
 		hardwareAcceleration: "auto",
 		uiTheme:              "Dark",
 		autoPreview:          true,
+	}
+
+	if rec, err := loadConvertRecovery(); err == nil && rec.Active {
+		msg := fmt.Sprintf("A conversion was running when VideoTools last closed.\n\nInput: %s\nOutput: %s", rec.Input, rec.Output)
+		if strings.TrimSpace(rec.LogPath) != "" {
+			msg += fmt.Sprintf("\nLog: %s", rec.LogPath)
+		}
+		dialog.ShowInformation("Conversion Recovery", msg, w)
 	}
 
 	if cfg, err := loadPersistedConvertConfig(); err == nil {
@@ -14330,6 +14385,14 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		fmt.Fprintf(logFile, "Status: started\n\n")
 		s.convertActiveLog = logPath
 	}
+	recoveryStarted := time.Now().Format(time.RFC3339)
+	_ = saveConvertRecovery(convertRecoveryState{
+		Active:    true,
+		StartedAt: recoveryStarted,
+		Input:     src.Path,
+		Output:    outPath,
+		LogPath:   logPath,
+	})
 	_ = logPath
 	setStatus("Preparing conversion")
 	// Widget states will be updated by the UI refresh ticker
@@ -14366,6 +14429,13 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			logging.Debug(logging.CatFFMPEG, "convert stdout pipe failed: %v", err)
+			_ = saveConvertRecovery(convertRecoveryState{
+				Active:    false,
+				StartedAt: recoveryStarted,
+				Input:     src.Path,
+				Output:    outPath,
+				LogPath:   logPath,
+			})
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.showErrorWithCopy("Conversion Failed", fmt.Errorf("convert failed: %w", err))
 				s.convertBusy = false
@@ -14476,6 +14546,13 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		if err := cmd.Start(); err != nil {
 			close(progressQuit)
 			logging.Debug(logging.CatFFMPEG, "convert failed to start: %v", err)
+			_ = saveConvertRecovery(convertRecoveryState{
+				Active:    false,
+				StartedAt: recoveryStarted,
+				Input:     src.Path,
+				Output:    outPath,
+				LogPath:   logPath,
+			})
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.showErrorWithCopy("Conversion Failed", fmt.Errorf("convert failed: %w", err))
 				s.convertBusy = false
@@ -14494,6 +14571,13 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				if logFile != nil {
 					fmt.Fprintf(logFile, "\nStatus: cancelled at %s\n", time.Now().Format(time.RFC3339))
 				}
+				_ = saveConvertRecovery(convertRecoveryState{
+					Active:    false,
+					StartedAt: recoveryStarted,
+					Input:     src.Path,
+					Output:    outPath,
+					LogPath:   logPath,
+				})
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					s.convertBusy = false
 					s.convertActiveIn = ""
@@ -14510,6 +14594,13 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			if logFile != nil {
 				fmt.Fprintf(logFile, "\nStatus: failed at %s\nError: %v\nStderr:\n%s\n", time.Now().Format(time.RFC3339), err, stderrOutput)
 			}
+			_ = saveConvertRecovery(convertRecoveryState{
+				Active:    false,
+				StartedAt: recoveryStarted,
+				Input:     src.Path,
+				Output:    outPath,
+				LogPath:   logPath,
+			})
 			// Detect hardware failure and retry once in software before surfacing error
 			resolvedAccel := effectiveHardwareAccel(s.convert)
 			isHardwareFailure := strings.Contains(stderrOutput, "No capable devices found") ||
@@ -14571,11 +14662,25 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		if logFile != nil {
 			fmt.Fprintf(logFile, "\nStatus: completed OK at %s\n", time.Now().Format(time.RFC3339))
 		}
+		_ = saveConvertRecovery(convertRecoveryState{
+			Active:    false,
+			StartedAt: recoveryStarted,
+			Input:     src.Path,
+			Output:    outPath,
+			LogPath:   logPath,
+		})
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			setStatus("Validating output")
 		}, false)
 		if _, probeErr := probeVideo(outPath); probeErr != nil {
 			logging.Debug(logging.CatFFMPEG, "convert probe failed: %v", probeErr)
+			_ = saveConvertRecovery(convertRecoveryState{
+				Active:    false,
+				StartedAt: recoveryStarted,
+				Input:     src.Path,
+				Output:    outPath,
+				LogPath:   logPath,
+			})
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.showErrorWithCopy("Conversion Failed", fmt.Errorf("conversion output is invalid: %w", probeErr))
 				s.convertBusy = false

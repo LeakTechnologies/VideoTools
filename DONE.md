@@ -29,6 +29,7 @@
 - [x] Stopped auto-resizing the window on each module switch to prevent misclicks.
 - [x] Cleaned mojibake/garbled UI characters in core UI labels.
 - [x] Conversion worker panics now surface a failure dialog instead of closing the UI.
+- [x] Added a lightweight conversion recovery notice on next launch with persisted state.
 
 ### Packaging
 - [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.

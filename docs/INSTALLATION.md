@@ -71,6 +71,7 @@ Before you begin, ensure your system meets these basic requirements:
 - **Master Settings:** Preferences include global hardware acceleration detection and module visibility toggles.
 - **Subtitles:** The Subtitles module can extract embedded tracks losslessly or OCR image-based tracks to SRT/ASS (requires Tesseract). OCR language codes: `eng`, `fra`, `iku`.
 - **Conversion Stability:** Conversion workers now catch internal panics and surface a failure dialog instead of closing the UI.
+- **Recovery Notice:** If a conversion was active when the app closed, a notice appears on next launch with the last job details.
 
 ---
 
