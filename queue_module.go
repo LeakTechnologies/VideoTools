@@ -12,10 +12,10 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
-	"VideoTools/internal/logging"
-	"VideoTools/internal/queue"
-	"VideoTools/internal/ui"
-	"VideoTools/internal/utils"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 func (s *appState) showQueue() {
