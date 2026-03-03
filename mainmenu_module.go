@@ -1,4 +1,5 @@
 package main
+package main
 
 import (
 	"fmt"
@@ -7,7 +8,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/guitutils"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -18,7 +18,6 @@ func mainMenuTitle() string {
 }
 
 func (s *appState) showMainMenu() {
-	_ = guitutils.DetectGUIEnvironment() // Use GUI utilities to ensure import is used
 	s.stopPreview()
 	s.stopPlayer()
 	s.stopQueueAutoRefresh()

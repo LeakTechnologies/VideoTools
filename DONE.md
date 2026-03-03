@@ -34,6 +34,7 @@
 - [x] Modularized the missing dependencies dialog into `deps_dialog_module.go`.
 - [x] Modularized the queue view into `queue_module.go`.
 - [x] Fixed dev-packages workflow YAML parsing for bundled deps note.
+- [x] Fixed module imports for main menu and queue modules.
 
 ### Packaging
 - [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.

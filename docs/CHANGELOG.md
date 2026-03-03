@@ -30,6 +30,7 @@
 - **Dependencies dialog refactor** - Missing dependencies dialog moved into a dedicated module file.
 - **Queue view refactor** - Queue view builders and refresh logic moved into a dedicated module file.
 - **Dev packages workflow** - Fixed YAML parsing in bundled deps note generation.
+- **Module imports** - Fixed main menu and queue module imports to match module path.
 - **Subtitle ripping** - Subtitles can be extracted from embedded tracks (lossless or OCR/SRT/ASS for text) and re-embedded without sync drift.
 - **Subtitle OCR** - Image-based DVD/BD subtitle tracks can be OCR'd with Tesseract into SRT or ASS.
 - **Subtitle OCR cleanup** - OCR output is normalized and consecutive duplicate cues are merged for cleaner timing.
