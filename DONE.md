@@ -30,6 +30,7 @@
 - [x] Cleaned mojibake/garbled UI characters in core UI labels.
 - [x] Conversion worker panics now surface a failure dialog instead of closing the UI.
 - [x] Added a lightweight conversion recovery notice on next launch with persisted state.
+- [x] Modularized the About/Support dialog into `about_module.go`.
 
 ### Packaging
 - [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.

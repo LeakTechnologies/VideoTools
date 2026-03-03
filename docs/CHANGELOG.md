@@ -26,8 +26,9 @@
 - **Conversion stability** - Conversion workers now catch internal panics and surface a failure dialog instead of closing the UI.
 - **Conversion recovery notice** - The app now records active conversions and shows a notice on next launch if one was running.
 - **Main menu refactor** - Main menu builder and refresh helpers moved into a dedicated module file.
+- **About/Support refactor** - About/Support dialog moved into a dedicated module file.
 - **Subtitle ripping** - Subtitles can be extracted from embedded tracks (lossless or OCR/SRT/ASS for text) and re-embedded without sync drift.
-- **Subtitle OCR** - Image-based DVD/BD subtitle tracks can be OCR’d with Tesseract into SRT or ASS.
+- **Subtitle OCR** - Image-based DVD/BD subtitle tracks can be OCR'd with Tesseract into SRT or ASS.
 - **Subtitle OCR cleanup** - OCR output is normalized and consecutive duplicate cues are merged for cleaner timing.
 - **Language options** - Preferences now focus on Canadian English, Canadian French, and Inuktitut.
 - **Bundled packages** - Added bundled builds with FFmpeg, Tesseract, and GStreamer for Windows and Linux.
@@ -412,3 +413,5 @@ None - this is a bug-fix and enhancement release.
 ---
 
 *For detailed technical information, see the individual implementation documents in the `docs/` directory.*
+
+
