@@ -28,6 +28,7 @@
 - **Main menu refactor** - Main menu builder and refresh helpers moved into a dedicated module file.
 - **About/Support refactor** - About/Support dialog moved into a dedicated module file.
 - **Dependencies dialog refactor** - Missing dependencies dialog moved into a dedicated module file.
+- **Queue view refactor** - Queue view builders and refresh logic moved into a dedicated module file.
 - **Subtitle ripping** - Subtitles can be extracted from embedded tracks (lossless or OCR/SRT/ASS for text) and re-embedded without sync drift.
 - **Subtitle OCR** - Image-based DVD/BD subtitle tracks can be OCR'd with Tesseract into SRT or ASS.
 - **Subtitle OCR cleanup** - OCR output is normalized and consecutive duplicate cues are merged for cleaner timing.
