@@ -32,6 +32,7 @@
 - [x] Added a lightweight conversion recovery notice on next launch with persisted state.
 - [x] Modularized the About/Support dialog into `about_module.go`.
 - [x] Modularized the missing dependencies dialog into `deps_dialog_module.go`.
+- [x] Modularized the queue view into `queue_module.go`.
 
 ### Packaging
 - [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.
