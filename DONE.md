@@ -35,6 +35,7 @@
 - [x] Modularized the queue view into `queue_module.go`.
 - [x] Fixed dev-packages workflow YAML parsing for bundled deps note.
 - [x] Fixed module imports for main menu and queue modules.
+- [x] Fixed duplicate package declaration in `mainmenu_module.go`.
 
 ### Packaging
 - [x] Added bundled Windows/Linux packages with FFmpeg, Tesseract, and GStreamer plus bundled launchers.
