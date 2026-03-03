@@ -32,7 +32,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).
 - [X] **About/Support modularization** - Moved About/Support dialog into `about_module.go`.
-- [ ] **Missing dependencies dialog modularization** - Move the missing dependencies dialog into its own module file.
+- [X] **Missing dependencies dialog modularization** - Moved the missing dependencies dialog into `deps_dialog_module.go`.
 - [ ] **Queue view modularization** - Move queue view builders and refresh helpers into its own module file.
 - [X] **Subtitle OCR support**
   - Enable OCR for image-based DVD/BD subtitle tracks (VobSub/PGS) to produce SRT/ASS.
