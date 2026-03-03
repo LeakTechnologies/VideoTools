@@ -62,10 +62,12 @@ This file tracks upcoming features, improvements, and known issues.
   - Confirm publish fails loudly when asset deletion/upload is unauthorized.
   - Confirm dev release note body uses nightly build wording.
 - [ ] **Forgejo workflow validation**
-  - Confirm redundant Windows workflow removal doesn’t break release publishing.
-  - Confirm test trigger workflow removal doesn’t affect CI visibility.
+  - Confirm redundant Windows workflow removal doesn't break release publishing.
+  - Confirm test trigger workflow removal doesn't affect CI visibility.
 - [ ] **Forgejo workflow validation**
-  - Confirm redundant Linux workflow removal doesn’t break release publishing.
+  - Confirm redundant Linux workflow removal doesn't break release publishing.
+- [X] **Forgejo dev-packages workflow**
+  - Fixed YAML parsing in bundled deps note generation.
 - [ ] **Forgejo mirror validation**
   - Confirm built-in push mirror updates Codeberg successfully.
 - [ ] **Documentation naming hygiene**

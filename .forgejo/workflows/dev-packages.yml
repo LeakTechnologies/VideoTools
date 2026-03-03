@@ -503,14 +503,14 @@ jobs:
             throw "ERROR: Failed to download whisper model from $whisperModelUrl"
           }
 
-          $depsNote = @"
-          VideoTools bundled dependencies
-          - ffmpeg/ffprobe (portable)
-          - tesseract OCR + language data (eng/fra/iku if available)
-          - gstreamer runtime + plugins
-          - whisper.cpp small model (ggml-small.bin)
-          Use run-bundled.ps1 or run-bundled.bat to launch with deps on PATH.
-"@
+          $depsNote = @(
+            "VideoTools bundled dependencies",
+            "- ffmpeg/ffprobe (portable)",
+            "- tesseract OCR + language data (eng/fra/iku if available)",
+            "- gstreamer runtime + plugins",
+            "- whisper.cpp small model (ggml-small.bin)",
+            "Use run-bundled.ps1 or run-bundled.bat to launch with deps on PATH."
+          ) -join "`r`n"
           $depsNote | Out-File -FilePath (Join-Path $bundleDir.FullName "deps\\README.txt") -Encoding UTF8
 
           $bundleZip = Join-Path $distDir "$version`_windows-bundled.zip"
