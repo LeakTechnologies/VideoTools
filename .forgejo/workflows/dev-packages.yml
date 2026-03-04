@@ -94,6 +94,7 @@ jobs:
           mv "$artifact_src" "$artifact_dst"
 
       - name: Build Linux bundled package
+        if: steps.meta.outputs.channel == 'stable'
         shell: bash
         run: |
           set -euo pipefail
@@ -405,152 +406,156 @@ jobs:
           Compress-Archive -Path (Join-Path $pkgDir.FullName "*") -DestinationPath $artifactPath
           Remove-Item $pkgDir.FullName -Recurse -Force
 
-          # Bundled package (with deps)
-          $bundleDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "vt-bundle-$([Guid]::NewGuid())") -Force
-          Copy-Item $buildOutput -Destination $bundleDir.FullName -Force
-          if (Test-Path (Join-Path $projectRoot "README.md")) {
-            Copy-Item (Join-Path $projectRoot "README.md") -Destination $bundleDir.FullName -Force
-          }
-          if (Test-Path (Join-Path $projectRoot "LICENSE")) {
-            Copy-Item (Join-Path $projectRoot "LICENSE") -Destination $bundleDir.FullName -Force
-          }
-          if (Test-Path (Join-Path $projectRoot "scripts\\windows\\run-bundled.ps1")) {
-            Copy-Item (Join-Path $projectRoot "scripts\\windows\\run-bundled.ps1") -Destination $bundleDir.FullName -Force
-          }
-          if (Test-Path (Join-Path $projectRoot "scripts\\windows\\run-bundled.bat")) {
-            Copy-Item (Join-Path $projectRoot "scripts\\windows\\run-bundled.bat") -Destination $bundleDir.FullName -Force
-          }
-
-          $depsBin = Join-Path $bundleDir.FullName "deps\\bin"
-          New-Item -ItemType Directory -Force -Path $depsBin | Out-Null
-
-          # FFmpeg bundle
-          $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
-          $ffmpegZip = Join-Path $env:TEMP "ffmpeg-bundle.zip"
-          try {
-            Invoke-WebRequest -Uri $ffmpegUrl -OutFile $ffmpegZip -UseBasicParsing
-            $ffmpegTemp = Join-Path $env:TEMP "ffmpeg-bundle"
-            if (Test-Path $ffmpegTemp) { Remove-Item $ffmpegTemp -Recurse -Force }
-            Expand-Archive -Path $ffmpegZip -DestinationPath $ffmpegTemp -Force
-            $ffmpegExe = Get-ChildItem -Path $ffmpegTemp -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
-            $ffprobeExe = Get-ChildItem -Path $ffmpegTemp -Recurse -Filter "ffprobe.exe" | Select-Object -First 1
-            if ($ffmpegExe) { Copy-Item $ffmpegExe.FullName -Destination $depsBin -Force }
-            if ($ffprobeExe) { Copy-Item $ffprobeExe.FullName -Destination $depsBin -Force }
-          } catch {
-            Write-Host "[WARN] Failed to download FFmpeg bundle: $($_.Exception.Message)" -ForegroundColor Yellow
-          }
-
-          # Tesseract bundle (best-effort via Chocolatey)
-          $tessRoot = Join-Path $env:ProgramFiles "Tesseract-OCR"
-          try {
-            if (-not (Test-Path $tessRoot) -and (Get-Command choco -ErrorAction SilentlyContinue)) {
-              choco install -y tesseract --no-progress
+          if ($channel -eq "stable") {
+            # Bundled package (with deps)
+            $bundleDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "vt-bundle-$([Guid]::NewGuid())") -Force
+            Copy-Item $buildOutput -Destination $bundleDir.FullName -Force
+            if (Test-Path (Join-Path $projectRoot "README.md")) {
+              Copy-Item (Join-Path $projectRoot "README.md") -Destination $bundleDir.FullName -Force
             }
-          } catch {
-            Write-Host "[WARN] Failed to install Tesseract via Chocolatey: $($_.Exception.Message)" -ForegroundColor Yellow
-          }
-          if (Test-Path $tessRoot) {
-            $tessExe = Join-Path $tessRoot "tesseract.exe"
-            if (Test-Path $tessExe) {
-              Copy-Item $tessExe -Destination $depsBin -Force
+            if (Test-Path (Join-Path $projectRoot "LICENSE")) {
+              Copy-Item (Join-Path $projectRoot "LICENSE") -Destination $bundleDir.FullName -Force
             }
-            $tessDataSrc = Join-Path $tessRoot "tessdata"
-            $tessDataDst = Join-Path $bundleDir.FullName "deps\\tessdata"
-            if (Test-Path $tessDataSrc) {
-              New-Item -ItemType Directory -Force -Path $tessDataDst | Out-Null
-              foreach ($lang in @("eng", "fra", "iku")) {
-                $src = Join-Path $tessDataSrc "$lang.traineddata"
-                if (Test-Path $src) {
-                  Copy-Item $src -Destination $tessDataDst -Force
+            if (Test-Path (Join-Path $projectRoot "scripts\\windows\\run-bundled.ps1")) {
+              Copy-Item (Join-Path $projectRoot "scripts\\windows\\run-bundled.ps1") -Destination $bundleDir.FullName -Force
+            }
+            if (Test-Path (Join-Path $projectRoot "scripts\\windows\\run-bundled.bat")) {
+              Copy-Item (Join-Path $projectRoot "scripts\\windows\\run-bundled.bat") -Destination $bundleDir.FullName -Force
+            }
+
+            $depsBin = Join-Path $bundleDir.FullName "deps\\bin"
+            New-Item -ItemType Directory -Force -Path $depsBin | Out-Null
+
+            # FFmpeg bundle
+            $ffmpegUrl = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+            $ffmpegZip = Join-Path $env:TEMP "ffmpeg-bundle.zip"
+            try {
+              Invoke-WebRequest -Uri $ffmpegUrl -OutFile $ffmpegZip -UseBasicParsing
+              $ffmpegTemp = Join-Path $env:TEMP "ffmpeg-bundle"
+              if (Test-Path $ffmpegTemp) { Remove-Item $ffmpegTemp -Recurse -Force }
+              Expand-Archive -Path $ffmpegZip -DestinationPath $ffmpegTemp -Force
+              $ffmpegExe = Get-ChildItem -Path $ffmpegTemp -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+              $ffprobeExe = Get-ChildItem -Path $ffmpegTemp -Recurse -Filter "ffprobe.exe" | Select-Object -First 1
+              if ($ffmpegExe) { Copy-Item $ffmpegExe.FullName -Destination $depsBin -Force }
+              if ($ffprobeExe) { Copy-Item $ffprobeExe.FullName -Destination $depsBin -Force }
+            } catch {
+              Write-Host "[WARN] Failed to download FFmpeg bundle: $($_.Exception.Message)" -ForegroundColor Yellow
+            }
+
+            # Tesseract bundle (best-effort via Chocolatey)
+            $tessRoot = Join-Path $env:ProgramFiles "Tesseract-OCR"
+            try {
+              if (-not (Test-Path $tessRoot) -and (Get-Command choco -ErrorAction SilentlyContinue)) {
+                choco install -y tesseract --no-progress
+              }
+            } catch {
+              Write-Host "[WARN] Failed to install Tesseract via Chocolatey: $($_.Exception.Message)" -ForegroundColor Yellow
+            }
+            if (Test-Path $tessRoot) {
+              $tessExe = Join-Path $tessRoot "tesseract.exe"
+              if (Test-Path $tessExe) {
+                Copy-Item $tessExe -Destination $depsBin -Force
+              }
+              $tessDataSrc = Join-Path $tessRoot "tessdata"
+              $tessDataDst = Join-Path $bundleDir.FullName "deps\\tessdata"
+              if (Test-Path $tessDataSrc) {
+                New-Item -ItemType Directory -Force -Path $tessDataDst | Out-Null
+                foreach ($lang in @("eng", "fra", "iku")) {
+                  $src = Join-Path $tessDataSrc "$lang.traineddata"
+                  if (Test-Path $src) {
+                    Copy-Item $src -Destination $tessDataDst -Force
+                  }
                 }
               }
             }
-          }
-          $tessDataDst = Join-Path $bundleDir.FullName "deps\\tessdata"
-          New-Item -ItemType Directory -Force -Path $tessDataDst | Out-Null
-          foreach ($lang in @("eng", "fra", "iku")) {
-            $dst = Join-Path $tessDataDst "$lang.traineddata"
-            if (-not (Test-Path $dst)) {
-              $langUrl = "https://github.com/tesseract-ocr/tessdata_fast/raw/main/$lang.traineddata"
+            $tessDataDst = Join-Path $bundleDir.FullName "deps\\tessdata"
+            New-Item -ItemType Directory -Force -Path $tessDataDst | Out-Null
+            foreach ($lang in @("eng", "fra", "iku")) {
+              $dst = Join-Path $tessDataDst "$lang.traineddata"
+              if (-not (Test-Path $dst)) {
+                $langUrl = "https://github.com/tesseract-ocr/tessdata_fast/raw/main/$lang.traineddata"
+                try {
+                  Invoke-WebRequest -Uri $langUrl -OutFile $dst -UseBasicParsing
+                } catch {
+                  Write-Host "[WARN] Failed to download Tesseract language '$lang' from $langUrl" -ForegroundColor Yellow
+                }
+              }
+            }
+            $tessEng = Join-Path $tessDataDst "eng.traineddata"
+            $tessFra = Join-Path $tessDataDst "fra.traineddata"
+            if (-not (Test-Path $tessEng) -or -not (Test-Path $tessFra)) {
+              throw "ERROR: Missing required Tesseract language data (eng/fra) after local copy + download fallback."
+            }
+
+            # GStreamer bundle
+            $gstRoot = Join-Path ${env:ProgramFiles} "GStreamer\\1.0\\msvc_x86_64"
+            if (Test-Path $gstRoot) {
+              $gstBin = Join-Path $gstRoot "bin"
+              $gstLib = Join-Path $gstRoot "lib"
+              if (Test-Path $gstBin) {
+                Copy-Item -Path (Join-Path $gstBin "*.dll") -Destination $depsBin -Force -ErrorAction SilentlyContinue
+                $gstScanner = Join-Path $gstBin "gst-plugin-scanner.exe"
+                if (Test-Path $gstScanner) {
+                  Copy-Item $gstScanner -Destination $depsBin -Force
+                }
+              }
+              if (Test-Path (Join-Path $gstLib "gstreamer-1.0")) {
+                $gstPluginDst = Join-Path $bundleDir.FullName "deps\\lib\\gstreamer-1.0"
+                New-Item -ItemType Directory -Force -Path $gstPluginDst | Out-Null
+                Copy-Item -Path (Join-Path $gstLib "gstreamer-1.0\\*") -Destination $gstPluginDst -Recurse -Force -ErrorAction SilentlyContinue
+              }
+              if (Test-Path (Join-Path $gstLib "gio\\modules")) {
+                $gioDst = Join-Path $bundleDir.FullName "deps\\lib\\gio\\modules"
+                New-Item -ItemType Directory -Force -Path $gioDst | Out-Null
+                Copy-Item -Path (Join-Path $gstLib "gio\\modules\\*") -Destination $gioDst -Recurse -Force -ErrorAction SilentlyContinue
+              }
+            }
+            $gstScanner = Join-Path $depsBin "gst-plugin-scanner.exe"
+            $gstPlugins = Join-Path $bundleDir.FullName "deps\\lib\\gstreamer-1.0"
+            if (-not (Test-Path $gstScanner) -or -not (Test-Path $gstPlugins)) {
+              Write-Host "[WARN] GStreamer runtime/plugins missing; continuing without bundled GStreamer." -ForegroundColor Yellow
+            }
+
+            $modelsDir = Join-Path $bundleDir.FullName "models"
+            New-Item -ItemType Directory -Force -Path $modelsDir | Out-Null
+            $whisperModelPath = Join-Path $modelsDir "ggml-small.bin"
+            $whisperUrls = @(
+              "https://git.leaktechnologies.dev/lt_mirror/whisper/src/branch/master/ggml-small.bin",
+              "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+            )
+            $whisperOk = $false
+            foreach ($whisperModelUrl in $whisperUrls) {
               try {
-                Invoke-WebRequest -Uri $langUrl -OutFile $dst -UseBasicParsing
+                Invoke-WebRequest -Uri $whisperModelUrl -OutFile $whisperModelPath -UseBasicParsing
+                if ((Test-Path $whisperModelPath) -and ((Get-Item $whisperModelPath).Length -gt 0)) {
+                  $whisperOk = $true
+                  break
+                }
               } catch {
-                Write-Host "[WARN] Failed to download Tesseract language '$lang' from $langUrl" -ForegroundColor Yellow
+                Write-Host "[WARN] Failed to download whisper model from $whisperModelUrl" -ForegroundColor Yellow
               }
             }
-          }
-          $tessEng = Join-Path $tessDataDst "eng.traineddata"
-          $tessFra = Join-Path $tessDataDst "fra.traineddata"
-          if (-not (Test-Path $tessEng) -or -not (Test-Path $tessFra)) {
-            throw "ERROR: Missing required Tesseract language data (eng/fra) after local copy + download fallback."
-          }
-
-          # GStreamer bundle
-          $gstRoot = Join-Path ${env:ProgramFiles} "GStreamer\\1.0\\msvc_x86_64"
-          if (Test-Path $gstRoot) {
-            $gstBin = Join-Path $gstRoot "bin"
-            $gstLib = Join-Path $gstRoot "lib"
-            if (Test-Path $gstBin) {
-              Copy-Item -Path (Join-Path $gstBin "*.dll") -Destination $depsBin -Force -ErrorAction SilentlyContinue
-              $gstScanner = Join-Path $gstBin "gst-plugin-scanner.exe"
-              if (Test-Path $gstScanner) {
-                Copy-Item $gstScanner -Destination $depsBin -Force
-              }
+            if (-not $whisperOk) {
+              Write-Host "[WARN] Whisper model download failed from all sources; continuing without bundled model." -ForegroundColor Yellow
             }
-            if (Test-Path (Join-Path $gstLib "gstreamer-1.0")) {
-              $gstPluginDst = Join-Path $bundleDir.FullName "deps\\lib\\gstreamer-1.0"
-              New-Item -ItemType Directory -Force -Path $gstPluginDst | Out-Null
-              Copy-Item -Path (Join-Path $gstLib "gstreamer-1.0\\*") -Destination $gstPluginDst -Recurse -Force -ErrorAction SilentlyContinue
-            }
-            if (Test-Path (Join-Path $gstLib "gio\\modules")) {
-              $gioDst = Join-Path $bundleDir.FullName "deps\\lib\\gio\\modules"
-              New-Item -ItemType Directory -Force -Path $gioDst | Out-Null
-              Copy-Item -Path (Join-Path $gstLib "gio\\modules\\*") -Destination $gioDst -Recurse -Force -ErrorAction SilentlyContinue
-            }
-          }
-          $gstScanner = Join-Path $depsBin "gst-plugin-scanner.exe"
-          $gstPlugins = Join-Path $bundleDir.FullName "deps\\lib\\gstreamer-1.0"
-          if (-not (Test-Path $gstScanner) -or -not (Test-Path $gstPlugins)) {
-            Write-Host "[WARN] GStreamer runtime/plugins missing; continuing without bundled GStreamer." -ForegroundColor Yellow
-          }
 
-          $modelsDir = Join-Path $bundleDir.FullName "models"
-          New-Item -ItemType Directory -Force -Path $modelsDir | Out-Null
-          $whisperModelPath = Join-Path $modelsDir "ggml-small.bin"
-          $whisperUrls = @(
-            "https://git.leaktechnologies.dev/lt_mirror/whisper/src/branch/master/ggml-small.bin",
-            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
-          )
-          $whisperOk = $false
-          foreach ($whisperModelUrl in $whisperUrls) {
-            try {
-              Invoke-WebRequest -Uri $whisperModelUrl -OutFile $whisperModelPath -UseBasicParsing
-              if ((Test-Path $whisperModelPath) -and ((Get-Item $whisperModelPath).Length -gt 0)) {
-                $whisperOk = $true
-                break
-              }
-            } catch {
-              Write-Host "[WARN] Failed to download whisper model from $whisperModelUrl" -ForegroundColor Yellow
-            }
-          }
-          if (-not $whisperOk) {
-            Write-Host "[WARN] Whisper model download failed from all sources; continuing without bundled model." -ForegroundColor Yellow
-          }
+            $depsNote = @(
+              "VideoTools bundled dependencies",
+              "- ffmpeg/ffprobe (portable)",
+              "- tesseract OCR + language data (eng/fra/iku if available)",
+              "- gstreamer runtime + plugins (optional, bundled only when present on builder)",
+              "- whisper.cpp small model (optional, bundled when download succeeds)",
+              "Use run-bundled.ps1 or run-bundled.bat to launch with deps on PATH."
+            ) -join "`r`n"
+            $depsNote | Out-File -FilePath (Join-Path $bundleDir.FullName "deps\\README.txt") -Encoding UTF8
 
-          $depsNote = @(
-            "VideoTools bundled dependencies",
-            "- ffmpeg/ffprobe (portable)",
-            "- tesseract OCR + language data (eng/fra/iku if available)",
-            "- gstreamer runtime + plugins (optional, bundled only when present on builder)",
-            "- whisper.cpp small model (optional, bundled when download succeeds)",
-            "Use run-bundled.ps1 or run-bundled.bat to launch with deps on PATH."
-          ) -join "`r`n"
-          $depsNote | Out-File -FilePath (Join-Path $bundleDir.FullName "deps\\README.txt") -Encoding UTF8
-
-          $bundleZip = Join-Path $distDir "$version`_windows-bundled.zip"
-          if (Test-Path $bundleZip) { Remove-Item $bundleZip -Force }
-          Compress-Archive -Path (Join-Path $bundleDir.FullName "*") -DestinationPath $bundleZip
-          Remove-Item $bundleDir.FullName -Recurse -Force
+            $bundleZip = Join-Path $distDir "$version`_windows-bundled.zip"
+            if (Test-Path $bundleZip) { Remove-Item $bundleZip -Force }
+            Compress-Archive -Path (Join-Path $bundleDir.FullName "*") -DestinationPath $bundleZip
+            Remove-Item $bundleDir.FullName -Recurse -Force
+          } else {
+            Write-Host "[INFO] Dev channel detected; skipping bundled Windows package generation." -ForegroundColor Yellow
+          }
 
           Write-Host "[INFO] MSIX packaging skipped for host runner mode" -ForegroundColor Yellow
 
