@@ -916,6 +916,12 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	})
 	showRip.SetChecked(state.convert.ShowRip)
 
+	showBluRay := widget.NewCheck("Show Blu-ray module", func(checked bool) {
+		state.convert.ShowBluRay = checked
+		state.persistConvertConfig()
+	})
+	showBluRay.SetChecked(state.convert.ShowBluRay)
+
 	visibilityHint := widget.NewLabel("Module visibility applies on the main menu.")
 	visibilityHint.TextStyle = fyne.TextStyle{Italic: true}
 	visibilityHint.Wrapping = fyne.TextWrapWord
@@ -924,6 +930,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 		showUpscale,
 		showAuthor,
 		showRip,
+		showBluRay,
 		visibilityHint,
 	))
 

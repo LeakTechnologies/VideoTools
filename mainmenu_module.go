@@ -46,6 +46,10 @@ func (s *appState) showMainMenu() {
 			if !s.convert.ShowRip {
 				continue
 			}
+		case "bluray":
+			if !s.convert.ShowBluRay {
+				continue
+			}
 		}
 		hasHandler := m.Handle != nil
 		depsAvailable := isModuleAvailable(m.ID)

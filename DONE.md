@@ -17,6 +17,7 @@
 - [x] Fixed main menu tile layout to a stable 3-column grid without expanding the window beyond screen bounds.
 - [x] Fixed Forgejo release asset purge logic to reliably delete old assets before upload.
 - [x] Fixed Forgejo release asset delete endpoint path to avoid 404 during publish.
+- [x] Added a Blu-ray module visibility toggle in Preferences and wired it to main menu filtering.
 - [x] Bumped app version metadata to v0.1.1-dev29 (main.go, VERSION, FyneApp.toml).
 
 ## Version 0.1.1-dev28 (2026-02-21) - Windows First-Run Dependency Bootstrap

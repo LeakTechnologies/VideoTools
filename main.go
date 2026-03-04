@@ -748,6 +748,7 @@ type convertConfig struct {
 	ShowUpscale bool
 	ShowAuthor  bool
 	ShowRip     bool
+	ShowBluRay  bool
 }
 
 type convertRecoveryState struct {
@@ -830,6 +831,7 @@ func defaultConvertConfig() convertConfig {
 		ShowUpscale:      true,
 		ShowAuthor:       true,
 		ShowRip:          true,
+		ShowBluRay:       true,
 	}
 }
 
@@ -911,6 +913,9 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 	}
 	if _, ok := raw["ShowRip"]; !ok {
 		cfg.ShowRip = true
+	}
+	if _, ok := raw["ShowBluRay"]; !ok {
+		cfg.ShowBluRay = true
 	}
 	if cfg.OutputAspect == "" || strings.EqualFold(cfg.OutputAspect, "Source") {
 		cfg.OutputAspect = "Source"
