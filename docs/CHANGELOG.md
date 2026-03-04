@@ -15,6 +15,7 @@
 - **Dev packaging policy** - Dev channel builds now skip bundled package generation to keep nightly/pre-release runs stable.
 - **Bundled artifact retirement** - Dev-packages workflow now publishes standard VT packages only (no bundled artifacts).
 - **Main menu layout fix** - Module tiles now use wrapping bounds to prevent over-wide window expansion.
+- **Release asset cleanup fix** - Publish workflow now reliably removes old assets before uploading new artifacts.
 
 ## v0.1.1-dev28 (February 2026)
 
