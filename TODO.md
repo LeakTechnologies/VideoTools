@@ -46,6 +46,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Removed bundled package generation from Linux/Windows dev-packages workflow.
 - [X] **Main menu width containment**
   - Replaced incorrect adaptive-grid usage with wrapping tile layout to prevent oversized windows.
+- [X] **Main menu row alignment**
+  - Set module sections to a stable 3-column grid for consistent row structure.
 - [X] **Release asset replacement**
   - Fixed purge + name-based asset deletion in publish workflow to prevent release zip accumulation.
 - [X] **Publish delete endpoint fix**
