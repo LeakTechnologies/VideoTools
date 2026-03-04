@@ -44,6 +44,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Skip bundled package generation on dev channel; keep bundled artifacts for stable channel only.
 - [X] **Bundled artifact retirement**
   - Removed bundled package generation from Linux/Windows dev-packages workflow.
+- [X] **Main menu width containment**
+  - Replaced incorrect adaptive-grid usage with wrapping tile layout to prevent oversized windows.
 - [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).

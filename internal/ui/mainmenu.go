@@ -117,13 +117,18 @@ func BuildMainMenu(titleText string, modules []ModuleInfo, onModuleClick func(st
 		return label
 	}
 
-	const tileMinWidth = 180
+	const (
+		tileWidth  = 180
+		tileHeight = 52
+	)
 	buildGrid := func(ids ...string) fyne.CanvasObject {
 		tiles := make([]fyne.CanvasObject, 0, len(ids))
 		for _, id := range ids {
 			tiles = append(tiles, buildTile(id))
 		}
-		return container.New(layout.NewAdaptiveGridLayout(tileMinWidth), tiles...)
+		// Use a wrap layout with fixed tile bounds so the menu adapts to viewport width
+		// without inflating the window to multi-monitor sizes.
+		return container.NewGridWrap(fyne.NewSize(tileWidth, tileHeight), tiles...)
 	}
 
 	// Build rows with category labels above tiles
