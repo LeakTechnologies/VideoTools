@@ -16,6 +16,7 @@
 - **Bundled artifact retirement** - Dev-packages workflow now publishes standard VT packages only (no bundled artifacts).
 - **Main menu layout fix** - Module tiles now use wrapping bounds to prevent over-wide window expansion.
 - **Release asset cleanup fix** - Publish workflow now reliably removes old assets before uploading new artifacts.
+- **Publish endpoint fix** - Corrected Forgejo asset delete endpoint to avoid 404 failures during release publish.
 
 ## v0.1.1-dev28 (February 2026)
 
