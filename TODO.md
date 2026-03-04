@@ -1,4 +1,4 @@
-# VideoTools TODO (v0.1.1-dev27+ plan)
+# VideoTools TODO (v0.1.1-dev29+ plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
@@ -413,3 +413,4 @@ This file tracks upcoming features, improvements, and known issues.
 - **Go implementation preferred**: Maintains single codebase, excellent testing ecosystem
 - **Open-source focus**: No commercial dependencies, community-driven model ecosystem
 - **Modular design**: Each enhancement system can be developed and tested independently
+
