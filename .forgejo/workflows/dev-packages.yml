@@ -307,10 +307,12 @@ jobs:
         run: |
           $projectRoot = Resolve-Path "."
           $buildOutput = Join-Path $projectRoot "VideoTools.exe"
-          $gccPath = (Get-Command gcc -ErrorAction SilentlyContinue).Source
-          if ($gccPath) {
-            $env:CC = $gccPath
-            $env:CXX = $gccPath -replace "gcc\.exe$", "g++.exe"
+          # cgo splits CC on spaces; use command names instead of absolute paths
+          # so "C:\Program Files\..." paths do not get truncated to "C:\Program".
+          $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
+          if ($gccCmd) {
+            $env:CC = "gcc"
+            $env:CXX = "g++"
           }
           $appVersionLine = (Get-Content (Join-Path $projectRoot "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
           $appVersion = ""
