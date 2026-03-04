@@ -6,6 +6,7 @@
 - **Workflow parsing** - Fixed Windows dev-packages YAML parsing for bundled dependency notes.
 - **Go module imports** - Fixed module import paths in refactored files so vendor mode builds resolve internal packages.
 - **Main menu compile fix** - Removed duplicate package declaration in main menu module file.
+- **Convert compile fix** - Removed a duplicated aspect/scale block and restored custom-aspect declarations before use.
 
 ## v0.1.1-dev28 (February 2026)
 

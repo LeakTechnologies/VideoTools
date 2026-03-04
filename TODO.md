@@ -28,6 +28,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Catch conversion worker panics and surface a failure dialog instead of closing the UI.
 - [X] **Conversion recovery notice**
   - Persist the last conversion state and show a lightweight notice on next launch if it was active.
+- [X] **Convert compile regressions**
+  - Fixed duplicate aspect/scale block and late custom-aspect declarations in `main.go`.
 - [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).
