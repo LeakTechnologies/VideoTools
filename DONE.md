@@ -1,5 +1,10 @@
 # VideoTools - Completed Features
 
+## Version 0.1.1-dev30 (2026-03-04) - Development Cycle Kickoff
+
+### Maintenance
+- [x] Bumped app version metadata to v0.1.1-dev30 (main.go, VERSION, FyneApp.toml).
+
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 
 ### Build/CI
