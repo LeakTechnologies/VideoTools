@@ -14,6 +14,7 @@
 - [x] Added Linux `zip` dependency in CI build deps to prevent bundled zip step failures.
 - [x] Disabled bundled package generation for dev channel builds to stabilize nightly/pre-release pipelines.
 - [x] Removed bundled package generation from Linux/Windows dev-packages workflow; VT now publishes the standard package only.
+- [x] Fixed main menu tile layout to wrap correctly without expanding the window beyond screen bounds.
 - [x] Bumped app version metadata to v0.1.1-dev29 (main.go, VERSION, FyneApp.toml).
 
 ## Version 0.1.1-dev28 (2026-02-21) - Windows First-Run Dependency Bootstrap
