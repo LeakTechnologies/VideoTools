@@ -36,6 +36,10 @@ This file tracks upcoming features, improvements, and known issues.
   - Download missing `eng/fra/iku` traineddata during bundled packaging before enforcing required checks.
 - [X] **GStreamer CI packaging policy**
   - Treat GStreamer as optional in bundled artifacts and do not fail packaging when absent.
+- [X] **Whisper model packaging resilience**
+  - Added multi-source fallback download and continue-on-failure behavior in bundled packaging.
+- [X] **Linux bundled zip tooling**
+  - Added `zip` to Linux workflow dependency install list.
 - [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).

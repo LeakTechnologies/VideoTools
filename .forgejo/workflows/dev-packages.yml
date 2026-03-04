@@ -57,6 +57,7 @@ jobs:
             libasound2-dev \
             libgstreamer1.0-dev \
             libgstreamer-plugins-base1.0-dev \
+            zip \
             ffmpeg \
             tesseract-ocr \
             tesseract-ocr-eng \
@@ -166,14 +167,27 @@ jobs:
           done
 
           mkdir -p "$bundle_dir/models"
-          whisper_model_url="https://git.leaktechnologies.dev/lt_mirror/whisper/src/branch/master/ggml-small.bin"
-          if command -v curl >/dev/null 2>&1; then
-            curl -L --progress-bar -o "$bundle_dir/models/ggml-small.bin" "$whisper_model_url"
-          elif command -v wget >/dev/null 2>&1; then
-            wget --quiet --show-progress --progress=bar:force -O "$bundle_dir/models/ggml-small.bin" "$whisper_model_url"
-          else
-            echo "ERROR: curl or wget required to download whisper model."
-            exit 1
+          whisper_model_path="$bundle_dir/models/ggml-small.bin"
+          whisper_urls=(
+            "https://git.leaktechnologies.dev/lt_mirror/whisper/src/branch/master/ggml-small.bin"
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+          )
+          whisper_ok=false
+          for whisper_url in "${whisper_urls[@]}"; do
+            if command -v curl >/dev/null 2>&1; then
+              if curl -L --fail --progress-bar -o "$whisper_model_path" "$whisper_url"; then
+                whisper_ok=true
+                break
+              fi
+            elif command -v wget >/dev/null 2>&1; then
+              if wget --quiet --show-progress --progress=bar:force -O "$whisper_model_path" "$whisper_url"; then
+                whisper_ok=true
+                break
+              fi
+            fi
+          done
+          if [ "$whisper_ok" != "true" ]; then
+            echo "WARN: Failed to download whisper model from all sources; continuing without bundled model."
           fi
 
           if [ ! -f "$bundle_dir/deps/bin/gst-plugin-scanner" ]; then
@@ -192,7 +206,7 @@ jobs:
           - ffmpeg/ffprobe (portable)
           - tesseract OCR + language data (eng/fra required, iku optional)
           - gstreamer runtime + plugins (optional, bundled only when present on builder)
-          - whisper.cpp small model (ggml-small.bin)
+          - whisper.cpp small model (optional, bundled when download succeeds)
           Use run-bundled.sh to launch with deps on PATH.
           EOF
 
@@ -502,12 +516,25 @@ jobs:
 
           $modelsDir = Join-Path $bundleDir.FullName "models"
           New-Item -ItemType Directory -Force -Path $modelsDir | Out-Null
-          $whisperModelUrl = "https://git.leaktechnologies.dev/lt_mirror/whisper/src/branch/master/ggml-small.bin"
           $whisperModelPath = Join-Path $modelsDir "ggml-small.bin"
-          try {
-            Invoke-WebRequest -Uri $whisperModelUrl -OutFile $whisperModelPath -UseBasicParsing
-          } catch {
-            throw "ERROR: Failed to download whisper model from $whisperModelUrl"
+          $whisperUrls = @(
+            "https://git.leaktechnologies.dev/lt_mirror/whisper/src/branch/master/ggml-small.bin",
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+          )
+          $whisperOk = $false
+          foreach ($whisperModelUrl in $whisperUrls) {
+            try {
+              Invoke-WebRequest -Uri $whisperModelUrl -OutFile $whisperModelPath -UseBasicParsing
+              if ((Test-Path $whisperModelPath) -and ((Get-Item $whisperModelPath).Length -gt 0)) {
+                $whisperOk = $true
+                break
+              }
+            } catch {
+              Write-Host "[WARN] Failed to download whisper model from $whisperModelUrl" -ForegroundColor Yellow
+            }
+          }
+          if (-not $whisperOk) {
+            Write-Host "[WARN] Whisper model download failed from all sources; continuing without bundled model." -ForegroundColor Yellow
           }
 
           $depsNote = @(
@@ -515,7 +542,7 @@ jobs:
             "- ffmpeg/ffprobe (portable)",
             "- tesseract OCR + language data (eng/fra/iku if available)",
             "- gstreamer runtime + plugins (optional, bundled only when present on builder)",
-            "- whisper.cpp small model (ggml-small.bin)",
+            "- whisper.cpp small model (optional, bundled when download succeeds)",
             "Use run-bundled.ps1 or run-bundled.bat to launch with deps on PATH."
           ) -join "`r`n"
           $depsNote | Out-File -FilePath (Join-Path $bundleDir.FullName "deps\\README.txt") -Encoding UTF8
