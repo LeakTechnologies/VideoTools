@@ -6,6 +6,7 @@
 - [x] Fixed dev-packages.yml YAML parsing in the Windows bundled dependency note block.
 - [x] Fixed module import paths after queue/main menu modularization so vendored builds compile correctly.
 - [x] Fixed duplicate package main declaration in mainmenu_module.go that broke Windows packaging.
+- [x] Fixed convert/aspect compile regressions from duplicate scaling block and late custom-aspect declarations.
 - [x] Bumped app version metadata to v0.1.1-dev29 (main.go, VERSION, FyneApp.toml).
 
 ## Version 0.1.1-dev28 (2026-02-21) - Windows First-Run Dependency Bootstrap

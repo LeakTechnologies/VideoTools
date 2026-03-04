@@ -4386,6 +4386,10 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		outputAspect, _ := cfg["outputAspect"].(string)
 		aspectHandling, _ := cfg["aspectHandling"].(string)
 		displayAspectRatio, _ := cfg["displayAspectRatio"].(string)
+		forceAspect := true
+		if v, ok := cfg["forceAspect"].(bool); ok {
+			forceAspect = v
+		}
 
 		tempSrc := &videoSource{
 			Width:              sourceWidth,
@@ -4452,40 +4456,6 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			}
 		}
 
-targetAspect := resolveTargetAspect(outputAspect, tempSrc)
-		useAspectScaling := false
-		if targetAspect > 0 && srcAspect > 0 && !utils.RatiosApproxEqual(targetAspect, srcAspect, 0.01) {
-			vf = append(vf, aspectFiltersWithTarget(targetAspect, aspectHandling, srcAspect, targetW, targetH)...)
-			if targetW > 0 && targetH > 0 {
-				useAspectScaling = true
-			}
-		}
-
-		// Apply scaling if aspect conversion did not already handle it.
-		if !useAspectScaling && targetResolution != "" && targetResolution != "Source" {
-			var scaleFilter string
-			switch targetResolution {
-			case "360p":
-				scaleFilter = "scale=-2:360"
-			case "480p":
-				scaleFilter = "scale=-2:480"
-			case "540p":
-				scaleFilter = "scale=-2:540"
-			case "720p":
-				scaleFilter = "scale=-2:720"
-			case "1080p":
-				scaleFilter = "scale=-2:1080"
-			case "1440p":
-				scaleFilter = "scale=-2:1440"
-			case "4K":
-				scaleFilter = "scale=-2:2160"
-			case "8K":
-				scaleFilter = "scale=-2:4320"
-			}
-			if scaleFilter != "" {
-				vf = append(vf, scaleFilter)
-			}
-		}
 		if forceAspect && targetAspect > 0 {
 			if len(vf) == 0 {
 				vf = append(vf, fmt.Sprintf("setdar=%.6f", targetAspect), "setsar=1")
@@ -6922,6 +6892,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			sourceAspectLabel = fmt.Sprintf("Source (%s)", aspectDesc)
 		}
 	}
+	customAspectLabel := "Custom..."
+	isStandardAspect := func(val string) bool {
+		switch strings.TrimSpace(strings.ToLower(val)) {
+		case "16:9", "4:3", "1:1", "9:16", "21:9":
+			return true
+		default:
+			return false
+		}
+	}
+	customAspectActive := false
+	customAspectValue := ""
+	var updateCustomAspectUI func()
 	aspectLabelForValue := func(val string) string {
 		if strings.EqualFold(val, "source") || val == "" {
 			return sourceAspectLabel
@@ -7156,7 +7138,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			customAspectActive = true
 			customAspectValue = val
 		}
-		updateCustomAspectUI()
+		if updateCustomAspectUI != nil {
+			updateCustomAspectUI()
+		}
 
 		for _, w := range uiState.aspectWidgets {
 			w.SetSelected(aspectLabelForValue(val))
@@ -7868,15 +7852,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	transformHint := widget.NewLabel("Apply flips and rotation to correct video orientation")
 	transformHint.Wrapping = fyne.TextWrapWord
 
-	customAspectLabel := "Custom..."
-	isStandardAspect := func(val string) bool {
-		switch strings.TrimSpace(strings.ToLower(val)) {
-		case "16:9", "4:3", "1:1", "9:16", "21:9":
-			return true
-		default:
-			return false
-		}
-	}
 	aspectTargets := []string{sourceAspectLabel, "16:9", "4:3", "1:1", "9:16", "21:9", customAspectLabel}
 	var (
 		targetAspectSelect       *widget.Select
@@ -7902,8 +7877,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		forceAspectChecks = append(forceAspectChecks, check)
 		return check
 	}
-	customAspectActive := false
-	customAspectValue := ""
 	if val := strings.TrimSpace(state.convert.OutputAspect); val != "" &&
 		!strings.EqualFold(val, "source") &&
 		!isStandardAspect(val) {
@@ -7913,7 +7886,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var customAspectEntries []*widget.Entry
 	var customAspectBoxes []*fyne.Container
 	var customAspectHintLabels []*widget.Label
-	updateCustomAspectUI := func() {
+	updateCustomAspectUI = func() {
 		show := customAspectActive
 		for _, entry := range customAspectEntries {
 			if entry.Text != customAspectValue {
