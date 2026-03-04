@@ -453,10 +453,22 @@ jobs:
             }
           }
           $tessDataDst = Join-Path $bundleDir.FullName "deps\\tessdata"
+          New-Item -ItemType Directory -Force -Path $tessDataDst | Out-Null
+          foreach ($lang in @("eng", "fra", "iku")) {
+            $dst = Join-Path $tessDataDst "$lang.traineddata"
+            if (-not (Test-Path $dst)) {
+              $langUrl = "https://github.com/tesseract-ocr/tessdata_fast/raw/main/$lang.traineddata"
+              try {
+                Invoke-WebRequest -Uri $langUrl -OutFile $dst -UseBasicParsing
+              } catch {
+                Write-Host "[WARN] Failed to download Tesseract language '$lang' from $langUrl" -ForegroundColor Yellow
+              }
+            }
+          }
           $tessEng = Join-Path $tessDataDst "eng.traineddata"
           $tessFra = Join-Path $tessDataDst "fra.traineddata"
           if (-not (Test-Path $tessEng) -or -not (Test-Path $tessFra)) {
-            throw "ERROR: Missing required Tesseract language data (eng/fra). Install the language packs before bundling."
+            throw "ERROR: Missing required Tesseract language data (eng/fra) after local copy + download fallback."
           }
 
           # GStreamer bundle
