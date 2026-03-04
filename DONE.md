@@ -13,6 +13,7 @@
 - [x] Added resilient whisper model download fallbacks and made missing model non-fatal for bundled packaging.
 - [x] Added Linux `zip` dependency in CI build deps to prevent bundled zip step failures.
 - [x] Disabled bundled package generation for dev channel builds to stabilize nightly/pre-release pipelines.
+- [x] Removed bundled package generation from Linux/Windows dev-packages workflow; VT now publishes the standard package only.
 - [x] Bumped app version metadata to v0.1.1-dev29 (main.go, VERSION, FyneApp.toml).
 
 ## Version 0.1.1-dev28 (2026-02-21) - Windows First-Run Dependency Bootstrap

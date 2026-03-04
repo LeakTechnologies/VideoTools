@@ -75,12 +75,9 @@ Before you begin, ensure your system meets these basic requirements:
 
 ---
 
-## Bundled vs Standard Downloads
+## Downloads
 
-- **Standard package:** App only (dependencies installed via Settings or scripts).
-- **Bundled package:** App + FFmpeg + Tesseract (with `eng`/`fra` required, `iku` optional) + GStreamer + whisper.cpp small model (`ggml-small.bin`). Use the bundled launcher to run with bundled dependencies:
-  - Linux: `run-bundled.sh`
-  - Windows: `run-bundled.ps1` or `run-bundled.bat`
+- **VT package:** App package only. Use Settings > Dependencies or platform install scripts to install optional runtime tools.
 
 ---
 

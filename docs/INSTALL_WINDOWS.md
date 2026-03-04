@@ -88,7 +88,7 @@ After the installer runs, a Start Menu folder named "VideoTools" is created. It 
     - If FFmpeg is missing on first launch, VideoTools will offer an in-app install to `%LOCALAPPDATA%\VideoTools\bin`.
     - The same app-local FFmpeg install action is available in Settings > Dependencies.
 
-> **Bundled package:** Includes FFmpeg, Tesseract (eng/fra required, iku optional), GStreamer, and the whisper.cpp small model (`ggml-small.bin`). Launch with `run-bundled.ps1` (or `run-bundled.bat`) so the bundled dependencies are used.
+> **Package format:** Windows releases ship as the main VT package. Install runtime dependencies from Settings > Dependencies or via `scripts\windows\support\setup-windows.ps1`.
 
 > **Note:** `scripts\windows\build.bat` and `scripts\windows\build.ps1` will prompt for elevation to ensure build tools are available.
 The build script pauses for a keypress on success or failure so you can review the output before the window closes.
@@ -126,7 +126,7 @@ To completely remove VideoTools from your system:
 
 - `-Force` - Skip confirmation prompts
 - `-RemoveAll` - Remove ALL components including shared dependencies
-- `-RemoveFFmpeg` - Remove bundled FFmpeg binaries (not system-wide FFmpeg)
+- `-RemoveFFmpeg` - Remove app-local FFmpeg binaries (not system-wide FFmpeg)
 - `-KeepBuildTools` - Preserve Chocolatey-installed build tools
 - `-WhatIf` - Show what would be removed without actually removing
 
@@ -139,7 +139,7 @@ To completely remove VideoTools from your system:
 # Force uninstall without prompts
 .\scripts\windows\uninstall.bat -Force
 
-# Remove everything including bundled FFmpeg
+# Remove everything including app-local FFmpeg
 .\scripts\windows\windows\uninstall.bat -RemoveAll -RemoveFFmpeg
 
 # Preview what would be removed
