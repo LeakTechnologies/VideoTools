@@ -32,6 +32,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Fixed duplicate aspect/scale block and late custom-aspect declarations in `main.go`.
 - [X] **Windows import regression**
   - Removed stale `go-qrcode` import in `main.go` after About module extraction.
+- [X] **Windows Tesseract packaging fallback**
+  - Download missing `eng/fra/iku` traineddata during bundled packaging before enforcing required checks.
 - [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).
