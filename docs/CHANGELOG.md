@@ -1,5 +1,10 @@
 # VideoTools Changelog
 
+## v0.1.1-dev30 (March 2026)
+
+### Maintenance
+- **Version bump** - Started the dev30 cycle and updated project version markers.
+
 ## v0.1.1-dev29 (March 2026)
 
 ### Build/CI
