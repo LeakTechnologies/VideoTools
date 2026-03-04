@@ -100,6 +100,10 @@ jobs:
           version_base="${{ steps.meta.outputs.version_base }}"
           dist_dir="dist/linux/${channel}"
           bundle_dir="$(mktemp -d)"
+          strict_bundle=false
+          if [ "$channel" = "stable" ]; then
+            strict_bundle=true
+          fi
 
           cp VideoTools "$bundle_dir/VideoTools"
           if [ -f README.md ]; then cp README.md "$bundle_dir/"; fi
@@ -117,6 +121,9 @@ jobs:
 
           gst_bin_paths=(
             "/usr/bin/gst-plugin-scanner"
+            "/usr/lib/x86_64-linux-gnu/gstreamer1.0/gst-plugin-scanner"
+            "/usr/lib64/gstreamer-1.0/gst-plugin-scanner"
+            "/usr/lib/gstreamer-1.0/gst-plugin-scanner"
           )
           for path in "${gst_bin_paths[@]}"; do
             if [ -f "$path" ]; then
@@ -175,12 +182,18 @@ jobs:
           fi
 
           if [ ! -f "$bundle_dir/deps/bin/gst-plugin-scanner" ]; then
-            echo "ERROR: GStreamer plugin scanner missing; bundled build requires GStreamer."
-            exit 1
+            if [ "$strict_bundle" = "true" ]; then
+              echo "ERROR: GStreamer plugin scanner missing; bundled build requires GStreamer."
+              exit 1
+            fi
+            echo "WARN: GStreamer plugin scanner missing; continuing without bundled scanner."
           fi
           if [ ! -d "$bundle_dir/deps/lib/gstreamer-1.0" ]; then
-            echo "ERROR: GStreamer plugins missing; bundled build requires GStreamer."
-            exit 1
+            if [ "$strict_bundle" = "true" ]; then
+              echo "ERROR: GStreamer plugins missing; bundled build requires GStreamer."
+              exit 1
+            fi
+            echo "WARN: GStreamer plugins missing; continuing without bundled GStreamer plugins."
           fi
           if [ ! -f "$bundle_dir/deps/tessdata/eng.traineddata" ] || [ ! -f "$bundle_dir/deps/tessdata/fra.traineddata" ]; then
             echo "ERROR: Tesseract language data (eng/fra) missing; bundled build requires them."
@@ -503,8 +516,12 @@ jobs:
           }
           $gstScanner = Join-Path $depsBin "gst-plugin-scanner.exe"
           $gstPlugins = Join-Path $bundleDir.FullName "deps\\lib\\gstreamer-1.0"
+          $strictBundle = $channel -eq "stable"
           if (-not (Test-Path $gstScanner) -or -not (Test-Path $gstPlugins)) {
-            throw "ERROR: GStreamer runtime/plugins missing. Install GStreamer 1.0 (msvc_x86_64) before bundling."
+            if ($strictBundle) {
+              throw "ERROR: GStreamer runtime/plugins missing. Install GStreamer 1.0 (msvc_x86_64) before bundling."
+            }
+            Write-Host "[WARN] GStreamer runtime/plugins missing; continuing without bundled GStreamer." -ForegroundColor Yellow
           }
 
           $modelsDir = Join-Path $bundleDir.FullName "models"

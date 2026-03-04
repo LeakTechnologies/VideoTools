@@ -9,6 +9,7 @@
 - **Convert compile fix** - Removed a duplicated aspect/scale block and restored custom-aspect declarations before use.
 - **Windows compile fix** - Removed stale `go-qrcode` import from `main.go`.
 - **Windows packaging fallback** - Added Tesseract language-data download fallback for `eng/fra/iku` in bundled builds.
+- **GStreamer packaging policy** - Dev channel bundled builds warn-and-continue when GStreamer is unavailable; stable remains strict.
 
 ## v0.1.1-dev28 (February 2026)
 
