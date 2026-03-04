@@ -10,6 +10,8 @@
 - **Windows compile fix** - Removed stale `go-qrcode` import from `main.go`.
 - **Windows packaging fallback** - Added Tesseract language-data download fallback for `eng/fra/iku` in bundled builds.
 - **GStreamer packaging policy** - Bundled builds treat GStreamer as optional and continue when it is unavailable.
+- **Whisper packaging resilience** - Bundled workflows now try multiple whisper model sources and continue if download fails.
+- **Linux bundled zip fix** - Added `zip` to Linux CI build dependencies for bundled artifact creation.
 
 ## v0.1.1-dev28 (February 2026)
 

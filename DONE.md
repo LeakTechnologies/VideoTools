@@ -10,6 +10,8 @@
 - [x] Removed stale `go-qrcode` import from `main.go` after About module extraction.
 - [x] Added Windows packaging fallback to download missing Tesseract `eng/fra/iku` language data.
 - [x] Switched bundled packaging to treat GStreamer as optional on both Windows and Linux (no hard fail).
+- [x] Added resilient whisper model download fallbacks and made missing model non-fatal for bundled packaging.
+- [x] Added Linux `zip` dependency in CI build deps to prevent bundled zip step failures.
 - [x] Bumped app version metadata to v0.1.1-dev29 (main.go, VERSION, FyneApp.toml).
 
 ## Version 0.1.1-dev28 (2026-02-21) - Windows First-Run Dependency Bootstrap
