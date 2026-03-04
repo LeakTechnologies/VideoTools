@@ -1,5 +1,12 @@
 # VideoTools Changelog
 
+## v0.1.1-dev29 (March 2026)
+
+### Build/CI
+- **Workflow parsing** - Fixed Windows dev-packages YAML parsing for bundled dependency notes.
+- **Go module imports** - Fixed module import paths in refactored files so vendor mode builds resolve internal packages.
+- **Main menu compile fix** - Removed duplicate package declaration in main menu module file.
+
 ## v0.1.1-dev28 (February 2026)
 
 ### Windows
@@ -418,5 +425,6 @@ None - this is a bug-fix and enhancement release.
 ---
 
 *For detailed technical information, see the individual implementation documents in the `docs/` directory.*
+
 
 
