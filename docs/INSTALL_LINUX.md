@@ -52,7 +52,7 @@ The Subtitles module can extract embedded tracks losslessly or OCR image-based t
 Conversion workers now catch internal panics and surface a failure dialog instead of closing the UI.
 If a conversion was active when the app closed, a recovery notice appears on next launch.
 
-> **Bundled package:** Includes FFmpeg, Tesseract (eng/fra required, iku optional), GStreamer, and the whisper.cpp small model (`ggml-small.bin`). Launch with `run-bundled.sh` so the bundled dependencies are used.
+> **Package format:** Linux releases ship as the main VT package. Install runtime dependencies from Settings > Dependencies or via `scripts/linux/install.sh`.
 
 ---
 
