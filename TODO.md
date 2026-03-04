@@ -30,6 +30,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Persist the last conversion state and show a lightweight notice on next launch if it was active.
 - [X] **Convert compile regressions**
   - Fixed duplicate aspect/scale block and late custom-aspect declarations in `main.go`.
+- [X] **Windows import regression**
+  - Removed stale `go-qrcode` import in `main.go` after About module extraction.
 - [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).

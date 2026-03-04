@@ -50,7 +50,6 @@ import (
 	guitutils "git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 
 	"github.com/ebitengine/oto/v3"
-	"github.com/skip2/go-qrcode"
 )
 
 func init() {
