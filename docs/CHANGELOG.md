@@ -12,6 +12,7 @@
 - **GStreamer packaging policy** - Bundled builds treat GStreamer as optional and continue when it is unavailable.
 - **Whisper packaging resilience** - Bundled workflows now try multiple whisper model sources and continue if download fails.
 - **Linux bundled zip fix** - Added `zip` to Linux CI build dependencies for bundled artifact creation.
+- **Dev packaging policy** - Dev channel builds now skip bundled package generation to keep nightly/pre-release runs stable.
 
 ## v0.1.1-dev28 (February 2026)
 
