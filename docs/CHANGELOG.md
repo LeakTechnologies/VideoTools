@@ -19,6 +19,7 @@
 - **Release asset cleanup fix** - Publish workflow now reliably removes old assets before uploading new artifacts.
 - **Publish endpoint fix** - Corrected Forgejo asset delete endpoint to avoid 404 failures during release publish.
 - **Module visibility** - Added a Blu-ray visibility toggle in Preferences and main menu filtering.
+- **Benchmark behavior** - Applying benchmark recommendations now updates hardware acceleration only and leaves codec/preset untouched.
 
 ## v0.1.1-dev28 (February 2026)
 

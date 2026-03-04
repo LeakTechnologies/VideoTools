@@ -2266,8 +2266,8 @@ func (s *appState) showBenchmark() {
 				rec,
 				lastRun.HardwareInfo,
 				func() {
-					// Apply recommended settings
-					s.applyBenchmarkRecommendation(lastRun.RecommendedEncoder, lastRun.RecommendedPreset)
+					// Apply recommended hardware acceleration only
+					s.applyBenchmarkRecommendation(lastRun.RecommendedEncoder)
 					s.showMainMenu()
 				},
 				func() {
@@ -2421,8 +2421,8 @@ func (s *appState) runNewBenchmark() {
 					rec,
 					hwInfo,
 					func() {
-						// Apply recommended settings
-						s.applyBenchmarkRecommendation(encoder, preset)
+						// Apply recommended hardware acceleration only
+						s.applyBenchmarkRecommendation(encoder)
 						s.showMainMenu()
 					},
 					func() {
@@ -2570,8 +2570,8 @@ func (s *appState) saveBenchmarkRun(results []benchmark.Result, encoder, preset 
 	return nil
 }
 
-func (s *appState) applyBenchmarkRecommendation(encoder, preset string) {
-	logging.Debug(logging.CatSystem, "applied benchmark recommendation: encoder=%s preset=%s", encoder, preset)
+func (s *appState) applyBenchmarkRecommendation(encoder string) {
+	logging.Debug(logging.CatSystem, "applying benchmark hardware recommendation from encoder=%s", encoder)
 
 	// Map encoder to hardware acceleration setting only; do not touch codec/preset.
 	hwAccel := s.convert.HardwareAccel
@@ -2589,8 +2589,8 @@ func (s *appState) applyBenchmarkRecommendation(encoder, preset string) {
 	s.convert.HardwareAccel = hwAccel
 	s.persistConvertConfig()
 
-	// Minimal notice without confirmation loops.
-	logging.Info(logging.CatSystem, "benchmark applied hardware acceleration: %s", hwAccel)
+	// Intentionally do not modify codec or preset; benchmark only drives hardware path.
+	logging.Info(logging.CatSystem, "benchmark applied hardware acceleration: %s (codec/preset unchanged)", hwAccel)
 }
 
 func (s *appState) showBenchmarkHistory() {
@@ -2649,8 +2649,8 @@ func (s *appState) showBenchmarkHistory() {
 				rec,
 				run.HardwareInfo,
 				func() {
-					// Apply this recommendation
-					s.applyBenchmarkRecommendation(run.RecommendedEncoder, run.RecommendedPreset)
+					// Apply recommended hardware acceleration only
+					s.applyBenchmarkRecommendation(run.RecommendedEncoder)
 					s.showBenchmarkHistory()
 				},
 				func() {
