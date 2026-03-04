@@ -393,7 +393,8 @@ jobs:
             if [ -z "${assets_json}" ]; then
               return
             fi
-            echo "${assets_json}" | jq -r '.[].id' | while read -r asset_id; do
+            mapfile -t asset_ids < <(echo "${assets_json}" | jq -r '.[].id')
+            for asset_id in "${asset_ids[@]}"; do
               if [ -n "${asset_id}" ] && [ "${asset_id}" != "null" ]; then
                 echo "Removing existing asset id=${asset_id}..."
                 if ! curl -fsS -X DELETE -H "Authorization: token ${FORGEJO_TOKEN}" \
@@ -409,6 +410,19 @@ jobs:
             fi
           }
 
+          delete_asset_by_name() {
+            local target_name="$1"
+            local assets_json asset_id
+            assets_json=$(curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" \
+              "${api_url}/repos/${repo}/releases/${release_id}/assets")
+            asset_id=$(echo "${assets_json}" | jq -r --arg n "${target_name}" '.[] | select(.name == $n) | .id' | head -n1)
+            if [ -n "${asset_id}" ] && [ "${asset_id}" != "null" ]; then
+              echo "Removing existing asset name=${target_name} id=${asset_id}..."
+              curl -fsS -X DELETE -H "Authorization: token ${FORGEJO_TOKEN}" \
+                "${api_url}/repos/${repo}/releases/assets/${asset_id}" >/dev/null
+            fi
+          }
+
           echo "Purging existing release assets..."
           purge_release_assets
 
@@ -418,6 +432,7 @@ jobs:
               if [ -f "${file}" ]; then
                 name=$(basename "${file}")
                 echo "Uploading ${name}..."
+                delete_asset_by_name "${name}"
                 curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" \
                   -H "Content-Type: application/octet-stream" \
                   --data-binary @"${file}" \
@@ -431,6 +446,7 @@ jobs:
               if [ -f "${file}" ]; then
                 name=$(basename "${file}")
                 echo "Uploading ${name}..."
+                delete_asset_by_name "${name}"
                 curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" \
                   -H "Content-Type: application/octet-stream" \
                   --data-binary @"${file}" \
