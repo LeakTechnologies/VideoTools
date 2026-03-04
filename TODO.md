@@ -34,8 +34,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Removed stale `go-qrcode` import in `main.go` after About module extraction.
 - [X] **Windows Tesseract packaging fallback**
   - Download missing `eng/fra/iku` traineddata during bundled packaging before enforcing required checks.
-- [X] **GStreamer CI packaging resilience**
-  - Warn and continue for dev builds when GStreamer scanner/plugins are unavailable; keep stable builds strict.
+- [X] **GStreamer CI packaging policy**
+  - Treat GStreamer as optional in bundled artifacts and do not fail packaging when absent.
 - [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).

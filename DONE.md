@@ -9,7 +9,7 @@
 - [x] Fixed convert/aspect compile regressions from duplicate scaling block and late custom-aspect declarations.
 - [x] Removed stale `go-qrcode` import from `main.go` after About module extraction.
 - [x] Added Windows packaging fallback to download missing Tesseract `eng/fra/iku` language data.
-- [x] Made GStreamer bundling non-fatal for dev channel builds while keeping stable channel strict.
+- [x] Switched bundled packaging to treat GStreamer as optional on both Windows and Linux (no hard fail).
 - [x] Bumped app version metadata to v0.1.1-dev29 (main.go, VERSION, FyneApp.toml).
 
 ## Version 0.1.1-dev28 (2026-02-21) - Windows First-Run Dependency Bootstrap

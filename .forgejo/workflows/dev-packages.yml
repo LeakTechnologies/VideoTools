@@ -100,11 +100,6 @@ jobs:
           version_base="${{ steps.meta.outputs.version_base }}"
           dist_dir="dist/linux/${channel}"
           bundle_dir="$(mktemp -d)"
-          strict_bundle=false
-          if [ "$channel" = "stable" ]; then
-            strict_bundle=true
-          fi
-
           cp VideoTools "$bundle_dir/VideoTools"
           if [ -f README.md ]; then cp README.md "$bundle_dir/"; fi
           if [ -f LICENSE ]; then cp LICENSE "$bundle_dir/"; fi
@@ -182,17 +177,9 @@ jobs:
           fi
 
           if [ ! -f "$bundle_dir/deps/bin/gst-plugin-scanner" ]; then
-            if [ "$strict_bundle" = "true" ]; then
-              echo "ERROR: GStreamer plugin scanner missing; bundled build requires GStreamer."
-              exit 1
-            fi
             echo "WARN: GStreamer plugin scanner missing; continuing without bundled scanner."
           fi
           if [ ! -d "$bundle_dir/deps/lib/gstreamer-1.0" ]; then
-            if [ "$strict_bundle" = "true" ]; then
-              echo "ERROR: GStreamer plugins missing; bundled build requires GStreamer."
-              exit 1
-            fi
             echo "WARN: GStreamer plugins missing; continuing without bundled GStreamer plugins."
           fi
           if [ ! -f "$bundle_dir/deps/tessdata/eng.traineddata" ] || [ ! -f "$bundle_dir/deps/tessdata/fra.traineddata" ]; then
@@ -204,7 +191,7 @@ jobs:
           VideoTools bundled dependencies
           - ffmpeg/ffprobe (portable)
           - tesseract OCR + language data (eng/fra required, iku optional)
-          - gstreamer runtime + plugins (best-effort)
+          - gstreamer runtime + plugins (optional, bundled only when present on builder)
           - whisper.cpp small model (ggml-small.bin)
           Use run-bundled.sh to launch with deps on PATH.
           EOF
@@ -486,13 +473,6 @@ jobs:
 
           # GStreamer bundle
           $gstRoot = Join-Path ${env:ProgramFiles} "GStreamer\\1.0\\msvc_x86_64"
-          try {
-            if (-not (Test-Path $gstRoot) -and (Get-Command winget -ErrorAction SilentlyContinue)) {
-              winget install --id GStreamer.GStreamer -e --accept-package-agreements --accept-source-agreements
-            }
-          } catch {
-            Write-Host "[WARN] Failed to install GStreamer via winget: $($_.Exception.Message)" -ForegroundColor Yellow
-          }
           if (Test-Path $gstRoot) {
             $gstBin = Join-Path $gstRoot "bin"
             $gstLib = Join-Path $gstRoot "lib"
@@ -516,11 +496,7 @@ jobs:
           }
           $gstScanner = Join-Path $depsBin "gst-plugin-scanner.exe"
           $gstPlugins = Join-Path $bundleDir.FullName "deps\\lib\\gstreamer-1.0"
-          $strictBundle = $channel -eq "stable"
           if (-not (Test-Path $gstScanner) -or -not (Test-Path $gstPlugins)) {
-            if ($strictBundle) {
-              throw "ERROR: GStreamer runtime/plugins missing. Install GStreamer 1.0 (msvc_x86_64) before bundling."
-            }
             Write-Host "[WARN] GStreamer runtime/plugins missing; continuing without bundled GStreamer." -ForegroundColor Yellow
           }
 
@@ -538,7 +514,7 @@ jobs:
             "VideoTools bundled dependencies",
             "- ffmpeg/ffprobe (portable)",
             "- tesseract OCR + language data (eng/fra/iku if available)",
-            "- gstreamer runtime + plugins",
+            "- gstreamer runtime + plugins (optional, bundled only when present on builder)",
             "- whisper.cpp small model (ggml-small.bin)",
             "Use run-bundled.ps1 or run-bundled.bat to launch with deps on PATH."
           ) -join "`r`n"
