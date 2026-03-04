@@ -398,7 +398,7 @@ jobs:
               if [ -n "${asset_id}" ] && [ "${asset_id}" != "null" ]; then
                 echo "Removing existing asset id=${asset_id}..."
                 if ! curl -fsS -X DELETE -H "Authorization: token ${FORGEJO_TOKEN}" \
-                  "${api_url}/repos/${repo}/releases/assets/${asset_id}" >/dev/null; then
+                  "${api_url}/repos/${repo}/releases/${release_id}/assets/${asset_id}" >/dev/null; then
                   echo "Failed to delete asset id=${asset_id}."
                   delete_error=1
                 fi
@@ -419,7 +419,7 @@ jobs:
             if [ -n "${asset_id}" ] && [ "${asset_id}" != "null" ]; then
               echo "Removing existing asset name=${target_name} id=${asset_id}..."
               curl -fsS -X DELETE -H "Authorization: token ${FORGEJO_TOKEN}" \
-                "${api_url}/repos/${repo}/releases/assets/${asset_id}" >/dev/null
+                "${api_url}/repos/${repo}/releases/${release_id}/assets/${asset_id}" >/dev/null
             fi
           }
 

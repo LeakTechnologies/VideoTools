@@ -48,6 +48,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Replaced incorrect adaptive-grid usage with wrapping tile layout to prevent oversized windows.
 - [X] **Release asset replacement**
   - Fixed purge + name-based asset deletion in publish workflow to prevent release zip accumulation.
+- [X] **Publish delete endpoint fix**
+  - Updated Forgejo asset delete endpoint path to stop 404 failures in publish job.
 - [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).
