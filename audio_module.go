@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -35,67 +34,21 @@ type audioTrackInfo struct {
 	Default    bool
 }
 
-// audioConfig stores persistent audio extraction settings
-type audioConfig struct {
-	OutputFormat   string  `json:"outputFormat"`
-	Quality        string  `json:"quality"`
-	Bitrate        string  `json:"bitrate"`
-	Normalize      bool    `json:"normalize"`
-	NormTargetLUFS float64 `json:"normTargetLUFS"`
-	NormTruePeak   float64 `json:"normTruePeak"`
-	OutputDir      string  `json:"outputDir"`
-}
+type audioConfig = modulecfg.AudioConfig
 
 // defaultAudioConfig returns default audio extraction settings
 func defaultAudioConfig() audioConfig {
-	return audioConfig{
-		OutputFormat:   "MP3",
-		Quality:        "Medium",
-		Bitrate:        "192k",
-		Normalize:      false,
-		NormTargetLUFS: -23.0,
-		NormTruePeak:   -1.0,
-		OutputDir:      "",
-	}
-}
-
-// audioConfigPath returns the path to the audio config file
-func audioConfigPath() string {
-	configDir, err := os.UserConfigDir()
-	if err != nil || configDir == "" {
-		home := os.Getenv("HOME")
-		if home != "" {
-			configDir = filepath.Join(home, ".config")
-		}
-	}
-	return filepath.Join(configDir, "VideoTools", "audio.json")
+	return modulecfg.DefaultAudioConfig()
 }
 
 // loadAudioConfig loads the persisted audio configuration
 func loadAudioConfig() (audioConfig, error) {
-	var cfg audioConfig
-	path := audioConfigPath()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return defaultAudioConfig(), err
-	}
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return defaultAudioConfig(), err
-	}
-	return cfg, nil
+	return modulecfg.LoadAudioConfig()
 }
 
 // saveAudioConfig saves the audio configuration to disk
 func saveAudioConfig(cfg audioConfig) error {
-	path := audioConfigPath()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
+	return modulecfg.SaveAudioConfig(cfg)
 }
 
 func buildAudioView(state *appState) fyne.CanvasObject {
