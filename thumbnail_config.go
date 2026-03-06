@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
@@ -32,7 +33,7 @@ func defaultThumbnailConfig() thumbnailConfig {
 
 func loadPersistedThumbnailConfig() (thumbnailConfig, error) {
 	var cfg thumbnailConfig
-	path := moduleConfigPath("thumbnail")
+	path := configpath.ModuleConfigPath("thumbnail")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return cfg, err
@@ -59,7 +60,7 @@ func loadPersistedThumbnailConfig() (thumbnailConfig, error) {
 }
 
 func savePersistedThumbnailConfig(cfg thumbnailConfig) error {
-	path := moduleConfigPath("thumbnail")
+	path := configpath.ModuleConfigPath("thumbnail")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

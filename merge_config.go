@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
@@ -34,7 +35,7 @@ func defaultMergeConfig() mergeConfig {
 
 func loadPersistedMergeConfig() (mergeConfig, error) {
 	var cfg mergeConfig
-	path := moduleConfigPath("merge")
+	path := configpath.ModuleConfigPath("merge")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return cfg, err
@@ -58,7 +59,7 @@ func loadPersistedMergeConfig() (mergeConfig, error) {
 }
 
 func savePersistedMergeConfig(cfg mergeConfig) error {
-	path := moduleConfigPath("merge")
+	path := configpath.ModuleConfigPath("merge")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

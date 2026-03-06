@@ -36,6 +36,7 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
@@ -3627,7 +3628,7 @@ func (s *appState) showMergeView() {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), s.window)
 			return
 		}
-		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", moduleConfigPath("merge")), s.window)
+		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("merge")), s.window)
 	})
 
 	resetBtn := widget.NewButton("Reset", func() {
