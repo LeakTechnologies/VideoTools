@@ -3,12 +3,10 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -19,6 +17,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -31,42 +30,18 @@ const (
 	ripFormatH264MP4     = "H.264 MP4 (CRF 18)"
 )
 
-type ripConfig struct {
-	Format string `json:"format"`
-}
+type ripConfig = modulecfg.RipConfig
 
 func defaultRipConfig() ripConfig {
-	return ripConfig{
-		Format: ripFormatLosslessMKV,
-	}
+	return modulecfg.DefaultRipConfig()
 }
 
 func loadPersistedRipConfig() (ripConfig, error) {
-	var cfg ripConfig
-	path := configpath.ModuleConfigPath("rip")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return cfg, err
-	}
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return cfg, err
-	}
-	if cfg.Format == "" {
-		cfg.Format = ripFormatLosslessMKV
-	}
-	return cfg, nil
+	return modulecfg.LoadRipConfig()
 }
 
 func savePersistedRipConfig(cfg ripConfig) error {
-	path := configpath.ModuleConfigPath("rip")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
+	return modulecfg.SaveRipConfig(cfg)
 }
 
 func (s *appState) applyRipConfig(cfg ripConfig) {

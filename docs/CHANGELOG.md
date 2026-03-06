@@ -12,6 +12,7 @@
 - **Refactor phase 2 start** - Moved shared module config path logic to `internal/app/configpath` and rewired module config save/load call sites.
 - **Refactor phase 2 continuation** - Moved merge/thumbnail config persistence logic into `internal/app/modulecfg` with compatibility wrappers to keep behavior unchanged.
 - **Refactor phase 2 continuation** - Moved naming metadata/output-base helper logic into `internal/app/naming` with wrappers to preserve existing behavior.
+- **Refactor phase 2 continuation** - Moved rip/subtitles config persistence logic into `internal/app/modulecfg` with compatibility wrappers to keep runtime behavior stable.
 
 ## v0.1.1-dev29 (March 2026)
 
