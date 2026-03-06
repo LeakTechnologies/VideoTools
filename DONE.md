@@ -11,6 +11,7 @@
 - [x] Added a phased dev30 refactor plan (`docs/REFACTOR_DEV30_PLAN.md`) to guide gradual package/entrypoint cleanup.
 - [x] Started Phase 2 refactor by moving module config path logic into `internal/app/configpath` and updating all module callers.
 - [x] Continued Phase 2 refactor by moving merge/thumbnail config persistence into `internal/app/modulecfg` while keeping stable `package main` wrappers.
+- [x] Continued Phase 2 refactor by moving naming metadata/output-base helper logic into `internal/app/naming` with compatibility wrappers.
 
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 
