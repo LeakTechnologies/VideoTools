@@ -122,6 +122,17 @@ Examples:
 
 Public releases use the base version only (for example `v0.1.6`), while dev builds keep increasing `-devN` across cycles.
 
+## Public Version Bump Policy
+
+We do not bump public version by dev-count depth alone. We bump when release gates are satisfied.
+
+Minimum gate to move from `v0.1.1-devN` to `v0.1.2`:
+- Windows and Linux package workflows are green on the release candidate commit.
+- Full module smoke test pass using `docs/TESTING_MODULE_CHECKLIST.md`.
+- No known P0/P1 regressions in conversion stability, queue reliability, or subtitle sync handling.
+- Changelog section is complete and matches release scope.
+- Deferred items are documented in `TODO.md` with explicit carry-over to the next cycle.
+
 ## Technical Debt and Architecture
 
 ### Player Module Critical Issues Identified
