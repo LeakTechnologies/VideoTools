@@ -20,6 +20,7 @@
 - **Refactor phase 2 continuation** - Moved convert config JSON load/save plumbing into shared `internal/app/appcfg` store helpers while preserving convert normalization behavior.
 - **Refactor phase 2 continuation** - Moved convert config normalization rules into `internal/app/appcfg` and kept `main.go` wrappers minimal.
 - **CI build fix** - Restored missing `path/filepath` import in `audio_module.go` to resolve Forgejo Linux/Windows packaging compile failures.
+- **CI build fix** - Restored missing `path/filepath` import in `rip_module.go` to resolve Forgejo Linux/Windows packaging compile failures.
 
 ## v0.1.1-dev29 (March 2026)
 

@@ -74,6 +74,7 @@ This file tracks upcoming features, improvements, and known issues.
   - [x] Phase 2i: Moved convert config JSON load/save plumbing to shared `internal/app/appcfg` store helpers while keeping convert normalization logic in `main.go`.
   - [x] Phase 2j: Moved convert config normalization rules into `internal/app/appcfg` and kept `main.go` as a thin wrapper.
   - [x] CI fix: Restored missing `path/filepath` import in `audio_module.go` after refactor to fix Linux/Windows package build failures.
+  - [x] CI fix: Restored missing `path/filepath` import in `rip_module.go` after refactor to fix Linux/Windows package build failures.
   - Phase 2: Introduce `internal/app/` boundaries and move low-risk helper files from root.
   - Phase 3: Move module builders into `internal/app/modules/` with compatibility shims if needed.
   - Phase 4: Move primary app entrypoint toward `cmd/videotools/` once app package is stable.
