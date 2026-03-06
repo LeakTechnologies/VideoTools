@@ -17,6 +17,7 @@
 - [x] Continued Phase 2 refactor by moving audio config persistence into `internal/app/modulecfg` with compatibility wrappers.
 - [x] Continued Phase 2 refactor by replacing duplicated config-path helpers in `main.go` with shared `internal/app/configpath` lookups.
 - [x] Continued Phase 2 refactor by moving recovery/benchmark/history config persistence into `internal/app/appcfg` with aliases/wrappers in `main.go`.
+- [x] Continued Phase 2 refactor by moving convert config JSON load/save plumbing into shared `internal/app/appcfg` store helpers.
 
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 

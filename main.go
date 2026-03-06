@@ -843,15 +843,12 @@ func saveConvertRecovery(state convertRecoveryState) error {
 // loadPersistedConvertConfig loads the saved convert configuration from disk.
 func loadPersistedConvertConfig() (convertConfig, error) {
 	var cfg convertConfig
-	path := configpath.ModuleConfigPath("convert")
-	data, err := os.ReadFile(path)
+	raw, err := appcfg.LoadModuleJSON("convert", &cfg)
 	if err != nil {
 		return cfg, err
 	}
-	var raw map[string]json.RawMessage
-	_ = json.Unmarshal(data, &raw)
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return cfg, err
+	if raw == nil {
+		raw = map[string]json.RawMessage{}
 	}
 	if _, ok := raw["ForceAspect"]; !ok {
 		cfg.ForceAspect = true
@@ -890,15 +887,7 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 
 // savePersistedConvertConfig writes the convert configuration to disk.
 func savePersistedConvertConfig(cfg convertConfig) error {
-	path := configpath.ModuleConfigPath("convert")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
+	return appcfg.SaveModuleJSON("convert", cfg)
 }
 
 // benchmarkRun represents a single benchmark test run
