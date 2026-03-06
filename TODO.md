@@ -62,6 +62,10 @@ This file tracks upcoming features, improvements, and known issues.
   - Added a full module-by-module release checklist in `docs/TESTING_MODULE_CHECKLIST.md`.
 - [X] **Root structure hygiene pass**
   - Removed root-level scratch artifacts, moved QR demo entry to `cmd/qr_about_demo/`, and documented root cleanliness rules in `AGENTS.md`.
+- [ ] **Dev30 phased refactor (build-safe)**
+  - Phase 2: Introduce `internal/app/` boundaries and move low-risk helper files from root.
+  - Phase 3: Move module builders into `internal/app/modules/` with compatibility shims if needed.
+  - Phase 4: Move primary app entrypoint toward `cmd/videotools/` once app package is stable.
 - [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).
