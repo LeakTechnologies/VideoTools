@@ -16,6 +16,7 @@
 - **Refactor phase 2 continuation** - Moved author config persistence logic into `internal/app/modulecfg` with compatibility wrappers to keep runtime behavior stable.
 - **Refactor phase 2 continuation** - Moved audio config persistence logic into `internal/app/modulecfg` with compatibility wrappers to keep runtime behavior stable.
 - **Refactor phase 2 continuation** - Replaced duplicated `main.go` config-path helper functions with shared `internal/app/configpath` lookups for convert/recovery/benchmark/history.
+- **Refactor phase 2 continuation** - Moved recovery/benchmark/history persistence logic into `internal/app/appcfg` with type aliases and wrapper functions in `main.go`.
 
 ## v0.1.1-dev29 (March 2026)
 

@@ -36,6 +36,7 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
@@ -752,13 +753,7 @@ type convertConfig struct {
 	ShowBluRay  bool
 }
 
-type convertRecoveryState struct {
-	Active    bool   `json:"active"`
-	StartedAt string `json:"startedAt"`
-	Input     string `json:"input"`
-	Output    string `json:"output"`
-	LogPath   string `json:"logPath"`
-}
+type convertRecoveryState = appcfg.ConvertRecoveryState
 
 func (c convertConfig) OutputFile() string {
 	base := strings.TrimSpace(c.OutputBase)
@@ -838,28 +833,11 @@ func defaultConvertConfig() convertConfig {
 
 // defaultConvertConfigPath returns the path to the persisted convert config.
 func loadConvertRecovery() (convertRecoveryState, error) {
-	var state convertRecoveryState
-	path := configpath.ModuleConfigPath("convert-recovery")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return state, err
-	}
-	if err := json.Unmarshal(data, &state); err != nil {
-		return state, err
-	}
-	return state, nil
+	return appcfg.LoadConvertRecovery()
 }
 
 func saveConvertRecovery(state convertRecoveryState) error {
-	path := configpath.ModuleConfigPath("convert-recovery")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
+	return appcfg.SaveConvertRecovery(state)
 }
 
 // loadPersistedConvertConfig loads the saved convert configuration from disk.
@@ -924,81 +902,28 @@ func savePersistedConvertConfig(cfg convertConfig) error {
 }
 
 // benchmarkRun represents a single benchmark test run
-type benchmarkRun struct {
-	Timestamp          time.Time            `json:"timestamp"`
-	Results            []benchmark.Result   `json:"results"`
-	RecommendedEncoder string               `json:"recommended_encoder"`
-	RecommendedPreset  string               `json:"recommended_preset"`
-	RecommendedHWAccel string               `json:"recommended_hwaccel"`
-	RecommendedFPS     float64              `json:"recommended_fps"`
-	HardwareInfo       sysinfo.HardwareInfo `json:"hardware_info"`
-}
+type benchmarkRun = appcfg.BenchmarkRun
 
 // benchmarkConfig holds benchmark history
-type benchmarkConfig struct {
-	History []benchmarkRun `json:"history"`
-}
+type benchmarkConfig = appcfg.BenchmarkConfig
 
 func loadBenchmarkConfig() (benchmarkConfig, error) {
-	path := configpath.ModuleConfigPath("benchmark")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return benchmarkConfig{}, err
-	}
-	var cfg benchmarkConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return benchmarkConfig{}, err
-	}
-	return cfg, nil
+	return appcfg.LoadBenchmarkConfig()
 }
 
 func saveBenchmarkConfig(cfg benchmarkConfig) error {
-	path := configpath.ModuleConfigPath("benchmark")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
+	return appcfg.SaveBenchmarkConfig(cfg)
 }
 
 // historyConfig holds conversion history
-type historyConfig struct {
-	Entries []ui.HistoryEntry `json:"entries"`
-}
+type historyConfig = appcfg.HistoryConfig
 
 func loadHistoryConfig() (historyConfig, error) {
-	path := configpath.ModuleConfigPath("history")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return historyConfig{Entries: []ui.HistoryEntry{}}, nil
-		}
-		return historyConfig{}, err
-	}
-	var cfg historyConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return historyConfig{}, err
-	}
-	return cfg, nil
+	return appcfg.LoadHistoryConfig()
 }
 
 func saveHistoryConfig(cfg historyConfig) error {
-	// Limit to 20 most recent entries
-	if len(cfg.Entries) > 20 {
-		cfg.Entries = cfg.Entries[:20]
-	}
-	path := configpath.ModuleConfigPath("history")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
+	return appcfg.SaveHistoryConfig(cfg)
 }
 
 type appState struct {
