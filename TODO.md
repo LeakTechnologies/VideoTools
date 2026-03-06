@@ -58,6 +58,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Benchmark apply path now changes hardware acceleration only (not codec or preset).
 - [X] **Versioning docs clarity**
   - Documented continuous global `-devN` numbering and public release base-version behavior.
+- [X] **Module testing coverage checklist**
+  - Added a full module-by-module release checklist in `docs/TESTING_MODULE_CHECKLIST.md`.
 - [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).
