@@ -13,6 +13,7 @@
 - [x] Continued Phase 2 refactor by moving merge/thumbnail config persistence into `internal/app/modulecfg` while keeping stable `package main` wrappers.
 - [x] Continued Phase 2 refactor by moving naming metadata/output-base helper logic into `internal/app/naming` with compatibility wrappers.
 - [x] Continued Phase 2 refactor by moving rip/subtitles config persistence into `internal/app/modulecfg` with compatibility wrappers.
+- [x] Continued Phase 2 refactor by moving author config persistence into `internal/app/modulecfg` with compatibility wrappers.
 
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 
