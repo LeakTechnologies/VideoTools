@@ -52,6 +52,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Fixed purge + name-based asset deletion in publish workflow to prevent release zip accumulation.
 - [X] **Publish delete endpoint fix**
   - Updated Forgejo asset delete endpoint path to stop 404 failures in publish job.
+- [X] **Release tag targeting**
+  - Forgejo release publish now sources version from `VERSION` first and updates only the matching tag release metadata.
 - [X] **Blu-ray visibility toggle**
   - Added `Show Blu-ray module` preference and tied it to main menu module visibility.
 - [X] **Benchmark scope clarity**

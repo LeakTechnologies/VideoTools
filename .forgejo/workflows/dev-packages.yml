@@ -25,7 +25,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version_base="$(grep -m1 'appVersion' main.go | sed -E 's/.*"([^"]+)".*/\1/')"
+          version_base=""
+          if [ -f "VERSION" ]; then
+            version_base="$(tr -d '\r\n' < VERSION)"
+          fi
+          if [ -z "$version_base" ]; then
+            version_base="$(grep -m1 'appVersion' main.go | sed -E 's/.*"([^"]+)".*/\1/')"
+          fi
           if [ -z "$version_base" ]; then
             version_base="v0.1.1-dev"
           fi
@@ -119,12 +125,17 @@ jobs:
             Write-Error "GITHUB_OUTPUT is not set; cannot emit workflow outputs."
             exit 1
           }
-          $appVersionLine = (Get-Content "main.go" | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
           $versionBase = ""
-          if ($appVersionLine) {
-            $parts = $appVersionLine -split ([char]34)
-            if ($parts.Length -ge 2) {
-              $versionBase = $parts[1]
+          if (Test-Path "VERSION") {
+            $versionBase = (Get-Content "VERSION" -Raw).Trim()
+          }
+          if ([string]::IsNullOrWhiteSpace($versionBase)) {
+            $appVersionLine = (Get-Content "main.go" | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
+            if ($appVersionLine) {
+              $parts = $appVersionLine -split ([char]34)
+              if ($parts.Length -ge 2) {
+                $versionBase = $parts[1]
+              }
             }
           }
           if ([string]::IsNullOrWhiteSpace($versionBase)) {
@@ -206,16 +217,22 @@ jobs:
             $env:CC = "gcc"
             $env:CXX = "g++"
           }
-          $appVersionLine = (Get-Content (Join-Path $projectRoot "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
           $appVersion = ""
-          if ($appVersionLine) {
-            $parts = $appVersionLine -split ([char]34)
-            if ($parts.Length -ge 2) {
-              $appVersion = $parts[1]
+          $versionFile = Join-Path $projectRoot "VERSION"
+          if (Test-Path $versionFile) {
+            $appVersion = (Get-Content $versionFile -Raw).Trim()
+          }
+          if ([string]::IsNullOrWhiteSpace($appVersion)) {
+            $appVersionLine = (Get-Content (Join-Path $projectRoot "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
+            if ($appVersionLine) {
+              $parts = $appVersionLine -split ([char]34)
+              if ($parts.Length -ge 2) {
+                $appVersion = $parts[1]
+              }
             }
           }
           if ([string]::IsNullOrWhiteSpace($appVersion)) {
-            $appVersion = "0.1.1-dev"
+            $appVersion = "v0.1.1-dev"
           }
           $gitCommit = ""
           if (Get-Command git -ErrorAction SilentlyContinue) {
@@ -338,7 +355,13 @@ jobs:
             exit 1
           fi
 
-          version_base="$(grep -m1 'appVersion' main.go | sed -E 's/.*"([^"]+)".*/\1/')"
+          version_base=""
+          if [ -f "VERSION" ]; then
+            version_base="$(tr -d '\r\n' < VERSION)"
+          fi
+          if [ -z "$version_base" ]; then
+            version_base="$(grep -m1 'appVersion' main.go | sed -E 's/.*"([^"]+)".*/\1/')"
+          fi
           if [ -z "$version_base" ]; then
             version_base="v0.1.1-dev"
           fi
@@ -369,7 +392,7 @@ jobs:
 
           release_body="Nightly build from ${GITHUB_SHA} (Forgejo dev pipeline). Assets are replaced each run."
           if [ -n "${changelog_section}" ]; then
-            release_body="${release_body}\n\n### Changelog (${version_base})\n${changelog_section}"
+            release_body="${release_body}"$'\n\n'"### Changelog (${version_base})"$'\n'"${changelog_section}"
           fi
 
           release_payload=$(jq -n \
@@ -402,6 +425,23 @@ jobs:
             echo "${release_json}"
             exit 1
           fi
+
+          update_payload=$(jq -n \
+            --arg tag "${tag}" \
+            --arg name "${name}" \
+            --arg body "${release_body}" \
+            --arg target "${GITHUB_SHA}" \
+            --argjson prerelease "${prerelease}" \
+            '{
+              tag_name: $tag,
+              name: $name,
+              body: $body,
+              draft: false,
+              prerelease: $prerelease,
+              target_commitish: $target
+            }')
+          curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" -H "Content-Type: application/json" \
+            -X PATCH "${api_url}/repos/${repo}/releases/${release_id}" -d "${update_payload}" >/dev/null
 
           purge_release_assets() {
             local assets_json
