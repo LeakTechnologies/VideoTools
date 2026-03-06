@@ -837,37 +837,9 @@ func defaultConvertConfig() convertConfig {
 }
 
 // defaultConvertConfigPath returns the path to the persisted convert config.
-func defaultConvertConfigPath() string {
-	configDir, err := os.UserConfigDir()
-	if err != nil || configDir == "" {
-		home := os.Getenv("HOME")
-		if home != "" {
-			configDir = filepath.Join(home, ".config")
-		}
-	}
-	if configDir == "" {
-		return "convert.json"
-	}
-	return filepath.Join(configDir, "VideoTools", "convert.json")
-}
-
-func convertRecoveryPath() string {
-	configDir, err := os.UserConfigDir()
-	if err != nil || configDir == "" {
-		home := os.Getenv("HOME")
-		if home != "" {
-			configDir = filepath.Join(home, ".config")
-		}
-	}
-	if configDir == "" {
-		return "convert-recovery.json"
-	}
-	return filepath.Join(configDir, "VideoTools", "convert-recovery.json")
-}
-
 func loadConvertRecovery() (convertRecoveryState, error) {
 	var state convertRecoveryState
-	path := convertRecoveryPath()
+	path := configpath.ModuleConfigPath("convert-recovery")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return state, err
@@ -879,7 +851,7 @@ func loadConvertRecovery() (convertRecoveryState, error) {
 }
 
 func saveConvertRecovery(state convertRecoveryState) error {
-	path := convertRecoveryPath()
+	path := configpath.ModuleConfigPath("convert-recovery")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -893,7 +865,7 @@ func saveConvertRecovery(state convertRecoveryState) error {
 // loadPersistedConvertConfig loads the saved convert configuration from disk.
 func loadPersistedConvertConfig() (convertConfig, error) {
 	var cfg convertConfig
-	path := defaultConvertConfigPath()
+	path := configpath.ModuleConfigPath("convert")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return cfg, err
@@ -940,7 +912,7 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 
 // savePersistedConvertConfig writes the convert configuration to disk.
 func savePersistedConvertConfig(cfg convertConfig) error {
-	path := defaultConvertConfigPath()
+	path := configpath.ModuleConfigPath("convert")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -967,22 +939,8 @@ type benchmarkConfig struct {
 	History []benchmarkRun `json:"history"`
 }
 
-func benchmarkConfigPath() string {
-	configDir, err := os.UserConfigDir()
-	if err != nil || configDir == "" {
-		home := os.Getenv("HOME")
-		if home != "" {
-			configDir = filepath.Join(home, ".config")
-		}
-	}
-	if configDir == "" {
-		return "benchmark.json"
-	}
-	return filepath.Join(configDir, "VideoTools", "benchmark.json")
-}
-
 func loadBenchmarkConfig() (benchmarkConfig, error) {
-	path := benchmarkConfigPath()
+	path := configpath.ModuleConfigPath("benchmark")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return benchmarkConfig{}, err
@@ -995,7 +953,7 @@ func loadBenchmarkConfig() (benchmarkConfig, error) {
 }
 
 func saveBenchmarkConfig(cfg benchmarkConfig) error {
-	path := benchmarkConfigPath()
+	path := configpath.ModuleConfigPath("benchmark")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -1011,22 +969,8 @@ type historyConfig struct {
 	Entries []ui.HistoryEntry `json:"entries"`
 }
 
-func historyConfigPath() string {
-	configDir, err := os.UserConfigDir()
-	if err != nil || configDir == "" {
-		home := os.Getenv("HOME")
-		if home != "" {
-			configDir = filepath.Join(home, ".config")
-		}
-	}
-	if configDir == "" {
-		return "history.json"
-	}
-	return filepath.Join(configDir, "VideoTools", "history.json")
-}
-
 func loadHistoryConfig() (historyConfig, error) {
-	path := historyConfigPath()
+	path := configpath.ModuleConfigPath("history")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -1046,7 +990,7 @@ func saveHistoryConfig(cfg historyConfig) error {
 	if len(cfg.Entries) > 20 {
 		cfg.Entries = cfg.Entries[:20]
 	}
-	path := historyConfigPath()
+	path := configpath.ModuleConfigPath("history")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -10343,7 +10287,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
 			return
 		}
-		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", defaultConvertConfigPath()), state.window)
+		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("convert")), state.window)
 	})
 	saveCfgBtn.Importance = widget.MediumImportance
 
