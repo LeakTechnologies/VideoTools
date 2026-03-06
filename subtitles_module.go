@@ -3,12 +3,10 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -21,6 +19,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -49,62 +48,18 @@ type subtitleStreamInfo struct {
 	IsImage  bool
 }
 
-type subtitlesConfig struct {
-	OutputMode  string  `json:"outputMode"`
-	ModelPath   string  `json:"modelPath"`
-	BackendPath string  `json:"backendPath"`
-	BurnOutput  string  `json:"burnOutput"`
-	TimeOffset  float64 `json:"timeOffset"`
-	OCRLanguage string  `json:"ocrLanguage"`
-	OCROutput   string  `json:"ocrOutput"`
-}
+type subtitlesConfig = modulecfg.SubtitlesConfig
 
 func defaultSubtitlesConfig() subtitlesConfig {
-	return subtitlesConfig{
-		OutputMode:  subtitleModeExternal,
-		ModelPath:   "",
-		BackendPath: "",
-		BurnOutput:  "",
-		OCRLanguage: "eng",
-		OCROutput:   "srt",
-	}
+	return modulecfg.DefaultSubtitlesConfig()
 }
 
 func loadPersistedSubtitlesConfig() (subtitlesConfig, error) {
-	var cfg subtitlesConfig
-	path := configpath.ModuleConfigPath("subtitles")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return cfg, err
-	}
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return cfg, err
-	}
-	if cfg.OutputMode == "" {
-		cfg.OutputMode = subtitleModeExternal
-	}
-	if cfg.OutputMode == "External SRT" {
-		cfg.OutputMode = subtitleModeExternal
-	}
-	if cfg.OCRLanguage == "" {
-		cfg.OCRLanguage = "eng"
-	}
-	if cfg.OCROutput == "" {
-		cfg.OCROutput = "srt"
-	}
-	return cfg, nil
+	return modulecfg.LoadSubtitlesConfig()
 }
 
 func savePersistedSubtitlesConfig(cfg subtitlesConfig) error {
-	path := configpath.ModuleConfigPath("subtitles")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(path, data, 0o644)
+	return modulecfg.SaveSubtitlesConfig(cfg)
 }
 
 func (s *appState) applySubtitlesConfig(cfg subtitlesConfig) {
