@@ -10,6 +10,7 @@
 - [x] Cleaned root structure by removing stray artifacts, relocating the QR demo entrypoint under `cmd/`, and adding repository hygiene rules to `AGENTS.md`.
 - [x] Added a phased dev30 refactor plan (`docs/REFACTOR_DEV30_PLAN.md`) to guide gradual package/entrypoint cleanup.
 - [x] Started Phase 2 refactor by moving module config path logic into `internal/app/configpath` and updating all module callers.
+- [x] Continued Phase 2 refactor by moving merge/thumbnail config persistence into `internal/app/modulecfg` while keeping stable `package main` wrappers.
 
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 
