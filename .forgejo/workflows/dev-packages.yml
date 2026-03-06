@@ -353,11 +353,29 @@ jobs:
           repo="${GITHUB_REPOSITORY}"
           tag="${version_base}"
           name="Build ${version_base}"
+          changelog_file="docs/CHANGELOG.md"
+
+          changelog_section=""
+          if [ -f "${changelog_file}" ]; then
+            changelog_section=$(awk -v ver="${version_base}" '
+              BEGIN { capture=0 }
+              $0 ~ "^## " {
+                if (capture) exit
+                if ($0 ~ "^## " ver "([[:space:]]|$)") { capture=1; next }
+              }
+              capture { print }
+            ' "${changelog_file}")
+          fi
+
+          release_body="Nightly build from ${GITHUB_SHA} (Forgejo dev pipeline). Assets are replaced each run."
+          if [ -n "${changelog_section}" ]; then
+            release_body="${release_body}\n\n### Changelog (${version_base})\n${changelog_section}"
+          fi
 
           release_payload=$(jq -n \
             --arg tag "${tag}" \
             --arg name "${name}" \
-            --arg body "Nightly build from ${GITHUB_SHA} (Forgejo dev pipeline). Assets are replaced each run." \
+            --arg body "${release_body}" \
             --arg target "${GITHUB_SHA}" \
             --argjson prerelease "${prerelease}" \
             '{
