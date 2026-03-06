@@ -72,6 +72,7 @@ This file tracks upcoming features, improvements, and known issues.
   - [x] Phase 2g: Replaced duplicated config path helpers in `main.go` with shared `internal/app/configpath` usage for convert/recovery/benchmark/history.
   - [x] Phase 2h: Moved recovery/benchmark/history config persistence logic into `internal/app/appcfg` with aliases/wrappers in `main.go`.
   - [x] Phase 2i: Moved convert config JSON load/save plumbing to shared `internal/app/appcfg` store helpers while keeping convert normalization logic in `main.go`.
+  - [x] Phase 2j: Moved convert config normalization rules into `internal/app/appcfg` and kept `main.go` as a thin wrapper.
   - Phase 2: Introduce `internal/app/` boundaries and move low-risk helper files from root.
   - Phase 3: Move module builders into `internal/app/modules/` with compatibility shims if needed.
   - Phase 4: Move primary app entrypoint toward `cmd/videotools/` once app package is stable.
