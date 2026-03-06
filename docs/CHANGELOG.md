@@ -8,6 +8,7 @@
 - **Versioning documentation** - Clarified that `-devN` numbering is continuous across release lines and public releases use base versions.
 - **Release readiness policy** - Added explicit public bump gates and a full module testing checklist for release candidate validation.
 - **Repository hygiene** - Removed root-level scratch files, relocated QR demo entrypoint into `cmd/`, and documented root cleanliness rules for agents.
+- **Refactor planning** - Added a phased dev30 refactor plan for gradual `internal/app` and `cmd/` migration with build-safety guardrails.
 
 ## v0.1.1-dev29 (March 2026)
 
