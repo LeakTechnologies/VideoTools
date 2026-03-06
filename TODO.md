@@ -69,6 +69,7 @@ This file tracks upcoming features, improvements, and known issues.
   - [x] Phase 2d: Moved rip/subtitles config persistence logic into `internal/app/modulecfg` with compatibility wrappers in module files.
   - [x] Phase 2e: Moved author config persistence logic into `internal/app/modulecfg` with compatibility wrappers in `author_module.go`.
   - [x] Phase 2f: Moved audio config persistence logic into `internal/app/modulecfg` with compatibility wrappers in `audio_module.go`.
+  - [x] Phase 2g: Replaced duplicated config path helpers in `main.go` with shared `internal/app/configpath` usage for convert/recovery/benchmark/history.
   - Phase 2: Introduce `internal/app/` boundaries and move low-risk helper files from root.
   - Phase 3: Move module builders into `internal/app/modules/` with compatibility shims if needed.
   - Phase 4: Move primary app entrypoint toward `cmd/videotools/` once app package is stable.
