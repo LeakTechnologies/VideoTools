@@ -7,6 +7,7 @@
 - **Dev release notes** - Forgejo dev release comments now include nightly build context plus the matching version section from `docs/CHANGELOG.md`.
 - **Versioning documentation** - Clarified that `-devN` numbering is continuous across release lines and public releases use base versions.
 - **Release readiness policy** - Added explicit public bump gates and a full module testing checklist for release candidate validation.
+- **Repository hygiene** - Removed root-level scratch files, relocated QR demo entrypoint into `cmd/`, and documented root cleanliness rules for agents.
 
 ## v0.1.1-dev29 (March 2026)
 
