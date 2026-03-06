@@ -88,7 +88,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Confirm release assets replace existing files with the same name.
   - Confirm release assets are purged before upload (no duplicates remain).
   - Confirm publish fails loudly when asset deletion/upload is unauthorized.
-  - Confirm dev release note body uses nightly build wording.
+  - Confirm dev release note body includes nightly build context plus the matching `docs/CHANGELOG.md` version section.
 - [ ] **Forgejo workflow validation**
   - Confirm redundant Windows workflow removal doesn't break release publishing.
   - Confirm test trigger workflow removal doesn't affect CI visibility.

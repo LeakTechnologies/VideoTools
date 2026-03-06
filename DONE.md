@@ -4,6 +4,7 @@
 
 ### Maintenance
 - [x] Bumped app version metadata to v0.1.1-dev30 (main.go, VERSION, FyneApp.toml).
+- [x] Updated dev release publishing to append the current version changelog section to the nightly release notes.
 
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 

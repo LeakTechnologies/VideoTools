@@ -4,6 +4,7 @@
 
 ### Maintenance
 - **Version bump** - Started the dev30 cycle and updated project version markers.
+- **Dev release notes** - Forgejo dev release comments now include nightly build context plus the matching version section from `docs/CHANGELOG.md`.
 
 ## v0.1.1-dev29 (March 2026)
 
