@@ -1,4 +1,7 @@
 videotools.log
+playback-test.log
+test-connection.txt
+main.go.backup-before-inspect-extraction
 logs/
 .gocache/
 .gomodcache/

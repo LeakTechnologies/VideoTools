@@ -7,6 +7,7 @@
 - [x] Updated dev release publishing to append the current version changelog section to the nightly release notes.
 - [x] Documented versioning policy: continuous global `-devN` numbering with public releases using base versions only.
 - [x] Added a full module testing checklist and public release gate criteria for deciding when to bump to the next public version.
+- [x] Cleaned root structure by removing stray artifacts, relocating the QR demo entrypoint under `cmd/`, and adding repository hygiene rules to `AGENTS.md`.
 
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 

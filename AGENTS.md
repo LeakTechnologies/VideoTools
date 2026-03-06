@@ -30,3 +30,10 @@ These rules apply to any automation or agent working in this repo.
 
 - Ask before changing workflow entrypoints or automation behavior.
 - If a change affects installs/builds, add a short note in docs.
+
+## Repository Hygiene
+
+- Keep the repository root minimal. Root should contain only core project manifests, primary app entry source, and top-level docs (`README.md`, `TODO.md`, `DONE.md`).
+- Put demos/tools under `cmd/` or `scripts/` (not the root).
+- Put platform packaging assets under `packaging/<platform>/`.
+- Do not commit ad-hoc logs, scratch files, backup files, or one-off test files to root.

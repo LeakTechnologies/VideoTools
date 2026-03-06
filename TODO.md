@@ -60,6 +60,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Documented continuous global `-devN` numbering and public release base-version behavior.
 - [X] **Module testing coverage checklist**
   - Added a full module-by-module release checklist in `docs/TESTING_MODULE_CHECKLIST.md`.
+- [X] **Root structure hygiene pass**
+  - Removed root-level scratch artifacts, moved QR demo entry to `cmd/qr_about_demo/`, and documented root cleanliness rules in `AGENTS.md`.
 - [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).
