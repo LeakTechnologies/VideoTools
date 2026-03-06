@@ -36,6 +36,8 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - Forgejo dev releases fail if asset purge or upload calls are unauthorized.
   - Forgejo dev release workflow uses concurrency to prevent overlapping uploads.
   - Forgejo dev releases use a nightly release note body and append the matching version section from `docs/CHANGELOG.md`.
+  - Forgejo dev release/workflow versioning is sourced from the `VERSION` file first (with `main.go` fallback).
+  - Forgejo dev release publish step updates the matched tag release metadata (name/body/prerelease), so only the target dev tag is modified.
   - Forgejo mirrors the repository to Codeberg using built-in push mirror settings.
   - Windows builds pause on success or failure so you can review output before the window closes.
   - On Windows VMs with basic/virtual display adapters, VideoTools will show a preflight warning and exit; enable 3D acceleration or install GPU drivers.

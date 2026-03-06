@@ -21,6 +21,7 @@
 - **Refactor phase 2 continuation** - Moved convert config normalization rules into `internal/app/appcfg` and kept `main.go` wrappers minimal.
 - **CI build fix** - Restored missing `path/filepath` import in `audio_module.go` to resolve Forgejo Linux/Windows packaging compile failures.
 - **CI build fix** - Restored missing `path/filepath` import in `rip_module.go` to resolve Forgejo Linux/Windows packaging compile failures.
+- **Forgejo release targeting** - Workflow now reads version from `VERSION` first and patches only the matched tag release metadata (name/body/prerelease), preventing stale tag drift.
 
 ## v0.1.1-dev29 (March 2026)
 
