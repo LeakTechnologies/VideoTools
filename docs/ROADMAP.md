@@ -114,7 +114,13 @@ This roadmap is intentionally lightweight. It captures the next few high-priorit
 
 ## Versioning Note
 
-We keep continuous dev numbering. After v0.1.1 release, the next dev tag becomes v0.1.1-dev22 (or whatever the next number is).
+We keep a continuous global `dev` counter and do not reset it per public version.
+
+Examples:
+- `v0.1.4-dev55`
+- `v0.1.6-dev72`
+
+Public releases use the base version only (for example `v0.1.6`), while dev builds keep increasing `-devN` across cycles.
 
 ## Technical Debt and Architecture
 
