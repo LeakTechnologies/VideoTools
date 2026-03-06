@@ -20,6 +20,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -71,7 +72,7 @@ func defaultSubtitlesConfig() subtitlesConfig {
 
 func loadPersistedSubtitlesConfig() (subtitlesConfig, error) {
 	var cfg subtitlesConfig
-	path := moduleConfigPath("subtitles")
+	path := configpath.ModuleConfigPath("subtitles")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return cfg, err
@@ -95,7 +96,7 @@ func loadPersistedSubtitlesConfig() (subtitlesConfig, error) {
 }
 
 func savePersistedSubtitlesConfig(cfg subtitlesConfig) error {
-	path := moduleConfigPath("subtitles")
+	path := configpath.ModuleConfigPath("subtitles")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -1099,7 +1100,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
 			return
 		}
-		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", moduleConfigPath("subtitles")), state.window)
+		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("subtitles")), state.window)
 	})
 
 	resetBtn := widget.NewButton("Reset", func() {

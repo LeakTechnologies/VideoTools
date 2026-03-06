@@ -27,6 +27,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -91,7 +92,7 @@ func defaultAuthorConfig() authorConfig {
 
 func loadPersistedAuthorConfig() (authorConfig, error) {
 	var cfg authorConfig
-	path := moduleConfigPath("author")
+	path := configpath.ModuleConfigPath("author")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return cfg, err
@@ -148,7 +149,7 @@ func loadPersistedAuthorConfig() (authorConfig, error) {
 }
 
 func savePersistedAuthorConfig(cfg authorConfig) error {
-	path := moduleConfigPath("author")
+	path := configpath.ModuleConfigPath("author")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -933,7 +934,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
 			return
 		}
-		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", moduleConfigPath("author")), state.window)
+		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("author")), state.window)
 	})
 
 	resetBtn := widget.NewButton("Reset", func() {

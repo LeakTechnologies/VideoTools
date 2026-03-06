@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -42,7 +43,7 @@ func defaultRipConfig() ripConfig {
 
 func loadPersistedRipConfig() (ripConfig, error) {
 	var cfg ripConfig
-	path := moduleConfigPath("rip")
+	path := configpath.ModuleConfigPath("rip")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return cfg, err
@@ -57,7 +58,7 @@ func loadPersistedRipConfig() (ripConfig, error) {
 }
 
 func savePersistedRipConfig(cfg ripConfig) error {
-	path := moduleConfigPath("rip")
+	path := configpath.ModuleConfigPath("rip")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
@@ -223,7 +224,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
 			return
 		}
-		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", moduleConfigPath("rip")), state.window)
+		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("rip")), state.window)
 	})
 
 	resetBtn := widget.NewButton("Reset", func() {

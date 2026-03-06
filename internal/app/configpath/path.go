@@ -1,11 +1,11 @@
-package main
+package configpath
 
 import (
 	"os"
 	"path/filepath"
 )
 
-func moduleConfigPath(name string) string {
+func ModuleConfigPath(name string) string {
 	configDir, err := os.UserConfigDir()
 	if err != nil || configDir == "" {
 		home := os.Getenv("HOME")
