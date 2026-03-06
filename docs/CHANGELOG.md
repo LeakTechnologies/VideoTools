@@ -18,6 +18,7 @@
 - **Refactor phase 2 continuation** - Replaced duplicated `main.go` config-path helper functions with shared `internal/app/configpath` lookups for convert/recovery/benchmark/history.
 - **Refactor phase 2 continuation** - Moved recovery/benchmark/history persistence logic into `internal/app/appcfg` with type aliases and wrapper functions in `main.go`.
 - **Refactor phase 2 continuation** - Moved convert config JSON load/save plumbing into shared `internal/app/appcfg` store helpers while preserving convert normalization behavior.
+- **Refactor phase 2 continuation** - Moved convert config normalization rules into `internal/app/appcfg` and kept `main.go` wrappers minimal.
 
 ## v0.1.1-dev29 (March 2026)
 

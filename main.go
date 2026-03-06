@@ -850,38 +850,27 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 	if raw == nil {
 		raw = map[string]json.RawMessage{}
 	}
-	if _, ok := raw["ForceAspect"]; !ok {
-		cfg.ForceAspect = true
-	}
-	if _, ok := raw["ShowUpscale"]; !ok {
-		cfg.ShowUpscale = true
-	}
-	if _, ok := raw["ShowAuthor"]; !ok {
-		cfg.ShowAuthor = true
-	}
-	if _, ok := raw["ShowRip"]; !ok {
-		cfg.ShowRip = true
-	}
-	if _, ok := raw["ShowBluRay"]; !ok {
-		cfg.ShowBluRay = true
-	}
-	if cfg.OutputAspect == "" || strings.EqualFold(cfg.OutputAspect, "Source") {
-		cfg.OutputAspect = "Source"
-		cfg.AspectUserSet = false
-	} else if !cfg.AspectUserSet {
-		// Treat legacy saved aspects (like 16:9 defaults) as unset
-		cfg.OutputAspect = "Source"
-		cfg.AspectUserSet = false
-	}
-	// Always default FrameRate to Source if not set to avoid unwanted conversions
-	if cfg.FrameRate == "" {
-		cfg.FrameRate = "Source"
-	}
-	switch cfg.BitrateMode {
-	case "CRF", "CBR", "VBR", "Target Size":
-	default:
-		cfg.BitrateMode = "CBR"
-	}
+	norm := appcfg.NormalizeConvertFields(
+		raw,
+		cfg.ForceAspect,
+		cfg.ShowUpscale,
+		cfg.ShowAuthor,
+		cfg.ShowRip,
+		cfg.ShowBluRay,
+		cfg.OutputAspect,
+		cfg.AspectUserSet,
+		cfg.FrameRate,
+		cfg.BitrateMode,
+	)
+	cfg.ForceAspect = norm.ForceAspect
+	cfg.ShowUpscale = norm.ShowUpscale
+	cfg.ShowAuthor = norm.ShowAuthor
+	cfg.ShowRip = norm.ShowRip
+	cfg.ShowBluRay = norm.ShowBluRay
+	cfg.OutputAspect = norm.OutputAspect
+	cfg.AspectUserSet = norm.AspectUserSet
+	cfg.FrameRate = norm.FrameRate
+	cfg.BitrateMode = norm.BitrateMode
 	return cfg, nil
 }
 
