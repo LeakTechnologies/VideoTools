@@ -64,6 +64,7 @@ This file tracks upcoming features, improvements, and known issues.
   - Removed root-level scratch artifacts, moved QR demo entry to `cmd/qr_about_demo/`, and documented root cleanliness rules in `AGENTS.md`.
 - [ ] **Dev30 phased refactor (build-safe)**
   - [x] Phase 2a: Moved module config path helper to `internal/app/configpath` and updated module call sites.
+  - [x] Phase 2b: Moved merge/thumbnail config persistence logic into `internal/app/modulecfg` with compatibility wrappers in `package main`.
   - Phase 2: Introduce `internal/app/` boundaries and move low-risk helper files from root.
   - Phase 3: Move module builders into `internal/app/modules/` with compatibility shims if needed.
   - Phase 4: Move primary app entrypoint toward `cmd/videotools/` once app package is stable.
