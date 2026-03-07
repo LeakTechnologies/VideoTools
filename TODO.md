@@ -60,6 +60,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Publish concise highlights from the matching changelog version section instead of embedding the full raw section in Forgejo release comments.
 - [X] **Stale publish run guard**
   - Skip dev release publish when a newer `master` commit exists so old runs cannot overwrite newer release/tag state.
+- [X] **Docs portal migration**
+  - Repoint About/QR documentation links and install docs from retired `docs.leaktechnologies.dev` to Forgejo wiki + in-repo docs.
 - [X] **Blu-ray visibility toggle**
   - Added `Show Blu-ray module` preference and tied it to main menu module visibility.
 - [X] **Benchmark scope clarity**

@@ -9,6 +9,7 @@ It provides a graphical interface for converting, inspecting, and preparing vide
 
 - **Daily (dev):** https://git.leaktechnologies.dev/Leak_Technologies/VideoTools
 - **Stable (public):** https://github.com/LeakTechnologes/VideoTools
+- **Wiki (active docs portal):** https://git.leaktechnologies.dev/leak_technologies/VideoTools/wiki
 
 ## Documentation Structure
 

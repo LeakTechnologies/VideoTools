@@ -11,6 +11,7 @@ Welcome to the VideoTools installation guide. Please select your operating syste
 For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers both automated and manual setup.
 
 - **[View Windows Installation Guide](./INSTALL_WINDOWS.md)**
+  - Documentation is now hosted in-repo (`docs/`) and on Forgejo wiki: `https://git.leaktechnologies.dev/leak_technologies/VideoTools/wiki`.
   - Use `scripts\windows\install.bat` or `scripts\windows\install.ps1` on Windows.
   - The Windows installer defaults to MSI downloads for GStreamer; use `-PreferWinget` to try winget first.
   - Use `-GStreamerVersion` to override the default MSI version when needed.
