@@ -216,7 +216,7 @@ func (g *Generator) getVideoInfo(ctx context.Context, videoPath string) (duratio
 // getDetailedVideoInfo retrieves codec, fps, and bitrate information from a video file
 func (g *Generator) getDetailedVideoInfo(ctx context.Context, videoPath string) (videoCodec, audioCodec string, fps, bitrate, audioBitrate float64) {
 	// Use ffprobe to get detailed video and audio information
-	cmd := exec.CommandContext(ctx, "ffprobe",
+	cmd := exec.CommandContext(ctx, utils.GetFFprobePath(),
 		"-v", "error",
 		"-select_streams", "v:0",
 		"-show_entries", "stream=codec_name,r_frame_rate,bit_rate",
@@ -248,7 +248,7 @@ func (g *Generator) getDetailedVideoInfo(ctx context.Context, videoPath string) 
 	}
 
 	// Get audio codec and bitrate
-	cmd = exec.CommandContext(ctx, "ffprobe",
+	cmd = exec.CommandContext(ctx, utils.GetFFprobePath(),
 		"-v", "error",
 		"-select_streams", "a:0",
 		"-show_entries", "stream=codec_name,bit_rate",
@@ -269,7 +269,7 @@ func (g *Generator) getDetailedVideoInfo(ctx context.Context, videoPath string) 
 
 	// If bitrate wasn't available from video stream, try to get overall bitrate
 	if bitrate == 0 {
-		cmd = exec.CommandContext(ctx, "ffprobe",
+		cmd = exec.CommandContext(ctx, utils.GetFFprobePath(),
 			"-v", "error",
 			"-show_entries", "format=bit_rate",
 			"-of", "default=noprint_wrappers=1:nokey=1",
