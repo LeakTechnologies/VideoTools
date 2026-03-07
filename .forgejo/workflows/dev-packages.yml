@@ -391,8 +391,22 @@ jobs:
           fi
 
           release_body="Nightly build from ${GITHUB_SHA} (Forgejo dev pipeline). Assets are replaced each run."
+          changelog_highlights=""
           if [ -n "${changelog_section}" ]; then
-            release_body="${release_body}"$'\n\n'"### Changelog (${version_base})"$'\n'"${changelog_section}"
+            changelog_highlights=$(printf '%s\n' "${changelog_section}" | awk '
+              BEGIN { count=0 }
+              /^- / {
+                line=$0
+                sub(/^- \*\*/, "- ", line)
+                sub(/\*\* - /, ": ", line)
+                print line
+                count++
+                if (count >= 8) exit
+              }
+            ')
+          fi
+          if [ -n "${changelog_highlights}" ]; then
+            release_body="${release_body}"$'\n\n'"### Highlights (${version_base})"$'\n'"${changelog_highlights}"$'\n\n'"Full details: docs/CHANGELOG.md"
           fi
 
           release_payload=$(jq -n \
