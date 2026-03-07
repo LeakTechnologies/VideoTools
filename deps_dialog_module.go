@@ -1,36 +1,19 @@
 package main
 
 import (
-	"fmt"
-	"strings"
-
-	"fyne.io/fyne/v2/dialog"
+	depsmodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/deps"
 )
 
 func (s *appState) showMissingDependenciesDialog(moduleID string) {
 	missing, _ := getModuleDependencyStatus(moduleID)
-
-	if len(missing) == 0 {
-		return // No missing dependencies
-	}
-
-	// Build message with missing dependencies and install commands
-	var message strings.Builder
-	message.WriteString("This module requires the following dependencies:\n\n")
-
+	payload := make([]depsmodule.Dependency, 0, len(missing))
 	for _, depName := range missing {
 		if dep, ok := allDependencies[depName]; ok {
-			message.WriteString(fmt.Sprintf(" %s\n", dep.Name))
-			if dep.InstallCmd != "" {
-				message.WriteString(fmt.Sprintf("  Install: %s\n\n", dep.InstallCmd))
-			}
+			payload = append(payload, depsmodule.Dependency{
+				Name:       dep.Name,
+				InstallCmd: dep.InstallCmd,
+			})
 		}
 	}
-
-	// Create dialog
-	dialog.ShowInformation(
-		"Missing Dependencies",
-		message.String(),
-		s.window,
-	)
+	depsmodule.ShowMissingDependencies(s.window, payload)
 }

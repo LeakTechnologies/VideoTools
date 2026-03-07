@@ -27,6 +27,8 @@
 - [x] Fixed thumbnail metadata probing to use the configured FFprobe path so app-local FFprobe works when PATH does not include FFprobe.
 - [x] Simplified Forgejo dev release notes to publish concise version highlights instead of dumping the full changelog section into the release body.
 - [x] Added a stale-run publish guard in Forgejo dev release workflow so only the latest `master` commit updates release metadata/assets.
+- [x] Started Phase 3 refactor by moving About dialog UI implementation into `internal/app/modules/about` with a thin `package main` shim.
+- [x] Continued Phase 3 refactor by moving missing-dependencies dialog rendering into `internal/app/modules/deps` with a thin `package main` shim.
 
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 
