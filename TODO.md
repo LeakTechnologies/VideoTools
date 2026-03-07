@@ -56,6 +56,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Forgejo release publish now sources version from `VERSION` first and updates only the matching tag release metadata.
 - [X] **FFprobe path consistency**
   - Use configured/app-local FFprobe paths in convert analysis and thumbnail metadata probes instead of hardcoded `ffprobe`.
+- [X] **Release note readability**
+  - Publish concise highlights from the matching changelog version section instead of embedding the full raw section in Forgejo release comments.
 - [X] **Blu-ray visibility toggle**
   - Added `Show Blu-ray module` preference and tied it to main menu module visibility.
 - [X] **Benchmark scope clarity**
