@@ -23,6 +23,8 @@
 - **CI build fix** - Restored missing `path/filepath` import in `rip_module.go` to resolve Forgejo Linux/Windows packaging compile failures.
 - **Forgejo release targeting** - Workflow now reads version from `VERSION` first and patches only the matched tag release metadata (name/body/prerelease), preventing stale tag drift.
 - **CI build fix** - Restored missing `encoding/json` and `path/filepath` imports in `subtitles_module.go` to resolve Forgejo Linux/Windows packaging compile failures.
+- **FFprobe path fix** - Convert drag/drop analysis now uses the configured FFprobe path (including app-local Windows installs) instead of requiring `ffprobe` on PATH.
+- **Thumbnail probe path fix** - Thumbnail metadata probes now use the configured FFprobe path to match the rest of the app dependency resolution flow.
 
 ## v0.1.1-dev29 (March 2026)
 

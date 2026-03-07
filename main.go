@@ -14799,7 +14799,7 @@ func probeVideo(path string) (*videoSource, error) {
 		fileSize = info.Size()
 	}
 
-	cmd := utils.CreateCommand(ctx, "ffprobe",
+	cmd := utils.CreateCommand(ctx, utils.GetFFprobePath(),
 		"-v", "quiet",
 		"-print_format", "json",
 		"-show_format",

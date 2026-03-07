@@ -23,6 +23,8 @@
 - [x] Fixed Forgejo Linux/Windows package build break by restoring `path/filepath` import in `rip_module.go` after refactor.
 - [x] Updated Forgejo publish workflow to read version from `VERSION` first, patch matched release metadata, and keep dev updates scoped to the intended tag.
 - [x] Fixed Forgejo Linux/Windows package build break by restoring missing `encoding/json` and `path/filepath` imports in `subtitles_module.go` after refactor.
+- [x] Fixed convert drag/drop analysis on Windows by using the configured FFprobe path instead of a hardcoded `ffprobe` command in `probeVideo`.
+- [x] Fixed thumbnail metadata probing to use the configured FFprobe path so app-local FFprobe works when PATH does not include FFprobe.
 
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 
