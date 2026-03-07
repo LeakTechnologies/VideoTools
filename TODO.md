@@ -85,6 +85,7 @@ This file tracks upcoming features, improvements, and known issues.
   - [x] Phase 2j: Moved convert config normalization rules into `internal/app/appcfg` and kept `main.go` as a thin wrapper.
   - [x] Phase 3a: Moved About dialog implementation to `internal/app/modules/about` with a root shim.
   - [x] Phase 3b: Moved missing-dependencies dialog rendering to `internal/app/modules/deps` with a root shim.
+  - [x] Phase 3c: Moved main menu visibility/dependency filtering and active-job mapping helpers to `internal/app/modules/mainmenu`.
   - [x] CI fix: Restored missing `path/filepath` import in `audio_module.go` after refactor to fix Linux/Windows package build failures.
   - [x] CI fix: Restored missing `path/filepath` import in `rip_module.go` after refactor to fix Linux/Windows package build failures.
   - [x] CI fix: Restored missing `encoding/json` and `path/filepath` imports in `subtitles_module.go` after refactor to fix Linux/Windows package build failures.
