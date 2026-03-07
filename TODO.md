@@ -58,6 +58,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Use configured/app-local FFprobe paths in convert analysis and thumbnail metadata probes instead of hardcoded `ffprobe`.
 - [X] **Release note readability**
   - Publish concise highlights from the matching changelog version section instead of embedding the full raw section in Forgejo release comments.
+- [X] **Stale publish run guard**
+  - Skip dev release publish when a newer `master` commit exists so old runs cannot overwrite newer release/tag state.
 - [X] **Blu-ray visibility toggle**
   - Added `Show Blu-ray module` preference and tied it to main menu module visibility.
 - [X] **Benchmark scope clarity**
