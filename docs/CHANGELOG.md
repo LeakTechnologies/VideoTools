@@ -27,6 +27,8 @@
 - **Thumbnail probe path fix** - Thumbnail metadata probes now use the configured FFprobe path to match the rest of the app dependency resolution flow.
 - **Release note cleanup** - Forgejo dev release comments now include concise highlights from the matching changelog section instead of the full raw version block.
 - **Release publish guard** - Dev publish now skips stale workflow runs when a newer `master` commit exists, preventing older jobs from updating previous dev-tag releases.
+- **Refactor phase 3 start** - Moved About dialog implementation into `internal/app/modules/about` and kept a thin root shim to preserve behavior.
+- **Refactor phase 3 continuation** - Moved missing-dependencies dialog rendering into `internal/app/modules/deps` and kept a thin root shim to preserve behavior.
 
 ## v0.1.1-dev29 (March 2026)
 
