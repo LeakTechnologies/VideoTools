@@ -29,6 +29,8 @@
 - [x] Added a stale-run publish guard in Forgejo dev release workflow so only the latest `master` commit updates release metadata/assets.
 - [x] Started Phase 3 refactor by moving About dialog UI implementation into `internal/app/modules/about` with a thin `package main` shim.
 - [x] Continued Phase 3 refactor by moving missing-dependencies dialog rendering into `internal/app/modules/deps` with a thin `package main` shim.
+- [x] Updated About/QR documentation links to use the Forgejo wiki URL after retiring `docs.leaktechnologies.dev`.
+- [x] Updated installation/readme docs to point users at in-repo docs and Forgejo wiki as the active documentation locations.
 
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 

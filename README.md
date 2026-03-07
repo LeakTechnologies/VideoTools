@@ -91,6 +91,7 @@ For upcoming work and priorities, see **docs/ROADMAP.md**.
 - **PROJECT_STATUS.md** - Current implementation status
 - **INSTALLATION.md** - Comprehensive installation guide (read this first!)
 - **docs/README.md** - Documentation index
+- **Forgejo Wiki** - https://git.leaktechnologies.dev/leak_technologies/VideoTools/wiki
 
 **For Users:**
 - **BUILD_AND_RUN.md** - How to build and run VideoTools

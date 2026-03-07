@@ -14,7 +14,7 @@ func (s *appState) showAbout() {
 		TextColor:   textColor,
 		OpenFolder:  openFolder,
 		OpenURL:     openURL,
-		DocsURL:     "https://docs.leaktechnologies.dev/VideoTools",
+		DocsURL:     "https://git.leaktechnologies.dev/leak_technologies/VideoTools/wiki",
 		XProfileURL: "https://x.com/VT_VideoTools",
 		XLabel:      "X: @VT_VideoTools",
 	})
