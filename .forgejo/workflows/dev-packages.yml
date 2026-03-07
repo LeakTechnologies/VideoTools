@@ -346,6 +346,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          latest_master_sha="$(git ls-remote origin refs/heads/master | awk '{print $1}')"
+          if [ -n "${latest_master_sha}" ] && [ "${latest_master_sha}" != "${GITHUB_SHA}" ]; then
+            echo "Skipping publish for ${GITHUB_SHA}; newer master commit is ${latest_master_sha}."
+            exit 0
+          fi
+
           if [ -z "${FORGEJO_API_URL:-}" ]; then
             echo "FORGEJO_API_URL is required in secrets."
             exit 1

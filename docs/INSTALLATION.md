@@ -35,6 +35,7 @@ For Windows 10 and 11, please follow our detailed, step-by-step guide. It covers
   - Forgejo dev releases now purge existing release assets before uploading to prevent duplicates.
   - Forgejo dev releases fail if asset purge or upload calls are unauthorized.
   - Forgejo dev release workflow uses concurrency to prevent overlapping uploads.
+  - Forgejo dev release publish now skips stale workflow runs when `master` has advanced, preventing older commits from updating older dev tags.
   - Forgejo dev releases use a nightly release note body plus a concise highlights list from the matching `docs/CHANGELOG.md` section.
   - Forgejo dev release/workflow versioning is sourced from the `VERSION` file first (with `main.go` fallback).
   - Forgejo dev release publish step updates the matched tag release metadata (name/body/prerelease), so only the target dev tag is modified.
