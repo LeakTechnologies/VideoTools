@@ -30,6 +30,7 @@
 - **Refactor phase 3 start** - Moved About dialog implementation into `internal/app/modules/about` and kept a thin root shim to preserve behavior.
 - **Refactor phase 3 continuation** - Moved missing-dependencies dialog rendering into `internal/app/modules/deps` and kept a thin root shim to preserve behavior.
 - **Documentation portal migration** - Replaced retired `docs.leaktechnologies.dev` links with Forgejo wiki/in-repo documentation links in About, QR demo, and install/readme docs.
+- **Refactor phase 3 continuation** - Moved main menu visibility/dependency filtering and active-job mapping helpers into `internal/app/modules/mainmenu` while keeping runtime behavior unchanged.
 
 ## v0.1.1-dev29 (March 2026)
 

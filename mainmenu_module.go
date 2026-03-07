@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	mainmenumodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/mainmenu"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -30,45 +31,24 @@ func (s *appState) showMainMenu() {
 	// Track navigation history
 	s.pushNavigationHistory("mainmenu")
 
-	// Convert Module slice to ui.ModuleInfo slice
-	var mods []ui.ModuleInfo
+	// Convert modules to UI metadata with preference/dependency filtering.
+	sourceMods := make([]mainmenumodule.SourceModule, 0, len(modulesList))
 	for _, m := range modulesList {
-		switch m.ID {
-		case "upscale":
-			if !s.convert.ShowUpscale {
-				continue
-			}
-		case "author":
-			if !s.convert.ShowAuthor {
-				continue
-			}
-		case "rip":
-			if !s.convert.ShowRip {
-				continue
-			}
-		case "bluray":
-			if !s.convert.ShowBluRay {
-				continue
-			}
-		}
-		hasHandler := m.Handle != nil
-		depsAvailable := isModuleAvailable(m.ID)
-
-		// Module is enabled if: (1) it's Settings (special case) OR (2) it has a handler AND dependencies are available
-		enabled := m.ID == "settings" || (hasHandler && depsAvailable)
-
-		// Missing dependencies = has handler but dependencies not available
-		missingDeps := hasHandler && !depsAvailable && m.ID != "settings"
-
-		mods = append(mods, ui.ModuleInfo{
-			ID:                  m.ID,
-			Label:               m.Label,
-			Color:               m.Color,
-			Category:            m.Category,
-			Enabled:             enabled,
-			MissingDependencies: missingDeps,
+		sourceMods = append(sourceMods, mainmenumodule.SourceModule{
+			ID:            m.ID,
+			Label:         m.Label,
+			Color:         m.Color,
+			Category:      m.Category,
+			HasHandler:    m.Handle != nil,
+			DepsAvailable: isModuleAvailable(m.ID),
 		})
 	}
+	mods := mainmenumodule.BuildVisibleModules(sourceMods, mainmenumodule.Visibility{
+		ShowUpscale: s.convert.ShowUpscale,
+		ShowAuthor:  s.convert.ShowAuthor,
+		ShowRip:     s.convert.ShowRip,
+		ShowBluRay:  s.convert.ShowBluRay,
+	})
 
 	titleColor := utils.MustHex("#4CE870")
 
@@ -89,30 +69,7 @@ func (s *appState) showMainMenu() {
 	// Build sidebar if visible
 	var sidebar fyne.CanvasObject
 	if s.sidebarVisible {
-		// Get active jobs from queue (running/pending)
-		var activeJobs []ui.HistoryEntry
-		if s.jobQueue != nil {
-			for _, job := range queueList {
-				if job.Status == queue.JobStatusRunning || job.Status == queue.JobStatusPending {
-					// Convert queue.Job to ui.HistoryEntry
-					entry := ui.HistoryEntry{
-						ID:         job.ID,
-						Type:       job.Type,
-						Status:     job.Status,
-						Title:      job.Title,
-						InputFile:  job.InputFile,
-						OutputFile: job.OutputFile,
-						LogPath:    job.LogPath,
-						Config:     job.Config,
-						CreatedAt:  job.CreatedAt,
-						StartedAt:  job.StartedAt,
-						Error:      job.Error,
-						Progress:   job.Progress / 100.0, // Convert 0-100 to 0.0-1.0
-					}
-					activeJobs = append(activeJobs, entry)
-				}
-			}
-		}
+		activeJobs := mainmenumodule.BuildActiveJobs(queueList)
 
 		onHistoryClick := func(entry ui.HistoryEntry) {
 			if entry.Status == queue.JobStatusRunning || entry.Status == queue.JobStatusPending {

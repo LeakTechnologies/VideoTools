@@ -31,6 +31,7 @@
 - [x] Continued Phase 3 refactor by moving missing-dependencies dialog rendering into `internal/app/modules/deps` with a thin `package main` shim.
 - [x] Updated About/QR documentation links to use the Forgejo wiki URL after retiring `docs.leaktechnologies.dev`.
 - [x] Updated installation/readme docs to point users at in-repo docs and Forgejo wiki as the active documentation locations.
+- [x] Continued Phase 3 refactor by moving main menu visibility/dependency filtering and active-job mapping helpers into `internal/app/modules/mainmenu`.
 
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 
