@@ -22,6 +22,7 @@
 - **CI build fix** - Restored missing `path/filepath` import in `audio_module.go` to resolve Forgejo Linux/Windows packaging compile failures.
 - **CI build fix** - Restored missing `path/filepath` import in `rip_module.go` to resolve Forgejo Linux/Windows packaging compile failures.
 - **Forgejo release targeting** - Workflow now reads version from `VERSION` first and patches only the matched tag release metadata (name/body/prerelease), preventing stale tag drift.
+- **CI build fix** - Restored missing `encoding/json` and `path/filepath` imports in `subtitles_module.go` to resolve Forgejo Linux/Windows packaging compile failures.
 
 ## v0.1.1-dev29 (March 2026)
 
