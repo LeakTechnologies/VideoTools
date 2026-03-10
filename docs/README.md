@@ -55,6 +55,7 @@ It provides a graphical interface for converting, inspecting, and preparing vide
 ## Development Documentation
 - [Integration Guide](INTEGRATION_GUIDE.md) - System architecture and integration plans.
 - [Build and Run Guide](BUILD_AND_RUN.md) - Instructions for setting up a development environment.
+- [Dev30 Finalization Checklist](DEV30_FINALIZATION_CHECKLIST.md) - Release-close checklist for CI, smoke tests, docs, and tag handoff.
 - **FFmpeg Integration** - [PLANNED] Documentation on FFmpeg command building.
 - **Contributing** - [PLANNED] Contribution guidelines.
 
