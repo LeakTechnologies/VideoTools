@@ -274,6 +274,9 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## AUTHOR MODULE: MENU TEMPLATES & THEMES
 
+**Template** = Layout/structure (how buttons are arranged)
+**Theme** = Visual aesthetic (colors, feel - sci-fi, western, minimal, etc.)
+
 ### Template Layouts (Menu Structure)
 
 - [ ] **Minimal** - Black background, white text, vertical button list (cleanest style)
@@ -283,15 +286,16 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Poster** - Large background image with overlay (current implementation)
 - [ ] **Cinematic** - Wide banner title, full-bleed background (modern)
 
-### Preset Themes (Color Schemes)
+### Preset Themes (Visual Aesthetic)
 
-- [ ] **Minimal** - Background: #000000, Text: #FFFFFF, Accent: #AAAAAA
+- [ ] **VideoTools** - Background: #0F172A, Text: #E1EEFF, Accent: #7C3AED (sci-fi/purple)
+- [ ] **Minimal** - Background: #000000, Text: #FFFFFF, Accent: #AAAAAA (clean B&W)
+- [ ] **Western** - Background: #1A1408, Text: #F5DEB3, Accent: #8B4513 (warm browns/golds)
+- [ ] **Film Noir** - Background: #1A1A1A, Text: #E0E0E0, Accent: #808080 (dark gray)
 - [ ] **Classic Hollywood** - Background: #000000, Text: #F5F5DC, Accent: #D4AF37 (gold)
-- [ ] **Film Noir** - Background: #1A1A1A, Text: #E0E0E0, Accent: #808080
-- [ ] **VideoTools** - Background: #0F172A, Text: #E1EEFF, Accent: #7C3AED (purple)
 - [ ] **Warm Cinema** - Background: #1A0F0A, Text: #FFF5E6, Accent: #E67E22 (orange)
 - [ ] **Ocean** - Background: #0A1A2A, Text: #E0F0FF, Accent: #00CED1 (cyan)
-- [ ] **Nature** - Background: #0A1A0A, Text: #E6FFE6, Accent: #DAA520 (gold-green)
+- [ ] **Nature** - Background: #0A1A0A, Text: #E6FFE6, Accent: #DAA520 (green-gold)
 - [ ] **Custom** - User-defined colors via color pickers
 
 ### Menu Types (What Gets Generated)
@@ -320,12 +324,20 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Implementation Priority
 
-1. Minimal template + 4-5 preset themes (MVP)
-2. Classic template
-3. Custom theme color pickers
-4. Grid template
-5. Filmstrip template
-6. Additional themes
+1. **MVP** - Separate Template and Theme dropdowns in UI, add Minimal + Western + Film Noir themes
+2. Minimal template + 4-5 preset themes
+3. Classic template
+4. Custom theme color pickers
+5. Grid template
+6. Filmstrip template
+7. Additional themes (Ocean, Nature, etc.)
+
+### UI Changes Required
+
+- [ ] Separate Template dropdown (Minimal, Classic, Grid, Filmstrip, Poster, Cinematic)
+- [ ] Separate Theme dropdown (VideoTools, Minimal, Western, Film Noir, Classic Hollywood, Warm Cinema, Ocean, Nature, Custom)
+- [ ] When "Custom" theme selected, show color pickers for background/text/accent
+- [ ] Theme preview thumbnail in UI
 
 ### VIDEO PLAYER IMPLEMENTATION
 
