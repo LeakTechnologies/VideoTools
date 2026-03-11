@@ -856,7 +856,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
 	)
 
-	return container.NewPadded(controls)
+	return container.NewVScroll(container.NewPadded(controls))
 }
 
 func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
@@ -1463,7 +1463,7 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 		generateBtn,
 	)
 
-	return container.NewPadded(controls)
+	return container.NewVScroll(container.NewPadded(controls))
 }
 
 func authorSummary(state *appState) string {

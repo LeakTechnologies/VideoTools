@@ -251,7 +251,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		logScroll,
 	)
 
-	return container.NewBorder(topBar, bottomBar, nil, nil, container.NewPadded(controls))
+	return container.NewBorder(topBar, bottomBar, nil, nil, container.NewVScroll(container.NewPadded(controls)))
 }
 
 func (s *appState) addRipToQueue(startNow bool) error {
