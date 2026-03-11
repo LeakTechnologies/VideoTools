@@ -272,6 +272,61 @@ This file tracks upcoming features, improvements, and known issues.
   - Add content_type per video, gallery assets list, chapter thumb config
   - Persist extras subtype and gallery behavior (auto-advance, loop)
 
+## AUTHOR MODULE: MENU TEMPLATES & THEMES
+
+### Template Layouts (Menu Structure)
+
+- [ ] **Minimal** - Black background, white text, vertical button list (cleanest style)
+- [ ] **Classic** - Title at top, buttons below centered (traditional DVD)
+- [ ] **Grid** - 2x2 or 3x2 button matrix (Star Wars style)
+- [ ] **Filmstrip** - Thumbnail preview buttons for scene selection
+- [ ] **Poster** - Large background image with overlay (current implementation)
+- [ ] **Cinematic** - Wide banner title, full-bleed background (modern)
+
+### Preset Themes (Color Schemes)
+
+- [ ] **Minimal** - Background: #000000, Text: #FFFFFF, Accent: #AAAAAA
+- [ ] **Classic Hollywood** - Background: #000000, Text: #F5F5DC, Accent: #D4AF37 (gold)
+- [ ] **Film Noir** - Background: #1A1A1A, Text: #E0E0E0, Accent: #808080
+- [ ] **VideoTools** - Background: #0F172A, Text: #E1EEFF, Accent: #7C3AED (purple)
+- [ ] **Warm Cinema** - Background: #1A0F0A, Text: #FFF5E6, Accent: #E67E22 (orange)
+- [ ] **Ocean** - Background: #0A1A2A, Text: #E0F0FF, Accent: #00CED1 (cyan)
+- [ ] **Nature** - Background: #0A1A0A, Text: #E6FFE6, Accent: #DAA520 (gold-green)
+- [ ] **Custom** - User-defined colors via color pickers
+
+### Menu Types (What Gets Generated)
+
+- [ ] **Main Menu** - Primary entry point with Play, Scene Selection, Special Features, Setup
+- [ ] **Scene Selection** - Chapter thumbnails with preview images
+- [ ] **Special Features** - Extras/trailers submenu
+- [ ] **Setup/Languages** - Audio/subtitle language selection
+- [ ] **Movie Title** - Opening video before menu (pre-menu)
+
+### Customization Options
+
+- [ ] Background image selection per template
+- [ ] Logo overlay (title/studio) with position/scale/margin controls
+- [ ] Custom font support
+- [ ] Button style/shape options
+- [ ] Motion backgrounds (video loops) - future
+- [ ] Background audio - future
+- [ ] Menu transitions - future
+
+### Dependencies & Cross-Platform
+
+- [X] **WSL ISO creation on Windows** - Use WSL xorriso for consistent DVD ISO generation
+- [ ] **ISO creation verification** - Test that Windows WSL path conversion works correctly
+- [ ] **Error handling** - Clear messages when WSL not installed or tools missing
+
+### Implementation Priority
+
+1. Minimal template + 4-5 preset themes (MVP)
+2. Classic template
+3. Custom theme color pickers
+4. Grid template
+5. Filmstrip template
+6. Additional themes
+
 ### VIDEO PLAYER IMPLEMENTATION
 
 **CRITICAL BLOCKER:** All advanced features (enhancement, trim, advanced filters) depend on stable player foundation.
