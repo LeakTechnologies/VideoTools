@@ -18,6 +18,7 @@ type AuthorConfig struct {
 	MenuTemplate           string  `json:"menuTemplate"`
 	MenuTheme              string  `json:"menuTheme"`
 	MenuBackgroundImage    string  `json:"menuBackgroundImage"`
+	MenuMotionBackground   string  `json:"menuMotionBackground"`
 	MenuTitleLogoEnabled   bool    `json:"menuTitleLogoEnabled"`
 	MenuTitleLogoPath      string  `json:"menuTitleLogoPath"`
 	MenuTitleLogoPosition  string  `json:"menuTitleLogoPosition"`

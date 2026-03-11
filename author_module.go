@@ -60,6 +60,7 @@ func (s *appState) applyAuthorConfig(cfg authorConfig) {
 	s.authorMenuTemplate = cfg.MenuTemplate
 	s.authorMenuTheme = cfg.MenuTheme
 	s.authorMenuBackgroundImage = cfg.MenuBackgroundImage
+	s.authorMenuMotionBackground = cfg.MenuMotionBackground
 	s.authorMenuTitleLogoEnabled = cfg.MenuTitleLogoEnabled
 	s.authorMenuTitleLogoPath = cfg.MenuTitleLogoPath
 	s.authorMenuTitleLogoPosition = cfg.MenuTitleLogoPosition
@@ -88,6 +89,7 @@ func (s *appState) persistAuthorConfig() {
 		MenuTemplate:           s.authorMenuTemplate,
 		MenuTheme:              s.authorMenuTheme,
 		MenuBackgroundImage:    s.authorMenuBackgroundImage,
+		MenuMotionBackground:   s.authorMenuMotionBackground,
 		MenuTitleLogoEnabled:   s.authorMenuTitleLogoEnabled,
 		MenuTitleLogoPath:      s.authorMenuTitleLogoPath,
 		MenuTitleLogoPosition:  s.authorMenuTitleLogoPosition,
@@ -968,7 +970,34 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		}, state.window)
 	})
 	bgImageButton.Importance = widget.HighImportance
-	// Background image is now available for ALL templates (not just Poster)
+
+	// Motion background (video loop) controls
+	motionBgLabel := widget.NewLabel(state.authorMenuMotionBackground)
+	motionBgLabel.Wrapping = fyne.TextWrapWord
+	motionBgNote := widget.NewLabel("Motion background (MPG video loop - audio included)")
+	motionBgNote.TextStyle = fyne.TextStyle{Italic: true}
+	motionBgNote.Wrapping = fyne.TextWrapWord
+	motionBgButton := widget.NewButton("Select Motion Background", func() {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
+				return
+			}
+			defer reader.Close()
+			state.authorMenuMotionBackground = reader.URI().Path()
+			motionBgLabel.SetText(state.authorMenuMotionBackground)
+			state.updateAuthorSummary()
+			state.persistAuthorConfig()
+		}, state.window)
+	})
+	motionBgButton.Importance = widget.MediumImportance
+
+	clearMotionBgButton := widget.NewButton("Clear", func() {
+		state.authorMenuMotionBackground = ""
+		motionBgLabel.SetText("")
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	})
+	clearMotionBgButton.Importance = widget.LowImportance
 
 	menuTemplateSelect.OnChanged = func(value string) {
 		state.authorMenuTemplate = templateValueByLabel[value]
@@ -1275,6 +1304,10 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		menuTemplateSelect,
 		bgImageLabel,
 		bgImageButton,
+		layout.NewSpacer(),
+		motionBgNote,
+		motionBgLabel,
+		container.NewHBox(motionBgButton, clearMotionBgButton),
 		widget.NewLabel("Menu Structure:"),
 		menuStructureSelect,
 	))
@@ -2318,6 +2351,7 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 		"additionalAudios":       append([]string{}, s.authorAudioTracks...),
 		"menuTemplate":           s.authorMenuTemplate,
 		"menuBackgroundImage":    s.authorMenuBackgroundImage,
+		"menuMotionBackground":   s.authorMenuMotionBackground,
 		"menuTheme":              s.authorMenuTheme,
 		"menuTitleLogoEnabled":   s.authorMenuTitleLogoEnabled,
 		"menuTitleLogoPath":      s.authorMenuTitleLogoPath,
@@ -2419,7 +2453,7 @@ func (s *appState) addAuthorVideoTSToQueue(videoTSPath, title, outputPath string
 	return nil
 }
 
-func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, createMenu bool, menuTemplate string, menuBackgroundImage string, menuTheme string, logos menuLogoOptions, logFn func(string), progressFn func(float64)) error {
+func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, createMenu bool, menuTemplate string, menuBackgroundImage string, menuMotionBackground string, menuTheme string, logos menuLogoOptions, logFn func(string), progressFn func(float64)) error {
 	tempRoot := authorTempRoot(outputPath)
 	if err := os.MkdirAll(tempRoot, 0755); err != nil {
 		return fmt.Errorf("failed to create temp root: %w", err)
@@ -2747,6 +2781,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			logFn,
 			template,
 			menuBackgroundImage,
+			menuMotionBackground,
 			&MenuTheme{Name: menuTheme},
 			logos,
 		)
@@ -3074,6 +3109,7 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 		createMenu,
 		toString(cfg["menuTemplate"]),
 		toString(cfg["menuBackgroundImage"]),
+		toString(cfg["menuMotionBackground"]),
 		toString(cfg["menuTheme"]),
 		menuLogoOptions{
 			TitleLogo: menuLogo{
