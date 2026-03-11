@@ -46,7 +46,7 @@ type menuLogo struct {
 
 // MenuTemplate defines the interface for a DVD menu generator.
 type MenuTemplate interface {
-	Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error)
+	Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error)
 }
 
 var menuTemplates = map[string]MenuTemplate{
@@ -136,7 +136,7 @@ var menuThemes = map[string]*MenuTheme{
 type MinimalMenu struct{}
 
 // Generate creates a minimal DVD menu with black background and clean white text.
-func (t *MinimalMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+func (t *MinimalMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildDVDMenuButtons(chapters, false, width, height)
 	if len(buttons) == 0 {
@@ -168,7 +168,7 @@ func (t *MinimalMenu) Generate(ctx context.Context, workDir, title, region, aspe
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
 		return "", nil, err
 	}
 	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
@@ -187,7 +187,7 @@ func (t *MinimalMenu) Generate(ctx context.Context, workDir, title, region, aspe
 type SimpleMenu struct{}
 
 // Generate creates a simple DVD menu.
-func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildDVDMenuButtons(chapters, false, width, height) // hasExtras=false for template compatibility
 	if len(buttons) == 0 {
@@ -218,7 +218,7 @@ func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
 		return "", nil, err
 	}
 	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
@@ -237,7 +237,7 @@ func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspec
 type DarkMenu struct{}
 
 // Generate creates a dark-themed DVD menu.
-func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildDVDMenuButtons(chapters, false, width, height) // hasExtras=false for template compatibility
 	if len(buttons) == 0 {
@@ -268,7 +268,7 @@ func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
 		return "", nil, err
 	}
 	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
@@ -287,7 +287,7 @@ func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 type PosterMenu struct{}
 
 // Generate creates a poster-themed DVD menu.
-func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildDVDMenuButtons(chapters, false, width, height) // hasExtras=false for template compatibility
 	if len(buttons) == 0 {
@@ -316,7 +316,7 @@ func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
 		return "", nil, err
 	}
 	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
@@ -340,7 +340,7 @@ type dvdMenuSet struct {
 	ExtrasButtons    []dvdMenuButton
 }
 
-func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, extras []extraItem, logFn func(string), template MenuTemplate, backgroundImage string, theme *MenuTheme, logo menuLogoOptions) (dvdMenuSet, error) {
+func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, extras []extraItem, logFn func(string), template MenuTemplate, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions) (dvdMenuSet, error) {
 	if template == nil {
 		template = &SimpleMenu{}
 	}
@@ -351,7 +351,7 @@ func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect stri
 	mainButtons := buildDVDMenuButtons(chapters, hasExtras, width, height)
 
 	// Generate main menu MPEG set
-	mainMpg, err := buildMainMenuMPEGSet(ctx, workDir, title, region, aspect, mainButtons, backgroundImage, theme, logo, logFn)
+	mainMpg, err := buildMainMenuMPEGSet(ctx, workDir, title, region, aspect, mainButtons, backgroundImage, motionBackground, theme, logo, logFn)
 	if err != nil {
 		return dvdMenuSet{}, err
 	}
@@ -363,7 +363,7 @@ func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect stri
 
 	// Generate chapters menu if there are multiple chapters
 	if len(chapters) > 1 {
-		chaptersMenuMpg, chaptersButtons, err := buildChaptersMenuMPEGSet(ctx, workDir, title, region, aspect, chapters, theme, logFn)
+		chaptersMenuMpg, chaptersButtons, err := buildChaptersMenuMPEGSet(ctx, workDir, title, region, aspect, chapters, backgroundImage, motionBackground, theme, logFn)
 		if err != nil {
 			return dvdMenuSet{}, err
 		}
@@ -373,7 +373,7 @@ func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect stri
 
 	// Generate extras menu if there are extras
 	if len(extras) > 0 {
-		extrasMenuMpg, extrasButtons, err := buildExtrasMenuMPEGSet(ctx, workDir, title, region, aspect, extras, theme, logFn)
+		extrasMenuMpg, extrasButtons, err := buildExtrasMenuMPEGSet(ctx, workDir, title, region, aspect, extras, backgroundImage, motionBackground, theme, logFn)
 		if err != nil {
 			return dvdMenuSet{}, err
 		}
@@ -384,7 +384,7 @@ func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect stri
 	return result, nil
 }
 
-func buildMainMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, buttons []dvdMenuButton, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, error) {
+func buildMainMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, buttons []dvdMenuButton, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, error) {
 	width, height := dvdMenuDimensions(region)
 
 	bgPath := filepath.Join(workDir, "menu_bg.png")
@@ -411,7 +411,7 @@ func buildMainMenuMPEGSet(ctx context.Context, workDir, title, region, aspect st
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
 		return "", err
 	}
 	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
@@ -426,7 +426,7 @@ func buildMainMenuMPEGSet(ctx context.Context, workDir, title, region, aspect st
 	return menuSpu, nil
 }
 
-func buildExtrasMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, extras []extraItem, theme *MenuTheme, logFn func(string)) (string, []dvdMenuButton, error) {
+func buildExtrasMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, extras []extraItem, backgroundImage, motionBackground string, theme *MenuTheme, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildExtrasMenuButtons(extras, width, height)
 	if len(buttons) == 0 {
@@ -451,7 +451,7 @@ func buildExtrasMenuMPEGSet(ctx context.Context, workDir, title, region, aspect 
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
 		return "", nil, err
 	}
 	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
@@ -466,7 +466,7 @@ func buildExtrasMenuMPEGSet(ctx context.Context, workDir, title, region, aspect 
 	return menuSpu, buttons, nil
 }
 
-func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, theme *MenuTheme, logFn func(string)) (string, []dvdMenuButton, error) {
+func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildChapterMenuButtons(chapters, width, height)
 	if len(buttons) == 0 {
@@ -491,7 +491,7 @@ func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspec
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
 		return "", nil, err
 	}
 	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
@@ -1011,27 +1011,55 @@ func buildMenuOverlay(ctx context.Context, outputPath string, buttons []dvdMenuB
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
 
-func buildMenuMPEG(ctx context.Context, bgPath, outputPath, region, aspect string, logFn func(string)) error {
+func buildMenuMPEG(ctx context.Context, bgPath, outputPath, region, aspect string, motionBackground string, logFn func(string)) error {
 	scale := "720:480"
 	if strings.ToLower(region) == "pal" {
 		scale = "720:576"
 	}
-	args := []string{
-		"-y",
-		"-loop", "1",
-		"-i", bgPath,
-		"-t", "30",
-		"-r", "30000/1001",
-		"-vf", fmt.Sprintf("scale=%s,format=yuv420p", scale),
-		"-c:v", "mpeg2video",
-		"-b:v", "3000k",
-		"-maxrate", "5000k",
-		"-bufsize", "1835k",
-		"-g", "15",
-		"-pix_fmt", "yuv420p",
-		"-aspect", aspect,
-		"-f", "dvd",
-		outputPath,
+
+	var args []string
+
+	if motionBackground != "" && strings.Contains(strings.ToLower(motionBackground), ".mpg") {
+		// Use motion background video - just transcode to DVD format
+		if logFn != nil {
+			logFn(fmt.Sprintf("Using motion background: %s", filepath.Base(motionBackground)))
+		}
+		args = []string{
+			"-y",
+			"-i", motionBackground,
+			"-t", "30",
+			"-r", "30000/1001",
+			"-vf", fmt.Sprintf("scale=%s:force_original_aspect_ratio=decrease,pad=%s:(ow-iw)/2:(oh-ih)/2,format=yuv420p", scale, scale),
+			"-c:v", "mpeg2video",
+			"-b:v", "3000k",
+			"-maxrate", "5000k",
+			"-bufsize", "1835k",
+			"-g", "15",
+			"-pix_fmt", "yuv420p",
+			"-aspect", aspect,
+			"-f", "dvd",
+			"-loop", "0",
+			outputPath,
+		}
+	} else {
+		// Use static background image (looped)
+		args = []string{
+			"-y",
+			"-loop", "1",
+			"-i", bgPath,
+			"-t", "30",
+			"-r", "30000/1001",
+			"-vf", fmt.Sprintf("scale=%s,format=yuv420p", scale),
+			"-c:v", "mpeg2video",
+			"-b:v", "3000k",
+			"-maxrate", "5000k",
+			"-bufsize", "1835k",
+			"-g", "15",
+			"-pix_fmt", "yuv420p",
+			"-aspect", aspect,
+			"-f", "dvd",
+			outputPath,
+		}
 	}
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
