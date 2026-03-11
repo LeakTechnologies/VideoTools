@@ -310,8 +310,7 @@ This file tracks upcoming features, improvements, and known issues.
 
 - [x] Background image selection per template (currently works for Poster template)
 - [ ] **Custom background for ALL templates** - Allow user to provide their own background image (PNG/JPG) for any template
-- [ ] **Animated backgrounds** - Support looping video backgrounds (MPG) for motion menus
-- [ ] **Background audio** - Optional background music loop (MP3/WAV) during menu display
+- [ ] **Motion backgrounds** - Support looping video backgrounds (MPG) - audio is embedded in the video file
 - [ ] Logo overlay (title/studio) with position/scale/margin controls
 - [ ] Custom font support (TTF/OTF)
 - [ ] Button style/shape options
