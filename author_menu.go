@@ -50,9 +50,10 @@ type MenuTemplate interface {
 }
 
 var menuTemplates = map[string]MenuTemplate{
-	"Simple": &SimpleMenu{},
-	"Dark":   &DarkMenu{},
-	"Poster": &PosterMenu{},
+	"Minimal":  &MinimalMenu{},
+	"Simple":   &SimpleMenu{},
+	"Dark":     &DarkMenu{},
+	"Poster":   &PosterMenu{},
 }
 
 var menuThemes = map[string]*MenuTheme{
@@ -65,6 +66,121 @@ var menuThemes = map[string]*MenuTheme{
 		FontName:        "IBM Plex Mono",
 		FontPath:        findMenuFontPath(),
 	},
+	"Minimal": {
+		Name:            "Minimal",
+		BackgroundColor: "0x000000",
+		HeaderColor:     "0x1a1a1a",
+		TextColor:       "0xFFFFFF",
+		AccentColor:     "0xAAAAAA",
+		FontName:        "IBM Plex Mono",
+		FontPath:        findMenuFontPath(),
+	},
+	"Western": {
+		Name:            "Western",
+		BackgroundColor: "0x1a1408",
+		HeaderColor:     "0x2d2310",
+		TextColor:       "0xF5DEB3",
+		AccentColor:     "0x8B4513",
+		FontName:        "IBM Plex Mono",
+		FontPath:        findMenuFontPath(),
+	},
+	"Film Noir": {
+		Name:            "Film Noir",
+		BackgroundColor: "0x1a1a1a",
+		HeaderColor:     "0x2d2d2d",
+		TextColor:       "0xE0E0E0",
+		AccentColor:     "0x808080",
+		FontName:        "IBM Plex Mono",
+		FontPath:        findMenuFontPath(),
+	},
+	"Classic Hollywood": {
+		Name:            "Classic Hollywood",
+		BackgroundColor: "0x000000",
+		HeaderColor:     "0x1a1a1a",
+		TextColor:       "0xF5F5DC",
+		AccentColor:     "0xD4AF37",
+		FontName:        "IBM Plex Mono",
+		FontPath:        findMenuFontPath(),
+	},
+	"Warm Cinema": {
+		Name:            "Warm Cinema",
+		BackgroundColor: "0x1a0f0a",
+		HeaderColor:     "0x2d1a10",
+		TextColor:       "0xFFF5E6",
+		AccentColor:     "0xE67E22",
+		FontName:        "IBM Plex Mono",
+		FontPath:        findMenuFontPath(),
+	},
+	"Ocean": {
+		Name:            "Ocean",
+		BackgroundColor: "0x0a1a2a",
+		HeaderColor:     "0x142d40",
+		TextColor:       "0xE0F0FF",
+		AccentColor:     "0x00CED1",
+		FontName:        "IBM Plex Mono",
+		FontPath:        findMenuFontPath(),
+	},
+	"Nature": {
+		Name:            "Nature",
+		BackgroundColor: "0x0a1a0a",
+		HeaderColor:     "0x142d14",
+		TextColor:       "0xE6FFE6",
+		AccentColor:     "0xDAA520",
+		FontName:        "IBM Plex Mono",
+		FontPath:        findMenuFontPath(),
+	},
+}
+
+// MinimalMenu is a clean, minimal menu template with black background and white text buttons.
+// Inspired by classic DVD menus like "The Anniversary Party".
+type MinimalMenu struct{}
+
+// Generate creates a minimal DVD menu with black background and clean white text.
+func (t *MinimalMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+	width, height := dvdMenuDimensions(region)
+	buttons := buildDVDMenuButtons(chapters, false, width, height)
+	if len(buttons) == 0 {
+		return "", nil, nil
+	}
+
+	bgPath := filepath.Join(workDir, "menu_bg.png")
+	if backgroundImage != "" {
+		bgPath = backgroundImage
+	}
+	overlayPath := filepath.Join(workDir, "menu_overlay.png")
+	highlightPath := filepath.Join(workDir, "menu_highlight.png")
+	selectPath := filepath.Join(workDir, "menu_select.png")
+	menuMpg := filepath.Join(workDir, "menu.mpg")
+	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
+	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
+
+	if logFn != nil {
+		logFn("Building DVD menu assets with MinimalMenu template...")
+	}
+
+	// For Minimal menu, we use pure black background (theme-aware via resolveMenuTheme)
+	if backgroundImage == "" {
+		if err := buildMinimalMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo, logFn); err != nil {
+			return "", nil, err
+		}
+	}
+
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
+		return "", nil, err
+	}
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, logFn); err != nil {
+		return "", nil, err
+	}
+	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
+		return "", nil, err
+	}
+	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
+		return "", nil, err
+	}
+	if logFn != nil {
+		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
+	}
+	return menuSpu, buttons, nil
 }
 
 // SimpleMenu is a basic menu template.
@@ -542,6 +658,74 @@ func buildMenuBackground(ctx context.Context, outputPath, title string, buttons 
 		label := escapeDrawtextText(btn.Label)
 		y := 184 + i*34
 		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=20:x=110:y=%d:text=%s", fontArg, textColor, y, label))
+	}
+
+	filterChain := strings.Join(filterParts, ",")
+
+	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
+	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+
+	// Handle title logo and studio logo overlays
+	inputIndex := 1
+	baseLayer := "[bg]"
+
+	// Add title logo if enabled
+	if logo.TitleLogo.Enabled {
+		titleLogoPath := resolveMenuLogoPath(logo.TitleLogo)
+		if titleLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.TitleLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.TitleLogo, width, height)
+			args = append(args, "-i", titleLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[titlelogo];%s[titlelogo]overlay=%s[tmp%d]", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr, inputIndex)
+			baseLayer = fmt.Sprintf("[tmp%d]", inputIndex)
+			inputIndex++
+		}
+	}
+
+	// Add studio logo if enabled
+	if logo.StudioLogo.Enabled {
+		studioLogoPath := resolveMenuLogoPath(logo.StudioLogo)
+		if studioLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.StudioLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.StudioLogo, width, height)
+			args = append(args, "-i", studioLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[studiologo];%s[studiologo]overlay=%s", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr)
+		}
+	}
+
+	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
+}
+
+// buildMinimalMenuBackground creates a minimal menu with clean layout:
+// Title at top, buttons on left side, simple and elegant.
+func buildMinimalMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
+	theme = resolveMenuTheme(theme)
+
+	safeTitle := strings.ToUpper(utils.ShortenMiddle(strings.TrimSpace(title), 40))
+	if safeTitle == "" {
+		safeTitle = "DVD MENU"
+	}
+
+	// Minimal theme uses pure black background with theme's text colors
+	bgColor := "0x000000"
+	textColor := theme.TextColor
+	accentColor := theme.AccentColor
+	fontArg := menuFontArg(theme)
+
+	// Title centered at top, buttons on left side
+	filterParts := []string{
+		// Title centered at top
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=36:x=(w-text_w)/2:y=40:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
+		// Separator line below title
+		fmt.Sprintf("drawbox=x=100:y=95:w=%d:h=2:color=%s:t=fill", width-200, accentColor),
+	}
+
+	// Buttons on left side with good spacing
+	for i, btn := range buttons {
+		label := strings.ToUpper(escapeDrawtextText(btn.Label))
+		y := 150 + i*40
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=22:x=120:y=%d:text=%s", fontArg, textColor, y, label))
 	}
 
 	filterChain := strings.Join(filterParts, ",")
