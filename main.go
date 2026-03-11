@@ -7154,8 +7154,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Make panel sizes responsive with modest minimums to avoid forcing the window beyond the screen.
-	// The video pane should be the primary region; keep a stronger minimum.
-	videoPanel := buildVideoPane(state, fyne.NewSize(640, 360), src, updateCover)
+	// Video pane uses VSplit with metadata at 50% - use moderate minimum for scaling.
+	videoPanel := buildVideoPane(state, fyne.NewSize(480, 270), src, updateCover)
 	metaPanel, metaCoverUpdate := buildMetadataPanel(state, src, fyne.NewSize(0, 200))
 	updateMetaCover = metaCoverUpdate
 
@@ -10016,10 +10016,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	snippetPad.SetMinSize(fyne.NewSize(10, 0))
 	snippetRow = container.NewBorder(nil, nil, snippetPad, snippetPad, snippetRow)
 
-	// Left column: player fixed at top, metadata expands to fill remaining space.
+	// Left column: use VSplit to give 50% vertical space to video and metadata each.
 	leftGap := canvas.NewRectangle(color.Transparent)
 	leftGap.SetMinSize(fyne.NewSize(0, 6))
-	leftColumn := container.NewBorder(container.NewVBox(videoPanel, leftGap), nil, nil, nil, metaPanel)
+	videoWithGap := container.NewVBox(videoPanel, leftGap)
+	leftColumn := container.NewVSplit(videoWithGap, metaPanel)
+	leftColumn.SetOffset(0.5) // 50/50 split between video and metadata
 
 	// Split: left side (player + metadata) takes priority | right side (settings).
 	mainSplit := container.NewHSplit(
