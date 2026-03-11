@@ -572,7 +572,6 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	clearCompletedBtn.Importance = widget.LowImportance
 
 	topBar := ui.TintedBar(subtitlesColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
-	bottomBar := moduleFooter(subtitlesColor, layout.NewSpacer(), state.statsBar)
 
 	videoEntry := widget.NewEntry()
 	videoEntry.SetPlaceHolder("Video file path")
@@ -1099,7 +1098,6 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputModeSelect,
 		outputEntry,
-		applyBtn,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Status", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		statusScroll,
@@ -1127,6 +1125,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	content := container.NewGridWithColumns(2, droppableLeft, droppableRight)
 	scroll := container.NewVScroll(content)
 	scroll.SetMinSize(fyne.NewSize(0, 0))
+	bottomBar := moduleFooter(subtitlesColor, container.NewHBox(layout.NewSpacer(), applyBtn), state.statsBar)
 	return container.NewBorder(topBar, bottomBar, nil, nil, scroll)
 }
 
