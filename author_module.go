@@ -131,7 +131,7 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 		state.authorDiscSize = "DVD5"
 	}
 	if state.authorMenuTemplate == "" {
-		state.authorMenuTemplate = "Simple"
+		state.authorMenuTemplate = "Minimal"
 	}
 	if state.authorMenuTheme == "" {
 		state.authorMenuTheme = "VideoTools"
@@ -897,7 +897,18 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	menuDisabledNote.TextStyle = fyne.TextStyle{Italic: true}
 	menuDisabledNote.Wrapping = fyne.TextWrapWord
 
-	menuThemeSelect := widget.NewSelect([]string{"VideoTools"}, func(value string) {
+	// Theme dropdown - Visual aesthetic (colors/feel)
+	themeOptions := []string{
+		"VideoTools",
+		"Minimal",
+		"Western",
+		"Film Noir",
+		"Classic Hollywood",
+		"Warm Cinema",
+		"Ocean",
+		"Nature",
+	}
+	menuThemeSelect := widget.NewSelect(themeOptions, func(value string) {
 		state.authorMenuTheme = value
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
@@ -907,20 +918,24 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 	menuThemeSelect.SetSelected(state.authorMenuTheme)
 
+	// Template dropdown - Layout/structure
 	templateOptions := []string{
+		"Minimal (Clean & Simple)",
 		"Simple (Title + Buttons)",
-		"Poster (Grid Thumbnails)",
 		"Classic (Title + Buttons)",
+		"Poster (Grid Thumbnails)",
 	}
 	templateValueByLabel := map[string]string{
+		"Minimal (Clean & Simple)":  "Minimal",
 		"Simple (Title + Buttons)":  "Simple",
 		"Poster (Grid Thumbnails)":  "Poster",
 		"Classic (Title + Buttons)": "Dark",
 	}
 	templateLabelByValue := map[string]string{
-		"Simple": "Simple (Title + Buttons)",
-		"Poster": "Poster (Grid Thumbnails)",
-		"Dark":   "Classic (Title + Buttons)",
+		"Minimal": "Minimal (Clean & Simple)",
+		"Simple":  "Simple (Title + Buttons)",
+		"Poster":  "Poster (Grid Thumbnails)",
+		"Dark":    "Classic (Title + Buttons)",
 	}
 
 	menuTemplateSelect := widget.NewSelect(templateOptions, func(value string) {
@@ -929,7 +944,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		state.persistAuthorConfig()
 	})
 	if state.authorMenuTemplate == "" {
-		state.authorMenuTemplate = "Simple"
+		state.authorMenuTemplate = "Minimal"
 	}
 	templateLabel := templateLabelByValue[state.authorMenuTemplate]
 	if templateLabel == "" {
@@ -953,14 +968,10 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		}, state.window)
 	})
 	bgImageButton.Importance = widget.HighImportance
-	bgImageButton.Hidden = state.authorMenuTemplate != "Poster"
-	bgImageLabel.Hidden = state.authorMenuTemplate != "Poster"
+	// Background image is now available for ALL templates (not just Poster)
 
 	menuTemplateSelect.OnChanged = func(value string) {
 		state.authorMenuTemplate = templateValueByLabel[value]
-		showPoster := state.authorMenuTemplate == "Poster"
-		bgImageButton.Hidden = !showPoster
-		bgImageLabel.Hidden = !showPoster
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
 	}
