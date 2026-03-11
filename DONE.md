@@ -12,6 +12,12 @@
 - [x] Convert module vertical layout - Changed left column to VSplit with 50/50 split between video player and metadata.
 - [x] Module action buttons - Moved primary action buttons into module footer action bar for consistency.
 
+### Author Module
+- [x] Menu templates - Added Minimal template and separated templates from themes.
+- [x] Menu themes - Added 8 preset themes (VideoTools, Minimal, Western, Film Noir, Classic Hollywood, Warm Cinema, Ocean, Nature).
+- [x] Custom background for all templates - Background image now available for all template types.
+- [x] Motion backgrounds - Added support for video loop backgrounds (MPG) with embedded audio.
+
 ### Refactor
 - [x] Convert module placeholder - Created `internal/app/modules/convert/` directory with Options struct for future modularization.
 - [x] WSL ISO creation on Windows - Added `internal/utils/wsl.go` with WSL detection, path conversion, and ISO tool detection for consistent DVD ISO generation on Windows.

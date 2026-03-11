@@ -309,9 +309,9 @@ This file tracks upcoming features, improvements, and known issues.
 ### Customization Options (Core Features)
 
 - [x] Background image selection per template (currently works for Poster template)
-- [ ] **Custom background for ALL templates** - Allow user to provide their own background image (PNG/JPG) for any template
-- [ ] **Motion backgrounds** - Support looping video backgrounds (MPG) - audio is embedded in the video file
-- [ ] Logo overlay (title/studio) with position/scale/margin controls
+- [x] **Custom background for ALL templates** - Allow user to provide their own background image (PNG/JPG) for any template
+- [x] **Motion backgrounds** - Support looping video backgrounds (MPG) - audio is embedded in the video file
+- [x] Logo overlay (title/studio) with position/scale/margin controls
 - [ ] Custom font support (TTF/OTF)
 - [ ] Button style/shape options
 
