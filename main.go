@@ -1068,9 +1068,10 @@ type appState struct {
 	authorRegion                  string       // "NTSC", "PAL", "AUTO"
 	authorAspectRatio             string       // "4:3", "16:9", "AUTO"
 	authorCreateMenu              bool         // Whether to create DVD menu
-	authorMenuTemplate            string       // "Simple", "Dark", "Poster"
+	authorMenuTemplate            string       // "Minimal", "Simple", "Dark", "Poster"
 	authorMenuBackgroundImage     string       // Path to a user-selected background image
-	authorMenuTheme               string       // "VideoTools"
+	authorMenuMotionBackground    string       // Path to a motion background video (MPG)
+	authorMenuTheme               string       // "VideoTools", "Minimal", "Western", etc.
 	authorMenuTitleLogoEnabled    bool         // Enable title logo (main logo above menu)
 	authorMenuTitleLogoPath       string       // Path to title logo image
 	authorMenuTitleLogoPosition   string       // Position for title logo
@@ -1759,15 +1760,26 @@ func (r *mouseButtonRenderer) BackgroundColor() color.Color {
 }
 
 func (s *appState) setContent(body fyne.CanvasObject) {
+	// Capture size before the async update so the window does not resize when
+	// the new module's content has different minimum sizes (issue #4).
+	var savedSize fyne.Size
+	if c := s.window.Canvas(); c != nil {
+		savedSize = c.Size()
+	}
+
 	update := func() {
 		bg := canvas.NewRectangle(backgroundColor)
 		if body == nil {
 			s.window.SetContent(bg)
-			return
+		} else {
+			// Wrap content with mouse button handler
+			wrapped := newMouseButtonHandler(container.NewMax(bg, body), s)
+			s.window.SetContent(wrapped)
 		}
-		// Wrap content with mouse button handler
-		wrapped := newMouseButtonHandler(container.NewMax(bg, body), s)
-		s.window.SetContent(wrapped)
+		// Restore window size to prevent layout-driven resize on module switch.
+		if savedSize.Width > 0 && savedSize.Height > 0 {
+			s.window.Resize(savedSize)
+		}
 	}
 
 	// Use async Do() instead of DoAndWait() to avoid deadlock when called from main goroutine
