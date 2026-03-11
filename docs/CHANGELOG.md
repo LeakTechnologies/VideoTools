@@ -1,5 +1,12 @@
 # VideoTools Changelog
 
+## v0.1.1-dev31 (March 2026)
+
+### UI
+- **Module settings scrolling** - Add scroll containers to all module settings panels (all non-Convert modules currently clip content on smaller windows).
+- **Window resize stability** - Prevent window from resizing when switching between modules.
+- **Convert UI cleanup** - Layout and control organization pass to prepare Convert for external developer testing.
+
 ## v0.1.1-dev30 (March 2026)
 
 ### Maintenance
@@ -33,6 +40,7 @@
 - **Refactor phase 3 continuation** - Moved main menu visibility/dependency filtering and active-job mapping helpers into `internal/app/modules/mainmenu` while keeping runtime behavior unchanged.
 - **Release closeout checklist** - Added `docs/DEV30_FINALIZATION_CHECKLIST.md` to standardize dev30 finalization and dev31 handoff steps.
 - **Agent handoff update** - Expanded `AGENTS.md` with current release state, closeout requirements, refactor boundaries, and dev31 takeover priorities.
+- **Dev30 closeout** - CI validated (runs 219/220/221, commit 2cbb3a2), checklist sections 1/2/5/6/7 complete, smoke test and dependency validation carried forward to dev31.
 
 ## v0.1.1-dev29 (March 2026)
 

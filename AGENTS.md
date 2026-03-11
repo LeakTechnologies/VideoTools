@@ -4,30 +4,25 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev30`.
+- Current cycle: `v0.1.1-dev31`.
 - Public/stable baseline: `v0.1.1`.
-- `dev30` is in closeout, not open-ended feature expansion.
-- Next cycle begins at `v0.1.1-dev31` after `dev30` release/tag validation is complete.
-- The active closeout checklist is `docs/DEV30_FINALIZATION_CHECKLIST.md`.
+- `dev30` is closed. CI validated on 2026-03-10 (runs 219/220/221, commit 2cbb3a2).
+- `dev31` focus: UI stability (module settings scrolling, window resize on module switch, Convert UI cleanup).
+- Issue tracker active at `https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues`.
 - Primary planning source is `TODO.md`; shipped scope is tracked in `DONE.md`; release-facing history is `docs/CHANGELOG.md`.
 
 ## Immediate Handoff Priorities
 
-- Do not add new feature scope to `dev30` unless explicitly approved.
-- Finish `dev30` by validating CI, release assets, smoke tests, and tag state.
-- Once `dev30` is closed, bump `VERSION`, `main.go`, and `FyneApp.toml` to `v0.1.1-dev31`.
-- Start `dev31` by carrying forward only the unchecked items that remain relevant from `TODO.md`.
+- `dev31` is open. Work from the `## Dev31 Scope` section in `TODO.md`.
+- Primary focus: module settings scrolling, window resize stability, Convert UI cleanup.
+- Do not expand scope beyond what is listed unless explicitly approved.
+- Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
 
-## Dev30 Closeout Rules
+## Dev30 Closeout (Complete)
 
-- Treat `docs/DEV30_FINALIZATION_CHECKLIST.md` as required, not optional.
-- Before declaring `dev30` complete, verify:
-  - latest `master` build passes for Linux and Windows
-  - `publish-release` updates only the `VERSION` tag release
-  - release assets are replaced cleanly
-  - release notes use concise highlights, not raw changelog dumps
-  - `v0.1.1-dev30` points to the intended final commit
-- Do not start `dev31` version bumps until those checks are complete or explicitly waived by the user.
+- `dev30` closed 2026-03-11. Checklist at `docs/DEV30_FINALIZATION_CHECKLIST.md`.
+- CI confirmed green on commit 2cbb3a2. Release assets verified on Forgejo.
+- Smoke test and dependency validation carried forward as issues #3, #4, #5, #18.
 
 ## Commit Discipline
 
@@ -94,10 +89,13 @@ These rules apply to any automation or agent working in this repo.
 
 ## Validation Priorities For Dev31
 
-- Highest-value carry-over items:
-  - complete remaining Phase 3 / main.go modularization safely
-  - validate Windows first-run FFmpeg bootstrap on a clean machine
-  - validate cross-platform dependency actions
-  - validate Forgejo packaging/release workflows end-to-end
-  - keep UI/resolution behavior stable while refactoring
-- Do not reopen bundled dependency packaging for dev builds unless explicitly requested; dev workflows currently publish standard packages only.
+- Primary dev31 scope (see `TODO.md` Dev31 Scope section and issues #3, #4, #5):
+  - module settings panel scrolling — all non-Convert modules
+  - window resize stability on module switch
+  - Convert UI cleanup for developer testing readiness
+- Carry-forward validations (tracked as issues, not blocking dev31 code work):
+  - Windows first-run FFmpeg bootstrap — issue #18
+  - cross-platform dependency actions — issue #7
+  - Forgejo packaging/release workflows end-to-end — issues #8, #9, #10
+- Continue Phase 3 / main.go modularization as secondary work once UI fixes land.
+- Do not reopen bundled dependency packaging for dev builds unless explicitly requested.
