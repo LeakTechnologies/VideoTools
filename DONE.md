@@ -33,6 +33,7 @@
 - [x] Updated installation/readme docs to point users at in-repo docs and Forgejo wiki as the active documentation locations.
 - [x] Continued Phase 3 refactor by moving main menu visibility/dependency filtering and active-job mapping helpers into `internal/app/modules/mainmenu`.
 - [x] Added `docs/DEV30_FINALIZATION_CHECKLIST.md` to formalize dev30 closeout gates (CI, smoke tests, dependency checks, docs, tagging, and dev31 kickoff).
+- [x] Expanded `AGENTS.md` with a full `dev30` closeout and `dev31` handoff brief so a new coding agent can take over without reconstructing project state.
 
 ## Version 0.1.1-dev29 (2026-03-03) - Build and Runner Stabilization
 
