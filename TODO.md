@@ -306,15 +306,26 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Setup/Languages** - Audio/subtitle language selection
 - [ ] **Movie Title** - Opening video before menu (pre-menu)
 
-### Customization Options
+### Customization Options (Core Features)
 
-- [ ] Background image selection per template
+- [x] Background image selection per template (currently works for Poster template)
+- [ ] **Custom background for ALL templates** - Allow user to provide their own background image (PNG/JPG) for any template
+- [ ] **Animated backgrounds** - Support looping video backgrounds (MPG) for motion menus
+- [ ] **Background audio** - Optional background music loop (MP3/WAV) during menu display
 - [ ] Logo overlay (title/studio) with position/scale/margin controls
-- [ ] Custom font support
+- [ ] Custom font support (TTF/OTF)
 - [ ] Button style/shape options
-- [ ] Motion backgrounds (video loops) - future
-- [ ] Background audio - future
-- [ ] Menu transitions - future
+
+### Professional Features (Archivist Focus)
+
+- [ ] **Batch menu generation** - Generate consistent menus across multiple DVDs
+- [ ] **Menu preset save/load** - Save theme+template combinations as reusable presets
+- [ ] **Chapter thumbnail generation** - Auto-capture thumbnails from video for scene selection
+- [ ] **Multiple audio track support** - Multiple language audio streams
+- [ ] **Subtitle selection** - Include subtitle streams in DVD
+- [ ] **Disc label/cover** - Generate printable disc label images
+- [ ] **Widescreen (16:9) support** - Proper 16:9 DVD authoring
+- [ ] **DVD-9 (dual-layer) support** - Handle discs larger than 4.7GB
 
 ### Dependencies & Cross-Platform
 
@@ -324,20 +335,26 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Implementation Priority
 
-1. **MVP** - Separate Template and Theme dropdowns in UI, add Minimal + Western + Film Noir themes
-2. Minimal template + 4-5 preset themes
-3. Classic template
-4. Custom theme color pickers
-5. Grid template
-6. Filmstrip template
-7. Additional themes (Ocean, Nature, etc.)
+**Phase 1: Core Menu System**
+1. Separate Template and Theme dropdowns in UI
+2. Add themes: VideoTools, Minimal, Western, Film Noir, Classic Hollywood
+3. Minimal template implementation (the clean black bg + white text style)
+4. Custom background image support for all templates
+5. Classic template
 
-### UI Changes Required
+**Phase 2: Visual Polish**
+6. Custom theme color pickers (Custom theme)
+7. Animated background support (motion menus)
+8. Background audio support
+9. Grid template
+10. Filmstrip template
 
-- [ ] Separate Template dropdown (Minimal, Classic, Grid, Filmstrip, Poster, Cinematic)
-- [ ] Separate Theme dropdown (VideoTools, Minimal, Western, Film Noir, Classic Hollywood, Warm Cinema, Ocean, Nature, Custom)
-- [ ] When "Custom" theme selected, show color pickers for background/text/accent
-- [ ] Theme preview thumbnail in UI
+**Phase 3: Professional Features**
+11. Chapter thumbnail generation for scene selection
+12. Menu preset save/load
+13. Multiple audio/subtitle tracks
+14. Disc label generation
+15. DVD-9 dual-layer support
 
 ### VIDEO PLAYER IMPLEMENTATION
 
