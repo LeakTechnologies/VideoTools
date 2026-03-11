@@ -32,6 +32,7 @@
 - **Documentation portal migration** - Replaced retired `docs.leaktechnologies.dev` links with Forgejo wiki/in-repo documentation links in About, QR demo, and install/readme docs.
 - **Refactor phase 3 continuation** - Moved main menu visibility/dependency filtering and active-job mapping helpers into `internal/app/modules/mainmenu` while keeping runtime behavior unchanged.
 - **Release closeout checklist** - Added `docs/DEV30_FINALIZATION_CHECKLIST.md` to standardize dev30 finalization and dev31 handoff steps.
+- **Agent handoff update** - Expanded `AGENTS.md` with current release state, closeout requirements, refactor boundaries, and dev31 takeover priorities.
 
 ## v0.1.1-dev29 (March 2026)
 

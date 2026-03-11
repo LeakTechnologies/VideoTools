@@ -127,6 +127,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Confirm dev release note body includes nightly build context plus concise highlights from matching `docs/CHANGELOG.md` version section.
 - [ ] **Dev30 finalization execution**
   - Execute and record `docs/DEV30_FINALIZATION_CHECKLIST.md` before closing dev30.
+- [ ] **Dev31 kickoff**
+  - After dev30 closeout, bump to `v0.1.1-dev31` and use the updated `AGENTS.md` handoff guidance as the operating brief for the next cycle.
 - [ ] **Forgejo workflow validation**
   - Confirm redundant Windows workflow removal doesn't break release publishing.
   - Confirm test trigger workflow removal doesn't affect CI visibility.
