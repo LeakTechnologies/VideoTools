@@ -92,7 +92,7 @@ func WSLRunCommandWithPaths(distro string, winWorkDir string, command string, ar
 		return nil, fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	wslWorkDir, err := windowsToWSLPath(absPath)
+	wslWorkDir, err := WindowsToWSLPath(absPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert path to WSL: %w", err)
 	}
