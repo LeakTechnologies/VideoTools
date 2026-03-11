@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -3468,13 +3469,36 @@ func buildISOCommand(outputISO, discRoot, title string) (string, []string, error
 	if err != nil {
 		return "", nil, err
 	}
+
+	isWSL := tool == "wsl"
+
+	var wslArgs []string
+	if isWSL {
+		outputWSL, err := utils.WindowsToWSLPath(outputISO)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to convert output path: %w", err)
+		}
+		discRootWSL, err := utils.WindowsToWSLPath(discRoot)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to convert disc root path: %w", err)
+		}
+		wslArgs = []string{outputWSL, discRootWSL}
+	} else {
+		wslArgs = []string{outputISO, discRoot}
+	}
+
 	label := isoVolumeLabel(title)
 	args := append([]string{}, prefixArgs...)
-	args = append(args, "-dvd-video", "-V", label, "-o", outputISO, discRoot)
+	args = append(args, "-dvd-video", "-V", label, "-o")
+	args = append(args, wslArgs...)
 	return tool, args, nil
 }
 
 func findISOTool() (string, []string, error) {
+	if runtime.GOOS == "windows" {
+		return findWSLISOTool()
+	}
+
 	if path, err := exec.LookPath("mkisofs"); err == nil {
 		return path, nil, nil
 	}
@@ -3485,6 +3509,44 @@ func findISOTool() (string, []string, error) {
 		return path, []string{"-as", "mkisofs"}, nil
 	}
 	return "", nil, fmt.Errorf("mkisofs, genisoimage, or xorriso not found in PATH")
+}
+
+func findWSLISOTool() (string, []string, error) {
+	if !utils.IsWSLAvailable() {
+		return "", nil, fmt.Errorf("WSL not available on Windows. Install WSL and xorriso/mkisofs, or install native ISO tools on Windows PATH")
+	}
+
+	distro, err := utils.FindWSLDistro()
+	if err != nil {
+		return "", nil, fmt.Errorf("no WSL distribution found. Install WSL with: wsl --install")
+	}
+
+	tool, prefixArgs, err := findWSLISOToolInDistro(distro)
+	if err != nil {
+		return "", nil, fmt.Errorf("ISO tools (xorriso, mkisofs, genisoimage) not found in WSL distribution '%s'. Install with: sudo apt install xorriso", distro)
+	}
+
+	logging.Debug(logging.CatFFMPEG, "using WSL distro %s for ISO creation with %s", distro, tool)
+	return tool, prefixArgs, nil
+}
+
+func findWSLISOToolInDistro(distro string) (string, []string, error) {
+	cmd := utils.WSLRunCommand(distro, "which", "xorriso")
+	if err := cmd.Run(); err == nil {
+		return "wsl", []string{"-d", distro, "--", "xorriso", "-as", "mkisofs"}, nil
+	}
+
+	cmd = utils.WSLRunCommand(distro, "which", "mkisofs")
+	if err := cmd.Run(); err == nil {
+		return "wsl", []string{"-d", distro, "--", "mkisofs"}, nil
+	}
+
+	cmd = utils.WSLRunCommand(distro, "which", "genisoimage")
+	if err := cmd.Run(); err == nil {
+		return "wsl", []string{"-d", distro, "--", "genisoimage"}, nil
+	}
+
+	return "", nil, fmt.Errorf("xorriso, mkisofs, or genisoimage not found in WSL distribution")
 }
 
 func isoVolumeLabel(title string) string {
