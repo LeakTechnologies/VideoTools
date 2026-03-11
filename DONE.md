@@ -1,5 +1,12 @@
 # VideoTools - Completed Features
 
+## Version 0.1.1-dev31 (2026-03-11) - UI Stability and Cleanup
+
+### Kickoff
+- [x] Bumped version markers to v0.1.1-dev31 (main.go, VERSION, FyneApp.toml).
+- [x] Created Forgejo issue tracker from known issues and carry-forward items.
+- [x] Closed dev30 with CI validation confirmed (runs 219/220/221, commit 2cbb3a2).
+
 ## Version 0.1.1-dev30 (2026-03-04) - Development Cycle Kickoff
 
 ### Maintenance

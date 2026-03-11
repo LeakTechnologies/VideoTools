@@ -1,6 +1,15 @@
-# VideoTools TODO (v0.1.1-dev30+ plan)
+# VideoTools TODO (v0.1.1-dev31 plan)
 
 This file tracks upcoming features, improvements, and known issues.
+
+## Dev31 Scope
+
+- [ ] **Module settings panel scrolling** (issue #3)
+  - Add scroll containers to all non-Convert module settings panels so content is reachable on smaller windows.
+- [ ] **Window resize stability** (issue #4)
+  - Prevent the main window from resizing when switching between modules.
+- [ ] **Convert UI cleanup** (issue #5)
+  - Layout consistency, label clarity, and control organization pass for external developer testing readiness.
 
 ## Maintenance
 
@@ -125,10 +134,10 @@ This file tracks upcoming features, improvements, and known issues.
   - Confirm release assets are purged before upload (no duplicates remain).
   - Confirm publish fails loudly when asset deletion/upload is unauthorized.
   - Confirm dev release note body includes nightly build context plus concise highlights from matching `docs/CHANGELOG.md` version section.
-- [ ] **Dev30 finalization execution**
-  - Execute and record `docs/DEV30_FINALIZATION_CHECKLIST.md` before closing dev30.
-- [ ] **Dev31 kickoff**
-  - After dev30 closeout, bump to `v0.1.1-dev31` and use the updated `AGENTS.md` handoff guidance as the operating brief for the next cycle.
+- [x] **Dev30 finalization execution**
+  - CI validated (runs 219/220/221, commit 2cbb3a2). Smoke test and dependency validation carried forward as issues #3/#4/#5/#18.
+- [x] **Dev31 kickoff**
+  - Bumped to `v0.1.1-dev31`. Issue tracker populated. AGENTS.md updated.
 - [ ] **Forgejo workflow validation**
   - Confirm redundant Windows workflow removal doesn't break release publishing.
   - Confirm test trigger workflow removal doesn't affect CI visibility.
