@@ -254,7 +254,6 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 
 	// Top bar with module color
 	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
-	bottomBar := moduleFooter(filtersColor, layout.NewSpacer(), state.statsBar)
 
 	// Instructions
 	instructions := widget.NewLabel("Apply filters and color corrections to your video. Preview changes in real-time.")
@@ -661,7 +660,6 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		interpSection,
 		creativeSection,
 		stylisticSection,
-		applyBtn,
 	)
 
 	settingsScroll := container.NewVScroll(settingsPanel)
@@ -675,5 +673,6 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 
 	content := container.NewPadded(mainContent)
 
+	bottomBar := moduleFooter(filtersColor, container.NewHBox(layout.NewSpacer(), applyBtn), state.statsBar)
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }

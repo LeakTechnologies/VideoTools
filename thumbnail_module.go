@@ -479,9 +479,6 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		timestampRow,
 		settingsOptions,
 		widget.NewSeparator(),
-		generateNowBtn,
-		addQueueBtn,
-		addAllBtn,
 		viewQueueBtn,
 		viewResultsBtn,
 	)
@@ -539,7 +536,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		mainContent,
 	)
 
-	bottomBar := moduleFooter(thumbColor, layout.NewSpacer(), state.statsBar)
+	bottomBar := moduleFooter(thumbColor, container.NewHBox(addAllBtn, addQueueBtn, layout.NewSpacer(), generateNowBtn), state.statsBar)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }

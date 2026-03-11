@@ -99,7 +99,6 @@ func buildRipView(state *appState) fyne.CanvasObject {
 	clearCompletedBtn.Importance = widget.LowImportance
 
 	topBar := ui.TintedBar(ripColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
-	bottomBar := moduleFooter(ripColor, layout.NewSpacer(), state.statsBar)
 
 	sourceEntry := widget.NewEntry()
 	sourceEntry.SetPlaceHolder("Drop DVD/ISO/VIDEO_TS path here")
@@ -235,8 +234,6 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		formatSelect,
 		widget.NewLabelWithStyle("Output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
-		container.NewHBox(addQueueBtn, runNowBtn),
-		widget.NewSeparator(),
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Status", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -251,6 +248,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		logScroll,
 	)
 
+	bottomBar := moduleFooter(ripColor, container.NewHBox(addQueueBtn, layout.NewSpacer(), runNowBtn), state.statsBar)
 	return container.NewBorder(topBar, bottomBar, nil, nil, container.NewVScroll(container.NewPadded(controls)))
 }
 
