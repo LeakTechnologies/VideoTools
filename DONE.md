@@ -7,6 +7,18 @@
 - [x] Created Forgejo issue tracker from known issues and carry-forward items.
 - [x] Closed dev30 with CI validation confirmed (runs 219/220/221, commit 2cbb3a2).
 
+### UI
+- [x] Module settings scrolling - Added scroll containers to Rip and Author module settings panels.
+- [x] Convert module vertical layout - Changed left column to VSplit with 50/50 split between video player and metadata.
+- [x] Module action buttons - Moved primary action buttons into module footer action bar for consistency.
+
+### Refactor
+- [x] Convert module placeholder - Created `internal/app/modules/convert/` directory with Options struct for future modularization.
+- [x] WSL ISO creation on Windows - Added `internal/utils/wsl.go` with WSL detection, path conversion, and ISO tool detection for consistent DVD ISO generation on Windows.
+
+### Documentation
+- [x] Author menu templates scope - Added comprehensive TODO section for menu templates (Minimal, Classic, Grid, Filmstrip, Poster, Cinematic) and themes (Minimal, Classic Hollywood, Film Noir, VideoTools, Warm Cinema, Ocean, Nature, Custom).
+
 ## Version 0.1.1-dev30 (2026-03-04) - Development Cycle Kickoff
 
 ### Maintenance

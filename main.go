@@ -3097,7 +3097,6 @@ func (s *appState) showMergeView() {
 	s.updateQueueButtonLabel()
 
 	topBar := ui.TintedBar(mergeColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-	bottomBar := moduleFooter(mergeColor, layout.NewSpacer(), s.statsBar)
 
 	listBox := container.NewVBox()
 	var addFiles func([]string)
@@ -3511,7 +3510,7 @@ func (s *appState) showMergeView() {
 		}),
 	)
 
-	right := container.NewVBox(
+	rightPanel := container.NewVBox(
 		widget.NewLabelWithStyle("Output Options", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Format"),
 		formatSelect,
@@ -3528,10 +3527,10 @@ func (s *appState) showMergeView() {
 		outputFilenameEntry,
 		widget.NewSeparator(),
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
-		widget.NewSeparator(),
-		container.NewHBox(addQueueBtn, runNowBtn),
 	)
 
+	right := container.NewVScroll(rightPanel)
+	bottomBar := moduleFooter(mergeColor, container.NewHBox(addQueueBtn, layout.NewSpacer(), runNowBtn), s.statsBar)
 	content := container.New(&fixedHSplitLayout{ratio: 0.6}, left, right)
 	s.setContent(container.NewBorder(topBar, bottomBar, nil, nil, container.NewPadded(content)))
 
@@ -10921,9 +10920,8 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	// img.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 	stage := canvas.NewRectangle(utils.MustHex("#0F1529"))
 	stage.CornerRadius = 6
-	// Set minimum size based on source aspect ratio
-	// Set minimum size based on source aspect ratio.
-	stage.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
+	// No minimum size — image uses ImageFillContain so it scales freely.
+	// A hard min here would override the VSplit offset and push video beyond 50%.
 	// Overlay the image directly so it fills the stage while preserving aspect.
 	videoStage := container.NewMax(stage, img)
 
