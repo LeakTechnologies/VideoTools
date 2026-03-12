@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"os"
 	"strings"
 	"time"
 
@@ -20,6 +21,36 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
+
+var iconCache = make(map[string]fyne.Resource)
+
+func GetIcon(name string) fyne.Resource {
+	if cached, ok := iconCache[name]; ok {
+		return cached
+	}
+
+	// Try to find the icon by matching prefix in assets/icons
+	files, err := os.ReadDir("assets/icons")
+	if err != nil {
+		logging.Warning(logging.CatUI, "Failed to read icons directory: "+err.Error())
+		return theme.ErrorIcon()
+	}
+
+	for _, f := range files {
+		if strings.HasPrefix(f.Name(), name+"_") && strings.HasSuffix(f.Name(), ".svg") {
+			res, err := fyne.LoadResourceFromPath("assets/icons/" + f.Name())
+			if err != nil {
+				logging.Warning(logging.CatUI, "Failed to load icon "+name+": "+err.Error())
+				return theme.ErrorIcon()
+			}
+			iconCache[name] = res
+			return res
+		}
+	}
+
+	logging.Warning(logging.CatUI, "Icon not found: "+name)
+	return theme.ErrorIcon()
+}
 
 var (
 	// GridColor is the color used for grid lines and borders
@@ -196,15 +227,21 @@ func getContrastColor(bgColor color.Color) color.Color {
 }
 
 func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
+	// Use the same colour logic as Refresh() so the initial paint is consistent
+	// with every subsequent repaint. Disabled/unavailable tiles show a 65%-dimmed
+	// version of the module colour (preserving hue) rather than a fixed orange/grey.
 	tileColor := m.color
-	labelColor := TextColor // White text for all modules
-
-	// Orange background for modules missing dependencies
-	if m.missingDependencies {
-		tileColor = color.NRGBA{R: 255, G: 152, B: 0, A: 255} // Orange
-	} else if !m.enabled {
-		// Grey background for not implemented modules
-		tileColor = color.NRGBA{R: 80, G: 80, B: 80, A: 255}
+	labelColor := TextColor
+	if !m.enabled {
+		if c, ok := m.color.(color.NRGBA); ok {
+			tileColor = color.NRGBA{
+				R: uint8(float32(c.R) * 0.65),
+				G: uint8(float32(c.G) * 0.65),
+				B: uint8(float32(c.B) * 0.65),
+				A: c.A,
+			}
+		}
+		labelColor = color.NRGBA{R: 200, G: 200, B: 200, A: 255}
 	}
 
 	bg := canvas.NewRectangle(tileColor)
@@ -218,9 +255,8 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 	txt.TextSize = 28
 
 	// Lock icon for disabled modules
-	lockIcon := canvas.NewText("🔒", color.NRGBA{R: 200, G: 200, B: 200, A: 255})
-	lockIcon.TextSize = 16
-	lockIcon.Alignment = fyne.TextAlignCenter
+	lockIcon := widget.NewIcon(GetIcon("lock"))
+	lockIcon.SetMinSize(fyne.NewSize(16, 16))
 	if m.enabled {
 		lockIcon.Hide()
 	}
@@ -991,18 +1027,18 @@ func (r *conversionStatsRenderer) Refresh() {
 			statusStr += " • " + formatCount(r.bar.pending, "pending")
 		}
 
-		r.statusText.Text = "▶ " + statusStr
+		r.statusText.Text = statusStr
 		r.statusText.Color = color.NRGBA{R: 100, G: 220, B: 100, A: 255} // Green
 
 		// Update progress bar (show even at 0%)
 		r.progressBar.SetValue(r.bar.progress / 100.0)
 		r.progressBar.Show()
 	} else if r.bar.pending > 0 {
-		r.statusText.Text = "⏸ " + formatCount(r.bar.pending, "queued")
+		r.statusText.Text = formatCount(r.bar.pending, "queued")
 		r.statusText.Color = color.NRGBA{R: 255, G: 200, B: 100, A: 255} // Yellow
 		r.progressBar.Hide()
 	} else if r.bar.completed > 0 || r.bar.failed > 0 || r.bar.cancelled > 0 {
-		statusStr := "✓ "
+		statusStr := ""
 		parts := []string{}
 		if r.bar.completed > 0 {
 			parts = append(parts, formatCount(r.bar.completed, "completed"))
@@ -1316,8 +1352,8 @@ func (cs *ColoredSelect) CreateRenderer() fyne.WidgetRenderer {
 	label.Alignment = fyne.TextAlignLeading
 	label.TextSize = 16
 
-	caret := canvas.NewText("▼", selectTextColor())
-	caret.TextSize = 12
+	caret := widget.NewIcon(GetIcon("keyboard_arrow_down"))
+	caret.SetMinSize(fyne.NewSize(12, 12))
 
 	content := container.NewBorder(nil, nil, bar, nil,
 		container.NewPadded(container.NewBorder(nil, nil, nil, caret, label)))
