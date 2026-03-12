@@ -7,6 +7,7 @@
 - **Window resize stability** - Window size is now preserved across module switches; layout-driven auto-resize no longer occurs.
 - **Convert video pane** - Removed rigid minimum size from loaded-video stage so VSplit 50/50 offset holds correctly at all window sizes.
 - **Click-and-drag scrolling** - Scroll panels now support click-and-drag in addition to mouse wheel, mirroring mobile/touch-screen behaviour. Drag up to scroll down, drag down to scroll up.
+- **Convert module partial modularisation** - Added `ShowView`, `ConvertState`, and `ConvertCallbacks` entry point in `internal/app/modules/convert/view.go` with shim and type-converter helpers in `main.go`. Full `buildConvertView` extraction deferred pending appState decoupling.
 - **Convert UI cleanup** - Layout and control organization pass to prepare Convert for external developer testing (in progress).
 
 ## v0.1.1-dev30 (March 2026)

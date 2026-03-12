@@ -81,13 +81,13 @@ These rules apply to any automation or agent working in this repo.
   - `internal/app/modules/about` — About dialog
   - `internal/app/modules/deps` — Missing deps dialog
   - `internal/app/modules/mainmenu` — Main menu helpers
-  - `internal/app/modules/convert` — Convert placeholder (actual logic still in `main.go`)
+  - `internal/app/modules/convert` — `ShowView`, `ConvertState`, `ConvertCallbacks` entry point; full `buildConvertView` deferred (high appState coupling)
   - `player_module.go` — `showPlayerView` + `buildPlayerView`
   - `enhancement_module.go` — `buildEnhancementView` (placeholder)
   - `upscale_module.go` — full upscale view + AI helpers
   - `compare_module.go` — `showCompareView`, `showCompareFullscreen`, `buildCompareView`, `buildCompareFullscreenView`
-- `main.go` is now ~15,185 lines (down from ~16,726). Remaining large blocks:
-  - `buildConvertView` (~3,500 lines) — do not split without a clear interface plan
+- `main.go` is now ~15,248 lines (down from ~16,726). Remaining large blocks:
+  - `buildConvertView` (~3,500 lines) — entry point shim exists; full extraction requires appState decoupling first
   - Inspect view (`showInspectView` + `buildInspectView`)
   - Settings view (`showSettingsView` + `buildSettingsView`)
   - Queue view (`showQueue` + related)
