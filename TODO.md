@@ -317,10 +317,9 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Professional Features (Archivist Focus)
 
-- [ ] **Batch menu generation** - Generate consistent menus across multiple DVDs
+- [x] **Chapter thumbnail generation** - Auto-capture thumbnails from video for scene selection
 - [ ] **Menu preset save/load** - Save theme+template combinations as reusable presets
-- [ ] **Chapter thumbnail generation** - Auto-capture thumbnails from video for scene selection
-- [ ] **Multiple audio track support** - Multiple language audio streams
+- [ ] Multiple audio track support - Multiple language audio streams
 - [ ] **Subtitle selection** - Include subtitle streams in DVD
 - [ ] **Disc label/cover** - Generate printable disc label images
 - [ ] **Widescreen (16:9) support** - Proper 16:9 DVD authoring

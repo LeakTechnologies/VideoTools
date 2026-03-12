@@ -494,7 +494,7 @@ type dvdMenuSet struct {
 	ExtrasButtons    []dvdMenuButton
 }
 
-func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, extras []extraItem, logFn func(string), template MenuTemplate, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions) (dvdMenuSet, error) {
+func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, extras []extraItem, logFn func(string), template MenuTemplate, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, chapterVideoPath string, chapterThumbOffset float64) (dvdMenuSet, error) {
 	if template == nil {
 		template = &SimpleMenu{}
 	}
@@ -517,7 +517,7 @@ func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect stri
 
 	// Generate chapters menu if there are multiple chapters
 	if len(chapters) > 1 {
-		chaptersMenuMpg, chaptersButtons, err := buildChaptersMenuMPEGSet(ctx, workDir, title, region, aspect, chapters, backgroundImage, motionBackground, theme, logFn)
+		chaptersMenuMpg, chaptersButtons, err := buildChaptersMenuMPEGSet(ctx, workDir, title, region, aspect, chapters, backgroundImage, motionBackground, theme, logFn, chapterVideoPath, chapterThumbOffset)
 		if err != nil {
 			return dvdMenuSet{}, err
 		}
@@ -620,7 +620,7 @@ func buildExtrasMenuMPEGSet(ctx context.Context, workDir, title, region, aspect 
 	return menuSpu, buttons, nil
 }
 
-func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logFn func(string)) (string, []dvdMenuButton, error) {
+func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logFn func(string), chapterVideoPath string, chapterThumbOffset float64) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildChapterMenuButtons(chapters, width, height)
 	if len(buttons) == 0 {
@@ -639,7 +639,13 @@ func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspec
 		logFn("Building chapters menu assets...")
 	}
 
-	if err := buildChaptersMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
+	// Generate chapter thumbnails if video path is provided
+	var chapterThumbPaths []string
+	if chapterVideoPath != "" && chapterThumbOffset > 0 {
+		chapterThumbPaths = generateChapterThumbnails(ctx, workDir, chapterVideoPath, chapters, chapterThumbOffset, logFn)
+	}
+
+	if err := buildChaptersMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), chapterThumbPaths, logFn); err != nil {
 		return "", nil, err
 	}
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
@@ -658,6 +664,46 @@ func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspec
 		logFn(fmt.Sprintf("Chapters menu created: %s", filepath.Base(menuSpu)))
 	}
 	return menuSpu, buttons, nil
+}
+
+// generateChapterThumbnails creates thumbnail images for each chapter.
+// Returns slice of thumbnail paths in order of chapters.
+func generateChapterThumbnails(ctx context.Context, workDir, videoPath string, chapters []authorChapter, offsetSeconds float64, logFn func(string)) []string {
+	var thumbPaths []string
+	thumbWidth := 160
+	thumbHeight := 90
+
+	for i, chapter := range chapters {
+		// Calculate timestamp: chapter start + offset
+		timestamp := chapter.Timestamp + offsetSeconds
+		thumbPath := filepath.Join(workDir, fmt.Sprintf("chapter_%02d_thumb.png", i+1))
+
+		if logFn != nil {
+			logFn(fmt.Sprintf("Generating thumbnail for chapter %d at %.1fs...", i+1, timestamp))
+		}
+
+		args := []string{
+			"-ss", fmt.Sprintf("%.2f", timestamp),
+			"-i", videoPath,
+			"-frames:v", "1",
+			"-vf", fmt.Sprintf("scale=%d:%d", thumbWidth, thumbHeight),
+			"-y",
+			thumbPath,
+		}
+
+		cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), args...)
+		if err := cmd.Run(); err == nil {
+			// Verify the file was created
+			if _, err := os.Stat(thumbPath); err == nil {
+				thumbPaths = append(thumbPaths, thumbPath)
+				continue
+			}
+		}
+		// If failed, add empty path
+		thumbPaths = append(thumbPaths, "")
+	}
+
+	return thumbPaths
 }
 
 func dvdMenuDimensions(region string) (int, int) {
@@ -1308,7 +1354,7 @@ func buildExtrasMenuBackground(ctx context.Context, outputPath, title string, bu
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
 
-func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logFn func(string)) error {
+func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, thumbPaths []string, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
 
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
@@ -1347,7 +1393,39 @@ func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, 
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
-	args = append(args, "-filter_complex", fmt.Sprintf("[0:v]%s", filterChain), "-frames:v", "1", outputPath)
+	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+
+	// Overlay chapter thumbnails if available
+	inputIndex := 1
+	baseLayer := "[bg]"
+
+	for i, thumbPath := range thumbPaths {
+		if thumbPath == "" || i >= len(buttons) {
+			continue
+		}
+		if _, err := os.Stat(thumbPath); err != nil {
+			continue
+		}
+
+		// Position thumbnail to the right of the button text
+		// Button y position: 120 + i*32, thumbnail should be at roughly y+5
+		thumbY := 125 + i*32
+		thumbX := 400 // Position on the right side
+
+		args = append(args, "-i", thumbPath)
+		scaleExpr := fmt.Sprintf("scale=80:-1")
+		filterExpr = fmt.Sprintf("%s;[%d:v]%s[thumb%d];%s[thumb%d]overlay=%d:%d[tmp%d]", filterExpr, inputIndex, scaleExpr, i, baseLayer, i, thumbX, thumbY, inputIndex)
+		baseLayer = fmt.Sprintf("[tmp%d]", inputIndex)
+		inputIndex++
+	}
+
+	if inputIndex == 1 {
+		// No thumbnails, use simple filter
+		args = append(args, "-filter_complex", fmt.Sprintf("[0:v]%s", filterChain), "-frames:v", "1", outputPath)
+	} else {
+		args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
+	}
+
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
 
