@@ -1,6 +1,6 @@
 # VideoTools - Completed Features
 
-## Version 0.1.1-dev31 (2026-03-11) - UI Stability and Cleanup
+## Version 0.1.1-dev31 (2026-03-12) - UI Stability and Cleanup
 
 ### Kickoff
 - [x] Bumped version markers to v0.1.1-dev31 (main.go, VERSION, FyneApp.toml).
