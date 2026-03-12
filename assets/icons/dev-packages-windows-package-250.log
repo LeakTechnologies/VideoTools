@@ -1,0 +1,170 @@
+2026-03-12T23:21:36.8066340Z DESKTOP-B49H31B(version:v12.5.3) received task 250 of job windows-package, be triggered by event: push
+2026-03-12T23:21:36.8089850Z workflow prepared
+2026-03-12T23:21:36.9186517Z   ☁️  git fetch 'https://data.forgejo.org/actions/checkout' # ref=v4
+2026-03-12T23:21:38.6046805Z   ☁️  git fetch 'https://data.forgejo.org/actions/setup-go' # ref=v5
+2026-03-12T23:21:40.0831095Z   ☁️  git fetch 'https://data.forgejo.org/actions/upload-artifact' # ref=v3
+2026-03-12T23:21:41.3000253Z   ☁️  git fetch 'https://data.forgejo.org/actions/upload-artifact' # ref=v3
+2026-03-12T23:21:42.5059387Z ⭐ Run Main Checkout
+2026-03-12T23:21:44.5528231Z   ❓ add-matcher C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\act\actions\67\c4d5c5752ecbcfcb181e43c05b4862417daf9237c9890a52367d86fc62b032\dist\problem-matcher.json
+2026-03-12T23:21:44.5528231Z ::add-matcher::C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\act\actions\67\c4d5c5752ecbcfcb181e43c05b4862417daf9237c9890a52367d86fc62b032\dist\problem-matcher.json
+2026-03-12T23:21:44.5538165Z Syncing repository: leak_technologies/VideoTools
+2026-03-12T23:21:44.5543431Z ##[group]Getting Git version info
+2026-03-12T23:21:44.5543431Z Working directory is 'C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\hostexecutor'
+2026-03-12T23:21:44.5686743Z [command]"C:\Program Files\Git\cmd\git.exe" version
+2026-03-12T23:21:44.6068851Z git version 2.53.0.windows.1
+2026-03-12T23:21:44.6127870Z ##[endgroup]
+2026-03-12T23:21:44.6160337Z Temporarily overriding HOME='C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\tmp\9b833fb0-5a99-45e2-bda8-460de46b0bbf' before making global git config changes
+2026-03-12T23:21:44.6160337Z Adding repository directory to the temporary git global config as a safe directory
+2026-03-12T23:21:44.6175587Z [command]"C:\Program Files\Git\cmd\git.exe" config --global --add safe.directory C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\hostexecutor
+2026-03-12T23:21:44.6637902Z Deleting the contents of 'C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\hostexecutor'
+2026-03-12T23:21:44.6643076Z ##[group]Initializing the repository
+2026-03-12T23:21:44.6653169Z [command]"C:\Program Files\Git\cmd\git.exe" init C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\hostexecutor
+2026-03-12T23:21:44.7460495Z Initialized empty Git repository in C:/Windows/System32/config/systemprofile/.cache/act/4af5ef03678aca68/hostexecutor/.git/
+2026-03-12T23:21:44.7541274Z [command]"C:\Program Files\Git\cmd\git.exe" remote add origin https://git.leaktechnologies.dev/leak_technologies/VideoTools
+2026-03-12T23:21:44.8082900Z ##[endgroup]
+2026-03-12T23:21:44.8082900Z ##[group]Disabling automatic garbage collection
+2026-03-12T23:21:44.8103463Z [command]"C:\Program Files\Git\cmd\git.exe" config --local gc.auto 0
+2026-03-12T23:21:44.8556551Z ##[endgroup]
+2026-03-12T23:21:44.8556551Z ##[group]Setting up auth
+2026-03-12T23:21:44.8561797Z [command]"C:\Program Files\Git\cmd\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-03-12T23:21:44.9005831Z [command]"C:\Program Files\Git\cmd\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-03-12T23:21:45.6264244Z [command]"C:\Program Files\Git\cmd\git.exe" config --local --name-only --get-regexp http\.https\:\/\/git\.leaktechnologies\.dev\/\.extraheader
+2026-03-12T23:21:45.6735186Z [command]"C:\Program Files\Git\cmd\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/git\.leaktechnologies\.dev\/\.extraheader' && git config --local --unset-all 'http.https://git.leaktechnologies.dev/.extraheader' || :\""
+2026-03-12T23:21:46.4146919Z [command]"C:\Program Files\Git\cmd\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-03-12T23:21:46.4583564Z [command]"C:\Program Files\Git\cmd\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-03-12T23:21:47.1274926Z [command]"C:\Program Files\Git\cmd\git.exe" config --local http.https://git.leaktechnologies.dev/.extraheader "AUTHORIZATION: basic ***"
+2026-03-12T23:21:47.1725335Z ##[endgroup]
+2026-03-12T23:21:47.1725335Z ##[group]Fetching the repository
+2026-03-12T23:21:47.1738335Z [command]"C:\Program Files\Git\cmd\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +148d73f371f2461b49e96b74ddb1638409319e4a:refs/remotes/origin/master
+2026-03-12T23:21:48.2451759Z From https://git.leaktechnologies.dev/leak_technologies/VideoTools
+2026-03-12T23:21:48.2451759Z  * [new ref]         148d73f371f2461b49e96b74ddb1638409319e4a -> origin/master
+2026-03-12T23:21:48.2814184Z ##[endgroup]
+2026-03-12T23:21:48.2814184Z ##[group]Determining the checkout info
+2026-03-12T23:21:48.2814184Z ##[endgroup]
+2026-03-12T23:21:48.2835011Z [command]"C:\Program Files\Git\cmd\git.exe" sparse-checkout disable
+2026-03-12T23:21:48.3326265Z [command]"C:\Program Files\Git\cmd\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-03-12T23:21:48.3746465Z ##[group]Checking out the ref
+2026-03-12T23:21:48.3753575Z [command]"C:\Program Files\Git\cmd\git.exe" checkout --progress --force -B master refs/remotes/origin/master
+2026-03-12T23:21:50.5628107Z Updating files:  49% (1173/2356)Updating files:  50% (1178/2356)Updating files:  51% (1202/2356)Updating files:  52% (1226/2356)Updating files:  53% (1249/2356)Updating files:  54% (1273/2356)Updating files:  55% (1296/2356)Updating files:  56% (1320/2356)Updating files:  57% (1343/2356)Updating files:  58% (1367/2356)Updating files:  59% (1391/2356)Updating files:  60% (1414/2356)Updating files:  61% (1438/2356)Updating files:  62% (1461/2356)Updating files:  63% (1485/2356)Updating files:  64% (1508/2356)Updating files:  65% (1532/2356)Updating files:  66% (1555/2356)Updating files:  67% (1579/2356)Updating files:  68% (1603/2356)Updating files:  69% (1626/2356)Updating files:  70% (1650/2356)Updating files:  71% (1673/2356)Updating files:  72% (1697/2356)Updating files:  73% (1720/2356)Updating files:  74% (1744/2356)Updating files:  75% (1767/2356)Updating files:  76% (1791/2356)Updating files:  77% (1815/2356)Updating files:  78% (1838/2356)Updating files:  79% (1862/2356)Updating files:  80% (1885/2356)Updating files:  81% (1909/2356)Updating files:  82% (1932/2356)Updating files:  83% (1956/2356)Updating files:  84% (1980/2356)Updating files:  85% (2003/2356)Updating files:  86% (2027/2356)Updating files:  87% (2050/2356)Updating files:  88% (2074/2356)Updating files:  89% (2097/2356)Updating files:  90% (2121/2356)Updating files:  91% (2144/2356)Updating files:  92% (2168/2356)Updating files:  93% (2192/2356)Updating files:  94% (2215/2356)Updating files:  94% (2238/2356)Updating files:  95% (2239/2356)Updating files:  96% (2262/2356)Updating files:  97% (2286/2356)Updating files:  98% (2309/2356)Updating files:  99% (2333/2356)Updating files: 100% (2356/2356)Updating files: 100% (2356/2356), done.
+2026-03-12T23:21:50.5902261Z Reset branch 'master'
+2026-03-12T23:21:50.5954283Z branch 'master' set up to track 'origin/master'.
+2026-03-12T23:21:50.6037482Z ##[endgroup]
+2026-03-12T23:21:50.6489501Z [command]"C:\Program Files\Git\cmd\git.exe" log -1 --format=%H
+2026-03-12T23:21:50.6858746Z 148d73f371f2461b49e96b74ddb1638409319e4a
+2026-03-12T23:21:50.6918998Z ##[group]Removing auth
+2026-03-12T23:21:50.6929096Z [command]"C:\Program Files\Git\cmd\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-03-12T23:21:50.7357208Z [command]"C:\Program Files\Git\cmd\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-03-12T23:21:51.4480078Z [command]"C:\Program Files\Git\cmd\git.exe" config --local --name-only --get-regexp http\.https\:\/\/git\.leaktechnologies\.dev\/\.extraheader
+2026-03-12T23:21:51.4864009Z http.https://git.leaktechnologies.dev/.extraheader
+2026-03-12T23:21:51.4924711Z [command]"C:\Program Files\Git\cmd\git.exe" config --local --unset-all http.https://git.leaktechnologies.dev/.extraheader
+2026-03-12T23:21:51.5406514Z [command]"C:\Program Files\Git\cmd\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/git\.leaktechnologies\.dev\/\.extraheader' && git config --local --unset-all 'http.https://git.leaktechnologies.dev/.extraheader' || :\""
+2026-03-12T23:21:52.2543229Z [command]"C:\Program Files\Git\cmd\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-03-12T23:21:52.2951298Z [command]"C:\Program Files\Git\cmd\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-03-12T23:21:52.9617077Z ##[endgroup]
+2026-03-12T23:21:52.9627527Z ::remove-matcher owner=checkout-git::
+2026-03-12T23:21:56.7025489Z Setup go version spec 1.25.1
+2026-03-12T23:21:56.7044072Z Found in cache @ C:\WINDOWS\system32\config\systemprofile\.cache\act\tool_cache\go\1.25.1\x64
+2026-03-12T23:21:56.7049285Z (node:9040) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-03-12T23:21:56.7049285Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-03-12T23:21:56.7049285Z Added go to the path
+2026-03-12T23:21:56.7059327Z Successfully set up Go version 1.25.1
+2026-03-12T23:21:56.8435424Z ##[add-matcher]C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\act\actions\73\36be8353ddcc15ffa0fcdee95c24bc2478856da5edc13b54150d662e0f7cee\matchers.json
+2026-03-12T23:21:56.8435424Z go version go1.25.1 windows/amd64
+2026-03-12T23:21:56.8435424Z 
+2026-03-12T23:21:56.8456152Z ##[group]go env
+2026-03-12T23:21:56.9334038Z set AR=ar
+2026-03-12T23:21:56.9334038Z set CC=gcc
+2026-03-12T23:21:56.9334038Z set CGO_CFLAGS=-O2 -g
+2026-03-12T23:21:56.9334038Z set CGO_CPPFLAGS=
+2026-03-12T23:21:56.9334038Z set CGO_CXXFLAGS=-O2 -g
+2026-03-12T23:21:56.9334038Z set CGO_ENABLED=1
+2026-03-12T23:21:56.9334038Z set CGO_FFLAGS=-O2 -g
+2026-03-12T23:21:56.9334038Z set CGO_LDFLAGS=-O2 -g
+2026-03-12T23:21:56.9334038Z set CXX=g++
+2026-03-12T23:21:56.9334038Z set GCCGO=gccgo
+2026-03-12T23:21:56.9334038Z set GO111MODULE=
+2026-03-12T23:21:56.9334038Z set GOAMD64=v1
+2026-03-12T23:21:56.9334038Z set GOARCH=amd64
+2026-03-12T23:21:56.9334038Z set GOAUTH=netrc
+2026-03-12T23:21:56.9334038Z set GOBIN=
+2026-03-12T23:21:56.9334038Z set GOCACHE=C:\WINDOWS\system32\config\systemprofile\AppData\Local\go-build
+2026-03-12T23:21:56.9334038Z set GOCACHEPROG=
+2026-03-12T23:21:56.9334038Z set GODEBUG=
+2026-03-12T23:21:56.9334038Z set GOENV=C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\go\env
+2026-03-12T23:21:56.9334038Z set GOEXE=.exe
+2026-03-12T23:21:56.9334038Z set GOEXPERIMENT=
+2026-03-12T23:21:56.9334038Z set GOFIPS140=off
+2026-03-12T23:21:56.9334038Z set GOFLAGS=
+2026-03-12T23:21:56.9334038Z set GOGCCFLAGS=-m64 -mthreads -Wl,--no-gc-sections -fmessage-length=0 -ffile-prefix-map=C:\WINDOWS\SystemTemp\go-build4135460797=/tmp/go-build -gno-record-gcc-switches
+2026-03-12T23:21:56.9334038Z set GOHOSTARCH=amd64
+2026-03-12T23:21:56.9334038Z set GOHOSTOS=windows
+2026-03-12T23:21:56.9334038Z set GOINSECURE=
+2026-03-12T23:21:56.9334038Z set GOMOD=C:\Windows\System32\config\systemprofile\.cache\act\4af5ef03678aca68\hostexecutor\go.mod
+2026-03-12T23:21:56.9334038Z set GOMODCACHE=C:\WINDOWS\system32\config\systemprofile\go\pkg\mod
+2026-03-12T23:21:56.9334038Z set GONOPROXY=
+2026-03-12T23:21:56.9334038Z set GONOSUMDB=
+2026-03-12T23:21:56.9334038Z set GOOS=windows
+2026-03-12T23:21:56.9334038Z set GOPATH=C:\WINDOWS\system32\config\systemprofile\go
+2026-03-12T23:21:56.9334038Z set GOPRIVATE=
+2026-03-12T23:21:56.9334038Z set GOPROXY=https://proxy.golang.org,direct
+2026-03-12T23:21:56.9334038Z set GOROOT=C:\WINDOWS\system32\config\systemprofile\.cache\act\tool_cache\go\1.25.1\x64
+2026-03-12T23:21:56.9334038Z set GOSUMDB=sum.golang.org
+2026-03-12T23:21:56.9334038Z set GOTELEMETRY=local
+2026-03-12T23:21:56.9334038Z set GOTELEMETRYDIR=C:\WINDOWS\system32\config\systemprofile\AppData\Roaming\go\telemetry
+2026-03-12T23:21:56.9334038Z set GOTMPDIR=
+2026-03-12T23:21:56.9334038Z set GOTOOLCHAIN=auto
+2026-03-12T23:21:56.9334038Z set GOTOOLDIR=C:\WINDOWS\system32\config\systemprofile\.cache\act\tool_cache\go\1.25.1\x64\pkg\tool\windows_amd64
+2026-03-12T23:21:56.9334038Z set GOVCS=
+2026-03-12T23:21:56.9334038Z set GOVERSION=go1.25.1
+2026-03-12T23:21:56.9334038Z set GOWORK=
+2026-03-12T23:21:56.9334038Z set PKG_CONFIG=pkg-config
+2026-03-12T23:21:56.9334038Z 
+2026-03-12T23:21:56.9334038Z ##[endgroup]
+2026-03-12T23:21:59.1634105Z With the provided path, there will be 1 file uploaded
+2026-03-12T23:21:59.1634105Z Starting artifact upload
+2026-03-12T23:21:59.1634105Z For more detailed logs during the artifact upload process, enable step-debugging: https://docs.github.com/actions/monitoring-and-troubleshooting-workflows/enabling-debug-logging#enabling-step-debug-logging
+2026-03-12T23:21:59.1634105Z Artifact name is valid!
+2026-03-12T23:21:59.3330662Z Container for artifact "VideoTools-windows-diagnostics" successfully created. Starting upload of file(s)
+2026-03-12T23:21:59.3899579Z Total size of all the files uploaded is 249 bytes
+2026-03-12T23:21:59.3909775Z File upload process has finished. Finalizing the artifact upload
+2026-03-12T23:21:59.4392616Z Artifact has been finalized. All files have been successfully uploaded!
+2026-03-12T23:21:59.4392616Z 
+2026-03-12T23:21:59.4392616Z The raw size of all the files that were specified for upload is 330 bytes
+2026-03-12T23:21:59.4392616Z The size of all the files that were uploaded is 249 bytes. This takes into account any gzip compression used to reduce the upload size, time and storage
+2026-03-12T23:21:59.4392616Z 
+2026-03-12T23:21:59.4392616Z Note: The size of downloaded zips can differ significantly from the reported size. For more information see: https://github.com/actions/upload-artifact#zipped-artifact-downloads 
+2026-03-12T23:21:59.4392616Z 
+2026-03-12T23:21:59.4392616Z Artifact VideoTools-windows-diagnostics has been successfully uploaded!
+2026-03-12T23:22:01.1468092Z all modules verified
+2026-03-12T23:22:31.9000869Z # git.leaktechnologies.dev/stu/VideoTools
+2026-03-12T23:22:31.9000869Z .\compare_module.go:5:2: "image/color" imported and not used
+2026-03-12T23:22:31.9000869Z .\compare_module.go:11:2: "fyne.io/fyne/v2/canvas" imported and not used
+2026-03-12T23:22:32.1013002Z Copy-Item : Cannot find path 
+2026-03-12T23:22:32.1013002Z 'C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\hostexecutor\VideoTools.exe' because it does not 
+2026-03-12T23:22:32.1013002Z exist.
+2026-03-12T23:22:32.1013002Z At C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\act\workflow\5.ps1:83 char:1
+2026-03-12T23:22:32.1013002Z + Copy-Item $buildOutput -Destination $pkgDir.FullName -Force
+2026-03-12T23:22:32.1013002Z + ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2026-03-12T23:22:32.1013002Z     + CategoryInfo          : ObjectNotFound: (C:\WINDOWS\syst...\VideoTools.exe:String) [Copy-Item], ItemNotFoundExce 
+2026-03-12T23:22:32.1013002Z    ption
+2026-03-12T23:22:32.1013002Z     + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.CopyItemCommand
+2026-03-12T23:22:32.1013002Z  
+2026-03-12T23:22:32.1235457Z ⚙️ [runner]: RUN exit status 1
+2026-03-12T23:22:32.1235457Z skipping post step for 'Upload Windows artifacts'; main step was skipped
+2026-03-12T23:22:32.3502486Z Skipping step 'Setup Go' due to 'success()'
+2026-03-12T23:22:32.4924493Z ⭐ Run Post Checkout
+2026-03-12T23:22:32.6750771Z [command]"C:\Program Files\Git\cmd\git.exe" version
+2026-03-12T23:22:32.7110995Z git version 2.53.0.windows.1
+2026-03-12T23:22:32.7186245Z   ⚙  ***
+2026-03-12T23:22:32.7213188Z Temporarily overriding HOME='C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\tmp\d0ca7815-a914-40ca-8c8a-e7ce042b8f97' before making global git config changes
+2026-03-12T23:22:32.7213188Z Adding repository directory to the temporary git global config as a safe directory
+2026-03-12T23:22:32.7228696Z [command]"C:\Program Files\Git\cmd\git.exe" config --global --add safe.directory C:\WINDOWS\system32\config\systemprofile\.cache\act\4af5ef03678aca68\hostexecutor
+2026-03-12T23:22:32.7692399Z [command]"C:\Program Files\Git\cmd\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-03-12T23:22:32.8134082Z [command]"C:\Program Files\Git\cmd\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-03-12T23:22:33.5351140Z [command]"C:\Program Files\Git\cmd\git.exe" config --local --name-only --get-regexp http\.https\:\/\/git\.leaktechnologies\.dev\/\.extraheader
+2026-03-12T23:22:33.5795409Z [command]"C:\Program Files\Git\cmd\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/git\.leaktechnologies\.dev\/\.extraheader' && git config --local --unset-all 'http.https://git.leaktechnologies.dev/.extraheader' || :\""
+2026-03-12T23:22:34.3145049Z [command]"C:\Program Files\Git\cmd\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-03-12T23:22:34.3593682Z [command]"C:\Program Files\Git\cmd\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-03-12T23:22:35.0897592Z   ✅  Success - Post Checkout
+2026-03-12T23:22:35.2115606Z 🏁  Job failed
+2026-03-12T23:22:35.9556454Z Job 'windows-package' failed

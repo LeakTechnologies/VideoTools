@@ -644,14 +644,17 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 		nameLabel := widget.NewLabel(dep.Name)
 		nameLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-		statusLabel := widget.NewLabel("")
+		var statusIcon *widget.Icon
+		var statusText string
 		if isInstalled {
-			statusLabel.SetText("✓ Installed")
-			statusLabel.TextStyle = fyne.TextStyle{Italic: true}
+			statusIcon = widget.NewIcon(ui.GetIcon("check"))
+			statusText = "Installed"
 		} else {
-			statusLabel.SetText("✗ Not Installed")
-			statusLabel.TextStyle = fyne.TextStyle{Italic: true}
+			statusIcon = widget.NewIcon(ui.GetIcon("close"))
+			statusText = "Not Installed"
 		}
+		statusLabel := widget.NewLabel(statusText)
+		statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 
 		descLabel := widget.NewLabel(dep.Description)
 		descLabel.TextStyle = fyne.TextStyle{Italic: true}
