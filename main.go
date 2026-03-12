@@ -1071,7 +1071,10 @@ type appState struct {
 	authorMenuTemplate            string       // "Minimal", "Simple", "Dark", "Poster"
 	authorMenuBackgroundImage     string       // Path to a user-selected background image
 	authorMenuMotionBackground    string       // Path to a motion background video (MPG)
-	authorMenuTheme               string       // "VideoTools", "Minimal", "Western", etc.
+	authorMenuTheme             string       // "VideoTools", "Minimal", "Western", etc.
+	authorMenuCustomBgColor     string       // Custom background color hex
+	authorMenuCustomTextColor  string       // Custom text color hex
+	authorMenuCustomAccentColor string     // Custom accent color hex
 	authorMenuTitleLogoEnabled    bool         // Enable title logo (main logo above menu)
 	authorMenuTitleLogoPath       string       // Path to title logo image
 	authorMenuTitleLogoPosition   string       // Position for title logo
@@ -3043,14 +3046,6 @@ func (s *appState) showCompareView() {
 	s.active = "compare"
 	s.maximizeWindow()
 	s.setContent(buildCompareView(s))
-}
-
-func (s *appState) showPlayerView() {
-	s.stopPreview()
-	s.lastModule = s.active
-	s.active = "player"
-	s.maximizeWindow()
-	s.setContent(buildPlayerView(s))
 }
 
 func (s *appState) showAuthorView() {
@@ -15706,132 +15701,6 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
-}
-
-// buildPlayerView creates the VT_Player UI
-func buildPlayerView(state *appState) fyne.CanvasObject {
-	playerColor := moduleColor("player")
-
-	// Back button
-	backBtn := widget.NewButton("< PLAYER", func() {
-		state.showMainMenu()
-	})
-	backBtn.Importance = widget.LowImportance
-
-	// Top bar with module color
-	queueBtn := widget.NewButton("View Queue", func() {
-		state.showQueue()
-	})
-	state.queueBtn = queueBtn
-	state.updateQueueButtonLabel()
-	topBar := ui.TintedBar(playerColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-
-	// Instructions
-	instructions := widget.NewLabel("VT_Player - Advanced video playback with frame-accurate seeking and analysis tools.")
-	instructions.Wrapping = fyne.TextWrapWord
-	instructions.Alignment = fyne.TextAlignCenter
-
-	// File label
-	fileLabel := widget.NewLabel("No file loaded")
-	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	// Use a stable base size; the player container handles aspect-safe scaling.
-	playerSize := fyne.NewSize(640, 360)
-
-	var videoContainer fyne.CanvasObject
-	if state.playerFile != nil {
-		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.playerFile.Path)))
-		videoContainer = buildVideoPane(state, playerSize, state.playerFile, nil)
-	} else {
-		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
-	}
-
-	// Load button
-	loadBtn := widget.NewButton("Load Video", func() {
-		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
-			if err != nil || reader == nil {
-				return
-			}
-			defer reader.Close()
-
-			path := reader.URI().Path()
-			go func() {
-				src, err := probeVideo(path)
-				if err != nil {
-					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						dialog.ShowError(err, state.window)
-					}, false)
-					return
-				}
-
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					state.playerFile = src
-					state.showPlayerView()
-				}, false)
-			}()
-		}, state.window)
-	})
-	loadBtn.Importance = widget.HighImportance
-
-	// Clear video button
-	clearBtn := widget.NewButton("Clear Video", func() {
-		state.releasePlaybackSession()
-		state.stopPlayer()
-		state.playerFile = nil
-		state.showPlayerView()
-	})
-	clearBtn.Importance = widget.MediumImportance
-
-	// Button container
-	buttonContainer := container.NewHBox(loadBtn, clearBtn)
-
-	// Main content
-	mainContent := container.NewVBox(
-		instructions,
-		widget.NewSeparator(),
-		fileLabel,
-		buttonContainer,
-		videoContainer,
-	)
-
-	content := container.NewPadded(mainContent)
-	bottomBar := moduleFooter(playerColor, layout.NewSpacer(), state.statsBar)
-
-	return container.NewBorder(topBar, bottomBar, nil, nil, content)
-}
-
-func buildEnhancementView(state *appState) fyne.CanvasObject {
-	// TODO: Define enhancement color when needed
-
-	// TODO: Implement enhancement view with AI model selection
-	// For now, show placeholder
-	content := container.NewVBox(
-		widget.NewLabel(" Video Enhancement"),
-		widget.NewSeparator(),
-		widget.NewLabel("AI-powered video enhancement is coming soon!"),
-		widget.NewLabel("Features planned:"),
-		widget.NewLabel(" Real-ESRGAN Super-Resolution"),
-		widget.NewLabel(" BasicVSR Video Enhancement"),
-		widget.NewLabel(" Content-Aware Processing"),
-		widget.NewLabel(" Real-time Preview"),
-		widget.NewSeparator(),
-		widget.NewLabel("This will use the unified FFmpeg player foundation"),
-		widget.NewLabel("for frame-accurate enhancement processing."),
-	)
-
-	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
-	outer.CornerRadius = 8
-	outer.StrokeColor = gridColor
-	outer.StrokeWidth = 1
-
-	container := container.NewBorder(
-		widget.NewLabelWithStyle("Enhancement", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		nil, nil, nil,
-		content,
-	)
-
-	// Remove color variable as it's not used
-	return container
 }
 
 // buildUpscaleView creates the Upscale module UI
