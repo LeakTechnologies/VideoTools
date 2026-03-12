@@ -61,6 +61,9 @@ func (s *appState) applyAuthorConfig(cfg authorConfig) {
 	s.authorMenuTheme = cfg.MenuTheme
 	s.authorMenuBackgroundImage = cfg.MenuBackgroundImage
 	s.authorMenuMotionBackground = cfg.MenuMotionBackground
+	s.authorMenuCustomBgColor = cfg.MenuCustomBgColor
+	s.authorMenuCustomTextColor = cfg.MenuCustomTextColor
+	s.authorMenuCustomAccentColor = cfg.MenuCustomAccentColor
 	s.authorMenuTitleLogoEnabled = cfg.MenuTitleLogoEnabled
 	s.authorMenuTitleLogoPath = cfg.MenuTitleLogoPath
 	s.authorMenuTitleLogoPosition = cfg.MenuTitleLogoPosition
@@ -90,6 +93,9 @@ func (s *appState) persistAuthorConfig() {
 		MenuTheme:              s.authorMenuTheme,
 		MenuBackgroundImage:    s.authorMenuBackgroundImage,
 		MenuMotionBackground:   s.authorMenuMotionBackground,
+		MenuCustomBgColor:     s.authorMenuCustomBgColor,
+		MenuCustomTextColor:   s.authorMenuCustomTextColor,
+		MenuCustomAccentColor: s.authorMenuCustomAccentColor,
 		MenuTitleLogoEnabled:   s.authorMenuTitleLogoEnabled,
 		MenuTitleLogoPath:      s.authorMenuTitleLogoPath,
 		MenuTitleLogoPosition:  s.authorMenuTitleLogoPosition,
@@ -909,6 +915,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		"Warm Cinema",
 		"Ocean",
 		"Nature",
+		"Custom",
 	}
 	menuThemeSelect := widget.NewSelect(themeOptions, func(value string) {
 		state.authorMenuTheme = value
@@ -920,24 +927,82 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 	menuThemeSelect.SetSelected(state.authorMenuTheme)
 
+	menuThemeSelect.OnChanged = func(value string) {
+		state.authorMenuTheme = value
+		updateCustomColors()
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	}
+
+	// Custom theme color pickers
+	customBgColorEntry := widget.NewEntry()
+	customBgColorEntry.SetPlaceHolder("#000000")
+	if state.authorMenuCustomBgColor != "" {
+		customBgColorEntry.SetText(state.authorMenuCustomBgColor)
+	}
+	customBgColorEntry.OnChanged = func(value string) {
+		state.authorMenuCustomBgColor = value
+		state.persistAuthorConfig()
+	}
+
+	customTextColorEntry := widget.NewEntry()
+	customTextColorEntry.SetPlaceHolder("#FFFFFF")
+	if state.authorMenuCustomTextColor != "" {
+		customTextColorEntry.SetText(state.authorMenuCustomTextColor)
+	}
+	customTextColorEntry.OnChanged = func(value string) {
+		state.authorMenuCustomTextColor = value
+		state.persistAuthorConfig()
+	}
+
+	customAccentColorEntry := widget.NewEntry()
+	customAccentColorEntry.SetPlaceHolder("#FFFFFF")
+	if state.authorMenuCustomAccentColor != "" {
+		customAccentColorEntry.SetText(state.authorMenuCustomAccentColor)
+	}
+	customAccentColorEntry.OnChanged = func(value string) {
+		state.authorMenuCustomAccentColor = value
+		state.persistAuthorConfig()
+	}
+
+	// Show/hide custom color pickers based on theme selection
+	updateCustomColors := func() {
+		isCustom := state.authorMenuTheme == "Custom"
+		customBgColorEntry.Show()
+		customTextColorEntry.Show()
+		customAccentColorEntry.Show()
+		if !isCustom {
+			customBgColorEntry.Hide()
+			customTextColorEntry.Hide()
+			customAccentColorEntry.Hide()
+		}
+	}
+	updateCustomColors()
+
 	// Template dropdown - Layout/structure
 	templateOptions := []string{
 		"Minimal (Clean & Simple)",
 		"Simple (Title + Buttons)",
-		"Classic (Title + Buttons)",
+		"Classic (Centered Title + Buttons)",
+		"Grid (2x2 Buttons)",
+		"Filmstrip (Wide Buttons)",
 		"Poster (Grid Thumbnails)",
 	}
 	templateValueByLabel := map[string]string{
 		"Minimal (Clean & Simple)":  "Minimal",
 		"Simple (Title + Buttons)":  "Simple",
+		"Classic (Centered Title + Buttons)": "Classic",
+		"Grid (2x2 Buttons)": "Grid",
+		"Filmstrip (Wide Buttons)": "Filmstrip",
 		"Poster (Grid Thumbnails)":  "Poster",
-		"Classic (Title + Buttons)": "Dark",
 	}
 	templateLabelByValue := map[string]string{
 		"Minimal": "Minimal (Clean & Simple)",
 		"Simple":  "Simple (Title + Buttons)",
+		"Classic": "Classic (Centered Title + Buttons)",
+		"Grid":    "Grid (2x2 Buttons)",
+		"Filmstrip": "Filmstrip (Wide Buttons)",
 		"Poster":  "Poster (Grid Thumbnails)",
-		"Dark":    "Classic (Title + Buttons)",
 	}
 
 	menuTemplateSelect := widget.NewSelect(templateOptions, func(value string) {
@@ -1300,6 +1365,9 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		menuDisabledNote,
 		widget.NewLabel("Theme:"),
 		menuThemeSelect,
+		container.NewHBox(widget.NewLabel("Bg:"), customBgColorEntry),
+		container.NewHBox(widget.NewLabel("Text:"), customTextColorEntry),
+		container.NewHBox(widget.NewLabel("Accent:"), customAccentColorEntry),
 		widget.NewLabel("Template:"),
 		menuTemplateSelect,
 		bgImageLabel,
@@ -2353,6 +2421,9 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 		"menuBackgroundImage":    s.authorMenuBackgroundImage,
 		"menuMotionBackground":   s.authorMenuMotionBackground,
 		"menuTheme":              s.authorMenuTheme,
+		"menuCustomBgColor":      s.authorMenuCustomBgColor,
+		"menuCustomTextColor":    s.authorMenuCustomTextColor,
+		"menuCustomAccentColor":  s.authorMenuCustomAccentColor,
 		"menuTitleLogoEnabled":   s.authorMenuTitleLogoEnabled,
 		"menuTitleLogoPath":      s.authorMenuTitleLogoPath,
 		"menuTitleLogoPosition":  s.authorMenuTitleLogoPosition,
@@ -2453,7 +2524,7 @@ func (s *appState) addAuthorVideoTSToQueue(videoTSPath, title, outputPath string
 	return nil
 }
 
-func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, createMenu bool, menuTemplate string, menuBackgroundImage string, menuMotionBackground string, menuTheme string, logos menuLogoOptions, logFn func(string), progressFn func(float64)) error {
+func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, region, aspect, title, outputPath string, makeISO bool, clips []authorClip, chapters []authorChapter, treatAsChapters bool, createMenu bool, menuTemplate string, menuBackgroundImage string, menuMotionBackground string, menuTheme string, menuCustomBgColor, menuCustomTextColor, menuCustomAccentColor string, logos menuLogoOptions, logFn func(string), progressFn func(float64)) error {
 	tempRoot := authorTempRoot(outputPath)
 	if err := os.MkdirAll(tempRoot, 0755); err != nil {
 		return fmt.Errorf("failed to create temp root: %w", err)
@@ -2782,7 +2853,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			template,
 			menuBackgroundImage,
 			menuMotionBackground,
-			&MenuTheme{Name: menuTheme},
+			&MenuTheme{Name: menuTheme, BackgroundColor: menuCustomBgColor, TextColor: menuCustomTextColor, AccentColor: menuCustomAccentColor, IsCustom: menuTheme == "Custom"},
 			logos,
 		)
 		if err != nil {
@@ -3111,6 +3182,9 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 		toString(cfg["menuBackgroundImage"]),
 		toString(cfg["menuMotionBackground"]),
 		toString(cfg["menuTheme"]),
+		toString(cfg["menuCustomBgColor"]),
+		toString(cfg["menuCustomTextColor"]),
+		toString(cfg["menuCustomAccentColor"]),
 		menuLogoOptions{
 			TitleLogo: menuLogo{
 				Enabled:  toBool(cfg["menuTitleLogoEnabled"]),

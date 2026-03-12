@@ -29,6 +29,7 @@ type MenuTheme struct {
 	AccentColor     string
 	FontName        string
 	FontPath        string
+	IsCustom        bool
 }
 
 type menuLogoOptions struct {
@@ -50,10 +51,13 @@ type MenuTemplate interface {
 }
 
 var menuTemplates = map[string]MenuTemplate{
-	"Minimal":  &MinimalMenu{},
-	"Simple":   &SimpleMenu{},
-	"Dark":     &DarkMenu{},
-	"Poster":   &PosterMenu{},
+	"Minimal":   &MinimalMenu{},
+	"Simple":    &SimpleMenu{},
+	"Classic":   &ClassicMenu{},
+	"Grid":      &GridMenu{},
+	"Filmstrip": &FilmstripMenu{},
+	"Dark":      &DarkMenu{},
+	"Poster":    &PosterMenu{},
 }
 
 var menuThemes = map[string]*MenuTheme{
@@ -233,6 +237,56 @@ func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	return menuSpu, buttons, nil
 }
 
+// ClassicMenu is a traditional DVD menu template with centered title and buttons.
+type ClassicMenu struct{}
+
+// Generate creates a classic DVD menu with centered title and buttons.
+func (t *ClassicMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+	width, height := dvdMenuDimensions(region)
+	buttons := buildDVDMenuButtons(chapters, false, width, height)
+	if len(buttons) == 0 {
+		return "", nil, nil
+	}
+
+	bgPath := filepath.Join(workDir, "menu_bg.png")
+	if backgroundImage != "" {
+		bgPath = backgroundImage
+	}
+	overlayPath := filepath.Join(workDir, "menu_overlay.png")
+	highlightPath := filepath.Join(workDir, "menu_highlight.png")
+	selectPath := filepath.Join(workDir, "menu_select.png")
+	menuMpg := filepath.Join(workDir, "menu.mpg")
+	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
+	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
+
+	if logFn != nil {
+		logFn("Building DVD menu assets with ClassicMenu template...")
+	}
+
+	if backgroundImage == "" {
+		if err := buildClassicMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo, logFn); err != nil {
+			return "", nil, err
+		}
+	}
+
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
+		return "", nil, err
+	}
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
+		return "", nil, err
+	}
+	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
+		return "", nil, err
+	}
+	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
+		return "", nil, err
+	}
+	if logFn != nil {
+		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
+	}
+	return menuSpu, buttons, nil
+}
+
 // DarkMenu is a dark-themed menu template.
 type DarkMenu struct{}
 
@@ -261,6 +315,106 @@ func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 
 	if backgroundImage == "" {
 		if err := buildDarkMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo, logFn); err != nil {
+			return "", nil, err
+		}
+	}
+
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
+		return "", nil, err
+	}
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
+		return "", nil, err
+	}
+	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
+		return "", nil, err
+	}
+	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
+		return "", nil, err
+	}
+	if logFn != nil {
+		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
+	}
+	return menuSpu, buttons, nil
+}
+
+// GridMenu is a template with buttons arranged in a grid (2x2 or 3x2).
+type GridMenu struct{}
+
+// Generate creates a grid-based DVD menu with buttons in a matrix layout.
+func (t *GridMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+	width, height := dvdMenuDimensions(region)
+	buttons := buildDVDMenuButtons(chapters, false, width, height)
+	if len(buttons) == 0 {
+		return "", nil, nil
+	}
+
+	bgPath := filepath.Join(workDir, "menu_bg.png")
+	if backgroundImage != "" {
+		bgPath = backgroundImage
+	}
+	overlayPath := filepath.Join(workDir, "menu_overlay.png")
+	highlightPath := filepath.Join(workDir, "menu_highlight.png")
+	selectPath := filepath.Join(workDir, "menu_select.png")
+	menuMpg := filepath.Join(workDir, "menu.mpg")
+	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
+	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
+
+	if logFn != nil {
+		logFn("Building DVD menu assets with GridMenu template...")
+	}
+
+	if backgroundImage == "" {
+		if err := buildGridMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo, logFn); err != nil {
+			return "", nil, err
+		}
+	}
+
+	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
+		return "", nil, err
+	}
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
+		return "", nil, err
+	}
+	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
+		return "", nil, err
+	}
+	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
+		return "", nil, err
+	}
+	if logFn != nil {
+		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
+	}
+	return menuSpu, buttons, nil
+}
+
+// FilmstripMenu is a template with wide horizontal buttons like a filmstrip.
+type FilmstripMenu struct{}
+
+// Generate creates a filmstrip-style DVD menu with wide horizontal buttons.
+func (t *FilmstripMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+	width, height := dvdMenuDimensions(region)
+	buttons := buildDVDMenuButtons(chapters, false, width, height)
+	if len(buttons) == 0 {
+		return "", nil, nil
+	}
+
+	bgPath := filepath.Join(workDir, "menu_bg.png")
+	if backgroundImage != "" {
+		bgPath = backgroundImage
+	}
+	overlayPath := filepath.Join(workDir, "menu_overlay.png")
+	highlightPath := filepath.Join(workDir, "menu_highlight.png")
+	selectPath := filepath.Join(workDir, "menu_select.png")
+	menuMpg := filepath.Join(workDir, "menu.mpg")
+	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
+	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
+
+	if logFn != nil {
+		logFn("Building DVD menu assets with FilmstripMenu template...")
+	}
+
+	if backgroundImage == "" {
+		if err := buildFilmstripMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), logo, logFn); err != nil {
 			return "", nil, err
 		}
 	}
@@ -765,6 +919,229 @@ func buildMinimalMenuBackground(ctx context.Context, outputPath, title string, b
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
 
+// buildClassicMenuBackground creates a classic DVD menu with:
+// - Centered title at top
+// - Centered buttons below
+// - Decorative border lines
+func buildClassicMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
+	theme = resolveMenuTheme(theme)
+
+	safeTitle := strings.ToUpper(utils.ShortenMiddle(strings.TrimSpace(title), 40))
+	if safeTitle == "" {
+		safeTitle = "DVD MENU"
+	}
+
+	bgColor := theme.BackgroundColor
+	textColor := theme.TextColor
+	accentColor := theme.AccentColor
+	fontArg := menuFontArg(theme)
+
+	// Classic layout: centered title, centered buttons
+	centerX := width / 2
+	filterParts := []string{
+		// Top decorative line
+		fmt.Sprintf("drawbox=x=100:y=20:w=%d:h=2:color=%s:t=fill", width-200, accentColor),
+		// Centered title
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=32:x=(w-text_w)/2:y=35:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
+		// Middle decorative line
+		fmt.Sprintf("drawbox=x=100:y=90:w=%d:h=2:color=%s:t=fill", width-200, accentColor),
+	}
+
+	// Centered buttons
+	buttonStartY := 140
+	buttonSpacing := 36
+	for i, btn := range buttons {
+		label := strings.ToUpper(escapeDrawtextText(btn.Label))
+		y := buttonStartY + i*buttonSpacing
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=20:x=(w-text_w)/2:y=%d:text=%s", fontArg, textColor, y, label))
+	}
+
+	// Bottom decorative line
+	filterParts = append(filterParts, fmt.Sprintf("drawbox=x=100:y=%d:w=%d:h=2:color=%s:t=fill", buttonStartY+len(buttons)*buttonSpacing+10, width-200, accentColor))
+
+	filterChain := strings.Join(filterParts, ",")
+
+	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
+	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+
+	// Handle logo overlays
+	inputIndex := 1
+	baseLayer := "[bg]"
+
+	if logo.TitleLogo.Enabled {
+		titleLogoPath := resolveMenuLogoPath(logo.TitleLogo)
+		if titleLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.TitleLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.TitleLogo, width, height)
+			args = append(args, "-i", titleLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[titlelogo];%s[titlelogo]overlay=%s[tmp%d]", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr, inputIndex)
+			baseLayer = fmt.Sprintf("[tmp%d]", inputIndex)
+			inputIndex++
+		}
+	}
+
+	if logo.StudioLogo.Enabled {
+		studioLogoPath := resolveMenuLogoPath(logo.StudioLogo)
+		if studioLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.StudioLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.StudioLogo, width, height)
+			args = append(args, "-i", studioLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[studiologo];%s[studiologo]overlay=%s", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr)
+		}
+	}
+
+	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
+}
+
+// buildGridMenuBackground creates a grid menu with buttons arranged in a 2x2 or 3x2 matrix.
+func buildGridMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
+	theme = resolveMenuTheme(theme)
+
+	safeTitle := strings.ToUpper(utils.ShortenMiddle(strings.TrimSpace(title), 40))
+	if safeTitle == "" {
+		safeTitle = "DVD MENU"
+	}
+
+	bgColor := theme.BackgroundColor
+	textColor := theme.TextColor
+	accentColor := theme.AccentColor
+	fontArg := menuFontArg(theme)
+
+	// Calculate grid layout
+	cols := 2
+	if len(buttons) > 4 {
+		cols = 3
+	}
+	rows := (len(buttons) + cols - 1) / cols
+
+	buttonWidth := (width - 200) / cols
+	buttonHeight := 50
+	startX := 100
+	startY := 120
+
+	filterParts := []string{
+		// Title centered at top
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=(w-text_w)/2:y=30:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
+		// Decorative line under title
+		fmt.Sprintf("drawbox=x=80:y=70:w=%d:h=2:color=%s:t=fill", width-160, accentColor),
+	}
+
+	// Grid buttons
+	for i, btn := range buttons {
+		col := i % cols
+		row := i / cols
+		x := startX + col*buttonWidth + 20
+		y := startY + row*(buttonHeight+20)
+		label := strings.ToUpper(escapeDrawtextText(btn.Label))
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=%d:y=%d:text=%s", fontArg, textColor, x, y+15, label))
+	}
+
+	filterChain := strings.Join(filterParts, ",")
+
+	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
+	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+
+	// Handle logo overlays
+	inputIndex := 1
+	baseLayer := "[bg]"
+
+	if logo.TitleLogo.Enabled {
+		titleLogoPath := resolveMenuLogoPath(logo.TitleLogo)
+		if titleLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.TitleLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.TitleLogo, width, height)
+			args = append(args, "-i", titleLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[titlelogo];%s[titlelogo]overlay=%s[tmp%d]", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr, inputIndex)
+			baseLayer = fmt.Sprintf("[tmp%d]", inputIndex)
+			inputIndex++
+		}
+	}
+
+	if logo.StudioLogo.Enabled {
+		studioLogoPath := resolveMenuLogoPath(logo.StudioLogo)
+		if studioLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.StudioLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.StudioLogo, width, height)
+			args = append(args, "-i", studioLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[studiologo];%s[studiologo]overlay=%s", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr)
+		}
+	}
+
+	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
+}
+
+// buildFilmstripMenuBackground creates a filmstrip-style menu with wide horizontal buttons.
+func buildFilmstripMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
+	theme = resolveMenuTheme(theme)
+
+	safeTitle := strings.ToUpper(utils.ShortenMiddle(strings.TrimSpace(title), 40))
+	if safeTitle == "" {
+		safeTitle = "DVD MENU"
+	}
+
+	bgColor := theme.BackgroundColor
+	textColor := theme.TextColor
+	accentColor := theme.AccentColor
+	fontArg := menuFontArg(theme)
+
+	// Filmstrip layout: title at top, wide horizontal buttons below
+	filterParts := []string{
+		// Title centered
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=(w-text_w)/2:y=25:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
+		// Decorative line
+		fmt.Sprintf("drawbox=x=80:y=65:w=%d:h=2:color=%s:t=fill", width-160, accentColor),
+	}
+
+	// Wide horizontal buttons stacked vertically
+	buttonWidth := width - 200
+	buttonHeight := 40
+	startX := 100
+	startY := 90
+	spacing := 15
+
+	for i, btn := range buttons {
+		label := strings.ToUpper(escapeDrawtextText(btn.Label))
+		y := startY + i*(buttonHeight+spacing)
+		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=%d:y=%d:text=%s", fontArg, textColor, startX+10, y+12, label))
+	}
+
+	filterChain := strings.Join(filterParts, ",")
+
+	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
+	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+
+	// Handle logo overlays
+	inputIndex := 1
+	baseLayer := "[bg]"
+
+	if logo.TitleLogo.Enabled {
+		titleLogoPath := resolveMenuLogoPath(logo.TitleLogo)
+		if titleLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.TitleLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.TitleLogo, width, height)
+			args = append(args, "-i", titleLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[titlelogo];%s[titlelogo]overlay=%s[tmp%d]", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr, inputIndex)
+			baseLayer = fmt.Sprintf("[tmp%d]", inputIndex)
+			inputIndex++
+		}
+	}
+
+	if logo.StudioLogo.Enabled {
+		studioLogoPath := resolveMenuLogoPath(logo.StudioLogo)
+		if studioLogoPath != "" {
+			posExpr := resolveMenuLogoPosition(logo.StudioLogo, width, height)
+			scaleExpr := resolveMenuLogoScaleExpr(logo.StudioLogo, width, height)
+			args = append(args, "-i", studioLogoPath)
+			filterExpr = fmt.Sprintf("%s;[%d:v]%s[studiologo];%s[studiologo]overlay=%s", filterExpr, inputIndex, scaleExpr, baseLayer, posExpr)
+		}
+	}
+
+	args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
+	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
+}
+
 func buildDarkMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
 
@@ -1152,6 +1529,29 @@ func resolveMenuTheme(theme *MenuTheme) *MenuTheme {
 	}
 	if theme.Name == "" {
 		return menuThemes["VideoTools"]
+	}
+	// Handle custom theme
+	if theme.IsCustom || theme.Name == "Custom" {
+		// Create a custom theme with user-specified colors
+		customTheme := &MenuTheme{
+			Name:            "Custom",
+			BackgroundColor: theme.BackgroundColor,
+			HeaderColor:     theme.BackgroundColor,
+			TextColor:       theme.TextColor,
+			AccentColor:     theme.AccentColor,
+			IsCustom:        true,
+		}
+		// Use defaults for empty colors
+		if customTheme.BackgroundColor == "" {
+			customTheme.BackgroundColor = "0x000000"
+		}
+		if customTheme.TextColor == "" {
+			customTheme.TextColor = "0xFFFFFF"
+		}
+		if customTheme.AccentColor == "" {
+			customTheme.AccentColor = "0xAAAAAA"
+		}
+		return customTheme
 	}
 	if resolved, ok := menuThemes[theme.Name]; ok {
 		return resolved
