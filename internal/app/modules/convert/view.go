@@ -12,7 +12,10 @@ type Options struct {
 	VideoMinSize  fyne.Size
 	MetaMinSize   fyne.Size
 
-	OnCancelConvert      func()
+	OnStopPreview     func()
+	OnMaximizeWindow  func()
+	OnSetContent      func(obj fyne.CanvasObject)
+	OnPersistConfig  func()
 	OnAddToQueue         func()
 	OnAddAllToQueue      func()
 	OnConvert            func()
@@ -117,4 +120,47 @@ func BuildView(opts Options, src *VideoSourceInfo) fyne.CanvasObject {
 	)
 
 	return container.NewPadded(content)
+}
+
+type ConvertState struct {
+	LastModule    string
+	Active       string
+	Source       *VideoSourceInfo
+	OutputBase   string
+	CoverArtPath string
+	AspectHandling string
+	OutputAspect string
+	AspectUserSet bool
+}
+
+type ConvertCallbacks struct {
+	OnStopPreview    func()
+	OnMaximizeWindow func()
+	OnSetContent    func(obj fyne.CanvasObject)
+	OnPersistConfig func()
+	OnBuildView    func(src *VideoSourceInfo) fyne.CanvasObject
+}
+
+func ShowView(lastModule, active string, file *VideoSourceInfo, state *ConvertState, callbacks ConvertCallbacks) {
+	callbacks.OnStopPreview()
+	
+	currentActive := active
+	
+	if file != nil {
+		state.Source = file
+	}
+	
+	if state.Source == nil {
+		state.OutputBase = "converted"
+		state.CoverArtPath = ""
+		state.AspectHandling = "Auto"
+	}
+	
+	if !state.AspectUserSet || state.OutputAspect == "" {
+		state.OutputAspect = "Source"
+		state.AspectUserSet = false
+	}
+	
+	callbacks.OnMaximizeWindow()
+	callbacks.OnSetContent(callbacks.OnBuildView(state.Source))
 }
