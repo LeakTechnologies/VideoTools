@@ -2855,6 +2855,8 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			menuMotionBackground,
 			&MenuTheme{Name: menuTheme, BackgroundColor: menuCustomBgColor, TextColor: menuCustomTextColor, AccentColor: menuCustomAccentColor, IsCustom: menuTheme == "Custom"},
 			logos,
+			featurePaths[0], // Use first video for chapter thumbnails
+			2.0, // Default 2 second offset for chapter thumbnails
 		)
 		if err != nil {
 			return err
