@@ -25,7 +25,7 @@
 - [x] Phase 3 slice — Player and Enhancement extracted from `main.go` into `player_module.go` and `enhancement_module.go`.
 - [x] Phase 3 slice — Upscale view moved from `main.go` into `upscale_module.go` alongside existing helpers.
 - [x] Phase 3 slice — Compare and Compare Fullscreen views moved from `main.go` into `compare_module.go`.
-- [x] Convert module placeholder - Created `internal/app/modules/convert/` directory with Options struct for future modularization.
+- [x] Convert module partial modularisation - Added `ShowView`, `ConvertState`, and `ConvertCallbacks` to `internal/app/modules/convert/view.go`; added `showConvertView` shim and type-converter helpers in `main.go`. Full `buildConvertView` extraction deferred due to high coupling with `appState` (~3,500 lines, ~30+ state fields).
 - [x] WSL ISO creation on Windows - Added `internal/utils/wsl.go` with WSL detection, path conversion, and ISO tool detection for consistent DVD ISO generation on Windows.
 
 ### Documentation
