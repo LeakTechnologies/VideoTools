@@ -4,10 +4,10 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev31 Scope
 
-- [ ] **Module settings panel scrolling** (issue #3)
-  - Add scroll containers to all non-Convert module settings panels so content is reachable on smaller windows.
-- [ ] **Window resize stability** (issue #4)
-  - Prevent the main window from resizing when switching between modules.
+- [x] **Module settings panel scrolling** (issue #3)
+  - Scroll containers added to all non-Convert module settings panels. Action buttons moved to footer action bar.
+- [x] **Window resize stability** (issue #4)
+  - setContent now pins window size after SetContent to prevent layout-driven resize on module switch.
 - [ ] **Convert UI cleanup** (issue #5)
   - Layout consistency, label clarity, and control organization pass for external developer testing readiness.
 

@@ -8,9 +8,11 @@
 - [x] Closed dev30 with CI validation confirmed (runs 219/220/221, commit 2cbb3a2).
 
 ### UI
-- [x] Module settings scrolling - Added scroll containers to Rip and Author module settings panels.
+- [x] Module settings scrolling (issue #3) - Scroll containers added to all non-Convert module settings panels; primary action buttons moved to footer action bar for Rip, Subtitles, Filters, Thumbnail, Merge.
+- [x] Window resize stability (issue #4) - setContent pins window to pre-switch size to prevent layout-driven resize on module change.
+- [x] Convert video pane overflow - Removed rigid SetMinSize from loaded-video stage; VSplit 50/50 offset now holds correctly.
 - [x] Convert module vertical layout - Changed left column to VSplit with 50/50 split between video player and metadata.
-- [x] Module action buttons - Moved primary action buttons into module footer action bar for consistency.
+- [x] WSL compile fix - Fixed undefined windowsToWSLPath (wrong capitalisation) breaking both CI platforms.
 
 ### Author Module
 - [x] Menu templates - Added Minimal template and separated templates from themes.
