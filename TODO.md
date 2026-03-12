@@ -13,6 +13,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
   - Move `buildInspectView`, `showSettingsView`/`buildSettingsView`, and `showQueue`/queue view out of `main.go` into dedicated `*_module.go` files.
   - See `AGENTS.md` Refactor Boundaries for the pattern and completed-slice list.
+  - **Note**: Convert module partially modularized (entry point + state/callbacks in `internal/app/modules/convert/view.go`). Full `buildConvertView` extraction deferred due to high coupling with appState (~3500 lines, ~30+ state fields). Future work should consider extracting logical subsections first.
 
 ## Maintenance
 
