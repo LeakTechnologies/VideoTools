@@ -279,19 +279,19 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Template Layouts (Menu Structure)
 
-- [ ] **Minimal** - Black background, white text, vertical button list (cleanest style)
-- [ ] **Classic** - Title at top, buttons below centered (traditional DVD)
-- [ ] **Grid** - 2x2 or 3x2 button matrix (Star Wars style)
-- [ ] **Filmstrip** - Thumbnail preview buttons for scene selection
-- [ ] **Poster** - Large background image with overlay (current implementation)
+- [x] **Minimal** - Black background, white text, vertical button list (cleanest style)
+- [x] **Classic** - Title at top, buttons below centered (traditional DVD)
+- [x] **Grid** - 2x2 or 3x2 button matrix (Star Wars style)
+- [x] **Filmstrip** - Thumbnail preview buttons for scene selection
+- [x] **Poster** - Large background image with overlay (current implementation)
 - [ ] **Cinematic** - Wide banner title, full-bleed background (modern)
 
 ### Preset Themes (Visual Aesthetic)
 
-- [ ] **VideoTools** - Background: #0F172A, Text: #E1EEFF, Accent: #7C3AED (sci-fi/purple)
-- [ ] **Minimal** - Background: #000000, Text: #FFFFFF, Accent: #AAAAAA (clean B&W)
-- [ ] **Western** - Background: #1A1408, Text: #F5DEB3, Accent: #8B4513 (warm browns/golds)
-- [ ] **Film Noir** - Background: #1A1A1A, Text: #E0E0E0, Accent: #808080 (dark gray)
+- [x] **VideoTools** - Background: #0F172A, Text: #E1EEFF, Accent: #7C3AED (sci-fi/purple)
+- [x] **Minimal** - Background: #000000, Text: #FFFFFF, Accent: #AAAAAA (clean B&W)
+- [x] **Western** - Background: #1A1408, Text: #F5DEB3, Accent: #8B4513 (warm browns/golds)
+- [x] **Film Noir** - Background: #1A1A1A, Text: #E0E0E0, Accent: #808080 (dark gray)
 - [ ] **Classic Hollywood** - Background: #000000, Text: #F5F5DC, Accent: #D4AF37 (gold)
 - [ ] **Warm Cinema** - Background: #1A0F0A, Text: #FFF5E6, Accent: #E67E22 (orange)
 - [ ] **Ocean** - Background: #0A1A2A, Text: #E0F0FF, Accent: #00CED1 (cyan)
