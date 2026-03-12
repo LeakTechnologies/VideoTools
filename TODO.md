@@ -22,6 +22,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Fall back to available AV1 encoders (or H.264) when `libsvtav1` is missing.
 - [X] **Adaptive scroll speed**
   - Smooth settings and long panels across different window sizes.
+- [X] **Click-and-drag scrolling**
+  - FastVScroll supports click-and-drag (desktop.Mouseable + fyne.Draggable) for mobile/touch-like interaction.
 - [X] **Settings tab scrolling**
   - Scroll within tabs while keeping the Settings header visible.
 - [X] **Aspect ratio handling**

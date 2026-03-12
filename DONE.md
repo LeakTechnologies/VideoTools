@@ -13,6 +13,7 @@
 - [x] Convert video pane overflow - Removed rigid SetMinSize from loaded-video stage; VSplit 50/50 offset now holds correctly.
 - [x] Convert module vertical layout - Changed left column to VSplit with 50/50 split between video player and metadata.
 - [x] WSL compile fix - Fixed undefined windowsToWSLPath (wrong capitalisation) breaking both CI platforms.
+- [x] Click-and-drag scrolling - FastVScroll now implements desktop.Mouseable and fyne.Draggable so users can click-and-drag content to scroll, mirroring mobile/touch behaviour.
 
 ### Author Module
 - [x] Menu templates - Added Minimal template and separated templates from themes.
