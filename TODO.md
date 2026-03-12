@@ -1,6 +1,13 @@
-# VideoTools TODO (v0.1.1-dev31 plan)
+# VideoTools TODO (v0.1.1-dev32 plan)
 
 This file tracks upcoming features, improvements, and known issues.
+
+## Dev32 Scope
+
+- [ ] **Drag-to-scroll** — FastVScroll click-and-drag not intercepting events correctly; VScroll child captures mouse before outer widget.
+- [ ] **Windows icons** — Module/app icons not displaying on running Windows build; investigate icon loading path.
+- [ ] **Convert UI cleanup** (issue #5) — Layout consistency and label clarity pass.
+- [ ] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
 
 ## Dev31 Scope
 

@@ -99,7 +99,7 @@ var (
 	logsDirOverride    string
 	logsDirMu          sync.RWMutex
 	feedbackBundler    = utils.NewFeedbackBundler()
-	appVersion         = "v0.1.1-dev31"
+	appVersion         = "v0.1.1-dev32"
 	buildCommit        = "dev"
 
 	hwAccelProbeOnce sync.Once

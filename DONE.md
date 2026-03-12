@@ -1,5 +1,13 @@
 # VideoTools - Completed Features
 
+## Version 0.1.1-dev32 (2026-03-12) - UI Polish and Fixes
+
+### Kickoff
+- [x] Bumped version markers to v0.1.1-dev32 (main.go, VERSION, FyneApp.toml).
+
+### UI
+- [x] Main menu tile colour consistency - Unavailable module tiles now show dimmed module colour on first load, matching post-navigation appearance. Fixed by aligning CreateRenderer with Refresh() colour logic.
+
 ## Version 0.1.1-dev31 (2026-03-12) - UI Stability and Cleanup
 
 ### Kickoff

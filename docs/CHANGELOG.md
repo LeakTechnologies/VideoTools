@@ -1,5 +1,10 @@
 # VideoTools Changelog
 
+## v0.1.1-dev32 (March 2026)
+
+### UI
+- **Main menu tile colour consistency** - Unavailable/missing-dependency module tiles now show a consistently dimmed module colour on first load, matching the colour shown after navigation. Previously the initial render showed orange.
+
 ## v0.1.1-dev31 (March 2026)
 
 ### UI
