@@ -927,6 +927,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 	menuThemeSelect.SetSelected(state.authorMenuTheme)
 
+	var updateCustomColors func()
 	menuThemeSelect.OnChanged = func(value string) {
 		state.authorMenuTheme = value
 		updateCustomColors()
@@ -966,7 +967,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 
 	// Show/hide custom color pickers based on theme selection
-	updateCustomColors := func() {
+	updateCustomColors = func() {
 		isCustom := state.authorMenuTheme == "Custom"
 		customBgColorEntry.Show()
 		customTextColorEntry.Show()
