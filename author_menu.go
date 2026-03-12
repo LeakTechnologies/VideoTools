@@ -983,7 +983,6 @@ func buildClassicMenuBackground(ctx context.Context, outputPath, title string, b
 	fontArg := menuFontArg(theme)
 
 	// Classic layout: centered title, centered buttons
-	centerX := width / 2
 	filterParts := []string{
 		// Top decorative line
 		fmt.Sprintf("drawbox=x=100:y=20:w=%d:h=2:color=%s:t=fill", width-200, accentColor),
@@ -1059,8 +1058,6 @@ func buildGridMenuBackground(ctx context.Context, outputPath, title string, butt
 	if len(buttons) > 4 {
 		cols = 3
 	}
-	rows := (len(buttons) + cols - 1) / cols
-
 	buttonWidth := (width - 200) / cols
 	buttonHeight := 50
 	startX := 100
@@ -1141,7 +1138,6 @@ func buildFilmstripMenuBackground(ctx context.Context, outputPath, title string,
 	}
 
 	// Wide horizontal buttons stacked vertically
-	buttonWidth := width - 200
 	buttonHeight := 40
 	startX := 100
 	startY := 90
