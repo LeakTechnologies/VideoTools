@@ -10,6 +10,9 @@ This file tracks upcoming features, improvements, and known issues.
   - setContent now pins window size after SetContent to prevent layout-driven resize on module switch.
 - [ ] **Convert UI cleanup** (issue #5)
   - Layout consistency, label clarity, and control organization pass for external developer testing readiness.
+- [ ] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
+  - Move `buildInspectView`, `showSettingsView`/`buildSettingsView`, and `showQueue`/queue view out of `main.go` into dedicated `*_module.go` files.
+  - See `AGENTS.md` Refactor Boundaries for the pattern and completed-slice list.
 
 ## Maintenance
 

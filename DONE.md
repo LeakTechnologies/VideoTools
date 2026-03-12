@@ -21,6 +21,9 @@
 - [x] Motion backgrounds - Added support for video loop backgrounds (MPG) with embedded audio.
 
 ### Refactor
+- [x] Phase 3 slice — Player and Enhancement extracted from `main.go` into `player_module.go` and `enhancement_module.go`.
+- [x] Phase 3 slice — Upscale view moved from `main.go` into `upscale_module.go` alongside existing helpers.
+- [x] Phase 3 slice — Compare and Compare Fullscreen views moved from `main.go` into `compare_module.go`.
 - [x] Convert module placeholder - Created `internal/app/modules/convert/` directory with Options struct for future modularization.
 - [x] WSL ISO creation on Windows - Added `internal/utils/wsl.go` with WSL detection, path conversion, and ISO tool detection for consistent DVD ISO generation on Windows.
 
