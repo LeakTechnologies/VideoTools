@@ -12,19 +12,17 @@ type Options struct {
 	VideoMinSize  fyne.Size
 	MetaMinSize   fyne.Size
 
-	OnStopPreview     func()
-	OnMaximizeWindow  func()
-	OnSetContent      func(obj fyne.CanvasObject)
+	OnStopPreview    func()
+	OnMaximizeWindow func()
+	OnSetContent     func(obj fyne.CanvasObject)
 	OnPersistConfig  func()
-	OnAddToQueue         func()
-	OnAddAllToQueue      func()
-	OnConvert            func()
-	OnPersistConfig      func()
-	OnViewLog            func(title, log string, busy bool)
-	OnCaptureCover       func() (string, error)
-	OnStopPreview        func()
-	OnLoadVideo          func(path string)
-	OnDroppedFiles       func(paths []string)
+	OnAddToQueue     func()
+	OnAddAllToQueue  func()
+	OnConvert        func()
+	OnViewLog        func(title, log string, busy bool)
+	OnCaptureCover   func() (string, error)
+	OnLoadVideo      func(path string)
+	OnDroppedFiles   func(paths []string)
 
 	ConvertConfig      ConvertConfigOptions
 	LoadedVideos       []string
@@ -143,9 +141,8 @@ type ConvertCallbacks struct {
 
 func ShowView(lastModule, active string, file *VideoSourceInfo, state *ConvertState, callbacks ConvertCallbacks) {
 	callbacks.OnStopPreview()
-	
-	currentActive := active
-	
+	_ = active
+
 	if file != nil {
 		state.Source = file
 	}
