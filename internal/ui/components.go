@@ -547,10 +547,15 @@ func (r *droppableRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.content}
 }
 
-// FastVScroll creates a vertical scroll container with faster scroll speed
+// FastVScroll creates a vertical scroll container with faster scroll speed.
+// It supports mouse-wheel scrolling (Scrolled), click-and-drag scrolling
+// (MouseDown/Dragged/MouseUp), and touch-drag scrolling.
 type FastVScroll struct {
 	widget.BaseWidget
-	scroll *container.Scroll
+	scroll      *container.Scroll
+	dragging    bool
+	dragStartY  float32 // canvas Y at drag start
+	dragStartOff float32 // scroll offset at drag start
 }
 
 // NewFastVScroll creates a new fast-scrolling vertical scroll container
@@ -600,6 +605,54 @@ func (f *FastVScroll) ScrollBy(delta float32) {
 		newY = max
 	}
 	f.scroll.ScrollToOffset(fyne.NewPos(f.scroll.Offset.X, newY))
+}
+
+// MouseDown records the drag anchor when the primary mouse button is pressed.
+func (f *FastVScroll) MouseDown(ev *desktop.MouseEvent) {
+	if ev.Button == desktop.MouseButtonPrimary {
+		f.dragging = true
+		f.dragStartY = ev.Position.Y
+		f.dragStartOff = f.scroll.Offset.Y
+	}
+}
+
+// MouseUp ends any in-progress drag.
+func (f *FastVScroll) MouseUp(ev *desktop.MouseEvent) {
+	if ev.Button == desktop.MouseButtonPrimary {
+		f.dragging = false
+	}
+}
+
+// Dragged translates a drag delta into a scroll offset change so the user
+// can click-and-drag the content like a mobile/touch interface.
+func (f *FastVScroll) Dragged(ev *fyne.DragEvent) {
+	if !f.dragging {
+		return
+	}
+	delta := f.dragStartY - ev.Position.Y // positive = dragged upward = scroll down
+	content := f.scroll.Content
+	if content == nil {
+		return
+	}
+	max := content.Size().Height - f.scroll.Size().Height
+	if max <= 0 {
+		max = content.MinSize().Height - f.scroll.Size().Height
+	}
+	if max < 0 {
+		max = 0
+	}
+	newY := f.dragStartOff + delta
+	if newY < 0 {
+		newY = 0
+	} else if newY > max {
+		newY = max
+	}
+	f.scroll.ScrollToOffset(fyne.NewPos(f.scroll.Offset.X, newY))
+}
+
+// DragEnd satisfies fyne.Draggable.
+func (f *FastVScroll) DragEnd() {
+	f.dragging = false
 }
 
 // PageStep returns a reasonable scroll step based on the current viewport.
