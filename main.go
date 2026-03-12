@@ -38,6 +38,7 @@ import (
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
+	convertmodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
