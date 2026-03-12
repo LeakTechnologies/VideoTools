@@ -104,12 +104,13 @@ This file tracks upcoming features, improvements, and known issues.
   - Phase 2: Introduce `internal/app/` boundaries and move low-risk helper files from root.
   - Phase 3: Move module builders into `internal/app/modules/` with compatibility shims if needed.
   - Phase 4: Move primary app entrypoint toward `cmd/videotools/` once app package is stable.
-- [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (settings, convert, main menu) once stabilized.
+- [ ] **Main.go modularization pass** - Move UI builders and helpers into module files (convert remaining)
 - [X] **Main menu modularization** - Moved main menu builder + refresh helpers into `mainmenu_module.go`.
 - [X] **Settings modularization** - Settings view lives in `settings_module.go` (no main.go UI builder).
 - [X] **About/Support modularization** - Moved About/Support dialog into `about_module.go`.
 - [X] **Missing dependencies dialog modularization** - Moved the missing dependencies dialog into `deps_dialog_module.go`.
 - [X] **Queue view modularization** - Moved queue view builders and refresh helpers into `queue_module.go`.
+- [X] **Inspect view modularization** - Moved inspect view into `inspect_module.go`.
 - [X] **Subtitle OCR support**
   - Enable OCR for image-based DVD/BD subtitle tracks (VobSub/PGS) to produce SRT/ASS.
 - [X] **Subtitle OCR cleanup**
