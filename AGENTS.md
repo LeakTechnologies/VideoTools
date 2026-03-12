@@ -4,10 +4,11 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev31`.
+- Current cycle: `v0.1.1-dev32`.
 - Public/stable baseline: `v0.1.1`.
 - `dev30` is closed. CI validated on 2026-03-10 (runs 219/220/221, commit 2cbb3a2).
 - `dev31` is closed. CI validated on 2026-03-12 (runs 252/253, commit 40b5934).
+- `dev32` focus: drag-to-scroll fix, Windows icon investigation, Convert UI cleanup (issue #5), Phase 3 continuation (opencode).
 - Issue tracker active at `https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues`.
 - Primary planning source is `TODO.md`; shipped scope is tracked in `DONE.md`; release-facing history is `docs/CHANGELOG.md`.
 
