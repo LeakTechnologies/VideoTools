@@ -32,7 +32,7 @@ func GetIcon(name string) fyne.Resource {
 	// Try to find the icon by matching prefix in assets/icons
 	files, err := os.ReadDir("assets/icons")
 	if err != nil {
-		logging.Warning(logging.CatUI, "Failed to read icons directory: "+err.Error())
+		logging.Info(logging.CatUI, "Failed to read icons directory: "+err.Error())
 		return theme.ErrorIcon()
 	}
 
@@ -40,7 +40,7 @@ func GetIcon(name string) fyne.Resource {
 		if strings.HasPrefix(f.Name(), name+"_") && strings.HasSuffix(f.Name(), ".svg") {
 			res, err := fyne.LoadResourceFromPath("assets/icons/" + f.Name())
 			if err != nil {
-				logging.Warning(logging.CatUI, "Failed to load icon "+name+": "+err.Error())
+				logging.Info(logging.CatUI, "Failed to load icon "+name+": "+err.Error())
 				return theme.ErrorIcon()
 			}
 			iconCache[name] = res
@@ -48,7 +48,7 @@ func GetIcon(name string) fyne.Resource {
 		}
 	}
 
-	logging.Warning(logging.CatUI, "Icon not found: "+name)
+	logging.Info(logging.CatUI, "Icon not found: "+name)
 	return theme.ErrorIcon()
 }
 
@@ -256,7 +256,6 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 
 	// Lock icon for disabled modules
 	lockIcon := widget.NewIcon(GetIcon("lock"))
-	lockIcon.SetMinSize(fyne.NewSize(16, 16))
 	if m.enabled {
 		lockIcon.Hide()
 	}
@@ -305,7 +304,7 @@ type moduleTileRenderer struct {
 	tile           *ModuleTile
 	bg             *canvas.Rectangle
 	label          *canvas.Text
-	lockIcon       *canvas.Text
+	lockIcon       *widget.Icon
 	disabledStripe *canvas.Raster
 }
 
@@ -1352,8 +1351,8 @@ func (cs *ColoredSelect) CreateRenderer() fyne.WidgetRenderer {
 	label.Alignment = fyne.TextAlignLeading
 	label.TextSize = 16
 
-	caret := widget.NewIcon(GetIcon("keyboard_arrow_down"))
-	caret.SetMinSize(fyne.NewSize(12, 12))
+	caret := canvas.NewText("▾", selectTextColor())
+	caret.TextSize = 14
 
 	content := container.NewBorder(nil, nil, bar, nil,
 		container.NewPadded(container.NewBorder(nil, nil, nil, caret, label)))
