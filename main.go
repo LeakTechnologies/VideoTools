@@ -1708,9 +1708,13 @@ func newMouseButtonHandler(content fyne.CanvasObject, state *appState) *mouseBut
 }
 
 func (m *mouseButtonHandler) CreateRenderer() fyne.WidgetRenderer {
+	// Create a transparent background that captures mouse events
+	bg := canvas.NewRectangle(color.Transparent)
+	bg.SetMinSize(fyne.NewSize(0, 0)) // Allow to expand
+
 	return &mouseButtonRenderer{
 		handler: m,
-		content: m.content,
+		content: container.NewMax(bg, m.content),
 	}
 }
 
@@ -1725,6 +1729,11 @@ func (m *mouseButtonHandler) MouseDown(me *desktop.MouseEvent) {
 }
 
 func (m *mouseButtonHandler) MouseUp(*desktop.MouseEvent) {}
+
+// MouseIn/MouseOut help capture events when mouse enters the window
+func (m *mouseButtonHandler) MouseIn(*desktop.MouseEvent)    {}
+func (m *mouseButtonHandler) MouseOut()                      {}
+func (m *mouseButtonHandler) MouseMoved(*desktop.MouseEvent)  {}
 
 type mouseButtonRenderer struct {
 	handler *mouseButtonHandler
