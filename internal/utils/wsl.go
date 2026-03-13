@@ -32,7 +32,7 @@ func IsWSLAvailable() bool {
 		return false
 	}
 	
-	cmd := exec.Command("wsl", "--status")
+	cmd := HideWindowExec("wsl", "--status")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return false
@@ -55,7 +55,7 @@ func FindWSLDistro() (string, error) {
 		}
 	}
 
-	cmd := exec.Command("wsl", "-l", "-q")
+	cmd := HideWindowExec("wsl", "-l", "-q")
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to list WSL distributions: %w", err)
@@ -76,14 +76,14 @@ func FindWSLDistro() (string, error) {
 }
 
 func verifyWSLDistro(distro string) error {
-	cmd := exec.Command("wsl", "-t", distro)
+	cmd := HideWindowExec("wsl", "-t", distro)
 	return cmd.Run()
 }
 
 func WSLRunCommand(distro string, command string, args ...string) *exec.Cmd {
 	wslArgs := []string{"-d", distro, "--", command}
 	wslArgs = append(wslArgs, args...)
-	return exec.Command("wsl", wslArgs...)
+	return HideWindowExec("wsl", wslArgs...)
 }
 
 func WSLRunCommandWithPaths(distro string, winWorkDir string, command string, args ...string) (*exec.Cmd, error) {
@@ -100,7 +100,7 @@ func WSLRunCommandWithPaths(distro string, winWorkDir string, command string, ar
 	fullCommand := fmt.Sprintf("cd %s && %s %s", wslWorkDir, command, strings.Join(args, " "))
 	
 	wslArgs := []string{"-d", distro, "--", "sh", "-c", fullCommand}
-	return exec.Command("wsl", wslArgs...), nil
+	return HideWindowExec("wsl", wslArgs...), nil
 }
 
 func WindowsToWSLPath(winPath string) (string, error) {

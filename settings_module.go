@@ -360,7 +360,7 @@ func checkWSLInstalled() bool {
 	if runtime.GOOS != "windows" {
 		return false
 	}
-	cmd := exec.Command("wsl", "--status")
+	cmd := utils.HideWindowExec("wsl", "--status")
 	return cmd.Run() == nil
 }
 
@@ -380,13 +380,13 @@ func installWSLWithDvdTools(win fyne.Window, onDone func(success bool, message s
 		var log strings.Builder
 
 		// Check if WSL is already installed
-		checkCmd := exec.CommandContext(ctx, "wsl", "--status")
+		checkCmd := utils.HideWindowExecContext(ctx, "wsl", "--status")
 		if checkCmd.Run() == nil {
 			log.WriteString("WSL already installed. ")
 		} else {
 			// Install WSL
 			log.WriteString("Installing WSL2... ")
-			wslCmd := exec.CommandContext(ctx, "powershell", "-Command", "wsl --install -d Ubuntu --no-interactive")
+			wslCmd := utils.HideWindowExecContext(ctx, "powershell", "-Command", "wsl --install -d Ubuntu --no-interactive")
 			wslCmd.Stdout = &log
 			wslCmd.Stderr = &log
 			if err := wslCmd.Run(); err != nil {
@@ -399,26 +399,34 @@ func installWSLWithDvdTools(win fyne.Window, onDone func(success bool, message s
 			log.WriteString("WSL installed. ")
 		}
 
+		// Find the actual WSL distro name (may be Ubuntu-22.04, Ubuntu-24.04, etc.)
+		distro, err := utils.FindWSLDistro()
+		if err != nil {
+			// Default to "Ubuntu" if detection fails
+			distro = "Ubuntu"
+			log.WriteString("(distro detection failed, trying Ubuntu) ")
+		}
+
 		// Install dvdauthor and xorriso in WSL
 		log.WriteString("Installing dvdauthor and xorriso in WSL... ")
-		updateCmd := exec.CommandContext(ctx, "wsl", "-d", "Ubuntu", "--", "sudo", "apt-get", "update", "-qq")
+		updateCmd := utils.HideWindowExecContext(ctx, "wsl", "-d", distro, "--", "sudo", "apt-get", "update", "-qq")
 		updateCmd.Stdout = &log
 		updateCmd.Stderr = &log
 		if err := updateCmd.Run(); err != nil {
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				progress.Hide()
-				onDone(false, "Failed to update WSL: "+log.String())
+				onDone(false, "Failed to update package lists in "+distro+":\n"+log.String())
 			}, false)
 			return
 		}
 
-		installCmd := exec.CommandContext(ctx, "wsl", "-d", "Ubuntu", "--", "sudo", "apt-get", "install", "-y", "dvdauthor", "xorriso")
+		installCmd := utils.HideWindowExecContext(ctx, "wsl", "-d", distro, "--", "sudo", "apt-get", "install", "-y", "dvdauthor", "xorriso")
 		installCmd.Stdout = &log
 		installCmd.Stderr = &log
 		if err := installCmd.Run(); err != nil {
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				progress.Hide()
-				onDone(false, "Failed to install tools: "+log.String())
+				onDone(false, "Failed to install tools in "+distro+":\n"+log.String())
 			}, false)
 			return
 		}
@@ -464,7 +472,7 @@ func checkDependency(command string) bool {
 
 	// On Windows, check WSL for dvdauthor and xorriso
 	if runtime.GOOS == "windows" && (command == "dvdauthor" || command == "xorriso") {
-		checkCmd := exec.Command("wsl", "-d", "Ubuntu", "--", "which", command)
+		checkCmd := utils.HideWindowExec("wsl", "-d", "Ubuntu", "--", "which", command)
 		return checkCmd.Run() == nil
 	}
 
@@ -878,10 +886,20 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 				installWSLWithDvdTools(state.window, func(success bool, message string) {
 					if success {
 						dialog.ShowInformation("Installation Complete", message, state.window)
+						state.showSettingsView()
 					} else {
-						dialog.ShowError(fmt.Errorf(message), state.window)
+						errLabel := widget.NewLabel(message)
+						errLabel.Wrapping = fyne.TextWrapWord
+						scroll := container.NewVScroll(errLabel)
+						scroll.SetMinSize(fyne.NewSize(400, 200))
+						d := dialog.NewCustom("Installation Failed", "Close", scroll, state.window)
+						d.SetOnClosed(state.showSettingsView)
+						copyBtn := widget.NewButton("Copy Error", func() {
+							state.window.Clipboard().SetContent(message)
+						})
+						d.SetButtons([]fyne.CanvasObject{copyBtn, widget.NewButton("Close", func() { d.Hide() })})
+						d.Show()
 					}
-					state.showSettingsView()
 				})
 			})
 			wslInstallBtn.Importance = widget.HighImportance
