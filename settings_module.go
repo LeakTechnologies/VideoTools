@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"image/color"
@@ -756,20 +757,62 @@ func buildUpdatesTab(state *appState) fyne.CanvasObject {
 	return content
 }
 
+const (
+	forgejoReleasesAPI  = "https://git.leaktechnologies.dev/api/v1/repos/stu/VideoTools/releases/latest"
+	forgejoReleasesPage = "https://git.leaktechnologies.dev/stu/VideoTools/releases"
+)
+
 func checkForUpdates(state *appState) {
 	progress := dialog.NewProgressInfinite("Checking for Updates", "Connecting to update server...", state.window)
 	progress.Show()
 
 	go func() {
-		// Simulated update check - in production, this would call an update server
-		time.Sleep(2 * time.Second)
-
-		// For now, just show a message
+		latest, err := fetchLatestRelease()
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			progress.Hide()
-			dialog.ShowInformation("No Updates", "You are running the latest version.", state.window)
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("could not reach update server: %w", err), state.window)
+				return
+			}
+			if latest == appVersion {
+				dialog.ShowInformation("Up to Date", fmt.Sprintf("You are running the latest version (%s).", appVersion), state.window)
+				return
+			}
+			// A different version is available — show with a link to releases
+			msg := fmt.Sprintf("A new version is available: %s\n\nYou are currently on %s.", latest, appVersion)
+			d := dialog.NewCustom("Update Available", "Close", widget.NewLabel(msg), state.window)
+			d.SetButtons([]fyne.CanvasObject{
+				widget.NewButton("Open Releases Page", func() {
+					d.Hide()
+					_ = openURL(forgejoReleasesPage)
+				}),
+				widget.NewButton("Close", func() { d.Hide() }),
+			})
+			d.Show()
 		}, false)
 	}()
+}
+
+func fetchLatestRelease() (string, error) {
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Get(forgejoReleasesAPI)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("server returned %s", resp.Status)
+	}
+	var release struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return "", fmt.Errorf("parse response: %w", err)
+	}
+	if release.TagName == "" {
+		return "", fmt.Errorf("no tag_name in response")
+	}
+	return release.TagName, nil
 }
 
 func buildDependenciesTab(state *appState) fyne.CanvasObject {
