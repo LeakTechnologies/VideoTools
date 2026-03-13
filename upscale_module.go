@@ -28,14 +28,12 @@ func detectAIUpscaleBackend() string {
 		return "ncnn"
 	}
 
-	cmd := exec.Command("python3", "-c", "import realesrgan")
-	utils.HideWindow(cmd)
+	cmd := utils.HideWindowExec("python3", "-c", "import realesrgan")
 	if err := cmd.Run(); err == nil {
 		return "python"
 	}
 
-	cmd = exec.Command("python", "-c", "import realesrgan")
-	utils.HideWindow(cmd)
+	cmd = utils.HideWindowExec("python", "-c", "import realesrgan")
 	if err := cmd.Run(); err == nil {
 		return "python"
 	}

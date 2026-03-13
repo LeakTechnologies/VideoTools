@@ -10,8 +10,11 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Version hash in Settings** — Settings > About now shows build commit hash for debugging.
 - [x] **Windows CI buildCommit** — Windows CI workflow now passes `-ldflags "-X main.buildCommit=..."` (Linux already had this).
 - [x] **CI syntax error fix** — Duplicate `else` block in icon loading code removed; Windows package build now passes.
+- [x] **Linux CI apt caching** — Added `actions/cache@v4` for apt packages to speed up Linux CI builds.
 - [ ] **Root folder hygiene** (issue #22) — 24 `package main` files clutter the project root; should be progressively extracted to `internal/app/modules/` with thin root shims, following the pattern already established for `about`, `deps`, and `mainmenu`.
 - [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered (carry-forward from dev32).
+- [ ] **Cross-platform video player** — GStreamer is Linux-only; need a cross-platform solution that works on Windows and Linux. Current options to evaluate: MPV (via mpv player), VLC bindings, or FFplay wrapper. This affects player module and CI build times (installing GStreamer + deps adds ~2min to Linux builds).
+- [ ] **Linux CI build optimization** — Even with apt caching, Linux builds install ~100 packages. Consider: pre-built container image with deps, or switch to a cross-platform player to eliminate GStreamer dependency.
 
 ## Dev32 Scope
 
