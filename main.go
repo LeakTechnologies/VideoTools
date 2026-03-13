@@ -6333,6 +6333,7 @@ func runGUI() {
 
 	a := app.NewWithID("com.leaktechnologies.videotools")
 	ui.SetIconsFS(iconsFS)
+	ui.SetLogoFS(logoAssets)
 
 	// Always start with a clean slate: wipe any persisted app storage (queue or otherwise)
 	if root := a.Storage().RootURI(); root != nil && root.Scheme() == "file" {
