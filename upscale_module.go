@@ -941,7 +941,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		filterIntegrationSection,
 	)
 
-	settingsScroll := container.NewVScroll(settingsPanel)
+	settingsScroll := ui.NewFastVScroll(settingsPanel)
 	// Adaptive height for small screens
 	// Avoid rigid min sizes so window snapping works across modules.
 
