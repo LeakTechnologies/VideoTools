@@ -1790,10 +1790,8 @@ func (s *appState) setContent(body fyne.CanvasObject) {
 			s.window.SetContent(bg)
 		} else {
 			// Wrap content with mouse button handler for back/forward buttons
-			// Note: Disabled temporarily to test drag/drop
-			// wrapped := newMouseButtonHandler(container.NewMax(bg, body), s)
-			// s.window.SetContent(wrapped)
-			s.window.SetContent(container.NewMax(bg, body))
+			wrapped := newMouseButtonHandler(container.NewMax(bg, body), s)
+			s.window.SetContent(wrapped)
 		}
 		// Restore window size to prevent layout-driven resize on module switch.
 		if savedSize.Width > 0 && savedSize.Height > 0 {
