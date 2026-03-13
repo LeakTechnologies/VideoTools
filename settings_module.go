@@ -673,7 +673,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 		statusBg := canvas.NewRectangle(statusColor)
 		statusBg.CornerRadius = 3
 
-		statusRow := container.NewHBox(statusBg, statusLabel)
+		statusRow := container.NewHBox(statusIcon, statusBg, statusLabel)
 
 		actions := container.NewHBox()
 		cmds := getDependencyCommands(depName)
