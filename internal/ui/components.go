@@ -28,10 +28,9 @@ var (
 	logoEmbedFS  fs.FS
 )
 
-// SetIconsFS provides the embedded icons filesystem to the ui package.
-// Must be called before any GetIcon calls (i.e. at app startup).
-func SetIconsFS(f fs.FS) {
-	sub, err := fs.Sub(f, "assets/icons")
+// SetIconsFS initialises the icons filesystem. Called at app startup.
+func SetIconsFS() {
+	sub, err := fs.Sub(IconsFS, ".")
 	if err != nil {
 		logging.Info(logging.CatUI, "Failed to sub icons FS: "+err.Error())
 		return
@@ -39,15 +38,22 @@ func SetIconsFS(f fs.FS) {
 	iconsEmbedFS = sub
 }
 
-// SetLogoFS provides the embedded logo filesystem to the ui package.
-// Must be called before any GetLogo calls (i.e. at app startup).
-func SetLogoFS(f fs.FS) {
-	sub, err := fs.Sub(f, "assets/logo")
+// SetLogoFS initialises the logo filesystem. Called at app startup.
+func SetLogoFS() {
+	sub, err := fs.Sub(LogoFS, ".")
 	if err != nil {
 		logging.Info(logging.CatUI, "Failed to sub logo FS: "+err.Error())
 		return
 	}
 	logoEmbedFS = sub
+}
+
+// GetLogo loads a logo file from the embedded logo filesystem.
+func GetLogo(filename string) ([]byte, error) {
+	if logoEmbedFS == nil {
+		return nil, fmt.Errorf("logo FS not initialized")
+	}
+	return fs.ReadFile(logoEmbedFS, filename)
 }
 
 func GetIcon(name string) fyne.Resource {
