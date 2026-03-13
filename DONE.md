@@ -34,12 +34,17 @@
 
 ### Navigation
 - [x] Mouse back/forward buttons - Side mouse buttons (button 4/5) trigger back/forward navigation.
+- [x] Mouse back button fixed - Back button now returns directly to main menu.
 - [x] Keyboard shortcuts simplified - Ctrl+Enter is the universal confirm shortcut on Linux/Windows; Author module wired.
 
 ### UI
 - [x] Main menu tile colour consistency - Unavailable module tiles now show dimmed module colour on first load, matching post-navigation appearance.
 - [x] Drag-to-scroll on FastVScroll (issue #19) - `container.Scroll` implements `fyne.Draggable` but discards desktop drag events via a mobile-only guard. Replaced inner scroll with a custom `scrollClip` widget that does not implement `fyne.Draggable`, allowing drag events to reach `FastVScroll`.
 - [x] Pulsing drop indicator on video stage - Video drop zone pulses when a draggable file is hovered over the convert player area.
+- [x] FastVScroll on upscale settings and convert metadata - Both panels now use FastVScroll for consistent drag-to-scroll.
+
+### Auto-Update
+- [x] In-app updates - Windows and Linux builds support in-app auto-update via Forgejo releases API.
 
 ## Version 0.1.1-dev31 (2026-03-12) - UI Stability and Cleanup
 
