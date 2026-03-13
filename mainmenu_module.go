@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -43,10 +44,13 @@ func (s *appState) showMainMenu() {
 			DepsAvailable: isModuleAvailable(m.ID),
 		})
 	}
+	// Author and Rip require dvdauthor/xorriso which are not available on Windows.
+	// Hide both until a cross-platform disc authoring solution is implemented.
+	discModulesAvailable := runtime.GOOS != "windows"
 	mods := mainmenumodule.BuildVisibleModules(sourceMods, mainmenumodule.Visibility{
 		ShowUpscale: s.convert.ShowUpscale,
-		ShowAuthor:  s.convert.ShowAuthor,
-		ShowRip:     s.convert.ShowRip,
+		ShowAuthor:  s.convert.ShowAuthor && discModulesAvailable,
+		ShowRip:     s.convert.ShowRip && discModulesAvailable,
 		ShowBluRay:  s.convert.ShowBluRay,
 	})
 
