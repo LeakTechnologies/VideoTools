@@ -13,8 +13,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Linux CI apt caching** — Added `actions/cache@v4` for apt packages to speed up Linux CI builds.
 - [ ] **Root folder hygiene** (issue #22) — 24 `package main` files clutter the project root; should be progressively extracted to `internal/app/modules/` with thin root shims, following the pattern already established for `about`, `deps`, and `mainmenu`.
 - [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered (carry-forward from dev32).
-- [ ] **Cross-platform video player** — GStreamer is Linux-only; need a cross-platform solution that works on Windows and Linux. Current options to evaluate: MPV (via mpv player), VLC bindings, or FFplay wrapper. This affects player module and CI build times (installing GStreamer + deps adds ~2min to Linux builds).
-- [ ] **Linux CI build optimization** — Even with apt caching, Linux builds install ~100 packages. Consider: pre-built container image with deps, or switch to a cross-platform player to eliminate GStreamer dependency.
+- [ ] **Linux CI build optimization** — Even with apt caching, Linux builds install ~100 packages. Consider a pre-built container image with deps baked in to cut build times.
 
 ## Dev32 Scope
 
@@ -43,6 +42,19 @@ This file tracks upcoming features, improvements, and known issues.
   - Move `buildInspectView`, `showSettingsView`/`buildSettingsView`, and `showQueue`/queue view out of `main.go` into dedicated `*_module.go` files.
   - See `AGENTS.md` Refactor Boundaries for the pattern and completed-slice list.
   - **Note**: Convert module partially modularized (entry point + state/callbacks in `internal/app/modules/convert/view.go`). Full `buildConvertView` extraction deferred due to high coupling with appState (~3500 lines, ~30+ state fields). Future work should consider extracting logical subsections first.
+
+## Near-Term Milestone: Cross-Platform Video Player
+
+**Priority: High** — blocks Upscale (live preview) and Trim (frame-accurate timeline) reaching their full potential.
+
+The current player stack uses GStreamer on Linux and a separate fallback on Windows. Before Upscale and Trim can be completed properly, a unified player that works identically on both platforms is needed.
+
+- [ ] **Evaluate player backends** — shortlist: MPV (via libmpv), FFplay wrapper, VLC bindings. Needs: frame-accurate seeking, A/V sync, hardware decode, cross-platform.
+- [ ] **Design unified player interface** — abstract `vtplayer` interface that all backends implement; modules talk only to the interface.
+- [ ] **Implement chosen backend** — wire up on both Linux and Windows; replace the GStreamer-only path.
+- [ ] **Upscale live preview** — depends on player foundation; real-time before/after preview during upscale processing.
+- [ ] **Trim module** — depends on player foundation; frame-accurate timeline, in/out points, chapter markers.
+- [ ] **Linux CI cleanup** — once GStreamer is no longer mandatory, remove it from the CI dependency install list and cut ~2 min off Linux build times.
 
 ## Maintenance
 
