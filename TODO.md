@@ -1,6 +1,17 @@
-# VideoTools TODO (v0.1.1-dev32 plan)
+# VideoTools TODO (v0.1.1-dev33 plan)
 
 This file tracks upcoming features, improvements, and known issues.
+
+## Dev33 Scope
+
+- [x] **App icon embedding** — `logo_embed.go` at root; logo loaded directly in `main.go`; fixes taskbar icon not showing.
+- [x] **FFmpeg hwaccel order fix** — hwaccel flags now passed before the input file in convert pipeline.
+- [x] **Upscale Ctrl+Enter shortcut** — Added keyboard shortcut to Upscale module.
+- [x] **Version hash in Settings** — Settings > About now shows build commit hash for debugging.
+- [x] **Windows CI buildCommit** — Windows CI workflow now passes `-ldflags "-X main.buildCommit=..."` (Linux already had this).
+- [x] **CI syntax error fix** — Duplicate `else` block in icon loading code removed; Windows package build now passes.
+- [ ] **Root folder hygiene** (issue #22) — 24 `package main` files clutter the project root; should be progressively extracted to `internal/app/modules/` with thin root shims, following the pattern already established for `about`, `deps`, and `mainmenu`.
+- [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered (carry-forward from dev32).
 
 ## Dev32 Scope
 
@@ -31,6 +42,14 @@ This file tracks upcoming features, improvements, and known issues.
   - **Note**: Convert module partially modularized (entry point + state/callbacks in `internal/app/modules/convert/view.go`). Full `buildConvertView` extraction deferred due to high coupling with appState (~3500 lines, ~30+ state fields). Future work should consider extracting logical subsections first.
 
 ## Maintenance
+
+- [ ] **Root folder hygiene (issue #22)** — The project root currently has 27 `.go` files, only 3 of which legitimately belong there:
+  - **Must stay at root** (go:embed requires paths relative to the file): `main.go`, `icons_embed.go`, `logo_embed.go`
+  - **Platform-specific shims that can stay near main**: `update_windows.go`, `update_linux.go`, `platform.go`
+  - **Should move to `internal/app/modules/{module}/`** with thin root shims (following the `about`, `deps`, `mainmenu` pattern already established): `audio_module.go`, `author_module.go`, `author_dvd_functions.go`, `author_menu.go`, `compare_module.go`, `enhancement_module.go`, `filters_module.go`, `inspect_module.go`, `player_module.go`, `queue_module.go`, `rip_module.go`, `settings_module.go`, `subtitles_module.go`, `thumbnail_module.go`, `upscale_module.go`
+  - **Config/helpers to move**: `merge_config.go`, `naming_helpers.go`, `thumbnail_config.go`, `deps_dialog_module.go`
+  - **Approach**: Extract logic incrementally per module; keep `package main` shims at root until `appState` coupling is reduced enough to move the entry point to `cmd/videotools/`.
+
 
 - [X] **About dialog cleanup**
   - Remove the Bitcoin address from the About/Support page.
