@@ -1506,7 +1506,7 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 	})
 	generateBtn.Importance = widget.HighImportance
 
-	// Keyboard shortcut: Ctrl+Enter (Cmd+Enter on macOS) -> Generate DVD
+	// Keyboard shortcut: Ctrl+Enter -> Generate DVD
 	if c := state.window.Canvas(); c != nil {
 		triggerGenerate := func() {
 			if !generateBtn.Disabled() && generateBtn.OnTapped != nil {
@@ -1515,8 +1515,6 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 		}
 		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyReturn, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { triggerGenerate() })
 		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { triggerGenerate() })
-		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyReturn, Modifier: fyne.KeyModifierSuper}, func(fyne.Shortcut) { triggerGenerate() })
-		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierSuper}, func(fyne.Shortcut) { triggerGenerate() })
 	}
 
 	summaryLabel := widget.NewLabel(authorSummary(state))
