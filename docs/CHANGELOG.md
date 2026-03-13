@@ -3,17 +3,38 @@
 ## v0.1.1-dev32 (March 2026)
 
 ### Settings
-- **Dependency install buttons** - Each dependency in the Dependencies tab now has an actionable Install button. FFmpeg on Windows uses the app-local bootstrap; dvdauthor and xorriso on Windows install via a new WSL2+Ubuntu automated installer.
+- **Dependency install buttons** - Each dependency in the Dependencies tab now has an actionable Install button. FFmpeg on Windows uses the app-local bootstrap.
 - **Platform-filtered dependencies** - The Dependencies tab only lists tools relevant to the current platform.
-- **Windows WSL dependency support** - `checkDependency` detects dvdauthor/xorriso inside WSL Ubuntu on Windows, so modules correctly reflect availability after WSL installation.
-- **Updates tab** - New Updates tab in Settings shows the current version and a Check for Updates button.
+- **WSL auto-install reverted** - Installing Ubuntu via WSL would consume 5-10 GB; removed from the lightweight app. dvdauthor/xorriso restricted to Linux/macOS builds.
+- **Updates tab wired** - Check for Updates hits the Forgejo tags API (`/api/v1/repos/leak_technologies/VideoTools/tags?limit=1`) and compares against the running version; fixed owner mismatch in API URL.
 - **Uninstall support** - Uninstall buttons shown per dependency where a package manager uninstall command is available.
+- **Disc toggles hidden on Windows** - Author, Rip, Blu-ray visibility checkboxes hidden in Settings on Windows since those tools are unavailable on that platform.
+- **cmd window popups suppressed** - All subprocess calls on Windows now use `HideWindowExec` / `HideWindowExecContext` to prevent console window flashes.
 
 ### Icons
 - **SVG icon library** - ~150 Material Design SVG icons added to `assets/icons/`; ASCII placeholders replaced with real icon resources.
+- **Icons embedded into binary** - Icons are baked into the binary at compile time via `//go:embed`; `GetIcon` reads from the embedded FS with no runtime disk access. Fixes blank icons on installed builds (issue #20).
+
+### Convert Module
+- **Player layout fixed** - Video pane used `NewVBox` which collapsed the canvas.Image to 0 px; rewritten with `NewBorder` so the video fills the centre and the transport bar is pinned to the bottom.
+- **VSplit gap fixed** - Extra `NewVBox` wrapper around the video panel left dark empty space in the top half of the VSplit; removed so the video panel fills its full allocated area.
+- **Player icons fixed** - ASCII fallback labels replaced with `widget.NewButtonWithIcon` using embedded SVG icons.
+- **Active state fixed** - `s.active` was never set to `"convert"`, breaking drop handling and keyboard shortcuts inside the module.
+- **Source state fixed** - `s.source` was not updated when loading a video via `loadVideo`; now set before rebuilding the view.
+- **Convert UI cleanup (issue #5)** - Label alignments standardised, consistent separators added.
+
+### Compare Module
+- **Hide/show player toggle (issue #1)** - Toggle button added to hide/show both video players, giving more vertical space for comparison.
+
+### Main Menu / Navigation
+- **Author and Rip hidden on Windows** - Disc modules hidden from the main menu on Windows until cross-platform disc authoring is implemented.
+- **Mouse back/forward navigation** - Side mouse buttons (buttons 4/5) trigger back/forward navigation.
+- **Keyboard shortcuts simplified** - Ctrl+Enter is the universal confirm action on Linux/Windows.
+- **Drag-to-scroll fixed (issue #19)** - `container.Scroll` was silently consuming desktop drag events via a mobile-only guard. Replaced with a custom `scrollClip` widget that does not implement `fyne.Draggable`, so drag events reach `FastVScroll` and 1:1 content tracking works.
+- **Pulsing drop indicator** - Video drop zone pulses when a draggable file hovers over the convert player area.
 
 ### UI
-- **Main menu tile colour consistency** - Unavailable/missing-dependency module tiles now show a consistently dimmed module colour on first load, matching the colour shown after navigation. Previously the initial render showed orange.
+- **Main menu tile colour consistency** - Unavailable/missing-dependency module tiles now show a consistently dimmed module colour on first load.
 
 ## v0.1.1-dev31 (March 2026)
 
