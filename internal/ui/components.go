@@ -686,7 +686,7 @@ func (f *FastVScroll) Scrolled(ev *fyne.ScrollEvent) {
 		height = 480
 	}
 	scale := float32(1.2 + math.Min(float64(height)/500.0, 1.8)) // ~1.2x to ~3.0x
-	f.ScrollBy(ev.Scrolled.DY * scale)
+	f.ScrollBy(-ev.Scrolled.DY * scale)
 }
 
 // ScrollBy scrolls the content by a delta in pixels (positive = down).
