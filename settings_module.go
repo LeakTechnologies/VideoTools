@@ -661,60 +661,121 @@ func buildUpdatesTab(state *appState) fyne.CanvasObject {
 
 const (
 	forgejoTagsAPI      = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/tags?limit=1"
+	forgejoMasterAPI    = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/branches/master"
 	forgejoReleasesPage = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/releases"
+	forgejoCommitsPage  = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/commits/branch/master"
 )
+
+type updateInfo struct {
+	latestTag       string
+	tagCommitSHA    string // SHA of the commit the latest tag points to
+	masterCommitSHA string // SHA of the latest commit on master
+}
 
 func checkForUpdates(state *appState) {
 	progress := dialog.NewProgressInfinite("Checking for Updates", "Connecting to update server...", state.window)
 	progress.Show()
 
 	go func() {
-		latest, err := fetchLatestRelease()
+		info, err := fetchUpdateInfo()
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			progress.Hide()
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("could not reach update server: %w", err), state.window)
 				return
 			}
-			if latest == appVersion {
-				dialog.ShowInformation("Up to Date", fmt.Sprintf("You are running the latest version (%s).", appVersion), state.window)
+
+			// Different version tag available
+			if info.latestTag != appVersion {
+				msg := fmt.Sprintf("A new version is available: %s\n\nYou are currently on %s.", info.latestTag, appVersion)
+				d := dialog.NewCustom("Update Available", "Close", widget.NewLabel(msg), state.window)
+				d.SetButtons([]fyne.CanvasObject{
+					widget.NewButton("Open Releases Page", func() {
+						d.Hide()
+						_ = openURL(forgejoReleasesPage)
+					}),
+					widget.NewButton("Close", func() { d.Hide() }),
+				})
+				d.Show()
 				return
 			}
-			// A different version is available — show with a link to releases
-			msg := fmt.Sprintf("A new version is available: %s\n\nYou are currently on %s.", latest, appVersion)
-			d := dialog.NewCustom("Update Available", "Close", widget.NewLabel(msg), state.window)
-			d.SetButtons([]fyne.CanvasObject{
-				widget.NewButton("Open Releases Page", func() {
-					d.Hide()
-					_ = openURL(forgejoReleasesPage)
-				}),
-				widget.NewButton("Close", func() { d.Hide() }),
-			})
-			d.Show()
+
+			// Same version — check whether master has moved ahead of the tag
+			patchesAvailable := info.masterCommitSHA != "" &&
+				info.tagCommitSHA != "" &&
+				info.masterCommitSHA != info.tagCommitSHA
+
+			if patchesAvailable {
+				short := info.masterCommitSHA
+				if len(short) > 7 {
+					short = short[:7]
+				}
+				msg := fmt.Sprintf(
+					"You are on %s (the latest release tag).\n\nHowever, newer commits are available on master (latest: %s).\n\nPull the latest source and rebuild to get these patches.",
+					appVersion, short,
+				)
+				d := dialog.NewCustom("Patches Available", "Close", widget.NewLabel(msg), state.window)
+				d.SetButtons([]fyne.CanvasObject{
+					widget.NewButton("View Commits", func() {
+						d.Hide()
+						_ = openURL(forgejoCommitsPage)
+					}),
+					widget.NewButton("Close", func() { d.Hide() }),
+				})
+				d.Show()
+				return
+			}
+
+			dialog.ShowInformation("Up to Date", fmt.Sprintf("You are running the latest version (%s).", appVersion), state.window)
 		}, false)
 	}()
 }
 
-func fetchLatestRelease() (string, error) {
+func fetchUpdateInfo() (updateInfo, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
+
+	// Fetch latest tag
 	resp, err := client.Get(forgejoTagsAPI)
 	if err != nil {
-		return "", err
+		return updateInfo{}, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("server returned %s", resp.Status)
+		return updateInfo{}, fmt.Errorf("tags API returned %s", resp.Status)
 	}
 	var tags []struct {
-		Name string `json:"name"`
+		Name   string `json:"name"`
+		Commit struct {
+			SHA string `json:"sha"`
+		} `json:"commit"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
-		return "", fmt.Errorf("parse response: %w", err)
+		return updateInfo{}, fmt.Errorf("parse tags response: %w", err)
 	}
 	if len(tags) == 0 || tags[0].Name == "" {
-		return "", fmt.Errorf("no tags found in repository")
+		return updateInfo{}, fmt.Errorf("no tags found in repository")
 	}
-	return tags[0].Name, nil
+	info := updateInfo{
+		latestTag:    tags[0].Name,
+		tagCommitSHA: tags[0].Commit.SHA,
+	}
+
+	// Fetch latest master commit (best-effort; don't fail the whole check)
+	if mResp, mErr := client.Get(forgejoMasterAPI); mErr == nil {
+		defer mResp.Body.Close()
+		if mResp.StatusCode == http.StatusOK {
+			var branch struct {
+				Commit struct {
+					ID string `json:"id"`
+				} `json:"commit"`
+			}
+			if json.NewDecoder(mResp.Body).Decode(&branch) == nil {
+				info.masterCommitSHA = branch.Commit.ID
+			}
+		}
+	}
+
+	return info, nil
 }
 
 func buildDependenciesTab(state *appState) fyne.CanvasObject {
