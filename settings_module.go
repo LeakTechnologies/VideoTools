@@ -169,9 +169,10 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 		}
 	case "whisper":
 		if runtime.GOOS == "windows" {
+			// Try python, fall back to py, then python3
 			return dependencyCommandPair{
-				install:   &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "py -m pip install --user openai-whisper"}},
-				uninstall: &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "py -m pip uninstall -y openai-whisper"}},
+				install:   &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "python -m pip install --user openai-whisper 2>$null || py -m pip install --user openai-whisper 2>$null || python3 -m pip install --user openai-whisper"}},
+				uninstall: &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "python -m pip uninstall -y openai-whisper 2>$null || py -m pip uninstall -y openai-whisper 2>$null || python3 -m pip uninstall -y openai-whisper"}},
 			}
 		}
 		return dependencyCommandPair{
