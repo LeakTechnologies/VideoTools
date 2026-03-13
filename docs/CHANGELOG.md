@@ -28,10 +28,14 @@
 
 ### Main Menu / Navigation
 - **Author and Rip hidden on Windows** - Disc modules hidden from the main menu on Windows until cross-platform disc authoring is implemented.
-- **Mouse back/forward navigation** - Side mouse buttons (buttons 4/5) trigger back/forward navigation.
+- **Mouse back button fixed** - Side mouse buttons now navigate correctly; back button (button 4) returns to main menu.
 - **Keyboard shortcuts simplified** - Ctrl+Enter is the universal confirm action on Linux/Windows.
 - **Drag-to-scroll fixed (issue #19)** - `container.Scroll` was silently consuming desktop drag events via a mobile-only guard. Replaced with a custom `scrollClip` widget that does not implement `fyne.Draggable`, so drag events reach `FastVScroll` and 1:1 content tracking works.
 - **Pulsing drop indicator** - Video drop zone pulses when a draggable file hovers over the convert player area.
+- **FastVScroll on all settings panels** - Upscale module settings and Convert metadata panel now use FastVScroll for consistent drag-to-scroll experience.
+
+### Auto-Update
+- **In-app updates** - Windows and Linux builds now support in-app auto-update. Check for Updates detects new releases; Install Update/Patches buttons download and apply updates automatically.
 
 ### UI
 - **Main menu tile colour consistency** - Unavailable/missing-dependency module tiles now show a consistently dimmed module colour on first load.
