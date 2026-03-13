@@ -601,36 +601,86 @@ func (r *droppableRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.content}
 }
 
+// scrollClip is a minimal clipping widget that does NOT implement fyne.Draggable.
+// This is intentional: container.Scroll implements fyne.Draggable but discards all
+// drag events on desktop (mobile-only guard), causing them to be consumed silently
+// before the outer FastVScroll can receive them. By using scrollClip instead, drag
+// events propagate up to FastVScroll which handles them correctly.
+type scrollClip struct {
+	widget.BaseWidget
+	content fyne.CanvasObject
+	offsetY float32
+}
+
+func newScrollClip(content fyne.CanvasObject) *scrollClip {
+	s := &scrollClip{content: content}
+	s.ExtendBaseWidget(s)
+	return s
+}
+
+func (s *scrollClip) setOffset(y float32) {
+	s.offsetY = y
+	s.Refresh()
+}
+
+func (s *scrollClip) CreateRenderer() fyne.WidgetRenderer {
+	return &scrollClipRenderer{clip: s}
+}
+
+type scrollClipRenderer struct {
+	clip *scrollClip
+}
+
+func (r *scrollClipRenderer) Layout(size fyne.Size) {
+	contentMin := r.clip.content.MinSize()
+	r.clip.content.Resize(fyne.NewSize(size.Width, fyne.Max(contentMin.Height, size.Height)))
+	r.clip.content.Move(fyne.NewPos(0, -r.clip.offsetY))
+}
+
+func (r *scrollClipRenderer) MinSize() fyne.Size {
+	return fyne.NewSize(0, 0)
+}
+
+func (r *scrollClipRenderer) Refresh() {
+	r.Layout(r.clip.Size())
+	canvas.Refresh(r.clip.content)
+}
+
+func (r *scrollClipRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{r.clip.content}
+}
+
+func (r *scrollClipRenderer) Destroy() {}
+
 // FastVScroll creates a vertical scroll container with faster scroll speed.
-// It supports mouse-wheel scrolling (Scrolled), click-and-drag scrolling
-// (MouseDown/Dragged/MouseUp), and touch-drag scrolling.
+// It supports mouse-wheel scrolling (Scrolled) and click-and-drag scrolling
+// (MouseDown/Dragged/MouseUp).
 type FastVScroll struct {
 	widget.BaseWidget
-	scroll      *container.Scroll
-	dragging    bool
-	dragStartY  float32 // canvas Y at drag start
+	clip         *scrollClip
+	dragging     bool
+	dragStartY   float32 // canvas Y at drag start
 	dragStartOff float32 // scroll offset at drag start
 }
 
 // NewFastVScroll creates a new fast-scrolling vertical scroll container
 func NewFastVScroll(content fyne.CanvasObject) *FastVScroll {
 	f := &FastVScroll{
-		scroll: container.NewVScroll(content),
+		clip: newScrollClip(content),
 	}
-	f.scroll.SetMinSize(fyne.NewSize(0, 0))
 	f.ExtendBaseWidget(f)
 	return f
 }
 
 func (f *FastVScroll) CreateRenderer() fyne.WidgetRenderer {
-	return &fastScrollRenderer{scroll: f.scroll}
+	return &fastScrollRenderer{clip: f.clip}
 }
 
 func (f *FastVScroll) Scrolled(ev *fyne.ScrollEvent) {
 	// Adaptive scroll speed based on viewport height for smoother feel across resolutions.
-	height := f.scroll.Size().Height
+	height := f.Size().Height
 	if height <= 0 {
-		height = f.scroll.MinSize().Height
+		height = f.MinSize().Height
 	}
 	if height <= 0 {
 		height = 480
@@ -641,24 +691,24 @@ func (f *FastVScroll) Scrolled(ev *fyne.ScrollEvent) {
 
 // ScrollBy scrolls the content by a delta in pixels (positive = down).
 func (f *FastVScroll) ScrollBy(delta float32) {
-	if f == nil || f.scroll == nil || f.scroll.Content == nil {
+	if f == nil || f.clip == nil || f.clip.content == nil {
 		return
 	}
-	content := f.scroll.Content
-	max := content.Size().Height - f.scroll.Size().Height
+	content := f.clip.content
+	max := content.Size().Height - f.Size().Height
 	if max <= 0 {
-		max = content.MinSize().Height - f.scroll.Size().Height
+		max = content.MinSize().Height - f.Size().Height
 	}
 	if max < 0 {
 		max = 0
 	}
-	newY := f.scroll.Offset.Y + delta
+	newY := f.clip.offsetY + delta
 	if newY < 0 {
 		newY = 0
 	} else if newY > max {
 		newY = max
 	}
-	f.scroll.ScrollToOffset(fyne.NewPos(f.scroll.Offset.X, newY))
+	f.clip.setOffset(newY)
 }
 
 // MouseDown records the drag anchor when the primary mouse button is pressed.
@@ -666,7 +716,7 @@ func (f *FastVScroll) MouseDown(ev *desktop.MouseEvent) {
 	if ev.Button == desktop.MouseButtonPrimary {
 		f.dragging = true
 		f.dragStartY = ev.Position.Y
-		f.dragStartOff = f.scroll.Offset.Y
+		f.dragStartOff = f.clip.offsetY
 	}
 }
 
@@ -684,13 +734,13 @@ func (f *FastVScroll) Dragged(ev *fyne.DragEvent) {
 		return
 	}
 	delta := f.dragStartY - ev.Position.Y // positive = dragged upward = scroll down
-	content := f.scroll.Content
+	content := f.clip.content
 	if content == nil {
 		return
 	}
-	max := content.Size().Height - f.scroll.Size().Height
+	max := content.Size().Height - f.Size().Height
 	if max <= 0 {
-		max = content.MinSize().Height - f.scroll.Size().Height
+		max = content.MinSize().Height - f.Size().Height
 	}
 	if max < 0 {
 		max = 0
@@ -701,7 +751,7 @@ func (f *FastVScroll) Dragged(ev *fyne.DragEvent) {
 	} else if newY > max {
 		newY = max
 	}
-	f.scroll.ScrollToOffset(fyne.NewPos(f.scroll.Offset.X, newY))
+	f.clip.setOffset(newY)
 }
 
 // DragEnd satisfies fyne.Draggable.
@@ -711,12 +761,12 @@ func (f *FastVScroll) DragEnd() {
 
 // PageStep returns a reasonable scroll step based on the current viewport.
 func (f *FastVScroll) PageStep() float32 {
-	if f == nil || f.scroll == nil {
+	if f == nil || f.clip == nil {
 		return 0
 	}
-	height := f.scroll.Size().Height
+	height := f.Size().Height
 	if height <= 0 {
-		height = f.scroll.MinSize().Height
+		height = f.MinSize().Height
 	}
 	if height <= 0 {
 		height = 240
@@ -725,23 +775,23 @@ func (f *FastVScroll) PageStep() float32 {
 }
 
 type fastScrollRenderer struct {
-	scroll *container.Scroll
+	clip *scrollClip
 }
 
 func (r *fastScrollRenderer) Layout(size fyne.Size) {
-	r.scroll.Resize(size)
+	r.clip.Resize(size)
 }
 
 func (r *fastScrollRenderer) MinSize() fyne.Size {
-	return r.scroll.MinSize()
+	return fyne.NewSize(0, 0)
 }
 
 func (r *fastScrollRenderer) Refresh() {
-	r.scroll.Refresh()
+	r.clip.Refresh()
 }
 
 func (r *fastScrollRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.scroll}
+	return []fyne.CanvasObject{r.clip}
 }
 
 func (r *fastScrollRenderer) Destroy() {}
