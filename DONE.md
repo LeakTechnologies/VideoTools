@@ -5,6 +5,16 @@
 ### Kickoff
 - [x] Bumped version markers to v0.1.1-dev32 (main.go, VERSION, FyneApp.toml).
 
+### Icons
+- [x] SVG icon library added - ~150 Material Design SVG icons added to `assets/icons/`; ASCII icon placeholders replaced with real icon resources across the UI.
+
+### Settings — Dependencies
+- [x] Platform-filtered dependency list - Dependencies tab now only shows entries relevant to the current platform using `isDependencyAvailableForPlatform`.
+- [x] Install buttons per dependency - Each dependency row shows an actionable Install button; FFmpeg on Windows uses the existing app-local bootstrap; dvdauthor/xorriso on Windows use a new WSL installer (`installWSLWithDvdTools`).
+- [x] Uninstall buttons - Uninstall button shown per dependency when an uninstall command is available.
+- [x] Windows WSL dependency support - `checkDependency` now checks WSL Ubuntu for dvdauthor/xorriso on Windows; install via WSL button auto-installs WSL2 + Ubuntu + tools in one step.
+- [x] Updates tab - Added Updates tab to Settings with current version display and Check for Updates button (update check logic stubbed; Forgejo API integration pending).
+
 ### UI
 - [x] Main menu tile colour consistency - Unavailable module tiles now show dimmed module colour on first load, matching post-navigation appearance. Fixed by aligning CreateRenderer with Refresh() colour logic.
 
