@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"math"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -29,8 +30,19 @@ func GetIcon(name string) fyne.Resource {
 		return cached
 	}
 
-	// Try to find the icon by matching prefix in assets/icons
-	files, err := os.ReadDir("assets/icons")
+	// Find icons relative to executable location
+	iconPath := findAssetPath("assets/icons")
+	if iconPath == "" {
+		logging.Info(logging.CatUI, "Could not find assets/icons directory")
+		return theme.ErrorIcon()
+	}
+
+	iconsDir := filepath.Join(iconPath, "icons")
+	if _, err := os.Stat(iconsDir); err == nil {
+		iconPath = iconsDir
+	}
+
+	files, err := os.ReadDir(iconPath)
 	if err != nil {
 		logging.Info(logging.CatUI, "Failed to read icons directory: "+err.Error())
 		return theme.ErrorIcon()
@@ -38,7 +50,7 @@ func GetIcon(name string) fyne.Resource {
 
 	for _, f := range files {
 		if strings.HasPrefix(f.Name(), name+"_") && strings.HasSuffix(f.Name(), ".svg") {
-			res, err := fyne.LoadResourceFromPath("assets/icons/" + f.Name())
+			res, err := fyne.LoadResourceFromPath(filepath.Join(iconPath, f.Name()))
 			if err != nil {
 				logging.Info(logging.CatUI, "Failed to load icon "+name+": "+err.Error())
 				return theme.ErrorIcon()
@@ -50,6 +62,39 @@ func GetIcon(name string) fyne.Resource {
 
 	logging.Info(logging.CatUI, "Icon not found: "+name)
 	return theme.ErrorIcon()
+}
+
+// findAssetPath searches for the assets directory relative to the executable
+func findAssetPath(relative string) string {
+	// Start from executable location
+	exePath, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	exeDir := filepath.Dir(exePath)
+
+	// Check various possible locations
+	searchPaths := []string{
+		filepath.Join(exeDir, relative),
+		filepath.Join(exeDir, "..", relative),
+		filepath.Join(exeDir, "..", "..", relative),
+	}
+
+	// Also check current working directory as fallback
+	wd, _ := os.Getwd()
+	if wd != exeDir {
+		searchPaths = append(searchPaths,
+			filepath.Join(wd, relative),
+		)
+	}
+
+	for _, path := range searchPaths {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return ""
 }
 
 var (
