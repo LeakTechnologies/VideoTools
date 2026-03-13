@@ -660,8 +660,8 @@ func buildUpdatesTab(state *appState) fyne.CanvasObject {
 }
 
 const (
-	forgejoTagsAPI      = "https://git.leaktechnologies.dev/api/v1/repos/stu/VideoTools/tags?limit=1"
-	forgejoReleasesPage = "https://git.leaktechnologies.dev/stu/VideoTools/releases"
+	forgejoTagsAPI      = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/tags?limit=1"
+	forgejoReleasesPage = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/releases"
 )
 
 func checkForUpdates(state *appState) {
@@ -1026,35 +1026,37 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	})
 	showUpscale.SetChecked(state.convert.ShowUpscale)
 
-	showAuthor := widget.NewCheck("Show Author module", func(checked bool) {
-		state.convert.ShowAuthor = checked
-		state.persistConvertConfig()
-	})
-	showAuthor.SetChecked(state.convert.ShowAuthor)
+	visibilityItems := []fyne.CanvasObject{showUpscale}
 
-	showRip := widget.NewCheck("Show Rip module", func(checked bool) {
-		state.convert.ShowRip = checked
-		state.persistConvertConfig()
-	})
-	showRip.SetChecked(state.convert.ShowRip)
+	// Disc modules (Author, Rip, Blu-ray) are unavailable on Windows — hide their toggles.
+	if runtime.GOOS != "windows" {
+		showAuthor := widget.NewCheck("Show Author module", func(checked bool) {
+			state.convert.ShowAuthor = checked
+			state.persistConvertConfig()
+		})
+		showAuthor.SetChecked(state.convert.ShowAuthor)
 
-	showBluRay := widget.NewCheck("Show Blu-ray module", func(checked bool) {
-		state.convert.ShowBluRay = checked
-		state.persistConvertConfig()
-	})
-	showBluRay.SetChecked(state.convert.ShowBluRay)
+		showRip := widget.NewCheck("Show Rip module", func(checked bool) {
+			state.convert.ShowRip = checked
+			state.persistConvertConfig()
+		})
+		showRip.SetChecked(state.convert.ShowRip)
+
+		showBluRay := widget.NewCheck("Show Blu-ray module", func(checked bool) {
+			state.convert.ShowBluRay = checked
+			state.persistConvertConfig()
+		})
+		showBluRay.SetChecked(state.convert.ShowBluRay)
+
+		visibilityItems = append(visibilityItems, showAuthor, showRip, showBluRay)
+	}
 
 	visibilityHint := widget.NewLabel("Module visibility applies on the main menu.")
 	visibilityHint.TextStyle = fyne.TextStyle{Italic: true}
 	visibilityHint.Wrapping = fyne.TextWrapWord
+	visibilityItems = append(visibilityItems, visibilityHint)
 
-	content.Add(container.NewVBox(
-		showUpscale,
-		showAuthor,
-		showRip,
-		showBluRay,
-		visibilityHint,
-	))
+	content.Add(container.NewVBox(visibilityItems...))
 
 	content.Add(widget.NewSeparator())
 

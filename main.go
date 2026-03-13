@@ -11163,7 +11163,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		}
 		updateVolIcon()
 		volSlider.Refresh()
-		playBtn := utils.MakeIconButton("-/", "Play/Pause", func() {
+		playBtn := widget.NewButtonWithIcon("", ui.GetIcon("play_pause"), func() {
 			if !ensureSession() {
 				return
 			}
@@ -11175,22 +11175,25 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				state.playerPaused = true
 			}
 		})
+		playBtn.Importance = widget.LowImportance
 
 		// Frame stepping buttons
-		prevFrameBtn := utils.MakeIconButton("-|", "Previous frame (Left Arrow)", func() {
+		prevFrameBtn := widget.NewButtonWithIcon("", ui.GetIcon("skip_previous"), func() {
 			if !ensureSession() {
 				return
 			}
 			state.playerPaused = true
 			state.playSess.StepFrame(-1)
 		})
-		nextFrameBtn := utils.MakeIconButton("|-", "Next frame (Right Arrow)", func() {
+		prevFrameBtn.Importance = widget.LowImportance
+		nextFrameBtn := widget.NewButtonWithIcon("", ui.GetIcon("skip_next"), func() {
 			if !ensureSession() {
 				return
 			}
 			state.playerPaused = true
 			state.playSess.StepFrame(1)
 		})
+		nextFrameBtn.Importance = widget.LowImportance
 
 		fullBtn := utils.MakeIconButton("", "Toggle fullscreen", func() {
 			if state.window == nil {
@@ -11220,7 +11223,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				}
 			}
 		}
-		playBtn := utils.MakeIconButton("-/", "Play/Pause", func() {
+		playBtn := widget.NewButtonWithIcon("", ui.GetIcon("play_pause"), func() {
 			if len(src.PreviewFrames) == 0 {
 				return
 			}
@@ -11234,6 +11237,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				state.anim.Play()
 			}
 		})
+		playBtn.Importance = widget.LowImportance
 		volSlider := widget.NewSlider(0, 100)
 		volSlider.Disable()
 		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
@@ -11257,9 +11261,11 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		state.setPlayerSurface(videoStage, int(stageWidth), int(stageHeight))
 	}
 
-	stack := container.NewVBox(
-		container.NewPadded(videoWithOverlay),
+	stack := container.NewBorder(
+		nil,
 		container.NewPadded(transportBar),
+		nil, nil,
+		container.NewPadded(videoWithOverlay),
 	)
 	return container.NewMax(outer, container.NewPadded(stack))
 }
