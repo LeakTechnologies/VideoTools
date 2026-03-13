@@ -137,29 +137,18 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 			uninstall: pkgManagerUninstall("ffmpeg"),
 		}
 	case "dvdauthor":
-		// Windows: reuse installer to pull DVDStyler tools; skip ffmpeg/gst to keep scope smaller
+		// Windows: Use WSL installation via Settings UI
 		if runtime.GOOS == "windows" {
-			script := filepath.Join(root, "scripts", "windows", "support", "install-deps-windows.ps1")
-			return dependencyCommandPair{
-				install: &dependencyCommand{
-					command: "powershell",
-					args:    []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-SkipFFmpeg:$true", "-SkipGStreamer:$true", "-SkipDvdStyler:$false"},
-				},
-			}
+			return dependencyCommandPair{}
 		}
 		return dependencyCommandPair{
 			install:   pkgManagerInstall("dvdauthor"),
 			uninstall: pkgManagerUninstall("dvdauthor"),
 		}
 	case "xorriso":
+		// Windows: Use WSL installation via Settings UI
 		if runtime.GOOS == "windows" {
-			script := filepath.Join(root, "scripts", "windows", "support", "install-deps-windows.ps1")
-			return dependencyCommandPair{
-				install: &dependencyCommand{
-					command: "powershell",
-					args:    []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-SkipFFmpeg:$true", "-SkipGStreamer:$true", "-SkipDvdStyler:$false"},
-				},
-			}
+			return dependencyCommandPair{}
 		}
 		return dependencyCommandPair{
 			install:   pkgManagerInstall("xorriso"),
@@ -292,7 +281,7 @@ var allDependencies = map[string]Dependency{
 		Required:    false,
 		Description: "DVD authoring tool",
 		InstallCmd:  getDVDAuthorInstallCmd(),
-		Platforms:   []string{"linux", "darwin"},
+		Platforms:   []string{"windows", "linux", "darwin"},
 	},
 	"xorriso": {
 		Name:        "xorriso",
@@ -300,7 +289,7 @@ var allDependencies = map[string]Dependency{
 		Required:    false,
 		Description: "ISO creation and extraction",
 		InstallCmd:  getXorrisoInstallCmd(),
-		Platforms:   []string{"linux", "darwin"},
+		Platforms:   []string{"windows", "linux", "darwin"},
 	},
 	"realesrgan-ncnn-vulkan": {
 		Name:        "Real-ESRGAN",
@@ -347,8 +336,10 @@ func getDVDAuthorInstallCmd() string {
 		return "sudo apt-get install dvdauthor  # or dnf/pacman/zypper"
 	case "darwin":
 		return "brew install dvdauthor"
+	case "windows":
+		return "Install via Settings (auto-installs WSL with Ubuntu)"
 	default:
-		return "./scripts/linux/install.sh"
+		return "Install from package manager or Settings"
 	}
 }
 
@@ -358,9 +349,87 @@ func getXorrisoInstallCmd() string {
 		return "sudo apt-get install xorriso  # or dnf/pacman/zypper"
 	case "darwin":
 		return "brew install xorriso"
+	case "windows":
+		return "Install via Settings (auto-installs WSL with Ubuntu)"
 	default:
-		return "./scripts/linux/install.sh"
+		return "Install from package manager or Settings"
 	}
+}
+
+func checkWSLInstalled() bool {
+	if runtime.GOOS != "windows" {
+		return false
+	}
+	cmd := exec.Command("wsl", "--status")
+	return cmd.Run() == nil
+}
+
+func installWSLWithDvdTools(win fyne.Window, onDone func(success bool, message string)) {
+	if runtime.GOOS != "windows" {
+		onDone(false, "WSL installation is only available on Windows")
+		return
+	}
+
+	progress := dialog.NewProgressInfinite("Installing WSL", "Installing WSL2 with Ubuntu and DVD authoring tools...", win)
+	progress.Show()
+
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		defer cancel()
+
+		var log strings.Builder
+
+		// Check if WSL is already installed
+		checkCmd := exec.CommandContext(ctx, "wsl", "--status")
+		if checkCmd.Run() == nil {
+			log.WriteString("WSL already installed. ")
+		} else {
+			// Install WSL
+			log.WriteString("Installing WSL2... ")
+			wslCmd := exec.CommandContext(ctx, "powershell", "-Command", "wsl --install -d Ubuntu --no-interactive")
+			wslCmd.Stdout = &log
+			wslCmd.Stderr = &log
+			if err := wslCmd.Run(); err != nil {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					progress.Hide()
+					onDone(false, "Failed to install WSL: "+log.String())
+				}, false)
+				return
+			}
+			log.WriteString("WSL installed. ")
+		}
+
+		// Install dvdauthor and xorriso in WSL
+		log.WriteString("Installing dvdauthor and xorriso in WSL... ")
+		updateCmd := exec.CommandContext(ctx, "wsl", "-d", "Ubuntu", "--", "sudo", "apt-get", "update", "-qq")
+		updateCmd.Stdout = &log
+		updateCmd.Stderr = &log
+		if err := updateCmd.Run(); err != nil {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				progress.Hide()
+				onDone(false, "Failed to update WSL: "+log.String())
+			}, false)
+			return
+		}
+
+		installCmd := exec.CommandContext(ctx, "wsl", "-d", "Ubuntu", "--", "sudo", "apt-get", "install", "-y", "dvdauthor", "xorriso")
+		installCmd.Stdout = &log
+		installCmd.Stderr = &log
+		if err := installCmd.Run(); err != nil {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				progress.Hide()
+				onDone(false, "Failed to install tools: "+log.String())
+			}, false)
+			return
+		}
+
+		log.WriteString("Done!")
+
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.Hide()
+			onDone(true, "WSL with Ubuntu, dvdauthor, and xorriso installed successfully!")
+		}, false)
+	}()
 }
 
 func isDependencyAvailableForPlatform(dep Dependency) bool {
@@ -386,8 +455,20 @@ func checkDependency(command string) bool {
 			}
 		}
 	}
+
+	// Check locally first
 	_, err := exec.LookPath(command)
-	return err == nil
+	if err == nil {
+		return true
+	}
+
+	// On Windows, check WSL for dvdauthor and xorriso
+	if runtime.GOOS == "windows" && (command == "dvdauthor" || command == "xorriso") {
+		checkCmd := exec.Command("wsl", "-d", "Ubuntu", "--", "which", command)
+		return checkCmd.Run() == nil
+	}
+
+	return false
 }
 
 func windowsAppLocalFFmpegPaths() (ffmpegPath, ffprobePath string, ok bool) {
@@ -789,6 +870,25 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 				installBtn.Disable()
 			}
 			actions.Add(installBtn)
+		}
+
+		// Windows: Special handling for dvdauthor/xorriso via WSL
+		if runtime.GOOS == "windows" && (depName == "dvdauthor" || depName == "xorriso") {
+			wslInstallBtn := widget.NewButton("Install via WSL", func() {
+				installWSLWithDvdTools(state.window, func(success bool, message string) {
+					if success {
+						dialog.ShowInformation("Installation Complete", message, state.window)
+					} else {
+						dialog.ShowError(fmt.Errorf(message), state.window)
+					}
+					state.showSettingsView()
+				})
+			})
+			wslInstallBtn.Importance = widget.HighImportance
+			if isInstalled {
+				wslInstallBtn.Disable()
+			}
+			actions.Add(wslInstallBtn)
 		}
 
 		if cmds.uninstall != nil {
