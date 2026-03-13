@@ -276,7 +276,16 @@ jobs:
           $env:CGO_ENABLED = "1"
           go mod download
           go mod verify
-          go build -p 4 -ldflags="-s -w -H windowsgui" -trimpath -o $buildOutput .
+
+          # Get git commit hash for version info
+          $gitCommit = ""
+          try { $gitCommit = git rev-parse --short HEAD } catch { }
+          $ldflags = "-s -w -H windowsgui"
+          if ($gitCommit) {
+            $ldflags = "$ldflags -X main.buildCommit=$gitCommit"
+          }
+
+          go build -p 4 -ldflags="$ldflags" -trimpath -o $buildOutput .
 
           if ($env:VT_SIGN_EXE -and $env:VT_SIGN_EXE -ne "0") {
             $signScript = Join-Path $projectRoot "scripts\\windows\\support\\sign-exe.ps1"
