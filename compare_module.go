@@ -47,7 +47,10 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	})
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
-	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+	playerVisible := true
+	togglePlayerBtn := widget.NewButton("Hide Player", nil) // tapped set after layout
+
+	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer(), togglePlayerBtn, queueBtn))
 	bottomBar := moduleFooter(compareColor, layout.NewSpacer(), state.statsBar)
 
 	// Instructions
@@ -501,13 +504,15 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	file2InfoScroll := container.NewVScroll(file2Info)
 	// Avoid rigid min sizes so window snapping works across modules.
 
+	file1PlayerRow := container.NewVBox(file1VideoContainer, widget.NewSeparator())
+	file2PlayerRow := container.NewVBox(file2VideoContainer, widget.NewSeparator())
+
 	// File 1 column: header, video player, metadata (using Border to make metadata expand)
 	file1Column := container.NewBorder(
 		container.NewVBox(
 			file1Header,
 			widget.NewSeparator(),
-			file1VideoContainer,
-			widget.NewSeparator(),
+			file1PlayerRow,
 		),
 		nil, nil, nil,
 		file1InfoScroll,
@@ -518,12 +523,24 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		container.NewVBox(
 			file2Header,
 			widget.NewSeparator(),
-			file2VideoContainer,
-			widget.NewSeparator(),
+			file2PlayerRow,
 		),
 		nil, nil, nil,
 		file2InfoScroll,
 	)
+
+	togglePlayerBtn.OnTapped = func() {
+		playerVisible = !playerVisible
+		if playerVisible {
+			file1PlayerRow.Show()
+			file2PlayerRow.Show()
+			togglePlayerBtn.SetText("Hide Player")
+		} else {
+			file1PlayerRow.Hide()
+			file2PlayerRow.Hide()
+			togglePlayerBtn.SetText("Show Player")
+		}
+	}
 
 	// Main content: instructions at top, then two columns side by side
 	content := container.NewBorder(
