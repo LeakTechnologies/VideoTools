@@ -4,8 +4,11 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev32 Scope
 
-- [ ] **Drag-to-scroll** — FastVScroll click-and-drag not intercepting events correctly; VScroll child captures mouse before outer widget.
-- [ ] **Windows icons** — Module/app icons not displaying on running Windows build; investigate icon loading path.
+- [ ] **Drag-to-scroll** (issue #19) — FastVScroll click-and-drag not intercepting events; VScroll child captures mouse before outer widget.
+- [ ] **Windows icons** (issue #20) — Icons not displaying on running Windows build; `GetIcon` uses relative path `assets/icons/` which may not resolve at runtime.
+- [ ] **Updates tab — real check** — Wire `checkForUpdates` to Forgejo releases API; currently stubbed.
+- [x] **Dependency install buttons** — Per-dependency Install/Uninstall buttons in Settings; Windows WSL installer for dvdauthor/xorriso.
+- [x] **SVG icon library** — Material Design icons added to `assets/icons/`.
 - [ ] **Convert UI cleanup** (issue #5) — Layout consistency and label clarity pass.
 - [ ] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
 

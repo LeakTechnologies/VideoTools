@@ -2,6 +2,16 @@
 
 ## v0.1.1-dev32 (March 2026)
 
+### Settings
+- **Dependency install buttons** - Each dependency in the Dependencies tab now has an actionable Install button. FFmpeg on Windows uses the app-local bootstrap; dvdauthor and xorriso on Windows install via a new WSL2+Ubuntu automated installer.
+- **Platform-filtered dependencies** - The Dependencies tab only lists tools relevant to the current platform.
+- **Windows WSL dependency support** - `checkDependency` detects dvdauthor/xorriso inside WSL Ubuntu on Windows, so modules correctly reflect availability after WSL installation.
+- **Updates tab** - New Updates tab in Settings shows the current version and a Check for Updates button.
+- **Uninstall support** - Uninstall buttons shown per dependency where a package manager uninstall command is available.
+
+### Icons
+- **SVG icon library** - ~150 Material Design SVG icons added to `assets/icons/`; ASCII placeholders replaced with real icon resources.
+
 ### UI
 - **Main menu tile colour consistency** - Unavailable/missing-dependency module tiles now show a consistently dimmed module colour on first load, matching the colour shown after navigation. Previously the initial render showed orange.
 
