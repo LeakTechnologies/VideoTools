@@ -761,7 +761,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 		statusRow := container.NewHBox(statusIcon, statusBg, statusLabel)
 
 		actions := container.NewHBox()
-		cmds := getDependencyCommands(depName)
+		cmds = getDependencyCommands(depName)
 
 		if depName == "ffmpeg" && runtime.GOOS == "windows" {
 			installBtn := widget.NewButton("Install", func() {
