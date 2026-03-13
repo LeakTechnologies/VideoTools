@@ -1772,6 +1772,17 @@ func (r *mouseButtonRenderer) BackgroundColor() color.Color {
 	return color.Transparent
 }
 
+// registerPrimaryActionShortcut registers Ctrl+Enter (and Cmd+Enter on macOS) to trigger an action
+func registerPrimaryActionShortcut(window fyne.Window, action func()) {
+	if c := window.Canvas(); c != nil {
+		trigger := func() { action() }
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyReturn, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { trigger() })
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { trigger() })
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyReturn, Modifier: fyne.KeyModifierSuper}, func(fyne.Shortcut) { trigger() })
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierSuper}, func(fyne.Shortcut) { trigger() })
+	}
+}
+
 func (s *appState) setContent(body fyne.CanvasObject) {
 	// Capture size before the async update so the window does not resize when
 	// the new module's content has different minimum sizes (issue #4).

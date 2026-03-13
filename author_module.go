@@ -26,6 +26,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
@@ -1504,6 +1505,19 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 		state.startAuthorGeneration(true)
 	})
 	generateBtn.Importance = widget.HighImportance
+
+	// Keyboard shortcut: Ctrl+Enter (Cmd+Enter on macOS) -> Generate DVD
+	if c := state.window.Canvas(); c != nil {
+		triggerGenerate := func() {
+			if !generateBtn.Disabled() && generateBtn.OnTapped != nil {
+				generateBtn.OnTapped()
+			}
+		}
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyReturn, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { triggerGenerate() })
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { triggerGenerate() })
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyReturn, Modifier: fyne.KeyModifierSuper}, func(fyne.Shortcut) { triggerGenerate() })
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierSuper}, func(fyne.Shortcut) { triggerGenerate() })
+	}
 
 	summaryLabel := widget.NewLabel(authorSummary(state))
 	summaryLabel.Wrapping = fyne.TextWrapWord
