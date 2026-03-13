@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"io/fs"
 	"math"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -23,38 +22,46 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
-var iconCache = make(map[string]fyne.Resource)
+var (
+	iconCache   = make(map[string]fyne.Resource)
+	iconsEmbedFS fs.FS
+)
+
+// SetIconsFS provides the embedded icons filesystem to the ui package.
+// Must be called before any GetIcon calls (i.e. at app startup).
+func SetIconsFS(f fs.FS) {
+	sub, err := fs.Sub(f, "assets/icons")
+	if err != nil {
+		logging.Info(logging.CatUI, "Failed to sub icons FS: "+err.Error())
+		return
+	}
+	iconsEmbedFS = sub
+}
 
 func GetIcon(name string) fyne.Resource {
 	if cached, ok := iconCache[name]; ok {
 		return cached
 	}
 
-	// Find icons relative to executable location
-	iconPath := findAssetPath("assets/icons")
-	if iconPath == "" {
-		logging.Info(logging.CatUI, "Could not find assets/icons directory")
+	if iconsEmbedFS == nil {
+		logging.Info(logging.CatUI, "Icons FS not initialised")
 		return theme.ErrorIcon()
 	}
 
-	iconsDir := filepath.Join(iconPath, "icons")
-	if _, err := os.Stat(iconsDir); err == nil {
-		iconPath = iconsDir
-	}
-
-	files, err := os.ReadDir(iconPath)
+	entries, err := fs.ReadDir(iconsEmbedFS, ".")
 	if err != nil {
 		logging.Info(logging.CatUI, "Failed to read icons directory: "+err.Error())
 		return theme.ErrorIcon()
 	}
 
-	for _, f := range files {
-		if strings.HasPrefix(f.Name(), name+"_") && strings.HasSuffix(f.Name(), ".svg") {
-			res, err := fyne.LoadResourceFromPath(filepath.Join(iconPath, f.Name()))
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), name+"_") && strings.HasSuffix(entry.Name(), ".svg") {
+			data, err := fs.ReadFile(iconsEmbedFS, entry.Name())
 			if err != nil {
 				logging.Info(logging.CatUI, "Failed to load icon "+name+": "+err.Error())
 				return theme.ErrorIcon()
 			}
+			res := fyne.NewStaticResource(entry.Name(), data)
 			iconCache[name] = res
 			return res
 		}
@@ -62,39 +69,6 @@ func GetIcon(name string) fyne.Resource {
 
 	logging.Info(logging.CatUI, "Icon not found: "+name)
 	return theme.ErrorIcon()
-}
-
-// findAssetPath searches for the assets directory relative to the executable
-func findAssetPath(relative string) string {
-	// Start from executable location
-	exePath, err := os.Executable()
-	if err != nil {
-		return ""
-	}
-	exeDir := filepath.Dir(exePath)
-
-	// Check various possible locations
-	searchPaths := []string{
-		filepath.Join(exeDir, relative),
-		filepath.Join(exeDir, "..", relative),
-		filepath.Join(exeDir, "..", "..", relative),
-	}
-
-	// Also check current working directory as fallback
-	wd, _ := os.Getwd()
-	if wd != exeDir {
-		searchPaths = append(searchPaths,
-			filepath.Join(wd, relative),
-		)
-	}
-
-	for _, path := range searchPaths {
-		if _, err := os.Stat(path); err == nil {
-			return path
-		}
-	}
-
-	return ""
 }
 
 var (
