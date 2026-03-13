@@ -3035,6 +3035,10 @@ func (s *appState) batchAddToQueue(paths []string) {
 }
 
 func (s *appState) showConvertView(file *videoSource) {
+	if s.active != "convert" {
+		s.lastModule = s.active
+	}
+	s.active = "convert"
 	convertmodule.ShowView(
 		s.lastModule,
 		"convert",
@@ -10966,7 +10970,13 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			container.NewCenter(container.NewHBox(open, addMultiple)),
 		)
 		stageBox := container.NewMax(stage, container.NewPadded(placeholder))
-		return container.NewMax(outer, container.NewPadded(stageBox))
+		// Add drop indicator border to placeholder too
+		placeholderDropIndicator := canvas.NewRectangle(color.NRGBA{R: 76, G: 175, B: 80, A: 0})
+		placeholderDropIndicator.CornerRadius = 8
+		placeholderDropIndicator.StrokeWidth = 3
+		placeholderDropIndicator.StrokeColor = utils.MustHex("#4CE870")
+		stageBoxWithIndicator := container.NewMax(placeholderDropIndicator, stageBox)
+		return container.NewMax(outer, container.NewPadded(stageBoxWithIndicator))
 	}
 
 	state.stopPreview()
@@ -10999,6 +11009,32 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	// A hard min here would override the VSplit offset and push video beyond 50%.
 	// Overlay the image directly so it fills the stage while preserving aspect.
 	videoStage := container.NewMax(stage, img)
+
+	// Drop indicator - pulsing border when video is loaded
+	dropIndicator := canvas.NewRectangle(color.NRGBA{R: 76, G: 175, B: 80, A: 0})
+	dropIndicator.CornerRadius = 8
+	dropIndicator.StrokeWidth = 3
+	dropIndicator.StrokeColor = utils.MustHex("#4CE870")
+
+	// Create animation for pulsing drop indicator
+	dropAnimation := fyne.NewAnimation(800*time.Millisecond, func(progress float32) {
+		// Pulse opacity from 255 to 0 and back
+		alpha := uint8(255 * (1 - progress))
+		dropIndicator.StrokeColor = color.NRGBA{R: 76, G: 175, B: 80, A: alpha}
+		dropIndicator.Refresh()
+		if progress >= 1.0 {
+			dropIndicator.StrokeColor = color.NRGBA{R: 76, G: 175, B: 80, A: 0}
+			dropIndicator.StrokeWidth = 0
+			dropIndicator.Refresh()
+		}
+	})
+	dropAnimation.AutoReverse = true
+	dropAnimation.RepeatCount = 3
+
+	// Start the drop animation when video is loaded
+	dropAnimation.Start()
+
+	videoStageWithIndicator := container.NewMax(dropIndicator, videoStage)
 
 	coverBtn := utils.MakeIconButton("", "Set current frame as cover art", func() {
 		path, err := state.captureCoverFromCurrent()
@@ -11267,9 +11303,9 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	barBg.SetMinSize(fyne.NewSize(0, 72))
 	transportBar := container.NewMax(barBg, container.NewPadded(controls))
 
-	videoWithOverlay := videoStage
+	videoWithOverlay := videoStageWithIndicator
 	if usePlayer {
-		state.setPlayerSurface(videoStage, int(stageWidth), int(stageHeight))
+		state.setPlayerSurface(videoStageWithIndicator, int(stageWidth), int(stageHeight))
 	}
 
 	stack := container.NewBorder(
@@ -12899,6 +12935,7 @@ func (s *appState) loadVideo(path string) {
 
 	logging.Debug(logging.CatModule, "video loaded %+v", src)
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		s.source = src
 		s.showConvertView(src)
 	}, false)
 }
