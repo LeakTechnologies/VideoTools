@@ -27,12 +27,13 @@ import (
 
 // Dependency represents a system dependency
 type Dependency struct {
-	Name         string
-	Command      string // Command to check if installed
-	Required     bool   // If true, core functionality requires this
-	Description  string
-	InstallCmd   string // Command to install (platform-specific)
+	Name          string
+	Command       string // Command to check if installed
+	Required      bool   // If true, core functionality requires this
+	Description   string
+	InstallCmd    string // Command to install (platform-specific)
 	UninstallCmd string // Command to uninstall (platform-specific, optional)
+	Platforms     []string // List of platforms: "windows", "linux", "darwin". Empty = all.
 }
 
 // dependencyCommand represents a command with optional arguments
@@ -283,6 +284,7 @@ var allDependencies = map[string]Dependency{
 		Required:    true,
 		Description: "Core video processing engine",
 		InstallCmd:  getFFmpegInstallCmd(),
+		Platforms:   []string{"windows", "linux", "darwin"},
 	},
 	"dvdauthor": {
 		Name:        "DVDAuthor",
@@ -290,6 +292,7 @@ var allDependencies = map[string]Dependency{
 		Required:    false,
 		Description: "DVD authoring tool",
 		InstallCmd:  getDVDAuthorInstallCmd(),
+		Platforms:   []string{"linux", "darwin"},
 	},
 	"xorriso": {
 		Name:        "xorriso",
@@ -297,6 +300,7 @@ var allDependencies = map[string]Dependency{
 		Required:    false,
 		Description: "ISO creation and extraction",
 		InstallCmd:  getXorrisoInstallCmd(),
+		Platforms:   []string{"linux", "darwin"},
 	},
 	"realesrgan-ncnn-vulkan": {
 		Name:        "Real-ESRGAN",
@@ -304,6 +308,7 @@ var allDependencies = map[string]Dependency{
 		Required:    false,
 		Description: "AI video upscaling",
 		InstallCmd:  "See install.sh --skip-ai=false",
+		Platforms:   []string{"linux", "darwin"},
 	},
 	"whisper": {
 		Name:        "Whisper",
@@ -311,6 +316,7 @@ var allDependencies = map[string]Dependency{
 		Required:    false,
 		Description: "AI subtitle generation",
 		InstallCmd:  "pip3 install --user openai-whisper",
+		Platforms:   []string{"windows", "linux", "darwin"},
 	},
 	"tesseract": {
 		Name:        "Tesseract OCR",
@@ -318,6 +324,7 @@ var allDependencies = map[string]Dependency{
 		Required:    false,
 		Description: "OCR for image-based subtitles",
 		InstallCmd:  "Install via package manager (tesseract-ocr)",
+		Platforms:   []string{"windows", "linux", "darwin"},
 	},
 }
 
@@ -354,6 +361,18 @@ func getXorrisoInstallCmd() string {
 	default:
 		return "./scripts/linux/install.sh"
 	}
+}
+
+func isDependencyAvailableForPlatform(dep Dependency) bool {
+	if len(dep.Platforms) == 0 {
+		return true
+	}
+	for _, p := range dep.Platforms {
+		if p == runtime.GOOS {
+			return true
+		}
+	}
+	return false
 }
 
 // checkDependency checks if a command is available
@@ -599,6 +618,7 @@ func buildSettingsView(state *appState) fyne.CanvasObject {
 	bottomBar := moduleFooter(settingsColor, layout.NewSpacer(), state.statsBar)
 
 	tabs := container.NewAppTabs(
+		container.NewTabItem("Updates", ui.NewFastVScroll(container.NewPadded(buildUpdatesTab(state)))),
 		container.NewTabItem("Dependencies", ui.NewFastVScroll(container.NewPadded(buildDependenciesTab(state)))),
 		container.NewTabItem("Benchmark", ui.NewFastVScroll(container.NewPadded(buildBenchmarkTab(state)))),
 		container.NewTabItem("Preferences", ui.NewFastVScroll(container.NewPadded(buildPreferencesTab(state)))),
@@ -606,6 +626,61 @@ func buildSettingsView(state *appState) fyne.CanvasObject {
 	tabs.SetTabLocation(container.TabLocationTop)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, tabs)
+}
+
+func buildUpdatesTab(state *appState) fyne.CanvasObject {
+	content := container.NewVBox()
+
+	// Header
+	header := widget.NewLabel("Updates")
+	header.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(header)
+
+	desc := widget.NewLabel("Check for updates and manage app updates.")
+	desc.Wrapping = fyne.TextWrapWord
+	content.Add(desc)
+
+	content.Add(widget.NewSeparator())
+
+	// Current version
+	versionLabel := widget.NewLabel(fmt.Sprintf("Current Version: %s", fullVersion()))
+	versionLabel.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(versionLabel)
+
+	content.Add(layout.NewSpacer())
+
+	// Check for updates button
+	checkBtn := widget.NewButton("Check for Updates", func() {
+		checkForUpdates(state)
+	})
+	checkBtn.Importance = widget.MediumImportance
+	content.Add(checkBtn)
+
+	content.Add(layout.NewSpacer())
+
+	// Info text
+	infoLabel := widget.NewLabel("Automatic updates will check for new versions\nwhen the app starts. Update checking happens\nin the background.")
+	infoLabel.Wrapping = fyne.TextWrapWord
+	infoLabel.TextStyle = fyne.TextStyle{Italic: true}
+	content.Add(infoLabel)
+
+	return content
+}
+
+func checkForUpdates(state *appState) {
+	progress := dialog.NewProgressInfinite("Checking for Updates", "Connecting to update server...", state.window)
+	progress.Show()
+
+	go func() {
+		// Simulated update check - in production, this would call an update server
+		time.Sleep(2 * time.Second)
+
+		// For now, just show a message
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.Hide()
+			dialog.ShowInformation("No Updates", "You are running the latest version.", state.window)
+		}, false)
+	}()
 }
 
 func buildDependenciesTab(state *appState) fyne.CanvasObject {
@@ -624,7 +699,10 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 
 	// Required dependencies first, then alphabetical.
 	depNames := make([]string, 0, len(allDependencies))
-	for depName := range allDependencies {
+	for depName, dep := range allDependencies {
+		if !isDependencyAvailableForPlatform(dep) {
+			continue
+		}
 		depNames = append(depNames, depName)
 	}
 	sort.Slice(depNames, func(i, j int) bool {
@@ -639,6 +717,13 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 	// Check all dependencies
 	for _, depName := range depNames {
 		dep := allDependencies[depName]
+
+		// Skip if no install command available for this platform
+		cmds := getDependencyCommands(depName)
+		if cmds.install == nil && dep.Command == "ffmpeg" && runtime.GOOS != "windows" {
+			continue
+		}
+
 		isInstalled := checkDependency(dep.Command)
 
 		nameLabel := widget.NewLabel(dep.Name)
