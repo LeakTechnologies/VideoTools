@@ -60,14 +60,6 @@ func GetIcon(name string) fyne.Resource {
 	return theme.ErrorIcon()
 }
 
-// GetLogo loads a logo file from the embedded logo filesystem.
-func GetLogo(filename string) ([]byte, error) {
-	if logoEmbedFS == nil {
-		return nil, fmt.Errorf("logo FS not initialized")
-	}
-	return fs.ReadFile(logoEmbedFS, filename)
-}
-
 var (
 	// GridColor is the color used for grid lines and borders
 	GridColor color.Color
