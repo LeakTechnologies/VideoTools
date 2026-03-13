@@ -660,10 +660,11 @@ func buildUpdatesTab(state *appState) fyne.CanvasObject {
 }
 
 const (
-	forgejoTagsAPI      = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/tags?limit=1"
-	forgejoMasterAPI    = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/branches/master"
-	forgejoReleasesPage = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/releases"
-	forgejoCommitsPage  = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/commits/branch/master"
+	forgejoTagsAPI         = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/tags?limit=1"
+	forgejoMasterAPI       = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/branches/master"
+	forgejoReleasesTagAPI  = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/releases/tags/"
+	forgejoReleasesPage    = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/releases"
+	forgejoCommitsPage     = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/commits/branch/master"
 )
 
 type updateInfo struct {
@@ -687,9 +688,21 @@ func checkForUpdates(state *appState) {
 
 			// Different version tag available
 			if info.latestTag != appVersion {
-				msg := fmt.Sprintf("A new version is available: %s\n\nYou are currently on %s.", info.latestTag, appVersion)
-				d := dialog.NewCustom("Update Available", "Close", widget.NewLabel(msg), state.window)
+				msg := fmt.Sprintf(
+					"A new version is available: %s\n\nYou are currently on %s.\n\nClick 'Install Update' to download and restart automatically.",
+					info.latestTag, appVersion,
+				)
+				lbl := widget.NewLabel(msg)
+				lbl.Wrapping = fyne.TextWrapWord
+				d := dialog.NewCustom("Update Available", "Close", lbl, state.window)
+				latestTag := info.latestTag
+				installBtn := widget.NewButton("Install Update", func() {
+					d.Hide()
+					applyUpdate(state, latestTag)
+				})
+				installBtn.Importance = widget.HighImportance
 				d.SetButtons([]fyne.CanvasObject{
+					installBtn,
 					widget.NewButton("Open Releases Page", func() {
 						d.Hide()
 						_ = openURL(forgejoReleasesPage)
@@ -711,11 +724,20 @@ func checkForUpdates(state *appState) {
 					short = short[:7]
 				}
 				msg := fmt.Sprintf(
-					"You are on %s (the latest release tag).\n\nHowever, newer commits are available on master (latest: %s).\n\nPull the latest source and rebuild to get these patches.",
+					"You are on %s (the latest release tag).\n\nNewer commits are available on master (latest: %s).\n\nClick 'Install Patches' to download the latest build and restart automatically.",
 					appVersion, short,
 				)
-				d := dialog.NewCustom("Patches Available", "Close", widget.NewLabel(msg), state.window)
+				lbl := widget.NewLabel(msg)
+				lbl.Wrapping = fyne.TextWrapWord
+				d := dialog.NewCustom("Patches Available", "Close", lbl, state.window)
+				currentTag := appVersion
+				installBtn := widget.NewButton("Install Patches", func() {
+					d.Hide()
+					applyUpdate(state, currentTag)
+				})
+				installBtn.Importance = widget.HighImportance
 				d.SetButtons([]fyne.CanvasObject{
+					installBtn,
 					widget.NewButton("View Commits", func() {
 						d.Hide()
 						_ = openURL(forgejoCommitsPage)
@@ -776,6 +798,190 @@ func fetchUpdateInfo() (updateInfo, error) {
 	}
 
 	return info, nil
+}
+
+// fetchReleaseAssetURL returns the download URL for the platform-appropriate asset in a release.
+// isZip is true when the asset is a zip archive that must be extracted; false for direct binary (AppImage).
+func fetchReleaseAssetURL(tag string) (downloadURL string, isZip bool, err error) {
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(forgejoReleasesTagAPI + tag)
+	if err != nil {
+		return "", false, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", false, fmt.Errorf("releases API returned %s", resp.Status)
+	}
+	var release struct {
+		Assets []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return "", false, fmt.Errorf("parse release: %w", err)
+	}
+
+	// Ordered list of suffixes to try, most preferred first.
+	var candidates []string
+	switch runtime.GOOS {
+	case "windows":
+		candidates = []string{"_windows.zip"}
+	case "linux":
+		if os.Getenv("APPIMAGE") != "" {
+			// Running as AppImage; prefer the AppImage asset, fall back to zip.
+			candidates = []string{"_linux.AppImage", "_linux.zip"}
+		} else {
+			candidates = []string{"_linux.zip"}
+		}
+	default:
+		return "", false, fmt.Errorf("auto-update not supported on %s", runtime.GOOS)
+	}
+
+	for _, suffix := range candidates {
+		for _, a := range release.Assets {
+			if strings.HasSuffix(a.Name, suffix) {
+				return a.BrowserDownloadURL, strings.HasSuffix(a.Name, ".zip"), nil
+			}
+		}
+	}
+	return "", false, fmt.Errorf("no compatible asset found in release %s", tag)
+}
+
+// downloadToTemp downloads url into a temporary file and returns its path.
+func downloadToTemp(url string) (string, error) {
+	client := &http.Client{Timeout: 5 * time.Minute}
+	resp, err := client.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("download returned %s", resp.Status)
+	}
+	out, err := os.CreateTemp("", "vt_update_*")
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		os.Remove(out.Name())
+		return "", err
+	}
+	return out.Name(), nil
+}
+
+// extractFileFromZip extracts a single named entry from a zip archive to destPath.
+func extractFileFromZip(zipPath, entryName, destPath string) error {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	for _, f := range r.File {
+		if f.Name == entryName {
+			rc, err := f.Open()
+			if err != nil {
+				return err
+			}
+			defer rc.Close()
+			out, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+			if err != nil {
+				return err
+			}
+			defer out.Close()
+			_, err = io.Copy(out, rc)
+			return err
+		}
+	}
+	return fmt.Errorf("entry %q not found in zip", entryName)
+}
+
+// applyUpdate downloads the release asset for tag and replaces the running binary, then restarts.
+func applyUpdate(state *appState, tag string) {
+	progress := dialog.NewProgressInfinite("Installing Update", "Downloading...", state.window)
+	progress.Show()
+
+	go func() {
+		downloadURL, isZip, err := fetchReleaseAssetURL(tag)
+		if err != nil {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				progress.Hide()
+				dialog.ShowError(fmt.Errorf("could not find update asset: %w", err), state.window)
+			}, false)
+			return
+		}
+
+		// Resolve the path of the binary we need to replace.
+		exePath, err := os.Executable()
+		if err != nil {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				progress.Hide()
+				dialog.ShowError(fmt.Errorf("could not determine executable path: %w", err), state.window)
+			}, false)
+			return
+		}
+		if resolved, err2 := filepath.EvalSymlinks(exePath); err2 == nil {
+			exePath = resolved
+		}
+		// On Linux, if running as an AppImage, replace the AppImage file directly.
+		if runtime.GOOS == "linux" {
+			if ai := os.Getenv("APPIMAGE"); ai != "" {
+				exePath = ai
+			}
+		}
+
+		// Download the asset.
+		var newBinaryPath string
+		if isZip {
+			tmpZip, err := downloadToTemp(downloadURL)
+			if err != nil {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					progress.Hide()
+					dialog.ShowError(fmt.Errorf("download failed: %w", err), state.window)
+				}, false)
+				return
+			}
+			defer os.Remove(tmpZip)
+
+			entryName := "VideoTools"
+			ext := ""
+			if runtime.GOOS == "windows" {
+				entryName = "VideoTools.exe"
+				ext = ".exe"
+			}
+			newBinaryPath = filepath.Join(os.TempDir(), "VideoTools_update"+ext)
+			if err := extractFileFromZip(tmpZip, entryName, newBinaryPath); err != nil {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					progress.Hide()
+					dialog.ShowError(fmt.Errorf("extract failed: %w", err), state.window)
+				}, false)
+				return
+			}
+		} else {
+			// Direct asset (AppImage).
+			tmpPath, err := downloadToTemp(downloadURL)
+			if err != nil {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					progress.Hide()
+					dialog.ShowError(fmt.Errorf("download failed: %w", err), state.window)
+				}, false)
+				return
+			}
+			newBinaryPath = tmpPath
+		}
+
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.Hide()
+		}, false)
+
+		if err := performRestart(newBinaryPath, exePath); err != nil {
+			os.Remove(newBinaryPath)
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				dialog.ShowError(fmt.Errorf("update failed: %w", err), state.window)
+			}, false)
+		}
+	}()
 }
 
 func buildDependenciesTab(state *appState) fyne.CanvasObject {
