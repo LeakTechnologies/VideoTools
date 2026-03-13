@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"image/color"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
@@ -297,8 +298,21 @@ func MakeIconButton(symbol, tooltip string, tapped func()) *widget.Button {
 	return btn
 }
 
-// LoadAppIcon loads the application icon from standard locations
+// LoadAppIcon loads the application icon from embedded resources
 func LoadAppIcon() fyne.Resource {
+	// Try embedded resources first
+	iconPath := "assets/logo/VT_Icon.ico"
+	if runtime.GOOS != "windows" {
+		iconPath = "assets/logo/VT_Icon.png"
+	}
+
+	data, err := fs.ReadFile(LogoAssets, iconPath)
+	if err == nil {
+		logging.Debug(logging.CatUI, "loaded app icon from embedded resources: %s", iconPath)
+		return fyne.NewStaticResource(filepath.Base(iconPath), data)
+	}
+
+	// Fallback to file-based loading for development
 	var iconFiles []string
 	if runtime.GOOS == "windows" {
 		iconFiles = []string{"VT_Icon.ico"}
@@ -331,7 +345,7 @@ func LoadAppIcon() fyne.Resource {
 			return res
 		}
 	}
-	logging.Debug(logging.CatUI, "no app icon found in search paths")
+	logging.Debug(logging.CatUI, "no app icon found")
 	return nil
 }
 
