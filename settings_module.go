@@ -639,6 +639,15 @@ func buildUpdatesTab(state *appState) fyne.CanvasObject {
 	versionLabel.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(versionLabel)
 
+	// Version hash (for debugging)
+	hashDisplay := buildCommit
+	if hashDisplay == "" || hashDisplay == "dev" {
+		hashDisplay = "development build"
+	}
+	hashLabel := widget.NewLabel(fmt.Sprintf("Version Hash: %s", hashDisplay))
+	hashLabel.TextStyle = fyne.TextStyle{Monospace: true}
+	content.Add(hashLabel)
+
 	content.Add(layout.NewSpacer())
 
 	// Check for updates button
