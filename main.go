@@ -9579,7 +9579,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	simpleEncodingSection = buildConvertBox("Video Encoding", container.NewVBox(
 		qualitySectionSimple,
-		widget.NewLabelWithStyle("Encoder Speed/Quality", fyne.TextAlignCenter, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle("Encoder Speed/Quality", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel("Choose slower for better compression, faster for speed"),
 		widget.NewLabelWithStyle("Encoder Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		simplePresetSelect,
@@ -9594,8 +9594,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox, // DVD options appear here when DVD format selected
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Output Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputDirRow,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Output Filename", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputNameRow,
 		outputHintContainer,
@@ -9605,6 +9607,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	resolutionSectionSimple := buildConvertBox("Resolution & Frame Rate", container.NewVBox(
 		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelectSimple,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		frameRateSelect,
 		motionInterpCheck,
@@ -9614,6 +9617,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelectSimple,
 		targetAspectHintContainer,
+		widget.NewSeparator(),
 		customAspectBoxSimple,
 		makeForceAspectCheck(),
 	))
@@ -9645,6 +9649,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		videoCodecRow,
 		videoCodecControls,
 		encoderPresetHintContainer,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Bitrate Mode", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		bitrateModeSelect,
 		qualitySectionAdv,
@@ -9652,14 +9657,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		bitrateContainer,
 		targetSizeContainer,
 		encodingHintContainer,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelect,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		frameRateSelect,
 		frameRateHintContainer,
 		motionInterpCheck,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Pixel Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		pixelFormatSelect,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Hardware Acceleration", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		hwAccelSelect,
 		hwAccelHintContainer,
@@ -9670,8 +9679,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	audioEncodingSection = buildConvertBox("Audio Encoding", container.NewVBox(
 		widget.NewLabelWithStyle("Audio Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioCodecContainer,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Audio Bitrate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioBitrateSelect,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Audio Channels", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioChannelsSelect,
 	))
@@ -9682,8 +9693,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox, // DVD options appear here when DVD format selected
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Output Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputDirRow,
+		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Output Filename", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputNameRow,
 		outputHintContainer,
@@ -9694,6 +9707,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelect,
 		targetAspectHintContainer,
+		widget.NewSeparator(),
 		customAspectBox,
 		aspectBox,
 		makeForceAspectCheck(),
