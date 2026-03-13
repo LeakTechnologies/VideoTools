@@ -17,6 +17,7 @@ secrets.*
 
 # Design mockups and assets
 assets/mockup/
+assets/icons/*.log
 
 # Windows build artifacts
 VideoTools.exe
