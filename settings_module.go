@@ -758,7 +758,7 @@ func buildUpdatesTab(state *appState) fyne.CanvasObject {
 }
 
 const (
-	forgejoReleasesAPI  = "https://git.leaktechnologies.dev/api/v1/repos/stu/VideoTools/releases/latest"
+	forgejoTagsAPI      = "https://git.leaktechnologies.dev/api/v1/repos/stu/VideoTools/tags?limit=1"
 	forgejoReleasesPage = "https://git.leaktechnologies.dev/stu/VideoTools/releases"
 )
 
@@ -795,7 +795,7 @@ func checkForUpdates(state *appState) {
 
 func fetchLatestRelease() (string, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Get(forgejoReleasesAPI)
+	resp, err := client.Get(forgejoTagsAPI)
 	if err != nil {
 		return "", err
 	}
@@ -803,16 +803,16 @@ func fetchLatestRelease() (string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("server returned %s", resp.Status)
 	}
-	var release struct {
-		TagName string `json:"tag_name"`
+	var tags []struct {
+		Name string `json:"name"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
 		return "", fmt.Errorf("parse response: %w", err)
 	}
-	if release.TagName == "" {
-		return "", fmt.Errorf("no tag_name in response")
+	if len(tags) == 0 || tags[0].Name == "" {
+		return "", fmt.Errorf("no tags found in repository")
 	}
-	return release.TagName, nil
+	return tags[0].Name, nil
 }
 
 func buildDependenciesTab(state *appState) fyne.CanvasObject {
