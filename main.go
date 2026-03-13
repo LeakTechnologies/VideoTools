@@ -6356,9 +6356,6 @@ func runGUI() {
 	} else {
 		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
-	} else {
-		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
-	}
 	// Adaptive window sizing for professional cross-resolution support
 	w.SetFixedSize(false) // Allow manual resizing and maximizing
 
