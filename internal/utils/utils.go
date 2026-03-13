@@ -15,7 +15,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
 // --- FFmpeg Path Management ---
@@ -298,20 +297,9 @@ func MakeIconButton(symbol, tooltip string, tapped func()) *widget.Button {
 	return btn
 }
 
-// LoadAppIcon loads the application icon from embedded resources
+// LoadAppIcon loads the application icon from file system.
+// This is a fallback for development builds; production uses embedded assets.
 func LoadAppIcon() fyne.Resource {
-	iconPath := "VT_Icon.ico"
-	if runtime.GOOS != "windows" {
-		iconPath = "VT_Icon.png"
-	}
-
-	data, err := ui.GetLogo(iconPath)
-	if err == nil {
-		logging.Debug(logging.CatUI, "loaded app icon from embedded resources: %s", iconPath)
-		return fyne.NewStaticResource(iconPath, data)
-	}
-
-	// Fallback to file-based loading for development
 	var iconFiles []string
 	if runtime.GOOS == "windows" {
 		iconFiles = []string{"VT_Icon.ico"}

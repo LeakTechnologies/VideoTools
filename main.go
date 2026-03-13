@@ -6332,24 +6332,30 @@ func runGUI() {
 	}
 
 	a := app.NewWithID("com.leaktechnologies.videotools")
-	ui.SetIconsFS()
-	ui.SetLogoFS()
+	ui.SetIconsFS(iconsFS)
 
-	// Always start with a clean slate: wipe any persisted app storage (queue or otherwise)
-	if root := a.Storage().RootURI(); root != nil && root.Scheme() == "file" {
-		_ = os.RemoveAll(root.Path())
+	// Load app icon from embedded logo assets
+	iconPath := "VT_Icon.ico"
+	if runtime.GOOS != "windows" {
+		iconPath = "VT_Icon.png"
 	}
-
-	a.Settings().SetTheme(&ui.MonoTheme{})
-	logging.Debug(logging.CatUI, "created fyne app: %#v", a)
-	w := a.NewWindow("VideoTools")
-	if w == nil {
-		failGUIStartup("window creation failed")
+	if f, err := logoAssets.Open(iconPath); err == nil {
+		iconData, _ := io.ReadAll(f)
+		f.Close()
+		if len(iconData) > 0 {
+			iconRes := fyne.NewStaticResource(iconPath, iconData)
+			a.SetIcon(iconRes)
+			w.SetIcon(iconRes)
+			logging.Debug(logging.CatUI, "app icon loaded from embedded resources")
+		}
+	} else if iconRes := utils.LoadAppIcon(); iconRes != nil {
+		// Fallback to file-based loading for development
+		a.SetIcon(iconRes)
+		w.SetIcon(iconRes)
+		logging.Debug(logging.CatUI, "app icon loaded from file")
+	} else {
+		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
-	if icon := utils.LoadAppIcon(); icon != nil {
-		a.SetIcon(icon)
-		w.SetIcon(icon)
-		logging.Debug(logging.CatUI, "app icon loaded and applied")
 	} else {
 		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
