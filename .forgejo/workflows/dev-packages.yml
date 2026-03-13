@@ -48,6 +48,16 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/apt
+            /var/lib/apt
+          key: ${{ runner.os }}-apt-${{ hashFiles('.forgejo/workflows/dev-packages.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-apt-
+
       - name: Install build deps
         run: |
           apt-get update
