@@ -4,12 +4,17 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev32 Scope
 
-- [ ] **Drag-to-scroll** (issue #19) — FastVScroll click-and-drag not intercepting events; VScroll child captures mouse before outer widget.
-- [ ] **Windows icons** (issue #20) — Icons not displaying on running Windows build; `GetIcon` uses relative path `assets/icons/` which may not resolve at runtime.
-- [ ] **Updates tab — real check** — Wire `checkForUpdates` to Forgejo releases API; currently stubbed.
-- [x] **Dependency install buttons** — Per-dependency Install/Uninstall buttons in Settings; Windows WSL installer for dvdauthor/xorriso.
+- [x] **Drag-to-scroll** (issue #19) — Fixed by replacing inner `container.Scroll` in `FastVScroll` with a custom `scrollClip` widget that does not implement `fyne.Draggable`; drag events now reach `FastVScroll`.
+- [x] **Windows icons** (issue #20) — Icons embedded via `//go:embed assets/icons`; `GetIcon` reads from embedded `fs.FS` with no runtime disk access.
+- [x] **Updates tab — real check** — Wired to Forgejo tags API (`/api/v1/repos/leak_technologies/VideoTools/tags?limit=1`); fixed owner mismatch in URL.
+- [x] **Dependency install buttons** — Per-dependency Install/Uninstall buttons in Settings.
 - [x] **SVG icon library** — Material Design icons added to `assets/icons/`.
-- [ ] **Convert UI cleanup** (issue #5) — Layout consistency and label clarity pass.
+- [x] **Convert UI cleanup** (issue #5) — Label alignments and separators standardised.
+- [x] **Hide/show player in Compare** (issue #1) — Toggle button added to Compare module.
+- [x] **Author/Rip hidden on Windows** — Disc modules hidden from main menu on Windows until cross-platform disc authoring is implemented.
+- [x] **Convert player layout** — Video fills centre of player pane; transport bar pinned to bottom; VSplit gap removed.
+- [x] **Convert active state** — `s.active = "convert"` now set correctly; drop handling and keyboard shortcuts work inside the module.
+- [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered (opencode investigating).
 - [ ] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
 
 ## Dev31 Scope

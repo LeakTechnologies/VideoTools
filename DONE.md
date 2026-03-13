@@ -7,16 +7,39 @@
 
 ### Icons
 - [x] SVG icon library added - ~150 Material Design SVG icons added to `assets/icons/`; ASCII icon placeholders replaced with real icon resources across the UI.
+- [x] Icons embedded into binary (issue #20) - `icons_embed.go` uses `//go:embed assets/icons` so icons are baked in at compile time; `ui.SetIconsFS()` / `GetIcon()` rewritten to read from `fs.FS` with no runtime disk access. Resolves blank icons on installed builds.
 
 ### Settings — Dependencies
 - [x] Platform-filtered dependency list - Dependencies tab now only shows entries relevant to the current platform using `isDependencyAvailableForPlatform`.
-- [x] Install buttons per dependency - Each dependency row shows an actionable Install button; FFmpeg on Windows uses the existing app-local bootstrap; dvdauthor/xorriso on Windows use a new WSL installer (`installWSLWithDvdTools`).
+- [x] Install buttons per dependency - Each dependency row shows an actionable Install button; FFmpeg on Windows uses the existing app-local bootstrap.
 - [x] Uninstall buttons - Uninstall button shown per dependency when an uninstall command is available.
-- [x] Windows WSL dependency support - `checkDependency` now checks WSL Ubuntu for dvdauthor/xorriso on Windows; install via WSL button auto-installs WSL2 + Ubuntu + tools in one step.
-- [x] Updates tab - Added Updates tab to Settings with current version display and Check for Updates button (update check logic stubbed; Forgejo API integration pending).
+- [x] WSL auto-install reverted - Installing Ubuntu via WSL would consume 5-10 GB; unacceptable for a lightweight app. dvdauthor/xorriso platforms set to `["linux","darwin"]` only.
+- [x] Updates tab — Forgejo tags API wired - Check for Updates now hits `/api/v1/repos/leak_technologies/VideoTools/tags?limit=1`; compares against `appVersion`; fixed owner mismatch (`/stu/` → `/leak_technologies/`).
+- [x] Disc module toggles hidden on Windows - Author, Rip, and Blu-ray visibility checkboxes in Settings are hidden on Windows since dvdauthor/xorriso are unavailable on that platform.
+- [x] cmd window popups suppressed on Windows - All `exec.Command` calls in settings and WSL utilities replaced with `utils.HideWindowExec`/`utils.HideWindowExecContext` (`SysProcAttr{HideWindow: true}`).
+
+### Modules — Convert
+- [x] Player layout fixed - Video pane used `container.NewVBox` which collapsed the canvas.Image to 0px; fixed with `container.NewBorder` (transport bar pinned bottom, video fills centre).
+- [x] Player layout — VSplit gap fixed - `container.NewVBox(videoPanel, leftGap)` was leaving dark empty space in VSplit top half; `videoPanel` now passed directly to `container.NewVSplit`.
+- [x] Player icons fixed - ASCII fallback labels (`-/`, `-|`, `|-`) replaced with `widget.NewButtonWithIcon` using embedded SVG icons (play_pause, skip_previous, skip_next).
+- [x] `s.active` never set to "convert" fixed - `showConvertView` now sets `s.active = "convert"` so drop handling, keyboard shortcuts, and all `if s.active == "convert"` guards work correctly.
+- [x] `s.source` not updated on single-video load fixed - `loadVideo` now sets `s.source = src` before calling `showConvertView`.
+- [x] Convert UI cleanup (issue #5) - Label alignments standardised, consistent separators added.
+
+### Modules — Compare
+- [x] Hide/show player toggle (issue #1) - Compare module now has a toggle button to hide/show both video players, giving more vertical space for the diff view.
+
+### Modules — Author / Rip
+- [x] Hidden on Windows - Author and Rip modules are hidden from the main menu on Windows until cross-platform disc authoring is implemented.
+
+### Navigation
+- [x] Mouse back/forward buttons - Side mouse buttons (button 4/5) trigger back/forward navigation.
+- [x] Keyboard shortcuts simplified - Ctrl+Enter is the universal confirm shortcut on Linux/Windows; Author module wired.
 
 ### UI
-- [x] Main menu tile colour consistency - Unavailable module tiles now show dimmed module colour on first load, matching post-navigation appearance. Fixed by aligning CreateRenderer with Refresh() colour logic.
+- [x] Main menu tile colour consistency - Unavailable module tiles now show dimmed module colour on first load, matching post-navigation appearance.
+- [x] Drag-to-scroll on FastVScroll (issue #19) - `container.Scroll` implements `fyne.Draggable` but discards desktop drag events via a mobile-only guard. Replaced inner scroll with a custom `scrollClip` widget that does not implement `fyne.Draggable`, allowing drag events to reach `FastVScroll`.
+- [x] Pulsing drop indicator on video stage - Video drop zone pulses when a draggable file is hovered over the convert player area.
 
 ## Version 0.1.1-dev31 (2026-03-12) - UI Stability and Cleanup
 
