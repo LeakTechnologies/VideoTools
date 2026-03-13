@@ -1730,11 +1730,6 @@ func (m *mouseButtonHandler) MouseDown(me *desktop.MouseEvent) {
 
 func (m *mouseButtonHandler) MouseUp(*desktop.MouseEvent) {}
 
-// MouseIn/MouseOut help capture events when mouse enters the window
-func (m *mouseButtonHandler) MouseIn(*desktop.MouseEvent)    {}
-func (m *mouseButtonHandler) MouseOut()                      {}
-func (m *mouseButtonHandler) MouseMoved(*desktop.MouseEvent)  {}
-
 type mouseButtonRenderer struct {
 	handler *mouseButtonHandler
 	content fyne.CanvasObject
@@ -10103,10 +10098,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	snippetRow = container.NewBorder(nil, nil, snippetPad, snippetPad, snippetRow)
 
 	// Left column: use VSplit to give 50% vertical space to video and metadata each.
-	leftGap := canvas.NewRectangle(color.Transparent)
-	leftGap.SetMinSize(fyne.NewSize(0, 6))
-	videoWithGap := container.NewVBox(videoPanel, leftGap)
-	leftColumn := container.NewVSplit(videoWithGap, metaPanel)
+	// videoPanel uses container.NewMax internally so it fills all space given to it.
+	// Do NOT wrap in VBox — VBox only gives children their minimum height, leaving
+	// the rest of the VSplit's allocated space as an empty dark gap.
+	leftColumn := container.NewVSplit(videoPanel, metaPanel)
 	leftColumn.SetOffset(0.5) // 50/50 split between video and metadata
 
 	// Split: left side (player + metadata) takes priority | right side (settings).
