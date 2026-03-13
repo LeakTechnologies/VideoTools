@@ -380,30 +380,13 @@ func installWSLWithDvdTools(win fyne.Window, onDone func(success bool, message s
 
 		var log strings.Builder
 
-		// Check if WSL is already installed and working
-		checkCmd := utils.HideWindowExecContext(ctx, "wsl", "--status")
-		if checkCmd.Run() != nil {
-			// Install WSL
-			log.WriteString("Installing WSL2 with Ubuntu... ")
-			wslCmd := utils.HideWindowExecContext(ctx, "powershell", "-Command", "wsl --install -d Ubuntu")
-			wslCmd.Stdout = &log
-			wslCmd.Stderr = &log
-			if err := wslCmd.Run(); err != nil {
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					progress.Hide()
-					onDone(false, "Failed to install WSL: "+log.String()+"\n\nPlease install WSL manually and try again.")
-				}, false)
-				return
-			}
-			log.WriteString("WSL installed. You may need to restart your computer. Please run the installer again after restarting.")
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				progress.Hide()
-				onDone(false, log.String())
-			}, false)
-			return
+		// First, check what WSL distros are actually installed
+		listCmd := utils.HideWindowExecContext(ctx, "wsl", "-l", "-v")
+		listOutput, listErr := listCmd.Output()
+		log.WriteString("Checking WSL installations...\n")
+		if listErr == nil {
+			log.WriteString(string(listOutput) + "\n")
 		}
-
-		log.WriteString("WSL already installed. ")
 
 		// Try to find a working WSL distro - try common names
 		distros := []string{"Ubuntu", "Ubuntu-24.04", "Ubuntu-22.04", "Ubuntu-20.04"}
@@ -426,11 +409,39 @@ func installWSLWithDvdTools(win fyne.Window, onDone func(success bool, message s
 		}
 
 		if workingDistro == "" {
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				progress.Hide()
-				onDone(false, "Could not find a working WSL Ubuntu distribution.\n\nPlease ensure Ubuntu WSL is installed and run 'wsl -l' to see available distros.")
-			}, false)
-			return
+			// No Ubuntu found - need to install it
+			log.WriteString("Installing Ubuntu WSL... ")
+
+			// Use PowerShell to install Ubuntu silently with default user
+			installCmd := utils.HideWindowExecContext(ctx, "powershell", "-Command",
+				"wsl --install -d Ubuntu; Start-Sleep -Seconds 5")
+			installCmd.Stdout = &log
+			installCmd.Stderr = &log
+			_ = installCmd.Run()
+
+			// Try again to find Ubuntu after install attempt
+			for _, d := range distros {
+				testCmd := utils.HideWindowExecContext(ctx, "wsl", "-d", d, "-e", "echo", "test")
+				if testCmd.Run() == nil {
+					workingDistro = d
+					break
+				}
+			}
+
+			if workingDistro == "" {
+				detected, err := utils.FindWSLDistro()
+				if err == nil {
+					workingDistro = detected
+				}
+			}
+
+			if workingDistro == "" {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					progress.Hide()
+					onDone(false, "Could not install or find Ubuntu WSL.\n\n"+log.String()+"\n\nPlease manually run 'wsl --install -d Ubuntu' in PowerShell as Administrator, then restart your computer and try again.")
+				}, false)
+				return
+			}
 		}
 
 		log.WriteString("Using distro: " + workingDistro + ". ")
