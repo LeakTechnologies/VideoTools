@@ -6332,6 +6332,7 @@ func runGUI() {
 	}
 
 	a := app.NewWithID("com.leaktechnologies.videotools")
+	w := a.NewWindow("VideoTools")
 	ui.SetIconsFS(iconsFS)
 
 	// Load app icon from embedded logo assets

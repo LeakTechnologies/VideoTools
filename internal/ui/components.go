@@ -27,6 +27,11 @@ var (
 	iconsEmbedFS fs.FS
 )
 
+// SetIconsFS initialises the embedded icon filesystem used by GetIcon.
+func SetIconsFS(embedFS fs.FS) {
+	iconsEmbedFS = embedFS
+}
+
 func GetIcon(name string) fyne.Resource {
 	if cached, ok := iconCache[name]; ok {
 		return cached
