@@ -10110,7 +10110,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// videoPanel uses container.NewMax internally so it fills all space given to it.
 	// Do NOT wrap in VBox — VBox only gives children their minimum height, leaving
 	// the rest of the VSplit's allocated space as an empty dark gap.
-	leftColumn := container.NewVSplit(videoPanel, metaPanel)
+	metaPanelScroll := ui.NewFastVScroll(metaPanel)
+	leftColumn := container.NewVSplit(videoPanel, metaPanelScroll)
 	leftColumn.SetOffset(0.5) // 50/50 split between video and metadata
 
 	// Split: left side (player + metadata) takes priority | right side (settings).
