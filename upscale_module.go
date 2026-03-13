@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
@@ -28,13 +29,13 @@ func detectAIUpscaleBackend() string {
 	}
 
 	cmd := exec.Command("python3", "-c", "import realesrgan")
-	utils.ApplyNoWindow(cmd)
+	utils.HideWindow(cmd)
 	if err := cmd.Run(); err == nil {
 		return "python"
 	}
 
 	cmd = exec.Command("python", "-c", "import realesrgan")
-	utils.ApplyNoWindow(cmd)
+	utils.HideWindow(cmd)
 	if err := cmd.Run(); err == nil {
 		return "python"
 	}
@@ -894,6 +895,17 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			state.window)
 	})
 	applyBtn.Importance = widget.HighImportance
+
+	// Keyboard shortcut: Ctrl+Enter -> Upscale Now
+	if c := state.window.Canvas(); c != nil {
+		triggerUpscale := func() {
+			if !applyBtn.Disabled() && applyBtn.OnTapped != nil {
+				applyBtn.OnTapped()
+			}
+		}
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyReturn, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { triggerUpscale() })
+		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { triggerUpscale() })
+	}
 
 	addQueueBtn := widget.NewButton("Add to Queue", func() {
 		job, err := createUpscaleJob()

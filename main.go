@@ -4202,20 +4202,8 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			args = append(args, "-analyzeduration", "10000000", "-probesize", "10000000")
 		}
 	}
-	args = append(args, "-i", inputPath)
 
-	// Add cover art if available
-	coverArtPath, _ := cfg["coverArtPath"].(string)
-	hasCoverArt := coverArtPath != ""
-	if isDVD {
-		// DVD targets do not support attached cover art
-		hasCoverArt = false
-	}
-	if hasCoverArt {
-		args = append(args, "-i", coverArtPath)
-	}
-
-	// Hardware acceleration for decoding
+	// Hardware acceleration for decoding - MUST come BEFORE input file
 	// Note: NVENC and AMF don't need -hwaccel for encoding, only for decoding
 	hardwareAccel, _ := cfg["hardwareAccel"].(string)
 	if hardwareAccel != "none" && hardwareAccel != "" {
@@ -4234,6 +4222,19 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		case "videotoolbox":
 			args = append(args, "-hwaccel", "videotoolbox")
 		}
+	}
+
+	args = append(args, "-i", inputPath)
+
+	// Add cover art if available
+	coverArtPath, _ := cfg["coverArtPath"].(string)
+	hasCoverArt := coverArtPath != ""
+	if isDVD {
+		// DVD targets do not support attached cover art
+		hasCoverArt = false
+	}
+	if hasCoverArt {
+		args = append(args, "-i", coverArtPath)
 	}
 
 	// Source metrics (used for filters and bitrate defaults)
@@ -5805,17 +5806,7 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 	cfg := job.Config
 	args := []string{"-y", "-hide_banner", "-loglevel", "error"}
 
-	// Input
-	args = append(args, "-i", "INPUT")
-
-	// Cover art if present (convert jobs only)
-	if job.Type == queue.JobTypeConvert {
-		if coverArtPath, _ := cfg["coverArtPath"].(string); coverArtPath != "" {
-			args = append(args, "-i", "[COVER_ART]")
-		}
-	}
-
-	// Hardware acceleration
+	// Hardware acceleration - MUST come BEFORE input file
 	if hardwareAccel, _ := cfg["hardwareAccel"].(string); hardwareAccel != "" && hardwareAccel != "none" {
 		switch hardwareAccel {
 		case "vaapi":
@@ -5824,6 +5815,16 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 			args = append(args, "-hwaccel", "qsv")
 		case "videotoolbox":
 			args = append(args, "-hwaccel", "videotoolbox")
+		}
+	}
+
+	// Input
+	args = append(args, "-i", "INPUT")
+
+	// Cover art if present (convert jobs only)
+	if job.Type == queue.JobTypeConvert {
+		if coverArtPath, _ := cfg["coverArtPath"].(string); coverArtPath != "" {
+			args = append(args, "-i", "[COVER_ART]")
 		}
 	}
 
@@ -13420,6 +13421,23 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		"-y",
 		"-hide_banner",
 		"-loglevel", "error",
+	}
+
+	// Hardware acceleration for decoding - MUST come BEFORE input file
+	if accel := effectiveHardwareAccel(cfg); accel != "none" && accel != "" && hwAccelAvailable(accel) {
+		switch accel {
+		case "nvenc":
+			// NVENC encoders handle GPU directly; no hwaccel flag needed
+		case "amf":
+			// AMF encoders handle GPU directly
+		case "vaapi":
+			args = append(args, "-hwaccel", "vaapi")
+		case "qsv":
+			args = append(args, "-hwaccel", "qsv")
+		case "videotoolbox":
+			args = append(args, "-hwaccel", "videotoolbox")
+		}
+		logging.Debug(logging.CatFFMPEG, "hardware acceleration: %s", accel)
 	}
 
 	// DVD presets: enforce compliant codecs and audio settings
