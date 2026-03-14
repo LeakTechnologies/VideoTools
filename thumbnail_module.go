@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -20,6 +21,17 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
+
+func init() {
+	// Load logo PNG from embedded assets for contact-sheet headers.
+	if f, err := logoAssets.Open("assets/logo/VT_Icon.png"); err == nil {
+		if data, err2 := io.ReadAll(f); err2 == nil {
+			thumbnail.SetLogoData(data)
+		}
+		f.Close()
+	}
+	thumbnail.SetFontData(ibmPlexMonoRegular)
+}
 
 func (s *appState) showThumbnailView() {
 	s.stopPreview()
