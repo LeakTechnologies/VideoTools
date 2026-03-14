@@ -82,7 +82,7 @@ Items currently being worked on by other agents — update when assignments chan
 |----------|-----------------------------------------------------------|-------------|
 | opencode | Drag and drop into Convert (issue carried from dev32)     | In progress |
 | opencode | Phase 3 modularisation — Inspect, Settings, Queue         | In progress |
-| gemini   | *(unknown — update this)*                                 | Unknown     |
+| gemini   | Native disc authoring / DVD conversion (issue #21) + Wiki | In progress |
 
 ## Maintenance
 
