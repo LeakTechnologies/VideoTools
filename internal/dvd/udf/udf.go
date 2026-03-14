@@ -302,6 +302,156 @@ func (uw *Writer) findDir(path []string) *FileNode {
 	return curr
 }
 
+// Build finalizes the UDF structure and writes all data.
+func (uw *Writer) Build() error {
+	// 1. Write Header (Sectors 0-256)
+	if err := uw.WriteHeader(); err != nil {
+		return err
+	}
+
+	// 2. Assign sectors to all files and directories
+	uw.assignSectors()
+
+	// 3. Write File Set Descriptor
+	fsd := FileSetDescriptor{
+		RecordingDateAndTime: NewTimestamp(uw.volumeTime),
+		RootDirectoryICB: LongAd{
+			Len:      SectorSize,
+			Location: uw.root.ICBSector,
+		},
+	}
+	if err := uw.WriteDescriptor(TagIDFSD, fsd); err != nil {
+		return err
+	}
+
+	// 4. Write ICBs and Data
+	return uw.writeNode(uw.root)
+}
+
+func (uw *Writer) assignSectors() {
+	// Start after AVDP (Sector 256) and FSD (Sector 257)
+	nextSector := uint32(258)
+
+	var walk func(n *FileNode)
+	walk = func(n *FileNode) {
+		n.ICBSector = nextSector
+		nextSector++
+		if n.IsDir {
+			// Directory data sector
+			n.DataSector = nextSector
+			nextSector++ // Simplified: 1 sector for directory FIDs
+			for _, child := range n.Children {
+				walk(child)
+			}
+		} else {
+			// File data sectors
+			n.DataSector = nextSector
+			numSectors := uint32((n.Size + SectorSize - 1) / SectorSize)
+			nextSector += numSectors
+		}
+	}
+	walk(uw.root)
+}
+
+func (uw *Writer) writeNode(n *FileNode) error {
+	// 1. Write ICB at n.ICBSector
+	if uw.currentSector != n.ICBSector {
+		if err := uw.writePadding(int(n.ICBSector) - int(uw.currentSector)); err != nil {
+			return err
+		}
+	}
+
+	icb := FileEntryICB{
+		ICBTag: ICBTag{
+			FileType: 4, // Default file
+		},
+		InformationLength: uint64(n.Size),
+		AccessTime:        NewTimestamp(n.ModTime),
+		ModificationTime:  NewTimestamp(n.ModTime),
+		AttributeTime:     NewTimestamp(n.ModTime),
+	}
+	if n.IsDir {
+		icb.ICBTag.FileType = 1 // Directory
+		icb.InformationLength = SectorSize
+	}
+
+	// Allocation descriptor (simplified: one contiguous extent)
+	var ad bytes.Buffer
+	binary.Write(&ad, binary.LittleEndian, uint32(n.Size))
+	binary.Write(&ad, binary.LittleEndian, n.DataSector)
+	
+	// Write ICB with trailing allocation descriptor (TBD: proper length handling)
+	if err := uw.WriteDescriptor(TagIDICB, icb); err != nil {
+		return err
+	}
+
+	// 2. Write Data at n.DataSector
+	if uw.currentSector != n.DataSector {
+		if err := uw.writePadding(int(n.DataSector) - int(uw.currentSector)); err != nil {
+			return err
+		}
+	}
+
+	if n.IsDir {
+		// Write FIDs
+		if err := uw.writeDirectoryData(n); err != nil {
+			return err
+		}
+	} else {
+		// Write File Content
+		if _, err := io.CopyN(uw.w, n.Content, n.Size); err != nil {
+			return err
+		}
+		uw.currentSector += uint32((n.Size + SectorSize - 1) / SectorSize)
+		// Final padding for the last sector
+		padding := SectorSize - (n.Size % SectorSize)
+		if padding != SectorSize {
+			if _, err := uw.w.Write(make([]byte, padding)); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Recurse for children
+	for _, child := range n.Children {
+		if err := uw.writeNode(child); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (uw *Writer) writeDirectoryData(n *FileNode) error {
+	buf := make([]byte, SectorSize)
+	offset := 0
+
+	for _, child := range n.Children {
+		fid := FileIdentifierDescriptor{
+			FileVersionNumber:      1,
+			LengthOfFileIdentifier: uint8(len(child.Name)),
+			ICB: LongAd{
+				Len:      SectorSize,
+				Location: child.ICBSector,
+			},
+		}
+		// Write FID Tag manually or via helper
+		// For now, write a dummy FID start
+		binary.LittleEndian.PutUint16(buf[offset:], TagIDFID)
+		offset += 38 // FID base length
+		copy(buf[offset:], child.Name)
+		offset += len(child.Name)
+		// Align to 4 bytes
+		offset = (offset + 3) & ^3
+	}
+
+	if _, err := uw.w.Write(buf); err != nil {
+		return err
+	}
+	uw.currentSector++
+	return nil
+}
+
 // CalculateChecksum calculates the UDF descriptor tag checksum.
 func CalculateChecksum(data []byte) uint8 {
 	var sum uint8
