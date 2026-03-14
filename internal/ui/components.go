@@ -13,14 +13,18 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/driver/desktop"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
+
+var monoFontData []byte
+
+func SetMonoFontData(data []byte) {
+	monoFontData = data
+}
 
 var (
 	iconCache    = make(map[string]fyne.Resource)
@@ -127,6 +131,9 @@ func min(a, b int) int {
 
 func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
 	style.Monospace = true
+	if len(monoFontData) > 0 {
+		return fyne.NewStaticResource("IBMPlexMono-Regular.ttf", monoFontData)
+	}
 	return theme.DefaultTheme().Font(style)
 }
 
