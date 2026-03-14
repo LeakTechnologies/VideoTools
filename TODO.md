@@ -49,6 +49,18 @@ This file tracks upcoming features, improvements, and known issues.
   - See `AGENTS.md` Refactor Boundaries for the pattern and completed-slice list.
   - **Note**: Convert module partially modularized (entry point + state/callbacks in `internal/app/modules/convert/view.go`). Full `buildConvertView` extraction deferred due to high coupling with appState (~3500 lines, ~30+ state fields). Future work should consider extracting logical subsections first.
 
+## Near-Term Milestone: Frame Interpolation (RIFE)
+
+**Issue #23** — Add RIFE frame interpolation as a section in the Upscale module (or its own module later).
+
+RIFE (Real-Time Intermediate Flow Estimation) increases frame rate by synthesising intermediate frames.
+It uses `rife-ncnn-vulkan` — same deployment model as `realesrgan-ncnn-vulkan`.
+
+- [ ] **Detect rife-ncnn-vulkan** — check `$PATH` at startup; surface install link in Settings if missing.
+- [ ] **UI: Frame Interpolation section** — multipier select (2×/4×/8×), show estimated output fps.
+- [ ] **Pipeline** — extract frames → rife-ncnn-vulkan → reassemble (can chain after Real-ESRGAN upscale).
+- [ ] **Settings install button** — same pattern as Real-ESRGAN dependency install button.
+
 ## Near-Term Milestone: Cross-Platform Video Player
 
 **Priority: High** — blocks Upscale (live preview) and Trim (frame-accurate timeline) reaching their full potential.
@@ -61,6 +73,16 @@ The current player stack uses GStreamer on Linux and a separate fallback on Wind
 - [ ] **Upscale live preview** — depends on player foundation; real-time before/after preview during upscale processing.
 - [ ] **Trim module** — depends on player foundation; frame-accurate timeline, in/out points, chapter markers.
 - [ ] **Linux CI cleanup** — once GStreamer is no longer mandatory, remove it from the CI dependency install list and cut ~2 min off Linux build times.
+
+## Agent Work Tracking
+
+Items currently being worked on by other agents — update when assignments change.
+
+| Agent    | Current Task                                              | Status      |
+|----------|-----------------------------------------------------------|-------------|
+| opencode | Drag and drop into Convert (issue carried from dev32)     | In progress |
+| opencode | Phase 3 modularisation — Inspect, Settings, Queue         | In progress |
+| gemini   | *(unknown — update this)*                                 | Unknown     |
 
 ## Maintenance
 
