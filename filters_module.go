@@ -662,7 +662,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		stylisticSection,
 	)
 
-	settingsScroll := container.NewVScroll(settingsPanel)
+	settingsScroll := ui.NewFastVScroll(settingsPanel)
 	// Adaptive height for small screens - allow content to flow
 	// settingsScroll.SetMinSize(fyne.NewSize(350, 400)) // Removed for flexible sizing
 
