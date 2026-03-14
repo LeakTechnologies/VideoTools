@@ -51,6 +51,14 @@ type ExtentAd struct {
 	Location uint32
 }
 
+// LongAd describes a location within a partition.
+type LongAd struct {
+	Len      uint32
+	Location uint32 // Logical Block Number
+	Partition uint16
+	ImplementationUse [6]byte
+}
+
 // EntityID identifies an implementation or domain.
 type EntityID struct {
 	Flags      uint8
@@ -60,6 +68,7 @@ type EntityID struct {
 
 // AnchorVolumeDescriptorPointer (AVDP) - Located at sector 256.
 type AnchorVolumeDescriptorPointer struct {
+	Tag                        DescriptorTag
 	MainVolumeDescriptorSeq    ExtentAd
 	ReserveVolumeDescriptorSeq ExtentAd
 	Reserved                   [480]byte
@@ -67,6 +76,7 @@ type AnchorVolumeDescriptorPointer struct {
 
 // PrimaryVolumeDescriptor (PVD) - Basic volume information.
 type PrimaryVolumeDescriptor struct {
+	Tag                                 DescriptorTag
 	VolumeDescriptorSeqNumber           uint32
 	PrimaryVolumeDescriptorNumber       uint32
 	VolumeIdentifier                    [32]byte
@@ -92,6 +102,7 @@ type PrimaryVolumeDescriptor struct {
 
 // LogicalVolumeDescriptor (LVD) - Defines the logical volume and partitions.
 type LogicalVolumeDescriptor struct {
+	Tag                           DescriptorTag
 	VolumeDescriptorSeqNumber     uint32
 	DescriptorCharacterSet        CharSpec
 	LogicalVolumeIdentifier       [128]byte
@@ -108,6 +119,7 @@ type LogicalVolumeDescriptor struct {
 
 // PartitionDescriptor (PD) - Defines a physical partition on the volume.
 type PartitionDescriptor struct {
+	Tag                       DescriptorTag
 	VolumeDescriptorSeqNumber uint32
 	PartitionFlags            uint16
 	PartitionNumber           uint16
@@ -119,6 +131,75 @@ type PartitionDescriptor struct {
 	ImplementationIdentifier  EntityID
 	ImplementationUse         [128]byte
 	Reserved                  [156]byte
+}
+
+// FileSetDescriptor (FSD) - Defines the root of a file set.
+type FileSetDescriptor struct {
+	Tag                        DescriptorTag
+	RecordingDateAndTime       Timestamp
+	InterchangeLevel           uint16
+	MaximumInterchangeLevel    uint16
+	CharacterSetList           uint32
+	MaximumCharacterSetList    uint32
+	FileSetNumber              uint32
+	FileSetDescriptorNumber    uint32
+	LogicalVolumeIdentifierCharSpec CharSpec
+	FileSetIdentifier          [32]byte
+	CopyrightFileIdentifier    [32]byte
+	AbstractFileIdentifier     [32]byte
+	RootDirectoryICB           LongAd
+	DomainIdentifier           EntityID
+	NextExtent                 LongAd
+	SystemStreamDirectoryICB   LongAd
+	Reserved                   [48]byte
+}
+
+// FileIdentifierDescriptor (FID) - Directory entry.
+type FileIdentifierDescriptor struct {
+	Tag                        DescriptorTag
+	FileVersionNumber          uint16
+	FileCharacteristics        uint8
+	LengthOfFileIdentifier     uint8
+	ICB                        LongAd
+	LengthOfImplementationUse  uint16
+	// ImplementationUse and FileIdentifier follow
+}
+
+// FileEntry (ICB) - Metadata for a file or directory.
+type FileEntryICB struct {
+	Tag                        DescriptorTag
+	ICBTag                     ICBTag
+	Uid                        uint32
+	Gid                        uint32
+	Permissions                uint32
+	FileLinkCount              uint16
+	RecordFormat               uint8
+	RecordDisplayAttributes    uint8
+	RecordLength               uint32
+	InformationLength          uint64
+	LogicalBlocksRecorded      uint64
+	AccessTime                 Timestamp
+	ModificationTime           Timestamp
+	AttributeTime              Timestamp
+	Checkpoint                 uint32
+	ExtendedAttributeICB       LongAd
+	ImplementationIdentifier   EntityID
+	UniqueId                   uint64
+	LengthOfExtendedAttributes uint32
+	LengthOfAllocationDescriptors uint32
+	// ExtendedAttributes and AllocationDescriptors follow
+}
+
+// ICBTag describes the type of ICB.
+type ICBTag struct {
+	PriorDirectEntryCount      uint32
+	StrategyType               uint16
+	StrategyParameter          uint16
+	MaximumNumberOfEntries     uint16
+	Reserved                   uint8
+	FileType                   uint8
+	ParentICBLocation          ExtentAd
+	Flags                      uint16
 }
 
 // CharSpec defines a character set.
@@ -146,20 +227,20 @@ type Writer struct {
 	w             io.Writer
 	volumeLabel   string
 	currentSector uint32
-	files         []*FileEntry
+	files         []*FileNode
 	volumeTime    time.Time
 }
 
-// FileEntry represents a file or directory to be included in the UDF.
-type FileEntry struct {
+// FileNode represents a file or directory in the UDF tree.
+type FileNode struct {
 	Name        string
 	IsDir       bool
 	Size        int64
 	Content     io.Reader
 	ModTime     time.Time
-	StartSector uint32
-	Parent      *FileEntry
-	Children    []*FileEntry
+	ICBSector   uint32
+	DataSector  uint32
+	Children    []*FileNode
 }
 
 // NewWriter creates a new UDF 1.02 writer.
@@ -169,17 +250,6 @@ func NewWriter(w io.Writer, volumeLabel string) *Writer {
 		volumeLabel: volumeLabel,
 		volumeTime:  time.Now(),
 	}
-}
-
-// AddFile adds a file to the UDF structure.
-func (uw *Writer) AddFile(name string, size int64, content io.Reader, modTime time.Time) error {
-	uw.files = append(uw.files, &FileEntry{
-		Name:    name,
-		Size:    size,
-		Content: content,
-		ModTime: modTime,
-	})
-	return nil
 }
 
 // CalculateChecksum calculates the UDF descriptor tag checksum.
@@ -323,7 +393,7 @@ func (uw *Writer) writeVDS() error {
 	}
 
 	// Terminating
-	if err := uw.writePadding(1); err != nil { // Simplified Terminating Descriptor
+	if err := uw.writePadding(1); err != nil { 
 		return err
 	}
 
@@ -359,7 +429,7 @@ func (uw *Writer) writePadding(sectors int) error {
 	return nil
 }
 
-// EncodeCS0 encodes a string into UDF CS0 (UTF-8 subset for now).
+// EncodeCS0 encodes a string into UDF CS0.
 func EncodeCS0(s string, length int) []byte {
 	buf := make([]byte, length)
 	if s == "" {
