@@ -232,6 +232,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	if state.upscaleEncoderPreset == "" {
 		state.upscaleEncoderPreset = "slow"
 	}
+	if state.upscaleVideoCodec == "" {
+		state.upscaleVideoCodec = "H.264"
+	}
 	if state.upscaleBitrateMode == "" {
 		state.upscaleBitrateMode = "CRF"
 	}
@@ -422,6 +425,13 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	})
 	encoderPresetSelect.SetSelected(state.upscaleEncoderPreset)
 
+	// Video Codec selection
+	videoCodecOptions := []string{"H.264", "H.265", "VP9", "AV1", "Copy"}
+	videoCodecSelect := widget.NewSelect(videoCodecOptions, func(value string) {
+		state.upscaleVideoCodec = value
+	})
+	videoCodecSelect.SetSelected(state.upscaleVideoCodec)
+
 	bitrateModeSelect := widget.NewSelect([]string{
 		"CRF (Constant Rate Factor)",
 		"CBR (Constant Bitrate)",
@@ -448,6 +458,10 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	}
 
 	encodingSection := buildUpscaleBox("Video Encoding", container.NewVBox(
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Video Codec:"),
+			videoCodecSelect,
+		),
 		container.NewGridWithColumns(2,
 			widget.NewLabel("Encoder Preset:"),
 			encoderPresetSelect,
@@ -868,6 +882,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 				"filterChain":            state.upscaleFilterChain,
 				"blurEnabled":            state.upscaleBlurEnabled,
 				"blurSigma":              state.upscaleBlurSigma,
+				"videoCodec":            state.upscaleVideoCodec,
 				"duration":               state.upscaleFile.Duration,
 				"sourceFrameRate":        state.upscaleFile.FrameRate,
 				"frameRate":              state.upscaleFrameRate,

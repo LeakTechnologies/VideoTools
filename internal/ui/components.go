@@ -636,16 +636,30 @@ func (r *droppableRenderer) Objects() []fyne.CanvasObject {
 // drag events on desktop (mobile-only guard), causing them to be consumed silently
 // before the outer FastVScroll can receive them. By using scrollClip instead, drag
 // events propagate up to FastVScroll which handles them correctly.
+//
+// scrollClip DOES implement fyne.Scrollable (forwarding to parent FastVScroll) so
+// that mouse-wheel events are captured even when the cursor is over child widgets
+// like Entry or Select that have no internal scroll of their own.
 type scrollClip struct {
 	widget.BaseWidget
 	content fyne.CanvasObject
 	offsetY float32
+	parent  *FastVScroll
 }
 
-func newScrollClip(content fyne.CanvasObject) *scrollClip {
-	s := &scrollClip{content: content}
+func newScrollClip(content fyne.CanvasObject, parent *FastVScroll) *scrollClip {
+	s := &scrollClip{content: content, parent: parent}
 	s.ExtendBaseWidget(s)
 	return s
+}
+
+// Scrolled forwards wheel events to the parent FastVScroll, ensuring that
+// mouse-wheel scroll works even when the cursor is over a non-scrollable child
+// (Entry, Select, Label, etc.).
+func (s *scrollClip) Scrolled(ev *fyne.ScrollEvent) {
+	if s.parent != nil {
+		s.parent.Scrolled(ev)
+	}
 }
 
 func (s *scrollClip) setOffset(y float32) {
@@ -682,6 +696,9 @@ func (r *scrollClipRenderer) Objects() []fyne.CanvasObject {
 
 func (r *scrollClipRenderer) Destroy() {}
 
+// IsClip marks scrollClip as a GL scissor region so content is clipped to its bounds.
+func (r *scrollClipRenderer) IsClip() {}
+
 // FastVScroll creates a vertical scroll container with faster scroll speed.
 // It supports mouse-wheel scrolling (Scrolled) and click-and-drag scrolling
 // (MouseDown/Dragged/MouseUp).
@@ -695,9 +712,8 @@ type FastVScroll struct {
 
 // NewFastVScroll creates a new fast-scrolling vertical scroll container
 func NewFastVScroll(content fyne.CanvasObject) *FastVScroll {
-	f := &FastVScroll{
-		clip: newScrollClip(content),
-	}
+	f := &FastVScroll{}
+	f.clip = newScrollClip(content, f)
 	f.ExtendBaseWidget(f)
 	return f
 }

@@ -12,6 +12,7 @@ import (
 	"image/color"
 	"image/png"
 	"io"
+	"io/fs"
 	"math"
 	"os"
 	"os/exec"
@@ -1042,6 +1043,7 @@ type appState struct {
 	upscaleBlurEnabled         bool     // Apply blur in upscale pipeline
 	upscaleBlurSigma           float64  // Blur strength (sigma)
 	upscaleEncoderPreset       string   // libx264 preset for upscale output
+	upscaleVideoCodec         string   // H.264, H.265, VP9, AV1, Copy
 	upscaleBitrateMode         string   // CRF, CBR, VBR
 	upscaleBitratePreset       string   // preset label for bitrate modes
 	upscaleManualBitrate       string   // manual bitrate value (e.g., 2500k)
@@ -5277,6 +5279,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	sourceFrameRate := toFloat(cfg["sourceFrameRate"])
 	qualityPreset, _ := cfg["qualityPreset"].(string)
 	encoderPreset, _ := cfg["encoderPreset"].(string)
+	videoCodec, _ := cfg["videoCodec"].(string)
 	bitrateMode, _ := cfg["bitrateMode"].(string)
 	bitratePreset, _ := cfg["bitratePreset"].(string)
 	manualBitrate, _ := cfg["manualBitrate"].(string)
@@ -5369,12 +5372,16 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		}
 	}
 
+	// Resolve video codec encoder (used by both AI and non-AI paths)
+	videoEncoder := resolveVideoCodec(videoCodec)
+
 	appendEncodingArgs := func(args []string) []string {
 		preset := encoderPreset
 		if strings.TrimSpace(preset) == "" {
 			preset = "slow"
 		}
 		mode := normalizeBitrateMode(bitrateMode)
+
 		args = append(args, "-preset", preset)
 		switch mode {
 		case "CBR", "VBR":
@@ -5390,6 +5397,36 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 				}
 				args = append(args, "-maxrate", fmt.Sprintf("%dk", maxrate))
 				args = append(args, "-bufsize", fmt.Sprintf("%dk", bufsize))
+			}
+		case "AV1":
+			// AV1 uses different preset mapping
+			args = append(args, "-crf", strconv.Itoa(crfValue))
+			// Map x264 presets to SVT-AV1 presets (0-13, lower=slower/better)
+			var svtPreset string
+			switch preset {
+			case "veryslow":
+				svtPreset = "3"
+			case "slower":
+				svtPreset = "4"
+			case "slow":
+				svtPreset = "5"
+			case "medium":
+				svtPreset = "6"
+			case "fast":
+				svtPreset = "8"
+			case "faster":
+				svtPreset = "9"
+			case "veryfast":
+				svtPreset = "10"
+			case "superfast":
+				svtPreset = "11"
+			case "ultrafast":
+				svtPreset = "12"
+			default:
+				svtPreset = "8"
+			}
+			if strings.HasPrefix(videoEncoder, "libsvtav1") {
+				args = append(args, "-preset", svtPreset)
 			}
 		default:
 			args = append(args, "-crf", strconv.Itoa(crfValue))
@@ -5649,14 +5686,34 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			"-map", "0:v:0",
 			"-map", "1:a?",
 		}
-
-		// Final scale to ensure target height/aspect (optional)
-		if targetPreset != "" && targetPreset != "Match Source" {
-			finalScale := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
-			reassembleArgs = append(reassembleArgs, "-vf", finalScale)
+	// Resolve video codec
+	resolveVideoCodec := func(codec string) string {
+		switch strings.ToLower(codec) {
+		case "h.264", "":
+			return "libx264"
+		case "h.265":
+			return "libx265"
+		case "vp9":
+			return "libvpx-vp9"
+		case "av1":
+			if resolved, ok := resolveAV1Encoder("none"); ok {
+				return resolved
+			}
+			return "libx264"
+		case "copy":
+			return "copy"
+		default:
+			return "libx264"
 		}
+	}
 
-		reassembleArgs = append(reassembleArgs, "-c:v", "libx264")
+	// Final scale to ensure target height/aspect (optional)
+	if targetPreset != "" && targetPreset != "Match Source" {
+		finalScale := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
+		reassembleArgs = append(reassembleArgs, "-vf", finalScale)
+	}
+
+	reassembleArgs = append(reassembleArgs, "-c:v", videoEncoder)
 		reassembleArgs = appendEncodingArgs(reassembleArgs)
 		reassembleArgs = append(reassembleArgs,
 			"-pix_fmt", "yuv420p",
@@ -5714,7 +5771,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Use MKV container by default; copy audio
-	args = append(args, "-c:v", "libx264")
+	args = append(args, "-c:v", videoEncoder)
 	args = appendEncodingArgs(args)
 	args = append(args,
 		"-pix_fmt", "yuv420p",
@@ -6333,19 +6390,22 @@ func runGUI() {
 
 	a := app.NewWithID("com.leaktechnologies.videotools")
 	w := a.NewWindow("VideoTools")
-	ui.SetIconsFS(iconsFS)
+	if subIconsFS, err := fs.Sub(iconsFS, "assets/icons"); err == nil {
+		ui.SetIconsFS(subIconsFS)
+	}
 	ui.SetMonoFontData(ibmPlexMonoRegular, ibmPlexMonoItalic, ibmPlexMonoBold, ibmPlexMonoBoldItalic)
 
 	// Load app icon from embedded logo assets
-	iconPath := "VT_Icon.ico"
+	iconFile := "VT_Icon.ico"
 	if runtime.GOOS != "windows" {
-		iconPath = "VT_Icon.png"
+		iconFile = "VT_Icon.png"
 	}
+	iconPath := "assets/logo/" + iconFile
 	if f, err := logoAssets.Open(iconPath); err == nil {
 		iconData, _ := io.ReadAll(f)
 		f.Close()
 		if len(iconData) > 0 {
-			iconRes := fyne.NewStaticResource(iconPath, iconData)
+			iconRes := fyne.NewStaticResource(iconFile, iconData)
 			a.SetIcon(iconRes)
 			w.SetIcon(iconRes)
 			logging.Debug(logging.CatUI, "app icon loaded from embedded resources")
