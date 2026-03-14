@@ -6334,7 +6334,7 @@ func runGUI() {
 	a := app.NewWithID("com.leaktechnologies.videotools")
 	w := a.NewWindow("VideoTools")
 	ui.SetIconsFS(iconsFS)
-	ui.SetMonoFontData(ibmPlexMonoFontData)
+	ui.SetMonoFontData(ibmPlexMonoRegular, ibmPlexMonoItalic, ibmPlexMonoBold, ibmPlexMonoBoldItalic)
 
 	// Load app icon from embedded logo assets
 	iconPath := "VT_Icon.ico"
