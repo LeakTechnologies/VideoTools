@@ -3,6 +3,7 @@ package udf
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"time"
 )
@@ -59,7 +60,6 @@ type EntityID struct {
 
 // AnchorVolumeDescriptorPointer (AVDP) - Located at sector 256.
 type AnchorVolumeDescriptorPointer struct {
-	Tag                        DescriptorTag
 	MainVolumeDescriptorSeq    ExtentAd
 	ReserveVolumeDescriptorSeq ExtentAd
 	Reserved                   [480]byte
@@ -67,7 +67,6 @@ type AnchorVolumeDescriptorPointer struct {
 
 // PrimaryVolumeDescriptor (PVD) - Basic volume information.
 type PrimaryVolumeDescriptor struct {
-	Tag                                 DescriptorTag
 	VolumeDescriptorSeqNumber           uint32
 	PrimaryVolumeDescriptorNumber       uint32
 	VolumeIdentifier                    [32]byte
@@ -93,7 +92,6 @@ type PrimaryVolumeDescriptor struct {
 
 // LogicalVolumeDescriptor (LVD) - Defines the logical volume and partitions.
 type LogicalVolumeDescriptor struct {
-	Tag                           DescriptorTag
 	VolumeDescriptorSeqNumber     uint32
 	DescriptorCharacterSet        CharSpec
 	LogicalVolumeIdentifier       [128]byte
@@ -105,12 +103,11 @@ type LogicalVolumeDescriptor struct {
 	ImplementationIdentifier      EntityID
 	ImplementationUse             [128]byte
 	IntegritySequenceExtent       ExtentAd
-	PartitionMaps                 []byte // Variable length
+	PartitionMaps                 [64]byte // Fixed for now
 }
 
 // PartitionDescriptor (PD) - Defines a physical partition on the volume.
 type PartitionDescriptor struct {
-	Tag                       DescriptorTag
 	VolumeDescriptorSeqNumber uint32
 	PartitionFlags            uint16
 	PartitionNumber           uint16
@@ -188,16 +185,15 @@ func (uw *Writer) AddFile(name string, size int64, content io.Reader, modTime ti
 // CalculateChecksum calculates the UDF descriptor tag checksum.
 func CalculateChecksum(data []byte) uint8 {
 	var sum uint8
-	// Checksum is the sum of bytes 0-3 and 5-15 of the tag.
 	for i := 0; i < 16; i++ {
-		if i != 4 { // Skip TagChecksum field itself
+		if i != 4 {
 			sum += data[i]
 		}
 	}
 	return sum
 }
 
-// CalculateCRC calculates the UDF descriptor CRC (CRC-ITUT).
+// CalculateCRC calculates the UDF descriptor CRC.
 func CalculateCRC(data []byte) uint16 {
 	var crc uint16 = 0
 	for _, b := range data {
@@ -216,14 +212,12 @@ func CalculateCRC(data []byte) uint16 {
 // WriteDescriptor writes a UDF descriptor with automatic tag header and CRC calculation.
 func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 	var buf bytes.Buffer
-	// Create placeholder tag
 	tag := DescriptorTag{
 		TagIdentifier:     tagID,
 		DescriptorVersion: 2,
 		TagLocation:       uw.currentSector,
 	}
 
-	// Write tag then descriptor data
 	if err := binary.Write(&buf, binary.LittleEndian, tag); err != nil {
 		return err
 	}
@@ -232,20 +226,15 @@ func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 	}
 
 	data := buf.Bytes()
-	
-	// Calculate CRC for the data after the tag (16 bytes)
 	crcLen := uint16(len(data) - 16)
 	crc := CalculateCRC(data[16:])
 	
-	// Update Tag header fields in the buffer
 	binary.LittleEndian.PutUint16(data[10:12], crc)
 	binary.LittleEndian.PutUint16(data[12:14], crcLen)
 	
-	// Calculate Checksum for the tag (first 16 bytes)
 	checksum := CalculateChecksum(data[:16])
 	data[4] = checksum
 
-	// Write padded sector
 	fullSector := make([]byte, SectorSize)
 	copy(fullSector, data)
 	if _, err := uw.w.Write(fullSector); err != nil {
@@ -256,7 +245,110 @@ func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 	return nil
 }
 
+// WriteHeader writes the initial ISO 9660 and UDF structures.
+func (uw *Writer) WriteHeader() error {
+	// 1. System Area (Sectors 0-15)
+	if err := uw.writePadding(16); err != nil {
+		return err
+	}
+
+	// 2. ISO 9660 PVD (Sector 16)
+	pvd := ISO9660PrimaryVolumeDescriptor{
+		Type:       ISO9660PVDType,
+		Identifier: [5]byte{'C', 'D', '0', '0', '1'},
+		Version:    1,
+	}
+	copy(pvd.VolumeIdentifier[:], uw.volumeLabel)
+	if err := uw.writeSector(pvd); err != nil {
+		return err
+	}
+
+	// 3. ISO 9660 Terminator (Sector 17)
+	term := make([]byte, SectorSize)
+	term[0] = ISO9660TermType
+	copy(term[1:6], "CD001")
+	term[6] = 1
+	if _, err := uw.w.Write(term); err != nil {
+		return err
+	}
+	uw.currentSector++
+
+	// 4. Padding to Sector 32
+	if err := uw.writePadding(32 - int(uw.currentSector)); err != nil {
+		return err
+	}
+
+	// 5. UDF VDS Sequence (Sector 32-47)
+	if err := uw.writeVDS(); err != nil {
+		return err
+	}
+
+	// 6. Padding to Sector 256
+	if err := uw.writePadding(256 - int(uw.currentSector)); err != nil {
+		return err
+	}
+
+	// 7. UDF AVDP (Sector 256)
+	avdp := AnchorVolumeDescriptorPointer{
+		MainVolumeDescriptorSeq: ExtentAd{Len: 16 * SectorSize, Location: 32},
+	}
+	return uw.WriteDescriptor(TagIDAVDP, avdp)
+}
+
+func (uw *Writer) writeVDS() error {
+	// PVD
+	upvd := PrimaryVolumeDescriptor{
+		VolumeDescriptorSeqNumber: 0,
+	}
+	copy(upvd.VolumeIdentifier[:], EncodeCS0(uw.volumeLabel, 32))
+	if err := uw.WriteDescriptor(TagIDPVD, upvd); err != nil {
+		return err
+	}
+
+	// LVD
+	lvd := LogicalVolumeDescriptor{
+		LogicalBlockSize: SectorSize,
+	}
+	if err := uw.WriteDescriptor(TagIDLVD, lvd); err != nil {
+		return err
+	}
+
+	// PD
+	pd := PartitionDescriptor{
+		PartitionStartingLocation: 257,
+		PartitionLength:           1000, // Dummy
+	}
+	if err := uw.WriteDescriptor(TagIDPD, pd); err != nil {
+		return err
+	}
+
+	// Terminating
+	if err := uw.writePadding(1); err != nil { // Simplified Terminating Descriptor
+		return err
+	}
+
+	// Pad remainder of 16 sectors
+	return uw.writePadding(16 - (int(uw.currentSector) - 32))
+}
+
+func (uw *Writer) writeSector(data interface{}) error {
+	fullSector := make([]byte, SectorSize)
+	var buf bytes.Buffer
+	if err := binary.Write(&buf, binary.LittleEndian, data); err != nil {
+		return err
+	}
+	copy(fullSector, buf.Bytes())
+	if _, err := uw.w.Write(fullSector); err != nil {
+		return err
+	}
+	uw.currentSector++
+	return nil
+}
+
 func (uw *Writer) writePadding(sectors int) error {
+	if sectors <= 0 {
+		return nil
+	}
 	padding := make([]byte, SectorSize)
 	for i := 0; i < sectors; i++ {
 		if _, err := uw.w.Write(padding); err != nil {
@@ -265,6 +357,17 @@ func (uw *Writer) writePadding(sectors int) error {
 		uw.currentSector++
 	}
 	return nil
+}
+
+// EncodeCS0 encodes a string into UDF CS0 (UTF-8 subset for now).
+func EncodeCS0(s string, length int) []byte {
+	buf := make([]byte, length)
+	if s == "" {
+		return buf
+	}
+	buf[0] = 8 // Compression byte
+	copy(buf[1:], s)
+	return buf
 }
 
 // NewTimestamp creates a UDF timestamp from a time.Time.
