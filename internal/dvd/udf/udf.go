@@ -185,26 +185,70 @@ func (uw *Writer) AddFile(name string, size int64, content io.Reader, modTime ti
 	return nil
 }
 
-// WriteDescriptor writes a UDF descriptor with automatic tag header and checksum calculation.
+// CalculateChecksum calculates the UDF descriptor tag checksum.
+func CalculateChecksum(data []byte) uint8 {
+	var sum uint8
+	// Checksum is the sum of bytes 0-3 and 5-15 of the tag.
+	for i := 0; i < 16; i++ {
+		if i != 4 { // Skip TagChecksum field itself
+			sum += data[i]
+		}
+	}
+	return sum
+}
+
+// CalculateCRC calculates the UDF descriptor CRC (CRC-ITUT).
+func CalculateCRC(data []byte) uint16 {
+	var crc uint16 = 0
+	for _, b := range data {
+		crc ^= uint16(b) << 8
+		for i := 0; i < 8; i++ {
+			if crc&0x8000 != 0 {
+				crc = (crc << 1) ^ 0x1021
+			} else {
+				crc <<= 1
+			}
+		}
+	}
+	return crc
+}
+
+// WriteDescriptor writes a UDF descriptor with automatic tag header and CRC calculation.
 func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 	var buf bytes.Buffer
+	// Create placeholder tag
+	tag := DescriptorTag{
+		TagIdentifier:     tagID,
+		DescriptorVersion: 2,
+		TagLocation:       uw.currentSector,
+	}
+
+	// Write tag then descriptor data
+	if err := binary.Write(&buf, binary.LittleEndian, tag); err != nil {
+		return err
+	}
 	if err := binary.Write(&buf, binary.LittleEndian, descriptor); err != nil {
 		return err
 	}
 
 	data := buf.Bytes()
-	// Header is the first 16 bytes.
-	tag := DescriptorTag{
-		TagIdentifier:     tagID,
-		DescriptorVersion: 2, // UDF 1.02 uses version 2
-		TagLocation:       uw.currentSector,
-	}
-
-	// [Checksum and CRC calculation will go here]
 	
-	// Prepend finalized tag to data and write.
-	// (Simplified for now)
-	if _, err := uw.w.Write(data); err != nil {
+	// Calculate CRC for the data after the tag (16 bytes)
+	crcLen := uint16(len(data) - 16)
+	crc := CalculateCRC(data[16:])
+	
+	// Update Tag header fields in the buffer
+	binary.LittleEndian.PutUint16(data[10:12], crc)
+	binary.LittleEndian.PutUint16(data[12:14], crcLen)
+	
+	// Calculate Checksum for the tag (first 16 bytes)
+	checksum := CalculateChecksum(data[:16])
+	data[4] = checksum
+
+	// Write padded sector
+	fullSector := make([]byte, SectorSize)
+	copy(fullSector, data)
+	if _, err := uw.w.Write(fullSector); err != nil {
 		return err
 	}
 	
