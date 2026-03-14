@@ -20,10 +20,22 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
-var monoFontData []byte
+type monoFonts struct {
+	regular    []byte
+	italic     []byte
+	bold       []byte
+	boldItalic []byte
+}
 
-func SetMonoFontData(data []byte) {
-	monoFontData = data
+var monoFontData monoFonts
+
+func SetMonoFontData(regular, italic, bold, boldItalic []byte) {
+	monoFontData = monoFonts{
+		regular:    regular,
+		italic:     italic,
+		bold:       bold,
+		boldItalic: boldItalic,
+	}
 }
 
 var (
@@ -131,8 +143,25 @@ func min(a, b int) int {
 
 func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
 	style.Monospace = true
-	if len(monoFontData) > 0 {
-		return fyne.NewStaticResource("IBMPlexMono-Regular.ttf", monoFontData)
+	if monoFontData.regular != nil {
+		var fontData []byte
+		fontName := "IBMPlexMono-Regular.ttf"
+		switch {
+		case style.Bold && style.Italic:
+			fontData = monoFontData.boldItalic
+			fontName = "IBMPlexMono-BoldItalic.ttf"
+		case style.Bold:
+			fontData = monoFontData.bold
+			fontName = "IBMPlexMono-Bold.ttf"
+		case style.Italic:
+			fontData = monoFontData.italic
+			fontName = "IBMPlexMono-Italic.ttf"
+		default:
+			fontData = monoFontData.regular
+		}
+		if fontData != nil {
+			return fyne.NewStaticResource(fontName, fontData)
+		}
 	}
 	return theme.DefaultTheme().Font(style)
 }
