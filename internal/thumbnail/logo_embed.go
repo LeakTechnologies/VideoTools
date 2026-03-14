@@ -1,9 +1,13 @@
 package thumbnail
 
-import _ "embed"
-
-//go:embed ../../assets/logo/VT_Icon.png
+// LogoData holds the app logo PNG bytes, set at startup via SetLogoData.
 var LogoData []byte
 
-//go:embed ../../assets/fonts/IBMPlexMono-Regular.ttf
+// FontData holds the monospace font TTF bytes, set at startup via SetFontData.
 var FontData []byte
+
+// SetLogoData sets the logo image bytes used for contact sheet headers.
+func SetLogoData(data []byte) { LogoData = data }
+
+// SetFontData sets the font bytes used for text overlays in thumbnails.
+func SetFontData(data []byte) { FontData = data }
