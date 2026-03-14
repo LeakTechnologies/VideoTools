@@ -5373,6 +5373,25 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	// Resolve video codec encoder (used by both AI and non-AI paths)
+	resolveVideoCodec := func(codec string) string {
+		switch strings.ToLower(codec) {
+		case "h.264", "":
+			return "libx264"
+		case "h.265":
+			return "libx265"
+		case "vp9":
+			return "libvpx-vp9"
+		case "av1":
+			if resolved, ok := resolveAV1Encoder("none"); ok {
+				return resolved
+			}
+			return "libx264"
+		case "copy":
+			return "copy"
+		default:
+			return "libx264"
+		}
+	}
 	videoEncoder := resolveVideoCodec(videoCodec)
 
 	appendEncodingArgs := func(args []string) []string {
@@ -5686,27 +5705,6 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			"-map", "0:v:0",
 			"-map", "1:a?",
 		}
-	// Resolve video codec
-	resolveVideoCodec := func(codec string) string {
-		switch strings.ToLower(codec) {
-		case "h.264", "":
-			return "libx264"
-		case "h.265":
-			return "libx265"
-		case "vp9":
-			return "libvpx-vp9"
-		case "av1":
-			if resolved, ok := resolveAV1Encoder("none"); ok {
-				return resolved
-			}
-			return "libx264"
-		case "copy":
-			return "copy"
-		default:
-			return "libx264"
-		}
-	}
-
 	// Final scale to ensure target height/aspect (optional)
 	if targetPreset != "" && targetPreset != "Match Source" {
 		finalScale := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
@@ -6394,6 +6392,7 @@ func runGUI() {
 		ui.SetIconsFS(subIconsFS)
 	}
 	ui.SetMonoFontData(ibmPlexMonoRegular, ibmPlexMonoItalic, ibmPlexMonoBold, ibmPlexMonoBoldItalic)
+	a.Settings().SetTheme(&ui.MonoTheme{})
 
 	// Load app icon from embedded logo assets
 	iconFile := "VT_Icon.ico"
