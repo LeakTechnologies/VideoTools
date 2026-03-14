@@ -1,5 +1,14 @@
 # VideoTools Changelog
 
+## v0.1.1-dev33 (March 2026)
+
+### Disc Authoring
+- **Native DVD Engine Foundation** - Established the `internal/dvd` package structure for native authoring. This is the first step toward removing Linux-only dependencies (`dvdauthor`, `xorriso`) and enabling DVD/Blu-ray creation on Windows.
+- **Phase 1: UDF Writer** - Started implementation of a native UDF 1.02 / ISO 9660 Bridge writer for standards-compliant disc images.
+
+### Documentation
+- **Wiki synchronization** - Migrated in-repo `docs/` to the Forgejo wiki at `git.leaktechnologies.dev`. Established a navigation sidebar and centralized documentation portal.
+
 ## v0.1.1-dev32 (March 2026)
 
 ### Settings
