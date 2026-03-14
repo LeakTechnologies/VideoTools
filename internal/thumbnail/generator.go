@@ -499,19 +499,24 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	// 3. Draws metadata text on header (using monospace font)
 	// 4. Stacks header on top of contact sheet
 	// App background color: #0B0F1A (dark navy blue)
+	fontPath := g.findFontPath()
+	fontArg := "font='DejaVu Sans Mono'"
+	if fontPath != "" {
+		fontArg = fmt.Sprintf("fontfile='%s'", escapeFilterPath(fontPath))
+	}
 	baseFilter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=20:font='DejaVu Sans Mono':x=10:y=12,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=16:font='DejaVu Sans Mono':x=10:y=50,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=16:font='DejaVu Sans Mono':x=10:y=82",
+			"drawtext=text='%s':fontcolor=white:fontsize=20:%s:x=10:y=12,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=16:%s:x=10:y=50,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=16:%s:x=10:y=82",
 		selectFilter,
 		tileFilter,
 		sheetWidth,
 		sheetHeight+headerHeight,
 		headerHeight,
-		line1,
-		line2,
-		line3,
+		line1, fontArg,
+		line2, fontArg,
+		line3, fontArg,
 	)
 
 	logoPath := g.findLogoPath()
@@ -538,19 +543,60 @@ func (g *Generator) buildThumbFilter(thumbWidth, thumbHeight int, showTimestamp 
 		thumbWidth,
 		thumbHeight,
 	)
+	fontPath := g.findFontPath()
+	fontArg := "font='DejaVu Sans Mono'"
+	if fontPath != "" {
+		fontArg = fmt.Sprintf("fontfile='%s'", escapeFilterPath(fontPath))
+	}
 	if showTimestamp {
-		filter += ",drawtext=text='%{pts\\:hms}':fontcolor=white:fontsize=18:font='DejaVu Sans Mono':box=1:boxcolor=black@0.5:boxborderw=4:x=w-text_w-6:y=h-text_h-6"
+		filter += fmt.Sprintf(",drawtext=text='%%{pts\\:hms}':fontcolor=white:fontsize=18:%s:box=1:boxcolor=black@0.5:boxborderw=4:x=w-text_w-6:y=h-text_h-6", fontArg)
 	}
 	return filter
 }
 
 func (g *Generator) findLogoPath() string {
+	// First try embedded logo
+	if len(LogoData) > 0 {
+		tmpDir := os.TempDir()
+		logoPath := filepath.Join(tmpDir, "vt_logo.png")
+		if err := os.WriteFile(logoPath, LogoData, 0644); err == nil {
+			return logoPath
+		}
+	}
+
+	// Fallback to file-based search
 	search := []string{
 		filepath.Join("assets", "logo", "VT_Icon.png"),
 	}
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
 		search = append(search, filepath.Join(dir, "assets", "logo", "VT_Icon.png"))
+	}
+	for _, p := range search {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+func (g *Generator) findFontPath() string {
+	// First try embedded font
+	if len(FontData) > 0 {
+		tmpDir := os.TempDir()
+		fontPath := filepath.Join(tmpDir, "IBMPlexMono-Regular.ttf")
+		if err := os.WriteFile(fontPath, FontData, 0644); err == nil {
+			return fontPath
+		}
+	}
+
+	// Fallback to file-based search
+	search := []string{
+		filepath.Join("assets", "fonts", "IBMPlexMono-Regular.ttf"),
+	}
+	if exe, err := os.Executable(); err == nil {
+		dir := filepath.Dir(exe)
+		search = append(search, filepath.Join(dir, "assets", "fonts", "IBMPlexMono-Regular.ttf"))
 	}
 	for _, p := range search {
 		if _, err := os.Stat(p); err == nil {
