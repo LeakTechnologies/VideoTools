@@ -43,8 +43,8 @@ This file tracks upcoming features, improvements, and known issues.
   - Scroll containers added to all non-Convert module settings panels. Action buttons moved to footer action bar.
 - [x] **Window resize stability** (issue #4)
   - setContent now pins window size after SetContent to prevent layout-driven resize on module switch.
-- [ ] **Convert UI cleanup** (issue #5)
-  - Layout consistency, label clarity, and control organization pass for external developer testing readiness.
+- [x] **Convert UI cleanup** (issue #5)
+  - Layout consistency, label clarity, and control organization pass for external developer testing readiness. Completed in dev33 alignment pass.
 - [ ] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
   - Move `buildInspectView`, `showSettingsView`/`buildSettingsView`, and `showQueue`/queue view out of `main.go` into dedicated `*_module.go` files.
   - See `AGENTS.md` Refactor Boundaries for the pattern and completed-slice list.
