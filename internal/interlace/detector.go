@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 // DetectionResult contains the results of interlacing analysis
@@ -70,6 +72,7 @@ func (d *Detector) Analyze(ctx context.Context, videoPath string, sampleFrames i
 	}
 
 	cmd := exec.CommandContext(ctx, d.FFmpegPath, args...)
+	utils.ApplyNoWindow(cmd)
 
 	// Capture stderr (where idet outputs its stats)
 	stderr, err := cmd.StderrPipe()
@@ -184,6 +187,7 @@ func (d *Detector) GenerateDeinterlacePreview(ctx context.Context, videoPath str
 	}
 
 	cmd := exec.CommandContext(ctx, d.FFmpegPath, args...)
+	utils.ApplyNoWindow(cmd)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to generate preview: %w", err)
 	}
@@ -204,6 +208,7 @@ func (d *Detector) GenerateComparisonPreview(ctx context.Context, videoPath stri
 	}
 
 	cmd := exec.CommandContext(ctx, d.FFmpegPath, args...)
+	utils.ApplyNoWindow(cmd)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to generate comparison: %w", err)
 	}

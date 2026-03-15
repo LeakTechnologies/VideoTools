@@ -240,11 +240,11 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		bg.CornerRadius = 10
 		bg.StrokeColor = gridColor
 		bg.StrokeWidth = 1
-		body := container.NewVBox(
+		header := container.NewVBox(
 			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			widget.NewSeparator(),
-			content,
 		)
+		body := container.NewBorder(header, nil, nil, nil, content)
 		layers := ui.NoisyBackgroundObjects(bg)
 		layers = append(layers, container.NewPadded(body))
 		return container.NewMax(layers...)

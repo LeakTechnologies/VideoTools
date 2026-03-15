@@ -746,8 +746,6 @@ type convertConfig struct {
 	ForceAspect      bool   // Force DAR/SAR metadata even when no aspect conversion
 	TempDir          string // Optional temp/cache directory override
 	LogDir           string // Optional log directory override
-	Language         string // UI language preference (BCP-47 tag, e.g. "en-CA", "fr-CA", "iu")
-	LanguageScript   string // Script variant (e.g., "syllabics" for Inuktitut)
 
 	// Master settings
 	ShowUpscale bool
@@ -826,7 +824,6 @@ func defaultConvertConfig() convertConfig {
 		ForceAspect:      true,
 		TempDir:          "",
 		LogDir:           "",
-		Language:         "System",
 		ShowUpscale:      true,
 		ShowAuthor:       true,
 		ShowRip:          true,
