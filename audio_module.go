@@ -329,24 +329,31 @@ func buildAudioRightPanel(state *appState) fyne.CanvasObject {
 	progressBar.Hide()
 	state.audioProgressBar = progressBar
 
+	// Helper to build boxed sections matching Convert module style
+	gridColor := utils.MustHex("#2A3A52")
+	navyBlue := utils.MustHex("#191F35")
+
+	buildAudioBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
+		bg := canvas.NewRectangle(navyBlue)
+		bg.CornerRadius = 10
+		bg.StrokeColor = gridColor
+		bg.StrokeWidth = 1
+		body := container.NewVBox(
+			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewSeparator(),
+			content,
+		)
+		layers := ui.NoisyBackgroundObjects(bg)
+		layers = append(layers, container.NewPadded(body))
+		return container.NewMax(layers...)
+	}
+
 	rightContent := container.NewVBox(
-		formatLabel,
-		formatRadio,
-		widget.NewSeparator(),
-		qualityLabel,
-		qualitySelect,
-		widget.NewSeparator(),
-		bitrateLabel,
-		bitrateEntry,
-		widget.NewSeparator(),
-		normalizeCheck,
-		normOptions,
-		widget.NewSeparator(),
-		outputDirLabel,
-		outputDirRow,
-		widget.NewSeparator(),
-		statusLabel,
-		progressBar,
+		buildAudioBox("Format", container.NewVBox(formatLabel, formatRadio)),
+		buildAudioBox("Quality", container.NewVBox(qualityLabel, qualitySelect)),
+		buildAudioBox("Bitrate", container.NewVBox(bitrateLabel, bitrateEntry)),
+		buildAudioBox("Normalization", container.NewVBox(normalizeCheck, normOptions)),
+		buildAudioBox("Output", container.NewVBox(outputDirLabel, outputDirRow, statusLabel, progressBar)),
 	)
 
 	scrollable := ui.NewFastVScroll(rightContent)

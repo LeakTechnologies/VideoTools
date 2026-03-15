@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -28,33 +29,42 @@ const (
 	DiscTypeUnknown DiscType = "Unknown"
 )
 
-// DetectDiscType scans the ISO for specific directory structures.
+// DetectDiscType scans the ISO for specific signatures.
+// Note: This is a fast-path scanner that looks for directory signatures in the metadata.
 func (r *Reader) DetectDiscType() (DiscType, error) {
-	logging.Info(logging.CatDVD, "Detecting disc type...")
+	logging.Info(logging.CatDVD, "Detecting disc type via metadata scan...")
 	
-	// Implementation will scan the root directory for VIDEO_TS or BDMV
-	// For now, we'll implement a simplified version that looks for strings in sectors
-	// until the full UDF directory parser is finalized.
-	
-	// Check for VIDEO_TS (DVD)
-	if found, _ := r.containsDirectory("VIDEO_TS"); found {
-		logging.Info(logging.CatDVD, "Detected disc type: DVD")
-		return DiscTypeDVD, nil
+	// Scan first few MB for directory signatures
+	buf := make([]byte, 1024*1024) // 1MB buffer
+	if _, err := r.rs.Seek(0, io.SeekStart); err != nil {
+		return DiscTypeUnknown, err
 	}
 	
-	// Check for BDMV (Blu-ray)
-	if found, _ := r.containsDirectory("BDMV"); found {
-		logging.Info(logging.CatDVD, "Detected disc type: Blu-ray")
+	if _, err := io.ReadFull(r.rs, buf); err != nil {
+		return DiscTypeUnknown, err
+	}
+	
+	content := string(buf)
+	if strings.Contains(content, "VIDEO_TS") {
+		return DiscTypeDVD, nil
+	}
+	if strings.Contains(content, "BDMV") {
 		return DiscTypeBluRay, nil
 	}
 	
 	return DiscTypeUnknown, nil
 }
 
-func (r *Reader) containsDirectory(name string) (bool, error) {
-	// Root directory traversal logic...
-	// (Simplified for initial integration)
-	return false, nil
+// IdentifyDiscFormat is a static helper for quick detection.
+func IdentifyDiscFormat(path string) (DiscType, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return DiscTypeUnknown, err
+	}
+	defer f.Close()
+	
+	r := NewReader(f)
+	return r.DetectDiscType()
 }
 
 // ReadDescriptor reads a UDF descriptor from a specific sector.
@@ -77,23 +87,4 @@ func (r *Reader) ReadDescriptor(sector uint32) (uint16, []byte, error) {
 	}
 	
 	return tagID, data, nil
-}
-
-// GetFileSetDescriptor finds the FSD via the Anchor pointer at sector 256.
-func (r *Reader) GetFileSetDescriptor() (*FileSetDescriptor, error) {
-	tagID, data, err := r.ReadDescriptor(256)
-	if err != nil || tagID != TagIDAVDP {
-		return nil, fmt.Errorf("failed to read AVDP at sector 256")
-	}
-	
-	// Parse AVDP to get VDS location...
-	// Parse LVD to get FSD location...
-	
-	return nil, fmt.Errorf("FSD traversal not yet fully implemented")
-}
-
-// IdentifyDiscFormat is a static helper for quick detection.
-func IdentifyDiscFormat(path string) (DiscType, error) {
-	// To be used by Rip module drop handler
-	return DiscTypeUnknown, nil
 }
