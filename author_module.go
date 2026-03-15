@@ -2913,15 +2913,42 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	logFn("Authoring DVD structure (Native Go Engine)...")
 	ifoBuilder := ifo.NewBuilder(discRoot)
 	
+	// Probe primary feature for attributes
+	primarySrc, _ := probeVideo(featurePaths[0])
+	
 	// Generate VTS IFO/BUP
 	vtsMat := ifo.NewVTSMAT()
-	// [TODO: Map real attributes from source clips]
+	
+	// Map attributes
+	vtsMat.VTS_Attributes.CompressionMode = 1 // MPEG-2
+	if region == "PAL" {
+		vtsMat.VTS_Attributes.TVSystem = 1
+	} else {
+		vtsMat.VTS_Attributes.TVSystem = 0
+	}
+	
+	if aspect == "16:9" {
+		vtsMat.VTS_Attributes.AspectRatio = 3
+	} else {
+		vtsMat.VTS_Attributes.AspectRatio = 0
+	}
+	
+	// Simplified resolution mapping
+	if primarySrc != nil {
+		if primarySrc.Width == 720 {
+			vtsMat.VTS_Attributes.Resolution = 0
+		} else if primarySrc.Width == 704 {
+			vtsMat.VTS_Attributes.Resolution = 1
+		}
+	}
+
 	if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat); err != nil {
 		return fmt.Errorf("native ifo generation failed: %w", err)
 	}
 
 	// Generate VMG IFO/BUP
 	vmgMat := ifo.NewVMGMAT()
+	vmgMat.VMG_Attributes = vtsMat.VTS_Attributes // Match VTS attributes
 	if err := ifoBuilder.GenerateVMG_IFO(vmgMat); err != nil {
 		return fmt.Errorf("native vmg generation failed: %w", err)
 	}
