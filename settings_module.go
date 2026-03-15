@@ -616,7 +616,6 @@ const (
 	forgejoTagsAPI        = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/tags?limit=1"
 	forgejoReleasesTagAPI = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/releases/tags/"
 	forgejoReleasesPage   = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/releases"
-	forgejoCommitsPage    = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/commits/branch/master"
 )
 
 type updateInfo struct {
@@ -696,10 +695,6 @@ func checkForUpdates(state *appState) {
 				installBtn.Importance = widget.HighImportance
 				d.SetButtons([]fyne.CanvasObject{
 					installBtn,
-					widget.NewButton("View Commits", func() {
-						d.Hide()
-						_ = openURL(forgejoCommitsPage)
-					}),
 					widget.NewButton("Close", func() { d.Hide() }),
 				})
 				d.Show()
