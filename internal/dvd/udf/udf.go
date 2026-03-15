@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"time"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 // Standard DVD sector size.
@@ -243,6 +245,7 @@ type FileNode struct {
 
 // NewWriter creates a new UDF 1.02 writer.
 func NewWriter(w io.Writer, volumeLabel string) *Writer {
+	logging.Info(logging.CatDVD, "Creating new UDF 1.02 writer for label: %s", volumeLabel)
 	return &Writer{
 		w:           w,
 		volumeLabel: volumeLabel,
@@ -258,8 +261,11 @@ func NewWriter(w io.Writer, volumeLabel string) *Writer {
 func (uw *Writer) AddFile(path []string, name string, size int64, content io.Reader, modTime time.Time) error {
 	dir := uw.findDir(path)
 	if dir == nil {
-		return fmt.Errorf("directory not found: %v", path)
+		err := fmt.Errorf("directory not found: %v", path)
+		logging.Error(logging.CatDVD, "AddFile failed: %v", err)
+		return err
 	}
+	logging.Debug(logging.CatDVD, "Adding file: %s (size: %d) to path: %v", name, size, path)
 	dir.Children = append(dir.Children, &FileNode{
 		Name:    name,
 		IsDir:   false,
@@ -274,8 +280,11 @@ func (uw *Writer) AddFile(path []string, name string, size int64, content io.Rea
 func (uw *Writer) AddDirectory(path []string, name string, modTime time.Time) error {
 	dir := uw.findDir(path)
 	if dir == nil {
-		return fmt.Errorf("parent directory not found: %v", path)
+		err := fmt.Errorf("parent directory not found: %v", path)
+		logging.Error(logging.CatDVD, "AddDirectory failed: %v", err)
+		return err
 	}
+	logging.Debug(logging.CatDVD, "Adding directory: %s to path: %v", name, path)
 	dir.Children = append(dir.Children, &FileNode{
 		Name:    name,
 		IsDir:   true,
@@ -304,15 +313,20 @@ func (uw *Writer) findDir(path []string) *FileNode {
 
 // Build finalizes the UDF structure and writes all data.
 func (uw *Writer) Build() error {
+	logging.Info(logging.CatDVD, "Starting UDF Build process...")
+	
 	// 1. Write Header (Sectors 0-256)
 	if err := uw.WriteHeader(); err != nil {
-		return err
+		logging.Error(logging.CatDVD, "Failed to write header: %v", err)
+		return fmt.Errorf("udf write header: %w", err)
 	}
 
 	// 2. Assign sectors to all files and directories
+	logging.Debug(logging.CatDVD, "Assigning sectors to files and directories")
 	uw.assignSectors()
 
 	// 3. Write File Set Descriptor
+	logging.Debug(logging.CatDVD, "Writing File Set Descriptor (FSD) at sector %d", uw.currentSector)
 	fsd := FileSetDescriptor{
 		RecordingDateAndTime: NewTimestamp(uw.volumeTime),
 		RootDirectoryICB: LongAd{
@@ -321,11 +335,19 @@ func (uw *Writer) Build() error {
 		},
 	}
 	if err := uw.WriteDescriptor(TagIDFSD, fsd); err != nil {
-		return err
+		logging.Error(logging.CatDVD, "Failed to write FSD: %v", err)
+		return fmt.Errorf("udf write fsd: %w", err)
 	}
 
 	// 4. Write ICBs and Data
-	return uw.writeNode(uw.root)
+	logging.Info(logging.CatDVD, "Writing file data nodes recursively")
+	if err := uw.writeNode(uw.root); err != nil {
+		logging.Error(logging.CatDVD, "Failed to write file nodes: %v", err)
+		return fmt.Errorf("udf write nodes: %w", err)
+	}
+
+	logging.Info(logging.CatDVD, "UDF Build process completed successfully. Final sector: %d", uw.currentSector)
+	return nil
 }
 
 func (uw *Writer) assignSectors() {
@@ -337,14 +359,12 @@ func (uw *Writer) assignSectors() {
 		n.ICBSector = nextSector
 		nextSector++
 		if n.IsDir {
-			// Directory data sector
 			n.DataSector = nextSector
-			nextSector++ // Simplified: 1 sector for directory FIDs
+			nextSector++
 			for _, child := range n.Children {
 				walk(child)
 			}
 		} else {
-			// File data sectors
 			n.DataSector = nextSector
 			numSectors := uint32((n.Size + SectorSize - 1) / SectorSize)
 			nextSector += numSectors
@@ -356,7 +376,9 @@ func (uw *Writer) assignSectors() {
 func (uw *Writer) writeNode(n *FileNode) error {
 	// 1. Write ICB at n.ICBSector
 	if uw.currentSector != n.ICBSector {
-		if err := uw.writePadding(int(n.ICBSector) - int(uw.currentSector)); err != nil {
+		padding := int(n.ICBSector) - int(uw.currentSector)
+		logging.Debug(logging.CatDVD, "Padding %d sectors before ICB for node: %s", padding, n.Name)
+		if err := uw.writePadding(padding); err != nil {
 			return err
 		}
 	}
@@ -375,35 +397,31 @@ func (uw *Writer) writeNode(n *FileNode) error {
 		icb.InformationLength = SectorSize
 	}
 
-	// Allocation descriptor (simplified: one contiguous extent)
-	var ad bytes.Buffer
-	binary.Write(&ad, binary.LittleEndian, uint32(n.Size))
-	binary.Write(&ad, binary.LittleEndian, n.DataSector)
-	
-	// Write ICB with trailing allocation descriptor (TBD: proper length handling)
+	logging.Debug(logging.CatDVD, "Writing ICB at sector %d for node: %s", uw.currentSector, n.Name)
 	if err := uw.WriteDescriptor(TagIDICB, icb); err != nil {
 		return err
 	}
 
 	// 2. Write Data at n.DataSector
 	if uw.currentSector != n.DataSector {
-		if err := uw.writePadding(int(n.DataSector) - int(uw.currentSector)); err != nil {
+		padding := int(n.DataSector) - int(uw.currentSector)
+		logging.Debug(logging.CatDVD, "Padding %d sectors before data for node: %s", padding, n.Name)
+		if err := uw.writePadding(padding); err != nil {
 			return err
 		}
 	}
 
 	if n.IsDir {
-		// Write FIDs
+		logging.Debug(logging.CatDVD, "Writing directory FIDs at sector %d for: %s", uw.currentSector, n.Name)
 		if err := uw.writeDirectoryData(n); err != nil {
 			return err
 		}
 	} else {
-		// Write File Content
+		logging.Debug(logging.CatDVD, "Writing file content at sector %d for: %s (size: %d)", uw.currentSector, n.Name, n.Size)
 		if _, err := io.CopyN(uw.w, n.Content, n.Size); err != nil {
 			return err
 		}
 		uw.currentSector += uint32((n.Size + SectorSize - 1) / SectorSize)
-		// Final padding for the last sector
 		padding := SectorSize - (n.Size % SectorSize)
 		if padding != SectorSize {
 			if _, err := uw.w.Write(make([]byte, padding)); err != nil {
@@ -435,13 +453,10 @@ func (uw *Writer) writeDirectoryData(n *FileNode) error {
 				Location: child.ICBSector,
 			},
 		}
-		// Write FID Tag manually or via helper
-		// For now, write a dummy FID start
 		binary.LittleEndian.PutUint16(buf[offset:], TagIDFID)
-		offset += 38 // FID base length
+		offset += 38
 		copy(buf[offset:], child.Name)
 		offset += len(child.Name)
-		// Align to 4 bytes
 		offset = (offset + 3) & ^3
 	}
 
@@ -489,10 +504,10 @@ func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 	}
 
 	if err := binary.Write(&buf, binary.LittleEndian, tag); err != nil {
-		return err
+		return fmt.Errorf("binary write tag: %w", err)
 	}
 	if err := binary.Write(&buf, binary.LittleEndian, descriptor); err != nil {
-		return err
+		return fmt.Errorf("binary write descriptor: %w", err)
 	}
 
 	data := buf.Bytes()
@@ -508,7 +523,7 @@ func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 	fullSector := make([]byte, SectorSize)
 	copy(fullSector, data)
 	if _, err := uw.w.Write(fullSector); err != nil {
-		return err
+		return fmt.Errorf("write sector %d: %w", uw.currentSector, err)
 	}
 
 	uw.currentSector++
@@ -517,10 +532,12 @@ func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 
 // WriteHeader writes the initial ISO 9660 and UDF structures.
 func (uw *Writer) WriteHeader() error {
+	logging.Debug(logging.CatDVD, "Writing System Area (sectors 0-15)")
 	if err := uw.writePadding(16); err != nil {
 		return err
 	}
 
+	logging.Debug(logging.CatDVD, "Writing ISO 9660 PVD (sector 16)")
 	pvd := ISO9660PrimaryVolumeDescriptor{
 		Type:       ISO9660PVDType,
 		Identifier: [5]byte{'C', 'D', '0', '0', '1'},
@@ -531,6 +548,7 @@ func (uw *Writer) WriteHeader() error {
 		return err
 	}
 
+	logging.Debug(logging.CatDVD, "Writing ISO 9660 Terminator (sector 17)")
 	term := make([]byte, SectorSize)
 	term[0] = ISO9660TermType
 	copy(term[1:6], "CD001")
@@ -540,6 +558,7 @@ func (uw *Writer) WriteHeader() error {
 	}
 	uw.currentSector++
 
+	logging.Debug(logging.CatDVD, "Padding to UDF VDS (sector 32)")
 	if err := uw.writePadding(32 - int(uw.currentSector)); err != nil {
 		return err
 	}
@@ -548,6 +567,7 @@ func (uw *Writer) WriteHeader() error {
 		return err
 	}
 
+	logging.Debug(logging.CatDVD, "Padding to UDF AVDP (sector 256)")
 	if err := uw.writePadding(256 - int(uw.currentSector)); err != nil {
 		return err
 	}
@@ -559,6 +579,7 @@ func (uw *Writer) WriteHeader() error {
 }
 
 func (uw *Writer) writeVDS() error {
+	logging.Debug(logging.CatDVD, "Writing UDF VDS at sector %d", uw.currentSector)
 	upvd := PrimaryVolumeDescriptor{
 		VolumeDescriptorSeqNumber: 0,
 	}
@@ -576,7 +597,7 @@ func (uw *Writer) writeVDS() error {
 
 	pd := PartitionDescriptor{
 		PartitionStartingLocation: 257,
-		PartitionLength:           1000, // Dummy
+		PartitionLength:           1000,
 	}
 	if err := uw.WriteDescriptor(TagIDPD, pd); err != nil {
 		return err
@@ -593,11 +614,11 @@ func (uw *Writer) writeSector(data interface{}) error {
 	fullSector := make([]byte, SectorSize)
 	var buf bytes.Buffer
 	if err := binary.Write(&buf, binary.LittleEndian, data); err != nil {
-		return err
+		return fmt.Errorf("binary write sector: %w", err)
 	}
 	copy(fullSector, buf.Bytes())
 	if _, err := uw.w.Write(fullSector); err != nil {
-		return err
+		return fmt.Errorf("write sector %d: %w", uw.currentSector, err)
 	}
 	uw.currentSector++
 	return nil
@@ -610,7 +631,7 @@ func (uw *Writer) writePadding(sectors int) error {
 	padding := make([]byte, SectorSize)
 	for i := 0; i < sectors; i++ {
 		if _, err := uw.w.Write(padding); err != nil {
-			return err
+			return fmt.Errorf("write padding sector %d: %w", uw.currentSector, err)
 		}
 		uw.currentSector++
 	}

@@ -3,7 +3,8 @@
 ## Version 0.1.1-dev33 (2026-03-14) - Native Authoring Foundation
 
 - [x] **Wiki synchronization** — Ported internal documentation to the Forgejo wiki with corrected links and navigation. Established Home, Documentation, and Sidebar pages.
-- [x] **Native DVD Engine structure** — Created `internal/dvd/` modular package structure (`udf`, `ifo`, `vob`, `spu`) to support cross-platform authoring without external tools.
+- [x] **Native DVD Engine structure** — Created `internal/dvd/` modular package structure (`udf`, `ifo`, `vob`, `spu`).
+- [x] **MPEG-PS / VOB Muxer Foundation** — Implemented MPEG-PS packetization, Pack/System/PES headers, and DVD-specific Navigation Pack (NAV_PCK) structures.
 
 ## Version 0.1.1-dev32 (2026-03-12) - UI Polish and Fixes
 
