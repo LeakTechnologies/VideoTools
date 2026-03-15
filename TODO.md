@@ -12,6 +12,20 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Drag and drop into Convert** — Fix files dragged onto Convert module drop zone.
 - [ ] **Linux CI build optimization** — Consider pre-built container image.
 
+## Future: Canadian Aboriginal Languages
+
+Aboriginal Sans covers all Canadian Indigenous languages. Future language options to add:
+- Inuktitut (syllabic + Latin)
+- Cree (syllabic + Latin)
+- Ojibwe (Anishinaabemowin)
+- Mohawk
+- Mi'kmaq
+- Dene
+- Oji-Creek
+- Dakota/Sioux
+- Haida
+- Tlingit
+
 ## Dev33 Scope
 
 - [x] **App icon embedding** — `logo_embed.go` at root; logo loaded directly in `main.go`; fixes taskbar icon not showing.
