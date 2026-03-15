@@ -8,13 +8,52 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 	mainmenumodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/mainmenu"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
-func mainMenuTitle() string {
-	return "VideoTools"
+// moduleLabel returns the translated label for a given module ID.
+// Called on each showMainMenu() rebuild so labels reflect the active language.
+func moduleLabel(id string) string {
+	t := i18n.T()
+	switch id {
+	case "convert":
+		return t.ModuleConvert
+	case "merge":
+		return t.ModuleMerge
+	case "trim":
+		return t.ModuleTrim
+	case "filters":
+		return t.ModuleFilters
+	case "upscale":
+		return t.ModuleUpscale
+	case "enhancement":
+		return t.ModuleEnhancement
+	case "audio":
+		return t.ModuleAudio
+	case "author":
+		return t.ModuleAuthor
+	case "rip":
+		return t.ModuleRip
+	case "bluray":
+		return t.ModuleBluRay
+	case "subtitles":
+		return t.ModuleSubtitles
+	case "thumbnail":
+		return t.ModuleThumbnail
+	case "compare":
+		return t.ModuleCompare
+	case "inspect":
+		return t.ModuleInspect
+	case "player":
+		return t.ModulePlayer
+	case "settings":
+		return t.ModuleSettings
+	default:
+		return id
+	}
 }
 
 func (s *appState) showMainMenu() {
@@ -32,11 +71,12 @@ func (s *appState) showMainMenu() {
 	s.pushNavigationHistory("mainmenu")
 
 	// Convert modules to UI metadata with preference/dependency filtering.
+	// Labels are resolved from i18n.T() so they update on language change.
 	sourceMods := make([]mainmenumodule.SourceModule, 0, len(modulesList))
 	for _, m := range modulesList {
 		sourceMods = append(sourceMods, mainmenumodule.SourceModule{
 			ID:            m.ID,
-			Label:         m.Label,
+			Label:         moduleLabel(m.ID),
 			Color:         m.Color,
 			Category:      m.Category,
 			HasHandler:    m.Handle != nil,
@@ -52,6 +92,23 @@ func (s *appState) showMainMenu() {
 	})
 
 	titleColor := utils.MustHex("#4CE870")
+	t := i18n.T()
+	menuLabels := ui.MenuLabels{
+		Benchmark:         t.MenuBenchmark,
+		Results:           t.MenuResults,
+		Logs:              "Logs",
+		Queue:             t.MenuQueue,
+		CategoryConvert:   t.CategoryConvert,
+		CategoryInspect:   t.CategoryInspect,
+		CategoryDisc:      t.CategoryDisc,
+		CategoryPlayback:  t.CategoryPlayback,
+		HistoryTitle:      t.HistoryTitle,
+		HistoryInProgress: t.QueueInProgress,
+		HistoryCompleted:  t.QueueCompleted,
+		HistoryFailed:     t.QueueFailed,
+		HistoryClearAll:   t.ActionClearAll,
+		HistoryNoEntries:  t.HistoryNoEntries,
+	}
 
 	// PERFORMANCE: Cache queue list to avoid multiple expensive copies
 	var queueList []*queue.Job
@@ -80,6 +137,7 @@ func (s *appState) showMainMenu() {
 			s.showHistoryDetails(entry)
 		}
 		sidebar = ui.BuildHistorySidebar(
+			menuLabels,
 			s.historyEntries,
 			activeJobs,
 			onHistoryClick,
@@ -101,7 +159,7 @@ func (s *appState) showMainMenu() {
 		hasBenchmark = true
 	}
 
-	menu := ui.BuildMainMenu(mainMenuTitle(), mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, s.showBenchmark, s.showBenchmarkHistory, func() {
+	menu := ui.BuildMainMenu(t.AppTitle, menuLabels, mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, s.showBenchmark, s.showBenchmarkHistory, func() {
 		// Toggle sidebar - use throttled refresh to prevent lag
 		s.sidebarVisible = !s.sidebarVisible
 		s.refreshMainMenuThrottled()

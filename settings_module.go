@@ -22,6 +22,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -1164,6 +1165,87 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 
 	content.Add(widget.NewSeparator())
 
+	// Language Section
+	langLabel := widget.NewLabel("Language")
+	langLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	langOptions := i18n.All()
+	langNames := make([]string, len(langOptions))
+	langCodes := make([]string, len(langOptions))
+	for i, lang := range langOptions {
+		langNames[i] = lang.NativeName
+		langCodes[i] = lang.Code
+	}
+
+	// updateScriptSelect declared before langSelect so the closure can reference it.
+	var updateScriptSelect func()
+
+	langSelect := widget.NewSelect(langNames, func(selected string) {
+		for i, name := range langNames {
+			if name == selected {
+				i18n.SetLanguage(langCodes[i])
+				persistLocale(langCodes[i], i18n.CurrentScript())
+				if updateScriptSelect != nil {
+					updateScriptSelect()
+				}
+				break
+			}
+		}
+	})
+	currentCode := i18n.CurrentCode()
+	for i, code := range langCodes {
+		if code == currentCode {
+			langSelect.SetSelected(langNames[i])
+			break
+		}
+	}
+
+	// Inuktitut script toggle (shown only when iu is selected)
+	scriptLabel := widget.NewLabel("Script:")
+	scriptLabel.Hide()
+
+	scriptSelect := widget.NewSelect([]string{}, func(selected string) {})
+	scriptSelect.Hide()
+
+	updateScriptSelect = func() {
+		currentLang := i18n.CurrentCode()
+		if currentLang == "iu" {
+			scriptLabel.Show()
+			scriptSelect.Show()
+			s := i18n.T()
+			options := []string{s.SettingsScriptLatin, s.SettingsScriptSyllabics}
+			currentScript := i18n.CurrentScript()
+			scriptSelect.Options = options
+			if currentScript == i18n.ScriptSyllabics {
+				scriptSelect.SetSelected(s.SettingsScriptSyllabics)
+			} else {
+				scriptSelect.SetSelected(s.SettingsScriptLatin)
+			}
+			scriptSelect.OnChanged = func(selected string) {
+				var script i18n.ScriptVariant
+				if selected == s.SettingsScriptSyllabics {
+					script = i18n.ScriptSyllabics
+				} else {
+					script = i18n.ScriptLatin
+				}
+				i18n.SetLanguageWithScript("iu", script)
+				persistLocale("iu", script)
+			}
+		} else {
+			scriptLabel.Hide()
+			scriptSelect.Hide()
+		}
+	}
+
+	langSection := container.NewVBox(
+		langLabel,
+		langSelect,
+		container.NewHBox(scriptLabel, scriptSelect),
+	)
+	content.Add(langSection)
+
+	content.Add(widget.NewSeparator())
+
 	masterHeader := widget.NewLabel("Master Settings")
 	masterHeader.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(masterHeader)
@@ -1259,34 +1341,6 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	visibilityItems = append(visibilityItems, visibilityHint)
 
 	content.Add(container.NewVBox(visibilityItems...))
-
-	content.Add(widget.NewSeparator())
-
-	// Language selection (persisted UI language)
-	langLabel := widget.NewLabel("Language")
-	langOptions := map[string]string{
-		"System":           "System",
-		"English (Canada)": "en-CA",
-		"French (Canada)":  "fr-CA",
-		"Inuktitut":        "iu-Cans",
-	}
-	langSelect := widget.NewSelect([]string{"System", "English (Canada)", "French (Canada)", "Inuktitut"}, func(selected string) {
-		value := langOptions[selected]
-		if value == "" {
-			value = "System"
-		}
-		state.convert.Language = value
-		state.persistConvertConfig()
-	})
-	selectedLabel := "System"
-	for label, value := range langOptions {
-		if value == state.convert.Language {
-			selectedLabel = label
-			break
-		}
-	}
-	langSelect.SetSelected(selectedLabel)
-	content.Add(container.NewVBox(langLabel, langSelect))
 
 	return content
 }
