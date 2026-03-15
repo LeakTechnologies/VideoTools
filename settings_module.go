@@ -5,8 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"image/color"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -28,13 +28,13 @@ import (
 
 // Dependency represents a system dependency
 type Dependency struct {
-	Name          string
-	Command       string // Command to check if installed
-	Required      bool   // If true, core functionality requires this
-	Description   string
-	InstallCmd    string // Command to install (platform-specific)
-	UninstallCmd string // Command to uninstall (platform-specific, optional)
-	Platforms     []string // List of platforms: "windows", "linux", "darwin". Empty = all.
+	Name         string
+	Command      string // Command to check if installed
+	Required     bool   // If true, core functionality requires this
+	Description  string
+	InstallCmd   string   // Command to install (platform-specific)
+	UninstallCmd string   // Command to uninstall (platform-specific, optional)
+	Platforms    []string // List of platforms: "windows", "linux", "darwin". Empty = all.
 }
 
 // dependencyCommand represents a command with optional arguments
@@ -669,11 +669,11 @@ func buildUpdatesTab(state *appState) fyne.CanvasObject {
 }
 
 const (
-	forgejoTagsAPI         = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/tags?limit=1"
-	forgejoMasterAPI       = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/branches/master"
-	forgejoReleasesTagAPI  = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/releases/tags/"
-	forgejoReleasesPage    = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/releases"
-	forgejoCommitsPage     = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/commits/branch/master"
+	forgejoTagsAPI        = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/tags?limit=1"
+	forgejoMasterAPI      = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/branches/master"
+	forgejoReleasesTagAPI = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/releases/tags/"
+	forgejoReleasesPage   = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/releases"
+	forgejoCommitsPage    = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/commits/branch/master"
 )
 
 type updateInfo struct {
@@ -728,13 +728,20 @@ func checkForUpdates(state *appState) {
 				info.masterCommitSHA != info.tagCommitSHA
 
 			if patchesAvailable {
-				short := info.masterCommitSHA
-				if len(short) > 7 {
-					short = short[:7]
+				currentShort := buildCommit
+				if len(currentShort) > 7 {
+					currentShort = currentShort[:7]
+				}
+				if currentShort == "" {
+					currentShort = "unknown"
+				}
+				newShort := info.masterCommitSHA
+				if len(newShort) > 7 {
+					newShort = newShort[:7]
 				}
 				msg := fmt.Sprintf(
-					"You are on %s (the latest release tag).\n\nNewer commits are available on master (latest: %s).\n\nClick 'Install Patches' to download the latest build and restart automatically.",
-					appVersion, short,
+					"You are on %s (the latest release tag).\n\nHash mismatch detected:\n  Current: %s\n  Latest:  %s\n\nClick 'Install Patches' to download the latest build and restart automatically.",
+					appVersion, currentShort, newShort,
 				)
 				lbl := widget.NewLabel(msg)
 				lbl.Wrapping = fyne.TextWrapWord
@@ -1339,7 +1346,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	// Language selection (persisted UI language)
 	langLabel := widget.NewLabel("Language")
 	langOptions := map[string]string{
-		"System":          "System",
+		"System":           "System",
 		"English (Canada)": "en-CA",
 		"French (Canada)":  "fr-CA",
 		"Inuktitut":        "iu-Cans",

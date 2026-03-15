@@ -641,7 +641,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 	interpHint.TextStyle = fyne.TextStyle{Italic: true}
 	interpHint.Wrapping = fyne.TextWrapWord
 
-	interpSection := widget.NewCard("Frame Interpolation (Minterpolate)", "", container.NewVBox(
+	interpSection := buildFilterBox("Frame Interpolation (Minterpolate)", container.NewVBox(
 		widget.NewLabel("Generate smoother motion by interpolating new frames"),
 		interpEnabledCheck,
 		container.NewGridWithColumns(2,
