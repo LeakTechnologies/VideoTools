@@ -1,5 +1,10 @@
 # VideoTools - Completed Features
 
+## Version 0.1.1-dev34 (in progress) - Localization Engine
+
+### Kickoff
+- [x] Bumped version markers to v0.1.1-dev34 (main.go, VERSION, FyneApp.toml).
+
 ## Version 0.1.1-dev33 (2026-03-15) - Native Authoring Foundation
 
 ### Native DVD Engine

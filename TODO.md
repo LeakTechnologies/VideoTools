@@ -4,10 +4,20 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev34 Scope
 
-- [ ] **Inuktitut language support** — Add Inuktitut (ᐃᓄᒃᔨᑎᑐᑦ) to Settings → Language dropdown.
-- [ ] **Inuktitut script option** — When Inuktitut selected, show sub-option to choose between Latin characters and Traditional Syllabics.
-- [ ] **Aboriginal Sans font** — Embed Aboriginal Sans font family (Regular, Bold, Italic, BoldItalic) for Inuktitut rendering in DVD menus and subtitles.
+### Localization Engine
+- [ ] **`internal/i18n/` package** — Typed `Strings` struct as the single source of all translatable keys; `SetLanguage()`, `T()`, fallback chain to en-CA; listener callbacks for dynamic UI refresh without restart.
+- [ ] **English (Canada) — en-CA** — 100% source-of-truth translation file.
+- [ ] **French (Canada) — fr-CA** — Initial translation pass.
+- [ ] **Inuktitut — iu** — Initial translation pass (Syllabics + Latin toggle).
+- [ ] **Language selector in Settings** — Dropdown to switch language; change takes effect immediately.
+- [ ] **Inuktitut script option** — Sub-option to choose between Traditional Syllabics (ᐃᓄᒃᑎᑐᑦ) and Latin when Inuktitut is selected.
+- [ ] **Aboriginal Sans font embedded** — Aboriginal Sans Regular/Bold/Italic/BoldItalic embedded for UCAS-script language rendering.
+- [ ] **README translation table** — Status table in README showing per-language completion percentage (manually maintained).
+
+### Disc Authoring
 - [ ] **Native Disc Authoring integration** (Phase 5) — Complete integration with Author/Rip modules (Blu-ray toggle, UDF reader).
+
+### Ongoing
 - [ ] **Root folder hygiene** (issue #22) — Continue extracting `package main` files to `internal/app/modules/`.
 - [ ] **Drag and drop into Convert** — Fix files dragged onto Convert module drop zone.
 - [ ] **Linux CI build optimization** — Consider pre-built container image.
