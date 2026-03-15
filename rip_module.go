@@ -449,11 +449,12 @@ func resolveVideoTSPath(path string) (string, func(), error) {
 	}
 	if strings.HasSuffix(strings.ToLower(path), ".iso") {
 		logging.Info(logging.CatDVD, "Using native Go UDF reader for extraction: %s", path)
-		
+
 		tempDir, err := os.MkdirTemp(utils.TempDir(), "videotools-iso-")
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to create temp dir: %w", err)
 		}
+		var cleanup func()
 		cleanup = func() {
 			_ = os.RemoveAll(tempDir)
 		}
