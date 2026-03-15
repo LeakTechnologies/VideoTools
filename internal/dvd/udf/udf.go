@@ -445,7 +445,7 @@ func (uw *Writer) writeDirectoryData(n *FileNode) error {
 	offset := 0
 
 	for _, child := range n.Children {
-		fid := FileIdentifierDescriptor{
+		_ = FileIdentifierDescriptor{
 			FileVersionNumber:      1,
 			LengthOfFileIdentifier: uint8(len(child.Name)),
 			ICB: LongAd{

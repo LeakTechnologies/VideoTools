@@ -33,7 +33,6 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/udf"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/vob"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -731,6 +730,30 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		}
 		regionSelect.Refresh()
 		discSizeSelect.Refresh()
+	}
+
+	outputType := widget.NewSelect([]string{"ISO Image", "DVD (VIDEO_TS)"}, func(value string) {
+		if value == "ISO Image" {
+			state.authorOutputType = "iso"
+		} else {
+			state.authorOutputType = "dvd"
+		}
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	})
+
+	aspectSelect := widget.NewSelect([]string{"AUTO", "4:3", "16:9"}, func(value string) {
+		state.authorAspectRatio = value
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
+	})
+
+	titleEntry := widget.NewEntry()
+	titleEntry.SetPlaceHolder("Disc title...")
+	titleEntry.OnChanged = func(value string) {
+		state.authorTitle = value
+		state.updateAuthorSummary()
+		state.persistAuthorConfig()
 	}
 
 	targetType := widget.NewSelect([]string{"DVD-Video", "Blu-ray Disc"}, func(value string) {
