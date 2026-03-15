@@ -1311,28 +1311,25 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 
 	visibilityItems := []fyne.CanvasObject{showUpscale}
 
-	// Disc modules (Author, Rip, Blu-ray) are unavailable on Windows — hide their toggles.
-	if runtime.GOOS != "windows" {
-		showAuthor := widget.NewCheck("Show Author module", func(checked bool) {
-			state.convert.ShowAuthor = checked
-			state.persistConvertConfig()
-		})
-		showAuthor.SetChecked(state.convert.ShowAuthor)
+	showAuthor := widget.NewCheck("Show Author module", func(checked bool) {
+		state.convert.ShowAuthor = checked
+		state.persistConvertConfig()
+	})
+	showAuthor.SetChecked(state.convert.ShowAuthor)
 
-		showRip := widget.NewCheck("Show Rip module", func(checked bool) {
-			state.convert.ShowRip = checked
-			state.persistConvertConfig()
-		})
-		showRip.SetChecked(state.convert.ShowRip)
+	showRip := widget.NewCheck("Show Rip module", func(checked bool) {
+		state.convert.ShowRip = checked
+		state.persistConvertConfig()
+	})
+	showRip.SetChecked(state.convert.ShowRip)
 
-		showBluRay := widget.NewCheck("Show Blu-ray module", func(checked bool) {
-			state.convert.ShowBluRay = checked
-			state.persistConvertConfig()
-		})
-		showBluRay.SetChecked(state.convert.ShowBluRay)
+	showBluRay := widget.NewCheck("Show Blu-ray module", func(checked bool) {
+		state.convert.ShowBluRay = checked
+		state.persistConvertConfig()
+	})
+	showBluRay.SetChecked(state.convert.ShowBluRay)
 
-		visibilityItems = append(visibilityItems, showAuthor, showRip, showBluRay)
-	}
+	visibilityItems = append(visibilityItems, showAuthor, showRip, showBluRay)
 
 	visibilityHint := widget.NewLabel("Module visibility applies on the main menu.")
 	visibilityHint.TextStyle = fyne.TextStyle{Italic: true}
