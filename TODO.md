@@ -33,6 +33,19 @@ Aboriginal Sans covers all Canadian Indigenous languages. Future language option
 - Dene
 - Oji-Creek
 - Dakota/Sioux
+
+## Future: Indigenous Language Whisper Support
+
+Whisper (especially whisper.cpp) supports many Canadian Indigenous languages. Combining:
+- **UI localization** (i18n we built)
+- **Whisper subtitle extraction** in Indigenous languages
+- **DVD authoring** with Indigenous language subtitles/menus
+
+This would be a powerful pipeline for Indigenous content creators.
+
+Known issues to fix:
+- [ ] **Whisper dependency** — Currently awkward to integrate; investigate embedding whisper.cpp or using a static binary
+- [ ] **Whisper in Dependencies menu** — Not working properly or very difficult to start
 - Haida
 - Tlingit
 
