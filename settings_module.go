@@ -1233,6 +1233,9 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	langSelect := widget.NewSelect(langNames, func(selected string) {
 		for i, name := range langNames {
 			if name == selected {
+				if langCodes[i] == i18n.CurrentCode() {
+					return // programmatic init — no change needed
+				}
 				i18n.SetLanguage(langCodes[i])
 				persistLocale(langCodes[i], i18n.CurrentScript())
 				updateScriptSelect()
