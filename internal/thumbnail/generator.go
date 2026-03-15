@@ -517,7 +517,7 @@ func (g *Generator) buildMetadataFilter(
 	// Build the composite filter
 	baseFilter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=20:%s:x=10:y=12,"+
+			"drawtext=text='%s':fontcolor=0x4CE870:fontsize=20:%s:x=10:y=12,"+
 			"drawtext=text='%s':fontcolor=white:fontsize=16:%s:x=10:y=50,"+
 			"drawtext=text='%s':fontcolor=white:fontsize=16:%s:x=10:y=82",
 		selectFilter,
