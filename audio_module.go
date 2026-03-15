@@ -12,12 +12,9 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/audio"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -54,44 +51,41 @@ func saveAudioConfig(cfg audioConfig) error {
 }
 
 func buildAudioView(state *appState) fyne.CanvasObject {
-	audioColor := utils.MustHex("#FF8F00") // Dark Amber for audio
-
-	// Top bar with back button
-	backBtn := widget.NewButton("< AUDIO", func() {
-		state.showMainMenu()
-	})
-	backBtn.Importance = widget.LowImportance
-
-	topBar := ui.TintedBar(audioColor, container.NewHBox(backBtn, layout.NewSpacer()))
-
-	// Left panel - File selection and track list
-	leftPanel := buildAudioLeftPanel(state)
-
-	// Right panel - Extraction settings
-	rightPanel := buildAudioRightPanel(state)
-
-	// Main content split
-	mainSplit := container.New(&fixedHSplitLayout{ratio: 0.5}, leftPanel, rightPanel)
-
-	// Action buttons
-	extractBtn := widget.NewButton("Extract Now", func() {
-		state.startAudioExtraction(false)
-	})
-	extractBtn.Importance = widget.HighImportance
-
-	queueBtn := widget.NewButton("Add to Queue", func() {
-		state.startAudioExtraction(true)
-	})
-
-	actionBar := container.NewHBox(
-		layout.NewSpacer(),
-		extractBtn,
-		queueBtn,
-	)
-
-	bottomBar := moduleFooter(audioColor, actionBar, state.statsBar)
-
-	return container.NewBorder(topBar, bottomBar, nil, nil, mainSplit)
+	opts := audio.Options{
+		Window:                     state.window,
+		BatchMode:                  state.audioBatchMode,
+		OutputFormat:               state.audioOutputFormat,
+		Quality:                    state.audioQuality,
+		Bitrate:                    state.audioBitrate,
+		Normalize:                  state.audioNormalize,
+		OutputDir:                  state.audioOutputDir,
+		NormTargetLUFS:             state.audioNormTargetLUFS,
+		NormTruePeak:               state.audioNormTruePeak,
+		OnShowMainMenu:             func() { state.showMainMenu() },
+		OnRefreshView:              func() { state.refreshAudioView() },
+		OnUpdateBatchFilesList:     func() { state.updateAudioBatchFilesList() },
+		OnUpdateBitrateVisibility:  func() { state.updateAudioBitrateVisibility() },
+		OnUpdateBitrateFromQuality: func() { state.updateAudioBitrateFromQuality() },
+		OnUpdateNormVisibility:     func() { state.updateNormalizationVisibility() },
+		OnPersistConfig:            func() { state.persistAudioConfig() },
+		OnLoadFile:                 func(path string) { state.loadAudioFile(path) },
+		OnAddBatchFile:             func(path string) { state.addAudioBatchFile(path) },
+		OnClearBatchFiles:          func() { state.audioBatchFiles = nil },
+		OnStartExtraction:          func(queue bool) { state.startAudioExtraction(queue) },
+		OnDroppedFiles: func(paths []fyne.URI) {
+			if len(paths) > 0 {
+				if state.audioBatchMode {
+					for _, item := range paths {
+						state.addAudioBatchFile(item.Path())
+					}
+				} else {
+					state.loadAudioFile(paths[0].Path())
+				}
+			}
+		},
+		OnGetStatsBar: func() fyne.CanvasObject { return state.statsBar },
+	}
+	return audio.BuildView(opts)
 }
 
 func buildAudioLeftPanel(state *appState) fyne.CanvasObject {
