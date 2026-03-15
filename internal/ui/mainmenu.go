@@ -126,24 +126,32 @@ func BuildMainMenu(titleText string, modules []ModuleInfo, onModuleClick func(st
 		return container.NewGridWithColumns(tileColumns, tiles...)
 	}
 
+	// hasAny returns true if at least one of the given IDs is present in moduleMap.
+	hasAny := func(ids ...string) bool {
+		for _, id := range ids {
+			if _, ok := moduleMap[id]; ok {
+				return true
+			}
+		}
+		return false
+	}
+
 	// Build rows with category labels above tiles
 	var rows []fyne.CanvasObject
 
-	// Convert section
-	rows = append(rows, makeCatLabel("Convert"))
-	rows = append(rows, buildGrid("convert", "merge", "trim", "filters", "audio", "subtitles"))
+	// addSection appends a category label + grid only when at least one tile is visible.
+	addSection := func(label string, ids ...string) {
+		if !hasAny(ids...) {
+			return
+		}
+		rows = append(rows, makeCatLabel(label))
+		rows = append(rows, buildGrid(ids...))
+	}
 
-	// Inspect section
-	rows = append(rows, makeCatLabel("Inspect"))
-	rows = append(rows, buildGrid("compare", "inspect", "upscale"))
-
-	// Disc section
-	rows = append(rows, makeCatLabel("Disc"))
-	rows = append(rows, buildGrid("author", "rip", "bluray"))
-
-	// Playback section
-	rows = append(rows, makeCatLabel("Playback"))
-	rows = append(rows, buildGrid("player", "thumbnail", "settings"))
+	addSection("Convert", "convert", "merge", "trim", "filters", "audio", "subtitles")
+	addSection("Inspect", "compare", "inspect", "upscale")
+	addSection("Disc", "author", "rip", "bluray")
+	addSection("Playback", "player", "thumbnail", "settings")
 
 	gridBox := container.NewVBox(rows...)
 

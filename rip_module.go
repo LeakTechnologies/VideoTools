@@ -19,6 +19,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/udf"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -225,6 +226,16 @@ func buildRipView(state *appState) fyne.CanvasObject {
 			if path != "" {
 				state.ripSourcePath = path
 				sourceEntry.SetText(path)
+
+				// Dynamic detection for ISO files
+				if strings.HasSuffix(strings.ToLower(path), ".iso") {
+					if discType, err := udf.IdentifyDiscFormat(path); err == nil {
+						logging.Info(logging.CatDVD, "User dropped ISO: detected as %s", discType)
+						// In the future, we can adjust default settings or 
+						// title selection based on discType here.
+					}
+				}
+
 				state.ripOutputPath = defaultRipOutputPath(path, state.ripFormat)
 				outputEntry.SetText(state.ripOutputPath)
 			}
