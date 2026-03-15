@@ -6392,6 +6392,7 @@ func runGUI() {
 		ui.SetIconsFS(subIconsFS)
 	}
 	ui.SetMonoFontData(ibmPlexMonoRegular, ibmPlexMonoItalic, ibmPlexMonoBold, ibmPlexMonoBoldItalic)
+	ui.SetAboriginalFontData(aboriginalSansRegular, aboriginalSansItalic, aboriginalSansBold, aboriginalSansBoldItalic)
 
 	a.Settings().SetTheme(&ui.MonoTheme{})
 

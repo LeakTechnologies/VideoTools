@@ -448,13 +448,8 @@ func resolveVideoTSPath(path string) (string, func(), error) {
 		return "", nil, fmt.Errorf("no VIDEO_TS folder found in %s", path)
 	}
 	if strings.HasSuffix(strings.ToLower(path), ".iso") {
-		// Try mount-based extraction first (works for UDF ISOs)
-		videoTS, cleanup, err := tryMountISO(path)
-		if err == nil {
-			return videoTS, cleanup, nil
-		}
-
-		// Fall back to extraction tools
+		logging.Info(logging.CatDVD, "Using native Go UDF reader for extraction: %s", path)
+		
 		tempDir, err := os.MkdirTemp(utils.TempDir(), "videotools-iso-")
 		if err != nil {
 			return "", nil, fmt.Errorf("failed to create temp dir: %w", err)
@@ -462,21 +457,34 @@ func resolveVideoTSPath(path string) (string, func(), error) {
 		cleanup = func() {
 			_ = os.RemoveAll(tempDir)
 		}
-		tool, args, err := buildISOExtractCommand(path, tempDir)
+
+		f, err := os.Open(path)
 		if err != nil {
 			cleanup()
 			return "", nil, err
 		}
-		if err := runCommandWithLogger(context.Background(), tool, args, nil); err != nil {
-			cleanup()
-			return "", nil, err
+		defer f.Close()
+
+		reader := udf.NewReader(f)
+		
+		// Determine target directory (VIDEO_TS for DVD, BDMV for Blu-ray)
+		targetDir := "VIDEO_TS"
+		discType, err := reader.DetectDiscType()
+		if err == nil && discType == udf.DiscTypeBluRay {
+			targetDir = "BDMV"
 		}
-		videoTS = filepath.Join(tempDir, "VIDEO_TS")
+
+		if err := reader.ExtractDirectory(targetDir, tempDir); err != nil {
+			cleanup()
+			return "", nil, fmt.Errorf("native extraction failed: %w", err)
+		}
+
+		videoTS := filepath.Join(tempDir, targetDir)
 		if info, err := os.Stat(videoTS); err == nil && info.IsDir() {
 			return videoTS, cleanup, nil
 		}
 		cleanup()
-		return "", nil, fmt.Errorf("VIDEO_TS not found in ISO")
+		return "", nil, fmt.Errorf("%s not found in ISO", targetDir)
 	}
 	return "", nil, fmt.Errorf("unsupported source: %s", path)
 }

@@ -2,7 +2,6 @@ package audio
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 
@@ -46,9 +45,6 @@ type Options struct {
 	TrackInfo            []TrackInfo
 	IsBusy               bool
 
-	// Colors
-	ModuleColor string
-
 	// Callbacks
 	OnShowMainMenu             func()
 	OnRefreshView              func()
@@ -68,18 +64,6 @@ type Options struct {
 	OnGetStatsBar              func() fyne.CanvasObject
 }
 
-type AudioConfig struct {
-	OutputFormat   string
-	Quality        string
-	Bitrate        string
-	Normalize      bool
-	NormTargetLUFS float64
-	NormTruePeak   float64
-	OutputDir      string
-	BatchMode      bool
-	BatchFiles     []string
-}
-
 type TrackInfo struct {
 	Index      int
 	Codec      string
@@ -92,11 +76,6 @@ type TrackInfo struct {
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
-	audioColor := opts.ModuleColor
-	if audioColor == "" {
-		audioColor = "#FF8F00"
-	}
-
 	backBtn := widget.NewButton("< AUDIO", func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
@@ -104,7 +83,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	backBtn.Importance = widget.LowImportance
 
-	topBar := ui.TintedBar(audioColor, container.NewHBox(backBtn, layout.NewSpacer()))
+	topBar := ui.TintedBar(utils.MustHex("#FF8F00"), container.NewHBox(backBtn, layout.NewSpacer()))
 
 	leftPanel := buildAudioLeftPanel(opts)
 	rightPanel := buildAudioRightPanel(opts)
@@ -130,12 +109,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 		queueBtn,
 	)
 
-	statsBar := opts.OnGetStatsBar()
-	if statsBar == nil {
-		statsBar = widget.NewLabel("")
+	statsBar := widget.NewLabel("")
+	if opts.OnGetStatsBar != nil {
+		statsBar = opts.OnGetStatsBar().(*widget.Label)
+		if statsBar == nil {
+			statsBar = widget.NewLabel("")
+		}
 	}
 
-	bottomBar := ui.ModuleFooter(audioColor, actionBar, statsBar)
+	bottomBar := ui.ModuleFooter(utils.MustHex("#FF8F00"), actionBar, statsBar)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, mainSplit)
 }
@@ -374,10 +356,10 @@ func (f *fixedHSplitLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) 
 	}
 	width := float32(size.Width)
 	leftWidth := float32(int(width * f.ratio))
-	objects[0].Move(fyne.NewRect(0, 0, leftWidth, size.Height).Size())
-	objects[0].Resize(fyne.NewRect(0, 0, leftWidth, size.Height).Size())
-	objects[1].Move(fyne.NewRect(leftWidth, 0, width-leftWidth, size.Height).Size())
-	objects[1].Resize(fyne.NewRect(leftWidth, 0, width-leftWidth, size.Height).Size())
+	objects[0].Move(fyne.NewPos(0, 0))
+	objects[0].Resize(fyne.NewSize(leftWidth, size.Height))
+	objects[1].Move(fyne.NewPos(leftWidth, 0))
+	objects[1].Resize(fyne.NewSize(size.Width-leftWidth, size.Height))
 }
 
 func (f *fixedHSplitLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
@@ -387,33 +369,4 @@ func (f *fixedHSplitLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	min1 := objects[0].MinSize()
 	min2 := objects[1].MinSize()
 	return fyne.NewSize(min1.Width+min2.Width, max(min1.Height, min2.Height))
-}
-
-type AudioConfig struct {
-	OutputFormat   string
-	Quality        string
-	Bitrate        string
-	Normalize      bool
-	NormTargetLUFS float64
-	NormTruePeak   float64
-	OutputDir      string
-	BatchMode      bool
-	BatchFiles     []string
-}
-
-type TrackInfo struct {
-	Index      int
-	Codec      string
-	Channels   int
-	SampleRate int
-	Bitrate    int
-	Language   string
-	Title      string
-	Default    bool
-}
-
-func BuildView(opts Options) fyne.CanvasObject {
-	// Implementation will go here
-	// This is a placeholder for the refactoring
-	return nil
 }
