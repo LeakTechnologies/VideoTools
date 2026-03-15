@@ -12,12 +12,13 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/audio"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
@@ -62,9 +63,9 @@ func buildAudioView(state *appState) fyne.CanvasObject {
 		NormTargetLUFS:             state.audioNormTargetLUFS,
 		NormTruePeak:               state.audioNormTruePeak,
 		OnShowMainMenu:             func() { state.showMainMenu() },
-		OnRefreshView:              func() { state.refreshAudioView() },
-		OnUpdateBatchFilesList:     func() { state.updateAudioBatchFilesList() },
-		OnUpdateBitrateVisibility:  func() { state.updateAudioBitrateVisibility() },
+		OnRefreshView:              func() {},
+		OnUpdateBatchFilesList:     func() {},
+		OnUpdateBitrateVisibility:  func() {},
 		OnUpdateBitrateFromQuality: func() { state.updateAudioBitrateFromQuality() },
 		OnUpdateNormVisibility:     func() { state.updateNormalizationVisibility() },
 		OnPersistConfig:            func() { state.persistAudioConfig() },
@@ -86,272 +87,6 @@ func buildAudioView(state *appState) fyne.CanvasObject {
 		OnGetStatsBar: func() fyne.CanvasObject { return state.statsBar },
 	}
 	return audio.BuildView(opts)
-}
-
-func buildAudioLeftPanel(state *appState) fyne.CanvasObject {
-	// Drop zone for video files
-	dropLabel := widget.NewLabel("Drop video file here or click to browse")
-	dropLabel.Alignment = fyne.TextAlignCenter
-
-	dropZone := ui.NewDroppable(dropLabel, func(items []fyne.URI) {
-		if len(items) > 0 {
-			if state.audioBatchMode {
-				// Add all dropped files to batch
-				for _, item := range items {
-					state.addAudioBatchFile(item.Path())
-				}
-			} else {
-				state.loadAudioFile(items[0].Path())
-			}
-		}
-	})
-
-	// Wrap drop zone in container with minimum size
-	dropContainer := container.NewPadded(dropZone)
-
-	browseBtn := widget.NewButton("Browse for Video", func() {
-		if state.audioBatchMode {
-			// Browse for multiple files
-			dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
-				if err != nil || uc == nil {
-					return
-				}
-				defer uc.Close()
-				state.addAudioBatchFile(uc.URI().Path())
-			}, state.window)
-		} else {
-			dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
-				if err != nil || uc == nil {
-					return
-				}
-				defer uc.Close()
-				state.loadAudioFile(uc.URI().Path())
-			}, state.window)
-		}
-	})
-
-	// File info display
-	fileInfoLabel := widget.NewLabel("No file loaded")
-	fileInfoLabel.Wrapping = fyne.TextWrapWord
-	state.audioFileInfoLabel = fileInfoLabel
-
-	// Track list
-	trackListLabel := widget.NewLabel("Audio Tracks:")
-	trackListLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	trackListContainer := container.NewVBox()
-	state.audioTrackListContainer = trackListContainer
-
-	// Select all/deselect all buttons
-	selectAllBtn := widget.NewButton("Select All", func() {
-		state.selectAllAudioTracks(true)
-	})
-	selectAllBtn.Importance = widget.LowImportance
-
-	deselectAllBtn := widget.NewButton("Deselect All", func() {
-		state.selectAllAudioTracks(false)
-	})
-	deselectAllBtn.Importance = widget.LowImportance
-
-	trackControls := container.NewHBox(selectAllBtn, deselectAllBtn)
-
-	// Batch mode toggle
-	batchCheck := widget.NewCheck("Batch Mode (multiple videos)", func(checked bool) {
-		state.audioBatchMode = checked
-		state.refreshAudioView()
-	})
-
-	// Batch files list
-	batchFilesLabel := widget.NewLabel("Batch Files:")
-	batchFilesLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	batchListContainer := container.NewVBox()
-	state.audioBatchListContainer = batchListContainer
-
-	clearBatchBtn := widget.NewButton("Clear All", func() {
-		state.audioBatchFiles = nil
-		state.updateAudioBatchFilesList()
-	})
-	clearBatchBtn.Importance = widget.DangerImportance
-
-	batchContent := container.NewVBox(
-		dropContainer,
-		browseBtn,
-		widget.NewSeparator(),
-		batchFilesLabel,
-		container.NewVScroll(batchListContainer),
-		clearBatchBtn,
-		widget.NewSeparator(),
-		batchCheck,
-	)
-
-	singleContent := container.NewVBox(
-		dropContainer,
-		browseBtn,
-		widget.NewSeparator(),
-		fileInfoLabel,
-		widget.NewSeparator(),
-		trackListLabel,
-		trackControls,
-		container.NewVScroll(trackListContainer),
-		widget.NewSeparator(),
-		batchCheck,
-	)
-
-	// Choose which content to show based on batch mode
-	leftContent := container.NewMax()
-	if state.audioBatchMode {
-		leftContent.Objects = []fyne.CanvasObject{batchContent}
-	} else {
-		leftContent.Objects = []fyne.CanvasObject{singleContent}
-	}
-	state.audioLeftPanel = leftContent
-	state.audioSingleContent = singleContent
-	state.audioBatchContent = batchContent
-
-	return leftContent
-}
-
-func buildAudioRightPanel(state *appState) fyne.CanvasObject {
-	// Output format selection
-	formatLabel := widget.NewLabel("Output Format:")
-	formatLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	formatRadio := widget.NewRadioGroup([]string{"MP3", "AAC", "FLAC", "WAV"}, func(value string) {
-		state.audioOutputFormat = value
-		state.updateAudioBitrateVisibility()
-		state.persistAudioConfig()
-	})
-	formatRadio.Horizontal = true
-
-	// Quality preset
-	qualityLabel := widget.NewLabel("Quality Preset:")
-	qualityLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	qualitySelect := widget.NewSelect([]string{"Low", "Medium", "High", "Lossless"}, func(value string) {
-		state.audioQuality = value
-		state.updateAudioBitrateFromQuality()
-		state.persistAudioConfig()
-	})
-
-	// Bitrate entry
-	bitrateLabel := widget.NewLabel("Bitrate:")
-	bitrateEntry := widget.NewEntry()
-	bitrateEntry.SetText(state.audioBitrate)
-	bitrateEntry.OnChanged = func(value string) {
-		state.audioBitrate = value
-		state.persistAudioConfig()
-	}
-	state.audioBitrateEntry = bitrateEntry
-
-	// Set initial quality after bitrate entry is initialized
-	qualitySelect.SetSelected(state.audioQuality)
-
-	// Set initial format after bitrate entry is initialized
-	formatRadio.SetSelected(state.audioOutputFormat)
-
-	// Normalization section
-	normalizeCheck := widget.NewCheck("Apply EBU R128 Normalization", func(checked bool) {
-		state.audioNormalize = checked
-		state.updateNormalizationVisibility()
-		state.persistAudioConfig()
-	})
-	normalizeCheck.SetChecked(state.audioNormalize)
-
-	// Normalization options
-	lufsLabel := widget.NewLabel(fmt.Sprintf("Target LUFS: %.1f", state.audioNormTargetLUFS))
-	lufsSlider := widget.NewSlider(-30, -10)
-	lufsSlider.SetValue(state.audioNormTargetLUFS)
-	lufsSlider.Step = 0.5
-	lufsSlider.OnChanged = func(value float64) {
-		state.audioNormTargetLUFS = value
-		lufsLabel.SetText(fmt.Sprintf("Target LUFS: %.1f", value))
-		state.persistAudioConfig()
-	}
-
-	peakLabel := widget.NewLabel(fmt.Sprintf("True Peak: %.1f dB", state.audioNormTruePeak))
-	peakSlider := widget.NewSlider(-3, 0)
-	peakSlider.SetValue(state.audioNormTruePeak)
-	peakSlider.Step = 0.1
-	peakSlider.OnChanged = func(value float64) {
-		state.audioNormTruePeak = value
-		peakLabel.SetText(fmt.Sprintf("True Peak: %.1f dB", value))
-		state.persistAudioConfig()
-	}
-
-	normOptions := container.NewVBox(
-		lufsLabel,
-		lufsSlider,
-		peakLabel,
-		peakSlider,
-	)
-	state.audioNormOptionsContainer = normOptions
-
-	// Output directory
-	outputDirLabel := widget.NewLabel("Output Directory:")
-	outputDirLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	outputDirEntry := widget.NewEntry()
-	if state.audioOutputDir == "" {
-		home, _ := os.UserHomeDir()
-		state.audioOutputDir = filepath.Join(home, "Music", "VideoTools", "AudioExtract")
-	}
-	outputDirEntry.SetText(state.audioOutputDir)
-	outputDirEntry.OnChanged = func(value string) {
-		state.audioOutputDir = value
-		state.persistAudioConfig()
-	}
-
-	outputDirBrowseBtn := widget.NewButton("Browse", func() {
-		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
-			if err != nil || uri == nil {
-				return
-			}
-			state.audioOutputDir = uri.Path()
-			outputDirEntry.SetText(uri.Path())
-			state.persistAudioConfig()
-		}, state.window)
-	})
-
-	outputDirRow := container.NewBorder(nil, nil, nil, outputDirBrowseBtn, outputDirEntry)
-
-	// Status and progress
-	statusLabel := widget.NewLabel("Ready")
-	state.audioStatusLabel = statusLabel
-
-	progressBar := widget.NewProgressBar()
-	progressBar.Hide()
-	state.audioProgressBar = progressBar
-
-	// Helper to build boxed sections matching Convert module style
-	gridColor := utils.MustHex("#2A3A52")
-	navyBlue := utils.MustHex("#191F35")
-
-	buildAudioBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
-		bg := canvas.NewRectangle(navyBlue)
-		bg.CornerRadius = 10
-		bg.StrokeColor = gridColor
-		bg.StrokeWidth = 1
-		body := container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
-			content,
-		)
-		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, container.NewPadded(body))
-		return container.NewMax(layers...)
-	}
-
-	rightContent := container.NewVBox(
-		buildAudioBox("Format", container.NewVBox(formatLabel, formatRadio)),
-		buildAudioBox("Quality", container.NewVBox(qualityLabel, qualitySelect)),
-		buildAudioBox("Bitrate", container.NewVBox(bitrateLabel, bitrateEntry)),
-		buildAudioBox("Normalization", container.NewVBox(normalizeCheck, normOptions)),
-		buildAudioBox("Output", container.NewVBox(outputDirLabel, outputDirRow, statusLabel, progressBar)),
-	)
-
-	scrollable := ui.NewFastVScroll(rightContent)
-	return scrollable
 }
 
 // Helper functions for audio module state
