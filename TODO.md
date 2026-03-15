@@ -109,12 +109,12 @@ Items currently being worked on by other agents — update when assignments chan
 | opencode | Phase 3 modularisation — Inspect, Settings, Queue         | In progress |
 | gemini   | Native disc authoring / DVD conversion (issue #21) + Wiki | In progress |
 
-## Road to v0.2.0 — First Public Stable Release
+## Road to v0.1.2 — First Public Stable Release
 
 The dev builds (nightly iteration) live on `git.leaktechnologies.dev` and the Codeberg mirror.
-GitHub is reserved for **stable public releases** only, starting at v0.2.0.
+GitHub is reserved for **stable public releases** only, starting at v0.1.2.
 
-### Stability Criteria (must all be green before tagging v0.2.0)
+### Stability Criteria (must all be green before tagging v0.1.2)
 
 - [ ] **CI green on both platforms** — Linux and Windows package builds pass consistently.
 - [ ] **Root folder hygiene complete** — All modules extracted; root has only the files that must live there (embed files, main.go, platform shims).
