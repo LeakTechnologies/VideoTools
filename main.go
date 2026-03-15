@@ -42,7 +42,6 @@ import (
 	convertmodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
@@ -6397,17 +6396,6 @@ func runGUI() {
 	}
 	ui.SetMonoFontData(ibmPlexMonoRegular, ibmPlexMonoItalic, ibmPlexMonoBold, ibmPlexMonoBoldItalic)
 
-	// Load language preference from config and initialize i18n
-	if s.convert.Language != "" {
-		i18n.SetLanguageWithScript(s.convert.Language, i18n.ScriptVariant(s.convert.LanguageScript))
-	}
-
-	// Register i18n listener to refresh UI on language change
-	i18n.RegisterListener(func() {
-		a.Driver().DoFromGoroutine(func() {
-			s.showMainMenu()
-		})
-	})
 	a.Settings().SetTheme(&ui.MonoTheme{})
 
 	// Load app icon from embedded logo assets
@@ -6482,6 +6470,8 @@ func runGUI() {
 		uiTheme:              "Dark",
 		autoPreview:          true,
 	}
+
+	initLocale(a, state.showMainMenu)
 
 	if rec, err := loadConvertRecovery(); err == nil && rec.Active {
 		msg := fmt.Sprintf("A conversion was running when VideoTools last closed.\n\nInput: %s\nOutput: %s", rec.Input, rec.Output)

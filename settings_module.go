@@ -1222,8 +1222,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 					script = i18n.ScriptLatin
 				}
 				i18n.SetLanguageWithScript("iu", script)
-				state.convert.LanguageScript = string(script)
-				state.persistConvertConfig()
+				persistLocale("iu", script)
 			}
 		} else {
 			scriptLabel.Hide()
