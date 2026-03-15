@@ -6,6 +6,7 @@
 - [x] **Native DVD Engine structure** — Created `internal/dvd/` modular package structure (`udf`, `ifo`, `vob`, `spu`).
 - [x] **MPEG-PS / VOB Muxer Foundation** — Implemented MPEG-PS packetization, Pack/System/PES headers, and DVD-specific Navigation Pack (NAV_PCK) structures.
 - [x] **IFO/BUP Structure Generation** — Implemented binary serialization for VTSI and VMGI tables, and created `IFOBuilder` for automatic IFO/BUP and backup file creation.
+- [x] **Authoring Architecture Consolidation** — Unified DVD and Blu-ray workflows into the core Author and Rip modules. Removed the redundant standalone Blu-ray module to streamline UI/UX.
 
 ## Version 0.1.1-dev32 (2026-03-12) - UI Polish and Fixes
 

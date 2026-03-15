@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -30,7 +31,6 @@ func (s *appState) showCompareFullscreen() {
 	s.active = "compare-fullscreen"
 	s.setContent(buildCompareFullscreenView(s))
 }
-
 
 func buildCompareView(state *appState) fyne.CanvasObject {
 	compareColor := moduleColor("compare")
@@ -230,6 +230,25 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		state.showCompareView()
 	})
 	clearAllBtn.Importance = widget.LowImportance
+
+	// Helper to build boxed sections matching Convert module style
+	gridColor := utils.MustHex("#2A3A52")
+	navyBlue := utils.MustHex("#191F35")
+
+	buildCompareBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
+		bg := canvas.NewRectangle(navyBlue)
+		bg.CornerRadius = 10
+		bg.StrokeColor = gridColor
+		bg.StrokeWidth = 1
+		body := container.NewVBox(
+			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewSeparator(),
+			content,
+		)
+		layers := ui.NoisyBackgroundObjects(bg)
+		layers = append(layers, container.NewPadded(body))
+		return container.NewMax(layers...)
+	}
 
 	instructionsRow := container.NewBorder(nil, nil, nil, container.NewHBox(fullscreenBtn, copyComparisonBtn, clearAllBtn), instructions)
 
@@ -504,6 +523,10 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	file2InfoScroll := container.NewVScroll(file2Info)
 	// Avoid rigid min sizes so window snapping works across modules.
 
+	// Wrap file info in boxed sections
+	file1MetaBox := buildCompareBox("File 1 Info", file1InfoScroll)
+	file2MetaBox := buildCompareBox("File 2 Info", file2InfoScroll)
+
 	file1PlayerRow := container.NewVBox(file1VideoContainer, widget.NewSeparator())
 	file2PlayerRow := container.NewVBox(file2VideoContainer, widget.NewSeparator())
 
@@ -515,7 +538,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			file1PlayerRow,
 		),
 		nil, nil, nil,
-		file1InfoScroll,
+		file1MetaBox,
 	)
 
 	// File 2 column: header, video player, metadata (using Border to make metadata expand)
@@ -526,7 +549,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			file2PlayerRow,
 		),
 		nil, nil, nil,
-		file2InfoScroll,
+		file2MetaBox,
 	)
 
 	togglePlayerBtn.OnTapped = func() {
@@ -551,7 +574,6 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
-
 
 // buildCompareFullscreenView creates fullscreen side-by-side comparison with synchronized controls
 func buildCompareFullscreenView(state *appState) fyne.CanvasObject {

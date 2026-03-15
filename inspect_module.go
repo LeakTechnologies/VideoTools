@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -73,6 +74,25 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 	// Metadata text
 	metadataText := widget.NewLabel("No file loaded")
 	metadataText.Wrapping = fyne.TextWrapWord
+
+	// Helper to build boxed sections matching Convert module style
+	gridColor := utils.MustHex("#2A3A52")
+	navyBlue := utils.MustHex("#191F35")
+
+	buildInspectBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
+		bg := canvas.NewRectangle(navyBlue)
+		bg.CornerRadius = 10
+		bg.StrokeColor = gridColor
+		bg.StrokeWidth = 1
+		body := container.NewVBox(
+			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewSeparator(),
+			content,
+		)
+		layers := ui.NoisyBackgroundObjects(bg)
+		layers = append(layers, container.NewPadded(body))
+		return container.NewMax(layers...)
+	}
 
 	// Metadata scroll
 	metadataScroll := container.NewScroll(metadataText)
@@ -279,11 +299,7 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 		videoContainer,
 	)
 
-	rightColumn := container.NewBorder(
-		widget.NewLabel("Metadata:"),
-		nil, nil, nil,
-		metadataScroll,
-	)
+	rightColumn := buildInspectBox("Metadata", metadataScroll)
 
 	// Bottom bar with module color
 	bottomBar = moduleFooter(inspectColor, layout.NewSpacer(), state.statsBar)
