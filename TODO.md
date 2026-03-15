@@ -85,14 +85,60 @@ Items currently being worked on by other agents — update when assignments chan
 | opencode | Phase 3 modularisation — Inspect, Settings, Queue         | In progress |
 | gemini   | Native disc authoring / DVD conversion (issue #21) + Wiki | In progress |
 
-## Maintenance
+## Road to v0.2.0 — First Public Stable Release
 
-- [ ] **Root folder hygiene (issue #22)** — The project root currently has 27 `.go` files, only 3 of which legitimately belong there:
-  - **Must stay at root** (go:embed requires paths relative to the file): `main.go`, `icons_embed.go`, `logo_embed.go`
-  - **Platform-specific shims that can stay near main**: `update_windows.go`, `update_linux.go`, `platform.go`
-  - **Should move to `internal/app/modules/{module}/`** with thin root shims (following the `about`, `deps`, `mainmenu` pattern already established): `audio_module.go`, `author_module.go`, `author_dvd_functions.go`, `author_menu.go`, `compare_module.go`, `enhancement_module.go`, `filters_module.go`, `inspect_module.go`, `player_module.go`, `queue_module.go`, `rip_module.go`, `settings_module.go`, `subtitles_module.go`, `thumbnail_module.go`, `upscale_module.go`
-  - **Config/helpers to move**: `merge_config.go`, `naming_helpers.go`, `thumbnail_config.go`, `deps_dialog_module.go`
-  - **Approach**: Extract logic incrementally per module; keep `package main` shims at root until `appState` coupling is reduced enough to move the entry point to `cmd/videotools/`.
+The dev builds (nightly iteration) live on `git.leaktechnologies.dev` and the Codeberg mirror.
+GitHub is reserved for **stable public releases** only, starting at v0.2.0.
+
+### Stability Criteria (must all be green before tagging v0.2.0)
+
+- [ ] **CI green on both platforms** — Linux and Windows package builds pass consistently.
+- [ ] **Root folder hygiene complete** — All modules extracted; root has only the files that must live there (embed files, main.go, platform shims).
+- [ ] **main.go under control** — Core `appState` coupling reduced enough that `main.go` is a thin orchestrator, not a monolith.
+- [ ] **Cross-platform player** — Unified player backend working on Linux and Windows (unblocks Upscale live preview and Trim).
+- [ ] **Localization baseline** — English + French (Canada) shipped; translation percentage tracking in place; dynamic UI switching working.
+- [ ] **No critical known bugs** — Convert, Upscale, Thumbnail, Filters, Audio, and Subtitles modules all function correctly on both platforms.
+- [ ] **Drag and drop working** — Files dropped onto the Convert module are registered (issue carried from dev32).
+- [ ] **GitHub Actions workflow** — `.github/workflows/` produces release artifacts (Windows MSIX + Linux AppImage/deb) for the GitHub release page.
+- [ ] **Public README / release notes** — Codebase is presentable for public contributors.
+
+### Module Extraction Plan (issue #22) — ordered by priority
+
+Modules already properly extracted to `internal/app/modules/`:
+- [x] `about`, `convert`, `deps`, `mainmenu`
+
+Remaining root files to extract — largest first (each becomes a dev cycle task):
+
+| Priority | Root file(s) | Lines | Target |
+|----------|-------------|-------|--------|
+| 1 | `author_module.go`, `author_menu.go`, `author_dvd_functions.go` | ~5,800 | `internal/app/modules/author/` — after Gemini finishes Phase 5 |
+| 2 | `subtitles_module.go` | 1,782 | `internal/app/modules/subtitles/` |
+| 3 | `settings_module.go` | 1,381 | `internal/app/modules/settings/` — opencode in progress |
+| 4 | `audio_module.go` | 1,073 | `internal/app/modules/audio/` |
+| 5 | `upscale_module.go` | 993 | `internal/app/modules/upscale/` |
+| 6 | `rip_module.go` | 704 | `internal/app/modules/rip/` — pair with author extraction |
+| 7 | `filters_module.go` | 699 | `internal/app/modules/filters/` |
+| 8 | `compare_module.go` | 689 | `internal/app/modules/compare/` |
+| 9 | `thumbnail_module.go` | 676 | `internal/app/modules/thumbnail/` |
+| 10 | `queue_module.go` | 355 | `internal/app/modules/queue/` — opencode in progress |
+| 11 | `inspect_module.go` | 315 | `internal/app/modules/inspect/` — opencode in progress |
+| 12 | `player_module.go` | 113 | `internal/app/modules/player/` |
+| 13 | `enhancement_module.go` | 41 | `internal/app/modules/enhancement/` |
+| — | `thumbnail_config.go` | 45 | `internal/thumbnail/` |
+| — | `naming_helpers.go` | 62 | `internal/utils/` |
+| — | `merge_config.go` | 47 | `internal/app/` or `internal/convert/` |
+| — | `deps_dialog_module.go` | 19 | `internal/app/modules/deps/` |
+
+**Files that must stay at root** (`go:embed` path constraint):
+`main.go`, `fonts_embed.go`, `icons_embed.go`, `logo_embed.go`
+
+**Platform shims — fine at root:**
+`update_windows.go`, `update_linux.go`, `platform.go`
+
+**Approach**: Extract one or two modules per dev cycle. Each extraction follows the established pattern:
+logic moves to `internal/app/modules/{name}/`, a thin `package main` shim at root delegates to it, `appState` fields needed by the module are passed as parameters or callbacks.
+
+## Maintenance
 
 
 - [X] **About dialog cleanup**
