@@ -32,6 +32,7 @@ func init() {
 		f.Close()
 	}
 	thumbnail.SetFontData(ibmPlexMonoRegular)
+	thumbnail.SetBoldFontData(ibmPlexMonoBold)
 }
 
 func (s *appState) showThumbnailView() {
