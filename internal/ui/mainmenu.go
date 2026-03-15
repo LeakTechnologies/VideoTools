@@ -44,32 +44,57 @@ type HistoryEntry struct {
 	Progress    float64 // 0.0 to 1.0 for in-progress jobs
 }
 
+// MenuLabels holds all translatable strings used by BuildMainMenu.
+// Populated by the caller from i18n.T() so this package stays language-agnostic.
+type MenuLabels struct {
+	// Header buttons
+	Benchmark string
+	Results   string
+	Logs      string
+
+	// Queue tile prefix ("QUEUE")
+	Queue string
+
+	// Section headings
+	CategoryConvert  string
+	CategoryInspect  string
+	CategoryDisc     string
+	CategoryPlayback string
+
+	// History sidebar
+	HistoryTitle      string
+	HistoryInProgress string
+	HistoryCompleted  string
+	HistoryFailed     string
+	HistoryClearAll   string
+	HistoryNoEntries  string
+}
+
 // BuildMainMenu creates the main menu view with module tiles grouped by category
-func BuildMainMenu(titleText string, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onBenchmarkClick func(), onBenchmarkHistoryClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int, hasBenchmark bool) fyne.CanvasObject {
+func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onBenchmarkClick func(), onBenchmarkHistoryClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int, hasBenchmark bool) fyne.CanvasObject {
 	title := canvas.NewText(titleText, titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 20
 
-	queueTile := buildQueueTile(queueCompleted, queueTotal, queueColor, textColor, onQueueClick)
+	queueTile := buildQueueTile(labels.Queue, queueCompleted, queueTotal, queueColor, textColor, onQueueClick)
 
 	sidebarToggleBtn := widget.NewButton("☰", onToggleSidebar)
 	sidebarToggleBtn.Importance = widget.LowImportance
 
-	benchmarkBtn := widget.NewButton("Benchmark", onBenchmarkClick)
-	// Highlight the benchmark button if no benchmark has been run
+	benchmarkBtn := widget.NewButton(labels.Benchmark, onBenchmarkClick)
 	if !hasBenchmark {
 		benchmarkBtn.Importance = widget.HighImportance
 	} else {
 		benchmarkBtn.Importance = widget.LowImportance
 	}
 
-	viewResultsBtn := widget.NewButton("Results", onBenchmarkHistoryClick)
+	viewResultsBtn := widget.NewButton(labels.Results, onBenchmarkHistoryClick)
 	viewResultsBtn.Importance = widget.LowImportance
 
-	// Build header controls dynamically - only show logs button if callback is provided
+	// Build header controls — only show logs button if callback is provided
 	headerControls := []fyne.CanvasObject{sidebarToggleBtn}
 	if onLogsClick != nil {
-		logsBtn := widget.NewButton("Logs", onLogsClick)
+		logsBtn := widget.NewButton(labels.Logs, onLogsClick)
 		logsBtn.Importance = widget.LowImportance
 		headerControls = append(headerControls, logsBtn)
 	}
@@ -148,10 +173,10 @@ func BuildMainMenu(titleText string, modules []ModuleInfo, onModuleClick func(st
 		rows = append(rows, buildGrid(ids...))
 	}
 
-	addSection("Convert", "convert", "merge", "trim", "filters", "audio", "subtitles")
-	addSection("Inspect", "compare", "inspect", "upscale")
-	addSection("Disc", "author", "rip", "bluray")
-	addSection("Playback", "player", "thumbnail", "settings")
+	addSection(labels.CategoryConvert, "convert", "merge", "trim", "filters", "audio", "subtitles")
+	addSection(labels.CategoryInspect, "compare", "inspect", "upscale")
+	addSection(labels.CategoryDisc, "author", "rip", "bluray")
+	addSection(labels.CategoryPlayback, "player", "thumbnail", "settings")
 
 	gridBox := container.NewVBox(rows...)
 
@@ -178,12 +203,11 @@ func buildModuleTile(mod ModuleInfo, tapped func(), dropped func([]fyne.URI)) fy
 }
 
 // buildQueueTile creates the queue status tile
-func buildQueueTile(completed, total int, queueColor, textColor color.Color, onClick func()) fyne.CanvasObject {
+func buildQueueTile(label string, completed, total int, queueColor, textColor color.Color, onClick func()) fyne.CanvasObject {
 	rect := canvas.NewRectangle(queueColor)
 	rect.CornerRadius = 6
-	// rect.SetMinSize(fyne.NewSize(120, 40)) // Removed for flexible sizing
 
-	text := canvas.NewText(fmt.Sprintf("QUEUE: %d/%d", completed, total), textColor)
+	text := canvas.NewText(fmt.Sprintf("%s: %d/%d", label, completed, total), textColor)
 	text.Alignment = fyne.TextAlignCenter
 	text.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	text.TextSize = 14
@@ -207,6 +231,7 @@ func sortedKeys(m map[string][]fyne.CanvasObject) []string {
 
 // BuildHistorySidebar creates the history sidebar with tabs
 func BuildHistorySidebar(
+	labels MenuLabels,
 	entries []HistoryEntry,
 	activeJobs []HistoryEntry,
 	onEntryClick func(HistoryEntry),
@@ -227,15 +252,15 @@ func BuildHistorySidebar(
 	}
 
 	// Build lists
-	inProgressList := buildHistoryList(activeJobs, onEntryClick, nil, bgColor, textColor) // No delete for active jobs
-	completedList := buildHistoryList(completedEntries, onEntryClick, onEntryDelete, bgColor, textColor)
-	failedList := buildHistoryList(failedEntries, onEntryClick, onEntryDelete, bgColor, textColor)
+	inProgressList := buildHistoryList(labels.HistoryNoEntries, activeJobs, onEntryClick, nil, bgColor, textColor)
+	completedList := buildHistoryList(labels.HistoryNoEntries, completedEntries, onEntryClick, onEntryDelete, bgColor, textColor)
+	failedList := buildHistoryList(labels.HistoryNoEntries, failedEntries, onEntryClick, onEntryDelete, bgColor, textColor)
 
 	// Tabs - In Progress first for quick visibility
 	tabs := container.NewAppTabs(
-		container.NewTabItem("In Progress", container.NewVScroll(inProgressList)),
-		container.NewTabItem("Completed", container.NewVScroll(completedList)),
-		container.NewTabItem("Failed", container.NewVScroll(failedList)),
+		container.NewTabItem(labels.HistoryInProgress, container.NewVScroll(inProgressList)),
+		container.NewTabItem(labels.HistoryCompleted, container.NewVScroll(completedList)),
+		container.NewTabItem(labels.HistoryFailed, container.NewVScroll(failedList)),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 	if selectedTab >= 0 && selectedTab < len(tabs.Items) {
@@ -254,10 +279,10 @@ func BuildHistorySidebar(
 	}
 
 	// Header
-	title := canvas.NewText("HISTORY", titleColor)
+	title := canvas.NewText(labels.HistoryTitle, titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 18
-	clearBtn := widget.NewButton("Clear All", func() {
+	clearBtn := widget.NewButton(labels.HistoryClearAll, func() {
 		if onClearAll == nil {
 			return
 		}
@@ -281,13 +306,14 @@ func BuildHistorySidebar(
 }
 
 func buildHistoryList(
+	emptyLabel string,
 	entries []HistoryEntry,
 	onEntryClick func(HistoryEntry),
 	onEntryDelete func(HistoryEntry),
 	bgColor, textColor color.Color,
 ) *fyne.Container {
 	if len(entries) == 0 {
-		return container.NewCenter(widget.NewLabel("No entries"))
+		return container.NewCenter(widget.NewLabel(emptyLabel))
 	}
 
 	var items []fyne.CanvasObject
