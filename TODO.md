@@ -43,9 +43,11 @@ Whisper (especially whisper.cpp) supports many Canadian Indigenous languages. Co
 
 This would be a powerful pipeline for Indigenous content creators.
 
-Known issues to fix:
-- [ ] **Whisper dependency** — Currently awkward to integrate; investigate embedding whisper.cpp or using a static binary
-- [ ] **Whisper in Dependencies menu** — Not working properly or very difficult to start
+Approach:
+- [ ] **Ship whisper.cpp binary** (compiled, ~1-2MB) - embed in app or download on first use
+- [ ] **LT_Mirror hosting** - Base model (~74MB) already available on git.leaktechnologies.dev
+- [ ] **Fix Whisper dependency** - Currently awkward to integrate; make it seamless like FFmpeg
+- [ ] **Whisper in Dependencies menu** - Proper install/uninstall flow
 - Haida
 - Tlingit
 
