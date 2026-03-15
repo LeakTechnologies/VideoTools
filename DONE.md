@@ -1,12 +1,33 @@
 # VideoTools - Completed Features
 
-## Version 0.1.1-dev33 (2026-03-14) - Native Authoring Foundation
+## Version 0.1.1-dev33 (2026-03-15) - Native Authoring Foundation
 
+### Native DVD Engine
 - [x] **Wiki synchronization** — Ported internal documentation to the Forgejo wiki with corrected links and navigation. Established Home, Documentation, and Sidebar pages.
 - [x] **Native DVD Engine structure** — Created `internal/dvd/` modular package structure (`udf`, `ifo`, `vob`, `spu`).
 - [x] **MPEG-PS / VOB Muxer Foundation** — Implemented MPEG-PS packetization, Pack/System/PES headers, and DVD-specific Navigation Pack (NAV_PCK) structures.
 - [x] **IFO/BUP Structure Generation** — Implemented binary serialization for VTSI and VMGI tables, and created `IFOBuilder` for automatic IFO/BUP and backup file creation.
+- [x] **SPU subpicture encoder** — 2-bit RLE subpicture encoder for DVD menu button highlights.
+- [x] **UDF reader foundation** — UDF 1.02 disc type detection and reader scaffolding in `internal/dvd/udf`.
 - [x] **Authoring Architecture Consolidation** — Unified DVD and Blu-ray workflows into the core Author and Rip modules. Removed the redundant standalone Blu-ray module to streamline UI/UX.
+
+### UI Alignment (dev33 polish pass)
+- [x] **Module UI alignment** — Convert, Thumbnail, Filters, Audio, Compare, and Inspect module layouts aligned with the standardised Convert module style (consistent labels, separators, padding).
+
+### Thumbnail / Contact Sheet
+- [x] **IBM Plex Mono applied** — `MonoTheme` now set on the Fyne app at startup; IBM Plex Mono Regular and Bold used throughout the UI and in contact sheet text overlays.
+- [x] **Bold title font in contact sheet** — Filename (line 1) rendered with IBM Plex Mono Bold; metadata lines 2/3 use Regular.
+- [x] **VT Green contact sheet title** — Line 1 (filename) colour changed from white to `#4CE870`, matching the main menu "VideoTools" title.
+- [x] **Contact sheet line-3 wrapping fixed** — FFmpeg `drawtext` treats `|` as a newline; replaced all ` | ` separators with ` · ` (U+00B7).
+- [x] **Contact sheet progress bar** — `-progress pipe:1` flag was appended after the output path; moved before it so FFmpeg emits progress events correctly.
+- [x] **Duplicate ffprobe calls eliminated** — `buildMetadataFilter` no longer calls `getVideoInfo`/`getDetailedVideoInfo` internally; pre-computed data passed from `generateContactSheet`, reducing ffprobe invocations from 6-7 down to the minimum needed.
+- [x] **CMD windows suppressed** — All `exec.Command` calls in `internal/thumbnail` now call `hideCmd()` (platform-specific: `SysProcAttr{HideWindow: true}` on Windows, no-op elsewhere).
+
+### Fixes
+- [x] **Scroll passthrough on Entry/Select widgets** — Mouse wheel events were swallowed when hovering over text inputs or dropdowns inside `FastVScroll` panels. Made `scrollClip` implement `fyne.Scrollable` with forwarding to `FastVScroll`; added `IsClip()` to renderer for correct GL scissoring.
+- [x] **Icons not loading** — `GetIcon` was reading from the embed root rather than the icons subdirectory. Fixed by passing `fs.Sub(iconsFS, "assets/icons")` to `ui.SetIconsFS()`.
+- [x] **App icon path** — `logoAssets.Open` was using a bare filename; corrected to `assets/logo/VT_Icon.ico`.
+- [x] **CI missing imports** — `internal/ui/components.go` was missing `"fyne.io/fyne/v2/driver/desktop"` and `"fyne.io/fyne/v2/layout"` imports; fixed to unblock Linux and Windows CI builds.
 
 ## Version 0.1.1-dev32 (2026-03-12) - UI Polish and Fixes
 
