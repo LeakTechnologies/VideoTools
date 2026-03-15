@@ -137,24 +137,6 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 			install:   pkgManagerInstall("ffmpeg"),
 			uninstall: pkgManagerUninstall("ffmpeg"),
 		}
-	case "dvdauthor":
-		// Windows: Use WSL installation via Settings UI
-		if runtime.GOOS == "windows" {
-			return dependencyCommandPair{}
-		}
-		return dependencyCommandPair{
-			install:   pkgManagerInstall("dvdauthor"),
-			uninstall: pkgManagerUninstall("dvdauthor"),
-		}
-	case "xorriso":
-		// Windows: Use WSL installation via Settings UI
-		if runtime.GOOS == "windows" {
-			return dependencyCommandPair{}
-		}
-		return dependencyCommandPair{
-			install:   pkgManagerInstall("xorriso"),
-			uninstall: pkgManagerUninstall("xorriso"),
-		}
 	case "realesrgan-ncnn-vulkan":
 		// Best-effort: invoke existing installer with AI enabled
 		installScript := filepath.Join(root, "scripts", "install.sh")
@@ -257,8 +239,8 @@ var moduleDependencies = map[string][]string{
 	"filters":   {"ffmpeg"},
 	"upscale":   {"ffmpeg"}, // realesrgan-ncnn-vulkan is optional for AI upscaling
 	"audio":     {"ffmpeg"},
-	"author":    {"ffmpeg", "dvdauthor", "xorriso"},
-	"rip":       {"ffmpeg", "xorriso"},
+	"author":    {"ffmpeg"},
+	"rip":       {"ffmpeg"},
 	"bluray":    {"ffmpeg"},
 	"subtitles": {"ffmpeg"},
 	"thumbnail": {"ffmpeg"},
@@ -276,22 +258,6 @@ var allDependencies = map[string]Dependency{
 		Description: "Core video processing engine",
 		InstallCmd:  getFFmpegInstallCmd(),
 		Platforms:   []string{"windows", "linux", "darwin"},
-	},
-	"dvdauthor": {
-		Name:        "DVDAuthor",
-		Command:     "dvdauthor",
-		Required:    false,
-		Description: "DVD authoring tool",
-		InstallCmd:  getDVDAuthorInstallCmd(),
-		Platforms:   []string{"linux", "darwin"},
-	},
-	"xorriso": {
-		Name:        "xorriso",
-		Command:     "xorriso",
-		Required:    false,
-		Description: "ISO creation and extraction",
-		InstallCmd:  getXorrisoInstallCmd(),
-		Platforms:   []string{"linux", "darwin"},
 	},
 	"realesrgan-ncnn-vulkan": {
 		Name:        "Real-ESRGAN",
@@ -329,28 +295,6 @@ func getFFmpegInstallCmd() string {
 		return "Install from Settings (recommended) or run: .\\scripts\\windows\\install.ps1"
 	default:
 		return "See ffmpeg.org for installation"
-	}
-}
-
-func getDVDAuthorInstallCmd() string {
-	switch runtime.GOOS {
-	case "linux":
-		return "sudo apt-get install dvdauthor  # or dnf/pacman/zypper"
-	case "darwin":
-		return "brew install dvdauthor"
-	default:
-		return "Use WSL with Ubuntu, or Linux/macOS"
-	}
-}
-
-func getXorrisoInstallCmd() string {
-	switch runtime.GOOS {
-	case "linux":
-		return "sudo apt-get install xorriso  # or dnf/pacman/zypper"
-	case "darwin":
-		return "brew install xorriso"
-	default:
-		return "Use WSL with Ubuntu, or Linux/macOS"
 	}
 }
 
