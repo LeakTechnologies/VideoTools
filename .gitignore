@@ -15,6 +15,9 @@ VideoTools
 credentials.json
 secrets.*
 
+# Local-only reference files (philosophy, personal notes) — never committed
+_local/
+
 # Design mockups and assets
 assets/mockup/
 assets/icons/*.log

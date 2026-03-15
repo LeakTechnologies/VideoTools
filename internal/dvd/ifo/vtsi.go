@@ -32,6 +32,28 @@ type VTS_MAT struct {
 	VTS_VOBU_ADMAP_Offset   uint32 // Title VOBU Address Map
 }
 
+// VOBU_ADMAP represents the VOBU Address Map table.
+type VOBU_ADMAP struct {
+	EndByte uint32
+	Sectors []uint32
+}
+
+// WriteVOBU_ADMAP serializes the VOBU_ADMAP to an IFO file.
+func WriteVOBU_ADMAP(w io.Writer, admap *VOBU_ADMAP) error {
+	logging.Debug(logging.CatDVD, "Writing VOBU_ADMAP with %d entries", len(admap.Sectors))
+	
+	if err := binary.Write(w, binary.BigEndian, admap.EndByte); err != nil {
+		return err
+	}
+	
+	for _, sector := range admap.Sectors {
+		if err := binary.Write(w, binary.BigEndian, sector); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // WriteVTSI serializes the VTS_MAT to an IFO file.
 func WriteVTSI(w io.Writer, mat *VTS_MAT) error {
 	logging.Info(logging.CatDVD, "Serializing VTSI Management Table (VTS_MAT)")

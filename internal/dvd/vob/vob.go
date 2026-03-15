@@ -32,8 +32,10 @@ type Muxer struct {
 	w io.Writer
 	
 	// Muxing state
-	scr     uint64 // System Clock Reference (90kHz base)
-	muxRate uint32 // Mux rate in 50 bytes/sec units
+	scr           uint64   // System Clock Reference (90kHz base)
+	muxRate       uint32   // Mux rate in 50 bytes/sec units
+	currentSector uint32   // Current sector address within the VOB set
+	NAVPCKSectors []uint32 // List of sector addresses where NAV_PCKs were written
 }
 
 // NewMuxer creates a new VOB muxer.
@@ -43,6 +45,11 @@ func NewMuxer(w io.Writer) *Muxer {
 		w:       w,
 		muxRate: 25200, // Default for DVD (10.08 Mbps)
 	}
+}
+
+// GetNAVPCKSectors returns the collected sector map.
+func (m *Muxer) GetNAVPCKSectors() []uint32 {
+	return m.NAVPCKSectors
 }
 
 // WritePackHeader writes a Pack Header to the stream.
@@ -71,6 +78,8 @@ func (m *Muxer) WritePackHeader(scr uint64) error {
 		logging.Error(logging.CatDVD, "Failed to write pack header at SCR %d: %v", scr, err)
 		return fmt.Errorf("write pack header: %w", err)
 	}
+	// Note: We don't increment currentSector here because a Pack Header 
+	// is just the start of a sector. The sector is finished by padding.
 	return nil
 }
 
@@ -111,7 +120,7 @@ func (m *Muxer) encodeTimestamp(buf []byte, prefix uint8, ts uint64) {
 	buf[4] = uint8((ts<<1)&0xFE) | 0x01
 }
 
-// WritePadding writes a padding packet.
+// WritePadding writes a padding packet and finalizes the sector.
 func (m *Muxer) WritePadding(size int) error {
 	if size < 6 {
 		return nil
@@ -127,5 +136,7 @@ func (m *Muxer) WritePadding(size int) error {
 	if _, err := m.w.Write(padding); err != nil {
 		return fmt.Errorf("write padding data: %w", err)
 	}
+	
+	m.currentSector++
 	return nil
 }
