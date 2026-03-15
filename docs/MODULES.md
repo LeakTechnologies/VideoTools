@@ -143,41 +143,23 @@ Side-by-side comparison of two videos with synchronized playback controls.
 
 ### Rip ✅ IMPLEMENTED
 Extract and convert content from optical media and disc images:
-- ✅ Rip from VIDEO_TS folders
-- ✅ Extract from ISO images (requires `xorriso` or `bsdtar`)
-- ✅ Default lossless DVD → MKV (stream copy)
-- ✅ Optional H.264 MKV/MP4 outputs
+- ✅ Rip from VIDEO_TS (DVD) and BDMV (Blu-ray) folders
+- ✅ Native Go ISO/UDF extraction (no external tools required)
+- ✅ Default lossless disc → MKV (stream copy)
+- ✅ Optional H.264/H.265 MKV/MP4 outputs
 - ✅ Queue-based execution with logs and progress
 
-**FFmpeg Features:** concat demuxer, stream copy, H.264 encoding
-
-**Current Status:** Available in dev20+. Physical disc and multi-title selection are still planned.
+**FFmpeg Features:** concat demuxer, stream copy, transcoding
 
 ### Author ✅ IMPLEMENTED
-DVD authoring and menu generation:
-- ✅ DVD output type and region selection (NTSC/PAL/AUTO)
-- ✅ Menu templates with optional background image support
-- ✅ Chapter handling and menu layout options
-- ✅ Queue-based execution with logs and progress
+Unified disc authoring and menu generation for DVD and Blu-ray:
+- ✅ **Multi-Format Support:** DVD-Video (NTSC/PAL) and Blu-ray (1080p/4K)
+- ✅ **Native Engine:** Custom Go-based authoring (replacing `dvdauthor` and `xorriso`)
+- ✅ **Menu Designer:** Templates with background image/video and interactive buttons
+- ✅ **Advanced Logic:** Chapter scene detection and multi-title management (Feature/Extras)
+- ✅ **Output Options:** Directory structure or burnable ISO images
 
-**FFmpeg Features:** DVD-Video encoding, muxing, and asset generation
-
-**Current Status:** Implemented for DVD output. Blu-ray is planned.
-
-### Blu-ray 🔄 PLANNED
-Professional Blu-ray Disc authoring and encoding system:
-- ⏳ **Blu-ray Standards Support:** 1080p, 4K UHD, HDR content
-- ⏳ **Multi-Region Encoding:** Region A/B/C with proper specifications
-- ⏳ **Advanced Video Codecs:** H.264/AVC, H.265/HEVC with professional profiles
-- ⏳ **Professional Audio:** LPCM, Dolby Digital Plus, DTS-HD Master Audio
-- ⏳ **HDR Support:** HDR10, Dolby Vision metadata handling
-- ⏳ **Authoring Compatibility:** Adobe Encore, Sony Scenarist integration
-- ⏳ **Hardware Compatibility:** PS3/4/5, Xbox, standalone players
-- ⏳ **Validation System:** Blu-ray specification compliance checking
-
-**FFmpeg Features:** H.264/HEVC encoding, transport stream muxing, HDR metadata
-
-**Current Status:** Comprehensive planning complete; implementation is planned. See TODO.md for detailed specifications.
+**FFmpeg Features:** MPEG-2/H.264/HEVC encoding, muxing, and asset generation
 
 ## Additional Suggested Modules
 
