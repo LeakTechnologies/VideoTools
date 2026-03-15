@@ -5,12 +5,14 @@ import (
 	"path/filepath"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 func (s *appState) showFiltersView() {
@@ -398,6 +400,25 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		state.showUpscaleView()
 	})
 
+	// Helper to build boxed sections matching Convert module style
+	gridColor := utils.MustHex("#2A3A52")
+	navyBlue := utils.MustHex("#191F35")
+
+	buildFilterBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
+		bg := canvas.NewRectangle(navyBlue)
+		bg.CornerRadius = 10
+		bg.StrokeColor = gridColor
+		bg.StrokeWidth = 1
+		body := container.NewVBox(
+			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewSeparator(),
+			content,
+		)
+		layers := ui.NoisyBackgroundObjects(bg)
+		layers = append(layers, container.NewPadded(body))
+		return container.NewMax(layers...)
+	}
+
 	// Color Correction Section
 	brightnessSlider := widget.NewSlider(-1.0, 1.0)
 	brightnessSlider.SetValue(state.filterBrightness)
@@ -420,7 +441,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		buildFilterChain()
 	}
 
-	colorSection := widget.NewCard("Color Correction", "", container.NewVBox(
+	colorSection := buildFilterBox("Color Correction", container.NewVBox(
 		widget.NewLabel("Adjust brightness, contrast, and saturation"),
 		container.NewGridWithColumns(2,
 			widget.NewLabel("Brightness:"),
@@ -447,7 +468,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		buildFilterChain()
 	}
 
-	enhanceSection := widget.NewCard("Enhancement", "", container.NewVBox(
+	enhanceSection := buildFilterBox("Enhancement", container.NewVBox(
 		widget.NewLabel("Sharpen, blur, and denoise"),
 		container.NewGridWithColumns(2,
 			widget.NewLabel("Sharpness:"),
@@ -497,7 +518,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 	})
 	flipVCheck.SetChecked(state.filterFlipV)
 
-	transformSection := widget.NewCard("Transform", "", container.NewVBox(
+	transformSection := buildFilterBox("Transform", container.NewVBox(
 		widget.NewLabel("Rotate and flip video"),
 		container.NewGridWithColumns(2,
 			widget.NewLabel("Rotation:"),
@@ -516,7 +537,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 	})
 	grayscaleCheck.SetChecked(state.filterGrayscale)
 
-	creativeSection := widget.NewCard("Creative Effects", "", container.NewVBox(
+	creativeSection := buildFilterBox("Creative Effects", container.NewVBox(
 		widget.NewLabel("Apply artistic effects"),
 		grayscaleCheck,
 	))
