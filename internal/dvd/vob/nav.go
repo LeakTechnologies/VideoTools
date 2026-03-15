@@ -41,7 +41,10 @@ type DSIPacket struct {
 
 // WriteNAV_PCK writes a full Navigation Pack (PCI + DSI) to the stream.
 func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
-	logging.Debug(logging.CatDVD, "Writing Navigation Pack (NAV_PCK) at SCR %d", m.scr)
+	logging.Debug(logging.CatDVD, "Writing Navigation Pack (NAV_PCK) at sector %d (SCR %d)", m.currentSector, m.scr)
+	
+	// Record the sector address for IFO VOBU_ADMAP
+	m.NAVPCKSectors = append(m.NAVPCKSectors, m.currentSector)
 	
 	// 1. Pack Header (14 bytes)
 	if err := m.WritePackHeader(m.scr); err != nil {
