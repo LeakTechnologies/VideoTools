@@ -2,7 +2,10 @@ package vob
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 // MPEG-PS Start Codes
@@ -29,12 +32,13 @@ type Muxer struct {
 	w io.Writer
 	
 	// Muxing state
-	scr uint64 // System Clock Reference (90kHz base)
+	scr     uint64 // System Clock Reference (90kHz base)
 	muxRate uint32 // Mux rate in 50 bytes/sec units
 }
 
 // NewMuxer creates a new VOB muxer.
 func NewMuxer(w io.Writer) *Muxer {
+	logging.Info(logging.CatDVD, "Initializing new VOB muxer")
 	return &Muxer{
 		w:       w,
 		muxRate: 25200, // Default for DVD (10.08 Mbps)
@@ -63,34 +67,40 @@ func (m *Muxer) WritePackHeader(scr uint64) error {
 	
 	buf[13] = 0xF8 // stuffing length = 0
 	
-	_, err := m.w.Write(buf[:])
-	return err
+	if _, err := m.w.Write(buf[:]); err != nil {
+		logging.Error(logging.CatDVD, "Failed to write pack header at SCR %d: %v", scr, err)
+		return fmt.Errorf("write pack header: %w", err)
+	}
+	return nil
 }
 
 // WritePESHeader writes a PES header with optional PTS/DTS.
 func (m *Muxer) WritePESHeader(streamID uint8, length uint16, pts uint64, dts uint64, hasDTS bool) error {
-	var buf [14]byte
+	var buf [19]byte
 	binary.BigEndian.PutUint32(buf[0:4], 0x00000100 | uint32(streamID))
 	binary.BigEndian.PutUint16(buf[4:6], length)
 	
-	// Flags: 10 (fixed), 00 (scrambling), 0 (priority), 0 (data alignment), 0 (copyright), 0 (original)
 	buf[6] = 0x80 
 	
-	// Flags: PTS/DTS presence
+	var headerLen int
 	if hasDTS {
 		buf[7] = 0xC0 // PTS and DTS
-		buf[8] = 10 // Header data length
+		buf[8] = 10
 		m.encodeTimestamp(buf[9:14], 0x30, pts)
 		m.encodeTimestamp(buf[14:19], 0x10, dts)
-		_, err := m.w.Write(buf[:19])
-		return err
+		headerLen = 19
 	} else {
 		buf[7] = 0x80 // PTS only
 		buf[8] = 5
 		m.encodeTimestamp(buf[9:14], 0x20, pts)
-		_, err := m.w.Write(buf[:14])
-		return err
+		headerLen = 14
 	}
+
+	if _, err := m.w.Write(buf[:headerLen]); err != nil {
+		logging.Error(logging.CatDVD, "Failed to write PES header (stream 0x%X): %v", streamID, err)
+		return fmt.Errorf("write pes header: %w", err)
+	}
+	return nil
 }
 
 func (m *Muxer) encodeTimestamp(buf []byte, prefix uint8, ts uint64) {
@@ -106,13 +116,16 @@ func (m *Muxer) WritePadding(size int) error {
 	if size < 6 {
 		return nil
 	}
+	logging.Debug(logging.CatDVD, "Writing %d bytes of padding", size)
 	var buf [6]byte
 	binary.BigEndian.PutUint32(buf[0:4], PaddingStreamCode)
 	binary.BigEndian.PutUint16(buf[4:6], uint16(size-6))
 	if _, err := m.w.Write(buf[:]); err != nil {
-		return err
+		return fmt.Errorf("write padding header: %w", err)
 	}
 	padding := make([]byte, size-6)
-	_, err := m.w.Write(padding)
-	return err
+	if _, err := m.w.Write(padding); err != nil {
+		return fmt.Errorf("write padding data: %w", err)
+	}
+	return nil
 }
