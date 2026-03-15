@@ -163,7 +163,7 @@ func (s *appState) showMainMenu() {
 	// Footer with version info and a small About/Support button
 	versionLabel := widget.NewLabel(fmt.Sprintf("VideoTools %s", versionWithPlatform()))
 	versionLabel.Alignment = fyne.TextAlignLeading
-	aboutBtn := widget.NewButton("About / Support", func() {
+	aboutBtn := widget.NewButton(t.MenuAbout, func() {
 		s.showAbout()
 	})
 	aboutBtn.Importance = widget.LowImportance

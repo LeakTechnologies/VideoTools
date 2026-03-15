@@ -149,6 +149,10 @@ var frCA = Strings{
 	AboutDescription: "Une boîte à outils vidéo native conçue pour la vitesse et la simplicité.",
 	AboutLicense:     "Licence",
 	AboutSupport:     "Soutien",
+	AboutLogsFolder:  "Dossier de journaux",
+	AboutScanForDocs: "Scanner pour la documentation",
+	AboutFeedback:    "Rétroaction : utilisez le bouton Journaux du menu principal pour voir les journaux ; envoyez les problèmes avec les journaux joints.",
+	AboutClose:       "Fermer",
 
 	// ── Errors ────────────────────────────────────────────────────────────
 	ErrFileNotFound:   "Fichier introuvable : %s",

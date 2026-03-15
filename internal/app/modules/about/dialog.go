@@ -28,6 +28,13 @@ type Options struct {
 	DocsURL     string
 	XProfileURL string
 	XLabel      string
+	// Translatable labels — populated by caller from i18n.T()
+	TitleLabel      string // "About / Support"
+	LogsFolderLabel string // "Logs Folder"
+	ScanDocsLabel   string // "Scan for docs"
+	FeedbackLabel   string // feedback instructions text
+	CloseLabel      string // "Close"
+	OpenLabel       string // "Open" (for X/social link button)
 }
 
 func generatePixelatedQRCode(docURL string) (fyne.CanvasObject, error) {
@@ -42,7 +49,11 @@ func generatePixelatedQRCode(docURL string) (fyne.CanvasObject, error) {
 }
 
 func Show(opts Options) {
-	title := canvas.NewText("About / Support", opts.TextColor)
+	titleStr := opts.TitleLabel
+	if titleStr == "" {
+		titleStr = "About / Support"
+	}
+	title := canvas.NewText(titleStr, opts.TextColor)
 	title.TextSize = 20
 
 	versionText := widget.NewLabel(opts.Version)
@@ -65,7 +76,11 @@ func Show(opts Options) {
 		return nil
 	}
 
-	logsLink := widget.NewButton("Logs Folder", func() {
+	logsFolderStr := opts.LogsFolderLabel
+	if logsFolderStr == "" {
+		logsFolderStr = "Logs Folder"
+	}
+	logsLink := widget.NewButton(logsFolderStr, func() {
 		if opts.OpenFolder == nil {
 			return
 		}
@@ -75,11 +90,19 @@ func Show(opts Options) {
 	})
 	logsLink.Importance = widget.LowImportance
 
-	feedbackLabel := widget.NewLabel("Feedback: use the Logs button on the main menu to view logs; send issues with attached logs.")
+	feedbackStr := opts.FeedbackLabel
+	if feedbackStr == "" {
+		feedbackStr = "Feedback: use the Logs button on the main menu to view logs; send issues with attached logs."
+	}
+	feedbackLabel := widget.NewLabel(feedbackStr)
 	feedbackLabel.Wrapping = fyne.TextWrapWord
 
+	openStr := opts.OpenLabel
+	if openStr == "" {
+		openStr = "Open"
+	}
 	xLabel := widget.NewLabel(opts.XLabel)
-	xBtn := widget.NewButton("Open", func() {
+	xBtn := widget.NewButton(openStr, func() {
 		if opts.OpenURL == nil {
 			return
 		}
@@ -111,7 +134,11 @@ func Show(opts Options) {
 			logoColumn.Add(widget.NewHyperlink("View Documentation", docURL))
 		}
 	} else {
-		qrLabel := widget.NewLabel("Scan for docs")
+		scanStr := opts.ScanDocsLabel
+		if scanStr == "" {
+			scanStr = "Scan for docs"
+		}
+		qrLabel := widget.NewLabel(scanStr)
 		qrLabel.Alignment = fyne.TextAlignCenter
 		logoColumn.Add(qrCode)
 		logoColumn.Add(qrLabel)
@@ -130,5 +157,9 @@ func Show(opts Options) {
 	body = container.NewPadded(body)
 	sizeShim := canvas.NewRectangle(color.Transparent)
 	sizeShim.SetMinSize(fyne.NewSize(560, 280))
-	dialog.ShowCustom("About & Support", "Close", container.NewMax(sizeShim, body), opts.Window)
+	closeStr := opts.CloseLabel
+	if closeStr == "" {
+		closeStr = "Close"
+	}
+	dialog.ShowCustom(titleStr, closeStr, container.NewMax(sizeShim, body), opts.Window)
 }

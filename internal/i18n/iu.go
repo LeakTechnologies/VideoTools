@@ -38,6 +38,10 @@ var iu = Strings{
 	StatusComplete: "ᐃᓱᓕᓚᐅᖅᑐᖅ",  // Complete
 	StatusFailed:   "ᐊᔪᕈᓐᓃᖅᑐᖅ",  // Failed
 	StatusPending:  "ᐊᑦᑐᓂᖅ",      // Pending
+
+	// ── About ─────────────────────────────────────────────────────────────
+	AboutLogsFolder: "ᑎᑎᕋᖅᑕᐅᓯᒪᔪᑦ ᓄᓇᓕᖕᓂ", // Logs Folder
+	AboutClose:      "ᒪᑕᐃᓗᒍ",               // Close
 }
 
 func init() {

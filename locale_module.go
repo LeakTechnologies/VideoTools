@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
 const localePrefKey = "locale"
@@ -26,6 +27,7 @@ func initLocale(a fyne.App, refreshFn func()) {
 	}
 
 	i18n.RegisterListener(func() {
+		ui.SetFontMode(i18n.CurrentFont())
 		a.Driver().DoFromGoroutine(refreshFn, false)
 	})
 }
