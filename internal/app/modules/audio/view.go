@@ -109,15 +109,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		queueBtn,
 	)
 
-	statsBar := widget.NewLabel("")
-	if opts.OnGetStatsBar != nil {
-		statsBar = opts.OnGetStatsBar().(*widget.Label)
-		if statsBar == nil {
-			statsBar = widget.NewLabel("")
-		}
-	}
-
-	bottomBar := ui.ModuleFooter(utils.MustHex("#FF8F00"), actionBar, statsBar)
+	bottomBar := container.NewVBox(
+		actionBar,
+	)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, mainSplit)
 }
