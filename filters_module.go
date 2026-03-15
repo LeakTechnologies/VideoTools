@@ -595,7 +595,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 	})
 	interlacingSelect.SetSelected(state.filterInterlacing)
 
-	stylisticSection := widget.NewCard("Stylistic Effects", "", container.NewVBox(
+	stylisticSection := buildFilterBox("Stylistic Effects", container.NewVBox(
 		widget.NewLabel("Authentic decade-based video effects"),
 		container.NewGridWithColumns(2,
 			widget.NewLabel("Era Mode:"),
