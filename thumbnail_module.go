@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -237,6 +238,25 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 	})
 	timestampRow := container.NewBorder(nil, nil, timestampCheck, nil, timestampToggle)
 
+	// Helper to build boxed sections matching Convert module style
+	gridColor := utils.MustHex("#2A3A52")
+	navyBlue := utils.MustHex("#191F35")
+
+	buildThumbBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
+		bg := canvas.NewRectangle(navyBlue)
+		bg.CornerRadius = 10
+		bg.StrokeColor = gridColor
+		bg.StrokeWidth = 1
+		body := container.NewVBox(
+			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewSeparator(),
+			content,
+		)
+		layers := ui.NoisyBackgroundObjects(bg)
+		layers = append(layers, container.NewPadded(body))
+		return container.NewMax(layers...)
+	}
+
 	// Conditional settings based on contact sheet mode
 	var settingsOptions fyne.CanvasObject
 	if state.thumbnailContactSheet {
@@ -298,9 +318,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 			sizeSelect.SetSelected("360 px")
 		}
 
-		settingsOptions = container.NewVBox(
-			widget.NewSeparator(),
-			widget.NewLabel("Contact Sheet Grid:"),
+		settingsOptions = buildThumbBox("Contact Sheet Grid", container.NewVBox(
 			widget.NewLabel("Thumbnail Size:"),
 			sizeSelect,
 			colLabel,
@@ -308,7 +326,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 			rowLabel,
 			rowSlider,
 			totalLabel,
-		)
+		))
 	} else {
 		// Individual thumbnails mode: show count and width
 		countLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Count: %d", state.thumbnailCount))
@@ -331,14 +349,12 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 			state.persistThumbnailConfig()
 		}
 
-		settingsOptions = container.NewVBox(
-			widget.NewSeparator(),
-			widget.NewLabel("Individual Thumbnails:"),
+		settingsOptions = buildThumbBox("Individual Thumbnails", container.NewVBox(
 			countLabel,
 			countSlider,
 			widthLabel,
 			widthSlider,
-		)
+		))
 	}
 
 	// Helper function to create thumbnail job
@@ -484,16 +500,12 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 	}
 
 	// Settings panel
-	settingsPanel := container.NewVBox(
-		widget.NewLabel("Settings:"),
-		widget.NewSeparator(),
+	settingsPanel := buildThumbBox("Thumbnail Settings", container.NewVBox(
 		contactSheetRow,
 		timestampRow,
 		settingsOptions,
-		widget.NewSeparator(),
-		viewQueueBtn,
-		viewResultsBtn,
-	)
+		container.NewHBox(viewQueueBtn, viewResultsBtn),
+	))
 
 	// Main content - split layout with preview on left, settings on right
 	leftColumn := container.NewVBox(videoContainer)
