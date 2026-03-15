@@ -119,8 +119,8 @@ func (g *Generator) Generate(ctx context.Context, config Config) (*GenerateResul
 	thumbWidth, thumbHeight := g.calculateDimensions(width, height, config.Width, config.Height)
 
 	if config.ContactSheet {
-		// Generate contact sheet
-		contactSheetPath, err := g.generateContactSheet(ctx, config, duration, thumbWidth, thumbHeight)
+		// Generate contact sheet — pass pre-computed dimensions to avoid duplicate ffprobe calls
+		contactSheetPath, err := g.generateContactSheet(ctx, config, duration, width, height, thumbWidth, thumbHeight)
 		if err != nil {
 			result.Error = err.Error()
 			return result, err
@@ -161,6 +161,7 @@ func (g *Generator) getVideoInfo(ctx context.Context, videoPath string) (duratio
 		"-of", "json",
 		videoPath,
 	)
+	hideCmd(cmd)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -223,6 +224,7 @@ func (g *Generator) getDetailedVideoInfo(ctx context.Context, videoPath string) 
 		"-of", "default=noprint_wrappers=1:nokey=1",
 		videoPath,
 	)
+	hideCmd(cmd)
 
 	output, err := cmd.Output()
 	if err != nil {
@@ -255,6 +257,7 @@ func (g *Generator) getDetailedVideoInfo(ctx context.Context, videoPath string) 
 		"-of", "default=noprint_wrappers=1:nokey=1",
 		videoPath,
 	)
+	hideCmd(cmd)
 
 	output, err = cmd.Output()
 	if err == nil {
@@ -275,6 +278,7 @@ func (g *Generator) getDetailedVideoInfo(ctx context.Context, videoPath string) 
 			"-of", "default=noprint_wrappers=1:nokey=1",
 			videoPath,
 		)
+		hideCmd(cmd)
 
 		output, err = cmd.Output()
 		if err == nil {
@@ -349,6 +353,7 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 		args = append(args, outputPath)
 
 		cmd := exec.CommandContext(ctx, g.FFmpegPath, args...)
+		hideCmd(cmd)
 		if err := cmd.Run(); err != nil {
 			return nil, fmt.Errorf("failed to generate thumbnail %d: %w", i+1, err)
 		}
@@ -374,8 +379,9 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 	return thumbnails, nil
 }
 
-// generateContactSheet creates a single contact sheet with all thumbnails
-func (g *Generator) generateContactSheet(ctx context.Context, config Config, duration float64, thumbWidth, thumbHeight int) (string, error) {
+// generateContactSheet creates a single contact sheet with all thumbnails.
+// videoWidth/videoHeight are the source video dimensions (passed in to avoid a duplicate ffprobe call).
+func (g *Generator) generateContactSheet(ctx context.Context, config Config, duration float64, videoWidth, videoHeight, thumbWidth, thumbHeight int) (string, error) {
 	totalThumbs := config.Columns * config.Rows
 	if config.Count > 0 && config.Count < totalThumbs {
 		totalThumbs = config.Count
@@ -410,16 +416,16 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 	padding := 8 // Pixels of padding between each thumbnail
 	tileFilter := fmt.Sprintf("%s,tile=%dx%d:padding=%d", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp), config.Columns, config.Rows, padding)
 
-	// Build video filter
+	// Build video filter — fetch detailed info once here to avoid duplicate ffprobe calls
 	var vfilter string
 	if config.ShowMetadata {
-		// Add metadata header to contact sheet
-		vfilter = g.buildMetadataFilter(config, duration, thumbWidth, thumbHeight, padding, selectFilter, tileFilter)
+		videoCodec, audioCodec, fps, bitrate, audioBitrate := g.getDetailedVideoInfo(ctx, config.VideoPath)
+		vfilter = g.buildMetadataFilter(config, duration, videoWidth, videoHeight, thumbWidth, thumbHeight, padding, selectFilter, tileFilter, videoCodec, audioCodec, fps, bitrate, audioBitrate)
 	} else {
 		vfilter = fmt.Sprintf("%s,%s", selectFilter, tileFilter)
 	}
 
-	// Build FFmpeg command
+	// Build FFmpeg command — progress flags must appear before the output path
 	args := []string{
 		"-nostdin",
 		"-i", config.VideoPath,
@@ -432,15 +438,18 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 		args = append(args, "-q:v", fmt.Sprintf("%d", 31-(config.Quality*30/100)))
 	}
 
+	if config.Progress != nil {
+		args = append(args, "-progress", "pipe:1", "-stats_period", "0.2", "-nostats")
+	}
 	args = append(args, outputPath)
 
 	if config.Progress != nil {
-		args = append(args, "-progress", "pipe:1", "-stats_period", "0.2", "-nostats")
 		if err := runFFmpegWithProgress(ctx, g.FFmpegPath, args, availableDuration, totalThumbs, config.Progress); err != nil {
 			return "", fmt.Errorf("failed to generate contact sheet: %w", err)
 		}
 	} else {
 		cmd := exec.CommandContext(ctx, g.FFmpegPath, args...)
+		hideCmd(cmd)
 		if err := cmd.Run(); err != nil {
 			return "", fmt.Errorf("failed to generate contact sheet: %w", err)
 		}
@@ -449,18 +458,18 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 	return outputPath, nil
 }
 
-// buildMetadataFilter creates a filter that adds metadata header to contact sheet
-func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWidth, thumbHeight, padding int, selectFilter, tileFilter string) string {
+// buildMetadataFilter creates a filter that adds metadata header to contact sheet.
+// All video metadata is passed in to avoid redundant ffprobe calls.
+func (g *Generator) buildMetadataFilter(
+	config Config, duration float64,
+	videoWidth, videoHeight, thumbWidth, thumbHeight, padding int,
+	selectFilter, tileFilter string,
+	videoCodec, audioCodec string, fps, bitrate, audioBitrate float64,
+) string {
 	// Get file info
 	fileInfo, _ := os.Stat(config.VideoPath)
 	fileSize := fileInfo.Size()
 	fileSizeMB := float64(fileSize) / (1024 * 1024)
-
-	// Get video info (we already have duration, just need dimensions)
-	_, videoWidth, videoHeight, _ := g.getVideoInfo(context.Background(), config.VideoPath)
-
-	// Get additional video metadata using ffprobe
-	videoCodec, audioCodec, fps, bitrate, audioBitrate := g.getDetailedVideoInfo(context.Background(), config.VideoPath)
 
 	// Format duration as HH:MM:SS
 	hours := int(duration) / 3600
@@ -472,17 +481,17 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	filename := filepath.Base(config.VideoPath)
 
 	// Calculate sheet dimensions accounting for padding between thumbnails
-	// Padding is added between tiles: (cols-1) horizontal gaps and (rows-1) vertical gaps
 	sheetWidth := (thumbWidth * config.Columns) + (padding * (config.Columns - 1))
 	sheetHeight := (thumbHeight * config.Rows) + (padding * (config.Rows - 1))
 	headerHeight := 130
 
-	// Build metadata text lines
-	// Line 1: Filename and file size
+	// Build metadata text lines.
+	// Use · (middle dot) as separator — pipe (|) is treated as a newline by FFmpeg drawtext.
+	// Line 1: Filename and file size (bold)
 	line1 := fmt.Sprintf("%s (%.1f MB)", filename, fileSizeMB)
 	// Line 2: Resolution, frame rate, and duration
-	line2 := fmt.Sprintf("%dx%d @ %.2f fps | %s", videoWidth, videoHeight, fps, durationStr)
-	// Line 3: Codecs with audio bitrate and overall bitrate
+	line2 := fmt.Sprintf("%dx%d @ %.2f fps · %s", videoWidth, videoHeight, fps, durationStr)
+	// Line 3: Codecs and bitrates
 	bitrateKbps := int(bitrate / 1000)
 	var audioInfo string
 	if audioBitrate > 0 {
@@ -491,19 +500,21 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 	} else {
 		audioInfo = audioCodec
 	}
-	line3 := fmt.Sprintf("Video\\: %s | Audio\\: %s | %d kbps", videoCodec, audioInfo, bitrateKbps)
+	line3 := fmt.Sprintf("Video\\: %s · Audio\\: %s · %d kbps", videoCodec, audioInfo, bitrateKbps)
 
-	// Create filter that:
-	// 1. Generates contact sheet from selected frames
-	// 2. Creates a blank header area with app background color
-	// 3. Draws metadata text on header (using monospace font)
-	// 4. Stacks header on top of contact sheet
-	// App background color: #0B0F1A (dark navy blue)
-	fontPath := g.findFontPath()
-	fontArg := "font='DejaVu Sans Mono'"
-	if fontPath != "" {
-		fontArg = fmt.Sprintf("fontfile='%s'", escapeFilterPath(fontPath))
+	// Font args: bold for line 1 (filename), regular for lines 2 and 3.
+	regularFontPath := g.findFontPath()
+	boldFontPath := g.findBoldFontPath()
+	regularFontArg := "font='DejaVu Sans Mono'"
+	boldFontArg := regularFontArg // fall back to regular if bold not available
+	if regularFontPath != "" {
+		regularFontArg = fmt.Sprintf("fontfile='%s'", escapeFilterPath(regularFontPath))
 	}
+	if boldFontPath != "" {
+		boldFontArg = fmt.Sprintf("fontfile='%s'", escapeFilterPath(boldFontPath))
+	}
+
+	// Build the composite filter
 	baseFilter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
 			"drawtext=text='%s':fontcolor=white:fontsize=20:%s:x=10:y=12,"+
@@ -514,9 +525,9 @@ func (g *Generator) buildMetadataFilter(config Config, duration float64, thumbWi
 		sheetWidth,
 		sheetHeight+headerHeight,
 		headerHeight,
-		line1, fontArg,
-		line2, fontArg,
-		line3, fontArg,
+		line1, boldFontArg,
+		line2, regularFontArg,
+		line3, regularFontArg,
 	)
 
 	logoPath := g.findLogoPath()
@@ -581,22 +592,34 @@ func (g *Generator) findLogoPath() string {
 }
 
 func (g *Generator) findFontPath() string {
-	// First try embedded font
 	if len(FontData) > 0 {
-		tmpDir := os.TempDir()
-		fontPath := filepath.Join(tmpDir, "IBMPlexMono-Regular.ttf")
+		fontPath := filepath.Join(os.TempDir(), "IBMPlexMono-Regular.ttf")
 		if err := os.WriteFile(fontPath, FontData, 0644); err == nil {
 			return fontPath
 		}
 	}
-
-	// Fallback to file-based search
-	search := []string{
-		filepath.Join("assets", "fonts", "IBMPlexMono-Regular.ttf"),
-	}
+	search := []string{filepath.Join("assets", "fonts", "IBMPlexMono-Regular.ttf")}
 	if exe, err := os.Executable(); err == nil {
-		dir := filepath.Dir(exe)
-		search = append(search, filepath.Join(dir, "assets", "fonts", "IBMPlexMono-Regular.ttf"))
+		search = append(search, filepath.Join(filepath.Dir(exe), "assets", "fonts", "IBMPlexMono-Regular.ttf"))
+	}
+	for _, p := range search {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+func (g *Generator) findBoldFontPath() string {
+	if len(BoldFontData) > 0 {
+		fontPath := filepath.Join(os.TempDir(), "IBMPlexMono-Bold.ttf")
+		if err := os.WriteFile(fontPath, BoldFontData, 0644); err == nil {
+			return fontPath
+		}
+	}
+	search := []string{filepath.Join("assets", "fonts", "IBMPlexMono-Bold.ttf")}
+	if exe, err := os.Executable(); err == nil {
+		search = append(search, filepath.Join(filepath.Dir(exe), "assets", "fonts", "IBMPlexMono-Bold.ttf"))
 	}
 	for _, p := range search {
 		if _, err := os.Stat(p); err == nil {
@@ -615,6 +638,7 @@ func escapeFilterPath(path string) string {
 
 func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string, totalDuration float64, expectedFrames int, progress func(float64)) error {
 	cmd := exec.CommandContext(ctx, ffmpegPath, args...)
+	hideCmd(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("ffmpeg stdout pipe: %w", err)
