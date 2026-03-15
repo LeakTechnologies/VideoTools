@@ -1,18 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"path/filepath"
-
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/widget"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/filters"
 )
 
 func (s *appState) showFiltersView() {
@@ -234,144 +226,37 @@ func buildStylisticFilterChain(state *appState) []string {
 }
 
 func buildFiltersView(state *appState) fyne.CanvasObject {
-	filtersColor := moduleColor("filters")
-
-	// Back button
-	backBtn := widget.NewButton("< FILTERS", func() {
-		state.showMainMenu()
-	})
-	backBtn.Importance = widget.LowImportance
-
-	// Queue button
-	queueBtn := widget.NewButton("View Queue", func() {
-		state.showQueue()
-	})
-	state.queueBtn = queueBtn
-	state.updateQueueButtonLabel()
-
-	clearCompletedBtn := widget.NewButton("⌫", func() {
-		state.clearCompletedJobs()
-	})
-	clearCompletedBtn.Importance = widget.LowImportance
-
-	// Top bar with module color
-	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
-
-	// Instructions
-	instructions := widget.NewLabel("Apply filters and color corrections to your video. Preview changes in real-time.")
-	instructions.Wrapping = fyne.TextWrapWord
-	instructions.Alignment = fyne.TextAlignCenter
-
-	// Initialize state defaults
-	if state.filterBrightness == 0 && state.filterContrast == 0 && state.filterSaturation == 0 {
-		state.filterBrightness = 0.0 // -1.0 to 1.0
-		state.filterContrast = 1.0   // 0.0 to 3.0
-		state.filterSaturation = 1.0 // 0.0 to 3.0
-		state.filterSharpness = 0.0  // 0.0 to 5.0
-		state.filterDenoise = 0.0    // 0.0 to 10.0
-	}
-	if state.filterInterpPreset == "" {
-		state.filterInterpPreset = "Balanced"
-	}
-	if state.filterInterpFPS == "" {
-		state.filterInterpFPS = "60"
-	}
-
-	buildFilterChain := func() {
-		var chain []string
-
-		// Add basic color correction/enhancement first
-		if state.filterBrightness != 0 || state.filterContrast != 1.0 || state.filterSaturation != 1.0 {
-			eqFilter := fmt.Sprintf("eq=brightness=%.2f:contrast=%.2f:saturation=%.2f",
-				state.filterBrightness, state.filterContrast, state.filterSaturation)
-			chain = append(chain, eqFilter)
-		}
-
-		if state.filterSharpness != 0.5 {
-			sharpenFilter := fmt.Sprintf("unsharp=5:5:%.1f:5:5:%.1f", state.filterSharpness, state.filterSharpness)
-			chain = append(chain, sharpenFilter)
-		}
-
-		if state.filterDenoise != 0 {
-			denoiseFilter := fmt.Sprintf("hqdn3d=%.1f:%.1f:%.1f:%.1f",
-				state.filterDenoise, state.filterDenoise, state.filterDenoise, state.filterDenoise)
-			chain = append(chain, denoiseFilter)
-		}
-
-		if state.filterGrayscale {
-			chain = append(chain, "colorchannelmixer=.299:.587:.114:0:.299:.587:.114:0:.299:.587:.114")
-		}
-
-		// Add stylistic effects after basic corrections
-		if state.filterStylisticMode != "None" && state.filterStylisticMode != "" {
-			stylisticChain := buildStylisticFilterChain(state)
-			chain = append(chain, stylisticChain...)
-		}
-
-		// Add geometric transforms
-		if state.filterFlipH || state.filterFlipV {
-			var transform string
-			if state.filterFlipH && state.filterFlipV {
-				transform = "hflip,vflip"
-			} else if state.filterFlipH {
-				transform = "hflip"
-			} else {
-				transform = "vflip"
-			}
-			chain = append(chain, transform)
-		}
-
-		if state.filterRotation != 0 {
-			rotateFilter := fmt.Sprintf("rotate=%d*PI/180", state.filterRotation)
-			chain = append(chain, rotateFilter)
-		}
-
-		// Add frame interpolation last
-		if state.filterInterpEnabled {
-			fps := state.filterInterpFPS
-			if fps == "" {
-				fps = "60"
-			}
-			var filter string
-			switch state.filterInterpPreset {
-			case "Ultra Fast":
-				filter = fmt.Sprintf("minterpolate=fps=%s:mi_mode=blend", fps)
-			case "Fast":
-				filter = fmt.Sprintf("minterpolate=fps=%s:mi_mode=duplicate", fps)
-			case "High Quality":
-				filter = fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:search_param=32", fps)
-			case "Maximum Quality":
-				filter = fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1:search_param=64", fps)
-			default: // Balanced
-				filter = fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=obmc:me_mode=bidir:me=epzs:search_param=16:vsbmc=0", fps)
-			}
-			chain = append(chain, filter)
-		}
-
-		state.filterActiveChain = chain
-	}
-
-	// File label
-	fileLabel := widget.NewLabel("No file loaded")
-	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	var videoContainer fyne.CanvasObject
-	if state.filtersFile != nil {
-		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.filtersFile.Path)))
-		videoContainer = buildVideoPane(state, fyne.NewSize(480, 270), state.filtersFile, nil)
-	} else {
-		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
-	}
-
-	// Load button
-	loadBtn := widget.NewButton("Load Video", func() {
-		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
-			if err != nil || reader == nil {
-				return
-			}
-			defer reader.Close()
-
-			path := reader.URI().Path()
+	opts := filters.Options{
+		Window:               state.window,
+		FilterBrightness:     state.filterBrightness,
+		FilterContrast:       state.filterContrast,
+		FilterSaturation:     state.filterSaturation,
+		FilterSharpness:      state.filterSharpness,
+		FilterDenoise:        state.filterDenoise,
+		FilterGrayscale:      state.filterGrayscale,
+		FilterFlipH:          state.filterFlipH,
+		FilterFlipV:          state.filterFlipV,
+		FilterRotation:       state.filterRotation,
+		FilterStylisticMode:  state.filterStylisticMode,
+		FilterScanlines:      state.filterScanlines,
+		FilterChromaNoise:    state.filterChromaNoise,
+		FilterColorBleeding:  state.filterColorBleeding,
+		FilterTapeNoise:      state.filterTapeNoise,
+		FilterTrackingError:  state.filterTrackingError,
+		FilterDropout:        state.filterDropout,
+		FilterInterlacing:    state.filterInterlacing,
+		FilterInterpEnabled:  state.filterInterpEnabled,
+		FilterInterpPreset:   state.filterInterpPreset,
+		FilterInterpFPS:      state.filterInterpFPS,
+		FiltersFile:          state.filtersFile,
+		FilterActiveChain:    state.filterActiveChain,
+		OnShowMainMenu:       func() { state.showMainMenu() },
+		OnShowQueue:          func() { state.showQueue() },
+		OnShowUpscaleView:    func() { state.showUpscaleView() },
+		OnShowFiltersView:    func() { state.showFiltersView() },
+		OnClearCompletedJobs: func() { state.clearCompletedJobs() },
+		OnGetStatsBar:        func() fyne.CanvasObject { return state.statsBar },
+		OnLoadFile: func(path string) {
 			go func() {
 				src, err := probeVideo(path)
 				if err != nil {
@@ -380,320 +265,41 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 					}, false)
 					return
 				}
-
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					state.filtersFile = src
 					state.showFiltersView()
 				}, false)
 			}()
-		}, state.window)
-	})
-	loadBtn.Importance = widget.HighImportance
-
-	// Navigation to Upscale module
-	upscaleNavBtn := widget.NewButton("Send to Upscale →", func() {
-		if state.filtersFile != nil {
-			state.upscaleFile = state.filtersFile
-			buildFilterChain()
-			state.upscaleFilterChain = append([]string{}, state.filterActiveChain...)
-		}
-		state.showUpscaleView()
-	})
-
-	// Helper to build boxed sections matching Convert module style
-	gridColor := utils.MustHex("#2A3A52")
-	navyBlue := utils.MustHex("#191F35")
-
-	buildFilterBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
-		bg := canvas.NewRectangle(navyBlue)
-		bg.CornerRadius = 10
-		bg.StrokeColor = gridColor
-		bg.StrokeWidth = 1
-		body := container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
-			content,
-		)
-		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, container.NewPadded(body))
-		return container.NewMax(layers...)
+		},
+		OnSendToUpscale: func() {
+			if state.filtersFile != nil {
+				state.upscaleFile = state.filtersFile
+				state.upscaleFilterChain = append([]string{}, state.filterActiveChain...)
+			}
+		},
+		OnApplyFilters:     func() {},
+		OnPersistConfig:    func() {},
+		OnSetBrightness:    func(f float64) { state.filterBrightness = f },
+		OnSetContrast:      func(f float64) { state.filterContrast = f },
+		OnSetSaturation:    func(f float64) { state.filterSaturation = f },
+		OnSetSharpness:     func(f float64) { state.filterSharpness = f },
+		OnSetDenoise:       func(f float64) { state.filterDenoise = f },
+		OnSetGrayscale:     func(b bool) { state.filterGrayscale = b },
+		OnSetFlipH:         func(b bool) { state.filterFlipH = b },
+		OnSetFlipV:         func(b bool) { state.filterFlipV = b },
+		OnSetRotation:      func(i int) { state.filterRotation = i },
+		OnSetStylisticMode: func(s string) { state.filterStylisticMode = s },
+		OnSetScanlines:     func(b bool) { state.filterScanlines = b },
+		OnSetChromaNoise:   func(f float64) { state.filterChromaNoise = f },
+		OnSetColorBleeding: func(b bool) { state.filterColorBleeding = b },
+		OnSetTapeNoise:     func(f float64) { state.filterTapeNoise = f },
+		OnSetTrackingError: func(f float64) { state.filterTrackingError = f },
+		OnSetDropout:       func(f float64) { state.filterDropout = f },
+		OnSetInterlacing:   func(s string) { state.filterInterlacing = s },
+		OnSetInterpEnabled: func(b bool) { state.filterInterpEnabled = b },
+		OnSetInterpPreset:  func(s string) { state.filterInterpPreset = s },
+		OnSetInterpFPS:     func(s string) { state.filterInterpFPS = s },
+		OnBuildFilterChain: func() []string { return buildStylisticFilterChain(state) },
 	}
-
-	// Color Correction Section
-	brightnessSlider := widget.NewSlider(-1.0, 1.0)
-	brightnessSlider.SetValue(state.filterBrightness)
-	brightnessSlider.OnChanged = func(f float64) {
-		state.filterBrightness = f
-		buildFilterChain()
-	}
-
-	contrastSlider := widget.NewSlider(0.0, 3.0)
-	contrastSlider.SetValue(state.filterContrast)
-	contrastSlider.OnChanged = func(f float64) {
-		state.filterContrast = f
-		buildFilterChain()
-	}
-
-	saturationSlider := widget.NewSlider(0.0, 3.0)
-	saturationSlider.SetValue(state.filterSaturation)
-	saturationSlider.OnChanged = func(f float64) {
-		state.filterSaturation = f
-		buildFilterChain()
-	}
-
-	colorSection := buildFilterBox("Color Correction", container.NewVBox(
-		widget.NewLabel("Adjust brightness, contrast, and saturation"),
-		container.NewGridWithColumns(2,
-			widget.NewLabel("Brightness:"),
-			brightnessSlider,
-			widget.NewLabel("Contrast:"),
-			contrastSlider,
-			widget.NewLabel("Saturation:"),
-			saturationSlider,
-		),
-	))
-
-	// Enhancement Section
-	sharpnessSlider := widget.NewSlider(0.0, 5.0)
-	sharpnessSlider.SetValue(state.filterSharpness)
-	sharpnessSlider.OnChanged = func(f float64) {
-		state.filterSharpness = f
-		buildFilterChain()
-	}
-
-	denoiseSlider := widget.NewSlider(0.0, 10.0)
-	denoiseSlider.SetValue(state.filterDenoise)
-	denoiseSlider.OnChanged = func(f float64) {
-		state.filterDenoise = f
-		buildFilterChain()
-	}
-
-	enhanceSection := buildFilterBox("Enhancement", container.NewVBox(
-		widget.NewLabel("Sharpen, blur, and denoise"),
-		container.NewGridWithColumns(2,
-			widget.NewLabel("Sharpness:"),
-			sharpnessSlider,
-			widget.NewLabel("Denoise:"),
-			denoiseSlider,
-		),
-	))
-
-	// Transform Section
-	rotationSelect := widget.NewSelect([]string{"0°", "90°", "180°", "270°"}, func(s string) {
-		switch s {
-		case "90°":
-			state.filterRotation = 90
-		case "180°":
-			state.filterRotation = 180
-		case "270°":
-			state.filterRotation = 270
-		default:
-			state.filterRotation = 0
-		}
-		buildFilterChain()
-	})
-
-	var rotationStr string
-	switch state.filterRotation {
-	case 90:
-		rotationStr = "90°"
-	case 180:
-		rotationStr = "180°"
-	case 270:
-		rotationStr = "270°"
-	default:
-		rotationStr = "0°"
-	}
-	rotationSelect.SetSelected(rotationStr)
-
-	flipHCheck := widget.NewCheck("", func(b bool) {
-		state.filterFlipH = b
-		buildFilterChain()
-	})
-	flipHCheck.SetChecked(state.filterFlipH)
-
-	flipVCheck := widget.NewCheck("", func(b bool) {
-		state.filterFlipV = b
-		buildFilterChain()
-	})
-	flipVCheck.SetChecked(state.filterFlipV)
-
-	transformSection := buildFilterBox("Transform", container.NewVBox(
-		widget.NewLabel("Rotate and flip video"),
-		container.NewGridWithColumns(2,
-			widget.NewLabel("Rotation:"),
-			rotationSelect,
-			widget.NewLabel("Flip Horizontal:"),
-			flipHCheck,
-			widget.NewLabel("Flip Vertical:"),
-			flipVCheck,
-		),
-	))
-
-	// Creative Effects Section
-	grayscaleCheck := widget.NewCheck("Grayscale", func(b bool) {
-		state.filterGrayscale = b
-		buildFilterChain()
-	})
-	grayscaleCheck.SetChecked(state.filterGrayscale)
-
-	creativeSection := buildFilterBox("Creative Effects", container.NewVBox(
-		widget.NewLabel("Apply artistic effects"),
-		grayscaleCheck,
-	))
-
-	// Stylistic Effects Section
-	stylisticModeSelect := widget.NewSelect([]string{"None", "8mm Film", "16mm Film", "B&W Film", "Silent Film", "70s", "80s", "90s", "VHS", "Webcam"}, func(s string) {
-		state.filterStylisticMode = s
-		buildFilterChain()
-	})
-	stylisticModeSelect.SetSelected(state.filterStylisticMode)
-
-	scanlinesCheck := widget.NewCheck("CRT Scanlines", func(b bool) {
-		state.filterScanlines = b
-		buildFilterChain()
-	})
-	scanlinesCheck.SetChecked(state.filterScanlines)
-
-	chromaNoiseSlider := widget.NewSlider(0.0, 1.0)
-	chromaNoiseSlider.SetValue(state.filterChromaNoise)
-	chromaNoiseSlider.OnChanged = func(f float64) {
-		state.filterChromaNoise = f
-		buildFilterChain()
-	}
-
-	colorBleedingCheck := widget.NewCheck("Color Bleeding", func(b bool) {
-		state.filterColorBleeding = b
-		buildFilterChain()
-	})
-	colorBleedingCheck.SetChecked(state.filterColorBleeding)
-
-	tapeNoiseSlider := widget.NewSlider(0.0, 1.0)
-	tapeNoiseSlider.SetValue(state.filterTapeNoise)
-	tapeNoiseSlider.OnChanged = func(f float64) {
-		state.filterTapeNoise = f
-		buildFilterChain()
-	}
-
-	trackingErrorSlider := widget.NewSlider(0.0, 1.0)
-	trackingErrorSlider.SetValue(state.filterTrackingError)
-	trackingErrorSlider.OnChanged = func(f float64) {
-		state.filterTrackingError = f
-		buildFilterChain()
-	}
-
-	dropoutSlider := widget.NewSlider(0.0, 1.0)
-	dropoutSlider.SetValue(state.filterDropout)
-	dropoutSlider.OnChanged = func(f float64) {
-		state.filterDropout = f
-		buildFilterChain()
-	}
-
-	interlacingSelect := widget.NewSelect([]string{"None", "Progressive", "Interlaced"}, func(s string) {
-		state.filterInterlacing = s
-		buildFilterChain()
-	})
-	interlacingSelect.SetSelected(state.filterInterlacing)
-
-	stylisticSection := buildFilterBox("Stylistic Effects", container.NewVBox(
-		widget.NewLabel("Authentic decade-based video effects"),
-		container.NewGridWithColumns(2,
-			widget.NewLabel("Era Mode:"),
-			stylisticModeSelect,
-			widget.NewLabel("Interlacing:"),
-			interlacingSelect,
-		),
-		scanlinesCheck,
-		widget.NewSeparator(),
-		container.NewGridWithColumns(2,
-			widget.NewLabel("Chroma Noise:"),
-			chromaNoiseSlider,
-			widget.NewLabel("Tape Noise:"),
-			tapeNoiseSlider,
-			widget.NewLabel("Tracking Error:"),
-			trackingErrorSlider,
-			widget.NewLabel("Tape Dropout:"),
-			dropoutSlider,
-		),
-		colorBleedingCheck,
-	))
-
-	// Frame Interpolation Section
-	interpEnabledCheck := widget.NewCheck("Enable Frame Interpolation", func(checked bool) {
-		state.filterInterpEnabled = checked
-		buildFilterChain()
-	})
-	interpEnabledCheck.SetChecked(state.filterInterpEnabled)
-
-	interpPresetSelect := widget.NewSelect([]string{"Ultra Fast", "Fast", "Balanced", "High Quality", "Maximum Quality"}, func(val string) {
-		state.filterInterpPreset = val
-		buildFilterChain()
-	})
-	interpPresetSelect.SetSelected(state.filterInterpPreset)
-
-	interpFPSSelect := widget.NewSelect([]string{"24", "30", "50", "59.94", "60"}, func(val string) {
-		state.filterInterpFPS = val
-		buildFilterChain()
-	})
-	interpFPSSelect.SetSelected(state.filterInterpFPS)
-
-	interpHint := widget.NewLabel("Balanced preset is recommended; higher presets are CPU-intensive.")
-	interpHint.TextStyle = fyne.TextStyle{Italic: true}
-	interpHint.Wrapping = fyne.TextWrapWord
-
-	interpSection := buildFilterBox("Frame Interpolation (Minterpolate)", container.NewVBox(
-		widget.NewLabel("Generate smoother motion by interpolating new frames"),
-		interpEnabledCheck,
-		container.NewGridWithColumns(2,
-			widget.NewLabel("Preset:"),
-			interpPresetSelect,
-			widget.NewLabel("Target FPS:"),
-			interpFPSSelect,
-		),
-		interpHint,
-	))
-	buildFilterChain()
-
-	// Apply button
-	applyBtn := widget.NewButton("Apply Filters", func() {
-		if state.filtersFile == nil {
-			dialog.ShowInformation("No Video", "Please load a video first.", state.window)
-			return
-		}
-		buildFilterChain()
-		dialog.ShowInformation("Filters", "Filters are now configured and will be applied when sent to Upscale.", state.window)
-	})
-	applyBtn.Importance = widget.HighImportance
-
-	// Main content
-	leftPanel := container.NewVBox(
-		instructions,
-		widget.NewSeparator(),
-		fileLabel,
-		loadBtn,
-		upscaleNavBtn,
-	)
-
-	settingsPanel := container.NewVBox(
-		colorSection,
-		enhanceSection,
-		transformSection,
-		interpSection,
-		creativeSection,
-		stylisticSection,
-	)
-
-	settingsScroll := ui.NewFastVScroll(settingsPanel)
-	// Adaptive height for small screens - allow content to flow
-	// settingsScroll.SetMinSize(fyne.NewSize(350, 400)) // Removed for flexible sizing
-
-	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6},
-		container.NewVBox(leftPanel, container.NewCenter(videoContainer)),
-		settingsScroll,
-	)
-
-	content := container.NewPadded(mainContent)
-
-	bottomBar := moduleFooter(filtersColor, container.NewHBox(layout.NewSpacer(), applyBtn), state.statsBar)
-	return container.NewBorder(topBar, bottomBar, nil, nil, content)
+	return filters.BuildView(opts)
 }
