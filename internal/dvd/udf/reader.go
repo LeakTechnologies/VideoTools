@@ -2,7 +2,6 @@ package udf
 
 import (
 	"encoding/binary"
-	"fmt"
 	"io"
 	"os"
 	"strings"
