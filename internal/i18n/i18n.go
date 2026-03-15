@@ -51,6 +51,18 @@ func CurrentCode() string {
 	return currentLang
 }
 
+// CurrentFont returns the font family hint for the active language ("mono" or "aboriginal").
+func CurrentFont() string {
+	mu.RLock()
+	defer mu.RUnlock()
+	for _, lang := range allLanguages {
+		if lang.Code == currentLang {
+			return lang.Font
+		}
+	}
+	return "mono"
+}
+
 // CurrentScript returns the active script variant (relevant for Inuktitut).
 func CurrentScript() ScriptVariant {
 	mu.RLock()

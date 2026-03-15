@@ -151,6 +151,10 @@ var enCA = Strings{
 	AboutDescription: "A native video processing toolkit built for speed and simplicity.",
 	AboutLicense:     "License",
 	AboutSupport:     "Support",
+	AboutLogsFolder:  "Logs Folder",
+	AboutScanForDocs: "Scan for docs",
+	AboutFeedback:    "Feedback: use the Logs button on the main menu to view logs; send issues with attached logs.",
+	AboutClose:       "Close",
 
 	// ── Errors ────────────────────────────────────────────────────────────
 	ErrFileNotFound:   "File not found: %s",

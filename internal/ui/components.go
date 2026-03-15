@@ -30,6 +30,8 @@ type monoFonts struct {
 }
 
 var monoFontData monoFonts
+var aboriginalFontData monoFonts
+var fontMode = "mono"
 
 func SetMonoFontData(regular, italic, bold, boldItalic []byte) {
 	monoFontData = monoFonts{
@@ -38,6 +40,21 @@ func SetMonoFontData(regular, italic, bold, boldItalic []byte) {
 		bold:       bold,
 		boldItalic: boldItalic,
 	}
+}
+
+func SetAboriginalFontData(regular, italic, bold, boldItalic []byte) {
+	aboriginalFontData = monoFonts{
+		regular:    regular,
+		italic:     italic,
+		bold:       bold,
+		boldItalic: boldItalic,
+	}
+}
+
+// SetFontMode switches the active font family ("mono" or "aboriginal").
+// Call this from the i18n language-change listener.
+func SetFontMode(mode string) {
+	fontMode = mode
 }
 
 var (
@@ -144,6 +161,26 @@ func min(a, b int) int {
 }
 
 func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
+	if fontMode == "aboriginal" && aboriginalFontData.regular != nil {
+		var fontData []byte
+		fontName := "AboriginalSansREGULAR.ttf"
+		switch {
+		case style.Bold && style.Italic:
+			fontData = aboriginalFontData.boldItalic
+			fontName = "AboriginalSansBOLDITALIC.ttf"
+		case style.Bold:
+			fontData = aboriginalFontData.bold
+			fontName = "AboriginalSansBOLD.ttf"
+		case style.Italic:
+			fontData = aboriginalFontData.italic
+			fontName = "AboriginalSansITALIC.ttf"
+		default:
+			fontData = aboriginalFontData.regular
+		}
+		if fontData != nil {
+			return fyne.NewStaticResource(fontName, fontData)
+		}
+	}
 	style.Monospace = true
 	if monoFontData.regular != nil {
 		var fontData []byte

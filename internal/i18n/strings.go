@@ -157,6 +157,10 @@ type Strings struct {
 	AboutDescription string
 	AboutLicense     string
 	AboutSupport     string
+	AboutLogsFolder  string
+	AboutScanForDocs string
+	AboutFeedback    string
+	AboutClose       string
 
 	// ── Errors ────────────────────────────────────────────────────────────
 	ErrFileNotFound     string
