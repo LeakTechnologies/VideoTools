@@ -614,16 +614,14 @@ func buildUpdatesTab(state *appState) fyne.CanvasObject {
 
 const (
 	forgejoTagsAPI        = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/tags?limit=1"
-	forgejoMasterAPI      = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/branches/master"
 	forgejoReleasesTagAPI = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/releases/tags/"
 	forgejoReleasesPage   = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/releases"
 	forgejoCommitsPage    = "https://git.leaktechnologies.dev/leak_technologies/VideoTools/commits/branch/master"
 )
 
 type updateInfo struct {
-	latestTag       string
-	tagCommitSHA    string // SHA of the commit the latest tag points to
-	masterCommitSHA string // SHA of the latest commit on master
+	latestTag    string
+	tagCommitSHA string // SHA of the commit the latest release tag points to
 }
 
 func checkForUpdates(state *appState) {
@@ -666,23 +664,23 @@ func checkForUpdates(state *appState) {
 				return
 			}
 
-			// Same version — check whether master has moved ahead of the tag
-			patchesAvailable := info.masterCommitSHA != "" &&
-				info.tagCommitSHA != "" &&
-				info.masterCommitSHA != info.tagCommitSHA
+			// Same version — check whether the running binary matches the release tag's commit.
+			currentShort := buildCommit
+			if len(currentShort) > 7 {
+				currentShort = currentShort[:7]
+			}
+			tagShort := info.tagCommitSHA
+			if len(tagShort) > 7 {
+				tagShort = tagShort[:7]
+			}
+			patchesAvailable := currentShort != "" && currentShort != "dev" &&
+				tagShort != "" && currentShort != tagShort
 
 			if patchesAvailable {
-				currentShort := buildCommit
-				if len(currentShort) > 7 {
-					currentShort = currentShort[:7]
-				}
 				if currentShort == "" {
 					currentShort = "unknown"
 				}
-				newShort := info.masterCommitSHA
-				if len(newShort) > 7 {
-					newShort = newShort[:7]
-				}
+				newShort := tagShort
 				msg := fmt.Sprintf(
 					"You are on %s (the latest release tag).\n\nHash mismatch detected:\n  Current: %s\n  Latest:  %s\n\nClick 'Install Patches' to download the latest build and restart automatically.",
 					appVersion, currentShort, newShort,
@@ -740,21 +738,6 @@ func fetchUpdateInfo() (updateInfo, error) {
 	info := updateInfo{
 		latestTag:    tags[0].Name,
 		tagCommitSHA: tags[0].Commit.SHA,
-	}
-
-	// Fetch latest master commit (best-effort; don't fail the whole check)
-	if mResp, mErr := client.Get(forgejoMasterAPI); mErr == nil {
-		defer mResp.Body.Close()
-		if mResp.StatusCode == http.StatusOK {
-			var branch struct {
-				Commit struct {
-					ID string `json:"id"`
-				} `json:"commit"`
-			}
-			if json.NewDecoder(mResp.Body).Decode(&branch) == nil {
-				info.masterCommitSHA = branch.Commit.ID
-			}
-		}
 	}
 
 	return info, nil
