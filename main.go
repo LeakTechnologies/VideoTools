@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"bufio"
@@ -42,6 +42,7 @@ import (
 	convertmodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
@@ -746,7 +747,8 @@ type convertConfig struct {
 	ForceAspect      bool   // Force DAR/SAR metadata even when no aspect conversion
 	TempDir          string // Optional temp/cache directory override
 	LogDir           string // Optional log directory override
-	Language         string // UI language preference ("System" or BCP47 tag)
+	Language         string // UI language preference (BCP-47 tag, e.g. "en-CA", "fr-CA", "iu")
+	LanguageScript   string // Script variant (e.g., "syllabics" for Inuktitut)
 
 	// Master settings
 	ShowUpscale bool
@@ -1043,7 +1045,7 @@ type appState struct {
 	upscaleBlurEnabled         bool     // Apply blur in upscale pipeline
 	upscaleBlurSigma           float64  // Blur strength (sigma)
 	upscaleEncoderPreset       string   // libx264 preset for upscale output
-	upscaleVideoCodec         string   // H.264, H.265, VP9, AV1, Copy
+	upscaleVideoCodec          string   // H.264, H.265, VP9, AV1, Copy
 	upscaleBitrateMode         string   // CRF, CBR, VBR
 	upscaleBitratePreset       string   // preset label for bitrate modes
 	upscaleManualBitrate       string   // manual bitrate value (e.g., 2500k)
@@ -1074,10 +1076,10 @@ type appState struct {
 	authorMenuTemplate            string       // "Minimal", "Simple", "Dark", "Poster"
 	authorMenuBackgroundImage     string       // Path to a user-selected background image
 	authorMenuMotionBackground    string       // Path to a motion background video (MPG)
-	authorMenuTheme             string       // "VideoTools", "Minimal", "Western", etc.
-	authorMenuCustomBgColor     string       // Custom background color hex
-	authorMenuCustomTextColor  string       // Custom text color hex
-	authorMenuCustomAccentColor string     // Custom accent color hex
+	authorMenuTheme               string       // "VideoTools", "Minimal", "Western", etc.
+	authorMenuCustomBgColor       string       // Custom background color hex
+	authorMenuCustomTextColor     string       // Custom text color hex
+	authorMenuCustomAccentColor   string       // Custom accent color hex
 	authorMenuTitleLogoEnabled    bool         // Enable title logo (main logo above menu)
 	authorMenuTitleLogoPath       string       // Path to title logo image
 	authorMenuTitleLogoPosition   string       // Position for title logo
@@ -1903,56 +1905,56 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 
 	// Create job config map
 	config := map[string]interface{}{
-		"inputPath":         src.Path,
-		"outputPath":        outPath,
-		"outputDir":         outDir,
-		"outputBase":        cfg.OutputBase,
-		"selectedFormat":    cfg.SelectedFormat,
-		"quality":           cfg.Quality,
-		"mode":              cfg.Mode,
-		"preserveChapters":  cfg.PreserveChapters,
-		"videoCodec":        adjustedCodec,
-		"encoderPreset":     cfg.EncoderPreset,
-		"crf":               cfg.CRF,
-		"bitrateMode":       cfg.BitrateMode,
-		"bitratePreset":     cfg.BitratePreset,
-		"videoBitrate":      cfg.VideoBitrate,
-		"targetFileSize":    cfg.TargetFileSize,
-		"targetResolution":  cfg.TargetResolution,
-		"frameRate":         cfg.FrameRate,
-		"pixelFormat":       cfg.PixelFormat,
-		"hardwareAccel":     cfg.HardwareAccel,
-		"twoPass":           cfg.TwoPass,
-		"h264Profile":       cfg.H264Profile,
-		"h264Level":         cfg.H264Level,
-		"deinterlace":       cfg.Deinterlace,
-		"deinterlaceMethod": cfg.DeinterlaceMethod,
-		"autoCrop":          cfg.AutoCrop,
-		"cropWidth":         cfg.CropWidth,
-		"cropHeight":        cfg.CropHeight,
-		"cropX":             cfg.CropX,
-		"cropY":             cfg.CropY,
-		"flipHorizontal":    cfg.FlipHorizontal,
-		"flipVertical":      cfg.FlipVertical,
-		"rotation":          cfg.Rotation,
-		"audioCodec":        cfg.AudioCodec,
-		"audioBitrate":      cfg.AudioBitrate,
-		"audioChannels":     cfg.AudioChannels,
-		"audioSampleRate":   cfg.AudioSampleRate,
-		"normalizeAudio":    cfg.NormalizeAudio,
-		"inverseTelecine":   cfg.InverseTelecine,
-		"coverArtPath":      cfg.CoverArtPath,
-		"aspectHandling":    cfg.AspectHandling,
-		"outputAspect":      cfg.OutputAspect,
-		"forceAspect":       cfg.ForceAspect,
-		"sourceWidth":       src.Width,
-		"sourceHeight":      src.Height,
-		"sampleAspectRatio": src.SampleAspectRatio,
+		"inputPath":          src.Path,
+		"outputPath":         outPath,
+		"outputDir":          outDir,
+		"outputBase":         cfg.OutputBase,
+		"selectedFormat":     cfg.SelectedFormat,
+		"quality":            cfg.Quality,
+		"mode":               cfg.Mode,
+		"preserveChapters":   cfg.PreserveChapters,
+		"videoCodec":         adjustedCodec,
+		"encoderPreset":      cfg.EncoderPreset,
+		"crf":                cfg.CRF,
+		"bitrateMode":        cfg.BitrateMode,
+		"bitratePreset":      cfg.BitratePreset,
+		"videoBitrate":       cfg.VideoBitrate,
+		"targetFileSize":     cfg.TargetFileSize,
+		"targetResolution":   cfg.TargetResolution,
+		"frameRate":          cfg.FrameRate,
+		"pixelFormat":        cfg.PixelFormat,
+		"hardwareAccel":      cfg.HardwareAccel,
+		"twoPass":            cfg.TwoPass,
+		"h264Profile":        cfg.H264Profile,
+		"h264Level":          cfg.H264Level,
+		"deinterlace":        cfg.Deinterlace,
+		"deinterlaceMethod":  cfg.DeinterlaceMethod,
+		"autoCrop":           cfg.AutoCrop,
+		"cropWidth":          cfg.CropWidth,
+		"cropHeight":         cfg.CropHeight,
+		"cropX":              cfg.CropX,
+		"cropY":              cfg.CropY,
+		"flipHorizontal":     cfg.FlipHorizontal,
+		"flipVertical":       cfg.FlipVertical,
+		"rotation":           cfg.Rotation,
+		"audioCodec":         cfg.AudioCodec,
+		"audioBitrate":       cfg.AudioBitrate,
+		"audioChannels":      cfg.AudioChannels,
+		"audioSampleRate":    cfg.AudioSampleRate,
+		"normalizeAudio":     cfg.NormalizeAudio,
+		"inverseTelecine":    cfg.InverseTelecine,
+		"coverArtPath":       cfg.CoverArtPath,
+		"aspectHandling":     cfg.AspectHandling,
+		"outputAspect":       cfg.OutputAspect,
+		"forceAspect":        cfg.ForceAspect,
+		"sourceWidth":        src.Width,
+		"sourceHeight":       src.Height,
+		"sampleAspectRatio":  src.SampleAspectRatio,
 		"displayAspectRatio": src.DisplayAspectRatio,
-		"sourceDuration":    src.Duration,
-		"sourceBitrate":     src.Bitrate,
-		"fieldOrder":        src.FieldOrder,
-		"autoCompare":       s.autoCompare, // Include auto-compare flag
+		"sourceDuration":     src.Duration,
+		"sourceBitrate":      src.Bitrate,
+		"fieldOrder":         src.FieldOrder,
+		"autoCompare":        s.autoCompare, // Include auto-compare flag
 	}
 	if !cfg.AutoCrop {
 		config["cropWidth"] = ""
@@ -2049,55 +2051,55 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 
 	// Create job config map
 	config := map[string]interface{}{
-		"inputPath":         src.Path,
-		"outputPath":        outPath,
-		"outputBase":        cfg.OutputBase,
-		"selectedFormat":    cfg.SelectedFormat,
-		"quality":           cfg.Quality,
-		"mode":              cfg.Mode,
-		"preserveChapters":  cfg.PreserveChapters,
-		"videoCodec":        adjustedCodec,
-		"encoderPreset":     cfg.EncoderPreset,
-		"crf":               cfg.CRF,
-		"bitrateMode":       cfg.BitrateMode,
-		"bitratePreset":     cfg.BitratePreset,
-		"videoBitrate":      cfg.VideoBitrate,
-		"targetFileSize":    cfg.TargetFileSize,
-		"targetResolution":  cfg.TargetResolution,
-		"frameRate":         cfg.FrameRate,
-		"pixelFormat":       cfg.PixelFormat,
-		"hardwareAccel":     cfg.HardwareAccel,
-		"twoPass":           cfg.TwoPass,
-		"h264Profile":       cfg.H264Profile,
-		"h264Level":         cfg.H264Level,
-		"deinterlace":       cfg.Deinterlace,
-		"deinterlaceMethod": cfg.DeinterlaceMethod,
-		"autoCrop":          cfg.AutoCrop,
-		"cropWidth":         cfg.CropWidth,
-		"cropHeight":        cfg.CropHeight,
-		"cropX":             cfg.CropX,
-		"cropY":             cfg.CropY,
-		"flipHorizontal":    cfg.FlipHorizontal,
-		"flipVertical":      cfg.FlipVertical,
-		"rotation":          cfg.Rotation,
-		"audioCodec":        cfg.AudioCodec,
-		"audioBitrate":      cfg.AudioBitrate,
-		"audioChannels":     cfg.AudioChannels,
-		"audioSampleRate":   cfg.AudioSampleRate,
-		"normalizeAudio":    cfg.NormalizeAudio,
-		"inverseTelecine":   cfg.InverseTelecine,
-		"coverArtPath":      cfg.CoverArtPath,
-		"aspectHandling":    cfg.AspectHandling,
-		"outputAspect":      cfg.OutputAspect,
-		"forceAspect":       cfg.ForceAspect,
-		"sourceWidth":       src.Width,
-		"sourceHeight":      src.Height,
-		"sampleAspectRatio": src.SampleAspectRatio,
+		"inputPath":          src.Path,
+		"outputPath":         outPath,
+		"outputBase":         cfg.OutputBase,
+		"selectedFormat":     cfg.SelectedFormat,
+		"quality":            cfg.Quality,
+		"mode":               cfg.Mode,
+		"preserveChapters":   cfg.PreserveChapters,
+		"videoCodec":         adjustedCodec,
+		"encoderPreset":      cfg.EncoderPreset,
+		"crf":                cfg.CRF,
+		"bitrateMode":        cfg.BitrateMode,
+		"bitratePreset":      cfg.BitratePreset,
+		"videoBitrate":       cfg.VideoBitrate,
+		"targetFileSize":     cfg.TargetFileSize,
+		"targetResolution":   cfg.TargetResolution,
+		"frameRate":          cfg.FrameRate,
+		"pixelFormat":        cfg.PixelFormat,
+		"hardwareAccel":      cfg.HardwareAccel,
+		"twoPass":            cfg.TwoPass,
+		"h264Profile":        cfg.H264Profile,
+		"h264Level":          cfg.H264Level,
+		"deinterlace":        cfg.Deinterlace,
+		"deinterlaceMethod":  cfg.DeinterlaceMethod,
+		"autoCrop":           cfg.AutoCrop,
+		"cropWidth":          cfg.CropWidth,
+		"cropHeight":         cfg.CropHeight,
+		"cropX":              cfg.CropX,
+		"cropY":              cfg.CropY,
+		"flipHorizontal":     cfg.FlipHorizontal,
+		"flipVertical":       cfg.FlipVertical,
+		"rotation":           cfg.Rotation,
+		"audioCodec":         cfg.AudioCodec,
+		"audioBitrate":       cfg.AudioBitrate,
+		"audioChannels":      cfg.AudioChannels,
+		"audioSampleRate":    cfg.AudioSampleRate,
+		"normalizeAudio":     cfg.NormalizeAudio,
+		"inverseTelecine":    cfg.InverseTelecine,
+		"coverArtPath":       cfg.CoverArtPath,
+		"aspectHandling":     cfg.AspectHandling,
+		"outputAspect":       cfg.OutputAspect,
+		"forceAspect":        cfg.ForceAspect,
+		"sourceWidth":        src.Width,
+		"sourceHeight":       src.Height,
+		"sampleAspectRatio":  src.SampleAspectRatio,
 		"displayAspectRatio": src.DisplayAspectRatio,
-		"sourceDuration":    src.Duration,
-		"sourceBitrate":     src.Bitrate,
-		"fieldOrder":        src.FieldOrder,
-		"autoCompare":       s.autoCompare,
+		"sourceDuration":     src.Duration,
+		"sourceBitrate":      src.Bitrate,
+		"fieldOrder":         src.FieldOrder,
+		"autoCompare":        s.autoCompare,
 	}
 
 	job := &queue.Job{
@@ -3052,20 +3054,22 @@ func (s *appState) showConvertView(file *videoSource) {
 		videoSourceToConvertSource(file),
 		&convertmodule.ConvertState{
 			LastModule:     s.lastModule,
-			Active:        s.active,
-			Source:        videoSourceToConvertSource(s.source),
-			OutputBase:    s.convert.OutputBase,
-			CoverArtPath:  s.convert.CoverArtPath,
+			Active:         s.active,
+			Source:         videoSourceToConvertSource(s.source),
+			OutputBase:     s.convert.OutputBase,
+			CoverArtPath:   s.convert.CoverArtPath,
 			AspectHandling: s.convert.AspectHandling,
-			OutputAspect:  s.convert.OutputAspect,
-			AspectUserSet: s.convert.AspectUserSet,
+			OutputAspect:   s.convert.OutputAspect,
+			AspectUserSet:  s.convert.AspectUserSet,
 		},
 		convertmodule.ConvertCallbacks{
 			OnStopPreview:    s.stopPreview,
 			OnMaximizeWindow: s.maximizeWindow,
 			OnSetContent:     s.setContent,
 			OnPersistConfig:  s.persistConvertConfig,
-			OnBuildView:      func(src *convertmodule.VideoSourceInfo) fyne.CanvasObject { return buildConvertView(s, convertSourceToVideoSource(src)) },
+			OnBuildView: func(src *convertmodule.VideoSourceInfo) fyne.CanvasObject {
+				return buildConvertView(s, convertSourceToVideoSource(src))
+			},
 		},
 	)
 }
@@ -3103,26 +3107,26 @@ func convertSourceToVideoSource(v *convertmodule.VideoSourceInfo) *videoSource {
 		return nil
 	}
 	return &videoSource{
-		Path:                v.Path,
-		DisplayName:         v.DisplayName,
-		Width:               v.Width,
-		Height:              v.Height,
-		Duration:            v.Duration,
-		FrameRate:           v.FrameRate,
-		Format:              v.Format,
-		Bitrate:             v.Bitrate,
-		VideoCodec:          v.VideoCodec,
-		AudioCodec:          v.AudioCodec,
-		AudioBitrate:        v.AudioBitrate,
-		AudioRate:           v.AudioRate,
-		FieldOrder:          v.FieldOrder,
-		ColorSpace:          v.ColorSpace,
-		ColorRange:          v.ColorRange,
-		SampleAspectRatio:   v.SampleAspectRatio,
-		GOPSize:             v.GOPSize,
-		HasChapters:        v.HasChapters,
-		HasMetadata:         v.HasMetadata,
-		PreviewFrames:       v.PreviewFrames,
+		Path:              v.Path,
+		DisplayName:       v.DisplayName,
+		Width:             v.Width,
+		Height:            v.Height,
+		Duration:          v.Duration,
+		FrameRate:         v.FrameRate,
+		Format:            v.Format,
+		Bitrate:           v.Bitrate,
+		VideoCodec:        v.VideoCodec,
+		AudioCodec:        v.AudioCodec,
+		AudioBitrate:      v.AudioBitrate,
+		AudioRate:         v.AudioRate,
+		FieldOrder:        v.FieldOrder,
+		ColorSpace:        v.ColorSpace,
+		ColorRange:        v.ColorRange,
+		SampleAspectRatio: v.SampleAspectRatio,
+		GOPSize:           v.GOPSize,
+		HasChapters:       v.HasChapters,
+		HasMetadata:       v.HasMetadata,
+		PreviewFrames:     v.PreviewFrames,
 	}
 }
 
@@ -5705,13 +5709,13 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			"-map", "0:v:0",
 			"-map", "1:a?",
 		}
-	// Final scale to ensure target height/aspect (optional)
-	if targetPreset != "" && targetPreset != "Match Source" {
-		finalScale := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
-		reassembleArgs = append(reassembleArgs, "-vf", finalScale)
-	}
+		// Final scale to ensure target height/aspect (optional)
+		if targetPreset != "" && targetPreset != "Match Source" {
+			finalScale := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
+			reassembleArgs = append(reassembleArgs, "-vf", finalScale)
+		}
 
-	reassembleArgs = append(reassembleArgs, "-c:v", videoEncoder)
+		reassembleArgs = append(reassembleArgs, "-c:v", videoEncoder)
 		reassembleArgs = appendEncodingArgs(reassembleArgs)
 		reassembleArgs = append(reassembleArgs,
 			"-pix_fmt", "yuv420p",
@@ -6392,6 +6396,18 @@ func runGUI() {
 		ui.SetIconsFS(subIconsFS)
 	}
 	ui.SetMonoFontData(ibmPlexMonoRegular, ibmPlexMonoItalic, ibmPlexMonoBold, ibmPlexMonoBoldItalic)
+
+	// Load language preference from config and initialize i18n
+	if s.convert.Language != "" {
+		i18n.SetLanguageWithScript(s.convert.Language, i18n.ScriptVariant(s.convert.LanguageScript))
+	}
+
+	// Register i18n listener to refresh UI on language change
+	i18n.RegisterListener(func() {
+		a.Driver().DoFromGoroutine(func() {
+			s.showMainMenu()
+		})
+	})
 	a.Settings().SetTheme(&ui.MonoTheme{})
 
 	// Load app icon from embedded logo assets
@@ -14782,14 +14798,14 @@ type videoSource struct {
 	EmbeddedCoverArt      string // Path to extracted embedded cover art, if any
 
 	// Advanced metadata
-	SampleAspectRatio string // Pixel Aspect Ratio (SAR) - e.g., "1:1", "40:33"
+	SampleAspectRatio  string // Pixel Aspect Ratio (SAR) - e.g., "1:1", "40:33"
 	DisplayAspectRatio string // Display Aspect Ratio (DAR) - e.g., "16:9"
-	ColorSpace        string // Color space/primaries - e.g., "bt709", "bt601"
-	ColorRange        string // Color range - "tv" (limited) or "pc" (full)
-	GOPSize           int    // GOP size / keyframe interval
-	HasChapters       bool   // Whether file has embedded chapters
-	HasMetadata       bool   // Whether file has title/copyright/etc metadata
-	Metadata          map[string]string
+	ColorSpace         string // Color space/primaries - e.g., "bt709", "bt601"
+	ColorRange         string // Color range - "tv" (limited) or "pc" (full)
+	GOPSize            int    // GOP size / keyframe interval
+	HasChapters        bool   // Whether file has embedded chapters
+	HasMetadata        bool   // Whether file has title/copyright/etc metadata
+	Metadata           map[string]string
 }
 
 func (v *videoSource) DurationString() string {
@@ -15029,22 +15045,22 @@ func probeVideo(path string) (*videoSource, error) {
 			Tags       map[string]interface{} `json:"tags"`
 		} `json:"format"`
 		Streams []struct {
-			Index        int                    `json:"index"`
-			CodecType    string                 `json:"codec_type"`
-			CodecName    string                 `json:"codec_name"`
-			Width        int                    `json:"width"`
-			Height       int                    `json:"height"`
-			Duration     string                 `json:"duration"`
-			BitRate      string                 `json:"bit_rate"`
-			PixFmt       string                 `json:"pix_fmt"`
-			SampleRate   string                 `json:"sample_rate"`
-			Channels     int                    `json:"channels"`
-			AvgFrameRate string                 `json:"avg_frame_rate"`
-			FieldOrder   string                 `json:"field_order"`
-			SampleAspect string                 `json:"sample_aspect_ratio"`
-			DisplayAspect string                `json:"display_aspect_ratio"`
-			Tags         map[string]interface{} `json:"tags"`
-			Disposition  struct {
+			Index         int                    `json:"index"`
+			CodecType     string                 `json:"codec_type"`
+			CodecName     string                 `json:"codec_name"`
+			Width         int                    `json:"width"`
+			Height        int                    `json:"height"`
+			Duration      string                 `json:"duration"`
+			BitRate       string                 `json:"bit_rate"`
+			PixFmt        string                 `json:"pix_fmt"`
+			SampleRate    string                 `json:"sample_rate"`
+			Channels      int                    `json:"channels"`
+			AvgFrameRate  string                 `json:"avg_frame_rate"`
+			FieldOrder    string                 `json:"field_order"`
+			SampleAspect  string                 `json:"sample_aspect_ratio"`
+			DisplayAspect string                 `json:"display_aspect_ratio"`
+			Tags          map[string]interface{} `json:"tags"`
+			Disposition   struct {
 				AttachedPic int `json:"attached_pic"`
 			} `json:"disposition"`
 		} `json:"streams"`
@@ -15398,4 +15414,3 @@ func formatBitrateFull(bps int) string {
 	}
 	return fmt.Sprintf("%.0f kbps (%.2f Mbps)", kbps, mbps)
 }
-
