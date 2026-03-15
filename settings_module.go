@@ -720,10 +720,7 @@ func fetchUpdateInfo() (updateInfo, error) {
 		return updateInfo{}, fmt.Errorf("tags API returned %s", resp.Status)
 	}
 	var tags []struct {
-		Name   string `json:"name"`
-		Commit struct {
-			SHA string `json:"sha"`
-		} `json:"commit"`
+		Name string `json:"name"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
 		return updateInfo{}, fmt.Errorf("parse tags response: %w", err)
@@ -731,12 +728,30 @@ func fetchUpdateInfo() (updateInfo, error) {
 	if len(tags) == 0 || tags[0].Name == "" {
 		return updateInfo{}, fmt.Errorf("no tags found in repository")
 	}
-	info := updateInfo{
-		latestTag:    tags[0].Name,
-		tagCommitSHA: tags[0].Commit.SHA,
+	tagName := tags[0].Name
+
+	// Fetch the release to get target_commitish — the actual commit the CI
+	// built from. The tag's commit SHA is stale (set on first tag creation and
+	// never moved), but target_commitish is PATCHed on every nightly run.
+	rResp, rErr := client.Get(forgejoReleasesTagAPI + tagName)
+	if rErr != nil {
+		return updateInfo{}, fmt.Errorf("releases API: %w", rErr)
+	}
+	defer rResp.Body.Close()
+	if rResp.StatusCode != http.StatusOK {
+		return updateInfo{}, fmt.Errorf("releases API returned %s", rResp.Status)
+	}
+	var release struct {
+		TargetCommitish string `json:"target_commitish"`
+	}
+	if err := json.NewDecoder(rResp.Body).Decode(&release); err != nil {
+		return updateInfo{}, fmt.Errorf("parse release response: %w", err)
 	}
 
-	return info, nil
+	return updateInfo{
+		latestTag:    tagName,
+		tagCommitSHA: release.TargetCommitish,
+	}, nil
 }
 
 // fetchReleaseAssetURL returns the download URL for the platform-appropriate asset in a release.
@@ -1220,8 +1235,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 		for i, name := range langNames {
 			if name == selected {
 				i18n.SetLanguage(langCodes[i])
-				state.convert.Language = langCodes[i]
-				state.persistConvertConfig()
+				persistLocale(langCodes[i], i18n.CurrentScript())
 				updateScriptSelect()
 				break
 			}
