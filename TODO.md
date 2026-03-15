@@ -1,6 +1,16 @@
-# VideoTools TODO (v0.1.1-dev33 plan)
+# VideoTools TODO (v0.1.1-dev34 plan)
 
 This file tracks upcoming features, improvements, and known issues.
+
+## Dev34 Scope
+
+- [ ] **Inuktitut language support** — Add Inuktitut (ᐃᓄᒃᔨᑎᑐᑦ) to Settings → Language dropdown.
+- [ ] **Inuktitut script option** — When Inuktitut selected, show sub-option to choose between Latin characters and Traditional Syllabics.
+- [ ] **Aboriginal Sans font** — Embed Aboriginal Sans font family (Regular, Bold, Italic, BoldItalic) for Inuktitut rendering in DVD menus and subtitles.
+- [ ] **Native Disc Authoring integration** (Phase 5) — Complete integration with Author/Rip modules (Blu-ray toggle, UDF reader).
+- [ ] **Root folder hygiene** (issue #22) — Continue extracting `package main` files to `internal/app/modules/`.
+- [ ] **Drag and drop into Convert** — Fix files dragged onto Convert module drop zone.
+- [ ] **Linux CI build optimization** — Consider pre-built container image.
 
 ## Dev33 Scope
 
