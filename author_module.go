@@ -2948,7 +2948,15 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		uw := udf.NewWriter(isoFile, title)
 		
 		// Recursively add VIDEO_TS and AUDIO_TS to UDF writer
-		// [Simplified for now: implementation will scan discRoot]
+		videoTSPath := filepath.Join(discRoot, "VIDEO_TS")
+		audioTSPath := filepath.Join(discRoot, "AUDIO_TS")
+		
+		if err := uw.AddDirFS(videoTSPath); err != nil {
+			return fmt.Errorf("adding VIDEO_TS to iso: %w", err)
+		}
+		if err := uw.AddDirFS(audioTSPath); err != nil {
+			return fmt.Errorf("adding AUDIO_TS to iso: %w", err)
+		}
 		
 		if err := uw.Build(); err != nil {
 			return fmt.Errorf("native udf build failed: %w", err)
