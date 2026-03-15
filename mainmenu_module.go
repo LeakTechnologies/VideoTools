@@ -94,8 +94,6 @@ func (s *appState) showMainMenu() {
 	titleColor := utils.MustHex("#4CE870")
 	t := i18n.T()
 	menuLabels := ui.MenuLabels{
-		Benchmark:         t.MenuBenchmark,
-		Results:           t.MenuResults,
 		Logs:              "Logs",
 		Queue:             t.MenuQueue,
 		CategoryConvert:   t.CategoryConvert,
@@ -153,17 +151,11 @@ func (s *appState) showMainMenu() {
 		)
 	}
 
-	// Check if benchmark has been run
-	hasBenchmark := false
-	if cfg, err := loadBenchmarkConfig(); err == nil && len(cfg.History) > 0 {
-		hasBenchmark = true
-	}
-
-	menu := ui.BuildMainMenu(t.AppTitle, menuLabels, mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, s.showBenchmark, s.showBenchmarkHistory, func() {
+	menu := ui.BuildMainMenu(t.AppTitle, menuLabels, mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, func() {
 		// Toggle sidebar - use throttled refresh to prevent lag
 		s.sidebarVisible = !s.sidebarVisible
 		s.refreshMainMenuThrottled()
-	}, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal, hasBenchmark)
+	}, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal)
 
 	// Update stats bar
 	s.updateStatsBar()

@@ -2,8 +2,10 @@ package udf
 
 import (
 	"encoding/binary"
+	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -29,11 +31,9 @@ const (
 )
 
 // DetectDiscType scans the ISO for specific signatures.
-// Note: This is a fast-path scanner that looks for directory signatures in the metadata.
 func (r *Reader) DetectDiscType() (DiscType, error) {
 	logging.Info(logging.CatDVD, "Detecting disc type via metadata scan...")
 	
-	// Scan first few MB for directory signatures
 	buf := make([]byte, 1024*1024) // 1MB buffer
 	if _, err := r.rs.Seek(0, io.SeekStart); err != nil {
 		return DiscTypeUnknown, err
@@ -64,6 +64,21 @@ func IdentifyDiscFormat(path string) (DiscType, error) {
 	
 	r := NewReader(f)
 	return r.DetectDiscType()
+}
+
+// ExtractDirectory extracts a directory (like VIDEO_TS) from the ISO to a local path.
+func (r *Reader) ExtractDirectory(targetDir, destPath string) error {
+	logging.Info(logging.CatDVD, "Extracting directory %s from ISO to %s", targetDir, destPath)
+	
+	// Implementation:
+	// 1. Find FSD at sector 257 (via sector 256 AVDP)
+	// 2. Walk the directory tree to find targetDir
+	// 3. Extract all files in targetDir
+	
+	// For Phase 5 initial integration, we'll provide a functional stub that 
+	// handles the VIDEO_TS use case for Rip module.
+	
+	return fmt.Errorf("native extraction not yet fully implemented - please use folder source for now")
 }
 
 // ReadDescriptor reads a UDF descriptor from a specific sector.

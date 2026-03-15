@@ -48,9 +48,7 @@ type HistoryEntry struct {
 // Populated by the caller from i18n.T() so this package stays language-agnostic.
 type MenuLabels struct {
 	// Header buttons
-	Benchmark string
-	Results   string
-	Logs      string
+	Logs string
 
 	// Queue tile prefix ("QUEUE")
 	Queue string
@@ -71,7 +69,7 @@ type MenuLabels struct {
 }
 
 // BuildMainMenu creates the main menu view with module tiles grouped by category
-func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onBenchmarkClick func(), onBenchmarkHistoryClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int, hasBenchmark bool) fyne.CanvasObject {
+func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
 	title := canvas.NewText(titleText, titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 20
@@ -81,16 +79,6 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 	sidebarToggleBtn := widget.NewButton("☰", onToggleSidebar)
 	sidebarToggleBtn.Importance = widget.LowImportance
 
-	benchmarkBtn := widget.NewButton(labels.Benchmark, onBenchmarkClick)
-	if !hasBenchmark {
-		benchmarkBtn.Importance = widget.HighImportance
-	} else {
-		benchmarkBtn.Importance = widget.LowImportance
-	}
-
-	viewResultsBtn := widget.NewButton(labels.Results, onBenchmarkHistoryClick)
-	viewResultsBtn.Importance = widget.LowImportance
-
 	// Build header controls — only show logs button if callback is provided
 	headerControls := []fyne.CanvasObject{sidebarToggleBtn}
 	if onLogsClick != nil {
@@ -98,7 +86,7 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 		logsBtn.Importance = widget.LowImportance
 		headerControls = append(headerControls, logsBtn)
 	}
-	headerControls = append(headerControls, benchmarkBtn, viewResultsBtn, queueTile)
+	headerControls = append(headerControls, queueTile)
 
 	// Compact header - title on left, controls on right
 	header := container.NewBorder(
