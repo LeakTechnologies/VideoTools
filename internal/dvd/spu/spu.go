@@ -3,7 +3,6 @@ package spu
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"image"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -41,7 +40,6 @@ func (e *Encoder) Encode(img *image.Paletted) ([]byte, error) {
 	var topField bytes.Buffer
 	var botField bytes.Buffer
 	
-	// DVD SPU uses interleaved fields (Top/Bottom)
 	for y := 0; y < e.height; y++ {
 		row := e.getRowPixels(img, y)
 		encodedRow := e.rleEncode(row)
@@ -52,28 +50,49 @@ func (e *Encoder) Encode(img *image.Paletted) ([]byte, error) {
 		}
 	}
 	
-	// SPU Header (4 bytes)
-	// [Size: 2b] [DCSQ Offset: 2b]
-	header := make([]byte, 4)
+	topData := topField.Bytes()
+	botData := botField.Bytes()
 	
-	// [Implementation of full SPU assembly goes here]
+	// Display Control Sequence
+	var dcsq bytes.Buffer
+	dcsq.WriteByte(0x00) // Time 0
+	dcsq.WriteByte(0x00) // Time 0
+	dcsq.WriteByte(DCSQ_START)
+	dcsq.WriteByte(DCSQ_SET_AREA)
+	// Area: [x1:12b][x2:12b], [y1:12b][y2:12b]
+	dcsq.Write([]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}) 
+	dcsq.WriteByte(DCSQ_SET_ADDRESS)
+	// Offsets to top/bot field data
+	dcsq.Write([]byte{0x00, 0x04, 0x00, 0x00}) 
+	dcsq.WriteByte(DCSQ_END)
 	
-	return nil, fmt.Errorf("spu assembly not yet fully implemented")
+	dcsqData := dcsq.Bytes()
+	
+	// Assemble SPU
+	spuSize := 4 + len(topData) + len(botData) + len(dcsqData)
+	buf := make([]byte, spuSize)
+	
+	binary.BigEndian.PutUint16(buf[0:2], uint16(spuSize))
+	binary.BigEndian.PutUint16(buf[2:4], uint16(4+len(topData)+len(botData)))
+	
+	copy(buf[4:], topData)
+	copy(buf[4+len(topData):], botData)
+	copy(buf[4+len(topData)+len(botData):], dcsqData)
+	
+	logging.Info(logging.CatDVD, "SPU encoded successfully. Size: %d bytes", spuSize)
+	return buf, nil
 }
 
 func (e *Encoder) getRowPixels(img *image.Paletted, y int) []uint8 {
 	row := make([]uint8, e.width)
 	for x := 0; x < e.width; x++ {
-		// Paletted images already have 0-3 indices if prepared correctly
 		row[x] = img.ColorIndexAt(x, y) & 0x03
 	}
 	return row
 }
 
-// rleEncode implements the DVD 2-bit RLE algorithm.
 func (e *Encoder) rleEncode(pixels []uint8) []byte {
 	var bits bitWriter
-	
 	i := 0
 	for i < len(pixels) {
 		color := pixels[i]
@@ -81,12 +100,9 @@ func (e *Encoder) rleEncode(pixels []uint8) []byte {
 		for i+count < len(pixels) && pixels[i+count] == color && count < 255 {
 			count++
 		}
-		
 		e.writeRLECode(&bits, uint16(count), color)
 		i += count
 	}
-	
-	// Align to byte boundary
 	return bits.Bytes()
 }
 
@@ -116,11 +132,30 @@ type bitWriter struct {
 }
 
 func (b *bitWriter) WriteBits(val uint32, count uint8) {
-	// Simple bit writing logic...
+	if b.bitLeft == 0 {
+		b.bitLeft = 8
+	}
+	for count > 0 {
+		take := count
+		if take > b.bitLeft {
+			take = b.bitLeft
+		}
+		shift := count - take
+		mask := uint32((1 << take) - 1)
+		b.curr |= uint8((val >> shift) & mask) << (b.bitLeft - take)
+		
+		count -= take
+		b.bitLeft -= take
+		if b.bitLeft == 0 {
+			b.buf = append(b.buf, b.curr)
+			b.curr = 0
+			b.bitLeft = 8
+		}
+	}
 }
 
 func (b *bitWriter) Bytes() []byte {
-	if b.bitLeft < 8 {
+	if b.bitLeft < 8 && b.bitLeft > 0 {
 		b.buf = append(b.buf, b.curr)
 	}
 	return b.buf
