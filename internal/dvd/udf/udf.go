@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
