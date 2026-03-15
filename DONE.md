@@ -10,6 +10,7 @@
 - [x] **SPU subpicture encoder** — 2-bit RLE subpicture encoder for DVD menu button highlights.
 - [x] **UDF reader foundation** — UDF 1.02 disc type detection and reader scaffolding in `internal/dvd/udf`.
 - [x] **Authoring Architecture Consolidation** — Unified DVD and Blu-ray workflows into the core Author and Rip modules. Removed the redundant standalone Blu-ray module to streamline UI/UX.
+- [x] **Dependency Cleanup** — Fully removed `dvdauthor` and `xorriso` as dependencies. Author and Rip modules are now enabled cross-platform by default with optional visibility toggles in Settings.
 
 ### UI Alignment (dev33 polish pass)
 - [x] **Module UI alignment** — Convert, Thumbnail, Filters, Audio, Compare, and Inspect module layouts aligned with the standardised Convert module style (consistent labels, separators, padding).
