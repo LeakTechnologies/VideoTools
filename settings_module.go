@@ -1177,29 +1177,6 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 		langCodes[i] = lang.Code
 	}
 
-	// updateScriptSelect declared before langSelect so the closure can reference it.
-	var updateScriptSelect func()
-
-	langSelect := widget.NewSelect(langNames, func(selected string) {
-		for i, name := range langNames {
-			if name == selected {
-				i18n.SetLanguage(langCodes[i])
-				persistLocale(langCodes[i], i18n.CurrentScript())
-				if updateScriptSelect != nil {
-					updateScriptSelect()
-				}
-				break
-			}
-		}
-	})
-	currentCode := i18n.CurrentCode()
-	for i, code := range langCodes {
-		if code == currentCode {
-			langSelect.SetSelected(langNames[i])
-			break
-		}
-	}
-
 	// Inuktitut script toggle (shown only when iu is selected)
 	scriptLabel := widget.NewLabel("Script:")
 	scriptLabel.Hide()
@@ -1207,6 +1184,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	scriptSelect := widget.NewSelect([]string{}, func(selected string) {})
 	scriptSelect.Hide()
 
+	var updateScriptSelect func()
 	updateScriptSelect = func() {
 		currentLang := i18n.CurrentCode()
 		if currentLang == "iu" {
@@ -1229,11 +1207,31 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 					script = i18n.ScriptLatin
 				}
 				i18n.SetLanguageWithScript("iu", script)
-				persistLocale("iu", script)
+				state.convert.LanguageScript = string(script)
+				state.persistConvertConfig()
 			}
 		} else {
 			scriptLabel.Hide()
 			scriptSelect.Hide()
+		}
+	}
+
+	langSelect := widget.NewSelect(langNames, func(selected string) {
+		for i, name := range langNames {
+			if name == selected {
+				i18n.SetLanguage(langCodes[i])
+				state.convert.Language = langCodes[i]
+				state.persistConvertConfig()
+				updateScriptSelect()
+				break
+			}
+		}
+	})
+	currentCode := i18n.CurrentCode()
+	for i, code := range langCodes {
+		if code == currentCode {
+			langSelect.SetSelected(langNames[i])
+			break
 		}
 	}
 
