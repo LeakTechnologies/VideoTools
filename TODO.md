@@ -14,8 +14,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Wiki maintenance** — Synchronized `docs/` to Forgejo wiki; established `Home.md`, `Documentation.md`, and `_Sidebar.md`.
 - [ ] **Native Disc Authoring (Issue #21)** — Implement native Go replacement for `dvdauthor`, `spumux`, and `xorriso`.
     - [x] Phase 1: UDF 1.02 / ISO 9660 Bridge writer.
-    - [ ] Phase 2: MPEG-PS / VOB muxer with NAV_PCK support (Foundation complete).
-    - [ ] Phase 3: IFO/BUP structure generation.
+    - [x] Phase 2: MPEG-PS / VOB muxer with NAV_PCK support (Foundation complete).
+    - [x] Phase 3: IFO/BUP structure generation.
     - [ ] Phase 4: SPU (subpicture) encoding for menu buttons.
 - [ ] **Root folder hygiene** (issue #22) — 24 `package main` files clutter the project root; should be progressively extracted to `internal/app/modules/` with thin root shims, following the pattern already established for `about`, `deps`, and `mainmenu`.
 - [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered (carry-forward from dev32).
