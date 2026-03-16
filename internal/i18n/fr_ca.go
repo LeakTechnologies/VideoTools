@@ -100,6 +100,11 @@ var frCA = Strings{
 	LabelNoVideoLoaded: "Aucune vidéo chargée",
 	LabelFileFmt:       "Fichier : %s",
 
+	// ── Inspect Module ────────────────────────────────────────────────────────
+	InspectInstructions:       "Chargez une vidéo pour inspecter ses propriétés et prévisualiser la lecture. Glissez une vidéo ici ou utilisez le bouton ci-dessous.",
+	InspectLoadingPreview:     "Chargement de l'aperçu...",
+	InspectNoPreviewAvailable: "Aperçu non disponible",
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:        "Prêt",
 	StatusProcessing:   "Traitement en cours...",
