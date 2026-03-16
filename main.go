@@ -910,6 +910,7 @@ type appState struct {
 	currentIndex              int            // Current video index in loadedVideos
 	anim                      *previewAnimator
 	convert                   convertConfig
+	prefs                     prefsConfig
 	currentFrame              string
 	player                    player.Controller
 	playerReady               bool
@@ -6689,6 +6690,12 @@ func runGUI() {
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		logging.Debug(logging.CatSystem, "failed to load persisted convert config: %v", err)
+	}
+
+	if prefs, err := loadPrefsConfig(); err == nil {
+		state.prefs = prefs
+	} else if !errors.Is(err, os.ErrNotExist) {
+		logging.Debug(logging.CatSystem, "failed to load persisted prefs: %v", err)
 	}
 	utils.SetTempDir(state.convert.TempDir)
 
