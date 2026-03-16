@@ -1045,6 +1045,11 @@ type appState struct {
 	upscaleBitrateMode         string   // CRF, CBR, VBR
 	upscaleBitratePreset       string   // preset label for bitrate modes
 	upscaleManualBitrate       string   // manual bitrate value (e.g., 2500k)
+	upscaleRIFEBackend         string   // "ncnn" or "" (not yet checked or not found)
+	upscaleRIFEAvailable       bool     // runtime detection result
+	upscaleRIFEEnabled         bool     // user opted in
+	upscaleRIFEMultiplier      int      // 2 or 4
+	upscaleRIFEModel           string   // "rife-v4.6", "rife-v4.13-lite", "rife-anime"
 
 	// Snippet settings
 	snippetLength       int  // Length of snippet in seconds (default: 20)
@@ -5306,6 +5311,18 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	manualBitrate, _ := cfg["manualBitrate"].(string)
 	blurEnabled, _ := cfg["blurEnabled"].(bool)
 	blurSigma := toFloat(cfg["blurSigma"])
+	useRIFE := false
+	if v, ok := cfg["useRIFE"].(bool); ok {
+		useRIFE = v
+	}
+	rifeModel, _ := cfg["rifeModel"].(string)
+	if rifeModel == "" {
+		rifeModel = "rife-v4.6"
+	}
+	rifeMultiplier := 2
+	if v := int(toFloat(cfg["rifeMultiplier"])); v > 0 {
+		rifeMultiplier = v
+	}
 
 	if progressCallback != nil {
 		progressCallback(0)
@@ -5716,11 +5733,54 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			sourceFrameRate = 30.0
 		}
 
-		reassemblePattern := filepath.Join(outputFramesDir, "frame_%08d."+frameExt)
+		// Optional RIFE frame interpolation chained after Real-ESRGAN
+		finalFramesDir := outputFramesDir
+		finalFramePattern := fmt.Sprintf("frame_%%08d.%s", frameExt)
+		outputFPS := sourceFrameRate
+		if useRIFE {
+			entries, _ := os.ReadDir(outputFramesDir)
+			inputFrameCount := 0
+			for _, e := range entries {
+				if !e.IsDir() {
+					inputFrameCount++
+				}
+			}
+			rifeFramesDir := filepath.Join(workDir, "frames_rife")
+			if mkErr := os.MkdirAll(rifeFramesDir, 0o755); mkErr != nil {
+				return fmt.Errorf("create rife frames dir: %w", mkErr)
+			}
+			rifeArgs := []string{
+				"-i", outputFramesDir,
+				"-o", rifeFramesDir,
+				"-m", rifeModel,
+				"-n", strconv.Itoa(inputFrameCount * rifeMultiplier),
+			}
+			if logFile != nil {
+				fmt.Fprintln(logFile, "Stage: RIFE frame interpolation")
+				fmt.Fprintf(logFile, "Command: rife-ncnn-vulkan %s\n", strings.Join(rifeArgs, " "))
+			}
+			rifeCmd := exec.CommandContext(ctx, "rife-ncnn-vulkan", rifeArgs...)
+			utils.ApplyNoWindow(rifeCmd)
+			rifeOut, rifeErr := rifeCmd.CombinedOutput()
+			if logFile != nil && len(rifeOut) > 0 {
+				fmt.Fprintln(logFile, string(rifeOut))
+			}
+			if rifeErr != nil {
+				return fmt.Errorf("RIFE interpolation failed: %w", rifeErr)
+			}
+			finalFramesDir = rifeFramesDir
+			finalFramePattern = "%08d.png"
+			outputFPS = sourceFrameRate * float64(rifeMultiplier)
+			if progressCallback != nil {
+				progressCallback(82)
+			}
+		}
+
+		reassemblePattern := filepath.Join(finalFramesDir, finalFramePattern)
 		reassembleArgs := []string{
 			"-y",
 			"-hide_banner",
-			"-framerate", fmt.Sprintf("%.3f", sourceFrameRate),
+			"-framerate", fmt.Sprintf("%.3f", outputFPS),
 			"-i", reassemblePattern,
 			"-i", inputPath,
 			"-map", "0:v:0",
@@ -5763,6 +5823,136 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			progressCallback(100)
 		}
 
+		return nil
+	}
+
+	// RIFE-only path: extract frames → RIFE frame interpolation → reassemble
+	if useRIFE {
+		if frameRate != "" && frameRate != "Source" {
+			if fps, err := strconv.ParseFloat(frameRate, 64); err == nil {
+				sourceFrameRate = fps
+			}
+		}
+		if sourceFrameRate <= 0 {
+			if src, err := probeVideo(inputPath); err == nil && src != nil {
+				sourceFrameRate = src.FrameRate
+			}
+		}
+		if sourceFrameRate <= 0 {
+			sourceFrameRate = 30.0
+		}
+		outputFPS := sourceFrameRate * float64(rifeMultiplier)
+
+		workDir, err := os.MkdirTemp(utils.TempDir(), "vt-rife-")
+		if err != nil {
+			return fmt.Errorf("create rife temp dir: %w", err)
+		}
+		defer os.RemoveAll(workDir)
+
+		inputFramesDir := filepath.Join(workDir, "frames_in")
+		rifeFramesDir := filepath.Join(workDir, "frames_rife")
+		if err := os.MkdirAll(inputFramesDir, 0o755); err != nil {
+			return fmt.Errorf("create frames dir: %w", err)
+		}
+		if err := os.MkdirAll(rifeFramesDir, 0o755); err != nil {
+			return fmt.Errorf("create rife dir: %w", err)
+		}
+
+		// Apply scale + any pre-filters during frame extraction
+		scaleFilter := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
+		extractFilters := append(baseFilters, scaleFilter)
+		framePattern := filepath.Join(inputFramesDir, "frame_%08d.png")
+		extractArgs := []string{"-y", "-hide_banner", "-i", inputPath}
+		if len(extractFilters) > 0 {
+			extractArgs = append(extractArgs, "-vf", strings.Join(extractFilters, ","))
+		}
+		extractArgs = append(extractArgs, "-start_number", "0", framePattern)
+
+		logFile, logPath, _ := createConversionLog(inputPath, outputPath, extractArgs)
+		if logFile != nil {
+			fmt.Fprintln(logFile, "Stage: extract frames for RIFE")
+		}
+		if progressCallback != nil {
+			progressCallback(1)
+		}
+		if err := runCommandWithLogger(ctx, utils.GetFFmpegPath(), extractArgs, func(line string) {
+			if logFile != nil {
+				fmt.Fprintln(logFile, line)
+			}
+		}); err != nil {
+			return fmt.Errorf("failed to extract frames: %w", err)
+		}
+		if progressCallback != nil {
+			progressCallback(35)
+		}
+
+		// Count extracted frames and run RIFE
+		entries, _ := os.ReadDir(inputFramesDir)
+		inputFrameCount := 0
+		for _, e := range entries {
+			if !e.IsDir() {
+				inputFrameCount++
+			}
+		}
+		rifeArgs := []string{
+			"-i", inputFramesDir,
+			"-o", rifeFramesDir,
+			"-m", rifeModel,
+			"-n", strconv.Itoa(inputFrameCount * rifeMultiplier),
+		}
+		if logFile != nil {
+			fmt.Fprintln(logFile, "Stage: RIFE frame interpolation")
+			fmt.Fprintf(logFile, "Command: rife-ncnn-vulkan %s\n", strings.Join(rifeArgs, " "))
+		}
+		rifeCmd := exec.CommandContext(ctx, "rife-ncnn-vulkan", rifeArgs...)
+		utils.ApplyNoWindow(rifeCmd)
+		rifeOut, rifeErr := rifeCmd.CombinedOutput()
+		if logFile != nil && len(rifeOut) > 0 {
+			fmt.Fprintln(logFile, string(rifeOut))
+		}
+		if rifeErr != nil {
+			return fmt.Errorf("RIFE interpolation failed: %w", rifeErr)
+		}
+		if progressCallback != nil {
+			progressCallback(80)
+		}
+
+		// Reassemble with original audio
+		reassemblePattern := filepath.Join(rifeFramesDir, "%08d.png")
+		reassembleArgs := []string{
+			"-y", "-hide_banner",
+			"-framerate", fmt.Sprintf("%.3f", outputFPS),
+			"-i", reassemblePattern,
+			"-i", inputPath,
+			"-map", "0:v:0",
+			"-map", "1:a?",
+			"-c:v", videoEncoder,
+		}
+		reassembleArgs = appendEncodingArgs(reassembleArgs)
+		reassembleArgs = append(reassembleArgs,
+			"-pix_fmt", "yuv420p",
+			"-c:a", "copy",
+			"-shortest",
+			outputPath,
+		)
+		if logFile != nil {
+			fmt.Fprintln(logFile, "Stage: reassemble")
+		}
+		if err := runCommandWithLogger(ctx, utils.GetFFmpegPath(), reassembleArgs, func(line string) {
+			if logFile != nil {
+				fmt.Fprintln(logFile, line)
+			}
+		}); err != nil {
+			return fmt.Errorf("failed to reassemble: %w", err)
+		}
+		if logFile != nil {
+			fmt.Fprintf(logFile, "\nStatus: completed at %s\n", time.Now().Format(time.RFC3339))
+			_ = logFile.Close()
+			job.LogPath = logPath
+		}
+		if progressCallback != nil {
+			progressCallback(100)
+		}
 		return nil
 	}
 

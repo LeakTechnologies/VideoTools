@@ -257,6 +257,16 @@ var enCA = Strings{
 	UpscaleFilterIntLabel:  "Filter Integration:",
 	UpscaleScalingLabel:    "Scaling Algorithm:",
 
+	// ── Frame Interpolation (RIFE) ────────────────────────────────────────────
+	RIFEBoxTitle:        "Frame Interpolation (RIFE)",
+	RIFEDetected:        "rife-ncnn-vulkan detected",
+	RIFENotDetected:     "rife-ncnn-vulkan not detected. Install for high-quality frame interpolation:",
+	RIFEEnabled:         "Enable RIFE Frame Interpolation",
+	RIFEMultiplierLabel: "Multiplier:",
+	RIFEModelLabel:      "Model:",
+	RIFEEstFPSFmt:       "Estimated output: %.0f fps",
+	RIFENote:            "RIFE synthesises intermediate frames for smooth, high-quality frame rate conversion.",
+
 	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
 	ThumbnailGenerateNow:        "GENERATE NOW",
 	ThumbnailContactSheet:       "Contact Sheet",

@@ -30,6 +30,14 @@ func detectAIUpscaleBackend() string {
 	return upscale.DetectAIUpscaleBackend()
 }
 
+func detectRIFEBackend() string {
+	return upscale.DetectRIFEBackend()
+}
+
+func rifeModelOptions() []string {
+	return upscale.RIFEModelOptions()
+}
+
 func checkAIFaceEnhanceAvailable(backend string) bool {
 	return upscale.CheckAIFaceEnhanceAvailable(backend)
 }
@@ -139,6 +147,17 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	if state.upscaleAIBackend == "" {
 		state.upscaleAIBackend = detectAIUpscaleBackend()
 		state.upscaleAIAvailable = state.upscaleAIBackend == "ncnn"
+	}
+	// Check RIFE availability on first load
+	if state.upscaleRIFEBackend == "" {
+		state.upscaleRIFEBackend = detectRIFEBackend()
+		state.upscaleRIFEAvailable = state.upscaleRIFEBackend == "ncnn"
+	}
+	if state.upscaleRIFEMultiplier == 0 {
+		state.upscaleRIFEMultiplier = 2
+	}
+	if state.upscaleRIFEModel == "" {
+		state.upscaleRIFEModel = rifeModelOptions()[0]
 	}
 	if len(state.filterActiveChain) > 0 {
 		state.upscaleFilterChain = append([]string{}, state.filterActiveChain...)
@@ -688,6 +707,70 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		widget.NewLabel(t.UpscaleFilterIntHint),
 	))
 
+	// RIFE Frame Interpolation Section
+	var rifeSection fyne.CanvasObject
+	if state.upscaleRIFEAvailable {
+		var updateEstFPS func()
+		var estFPSLabel *widget.Label
+
+		rifeMultiplierSelect := widget.NewSelect([]string{"2×", "4×"}, func(s string) {
+			if s == "4×" {
+				state.upscaleRIFEMultiplier = 4
+			} else {
+				state.upscaleRIFEMultiplier = 2
+			}
+			if updateEstFPS != nil {
+				updateEstFPS()
+			}
+		})
+		if state.upscaleRIFEMultiplier == 4 {
+			rifeMultiplierSelect.SetSelected("4×")
+		} else {
+			rifeMultiplierSelect.SetSelected("2×")
+		}
+
+		rifeModelSelect := widget.NewSelect(rifeModelOptions(), func(s string) {
+			state.upscaleRIFEModel = s
+		})
+		rifeModelSelect.SetSelected(state.upscaleRIFEModel)
+
+		rifeEnabledCheck := widget.NewCheck(t.RIFEEnabled, func(checked bool) {
+			state.upscaleRIFEEnabled = checked
+		})
+		rifeEnabledCheck.SetChecked(state.upscaleRIFEEnabled)
+
+		estFPSLabel = widget.NewLabel("")
+		estFPSLabel.TextStyle = fyne.TextStyle{Italic: true}
+		updateEstFPS = func() {
+			if state.upscaleFile != nil && state.upscaleFile.FrameRate > 0 {
+				estFPSLabel.SetText(fmt.Sprintf(t.RIFEEstFPSFmt, state.upscaleFile.FrameRate*float64(state.upscaleRIFEMultiplier)))
+			} else {
+				estFPSLabel.SetText("")
+			}
+		}
+		updateEstFPS()
+
+		rifeSection = buildUpscaleBox(t.RIFEBoxTitle, container.NewVBox(
+			widget.NewLabel(t.RIFEDetected),
+			rifeEnabledCheck,
+			container.NewGridWithColumns(2,
+				widget.NewLabel(t.RIFEMultiplierLabel),
+				rifeMultiplierSelect,
+			),
+			container.NewGridWithColumns(2,
+				widget.NewLabel(t.RIFEModelLabel),
+				rifeModelSelect,
+			),
+			estFPSLabel,
+			widget.NewLabel(t.RIFENote),
+		))
+	} else {
+		rifeSection = buildUpscaleBox(t.RIFEBoxTitle, container.NewVBox(
+			widget.NewLabel(t.RIFENotDetected),
+			widget.NewLabel("https://github.com/nihui/rife-ncnn-vulkan"),
+		))
+	}
+
 	// Helper function to create upscale job
 	createUpscaleJob := func() (*queue.Job, error) {
 		if state.upscaleFile == nil {
@@ -714,6 +797,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		description := fmt.Sprintf("Upscale to %s using %s", state.upscaleTargetRes, state.upscaleMethod)
 		if state.upscaleAIEnabled && state.upscaleAIAvailable {
 			description += fmt.Sprintf(" + AI (%s)", state.upscaleAIModel)
+		}
+		if state.upscaleRIFEEnabled && state.upscaleRIFEAvailable {
+			description += fmt.Sprintf(" + RIFE %dx", state.upscaleRIFEMultiplier)
 		}
 
 		desc := fmt.Sprintf("%s  %s", description, filepath.Base(outputPath))
@@ -764,6 +850,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 				"sourceFrameRate":        state.upscaleFile.FrameRate,
 				"frameRate":              state.upscaleFrameRate,
 				"useMotionInterpolation": state.upscaleMotionInterpolation,
+				"useRIFE":                state.upscaleRIFEEnabled && state.upscaleRIFEAvailable,
+				"rifeModel":              state.upscaleRIFEModel,
+				"rifeMultiplier":         float64(state.upscaleRIFEMultiplier),
 			},
 		}, nil
 	}
@@ -839,6 +928,8 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		encodingSection,
 		spacing(),
 		frameRateSection,
+		spacing(),
+		rifeSection,
 		spacing(),
 		filterIntegrationSection,
 	)
