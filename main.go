@@ -9390,12 +9390,28 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	hwAccelHint.Wrapping = fyne.TextWrapWord
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	hwAccelHintContainer := container.NewPadded(hwAccelHint)
-	hwAccelOptions := []string{"auto", "none", "nvenc", "amf", "vaapi", "qsv", "videotoolbox"}
+	hwAccelOptions := []string{"auto", "none"}
+	for _, hw := range []string{"nvenc", "amf", "vaapi", "qsv", "videotoolbox"} {
+		if hwAccelAvailable(hw) {
+			hwAccelOptions = append(hwAccelOptions, hw)
+		}
+	}
 	hwAccelSelect := widget.NewSelect(hwAccelOptions, func(value string) {
 		state.convert.HardwareAccel = value
 		logging.Debug(logging.CatUI, "hardware accel set to %s", value)
 	})
 	if state.convert.HardwareAccel == "" {
+		state.convert.HardwareAccel = "auto"
+	}
+	// If persisted value is no longer available, reset to auto
+	found := false
+	for _, opt := range hwAccelOptions {
+		if opt == state.convert.HardwareAccel {
+			found = true
+			break
+		}
+	}
+	if !found {
 		state.convert.HardwareAccel = "auto"
 	}
 	hwAccelSelect.SetSelected(state.convert.HardwareAccel)
