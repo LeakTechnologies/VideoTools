@@ -545,8 +545,9 @@ func isModuleAvailable(moduleID string) bool {
 
 func buildSettingsView(state *appState) fyne.CanvasObject {
 	settingsColor := utils.MustHex("#607D8B") // Blue Grey for settings
+	t := i18n.T()
 
-	backBtn := widget.NewButton("< BACK", func() {
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleSettings), func() {
 		state.showMainMenu()
 	})
 	backBtn.Importance = widget.LowImportance
