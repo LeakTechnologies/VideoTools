@@ -19,9 +19,9 @@ const (
 
 // DVD Private Stream 1 Sub-stream IDs
 const (
-	SubStreamAC3 = 0x80 // AC3 starts at 0x80
-	SubStreamDTS = 0x88 // DTS starts at 0x88
-	SubStreamSPU = 0x20 // SPU (Subpicture) starts at 0x20
+	SubStreamAC3Base = 0x80 // AC3 starts at 0x80 (up to 0x87)
+	SubStreamDTSBase = 0x88 // DTS starts at 0x88 (up to 0x8F)
+	SubStreamSPUBase = 0x20 // SPU starts at 0x20 (up to 0x3F)
 )
 
 // DVD Sector size (VOB packs are always 2048 bytes)
@@ -78,38 +78,55 @@ func (m *Muxer) WritePackHeader(scr uint64) error {
 		logging.Error(logging.CatDVD, "Failed to write pack header at SCR %d: %v", scr, err)
 		return fmt.Errorf("write pack header: %w", err)
 	}
-	// Note: We don't increment currentSector here because a Pack Header 
-	// is just the start of a sector. The sector is finished by padding.
 	return nil
 }
 
-// WritePESHeader writes a PES header with optional PTS/DTS.
-func (m *Muxer) WritePESHeader(streamID uint8, length uint16, pts uint64, dts uint64, hasDTS bool) error {
-	var buf [19]byte
-	binary.BigEndian.PutUint32(buf[0:4], 0x00000100 | uint32(streamID))
-	binary.BigEndian.PutUint16(buf[4:6], length)
+// WritePESHeader writes a PES header with optional PTS/DTS and DVD sub-stream support.
+func (m *Muxer) WritePESHeader(streamID uint8, subStreamID uint8, payloadLen uint16, pts uint64, dts uint64, hasDTS bool) error {
+	// PES length includes header data and payload
+	headerDataLen := 5
+	if hasDTS {
+		headerDataLen = 10
+	}
 	
-	buf[6] = 0x80 
+	// For Private Stream 1, we also include the 1-byte sub-stream ID
+	isPrivate1 := streamID == 0xBD
+	totalPESHeaderLen := 3 + headerDataLen // flags(1) + flags(1) + dataLen(1) + data
+	if isPrivate1 {
+		totalPESHeaderLen += 1
+	}
 	
-	var headerLen int
+	totalLen := uint16(totalPESHeaderLen) + payloadLen
+	
+	var buf [20]byte
+	binary.BigEndian.PutUint32(buf[0:4], 0x00000100|uint32(streamID))
+	binary.BigEndian.PutUint16(buf[4:6], totalLen)
+	
+	buf[6] = 0x80 // Fixed 10
 	if hasDTS {
 		buf[7] = 0xC0 // PTS and DTS
-		buf[8] = 10
+		buf[8] = uint8(headerDataLen)
 		m.encodeTimestamp(buf[9:14], 0x30, pts)
 		m.encodeTimestamp(buf[14:19], 0x10, dts)
-		headerLen = 19
+		if isPrivate1 {
+			buf[19] = subStreamID
+			_, err := m.w.Write(buf[:20])
+			return err
+		}
+		_, err := m.w.Write(buf[:19])
+		return err
 	} else {
 		buf[7] = 0x80 // PTS only
-		buf[8] = 5
+		buf[8] = uint8(headerDataLen)
 		m.encodeTimestamp(buf[9:14], 0x20, pts)
-		headerLen = 14
+		if isPrivate1 {
+			buf[14] = subStreamID
+			_, err := m.w.Write(buf[:15])
+			return err
+		}
+		_, err := m.w.Write(buf[:14])
+		return err
 	}
-
-	if _, err := m.w.Write(buf[:headerLen]); err != nil {
-		logging.Error(logging.CatDVD, "Failed to write PES header (stream 0x%X): %v", streamID, err)
-		return fmt.Errorf("write pes header: %w", err)
-	}
-	return nil
 }
 
 func (m *Muxer) encodeTimestamp(buf []byte, prefix uint8, ts uint64) {
@@ -123,9 +140,16 @@ func (m *Muxer) encodeTimestamp(buf []byte, prefix uint8, ts uint64) {
 // WritePadding writes a padding packet and finalizes the sector.
 func (m *Muxer) WritePadding(size int) error {
 	if size < 6 {
+		// If padding is too small, we might need stuffing bytes in the previous PES header,
+		// but for DVD sectors we usually aim for large padding or perfect fit.
+		padding := make([]byte, size)
+		if _, err := m.w.Write(padding); err != nil {
+			return err
+		}
+		m.currentSector++
 		return nil
 	}
-	logging.Debug(logging.CatDVD, "Writing %d bytes of padding", size)
+	
 	var buf [6]byte
 	binary.BigEndian.PutUint32(buf[0:4], PaddingStreamCode)
 	binary.BigEndian.PutUint16(buf[4:6], uint16(size-6))
