@@ -3089,6 +3089,11 @@ func (s *appState) showConvertView(file *videoSource) {
 			OnMaximizeWindow: s.maximizeWindow,
 			OnSetContent:     s.setContent,
 			OnPersistConfig:  s.persistConvertConfig,
+			OnDroppedFiles: func(paths []string) {
+				if len(paths) > 0 {
+					s.loadVideos(paths)
+				}
+			},
 			OnBuildView: func(src *convertmodule.VideoSourceInfo) fyne.CanvasObject {
 				return buildConvertView(s, convertSourceToVideoSource(src))
 			},
