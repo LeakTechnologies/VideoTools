@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
+	"image/color"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -21,7 +22,8 @@ var gridColor = utils.MustHex("#2A3A52")
 var navyBlue = utils.MustHex("#191F35")
 
 type Options struct {
-	Window fyne.Window
+	Window      fyne.Window
+	ModuleColor color.Color
 
 	CompareFile1 interface{}
 	CompareFile2 interface{}
@@ -99,13 +101,16 @@ func (v *videoSource) DurationString() string {
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
-	compareColor := utils.MustHex("#9C27B0")
+	compareColor := opts.ModuleColor
+	if compareColor == nil {
+		compareColor = utils.MustHex("#E64A19")
+	}
 	t := i18n.T()
 
 	file1 := toVideoSource(opts.CompareFile1)
 	file2 := toVideoSource(opts.CompareFile2)
 
-	backBtn := widget.NewButton("< "+t.ModuleCompare, func() {
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleCompare), func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}

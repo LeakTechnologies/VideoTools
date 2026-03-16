@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"image/color"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -20,7 +21,8 @@ var gridColor = utils.MustHex("#2A3A52")
 var navyBlue = utils.MustHex("#191F35")
 
 type Options struct {
-	Window fyne.Window
+	Window      fyne.Window
+	ModuleColor color.Color
 
 	InspectFile               any
 	InspectInterlaceAnalyzing bool
@@ -59,7 +61,10 @@ type Options struct {
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
-	inspectColor := utils.MustHex("#FF8F00")
+	inspectColor := opts.ModuleColor
+	if inspectColor == nil {
+		inspectColor = utils.MustHex("#3A3F9F")
+	}
 
 	backBtn := widget.NewButton("< INSPECT", func() {
 		if opts.OnShowMainMenu != nil {

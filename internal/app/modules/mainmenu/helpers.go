@@ -18,9 +18,7 @@ type SourceModule struct {
 
 type Visibility struct {
 	ShowUpscale bool
-	ShowAuthor  bool
-	ShowRip     bool
-	ShowBluRay  bool
+	ShowDisc    bool
 }
 
 func BuildVisibleModules(source []SourceModule, vis Visibility) []ui.ModuleInfo {
@@ -71,12 +69,8 @@ func isVisibleByPreference(moduleID string, vis Visibility) bool {
 	switch moduleID {
 	case "upscale":
 		return vis.ShowUpscale
-	case "author":
-		return vis.ShowAuthor
-	case "rip":
-		return vis.ShowRip
-	case "bluray":
-		return vis.ShowBluRay
+	case "author", "rip":
+		return vis.ShowDisc
 	default:
 		return true
 	}

@@ -38,22 +38,18 @@ func SaveModuleJSON(name string, in interface{}) error {
 type ConvertNormalizedFields struct {
 	ForceAspect bool
 	ShowUpscale bool
-	ShowAuthor  bool
-	ShowRip     bool
-	ShowBluRay  bool
+	ShowDisc    bool
 	OutputAspect  string
 	AspectUserSet bool
 	FrameRate     string
 	BitrateMode   string
 }
 
-func NormalizeConvertFields(raw map[string]json.RawMessage, forceAspect bool, showUpscale bool, showAuthor bool, showRip bool, showBluRay bool, outputAspect string, aspectUserSet bool, frameRate string, bitrateMode string) ConvertNormalizedFields {
+func NormalizeConvertFields(raw map[string]json.RawMessage, forceAspect bool, showUpscale bool, showDisc bool, outputAspect string, aspectUserSet bool, frameRate string, bitrateMode string) ConvertNormalizedFields {
 	n := ConvertNormalizedFields{
 		ForceAspect:   forceAspect,
 		ShowUpscale:   showUpscale,
-		ShowAuthor:    showAuthor,
-		ShowRip:       showRip,
-		ShowBluRay:    showBluRay,
+		ShowDisc:      showDisc,
 		OutputAspect:  outputAspect,
 		AspectUserSet: aspectUserSet,
 		FrameRate:     frameRate,
@@ -66,14 +62,8 @@ func NormalizeConvertFields(raw map[string]json.RawMessage, forceAspect bool, sh
 	if _, ok := raw["ShowUpscale"]; !ok {
 		n.ShowUpscale = true
 	}
-	if _, ok := raw["ShowAuthor"]; !ok {
-		n.ShowAuthor = true
-	}
-	if _, ok := raw["ShowRip"]; !ok {
-		n.ShowRip = true
-	}
-	if _, ok := raw["ShowBluRay"]; !ok {
-		n.ShowBluRay = true
+	if _, ok := raw["ShowDisc"]; !ok {
+		n.ShowDisc = true
 	}
 
 	if n.OutputAspect == "" || strings.EqualFold(n.OutputAspect, "Source") {

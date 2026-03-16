@@ -86,9 +86,7 @@ func (s *appState) showMainMenu() {
 	// Native Go engine enables disc modules cross-platform.
 	mods := mainmenumodule.BuildVisibleModules(sourceMods, mainmenumodule.Visibility{
 		ShowUpscale: s.convert.ShowUpscale,
-		ShowAuthor:  s.convert.ShowAuthor,
-		ShowRip:     s.convert.ShowRip,
-		ShowBluRay:  s.convert.ShowBluRay,
+		ShowDisc:    s.convert.ShowDisc,
 	})
 
 	titleColor := utils.MustHex("#4CE870")

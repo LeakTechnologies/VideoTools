@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"image/color"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -17,7 +18,8 @@ var gridColor = utils.MustHex("#2A3A52")
 var navyBlue = utils.MustHex("#191F35")
 
 type Options struct {
-	Window fyne.Window
+	Window      fyne.Window
+	ModuleColor color.Color
 
 	FilterBrightness    float64
 	FilterContrast      float64
@@ -83,7 +85,10 @@ type Options struct {
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
-	filtersColor := utils.MustHex("#FF8F00")
+	filtersColor := opts.ModuleColor
+	if filtersColor == nil {
+		filtersColor = utils.MustHex("#005F5F")
+	}
 
 	backBtn := widget.NewButton("< FILTERS", func() {
 		if opts.OnShowMainMenu != nil {
