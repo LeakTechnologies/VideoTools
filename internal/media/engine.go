@@ -175,7 +175,36 @@ func (e *Engine) demuxerLoop() {
 	}
 }
 
-// NextFrame retrieves the next decoded video frame, synchronized with the master clock.
+// Seek jumps to a specific time in seconds.
+func (e *Engine) Seek(seconds float64) error {
+	logging.Info(logging.CatPlayer, "Seeking to %.2f seconds", seconds)
+	
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	target := C.int64_t(seconds / e.videoTimeBase)
+	
+	if C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), target, target, target, C.AVSEEK_FLAG_FRAME) < 0 {
+		return fmt.Errorf("seek failed")
+	}
+
+	// Flush queues
+	e.videoQueue.Flush()
+	e.audioQueue.Flush()
+
+	// Flush decoders
+	if e.videoCodecCtx != nil {
+		C.avcodec_flush_buffers(e.videoCodecCtx)
+	}
+	if e.audioCodecCtx != nil {
+		C.avcodec_flush_buffers(e.audioCodecCtx)
+	}
+
+	e.clock.SetTime(seconds)
+	return nil
+}
+
+// NextFrame retrieves the next decoded video frame.
 func (e *Engine) NextFrame() (*image.RGBA, error) {
 	for {
 		pkt, ok := e.videoQueue.Get()
@@ -243,6 +272,9 @@ func (e *Engine) Close() {
 	}
 	if e.formatCtx != nil {
 		C.avformat_close_input(&e.formatCtx)
+	}
+	if e.packet != nil {
+		C.av_packet_free(&e.packet)
 	}
 	if e.frame != nil {
 		C.av_frame_free(&e.frame)

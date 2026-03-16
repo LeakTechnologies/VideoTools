@@ -58,6 +58,17 @@ func (q *PacketQueue) Get() (*C.AVPacket, bool) {
 	return pkt, true
 }
 
+// Flush removes all packets from the queue.
+func (q *PacketQueue) Flush() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	for _, pkt := range q.packets {
+		C.av_packet_free(&pkt)
+	}
+	q.packets = nil
+}
+
 // Close closes the queue and releases all packets.
 func (q *PacketQueue) Close() {
 	q.mu.Lock()
