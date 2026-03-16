@@ -236,7 +236,6 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 			for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
 				pts := float64(e.frame.pts) * e.videoTimeBase
 				
-				// A/V Sync
 				delay := e.clock.SyncVideo(pts)
 				if delay > 0 {
 					time.Sleep(delay)
@@ -291,9 +290,6 @@ func (e *Engine) Close() {
 	}
 	if e.formatCtx != nil {
 		C.avformat_close_input(&e.formatCtx)
-	}
-	if e.packet != nil {
-		C.av_packet_free(&e.packet)
 	}
 	if e.frame != nil {
 		C.av_frame_free(&e.frame)
