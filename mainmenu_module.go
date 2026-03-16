@@ -94,7 +94,7 @@ func (s *appState) showMainMenu() {
 	titleColor := utils.MustHex("#4CE870")
 	t := i18n.T()
 	menuLabels := ui.MenuLabels{
-		Logs:              "Logs",
+		Logs:              t.MenuLogs,
 		Queue:             t.MenuQueue,
 		CategoryConvert:   t.CategoryConvert,
 		CategoryInspect:   t.CategoryInspect,

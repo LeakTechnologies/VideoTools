@@ -21,6 +21,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/udf"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -76,20 +77,21 @@ func (s *appState) showRipView() {
 		s.ripFormat = ripFormatLosslessMKV
 	}
 	if s.ripStatusLabel != nil {
-		s.ripStatusLabel.SetText("Ready")
+		s.ripStatusLabel.SetText(i18n.T().StatusReady)
 	}
 	s.setContent(buildRipView(s))
 }
 
 func buildRipView(state *appState) fyne.CanvasObject {
 	ripColor := moduleColor("rip")
+	t := i18n.T()
 
-	backBtn := widget.NewButton("< BACK", func() {
+	backBtn := widget.NewButton("< "+t.ModuleRip, func() {
 		state.showMainMenu()
 	})
 	backBtn.Importance = widget.LowImportance
 
-	queueBtn := widget.NewButton("View Queue", func() {
+	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
 		state.showQueue()
 	})
 	state.queueBtn = queueBtn
@@ -103,7 +105,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 	topBar := ui.TintedBar(ripColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
 	sourceEntry := widget.NewEntry()
-	sourceEntry.SetPlaceHolder("Drop DVD/ISO/VIDEO_TS path here")
+	sourceEntry.SetPlaceHolder(t.RipDropPrompt)
 	sourceEntry.SetText(state.ripSourcePath)
 	sourceEntry.OnChanged = func(val string) {
 		state.ripSourcePath = strings.TrimSpace(val)
@@ -111,7 +113,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 	}
 
 	outputEntry := widget.NewEntry()
-	outputEntry.SetPlaceHolder("Output path")
+	outputEntry.SetPlaceHolder(t.RipOutputPath)
 	outputEntry.SetText(state.ripOutputPath)
 	outputEntry.OnChanged = func(val string) {
 		state.ripOutputPath = strings.TrimSpace(val)
@@ -125,7 +127,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 	})
 	formatSelect.SetSelected(state.ripFormat)
 
-	statusLabel := widget.NewLabel("Ready")
+	statusLabel := widget.NewLabel(t.StatusReady)
 	statusLabel.Wrapping = fyne.TextWrapWord
 	state.ripStatusLabel = statusLabel
 
@@ -141,7 +143,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 	logScroll := container.NewVScroll(logEntry)
 	// logScroll.SetMinSize(fyne.NewSize(0, 200)) // Removed for flexible sizing
 	state.ripLogScroll = logScroll
-	copyLogBtn := widget.NewButton("Copy Log", func() {
+	copyLogBtn := widget.NewButton(t.ActionCopyLog, func() {
 		if strings.TrimSpace(state.ripLogText) == "" {
 			return
 		}
@@ -149,19 +151,19 @@ func buildRipView(state *appState) fyne.CanvasObject {
 	})
 	copyLogBtn.Importance = widget.LowImportance
 
-	addQueueBtn := widget.NewButton("Add Rip to Queue", func() {
+	addQueueBtn := widget.NewButton(t.RipAddToQueue, func() {
 		if err := state.addRipToQueue(false); err != nil {
 			dialog.ShowError(err, state.window)
 			return
 		}
-		dialog.ShowInformation("Queue", "Rip job added to queue.", state.window)
+		dialog.ShowInformation(t.RipJobQueuedTitle, t.RipJobQueuedMsg, state.window)
 		if state.jobQueue != nil && !state.jobQueue.IsRunning() {
 			state.jobQueue.Start()
 		}
 	})
 	addQueueBtn.Importance = widget.MediumImportance
 
-	runNowBtn := widget.NewButton("Rip Now", func() {
+	runNowBtn := widget.NewButton(t.RipNow, func() {
 		if err := state.addRipToQueue(true); err != nil {
 			dialog.ShowError(err, state.window)
 			return
@@ -169,7 +171,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		if state.jobQueue != nil && !state.jobQueue.IsRunning() {
 			state.jobQueue.Start()
 		}
-		dialog.ShowInformation("Rip", "Rip started! Track progress in Job Queue.", state.window)
+		dialog.ShowInformation(t.RipStartTitle, t.RipStartMsg, state.window)
 	})
 	runNowBtn.Importance = widget.HighImportance
 
@@ -178,11 +180,11 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		outputEntry.SetText(state.ripOutputPath)
 	}
 
-	loadCfgBtn := widget.NewButton("Load Config", func() {
+	loadCfgBtn := widget.NewButton(t.ActionLoadConfig, func() {
 		cfg, err := loadPersistedRipConfig()
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				dialog.ShowInformation("No Config", "No saved config found yet. It will save automatically after your first change.", state.window)
+				dialog.ShowInformation(t.RipNoConfigTitle, t.RipNoConfigMsg, state.window)
 			} else {
 				dialog.ShowError(fmt.Errorf("failed to load config: %w", err), state.window)
 			}
@@ -193,7 +195,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		applyControls()
 	})
 
-	saveCfgBtn := widget.NewButton("Save Config", func() {
+	saveCfgBtn := widget.NewButton(t.ActionSaveConfig, func() {
 		cfg := ripConfig{
 			Format: state.ripFormat,
 		}
@@ -201,10 +203,10 @@ func buildRipView(state *appState) fyne.CanvasObject {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
 			return
 		}
-		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("rip")), state.window)
+		dialog.ShowInformation(t.RipConfigSavedTitle, fmt.Sprintf(t.RipConfigSavedFmt, configpath.ModuleConfigPath("rip")), state.window)
 	})
 
-	resetBtn := widget.NewButton("Reset", func() {
+	resetBtn := widget.NewButton(t.ActionReset, func() {
 		cfg := defaultRipConfig()
 		state.applyRipConfig(cfg)
 		state.ripOutputPath = defaultRipOutputPath(state.ripSourcePath, state.ripFormat)
@@ -212,7 +214,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		state.persistRipConfig()
 	})
 
-	clearISOBtn := widget.NewButton("Clear ISO", func() {
+	clearISOBtn := widget.NewButton(t.RipClearISO, func() {
 		state.ripSourcePath = ""
 		state.ripOutputPath = ""
 		sourceEntry.SetText("")
@@ -221,7 +223,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 	clearISOBtn.Importance = widget.LowImportance
 
 	controls := container.NewVBox(
-		widget.NewLabelWithStyle("Source", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.RipSource, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
 			path := firstLocalPath(items)
 			if path != "" {
@@ -245,18 +247,18 @@ func buildRipView(state *appState) fyne.CanvasObject {
 			}
 		}),
 		clearISOBtn,
-		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.RipFormatLabel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
-		widget.NewLabelWithStyle("Output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.LabelOutput, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Status", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.LabelStatus, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		statusLabel,
 		progressBar,
 		widget.NewSeparator(),
 		container.NewHBox(
-			widget.NewLabelWithStyle("Rip Log", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewLabelWithStyle(t.RipLog, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			layout.NewSpacer(),
 			copyLogBtn,
 		),
@@ -293,7 +295,7 @@ func (s *appState) addRipToQueue(runNow bool) error {
 		return fmt.Errorf("queue not initialized")
 	}
 	if strings.TrimSpace(s.ripSourcePath) == "" {
-		return fmt.Errorf("set a DVD/ISO/VIDEO_TS source path")
+		return fmt.Errorf("%s", i18n.T().RipErrNoSource)
 	}
 	if strings.TrimSpace(s.ripOutputPath) == "" {
 		s.ripOutputPath = defaultRipOutputPath(s.ripSourcePath, s.ripFormat)
@@ -717,7 +719,7 @@ func (s *appState) appendRipLog(line string) {
 
 func (s *appState) setRipStatus(text string) {
 	if text == "" {
-		text = "Ready"
+		text = i18n.T().StatusReady
 	}
 	if s.ripStatusLabel != nil {
 		s.ripStatusLabel.SetText(text)

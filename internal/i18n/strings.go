@@ -17,6 +17,7 @@ type Strings struct {
 	MenuBenchmark string
 	MenuResults   string
 	MenuAbout     string
+	MenuLogs      string
 
 	// ── Module Names ─────────────────────────────────────────────────────
 	ModuleConvert     string
@@ -70,6 +71,14 @@ type Strings struct {
 	ActionCopy       string
 	ActionExport     string
 	ActionImport     string
+	ActionViewQueue      string // "View Queue"
+	ActionAddToQueue     string // "Add to Queue"
+	ActionLoadVideo      string // "Load Video"
+	ActionClearVideo     string // "Clear Video"
+	ActionCopyLog        string // "Copy Log"
+	ActionCopyMetadata   string // "Copy Metadata"
+	ActionLoadConfig     string // "Load Config"
+	ActionSaveConfig     string // "Save Config"
 
 	// ── Common Labels ─────────────────────────────────────────────────────
 	LabelInput       string
@@ -92,6 +101,9 @@ type Strings struct {
 	LabelLanguage    string
 	LabelVersion     string
 	LabelLicense     string
+	LabelNoFile          string // "No file loaded"
+	LabelNoVideoLoaded   string // "No video loaded"
+	LabelFileFmt         string // "File: %s"
 
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady      string
@@ -141,9 +153,115 @@ type Strings struct {
 	HistoryNoEntries string
 
 	// ── Convert ───────────────────────────────────────────────────────────
-	ConvertDropPrompt   string
-	ConvertOutputFormat string
+	ConvertDropPrompt    string
+	ConvertOutputFormat  string
 	ConvertHardwareAccel string
+
+	// ── Compare ──────────────────────────────────────────────────────────────────
+	CompareInstructions     string
+	CompareFullscreen       string
+	CompareCopyReport       string
+	CompareHidePlayer       string
+	CompareShowPlayer       string
+	CompareLoadFile1        string
+	CompareLoadFile2        string
+	CompareFile1NotLoaded   string
+	CompareFile2NotLoaded   string
+	CompareFile1Fmt         string // "File 1: %s"
+	CompareFile2Fmt         string // "File 2: %s"
+	CompareFile1Info        string
+	CompareFile2Info        string
+	CompareBackToView       string
+	ComparePlayBoth         string
+	ComparePauseBoth        string
+	CompareSyncTitle        string
+	CompareSyncMsg          string
+	CompareSyncMsgShort     string
+	CompareSideInfo         string
+	CompareCopied           string
+	CompareCopiedMsg        string
+	CompareCopiedFileMsg    string
+	CompareNoVideosTitle    string
+	CompareNoVideosFSMsg    string
+	CompareNoVideosCopyMsg  string
+
+	// ── Player ───────────────────────────────────────────────────────────────────
+	PlayerInstructions  string
+
+	// ── Rip ──────────────────────────────────────────────────────────────────────
+	RipDropPrompt       string
+	RipOutputPath       string
+	RipSource           string
+	RipFormatLabel      string
+	RipLog              string
+	RipAddToQueue       string
+	RipNow              string
+	RipClearISO         string
+	RipJobQueuedTitle   string
+	RipJobQueuedMsg     string
+	RipStartTitle       string
+	RipStartMsg         string
+	RipNoConfigTitle    string
+	RipNoConfigMsg      string
+	RipConfigSavedTitle string
+	RipConfigSavedFmt   string // "Saved to %s"
+	RipErrNoSource      string
+
+	// ── Upscale ──────────────────────────────────────────────────────────────────
+	UpscaleNow             string
+	UpscaleStartedTitle    string
+	UpscaleStartedFmt      string // "Upscaling to %s.\nCheck the queue for progress."
+	UpscaleAddedTitle      string
+	UpscaleAddedFmt        string // "Upscale job added.\nTarget: %s, Method: %s"
+	UpscaleSourceFmt       string // "Source: %dx%d"
+	UpscaleSourceNA        string
+	UpscaleMethodFmt       string // "Method: %s"
+	UpscaleTargetFmt       string // "Target: %s"
+	UpscaleBlurFmt         string // "Blur Strength: %.2f"
+	UpscaleEnableBlur      string
+	UpscaleAdjustFilters   string
+	UpscaleAdjustFmt       string // "Adjustment: %.2fx"
+	UpscaleDenoiseFmt      string // "Denoise: %.2f"
+	UpscaleDenoiseAvail    string
+	UpscaleDenoiseUnavail  string
+	UpscaleFrameRateFmt    string // "Frame Rate: %s"
+	UpscaleMotionInterp    string
+	UpscaleMotionHint      string
+	UpscaleAIEnabled       string
+	UpscaleAIDetected      string
+	UpscaleAINotDetected   string
+	UpscaleAIPython        string
+	UpscaleAIFallback      string
+	UpscaleAINote          string
+	UpscaleAIAdvanced      string
+	UpscaleFaceEnhance     string
+	UpscaleTTACheck        string
+	UpscaleBitrateHint     string
+	UpscaleClassicDesc     string
+	UpscaleOptionalBlur    string
+	UpscaleFilterIntHint   string
+	UpscaleVideoBox        string
+	UpscaleTargetResBox    string
+	UpscaleEncodingBox     string
+	UpscaleScalingBox      string
+	UpscaleFrameRateBox    string
+	UpscaleFilterIntBox    string
+	UpscaleAIBox           string
+	UpscaleResLabel        string
+	UpscaleVideoCodecLabel string
+	UpscaleEncoderLabel    string
+	UpscaleQualityLabel    string
+	UpscaleBitrateLabel    string
+	UpscaleTargetFPSLabel  string
+	UpscaleAIModelLabel    string
+	UpscaleAIPresetLabel   string
+	UpscaleAIScaleLabel    string
+	UpscaleAITileLabel     string
+	UpscaleAIOutputLabel   string
+	UpscaleGPULabel        string
+	UpscaleThreadsLabel    string
+	UpscaleFilterIntLabel  string
+	UpscaleScalingLabel    string
 
 	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
 	ThumbnailGenerateNow         string
