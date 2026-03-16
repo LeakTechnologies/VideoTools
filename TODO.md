@@ -111,18 +111,29 @@ It uses `rife-ncnn-vulkan` — same deployment model as `realesrgan-ncnn-vulkan`
 - [ ] **Pipeline** — extract frames → rife-ncnn-vulkan → reassemble (can chain after Real-ESRGAN upscale).
 - [ ] **Settings install button** — same pattern as Real-ESRGAN dependency install button.
 
-## Near-Term Milestone: Cross-Platform Video Player
+## Near-Term Milestone: Native Media Engine (VideoTools Player)
 
-**Priority: High** — blocks Upscale (live preview) and Trim (frame-accurate timeline) reaching their full potential.
+**Priority: Critical** — Replaces GStreamer dependency with a native FFmpeg-based engine (CGO). Enables "pro grade" features like split-view comparison and frame-accurate trimming.
 
-The current player stack uses GStreamer on Linux and a separate fallback on Windows. Before Upscale and Trim can be completed properly, a unified player that works identically on both platforms is needed.
-
-- [ ] **Evaluate player backends** — shortlist: MPV (via libmpv), FFplay wrapper, VLC bindings. Needs: frame-accurate seeking, A/V sync, hardware decode, cross-platform.
-- [ ] **Design unified player interface** — abstract `vtplayer` interface that all backends implement; modules talk only to the interface.
-- [ ] **Implement chosen backend** — wire up on both Linux and Windows; replace the GStreamer-only path.
-- [ ] **Upscale live preview** — depends on player foundation; real-time before/after preview during upscale processing.
-- [ ] **Trim module** — depends on player foundation; frame-accurate timeline, in/out points, chapter markers.
-- [ ] **Linux CI cleanup** — once GStreamer is no longer mandatory, remove it from the CI dependency install list and cut ~2 min off Linux build times.
+- [ ] **Plan & Architecture**
+    - [x] Design Native Media Engine plan (`plans/native-player-engine.md`).
+    - [ ] Create `internal/media` package structure.
+- [ ] **Phase 1: Basic Decode**
+    - [x] CGO bindings for `libav*` and `engine.go` scaffolding.
+    - [x] Single frame decoding to `image.RGBA`.
+- [ ] **Phase 2: Playback & Sync**
+    - [x] Thread-safe packet queue.
+    - [x] Audio decoding (`libavcodec`) and output (`oto`).
+    - [x] A/V sync master clock and frame timing.
+- [ ] **Phase 3: Advanced Control**
+    - [x] Frame-accurate seeking and stepping.
+- [ ] **Phase 4: Split-View & GStreamer Removal**
+    - [ ] Integrate native `SplitView` into Compare module.
+    - [ ] Implement dual-engine playback loop in `compare/view.go`.
+    - [ ] Remove `internal/player/gstreamer*`.
+    - [ ] Remove GStreamer from build scripts and CI.
+- [ ] **Phase 5: Trim Module Integration**
+    - [ ] Integrate native seeking into Trim module for frame-accurate timeline.
 
 ## Agent Work Tracking
 

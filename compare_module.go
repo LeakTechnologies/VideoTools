@@ -3,7 +3,6 @@ package main
 import (
 	"fyne.io/fyne/v2"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/compare"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
 )
 
 func (s *appState) showCompareView() {
