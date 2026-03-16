@@ -1200,6 +1200,27 @@ type authorClip struct {
 	Chapters     []authorChapter // Chapters for this clip
 	ChapterTitle string          // Optional chapter title when treating clips as chapters
 	IsExtra      bool            // Mark this clip as an extra
+	
+	// Multitrack support
+	AudioTracks    []authorAudioTrack    // List of audio tracks to include
+	SubtitleTracks []authorSubtitleTrack // List of subtitle tracks to include
+}
+
+type authorAudioTrack struct {
+	Index        int    // FFmpeg stream index
+	Language     string // ISO 639-1 code (e.g., "en", "fr")
+	Label        string // UI label
+	Codec        string // Detected codec
+	Channels     int    // Channel count
+	ExternalPath string // Optional path to external file (e.g., for Archivist mode)
+}
+
+type authorSubtitleTrack struct {
+	Index        int    // FFmpeg stream index
+	Language     string // ISO 639-1 code
+	Label        string // UI label
+	Forced       bool   // True if this is a forced track
+	ExternalPath string // Optional path to external file
 }
 
 func (s *appState) persistConvertConfig() {

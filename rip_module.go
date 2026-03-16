@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -32,6 +33,7 @@ const (
 	ripFormatLosslessMKV = "Lossless MKV (Copy)"
 	ripFormatH264MKV     = "H.264 MKV (CRF 18)"
 	ripFormatH264MP4     = "H.264 MP4 (CRF 18)"
+	ripFormatArchivist   = "Archivist (Reconstructible Project)"
 )
 
 type ripConfig = modulecfg.RipConfig
@@ -119,9 +121,9 @@ func buildRipView(state *appState) fyne.CanvasObject {
 		state.ripOutputPath = strings.TrimSpace(val)
 	}
 
-	formatSelect := widget.NewSelect([]string{ripFormatLosslessMKV, ripFormatH264MKV, ripFormatH264MP4}, func(val string) {
-		state.ripFormat = val
-		state.ripOutputPath = defaultRipOutputPath(state.ripSourcePath, state.ripFormat)
+	formatSelect := widget.NewSelect([]string{ripFormatLosslessMKV, ripFormatH264MKV, ripFormatH264MP4, ripFormatArchivist}, func(value string) {
+		state.ripFormat = value
+		state.ripOutputPath = defaultRipOutputPath(state.ripSourcePath, value)
 		outputEntry.SetText(state.ripOutputPath)
 		state.persistRipConfig()
 	})
@@ -392,9 +394,63 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 	defer os.Remove(listFile)
 
 	// Create output directory if it doesn't exist
-	outputDir := filepath.Dir(outputPath)
+	outputDir := outputPath
+	if format != ripFormatArchivist {
+		outputDir = filepath.Dir(outputPath)
+	}
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
+	}
+
+	if format == ripFormatArchivist {
+		appendLog("Archivist Mode: Extracting individual streams for reconstruction...")
+		src, err := probeVideo(set.Files[0])
+		if err != nil {
+			return fmt.Errorf("probe for archivist failed: %w", err)
+		}
+
+		args := []string{"-y", "-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", listFile}
+		
+		// Map Video
+		args = append(args, "-map", "0:v:0", "-c:v", "copy", filepath.Join(outputDir, "video.m2v"))
+		
+		// Map all Audio
+		for i, at := range src.Audio {
+			args = append(args, "-map", fmt.Sprintf("0:%d", at.Index), "-c:a", "copy", filepath.Join(outputDir, fmt.Sprintf("audio_%d_%s.ac3", i, at.Language)))
+		}
+		
+		// Map all Subtitles
+		for i, st := range src.Subtitles {
+			args = append(args, "-map", fmt.Sprintf("0:%d", st.Index), "-c:s", "copy", filepath.Join(outputDir, fmt.Sprintf("subs_%d_%s.sup", i, st.Language)))
+		}
+
+		appendLog(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
+		updateProgress(20)
+		if err := runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, appendLog); err != nil {
+			return err
+		}
+		
+		// Create project file
+		projPath := filepath.Join(outputDir, "author_project.json")
+		appendLog(fmt.Sprintf("Creating project file: %s", projPath))
+		
+		project := map[string]interface{}{
+			"title":    filepath.Base(outputDir),
+			"type":     "dvd", // DVD by default for now
+			"assets":   []map[string]interface{}{
+				{
+					"path": "video.m2v",
+					"type": "feature",
+				},
+			},
+		}
+		
+		projData, _ := json.MarshalIndent(project, "", "  ")
+		_ = os.WriteFile(projPath, projData, 0644)
+		
+		updateProgress(100)
+		appendLog("Archivist extraction completed successfully.")
+		return nil
 	}
 
 	args := buildRipFFmpegArgs(listFile, outputPath, format)

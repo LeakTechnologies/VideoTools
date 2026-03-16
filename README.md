@@ -103,6 +103,19 @@ For upcoming work and priorities, see **docs/ROADMAP.md**.
 - **QUEUE_SYSTEM_GUIDE.md** - Queue system reference
 - **localization-policy.md** - Localization strategy and implementation guide
 
+## Localization
+
+VideoTools ships with built-in support for multiple languages. Switch language in **Settings → General**.
+Aboriginal Sans is embedded for proper rendering of Unified Canadian Aboriginal Syllabics (Inuktitut).
+
+| Language | Code | Script | Coverage |
+|---|---|---|---|
+| English (Canada) | `en-CA` | Latin | 100% — source of truth |
+| French (Canada) | `fr-CA` | Latin | 98% |
+| Inuktitut | `iu` | Syllabics + Latin toggle | 11% — in progress |
+
+> Coverage is measured against the en-CA field count. The `iu` translation is an ongoing community effort; untranslated strings fall back to English automatically.
+
 ## Requirements
 
 - **Go 1.21+** (for building)
