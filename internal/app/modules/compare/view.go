@@ -102,7 +102,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	compareColor := utils.MustHex("#9C27B0")
 	t := i18n.T()
 
-	file1 := toVideoSource(file1)
+	file1 := toVideoSource(opts.CompareFile1)
 	file2 := toVideoSource(opts.CompareFile2)
 
 	backBtn := widget.NewButton("< "+t.ModuleCompare, func() {
@@ -140,7 +140,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	instructions.Alignment = fyne.TextAlignCenter
 
 	fullscreenBtn := widget.NewButton(t.CompareFullscreen, func() {
-		if file1 == nil && opts.CompareFile2 == nil {
+		if file1 == nil && file2 == nil {
 			dialog.ShowInformation(t.CompareNoVideosTitle, t.CompareNoVideosFSMsg, opts.Window)
 			return
 		}
@@ -151,7 +151,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	fullscreenBtn.Importance = widget.MediumImportance
 
 	copyComparisonBtn := widget.NewButton(t.CompareCopyReport, func() {
-		if file1 == nil && opts.CompareFile2 == nil {
+		if file1 == nil && file2 == nil {
 			dialog.ShowInformation(t.CompareNoVideosTitle, t.CompareNoVideosCopyMsg, opts.Window)
 			return
 		}
@@ -166,8 +166,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if file1 != nil {
 			file1Name = filepath.Base(file1.Path)
 		}
-		if opts.CompareFile2 != nil {
-			file2Name = filepath.Base(opts.CompareFile2.Path)
+		if file2 != nil {
+			file2Name = filepath.Base(file2.Path)
 		}
 
 		comparisonText.WriteString(fmt.Sprintf("FILE 1: %s\n", file1Name))
@@ -191,7 +191,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 			return "Unknown"
 		})
-		file2Size := getField(opts.CompareFile2, func(src *videoSource) string {
+		file2Size := getField(file2, func(src *videoSource) string {
 			if fi, err := os.Stat(src.Path); err == nil {
 				if file1SizeBytes > 0 {
 					return utils.DeltaBytes(fi.Size(), file1SizeBytes)
@@ -205,29 +205,29 @@ func BuildView(opts Options) fyne.CanvasObject {
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Format Family:",
 			getField(file1, func(s *videoSource) string { return s.Format }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return s.Format })))
+			getField(file2, func(s *videoSource) string { return s.Format })))
 
 		comparisonText.WriteString("\n VIDEO \n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Codec:",
 			getField(file1, func(s *videoSource) string { return s.VideoCodec }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return s.VideoCodec })))
+			getField(file2, func(s *videoSource) string { return s.VideoCodec })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Resolution:",
 			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%dx%d", s.Width, s.Height) }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return fmt.Sprintf("%dx%d", s.Width, s.Height) })))
+			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%dx%d", s.Width, s.Height) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Aspect Ratio:",
 			getField(file1, func(s *videoSource) string { return s.AspectRatioString() }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return s.AspectRatioString() })))
+			getField(file2, func(s *videoSource) string { return s.AspectRatioString() })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Frame Rate:",
 			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%.2f fps", s.FrameRate) }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return fmt.Sprintf("%.2f fps", s.FrameRate) })))
+			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%.2f fps", s.FrameRate) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Bitrate:",
 			getField(file1, func(s *videoSource) string { return formatBitrateFull(s.Bitrate) }),
-			getField(opts.CompareFile2, func(s *videoSource) string {
+			getField(file2, func(s *videoSource) string {
 				if file1 != nil {
 					return utils.DeltaBitrate(s.Bitrate, file1.Bitrate)
 				}
@@ -236,59 +236,59 @@ func BuildView(opts Options) fyne.CanvasObject {
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Pixel Format:",
 			getField(file1, func(s *videoSource) string { return s.PixelFormat }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return s.PixelFormat })))
+			getField(file2, func(s *videoSource) string { return s.PixelFormat })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Color Space:",
 			getField(file1, func(s *videoSource) string { return s.ColorSpace }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return s.ColorSpace })))
+			getField(file2, func(s *videoSource) string { return s.ColorSpace })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Color Range:",
 			getField(file1, func(s *videoSource) string { return s.ColorRange }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return s.ColorRange })))
+			getField(file2, func(s *videoSource) string { return s.ColorRange })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Field Order:",
 			getField(file1, func(s *videoSource) string { return s.FieldOrder }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return s.FieldOrder })))
+			getField(file2, func(s *videoSource) string { return s.FieldOrder })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"GOP Size:",
 			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%d", s.GOPSize) }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return fmt.Sprintf("%d", s.GOPSize) })))
+			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%d", s.GOPSize) })))
 
 		comparisonText.WriteString("\n AUDIO \n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Codec:",
 			getField(file1, func(s *videoSource) string { return s.AudioCodec }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return s.AudioCodec })))
+			getField(file2, func(s *videoSource) string { return s.AudioCodec })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Bitrate:",
 			getField(file1, func(s *videoSource) string { return formatBitrateFull(s.AudioBitrate) }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return formatBitrateFull(s.AudioBitrate) })))
+			getField(file2, func(s *videoSource) string { return formatBitrateFull(s.AudioBitrate) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Sample Rate:",
 			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%d Hz", s.AudioRate) }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return fmt.Sprintf("%d Hz", s.AudioRate) })))
+			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%d Hz", s.AudioRate) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Channels:",
 			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%d", s.Channels) }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return fmt.Sprintf("%d", s.Channels) })))
+			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%d", s.Channels) })))
 
 		comparisonText.WriteString("\n OTHER \n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Duration:",
 			getField(file1, func(s *videoSource) string { return s.DurationString() }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return s.DurationString() })))
+			getField(file2, func(s *videoSource) string { return s.DurationString() })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"SAR (Pixel Aspect):",
 			getField(file1, func(s *videoSource) string { return s.SampleAspectRatio }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return s.SampleAspectRatio })))
+			getField(file2, func(s *videoSource) string { return s.SampleAspectRatio })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Chapters:",
 			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasChapters) }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasChapters) })))
+			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasChapters) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Metadata:",
 			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasMetadata) }),
-			getField(opts.CompareFile2, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasMetadata) })))
+			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasMetadata) })))
 
 		comparisonText.WriteString("\n-----------------------------------------------------------------------\n")
 
@@ -299,7 +299,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	clearAllBtn := widget.NewButton(t.ActionClearAll, func() {
 		file1 = nil
-		opts.CompareFile2 = nil
+		file2 = nil
 		if opts.OnRefreshView != nil {
 			opts.OnRefreshView()
 		}
@@ -452,7 +452,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			filename := filepath.Base(file1.Path)
 			displayName := truncateFilename(filename, 35)
 			file1Label.SetText(fmt.Sprintf(t.CompareFile1Fmt, displayName))
-			file1Info.SetText(formatMetadata(file1, opts.CompareFile2))
+			file1Info.SetText(formatMetadata(file1, file2))
 			if opts.OnBuildVideoPane != nil {
 				file1VideoContainer.Objects = []fyne.CanvasObject{
 					opts.OnBuildVideoPane(nil, fyne.NewSize(320, 180), file1, nil),
@@ -470,14 +470,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 
 	updateFile2 := func() {
-		if opts.CompareFile2 != nil {
-			filename := filepath.Base(opts.CompareFile2.Path)
+		if file2 != nil {
+			filename := filepath.Base(file2.Path)
 			displayName := truncateFilename(filename, 35)
 			file2Label.SetText(fmt.Sprintf(t.CompareFile2Fmt, displayName))
-			file2Info.SetText(formatMetadata(opts.CompareFile2, file1))
+			file2Info.SetText(formatMetadata(file2, file1))
 			if opts.OnBuildVideoPane != nil {
 				file2VideoContainer.Objects = []fyne.CanvasObject{
-					opts.OnBuildVideoPane(nil, fyne.NewSize(320, 180), opts.CompareFile2, nil),
+					opts.OnBuildVideoPane(nil, fyne.NewSize(320, 180), file2, nil),
 				}
 			}
 			file2VideoContainer.Refresh()
@@ -509,7 +509,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 					return
 				}
 
-				file1 = src
+				file1 = toVideoSource(src)
+				opts.CompareFile1 = file1
 				updateFile1()
 			}
 		}, opts.Window)
@@ -530,7 +531,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 					return
 				}
 
-				opts.CompareFile2 = src
+				file2 = toVideoSource(src)
+				opts.CompareFile2 = file2
 				updateFile2()
 			}
 		}, opts.Window)
@@ -540,7 +542,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if file1 == nil {
 			return
 		}
-		metadata := formatMetadata(file1, opts.CompareFile2)
+		metadata := formatMetadata(file1, file2)
 		opts.Window.Clipboard().SetContent(metadata)
 		dialog.ShowInformation(t.CompareCopied, t.CompareCopiedFileMsg, opts.Window)
 	})
@@ -553,17 +555,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 	file1ClearBtn.Importance = widget.LowImportance
 
 	file2CopyBtn := widget.NewButton(t.ActionCopyMetadata, func() {
-		if opts.CompareFile2 == nil {
+		if file2 == nil {
 			return
 		}
-		metadata := formatMetadata(opts.CompareFile2, file1)
+		metadata := formatMetadata(file2, file1)
 		opts.Window.Clipboard().SetContent(metadata)
 		dialog.ShowInformation(t.CompareCopied, t.CompareCopiedFileMsg, opts.Window)
 	})
 	file2CopyBtn.Importance = widget.LowImportance
 
 	file2ClearBtn := widget.NewButton(t.ActionClear, func() {
-		opts.CompareFile2 = nil
+		file2 = nil
 		updateFile2()
 	})
 	file2ClearBtn.Importance = widget.LowImportance
@@ -633,6 +635,9 @@ func BuildFullscreenView(opts Options) fyne.CanvasObject {
 	compareColor := utils.MustHex("#9C27B0")
 	t := i18n.T()
 
+	file1 := toVideoSource(opts.CompareFile1)
+	file2 := toVideoSource(opts.CompareFile2)
+
 	backBtn := widget.NewButton(t.CompareBackToView, func() {
 		if opts.OnShowCompareFullscreen != nil {
 			opts.OnShowCompareFullscreen()
@@ -657,10 +662,10 @@ func BuildFullscreenView(opts Options) fyne.CanvasObject {
 		}
 	}
 
-	if opts.CompareFile2 != nil {
+	if file2 != nil {
 		if opts.OnBuildVideoPane != nil {
 			file2VideoContainer.Objects = []fyne.CanvasObject{
-				opts.OnBuildVideoPane(nil, fyne.NewSize(400, 225), opts.CompareFile2, nil),
+				opts.OnBuildVideoPane(nil, fyne.NewSize(400, 225), file2, nil),
 			}
 		}
 	} else {
@@ -675,8 +680,8 @@ func BuildFullscreenView(opts Options) fyne.CanvasObject {
 	}
 
 	file2Name := t.CompareFile2NotLoaded
-	if opts.CompareFile2 != nil {
-		file2Name = fmt.Sprintf(t.CompareFile2Fmt, filepath.Base(opts.CompareFile2.Path))
+	if file2 != nil {
+		file2Name = fmt.Sprintf(t.CompareFile2Fmt, filepath.Base(file2.Path))
 	}
 
 	file1Label := widget.NewLabel(file1Name)
