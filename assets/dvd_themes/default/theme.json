@@ -1,0 +1,47 @@
+{
+  "name": "VideoTools Default",
+  "background": {
+    "type": "image",
+    "source": "assets/logo/VT_LOGO-2.png",
+    "loop": true
+  },
+  "resolution": {
+    "width": 720,
+    "height": 480
+  },
+  "elements": [
+    {
+      "type": "text",
+      "id": "main-title",
+      "content": "MY MOVIE",
+      "style": {
+        "top": "10%",
+        "left": "center",
+        "width": "400px",
+        "height": "60px",
+        "font-size": "48px",
+        "color": "#FFFFFF"
+      }
+    },
+    {
+      "type": "button",
+      "id": "play-btn",
+      "content": "PLAY MOVIE",
+      "action": "play_all",
+      "style": {
+        "top": "60%",
+        "left": "center",
+        "width": "200px",
+        "height": "40px",
+        "font-size": "24px",
+        "color": "#FFFFFF",
+        "background-color": "#191F35",
+        "border": "2px solid #4CE870"
+      },
+      "hover": {
+        "background-color": "#4CE870",
+        "color": "#000000"
+      }
+    }
+  ]
+}
