@@ -155,13 +155,17 @@ func openURL(url string) error {
 }
 
 // statusStrip renders a consistent dark status area with the shared stats bar.
-// vtGreenResource wraps an SVG icon resource and recolours its fill to VT green.
-type vtGreenResource struct{ fyne.Resource }
+// recoloredSVG wraps an SVG icon resource and substitutes its fill colour.
+// All assets use #E3E3E3 as the base fill; pass any hex colour to override.
+type recoloredSVG struct {
+	fyne.Resource
+	hex string // e.g. "#4CE870"
+}
 
-func (r vtGreenResource) Content() []byte {
+func (r recoloredSVG) Content() []byte {
 	s := string(r.Resource.Content())
-	s = strings.ReplaceAll(s, "#e3e3e3", "#4ce870")
-	s = strings.ReplaceAll(s, "#E3E3E3", "#4CE870")
+	s = strings.ReplaceAll(s, "#e3e3e3", strings.ToLower(r.hex))
+	s = strings.ReplaceAll(s, "#E3E3E3", strings.ToUpper(r.hex))
 	return []byte(s)
 }
 
@@ -11231,7 +11235,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		stage.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
 
 		silhouetteIcon := container.New(layout.NewGridWrapLayout(fyne.NewSize(64, 64)),
-			widget.NewIcon(vtGreenResource{ui.GetIcon("slow_motion_video")}))
+			widget.NewIcon(recoloredSVG{ui.GetIcon("slow_motion_video"), "#4CE870"}))
 
 		hintMain := widget.NewLabelWithStyle("Drop a video or open one to start playback", fyne.TextAlignCenter, fyne.TextStyle{Monospace: true, Bold: true})
 		hintSub := widget.NewLabel("MP4, MOV, MKV and more")
