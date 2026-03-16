@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -647,90 +648,15 @@ func BuildFullscreenView(opts Options) fyne.CanvasObject {
 
 	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
-	file1VideoContainer := container.NewMax()
-	file2VideoContainer := container.NewMax()
+	splitView := media.NewSplitView()
 
-	if file1 != nil {
-		if opts.OnBuildVideoPane != nil {
-			file1VideoContainer.Objects = []fyne.CanvasObject{
-				opts.OnBuildVideoPane(nil, fyne.NewSize(400, 225), file1, nil),
-			}
-		}
-	} else {
-		file1VideoContainer.Objects = []fyne.CanvasObject{
-			container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded)),
-		}
-	}
-
-	if file2 != nil {
-		if opts.OnBuildVideoPane != nil {
-			file2VideoContainer.Objects = []fyne.CanvasObject{
-				opts.OnBuildVideoPane(nil, fyne.NewSize(400, 225), file2, nil),
-			}
-		}
-	} else {
-		file2VideoContainer.Objects = []fyne.CanvasObject{
-			container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded)),
-		}
-	}
-
-	file1Name := t.CompareFile1NotLoaded
-	if file1 != nil {
-		file1Name = fmt.Sprintf(t.CompareFile1Fmt, filepath.Base(file1.Path))
-	}
-
-	file2Name := t.CompareFile2NotLoaded
-	if file2 != nil {
-		file2Name = fmt.Sprintf(t.CompareFile2Fmt, filepath.Base(file2.Path))
-	}
-
-	file1Label := widget.NewLabel(file1Name)
-	file1Label.TextStyle = fyne.TextStyle{Bold: true}
-	file1Label.Alignment = fyne.TextAlignCenter
-
-	file2Label := widget.NewLabel(file2Name)
-	file2Label.TextStyle = fyne.TextStyle{Bold: true}
-	file2Label.Alignment = fyne.TextAlignCenter
-
-	playBtn := widget.NewButton(t.ComparePlayBoth, func() {
-		dialog.ShowInformation(t.CompareSyncTitle, t.CompareSyncMsg, opts.Window)
-	})
-	playBtn.Importance = widget.HighImportance
-
-	pauseBtn := widget.NewButton(t.ComparePauseBoth, func() {
-		dialog.ShowInformation(t.CompareSyncTitle, t.CompareSyncMsgShort, opts.Window)
-	})
-
-	syncControls := container.NewHBox(
-		layout.NewSpacer(),
-		playBtn,
-		pauseBtn,
-		layout.NewSpacer(),
-	)
-
-	infoLabel := widget.NewLabel(t.CompareSideInfo)
-	infoLabel.Wrapping = fyne.TextWrapWord
-	infoLabel.Alignment = fyne.TextAlignCenter
-
-	leftColumn := container.NewBorder(
-		file1Label,
-		nil, nil, nil,
-		file1VideoContainer,
-	)
-
-	rightColumn := container.NewBorder(
-		file2Label,
-		nil, nil, nil,
-		file2VideoContainer,
-	)
-
-	statsBar := opts.OnGetStatsBar()
-	bottomBar := ui.TintedBar(compareColor, container.NewHBox(statsBar, layout.NewSpacer()))
-
+	// [TODO: Initialize two media.Engine instances, one for file1 and one for file2,
+	// and continuously feed frames into splitView.SetFrames()]
+	
 	content := container.NewBorder(
 		container.NewVBox(infoLabel, syncControls, widget.NewSeparator()),
 		nil, nil, nil,
-		container.NewGridWithColumns(2, leftColumn, rightColumn),
+		splitView,
 	)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
