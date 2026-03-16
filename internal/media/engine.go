@@ -34,6 +34,7 @@ type Engine struct {
 
 	// Audio Player
 	audioPlayer *AudioPlayer
+	clock       *MasterClock
 
 	// Buffers for decoding
 	frame *C.AVFrame
@@ -43,7 +44,8 @@ type Engine struct {
 	rgbaBuffer []byte
 
 	// Timing
-	startTime time.Time
+	videoTimeBase float64
+	audioTimeBase float64
 	
 	// State
 	mu      sync.Mutex
@@ -58,6 +60,7 @@ func NewEngine() *Engine {
 		audioStreamIdx: -1,
 		videoQueue:     NewPacketQueue(),
 		audioQueue:     NewPacketQueue(),
+		clock:          NewMasterClock(),
 		stop:           make(chan struct{}),
 	}
 }
@@ -85,23 +88,26 @@ func (e *Engine) Open(path string) error {
 		return fmt.Errorf("no video stream found")
 	}
 
+	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(e.formatCtx.streams))
+
 	// Setup Video
 	e.videoCodecCtx = C.avcodec_alloc_context3(videoCodec)
-	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(e.formatCtx.streams))
 	C.avcodec_parameters_to_context(e.videoCodecCtx, streams[e.videoStreamIdx].codecpar)
 	if C.avcodec_open2(e.videoCodecCtx, videoCodec, nil) < 0 {
 		return fmt.Errorf("failed to open video codec")
 	}
+	e.videoTimeBase = float64(streams[e.videoStreamIdx].time_base.num) / float64(streams[e.videoStreamIdx].time_base.den)
 
 	// Setup Audio
 	if e.audioStreamIdx >= 0 {
 		e.audioCodecCtx = C.avcodec_alloc_context3(audioCodec)
 		C.avcodec_parameters_to_context(e.audioCodecCtx, streams[e.audioStreamIdx].codecpar)
 		if C.avcodec_open2(e.audioCodecCtx, audioCodec, nil) < 0 {
-			logging.Error(logging.CatPlayer, "Failed to open audio codec, continuing without sound")
+			logging.Error(logging.CatPlayer, "Failed to open audio codec")
 			e.audioStreamIdx = -1
 		} else {
-			ap, err := NewAudioPlayer(e.audioCodecCtx, e.audioQueue)
+			e.audioTimeBase = float64(streams[e.audioStreamIdx].time_base.num) / float64(streams[e.audioStreamIdx].time_base.den)
+			ap, err := NewAudioPlayer(e.audioCodecCtx, e.audioQueue, e.clock, e.audioTimeBase)
 			if err != nil {
 				logging.Error(logging.CatPlayer, "Failed to create audio player: %v", err)
 				e.audioStreamIdx = -1
@@ -131,7 +137,7 @@ func (e *Engine) Open(path string) error {
 	return nil
 }
 
-// Start launches the playback clock and demuxer.
+// Start launches the playback.
 func (e *Engine) Start() {
 	e.mu.Lock()
 	if e.running {
@@ -139,14 +145,12 @@ func (e *Engine) Start() {
 		return
 	}
 	e.running = true
-	e.startTime = time.Now()
 	e.mu.Unlock()
 
 	go e.demuxerLoop()
 }
 
 func (e *Engine) demuxerLoop() {
-	logging.Info(logging.CatPlayer, "Demuxer loop started")
 	pkt := C.av_packet_alloc()
 	defer C.av_packet_free(&pkt)
 
@@ -171,7 +175,7 @@ func (e *Engine) demuxerLoop() {
 	}
 }
 
-// NextFrame retrieves the next video frame, synchronized with the master clock.
+// NextFrame retrieves the next decoded video frame, synchronized with the master clock.
 func (e *Engine) NextFrame() (*image.RGBA, error) {
 	for {
 		pkt, ok := e.videoQueue.Get()
@@ -181,9 +185,15 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 		defer C.av_packet_free(&pkt)
 
 		if C.avcodec_send_packet(e.videoCodecCtx, pkt) == 0 {
-			if C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
-				// A/V Sync: Simple PTS vs Real-time check
-				// [Full clock implementation will refine this]
+			for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
+				pts := float64(e.frame.pts) * e.videoTimeBase
+				
+				// A/V Sync
+				delay := e.clock.SyncVideo(pts)
+				if delay > 0 {
+					time.Sleep(delay)
+				}
+				
 				return e.toRGBA(), nil
 			}
 		}
