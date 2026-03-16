@@ -62,9 +62,7 @@ func WriteVTS_ATRT(w io.Writer, table *VTS_ATRT) error {
 	if err := binary.Write(w, binary.BigEndian, table.Reserved); err != nil {
 		return err
 	}
-	if err := binary.Write(&io.LimitedWriter{W: w, N: 4}, binary.BigEndian, table.EndByte); err != nil {
-		// Manual handling for 4-byte end byte
-	}
+	_ = binary.Write(w, binary.BigEndian, table.EndByte)
 	// [Implementation of full VTS_ATRT serialization will follow in builder logic]
 	return nil
 }

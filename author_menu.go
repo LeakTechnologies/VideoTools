@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"image"
 	"image/png"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/spu"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/theme"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
