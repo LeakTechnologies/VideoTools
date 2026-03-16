@@ -1,5 +1,3 @@
-//go:build native_media
-
 package media
 
 /*
@@ -12,6 +10,7 @@ package media
 import "C"
 import (
 	"fmt"
+	"io"
 	"unsafe"
 
 	"github.com/ebitengine/oto/v3"
@@ -27,6 +26,7 @@ const (
 type AudioPlayer struct {
 	codecCtx *C.AVCodecContext
 	swrCtx   *C.struct_SwrContext
+	queue    *PacketQueue
 	
 	// Output
 	otoCtx    *oto.Context
@@ -35,24 +35,24 @@ type AudioPlayer struct {
 	// Buffers
 	frame      *C.AVFrame
 	resampleBuf []byte
+	leftover    []byte
 }
 
-// NewAudioPlayer creates a new audio player for a given codec context.
-func NewAudioPlayer(codecCtx *C.AVCodecContext) (*AudioPlayer, error) {
+// NewAudioPlayer creates a new audio player.
+func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue) (*AudioPlayer, error) {
 	p := &AudioPlayer{
 		codecCtx: codecCtx,
+		queue:    queue,
 		frame:    C.av_frame_alloc(),
 	}
 
-	// 1. Initialize Resampler
 	p.swrCtx = C.swr_alloc()
-	
-	// Set options for 48kHz Stereo S16 output
 	C.av_opt_set_chlayout(unsafe.Pointer(p.swrCtx), C.CString("in_chlayout"), &p.codecCtx.ch_layout, 0)
 	C.av_opt_set_int(unsafe.Pointer(p.swrCtx), C.CString("in_sample_rate"), C.int64_t(p.codecCtx.sample_rate), 0)
 	C.av_opt_set_sample_fmt(unsafe.Pointer(p.swrCtx), C.CString("in_sample_fmt"), p.codecCtx.sample_fmt, 0)
 	
-	C.av_opt_set_chlayout(unsafe.Pointer(p.swrCtx), C.CString("out_chlayout"), (*C.AVChannelLayout)(unsafe.Pointer(&C.AV_CH_LAYOUT_STEREO)), 0)
+	outLayout := C.AVChannelLayout(C.AV_CH_LAYOUT_STEREO)
+	C.av_opt_set_chlayout(unsafe.Pointer(p.swrCtx), C.CString("out_chlayout"), &outLayout, 0)
 	C.av_opt_set_int(unsafe.Pointer(p.swrCtx), C.CString("out_sample_rate"), TargetSampleRate, 0)
 	C.av_opt_set_sample_fmt(unsafe.Pointer(p.swrCtx), C.CString("out_sample_fmt"), C.AV_SAMPLE_FMT_S16, 0)
 
@@ -60,7 +60,6 @@ func NewAudioPlayer(codecCtx *C.AVCodecContext) (*AudioPlayer, error) {
 		return nil, fmt.Errorf("failed to initialize resampler")
 	}
 
-	// 2. Initialize Oto (Note: In a real app, one Oto context is shared)
 	op := &oto.NewContextOptions{
 		SampleRate:   TargetSampleRate,
 		ChannelCount: TargetChannels,
@@ -74,15 +73,55 @@ func NewAudioPlayer(codecCtx *C.AVCodecContext) (*AudioPlayer, error) {
 	
 	p.otoCtx = otoCtx
 	p.otoPlayer = otoCtx.NewPlayer(p)
+	p.otoPlayer.Play()
 
-	logging.Info(logging.CatPlayer, "Audio player initialized at 48kHz Stereo")
 	return p, nil
 }
 
-// Read satisfies the io.Reader interface for oto.Player.
+// Read implements io.Reader for oto playback.
 func (p *AudioPlayer) Read(buf []byte) (int, error) {
-	// [Decoding and resampling logic will be triggered here by the playback loop]
-	return 0, nil
+	if len(p.leftover) > 0 {
+		n := copy(buf, p.leftover)
+		p.leftover = p.leftover[n:]
+		return n, nil
+	}
+
+	for {
+		pkt, ok := p.queue.Get()
+		if !ok {
+			return 0, io.EOF
+		}
+		defer C.av_packet_free(&pkt)
+
+		if C.avcodec_send_packet(p.codecCtx, pkt) == 0 {
+			if C.avcodec_receive_frame(p.codecCtx, p.frame) == 0 {
+				data, err := p.resample()
+				if err != nil {
+					continue
+				}
+				n := copy(buf, data)
+				if n < len(data) {
+					p.leftover = data[n:]
+				}
+				return n, nil
+			}
+		}
+	}
+}
+
+func (p *AudioPlayer) resample() ([]byte, error) {
+	maxSamples := int(C.swr_get_out_samples(p.swrCtx, p.frame.nb_samples))
+	if len(p.resampleBuf) < maxSamples*4 { // 2 channels * 2 bytes
+		p.resampleBuf = make([]byte, maxSamples*4)
+	}
+
+	outPtr := (*C.uint8_t)(unsafe.Pointer(&p.resampleBuf[0]))
+	gotSamples := C.swr_convert(p.swrCtx, &outPtr, C.int(maxSamples), &p.frame.data[0], p.frame.nb_samples)
+	if gotSamples < 0 {
+		return nil, fmt.Errorf("resample error")
+	}
+
+	return p.resampleBuf[:gotSamples*4], nil
 }
 
 // Close releases audio resources.
