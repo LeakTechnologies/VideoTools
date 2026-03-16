@@ -1361,7 +1361,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	content.Add(container.NewHBox(updateStatusIcon, updateStatusLabel))
 
 	// Install button — hidden until an update is detected
-	installBtn := widget.NewButton("Install Update", nil)
+	installBtn := widget.NewButton(t.UpdateInstall, nil)
 	installBtn.Importance = widget.HighImportance
 	installBtn.Hide()
 
