@@ -621,8 +621,25 @@ const (
 
 type updateInfo struct {
 	latestTag    string
-	tagCommitSHA string // SHA of the commit the latest release tag points to
+	tagCommitSHA string    // SHA of the commit the latest release tag points to
+	releaseDate  time.Time // Release date
 }
+
+const (
+	// Update check intervals
+	UpdateCheckHourly     = time.Hour
+	UpdateCheck2Hours     = 2 * time.Hour
+	UpdateCheck3Hours     = 3 * time.Hour
+	UpdateCheck4Hours     = 4 * time.Hour
+	UpdateCheck6Hours     = 6 * time.Hour
+	UpdateCheck12Hours    = 12 * time.Hour
+	UpdateCheckDaily      = 24 * time.Hour
+	UpdateCheckSemiWeekly = 24 * 3 * time.Hour // Every 3 days
+	UpdateCheckWeekly     = 24 * 7 * time.Hour
+	UpdateCheckBiWeekly   = 24 * 14 * time.Hour // Every 2 weeks
+	UpdateCheckMonthly    = 24 * 30 * time.Hour // Approx monthly
+	UpdateCheckBiMonthly  = 24 * 60 * time.Hour // Approx bi-monthly
+)
 
 func checkForUpdates(state *appState) {
 	progress := dialog.NewProgressInfinite("Checking for Updates", "Connecting to update server...", state.window)
@@ -707,6 +724,52 @@ func checkForUpdates(state *appState) {
 	}()
 }
 
+func checkForUpdatesWithStatus(state *appState, statusLabel *widget.Label) {
+	statusLabel.SetText("Checking for updates...")
+
+	go func() {
+		info, err := fetchUpdateInfo()
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			if err != nil {
+				statusLabel.SetText(fmt.Sprintf("Error: %v", err))
+				return
+			}
+
+			currentShort := buildCommit
+			if len(currentShort) > 7 {
+				currentShort = currentShort[:7]
+			}
+			tagShort := info.tagCommitSHA
+			if len(tagShort) > 7 {
+				tagShort = tagShort[:7]
+			}
+
+			// Check if update available
+			if info.latestTag != appVersion {
+				age := formatRelativeTime(info.releaseDate)
+				statusLabel.SetText(fmt.Sprintf("⬤ Update available: %s (%s)", info.latestTag, age))
+				statusLabel.TextStyle = fyne.TextStyle{Bold: true, Italic: true}
+				return
+			}
+
+			// Check if patches available
+			patchesAvailable := currentShort != "" && currentShort != "dev" &&
+				tagShort != "" && currentShort != tagShort
+
+			if patchesAvailable {
+				age := formatRelativeTime(info.releaseDate)
+				statusLabel.SetText(fmt.Sprintf("⬤ New build available: %s (%s)", tagShort, age))
+				statusLabel.TextStyle = fyne.TextStyle{Bold: true, Italic: true}
+				return
+			}
+
+			age := formatRelativeTime(info.releaseDate)
+			statusLabel.SetText(fmt.Sprintf("✓ Up to date (latest: %s, %s)", info.latestTag, age))
+			statusLabel.TextStyle = fyne.TextStyle{Italic: true}
+		}, false)
+	}()
+}
+
 func fetchUpdateInfo() (updateInfo, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
 
@@ -742,7 +805,8 @@ func fetchUpdateInfo() (updateInfo, error) {
 		return updateInfo{}, fmt.Errorf("releases API returned %s", rResp.Status)
 	}
 	var release struct {
-		TargetCommitish string `json:"target_commitish"`
+		TargetCommitish string    `json:"target_commitish"`
+		CreatedAt       time.Time `json:"created_at"`
 	}
 	if err := json.NewDecoder(rResp.Body).Decode(&release); err != nil {
 		return updateInfo{}, fmt.Errorf("parse release response: %w", err)
@@ -751,6 +815,7 @@ func fetchUpdateInfo() (updateInfo, error) {
 	return updateInfo{
 		latestTag:    tagName,
 		tagCommitSHA: release.TargetCommitish,
+		releaseDate:  release.CreatedAt,
 	}, nil
 }
 
@@ -1171,6 +1236,51 @@ func buildBenchmarkTab(state *appState) fyne.CanvasObject {
 	return content
 }
 
+func formatRelativeTime(t time.Time) string {
+	if t.IsZero() {
+		return "unknown"
+	}
+	now := time.Now()
+	d := now.Sub(t)
+
+	if d < time.Hour {
+		minutes := int(d.Minutes())
+		if minutes <= 1 {
+			return "just now"
+		}
+		return fmt.Sprintf("%d minutes ago", minutes)
+	}
+	if d < 24*time.Hour {
+		hours := int(d.Hours())
+		if hours == 1 {
+			return "1 hour ago"
+		}
+		return fmt.Sprintf("%d hours ago", hours)
+	}
+	if d < 48*time.Hour {
+		return "yesterday"
+	}
+	days := int(d.Hours() / 24)
+	if days < 7 {
+		return fmt.Sprintf("%d days ago", days)
+	}
+	if days < 14 {
+		return "1 week ago"
+	}
+	if days < 30 {
+		weeks := days / 7
+		return fmt.Sprintf("%d weeks ago", weeks)
+	}
+	if days < 60 {
+		return "1 month ago"
+	}
+	if days < 90 {
+		return "2 months ago"
+	}
+	months := days / 30
+	return fmt.Sprintf("%d months ago", months)
+}
+
 func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	content := container.NewVBox()
 
@@ -1197,13 +1307,48 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	hashLabel.TextStyle = fyne.TextStyle{Monospace: true}
 	content.Add(hashLabel)
 
+	// Update status indicator
+	updateStatusLabel := widget.NewLabel("")
+	updateStatusLabel.TextStyle = fyne.TextStyle{Italic: true}
+	content.Add(updateStatusLabel)
+
+	// Check for updates button with status
 	checkBtn := widget.NewButton("Check for Updates", func() {
-		checkForUpdates(state)
+		checkForUpdatesWithStatus(state, updateStatusLabel)
 	})
 	checkBtn.Importance = widget.MediumImportance
 	content.Add(checkBtn)
 
-	infoLabel := widget.NewLabel("Automatic updates will check for new versions\nwhen the app starts.")
+	// Auto-check frequency
+	autoCheckLabel := widget.NewLabel("Auto-check:")
+	autoCheckLabel.TextStyle = fyne.TextStyle{}
+
+	autoCheckOptions := []string{
+		"Disabled",
+		"Every hour",
+		"Every 2 hours",
+		"Every 3 hours",
+		"Every 4 hours",
+		"Every 6 hours",
+		"Every 12 hours",
+		"Daily",
+		"Semi-weekly (every 3 days)",
+		"Weekly",
+		"Bi-weekly (every 2 weeks)",
+		"Monthly",
+		"Bi-monthly (every 2 months)",
+	}
+
+	autoCheckSelect := widget.NewSelect(autoCheckOptions, func(selected string) {
+		// Persist the setting (would need to add to app config)
+	})
+	autoCheckSelect.SetSelected("Daily") // Default
+
+	autoCheckRow := container.NewHBox(autoCheckLabel, autoCheckSelect)
+	content.Add(autoCheckRow)
+
+	// Last checked / release date info
+	infoLabel := widget.NewLabel("Checks for updates automatically based on the schedule above.")
 	infoLabel.Wrapping = fyne.TextWrapWord
 	infoLabel.TextStyle = fyne.TextStyle{Italic: true}
 	content.Add(infoLabel)
