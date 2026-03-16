@@ -50,19 +50,60 @@ type Options struct {
 	OnCreateThumbJob func() any
 
 	OnPersistConfig func()
+
+	// Labels — all user-visible strings (fall back to English if empty)
+	BackLabel                string
+	ViewQueueLabel           string
+	InstructionsLabel        string
+	NoFileLabel              string
+	FileLoadedLabel          string
+	LoadVideoLabel           string
+	ClearLabel               string
+	ContactSheetToggleLabel  string
+	ShowTimestampsLabel      string
+	ContactSheetGridLabel    string
+	IndividualThumbsLabel    string
+	ThumbnailSizeLabel       string
+	ColumnsFmt               string // "Columns: %d"
+	RowsFmt                  string // "Rows: %d"
+	TotalFmt                 string // "Total thumbnails: %d"
+	CountFmt                 string // "Thumbnail Count: %d"
+	WidthFmt                 string // "Thumbnail Width: %d px"
+	GenerateNowLabel         string
+	AddToQueueLabel          string
+	AddAllToQueueLabel       string
+	LoadedVideosLabel        string
+	VideoFmt                 string // "Video %d"
+	// Dialog strings
+	NoVideoTitle      string
+	NoVideoMsg        string
+	StartedTitle      string
+	StartedMsg        string
+	JobQueuedTitle    string
+	JobQueuedMsg      string
+	NoVideosTitle     string
+	NoVideosMsg       string
+	JobsQueuedFmt     string // "Queued %d thumbnail jobs."
+}
+
+func or(s, fallback string) string {
+	if s != "" {
+		return s
+	}
+	return fallback
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
 	thumbColor := utils.MustHex("#FF8F00")
 
-	backBtn := widget.NewButton("< THUMBNAILS", func() {
+	backBtn := widget.NewButton(or(opts.BackLabel, "< THUMBNAILS"), func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}
 	})
 	backBtn.Importance = widget.LowImportance
 
-	queueBtn := widget.NewButton("View Queue", func() {
+	queueBtn := widget.NewButton(or(opts.ViewQueueLabel, "View Queue"), func() {
 		if opts.OnShowQueue != nil {
 			opts.OnShowQueue()
 		}
@@ -77,7 +118,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	topBar := ui.TintedBar(thumbColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
-	instructions := widget.NewLabel("Generate thumbnails from a video file. Load a video and configure settings.")
+	instructions := widget.NewLabel(or(opts.InstructionsLabel, "Generate thumbnails from a video file. Load a video and configure settings."))
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
@@ -97,14 +138,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.ThumbnailRows = 8
 	}
 
-	fileLabel := widget.NewLabel("No file loaded")
+	fileLabel := widget.NewLabel(or(opts.NoFileLabel, "No file loaded"))
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	if opts.ThumbnailFile != nil {
-		fileLabel.SetText("File: video loaded")
+		fileLabel.SetText(or(opts.FileLoadedLabel, "File: video loaded"))
 	}
 
-	loadBtn := widget.NewButton("Load Video", func() {
+	loadBtn := widget.NewButton(or(opts.LoadVideoLabel, "Load Video"), func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -117,7 +158,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}, opts.Window)
 	})
 
-	clearBtn := widget.NewButton("Clear", func() {
+	clearBtn := widget.NewButton(or(opts.ClearLabel, "Clear"), func() {
 		if opts.OnClearFiles != nil {
 			opts.OnClearFiles()
 		}
@@ -139,7 +180,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	})
 	contactSheetCheck.Checked = opts.ThumbnailContactSheet
-	contactSheetLabel := widget.NewLabel("Generate Contact Sheet (single image)")
+	contactSheetLabel := widget.NewLabel(or(opts.ContactSheetToggleLabel, "Generate Contact Sheet (single image)"))
 	contactSheetLabel.Wrapping = fyne.TextWrapWord
 	contactSheetToggle := ui.NewTappable(contactSheetLabel, func() {
 		contactSheetCheck.SetChecked(!contactSheetCheck.Checked)
@@ -155,7 +196,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	})
 	timestampCheck.Checked = opts.ThumbnailShowTimestamps
-	timestampLabel := widget.NewLabel("Show timestamps on thumbnails")
+	timestampLabel := widget.NewLabel(or(opts.ShowTimestampsLabel, "Show timestamps on thumbnails"))
 	timestampLabel.Wrapping = fyne.TextWrapWord
 	timestampToggle := ui.NewTappable(timestampLabel, func() {
 		timestampCheck.SetChecked(!timestampCheck.Checked)
@@ -167,23 +208,29 @@ func BuildView(opts Options) fyne.CanvasObject {
 		bg.CornerRadius = 10
 		bg.StrokeColor = gridColor
 		bg.StrokeWidth = 1
-		body := container.NewVBox(
+		header := container.NewVBox(
 			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			widget.NewSeparator(),
-			content,
 		)
+		body := container.NewBorder(header, nil, nil, nil, content)
 		layers := ui.NoisyBackgroundObjects(bg)
 		layers = append(layers, container.NewPadded(body))
 		return container.NewMax(layers...)
 	}
 
+	columnsFmt := or(opts.ColumnsFmt, "Columns: %d")
+	rowsFmt := or(opts.RowsFmt, "Rows: %d")
+	totalFmt := or(opts.TotalFmt, "Total thumbnails: %d")
+	countFmt := or(opts.CountFmt, "Thumbnail Count: %d")
+	widthFmt := or(opts.WidthFmt, "Thumbnail Width: %d px")
+
 	var settingsOptions fyne.CanvasObject
 	if opts.ThumbnailContactSheet {
-		colLabel := widget.NewLabel(fmt.Sprintf("Columns: %d", opts.ThumbnailColumns))
-		rowLabel := widget.NewLabel(fmt.Sprintf("Rows: %d", opts.ThumbnailRows))
+		colLabel := widget.NewLabel(fmt.Sprintf(columnsFmt, opts.ThumbnailColumns))
+		rowLabel := widget.NewLabel(fmt.Sprintf(rowsFmt, opts.ThumbnailRows))
 
 		totalThumbs := opts.ThumbnailColumns * opts.ThumbnailRows
-		totalLabel := widget.NewLabel(fmt.Sprintf("Total thumbnails: %d", totalThumbs))
+		totalLabel := widget.NewLabel(fmt.Sprintf(totalFmt, totalThumbs))
 		totalLabel.TextStyle = fyne.TextStyle{Italic: true}
 		totalLabel.Wrapping = fyne.TextWrapWord
 
@@ -194,8 +241,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 			if opts.OnSetThumbnailColumns != nil {
 				opts.OnSetThumbnailColumns(int(val))
 			}
-			colLabel.SetText(fmt.Sprintf("Columns: %d", int(val)))
-			totalLabel.SetText(fmt.Sprintf("Total thumbnails: %d", opts.ThumbnailColumns*opts.ThumbnailRows))
+			colLabel.SetText(fmt.Sprintf(columnsFmt, int(val)))
+			totalLabel.SetText(fmt.Sprintf(totalFmt, opts.ThumbnailColumns*opts.ThumbnailRows))
 			if opts.OnPersistConfig != nil {
 				opts.OnPersistConfig()
 			}
@@ -208,8 +255,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 			if opts.OnSetThumbnailRows != nil {
 				opts.OnSetThumbnailRows(int(val))
 			}
-			rowLabel.SetText(fmt.Sprintf("Rows: %d", int(val)))
-			totalLabel.SetText(fmt.Sprintf("Total thumbnails: %d", opts.ThumbnailColumns*opts.ThumbnailRows))
+			rowLabel.SetText(fmt.Sprintf(rowsFmt, int(val)))
+			totalLabel.SetText(fmt.Sprintf(totalFmt, opts.ThumbnailColumns*opts.ThumbnailRows))
 			if opts.OnPersistConfig != nil {
 				opts.OnPersistConfig()
 			}
@@ -250,8 +297,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 			sizeSelect.SetSelected("360 px")
 		}
 
-		settingsOptions = buildThumbBox("Contact Sheet Grid", container.NewVBox(
-			widget.NewLabel("Thumbnail Size:"),
+		settingsOptions = buildThumbBox(or(opts.ContactSheetGridLabel, "Contact Sheet Grid"), container.NewVBox(
+			widget.NewLabel(or(opts.ThumbnailSizeLabel, "Thumbnail Size:")),
 			sizeSelect,
 			colLabel,
 			colSlider,
@@ -260,7 +307,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			totalLabel,
 		))
 	} else {
-		countLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Count: %d", opts.ThumbnailCount))
+		countLabel := widget.NewLabel(fmt.Sprintf(countFmt, opts.ThumbnailCount))
 		countSlider := widget.NewSlider(3, 50)
 		countSlider.Value = float64(opts.ThumbnailCount)
 		countSlider.Step = 1
@@ -268,13 +315,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 			if opts.OnSetThumbnailCount != nil {
 				opts.OnSetThumbnailCount(int(val))
 			}
-			countLabel.SetText(fmt.Sprintf("Thumbnail Count: %d", int(val)))
+			countLabel.SetText(fmt.Sprintf(countFmt, int(val)))
 			if opts.OnPersistConfig != nil {
 				opts.OnPersistConfig()
 			}
 		}
 
-		widthLabel := widget.NewLabel(fmt.Sprintf("Thumbnail Width: %d px", opts.ThumbnailWidth))
+		widthLabel := widget.NewLabel(fmt.Sprintf(widthFmt, opts.ThumbnailWidth))
 		widthSlider := widget.NewSlider(160, 640)
 		widthSlider.Value = float64(opts.ThumbnailWidth)
 		widthSlider.Step = 32
@@ -282,13 +329,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 			if opts.OnSetThumbnailWidth != nil {
 				opts.OnSetThumbnailWidth(int(val))
 			}
-			widthLabel.SetText(fmt.Sprintf("Thumbnail Width: %d px", int(val)))
+			widthLabel.SetText(fmt.Sprintf(widthFmt, int(val)))
 			if opts.OnPersistConfig != nil {
 				opts.OnPersistConfig()
 			}
 		}
 
-		settingsOptions = buildThumbBox("Individual Thumbnails", container.NewVBox(
+		settingsOptions = buildThumbBox(or(opts.IndividualThumbsLabel, "Individual Thumbnails"), container.NewVBox(
 			countLabel,
 			countSlider,
 			widthLabel,
@@ -296,15 +343,25 @@ func BuildView(opts Options) fyne.CanvasObject {
 		))
 	}
 
-	generateNowBtn := widget.NewButton("GENERATE NOW", func() {
+	noVideoTitle := or(opts.NoVideoTitle, "No Video")
+	noVideoMsg := or(opts.NoVideoMsg, "Please load a video file first.")
+	startedTitle := or(opts.StartedTitle, "Thumbnails")
+	startedMsg := or(opts.StartedMsg, "Thumbnail generation started! View progress in Job Queue.")
+	jobQueuedTitle := or(opts.JobQueuedTitle, "Queue")
+	jobQueuedMsg := or(opts.JobQueuedMsg, "Thumbnail job added to queue!")
+	noVideosTitle := or(opts.NoVideosTitle, "No Videos")
+	noVideosMsg := or(opts.NoVideosMsg, "Load videos first to add to queue.")
+	jobsQueuedFmt := or(opts.JobsQueuedFmt, "Queued %d thumbnail jobs.")
+
+	generateNowBtn := widget.NewButton(or(opts.GenerateNowLabel, "GENERATE NOW"), func() {
 		if opts.ThumbnailFile == nil {
-			dialog.ShowInformation("No Video", "Please load a video file first.", opts.Window)
+			dialog.ShowInformation(noVideoTitle, noVideoMsg, opts.Window)
 			return
 		}
 		if opts.OnCreateThumbJob != nil {
 			_ = opts.OnCreateThumbJob()
 		}
-		dialog.ShowInformation("Thumbnails", "Thumbnail generation started! View progress in Job Queue.", opts.Window)
+		dialog.ShowInformation(startedTitle, startedMsg, opts.Window)
 	})
 	generateNowBtn.Importance = widget.HighImportance
 
@@ -312,15 +369,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 		generateNowBtn.Disable()
 	}
 
-	addQueueBtn := widget.NewButton("Add to Queue", func() {
+	addQueueBtn := widget.NewButton(or(opts.AddToQueueLabel, "Add to Queue"), func() {
 		if opts.ThumbnailFile == nil {
-			dialog.ShowInformation("No Video", "Please load a video file first.", opts.Window)
+			dialog.ShowInformation(noVideoTitle, noVideoMsg, opts.Window)
 			return
 		}
 		if opts.OnCreateThumbJob != nil {
 			_ = opts.OnCreateThumbJob()
 		}
-		dialog.ShowInformation("Queue", "Thumbnail job added to queue!", opts.Window)
+		dialog.ShowInformation(jobQueuedTitle, jobQueuedMsg, opts.Window)
 	})
 	addQueueBtn.Importance = widget.MediumImportance
 
@@ -328,9 +385,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		addQueueBtn.Disable()
 	}
 
-	addAllBtn := widget.NewButton("Add All to Queue", func() {
+	addAllBtn := widget.NewButton(or(opts.AddAllToQueueLabel, "Add All to Queue"), func() {
 		if len(opts.ThumbnailFiles) == 0 {
-			dialog.ShowInformation("No Videos", "Load videos first to add to queue.", opts.Window)
+			dialog.ShowInformation(noVideosTitle, noVideosMsg, opts.Window)
 			return
 		}
 		if opts.OnCreateThumbJob != nil {
@@ -338,11 +395,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 				_ = opts.OnCreateThumbJob()
 			}
 		}
-		dialog.ShowInformation("Queue", fmt.Sprintf("Queued %d thumbnail jobs.", len(opts.ThumbnailFiles)), opts.Window)
+		dialog.ShowInformation(jobQueuedTitle, fmt.Sprintf(jobsQueuedFmt, len(opts.ThumbnailFiles)), opts.Window)
 	})
 	addAllBtn.Importance = widget.MediumImportance
 
-	viewQueueBtn := widget.NewButton("View Queue", func() {
+	viewQueueBtn := widget.NewButton(or(opts.ViewQueueLabel, "View Queue"), func() {
 		if opts.OnShowQueue != nil {
 			opts.OnShowQueue()
 		}
@@ -356,12 +413,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 	)
 
 	if len(opts.ThumbnailFiles) > 0 {
+		videoFmt := or(opts.VideoFmt, "Video %d")
 		list := widget.NewList(
 			func() int { return len(opts.ThumbnailFiles) },
 			func() fyne.CanvasObject { return widget.NewLabel("template") },
 			func(id widget.ListItemID, obj fyne.CanvasObject) {
 				if label, ok := obj.(*widget.Label); ok {
-					label.SetText(fmt.Sprintf("Video %d", id+1))
+					label.SetText(fmt.Sprintf(videoFmt, id+1))
 				}
 			},
 		)
@@ -372,7 +430,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		listScroll := container.NewVScroll(list)
 		listScroll.SetMinSize(fyne.NewSize(0, 0))
-		leftColumn.Add(widget.NewLabel("Loaded Videos:"))
+		leftColumn.Add(widget.NewLabel(or(opts.LoadedVideosLabel, "Loaded Videos:")))
 		leftColumn.Add(listScroll)
 	}
 

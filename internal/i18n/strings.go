@@ -146,11 +146,38 @@ type Strings struct {
 	ConvertHardwareAccel string
 
 	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
-	ThumbnailGenerateNow    string
-	ThumbnailContactSheet   string
-	ThumbnailColumns        string
-	ThumbnailRows           string
-	ThumbnailOutputFolder   string
+	ThumbnailGenerateNow         string
+	ThumbnailContactSheet        string
+	ThumbnailColumns             string
+	ThumbnailRows                string
+	ThumbnailOutputFolder        string
+	ThumbnailIndividual          string // "Individual Thumbnails"
+	ThumbnailLoadVideo           string // "Load Video"
+	ThumbnailNoFile              string // "No file loaded"
+	ThumbnailFileLoaded          string // "File: video loaded"
+	ThumbnailInstructions        string // instruction text below header
+	ThumbnailContactSheetToggle  string // "Generate Contact Sheet (single image)"
+	ThumbnailShowTimestamps      string // "Show timestamps on thumbnails"
+	ThumbnailContactSheetGrid    string // "Contact Sheet Grid" (box title)
+	ThumbnailSize                string // "Thumbnail Size:"
+	ThumbnailCountFmt            string // "Thumbnail Count: %d"
+	ThumbnailWidthFmt            string // "Thumbnail Width: %d px"
+	ThumbnailColumnsFmt          string // "Columns: %d"
+	ThumbnailRowsFmt             string // "Rows: %d"
+	ThumbnailTotalFmt            string // "Total thumbnails: %d"
+	ThumbnailAddToQueue          string // "Add to Queue"
+	ThumbnailAddAllToQueue       string // "Add All to Queue"
+	ThumbnailLoadedVideos        string // "Loaded Videos:"
+	ThumbnailVideoFmt            string // "Video %d"
+	ThumbnailNoVideoTitle        string // dialog: "No Video"
+	ThumbnailNoVideoMsg          string // dialog: "Please load a video file first."
+	ThumbnailStartedTitle        string // dialog: "Thumbnails"
+	ThumbnailStartedMsg          string // dialog: generation started message
+	ThumbnailJobQueuedTitle      string // dialog: "Queue"
+	ThumbnailJobQueuedMsg        string // dialog: "Thumbnail job added to queue!"
+	ThumbnailNoVideosTitle       string // dialog: "No Videos"
+	ThumbnailNoVideosMsg         string // dialog: "Load videos first to add to queue."
+	ThumbnailJobsQueuedFmt       string // dialog: "Queued %d thumbnail jobs."
 
 	// ── About ─────────────────────────────────────────────────────────────
 	AboutTitle       string

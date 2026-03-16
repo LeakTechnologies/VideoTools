@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 
 	thumbpkg "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/thumbnail"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	thumbsvc "git.leaktechnologies.dev/stu/VideoTools/internal/thumbnail"
@@ -124,6 +125,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		thumbFiles[i] = f
 	}
 
+	t := i18n.T()
 	opts := thumbpkg.Options{
 		Window:                  state.window,
 		ThumbnailFile:           state.thumbnailFile,
@@ -169,6 +171,39 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 			return state.createThumbnailJobForPath(state.thumbnailFile.Path)
 		},
 		OnPersistConfig: func() { state.persistThumbnailConfig() },
+
+		// Labels
+		BackLabel:               "< " + t.ModuleThumbnail,
+		ViewQueueLabel:          t.MenuQueue,
+		InstructionsLabel:       t.ThumbnailInstructions,
+		NoFileLabel:             t.ThumbnailNoFile,
+		FileLoadedLabel:         t.ThumbnailFileLoaded,
+		LoadVideoLabel:          t.ThumbnailLoadVideo,
+		ClearLabel:              t.ActionClear,
+		ContactSheetToggleLabel: t.ThumbnailContactSheetToggle,
+		ShowTimestampsLabel:     t.ThumbnailShowTimestamps,
+		ContactSheetGridLabel:   t.ThumbnailContactSheetGrid,
+		IndividualThumbsLabel:   t.ThumbnailIndividual,
+		ThumbnailSizeLabel:      t.ThumbnailSize,
+		ColumnsFmt:              t.ThumbnailColumnsFmt,
+		RowsFmt:                 t.ThumbnailRowsFmt,
+		TotalFmt:                t.ThumbnailTotalFmt,
+		CountFmt:                t.ThumbnailCountFmt,
+		WidthFmt:                t.ThumbnailWidthFmt,
+		GenerateNowLabel:        t.ThumbnailGenerateNow,
+		AddToQueueLabel:         t.ThumbnailAddToQueue,
+		AddAllToQueueLabel:      t.ThumbnailAddAllToQueue,
+		LoadedVideosLabel:       t.ThumbnailLoadedVideos,
+		VideoFmt:                t.ThumbnailVideoFmt,
+		NoVideoTitle:            t.ThumbnailNoVideoTitle,
+		NoVideoMsg:              t.ThumbnailNoVideoMsg,
+		StartedTitle:            t.ThumbnailStartedTitle,
+		StartedMsg:              t.ThumbnailStartedMsg,
+		JobQueuedTitle:          t.ThumbnailJobQueuedTitle,
+		JobQueuedMsg:            t.ThumbnailJobQueuedMsg,
+		NoVideosTitle:           t.ThumbnailNoVideosTitle,
+		NoVideosMsg:             t.ThumbnailNoVideosMsg,
+		JobsQueuedFmt:           t.ThumbnailJobsQueuedFmt,
 	}
 	return thumbpkg.BuildView(opts)
 }
