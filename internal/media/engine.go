@@ -204,6 +204,23 @@ func (e *Engine) Seek(seconds float64) error {
 	return nil
 }
 
+// Step advances the video by a specific number of frames.
+func (e *Engine) Step(frames int) (*image.RGBA, error) {
+	if frames <= 0 {
+		return nil, fmt.Errorf("invalid frame count")
+	}
+	
+	var lastFrame *image.RGBA
+	var err error
+	for i := 0; i < frames; i++ {
+		lastFrame, err = e.NextFrame()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return lastFrame, nil
+}
+
 // NextFrame retrieves the next decoded video frame.
 func (e *Engine) NextFrame() (*image.RGBA, error) {
 	for {
