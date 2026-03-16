@@ -17,6 +17,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -1207,7 +1208,7 @@ func (r *conversionStatsRenderer) Refresh() {
 		r.statusText.Color = color.NRGBA{R: 150, G: 150, B: 150, A: 255} // Gray
 		r.progressBar.Hide()
 	} else {
-		r.statusText.Text = "○ No active jobs"
+		r.statusText.Text = i18n.T().StatusNoActiveJobs
 		r.statusText.Color = color.NRGBA{R: 100, G: 100, B: 100, A: 255} // Dim gray
 		r.progressBar.Hide()
 	}

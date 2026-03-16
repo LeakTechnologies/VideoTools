@@ -101,14 +101,15 @@ var frCA = Strings{
 	LabelFileFmt:       "Fichier : %s",
 
 	// ── Common Status ─────────────────────────────────────────────────────
-	StatusReady:      "Prêt",
-	StatusProcessing: "Traitement en cours...",
-	StatusComplete:   "Terminé",
-	StatusFailed:     "Échec",
-	StatusCancelled:  "Annulé",
-	StatusPending:    "En attente",
-	StatusRunning:    "En cours...",
-	StatusUpToDate:   "À jour",
+	StatusReady:        "Prêt",
+	StatusProcessing:   "Traitement en cours...",
+	StatusComplete:     "Terminé",
+	StatusFailed:       "Échec",
+	StatusCancelled:    "Annulé",
+	StatusPending:      "En attente",
+	StatusRunning:      "En cours...",
+	StatusUpToDate:     "À jour",
+	StatusNoActiveJobs: "○ Aucune tâche active",
 
 	// ── Settings ──────────────────────────────────────────────────────────
 	SettingsTitle:                "Paramètres",
