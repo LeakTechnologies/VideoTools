@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"image"
 	"io"
+	"sync"
 	"unsafe"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -23,22 +24,36 @@ import (
 type Engine struct {
 	formatCtx      *C.AVFormatContext
 	videoStreamIdx int
+	audioStreamIdx int
 	videoCodecCtx  *C.AVCodecContext
+	audioCodecCtx  *C.AVCodecContext
 	swsCtx         *C.struct_SwsContext
 
+	// Queues
+	videoQueue *PacketQueue
+	audioQueue *PacketQueue
+
 	// Buffers for decoding
-	packet *C.AVPacket
-	frame  *C.AVFrame
+	frame *C.AVFrame
 
 	// Buffers for scaling
 	rgbaFrame  *C.AVFrame
 	rgbaBuffer []byte
+
+	// State
+	mu      sync.Mutex
+	running bool
+	stop    chan struct{}
 }
 
 // NewEngine creates a new media engine instance.
 func NewEngine() *Engine {
 	return &Engine{
 		videoStreamIdx: -1,
+		audioStreamIdx: -1,
+		videoQueue:     NewPacketQueue(),
+		audioQueue:     NewPacketQueue(),
+		stop:           make(chan struct{}),
 	}
 }
 
@@ -57,42 +72,43 @@ func (e *Engine) Open(path string) error {
 		return fmt.Errorf("failed to find stream info")
 	}
 
-	var videoCodec *C.AVCodec
+	// 1. Find best streams
+	var videoCodec, audioCodec *C.AVCodec
 	e.videoStreamIdx = int(C.av_find_best_stream(e.formatCtx, C.AVMEDIA_TYPE_VIDEO, -1, -1, &videoCodec, 0))
+	e.audioStreamIdx = int(C.av_find_best_stream(e.formatCtx, C.AVMEDIA_TYPE_AUDIO, -1, -1, &audioCodec, 0))
+
 	if e.videoStreamIdx < 0 {
 		return fmt.Errorf("no video stream found")
 	}
 
+	// 2. Setup Video Codec
 	e.videoCodecCtx = C.avcodec_alloc_context3(videoCodec)
-	if e.videoCodecCtx == nil {
-		return fmt.Errorf("failed to allocate codec context")
-	}
-
 	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(e.formatCtx.streams))
-	if C.avcodec_parameters_to_context(e.videoCodecCtx, streams[e.videoStreamIdx].codecpar) < 0 {
-		return fmt.Errorf("failed to copy codec parameters")
-	}
-
+	C.avcodec_parameters_to_context(e.videoCodecCtx, streams[e.videoStreamIdx].codecpar)
 	if C.avcodec_open2(e.videoCodecCtx, videoCodec, nil) < 0 {
-		return fmt.Errorf("failed to open codec")
+		return fmt.Errorf("failed to open video codec")
 	}
 
-	e.packet = C.av_packet_alloc()
+	// 3. Setup Audio Codec (if exists)
+	if e.audioStreamIdx >= 0 {
+		e.audioCodecCtx = C.avcodec_alloc_context3(audioCodec)
+		C.avcodec_parameters_to_context(e.audioCodecCtx, streams[e.audioStreamIdx].codecpar)
+		if C.avcodec_open2(e.audioCodecCtx, audioCodec, nil) < 0 {
+			logging.Error(logging.CatPlayer, "Failed to open audio codec, continuing without sound")
+			e.audioStreamIdx = -1
+		}
+	}
+
 	e.frame = C.av_frame_alloc()
 
-	// Initialize scaling context (to RGBA)
+	// 4. Initialize Scaling
 	e.swsCtx = C.sws_getContext(
 		e.videoCodecCtx.width, e.videoCodecCtx.height, e.videoCodecCtx.pix_fmt,
 		e.videoCodecCtx.width, e.videoCodecCtx.height, C.AV_PIX_FMT_RGBA,
 		C.SWS_BILINEAR, nil, nil, nil,
 	)
 
-	// Pre-allocate RGBA frame
 	e.rgbaFrame = C.av_frame_alloc()
-	e.rgbaFrame.format = C.AV_PIX_FMT_RGBA
-	e.rgbaFrame.width = e.videoCodecCtx.width
-	e.rgbaFrame.height = e.videoCodecCtx.height
-
 	numBytes := C.av_image_get_buffer_size(C.AV_PIX_FMT_RGBA, e.videoCodecCtx.width, e.videoCodecCtx.height, 1)
 	e.rgbaBuffer = make([]byte, int(numBytes))
 	C.av_image_fill_arrays(
@@ -101,28 +117,63 @@ func (e *Engine) Open(path string) error {
 		e.videoCodecCtx.width, e.videoCodecCtx.height, 1,
 	)
 
-	logging.Info(logging.CatPlayer, "Media engine initialized. Resolution: %dx%d",
-		int(e.videoCodecCtx.width), int(e.videoCodecCtx.height))
-
 	return nil
 }
 
-// NextFrame decodes the next video frame.
+// Start launches the demuxer goroutine.
+func (e *Engine) Start() {
+	e.mu.Lock()
+	if e.running {
+		e.mu.Unlock()
+		return
+	}
+	e.running = true
+	e.mu.Unlock()
+
+	go e.demuxerLoop()
+}
+
+func (e *Engine) demuxerLoop() {
+	logging.Info(logging.CatPlayer, "Demuxer loop started")
+	pkt := C.av_packet_alloc()
+	defer C.av_packet_free(&pkt)
+
+	for {
+		select {
+		case <-e.stop:
+			return
+		default:
+			if C.av_read_frame(e.formatCtx, pkt) < 0 {
+				logging.Info(logging.CatPlayer, "End of stream reached")
+				e.videoQueue.Close()
+				e.audioQueue.Close()
+				return
+			}
+
+			if int(pkt.stream_index) == e.videoStreamIdx {
+				e.videoQueue.Put(pkt)
+			} else if int(pkt.stream_index) == e.audioStreamIdx {
+				e.audioQueue.Put(pkt)
+			}
+			C.av_packet_unref(pkt)
+		}
+	}
+}
+
+// NextFrame retrieves the next decoded video frame from the queue.
 func (e *Engine) NextFrame() (*image.RGBA, error) {
 	for {
-		if C.av_read_frame(e.formatCtx, e.packet) < 0 {
+		pkt, ok := e.videoQueue.Get()
+		if !ok {
 			return nil, io.EOF
 		}
+		defer C.av_packet_free(&pkt)
 
-		if int(e.packet.stream_index) == e.videoStreamIdx {
-			if C.avcodec_send_packet(e.videoCodecCtx, e.packet) == 0 {
-				for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
-					C.av_packet_unref(e.packet)
-					return e.toRGBA(), nil
-				}
+		if C.avcodec_send_packet(e.videoCodecCtx, pkt) == 0 {
+			if C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
+				return e.toRGBA(), nil
 			}
 		}
-		C.av_packet_unref(e.packet)
 	}
 }
 
@@ -140,19 +191,31 @@ func (e *Engine) toRGBA() *image.RGBA {
 	return img
 }
 
-// Close releases all FFmpeg resources.
+// Close stops the engine and releases all resources.
 func (e *Engine) Close() {
+	e.mu.Lock()
+	if !e.running {
+		e.mu.Unlock()
+		return
+	}
+	close(e.stop)
+	e.running = false
+	e.mu.Unlock()
+
+	e.videoQueue.Close()
+	e.audioQueue.Close()
+
 	if e.swsCtx != nil {
 		C.sws_freeContext(e.swsCtx)
 	}
 	if e.videoCodecCtx != nil {
 		C.avcodec_free_context(&e.videoCodecCtx)
 	}
+	if e.audioCodecCtx != nil {
+		C.avcodec_free_context(&e.audioCodecCtx)
+	}
 	if e.formatCtx != nil {
 		C.avformat_close_input(&e.formatCtx)
-	}
-	if e.packet != nil {
-		C.av_packet_free(&e.packet)
 	}
 	if e.frame != nil {
 		C.av_frame_free(&e.frame)
