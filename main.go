@@ -1736,16 +1736,10 @@ func (m *mouseButtonHandler) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (m *mouseButtonHandler) MouseDown(me *desktop.MouseEvent) {
-	// Log for debugging
-	logging.Debug(logging.CatUI, "Mouse button pressed: %d", me.Button)
-
-	// Button 4 = Back button on most mice - go to main menu
-	// Button 5 = Forward button on most mice
-	if me.Button == 4 { // Back button
-		logging.Debug(logging.CatUI, "Back button pressed, going to main menu")
-		m.state.showMainMenu()
-	} else if me.Button == 5 { // Forward button
-		logging.Debug(logging.CatUI, "Forward button pressed, navigating forward")
+	switch me.Button {
+	case desktop.MouseButton4:
+		m.state.navigateBack()
+	case desktop.MouseButton5:
 		m.state.navigateForward()
 	}
 }
