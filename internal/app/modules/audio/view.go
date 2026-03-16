@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"image/color"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -19,7 +20,8 @@ var gridColor = utils.MustHex("#2A3A52")
 var navyBlue = utils.MustHex("#191F35")
 
 type Options struct {
-	Window fyne.Window
+	Window      fyne.Window
+	ModuleColor color.Color
 
 	// State fields
 	BatchMode            bool
@@ -83,7 +85,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	backBtn.Importance = widget.LowImportance
 
-	topBar := ui.TintedBar(utils.MustHex("#FF8F00"), container.NewHBox(backBtn, layout.NewSpacer()))
+	audioColor := opts.ModuleColor
+	if audioColor == nil {
+		audioColor = utils.MustHex("#9A7500")
+	}
+	topBar := ui.TintedBar(audioColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	leftPanel := buildAudioLeftPanel(opts)
 	rightPanel := buildAudioRightPanel(opts)

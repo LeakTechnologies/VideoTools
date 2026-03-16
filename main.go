@@ -121,7 +121,6 @@ var (
 		{"audio", "Audio", utils.MustHex("#9A7500"), "Convert", modules.HandleAudio},                 // Dark amber
 		{"author", "Author", utils.MustHex("#C62828"), "Disc", modules.HandleAuthor},                 // Crimson red
 		{"rip", "Rip", utils.MustHex("#7A6A2F"), "Disc", modules.HandleRip},                          // Olive bronze
-		{"bluray", "Blu-Ray", utils.MustHex("#0B4EA2"), "Disc", nil},                                 // Royal blue
 		{"subtitles", "Subtitles", utils.MustHex("#6E3B2E"), "Convert", modules.HandleSubtitles},     // Burnt copper
 		{"thumbnail", "Thumbnail", utils.MustHex("#5E35B1"), "Screenshots", modules.HandleThumbnail}, // Violet
 		{"compare", "Compare", utils.MustHex("#E64A19"), "Inspect", modules.HandleCompare},           // Vermilion
@@ -749,9 +748,7 @@ type convertConfig struct {
 
 	// Master settings
 	ShowUpscale bool
-	ShowAuthor  bool
-	ShowRip     bool
-	ShowBluRay  bool
+	ShowDisc    bool
 }
 
 type convertRecoveryState = appcfg.ConvertRecoveryState
@@ -825,9 +822,7 @@ func defaultConvertConfig() convertConfig {
 		TempDir:          "",
 		LogDir:           "",
 		ShowUpscale:      true,
-		ShowAuthor:       true,
-		ShowRip:          true,
-		ShowBluRay:       true,
+		ShowDisc:         true,
 	}
 }
 
@@ -854,9 +849,7 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 		raw,
 		cfg.ForceAspect,
 		cfg.ShowUpscale,
-		cfg.ShowAuthor,
-		cfg.ShowRip,
-		cfg.ShowBluRay,
+		cfg.ShowDisc,
 		cfg.OutputAspect,
 		cfg.AspectUserSet,
 		cfg.FrameRate,
@@ -864,9 +857,7 @@ func loadPersistedConvertConfig() (convertConfig, error) {
 	)
 	cfg.ForceAspect = norm.ForceAspect
 	cfg.ShowUpscale = norm.ShowUpscale
-	cfg.ShowAuthor = norm.ShowAuthor
-	cfg.ShowRip = norm.ShowRip
-	cfg.ShowBluRay = norm.ShowBluRay
+	cfg.ShowDisc = norm.ShowDisc
 	cfg.OutputAspect = norm.OutputAspect
 	cfg.AspectUserSet = norm.AspectUserSet
 	cfg.FrameRate = norm.FrameRate
@@ -3089,11 +3080,6 @@ func (s *appState) showConvertView(file *videoSource) {
 			OnMaximizeWindow: s.maximizeWindow,
 			OnSetContent:     s.setContent,
 			OnPersistConfig:  s.persistConvertConfig,
-			OnDroppedFiles: func(paths []string) {
-				if len(paths) > 0 {
-					s.loadVideos(paths)
-				}
-			},
 			OnBuildView: func(src *convertmodule.VideoSourceInfo) fyne.CanvasObject {
 				return buildConvertView(s, convertSourceToVideoSource(src))
 			},
@@ -7763,7 +7749,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	outputEntry := widget.NewEntry()
-	outputEntry.SetText(state.convert.OutputBase)
+	if state.source != nil {
+		outputEntry.SetText(state.convert.OutputBase)
+	}
 	var updatingOutput bool
 	var autoNameCheck *widget.Check
 	outputEntry.OnChanged = func(val string) {

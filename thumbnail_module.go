@@ -128,6 +128,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 	t := i18n.T()
 	opts := thumbpkg.Options{
 		Window:                  state.window,
+		ModuleColor:             moduleColor("thumbnail"),
 		ThumbnailFile:           state.thumbnailFile,
 		ThumbnailFiles:          thumbFiles,
 		ThumbnailCount:          state.thumbnailCount,
@@ -173,7 +174,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		OnPersistConfig: func() { state.persistThumbnailConfig() },
 
 		// Labels
-		BackLabel:               "< " + t.ModuleThumbnail,
+		BackLabel:               "< " + strings.ToUpper(t.ModuleThumbnail),
 		ViewQueueLabel:          t.MenuQueue,
 		InstructionsLabel:       t.ThumbnailInstructions,
 		NoFileLabel:             t.ThumbnailNoFile,

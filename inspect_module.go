@@ -26,6 +26,7 @@ func (s *appState) showInspectView() {
 func buildInspectView(state *appState) fyne.CanvasObject {
 	opts := inspect.Options{
 		Window:                    state.window,
+		ModuleColor:               moduleColor("inspect"),
 		InspectFile:               state.inspectFile,
 		InspectInterlaceAnalyzing: state.inspectInterlaceAnalyzing,
 		InspectInterlaceResult:    state.inspectInterlaceResult,

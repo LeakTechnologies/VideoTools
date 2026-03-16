@@ -2,7 +2,9 @@ package player
 
 import (
 	"fmt"
+	"image/color"
 	"path/filepath"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -15,7 +17,8 @@ import (
 )
 
 type Options struct {
-	Window fyne.Window
+	Window      fyne.Window
+	ModuleColor color.Color
 
 	PlayerFile interface{}
 	QueueBtn   *widget.Button
@@ -33,10 +36,13 @@ type Options struct {
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
-	playerColor := utils.MustHex("#4CAF50")
+	playerColor := opts.ModuleColor
+	if playerColor == nil {
+		playerColor = utils.MustHex("#1565C0")
+	}
 	t := i18n.T()
 
-	backBtn := widget.NewButton("< "+t.ModulePlayer, func() {
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModulePlayer), func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}

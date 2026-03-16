@@ -555,10 +555,9 @@ func buildSettingsView(state *appState) fyne.CanvasObject {
 	bottomBar := moduleFooter(settingsColor, layout.NewSpacer(), state.statsBar)
 
 	tabs := container.NewAppTabs(
-		container.NewTabItem("Updates", ui.NewFastVScroll(container.NewPadded(buildUpdatesTab(state)))),
+		container.NewTabItem("Preferences", ui.NewFastVScroll(container.NewPadded(buildPreferencesTab(state)))),
 		container.NewTabItem("Dependencies", ui.NewFastVScroll(container.NewPadded(buildDependenciesTab(state)))),
 		container.NewTabItem("Benchmark", ui.NewFastVScroll(container.NewPadded(buildBenchmarkTab(state)))),
-		container.NewTabItem("Preferences", ui.NewFastVScroll(container.NewPadded(buildPreferencesTab(state)))),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
@@ -1180,6 +1179,36 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 
 	content.Add(widget.NewSeparator())
 
+	// Updates Section
+	updatesHeader := widget.NewLabel("Updates")
+	updatesHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(updatesHeader)
+
+	versionLabel := widget.NewLabel(fmt.Sprintf("Current Version: %s", fullVersion()))
+	versionLabel.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(versionLabel)
+
+	hashDisplay := buildCommit
+	if hashDisplay == "" || hashDisplay == "dev" {
+		hashDisplay = "development build"
+	}
+	hashLabel := widget.NewLabel(fmt.Sprintf("Version Hash: %s", hashDisplay))
+	hashLabel.TextStyle = fyne.TextStyle{Monospace: true}
+	content.Add(hashLabel)
+
+	checkBtn := widget.NewButton("Check for Updates", func() {
+		checkForUpdates(state)
+	})
+	checkBtn.Importance = widget.MediumImportance
+	content.Add(checkBtn)
+
+	infoLabel := widget.NewLabel("Automatic updates will check for new versions\nwhen the app starts.")
+	infoLabel.Wrapping = fyne.TextWrapWord
+	infoLabel.TextStyle = fyne.TextStyle{Italic: true}
+	content.Add(infoLabel)
+
+	content.Add(widget.NewSeparator())
+
 	// Language Section
 	langLabel := widget.NewLabel("Language")
 	langLabel.TextStyle = fyne.TextStyle{Bold: true}
@@ -1329,25 +1358,13 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 
 	visibilityItems := []fyne.CanvasObject{showUpscale}
 
-	showAuthor := widget.NewCheck("Show Author module", func(checked bool) {
-		state.convert.ShowAuthor = checked
+	showDisc := widget.NewCheck("Show Disc category (Author & Rip)", func(checked bool) {
+		state.convert.ShowDisc = checked
 		state.persistConvertConfig()
 	})
-	showAuthor.SetChecked(state.convert.ShowAuthor)
+	showDisc.SetChecked(state.convert.ShowDisc)
 
-	showRip := widget.NewCheck("Show Rip module", func(checked bool) {
-		state.convert.ShowRip = checked
-		state.persistConvertConfig()
-	})
-	showRip.SetChecked(state.convert.ShowRip)
-
-	showBluRay := widget.NewCheck("Show Blu-ray module", func(checked bool) {
-		state.convert.ShowBluRay = checked
-		state.persistConvertConfig()
-	})
-	showBluRay.SetChecked(state.convert.ShowBluRay)
-
-	visibilityItems = append(visibilityItems, showAuthor, showRip, showBluRay)
+	visibilityItems = append(visibilityItems, showDisc)
 
 	visibilityHint := widget.NewLabel("Module visibility applies on the main menu.")
 	visibilityHint.TextStyle = fyne.TextStyle{Italic: true}

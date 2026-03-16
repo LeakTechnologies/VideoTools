@@ -16,6 +16,7 @@ func (s *appState) showPlayerView() {
 func buildPlayerView(state *appState) fyne.CanvasObject {
 	return player.BuildView(player.Options{
 		Window:                   state.window,
+		ModuleColor:              moduleColor("player"),
 		QueueBtn:                 state.queueBtn,
 		StatsBar:                 state.statsBar,
 		PlayerFile:               state.playerFile,

@@ -2,6 +2,7 @@ package thumbnail
 
 import (
 	"fmt"
+	"image/color"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -17,7 +18,8 @@ var gridColor = utils.MustHex("#2A3A52")
 var navyBlue = utils.MustHex("#191F35")
 
 type Options struct {
-	Window fyne.Window
+	Window      fyne.Window
+	ModuleColor color.Color
 
 	ThumbnailFile           any
 	ThumbnailFiles          []any
@@ -94,7 +96,10 @@ func or(s, fallback string) string {
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
-	thumbColor := utils.MustHex("#FF8F00")
+	thumbColor := opts.ModuleColor
+	if thumbColor == nil {
+		thumbColor = utils.MustHex("#5E35B1")
+	}
 
 	backBtn := widget.NewButton(or(opts.BackLabel, "< THUMBNAILS"), func() {
 		if opts.OnShowMainMenu != nil {
