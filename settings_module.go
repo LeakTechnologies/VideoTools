@@ -22,10 +22,27 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
+
+// prefsConfig holds application-level preferences persisted to prefs.json.
+type prefsConfig struct {
+	AutoCheckFrequency string `json:"AutoCheckFrequency"`
+}
+
+func loadPrefsConfig() (prefsConfig, error) {
+	var cfg prefsConfig
+	_, err := appcfg.LoadModuleJSON("prefs", &cfg)
+	return cfg, err
+}
+
+func savePrefsConfig(cfg prefsConfig) error {
+	return appcfg.SaveModuleJSON("prefs", cfg)
+}
 
 // Dependency represents a system dependency
 type Dependency struct {
@@ -1363,9 +1380,17 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	}
 
 	autoCheckSelect := widget.NewSelect(autoCheckOptions, func(selected string) {
-		// Persist the setting (would need to add to app config)
+		state.prefs.AutoCheckFrequency = selected
+		if err := savePrefsConfig(state.prefs); err != nil {
+			logging.Debug(logging.CatSystem, "failed to save prefs: %v", err)
+		}
 	})
-	autoCheckSelect.SetSelected(t.UpdateDaily) // Default
+	// Restore persisted value, fall back to Daily
+	savedFreq := state.prefs.AutoCheckFrequency
+	if savedFreq == "" {
+		savedFreq = t.UpdateDaily
+	}
+	autoCheckSelect.SetSelected(savedFreq)
 
 	autoCheckRow := container.NewHBox(autoCheckLabel, autoCheckSelect)
 	content.Add(autoCheckRow)
