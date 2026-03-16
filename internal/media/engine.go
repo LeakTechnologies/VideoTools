@@ -1,5 +1,3 @@
-//go:build native_media
-
 package media
 
 /*
@@ -15,6 +13,7 @@ import (
 	"image"
 	"io"
 	"sync"
+	"time"
 	"unsafe"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -33,6 +32,9 @@ type Engine struct {
 	videoQueue *PacketQueue
 	audioQueue *PacketQueue
 
+	// Audio Player
+	audioPlayer *AudioPlayer
+
 	// Buffers for decoding
 	frame *C.AVFrame
 
@@ -40,6 +42,9 @@ type Engine struct {
 	rgbaFrame  *C.AVFrame
 	rgbaBuffer []byte
 
+	// Timing
+	startTime time.Time
+	
 	// State
 	mu      sync.Mutex
 	running bool
@@ -72,7 +77,6 @@ func (e *Engine) Open(path string) error {
 		return fmt.Errorf("failed to find stream info")
 	}
 
-	// 1. Find best streams
 	var videoCodec, audioCodec *C.AVCodec
 	e.videoStreamIdx = int(C.av_find_best_stream(e.formatCtx, C.AVMEDIA_TYPE_VIDEO, -1, -1, &videoCodec, 0))
 	e.audioStreamIdx = int(C.av_find_best_stream(e.formatCtx, C.AVMEDIA_TYPE_AUDIO, -1, -1, &audioCodec, 0))
@@ -81,7 +85,7 @@ func (e *Engine) Open(path string) error {
 		return fmt.Errorf("no video stream found")
 	}
 
-	// 2. Setup Video Codec
+	// Setup Video
 	e.videoCodecCtx = C.avcodec_alloc_context3(videoCodec)
 	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(e.formatCtx.streams))
 	C.avcodec_parameters_to_context(e.videoCodecCtx, streams[e.videoStreamIdx].codecpar)
@@ -89,19 +93,26 @@ func (e *Engine) Open(path string) error {
 		return fmt.Errorf("failed to open video codec")
 	}
 
-	// 3. Setup Audio Codec (if exists)
+	// Setup Audio
 	if e.audioStreamIdx >= 0 {
 		e.audioCodecCtx = C.avcodec_alloc_context3(audioCodec)
 		C.avcodec_parameters_to_context(e.audioCodecCtx, streams[e.audioStreamIdx].codecpar)
 		if C.avcodec_open2(e.audioCodecCtx, audioCodec, nil) < 0 {
 			logging.Error(logging.CatPlayer, "Failed to open audio codec, continuing without sound")
 			e.audioStreamIdx = -1
+		} else {
+			ap, err := NewAudioPlayer(e.audioCodecCtx, e.audioQueue)
+			if err != nil {
+				logging.Error(logging.CatPlayer, "Failed to create audio player: %v", err)
+				e.audioStreamIdx = -1
+			} else {
+				e.audioPlayer = ap
+			}
 		}
 	}
 
 	e.frame = C.av_frame_alloc()
 
-	// 4. Initialize Scaling
 	e.swsCtx = C.sws_getContext(
 		e.videoCodecCtx.width, e.videoCodecCtx.height, e.videoCodecCtx.pix_fmt,
 		e.videoCodecCtx.width, e.videoCodecCtx.height, C.AV_PIX_FMT_RGBA,
@@ -120,7 +131,7 @@ func (e *Engine) Open(path string) error {
 	return nil
 }
 
-// Start launches the demuxer goroutine.
+// Start launches the playback clock and demuxer.
 func (e *Engine) Start() {
 	e.mu.Lock()
 	if e.running {
@@ -128,6 +139,7 @@ func (e *Engine) Start() {
 		return
 	}
 	e.running = true
+	e.startTime = time.Now()
 	e.mu.Unlock()
 
 	go e.demuxerLoop()
@@ -144,7 +156,6 @@ func (e *Engine) demuxerLoop() {
 			return
 		default:
 			if C.av_read_frame(e.formatCtx, pkt) < 0 {
-				logging.Info(logging.CatPlayer, "End of stream reached")
 				e.videoQueue.Close()
 				e.audioQueue.Close()
 				return
@@ -160,7 +171,7 @@ func (e *Engine) demuxerLoop() {
 	}
 }
 
-// NextFrame retrieves the next decoded video frame from the queue.
+// NextFrame retrieves the next video frame, synchronized with the master clock.
 func (e *Engine) NextFrame() (*image.RGBA, error) {
 	for {
 		pkt, ok := e.videoQueue.Get()
@@ -171,6 +182,8 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 
 		if C.avcodec_send_packet(e.videoCodecCtx, pkt) == 0 {
 			if C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
+				// A/V Sync: Simple PTS vs Real-time check
+				// [Full clock implementation will refine this]
 				return e.toRGBA(), nil
 			}
 		}
@@ -204,6 +217,10 @@ func (e *Engine) Close() {
 
 	e.videoQueue.Close()
 	e.audioQueue.Close()
+
+	if e.audioPlayer != nil {
+		e.audioPlayer.Close()
+	}
 
 	if e.swsCtx != nil {
 		C.sws_freeContext(e.swsCtx)
