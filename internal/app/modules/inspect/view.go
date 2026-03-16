@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"image/color"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -61,12 +62,13 @@ type Options struct {
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
+	t := i18n.T()
 	inspectColor := opts.ModuleColor
 	if inspectColor == nil {
 		inspectColor = utils.MustHex("#3A3F9F")
 	}
 
-	backBtn := widget.NewButton("< INSPECT", func() {
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleInspect), func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}
