@@ -1283,6 +1283,7 @@ func formatRelativeTime(t time.Time) string {
 
 func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	content := container.NewVBox()
+	t := i18n.T()
 
 	header := widget.NewLabel("Application Preferences")
 	header.TextStyle = fyne.TextStyle{Bold: true}
@@ -1291,11 +1292,11 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	content.Add(widget.NewSeparator())
 
 	// Updates Section
-	updatesHeader := widget.NewLabel("Updates")
+	updatesHeader := widget.NewLabel(t.SettingsTabUpdates)
 	updatesHeader.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(updatesHeader)
 
-	versionLabel := widget.NewLabel(fmt.Sprintf("Current Version: %s", fullVersion()))
+	versionLabel := widget.NewLabel(fmt.Sprintf("%s %s", t.UpdateCurrentVersion, fullVersion()))
 	versionLabel.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(versionLabel)
 
@@ -1303,7 +1304,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	if hashDisplay == "" || hashDisplay == "dev" {
 		hashDisplay = "development build"
 	}
-	hashLabel := widget.NewLabel(fmt.Sprintf("Version Hash: %s", hashDisplay))
+	hashLabel := widget.NewLabel(fmt.Sprintf("%s %s", t.UpdateVersionHash, hashDisplay))
 	hashLabel.TextStyle = fyne.TextStyle{Monospace: true}
 	content.Add(hashLabel)
 
@@ -1313,36 +1314,36 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	content.Add(updateStatusLabel)
 
 	// Check for updates button with status
-	checkBtn := widget.NewButton("Check for Updates", func() {
+	checkBtn := widget.NewButton(t.UpdateCheckButton, func() {
 		checkForUpdatesWithStatus(state, updateStatusLabel)
 	})
 	checkBtn.Importance = widget.MediumImportance
 	content.Add(checkBtn)
 
 	// Auto-check frequency
-	autoCheckLabel := widget.NewLabel("Auto-check:")
+	autoCheckLabel := widget.NewLabel(t.UpdateAutoCheck)
 	autoCheckLabel.TextStyle = fyne.TextStyle{}
 
 	autoCheckOptions := []string{
-		"Disabled",
-		"Every hour",
-		"Every 2 hours",
-		"Every 3 hours",
-		"Every 4 hours",
-		"Every 6 hours",
-		"Every 12 hours",
-		"Daily",
-		"Semi-weekly (every 3 days)",
-		"Weekly",
-		"Bi-weekly (every 2 weeks)",
-		"Monthly",
-		"Bi-monthly (every 2 months)",
+		t.UpdateDisabled,
+		t.UpdateEveryHour,
+		t.UpdateEvery2Hours,
+		t.UpdateEvery3Hours,
+		t.UpdateEvery4Hours,
+		t.UpdateEvery6Hours,
+		t.UpdateEvery12Hours,
+		t.UpdateDaily,
+		t.UpdateSemiWeekly,
+		t.UpdateWeekly,
+		t.UpdateBiWeekly,
+		t.UpdateMonthly,
+		t.UpdateBiMonthly,
 	}
 
 	autoCheckSelect := widget.NewSelect(autoCheckOptions, func(selected string) {
 		// Persist the setting (would need to add to app config)
 	})
-	autoCheckSelect.SetSelected("Daily") // Default
+	autoCheckSelect.SetSelected(t.UpdateDaily) // Default
 
 	autoCheckRow := container.NewHBox(autoCheckLabel, autoCheckSelect)
 	content.Add(autoCheckRow)
