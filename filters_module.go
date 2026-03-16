@@ -230,6 +230,7 @@ func buildStylisticFilterChain(state *appState) []string {
 func buildFiltersView(state *appState) fyne.CanvasObject {
 	opts := filters.Options{
 		Window:               state.window,
+		ModuleColor:          moduleColor("filters"),
 		FilterBrightness:     state.filterBrightness,
 		FilterContrast:       state.filterContrast,
 		FilterSaturation:     state.filterSaturation,

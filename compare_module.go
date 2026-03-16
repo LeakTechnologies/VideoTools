@@ -23,6 +23,7 @@ func (s *appState) showCompareFullscreen() {
 func buildCompareView(state *appState) fyne.CanvasObject {
 	return compare.BuildView(compare.Options{
 		Window:                   state.window,
+		ModuleColor:              moduleColor("compare"),
 		CompareFile1:             state.compareFile1,
 		CompareFile2:             state.compareFile2,
 		QueueBtn:                 state.queueBtn,

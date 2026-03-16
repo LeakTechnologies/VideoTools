@@ -2,6 +2,7 @@ package filters
 
 import (
 	"fmt"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -10,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"image/color"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -85,12 +87,13 @@ type Options struct {
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
+	t := i18n.T()
 	filtersColor := opts.ModuleColor
 	if filtersColor == nil {
 		filtersColor = utils.MustHex("#005F5F")
 	}
 
-	backBtn := widget.NewButton("< FILTERS", func() {
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleFilters), func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}

@@ -2,6 +2,7 @@ package audio
 
 import (
 	"fmt"
+	"strings"
 	"os"
 	"path/filepath"
 
@@ -12,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"image/color"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -78,7 +80,9 @@ type TrackInfo struct {
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
-	backBtn := widget.NewButton("< AUDIO", func() {
+	t := i18n.T()
+
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleAudio), func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}
