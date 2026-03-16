@@ -263,6 +263,16 @@ type Strings struct {
 	UpscaleFilterIntLabel  string
 	UpscaleScalingLabel    string
 
+	// ── Frame Interpolation (RIFE) ────────────────────────────────────────────
+	RIFEBoxTitle        string // "Frame Interpolation (RIFE)"
+	RIFEDetected        string // "rife-ncnn-vulkan detected"
+	RIFENotDetected     string // "rife-ncnn-vulkan not detected..."
+	RIFEEnabled         string // "Enable RIFE Frame Interpolation"
+	RIFEMultiplierLabel string // "Multiplier:"
+	RIFEModelLabel      string // "Model:"
+	RIFEEstFPSFmt       string // "Estimated output: %.0f fps"
+	RIFENote            string // descriptive note
+
 	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
 	ThumbnailGenerateNow         string
 	ThumbnailContactSheet        string

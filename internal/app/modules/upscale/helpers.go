@@ -283,3 +283,20 @@ func ValidateAIUpscaleParams(model string, scale float64) string {
 	}
 	return ""
 }
+
+// DetectRIFEBackend returns "ncnn" if rife-ncnn-vulkan is found in PATH, otherwise "".
+func DetectRIFEBackend() string {
+	if _, err := exec.LookPath("rife-ncnn-vulkan"); err == nil {
+		return "ncnn"
+	}
+	return ""
+}
+
+// RIFEModelOptions returns the list of supported rife-ncnn-vulkan model names.
+func RIFEModelOptions() []string {
+	return []string{
+		"rife-v4.6",
+		"rife-v4.13-lite",
+		"rife-anime",
+	}
+}

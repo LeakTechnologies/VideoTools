@@ -255,6 +255,16 @@ var frCA = Strings{
 	UpscaleFilterIntLabel:  "Intégration des filtres :",
 	UpscaleScalingLabel:    "Algorithme d'agrandissement :",
 
+	// ── Frame Interpolation (RIFE) ────────────────────────────────────────────
+	RIFEBoxTitle:        "Interpolation d'images (RIFE)",
+	RIFEDetected:        "rife-ncnn-vulkan détecté",
+	RIFENotDetected:     "rife-ncnn-vulkan non détecté. Installez-le pour l'interpolation d'images :",
+	RIFEEnabled:         "Activer l'interpolation RIFE",
+	RIFEMultiplierLabel: "Multiplicateur :",
+	RIFEModelLabel:      "Modèle :",
+	RIFEEstFPSFmt:       "Sortie estimée : %.0f ips",
+	RIFENote:            "RIFE synthétise des images intermédiaires pour une conversion fluide et haute qualité.",
+
 	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
 	ThumbnailGenerateNow:        "GÉNÉRER MAINTENANT",
 	ThumbnailContactSheet:       "Planche contact",
