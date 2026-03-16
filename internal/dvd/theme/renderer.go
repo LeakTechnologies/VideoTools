@@ -18,7 +18,7 @@ import (
 // MenuAssets contains the rendered images and data for a DVD menu.
 type MenuAssets struct {
 	Background image.Image
-	Highlight  *image.Paletted // 2-bit indexed (0: bg, 1: pattern, 2: e1, 3: e2)
+	Highlight  *image.Paletted // 2-bit indexed
 	Buttons    []ButtonRect
 }
 
@@ -77,7 +77,7 @@ func (r *Renderer) RenderMenu() (*MenuAssets, error) {
 
 	// 2. Draw Elements
 	for _, el := range r.theme.Elements {
-		x, y, w, h := r.parseLayout(el.Style)
+		x, y, w, h := r.parseLayout(el.Style, width, height)
 		
 		switch el.Type {
 		case "text":
@@ -94,22 +94,38 @@ func (r *Renderer) RenderMenu() (*MenuAssets, error) {
 	return assets, nil
 }
 
-func (r *Renderer) parseLayout(s Style) (x, y, w, h int) {
-	w, _ = strconv.Atoi(strings.TrimSuffix(s.Width, "px"))
-	h, _ = strconv.Atoi(strings.TrimSuffix(s.Height, "px"))
+func (r *Renderer) parseLayout(s Style, canvasW, canvasH int) (x, y, w, h int) {
+	// Parse Width/Height
+	w = r.parseUnit(s.Width, canvasW)
+	h = r.parseUnit(s.Height, canvasH)
 	
-	// Default starting pos
-	x = 100
-	y = 100
-	
-	if strings.HasSuffix(s.Left, "px") {
-		x, _ = strconv.Atoi(strings.TrimSuffix(s.Left, "px"))
+	// Parse Left/Top
+	if s.Left == "center" {
+		x = (canvasW - w) / 2
+	} else {
+		x = r.parseUnit(s.Left, canvasW)
 	}
-	if strings.HasSuffix(s.Top, "px") {
-		y, _ = strconv.Atoi(strings.TrimSuffix(s.Top, "px"))
+	
+	if s.Top == "center" {
+		y = (canvasH - h) / 2
+	} else {
+		y = r.parseUnit(s.Top, canvasH)
 	}
 	
 	return x, y, w, h
+}
+
+func (r *Renderer) parseUnit(val string, total int) int {
+	if strings.HasSuffix(val, "%") {
+		p, _ := strconv.Atoi(strings.TrimSuffix(val, "%"))
+		return (total * p) / 100
+	}
+	if strings.HasSuffix(val, "px") {
+		v, _ := strconv.Atoi(strings.TrimSuffix(val, "px"))
+		return v
+	}
+	v, _ := strconv.Atoi(val)
+	return v
 }
 
 func (r *Renderer) drawText(dst draw.Image, text string, x, y int, s Style) {
@@ -140,7 +156,7 @@ func (r *Renderer) drawText(dst draw.Image, text string, x, y int, s Style) {
 		Dst:  dst,
 		Src:  &image.Uniform{parseHexColor(s.Color)},
 		Face: face,
-		Dot:  fixed.P(x, y+int(fontSize)), // Baseline adjustment
+		Dot:  fixed.P(x, y+int(fontSize)),
 	}
 	drawer.DrawString(text)
 }
@@ -164,14 +180,4 @@ func (r *Renderer) loadImage(path string) (image.Image, error) {
 	defer f.Close()
 	img, _, err := image.Decode(f)
 	return img, err
-}
-
-func parseHexColor(s string) color.Color {
-	if !strings.HasPrefix(s, "#") || len(s) != 7 {
-		return color.White
-	}
-	r, _ := strconv.ParseUint(s[1:3], 16, 8)
-	g, _ := strconv.ParseUint(s[3:5], 16, 8)
-	b, _ := strconv.ParseUint(s[5:7], 16, 8)
-	return color.RGBA{uint8(r), uint8(g), uint8(b), 255}
 }

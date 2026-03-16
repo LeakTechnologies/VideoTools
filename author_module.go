@@ -1007,14 +1007,16 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		"Grid (2x2 Buttons)",
 		"Filmstrip (Wide Buttons)",
 		"Poster (Grid Thumbnails)",
+		"Scriptable (Custom JSON Theme)",
 	}
 	templateValueByLabel := map[string]string{
-		"Minimal (Clean & Simple)":  "Minimal",
-		"Simple (Title + Buttons)":  "Simple",
+		"Minimal (Clean & Simple)":           "Minimal",
+		"Simple (Title + Buttons)":            "Simple",
 		"Classic (Centered Title + Buttons)": "Classic",
-		"Grid (2x2 Buttons)": "Grid",
-		"Filmstrip (Wide Buttons)": "Filmstrip",
-		"Poster (Grid Thumbnails)":  "Poster",
+		"Grid (2x2 Buttons)":                 "Grid",
+		"Filmstrip (Wide Buttons)":           "Filmstrip",
+		"Poster (Grid Thumbnails)":           "Poster",
+		"Scriptable (Custom JSON Theme)":     "Scriptable",
 	}
 	templateLabelByValue := map[string]string{
 		"Minimal": "Minimal (Clean & Simple)",

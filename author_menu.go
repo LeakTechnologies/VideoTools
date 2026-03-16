@@ -3,16 +3,20 @@ package main
 import (
 	"context"
 	"fmt"
+	"image/png"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/spu"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/theme"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 type dvdMenuButton struct {
+	ID      string
 	Label   string
 	Command string
 	X0      int
@@ -51,13 +55,100 @@ type MenuTemplate interface {
 }
 
 var menuTemplates = map[string]MenuTemplate{
-	"Minimal":   &MinimalMenu{},
-	"Simple":    &SimpleMenu{},
-	"Classic":   &ClassicMenu{},
-	"Grid":      &GridMenu{},
-	"Filmstrip": &FilmstripMenu{},
-	"Dark":      &DarkMenu{},
-	"Poster":    &PosterMenu{},
+	"Minimal":    &MinimalMenu{},
+	"Simple":     &SimpleMenu{},
+	"Classic":    &ClassicMenu{},
+	"Grid":       &GridMenu{},
+	"Filmstrip":  &FilmstripMenu{},
+	"Dark":       &DarkMenu{},
+	"Poster":     &PosterMenu{},
+	"Scriptable": &ScriptableMenu{},
+}
+
+type ScriptableMenu struct{}
+
+func (t *ScriptableMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, mTheme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
+	width, height := dvdMenuDimensions(region)
+	
+	// 1. Load Theme JSON
+	themePath := filepath.Join("assets", "dvd_themes", "default", "theme.json")
+	sTheme, err := theme.LoadTheme(themePath)
+	if err != nil {
+		logging.Error(logging.CatDVD, "Failed to load scriptable theme: %v. Falling back to Minimal.", err)
+		return (&MinimalMenu{}).Generate(ctx, workDir, title, region, aspect, chapters, backgroundImage, motionBackground, mTheme, logo, logFn)
+	}
+	sTheme.Resolution.Width = width
+	sTheme.Resolution.Height = height
+
+	// 2. Render Assets Natively
+	renderer := theme.NewRenderer(sTheme)
+	fontData, _ := os.ReadFile(mTheme.FontPath)
+	renderer.SetFont(fontData)
+	
+	menuAssets, err := renderer.RenderMenu()
+	if err != nil {
+		return "", nil, fmt.Errorf("native render failed: %w", err)
+	}
+
+	// 3. Save rendered PNGs
+	bgPath := filepath.Join(workDir, "menu_bg.png")
+	overlayPath := filepath.Join(workDir, "menu_overlay.png")
+	highlightPath := filepath.Join(workDir, "menu_highlight.png")
+	selectPath := filepath.Join(workDir, "menu_select.png")
+	
+	savePNG := func(path string, img image.Image) error {
+		f, err := os.Create(path)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
+		return png.Encode(f, img)
+	}
+
+	if err := savePNG(bgPath, menuAssets.Background); err != nil {
+		return "", nil, err
+	}
+	if err := savePNG(overlayPath, menuAssets.Highlight); err != nil {
+		return "", nil, err
+	}
+	// Highlight and Select are currently the same for scriptable
+	if err := savePNG(highlightPath, menuAssets.Highlight); err != nil {
+		return "", nil, err
+	}
+	if err := savePNG(selectPath, menuAssets.Highlight); err != nil {
+		return "", nil, err
+	}
+
+	// 4. Continue with Muxing
+	menuMpg := filepath.Join(workDir, "menu.mpg")
+	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
+	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
+
+	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
+		return "", nil, err
+	}
+
+	// Convert ButtonRect to dvdMenuButton
+	var buttons []dvdMenuButton
+	for _, br := range menuAssets.Buttons {
+		// Assign commands based on Action
+		cmd := "jump title 1;" // Default
+		if br.ID == "play-btn" {
+			cmd = "jump title 1;"
+		}
+		buttons = append(buttons, dvdMenuButton{
+			ID: br.ID, Label: br.ID, Command: cmd, X0: br.X0, Y0: br.Y0, X1: br.X1, Y1: br.Y1,
+		})
+	}
+
+	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
+		return "", nil, err
+	}
+	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
+		return "", nil, err
+	}
+
+	return menuSpu, buttons, nil
 }
 
 var menuThemes = map[string]*MenuTheme{
