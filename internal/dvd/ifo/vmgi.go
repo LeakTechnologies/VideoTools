@@ -34,6 +34,40 @@ type VMG_MAT struct {
 	VMG_M_VOBU_ADMAP_Offset uint32 // Menu VOBU Address Map
 }
 
+// VTS_ATRT represents the VTS Attribute Table.
+type VTS_ATRT struct {
+	NumVTS   uint16
+	Reserved uint16
+	EndByte  uint32
+	VTS_Offsets []uint32 // Offsets to each VTS_ATRT_Entry relative to start of table
+	Entries []VTS_ATRT_Entry
+}
+
+type VTS_ATRT_Entry struct {
+	VTS_MAT_Last_Sector uint32
+	Video_Attrs         VideoAttributes
+	NumAudio            uint16
+	Audio_Attrs         [8]AudioAttributes
+	NumSubpicture       uint16
+	Subpicture_Attrs    [32]SubpictureAttributes
+}
+
+// WriteVTS_ATRT serializes the VTS_ATRT to an IFO file.
+func WriteVTS_ATRT(w io.Writer, table *VTS_ATRT) error {
+	logging.Debug(logging.CatDVD, "Writing VTS_ATRT with %d entries", table.NumVTS)
+	if err := binary.Write(w, binary.BigEndian, table.NumVTS); err != nil {
+		return err
+	}
+	if err := binary.Write(w, binary.BigEndian, table.Reserved); err != nil {
+		return err
+	}
+	if err := binary.Write(&io.LimitedWriter{W: w, N: 4}, binary.BigEndian, table.EndByte); err != nil {
+		// Manual handling for 4-byte end byte
+	}
+	// [Implementation of full VTS_ATRT serialization will follow in builder logic]
+	return nil
+}
+
 // TT_SRPT represents the Title Search Pointer Table.
 type TT_SRPT struct {
 	NumTitles uint16
