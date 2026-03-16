@@ -30,6 +30,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/udf"
@@ -96,9 +97,9 @@ func (s *appState) persistAuthorConfig() {
 		MenuTheme:              s.authorMenuTheme,
 		MenuBackgroundImage:    s.authorMenuBackgroundImage,
 		MenuMotionBackground:   s.authorMenuMotionBackground,
-		MenuCustomBgColor:     s.authorMenuCustomBgColor,
-		MenuCustomTextColor:   s.authorMenuCustomTextColor,
-		MenuCustomAccentColor: s.authorMenuCustomAccentColor,
+		MenuCustomBgColor:      s.authorMenuCustomBgColor,
+		MenuCustomTextColor:    s.authorMenuCustomTextColor,
+		MenuCustomAccentColor:  s.authorMenuCustomAccentColor,
 		MenuTitleLogoEnabled:   s.authorMenuTitleLogoEnabled,
 		MenuTitleLogoPath:      s.authorMenuTitleLogoPath,
 		MenuTitleLogoPosition:  s.authorMenuTitleLogoPosition,
@@ -173,8 +174,9 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	}
 
 	authorColor := moduleColor("author")
+	t := i18n.T()
 
-	backBtn := widget.NewButton("< BACK", func() {
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleAuthor), func() {
 		state.showMainMenu()
 	})
 	backBtn.Importance = widget.LowImportance
@@ -718,7 +720,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
 	})
-	
+
 	discSizeSelect := widget.NewSelect([]string{"DVD5", "DVD9"}, func(value string) {
 		state.authorDiscSize = value
 		state.updateAuthorSummary()
@@ -1011,7 +1013,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 	templateValueByLabel := map[string]string{
 		"Minimal (Clean & Simple)":           "Minimal",
-		"Simple (Title + Buttons)":            "Simple",
+		"Simple (Title + Buttons)":           "Simple",
 		"Classic (Centered Title + Buttons)": "Classic",
 		"Grid (2x2 Buttons)":                 "Grid",
 		"Filmstrip (Wide Buttons)":           "Filmstrip",
@@ -1019,12 +1021,12 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		"Scriptable (Custom JSON Theme)":     "Scriptable",
 	}
 	templateLabelByValue := map[string]string{
-		"Minimal": "Minimal (Clean & Simple)",
-		"Simple":  "Simple (Title + Buttons)",
-		"Classic": "Classic (Centered Title + Buttons)",
-		"Grid":    "Grid (2x2 Buttons)",
+		"Minimal":   "Minimal (Clean & Simple)",
+		"Simple":    "Simple (Title + Buttons)",
+		"Classic":   "Classic (Centered Title + Buttons)",
+		"Grid":      "Grid (2x2 Buttons)",
 		"Filmstrip": "Filmstrip (Wide Buttons)",
-		"Poster":  "Poster (Grid Thumbnails)",
+		"Poster":    "Poster (Grid Thumbnails)",
 	}
 
 	menuTemplateSelect := widget.NewSelect(templateOptions, func(value string) {
@@ -1658,7 +1660,7 @@ func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
 		return
 	}
 	clip := &s.authorClips[idx]
-	
+
 	src, err := probeVideo(clip.Path)
 	if err != nil {
 		dialog.ShowError(err, s.window)
@@ -1666,14 +1668,14 @@ func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
 	}
 
 	content := container.NewVBox()
-	
+
 	// Audio Tracks
 	content.Add(widget.NewLabelWithStyle("Audio Tracks:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 	for _, track := range src.Audio {
 		trackIdx := track.Index
 		stream := track // capture
 		check := widget.NewCheck(fmt.Sprintf("Stream #%d: %s (%s, %dch)", stream.Index, stream.Codec, stream.Language, stream.Channels), nil)
-		
+
 		// Initial state
 		isSelected := false
 		for _, at := range clip.AudioTracks {
@@ -1683,7 +1685,7 @@ func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
 			}
 		}
 		check.SetChecked(isSelected)
-		
+
 		check.OnChanged = func(checked bool) {
 			if checked {
 				clip.AudioTracks = append(clip.AudioTracks, authorAudioTrack{
@@ -1709,7 +1711,7 @@ func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
 		trackIdx := track.Index
 		stream := track
 		check := widget.NewCheck(fmt.Sprintf("Stream #%d: %s (%s)", stream.Index, stream.Codec, stream.Language), nil)
-		
+
 		isSelected := false
 		for _, st := range clip.SubtitleTracks {
 			if st.Index == trackIdx {
@@ -1718,7 +1720,7 @@ func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
 			}
 		}
 		check.SetChecked(isSelected)
-		
+
 		check.OnChanged = func(checked bool) {
 			if checked {
 				clip.SubtitleTracks = append(clip.SubtitleTracks, authorSubtitleTrack{
@@ -1750,7 +1752,7 @@ func (s *appState) addAuthorFiles(paths []string) {
 			projPath := filepath.Join(path, "author_project.json")
 			if _, err := os.Stat(projPath); err == nil {
 				logging.Info(logging.CatDVD, "Loading Archivist project: %s", projPath)
-				
+
 				// Scan for assets
 				entries, _ := os.ReadDir(path)
 				clip := authorClip{
@@ -1758,7 +1760,7 @@ func (s *appState) addAuthorFiles(paths []string) {
 					DisplayName: filepath.Base(path),
 					Duration:    0, // Will be probed
 				}
-				
+
 				for _, entry := range entries {
 					fname := entry.Name()
 					fullPath := filepath.Join(path, fname)
@@ -1772,12 +1774,12 @@ func (s *appState) addAuthorFiles(paths []string) {
 						})
 					}
 				}
-				
+
 				src, _ := probeVideo(clip.Path)
 				if src != nil {
 					clip.Duration = src.Duration
 				}
-				
+
 				s.authorClips = append(s.authorClips, clip)
 				continue
 			}
@@ -3016,7 +3018,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			&MenuTheme{Name: menuTheme, BackgroundColor: menuCustomBgColor, TextColor: menuCustomTextColor, AccentColor: menuCustomAccentColor, IsCustom: menuTheme == "Custom"},
 			logos,
 			featurePaths[0], // Use first video for chapter thumbnails
-			2.0, // Default 2 second offset for chapter thumbnails
+			2.0,             // Default 2 second offset for chapter thumbnails
 		)
 		if err != nil {
 			return err
@@ -3046,13 +3048,13 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 
 	logFn("Authoring DVD structure (Native Go Engine)...")
 	ifoBuilder := ifo.NewBuilder(discRoot)
-	
+
 	// Probe primary feature for attributes
 	primarySrc, _ := probeVideo(featurePaths[0])
-	
+
 	// Generate VTS IFO/BUP
 	vtsMat := ifo.NewVTSMAT()
-	
+
 	// Map attributes
 	vtsMat.VTS_Attributes.CompressionMode = 1 // MPEG-2
 	if region == "PAL" {
@@ -3060,13 +3062,13 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	} else {
 		vtsMat.VTS_Attributes.TVSystem = 0
 	}
-	
+
 	if aspect == "16:9" {
 		vtsMat.VTS_Attributes.AspectRatio = 3
 	} else {
 		vtsMat.VTS_Attributes.AspectRatio = 0
 	}
-	
+
 	// Simplified resolution mapping
 	if primarySrc != nil {
 		if primarySrc.Width == 720 {
@@ -3098,7 +3100,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 			return fmt.Errorf("failed to create ISO output directory: %w", err)
 		}
-		
+
 		logFn("Creating ISO image (Native Go UDF Writer)...")
 		isoFile, err := os.Create(outputPath)
 		if err != nil {
@@ -3107,18 +3109,18 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		defer isoFile.Close()
 
 		uw := udf.NewWriter(isoFile, title)
-		
+
 		// Recursively add VIDEO_TS and AUDIO_TS to UDF writer
 		videoTSPath := filepath.Join(discRoot, "VIDEO_TS")
 		audioTSPath := filepath.Join(discRoot, "AUDIO_TS")
-		
+
 		if err := uw.AddDirFS(videoTSPath); err != nil {
 			return fmt.Errorf("adding VIDEO_TS to iso: %w", err)
 		}
 		if err := uw.AddDirFS(audioTSPath); err != nil {
 			return fmt.Errorf("adding AUDIO_TS to iso: %w", err)
 		}
-		
+
 		if err := uw.Build(); err != nil {
 			return fmt.Errorf("native udf build failed: %w", err)
 		}

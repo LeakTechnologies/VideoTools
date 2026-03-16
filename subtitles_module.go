@@ -22,6 +22,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -554,8 +555,9 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	if strings.TrimSpace(state.subtitleOCROutput) == "" {
 		state.subtitleOCROutput = "srt"
 	}
+	t := i18n.T()
 
-	backBtn := widget.NewButton("< BACK", func() {
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleSubtitles), func() {
 		state.showMainMenu()
 	})
 	backBtn.Importance = widget.LowImportance

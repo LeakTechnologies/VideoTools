@@ -88,7 +88,7 @@ func buildRipView(state *appState) fyne.CanvasObject {
 	ripColor := moduleColor("rip")
 	t := i18n.T()
 
-	backBtn := widget.NewButton("< "+t.ModuleRip, func() {
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleRip), func() {
 		state.showMainMenu()
 	})
 	backBtn.Importance = widget.LowImportance
@@ -410,15 +410,15 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 		}
 
 		args := []string{"-y", "-hide_banner", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", listFile}
-		
+
 		// Map Video
 		args = append(args, "-map", "0:v:0", "-c:v", "copy", filepath.Join(outputDir, "video.m2v"))
-		
+
 		// Map all Audio
 		for i, at := range src.Audio {
 			args = append(args, "-map", fmt.Sprintf("0:%d", at.Index), "-c:a", "copy", filepath.Join(outputDir, fmt.Sprintf("audio_%d_%s.ac3", i, at.Language)))
 		}
-		
+
 		// Map all Subtitles
 		for i, st := range src.Subtitles {
 			args = append(args, "-map", fmt.Sprintf("0:%d", st.Index), "-c:s", "copy", filepath.Join(outputDir, fmt.Sprintf("subs_%d_%s.sup", i, st.Language)))
@@ -429,25 +429,25 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 		if err := runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, appendLog); err != nil {
 			return err
 		}
-		
+
 		// Create project file
 		projPath := filepath.Join(outputDir, "author_project.json")
 		appendLog(fmt.Sprintf("Creating project file: %s", projPath))
-		
+
 		project := map[string]interface{}{
-			"title":    filepath.Base(outputDir),
-			"type":     "dvd", // DVD by default for now
-			"assets":   []map[string]interface{}{
+			"title": filepath.Base(outputDir),
+			"type":  "dvd", // DVD by default for now
+			"assets": []map[string]interface{}{
 				{
 					"path": "video.m2v",
 					"type": "feature",
 				},
 			},
 		}
-		
+
 		projData, _ := json.MarshalIndent(project, "", "  ")
 		_ = os.WriteFile(projPath, projData, 0644)
-		
+
 		updateProgress(100)
 		appendLog("Archivist extraction completed successfully.")
 		return nil
@@ -550,7 +550,7 @@ func resolveVideoTSPath(path string) (string, func(), error) {
 		defer f.Close()
 
 		reader := udf.NewReader(f)
-		
+
 		// Determine target directory (VIDEO_TS for DVD, BDMV for Blu-ray)
 		targetDir := "VIDEO_TS"
 		discType, err := reader.DetectDiscType()

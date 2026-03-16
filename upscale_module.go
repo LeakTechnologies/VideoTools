@@ -78,7 +78,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	t := i18n.T()
 
 	// Back button
-	backBtn := widget.NewButton("< "+t.ModuleUpscale, func() {
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleUpscale), func() {
 		state.showMainMenu()
 	})
 	backBtn.Importance = widget.LowImportance

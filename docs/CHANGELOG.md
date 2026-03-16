@@ -1,5 +1,53 @@
 # VideoTools Changelog
 
+## v0.1.1-dev34 (March 2026)
+
+### Localization Engine
+- **Full i18n framework** — New `internal/i18n` package with a typed `Strings` struct as the single source of truth for every user-visible string. `T()` returns the active locale; listener callbacks let the entire UI refresh instantly on language change without a restart.
+- **English (Canada) — en-CA** — 100% coverage; serves as fallback for all other locales.
+- **French (Canada) — fr-CA** — Initial translation pass covering all core UI strings.
+- **Inuktitut — iu** — Initial translation pass in Traditional Syllabics (ᐃᓄᒃᑎᑐᑦ) with a Latin toggle in Settings.
+- **Aboriginal Sans embedded** — Aboriginal Sans Regular/Bold embedded in the binary for correct UCAS/syllabics rendering with no external font install required.
+- **Language selector in Settings** — Dropdown in General tab; change takes effect immediately across all visible UI including the active module.
+- **Locale-aware module refresh** — Switching language now rebuilds whichever module is currently open, not just the main menu.
+
+### Native Media Engine (Phase 1 — `native_media` build tag)
+- **Core engine scaffolding** — CGO/FFmpeg engine in `internal/media/` providing a proper decode pipeline, gated behind `//go:build native_media` so standard builds are unaffected.
+- **Demuxer + PacketQueue** — Thread-safe packet queue feeding a demuxer loop with audio stream discovery.
+- **AudioPlayer** — Full audio decoding and resampling via libswresample + oto; integrated into the engine with playback state management.
+- **MasterClock + A/V sync** — High-precision master clock drives frame timing; AudioPlayer syncs to it, eliminating the separate-process A/V drift described in issues #14–#16.
+- **Frame stepping & Seek** — Frame-accurate step forward/back; Seek implementation with queue flushing for clean repositioning (issue #17 foundation).
+- **SplitView widget** — Side-by-side video comparison widget; wired into Compare module under the `native_media` tag.
+
+### Disc Authoring (continued)
+- **Multitrack audio & subtitle support** — Author module now exposes per-track audio/subtitle stream selection from the source file with a mapping table in the authoring pipeline.
+- **ScriptableTheme engine** — JSON-driven theme format allows defining DVD menu layouts, button positions, and colour palettes without recompiling. Default asset bundled.
+- **Native Go menu renderer** — `internal/dvd/theme` renders menu backgrounds and overlays entirely in Go using `golang.org/x/image/font` — no ImageMagick dependency.
+- **Archivist round-trip** — Rip → load → re-author pipeline validated; source disc metadata and track layout preserved through the cycle.
+- **IFO reading (VTSI + VMGI)** — `internal/dvd/ifo` can now parse existing IFO files from real discs, enabling accurate re-authoring from ripped sources.
+- **VOBU_ADMAP + VTS Attribute Table** — Sector-accurate seeking map and multi-VTS attribute table implemented for standards-compliant output.
+- **Automated disc scan on drop** — Rip module detects and enumerates titles/tracks automatically when a folder, ISO, or VIDEO_TS path is dropped onto it.
+- **Native UDF extraction** — `internal/dvd/udf` can extract files from existing UDF images.
+
+### RIFE Frame Interpolation (Upscale module)
+- **RIFE integration** (issue #23) — `rife-ncnn-vulkan` wired into the Upscale module with configurable frame multiplier and model selection. Estimated output FPS shown in real time. Falls back gracefully when the binary is not installed.
+
+### Module Architecture Refactor
+- **Seven modules extracted** — audio, filters, inspect, thumbnail, player, enhancement, and compare moved to `internal/app/modules/` with clean Options/callback boundaries, reducing root package size.
+- **Module colour via Options** — All extracted modules receive their accent colour through `Options.ModuleColor` from the root; nav bar always matches the main menu tile colour.
+- **Back button i18n + casing** — All modules now use `strings.ToUpper(t.ModuleXxx)` for back buttons — uppercase, locale-aware, and consistent across every module.
+
+### UI & Bug Fixes
+- **Inspect crash on no file** — Clicking Inspect with no video loaded caused an immediate nil-pointer crash; all 20 `OnGetXxx` callbacks now guard against nil source.
+- **Hardware accel dropdown** — Only acceleration backends confirmed available by `ffmpeg -hwaccels` are shown. A saved value that is no longer available resets to auto.
+- **Convert output prefill** — Output filename field no longer pre-populates with a stale name from a previous session when no file is loaded on startup.
+- **Disc category consolidation** — Replaced three separate Author/Rip/Blu-ray show/hide toggles in Settings with a single "Show Disc category" toggle. Blu-ray tile retired from the main menu (functionality fully merged into Author and Rip).
+
+### Branding
+- **VT_LOGO-2** — New app icon and logo replacing the original placeholder design.
+
+---
+
 ## v0.1.1-dev33 (March 2026)
 
 ### Disc Authoring

@@ -1,26 +1,63 @@
-# VideoTools TODO (v0.1.1-dev34 plan)
+# VideoTools TODO (v0.1.1-dev35 plan)
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev34 Scope
+## Dev35 Scope
 
-### Localization Engine
-- [ ] **`internal/i18n/` package** — Typed `Strings` struct as the single source of all translatable keys; `SetLanguage()`, `T()`, fallback chain to en-CA; listener callbacks for dynamic UI refresh without restart.
-- [ ] **English (Canada) — en-CA** — 100% source-of-truth translation file.
-- [ ] **French (Canada) — fr-CA** — Initial translation pass.
-- [ ] **Inuktitut — iu** — Initial translation pass (Syllabics + Latin toggle).
-- [ ] **Language selector in Settings** — Dropdown to switch language; change takes effect immediately.
-- [ ] **Inuktitut script option** — Sub-option to choose between Traditional Syllabics (ᐃᓄᒃᑎᑐᑦ) and Latin when Inuktitut is selected.
-- [ ] **Aboriginal Sans font embedded** — Aboriginal Sans Regular/Bold/Italic/BoldItalic embedded for UCAS-script language rendering.
-- [ ] **README translation table** — Status table in README showing per-language completion percentage (manually maintained).
+### UI Polish & Stability
+- [ ] **Testing pass** — Smoke test all modules on Windows before CI submission: Convert, Upscale, Thumbnail, Filters, Audio, Inspect, Compare, Rip, Author.
+- [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone still not registered (carry-forward from dev32).
+- [ ] **Drag-to-scroll (issue #19)** — `FastVScroll` drag events still intercepted by inner scroll container; needs a second look.
+- [ ] **i18n coverage audit** — Verify all module strings are going through `t.ModuleXxx`; ensure fr-CA and iu cover any new strings added in dev34.
+
+### Module Extraction (issue #22, continued)
+- [ ] **`settings_module.go`** — opencode in progress; review and validate once complete.
+- [ ] **`queue_module.go`** — opencode in progress.
+- [ ] **`subtitles_module.go`** — next priority (~1,800 lines → `internal/app/modules/subtitles/`).
+- [ ] **`upscale_module.go`** — following subtitles (~1,000 lines → `internal/app/modules/upscale/`).
 
 ### Disc Authoring
-- [ ] **Native Disc Authoring integration** (Phase 5) — Complete integration with Author/Rip modules (Blu-ray toggle, UDF reader).
+- [ ] **Native engine stabilisation** — Review Gemini's Phase 5 integration; ensure Author and Rip modules compile and work correctly with the native UDF/IFO pipeline on Windows.
+- [ ] **Issue #21 close criteria** — All Author/Rip disc operations functional without dvdauthor/xorriso on Windows.
 
-### Ongoing
-- [ ] **Root folder hygiene** (issue #22) — Continue extracting `package main` files to `internal/app/modules/`.
-- [ ] **Drag and drop into Convert** — Fix files dragged onto Convert module drop zone.
-- [ ] **Linux CI build optimization** — Consider pre-built container image.
+### CI & Release
+- [ ] **CI green check** — Confirm Linux and Windows builds pass with all dev34 changes before tagging dev35.
+- [ ] **Issue #6 close** — Convert transport controls now use `widget.NewButtonWithIcon` with embedded SVGs; ASCII labels replaced. Ready to close.
+- [ ] **Issue #8 close** — Runners have been stable for several versions; confirm labels and close.
+- [ ] **Issue #9 close** — Manually verify Windows zip contains only `VideoTools.exe` and `README.md`; close if confirmed.
+- [ ] **Issue #10** — Walk through dev release checklist; close resolved items.
+
+### Native Media Engine (Phase 2)
+- [ ] **Phase 4: GStreamer removal** — Once native engine is stable enough, remove GStreamer dependency from build scripts and CI.
+
+## Dev34 Scope (completed ✓)
+
+- [x] **`internal/i18n/` package** — Typed `Strings` struct; `T()`, `SetLanguage()`, listener callbacks; full UI refresh on language change without restart.
+- [x] **English (Canada) — en-CA** — 100% source-of-truth translation file.
+- [x] **French (Canada) — fr-CA** — Initial translation pass.
+- [x] **Inuktitut — iu** — Initial translation pass (Syllabics + Latin toggle).
+- [x] **Language selector in Settings** — Dropdown; change takes effect immediately including active module.
+- [x] **Aboriginal Sans font embedded** — Regular + Bold embedded for UCAS/syllabics rendering.
+- [x] **RIFE frame interpolation** (issue #23) — `rife-ncnn-vulkan` integrated into Upscale module.
+- [x] **Native media engine Phase 1** — Core decode pipeline, PacketQueue, AudioPlayer, MasterClock, A/V sync, frame stepping, Seek. Gated behind `native_media` build tag.
+- [x] **SplitView widget** — Side-by-side comparison wired into Compare under `native_media` tag.
+- [x] **Module extraction** — audio, filters, inspect, thumbnail, player, enhancement, compare → `internal/app/modules/`.
+- [x] **Module colour consistency** — All modules receive `ModuleColor` via Options; nav bar always matches main menu tile.
+- [x] **Back button i18n + uppercase** — All modules use `strings.ToUpper(t.ModuleXxx)`.
+- [x] **Inspect crash fix** — nil guard on all `OnGetXxx` callbacks.
+- [x] **Hardware accel dropdown** — Only available backends shown; stale value resets to auto.
+- [x] **Convert output prefill fix** — No stale filename on fresh launch.
+- [x] **Disc category consolidation** — Blu-ray tile retired; single "Show Disc category" toggle in Settings.
+- [x] **DVD authoring advances** — Multitrack, ScriptableTheme, native renderer, Archivist round-trip, IFO reading, VOBU_ADMAP, VTS Attribute Table, auto disc scan.
+- [x] **VT_LOGO-2** — New app icon and logo.
+
+## Agent Work Tracking
+
+| Agent    | Current Task                                              | Status      |
+|----------|-----------------------------------------------------------|-------------|
+| opencode | Settings restructure + back button normalisation (dev34)  | In progress |
+| opencode | `queue_module.go` extraction (issue #22)                  | Queued      |
+| gemini   | Native disc authoring / DVD conversion (issue #21)        | In progress |
 
 ## Future: Canadian Aboriginal Languages
 
@@ -165,7 +202,8 @@ GitHub is reserved for **stable public releases** only, starting at v0.1.2.
 ### Module Extraction Plan (issue #22) — ordered by priority
 
 Modules already properly extracted to `internal/app/modules/`:
-- [x] `about`, `convert`, `deps`, `mainmenu`
+- [x] `about`, `convert`, `deps`, `mainmenu` (dev33 and earlier)
+- [x] `audio`, `filters`, `inspect`, `thumbnail`, `player`, `enhancement`, `compare` (dev34)
 
 Remaining root files to extract — largest first (each becomes a dev cycle task):
 
@@ -174,16 +212,9 @@ Remaining root files to extract — largest first (each becomes a dev cycle task
 | 1 | `author_module.go`, `author_menu.go`, `author_dvd_functions.go` | ~5,800 | `internal/app/modules/author/` — after Gemini finishes Phase 5 |
 | 2 | `subtitles_module.go` | 1,782 | `internal/app/modules/subtitles/` |
 | 3 | `settings_module.go` | 1,381 | `internal/app/modules/settings/` — opencode in progress |
-| 4 | `audio_module.go` | 1,073 | `internal/app/modules/audio/` |
-| 5 | `upscale_module.go` | 993 | `internal/app/modules/upscale/` |
-| 6 | `rip_module.go` | 704 | `internal/app/modules/rip/` — pair with author extraction |
-| 7 | `filters_module.go` | 699 | `internal/app/modules/filters/` |
-| 8 | `compare_module.go` | 689 | `internal/app/modules/compare/` |
-| 9 | `thumbnail_module.go` | 676 | `internal/app/modules/thumbnail/` |
-| 10 | `queue_module.go` | 355 | `internal/app/modules/queue/` — opencode in progress |
-| 11 | `inspect_module.go` | 315 | `internal/app/modules/inspect/` — opencode in progress |
-| 12 | `player_module.go` | 113 | `internal/app/modules/player/` |
-| 13 | `enhancement_module.go` | 41 | `internal/app/modules/enhancement/` |
+| 4 | `upscale_module.go` | 993 | `internal/app/modules/upscale/` |
+| 5 | `rip_module.go` | 704 | `internal/app/modules/rip/` — pair with author extraction |
+| 6 | `queue_module.go` | 355 | `internal/app/modules/queue/` — opencode in progress |
 | — | `thumbnail_config.go` | 45 | `internal/thumbnail/` |
 | — | `naming_helpers.go` | 62 | `internal/utils/` |
 | — | `merge_config.go` | 47 | `internal/app/` or `internal/convert/` |
