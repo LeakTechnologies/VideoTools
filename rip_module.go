@@ -318,7 +318,7 @@ func (s *appState) addRipToQueue(runNow bool) error {
 	s.setRipStatus("Queued rip job...")
 	s.setRipProgress(0)
 	s.jobQueue.Add(job)
-	if startNow && !s.jobQueue.IsRunning() {
+	if runNow && !s.jobQueue.IsRunning() {
 		s.jobQueue.Start()
 	}
 	return nil

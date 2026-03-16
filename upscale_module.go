@@ -3,11 +3,9 @@ package main
 import (
 	"fmt"
 	"image/color"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"

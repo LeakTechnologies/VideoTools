@@ -25,9 +25,12 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 		OnUpdateQueueButtonLabel: state.updateQueueButtonLabel,
 		OnReleasePlaybackSession: state.releasePlaybackSession,
 		OnStopPlayer:             state.stopPlayer,
-		OnProbeVideo:             probeVideo,
+		OnProbeVideo: func(path string) (interface{}, error) { return probeVideo(path) },
 		OnBuildVideoPane: func(state interface{}, size fyne.Size, src interface{}, onSeek func(float64)) fyne.CanvasObject {
-			return buildVideoPane(nil, size, src.(*videoSource), onSeek)
+			if vs, ok := src.(*videoSource); ok {
+				return buildVideoPane(nil, size, vs, nil)
+			}
+			return nil
 		},
 		OnGetPlayerFooter: func(content fyne.CanvasObject) fyne.CanvasObject {
 			return moduleFooter(moduleColor("player"), content, state.statsBar)

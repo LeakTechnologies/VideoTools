@@ -14976,6 +14976,13 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 	return files, nil
 }
 
+type audioStreamInfo struct {
+	Index    int
+	Codec    string
+	Language string
+	Channels int
+}
+
 type videoSource struct {
 	Path                  string
 	DisplayName           string
@@ -15005,6 +15012,10 @@ type videoSource struct {
 	HasChapters        bool   // Whether file has embedded chapters
 	HasMetadata        bool   // Whether file has title/copyright/etc metadata
 	Metadata           map[string]string
+
+	// Multi-stream tracks (populated when needed for multitrack authoring)
+	Audio     []audioStreamInfo
+	Subtitles []subtitleStreamInfo
 }
 
 func (v *videoSource) DurationString() string {

@@ -1,7 +1,7 @@
 package theme
 
 import (
-	"fmt"
+	"encoding/hex"
 	"image"
 	"image/color"
 	"image/draw"
@@ -170,6 +170,18 @@ func (r *Renderer) drawHighlight(dst *image.Paletted, x, y, w, h int) {
 			}
 		}
 	}
+}
+
+func parseHexColor(s string) color.Color {
+	s = strings.TrimPrefix(s, "#")
+	b, err := hex.DecodeString(s)
+	if err != nil || (len(b) != 3 && len(b) != 4) {
+		return color.Black
+	}
+	if len(b) == 4 {
+		return color.RGBA{R: b[0], G: b[1], B: b[2], A: b[3]}
+	}
+	return color.RGBA{R: b[0], G: b[1], B: b[2], A: 0xff}
 }
 
 func (r *Renderer) loadImage(path string) (image.Image, error) {

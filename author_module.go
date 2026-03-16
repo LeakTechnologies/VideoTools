@@ -2769,6 +2769,11 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 	}
 
+	featurePaths := make([]string, len(featureClips))
+	for i, c := range featureClips {
+		featurePaths[i] = c.Path
+	}
+
 	var totalDuration float64
 	for _, c := range featureClips {
 		totalDuration += c.Duration
@@ -2902,46 +2907,6 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 		os.Remove(outPath)
 		extraMpgPaths = append(extraMpgPaths, remuxPath)
-	}
-
-	// Generate clips from paths if clips is empty (fallback for when job didn't save clips)
-	if len(clips) == 0 && len(featurePaths) > 1 {
-		for _, path := range featurePaths {
-			src, err := probeVideo(path)
-			duration := 0.0
-			displayName := filepath.Base(path)
-			chapterTitle := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
-			if err == nil {
-				duration = src.Duration
-				displayName = src.DisplayName
-				// Use metadata title if available, otherwise use filename
-				if src.Metadata != nil {
-					if title, ok := src.Metadata["title"]; ok && strings.TrimSpace(title) != "" {
-						chapterTitle = title
-					}
-				}
-			}
-			clips = append(clips, authorClip{
-				Path:         path,
-				DisplayName:  displayName,
-				Duration:     duration,
-				ChapterTitle: chapterTitle,
-			})
-		}
-		if logFn != nil {
-			logFn(fmt.Sprintf("Generated %d clips from input paths for chapter markers", len(clips)))
-		}
-	}
-
-	// Separate clips into features and extras
-	var featureClips []authorClip
-	var extraClips []authorClip
-	for _, clip := range clips {
-		if clip.IsExtra {
-			extraClips = append(extraClips, clip)
-		} else {
-			featureClips = append(featureClips, clip)
-		}
 	}
 
 	// Filter chapters to remove any that correspond to extra clips
@@ -3111,7 +3076,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 	}
 
-	if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat); err != nil {
+	if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, nil); err != nil {
 		return fmt.Errorf("native ifo generation failed: %w", err)
 	}
 
