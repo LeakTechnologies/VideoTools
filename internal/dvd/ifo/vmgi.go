@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"strings"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
@@ -104,4 +105,19 @@ func NewVMGMAT() *VMG_MAT {
 	mat := &VMG_MAT{}
 	copy(mat.VMG_Identifier[:], "DVDVIDEO-VMG")
 	return mat
+}
+
+// ReadVMGI parses a VMG IFO file from a reader.
+func ReadVMGI(r io.Reader) (*VMG_MAT, error) {
+	mat := &VMG_MAT{}
+	if err := binary.Read(r, binary.BigEndian, mat); err != nil {
+		return nil, fmt.Errorf("read vmg_mat: %w", err)
+	}
+	
+	id := string(mat.VMG_Identifier[:])
+	if !strings.HasPrefix(id, "DVDVIDEO-VMG") {
+		return nil, fmt.Errorf("invalid VMG identifier: %s", id)
+	}
+	
+	return mat, nil
 }
