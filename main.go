@@ -1205,7 +1205,7 @@ type authorClip struct {
 	Chapters     []authorChapter // Chapters for this clip
 	ChapterTitle string          // Optional chapter title when treating clips as chapters
 	IsExtra      bool            // Mark this clip as an extra
-	
+
 	// Multitrack support
 	AudioTracks    []authorAudioTrack    // List of audio tracks to include
 	SubtitleTracks []authorSubtitleTrack // List of subtitle tracks to include
@@ -6680,7 +6680,13 @@ func runGUI() {
 		autoPreview:          true,
 	}
 
-	initLocale(a, state.showMainMenu)
+	initLocale(a, func() {
+		if state.active == "" {
+			state.showMainMenu()
+		} else {
+			state.showModule(state.active)
+		}
+	})
 
 	if rec, err := loadConvertRecovery(); err == nil && rec.Active {
 		msg := fmt.Sprintf("A conversion was running when VideoTools last closed.\n\nInput: %s\nOutput: %s", rec.Input, rec.Output)
