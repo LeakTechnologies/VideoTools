@@ -11460,12 +11460,13 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				return
 			}
 			if state.playerMuted || state.playerVolume <= 0 {
-				volIcon.SetText("")
+				volIcon.Icon = ui.GetIcon("volume_mute")
 			} else {
-				volIcon.SetText("")
+				volIcon.Icon = ui.GetIcon("volume_up")
 			}
+			volIcon.Refresh()
 		}
-		volIcon = utils.MakeIconButton("", "Mute/Unmute", func() {
+		volIcon = widget.NewButtonWithIcon("", ui.GetIcon("volume_up"), func() {
 			if !ensureSession() {
 				return
 			}
@@ -11506,17 +11507,21 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		}
 		updateVolIcon()
 		volSlider.Refresh()
-		playBtn := widget.NewButtonWithIcon("", ui.GetIcon("play_pause"), func() {
+		var playBtn *widget.Button
+		playBtn = widget.NewButtonWithIcon("", ui.GetIcon("play_arrow"), func() {
 			if !ensureSession() {
 				return
 			}
 			if state.playerPaused {
 				state.playSess.Play()
 				state.playerPaused = false
+				playBtn.Icon = ui.GetIcon("pause")
 			} else {
 				state.playSess.Pause()
 				state.playerPaused = true
+				playBtn.Icon = ui.GetIcon("play_arrow")
 			}
+			playBtn.Refresh()
 		})
 		playBtn.Importance = widget.LowImportance
 
@@ -11544,12 +11549,49 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			}
 			state.window.SetFullScreen(!state.window.FullScreen())
 		})
+		// ±10s skip buttons
+		replay10Btn := widget.NewButtonWithIcon("", ui.GetIcon("replay_10"), func() {
+			if !ensureSession() {
+				return
+			}
+			state.playSess.Seek(math.Max(0, slider.Value-10))
+		})
+		replay10Btn.Importance = widget.LowImportance
+		forward10Btn := widget.NewButtonWithIcon("", ui.GetIcon("forward_10"), func() {
+			if !ensureSession() {
+				return
+			}
+			state.playSess.Seek(math.Min(src.Duration, slider.Value+10))
+		})
+		forward10Btn.Importance = widget.LowImportance
+
+		// Volume control row
 		volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
-		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
-		controls = container.NewVBox(
-			container.NewHBox(prevFrameBtn, playBtn, nextFrameBtn, fullBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), frameLabel, volBox),
-			progress,
+
+		// Seek row: [currentTime] [=========slider=========] [totalTime]
+		seekRow := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
+
+		// Main controls: left = transport, right = volume + fullscreen
+		leftBtns := container.NewHBox(replay10Btn, prevFrameBtn, playBtn, nextFrameBtn, forward10Btn)
+		rightBtns := container.NewHBox(volBox, fullBtn)
+		mainCtrlRow := container.NewBorder(nil, nil, leftBtns, rightBtns, nil)
+
+		// Primary bar (dark pill)
+		primaryBg := canvas.NewRectangle(color.NRGBA{R: 12, G: 17, B: 31, A: 230})
+		primaryBar := container.NewMax(primaryBg, container.NewPadded(container.NewVBox(seekRow, mainCtrlRow)))
+
+		// Advanced bar (frame tools — discrete, below primary bar)
+		advancedBg := canvas.NewRectangle(utils.MustHex("#0C111F"))
+		advancedBg.StrokeColor = gridColor
+		advancedBg.StrokeWidth = 1
+		frameTools := container.NewBorder(nil, nil,
+			container.NewHBox(widget.NewSeparator(), frameLabel),
+			container.NewHBox(coverBtn, saveFrameBtn, importBtn),
+			nil,
 		)
+		advancedBar := container.NewMax(advancedBg, container.NewPadded(frameTools))
+
+		controls = container.NewVBox(primaryBar, advancedBar)
 	} else {
 		slider := widget.NewSlider(0, math.Max(1, float64(len(src.PreviewFrames)-1)))
 		slider.Step = 1
@@ -11581,23 +11623,20 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			}
 		})
 		playBtn.Importance = widget.LowImportance
-		volSlider := widget.NewSlider(0, 100)
-		volSlider.Disable()
-		progress := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
-		controls = container.NewVBox(
-			container.NewHBox(playBtn, coverBtn, saveFrameBtn, importBtn, layout.NewSpacer(), widget.NewLabel(""), container.NewMax(volSlider)),
-			progress,
+		seekRow := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
+		ctrlRow := container.NewBorder(nil, nil,
+			container.NewHBox(playBtn),
+			container.NewHBox(coverBtn, saveFrameBtn, importBtn),
+			nil,
 		)
+		previewBg := canvas.NewRectangle(color.NRGBA{R: 12, G: 17, B: 31, A: 230})
+		controls = container.NewMax(previewBg, container.NewPadded(container.NewVBox(seekRow, ctrlRow)))
 		if len(src.PreviewFrames) > 1 {
 			state.startPreview(src.PreviewFrames, img, slider)
 		} else {
 			playBtn.Disable()
 		}
 	}
-
-	barBg := canvas.NewRectangle(color.NRGBA{R: 12, G: 17, B: 31, A: 180})
-	barBg.SetMinSize(fyne.NewSize(0, 72))
-	transportBar := container.NewMax(barBg, container.NewPadded(controls))
 
 	videoWithOverlay := videoStageWithIndicator
 	if usePlayer {
@@ -11606,7 +11645,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 
 	stack := container.NewBorder(
 		nil,
-		container.NewPadded(transportBar),
+		controls,
 		nil, nil,
 		container.NewPadded(videoWithOverlay),
 	)
