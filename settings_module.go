@@ -1385,6 +1385,13 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	autoCheckLabel := widget.NewLabel(t.UpdateAutoCheck)
 	autoCheckLabel.TextStyle = fyne.TextStyle{}
 
+	// Canonical keys stored in config — language-agnostic so switching locale
+	// never corrupts or resets the saved preference.
+	autoCheckKeys := []string{
+		"disabled", "every_hour", "every_2h", "every_3h", "every_4h",
+		"every_6h", "every_12h", "daily", "semi_weekly", "weekly",
+		"bi_weekly", "monthly", "bi_monthly",
+	}
 	autoCheckOptions := []string{
 		t.UpdateDisabled,
 		t.UpdateEveryHour,
@@ -1401,30 +1408,35 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 		t.UpdateBiMonthly,
 	}
 
+	// keyToLabel returns the localized label for a stored canonical key.
+	keyToLabel := func(key string) string {
+		for i, k := range autoCheckKeys {
+			if k == key && i < len(autoCheckOptions) {
+				return autoCheckOptions[i]
+			}
+		}
+		return t.UpdateDaily // default
+	}
+
 	autoCheckSelect := widget.NewSelect(autoCheckOptions, func(selected string) {
-		state.prefs.AutoCheckFrequency = selected
+		// Save as canonical key, not the localized label.
+		for i, opt := range autoCheckOptions {
+			if opt == selected && i < len(autoCheckKeys) {
+				state.prefs.AutoCheckFrequency = autoCheckKeys[i]
+				break
+			}
+		}
 		if err := savePrefsConfig(state.prefs); err != nil {
 			logging.Debug(logging.CatSystem, "failed to save prefs: %v", err)
 		}
 	})
-	// Restore persisted value, fall back to Daily
-	savedFreq := state.prefs.AutoCheckFrequency
-	if savedFreq == "" {
-		savedFreq = t.UpdateDaily
-	} else {
-		// Check if saved frequency exists in current language options
-		found := false
-		for _, opt := range autoCheckOptions {
-			if opt == savedFreq {
-				found = true
-				break
-			}
-		}
-		if !found {
-			savedFreq = t.UpdateDaily
-		}
+
+	// Restore persisted value. Stored as canonical key, fall back to "daily".
+	savedKey := state.prefs.AutoCheckFrequency
+	if savedKey == "" {
+		savedKey = "daily"
 	}
-	autoCheckSelect.SetSelected(savedFreq)
+	autoCheckSelect.SetSelected(keyToLabel(savedKey))
 
 	autoCheckRow := container.NewHBox(autoCheckLabel, autoCheckSelect)
 	content.Add(autoCheckRow)
