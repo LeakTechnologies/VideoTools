@@ -23,6 +23,12 @@ const (
 	// Since: 2.0
 	MouseButtonTertiary
 
+	// MouseButton4 is the back/extra button on the mouse (button 4 / GLFW MouseButton4).
+	MouseButton4
+
+	// MouseButton5 is the forward/extra button on the mouse (button 5 / GLFW MouseButton5).
+	MouseButton5
+
 	// LeftMouseButton is the most common mouse button - on some systems the only one.
 	//
 	// Deprecated: use MouseButtonPrimary which will adapt to mouse configuration.

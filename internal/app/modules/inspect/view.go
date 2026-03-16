@@ -18,6 +18,9 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
+var valueBg     = utils.MustHex("#2B334A")
+var valueBorder = utils.MustHex("#3A4360")
+
 var gridColor = utils.MustHex("#2A3A52")
 var navyBlue = utils.MustHex("#191F35")
 
@@ -112,9 +115,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 	fileLabel := widget.NewLabel("No file loaded")
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	metadataText := widget.NewLabel("No file loaded")
-	metadataText.Wrapping = fyne.TextWrapWord
-
 	buildInspectBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
 		bg := canvas.NewRectangle(navyBlue)
 		bg.CornerRadius = 10
@@ -130,178 +130,216 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return container.NewMax(layers...)
 	}
 
-	metadataScroll := container.NewScroll(metadataText)
-
-	formatBitrateFull := func(bitrate int64) string {
-		if bitrate <= 0 {
-			return "N/A"
-		}
-		if bitrate >= 1_000_000 {
-			return fmt.Sprintf("%.2f Mbps", float64(bitrate)/1_000_000)
-		} else if bitrate >= 1_000 {
-			return fmt.Sprintf("%.2f Kbps", float64(bitrate)/1_000)
-		}
-		return fmt.Sprintf("%d bps", bitrate)
+	// --- pill helpers (mirrors buildMetadataPanel in main.go) ---
+	makeValuePill := func(text string) fyne.CanvasObject {
+		bg := canvas.NewRectangle(valueBg)
+		bg.CornerRadius = 6
+		bg.StrokeColor = valueBorder
+		bg.StrokeWidth = 1
+		lbl := widget.NewLabel(text)
+		lbl.TextStyle = fyne.TextStyle{Monospace: true}
+		lbl.Wrapping = fyne.TextTruncate
+		return container.NewMax(bg, container.NewPadded(lbl))
+	}
+	makeValuePillWithChip := func(text string, chipColor color.Color) fyne.CanvasObject {
+		bg := canvas.NewRectangle(valueBg)
+		bg.CornerRadius = 6
+		bg.StrokeColor = valueBorder
+		bg.StrokeWidth = 1
+		chip := canvas.NewRectangle(chipColor)
+		chip.CornerRadius = 4
+		chip.SetMinSize(fyne.NewSize(8, 0))
+		lbl := widget.NewLabel(text)
+		lbl.TextStyle = fyne.TextStyle{Monospace: true}
+		lbl.Wrapping = fyne.TextTruncate
+		pillContent := container.NewBorder(nil, nil, chip, nil, container.NewPadded(lbl))
+		return container.NewMax(bg, pillContent)
+	}
+	makeRow := func(key string, value fyne.CanvasObject) fyne.CanvasObject {
+		keyLbl := widget.NewLabel(key + ":")
+		keyLbl.TextStyle = fyne.TextStyle{Bold: true}
+		return container.NewBorder(nil, nil, keyLbl, nil, value)
 	}
 
-	formatMetadata := func() string {
+	// placeholder shown when no file is loaded
+	metadataPlaceholder := container.NewCenter(widget.NewLabel("No file loaded"))
+
+	// metadataGrid holds the live pill grid; swapped in updateDisplay
+	metadataGrid := container.NewMax(metadataPlaceholder)
+
+	buildMetadataGrid := func() fyne.CanvasObject {
 		if opts.InspectFile == nil {
-			return "No file loaded"
+			return metadataPlaceholder
 		}
 
-		src := opts.InspectFile
-		_ = src
+		// --- collect values via callbacks ---
+		get := func(cb func() string) string {
+			if cb == nil { return "Unknown" }
+			if v := cb(); v != "" { return v }
+			return "Unknown"
+		}
+		getInt := func(cb func() int) int {
+			if cb == nil { return 0 }
+			return cb()
+		}
+		getI64 := func(cb func() int64) int64 {
+			if cb == nil { return 0 }
+			return cb()
+		}
+		getF := func(cb func() float64) float64 {
+			if cb == nil { return 0 }
+			return cb()
+		}
+		getBool := func(cb func() bool) bool {
+			if cb == nil { return false }
+			return cb()
+		}
 
+		format     := get(opts.OnGetFormat)
+		videoCodec := get(opts.OnGetVideoCodec)
+		width      := getInt(opts.OnGetWidth)
+		height     := getInt(opts.OnGetHeight)
+		aspectRatio := get(opts.OnGetAspectRatio)
+		frameRate  := getF(opts.OnGetFrameRate)
+		bitrate    := getI64(opts.OnGetBitrate)
+		pixelFmt   := get(opts.OnGetPixelFormat)
+		colorSpace := get(opts.OnGetColorSpace)
+		colorRange := get(opts.OnGetColorRange)
+		fieldOrder := get(opts.OnGetFieldOrder)
+		gopSize    := getInt(opts.OnGetGOPSize)
+		audioCodec := get(opts.OnGetAudioCodec)
+		audioBitrate := getI64(opts.OnGetAudioBitrate)
+		audioRate  := getInt(opts.OnGetAudioRate)
+		channels   := getInt(opts.OnGetChannels)
+		duration   := get(opts.OnGetDuration)
+		sar        := get(opts.OnGetSampleAspect)
+		hasChapters := getBool(opts.OnGetHasChapters)
+		hasMetadata := getBool(opts.OnGetHasMetadata)
+
+		// file size
 		fileSize := "Unknown"
-		path := ""
-		if p, ok := any(src).(interface{ GetPath() string }); ok {
-			path = p.GetPath()
-		}
-		if path != "" {
-			if fi, err := os.Stat(path); err == nil {
+		if p, ok := any(opts.InspectFile).(interface{ GetPath() string }); ok {
+			if fi, err := os.Stat(p.GetPath()); err == nil {
 				fileSize = utils.FormatBytes(fi.Size())
 			}
 		}
 
-		format := ""
-		if opts.OnGetFormat != nil {
-			format = opts.OnGetFormat()
-		}
-		videoCodec := ""
-		if opts.OnGetVideoCodec != nil {
-			videoCodec = opts.OnGetVideoCodec()
-		}
-		width := 0
-		if opts.OnGetWidth != nil {
-			width = opts.OnGetWidth()
-		}
-		height := 0
-		if opts.OnGetHeight != nil {
-			height = opts.OnGetHeight()
-		}
-		aspectRatio := ""
-		if opts.OnGetAspectRatio != nil {
-			aspectRatio = opts.OnGetAspectRatio()
-		}
-		frameRate := 0.0
-		if opts.OnGetFrameRate != nil {
-			frameRate = opts.OnGetFrameRate()
-		}
-		bitrate := int64(0)
-		if opts.OnGetBitrate != nil {
-			bitrate = opts.OnGetBitrate()
-		}
-		pixelFormat := ""
-		if opts.OnGetPixelFormat != nil {
-			pixelFormat = opts.OnGetPixelFormat()
-		}
-		colorSpace := ""
-		if opts.OnGetColorSpace != nil {
-			colorSpace = opts.OnGetColorSpace()
-		}
-		colorRange := ""
-		if opts.OnGetColorRange != nil {
-			colorRange = opts.OnGetColorRange()
-		}
-		fieldOrder := ""
-		if opts.OnGetFieldOrder != nil {
-			fieldOrder = opts.OnGetFieldOrder()
-		}
-		gopSize := 0
-		if opts.OnGetGOPSize != nil {
-			gopSize = opts.OnGetGOPSize()
-		}
-		audioCodec := ""
-		if opts.OnGetAudioCodec != nil {
-			audioCodec = opts.OnGetAudioCodec()
-		}
-		audioBitrate := int64(0)
-		if opts.OnGetAudioBitrate != nil {
-			audioBitrate = opts.OnGetAudioBitrate()
-		}
-		audioRate := 0
-		if opts.OnGetAudioRate != nil {
-			audioRate = opts.OnGetAudioRate()
-		}
-		channels := 0
-		if opts.OnGetChannels != nil {
-			channels = opts.OnGetChannels()
-		}
-		duration := ""
-		if opts.OnGetDuration != nil {
-			duration = opts.OnGetDuration()
-		}
-		sar := ""
-		if opts.OnGetSampleAspect != nil {
-			sar = opts.OnGetSampleAspect()
-		}
-		hasChapters := false
-		if opts.OnGetHasChapters != nil {
-			hasChapters = opts.OnGetHasChapters()
-		}
-		hasMetadata := false
-		if opts.OnGetHasMetadata != nil {
-			hasMetadata = opts.OnGetHasMetadata()
+		// format values
+		bitrateStr := "--"
+		if bitrate > 0 { bitrateStr = fmt.Sprintf("%d kbps", bitrate/1000) }
+		audioBitrateStr := "--"
+		if audioBitrate > 0 { audioBitrateStr = fmt.Sprintf("%d kbps", audioBitrate/1000) }
+
+		parStr := sar
+		if parStr == "1:1" || parStr == "" { parStr = "1:1 (Square)" } else { parStr += " (Non-square)" }
+
+		if colorRange == "tv" { colorRange = "Limited (TV)" } else if colorRange == "pc" || colorRange == "jpeg" { colorRange = "Full (PC)" }
+
+		interlacing := "Progressive"
+		if fieldOrder != "" && fieldOrder != "progressive" && fieldOrder != "unknown" && fieldOrder != "Unknown" {
+			interlacing = "Interlaced (" + fieldOrder + ")"
 		}
 
-		metadata := fmt.Sprintf(
-			"━━━ FILE INFO ━━━\n"+
-				"Path: %s\n"+
-				"File Size: %s\n"+
-				"Format Family: %s\n"+
-				"\n━━━ VIDEO ━━━\n"+
-				"Codec: %s\n"+
-				"Resolution: %dx%d\n"+
-				"Aspect Ratio: %s\n"+
-				"Frame Rate: %.2f fps\n"+
-				"Bitrate: %s\n"+
-				"Pixel Format: %s\n"+
-				"Color Space: %s\n"+
-				"Color Range: %s\n"+
-				"Field Order: %s\n"+
-				"GOP Size: %d\n"+
-				"\n━━━ AUDIO ━━━\n"+
-				"Codec: %s\n"+
-				"Bitrate: %s\n"+
-				"Sample Rate: %d Hz\n"+
-				"Channels: %d\n"+
-				"\n━━━ OTHER ━━━\n"+
-				"Duration: %s\n"+
-				"SAR (Pixel Aspect): %s\n"+
-				"Chapters: %v\n"+
-				"Metadata: %v",
-			filepath.Base(path),
-			fileSize,
-			format,
-			videoCodec,
-			width, height,
-			aspectRatio,
-			frameRate,
-			formatBitrateFull(bitrate),
-			pixelFormat,
-			colorSpace,
-			colorRange,
-			fieldOrder,
-			gopSize,
-			audioCodec,
-			formatBitrateFull(audioBitrate),
-			audioRate,
-			channels,
-			duration,
-			sar,
-			hasChapters,
-			hasMetadata,
+		gopStr := "--"
+		if gopSize > 0 { gopStr = fmt.Sprintf("%d frames", gopSize) }
+
+		chaptersStr := "No"
+		if hasChapters { chaptersStr = "Yes" }
+		metadataStr := "No"
+		if hasMetadata { metadataStr = "Yes" }
+
+		// --- plain-text copy string (unchanged from before) ---
+		_ = fmt.Sprintf("Format: %s\nResolution: %dx%d\nDuration: %s\nFile Size: %s",
+			format, width, height, duration, fileSize)
+
+		col1 := container.NewVBox(
+			makeRow("Format",       makeValuePill(format)),
+			makeRow("Resolution",   makeValuePill(fmt.Sprintf("%dx%d", width, height))),
+			makeRow("Aspect Ratio", makeValuePill(aspectRatio)),
+			makeRow("Duration",     makeValuePill(duration)),
+			makeRow("Frame Rate",   makeValuePill(fmt.Sprintf("%.2f fps", frameRate))),
+			makeRow("Interlacing",  makeValuePill(interlacing)),
+			makeRow("Color Space",  makeValuePill(colorSpace)),
+			makeRow("Color Range",  makeValuePill(colorRange)),
+			makeRow("GOP Size",     makeValuePill(gopStr)),
+			makeRow("File Size",    makeValuePill(fileSize)),
 		)
 
+		col2 := container.NewVBox(
+			makeRow("Video Codec",   makeValuePillWithChip(videoCodec, ui.GetVideoCodecColor(videoCodec))),
+			makeRow("Video Bitrate", makeValuePill(bitrateStr)),
+			makeRow("Pixel Format",  makeValuePill(pixelFmt)),
+			makeRow("Pixel AR",      makeValuePill(parStr)),
+			makeRow("Audio Codec",   makeValuePillWithChip(audioCodec, ui.GetAudioCodecColor(audioCodec))),
+			makeRow("Audio Bitrate", makeValuePill(audioBitrateStr)),
+			makeRow("Audio Rate",    makeValuePill(fmt.Sprintf("%d Hz", audioRate))),
+			makeRow("Channels",      makeValuePill(utils.ChannelLabel(channels))),
+			makeRow("Chapters",      makeValuePill(chaptersStr)),
+			makeRow("Metadata",      makeValuePill(metadataStr)),
+		)
+
+		interlaceNote := ""
 		if opts.InspectInterlaceAnalyzing {
-			metadata += "\n\n━━━ INTERLACING DETECTION ━━━\n"
-			metadata += "Analyzing... (first 500 frames)"
+			interlaceNote = "Analyzing interlacing... (first 500 frames)"
 		} else if opts.InspectInterlaceResult != nil {
-			metadata += "\n\n━━━ INTERLACING DETECTION ━━━\n"
-			metadata += "Results available"
+			interlaceNote = "Interlace analysis complete"
+		}
+		var extra fyne.CanvasObject
+		if interlaceNote != "" {
+			extra = widget.NewLabel(interlaceNote)
 		}
 
-		return metadata
+		rows := []fyne.CanvasObject{container.NewGridWithColumns(2, col1, col2)}
+		if extra != nil {
+			rows = append(rows, extra)
+		}
+		return container.NewVBox(rows...)
+	}
+
+	// formatMetadata returns plain text for clipboard copy
+	formatMetadata := func() string {
+		if opts.InspectFile == nil {
+			return "No file loaded"
+		}
+		get := func(cb func() string) string {
+			if cb == nil { return "" }
+			return cb()
+		}
+		path := ""
+		if p, ok := any(opts.InspectFile).(interface{ GetPath() string }); ok {
+			path = p.GetPath()
+		}
+		bitrate := int64(0)
+		if opts.OnGetBitrate != nil { bitrate = opts.OnGetBitrate() }
+		audioBitrate := int64(0)
+		if opts.OnGetAudioBitrate != nil { audioBitrate = opts.OnGetAudioBitrate() }
+		bitrateStr := "--"
+		if bitrate > 0 { bitrateStr = fmt.Sprintf("%d kbps", bitrate/1000) }
+		audioBitrateStr := "--"
+		if audioBitrate > 0 { audioBitrateStr = fmt.Sprintf("%d kbps", audioBitrate/1000) }
+		width := 0; height := 0
+		if opts.OnGetWidth != nil { width = opts.OnGetWidth() }
+		if opts.OnGetHeight != nil { height = opts.OnGetHeight() }
+		fr := 0.0
+		if opts.OnGetFrameRate != nil { fr = opts.OnGetFrameRate() }
+		ar := 0
+		if opts.OnGetAudioRate != nil { ar = opts.OnGetAudioRate() }
+		ch := 0
+		if opts.OnGetChannels != nil { ch = opts.OnGetChannels() }
+		return fmt.Sprintf(
+			"File: %s\nFormat: %s\nResolution: %dx%d\nAspect Ratio: %s\nDuration: %s\n"+
+				"Video Codec: %s\nVideo Bitrate: %s\nFrame Rate: %.2f fps\n"+
+				"Pixel Format: %s\nColor Space: %s\nField Order: %s\n"+
+				"Audio Codec: %s\nAudio Bitrate: %s\nAudio Rate: %d Hz\nChannels: %d",
+			filepath.Base(path),
+			get(opts.OnGetFormat),
+			width, height,
+			get(opts.OnGetAspectRatio),
+			get(opts.OnGetDuration),
+			get(opts.OnGetVideoCodec), bitrateStr, fr,
+			get(opts.OnGetPixelFormat), get(opts.OnGetColorSpace), get(opts.OnGetFieldOrder),
+			get(opts.OnGetAudioCodec), audioBitrateStr, ar, ch,
+		)
 	}
 
 	var videoContainer fyne.CanvasObject = container.NewCenter(widget.NewLabel("No video loaded"))
@@ -327,11 +365,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 				}
 			}
 			fileLabel.SetText(fmt.Sprintf("File: %s", filename))
-			metadataText.SetText(formatMetadata())
+			metadataGrid.Objects = []fyne.CanvasObject{buildMetadataGrid()}
+			metadataGrid.Refresh()
 			videoContainer = container.NewCenter(widget.NewLabel("Video preview"))
 		} else {
 			fileLabel.SetText("No file loaded")
-			metadataText.SetText("No file loaded")
+			metadataGrid.Objects = []fyne.CanvasObject{metadataPlaceholder}
+			metadataGrid.Refresh()
 			videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
 		}
 	}
@@ -372,7 +412,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		videoContainer,
 	)
 
-	rightColumn := buildInspectBox("Metadata", metadataScroll)
+	rightColumn := buildInspectBox("Metadata", container.NewScroll(metadataGrid))
 
 	content := container.NewBorder(
 		container.NewVBox(instructionsRow, actionButtons, widget.NewSeparator()),
