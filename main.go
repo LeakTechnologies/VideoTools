@@ -162,6 +162,13 @@ type recoloredSVG struct {
 	hex string // e.g. "#4CE870"
 }
 
+// Name includes the hex colour so each tint gets its own SVG cache entry.
+// Without this, Fyne's SVG cache is keyed only on the resource name and the
+// first colour rendered for an icon is returned for all subsequent tints.
+func (r recoloredSVG) Name() string {
+	return strings.ToLower(r.hex) + "_" + r.Resource.Name()
+}
+
 func (r recoloredSVG) Content() []byte {
 	s := string(r.Resource.Content())
 	s = strings.ReplaceAll(s, "#e3e3e3", strings.ToLower(r.hex))
