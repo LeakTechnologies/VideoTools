@@ -27,6 +27,7 @@ type AudioPlayer struct {
 	codecCtx *C.AVCodecContext
 	swrCtx   *C.struct_SwrContext
 	queue    *PacketQueue
+	clock    *MasterClock
 	
 	// Output
 	otoCtx    *oto.Context
@@ -36,14 +37,19 @@ type AudioPlayer struct {
 	frame      *C.AVFrame
 	resampleBuf []byte
 	leftover    []byte
+	
+	// Stream Info
+	timeBase float64
 }
 
 // NewAudioPlayer creates a new audio player.
-func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue) (*AudioPlayer, error) {
+func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *MasterClock, timeBase float64) (*AudioPlayer, error) {
 	p := &AudioPlayer{
 		codecCtx: codecCtx,
 		queue:    queue,
+		clock:    clock,
 		frame:    C.av_frame_alloc(),
+		timeBase: timeBase,
 	}
 
 	p.swrCtx = C.swr_alloc()
@@ -95,6 +101,10 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 
 		if C.avcodec_send_packet(p.codecCtx, pkt) == 0 {
 			if C.avcodec_receive_frame(p.codecCtx, p.frame) == 0 {
+				// Update Master Clock
+				pts := float64(p.frame.pts) * p.timeBase
+				p.clock.SetTime(pts)
+
 				data, err := p.resample()
 				if err != nil {
 					continue
@@ -111,7 +121,7 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 
 func (p *AudioPlayer) resample() ([]byte, error) {
 	maxSamples := int(C.swr_get_out_samples(p.swrCtx, p.frame.nb_samples))
-	if len(p.resampleBuf) < maxSamples*4 { // 2 channels * 2 bytes
+	if len(p.resampleBuf) < maxSamples*4 {
 		p.resampleBuf = make([]byte, maxSamples*4)
 	}
 
