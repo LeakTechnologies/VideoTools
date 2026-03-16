@@ -1742,6 +1742,45 @@ func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
 func (s *appState) addAuthorFiles(paths []string) {
 	wasEmpty := len(s.authorClips) == 0
 	for _, path := range paths {
+		// Check if this is a directory containing a project file
+		info, err := os.Stat(path)
+		if err == nil && info.IsDir() {
+			projPath := filepath.Join(path, "author_project.json")
+			if _, err := os.Stat(projPath); err == nil {
+				logging.Info(logging.CatDVD, "Loading Archivist project: %s", projPath)
+				
+				// Scan for assets
+				entries, _ := os.ReadDir(path)
+				clip := authorClip{
+					Path:        filepath.Join(path, "video.m2v"), // Standard name for extracted video
+					DisplayName: filepath.Base(path),
+					Duration:    0, // Will be probed
+				}
+				
+				for _, entry := range entries {
+					fname := entry.Name()
+					fullPath := filepath.Join(path, fname)
+					if strings.HasSuffix(fname, ".ac3") {
+						clip.AudioTracks = append(clip.AudioTracks, authorAudioTrack{
+							Label: fname, Index: 0, ExternalPath: fullPath,
+						})
+					} else if strings.HasSuffix(fname, ".sup") {
+						clip.SubtitleTracks = append(clip.SubtitleTracks, authorSubtitleTrack{
+							Label: fname, Index: 0, ExternalPath: fullPath,
+						})
+					}
+				}
+				
+				src, _ := probeVideo(clip.Path)
+				if src != nil {
+					clip.Duration = src.Duration
+				}
+				
+				s.authorClips = append(s.authorClips, clip)
+				continue
+			}
+		}
+
 		src, err := probeVideo(path)
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("failed to load video %s: %w", filepath.Base(path), err), s.window)
@@ -3514,23 +3553,55 @@ func buildAuthorFFmpegArgs(clip authorClip, outputPath, region, aspect string, p
 		"-i", clip.Path,
 	}
 
+	// Add external inputs
+	inputMap := make(map[string]int)
+	inputMap[clip.Path] = 0
+	nextInputIdx := 1
+
+	for _, at := range clip.AudioTracks {
+		if at.ExternalPath != "" {
+			if _, ok := inputMap[at.ExternalPath]; !ok {
+				args = append(args, "-i", at.ExternalPath)
+				inputMap[at.ExternalPath] = nextInputIdx
+				nextInputIdx++
+			}
+		}
+	}
+	for _, st := range clip.SubtitleTracks {
+		if st.ExternalPath != "" {
+			if _, ok := inputMap[st.ExternalPath]; !ok {
+				args = append(args, "-i", st.ExternalPath)
+				inputMap[st.ExternalPath] = nextInputIdx
+				nextInputIdx++
+			}
+		}
+	}
+
 	// Complex mapping for multitrack
-	// Map video
+	// Map video (always from primary input)
 	args = append(args, "-map", "0:v:0")
 
 	// Map all selected audio tracks
 	for i, at := range clip.AudioTracks {
-		args = append(args, "-map", fmt.Sprintf("0:%d", at.Index))
+		inIdx := 0
+		streamIdx := at.Index
+		if at.ExternalPath != "" {
+			inIdx = inputMap[at.ExternalPath]
+		}
+		args = append(args, "-map", fmt.Sprintf("%d:%d", inIdx, streamIdx))
 		args = append(args, fmt.Sprintf("-c:a:%d", i), "ac3", fmt.Sprintf("-b:a:%d", i), "192k")
 	}
 
 	// Map all selected subtitle tracks
 	for i, st := range clip.SubtitleTracks {
-		args = append(args, "-map", fmt.Sprintf("0:%d", st.Index))
-		// Convert to dvdsub (VOBSUB) for DVD compliance
+		inIdx := 0
+		streamIdx := st.Index
+		if st.ExternalPath != "" {
+			inIdx = inputMap[st.ExternalPath]
+		}
+		args = append(args, "-map", fmt.Sprintf("%d:%d", inIdx, streamIdx))
 		args = append(args, fmt.Sprintf("-c:s:%d", i), "dvdsub")
 	}
-
 	args = append(args,
 		"-vf", strings.Join(vf, ","),
 		"-c:v", "mpeg2video",
