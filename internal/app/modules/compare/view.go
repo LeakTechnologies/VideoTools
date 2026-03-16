@@ -8,7 +8,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/color"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -24,8 +23,8 @@ var navyBlue = utils.MustHex("#191F35")
 type Options struct {
 	Window fyne.Window
 
-	CompareFile1 *videoSource
-	CompareFile2 *videoSource
+	CompareFile1 interface{}
+	CompareFile2 interface{}
 	QueueBtn     *widget.Button
 
 	OnShowMainMenu           func()
@@ -34,8 +33,9 @@ type Options struct {
 	OnRefreshView            func()
 	OnUpdateQueueButtonLabel func()
 	OnGetStatsBar            func() fyne.CanvasObject
-	OnProbeVideo             func(path string) (*videoSource, error)
-	OnBuildVideoPane         func(state interface{}, size fyne.Size, src *videoSource, onSeek func(float64)) fyne.CanvasObject
+	OnGetCompareFooter       func(content fyne.CanvasObject) fyne.CanvasObject
+	OnProbeVideo             func(path string) (interface{}, error)
+	OnBuildVideoPane         func(state interface{}, size fyne.Size, src interface{}, onSeek func(float64)) fyne.CanvasObject
 }
 
 type videoSource struct {
@@ -115,7 +115,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer(), togglePlayerBtn, queueBtn))
 	statsBar := opts.OnGetStatsBar()
-	bottomBar := moduleFooter(compareColor, layout.NewSpacer(), statsBar)
+	var bottomBar fyne.CanvasObject
+	if opts.OnGetCompareFooter != nil {
+		bottomBar = opts.OnGetCompareFooter(layout.NewSpacer())
+	} else {
+		bottomBar = container.NewVBox(statsBar, layout.NewSpacer())
+	}
 
 	instructions := widget.NewLabel(t.CompareInstructions)
 	instructions.Wrapping = fyne.TextWrapWord
@@ -734,16 +739,4 @@ func formatBitrateFull(bps int) string {
 		return fmt.Sprintf("%.1f Mbps (%.0f kbps)", mbps, kbps)
 	}
 	return fmt.Sprintf("%.0f kbps (%.2f Mbps)", kbps, mbps)
-}
-
-func moduleFooter(tint fyne.CanvasObject, content fyne.CanvasObject, statsBar fyne.CanvasObject) fyne.CanvasObject {
-	statsBg := canvas.NewRectangle(utils.MustHex("#1A1F2E"))
-	statsBg.StrokeWidth = 0
-
-	statsContent := container.NewBorder(nil, nil, nil, statsBar,
-		container.NewPadded(content),
-	)
-
-	layers := []fyne.CanvasObject{statsBg, statsContent}
-	return container.NewMax(layers...)
 }
