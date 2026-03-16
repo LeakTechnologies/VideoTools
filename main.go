@@ -11220,9 +11220,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		stage.CornerRadius = 6
 		stage.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
 
-		silhouette := canvas.NewText("-", utils.MustHex("#4CE870"))
-		silhouette.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-		silhouette.TextSize = 42
+		silhouetteIcon := container.NewCenter(container.New(layout.NewGridWrapLayout(fyne.NewSize(64, 64)), widget.NewIcon(ui.GetIcon("slow_motion_video"))))
 
 		hintMain := widget.NewLabelWithStyle("Drop a video or open one to start playback", fyne.TextAlignCenter, fyne.TextStyle{Monospace: true, Bold: true})
 		hintSub := widget.NewLabel("MP4, MOV, MKV and more")
@@ -11267,7 +11265,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 
 		placeholder := container.NewVBox(
-			container.NewCenter(silhouette),
+			container.NewCenter(silhouetteIcon),
 			container.NewCenter(hintMain),
 			container.NewCenter(hintSub),
 			container.NewCenter(container.NewHBox(open, addMultiple)),
