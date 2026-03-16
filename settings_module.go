@@ -832,15 +832,27 @@ func fetchUpdateInfo() (updateInfo, error) {
 	var release struct {
 		TargetCommitish string    `json:"target_commitish"`
 		CreatedAt       time.Time `json:"created_at"`
+		Assets          []struct {
+			CreatedAt time.Time `json:"created_at"`
+		} `json:"assets"`
 	}
 	if err := json.NewDecoder(rResp.Body).Decode(&release); err != nil {
 		return updateInfo{}, fmt.Errorf("parse release response: %w", err)
 	}
 
+	// Use the newest asset upload time so the date reflects the latest build,
+	// not the original release creation (which never changes on nightly rebuilds).
+	releaseDate := release.CreatedAt
+	for _, a := range release.Assets {
+		if a.CreatedAt.After(releaseDate) {
+			releaseDate = a.CreatedAt
+		}
+	}
+
 	return updateInfo{
 		latestTag:    tagName,
 		tagCommitSHA: release.TargetCommitish,
-		releaseDate:  release.CreatedAt,
+		releaseDate:  releaseDate,
 	}, nil
 }
 
