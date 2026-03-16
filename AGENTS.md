@@ -4,11 +4,10 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev32`.
+- Current cycle: `v0.1.1-dev34`.
 - Public/stable baseline: `v0.1.1`.
 - `dev30` is closed. CI validated on 2026-03-10 (runs 219/220/221, commit 2cbb3a2).
-- `dev31` is closed. CI validated on 2026-03-12 (runs 252/253, commit 40b5934).
-- `dev32` focus: drag-to-scroll fix, Windows icon investigation, Convert UI cleanup (issue #5), Phase 3 continuation (opencode).
+- `dev32` closed. CI validated on 2026-03-15.
 - Issue tracker active at `https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues`.
 - Primary planning source is `TODO.md`; shipped scope is tracked in `DONE.md`; release-facing history is `docs/CHANGELOG.md`.
 
@@ -40,6 +39,46 @@ These rules apply to any automation or agent working in this repo.
 - `CHANGELOG.md` means `docs/CHANGELOG.md` in this repo.
 - Avoid personal names in documentation; use `user report` or `dev report` only.
 - The retired `docs.leaktechnologies.dev` site must not be used; active docs live in-repo and on the Forgejo wiki.
+
+## Internationalization (i18n)
+
+All user-facing strings MUST use the i18n system. Never hardcode display strings.
+
+### Rules
+
+1. **All UI strings** must use `i18n.T().KeyName` — never use `"hardcoded string"`
+2. **Add new strings** to `internal/i18n/strings.go` first (defines the key)
+3. **Add English translation** to `internal/i18n/en_ca.go` (source of truth)
+4. **Add French translation** to `internal/i18n/fr_ca.go`
+5. **Module names** already localized: use `t.ModuleXxx` (e.g., `t.ModuleConvert`)
+6. **Actions** already localized: use `t.ActionXxx` (e.g., `t.ActionSave`)
+7. **Common labels** already localized: use `t.LabelXxx` (e.g., `t.LabelNoFile`)
+
+### Common Patterns
+
+```go
+// Bad
+label := widget.NewLabel("Click here")
+
+// Good
+label := widget.NewLabel(t.ActionClick)  // if action exists
+// or add new key to strings.go
+```
+
+### Checking for Missing Strings
+
+When adding a new feature, grep for hardcoded strings:
+- `widget.NewLabel("...` 
+- `dialog.Show...("...`
+- Any user-visible text in quotes
+
+### String Key Naming
+
+- `ModuleXxx` — module names (ModuleConvert, ModuleAudio)
+- `ActionXxx` — button/actions (ActionSave, ActionCancel)
+- `LabelXxx` — static labels (LabelNoFile, LabelOutput)
+- `StatusXxx` — status messages (StatusComplete, StatusFailed)
+- `DialogXxx` — dialog titles (DialogConfirmDelete)
 
 ## Version Bumping
 
