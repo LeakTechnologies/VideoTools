@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"strings"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
@@ -73,4 +74,20 @@ func NewVTSMAT() *VTS_MAT {
 	mat := &VTS_MAT{}
 	copy(mat.VTS_Identifier[:], "DVDVIDEO-VTS")
 	return mat
+}
+
+// ReadVTSI parses a VTS IFO file from a reader.
+func ReadVTSI(r io.Reader) (*VTS_MAT, error) {
+	mat := &VTS_MAT{}
+	if err := binary.Read(r, binary.BigEndian, mat); err != nil {
+		return nil, fmt.Errorf("read vts_mat: %w", err)
+	}
+	
+	// Basic validation
+	id := string(mat.VTS_Identifier[:])
+	if !strings.HasPrefix(id, "DVDVIDEO-VTS") {
+		return nil, fmt.Errorf("invalid VTS identifier: %s", id)
+	}
+	
+	return mat, nil
 }
