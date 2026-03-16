@@ -19,6 +19,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/udf"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
@@ -231,8 +232,11 @@ func buildRipView(state *appState) fyne.CanvasObject {
 				if strings.HasSuffix(strings.ToLower(path), ".iso") {
 					if discType, err := udf.IdentifyDiscFormat(path); err == nil {
 						logging.Info(logging.CatDVD, "User dropped ISO: detected as %s", discType)
-						// In the future, we can adjust default settings or 
-						// title selection based on discType here.
+					}
+				} else {
+					// Check if it's a VIDEO_TS folder
+					if info, err := os.Stat(filepath.Join(path, "VIDEO_TS.IFO")); err == nil && !info.IsDir() {
+						state.scanDVDStructure(path)
 					}
 				}
 
@@ -263,7 +267,28 @@ func buildRipView(state *appState) fyne.CanvasObject {
 	return container.NewBorder(topBar, bottomBar, nil, nil, container.NewVScroll(container.NewPadded(controls)))
 }
 
-func (s *appState) addRipToQueue(startNow bool) error {
+func (s *appState) scanDVDStructure(path string) error {
+	vmgPath := filepath.Join(path, "VIDEO_TS.IFO")
+	f, err := os.Open(vmgPath)
+	if err != nil {
+		return fmt.Errorf("open VIDEO_TS.IFO: %w", err)
+	}
+	defer f.Close()
+
+	vmg, err := ifo.ReadVMGI(f)
+	if err != nil {
+		return fmt.Errorf("read VMGI: %w", err)
+	}
+
+	logging.Info(logging.CatDVD, "DVD Scan: Found %d titles", vmg.VMG_Attributes.Resolution) // Simplified for logging
+
+	// We'll populate a list of titles for the user to select
+	// [TODO: Update UI with title list]
+
+	return nil
+}
+
+func (s *appState) addRipToQueue(runNow bool) error {
 	if s.jobQueue == nil {
 		return fmt.Errorf("queue not initialized")
 	}
