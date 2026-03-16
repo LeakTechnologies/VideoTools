@@ -100,14 +100,15 @@ var enCA = Strings{
 	LabelFileFmt:       "File: %s",
 
 	// ── Common Status ─────────────────────────────────────────────────────
-	StatusReady:      "Ready",
-	StatusProcessing: "Processing...",
-	StatusComplete:   "Complete",
-	StatusFailed:     "Failed",
-	StatusCancelled:  "Cancelled",
-	StatusPending:    "Pending",
-	StatusRunning:    "Running...",
-	StatusUpToDate:   "Up to date",
+	StatusReady:        "Ready",
+	StatusProcessing:   "Processing...",
+	StatusComplete:     "Complete",
+	StatusFailed:       "Failed",
+	StatusCancelled:    "Cancelled",
+	StatusPending:      "Pending",
+	StatusRunning:      "Running...",
+	StatusUpToDate:     "Up to date",
+	StatusNoActiveJobs: "○ No active jobs",
 
 	// ── Settings ──────────────────────────────────────────────────────────
 	SettingsTitle:                "Settings",

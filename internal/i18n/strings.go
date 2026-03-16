@@ -106,14 +106,15 @@ type Strings struct {
 	LabelFileFmt       string // "File: %s"
 
 	// ── Common Status ─────────────────────────────────────────────────────
-	StatusReady      string
-	StatusProcessing string
-	StatusComplete   string
-	StatusFailed     string
-	StatusCancelled  string
-	StatusPending    string
-	StatusRunning    string
-	StatusUpToDate   string
+	StatusReady        string
+	StatusProcessing   string
+	StatusComplete     string
+	StatusFailed       string
+	StatusCancelled    string
+	StatusPending      string
+	StatusRunning      string
+	StatusUpToDate     string
+	StatusNoActiveJobs string // "○ No active jobs"
 
 	// ── Settings ──────────────────────────────────────────────────────────
 	SettingsTitle                string
