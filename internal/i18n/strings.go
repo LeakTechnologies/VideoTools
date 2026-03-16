@@ -116,19 +116,26 @@ type Strings struct {
 	StatusUpToDate   string
 
 	// ── Settings ──────────────────────────────────────────────────────────
-	SettingsTitle           string
-	SettingsTabGeneral      string
-	SettingsTabDependencies string
-	SettingsTabUpdates      string
-	SettingsTabAbout        string
-	SettingsTabBenchmark    string
-	SettingsTabPreferences  string
-	SettingsLanguage        string
-	SettingsLanguageScript  string // Inuktitut script sub-option label
-	SettingsScriptSyllabics string // "Traditional Syllabics"
-	SettingsScriptLatin     string // "Latin"
-	SettingsTheme           string
-	SettingsOutputFolder    string
+	SettingsTitle                string
+	SettingsTabGeneral           string
+	SettingsTabDependencies      string
+	SettingsTabUpdates           string
+	SettingsTabAbout             string
+	SettingsTabBenchmark         string
+	SettingsTabPreferences       string
+	SettingsLanguage             string
+	SettingsLanguageScript       string // Inuktitut script sub-option label
+	SettingsScriptSyllabics      string // "Traditional Syllabics"
+	SettingsScriptLatin          string // "Latin"
+	SettingsTheme                string
+	SettingsOutputFolder         string
+	SettingsMasterSettings       string // "Master Settings"
+	SettingsHardwareAccel        string // "Hardware Acceleration (Global)"
+	SettingsModuleVisibility     string // "Module Visibility"
+	SettingsModuleVisibilityHint string // "Module visibility applies on the main menu."
+	SettingsFFmpegMissing        string // "Core dependency FFmpeg is missing..."
+	SettingsUpdatesInfo          string // "Check for updates and manage app updates."
+	SettingsUpdatesAutoInfo      string // "Automatic updates info"
 
 	// ── Updates ───────────────────────────────────────────────────────────
 	UpdateCheckButton       string
