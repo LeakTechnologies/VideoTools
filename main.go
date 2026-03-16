@@ -15018,6 +15018,8 @@ type videoSource struct {
 	Subtitles []subtitleStreamInfo
 }
 
+func (v *videoSource) GetFilePath() string { return v.Path }
+
 func (v *videoSource) DurationString() string {
 	if v.Duration <= 0 {
 		return "--"
