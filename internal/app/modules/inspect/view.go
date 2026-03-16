@@ -62,6 +62,9 @@ type Options struct {
 	OnGetSampleAspect func() string
 	OnGetHasChapters  func() bool
 	OnGetHasMetadata  func() bool
+	OnGetTitle        func() string
+	OnGetPreviewFrame func() string
+	OnGetFilePath     func() string
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
@@ -218,8 +221,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 		// file size
 		fileSize := "Unknown"
-		if p, ok := any(opts.InspectFile).(interface{ GetPath() string }); ok {
-			if fi, err := os.Stat(p.GetPath()); err == nil {
+		if opts.OnGetFilePath != nil {
+			if fi, err := os.Stat(opts.OnGetFilePath()); err == nil {
 				fileSize = utils.FormatBytes(fi.Size())
 			}
 		}
@@ -252,7 +255,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		_ = fmt.Sprintf("Format: %s\nResolution: %dx%d\nDuration: %s\nFile Size: %s",
 			format, width, height, duration, fileSize)
 
-		col1 := container.NewVBox(
+		title := ""
+		if opts.OnGetTitle != nil {
+			title = opts.OnGetTitle()
+		}
+
+		col1Rows := []fyne.CanvasObject{
 			makeRow("Format",       makeValuePill(format)),
 			makeRow("Resolution",   makeValuePill(fmt.Sprintf("%dx%d", width, height))),
 			makeRow("Aspect Ratio", makeValuePill(aspectRatio)),
@@ -263,7 +271,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 			makeRow("Color Range",  makeValuePill(colorRange)),
 			makeRow("GOP Size",     makeValuePill(gopStr)),
 			makeRow("File Size",    makeValuePill(fileSize)),
-		)
+		}
+		if title != "" {
+			col1Rows = append([]fyne.CanvasObject{makeRow("Title", makeValuePill(title))}, col1Rows...)
+		}
+		col1 := container.NewVBox(col1Rows...)
 
 		col2 := container.NewVBox(
 			makeRow("Video Codec",   makeValuePillWithChip(videoCodec, ui.GetVideoCodecColor(videoCodec))),
@@ -306,8 +318,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 			return cb()
 		}
 		path := ""
-		if p, ok := any(opts.InspectFile).(interface{ GetPath() string }); ok {
-			path = p.GetPath()
+		if opts.OnGetFilePath != nil {
+			path = opts.OnGetFilePath()
 		}
 		bitrate := int64(0)
 		if opts.OnGetBitrate != nil { bitrate = opts.OnGetBitrate() }
@@ -346,28 +358,45 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	updateDisplay := func() {
 		if opts.InspectFile != nil {
-			filename := "video"
-			if p, ok := any(opts.InspectFile).(interface{ GetPath() string }); ok {
-				filename = filepath.Base(p.GetPath())
+			// Resolve filename via callback
+			filename := "Unknown"
+			if opts.OnGetFilePath != nil {
+				if p := opts.OnGetFilePath(); p != "" {
+					filename = filepath.Base(p)
+				}
 			}
 			if len(filename) > 50 {
 				ext := filepath.Ext(filename)
 				nameWithoutExt := strings.TrimSuffix(filename, ext)
-				if len(ext) > 10 {
+				availableLen := 47 - len(ext)
+				if availableLen < 1 {
 					filename = filename[:47] + "..."
 				} else {
-					availableLen := 47 - len(ext)
-					if availableLen < 1 {
-						filename = filename[:47] + "..."
-					} else {
-						filename = nameWithoutExt[:availableLen] + "..." + ext
-					}
+					filename = nameWithoutExt[:availableLen] + "..." + ext
 				}
 			}
 			fileLabel.SetText(fmt.Sprintf("File: %s", filename))
 			metadataGrid.Objects = []fyne.CanvasObject{buildMetadataGrid()}
 			metadataGrid.Refresh()
-			videoContainer = container.NewCenter(widget.NewLabel("Video preview"))
+
+			// Show first preview frame if available, otherwise a dark placeholder
+			if opts.OnGetPreviewFrame != nil {
+				if framePath := opts.OnGetPreviewFrame(); framePath != "" {
+					img := canvas.NewImageFromFile(framePath)
+					img.FillMode = canvas.ImageFillContain
+					bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
+					bg.SetMinSize(fyne.NewSize(0, 260))
+					videoContainer = container.NewMax(bg, img)
+				} else {
+					bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
+					bg.SetMinSize(fyne.NewSize(0, 260))
+					hint := widget.NewLabel("Loading preview...")
+					hint.Alignment = fyne.TextAlignCenter
+					videoContainer = container.NewMax(bg, container.NewCenter(hint))
+				}
+			} else {
+				videoContainer = container.NewCenter(widget.NewLabel("No preview available"))
+			}
 		} else {
 			fileLabel.SetText("No file loaded")
 			metadataGrid.Objects = []fyne.CanvasObject{metadataPlaceholder}
