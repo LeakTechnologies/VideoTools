@@ -1408,14 +1408,55 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 		t.UpdateBiMonthly,
 	}
 
-	// keyToLabel returns the localized label for a stored canonical key.
+	// legacyEnglishToKey migrates configs written before canonical keys were
+	// introduced; the app defaulted to English so old values are English strings.
+	legacyEnglishToKey := map[string]string{
+		"Disabled":                    "disabled",
+		"Every hour":                  "every_hour",
+		"Every 2 hours":               "every_2h",
+		"Every 3 hours":               "every_3h",
+		"Every 4 hours":               "every_4h",
+		"Every 6 hours":               "every_6h",
+		"Every 12 hours":              "every_12h",
+		"Daily":                       "daily",
+		"Semi-weekly (every 3 days)":  "semi_weekly",
+		"Weekly":                      "weekly",
+		"Bi-weekly (every 2 weeks)":   "bi_weekly",
+		"Monthly":                     "monthly",
+		"Bi-monthly (every 2 months)": "bi_monthly",
+	}
+
+	// normalizeKey converts a saved value to a canonical key, migrating legacy
+	// English strings on first encounter and persisting the canonical form.
+	normalizeKey := func(saved string) string {
+		if saved == "" {
+			return "daily"
+		}
+		// Already a canonical key?
+		for _, k := range autoCheckKeys {
+			if k == saved {
+				return saved
+			}
+		}
+		// Legacy English string → migrate.
+		if canonical, ok := legacyEnglishToKey[saved]; ok {
+			state.prefs.AutoCheckFrequency = canonical
+			if err := savePrefsConfig(state.prefs); err != nil {
+				logging.Debug(logging.CatSystem, "failed to migrate prefs: %v", err)
+			}
+			return canonical
+		}
+		return "daily"
+	}
+
+	// keyToLabel returns the localized label for a canonical key.
 	keyToLabel := func(key string) string {
 		for i, k := range autoCheckKeys {
 			if k == key && i < len(autoCheckOptions) {
 				return autoCheckOptions[i]
 			}
 		}
-		return t.UpdateDaily // default
+		return t.UpdateDaily
 	}
 
 	autoCheckSelect := widget.NewSelect(autoCheckOptions, func(selected string) {
@@ -1431,12 +1472,8 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 		}
 	})
 
-	// Restore persisted value. Stored as canonical key, fall back to "daily".
-	savedKey := state.prefs.AutoCheckFrequency
-	if savedKey == "" {
-		savedKey = "daily"
-	}
-	autoCheckSelect.SetSelected(keyToLabel(savedKey))
+	// Restore persisted value — normalize handles canonical keys and legacy strings.
+	autoCheckSelect.SetSelected(keyToLabel(normalizeKey(state.prefs.AutoCheckFrequency)))
 
 	autoCheckRow := container.NewHBox(autoCheckLabel, autoCheckSelect)
 	content.Add(autoCheckRow)
@@ -1468,34 +1505,30 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	scriptSelect := widget.NewSelect([]string{}, func(selected string) {})
 	scriptSelect.Hide()
 
-	var updateScriptSelect func()
-	updateScriptSelect = func() {
-		currentLang := i18n.CurrentCode()
-		if currentLang == "iu" {
-			scriptLabel.Show()
-			scriptSelect.Show()
-			s := i18n.T()
-			options := []string{s.SettingsScriptLatin, s.SettingsScriptSyllabics}
-			currentScript := i18n.CurrentScript()
-			scriptSelect.Options = options
-			if currentScript == i18n.ScriptSyllabics {
-				scriptSelect.SetSelected(s.SettingsScriptSyllabics)
-			} else {
-				scriptSelect.SetSelected(s.SettingsScriptLatin)
-			}
-			scriptSelect.OnChanged = func(selected string) {
-				var script i18n.ScriptVariant
-				if selected == s.SettingsScriptSyllabics {
-					script = i18n.ScriptSyllabics
-				} else {
-					script = i18n.ScriptLatin
-				}
-				i18n.SetLanguageWithScript("iu", script)
-				persistLocale("iu", script)
-			}
+	// Inuktitut script select — shown immediately when iu is active at build time.
+	// Language changes trigger showSettingsView() which rebuilds this whole block.
+	if i18n.CurrentCode() == "iu" {
+		scriptLabel.Show()
+		scriptSelect.Show()
+		s := i18n.T()
+		options := []string{s.SettingsScriptLatin, s.SettingsScriptSyllabics}
+		currentScript := i18n.CurrentScript()
+		scriptSelect.Options = options
+		if currentScript == i18n.ScriptSyllabics {
+			scriptSelect.SetSelected(s.SettingsScriptSyllabics)
 		} else {
-			scriptLabel.Hide()
-			scriptSelect.Hide()
+			scriptSelect.SetSelected(s.SettingsScriptLatin)
+		}
+		scriptSelect.OnChanged = func(selected string) {
+			var script i18n.ScriptVariant
+			if selected == s.SettingsScriptSyllabics {
+				script = i18n.ScriptSyllabics
+			} else {
+				script = i18n.ScriptLatin
+			}
+			i18n.SetLanguageWithScript("iu", script)
+			persistLocale("iu", script)
+			state.showSettingsView()
 		}
 	}
 
@@ -1507,7 +1540,9 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 				}
 				i18n.SetLanguage(langCodes[i])
 				persistLocale(langCodes[i], i18n.CurrentScript())
-				updateScriptSelect()
+				// Rebuild the whole settings view so every dropdown, label,
+				// and select reflects the new locale immediately.
+				state.showSettingsView()
 				break
 			}
 		}
