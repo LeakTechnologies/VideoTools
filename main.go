@@ -155,6 +155,16 @@ func openURL(url string) error {
 }
 
 // statusStrip renders a consistent dark status area with the shared stats bar.
+// vtGreenResource wraps an SVG icon resource and recolours its fill to VT green.
+type vtGreenResource struct{ fyne.Resource }
+
+func (r vtGreenResource) Content() []byte {
+	s := string(r.Resource.Content())
+	s = strings.ReplaceAll(s, "#e3e3e3", "#4ce870")
+	s = strings.ReplaceAll(s, "#E3E3E3", "#4CE870")
+	return []byte(s)
+}
+
 func statusStrip(bar *ui.ConversionStatsBar) fyne.CanvasObject {
 	bg := canvas.NewRectangle(color.NRGBA{R: 34, G: 34, B: 34, A: 255})
 	bg.SetMinSize(fyne.NewSize(0, 32))
@@ -11220,7 +11230,8 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		stage.CornerRadius = 6
 		stage.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
 
-		silhouetteIcon := container.NewCenter(container.New(layout.NewGridWrapLayout(fyne.NewSize(64, 64)), widget.NewIcon(ui.GetIcon("slow_motion_video"))))
+		silhouetteIcon := container.New(layout.NewGridWrapLayout(fyne.NewSize(64, 64)),
+			widget.NewIcon(vtGreenResource{ui.GetIcon("slow_motion_video")}))
 
 		hintMain := widget.NewLabelWithStyle("Drop a video or open one to start playback", fyne.TextAlignCenter, fyne.TextStyle{Monospace: true, Bold: true})
 		hintSub := widget.NewLabel("MP4, MOV, MKV and more")
@@ -11270,7 +11281,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			container.NewCenter(hintSub),
 			container.NewCenter(container.NewHBox(open, addMultiple)),
 		)
-		stageBox := container.NewMax(stage, container.NewPadded(placeholder))
+		stageBox := container.NewMax(stage, container.NewCenter(placeholder))
 		// Add drop indicator border to placeholder too
 		placeholderDropIndicator := canvas.NewRectangle(color.NRGBA{R: 76, G: 175, B: 80, A: 0})
 		placeholderDropIndicator.CornerRadius = 8
