@@ -39,6 +39,11 @@ var iu = Strings{
 	StatusFailed:   "ᐊᔪᕈᓐᓃᖅᑐᖅ",  // Failed
 	StatusPending:  "ᐊᑦᑐᓂᖅ",      // Pending
 
+	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
+	ThumbnailLoadVideo:   "ᐊᒐᒃᓯᓗᒍ ᑕᕐᕆᔭᒐᒃᓴᖅ", // Load Video
+	ThumbnailNoFile:      "ᐃᓚᖏᓐᓂᒃ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ", // No file loaded
+	ThumbnailGenerateNow: "ᐱᒋᐊᕈᑎᒋᓗᒍ",          // Generate Now
+
 	// ── About ─────────────────────────────────────────────────────────────
 	AboutLogsFolder: "ᑎᑎᕋᖅᑕᐅᓯᒪᔪᑦ ᓄᓇᓕᖕᓂ", // Logs Folder
 	AboutClose:      "ᒪᑕᐃᓗᒍ",               // Close
