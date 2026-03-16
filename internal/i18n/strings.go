@@ -105,6 +105,11 @@ type Strings struct {
 	LabelNoVideoLoaded string // "No video loaded"
 	LabelFileFmt       string // "File: %s"
 
+	// ── Inspect Module ────────────────────────────────────────────────────────
+	InspectInstructions       string // "Load a video to inspect..."
+	InspectLoadingPreview     string // "Loading preview..."
+	InspectNoPreviewAvailable string // "No preview available"
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady        string
 	StatusProcessing   string

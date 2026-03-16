@@ -99,6 +99,11 @@ var enCA = Strings{
 	LabelNoVideoLoaded: "No video loaded",
 	LabelFileFmt:       "File: %s",
 
+	// ── Inspect Module ────────────────────────────────────────────────────────
+	InspectInstructions:       "Load a video to inspect its properties and preview playback. Drag a video here or use the button below.",
+	InspectLoadingPreview:     "Loading preview...",
+	InspectNoPreviewAvailable: "No preview available",
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:        "Ready",
 	StatusProcessing:   "Processing...",

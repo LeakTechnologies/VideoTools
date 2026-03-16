@@ -12,13 +12,13 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"image/color"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"image/color"
 )
 
-var valueBg     = utils.MustHex("#2B334A")
+var valueBg = utils.MustHex("#2B334A")
 var valueBorder = utils.MustHex("#3A4360")
 
 var gridColor = utils.MustHex("#2A3A52")
@@ -99,7 +99,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	statsBar := opts.OnGetStatsBar()
 	bottomBar := container.NewVBox(layout.NewSpacer(), statsBar)
 
-	instructions := widget.NewLabel("Load a video to inspect its properties and preview playback. Drag a video here or use the button below.")
+	instructions := widget.NewLabel(t.InspectInstructions)
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
@@ -115,7 +115,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	instructionsRow := container.NewBorder(nil, nil, nil, nil, instructions)
 
-	fileLabel := widget.NewLabel("No file loaded")
+	fileLabel := widget.NewLabel(t.LabelNoFile)
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	buildInspectBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
@@ -165,7 +165,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 
 	// placeholder shown when no file is loaded
-	metadataPlaceholder := container.NewCenter(widget.NewLabel("No file loaded"))
+	metadataPlaceholder := container.NewCenter(widget.NewLabel(t.LabelNoFile))
 
 	// metadataGrid holds the live pill grid; swapped in updateDisplay
 	metadataGrid := container.NewMax(metadataPlaceholder)
@@ -177,45 +177,57 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 		// --- collect values via callbacks ---
 		get := func(cb func() string) string {
-			if cb == nil { return "Unknown" }
-			if v := cb(); v != "" { return v }
+			if cb == nil {
+				return "Unknown"
+			}
+			if v := cb(); v != "" {
+				return v
+			}
 			return "Unknown"
 		}
 		getInt := func(cb func() int) int {
-			if cb == nil { return 0 }
+			if cb == nil {
+				return 0
+			}
 			return cb()
 		}
 		getI64 := func(cb func() int64) int64 {
-			if cb == nil { return 0 }
+			if cb == nil {
+				return 0
+			}
 			return cb()
 		}
 		getF := func(cb func() float64) float64 {
-			if cb == nil { return 0 }
+			if cb == nil {
+				return 0
+			}
 			return cb()
 		}
 		getBool := func(cb func() bool) bool {
-			if cb == nil { return false }
+			if cb == nil {
+				return false
+			}
 			return cb()
 		}
 
-		format     := get(opts.OnGetFormat)
+		format := get(opts.OnGetFormat)
 		videoCodec := get(opts.OnGetVideoCodec)
-		width      := getInt(opts.OnGetWidth)
-		height     := getInt(opts.OnGetHeight)
+		width := getInt(opts.OnGetWidth)
+		height := getInt(opts.OnGetHeight)
 		aspectRatio := get(opts.OnGetAspectRatio)
-		frameRate  := getF(opts.OnGetFrameRate)
-		bitrate    := getI64(opts.OnGetBitrate)
-		pixelFmt   := get(opts.OnGetPixelFormat)
+		frameRate := getF(opts.OnGetFrameRate)
+		bitrate := getI64(opts.OnGetBitrate)
+		pixelFmt := get(opts.OnGetPixelFormat)
 		colorSpace := get(opts.OnGetColorSpace)
 		colorRange := get(opts.OnGetColorRange)
 		fieldOrder := get(opts.OnGetFieldOrder)
-		gopSize    := getInt(opts.OnGetGOPSize)
+		gopSize := getInt(opts.OnGetGOPSize)
 		audioCodec := get(opts.OnGetAudioCodec)
 		audioBitrate := getI64(opts.OnGetAudioBitrate)
-		audioRate  := getInt(opts.OnGetAudioRate)
-		channels   := getInt(opts.OnGetChannels)
-		duration   := get(opts.OnGetDuration)
-		sar        := get(opts.OnGetSampleAspect)
+		audioRate := getInt(opts.OnGetAudioRate)
+		channels := getInt(opts.OnGetChannels)
+		duration := get(opts.OnGetDuration)
+		sar := get(opts.OnGetSampleAspect)
 		hasChapters := getBool(opts.OnGetHasChapters)
 		hasMetadata := getBool(opts.OnGetHasMetadata)
 
@@ -229,14 +241,26 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 		// format values
 		bitrateStr := "--"
-		if bitrate > 0 { bitrateStr = fmt.Sprintf("%d kbps", bitrate/1000) }
+		if bitrate > 0 {
+			bitrateStr = fmt.Sprintf("%d kbps", bitrate/1000)
+		}
 		audioBitrateStr := "--"
-		if audioBitrate > 0 { audioBitrateStr = fmt.Sprintf("%d kbps", audioBitrate/1000) }
+		if audioBitrate > 0 {
+			audioBitrateStr = fmt.Sprintf("%d kbps", audioBitrate/1000)
+		}
 
 		parStr := sar
-		if parStr == "1:1" || parStr == "" { parStr = "1:1 (Square)" } else { parStr += " (Non-square)" }
+		if parStr == "1:1" || parStr == "" {
+			parStr = "1:1 (Square)"
+		} else {
+			parStr += " (Non-square)"
+		}
 
-		if colorRange == "tv" { colorRange = "Limited (TV)" } else if colorRange == "pc" || colorRange == "jpeg" { colorRange = "Full (PC)" }
+		if colorRange == "tv" {
+			colorRange = "Limited (TV)"
+		} else if colorRange == "pc" || colorRange == "jpeg" {
+			colorRange = "Full (PC)"
+		}
 
 		interlacing := "Progressive"
 		if fieldOrder != "" && fieldOrder != "progressive" && fieldOrder != "unknown" && fieldOrder != "Unknown" {
@@ -244,12 +268,18 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 
 		gopStr := "--"
-		if gopSize > 0 { gopStr = fmt.Sprintf("%d frames", gopSize) }
+		if gopSize > 0 {
+			gopStr = fmt.Sprintf("%d frames", gopSize)
+		}
 
 		chaptersStr := "No"
-		if hasChapters { chaptersStr = "Yes" }
+		if hasChapters {
+			chaptersStr = "Yes"
+		}
 		metadataStr := "No"
-		if hasMetadata { metadataStr = "Yes" }
+		if hasMetadata {
+			metadataStr = "Yes"
+		}
 
 		// --- plain-text copy string (unchanged from before) ---
 		_ = fmt.Sprintf("Format: %s\nResolution: %dx%d\nDuration: %s\nFile Size: %s",
@@ -261,16 +291,16 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 
 		col1Rows := []fyne.CanvasObject{
-			makeRow("Format",       makeValuePill(format)),
-			makeRow("Resolution",   makeValuePill(fmt.Sprintf("%dx%d", width, height))),
+			makeRow("Format", makeValuePill(format)),
+			makeRow("Resolution", makeValuePill(fmt.Sprintf("%dx%d", width, height))),
 			makeRow("Aspect Ratio", makeValuePill(aspectRatio)),
-			makeRow("Duration",     makeValuePill(duration)),
-			makeRow("Frame Rate",   makeValuePill(fmt.Sprintf("%.2f fps", frameRate))),
-			makeRow("Interlacing",  makeValuePill(interlacing)),
-			makeRow("Color Space",  makeValuePill(colorSpace)),
-			makeRow("Color Range",  makeValuePill(colorRange)),
-			makeRow("GOP Size",     makeValuePill(gopStr)),
-			makeRow("File Size",    makeValuePill(fileSize)),
+			makeRow("Duration", makeValuePill(duration)),
+			makeRow("Frame Rate", makeValuePill(fmt.Sprintf("%.2f fps", frameRate))),
+			makeRow("Interlacing", makeValuePill(interlacing)),
+			makeRow("Color Space", makeValuePill(colorSpace)),
+			makeRow("Color Range", makeValuePill(colorRange)),
+			makeRow("GOP Size", makeValuePill(gopStr)),
+			makeRow("File Size", makeValuePill(fileSize)),
 		}
 		if title != "" {
 			col1Rows = append([]fyne.CanvasObject{makeRow("Title", makeValuePill(title))}, col1Rows...)
@@ -278,16 +308,16 @@ func BuildView(opts Options) fyne.CanvasObject {
 		col1 := container.NewVBox(col1Rows...)
 
 		col2 := container.NewVBox(
-			makeRow("Video Codec",   makeValuePillWithChip(videoCodec, ui.GetVideoCodecColor(videoCodec))),
+			makeRow("Video Codec", makeValuePillWithChip(videoCodec, ui.GetVideoCodecColor(videoCodec))),
 			makeRow("Video Bitrate", makeValuePill(bitrateStr)),
-			makeRow("Pixel Format",  makeValuePill(pixelFmt)),
-			makeRow("Pixel AR",      makeValuePill(parStr)),
-			makeRow("Audio Codec",   makeValuePillWithChip(audioCodec, ui.GetAudioCodecColor(audioCodec))),
+			makeRow("Pixel Format", makeValuePill(pixelFmt)),
+			makeRow("Pixel AR", makeValuePill(parStr)),
+			makeRow("Audio Codec", makeValuePillWithChip(audioCodec, ui.GetAudioCodecColor(audioCodec))),
 			makeRow("Audio Bitrate", makeValuePill(audioBitrateStr)),
-			makeRow("Audio Rate",    makeValuePill(fmt.Sprintf("%d Hz", audioRate))),
-			makeRow("Channels",      makeValuePill(utils.ChannelLabel(channels))),
-			makeRow("Chapters",      makeValuePill(chaptersStr)),
-			makeRow("Metadata",      makeValuePill(metadataStr)),
+			makeRow("Audio Rate", makeValuePill(fmt.Sprintf("%d Hz", audioRate))),
+			makeRow("Channels", makeValuePill(utils.ChannelLabel(channels))),
+			makeRow("Chapters", makeValuePill(chaptersStr)),
+			makeRow("Metadata", makeValuePill(metadataStr)),
 		)
 
 		interlaceNote := ""
@@ -311,10 +341,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// formatMetadata returns plain text for clipboard copy
 	formatMetadata := func() string {
 		if opts.InspectFile == nil {
-			return "No file loaded"
+			return t.LabelNoFile
 		}
 		get := func(cb func() string) string {
-			if cb == nil { return "" }
+			if cb == nil {
+				return ""
+			}
 			return cb()
 		}
 		path := ""
@@ -322,22 +354,41 @@ func BuildView(opts Options) fyne.CanvasObject {
 			path = opts.OnGetFilePath()
 		}
 		bitrate := int64(0)
-		if opts.OnGetBitrate != nil { bitrate = opts.OnGetBitrate() }
+		if opts.OnGetBitrate != nil {
+			bitrate = opts.OnGetBitrate()
+		}
 		audioBitrate := int64(0)
-		if opts.OnGetAudioBitrate != nil { audioBitrate = opts.OnGetAudioBitrate() }
+		if opts.OnGetAudioBitrate != nil {
+			audioBitrate = opts.OnGetAudioBitrate()
+		}
 		bitrateStr := "--"
-		if bitrate > 0 { bitrateStr = fmt.Sprintf("%d kbps", bitrate/1000) }
+		if bitrate > 0 {
+			bitrateStr = fmt.Sprintf("%d kbps", bitrate/1000)
+		}
 		audioBitrateStr := "--"
-		if audioBitrate > 0 { audioBitrateStr = fmt.Sprintf("%d kbps", audioBitrate/1000) }
-		width := 0; height := 0
-		if opts.OnGetWidth != nil { width = opts.OnGetWidth() }
-		if opts.OnGetHeight != nil { height = opts.OnGetHeight() }
+		if audioBitrate > 0 {
+			audioBitrateStr = fmt.Sprintf("%d kbps", audioBitrate/1000)
+		}
+		width := 0
+		height := 0
+		if opts.OnGetWidth != nil {
+			width = opts.OnGetWidth()
+		}
+		if opts.OnGetHeight != nil {
+			height = opts.OnGetHeight()
+		}
 		fr := 0.0
-		if opts.OnGetFrameRate != nil { fr = opts.OnGetFrameRate() }
+		if opts.OnGetFrameRate != nil {
+			fr = opts.OnGetFrameRate()
+		}
 		ar := 0
-		if opts.OnGetAudioRate != nil { ar = opts.OnGetAudioRate() }
+		if opts.OnGetAudioRate != nil {
+			ar = opts.OnGetAudioRate()
+		}
 		ch := 0
-		if opts.OnGetChannels != nil { ch = opts.OnGetChannels() }
+		if opts.OnGetChannels != nil {
+			ch = opts.OnGetChannels()
+		}
 		return fmt.Sprintf(
 			"File: %s\nFormat: %s\nResolution: %dx%d\nAspect Ratio: %s\nDuration: %s\n"+
 				"Video Codec: %s\nVideo Bitrate: %s\nFrame Rate: %.2f fps\n"+
@@ -354,7 +405,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		)
 	}
 
-	var videoContainer fyne.CanvasObject = container.NewCenter(widget.NewLabel("No video loaded"))
+	var videoContainer fyne.CanvasObject = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
 
 	updateDisplay := func() {
 		if opts.InspectFile != nil {
@@ -390,24 +441,24 @@ func BuildView(opts Options) fyne.CanvasObject {
 				} else {
 					bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
 					bg.SetMinSize(fyne.NewSize(0, 260))
-					hint := widget.NewLabel("Loading preview...")
+					hint := widget.NewLabel(t.InspectLoadingPreview)
 					hint.Alignment = fyne.TextAlignCenter
 					videoContainer = container.NewMax(bg, container.NewCenter(hint))
 				}
 			} else {
-				videoContainer = container.NewCenter(widget.NewLabel("No preview available"))
+				videoContainer = container.NewCenter(widget.NewLabel(t.InspectNoPreviewAvailable))
 			}
 		} else {
-			fileLabel.SetText("No file loaded")
+			fileLabel.SetText(t.LabelNoFile)
 			metadataGrid.Objects = []fyne.CanvasObject{metadataPlaceholder}
 			metadataGrid.Refresh()
-			videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
+			videoContainer = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
 		}
 	}
 
 	updateDisplay()
 
-	loadBtn := widget.NewButton("Load Video", func() {
+	loadBtn := widget.NewButton(t.ActionLoadVideo, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
