@@ -1401,6 +1401,18 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	savedFreq := state.prefs.AutoCheckFrequency
 	if savedFreq == "" {
 		savedFreq = t.UpdateDaily
+	} else {
+		// Check if saved frequency exists in current language options
+		found := false
+		for _, opt := range autoCheckOptions {
+			if opt == savedFreq {
+				found = true
+				break
+			}
+		}
+		if !found {
+			savedFreq = t.UpdateDaily
+		}
 	}
 	autoCheckSelect.SetSelected(savedFreq)
 
