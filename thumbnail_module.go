@@ -126,11 +126,32 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 	}
 
 	t := i18n.T()
+
+	var thumbFileName string
+	var thumbFileNames []string
+	var thumbPreviewFrame string
+	if state.thumbnailFile != nil {
+		thumbFileName = filepath.Base(state.thumbnailFile.Path)
+		if len(state.thumbnailFile.PreviewFrames) > 0 {
+			thumbPreviewFrame = state.thumbnailFile.PreviewFrames[0]
+		}
+	}
+	for _, f := range state.thumbnailFiles {
+		if f != nil {
+			thumbFileNames = append(thumbFileNames, filepath.Base(f.Path))
+		} else {
+			thumbFileNames = append(thumbFileNames, "")
+		}
+	}
+
 	opts := thumbpkg.Options{
 		Window:                  state.window,
 		ModuleColor:             moduleColor("thumbnail"),
 		ThumbnailFile:           state.thumbnailFile,
 		ThumbnailFiles:          thumbFiles,
+		ThumbnailFileName:       thumbFileName,
+		ThumbnailFileNames:      thumbFileNames,
+		ThumbnailPreviewFrame:   thumbPreviewFrame,
 		ThumbnailCount:          state.thumbnailCount,
 		ThumbnailWidth:          state.thumbnailWidth,
 		ThumbnailSheetWidth:     state.thumbnailSheetWidth,
@@ -153,6 +174,16 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 			state.addThumbnailSource(src)
 			state.showThumbnailView()
 			logging.Debug(logging.CatModule, "loaded thumbnail file: %s", path)
+			go func() {
+				if len(src.PreviewFrames) == 0 {
+					if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
+						src.PreviewFrames = frames
+						fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+							state.showThumbnailView()
+						}, false)
+					}
+				}
+			}()
 		},
 		OnClearFiles: func() {
 			state.thumbnailFile = nil
@@ -168,8 +199,15 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		OnSetThumbnailRows:           func(i int) { state.thumbnailRows = i },
 		OnSetThumbnailContactSheet:   func(b bool) { state.thumbnailContactSheet = b },
 		OnSetThumbnailShowTimestamps: func(b bool) { state.thumbnailShowTimestamps = b },
-		OnCreateThumbJob: func() any {
-			return state.createThumbnailJobForPath(state.thumbnailFile.Path)
+		OnCreateThumbJob: func() {
+			if state.thumbnailFile == nil {
+				return
+			}
+			job := state.createThumbnailJobForPath(state.thumbnailFile.Path)
+			state.jobQueue.Add(job)
+			if !state.jobQueue.IsRunning() {
+				state.jobQueue.Start()
+			}
 		},
 		OnPersistConfig: func() { state.persistThumbnailConfig() },
 
