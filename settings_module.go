@@ -741,11 +741,13 @@ func checkForUpdates(state *appState) {
 	}()
 }
 
-// checkForUpdatesWithStatus checks for updates and updates the status label.
+// checkForUpdatesWithStatus checks for updates and drives the icon+label status row.
 // onAvailable is called with the installable tag when an update/patch is found,
 // or with "" when the build is already up to date or on error.
-func checkForUpdatesWithStatus(state *appState, statusLabel *widget.Label, onAvailable func(tag string)) {
+func checkForUpdatesWithStatus(state *appState, statusIcon *widget.Icon, statusLabel *widget.Label, onAvailable func(tag string)) {
+	statusIcon.Hide()
 	statusLabel.SetText("Checking for updates...")
+	statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 
 	go func() {
 		info, err := fetchUpdateInfo()
@@ -769,8 +771,10 @@ func checkForUpdatesWithStatus(state *appState, statusLabel *widget.Label, onAva
 			// Different version tag — full update available
 			if info.latestTag != appVersion {
 				age := formatRelativeTime(info.releaseDate)
-				statusLabel.SetText(fmt.Sprintf("⬤ Update available: %s (%s)", info.latestTag, age))
-				statusLabel.TextStyle = fyne.TextStyle{Bold: true, Italic: true}
+				statusIcon.SetResource(recoloredSVG{ui.GetIcon("change_circle"), "#FFAB40"})
+				statusIcon.Show()
+				statusLabel.SetText(fmt.Sprintf("Update available: %s (%s)", info.latestTag, age))
+				statusLabel.TextStyle = fyne.TextStyle{Bold: true}
 				onAvailable(info.latestTag)
 				return
 			}
@@ -781,14 +785,18 @@ func checkForUpdatesWithStatus(state *appState, statusLabel *widget.Label, onAva
 
 			if patchesAvailable {
 				age := formatRelativeTime(info.releaseDate)
-				statusLabel.SetText(fmt.Sprintf("⬤ New build available: %s (%s)", tagShort, age))
-				statusLabel.TextStyle = fyne.TextStyle{Bold: true, Italic: true}
+				statusIcon.SetResource(recoloredSVG{ui.GetIcon("build_circle"), "#FFAB40"})
+				statusIcon.Show()
+				statusLabel.SetText(fmt.Sprintf("New build available: %s (%s)", tagShort, age))
+				statusLabel.TextStyle = fyne.TextStyle{Bold: true}
 				onAvailable(appVersion) // same tag, re-download latest build
 				return
 			}
 
 			age := formatRelativeTime(info.releaseDate)
-			statusLabel.SetText(fmt.Sprintf("✓ Up to date (latest: %s, %s)", info.latestTag, age))
+			statusIcon.SetResource(recoloredSVG{ui.GetIcon("check_circle"), "#4CE870"})
+			statusIcon.Show()
+			statusLabel.SetText(fmt.Sprintf("Up to date (latest: %s, %s)", info.latestTag, age))
 			statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 			onAvailable("")
 		}, false)
@@ -1345,10 +1353,12 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	hashLabel.TextStyle = fyne.TextStyle{Monospace: true}
 	content.Add(hashLabel)
 
-	// Update status indicator
+	// Update status indicator — icon + label side by side
+	updateStatusIcon := widget.NewIcon(nil)
+	updateStatusIcon.Hide()
 	updateStatusLabel := widget.NewLabel("")
 	updateStatusLabel.TextStyle = fyne.TextStyle{Italic: true}
-	content.Add(updateStatusLabel)
+	content.Add(container.NewHBox(updateStatusIcon, updateStatusLabel))
 
 	// Install button — hidden until an update is detected
 	installBtn := widget.NewButton("Install Update", nil)
@@ -1358,7 +1368,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	var checkBtn *widget.Button
 	checkBtn = widget.NewButton(t.UpdateCheckButton, func() {
 		installBtn.Hide()
-		checkForUpdatesWithStatus(state, updateStatusLabel, func(tag string) {
+		checkForUpdatesWithStatus(state, updateStatusIcon, updateStatusLabel, func(tag string) {
 			if tag == "" {
 				installBtn.Hide()
 				return
