@@ -23,6 +23,9 @@ type Options struct {
 
 	ThumbnailFile           any
 	ThumbnailFiles          []any
+	ThumbnailFileName       string   // base filename of the active file
+	ThumbnailFileNames      []string // base filenames for all loaded files
+	ThumbnailPreviewFrame   string   // path to first preview frame image
 	ThumbnailCount          int
 	ThumbnailWidth          int
 	ThumbnailSheetWidth     int
@@ -49,7 +52,7 @@ type Options struct {
 	OnSetThumbnailContactSheet   func(b bool)
 	OnSetThumbnailShowTimestamps func(b bool)
 
-	OnCreateThumbJob func() any
+	OnCreateThumbJob func()
 
 	OnPersistConfig func()
 
@@ -147,7 +150,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	if opts.ThumbnailFile != nil {
-		fileLabel.SetText(or(opts.FileLoadedLabel, "File: video loaded"))
+		name := opts.ThumbnailFileName
+		if name == "" {
+			name = or(opts.FileLoadedLabel, "File: video loaded")
+		}
+		fileLabel.SetText(name)
 	}
 
 	loadBtn := widget.NewButton(or(opts.LoadVideoLabel, "Load Video"), func() {
@@ -364,7 +371,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			return
 		}
 		if opts.OnCreateThumbJob != nil {
-			_ = opts.OnCreateThumbJob()
+			opts.OnCreateThumbJob()
 		}
 		dialog.ShowInformation(startedTitle, startedMsg, opts.Window)
 	})
@@ -380,7 +387,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			return
 		}
 		if opts.OnCreateThumbJob != nil {
-			_ = opts.OnCreateThumbJob()
+			opts.OnCreateThumbJob()
 		}
 		dialog.ShowInformation(jobQueuedTitle, jobQueuedMsg, opts.Window)
 	})
@@ -397,7 +404,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		if opts.OnCreateThumbJob != nil {
 			for range opts.ThumbnailFiles {
-				_ = opts.OnCreateThumbJob()
+				opts.OnCreateThumbJob()
 			}
 		}
 		dialog.ShowInformation(jobQueuedTitle, fmt.Sprintf(jobsQueuedFmt, len(opts.ThumbnailFiles)), opts.Window)
@@ -411,11 +418,21 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	viewQueueBtn.Importance = widget.MediumImportance
 
-	leftColumn := container.NewVBox(
-		contactSheetRow,
-		timestampRow,
-		widget.NewSeparator(),
-	)
+	var previewWidget fyne.CanvasObject
+	if opts.ThumbnailPreviewFrame != "" {
+		img := canvas.NewImageFromFile(opts.ThumbnailPreviewFrame)
+		img.FillMode = canvas.ImageFillContain
+		img.SetMinSize(fyne.NewSize(0, 160))
+		bg := canvas.NewRectangle(navyBlue)
+		previewWidget = container.NewMax(bg, img)
+	}
+
+	leftColumnItems := []fyne.CanvasObject{}
+	if previewWidget != nil {
+		leftColumnItems = append(leftColumnItems, previewWidget)
+	}
+	leftColumnItems = append(leftColumnItems, contactSheetRow, timestampRow, widget.NewSeparator())
+	leftColumn := container.NewVBox(leftColumnItems...)
 
 	if len(opts.ThumbnailFiles) > 0 {
 		videoFmt := or(opts.VideoFmt, "Video %d")
@@ -424,7 +441,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 			func() fyne.CanvasObject { return widget.NewLabel("template") },
 			func(id widget.ListItemID, obj fyne.CanvasObject) {
 				if label, ok := obj.(*widget.Label); ok {
-					label.SetText(fmt.Sprintf(videoFmt, id+1))
+					name := ""
+					if id < len(opts.ThumbnailFileNames) {
+						name = opts.ThumbnailFileNames[id]
+					}
+					if name == "" {
+						name = fmt.Sprintf(videoFmt, id+1)
+					}
+					label.SetText(name)
 				}
 			},
 		)
