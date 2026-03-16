@@ -2,11 +2,9 @@ package compare
 
 import (
 	"fmt"
-	"image"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -633,62 +631,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
 
-func BuildFullscreenView(opts Options) fyne.CanvasObject {
-	compareColor := utils.MustHex("#9C27B0")
-	t := i18n.T()
-
-	file1 := toVideoSource(opts.CompareFile1)
-	file2 := toVideoSource(opts.CompareFile2)
-
-	backBtn := widget.NewButton(t.CompareBackToView, func() {
-		if opts.OnShowCompareFullscreen != nil {
-			opts.OnShowCompareFullscreen()
-		}
-	})
-	backBtn.Importance = widget.LowImportance
-
-	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer()))
-
-	splitView := media.NewSplitView()
-
-	// Initialize engines and start playback loops
-	var engine1, engine2 *media.Engine
-	if file1 != nil {
-		engine1 = media.NewEngine()
-		engine1.Open(file1.Path)
-		engine1.Start()
-	}
-	if file2 != nil {
-		engine2 = media.NewEngine()
-		engine2.Open(file2.Path)
-		engine2.Start()
-	}
-	
-	go func() {
-		// Rendering loop
-		for {
-			var frame1, frame2 *image.RGBA
-			if engine1 != nil {
-				frame1, _ = engine1.NextFrame()
-			}
-			if engine2 != nil {
-				frame2, _ = engine2.NextFrame()
-			}
-			splitView.SetFrames(frame1, frame2)
-			
-			//粗糙的60fps
-			time.Sleep(16 * time.Millisecond)
-		}
-	}()
-
-	content := container.NewBorder(
-		container.NewVBox(infoLabel, syncControls, widget.NewSeparator()),
-		nil, nil, nil,
-		splitView,
-	)
-
-	return container.NewBorder(topBar, bottomBar, nil, nil, content)
-}
 
 func formatBitrate(bps int) string {
 	if bps == 0 {
