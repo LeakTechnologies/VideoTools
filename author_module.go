@@ -318,11 +318,16 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			})
 			removeBtn.Importance = widget.MediumImportance
 
+			tracksBtn := widget.NewButton("Tracks", func() {
+				state.showTrackSelectionDialog(idx, rebuildList)
+			})
+			tracksBtn.Importance = widget.LowImportance
+
 			row := container.NewBorder(
 				nil,
 				nil,
 				nil,
-				container.NewVBox(durationLabel, removeBtn),
+				container.NewVBox(durationLabel, tracksBtn, removeBtn),
 				container.NewVBox(nameLabel, titleEntry, extraCheck),
 			)
 			cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
@@ -1646,6 +1651,94 @@ func authorSummary(state *appState) string {
 	return summary
 }
 
+func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
+	if idx < 0 || idx >= len(s.authorClips) {
+		return
+	}
+	clip := &s.authorClips[idx]
+	
+	src, err := probeVideo(clip.Path)
+	if err != nil {
+		dialog.ShowError(err, s.window)
+		return
+	}
+
+	content := container.NewVBox()
+	
+	// Audio Tracks
+	content.Add(widget.NewLabelWithStyle("Audio Tracks:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
+	for _, track := range src.Audio {
+		trackIdx := track.Index
+		stream := track // capture
+		check := widget.NewCheck(fmt.Sprintf("Stream #%d: %s (%s, %dch)", stream.Index, stream.Codec, stream.Language, stream.Channels), nil)
+		
+		// Initial state
+		isSelected := false
+		for _, at := range clip.AudioTracks {
+			if at.Index == trackIdx {
+				isSelected = true
+				break
+			}
+		}
+		check.SetChecked(isSelected)
+		
+		check.OnChanged = func(checked bool) {
+			if checked {
+				clip.AudioTracks = append(clip.AudioTracks, authorAudioTrack{
+					Index: trackIdx, Language: stream.Language, Codec: stream.Codec, Channels: stream.Channels,
+				})
+			} else {
+				for i, at := range clip.AudioTracks {
+					if at.Index == trackIdx {
+						clip.AudioTracks = append(clip.AudioTracks[:i], clip.AudioTracks[i+1:]...)
+						break
+					}
+				}
+			}
+		}
+		content.Add(check)
+	}
+
+	content.Add(widget.NewSeparator())
+
+	// Subtitle Tracks
+	content.Add(widget.NewLabelWithStyle("Subtitle Tracks:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
+	for _, track := range src.Subtitles {
+		trackIdx := track.Index
+		stream := track
+		check := widget.NewCheck(fmt.Sprintf("Stream #%d: %s (%s)", stream.Index, stream.Codec, stream.Language), nil)
+		
+		isSelected := false
+		for _, st := range clip.SubtitleTracks {
+			if st.Index == trackIdx {
+				isSelected = true
+				break
+			}
+		}
+		check.SetChecked(isSelected)
+		
+		check.OnChanged = func(checked bool) {
+			if checked {
+				clip.SubtitleTracks = append(clip.SubtitleTracks, authorSubtitleTrack{
+					Index: trackIdx, Language: stream.Language,
+				})
+			} else {
+				for i, st := range clip.SubtitleTracks {
+					if st.Index == trackIdx {
+						clip.SubtitleTracks = append(clip.SubtitleTracks[:i], clip.SubtitleTracks[i+1:]...)
+						break
+					}
+				}
+			}
+		}
+		content.Add(check)
+	}
+
+	d := dialog.NewCustom("Track Selection: "+clip.DisplayName, "Done", container.NewVScroll(content), s.window)
+	d.Resize(fyne.NewSize(500, 400))
+	d.Show()
+}
+
 func (s *appState) addAuthorFiles(paths []string) {
 	wasEmpty := len(s.authorClips) == 0
 	for _, path := range paths {
@@ -1662,6 +1755,19 @@ func (s *appState) addAuthorFiles(paths []string) {
 			Chapters:     []authorChapter{},
 			ChapterTitle: strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)),
 		}
+
+		// Auto-populate all found tracks as default
+		for _, at := range src.Audio {
+			clip.AudioTracks = append(clip.AudioTracks, authorAudioTrack{
+				Index: at.Index, Language: at.Language, Codec: at.Codec, Channels: at.Channels,
+			})
+		}
+		for _, st := range src.Subtitles {
+			clip.SubtitleTracks = append(clip.SubtitleTracks, authorSubtitleTrack{
+				Index: st.Index, Language: st.Language,
+			})
+		}
+
 		s.authorClips = append(s.authorClips, clip)
 	}
 
@@ -2584,30 +2690,50 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		return err
 	}
 
-	// Separate paths into features and extras based on clips
-	var featurePaths []string
-	var extraPaths []string
+	// Separate clips into features and extras
+	var featureClips []authorClip
+	var extraClips []authorClip
 
-	if len(clips) > 0 {
-		// We have clip metadata, use it to separate features and extras
-		for _, clip := range clips {
-			if clip.IsExtra {
-				extraPaths = append(extraPaths, clip.Path)
-			} else {
-				featurePaths = append(featurePaths, clip.Path)
+	if len(clips) == 0 {
+		// Fallback: create default clips from paths
+		for _, path := range paths {
+			src, _ := probeVideo(path)
+			duration := 0.0
+			if src != nil {
+				duration = src.Duration
 			}
+			c := authorClip{
+				Path:        path,
+				DisplayName: filepath.Base(path),
+				Duration:    duration,
+			}
+			// Default tracks
+			if src != nil {
+				for _, at := range src.Audio {
+					c.AudioTracks = append(c.AudioTracks, authorAudioTrack{Index: at.Index, Language: at.Language})
+				}
+				for _, st := range src.Subtitles {
+					c.SubtitleTracks = append(c.SubtitleTracks, authorSubtitleTrack{Index: st.Index, Language: st.Language})
+				}
+			}
+			featureClips = append(featureClips, c)
 		}
 	} else {
-		// No clip metadata, treat all as features
-		featurePaths = paths
+		for _, clip := range clips {
+			if clip.IsExtra {
+				extraClips = append(extraClips, clip)
+			} else {
+				featureClips = append(featureClips, clip)
+			}
+		}
 	}
 
 	var totalDuration float64
-	for _, path := range paths {
-		src, err := probeVideo(path)
-		if err == nil {
-			totalDuration += src.Duration
-		}
+	for _, c := range featureClips {
+		totalDuration += c.Duration
+	}
+	for _, c := range extraClips {
+		totalDuration += c.Duration
 	}
 
 	encodingProgressShare := 80.0
@@ -2621,19 +2747,19 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 
 	// Encode features first
 	var featureMpgPaths []string
-	for i, path := range featurePaths {
+	for i, clip := range featureClips {
 		if logFn != nil {
-			logFn(fmt.Sprintf("Encoding %d/%d: %s", i+1, len(paths), filepath.Base(path)))
+			logFn(fmt.Sprintf("Encoding Feature %d/%d: %s", i+1, len(featureClips), clip.DisplayName))
 		}
 		outPath := filepath.Join(workDir, fmt.Sprintf("title_%02d.mpg", i+1))
-		src, err := probeVideo(path)
+		src, err := probeVideo(clip.Path)
 		if err != nil {
-			return fmt.Errorf("failed to probe %s: %w", filepath.Base(path), err)
+			return fmt.Errorf("failed to probe %s: %w", clip.DisplayName, err)
 		}
 
 		clipProgressShare := 0.0
 		if totalDuration > 0 {
-			clipProgressShare = (src.Duration / totalDuration) * encodingProgressShare
+			clipProgressShare = (clip.Duration / totalDuration) * encodingProgressShare
 		}
 
 		ffmpegProgressFn := func(stepPct float64) {
@@ -2643,7 +2769,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			}
 		}
 
-		args := buildAuthorFFmpegArgs(path, outPath, region, aspect, src.IsProgressive())
+		args := buildAuthorFFmpegArgs(clip, outPath, region, aspect, src.IsProgressive())
 		if logFn != nil {
 			logFn(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
 		}
@@ -2661,6 +2787,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		remuxArgs := []string{
 			"-fflags", "+genpts",
 			"-i", outPath,
+			"-map", "0",
 			"-c", "copy",
 			"-f", "dvd",
 			"-muxrate", "10080000",
@@ -2677,21 +2804,21 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		featureMpgPaths = append(featureMpgPaths, remuxPath)
 	}
 
-	// Encode extras as separate titles
+	// Encode extras
 	var extraMpgPaths []string
-	for i, path := range extraPaths {
+	for i, clip := range extraClips {
 		if logFn != nil {
-			logFn(fmt.Sprintf("Encoding Extra %d/%d: %s", i+1, len(extraPaths), filepath.Base(path)))
+			logFn(fmt.Sprintf("Encoding Extra %d/%d: %s", i+1, len(extraClips), clip.DisplayName))
 		}
 		outPath := filepath.Join(workDir, fmt.Sprintf("extra_%02d.mpg", i+1))
-		src, err := probeVideo(path)
+		src, err := probeVideo(clip.Path)
 		if err != nil {
-			return fmt.Errorf("failed to probe extra %s: %w", filepath.Base(path), err)
+			return fmt.Errorf("failed to probe extra %s: %w", clip.DisplayName, err)
 		}
 
 		clipProgressShare := 0.0
 		if totalDuration > 0 {
-			clipProgressShare = (src.Duration / totalDuration) * encodingProgressShare
+			clipProgressShare = (clip.Duration / totalDuration) * encodingProgressShare
 		}
 
 		ffmpegProgressFn := func(stepPct float64) {
@@ -2701,7 +2828,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			}
 		}
 
-		args := buildAuthorFFmpegArgs(path, outPath, region, aspect, src.IsProgressive())
+		args := buildAuthorFFmpegArgs(clip, outPath, region, aspect, src.IsProgressive())
 		if logFn != nil {
 			logFn(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
 		}
@@ -2719,6 +2846,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		remuxArgs := []string{
 			"-fflags", "+genpts",
 			"-i", outPath,
+			"-map", "0",
 			"-c", "copy",
 			"-f", "dvd",
 			"-muxrate", "10080000",
@@ -3337,16 +3465,16 @@ func prepareDiscRoot(path string) error {
 	return nil
 }
 
-func encodeAuthorSources(paths []string, region, aspect, workDir string) ([]string, error) {
+func encodeAuthorSources(clips []authorClip, region, aspect, workDir string) ([]string, error) {
 	var mpgPaths []string
-	for i, path := range paths {
+	for i, clip := range clips {
 		idx := i + 1
 		outPath := filepath.Join(workDir, fmt.Sprintf("title_%02d.mpg", idx))
-		src, err := probeVideo(path)
+		src, err := probeVideo(clip.Path)
 		if err != nil {
-			return nil, fmt.Errorf("failed to probe %s: %w", filepath.Base(path), err)
+			return nil, fmt.Errorf("failed to probe %s: %w", clip.DisplayName, err)
 		}
-		args := buildAuthorFFmpegArgs(path, outPath, region, aspect, src.IsProgressive())
+		args := buildAuthorFFmpegArgs(clip, outPath, region, aspect, src.IsProgressive())
 		if err := runCommand(utils.GetFFmpegPath(), args); err != nil {
 			return nil, err
 		}
@@ -3355,7 +3483,7 @@ func encodeAuthorSources(paths []string, region, aspect, workDir string) ([]stri
 	return mpgPaths, nil
 }
 
-func buildAuthorFFmpegArgs(inputPath, outputPath, region, aspect string, progressive bool) []string {
+func buildAuthorFFmpegArgs(clip authorClip, outputPath, region, aspect string, progressive bool) []string {
 	width := 720
 	height := 480
 	fps := "30000/1001"
@@ -3383,7 +3511,27 @@ func buildAuthorFFmpegArgs(inputPath, outputPath, region, aspect string, progres
 		"-y",
 		"-hide_banner",
 		"-loglevel", "error",
-		"-i", inputPath,
+		"-i", clip.Path,
+	}
+
+	// Complex mapping for multitrack
+	// Map video
+	args = append(args, "-map", "0:v:0")
+
+	// Map all selected audio tracks
+	for i, at := range clip.AudioTracks {
+		args = append(args, "-map", fmt.Sprintf("0:%d", at.Index))
+		args = append(args, fmt.Sprintf("-c:a:%d", i), "ac3", fmt.Sprintf("-b:a:%d", i), "192k")
+	}
+
+	// Map all selected subtitle tracks
+	for i, st := range clip.SubtitleTracks {
+		args = append(args, "-map", fmt.Sprintf("0:%d", st.Index))
+		// Convert to dvdsub (VOBSUB) for DVD compliance
+		args = append(args, fmt.Sprintf("-c:s:%d", i), "dvdsub")
+	}
+
+	args = append(args,
 		"-vf", strings.Join(vf, ","),
 		"-c:v", "mpeg2video",
 		"-r", fps,
@@ -3392,23 +3540,18 @@ func buildAuthorFFmpegArgs(inputPath, outputPath, region, aspect string, progres
 		"-bufsize", "1835k",
 		"-g", gop,
 		"-pix_fmt", "yuv420p",
-	}
+	)
 
 	if !progressive {
 		args = append(args, "-flags", "+ilme+ildct")
 	}
 
 	args = append(args,
-		"-c:a", "ac3",
-		"-b:a", "192k",
-		"-ar", "48000",
-		"-ac", "2",
-		"-f", "dvd", // DVD-compliant MPEG-PS format
-		"-muxrate", "10080000", // DVD mux rate (10.08 Mbps)
-		"-packetsize", "2048", // DVD packet size
+		"-f", "dvd",
+		"-muxrate", "10080000",
+		"-packetsize", "2048",
 		outputPath,
 	)
-
 	return args
 }
 

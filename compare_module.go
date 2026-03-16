@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -34,34 +35,35 @@ func (s *appState) showCompareFullscreen() {
 
 func buildCompareView(state *appState) fyne.CanvasObject {
 	compareColor := moduleColor("compare")
+	t := i18n.T()
 
 	// Back button
-	backBtn := widget.NewButton("< COMPARE", func() {
+	backBtn := widget.NewButton("< "+t.ModuleCompare, func() {
 		state.showMainMenu()
 	})
 	backBtn.Importance = widget.LowImportance
 
 	// Top bar with module color
-	queueBtn := widget.NewButton("View Queue", func() {
+	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
 		state.showQueue()
 	})
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 	playerVisible := true
-	togglePlayerBtn := widget.NewButton("Hide Player", nil) // tapped set after layout
+	togglePlayerBtn := widget.NewButton(t.CompareHidePlayer, nil) // tapped set after layout
 
 	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer(), togglePlayerBtn, queueBtn))
 	bottomBar := moduleFooter(compareColor, layout.NewSpacer(), state.statsBar)
 
 	// Instructions
-	instructions := widget.NewLabel("Load two videos to compare their metadata side by side. Drag videos here or use buttons below.")
+	instructions := widget.NewLabel(t.CompareInstructions)
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
 	// Fullscreen Compare button
-	fullscreenBtn := widget.NewButton("Fullscreen Compare", func() {
+	fullscreenBtn := widget.NewButton(t.CompareFullscreen, func() {
 		if state.compareFile1 == nil && state.compareFile2 == nil {
-			dialog.ShowInformation("No Videos", "Load two videos to use fullscreen comparison.", state.window)
+			dialog.ShowInformation(t.CompareNoVideosTitle, t.CompareNoVideosFSMsg, state.window)
 			return
 		}
 		state.showCompareFullscreen()
@@ -69,9 +71,9 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	fullscreenBtn.Importance = widget.MediumImportance
 
 	// Copy Comparison button - copies both files' metadata side by side
-	copyComparisonBtn := widget.NewButton("Copy Comparison", func() {
+	copyComparisonBtn := widget.NewButton(t.CompareCopyReport, func() {
 		if state.compareFile1 == nil && state.compareFile2 == nil {
-			dialog.ShowInformation("No Videos", "Load at least one video to copy comparison metadata.", state.window)
+			dialog.ShowInformation(t.CompareNoVideosTitle, t.CompareNoVideosCopyMsg, state.window)
 			return
 		}
 
@@ -219,12 +221,12 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		comparisonText.WriteString("\n-----------------------------------------------------------------------\n")
 
 		state.window.Clipboard().SetContent(comparisonText.String())
-		dialog.ShowInformation("Copied", "Comparison metadata copied to clipboard", state.window)
+		dialog.ShowInformation(t.CompareCopied, t.CompareCopiedMsg, state.window)
 	})
 	copyComparisonBtn.Importance = widget.LowImportance
 
 	// Clear All button
-	clearAllBtn := widget.NewButton("Clear All", func() {
+	clearAllBtn := widget.NewButton(t.ActionClearAll, func() {
 		state.compareFile1 = nil
 		state.compareFile2 = nil
 		state.showCompareView()
@@ -253,10 +255,10 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	instructionsRow := container.NewBorder(nil, nil, nil, container.NewHBox(fullscreenBtn, copyComparisonBtn, clearAllBtn), instructions)
 
 	// File labels
-	file1Label := widget.NewLabel("File 1: Not loaded")
+	file1Label := widget.NewLabel(t.CompareFile1NotLoaded)
 	file1Label.TextStyle = fyne.TextStyle{Bold: true}
 
-	file2Label := widget.NewLabel("File 2: Not loaded")
+	file2Label := widget.NewLabel(t.CompareFile2NotLoaded)
 	file2Label.TextStyle = fyne.TextStyle{Bold: true}
 
 	// Video player containers
@@ -264,15 +266,15 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	file2VideoContainer := container.NewMax()
 
 	// Initialize with placeholders
-	file1VideoContainer.Objects = []fyne.CanvasObject{container.NewCenter(widget.NewLabel("No video loaded"))}
-	file2VideoContainer.Objects = []fyne.CanvasObject{container.NewCenter(widget.NewLabel("No video loaded"))}
+	file1VideoContainer.Objects = []fyne.CanvasObject{container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))}
+	file2VideoContainer.Objects = []fyne.CanvasObject{container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))}
 
 	// Info labels
-	file1Info := widget.NewLabel("No file loaded")
+	file1Info := widget.NewLabel(t.LabelNoFile)
 	file1Info.Wrapping = fyne.TextWrapWord
 	file1Info.TextStyle = fyne.TextStyle{} // non-selectable label
 
-	file2Info := widget.NewLabel("No file loaded")
+	file2Info := widget.NewLabel(t.LabelNoFile)
 	file2Info.Wrapping = fyne.TextWrapWord
 	file2Info.TextStyle = fyne.TextStyle{} // non-selectable label
 
@@ -387,7 +389,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		if state.compareFile1 != nil {
 			filename := filepath.Base(state.compareFile1.Path)
 			displayName := truncateFilename(filename, 35)
-			file1Label.SetText(fmt.Sprintf("File 1: %s", displayName))
+			file1Label.SetText(fmt.Sprintf(t.CompareFile1Fmt, displayName))
 			file1Info.SetText(formatMetadata(state.compareFile1, state.compareFile2))
 			// Build video player with compact size for side-by-side
 			file1VideoContainer.Objects = []fyne.CanvasObject{
@@ -395,10 +397,10 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			}
 			file1VideoContainer.Refresh()
 		} else {
-			file1Label.SetText("File 1: Not loaded")
-			file1Info.SetText("No file loaded")
+			file1Label.SetText(t.CompareFile1NotLoaded)
+			file1Info.SetText(t.LabelNoFile)
 			file1VideoContainer.Objects = []fyne.CanvasObject{
-				container.NewCenter(widget.NewLabel("No video loaded")),
+				container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded)),
 			}
 			file1VideoContainer.Refresh()
 		}
@@ -408,7 +410,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		if state.compareFile2 != nil {
 			filename := filepath.Base(state.compareFile2.Path)
 			displayName := truncateFilename(filename, 35)
-			file2Label.SetText(fmt.Sprintf("File 2: %s", displayName))
+			file2Label.SetText(fmt.Sprintf(t.CompareFile2Fmt, displayName))
 			file2Info.SetText(formatMetadata(state.compareFile2, state.compareFile1))
 			// Build video player with compact size for side-by-side
 			file2VideoContainer.Objects = []fyne.CanvasObject{
@@ -416,10 +418,10 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			}
 			file2VideoContainer.Refresh()
 		} else {
-			file2Label.SetText("File 2: Not loaded")
-			file2Info.SetText("No file loaded")
+			file2Label.SetText(t.CompareFile2NotLoaded)
+			file2Info.SetText(t.LabelNoFile)
 			file2VideoContainer.Objects = []fyne.CanvasObject{
-				container.NewCenter(widget.NewLabel("No video loaded")),
+				container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded)),
 			}
 			file2VideoContainer.Refresh()
 		}
@@ -429,7 +431,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	updateFile1()
 	updateFile2()
 
-	file1SelectBtn := widget.NewButton("Load File 1", func() {
+	file1SelectBtn := widget.NewButton(t.CompareLoadFile1, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -449,7 +451,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		}, state.window)
 	})
 
-	file2SelectBtn := widget.NewButton("Load File 2", func() {
+	file2SelectBtn := widget.NewButton(t.CompareLoadFile2, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -470,34 +472,34 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	})
 
 	// File 1 action buttons
-	file1CopyBtn := widget.NewButton("Copy Metadata", func() {
+	file1CopyBtn := widget.NewButton(t.ActionCopyMetadata, func() {
 		if state.compareFile1 == nil {
 			return
 		}
 		metadata := formatMetadata(state.compareFile1, state.compareFile2)
 		state.window.Clipboard().SetContent(metadata)
-		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
+		dialog.ShowInformation(t.CompareCopied, t.CompareCopiedFileMsg, state.window)
 	})
 	file1CopyBtn.Importance = widget.LowImportance
 
-	file1ClearBtn := widget.NewButton("Clear", func() {
+	file1ClearBtn := widget.NewButton(t.ActionClear, func() {
 		state.compareFile1 = nil
 		updateFile1()
 	})
 	file1ClearBtn.Importance = widget.LowImportance
 
 	// File 2 action buttons
-	file2CopyBtn := widget.NewButton("Copy Metadata", func() {
+	file2CopyBtn := widget.NewButton(t.ActionCopyMetadata, func() {
 		if state.compareFile2 == nil {
 			return
 		}
 		metadata := formatMetadata(state.compareFile2, state.compareFile1)
 		state.window.Clipboard().SetContent(metadata)
-		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
+		dialog.ShowInformation(t.CompareCopied, t.CompareCopiedFileMsg, state.window)
 	})
 	file2CopyBtn.Importance = widget.LowImportance
 
-	file2ClearBtn := widget.NewButton("Clear", func() {
+	file2ClearBtn := widget.NewButton(t.ActionClear, func() {
 		state.compareFile2 = nil
 		updateFile2()
 	})
@@ -524,8 +526,8 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 	// Avoid rigid min sizes so window snapping works across modules.
 
 	// Wrap file info in boxed sections
-	file1MetaBox := buildCompareBox("File 1 Info", file1InfoScroll)
-	file2MetaBox := buildCompareBox("File 2 Info", file2InfoScroll)
+	file1MetaBox := buildCompareBox(t.CompareFile1Info, file1InfoScroll)
+	file2MetaBox := buildCompareBox(t.CompareFile2Info, file2InfoScroll)
 
 	file1PlayerRow := container.NewVBox(file1VideoContainer, widget.NewSeparator())
 	file2PlayerRow := container.NewVBox(file2VideoContainer, widget.NewSeparator())
@@ -557,11 +559,11 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 		if playerVisible {
 			file1PlayerRow.Show()
 			file2PlayerRow.Show()
-			togglePlayerBtn.SetText("Hide Player")
+			togglePlayerBtn.SetText(t.CompareHidePlayer)
 		} else {
 			file1PlayerRow.Hide()
 			file2PlayerRow.Hide()
-			togglePlayerBtn.SetText("Show Player")
+			togglePlayerBtn.SetText(t.CompareShowPlayer)
 		}
 	}
 
@@ -578,9 +580,10 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 // buildCompareFullscreenView creates fullscreen side-by-side comparison with synchronized controls
 func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 	compareColor := moduleColor("compare")
+	t := i18n.T()
 
 	// Back button
-	backBtn := widget.NewButton("< BACK TO COMPARE", func() {
+	backBtn := widget.NewButton(t.CompareBackToView, func() {
 		state.showCompareView()
 	})
 	backBtn.Importance = widget.LowImportance
@@ -599,7 +602,7 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 		}
 	} else {
 		file1VideoContainer.Objects = []fyne.CanvasObject{
-			container.NewCenter(widget.NewLabel("No video loaded")),
+			container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded)),
 		}
 	}
 
@@ -609,19 +612,19 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 		}
 	} else {
 		file2VideoContainer.Objects = []fyne.CanvasObject{
-			container.NewCenter(widget.NewLabel("No video loaded")),
+			container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded)),
 		}
 	}
 
 	// File labels
-	file1Name := "File 1: Not loaded"
+	file1Name := t.CompareFile1NotLoaded
 	if state.compareFile1 != nil {
-		file1Name = fmt.Sprintf("File 1: %s", filepath.Base(state.compareFile1.Path))
+		file1Name = fmt.Sprintf(t.CompareFile1Fmt, filepath.Base(state.compareFile1.Path))
 	}
 
-	file2Name := "File 2: Not loaded"
+	file2Name := t.CompareFile2NotLoaded
 	if state.compareFile2 != nil {
-		file2Name = fmt.Sprintf("File 2: %s", filepath.Base(state.compareFile2.Path))
+		file2Name = fmt.Sprintf(t.CompareFile2Fmt, filepath.Base(state.compareFile2.Path))
 	}
 
 	file1Label := widget.NewLabel(file1Name)
@@ -633,20 +636,15 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 	file2Label.Alignment = fyne.TextAlignCenter
 
 	// Synchronized playback controls (note: actual sync would require VT_Player API enhancement)
-	playBtn := widget.NewButton("- Play Both", func() {
+	playBtn := widget.NewButton(t.ComparePlayBoth, func() {
 		// TODO: When VT_Player API supports it, trigger synchronized playback
-		dialog.ShowInformation("Synchronized Playback",
-			"Synchronized playback control will be available when VT_Player API is enhanced.\n\n"+
-				"For now, use individual player controls.",
-			state.window)
+		dialog.ShowInformation(t.CompareSyncTitle, t.CompareSyncMsg, state.window)
 	})
 	playBtn.Importance = widget.HighImportance
 
-	pauseBtn := widget.NewButton(" Pause Both", func() {
+	pauseBtn := widget.NewButton(t.ComparePauseBoth, func() {
 		// TODO: Synchronized pause
-		dialog.ShowInformation("Synchronized Playback",
-			"Synchronized playback control will be available when VT_Player API is enhanced.",
-			state.window)
+		dialog.ShowInformation(t.CompareSyncTitle, t.CompareSyncMsgShort, state.window)
 	})
 
 	syncControls := container.NewHBox(
@@ -657,7 +655,7 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 	)
 
 	// Info text
-	infoLabel := widget.NewLabel("Side-by-side fullscreen comparison. Use individual player controls until synchronized playback is implemented in VT_Player.")
+	infoLabel := widget.NewLabel(t.CompareSideInfo)
 	infoLabel.Wrapping = fyne.TextWrapWord
 	infoLabel.Alignment = fyne.TextAlignCenter
 

@@ -16,11 +16,14 @@ var iu = Strings{
 	CategoryPlayback: "ᐅᖃᐅᓯᖅ",        // Playback
 
 	// ── Common Actions ────────────────────────────────────────────────────
-	ActionCancel: "ᐊᑎᖕᓂᖓ",   // Cancel
-	ActionClose:  "ᒪᑕᐃᓗᒍ",   // Close
-	ActionBack:   "ᐅᑎᕐᓗᒍ",   // Back
-	ActionOpen:   "ᐅᒃᐱᕆᓗᒍ",  // Open
-	ActionSave:   "ᓴᐳᒻᒥᔪᒍ",  // Save
+	ActionCancel:    "ᐊᑎᖕᓂᖓ",   // Cancel
+	ActionClose:     "ᒪᑕᐃᓗᒍ",   // Close
+	ActionBack:      "ᐅᑎᕐᓗᒍ",   // Back
+	ActionOpen:      "ᐅᒃᐱᕆᓗᒍ",  // Open
+	ActionSave:      "ᓴᐳᒻᒥᔪᒍ",  // Save
+	ActionViewQueue:  "ᖃᐅᔨᓴᕐᓗᒍ ᓄᐊᑕᐅᓯᒪᔪᑦ", // View Queue
+	ActionLoadVideo:  "ᐊᒐᒃᓯᓗᒍ ᑕᕐᕆᔭᒐᒃᓴᖅ",   // Load Video
+	ActionAddToQueue: "ᓄᐊᑕᐅᓯᒪᔪᓄᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ", // Add to Queue
 
 	// ── Common Labels ─────────────────────────────────────────────────────
 	LabelLanguage: "ᐅᖃᐅᓯᖅ", // Language

@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
@@ -23,15 +24,16 @@ func (s *appState) showPlayerView() {
 // buildPlayerView creates the VT_Player UI
 func buildPlayerView(state *appState) fyne.CanvasObject {
 	playerColor := moduleColor("player")
+	t := i18n.T()
 
 	// Back button
-	backBtn := widget.NewButton("< PLAYER", func() {
+	backBtn := widget.NewButton("< "+t.ModulePlayer, func() {
 		state.showMainMenu()
 	})
 	backBtn.Importance = widget.LowImportance
 
 	// Top bar with module color
-	queueBtn := widget.NewButton("View Queue", func() {
+	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
 		state.showQueue()
 	})
 	state.queueBtn = queueBtn
@@ -39,12 +41,12 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	topBar := ui.TintedBar(playerColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
 
 	// Instructions
-	instructions := widget.NewLabel("VT_Player - Advanced video playback with frame-accurate seeking and analysis tools.")
+	instructions := widget.NewLabel(t.PlayerInstructions)
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
 	// File label
-	fileLabel := widget.NewLabel("No file loaded")
+	fileLabel := widget.NewLabel(t.LabelNoFile)
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	// Use a stable base size; the player container handles aspect-safe scaling.
@@ -52,14 +54,14 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 
 	var videoContainer fyne.CanvasObject
 	if state.playerFile != nil {
-		fileLabel.SetText(fmt.Sprintf("File: %s", filepath.Base(state.playerFile.Path)))
+		fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, filepath.Base(state.playerFile.Path)))
 		videoContainer = buildVideoPane(state, playerSize, state.playerFile, nil)
 	} else {
-		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
+		videoContainer = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
 	}
 
 	// Load button
-	loadBtn := widget.NewButton("Load Video", func() {
+	loadBtn := widget.NewButton(t.ActionLoadVideo, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -86,7 +88,7 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 	loadBtn.Importance = widget.HighImportance
 
 	// Clear video button
-	clearBtn := widget.NewButton("Clear Video", func() {
+	clearBtn := widget.NewButton(t.ActionClearVideo, func() {
 		state.releasePlaybackSession()
 		state.stopPlayer()
 		state.playerFile = nil
