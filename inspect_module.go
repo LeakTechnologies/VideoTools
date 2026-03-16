@@ -49,6 +49,13 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 			logging.Debug(logging.CatModule, "loaded inspect file: %s", path)
 
 			go func() {
+				// Capture first frame before interlace so it's ready when view refreshes
+				if len(src.PreviewFrames) == 0 {
+					if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
+						src.PreviewFrames = frames
+					}
+				}
+
 				detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
 				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 				defer cancel()
@@ -91,6 +98,24 @@ func buildInspectView(state *appState) fyne.CanvasObject {
 		OnGetSampleAspect: func() string { if state.inspectFile == nil { return "" }; return state.inspectFile.SampleAspectRatio },
 		OnGetHasChapters:  func() bool { if state.inspectFile == nil { return false }; return state.inspectFile.HasChapters },
 		OnGetHasMetadata:  func() bool { if state.inspectFile == nil { return false }; return state.inspectFile.HasMetadata },
+		OnGetTitle: func() string {
+			if state.inspectFile == nil || state.inspectFile.Metadata == nil {
+				return ""
+			}
+			return state.inspectFile.Metadata["title"]
+		},
+		OnGetPreviewFrame: func() string {
+			if state.inspectFile == nil || len(state.inspectFile.PreviewFrames) == 0 {
+				return ""
+			}
+			return state.inspectFile.PreviewFrames[0]
+		},
+		OnGetFilePath: func() string {
+			if state.inspectFile == nil {
+				return ""
+			}
+			return state.inspectFile.Path
+		},
 	}
 	return inspect.BuildView(opts)
 }
