@@ -139,6 +139,16 @@ var frCA = Strings{
 	FiltersPreset:            "Préréglage :",
 	FiltersTargetFPS:         "FPS cible :",
 
+	// ── Subtitles Module ─────────────────────────────────────────────────────
+	SubtitlesOfflineHint:  "STT hors ligne utilise ggml-small.bin intégré - pas d'API nécessaire",
+	SubtitlesEmpty:        "Glissez et déposez les fichiers de sous-titres ici",
+	SubtitlesExtractEmbed: "Extraire les pistes de sous-titres intégrées",
+	SubtitlesOCROutput:    "Sortie OCR (sous-titres basés sur images uniquement) :",
+	SubtitlesOCRLanguage:  "Langue OCR (tesseract, ex: eng, fra, iku) :",
+	SubtitlesShiftOffset:  "Décaler tous les temps de sous-titres (secondes) :",
+	SubtitlesStart:        "Début",
+	SubtitlesEnd:          "Fin",
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:        "Prêt",
 	StatusProcessing:   "Traitement en cours...",

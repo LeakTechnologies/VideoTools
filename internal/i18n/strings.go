@@ -144,6 +144,16 @@ type Strings struct {
 	FiltersPreset            string // "Preset:"
 	FiltersTargetFPS         string // "Target FPS:"
 
+	// ── Subtitles Module ─────────────────────────────────────────────────────
+	SubtitlesOfflineHint  string // "Offline STT uses bundled ggml-small.bin..."
+	SubtitlesEmpty        string // "Drag and drop subtitle files here..."
+	SubtitlesExtractEmbed string // "Extract embedded subtitle tracks..."
+	SubtitlesOCROutput    string // "OCR output (image-based subtitles only):"
+	SubtitlesOCRLanguage  string // "OCR language (tesseract, e.g. eng, fra, iku):"
+	SubtitlesShiftOffset  string // "Shift all subtitle times by offset (seconds):"
+	SubtitlesStart        string // "Start"
+	SubtitlesEnd          string // "End"
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady        string
 	StatusProcessing   string
