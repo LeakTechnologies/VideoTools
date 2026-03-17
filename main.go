@@ -43,6 +43,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/trim"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
@@ -2654,6 +2655,7 @@ func (s *appState) showModule(id string) {
 }
 
 func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
+	t := i18n.T()
 	logging.Debug(logging.CatModule, "handleModuleDrop called: moduleID=%s itemCount=%d", moduleID, len(items))
 	if len(items) == 0 {
 		logging.Debug(logging.CatModule, "handleModuleDrop: no items to process")
@@ -2824,7 +2826,7 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 			}
 			if len(clips) == 0 {
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					dialog.ShowInformation("Merge", "No valid video files found.", s.window)
+					dialog.ShowInformation(t.ModuleMerge, "No valid video files found.", s.window)
 				}, false)
 				return
 			}
@@ -3216,12 +3218,12 @@ func buildTrimView(state *appState) fyne.CanvasObject {
 
 func (s *appState) submitTrimJob(clip trim.TrimClip) {
 	logging.Info(logging.CatModule, "Submitting trim job for: %s", clip.Path)
-	
+
 	// Create output filename
 	ext := filepath.Ext(clip.Path)
 	base := strings.TrimSuffix(filepath.Base(clip.Path), ext)
 	outPath := filepath.Join(filepath.Dir(clip.Path), fmt.Sprintf("%s_trimmed%s", base, ext))
-	
+
 	// Construct FFmpeg command for lossless trimming
 	// -ss [start] -to [end] -i [input] -c copy -map 0 [output]
 	args := []string{
@@ -3258,6 +3260,7 @@ func (s *appState) showMergeView() {
 	s.active = "merge"
 	s.maximizeWindow()
 
+	t := i18n.T()
 	mergeColor := moduleColor("merge")
 
 	if cfg, err := loadPersistedMergeConfig(); err == nil {
@@ -3598,7 +3601,7 @@ func (s *appState) showMergeView() {
 			dialog.ShowError(err, s.window)
 			return
 		}
-		dialog.ShowInformation("Queue", "Merge job added to queue.", s.window)
+		dialog.ShowInformation(t.DialogQueued, "Merge job added to queue.", s.window)
 		if s.jobQueue != nil && !s.jobQueue.IsRunning() {
 			s.jobQueue.Start()
 		}
