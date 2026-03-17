@@ -2777,6 +2777,13 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 
 				// Auto-run interlacing detection in background
 				go func() {
+					// Capture preview frames before running interlace analysis
+					if len(src.PreviewFrames) == 0 {
+						if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
+							src.PreviewFrames = frames
+						}
+					}
+
 					detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
 					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 					defer cancel()
@@ -3228,13 +3235,15 @@ func (s *appState) submitTrimJob(clip trim.TrimClip) {
 	}
 
 	job := &queue.Job{
-		ID:          fmt.Sprintf("trim_%d", time.Now().UnixNano()),
+		Type:        queue.JobTypeTrim,
 		Title:       fmt.Sprintf("Trim: %s", filepath.Base(clip.Path)),
 		Description: fmt.Sprintf("Lossless cut from %v to %v", clip.InPoint, clip.OutPoint),
-		Command:     utils.GetFFmpegPath(),
-		Args:        args,
-		Status:      queue.JobStatusPending,
-		AddedAt:     time.Now(),
+		InputFile:   clip.Path,
+		OutputFile:  outPath,
+		Config: map[string]interface{}{
+			"ffmpeg_path": utils.GetFFmpegPath(),
+			"args":        args,
+		},
 	}
 
 	if s.jobQueue != nil {
@@ -13003,6 +13012,13 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				// Auto-run interlacing detection in background
 				videoPath := videoPaths[0]
 				go func() {
+					// Capture preview frames before running interlace analysis
+					if len(src.PreviewFrames) == 0 {
+						if frames, ferr := capturePreviewFrames(videoPath, src.Duration); ferr == nil && len(frames) > 0 {
+							src.PreviewFrames = frames
+						}
+					}
+
 					detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
 					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 					defer cancel()
