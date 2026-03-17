@@ -31,6 +31,22 @@ var enCA = Strings{
 	ModulePlayer:      "Player",
 	ModuleSettings:    "Settings",
 
+	// ── Dialog Titles ───────────────────────────────────────────────────────
+	DialogCompare:     "Compare Videos",
+	DialogInspect:     "Inspect Video",
+	DialogThumbnail:   "Thumbnail Generation",
+	DialogSnippet:     "Snippet",
+	DialogInterlacing: "Interlacing Analysis",
+	DialogAutoCrop:    "Auto-Crop",
+	DialogNoVideo:     "No Video",
+	DialogNoFile:      "No File",
+	DialogNoConfig:    "No Config",
+	DialogConfigSaved: "Config Saved",
+	DialogCopied:      "Copied",
+	DialogNoLog:       "No Log",
+	DialogQueued:      "Queued",
+	DialogCancelled:   "Cancelled",
+
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert:     "Convert",
 	CategoryInspect:     "Inspect",

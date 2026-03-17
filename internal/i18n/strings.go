@@ -37,6 +37,22 @@ type Strings struct {
 	ModulePlayer      string
 	ModuleSettings    string
 
+	// ── Dialog Titles ───────────────────────────────────────────────────────
+	DialogCompare     string
+	DialogInspect     string
+	DialogThumbnail   string
+	DialogSnippet     string
+	DialogInterlacing string
+	DialogAutoCrop    string
+	DialogNoVideo     string
+	DialogNoFile      string
+	DialogNoConfig    string
+	DialogConfigSaved string
+	DialogCopied      string
+	DialogNoLog       string
+	DialogQueued      string
+	DialogCancelled   string
+
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert     string
 	CategoryInspect     string
