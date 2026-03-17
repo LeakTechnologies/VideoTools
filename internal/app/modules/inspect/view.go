@@ -405,7 +405,16 @@ func BuildView(opts Options) fyne.CanvasObject {
 		)
 	}
 
-	var videoContainer fyne.CanvasObject = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
+	makePlayerPlaceholder := func(icon fyne.Resource, text string) fyne.CanvasObject {
+		bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
+		bg.SetMinSize(fyne.NewSize(0, 260))
+		lbl := widget.NewLabel(text)
+		lbl.Alignment = fyne.TextAlignCenter
+		content := container.NewVBox(widget.NewIcon(icon), lbl)
+		return container.NewMax(bg, container.NewCenter(content))
+	}
+
+	var videoContainer fyne.CanvasObject = makePlayerPlaceholder(ui.GetIcon("play_arrow"), t.LabelNoVideoLoaded)
 
 	updateDisplay := func() {
 		if opts.InspectFile != nil {
@@ -430,7 +439,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			metadataGrid.Objects = []fyne.CanvasObject{buildMetadataGrid()}
 			metadataGrid.Refresh()
 
-			// Show first preview frame if available, otherwise a dark placeholder
+			// Show first preview frame if available, otherwise a placeholder based on load state
 			if opts.OnGetPreviewFrame != nil {
 				if framePath := opts.OnGetPreviewFrame(); framePath != "" {
 					img := canvas.NewImageFromFile(framePath)
@@ -438,21 +447,21 @@ func BuildView(opts Options) fyne.CanvasObject {
 					bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
 					bg.SetMinSize(fyne.NewSize(0, 260))
 					videoContainer = container.NewMax(bg, img)
+				} else if opts.InspectInterlaceAnalyzing {
+					// Frame capture and analysis still in progress
+					videoContainer = makePlayerPlaceholder(ui.GetIcon("slow_motion_video"), t.InspectLoadingPreview)
 				} else {
-					bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
-					bg.SetMinSize(fyne.NewSize(0, 260))
-					hint := widget.NewLabel(t.InspectLoadingPreview)
-					hint.Alignment = fyne.TextAlignCenter
-					videoContainer = container.NewMax(bg, container.NewCenter(hint))
+					// Analysis done but no preview available
+					videoContainer = makePlayerPlaceholder(ui.GetIcon("play_arrow"), t.InspectNoPreviewAvailable)
 				}
 			} else {
-				videoContainer = container.NewCenter(widget.NewLabel(t.InspectNoPreviewAvailable))
+				videoContainer = makePlayerPlaceholder(ui.GetIcon("play_arrow"), t.InspectNoPreviewAvailable)
 			}
 		} else {
 			fileLabel.SetText(t.LabelNoFile)
 			metadataGrid.Objects = []fyne.CanvasObject{metadataPlaceholder}
 			metadataGrid.Refresh()
-			videoContainer = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
+			videoContainer = makePlayerPlaceholder(ui.GetIcon("play_arrow"), t.LabelNoVideoLoaded)
 		}
 	}
 
