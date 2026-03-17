@@ -229,13 +229,6 @@ type Strings struct {
 	ConvertOutputFormat  string
 	ConvertHardwareAccel string
 
-	// ── Audio ─────────────────────────────────────────────────────────────
-	AudioInstructions   string // drop / load prompt
-	AudioOutputFormat   string // "Output Format"
-	AudioQualityPreset  string // "Quality Preset"
-	AudioBitrate        string // "Bitrate"
-	AudioOutputDirectory string // "Output Directory"
-
 	// ── Compare ──────────────────────────────────────────────────────────────────
 	CompareInstructions    string
 	CompareFullscreen      string
