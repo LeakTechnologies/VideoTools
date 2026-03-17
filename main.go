@@ -40,7 +40,6 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	convertmodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/convert"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/rip"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/trim"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/naming"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
