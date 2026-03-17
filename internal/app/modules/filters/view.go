@@ -426,17 +426,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	interpFPSSelect.SetSelected(opts.FilterInterpFPS)
 
-	interpHint := widget.NewLabel("Balanced preset is recommended; higher presets are CPU-intensive.")
+	interpHint := widget.NewLabel(t.FiltersInterpHint)
 	interpHint.TextStyle = fyne.TextStyle{Italic: true}
 	interpHint.Wrapping = fyne.TextWrapWord
 
 	interpSection := buildFilterBox("Frame Interpolation (Minterpolate)", container.NewVBox(
-		widget.NewLabel("Generate smoother motion by interpolating new frames"),
+		widget.NewLabel(t.FiltersSectionMotion),
 		interpEnabledCheck,
 		container.NewGridWithColumns(2,
-			widget.NewLabel("Preset:"),
+			widget.NewLabel(t.FiltersPreset),
 			interpPresetSelect,
-			widget.NewLabel("Target FPS:"),
+			widget.NewLabel(t.FiltersTargetFPS),
 			interpFPSSelect,
 		),
 		interpHint,
