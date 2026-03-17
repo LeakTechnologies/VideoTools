@@ -41,7 +41,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	convertmodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/trim"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/naming"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -115,7 +115,7 @@ var (
 	modulesList = []Module{
 		{"convert", "Convert", utils.MustHex("#6F42C1"), "Convert", modules.HandleConvert},           // Violet (constant)
 		{"merge", "Merge", utils.MustHex("#1F6F55"), "Convert", modules.HandleMerge},                 // Deep emerald
-		{"trim", "Trim", utils.MustHex("#4A5D73"), "Convert", modules.HandleTrim},                  // Steel blue-violet
+		{"trim", "Trim", utils.MustHex("#4A5D73"), "Convert", modules.HandleTrim},                    // Steel blue-violet
 		{"filters", "Filters", utils.MustHex("#005F5F"), "Convert", modules.HandleFilters},           // Deep petrol teal
 		{"upscale", "Upscale", utils.MustHex("#C2185B"), "Advanced", modules.HandleUpscale},          // Magenta
 		{"enhancement", "Enhancement", utils.MustHex("#00897B"), "Advanced", modules.HandleEnhance},  // Teal
@@ -3201,6 +3201,10 @@ func buildTrimView(state *appState) fyne.CanvasObject {
 		ModuleColor:    moduleColor("trim"),
 		OnShowMainMenu: state.showMainMenu,
 		OnShowQueue:    state.showQueue,
+		OnAddToQueue: func(clip trim.TrimClip) {
+			logging.Info(logging.CatModule, "Trim job submission requested for %s", clip.Path)
+			// [TODO: Construct FFmpeg command and state.jobQueue.Add(job)]
+		},
 	}, "")
 }
 
