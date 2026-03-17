@@ -6656,9 +6656,9 @@ func runGUI() {
 	a.Settings().SetTheme(&ui.MonoTheme{})
 
 	// Load app icon from embedded logo assets
-	iconFile := "VT_Icon.ico"
+	iconFile := "VT_logo.ico"
 	if runtime.GOOS != "windows" {
-		iconFile = "VT_Icon.png"
+		iconFile = "VT_logo.png"
 	}
 	iconPath := "assets/logo/" + iconFile
 	if f, err := logoAssets.Open(iconPath); err == nil {
