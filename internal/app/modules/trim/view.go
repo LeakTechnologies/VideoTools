@@ -26,6 +26,16 @@ type Options struct {
 	ModuleColor    color.Color
 	OnShowMainMenu func()
 	OnShowQueue    func()
+	OnAddToQueue   func(clip TrimClip)
+}
+
+// TrimClip holds the parameters for a trim job.
+type TrimClip struct {
+	Path     string
+	InPoint  time.Duration
+	OutPoint time.Duration
+	Mode     string // "keep" or "cut"
+	Export   string // "smart" or "recode"
 }
 
 type trimState struct {
