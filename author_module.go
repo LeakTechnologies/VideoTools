@@ -3047,29 +3047,66 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	}
 
 	logFn("Authoring DVD structure (Native Go Engine)...")
-	ifoBuilder := ifo.NewBuilder(discRoot)
+
+	// Create the DVD directory structure inside discRoot
+	videoTSPath := filepath.Join(discRoot, "VIDEO_TS")
+	audioTSPath := filepath.Join(discRoot, "AUDIO_TS")
+	if err := os.MkdirAll(videoTSPath, 0755); err != nil {
+		return fmt.Errorf("failed to create VIDEO_TS directory: %w", err)
+	}
+	if err := os.MkdirAll(audioTSPath, 0755); err != nil {
+		return fmt.Errorf("failed to create AUDIO_TS directory: %w", err)
+	}
+
+	// Move remuxed MPG files into VIDEO_TS as VOB files.
+	// DVD players expect VTS_01_1.VOB, VTS_01_2.VOB, etc. for the main feature.
+	logFn(fmt.Sprintf("Placing %d encoded file(s) into VIDEO_TS as VOB...", len(featureMpgPaths)))
+	for i, mpgPath := range featureMpgPaths {
+		vobName := fmt.Sprintf("VTS_01_%d.VOB", i+1)
+		vobPath := filepath.Join(videoTSPath, vobName)
+		if err := os.Rename(mpgPath, vobPath); err != nil {
+			// Cross-device rename may fail; fall back to copy+delete
+			if err2 := authorCopyFile(mpgPath, vobPath); err2 != nil {
+				return fmt.Errorf("failed to place %s: %w", vobName, err2)
+			}
+			os.Remove(mpgPath)
+		}
+		logFn(fmt.Sprintf("  %s placed", vobName))
+	}
+
+	// Place extras as their own title sets (VTS_02_1.VOB, etc.)
+	for i, mpgPath := range extraMpgPaths {
+		vtsNum := i + 2 // title sets 2, 3, ...
+		vobName := fmt.Sprintf("VTS_%02d_1.VOB", vtsNum)
+		vobPath := filepath.Join(videoTSPath, vobName)
+		if err := os.Rename(mpgPath, vobPath); err != nil {
+			if err2 := authorCopyFile(mpgPath, vobPath); err2 != nil {
+				return fmt.Errorf("failed to place extra %s: %w", vobName, err2)
+			}
+			os.Remove(mpgPath)
+		}
+		logFn(fmt.Sprintf("  %s (extra) placed", vobName))
+	}
 
 	// Probe primary feature for attributes
 	primarySrc, _ := probeVideo(featurePaths[0])
 
-	// Generate VTS IFO/BUP
-	vtsMat := ifo.NewVTSMAT()
+	// IFO builder targets VIDEO_TS (not discRoot)
+	ifoBuilder := ifo.NewBuilder(videoTSPath)
 
-	// Map attributes
+	// Generate VTS IFO/BUP for title set 1
+	vtsMat := ifo.NewVTSMAT()
 	vtsMat.VTS_Attributes.CompressionMode = 1 // MPEG-2
 	if region == "PAL" {
 		vtsMat.VTS_Attributes.TVSystem = 1
 	} else {
 		vtsMat.VTS_Attributes.TVSystem = 0
 	}
-
 	if aspect == "16:9" {
 		vtsMat.VTS_Attributes.AspectRatio = 3
 	} else {
 		vtsMat.VTS_Attributes.AspectRatio = 0
 	}
-
-	// Simplified resolution mapping
 	if primarySrc != nil {
 		if primarySrc.Width == 720 {
 			vtsMat.VTS_Attributes.Resolution = 0
@@ -3077,24 +3114,30 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			vtsMat.VTS_Attributes.Resolution = 1
 		}
 	}
-
 	if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, nil); err != nil {
 		return fmt.Errorf("native ifo generation failed: %w", err)
 	}
 
-	// Generate VMG IFO/BUP
+	// Generate IFOs for any extra title sets
+	for i := range extraMpgPaths {
+		vtsNum := i + 2
+		extraMat := ifo.NewVTSMAT()
+		extraMat.VTS_Attributes = vtsMat.VTS_Attributes
+		if err := ifoBuilder.GenerateVTS_IFO(vtsNum, extraMat, nil); err != nil {
+			return fmt.Errorf("native ifo generation failed for extra %d: %w", vtsNum, err)
+		}
+	}
+
+	// Generate VMG IFO/BUP (disc root metadata)
 	vmgMat := ifo.NewVMGMAT()
-	vmgMat.VMG_Attributes = vtsMat.VTS_Attributes // Match VTS attributes
+	vmgMat.VMG_Attributes = vtsMat.VTS_Attributes
 	if err := ifoBuilder.GenerateVMG_IFO(vmgMat); err != nil {
 		return fmt.Errorf("native vmg generation failed: %w", err)
 	}
+	logFn("IFO/BUP files generated")
 
 	accumulatedProgress += progressForOtherStep
 	progressFn(accumulatedProgress)
-
-	if err := os.MkdirAll(filepath.Join(discRoot, "AUDIO_TS"), 0755); err != nil {
-		return fmt.Errorf("failed to create AUDIO_TS: %w", err)
-	}
 
 	if makeISO {
 		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
@@ -3109,18 +3152,12 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		defer isoFile.Close()
 
 		uw := udf.NewWriter(isoFile, title)
-
-		// Recursively add VIDEO_TS and AUDIO_TS to UDF writer
-		videoTSPath := filepath.Join(discRoot, "VIDEO_TS")
-		audioTSPath := filepath.Join(discRoot, "AUDIO_TS")
-
 		if err := uw.AddDirFS(videoTSPath); err != nil {
 			return fmt.Errorf("adding VIDEO_TS to iso: %w", err)
 		}
 		if err := uw.AddDirFS(audioTSPath); err != nil {
 			return fmt.Errorf("adding AUDIO_TS to iso: %w", err)
 		}
-
 		if err := uw.Build(); err != nil {
 			return fmt.Errorf("native udf build failed: %w", err)
 		}
@@ -3135,6 +3172,24 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 
 	progressFn(100.0)
 	return nil
+}
+
+// authorCopyFile copies src to dst using a streaming io.Copy.
+func authorCopyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Sync()
 }
 
 func runAuthorFFmpeg(ctx context.Context, args []string, duration float64, logFn func(string), progressFn func(float64)) error {

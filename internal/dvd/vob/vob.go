@@ -137,6 +137,86 @@ func (m *Muxer) encodeTimestamp(buf []byte, prefix uint8, ts uint64) {
 	buf[4] = uint8((ts<<1)&0xFE) | 0x01
 }
 
+// TickSCR advances the System Clock Reference by the given number of 27MHz ticks.
+// Call this to keep SCR in sync as data is written between nav packs.
+func (m *Muxer) TickSCR(ticks uint64) {
+	m.scr += ticks
+}
+
+// WriteVideo writes an MPEG-2 video PES packet inside a pack.
+// data should be a complete MPEG-2 video elementary stream access unit.
+// pts is the presentation timestamp in 90kHz ticks.
+func (m *Muxer) WriteVideo(data []byte, pts uint64) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	// Pack header (14 bytes) + PES header (14 bytes with PTS) + payload
+	const pesHeaderLen = 14
+	payloadLen := uint16(len(data))
+	packPayload := pesHeaderLen + len(data)
+
+	if err := m.WritePackHeader(m.scr); err != nil {
+		return fmt.Errorf("video pack header: %w", err)
+	}
+	if err := m.WritePESHeader(uint8(VideoStream0&0xFF), 0, payloadLen, pts, 0, false); err != nil {
+		return fmt.Errorf("video PES header: %w", err)
+	}
+	if _, err := m.w.Write(data); err != nil {
+		return fmt.Errorf("video payload: %w", err)
+	}
+
+	// Pad to sector boundary
+	written := 14 + packPayload
+	if rem := written % PackSize; rem != 0 {
+		if err := m.WritePadding(PackSize - rem); err != nil {
+			return fmt.Errorf("video padding: %w", err)
+		}
+	} else {
+		m.currentSector++
+	}
+
+	// Advance SCR by one sector worth of 90kHz ticks (≈ 2048 bytes at 10.08 Mbps)
+	m.scr += 1800
+	return nil
+}
+
+// WriteAudio writes an AC-3 audio PES packet inside a pack.
+// data should be a complete AC-3 audio frame.
+// pts is the presentation timestamp in 90kHz ticks.
+// subStreamID should be SubStreamAC3Base (0x80) for the first audio track.
+func (m *Muxer) WriteAudio(data []byte, pts uint64, subStreamID uint8) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	payloadLen := uint16(len(data))
+
+	if err := m.WritePackHeader(m.scr); err != nil {
+		return fmt.Errorf("audio pack header: %w", err)
+	}
+	// Private Stream 1 (0xBD) carries AC-3/DTS sub-streams
+	if err := m.WritePESHeader(0xBD, subStreamID, payloadLen, pts, 0, false); err != nil {
+		return fmt.Errorf("audio PES header: %w", err)
+	}
+	if _, err := m.w.Write(data); err != nil {
+		return fmt.Errorf("audio payload: %w", err)
+	}
+
+	// Pad to sector boundary
+	written := 14 + 15 + len(data) // pack + private1 PES + payload
+	if rem := written % PackSize; rem != 0 {
+		if err := m.WritePadding(PackSize - rem); err != nil {
+			return fmt.Errorf("audio padding: %w", err)
+		}
+	} else {
+		m.currentSector++
+	}
+
+	m.scr += 1800
+	return nil
+}
+
 // WritePadding writes a padding packet and finalizes the sector.
 func (m *Muxer) WritePadding(size int) error {
 	if size < 6 {
