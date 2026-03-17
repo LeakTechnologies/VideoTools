@@ -2,9 +2,9 @@ package audio
 
 import (
 	"fmt"
-	"strings"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -12,10 +12,10 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"image/color"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"image/color"
 )
 
 var gridColor = utils.MustHex("#2A3A52")
@@ -127,7 +127,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 }
 
 func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
-	dropLabel := widget.NewLabel("Drop video file here or click to browse")
+	t := i18n.T()
+	dropLabel := widget.NewLabel(t.AudioInstructions)
 	dropLabel.Alignment = fyne.TextAlignCenter
 
 	dropZone := ui.NewDroppable(dropLabel, func(items []fyne.URI) {

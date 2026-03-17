@@ -163,20 +163,16 @@ func min(a, b int) int {
 
 func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
 	if fontMode == "aboriginal" && aboriginalFontData.regular != nil {
+		// Syllabics glyphs are intricate and thin at small sizes, so shift the
+		// entire weight ladder up: regular→bold, italic→boldItalic.
 		var fontData []byte
-		fontName := "AboriginalSansREGULAR.ttf"
-		switch {
-		case style.Bold && style.Italic:
+		var fontName string
+		if style.Italic {
 			fontData = aboriginalFontData.boldItalic
 			fontName = "AboriginalSansBOLDITALIC.ttf"
-		case style.Bold:
+		} else {
 			fontData = aboriginalFontData.bold
 			fontName = "AboriginalSansBOLD.ttf"
-		case style.Italic:
-			fontData = aboriginalFontData.italic
-			fontName = "AboriginalSansITALIC.ttf"
-		default:
-			fontData = aboriginalFontData.regular
 		}
 		if fontData != nil {
 			return fyne.NewStaticResource(fontName, fontData)
@@ -211,20 +207,32 @@ func (m *MonoTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
 }
 
 func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
-	// Make UI elements larger and more readable
+	// Syllabics need a larger point size — the glyphs are more intricate than
+	// Latin and become hard to read at normal sizes.
+	aboriginal := fontMode == "aboriginal"
+
 	switch name {
 	case theme.SizeNamePadding:
-		return 6 // Back to default for better precision
+		return 6
 	case theme.SizeNameInnerPadding:
-		return 8 // Back to default for better precision
+		return 8
 	case theme.SizeNameText:
-		return 14 // Slightly smaller for a less cramped UI
+		if aboriginal {
+			return 16
+		}
+		return 14
 	case theme.SizeNameHeadingText:
-		return 18 // Slightly smaller for a less cramped UI
+		if aboriginal {
+			return 21
+		}
+		return 18
 	case theme.SizeNameSubHeadingText:
-		return 15 // Slightly smaller for a less cramped UI
+		if aboriginal {
+			return 18
+		}
+		return 15
 	case theme.SizeNameInputBorder:
-		return 0 // Remove input borders for cleaner fields
+		return 0
 	}
 	return theme.DefaultTheme().Size(name)
 }

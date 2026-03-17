@@ -52,9 +52,13 @@ func CurrentCode() string {
 }
 
 // CurrentFont returns the font family hint for the active language ("mono" or "aboriginal").
+// Inuktitut in Latin script uses "mono" since the romanization is standard Latin.
 func CurrentFont() string {
 	mu.RLock()
 	defer mu.RUnlock()
+	if currentLang == "iu" && currentScript == ScriptLatin {
+		return "mono"
+	}
 	for _, lang := range allLanguages {
 		if lang.Code == currentLang {
 			return lang.Font
@@ -84,18 +88,32 @@ func SetLanguage(code string) {
 }
 
 // SetLanguageWithScript switches language and script variant simultaneously.
+// For Inuktitut, ScriptLatin loads the romanized (Qaliujaaqpait) string set
+// and switches the font to mono; ScriptSyllabics uses the syllabics set with
+// Aboriginal Sans.  currentLang is always stored as "iu" (not "iu-Latn") so
+// the Settings script toggle remains visible after a restart.
 func SetLanguageWithScript(code string, script ScriptVariant) {
-	strings, ok := registry[code]
+	// Resolve which registry entry to load.
+	lookupCode := code
+	if code == "iu" && script == ScriptLatin {
+		lookupCode = "iu-Latn"
+	}
+
+	strings, ok := registry[lookupCode]
 	if !ok {
-		code = "en-CA"
-		strings = enCA
-		script = ScriptDefault
+		// "iu-Latn" not found — fall back to syllabics before giving up.
+		strings, ok = registry[code]
+		if !ok {
+			code = "en-CA"
+			strings = enCA
+			script = ScriptDefault
+		}
 	}
 	merged := fallback(strings, enCA)
 
 	mu.Lock()
 	current = merged
-	currentLang = code
+	currentLang = code   // always "iu", not "iu-Latn"
 	currentScript = script
 	mu.Unlock()
 
