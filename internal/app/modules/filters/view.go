@@ -10,10 +10,10 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"image/color"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"image/color"
 )
 
 var gridColor = utils.MustHex("#2A3A52")
@@ -115,7 +115,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
-	instructions := widget.NewLabel("Apply filters and color corrections to your video. Preview changes in real-time.")
+	instructions := widget.NewLabel(t.FiltersInstructions)
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
@@ -125,15 +125,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	}
 
-	fileLabel := widget.NewLabel("No file loaded")
+	fileLabel := widget.NewLabel(t.LabelNoFile)
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	var videoContainer fyne.CanvasObject
 	if opts.FiltersFile != nil {
-		fileLabel.SetText(fmt.Sprintf("File: %s", "video loaded"))
-		videoContainer = container.NewCenter(widget.NewLabel("Video preview"))
+		fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, "video loaded"))
+		videoContainer = container.NewCenter(widget.NewLabel(t.FiltersVideoPreview))
 	} else {
-		videoContainer = container.NewCenter(widget.NewLabel("No video loaded"))
+		videoContainer = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
 	}
 
 	loadBtn := widget.NewButton("Load Video", func() {
@@ -202,13 +202,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 
 	colorSection := buildFilterBox("Color Correction", container.NewVBox(
-		widget.NewLabel("Adjust brightness, contrast, and saturation"),
+		widget.NewLabel(t.FiltersSectionBrightness),
 		container.NewGridWithColumns(2,
-			widget.NewLabel("Brightness:"),
+			widget.NewLabel(t.FiltersBrightness),
 			brightnessSlider,
-			widget.NewLabel("Contrast:"),
+			widget.NewLabel(t.FiltersContrast),
 			contrastSlider,
-			widget.NewLabel("Saturation:"),
+			widget.NewLabel(t.FiltersSaturation),
 			saturationSlider,
 		),
 	))
@@ -232,11 +232,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 
 	enhanceSection := buildFilterBox("Enhancement", container.NewVBox(
-		widget.NewLabel("Sharpen, blur, and denoise"),
+		widget.NewLabel(t.FiltersSectionSharpen),
 		container.NewGridWithColumns(2,
-			widget.NewLabel("Sharpness:"),
+			widget.NewLabel(t.FiltersSharpness),
 			sharpnessSlider,
-			widget.NewLabel("Denoise:"),
+			widget.NewLabel(t.FiltersDenoise),
 			denoiseSlider,
 		),
 	))
@@ -287,13 +287,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 	flipVCheck.SetChecked(opts.FilterFlipV)
 
 	transformSection := buildFilterBox("Transform", container.NewVBox(
-		widget.NewLabel("Rotate and flip video"),
+		widget.NewLabel(t.FiltersSectionRotate),
 		container.NewGridWithColumns(2,
-			widget.NewLabel("Rotation:"),
+			widget.NewLabel(t.FiltersRotation),
 			rotationSelect,
-			widget.NewLabel("Flip Horizontal:"),
+			widget.NewLabel(t.FiltersFlipHorizontal),
 			flipHCheck,
-			widget.NewLabel("Flip Vertical:"),
+			widget.NewLabel(t.FiltersFlipVertical),
 			flipVCheck,
 		),
 	))
@@ -307,7 +307,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	grayscaleCheck.SetChecked(opts.FilterGrayscale)
 
 	creativeSection := buildFilterBox("Creative Effects", container.NewVBox(
-		widget.NewLabel("Apply artistic effects"),
+		widget.NewLabel(t.FiltersSectionArtistic),
 		grayscaleCheck,
 	))
 
@@ -336,14 +336,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChain()
 	}
 
-	colorBleedingCheck := widget.NewCheck("Color Bleeding", func(b bool) {
-		if opts.OnSetColorBleeding != nil {
-			opts.OnSetColorBleeding(b)
-		}
-		buildFilterChain()
-	})
-	colorBleedingCheck.SetChecked(opts.FilterColorBleeding)
-
 	tapeNoiseSlider := widget.NewSlider(0.0, 1.0)
 	tapeNoiseSlider.SetValue(opts.FilterTapeNoise)
 	tapeNoiseSlider.OnChanged = func(f float64) {
@@ -371,7 +363,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChain()
 	}
 
-	interlacingSelect := widget.NewSelect([]string{"None", "Progressive", "Interlaced"}, func(s string) {
+	colorBleedingCheck := widget.NewCheck("Color Bleeding", func(b bool) {
+		if opts.OnSetColorBleeding != nil {
+			opts.OnSetColorBleeding(b)
+		}
+		buildFilterChain()
+	})
+	colorBleedingCheck.SetChecked(opts.FilterColorBleeding)
+
+	interlacingSelect := widget.NewSelect([]string{"Off", "Telecine (2:3)", "Inverse Telecine", "Force Progressive"}, func(s string) {
 		if opts.OnSetInterlacing != nil {
 			opts.OnSetInterlacing(s)
 		}
@@ -380,23 +380,23 @@ func BuildView(opts Options) fyne.CanvasObject {
 	interlacingSelect.SetSelected(opts.FilterInterlacing)
 
 	stylisticSection := buildFilterBox("Stylistic Effects", container.NewVBox(
-		widget.NewLabel("Authentic decade-based video effects"),
+		widget.NewLabel(t.FiltersSectionEra),
 		container.NewGridWithColumns(2,
-			widget.NewLabel("Era Mode:"),
+			widget.NewLabel(t.FiltersEraMode),
 			stylisticModeSelect,
-			widget.NewLabel("Interlacing:"),
+			widget.NewLabel(t.FiltersInterlacing),
 			interlacingSelect,
 		),
 		scanlinesCheck,
 		widget.NewSeparator(),
 		container.NewGridWithColumns(2,
-			widget.NewLabel("Chroma Noise:"),
+			widget.NewLabel(t.FiltersChromaNoise),
 			chromaNoiseSlider,
-			widget.NewLabel("Tape Noise:"),
+			widget.NewLabel(t.FiltersTapeNoise),
 			tapeNoiseSlider,
-			widget.NewLabel("Tracking Error:"),
+			widget.NewLabel(t.FiltersTrackingError),
 			trackingErrorSlider,
-			widget.NewLabel("Tape Dropout:"),
+			widget.NewLabel(t.FiltersTapeDropout),
 			dropoutSlider,
 		),
 		colorBleedingCheck,

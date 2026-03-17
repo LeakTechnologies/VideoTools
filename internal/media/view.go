@@ -81,3 +81,32 @@ func (s *SplitView) draw(w, h int) image.Image {
 func (s *SplitView) MouseMoved(ev *desktop.MouseEvent) {
 	// If dragging, update divider...
 }
+
+// VideoPlayer is a custom Fyne widget for single video playback.
+type VideoPlayer struct {
+	container.Max
+	source *image.RGBA
+	raster *canvas.Raster
+}
+
+// NewVideoPlayer creates a new video player renderer.
+func NewVideoPlayer() *VideoPlayer {
+	v := &VideoPlayer{}
+	v.raster = canvas.NewRaster(v.draw)
+	v.Objects = []fyne.CanvasObject{v.raster}
+	return v
+}
+
+// SetFrame updates the current frame data.
+func (v *VideoPlayer) SetFrame(img *image.RGBA) {
+	v.source = img
+	v.Refresh()
+}
+
+func (v *VideoPlayer) draw(w, h int) image.Image {
+	if v.source == nil {
+		img := image.NewRGBA(image.Rect(0, 0, w, h))
+		return img
+	}
+	return v.source
+}

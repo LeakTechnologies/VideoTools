@@ -6,6 +6,7 @@ require (
 	fyne.io/fyne/v2 v2.7.1
 	github.com/ebitengine/oto/v3 v3.4.0
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
+	golang.org/x/image v0.24.0
 )
 
 require (
@@ -37,7 +38,6 @@ require (
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/yuin/goldmark v1.7.8 // indirect
-	golang.org/x/image v0.24.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
