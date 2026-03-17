@@ -164,13 +164,17 @@ It uses `rife-ncnn-vulkan` — same deployment model as `realesrgan-ncnn-vulkan`
     - [x] A/V sync master clock and frame timing.
 - [ ] **Phase 3: Advanced Control**
     - [x] Frame-accurate seeking and stepping.
-- [ ] **Phase 4: Split-View & GStreamer Removal**
-    - [ ] Integrate native `SplitView` into Compare module.
-    - [ ] Implement dual-engine playback loop in `compare/view.go`.
-    - [ ] Remove `internal/player/gstreamer*`.
-    - [ ] Remove GStreamer from build scripts and CI.
+- [ ] **Phase 4: Split-View Integration**
+    - [x] Integrate native `SplitView` into Compare module.
+    - [x] Implement dual-engine playback loop in `compare/view.go`.
 - [ ] **Phase 5: Trim Module Integration**
-    - [ ] Integrate native seeking into Trim module for frame-accurate timeline.
+    - [x] Implement professional UI layout (Internal Trim module).
+    - [x] Create reusable `media.VideoPlayer` widget.
+    - [ ] Implement frame-accurate scrubbing loop.
+    - [ ] Link In/Out points to `internal/queue` for lossless processing.
+- [ ] **Phase 6: GStreamer Removal**
+    - [ ] Remove `internal/player/gstreamer*` (Deferred until Native Engine is stable).
+    - [ ] Remove GStreamer from build scripts and CI.
 
 ## Agent Work Tracking
 

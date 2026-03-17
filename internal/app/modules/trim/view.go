@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -25,17 +26,24 @@ type Options struct {
 	ModuleColor    color.Color
 	OnShowMainMenu func()
 	OnShowQueue    func()
-	OnAddToQueue   func(clip authorClip)
 }
 
-// authorClip is used here as a placeholder for trim parameters.
-// In a real implementation, we might use a dedicated trimJob struct.
-type authorClip struct {
-	Path     string
-	InPoint  time.Duration
-	OutPoint time.Duration
-	Mode     string // "keep" or "cut"
-	Export   string // "smart" or "recode"
+type trimState struct {
+	engine *media.Engine
+	player *media.VideoPlayer
+	
+	inPoint  time.Duration
+	outPoint time.Duration
+	
+	currentTime float64 // in seconds
+	duration    float64 // in seconds
+	
+	// UI refs for updates
+	timeLabel    *widget.Label
+	inPointLabel *widget.Label
+	outPointLabel *widget.Label
+	durLabel     *widget.Label
+	timeline     *widget.Slider
 }
 
 func BuildView(opts Options, initialPath string) fyne.CanvasObject {
@@ -43,6 +51,10 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	trimColor := opts.ModuleColor
 	navyBlue := utils.MustHex("#191F35")
 	gridColor := utils.MustHex("#171C2A")
+
+	state := &trimState{
+		player: media.NewVideoPlayer(),
+	}
 
 	// --- Helpers ---
 	buildTrimBox := func(title string, content fyne.CanvasObject) *fyne.Container {
@@ -60,47 +72,66 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		return container.NewMax(layers...)
 	}
 
-	sectionGap := func() fyne.CanvasObject {
-		gap := canvas.NewRectangle(color.Transparent)
-		gap.SetMinSize(fyne.NewSize(0, 10))
-		return gap
-	}
-
-	// --- State ---
-	player := media.NewVideoPlayer()
-	var engine *media.Engine
-	var duration time.Duration
-	currentTime := 0.0
-
 	// --- UI Components ---
+	state.timeLabel = widget.NewLabel("00:00:00.000")
+	state.durLabel = widget.NewLabel("00:00:00.000")
+	state.inPointLabel = widget.NewLabel(t.TrimInPoint + ": 00:00:00.000")
+	state.outPointLabel = widget.NewLabel(t.TrimOutPoint + ": 00:00:00.000")
 	
-	// Top Navigation
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleTrim), opts.OnShowMainMenu)
-	backBtn.Importance = widget.LowImportance
-	queueBtn := widget.NewButton(t.MenuQueue, opts.OnShowQueue)
-	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-
-	// Left Side: Video & Timeline
-	timeLabel := widget.NewLabel("00:00:00.000")
-	durLabel := widget.NewLabel("00:00:00.000")
-	
-	timeline := widget.NewSlider(0, 100)
-	timeline.OnChanged = func(val float64) {
-		if engine != nil {
-			target := (val / 100.0) * duration.Seconds()
-			engine.Seek(target)
-			// Update frame logic...
+	state.timeline = widget.NewSlider(0, 100)
+	state.timeline.OnChanged = func(val float64) {
+		if state.engine != nil {
+			target := (val / 100.0) * state.duration
+			state.engine.Seek(target)
+			state.currentTime = target
+			state.updateTimeLabels()
+			// Fetch a frame immediately for feedback
+			if img, err := state.engine.NextFrame(); err == nil {
+				state.player.SetFrame(img)
+			}
 		}
 	}
 
-	setInBtn := widget.NewButton(t.TrimSetIn, func() {})
-	setOutBtn := widget.NewButton(t.TrimSetOut, func() {})
-	playBtn := widget.NewButton(t.ActionPlay, func() {})
-	pauseBtn := widget.NewButton(t.ActionPause, func() {})
+	setInBtn := widget.NewButton(t.TrimSetIn, func() {
+		state.inPoint = time.Duration(state.currentTime * float64(time.Second))
+		state.inPointLabel.SetText(fmt.Sprintf("%s: %s", t.TrimInPoint, formatDuration(state.inPoint)))
+	})
+	setOutBtn := widget.NewButton(t.TrimSetOut, func() {
+		state.outPoint = time.Duration(state.currentTime * float64(time.Second))
+		state.outPointLabel.SetText(fmt.Sprintf("%s: %s", t.TrimOutPoint, formatDuration(state.outPoint)))
+	})
 	
+	// Step buttons for frame-accuracy
+	stepBackBtn := widget.NewButton("<", func() {
+		if state.engine != nil {
+			// FFmpeg seek back is trickier, for now we seek back slightly and Step forward
+			target := state.currentTime - 0.033 // rough 1 frame at 30fps
+			if target < 0 { target = 0 }
+			state.engine.Seek(target)
+			if img, err := state.engine.NextFrame(); err == nil {
+				state.player.SetFrame(img)
+			}
+		}
+	})
+	stepFwdBtn := widget.NewButton(">", func() {
+		if state.engine != nil {
+			if img, err := state.engine.Step(1); err == nil {
+				state.player.SetFrame(img)
+				// Update clock or current time based on frame PTS...
+			}
+		}
+	})
+
+	playBtn := widget.NewButton(t.ActionPlay, func() {
+		if state.engine != nil {
+			state.engine.Start()
+			go state.playbackLoop()
+		}
+	})
+
 	transport := container.NewHBox(
 		layout.NewSpacer(),
-		playBtn, pauseBtn,
+		stepBackBtn, playBtn, stepFwdBtn,
 		widget.NewSeparator(),
 		setInBtn, setOutBtn,
 		layout.NewSpacer(),
@@ -109,59 +140,72 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	videoContainer := container.NewBorder(
 		nil,
 		container.NewVBox(
-			container.NewBorder(nil, nil, timeLabel, durLabel, timeline),
+			container.NewBorder(nil, nil, state.timeLabel, state.durLabel, state.timeline),
 			transport,
 		),
 		nil, nil,
-		container.NewMax(canvas.NewRectangle(color.Black), player),
+		container.NewMax(canvas.NewRectangle(color.Black), state.player),
 	)
 
-	// Right Side: Settings
-	inPointEntry := widget.NewEntry()
-	inPointEntry.SetPlaceHolder("00:00:00.000")
-	outPointEntry := widget.NewEntry()
-	outPointEntry.SetPlaceHolder("00:00:00.000")
+	// Layout from design spec
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleTrim), opts.OnShowMainMenu)
+	backBtn.Importance = widget.LowImportance
+	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
-	rangeBox := buildTrimBox("Trim Range", container.NewVBox(
-		widget.NewLabel(t.TrimInPoint),
-		inPointEntry,
-		widget.NewLabel(t.TrimOutPoint),
-		outPointEntry,
-	))
-
-	modeSelect := widget.NewRadioGroup([]string{t.TrimModeKeep, t.TrimModeCut}, nil)
-	modeSelect.SetSelected(t.TrimModeKeep)
-	
-	exportSelect := widget.NewRadioGroup([]string{t.TrimSmartCopy, t.TrimRecode}, nil)
-	exportSelect.SetSelected(t.TrimSmartCopy)
-
-	optionsBox := buildTrimBox("Output Options", container.NewVBox(
-		widget.NewLabel(t.TrimMode),
-		modeSelect,
-		widget.NewSeparator(),
-		widget.NewLabel("Method:"),
-		exportSelect,
-	))
-
-	settingsScroll := container.NewVScroll(container.NewVBox(
-		rangeBox,
-		sectionGap(),
-		optionsBox,
-	))
-
-	// Bottom Bar
-	addQueueBtn := widget.NewButton(t.ActionAddToQueue, func() {})
-	trimNowBtn := widget.NewButton("Trim Now", func() {})
-	trimNowBtn.Importance = widget.HighImportance
-	
-	bottomBar := ui.TintedBar(trimColor, container.NewHBox(layout.NewSpacer(), addQueueBtn, trimNowBtn))
-
-	// Main Layout
-	mainContent := container.NewHSplit(
-		videoContainer,
-		container.NewPadded(settingsScroll),
+	rightSide := container.NewVBox(
+		buildTrimBox("Selection", container.NewVBox(
+			state.inPointLabel,
+			state.outPointLabel,
+		)),
 	)
-	mainContent.Offset = 0.75
 
-	return container.NewBorder(topBar, bottomBar, nil, nil, mainContent)
+	content := container.NewHSplit(videoContainer, container.NewPadded(rightSide))
+	content.Offset = 0.8
+
+	// Auto-load if path provided
+	if initialPath != "" {
+		state.loadVideo(initialPath)
+	}
+
+	return container.NewBorder(topBar, nil, nil, nil, content)
+}
+
+func (s *trimState) loadVideo(path string) {
+	s.engine = media.NewEngine()
+	if err := s.engine.Open(path); err != nil {
+		logging.Error(logging.CatPlayer, "Trim: failed to open %s: %v", path, err)
+		return
+	}
+	s.duration = s.engine.Duration()
+	s.durLabel.SetText(formatDuration(time.Duration(s.duration * float64(time.Second))))
+	
+	// Show first frame
+	if img, err := s.engine.NextFrame(); err == nil {
+		s.player.SetFrame(img)
+	}
+}
+
+func (s *trimState) playbackLoop() {
+	for {
+		img, err := s.engine.NextFrame()
+		if err != nil {
+			break
+		}
+		s.player.SetFrame(img)
+		// Update timeline/timeLabel...
+	}
+}
+
+func (s *trimState) updateTimeLabels() {
+	s.timeLabel.SetText(formatDuration(time.Duration(s.currentTime * float64(time.Second))))
+}
+
+func formatDuration(d time.Duration) string {
+	h := d / time.Hour
+	d -= h * time.Hour
+	m := d / time.Minute
+	d -= m * time.Minute
+	s := d / time.Second
+	ms := (d % time.Second) / time.Millisecond
+	return fmt.Sprintf("%02d:%02d:%02d.%03d", h, m, s, ms)
 }
