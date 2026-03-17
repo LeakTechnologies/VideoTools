@@ -21,11 +21,13 @@ import (
 func (s *appState) showQueue() {
 	s.stopPreview()
 	s.stopPlayer()
-	if s.active != "queue" {
+	// Only update the back target on a real forward navigation, not during back/forward jumps.
+	if s.active != "queue" && !s.navigationHistorySuppress {
 		s.lastModule = s.active
 		s.queueBackTarget = s.active
 	}
 	s.active = "queue"
+	s.pushNavigationHistory("queue")
 	s.refreshQueueView()
 	if s.queueView != nil {
 		s.setContent(s.queueView.Root)
