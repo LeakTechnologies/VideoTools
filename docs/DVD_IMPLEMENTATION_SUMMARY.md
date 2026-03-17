@@ -1,354 +1,155 @@
-# VideoTools DVD-NTSC Implementation Summary
+# DVD/ISO Engine — Implementation Status
 
-## ✅ Completed Tasks
+_Last updated: 2026-03-17_
 
-### 1. **Code Modularization**
-The project has been refactored into modular Go packages for better maintainability and code organization:
+This document describes the current state of VideoTools' native Go DVD authoring
+engine (`internal/dvd/`). For the completion roadmap see `DVD_COMPLETION_PLAN.md`.
 
-**New Package Structure:**
-- `internal/convert/` - DVD and video encoding functionality
-  - `types.go` - Core type definitions (VideoSource, ConvertConfig, FormatOption)
-  - `ffmpeg.go` - FFmpeg integration (codec mapping, video probing)
-  - `presets.go` - Output format presets
-  - `dvd.go` - NTSC-specific DVD encoding
-  - `dvd_regions.go` - Multi-region DVD support (NTSC, PAL, SECAM)
+---
 
-- `internal/app/` - Application-level adapters (ready for integration)
-  - `dvd_adapter.go` - DVD functionality bridge for main.go
-
-### 2. **DVD-NTSC Output Preset (Complete)**
-
-The DVD-NTSC preset generates professional-grade MPEG-2 program streams with full compliance:
-
-#### Technical Specifications:
-```
-Video Codec:       MPEG-2 (mpeg2video)
-Container:         MPEG Program Stream (.mpg)
-Resolution:        720×480 (NTSC Full D1)
-Frame Rate:        29.97 fps (30000/1001)
-Aspect Ratio:      4:3 or 16:9 (selectable)
-Video Bitrate:     6000 kbps (default), max 9000 kbps
-GOP Size:          15 frames
-Interlacing:       Auto-detected (progressive or interlaced)
-
-Audio Codec:       AC-3 (Dolby Digital)
-Channels:          Stereo (2.0)
-Audio Bitrate:     192 kbps
-Sample Rate:       48 kHz (mandatory, auto-resampled)
-
-Region:            Region-Free
-Compatibility:     DVDStyler, PS2, standalone DVD players
-```
-
-### 3. **Multi-Region DVD Support** ✨ BONUS
-
-Extended support for **three DVD standards**:
-
-#### NTSC (Region-Free)
-- Regions: USA, Canada, Japan, Australia, New Zealand
-- Resolution: 720×480 @ 29.97 fps
-- Bitrate: 6000-9000 kbps
-- Created via `convert.PresetForRegion(convert.DVDNTSCRegionFree)`
-
-#### PAL (Region-Free)
-- Regions: Europe, Africa, most of Asia, Australia, New Zealand
-- Resolution: 720×576 @ 25.00 fps
-- Bitrate: 8000-9500 kbps
-- Created via `convert.PresetForRegion(convert.DVDPALRegionFree)`
-
-#### SECAM (Region-Free)
-- Regions: France, Russia, Eastern Europe, Central Asia
-- Resolution: 720×576 @ 25.00 fps
-- Bitrate: 8000-9500 kbps
-- Created via `convert.PresetForRegion(convert.DVDSECAMRegionFree)`
-
-### 4. **Comprehensive Validation System**
-
-Automatic validation with actionable warnings:
-
-```go
-// NTSC Validation
-warnings := convert.ValidateDVDNTSC(videoSource, config)
-
-// Regional Validation
-warnings := convert.ValidateForDVDRegion(videoSource, region)
-```
-
-**Validation Checks Include:**
-- ✓ Framerate normalization (23.976p, 24p, 30p, 60p detection & conversion)
-- ✓ Resolution scaling and aspect ratio preservation
-- ✓ Audio sample rate resampling (auto-converts to 48 kHz)
-- ✓ Interlacing detection and optimization
-- ✓ Bitrate safety checks (PS2-safe maximum)
-- ✓ Aspect ratio compliance (4:3 and 16:9 support)
-- ✓ VFR (Variable Frame Rate) detection with CFR enforcement
-
-**Validation Output Structure:**
-```go
-type DVDValidationWarning struct {
-    Severity string // "info", "warning", "error"
-    Message  string // User-friendly description
-    Action   string // What will be done to fix it
-}
-```
-
-### 5. **FFmpeg Command Generation**
-
-Automatic FFmpeg argument construction:
-
-```go
-args := convert.BuildDVDFFmpegArgs(
-    inputPath,
-    outputPath,
-    convertConfig,
-    videoSource,
-)
-// Produces fully DVD-compliant command line
-```
-
-**Key Features:**
-- No re-encoding warnings in DVDStyler
-- PS2-compatible output (tested specification)
-- Preserves or corrects aspect ratios with letterboxing/pillarboxing
-- Automatic deinterlacing and frame rate conversion
-- Preserves or applies interlacing based on source
-
-### 6. **Preset Information API**
-
-Human-readable preset descriptions:
-
-```go
-info := convert.DVDNTSCInfo()
-// Returns detailed specification text
-```
-
-All presets return standardized `DVDStandard` struct with:
-- Technical specifications
-- Compatible regions/countries
-- Default and max bitrates
-- Supported aspect ratios
-- Interlacing modes
-- Detailed description text
-
-## 📁 File Structure
+## Architecture
 
 ```
-VideoTools/
-├── internal/
-│   ├── convert/
-│   │   ├── types.go              (190 lines) - Core types (VideoSource, ConvertConfig, etc.)
-│   │   ├── ffmpeg.go             (211 lines) - FFmpeg codec mapping & probing
-│   │   ├── presets.go            (10 lines)  - Output format definitions
-│   │   ├── dvd.go                (310 lines) - NTSC DVD encoding & validation
-│   │   └── dvd_regions.go        (273 lines) - PAL, SECAM, regional support
-│   │
-│   ├── app/
-│   │   └── dvd_adapter.go        (150 lines) - Integration bridge for main.go
-│   │
-│   ├── queue/
-│   │   └── queue.go              - Job queue system (already implemented)
-│   │
-│   ├── ui/
-│   │   ├── mainmenu.go
-│   │   ├── queueview.go
-│   │   └── components.go
-│   │
-│   ├── player/
-│   │   ├── controller.go
-│   │   ├── controller_linux.go
-│   │   └── linux/controller.go
-│   │
-│   ├── logging/
-│   │   └── logging.go
-│   │
-│   ├── modules/
-│   │   └── handlers.go
-│   │
-│   └── utils/
-│       └── utils.go
-│
-├── main.go                       (4000 lines) - Main application [ready for DVD integration]
-├── go.mod / go.sum
-├── README.md
-└── DVD_IMPLEMENTATION_SUMMARY.md (this file)
+clips (any format)
+  │
+  ▼ FFmpeg encode (author_module.go)
+MPEG-2 Program Stream (.mpg) — DVD-compliant bitrate, GOP, AC-3 audio
+  │
+  ▼ FFmpeg remux (-f dvd)
+VTS_01_1.VOB  placed in VIDEO_TS/
+  │
+  ├── internal/dvd/ifo  →  VTS_01_0.IFO / .BUP + VIDEO_TS.IFO / .BUP
+  │
+  └── internal/dvd/udf  →  .iso  (UDF 1.02 + ISO 9660 hybrid filesystem)
 ```
 
-## 🚀 Integration with main.go
+---
 
-The new convert package is **fully independent** and can be integrated into main.go without breaking changes:
+## Layer Status
 
-### Option 1: Direct Integration
-```go
-import "git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+### 1. VOB Muxer — `internal/dvd/vob/`
 
-// Use DVD preset
-cfg := convert.DVDNTSCPreset()
+| Component | Status | Notes |
+|---|---|---|
+| Pack header (MPEG-PS) | ✅ Complete | SCR encoding, mux rate |
+| PES header | ✅ Complete | PTS/DTS, Private Stream 1 support |
+| NAV_PCK write | ✅ Complete | PCI + DSI written per VOBU |
+| `WriteVideo(data, pts)` | ✅ Complete | MPEG-2 video PES in a pack |
+| `WriteAudio(data, pts, subStreamID)` | ✅ Complete | AC-3 Private Stream 1 PES |
+| `TickSCR(ticks)` | ✅ Complete | Advance system clock between writes |
+| Padding packets | ✅ Complete | Sector boundary alignment |
+| PCI packet content | ⚠️ Minimal | LVOBU_S/E_PTM hardcoded zeros |
+| DSI packet content | ⚠️ Minimal | VOBU_SRI (seek offsets) all zeros |
+| SCR increment | ⚠️ Fixed delta | 1800 ticks/sector; not frame-accurate |
+| Menu VOB (`VIDEO_TS.VOB`) | ❌ Not created | Required by some strict players |
 
-// Validate input
-warnings := convert.ValidateDVDNTSC(videoSource, cfg)
+### 2. IFO Generator — `internal/dvd/ifo/`
 
-// Build FFmpeg command
-args := convert.BuildDVDFFmpegArgs(inPath, outPath, cfg, videoSource)
-```
+| Component | Status | Notes |
+|---|---|---|
+| `VTS_MAT` serialisation | ✅ Complete | Video/audio attributes, big-endian |
+| `VMG_MAT` serialisation | ✅ Complete | Disc-level metadata |
+| `GenerateVTS_IFO()` | ✅ Complete | Writes .IFO and .BUP to VIDEO_TS/ |
+| `GenerateVMG_IFO()` | ✅ Complete | Writes VIDEO_TS.IFO and .BUP |
+| `VOBU_ADMAP` | ✅ Complete | Sector map structure; passed as nil currently |
+| PGC (Program Chain) | ❌ Missing | Core navigation structure — chapter seek, title play |
+| Cell Information Table | ❌ Missing | Required for chapter time-to-sector mapping |
+| Time Map Table (TMAPT) | ❌ Missing | Fast forward/rewind seek table |
+| Title Search Pointer Table (TT_SRPT) | ❌ Missing | VMG needs title count + offsets |
+| VTS Attribute Table (VTS_ATRT) | ⚠️ Stub | Defined, not populated |
+| Audio/subtitle track tables | ❌ Missing | Required for multi-track playback |
 
-### Option 2: Via Adapter (Recommended)
-```go
-import "git.leaktechnologies.dev/stu/VideoTools/internal/app"
+### 3. UDF Filesystem — `internal/dvd/udf/`
 
-// Clean interface for main.go
-dvdConfig := app.NewDVDConfig()
-warnings := dvdConfig.ValidateForDVD(width, height, fps, sampleRate, progressive)
-args := dvdConfig.GetFFmpegArgs(inPath, outPath, width, height, fps, sampleRate, progressive)
-```
+| Component | Status | Notes |
+|---|---|---|
+| UDF 1.02 descriptor types | ✅ Complete | PVD, LVD, FSD, FID, ICB, AVDP |
+| FileNode tree + AddFile/AddDirectory | ✅ Complete | Recursive traversal |
+| `AddDirFS()` | ✅ Complete | Walks OS directory into UDF tree |
+| `Build()` | ✅ Complete | WriteHeader → assignSectors → writeNode |
+| Descriptor serialisation + CRC | ✅ Complete | |
+| Sector alignment (2048 bytes) | ✅ Complete | |
+| ISO 9660 PVD | ✅ Complete | Written as hybrid disc |
+| ISO 9660 directory tree | ⚠️ Skeletal | PVD written; directory records not populated |
+| Multi-partition map support | ⚠️ Limited | Fixed 64-byte partition map array |
 
-## ✨ Key Features
+### 4. SPU Encoder — `internal/dvd/spu/`
 
-### Automatic Framerate Conversion
-| Input FPS | Action | Output |
-|-----------|--------|--------|
-| 23.976    | 3:2 Pulldown | 29.97 (interlaced) |
-| 24.0      | 3:2 Pulldown | 29.97 (interlaced) |
-| 29.97     | None | 29.97 (preserved) |
-| 30.0      | Minor adjust | 29.97 |
-| 59.94     | Decimate | 29.97 |
-| 60.0      | Decimate | 29.97 |
-| VFR       | Force CFR | 29.97 |
+| Component | Status | Notes |
+|---|---|---|
+| 2-bit RLE encoding | ✅ Complete | Row-by-row pixel encoding |
+| Display Control Sequence (DCSQ) | ⚠️ Minimal | Structure written; area/offset hardcoded zeros |
+| Color palette support | ⚠️ Fixed | 4-color fixed palette; no user palette |
+| Contrast/timing DCSQ commands | ❌ Missing | SET_CONTR, timing not implemented |
+| Menu integration | ❌ Not wired | Encoder works standalone but not called from authoring |
 
-### Automatic Audio Handling
-- **48 kHz Requirement:** Automatically resamples 44.1 kHz, 96 kHz, etc. to 48 kHz
-- **AC-3 Encoding:** Converts AAC, MP3, Opus to AC-3 Stereo 192 kbps
-- **Validation:** Warns about non-standard audio codec choices
+### 5. Theme / Menu Renderer — `internal/dvd/theme/`
 
-### Resolution & Aspect Ratio
-- **Target:** Always 720×480 (NTSC) or 720×576 (PAL)
-- **Scaling:** Automatic letterboxing/pillarboxing
-- **Aspect Flags:** Sets proper DAR (Display Aspect Ratio) and SAR (Sample Aspect Ratio)
-- **Preservation:** Maintains source aspect ratio or applies user-specified handling
+| Component | Status | Notes |
+|---|---|---|
+| JSON theme loading | ✅ Complete | Text, button, image elements |
+| `RenderMenu()` | ✅ Complete | Produces `image.Image` + highlight palette |
+| `drawText()` with OpenType fonts | ✅ Complete | |
+| `drawHighlight()` button regions | ✅ Complete | |
+| CSS-like layout parsing | ✅ Complete | center, %, px |
+| Button → DVD button definition | ❌ Missing | `ButtonRect` coordinates not mapped to nav_aid |
+| Menu SPU encoding bridge | ❌ Not wired | Renderer output never reaches SPU encoder |
+| Menu VOB muxing | ❌ Not wired | No code path: MenuAssets → VOB sector |
 
-## 📊 Testing & Verification
+### 6. Conversion Layer — `internal/convert/`
 
-### Build Status
-```bash
-$ go build ./internal/convert
-✓ Success - All packages compile without errors
-```
+| Component | Status | Notes |
+|---|---|---|
+| `DVDNTSCPreset()` | ✅ Complete | 720×480, 29.97fps, AC-3, MPEG-2 |
+| `BuildDVDFFmpegArgs()` | ✅ Complete | Full DVD-compliant FFmpeg command |
+| `ValidateDVDNTSC()` | ✅ Complete | Framerate, resolution, audio, bitrate |
+| `DVDRegion` + multi-region presets | ✅ Complete | NTSC / PAL / SECAM |
+| `ValidateForDVDRegion()` | ✅ Complete | |
 
-### Package Dependencies
-- Internal: `logging`, `utils`
-- External: `fmt`, `strings`, `context`, `os`, `os/exec`, `path/filepath`, `time`, `encoding/json`, `encoding/binary`
+### 7. Authoring Pipeline — `author_module.go` / `author_dvd_functions.go`
 
-### Export Status
-- **Exported Functions:** 15+ public APIs
-- **Exported Types:** VideoSource, ConvertConfig, FormatOption, DVDStandard, DVDValidationWarning
-- **Public Constants:** DVDNTSCRegionFree, DVDPALRegionFree, DVDSECAMRegionFree
+| Component | Status | Notes |
+|---|---|---|
+| FFmpeg encode clips to MPEG-2 | ✅ Complete | Per-clip progress tracking |
+| FFmpeg remux to `-f dvd` | ✅ Complete | Ensures sector-aligned packets |
+| Concatenate multiple clips | ✅ Complete | Chapter markers from clip boundaries |
+| `VIDEO_TS/` directory creation | ✅ Complete | Fixed 2026-03-17 |
+| VOB placement (`VTS_01_1.VOB`) | ✅ Complete | Fixed 2026-03-17 |
+| Extra clips as VTS_02+  | ✅ Complete | Fixed 2026-03-17 |
+| IFO files go to `VIDEO_TS/` | ✅ Complete | Fixed 2026-03-17 |
+| `AUDIO_TS/` creation | ✅ Complete | Empty, required by spec |
+| ISO creation via UDF writer | ✅ Complete | |
+| `analyzeDVDStructure()` | ✅ Complete | Real ffprobe-based analysis |
+| `ripTitle()` | ✅ Complete | Real FFmpeg queue job |
+| `ripAllTitles()` | ✅ Complete | Queues all titles |
+| Menu generation and wiring | ⚠️ Partial | Menu rendered as image; not muxed into VOB |
+| `VIDEO_TS.VOB` (menu VOB) | ❌ Missing | Not created |
+| dvdauthor XML | ⚠️ Dead code | Generated but no longer called |
 
-## 🔧 Usage Examples
+---
 
-### Basic DVD-NTSC Encoding
-```go
-package main
+## Compatibility
 
-import "git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+| Player | Expected behaviour |
+|---|---|
+| VLC | Plays correctly — reads VOB directly, ignores missing PGC |
+| FFmpeg / HandBrake | Reads correctly — probes VOB stream |
+| mpv | Plays correctly |
+| Kodi (strict mode) | May fail navigation — PGC required |
+| Hardware DVD player | Navigation will fail — PGC + TT_SRPT required |
+| Windows DVD Player | Will fail — requires compliant IFO |
 
-func main() {
-    // 1. Probe video
-    src, err := convert.ProbeVideo("input.avi")
-    if err != nil {
-        panic(err)
-    }
+---
 
-    // 2. Get preset
-    cfg := convert.DVDNTSCPreset()
+## What the engine produces today
 
-    // 3. Validate
-    warnings := convert.ValidateDVDNTSC(src, cfg)
-    for _, w := range warnings {
-        println(w.Severity + ": " + w.Message)
-    }
+A structurally valid DVD folder or ISO with:
+- Correctly encoded MPEG-2 video and AC-3 audio
+- Properly named and placed VOB files
+- IFO/BUP header files in the right location
+- UDF + ISO 9660 hybrid filesystem (for ISO output)
 
-    // 4. Build FFmpeg command
-    args := convert.BuildDVDFFmpegArgs(
-        "input.avi",
-        "output.mpg",
-        cfg,
-        src,
-    )
-
-    // 5. Execute (in main.go's existing FFmpeg execution)
-    cmd := exec.Command("ffmpeg", args...)
-    cmd.Run()
-}
-```
-
-### Multi-Region Support
-```go
-// List all available regions
-regions := convert.ListAvailableDVDRegions()
-for _, std := range regions {
-    println(std.Name + ": " + std.Type)
-}
-
-// Get PAL preset for European distribution
-palConfig := convert.PresetForRegion(convert.DVDPALRegionFree)
-
-// Validate for specific region
-palWarnings := convert.ValidateForDVDRegion(videoSource, convert.DVDPALRegionFree)
-```
-
-## 🎯 Next Steps for Complete Integration
-
-1. **Update main.go Format Options:**
-   - Replace hardcoded formatOptions with `convert.FormatOptions`
-   - Add DVD selection to UI dropdown
-
-2. **Add DVD Quality Presets UI:**
-   - "DVD-NTSC" button in module tiles
-   - Separate configuration panel for DVD options (aspect ratio, interlacing)
-
-3. **Integrate Queue System:**
-   - DVD conversions use existing queue.Job infrastructure
-   - Validation warnings displayed before queueing
-
-4. **Testing:**
-   - Generate test .mpg file from sample video
-   - Verify DVDStyler import without re-encoding
-   - Test on PS2 or DVD authoring software
-
-## 📚 API Reference
-
-### Core Types
-- `VideoSource` - Video file metadata with methods
-- `ConvertConfig` - Encoding configuration struct
-- `FormatOption` - Output format definition
-- `DVDStandard` - Regional DVD specifications
-- `DVDValidationWarning` - Validation result
-
-### Main Functions
-- `DVDNTSCPreset() ConvertConfig`
-- `PresetForRegion(DVDRegion) ConvertConfig`
-- `ValidateDVDNTSC(*VideoSource, ConvertConfig) []DVDValidationWarning`
-- `ValidateForDVDRegion(*VideoSource, DVDRegion) []DVDValidationWarning`
-- `BuildDVDFFmpegArgs(string, string, ConvertConfig, *VideoSource) []string`
-- `ProbeVideo(string) (*VideoSource, error)`
-- `ListAvailableDVDRegions() []DVDStandard`
-- `GetDVDStandard(DVDRegion) *DVDStandard`
-
-## 🎬 Professional Compatibility
-
-✅ **DVDStyler** - Direct import without re-encoding warnings
-✅ **PlayStation 2** - Full compatibility (tested spec)
-✅ **Standalone DVD Players** - Works on 2000-2015 era players
-✅ **Adobe Encore** - Professional authoring compatibility
-✅ **Region-Free** - Works worldwide regardless of DVD player region code
-
-## 📝 Summary
-
-The VideoTools project now includes a **production-ready DVD-NTSC encoding pipeline** with:
-- ✅ Multi-region support (NTSC, PAL, SECAM)
-- ✅ Comprehensive validation system
-- ✅ Professional FFmpeg integration
-- ✅ Full type safety and exported APIs
-- ✅ Clean separation of concerns
-- ✅ Ready for immediate integration with existing queue system
-
-All code is **fully compiled and tested** without errors or warnings.
+What it does **not yet** produce:
+- Chapter navigation (requires PGC/Cell)
+- Hardware player compatibility (requires TT_SRPT + PGC)
+- Menu VOB (requires SPU + theme renderer wiring)
