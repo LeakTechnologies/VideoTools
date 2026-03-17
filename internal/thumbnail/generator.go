@@ -477,13 +477,23 @@ func (g *Generator) buildMetadataFilter(
 	seconds := int(duration) % 60
 	durationStr := fmt.Sprintf("%02d\\:%02d\\:%02d", hours, minutes, seconds)
 
-	// Get just the filename without path
+	// Get just the filename without path, truncate if too long
 	filename := filepath.Base(config.VideoPath)
+	maxFilenameLen := 50
+	if len(filename) > maxFilenameLen {
+		ext := filepath.Ext(filename)
+		name := strings.TrimSuffix(filename, ext)
+		if len(ext) > 5 {
+			filename = filename[:maxFilenameLen-3] + "..."
+		} else {
+			filename = name[:maxFilenameLen-len(ext)-3] + "..." + ext
+		}
+	}
 
 	// Calculate sheet dimensions accounting for padding between thumbnails
 	sheetWidth := (thumbWidth * config.Columns) + (padding * (config.Columns - 1))
 	sheetHeight := (thumbHeight * config.Rows) + (padding * (config.Rows - 1))
-	headerHeight := 130
+	headerHeight := 150 // Increased to fit all metadata lines without overlap
 
 	// Build metadata text lines.
 	// Use · (middle dot) as separator — pipe (|) is treated as a newline by FFmpeg drawtext.
