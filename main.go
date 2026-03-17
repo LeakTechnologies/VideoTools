@@ -3202,10 +3202,45 @@ func buildTrimView(state *appState) fyne.CanvasObject {
 		OnShowMainMenu: state.showMainMenu,
 		OnShowQueue:    state.showQueue,
 		OnAddToQueue: func(clip trim.TrimClip) {
-			logging.Info(logging.CatModule, "Trim job submission requested for %s", clip.Path)
-			// [TODO: Construct FFmpeg command and state.jobQueue.Add(job)]
+			state.submitTrimJob(clip)
 		},
 	}, "")
+}
+
+func (s *appState) submitTrimJob(clip trim.TrimClip) {
+	logging.Info(logging.CatModule, "Submitting trim job for: %s", clip.Path)
+	
+	// Create output filename
+	ext := filepath.Ext(clip.Path)
+	base := strings.TrimSuffix(filepath.Base(clip.Path), ext)
+	outPath := filepath.Join(filepath.Dir(clip.Path), fmt.Sprintf("%s_trimmed%s", base, ext))
+	
+	// Construct FFmpeg command for lossless trimming
+	// -ss [start] -to [end] -i [input] -c copy -map 0 [output]
+	args := []string{
+		"-y",
+		"-ss", fmt.Sprintf("%.3f", clip.InPoint.Seconds()),
+		"-to", fmt.Sprintf("%.3f", clip.OutPoint.Seconds()),
+		"-i", clip.Path,
+		"-map", "0",
+		"-c", "copy",
+		outPath,
+	}
+
+	job := &queue.Job{
+		ID:          fmt.Sprintf("trim_%d", time.Now().UnixNano()),
+		Title:       fmt.Sprintf("Trim: %s", filepath.Base(clip.Path)),
+		Description: fmt.Sprintf("Lossless cut from %v to %v", clip.InPoint, clip.OutPoint),
+		Command:     utils.GetFFmpegPath(),
+		Args:        args,
+		Status:      queue.JobStatusPending,
+		AddedAt:     time.Now(),
+	}
+
+	if s.jobQueue != nil {
+		s.jobQueue.Add(job)
+		dialog.ShowInformation("Job Queued", "Trim job added to queue.", s.window)
+	}
 }
 
 func (s *appState) showMergeView() {
