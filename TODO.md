@@ -50,6 +50,12 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Disc category consolidation** — Blu-ray tile retired; single "Show Disc category" toggle in Settings.
 - [x] **DVD authoring advances** — Multitrack, ScriptableTheme, native renderer, Archivist round-trip, IFO reading, VOBU_ADMAP, VTS Attribute Table, auto disc scan.
 - [x] **VT_LOGO-2** — New app icon and logo.
+- [x] **Subtitles i18n strings** — 9 new strings added (SubtitlesOfflineHint, SubtitlesEmpty, SubtitlesExtractEmbed, SubtitlesOCROutput, SubtitlesOCRLanguage, SubtitlesShiftOffset, SubtitlesStart, SubtitlesEnd).
+- [x] **Subtitles i18n wired** — All 9 strings wired up in subtitles_module.go.
+- [x] **Audio/Filters/Inspect i18n wired** — Module views now use t.* strings.
+- [x] **Trim module stub update** — Added OnAddToQueue, TrimClip, ModuleColor, OnShowQueue to match main.go.
+- [x] **Back button consistency** — Module name uppercase.
+- [x] **Thumbnail contact sheet fix** — Header height + filename truncation.
 
 ## Agent Work Tracking
 

@@ -46,6 +46,17 @@
 ### Branding
 - **VT_LOGO-2** — New app icon and logo replacing the original placeholder design.
 
+### Localization Updates (dev34 continuation)
+- **Subtitles i18n** — 9 new strings added and wired up (SubtitlesOfflineHint, SubtitlesEmpty, SubtitlesExtractEmbed, SubtitlesOCROutput, SubtitlesOCRLanguage, SubtitlesShiftOffset, SubtitlesStart, SubtitlesEnd).
+- **Audio/Filters/Inspect i18n wired** — All module views now use t.* i18n keys.
+- **Status bar localization** — Added StatusNoActiveJobs to status bar.
+- **Trim module compatibility** — Updated trim stub and native view to support OnAddToQueue callback and TrimClip struct.
+
+### UI Fixes
+- **Back button consistency** — Module name uppercase on all modules.
+- **Auto-check dropdown fix** — Fixed language switching issue in Settings Updates section.
+- **Thumbnail contact sheet** — Increased header height (130→150px) and added filename truncation.
+
 ---
 
 ## v0.1.1-dev33 (March 2026)
