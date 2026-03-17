@@ -21,7 +21,7 @@ import (
 
 func init() {
 	// Load logo PNG from embedded assets for contact-sheet headers.
-	if f, err := logoAssets.Open("assets/logo/VT_Icon.png"); err == nil {
+	if f, err := logoAssets.Open("assets/logo/VT_logo.png"); err == nil {
 		if data, err2 := io.ReadAll(f); err2 == nil {
 			thumbsvc.SetLogoData(data)
 		}
