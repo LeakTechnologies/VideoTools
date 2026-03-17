@@ -1,11 +1,8 @@
 # VideoTools - Completed Features
 
-## Version 0.1.1-dev34 (in progress) - Localization Engine
+## Version 0.1.1-dev35 (in progress) - Native Media Engine & Trim Module
 
-### Kickoff
-- [x] Bumped version markers to v0.1.1-dev34 (main.go, VERSION, FyneApp.toml).
-
-### Localization (i18n)
+### Localization (i18n) - dev34 carry-forward
 - [x] **Subtitles i18n strings** — Added 9 new strings to `internal/i18n/strings.go` (SubtitlesOfflineHint, SubtitlesEmpty, SubtitlesExtractEmbed, SubtitlesOCROutput, SubtitlesOCRLanguage, SubtitlesShiftOffset, SubtitlesStart, SubtitlesEnd).
 - [x] **French (fr-CA) translations** — Subtitles module fully translated.
 - [x] **Audio i18n wired** — 5 new strings wired up in `internal/app/modules/audio/view.go`.
@@ -17,11 +14,16 @@
 - [x] **Trim module stub** — Updated `internal/app/modules/trim/stub.go` to match main.go calls (`ModuleColor`, `OnShowQueue`, `OnAddToQueue`, `TrimClip` struct, second `initialPath` param).
 - [x] **Trim view** — Added `TrimClip` struct and `OnAddToQueue` callback to native trim view.
 - [x] **Trim handler** — Fixed `internal/modules/handlers.go` to use correct logging category.
+- [x] **Trim job submission** — `submitTrimJob` creates queue.Job with proper Type, InputFile, OutputFile, and Config.
 
 ### UI Fixes
 - [x] **Back button consistency** — Module name uppercase on all modules.
 - [x] **Auto-check dropdown** — Fixed language switching issue in Settings Updates section.
 - [x] **Thumbnail contact sheet** — Increased header height (130→150px), added filename truncation.
+- [x] **Inspect preview placeholder** — Replaced stuck "Loading preview" with proper idle player state and icons.
+
+### Interlace Detection
+- [x] **Preview frame capture** — Capture preview frames before running interlace analysis to avoid UI stuck states.
 
 ## Version 0.1.1-dev35 (2026-03-16) - Native Media Engine & Trim Module
 
