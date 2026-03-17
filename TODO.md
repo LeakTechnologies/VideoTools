@@ -2,33 +2,35 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev35 Scope
+## Dev35 Scope (in progress)
 
-### UI Polish & Stability
-- [ ] **Testing pass** — Smoke test all modules on Windows before CI submission: Convert, Upscale, Thumbnail, Filters, Audio, Inspect, Compare, Rip, Author.
-- [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone still not registered (carry-forward from dev32).
-- [ ] **Drag-to-scroll (issue #19)** — `FastVScroll` drag events still intercepted by inner scroll container; needs a second look.
-- [ ] **i18n coverage audit** — Verify all module strings are going through `t.ModuleXxx`; ensure fr-CA and iu cover any new strings added in dev34.
+### Localization (dev34 carry-forward)
+- [x] **Subtitles i18n** — 9 strings added and wired in subtitles_module.go.
+- [x] **Audio/Filters/Inspect i18n wired** — Module views use t.* strings.
+- [x] **Trim module compatibility** — OnAddToQueue callback and TrimClip struct.
 
-### Module Extraction (issue #22, continued)
-- [ ] **`settings_module.go`** — opencode in progress; review and validate once complete.
-- [ ] **`queue_module.go`** — opencode in progress.
-- [ ] **`subtitles_module.go`** — next priority (~1,800 lines → `internal/app/modules/subtitles/`).
-- [ ] **`upscale_module.go`** — following subtitles (~1,000 lines → `internal/app/modules/upscale/`).
+### UI Fixes
+- [x] **Back button consistency** — Module name uppercase.
+- [x] **Auto-check dropdown fix** — Language switching works.
+- [x] **Thumbnail contact sheet** — Header height + filename truncation.
+- [x] **Inspect preview placeholder** — No more stuck "Loading preview" state.
+- [x] **Preview frame capture** — Captured before interlace analysis.
 
-### Disc Authoring
-- [ ] **Native engine stabilisation** — Review Gemini's Phase 5 integration; ensure Author and Rip modules compile and work correctly with the native UDF/IFO pipeline on Windows.
-- [ ] **Issue #21 close criteria** — All Author/Rip disc operations functional without dvdauthor/xorriso on Windows.
+### Trim Module
+- [x] **Trim job submission** — submitTrimJob creates queue.Job properly.
 
 ### CI & Release
-- [ ] **CI green check** — Confirm Linux and Windows builds pass with all dev34 changes before tagging dev35.
-- [ ] **Issue #6 close** — Convert transport controls now use `widget.NewButtonWithIcon` with embedded SVGs; ASCII labels replaced. Ready to close.
-- [ ] **Issue #8 close** — Runners have been stable for several versions; confirm labels and close.
-- [ ] **Issue #9 close** — Manually verify Windows zip contains only `VideoTools.exe` and `README.md`; close if confirmed.
-- [ ] **Issue #10** — Walk through dev release checklist; close resolved items.
+- [ ] **CI green check** — Confirm Linux and Windows builds pass.
+- [ ] **Push to origin** — Current branch 1 commit ahead.
 
-### Native Media Engine (Phase 2)
-- [ ] **Phase 4: GStreamer removal** — Once native engine is stable enough, remove GStreamer dependency from build scripts and CI.
+### Module Extraction (issue #22)
+- [ ] **`settings_module.go`** — opencode in progress.
+- [ ] **`queue_module.go`** — opencode in progress.
+- [ ] **`subtitles_module.go`** — next priority.
+- [ ] **`upscale_module.go`** — following subtitles.
+
+### Disc Authoring
+- [ ] **Native engine stabilisation** — Ensure Author/Rip work.
 
 ## Dev34 Scope (completed ✓)
 

@@ -1,5 +1,25 @@
 # VideoTools Changelog
 
+## v0.1.1-dev35 (March 2026)
+
+### Localization Updates (dev34 continuation)
+- **Subtitles i18n** — 9 new strings added and wired up (SubtitlesOfflineHint, SubtitlesEmpty, SubtitlesExtractEmbed, SubtitlesOCROutput, SubtitlesOCRLanguage, SubtitlesShiftOffset, SubtitlesStart, SubtitlesEnd).
+- **Audio/Filters/Inspect i18n wired** — All module views now use t.* i18n keys.
+- **Status bar localization** — Added StatusNoActiveJobs to status bar.
+- **Trim module compatibility** — Updated trim stub and native view to support OnAddToQueue callback and TrimClip struct.
+
+### UI Fixes
+- **Back button consistency** — Module name uppercase on all modules.
+- **Auto-check dropdown fix** — Fixed language switching issue in Settings Updates section.
+- **Thumbnail contact sheet** — Increased header height (130→150px) and added filename truncation.
+- **Inspect preview placeholder** — Replaced stuck "Loading preview" with proper idle player state and icons.
+- **Preview frame capture** — Captured before interlace analysis to avoid UI stuck states.
+
+### Trim Module
+- **Trim job submission** — `submitTrimJob` creates queue.Job with proper Type, InputFile, OutputFile, and Config fields.
+
+---
+
 ## v0.1.1-dev34 (March 2026)
 
 ### Localization Engine
