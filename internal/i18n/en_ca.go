@@ -138,6 +138,16 @@ var enCA = Strings{
 	FiltersPreset:            "Preset:",
 	FiltersTargetFPS:         "Target FPS:",
 
+	// ── Subtitles Module ─────────────────────────────────────────────────────
+	SubtitlesOfflineHint:  "Offline STT uses bundled ggml-small.bin - no API needed",
+	SubtitlesEmpty:        "Drag and drop subtitle files here",
+	SubtitlesExtractEmbed: "Extract embedded subtitle tracks",
+	SubtitlesOCROutput:    "OCR output (image-based subtitles only):",
+	SubtitlesOCRLanguage:  "OCR language (tesseract, e.g. eng, fra, iku):",
+	SubtitlesShiftOffset:  "Shift all subtitle times by offset (seconds):",
+	SubtitlesStart:        "Start",
+	SubtitlesEnd:          "End",
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:        "Ready",
 	StatusProcessing:   "Processing...",
