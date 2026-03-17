@@ -117,6 +117,33 @@ type Strings struct {
 	AudioBitrate         string // "Bitrate:"
 	AudioOutputDirectory string // "Output Directory:"
 
+	// ── Filters Module ─────────────────────────────────────────────────────────
+	FiltersInstructions      string // "Apply filters and color corrections..."
+	FiltersVideoPreview      string // "Video preview"
+	FiltersSectionBrightness string // "Adjust brightness, contrast, and saturation"
+	FiltersBrightness        string // "Brightness:"
+	FiltersContrast          string // "Contrast:"
+	FiltersSaturation        string // "Saturation:"
+	FiltersSectionSharpen    string // "Sharpen, blur, and denoise"
+	FiltersSharpness         string // "Sharpness:"
+	FiltersDenoise           string // "Denoise:"
+	FiltersSectionRotate     string // "Rotate and flip video"
+	FiltersRotation          string // "Rotation:"
+	FiltersFlipHorizontal    string // "Flip Horizontal:"
+	FiltersFlipVertical      string // "Flip Vertical:"
+	FiltersSectionArtistic   string // "Apply artistic effects"
+	FiltersSectionEra        string // "Authentic decade-based video effects"
+	FiltersEraMode           string // "Era Mode:"
+	FiltersInterlacing       string // "Interlacing:"
+	FiltersChromaNoise       string // "Chroma Noise:"
+	FiltersTapeNoise         string // "Tape Noise:"
+	FiltersTrackingError     string // "Tracking Error:"
+	FiltersTapeDropout       string // "Tape Dropout:"
+	FiltersInterpHint        string // "Balanced preset is recommended..."
+	FiltersSectionMotion     string // "Generate smoother motion..."
+	FiltersPreset            string // "Preset:"
+	FiltersTargetFPS         string // "Target FPS:"
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady        string
 	StatusProcessing   string
@@ -127,6 +154,23 @@ type Strings struct {
 	StatusRunning      string
 	StatusUpToDate     string
 	StatusNoActiveJobs string // "○ No active jobs"
+
+	// ── Trim ──────────────────────────────────────────────────────────────
+	TrimInstructions   string
+	TrimInPoint        string
+	TrimOutPoint       string
+	TrimSetIn          string
+	TrimSetOut         string
+	TrimClear          string
+	TrimMode           string
+	TrimModeKeep       string
+	TrimModeCut        string
+	TrimPreview        string
+	TrimSmartCopy      string
+	TrimRecode         string
+	TrimSegment        string
+	TrimAddSegment     string
+	TrimExportSegments string
 
 	// ── Settings ──────────────────────────────────────────────────────────
 	SettingsTitle                string

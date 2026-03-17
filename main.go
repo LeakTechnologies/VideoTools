@@ -40,8 +40,9 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	convertmodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/convert"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/rip"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/trim"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/naming"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -3198,8 +3199,10 @@ func (s *appState) showTrimView() {
 func buildTrimView(state *appState) fyne.CanvasObject {
 	return trim.BuildView(trim.Options{
 		Window:         state.window,
+		ModuleColor:    moduleColor("trim"),
 		OnShowMainMenu: state.showMainMenu,
-	})
+		OnShowQueue:    state.showQueue,
+	}, "")
 }
 
 func (s *appState) showMergeView() {
