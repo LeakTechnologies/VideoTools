@@ -151,7 +151,7 @@ func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 		}, opts.Window)
 	})
 
-	fileInfoLabel := widget.NewLabel("No file loaded")
+	fileInfoLabel := widget.NewLabel(t.LabelNoFile)
 	fileInfoLabel.Alignment = fyne.TextAlignCenter
 
 	trackListContainer := container.NewVBox()
@@ -212,7 +212,9 @@ func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 }
 
 func buildAudioRightPanel(opts Options) fyne.CanvasObject {
-	formatLabel := widget.NewLabel("Output Format:")
+	t := i18n.T()
+
+	formatLabel := widget.NewLabel(t.AudioOutputFormat)
 	formatLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	formatRadio := widget.NewRadioGroup([]string{"MP3", "AAC", "FLAC", "WAV"}, func(value string) {
@@ -226,7 +228,7 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 	})
 	formatRadio.Horizontal = true
 
-	qualityLabel := widget.NewLabel("Quality Preset:")
+	qualityLabel := widget.NewLabel(t.AudioQualityPreset)
 	qualityLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	qualitySelect := widget.NewSelect([]string{"Low", "Medium", "High", "Lossless"}, func(value string) {
@@ -239,7 +241,7 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 		}
 	})
 
-	bitrateLabel := widget.NewLabel("Bitrate:")
+	bitrateLabel := widget.NewLabel(t.AudioBitrate)
 	bitrateEntry := widget.NewEntry()
 	bitrateEntry.SetText(opts.Bitrate)
 	bitrateEntry.OnChanged = func(value string) {
@@ -289,7 +291,7 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 
 	normOptions := container.NewVBox(lufsLabel, lufsSlider, peakLabel, peakSlider)
 
-	outputDirLabel := widget.NewLabel("Output Directory:")
+	outputDirLabel := widget.NewLabel(t.AudioOutputDirectory)
 	outputDirLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	outputDirEntry := widget.NewEntry()
@@ -320,7 +322,7 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 
 	outputDirRow := container.NewBorder(nil, nil, nil, outputDirBrowseBtn, outputDirEntry)
 
-	statusLabel := widget.NewLabel("Ready")
+	statusLabel := widget.NewLabel(t.StatusReady)
 	progressBar := widget.NewProgressBar()
 	progressBar.Hide()
 

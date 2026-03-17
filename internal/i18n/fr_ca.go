@@ -105,6 +105,13 @@ var frCA = Strings{
 	InspectLoadingPreview:     "Chargement de l'aperçu...",
 	InspectNoPreviewAvailable: "Aperçu non disponible",
 
+	// ── Audio Module ───────────────────────────────────────────────────────────
+	AudioInstructions:    "Déposez un fichier vidéo ici ou cliquez pour parcourir",
+	AudioOutputFormat:    "Format de sortie :",
+	AudioQualityPreset:   "Préréglage de qualité :",
+	AudioBitrate:         "Débit :",
+	AudioOutputDirectory: "Répertoire de sortie :",
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:        "Prêt",
 	StatusProcessing:   "Traitement en cours...",
