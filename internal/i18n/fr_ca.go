@@ -32,6 +32,22 @@ var frCA = Strings{
 	ModulePlayer:      "Lecteur",
 	ModuleSettings:    "Paramètres",
 
+	// ── Dialog Titles ───────────────────────────────────────────────────────
+	DialogCompare:     "Comparer les vidéos",
+	DialogInspect:     "Inspecter la vidéo",
+	DialogThumbnail:   "Génération de miniatures",
+	DialogSnippet:     "Extrait",
+	DialogInterlacing: "Analyse de l'entrelacement",
+	DialogAutoCrop:    "Recadrage automatique",
+	DialogNoVideo:     "Pas de vidéo",
+	DialogNoFile:      "Aucun fichier",
+	DialogNoConfig:    "Pas de config",
+	DialogConfigSaved: "Config enregistrée",
+	DialogCopied:      "Copié",
+	DialogNoLog:       "Pas de journal",
+	DialogQueued:      "En file d'attente",
+	DialogCancelled:   "Annulé",
+
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert:     "Conversion",
 	CategoryInspect:     "Inspection",

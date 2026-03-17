@@ -35,6 +35,22 @@ var iuLatn = Strings{
 	ModulePlayer:      "Tarvijaksalirijuq", // Player
 	ModuleSettings:    "Aaqiksuiniq",       // Settings
 
+	// ── Dialog Titles ───────────────────────────────────────────────────────
+	DialogCompare:     "Nalunaiqsiluggit Quliaqtuit",    // Compare Videos
+	DialogInspect:     "Qaujisarlugu Quliaqtuit",        // Inspect Video
+	DialogThumbnail:   "Akiqalliat Sanarlugu",           // Thumbnail Generation
+	DialogSnippet:     "Ikajurlugu",                     // Snippet
+	DialogInterlacing: "Silgillirtilugu Asijjiariaqtuq", // Interlacing Analysis
+	DialogAutoCrop:    "Aumiqsirtilugu",                 // Auto-Crop
+	DialogNoVideo:     "Quliaqtuit Annaganngittuq",      // No Video
+	DialogNoFile:      "Santimi Annaganngittuq",         // No File
+	DialogNoConfig:    "Aanniqsirtilugu Annaganngittuq", // No Config
+	DialogConfigSaved: "Aanniqsirtilugu Sapummijugut",   // Config Saved
+	DialogCopied:      "Agagsijugut",                    // Copied
+	DialogNoLog:       "Santimi Annaganngittuq",         // No Log
+	DialogQueued:      "Ilallijjugut",                   // Queued
+	DialogCancelled:   "Atingninga",                     // Cancelled
+
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert:     "Asijjiariaqtuq",   // Converting
 	CategoryInspect:     "Qaujisarniq",      // Inspecting

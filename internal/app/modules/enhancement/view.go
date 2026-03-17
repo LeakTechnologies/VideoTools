@@ -5,14 +5,18 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 var gridColor = utils.MustHex("#2A3A52")
 
 func BuildView() fyne.CanvasObject {
+	t := i18n.T()
+	viewTitle := widget.NewLabelWithStyle(t.ModuleEnhancement, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+
 	content := container.NewVBox(
-		widget.NewLabel(" Video Enhancement"),
+		viewTitle,
 		widget.NewSeparator(),
 		widget.NewLabel("AI-powered video enhancement is coming soon!"),
 		widget.NewLabel("Features planned:"),
@@ -31,7 +35,7 @@ func BuildView() fyne.CanvasObject {
 	outer.StrokeWidth = 1
 
 	view := container.NewBorder(
-		widget.NewLabelWithStyle("Enhancement", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		viewTitle,
 		nil, nil, nil,
 		content,
 	)

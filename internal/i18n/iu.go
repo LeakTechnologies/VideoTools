@@ -34,6 +34,22 @@ var iu = Strings{
 	ModulePlayer:      "ᑕᕐᕆᔭᒃᓴᓕᕆᔪᖅ", // Player
 	ModuleSettings:    "ᐋᖅᑭᒃᓱᐃᓂᖅ",   // Settings
 
+	// ── Dialog Titles ───────────────────────────────────────────────────────
+	DialogCompare:     "ᓇᓗᓇᐃᖅᓯᓗᒋᑦ ᕿᓂᖅᓴᖨᖏᓐᓂᕐᓗᒍ", // Compare Videos
+	DialogInspect:     "ᖃᐅᔨᓴᕐᓗᒍ ᕿᓂᖅᓴᖨᖏᓐᓂᕐᓗᒍ",   // Inspect Video
+	DialogThumbnail:   "ᐊᑭᖃᓪᓕᐊᑦ ᓴᓇᓗᒍ",          // Thumbnail Generation
+	DialogSnippet:     "ᐃᓱᒃᑕᐅᔪᑦ",               // Snippet
+	DialogInterlacing: "ᓱᓕᒐᓪᓕᓕᐅᔪᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",   // Interlacing Analysis
+	DialogAutoCrop:    "ᐊᐅᑎᒃ ᑕᐅᔪᓐᓇᖅᑐᑦ",         // Auto-Crop
+	DialogNoVideo:     "ᕿᓂᖅᓴᖨᖏᓐᓂᖅ ᓵᕝᕙᔪᖅ",       // No Video
+	DialogNoFile:      "ᓴᓗᐃᔪᖅ ᓵᕝᕙᔪᖅ",           // No File
+	DialogNoConfig:    "ᐃᓄᖁᔮᖃᕐᓂᖅ ᓵᕝᕙᔪᖅ",        // No Config
+	DialogConfigSaved: "ᐃᓄᖁᔮᖃᕐᓂᖅ ᓴᐳᒻᒥᔪᒍ",       // Config Saved
+	DialogCopied:      "ᐊᒐᒃᓯᔪᒍ",                // Copied
+	DialogNoLog:       "ᓴᓗᐃᔪᖅ ᓵᕝᕙᔪᖅ",           // No Log
+	DialogQueued:      "ᐃᓚᓕᐅᔾᔨᓗᒍ",              // Queued
+	DialogCancelled:   "ᐊᑎᖕᓂᖓ",                 // Cancelled
+
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert:     "ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",  // Converting
 	CategoryInspect:     "ᖃᐅᔨᓴᕐᓂᖅ",    // Inspecting
