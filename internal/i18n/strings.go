@@ -110,6 +110,13 @@ type Strings struct {
 	InspectLoadingPreview     string // "Loading preview..."
 	InspectNoPreviewAvailable string // "No preview available"
 
+	// ── Audio Module ───────────────────────────────────────────────────────────
+	AudioInstructions    string // "Drop video or click to browse"
+	AudioOutputFormat    string // "Output Format:"
+	AudioQualityPreset   string // "Quality Preset:"
+	AudioBitrate         string // "Bitrate:"
+	AudioOutputDirectory string // "Output Directory:"
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady        string
 	StatusProcessing   string
@@ -221,6 +228,13 @@ type Strings struct {
 	ConvertDropPrompt    string
 	ConvertOutputFormat  string
 	ConvertHardwareAccel string
+
+	// ── Audio ─────────────────────────────────────────────────────────────
+	AudioInstructions   string // drop / load prompt
+	AudioOutputFormat   string // "Output Format"
+	AudioQualityPreset  string // "Quality Preset"
+	AudioBitrate        string // "Bitrate"
+	AudioOutputDirectory string // "Output Directory"
 
 	// ── Compare ──────────────────────────────────────────────────────────────────
 	CompareInstructions    string

@@ -104,6 +104,13 @@ var enCA = Strings{
 	InspectLoadingPreview:     "Loading preview...",
 	InspectNoPreviewAvailable: "No preview available",
 
+	// ── Audio Module ───────────────────────────────────────────────────────────
+	AudioInstructions:    "Drop video file here or click to browse",
+	AudioOutputFormat:    "Output Format:",
+	AudioQualityPreset:   "Quality Preset:",
+	AudioBitrate:         "Bitrate:",
+	AudioOutputDirectory: "Output Directory:",
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:        "Ready",
 	StatusProcessing:   "Processing...",
