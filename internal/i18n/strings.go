@@ -135,11 +135,21 @@ type Strings struct {
 	SettingsScriptLatin          string // "Latin"
 	SettingsTheme                string
 	SettingsOutputFolder         string
+	SettingsAppPreferences       string // "Application Preferences"
 	SettingsMasterSettings       string // "Master Settings"
 	SettingsHardwareAccel        string // "Hardware Acceleration (Global)"
+	SettingsDetect               string // "Detect" (hw accel detect button)
+	SettingsUseAuto              string // "Use Auto"
+	SettingsDetectedFmt          string // "Detected: %s"
 	SettingsModuleVisibility     string // "Module Visibility"
 	SettingsModuleVisibilityHint string // "Module visibility applies on the main menu."
+	SettingsShowUpscale          string // "Show Upscale module"
+	SettingsShowDisc             string // "Show Disc category (Author & Rip)"
 	SettingsFFmpegMissing        string // "Core dependency FFmpeg is missing..."
+	SettingsInstallFFmpeg        string // "Install FFmpeg Now"
+	SettingsOpenSettings         string // "Open Settings"
+	SettingsContinueLimited      string // "Continue Limited Mode"
+	SettingsOpenReleases         string // "Open Releases Page"
 	SettingsUpdatesInfo          string // "Check for updates and manage app updates."
 	SettingsUpdatesAutoInfo      string // "Automatic updates info"
 
@@ -186,6 +196,7 @@ type Strings struct {
 	DependenciesUninstall    string // "Uninstall"
 	DependenciesRefresh      string // "Refresh Status"
 	DependenciesRequiredBy   string // "Required by:"
+	DependenciesInstallCmd   string // "Install: %s" (shows install command)
 
 	// ── Benchmark ────────────────────────────────────────────────────────
 	BenchmarkTitle     string // "Hardware Benchmark"

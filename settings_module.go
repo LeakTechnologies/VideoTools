@@ -496,11 +496,12 @@ func (s *appState) maybePromptWindowsDependencyBootstrap() {
 		return
 	}
 
-	message := widget.NewLabel("Core dependency FFmpeg is missing.\n\nInstall now to unlock most modules.\n\nInstall target:\n%LOCALAPPDATA%\\VideoTools\\bin")
+	t := i18n.T()
+	message := widget.NewLabel(t.SettingsFFmpegMissing)
 	message.Wrapping = fyne.TextWrapWord
 
 	var prompt dialog.Dialog
-	installBtn := widget.NewButton("Install FFmpeg Now", func() {
+	installBtn := widget.NewButton(t.SettingsInstallFFmpeg, func() {
 		s.installWindowsFFmpegFromUI(func() {
 			if prompt != nil {
 				prompt.Hide()
@@ -511,13 +512,13 @@ func (s *appState) maybePromptWindowsDependencyBootstrap() {
 	})
 	installBtn.Importance = widget.HighImportance
 
-	settingsBtn := widget.NewButton("Open Settings", func() {
+	settingsBtn := widget.NewButton(t.SettingsOpenSettings, func() {
 		if prompt != nil {
 			prompt.Hide()
 		}
 		s.showSettingsView()
 	})
-	continueBtn := widget.NewButton("Continue Limited Mode", func() {
+	continueBtn := widget.NewButton(t.SettingsContinueLimited, func() {
 		if prompt != nil {
 			prompt.Hide()
 		}
@@ -573,9 +574,9 @@ func buildSettingsView(state *appState) fyne.CanvasObject {
 	bottomBar := moduleFooter(settingsColor, layout.NewSpacer(), state.statsBar)
 
 	tabs := container.NewAppTabs(
-		container.NewTabItem("Preferences", ui.NewFastVScroll(container.NewPadded(buildPreferencesTab(state)))),
-		container.NewTabItem("Dependencies", ui.NewFastVScroll(container.NewPadded(buildDependenciesTab(state)))),
-		container.NewTabItem("Benchmark", ui.NewFastVScroll(container.NewPadded(buildBenchmarkTab(state)))),
+		container.NewTabItem(t.SettingsTabPreferences, ui.NewFastVScroll(container.NewPadded(buildPreferencesTab(state)))),
+		container.NewTabItem(t.SettingsTabDependencies, ui.NewFastVScroll(container.NewPadded(buildDependenciesTab(state)))),
+		container.NewTabItem(t.SettingsTabBenchmark, ui.NewFastVScroll(container.NewPadded(buildBenchmarkTab(state)))),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
@@ -745,15 +746,17 @@ func checkForUpdates(state *appState) {
 // onAvailable is called with the installable tag when an update/patch is found,
 // or with "" when the build is already up to date or on error.
 func checkForUpdatesWithStatus(state *appState, statusIcon *widget.Icon, statusLabel *widget.Label, onAvailable func(tag string)) {
+	t := i18n.T()
 	statusIcon.Hide()
-	statusLabel.SetText("Checking for updates...")
+	statusLabel.SetText(t.UpdateChecking)
 	statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 
 	go func() {
 		info, err := fetchUpdateInfo()
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			t := i18n.T()
 			if err != nil {
-				statusLabel.SetText(fmt.Sprintf("Error: %v", err))
+				statusLabel.SetText(fmt.Sprintf("%s %v", t.UpdateError, err))
 				statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 				onAvailable("")
 				return
@@ -773,7 +776,7 @@ func checkForUpdatesWithStatus(state *appState, statusIcon *widget.Icon, statusL
 				age := formatRelativeTime(info.releaseDate)
 				statusIcon.SetResource(recoloredSVG{ui.GetIcon("change_circle"), "#FFAB40"})
 				statusIcon.Show()
-				statusLabel.SetText(fmt.Sprintf("Update available: %s (%s)", info.latestTag, age))
+				statusLabel.SetText(fmt.Sprintf(t.UpdateAvailableFmt, info.latestTag, age))
 				statusLabel.TextStyle = fyne.TextStyle{Bold: true}
 				onAvailable(info.latestTag)
 				return
@@ -787,7 +790,7 @@ func checkForUpdatesWithStatus(state *appState, statusIcon *widget.Icon, statusL
 				age := formatRelativeTime(info.releaseDate)
 				statusIcon.SetResource(recoloredSVG{ui.GetIcon("build_circle"), "#FFAB40"})
 				statusIcon.Show()
-				statusLabel.SetText(fmt.Sprintf("New build available: %s (%s)", tagShort, age))
+				statusLabel.SetText(fmt.Sprintf(t.UpdateNewBuildAvailable, tagShort, age))
 				statusLabel.TextStyle = fyne.TextStyle{Bold: true}
 				onAvailable(appVersion) // same tag, re-download latest build
 				return
@@ -796,7 +799,7 @@ func checkForUpdatesWithStatus(state *appState, statusIcon *widget.Icon, statusL
 			age := formatRelativeTime(info.releaseDate)
 			statusIcon.SetResource(recoloredSVG{ui.GetIcon("check_circle"), "#4CE870"})
 			statusIcon.Show()
-			statusLabel.SetText(fmt.Sprintf("Up to date (latest: %s, %s)", info.latestTag, age))
+			statusLabel.SetText(fmt.Sprintf(t.UpdateUpToDateFmt, info.latestTag, age))
 			statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 			onAvailable("")
 		}, false)
@@ -1050,13 +1053,14 @@ func applyUpdate(state *appState, tag string) {
 
 func buildDependenciesTab(state *appState) fyne.CanvasObject {
 	content := container.NewVBox()
+	t := i18n.T()
 
 	// Header
-	header := widget.NewLabel("System Dependencies")
+	header := widget.NewLabel(t.DependenciesTitle)
 	header.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(header)
 
-	desc := widget.NewLabel("Manage VideoTools dependencies. Some modules require specific tools to be installed.")
+	desc := widget.NewLabel(t.DependenciesDesc)
 	desc.Wrapping = fyne.TextWrapWord
 	content.Add(desc)
 
@@ -1098,10 +1102,10 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 		var statusText string
 		if isInstalled {
 			statusIcon = widget.NewIcon(ui.GetIcon("check"))
-			statusText = "Installed"
+			statusText = t.DependenciesInstalled
 		} else {
 			statusIcon = widget.NewIcon(ui.GetIcon("close"))
-			statusText = "Not Installed"
+			statusText = t.DependenciesNotInstalled
 		}
 		statusLabel := widget.NewLabel(statusText)
 		statusLabel.TextStyle = fyne.TextStyle{Italic: true}
@@ -1129,7 +1133,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 		cmds = getDependencyCommands(depName)
 
 		if depName == "ffmpeg" && runtime.GOOS == "windows" {
-			installBtn := widget.NewButton("Install", func() {
+			installBtn := widget.NewButton(t.DependenciesInstall, func() {
 				state.installWindowsFFmpegFromUI(func() {
 					dialog.ShowInformation("FFmpeg Ready", "FFmpeg is installed for this user and now available in the app.", state.window)
 					state.showSettingsView()
@@ -1143,7 +1147,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 		}
 
 		if cmds.install != nil {
-			installBtn := widget.NewButton("Install", func() {
+			installBtn := widget.NewButton(t.DependenciesInstall, func() {
 				runDependencyCommandWithProgress(state.window, fmt.Sprintf("Installing %s", dep.Name), dep.InstallCmd, cmds.install, func(out string, err error) {
 					showCommandResult(state.window, fmt.Sprintf("%s Install", dep.Name), out, err)
 					state.showSettingsView()
@@ -1157,7 +1161,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 		}
 
 		if cmds.uninstall != nil {
-			uninstallBtn := widget.NewButton("Uninstall", func() {
+			uninstallBtn := widget.NewButton(t.DependenciesUninstall, func() {
 				dialog.ShowConfirm(fmt.Sprintf("Uninstall %s?", dep.Name), "This will attempt to remove the dependency using your package manager.", func(ok bool) {
 					if !ok {
 						return
@@ -1180,13 +1184,13 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 			descLabel,
 		)
 		if dep.Required {
-			requiredLabel := widget.NewLabel("Core dependency")
+			requiredLabel := widget.NewLabel(t.DependenciesCore)
 			requiredLabel.TextStyle = fyne.TextStyle{Italic: true}
 			infoBox.Add(requiredLabel)
 		}
 
 		if !isInstalled {
-			installCmdLabel := widget.NewLabel("Install: " + installLabel.Text)
+			installCmdLabel := widget.NewLabel(fmt.Sprintf(t.DependenciesInstallCmd, installLabel.Text))
 			installCmdLabel.Wrapping = fyne.TextWrapWord
 			infoBox.Add(installCmdLabel)
 		}
@@ -1215,7 +1219,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 
 		if len(modulesNeeding) > 0 {
 			sort.Strings(modulesNeeding)
-			neededLabel := widget.NewLabel("Required by: " + strings.Join(modulesNeeding, ", "))
+			neededLabel := widget.NewLabel(t.DependenciesRequiredBy + " " + strings.Join(modulesNeeding, ", "))
 			neededLabel.TextStyle = fyne.TextStyle{Italic: true}
 			neededLabel.Wrapping = fyne.TextWrapWord
 			infoBox.Add(neededLabel)
@@ -1229,7 +1233,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 
 	// Refresh button
 	content.Add(widget.NewSeparator())
-	refreshBtn := widget.NewButton("Refresh Status", func() {
+	refreshBtn := widget.NewButton(t.DependenciesRefresh, func() {
 		state.showSettingsView()
 	})
 	content.Add(refreshBtn)
@@ -1239,20 +1243,21 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 
 func buildBenchmarkTab(state *appState) fyne.CanvasObject {
 	content := container.NewVBox()
+	t := i18n.T()
 
 	// Header
-	header := widget.NewLabel("Hardware Benchmark")
+	header := widget.NewLabel(t.BenchmarkTitle)
 	header.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(header)
 
-	desc := widget.NewLabel("Test your system's video encoding performance to get optimal encoder recommendations.")
+	desc := widget.NewLabel(t.BenchmarkDesc)
 	desc.Wrapping = fyne.TextWrapWord
 	content.Add(desc)
 
 	content.Add(widget.NewSeparator())
 
 	// Run benchmark button
-	runBtn := widget.NewButton("Run Hardware Benchmark", func() {
+	runBtn := widget.NewButton(t.BenchmarkRunButton, func() {
 		state.showBenchmark()
 	})
 	runBtn.Importance = widget.MediumImportance
@@ -1263,7 +1268,7 @@ func buildBenchmarkTab(state *appState) fyne.CanvasObject {
 	if err == nil && len(cfg.History) > 0 {
 		content.Add(widget.NewSeparator())
 
-		recentHeader := widget.NewLabel("Recent Benchmarks")
+		recentHeader := widget.NewLabel(t.BenchmarkRecent)
 		recentHeader.TextStyle = fyne.TextStyle{Bold: true}
 		content.Add(recentHeader)
 
@@ -1330,7 +1335,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	content := container.NewVBox()
 	t := i18n.T()
 
-	header := widget.NewLabel("Application Preferences")
+	header := widget.NewLabel(t.SettingsAppPreferences)
 	header.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(header)
 
@@ -1479,7 +1484,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	content.Add(autoCheckRow)
 
 	// Last checked / release date info
-	infoLabel := widget.NewLabel("Checks for updates automatically based on the schedule above.")
+	infoLabel := widget.NewLabel(t.SettingsUpdatesAutoInfo)
 	infoLabel.Wrapping = fyne.TextWrapWord
 	infoLabel.TextStyle = fyne.TextStyle{Italic: true}
 	content.Add(infoLabel)
@@ -1487,7 +1492,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	content.Add(widget.NewSeparator())
 
 	// Language Section
-	langLabel := widget.NewLabel("Language")
+	langLabel := widget.NewLabel(t.SettingsLanguage)
 	langLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	langOptions := i18n.All()
@@ -1499,7 +1504,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	}
 
 	// Inuktitut script toggle (shown only when iu is selected)
-	scriptLabel := widget.NewLabel("Script:")
+	scriptLabel := widget.NewLabel(t.SettingsLanguageScript)
 	scriptLabel.Hide()
 
 	scriptSelect := widget.NewSelect([]string{}, func(selected string) {})
@@ -1564,11 +1569,11 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 
 	content.Add(widget.NewSeparator())
 
-	masterHeader := widget.NewLabel("Master Settings")
+	masterHeader := widget.NewLabel(t.SettingsMasterSettings)
 	masterHeader.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(masterHeader)
 
-	hwLabel := widget.NewLabel("Hardware Acceleration (Global)")
+	hwLabel := widget.NewLabel(t.SettingsHardwareAccel)
 	hwLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	hwStatus := widget.NewLabel("")
@@ -1580,7 +1585,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 		if detected == "" {
 			detected = "none"
 		}
-		hwStatus.SetText(fmt.Sprintf("Detected: %s", detected))
+		hwStatus.SetText(fmt.Sprintf(t.SettingsDetectedFmt, detected))
 	}
 
 	hwSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "qsv", "amf", "vaapi", "videotoolbox"}, func(selected string) {
@@ -1590,7 +1595,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	})
 	hwSelect.SetSelected(state.convert.HardwareAccel)
 
-	detectBtn := widget.NewButton("Detect", func() {
+	detectBtn := widget.NewButton(t.SettingsDetect, func() {
 		best := detectBestHardwareAccel()
 		if best == "" {
 			best = "none"
@@ -1602,7 +1607,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	})
 	detectBtn.Importance = widget.HighImportance
 
-	autoBtn := widget.NewButton("Use Auto", func() {
+	autoBtn := widget.NewButton(t.SettingsUseAuto, func() {
 		hwSelect.SetSelected("auto")
 		state.convert.HardwareAccel = "auto"
 		state.persistConvertConfig()
@@ -1621,11 +1626,11 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 
 	content.Add(widget.NewSeparator())
 
-	moduleHeader := widget.NewLabel("Module Visibility")
+	moduleHeader := widget.NewLabel(t.SettingsModuleVisibility)
 	moduleHeader.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(moduleHeader)
 
-	showUpscale := widget.NewCheck("Show Upscale module", func(checked bool) {
+	showUpscale := widget.NewCheck(t.SettingsShowUpscale, func(checked bool) {
 		state.convert.ShowUpscale = checked
 		state.persistConvertConfig()
 	})
@@ -1633,7 +1638,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 
 	visibilityItems := []fyne.CanvasObject{showUpscale}
 
-	showDisc := widget.NewCheck("Show Disc category (Author & Rip)", func(checked bool) {
+	showDisc := widget.NewCheck(t.SettingsShowDisc, func(checked bool) {
 		state.convert.ShowDisc = checked
 		state.persistConvertConfig()
 	})
@@ -1641,7 +1646,7 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 
 	visibilityItems = append(visibilityItems, showDisc)
 
-	visibilityHint := widget.NewLabel("Module visibility applies on the main menu.")
+	visibilityHint := widget.NewLabel(t.SettingsModuleVisibilityHint)
 	visibilityHint.TextStyle = fyne.TextStyle{Italic: true}
 	visibilityHint.Wrapping = fyne.TextWrapWord
 	visibilityItems = append(visibilityItems, visibilityHint)
