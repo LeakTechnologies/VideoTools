@@ -608,12 +608,12 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 
 	backendLabel := widget.NewLabel("")
 	modelLabel := widget.NewLabel("")
-	offlineHint := widget.NewLabel("Offline STT uses bundled ggml-small.bin (vendor/whisper).")
+	offlineHint := widget.NewLabel(i18n.T().SubtitlesOfflineHint)
 	offlineHint.Wrapping = fyne.TextWrapWord
 	refreshWhisperUI := func() {
 		missingModel := strings.TrimSpace(state.subtitleModelPath) == ""
 		if missingModel {
-			offlineHint.SetText("Offline STT uses bundled ggml-small.bin (vendor/whisper).")
+			offlineHint.SetText(i18n.T().SubtitlesOfflineHint)
 		} else {
 			offlineHint.SetText("Offline STT uses the selected ggml model.")
 		}
@@ -713,9 +713,9 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 			removeBtn.Importance = widget.MediumImportance
 
 			timesCol := container.NewVBox(
-				widget.NewLabel("Start"),
+				widget.NewLabel(i18n.T().SubtitlesStart),
 				startEntry,
-				widget.NewLabel("End"),
+				widget.NewLabel(i18n.T().SubtitlesEnd),
 				endEntry,
 			)
 
@@ -764,7 +764,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		}
 	}
 
-	emptyLabel := widget.NewLabel("Drag and drop subtitle files here\nor generate subtitles from speech")
+	emptyLabel := widget.NewLabel(i18n.T().SubtitlesEmpty)
 	emptyLabel.Alignment = fyne.TextAlignCenter
 	emptyOverlay = container.NewCenter(emptyLabel)
 
@@ -1074,17 +1074,17 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		container.NewBorder(nil, nil, nil, browseSubtitleBtn, subtitleEntry),
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Rip Embedded Subtitles", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Extract embedded subtitle tracks from DVD/BD files or media containers."),
+		widget.NewLabel(i18n.T().SubtitlesExtractEmbed),
 		streamSelect,
 		container.NewHBox(detectStreamsBtn, ripBtn),
 		ripModeSelect,
-		widget.NewLabel("OCR output (image-based subtitles only):"),
+		widget.NewLabel(i18n.T().SubtitlesOCROutput),
 		ocrOutputSelect,
-		widget.NewLabel("OCR language (tesseract, e.g. eng, fra, iku):"),
+		widget.NewLabel(i18n.T().SubtitlesOCRLanguage),
 		ocrLangEntry,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle("Timing Adjustment", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Shift all subtitle times by offset (seconds):"),
+		widget.NewLabel(i18n.T().SubtitlesShiftOffset),
 		offsetEntry,
 		container.NewHBox(offsetMinus1Btn, offsetMinus01Btn, offsetPlus01Btn, offsetPlus1Btn),
 		applyOffsetBtn,
