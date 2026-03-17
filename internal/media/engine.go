@@ -261,6 +261,14 @@ func (e *Engine) toRGBA() *image.RGBA {
 	return img
 }
 
+// Duration returns the total duration of the media in seconds.
+func (e *Engine) Duration() float64 {
+	if e.formatCtx == nil {
+		return 0
+	}
+	return float64(e.formatCtx.duration) / float64(C.AV_TIME_BASE)
+}
+
 // Close stops the engine and releases all resources.
 func (e *Engine) Close() {
 	e.mu.Lock()

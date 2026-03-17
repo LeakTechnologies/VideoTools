@@ -5,7 +5,14 @@
 ### Kickoff
 - [x] Bumped version markers to v0.1.1-dev34 (main.go, VERSION, FyneApp.toml).
 
-## Version 0.1.1-dev33 (2026-03-15) - Native Authoring Foundation
+## Version 0.1.1-dev35 (2026-03-16) - Native Media Engine & Trim Module
+
+- [x] **Trim Module UI** — Implemented a professional, dual-pane layout for the Trim module, matching the Convert module's "source of truth" visual style.
+- [x] **Native VideoPlayer Widget** — Created a reusable `media.VideoPlayer` widget in the native FFmpeg-CGO engine for high-performance single-video playback.
+- [x] **Trim Localization** — Added full i18n support for the Trim module (English, French, Inuktitut).
+- [x] **Compare Native Integration** — Refactored the Compare module to use the native `SplitView` and dual-engine playback loops.
+
+## Version 0.1.1-dev33 (2026-03-14) - Native Authoring Foundation
 
 ### Native DVD Engine
 - [x] **Wiki synchronization** — Ported internal documentation to the Forgejo wiki with corrected links and navigation. Established Home, Documentation, and Sidebar pages.
