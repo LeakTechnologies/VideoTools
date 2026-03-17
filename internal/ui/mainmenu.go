@@ -54,10 +54,13 @@ type MenuLabels struct {
 	Queue string
 
 	// Section headings
-	CategoryConvert  string
-	CategoryInspect  string
-	CategoryDisc     string
-	CategoryPlayback string
+	CategoryConvert     string
+	CategoryInspect     string
+	CategoryDisc        string
+	CategoryPlayback    string
+	CategoryAdvanced    string
+	CategoryScreenshots string
+	CategorySettings    string
 
 	// History sidebar
 	HistoryTitle      string

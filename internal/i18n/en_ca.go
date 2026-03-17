@@ -32,10 +32,13 @@ var enCA = Strings{
 	ModuleSettings:    "Settings",
 
 	// ── Module Category Labels ────────────────────────────────────────────
-	CategoryConvert:  "Convert",
-	CategoryInspect:  "Inspect",
-	CategoryDisc:     "Disc",
-	CategoryPlayback: "Playback",
+	CategoryConvert:     "Convert",
+	CategoryInspect:     "Inspect",
+	CategoryDisc:        "Disc",
+	CategoryPlayback:    "Playback",
+	CategoryAdvanced:    "Advanced",
+	CategoryScreenshots: "Screenshots",
+	CategorySettings:    "Settings",
 
 	// ── Common Actions ────────────────────────────────────────────────────
 	ActionGenerate:     "Generate",
