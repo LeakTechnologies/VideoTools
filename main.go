@@ -3202,21 +3202,6 @@ func buildTrimView(state *appState) fyne.CanvasObject {
 	})
 }
 
-func (s *appState) showTrimView() {
-	s.stopPreview()
-	s.lastModule = s.active
-	s.active = "trim"
-	s.maximizeWindow()
-	s.setContent(buildTrimView(s))
-}
-
-func buildTrimView(state *appState) fyne.CanvasObject {
-	return trim.BuildView(trim.Options{
-		Window:         state.window,
-		OnShowMainMenu: state.showMainMenu,
-	})
-}
-
 func (s *appState) showMergeView() {
 	s.stopPreview()
 	s.lastModule = s.active

@@ -40,7 +40,7 @@ $layoutDir = Join-Path $outPath "layout"
 $assetsDir = Join-Path $layoutDir "Assets"
 $manifestSrc = Join-Path $PSScriptRoot "AppxManifest.xml"
 $manifestDest = Join-Path $layoutDir "AppxManifest.xml"
-$iconSrc = Join-Path $PSScriptRoot "..\..\..\assets\logo\VT_Icon.png"
+$iconSrc = Join-Path $PSScriptRoot "..\..\..\assets\logo\VT_logo.png"
 
 New-Item -ItemType Directory -Force -Path $layoutDir | Out-Null
 New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
