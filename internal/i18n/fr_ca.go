@@ -33,10 +33,13 @@ var frCA = Strings{
 	ModuleSettings:    "Paramètres",
 
 	// ── Module Category Labels ────────────────────────────────────────────
-	CategoryConvert:  "Conversion",
-	CategoryInspect:  "Inspection",
-	CategoryDisc:     "Disque",
-	CategoryPlayback: "Lecture",
+	CategoryConvert:     "Conversion",
+	CategoryInspect:     "Inspection",
+	CategoryDisc:        "Disque",
+	CategoryPlayback:    "Lecture",
+	CategoryAdvanced:    "Avancé",
+	CategoryScreenshots: "Captures d'écran",
+	CategorySettings:    "Paramètres",
 
 	// ── Common Actions ────────────────────────────────────────────────────
 	ActionGenerate:     "Générer",

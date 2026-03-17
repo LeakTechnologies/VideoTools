@@ -56,6 +56,29 @@ func moduleLabel(id string) string {
 	}
 }
 
+// categoryLabel returns the translated label for a given category ID.
+func categoryLabel(id string) string {
+	t := i18n.T()
+	switch id {
+	case "Convert":
+		return t.CategoryConvert
+	case "Inspect":
+		return t.CategoryInspect
+	case "Disc":
+		return t.CategoryDisc
+	case "Playback":
+		return t.CategoryPlayback
+	case "Advanced":
+		return t.CategoryAdvanced
+	case "Screenshots":
+		return t.CategoryScreenshots
+	case "Settings":
+		return t.CategorySettings
+	default:
+		return id
+	}
+}
+
 func (s *appState) showMainMenu() {
 	s.stopPreview()
 	s.stopPlayer()
@@ -78,7 +101,7 @@ func (s *appState) showMainMenu() {
 			ID:            m.ID,
 			Label:         moduleLabel(m.ID),
 			Color:         m.Color,
-			Category:      m.Category,
+			Category:      categoryLabel(m.Category),
 			HasHandler:    m.Handle != nil,
 			DepsAvailable: isModuleAvailable(m.ID),
 		})
@@ -92,18 +115,21 @@ func (s *appState) showMainMenu() {
 	titleColor := utils.MustHex("#4CE870")
 	t := i18n.T()
 	menuLabels := ui.MenuLabels{
-		Logs:              t.MenuLogs,
-		Queue:             t.MenuQueue,
-		CategoryConvert:   t.CategoryConvert,
-		CategoryInspect:   t.CategoryInspect,
-		CategoryDisc:      t.CategoryDisc,
-		CategoryPlayback:  t.CategoryPlayback,
-		HistoryTitle:      t.HistoryTitle,
-		HistoryInProgress: t.QueueInProgress,
-		HistoryCompleted:  t.QueueCompleted,
-		HistoryFailed:     t.QueueFailed,
-		HistoryClearAll:   t.ActionClearAll,
-		HistoryNoEntries:  t.HistoryNoEntries,
+		Logs:                t.MenuLogs,
+		Queue:               t.MenuQueue,
+		CategoryConvert:     t.CategoryConvert,
+		CategoryInspect:     t.CategoryInspect,
+		CategoryDisc:        t.CategoryDisc,
+		CategoryPlayback:    t.CategoryPlayback,
+		CategoryAdvanced:    t.CategoryAdvanced,
+		CategoryScreenshots: t.CategoryScreenshots,
+		CategorySettings:    t.CategorySettings,
+		HistoryTitle:        t.HistoryTitle,
+		HistoryInProgress:   t.QueueInProgress,
+		HistoryCompleted:    t.QueueCompleted,
+		HistoryFailed:       t.QueueFailed,
+		HistoryClearAll:     t.ActionClearAll,
+		HistoryNoEntries:    t.HistoryNoEntries,
 	}
 
 	// PERFORMANCE: Cache queue list to avoid multiple expensive copies

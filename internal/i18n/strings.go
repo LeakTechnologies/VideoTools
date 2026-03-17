@@ -38,10 +38,13 @@ type Strings struct {
 	ModuleSettings    string
 
 	// ── Module Category Labels ────────────────────────────────────────────
-	CategoryConvert  string
-	CategoryInspect  string
-	CategoryDisc     string
-	CategoryPlayback string
+	CategoryConvert     string
+	CategoryInspect     string
+	CategoryDisc        string
+	CategoryPlayback    string
+	CategoryAdvanced    string
+	CategoryScreenshots string
+	CategorySettings    string
 
 	// ── Common Actions ────────────────────────────────────────────────────
 	ActionGenerate     string
