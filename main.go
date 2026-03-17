@@ -40,6 +40,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	convertmodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/convert"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/trim"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
@@ -114,7 +115,7 @@ var (
 	modulesList = []Module{
 		{"convert", "Convert", utils.MustHex("#6F42C1"), "Convert", modules.HandleConvert},           // Violet (constant)
 		{"merge", "Merge", utils.MustHex("#1F6F55"), "Convert", modules.HandleMerge},                 // Deep emerald
-		{"trim", "Trim", utils.MustHex("#4A5D73"), "Convert", nil},                                   // Steel blue-violet
+		{"trim", "Trim", utils.MustHex("#4A5D73"), "Convert", modules.HandleTrim},                  // Steel blue-violet
 		{"filters", "Filters", utils.MustHex("#005F5F"), "Convert", modules.HandleFilters},           // Deep petrol teal
 		{"upscale", "Upscale", utils.MustHex("#C2185B"), "Advanced", modules.HandleUpscale},          // Magenta
 		{"enhancement", "Enhancement", utils.MustHex("#00897B"), "Advanced", modules.HandleEnhance},  // Teal
@@ -2617,6 +2618,8 @@ func (s *appState) showModule(id string) {
 		s.showConvertView(nil)
 	case "merge":
 		s.showMergeView()
+	case "trim":
+		s.showTrimView()
 	case "compare":
 		s.showCompareView()
 	case "inspect":
@@ -3182,6 +3185,36 @@ func (s *appState) showAuthorView() {
 	s.authorTitle = ""
 
 	s.setContent(buildAuthorView(s))
+}
+
+func (s *appState) showTrimView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "trim"
+	s.maximizeWindow()
+	s.setContent(buildTrimView(s))
+}
+
+func buildTrimView(state *appState) fyne.CanvasObject {
+	return trim.BuildView(trim.Options{
+		Window:         state.window,
+		OnShowMainMenu: state.showMainMenu,
+	})
+}
+
+func (s *appState) showTrimView() {
+	s.stopPreview()
+	s.lastModule = s.active
+	s.active = "trim"
+	s.maximizeWindow()
+	s.setContent(buildTrimView(s))
+}
+
+func buildTrimView(state *appState) fyne.CanvasObject {
+	return trim.BuildView(trim.Options{
+		Window:         state.window,
+		OnShowMainMenu: state.showMainMenu,
+	})
 }
 
 func (s *appState) showMergeView() {
