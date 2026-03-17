@@ -142,6 +142,16 @@ var iuLatn = Strings{
 	FiltersPreset:            "Atuqtaujuksaq:",                   // Preset:
 	FiltersTargetFPS:         "Takujautiit Akiligaaksanga:",      // Target FPS:
 
+	// ── Subtitles Module ─────────────────────────────────────────────────
+	SubtitlesOfflineHint:  "Silarsuarmit pissitsiviksaunngittuq STT ggml-small.bin atorlugu - API atorunnainnarsimanngittuq", // Offline STT uses bundled ggml-small.bin - no API needed
+	SubtitlesEmpty:        "Qaliujaaqpait niruarnikkut upalungaijautigilugit",                                                // Drag and drop subtitle files here
+	SubtitlesExtractEmbed: "Qaliujaaqpait ilitsirijauqataulutik nunarjuarmit",                                                // Extract embedded subtitle tracks
+	SubtitlesOCROutput:    "OCR nalinginnaanngitsumik (ujarusimanngitsumik qaliujaaqpait angiqqanngitsorialik):",             // OCR output (image-based subtitles only):
+	SubtitlesOCRLanguage:  "OCR uqausiq (tesseract, taima: eng, fra, iku):",                                                 // OCR language (tesseract, e.g. eng, fra, iku):
+	SubtitlesShiftOffset:  "Qaliujaaqpait katimajariit asijjiqsimajunik uqariannginnagu (sikuniit):",                        // Shift all subtitle times by offset (seconds):
+	SubtitlesStart:        "Pigiarmat",  // Start
+	SubtitlesEnd:          "Isumaqtaat", // End
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:        "Pigiaqtauluni",                         // Ready
 	StatusProcessing:   "Pilirijautajuq...",                     // Processing

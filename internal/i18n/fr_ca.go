@@ -149,6 +149,23 @@ var frCA = Strings{
 	SubtitlesStart:        "Début",
 	SubtitlesEnd:          "Fin",
 
+	// ── Trim ──────────────────────────────────────────────────────────────
+	TrimInstructions:   "Chargez une vidéo pour définir les points d'entrée/sortie. Utilisez les touches fléchées pour une navigation image par image.",
+	TrimInPoint:        "Point d'entrée",
+	TrimOutPoint:       "Point de sortie",
+	TrimSetIn:          "Définir entrée",
+	TrimSetOut:         "Définir sortie",
+	TrimClear:          "Effacer les points",
+	TrimMode:           "Mode de rogner :",
+	TrimModeKeep:       "Conserver la région",
+	TrimModeCut:        "Couper la région",
+	TrimPreview:        "Aperçu du rognage",
+	TrimSmartCopy:      "Copie intelligente (rapide, sans réencodage)",
+	TrimRecode:         "Réencoder (lent, contrôle qualité total)",
+	TrimSegment:        "Segment",
+	TrimAddSegment:     "Ajouter un segment",
+	TrimExportSegments: "Exporter en fichiers séparés",
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:        "Prêt",
 	StatusProcessing:   "Traitement en cours...",

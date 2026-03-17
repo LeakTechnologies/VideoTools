@@ -141,6 +141,16 @@ var iu = Strings{
 	FiltersPreset:            "ᐊᑐᖅᑕᐅᔪᒃᓴᖅ:",                       // Preset:
 	FiltersTargetFPS:         "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᑦ ᐊᑭᓕᒐᒃᓴᖓ:",              // Target FPS:
 
+	// ── Subtitles Module ─────────────────────────────────────────────────
+	SubtitlesOfflineHint:  "ᐊᑕᐅᑦᑎᒃᑰᕈᑎᖃᙱᑦᑐᒥ STT ggml-small.bin ᐊᑐᖅᑐᖅ - API ᐊᑐᖅᑕᐅᑎᑦᑎᑦᑕᐃᓕᒪᔪᖅ", // Offline STT uses bundled ggml-small.bin - no API needed
+	SubtitlesEmpty:        "ᑎᑎᖅᑲᒃᓴᓂᒃ ᖃᕆᑕᐅᔭᒃᑯᑦ ᑐᓂᓯᒋᑦ",                                      // Drag and drop subtitle files here
+	SubtitlesExtractEmbed: "ᑎᑎᖅᑲᒃᓴᑦ ᐊᒡᒐᖅᑐᖅᑕᐅᓯᒪᔪᑦ ᓇᒡᒋᔭᒃᓴᐃᑦ ᐱᔭᕆᐊᖅᑕᑦ",                        // Extract embedded subtitle tracks
+	SubtitlesOCROutput:    "OCR ᐊᒡᒐᖅᑐᕆᔭᐅᔪᖅ (ᐊᔾᔨᖅᑕᐅᓯᒪᔪᑦ ᑎᑎᖅᑲᒃᓴᑦ ᐱᒐᓱᐊᖅᑐᑦ):",                 // OCR output (image-based subtitles only):
+	SubtitlesOCRLanguage:  "OCR ᐅᖃᐅᓯᖅ (tesseract, ᑕᑯᓐᓇᖅᑕᐃᓕᒪᔪᖅ: eng, fra, iku):",             // OCR language (tesseract, e.g. eng, fra, iku):
+	SubtitlesShiftOffset:  "ᑎᑎᖅᑲᒃᓴᑦ ᑭᓯᐊᓂ ᐊᑯᓂᐅᔪᒃᑯᑦ ᐅᔾᔨᕆᓗᒋᑦ (ᐊᑦᑕᕐᓇᖅᑐᒃᑯᑦ):", // Shift all subtitle times by offset (seconds):
+	SubtitlesStart:        "ᐱᒋᐊᖅᑐᖅ",  // Start
+	SubtitlesEnd:          "ᐃᓱᒪᒋᔭᒃᓴᖅ", // End
+
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:        "ᓴᐳᒻᒥᔪᖅ",     // Ready
 	StatusProcessing:   "ᐱᓕᕆᔭᐅᔪᖅ...", // Processing
