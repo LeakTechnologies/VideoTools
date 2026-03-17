@@ -1512,24 +1512,29 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 
 	// Inuktitut script select — shown immediately when iu is active at build time.
 	// Language changes trigger showSettingsView() which rebuilds this whole block.
+	//
+	// Option labels are pinned to their own writing systems so they always look
+	// distinct no matter which script is currently active:
+	//   • Syllabics option always shows the syllabics characters
+	//   • Latin option always shows "Qaliujaaqpait"
+	const scriptOptSyllabics = "ᖃᓂᐅᔮᖅᐸᐃᑦ"
+	const scriptOptLatin = "Qaliujaaqpait"
 	if i18n.CurrentCode() == "iu" {
 		scriptLabel.Show()
 		scriptSelect.Show()
-		s := i18n.T()
-		options := []string{s.SettingsScriptLatin, s.SettingsScriptSyllabics}
 		currentScript := i18n.CurrentScript()
-		scriptSelect.Options = options
-		if currentScript == i18n.ScriptSyllabics {
-			scriptSelect.SetSelected(s.SettingsScriptSyllabics)
+		scriptSelect.Options = []string{scriptOptSyllabics, scriptOptLatin}
+		if currentScript == i18n.ScriptLatin {
+			scriptSelect.SetSelected(scriptOptLatin)
 		} else {
-			scriptSelect.SetSelected(s.SettingsScriptLatin)
+			scriptSelect.SetSelected(scriptOptSyllabics)
 		}
 		scriptSelect.OnChanged = func(selected string) {
 			var script i18n.ScriptVariant
-			if selected == s.SettingsScriptSyllabics {
-				script = i18n.ScriptSyllabics
-			} else {
+			if selected == scriptOptLatin {
 				script = i18n.ScriptLatin
+			} else {
+				script = i18n.ScriptSyllabics
 			}
 			i18n.SetLanguageWithScript("iu", script)
 			persistLocale("iu", script)
