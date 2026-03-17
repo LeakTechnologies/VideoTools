@@ -1710,6 +1710,10 @@ func (s *appState) pushNavigationHistory(module string) {
 
 // navigateBack goes back in navigation history (mouse back button)
 func (s *appState) navigateBack() {
+	// Main menu is the root — there is nowhere further back to go.
+	if s.active == "" || s.active == "mainmenu" {
+		return
+	}
 	if s.navigationHistoryPosition > 0 {
 		s.navigationHistoryPosition--
 		module := s.navigationHistory[s.navigationHistoryPosition]
@@ -2603,8 +2607,10 @@ func (s *appState) showModule(id string) {
 		return
 	}
 
-	// Track navigation history
-	s.pushNavigationHistory(id)
+	// Track navigation history (queue manages its own push inside showQueue)
+	if id != "queue" {
+		s.pushNavigationHistory(id)
+	}
 
 	switch id {
 	case "convert":
@@ -2635,6 +2641,8 @@ func (s *appState) showModule(id string) {
 		s.showSubtitlesView()
 	case "settings":
 		s.showSettingsView()
+	case "queue":
+		s.showQueue()
 	case "mainmenu":
 		s.showMainMenu()
 	default:
