@@ -10,6 +10,8 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 // buildDVDRipTab creates a DVD/ISO ripping tab with import support
@@ -192,69 +194,159 @@ func isDVDPath(path string) bool {
 	return false
 }
 
-// analyzeDVDStructure analyzes a DVD or ISO file for titles
+// analyzeDVDStructure probes a DVD/ISO for title structure using ffprobe.
+// Returns found titles, whether it appears to be DVD-5, and DVD-9.
 func analyzeDVDStructure(path string, sourceType string) ([]DVDTitle, bool, bool) {
-	// This is a placeholder implementation
-	// In reality, you would use FFmpeg with DVD input support
-	dialog.ShowInformation("DVD Analysis",
-		fmt.Sprintf("Analyzing %s: %s\n\nThis will extract DVD structure and find all titles, audio tracks, and subtitles.", sourceType, filepath.Base(path)),
-		nil)
+	// Find VOB files to probe — either from an ISO mount or a VIDEO_TS directory
+	vobFiles, err := findVOBFiles(path, sourceType)
+	if err != nil || len(vobFiles) == 0 {
+		// Nothing to probe — return empty with no error dialog (caller shows state)
+		return nil, false, false
+	}
 
-	// Return sample titles
-	return []DVDTitle{
-		{
-			Number:     1,
-			Name:       "Main Feature",
-			Duration:   7200, // 2 hours
-			SizeGB:     7.8,
-			VideoCodec: "MPEG-2",
-			AudioTracks: []DVDTrack{
-				{ID: 1, Language: "en", Codec: "AC-3", Channels: 6, SampleRate: 48000, Bitrate: 448000},
-				{ID: 2, Language: "es", Codec: "AC-3", Channels: 2, SampleRate: 48000, Bitrate: 192000},
-			},
-			SubtitleTracks: []DVDTrack{
-				{ID: 1, Language: "en", Codec: "SubRip"},
-				{ID: 2, Language: "es", Codec: "SubRip"},
-			},
-			Chapters: []DVDChapter{
-				{Number: 1, Title: "Chapter 1", StartTime: 0, Duration: 1800},
-				{Number: 2, Title: "Chapter 2", StartTime: 1800, Duration: 1800},
-				{Number: 3, Title: "Chapter 3", StartTime: 3600, Duration: 1800},
-				{Number: 4, Title: "Chapter 4", StartTime: 5400, Duration: 1800},
-			},
-			AngleCount: 1,
-			IsPAL:      false,
-		},
-	}, false, false // DVD-5 by default for this example
+	var titles []DVDTitle
+	var totalGB float64
+
+	// Each VTS_xx_1.VOB is a separate title; group by title number
+	titleMap := map[int]string{}
+	for _, vob := range vobFiles {
+		base := filepath.Base(vob)
+		var vtsNum int
+		if _, err := fmt.Sscanf(base, "VTS_%02d_1.VOB", &vtsNum); err == nil {
+			titleMap[vtsNum] = vob
+		}
+	}
+
+	for vtsNum := 1; vtsNum <= len(titleMap); vtsNum++ {
+		vob, ok := titleMap[vtsNum]
+		if !ok {
+			continue
+		}
+
+		info, _ := os.Stat(vob)
+		sizeGB := 0.0
+		if info != nil {
+			sizeGB = float64(info.Size()) / (1024 * 1024 * 1024)
+			totalGB += sizeGB
+		}
+
+		// Use ffprobe to get stream info
+		src, err := probeVideo(vob)
+		if err != nil {
+			titles = append(titles, DVDTitle{
+				Number: vtsNum,
+				Name:   fmt.Sprintf("Title %d", vtsNum),
+				SizeGB: sizeGB,
+			})
+			continue
+		}
+
+		t := DVDTitle{
+			Number:     vtsNum,
+			Name:       fmt.Sprintf("Title %d", vtsNum),
+			Duration:   src.Duration,
+			SizeGB:     sizeGB,
+			VideoCodec: src.VideoCodec,
+			IsPAL:      src.Height == 576,
+		}
+
+		for i, a := range src.Audio {
+			t.AudioTracks = append(t.AudioTracks, DVDTrack{
+				ID:       i + 1,
+				Language: a.Language,
+				Codec:    a.Codec,
+				Channels: a.Channels,
+			})
+		}
+		for i, s := range src.Subtitles {
+			t.SubtitleTracks = append(t.SubtitleTracks, DVDTrack{
+				ID:       i + 1,
+				Language: s.Language,
+				Codec:    s.Codec,
+			})
+		}
+		titles = append(titles, t)
+	}
+
+	isDVD5 := totalGB <= 4.7
+	isDVD9 := totalGB > 4.7
+	return titles, isDVD5, isDVD9
 }
 
-// ripTitle rips a single DVD title to MKV format
+// findVOBFiles returns the list of VTS_xx_1.VOB files for a DVD/ISO path.
+func findVOBFiles(path, sourceType string) ([]string, error) {
+	var searchDir string
+	if sourceType == "iso" {
+		// For ISO files: look for a VIDEO_TS folder relative to path,
+		// or treat the ISO as a directory if it was mounted/extracted.
+		// Simple heuristic: probe the ISO directly via ffprobe (no mount needed).
+		// Return the ISO itself as a pseudo-title for probing.
+		return []string{path}, nil
+	}
+	// DVD directory: look for VIDEO_TS subdirectory
+	videoTS := filepath.Join(path, "VIDEO_TS")
+	if _, err := os.Stat(videoTS); err == nil {
+		searchDir = videoTS
+	} else {
+		searchDir = path
+	}
+	matches, err := filepath.Glob(filepath.Join(searchDir, "VTS_*_1.VOB"))
+	if err != nil {
+		return nil, err
+	}
+	return matches, nil
+}
+
+// ripTitle queues an FFmpeg job to extract a single DVD title to MKV.
 func ripTitle(title DVDTitle, state *appState) {
-	// Default to AV1 in MKV for best quality
-	outputPath := fmt.Sprintf("%s_%s_Title%d.mkv",
-		strings.TrimSuffix(strings.TrimSuffix(filepath.Base(state.authorFile.Path), filepath.Ext(state.authorFile.Path)), ".dvd"),
-		title.Name,
-		title.Number)
+	if state.authorFile == nil {
+		dialog.ShowError(fmt.Errorf("no source file loaded"), state.window)
+		return
+	}
+	srcPath := state.authorFile.Path
+	base := strings.TrimSuffix(filepath.Base(srcPath), filepath.Ext(srcPath))
+	outputPath := filepath.Join(filepath.Dir(srcPath), fmt.Sprintf("%s_Title%02d.mkv", base, title.Number))
 
-	dialog.ShowInformation("Rip Title",
-		fmt.Sprintf("Ripping Title %d: %s\n\nOutput: %s\nFormat: MKV (AV1)\nAudio: All tracks\nSubtitles: All tracks",
-			title.Number, title.Name, outputPath),
-		state.window)
+	// Stream copy all audio and the first video stream — no re-encode
+	args := []string{
+		"-i", srcPath,
+		"-map", "0:v:0",
+		"-map", "0:a",
+		"-c", "copy",
+		"-map_metadata", "0",
+		"-y", outputPath,
+	}
 
-	// TODO: Implement actual ripping with FFmpeg
-	// This would use FFmpeg to extract the title with selected codec
-	// For DVD: ffmpeg -i dvd://1 -c:v libaom-av1 -c:a libopus -map_metadata 0 output.mkv
-	// For ISO: ffmpeg -i path/to/iso -map 0:v:0 -map 0:a -c:v libaom-av1 -c:a libopus output.mkv
+	job := &queue.Job{
+		Type:        queue.JobTypeRip,
+		Title:       fmt.Sprintf("Rip: %s (Title %d)", title.Name, title.Number),
+		Description: fmt.Sprintf("Extract title %d → %s", title.Number, filepath.Base(outputPath)),
+		InputFile:   srcPath,
+		OutputFile:  outputPath,
+		Config: map[string]interface{}{
+			"ffmpeg_path": utils.GetFFmpegPath(),
+			"args":        args,
+		},
+	}
+
+	if state.jobQueue != nil {
+		state.jobQueue.Add(job)
+		dialog.ShowInformation("Queued",
+			fmt.Sprintf("Rip job for Title %d added to queue.\nOutput: %s", title.Number, filepath.Base(outputPath)),
+			state.window)
+	}
 }
 
-// ripAllTitles rips all DVD titles
+// ripAllTitles queues rip jobs for all DVD titles.
 func ripAllTitles(titles []DVDTitle, state *appState) {
-	dialog.ShowInformation("Rip All Titles",
-		fmt.Sprintf("Ripping all %d titles\n\nThis will extract each title to separate MKV files with AV1 encoding.", len(titles)),
-		state.window)
-
-	// TODO: Implement batch ripping
+	if state.authorFile == nil {
+		dialog.ShowError(fmt.Errorf("no source file loaded"), state.window)
+		return
+	}
 	for _, title := range titles {
 		ripTitle(title, state)
 	}
+	dialog.ShowInformation("Queued",
+		fmt.Sprintf("%d rip jobs added to queue.", len(titles)),
+		state.window)
 }
