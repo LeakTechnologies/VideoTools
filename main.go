@@ -3242,6 +3242,26 @@ func buildTrimView(state *appState) fyne.CanvasObject {
 		OnAddToQueue: func(clip trim.TrimClip) {
 			state.submitTrimJob(clip)
 		},
+		OnLoadFile: func(path string) {
+			if src, err := probeVideo(path); err == nil {
+				state.source = src
+				state.currentFrame = ""
+				if len(src.PreviewFrames) > 0 {
+					state.currentFrame = src.PreviewFrames[0]
+				}
+				state.applyInverseDefaults(src)
+				state.convert.OutputBase = state.resolveOutputBase(src, false)
+				state.playerReady = false
+				state.playerPos = 0
+				state.playerPaused = true
+			}
+		},
+		OnProbeVideo: func(path string) (float64, error) {
+			if src, err := probeVideo(path); err != nil {
+				return 0, err
+			}
+			return src.Duration, nil
+		},
 	}, "")
 }
 
