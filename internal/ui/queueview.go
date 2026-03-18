@@ -220,6 +220,7 @@ type queueItemWidgets struct {
 	statusLabel *widget.Label
 	progress    *StripedProgress
 	buttonBox   *fyne.Container
+	statusRect  *canvas.Rectangle
 }
 
 type QueueView struct {
@@ -433,6 +434,7 @@ func buildJobItem(
 		statusLabel: statusLabel,
 		progress:    progress,
 		buttonBox:   buttonBox,
+		statusRect:  statusRect,
 	}
 }
 
@@ -503,6 +505,10 @@ func updateJobItem(item *queueItemWidgets, job *queue.Job, queuePositions map[st
 
 	if item.status != job.Status {
 		item.status = job.Status
+		if item.statusRect != nil {
+			item.statusRect.FillColor = GetStatusColor(job.Status)
+			item.statusRect.Refresh()
+		}
 		item.buttonBox.Objects = buildJobButtons(job, callbacks).Objects
 		item.buttonBox.Refresh()
 	}
@@ -512,6 +518,7 @@ func (v *QueueView) UpdateJobs(jobs []*queue.Job) {
 	if len(jobs) == 0 {
 		v.jobList.Objects = []fyne.CanvasObject{v.emptyLabel}
 		v.jobList.Refresh()
+		v.Scroll.Refresh()
 		return
 	}
 
@@ -526,14 +533,22 @@ func (v *QueueView) UpdateJobs(jobs []*queue.Job) {
 
 	ordered := make([]fyne.CanvasObject, 0, len(jobs))
 	seen := make(map[string]struct{}, len(jobs))
-	for _, job := range jobs {
+	// Track whether the list structure (count or order) changed.
+	structureChanged := len(jobs) != len(v.jobList.Objects)
+
+	for i, job := range jobs {
 		seen[job.ID] = struct{}{}
 		item := v.items[job.ID]
 		if item == nil {
 			item = buildJobItem(job, queuePositions, v.callbacks, v.bgColor, v.textColor)
 			v.items[job.ID] = item
+			structureChanged = true
 		} else {
 			updateJobItem(item, job, queuePositions, v.callbacks)
+			// Check if position in list changed.
+			if !structureChanged && i < len(v.jobList.Objects) && v.jobList.Objects[i] != item.container {
+				structureChanged = true
+			}
 		}
 		ordered = append(ordered, item.container)
 	}
@@ -541,11 +556,17 @@ func (v *QueueView) UpdateJobs(jobs []*queue.Job) {
 	for id := range v.items {
 		if _, ok := seen[id]; !ok {
 			delete(v.items, id)
+			structureChanged = true
 		}
 	}
 
-	v.jobList.Objects = ordered
-	v.jobList.Refresh()
+	// Only update the list widget when structure changed; individual widget refreshes
+	// (SetText, SetProgress, Refresh on buttonBox) are handled by updateJobItem above.
+	if structureChanged {
+		v.jobList.Objects = ordered
+		v.jobList.Refresh()
+		v.Scroll.Refresh()
+	}
 }
 
 // UpdateRunningStatus updates elapsed/progress text for running jobs without rebuilding the list.
