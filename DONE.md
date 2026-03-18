@@ -2,6 +2,20 @@
 
 ## Version 0.1.1-dev35 (in progress) - Native Media Engine & Trim Module
 
+### Bug Fixes (tester feedback)
+- [x] **MKV 0 kbps bitrate tag** — Hardware encoders (AMF, NVENC) don't write per-stream BPS stats to Matroska; inject `-metadata:s:v:0 BPS=<bps>` for CBR/VBR MKV output so Windows Explorer and media tools display correct bitrate.
+- [x] **Queue list flash with multiple jobs** — `UpdateJobs` now only calls `jobList.Refresh()` on structural changes; individual widget updates handle their own redraws. Eliminates rapid full-list redraws causing flicker. `Scroll.Refresh()` also called to fix blank body with multiple pending jobs.
+- [x] **Queue status sidebar colour** — `statusRect` now tracked in `queueItemWidgets` and updated on status transition (Pending→Running colour change without rebuilding the whole card).
+
+### CI & Packaging
+- [x] **AppImage icon** — Switched from `VT_logo.png` (1024×1024, rejected by linuxdeploy) to `VT_Logotype1.png` (512×512). Updated `Icon=` in `VideoTools.desktop` to match icon filename stem; fixes "Could not find suitable icon" AppImage build error.
+
+### DVD Authoring Engine (Phase 1–4.1)
+- [x] **IFO command table** — `DVDCommandTable`, `JumpTTCommand`, `SetHL_BTNNCommand`, `ParseButtonCommand`, `SerializeCommandTable` in `internal/dvd/ifo/commands.go`.
+- [x] **Menu PGC + VMG_PGCITI** — `BuildMenuPGC`, `WritePGCITI` wire button commands into VMG IFO; `GenerateVMG_IFO` accepts menu PGC; menu pipeline fully wired in `author_module.go`.
+- [x] **TMAPT (time map table)** — `BuildLinearTMAPT` / `WriteTMAPT` in `vtsi.go`; linear sector approximation from VOB file size; wired into `GenerateVTS_IFO`.
+- [x] **ISO 9660 hybrid disc** — Full path tables (L+M), directory records, shared file data sectors with UDF; `assignSectors` runs first so ISO 9660 can reference correct physical sector addresses.
+
 ### Localization (i18n) - dev34 carry-forward
 - [x] **Subtitles i18n strings** — Added 9 new strings to `internal/i18n/strings.go` (SubtitlesOfflineHint, SubtitlesEmpty, SubtitlesExtractEmbed, SubtitlesOCROutput, SubtitlesOCRLanguage, SubtitlesShiftOffset, SubtitlesStart, SubtitlesEnd).
 - [x] **French (fr-CA) translations** — Subtitles module fully translated.

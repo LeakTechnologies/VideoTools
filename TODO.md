@@ -20,8 +20,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Trim job submission** — submitTrimJob creates queue.Job properly.
 
 ### CI & Release
-- [ ] **CI green check** — Confirm Linux and Windows builds pass.
-- [ ] **Push to origin** — Current branch 1 commit ahead.
+- [x] **CI green check** — Linux and Windows builds passing (build 512/513).
+- [x] **Push to origin** — All fixes pushed.
 
 ### Module Extraction (issue #22)
 - [ ] **`settings_module.go`** — opencode in progress.
