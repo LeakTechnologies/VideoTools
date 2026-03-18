@@ -168,7 +168,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 			return
 		}
 		if state.outPointMs <= state.inPointMs {
-			dialog.ShowInformation("Invalid Selection", "Out point must be after in point.", opts.Window)
+			dialog.ShowInformation(t.TrimInvalidSelection, "Out point must be after in point.", opts.Window)
 			return
 		}
 		clip := TrimClip{
@@ -203,7 +203,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 
 	rightPanel := section(t.ModuleTrim+" Settings", container.NewVBox(
 		widget.NewLabel(t.TrimMode), state.modeSelect,
-		widget.NewLabel("Output:"), state.exportSelect,
+		widget.NewLabel(t.TrimOutput), state.exportSelect,
 		widget.NewSeparator(),
 		container.NewHBox(clearBtn, state.addBtn),
 	))

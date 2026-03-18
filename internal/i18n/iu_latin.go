@@ -188,21 +188,23 @@ var iuLatn = Strings{
 	StatusNoActiveJobs: "○ Pilirijaujannarqtut Nuqkaqtut", // No active jobs
 
 	// ── Trim ──────────────────────────────────────────────────────────────
-	TrimInstructions:   "Tarvijaksaqmik agaksillugu iggirnirnnut aaqiksuilugu. Akiligaaksangit niruarlugit.", // Load video for trimming
-	TrimInPoint:        "Isirvik",                                                                            // In Point
-	TrimOutPoint:       "Anigiurvik",                                                                         // Out Point
-	TrimSetIn:          "Isirvik Aaqiksuilugu",                                                               // Set In
-	TrimSetOut:         "Anigiurvik Aaqiksuilugu",                                                            // Set Out
-	TrimClear:          "Saqinngiitilugit Aaqiksijautit",                                                     // Clear Points
-	TrimMode:           "Iggirnirnnut Turanganga:",                                                           // Trim Mode:
-	TrimModeKeep:       "Sapummiilugu Annuraaksimajuq",                                                       // Keep Region
-	TrimModeCut:        "Iggirrlugu Annuraaksimajuq",                                                         // Cut Region
-	TrimPreview:        "Takujautiit Iggirrniq",                                                              // Preview Trim
-	TrimSmartCopy:      "Ilisarijaullugu Tuktillugu (Sukkaittuumik)",                                         // Smart Copy (Fast)
-	TrimRecode:         "Nutaarviggilugu Titiraqtauninnga (Angirningani Atuqtitaulugu)",                      // Re-encode
-	TrimSegment:        "Aviktaujuq",                                                                         // Segment
-	TrimAddSegment:     "Aviktaujumik Ilalliujjilugu",                                                        // Add Segment
-	TrimExportSegments: "Avilugit Pijjutaulutik Asinngiit Ilangit",                                           // Export as separate files
+	TrimInstructions:     "Tarvijaksaqmik agaksillugu iggirnirnnut aaqiksuilugu. Akiligaaksangit niruarlugit.", // Load video for trimming
+	TrimInPoint:          "Isirvik",                                                                            // In Point
+	TrimOutPoint:         "Anigiurvik",                                                                         // Out Point
+	TrimSetIn:            "Isirvik Aaqiksuilugu",                                                               // Set In
+	TrimSetOut:           "Anigiurvik Aaqiksuilugu",                                                            // Set Out
+	TrimClear:            "Saqinngiitilugit Aaqiksijautit",                                                     // Clear Points
+	TrimMode:             "Iggirnirnnut Turanganga:",                                                           // Trim Mode:
+	TrimModeKeep:         "Sapummiilugu Annuraaksimajuq",                                                       // Keep Region
+	TrimModeCut:          "Iggirrlugu Annuraaksimajuq",                                                         // Cut Region
+	TrimPreview:          "Takujautiit Iggirrniq",                                                              // Preview Trim
+	TrimSmartCopy:        "Ilisarijaullugu Tuktillugu (Sukkaittuumik)",                                         // Smart Copy (Fast)
+	TrimRecode:           "Nutaarviggilugu Titiraqtauninnga (Angirningani Atuqtitaulugu)",                      // Re-encode
+	TrimSegment:          "Aviktaujuq",                                                                         // Segment
+	TrimAddSegment:       "Aviktaujumik Ilalliujjilugu",                                                        // Add Segment
+	TrimExportSegments:   "Avilugit Pijjutaulutik Asinngiit Ilangit",                                           // Export as separate files
+	TrimInvalidSelection: "Pijjutaulutik Asinngilirit",                                                         // Invalid Selection
+	TrimOutput:           "Upaktiivik",                                                                         // Output
 
 	// ── Settings ──────────────────────────────────────────────────────────
 	SettingsTitle:                "Aaqiksuiniq",
