@@ -398,6 +398,34 @@ func defaultBitrate(codec string, width int, sourceBitrate int) string {
 	}
 }
 
+// parseBitrateStringToBPS converts a bitrate string like "5000k", "5M", or "5000000"
+// to bits-per-second. Returns 0 if the string cannot be parsed.
+func parseBitrateStringToBPS(s string) int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	upper := strings.ToUpper(s)
+	var numStr string
+	var multiplier int
+	switch {
+	case strings.HasSuffix(upper, "M"):
+		numStr = s[:len(s)-1]
+		multiplier = 1_000_000
+	case strings.HasSuffix(upper, "K"):
+		numStr = s[:len(s)-1]
+		multiplier = 1_000
+	default:
+		numStr = s
+		multiplier = 1
+	}
+	val, err := utils.ParseInt(numStr)
+	if err != nil || val <= 0 {
+		return 0
+	}
+	return val * multiplier
+}
+
 // effectiveHardwareAccel resolves "auto" to a best-effort hardware encoder for the platform.
 func effectiveHardwareAccel(cfg convertConfig) string {
 	accel := strings.ToLower(cfg.HardwareAccel)
@@ -4798,6 +4826,22 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		}
 	} else {
 		args = append(args, "-avoid_negative_ts", "make_zero")
+	}
+
+	// Inject BPS tag for MKV output so Windows Explorer and media tools show the
+	// correct bitrate. Hardware encoders (AMF, NVENC) do not write per-stream stats
+	// back to Matroska tag writers, leaving BPS as 0.
+	if strings.EqualFold(selectedFormat.Ext, ".mkv") && !remux {
+		bitrateMode, _ := cfg["bitrateMode"].(string)
+		if bitrateMode == "CBR" || bitrateMode == "VBR" {
+			vb, _ := cfg["videoBitrate"].(string)
+			if vb == "" {
+				vb = defaultBitrate(videoCodec, sourceWidth, sourceBitrate)
+			}
+			if bps := parseBitrateStringToBPS(vb); bps > 0 {
+				args = append(args, "-metadata:s:v:0", fmt.Sprintf("BPS=%d", bps))
+			}
+		}
 	}
 
 	// Progress feed
@@ -14297,6 +14341,21 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		// Use source frame rate as CFR
 		args = append(args, "-r", fmt.Sprintf("%.3f", src.FrameRate))
 		logging.Debug(logging.CatFFMPEG, "enforcing CFR at source rate %.3f fps", src.FrameRate)
+	}
+
+	// Inject BPS tag for MKV output so Windows Explorer and media tools show the
+	// correct bitrate. Hardware encoders (AMF, NVENC) do not write per-stream stats
+	// back to Matroska tag writers, leaving BPS as 0.
+	if strings.EqualFold(cfg.SelectedFormat.Ext, ".mkv") && cfg.VideoCodec != "Copy" {
+		if cfg.BitrateMode == "CBR" || cfg.BitrateMode == "VBR" {
+			vb := cfg.VideoBitrate
+			if vb == "" {
+				vb = defaultBitrate(cfg.VideoCodec, src.Width, src.Bitrate)
+			}
+			if bps := parseBitrateStringToBPS(vb); bps > 0 {
+				args = append(args, "-metadata:s:v:0", fmt.Sprintf("BPS=%d", bps))
+			}
+		}
 	}
 
 	// Progress feed to stdout for live updates.
