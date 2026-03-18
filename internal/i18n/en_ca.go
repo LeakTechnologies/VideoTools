@@ -46,6 +46,11 @@ var enCA = Strings{
 	DialogNoLog:       "No Log",
 	DialogQueued:      "Queued",
 	DialogCancelled:   "Cancelled",
+	DialogBatchAdd:    "Batch Add",
+	DialogRecovery:    "Conversion Recovery",
+	DialogSnippets:    "Snippets",
+	DialogPreview:     "Generating Preview",
+	DialogPlayback:    "Playback Unavailable",
 
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert:     "Convert",

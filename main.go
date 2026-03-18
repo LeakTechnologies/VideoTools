@@ -2724,7 +2724,7 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 			// Show dialog if more than 2 videos
 			if len(videoPaths) > 2 {
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					dialog.ShowInformation("Compare Videos",
+					dialog.ShowInformation(t.DialogCompare,
 						fmt.Sprintf("You dropped %d videos. Only the first two will be loaded for comparison.", len(videoPaths)),
 						s.window)
 				}, false)
@@ -3093,6 +3093,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 }
 
 func (s *appState) showConvertView(file *videoSource) {
+	t := i18n.T()
 	if s.active != "convert" {
 		s.lastModule = s.active
 	}
@@ -7032,6 +7033,7 @@ func (s *appState) executeAddAllToQueue() {
 }
 
 func (s *appState) executeConversion() {
+	t := i18n.T()
 	// Add job to queue (at top if queue is already running)
 	if err := s.addConvertToQueue(true); err != nil {
 		dialog.ShowError(err, s.window)
@@ -7049,9 +7051,9 @@ func (s *appState) executeConversion() {
 
 	// Show success message
 	if s.jobQueue != nil && s.jobQueue.IsRunning() {
-		dialog.ShowInformation("Convert", "Added to top of queue! View progress in Job Queue.", s.window)
+		dialog.ShowInformation(t.ModuleConvert, "Added to top of queue! View progress in Job Queue.", s.window)
 	} else {
-		dialog.ShowInformation("Convert", "Conversion started! View progress in Job Queue.", s.window)
+		dialog.ShowInformation(t.ModuleConvert, "Conversion started! View progress in Job Queue.", s.window)
 	}
 }
 
@@ -12725,6 +12727,7 @@ func (s *appState) importCoverImage(path string) (string, error) {
 }
 
 func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
+	t := i18n.T()
 	if len(items) == 0 {
 		return
 	}
@@ -12899,13 +12902,13 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			dialog.ShowInformation("Compare Videos", "No video files found in dropped items.", s.window)
+			dialog.ShowInformation(t.DialogCompare, "No video files found in dropped items.", s.window)
 			return
 		}
 
 		// Show message if more than 2 videos dropped
 		if len(videoPaths) > 2 {
-			dialog.ShowInformation("Compare Videos",
+			dialog.ShowInformation(t.DialogCompare,
 				fmt.Sprintf("You dropped %d videos. Only the first two will be loaded for comparison.", len(videoPaths)),
 				s.window)
 		}
@@ -12990,7 +12993,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			dialog.ShowInformation("Inspect Video", "No video files found in dropped items.", s.window)
+			dialog.ShowInformation(t.DialogInspect, "No video files found in dropped items.", s.window)
 			return
 		}
 
@@ -13062,7 +13065,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			dialog.ShowInformation("Thumbnail Generation", "No video files found in dropped items.", s.window)
+			dialog.ShowInformation(t.DialogThumbnail, "No video files found in dropped items.", s.window)
 			return
 		}
 
@@ -13086,7 +13089,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			dialog.ShowInformation("Filters", "No video files found in dropped items.", s.window)
+			dialog.ShowInformation(t.ModuleFilters, "No video files found in dropped items.", s.window)
 			return
 		}
 
@@ -13125,7 +13128,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			dialog.ShowInformation("Upscale", "No video files found in dropped items.", s.window)
+			dialog.ShowInformation(t.ModuleUpscale, "No video files found in dropped items.", s.window)
 			return
 		}
 
@@ -13229,7 +13232,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			dialog.ShowInformation("VT_Player", "No video files found in dropped items.", s.window)
+			dialog.ShowInformation(t.ModulePlayer, "No video files found in dropped items.", s.window)
 			return
 		}
 
@@ -13823,7 +13826,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		// The UI will refresh from state.convertStatus via a ticker
 	}
 	if s.source == nil {
-		dialog.ShowInformation("Convert", "Load a video first.", s.window)
+		dialog.ShowInformation(t.ModuleConvert, "Load a video first.", s.window)
 		return
 	}
 	if s.convertBusy {

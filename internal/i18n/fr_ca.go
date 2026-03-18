@@ -47,6 +47,11 @@ var frCA = Strings{
 	DialogNoLog:       "Pas de journal",
 	DialogQueued:      "En file d'attente",
 	DialogCancelled:   "Annulé",
+	DialogBatchAdd:    "Ajout par lot",
+	DialogRecovery:    "Récupération de conversion",
+	DialogSnippets:    "Extraits",
+	DialogPreview:     "Génération de l'aperçu",
+	DialogPlayback:    "Lecture non disponible",
 
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert:     "Conversion",

@@ -49,6 +49,11 @@ var iu = Strings{
 	DialogNoLog:       "ᓴᓗᐃᔪᖅ ᓵᕝᕙᔪᖅ",           // No Log
 	DialogQueued:      "ᐃᓚᓕᐅᔾᔨᓗᒍ",              // Queued
 	DialogCancelled:   "ᐊᑎᖕᓂᖓ",                 // Cancelled
+	DialogBatchAdd:    "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᒋᒃᓯᔪᖅ",       // Batch Add
+	DialogRecovery:    "ᐃᓱᒃᑕᐅᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",       // Conversion Recovery
+	DialogSnippets:    "ᐃᓱᒃᑕᐅᔪᑦ",               // Snippets
+	DialogPreview:     "ᐊᑭᖃᓪᓕᐊᑦ ᓴᓇᓗᒍ",          // Generating Preview
+	DialogPlayback:    "ᑕᕐᕆᔭᒃᓴᓕᕆᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",    // Playback Unavailable
 
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert:     "ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",  // Converting
