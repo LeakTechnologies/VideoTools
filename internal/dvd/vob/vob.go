@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
@@ -27,15 +28,22 @@ const (
 // DVD Sector size (VOB packs are always 2048 bytes)
 const PackSize = 2048
 
+// ticksPerAC3Frame is the fixed SCR increment (27MHz ticks) for one AC-3 audio
+// frame: 1536 samples at 48 kHz = 32 ms = 864 000 27 MHz ticks.
+const ticksPerAC3Frame = uint64(864_000)
+
 // Muxer handles multiplexing MPEG-2, AC3, and SPU into a VOB stream.
 type Muxer struct {
 	w io.Writer
-	
+
 	// Muxing state
-	scr           uint64   // System Clock Reference (90kHz base)
+	scr           uint64   // System Clock Reference in 27 MHz ticks (base = scr/300 in 90kHz)
 	muxRate       uint32   // Mux rate in 50 bytes/sec units
 	currentSector uint32   // Current sector address within the VOB set
-	NAVPCKSectors []uint32 // List of sector addresses where NAV_PCKs were written
+	NAVPCKSectors []uint32 // Sector addresses where NAV_PCKs were written
+
+	// Frame-rate timing
+	ticksPerVideoFrame uint64 // 27 MHz ticks per video frame (set via SetFrameRate)
 }
 
 // NewMuxer creates a new VOB muxer.
@@ -50,6 +58,29 @@ func NewMuxer(w io.Writer) *Muxer {
 // GetNAVPCKSectors returns the collected sector map.
 func (m *Muxer) GetNAVPCKSectors() []uint32 {
 	return m.NAVPCKSectors
+}
+
+// SetFrameRate configures the SCR advance per video frame written via WriteVideo.
+// Common values: 29.97 (NTSC), 25.0 (PAL), 23.976 (film).
+// If not called, NTSC (29.97 fps) is assumed.
+func (m *Muxer) SetFrameRate(fps float64) {
+	if fps <= 0 {
+		fps = 29.97
+	}
+	// NTSC uses the exact rational 30000/1001 to avoid drift.
+	if math.Abs(fps-29.97) < 0.01 {
+		m.ticksPerVideoFrame = 900_900 // 27_000_000 * 1001 / 30000
+	} else {
+		m.ticksPerVideoFrame = uint64(math.Round(27_000_000.0 / fps))
+	}
+	logging.Debug(logging.CatDVD, "VOB muxer frame rate set to %.3f fps (%d 27MHz ticks/frame)", fps, m.ticksPerVideoFrame)
+}
+
+func (m *Muxer) videoFrameTicks() uint64 {
+	if m.ticksPerVideoFrame == 0 {
+		return 900_900 // NTSC default
+	}
+	return m.ticksPerVideoFrame
 }
 
 // WritePackHeader writes a Pack Header to the stream.
@@ -137,8 +168,9 @@ func (m *Muxer) encodeTimestamp(buf []byte, prefix uint8, ts uint64) {
 	buf[4] = uint8((ts<<1)&0xFE) | 0x01
 }
 
-// TickSCR advances the System Clock Reference by the given number of 27MHz ticks.
-// Call this to keep SCR in sync as data is written between nav packs.
+// TickSCR advances the System Clock Reference by the given number of 27 MHz ticks.
+// Use this to manually synchronise the SCR between writes (e.g. to add an
+// offset before the first NAV_PCK).
 func (m *Muxer) TickSCR(ticks uint64) {
 	m.scr += ticks
 }
@@ -176,8 +208,8 @@ func (m *Muxer) WriteVideo(data []byte, pts uint64) error {
 		m.currentSector++
 	}
 
-	// Advance SCR by one sector worth of 90kHz ticks (≈ 2048 bytes at 10.08 Mbps)
-	m.scr += 1800
+	// Advance SCR by one video frame's duration (frame-rate accurate).
+	m.scr += m.videoFrameTicks()
 	return nil
 }
 
@@ -213,7 +245,8 @@ func (m *Muxer) WriteAudio(data []byte, pts uint64, subStreamID uint8) error {
 		m.currentSector++
 	}
 
-	m.scr += 1800
+	// Advance SCR by one AC-3 frame duration: 1536 samples @ 48 kHz = 32 ms.
+	m.scr += ticksPerAC3Frame
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package ifo
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -83,6 +84,35 @@ type TitleSearchPointer struct {
 	VTSNumber       uint8
 	VTS_TitleNumber uint8
 	StartSector     uint32
+}
+
+// WriteTT_SRPT serializes a TT_SRPT and returns the sector-padded bytes.
+func WriteTT_SRPT(srpt *TT_SRPT) ([]byte, error) {
+	logging.Debug(logging.CatDVD, "Building TT_SRPT with %d title(s)", srpt.NumTitles)
+
+	// 8-byte header + 12 bytes per title entry
+	endByte := uint32(8+int(srpt.NumTitles)*12) - 1
+
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, srpt.NumTitles)
+	binary.Write(&buf, binary.BigEndian, srpt.Reserved)
+	binary.Write(&buf, binary.BigEndian, endByte)
+
+	for _, t := range srpt.Titles {
+		buf.WriteByte(t.TitleType)
+		buf.WriteByte(t.NumAngles)
+		binary.Write(&buf, binary.BigEndian, t.NumChapters)
+		binary.Write(&buf, binary.BigEndian, t.ParentalID)
+		buf.WriteByte(t.VTSNumber)
+		buf.WriteByte(t.VTS_TitleNumber)
+		binary.Write(&buf, binary.BigEndian, t.StartSector)
+	}
+
+	// Pad to sector boundary
+	if rem := buf.Len() % 2048; rem != 0 {
+		buf.Write(make([]byte, 2048-rem))
+	}
+	return buf.Bytes(), nil
 }
 
 // WriteVMGI serializes the VMG_MAT to an IFO file.

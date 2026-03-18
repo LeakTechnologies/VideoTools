@@ -3094,7 +3094,6 @@ func (s *appState) batchAddToQueue(paths []string) {
 }
 
 func (s *appState) showConvertView(file *videoSource) {
-	t := i18n.T()
 	if s.active != "convert" {
 		s.lastModule = s.active
 	}
@@ -13820,6 +13819,7 @@ func (s *appState) cancelConvert(cancelBtn, btn *widget.Button, spinner *widget.
 }
 
 func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.Button, spinner *widget.ProgressBarInfinite) {
+	t := i18n.T()
 	setStatus := func(msg string) {
 		s.convertStatus = msg
 		logging.Debug(logging.CatFFMPEG, "convert status: %s", msg)

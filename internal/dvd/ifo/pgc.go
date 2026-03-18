@@ -1,0 +1,235 @@
+package ifo
+
+import (
+	"bytes"
+	"encoding/binary"
+	"math"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+)
+
+// pgcHeaderSize is the fixed byte size of a PGC header on disc.
+const pgcHeaderSize = 236
+
+// BuildSingleCellPGC creates a minimal one-program, one-cell PGC from sector
+// addresses and duration. firstSector/lastSector are the absolute VOB sectors
+// for the single cell.
+func BuildSingleCellPGC(firstSector, lastSector uint32, durationSeconds float64, isNTSC bool) *ProgramChain {
+	pgc := &ProgramChain{
+		NrOfPrograms: 1,
+		NrOfCells:    1,
+		PlaybackTime: SecondsToPlaybackTime(durationSeconds, isNTSC),
+		Programs:     []ProgramInfo{{EntryCell: 1}},
+		CellPlayback: []CellPlayback{
+			{
+				PlaybackTime:        SecondsToPlaybackTime(durationSeconds, isNTSC),
+				FirstSector:         firstSector,
+				FirstILVUEndSector:  lastSector,
+				LastVOBUStartSector: lastSector,
+				LastSector:          lastSector,
+			},
+		},
+		CellPosition: []CellPosition{
+			{VOBID: 1, CellID: 1},
+		},
+	}
+	return pgc
+}
+
+// SecondsToPlaybackTime converts a float64 duration in seconds to the DVD BCD
+// PlaybackTime format.
+func SecondsToPlaybackTime(secs float64, isNTSC bool) PlaybackTime {
+	total := int(math.Round(secs))
+	h := total / 3600
+	m := (total % 3600) / 60
+	s := total % 60
+
+	frameRate := 25.0
+	if isNTSC {
+		frameRate = 29.97
+	}
+	frames := int((secs - float64(total)) * frameRate)
+	if frames < 0 {
+		frames = 0
+	}
+
+	var frByte uint8
+	if isNTSC {
+		frByte = 0xC0 | toBCD(frames)
+	} else {
+		frByte = 0x40 | toBCD(frames)
+	}
+
+	return PlaybackTime{
+		Hour:      toBCD(h % 100),
+		Minute:    toBCD(m),
+		Second:    toBCD(s),
+		FrameRate: frByte,
+	}
+}
+
+func toBCD(n int) uint8 {
+	if n < 0 {
+		n = 0
+	}
+	return uint8((n/10)<<4 | (n % 10))
+}
+
+// WritePGCITI serializes a single PGC into a VTS_PGCITI block and returns
+// the bytes (padded to a full 2048-byte sector).
+func WritePGCITI(pgc *ProgramChain) ([]byte, error) {
+	logging.Debug(logging.CatDVD, "Building PGCITI for %d program(s), %d cell(s)",
+		pgc.NrOfPrograms, pgc.NrOfCells)
+
+	pgcData, err := serializePGC(pgc)
+	if err != nil {
+		return nil, err
+	}
+
+	// PGCITI layout:
+	//   Bytes 0-1:  NrOf_VTS_PGCI (uint16)
+	//   Bytes 2-3:  Reserved (uint16)
+	//   Bytes 4-7:  EndByte (uint32) — last byte of table, 0-relative
+	//   Bytes 8-15: One PGC search pointer (8 bytes)
+	//     Bytes 8-9:   Category (uint16) — 0x8000 = entry PGC
+	//     Bytes 10-11: Reserved (uint16)
+	//     Bytes 12-15: PGC_Start_Byte (uint32) — offset of PGC within PGCITI
+	// Total header + 1 pointer = 16 bytes; PGC follows immediately.
+
+	const tableHeaderSize = 8  // NrOf + Reserved + EndByte
+	const ptrSize = 8          // Category + Reserved + PGC_Start_Byte
+	pgcStartByte := uint32(tableHeaderSize + ptrSize)
+	endByte := pgcStartByte + uint32(len(pgcData)) - 1
+
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, uint16(1))          // NrOf_VTS_PGCI
+	binary.Write(&buf, binary.BigEndian, uint16(0))          // Reserved
+	binary.Write(&buf, binary.BigEndian, endByte)            // EndByte
+	binary.Write(&buf, binary.BigEndian, uint16(0x8000))     // Category: entry PGC
+	binary.Write(&buf, binary.BigEndian, uint16(0))          // Reserved
+	binary.Write(&buf, binary.BigEndian, pgcStartByte)       // PGC_Start_Byte
+	buf.Write(pgcData)
+
+	// Pad to sector boundary
+	if rem := buf.Len() % 2048; rem != 0 {
+		buf.Write(make([]byte, 2048-rem))
+	}
+
+	return buf.Bytes(), nil
+}
+
+// BuildMenuPGC creates a PGC for a DVD menu with the given button command table.
+// numButtons is used for documentation only; the actual commands come from cmdTable.
+// duration is the menu loop duration in seconds.
+func BuildMenuPGC(cmdTable *DVDCommandTable, duration float64, isNTSC bool) *ProgramChain {
+	return &ProgramChain{
+		NrOfPrograms: 1,
+		NrOfCells:    1,
+		PlaybackTime: SecondsToPlaybackTime(duration, isNTSC),
+		Programs:     []ProgramInfo{{EntryCell: 1}},
+		CellPlayback: []CellPlayback{{
+			PlaybackTime: SecondsToPlaybackTime(duration, isNTSC),
+			CommandNr:    0, // no auto cell command; buttons trigger cell command table
+		}},
+		CellPosition: []CellPosition{{VOBID: 1, CellID: 1}},
+		CommandTable: cmdTable,
+	}
+}
+
+// serializePGC writes a PGC into its on-disc binary representation.
+func serializePGC(pgc *ProgramChain) ([]byte, error) {
+	nProg := int(pgc.NrOfPrograms)
+	nCell := int(pgc.NrOfCells)
+
+	// Offsets within PGC (from start of PGC data):
+	progMapOffset := uint16(pgcHeaderSize) // right after the 236-byte header
+	cellPlayOffset := progMapOffset + uint16(nProg)
+	cellPosOffset := cellPlayOffset + uint16(nCell)*24
+
+	// Command table follows cell position table (0 = no commands)
+	var cmdTblOffset uint16
+	var cmdTblData []byte
+	if pgc.CommandTable != nil && !pgc.CommandTable.Empty() {
+		cmdTblOffset = cellPosOffset + uint16(nCell)*4
+		cmdTblData = SerializeCommandTable(pgc.CommandTable)
+	}
+
+	var buf bytes.Buffer
+
+	// ── 236-byte PGC header ──────────────────────────────────────────────────
+	binary.Write(&buf, binary.BigEndian, uint16(0)) // Reserved
+	buf.WriteByte(pgc.NrOfPrograms)
+	buf.WriteByte(pgc.NrOfCells)
+
+	// Playback time (4 bytes BCD)
+	buf.WriteByte(pgc.PlaybackTime.Hour)
+	buf.WriteByte(pgc.PlaybackTime.Minute)
+	buf.WriteByte(pgc.PlaybackTime.Second)
+	buf.WriteByte(pgc.PlaybackTime.FrameRate)
+
+	binary.Write(&buf, binary.BigEndian, pgc.ProhibitedOps) // 4 bytes
+
+	for _, ac := range pgc.AudioControl {
+		binary.Write(&buf, binary.BigEndian, ac)
+	}
+	for _, sp := range pgc.SubpictureCtl {
+		binary.Write(&buf, binary.BigEndian, sp)
+	}
+
+	binary.Write(&buf, binary.BigEndian, pgc.NextPGCN)
+	binary.Write(&buf, binary.BigEndian, pgc.PrevPGCN)
+	binary.Write(&buf, binary.BigEndian, pgc.GoUpPGCN)
+	buf.WriteByte(pgc.StillTime)
+	buf.WriteByte(pgc.PGPlaybackMode)
+
+	for _, pe := range pgc.Palette {
+		buf.Write(pe[:])
+	}
+
+	binary.Write(&buf, binary.BigEndian, cmdTblOffset) // Command_TBL_Offset (0 = no cmds)
+	binary.Write(&buf, binary.BigEndian, progMapOffset)
+	binary.Write(&buf, binary.BigEndian, cellPlayOffset)
+	binary.Write(&buf, binary.BigEndian, cellPosOffset)
+
+	// Verify we're at byte 236
+	if buf.Len() != pgcHeaderSize {
+		logging.Error(logging.CatDVD, "PGC header size mismatch: got %d, want %d", buf.Len(), pgcHeaderSize)
+	}
+
+	// ── Program map ──────────────────────────────────────────────────────────
+	for _, p := range pgc.Programs {
+		buf.WriteByte(p.EntryCell)
+	}
+
+	// ── Cell playback table (24 bytes per cell) ───────────────────────────────
+	for _, c := range pgc.CellPlayback {
+		// Byte 0: BlockMode(7-6) | BlockType(5-4) | SeamlessPlay(3) | Interleaved(2) | STCDisc(1) | 0
+		buf.WriteByte((c.BlockMode << 6) | (c.BlockType << 4))
+		// Byte 1: PlaybackMode(7) | RestrictedMode(6) | 0 | 0 | 0 | 0 | 0 | 0
+		buf.WriteByte(0x00)
+		buf.WriteByte(c.StillTime)
+		buf.WriteByte(c.CommandNr)
+		buf.WriteByte(c.PlaybackTime.Hour)
+		buf.WriteByte(c.PlaybackTime.Minute)
+		buf.WriteByte(c.PlaybackTime.Second)
+		buf.WriteByte(c.PlaybackTime.FrameRate)
+		binary.Write(&buf, binary.BigEndian, c.FirstSector)
+		binary.Write(&buf, binary.BigEndian, c.FirstILVUEndSector)
+		binary.Write(&buf, binary.BigEndian, c.LastVOBUStartSector)
+		binary.Write(&buf, binary.BigEndian, c.LastSector)
+	}
+
+	// ── Cell position table (4 bytes per cell) ────────────────────────────────
+	for _, cp := range pgc.CellPosition {
+		binary.Write(&buf, binary.BigEndian, cp.VOBID)
+		buf.WriteByte(0x00) // Reserved
+		buf.WriteByte(cp.CellID)
+	}
+
+	// ── Command table (if present) ────────────────────────────────────────────
+	if len(cmdTblData) > 0 {
+		buf.Write(cmdTblData)
+	}
+
+	return buf.Bytes(), nil
+}

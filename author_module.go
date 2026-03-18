@@ -34,6 +34,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/udf"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/vob"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -3088,8 +3089,9 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		logFn(fmt.Sprintf("  %s (extra) placed", vobName))
 	}
 
-	// Probe primary feature for attributes
+	// Probe primary feature for attributes and duration
 	primarySrc, _ := probeVideo(featurePaths[0])
+	isNTSC := region != "PAL"
 
 	// IFO builder targets VIDEO_TS (not discRoot)
 	ifoBuilder := ifo.NewBuilder(videoTSPath)
@@ -3114,26 +3116,98 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			vtsMat.VTS_Attributes.Resolution = 1
 		}
 	}
-	if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, nil); err != nil {
+
+	// Build a single-cell PGC for the main title so hardware players can
+	// navigate to it. Sector 0 = first sector of VTS_01_1.VOB on disc; we
+	// use 0 as a placeholder (UDF layout is determined later).
+	var mainDuration float64
+	if primarySrc != nil {
+		mainDuration = primarySrc.Duration
+	}
+	mainPGC := ifo.BuildSingleCellPGC(0, 0, mainDuration, isNTSC)
+
+	// Build TMAPT from VOB file size — linear approximation for seek bar.
+	var mainTMAPT *ifo.VTS_TMAPT
+	mainVOBPath := filepath.Join(videoTSPath, "VTS_01_1.VOB")
+	if info, err2 := os.Stat(mainVOBPath); err2 == nil && mainDuration > 0 {
+		totalSectors := uint32(info.Size() / 2048)
+		mainTMAPT = ifo.BuildLinearTMAPT(totalSectors, mainDuration, 1)
+	}
+
+	if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, nil); err != nil {
 		return fmt.Errorf("native ifo generation failed: %w", err)
 	}
 
 	// Generate IFOs for any extra title sets
-	for i := range extraMpgPaths {
+	for i, clip := range extraClips {
 		vtsNum := i + 2
 		extraMat := ifo.NewVTSMAT()
 		extraMat.VTS_Attributes = vtsMat.VTS_Attributes
-		if err := ifoBuilder.GenerateVTS_IFO(vtsNum, extraMat, nil); err != nil {
+		extraPGC := ifo.BuildSingleCellPGC(0, 0, clip.Duration, isNTSC)
+		var extraTMAPT *ifo.VTS_TMAPT
+		extraVOBPath := filepath.Join(videoTSPath, fmt.Sprintf("VTS_%02d_1.VOB", vtsNum))
+		if info, err2 := os.Stat(extraVOBPath); err2 == nil && clip.Duration > 0 {
+			extraTMAPT = ifo.BuildLinearTMAPT(uint32(info.Size()/2048), clip.Duration, 1)
+		}
+		if err := ifoBuilder.GenerateVTS_IFO(vtsNum, extraMat, extraPGC, extraTMAPT, nil); err != nil {
 			return fmt.Errorf("native ifo generation failed for extra %d: %w", vtsNum, err)
+		}
+	}
+
+	// Build TT_SRPT: one entry per title set
+	totalTitles := 1 + len(extraClips)
+	srpt := &ifo.TT_SRPT{
+		NumTitles: uint16(totalTitles),
+	}
+	for i := 0; i < totalTitles; i++ {
+		srpt.Titles = append(srpt.Titles, ifo.TitleSearchPointer{
+			TitleType:      0x01, // one sequential PGC
+			NumAngles:      0x01,
+			NumChapters:    1,
+			VTSNumber:      uint8(i + 1),
+			VTS_TitleNumber: 1,
+			StartSector:    0, // updated during ISO layout
+		})
+	}
+
+	// Build optional menu PGC and place menu VOB
+	menuVOBPath := filepath.Join(videoTSPath, "VIDEO_TS.VOB")
+	var menuPGC *ifo.ProgramChain
+	if createMenu && menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
+		// Copy the spumux-processed menu VOB into VIDEO_TS/
+		if err := authorCopyFile(menuSet.MainMpg, menuVOBPath); err != nil {
+			logging.Info(logging.CatDVD, "Failed to copy menu VOB, using minimal placeholder: %v", err)
+			if err2 := vob.CreateMinimalMenuVOB(menuVOBPath); err2 != nil {
+				logging.Info(logging.CatDVD, "Failed to create minimal menu VOB: %v", err2)
+			}
+		} else {
+			// Build a menu PGC with one cell command per button
+			cmdTable := &ifo.DVDCommandTable{}
+			cmdTable.Pre = []ifo.DVDCommand{ifo.SetHL_BTNNCommand(1)} // highlight first button on entry
+			for _, btn := range menuSet.MainButtons {
+				cmdTable.Cell = append(cmdTable.Cell, ifo.ParseButtonCommand(btn.Command))
+			}
+			menuDuration := 10.0 // default menu loop duration in seconds
+			if src, err2 := probeVideo(menuSet.MainMpg); err2 == nil && src.Duration > 0 {
+				menuDuration = src.Duration
+			}
+			menuPGC = ifo.BuildMenuPGC(cmdTable, menuDuration, isNTSC)
+			logFn(fmt.Sprintf("Menu VOB placed with %d button(s)", len(menuSet.MainButtons)))
+		}
+	} else {
+		// No menu: write a minimal single-NAV_PCK placeholder
+		if err := vob.CreateMinimalMenuVOB(menuVOBPath); err != nil {
+			logging.Info(logging.CatDVD, "Failed to create menu VOB: %v", err)
 		}
 	}
 
 	// Generate VMG IFO/BUP (disc root metadata)
 	vmgMat := ifo.NewVMGMAT()
 	vmgMat.VMG_Attributes = vtsMat.VTS_Attributes
-	if err := ifoBuilder.GenerateVMG_IFO(vmgMat); err != nil {
+	if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGC); err != nil {
 		return fmt.Errorf("native vmg generation failed: %w", err)
 	}
+
 	logFn("IFO/BUP files generated")
 
 	accumulatedProgress += progressForOtherStep
