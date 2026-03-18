@@ -524,8 +524,9 @@ func nvencRuntimeAvailable() bool {
 
 // openLogViewer opens a simple dialog showing the log content. If live is true, it auto-refreshes.
 func (s *appState) openLogViewer(title, path string, live bool) {
+	t := i18n.T()
 	if strings.TrimSpace(path) == "" {
-		dialog.ShowInformation("No Log", "No log available.", s.window)
+		dialog.ShowInformation(t.DialogNoLog, "No log available.", s.window)
 		return
 	}
 
@@ -14625,7 +14626,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 		}
 		logging.Debug(logging.CatFFMPEG, "convert completed: %s", outPath)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			dialog.ShowInformation("Convert", fmt.Sprintf("Saved %s", outPath), s.window)
+			dialog.ShowInformation(t.ModuleConvert, fmt.Sprintf("Saved %s", outPath), s.window)
 			s.convertBusy = false
 			s.convertActiveIn = ""
 			s.convertActiveOut = ""
