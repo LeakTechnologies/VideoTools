@@ -52,6 +52,11 @@ type Strings struct {
 	DialogNoLog       string
 	DialogQueued      string
 	DialogCancelled   string
+	DialogBatchAdd    string
+	DialogRecovery    string
+	DialogSnippets    string
+	DialogPreview     string
+	DialogPlayback    string
 
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert     string
