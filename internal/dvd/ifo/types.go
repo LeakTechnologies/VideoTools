@@ -32,8 +32,52 @@ type SubpictureAttributes struct {
 
 // PlaybackTime represents the DVD BCD time format (8 bytes).
 type PlaybackTime struct {
-	Hour     uint8
-	Minute   uint8
-	Second   uint8
-	FrameRate uint8 // bits 7-6: rate, 5-0: frames
+	Hour      uint8
+	Minute    uint8
+	Second    uint8
+	FrameRate uint8 // bits 7-6: rate (0x40=25fps, 0xC0=29.97fps), bits 5-0: BCD frame count
+}
+
+// ProgramChain represents a DVD Program Chain (PGC) — the core navigation unit.
+type ProgramChain struct {
+	NrOfPrograms   uint8
+	NrOfCells      uint8
+	PlaybackTime   PlaybackTime
+	ProhibitedOps  uint32
+	AudioControl   [8]uint16
+	SubpictureCtl  [32]uint32
+	NextPGCN       uint16
+	PrevPGCN       uint16
+	GoUpPGCN       uint16
+	StillTime      uint8
+	PGPlaybackMode uint8
+	Palette        [16][4]byte // YCbCr palette for SPU
+	Programs       []ProgramInfo
+	CellPlayback   []CellPlayback
+	CellPosition   []CellPosition
+	CommandTable   *DVDCommandTable // nil = no commands
+}
+
+// CellPlayback describes a single cell within a PGC (24 bytes on disc).
+type CellPlayback struct {
+	BlockMode           uint8
+	BlockType           uint8
+	StillTime           uint8
+	CommandNr           uint8
+	PlaybackTime        PlaybackTime
+	FirstSector         uint32
+	FirstILVUEndSector  uint32
+	LastVOBUStartSector uint32
+	LastSector          uint32
+}
+
+// CellPosition maps a cell to its VOB ID and cell ID within the VOB.
+type CellPosition struct {
+	VOBID  uint16
+	CellID uint8
+}
+
+// ProgramInfo records the first cell of each program within a PGC.
+type ProgramInfo struct {
+	EntryCell uint8 // 1-based index of the first cell in this program
 }

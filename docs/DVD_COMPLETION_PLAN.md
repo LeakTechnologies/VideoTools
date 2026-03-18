@@ -242,17 +242,17 @@ Write a test that:
 
 | Phase | Item | Effort | Blocker for hardware players |
 |---|---|---|---|
-| 1.1 | Define PGC/Cell types | S | Yes |
-| 1.2 | `BuildPGCFromVOB()` — single cell | S | Yes |
-| 1.3 | TT_SRPT in VMG | S | Yes |
-| 1.5 | Wire PGC into `GenerateVTS_IFO()` | S | Yes |
-| 3.1 | Minimal `VIDEO_TS.VOB` | S | Yes (some players) |
-| 2.1 | Populate PCI (times only) | S | No — nice to have |
-| 2.2 | Populate DSI SRI (seek) | M | No — enables seek |
-| 2.3 | Fix SCR frame-rate accuracy | S | No |
-| 1.4 | Time Map Table | M | No — enables seek |
-| 3.2 | Full menu pipeline | L | No — enables menus |
-| 4.1 | ISO 9660 directory tree | S | No |
+| 1.1 | Define PGC/Cell types | ✅ Done | — |
+| 1.2 | `BuildSingleCellPGC()` | ✅ Done | — |
+| 1.3 | TT_SRPT in VMG | ✅ Done | — |
+| 1.5 | Wire PGC into `GenerateVTS_IFO()` | ✅ Done | — |
+| 3.1 | Minimal `VIDEO_TS.VOB` | ✅ Done | — |
+| 2.1 | Populate PCI (times only) | ✅ Done | — |
+| 2.2 | Populate DSI SRI (seek) | ✅ Done | — |
+| 2.3 | Fix SCR frame-rate accuracy | ✅ Done | — |
+| 1.4 | Time Map Table | ✅ Done | No — enables seek |
+| 3.2 | Full menu pipeline | ✅ Done | No — enables menus |
+| 4.1 | ISO 9660 directory tree | ✅ Done | No |
 | 4.2 | SPU DCSQ contrast/timing | S | No |
 | 4.3 | Integration tests | M | No |
 

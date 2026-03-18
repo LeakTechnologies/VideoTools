@@ -355,18 +355,24 @@ func (uw *Writer) findDir(path []string) *FileNode {
 // Build finalizes the UDF structure and writes all data.
 func (uw *Writer) Build() error {
 	logging.Info(logging.CatDVD, "Starting UDF Build process...")
-	
-	// 1. Write Header (Sectors 0-256)
-	if err := uw.WriteHeader(); err != nil {
+
+	// 1. Pre-assign UDF sectors so ISO 9660 directory records can reference
+	//    the correct physical file-data sectors (shared between both filesystems).
+	logging.Debug(logging.CatDVD, "Assigning sectors to files and directories")
+	uw.assignSectors()
+
+	// 2. Build ISO 9660 path tables and directory sectors (sectors 18-22ish).
+	//    These metadata sectors sit in the gap between the ISO 9660 VDS
+	//    (sectors 16-17) and the UDF VDS (sectors 32+).
+	iso := buildISO9660Layout(uw.root, 18, uw.volumeTime)
+
+	// 3. Write header with correct ISO 9660 PVD, path tables, and dir records.
+	if err := uw.writeHeaderWithISO9660(iso); err != nil {
 		logging.Error(logging.CatDVD, "Failed to write header: %v", err)
 		return fmt.Errorf("udf write header: %w", err)
 	}
 
-	// 2. Assign sectors to all files and directories
-	logging.Debug(logging.CatDVD, "Assigning sectors to files and directories")
-	uw.assignSectors()
-
-	// 3. Write File Set Descriptor
+	// 4. Write File Set Descriptor at sector 257.
 	logging.Debug(logging.CatDVD, "Writing File Set Descriptor (FSD) at sector %d", uw.currentSector)
 	fsd := FileSetDescriptor{
 		RecordingDateAndTime: NewTimestamp(uw.volumeTime),
@@ -380,7 +386,7 @@ func (uw *Writer) Build() error {
 		return fmt.Errorf("udf write fsd: %w", err)
 	}
 
-	// 4. Write ICBs and Data
+	// 5. Write ICBs and Data
 	logging.Info(logging.CatDVD, "Writing file data nodes recursively")
 	if err := uw.writeNode(uw.root); err != nil {
 		logging.Error(logging.CatDVD, "Failed to write file nodes: %v", err)
@@ -564,22 +570,42 @@ func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 	return nil
 }
 
-// WriteHeader writes the initial ISO 9660 and UDF structures.
-func (uw *Writer) WriteHeader() error {
+// writeHeaderWithISO9660 writes the initial ISO 9660 + UDF header sectors
+// with a fully populated PVD (path tables and root directory record).
+func (uw *Writer) writeHeaderWithISO9660(iso *iso9660Layout) error {
+	// Sectors 0-15: System Area (blank)
 	if err := uw.writePadding(16); err != nil {
 		return err
 	}
 
+	// Sector 16: ISO 9660 Primary Volume Descriptor
+	ptSize := uint32(len(iso.PathTableL))
+	rootDirSector := iso.DirSectors[0]
+
 	pvd := ISO9660PrimaryVolumeDescriptor{
-		Type:       ISO9660PVDType,
-		Identifier: [5]byte{'C', 'D', '0', '0', '1'},
-		Version:    1,
+		Type:                   ISO9660PVDType,
+		Identifier:             [5]byte{'C', 'D', '0', '0', '1'},
+		Version:                1,
+		FileStructureVersion:   1,
+		TypeLPathTable:         iso.LPathSector,
+		TypeMPathTable:         iso.MPathSector,
+		RootDirectoryRecord:    buildRootDirRecord(rootDirSector, uw.volumeTime),
 	}
 	copy(pvd.VolumeIdentifier[:], uw.volumeLabel)
+	pvd.VolumeSetSize = [4]byte{1, 0, 0, 1}          // both-endian uint16 = 1
+	pvd.VolumeSequenceNumber = [4]byte{1, 0, 0, 1}    // both-endian uint16 = 1
+	pvd.LogicalBlockSize = [4]byte{0, 8, 8, 0}        // both-endian uint16 = 2048
+	lebe := isoLEBE32(ptSize)
+	copy(pvd.PathTableSize[:], lebe[:])
+	pvd.VolumeCreationDate = NewISOTimestamp(uw.volumeTime)
+	pvd.VolumeModificationDate = NewISOTimestamp(uw.volumeTime)
+	copy(pvd.ApplicationIdentifier[:], "VIDEOTOOLS")
+
 	if err := uw.writeSector(pvd); err != nil {
 		return err
 	}
 
+	// Sector 17: Volume Descriptor Set Terminator
 	term := make([]byte, SectorSize)
 	term[0] = ISO9660TermType
 	copy(term[1:6], "CD001")
@@ -587,8 +613,25 @@ func (uw *Writer) WriteHeader() error {
 	if _, err := uw.w.Write(term); err != nil {
 		return err
 	}
-	uw.currentSector++
+	uw.currentSector++ // now at 18
 
+	// Sector 18: L-type Path Table (little-endian)
+	if err := uw.writePaddedSector(iso.PathTableL); err != nil {
+		return err
+	}
+	// Sector 19: M-type Path Table (big-endian)
+	if err := uw.writePaddedSector(iso.PathTableM); err != nil {
+		return err
+	}
+	// Sectors 20+: ISO 9660 directory sectors
+	for _, dirSector := range iso.Dirs {
+		if _, err := uw.w.Write(dirSector); err != nil {
+			return err
+		}
+		uw.currentSector++
+	}
+
+	// Pad to sector 32 for UDF VDS
 	if err := uw.writePadding(32 - int(uw.currentSector)); err != nil {
 		return err
 	}
@@ -605,6 +648,19 @@ func (uw *Writer) WriteHeader() error {
 		MainVolumeDescriptorSeq: ExtentAd{Len: 16 * SectorSize, Location: 32},
 	}
 	return uw.WriteDescriptor(TagIDAVDP, avdp)
+}
+
+// writePaddedSector writes data zero-padded to exactly one SectorSize sector.
+func (uw *Writer) writePaddedSector(data []byte) error {
+	sector := make([]byte, SectorSize)
+	if len(data) <= SectorSize {
+		copy(sector, data)
+	}
+	if _, err := uw.w.Write(sector); err != nil {
+		return err
+	}
+	uw.currentSector++
+	return nil
 }
 
 func (uw *Writer) writeVDS() error {

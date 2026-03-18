@@ -30,7 +30,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **`upscale_module.go`** — following subtitles.
 
 ### Disc Authoring
-- [ ] **Native engine stabilisation** — Ensure Author/Rip work.
+- [x] **Native engine stabilisation** — PGC/TT_SRPT/TMAPT/menu VOB/ISO 9660 complete.
 
 ## Dev34 Scope (completed ✓)
 

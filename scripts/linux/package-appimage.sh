@@ -47,7 +47,7 @@ APPIMAGETOOL="$PROJECT_ROOT/.cache/appimage/appimagetool-x86_64.AppImage"
     --appdir "$appdir" \
     --executable "$PROJECT_ROOT/.cache/appimage/VideoTools" \
     --desktop-file "$PROJECT_ROOT/packaging/linux/VideoTools.desktop" \
-    --icon-file "$PROJECT_ROOT/assets/logo/VT_Logo.png" \
+    --icon-file "$PROJECT_ROOT/assets/logo/VT_logo.png" \
     --output appimage
 
 appimage_out="$PROJECT_ROOT/VideoTools-x86_64.AppImage"
