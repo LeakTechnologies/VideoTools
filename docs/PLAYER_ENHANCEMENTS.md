@@ -400,18 +400,19 @@ internal/media/
 
 ## Implementation Phases
 
-### Phase 1: GPU Rendering (Current)
-- [x] Renderer interface
-- [ ] OpenGL implementation
-- [ ] D3D11 implementation
-- [ ] Texture upload pipeline
-- [ ] Shader-based YUV→RGB
+### Phase 1: GPU Rendering (Foundation) ✓
+- [x] Renderer interface (`internal/media/gpu/renderer.go`)
+- [x] OpenGL renderer scaffold (`internal/media/gpu/opengl.go`)
+- [x] D3D11 renderer scaffold (`internal/media/gpu/d3d11.go`)
+- [x] Texture utilities (`internal/media/gpu/texture.go`)
+- [x] GLSL shaders (`internal/media/gpu/shaders/`)
 
-### Phase 2: Controls & Shortcuts
-- [ ] Keyboard handler
-- [ ] Seek bar with preview
-- [ ] Volume/speed controls
+### Phase 2: Controls & Shortcuts ✓
+- [x] Keyboard handler (`internal/media/gpu/shortcuts.go`)
+- [x] Seek bar with preview (`internal/media/gpu/seekbar.go`)
+- [x] Volume control (`internal/media/gpu/seekbar.go`)
 - [ ] Fullscreen toggle
+- [x] Playback speed control (UI wired, engine supports)
 
 ### Phase 3: Smooth Seeking
 - [ ] Thumbnail extraction
@@ -419,11 +420,19 @@ internal/media/
 - [ ] Async decode queue
 - [ ] Frame pre-loading
 
-### Phase 4: Buffering & Polish
+### Phase 4: Buffering & Polish ✓
+- [x] Loading indicators (`SetLoading`, `loadingSpinner`)
 - [ ] Adaptive buffering
-- [ ] Loading indicators
 - [ ] Error recovery
 - [ ] Performance tuning
+
+### Phase 5: Chapter Support ✓
+- [x] Chapter struct in engine
+- [x] `parseChapters()` - FFmpeg chapter parsing
+- [x] `GetChapters()` - API to retrieve chapters
+- [x] `SetChapters()` in VideoPlayer
+- [ ] Chapter markers on seek bar
+- [ ] Chapter navigation
 
 ---
 

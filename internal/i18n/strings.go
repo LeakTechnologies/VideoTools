@@ -191,12 +191,28 @@ type Strings struct {
 	SubtitlesEnd          string // "End"
 
 	// ── Common Status ─────────────────────────────────────────────────────
-	StatusReady        string
-	StatusProcessing   string
-	StatusComplete     string
-	StatusFailed       string
-	StatusCancelled    string
-	StatusPending      string
+	StatusReady      string
+	StatusProcessing string
+	StatusComplete   string
+	StatusFailed     string
+	StatusCancelled  string
+	StatusPending    string
+
+	// ── Player Controls ─────────────────────────────────────────────────
+	PlayerLoading      string // "Loading..."
+	PlayerBuffering    string // "Buffering..."
+	PlayerSpeed        string // "Playback Speed"
+	PlayerChapter      string // "Chapter"
+	PlayerChapters     string // "Chapters"
+	PlayerNoChapters   string // "No chapters"
+	PlayerSpeed025x    string // "0.25x"
+	PlayerSpeed050x    string // "0.5x"
+	PlayerSpeed075x    string // "0.75x"
+	PlayerSpeed100x    string // "1x"
+	PlayerSpeed125x    string // "1.25x"
+	PlayerSpeed150x    string // "1.5x"
+	PlayerSpeed175x    string // "1.75x"
+	PlayerSpeed200x    string // "2x"
 	StatusRunning      string
 	StatusUpToDate     string
 	StatusNoActiveJobs string // "○ No active jobs"

@@ -81,6 +81,12 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		}
 	})
 
+	state.player.OnSpeedChange(func(speed float64) {
+		if state.engine != nil {
+			state.engine.SetSpeed(speed)
+		}
+	})
+
 	buildTrimBox := func(title string, content fyne.CanvasObject) *fyne.Container {
 		bg := canvas.NewRectangle(navyBlue)
 		bg.CornerRadius = 10
@@ -168,19 +174,27 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 }
 
 func (s *trimState) loadVideo(path string) {
+	s.player.SetLoading(true)
 	s.engine = media.NewEngine()
 	s.engine.SetSeekAccuracy(media.SeekAccuracyKeyframe)
 	s.engine.SetDropFrames(true)
 	if err := s.engine.Open(path); err != nil {
 		logging.Error(logging.CatPlayer, "Trim: failed to open %s: %v", path, err)
+		s.player.SetLoading(false)
 		return
 	}
 	s.duration = s.engine.Duration()
 	s.player.SetDuration(s.duration)
 
+	chapters := s.engine.GetChapters()
+	if len(chapters) > 0 {
+		s.player.SetChapters(chapters)
+	}
+
 	if img, err := s.engine.NextFrame(); err == nil {
 		s.player.SetFrame(img)
 	}
+	s.player.SetLoading(false)
 }
 
 func (s *trimState) playbackLoop() {

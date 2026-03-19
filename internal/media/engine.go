@@ -10,6 +10,13 @@ package media
 #include <libavutil/imgutils.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/dict.h>
+
+static AVChapter* getChapter(AVFormatContext *fmtCtx, int index) {
+    if (fmtCtx == NULL || index < 0 || index >= fmtCtx->nb_chapters) {
+        return NULL;
+    }
+    return fmtCtx->chapters[index];
+}
 */
 import "C"
 import (
@@ -308,6 +315,13 @@ func (e *Engine) UpdateSubtitles(currentPTS float64) {
 	}
 }
 
+type Chapter struct {
+	Index     int
+	StartTime float64
+	EndTime   float64
+	Title     string
+}
+
 type Engine struct {
 	formatCtx         *C.AVFormatContext
 	videoStreamIdx    int
@@ -343,6 +357,7 @@ type Engine struct {
 	running bool
 	paused  bool
 	stop    chan struct{}
+	loading bool
 
 	volume  float32
 	muted   bool
@@ -361,7 +376,8 @@ type Engine struct {
 	currentSubtitle *SubtitleOverlay
 	subtitleExpiry  float64
 
-	info *VideoInfo
+	info     *VideoInfo
+	chapters []Chapter
 }
 
 func NewEngine() *Engine {
@@ -422,6 +438,57 @@ func (e *Engine) SetSpeed(speed float64) {
 
 func (e *Engine) GetSpeed() float64 {
 	return e.speed
+}
+
+func (e *Engine) SetLoading(loading bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.loading = loading
+}
+
+func (e *Engine) IsLoading() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.loading
+}
+
+func (e *Engine) GetChapters() []Chapter {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.chapters
+}
+
+func (e *Engine) parseChapters() {
+	if e.formatCtx == nil {
+		return
+	}
+
+	e.chapters = make([]Chapter, 0, e.formatCtx.nb_chapters)
+	for i := 0; i < int(e.formatCtx.nb_chapters); i++ {
+		chapter := C.getChapter(e.formatCtx, C.int(i))
+		if chapter == nil {
+			continue
+		}
+
+		startTime := float64(chapter.start) / float64(chapter.time_base.den) * float64(chapter.time_base.num)
+		endTime := float64(chapter.end) / float64(chapter.time_base.den) * float64(chapter.time_base.num)
+
+		c := Chapter{
+			Index:     i,
+			StartTime: startTime,
+			EndTime:   endTime,
+			Title:     "",
+		}
+
+		if chapter.metadata != nil {
+			entry := C.av_dict_get(chapter.metadata, C.CString("title"), nil, 0)
+			if entry != nil {
+				c.Title = C.GoString(entry.value)
+			}
+		}
+
+		e.chapters = append(e.chapters, c)
+	}
 }
 
 func (e *Engine) SetSeekAccuracy(acc SeekAccuracy) {
@@ -907,8 +974,10 @@ func (e *Engine) Open(path string) error {
 		e.videoCodecCtx.width, e.videoCodecCtx.height, 1,
 	)
 
-	logging.Info(logging.CatPlayer, "Media opened: %dx%d @ %.2ffps, duration: %.2fs",
-		e.info.Width, e.info.Height, e.info.FrameRate, e.info.Duration)
+	e.parseChapters()
+
+	logging.Info(logging.CatPlayer, "Media opened: %dx%d @ %.2ffps, duration: %.2fs, chapters: %d",
+		e.info.Width, e.info.Height, e.info.FrameRate, e.info.Duration, len(e.chapters))
 
 	return nil
 }
