@@ -409,6 +409,21 @@ var enCA = Strings{
 	UpscaleFilterIntLabel:  "Filter Integration:",
 	UpscaleScalingLabel:    "Scaling Algorithm:",
 
+	// Output settings (aligned with Convert)
+	UpscaleContainerLabel:     "Container:",
+	UpscaleHardwareAccelLabel: "Hardware Accel:",
+	UpscaleManualCRFLabel:     "CRF:",
+	UpscaleCRFHint:            "Lower = better quality / larger file  (0 = lossless, 18 = high, 28 = medium)",
+	UpscalePixelFormatLabel:   "Pixel Format:",
+	UpscaleBitrateValueLabel:  "Bitrate:",
+
+	// Colour Accuracy section
+	UpscaleColourBox:      "Colour Accuracy",
+	UpscaleSrcColourLabel: "Source Colour Space:",
+	UpscaleDepthLabel:     "Processing Depth:",
+	UpscaleSkinToneLabel:  "Skin Tone Preservation:",
+	UpscaleColourHint:     "Explicit colour space handling prevents hue shifts during AI processing. 16-bit depth preserves subtle tonal detail.",
+
 	// ── Frame Interpolation (RIFE) ────────────────────────────────────────────
 	RIFEBoxTitle:        "Frame Interpolation (RIFE)",
 	RIFEDetected:        "rife-ncnn-vulkan detected",

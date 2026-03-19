@@ -415,6 +415,21 @@ type Strings struct {
 	UpscaleFilterIntLabel  string
 	UpscaleScalingLabel    string
 
+	// Output settings (aligned with Convert)
+	UpscaleContainerLabel     string // "Container:"
+	UpscaleHardwareAccelLabel string // "Hardware Accel:"
+	UpscaleManualCRFLabel     string // "CRF:"
+	UpscaleCRFHint            string // "Lower = better quality / larger file (0 = lossless)"
+	UpscalePixelFormatLabel   string // "Pixel Format:"
+	UpscaleBitrateValueLabel  string // "Bitrate:"
+
+	// Colour Accuracy section
+	UpscaleColourBox        string // "Colour Accuracy"
+	UpscaleSrcColourLabel   string // "Source Colour Space:"
+	UpscaleDepthLabel       string // "Processing Depth:"
+	UpscaleSkinToneLabel    string // "Skin Tone Preservation:"
+	UpscaleColourHint       string // hint about colour pipeline
+
 	// ── Frame Interpolation (RIFE) ────────────────────────────────────────────
 	RIFEBoxTitle        string // "Frame Interpolation (RIFE)"
 	RIFEDetected        string // "rife-ncnn-vulkan detected"

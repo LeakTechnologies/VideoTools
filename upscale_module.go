@@ -248,30 +248,6 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	methodInfo.TextStyle = fyne.TextStyle{Italic: true}
 	methodInfo.Wrapping = fyne.TextWrapWord
 
-	blurLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleBlurFmt, state.upscaleBlurSigma))
-	blurSlider := widget.NewSlider(0.0, 8.0)
-	blurSlider.Step = 0.1
-	blurSlider.Value = state.upscaleBlurSigma
-	blurSlider.OnChanged = func(v float64) {
-		state.upscaleBlurSigma = v
-		blurLabel.SetText(fmt.Sprintf(t.UpscaleBlurFmt, v))
-	}
-
-	blurCheck := widget.NewCheck(t.UpscaleEnableBlur, func(checked bool) {
-		state.upscaleBlurEnabled = checked
-		if checked {
-			blurSlider.Enable()
-		} else {
-			blurSlider.Disable()
-		}
-	})
-	blurCheck.SetChecked(state.upscaleBlurEnabled)
-	if state.upscaleBlurEnabled {
-		blurSlider.Enable()
-	} else {
-		blurSlider.Disable()
-	}
-
 	// Resolution
 	resLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleTargetFmt, state.upscaleTargetRes))
 	resSelect := widget.NewSelect([]string{
@@ -300,15 +276,6 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	))
 
 	// Video Encoding
-	qualitySelect := widget.NewSelect([]string{
-		"Lossless (CRF 0)",
-		"Near-lossless (CRF 16)",
-		"High (CRF 18)",
-	}, func(s string) {
-		state.upscaleQualityPreset = s
-	})
-	qualitySelect.SetSelected(state.upscaleQualityPreset)
-
 	encoderPresetSelect := widget.NewSelect([]string{
 		"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow",
 	}, func(s string) {
@@ -323,6 +290,25 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	})
 	videoCodecSelect.SetSelected(state.upscaleVideoCodec)
 
+	// Container selection
+	containerSelect := widget.NewSelect([]string{"mp4", "mkv", "mov", "webm"}, func(s string) {
+		state.upscaleOutputContainer = s
+	})
+	if state.upscaleOutputContainer == "" {
+		state.upscaleOutputContainer = "mp4"
+	}
+	containerSelect.SetSelected(state.upscaleOutputContainer)
+
+	// Hardware Acceleration selection
+	hwAccelSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "vaapi", "qsv", "videotoolbox"}, func(s string) {
+		state.upscaleHardwareAccel = s
+	})
+	if state.upscaleHardwareAccel == "" {
+		state.upscaleHardwareAccel = "auto"
+	}
+	hwAccelSelect.SetSelected(state.upscaleHardwareAccel)
+
+	// Bitrate mode
 	bitrateModeSelect := widget.NewSelect([]string{
 		"CRF (Constant Rate Factor)",
 		"CBR (Constant Bitrate)",
@@ -348,24 +334,121 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		bitrateModeSelect.SetSelected("CRF (Constant Rate Factor)")
 	}
 
+	// Manual CRF slider (0-51)
+	if state.upscaleManualCRF == 0 {
+		state.upscaleManualCRF = 16
+	}
+	crfValueLabel := widget.NewLabel(fmt.Sprintf("%d", state.upscaleManualCRF))
+	crfSlider := widget.NewSlider(0, 51)
+	crfSlider.Step = 1
+	crfSlider.Value = float64(state.upscaleManualCRF)
+	crfSlider.OnChanged = func(v float64) {
+		state.upscaleManualCRF = int(v)
+		crfValueLabel.SetText(fmt.Sprintf("%d", int(v)))
+	}
+	crfHint := widget.NewLabel(t.UpscaleCRFHint)
+	crfHint.TextStyle = fyne.TextStyle{Italic: true}
+	crfHint.Wrapping = fyne.TextWrapWord
+
+	// Bitrate value entry (for CBR/VBR)
+	bitrateEntry := widget.NewEntry()
+	bitrateEntry.SetPlaceHolder("e.g. 8000k, 20M")
+	if state.upscaleManualBitrate != "" {
+		bitrateEntry.SetText(state.upscaleManualBitrate)
+	}
+	bitrateEntry.OnChanged = func(s string) {
+		state.upscaleManualBitrate = s
+	}
+
+	// Pixel format selection
+	pixelFormatSelect := widget.NewSelect([]string{"yuv420p", "yuv444p", "yuv420p10le"}, func(s string) {
+		state.upscalePixelFormat = s
+	})
+	if state.upscalePixelFormat == "" {
+		state.upscalePixelFormat = "yuv420p"
+	}
+	pixelFormatSelect.SetSelected(state.upscalePixelFormat)
+
 	encodingSection := buildUpscaleBox(t.UpscaleEncodingBox, container.NewVBox(
 		container.NewGridWithColumns(2,
 			widget.NewLabel(t.UpscaleVideoCodecLabel),
 			videoCodecSelect,
 		),
 		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleEncoderLabel),
-			encoderPresetSelect,
+			widget.NewLabel(t.UpscaleContainerLabel),
+			containerSelect,
 		),
 		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleQualityLabel),
-			qualitySelect,
+			widget.NewLabel(t.UpscaleHardwareAccelLabel),
+			hwAccelSelect,
+		),
+		container.NewGridWithColumns(2,
+			widget.NewLabel(t.UpscaleEncoderLabel),
+			encoderPresetSelect,
 		),
 		container.NewGridWithColumns(2,
 			widget.NewLabel(t.UpscaleBitrateLabel),
 			bitrateModeSelect,
 		),
+		container.NewGridWithColumns(2,
+			widget.NewLabel(t.UpscaleManualCRFLabel),
+			container.NewBorder(nil, nil, nil, crfValueLabel, crfSlider),
+		),
+		crfHint,
+		container.NewGridWithColumns(2,
+			widget.NewLabel(t.UpscaleBitrateValueLabel),
+			bitrateEntry,
+		),
 		widget.NewLabel(t.UpscaleBitrateHint),
+		container.NewGridWithColumns(2,
+			widget.NewLabel(t.UpscalePixelFormatLabel),
+			pixelFormatSelect,
+		),
+	))
+
+	// Colour Accuracy Section
+	srcColourSelect := widget.NewSelect([]string{"auto", "bt601", "bt709", "bt2020"}, func(s string) {
+		state.upscaleSrcColorSpace = s
+	})
+	if state.upscaleSrcColorSpace == "" {
+		state.upscaleSrcColorSpace = "auto"
+	}
+	srcColourSelect.SetSelected(state.upscaleSrcColorSpace)
+
+	colorDepthSelect := widget.NewSelect([]string{"8bit", "16bit"}, func(s string) {
+		state.upscaleColorDepth = s
+	})
+	if state.upscaleColorDepth == "" {
+		state.upscaleColorDepth = "8bit"
+	}
+	colorDepthSelect.SetSelected(state.upscaleColorDepth)
+
+	skinToneSelect := widget.NewSelect([]string{"off", "subtle", "strong"}, func(s string) {
+		state.upscaleSkinTone = s
+	})
+	if state.upscaleSkinTone == "" {
+		state.upscaleSkinTone = "off"
+	}
+	skinToneSelect.SetSelected(state.upscaleSkinTone)
+
+	colourHint := widget.NewLabel(t.UpscaleColourHint)
+	colourHint.TextStyle = fyne.TextStyle{Italic: true}
+	colourHint.Wrapping = fyne.TextWrapWord
+
+	colourAccuracySection := buildUpscaleBox(t.UpscaleColourBox, container.NewVBox(
+		container.NewGridWithColumns(2,
+			widget.NewLabel(t.UpscaleSrcColourLabel),
+			srcColourSelect,
+		),
+		container.NewGridWithColumns(2,
+			widget.NewLabel(t.UpscaleDepthLabel),
+			colorDepthSelect,
+		),
+		container.NewGridWithColumns(2,
+			widget.NewLabel(t.UpscaleSkinToneLabel),
+			skinToneSelect,
+		),
+		colourHint,
 	))
 
 	// Frame Rate
@@ -677,32 +760,22 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		widget.NewSeparator(),
 		methodInfo,
 		widget.NewSeparator(),
-		widget.NewLabel(t.UpscaleOptionalBlur),
-		blurCheck,
-		container.NewVBox(blurLabel, blurSlider),
-		widget.NewSeparator(),
 		aiSection,
 	))
 
 	// Filter Integration Section
-	filterIntegrationSelect := widget.NewSelect([]string{
-		"None",
-		"Apply filters before upscaling",
-	}, func(s string) {
-		state.upscaleApplyFilters = s == "Apply filters before upscaling"
+	filterApplyCheck := widget.NewCheck(t.UpscaleFilterIntLabel, func(checked bool) {
+		state.upscaleApplyFilters = checked
 	})
-	if state.upscaleApplyFilters {
-		filterIntegrationSelect.SetSelected("Apply filters before upscaling")
-	} else {
-		filterIntegrationSelect.SetSelected("None")
-	}
+	filterApplyCheck.SetChecked(state.upscaleApplyFilters)
+
+	filterIntHint := widget.NewLabel(t.UpscaleFilterIntHint)
+	filterIntHint.TextStyle = fyne.TextStyle{Italic: true}
+	filterIntHint.Wrapping = fyne.TextWrapWord
 
 	filterIntegrationSection := buildUpscaleBox(t.UpscaleFilterIntBox, container.NewVBox(
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleFilterIntLabel),
-			filterIntegrationSelect,
-		),
-		widget.NewLabel(t.UpscaleFilterIntHint),
+		filterApplyCheck,
+		filterIntHint,
 	))
 
 	// RIFE Frame Interpolation Section
@@ -851,6 +924,13 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 				"useRIFE":                state.upscaleRIFEEnabled && state.upscaleRIFEAvailable,
 				"rifeModel":              state.upscaleRIFEModel,
 				"rifeMultiplier":         float64(state.upscaleRIFEMultiplier),
+				"hardwareAccel":          state.upscaleHardwareAccel,
+				"outputContainer":        state.upscaleOutputContainer,
+				"manualCRF":              float64(state.upscaleManualCRF),
+				"pixelFormat":            state.upscalePixelFormat,
+				"srcColorSpace":          state.upscaleSrcColorSpace,
+				"colorDepth":             state.upscaleColorDepth,
+				"skinTone":               state.upscaleSkinTone,
 			},
 		}, nil
 	}
@@ -924,6 +1004,8 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		resolutionSection,
 		spacing(),
 		encodingSection,
+		spacing(),
+		colourAccuracySection,
 		spacing(),
 		frameRateSection,
 		spacing(),
