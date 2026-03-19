@@ -111,6 +111,15 @@ var (
 	nvencRuntimeOnce sync.Once
 	nvencRuntimeOK   bool
 
+	qsvRuntimeOnce sync.Once
+	qsvRuntimeOK   bool
+
+	vaapiRuntimeOnce sync.Once
+	vaapiRuntimeOK   bool
+
+	videotoolboxRuntimeOnce sync.Once
+	videotoolboxRuntimeOK   bool
+
 	// Rainbow+ palette: distinct, eye-friendly colors with high readability.
 	// Convert color remains constant.
 	modulesList = []Module{
@@ -427,22 +436,26 @@ func parseBitrateStringToBPS(s string) int {
 }
 
 // effectiveHardwareAccel resolves "auto" to a best-effort hardware encoder for the platform.
+// It does actual runtime checks to find the best available encoder.
 func effectiveHardwareAccel(cfg convertConfig) string {
 	accel := strings.ToLower(cfg.HardwareAccel)
 	if accel != "" && accel != "auto" {
-		return accel
+		// User explicitly chose something - verify it's actually available
+		if accel == "none" || hwAccelAvailable(accel) {
+			return accel
+		}
+		// User chose something that isn't available - fall back to detection
+		logging.Info(logging.CatFFMPEG, "user-selected hardware accel '%s' not available, auto-detecting", accel)
 	}
 
-	switch runtime.GOOS {
-	case "windows":
-		// Prefer NVENC, then Intel (QSV), then AMD (AMF)
-		return "nvenc"
-	case "darwin":
-		return "videotoolbox"
-	default: // linux and others
-		// Prefer NVENC, then Intel (QSV), then VAAPI
-		return "nvenc"
+	// Auto-detect the best available encoder
+	detected := detectBestHardwareAccel()
+	if detected != "none" {
+		return detected
 	}
+
+	// No hardware acceleration available - use software
+	return "none"
 }
 
 // detectBestHardwareAccel probes available hardware acceleration backends.
@@ -482,73 +495,149 @@ func detectBestHardwareAccel() string {
 	}
 }
 
-// hwAccelAvailable checks ffmpeg -hwaccels once and caches the result.
+// hwAccelAvailable checks if the hardware acceleration is actually usable on this system.
+// It does a runtime probe to verify the hardware/driver is present and working.
 func hwAccelAvailable(accel string) bool {
 	accel = strings.ToLower(accel)
-	if accel == "" || accel == "none" {
+	if accel == "" || accel == "none" || accel == "auto" {
 		return false
 	}
 
-	hwAccelProbeOnce.Do(func() {
-		supported := make(map[string]bool)
-		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), "-hide_banner", "-v", "error", "-hwaccels")
-		output, err := cmd.Output()
-		if err != nil {
-			hwAccelSupported.Store(supported)
-			return
-		}
-		for _, line := range strings.Split(string(output), "\n") {
-			line = strings.ToLower(strings.TrimSpace(line))
-			switch line {
-			case "cuda":
-				supported["nvenc"] = true
-			case "qsv":
-				supported["qsv"] = true
-			case "vaapi":
-				supported["vaapi"] = true
-			case "videotoolbox":
-				supported["videotoolbox"] = true
-			}
-		}
-		hwAccelSupported.Store(supported)
-	})
-
-	val := hwAccelSupported.Load()
-	if val == nil {
+	// Do a runtime check for each acceleration method
+	switch accel {
+	case "nvenc":
+		return checkNvencRuntime()
+	case "qsv":
+		return checkQsvRuntime()
+	case "vaapi":
+		return checkVaapiRuntime()
+	case "videotoolbox":
+		return checkVideotoolboxRuntime()
+	case "amf":
+		// AMF is AMD-specific. Check if we have an AMD GPU and AMD drivers.
+		// For simplicity, we return false unless on Windows with AMF explicitly available.
+		// AMF support is spotty and often requires AMD's proprietary driver.
+		return checkAmfRuntime()
+	default:
 		return false
 	}
-	supported := val.(map[string]bool)
-
-	// Treat AMF as available if any GPU accel was detected; ffmpeg -hwaccels may not list it.
-	if accel == "amf" {
-		return supported["nvenc"] || supported["qsv"] || supported["vaapi"] || supported["videotoolbox"]
-	}
-	if accel == "nvenc" && supported["nvenc"] {
-		if !nvencRuntimeAvailable() {
-			return false
-		}
-	}
-	return supported[accel]
 }
 
-// nvencRuntimeAvailable runs a lightweight encode probe to verify the NVENC runtime is usable (nvcuda.dll loaded).
-func nvencRuntimeAvailable() bool {
+// checkNvencRuntime does a real encode probe to verify NVIDIA GPU + drivers are working.
+func checkNvencRuntime() bool {
 	nvencRuntimeOnce.Do(func() {
 		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
 			"-hide_banner", "-loglevel", "error",
-			"-f", "lavfi", "-i", "color=size=16x16:rate=1",
+			"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
 			"-frames:v", "1",
 			"-c:v", "h264_nvenc",
+			"-preset", "p1", "-b:v", "100k",
 			"-f", "null", "-",
 		)
-		if err := cmd.Run(); err == nil {
-			nvencRuntimeOK = true
-		} else {
+		if err := cmd.Run(); err != nil {
 			logging.Debug(logging.CatFFMPEG, "nvenc runtime check failed: %v", err)
+			nvencRuntimeOK = false
+		} else {
+			nvencRuntimeOK = true
+			logging.Info(logging.CatFFMPEG, "nvenc runtime check passed - NVIDIA GPU detected")
 		}
 	})
 	return nvencRuntimeOK
 }
+
+// checkQsvRuntime does a real encode probe to verify Intel Quick Sync is available.
+func checkQsvRuntime() bool {
+	qsvRuntimeOnce.Do(func() {
+		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
+			"-hide_banner", "-loglevel", "error",
+			"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+			"-frames:v", "1",
+			"-c:v", "h264_qsv",
+			"-preset", "veryfast",
+			"-f", "null", "-",
+		)
+		if err := cmd.Run(); err != nil {
+			logging.Debug(logging.CatFFMPEG, "qsv runtime check failed: %v", err)
+			qsvRuntimeOK = false
+		} else {
+			qsvRuntimeOK = true
+			logging.Info(logging.CatFFMPEG, "qsv runtime check passed - Intel Quick Sync detected")
+		}
+	})
+	return qsvRuntimeOK
+}
+
+// checkVaapiRuntime does a real encode probe to verify VAAPI (Linux) is working.
+func checkVaapiRuntime() bool {
+	vaapiRuntimeOnce.Do(func() {
+		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
+			"-hide_banner", "-loglevel", "error",
+			"-vaapi_device", "/dev/dri/renderD128",
+			"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+			"-frames:v", "1",
+			"-vf", "format=nv12,hwupload",
+			"-c:v", "h264_vaapi",
+			"-f", "null", "-",
+		)
+		if err := cmd.Run(); err != nil {
+			logging.Debug(logging.CatFFMPEG, "vaapi runtime check failed: %v", err)
+			vaapiRuntimeOK = false
+		} else {
+			vaapiRuntimeOK = true
+			logging.Info(logging.CatFFMPEG, "vaapi runtime check passed")
+		}
+	})
+	return vaapiRuntimeOK
+}
+
+// checkVideotoolboxRuntime does a real encode probe to verify macOS VideoToolbox is working.
+func checkVideotoolboxRuntime() bool {
+	videotoolboxRuntimeOnce.Do(func() {
+		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
+			"-hide_banner", "-loglevel", "error",
+			"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+			"-frames:v", "1",
+			"-c:v", "h264_videotoolbox",
+			"-f", "null", "-",
+		)
+		if err := cmd.Run(); err != nil {
+			logging.Debug(logging.CatFFMPEG, "videotoolbox runtime check failed: %v", err)
+			videotoolboxRuntimeOK = false
+		} else {
+			videotoolboxRuntimeOK = true
+			logging.Info(logging.CatFFMPEG, "videotoolbox runtime check passed - macOS VideoToolbox detected")
+		}
+	})
+	return videotoolboxRuntimeOK
+}
+
+// checkAmfRuntime does a real encode probe to verify AMD GPU + drivers are working.
+// AMF is AMD's encoder API - it requires AMD GPU with proper drivers.
+func checkAmfRuntime() bool {
+	amfRuntimeOnce.Do(func() {
+		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
+			"-hide_banner", "-loglevel", "error",
+			"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+			"-frames:v", "1",
+			"-c:v", "h264_amf",
+			"-preset", "quality",
+			"-f", "null", "-",
+		)
+		if err := cmd.Run(); err != nil {
+			logging.Debug(logging.CatFFMPEG, "amf runtime check failed: %v", err)
+			amfRuntimeOK = false
+		} else {
+			amfRuntimeOK = true
+			logging.Info(logging.CatFFMPEG, "amf runtime check passed - AMD GPU detected")
+		}
+	})
+	return amfRuntimeOK
+}
+
+var (
+	amfRuntimeOnce sync.Once
+	amfRuntimeOK   bool
+)
 
 // openLogViewer opens a simple dialog showing the log content. If live is true, it auto-refreshes.
 func (s *appState) openLogViewer(title, path string, live bool) {
@@ -9778,12 +9867,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	pixelFormatSelect.SetSelected(state.convert.PixelFormat)
 
 	// Hardware Acceleration with hint
-	hwAccelHint := widget.NewLabel("Auto picks the best GPU path; if encode fails, switch to none (software).")
+	hwAccelHint := widget.NewLabel("Auto picks the best available GPU path; if encode fails, switch to none (software).")
 	hwAccelHint.Wrapping = fyne.TextWrapWord
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	hwAccelHintContainer := container.NewPadded(hwAccelHint)
 	hwAccelOptions := []string{"auto", "none"}
-	for _, hw := range []string{"nvenc", "amf", "vaapi", "qsv", "videotoolbox"} {
+	for _, hw := range []string{"nvenc", "qsv", "amf", "vaapi", "videotoolbox"} {
 		if hwAccelAvailable(hw) {
 			hwAccelOptions = append(hwAccelOptions, hw)
 		}
