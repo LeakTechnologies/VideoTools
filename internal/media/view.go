@@ -208,8 +208,9 @@ type VideoPlayer struct {
 	volume      float64
 	speed       float64
 
-	chapters    []Chapter
-	chapterMark []*canvas.Circle
+	chapters      []Chapter
+	chapterMark   []*canvas.Circle
+	markerCanvas  *canvas.Raster
 
 	onPlay         func()
 	onPause        func()
@@ -270,11 +271,14 @@ func (v *VideoPlayer) buildControls() {
 	v.loadingSpinner = widget.NewProgressBarInfinite()
 	v.loadingSpinner.Hide()
 
+	v.markerCanvas = canvas.NewRaster(v.drawChapterMarkers)
+	seekStack := container.NewStack(v.slider, v.markerCanvas)
+
 	controlRow := container.NewHBox(
 		v.playBtn,
 		widget.NewLabel(""),
 		v.timeLabel,
-		v.slider,
+		seekStack,
 		v.durLabel,
 		layout.NewSpacer(),
 		v.speedBtn,
@@ -409,6 +413,45 @@ func (v *VideoPlayer) SetChapters(chapters []Chapter) {
 }
 
 func (v *VideoPlayer) updateChapterMarkers() {
+	if v.markerCanvas != nil {
+		v.markerCanvas.Refresh()
+	}
+}
+
+// drawChapterMarkers renders thin tick marks over the seek slider at each
+// chapter boundary. The image background is transparent so the slider
+// beneath remains visible and interactive.
+func (v *VideoPlayer) drawChapterMarkers(w, h int) image.Image {
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	if v.duration <= 0 || len(v.chapters) <= 1 {
+		return img
+	}
+
+	tick := color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xCC}
+	tickW := 2
+	// Leave a small vertical margin so the tick sits on the track
+	margin := h / 4
+	if margin < 2 {
+		margin = 2
+	}
+
+	// Skip index 0 — that's just the start of the video.
+	for _, ch := range v.chapters[1:] {
+		if ch.StartTime <= 0 {
+			continue
+		}
+		x := int(ch.StartTime / v.duration * float64(w))
+		for dx := 0; dx < tickW; dx++ {
+			px := x + dx
+			if px < 0 || px >= w {
+				continue
+			}
+			for py := margin; py < h-margin; py++ {
+				img.SetRGBA(px, py, tick)
+			}
+		}
+	}
+	return img
 }
 
 func (v *VideoPlayer) updateTimeLabels() {
