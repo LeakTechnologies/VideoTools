@@ -16,10 +16,12 @@ import (
 const (
 	dividerWidth = 4
 	vtGreen      = 0x4CE870
+	hoverPadding = 8
 )
 
 var (
-	dividerColor = color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xFF}
+	dividerColor      = color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xFF}
+	dividerHoverColor = color.RGBA{R: 0x7F, G: 0xFF, B: 0xA0, A: 0xFF}
 )
 
 type SplitView struct {
@@ -28,6 +30,7 @@ type SplitView struct {
 	rightImg      *canvas.Image
 	divider       float32
 	isDragging    bool
+	isHovering    bool
 	leftSource    *image.RGBA
 	rightSource   *image.RGBA
 	onDividerMove func(float32)
@@ -96,6 +99,21 @@ func (s *SplitView) SetOnDividerMove(cb func(float32)) {
 }
 
 func (s *SplitView) MouseMoved(ev *desktop.MouseEvent) {
+	size := s.Size()
+	if size.Width <= 0 {
+		return
+	}
+
+	splitX := float32(size.Width) * s.divider
+	hoverStart := splitX - hoverPadding
+	hoverEnd := splitX + dividerWidth + hoverPadding
+
+	isHovering := ev.Position.X >= hoverStart && ev.Position.X <= hoverEnd
+
+	if isHovering != s.isHovering {
+		s.isHovering = isHovering
+		s.Refresh()
+	}
 }
 
 func (s *SplitView) MouseIn(ev *desktop.MouseEvent) {
@@ -146,9 +164,14 @@ func (s *SplitView) draw(w, h int) image.Image {
 		draw.Draw(img, rightRect, s.rightSource, image.Point{X: rightSrcX}, draw.Src)
 	}
 
+	drawColor := dividerColor
+	if s.isHovering || s.isDragging {
+		drawColor = dividerHoverColor
+	}
+
 	for x := splitX; x < splitX+dividerWidth && x < w; x++ {
 		for y := 0; y < h; y++ {
-			img.Set(x, y, dividerColor)
+			img.Set(x, y, drawColor)
 		}
 	}
 
