@@ -48,6 +48,7 @@ type trimState struct {
 	outEntry     *widget.Entry
 	timeline     *widget.Slider
 	addBtn       *widget.Button
+	videoPreview *ui.VideoPreview
 }
 
 func BuildView(opts Options, initialPath string) fyne.CanvasObject {
@@ -82,6 +83,9 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		if state.duration > 0 {
 			state.currentMs = int64(val / 100.0 * float64(state.duration*1000))
 			timeLabel.SetText(formatMs(state.currentMs))
+			if state.videoPreview != nil {
+				state.videoPreview.UpdatePreview(float64(state.currentMs) / 1000.0)
+			}
 		}
 	}
 
@@ -143,6 +147,9 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 					setInBtn.Enable()
 					setOutBtn.Enable()
 					state.addBtn.Enable()
+					if state.videoPreview != nil {
+						state.videoPreview.SetVideo(path, dur)
+					}
 				}
 			}
 		}, opts.Window)
@@ -184,13 +191,11 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	})
 	state.addBtn.Disable()
 
-	placeholder := container.NewCenter(container.NewVBox(
-		widget.NewIcon(ui.GetIcon("video_library")),
-		widget.NewLabel(t.LabelNoVideoLoaded),
-	))
+	state.videoPreview = ui.NewVideoPreview()
+
 	bg := canvas.NewRectangle(darkBg)
-	bg.SetMinSize(fyne.NewSize(0, 260))
-	videoArea := container.NewMax(bg, placeholder)
+	bg.SetMinSize(fyne.NewSize(0, 280))
+	videoArea := container.NewMax(bg, state.videoPreview.GetContainer())
 
 	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleTrim), opts.OnShowMainMenu)
 	backBtn.Importance = widget.LowImportance
