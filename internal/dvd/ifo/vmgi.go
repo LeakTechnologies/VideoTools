@@ -11,29 +11,26 @@ import (
 )
 
 // VMG_MAT represents the Video Manager Information Management Table.
+// Fields map to DVD-Video spec §3.2 byte offsets; see SerializeVMGMAT for layout.
 type VMG_MAT struct {
 	VMG_Identifier          [12]byte // "DVDVIDEO-VMG"
 	VMG_Last_Sector         uint32
-	VMG_BUP_Last_Sector     uint32
-	VMG_MAT_Last_Sector     uint32
-	Reserved1               uint32
+	VMG_BUP_Last_Sector     uint32   // VMGM_VOBS_Last_Sector (menu VOB; 0 if none)
+	VMG_MAT_Last_Sector     uint32   // VMGI_MAT_Last_Sector
 	VMG_Category            uint32
-	VMG_Attributes          VideoAttributes
-	VMG_Audio_Streams_Count uint16
-	VMG_Audio_Attributes    [8]AudioAttributes
-	VMG_Subpicture_Count    uint16
-	VMG_Subpicture_Attrs    [32]SubpictureAttributes
-	
-	// Table Offsets (relative to sector 0)
-	TT_SRPT_Offset          uint32 // Title Search Pointer Table
-	VMG_PTT_SRPT_Offset     uint32 // Part of Title Search Pointer Table
-	VMG_PGCITI_Offset       uint32 // VMG PGC Information Table
-	VMG_M_PGCI_UT_Offset    uint32 // Menu PGC Unit Table
-	VMG_PTL_MAIT_Offset     uint32 // Parental Management Information
-	VMG_VTS_ATRT_Offset     uint32 // VTS Attribute Table
-	VMG_TXTDT_MG_Offset     uint32 // Text Data Manager
-	VMG_M_C_ADT_Offset      uint32 // Menu Cell Address Table
-	VMG_M_VOBU_ADMAP_Offset uint32 // Menu VOBU Address Map
+
+	// Disc metadata (written by SerializeVMGMAT at correct byte offsets)
+	NrOfTitleSets uint16 // total number of VTS (Video Title Sets) on this disc
+
+	// Table Offsets (relative to sector 0 of VIDEO_TS.IFO)
+	TT_SRPT_Offset          uint32 // Title Search Pointer Table (0x0C0 = 192)
+	VMG_PTT_SRPT_Offset     uint32 // Part of Title Search Pointer Table (0 = absent)
+	VMG_PGCITI_Offset       uint32 // VMG Menu PGC Information Table (VMGM_PGCI_UT)
+	VMG_PTL_MAIT_Offset     uint32 // Parental Management Information (0 = absent)
+	VMG_VTS_ATRT_Offset     uint32 // VTS Attribute Table (0 = absent)
+	VMG_TXTDT_MG_Offset     uint32 // Text Data Manager (0 = absent)
+	VMG_M_C_ADT_Offset      uint32 // Menu Cell Address Table (0 = absent)
+	VMG_M_VOBU_ADMAP_Offset uint32 // Menu VOBU Address Map (0 = absent)
 }
 
 // VTS_ATRT represents the VTS Attribute Table.
