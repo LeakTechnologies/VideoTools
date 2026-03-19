@@ -37,7 +37,7 @@ func newController() Controller {
 
 	player, err := NewGStreamerPlayer(config)
 	if err != nil {
-		logging.Error(logging.CatPlayer, "Failed to create GStreamer player: %v", err)
+		logging.Warning(logging.CatPlayer, "GStreamer unavailable (deprecated): %v", err)
 		return &stubController{}
 	}
 

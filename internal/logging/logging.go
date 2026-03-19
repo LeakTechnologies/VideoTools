@@ -17,6 +17,10 @@ var (
 	historyMax = 500
 	debugOn    = false
 	logsDir    string
+
+	suppressCount    = make(map[string]int)
+	suppressLastMsg  = make(map[string]time.Time)
+	suppressThrottle = 5 * time.Second
 )
 
 const (
@@ -101,6 +105,16 @@ func Error(cat Category, format string, args ...interface{}) {
 	logger.Printf("%s %s", timestamp, msg)
 }
 
+// Warning logs a warning message with a category
+func Warning(cat Category, format string, args ...interface{}) {
+	msg := fmt.Sprintf("%s WARNING: %s", cat, fmt.Sprintf(format, args...))
+	timestamp := time.Now().Format(time.RFC3339Nano)
+	if file != nil {
+		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+	}
+	logger.Printf("%s %s", timestamp, msg)
+}
+
 // Debug logs a debug message with a category
 func Debug(cat Category, format string, args ...interface{}) {
 	if !debugOn {
@@ -114,10 +128,30 @@ func Debug(cat Category, format string, args ...interface{}) {
 	logger.Printf("%s %s", timestamp, msg)
 }
 
-// Info logs an informational message
+// shouldSuppress returns true if the message should be suppressed due to repetition
+func shouldSuppress(msg string) bool {
+	now := time.Now()
+
+	lastMsg, exists := suppressLastMsg[msg]
+	if exists && now.Sub(lastMsg) < suppressThrottle {
+		suppressCount[msg]++
+		return true
+	}
+
+	suppressCount[msg] = 0
+	suppressLastMsg[msg] = now
+	return false
+}
+
+// Info logs an informational message with automatic suppression for repeated messages
 func Info(cat Category, format string, args ...interface{}) {
 	msg := fmt.Sprintf("%s INFO: %s", cat, fmt.Sprintf(format, args...))
 	timestamp := time.Now().Format(time.RFC3339Nano)
+
+	if shouldSuppress(msg) {
+		return
+	}
+
 	if file != nil {
 		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
 	}

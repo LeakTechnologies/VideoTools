@@ -12228,7 +12228,7 @@ func newPlaySession(path string, w, h int, fps, duration float64, targetW, targe
 		LogLevel:      player.LogInfo,
 	})
 	if err != nil {
-		logging.Error(logging.CatPlayer, "Failed to create GStreamer player for playback: %v", err)
+		logging.Warning(logging.CatPlayer, "GStreamer player unavailable (deprecated): %v", err)
 		return nil
 	}
 
