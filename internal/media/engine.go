@@ -378,6 +378,14 @@ type Engine struct {
 
 	info     *VideoInfo
 	chapters []Chapter
+
+	gpuTexUpload interface {
+		UploadFrame(img *image.RGBA) error
+		Texture() interface{}
+		Width() int
+		Height() int
+		Delete()
+	}
 }
 
 func NewEngine() *Engine {
@@ -520,6 +528,14 @@ func (e *Engine) IsLooping() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.looping
+}
+
+func (e *Engine) SetGPUTextureUpload(upload interface{}) {
+	e.gpuTexUpload = upload
+}
+
+func (e *Engine) GetGPUTextureUpload() interface{} {
+	return e.gpuTexUpload
 }
 
 func (e *Engine) IsPaused() bool {

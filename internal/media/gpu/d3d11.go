@@ -5,40 +5,108 @@ package gpu
 import (
 	"fmt"
 	"image"
-	"image/color"
+	"image/draw"
+	"sync"
 	"unsafe"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/widget"
+	"golang.org/x/sys/windows"
 )
 
+const (
+	DXGI_FORMAT_R8G8B8A8_UNORM = 87
+)
+
+type D3D11Context struct {
+	device      windows.Handle
+	context     uintptr
+	swapChain   uintptr
+	texture     uintptr
+	width       int
+	height      int
+	mu          sync.Mutex
+	initialized bool
+	adapterDesc string
+}
+
+func NewD3D11Context(width, height int) (*D3D11Context, error) {
+	ctx := &D3D11Context{
+		width:  width,
+		height: height,
+	}
+
+	if err := ctx.init(); err != nil {
+		return nil, err
+	}
+
+	return ctx, nil
+}
+
+func (c *D3D11Context) init() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.initialized = true
+	return nil
+}
+
+func (c *D3D11Context) UploadTexture(img *image.RGBA) error {
+	if img == nil {
+		return fmt.Errorf("nil image")
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return nil
+}
+
+func (c *D3D11Context) Render() error {
+	return nil
+}
+
+func (c *D3D11Context) Present() error {
+	return nil
+}
+
+func (c *D3D11Context) Resize(width, height int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.width = width
+	c.height = height
+}
+
+func (c *D3D11Context) Delete() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.initialized = false
+}
+
+func (c *D3D11Context) IsAvailable() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.initialized
+}
+
 type D3D11Renderer struct {
-	device         unsafe.Pointer
-	context        unsafe.Pointer
-	swapChain      unsafe.Pointer
-	videoProcessor unsafe.Pointer
-	available      bool
-	adapterDesc    string
+	ctx   *D3D11Context
+	avail bool
 }
 
 func NewD3D11Renderer() *D3D11Renderer {
 	r := &D3D11Renderer{
-		available: false,
+		avail: false,
 	}
 	r.detect()
 	return r
 }
 
 func (r *D3D11Renderer) detect() {
-	r.available = false
-	r.adapterDesc = "Not detected"
+	r.avail = false
 }
 
 func (r *D3D11Renderer) IsAvailable() bool {
-	return r.available
+	return r.avail
 }
 
 func (r *D3D11Renderer) Name() string {
@@ -46,48 +114,88 @@ func (r *D3D11Renderer) Name() string {
 }
 
 func (r *D3D11Renderer) MakeCurrent() error {
-	if !r.available {
-		return fmt.Errorf("D3D11 not available")
-	}
 	return nil
 }
 
 func (r *D3D11Renderer) SwapBuffers() error {
-	if !r.available {
-		return fmt.Errorf("D3D11 not available")
-	}
 	return nil
 }
 
 func (r *D3D11Renderer) Delete() {
-	r.device = nil
-	r.context = nil
-	r.swapChain = nil
 }
 
 type D3D11Texture struct {
-	resource   unsafe.Pointer
-	shaderView unsafe.Pointer
-	width      int
-	height     int
-	usage      uint32
-	format     uint32
+	texture uintptr
+	width   int
+	height  int
+	data    []byte
+	pitch   int
+	mu      sync.Mutex
 }
 
-func NewD3D11Texture(resource, shaderView unsafe.Pointer, width, height int) *D3D11Texture {
+func NewD3D11Texture(width, height int) (*D3D11Texture, error) {
 	return &D3D11Texture{
-		resource:   resource,
-		shaderView: shaderView,
-		width:      width,
-		height:     height,
-		format:     87,
-	}
+		width:  width,
+		height: height,
+		pitch:  width * 4,
+		data:   make([]byte, width*height*4),
+	}, nil
 }
 
 func (t *D3D11Texture) Upload(img *image.RGBA) error {
 	if img == nil {
 		return fmt.Errorf("nil image")
 	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	src := img
+	srcBounds := src.Bounds()
+
+	if srcBounds.Dx() != t.width || srcBounds.Dy() != t.height {
+		newImg := image.NewRGBA(image.Rect(0, 0, t.width, t.height))
+		draw.Draw(newImg, newImg.Bounds(), image.Black, image.Point{}, draw.Src)
+
+		scaleX := float64(t.width) / float64(srcBounds.Dx())
+		scaleY := float64(t.height) / float64(srcBounds.Dy())
+		scale := scaleX
+		if scaleY < scale {
+			scale = scaleY
+		}
+
+		newW := int(float64(srcBounds.Dx()) * scale)
+		newH := int(float64(srcBounds.Dy()) * scale)
+		offsetX := (t.width - newW) / 2
+		offsetY := (t.height - newH) / 2
+
+		for y := 0; y < newH; y++ {
+			for x := 0; x < newW; x++ {
+				srcX := int(float64(x) / scale)
+				srcY := int(float64(y) / scale)
+				if srcX >= srcBounds.Dx() {
+					srcX = srcBounds.Dx() - 1
+				}
+				if srcY >= srcBounds.Dy() {
+					srcY = srcBounds.Dy() - 1
+				}
+				newImg.Set(x+offsetX, y+offsetY, src.At(srcX+srcBounds.Min.X, srcY+srcBounds.Min.Y))
+			}
+		}
+		src = newImg
+	}
+
+	for y := 0; y < t.height; y++ {
+		for x := 0; x < t.width; x++ {
+			idx := (y*t.width + x) * 4
+			r, g, b, a := src.At(x, y).RGBA()
+			t.data[idx] = byte(r >> 8)
+			t.data[idx+1] = byte(g >> 8)
+			t.data[idx+2] = byte(b >> 8)
+			t.data[idx+3] = byte(a >> 8)
+		}
+	}
+
 	return nil
 }
 
@@ -95,6 +203,15 @@ func (t *D3D11Texture) UploadBGRA(data []byte, width, height int) error {
 	if len(data) == 0 {
 		return fmt.Errorf("empty data")
 	}
+
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if width != t.width || height != t.height {
+		return fmt.Errorf("dimensions mismatch")
+	}
+
+	copy(t.data, data)
 	return nil
 }
 
@@ -106,107 +223,16 @@ func (t *D3D11Texture) Height() int {
 	return t.height
 }
 
+func (t *D3D11Texture) Data() []byte {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.data
+}
+
 func (t *D3D11Texture) Delete() {
-	if t.shaderView != nil {
-	}
-	if t.resource != nil {
-	}
-}
-
-type VideoRendererD3D11 struct {
-	*VideoRenderer
-	d3d *D3D11Renderer
-}
-
-func NewVideoRendererD3D11() *VideoRendererD3D11 {
-	v := &VideoRendererD3D11{
-		VideoRenderer: NewVideoRenderer(),
-		d3d:           NewD3D11Renderer(),
-	}
-	return v
-}
-
-func (v *VideoRendererD3D11) CreateRenderer() fyne.WidgetRenderer {
-	return &videoRendererD3D11Renderer{VideoRendererD3D11: v}
-}
-
-func (v *VideoRendererD3D11) IsAvailable() bool {
-	return v.d3d.IsAvailable()
-}
-
-func (v *VideoRendererD3D11) Name() string {
-	return v.d3d.Name()
-}
-
-func (v *VideoRendererD3D11) MakeCurrent() error {
-	return v.d3d.MakeCurrent()
-}
-
-func (v *VideoRendererD3D11) SwapBuffers() error {
-	return v.d3d.SwapBuffers()
-}
-
-type videoRendererD3D11Renderer struct {
-	*VideoRendererD3D11
-}
-
-func (r *videoRendererD3D11Renderer) Objects() []fyne.CanvasObject {
-	return nil
-}
-
-func (r *videoRendererD3D11Renderer) Layout(fyne.Size) {
-}
-
-func (r *videoRendererD3D11Renderer) MinSize() fyne.Size {
-	return fyne.NewSize(320, 180)
-}
-
-func (r *videoRendererD3D11Renderer) Refresh() {
-}
-
-func (r *videoRendererD3D11Renderer) Destroy() {
-}
-
-type VideoPlayerD3D11 struct {
-	*VideoPlayerGPU
-	d3d *D3D11Renderer
-}
-
-func NewVideoPlayerD3D11() *VideoPlayerD3D11 {
-	v := &VideoPlayerD3D11{
-		VideoPlayerGPU: NewVideoPlayerGPU(),
-		d3d:            NewD3D11Renderer(),
-	}
-	return v
-}
-
-func (v *VideoPlayerD3D11) CreateRenderer() fyne.WidgetRenderer {
-	return &videoPlayerD3D11Renderer{VideoPlayerD3D11: v}
-}
-
-func (v *VideoPlayerD3D11) IsAvailable() bool {
-	return v.d3d.IsAvailable()
-}
-
-type videoPlayerD3D11Renderer struct {
-	*VideoPlayerD3D11
-}
-
-func (r *videoPlayerD3D11Renderer) Objects() []fyne.CanvasObject {
-	return r.VideoPlayerGPU.CreateRenderer().Objects()
-}
-
-func (r *videoPlayerD3D11Renderer) Layout(size fyne.Size) {
-}
-
-func (r *videoPlayerD3D11Renderer) MinSize() fyne.Size {
-	return fyne.NewSize(320, 180)
-}
-
-func (r *videoPlayerD3D11Renderer) Refresh() {
-}
-
-func (r *videoPlayerD3D11Renderer) Destroy() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.data = nil
 }
 
 var _ unsafe.Pointer = unsafe.Pointer(nil)

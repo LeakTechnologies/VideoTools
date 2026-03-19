@@ -414,14 +414,14 @@ internal/media/
 - [ ] Fullscreen toggle
 - [x] Playback speed control (UI wired, engine supports)
 
-### Phase 3: Smooth Seeking
-- [ ] Thumbnail extraction
-- [ ] Preview on hover
-- [ ] Async decode queue
-- [ ] Frame pre-loading
+### Phase 3: Smooth Seeking ✓
+- [x] Thumbnail extraction (`internal/media/thumbnail.go`)
+- [x] Preview on hover (ThumbnailCache in seekbar.go)
+- [x] Async decode queue (preDecodeFrames = 30)
+- [x] Frame pre-loading (SmoothScrubbing in scrub.go)
 
 ### Phase 4: Buffering & Polish ✓
-- [x] Loading indicators (`SetLoading`, `loadingSpinner`)
+- [x] Loading indicators
 - [ ] Adaptive buffering
 - [ ] Error recovery
 - [ ] Performance tuning
@@ -431,8 +431,24 @@ internal/media/
 - [x] `parseChapters()` - FFmpeg chapter parsing
 - [x] `GetChapters()` - API to retrieve chapters
 - [x] `SetChapters()` in VideoPlayer
-- [x] Chapter markers on seek bar (vtGreen tick marks via canvas.Raster overlay)
-- [ ] Chapter navigation
+- [x] Chapter markers on seek bar
+- [x] Chapter navigation (prev/next buttons)
+
+### Phase 6: Resume Playback ✓
+- [x] ResumeState in `internal/media/state/resume.go`
+- [x] PlaybackPosition storage (JSON)
+- [x] SavePosition/GetPosition APIs
+- [x] ShouldResume() logic
+
+### Phase 7: Picture-in-Picture ✓
+- [x] PiPController interface
+- [x] Position presets (4 corners)
+- [x] Windows implementation (SetWindowDisplayAffinity)
+
+### Phase 8: Audio Pitch Correction ✓
+- [x] AudioFilterGraph with atempo filter
+- [x] TempoController with 0.25x-2.0x range
+- [x] Init/SetTempo/GetTempo APIs
 
 ---
 

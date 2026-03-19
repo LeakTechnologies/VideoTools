@@ -1,0 +1,255 @@
+//go:build native_media
+
+package media
+
+/*
+#cgo pkg-config: libavfilter libavcodec libavformat libavutil
+#include <libavfilter/avfilter.h>
+#include <libavfilter/buffersink.h>
+#include <libavfilter/buffersrc.h>
+#include <libavutil/opt.h>
+*/
+import "C"
+import (
+	"fmt"
+	"unsafe"
+)
+
+type AudioFilterGraph struct {
+	graph         *C.AVFilterGraph
+	buffersrcCtx  *C.AVFilterContext
+	buffersinkCtx *C.AVFilterContext
+	atempoCtx     *C.AVFilterContext
+	initialized   bool
+	tempo         float64
+}
+
+func NewAudioFilterGraph() *AudioFilterGraph {
+	return &AudioFilterGraph{
+		graph: nil,
+		tempo: 1.0,
+	}
+}
+
+func (g *AudioFilterGraph) Init(sampleRate int, channels int) error {
+	if g.initialized {
+		g.Release()
+	}
+
+	g.graph = C.avfilter_graph_alloc()
+	if g.graph == nil {
+		return fmt.Errorf("failed to allocate filter graph")
+	}
+
+	buffersrc := C.avfilter_get_by_name(C.CString("abuffer"))
+	if buffersrc == nil {
+		C.avfilter_graph_free(&g.graph)
+		return fmt.Errorf("failed to get abuffer filter")
+	}
+
+	buffersink := C.avfilter_get_by_name(C.CString("abuffersink"))
+	if buffersink == nil {
+		C.avfilter_graph_free(&g.graph)
+		return fmt.Errorf("failed to get abuffersink filter")
+	}
+
+	var err C.int
+
+	buffersrcName := fmt.Sprintf("buffer_src_%p", unsafe.Pointer(g))
+	buffersrcArgs := fmt.Sprintf("sample_rate=%d:sample_fmt=s16:channel_layout=0x%x",
+		sampleRate, getChannelLayout(channels))
+
+	var buffersrcCtx *C.AVFilterContext
+	err = C.avfilter_graph_create_filter(
+		&buffersrcCtx,
+		buffersrc,
+		C.CString(buffersrcName),
+		C.CString(buffersrcArgs),
+		nil,
+		g.graph,
+	)
+	if err < 0 {
+		C.avfilter_graph_free(&g.graph)
+		return fmt.Errorf("failed to create buffer source: %d", err)
+	}
+	g.buffersrcCtx = buffersrcCtx
+
+	err = C.avfilter_graph_create_filter(
+		&g.buffersinkCtx,
+		buffersink,
+		C.CString(fmt.Sprintf("buffer_sink_%p", unsafe.Pointer(g))),
+		nil,
+		nil,
+		g.graph,
+	)
+	if err < 0 {
+		C.avfilter_graph_free(&g.graph)
+		return fmt.Errorf("failed to create buffer sink: %d", err)
+	}
+
+	atempo := C.avfilter_get_by_name(C.CString("atempo"))
+	if atempo == nil {
+		C.avfilter_graph_free(&g.graph)
+		return fmt.Errorf("failed to get atempo filter")
+	}
+
+	atempoName := fmt.Sprintf("atempo_%p", unsafe.Pointer(g))
+	atempoArgs := fmt.Sprintf("tempo=%f", g.tempo)
+
+	err = C.avfilter_graph_create_filter(
+		&g.atempoCtx,
+		atempo,
+		C.CString(atempoName),
+		C.CString(atempoArgs),
+		nil,
+		g.graph,
+	)
+	if err < 0 {
+		C.avfilter_graph_free(&g.graph)
+		return fmt.Errorf("failed to create atempo filter: %d", err)
+	}
+
+	err = C.avfilter_link(buffersrcCtx, 0, g.atempoCtx, 0)
+	if err < 0 {
+		C.avfilter_graph_free(&g.graph)
+		return fmt.Errorf("failed to link buffersrc to atempo: %d", err)
+	}
+
+	err = C.avfilter_link(g.atempoCtx, 0, g.buffersinkCtx, 0)
+	if err < 0 {
+		C.avfilter_graph_free(&g.graph)
+		return fmt.Errorf("failed to link atempo to buffersink: %d", err)
+	}
+
+	err = C.avfilter_graph_config(g.graph, nil)
+	if err < 0 {
+		C.avfilter_graph_free(&g.graph)
+		return fmt.Errorf("failed to config filter graph: %d", err)
+	}
+
+	g.initialized = true
+	return nil
+}
+
+func (g *AudioFilterGraph) SetTempo(tempo float64) error {
+	if tempo < 0.25 {
+		tempo = 0.25
+	}
+	if tempo > 2.0 {
+		tempo = 2.0
+	}
+
+	g.tempo = tempo
+
+	if g.atempoCtx != nil && g.graph != nil {
+		avTempo := C.av_opt_set_double(
+			unsafe.Pointer(g.atempoCtx.priv),
+			C.CString("tempo"),
+			C.double(tempo),
+			0,
+		)
+		if avTempo < 0 {
+			return fmt.Errorf("failed to set tempo: %d", avTempo)
+		}
+	}
+
+	return nil
+}
+
+func (g *AudioFilterGraph) GetTempo() float64 {
+	return g.tempo
+}
+
+func (g *AudioFilterGraph) Process(input []byte) ([]byte, error) {
+	if !g.initialized || g.graph == nil {
+		return input, nil
+	}
+
+	return input, nil
+}
+
+func (g *AudioFilterGraph) Release() {
+	if g.graph != nil {
+		C.avfilter_graph_free(&g.graph)
+		g.graph = nil
+	}
+	g.buffersrcCtx = nil
+	g.buffersinkCtx = nil
+	g.atempoCtx = nil
+	g.initialized = false
+}
+
+func getChannelLayout(channels int) uint64 {
+	switch channels {
+	case 1:
+		return 0x1
+	case 2:
+		return 0x3
+	case 6:
+		return 0x3F
+	case 8:
+		return 0xAFF
+	default:
+		return 0x3
+	}
+}
+
+type TempoController struct {
+	graph    *AudioFilterGraph
+	minTempo float64
+	maxTempo float64
+	current  float64
+}
+
+func NewTempoController() *TempoController {
+	return &TempoController{
+		graph:    NewAudioFilterGraph(),
+		minTempo: 0.25,
+		maxTempo: 2.0,
+		current:  1.0,
+	}
+}
+
+func (tc *TempoController) Init(sampleRate, channels int) error {
+	if err := tc.graph.Init(sampleRate, channels); err != nil {
+		return err
+	}
+	return tc.graph.SetTempo(tc.current)
+}
+
+func (tc *TempoController) SetTempo(tempo float64) error {
+	if tempo < tc.minTempo {
+		tempo = tc.minTempo
+	}
+	if tempo > tc.maxTempo {
+		tempo = tc.maxTempo
+	}
+	tc.current = tempo
+	return tc.graph.SetTempo(tempo)
+}
+
+func (tc *TempoController) GetTempo() float64 {
+	return tc.current
+}
+
+func (tc *TempoController) IncreaseTempo() error {
+	newTempo := tc.current * 1.25
+	if newTempo > tc.maxTempo {
+		newTempo = tc.maxTempo
+	}
+	return tc.SetTempo(newTempo)
+}
+
+func (tc *TempoController) DecreaseTempo() error {
+	newTempo := tc.current / 1.25
+	if newTempo < tc.minTempo {
+		newTempo = tc.minTempo
+	}
+	return tc.SetTempo(newTempo)
+}
+
+func (tc *TempoController) Release() {
+	if tc.graph != nil {
+		tc.graph.Release()
+	}
+}
