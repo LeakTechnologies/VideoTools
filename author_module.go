@@ -314,6 +314,38 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			})
 			extraCheck.SetChecked(clip.IsExtra)
 
+			moveUpBtn := widget.NewButton("▲", func() {
+				if idx == 0 {
+					return
+				}
+				state.authorClips[idx], state.authorClips[idx-1] = state.authorClips[idx-1], state.authorClips[idx]
+				if state.authorChapterSource == "clips" {
+					state.authorChapters = chaptersFromClips(featureClipsOnly(state.authorClips))
+					if state.authorChaptersRefresh != nil {
+						state.authorChaptersRefresh()
+					}
+				}
+				rebuildList()
+				state.updateAuthorSummary()
+			})
+			moveUpBtn.Importance = widget.LowImportance
+
+			moveDownBtn := widget.NewButton("▼", func() {
+				if idx >= len(state.authorClips)-1 {
+					return
+				}
+				state.authorClips[idx], state.authorClips[idx+1] = state.authorClips[idx+1], state.authorClips[idx]
+				if state.authorChapterSource == "clips" {
+					state.authorChapters = chaptersFromClips(featureClipsOnly(state.authorClips))
+					if state.authorChaptersRefresh != nil {
+						state.authorChaptersRefresh()
+					}
+				}
+				rebuildList()
+				state.updateAuthorSummary()
+			})
+			moveDownBtn.Importance = widget.LowImportance
+
 			removeBtn := widget.NewButton("Remove", func() {
 				state.authorClips = append(state.authorClips[:idx], state.authorClips[idx+1:]...)
 				if state.authorChapterSource == "clips" {
@@ -341,7 +373,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 				nil,
 				nil,
 				nil,
-				container.NewVBox(durationLabel, tracksBtn, removeBtn),
+				container.NewVBox(durationLabel, container.NewHBox(moveUpBtn, moveDownBtn), tracksBtn, removeBtn),
 				container.NewVBox(nameLabel, titleEntry, extraCheck),
 			)
 			cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))

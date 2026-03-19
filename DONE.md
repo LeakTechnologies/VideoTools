@@ -19,6 +19,7 @@
 - [x] **Playback speed control** - Speed button on VideoPlayer with preset speeds (0.25x-2x), SetSpeed/GetSpeed wired to Engine
 - [x] **Chapter parsing** - Chapter struct, parseChapters() via FFmpeg, GetChapters() API on Engine
 - [x] **Chapter support in VideoPlayer** - SetChapters() method, chapters stored in player state
+- [x] **Chapter markers on seekbar** - Canvas.Raster overlay draws vtGreen tick marks at chapter boundaries
 
 ### i18n Strings (NEW)
 - [x] **Player strings** - PlayerLoading, PlayerBuffering, PlayerSpeed, PlayerChapter, PlayerChapters, PlayerNoChapters, PlayerSpeed* (8 new strings)
