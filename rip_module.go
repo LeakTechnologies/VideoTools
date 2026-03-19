@@ -284,7 +284,7 @@ func (s *appState) scanDVDStructure(path string) error {
 		return fmt.Errorf("read VMGI: %w", err)
 	}
 
-	logging.Info(logging.CatDVD, "DVD Scan: Found %d titles", vmg.VMG_Attributes.Resolution) // Simplified for logging
+	logging.Info(logging.CatDVD, "DVD Scan: Found %d title sets", vmg.NrOfTitleSets)
 
 	// We'll populate a list of titles for the user to select
 	// [TODO: Update UI with title list]
