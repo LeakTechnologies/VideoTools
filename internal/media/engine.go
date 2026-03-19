@@ -16,10 +16,7 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"math"
 	"sync"
-	"time"
-	"unsafe"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
@@ -42,17 +39,26 @@ const (
 )
 
 type VideoInfo struct {
-	Width        int
-	Height       int
-	FrameRate    float64
-	Duration     float64
-	CodecName    string
-	PixelFormat  string
-	Bitrate      int64
-	HasAudio     bool
-	HasVideo     bool
-	HasSubtitles bool
-	HWDevice     HWDeviceType
+	Width          int
+	Height         int
+	FrameRate      float64
+	Duration       float64
+	CodecName      string
+	PixelFormat    string
+	Bitrate        int64
+	HasAudio       bool
+	HasVideo       bool
+	HasSubtitles   bool
+	HWDevice       HWDeviceType
+	AudioTracks    []StreamInfo
+	SubtitleTracks []StreamInfo
+}
+
+type StreamInfo struct {
+	Index     int
+	CodecName string
+	Language  string
+	Title     string
 }
 
 type HWDeviceType int
@@ -224,6 +230,7 @@ type Engine struct {
 	consecutiveDrops int
 
 	hwDevice HWDeviceType
+	looping  bool
 
 	info *VideoInfo
 }
@@ -301,6 +308,18 @@ func (e *Engine) IsDropFramesEnabled() bool {
 	return e.dropFrames
 }
 
+func (e *Engine) SetLooping(looping bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.looping = looping
+}
+
+func (e *Engine) IsLooping() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.looping
+}
+
 func (e *Engine) IsPaused() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -351,6 +370,101 @@ func (e *Engine) Info() *VideoInfo {
 	return e.info
 }
 
+func (e *Engine) GetAudioTracks() []StreamInfo {
+	if e.info == nil {
+		return nil
+	}
+	result := make([]StreamInfo, len(e.info.AudioTracks))
+	copy(result, e.info.AudioTracks)
+	return result
+}
+
+func (e *Engine) SelectAudioTrack(trackIndex int) error {
+	if e.formatCtx == nil || e.info == nil {
+		return fmt.Errorf("no media opened")
+	}
+
+	if trackIndex < 0 || trackIndex >= len(e.info.AudioTracks) {
+		return fmt.Errorf("invalid audio track index: %d", trackIndex)
+	}
+
+	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(e.formatCtx.streams))
+	streamIdx := e.info.AudioTracks[trackIndex].Index
+
+	codec := C.avcodec_find_decoder(streams[streamIdx].codecpar.codec_id)
+	if codec == nil {
+		return fmt.Errorf("no decoder found for audio stream")
+	}
+
+	e.audioQueue.Flush()
+
+	if e.audioCodecCtx != nil {
+		C.avcodec_free_context(&e.audioCodecCtx)
+		e.audioCodecCtx = nil
+	}
+
+	e.audioCodecCtx = C.avcodec_alloc_context3(codec)
+	if e.audioCodecCtx == nil {
+		return fmt.Errorf("failed to allocate audio codec context")
+	}
+
+	C.avcodec_parameters_to_context(e.audioCodecCtx, streams[streamIdx].codecpar)
+	e.audioTimeBase = float64(streams[streamIdx].time_base.num) / float64(streams[streamIdx].time_base.den)
+
+	if C.avcodec_open2(e.audioCodecCtx, codec, nil) < 0 {
+		C.avcodec_free_context(&e.audioCodecCtx)
+		e.audioCodecCtx = nil
+		return fmt.Errorf("failed to open audio codec")
+	}
+
+	if e.audioPlayer != nil {
+		e.audioPlayer.Close()
+	}
+
+	ap, err := NewAudioPlayer(e.audioCodecCtx, e.audioQueue, e.clock, e.audioTimeBase)
+	if err != nil {
+		C.avcodec_free_context(&e.audioCodecCtx)
+		e.audioCodecCtx = nil
+		return fmt.Errorf("failed to create audio player: %w", err)
+	}
+
+	e.audioPlayer = ap
+	e.audioPlayer.SetVolume(e.volume)
+	e.audioPlayer.SetMuted(e.muted)
+	e.audioStreamIdx = streamIdx
+
+	logging.Info(logging.CatPlayer, "Selected audio track %d", trackIndex)
+	return nil
+}
+
+func (e *Engine) GetSubtitleTracks() []StreamInfo {
+	if e.info == nil {
+		return nil
+	}
+	result := make([]StreamInfo, len(e.info.SubtitleTracks))
+	copy(result, e.info.SubtitleTracks)
+	return result
+}
+
+func (e *Engine) SelectSubtitleTrack(trackIndex int) error {
+	if e.formatCtx == nil || e.info == nil {
+		return fmt.Errorf("no media opened")
+	}
+
+	if trackIndex < 0 || trackIndex >= len(e.info.SubtitleTracks) {
+		return fmt.Errorf("invalid subtitle track index: %d", trackIndex)
+	}
+
+	e.subtitleStreamIdx = e.info.SubtitleTracks[trackIndex].Index
+	logging.Info(logging.CatPlayer, "Selected subtitle track %d", trackIndex)
+	return nil
+}
+
+func (e *Engine) DisableSubtitles() {
+	e.subtitleStreamIdx = -1
+	logging.Info(logging.CatPlayer, "Subtitles disabled")
+}
+
 func (e *Engine) Open(path string) error {
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
@@ -374,12 +488,55 @@ func (e *Engine) Open(path string) error {
 	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(e.formatCtx.streams))
 
 	e.info = &VideoInfo{
-		Duration:     float64(e.formatCtx.duration) / float64(C.AV_TIME_BASE),
-		Bitrate:      int64(e.formatCtx.bit_rate),
-		HasVideo:     e.videoStreamIdx >= 0,
-		HasAudio:     e.audioStreamIdx >= 0,
-		HasSubtitles: e.subtitleStreamIdx >= 0,
-		HWDevice:     e.hwDevice,
+		Duration:       float64(e.formatCtx.duration) / float64(C.AV_TIME_BASE),
+		Bitrate:        int64(e.formatCtx.bit_rate),
+		HasVideo:       e.videoStreamIdx >= 0,
+		HasAudio:       e.audioStreamIdx >= 0,
+		HasSubtitles:   e.subtitleStreamIdx >= 0,
+		HWDevice:       e.hwDevice,
+		AudioTracks:    []StreamInfo{},
+		SubtitleTracks: []StreamInfo{},
+	}
+
+	for i := 0; i < int(e.formatCtx.nb_streams); i++ {
+		stream := streams[i]
+		if stream == nil {
+			continue
+		}
+
+		mediaType := C.AVMediaType(stream.codecpar.codec_type)
+		codec := C.avcodec_find_decoder(stream.codecpar.codec_id)
+		if codec == nil {
+			continue
+		}
+		codecName := C.GoString((*C.char)(unsafe.Pointer(codec.name)))
+
+		var language, title string
+		if stream.metadata != nil {
+			entry := stream.metadata
+			for entry != nil {
+				key := C.GoString(entry.key)
+				if key == "language" {
+					language = C.GoString(entry.value)
+				} else if key == "title" {
+					title = C.GoString(entry.value)
+				}
+				entry = entry.next
+			}
+		}
+
+		info := StreamInfo{
+			Index:     i,
+			CodecName: codecName,
+			Language:  language,
+			Title:     title,
+		}
+
+		if mediaType == C.AVMEDIA_TYPE_AUDIO {
+			e.info.AudioTracks = append(e.info.AudioTracks, info)
+		} else if mediaType == C.AVMEDIA_TYPE_SUBTITLE {
+			e.info.SubtitleTracks = append(e.info.SubtitleTracks, info)
+		}
 	}
 
 	if e.videoStreamIdx < 0 {
@@ -506,8 +663,8 @@ func (e *Engine) demuxerLoop() {
 			return
 		default:
 			if C.av_read_frame(e.formatCtx, pkt) < 0 {
-				e.videoQueue.Close()
-				e.audioQueue.Close()
+				e.videoQueue.SetEOF()
+				e.audioQueue.SetEOF()
 				return
 			}
 
@@ -581,15 +738,25 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 	for {
 		e.mu.Lock()
 		paused := e.paused
+		mu.Unlock := func() { e.mu.Unlock() }
 		e.mu.Unlock()
 
 		if paused {
-			time.Sleep(50 * time.Millisecond)
+			e.clock.WaitForPTS(e.clock.GetTime())
 			continue
 		}
 
+		e.videoQueue.Flush()
+		e.audioQueue.Flush()
+
 		pkt, ok := e.videoQueue.Get()
 		if !ok {
+			if e.IsLooping() {
+				if err := e.Seek(0); err != nil {
+					return nil, err
+				}
+				continue
+			}
 			return nil, io.EOF
 		}
 		defer C.av_packet_free(&pkt)
@@ -603,32 +770,25 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 			pts := float64(e.frame.pts) * e.videoTimeBase
 
 			adjustedPts := pts * e.speed
+			e.clock.WaitForPTS(adjustedPts)
+
 			delay := e.clock.SyncVideo(adjustedPts)
-
-			if e.dropFrames && delay > 100*time.Millisecond {
-				e.consecutiveDrops++
-				if e.consecutiveDrops >= 3 {
-					logging.Debug(logging.CatPlayer, "Dropping frame to catch up (delay: %v)", delay)
-					continue
-				}
-			} else {
-				e.consecutiveDrops = 0
+			if delay < 0 {
+				continue
 			}
 
-			if delay > 0 {
-				time.Sleep(delay)
-			}
-
+			var img *image.RGBA
 			if e.hwDevice != HWDeviceNone {
-				img, err := e.retrieveHWFrame()
+				var err error
+				img, err = e.retrieveHWFrame()
 				if err != nil {
 					logging.Warning(logging.CatPlayer, "HW frame retrieve failed: %v", err)
-					return e.toRGBA(), nil
+					img = e.toRGBA()
 				}
-				return img, nil
+			} else {
+				img = e.toRGBA()
 			}
-
-			return e.toRGBA(), nil
+			return img, nil
 		}
 	}
 }
@@ -759,8 +919,4 @@ func (e *Engine) QueueStats() (videoSize, audioSize int) {
 		audioSize = e.audioQueue.Size()
 	}
 	return
-}
-
-func round(x float64) float64 {
-	return math.Round(x)
 }

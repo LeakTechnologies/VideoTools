@@ -303,3 +303,120 @@ func TestVideoInfoHWDevice(t *testing.T) {
 		t.Errorf("expected HWDeviceVAAPI, got %v", info.HWDevice)
 	}
 }
+
+func TestStreamInfo(t *testing.T) {
+	info := StreamInfo{
+		Index:     0,
+		CodecName: "aac",
+		Language:  "eng",
+		Title:     "English",
+	}
+
+	if info.Index != 0 {
+		t.Errorf("expected Index 0, got %d", info.Index)
+	}
+	if info.CodecName != "aac" {
+		t.Errorf("expected CodecName 'aac', got %s", info.CodecName)
+	}
+	if info.Language != "eng" {
+		t.Errorf("expected Language 'eng', got %s", info.Language)
+	}
+}
+
+func TestVideoInfoStreamTracks(t *testing.T) {
+	info := &VideoInfo{
+		Width:  1920,
+		Height: 1080,
+		AudioTracks: []StreamInfo{
+			{Index: 0, CodecName: "aac", Language: "eng"},
+			{Index: 1, CodecName: "ac3", Language: "fra"},
+		},
+		SubtitleTracks: []StreamInfo{
+			{Index: 2, CodecName: "subrip", Language: "eng"},
+		},
+	}
+
+	if len(info.AudioTracks) != 2 {
+		t.Errorf("expected 2 audio tracks, got %d", len(info.AudioTracks))
+	}
+	if len(info.SubtitleTracks) != 1 {
+		t.Errorf("expected 1 subtitle track, got %d", len(info.SubtitleTracks))
+	}
+}
+
+func TestEngineLooping(t *testing.T) {
+	engine := NewEngine()
+	if engine == nil {
+		t.Fatal("NewEngine returned nil")
+	}
+
+	if engine.IsLooping() {
+		t.Error("expected default looping to be false")
+	}
+
+	engine.SetLooping(true)
+	if !engine.IsLooping() {
+		t.Error("expected looping to be true after SetLooping(true)")
+	}
+
+	engine.SetLooping(false)
+	if engine.IsLooping() {
+		t.Error("expected looping to be false after SetLooping(false)")
+	}
+}
+
+func TestPacketQueueEOF(t *testing.T) {
+	q := NewPacketQueue()
+	if q == nil {
+		t.Fatal("NewPacketQueue returned nil")
+	}
+
+	if q.IsEOF() {
+		t.Error("expected EOF to be false initially")
+	}
+
+	q.SetEOF()
+	if !q.IsEOF() {
+		t.Error("expected EOF to be true after SetEOF()")
+	}
+
+	q.Flush()
+	if q.IsEOF() {
+		t.Error("expected EOF to be false after Flush()")
+	}
+}
+
+func TestPacketQueueGetAfterEOF(t *testing.T) {
+	q := NewPacketQueueWithMaxSize(10)
+
+	q.SetEOF()
+
+	_, ok := q.Get()
+	if ok {
+		t.Error("expected Get() to return false after EOF with empty queue")
+	}
+
+	q.Close()
+}
+
+func TestMasterClockSpeed(t *testing.T) {
+	clock := NewMasterClock()
+
+	clock.SetSpeed(2.0)
+	if clock.GetSpeed() != 2.0 {
+		t.Errorf("expected speed 2.0, got %f", clock.GetSpeed())
+	}
+
+	clock.SetSpeed(0.5)
+	if clock.GetSpeed() != 0.5 {
+		t.Errorf("expected speed 0.5, got %f", clock.GetSpeed())
+	}
+}
+
+func TestMasterClockWaitForPTS(t *testing.T) {
+	clock := NewMasterClock()
+
+	clock.SetTime(1.0)
+
+	clock.WaitForPTS(0.5)
+}

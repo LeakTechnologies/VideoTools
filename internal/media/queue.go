@@ -10,8 +10,6 @@ package media
 import "C"
 import (
 	"sync"
-
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 const (
@@ -23,6 +21,7 @@ type PacketQueue struct {
 	mu      sync.Mutex
 	cond    *sync.Cond
 	closed  bool
+	eof     bool
 	maxSize int
 }
 
@@ -45,11 +44,11 @@ func (q *PacketQueue) Put(pkt *C.AVPacket) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	for !q.closed && len(q.packets) >= q.maxSize {
+	for !q.closed && !q.eof && len(q.packets) >= q.maxSize {
 		q.cond.Wait()
 	}
 
-	if q.closed {
+	if q.closed || q.eof {
 		return
 	}
 
@@ -64,12 +63,17 @@ func (q *PacketQueue) Get() (*C.AVPacket, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	for len(q.packets) == 0 && !q.closed {
+	for len(q.packets) == 0 && !q.closed && !q.eof {
 		q.cond.Wait()
 	}
 
-	if q.closed || len(q.packets) == 0 {
-		return nil, false
+	if len(q.packets) == 0 {
+		if q.eof {
+			return nil, false
+		}
+		if q.closed {
+			return nil, false
+		}
 	}
 
 	pkt := q.packets[0]
@@ -86,7 +90,21 @@ func (q *PacketQueue) Flush() {
 		C.av_packet_free(&pkt)
 	}
 	q.packets = nil
+	q.eof = false
 	q.cond.Broadcast()
+}
+
+func (q *PacketQueue) SetEOF() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.eof = true
+	q.cond.Signal()
+}
+
+func (q *PacketQueue) IsEOF() bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.eof
 }
 
 func (q *PacketQueue) Close() {

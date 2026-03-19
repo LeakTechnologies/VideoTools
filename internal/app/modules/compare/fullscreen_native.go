@@ -38,11 +38,15 @@ func BuildFullscreenView(opts Options) fyne.CanvasObject {
 	var engine1, engine2 *media.Engine
 	if file1 != nil {
 		engine1 = media.NewEngine()
+		engine1.SetSeekAccuracy(media.SeekAccuracyKeyframe)
+		engine1.SetDropFrames(true)
 		_ = engine1.Open(file1.Path)
 		engine1.Start()
 	}
 	if file2 != nil {
 		engine2 = media.NewEngine()
+		engine2.SetSeekAccuracy(media.SeekAccuracyKeyframe)
+		engine2.SetDropFrames(true)
 		_ = engine2.Open(file2.Path)
 		engine2.Start()
 	}

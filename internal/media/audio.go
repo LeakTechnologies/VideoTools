@@ -167,10 +167,16 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	for {
 		p.mu.Lock()
 		paused := p.paused
+		clock := p.clock
 		p.mu.Unlock()
 
+		if paused && clock != nil {
+			clock.WaitForPTS(clock.GetTime())
+			continue
+		}
+
 		if paused {
-			time.Sleep(50 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 			continue
 		}
 
@@ -187,7 +193,10 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 
 		for C.avcodec_receive_frame(p.codecCtx, p.frame) == 0 {
 			pts := float64(p.frame.pts) * p.timeBase
-			p.clock.SetTime(pts)
+
+			if clock != nil {
+				clock.SetTime(pts)
+			}
 
 			data, err := p.resample()
 			if err != nil {
