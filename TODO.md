@@ -24,7 +24,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Loading indicators** - SetLoading/IsLoading on Engine, loading spinner on VideoPlayer
 - [x] **Playback speed control** - Speed button on VideoPlayer, SetSpeed/GetSpeed wired to Engine
 - [x] **Chapter parsing** - Chapter struct, parseChapters(), GetChapters() on Engine
-- [ ] **Chapter markers on seekbar** - Visual chapter markers in VideoPlayer
+- [x] **Chapter markers on seekbar** - Visual chapter markers in VideoPlayer (vtGreen tick marks)
 - [ ] **Chapter navigation** - Next/previous chapter controls
 - [ ] **Smooth scrubbing** - Pre-decode frames during seek for instant feedback
 - [ ] **Resume playback** - Store position in config, offer "Continue from X?"

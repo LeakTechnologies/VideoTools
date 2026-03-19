@@ -431,7 +431,7 @@ internal/media/
 - [x] `parseChapters()` - FFmpeg chapter parsing
 - [x] `GetChapters()` - API to retrieve chapters
 - [x] `SetChapters()` in VideoPlayer
-- [ ] Chapter markers on seek bar
+- [x] Chapter markers on seek bar (vtGreen tick marks via canvas.Raster overlay)
 - [ ] Chapter navigation
 
 ---
