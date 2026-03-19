@@ -71,6 +71,13 @@ type dependencyCommandPair struct {
 
 const windowsFFmpegZipURL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
 
+// windowsEmbeddablePythonURL is the pinned embeddable Python release for Windows.
+// Using 3.12 for broad openai-whisper compatibility.
+const windowsEmbeddablePythonURL = "https://www.python.org/ftp/python/3.12.9/python-3.12.9-embed-amd64.zip"
+
+// getPipURL is the canonical bootstrap script for installing pip into a Python env.
+const getPipURL = "https://bootstrap.pypa.io/get-pip.py"
+
 func projectRoot() string {
 	if exe, err := os.Executable(); err == nil {
 		if dir := filepath.Dir(exe); dir != "" {
@@ -168,11 +175,15 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 		}
 	case "whisper":
 		if runtime.GOOS == "windows" {
-			// Try python, fall back to py, then python3
-			return dependencyCommandPair{
-				install:   &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "python -m pip install --user openai-whisper 2>$null || py -m pip install --user openai-whisper 2>$null || python3 -m pip install --user openai-whisper"}},
-				uninstall: &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "python -m pip uninstall -y openai-whisper 2>$null || py -m pip uninstall -y openai-whisper 2>$null || python3 -m pip uninstall -y openai-whisper"}},
+			// Use system Python if available; otherwise fall back to the app-local bundled Python.
+			if pythonExe, ok := resolveWindowsPython(); ok {
+				return dependencyCommandPair{
+					install:   &dependencyCommand{command: pythonExe, args: []string{"-m", "pip", "install", "openai-whisper"}},
+					uninstall: &dependencyCommand{command: pythonExe, args: []string{"-m", "pip", "uninstall", "-y", "openai-whisper"}},
+				}
 			}
+			// No Python found — the UI install button will handle bootstrapping Python first.
+			return dependencyCommandPair{}
 		}
 		return dependencyCommandPair{
 			install:   &dependencyCommand{command: "python3", args: []string{"-m", "pip", "install", "--user", "openai-whisper"}},
@@ -743,6 +754,189 @@ func (s *appState) installRIFEFromUI(onSuccess func()) {
 			logging.Info(logging.CatSystem, "RIFE installed at %s", toolPath)
 			if onSuccess != nil {
 				onSuccess()
+			}
+		}, false)
+	}()
+}
+
+// windowsEmbeddablePythonDir returns the directory where the bundled Python is installed.
+func windowsEmbeddablePythonDir() string {
+	return filepath.Join(appLocalBinDir(), "python")
+}
+
+// windowsEmbeddablePythonExe returns the path to the bundled python.exe.
+func windowsEmbeddablePythonExe() string {
+	return filepath.Join(windowsEmbeddablePythonDir(), "python.exe")
+}
+
+// ensureWindowsEmbeddablePython downloads and sets up an embeddable Python
+// distribution in the app-local bin directory if not already present.
+// It also installs pip into the embeddable distribution so that packages
+// like openai-whisper can be installed.
+func ensureWindowsEmbeddablePython() (string, error) {
+	if runtime.GOOS != "windows" {
+		return "", fmt.Errorf("only supported on Windows")
+	}
+
+	pythonExe := windowsEmbeddablePythonExe()
+	if _, err := os.Stat(pythonExe); err == nil {
+		return pythonExe, nil // already installed
+	}
+
+	pythonDir := windowsEmbeddablePythonDir()
+	if err := os.MkdirAll(pythonDir, 0o755); err != nil {
+		return "", fmt.Errorf("create python dir: %w", err)
+	}
+
+	// Step 1: Download and extract the embeddable Python zip.
+	zipFile, err := os.CreateTemp("", "videotools-python-*.zip")
+	if err != nil {
+		return "", fmt.Errorf("create temp zip: %w", err)
+	}
+	zipPath := zipFile.Name()
+	_ = zipFile.Close()
+	defer os.Remove(zipPath)
+
+	client := &http.Client{Timeout: 10 * time.Minute}
+	resp, err := client.Get(windowsEmbeddablePythonURL)
+	if err != nil {
+		return "", fmt.Errorf("download Python: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("download Python: unexpected status %d", resp.StatusCode)
+	}
+	out, err := os.Create(zipPath)
+	if err != nil {
+		return "", fmt.Errorf("open temp zip for write: %w", err)
+	}
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		_ = out.Close()
+		return "", fmt.Errorf("write Python zip: %w", err)
+	}
+	if err := out.Close(); err != nil {
+		return "", fmt.Errorf("finalize Python zip: %w", err)
+	}
+
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return "", fmt.Errorf("open Python zip: %w", err)
+	}
+	defer zr.Close()
+
+	for _, f := range zr.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		destPath := filepath.Join(pythonDir, f.Name)
+		src, err := f.Open()
+		if err != nil {
+			return "", fmt.Errorf("extract %s: %w", f.Name, err)
+		}
+		dst, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+		if err != nil {
+			_ = src.Close()
+			return "", fmt.Errorf("create %s: %w", destPath, err)
+		}
+		if _, err := io.Copy(dst, src); err != nil {
+			_ = dst.Close()
+			_ = src.Close()
+			return "", fmt.Errorf("write %s: %w", destPath, err)
+		}
+		_ = dst.Close()
+		_ = src.Close()
+	}
+	zr.Close()
+
+	// Step 2: Patch the ._pth file to enable site-packages (required for pip).
+	// The embeddable distribution has a file like python312._pth that contains
+	// "#import site" — we need to uncomment it.
+	entries, err := os.ReadDir(pythonDir)
+	if err != nil {
+		return "", fmt.Errorf("read python dir: %w", err)
+	}
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.Name(), "._pth") {
+			pthPath := filepath.Join(pythonDir, entry.Name())
+			data, err := os.ReadFile(pthPath)
+			if err != nil {
+				continue
+			}
+			patched := strings.ReplaceAll(string(data), "#import site", "import site")
+			if err := os.WriteFile(pthPath, []byte(patched), 0o644); err != nil {
+				return "", fmt.Errorf("patch %s: %w", entry.Name(), err)
+			}
+		}
+	}
+
+	// Step 3: Download get-pip.py and run it with the bundled Python.
+	getPipFile, err := os.CreateTemp("", "get-pip-*.py")
+	if err != nil {
+		return "", fmt.Errorf("create get-pip temp: %w", err)
+	}
+	getPipPath := getPipFile.Name()
+	_ = getPipFile.Close()
+	defer os.Remove(getPipPath)
+
+	pipResp, err := client.Get(getPipURL)
+	if err != nil {
+		return "", fmt.Errorf("download get-pip.py: %w", err)
+	}
+	defer pipResp.Body.Close()
+	if pipResp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("download get-pip.py: unexpected status %d", pipResp.StatusCode)
+	}
+	pipOut, err := os.Create(getPipPath)
+	if err != nil {
+		return "", fmt.Errorf("open get-pip temp for write: %w", err)
+	}
+	if _, err := io.Copy(pipOut, pipResp.Body); err != nil {
+		_ = pipOut.Close()
+		return "", fmt.Errorf("write get-pip.py: %w", err)
+	}
+	if err := pipOut.Close(); err != nil {
+		return "", fmt.Errorf("finalize get-pip.py: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, pythonExe, getPipPath)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return "", fmt.Errorf("install pip: %w\n%s", err, strings.TrimSpace(string(out)))
+	}
+
+	return pythonExe, nil
+}
+
+// resolveWindowsPython returns the path to a usable Python executable on Windows.
+// Checks system PATH first, then falls back to the app-local bundled Python.
+func resolveWindowsPython() (string, bool) {
+	for _, name := range []string{"python", "py", "python3"} {
+		if path, err := exec.LookPath(name); err == nil {
+			return path, true
+		}
+	}
+	bundled := windowsEmbeddablePythonExe()
+	if _, err := os.Stat(bundled); err == nil {
+		return bundled, true
+	}
+	return "", false
+}
+
+func (s *appState) installWindowsPythonFromUI(onSuccess func(pythonExe string)) {
+	progress := dialog.NewProgressInfinite("Installing Python", "Downloading Python 3.12 embeddable. This may take a moment.", s.window)
+	progress.Show()
+
+	go func() {
+		pythonExe, err := ensureWindowsEmbeddablePython()
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.Hide()
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to install Python: %w", err), s.window)
+				return
+			}
+			if onSuccess != nil {
+				onSuccess(pythonExe)
 			}
 		}, false)
 	}()
@@ -1431,6 +1625,24 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 			if isInstalled {
 				installBtn.Disable()
 			}
+			actions.Add(installBtn)
+		}
+
+		// On Windows, if no system Python is available, show a button to
+		// bootstrap the bundled Python first, then install Whisper.
+		if depName == "whisper" && runtime.GOOS == "windows" && cmds.install == nil && !isInstalled {
+			installBtn := widget.NewButton("Install (Python + Whisper)", func() {
+				state.installWindowsPythonFromUI(func(pythonExe string) {
+					// Python installed; now install whisper with the bundled Python.
+					runDependencyCommandWithProgress(state.window, "Installing Whisper", "Installing openai-whisper...",
+						&dependencyCommand{command: pythonExe, args: []string{"-m", "pip", "install", "openai-whisper"}},
+						func(out string, err error) {
+							showCommandResult(state.window, "Whisper Install", out, err)
+							state.showSettingsView()
+						})
+				})
+			})
+			installBtn.Importance = widget.HighImportance
 			actions.Add(installBtn)
 		}
 
