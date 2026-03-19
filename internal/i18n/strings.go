@@ -38,33 +38,37 @@ type Strings struct {
 	ModuleSettings    string
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
-	DialogCompare        string
-	DialogInspect        string
-	DialogThumbnail      string
-	DialogSnippet        string
-	DialogInterlacing    string
-	DialogAutoCrop       string
-	DialogNoVideo        string
-	DialogNoFile         string
-	DialogNoConfig       string
-	DialogConfigSaved    string
-	DialogCopied         string
-	DialogNoLog          string
-	DialogQueued         string
-	DialogCancelled      string
-	DialogBatchAdd       string
-	DialogRecovery       string
-	DialogSnippets       string
-	DialogPreview        string
-	DialogPlayback       string
-	DialogJobQueued      string
-	DialogMerge          string
-	DialogCancel         string
-	DialogSnippetCreated string
-	DialogQueueNotInit   string // "Queue not initialized"
-	DialogNoRunningJob   string // "No running job to cancel"
-	LabelSnippet         string // "Snippet:" (job title prefix)
-	MergeStarted         string // "Merge started!"
+	DialogCompare            string
+	DialogInspect            string
+	DialogThumbnail          string
+	DialogSnippet            string
+	DialogInterlacing        string
+	DialogInterlacingResults string
+	DialogAutoCrop           string
+	DialogAutoCropDetection  string
+	DialogNoBlackBars        string
+	DialogLoadVideoFirst     string // "Load a video first."
+	DialogNoVideo            string
+	DialogNoFile             string
+	DialogNoConfig           string
+	DialogConfigSaved        string
+	DialogCopied             string
+	DialogNoLog              string
+	DialogQueued             string
+	DialogCancelled          string
+	DialogBatchAdd           string
+	DialogRecovery           string
+	DialogSnippets           string
+	DialogPreview            string
+	DialogPlayback           string
+	DialogJobQueued          string
+	DialogMerge              string
+	DialogCancel             string
+	DialogSnippetCreated     string
+	DialogQueueNotInit       string // "Queue not initialized"
+	DialogNoRunningJob       string // "No running job to cancel"
+	LabelSnippet             string // "Snippet:" (job title prefix)
+	MergeStarted             string // "Merge started!"
 
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert     string
