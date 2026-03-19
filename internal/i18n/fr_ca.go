@@ -260,7 +260,7 @@ var frCA = Strings{
 	UpdateCurrentVersion:    "Version actuelle :",
 	UpdateVersionHash:       "Hachage de version :",
 	UpdateChecking:          "Vérification des mises à jour...",
-	UpdateError:             "Erreur :",
+	UpdateError:             "Impossible de joindre le serveur de mises à jour.",
 	UpdateAvailableFmt:      "⬤ Mise à jour disponible : %s (%s)",
 	UpdateNewBuildAvailable: "⬤ Nouveau build disponible : %s (%s)",
 	UpdateUpToDateFmt:       "✓ À jour (dernier : %s, %s)",

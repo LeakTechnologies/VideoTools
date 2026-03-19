@@ -1210,7 +1210,8 @@ func checkForUpdatesWithStatus(state *appState, statusIcon *widget.Icon, statusL
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			t := i18n.T()
 			if err != nil {
-				statusLabel.SetText(fmt.Sprintf("%s %v", t.UpdateError, err))
+				logging.Info(logging.CatSystem, "Update check failed: %v", err)
+				statusLabel.SetText(t.UpdateError)
 				statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 				onAvailable("")
 				return
