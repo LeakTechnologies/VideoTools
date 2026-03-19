@@ -41,19 +41,19 @@ type TrimClip struct {
 type trimState struct {
 	engine *media.Engine
 	player *media.VideoPlayer
-	
+
 	inPoint  time.Duration
 	outPoint time.Duration
-	
+
 	currentTime float64 // in seconds
 	duration    float64 // in seconds
-	
+
 	// UI refs for updates
-	timeLabel    *widget.Label
-	inPointLabel *widget.Label
+	timeLabel     *widget.Label
+	inPointLabel  *widget.Label
 	outPointLabel *widget.Label
-	durLabel     *widget.Label
-	timeline     *widget.Slider
+	durLabel      *widget.Label
+	timeline      *widget.Slider
 }
 
 func BuildView(opts Options, initialPath string) fyne.CanvasObject {
@@ -87,7 +87,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	state.durLabel = widget.NewLabel("00:00:00.000")
 	state.inPointLabel = widget.NewLabel(t.TrimInPoint + ": 00:00:00.000")
 	state.outPointLabel = widget.NewLabel(t.TrimOutPoint + ": 00:00:00.000")
-	
+
 	state.timeline = widget.NewSlider(0, 100)
 	state.timeline.OnChanged = func(val float64) {
 		if state.engine != nil {
@@ -110,13 +110,15 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		state.outPoint = time.Duration(state.currentTime * float64(time.Second))
 		state.outPointLabel.SetText(fmt.Sprintf("%s: %s", t.TrimOutPoint, formatDuration(state.outPoint)))
 	})
-	
+
 	// Step buttons for frame-accuracy
 	stepBackBtn := widget.NewButton("<", func() {
 		if state.engine != nil {
 			// FFmpeg seek back is trickier, for now we seek back slightly and Step forward
 			target := state.currentTime - 0.033 // rough 1 frame at 30fps
-			if target < 0 { target = 0 }
+			if target < 0 {
+				target = 0
+			}
 			state.engine.Seek(target)
 			if img, err := state.engine.NextFrame(); err == nil {
 				state.player.SetFrame(img)
@@ -182,14 +184,15 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 
 func (s *trimState) loadVideo(path string) {
 	s.engine = media.NewEngine()
+	s.engine.SetSeekAccuracy(media.SeekAccuracyKeyframe)
+	s.engine.SetDropFrames(true)
 	if err := s.engine.Open(path); err != nil {
 		logging.Error(logging.CatPlayer, "Trim: failed to open %s: %v", path, err)
 		return
 	}
 	s.duration = s.engine.Duration()
 	s.durLabel.SetText(formatDuration(time.Duration(s.duration * float64(time.Second))))
-	
-	// Show first frame
+
 	if img, err := s.engine.NextFrame(); err == nil {
 		s.player.SetFrame(img)
 	}

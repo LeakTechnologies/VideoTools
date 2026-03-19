@@ -7,24 +7,29 @@ import (
 	"time"
 )
 
-// MasterClock tracks the master playback time for A/V synchronization.
+const (
+	MaxDriftThreshold = 0.1
+	MaxWaitTime       = 100 * time.Millisecond
+	RealtimeSpeed     = 1.0
+)
+
 type MasterClock struct {
 	mu        sync.Mutex
-	pts       float64   // Current PTS in seconds
-	ptsTime   time.Time // Real time when PTS was last updated
+	pts       float64
+	ptsTime   time.Time
 	paused    bool
+	speed     float64
 	startTime time.Time
 }
 
-// NewMasterClock creates a new master clock.
 func NewMasterClock() *MasterClock {
 	return &MasterClock{
 		startTime: time.Now(),
 		ptsTime:   time.Now(),
+		speed:     RealtimeSpeed,
 	}
 }
 
-// SetTime updates the clock with a new PTS value.
 func (c *MasterClock) SetTime(pts float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -32,34 +37,16 @@ func (c *MasterClock) SetTime(pts float64) {
 	c.ptsTime = time.Now()
 }
 
-// GetTime returns the current master time in seconds.
 func (c *MasterClock) GetTime() float64 {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.paused {
 		return c.pts
 	}
-	elapsed := time.Since(c.ptsTime).Seconds()
+	elapsed := time.Since(c.ptsTime).Seconds() * c.speed
 	return c.pts + elapsed
 }
 
-// SyncVideo calculates the delay needed to wait before displaying a video frame.
-func (c *MasterClock) SyncVideo(pts float64) time.Duration {
-	master := c.GetTime()
-	diff := pts - master
-	
-	if diff <= 0 {
-		return 0 // Too late, display immediately
-	}
-	
-	if diff > 1.0 {
-		return 10 * time.Millisecond // Sanity check for huge gaps
-	}
-	
-	return time.Duration(diff * float64(time.Second))
-}
-
-// Pause/Resume
 func (c *MasterClock) SetPaused(paused bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -67,9 +54,83 @@ func (c *MasterClock) SetPaused(paused bool) {
 		return
 	}
 	if paused {
-		c.pts = c.GetTime()
+		c.pts = c.pts + time.Since(c.ptsTime).Seconds()*c.speed
 	} else {
 		c.ptsTime = time.Now()
 	}
 	c.paused = paused
+}
+
+func (c *MasterClock) IsPaused() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.paused
+}
+
+func (c *MasterClock) SetSpeed(speed float64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	wasPaused := c.paused
+	if !wasPaused {
+		c.pts = c.GetTime()
+		c.ptsTime = time.Now()
+	}
+	c.speed = speed
+	if wasPaused {
+		c.paused = true
+	} else {
+		c.paused = false
+	}
+}
+
+func (c *MasterClock) GetSpeed() float64 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.speed
+}
+
+func (c *MasterClock) WaitForPTS(targetPTS float64) {
+	c.mu.Lock()
+	paused := c.paused
+	c.mu.Unlock()
+
+	if paused {
+		return
+	}
+
+	for {
+		master := c.GetTime()
+		diff := targetPTS - master
+
+		if diff <= 0 {
+			return
+		}
+
+		if diff > MaxDriftThreshold {
+			time.Sleep(MaxWaitTime)
+			continue
+		}
+
+		time.Sleep(time.Duration(diff * float64(time.Second)))
+		return
+	}
+}
+
+func (c *MasterClock) SyncVideo(pts float64) time.Duration {
+	master := c.GetTime()
+	diff := pts - master
+
+	if diff <= -MaxDriftThreshold {
+		return -1
+	}
+
+	if diff <= 0 {
+		return 0
+	}
+
+	if diff > 1.0 {
+		return 10 * time.Millisecond
+	}
+
+	return time.Duration(diff * float64(time.Second))
 }
