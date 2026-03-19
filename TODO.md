@@ -31,6 +31,7 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Disc Authoring
 - [x] **Native engine stabilisation** — PGC/TT_SRPT/TMAPT/menu VOB/ISO 9660 complete.
+- [x] **DVD engine Phase 4.2–4.3** — SPU DCSQ rewrite + 30 integration tests across spu/ifo/vob/udf. All green.
 
 ## Dev34 Scope (completed ✓)
 
