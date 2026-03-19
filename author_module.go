@@ -3300,7 +3300,12 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	// Generate VMG IFO/BUP (disc root metadata)
 	vmgMat := ifo.NewVMGMAT()
 	vmgMat.NrOfTitleSets = uint16(totalTitles)
-	if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGC); err != nil {
+	allMats := []*ifo.VTS_MAT{vtsMat}
+	for _, st := range extraStates {
+		allMats = append(allMats, st.mat)
+	}
+	vtsAtrt := ifo.BuildVTS_ATRT(allMats)
+	if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGC, vtsAtrt); err != nil {
 		return fmt.Errorf("native vmg generation failed: %w", err)
 	}
 
@@ -3386,7 +3391,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap, mainPTTSRPT); err != nil {
 			return fmt.Errorf("ifo sector patch failed: %w", err)
 		}
-		if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGC); err != nil {
+		if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGC, vtsAtrt); err != nil {
 			return fmt.Errorf("vmg ifo sector patch failed: %w", err)
 		}
 		logFn("IFO sector addresses patched")

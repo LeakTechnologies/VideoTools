@@ -138,9 +138,11 @@ func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain
 }
 
 // GenerateVMG_IFO creates VIDEO_TS.IFO and VIDEO_TS.BUP.
-// srpt may be nil; menuPGC may be nil. When provided, srpt is written at sector 1
-// and menuPGC is written as VMG_PGCITI at the next available sector.
-func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGC *ProgramChain) error {
+// All table parameters may be nil; when non-nil they are written in spec order:
+//   - srpt    → TT_SRPT at sector 1 (title search pointer table)
+//   - menuPGC → VMG_PGCITI (menu program chain)
+//   - vtsAtrt → VMG_VTS_ATRT (VTS attribute table; cross-validates stream attrs)
+func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGC *ProgramChain, vtsAtrt *VTS_ATRT) error {
 	ifoPath := filepath.Join(b.outputDir, "VIDEO_TS.IFO")
 	bupPath := filepath.Join(b.outputDir, "VIDEO_TS.BUP")
 
@@ -170,6 +172,19 @@ func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGC *ProgramC
 		nextSector += uint32(len(pgcitiData) / 2048)
 	}
 
+	// VTS_ATRT — sector-padded buffer built via WriteVTS_ATRT.
+	var atrtBuf bytes.Buffer
+	if vtsAtrt != nil {
+		if err := WriteVTS_ATRT(&atrtBuf, vtsAtrt); err != nil {
+			return fmt.Errorf("serialize vts_atrt: %w", err)
+		}
+		if rem := atrtBuf.Len() % 2048; rem != 0 {
+			atrtBuf.Write(make([]byte, 2048-rem))
+		}
+		mat.VMG_VTS_ATRT_Offset = nextSector
+		nextSector += uint32(atrtBuf.Len() / 2048)
+	}
+
 	mat.VMG_Last_Sector = nextSector - 1
 
 	var buf bytes.Buffer
@@ -181,6 +196,9 @@ func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGC *ProgramC
 	}
 	if pgcitiData != nil {
 		buf.Write(pgcitiData)
+	}
+	if atrtBuf.Len() > 0 {
+		buf.Write(atrtBuf.Bytes())
 	}
 
 	data := buf.Bytes()

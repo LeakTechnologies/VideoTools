@@ -51,18 +51,118 @@ type VTS_ATRT_Entry struct {
 	Subpicture_Attrs    [32]SubpictureAttributes
 }
 
-// WriteVTS_ATRT serializes the VTS_ATRT to an IFO file.
+// vtsAtrtEntrySize is the fixed byte size of one serialized VTS_ATRT_Entry:
+//   4  (VTS_MAT_Last_Sector)
+//   2  (Video_Attrs packed)
+//   2  (NumAudio)
+//  64  (Audio_Attrs × 8)
+//   2  (NumSubpicture)
+// 192  (Subpicture_Attrs × 32)
+// = 266 bytes
+const vtsAtrtEntrySize = 4 + 2 + 2 + 8*8 + 2 + 32*6
+
+// BuildVTS_ATRT constructs a VTS_ATRT from the slice of per-VTS attribute
+// tables. Each VTS_MAT supplies the video/audio/subpicture attributes that
+// hardware players cross-validate against the actual disc streams.
+// Returns nil when mats is empty.
+func BuildVTS_ATRT(mats []*VTS_MAT) *VTS_ATRT {
+	n := len(mats)
+	if n == 0 {
+		return nil
+	}
+	entries := make([]VTS_ATRT_Entry, n)
+	for i, m := range mats {
+		entries[i] = VTS_ATRT_Entry{
+			VTS_MAT_Last_Sector: m.VTS_Last_Sector,
+			Video_Attrs:         m.VTS_Attributes,
+			NumAudio:            m.VTS_Audio_Streams_Count,
+			Audio_Attrs:         m.VTS_Audio_Attributes,
+			NumSubpicture:       m.VTS_Subpicture_Count,
+			Subpicture_Attrs:    m.VTS_Subpicture_Attrs,
+		}
+	}
+	return &VTS_ATRT{
+		NumVTS:  uint16(n),
+		Entries: entries,
+	}
+}
+
+// WriteVTS_ATRT serializes the VTS_ATRT and returns the sector-padded bytes.
+//
+// On-disc layout:
+//
+//	[0-1]  NumVTS (uint16)
+//	[2-3]  Reserved (uint16)
+//	[4-7]  EndByte (uint32) — last byte of table, 0-relative
+//	[8 + i*4]  VTS_Offsets[i] (uint32) — byte offset to entry i from table start
+//	[8 + N*4 + i*vtsAtrtEntrySize]  entry i:
+//	  [0-3]   VTS_MAT_Last_Sector (uint32)
+//	  [4-5]   Video_Attrs (2 bytes, packed)
+//	  [6-7]   NumAudio (uint16)
+//	  [8-71]  Audio_Attrs[8] (8 × 8 bytes)
+//	  [72-73] NumSubpicture (uint16)
+//	  [74-265] Subpicture_Attrs[32] (32 × 6 bytes)
 func WriteVTS_ATRT(w io.Writer, table *VTS_ATRT) error {
-	logging.Debug(logging.CatDVD, "Writing VTS_ATRT with %d entries", table.NumVTS)
-	if err := binary.Write(w, binary.BigEndian, table.NumVTS); err != nil {
-		return err
+	n := int(table.NumVTS)
+	if n == 0 {
+		return fmt.Errorf("WriteVTS_ATRT: empty table")
 	}
-	if err := binary.Write(w, binary.BigEndian, table.Reserved); err != nil {
-		return err
+	logging.Debug(logging.CatDVD, "Writing VTS_ATRT with %d entries", n)
+
+	// Offset from start of table to the first entry.
+	firstEntryOffset := uint32(8 + n*4)
+	endByte := firstEntryOffset + uint32(n*vtsAtrtEntrySize) - 1
+
+	var buf bytes.Buffer
+
+	// Header
+	binary.Write(&buf, binary.BigEndian, table.NumVTS)
+	binary.Write(&buf, binary.BigEndian, table.Reserved)
+	binary.Write(&buf, binary.BigEndian, endByte)
+
+	// Offset array
+	for i := 0; i < n; i++ {
+		binary.Write(&buf, binary.BigEndian, firstEntryOffset+uint32(i*vtsAtrtEntrySize))
 	}
-	_ = binary.Write(w, binary.BigEndian, table.EndByte)
-	// [Implementation of full VTS_ATRT serialization will follow in builder logic]
-	return nil
+
+	// Entries
+	for _, e := range table.Entries {
+		binary.Write(&buf, binary.BigEndian, e.VTS_MAT_Last_Sector)
+		vb0, vb1 := packVideoAttrs(e.Video_Attrs)
+		buf.WriteByte(vb0)
+		buf.WriteByte(vb1)
+		binary.Write(&buf, binary.BigEndian, e.NumAudio)
+		for i := 0; i < 8; i++ {
+			aa := e.Audio_Attrs[i]
+			b0 := (aa.AudioCodingMode & 0x07) << 5
+			if aa.Multichannel != 0 {
+				b0 |= 0x10
+			}
+			b1 := ((aa.SampleRate & 0x03) << 4) | (aa.NumChannels & 0x07)
+			buf.WriteByte(b0)
+			buf.WriteByte(b1)
+			buf.Write(aa.LanguageCode[:])
+			buf.WriteByte(aa.SpecificCode)
+			buf.Write([]byte{0, 0, 0}) // code_ext, unknown, app_mode_ext
+		}
+		binary.Write(&buf, binary.BigEndian, e.NumSubpicture)
+		for i := 0; i < 32; i++ {
+			sp := e.Subpicture_Attrs[i]
+			buf.WriteByte(sp.CodingMode)
+			buf.WriteByte(0x00) // reserved
+			buf.Write(sp.LanguageCode[:])
+			buf.WriteByte(sp.SpecificCode)
+			buf.WriteByte(0x00) // code_extension
+		}
+	}
+
+	// Pad to sector boundary
+	if rem := buf.Len() % 2048; rem != 0 {
+		buf.Write(make([]byte, 2048-rem))
+	}
+
+	_, err := w.Write(buf.Bytes())
+	return err
 }
 
 // TT_SRPT represents the Title Search Pointer Table.
@@ -112,16 +212,15 @@ func WriteTT_SRPT(srpt *TT_SRPT) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// WriteVMGI serializes the VMG_MAT to an IFO file.
+// WriteVMGI serializes the VMG_MAT to an IFO file using the spec-correct
+// offset-based layout from SerializeVMGMAT.
 func WriteVMGI(w io.Writer, mat *VMG_MAT) error {
 	logging.Info(logging.CatDVD, "Serializing VMGI Management Table (VMG_MAT)")
-	
-	if err := binary.Write(w, binary.BigEndian, mat); err != nil {
+	if _, err := w.Write(SerializeVMGMAT(mat)); err != nil {
 		logging.Error(logging.CatDVD, "Failed to write VMG_MAT: %v", err)
 		return fmt.Errorf("write vmg_mat: %w", err)
 	}
-	
-	logging.Debug(logging.CatDVD, "VMG_MAT successfully written. Titles mapped at offset: %d", mat.TT_SRPT_Offset)
+	logging.Debug(logging.CatDVD, "VMG_MAT written. Titles at offset: %d", mat.TT_SRPT_Offset)
 	return nil
 }
 
