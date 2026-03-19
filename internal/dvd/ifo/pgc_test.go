@@ -229,3 +229,101 @@ func TestBuildVOBU_ADMAP_Sectors(t *testing.T) {
 		}
 	}
 }
+
+// TestSerializeVTSMAT_Identifier verifies the DVD identifier is at byte 0.
+func TestSerializeVTSMAT_Identifier(t *testing.T) {
+	mat := NewVTSMAT()
+	b := SerializeVTSMAT(mat)
+	if string(b[0:12]) != "DVDVIDEO-VTS" {
+		t.Errorf("identifier = %q, want %q", string(b[0:12]), "DVDVIDEO-VTS")
+	}
+}
+
+// TestSerializeVTSMAT_LastSector verifies VTS_Last_Sector is at byte 12.
+func TestSerializeVTSMAT_LastSector(t *testing.T) {
+	mat := NewVTSMAT()
+	mat.VTS_Last_Sector = 0xDEADBEEF
+	b := SerializeVTSMAT(mat)
+	got := uint32(b[12])<<24 | uint32(b[13])<<16 | uint32(b[14])<<8 | uint32(b[15])
+	if got != 0xDEADBEEF {
+		t.Errorf("VTS_Last_Sector at byte 12 = 0x%X, want 0xDEADBEEF", got)
+	}
+}
+
+// TestSerializeVTSMAT_PGCITOffset verifies VTS_PGCITI_Offset is at byte 422 (0x1A6).
+func TestSerializeVTSMAT_PGCITOffset(t *testing.T) {
+	mat := NewVTSMAT()
+	mat.VTS_PGCITI_Offset = 1 // sector 1 (typical first-available sector)
+	b := SerializeVTSMAT(mat)
+	got := uint32(b[422])<<24 | uint32(b[423])<<16 | uint32(b[424])<<8 | uint32(b[425])
+	if got != 1 {
+		t.Errorf("VTS_PGCITI_Offset at byte 422 = %d, want 1", got)
+	}
+	// Also verify the old position (byte 229) is NOT the offset field.
+	// Byte 229 should be zero for a default MAT.
+	old := uint32(b[229])<<24 | uint32(b[230])<<16 | uint32(b[231])<<8 | uint32(b[232])
+	if old == 1 {
+		t.Errorf("VTS_PGCITI_Offset appears at old wrong position (byte 229); fix not applied")
+	}
+}
+
+// TestSerializeVTSMAT_TMAPTOffset verifies VTS_TMAPTI_Offset is at byte 430 (0x1AE).
+func TestSerializeVTSMAT_TMAPTOffset(t *testing.T) {
+	mat := NewVTSMAT()
+	mat.VTS_TMAPTI_Offset = 2
+	b := SerializeVTSMAT(mat)
+	got := uint32(b[430])<<24 | uint32(b[431])<<16 | uint32(b[432])<<8 | uint32(b[433])
+	if got != 2 {
+		t.Errorf("VTS_TMAPTI_Offset at byte 430 = %d, want 2", got)
+	}
+}
+
+// TestSerializeVTSMAT_VOBUADMAPOffset verifies VTS_VOBU_ADMAP_Offset is at byte 446 (0x1BE).
+func TestSerializeVTSMAT_VOBUADMAPOffset(t *testing.T) {
+	mat := NewVTSMAT()
+	mat.VTS_VOBU_ADMAP_Offset = 3
+	b := SerializeVTSMAT(mat)
+	got := uint32(b[446])<<24 | uint32(b[447])<<16 | uint32(b[448])<<8 | uint32(b[449])
+	if got != 3 {
+		t.Errorf("VTS_VOBU_ADMAP_Offset at byte 446 = %d, want 3", got)
+	}
+}
+
+// TestSerializeVTSMAT_SectorSize verifies output is exactly 2048 bytes.
+func TestSerializeVTSMAT_SectorSize(t *testing.T) {
+	b := SerializeVTSMAT(NewVTSMAT())
+	if len(b) != 2048 {
+		t.Errorf("SerializeVTSMAT len = %d, want 2048", len(b))
+	}
+}
+
+// TestSerializeVMGMAT_Identifier verifies the DVD identifier is at byte 0.
+func TestSerializeVMGMAT_Identifier(t *testing.T) {
+	mat := NewVMGMAT()
+	b := SerializeVMGMAT(mat)
+	if string(b[0:12]) != "DVDVIDEO-VMG" {
+		t.Errorf("identifier = %q, want %q", string(b[0:12]), "DVDVIDEO-VMG")
+	}
+}
+
+// TestSerializeVMGMAT_TT_SRPTOffset verifies TT_SRPT_Offset is at byte 192 (0x0C0).
+func TestSerializeVMGMAT_TT_SRPTOffset(t *testing.T) {
+	mat := NewVMGMAT()
+	mat.TT_SRPT_Offset = 1
+	b := SerializeVMGMAT(mat)
+	got := uint32(b[192])<<24 | uint32(b[193])<<16 | uint32(b[194])<<8 | uint32(b[195])
+	if got != 1 {
+		t.Errorf("TT_SRPT_Offset at byte 192 = %d, want 1", got)
+	}
+}
+
+// TestSerializeVMGMAT_NrOfTitleSets verifies NrOfTitleSets is at byte 72 (0x048).
+func TestSerializeVMGMAT_NrOfTitleSets(t *testing.T) {
+	mat := NewVMGMAT()
+	mat.NrOfTitleSets = 3
+	b := SerializeVMGMAT(mat)
+	got := uint16(b[72])<<8 | uint16(b[73])
+	if got != 3 {
+		t.Errorf("NrOfTitleSets at byte 72 = %d, want 3", got)
+	}
+}
