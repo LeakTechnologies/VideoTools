@@ -279,17 +279,15 @@ func WriteVOBU_ADMAP(w io.Writer, admap *VOBU_ADMAP) error {
 	return nil
 }
 
-// WriteVTSI serializes the VTS_MAT to an IFO file.
+// WriteVTSI serializes the VTS_MAT to an IFO file using the spec-correct
+// offset-based layout from SerializeVTSMAT.
 func WriteVTSI(w io.Writer, mat *VTS_MAT) error {
 	logging.Info(logging.CatDVD, "Serializing VTSI Management Table (VTS_MAT)")
-	
-	// DVD-Video headers are Big Endian
-	if err := binary.Write(w, binary.BigEndian, mat); err != nil {
+	if _, err := w.Write(SerializeVTSMAT(mat)); err != nil {
 		logging.Error(logging.CatDVD, "Failed to write VTS_MAT: %v", err)
 		return fmt.Errorf("write vts_mat: %w", err)
 	}
-	
-	logging.Debug(logging.CatDVD, "VTS_MAT successfully written. Last sector: %d", mat.VTS_Last_Sector)
+	logging.Debug(logging.CatDVD, "VTS_MAT written. Last sector: %d", mat.VTS_Last_Sector)
 	return nil
 }
 
