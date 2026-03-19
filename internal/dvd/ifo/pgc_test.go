@@ -478,6 +478,46 @@ func TestReadVTSI_RoundTrip(t *testing.T) {
 	}
 }
 
+// TestSerializeVTSMAT_VideoAttrs verifies VTS_Attributes are packed at byte 512 (0x200).
+func TestSerializeVTSMAT_VideoAttrs(t *testing.T) {
+	mat := NewVTSMAT()
+	mat.VTS_Attributes = VideoAttributes{
+		CompressionMode: 1, // MPEG-2
+		TVSystem:        1, // PAL
+		AspectRatio:     3, // 16:9
+	}
+	b := SerializeVTSMAT(mat)
+	// Byte 512: [7:6]=CompressionMode(1)=0b01, [5:4]=TVSystem(1)=0b01, [3:2]=AspectRatio(3)=0b11
+	want := byte(0b01_01_11_00) // = 0x5C
+	if b[512] != want {
+		t.Errorf("video attrs byte 512 = 0x%02X, want 0x%02X", b[512], want)
+	}
+}
+
+// TestReadVTSI_VideoAttrs verifies video attributes survive a serialize/parse round-trip.
+func TestReadVTSI_VideoAttrs(t *testing.T) {
+	mat := NewVTSMAT()
+	mat.VTS_Attributes = VideoAttributes{
+		CompressionMode: 1, // MPEG-2
+		TVSystem:        0, // NTSC
+		AspectRatio:     3, // 16:9
+	}
+	b := SerializeVTSMAT(mat)
+	got, err := ReadVTSI(bytesReader(b))
+	if err != nil {
+		t.Fatalf("ReadVTSI: %v", err)
+	}
+	if got.VTS_Attributes.CompressionMode != 1 {
+		t.Errorf("CompressionMode = %d, want 1", got.VTS_Attributes.CompressionMode)
+	}
+	if got.VTS_Attributes.TVSystem != 0 {
+		t.Errorf("TVSystem = %d, want 0 (NTSC)", got.VTS_Attributes.TVSystem)
+	}
+	if got.VTS_Attributes.AspectRatio != 3 {
+		t.Errorf("AspectRatio = %d, want 3 (16:9)", got.VTS_Attributes.AspectRatio)
+	}
+}
+
 // TestBuildVTS_C_ADT_Nil verifies nil is returned for a nil/empty PGC.
 func TestBuildVTS_C_ADT_Nil(t *testing.T) {
 	if got := BuildVTS_C_ADT(nil); got != nil {

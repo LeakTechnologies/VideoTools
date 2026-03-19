@@ -127,7 +127,14 @@ func SerializeVTSMAT(mat *VTS_MAT) []byte {
 	// 0x1BE: VTS_VOBU_ADMAP_Offset (Title VOBU Address Map)
 	binary.BigEndian.PutUint32(b[446:450], mat.VTS_VOBU_ADMAP_Offset)
 
-	// 0x1C2-0x7FF: zeroed (make already zeros the whole slice)
+	// 0x200 (512): VTS title video attributes (2 bytes)
+	// This tells hardware players the MPEG version, TV system (NTSC/PAL),
+	// aspect ratio and display flags for the title VOB set.
+	vb0, vb1 := packVideoAttrs(mat.VTS_Attributes)
+	b[512] = vb0
+	b[513] = vb1
+
+	// 0x202-0x7FF: zeroed (make already zeros the whole slice)
 	return b
 }
 
