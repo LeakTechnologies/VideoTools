@@ -10,37 +10,56 @@ package media
 import "C"
 import (
 	"sync"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
-// PacketQueue is a thread-safe queue for AVPacket pointers.
+const (
+	DefaultMaxQueueSize = 250
+)
+
 type PacketQueue struct {
 	packets []*C.AVPacket
 	mu      sync.Mutex
 	cond    *sync.Cond
 	closed  bool
+	maxSize int
 }
 
-// NewPacketQueue creates a new packet queue.
 func NewPacketQueue() *PacketQueue {
-	q := &PacketQueue{}
-	q.cond = sync.NewCond(&q.mu)
-	return q
+	return &PacketQueue{
+		maxSize: DefaultMaxQueueSize,
+	}
 }
 
-// Put adds a packet to the queue.
+func NewPacketQueueWithMaxSize(maxSize int) *PacketQueue {
+	if maxSize <= 0 {
+		maxSize = DefaultMaxQueueSize
+	}
+	return &PacketQueue{
+		maxSize: maxSize,
+	}
+}
+
 func (q *PacketQueue) Put(pkt *C.AVPacket) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	// Clone the packet to ensure the demuxer can reuse its local buffer
+	for !q.closed && len(q.packets) >= q.maxSize {
+		q.cond.Wait()
+	}
+
+	if q.closed {
+		return
+	}
+
 	cloned := C.av_packet_alloc()
 	C.av_packet_ref(cloned, pkt)
-	
+
 	q.packets = append(q.packets, cloned)
 	q.cond.Signal()
 }
 
-// Get retrieves a packet from the queue, blocking if empty.
 func (q *PacketQueue) Get() (*C.AVPacket, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -55,10 +74,10 @@ func (q *PacketQueue) Get() (*C.AVPacket, bool) {
 
 	pkt := q.packets[0]
 	q.packets = q.packets[1:]
+	q.cond.Signal()
 	return pkt, true
 }
 
-// Flush removes all packets from the queue.
 func (q *PacketQueue) Flush() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -67,9 +86,9 @@ func (q *PacketQueue) Flush() {
 		C.av_packet_free(&pkt)
 	}
 	q.packets = nil
+	q.cond.Broadcast()
 }
 
-// Close closes the queue and releases all packets.
 func (q *PacketQueue) Close() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -82,9 +101,35 @@ func (q *PacketQueue) Close() {
 	q.cond.Broadcast()
 }
 
-// Size returns the current number of packets in the queue.
 func (q *PacketQueue) Size() int {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	return len(q.packets)
+}
+
+func (q *PacketQueue) MaxSize() int {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.maxSize
+}
+
+func (q *PacketQueue) SetMaxSize(maxSize int) {
+	if maxSize <= 0 {
+		maxSize = DefaultMaxQueueSize
+	}
+	q.mu.Lock()
+	q.maxSize = maxSize
+	q.mu.Unlock()
+}
+
+func (q *PacketQueue) IsFull() bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return len(q.packets) >= q.maxSize
+}
+
+func (q *PacketQueue) IsClosed() bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return q.closed
 }

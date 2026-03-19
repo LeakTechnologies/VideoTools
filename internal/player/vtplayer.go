@@ -1,4 +1,4 @@
-﻿package player
+package player
 
 import (
 	"image"
@@ -70,29 +70,58 @@ type VideoInfo struct {
 type PlayerState int
 
 const (
-    StateStopped PlayerState = iota
-    StatePlaying
-    StatePaused
-    StateLoading
-    StateError
+	StateStopped PlayerState = iota
+	StatePlaying
+	StatePaused
+	StateLoading
+	StateError
 )
 
 const (
-    StateIdle PlayerState = iota + 100
-    StateSeeking
-    StateStepping
-    StateEOS
+	StateIdle PlayerState = iota + 100
+	StateSeeking
+	StateStepping
+	StateEOS
 )
 
 // BackendType represents the player backend being used
 type BackendType int
 
 const (
-	BackendMPV BackendType = iota
-	BackendVLC
+	BackendNative BackendType = iota
 	BackendFFplay
 	BackendAuto
+	BackendMPV
+	BackendVLC
 )
+
+// IsDeprecated returns true if the backend is deprecated
+func (b BackendType) IsDeprecated() bool {
+	switch b {
+	case BackendMPV, BackendVLC:
+		return true
+	default:
+		return false
+	}
+}
+
+// String returns a human-readable name for the backend
+func (b BackendType) String() string {
+	switch b {
+	case BackendNative:
+		return "Native (FFmpeg)"
+	case BackendFFplay:
+		return "FFplay"
+	case BackendAuto:
+		return "Auto"
+	case BackendMPV:
+		return "MPV (deprecated)"
+	case BackendVLC:
+		return "VLC (deprecated)"
+	default:
+		return "Unknown"
+	}
+}
 
 // Config holds player configuration
 type Config struct {
@@ -122,5 +151,3 @@ const (
 	LogInfo
 	LogDebug
 )
-
-

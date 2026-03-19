@@ -1,0 +1,246 @@
+//go:build native_media
+
+package media
+
+import (
+	"testing"
+	"time"
+)
+
+func TestPacketQueueBasic(t *testing.T) {
+	q := NewPacketQueue()
+	if q == nil {
+		t.Fatal("NewPacketQueue returned nil")
+	}
+
+	if q.Size() != 0 {
+		t.Errorf("expected size 0, got %d", q.Size())
+	}
+
+	if q.MaxSize() != DefaultMaxQueueSize {
+		t.Errorf("expected max size %d, got %d", DefaultMaxQueueSize, q.MaxSize())
+	}
+}
+
+func TestPacketQueueSetMaxSize(t *testing.T) {
+	q := NewPacketQueue()
+	q.SetMaxSize(100)
+
+	if q.MaxSize() != 100 {
+		t.Errorf("expected max size 100, got %d", q.MaxSize())
+	}
+}
+
+func TestPacketQueueWithCustomMaxSize(t *testing.T) {
+	q := NewPacketQueueWithMaxSize(50)
+	if q == nil {
+		t.Fatal("NewPacketQueueWithMaxSize returned nil")
+	}
+
+	if q.MaxSize() != 50 {
+		t.Errorf("expected max size 50, got %d", q.MaxSize())
+	}
+}
+
+func TestPacketQueueWithZeroMaxSize(t *testing.T) {
+	q := NewPacketQueueWithMaxSize(0)
+	if q.MaxSize() != DefaultMaxQueueSize {
+		t.Errorf("expected max size %d (default), got %d", DefaultMaxQueueSize, q.MaxSize())
+	}
+}
+
+func TestPacketQueueIsClosed(t *testing.T) {
+	q := NewPacketQueue()
+
+	if q.IsClosed() {
+		t.Error("expected queue to not be closed initially")
+	}
+
+	q.Close()
+
+	if !q.IsClosed() {
+		t.Error("expected queue to be closed")
+	}
+}
+
+func TestPacketQueueIsFull(t *testing.T) {
+	q := NewPacketQueueWithMaxSize(5)
+
+	if q.IsFull() {
+		t.Error("expected queue to not be full initially")
+	}
+}
+
+func TestMasterClockBasic(t *testing.T) {
+	clock := NewMasterClock()
+	if clock == nil {
+		t.Fatal("NewMasterClock returned nil")
+	}
+
+	time.Sleep(10 * time.Millisecond)
+
+	currentTime := clock.GetTime()
+	if currentTime < 0 {
+		t.Errorf("expected time >= 0, got %f", currentTime)
+	}
+}
+
+func TestMasterClockSetTime(t *testing.T) {
+	clock := NewMasterClock()
+
+	clock.SetTime(5.0)
+	if clock.GetTime() != 5.0 {
+		t.Errorf("expected time 5.0, got %f", clock.GetTime())
+	}
+}
+
+func TestMasterClockPauseResume(t *testing.T) {
+	clock := NewMasterClock()
+
+	clock.SetTime(5.0)
+	clock.SetPaused(true)
+
+	time.Sleep(10 * time.Millisecond)
+
+	if clock.GetTime() != 5.0 {
+		t.Errorf("expected time 5.0 while paused, got %f", clock.GetTime())
+	}
+
+	clock.SetPaused(false)
+
+	time.Sleep(10 * time.Millisecond)
+
+	if clock.GetTime() <= 5.0 {
+		t.Errorf("expected time > 5.0 after resume, got %f", clock.GetTime())
+	}
+}
+
+func TestMasterClockSyncVideo(t *testing.T) {
+	clock := NewMasterClock()
+	clock.SetTime(0)
+
+	delay := clock.SyncVideo(0.1)
+	if delay < 0 {
+		t.Errorf("expected non-negative delay for pts >= master, got %v", delay)
+	}
+
+	delay = clock.SyncVideo(0)
+	if delay != 0 {
+		t.Errorf("expected zero delay for pts <= master, got %v", delay)
+	}
+}
+
+func TestSeekAccuracy(t *testing.T) {
+	acc := SeekAccuracyFrame
+	if acc != SeekAccuracyFrame {
+		t.Errorf("expected SeekAccuracyFrame, got %v", acc)
+	}
+
+	acc = SeekAccuracyKeyframe
+	if acc != SeekAccuracyKeyframe {
+		t.Errorf("expected SeekAccuracyKeyframe, got %v", acc)
+	}
+
+	acc = SeekAccuracyAccurate
+	if acc != SeekAccuracyAccurate {
+		t.Errorf("expected SeekAccuracyAccurate, got %v", acc)
+	}
+}
+
+func TestVideoInfo(t *testing.T) {
+	info := &VideoInfo{
+		Width:     1920,
+		Height:    1080,
+		FrameRate: 30.0,
+		Duration:  120.0,
+		CodecName: "h264",
+	}
+
+	if info.Width != 1920 {
+		t.Errorf("expected width 1920, got %d", info.Width)
+	}
+
+	if info.Height != 1080 {
+		t.Errorf("expected height 1080, got %d", info.Height)
+	}
+
+	if info.FrameRate != 30.0 {
+		t.Errorf("expected frame rate 30.0, got %f", info.FrameRate)
+	}
+}
+
+func TestSubtitleTrack(t *testing.T) {
+	track := SubtitleTrack{
+		Index:     0,
+		Language:  "eng",
+		CodecName: "ass",
+		Title:     "English",
+		IsForced:  false,
+		IsDefault: true,
+	}
+
+	if track.Language != "eng" {
+		t.Errorf("expected language 'eng', got '%s'", track.Language)
+	}
+
+	if track.IsDefault != true {
+		t.Error("expected IsDefault to be true")
+	}
+}
+
+func TestSubtitle(t *testing.T) {
+	sub := Subtitle{
+		Index:     0,
+		StartTime: 1000 * time.Millisecond,
+		EndTime:   2000 * time.Millisecond,
+		Text:      "Hello World",
+		Format:    SubtitleTypeText,
+	}
+
+	if sub.Text != "Hello World" {
+		t.Errorf("expected text 'Hello World', got '%s'", sub.Text)
+	}
+
+	if sub.Format != SubtitleTypeText {
+		t.Errorf("expected format SubtitleTypeText, got %v", sub.Format)
+	}
+}
+
+func TestFormatSRTTime(t *testing.T) {
+	d := 1*time.Hour + 2*time.Minute + 3*time.Second + 456*time.Millisecond
+	result := formatSRTTime(d)
+	expected := "01:02:03,456"
+
+	if result != expected {
+		t.Errorf("expected '%s', got '%s'", expected, result)
+	}
+}
+
+func TestFormatASSTime(t *testing.T) {
+	d := 1*time.Hour + 2*time.Minute + 3*time.Second + 456*time.Millisecond
+	result := formatASSTime(d)
+	expected := "1:02:03.45"
+
+	if result != expected {
+		t.Errorf("expected '%s', got '%s'", expected, result)
+	}
+}
+
+func TestEscapeASSText(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Hello", "Hello"},
+		{"Hello\nWorld", "Hello\\NWorld"},
+		{"{bold}", "\\{bold}"},
+		{"\\backslash", "\\\\backslash"},
+	}
+
+	for _, tc := range tests {
+		result := escapeASSText(tc.input)
+		if result != tc.expected {
+			t.Errorf("escapeASSText(%q): expected %q, got %q", tc.input, tc.expected, result)
+		}
+	}
+}
