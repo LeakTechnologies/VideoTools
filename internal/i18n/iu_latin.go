@@ -36,33 +36,36 @@ var iuLatn = Strings{
 	ModuleSettings:    "Aaqiksuiniq",       // Settings
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
-	DialogCompare:        "Nalunaiqsiluggit Quliaqtuit",        // Compare Videos
-	DialogInspect:        "Qaujisarlugu Quliaqtuit",            // Inspect Video
-	DialogThumbnail:      "Akiqalliat Sanarlugu",               // Thumbnail Generation
-	DialogSnippet:        "Ikajurlugu",                         // Snippet
-	DialogInterlacing:    "Silgillirtilugu Asijjiariaqtuq",     // Interlacing Analysis
-	DialogAutoCrop:       "Aumiqsirtilugu",                     // Auto-Crop
-	DialogNoVideo:        "Quliaqtuit Annaganngittuq",          // No Video
-	DialogNoFile:         "Santimi Annaganngittuq",             // No File
-	DialogNoConfig:       "Aanniqsirtilugu Annaganngittuq",     // No Config
-	DialogConfigSaved:    "Aanniqsirtilugu Sapummijugut",       // Config Saved
-	DialogCopied:         "Agagsijugut",                        // Copied
-	DialogNoLog:          "Santimi Annaganngittuq",             // No Log
-	DialogQueued:         "Ilallijjugut",                       // Queued
-	DialogCancelled:      "Atingninga",                         // Cancelled
-	DialogBatchAdd:       "Ilallijjugut Aggiqsijjutilugu",      // Batch Add
-	DialogRecovery:       "Ijunniaqtilugu Piujusirtilugu",      // Conversion Recovery
-	DialogSnippets:       "Ikajurlugit",                        // Snippets
-	DialogPreview:        "Akiqalliat Sanarlugu",               // Generating Preview
-	DialogPlayback:       "Tarvijaksalirijut Piujusirtilugu",   // Playback Unavailable
-	DialogJobQueued:      "Ilallijjugut Aggiqsijjutaujunik",    // Job Queued
-	DialogMerge:          "Nutaaliurniq",                       // Merge
-	DialogCancel:         "Atingninga",                         // Cancel
-	DialogSnippetCreated: "Ikajurlugu Pijjugut",                // Snippet Created
-	DialogQueueNotInit:   "Ilallijjugut Pijuqsirtilugu",        // Queue not initialized
-	DialogNoRunningJob:   "Atingniaqtilugu Aggiqsijjutaujunik", // No running job to cancel
-	LabelSnippet:         "Ikajurlugu:",                        // Snippet:
-	MergeStarted:         "Nutaaliurniq Pijjugut!",             // Merge started!
+	DialogCompare:            "Nalunaiqsiluggit Quliaqtuit",                       // Compare Videos
+	DialogInspect:            "Qaujisarlugu Quliaqtuit",                           // Inspect Video
+	DialogThumbnail:          "Akiqalliat Sanarlugu",                              // Thumbnail Generation
+	DialogSnippet:            "Ikajurlugu",                                        // Snippet
+	DialogInterlacing:        "Silgillirtilugu Asijjiariaqtuq",                    // Interlacing Analysis
+	DialogInterlacingResults: "Silgillirtilugu Asijjiariaqtuq Pijjugut",           // Interlacing Analysis Results
+	DialogAutoCrop:           "Aumiqsirtilugu",                                    // Auto-Crop
+	DialogAutoCropDetection:  "Aumiqsirtilugu Nalunaiqsi",                         // Auto-Crop Detection
+	DialogNoBlackBars:        "Annuraaktilugu Pijjut. Quliaqtuit Anniqsirtilugu.", // No black bars detected
+	DialogNoVideo:            "Quliaqtuit Annaganngittuq",                         // No Video
+	DialogNoFile:             "Santimi Annaganngittuq",                            // No File
+	DialogNoConfig:           "Aanniqsirtilugu Annaganngittuq",                    // No Config
+	DialogConfigSaved:        "Aanniqsirtilugu Sapummijugut",                      // Config Saved
+	DialogCopied:             "Agagsijugut",                                       // Copied
+	DialogNoLog:              "Santimi Annaganngittuq",                            // No Log
+	DialogQueued:             "Ilallijjugut",                                      // Queued
+	DialogCancelled:          "Atingninga",                                        // Cancelled
+	DialogBatchAdd:           "Ilallijjugut Aggiqsijjutilugu",                     // Batch Add
+	DialogRecovery:           "Ijunniaqtilugu Piujusirtilugu",                     // Conversion Recovery
+	DialogSnippets:           "Ikajurlugit",                                       // Snippets
+	DialogPreview:            "Akiqalliat Sanarlugu",                              // Generating Preview
+	DialogPlayback:           "Tarvijaksalirijut Piujusirtilugu",                  // Playback Unavailable
+	DialogJobQueued:          "Ilallijjugut Aggiqsijjutaujunik",                   // Job Queued
+	DialogMerge:              "Nutaaliurniq",                                      // Merge
+	DialogCancel:             "Atingninga",                                        // Cancel
+	DialogSnippetCreated:     "Ikajurlugu Pijjugut",                               // Snippet Created
+	DialogQueueNotInit:       "Ilallijjugut Pijuqsirtilugu",                       // Queue not initialized
+	DialogNoRunningJob:       "Atingniaqtilugu Aggiqsijjutaujunik",                // No running job to cancel
+	LabelSnippet:             "Ikajurlugu:",                                       // Snippet:
+	MergeStarted:             "Nutaaliurniq Pijjugut!",                            // Merge started!
 
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert:     "Asijjiariaqtuq",   // Converting

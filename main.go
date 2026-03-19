@@ -6134,8 +6134,21 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			outExt = ".mp4"
 		}
 		finalOutputPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + outExt
-		reassembleArgs = append(reassembleArgs, finalOutputPath)
 		outputPath = finalOutputPath
+
+		// Inject BPS tag for MKV output so Windows Explorer shows the correct
+		// bitrate. Hardware encoders (NVENC, AMF) don't write per-stream stats
+		// to the Matroska tags block, leaving BPS=0.
+		if strings.EqualFold(outExt, ".mkv") {
+			mode := normalizeBitrateMode(bitrateMode)
+			if mode == "CBR" || mode == "VBR" {
+				if bps := parseBitrateStringToBPS(resolveBitrate()); bps > 0 {
+					reassembleArgs = append(reassembleArgs, "-metadata:s:v:0", fmt.Sprintf("BPS=%d", bps))
+				}
+			}
+		}
+
+		reassembleArgs = append(reassembleArgs, finalOutputPath)
 
 		if logFile != nil {
 			fmt.Fprintln(logFile, "Stage: reassemble")
@@ -6269,8 +6282,19 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			"-pix_fmt", "yuv420p",
 			"-c:a", "copy",
 			"-shortest",
-			outputPath,
 		)
+		// Inject BPS tag for MKV output so Windows Explorer shows the correct
+		// bitrate. Hardware encoders (NVENC, AMF) don't write per-stream stats
+		// to the Matroska tags block, leaving BPS=0.
+		if strings.EqualFold(filepath.Ext(outputPath), ".mkv") {
+			mode := normalizeBitrateMode(bitrateMode)
+			if mode == "CBR" || mode == "VBR" {
+				if bps := parseBitrateStringToBPS(resolveBitrate()); bps > 0 {
+					reassembleArgs = append(reassembleArgs, "-metadata:s:v:0", fmt.Sprintf("BPS=%d", bps))
+				}
+			}
+		}
+		reassembleArgs = append(reassembleArgs, outputPath)
 		if logFile != nil {
 			fmt.Fprintln(logFile, "Stage: reassemble")
 		}
@@ -6323,8 +6347,19 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		"-c:a", "copy",
 		"-progress", "pipe:1",
 		"-nostats",
-		outputPath,
 	)
+	// Inject BPS tag for MKV output so Windows Explorer shows the correct
+	// bitrate. Hardware encoders (NVENC, AMF) don't write per-stream stats
+	// to the Matroska tags block, leaving BPS=0.
+	if strings.EqualFold(filepath.Ext(outputPath), ".mkv") {
+		mode := normalizeBitrateMode(bitrateMode)
+		if mode == "CBR" || mode == "VBR" {
+			if bps := parseBitrateStringToBPS(resolveBitrate()); bps > 0 {
+				args = append(args, "-metadata:s:v:0", fmt.Sprintf("BPS=%d", bps))
+			}
+		}
+	}
+	args = append(args, outputPath)
 
 	logFile, logPath, _ := createConversionLog(inputPath, outputPath, args)
 	cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), args...)
@@ -7385,6 +7420,7 @@ func buildAudioCodecBadge(codecName string) fyne.CanvasObject {
 }
 
 func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
+	t := i18n.T()
 	convertColor := moduleColor("convert")
 	navyBlue := utils.MustHex("#191F35")
 
@@ -8247,7 +8283,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var analyzeInterlaceView fyne.CanvasObject
 	analyzeInterlaceBtn, analyzeInterlaceView = makePanelButton("Analyze Interlacing", func() {
 		if src == nil {
-			dialog.ShowInformation("Interlacing Analysis", "Load a video first.", state.window)
+			dialog.ShowInformation(t.DialogInterlacing, "Load a video first.", state.window)
 			return
 		}
 		go func() {
@@ -8298,7 +8334,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 						result.TotalFrames,
 					)
 
-					dialog.ShowInformation("Interlacing Analysis Results", resultText, state.window)
+					dialog.ShowInformation(t.DialogInterlacingResults, resultText, state.window)
 
 					// Auto-update deinterlace setting
 					if result.SuggestDeinterlace && state.convert.Deinterlace == "Off" {
@@ -8321,7 +8357,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var detectCropView fyne.CanvasObject
 	detectCropBtn, detectCropView = makePanelButton("Detect Crop", func() {
 		if src == nil {
-			dialog.ShowInformation("Auto-Crop", "Load a video first.", state.window)
+			dialog.ShowInformation(t.DialogAutoCrop, "Load a video first.", state.window)
 			return
 		}
 		// Run detection in background
@@ -8335,7 +8371,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 			crop := detectCrop(src.Path, src.Duration)
 			if crop == nil {
-				dialog.ShowInformation("Auto-Crop", "No black bars detected. Video is already fully cropped.", state.window)
+				dialog.ShowInformation(t.DialogAutoCrop, t.DialogNoBlackBars, state.window)
 				return
 			}
 
@@ -8354,7 +8390,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				crop.Width, crop.Height, crop.X, crop.Y,
 				savingsPercent)
 
-			dialog.ShowConfirm("Auto-Crop Detection", message, func(apply bool) {
+			dialog.ShowConfirm(t.DialogAutoCropDetection, message, func(apply bool) {
 				if apply {
 					state.convert.CropWidth = fmt.Sprintf("%d", crop.Width)
 					state.convert.CropHeight = fmt.Sprintf("%d", crop.Height)
@@ -10610,11 +10646,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	snippetBtn := widget.NewButton("Generate Snippet", func() {
 		if state.source == nil {
-			dialog.ShowInformation("Snippet", "Load a video first.", state.window)
+			dialog.ShowInformation(t.DialogSnippet, "Load a video first.", state.window)
 			return
 		}
 		if state.jobQueue == nil {
-			dialog.ShowInformation("Queue", "Queue not initialized.", state.window)
+			dialog.ShowInformation(t.MenuQueue, t.DialogQueueNotInit, state.window)
 			return
 		}
 		src := state.source
@@ -10660,7 +10696,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if !state.jobQueue.IsRunning() {
 			state.jobQueue.Start()
 		}
-		dialog.ShowInformation("Snippet", fmt.Sprintf("%ds snippet job added to queue.", state.snippetLength), state.window)
+		dialog.ShowInformation(t.DialogSnippet, fmt.Sprintf("%ds snippet job added to queue.", state.snippetLength), state.window)
 	})
 	snippetBtn.Importance = widget.MediumImportance
 	if src == nil {
@@ -10672,7 +10708,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	if len(state.loadedVideos) > 1 {
 		snippetAllBtn = widget.NewButton("Generate All Snippets", func() {
 			if state.jobQueue == nil {
-				dialog.ShowInformation("Queue", "Queue not initialized.", state.window)
+				dialog.ShowInformation(t.MenuQueue, t.DialogQueueNotInit, state.window)
 				return
 			}
 
@@ -10729,7 +10765,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				if !state.jobQueue.IsRunning() {
 					state.jobQueue.Start()
 				}
-				dialog.ShowInformation("Snippets",
+				dialog.ShowInformation(t.DialogSnippets,
 					fmt.Sprintf("Added %d snippet jobs to queue.\nEach %ds long.", jobsAdded, state.snippetLength),
 					state.window)
 			}
@@ -10807,19 +10843,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	cancelQueueBtn = widget.NewButton("Cancel Active Job", func() {
 		if state.jobQueue == nil {
-			dialog.ShowInformation("Cancel", "Queue not initialized.", state.window)
+			dialog.ShowInformation(t.DialogCancel, t.DialogQueueNotInit, state.window)
 			return
 		}
 		job := state.jobQueue.CurrentRunning()
 		if job == nil {
-			dialog.ShowInformation("Cancel", "No running job to cancel.", state.window)
+			dialog.ShowInformation(t.DialogCancel, t.DialogNoRunningJob, state.window)
 			return
 		}
 		if err := state.jobQueue.Cancel(job.ID); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to cancel job: %w", err), state.window)
 			return
 		}
-		dialog.ShowInformation("Cancelled", fmt.Sprintf("Cancelled job: %s", job.Title), state.window)
+		dialog.ShowInformation(t.DialogCancelled, fmt.Sprintf("Cancelled job: %s", job.Title), state.window)
 	})
 	cancelQueueBtn.Importance = widget.DangerImportance
 	cancelQueueBtn.Disable()
@@ -10854,7 +10890,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	viewLogBtn := widget.NewButton("View Log", func() {
 		if state.convertActiveLog == "" {
-			dialog.ShowInformation("No Log", "No conversion log available.", state.window)
+			dialog.ShowInformation(t.DialogNoLog, "No conversion log available.", state.window)
 			return
 		}
 		state.openLogViewer("Conversion Log", state.convertActiveLog, state.convertBusy)
@@ -10912,7 +10948,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		cfg, err := loadPersistedConvertConfig()
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				dialog.ShowInformation("No Config", "No saved config found yet. It will save automatically after your first change.", state.window)
+				dialog.ShowInformation(t.DialogNoConfig, "No saved config found yet. It will save automatically after your first change.", state.window)
 			} else {
 				dialog.ShowError(fmt.Errorf("failed to load config: %w", err), state.window)
 			}
@@ -10928,7 +10964,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
 			return
 		}
-		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("convert")), state.window)
+		dialog.ShowInformation(t.DialogConfigSaved, fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("convert")), state.window)
 	})
 	saveCfgBtn.Importance = widget.MediumImportance
 
@@ -11123,6 +11159,7 @@ func makeLabeledPanel(title, body string, min fyne.Size) *fyne.Container {
 }
 
 func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.CanvasObject, func()) {
+	t := i18n.T()
 	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
 	outer.CornerRadius = 8
 	outer.StrokeColor = gridColor
@@ -11323,7 +11360,7 @@ Metadata: %s`,
 	// Copy metadata button - beside header text
 	copyBtn := widget.NewButton("", func() {
 		state.window.Clipboard().SetContent(metadataText)
-		dialog.ShowInformation("Copied", "Metadata copied to clipboard", state.window)
+		dialog.ShowInformation(t.DialogCopied, "Metadata copied to clipboard", state.window)
 	})
 	copyBtn.Importance = widget.LowImportance
 
@@ -11451,7 +11488,7 @@ Metadata: %s`,
 
 				go func() {
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						dialog.ShowInformation("Generating Preview", "Creating comparison preview...", state.window)
+						dialog.ShowInformation(t.DialogPreview, "Creating comparison preview...", state.window)
 					}, false)
 
 					detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
@@ -11539,6 +11576,7 @@ Metadata: %s`,
 }
 
 func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover func(string)) fyne.CanvasObject {
+	t := i18n.T()
 	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
 	outer.CornerRadius = 8
 	outer.StrokeColor = gridColor
@@ -11796,7 +11834,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				state.playSess = newPlaySession(src.Path, src.Width, src.Height, src.FrameRate, src.Duration, int(targetWidth-28), int(targetHeight-40), updateProgress, updateFrame, img)
 				if state.playSess == nil {
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						dialog.ShowInformation("Playback Unavailable", "Embedded video playback requires GStreamer to be installed correctly.\n\nPlease either:\n1. Install/fix GStreamer on your system\n2. Use the Preview slider for frame-by-frame preview\n3. Use an external player (mpv, VLC, or ffplay)", state.window)
+						dialog.ShowInformation(t.DialogPlayback, "Embedded video playback requires GStreamer to be installed correctly.\n\nPlease either:\n1. Install/fix GStreamer on your system\n2. Use the Preview slider for frame-by-frame preview\n3. Use an external player (mpv, VLC, or ffplay)", state.window)
 					}, false)
 					return false
 				}
@@ -15141,6 +15179,7 @@ func aspectFiltersWithTarget(target float64, mode string, srcAspect float64, tar
 }
 
 func (s *appState) generateSnippet() {
+	t := i18n.T()
 	if s.source == nil {
 		return
 	}
@@ -15376,7 +15415,7 @@ func (s *appState) generateSnippet() {
 		if progressDialog != nil {
 			progressDialog.Hide()
 		}
-		dialog.ShowInformation("Snippet Created", fmt.Sprintf("Saved %s", outPath), s.window)
+		dialog.ShowInformation(t.DialogSnippetCreated, fmt.Sprintf("Saved %s", outPath), s.window)
 	}, false)
 }
 
