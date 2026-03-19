@@ -3145,16 +3145,23 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	}
 	hasChapters := len(chapterTimestamps) >= 2
 
-	// Scan VOBs for NAV_PCK positions to build VOBU_ADMAP tables.
-	// Hardware players use the ADMAP for seeking and trick play.
+	// Scan VOBs for NAV_PCK positions and PTMs.
+	// ScanVOBNAVPCKs reads both sector numbers and presentation timestamps so
+	// we can build the VOBU_ADMAP for absolute seek and patch VOBU_SRI for
+	// relative trick-play seek in one pass.
 	logFn("Scanning VOBs for NAV_PCK positions...")
 	mainVOBPath := filepath.Join(videoTSPath, "VTS_01_1.VOB")
 	var mainNavSectors []uint32
 	var mainAdmap *ifo.VOBU_ADMAP
-	if navSectors, err2 := vob.ScanVOBForNAVPCKs(mainVOBPath); err2 == nil {
-		mainNavSectors = navSectors
-		mainAdmap = ifo.BuildVOBU_ADMAP(navSectors)
-		logFn(fmt.Sprintf("  VTS_01_1.VOB: %d VOBUs indexed", len(navSectors)))
+	if navs, err2 := vob.ScanVOBNAVPCKs(mainVOBPath); err2 == nil {
+		for _, n := range navs {
+			mainNavSectors = append(mainNavSectors, n.Sector)
+		}
+		mainAdmap = ifo.BuildVOBU_ADMAP(mainNavSectors)
+		logFn(fmt.Sprintf("  VTS_01_1.VOB: %d VOBUs indexed", len(navs)))
+		if err2 := vob.PatchVOBUSRI(mainVOBPath, navs); err2 != nil {
+			logging.Info(logging.CatDVD, "VOBU_SRI patch failed for main VOB: %v", err2)
+		}
 	} else {
 		logging.Info(logging.CatDVD, "NAV_PCK scan failed for main VOB: %v", err2)
 	}
@@ -3218,9 +3225,16 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			extraTMAPT = ifo.BuildLinearTMAPT(uint32(info.Size()/2048), clip.Duration, 1)
 		}
 		var extraAdmap *ifo.VOBU_ADMAP
-		if navSectors, err2 := vob.ScanVOBForNAVPCKs(extraVOBPath); err2 == nil {
-			extraAdmap = ifo.BuildVOBU_ADMAP(navSectors)
-			logFn(fmt.Sprintf("  VTS_%02d_1.VOB: %d VOBUs indexed", vtsNum, len(navSectors)))
+		if navs, err2 := vob.ScanVOBNAVPCKs(extraVOBPath); err2 == nil {
+			extraSectors := make([]uint32, len(navs))
+			for j, n := range navs {
+				extraSectors[j] = n.Sector
+			}
+			extraAdmap = ifo.BuildVOBU_ADMAP(extraSectors)
+			logFn(fmt.Sprintf("  VTS_%02d_1.VOB: %d VOBUs indexed", vtsNum, len(navs)))
+			if err2 := vob.PatchVOBUSRI(extraVOBPath, navs); err2 != nil {
+				logging.Info(logging.CatDVD, "VOBU_SRI patch failed for extra %d: %v", vtsNum, err2)
+			}
 		}
 		extraStates[i] = extraIFOState{extraMat, extraPGC, extraTMAPT, extraAdmap, nil}
 		if err := ifoBuilder.GenerateVTS_IFO(vtsNum, extraMat, extraPGC, extraTMAPT, extraAdmap, nil); err != nil {
