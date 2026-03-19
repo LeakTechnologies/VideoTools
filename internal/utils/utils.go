@@ -302,7 +302,7 @@ func MakeIconButton(symbol, tooltip string, tapped func()) *widget.Button {
 func LoadAppIcon() fyne.Resource {
 	var iconFiles []string
 	if runtime.GOOS == "windows" {
-		iconFiles = []string{"VT_logo.ico"}
+		iconFiles = []string{"VT_Icon.ico"}
 	} else {
 		iconFiles = []string{"VT_logo.png"}
 	}
