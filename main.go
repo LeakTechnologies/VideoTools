@@ -1095,6 +1095,15 @@ type appState struct {
 	upscaleRIFEMultiplier      int      // 2 or 4
 	upscaleRIFEModel           string   // "rife-v4.6", "rife-v4.13-lite", "rife-anime"
 
+	// Output & colour accuracy settings
+	upscaleHardwareAccel   string // "auto", "none", "nvenc", "vaapi", "qsv", "videotoolbox"
+	upscaleOutputContainer string // "mp4", "mkv", "mov", "webm"
+	upscaleManualCRF       int    // 0-51, used when bitrateMode is CRF
+	upscalePixelFormat     string // "yuv420p", "yuv444p", "yuv420p10le"
+	upscaleSrcColorSpace   string // "auto", "bt601", "bt709", "bt2020"
+	upscaleColorDepth      string // "8bit", "16bit"
+	upscaleSkinTone        string // "off", "subtle", "strong"
+
 	// Snippet settings
 	snippetLength       int  // Length of snippet in seconds (default: 20)
 	snippetSourceFormat bool // true = source format, false = conversion format (default: true)
@@ -2441,6 +2450,26 @@ func hasFFmpegEncoder(name string) bool {
 		return false
 	}
 	return strings.Contains(encoders, " "+name+" ") || strings.Contains(encoders, " "+name+"\n")
+}
+
+// resolveH264HWEncoder returns the best available hardware H.264 encoder for "auto" mode.
+func resolveH264HWEncoder() (string, bool) {
+	for _, enc := range []string{"h264_nvenc", "h264_vaapi", "h264_qsv", "h264_videotoolbox", "h264_amf"} {
+		if hasFFmpegEncoder(enc) {
+			return enc, true
+		}
+	}
+	return "", false
+}
+
+// resolveHEVCHWEncoder returns the best available hardware H.265/HEVC encoder for "auto" mode.
+func resolveHEVCHWEncoder() (string, bool) {
+	for _, enc := range []string{"hevc_nvenc", "hevc_vaapi", "hevc_qsv", "hevc_videotoolbox", "hevc_amf"} {
+		if hasFFmpegEncoder(enc) {
+			return enc, true
+		}
+	}
+	return "", false
 }
 
 func resolveAV1Encoder(hardwareAccel string) (string, bool) {
@@ -5476,6 +5505,21 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		rifeMultiplier = v
 	}
 
+	// Output & colour accuracy settings
+	hardwareAccel, _ := cfg["hardwareAccel"].(string)
+	outputContainer, _ := cfg["outputContainer"].(string)
+	if outputContainer == "" {
+		outputContainer = "mp4"
+	}
+	manualCRF := int(toFloat(cfg["manualCRF"]))
+	pixelFormat, _ := cfg["pixelFormat"].(string)
+	if pixelFormat == "" {
+		pixelFormat = "yuv420p"
+	}
+	srcColorSpace, _ := cfg["srcColorSpace"].(string)
+	colorDepth, _ := cfg["colorDepth"].(string)
+	skinTone, _ := cfg["skinTone"].(string)
+
 	if progressCallback != nil {
 		progressCallback(0)
 	}
@@ -5495,14 +5539,19 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		}
 	}
 
+	// manualCRF takes precedence over quality presets when non-zero.
 	crfValue := 16
-	switch qualityPreset {
-	case "Lossless (CRF 0)":
-		crfValue = 0
-	case "High (CRF 18)":
-		crfValue = 18
-	case "Near-lossless (CRF 16)":
-		crfValue = 16
+	if manualCRF > 0 || manualCRF == 0 && qualityPreset == "Lossless (CRF 0)" {
+		crfValue = manualCRF
+	} else {
+		switch qualityPreset {
+		case "Lossless (CRF 0)":
+			crfValue = 0
+		case "High (CRF 18)":
+			crfValue = 18
+		case "Near-lossless (CRF 16)":
+			crfValue = 16
+		}
 	}
 
 	resolveBitrate := func() string {
@@ -5562,12 +5611,41 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		}
 	}
 
-	// Resolve video codec encoder (used by both AI and non-AI paths)
-	resolveVideoCodec := func(codec string) string {
+	// Resolve video codec encoder with optional hardware acceleration.
+	resolveVideoCodec := func(codec, accel string) string {
+		accel = strings.ToLower(strings.TrimSpace(accel))
 		switch strings.ToLower(codec) {
 		case "h.264", "":
+			switch accel {
+			case "nvenc":
+				return "h264_nvenc"
+			case "vaapi":
+				return "h264_vaapi"
+			case "qsv":
+				return "h264_qsv"
+			case "videotoolbox":
+				return "h264_videotoolbox"
+			case "auto":
+				if resolved, ok := resolveH264HWEncoder(); ok {
+					return resolved
+				}
+			}
 			return "libx264"
 		case "h.265":
+			switch accel {
+			case "nvenc":
+				return "hevc_nvenc"
+			case "vaapi":
+				return "hevc_vaapi"
+			case "qsv":
+				return "hevc_qsv"
+			case "videotoolbox":
+				return "hevc_videotoolbox"
+			case "auto":
+				if resolved, ok := resolveHEVCHWEncoder(); ok {
+					return resolved
+				}
+			}
 			return "libx265"
 		case "vp9":
 			return "libvpx-vp9"
@@ -5582,7 +5660,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			return "libx264"
 		}
 	}
-	videoEncoder := resolveVideoCodec(videoCodec)
+	videoEncoder := resolveVideoCodec(videoCodec, hardwareAccel)
 
 	appendEncodingArgs := func(args []string) []string {
 		preset := encoderPreset
@@ -5747,16 +5825,71 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			preFilter = strings.Join(baseFilters, ",")
 		}
 
-		frameExt := strings.ToLower(aiOutputFormat)
-		if frameExt == "jpeg" {
-			frameExt = "jpg"
+		// Determine the actual source colour space, defaulting by resolution when "auto".
+		resolvedSrcCS := strings.ToLower(strings.TrimSpace(srcColorSpace))
+		if resolvedSrcCS == "auto" || resolvedSrcCS == "" {
+			// Probe the source to read embedded metadata first.
+			if probed, err := probeVideo(inputPath); err == nil && probed != nil {
+				switch strings.ToLower(probed.ColorSpace) {
+				case "bt709", "rec709":
+					resolvedSrcCS = "bt709"
+				case "bt2020", "rec2020":
+					resolvedSrcCS = "bt2020"
+				case "bt601", "smpte170m", "smpte240m", "bt470bg":
+					resolvedSrcCS = "bt601"
+				default:
+					// Fall back to resolution-based heuristic.
+					if probed.Height > 0 && probed.Height <= 576 {
+						resolvedSrcCS = "bt601"
+					} else {
+						resolvedSrcCS = "bt709"
+					}
+				}
+			} else if sourceHeight > 0 && sourceHeight <= 576 {
+				resolvedSrcCS = "bt601"
+			} else {
+				resolvedSrcCS = "bt709"
+			}
 		}
-		framePattern := filepath.Join(inputFramesDir, "frame_%08d."+frameExt)
+
+		// Build a colorspace normalisation filter when the source matrix differs
+		// from the bt709 working space that AI models expect.  The filter also
+		// linearises (gamma) and converts to full-range RGB, which eliminates the
+		// "orange shift" caused by mismatched BT.601/BT.709 coefficients.
+		colourFilters := []string{}
+		if resolvedSrcCS != "bt709" {
+			colourFilters = append(colourFilters,
+				fmt.Sprintf("colorspace=all=bt709:iall=%s:fast=0", resolvedSrcCS),
+			)
+		}
+
+		// For 16-bit depth, request rgb48 PNG so Real-ESRGAN gets full precision.
+		use16bit := colorDepth == "16bit"
+
+		// Always extract as PNG for colour accuracy (lossless; Real-ESRGAN reads PNG natively).
+		frameExt := "png"
+		framePattern := filepath.Join(inputFramesDir, "frame_%08d.png")
 		extractArgs := []string{"-y", "-hide_banner", "-i", inputPath}
+
+		// Merge colour filters with any pre-filters from the filters module.
+		allExtractFilters := append(colourFilters, baseFilters...)
 		if preFilter != "" {
-			extractArgs = append(extractArgs, "-vf", preFilter)
+			// preFilter already built from baseFilters; rebuild with colour prefix.
+			allExtractFilters = append(colourFilters, strings.Split(preFilter, ",")...)
+		} else {
+			allExtractFilters = colourFilters
+			if len(baseFilters) > 0 {
+				allExtractFilters = append(allExtractFilters, baseFilters...)
+			}
+		}
+		if len(allExtractFilters) > 0 {
+			extractArgs = append(extractArgs, "-vf", strings.Join(allExtractFilters, ","))
+		}
+		if use16bit {
+			extractArgs = append(extractArgs, "-pix_fmt", "rgb48le")
 		}
 		extractArgs = append(extractArgs, "-start_number", "0", framePattern)
+		_ = frameExt // used in aiArgs below
 
 		logFile, logPath, _ := createConversionLog(inputPath, outputPath, extractArgs)
 		if logFile != nil {
@@ -5938,20 +6071,69 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			"-map", "0:v:0",
 			"-map", "1:a?",
 		}
-		// Final scale to ensure target height/aspect (optional)
+
+		// Build post-process filter chain for reassembly.
+		// Skin tone preservation: hue-selective saturation nudge in the red-pink
+		// band to compensate for chroma suppression from the AI model.
+		// This only touches the Cr channel in the skin-tone hue sector.
+		var reassembleFilters []string
 		if targetPreset != "" && targetPreset != "Match Source" {
-			finalScale := buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR)
-			reassembleArgs = append(reassembleArgs, "-vf", finalScale)
+			reassembleFilters = append(reassembleFilters, buildUpscaleFilter(targetWidth, targetHeight, method, preserveAR))
+		}
+		switch skinTone {
+		case "subtle":
+			reassembleFilters = append(reassembleFilters,
+				"huesaturation=hue=0:saturation=0.04:intensity=0:rH=1:rS=1:rI=0:rV=1",
+			)
+		case "strong":
+			reassembleFilters = append(reassembleFilters,
+				"huesaturation=hue=0:saturation=0.09:intensity=0:rH=1:rS=1:rI=0:rV=1",
+			)
+		}
+		if len(reassembleFilters) > 0 {
+			reassembleArgs = append(reassembleArgs, "-vf", strings.Join(reassembleFilters, ","))
 		}
 
 		reassembleArgs = append(reassembleArgs, "-c:v", videoEncoder)
 		reassembleArgs = appendEncodingArgs(reassembleArgs)
+
+		// Pixel format: honour user choice; fall back to yuv420p for compatibility.
+		outPixFmt := pixelFormat
+		if outPixFmt == "" {
+			outPixFmt = "yuv420p"
+		}
+		// Hardware encoders require specific pixel formats; override if needed.
+		if strings.HasSuffix(videoEncoder, "_nvenc") || strings.HasSuffix(videoEncoder, "_qsv") {
+			if outPixFmt == "yuv444p" {
+				outPixFmt = "yuv444p"
+			} else {
+				outPixFmt = "yuv420p"
+			}
+		}
+
+		// Tag the output with the correct colour space metadata so players and
+		// downstream tools do not apply a second (wrong) colour conversion.
+		targetCS := "bt709" // we always output bt709 from the AI pipeline
 		reassembleArgs = append(reassembleArgs,
-			"-pix_fmt", "yuv420p",
+			"-pix_fmt", outPixFmt,
+			"-colorspace", targetCS,
+			"-color_primaries", targetCS,
+			"-color_trc", targetCS,
 			"-c:a", "copy",
 			"-shortest",
-			outputPath,
 		)
+
+		// Derive output path from container choice.
+		outExt := "." + strings.ToLower(outputContainer)
+		if outputContainer == "" {
+			outExt = filepath.Ext(outputPath)
+		}
+		if outExt == "." || outExt == "" {
+			outExt = ".mp4"
+		}
+		finalOutputPath := strings.TrimSuffix(outputPath, filepath.Ext(outputPath)) + outExt
+		reassembleArgs = append(reassembleArgs, finalOutputPath)
+		outputPath = finalOutputPath
 
 		if logFile != nil {
 			fmt.Fprintln(logFile, "Stage: reassemble")
@@ -7503,8 +7685,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		uiState.aspect = val
 		state.convert.OutputAspect = val
-		if userSet {
+		// Only mark as user-set if explicitly choosing a specific aspect ratio, not "Source"
+		if userSet && !strings.EqualFold(val, "source") {
 			state.convert.AspectUserSet = true
+		} else if strings.EqualFold(val, "source") {
+			// Selecting "Source" means use video's native aspect ratio - reset the flag
+			state.convert.AspectUserSet = false
 		}
 		if strings.EqualFold(val, "source") || isStandardAspect(val) {
 			customAspectActive = false
