@@ -259,7 +259,7 @@ var enCA = Strings{
 	UpdateCurrentVersion:    "Current Version:",
 	UpdateVersionHash:       "Version Hash:",
 	UpdateChecking:          "Checking for updates...",
-	UpdateError:             "Error:",
+	UpdateError:             "Could not reach update server.",
 	UpdateAvailableFmt:      "⬤ Update available: %s (%s)",
 	UpdateNewBuildAvailable: "⬤ New build available: %s (%s)",
 	UpdateUpToDateFmt:       "✓ Up to date (latest: %s, %s)",

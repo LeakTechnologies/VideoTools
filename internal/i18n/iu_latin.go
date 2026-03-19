@@ -263,7 +263,7 @@ var iuLatn = Strings{
 	UpdateCurrentVersion:    "Maannaujuq Titiraqsimaujuq:",                                                                                                                        // Current Version:
 	UpdateVersionHash:       "Tukisimatitijuq:",                                                                                                                                   // Version Hash:
 	UpdateChecking:          "Qaujisarniaqtuq Nutaat...",                                                                                                                          // Checking for updates...
-	UpdateError:             "Ajurunniilauqtuq:",                                                                                                                                  // Error:
+	UpdateError:             "Tunisijunnailaursimajuq nutaat qaujisarniaqtaunirmut.",                                                                                              // Could not reach update server.
 	UpdateAvailableFmt:      "⬤ Nutaaq Tunijaujannarqtuq: %s (%s)",                                                                                                                // Update available: %s (%s)
 	UpdateNewBuildAvailable: "⬤ Nutaaq Pilirijijautaujuq: %s (%s)",                                                                                                                // New build available: %s (%s)
 	UpdateUpToDateFmt:       "✓ Anulaaniqtuq (%s, %s)",                                                                                                                            // Up to date (latest: %s, %s)
