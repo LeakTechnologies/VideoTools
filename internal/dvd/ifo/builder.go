@@ -20,11 +20,12 @@ func NewBuilder(outputDir string) *Builder {
 }
 
 // GenerateVTS_IFO creates VTS_xx_0.IFO and VTS_xx_0.BUP.
-// pgc, tmapt, and admap may each be nil. When provided:
-//   - pgc  → PGCITI written at sector 1, offsets updated
-//   - tmapt → TMAPT written after PGCITI, VTS_TMAPTI_Offset updated
-//   - admap → VOBU_ADMAP written last, VTS_VOBU_ADMAP_Offset updated
-func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain, tmapt *VTS_TMAPT, admap *VOBU_ADMAP) error {
+// All table pointers may be nil; when non-nil they are written in this order:
+//   - pttsrpt → VTS_PTT_SRPT at sector 1 (chapter table)
+//   - pgc     → VTS_PGCITI after pttsrpt (PGC navigation)
+//   - tmapt   → VTS_TMAPT after pgciti (seek-bar time map)
+//   - admap   → VOBU_ADMAP last (VOBU address map for trick play)
+func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain, tmapt *VTS_TMAPT, admap *VOBU_ADMAP, pttsrpt *VTS_PTT_SRPT) error {
 	filename := fmt.Sprintf("VTS_%02d_0.IFO", vtsNumber)
 	ifoPath := filepath.Join(b.outputDir, filename)
 	bupPath := filepath.Join(b.outputDir, fmt.Sprintf("VTS_%02d_0.BUP", vtsNumber))
@@ -33,10 +34,22 @@ func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain
 
 	// Sector layout:
 	//   Sector 0:   VTS_MAT
-	//   Sector 1:   VTS_PGCITI  (if pgc != nil)
-	//   Next:       VTS_TMAPT   (if tmapt != nil)
-	//   Next:       VOBU_ADMAP  (if admap != nil)
+	//   Sector 1:   VTS_PTT_SRPT (if pttsrpt != nil)
+	//   Next:       VTS_PGCITI   (if pgc != nil)
+	//   Next:       VTS_TMAPT    (if tmapt != nil)
+	//   Next:       VOBU_ADMAP   (if admap != nil)
 	nextSector := uint32(1)
+
+	var pttsrptData []byte
+	if pttsrpt != nil {
+		var err error
+		pttsrptData, err = WriteVTS_PTT_SRPT(pttsrpt)
+		if err != nil {
+			return fmt.Errorf("serialize vts_ptt_srpt: %w", err)
+		}
+		mat.VTS_PTT_SRPT_Offset = nextSector
+		nextSector += uint32(len(pttsrptData) / 2048)
+	}
 
 	var pgcitiData []byte
 	if pgc != nil {
@@ -75,6 +88,9 @@ func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain
 	// Sector 0: MAT — use spec-correct byte-offset serializer, not binary.Write
 	buf.Write(SerializeVTSMAT(mat))
 
+	if pttsrptData != nil {
+		buf.Write(pttsrptData)
+	}
 	if pgcitiData != nil {
 		buf.Write(pgcitiData)
 	}

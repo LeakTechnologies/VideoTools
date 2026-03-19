@@ -36,6 +36,97 @@ func BuildSingleCellPGC(firstSector, lastSector uint32, durationSeconds float64,
 	return pgc
 }
 
+// ChapterCell defines the disc sector extent and duration of one chapter cell.
+type ChapterCell struct {
+	FirstSector uint32
+	LastSector  uint32
+	Duration    float64 // seconds
+}
+
+// ChapterCellsFromNAV builds chapter cell boundaries from NAV_PCK sector
+// positions and chapter timestamps (in seconds).
+//
+// navSectors is the ordered list of all VOBU sector addresses within the VOB
+// (as returned by ScanVOBForNAVPCKs, VOB-relative). timestamps is the list of
+// chapter start times in seconds, starting from 0.0 for the first chapter.
+// lastVOBSector is the index of the last sector of the VOB file.
+// totalDuration is the total duration of the title in seconds.
+//
+// Returns nil if fewer than 2 chapters or no NAV_PCKs.
+func ChapterCellsFromNAV(navSectors []uint32, timestamps []float64, totalDuration float64, lastVOBSector uint32) []ChapterCell {
+	if len(timestamps) < 2 || len(navSectors) == 0 || totalDuration <= 0 {
+		return nil
+	}
+	nVOBU := float64(len(navSectors))
+	n := len(timestamps)
+	cells := make([]ChapterCell, n)
+
+	vobuIdxFor := func(ts float64) int {
+		idx := int(ts / totalDuration * nVOBU)
+		if idx < 0 {
+			idx = 0
+		}
+		if idx >= len(navSectors) {
+			idx = len(navSectors) - 1
+		}
+		return idx
+	}
+
+	for i, ts := range timestamps {
+		cells[i].FirstSector = navSectors[vobuIdxFor(ts)]
+		if i+1 < n {
+			nextIdx := vobuIdxFor(timestamps[i+1])
+			if nextIdx > 0 {
+				cells[i].LastSector = navSectors[nextIdx] - 1
+			} else {
+				cells[i].LastSector = cells[i].FirstSector
+			}
+			cells[i].Duration = timestamps[i+1] - ts
+		} else {
+			cells[i].LastSector = lastVOBSector
+			cells[i].Duration = totalDuration - ts
+		}
+	}
+	return cells
+}
+
+// BuildChapterPGC creates a multi-program, multi-cell PGC where each cell
+// corresponds to one chapter. This enables chapter navigation on hardware
+// players when combined with a VTS_PTT_SRPT.
+//
+// cells must have at least one entry. For single-chapter content use
+// BuildSingleCellPGC instead. totalDuration is the full title duration.
+func BuildChapterPGC(cells []ChapterCell, totalDuration float64, isNTSC bool) *ProgramChain {
+	n := len(cells)
+	if n == 0 {
+		return nil
+	}
+	programs := make([]ProgramInfo, n)
+	cellPlayback := make([]CellPlayback, n)
+	cellPosition := make([]CellPosition, n)
+
+	for i, c := range cells {
+		programs[i] = ProgramInfo{EntryCell: uint8(i + 1)}
+		cellPlayback[i] = CellPlayback{
+			PlaybackTime:        SecondsToPlaybackTime(c.Duration, isNTSC),
+			FirstSector:         c.FirstSector,
+			FirstILVUEndSector:  c.LastSector,
+			LastVOBUStartSector: c.LastSector,
+			LastSector:          c.LastSector,
+		}
+		cellPosition[i] = CellPosition{VOBID: 1, CellID: uint8(i + 1)}
+	}
+
+	return &ProgramChain{
+		NrOfPrograms: uint8(n),
+		NrOfCells:    uint8(n),
+		PlaybackTime: SecondsToPlaybackTime(totalDuration, isNTSC),
+		Programs:     programs,
+		CellPlayback: cellPlayback,
+		CellPosition: cellPosition,
+	}
+}
+
 // SecondsToPlaybackTime converts a float64 duration in seconds to the DVD BCD
 // PlaybackTime format.
 func SecondsToPlaybackTime(secs float64, isNTSC bool) PlaybackTime {

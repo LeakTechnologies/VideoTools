@@ -132,17 +132,31 @@ func NewVMGMAT() *VMG_MAT {
 	return mat
 }
 
-// ReadVMGI parses a VMG IFO file from a reader.
+// ReadVMGI parses the VMG_MAT from the first sector of a VIDEO_TS.IFO file.
+// Fields are read from their spec-correct byte offsets (matching SerializeVMGMAT).
 func ReadVMGI(r io.Reader) (*VMG_MAT, error) {
-	mat := &VMG_MAT{}
-	if err := binary.Read(r, binary.BigEndian, mat); err != nil {
-		return nil, fmt.Errorf("read vmg_mat: %w", err)
+	buf := make([]byte, 2048)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return nil, fmt.Errorf("read vmg_mat sector: %w", err)
 	}
-	
-	id := string(mat.VMG_Identifier[:])
+	id := string(buf[0:12])
 	if !strings.HasPrefix(id, "DVDVIDEO-VMG") {
-		return nil, fmt.Errorf("invalid VMG identifier: %s", id)
+		return nil, fmt.Errorf("invalid VMG identifier: %q", id)
 	}
-	
+	mat := &VMG_MAT{}
+	copy(mat.VMG_Identifier[:], buf[0:12])
+	mat.VMG_Last_Sector         = binary.BigEndian.Uint32(buf[12:16])
+	mat.VMG_BUP_Last_Sector     = binary.BigEndian.Uint32(buf[28:32])
+	mat.VMG_MAT_Last_Sector     = binary.BigEndian.Uint32(buf[40:44])
+	mat.VMG_Category            = binary.BigEndian.Uint32(buf[44:48])
+	mat.NrOfTitleSets           = binary.BigEndian.Uint16(buf[72:74])
+	mat.TT_SRPT_Offset          = binary.BigEndian.Uint32(buf[192:196])
+	mat.VMG_PTT_SRPT_Offset     = binary.BigEndian.Uint32(buf[196:200])
+	mat.VMG_PGCITI_Offset       = binary.BigEndian.Uint32(buf[200:204])
+	mat.VMG_PTL_MAIT_Offset     = binary.BigEndian.Uint32(buf[204:208])
+	mat.VMG_VTS_ATRT_Offset     = binary.BigEndian.Uint32(buf[208:212])
+	mat.VMG_TXTDT_MG_Offset     = binary.BigEndian.Uint32(buf[212:216])
+	mat.VMG_M_C_ADT_Offset      = binary.BigEndian.Uint32(buf[216:220])
+	mat.VMG_M_VOBU_ADMAP_Offset = binary.BigEndian.Uint32(buf[220:224])
 	return mat, nil
 }

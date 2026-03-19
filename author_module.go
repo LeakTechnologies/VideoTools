@@ -3117,21 +3117,42 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 	}
 
-	// Build a single-cell PGC for the main title so hardware players can
-	// navigate to it. Sector 0 = first sector of VTS_01_1.VOB on disc; we
-	// use 0 as a placeholder (UDF layout is determined later).
+	// Determine duration and audio stream count before building any IFO structures,
+	// so that every GenerateVTS_IFO call (pass 1 and pass 2) has correct attrs.
 	var mainDuration float64
 	if primarySrc != nil {
 		mainDuration = primarySrc.Duration
 	}
-	mainPGC := ifo.BuildSingleCellPGC(0, 0, mainDuration, isNTSC)
+	nAudio := uint16(len(featureClips[0].AudioTracks))
+	if nAudio == 0 {
+		nAudio = 1 // always at least one audio stream
+	}
+	vtsMat.VTS_Audio_Streams_Count = nAudio
+	for i := uint16(0); i < nAudio && i < 8; i++ {
+		vtsMat.VTS_Audio_Attributes[i] = ifo.AudioAttributes{
+			AudioCodingMode: 0, // AC-3
+			Multichannel:    0,
+			SampleRate:      0, // 48 kHz
+			NumChannels:     1, // 2ch stereo (value = channels - 1)
+		}
+	}
+
+	// Extract chapter timestamps for PTT_SRPT / multi-cell PGC.
+	// chapters[0].Timestamp is always 0 (start of title).
+	var chapterTimestamps []float64
+	for _, ch := range chapters {
+		chapterTimestamps = append(chapterTimestamps, ch.Timestamp)
+	}
+	hasChapters := len(chapterTimestamps) >= 2
 
 	// Scan VOBs for NAV_PCK positions to build VOBU_ADMAP tables.
 	// Hardware players use the ADMAP for seeking and trick play.
 	logFn("Scanning VOBs for NAV_PCK positions...")
 	mainVOBPath := filepath.Join(videoTSPath, "VTS_01_1.VOB")
+	var mainNavSectors []uint32
 	var mainAdmap *ifo.VOBU_ADMAP
 	if navSectors, err2 := vob.ScanVOBForNAVPCKs(mainVOBPath); err2 == nil {
+		mainNavSectors = navSectors
 		mainAdmap = ifo.BuildVOBU_ADMAP(navSectors)
 		logFn(fmt.Sprintf("  VTS_01_1.VOB: %d VOBUs indexed", len(navSectors)))
 	} else {
@@ -3145,23 +3166,52 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		mainTMAPT = ifo.BuildLinearTMAPT(totalSectors, mainDuration, 1)
 	}
 
-	if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap); err != nil {
+	// Build PTT_SRPT and PGC for main title.
+	// If chapters are available, create a multi-program PGC with one cell per
+	// chapter. Otherwise fall back to a single-cell PGC.
+	var mainPTTSRPT *ifo.VTS_PTT_SRPT
+	var mainPGC *ifo.ProgramChain
+	nChapters := uint16(1)
+	if hasChapters {
+		nChapters = uint16(len(chapterTimestamps))
+		mainPTTSRPT = &ifo.VTS_PTT_SRPT{NrOfChapters: nChapters}
+		// Placeholder sectors (0) — corrected in pass 2 for ISO builds.
+		cells := ifo.ChapterCellsFromNAV(mainNavSectors, chapterTimestamps, mainDuration, 0)
+		if cells != nil {
+			mainPGC = ifo.BuildChapterPGC(cells, mainDuration, isNTSC)
+		} else {
+			mainPGC = ifo.BuildSingleCellPGC(0, 0, mainDuration, isNTSC)
+		}
+	} else {
+		mainPGC = ifo.BuildSingleCellPGC(0, 0, mainDuration, isNTSC)
+	}
+	for i := uint16(0); i < nAudio && i < 8; i++ {
+		mainPGC.AudioControl[i] = 0x8000 | uint16(i<<8) // active=1, stream_nr=i
+	}
+
+	if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap, mainPTTSRPT); err != nil {
 		return fmt.Errorf("native ifo generation failed: %w", err)
 	}
 
 	// Generate IFOs for any extra title sets
 	type extraIFOState struct {
-		mat   *ifo.VTS_MAT
-		pgc   *ifo.ProgramChain
-		tmapt *ifo.VTS_TMAPT
-		admap *ifo.VOBU_ADMAP
+		mat     *ifo.VTS_MAT
+		pgc     *ifo.ProgramChain
+		tmapt   *ifo.VTS_TMAPT
+		admap   *ifo.VOBU_ADMAP
+		pttsrpt *ifo.VTS_PTT_SRPT
 	}
 	extraStates := make([]extraIFOState, len(extraClips))
 	for i, clip := range extraClips {
 		vtsNum := i + 2
 		extraMat := ifo.NewVTSMAT()
 		extraMat.VTS_Attributes = vtsMat.VTS_Attributes
+		extraMat.VTS_Audio_Streams_Count = vtsMat.VTS_Audio_Streams_Count
+		extraMat.VTS_Audio_Attributes = vtsMat.VTS_Audio_Attributes
 		extraPGC := ifo.BuildSingleCellPGC(0, 0, clip.Duration, isNTSC)
+		for j := uint16(0); j < nAudio && j < 8; j++ {
+			extraPGC.AudioControl[j] = 0x8000 | uint16(j<<8)
+		}
 		var extraTMAPT *ifo.VTS_TMAPT
 		extraVOBPath := filepath.Join(videoTSPath, fmt.Sprintf("VTS_%02d_1.VOB", vtsNum))
 		if info, err2 := os.Stat(extraVOBPath); err2 == nil && clip.Duration > 0 {
@@ -3172,8 +3222,8 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			extraAdmap = ifo.BuildVOBU_ADMAP(navSectors)
 			logFn(fmt.Sprintf("  VTS_%02d_1.VOB: %d VOBUs indexed", vtsNum, len(navSectors)))
 		}
-		extraStates[i] = extraIFOState{extraMat, extraPGC, extraTMAPT, extraAdmap}
-		if err := ifoBuilder.GenerateVTS_IFO(vtsNum, extraMat, extraPGC, extraTMAPT, extraAdmap); err != nil {
+		extraStates[i] = extraIFOState{extraMat, extraPGC, extraTMAPT, extraAdmap, nil}
+		if err := ifoBuilder.GenerateVTS_IFO(vtsNum, extraMat, extraPGC, extraTMAPT, extraAdmap, nil); err != nil {
 			return fmt.Errorf("native ifo generation failed for extra %d: %w", vtsNum, err)
 		}
 	}
@@ -3183,14 +3233,22 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	srpt := &ifo.TT_SRPT{
 		NumTitles: uint16(totalTitles),
 	}
-	for i := 0; i < totalTitles; i++ {
+	srpt.Titles = append(srpt.Titles, ifo.TitleSearchPointer{
+		TitleType:       0x01, // one sequential PGC
+		NumAngles:       0x01,
+		NumChapters:     nChapters,
+		VTSNumber:       1,
+		VTS_TitleNumber: 1,
+		StartSector:     0, // updated during ISO layout
+	})
+	for i := range extraClips {
 		srpt.Titles = append(srpt.Titles, ifo.TitleSearchPointer{
-			TitleType:      0x01, // one sequential PGC
-			NumAngles:      0x01,
-			NumChapters:    1,
-			VTSNumber:      uint8(i + 1),
+			TitleType:       0x01,
+			NumAngles:       0x01,
+			NumChapters:     1,
+			VTSNumber:       uint8(i + 2),
 			VTS_TitleNumber: 1,
-			StartSector:    0, // updated during ISO layout
+			StartSector:     0,
 		})
 	}
 
@@ -3223,27 +3281,6 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		if err := vob.CreateMinimalMenuVOB(menuVOBPath); err != nil {
 			logging.Info(logging.CatDVD, "Failed to create menu VOB: %v", err)
 		}
-	}
-
-	// Set VTS audio attributes so hardware players know the stream format.
-	// FFmpeg always encodes DVD audio as AC-3 stereo @ 48 kHz.
-	nAudio := uint16(len(featureClips[0].AudioTracks))
-	if nAudio == 0 {
-		nAudio = 1 // always at least one audio stream
-	}
-	vtsMat.VTS_Audio_Streams_Count = nAudio
-	for i := uint16(0); i < nAudio && i < 8; i++ {
-		vtsMat.VTS_Audio_Attributes[i] = ifo.AudioAttributes{
-			AudioCodingMode: 0,    // AC-3
-			Multichannel:    0,
-			SampleRate:      0,    // 48 kHz
-			NumChannels:     1,    // 2ch stereo (value = channels - 1)
-		}
-	}
-
-	// Set AudioControl in main PGC so players activate the audio streams.
-	for i := uint16(0); i < nAudio && i < 8; i++ {
-		mainPGC.AudioControl[i] = 0x8000 | uint16(i<<8) // active=1, stream_nr=i
 	}
 
 	// Generate VMG IFO/BUP (disc root metadata)
@@ -3285,8 +3322,26 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 
 		// Re-build the main title PGC with the actual disc sector range.
 		if first, count, ok := vtsSector("VTS_01_1.VOB"); ok {
-			mainPGC = ifo.BuildSingleCellPGC(first, first+count-1, mainDuration, isNTSC)
-			logging.Info(logging.CatDVD, "Main VOB disc sectors: %d – %d", first, first+count-1)
+			lastSector := first + count - 1
+			logging.Info(logging.CatDVD, "Main VOB disc sectors: %d – %d", first, lastSector)
+			if hasChapters && len(mainNavSectors) > 0 {
+				// Convert VOB-relative NAV_PCK sectors to disc-absolute.
+				discNav := make([]uint32, len(mainNavSectors))
+				for j, s := range mainNavSectors {
+					discNav[j] = first + s
+				}
+				cells := ifo.ChapterCellsFromNAV(discNav, chapterTimestamps, mainDuration, lastSector)
+				if cells != nil {
+					mainPGC = ifo.BuildChapterPGC(cells, mainDuration, isNTSC)
+				} else {
+					mainPGC = ifo.BuildSingleCellPGC(first, lastSector, mainDuration, isNTSC)
+				}
+			} else {
+				mainPGC = ifo.BuildSingleCellPGC(first, lastSector, mainDuration, isNTSC)
+			}
+			for i := uint16(0); i < nAudio && i < 8; i++ {
+				mainPGC.AudioControl[i] = 0x8000 | uint16(i<<8)
+			}
 		}
 		// Update TT_SRPT StartSector for the main title.
 		if ifoFirst, _, ok := vtsSector("VTS_01_0.IFO"); ok {
@@ -3300,8 +3355,11 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			ifoName := fmt.Sprintf("VTS_%02d_0.IFO", vtsNum)
 			if first, count, ok := vtsSector(vobName); ok {
 				extraPGC2 := ifo.BuildSingleCellPGC(first, first+count-1, clip.Duration, isNTSC)
+				for j := uint16(0); j < nAudio && j < 8; j++ {
+					extraPGC2.AudioControl[j] = 0x8000 | uint16(j<<8)
+				}
 				st := extraStates[i]
-				if err := ifoBuilder.GenerateVTS_IFO(vtsNum, st.mat, extraPGC2, st.tmapt, st.admap); err != nil {
+				if err := ifoBuilder.GenerateVTS_IFO(vtsNum, st.mat, extraPGC2, st.tmapt, st.admap, st.pttsrpt); err != nil {
 					logging.Info(logging.CatDVD, "IFO sector patch failed for extra %d: %v", vtsNum, err)
 				}
 			}
@@ -3311,7 +3369,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 
 		// Pass 2: Rewrite VTS_01_0.IFO and VIDEO_TS.IFO with correct sectors.
-		if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap); err != nil {
+		if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap, mainPTTSRPT); err != nil {
 			return fmt.Errorf("ifo sector patch failed: %w", err)
 		}
 		if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGC); err != nil {
