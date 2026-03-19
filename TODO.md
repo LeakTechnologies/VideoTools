@@ -4,6 +4,28 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev35 Scope (in progress)
 
+### GPU Rendering Pipeline (NEW)
+- [x] **Renderer interface** (`internal/media/gpu/renderer.go`) - Abstract GPU renderer with Texture interface
+- [x] **OpenGL implementation** (`internal/media/gpu/opengl.go`) - OpenGL 4.6+ renderer
+- [x] **Direct3D 11 implementation** (`internal/media/gpu/d3d11.go`) - D3D11 renderer for NVIDIA/AMD
+- [x] **Texture utilities** (`internal/media/gpu/texture.go`) - Texture pooling, format conversion, scaling
+- [x] **Shader definitions** (`internal/media/gpu/shaders/`) - Vertex, fragment, and YUV→RGB shaders
+- [x] **Keyboard shortcuts** (`internal/media/gpu/shortcuts.go`) - Full shortcut handler (Space, arrows, F, M, 0-9, etc.)
+- [x] **Seekbar with thumbnails** (`internal/media/gpu/seekbar.go`) - Thumbnail cache, preview on hover
+- [x] **FFmpeg filter pipeline** (`internal/media/filters/pipeline.go`) - Deinterlace, scale, color correction
+- [x] **VideoPlayer overlay controls** (`internal/media/view.go`) - Integrated player controls
+- [ ] **Real OpenGL implementation** - Actual GL context integration with Fyne
+- [ ] **Real D3D11 implementation** - Actual DXGI device/swap chain setup
+- [ ] **Texture upload pipeline** - Zero-copy GPU upload from FFmpeg frames
+- [ ] **Thumbnail extraction** - Async keyframe extraction during file load
+
+### Playback Enhancements (PLANNED)
+- [ ] **Smooth scrubbing** - Pre-decode frames during seek for instant feedback
+- [ ] **Loading indicators** - Spinner/progress for buffering states
+- [ ] **Resume playback** - Store position in config, offer "Continue from X?"
+- [ ] **Picture-in-Picture** - Platform-specific PiP implementation
+- [ ] **Playback speed control** - 0.25x → 2x with audio pitch correction
+
 ### Localization (dev34 carry-forward)
 - [x] **Subtitles i18n** — 9 strings added and wired in subtitles_module.go.
 - [x] **Audio/Filters/Inspect i18n wired** — Module views use t.* strings.

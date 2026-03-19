@@ -1895,7 +1895,12 @@ func (m *mouseButtonHandler) MouseDown(me *desktop.MouseEvent) {
 	case desktop.MouseButton4:
 		m.state.navigateBack()
 	case desktop.MouseButton5:
-		m.state.navigateForward()
+		active := m.state.active
+		if active != "mainmenu" && active != "queue" {
+			m.state.showQueue()
+		} else {
+			m.state.navigateForward()
+		}
 	}
 }
 
@@ -8111,7 +8116,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		logging.Debug(logging.CatUI, "DVD aspect set to %s", value)
 		state.convert.OutputAspect = value
 	})
-	dvdAspectSelect.SetSelected("16:9")
 	dvdAspectLabel := widget.NewLabelWithStyle("DVD Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
 	// DVD info label showing specs based on format selected
@@ -10101,8 +10105,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				resolutionSelectSimple.SetSelected("Source")
 				resolutionSelect.SetSelected("Source")
 				frameRateSelect.SetSelected("Source")
-				targetAspectSelectSimple.SetSelected("Source")
-				targetAspectSelect.SetSelected("Source")
+				targetAspectSelectSimple.SetSelected(sourceAspectLabel)
+				targetAspectSelect.SetSelected(sourceAspectLabel)
 				if src != nil {
 					updateAspectBoxVisibility()
 				}

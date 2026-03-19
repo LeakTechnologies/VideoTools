@@ -3,25 +3,34 @@
 package media
 
 import (
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
 
 const (
-	dividerWidth = 4
-	vtGreen      = 0x4CE870
-	hoverPadding = 8
+	dividerWidth     = 4
+	vtGreen          = 0x4CE870
+	hoverPadding     = 8
+	controlBarHeight = 48
+	controlAlpha     = 0xCC
 )
 
 var (
 	dividerColor      = color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xFF}
 	dividerHoverColor = color.RGBA{R: 0x7F, G: 0xFF, B: 0xA0, A: 0xFF}
+	controlBarBG      = color.RGBA{R: 0x19, G: 0x1F, B: 0x35, A: controlAlpha}
+	sliderFill        = color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xFF}
+	sliderBackground  = color.RGBA{R: 0x40, G: 0x40, B: 0x50, A: 0x80}
 )
 
 type SplitView struct {
@@ -181,12 +190,86 @@ func (s *SplitView) draw(w, h int) image.Image {
 type VideoPlayer struct {
 	widget.BaseWidget
 	source *image.RGBA
+
+	playBtn    *widget.Button
+	slider     *widget.Slider
+	timeLabel  *canvas.Text
+	durLabel   *canvas.Text
+	volumeBtn  *widget.Button
+	controls   *fyne.Container
+	controlBar *canvas.Rectangle
+
+	isPlaying   bool
+	currentTime float64
+	duration    float64
+	volume      float64
+
+	onPlay         func()
+	onPause        func()
+	onSeek         func(float64)
+	onVolumeChange func(float64)
+
+	showControls bool
+	mouseInView  bool
 }
 
 func NewVideoPlayer() *VideoPlayer {
-	v := &VideoPlayer{}
+	v := &VideoPlayer{
+		showControls: true,
+		currentTime:  0,
+		duration:     0,
+		volume:       1.0,
+		isPlaying:    false,
+	}
 	v.ExtendBaseWidget(v)
+	v.buildControls()
 	return v
+}
+
+func (v *VideoPlayer) buildControls() {
+	v.playBtn = widget.NewButton("▶", v.togglePlay)
+	v.playBtn.Importance = widget.LowImportance
+	v.playBtn.Resize(fyne.NewSize(36, 36))
+
+	v.slider = widget.NewSlider(0, 100)
+	v.slider.OnChanged = func(pos float64) {
+		if v.duration > 0 {
+			target := (pos / 100.0) * v.duration
+			v.currentTime = target
+			if v.onSeek != nil {
+				v.onSeek(target)
+			}
+		}
+	}
+
+	v.timeLabel = canvas.NewText("00:00:00", color.White)
+	v.timeLabel.TextSize = 12
+
+	v.durLabel = canvas.NewText("00:00:00", color.White)
+	v.durLabel.TextSize = 12
+
+	v.volumeBtn = widget.NewButton("🔊", v.toggleMute)
+	v.volumeBtn.Importance = widget.LowImportance
+	v.volumeBtn.Resize(fyne.NewSize(36, 36))
+
+	controlRow := container.NewHBox(
+		v.playBtn,
+		widget.NewLabel(""),
+		v.timeLabel,
+		v.slider,
+		v.durLabel,
+		v.volumeBtn,
+	)
+
+	v.controlBar = canvas.NewRectangle(controlBarBG)
+	v.controlBar.CornerRadius = 0
+
+	v.controls = container.NewStack(
+		canvas.NewRectangle(color.Transparent),
+		container.NewPadded(container.NewBorder(nil, nil, nil, nil, controlRow)),
+	)
+
+	_ = layout.NewBorderLayout(v.controls, nil, nil, nil)
 }
 
 func (v *VideoPlayer) CreateRenderer() fyne.WidgetRenderer {
@@ -198,6 +281,115 @@ func (v *VideoPlayer) SetFrame(img *image.RGBA) {
 	v.Refresh()
 }
 
+func (v *VideoPlayer) SetDuration(d float64) {
+	v.duration = d
+	v.updateTimeLabels()
+}
+
+func (v *VideoPlayer) SetCurrentTime(t float64) {
+	v.currentTime = t
+	v.updateTimeLabels()
+	if v.duration > 0 {
+		v.slider.SetValue((t / v.duration) * 100)
+	}
+}
+
+func (v *VideoPlayer) SetPlaying(playing bool) {
+	v.isPlaying = playing
+	if v.playBtn != nil {
+		if playing {
+			v.playBtn.SetText("⏸")
+		} else {
+			v.playBtn.SetText("▶")
+		}
+	}
+}
+
+func (v *VideoPlayer) SetVolume(vol float64) {
+	v.volume = vol
+	if v.volumeBtn != nil {
+		if vol <= 0 {
+			v.volumeBtn.SetText("🔇")
+		} else if vol < 0.5 {
+			v.volumeBtn.SetText("🔉")
+		} else {
+			v.volumeBtn.SetText("🔊")
+		}
+	}
+}
+
+func (v *VideoPlayer) togglePlay() {
+	if v.isPlaying {
+		if v.onPause != nil {
+			v.onPause()
+		}
+	} else {
+		if v.onPlay != nil {
+			v.onPlay()
+		}
+	}
+}
+
+func (v *VideoPlayer) toggleMute() {
+	if v.volume > 0 {
+		v.SetVolume(0)
+	} else {
+		v.SetVolume(1.0)
+	}
+	if v.onVolumeChange != nil {
+		v.onVolumeChange(v.volume)
+	}
+}
+
+func (v *VideoPlayer) updateTimeLabels() {
+	if v.timeLabel != nil {
+		v.timeLabel.Text = formatVideoTime(v.currentTime)
+	}
+	if v.durLabel != nil {
+		v.durLabel.Text = formatVideoTime(v.duration)
+	}
+}
+
+func (v *VideoPlayer) OnPlay(cb func()) {
+	v.onPlay = cb
+}
+
+func (v *VideoPlayer) OnPause(cb func()) {
+	v.onPause = cb
+}
+
+func (v *VideoPlayer) OnSeek(cb func(float64)) {
+	v.onSeek = cb
+}
+
+func (v *VideoPlayer) OnVolumeChange(cb func(float64)) {
+	v.onVolumeChange = cb
+}
+
+func (v *VideoPlayer) MouseIn(ev *desktop.MouseEvent) {
+	v.mouseInView = true
+	v.showControls = true
+	v.Refresh()
+}
+
+func (v *VideoPlayer) MouseOut() {
+	v.mouseInView = false
+	v.showControls = false
+	v.Refresh()
+}
+
+func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {
+	v.togglePlay()
+}
+
+func formatVideoTime(seconds float64) string {
+	t := time.Duration(seconds * float64(time.Second))
+	h := int(t.Hours())
+	m := int(t.Minutes()) % 60
+	s := int(t.Seconds()) % 60
+	return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
+}
+
 type videoPlayerRenderer struct {
 	*VideoPlayer
 	raster *canvas.Raster
@@ -207,11 +399,30 @@ func (r *videoPlayerRenderer) Objects() []fyne.CanvasObject {
 	if r.raster == nil {
 		r.raster = canvas.NewRaster(r.VideoPlayer.draw)
 	}
-	return []fyne.CanvasObject{r.raster}
+	return []fyne.CanvasObject{r.raster, r.VideoPlayer.controlBar, r.VideoPlayer.controls}
 }
 
 func (r *videoPlayerRenderer) Layout(size fyne.Size) {
 	r.raster.Resize(size)
+
+	barHeight := float32(controlBarHeight)
+	if !r.showControls {
+		barHeight = 0
+	}
+
+	r.VideoPlayer.controlBar.Resize(fyne.NewSize(size.Width, barHeight))
+	r.VideoPlayer.controlBar.Move(fyne.NewPos(0, size.Height-barHeight))
+
+	r.VideoPlayer.controls.Resize(fyne.NewSize(size.Width, barHeight))
+	r.VideoPlayer.controls.Move(fyne.NewPos(0, size.Height-barHeight))
+
+	if r.showControls {
+		r.VideoPlayer.controlBar.Show()
+		r.VideoPlayer.controls.Show()
+	} else {
+		r.VideoPlayer.controlBar.Hide()
+		r.VideoPlayer.controls.Hide()
+	}
 }
 
 func (r *videoPlayerRenderer) Refresh() {
@@ -222,7 +433,7 @@ func (r *videoPlayerRenderer) Destroy() {
 }
 
 func (r *videoPlayerRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(320, 240)
+	return fyne.NewSize(320, 180)
 }
 
 func (v *VideoPlayer) draw(w, h int) image.Image {
@@ -238,8 +449,13 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 		return image.NewRGBA(image.Rect(0, 0, w, h))
 	}
 
+	availableH := h
+	if v.showControls {
+		availableH = h - controlBarHeight
+	}
+
 	scaleX := float64(w) / float64(srcW)
-	scaleY := float64(h) / float64(srcH)
+	scaleY := float64(availableH) / float64(srcH)
 	scale := scaleX
 	if scaleY < scale {
 		scale = scaleY
@@ -249,9 +465,9 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 	newH := int(float64(srcH) * scale)
 
 	offsetX := (w - newW) / 2
-	offsetY := (h - newH) / 2
+	offsetY := (availableH - newH) / 2
 
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	img := image.NewRGBA(image.Rect(0, 0, w, availableH))
 	draw.Draw(img, img.Bounds(), image.Black, image.Point{}, draw.Src)
 
 	for y := 0; y < newH; y++ {

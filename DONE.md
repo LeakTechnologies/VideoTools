@@ -2,6 +2,18 @@
 
 ## Version 0.1.1-dev35 (in progress) - Native Media Engine & Trim Module
 
+### GPU Rendering Pipeline (NEW)
+- [x] **Renderer interface** (`internal/media/gpu/renderer.go`) - Abstract GPU renderer with Texture interface
+- [x] **OpenGL implementation** (`internal/media/gpu/opengl.go`) - OpenGL 4.6+ renderer scaffold
+- [x] **Direct3D 11 implementation** (`internal/media/gpu/d3d11.go`) - D3D11 renderer scaffold for NVIDIA/AMD
+- [x] **Texture utilities** (`internal/media/gpu/texture.go`) - Texture pooling, format conversion, scaling helpers
+- [x] **Shader definitions** (`internal/media/gpu/shaders/`) - Vertex, fragment, and YUV→RGB shaders for GPU rendering
+- [x] **Keyboard shortcuts** (`internal/media/gpu/shortcuts.go`) - Full shortcut handler (Space, arrows, F, M, 0-9, <>, etc.)
+- [x] **Seekbar with thumbnails** (`internal/media/gpu/seekbar.go`) - ThumbnailCache, preview on hover, ThumbnailGenerator interface
+- [x] **Volume control** (`internal/media/gpu/seekbar.go`) - VolumeControl widget with mute toggle
+- [x] **FFmpeg filter pipeline** (`internal/media/filters/pipeline.go`) - Deinterlace, scale, color correction, denoise, sharpen filters with presets
+- [x] **VideoPlayer overlay controls** (`internal/media/view.go`) - Integrated player controls with play/pause, seek, volume, hover-to-reveal
+
 ### Bug Fixes (tester feedback)
 - [x] **MKV 0 kbps bitrate tag** — Hardware encoders (AMF, NVENC) don't write per-stream BPS stats to Matroska; inject `-metadata:s:v:0 BPS=<bps>` for CBR/VBR MKV output so Windows Explorer and media tools display correct bitrate.
 - [x] **Queue list flash with multiple jobs** — `UpdateJobs` now only calls `jobList.Refresh()` on structural changes; individual widget updates handle their own redraws. Eliminates rapid full-list redraws causing flicker. `Scroll.Refresh()` also called to fix blank body with multiple pending jobs.
