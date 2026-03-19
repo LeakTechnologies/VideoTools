@@ -166,6 +166,83 @@ func WriteVTS_PTT_SRPT(srpt *VTS_PTT_SRPT) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// VTS_C_ADT is the Cell Address Table for a VTS title set.
+// It maps each cell in the VTS to its VOB ID, cell ID, and disc sector range.
+// Hardware players validate PGC cell references against this table and use it
+// for physical seek operations.
+//
+// On-disc layout:
+//
+//	[0-1]  Nr_of_Cells (uint16)
+//	[2-3]  Reserved (uint16)
+//	[4-7]  EndByte (uint32) — last byte of table, 0-relative
+//	[8+]   Nr_of_Cells × 12-byte Cell_ADT_Entry:
+//	         [0-1]  VOB_ID (uint16, 1-indexed)
+//	         [2]    Cell_ID (uint8, 1-indexed)
+//	         [3]    Reserved (uint8)
+//	         [4-7]  StartSector (uint32)
+//	         [8-11] EndSector (uint32)
+type VTS_C_ADT struct {
+	Cells []CellADTEntry
+}
+
+// CellADTEntry is one record in the VTS_C_ADT table.
+type CellADTEntry struct {
+	VOBID       uint16
+	CellID      uint8
+	StartSector uint32
+	EndSector   uint32
+}
+
+// BuildVTS_C_ADT constructs a VTS_C_ADT from a ProgramChain's cell playback
+// table. Each cell in the PGC becomes one entry with VOBID=1 and CellID=i+1.
+// Returns nil if the PGC has no cells or all cells have zero sector ranges.
+func BuildVTS_C_ADT(pgc *ProgramChain) *VTS_C_ADT {
+	if pgc == nil || len(pgc.CellPlayback) == 0 {
+		return nil
+	}
+	entries := make([]CellADTEntry, len(pgc.CellPlayback))
+	for i, c := range pgc.CellPlayback {
+		entries[i] = CellADTEntry{
+			VOBID:       1,
+			CellID:      uint8(i + 1),
+			StartSector: c.FirstSector,
+			EndSector:   c.LastSector,
+		}
+	}
+	return &VTS_C_ADT{Cells: entries}
+}
+
+// WriteVTS_C_ADT serializes the VTS_C_ADT and returns the sector-padded bytes.
+func WriteVTS_C_ADT(cadt *VTS_C_ADT) ([]byte, error) {
+	n := len(cadt.Cells)
+	if n == 0 {
+		return nil, fmt.Errorf("WriteVTS_C_ADT: empty cell table")
+	}
+	// 8-byte header + 12 bytes per cell
+	endByte := uint32(8+n*12) - 1
+
+	logging.Debug(logging.CatDVD, "Building VTS_C_ADT: %d cell(s)", n)
+
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, uint16(n)) // Nr_of_Cells
+	binary.Write(&buf, binary.BigEndian, uint16(0)) // Reserved
+	binary.Write(&buf, binary.BigEndian, endByte)   // EndByte
+
+	for _, e := range cadt.Cells {
+		binary.Write(&buf, binary.BigEndian, e.VOBID)
+		buf.WriteByte(e.CellID)
+		buf.WriteByte(0x00) // Reserved
+		binary.Write(&buf, binary.BigEndian, e.StartSector)
+		binary.Write(&buf, binary.BigEndian, e.EndSector)
+	}
+
+	if rem := buf.Len() % 2048; rem != 0 {
+		buf.Write(make([]byte, 2048-rem))
+	}
+	return buf.Bytes(), nil
+}
+
 // VOBU_ADMAP represents the VOBU Address Map table.
 type VOBU_ADMAP struct {
 	EndByte uint32
