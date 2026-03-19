@@ -197,6 +197,8 @@ type VideoPlayer struct {
 	durLabel       *canvas.Text
 	volumeBtn      *widget.Button
 	speedBtn       *widget.Button
+	prevChapterBtn *widget.Button
+	nextChapterBtn *widget.Button
 	loadingSpinner *widget.ProgressBarInfinite
 	controls       *fyne.Container
 	controlBar     *canvas.Rectangle
@@ -208,15 +210,20 @@ type VideoPlayer struct {
 	volume      float64
 	speed       float64
 
-	chapters      []Chapter
-	chapterMark   []*canvas.Circle
-	markerCanvas  *canvas.Raster
+	chapters     []Chapter
+	chapterMark  []*canvas.Circle
+	markerCanvas *canvas.Raster
 
-	onPlay         func()
-	onPause        func()
-	onSeek         func(float64)
-	onVolumeChange func(float64)
-	onSpeedChange  func(float64)
+	currentChapter int
+
+	onPlay          func()
+	onPause         func()
+	onSeek          func(float64)
+	onVolumeChange  func(float64)
+	onSpeedChange   func(float64)
+	onPrevChapter   func()
+	onNextChapter   func()
+	onChapterSelect func(int)
 
 	showControls bool
 	mouseInView  bool
@@ -268,6 +275,16 @@ func (v *VideoPlayer) buildControls() {
 	v.speedBtn.Importance = widget.LowImportance
 	v.speedBtn.Resize(fyne.NewSize(36, 24))
 
+	v.prevChapterBtn = widget.NewButton("⏮", v.prevChapter)
+	v.prevChapterBtn.Importance = widget.LowImportance
+	v.prevChapterBtn.Resize(fyne.NewSize(36, 24))
+	v.prevChapterBtn.Hide()
+
+	v.nextChapterBtn = widget.NewButton("⏭", v.nextChapter)
+	v.nextChapterBtn.Importance = widget.LowImportance
+	v.nextChapterBtn.Resize(fyne.NewSize(36, 24))
+	v.nextChapterBtn.Hide()
+
 	v.loadingSpinner = widget.NewProgressBarInfinite()
 	v.loadingSpinner.Hide()
 
@@ -276,6 +293,9 @@ func (v *VideoPlayer) buildControls() {
 
 	controlRow := container.NewHBox(
 		v.playBtn,
+		widget.NewLabel(""),
+		v.prevChapterBtn,
+		v.nextChapterBtn,
 		widget.NewLabel(""),
 		v.timeLabel,
 		seekStack,
@@ -409,7 +429,83 @@ func (v *VideoPlayer) SetSpeed(speed float64) {
 
 func (v *VideoPlayer) SetChapters(chapters []Chapter) {
 	v.chapters = chapters
+	v.currentChapter = 0
+	v.updateChapterVisibility()
 	v.updateChapterMarkers()
+}
+
+func (v *VideoPlayer) prevChapter() {
+	if len(v.chapters) == 0 {
+		return
+	}
+
+	currentIdx := -1
+	for i, ch := range v.chapters {
+		if v.currentTime >= ch.StartTime && (i == len(v.chapters)-1 || v.currentTime < v.chapters[i+1].StartTime) {
+			currentIdx = i
+			break
+		}
+	}
+
+	targetIdx := currentIdx - 1
+	if targetIdx < 0 {
+		targetIdx = 0
+	}
+
+	if v.onPrevChapter != nil {
+		v.onPrevChapter()
+	} else if v.onSeek != nil {
+		v.onSeek(v.chapters[targetIdx].StartTime)
+	}
+	v.currentChapter = targetIdx
+	v.updateChapterVisibility()
+}
+
+func (v *VideoPlayer) nextChapter() {
+	if len(v.chapters) == 0 {
+		return
+	}
+
+	currentIdx := -1
+	for i, ch := range v.chapters {
+		if v.currentTime >= ch.StartTime && (i == len(v.chapters)-1 || v.currentTime < v.chapters[i+1].StartTime) {
+			currentIdx = i
+			break
+		}
+	}
+
+	targetIdx := currentIdx + 1
+	if targetIdx >= len(v.chapters) {
+		targetIdx = len(v.chapters) - 1
+	}
+
+	if v.onNextChapter != nil {
+		v.onNextChapter()
+	} else if v.onSeek != nil {
+		v.onSeek(v.chapters[targetIdx].StartTime)
+	}
+	v.currentChapter = targetIdx
+	v.updateChapterVisibility()
+}
+
+func (v *VideoPlayer) updateChapterVisibility() {
+	hasChapters := len(v.chapters) > 1
+
+	if v.prevChapterBtn != nil {
+		if hasChapters {
+			v.prevChapterBtn.Show()
+		} else {
+			v.prevChapterBtn.Hide()
+		}
+	}
+
+	if v.nextChapterBtn != nil {
+		if hasChapters {
+			v.nextChapterBtn.Show()
+		} else {
+			v.nextChapterBtn.Hide()
+		}
+	}
 }
 
 func (v *VideoPlayer) updateChapterMarkers() {
@@ -481,6 +577,26 @@ func (v *VideoPlayer) OnVolumeChange(cb func(float64)) {
 
 func (v *VideoPlayer) OnSpeedChange(cb func(float64)) {
 	v.onSpeedChange = cb
+}
+
+func (v *VideoPlayer) OnPrevChapter(cb func()) {
+	v.onPrevChapter = cb
+}
+
+func (v *VideoPlayer) OnNextChapter(cb func()) {
+	v.onNextChapter = cb
+}
+
+func (v *VideoPlayer) OnChapterSelect(cb func(int)) {
+	v.onChapterSelect = cb
+}
+
+func (v *VideoPlayer) GetCurrentChapter() int {
+	return v.currentChapter
+}
+
+func (v *VideoPlayer) GetChapterCount() int {
+	return len(v.chapters)
 }
 
 func (v *VideoPlayer) MouseIn(ev *desktop.MouseEvent) {

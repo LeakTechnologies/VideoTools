@@ -20,6 +20,18 @@
 - [x] **Chapter parsing** - Chapter struct, parseChapters() via FFmpeg, GetChapters() API on Engine
 - [x] **Chapter support in VideoPlayer** - SetChapters() method, chapters stored in player state
 - [x] **Chapter markers on seekbar** - Canvas.Raster overlay draws vtGreen tick marks at chapter boundaries
+- [x] **Chapter navigation** - Prev/next chapter buttons, OnPrevChapter/OnNextChapter callbacks
+- [x] **Thumbnail extraction** - ThumbnailExtractor for async keyframe extraction
+- [x] **Smooth scrubbing** - SmoothScrubbing with FrameCache, pre-decodes frames ahead
+- [x] **Resume playback** - ResumeState in internal/media/state, JSON config persistence
+- [x] **Picture-in-Picture** - PiPController with 4 corner positions, Windows SetWindowDisplayAffinity
+- [x] **Audio pitch correction** - TempoController with FFmpeg atempo filter (0.25x-2.0x)
+
+### GPU Rendering (NEW)
+- [x] **OpenGL texture upload** - GLTexture with glTexImage2D, GPUTextureUpload pool
+- [x] **OpenGL context** - GLContext with shaders (vertex/fragment), VAO/VBO setup
+- [x] **D3D11 context** - D3D11Context/D3D11Texture for Windows NVIDIA/AMD
+- [x] **Thumbnail cache** - ThumbnailCache in gpu/seekbar.go with GetNearest()
 
 ### i18n Strings (NEW)
 - [x] **Player strings** - PlayerLoading, PlayerBuffering, PlayerSpeed, PlayerChapter, PlayerChapters, PlayerNoChapters, PlayerSpeed* (8 new strings)

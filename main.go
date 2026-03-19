@@ -7232,6 +7232,7 @@ func runGUI() {
 		state.handleDrop(pos, items)
 	})
 	state.showMainMenu()
+	startAutoUpdateChecker(state)
 	state.maybePromptWindowsDependencyBootstrap()
 	logging.Debug(logging.CatUI, "main menu rendered with %d modules", len(modulesList))
 

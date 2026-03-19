@@ -25,7 +25,12 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Playback speed control** - Speed button on VideoPlayer, SetSpeed/GetSpeed wired to Engine
 - [x] **Chapter parsing** - Chapter struct, parseChapters(), GetChapters() on Engine
 - [x] **Chapter markers on seekbar** - Visual chapter markers in VideoPlayer (vtGreen tick marks)
-- [ ] **Chapter navigation** - Next/previous chapter controls
+- [x] **Chapter navigation** - Prev/next chapter buttons with callbacks
+- [x] **Thumbnail extraction** - ThumbnailExtractor in thumbnail.go
+- [x] **Smooth scrubbing** - SmoothScrubbing with FrameCache, pre-decode ahead
+- [x] **Resume playback** - ResumeState with JSON config storage
+- [x] **Picture-in-Picture** - PiPController with 4 corner positions
+- [x] **Audio pitch correction** - TempoController with atempo filter (0.25x-2.0x)
 - [ ] **Smooth scrubbing** - Pre-decode frames during seek for instant feedback
 - [ ] **Resume playback** - Store position in config, offer "Continue from X?"
 - [ ] **Picture-in-Picture** - Platform-specific PiP implementation

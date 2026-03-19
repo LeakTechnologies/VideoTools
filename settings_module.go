@@ -1419,6 +1419,77 @@ func extractFileFromZip(zipPath, entryName, destPath string) error {
 	return fmt.Errorf("entry %q not found in zip", entryName)
 }
 
+// autoCheckKeyToInterval maps a canonical AutoCheckFrequency key to a duration.
+// Returns (0, false) for "disabled" or unknown keys.
+func autoCheckKeyToInterval(key string) (time.Duration, bool) {
+	m := map[string]time.Duration{
+		"every_hour":   UpdateCheckHourly,
+		"every_2h":     UpdateCheck2Hours,
+		"every_3h":     UpdateCheck3Hours,
+		"every_4h":     UpdateCheck4Hours,
+		"every_6h":     UpdateCheck6Hours,
+		"every_12h":    UpdateCheck12Hours,
+		"daily":        UpdateCheckDaily,
+		"semi_weekly":  UpdateCheckSemiWeekly,
+		"weekly":       UpdateCheckWeekly,
+		"bi_weekly":    UpdateCheckBiWeekly,
+		"monthly":      UpdateCheckMonthly,
+		"bi_monthly":   UpdateCheckBiMonthly,
+	}
+	d, ok := m[key]
+	return d, ok
+}
+
+// startAutoUpdateChecker launches a background goroutine that checks for
+// updates on the interval stored in state.prefs.AutoCheckFrequency.
+// The timer is relative to app launch — "every hour" means 1 h after the app
+// opens, then every 1 h thereafter. No top-of-clock logic is used.
+// If prefs.AutoCheckFrequency is "disabled" or empty, nothing runs.
+func startAutoUpdateChecker(state *appState) {
+	interval, ok := autoCheckKeyToInterval(state.prefs.AutoCheckFrequency)
+	if !ok {
+		return
+	}
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for range ticker.C {
+			// Re-read preference — user may have changed it while the app is open.
+			newInterval, still := autoCheckKeyToInterval(state.prefs.AutoCheckFrequency)
+			if !still {
+				return // disabled
+			}
+			if newInterval != interval {
+				// Interval changed — restart with new value.
+				ticker.Reset(newInterval)
+				interval = newInterval
+			}
+			info, err := fetchUpdateInfo()
+			if err != nil {
+				logging.Debug(logging.CatSystem, "auto update check failed: %v", err)
+				continue
+			}
+			currentShort := buildCommit
+			if len(currentShort) > 7 {
+				currentShort = currentShort[:7]
+			}
+			tagShort := info.tagCommitSHA
+			if len(tagShort) > 7 {
+				tagShort = tagShort[:7]
+			}
+			hasUpdate := info.latestTag != appVersion
+			hasPatches := !hasUpdate && currentShort != "" && currentShort != "dev" &&
+				tagShort != "" && currentShort != tagShort
+			if hasUpdate || hasPatches {
+				fyne.CurrentApp().SendNotification(&fyne.Notification{
+					Title:   "VideoTools Update Available",
+					Content: fmt.Sprintf("Version %s is available. Open Settings → Updates to install.", info.latestTag),
+				})
+			}
+		}
+	}()
+}
+
 // applyUpdate downloads the release asset for tag and replaces the running binary, then restarts.
 func applyUpdate(state *appState, tag string) {
 	progress := dialog.NewProgressInfinite("Installing Update", "Downloading...", state.window)
