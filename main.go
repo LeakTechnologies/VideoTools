@@ -3033,6 +3033,7 @@ func (s *appState) findVideoFiles(dir string) []string {
 // batchAddToQueue adds multiple videos to the queue
 func (s *appState) batchAddToQueue(paths []string) {
 	logging.Debug(logging.CatModule, "batch adding %d videos to queue", len(paths))
+	t := i18n.T()
 
 	addedCount := 0
 	failedCount := 0
@@ -3121,7 +3122,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 			if failedCount > 0 {
 				msg += fmt.Sprintf("\n\n%d file(s) failed to analyze:\n%s", failedCount, strings.Join(failedFiles, ", "))
 			}
-			dialog.ShowInformation("Batch Add", msg, s.window)
+			dialog.ShowInformation(t.DialogBatchAdd, msg, s.window)
 		} else {
 			// All files failed
 			msg := fmt.Sprintf("Failed to analyze %d file(s):\n%s", failedCount, strings.Join(failedFiles, ", "))
@@ -3297,6 +3298,7 @@ func buildTrimView(state *appState) fyne.CanvasObject {
 
 func (s *appState) submitTrimJob(clip trim.TrimClip) {
 	logging.Info(logging.CatModule, "Submitting trim job for: %s", clip.Path)
+	t := i18n.T()
 
 	// Create output filename
 	ext := filepath.Ext(clip.Path)
@@ -3329,7 +3331,7 @@ func (s *appState) submitTrimJob(clip trim.TrimClip) {
 
 	if s.jobQueue != nil {
 		s.jobQueue.Add(job)
-		dialog.ShowInformation("Job Queued", "Trim job added to queue.", s.window)
+		dialog.ShowInformation(t.DialogJobQueued, t.TrimJobAdded, s.window)
 	}
 }
 
@@ -3693,7 +3695,7 @@ func (s *appState) showMergeView() {
 		if s.jobQueue != nil && !s.jobQueue.IsRunning() {
 			s.jobQueue.Start()
 		}
-		dialog.ShowInformation("Merge", "Merge started! Track progress in Job Queue.", s.window)
+		dialog.ShowInformation(t.DialogMerge, t.MergeStarted, s.window)
 	})
 	if len(s.mergeClips) < 2 {
 		addQueueBtn.Disable()
@@ -3725,7 +3727,7 @@ func (s *appState) showMergeView() {
 		cfg, err := loadPersistedMergeConfig()
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				dialog.ShowInformation("No Config", "No saved config found yet. It will save automatically after your first change.", s.window)
+				dialog.ShowInformation(t.DialogNoConfig, "No saved config found yet. It will save automatically after your first change.", s.window)
 			} else {
 				dialog.ShowError(fmt.Errorf("failed to load config: %w", err), s.window)
 			}
@@ -3750,7 +3752,7 @@ func (s *appState) showMergeView() {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), s.window)
 			return
 		}
-		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("merge")), s.window)
+		dialog.ShowInformation(t.DialogConfigSaved, fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("merge")), s.window)
 	})
 
 	resetBtn := widget.NewButton("Reset", func() {

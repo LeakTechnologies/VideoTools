@@ -297,41 +297,81 @@ func (uw *Writer) AddDirectory(path []string, name string, modTime time.Time) er
 	return nil
 }
 
-// AddDirFS recursively adds a local directory to the UDF writer.
+// AddDirFS recursively adds a local directory tree to the UDF writer.
+// Files are stored with their host path for deferred opening during Build();
+// file handles are not opened until Build() is called. This means the caller
+// can overwrite files on disk between AddDirFS and Build() (e.g., to patch IFO
+// sector addresses) and Build() will read the updated content.
 func (uw *Writer) AddDirFS(localPath string) error {
 	logging.Info(logging.CatDVD, "Recursively adding directory: %s", localPath)
 	return filepath.Walk(localPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		rel, err := filepath.Rel(localPath, path)
 		if err != nil {
 			return err
 		}
-		
+
 		if rel == "." {
 			return nil
 		}
-		
+
 		dirParts := strings.Split(filepath.Dir(rel), string(filepath.Separator))
 		if dirParts[0] == "." {
 			dirParts = nil
 		}
-		
+
 		if info.IsDir() {
 			return uw.AddDirectory(dirParts, info.Name(), info.ModTime())
 		}
-		
-		f, err := os.Open(path)
-		if err != nil {
-			return err
+
+		// Store path for deferred open — no file handle held here.
+		dir := uw.findDir(dirParts)
+		if dir == nil {
+			return fmt.Errorf("directory not found for %s: %v", info.Name(), dirParts)
 		}
-		// Note: caller responsible for closing if writer doesn't, but here we'll 
-		// need a strategy for large builds. 
-		// For simplicity in Authoring, we'll open during walk and assign.
-		return uw.AddFile(dirParts, info.Name(), info.Size(), f, info.ModTime())
+		dir.Children = append(dir.Children, &FileNode{
+			Name:      info.Name(),
+			IsDir:     false,
+			Size:      info.Size(),
+			LocalPath: path,
+			ModTime:   info.ModTime(),
+		})
+		return nil
 	})
+}
+
+// FileInfo holds the disc sector allocation for a single file node.
+type FileInfo struct {
+	DataSector  uint32 // first sector of file data (absolute LBA from disc start)
+	SectorCount uint32 // total 2048-byte sectors occupied by this file
+}
+
+// PreAssignSectors runs the sector allocation algorithm without writing any
+// data and returns a map of disc paths (e.g. "/VIDEO_TS/VTS_01_0.IFO") to
+// their computed disc-level sector positions. Safe to call before Build();
+// Build() re-runs the same algorithm and produces identical results as long as
+// the file tree is not modified between calls.
+func (uw *Writer) PreAssignSectors() map[string]FileInfo {
+	uw.assignSectors()
+	result := make(map[string]FileInfo)
+	var walk func(n *FileNode, path string)
+	walk = func(n *FileNode, path string) {
+		fullPath := path + "/" + n.Name
+		if !n.IsDir {
+			count := uint32((n.Size + int64(SectorSize) - 1) / int64(SectorSize))
+			result[fullPath] = FileInfo{DataSector: n.DataSector, SectorCount: count}
+		}
+		for _, child := range n.Children {
+			walk(child, fullPath)
+		}
+	}
+	for _, child := range uw.root.Children {
+		walk(child, "")
+	}
+	return result
 }
 
 func (uw *Writer) findDir(path []string) *FileNode {
@@ -464,10 +504,21 @@ func (uw *Writer) writeNode(n *FileNode) error {
 			if _, err := io.CopyN(uw.w, n.Content, n.Size); err != nil {
 				return err
 			}
-			// Close if it's an os.File
 			if rc, ok := n.Content.(io.ReadCloser); ok {
 				rc.Close()
 			}
+		} else if n.LocalPath != "" {
+			// Deferred open: read file fresh from disk (avoids stale handle issues
+			// when file content is regenerated between AddDirFS and Build calls).
+			f, err := os.Open(n.LocalPath)
+			if err != nil {
+				return fmt.Errorf("open %s: %w", n.LocalPath, err)
+			}
+			if _, err := io.CopyN(uw.w, f, n.Size); err != nil {
+				f.Close()
+				return fmt.Errorf("copy %s: %w", n.LocalPath, err)
+			}
+			f.Close()
 		}
 		uw.currentSector += uint32((n.Size + SectorSize - 1) / SectorSize)
 		padding := SectorSize - (n.Size % SectorSize)
