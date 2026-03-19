@@ -15,6 +15,8 @@ import "C"
 import (
 	"fmt"
 	"image"
+	"image/color"
+	"image/draw"
 	"io"
 	"sync"
 
@@ -52,6 +54,7 @@ type VideoInfo struct {
 	HWDevice       HWDeviceType
 	AudioTracks    []StreamInfo
 	SubtitleTracks []StreamInfo
+	VideoTracks    []StreamInfo
 }
 
 type StreamInfo struct {
@@ -59,6 +62,20 @@ type StreamInfo struct {
 	CodecName string
 	Language  string
 	Title     string
+}
+
+type SubtitleOverlay struct {
+	Text    string
+	X       int
+	Y       int
+	Width   int
+	Height  int
+	Palette [4]byte
+	Visible bool
+}
+
+func (s *SubtitleOverlay) Bounds() image.Rectangle {
+	return image.Rect(s.X, s.Y, s.X+s.Width, s.Y+s.Height)
 }
 
 type HWDeviceType int
@@ -190,6 +207,107 @@ func (e *Engine) getHWPixelFormat(hwType C.enum_AVHWDeviceType) C.enum_AVPixelFo
 	return C.AV_PIX_FMT_NONE
 }
 
+func (e *Engine) initSubtitleDecoder(streams *[1 << 30]*C.AVStream) {
+	if e.subtitleStreamIdx < 0 {
+		return
+	}
+
+	stream := streams[e.subtitleStreamIdx]
+	codec := C.avcodec_find_decoder(stream.codecpar.codec_id)
+	if codec == nil {
+		logging.Warning(logging.CatPlayer, "No subtitle decoder found for stream %d", e.subtitleStreamIdx)
+		return
+	}
+
+	e.subtitleCodecCtx = C.avcodec_alloc_context3(codec)
+	if e.subtitleCodecCtx == nil {
+		logging.Warning(logging.CatPlayer, "Failed to allocate subtitle codec context")
+		return
+	}
+
+	C.avcodec_parameters_to_context(e.subtitleCodecCtx, stream.codecpar)
+	e.subtitleTimeBase = float64(stream.time_base.num) / float64(stream.time_base.den)
+
+	if C.avcodec_open2(e.subtitleCodecCtx, codec, nil) < 0 {
+		C.avcodec_free_context(&e.subtitleCodecCtx)
+		e.subtitleCodecCtx = nil
+		logging.Warning(logging.CatPlayer, "Failed to open subtitle codec")
+		return
+	}
+
+	logging.Info(logging.CatPlayer, "Subtitle decoder initialized for stream %d", e.subtitleStreamIdx)
+}
+
+func (e *Engine) decodeSubtitle(pts float64) *SubtitleOverlay {
+	if e.subtitleCodecCtx == nil {
+		return nil
+	}
+
+	for {
+		pkt, ok := e.subtitleQueue.Get()
+		if !ok {
+			return nil
+		}
+		defer C.av_packet_free(&pkt)
+
+		if C.avcodec_send_packet(e.subtitleCodecCtx, pkt) != 0 {
+			continue
+		}
+
+		var sub *C.AVSubtitle
+		var gotSub C.int
+
+		if C.avcodec_receive_subtitle(e.subtitleCodecCtx, sub, &gotSub) == 0 && gotSub == 1 {
+			if sub.num_rects > 0 && sub.rects != nil {
+				rect := sub.rects[0]
+				if rect != nil && rect.type_ == C.AV_SUBTITLE_TYPE_TEXT {
+					text := C.GoString(rect.text)
+					e.currentSubtitle = &SubtitleOverlay{
+						Text:    text,
+						X:       int(rect.x),
+						Y:       int(rect.y),
+						Width:   int(rect.w),
+						Height:  int(rect.h),
+						Visible: true,
+					}
+					e.subtitleExpiry = float64(sub.end_display_time) / 1000.0
+					C.avsubtitle_free(sub)
+					return e.currentSubtitle
+				}
+			}
+			C.avsubtitle_free(sub)
+		}
+	}
+}
+
+func (e *Engine) RenderSubtitles(img *image.RGBA, currentPTS float64) *image.RGBA {
+	if e.currentSubtitle == nil || !e.currentSubtitle.Visible {
+		return img
+	}
+
+	if currentPTS > e.subtitleExpiry {
+		e.currentSubtitle = nil
+		return img
+	}
+
+	bounds := e.currentSubtitle.Bounds()
+	if !bounds.Intersects(img.Bounds()) {
+		return img
+	}
+
+	draw.Draw(img, bounds, &image.Uniform{color.RGBA{
+		R: 0, G: 0, B: 0, A: 180,
+	}}, image.Point{}, draw.Over)
+
+	return img
+}
+
+func (e *Engine) UpdateSubtitles(currentPTS float64) {
+	if e.currentSubtitle != nil && currentPTS > e.subtitleExpiry {
+		e.currentSubtitle = nil
+	}
+}
+
 type Engine struct {
 	formatCtx         *C.AVFormatContext
 	videoStreamIdx    int
@@ -197,13 +315,15 @@ type Engine struct {
 	subtitleStreamIdx int
 	videoCodecCtx     *C.AVCodecContext
 	audioCodecCtx     *C.AVCodecContext
+	subtitleCodecCtx  *C.AVCodecContext
 	swsCtx            *C.struct_SwsContext
 
 	hwDeviceCtx *C.AVHWDeviceContext
 	hwFramesCtx *C.AVHWFramesContext
 
-	videoQueue *PacketQueue
-	audioQueue *PacketQueue
+	videoQueue    *PacketQueue
+	audioQueue    *PacketQueue
+	subtitleQueue *PacketQueue
 
 	audioPlayer *AudioPlayer
 	clock       *MasterClock
@@ -213,8 +333,11 @@ type Engine struct {
 	rgbaFrame  *C.AVFrame
 	rgbaBuffer []byte
 
-	videoTimeBase float64
-	audioTimeBase float64
+	framePool [][]byte
+
+	videoTimeBase    float64
+	audioTimeBase    float64
+	subtitleTimeBase float64
 
 	mu      sync.Mutex
 	running bool
@@ -233,6 +356,11 @@ type Engine struct {
 	looping  bool
 	hasAudio bool
 
+	numThreads int
+
+	currentSubtitle *SubtitleOverlay
+	subtitleExpiry  float64
+
 	info *VideoInfo
 }
 
@@ -243,11 +371,14 @@ func NewEngine() *Engine {
 		subtitleStreamIdx: -1,
 		videoQueue:        NewPacketQueue(),
 		audioQueue:        NewPacketQueue(),
+		subtitleQueue:     NewPacketQueue(),
 		clock:             NewMasterClock(),
 		stop:              make(chan struct{}),
 		volume:            1.0,
 		speed:             1.0,
 		seekAcc:           SeekAccuracyKeyframe,
+		numThreads:        0,
+		framePool:         make([][]byte, 0, 4),
 	}
 }
 
@@ -467,7 +598,136 @@ func (e *Engine) SelectSubtitleTrack(trackIndex int) error {
 
 func (e *Engine) DisableSubtitles() {
 	e.subtitleStreamIdx = -1
+	if e.subtitleCodecCtx != nil {
+		C.avcodec_free_context(&e.subtitleCodecCtx)
+		e.subtitleCodecCtx = nil
+	}
 	logging.Info(logging.CatPlayer, "Subtitles disabled")
+}
+
+func (e *Engine) GetVideoTracks() []StreamInfo {
+	if e.info == nil {
+		return nil
+	}
+	result := make([]StreamInfo, len(e.info.VideoTracks))
+	copy(result, e.info.VideoTracks)
+	return result
+}
+
+func (e *Engine) SelectVideoTrack(trackIndex int) error {
+	if e.formatCtx == nil || e.info == nil {
+		return fmt.Errorf("no media opened")
+	}
+
+	if trackIndex < 0 || trackIndex >= len(e.info.VideoTracks) {
+		return fmt.Errorf("invalid video track index: %d", trackIndex)
+	}
+
+	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(e.formatCtx.streams))
+	streamIdx := e.info.VideoTracks[trackIndex].Index
+
+	if streamIdx == e.videoStreamIdx {
+		return nil
+	}
+
+	codec := C.avcodec_find_decoder(streams[streamIdx].codecpar.codec_id)
+	if codec == nil {
+		return fmt.Errorf("no decoder found for video stream")
+	}
+
+	e.videoQueue.Flush()
+
+	if e.videoCodecCtx != nil {
+		C.avcodec_free_context(&e.videoCodecCtx)
+		e.videoCodecCtx = nil
+	}
+
+	e.videoCodecCtx = C.avcodec_alloc_context3(codec)
+	if e.videoCodecCtx == nil {
+		return fmt.Errorf("failed to allocate video codec context")
+	}
+
+	C.avcodec_parameters_to_context(e.videoCodecCtx, streams[streamIdx].codecpar)
+
+	if e.numThreads > 0 {
+		e.videoCodecCtx.thread_count = C.int(e.numThreads)
+	}
+
+	if C.avcodec_open2(e.videoCodecCtx, codec, nil) < 0 {
+		C.avcodec_free_context(&e.videoCodecCtx)
+		e.videoCodecCtx = nil
+		return fmt.Errorf("failed to open video codec")
+	}
+
+	e.videoTimeBase = float64(streams[streamIdx].time_base.num) / float64(streams[streamIdx].time_base.den)
+	e.videoStreamIdx = streamIdx
+
+	logging.Info(logging.CatPlayer, "Selected video track %d", trackIndex)
+	return nil
+}
+
+func (e *Engine) SetNumThreads(threads int) {
+	if threads < 0 {
+		threads = 0
+	}
+	e.numThreads = threads
+	if e.videoCodecCtx != nil {
+		e.videoCodecCtx.thread_count = C.int(threads)
+	}
+}
+
+func (e *Engine) GetNumThreads() int {
+	return e.numThreads
+}
+
+func (e *Engine) CheckCodecSupport(codecName string) bool {
+	codec := C.avcodec_find_decoder_by_name(C.CString(codecName))
+	if codec == nil {
+		return false
+	}
+
+	pkt := C.av_packet_alloc()
+	if pkt == nil {
+		return false
+	}
+	defer C.av_packet_free(pkt)
+
+	ctx := C.avcodec_alloc_context3(codec)
+	if ctx == nil {
+		return false
+	}
+	defer C.avcodec_free_context(ctx)
+
+	if C.avcodec_open2(ctx, codec, nil) < 0 {
+		return false
+	}
+
+	return true
+}
+
+func (e *Engine) Thumbnail(seconds float64) (*image.RGBA, error) {
+	e.mu.Lock()
+	origStreamIdx := e.videoStreamIdx
+	origCodecCtx := e.videoCodecCtx
+	origTimeBase := e.videoTimeBase
+	e.mu.Unlock()
+
+	if err := e.Seek(seconds); err != nil {
+		return nil, err
+	}
+
+	img, err := e.NextFrame()
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+
+	e.mu.Lock()
+	e.videoStreamIdx = origStreamIdx
+	e.videoCodecCtx = origCodecCtx
+	e.videoTimeBase = origTimeBase
+	e.mu.Unlock()
+
+	return img, nil
 }
 
 func (e *Engine) Open(path string) error {
@@ -501,6 +761,7 @@ func (e *Engine) Open(path string) error {
 		HWDevice:       e.hwDevice,
 		AudioTracks:    []StreamInfo{},
 		SubtitleTracks: []StreamInfo{},
+		VideoTracks:    []StreamInfo{},
 	}
 
 	for i := 0; i < int(e.formatCtx.nb_streams); i++ {
@@ -537,7 +798,9 @@ func (e *Engine) Open(path string) error {
 			Title:     title,
 		}
 
-		if mediaType == C.AVMEDIA_TYPE_AUDIO {
+		if mediaType == C.AVMEDIA_TYPE_VIDEO {
+			e.info.VideoTracks = append(e.info.VideoTracks, info)
+		} else if mediaType == C.AVMEDIA_TYPE_AUDIO {
 			e.info.AudioTracks = append(e.info.AudioTracks, info)
 		} else if mediaType == C.AVMEDIA_TYPE_SUBTITLE {
 			e.info.SubtitleTracks = append(e.info.SubtitleTracks, info)
@@ -556,6 +819,10 @@ func (e *Engine) Open(path string) error {
 	}
 	C.avcodec_parameters_to_context(e.videoCodecCtx, streams[e.videoStreamIdx].codecpar)
 
+	if e.numThreads > 0 {
+		e.videoCodecCtx.thread_count = C.int(e.numThreads)
+	}
+
 	if e.hwDevice != HWDeviceNone {
 		if err := e.initHWDecode(); err != nil {
 			logging.Warning(logging.CatPlayer, "HW decode init failed, falling back to software: %v", err)
@@ -564,6 +831,10 @@ func (e *Engine) Open(path string) error {
 	}
 
 	e.videoTimeBase = float64(streams[e.videoStreamIdx].time_base.num) / float64(streams[e.videoStreamIdx].time_base.den)
+
+	if e.subtitleStreamIdx >= 0 {
+		e.initSubtitleDecoder(streams)
+	}
 
 	e.info.Width = int(e.videoCodecCtx.width)
 	e.info.Height = int(e.videoCodecCtx.height)
@@ -671,13 +942,17 @@ func (e *Engine) demuxerLoop() {
 			if C.av_read_frame(e.formatCtx, pkt) < 0 {
 				e.videoQueue.SetEOF()
 				e.audioQueue.SetEOF()
+				e.subtitleQueue.SetEOF()
 				return
 			}
 
-			if int(pkt.stream_index) == e.videoStreamIdx {
+			streamIdx := int(pkt.stream_index)
+			if streamIdx == e.videoStreamIdx {
 				e.videoQueue.Put(pkt)
-			} else if int(pkt.stream_index) == e.audioStreamIdx {
+			} else if streamIdx == e.audioStreamIdx {
 				e.audioQueue.Put(pkt)
+			} else if streamIdx == e.subtitleStreamIdx && e.subtitleCodecCtx != nil {
+				e.subtitleQueue.Put(pkt)
 			}
 			C.av_packet_unref(pkt)
 		}
@@ -802,6 +1077,15 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 			} else {
 				img = e.toRGBA()
 			}
+
+			e.UpdateSubtitles(adjustedPts)
+			if e.subtitleCodecCtx != nil {
+				sub := e.decodeSubtitle(adjustedPts)
+				if sub != nil {
+					img = e.RenderSubtitles(img, adjustedPts)
+				}
+			}
+
 			return img, nil
 		}
 	}
@@ -845,9 +1129,49 @@ func (e *Engine) toRGBA() *image.RGBA {
 	)
 
 	w, h := int(e.videoCodecCtx.width), int(e.videoCodecCtx.height)
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
+
+	e.mu.Lock()
+	var img *image.RGBA
+	if len(e.framePool) > 0 {
+		buf := e.framePool[len(e.framePool)-1]
+		e.framePool = e.framePool[:len(e.framePool)-1]
+		if len(buf) >= w*h*4 {
+			img = &image.RGBA{
+				Pix:    buf[:w*h*4],
+				Stride: w * 4,
+				Rect:   image.Rect(0, 0, w, h),
+			}
+		}
+	}
+	e.mu.Unlock()
+
+	if img == nil {
+		img = image.NewRGBA(image.Rect(0, 0, w, h))
+	}
+
 	copy(img.Pix, e.rgbaBuffer)
 	return img
+}
+
+func (e *Engine) ReleaseFrame(img *image.RGBA) {
+	if img == nil {
+		return
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if len(e.framePool) < 4 {
+		buf := make([]byte, len(img.Pix))
+		copy(buf, img.Pix)
+		e.framePool = append(e.framePool, buf)
+	}
+}
+
+func (e *Engine) GetFramePoolSize() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return len(e.framePool)
 }
 
 func (e *Engine) Duration() float64 {
@@ -894,6 +1218,13 @@ func (e *Engine) Close() {
 	if e.audioCodecCtx != nil {
 		C.avcodec_free_context(&e.audioCodecCtx)
 		e.audioCodecCtx = nil
+	}
+	if e.subtitleCodecCtx != nil {
+		C.avcodec_free_context(&e.subtitleCodecCtx)
+		e.subtitleCodecCtx = nil
+	}
+	if e.subtitleQueue != nil {
+		e.subtitleQueue.Close()
 	}
 	if e.hwFramesCtx != nil {
 		C.av_buffer_unref(&e.hwFramesCtx.hwctx)
