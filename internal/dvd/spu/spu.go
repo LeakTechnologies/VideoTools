@@ -8,79 +8,183 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
-// SPU Constants
+// SPU DCSQ command codes (DVD spec §4.6.3).
 const (
-	DCSQ_FORCED_START = 0x00
-	DCSQ_START        = 0x01
-	DCSQ_STOP         = 0x02
-	DCSQ_SET_COLOR    = 0x03
-	DCSQ_SET_CONTR    = 0x04
-	DCSQ_SET_AREA     = 0x05
-	DCSQ_SET_ADDRESS  = 0x06
-	DCSQ_CHG_COLCON   = 0x07
-	DCSQ_END          = 0xFF
+	DCSQ_FORCED_START = 0x00 // Force display on
+	DCSQ_START        = 0x01 // Start display
+	DCSQ_STOP         = 0x02 // Stop display
+	DCSQ_SET_COLOR    = 0x03 // Map pixel indices → PGC palette entries
+	DCSQ_SET_CONTR    = 0x04 // Set opacity for each pixel index
+	DCSQ_SET_AREA     = 0x05 // Bounding rectangle of subpicture
+	DCSQ_SET_ADDRESS  = 0x06 // Byte offsets to top/bottom field pixel data
+	DCSQ_CHG_COLCON   = 0x07 // Per-line color/contrast change (not used here)
+	DCSQ_END          = 0xFF // End of DCSQ
 )
 
-// Encoder handles conversion of images to DVD Subpicture Units (SPU).
+// SPUOptions controls how 2-bit pixel indices map to the PGC palette.
+type SPUOptions struct {
+	// PaletteIndices maps each 2-bit SPU pixel color (0-3) to a PGC palette
+	// entry index (0-15).
+	PaletteIndices [4]uint8
+	// AlphaValues sets opacity for each 2-bit SPU pixel color.
+	// 0 = fully transparent, 15 = fully opaque.
+	AlphaValues [4]uint8
+}
+
+// DefaultSPUOptions returns a sensible default:
+//   - color 0: palette 0, transparent  (background)
+//   - color 1: palette 1, fully opaque (pattern / text)
+//   - color 2: palette 2, fully opaque (emphasis / outline)
+//   - color 3: palette 3, semi-transparent (shadow)
+func DefaultSPUOptions() SPUOptions {
+	return SPUOptions{
+		PaletteIndices: [4]uint8{0, 1, 2, 3},
+		AlphaValues:    [4]uint8{0, 15, 15, 8},
+	}
+}
+
+// Encoder converts indexed images into DVD Subpicture Units (SPU).
 type Encoder struct {
 	width  int
 	height int
 }
 
-// NewEncoder creates a new SPU encoder for a specific resolution.
+// NewEncoder creates a new SPU encoder for the given display resolution.
 func NewEncoder(width, height int) *Encoder {
 	logging.Info(logging.CatDVD, "Initializing SPU encoder for %dx%d", width, height)
 	return &Encoder{width: width, height: height}
 }
 
-// Encode converts an indexed image into a binary SPU.
-func (e *Encoder) Encode(img *image.Paletted) ([]byte, error) {
-	logging.Debug(logging.CatDVD, "Encoding image to SPU format")
-	
-	var topField bytes.Buffer
-	var botField bytes.Buffer
-	
+// Encode converts an indexed image into a binary DVD SPU packet.
+//
+// Packet layout (DVD spec 5.1.1):
+//   [0:2]      SP_DCSQ_SZ  - total packet size (big-endian uint16)
+//   [2:4]      SP_DCSQTA   - byte offset to first DCSQ from packet start
+//   [4:dcsqTA] pixel data  - top-field (even rows) then bottom-field (odd rows)
+//   [dcsqTA:]  DCSQ[0]     - forced display: SET_COLOR, SET_CONTR, SET_AREA, SET_ADDRESS
+//              DCSQ[1]     - STOP terminator (self-referencing)
+func (e *Encoder) Encode(img *image.Paletted, opts SPUOptions) ([]byte, error) {
+	logging.Debug(logging.CatDVD, "Encoding SPU %dx%d", e.width, e.height)
+
+	// Encode pixel rows: even -> top field, odd -> bottom field.
+	var topField, botField bytes.Buffer
 	for y := 0; y < e.height; y++ {
-		row := e.getRowPixels(img, y)
-		encodedRow := e.rleEncode(row)
+		encoded := e.rleEncode(e.getRowPixels(img, y))
 		if y%2 == 0 {
-			topField.Write(encodedRow)
+			topField.Write(encoded)
 		} else {
-			botField.Write(encodedRow)
+			botField.Write(encoded)
 		}
 	}
-	
 	topData := topField.Bytes()
 	botData := botField.Bytes()
-	
-	// Display Control Sequence
-	var dcsq bytes.Buffer
-	dcsq.WriteByte(0x00) // Time 0
-	dcsq.WriteByte(0x00) // Time 0
-	dcsq.WriteByte(DCSQ_START)
-	dcsq.WriteByte(DCSQ_SET_AREA)
-	// Area: [x1:12b][x2:12b], [y1:12b][y2:12b]
-	dcsq.Write([]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}) 
-	dcsq.WriteByte(DCSQ_SET_ADDRESS)
-	// Offsets to top/bot field data
-	dcsq.Write([]byte{0x00, 0x04, 0x00, 0x00}) 
-	dcsq.WriteByte(DCSQ_END)
-	
-	dcsqData := dcsq.Bytes()
-	
-	// Assemble SPU
-	spuSize := 4 + len(topData) + len(botData) + len(dcsqData)
-	buf := make([]byte, spuSize)
-	
-	binary.BigEndian.PutUint16(buf[0:2], uint16(spuSize))
-	binary.BigEndian.PutUint16(buf[2:4], uint16(4+len(topData)+len(botData)))
-	
+
+	// Compute byte offsets (all measured from packet start = byte 0).
+	//   header:   4 bytes (SP_DCSQ_SZ + SP_DCSQTA)
+	//   topField: starts at byte 4
+	//   botField: starts at byte 4 + len(topData)
+	//   DCSQ[0]:  starts at byte 4 + len(topData) + len(botData)
+	topOffset := uint16(4)
+	botOffset := uint16(4 + len(topData))
+	dcsqTA := uint16(4 + len(topData) + len(botData))
+
+	// Build DCSQ[0] commands (the 4-byte header is written below).
+	dcsq0Cmds := buildDCSQ0Commands(opts, e.width, e.height, topOffset, botOffset)
+	dcsq0Total := uint16(4 + len(dcsq0Cmds))
+
+	// DCSQ[1] self-reference offset = dcsqTA + size_of_DCSQ0.
+	dcsq1Offset := dcsqTA + dcsq0Total
+	dcsq1 := buildDCSQ1(dcsq1Offset)
+
+	totalSize := int(dcsqTA) + int(dcsq0Total) + len(dcsq1)
+	buf := make([]byte, totalSize)
+
+	binary.BigEndian.PutUint16(buf[0:2], uint16(totalSize))
+	binary.BigEndian.PutUint16(buf[2:4], dcsqTA)
 	copy(buf[4:], topData)
 	copy(buf[4+len(topData):], botData)
-	copy(buf[4+len(topData)+len(botData):], dcsqData)
-	
-	logging.Info(logging.CatDVD, "SPU encoded successfully. Size: %d bytes", spuSize)
+
+	// DCSQ[0]: delay=0, next_dcsq -> DCSQ[1], then commands.
+	d0 := int(dcsqTA)
+	binary.BigEndian.PutUint16(buf[d0:], 0x0000)
+	binary.BigEndian.PutUint16(buf[d0+2:], dcsq1Offset)
+	copy(buf[d0+4:], dcsq0Cmds)
+
+	// DCSQ[1]: STOP terminator.
+	copy(buf[int(dcsq1Offset):], dcsq1)
+
+	logging.Info(logging.CatDVD, "SPU encoded: %d bytes (top=%d bot=%d)",
+		totalSize, len(topData), len(botData))
 	return buf, nil
+}
+
+// buildDCSQ0Commands returns command bytes for the display-on DCSQ.
+// The caller prepends the 4-byte DCSQ header (delay + next_dcsq).
+func buildDCSQ0Commands(opts SPUOptions, w, h int, topOffset, botOffset uint16) []byte {
+	var b bytes.Buffer
+
+	// FORCED_START: force display onto screen immediately.
+	b.WriteByte(DCSQ_FORCED_START)
+
+	// SET_COLOR: 2 bytes, 4x4-bit PGC palette indices.
+	// Bits 15-12: index for pixel color 3
+	// Bits 11-8:  index for pixel color 2
+	// Bits  7-4:  index for pixel color 1
+	// Bits  3-0:  index for pixel color 0
+	colorWord := uint16(opts.PaletteIndices[3])<<12 |
+		uint16(opts.PaletteIndices[2])<<8 |
+		uint16(opts.PaletteIndices[1])<<4 |
+		uint16(opts.PaletteIndices[0])
+	b.WriteByte(DCSQ_SET_COLOR)
+	b.WriteByte(byte(colorWord >> 8))
+	b.WriteByte(byte(colorWord))
+
+	// SET_CONTR: 2 bytes, 4x4-bit alpha values (same nibble layout as SET_COLOR).
+	// 0x0 = transparent, 0xF = fully opaque.
+	contWord := uint16(opts.AlphaValues[3])<<12 |
+		uint16(opts.AlphaValues[2])<<8 |
+		uint16(opts.AlphaValues[1])<<4 |
+		uint16(opts.AlphaValues[0])
+	b.WriteByte(DCSQ_SET_CONTR)
+	b.WriteByte(byte(contWord >> 8))
+	b.WriteByte(byte(contWord))
+
+	// SET_AREA: 6 bytes — two packed 12-bit pairs.
+	// Bytes 0-2: [x1:12][x2:12]  x1=left, x2=right (inclusive)
+	// Bytes 3-5: [y1:12][y2:12]  y1=top,  y2=bottom (inclusive)
+	b.WriteByte(DCSQ_SET_AREA)
+	b.Write(pack12pair(0, uint16(w-1)))
+	b.Write(pack12pair(0, uint16(h-1)))
+
+	// SET_ADDRESS: 4 bytes — top-field offset (uint16 BE), bot-field offset (uint16 BE).
+	// Both measured from packet start (byte 0).
+	b.WriteByte(DCSQ_SET_ADDRESS)
+	b.WriteByte(byte(topOffset >> 8))
+	b.WriteByte(byte(topOffset))
+	b.WriteByte(byte(botOffset >> 8))
+	b.WriteByte(byte(botOffset))
+
+	b.WriteByte(DCSQ_END)
+	return b.Bytes()
+}
+
+// buildDCSQ1 returns the 6-byte self-referencing STOP terminator.
+func buildDCSQ1(selfOffset uint16) []byte {
+	b := make([]byte, 6)
+	binary.BigEndian.PutUint16(b[0:2], 0x0000)
+	binary.BigEndian.PutUint16(b[2:4], selfOffset)
+	b[4] = DCSQ_STOP
+	b[5] = DCSQ_END
+	return b
+}
+
+// pack12pair encodes two 12-bit values into 3 bytes: [v1:12][v2:12].
+func pack12pair(v1, v2 uint16) []byte {
+	return []byte{
+		byte(v1 >> 4),
+		byte(v1&0x0F)<<4 | byte(v2>>8),
+		byte(v2),
+	}
 }
 
 func (e *Encoder) getRowPixels(img *image.Paletted, y int) []uint8 {
@@ -142,8 +246,7 @@ func (b *bitWriter) WriteBits(val uint32, count uint8) {
 		}
 		shift := count - take
 		mask := uint32((1 << take) - 1)
-		b.curr |= uint8((val >> shift) & mask) << (b.bitLeft - take)
-		
+		b.curr |= uint8((val>>shift)&mask) << (b.bitLeft - take)
 		count -= take
 		b.bitLeft -= take
 		if b.bitLeft == 0 {

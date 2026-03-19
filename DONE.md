@@ -10,11 +10,13 @@
 ### CI & Packaging
 - [x] **AppImage icon** — Switched from `VT_logo.png` (1024×1024, rejected by linuxdeploy) to `VT_Logotype1.png` (512×512). Updated `Icon=` in `VideoTools.desktop` to match icon filename stem; fixes "Could not find suitable icon" AppImage build error.
 
-### DVD Authoring Engine (Phase 1–4.1)
+### DVD Authoring Engine (Phase 1–4.3)
 - [x] **IFO command table** — `DVDCommandTable`, `JumpTTCommand`, `SetHL_BTNNCommand`, `ParseButtonCommand`, `SerializeCommandTable` in `internal/dvd/ifo/commands.go`.
 - [x] **Menu PGC + VMG_PGCITI** — `BuildMenuPGC`, `WritePGCITI` wire button commands into VMG IFO; `GenerateVMG_IFO` accepts menu PGC; menu pipeline fully wired in `author_module.go`.
 - [x] **TMAPT (time map table)** — `BuildLinearTMAPT` / `WriteTMAPT` in `vtsi.go`; linear sector approximation from VOB file size; wired into `GenerateVTS_IFO`.
 - [x] **ISO 9660 hybrid disc** — Full path tables (L+M), directory records, shared file data sectors with UDF; `assignSectors` runs first so ISO 9660 can reference correct physical sector addresses.
+- [x] **SPU DCSQ rewrite (Phase 4.2)** — Complete rewrite of `spu.go`: correct DCSQ header layout with `next_dcsq` offset, `SET_COLOR`/`SET_CONTR` commands with configurable `SPUOptions`, `SET_AREA` with `pack12pair`, `SET_ADDRESS` with computed field offsets, self-referencing DCSQ[1] terminator. `DefaultSPUOptions()` added.
+- [x] **Integration tests (Phase 4.3)** — 30 tests across `spu`, `ifo`, `vob`, `udf` packages: SPU packet structure/commands/terminator/offsets, PGCITI sector padding/NrOf/Category, TMAPT entry count/bounds/header, NAV_PCK size/start codes/LBN/SRI, UDF/ISO 9660 PVD magic/VDS terminator/system area. All green.
 
 ### Localization (i18n) - dev34 carry-forward
 - [x] **Subtitles i18n strings** — Added 9 new strings to `internal/i18n/strings.go` (SubtitlesOfflineHint, SubtitlesEmpty, SubtitlesExtractEmbed, SubtitlesOCROutput, SubtitlesOCRLanguage, SubtitlesShiftOffset, SubtitlesStart, SubtitlesEnd).

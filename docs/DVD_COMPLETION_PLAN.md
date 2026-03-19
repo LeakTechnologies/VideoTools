@@ -253,8 +253,8 @@ Write a test that:
 | 1.4 | Time Map Table | ✅ Done | No — enables seek |
 | 3.2 | Full menu pipeline | ✅ Done | No — enables menus |
 | 4.1 | ISO 9660 directory tree | ✅ Done | No |
-| 4.2 | SPU DCSQ contrast/timing | S | No |
-| 4.3 | Integration tests | M | No |
+| 4.2 | SPU DCSQ contrast/timing | ✅ Done | No |
+| 4.3 | Integration tests | ✅ Done | No |
 
 **Effort key:** S = 1–2 days, M = 3–5 days, L = 1–2 weeks
 
