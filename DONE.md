@@ -27,6 +27,15 @@
 - [x] **Settings StatusNoActiveJobs** — Added to `internal/ui/components.go` status bar.
 - [x] **Dialog title i18n** — 15+ new translation keys (DialogInterlacingResults, DialogAutoCropDetection, DialogNoBlackBars, DialogQueueNotInit, DialogNoRunningJob, LabelSnippet, MergeStarted, TrimJobAdded) wired into main.go for Convert/Merge/Trim/Snippet modules.
 
+### Media Engine Overhaul
+- [x] **SplitView fixes** — Fixed divider color using exact VT Green #4CE870; implemented MouseMoved/Dragged for draggable divider; added SetOnDividerMove callback.
+- [x] **AudioPlayer improvements** — Added volume control (SetVolume/GetVolume), mute functionality (SetMuted/IsMuted), pause/resume control, proper error handling with logging, fixed resample buffer handling.
+- [x] **Engine enhancements** — Added VideoInfo struct for metadata, Pause/Resume/TogglePause controls, volume/mute/speed controls, seeking with configurable accuracy (Frame/Keyframe/Accurate), CurrentTime() and QueueStats() methods.
+- [x] **Queue improvements** — Added configurable max size limits, NewPacketQueueWithMaxSize constructor, SetMaxSize/GetMaxSize/IsFull methods.
+- [x] **Subtitle extraction** — New `subtitle.go` with SubtitleExtractor for parsing subtitle streams, SRT and ASS export, SubtitleTrack and Subtitle types.
+- [x] **Tests** — Added comprehensive tests for queue, clock, and utility functions in `media_test.go`.
+- [x] **Player deprecation** — Marked BackendMPV and BackendVLC as deprecated; factory now only supports FFplay and Native engines.
+
 ### Module Updates
 - [x] **Trim module stub** — Updated `internal/app/modules/trim/stub.go` to match main.go calls (`ModuleColor`, `OnShowQueue`, `OnAddToQueue`, `TrimClip` struct, second `initialPath` param).
 - [x] **Trim view** — Added `TrimClip` struct and `OnAddToQueue` callback to native trim view.

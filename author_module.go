@@ -3225,9 +3225,30 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 	}
 
+	// Set VTS audio attributes so hardware players know the stream format.
+	// FFmpeg always encodes DVD audio as AC-3 stereo @ 48 kHz.
+	nAudio := uint16(len(featureClips[0].AudioTracks))
+	if nAudio == 0 {
+		nAudio = 1 // always at least one audio stream
+	}
+	vtsMat.VTS_Audio_Streams_Count = nAudio
+	for i := uint16(0); i < nAudio && i < 8; i++ {
+		vtsMat.VTS_Audio_Attributes[i] = ifo.AudioAttributes{
+			AudioCodingMode: 0,    // AC-3
+			Multichannel:    0,
+			SampleRate:      0,    // 48 kHz
+			NumChannels:     1,    // 2ch stereo (value = channels - 1)
+		}
+	}
+
+	// Set AudioControl in main PGC so players activate the audio streams.
+	for i := uint16(0); i < nAudio && i < 8; i++ {
+		mainPGC.AudioControl[i] = 0x8000 | uint16(i<<8) // active=1, stream_nr=i
+	}
+
 	// Generate VMG IFO/BUP (disc root metadata)
 	vmgMat := ifo.NewVMGMAT()
-	vmgMat.VMG_Attributes = vtsMat.VTS_Attributes
+	vmgMat.NrOfTitleSets = uint16(totalTitles)
 	if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGC); err != nil {
 		return fmt.Errorf("native vmg generation failed: %w", err)
 	}

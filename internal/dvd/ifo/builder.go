@@ -2,7 +2,6 @@ package ifo
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -73,13 +72,8 @@ func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain
 
 	var buf bytes.Buffer
 
-	// Sector 0: MAT
-	if err := binary.Write(&buf, binary.BigEndian, mat); err != nil {
-		return fmt.Errorf("serialize vts_mat: %w", err)
-	}
-	if buf.Len() < 2048 {
-		buf.Write(make([]byte, 2048-buf.Len()))
-	}
+	// Sector 0: MAT — use spec-correct byte-offset serializer, not binary.Write
+	buf.Write(SerializeVTSMAT(mat))
 
 	if pgcitiData != nil {
 		buf.Write(pgcitiData)
@@ -143,12 +137,8 @@ func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGC *ProgramC
 	mat.VMG_Last_Sector = nextSector - 1
 
 	var buf bytes.Buffer
-	if err := binary.Write(&buf, binary.BigEndian, mat); err != nil {
-		return fmt.Errorf("serialize vmg_mat: %w", err)
-	}
-	if buf.Len() < 2048 {
-		buf.Write(make([]byte, 2048-buf.Len()))
-	}
+	// Sector 0: MAT — use spec-correct byte-offset serializer, not binary.Write
+	buf.Write(SerializeVMGMAT(mat))
 
 	if srptData != nil {
 		buf.Write(srptData)

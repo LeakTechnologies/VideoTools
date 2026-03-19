@@ -19,6 +19,15 @@
 ### Trim Module
 - **Trim job submission** — `submitTrimJob` creates queue.Job with proper Type, InputFile, OutputFile, and Config fields.
 
+### Media Engine Overhaul
+- **SplitView fixes** — Fixed divider color using exact VT Green #4CE870; implemented draggable divider with MouseMoved/Dragged handlers.
+- **AudioPlayer improvements** — Added volume control (SetVolume/GetVolume), mute functionality, pause/resume control, proper error handling with logging.
+- **Engine enhancements** — Added VideoInfo struct for metadata (Width, Height, FrameRate, Codec, Bitrate), Pause/Resume/TogglePause controls, volume/mute/speed controls, seeking with configurable accuracy (Frame/Keyframe/Accurate).
+- **Queue improvements** — Added configurable max size limits to prevent unbounded memory growth.
+- **Subtitle extraction** — New SubtitleExtractor for parsing subtitle streams from video files; supports SRT and ASS export formats.
+- **Tests** — Added comprehensive test suite for media package (queue, clock, subtitle time formatting).
+- **Player deprecation** — BackendMPV and BackendVLC marked as deprecated; factory now only supports FFplay and Native engines.
+
 ---
 
 ## v0.1.1-dev34 (March 2026)

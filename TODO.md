@@ -30,6 +30,16 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **`subtitles_module.go`** — next priority.
 - [ ] **`upscale_module.go`** — following subtitles.
 
+### Media Engine
+- [x] **SplitView fixes** — Divider color and draggable divider.
+- [x] **AudioPlayer** — Volume, mute, pause/resume, error handling.
+- [x] **Engine** — VideoInfo, pause/resume, volume/mute/speed, seek accuracy.
+- [x] **Queue** — Configurable max size limits.
+- [x] **Subtitle extraction** — SubtitleExtractor with SRT/ASS export.
+- [x] **Tests** — Comprehensive tests for media package.
+- [x] **Player deprecation** — MPV/VLC deprecated, FFplay + Native only.
+- [ ] **Hardware acceleration** — GPU decode support via FFmpeg HW contexts.
+
 ### Disc Authoring
 - [x] **Native engine stabilisation** — PGC/TT_SRPT/TMAPT/menu VOB/ISO 9660 complete.
 - [x] **DVD engine Phase 4.2–4.3** — SPU DCSQ rewrite + 30 integration tests across spu/ifo/vob/udf. All green.
