@@ -52,6 +52,136 @@ type VideoInfo struct {
 	HasAudio     bool
 	HasVideo     bool
 	HasSubtitles bool
+	HWDevice     HWDeviceType
+}
+
+type HWDeviceType int
+
+const (
+	HWDeviceNone HWDeviceType = iota
+	HWDeviceVAAPI
+	HWDeviceD3D11VA
+	HWDeviceQSV
+)
+
+func DetectHWDevice() HWDeviceType {
+	if checkVAAPIAvailable() {
+		return HWDeviceVAAPI
+	}
+	if checkD3D11VAAvailable() {
+		return HWDeviceD3D11VA
+	}
+	if checkQSVAvailable() {
+		return HWDeviceQSV
+	}
+	return HWDeviceNone
+}
+
+func checkVAAPIAvailable() bool {
+	var devCtx *C.AVHWDeviceContext
+	if C.av_hwdevice_ctx_create(&devCtx, C.AV_HWDEVICE_TYPE_VAAPI, nil, nil, 0) == 0 {
+		if devCtx != nil {
+			C.av_buffer_unref(&devCtx.hwctx)
+		}
+		return true
+	}
+	return false
+}
+
+func checkD3D11VAAvailable() bool {
+	var devCtx *C.AVHWDeviceContext
+	if C.av_hwdevice_ctx_create(&devCtx, C.AV_HWDEVICE_TYPE_D3D11VA, nil, nil, 0) == 0 {
+		if devCtx != nil {
+			C.av_buffer_unref(&devCtx.hwctx)
+		}
+		return true
+	}
+	return false
+}
+
+func checkQSVAvailable() bool {
+	var devCtx *C.AVHWDeviceContext
+	if C.av_hwdevice_ctx_create(&devCtx, C.AV_HWDEVICE_TYPE_QSV, nil, nil, 0) == 0 {
+		if devCtx != nil {
+			C.av_buffer_unref(&devCtx.hwctx)
+		}
+		return true
+	}
+	return false
+}
+
+func (e *Engine) SetHWDevice(hw HWDeviceType) {
+	e.hwDevice = hw
+}
+
+func (e *Engine) GetHWDevice() HWDeviceType {
+	return e.hwDevice
+}
+
+func (e *Engine) initHWDecode() error {
+	var hwType C.enum_AVHWDeviceType
+	switch e.hwDevice {
+	case HWDeviceVAAPI:
+		hwType = C.AV_HWDEVICE_TYPE_VAAPI
+	case HWDeviceD3D11VA:
+		hwType = C.AV_HWDEVICE_TYPE_D3D11VA
+	case HWDeviceQSV:
+		hwType = C.AV_HWDEVICE_TYPE_QSV
+	default:
+		return fmt.Errorf("unsupported HW device type: %v", e.hwDevice)
+	}
+
+	var devCtx *C.AVHWDeviceContext
+	if C.av_hwdevice_ctx_create(&devCtx, hwType, nil, nil, 0) != 0 {
+		return fmt.Errorf("failed to create HW device context")
+	}
+
+	e.hwDeviceCtx = devCtx
+
+	framesCtx := C.av_hwdevice_alloc_frame_ctx(devCtx)
+	if framesCtx == nil {
+		C.av_buffer_unref(&devCtx.hwctx)
+		return fmt.Errorf("failed to create HW frames context")
+	}
+
+	e.hwFramesCtx = framesCtx
+	e.hwFramesCtx.width = C.uint(e.info.Width)
+	e.hwFramesCtx.height = C.uint(e.info.Height)
+
+	hwPixFmt := e.getHWPixelFormat(hwType)
+	if hwPixFmt == C.AV_PIX_FMT_NONE {
+		C.av_buffer_unref(&framesCtx.hwctx)
+		return fmt.Errorf("unsupported pixel format for HW device")
+	}
+
+	e.hwFramesCtx.sw_format = hwPixFmt
+	e.hwFramesCtx.initial_pool_size = 20
+
+	if C.av_hwframe_ctx_init(framesCtx) != 0 {
+		C.av_buffer_unref(&framesCtx.hwctx)
+		return fmt.Errorf("failed to init HW frames context")
+	}
+
+	e.videoCodecCtx.hw_frames_ctx = C.av_buffer_ref(framesCtx)
+	if e.videoCodecCtx.hw_frames_ctx == nil {
+		C.av_buffer_unref(&framesCtx.hwctx)
+		return fmt.Errorf("failed to attach HW frames context")
+	}
+
+	logging.Info(logging.CatPlayer, "HW decode enabled: %v", e.hwDevice)
+	return nil
+}
+
+func (e *Engine) getHWPixelFormat(hwType C.enum_AVHWDeviceType) C.enum_AVPixelFormat {
+	switch hwType {
+	case C.AV_HWDEVICE_TYPE_VAAPI:
+		return C.AV_PIX_FMT_VAAPI
+	case C.AV_HWDEVICE_TYPE_D3D11VA:
+		return C.AV_PIX_FMT_D3D11
+	case C.AV_HWDEVICE_TYPE_QSV:
+		return C.AV_PIX_FMT_QSV
+	}
+	return C.AV_PIX_FMT_NONE
 }
 
 type Engine struct {
@@ -62,6 +192,9 @@ type Engine struct {
 	videoCodecCtx     *C.AVCodecContext
 	audioCodecCtx     *C.AVCodecContext
 	swsCtx            *C.struct_SwsContext
+
+	hwDeviceCtx *C.AVHWDeviceContext
+	hwFramesCtx *C.AVHWFramesContext
 
 	videoQueue *PacketQueue
 	audioQueue *PacketQueue
@@ -89,6 +222,8 @@ type Engine struct {
 
 	dropFrames       bool
 	consecutiveDrops int
+
+	hwDevice HWDeviceType
 
 	info *VideoInfo
 }
@@ -244,6 +379,7 @@ func (e *Engine) Open(path string) error {
 		HasVideo:     e.videoStreamIdx >= 0,
 		HasAudio:     e.audioStreamIdx >= 0,
 		HasSubtitles: e.subtitleStreamIdx >= 0,
+		HWDevice:     e.hwDevice,
 	}
 
 	if e.videoStreamIdx < 0 {
@@ -257,6 +393,13 @@ func (e *Engine) Open(path string) error {
 		return fmt.Errorf("failed to allocate video codec context")
 	}
 	C.avcodec_parameters_to_context(e.videoCodecCtx, streams[e.videoStreamIdx].codecpar)
+
+	if e.hwDevice != HWDeviceNone {
+		if err := e.initHWDecode(); err != nil {
+			logging.Warning(logging.CatPlayer, "HW decode init failed, falling back to software: %v", err)
+			e.hwDevice = HWDeviceNone
+		}
+	}
 
 	e.videoTimeBase = float64(streams[e.videoStreamIdx].time_base.num) / float64(streams[e.videoStreamIdx].time_base.den)
 
@@ -476,9 +619,47 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 				time.Sleep(delay)
 			}
 
+			if e.hwDevice != HWDeviceNone {
+				img, err := e.retrieveHWFrame()
+				if err != nil {
+					logging.Warning(logging.CatPlayer, "HW frame retrieve failed: %v", err)
+					return e.toRGBA(), nil
+				}
+				return img, nil
+			}
+
 			return e.toRGBA(), nil
 		}
 	}
+}
+
+func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
+	if e.frame.hw_frames_ctx == nil {
+		return e.toRGBA(), nil
+	}
+
+	swFrame := C.av_frame_alloc()
+	if swFrame == nil {
+		return nil, fmt.Errorf("failed to allocate sw frame")
+	}
+	defer C.av_frame_free(&swFrame)
+
+	if C.av_hwframe_get_buffer(e.hwFramesCtx, swFrame, 0) != 0 {
+		return nil, fmt.Errorf("failed to get HW frame buffer")
+	}
+
+	swFrame.pict_type = 0
+
+	if C.av_hwframe_transfer_data(swFrame, e.frame, 0) != 0 {
+		return nil, fmt.Errorf("failed to transfer HW frame to SW")
+	}
+
+	origFrame := e.frame
+	e.frame = swFrame
+	img := e.toRGBA()
+	e.frame = origFrame
+
+	return img, nil
 }
 
 func (e *Engine) toRGBA() *image.RGBA {
@@ -530,12 +711,23 @@ func (e *Engine) Close() {
 		e.swsCtx = nil
 	}
 	if e.videoCodecCtx != nil {
+		if e.videoCodecCtx.hw_frames_ctx != nil {
+			C.av_buffer_unref(&e.videoCodecCtx.hw_frames_ctx)
+		}
 		C.avcodec_free_context(&e.videoCodecCtx)
 		e.videoCodecCtx = nil
 	}
 	if e.audioCodecCtx != nil {
 		C.avcodec_free_context(&e.audioCodecCtx)
 		e.audioCodecCtx = nil
+	}
+	if e.hwFramesCtx != nil {
+		C.av_buffer_unref(&e.hwFramesCtx.hwctx)
+		e.hwFramesCtx = nil
+	}
+	if e.hwDeviceCtx != nil {
+		C.av_buffer_unref(&e.hwDeviceCtx.hwctx)
+		e.hwDeviceCtx = nil
 	}
 	if e.formatCtx != nil {
 		C.avformat_close_input(&e.formatCtx)

@@ -38,7 +38,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Subtitle extraction** — SubtitleExtractor with SRT/ASS export.
 - [x] **Tests** — Comprehensive tests for media package.
 - [x] **Player deprecation** — MPV/VLC deprecated, FFplay + Native only.
-- [ ] **Hardware acceleration** — GPU decode support via FFmpeg HW contexts.
+- [x] **HW accel detection** — Runtime encode probes instead of ffmpeg -hwaccels to prevent false positives.
+- [x] **HW decode support** — GPU-accelerated video decoding via FFmpeg hwcontext API (VAAPI, D3D11VA, QSV).
 
 ### Disc Authoring
 - [x] **Native engine stabilisation** — PGC/TT_SRPT/TMAPT/menu VOB/ISO 9660 complete.

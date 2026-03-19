@@ -244,3 +244,62 @@ func TestEscapeASSText(t *testing.T) {
 		}
 	}
 }
+
+func TestHWDeviceType(t *testing.T) {
+	tests := []struct {
+		hwType HWDeviceType
+		name   string
+	}{
+		{HWDeviceNone, "HWDeviceNone"},
+		{HWDeviceVAAPI, "HWDeviceVAAPI"},
+		{HWDeviceD3D11VA, "HWDeviceD3D11VA"},
+		{HWDeviceQSV, "HWDeviceQSV"},
+	}
+
+	for _, tc := range tests {
+		if tc.hwType < 0 || tc.hwType > HWDeviceQSV {
+			t.Errorf("HWDeviceType %s has invalid value: %d", tc.name, tc.hwType)
+		}
+	}
+}
+
+func TestDetectHWDevice(t *testing.T) {
+	hwType := DetectHWDevice()
+
+	if hwType < HWDeviceNone || hwType > HWDeviceQSV {
+		t.Errorf("DetectHWDevice returned invalid value: %d", hwType)
+	}
+}
+
+func TestEngineHWDevice(t *testing.T) {
+	engine := NewEngine()
+	if engine == nil {
+		t.Fatal("NewEngine returned nil")
+	}
+
+	if engine.GetHWDevice() != HWDeviceNone {
+		t.Error("expected default HWDevice to be HWDeviceNone")
+	}
+
+	engine.SetHWDevice(HWDeviceVAAPI)
+	if engine.GetHWDevice() != HWDeviceVAAPI {
+		t.Errorf("expected HWDeviceVAAPI, got %v", engine.GetHWDevice())
+	}
+
+	engine.SetHWDevice(HWDeviceD3D11VA)
+	if engine.GetHWDevice() != HWDeviceD3D11VA {
+		t.Errorf("expected HWDeviceD3D11VA, got %v", engine.GetHWDevice())
+	}
+}
+
+func TestVideoInfoHWDevice(t *testing.T) {
+	info := &VideoInfo{
+		Width:    1920,
+		Height:   1080,
+		HWDevice: HWDeviceVAAPI,
+	}
+
+	if info.HWDevice != HWDeviceVAAPI {
+		t.Errorf("expected HWDeviceVAAPI, got %v", info.HWDevice)
+	}
+}
