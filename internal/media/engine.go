@@ -87,6 +87,9 @@ type Engine struct {
 	speed   float64
 	seekAcc SeekAccuracy
 
+	dropFrames       bool
+	consecutiveDrops int
+
 	info *VideoInfo
 }
 
@@ -153,6 +156,14 @@ func (e *Engine) SetSeekAccuracy(acc SeekAccuracy) {
 
 func (e *Engine) GetSeekAccuracy() SeekAccuracy {
 	return e.seekAcc
+}
+
+func (e *Engine) SetDropFrames(enabled bool) {
+	e.dropFrames = enabled
+}
+
+func (e *Engine) IsDropFramesEnabled() bool {
+	return e.dropFrames
 }
 
 func (e *Engine) IsPaused() bool {
@@ -450,6 +461,17 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 
 			adjustedPts := pts * e.speed
 			delay := e.clock.SyncVideo(adjustedPts)
+
+			if e.dropFrames && delay > 100*time.Millisecond {
+				e.consecutiveDrops++
+				if e.consecutiveDrops >= 3 {
+					logging.Debug(logging.CatPlayer, "Dropping frame to catch up (delay: %v)", delay)
+					continue
+				}
+			} else {
+				e.consecutiveDrops = 0
+			}
+
 			if delay > 0 {
 				time.Sleep(delay)
 			}

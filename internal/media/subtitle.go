@@ -12,6 +12,7 @@ package media
 import "C"
 import (
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -79,7 +80,7 @@ func (se *SubtitleExtractor) Open(path string) error {
 		return fmt.Errorf("failed to find stream info")
 	}
 
-	streams := (*[1 << 30]*C.AVFormatContext)(unsafe.Pointer(se.formatCtx))
+	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(se.formatCtx.streams))
 
 	for i := 0; i < int(se.formatCtx.nb_streams); i++ {
 		stream := streams[i]
@@ -161,7 +162,7 @@ func (se *SubtitleExtractor) SelectTrack(index int) error {
 
 	se.streamIdx = se.tracks[index].Index
 
-	streams := (*[1 << 30]*C.AVFormatContext)(unsafe.Pointer(se.formatCtx))
+	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(se.formatCtx.streams))
 	se.timeBase = float64(streams[se.streamIdx].time_base.num) / float64(streams[se.streamIdx].time_base.den)
 
 	return nil
@@ -177,7 +178,7 @@ func (se *SubtitleExtractor) ExtractSubtitles() ([]Subtitle, error) {
 
 	var subtitles []Subtitle
 
-	streams := (*[1 << 30]*C.AVFormatContext)(unsafe.Pointer(se.formatCtx))
+	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(se.formatCtx.streams))
 	stream := streams[se.streamIdx]
 	codec := C.avcodec_find_decoder(stream.codecpar.codec_id)
 	if codec == nil {
@@ -245,7 +246,7 @@ func (se *SubtitleExtractor) ExtractSubtitlesToTime(endTime time.Duration) ([]Su
 
 	var subtitles []Subtitle
 
-	streams := (*[1 << 30]*C.AVFormatContext)(unsafe.Pointer(se.formatCtx))
+	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(se.formatCtx.streams))
 	stream := streams[se.streamIdx]
 	codec := C.avcodec_find_decoder(stream.codecpar.codec_id)
 	if codec == nil {
@@ -428,6 +429,16 @@ func (se *SubtitleExtractor) Close() {
 }
 
 func writeFile(path string, data []byte) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.Write(data); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
 	return nil
 }
 
