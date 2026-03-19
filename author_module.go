@@ -3126,19 +3126,37 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	}
 	mainPGC := ifo.BuildSingleCellPGC(0, 0, mainDuration, isNTSC)
 
+	// Scan VOBs for NAV_PCK positions to build VOBU_ADMAP tables.
+	// Hardware players use the ADMAP for seeking and trick play.
+	logFn("Scanning VOBs for NAV_PCK positions...")
+	mainVOBPath := filepath.Join(videoTSPath, "VTS_01_1.VOB")
+	var mainAdmap *ifo.VOBU_ADMAP
+	if navSectors, err2 := vob.ScanVOBForNAVPCKs(mainVOBPath); err2 == nil {
+		mainAdmap = ifo.BuildVOBU_ADMAP(navSectors)
+		logFn(fmt.Sprintf("  VTS_01_1.VOB: %d VOBUs indexed", len(navSectors)))
+	} else {
+		logging.Info(logging.CatDVD, "NAV_PCK scan failed for main VOB: %v", err2)
+	}
+
 	// Build TMAPT from VOB file size — linear approximation for seek bar.
 	var mainTMAPT *ifo.VTS_TMAPT
-	mainVOBPath := filepath.Join(videoTSPath, "VTS_01_1.VOB")
 	if info, err2 := os.Stat(mainVOBPath); err2 == nil && mainDuration > 0 {
 		totalSectors := uint32(info.Size() / 2048)
 		mainTMAPT = ifo.BuildLinearTMAPT(totalSectors, mainDuration, 1)
 	}
 
-	if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, nil); err != nil {
+	if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap); err != nil {
 		return fmt.Errorf("native ifo generation failed: %w", err)
 	}
 
 	// Generate IFOs for any extra title sets
+	type extraIFOState struct {
+		mat   *ifo.VTS_MAT
+		pgc   *ifo.ProgramChain
+		tmapt *ifo.VTS_TMAPT
+		admap *ifo.VOBU_ADMAP
+	}
+	extraStates := make([]extraIFOState, len(extraClips))
 	for i, clip := range extraClips {
 		vtsNum := i + 2
 		extraMat := ifo.NewVTSMAT()
@@ -3149,7 +3167,13 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		if info, err2 := os.Stat(extraVOBPath); err2 == nil && clip.Duration > 0 {
 			extraTMAPT = ifo.BuildLinearTMAPT(uint32(info.Size()/2048), clip.Duration, 1)
 		}
-		if err := ifoBuilder.GenerateVTS_IFO(vtsNum, extraMat, extraPGC, extraTMAPT, nil); err != nil {
+		var extraAdmap *ifo.VOBU_ADMAP
+		if navSectors, err2 := vob.ScanVOBForNAVPCKs(extraVOBPath); err2 == nil {
+			extraAdmap = ifo.BuildVOBU_ADMAP(navSectors)
+			logFn(fmt.Sprintf("  VTS_%02d_1.VOB: %d VOBUs indexed", vtsNum, len(navSectors)))
+		}
+		extraStates[i] = extraIFOState{extraMat, extraPGC, extraTMAPT, extraAdmap}
+		if err := ifoBuilder.GenerateVTS_IFO(vtsNum, extraMat, extraPGC, extraTMAPT, extraAdmap); err != nil {
 			return fmt.Errorf("native ifo generation failed for extra %d: %w", vtsNum, err)
 		}
 	}
@@ -3255,14 +3279,8 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			ifoName := fmt.Sprintf("VTS_%02d_0.IFO", vtsNum)
 			if first, count, ok := vtsSector(vobName); ok {
 				extraPGC2 := ifo.BuildSingleCellPGC(first, first+count-1, clip.Duration, isNTSC)
-				var extraTMAPT2 *ifo.VTS_TMAPT
-				extraVOBPath := filepath.Join(videoTSPath, vobName)
-				if info2, err2 := os.Stat(extraVOBPath); err2 == nil && clip.Duration > 0 {
-					extraTMAPT2 = ifo.BuildLinearTMAPT(uint32(info2.Size()/2048), clip.Duration, 1)
-				}
-				extraMat2 := ifo.NewVTSMAT()
-				extraMat2.VTS_Attributes = vtsMat.VTS_Attributes
-				if err := ifoBuilder.GenerateVTS_IFO(vtsNum, extraMat2, extraPGC2, extraTMAPT2, nil); err != nil {
+				st := extraStates[i]
+				if err := ifoBuilder.GenerateVTS_IFO(vtsNum, st.mat, extraPGC2, st.tmapt, st.admap); err != nil {
 					logging.Info(logging.CatDVD, "IFO sector patch failed for extra %d: %v", vtsNum, err)
 				}
 			}
@@ -3272,7 +3290,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 
 		// Pass 2: Rewrite VTS_01_0.IFO and VIDEO_TS.IFO with correct sectors.
-		if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, nil); err != nil {
+		if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap); err != nil {
 			return fmt.Errorf("ifo sector patch failed: %w", err)
 		}
 		if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGC); err != nil {

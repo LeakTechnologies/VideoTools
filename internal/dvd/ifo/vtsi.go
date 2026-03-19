@@ -121,6 +121,20 @@ type VOBU_ADMAP struct {
 	Sectors []uint32
 }
 
+// BuildVOBU_ADMAP constructs a VOBU_ADMAP from a slice of NAV_PCK sector
+// offsets (0-indexed, relative to the start of the VOB file / VTS VOB set).
+// Returns nil when sectors is empty.
+func BuildVOBU_ADMAP(sectors []uint32) *VOBU_ADMAP {
+	if len(sectors) == 0 {
+		return nil
+	}
+	// EndByte field (4 bytes) + one uint32 per entry; EndByte is 0-relative
+	// within the ADMAP structure (not counting the EndByte field itself per
+	// the DVD spec: EndByte = total_size_of_table - 1).
+	endByte := uint32(4 + len(sectors)*4 - 1)
+	return &VOBU_ADMAP{EndByte: endByte, Sectors: sectors}
+}
+
 // WriteVOBU_ADMAP serializes the VOBU_ADMAP to an IFO file.
 func WriteVOBU_ADMAP(w io.Writer, admap *VOBU_ADMAP) error {
 	logging.Debug(logging.CatDVD, "Writing VOBU_ADMAP with %d entries", len(admap.Sectors))
