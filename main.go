@@ -3257,7 +3257,8 @@ func buildTrimView(state *appState) fyne.CanvasObject {
 			}
 		},
 		OnProbeVideo: func(path string) (float64, error) {
-			if src, err := probeVideo(path); err != nil {
+			src, err := probeVideo(path)
+			if err != nil {
 				return 0, err
 			}
 			return src.Duration, nil
