@@ -80,7 +80,7 @@ func GetIcon(name string) fyne.Resource {
 
 	entries, err := fs.ReadDir(iconsEmbedFS, ".")
 	if err != nil {
-		logging.Info(logging.CatUI, "Failed to read icons directory: "+err.Error())
+		logging.Info(logging.CatUI, "Failed to read icons directory: %v", err)
 		return theme.ErrorIcon()
 	}
 
@@ -88,7 +88,7 @@ func GetIcon(name string) fyne.Resource {
 		if strings.HasPrefix(entry.Name(), name+"_") && strings.HasSuffix(entry.Name(), ".svg") {
 			data, err := fs.ReadFile(iconsEmbedFS, entry.Name())
 			if err != nil {
-				logging.Info(logging.CatUI, "Failed to load icon "+name+": "+err.Error())
+				logging.Info(logging.CatUI, "Failed to load icon %s: %v", name, err)
 				return theme.ErrorIcon()
 			}
 			res := fyne.NewStaticResource(entry.Name(), data)
@@ -97,7 +97,7 @@ func GetIcon(name string) fyne.Resource {
 		}
 	}
 
-	logging.Info(logging.CatUI, "Icon not found: "+name)
+	logging.Info(logging.CatUI, "Icon not found: %s", name)
 	return theme.ErrorIcon()
 }
 
