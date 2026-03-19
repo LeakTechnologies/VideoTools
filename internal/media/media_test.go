@@ -450,3 +450,75 @@ func TestEngineSelectSubtitleTrackWithoutOpen(t *testing.T) {
 		t.Error("expected error when selecting track without opening file")
 	}
 }
+
+func TestEngineSelectVideoTrackWithoutOpen(t *testing.T) {
+	engine := NewEngine()
+
+	err := engine.SelectVideoTrack(0)
+	if err == nil {
+		t.Error("expected error when selecting video track without opening file")
+	}
+}
+
+func TestVideoInfoVideoTracks(t *testing.T) {
+	info := &VideoInfo{
+		Width:  1920,
+		Height: 1080,
+		VideoTracks: []StreamInfo{
+			{Index: 0, CodecName: "h264", Language: "eng"},
+			{Index: 1, CodecName: "hevc", Language: "eng"},
+		},
+	}
+
+	if len(info.VideoTracks) != 2 {
+		t.Errorf("expected 2 video tracks, got %d", len(info.VideoTracks))
+	}
+}
+
+func TestSubtitleOverlayBounds(t *testing.T) {
+	sub := &SubtitleOverlay{
+		X:      10,
+		Y:      20,
+		Width:  100,
+		Height: 50,
+	}
+
+	bounds := sub.Bounds()
+	if bounds.Min.X != 10 || bounds.Min.Y != 20 {
+		t.Errorf("unexpected min: %v", bounds.Min)
+	}
+	if bounds.Max.X != 110 || bounds.Max.Y != 70 {
+		t.Errorf("unexpected max: %v", bounds.Max)
+	}
+}
+
+func TestEngineNumThreads(t *testing.T) {
+	engine := NewEngine()
+
+	if engine.GetNumThreads() != 0 {
+		t.Errorf("expected default threads 0, got %d", engine.GetNumThreads())
+	}
+
+	engine.SetNumThreads(4)
+	if engine.GetNumThreads() != 4 {
+		t.Errorf("expected threads 4, got %d", engine.GetNumThreads())
+	}
+
+	engine.SetNumThreads(-1)
+	if engine.GetNumThreads() != 0 {
+		t.Errorf("expected threads 0 for negative input, got %d", engine.GetNumThreads())
+	}
+}
+
+func TestEngineFramePool(t *testing.T) {
+	engine := NewEngine()
+
+	if engine.GetFramePoolSize() != 0 {
+		t.Errorf("expected empty pool, got %d", engine.GetFramePoolSize())
+	}
+
+	engine.ReleaseFrame(nil)
+	if engine.GetFramePoolSize() != 0 {
+		t.Error("nil frame should not add to pool")
+	}
+}
