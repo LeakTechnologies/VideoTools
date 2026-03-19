@@ -316,6 +316,17 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 
 			removeBtn := widget.NewButton("Remove", func() {
 				state.authorClips = append(state.authorClips[:idx], state.authorClips[idx+1:]...)
+				if state.authorChapterSource == "clips" {
+					if len(state.authorClips) == 0 {
+						state.authorChapters = nil
+						state.authorChapterSource = ""
+					} else {
+						state.authorChapters = chaptersFromClips(featureClipsOnly(state.authorClips))
+					}
+					if state.authorChaptersRefresh != nil {
+						state.authorChaptersRefresh()
+					}
+				}
 				rebuildList()
 				state.updateAuthorSummary()
 			})
@@ -359,8 +370,12 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 		state.authorChapterSource = ""
 		state.authorVideoTSPath = ""
 		state.authorTitle = ""
+		state.authorFile = nil
 		rebuildList()
 		state.updateAuthorSummary()
+		if state.authorChaptersRefresh != nil {
+			state.authorChaptersRefresh()
+		}
 	})
 	clearBtn.Importance = widget.MediumImportance
 

@@ -29,13 +29,12 @@ type Options struct {
 	OnAddToQueue   func(clip TrimClip)
 }
 
-// TrimClip holds the parameters for a trim job.
 type TrimClip struct {
 	Path     string
 	InPoint  time.Duration
 	OutPoint time.Duration
-	Mode     string // "keep" or "cut"
-	Export   string // "smart" or "recode"
+	Mode     string
+	Export   string
 }
 
 type trimState struct {
@@ -45,15 +44,11 @@ type trimState struct {
 	inPoint  time.Duration
 	outPoint time.Duration
 
-	currentTime float64 // in seconds
-	duration    float64 // in seconds
+	currentTime float64
+	duration    float64
 
-	// UI refs for updates
-	timeLabel     *widget.Label
 	inPointLabel  *widget.Label
 	outPointLabel *widget.Label
-	durLabel      *widget.Label
-	timeline      *widget.Slider
 }
 
 func BuildView(opts Options, initialPath string) fyne.CanvasObject {
@@ -66,7 +61,26 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		player: media.NewVideoPlayer(),
 	}
 
-	// --- Helpers ---
+	state.player.OnPlay(func() {
+		if state.engine != nil {
+			state.engine.Start()
+			go state.playbackLoop()
+		}
+	})
+
+	state.player.OnPause(func() {
+		if state.engine != nil {
+			state.engine.Pause()
+		}
+	})
+
+	state.player.OnSeek(func(target float64) {
+		if state.engine != nil {
+			state.engine.Seek(target)
+			state.currentTime = target
+		}
+	})
+
 	buildTrimBox := func(title string, content fyne.CanvasObject) *fyne.Container {
 		bg := canvas.NewRectangle(navyBlue)
 		bg.CornerRadius = 10
@@ -82,102 +96,73 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		return container.NewMax(layers...)
 	}
 
-	// --- UI Components ---
-	state.timeLabel = widget.NewLabel("00:00:00.000")
-	state.durLabel = widget.NewLabel("00:00:00.000")
 	state.inPointLabel = widget.NewLabel(t.TrimInPoint + ": 00:00:00.000")
 	state.outPointLabel = widget.NewLabel(t.TrimOutPoint + ": 00:00:00.000")
 
-	state.timeline = widget.NewSlider(0, 100)
-	state.timeline.OnChanged = func(val float64) {
-		if state.engine != nil {
-			target := (val / 100.0) * state.duration
-			state.engine.Seek(target)
-			state.currentTime = target
-			state.updateTimeLabels()
-			// Fetch a frame immediately for feedback
-			if img, err := state.engine.NextFrame(); err == nil {
-				state.player.SetFrame(img)
-			}
-		}
-	}
-
 	setInBtn := widget.NewButton(t.TrimSetIn, func() {
 		state.inPoint = time.Duration(state.currentTime * float64(time.Second))
-		state.inPointLabel.SetText(fmt.Sprintf("%s: %s", t.TrimInPoint, formatDuration(state.inPoint)))
+		state.inPointLabel.SetText(t.TrimInPoint + ": " + formatDuration(state.inPoint))
 	})
 	setOutBtn := widget.NewButton(t.TrimSetOut, func() {
 		state.outPoint = time.Duration(state.currentTime * float64(time.Second))
-		state.outPointLabel.SetText(fmt.Sprintf("%s: %s", t.TrimOutPoint, formatDuration(state.outPoint)))
+		state.outPointLabel.SetText(t.TrimOutPoint + ": " + formatDuration(state.outPoint))
 	})
 
-	// Step buttons for frame-accuracy
 	stepBackBtn := widget.NewButton("<", func() {
 		if state.engine != nil {
-			// FFmpeg seek back is trickier, for now we seek back slightly and Step forward
-			target := state.currentTime - 0.033 // rough 1 frame at 30fps
+			target := state.currentTime - 0.033
 			if target < 0 {
 				target = 0
 			}
 			state.engine.Seek(target)
 			if img, err := state.engine.NextFrame(); err == nil {
 				state.player.SetFrame(img)
+				state.currentTime = target
+				state.player.SetCurrentTime(target)
 			}
 		}
 	})
+
 	stepFwdBtn := widget.NewButton(">", func() {
 		if state.engine != nil {
 			if img, err := state.engine.Step(1); err == nil {
 				state.player.SetFrame(img)
-				// Update clock or current time based on frame PTS...
 			}
 		}
 	})
 
-	playBtn := widget.NewButton(t.ActionPlay, func() {
-		if state.engine != nil {
-			state.engine.Start()
-			go state.playbackLoop()
-		}
-	})
-
-	transport := container.NewHBox(
-		layout.NewSpacer(),
-		stepBackBtn, playBtn, stepFwdBtn,
-		widget.NewSeparator(),
-		setInBtn, setOutBtn,
+	toolbar := container.NewHBox(
+		stepBackBtn,
+		setInBtn,
+		setOutBtn,
+		stepFwdBtn,
 		layout.NewSpacer(),
 	)
 
-	videoContainer := container.NewBorder(
-		nil,
-		container.NewVBox(
-			container.NewBorder(nil, nil, state.timeLabel, state.durLabel, state.timeline),
-			transport,
-		),
-		nil, nil,
-		container.NewMax(canvas.NewRectangle(color.Black), state.player),
+	videoContainer := container.NewMax(
+		canvas.NewRectangle(color.Black),
+		state.player,
 	)
-
-	// Layout from design spec
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleTrim), opts.OnShowMainMenu)
-	backBtn.Importance = widget.LowImportance
-	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	rightSide := container.NewVBox(
 		buildTrimBox("Selection", container.NewVBox(
 			state.inPointLabel,
 			state.outPointLabel,
 		)),
+		layout.NewSpacer(),
+		toolbar,
 	)
 
 	content := container.NewHSplit(videoContainer, container.NewPadded(rightSide))
 	content.Offset = 0.8
 
-	// Auto-load if path provided
 	if initialPath != "" {
 		state.loadVideo(initialPath)
 	}
+
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleTrim), opts.OnShowMainMenu)
+	backBtn.Importance = widget.LowImportance
+	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	return container.NewBorder(topBar, nil, nil, nil, content)
 }
@@ -191,7 +176,7 @@ func (s *trimState) loadVideo(path string) {
 		return
 	}
 	s.duration = s.engine.Duration()
-	s.durLabel.SetText(formatDuration(time.Duration(s.duration * float64(time.Second))))
+	s.player.SetDuration(s.duration)
 
 	if img, err := s.engine.NextFrame(); err == nil {
 		s.player.SetFrame(img)
@@ -205,12 +190,9 @@ func (s *trimState) playbackLoop() {
 			break
 		}
 		s.player.SetFrame(img)
-		// Update timeline/timeLabel...
+		s.currentTime = s.engine.CurrentTime()
+		s.player.SetCurrentTime(s.currentTime)
 	}
-}
-
-func (s *trimState) updateTimeLabels() {
-	s.timeLabel.SetText(formatDuration(time.Duration(s.currentTime * float64(time.Second))))
 }
 
 func formatDuration(d time.Duration) string {
