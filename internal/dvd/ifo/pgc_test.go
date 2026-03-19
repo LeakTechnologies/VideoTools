@@ -478,6 +478,70 @@ func TestReadVTSI_RoundTrip(t *testing.T) {
 	}
 }
 
+// TestBuildVTS_C_ADT_Nil verifies nil is returned for a nil/empty PGC.
+func TestBuildVTS_C_ADT_Nil(t *testing.T) {
+	if got := BuildVTS_C_ADT(nil); got != nil {
+		t.Errorf("expected nil for nil PGC, got %+v", got)
+	}
+	if got := BuildVTS_C_ADT(&ProgramChain{}); got != nil {
+		t.Errorf("expected nil for empty PGC, got %+v", got)
+	}
+}
+
+// TestBuildVTS_C_ADT_Fields verifies sector ranges and IDs are copied from the PGC.
+func TestBuildVTS_C_ADT_Fields(t *testing.T) {
+	pgc := BuildSingleCellPGC(100, 999, 30.0, true)
+	cadt := BuildVTS_C_ADT(pgc)
+	if cadt == nil {
+		t.Fatal("expected non-nil C_ADT")
+	}
+	if len(cadt.Cells) != 1 {
+		t.Fatalf("len(Cells) = %d, want 1", len(cadt.Cells))
+	}
+	e := cadt.Cells[0]
+	if e.VOBID != 1 {
+		t.Errorf("VOBID = %d, want 1", e.VOBID)
+	}
+	if e.CellID != 1 {
+		t.Errorf("CellID = %d, want 1", e.CellID)
+	}
+	if e.StartSector != 100 {
+		t.Errorf("StartSector = %d, want 100", e.StartSector)
+	}
+	if e.EndSector != 999 {
+		t.Errorf("EndSector = %d, want 999", e.EndSector)
+	}
+}
+
+// TestWriteVTS_C_ADT_Layout verifies the on-disc header and entry positions.
+func TestWriteVTS_C_ADT_Layout(t *testing.T) {
+	pgc := BuildSingleCellPGC(200, 499, 10.0, false)
+	cadt := BuildVTS_C_ADT(pgc)
+	data, err := WriteVTS_C_ADT(cadt)
+	if err != nil {
+		t.Fatalf("WriteVTS_C_ADT: %v", err)
+	}
+	if len(data)%2048 != 0 {
+		t.Errorf("length %d not a multiple of 2048", len(data))
+	}
+	// Nr_of_Cells at [0:2]
+	if nr := binary.BigEndian.Uint16(data[0:2]); nr != 1 {
+		t.Errorf("Nr_of_Cells = %d, want 1", nr)
+	}
+	// EndByte at [4:8] = 8 + 1*12 - 1 = 19
+	if eb := binary.BigEndian.Uint32(data[4:8]); eb != 19 {
+		t.Errorf("EndByte = %d, want 19", eb)
+	}
+	// First entry StartSector at [8+4:8+8]
+	if s := binary.BigEndian.Uint32(data[12:16]); s != 200 {
+		t.Errorf("StartSector = %d, want 200", s)
+	}
+	// First entry EndSector at [8+8:8+12]
+	if s := binary.BigEndian.Uint32(data[16:20]); s != 499 {
+		t.Errorf("EndSector = %d, want 499", s)
+	}
+}
+
 // bytesReader wraps a []byte in an io.Reader for use in round-trip tests.
 func bytesReader(b []byte) interface{ Read([]byte) (int, error) } {
 	return &sliceReader{b: b}

@@ -20,11 +20,12 @@ func NewBuilder(outputDir string) *Builder {
 }
 
 // GenerateVTS_IFO creates VTS_xx_0.IFO and VTS_xx_0.BUP.
-// All table pointers may be nil; when non-nil they are written in this order:
+// All table pointers may be nil; when non-nil they are written in spec order:
 //   - pttsrpt → VTS_PTT_SRPT at sector 1 (chapter table)
-//   - pgc     → VTS_PGCITI after pttsrpt (PGC navigation)
-//   - tmapt   → VTS_TMAPT after pgciti (seek-bar time map)
-//   - admap   → VOBU_ADMAP last (VOBU address map for trick play)
+//   - pgc     → VTS_PGCITI (PGC navigation)
+//   - tmapt   → VTS_TMAPT (seek-bar time map)
+//   - cadt    → VTS_C_ADT (cell address table; used by hardware for cell seek)
+//   - admap   → VOBU_ADMAP (VOBU address map for trick play)
 func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain, tmapt *VTS_TMAPT, admap *VOBU_ADMAP, pttsrpt *VTS_PTT_SRPT) error {
 	filename := fmt.Sprintf("VTS_%02d_0.IFO", vtsNumber)
 	ifoPath := filepath.Join(b.outputDir, filename)
@@ -73,6 +74,22 @@ func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain
 		nextSector += uint32(len(tmaptData) / 2048)
 	}
 
+	// VTS_C_ADT — build from PGC if available; gives hardware players the
+	// cell-to-sector mapping needed for validated cell navigation.
+	var cadtData []byte
+	if pgc != nil && len(pgc.CellPlayback) > 0 {
+		cadt := BuildVTS_C_ADT(pgc)
+		if cadt != nil {
+			var err error
+			cadtData, err = WriteVTS_C_ADT(cadt)
+			if err != nil {
+				return fmt.Errorf("serialize vts_c_adt: %w", err)
+			}
+			mat.VTS_C_ADT_Offset = nextSector
+			nextSector += uint32(len(cadtData) / 2048)
+		}
+	}
+
 	if admap != nil {
 		mat.VTS_VOBU_ADMAP_Offset = nextSector
 		admapLen := 4 + len(admap.Sectors)*4
@@ -96,6 +113,9 @@ func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain
 	}
 	if tmaptData != nil {
 		buf.Write(tmaptData)
+	}
+	if cadtData != nil {
+		buf.Write(cadtData)
 	}
 
 	if admap != nil {
