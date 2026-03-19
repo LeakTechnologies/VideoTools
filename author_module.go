@@ -3218,6 +3218,70 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			return fmt.Errorf("failed to create ISO output directory: %w", err)
 		}
 
+		// --- Two-pass disc layout ---
+		// Pass 1: Compute where every file will sit on the ISO so we can write
+		// correct sector addresses into the IFO files before building the image.
+		// Use a throw-away writer (writes to io.Discard) for the layout scan.
+		logFn("Computing disc layout...")
+		layoutWriter := udf.NewWriter(io.Discard, title)
+		if err := layoutWriter.AddDirFS(discRoot); err != nil {
+			return fmt.Errorf("disc layout scan failed: %w", err)
+		}
+		layout := layoutWriter.PreAssignSectors()
+
+		// Helper: look up disc sector for a given VIDEO_TS file.
+		vtsSector := func(filename string) (uint32, uint32, bool) {
+			key := "/VIDEO_TS/" + filename
+			if info, ok := layout[key]; ok && info.SectorCount > 0 {
+				return info.DataSector, info.SectorCount, true
+			}
+			return 0, 0, false
+		}
+
+		// Re-build the main title PGC with the actual disc sector range.
+		if first, count, ok := vtsSector("VTS_01_1.VOB"); ok {
+			mainPGC = ifo.BuildSingleCellPGC(first, first+count-1, mainDuration, isNTSC)
+			logging.Info(logging.CatDVD, "Main VOB disc sectors: %d – %d", first, first+count-1)
+		}
+		// Update TT_SRPT StartSector for the main title.
+		if ifoFirst, _, ok := vtsSector("VTS_01_0.IFO"); ok {
+			srpt.Titles[0].StartSector = ifoFirst
+		}
+
+		// Re-build IFOs for extra title sets with correct sector addresses.
+		for i, clip := range extraClips {
+			vtsNum := i + 2
+			vobName := fmt.Sprintf("VTS_%02d_1.VOB", vtsNum)
+			ifoName := fmt.Sprintf("VTS_%02d_0.IFO", vtsNum)
+			if first, count, ok := vtsSector(vobName); ok {
+				extraPGC2 := ifo.BuildSingleCellPGC(first, first+count-1, clip.Duration, isNTSC)
+				var extraTMAPT2 *ifo.VTS_TMAPT
+				extraVOBPath := filepath.Join(videoTSPath, vobName)
+				if info2, err2 := os.Stat(extraVOBPath); err2 == nil && clip.Duration > 0 {
+					extraTMAPT2 = ifo.BuildLinearTMAPT(uint32(info2.Size()/2048), clip.Duration, 1)
+				}
+				extraMat2 := ifo.NewVTSMAT()
+				extraMat2.VTS_Attributes = vtsMat.VTS_Attributes
+				if err := ifoBuilder.GenerateVTS_IFO(vtsNum, extraMat2, extraPGC2, extraTMAPT2, nil); err != nil {
+					logging.Info(logging.CatDVD, "IFO sector patch failed for extra %d: %v", vtsNum, err)
+				}
+			}
+			if ifoFirst, _, ok := vtsSector(ifoName); ok && i+1 < len(srpt.Titles) {
+				srpt.Titles[i+1].StartSector = ifoFirst
+			}
+		}
+
+		// Pass 2: Rewrite VTS_01_0.IFO and VIDEO_TS.IFO with correct sectors.
+		if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, nil); err != nil {
+			return fmt.Errorf("ifo sector patch failed: %w", err)
+		}
+		if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGC); err != nil {
+			return fmt.Errorf("vmg ifo sector patch failed: %w", err)
+		}
+		logFn("IFO sector addresses patched")
+
+		// Pass 3: Build the ISO — AddDirFS(discRoot) adds VIDEO_TS/ and AUDIO_TS/
+		// as proper subdirectories, matching the DVD-Video layout spec.
 		logFn("Creating ISO image (Native Go UDF Writer)...")
 		isoFile, err := os.Create(outputPath)
 		if err != nil {
@@ -3226,11 +3290,8 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		defer isoFile.Close()
 
 		uw := udf.NewWriter(isoFile, title)
-		if err := uw.AddDirFS(videoTSPath); err != nil {
-			return fmt.Errorf("adding VIDEO_TS to iso: %w", err)
-		}
-		if err := uw.AddDirFS(audioTSPath); err != nil {
-			return fmt.Errorf("adding AUDIO_TS to iso: %w", err)
+		if err := uw.AddDirFS(discRoot); err != nil {
+			return fmt.Errorf("adding disc tree to iso: %w", err)
 		}
 		if err := uw.Build(); err != nil {
 			return fmt.Errorf("native udf build failed: %w", err)
