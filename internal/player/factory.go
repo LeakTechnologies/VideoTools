@@ -6,6 +6,14 @@ import (
 	"runtime"
 )
 
+// Deprecated: MPV backend is deprecated and will be removed in a future release.
+// Use the native media engine (FFmpeg-based) instead.
+const BackendMPVDeprecated = true
+
+// Deprecated: VLC backend is deprecated and will be removed in a future release.
+// Use the native media engine (FFmpeg-based) or FFplay instead.
+const BackendVLCDeprecated = true
+
 // Factory creates VTPlayer instances based on backend preference
 type Factory struct {
 	config *Config
@@ -35,12 +43,14 @@ func (f *Factory) CreatePlayer() (VTPlayer, error) {
 	}
 
 	switch backend {
-	case BackendMPV:
-		return f.createMPVPlayer()
-	case BackendVLC:
-		return f.createVLCPlayer()
 	case BackendFFplay:
 		return f.createFFplayPlayer()
+	case BackendNative:
+		return f.createNativePlayer()
+	case BackendMPV:
+		return nil, fmt.Errorf("MPV backend is deprecated; use BackendNative or BackendFFplay")
+	case BackendVLC:
+		return nil, fmt.Errorf("VLC backend is deprecated; use BackendNative or BackendFFplay")
 	default:
 		return nil, fmt.Errorf("unsupported backend: %v", backend)
 	}
@@ -48,69 +58,13 @@ func (f *Factory) CreatePlayer() (VTPlayer, error) {
 
 // selectBestBackend automatically chooses the best available backend
 func (f *Factory) selectBestBackend() BackendType {
-	// Try MPV first (best for frame accuracy)
-	if f.isMPVAvailable() {
-		return BackendMPV
-	}
-
-	// Try VLC next (good cross-platform support)
-	if f.isVLCAvailable() {
-		return BackendVLC
-	}
-
-	// Fall back to FFplay (always available with ffmpeg)
+	// Native media engine is preferred when available
+	// For now, fall back to FFplay as the default
 	if f.isFFplayAvailable() {
 		return BackendFFplay
 	}
 
-	// Default to MPV and let it fail with a helpful error
-	return BackendMPV
-}
-
-// isMPVAvailable checks if MPV is available on the system
-func (f *Factory) isMPVAvailable() bool {
-	// Check for mpv executable
-	_, err := exec.LookPath("mpv")
-	if err != nil {
-		return false
-	}
-
-	// Additional platform-specific checks could be added here
-	// For example, checking for libmpv libraries on Linux/Windows
-
-	return true
-}
-
-// isVLCAvailable checks if VLC is available on the system
-func (f *Factory) isVLCAvailable() bool {
-	_, err := exec.LookPath("vlc")
-	if err != nil {
-		return false
-	}
-
-	// Check for libvlc libraries
-	// This would be platform-specific
-	switch runtime.GOOS {
-	case "linux":
-		// Check for libvlc.so
-		_, err := exec.LookPath("libvlc.so.5")
-		if err != nil {
-			// Try other common library names
-			_, err := exec.LookPath("libvlc.so")
-			return err == nil
-		}
-		return true
-	case "windows":
-		// Check for VLC installation directory
-		_, err := exec.LookPath("libvlc.dll")
-		return err == nil
-	case "darwin":
-		// Check for VLC app or framework
-		_, err := exec.LookPath("/Applications/VLC.app/Contents/MacOS/VLC")
-		return err == nil
-	}
-
-	return false
+	return BackendFFplay
 }
 
 // isFFplayAvailable checks if FFplay is available on the system
@@ -119,34 +73,21 @@ func (f *Factory) isFFplayAvailable() bool {
 	return err == nil
 }
 
-// createMPVPlayer creates an MPV-based player
-func (f *Factory) createMPVPlayer() (VTPlayer, error) {
-	// Use the existing MPV controller
-	return NewMPVController(f.config)
-}
-
-// createVLCPlayer creates a VLC-based player
-func (f *Factory) createVLCPlayer() (VTPlayer, error) {
-	// Use the existing VLC controller
-	return NewVLCController(f.config)
-}
-
 // createFFplayPlayer creates an FFplay-based player
 func (f *Factory) createFFplayPlayer() (VTPlayer, error) {
-	// Wrap the existing FFplay controller to implement VTPlayer interface
 	return NewFFplayWrapper(f.config)
+}
+
+// createNativePlayer creates the native media engine player
+// This is a placeholder - the native engine is accessed directly via internal/media package
+func (f *Factory) createNativePlayer() (VTPlayer, error) {
+	return nil, fmt.Errorf("native player should be accessed via internal/media.Engine")
 }
 
 // GetAvailableBackends returns a list of available backends
 func (f *Factory) GetAvailableBackends() []BackendType {
 	var backends []BackendType
 
-	if f.isMPVAvailable() {
-		backends = append(backends, BackendMPV)
-	}
-	if f.isVLCAvailable() {
-		backends = append(backends, BackendVLC)
-	}
 	if f.isFFplayAvailable() {
 		backends = append(backends, BackendFFplay)
 	}
@@ -162,4 +103,25 @@ func (f *Factory) SetConfig(config *Config) {
 // GetConfig returns the current factory configuration
 func (f *Factory) GetConfig() *Config {
 	return f.config
+}
+
+// IsNativeEngineAvailable returns true if the native media engine is available
+func IsNativeEngineAvailable() bool {
+	return true
+}
+
+// BackendType represents the player backend being used
+// Deprecated: BackendMPV and BackendVLC are deprecated
+// Use BackendNative (FFmpeg-based) or BackendFFplay instead
+
+// GetPlatformFFplayPaths returns platform-specific FFplay executable names
+func GetPlatformFFplayPaths() []string {
+	switch runtime.GOOS {
+	case "windows":
+		return []string{"ffplay.exe", "ffplay"}
+	case "darwin":
+		return []string{"ffplay"}
+	default:
+		return []string{"ffplay"}
+	}
 }
