@@ -6,25 +6,30 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### GPU Rendering Pipeline (NEW)
 - [x] **Renderer interface** (`internal/media/gpu/renderer.go`) - Abstract GPU renderer with Texture interface
-- [x] **OpenGL implementation** (`internal/media/gpu/opengl.go`) - OpenGL 4.6+ renderer
-- [x] **Direct3D 11 implementation** (`internal/media/gpu/d3d11.go`) - D3D11 renderer for NVIDIA/AMD
+- [x] **OpenGL implementation** (`internal/media/gpu/opengl.go`) - OpenGL 4.6+ renderer scaffold
+- [x] **Direct3D 11 implementation** (`internal/media/gpu/d3d11.go`) - D3D11 renderer scaffold for NVIDIA/AMD
 - [x] **Texture utilities** (`internal/media/gpu/texture.go`) - Texture pooling, format conversion, scaling
 - [x] **Shader definitions** (`internal/media/gpu/shaders/`) - Vertex, fragment, and YUV→RGB shaders
 - [x] **Keyboard shortcuts** (`internal/media/gpu/shortcuts.go`) - Full shortcut handler (Space, arrows, F, M, 0-9, etc.)
-- [x] **Seekbar with thumbnails** (`internal/media/gpu/seekbar.go`) - Thumbnail cache, preview on hover
-- [x] **FFmpeg filter pipeline** (`internal/media/filters/pipeline.go`) - Deinterlace, scale, color correction
-- [x] **VideoPlayer overlay controls** (`internal/media/view.go`) - Integrated player controls
+- [x] **Seekbar with thumbnails** (`internal/media/gpu/seekbar.go`) - ThumbnailCache, preview on hover, ThumbnailGenerator interface
+- [x] **Volume control** (`internal/media/gpu/seekbar.go`) - VolumeControl widget with mute toggle
+- [x] **FFmpeg filter pipeline** (`internal/media/filters/pipeline.go`) - Deinterlace, scale, color correction, denoise, sharpen filters with presets
+- [x] **VideoPlayer overlay controls** (`internal/media/view.go`) - Integrated player controls with play/pause, seek, volume, hover-to-reveal
 - [ ] **Real OpenGL implementation** - Actual GL context integration with Fyne
 - [ ] **Real D3D11 implementation** - Actual DXGI device/swap chain setup
 - [ ] **Texture upload pipeline** - Zero-copy GPU upload from FFmpeg frames
 - [ ] **Thumbnail extraction** - Async keyframe extraction during file load
 
-### Playback Enhancements (PLANNED)
+### Playback Enhancements
+- [x] **Loading indicators** - SetLoading/IsLoading on Engine, loading spinner on VideoPlayer
+- [x] **Playback speed control** - Speed button on VideoPlayer, SetSpeed/GetSpeed wired to Engine
+- [x] **Chapter parsing** - Chapter struct, parseChapters(), GetChapters() on Engine
+- [ ] **Chapter markers on seekbar** - Visual chapter markers in VideoPlayer
+- [ ] **Chapter navigation** - Next/previous chapter controls
 - [ ] **Smooth scrubbing** - Pre-decode frames during seek for instant feedback
-- [ ] **Loading indicators** - Spinner/progress for buffering states
 - [ ] **Resume playback** - Store position in config, offer "Continue from X?"
 - [ ] **Picture-in-Picture** - Platform-specific PiP implementation
-- [ ] **Playback speed control** - 0.25x → 2x with audio pitch correction
+- [ ] **Audio pitch correction** - FFmpeg atempo filter for non-1x speeds
 
 ### Localization (dev34 carry-forward)
 - [x] **Subtitles i18n** — 9 strings added and wired in subtitles_module.go.

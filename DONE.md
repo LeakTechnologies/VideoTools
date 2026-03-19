@@ -11,8 +11,17 @@
 - [x] **Keyboard shortcuts** (`internal/media/gpu/shortcuts.go`) - Full shortcut handler (Space, arrows, F, M, 0-9, <>, etc.)
 - [x] **Seekbar with thumbnails** (`internal/media/gpu/seekbar.go`) - ThumbnailCache, preview on hover, ThumbnailGenerator interface
 - [x] **Volume control** (`internal/media/gpu/seekbar.go`) - VolumeControl widget with mute toggle
-- [x] **FFmpeg filter pipeline** (`internal/media/filters/pipeline.go`) - Deinterlace, scale, color correction, denoise, sharpen filters with presets
+- [x] **FFmpeg filter pipeline** (`internal/media/filters/pipeline.go`) - Deinterlace, scale, color correction, denoise, sharpen, crop, rotate filters with presets
 - [x] **VideoPlayer overlay controls** (`internal/media/view.go`) - Integrated player controls with play/pause, seek, volume, hover-to-reveal
+
+### Playback Enhancements (NEW)
+- [x] **Loading state** - SetLoading/IsLoading methods on Engine, loading spinner on VideoPlayer
+- [x] **Playback speed control** - Speed button on VideoPlayer with preset speeds (0.25x-2x), SetSpeed/GetSpeed wired to Engine
+- [x] **Chapter parsing** - Chapter struct, parseChapters() via FFmpeg, GetChapters() API on Engine
+- [x] **Chapter support in VideoPlayer** - SetChapters() method, chapters stored in player state
+
+### i18n Strings (NEW)
+- [x] **Player strings** - PlayerLoading, PlayerBuffering, PlayerSpeed, PlayerChapter, PlayerChapters, PlayerNoChapters, PlayerSpeed* (8 new strings)
 
 ### Bug Fixes (tester feedback)
 - [x] **MKV 0 kbps bitrate tag** — Hardware encoders (AMF, NVENC) don't write per-stream BPS stats to Matroska; inject `-metadata:s:v:0 BPS=<bps>` for CBR/VBR MKV output so Windows Explorer and media tools display correct bitrate.

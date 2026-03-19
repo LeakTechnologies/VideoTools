@@ -577,10 +577,10 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 					dialog.ShowInformation("Scene Detection", "No scene changes detected at the current sensitivity.", state.window)
 					return
 				}
-				// Show chapter preview dialog for visual verification
-				state.showChapterPreview(targetPath, chapters, func(accepted bool) {
+				// Show chapter preview dialog for visual verification and manual tweaking
+				state.showChapterPreview(targetPath, chapters, func(accepted bool, result []authorChapter) {
 					if accepted {
-						state.authorChapters = chapters
+						state.authorChapters = result
 						state.authorChapterSource = "scenes"
 						state.updateAuthorSummary()
 						refreshChapters()
@@ -879,7 +879,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		state.persistAuthorConfig()
 	})
 
-	info := widget.NewLabel("Requires: ffmpeg, dvdauthor, and mkisofs/genisoimage (for ISO).")
+	info := widget.NewLabel("Requires: ffmpeg (always). spumux required for DVD menus.")
 	info.Wrapping = fyne.TextWrapWord
 
 	controls := container.NewVBox(
@@ -909,6 +909,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	navyBlue := utils.MustHex("#191F35")
 	boxAccent := gridColor
 	var updateMenuControls func(bool)
+	var schedulePreviewRefresh func()
 
 	buildMenuBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
 		bg := canvas.NewRectangle(navyBlue)
@@ -970,6 +971,9 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		updateCustomColors()
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
+		if schedulePreviewRefresh != nil {
+			schedulePreviewRefresh()
+		}
 	}
 
 	// Custom theme color pickers
@@ -981,6 +985,9 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	customBgColorEntry.OnChanged = func(value string) {
 		state.authorMenuCustomBgColor = value
 		state.persistAuthorConfig()
+		if schedulePreviewRefresh != nil {
+			schedulePreviewRefresh()
+		}
 	}
 
 	customTextColorEntry := widget.NewEntry()
@@ -991,6 +998,9 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	customTextColorEntry.OnChanged = func(value string) {
 		state.authorMenuCustomTextColor = value
 		state.persistAuthorConfig()
+		if schedulePreviewRefresh != nil {
+			schedulePreviewRefresh()
+		}
 	}
 
 	customAccentColorEntry := widget.NewEntry()
@@ -1001,6 +1011,9 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	customAccentColorEntry.OnChanged = func(value string) {
 		state.authorMenuCustomAccentColor = value
 		state.persistAuthorConfig()
+		if schedulePreviewRefresh != nil {
+			schedulePreviewRefresh()
+		}
 	}
 
 	// Show/hide custom color pickers based on theme selection
@@ -1072,6 +1085,9 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 			bgImageLabel.SetText(state.authorMenuBackgroundImage)
 			state.updateAuthorSummary()
 			state.persistAuthorConfig()
+			if schedulePreviewRefresh != nil {
+				schedulePreviewRefresh()
+			}
 		}, state.window)
 	})
 	bgImageButton.Importance = widget.HighImportance
@@ -1108,6 +1124,9 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		state.authorMenuTemplate = templateValueByLabel[value]
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
+		if schedulePreviewRefresh != nil {
+			schedulePreviewRefresh()
+		}
 	}
 
 	logoEnableCheck := widget.NewCheck("Embed Logo", nil)
@@ -1335,6 +1354,9 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}, func(value string) {
 		state.authorMenuStructure = value
 		state.persistAuthorConfig()
+		if schedulePreviewRefresh != nil {
+			schedulePreviewRefresh()
+		}
 	})
 	if state.authorMenuStructure == "" {
 		state.authorMenuStructure = "Feature + Chapters"
@@ -1344,6 +1366,9 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	extrasMenuCheck := widget.NewCheck("Enable Extras Menu", func(checked bool) {
 		state.authorMenuExtrasEnabled = checked
 		state.persistAuthorConfig()
+		if schedulePreviewRefresh != nil {
+			schedulePreviewRefresh()
+		}
 	})
 	extrasMenuCheck.SetChecked(state.authorMenuExtrasEnabled)
 	extrasNote := widget.NewLabel("Videos marked as Extras appear in a separate menu.")
@@ -1450,12 +1475,18 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		thumbSourceSelect,
 	))
 
+	var previewPanelContent fyne.CanvasObject
+	previewPanelContent, schedulePreviewRefresh = buildMenuPreviewPanel(state)
+	previewBox := buildMenuBox("DVD Menu Preview", previewPanelContent)
+
 	controls := container.NewVBox(
 		menuCore,
 		sectionGap(),
 		branding,
 		sectionGap(),
 		navigation,
+		sectionGap(),
+		previewBox,
 		sectionGap(),
 		info,
 	)
@@ -2720,6 +2751,28 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	if err := os.MkdirAll(tempRoot, 0755); err != nil {
 		return fmt.Errorf("failed to create temp root: %w", err)
 	}
+
+	// Validate and prepare disc root BEFORE creating any workspace inside it.
+	// For VIDEO_TS mode discRoot == outputPath == tempRoot, so the workDir
+	// (created next) would otherwise be seen by the empty-folder guard.
+	discRoot := outputPath
+	var cleanup func()
+	if makeISO {
+		dvdTemp, err := os.MkdirTemp(tempRoot, "videotools-dvd-")
+		if err != nil {
+			return fmt.Errorf("failed to create DVD output directory: %w", err)
+		}
+		discRoot = dvdTemp
+		cleanup = func() { _ = os.RemoveAll(dvdTemp) }
+	} else {
+		if err := prepareDiscRoot(discRoot); err != nil {
+			return err
+		}
+	}
+	if cleanup != nil {
+		defer cleanup()
+	}
+
 	workDir, err := os.MkdirTemp(tempRoot, "videotools-author-")
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
@@ -2729,24 +2782,12 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		logFn(fmt.Sprintf("Temp workspace: %s", workDir))
 	}
 
-	discRoot := outputPath
-	var cleanup func()
+	// For ISO mode the disc root is a fresh temp dir — always empty, but
+	// still call prepareDiscRoot to create the VIDEO_TS sub-directory.
 	if makeISO {
-		tempRoot, err := os.MkdirTemp(tempRoot, "videotools-dvd-")
-		if err != nil {
-			return fmt.Errorf("failed to create DVD output directory: %w", err)
+		if err := prepareDiscRoot(discRoot); err != nil {
+			return err
 		}
-		discRoot = tempRoot
-		cleanup = func() {
-			_ = os.RemoveAll(tempRoot)
-		}
-	}
-	if cleanup != nil {
-		defer cleanup()
-	}
-
-	if err := prepareDiscRoot(discRoot); err != nil {
-		return err
 	}
 
 	// Separate clips into features and extras
@@ -3761,12 +3802,8 @@ func authorFriendlyError(err error) string {
 		return "Not enough disk space for authoring output."
 	case strings.Contains(lower, "output folder must be empty"):
 		return "Output folder must be empty before authoring."
-	case strings.Contains(lower, "dvdauthor not found"):
-		return "dvdauthor not found. Install DVD authoring tools."
-	case strings.Contains(lower, "mkisofs"),
-		strings.Contains(lower, "genisoimage"),
-		strings.Contains(lower, "xorriso"):
-		return "ISO tool not found. Install mkisofs/genisoimage/xorriso."
+	case strings.Contains(lower, "spumux not found"), strings.Contains(lower, "spumux"):
+		return "spumux not found. Install dvdauthor package for menu support."
 	case strings.Contains(lower, "permission denied"):
 		return "Permission denied writing to output folder."
 	case strings.Contains(lower, "ffmpeg"):
@@ -3788,7 +3825,16 @@ func prepareDiscRoot(path string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read output directory: %w", err)
 	}
-	if len(entries) > 0 {
+	var nonTemp []os.DirEntry
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "videotools-") {
+			// Auto-clean stale VideoTools workspace dirs left by crashed prior runs.
+			_ = os.RemoveAll(filepath.Join(path, e.Name()))
+			continue
+		}
+		nonTemp = append(nonTemp, e)
+	}
+	if len(nonTemp) > 0 {
 		return fmt.Errorf("output folder must be empty: %s", path)
 	}
 	return nil
@@ -4267,86 +4313,241 @@ func runCommand(name string, args []string) error {
 	return nil
 }
 
-func (s *appState) showChapterPreview(videoPath string, chapters []authorChapter, callback func(bool)) {
-	dlg := dialog.NewCustom("Chapter Preview", "Close", container.NewVBox(
-		widget.NewLabel(fmt.Sprintf("Detected %d chapters - generating thumbnails...", len(chapters))),
+func (s *appState) showChapterPreview(videoPath string, chapters []authorChapter, callback func(bool, []authorChapter)) {
+	loadingDlg := dialog.NewCustom("Chapter Preview", "Close", container.NewVBox(
+		widget.NewLabel(fmt.Sprintf("Detected %d chapters — generating thumbnails...", len(chapters))),
 		widget.NewProgressBarInfinite(),
 	), s.window)
-	dlg.Resize(fyne.NewSize(800, 600))
-	dlg.Show()
+	loadingDlg.Resize(fyne.NewSize(900, 600))
+	loadingDlg.Show()
+
+	localChapters := make([]authorChapter, len(chapters))
+	copy(localChapters, chapters)
 
 	go func() {
-		// Limit preview to first 24 chapters for performance
-		previewCount := len(chapters)
-		if previewCount > 24 {
-			previewCount = 24
-		}
-
-		thumbnails := make([]fyne.CanvasObject, 0, previewCount)
-		for i := 0; i < previewCount; i++ {
-			ch := chapters[i]
-			thumbPath, err := extractChapterThumbnail(videoPath, ch.Timestamp)
+		thumbPaths := make([]string, len(localChapters))
+		for i, ch := range localChapters {
+			path, err := extractChapterThumbnail(videoPath, ch.Timestamp)
 			if err != nil {
-				logging.Debug(logging.CatSystem, "failed to extract thumbnail at %.2f: %v", ch.Timestamp, err)
+				logging.Debug(logging.CatSystem, "thumbnail extract at %.2f: %v", ch.Timestamp, err)
 				continue
 			}
-
-			img := canvas.NewImageFromFile(thumbPath)
-			img.FillMode = canvas.ImageFillContain
-			img.SetMinSize(fyne.NewSize(160, 90))
-
-			timeLabel := widget.NewLabel(fmt.Sprintf("%.2fs", ch.Timestamp))
-			timeLabel.Alignment = fyne.TextAlignCenter
-
-			thumbCard := container.NewVBox(
-				container.NewMax(img),
-				timeLabel,
-			)
-			thumbnails = append(thumbnails, thumbCard)
+			thumbPaths[i] = path
 		}
 
 		runOnUI(func() {
-			dlg.Hide()
+			loadingDlg.Hide()
 
-			if len(thumbnails) == 0 {
-				dialog.ShowError(fmt.Errorf("failed to generate chapter thumbnails"), s.window)
-				return
+			frameImg := canvas.NewImageFromResource(nil)
+			frameImg.FillMode = canvas.ImageFillContain
+			frameImg.SetMinSize(fyne.NewSize(380, 215))
+			frameLabel := widget.NewLabel("Select a chapter to inspect the frame")
+			frameLabel.Alignment = fyne.TextAlignCenter
+			frameLabel.TextStyle = fyne.TextStyle{Italic: true}
+
+			var frameTimerMu sync.Mutex
+			var frameTimer *time.Timer
+			updateFrame := func(ts float64) {
+				frameTimerMu.Lock()
+				if frameTimer != nil {
+					frameTimer.Stop()
+				}
+				frameTimer = time.AfterFunc(250*time.Millisecond, func() {
+					path, err := extractChapterThumbnail(videoPath, ts)
+					if err != nil {
+						return
+					}
+					runOnUI(func() {
+						frameImg.File = path
+						frameImg.Resource = nil
+						frameImg.Refresh()
+						frameLabel.SetText(fmt.Sprintf("Frame at %.2fs", ts))
+					})
+				})
+				frameTimerMu.Unlock()
 			}
 
-			grid := container.NewGridWrap(fyne.NewSize(170, 120), thumbnails...)
-			scroll := container.NewVScroll(grid)
-			// scroll.SetMinSize(fyne.NewSize(780, 500)) // Removed for flexible sizing
+			listBox := container.NewVBox()
+			var buildList func()
+			buildList = func() {
+				listBox.Objects = nil
+				for i := range localChapters {
+					i := i
+					ch := &localChapters[i]
 
-			infoText := fmt.Sprintf("Found %d chapters", len(chapters))
-			if len(chapters) > previewCount {
-				infoText += fmt.Sprintf(" (showing first %d)", previewCount)
+					var thumbObj fyne.CanvasObject
+					if i < len(thumbPaths) && thumbPaths[i] != "" {
+						img := canvas.NewImageFromFile(thumbPaths[i])
+						img.FillMode = canvas.ImageFillContain
+						img.SetMinSize(fyne.NewSize(96, 54))
+						thumbObj = img
+					} else {
+						r := canvas.NewRectangle(color.NRGBA{R: 30, G: 32, B: 48, A: 255})
+						r.SetMinSize(fyne.NewSize(96, 54))
+						thumbObj = r
+					}
+
+					numLabel := widget.NewLabelWithStyle(fmt.Sprintf("%d", i+1),
+						fyne.TextAlignCenter, fyne.TextStyle{Bold: true})
+
+					tsEntry := widget.NewEntry()
+					tsEntry.SetText(fmt.Sprintf("%.2f", ch.Timestamp))
+					tsEntry.SetPlaceHolder("0.00")
+					tsEntry.OnChanged = func(val string) {
+						ts, err := strconv.ParseFloat(strings.TrimSpace(val), 64)
+						if err != nil || ts < 0 || i >= len(localChapters) {
+							return
+						}
+						localChapters[i].Timestamp = ts
+						updateFrame(ts)
+						go func() {
+							time.Sleep(700 * time.Millisecond)
+							path, err2 := extractChapterThumbnail(videoPath, ts)
+							if err2 != nil || i >= len(thumbPaths) {
+								return
+							}
+							runOnUI(func() {
+								thumbPaths[i] = path
+								buildList()
+							})
+						}()
+					}
+
+					titleEntry := widget.NewEntry()
+					if ch.Title != "" {
+						titleEntry.SetText(ch.Title)
+					} else {
+						titleEntry.SetPlaceHolder(fmt.Sprintf("Chapter %d", i+1))
+					}
+					titleEntry.OnChanged = func(val string) {
+						if i < len(localChapters) {
+							localChapters[i].Title = val
+						}
+					}
+
+					previewBtn := widget.NewButton("Preview", func() {
+						if i < len(localChapters) {
+							updateFrame(localChapters[i].Timestamp)
+						}
+					})
+					previewBtn.Importance = widget.LowImportance
+
+					removeBtn := widget.NewButton("Remove", func() {
+						if i >= len(localChapters) {
+							return
+						}
+						localChapters = append(localChapters[:i], localChapters[i+1:]...)
+						if i < len(thumbPaths) {
+							thumbPaths = append(thumbPaths[:i], thumbPaths[i+1:]...)
+						}
+						buildList()
+					})
+					removeBtn.Importance = widget.LowImportance
+
+					fields := container.NewVBox(
+						container.NewGridWithColumns(2, widget.NewLabel("Time (s):"), tsEntry),
+						container.NewGridWithColumns(2, widget.NewLabel("Title:"), titleEntry),
+					)
+					row := container.NewBorder(nil, nil,
+						container.NewVBox(numLabel, container.NewPadded(thumbObj)),
+						container.NewHBox(previewBtn, removeBtn),
+						fields,
+					)
+					listBox.Add(container.NewPadded(row))
+					listBox.Add(widget.NewSeparator())
+				}
+				listBox.Refresh()
 			}
-			info := widget.NewLabel(infoText)
-			info.Wrapping = fyne.TextWrapWord
+			buildList()
 
-			var previewDlg *dialog.CustomDialog
+			addBtn := widget.NewButton("+ Add Chapter", func() {
+				tsField := widget.NewEntry()
+				tsField.SetPlaceHolder("e.g. 73.5")
+				dlgAdd := dialog.NewCustomConfirm("Add Chapter", "Add", "Cancel",
+					container.NewVBox(widget.NewLabel("Timestamp (seconds):"), tsField),
+					func(confirmed bool) {
+						if !confirmed {
+							return
+						}
+						ts, err := strconv.ParseFloat(strings.TrimSpace(tsField.Text), 64)
+						if err != nil || ts < 0 {
+							return
+						}
+						localChapters = append(localChapters, authorChapter{Timestamp: ts})
+						sort.Slice(localChapters, func(a, b int) bool {
+							return localChapters[a].Timestamp < localChapters[b].Timestamp
+						})
+						newThumbs := make([]string, len(localChapters))
+						copy(newThumbs, thumbPaths)
+						thumbPaths = newThumbs
+						buildList()
+						go func() {
+							path, err2 := extractChapterThumbnail(videoPath, ts)
+							if err2 != nil {
+								return
+							}
+							runOnUI(func() {
+								for j, ch := range localChapters {
+									if ch.Timestamp == ts && j < len(thumbPaths) {
+										thumbPaths[j] = path
+										buildList()
+										break
+									}
+								}
+							})
+						}()
+					}, s.window)
+				dlgAdd.Show()
+			})
+			addBtn.Importance = widget.MediumImportance
+
+			var editDlg *dialog.CustomDialog
 			acceptBtn := widget.NewButton("Accept Chapters", func() {
-				previewDlg.Hide()
-				callback(true)
+				sort.Slice(localChapters, func(a, b int) bool {
+					return localChapters[a].Timestamp < localChapters[b].Timestamp
+				})
+				editDlg.Hide()
+				callback(true, localChapters)
 			})
 			acceptBtn.Importance = widget.HighImportance
 
 			rejectBtn := widget.NewButton("Reject", func() {
-				previewDlg.Hide()
-				callback(false)
+				editDlg.Hide()
+				callback(false, nil)
 			})
 
-			content := container.NewBorder(
-				container.NewVBox(info, widget.NewSeparator()),
-				container.NewHBox(rejectBtn, acceptBtn),
-				nil,
-				nil,
-				scroll,
-			)
+			infoLabel := widget.NewLabel(fmt.Sprintf(
+				"Found %d chapters — adjust timestamps or titles, then accept.",
+				len(localChapters),
+			))
+			infoLabel.Wrapping = fyne.TextWrapWord
 
-			previewDlg = dialog.NewCustom("Chapter Preview", "Close", content, s.window)
-			previewDlg.Resize(fyne.NewSize(800, 600))
-			previewDlg.Show()
+			leftPanel := container.NewBorder(
+				container.NewVBox(infoLabel, widget.NewSeparator()),
+				container.NewPadded(addBtn),
+				nil, nil,
+				container.NewVScroll(listBox),
+			)
+			rightPanel := container.NewBorder(
+				nil, container.NewPadded(frameLabel), nil, nil,
+				container.NewPadded(frameImg),
+			)
+			split := container.NewHSplit(leftPanel, rightPanel)
+			split.SetOffset(0.55)
+
+			content := container.NewBorder(
+				nil,
+				container.NewPadded(container.NewHBox(rejectBtn, layout.NewSpacer(), acceptBtn)),
+				nil, nil,
+				split,
+			)
+			editDlg = dialog.NewCustom("Chapter Preview & Edit", "Close", content, s.window)
+			editDlg.Resize(fyne.NewSize(900, 620))
+			editDlg.Show()
+
+			if len(localChapters) > 0 {
+				updateFrame(localChapters[0].Timestamp)
+			}
 		})
 	}()
 }

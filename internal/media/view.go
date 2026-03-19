@@ -191,23 +191,31 @@ type VideoPlayer struct {
 	widget.BaseWidget
 	source *image.RGBA
 
-	playBtn    *widget.Button
-	slider     *widget.Slider
-	timeLabel  *canvas.Text
-	durLabel   *canvas.Text
-	volumeBtn  *widget.Button
-	controls   *fyne.Container
-	controlBar *canvas.Rectangle
+	playBtn        *widget.Button
+	slider         *widget.Slider
+	timeLabel      *canvas.Text
+	durLabel       *canvas.Text
+	volumeBtn      *widget.Button
+	speedBtn       *widget.Button
+	loadingSpinner *widget.ProgressBarInfinite
+	controls       *fyne.Container
+	controlBar     *canvas.Rectangle
 
 	isPlaying   bool
+	isLoading   bool
 	currentTime float64
 	duration    float64
 	volume      float64
+	speed       float64
+
+	chapters    []Chapter
+	chapterMark []*canvas.Circle
 
 	onPlay         func()
 	onPause        func()
 	onSeek         func(float64)
 	onVolumeChange func(float64)
+	onSpeedChange  func(float64)
 
 	showControls bool
 	mouseInView  bool
@@ -219,7 +227,10 @@ func NewVideoPlayer() *VideoPlayer {
 		currentTime:  0,
 		duration:     0,
 		volume:       1.0,
+		speed:        1.0,
 		isPlaying:    false,
+		isLoading:    false,
+		chapters:     make([]Chapter, 0),
 	}
 	v.ExtendBaseWidget(v)
 	v.buildControls()
@@ -252,12 +263,21 @@ func (v *VideoPlayer) buildControls() {
 	v.volumeBtn.Importance = widget.LowImportance
 	v.volumeBtn.Resize(fyne.NewSize(36, 36))
 
+	v.speedBtn = widget.NewButton("1x", v.toggleSpeed)
+	v.speedBtn.Importance = widget.LowImportance
+	v.speedBtn.Resize(fyne.NewSize(36, 24))
+
+	v.loadingSpinner = widget.NewProgressBarInfinite()
+	v.loadingSpinner.Hide()
+
 	controlRow := container.NewHBox(
 		v.playBtn,
 		widget.NewLabel(""),
 		v.timeLabel,
 		v.slider,
 		v.durLabel,
+		layout.NewSpacer(),
+		v.speedBtn,
 		v.volumeBtn,
 	)
 
@@ -341,6 +361,56 @@ func (v *VideoPlayer) toggleMute() {
 	}
 }
 
+func (v *VideoPlayer) toggleSpeed() {
+	speeds := []float64{0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0}
+	found := -1
+	for i, s := range speeds {
+		if s == v.speed {
+			found = i
+			break
+		}
+	}
+
+	nextIdx := (found + 1) % len(speeds)
+	v.SetSpeed(speeds[nextIdx])
+}
+
+func (v *VideoPlayer) SetLoading(loading bool) {
+	v.isLoading = loading
+	if v.loadingSpinner != nil {
+		if loading {
+			v.loadingSpinner.Show()
+		} else {
+			v.loadingSpinner.Hide()
+		}
+	}
+	v.Refresh()
+}
+
+func (v *VideoPlayer) SetSpeed(speed float64) {
+	v.speed = speed
+	if v.speedBtn != nil {
+		if speed == 1.0 {
+			v.speedBtn.SetText("1x")
+		} else if speed < 1.0 {
+			v.speedBtn.SetText(fmt.Sprintf("%.2gx", speed))
+		} else {
+			v.speedBtn.SetText(fmt.Sprintf("%.1gx", speed))
+		}
+	}
+	if v.onSpeedChange != nil {
+		v.onSpeedChange(speed)
+	}
+}
+
+func (v *VideoPlayer) SetChapters(chapters []Chapter) {
+	v.chapters = chapters
+	v.updateChapterMarkers()
+}
+
+func (v *VideoPlayer) updateChapterMarkers() {
+}
+
 func (v *VideoPlayer) updateTimeLabels() {
 	if v.timeLabel != nil {
 		v.timeLabel.Text = formatVideoTime(v.currentTime)
@@ -364,6 +434,10 @@ func (v *VideoPlayer) OnSeek(cb func(float64)) {
 
 func (v *VideoPlayer) OnVolumeChange(cb func(float64)) {
 	v.onVolumeChange = cb
+}
+
+func (v *VideoPlayer) OnSpeedChange(cb func(float64)) {
+	v.onSpeedChange = cb
 }
 
 func (v *VideoPlayer) MouseIn(ev *desktop.MouseEvent) {
