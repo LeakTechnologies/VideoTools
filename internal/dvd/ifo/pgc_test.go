@@ -187,3 +187,45 @@ func TestWriteTMAPT_NilError(t *testing.T) {
 		t.Error("WriteTMAPT(nil) returned nil error, want error")
 	}
 }
+
+// TestBuildVOBU_ADMAP_Nil verifies nil is returned for empty input.
+func TestBuildVOBU_ADMAP_Nil(t *testing.T) {
+	if got := BuildVOBU_ADMAP(nil); got != nil {
+		t.Errorf("expected nil for empty input, got %+v", got)
+	}
+	if got := BuildVOBU_ADMAP([]uint32{}); got != nil {
+		t.Errorf("expected nil for empty slice, got %+v", got)
+	}
+}
+
+// TestBuildVOBU_ADMAP_EndByte verifies the EndByte field matches the DVD spec:
+// EndByte = (total table size in bytes) - 1, where the table starts at the
+// EndByte field itself (4 bytes) followed by N × 4-byte sector addresses.
+func TestBuildVOBU_ADMAP_EndByte(t *testing.T) {
+	sectors := []uint32{10, 20, 30}
+	admap := BuildVOBU_ADMAP(sectors)
+	if admap == nil {
+		t.Fatal("expected non-nil ADMAP")
+	}
+	wantEndByte := uint32(4 + 3*4 - 1) // = 15
+	if admap.EndByte != wantEndByte {
+		t.Errorf("EndByte = %d, want %d", admap.EndByte, wantEndByte)
+	}
+}
+
+// TestBuildVOBU_ADMAP_Sectors verifies sector addresses are preserved exactly.
+func TestBuildVOBU_ADMAP_Sectors(t *testing.T) {
+	want := []uint32{0, 15, 42, 100}
+	admap := BuildVOBU_ADMAP(want)
+	if admap == nil {
+		t.Fatal("expected non-nil ADMAP")
+	}
+	if len(admap.Sectors) != len(want) {
+		t.Fatalf("len(Sectors) = %d, want %d", len(admap.Sectors), len(want))
+	}
+	for i, s := range admap.Sectors {
+		if s != want[i] {
+			t.Errorf("Sectors[%d] = %d, want %d", i, s, want[i])
+		}
+	}
+}
