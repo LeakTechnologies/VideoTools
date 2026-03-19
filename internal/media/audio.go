@@ -45,8 +45,10 @@ type AudioPlayer struct {
 	muted  bool
 	paused bool
 
-	mu        sync.Mutex
-	volumeMul float32
+	mu          sync.Mutex
+	volumeMul   float32
+	eofReceived bool
+	looping     bool
 }
 
 func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *MasterClock, timeBase float64) (*AudioPlayer, error) {
@@ -157,6 +159,24 @@ func (p *AudioPlayer) IsPaused() bool {
 	return p.paused
 }
 
+func (p *AudioPlayer) SetLooping(looping bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.looping = looping
+}
+
+func (p *AudioPlayer) IsLooping() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.looping
+}
+
+func (p *AudioPlayer) ResetEOF() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.eofReceived = false
+}
+
 func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	if len(p.leftover) > 0 {
 		n := copy(buf, p.leftover)
@@ -167,6 +187,7 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	for {
 		p.mu.Lock()
 		paused := p.paused
+		looping := p.looping
 		clock := p.clock
 		p.mu.Unlock()
 
@@ -182,8 +203,22 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 
 		pkt, ok := p.queue.Get()
 		if !ok {
+			if looping {
+				p.mu.Lock()
+				p.eofReceived = true
+				p.mu.Unlock()
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
 			return 0, io.EOF
 		}
+
+		p.mu.Lock()
+		if p.eofReceived {
+			p.eofReceived = false
+		}
+		p.mu.Unlock()
+
 		defer C.av_packet_free(&pkt)
 
 		if C.avcodec_send_packet(p.codecCtx, pkt) != 0 {

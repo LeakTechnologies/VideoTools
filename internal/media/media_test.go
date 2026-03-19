@@ -420,3 +420,33 @@ func TestMasterClockWaitForPTS(t *testing.T) {
 
 	clock.WaitForPTS(0.5)
 }
+
+func TestEngineHasAudio(t *testing.T) {
+	engine := NewEngine()
+	if engine == nil {
+		t.Fatal("NewEngine returned nil")
+	}
+
+	info := engine.Info()
+	if info != nil {
+		t.Error("expected nil info before Open()")
+	}
+}
+
+func TestEngineSelectAudioTrackWithoutOpen(t *testing.T) {
+	engine := NewEngine()
+
+	err := engine.SelectAudioTrack(0)
+	if err == nil {
+		t.Error("expected error when selecting track without opening file")
+	}
+}
+
+func TestEngineSelectSubtitleTrackWithoutOpen(t *testing.T) {
+	engine := NewEngine()
+
+	err := engine.SelectSubtitleTrack(0)
+	if err == nil {
+		t.Error("expected error when selecting track without opening file")
+	}
+}
