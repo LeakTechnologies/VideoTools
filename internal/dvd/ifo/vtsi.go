@@ -336,6 +336,17 @@ func ReadVTSI(r io.Reader) (*VTS_MAT, error) {
 		copy(sp.LanguageCode[:], buf[off+2:off+4])
 		sp.SpecificCode = buf[off+4]
 	}
+	// 0x200 (512): VTS title video attributes
+	mat.VTS_Attributes.CompressionMode  = (buf[512] >> 6) & 0x03
+	mat.VTS_Attributes.TVSystem         = (buf[512] >> 4) & 0x03
+	mat.VTS_Attributes.AspectRatio      = (buf[512] >> 2) & 0x03
+	mat.VTS_Attributes.PermittedDisplay = buf[512] & 0x03
+	mat.VTS_Attributes.Line21_1         = (buf[513] >> 7) & 0x01
+	mat.VTS_Attributes.Line21_2         = (buf[513] >> 6) & 0x01
+	mat.VTS_Attributes.Resolution       = (buf[513] >> 2) & 0x03
+	mat.VTS_Attributes.Letterboxed      = (buf[513] >> 1) & 0x01
+	mat.VTS_Attributes.FilmMode         = buf[513] & 0x01
+
 	mat.VTS_PTT_SRPT_Offset     = binary.BigEndian.Uint32(buf[418:422])
 	mat.VTS_PGCITI_Offset       = binary.BigEndian.Uint32(buf[422:426])
 	mat.VTS_M_PGCI_UT_Offset    = binary.BigEndian.Uint32(buf[426:430])
