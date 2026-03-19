@@ -7,6 +7,7 @@
 - **Audio/Filters/Inspect i18n wired** — All module views now use t.* i18n keys.
 - **Status bar localization** — Added StatusNoActiveJobs to status bar.
 - **Trim module compatibility** — Updated trim stub and native view to support OnAddToQueue callback and TrimClip struct.
+- **Dialog title i18n** — 15+ new translation keys wired into main.go for Convert/Merge/Trim/Snippet modules (DialogInterlacingResults, DialogAutoCropDetection, DialogNoBlackBars, DialogQueueNotInit, DialogNoRunningJob, LabelSnippet, MergeStarted, TrimJobAdded).
 
 ### UI Fixes
 - **Back button consistency** — Module name uppercase on all modules.
