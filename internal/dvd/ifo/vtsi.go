@@ -115,6 +115,57 @@ func WriteTMAPT(t *VTS_TMAPT) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// VTS_PTT_SRPT is the Part-of-Title Search Pointer Table.
+// It maps chapter numbers (PTT = Part of Title) to PGC/program pairs,
+// enabling hardware players to jump directly to any chapter.
+//
+// One VTS_PTT_SRPT per VTS; for our single-title-per-VTS layout:
+//   NrOf_Srpts = 1 (one title in this VTS)
+//   PTT[i]     = chapter i+1 → PGC 1, Program i+1
+type VTS_PTT_SRPT struct {
+	NrOfChapters uint16 // number of chapters (PTT entries)
+}
+
+// WriteVTS_PTT_SRPT serializes a VTS_PTT_SRPT for a single title with the
+// given number of chapters and returns the sector-padded bytes.
+//
+// On-disc layout (one title, N chapters):
+//
+//	[0-1]  NrOf_Srpts = 1 (uint16)
+//	[2-3]  Reserved (uint16)
+//	[4-7]  EndByte (uint32) — last byte of table, 0-relative
+//	[8-11] Offset[0] = 12 (uint32) — byte offset within table to title 0's PTT list
+//	[12+]  N PTT entries × 4 bytes: PGCN(2) + PGN(1) + Reserved(1)
+func WriteVTS_PTT_SRPT(srpt *VTS_PTT_SRPT) ([]byte, error) {
+	n := int(srpt.NrOfChapters)
+	if n == 0 {
+		return nil, fmt.Errorf("WriteVTS_PTT_SRPT: zero chapters")
+	}
+	// Layout: 8 header + 4 offset + n*4 entries
+	pttListOffset := uint32(12) // after 8-byte header + 4-byte offset for title 0
+	endByte := pttListOffset + uint32(n*4) - 1
+
+	logging.Debug(logging.CatDVD, "Building VTS_PTT_SRPT: %d chapter(s)", n)
+
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, uint16(1))       // NrOf_Srpts
+	binary.Write(&buf, binary.BigEndian, uint16(0))       // Reserved
+	binary.Write(&buf, binary.BigEndian, endByte)         // EndByte
+	binary.Write(&buf, binary.BigEndian, pttListOffset)   // Offset[0]
+
+	for i := 0; i < n; i++ {
+		binary.Write(&buf, binary.BigEndian, uint16(1))   // PGCN = 1 (always PGC 1)
+		buf.WriteByte(uint8(i + 1))                       // PGN  = chapter number (1-indexed)
+		buf.WriteByte(0x00)                               // Reserved
+	}
+
+	// Pad to sector boundary
+	if rem := buf.Len() % 2048; rem != 0 {
+		buf.Write(make([]byte, 2048-rem))
+	}
+	return buf.Bytes(), nil
+}
+
 // VOBU_ADMAP represents the VOBU Address Map table.
 type VOBU_ADMAP struct {
 	EndByte uint32
@@ -172,18 +223,49 @@ func NewVTSMAT() *VTS_MAT {
 	return mat
 }
 
-// ReadVTSI parses a VTS IFO file from a reader.
+// ReadVTSI parses the VTS_MAT from the first sector of a VTS_xx_0.IFO file.
+// Fields are read from their spec-correct byte offsets (matching SerializeVTSMAT).
 func ReadVTSI(r io.Reader) (*VTS_MAT, error) {
-	mat := &VTS_MAT{}
-	if err := binary.Read(r, binary.BigEndian, mat); err != nil {
-		return nil, fmt.Errorf("read vts_mat: %w", err)
+	buf := make([]byte, 2048)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return nil, fmt.Errorf("read vts_mat sector: %w", err)
 	}
-	
-	// Basic validation
-	id := string(mat.VTS_Identifier[:])
+	id := string(buf[0:12])
 	if !strings.HasPrefix(id, "DVDVIDEO-VTS") {
-		return nil, fmt.Errorf("invalid VTS identifier: %s", id)
+		return nil, fmt.Errorf("invalid VTS identifier: %q", id)
 	}
-	
+	mat := &VTS_MAT{}
+	copy(mat.VTS_Identifier[:], buf[0:12])
+	mat.VTS_Last_Sector         = binary.BigEndian.Uint32(buf[12:16])
+	mat.VTS_BUP_Last_Sector     = binary.BigEndian.Uint32(buf[28:32])
+	mat.VTS_MAT_Last_Sector     = binary.BigEndian.Uint32(buf[40:44])
+	mat.VTS_Category            = binary.BigEndian.Uint32(buf[45:49])
+	mat.VTS_Audio_Streams_Count = binary.BigEndian.Uint16(buf[139:141])
+	for i := 0; i < 8; i++ {
+		off := 141 + i*8
+		aa := &mat.VTS_Audio_Attributes[i]
+		aa.AudioCodingMode = (buf[off+0] >> 5) & 0x07
+		aa.Multichannel    = (buf[off+0] >> 4) & 0x01
+		aa.SampleRate      = (buf[off+1] >> 4) & 0x03
+		aa.NumChannels     = buf[off+1] & 0x07
+		copy(aa.LanguageCode[:], buf[off+2:off+4])
+		aa.SpecificCode    = buf[off+4]
+	}
+	mat.VTS_Subpicture_Count = binary.BigEndian.Uint16(buf[222:224])
+	for i := 0; i < 32; i++ {
+		off := 224 + i*6
+		sp := &mat.VTS_Subpicture_Attrs[i]
+		sp.CodingMode = buf[off+0]
+		copy(sp.LanguageCode[:], buf[off+2:off+4])
+		sp.SpecificCode = buf[off+4]
+	}
+	mat.VTS_PTT_SRPT_Offset     = binary.BigEndian.Uint32(buf[418:422])
+	mat.VTS_PGCITI_Offset       = binary.BigEndian.Uint32(buf[422:426])
+	mat.VTS_M_PGCI_UT_Offset    = binary.BigEndian.Uint32(buf[426:430])
+	mat.VTS_TMAPTI_Offset       = binary.BigEndian.Uint32(buf[430:434])
+	mat.VTS_M_C_ADT_Offset      = binary.BigEndian.Uint32(buf[434:438])
+	mat.VTS_M_VOBU_ADMAP_Offset = binary.BigEndian.Uint32(buf[438:442])
+	mat.VTS_C_ADT_Offset        = binary.BigEndian.Uint32(buf[442:446])
+	mat.VTS_VOBU_ADMAP_Offset   = binary.BigEndian.Uint32(buf[446:450])
 	return mat, nil
 }

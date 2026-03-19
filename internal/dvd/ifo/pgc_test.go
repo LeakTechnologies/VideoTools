@@ -327,3 +327,172 @@ func TestSerializeVMGMAT_NrOfTitleSets(t *testing.T) {
 		t.Errorf("NrOfTitleSets at byte 72 = %d, want 3", got)
 	}
 }
+
+// TestWriteVTS_PTT_SRPT_SectorPadded verifies output is padded to 2048 bytes.
+func TestWriteVTS_PTT_SRPT_SectorPadded(t *testing.T) {
+	data, err := WriteVTS_PTT_SRPT(&VTS_PTT_SRPT{NrOfChapters: 3})
+	if err != nil {
+		t.Fatalf("WriteVTS_PTT_SRPT: %v", err)
+	}
+	if len(data)%2048 != 0 {
+		t.Errorf("length %d not a multiple of 2048", len(data))
+	}
+}
+
+// TestWriteVTS_PTT_SRPT_Header verifies the table header fields.
+func TestWriteVTS_PTT_SRPT_Header(t *testing.T) {
+	data, err := WriteVTS_PTT_SRPT(&VTS_PTT_SRPT{NrOfChapters: 2})
+	if err != nil {
+		t.Fatalf("WriteVTS_PTT_SRPT: %v", err)
+	}
+	// NrOf_Srpts at [0:2] = 1
+	if nr := binary.BigEndian.Uint16(data[0:2]); nr != 1 {
+		t.Errorf("NrOf_Srpts = %d, want 1", nr)
+	}
+	// Offset[0] at [8:12] = 12
+	if off := binary.BigEndian.Uint32(data[8:12]); off != 12 {
+		t.Errorf("Offset[0] = %d, want 12", off)
+	}
+}
+
+// TestWriteVTS_PTT_SRPT_Entries verifies PGCN/PGN fields for each chapter.
+func TestWriteVTS_PTT_SRPT_Entries(t *testing.T) {
+	const n = 4
+	data, err := WriteVTS_PTT_SRPT(&VTS_PTT_SRPT{NrOfChapters: n})
+	if err != nil {
+		t.Fatalf("WriteVTS_PTT_SRPT: %v", err)
+	}
+	base := 12 // first PTT entry starts after header(8) + offset(4)
+	for i := 0; i < n; i++ {
+		off := base + i*4
+		pgcn := binary.BigEndian.Uint16(data[off : off+2])
+		pgn := data[off+2]
+		if pgcn != 1 {
+			t.Errorf("chapter %d: PGCN = %d, want 1", i+1, pgcn)
+		}
+		if int(pgn) != i+1 {
+			t.Errorf("chapter %d: PGN = %d, want %d", i+1, pgn, i+1)
+		}
+	}
+}
+
+// TestChapterCellsFromNAV_Basic verifies sector ranges split at chapter timestamps.
+func TestChapterCellsFromNAV_Basic(t *testing.T) {
+	// 100 VOBUs spread evenly over 100 seconds (1 sector per second)
+	navSectors := make([]uint32, 100)
+	for i := range navSectors {
+		navSectors[i] = uint32(i * 10) // sectors 0, 10, 20, ..., 990
+	}
+	timestamps := []float64{0, 30.0, 70.0} // 3 chapters
+	cells := ChapterCellsFromNAV(navSectors, timestamps, 100.0, 999)
+	if len(cells) != 3 {
+		t.Fatalf("len(cells) = %d, want 3", len(cells))
+	}
+	// Chapter 0 starts at sector 0 (navSectors[0])
+	if cells[0].FirstSector != 0 {
+		t.Errorf("cell[0].FirstSector = %d, want 0", cells[0].FirstSector)
+	}
+	// Last chapter ends at lastVOBSector
+	if cells[2].LastSector != 999 {
+		t.Errorf("cell[2].LastSector = %d, want 999", cells[2].LastSector)
+	}
+	// Cell boundaries must be non-decreasing
+	for i := 1; i < len(cells); i++ {
+		if cells[i].FirstSector < cells[i-1].FirstSector {
+			t.Errorf("cell[%d].FirstSector (%d) < cell[%d].FirstSector (%d)",
+				i, cells[i].FirstSector, i-1, cells[i-1].FirstSector)
+		}
+	}
+}
+
+// TestChapterCellsFromNAV_TooFew verifies nil returned for fewer than 2 chapters.
+func TestChapterCellsFromNAV_TooFew(t *testing.T) {
+	nav := []uint32{0, 10, 20}
+	if got := ChapterCellsFromNAV(nav, []float64{0}, 30.0, 29); got != nil {
+		t.Errorf("expected nil for 1 chapter, got %v", got)
+	}
+	if got := ChapterCellsFromNAV(nav, nil, 30.0, 29); got != nil {
+		t.Errorf("expected nil for nil timestamps, got %v", got)
+	}
+}
+
+// TestReadVMGI_RoundTrip verifies SerializeVMGMAT → ReadVMGI recovers all fields.
+func TestReadVMGI_RoundTrip(t *testing.T) {
+	mat := NewVMGMAT()
+	mat.VMG_Last_Sector = 0xABCD
+	mat.NrOfTitleSets = 5
+	mat.TT_SRPT_Offset = 1
+	mat.VMG_PGCITI_Offset = 2
+
+	b := SerializeVMGMAT(mat)
+	got, err := ReadVMGI(bytesReader(b))
+	if err != nil {
+		t.Fatalf("ReadVMGI: %v", err)
+	}
+	if got.VMG_Last_Sector != mat.VMG_Last_Sector {
+		t.Errorf("VMG_Last_Sector = %d, want %d", got.VMG_Last_Sector, mat.VMG_Last_Sector)
+	}
+	if got.NrOfTitleSets != 5 {
+		t.Errorf("NrOfTitleSets = %d, want 5", got.NrOfTitleSets)
+	}
+	if got.TT_SRPT_Offset != 1 {
+		t.Errorf("TT_SRPT_Offset = %d, want 1", got.TT_SRPT_Offset)
+	}
+	if got.VMG_PGCITI_Offset != 2 {
+		t.Errorf("VMG_PGCITI_Offset = %d, want 2", got.VMG_PGCITI_Offset)
+	}
+}
+
+// TestReadVTSI_RoundTrip verifies SerializeVTSMAT → ReadVTSI recovers key fields.
+func TestReadVTSI_RoundTrip(t *testing.T) {
+	mat := NewVTSMAT()
+	mat.VTS_Last_Sector = 0x1234
+	mat.VTS_Audio_Streams_Count = 2
+	mat.VTS_Audio_Attributes[0] = AudioAttributes{
+		AudioCodingMode: 0,   // AC-3
+		SampleRate:      0,   // 48 kHz
+		NumChannels:     1,   // 2ch
+	}
+	mat.VTS_PGCITI_Offset = 3
+	mat.VTS_VOBU_ADMAP_Offset = 7
+
+	b := SerializeVTSMAT(mat)
+	got, err := ReadVTSI(bytesReader(b))
+	if err != nil {
+		t.Fatalf("ReadVTSI: %v", err)
+	}
+	if got.VTS_Last_Sector != 0x1234 {
+		t.Errorf("VTS_Last_Sector = %d, want 0x1234", got.VTS_Last_Sector)
+	}
+	if got.VTS_Audio_Streams_Count != 2 {
+		t.Errorf("VTS_Audio_Streams_Count = %d, want 2", got.VTS_Audio_Streams_Count)
+	}
+	if got.VTS_Audio_Attributes[0].AudioCodingMode != 0 {
+		t.Errorf("Audio[0].AudioCodingMode = %d, want 0 (AC-3)", got.VTS_Audio_Attributes[0].AudioCodingMode)
+	}
+	if got.VTS_PGCITI_Offset != 3 {
+		t.Errorf("VTS_PGCITI_Offset = %d, want 3", got.VTS_PGCITI_Offset)
+	}
+	if got.VTS_VOBU_ADMAP_Offset != 7 {
+		t.Errorf("VTS_VOBU_ADMAP_Offset = %d, want 7", got.VTS_VOBU_ADMAP_Offset)
+	}
+}
+
+// bytesReader wraps a []byte in an io.Reader for use in round-trip tests.
+func bytesReader(b []byte) interface{ Read([]byte) (int, error) } {
+	return &sliceReader{b: b}
+}
+
+type sliceReader struct {
+	b   []byte
+	pos int
+}
+
+func (r *sliceReader) Read(p []byte) (int, error) {
+	if r.pos >= len(r.b) {
+		return 0, nil
+	}
+	n := copy(p, r.b[r.pos:])
+	r.pos += n
+	return n, nil
+}
