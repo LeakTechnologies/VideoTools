@@ -231,6 +231,7 @@ type Engine struct {
 
 	hwDevice HWDeviceType
 	looping  bool
+	hasAudio bool
 
 	info *VideoInfo
 }
@@ -312,6 +313,9 @@ func (e *Engine) SetLooping(looping bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.looping = looping
+	if e.audioPlayer != nil {
+		e.audioPlayer.SetLooping(looping)
+	}
 }
 
 func (e *Engine) IsLooping() bool {
@@ -432,6 +436,7 @@ func (e *Engine) SelectAudioTrack(trackIndex int) error {
 	e.audioPlayer.SetVolume(e.volume)
 	e.audioPlayer.SetMuted(e.muted)
 	e.audioStreamIdx = streamIdx
+	e.hasAudio = true
 
 	logging.Info(logging.CatPlayer, "Selected audio track %d", trackIndex)
 	return nil
@@ -599,6 +604,7 @@ func (e *Engine) Open(path string) error {
 					e.audioPlayer = ap
 					e.audioPlayer.SetVolume(e.volume)
 					e.audioPlayer.SetMuted(e.muted)
+					e.hasAudio = true
 				}
 			}
 		}
@@ -707,6 +713,10 @@ func (e *Engine) Seek(seconds float64) error {
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
 
+	if e.audioPlayer != nil {
+		e.audioPlayer.ResetEOF()
+	}
+
 	if e.videoCodecCtx != nil {
 		C.avcodec_flush_buffers(e.videoCodecCtx)
 	}
@@ -738,16 +748,15 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 	for {
 		e.mu.Lock()
 		paused := e.paused
-		mu.Unlock := func() { e.mu.Unlock() }
+		hasAudio := e.hasAudio
 		e.mu.Unlock()
 
 		if paused {
-			e.clock.WaitForPTS(e.clock.GetTime())
+			if hasAudio {
+				e.clock.WaitForPTS(e.clock.GetTime())
+			}
 			continue
 		}
-
-		e.videoQueue.Flush()
-		e.audioQueue.Flush()
 
 		pkt, ok := e.videoQueue.Get()
 		if !ok {
@@ -770,7 +779,12 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 			pts := float64(e.frame.pts) * e.videoTimeBase
 
 			adjustedPts := pts * e.speed
-			e.clock.WaitForPTS(adjustedPts)
+
+			if hasAudio {
+				e.clock.WaitForPTS(adjustedPts)
+			} else {
+				e.clock.SetTime(adjustedPts)
+			}
 
 			delay := e.clock.SyncVideo(adjustedPts)
 			if delay < 0 {
