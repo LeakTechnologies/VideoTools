@@ -8,6 +8,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Subtitles i18n** — 9 strings added and wired in subtitles_module.go.
 - [x] **Audio/Filters/Inspect i18n wired** — Module views use t.* strings.
 - [x] **Trim module compatibility** — OnAddToQueue callback and TrimClip struct.
+- [x] **Dialog title i18n** — 15+ new keys wired into main.go Convert/Merge/Trim/Snippet modules.
 
 ### UI Fixes
 - [x] **Back button consistency** — Module name uppercase.

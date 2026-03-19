@@ -25,6 +25,7 @@
 - [x] **Filters i18n wired** — 24 new strings wired up in `internal/app/modules/filters/view.go`.
 - [x] **Inspect i18n wired** — 3 new strings wired up in `internal/app/modules/inspect/view.go`.
 - [x] **Settings StatusNoActiveJobs** — Added to `internal/ui/components.go` status bar.
+- [x] **Dialog title i18n** — 15+ new translation keys (DialogInterlacingResults, DialogAutoCropDetection, DialogNoBlackBars, DialogQueueNotInit, DialogNoRunningJob, LabelSnippet, MergeStarted, TrimJobAdded) wired into main.go for Convert/Merge/Trim/Snippet modules.
 
 ### Module Updates
 - [x] **Trim module stub** — Updated `internal/app/modules/trim/stub.go` to match main.go calls (`ModuleColor`, `OnShowQueue`, `OnAddToQueue`, `TrimClip` struct, second `initialPath` param).
