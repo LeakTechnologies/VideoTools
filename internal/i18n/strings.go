@@ -38,25 +38,33 @@ type Strings struct {
 	ModuleSettings    string
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
-	DialogCompare     string
-	DialogInspect     string
-	DialogThumbnail   string
-	DialogSnippet     string
-	DialogInterlacing string
-	DialogAutoCrop    string
-	DialogNoVideo     string
-	DialogNoFile      string
-	DialogNoConfig    string
-	DialogConfigSaved string
-	DialogCopied      string
-	DialogNoLog       string
-	DialogQueued      string
-	DialogCancelled   string
-	DialogBatchAdd    string
-	DialogRecovery    string
-	DialogSnippets    string
-	DialogPreview     string
-	DialogPlayback    string
+	DialogCompare        string
+	DialogInspect        string
+	DialogThumbnail      string
+	DialogSnippet        string
+	DialogInterlacing    string
+	DialogAutoCrop       string
+	DialogNoVideo        string
+	DialogNoFile         string
+	DialogNoConfig       string
+	DialogConfigSaved    string
+	DialogCopied         string
+	DialogNoLog          string
+	DialogQueued         string
+	DialogCancelled      string
+	DialogBatchAdd       string
+	DialogRecovery       string
+	DialogSnippets       string
+	DialogPreview        string
+	DialogPlayback       string
+	DialogJobQueued      string
+	DialogMerge          string
+	DialogCancel         string
+	DialogSnippetCreated string
+	DialogQueueNotInit   string // "Queue not initialized"
+	DialogNoRunningJob   string // "No running job to cancel"
+	LabelSnippet         string // "Snippet:" (job title prefix)
+	MergeStarted         string // "Merge started!"
 
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert     string
@@ -207,6 +215,7 @@ type Strings struct {
 	TrimExportSegments   string
 	TrimInvalidSelection string
 	TrimOutput           string
+	TrimJobAdded         string // "Trim job added to queue."
 
 	// ── Settings ──────────────────────────────────────────────────────────
 	SettingsTitle                string
@@ -424,11 +433,11 @@ type Strings struct {
 	UpscaleBitrateValueLabel  string // "Bitrate:"
 
 	// Colour Accuracy section
-	UpscaleColourBox        string // "Colour Accuracy"
-	UpscaleSrcColourLabel   string // "Source Colour Space:"
-	UpscaleDepthLabel       string // "Processing Depth:"
-	UpscaleSkinToneLabel    string // "Skin Tone Preservation:"
-	UpscaleColourHint       string // hint about colour pipeline
+	UpscaleColourBox      string // "Colour Accuracy"
+	UpscaleSrcColourLabel string // "Source Colour Space:"
+	UpscaleDepthLabel     string // "Processing Depth:"
+	UpscaleSkinToneLabel  string // "Skin Tone Preservation:"
+	UpscaleColourHint     string // hint about colour pipeline
 
 	// ── Frame Interpolation (RIFE) ────────────────────────────────────────────
 	RIFEBoxTitle        string // "Frame Interpolation (RIFE)"
