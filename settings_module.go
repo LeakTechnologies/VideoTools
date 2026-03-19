@@ -156,16 +156,15 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 			uninstall: pkgManagerUninstall("ffmpeg"),
 		}
 	case "realesrgan-ncnn-vulkan":
-		// Best-effort: invoke existing installer with AI enabled
+		// Auto-download pre-built ncnn Vulkan binary from GitHub releases.
+		// The UI install buttons call installRealESRGANFromUI directly, so this
+		// path is only used for the legacy script-based flow on Linux.
 		installScript := filepath.Join(root, "scripts", "install.sh")
 		switch runtime.GOOS {
-		case "linux", "darwin":
+		case "linux":
 			return dependencyCommandPair{
 				install: &dependencyCommand{command: "bash", args: []string{installScript, "--skip-ai=false", "--skip-dvd", "--skip-whisper"}},
 			}
-		case "windows":
-			// Not readily available via package manager; fall back to warning
-			return dependencyCommandPair{}
 		}
 	case "whisper":
 		if runtime.GOOS == "windows" {
@@ -281,9 +280,17 @@ var allDependencies = map[string]Dependency{
 		Name:        "Real-ESRGAN",
 		Command:     "realesrgan-ncnn-vulkan",
 		Required:    false,
-		Description: "AI video upscaling",
-		InstallCmd:  "See install.sh --skip-ai=false",
-		Platforms:   []string{"linux", "darwin"},
+		Description: "AI video upscaling (auto-downloaded from GitHub releases)",
+		InstallCmd:  "Install from Settings — downloads pre-built ncnn Vulkan binary automatically",
+		Platforms:   []string{"windows", "linux"},
+	},
+	"rife-ncnn-vulkan": {
+		Name:        "RIFE",
+		Command:     "rife-ncnn-vulkan",
+		Required:    false,
+		Description: "AI frame interpolation for smooth slow-motion and frame rate conversion (auto-downloaded from GitHub releases)",
+		InstallCmd:  "Install from Settings — downloads pre-built ncnn Vulkan binary automatically",
+		Platforms:   []string{"windows", "linux"},
 	},
 	"whisper": {
 		Name:        "Whisper",
@@ -328,7 +335,7 @@ func isDependencyAvailableForPlatform(dep Dependency) bool {
 	return false
 }
 
-// checkDependency checks if a command is available
+// checkDependency checks if a command is available (system PATH or app-local bin).
 func checkDependency(command string) bool {
 	if command == "ffmpeg" {
 		// Respect app-configured runtime paths so app-local FFmpeg bootstrap counts as installed.
@@ -337,6 +344,14 @@ func checkDependency(command string) bool {
 			if _, err := os.Stat(ffmpegPath); err == nil {
 				return true
 			}
+		}
+	}
+
+	// Check app-local bin directory for tools that may have been auto-downloaded.
+	switch command {
+	case "realesrgan-ncnn-vulkan", "rife-ncnn-vulkan":
+		if _, err := os.Stat(appLocalToolPath(command)); err == nil {
+			return true
 		}
 	}
 
@@ -481,6 +496,251 @@ func (s *appState) installWindowsFFmpegFromUI(onSuccess func()) {
 				return
 			}
 			utils.SetFFmpegPaths(ffmpegPath, ffprobePath)
+			if onSuccess != nil {
+				onSuccess()
+			}
+		}, false)
+	}()
+}
+
+// appLocalBinDir returns the per-user app-local bin directory for storing
+// bundled tools (Real-ESRGAN, RIFE, etc.).
+// Windows: %LOCALAPPDATA%\VideoTools\bin
+// Linux:   $XDG_DATA_HOME/VideoTools/bin  (fallback ~/.local/share/VideoTools/bin)
+func appLocalBinDir() string {
+	switch runtime.GOOS {
+	case "windows":
+		base := strings.TrimSpace(os.Getenv("LOCALAPPDATA"))
+		if base == "" {
+			home, _ := os.UserHomeDir()
+			base = filepath.Join(home, "AppData", "Local")
+		}
+		return filepath.Join(base, "VideoTools", "bin")
+	default:
+		base := strings.TrimSpace(os.Getenv("XDG_DATA_HOME"))
+		if base == "" {
+			home, _ := os.UserHomeDir()
+			base = filepath.Join(home, ".local", "share")
+		}
+		return filepath.Join(base, "VideoTools", "bin")
+	}
+}
+
+func appLocalToolPath(name string) string {
+	if runtime.GOOS == "windows" {
+		return filepath.Join(appLocalBinDir(), name+".exe")
+	}
+	return filepath.Join(appLocalBinDir(), name)
+}
+
+// getLatestGitHubReleaseAssetURL queries the GitHub releases API for the
+// latest release of owner/repo and returns the download URL of the asset
+// whose name contains assetPattern.
+func getLatestGitHubReleaseAssetURL(owner, repo, assetPattern string) (string, error) {
+	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", owner, repo)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(apiURL)
+	if err != nil {
+		return "", fmt.Errorf("GitHub API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	}
+
+	var release struct {
+		Assets []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return "", fmt.Errorf("parse GitHub API response: %w", err)
+	}
+
+	for _, asset := range release.Assets {
+		if strings.Contains(strings.ToLower(asset.Name), strings.ToLower(assetPattern)) {
+			return asset.BrowserDownloadURL, nil
+		}
+	}
+	return "", fmt.Errorf("no release asset matching %q found in %s/%s", assetPattern, owner, repo)
+}
+
+// downloadAndExtractBinary downloads a ZIP from url, extracts the file named
+// executableName into destPath, and makes it executable on Unix.
+func downloadAndExtractBinary(url, executableName, destPath string) error {
+	if err := os.MkdirAll(filepath.Dir(destPath), 0o755); err != nil {
+		return fmt.Errorf("create bin dir: %w", err)
+	}
+
+	zipFile, err := os.CreateTemp("", "videotools-tool-*.zip")
+	if err != nil {
+		return fmt.Errorf("create temp zip: %w", err)
+	}
+	zipPath := zipFile.Name()
+	_ = zipFile.Close()
+	defer os.Remove(zipPath)
+
+	client := &http.Client{Timeout: 10 * time.Minute}
+	resp, err := client.Get(url)
+	if err != nil {
+		return fmt.Errorf("download: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download: unexpected status %d", resp.StatusCode)
+	}
+	out, err := os.Create(zipPath)
+	if err != nil {
+		return fmt.Errorf("open temp zip for write: %w", err)
+	}
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		_ = out.Close()
+		return fmt.Errorf("write zip: %w", err)
+	}
+	if err := out.Close(); err != nil {
+		return fmt.Errorf("finalize zip: %w", err)
+	}
+
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("open zip: %w", err)
+	}
+	defer zr.Close()
+
+	target := strings.ToLower(executableName)
+	for _, f := range zr.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		if strings.ToLower(filepath.Base(f.Name)) == target {
+			src, err := f.Open()
+			if err != nil {
+				return fmt.Errorf("extract %s: %w", executableName, err)
+			}
+			dst, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+			if err != nil {
+				_ = src.Close()
+				return fmt.Errorf("create %s: %w", destPath, err)
+			}
+			if _, err := io.Copy(dst, src); err != nil {
+				_ = dst.Close()
+				_ = src.Close()
+				return fmt.Errorf("write %s: %w", destPath, err)
+			}
+			_ = dst.Close()
+			_ = src.Close()
+			return nil
+		}
+	}
+	return fmt.Errorf("%s not found inside zip", executableName)
+}
+
+// ensureAppLocalRealESRGAN downloads the Real-ESRGAN ncnn Vulkan binary if not
+// already present. Works on both Windows and Linux.
+func ensureAppLocalRealESRGAN() (string, error) {
+	execName := "realesrgan-ncnn-vulkan"
+	destPath := appLocalToolPath(execName)
+
+	if _, err := os.Stat(destPath); err == nil {
+		return destPath, nil // already installed
+	}
+
+	var assetPattern string
+	switch runtime.GOOS {
+	case "windows":
+		assetPattern = "windows"
+	case "linux":
+		assetPattern = "ubuntu"
+	default:
+		return "", fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+
+	downloadURL, err := getLatestGitHubReleaseAssetURL("xinntao", "Real-ESRGAN", assetPattern)
+	if err != nil {
+		return "", fmt.Errorf("find Real-ESRGAN release: %w", err)
+	}
+
+	exeFile := execName
+	if runtime.GOOS == "windows" {
+		exeFile = execName + ".exe"
+	}
+
+	if err := downloadAndExtractBinary(downloadURL, exeFile, destPath); err != nil {
+		return "", fmt.Errorf("install Real-ESRGAN: %w", err)
+	}
+	return destPath, nil
+}
+
+// ensureAppLocalRIFE downloads the RIFE ncnn Vulkan binary if not already present.
+// Works on both Windows and Linux.
+func ensureAppLocalRIFE() (string, error) {
+	execName := "rife-ncnn-vulkan"
+	destPath := appLocalToolPath(execName)
+
+	if _, err := os.Stat(destPath); err == nil {
+		return destPath, nil // already installed
+	}
+
+	var assetPattern string
+	switch runtime.GOOS {
+	case "windows":
+		assetPattern = "windows"
+	case "linux":
+		assetPattern = "ubuntu"
+	default:
+		return "", fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+
+	downloadURL, err := getLatestGitHubReleaseAssetURL("nihui", "rife-ncnn-vulkan", assetPattern)
+	if err != nil {
+		return "", fmt.Errorf("find RIFE release: %w", err)
+	}
+
+	exeFile := execName
+	if runtime.GOOS == "windows" {
+		exeFile = execName + ".exe"
+	}
+
+	if err := downloadAndExtractBinary(downloadURL, exeFile, destPath); err != nil {
+		return "", fmt.Errorf("install RIFE: %w", err)
+	}
+	return destPath, nil
+}
+
+func (s *appState) installRealESRGANFromUI(onSuccess func()) {
+	progress := dialog.NewProgressInfinite("Installing Real-ESRGAN", "Downloading Real-ESRGAN ncnn Vulkan. This may take a moment.", s.window)
+	progress.Show()
+
+	go func() {
+		toolPath, err := ensureAppLocalRealESRGAN()
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.Hide()
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to install Real-ESRGAN: %w", err), s.window)
+				return
+			}
+			logging.Info(logging.CatSystem, "Real-ESRGAN installed at %s", toolPath)
+			if onSuccess != nil {
+				onSuccess()
+			}
+		}, false)
+	}()
+}
+
+func (s *appState) installRIFEFromUI(onSuccess func()) {
+	progress := dialog.NewProgressInfinite("Installing RIFE", "Downloading RIFE ncnn Vulkan. This may take a moment.", s.window)
+	progress.Show()
+
+	go func() {
+		toolPath, err := ensureAppLocalRIFE()
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.Hide()
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to install RIFE: %w", err), s.window)
+				return
+			}
+			logging.Info(logging.CatSystem, "RIFE installed at %s", toolPath)
 			if onSuccess != nil {
 				onSuccess()
 			}
@@ -1136,6 +1396,34 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 			installBtn := widget.NewButton(t.DependenciesInstall, func() {
 				state.installWindowsFFmpegFromUI(func() {
 					dialog.ShowInformation("FFmpeg Ready", "FFmpeg is installed for this user and now available in the app.", state.window)
+					state.showSettingsView()
+				})
+			})
+			installBtn.Importance = widget.HighImportance
+			if isInstalled {
+				installBtn.Disable()
+			}
+			actions.Add(installBtn)
+		}
+
+		if depName == "realesrgan-ncnn-vulkan" && (runtime.GOOS == "windows" || runtime.GOOS == "linux") {
+			installBtn := widget.NewButton(t.DependenciesInstall, func() {
+				state.installRealESRGANFromUI(func() {
+					dialog.ShowInformation("Real-ESRGAN Ready", "Real-ESRGAN is installed and available for AI upscaling.", state.window)
+					state.showSettingsView()
+				})
+			})
+			installBtn.Importance = widget.HighImportance
+			if isInstalled {
+				installBtn.Disable()
+			}
+			actions.Add(installBtn)
+		}
+
+		if depName == "rife-ncnn-vulkan" && (runtime.GOOS == "windows" || runtime.GOOS == "linux") {
+			installBtn := widget.NewButton(t.DependenciesInstall, func() {
+				state.installRIFEFromUI(func() {
+					dialog.ShowInformation("RIFE Ready", "RIFE is installed and available for frame interpolation.", state.window)
 					state.showSettingsView()
 				})
 			})
