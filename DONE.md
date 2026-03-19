@@ -51,6 +51,10 @@
 ### Interlace Detection
 - [x] **Preview frame capture** — Capture preview frames before running interlace analysis to avoid UI stuck states.
 
+### Hardware Acceleration Detection Fix
+- [x] **Runtime HW detection** — `hwAccelAvailable()` now does actual encode probes for each method (NVENC, QSV, VAAPI, VideoToolbox, AMF) instead of just checking `ffmpeg -hwaccels`. Prevents false positives like QSV being auto-selected on laptops without Intel GPUs.
+- [x] **HW decode support** — Native media engine now supports GPU-accelerated video decoding via FFmpeg's hwcontext API. Supports VAAPI (Linux), D3D11VA (Windows), and QSV (Windows/Linux). Automatic fallback to software decoding if HW unavailable.
+
 ## Version 0.1.1-dev35 (2026-03-16) - Native Media Engine & Trim Module
 
 - [x] **Trim Module UI** — Implemented a professional, dual-pane layout for the Trim module, matching the Convert module's "source of truth" visual style.
