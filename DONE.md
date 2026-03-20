@@ -73,8 +73,8 @@
 - [x] **Fast scaling** - scaleNearest() with nearest-neighbor interpolation
 - [x] **Display frame tracking** - displayWidth, displayHeight, frameSeq for caching
 - [x] **Optimized draw loop** - Pre-calculated scaling factors, direct pixel access
-
-### Smooth Scrubbing & Thumbnails
+- [x] **Bicubic scaling** - SWS_BICUBIC|C.SWS_ACCURATE_RND for better quality
+- [x] **HW decode support** - VAAPI/D3D11VA/QSV hardware acceleration
 - [x] **Thumbnail cache** - In-memory cache of thumbnails keyed by timestamp
 - [x] **GetHoverFrame** - Get nearest cached thumbnail for hover preview
 - [x] **AddThumbnailFrame** - Add frames to thumbnail cache during playback

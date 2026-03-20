@@ -1239,7 +1239,7 @@ func (e *Engine) Open(path string) error {
 	e.swsCtx = C.sws_getContext(
 		e.videoCodecCtx.width, e.videoCodecCtx.height, e.videoCodecCtx.pix_fmt,
 		e.videoCodecCtx.width, e.videoCodecCtx.height, C.AV_PIX_FMT_RGBA,
-		C.SWS_BILINEAR, nil, nil, nil,
+		C.SWS_BICUBIC|C.SWS_ACCURATE_RND, nil, nil, nil,
 	)
 
 	if e.swsCtx == nil {
@@ -1284,7 +1284,7 @@ func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.
 		swsCtx := C.sws_getContext(
 			e.videoCodecCtx.width, e.videoCodecCtx.height, e.videoCodecCtx.pix_fmt,
 			C.int(thumbSize), C.int(thumbHeight), C.AV_PIX_FMT_RGBA,
-			C.SWS_BILINEAR, nil, nil, nil,
+			C.SWS_BICUBIC|C.SWS_ACCURATE_RND, nil, nil, nil,
 		)
 		if swsCtx == nil {
 			return
