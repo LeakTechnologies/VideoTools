@@ -182,6 +182,34 @@ var enCA = Strings{
 	SubtitlesShiftOffset:  "Shift all subtitle times by offset (seconds):",
 	SubtitlesStart:        "Start",
 	SubtitlesEnd:          "End",
+	// Subtitles UI sections
+	SubtitlesSources:       "Sources",
+	SubtitlesRipSection:    "Rip Embedded Subtitles",
+	SubtitlesTimingSection: "Timing Adjustment",
+	SubtitlesSTTSection:    "Offline Speech-to-Text (whisper.cpp)",
+	SubtitlesOutputSection: "Output",
+	SubtitlesStatusSection: "Status",
+	SubtitlesCuesSection:   "Subtitle Cues",
+	// Subtitles actions
+	SubtitlesCopyStatus:      "Copy Status",
+	SubtitlesAddCue:          "Add Cue",
+	SubtitlesLoadSubtitles:   "Load Subtitles",
+	SubtitlesSaveSubtitles:   "Save Subtitles",
+	SubtitlesGenerateSpeech:  "Generate From Speech (Offline)",
+	SubtitlesDetectStreams:   "Detect Streams",
+	SubtitlesExtractSelected: "Extract Selected",
+	SubtitlesApplyOffset:     "Apply Offset",
+	SubtitlesCreateOutput:    "Create Output",
+	// Subtitles placeholders
+	SubtitlesVideoPlaceholder:   "Video file path",
+	SubtitlesFilePlaceholder:    "Subtitle file (.srt, .vtt, or .mks)",
+	SubtitlesModelPlaceholder:   "Whisper model path (ggml-*.bin)",
+	SubtitlesBackendPlaceholder: "Whisper backend path (whisper.cpp/main)",
+	SubtitlesOutputPlaceholder:  "Output video path (for embed/burn)",
+	// Subtitles status/dynamic labels
+	SubtitlesWhisperBackendFmt: "Whisper backend: %s",
+	SubtitlesWhisperModelFmt:   "Whisper model: %s",
+	SubtitlesOfflineModelHint:  "Offline STT uses the selected ggml model.",
 
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:      "Ready",
@@ -313,13 +341,17 @@ var enCA = Strings{
 	BenchmarkRecent:    "Recent Benchmarks",
 
 	// ── Queue ─────────────────────────────────────────────────────────────
-	QueueTitle:      "Queue",
-	QueueEmpty:      "No jobs in queue",
-	QueueInProgress: "In Progress",
-	QueueCompleted:  "Completed",
-	QueueFailed:     "Failed",
-	QueueJobRunning: "Running...",
-	QueueJobPending: "Pending",
+	QueueTitle:                "Queue",
+	QueueEmpty:                "No jobs in queue",
+	QueueInProgress:           "In Progress",
+	QueueCompleted:            "Completed",
+	QueueFailed:               "Failed",
+	QueueJobRunning:           "Running...",
+	QueueJobPending:           "Pending",
+	ActionQueueStart:          "Start Queue",
+	ActionQueuePauseAll:       "Pause All",
+	ActionQueueResumeAll:      "Resume All",
+	ActionQueueClearCompleted: "Clear Completed",
 
 	// ── History Sidebar ───────────────────────────────────────────────────
 	HistoryTitle:     "HISTORY",
@@ -460,6 +492,7 @@ var enCA = Strings{
 	RIFEModelLabel:      "Model:",
 	RIFEEstFPSFmt:       "Estimated output: %.0f fps",
 	RIFENote:            "RIFE synthesises intermediate frames for smooth, high-quality frame rate conversion.",
+	RIFEInstallHint:     "Install via Settings → Dependencies",
 
 	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
 	ThumbnailGenerateNow:        "GENERATE NOW",

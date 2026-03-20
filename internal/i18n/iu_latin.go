@@ -185,7 +185,35 @@ var iuLatn = Strings{
 	SubtitlesOCRLanguage:  "OCR uqausiq (tesseract, taima: eng, fra, iku):",                                                  // OCR language (tesseract, e.g. eng, fra, iku):
 	SubtitlesShiftOffset:  "Qaliujaaqpait katimajariit asijjiqsimajunik uqariannginnagu (sikuniit):",                         // Shift all subtitle times by offset (seconds):
 	SubtitlesStart:        "Pigiarmat",                                                                                       // Start
-	SubtitlesEnd:          "Isumaqtaat",                                                                                      // End
+	SubtitlesEnd:          "Isumaqtaat",
+	// Subtitles UI sections
+	SubtitlesSources:       "Atuqtaujariit",                                                     // Sources
+	SubtitlesRipSection:    "Qaliujaaqpait ilitsijauqataujariit nunallaangajariit",              // Rip Embedded Subtitles
+	SubtitlesTimingSection: "Inuusuttumik Asijjiqsimajunik Akiligiinngikkaluarlugu",             // Timing Adjustment
+	SubtitlesSTTSection:    "Silarsuarmit pissitsiviksaunngittuq Uqariannginnagu (whisper.cpp)", // Offline Speech-to-Text
+	SubtitlesOutputSection: "Nalinginnaanngitsumik",                                             // Output
+	SubtitlesStatusSection: "Ilitsirijauqataujariit",                                            // Status
+	SubtitlesCuesSection:   "Qaliujaaqpait Uqausivisa",                                          // Subtitle Cues
+	// Subtitles actions
+	SubtitlesCopyStatus:      "Ilitsirijauqataujariit Nalinginnaanngitsumik",                                    // Copy Status
+	SubtitlesAddCue:          "Uqausiq Atausiaq Ilitsirijauqataujariit",                                         // Add Cue
+	SubtitlesLoadSubtitles:   "Qaliujaaqpait Nalunaarusiariit",                                                  // Load Subtitles
+	SubtitlesSaveSubtitles:   "Qaliujaaqpait Ilinniaqtitaujariit",                                               // Save Subtitles
+	SubtitlesGenerateSpeech:  "Uqariangajariit Piginnaaninngikkanginnagu (Silarsuarmit pissitsiviksaunngittuq)", // Generate From Speech
+	SubtitlesDetectStreams:   "Isumalirijariit Nalunaarusiariit",                                                // Detect Streams
+	SubtitlesExtractSelected: "Niruarnirmik Nalunaarusiariit",                                                   // Extract Selected
+	SubtitlesApplyOffset:     "Sivuniksalirijariit Asijjiqsimajunik",                                            // Apply Offset
+	SubtitlesCreateOutput:    "Nalinginnaanngitsumik Piginnaasimagaluarlugu",                                    // Create Output
+	// Subtitles placeholders
+	SubtitlesVideoPlaceholder:   "Tarvijaksaq isuma",                              // Video file path
+	SubtitlesFilePlaceholder:    "Qaliujaaqpait (.srt, .vtt, .mks)",               // Subtitle file
+	SubtitlesModelPlaceholder:   "Whisper atuqtaujariit isuma (ggml-*.bin)",       // Whisper model path
+	SubtitlesBackendPlaceholder: "Whisper atuqtaujariit isuma (whisper.cpp/main)", // Whisper backend path
+	SubtitlesOutputPlaceholder:  "Nalinginnaanngitsumik tarvijaksaq isuma",        // Output video path
+	// Subtitles status/dynamic labels
+	SubtitlesWhisperBackendFmt: "Whisper atuqtaujariit: %s",                                                // Whisper backend: %s
+	SubtitlesWhisperModelFmt:   "Whisper atuqtaujariit: %s",                                                // Whisper model: %s
+	SubtitlesOfflineModelHint:  "Silarsuarmit pissitsiviksaunngittuq STT niruarjariit ggml atuqtaujariit.", // Offline STT uses selected ggml model                                                                                      // End
 
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:        "Pigiaqtauluni",                   // Ready
@@ -302,13 +330,17 @@ var iuLatn = Strings{
 	BenchmarkRecent:    "Nirunnasiuunik Qaujisalauqtat",                                   // Recent Benchmarks
 
 	// ── Queue ─────────────────────────────────────────────────────────────
-	QueueTitle:      "Nuatausimaujut",                         // Queue
-	QueueEmpty:      "Pilirijaksait Nuatausimaujut Nuqkaqtut", // No jobs in queue
-	QueueInProgress: "Pilirijautajuq",                         // In Progress
-	QueueCompleted:  "Isulilauqtuq",                           // Completed
-	QueueFailed:     "Ajurunniiqtauq",                         // Failed
-	QueueJobRunning: "Pilirijautajuq...",                      // Running...
-	QueueJobPending: "Attuniq",                                // Pending
+	QueueTitle:                "Nuatausimaujut",                         // Queue
+	QueueEmpty:                "Pilirijaksait Nuatausimaujut Nuqkaqtut", // No jobs in queue
+	QueueInProgress:           "Pilirijautajuq",                         // In Progress
+	QueueCompleted:            "Isulilauqtuq",                           // Completed
+	QueueFailed:               "Ajurunniiqtauq",                         // Failed
+	QueueJobRunning:           "Pilirijautajuq...",                      // Running...
+	QueueJobPending:           "Attuniq",                                // Pending
+	ActionQueueStart:          "Nuatausimaviuksaulauq",                  // Start Queue
+	ActionQueuePauseAll:       "Attuniq Puttinnik",                      // Pause All
+	ActionQueueResumeAll:      "Puttiqsaujungnik",                       // Resume All
+	ActionQueueClearCompleted: "Isulilauqtuit Pivautaulauq",             // Clear Completed
 
 	// ── History Sidebar ───────────────────────────────────────────────────
 	HistoryTitle:     "Atulaaqtait",       // HISTORY
@@ -434,6 +466,7 @@ var iuLatn = Strings{
 	RIFEModelLabel:      "Atuqtaujutiit:",                                                 // Model:
 	RIFEEstFPSFmt:       "Takujautiit Akiligaaksanga: %.0f fps",                           // Estimated output: %.0f fps
 	RIFENote:            "RIFE takujautiit nutaat sanajuq tarvijaksaqmik akiligaaksamit.", // RIFE note
+	RIFEInstallHint:     "Pissitsiurnikkut → Atuqtaujariit",                               // Install via Settings → Dependencies
 
 	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
 	ThumbnailGenerateNow:        "Pigiautilugu",                                                                      // GENERATE NOW

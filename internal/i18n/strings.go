@@ -189,6 +189,34 @@ type Strings struct {
 	SubtitlesShiftOffset  string // "Shift all subtitle times by offset (seconds):"
 	SubtitlesStart        string // "Start"
 	SubtitlesEnd          string // "End"
+	// Subtitles UI sections
+	SubtitlesSources       string // "Sources"
+	SubtitlesRipSection    string // "Rip Embedded Subtitles"
+	SubtitlesTimingSection string // "Timing Adjustment"
+	SubtitlesSTTSection    string // "Offline Speech-to-Text (whisper.cpp)"
+	SubtitlesOutputSection string // "Output"
+	SubtitlesStatusSection string // "Status"
+	SubtitlesCuesSection   string // "Subtitle Cues"
+	// Subtitles actions
+	SubtitlesCopyStatus      string // "Copy Status"
+	SubtitlesAddCue          string // "Add Cue"
+	SubtitlesLoadSubtitles   string // "Load Subtitles"
+	SubtitlesSaveSubtitles   string // "Save Subtitles"
+	SubtitlesGenerateSpeech  string // "Generate From Speech (Offline)"
+	SubtitlesDetectStreams   string // "Detect Streams"
+	SubtitlesExtractSelected string // "Extract Selected"
+	SubtitlesApplyOffset     string // "Apply Offset"
+	SubtitlesCreateOutput    string // "Create Output"
+	// Subtitles placeholders
+	SubtitlesVideoPlaceholder   string // "Video file path"
+	SubtitlesFilePlaceholder    string // "Subtitle file (.srt, .vtt, or .mks)"
+	SubtitlesModelPlaceholder   string // "Whisper model path (ggml-*.bin)"
+	SubtitlesBackendPlaceholder string // "Whisper backend path (whisper.cpp/main)"
+	SubtitlesOutputPlaceholder  string // "Output video path (for embed/burn)"
+	// Subtitles status/dynamic labels
+	SubtitlesWhisperBackendFmt string // "Whisper backend: %s"
+	SubtitlesWhisperModelFmt   string // "Whisper model: %s"
+	SubtitlesOfflineModelHint  string // "Offline STT uses the selected ggml model."
 
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady      string
@@ -321,13 +349,17 @@ type Strings struct {
 	BenchmarkRecent    string // "Recent Benchmarks"
 
 	// ── Queue ─────────────────────────────────────────────────────────────
-	QueueTitle      string
-	QueueEmpty      string
-	QueueInProgress string
-	QueueCompleted  string
-	QueueFailed     string
-	QueueJobRunning string
-	QueueJobPending string
+	QueueTitle                string
+	QueueEmpty                string
+	QueueInProgress           string
+	QueueCompleted            string
+	QueueFailed               string
+	QueueJobRunning           string
+	QueueJobPending           string
+	ActionQueueStart          string
+	ActionQueuePauseAll       string
+	ActionQueueResumeAll      string
+	ActionQueueClearCompleted string
 
 	// ── History Sidebar ───────────────────────────────────────────────────
 	HistoryTitle     string
@@ -468,6 +500,7 @@ type Strings struct {
 	RIFEModelLabel      string // "Model:"
 	RIFEEstFPSFmt       string // "Estimated output: %.0f fps"
 	RIFENote            string // descriptive note
+	RIFEInstallHint     string // "Install from Settings → Dependencies"
 
 	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
 	ThumbnailGenerateNow        string
