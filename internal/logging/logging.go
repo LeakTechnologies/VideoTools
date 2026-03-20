@@ -91,6 +91,40 @@ func RecoverPanic() {
 	}
 }
 
+// RecoverPanicWithCallback calls RecoverPanic and also invokes a callback if provided.
+func RecoverPanicWithCallback(callback func()) {
+	if r := recover(); r != nil {
+		Crash(CatSystem, "Recovered panic: %v", r)
+		if callback != nil {
+			callback()
+		}
+	}
+}
+
+// RecoverPanicAndReturn returns the recovered value if any.
+func RecoverPanicAndReturn() (err interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r
+			Crash(CatSystem, "Recovered panic: %v", r)
+		}
+	}()
+	return nil
+}
+
+// FullStackTrace returns a full goroutine dump including all goroutines.
+func FullStackTrace() string {
+	buf := make([]byte, 65536)
+	n := runtime.Stack(buf, true)
+	return string(buf[:n])
+}
+
+// LogAllGoroutines dumps all goroutine stacks to the crash log.
+func LogAllGoroutines() {
+	Crash(CatSystem, "=== Goroutine Dump ===")
+	Crash(CatSystem, "%s", FullStackTrace())
+}
+
 // Error logs an error message with a category (always logged, even when debug is off)
 func Error(cat Category, format string, args ...interface{}) {
 	msg := fmt.Sprintf("%s ERROR: %s", cat, fmt.Sprintf(format, args...))
