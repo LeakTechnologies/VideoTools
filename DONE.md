@@ -52,6 +52,14 @@
 - [x] **PiP stub for non-Windows** - Cross-platform compilation support
 - [x] **PiP button in VideoPlayer** - togglePiP, IsPiP, OnPiP callback
 
+### Resume Playback (Phase 9)
+- [x] **ResumeState** - PlaybackPosition struct, JSON persistence
+- [x] **SavePosition** - Saves position/duration/volume/speed to config
+- [x] **GetPosition** - Retrieves saved position with expiry (30 days)
+- [x] **ShouldResume** - Logic for >5% remaining, <7 days old
+- [x] **Trim integration** - Checks saved position on load, seeks to it
+- [x] **Auto-save** - Periodic position saving every 5 seconds during playback
+
 ### Crash Logging & Error Recovery
 - [x] **FFmpeg error logging** - avformat_open_input now logs FFmpeg error codes and messages
 - [x] **avformat_find_stream_info logging** - Logs return code and error string on failure

@@ -12,11 +12,13 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/media/state"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -38,8 +40,9 @@ type TrimClip struct {
 }
 
 type trimState struct {
-	engine *media.Engine
-	player *media.VideoPlayer
+	engine      *media.Engine
+	player      *media.VideoPlayer
+	resumeState *state.ResumeState
 
 	inPoint  time.Duration
 	outPoint time.Duration
@@ -57,8 +60,14 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	navyBlue := utils.MustHex("#191F35")
 	gridColor := utils.MustHex("#171C2A")
 
+	resume, err := state.NewResumeState("")
+	if err != nil {
+		logging.Warning(logging.CatPlayer, "Failed to init resume state: %v", err)
+	}
+
 	state := &trimState{
-		player: media.NewVideoPlayer(),
+		player:      media.NewVideoPlayer(),
+		resumeState: resume,
 	}
 
 	state.player.OnPlay(func() {
@@ -201,24 +210,64 @@ func (s *trimState) loadVideo(path string) {
 		s.player.SetChapters(chapters)
 	}
 
+	// Check for saved playback position
+	var resumePos float64
+	if s.resumeState != nil {
+		if savedPos, ok := s.resumeState.GetPosition(path); ok && s.resumeState.ShouldResume(savedPos) {
+			resumePos = savedPos.Position
+			logging.Info(logging.CatPlayer, "Found saved position: %.2f seconds", resumePos)
+		}
+	}
+
 	if img, err := s.engine.NextFrame(); err == nil {
 		s.player.SetFrame(img)
 	}
 	s.player.SetLoading(false)
+
+	// Seek to saved position if found
+	if resumePos > 0 {
+		s.engine.Seek(resumePos)
+		s.currentTime = resumePos
+		s.player.SetCurrentTime(resumePos)
+		if img, err := s.engine.NextFrame(); err == nil {
+			s.player.SetFrame(img)
+		}
+	}
 }
 
 func (s *trimState) playbackLoop() {
 	defer logging.RecoverPanic()
 	defer logging.LogAllGoroutines()
 
+	saveTicker := time.NewTicker(5 * time.Second)
+	defer saveTicker.Stop()
+	var currentPath string
+
 	for {
-		img, err := s.engine.NextFrame()
-		if err != nil {
-			break
+		select {
+		case <-saveTicker.C:
+			if s.engine != nil && currentPath != "" {
+				pos := s.engine.CurrentTime()
+				dur := s.engine.Duration()
+				if s.resumeState != nil && dur > 0 {
+					s.resumeState.SavePosition(currentPath, pos, dur)
+				}
+			}
+		default:
+			img, err := s.engine.NextFrame()
+			if err != nil {
+				return
+			}
+			s.player.SetFrame(img)
+			s.currentTime = s.engine.CurrentTime()
+			s.player.SetCurrentTime(s.currentTime)
 		}
-		s.player.SetFrame(img)
-		s.currentTime = s.engine.CurrentTime()
-		s.player.SetCurrentTime(s.currentTime)
+	}
+}
+
+func (s *trimState) savePlaybackPosition(path string) {
+	if s.resumeState != nil && s.engine != nil && s.duration > 0 {
+		s.resumeState.SavePosition(path, s.currentTime, s.duration)
 	}
 }
 
