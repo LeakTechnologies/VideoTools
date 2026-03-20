@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -209,6 +210,8 @@ type queueCallbacks struct {
 	onCopyError   func(string)
 	onViewLog     func(string)
 	onCopyCommand func(string)
+	onOpenFolder  func(string)
+	onOpenOutput  func(string)
 }
 
 type queueItemWidgets struct {
@@ -260,6 +263,8 @@ func BuildQueueView(
 	onCopyError func(string),
 	onViewLog func(string),
 	onCopyCommand func(string),
+	onOpenFolder func(string),
+	onOpenOutput func(string),
 	titleColor, bgColor, textColor color.Color,
 ) *QueueView {
 	// Header
@@ -332,6 +337,8 @@ func BuildQueueView(
 			onCopyError:   onCopyError,
 			onViewLog:     onViewLog,
 			onCopyCommand: onCopyCommand,
+			onOpenFolder:  onOpenFolder,
+			onOpenOutput:  onOpenOutput,
 		},
 		bgColor:   bgColor,
 		textColor: textColor,
@@ -466,6 +473,23 @@ func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
 			widget.NewButton("Remove", func() { callbacks.onRemove(job.ID) }),
 		)
 	case queue.JobStatusCompleted, queue.JobStatusFailed, queue.JobStatusCancelled:
+		// Open in Folder + Play/Open stacked, shown whenever there is an output file.
+		if job.OutputFile != "" && (callbacks.onOpenFolder != nil || callbacks.onOpenOutput != nil) {
+			openLabel := openOutputLabel(job.OutputFile)
+			openFolderBtn := widget.NewButton("Open in Folder", func() {
+				if callbacks.onOpenFolder != nil {
+					callbacks.onOpenFolder(job.ID)
+				}
+			})
+			openFolderBtn.Importance = widget.LowImportance
+			openOutputBtn := widget.NewButton(openLabel, func() {
+				if callbacks.onOpenOutput != nil {
+					callbacks.onOpenOutput(job.ID)
+				}
+			})
+			openOutputBtn.Importance = widget.LowImportance
+			buttons = append(buttons, container.NewVBox(openFolderBtn, openOutputBtn))
+		}
 		if job.Status == queue.JobStatusFailed && strings.TrimSpace(job.Error) != "" && callbacks.onCopyError != nil {
 			buttons = append(buttons,
 				widget.NewButton("Copy Error", func() { callbacks.onCopyError(job.ID) }),
@@ -482,6 +506,21 @@ func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
 	}
 
 	return container.NewHBox(buttons...)
+}
+
+// openOutputLabel returns an appropriate button label based on the output file type.
+func openOutputLabel(outputFile string) string {
+	ext := strings.ToLower(filepath.Ext(outputFile))
+	switch ext {
+	case ".mp4", ".mkv", ".avi", ".mov", ".mpg", ".mpeg", ".ts", ".m2ts", ".wmv", ".flv", ".webm", ".iso":
+		return "Play Video"
+	case ".jpg", ".jpeg", ".png", ".webp", ".tiff", ".tif", ".bmp", ".gif":
+		return "Open Image"
+	case ".mp3", ".aac", ".flac", ".ogg", ".wav", ".m4a", ".opus":
+		return "Play Audio"
+	default:
+		return "Open File"
+	}
 }
 
 func updateJobItem(item *queueItemWidgets, job *queue.Job, queuePositions map[string]int, callbacks queueCallbacks) {

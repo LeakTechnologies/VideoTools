@@ -25,13 +25,14 @@ type Options struct {
 	TextColor   color.Color
 	OpenFolder  func(string) error
 	OpenURL     func(string) error
-	DocsURL     string
+	QRURL       string // URL embedded in the QR code (e.g. releases page)
+	WebsiteURL  string // leaktechnologies.dev link shown in main content
 	XProfileURL string
 	XLabel      string
 	// Translatable labels — populated by caller from i18n.T()
 	TitleLabel      string // "About / Support"
 	LogsFolderLabel string // "Logs Folder"
-	ScanDocsLabel   string // "Scan for docs"
+	ScanDocsLabel   string // "Dev Builds" (label under QR code)
 	FeedbackLabel   string // feedback instructions text
 	CloseLabel      string // "Close"
 	OpenLabel       string // "Open" (for X/social link button)
@@ -112,13 +113,19 @@ func Show(opts Options) {
 	})
 	xBtn.Importance = widget.LowImportance
 
-	mainContent := container.NewVBox(
+	mainContentItems := []fyne.CanvasObject{
 		versionText,
 		devText,
 		widget.NewLabel(""),
 		container.NewHBox(xLabel, xBtn),
-		feedbackLabel,
-	)
+	}
+	if opts.WebsiteURL != "" {
+		if u, err := url.Parse(opts.WebsiteURL); err == nil {
+			mainContentItems = append(mainContentItems, widget.NewHyperlink("leaktechnologies.dev", u))
+		}
+	}
+	mainContentItems = append(mainContentItems, feedbackLabel)
+	mainContent := container.NewVBox(mainContentItems...)
 
 	logoColumn := container.NewVBox()
 	if vtLogo := loadLogo("VT_Logo.png", 96); vtLogo != nil {
@@ -128,10 +135,10 @@ func Show(opts Options) {
 		logoColumn.Add(ltLogo)
 	}
 
-	qrCode, err := generatePixelatedQRCode(opts.DocsURL)
+	qrCode, err := generatePixelatedQRCode(opts.QRURL)
 	if err != nil {
-		if docURL, parseErr := url.Parse(opts.DocsURL); parseErr == nil {
-			logoColumn.Add(widget.NewHyperlink("View Documentation", docURL))
+		if releasesURL, parseErr := url.Parse(opts.QRURL); parseErr == nil {
+			logoColumn.Add(widget.NewHyperlink("Dev Builds", releasesURL))
 		}
 	} else {
 		scanStr := opts.ScanDocsLabel

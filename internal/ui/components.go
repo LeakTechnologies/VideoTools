@@ -743,6 +743,7 @@ type FastVScroll struct {
 	dragging     bool
 	dragStartY   float32 // canvas Y at drag start
 	dragStartOff float32 // scroll offset at drag start
+	forcedMinH   float32 // set via SetMinSize
 }
 
 // NewFastVScroll creates a new fast-scrolling vertical scroll container
@@ -840,6 +841,33 @@ func (f *FastVScroll) DragEnd() {
 	f.dragging = false
 }
 
+// SetMinSize overrides the minimum height reported to Fyne's layout system.
+// Use this to ensure the scroll container occupies a minimum amount of space.
+func (f *FastVScroll) SetMinSize(size fyne.Size) {
+	f.forcedMinH = size.Height
+	f.Refresh()
+}
+
+// ScrollToTop scrolls the content to the top.
+func (f *FastVScroll) ScrollToTop() {
+	if f == nil || f.clip == nil {
+		return
+	}
+	f.clip.setOffset(0)
+}
+
+// ScrollToBottom scrolls the content to the bottom.
+func (f *FastVScroll) ScrollToBottom() {
+	if f == nil || f.clip == nil || f.clip.content == nil {
+		return
+	}
+	max := f.clip.content.Size().Height - f.Size().Height
+	if max < 0 {
+		max = 0
+	}
+	f.clip.setOffset(max)
+}
+
 // PageStep returns a reasonable scroll step based on the current viewport.
 func (f *FastVScroll) PageStep() float32 {
 	if f == nil || f.clip == nil {
@@ -864,6 +892,9 @@ func (r *fastScrollRenderer) Layout(size fyne.Size) {
 }
 
 func (r *fastScrollRenderer) MinSize() fyne.Size {
+	if r.clip.parent != nil && r.clip.parent.forcedMinH > 0 {
+		return fyne.NewSize(0, r.clip.parent.forcedMinH)
+	}
 	return fyne.NewSize(0, 0)
 }
 

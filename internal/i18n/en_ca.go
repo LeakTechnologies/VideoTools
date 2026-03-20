@@ -501,7 +501,7 @@ var enCA = Strings{
 	AboutLicense:     "License",
 	AboutSupport:     "Support",
 	AboutLogsFolder:  "Logs Folder",
-	AboutScanForDocs: "Scan for docs",
+	AboutScanForDocs: "Dev Builds",
 	AboutFeedback:    "Feedback: use the Logs button on the main menu to view logs; send issues with attached logs.",
 	AboutClose:       "Close",
 

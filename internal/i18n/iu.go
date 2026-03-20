@@ -474,7 +474,7 @@ var iu = Strings{
 	AboutLicense:     "ᐊᑐᕐᓂᒧᑦ ᐊᓂᕐᕋᖅ",                                                                // License
 	AboutSupport:     "ᐃᑲᔪᖅᑐᐃᓂᖅ",                                                                    // Support
 	AboutLogsFolder:  "ᑎᑎᕋᖅᑕᐅᓯᒪᔪᑦ ᓄᓇᓕᖕᓂ",                                                            // Logs Folder
-	AboutScanForDocs: "ᑎᑎᕋᖅᑕᐅᓯᒪᔪᑦ ᓂᕈᐊᕐᓗᒋᑦ",                                                          // Scan for docs
+	AboutScanForDocs: "Dev Builds",                                                                    // Dev Builds
 	AboutFeedback:    "ᑐᓴᕈᑕᐅᔪᒃᓴᑦ: ᑎᑎᕋᖅᑕᐅᓯᒪᔪᓂᒃ ᑕᑯᓗᒋᑦ ᑕᕐᕆᔭᒐᓕᕆᔾᔪᑎᒃ ᑕᑯᕕᒋᓗᒍ; ᐱᒻᒪᕆᐅᔪᑦ ᑎᑎᕋᖅᑕᐅᓯᒪᔪᓂᒃ ᑐᓂᓯᓗᒍ.", // Feedback
 	AboutClose:       "ᒪᑕᐃᓗᒍ",                                                                       // Close
 

@@ -1248,7 +1248,7 @@ type appState struct {
 	authorLogLines                []string // Circular buffer for last N lines
 	authorLogFilePath             string   // Path to log file for full viewing
 	authorLogEntry                *widget.Entry
-	authorLogScroll               *container.Scroll
+	authorLogScroll               *ui.FastVScroll
 	authorProgress                float64
 	authorProgressBar             *widget.ProgressBar
 	authorStatusLabel             *widget.Label

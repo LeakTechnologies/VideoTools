@@ -1,3 +1,5 @@
+//go:build native_media
+
 package main
 
 import (

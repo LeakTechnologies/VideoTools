@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -56,6 +57,47 @@ func GetFFprobePath() string {
 // It returns "ffplay" as a fallback if not explicitly set.
 func GetFFplayPath() string {
 	return "ffplay" // Fallback
+}
+
+// FindTool returns the absolute path to a named tool binary, or ("", false) if not found.
+// Checks system PATH first, then the VideoTools app-local bin directory so that
+// tools installed via the Settings panel are detected even when not in PATH.
+func FindTool(name string) (string, bool) {
+	if path, err := exec.LookPath(name); err == nil {
+		return path, true
+	}
+	// App-local install directory (mirrors appLocalBinDir in settings_module.go).
+	var binDir string
+	switch runtime.GOOS {
+	case "windows":
+		base := strings.TrimSpace(os.Getenv("LOCALAPPDATA"))
+		if base == "" {
+			if home, err := os.UserHomeDir(); err == nil {
+				base = filepath.Join(home, "AppData", "Local")
+			}
+		}
+		binDir = filepath.Join(base, "VideoTools", "bin")
+	default:
+		base := strings.TrimSpace(os.Getenv("XDG_DATA_HOME"))
+		if base == "" {
+			if home, err := os.UserHomeDir(); err == nil {
+				base = filepath.Join(home, ".local", "share")
+			}
+		}
+		binDir = filepath.Join(base, "VideoTools", "bin")
+	}
+	if binDir == "" {
+		return "", false
+	}
+	exe := name
+	if runtime.GOOS == "windows" {
+		exe = name + ".exe"
+	}
+	fullPath := filepath.Join(binDir, exe)
+	if _, err := os.Stat(fullPath); err == nil {
+		return fullPath, true
+	}
+	return "", false
 }
 
 // --- Color utilities ---

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/xml"
 	"fmt"
 	"image"
 	"image/png"
@@ -1811,4 +1812,13 @@ func escapeDrawtextText(text string) string {
 	// Clean up multiple spaces
 	cleaned := strings.Join(strings.Fields(result.String()), " ")
 	return cleaned
+}
+
+func escapeXMLAttr(value string) string {
+	var b strings.Builder
+	if err := xml.EscapeText(&b, []byte(value)); err != nil {
+		return strings.ReplaceAll(value, "\"", "&quot;")
+	}
+	escaped := b.String()
+	return strings.ReplaceAll(escaped, "\"", "&quot;")
 }

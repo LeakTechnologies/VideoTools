@@ -245,7 +245,8 @@ func runDependencyCommandWithProgress(win fyne.Window, title, message string, de
 func showCommandResult(win fyne.Window, title string, output string, err error) {
 	const maxLen = 2000
 	if len(output) > maxLen {
-		output = output[:maxLen] + "..."
+		// Show the tail of the output so the result/error is always visible.
+		output = "...\n" + output[len(output)-maxLen:]
 	}
 
 	if err != nil {
@@ -577,6 +578,41 @@ func getLatestGitHubReleaseAssetURL(owner, repo, assetPattern string) (string, e
 	return "", fmt.Errorf("no release asset matching %q found in %s/%s", assetPattern, owner, repo)
 }
 
+// findGitHubAssetAcrossReleases searches the most recent releases for an asset
+// whose name contains assetPattern (case-insensitive). Use this when the latest
+// release might not have binary assets (e.g. projects that mix source and binary releases).
+func findGitHubAssetAcrossReleases(owner, repo, assetPattern string, maxReleases int) (string, error) {
+	apiURL := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases?per_page=%d", owner, repo, maxReleases)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(apiURL)
+	if err != nil {
+		return "", fmt.Errorf("GitHub API request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	}
+
+	var releases []struct {
+		Assets []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
+		return "", fmt.Errorf("parse GitHub API response: %w", err)
+	}
+
+	for _, release := range releases {
+		for _, asset := range release.Assets {
+			if strings.Contains(strings.ToLower(asset.Name), strings.ToLower(assetPattern)) {
+				return asset.BrowserDownloadURL, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no release asset matching %q found in %s/%s (checked %d releases)", assetPattern, owner, repo, len(releases))
+}
+
 // downloadAndExtractBinary downloads a ZIP from url, extracts the file named
 // executableName into destPath, and makes it executable on Unix.
 func downloadAndExtractBinary(url, executableName, destPath string) error {
@@ -667,7 +703,9 @@ func ensureAppLocalRealESRGAN() (string, error) {
 		return "", fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
 
-	downloadURL, err := getLatestGitHubReleaseAssetURL("xinntao", "Real-ESRGAN", assetPattern)
+	// xinntao/Real-ESRGAN mixes source and binary releases; use list endpoint to find
+	// a recent release that actually contains binary assets.
+	downloadURL, err := findGitHubAssetAcrossReleases("xinntao", "Real-ESRGAN", assetPattern, 10)
 	if err != nil {
 		return "", fmt.Errorf("find Real-ESRGAN release: %w", err)
 	}
@@ -1196,6 +1234,38 @@ func checkForUpdates(state *appState) {
 	}()
 }
 
+// applyUpdateStatusToUI renders a previously-fetched update result into the
+// status icon/label without hitting the network again.
+func applyUpdateStatusToUI(state *appState, statusIcon *widget.Icon, statusLabel *widget.Label, onAvailable func(tag string)) {
+	t := i18n.T()
+	currentShort := buildCommit
+	if len(currentShort) > 7 {
+		currentShort = currentShort[:7]
+	}
+	age := formatRelativeTime(state.updateLastChecked)
+	if state.updateCachedTag != "" && state.updateCachedTag != appVersion {
+		statusIcon.SetResource(recoloredSVG{ui.GetIcon("change_circle"), "#FFAB40"})
+		statusIcon.Show()
+		statusLabel.SetText(fmt.Sprintf(t.UpdateAvailableFmt, state.updateCachedTag, age))
+		statusLabel.TextStyle = fyne.TextStyle{Bold: true}
+		onAvailable(state.updateCachedTag)
+		return
+	}
+	if state.updateCachedPatch {
+		statusIcon.SetResource(recoloredSVG{ui.GetIcon("build_circle"), "#FFAB40"})
+		statusIcon.Show()
+		statusLabel.SetText(fmt.Sprintf(t.UpdateNewBuildAvailable, currentShort, age))
+		statusLabel.TextStyle = fyne.TextStyle{Bold: true}
+		onAvailable(appVersion)
+		return
+	}
+	statusIcon.SetResource(recoloredSVG{ui.GetIcon("check_circle"), "#4CE870"})
+	statusIcon.Show()
+	statusLabel.SetText(fmt.Sprintf(t.UpdateUpToDateFmt, appVersion, age))
+	statusLabel.TextStyle = fyne.TextStyle{Italic: true}
+	onAvailable("")
+}
+
 // checkForUpdatesWithStatus checks for updates and drives the icon+label status row.
 // onAvailable is called with the installable tag when an update/patch is found,
 // or with "" when the build is already up to date or on error.
@@ -1225,6 +1295,13 @@ func checkForUpdatesWithStatus(state *appState, statusIcon *widget.Icon, statusL
 			if len(tagShort) > 7 {
 				tagShort = tagShort[:7]
 			}
+			patchesAvailable := currentShort != "" && currentShort != "dev" &&
+				tagShort != "" && currentShort != tagShort
+
+			// Write result to cache so subsequent settings visits reuse it.
+			state.updateLastChecked = time.Now()
+			state.updateCachedTag = info.latestTag
+			state.updateCachedPatch = info.latestTag == appVersion && patchesAvailable
 
 			// Different version tag — full update available
 			if info.latestTag != appVersion {
@@ -1238,9 +1315,6 @@ func checkForUpdatesWithStatus(state *appState, statusIcon *widget.Icon, statusL
 			}
 
 			// Same tag but newer build commit — patches available
-			patchesAvailable := currentShort != "" && currentShort != "dev" &&
-				tagShort != "" && currentShort != tagShort
-
 			if patchesAvailable {
 				age := formatRelativeTime(info.releaseDate)
 				statusIcon.SetResource(recoloredSVG{ui.GetIcon("build_circle"), "#FFAB40"})
@@ -1942,21 +2016,32 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	installBtn.Importance = widget.HighImportance
 	installBtn.Hide()
 
+	onUpdateAvailable := func(tag string) {
+		if tag == "" {
+			installBtn.Hide()
+			return
+		}
+		installBtn.OnTapped = func() { applyUpdate(state, tag) }
+		installBtn.Show()
+	}
+
 	var checkBtn *widget.Button
 	checkBtn = widget.NewButton(t.UpdateCheckButton, func() {
 		installBtn.Hide()
-		checkForUpdatesWithStatus(state, updateStatusIcon, updateStatusLabel, func(tag string) {
-			if tag == "" {
-				installBtn.Hide()
-				return
-			}
-			installBtn.OnTapped = func() { applyUpdate(state, tag) }
-			installBtn.Show()
-		})
+		checkForUpdatesWithStatus(state, updateStatusIcon, updateStatusLabel, onUpdateAvailable)
 	})
 	checkBtn.Importance = widget.MediumImportance
 
 	content.Add(container.NewHBox(checkBtn, installBtn))
+
+	// Auto-populate update status when the tab opens.
+	// Use the cached result if one exists; only hit the network on first open
+	// (or when the user clicks "Check for Updates" manually).
+	if !state.updateLastChecked.IsZero() {
+		applyUpdateStatusToUI(state, updateStatusIcon, updateStatusLabel, onUpdateAvailable)
+	} else {
+		checkForUpdatesWithStatus(state, updateStatusIcon, updateStatusLabel, onUpdateAvailable)
+	}
 
 	// Auto-check frequency
 	autoCheckLabel := widget.NewLabel(t.UpdateAutoCheck)

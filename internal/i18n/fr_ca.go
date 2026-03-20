@@ -487,7 +487,7 @@ var frCA = Strings{
 	AboutLicense:     "Licence",
 	AboutSupport:     "Soutien",
 	AboutLogsFolder:  "Dossier de journaux",
-	AboutScanForDocs: "Scanner pour la documentation",
+	AboutScanForDocs: "Builds de développement",
 	AboutFeedback:    "Rétroaction : utilisez le bouton Journaux du menu principal pour voir les journaux ; envoyez les problèmes avec les journaux joints.",
 	AboutClose:       "Fermer",
 

@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"fmt"
 	"image"
@@ -15,7 +14,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -223,7 +221,7 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 	state.authorVideoTSPath = strings.TrimSpace(state.authorVideoTSPath)
 	list := container.NewVBox()
-	listScroll := container.NewVScroll(list)
+	listScroll := ui.NewFastVScroll(list)
 
 	var rebuildList func()
 	var emptyOverlay *fyne.Container
@@ -644,7 +642,7 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 		sourceLabel,
 	)
 
-	listScroll := container.NewScroll(chapterList)
+	listScroll := ui.NewFastVScroll(chapterList)
 	bottomRow := container.NewHBox(addChapterBtn, exportBtn)
 
 	controls := container.NewBorder(
@@ -661,7 +659,7 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 
 func buildSubtitlesTab(state *appState) fyne.CanvasObject {
 	list := container.NewVBox()
-	listScroll := container.NewVScroll(list)
+	listScroll := ui.NewFastVScroll(list)
 
 	var buildSubList func()
 	var emptyOverlay *fyne.Container
@@ -934,7 +932,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
 	)
 
-	return container.NewVScroll(container.NewPadded(controls))
+	return ui.NewFastVScroll(container.NewPadded(controls))
 }
 
 func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
@@ -1592,7 +1590,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	updateBrandingTitle()
 	updateMenuControls(state.authorCreateMenu)
 
-	scroll := container.NewVScroll(container.NewPadded(controls))
+	scroll := ui.NewFastVScroll(container.NewPadded(controls))
 	scroll.SetMinSize(fyne.NewSize(0, 420))
 	return scroll
 }
@@ -1635,7 +1633,7 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 	logEntry.Disable()
 	logEntry.SetText(state.authorLogText)
 	state.authorLogEntry = logEntry
-	logScroll := container.NewVScroll(logEntry)
+	logScroll := ui.NewFastVScroll(logEntry)
 	logScroll.SetMinSize(fyne.NewSize(0, 200))
 	state.authorLogScroll = logScroll
 
@@ -1690,7 +1688,7 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 		generateBtn,
 	)
 
-	return container.NewVScroll(container.NewPadded(controls))
+	return ui.NewFastVScroll(container.NewPadded(controls))
 }
 
 func authorSummary(state *appState) string {
@@ -1817,7 +1815,7 @@ func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
 		content.Add(check)
 	}
 
-	d := dialog.NewCustom("Track Selection: "+clip.DisplayName, "Done", container.NewVScroll(content), s.window)
+	d := dialog.NewCustom("Track Selection: "+clip.DisplayName, "Done", ui.NewFastVScroll(content), s.window)
 	d.Resize(fyne.NewSize(500, 400))
 	d.Show()
 }
@@ -2236,36 +2234,6 @@ func extractChaptersFromVideoTS(videoTSPath string) ([]authorChapter, error) {
 	return chapters, nil
 }
 
-func chaptersToDVDAuthor(chapters []authorChapter) string {
-	if len(chapters) == 0 {
-		return ""
-	}
-	var times []float64
-	for _, ch := range chapters {
-		if ch.Timestamp < 0 {
-			continue
-		}
-		times = append(times, ch.Timestamp)
-	}
-	if len(times) == 0 {
-		return ""
-	}
-	sort.Float64s(times)
-	if times[0] > 0.01 {
-		times = append([]float64{0}, times...)
-	}
-	seen := map[int]struct{}{}
-	var parts []string
-	for _, t := range times {
-		key := int(t * 1000)
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		parts = append(parts, formatChapterTime(t))
-	}
-	return strings.Join(parts, ",")
-}
 
 func formatChapterTime(sec float64) string {
 	if sec < 0 {
@@ -2925,6 +2893,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			"-fflags", "+genpts",
 			"-i", outPath,
 			"-map", "0",
+			"-map", "-0:d", // exclude data streams (dvd_nav_packet) unsupported by dvd muxer
 			"-c", "copy",
 			"-f", "dvd",
 			"-muxrate", "10080000",
@@ -2984,6 +2953,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			"-fflags", "+genpts",
 			"-i", outPath,
 			"-map", "0",
+			"-map", "-0:d", // exclude data streams (dvd_nav_packet) unsupported by dvd muxer
 			"-c", "copy",
 			"-f", "dvd",
 			"-muxrate", "10080000",
@@ -3114,11 +3084,6 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 	}
 
-	xmlPath := filepath.Join(workDir, "dvd.xml")
-	if err := writeDVDAuthorXML(xmlPath, featureMpgPaths, extraMpgPaths, region, aspect, chapters, menuSet); err != nil {
-		return err
-	}
-
 	// Log chapter information
 	if len(chapters) > 0 {
 		if logFn != nil {
@@ -3127,12 +3092,6 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 				logFn(fmt.Sprintf("  Chapter %d: %s at %s", i+1, ch.Title, formatChapterTime(ch.Timestamp)))
 			}
 		}
-	}
-
-	// Log the XML content for debugging
-	if xmlContent, err := os.ReadFile(xmlPath); err == nil {
-		logFn("Generated DVD XML:")
-		logFn(string(xmlContent))
 	}
 
 	logFn("Authoring DVD structure (Native Go Engine)...")
@@ -3637,19 +3596,22 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 			}
 		}
 
-		appendLog(fmt.Sprintf("Authoring ISO from VIDEO_TS: %s", videoTSPath))
-		// Create output directory for ISO file if it doesn't exist
+		appendLog(fmt.Sprintf("Packaging VIDEO_TS to ISO (native): %s", videoTSPath))
 		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 			return fmt.Errorf("failed to create ISO output directory: %w", err)
 		}
-		tool, args, err := buildISOCommand(outputPath, videoTSPath, title)
-		if err != nil {
-			return err
-		}
-		appendLog(fmt.Sprintf(">> %s %s", tool, strings.Join(args, " ")))
 		updateProgress(10)
-		if err := runCommandWithLogger(ctx, tool, args, appendLog); err != nil {
-			return err
+		isoFile, err := os.Create(outputPath)
+		if err != nil {
+			return fmt.Errorf("failed to create ISO file: %w", err)
+		}
+		defer isoFile.Close()
+		uw := udf.NewWriter(isoFile, isoVolumeLabel(title))
+		if err := uw.AddDirFS(videoTSPath); err != nil {
+			return fmt.Errorf("failed to add VIDEO_TS to ISO: %w", err)
+		}
+		if err := uw.Build(); err != nil {
+			return fmt.Errorf("failed to build ISO: %w", err)
 		}
 		updateProgress(100)
 		appendLog("ISO creation completed successfully.")
@@ -3994,105 +3956,6 @@ func buildAuthorFFmpegArgs(clip authorClip, outputPath, region, aspect string, p
 	return args
 }
 
-func writeDVDAuthorXML(path string, featureMpgPaths []string, extraMpgPaths []string, region, aspect string, chapters []authorChapter, menuSet dvdMenuSet) error {
-	format := strings.ToLower(region)
-	if format != "pal" {
-		format = "ntsc"
-	}
-
-	var b strings.Builder
-	b.WriteString("<dvdauthor>\n")
-	b.WriteString("  <vmgm />\n")
-	b.WriteString("  <titleset>\n")
-
-	// Write menus section if we have menus
-	if menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
-		b.WriteString("    <menus>\n")
-
-		// Main menu (PGC 1)
-		b.WriteString("      <pgc entry=\"root\">\n")
-		b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(menuSet.MainMpg)))
-		for i, btn := range menuSet.MainButtons {
-			b.WriteString(fmt.Sprintf("        <button name=\"b%d\">%s</button>\n", i+1, btn.Command))
-		}
-		b.WriteString("        <post>jump menu entry root;</post>\n")
-		b.WriteString("      </pgc>\n")
-
-		// Chapters menu (PGC 2) if present
-		if menuSet.ChaptersMpg != "" && len(menuSet.ChaptersButtons) > 0 {
-			b.WriteString("      <pgc>\n")
-			b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(menuSet.ChaptersMpg)))
-			for i, btn := range menuSet.ChaptersButtons {
-				b.WriteString(fmt.Sprintf("        <button name=\"b%d\">%s</button>\n", i+1, btn.Command))
-			}
-			b.WriteString("        <post>jump menu 2;</post>\n") // Loop chapters menu back to itself
-			b.WriteString("      </pgc>\n")
-		}
-
-		// Extras menu (PGC 2 or 3) if present
-		if menuSet.ExtrasMpg != "" && len(menuSet.ExtrasButtons) > 0 {
-			b.WriteString("      <pgc>\n")
-			b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(menuSet.ExtrasMpg)))
-			for i, btn := range menuSet.ExtrasButtons {
-				b.WriteString(fmt.Sprintf("        <button name=\"b%d\">%s</button>\n", i+1, btn.Command))
-			}
-			// Loop extras menu back to itself (PGC 3 if chapters exist, PGC 2 otherwise)
-			extrasMenuPGC := 2
-			if menuSet.ChaptersMpg != "" {
-				extrasMenuPGC = 3
-			}
-			b.WriteString(fmt.Sprintf("        <post>jump menu %d;</post>\n", extrasMenuPGC))
-			b.WriteString("      </pgc>\n")
-		}
-
-		b.WriteString("    </menus>\n")
-	}
-
-	b.WriteString("    <titles>\n")
-	b.WriteString(fmt.Sprintf("      <video format=\"%s\" aspect=\"%s\" />\n", format, aspect))
-
-	// Write main feature title (Title 1) with chapters
-	for _, mpg := range featureMpgPaths {
-		b.WriteString("      <pgc>\n")
-		if len(chapters) > 0 {
-			b.WriteString(fmt.Sprintf("        <vob file=\"%s\" chapters=\"%s\" />\n", escapeXMLAttr(mpg), chaptersToDVDAuthor(chapters)))
-		} else {
-			b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(mpg)))
-		}
-		if menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
-			b.WriteString("        <post>call menu;</post>\n")
-		}
-		b.WriteString("      </pgc>\n")
-	}
-
-	// Write extras as separate titles (Title 2, Title 3, etc.)
-	for _, mpg := range extraMpgPaths {
-		b.WriteString("      <pgc>\n")
-		b.WriteString(fmt.Sprintf("        <vob file=\"%s\" />\n", escapeXMLAttr(mpg)))
-		if menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
-			b.WriteString("        <post>call menu;</post>\n")
-		}
-		b.WriteString("      </pgc>\n")
-	}
-
-	b.WriteString("    </titles>\n")
-	b.WriteString("  </titleset>\n")
-	b.WriteString("</dvdauthor>\n")
-
-	if err := os.WriteFile(path, []byte(b.String()), 0644); err != nil {
-		return fmt.Errorf("failed to write dvdauthor XML: %w", err)
-	}
-	return nil
-}
-
-func escapeXMLAttr(value string) string {
-	var b strings.Builder
-	if err := xml.EscapeText(&b, []byte(value)); err != nil {
-		return strings.ReplaceAll(value, "\"", "&quot;")
-	}
-	escaped := b.String()
-	return strings.ReplaceAll(escaped, "\"", "&quot;")
-}
 
 func ensureAuthorDependencies(makeISO bool, createMenu bool) error {
 	if err := ensureExecutable(utils.GetFFmpegPath(), "ffmpeg"); err != nil {
@@ -4222,90 +4085,6 @@ func ensureExecutable(path, label string) error {
 	return fmt.Errorf("%s not found (%s)", label, path)
 }
 
-func buildISOCommand(outputISO, discRoot, title string) (string, []string, error) {
-	tool, prefixArgs, err := findISOTool()
-	if err != nil {
-		return "", nil, err
-	}
-
-	isWSL := tool == "wsl"
-
-	var wslArgs []string
-	if isWSL {
-		outputWSL, err := utils.WindowsToWSLPath(outputISO)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to convert output path: %w", err)
-		}
-		discRootWSL, err := utils.WindowsToWSLPath(discRoot)
-		if err != nil {
-			return "", nil, fmt.Errorf("failed to convert disc root path: %w", err)
-		}
-		wslArgs = []string{outputWSL, discRootWSL}
-	} else {
-		wslArgs = []string{outputISO, discRoot}
-	}
-
-	label := isoVolumeLabel(title)
-	args := append([]string{}, prefixArgs...)
-	args = append(args, "-dvd-video", "-V", label, "-o")
-	args = append(args, wslArgs...)
-	return tool, args, nil
-}
-
-func findISOTool() (string, []string, error) {
-	if runtime.GOOS == "windows" {
-		return findWSLISOTool()
-	}
-
-	if path, err := exec.LookPath("mkisofs"); err == nil {
-		return path, nil, nil
-	}
-	if path, err := exec.LookPath("genisoimage"); err == nil {
-		return path, nil, nil
-	}
-	if path, err := exec.LookPath("xorriso"); err == nil {
-		return path, []string{"-as", "mkisofs"}, nil
-	}
-	return "", nil, fmt.Errorf("mkisofs, genisoimage, or xorriso not found in PATH")
-}
-
-func findWSLISOTool() (string, []string, error) {
-	if !utils.IsWSLAvailable() {
-		return "", nil, fmt.Errorf("WSL not available on Windows. Install WSL and xorriso/mkisofs, or install native ISO tools on Windows PATH")
-	}
-
-	distro, err := utils.FindWSLDistro()
-	if err != nil {
-		return "", nil, fmt.Errorf("no WSL distribution found. Install WSL with: wsl --install")
-	}
-
-	tool, prefixArgs, err := findWSLISOToolInDistro(distro)
-	if err != nil {
-		return "", nil, fmt.Errorf("ISO tools (xorriso, mkisofs, genisoimage) not found in WSL distribution '%s'. Install with: sudo apt install xorriso", distro)
-	}
-
-	logging.Debug(logging.CatFFMPEG, "using WSL distro %s for ISO creation with %s", distro, tool)
-	return tool, prefixArgs, nil
-}
-
-func findWSLISOToolInDistro(distro string) (string, []string, error) {
-	cmd := utils.WSLRunCommand(distro, "which", "xorriso")
-	if err := cmd.Run(); err == nil {
-		return "wsl", []string{"-d", distro, "--", "xorriso", "-as", "mkisofs"}, nil
-	}
-
-	cmd = utils.WSLRunCommand(distro, "which", "mkisofs")
-	if err := cmd.Run(); err == nil {
-		return "wsl", []string{"-d", distro, "--", "mkisofs"}, nil
-	}
-
-	cmd = utils.WSLRunCommand(distro, "which", "genisoimage")
-	if err := cmd.Run(); err == nil {
-		return "wsl", []string{"-d", distro, "--", "genisoimage"}, nil
-	}
-
-	return "", nil, fmt.Errorf("xorriso, mkisofs, or genisoimage not found in WSL distribution")
-}
 
 func isoVolumeLabel(title string) string {
 	label := strings.ToUpper(strings.TrimSpace(title))
@@ -4558,7 +4337,7 @@ func (s *appState) showChapterPreview(videoPath string, chapters []authorChapter
 				container.NewVBox(infoLabel, widget.NewSeparator()),
 				container.NewPadded(addBtn),
 				nil, nil,
-				container.NewVScroll(listBox),
+				ui.NewFastVScroll(listBox),
 			)
 			rightPanel := container.NewBorder(
 				nil, container.NewPadded(frameLabel), nil, nil,
