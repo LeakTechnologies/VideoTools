@@ -30,12 +30,15 @@ type Options struct {
 	OnShowMainMenu func()
 	OnShowQueue    func()
 	OnAddToQueue   func(clip TrimClip)
+	OnLoadFile     func(path string)
+	OnProbeVideo   func(path string) (float64, error)
 }
 
 type TrimClip struct {
 	Path     string
 	InPoint  time.Duration
 	OutPoint time.Duration
+	Duration time.Duration // total file duration, used for Cut Region progress
 	Mode     string
 	Export   string
 }
@@ -45,14 +48,20 @@ type trimState struct {
 	player      *media.VideoPlayer
 	resumeState *state.ResumeState
 
-	inPoint  time.Duration
-	outPoint time.Duration
+	videoPath string
+	inPoint   time.Duration
+	outPoint  time.Duration
 
 	currentTime float64
 	duration    float64
 
+	mode   string // "keep" or "cut"
+	export string // "copy" or "reencode"
+
 	inPointLabel  *widget.Label
 	outPointLabel *widget.Label
+	fileLabel     *widget.Label
+	addBtn        *widget.Button
 }
 
 func BuildView(opts Options, initialPath string) fyne.CanvasObject {
@@ -66,34 +75,36 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		logging.Warning(logging.CatPlayer, "Failed to init resume state: %v", err)
 	}
 
-	state := &trimState{
+	ts := &trimState{
 		player:      media.NewVideoPlayer(),
 		resumeState: resume,
+		mode:        "keep",
+		export:      "copy",
 	}
 
-	state.player.OnPlay(func() {
-		if state.engine != nil {
-			state.engine.Start()
-			go state.playbackLoop()
+	ts.player.OnPlay(func() {
+		if ts.engine != nil {
+			ts.engine.Start()
+			go ts.playbackLoop()
 		}
 	})
 
-	state.player.OnPause(func() {
-		if state.engine != nil {
-			state.engine.Pause()
+	ts.player.OnPause(func() {
+		if ts.engine != nil {
+			ts.engine.Pause()
 		}
 	})
 
-	state.player.OnSeek(func(target float64) {
-		if state.engine != nil {
-			state.engine.Seek(target)
-			state.currentTime = target
+	ts.player.OnSeek(func(target float64) {
+		if ts.engine != nil {
+			ts.engine.Seek(target)
+			ts.currentTime = target
 		}
 	})
 
-	state.player.OnSpeedChange(func(speed float64) {
-		if state.engine != nil {
-			state.engine.SetSpeed(speed)
+	ts.player.OnSpeedChange(func(speed float64) {
+		if ts.engine != nil {
+			ts.engine.SetSpeed(speed)
 		}
 	})
 
@@ -112,41 +123,120 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		return container.NewMax(layers...)
 	}
 
-	state.inPointLabel = widget.NewLabel(t.TrimInPoint + ": 00:00:00.000")
-	state.outPointLabel = widget.NewLabel(t.TrimOutPoint + ": 00:00:00.000")
+	// In/out point labels
+	ts.inPointLabel = widget.NewLabel(t.TrimInPoint + ": 00:00:00.000")
+	ts.outPointLabel = widget.NewLabel(t.TrimOutPoint + ": 00:00:00.000")
 
-	setInBtn := widget.NewButton(t.TrimSetIn, func() {
-		state.inPoint = time.Duration(state.currentTime * float64(time.Second))
-		state.inPointLabel.SetText(t.TrimInPoint + ": " + formatDuration(state.inPoint))
-	})
-	setOutBtn := widget.NewButton(t.TrimSetOut, func() {
-		state.outPoint = time.Duration(state.currentTime * float64(time.Second))
-		state.outPointLabel.SetText(t.TrimOutPoint + ": " + formatDuration(state.outPoint))
-	})
-
+	// Frame stepping
 	stepBackBtn := widget.NewButton("<", func() {
-		if state.engine != nil {
-			target := state.currentTime - 0.033
+		if ts.engine != nil {
+			target := ts.currentTime - 0.033
 			if target < 0 {
 				target = 0
 			}
-			state.engine.Seek(target)
-			if img, err := state.engine.NextFrame(); err == nil {
-				state.player.SetFrame(img)
-				state.currentTime = target
-				state.player.SetCurrentTime(target)
+			ts.engine.Seek(target)
+			if img, err := ts.engine.NextFrame(); err == nil {
+				ts.player.SetFrame(img)
+				ts.currentTime = target
+				ts.player.SetCurrentTime(target)
 			}
 		}
 	})
 
 	stepFwdBtn := widget.NewButton(">", func() {
-		if state.engine != nil {
-			if img, err := state.engine.Step(1); err == nil {
-				state.player.SetFrame(img)
+		if ts.engine != nil {
+			if img, err := ts.engine.Step(1); err == nil {
+				ts.player.SetFrame(img)
 			}
 		}
 	})
 
+	// Set In / Set Out
+	setInBtn := widget.NewButton(t.TrimSetIn, func() {
+		ts.inPoint = time.Duration(ts.currentTime * float64(time.Second))
+		ts.inPointLabel.SetText(t.TrimInPoint + ": " + formatDuration(ts.inPoint))
+	})
+
+	setOutBtn := widget.NewButton(t.TrimSetOut, func() {
+		ts.outPoint = time.Duration(ts.currentTime * float64(time.Second))
+		ts.outPointLabel.SetText(t.TrimOutPoint + ": " + formatDuration(ts.outPoint))
+	})
+
+	clearBtn := widget.NewButton(t.TrimClear, func() {
+		ts.inPoint = 0
+		ts.outPoint = time.Duration(ts.duration * float64(time.Second))
+		ts.inPointLabel.SetText(t.TrimInPoint + ": " + formatDuration(ts.inPoint))
+		ts.outPointLabel.SetText(t.TrimOutPoint + ": " + formatDuration(ts.outPoint))
+	})
+
+	// Mode selector
+	modeSelect := widget.NewSelect([]string{t.TrimModeKeep, t.TrimModeCut}, func(s string) {
+		if s == t.TrimModeCut {
+			ts.mode = "cut"
+		} else {
+			ts.mode = "keep"
+		}
+	})
+	modeSelect.SetSelected(t.TrimModeKeep)
+
+	// Export selector
+	exportSelect := widget.NewSelect([]string{t.TrimSmartCopy, t.TrimRecode}, func(s string) {
+		if s == t.TrimRecode {
+			ts.export = "reencode"
+		} else {
+			ts.export = "copy"
+		}
+	})
+	exportSelect.SetSelected(t.TrimSmartCopy)
+
+	// Add to Queue
+	ts.addBtn = widget.NewButton(t.MenuQueue, func() {
+		if ts.videoPath == "" {
+			dialog.ShowInformation(t.DialogNoVideo, "Please load a video first.", opts.Window)
+			return
+		}
+		if ts.outPoint <= ts.inPoint {
+			dialog.ShowInformation(t.TrimInvalidSelection, "Out point must be after in point.", opts.Window)
+			return
+		}
+		clip := TrimClip{
+			Path:     ts.videoPath,
+			InPoint:  ts.inPoint,
+			OutPoint: ts.outPoint,
+			Duration: time.Duration(ts.duration * float64(time.Second)),
+			Mode:     ts.mode,
+			Export:   ts.export,
+		}
+		if opts.OnAddToQueue != nil {
+			opts.OnAddToQueue(clip)
+		}
+	})
+	ts.addBtn.Importance = widget.HighImportance
+	ts.addBtn.Disable()
+
+	// File name label — updated when a video is loaded
+	fileLabel := widget.NewLabel(func() string {
+		if initialPath != "" {
+			return filepath.Base(initialPath)
+		}
+		return t.TrimInstructions[:0] + "No file loaded"
+	}())
+	fileLabel.Wrapping = fyne.TextTruncate
+	ts.fileLabel = fileLabel
+
+	// Browse button
+	openBtn := widget.NewButton(t.ActionBrowse, func() {
+		dialog.ShowFileOpen(func(f fyne.URIReadCloser, err error) {
+			if err != nil || f == nil {
+				return
+			}
+			path := f.URI().Path()
+			f.Close()
+			ts.loadVideo(path)
+		}, opts.Window)
+	})
+
+	// Toolbar row under the player
 	toolbar := container.NewHBox(
 		stepBackBtn,
 		setInBtn,
@@ -157,23 +247,40 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 
 	videoContainer := container.NewMax(
 		canvas.NewRectangle(color.Black),
-		state.player,
+		ts.player,
 	)
 
+	// Left: video + toolbar + selection labels
+	leftSide := container.NewVBox(
+		container.NewVBox(videoContainer),
+		toolbar,
+		buildTrimBox(t.TrimInPoint+" / "+t.TrimOutPoint, container.NewVBox(
+			ts.inPointLabel,
+			ts.outPointLabel,
+		)),
+	)
+
+	// Right: settings + actions
 	rightSide := container.NewVBox(
-		buildTrimBox("Selection", container.NewVBox(
-			state.inPointLabel,
-			state.outPointLabel,
+		buildTrimBox(t.ModuleTrim+" "+t.ModuleSettings, container.NewVBox(
+			widget.NewLabel(t.TrimMode),
+			modeSelect,
+			widget.NewLabel(t.TrimOutput),
+			exportSelect,
 		)),
 		layout.NewSpacer(),
-		toolbar,
+		buildTrimBox(t.ActionBrowse, container.NewVBox(
+			fileLabel,
+			openBtn,
+		)),
+		container.NewHBox(clearBtn, layout.NewSpacer(), ts.addBtn),
 	)
 
-	content := container.NewHSplit(videoContainer, container.NewPadded(rightSide))
-	content.Offset = 0.8
+	content := container.NewHSplit(leftSide, container.NewPadded(rightSide))
+	content.Offset = 0.72
 
 	if initialPath != "" {
-		state.loadVideo(initialPath)
+		ts.loadVideo(initialPath)
 	}
 
 	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleTrim), opts.OnShowMainMenu)
@@ -201,12 +308,23 @@ func (s *trimState) loadVideo(path string) {
 		s.player.SetError(fmt.Sprintf("Failed to open: %v", err))
 		return
 	}
-	logging.Info(logging.CatPlayer, "Trim loadVideo: file opened successfully")
 
 	s.engine.InitFrameCache(30)
-
+	s.videoPath = path
 	s.duration = s.engine.Duration()
+	if s.fileLabel != nil {
+		s.fileLabel.SetText(filepath.Base(path))
+	}
 	s.player.SetDuration(s.duration)
+
+	// Default out point to end of file
+	s.outPoint = time.Duration(s.duration * float64(time.Second))
+	if s.outPointLabel != nil {
+		s.outPointLabel.SetText(i18n.T().TrimOutPoint + ": " + formatDuration(s.outPoint))
+	}
+	if s.inPointLabel != nil {
+		s.inPointLabel.SetText(i18n.T().TrimInPoint + ": " + formatDuration(0))
+	}
 
 	chapters := s.engine.GetChapters()
 	if len(chapters) > 0 {
@@ -218,7 +336,6 @@ func (s *trimState) loadVideo(path string) {
 	if s.resumeState != nil {
 		if savedPos, ok := s.resumeState.GetPosition(path); ok && s.resumeState.ShouldResume(savedPos) {
 			resumePos = savedPos.Position
-			logging.Info(logging.CatPlayer, "Found saved position: %.2f seconds", resumePos)
 		}
 	}
 
@@ -227,12 +344,11 @@ func (s *trimState) loadVideo(path string) {
 	}
 	s.player.SetLoading(false)
 
-	// Start background thumbnail extraction
+	// Background thumbnail extraction
 	s.engine.StartThumbnailExtraction(func(t float64, thumb *image.RGBA) {
 		s.player.AddThumbnailFrame(t, thumb)
 	})
 
-	// Seek to saved position if found
 	if resumePos > 0 {
 		s.engine.Seek(resumePos)
 		s.currentTime = resumePos
@@ -240,6 +356,10 @@ func (s *trimState) loadVideo(path string) {
 		if img, err := s.engine.NextFrame(); err == nil {
 			s.player.SetFrame(img)
 		}
+	}
+
+	if s.addBtn != nil {
+		s.addBtn.Enable()
 	}
 }
 
@@ -249,16 +369,15 @@ func (s *trimState) playbackLoop() {
 
 	saveTicker := time.NewTicker(5 * time.Second)
 	defer saveTicker.Stop()
-	var currentPath string
 
 	for {
 		select {
 		case <-saveTicker.C:
-			if s.engine != nil && currentPath != "" {
+			if s.engine != nil && s.videoPath != "" {
 				pos := s.engine.CurrentTime()
 				dur := s.engine.Duration()
 				if s.resumeState != nil && dur > 0 {
-					s.resumeState.SavePosition(currentPath, pos, dur)
+					s.resumeState.SavePosition(s.videoPath, pos, dur)
 				}
 			}
 		default:
@@ -284,7 +403,7 @@ func formatDuration(d time.Duration) string {
 	d -= h * time.Hour
 	m := d / time.Minute
 	d -= m * time.Minute
-	s := d / time.Second
+	sec := d / time.Second
 	ms := (d % time.Second) / time.Millisecond
-	return fmt.Sprintf("%02d:%02d:%02d.%03d", h, m, s, ms)
+	return fmt.Sprintf("%02d:%02d:%02d.%03d", h, m, sec, ms)
 }
