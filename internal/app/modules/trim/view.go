@@ -4,6 +4,7 @@ package trim
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"path/filepath"
 	"strings"
@@ -223,6 +224,11 @@ func (s *trimState) loadVideo(path string) {
 		s.player.SetFrame(img)
 	}
 	s.player.SetLoading(false)
+
+	// Start background thumbnail extraction
+	s.engine.StartThumbnailExtraction(func(t float64, thumb *image.RGBA) {
+		s.player.AddThumbnailFrame(t, thumb)
+	})
 
 	// Seek to saved position if found
 	if resumePos > 0 {
