@@ -43,3 +43,5 @@ require (
 	golang.org/x/text v0.22.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace fyne.io/fyne/v2 v2.7.1 => git.leaktechnologies.dev/lt_mirror/fyne v0.0.0-20260320-f56a582

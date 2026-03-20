@@ -1,3 +1,5 @@
+//go:build !native_media
+
 package trim
 
 import (
@@ -32,6 +34,7 @@ type TrimClip struct {
 	Path     string
 	InPoint  time.Duration
 	OutPoint time.Duration
+	Duration time.Duration // total file duration, used for Cut Region progress
 	Mode     string
 	Export   string
 }
@@ -182,6 +185,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 			Path:     state.videoPath,
 			InPoint:  time.Duration(state.inPointMs) * time.Millisecond,
 			OutPoint: time.Duration(state.outPointMs) * time.Millisecond,
+			Duration: time.Duration(state.duration * float64(time.Second)),
 			Mode:     strings.ToLower(state.modeSelect.Selected),
 			Export:   strings.ToLower(state.exportSelect.Selected),
 		}

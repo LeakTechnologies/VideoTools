@@ -769,14 +769,17 @@ func openFolder(path string) error {
 		p = filepath.Dir(p)
 	}
 
+	// Use exec.Command directly — CreateCommandRaw sets CREATE_NO_WINDOW which
+	// silently hides GUI apps like Explorer and Finder. These are GUI launchers,
+	// not CLI tools, so they must not have the window-suppression flag set.
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "windows":
-		cmd = utils.CreateCommandRaw("explorer", p)
+		cmd = exec.Command("explorer", p)
 	case "darwin":
-		cmd = utils.CreateCommandRaw("open", p)
+		cmd = exec.Command("open", p)
 	default:
-		cmd = utils.CreateCommandRaw("xdg-open", p)
+		cmd = exec.Command("xdg-open", p)
 	}
 	return cmd.Start()
 }
@@ -3402,32 +3405,65 @@ func (s *appState) submitTrimJob(clip trim.TrimClip) {
 	logging.Info(logging.CatModule, "Submitting trim job for: %s", clip.Path)
 	t := i18n.T()
 
-	// Create output filename
-	ext := filepath.Ext(clip.Path)
-	base := strings.TrimSuffix(filepath.Base(clip.Path), ext)
-	outPath := filepath.Join(filepath.Dir(clip.Path), fmt.Sprintf("%s_trimmed%s", base, ext))
+	// Default mode/export when not set by UI (native view stub)
+	mode := clip.Mode
+	if mode == "" {
+		mode = "keep"
+	}
+	export := clip.Export
+	if export == "" {
+		export = "copy"
+	}
 
-	// Construct FFmpeg command for lossless trimming
-	// -ss [start] -to [end] -i [input] -c copy -map 0 [output]
-	args := []string{
-		"-y",
-		"-ss", fmt.Sprintf("%.3f", clip.InPoint.Seconds()),
-		"-to", fmt.Sprintf("%.3f", clip.OutPoint.Seconds()),
-		"-i", clip.Path,
-		"-map", "0",
-		"-c", "copy",
-		outPath,
+	// Normalise i18n label values to canonical keys
+	switch mode {
+	case t.TrimModeCut:
+		mode = "cut"
+	default:
+		mode = "keep"
+	}
+	switch export {
+	case t.TrimRecode:
+		export = "reencode"
+	default:
+		export = "copy"
+	}
+
+	// Output filename: keep same container unless re-encoding, then default to mp4
+	ext := filepath.Ext(clip.Path)
+	if export == "reencode" && ext == "" {
+		ext = ".mp4"
+	}
+	base := strings.TrimSuffix(filepath.Base(clip.Path), ext)
+	suffix := "_trimmed"
+	if mode == "cut" {
+		suffix = "_cut"
+	}
+	outPath := filepath.Join(filepath.Dir(clip.Path), base+suffix+ext)
+
+	modeLabel := "Keep Region"
+	if mode == "cut" {
+		modeLabel = "Cut Region"
+	}
+	exportLabel := "Smart Copy"
+	if export == "reencode" {
+		exportLabel = "Re-encode"
 	}
 
 	job := &queue.Job{
 		Type:        queue.JobTypeTrim,
 		Title:       fmt.Sprintf("Trim: %s", filepath.Base(clip.Path)),
-		Description: fmt.Sprintf("Lossless cut from %v to %v", clip.InPoint, clip.OutPoint),
+		Description: fmt.Sprintf("%s / %s — %s to %s", modeLabel, exportLabel, formatTrimDuration(clip.InPoint), formatTrimDuration(clip.OutPoint)),
 		InputFile:   clip.Path,
 		OutputFile:  outPath,
 		Config: map[string]interface{}{
-			"ffmpeg_path": utils.GetFFmpegPath(),
-			"args":        args,
+			"inputPath":  clip.Path,
+			"outputPath": outPath,
+			"mode":       mode,
+			"export":     export,
+			"inPoint":    clip.InPoint.Seconds(),
+			"outPoint":   clip.OutPoint.Seconds(),
+			"duration":   clip.Duration.Seconds(),
 		},
 	}
 
@@ -3435,6 +3471,234 @@ func (s *appState) submitTrimJob(clip trim.TrimClip) {
 		s.jobQueue.Add(job)
 		dialog.ShowInformation(t.DialogJobQueued, t.TrimJobAdded, s.window)
 	}
+}
+
+func formatTrimDuration(d time.Duration) string {
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	sec := int(d.Seconds()) % 60
+	ms := int(d.Milliseconds()) % 1000
+	return fmt.Sprintf("%02d:%02d:%02d.%03d", h, m, sec, ms)
+}
+
+func (s *appState) executeTrimJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
+	cfg := job.Config
+	inputPath, _ := cfg["inputPath"].(string)
+	outputPath, _ := cfg["outputPath"].(string)
+	mode, _ := cfg["mode"].(string)
+	export, _ := cfg["export"].(string)
+	inPoint, _ := cfg["inPoint"].(float64)
+	outPoint, _ := cfg["outPoint"].(float64)
+	duration, _ := cfg["duration"].(float64)
+
+	if inputPath == "" {
+		return fmt.Errorf("trim job missing inputPath")
+	}
+	if outPoint <= inPoint {
+		return fmt.Errorf("trim job: outPoint (%.3f) must be after inPoint (%.3f)", outPoint, inPoint)
+	}
+
+	ffmpeg := utils.GetFFmpegPath()
+
+	if progressCallback != nil {
+		progressCallback(0)
+	}
+
+	switch {
+	case mode == "keep" && export == "copy":
+		// Fast stream-copy: seek before decode for speed
+		args := []string{
+			"-y", "-hide_banner", "-loglevel", "error",
+			"-ss", fmt.Sprintf("%.3f", inPoint),
+			"-to", fmt.Sprintf("%.3f", outPoint),
+			"-i", inputPath,
+			"-map", "0",
+			"-avoid_negative_ts", "make_zero",
+			"-c", "copy",
+			"-progress", "pipe:1", "-nostats",
+			outputPath,
+		}
+		segDur := outPoint - inPoint
+		return runFFmpegWithProgress(ctx, ffmpeg, args, segDur, progressCallback)
+
+	case mode == "keep" && export == "reencode":
+		args := []string{
+			"-y", "-hide_banner", "-loglevel", "error",
+			"-ss", fmt.Sprintf("%.3f", inPoint),
+			"-to", fmt.Sprintf("%.3f", outPoint),
+			"-i", inputPath,
+			"-map", "0",
+			"-c:v", "libx264", "-crf", "18", "-preset", "slow",
+			"-c:a", "aac", "-b:a", "192k",
+			"-progress", "pipe:1", "-nostats",
+			outputPath,
+		}
+		segDur := outPoint - inPoint
+		return runFFmpegWithProgress(ctx, ffmpeg, args, segDur, progressCallback)
+
+	case mode == "cut" && export == "copy":
+		// Remove a region: extract before + after, then concat stream-copy
+		tmpDir := utils.TempDir()
+		ext := filepath.Ext(outputPath)
+
+		seg1, err := os.CreateTemp(tmpDir, "vt-trim-seg1-*"+ext)
+		if err != nil {
+			return fmt.Errorf("trim cut: create seg1 temp: %w", err)
+		}
+		seg1Path := seg1.Name()
+		seg1.Close()
+		defer os.Remove(seg1Path)
+
+		seg2, err := os.CreateTemp(tmpDir, "vt-trim-seg2-*"+ext)
+		if err != nil {
+			return fmt.Errorf("trim cut: create seg2 temp: %w", err)
+		}
+		seg2Path := seg2.Name()
+		seg2.Close()
+		defer os.Remove(seg2Path)
+
+		// Pass 1: before the cut (0 → inPoint)
+		args1 := []string{
+			"-y", "-hide_banner", "-loglevel", "error",
+			"-to", fmt.Sprintf("%.3f", inPoint),
+			"-i", inputPath,
+			"-map", "0", "-avoid_negative_ts", "make_zero", "-c", "copy",
+			seg1Path,
+		}
+		if err := runFFmpegSimple(ctx, ffmpeg, args1); err != nil {
+			return fmt.Errorf("trim cut seg1: %w", err)
+		}
+		if progressCallback != nil {
+			progressCallback(40)
+		}
+
+		// Pass 2: after the cut (outPoint → end)
+		args2 := []string{
+			"-y", "-hide_banner", "-loglevel", "error",
+			"-ss", fmt.Sprintf("%.3f", outPoint),
+			"-i", inputPath,
+			"-map", "0", "-avoid_negative_ts", "make_zero", "-c", "copy",
+			seg2Path,
+		}
+		if err := runFFmpegSimple(ctx, ffmpeg, args2); err != nil {
+			return fmt.Errorf("trim cut seg2: %w", err)
+		}
+		if progressCallback != nil {
+			progressCallback(70)
+		}
+
+		// Pass 3: concat the two segments
+		listFile, err := os.CreateTemp(tmpDir, "vt-trim-list-*.txt")
+		if err != nil {
+			return fmt.Errorf("trim cut: create list temp: %w", err)
+		}
+		defer os.Remove(listFile.Name())
+		fmt.Fprintf(listFile, "file '%s'\n", strings.ReplaceAll(seg1Path, "'", "'\\''"))
+		fmt.Fprintf(listFile, "file '%s'\n", strings.ReplaceAll(seg2Path, "'", "'\\''"))
+		listFile.Close()
+
+		args3 := []string{
+			"-y", "-hide_banner", "-loglevel", "error",
+			"-f", "concat", "-safe", "0", "-i", listFile.Name(),
+			"-map", "0", "-c", "copy",
+			"-progress", "pipe:1", "-nostats",
+			outputPath,
+		}
+		keepDur := inPoint + (duration - outPoint)
+		if keepDur <= 0 {
+			keepDur = inPoint
+		}
+		return runFFmpegWithProgress(ctx, ffmpeg, args3, keepDur, progressCallback)
+
+	case mode == "cut" && export == "reencode":
+		// Remove a region using filter_complex trim+concat
+		args := []string{
+			"-y", "-hide_banner", "-loglevel", "error",
+			"-i", inputPath,
+			"-filter_complex", fmt.Sprintf(
+				"[0:v]trim=0:%.3f,setpts=PTS-STARTPTS[v1];"+
+					"[0:a]atrim=0:%.3f,asetpts=PTS-STARTPTS[a1];"+
+					"[0:v]trim=start=%.3f,setpts=PTS-STARTPTS[v2];"+
+					"[0:a]atrim=start=%.3f,asetpts=PTS-STARTPTS[a2];"+
+					"[v1][a1][v2][a2]concat=n=2:v=1:a=1[outv][outa]",
+				inPoint, inPoint, outPoint, outPoint,
+			),
+			"-map", "[outv]", "-map", "[outa]",
+			"-c:v", "libx264", "-crf", "18", "-preset", "slow",
+			"-c:a", "aac", "-b:a", "192k",
+			"-progress", "pipe:1", "-nostats",
+			outputPath,
+		}
+		keepDur := inPoint + (duration - outPoint)
+		if keepDur <= 0 {
+			keepDur = inPoint
+		}
+		return runFFmpegWithProgress(ctx, ffmpeg, args, keepDur, progressCallback)
+	}
+
+	return fmt.Errorf("trim job: unknown mode=%q export=%q", mode, export)
+}
+
+// runFFmpegWithProgress runs an FFmpeg command and parses -progress pipe:1 output.
+func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string, totalDur float64, progressCallback func(float64)) error {
+	cmd := utils.CreateCommand(ctx, ffmpegPath, args...)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("stdout pipe: %w", err)
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("ffmpeg start: %w (%s)", err, strings.TrimSpace(stderr.String()))
+	}
+
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		var lastPct float64
+		for scanner.Scan() {
+			parts := strings.SplitN(scanner.Text(), "=", 2)
+			if len(parts) != 2 || parts[0] != "out_time_ms" || totalDur <= 0 || progressCallback == nil {
+				continue
+			}
+			if ms, err := strconv.ParseFloat(parts[1], 64); err == nil {
+				pct := (ms / 1000000.0 / totalDur) * 100
+				if pct > 100 {
+					pct = 100
+				}
+				if pct-lastPct >= 0.5 {
+					lastPct = pct
+					progressCallback(pct)
+				}
+			}
+		}
+	}()
+
+	err = cmd.Wait()
+	if progressCallback != nil {
+		progressCallback(100)
+	}
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("ffmpeg failed: %w\n%s", err, strings.TrimSpace(stderr.String()))
+	}
+	return nil
+}
+
+// runFFmpegSimple runs an FFmpeg command without progress tracking.
+func runFFmpegSimple(ctx context.Context, ffmpegPath string, args []string) error {
+	cmd := utils.CreateCommand(ctx, ffmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("ffmpeg failed: %w\n%s", err, strings.TrimSpace(stderr.String()))
+	}
+	return nil
 }
 
 func (s *appState) showMergeView() {
@@ -4009,7 +4273,7 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 	case queue.JobTypeMerge:
 		return s.executeMergeJob(ctx, job, progressCallback)
 	case queue.JobTypeTrim:
-		return fmt.Errorf("trim jobs not yet implemented")
+		return s.executeTrimJob(ctx, job, progressCallback)
 	case queue.JobTypeFilter:
 		return fmt.Errorf("filter jobs not yet implemented")
 	case queue.JobTypeUpscale:
