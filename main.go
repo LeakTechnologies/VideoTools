@@ -15538,6 +15538,11 @@ func (s *appState) generateSnippet() {
 }
 
 func capturePreviewFrames(path string, duration float64) ([]string, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Crash(logging.CatFFMPEG, "panic in capturePreviewFrames(%s): %v", path, r)
+		}
+	}()
 	center := math.Max(0, duration/2-1)
 	start := fmt.Sprintf("%.2f", center)
 	dir, err := os.MkdirTemp("", "videotools-frames-*")
@@ -15816,6 +15821,11 @@ func normalizeCodecName(codec string) string {
 }
 
 func probeVideo(path string) (*videoSource, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Crash(logging.CatFFMPEG, "panic in probeVideo(%s): %v", path, r)
+		}
+	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
