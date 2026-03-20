@@ -4,6 +4,7 @@ package media
 
 import (
 	"fyne.io/fyne/v2"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 type PiPController struct {
@@ -31,11 +32,23 @@ func NewPiPController(window fyne.Window) *PiPController {
 
 func (p *PiPController) Enable() error {
 	p.enabled = true
+	if p.window != nil {
+		if err := ApplyPiPExclude(p.window, true); err != nil {
+			logging.Warning(logging.CatPlayer, "PiP enable failed: %v", err)
+		}
+	}
+	logging.Info(logging.CatPlayer, "PiP enabled")
 	return nil
 }
 
 func (p *PiPController) Disable() error {
 	p.enabled = false
+	if p.window != nil {
+		if err := ApplyPiPExclude(p.window, false); err != nil {
+			logging.Warning(logging.CatPlayer, "PiP disable failed: %v", err)
+		}
+	}
+	logging.Info(logging.CatPlayer, "PiP disabled")
 	return nil
 }
 
@@ -66,4 +79,12 @@ func (p *PiPController) CyclePosition() {
 
 func (p *PiPController) GetWindow() fyne.Window {
 	return p.window
+}
+
+func (p *PiPController) Toggle() {
+	if p.enabled {
+		p.Disable()
+	} else {
+		p.Enable()
+	}
 }

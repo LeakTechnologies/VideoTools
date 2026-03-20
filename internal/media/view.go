@@ -235,6 +235,7 @@ type VideoPlayer struct {
 	onNextChapter   func()
 	onChapterSelect func(int)
 	onFullscreen    func(bool)
+	onPiP           func()
 
 	showControls bool
 	mouseInView  bool

@@ -3,8 +3,8 @@
 package media
 
 import (
-	"unsafe"
-
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"golang.org/x/sys/windows"
 )
 
@@ -13,13 +13,41 @@ const (
 )
 
 func EnablePiPExclude(hwnd windows.Handle) error {
-	return windows.SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)
+	ret, _, _ := windows.NewLazyDLL("user32.dll").NewProc("SetWindowDisplayAffinity").Call(
+		uintptr(hwnd), uintptr(WDA_EXCLUDEFROMCAPTURE))
+	if ret != 0 {
+		return nil
+	}
+	return windows.GetLastError()
 }
 
 func DisablePiPExclude(hwnd windows.Handle) error {
-	return windows.SetWindowDisplayAffinity(hwnd, 0)
+	ret, _, _ := windows.NewLazyDLL("user32.dll").NewProc("SetWindowDisplayAffinity").Call(
+		uintptr(hwnd), uintptr(0))
+	if ret != 0 {
+		return nil
+	}
+	return windows.GetLastError()
 }
 
-func GetWindowHandle(window interface{}) windows.Handle {
+func GetWindowHandleFromFyne(win fyne.Window) windows.Handle {
+	if deskWin, ok := win.(desktop.Window); ok {
+		if glfwWin, ok := deskWin.(interface {
+			GetWin32Window() windows.Handle
+		}); ok {
+			return glfwWin.GetWin32Window()
+		}
+	}
 	return 0
+}
+
+func ApplyPiPExclude(win fyne.Window, enable bool) error {
+	hwnd := GetWindowHandleFromFyne(win)
+	if hwnd == 0 {
+		return nil
+	}
+	if enable {
+		return EnablePiPExclude(hwnd)
+	}
+	return DisablePiPExclude(hwnd)
 }
