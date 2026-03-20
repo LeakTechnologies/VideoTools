@@ -73,6 +73,13 @@
 - [x] **Display frame tracking** - displayWidth, displayHeight, frameSeq for caching
 - [x] **Optimized draw loop** - Pre-calculated scaling factors, direct pixel access
 
+### Smooth Scrubbing & Thumbnails
+- [x] **Thumbnail cache** - In-memory cache of thumbnails keyed by timestamp
+- [x] **GetHoverFrame** - Get nearest cached thumbnail for hover preview
+- [x] **AddThumbnailFrame** - Add frames to thumbnail cache during playback
+- [x] **OnHover callback** - Trigger thumbnail extraction on seekbar hover
+- [x] **FrameCache** - Pre-decoding frames for smooth scrubbing in scrub.go
+
 ### Crash Logging & Error Recovery
 - [x] **FFmpeg error logging** - avformat_open_input now logs FFmpeg error codes and messages
 - [x] **avformat_find_stream_info logging** - Logs return code and error string on failure

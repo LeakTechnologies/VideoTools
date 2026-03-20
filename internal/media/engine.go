@@ -312,9 +312,19 @@ func (e *Engine) RenderSubtitles(img *image.RGBA, currentPTS float64) *image.RGB
 		return img
 	}
 
-	draw.Draw(img, bounds, &image.Uniform{color.RGBA{
-		R: 0, G: 0, B: 0, A: 180,
-	}}, image.Point{}, draw.Over)
+	bounds = bounds.Intersect(img.Bounds())
+
+	alpha := byte(200)
+	if e.subtitleBgAlpha > 0 && e.subtitleBgAlpha <= 255 {
+		alpha = byte(e.subtitleBgAlpha)
+	}
+
+	subBg := &image.Uniform{color.RGBA{R: 0, G: 0, B: 0, A: alpha}}
+	draw.Draw(img, bounds, subBg, image.Point{}, draw.Over)
+
+	borderBounds := image.Rect(bounds.Min.X, bounds.Min.Y, bounds.Max.X, bounds.Min.Y+2)
+	borderBg := &image.Uniform{color.RGBA{R: 200, G: 200, B: 200, A: 100}}
+	draw.Draw(img, borderBounds, borderBg, image.Point{}, draw.Over)
 
 	return img
 }

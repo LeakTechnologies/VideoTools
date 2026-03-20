@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -230,6 +231,9 @@ type VideoPlayer struct {
 	frameSeq      uint64
 	lastFrameSeq  uint64
 
+	thumbnailCache map[int64]*image.RGBA
+	thumbnailMu    sync.RWMutex
+
 	chapters     []Chapter
 	chapterMark  []*canvas.Circle
 	markerCanvas *canvas.Raster
@@ -239,6 +243,7 @@ type VideoPlayer struct {
 	onPlay          func()
 	onPause         func()
 	onSeek          func(float64)
+	onHover         func(float64)
 	onVolumeChange  func(float64)
 	onSpeedChange   func(float64)
 	onPrevChapter   func()
@@ -837,6 +842,67 @@ func (v *VideoPlayer) SetSubtitlesEnabled(enabled bool) {
 			v.subtitleBtn.Importance = widget.LowImportance
 		}
 	}
+}
+
+func (v *VideoPlayer) OnHover(cb func(float64)) {
+	v.onHover = cb
+}
+
+func (v *VideoPlayer) GetHoverFrame(time float64) *image.RGBA {
+	v.thumbnailMu.RLock()
+	defer v.thumbnailMu.RUnlock()
+
+	pts := int64(time * 1000)
+	if frame, ok := v.thumbnailCache[pts]; ok {
+		return frame
+	}
+
+	var nearestFrame *image.RGBA
+	minDiff := int64(^uint64(0) >> 1)
+
+	for cachedPts, frame := range v.thumbnailCache {
+		diff := cachedPts - pts
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff < minDiff {
+			minDiff = diff
+			nearestFrame = frame
+		}
+	}
+
+	return nearestFrame
+}
+
+func (v *VideoPlayer) AddThumbnailFrame(time float64, frame *image.RGBA) {
+	if frame == nil {
+		return
+	}
+	v.thumbnailMu.Lock()
+	defer v.thumbnailMu.Unlock()
+
+	pts := int64(time * 1000)
+	if v.thumbnailCache == nil {
+		v.thumbnailCache = make(map[int64]*image.RGBA)
+	}
+
+	if len(v.thumbnailCache) >= 50 {
+		var oldest int64
+		for k := range v.thumbnailCache {
+			if oldest == 0 || k < oldest {
+				oldest = k
+			}
+		}
+		delete(v.thumbnailCache, oldest)
+	}
+
+	v.thumbnailCache[pts] = frame
+}
+
+func (v *VideoPlayer) ClearThumbnailCache() {
+	v.thumbnailMu.Lock()
+	defer v.thumbnailMu.Unlock()
+	v.thumbnailCache = make(map[int64]*image.RGBA)
 }
 
 func (v *VideoPlayer) MouseIn(ev *desktop.MouseEvent) {
