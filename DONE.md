@@ -40,6 +40,11 @@
 - [x] **Error recovery types** - PlaybackError struct with ErrCode* constants (Decode, Network, HWAccel, FileCorrupt, CodecMissing)
 - [x] **Retry logic** - RecoverableError() and ShouldRetry() methods for transient error handling
 
+### Video Filters (Phase 6)
+- [x] **FilterPipeline integration** - SetFilterPipeline, GetFilterPipeline wired into Engine
+- [x] **Filter API** - SetFilter, EnableFilter, ClearFilters, GetFilterGraph methods
+- [x] **Preset support** - SetPreset with vintage, warm, cool, high_contrast, soft, vivid
+
 ### i18n Strings (NEW)
 - [x] **Player strings** - PlayerLoading, PlayerBuffering, PlayerSpeed, PlayerChapter, PlayerChapters, PlayerNoChapters, PlayerSpeed* (8 new strings)
 

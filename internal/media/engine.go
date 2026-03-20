@@ -28,6 +28,7 @@ import (
 	"sync"
 	"time"
 
+	"git.leaktechnologies.dev/stu/VideoTools/internal/filters"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
@@ -389,8 +390,9 @@ type Engine struct {
 	currentSubtitle *SubtitleOverlay
 	subtitleExpiry  float64
 
-	info     *VideoInfo
-	chapters []Chapter
+	info           *VideoInfo
+	chapters       []Chapter
+	filterPipeline *filters.FilterPipeline
 
 	gpuTexUpload interface {
 		UploadFrame(img *image.RGBA) error
@@ -595,6 +597,76 @@ func (e *Engine) GetAverageDecodeTime() time.Duration {
 		total += t
 	}
 	return total / time.Duration(len(e.decodeTimes))
+}
+
+func (e *Engine) SetFilterPipeline(pipeline *filters.FilterPipeline) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.filterPipeline = pipeline
+}
+
+func (e *Engine) GetFilterPipeline() *filters.FilterPipeline {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.filterPipeline
+}
+
+func (e *Engine) GetFilterGraph() string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.filterPipeline == nil {
+		return ""
+	}
+	graph, _ := e.filterPipeline.Generate()
+	return graph
+}
+
+func (e *Engine) SetFilter(filterType filters.FilterType, params map[string]interface{}, enabled bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.filterPipeline == nil {
+		e.filterPipeline = filters.NewFilterPipeline()
+	}
+
+	for i, f := range e.filterPipeline.Filters() {
+		if f.Type == filterType {
+			e.filterPipeline.Filters()[i].Params = params
+			e.filterPipeline.Filters()[i].Enable = enabled
+			return
+		}
+	}
+
+	e.filterPipeline.Add(filters.FilterConfig{
+		Type:   filterType,
+		Params: params,
+		Enable: enabled,
+	})
+}
+
+func (e *Engine) EnableFilter(filterType filters.FilterType, enabled bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.filterPipeline != nil {
+		e.filterPipeline.Enable(filterType, enabled)
+	}
+}
+
+func (e *Engine) ClearFilters() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.filterPipeline != nil {
+		e.filterPipeline.Clear()
+	}
+}
+
+func (e *Engine) SetPreset(preset filters.Preset) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.filterPipeline == nil {
+		e.filterPipeline = filters.NewFilterPipeline()
+	}
+	preset.Apply(e.filterPipeline)
 }
 
 func (e *Engine) SetGPUTextureUpload(upload interface{}) {

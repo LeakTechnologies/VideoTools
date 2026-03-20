@@ -32,6 +32,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Picture-in-Picture** - PiPController with 4 corner positions
 - [x] **Audio pitch correction** - TempoController with atempo filter (0.25x-2.0x)
 - [x] **Buffering & error recovery** - BufferMode, adaptive sizing, PlaybackError types
+- [x] **Video filters** - FilterPipeline wired into Engine, presets supported
 
 ### Localization (dev34 carry-forward)
 - [x] **Subtitles i18n** — 9 strings added and wired in subtitles_module.go.
