@@ -31,10 +31,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Resume playback** - ResumeState with JSON config storage
 - [x] **Picture-in-Picture** - PiPController with 4 corner positions
 - [x] **Audio pitch correction** - TempoController with atempo filter (0.25x-2.0x)
-- [ ] **Smooth scrubbing** - Pre-decode frames during seek for instant feedback
-- [ ] **Resume playback** - Store position in config, offer "Continue from X?"
-- [ ] **Picture-in-Picture** - Platform-specific PiP implementation
-- [ ] **Audio pitch correction** - FFmpeg atempo filter for non-1x speeds
+- [x] **Buffering & error recovery** - BufferMode, adaptive sizing, PlaybackError types
 
 ### Localization (dev34 carry-forward)
 - [x] **Subtitles i18n** — 9 strings added and wired in subtitles_module.go.

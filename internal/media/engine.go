@@ -26,6 +26,7 @@ import (
 	"image/draw"
 	"io"
 	"sync"
+	"time"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
@@ -36,6 +37,14 @@ const (
 	SeekAccuracyFrame SeekAccuracy = iota
 	SeekAccuracyKeyframe
 	SeekAccuracyAccurate
+)
+
+type BufferMode int
+
+const (
+	BufferModeMinimal BufferMode = iota
+	BufferModeNormal
+	BufferModeAggressive
 )
 
 type SeekFlags int
@@ -367,6 +376,10 @@ type Engine struct {
 	dropFrames       bool
 	consecutiveDrops int
 
+	bufferMode     BufferMode
+	lastDecodeTime time.Time
+	decodeTimes    []time.Duration
+
 	hwDevice HWDeviceType
 	looping  bool
 	hasAudio bool
@@ -528,6 +541,60 @@ func (e *Engine) IsLooping() bool {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.looping
+}
+
+func (e *Engine) SetBufferMode(mode BufferMode) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.bufferMode = mode
+}
+
+func (e *Engine) GetBufferMode() BufferMode {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.bufferMode
+}
+
+func (e *Engine) GetAdaptiveBufferSize() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	switch e.bufferMode {
+	case BufferModeMinimal:
+		return 10
+	case BufferModeNormal:
+		return 50
+	case BufferModeAggressive:
+		return 100
+	default:
+		return 50
+	}
+}
+
+func (e *Engine) recordDecodeTime(duration time.Duration) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.decodeTimes = append(e.decodeTimes, duration)
+	if len(e.decodeTimes) > 30 {
+		e.decodeTimes = e.decodeTimes[len(e.decodeTimes)-30:]
+	}
+	e.lastDecodeTime = time.Now()
+}
+
+func (e *Engine) GetAverageDecodeTime() time.Duration {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if len(e.decodeTimes) == 0 {
+		return 0
+	}
+
+	var total time.Duration
+	for _, t := range e.decodeTimes {
+		total += t
+	}
+	return total / time.Duration(len(e.decodeTimes))
 }
 
 func (e *Engine) SetGPUTextureUpload(upload interface{}) {
@@ -1268,6 +1335,32 @@ func (e *Engine) Duration() float64 {
 
 func (e *Engine) CurrentTime() float64 {
 	return e.clock.GetTime()
+}
+
+type PlaybackError struct {
+	Code    string
+	Message string
+	Retry   bool
+}
+
+const (
+	ErrCodeDecode       = "DECODE_ERROR"
+	ErrCodeNetwork      = "NETWORK_ERROR"
+	ErrCodeHWAccel      = "HW_ACCEL_ERROR"
+	ErrCodeFileCorrupt  = "FILE_CORRUPT"
+	ErrCodeCodecMissing = "CODEC_MISSING"
+)
+
+func (e *Engine) RecoverableError(code, message string) *PlaybackError {
+	return &PlaybackError{
+		Code:    code,
+		Message: message,
+		Retry:   code == ErrCodeNetwork || code == ErrCodeDecode,
+	}
+}
+
+func (e *Engine) ShouldRetry(err *PlaybackError) bool {
+	return err != nil && err.Retry
 }
 
 func (e *Engine) Close() {

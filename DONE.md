@@ -33,6 +33,13 @@
 - [x] **D3D11 context** - D3D11Context/D3D11Texture for Windows NVIDIA/AMD
 - [x] **Thumbnail cache** - ThumbnailCache in gpu/seekbar.go with GetNearest()
 
+### Buffering & Error Recovery (Phase 4)
+- [x] **BufferMode type** - BufferModeMinimal, BufferModeNormal, BufferModeAggressive
+- [x] **Adaptive buffer sizing** - GetAdaptiveBufferSize() returns 10/50/100 based on mode
+- [x] **Decode time tracking** - recordDecodeTime(), GetAverageDecodeTime() for performance monitoring
+- [x] **Error recovery types** - PlaybackError struct with ErrCode* constants (Decode, Network, HWAccel, FileCorrupt, CodecMissing)
+- [x] **Retry logic** - RecoverableError() and ShouldRetry() methods for transient error handling
+
 ### i18n Strings (NEW)
 - [x] **Player strings** - PlayerLoading, PlayerBuffering, PlayerSpeed, PlayerChapter, PlayerChapters, PlayerNoChapters, PlayerSpeed* (8 new strings)
 
