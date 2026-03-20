@@ -224,6 +224,12 @@ type VideoPlayer struct {
 	volume           float64
 	speed            float64
 
+	displayFrame  *image.RGBA
+	displayWidth  int
+	displayHeight int
+	frameSeq      uint64
+	lastFrameSeq  uint64
+
 	chapters     []Chapter
 	chapterMark  []*canvas.Circle
 	markerCanvas *canvas.Raster
@@ -617,6 +623,49 @@ func (v *VideoPlayer) updateChapterMarkers() {
 	}
 }
 
+func (v *VideoPlayer) scaleNearest(src image.Image, dst *image.RGBA, srcW, srcH, dstW, dstH, offsetX, offsetY int) {
+	if dstW == 0 || dstH == 0 {
+		return
+	}
+
+	scaleX := float64(srcW) / float64(dstW)
+	scaleY := float64(srcH) / float64(dstH)
+
+	bounds := dst.Bounds()
+	pix := dst.Pix
+	stride := dst.Stride
+
+	for y := 0; y < dstH; y++ {
+		srcY := int(float64(y) * scaleY)
+		if srcY >= srcH {
+			srcY = srcH - 1
+		}
+		dstY := y + offsetY
+		if dstY < bounds.Min.Y || dstY >= bounds.Max.Y {
+			continue
+		}
+		rowStart := (dstY - bounds.Min.Y) * stride
+
+		for x := 0; x < dstW; x++ {
+			srcX := int(float64(x) * scaleX)
+			if srcX >= srcW {
+				srcX = srcW - 1
+			}
+			dstX := x + offsetX
+			if dstX < bounds.Min.X || dstX >= bounds.Max.X {
+				continue
+			}
+
+			r, g, b, a := src.At(srcX, srcY).RGBA()
+			pixOffset := rowStart + (dstX-bounds.Min.X)*4
+			pix[pixOffset] = byte(r >> 8)
+			pix[pixOffset+1] = byte(g >> 8)
+			pix[pixOffset+2] = byte(b >> 8)
+			pix[pixOffset+3] = byte(a >> 8)
+		}
+	}
+}
+
 // drawChapterMarkers renders thin tick marks over the seek slider at each
 // chapter boundary. The image background is transparent so the slider
 // beneath remains visible and interactive.
@@ -882,6 +931,9 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 		availableH = h - controlBarHeight
 	}
 
+	newW := w
+	newH := availableH
+
 	scaleX := float64(w) / float64(srcW)
 	scaleY := float64(availableH) / float64(srcH)
 	scale := scaleX
@@ -889,8 +941,8 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 		scale = scaleY
 	}
 
-	newW := int(float64(srcW) * scale)
-	newH := int(float64(srcH) * scale)
+	newW = int(float64(srcW) * scale)
+	newH = int(float64(srcH) * scale)
 
 	offsetX := (w - newW) / 2
 	offsetY := (availableH - newH) / 2
@@ -898,20 +950,7 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 	img := image.NewRGBA(image.Rect(0, 0, w, availableH))
 	draw.Draw(img, img.Bounds(), image.Black, image.Point{}, draw.Src)
 
-	for y := 0; y < newH; y++ {
-		for x := 0; x < newW; x++ {
-			srcX := int(float64(x) / scale)
-			srcY := int(float64(y) / scale)
-			if srcX >= srcW {
-				srcX = srcW - 1
-			}
-			if srcY >= srcH {
-				srcY = srcH - 1
-			}
-			c := src.At(srcX, srcY)
-			img.Set(x+offsetX, y+offsetY, c)
-		}
-	}
+	v.scaleNearest(src, img, srcW, srcH, newW, newH, offsetX, offsetY)
 
 	return img
 }
