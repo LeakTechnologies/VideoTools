@@ -44,4 +44,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace fyne.io/fyne/v2 v2.7.1 => C:/Users/User/Desktop/Projects/fyne-fork
+replace fyne.io/fyne/v2 v2.7.1 => ./_fyne
