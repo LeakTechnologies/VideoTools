@@ -201,6 +201,7 @@ type VideoPlayer struct {
 	prevChapterBtn *widget.Button
 	nextChapterBtn *widget.Button
 	fullscreenBtn  *widget.Button
+	pipBtn         *widget.Button
 	loadingSpinner *widget.ProgressBarInfinite
 	bufferingLabel *widget.Label
 	errorLabel     *widget.Label
@@ -213,6 +214,7 @@ type VideoPlayer struct {
 	isBuffering  bool
 	isSeeking    bool
 	isFullscreen bool
+	isPiP        bool
 	hasError     bool
 	errorMessage string
 	currentTime  float64
@@ -316,6 +318,10 @@ func (v *VideoPlayer) buildControls() {
 	v.fullscreenBtn.Importance = widget.LowImportance
 	v.fullscreenBtn.Resize(fyne.NewSize(36, 24))
 
+	v.pipBtn = widget.NewButton("📺", v.togglePiP)
+	v.pipBtn.Importance = widget.LowImportance
+	v.pipBtn.Resize(fyne.NewSize(36, 24))
+
 	v.markerCanvas = canvas.NewRaster(v.drawChapterMarkers)
 	seekStack := container.NewStack(v.slider, v.markerCanvas)
 
@@ -331,6 +337,7 @@ func (v *VideoPlayer) buildControls() {
 		layout.NewSpacer(),
 		v.speedBtn,
 		v.volumeBtn,
+		v.pipBtn,
 		v.fullscreenBtn,
 	)
 
@@ -712,6 +719,29 @@ func (v *VideoPlayer) IsFullscreen() bool {
 
 func (v *VideoPlayer) OnFullscreen(cb func(bool)) {
 	v.onFullscreen = cb
+}
+
+func (v *VideoPlayer) OnPiP(cb func()) {
+	v.onPiP = cb
+}
+
+func (v *VideoPlayer) togglePiP() {
+	v.isPiP = !v.isPiP
+	if v.pipBtn != nil {
+		if v.isPiP {
+			v.pipBtn.Importance = widget.HighImportance
+		} else {
+			v.pipBtn.Importance = widget.LowImportance
+		}
+	}
+	if v.onPiP != nil {
+		v.onPiP()
+	}
+	logging.Info(logging.CatPlayer, "PiP toggled: %v", v.isPiP)
+}
+
+func (v *VideoPlayer) IsPiP() bool {
+	return v.isPiP
 }
 
 func (v *VideoPlayer) MouseIn(ev *desktop.MouseEvent) {
