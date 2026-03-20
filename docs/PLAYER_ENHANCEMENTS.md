@@ -10,16 +10,16 @@ The goal is to leverage FFmpeg's full capabilities for professional-grade video 
 
 | Priority | Feature | Status | Notes |
 |----------|---------|--------|-------|
-| 1 | GPU Rendering Pipeline | 🟡 Partial | Scaffold done, integration pending |
+| 1 | GPU Rendering Pipeline | 🟡 Partial | Scaffold + fast swscale, GPU integration pending |
 | 2 | Keyboard Shortcuts | ✅ Done | Full shortcut handler exists |
-| 3 | Smooth Scrubbing | 🟡 Partial | FrameCache exists, integration pending |
+| 3 | Smooth Scrubbing | 🟡 Partial | FrameCache + ThumbnailCache wired |
 | 4 | Buffering & Pre-loading | ✅ Done | BufferMode, adaptive sizing |
 | 5 | Playback Speed Control | ✅ Done | Speed presets + atempo filter |
 | 6 | Video Filters | ✅ Done | FilterPipeline wired |
 | 7 | Loading & Error States | ✅ Done | Spinner, buffering, error UI |
 | 8 | Picture-in-Picture | ✅ Done | Controller + Windows implementation |
 | 9 | Resume Playback | ✅ Done | JSON state persistence |
-| 10 | Subtitle Rendering | 🟡 Partial | Decoder + UI toggle, text rendering needs work |
+| 10 | Subtitle Rendering | 🟡 Partial | Background rendering + toggle UI |
 
 **Legend:** ✅ Complete | 🟡 In Progress | ⏳ Planned | ❌ Not Started
 
