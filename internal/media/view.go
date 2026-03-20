@@ -20,11 +20,12 @@ import (
 )
 
 const (
-	dividerWidth     = 4
-	vtGreen          = 0x4CE870
-	hoverPadding     = 8
-	controlBarHeight = 48
-	controlAlpha     = 0xCC
+	dividerWidth         = 4
+	vtGreen              = 0x4CE870
+	hoverPadding         = 8
+	controlBarHeight     = 48
+	controlBarHeightMini = 32
+	controlAlpha         = 0xCC
 )
 
 var (
@@ -257,11 +258,29 @@ type VideoPlayer struct {
 
 	showControls bool
 	mouseInView  bool
+	minimal      bool
 }
 
 func NewVideoPlayer() *VideoPlayer {
 	v := &VideoPlayer{
 		showControls: true,
+		currentTime:  0,
+		duration:     0,
+		volume:       1.0,
+		speed:        1.0,
+		isPlaying:    false,
+		isLoading:    false,
+		chapters:     make([]Chapter, 0),
+	}
+	v.ExtendBaseWidget(v)
+	v.buildControls()
+	return v
+}
+
+func NewInlineVideoPlayer() *VideoPlayer {
+	v := &VideoPlayer{
+		showControls: true,
+		minimal:      true,
 		currentTime:  0,
 		duration:     0,
 		volume:       1.0,
@@ -345,32 +364,44 @@ func (v *VideoPlayer) buildControls() {
 	v.markerCanvas = canvas.NewRaster(v.drawChapterMarkers)
 	seekStack := container.NewStack(v.slider, v.markerCanvas)
 
-	controlRow := container.NewHBox(
-		v.playBtn,
-		widget.NewLabel(""),
-		v.prevChapterBtn,
-		v.nextChapterBtn,
-		widget.NewLabel(""),
-		v.timeLabel,
-		seekStack,
-		v.durLabel,
-		layout.NewSpacer(),
-		v.speedBtn,
-		v.volumeBtn,
-		v.subtitleBtn,
-		v.pipBtn,
-		v.fullscreenBtn,
-	)
-
-	v.controlBar = canvas.NewRectangle(controlBarBG)
-	v.controlBar.CornerRadius = 0
-
-	v.controls = container.NewStack(
-		canvas.NewRectangle(color.Transparent),
-		container.NewPadded(container.NewBorder(nil, nil, nil, nil, controlRow)),
-	)
-
-	_ = layout.NewBorderLayout(v.controls, nil, nil, nil)
+	if v.minimal {
+		controlRow := container.NewHBox(
+			v.playBtn,
+			layout.NewSpacer(),
+			seekStack,
+			layout.NewSpacer(),
+		)
+		v.controlBar = canvas.NewRectangle(controlBarBG)
+		v.controlBar.CornerRadius = 0
+		v.controls = container.NewStack(
+			canvas.NewRectangle(color.Transparent),
+			container.NewPadded(container.NewBorder(nil, nil, nil, nil, controlRow)),
+		)
+	} else {
+		controlRow := container.NewHBox(
+			v.playBtn,
+			widget.NewLabel(""),
+			v.prevChapterBtn,
+			v.nextChapterBtn,
+			widget.NewLabel(""),
+			v.timeLabel,
+			seekStack,
+			v.durLabel,
+			layout.NewSpacer(),
+			v.speedBtn,
+			v.volumeBtn,
+			v.subtitleBtn,
+			v.pipBtn,
+			v.fullscreenBtn,
+		)
+		v.controlBar = canvas.NewRectangle(controlBarBG)
+		v.controlBar.CornerRadius = 0
+		v.controls = container.NewStack(
+			canvas.NewRectangle(color.Transparent),
+			container.NewPadded(container.NewBorder(nil, nil, nil, nil, controlRow)),
+		)
+		_ = layout.NewBorderLayout(v.controls, nil, nil, nil)
+	}
 }
 
 func (v *VideoPlayer) CreateRenderer() fyne.WidgetRenderer {
@@ -949,6 +980,9 @@ func (r *videoPlayerRenderer) Layout(size fyne.Size) {
 	r.raster.Resize(size)
 
 	barHeight := float32(controlBarHeight)
+	if r.minimal {
+		barHeight = float32(controlBarHeightMini)
+	}
 	if !r.showControls {
 		barHeight = 0
 	}

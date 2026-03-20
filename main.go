@@ -7856,6 +7856,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			uiState.updateAspectBoxVisibility()
 		}
 		logging.Debug(logging.CatUI, "target aspect set to %s", val)
+		state.persistConvertConfig()
 	}
 
 	setBitratePreset := func(val string) {
@@ -10058,7 +10059,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			frameRateSelect.Disable()
 
 			state.convert.OutputAspect = targetAR
-			state.convert.AspectUserSet = true
+			state.convert.AspectUserSet = false // DVD lock is not a user choice; don't persist as user-set
 			targetAspectSelectSimple.SetSelected(targetAR)
 			targetAspectSelect.SetSelected(targetAR)
 			targetAspectSelectSimple.Disable()
@@ -11934,6 +11935,9 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		var volIcon *widget.Button
 		var updatingVolume bool
 		ensureSession := func() bool {
+			if HasNativeMediaPlayer() {
+				return true
+			}
 			if state.playSess == nil {
 				state.playSess = newPlaySession(src.Path, src.Width, src.Height, src.FrameRate, src.Duration, int(targetWidth-28), int(targetHeight-40), updateProgress, updateFrame, img)
 				if state.playSess == nil {
@@ -11954,6 +11958,10 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				return
 			}
 			updateProgress(val)
+			if HasNativeMediaPlayer() {
+				state.seekNative(val)
+				return
+			}
 			if ensureSession() {
 				state.playSess.Seek(val)
 			}
@@ -12012,6 +12020,19 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		volSlider.Refresh()
 		var playBtn *widget.Button
 		playBtn = widget.NewButtonWithIcon("", ui.GetIcon("play_arrow"), func() {
+			if HasNativeMediaPlayer() {
+				if state.playerPaused {
+					state.playNative()
+					state.playerPaused = false
+					playBtn.Icon = ui.GetIcon("pause")
+				} else {
+					state.pauseNative()
+					state.playerPaused = true
+					playBtn.Icon = ui.GetIcon("play_arrow")
+				}
+				playBtn.Refresh()
+				return
+			}
 			if !ensureSession() {
 				return
 			}
@@ -12030,6 +12051,10 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 
 		// Frame stepping buttons
 		prevFrameBtn := widget.NewButtonWithIcon("", ui.GetIcon("skip_previous"), func() {
+			if HasNativeMediaPlayer() {
+				state.stepFrameNative(-1)
+				return
+			}
 			if !ensureSession() {
 				return
 			}
@@ -12038,6 +12063,10 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 		prevFrameBtn.Importance = widget.LowImportance
 		nextFrameBtn := widget.NewButtonWithIcon("", ui.GetIcon("skip_next"), func() {
+			if HasNativeMediaPlayer() {
+				state.stepFrameNative(1)
+				return
+			}
 			if !ensureSession() {
 				return
 			}
@@ -12054,6 +12083,10 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 		// ±10s skip buttons
 		replay10Btn := widget.NewButtonWithIcon("", ui.GetIcon("replay_10"), func() {
+			if HasNativeMediaPlayer() {
+				state.seekNative(math.Max(0, slider.Value-10))
+				return
+			}
 			if !ensureSession() {
 				return
 			}
@@ -12061,6 +12094,10 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 		replay10Btn.Importance = widget.LowImportance
 		forward10Btn := widget.NewButtonWithIcon("", ui.GetIcon("forward_10"), func() {
+			if HasNativeMediaPlayer() {
+				state.seekNative(math.Min(src.Duration, slider.Value+10))
+				return
+			}
 			if !ensureSession() {
 				return
 			}
@@ -13735,6 +13772,10 @@ func (s *appState) loadVideo(path string) {
 		}
 	}()
 
+	if HasNativeMediaPlayer() {
+		s.closeNativePlayer()
+	}
+
 	if s.playSess != nil {
 		s.playSess.Stop()
 		s.playSess = nil
@@ -13791,6 +13832,11 @@ func (s *appState) loadVideo(path string) {
 	} else {
 		s.loadedVideos = []*videoSource{src}
 		s.currentIndex = 0
+	}
+
+	// Load video in native media player if available
+	if HasNativeMediaPlayer() {
+		s.loadVideoNative(path)
 	}
 
 	logging.Debug(logging.CatModule, "video loaded %+v", src)
