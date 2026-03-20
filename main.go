@@ -1275,6 +1275,12 @@ type appState struct {
 	// Main menu refresh throttling
 	mainMenuLastRefresh time.Time
 
+	// Update check cache — populated by the first settings open or the
+	// background auto-checker; re-used on subsequent settings visits.
+	updateLastChecked time.Time
+	updateCachedTag   string // latest release tag ("" = up to date or not yet checked)
+	updateCachedPatch bool   // true when same tag but newer build commit available
+
 	// Subtitles module state
 	subtitleVideoPath   string
 	subtitleFilePath    string
@@ -2807,8 +2813,9 @@ func (s *appState) showModule(id string) {
 }
 
 func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
+	defer logging.RecoverPanic()
 	t := i18n.T()
-	logging.Debug(logging.CatModule, "handleModuleDrop called: moduleID=%s itemCount=%d", moduleID, len(items))
+	logging.Info(logging.CatModule, "handleModuleDrop called: moduleID=%s itemCount=%d", moduleID, len(items))
 	if len(items) == 0 {
 		logging.Debug(logging.CatModule, "handleModuleDrop: no items to process")
 		return
@@ -2853,6 +2860,7 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 	// If compare module, load up to 2 videos into compare slots
 	if moduleID == "compare" {
 		go func() {
+			defer logging.RecoverPanic()
 			// Load first video
 			src1, err := probeVideo(videoPaths[0])
 			if err != nil {
@@ -7229,6 +7237,8 @@ func runGUI() {
 
 	defer state.shutdown()
 	w.SetOnDropped(func(pos fyne.Position, items []fyne.URI) {
+		defer logging.RecoverPanic()
+		logging.Info(logging.CatUI, "Drop event: pos=%v itemCount=%d", pos, len(items))
 		state.handleDrop(pos, items)
 	})
 	state.showMainMenu()
@@ -13112,7 +13122,9 @@ func (s *appState) importCoverImage(path string) (string, error) {
 }
 
 func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
+	defer logging.RecoverPanic()
 	t := i18n.T()
+	logging.Info(logging.CatUI, "handleDrop: pos=%v itemCount=%d", pos, len(items))
 	if len(items) == 0 {
 		return
 	}
@@ -13713,19 +13725,31 @@ func (s *appState) detectModuleTileAtPosition(pos fyne.Position) string {
 }
 
 func (s *appState) loadVideo(path string) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Crash(logging.CatSystem, "panic in loadVideo(%s): %v", path, r)
+			logging.LogAllGoroutines()
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.showErrorWithCopy("Failed to Load Video", fmt.Errorf("panic while loading video: %v", r))
+			}, false)
+		}
+	}()
+
 	if s.playSess != nil {
 		s.playSess.Stop()
 		s.playSess = nil
 	}
 	s.stopProgressLoop()
+	logging.Info(logging.CatModule, "loadVideo: probing %s", path)
 	src, err := probeVideo(path)
 	if err != nil {
-		logging.Debug(logging.CatFFMPEG, "ffprobe failed for %s: %v", path, err)
+		logging.Error(logging.CatFFMPEG, "ffprobe failed for %s: %v", path, err)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			s.showErrorWithCopy("Failed to Analyze Video", fmt.Errorf("failed to analyze %s: %w", filepath.Base(path), err))
 		}, false)
 		return
 	}
+	logging.Info(logging.CatModule, "loadVideo: probe succeeded for %s", path)
 	if frames, err := capturePreviewFrames(src.Path, src.Duration); err == nil {
 		src.PreviewFrames = frames
 		if len(frames) > 0 {
