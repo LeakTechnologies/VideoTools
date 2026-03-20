@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"unsafe"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/driver/gl"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
@@ -31,7 +29,7 @@ type VideoRendererGL struct {
 	*VideoRenderer
 
 	window fyne.Window
-	ppi    float float
+	ppi    float64
 }
 
 func NewVideoRendererGL(window fyne.Window) *VideoRendererGL {
@@ -137,18 +135,18 @@ type VideoPlayerGPU struct {
 	frame      *image.RGBA
 	onFrame    func(*image.RGBA)
 
-	playBtn     *widget.Button
-	slider      *widget.Slider
-	timeLabel   *canvas.Text
-	durLabel    *canvas.Text
-	volumeBtn   *widget.Button
-	controlBar  *canvas.Rectangle
-	controls    *fyne.Container
-	backing     *fyne.Container
+	playBtn    *widget.Button
+	slider     *widget.Slider
+	timeLabel  *canvas.Text
+	durLabel   *canvas.Text
+	volumeBtn  *widget.Button
+	controlBar *canvas.Rectangle
+	controls   *fyne.Container
+	backing    *fyne.Container
 
-	isPlaying   bool
-	currentTime float64
-	duration    float64
+	isPlaying    bool
+	currentTime  float64
+	duration     float64
 	volume       float64
 	showControls bool
 
@@ -162,11 +160,11 @@ type VideoPlayerGPU struct {
 
 func NewVideoPlayerGPU() *VideoPlayerGPU {
 	v := &VideoPlayerGPU{
-		showControls:  true,
-		currentTime:   0,
-		duration:      0,
-		volume:        1.0,
-		isPlaying:     false,
+		showControls:     true,
+		currentTime:      0,
+		duration:         0,
+		volume:           1.0,
+		isPlaying:        false,
 		shortcutsEnabled: true,
 	}
 	v.buildUI()
@@ -433,22 +431,4 @@ func (r *videoPlayerGPURenderer) Refresh() {
 }
 
 func (r *videoPlayerGPURenderer) Destroy() {
-}
-
-var _ unsafe.Pointer = unsafe.Pointer(nil)
-var _ gl.Context = (*GLContext)(nil)
-
-type GLContext struct{}
-
-func (c *GLContext) Functions() unsafe.Pointer {
-	return nil
-}
-
-func (c *GLContext) OnContextLost(f func()) {
-}
-
-func (c *GLContext) OnContextRestored(f func()) {
-}
-
-func (c *GLContext) EnsureContext() {
 }
