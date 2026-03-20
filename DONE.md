@@ -67,6 +67,7 @@
 - [x] **Subtitle track selection** - SelectSubtitleTrack, DisableSubtitles
 - [x] **Subtitle toggle button** - CC button in VideoPlayer controls
 - [x] **Subtitle callbacks** - OnSubtitles, IsSubtitlesEnabled, SetSubtitlesEnabled
+- [x] **Subtitle text rendering** - Bitmap-style text drawing with configurable alpha
 
 ### GPU Rendering (Performance)
 - [x] **Fast scaling** - scaleNearest() with nearest-neighbor interpolation

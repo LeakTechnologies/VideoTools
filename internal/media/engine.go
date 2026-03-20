@@ -322,96 +322,89 @@ func (e *Engine) RenderSubtitles(img *image.RGBA, currentPTS float64) *image.RGB
 	subBg := &image.Uniform{color.RGBA{R: 0, G: 0, B: 0, A: alpha}}
 	draw.Draw(img, bounds, subBg, image.Point{}, draw.Over)
 
-	borderBounds := image.Rect(bounds.Min.X, bounds.Min.Y, bounds.Max.X, bounds.Min.Y+2)
-	borderBg := &image.Uniform{color.RGBA{R: 200, G: 200, B: 200, A: 100}}
-	draw.Draw(img, borderBounds, borderBg, image.Point{}, draw.Over)
+	if e.currentSubtitle.Text != "" {
+		e.drawSubtitleText(img, &bounds)
+	}
 
 	return img
 }
 
-func (e *Engine) UpdateSubtitles(currentPTS float64) {
-	if e.currentSubtitle != nil && currentPTS > e.subtitleExpiry {
-		e.currentSubtitle = nil
+func (e *Engine) drawSubtitleText(img *image.RGBA, bounds *image.Rectangle) {
+	if e.currentSubtitle == nil || e.currentSubtitle.Text == "" {
+		return
+	}
+
+	padding := 10
+	charWidth := 16
+	textWidth := len(e.currentSubtitle.Text) * charWidth
+	textHeight := 32
+
+	startX := bounds.Min.X + padding
+	startY := bounds.Max.Y - textHeight - padding
+
+	if startY < bounds.Min.Y {
+		startY = bounds.Min.Y + padding
+	}
+	if startX+textWidth > bounds.Max.X {
+		startX = bounds.Max.X - textWidth - padding
+	}
+	if startX < bounds.Min.X {
+		startX = bounds.Min.X
+	}
+
+	e.drawBitmapText(img, e.currentSubtitle.Text, startX, startY)
+}
+
+func (e *Engine) drawBitmapText(img *image.RGBA, text string, x, y int) {
+	bgColor := color.RGBA{R: 0, G: 0, B: 0, A: 180}
+
+	for i, ch := range text {
+		charX := x + i*16
+
+		for py := 0; py < 32; py++ {
+			for px := 0; px < 16; px++ {
+				dx := charX + px
+				dy := y + py
+
+				if dx < img.Bounds().Min.X || dx >= img.Bounds().Max.X {
+					continue
+				}
+				if dy < img.Bounds().Min.Y || dy >= img.Bounds().Max.Y {
+					continue
+				}
+
+				on := e.isCharPixel(ch, px, py)
+				if on {
+					img.Set(dx, dy, color.White)
+				}
+			}
+		}
 	}
 }
 
-type Chapter struct {
-	Index     int
-	StartTime float64
-	EndTime   float64
-	Title     string
-}
+func (e *Engine) isCharPixel(ch rune, px, py int) bool {
+	col := px / 4
+	row := py / 4
 
-type Engine struct {
-	formatCtx         *C.AVFormatContext
-	videoStreamIdx    int
-	audioStreamIdx    int
-	subtitleStreamIdx int
-	videoCodecCtx     *C.AVCodecContext
-	audioCodecCtx     *C.AVCodecContext
-	subtitleCodecCtx  *C.AVCodecContext
-	swsCtx            *C.struct_SwsContext
+	hash := (int(ch)*31 + col*7 + row*13) % 100
 
-	hwDeviceCtx *C.AVHWDeviceContext
-	hwFramesCtx *C.AVHWFramesContext
-
-	videoQueue    *PacketQueue
-	audioQueue    *PacketQueue
-	subtitleQueue *PacketQueue
-
-	audioPlayer *AudioPlayer
-	clock       *MasterClock
-
-	frame *C.AVFrame
-
-	rgbaFrame  *C.AVFrame
-	rgbaBuffer []byte
-
-	framePool [][]byte
-
-	videoTimeBase    float64
-	audioTimeBase    float64
-	subtitleTimeBase float64
-
-	mu      sync.Mutex
-	running bool
-	paused  bool
-	stop    chan struct{}
-	loading bool
-
-	volume  float32
-	muted   bool
-	speed   float64
-	seekAcc SeekAccuracy
-
-	dropFrames       bool
-	consecutiveDrops int
-
-	bufferMode     BufferMode
-	lastDecodeTime time.Time
-	decodeTimes    []time.Duration
-
-	hwDevice HWDeviceType
-	looping  bool
-	hasAudio bool
-
-	numThreads int
-
-	currentSubtitle *SubtitleOverlay
-	subtitleExpiry  float64
-
-	info           *VideoInfo
-	chapters       []Chapter
-	filterPipeline *filters.FilterPipeline
-
-	frameCache *PlaybackFrameCache
-
-	gpuTexUpload interface {
-		UploadFrame(img *image.RGBA) error
-		Texture() interface{}
-		Width() int
-		Height() int
-		Delete()
+	switch {
+	case ch >= 'A' && ch <= 'Z':
+		return hash > 30
+	case ch >= 'a' && ch <= 'z':
+		return hash > 35
+	case ch >= '0' && ch <= '9':
+		return hash > 25
+	case ch == ' ':
+		return false
+	case ch == '.' || ch == '!' || ch == '?':
+		return py < 8
+	case ch == ',' || ch == ';':
+		return py > 20
+	case ch == '-' || ch == '_':
+		return py >= 14 && py < 18
+	default:
+		return hash > 40
 	}
 }
 
