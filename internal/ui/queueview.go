@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -267,27 +268,33 @@ func BuildQueueView(
 	onOpenOutput func(string),
 	titleColor, bgColor, textColor color.Color,
 ) *QueueView {
+	t := i18n.T()
+
 	// Header
-	title := canvas.NewText("JOB QUEUE", titleColor)
+	titleText := t.QueueTitle
+	if titleText == "" {
+		titleText = "Queue"
+	}
+	title := canvas.NewText(strings.ToUpper(titleText), titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 24
 
-	backBtn := widget.NewButton("← Back", onBack)
+	backBtn := widget.NewButton(t.ActionBack, onBack)
 	backBtn.Importance = widget.LowImportance
 
-	startAllBtn := widget.NewButton("Start Queue", onStart)
+	startAllBtn := widget.NewButton(t.ActionQueueStart, onStart)
 	startAllBtn.Importance = widget.MediumImportance
 
-	pauseAllBtn := widget.NewButton("Pause All", onPauseAll)
+	pauseAllBtn := widget.NewButton(t.ActionQueuePauseAll, onPauseAll)
 	pauseAllBtn.Importance = widget.LowImportance
 
-	resumeAllBtn := widget.NewButton("Resume All", onResumeAll)
+	resumeAllBtn := widget.NewButton(t.ActionQueueResumeAll, onResumeAll)
 	resumeAllBtn.Importance = widget.LowImportance
 
-	clearBtn := widget.NewButton("Clear Completed", onClear)
+	clearBtn := widget.NewButton(t.ActionQueueClearCompleted, onClear)
 	clearBtn.Importance = widget.LowImportance
 
-	clearAllBtn := widget.NewButton("Clear All", onClearAll)
+	clearAllBtn := widget.NewButton(t.ActionClearAll, onClearAll)
 	clearAllBtn.Importance = widget.DangerImportance
 
 	buttonRow := container.NewHBox(startAllBtn, pauseAllBtn, resumeAllBtn, clearAllBtn, clearBtn)
@@ -300,7 +307,7 @@ func BuildQueueView(
 	)
 
 	jobList := container.NewVBox()
-	emptyMsg := widget.NewLabel("No jobs in queue")
+	emptyMsg := widget.NewLabel(t.QueueEmpty)
 	emptyMsg.Alignment = fyne.TextAlignCenter
 	emptyLabel := container.NewCenter(emptyMsg)
 

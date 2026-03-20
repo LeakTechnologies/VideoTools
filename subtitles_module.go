@@ -562,7 +562,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	})
 	backBtn.Importance = widget.LowImportance
 
-	queueBtn := widget.NewButton("View Queue", func() {
+	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
 		state.showQueue()
 	})
 	state.queueBtn = queueBtn
@@ -576,7 +576,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	topBar := ui.TintedBar(subtitlesColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
 	videoEntry := widget.NewEntry()
-	videoEntry.SetPlaceHolder("Video file path")
+	videoEntry.SetPlaceHolder(t.SubtitlesVideoPlaceholder)
 	logging.Debug(logging.CatModule, "buildSubtitlesView: creating videoEntry with subtitleVideoPath=%s", state.subtitleVideoPath)
 	videoEntry.SetText(state.subtitleVideoPath)
 	videoEntry.OnChanged = func(val string) {
@@ -584,14 +584,14 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	}
 
 	subtitleEntry := widget.NewEntry()
-	subtitleEntry.SetPlaceHolder("Subtitle file (.srt, .vtt, or .mks)")
+	subtitleEntry.SetPlaceHolder(t.SubtitlesFilePlaceholder)
 	subtitleEntry.SetText(state.subtitleFilePath)
 	subtitleEntry.OnChanged = func(val string) {
 		state.subtitleFilePath = strings.TrimSpace(val)
 	}
 
 	modelEntry := widget.NewEntry()
-	modelEntry.SetPlaceHolder("Whisper model path (ggml-*.bin)")
+	modelEntry.SetPlaceHolder(t.SubtitlesModelPlaceholder)
 	modelEntry.SetText(state.subtitleModelPath)
 	modelEntry.OnChanged = func(val string) {
 		state.subtitleModelPath = strings.TrimSpace(val)
@@ -599,7 +599,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	}
 
 	backendEntry := widget.NewEntry()
-	backendEntry.SetPlaceHolder("Whisper backend path (whisper.cpp/main)")
+	backendEntry.SetPlaceHolder(t.SubtitlesBackendPlaceholder)
 	backendEntry.SetText(state.subtitleBackendPath)
 	backendEntry.OnChanged = func(val string) {
 		state.subtitleBackendPath = strings.TrimSpace(val)
@@ -615,17 +615,17 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		if missingModel {
 			offlineHint.SetText(i18n.T().SubtitlesOfflineHint)
 		} else {
-			offlineHint.SetText("Offline STT uses the selected ggml model.")
+			offlineHint.SetText(i18n.T().SubtitlesOfflineModelHint)
 		}
 		if strings.TrimSpace(state.subtitleBackendPath) != "" {
-			backendLabel.SetText(fmt.Sprintf("Whisper backend: %s", state.subtitleBackendPath))
+			backendLabel.SetText(fmt.Sprintf(i18n.T().SubtitlesWhisperBackendFmt, state.subtitleBackendPath))
 			backendEntry.Hide()
 		} else {
 			backendLabel.SetText("")
 			backendEntry.Show()
 		}
 		if strings.TrimSpace(state.subtitleModelPath) != "" {
-			modelLabel.SetText(fmt.Sprintf("Whisper model: %s", state.subtitleModelPath))
+			modelLabel.SetText(fmt.Sprintf(i18n.T().SubtitlesWhisperModelFmt, state.subtitleModelPath))
 			modelEntry.Hide()
 		} else {
 			modelLabel.SetText("")
@@ -635,7 +635,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	refreshWhisperUI()
 
 	outputEntry := widget.NewEntry()
-	outputEntry.SetPlaceHolder("Output video path (for embed/burn)")
+	outputEntry.SetPlaceHolder(t.SubtitlesOutputPlaceholder)
 	outputEntry.SetText(state.subtitleBurnOutput)
 	outputEntry.OnChanged = func(val string) {
 		state.subtitleBurnOutput = strings.TrimSpace(val)
@@ -650,7 +650,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	}
 
 	// Create copy button for status text
-	copyStatusBtn := widget.NewButton("Copy Status", func() {
+	copyStatusBtn := widget.NewButton(t.SubtitlesCopyStatus, func() {
 		if state.subtitleStatus != "" {
 			state.window.Clipboard().SetContent(state.subtitleStatus)
 			dialog.ShowInformation("Copied", "Status text copied to clipboard", state.window)
@@ -706,7 +706,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 				state.subtitleCues[idx].Text = val
 			}
 
-			removeBtn := widget.NewButton("Remove", func() {
+			removeBtn := widget.NewButton(i18n.T().ActionRemove, func() {
 				state.subtitleCues = append(state.subtitleCues[:idx], state.subtitleCues[idx+1:]...)
 				rebuildCues()
 			})
@@ -770,7 +770,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 
 	listArea := container.NewMax(listScroll, emptyOverlay)
 
-	addCueBtn := widget.NewButton("Add Cue", func() {
+	addCueBtn := widget.NewButton(t.SubtitlesAddCue, func() {
 		start := 0.0
 		if len(state.subtitleCues) > 0 {
 			start = state.subtitleCues[len(state.subtitleCues)-1].End
@@ -784,12 +784,12 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	})
 	addCueBtn.Importance = widget.HighImportance
 
-	clearBtn := widget.NewButton("Clear All", func() {
+	clearBtn := widget.NewButton(t.ActionClearAll, func() {
 		state.subtitleCues = nil
 		rebuildCues()
 	})
 
-	loadBtn := widget.NewButton("Load Subtitles", func() {
+	loadBtn := widget.NewButton(t.SubtitlesLoadSubtitles, func() {
 		if err := state.loadSubtitleFile(state.subtitleFilePath); err != nil {
 			state.setSubtitleStatus(err.Error())
 			return
@@ -797,7 +797,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		rebuildCues()
 	})
 
-	saveBtn := widget.NewButton("Save Subtitles", func() {
+	saveBtn := widget.NewButton(t.SubtitlesSaveSubtitles, func() {
 		path := strings.TrimSpace(state.subtitleFilePath)
 		if path == "" {
 			path = defaultSubtitlePath(state.subtitleVideoPath)
@@ -811,7 +811,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		state.setSubtitleStatus(fmt.Sprintf("Saved subtitles to %s", filepath.Base(path)))
 	})
 
-	generateBtn := widget.NewButton("Generate From Speech (Offline)", func() {
+	generateBtn := widget.NewButton(t.SubtitlesGenerateSpeech, func() {
 		state.generateSubtitlesFromSpeech()
 		rebuildCues()
 	})
@@ -826,12 +826,12 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	)
 	outputModeSelect.SetSelected(state.subtitleOutputMode)
 
-	applyBtn := widget.NewButton("Create Output", func() {
+	applyBtn := widget.NewButton(t.SubtitlesCreateOutput, func() {
 		state.applySubtitlesToVideo()
 	})
 	applyBtn.Importance = widget.HighImportance
 
-	browseVideoBtn := widget.NewButton("Browse", func() {
+	browseVideoBtn := widget.NewButton(t.ActionBrowse, func() {
 		dialog.ShowFileOpen(func(file fyne.URIReadCloser, err error) {
 			if err != nil || file == nil {
 				return
@@ -843,7 +843,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		}, state.window)
 	})
 
-	browseSubtitleBtn := widget.NewButton("Browse", func() {
+	browseSubtitleBtn := widget.NewButton(t.ActionBrowse, func() {
 		dialog.ShowFileOpen(func(file fyne.URIReadCloser, err error) {
 			if err != nil || file == nil {
 				return
@@ -909,7 +909,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		streamSelect.SetSelected(options[state.subtitleRipIndex])
 	}
 
-	detectStreamsBtn := widget.NewButton("Detect Streams", func() {
+	detectStreamsBtn := widget.NewButton(t.SubtitlesDetectStreams, func() {
 		videoPath := strings.TrimSpace(state.subtitleVideoPath)
 		if videoPath == "" {
 			state.setSubtitleStatus("Set a video file before detecting subtitle streams.")
@@ -931,7 +931,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		state.setSubtitleStatus(fmt.Sprintf("Detected %d subtitle streams.", len(streams)))
 	})
 
-	ripBtn := widget.NewButton("Extract Selected", func() {
+	ripBtn := widget.NewButton(t.SubtitlesExtractSelected, func() {
 		videoPath := strings.TrimSpace(state.subtitleVideoPath)
 		if videoPath == "" {
 			state.setSubtitleStatus("Set a video file before extracting subtitles.")
@@ -992,7 +992,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		}
 	}
 
-	applyOffsetBtn := widget.NewButton("Apply Offset", func() {
+	applyOffsetBtn := widget.NewButton(t.SubtitlesApplyOffset, func() {
 		state.applySubtitleTimeOffset(state.subtitleTimeOffset)
 	})
 	applyOffsetBtn.Importance = widget.HighImportance
@@ -1030,7 +1030,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 
 	refreshRipStreams()
 
-	loadCfgBtn := widget.NewButton("Load Config", func() {
+	loadCfgBtn := widget.NewButton(t.ActionLoadConfig, func() {
 		cfg, err := loadPersistedSubtitlesConfig()
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -1044,7 +1044,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		applyControls()
 	})
 
-	saveCfgBtn := widget.NewButton("Save Config", func() {
+	saveCfgBtn := widget.NewButton(t.ActionSaveConfig, func() {
 		cfg := subtitlesConfig{
 			OutputMode:  state.subtitleOutputMode,
 			ModelPath:   state.subtitleModelPath,
@@ -1061,7 +1061,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("subtitles")), state.window)
 	})
 
-	resetBtn := widget.NewButton("Reset", func() {
+	resetBtn := widget.NewButton(t.ActionReset, func() {
 		cfg := defaultSubtitlesConfig()
 		state.applySubtitlesConfig(cfg)
 		applyControls()
@@ -1069,11 +1069,11 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 	})
 
 	left := container.NewVBox(
-		widget.NewLabelWithStyle("Sources", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.SubtitlesSources, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		container.NewBorder(nil, nil, nil, browseVideoBtn, videoEntry),
 		container.NewBorder(nil, nil, nil, browseSubtitleBtn, subtitleEntry),
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Rip Embedded Subtitles", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.SubtitlesRipSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel(i18n.T().SubtitlesExtractEmbed),
 		streamSelect,
 		container.NewHBox(detectStreamsBtn, ripBtn),
@@ -1083,13 +1083,13 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		widget.NewLabel(i18n.T().SubtitlesOCRLanguage),
 		ocrLangEntry,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Timing Adjustment", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.SubtitlesTimingSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel(i18n.T().SubtitlesShiftOffset),
 		offsetEntry,
 		container.NewHBox(offsetMinus1Btn, offsetMinus01Btn, offsetPlus01Btn, offsetPlus1Btn),
 		applyOffsetBtn,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Offline Speech-to-Text (whisper.cpp)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.SubtitlesSTTSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		offlineHint,
 		backendLabel,
 		backendEntry,
@@ -1097,11 +1097,11 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 		modelEntry,
 		container.NewHBox(generateBtn),
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Output", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.SubtitlesOutputSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputModeSelect,
 		outputEntry,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Status", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.SubtitlesStatusSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		statusScroll,
 		container.NewHBox(copyStatusBtn),
 		widget.NewSeparator(),
@@ -1110,7 +1110,7 @@ func buildSubtitlesView(state *appState) fyne.CanvasObject {
 
 	right := container.NewBorder(
 		container.NewVBox(
-			widget.NewLabelWithStyle("Subtitle Cues", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			widget.NewLabelWithStyle(t.SubtitlesCuesSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			container.NewHBox(addCueBtn, clearBtn, loadBtn, saveBtn),
 		),
 		nil,

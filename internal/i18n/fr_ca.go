@@ -183,6 +183,34 @@ var frCA = Strings{
 	SubtitlesShiftOffset:  "Décaler tous les temps de sous-titres (secondes) :",
 	SubtitlesStart:        "Début",
 	SubtitlesEnd:          "Fin",
+	// Subtitles UI sections
+	SubtitlesSources:       "Sources",
+	SubtitlesRipSection:    "Extraire les sous-titres intégrés",
+	SubtitlesTimingSection: "Ajustement temporel",
+	SubtitlesSTTSection:    "Reconnaissance vocale hors ligne (whisper.cpp)",
+	SubtitlesOutputSection: "Sortie",
+	SubtitlesStatusSection: "État",
+	SubtitlesCuesSection:   "Repères de sous-titres",
+	// Subtitles actions
+	SubtitlesCopyStatus:      "Copier l'état",
+	SubtitlesAddCue:          "Ajouter un repère",
+	SubtitlesLoadSubtitles:   "Charger les sous-titres",
+	SubtitlesSaveSubtitles:   "Enregistrer les sous-titres",
+	SubtitlesGenerateSpeech:  "Générer à partir de la parole (hors ligne)",
+	SubtitlesDetectStreams:   "Détecter les flux",
+	SubtitlesExtractSelected: "Extraire la sélection",
+	SubtitlesApplyOffset:     "Appliquer le décalage",
+	SubtitlesCreateOutput:    "Créer la sortie",
+	// Subtitles placeholders
+	SubtitlesVideoPlaceholder:   "Chemin du fichier vidéo",
+	SubtitlesFilePlaceholder:    "Fichier de sous-titres (.srt, .vtt ou .mks)",
+	SubtitlesModelPlaceholder:   "Chemin du modèle Whisper (ggml-*.bin)",
+	SubtitlesBackendPlaceholder: "Chemin du moteur Whisper (whisper.cpp/main)",
+	SubtitlesOutputPlaceholder:  "Chemin de la vidéo de sortie (pour intégration/gravure)",
+	// Subtitles status/dynamic labels
+	SubtitlesWhisperBackendFmt: "Moteur Whisper : %s",
+	SubtitlesWhisperModelFmt:   "Modèle Whisper : %s",
+	SubtitlesOfflineModelHint:  "STT hors ligne utilise le modèle ggml sélectionné.",
 
 	// ── Trim ──────────────────────────────────────────────────────────────
 	TrimInstructions:     "Chargez une vidéo pour définir les points d'entrée/sortie. Utilisez les touches fléchées pour une navigation image par image.",
@@ -314,13 +342,17 @@ var frCA = Strings{
 	BenchmarkRecent:    "Analyses récentes",
 
 	// ── Queue ─────────────────────────────────────────────────────────────
-	QueueTitle:      "File d'attente",
-	QueueEmpty:      "Aucune tâche en attente",
-	QueueInProgress: "En cours",
-	QueueCompleted:  "Terminé",
-	QueueFailed:     "Échec",
-	QueueJobRunning: "En cours...",
-	QueueJobPending: "En attente",
+	QueueTitle:                "File d'attente",
+	QueueEmpty:                "Aucune tâche en attente",
+	QueueInProgress:           "En cours",
+	QueueCompleted:            "Terminé",
+	QueueFailed:               "Échec",
+	QueueJobRunning:           "En cours...",
+	QueueJobPending:           "En attente",
+	ActionQueueStart:          "Démarrer la file",
+	ActionQueuePauseAll:       "Tout suspendre",
+	ActionQueueResumeAll:      "Tout reprendre",
+	ActionQueueClearCompleted: "Effacer terminés",
 
 	// ── History Sidebar ───────────────────────────────────────────────────
 	HistoryTitle:     "HISTORIQUE",
@@ -446,6 +478,7 @@ var frCA = Strings{
 	RIFEModelLabel:      "Modèle :",
 	RIFEEstFPSFmt:       "Sortie estimée : %.0f ips",
 	RIFENote:            "RIFE synthétise des images intermédiaires pour une conversion fluide et haute qualité.",
+	RIFEInstallHint:     "Installer via Paramètres → Dépendances",
 
 	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
 	ThumbnailGenerateNow:        "GÉNÉRER MAINTENANT",

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -789,19 +790,25 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		var updateEstFPS func()
 		var estFPSLabel *widget.Label
 
-		rifeMultiplierSelect := widget.NewSelect([]string{"2×", "4×"}, func(s string) {
-			if s == "4×" {
+		rifeMultiplierSelect := widget.NewSelect([]string{"2×", "4×", "8×"}, func(s string) {
+			switch s {
+			case "4×":
 				state.upscaleRIFEMultiplier = 4
-			} else {
+			case "8×":
+				state.upscaleRIFEMultiplier = 8
+			default:
 				state.upscaleRIFEMultiplier = 2
 			}
 			if updateEstFPS != nil {
 				updateEstFPS()
 			}
 		})
-		if state.upscaleRIFEMultiplier == 4 {
+		switch state.upscaleRIFEMultiplier {
+		case 4:
 			rifeMultiplierSelect.SetSelected("4×")
-		} else {
+		case 8:
+			rifeMultiplierSelect.SetSelected("8×")
+		default:
 			rifeMultiplierSelect.SetSelected("2×")
 		}
 
@@ -841,9 +848,11 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			widget.NewLabel(t.RIFENote),
 		))
 	} else {
+		rifeLink, _ := url.Parse("https://github.com/nihui/rife-ncnn-vulkan")
 		rifeSection = buildUpscaleBox(t.RIFEBoxTitle, container.NewVBox(
 			widget.NewLabel(t.RIFENotDetected),
-			widget.NewLabel("https://github.com/nihui/rife-ncnn-vulkan"),
+			widget.NewHyperlink("nihui/rife-ncnn-vulkan", rifeLink),
+			widget.NewLabel(t.RIFEInstallHint),
 		))
 	}
 

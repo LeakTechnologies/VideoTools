@@ -497,8 +497,8 @@ func (g *Generator) buildMetadataFilter(
 
 	// Build metadata text lines.
 	// Use · (middle dot) as separator — pipe (|) is treated as a newline by FFmpeg drawtext.
-	// Line 1: Filename and file size (bold)
-	line1 := fmt.Sprintf("%s (%.1f MB)", filename, fileSizeMB)
+	// Line 1: Filename and file size (bold) — escape for drawtext single-quoted text= value
+	line1 := fmt.Sprintf("%s (%.1f MB)", escapeDrawtextText(filename), fileSizeMB)
 	// Line 2: Resolution, frame rate, and duration
 	line2 := fmt.Sprintf("%dx%d @ %.2f fps · %s", videoWidth, videoHeight, fps, durationStr)
 	// Line 3: Codecs and bitrates
@@ -644,6 +644,15 @@ func escapeFilterPath(path string) string {
 	escaped = strings.ReplaceAll(escaped, ":", "\\:")
 	escaped = strings.ReplaceAll(escaped, "'", "\\'")
 	return escaped
+}
+
+// escapeDrawtextText escapes a string for use as a drawtext text= value
+// wrapped in single quotes. Handles apostrophes, backslashes, and % expressions.
+func escapeDrawtextText(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "'", "\\'")
+	s = strings.ReplaceAll(s, "%", "%%")
+	return s
 }
 
 func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string, totalDuration float64, expectedFrames int, progress func(float64)) error {

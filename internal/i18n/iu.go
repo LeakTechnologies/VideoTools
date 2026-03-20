@@ -185,6 +185,34 @@ var iu = Strings{
 	SubtitlesShiftOffset:  "ᑎᑎᖅᑲᒃᓴᑦ ᑭᓯᐊᓂ ᐊᑯᓂᐅᔪᒃᑯᑦ ᐅᔾᔨᕆᓗᒋᑦ (ᐊᑦᑕᕐᓇᖅᑐᒃᑯᑦ):",                   // Shift all subtitle times by offset (seconds):
 	SubtitlesStart:        "ᐱᒋᐊᖅᑐᖅ",                                                        // Start
 	SubtitlesEnd:          "ᐃᓱᒪᒋᔭᒃᓴᖅ",                                                      // End
+	// Subtitles UI sections
+	SubtitlesSources:       "ᐱᒋᐊᕈᑎᑦ",                                 // Sources
+	SubtitlesRipSection:    "ᑎᑎᖅᑲᒃᓴᑦ ᐊᒡᒐᖅᑐᖅᑕᐅᓯᒪᔪᑦ ᐱᔭᕆᐊᖅᑕᑦ",           // Rip Embedded Subtitles
+	SubtitlesTimingSection: "ᐊᑯᓂᐅᔪᒃᑯᑦ ᐋᖅᑭᐅᒪᑎᑦᑎᓂᖅ",                    // Timing Adjustment
+	SubtitlesSTTSection:    "ᐊᑕᐅᑦᑎᒃᑰᕈᑎᖃᙱᑦᑐᒥ ᐅᖃᓕᒫᒐᖅᑖᕈᑎ (whisper.cpp)", // Offline Speech-to-Text
+	SubtitlesOutputSection: "ᐊᒡᒐᖅᑐᕆᔭᐅᔪᖅ",                             // Output
+	SubtitlesStatusSection: "ᐊᑑᑎᒋᔭᖅ",                                 // Status
+	SubtitlesCuesSection:   "ᑎᑎᖅᑲᒃᓴᑦ ᐅᖃᐅᓯᑦ",                          // Subtitle Cues
+	// Subtitles actions
+	SubtitlesCopyStatus:      "ᑐᓴᕋᒃᓴᒥᒃ ᑐᓂᓯᒍᑎ",                      // Copy Status
+	SubtitlesAddCue:          "ᐅᖃᐅᓯᕆᔭᒃᓴᒥᒃ ᐃᓗᓕᖅᑎᑦᑎᓂᖅ",               // Add Cue
+	SubtitlesLoadSubtitles:   "ᑎᑎᖅᑲᒃᓴᑦ ᑐᒃᓯᕋᖅᑕᐅᓗᑎᒃ",                 // Load Subtitles
+	SubtitlesSaveSubtitles:   "ᑎᑎᖅᑲᒃᓴᑦ ᐃᓂᖅᓯᓗᒋᑦ",                    // Save Subtitles
+	SubtitlesGenerateSpeech:  "ᐅᖃᓕᒫᒐᖅᑖᕆᓂᖅ ᐅᖃᓂᒃᑯᑦ (ᐊᑕᐅᑦᑎᒃᑰᕈᑎᖃᙱᑦᑐᒥ)", // Generate From Speech (Offline)
+	SubtitlesDetectStreams:   "ᐱᒃᑯᒋᔭᐅᔪᑦ ᓇᓗᓇᐃᕆᓂᖅ",                   // Detect Streams
+	SubtitlesExtractSelected: "ᓂᕈᐊᖅᑕᐅᔪᒥᒃ ᐱᔭᕆᐊᖅᑕᐅᓗᓂ",                // Extract Selected
+	SubtitlesApplyOffset:     "ᐅᔾᔨᕆᓗᒍ ᐊᑯᓂᐅᔪᖅ",                      // Apply Offset
+	SubtitlesCreateOutput:    "ᐊᒡᒐᖅᑐᕆᔭᐅᔪᒥᒃ ᓴᓇᓗᓂ",                   // Create Output
+	// Subtitles placeholders
+	SubtitlesVideoPlaceholder:   "ᑕᕐᕆᔭᒐᒃᓴᓕᐊᑦ ᐃᓂᖓ",                           // Video file path
+	SubtitlesFilePlaceholder:    "ᑎᑎᖅᑲᒃᓴᓕᐊᑦ (.srt, .vtt, ᐅᕝᕙᓘᓐᓃᑦ .mks)",     // Subtitle file
+	SubtitlesModelPlaceholder:   "Whisper ᐊᑐᖅᑕᐅᔾᔪᑎᒃ ᐃᓂᖓ (ggml-*.bin)",       // Whisper model path
+	SubtitlesBackendPlaceholder: "Whisper ᐊᑐᖅᑕᐅᔾᔪᑎᒃ ᐃᓂᖓ (whisper.cpp/main)", // Whisper backend path
+	SubtitlesOutputPlaceholder:  "ᐊᒡᒐᖅᑐᕆᔭᐅᔪᖅ ᑕᕐᕆᔭᒐᒃᓴᓕᐊᑦ ᐃᓂᖓ",                // Output video path
+	// Subtitles status/dynamic labels
+	SubtitlesWhisperBackendFmt: "Whisper ᐊᑐᖅᑕᐅᔾᔪᑎᒃ: %s",                      // Whisper backend: %s
+	SubtitlesWhisperModelFmt:   "Whisper ᐊᑐᖅᑕᐅᔾᔪᑎᒃ: %s",                      // Whisper model: %s
+	SubtitlesOfflineModelHint:  "ᐊᑕᐅᑦᑎᒃᑰᕈᑎᖃᙱᑦᑐᒥ STT ᓂᕈᐊᖅᑕᐅᓯᒪᔪᒥᒃ ggml ᐊᑐᖅᑐᖅ.", // Offline STT uses selected ggml model
 
 	// ── Common Status ─────────────────────────────────────────────────────
 	StatusReady:        "ᓴᐳᒻᒥᔪᖅ",               // Ready
@@ -301,13 +329,17 @@ var iu = Strings{
 	BenchmarkRecent:    "ᓂᕈᓐᓇᓯᔪᓂᒃ ᖃᐅᔨᓴᓚᐅᖅᑕᑦ",                              // Recent Benchmarks
 
 	// ── Queue ─────────────────────────────────────────────────────────────
-	QueueTitle:      "ᓄᐊᑕᐅᓯᒪᔪᑦ",                // Queue
-	QueueEmpty:      "ᐱᓕᕆᒐᒃᓴᑦ ᓄᐊᑕᐅᓯᒪᔪᑦ ᓄᖅᑲᖅᑐᑦ", // No jobs in queue
-	QueueInProgress: "ᐱᓕᕆᔭᐅᔪᖅ",                 // In Progress
-	QueueCompleted:  "ᐃᓱᓕᓚᐅᖅᑐᖅ",                // Completed
-	QueueFailed:     "ᐊᔪᕈᓐᓃᓚᐅᖅᑐᖅ",              // Failed
-	QueueJobRunning: "ᐱᓕᕆᔭᐅᔪᖅ...",              // Running...
-	QueueJobPending: "ᐊᑦᑐᓂᖅ",                   // Pending
+	QueueTitle:                "ᓄᐊᑕᐅᓯᒪᔪᑦ",                // Queue
+	QueueEmpty:                "ᐱᓕᕆᒐᒃᓴᑦ ᓄᐊᑕᐅᓯᒪᔪᑦ ᓄᖅᑲᖅᑐᑦ", // No jobs in queue
+	QueueInProgress:           "ᐱᓕᕆᔭᐅᔪᖅ",                 // In Progress
+	QueueCompleted:            "ᐃᓱᓕᓚᐅᖅᑐᖅ",                // Completed
+	QueueFailed:               "ᐊᔪᕈᓐᓃᓚᐅᖅᑐᖅ",              // Failed
+	QueueJobRunning:           "ᐱᓕᕆᔭᐅᔪᖅ...",              // Running...
+	QueueJobPending:           "ᐊᑦᑐᓂᖅ",                   // Pending
+	ActionQueueStart:          "ᓄᐊᑕᐅᓯᓗᒍ ᓄᐊᑕᐅᓯᒪᔪᑦ",        // Start Queue
+	ActionQueuePauseAll:       "ᐊᑦᑐᓂᐃᓐᓇᖅᑐᑦ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",   // Pause All
+	ActionQueueResumeAll:      "ᐊᑦᑐᓂᐃᓐᓇᖅᑐᑦ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",   // Resume All
+	ActionQueueClearCompleted: "ᐃᓱᓕᓚᐅᖅᑐᑦ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",     // Clear Completed
 
 	// ── History Sidebar ───────────────────────────────────────────────────
 	HistoryTitle:     "ᐊᑐᓚᐅᖅᑕᑦ",     // HISTORY
@@ -433,6 +465,7 @@ var iu = Strings{
 	RIFEModelLabel:      "ᐊᑐᖅᑕᐅᔾᔪᑎᒃ:",                                 // Model:
 	RIFEEstFPSFmt:       "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᑦ ᐊᑭᓕᒐᒃᓴᖓ: %.0f fps",               // Estimated output: %.0f fps
 	RIFENote:            "RIFE ᑕᑯᒃᓴᑦᑎᐊᕈᑎᑦ ᓄᑖᑦ ᓴᓇᔪᖅ ᑕᕐᕆᔭᒐᒃᓴᒥᒃ ᐊᑭᓕᒃᑯᑦ.", // RIFE note
+	RIFEInstallHint:     "ᐊᑐᕐᓗᒍ ᐋᖅᑭᒋᐊᕈᑎᑦ → ᑐᙵᕕᒋᔭᐅᔪᑦ",                  // Install via Settings → Dependencies
 
 	// ── Thumbnail / Contact Sheet ─────────────────────────────────────────
 	ThumbnailGenerateNow:        "ᐱᒋᐊᕈᑎᒋᓗᒍ",                                                // GENERATE NOW
@@ -474,7 +507,7 @@ var iu = Strings{
 	AboutLicense:     "ᐊᑐᕐᓂᒧᑦ ᐊᓂᕐᕋᖅ",                                                                // License
 	AboutSupport:     "ᐃᑲᔪᖅᑐᐃᓂᖅ",                                                                    // Support
 	AboutLogsFolder:  "ᑎᑎᕋᖅᑕᐅᓯᒪᔪᑦ ᓄᓇᓕᖕᓂ",                                                            // Logs Folder
-	AboutScanForDocs: "Dev Builds",                                                                    // Dev Builds
+	AboutScanForDocs: "Dev Builds",                                                                  // Dev Builds
 	AboutFeedback:    "ᑐᓴᕈᑕᐅᔪᒃᓴᑦ: ᑎᑎᕋᖅᑕᐅᓯᒪᔪᓂᒃ ᑕᑯᓗᒋᑦ ᑕᕐᕆᔭᒐᓕᕆᔾᔪᑎᒃ ᑕᑯᕕᒋᓗᒍ; ᐱᒻᒪᕆᐅᔪᑦ ᑎᑎᕋᖅᑕᐅᓯᒪᔪᓂᒃ ᑐᓂᓯᓗᒍ.", // Feedback
 	AboutClose:       "ᒪᑕᐃᓗᒍ",                                                                       // Close
 
