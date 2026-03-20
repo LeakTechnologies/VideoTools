@@ -207,29 +207,16 @@ func (m *MonoTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
 }
 
 func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
-	// Syllabics need a larger point size — the glyphs are more intricate than
-	// Latin and become hard to read at normal sizes.
-	aboriginal := fontMode == "aboriginal"
-
 	switch name {
 	case theme.SizeNamePadding:
 		return 6
 	case theme.SizeNameInnerPadding:
 		return 8
 	case theme.SizeNameText:
-		if aboriginal {
-			return 16
-		}
 		return 14
 	case theme.SizeNameHeadingText:
-		if aboriginal {
-			return 21
-		}
 		return 18
 	case theme.SizeNameSubHeadingText:
-		if aboriginal {
-			return 18
-		}
 		return 15
 	case theme.SizeNameInputBorder:
 		return 0

@@ -17,7 +17,7 @@ var allLanguages = []Language{
 	{
 		Code:        "iu",
 		EnglishName: "Inuktitut",
-		NativeName:  "ᐃᓄᒃᑎᑐᑦ",
+		NativeName:  "ᐃᓄᒃᑎᑐᑦ (Inuktitut)",
 		Font:        "aboriginal",
 	},
 }
