@@ -53,6 +53,12 @@
 - [x] **Full goroutine dump** - LogAllGoroutines dumps all goroutines to crash log
 - [x] **RecoverPanicWithCallback** - New logging helper with callback option
 
+### Loading & Error States (Phase 7)
+- [x] **Buffering indicator** - SetBuffering/IsBuffering methods with "Buffering..." label
+- [x] **Error state** - SetError/ClearError/HasError with red indicator + message
+- [x] **Seeking indicator** - isSeeking state, FinishSeeking method
+- [x] **Error logging** - Tapped on error logs message and shows crash log path
+
 ### i18n Strings (NEW)
 - [x] **Player strings** - PlayerLoading, PlayerBuffering, PlayerSpeed, PlayerChapter, PlayerChapters, PlayerNoChapters, PlayerSpeed* (8 new strings)
 

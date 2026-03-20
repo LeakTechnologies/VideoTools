@@ -178,6 +178,7 @@ func (s *trimState) loadVideo(path string) {
 		s.player.SetLoading(false)
 	})
 
+	s.player.ClearError()
 	s.player.SetLoading(true)
 	s.engine = media.NewEngine()
 	s.engine.SetSeekAccuracy(media.SeekAccuracyKeyframe)
@@ -187,6 +188,7 @@ func (s *trimState) loadVideo(path string) {
 	if err := s.engine.Open(path); err != nil {
 		logging.Error(logging.CatPlayer, "Trim loadVideo: failed to open %s: %v", path, err)
 		s.player.SetLoading(false)
+		s.player.SetError(fmt.Sprintf("Failed to open: %v", err))
 		return
 	}
 	logging.Info(logging.CatPlayer, "Trim loadVideo: file opened successfully")
