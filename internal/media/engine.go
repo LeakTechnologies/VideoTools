@@ -1163,6 +1163,58 @@ func (e *Engine) Open(path string) error {
 	return nil
 }
 
+func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.RGBA)) {
+	go func() {
+		defer logging.RecoverPanic()
+
+		duration := e.Duration()
+		if duration <= 0 {
+			return
+		}
+
+		interval := 10.0
+		if interval < 1 {
+			interval = 1
+		}
+
+		thumbSize := 160
+		thumbHeight := 90
+
+		swsCtx := C.sws_getContext(
+			e.videoCodecCtx.width, e.videoCodecCtx.height, e.videoCodecCtx.pix_fmt,
+			C.int(thumbSize), C.int(thumbHeight), C.AV_PIX_FMT_RGBA,
+			C.SWS_BILINEAR, nil, nil, nil,
+		)
+		if swsCtx == nil {
+			return
+		}
+		defer C.sws_freeContext(swsCtx)
+
+		thumbBuffer := make([]byte, thumbSize*thumbHeight*4)
+
+		for t := 0.0; t < duration; t += interval {
+			select {
+			case <-e.stop:
+				return
+			default:
+			}
+
+			if err := e.Seek(t); err != nil {
+				continue
+			}
+
+			img, err := e.NextFrame()
+			if err != nil || img == nil {
+				continue
+			}
+
+			if onFrame != nil {
+				onFrame(t, img)
+			}
+		}
+	}()
+}
+
 func av_get_pix_fmt_name(fmt C.enum_AVPixelFormat) *C.char {
 	return C.av_get_pix_fmt_name(fmt)
 }
