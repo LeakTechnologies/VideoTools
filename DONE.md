@@ -45,6 +45,13 @@
 - [x] **Filter API** - SetFilter, EnableFilter, ClearFilters, GetFilterGraph methods
 - [x] **Preset support** - SetPreset with vintage, warm, cool, high_contrast, soft, vivid
 
+### Picture-in-Picture (Phase 8)
+- [x] **PiPController** - PiPController struct with Enable/Disable/Toggle/IsEnabled
+- [x] **PiP positions** - TopLeft, TopRight, BottomLeft, BottomRight
+- [x] **Windows PiP implementation** - SetWindowDisplayAffinity via user32.dll
+- [x] **PiP stub for non-Windows** - Cross-platform compilation support
+- [x] **PiP button in VideoPlayer** - togglePiP, IsPiP, OnPiP callback
+
 ### Crash Logging & Error Recovery
 - [x] **FFmpeg error logging** - avformat_open_input now logs FFmpeg error codes and messages
 - [x] **avformat_find_stream_info logging** - Logs return code and error string on failure
