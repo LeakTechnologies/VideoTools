@@ -91,6 +91,7 @@
 - [x] **UpdatePixels method** - Added to canvas.Raster for efficient pixel data updates
 - [x] **Texture reuse** - newGlRasterTexture now reuses cached textures when size matches
 - [x] **VideoTools integration** - go.mod uses replace directive to lt_mirror/fyne
+- [x] **VideoPlayer wired** - SetFrame() uses UpdatePixels() when canvas size matches, enabling TexSubImage2D path
 
 ### Crash Logging & Error Recovery
 - [x] **FFmpeg error logging** - avformat_open_input now logs FFmpeg error codes and messages
