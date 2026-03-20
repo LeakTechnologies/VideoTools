@@ -28,7 +28,7 @@ import (
 	"sync"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/filters"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/media/filters"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
