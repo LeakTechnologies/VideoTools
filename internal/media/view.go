@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 const (
@@ -199,16 +200,25 @@ type VideoPlayer struct {
 	speedBtn       *widget.Button
 	prevChapterBtn *widget.Button
 	nextChapterBtn *widget.Button
+	fullscreenBtn  *widget.Button
 	loadingSpinner *widget.ProgressBarInfinite
+	bufferingLabel *widget.Label
+	errorLabel     *widget.Label
+	errorIndicator *canvas.Circle
 	controls       *fyne.Container
 	controlBar     *canvas.Rectangle
 
-	isPlaying   bool
-	isLoading   bool
-	currentTime float64
-	duration    float64
-	volume      float64
-	speed       float64
+	isPlaying    bool
+	isLoading    bool
+	isBuffering  bool
+	isSeeking    bool
+	isFullscreen bool
+	hasError     bool
+	errorMessage string
+	currentTime  float64
+	duration     float64
+	volume       float64
+	speed        float64
 
 	chapters     []Chapter
 	chapterMark  []*canvas.Circle
@@ -224,6 +234,7 @@ type VideoPlayer struct {
 	onPrevChapter   func()
 	onNextChapter   func()
 	onChapterSelect func(int)
+	onFullscreen    func(bool)
 
 	showControls bool
 	mouseInView  bool
@@ -252,6 +263,7 @@ func (v *VideoPlayer) buildControls() {
 
 	v.slider = widget.NewSlider(0, 100)
 	v.slider.OnChanged = func(pos float64) {
+		v.isSeeking = true
 		if v.duration > 0 {
 			target := (pos / 100.0) * v.duration
 			v.currentTime = target
@@ -288,6 +300,21 @@ func (v *VideoPlayer) buildControls() {
 	v.loadingSpinner = widget.NewProgressBarInfinite()
 	v.loadingSpinner.Hide()
 
+	v.bufferingLabel = widget.NewLabel("Buffering...")
+	v.bufferingLabel.TextStyle = fyne.TextStyle{Bold: true}
+	v.bufferingLabel.Hide()
+
+	v.errorIndicator = canvas.NewCircle(color.RGBA{R: 0xFF, G: 0x44, B: 0x44, A: 0xFF})
+	v.errorIndicator.Hide()
+
+	v.errorLabel = widget.NewLabel("")
+	v.errorLabel.TextStyle = fyne.TextStyle{Bold: true}
+	v.errorLabel.Hide()
+
+	v.fullscreenBtn = widget.NewButton("⛶", v.toggleFullscreen)
+	v.fullscreenBtn.Importance = widget.LowImportance
+	v.fullscreenBtn.Resize(fyne.NewSize(36, 24))
+
 	v.markerCanvas = canvas.NewRaster(v.drawChapterMarkers)
 	seekStack := container.NewStack(v.slider, v.markerCanvas)
 
@@ -303,6 +330,7 @@ func (v *VideoPlayer) buildControls() {
 		layout.NewSpacer(),
 		v.speedBtn,
 		v.volumeBtn,
+		v.fullscreenBtn,
 	)
 
 	v.controlBar = canvas.NewRectangle(controlBarBG)
@@ -408,6 +436,63 @@ func (v *VideoPlayer) SetLoading(loading bool) {
 			v.loadingSpinner.Hide()
 		}
 	}
+	v.Refresh()
+}
+
+func (v *VideoPlayer) SetBuffering(buffering bool) {
+	v.isBuffering = buffering
+	if v.bufferingLabel != nil {
+		if buffering {
+			v.bufferingLabel.Show()
+		} else {
+			v.bufferingLabel.Hide()
+		}
+	}
+	v.Refresh()
+}
+
+func (v *VideoPlayer) IsBuffering() bool {
+	return v.isBuffering
+}
+
+func (v *VideoPlayer) SetError(message string) {
+	v.hasError = true
+	v.errorMessage = message
+	if v.errorLabel != nil {
+		v.errorLabel.SetText(message)
+		v.errorLabel.Show()
+	}
+	if v.errorIndicator != nil {
+		v.errorIndicator.Show()
+	}
+	if v.loadingSpinner != nil {
+		v.loadingSpinner.Hide()
+	}
+	v.Refresh()
+}
+
+func (v *VideoPlayer) ClearError() {
+	v.hasError = false
+	v.errorMessage = ""
+	if v.errorLabel != nil {
+		v.errorLabel.Hide()
+	}
+	if v.errorIndicator != nil {
+		v.errorIndicator.Hide()
+	}
+	v.Refresh()
+}
+
+func (v *VideoPlayer) HasError() bool {
+	return v.hasError
+}
+
+func (v *VideoPlayer) IsSeeking() bool {
+	return v.isSeeking
+}
+
+func (v *VideoPlayer) FinishSeeking() {
+	v.isSeeking = false
 	v.Refresh()
 }
 
@@ -599,6 +684,35 @@ func (v *VideoPlayer) GetChapterCount() int {
 	return len(v.chapters)
 }
 
+func (v *VideoPlayer) toggleFullscreen() {
+	v.isFullscreen = !v.isFullscreen
+	if v.fullscreenBtn != nil {
+		if v.isFullscreen {
+			v.fullscreenBtn.SetText("❎")
+		} else {
+			v.fullscreenBtn.SetText("⛶")
+		}
+	}
+	if v.onFullscreen != nil {
+		v.onFullscreen(v.isFullscreen)
+	}
+}
+
+func (v *VideoPlayer) SetFullscreen(fullscreen bool) {
+	if v.isFullscreen == fullscreen {
+		return
+	}
+	v.toggleFullscreen()
+}
+
+func (v *VideoPlayer) IsFullscreen() bool {
+	return v.isFullscreen
+}
+
+func (v *VideoPlayer) OnFullscreen(cb func(bool)) {
+	v.onFullscreen = cb
+}
+
 func (v *VideoPlayer) MouseIn(ev *desktop.MouseEvent) {
 	v.mouseInView = true
 	v.showControls = true
@@ -612,6 +726,10 @@ func (v *VideoPlayer) MouseOut() {
 }
 
 func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {
+	if v.hasError && v.errorMessage != "" {
+		logging.Info(logging.CatPlayer, "VideoPlayer error: %s", v.errorMessage)
+		return
+	}
 	v.togglePlay()
 }
 
