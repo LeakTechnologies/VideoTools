@@ -203,6 +203,8 @@ func (s *trimState) loadVideo(path string) {
 	}
 	logging.Info(logging.CatPlayer, "Trim loadVideo: file opened successfully")
 
+	s.engine.InitFrameCache(30)
+
 	s.duration = s.engine.Duration()
 	s.player.SetDuration(s.duration)
 
