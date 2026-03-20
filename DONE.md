@@ -60,6 +60,14 @@
 - [x] **Trim integration** - Checks saved position on load, seeks to it
 - [x] **Auto-save** - Periodic position saving every 5 seconds during playback
 
+### Subtitle Rendering (Phase 10)
+- [x] **Subtitle overlay** - SubtitleOverlay struct with Bounds() method
+- [x] **RenderSubtitles** - Draws subtitle background on video frame
+- [x] **Subtitle decoding** - initSubtitleDecoder, decodeSubtitle, UpdateSubtitles
+- [x] **Subtitle track selection** - SelectSubtitleTrack, DisableSubtitles
+- [x] **Subtitle toggle button** - CC button in VideoPlayer controls
+- [x] **Subtitle callbacks** - OnSubtitles, IsSubtitlesEnabled, SetSubtitlesEnabled
+
 ### Crash Logging & Error Recovery
 - [x] **FFmpeg error logging** - avformat_open_input now logs FFmpeg error codes and messages
 - [x] **avformat_find_stream_info logging** - Logs return code and error string on failure

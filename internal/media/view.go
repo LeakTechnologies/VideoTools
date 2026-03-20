@@ -202,6 +202,7 @@ type VideoPlayer struct {
 	nextChapterBtn *widget.Button
 	fullscreenBtn  *widget.Button
 	pipBtn         *widget.Button
+	subtitleBtn    *widget.Button
 	loadingSpinner *widget.ProgressBarInfinite
 	bufferingLabel *widget.Label
 	errorLabel     *widget.Label
@@ -209,18 +210,19 @@ type VideoPlayer struct {
 	controls       *fyne.Container
 	controlBar     *canvas.Rectangle
 
-	isPlaying    bool
-	isLoading    bool
-	isBuffering  bool
-	isSeeking    bool
-	isFullscreen bool
-	isPiP        bool
-	hasError     bool
-	errorMessage string
-	currentTime  float64
-	duration     float64
-	volume       float64
-	speed        float64
+	isPlaying        bool
+	isLoading        bool
+	isBuffering      bool
+	isSeeking        bool
+	isFullscreen     bool
+	isPiP            bool
+	subtitlesEnabled bool
+	hasError         bool
+	errorMessage     string
+	currentTime      float64
+	duration         float64
+	volume           float64
+	speed            float64
 
 	chapters     []Chapter
 	chapterMark  []*canvas.Circle
@@ -238,6 +240,9 @@ type VideoPlayer struct {
 	onChapterSelect func(int)
 	onFullscreen    func(bool)
 	onPiP           func()
+	onSubtitles     func(bool)
+
+	subtitleBgAlpha int
 
 	showControls bool
 	mouseInView  bool
@@ -322,6 +327,10 @@ func (v *VideoPlayer) buildControls() {
 	v.pipBtn.Importance = widget.LowImportance
 	v.pipBtn.Resize(fyne.NewSize(36, 24))
 
+	v.subtitleBtn = widget.NewButton("CC", v.toggleSubtitles)
+	v.subtitleBtn.Importance = widget.LowImportance
+	v.subtitleBtn.Resize(fyne.NewSize(36, 24))
+
 	v.markerCanvas = canvas.NewRaster(v.drawChapterMarkers)
 	seekStack := container.NewStack(v.slider, v.markerCanvas)
 
@@ -337,6 +346,7 @@ func (v *VideoPlayer) buildControls() {
 		layout.NewSpacer(),
 		v.speedBtn,
 		v.volumeBtn,
+		v.subtitleBtn,
 		v.pipBtn,
 		v.fullscreenBtn,
 	)
@@ -742,6 +752,42 @@ func (v *VideoPlayer) togglePiP() {
 
 func (v *VideoPlayer) IsPiP() bool {
 	return v.isPiP
+}
+
+func (v *VideoPlayer) OnSubtitles(cb func(bool)) {
+	v.onSubtitles = cb
+}
+
+func (v *VideoPlayer) toggleSubtitles() {
+	v.subtitlesEnabled = !v.subtitlesEnabled
+	if v.subtitleBtn != nil {
+		if v.subtitlesEnabled {
+			v.subtitleBtn.Text = "CC"
+			v.subtitleBtn.Importance = widget.MediumImportance
+		} else {
+			v.subtitleBtn.Text = "CC"
+			v.subtitleBtn.Importance = widget.LowImportance
+		}
+	}
+	if v.onSubtitles != nil {
+		v.onSubtitles(v.subtitlesEnabled)
+	}
+	logging.Info(logging.CatPlayer, "Subtitles toggled: %v", v.subtitlesEnabled)
+}
+
+func (v *VideoPlayer) IsSubtitlesEnabled() bool {
+	return v.subtitlesEnabled
+}
+
+func (v *VideoPlayer) SetSubtitlesEnabled(enabled bool) {
+	v.subtitlesEnabled = enabled
+	if v.subtitleBtn != nil {
+		if enabled {
+			v.subtitleBtn.Importance = widget.MediumImportance
+		} else {
+			v.subtitleBtn.Importance = widget.LowImportance
+		}
+	}
 }
 
 func (v *VideoPlayer) MouseIn(ev *desktop.MouseEvent) {
