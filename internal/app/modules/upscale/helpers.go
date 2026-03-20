@@ -9,7 +9,7 @@ import (
 )
 
 func DetectAIUpscaleBackend() string {
-	if _, err := exec.LookPath("realesrgan-ncnn-vulkan"); err == nil {
+	if _, ok := utils.FindTool("realesrgan-ncnn-vulkan"); ok {
 		return "ncnn"
 	}
 
@@ -284,9 +284,10 @@ func ValidateAIUpscaleParams(model string, scale float64) string {
 	return ""
 }
 
-// DetectRIFEBackend returns "ncnn" if rife-ncnn-vulkan is found in PATH, otherwise "".
+// DetectRIFEBackend returns "ncnn" if rife-ncnn-vulkan is found in PATH or the
+// VideoTools app-local bin directory, otherwise "".
 func DetectRIFEBackend() string {
-	if _, err := exec.LookPath("rife-ncnn-vulkan"); err == nil {
+	if _, ok := utils.FindTool("rife-ncnn-vulkan"); ok {
 		return "ncnn"
 	}
 	return ""

@@ -285,15 +285,18 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 
 	// Video Codec selection
 	videoCodecOptions := []string{"H.264", "H.265", "VP9", "AV1", "Copy"}
-	videoCodecSelect := widget.NewSelect(videoCodecOptions, func(value string) {
+	videoCodecColorMap := ui.BuildVideoCodecColorMap(videoCodecOptions)
+	videoCodecSelect := ui.NewColoredSelect(videoCodecOptions, videoCodecColorMap, func(value string) {
 		state.upscaleVideoCodec = value
-	})
+	}, state.window)
 	videoCodecSelect.SetSelected(state.upscaleVideoCodec)
 
 	// Container selection
-	containerSelect := widget.NewSelect([]string{"mp4", "mkv", "mov", "webm"}, func(s string) {
+	containerOptions := []string{"mp4", "mkv", "mov", "webm"}
+	containerColorMap := ui.BuildFormatColorMap(containerOptions)
+	containerSelect := ui.NewColoredSelect(containerOptions, containerColorMap, func(s string) {
 		state.upscaleOutputContainer = s
-	})
+	}, state.window)
 	if state.upscaleOutputContainer == "" {
 		state.upscaleOutputContainer = "mp4"
 	}
@@ -361,9 +364,11 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	}
 
 	// Pixel format selection
-	pixelFormatSelect := widget.NewSelect([]string{"yuv420p", "yuv444p", "yuv420p10le"}, func(s string) {
+	pixelFormatOptions := []string{"yuv420p", "yuv444p", "yuv420p10le"}
+	pixelFormatColorMap := ui.BuildPixelFormatColorMap(pixelFormatOptions)
+	pixelFormatSelect := ui.NewColoredSelect(pixelFormatOptions, pixelFormatColorMap, func(s string) {
 		state.upscalePixelFormat = s
-	})
+	}, state.window)
 	if state.upscalePixelFormat == "" {
 		state.upscalePixelFormat = "yuv420p"
 	}

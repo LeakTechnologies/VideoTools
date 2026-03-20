@@ -475,7 +475,7 @@ var iuLatn = Strings{
 	AboutLicense:     "Atuqniimut Anirraaq",                                                                                                          // License
 	AboutSupport:     "Ikajuqtuiniq",                                                                                                                 // Support
 	AboutLogsFolder:  "Titiraqtausimaujut Nunalingnni",                                                                                               // Logs Folder
-	AboutScanForDocs: "Titiraqtausimaujut Niruarlugit",                                                                                               // Scan for docs
+	AboutScanForDocs: "Dev Builds",                                                                                                                   // Dev Builds
 	AboutFeedback:    "Tusaajautitsijaksait: Titiraqtausimaujunik takulugit tarvijagalirijutinik; pijariaqartunik titiraqtausimaujunik tunisillugu.", // Feedback
 	AboutClose:       "Matailugu",                                                                                                                    // Close
 

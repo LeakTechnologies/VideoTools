@@ -238,6 +238,20 @@ func (s *appState) refreshQueueView() {
 				s.window.Clipboard().SetContent(cmdStr)
 				dialog.ShowInformation("Copied", "FFmpeg command copied to clipboard", s.window)
 			},
+			func(id string) { // onOpenFolder
+				job, err := s.jobQueue.Get(id)
+				if err != nil || job.OutputFile == "" {
+					return
+				}
+				_ = openFolder(filepath.Dir(job.OutputFile))
+			},
+			func(id string) { // onOpenOutput
+				job, err := s.jobQueue.Get(id)
+				if err != nil || job.OutputFile == "" {
+					return
+				}
+				_ = openURL(job.OutputFile)
+			},
 			utils.MustHex("#4CE870"), // titleColor
 			gridColor,                // bgColor
 			textColor,                // textColor

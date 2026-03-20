@@ -510,7 +510,7 @@ func (g *Generator) buildMetadataFilter(
 	} else {
 		audioInfo = audioCodec
 	}
-	line3 := fmt.Sprintf("Video\\: %s · Audio\\: %s · %d kbps", videoCodec, audioInfo, bitrateKbps)
+	line3 := fmt.Sprintf("Video\\: %s / Audio\\: %s / %d kbps", videoCodec, audioInfo, bitrateKbps)
 
 	// Font args: bold for line 1 (filename), regular for lines 2 and 3.
 	regularFontPath := g.findFontPath()
