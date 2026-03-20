@@ -84,6 +84,14 @@
 - [x] **PlaybackFrameCache** - Engine frame cache for smooth scrubbing
 - [x] **InitFrameCache** - Initialize frame cache with configurable size
 
+### Fyne Fork for GPU Texture Optimization
+- [x] **Fork created** - https://git.leaktechnologies.dev/lt_mirror/fyne
+- [x] **TexSubImage2D** - Added to GL context interface for efficient texture updates
+- [x] **All GL backends** - Implemented in gl_core.go, gl_es.go, gl_gomobile.go, gl_wasm.go
+- [x] **UpdatePixels method** - Added to canvas.Raster for efficient pixel data updates
+- [x] **Texture reuse** - newGlRasterTexture now reuses cached textures when size matches
+- [x] **VideoTools integration** - go.mod uses replace directive to lt_mirror/fyne
+
 ### Crash Logging & Error Recovery
 - [x] **FFmpeg error logging** - avformat_open_input now logs FFmpeg error codes and messages
 - [x] **avformat_find_stream_info logging** - Logs return code and error string on failure
