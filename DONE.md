@@ -91,6 +91,14 @@
 - [x] **Panic recovery in trim module** - loadVideo and playbackLoop have RecoverPanic
 - [x] **Full goroutine dump** - LogAllGoroutines dumps all goroutines to crash log
 - [x] **RecoverPanicWithCallback** - New logging helper with callback option
+- [x] **Panic recovery in inspect module** - inspectLoadVideo and inspectPlaybackLoop have RecoverPanic
+
+### VideoPlayer Consistency Across Modules
+- [x] **Inspect module VideoPlayer** - Added `inspectState` struct with player and engine fields
+- [x] **Inspect playback callbacks** - OnPlay, OnPause, OnSeek, OnSpeedChange wired to engine
+- [x] **inspectPlaybackLoop** - Frame loop mirrors trim module pattern
+- [x] **inspectLoadVideo** - File loading with engine initialization, mirrors trim module
+- [x] **VideoPlayer widget integration** - Replaced static preview images with full VideoPlayer widget
 
 ### Loading & Error States (Phase 7)
 - [x] **Buffering indicator** - SetBuffering/IsBuffering methods with "Buffering..." label
