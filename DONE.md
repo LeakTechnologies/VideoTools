@@ -68,6 +68,11 @@
 - [x] **Subtitle toggle button** - CC button in VideoPlayer controls
 - [x] **Subtitle callbacks** - OnSubtitles, IsSubtitlesEnabled, SetSubtitlesEnabled
 
+### GPU Rendering (Performance)
+- [x] **Fast scaling** - scaleNearest() with nearest-neighbor interpolation
+- [x] **Display frame tracking** - displayWidth, displayHeight, frameSeq for caching
+- [x] **Optimized draw loop** - Pre-calculated scaling factors, direct pixel access
+
 ### Crash Logging & Error Recovery
 - [x] **FFmpeg error logging** - avformat_open_input now logs FFmpeg error codes and messages
 - [x] **avformat_find_stream_info logging** - Logs return code and error string on failure
