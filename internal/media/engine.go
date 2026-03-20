@@ -958,19 +958,35 @@ func (e *Engine) Open(path string) error {
 
 	logging.Info(logging.CatPlayer, "Opening media file: %s", path)
 
-	if C.avformat_open_input(&e.formatCtx, cPath, nil, nil) != 0 {
+	ret := C.avformat_open_input(&e.formatCtx, cPath, nil, nil)
+	if ret != 0 {
+		errBuf := make([]byte, 256)
+		C.av_strerror(ret, (*C.char)(unsafe.Pointer(&errBuf[0])), 256)
+		errStr := C.GoString((*C.char)(unsafe.Pointer(&errBuf[0])))
+		if errStr == "" {
+			errStr = "unknown FFmpeg error"
+		}
+		logging.Error(logging.CatPlayer, "avformat_open_input failed for %s: %s (code: %d)", path, errStr, ret)
 		return fmt.Errorf("failed to open input file: %s", path)
 	}
 
-	if C.avformat_find_stream_info(e.formatCtx, nil) < 0 {
+	ret := C.avformat_find_stream_info(e.formatCtx, nil)
+	if ret < 0 {
+		errBuf := make([]byte, 256)
+		C.av_strerror(ret, (*C.char)(unsafe.Pointer(&errBuf[0])), 256)
+		errStr := C.GoString((*C.char)(unsafe.Pointer(&errBuf[0])))
+		logging.Error(logging.CatPlayer, "avformat_find_stream_info failed: %s (code: %d)", errStr, ret)
 		C.avformat_close_input(&e.formatCtx)
-		return fmt.Errorf("failed to find stream info")
+		return fmt.Errorf("failed to find stream info: %s", errStr)
 	}
+	logging.Info(logging.CatPlayer, "avformat_find_stream_info succeeded")
 
 	var videoCodec, audioCodec, subtitleCodec *C.AVCodec
 	e.videoStreamIdx = int(C.av_find_best_stream(e.formatCtx, C.AVMEDIA_TYPE_VIDEO, -1, -1, &videoCodec, 0))
 	e.audioStreamIdx = int(C.av_find_best_stream(e.formatCtx, C.AVMEDIA_TYPE_AUDIO, -1, -1, &audioCodec, 0))
 	e.subtitleStreamIdx = int(C.av_find_best_stream(e.formatCtx, C.AVMEDIA_TYPE_SUBTITLE, -1, -1, &subtitleCodec, 0))
+	logging.Info(logging.CatPlayer, "Streams found - video: %d, audio: %d, subtitle: %d",
+		e.videoStreamIdx, e.audioStreamIdx, e.subtitleStreamIdx)
 
 	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(e.formatCtx.streams))
 

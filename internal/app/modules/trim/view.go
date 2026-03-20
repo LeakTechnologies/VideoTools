@@ -174,15 +174,23 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 }
 
 func (s *trimState) loadVideo(path string) {
+	defer logging.RecoverPanicWithCallback(func() {
+		s.player.SetLoading(false)
+	})
+
 	s.player.SetLoading(true)
 	s.engine = media.NewEngine()
 	s.engine.SetSeekAccuracy(media.SeekAccuracyKeyframe)
 	s.engine.SetDropFrames(true)
+
+	logging.Info(logging.CatPlayer, "Trim loadVideo: opening %s", path)
 	if err := s.engine.Open(path); err != nil {
-		logging.Error(logging.CatPlayer, "Trim: failed to open %s: %v", path, err)
+		logging.Error(logging.CatPlayer, "Trim loadVideo: failed to open %s: %v", path, err)
 		s.player.SetLoading(false)
 		return
 	}
+	logging.Info(logging.CatPlayer, "Trim loadVideo: file opened successfully")
+
 	s.duration = s.engine.Duration()
 	s.player.SetDuration(s.duration)
 
@@ -198,6 +206,9 @@ func (s *trimState) loadVideo(path string) {
 }
 
 func (s *trimState) playbackLoop() {
+	defer logging.RecoverPanic()
+	defer logging.LogAllGoroutines()
+
 	for {
 		img, err := s.engine.NextFrame()
 		if err != nil {

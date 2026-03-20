@@ -45,6 +45,14 @@
 - [x] **Filter API** - SetFilter, EnableFilter, ClearFilters, GetFilterGraph methods
 - [x] **Preset support** - SetPreset with vintage, warm, cool, high_contrast, soft, vivid
 
+### Crash Logging & Error Recovery
+- [x] **FFmpeg error logging** - avformat_open_input now logs FFmpeg error codes and messages
+- [x] **avformat_find_stream_info logging** - Logs return code and error string on failure
+- [x] **Stream detection logging** - Logs video/audio/subtitle stream indices
+- [x] **Panic recovery in trim module** - loadVideo and playbackLoop have RecoverPanic
+- [x] **Full goroutine dump** - LogAllGoroutines dumps all goroutines to crash log
+- [x] **RecoverPanicWithCallback** - New logging helper with callback option
+
 ### i18n Strings (NEW)
 - [x] **Player strings** - PlayerLoading, PlayerBuffering, PlayerSpeed, PlayerChapter, PlayerChapters, PlayerNoChapters, PlayerSpeed* (8 new strings)
 
