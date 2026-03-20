@@ -259,6 +259,10 @@ type VideoPlayer struct {
 	showControls bool
 	mouseInView  bool
 	minimal      bool
+
+	raster        *canvas.Raster
+	currentWidth  int
+	currentHeight int
 }
 
 func NewVideoPlayer() *VideoPlayer {
@@ -410,7 +414,59 @@ func (v *VideoPlayer) CreateRenderer() fyne.WidgetRenderer {
 
 func (v *VideoPlayer) SetFrame(img *image.RGBA) {
 	v.source = img
-	v.Refresh()
+	if img == nil {
+		return
+	}
+
+	srcW := img.Bounds().Dx()
+	srcH := img.Bounds().Dy()
+	if srcW == 0 || srcH == 0 {
+		return
+	}
+
+	size := v.Size()
+	w := int(size.Width)
+	h := int(size.Height)
+	if w <= 0 || h <= 0 {
+		v.Refresh()
+		return
+	}
+
+	availableH := h
+	if v.showControls {
+		availableH = h - controlBarHeight
+		if availableH < 0 {
+			availableH = h
+		}
+	}
+
+	newW := w
+	newH := availableH
+	scaleX := float64(w) / float64(srcW)
+	scaleY := float64(availableH) / float64(srcH)
+	scale := scaleX
+	if scaleY < scale {
+		scale = scaleY
+	}
+	newW = int(float64(srcW) * scale)
+	newH = int(float64(srcH) * scale)
+	offsetX := (w - newW) / 2
+	offsetY := (availableH - newH) / 2
+
+	displayImg := image.NewRGBA(image.Rect(0, 0, w, availableH))
+	draw.Draw(displayImg, displayImg.Bounds(), image.Black, image.Point{}, draw.Src)
+	v.scaleNearest(img, displayImg, srcW, srcH, newW, newH, offsetX, offsetY)
+
+	if v.raster != nil && v.currentWidth == w && v.currentHeight == availableH {
+		v.raster.UpdatePixels(w, availableH, displayImg.Pix)
+	} else {
+		v.raster = canvas.NewRaster(func(rw, rh int) image.Image {
+			return displayImg
+		})
+		v.currentWidth = w
+		v.currentHeight = availableH
+		v.Refresh()
+	}
 }
 
 func (v *VideoPlayer) SetDuration(d float64) {
@@ -966,18 +1022,19 @@ func formatVideoTime(seconds float64) string {
 
 type videoPlayerRenderer struct {
 	*VideoPlayer
-	raster *canvas.Raster
 }
 
 func (r *videoPlayerRenderer) Objects() []fyne.CanvasObject {
-	if r.raster == nil {
-		r.raster = canvas.NewRaster(r.VideoPlayer.draw)
+	if r.VideoPlayer.raster == nil {
+		r.VideoPlayer.raster = canvas.NewRaster(r.VideoPlayer.draw)
 	}
-	return []fyne.CanvasObject{r.raster, r.VideoPlayer.controlBar, r.VideoPlayer.controls}
+	return []fyne.CanvasObject{r.VideoPlayer.raster, r.VideoPlayer.controlBar, r.VideoPlayer.controls}
 }
 
 func (r *videoPlayerRenderer) Layout(size fyne.Size) {
-	r.raster.Resize(size)
+	if r.VideoPlayer.raster != nil {
+		r.VideoPlayer.raster.Resize(size)
+	}
 
 	barHeight := float32(controlBarHeight)
 	if r.minimal {
@@ -1003,7 +1060,9 @@ func (r *videoPlayerRenderer) Layout(size fyne.Size) {
 }
 
 func (r *videoPlayerRenderer) Refresh() {
-	r.raster.Refresh()
+	if r.VideoPlayer.raster != nil {
+		r.VideoPlayer.raster.Refresh()
+	}
 }
 
 func (r *videoPlayerRenderer) Destroy() {
