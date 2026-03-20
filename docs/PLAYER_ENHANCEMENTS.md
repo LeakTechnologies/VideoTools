@@ -6,6 +6,23 @@ This document outlines the planned enhancements to the VideoTools media engine t
 
 The goal is to leverage FFmpeg's full capabilities for professional-grade video playback with GPU acceleration, smooth seeking, and responsive controls.
 
+## Completion Status
+
+| Priority | Feature | Status | Notes |
+|----------|---------|--------|-------|
+| 1 | GPU Rendering Pipeline | 🟡 Partial | Scaffold done, integration pending |
+| 2 | Keyboard Shortcuts | ✅ Done | Full shortcut handler exists |
+| 3 | Smooth Scrubbing | 🟡 Partial | FrameCache exists, integration pending |
+| 4 | Buffering & Pre-loading | ✅ Done | BufferMode, adaptive sizing |
+| 5 | Playback Speed Control | ✅ Done | Speed presets + atempo filter |
+| 6 | Video Filters | ✅ Done | FilterPipeline wired |
+| 7 | Loading & Error States | ✅ Done | Spinner, buffering, error UI |
+| 8 | Picture-in-Picture | ✅ Done | Controller + Windows implementation |
+| 9 | Resume Playback | ✅ Done | JSON state persistence |
+| 10 | Subtitle Rendering | 🟡 Partial | Decoder + UI toggle, text rendering needs work |
+
+**Legend:** ✅ Complete | 🟡 In Progress | ⏳ Planned | ❌ Not Started
+
 ---
 
 ## Priority 1: GPU Rendering Pipeline
@@ -16,8 +33,8 @@ Support both OpenGL and Direct3D 11 for cross-vendor GPU acceleration:
 
 | API | Vendor | Platform | Status |
 |-----|--------|----------|--------|
-| OpenGL 4.6+ | NVIDIA, AMD, Intel | Linux, macOS | Planned |
-| Direct3D 11 | NVIDIA, AMD, Intel | Windows | Planned |
+| OpenGL 4.6+ | NVIDIA, AMD, Intel | Linux, macOS | Scaffold (needs integration) |
+| Direct3D 11 | NVIDIA, AMD, Intel | Windows | Scaffold (needs integration) |
 | Vulkan | All major | Cross-platform | Future |
 
 **Implementation Strategy:**
@@ -34,15 +51,15 @@ FFmpeg Decode (HW) → GPU Frame → Direct Texture Upload → Display
                     Minimize CPU copies
 ```
 
-**Current State:** CPU pixel copying via `canvas.Raster`
-**Target State:** Zero-copy GPU texture upload
+**Current State:** Software rendering via canvas.Raster with optimized scaling
+**Target State:** Zero-copy GPU texture upload (requires Fyne GL integration)
 
 ### 1.3 Hardware Frame Reading
 
 Use FFmpeg's `AVBufferRef` for hardware-backed frames:
-- `av_hwframe_transfer_data()` for GPU→CPU when needed
-- Direct GPU texture access when possible
-- Configurable for different hardware contexts (VAAPI, D3D11VA, QSV)
+- `av_hwframe_transfer_data()` for GPU→CPU when needed ✅
+- Direct GPU texture access when possible (scaffold exists)
+- Configurable for different hardware contexts (VAAPI, D3D11VA, QSV) ✅
 
 ---
 
