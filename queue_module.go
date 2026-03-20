@@ -250,7 +250,19 @@ func (s *appState) refreshQueueView() {
 				if err != nil || job.OutputFile == "" {
 					return
 				}
-				_ = openURL(job.OutputFile)
+				ext := strings.ToLower(filepath.Ext(job.OutputFile))
+				isVideo := false
+				switch ext {
+				case ".mp4", ".mkv", ".avi", ".mov", ".mpg", ".mpeg", ".ts", ".m2ts", ".wmv", ".flv", ".webm", ".iso", ".m4v", ".vob":
+					isVideo = true
+				}
+				if isVideo && s.prefs.QueuePlayBehavior == "inspect" {
+					s.showInspectViewForPath(job.OutputFile)
+				} else if isVideo {
+					s.showPlayerViewForPath(job.OutputFile)
+				} else {
+					_ = openURL(job.OutputFile)
+				}
 			},
 			utils.MustHex("#4CE870"), // titleColor
 			gridColor,                // bgColor

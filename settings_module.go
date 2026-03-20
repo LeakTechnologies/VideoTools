@@ -32,6 +32,7 @@ import (
 // prefsConfig holds application-level preferences persisted to prefs.json.
 type prefsConfig struct {
 	AutoCheckFrequency string `json:"AutoCheckFrequency"`
+	QueuePlayBehavior  string `json:"QueuePlayBehavior"` // "player" (default) or "inspect"
 }
 
 func loadPrefsConfig() (prefsConfig, error) {
@@ -2314,6 +2315,44 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	visibilityItems = append(visibilityItems, visibilityHint)
 
 	content.Add(container.NewVBox(visibilityItems...))
+
+	// Queue Behaviour Section
+	content.Add(widget.NewSeparator())
+
+	queueHeader := widget.NewLabel(t.SettingsQueueSection)
+	queueHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(queueHeader)
+
+	queuePlayLabel := widget.NewLabel(t.SettingsQueuePlayLabel)
+	content.Add(queuePlayLabel)
+
+	currentBehavior := state.prefs.QueuePlayBehavior
+	if currentBehavior == "" {
+		currentBehavior = "player"
+	}
+	// Order: Player Module first (default), Inspect Module second
+	queuePlayOpts := []string{t.SettingsQueuePlaySystem, t.SettingsQueuePlayInspect}
+	selectedOpt := queuePlayOpts[0]
+	if currentBehavior == "inspect" {
+		selectedOpt = queuePlayOpts[1]
+	}
+	queuePlayRadio := widget.NewRadioGroup(queuePlayOpts, func(selected string) {
+		if selected == t.SettingsQueuePlayInspect {
+			state.prefs.QueuePlayBehavior = "inspect"
+		} else {
+			state.prefs.QueuePlayBehavior = "player"
+		}
+		if err := savePrefsConfig(state.prefs); err != nil {
+			logging.Debug(logging.CatSystem, "failed to save prefs: %v", err)
+		}
+	})
+	queuePlayRadio.SetSelected(selectedOpt)
+	content.Add(queuePlayRadio)
+
+	queuePlayHint := widget.NewLabel(t.SettingsQueuePlayHint)
+	queuePlayHint.TextStyle = fyne.TextStyle{Italic: true}
+	queuePlayHint.Wrapping = fyne.TextWrapWord
+	content.Add(queuePlayHint)
 
 	return content
 }

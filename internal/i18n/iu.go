@@ -269,6 +269,11 @@ var iu = Strings{
 	SettingsModuleVisibilityHint: "ᑕᑯᔭᐅᔪᓐᓇᖅᑐᑦ ᐃᓯᕐᕕᖕᒧᑦ ᑕᑯᔭᐅᕙᒃᑐᑦ.", // Module visibility applies on the main menu.
 	SettingsShowUpscale:          "ᓴᖅᑮᓗᒍ ᐱᕚᓪᓕᖅᑎᑦᑎᓂᖅ",             // Show Upscale module
 	SettingsShowDisc:             "ᓴᖅᑮᓗᒍ ᑕᐃᑯᓂᖓ (ᓴᓇᓗᒍ & ᓂᕈᓐᓇᓯᓗᒍ)", // Show Disc category (Author & Rip)
+	SettingsQueueSection:         "ᓄᖅᑲᖓᑎᑦᑎᓂᖅ ᐊᑐᐃᓐᓇᕈᕐᕕᒃ",                      // Queue Behaviour
+	SettingsQueuePlayLabel:       "ᑕᑯᒋᐊᕐᓗᒍ ᐊᑐᕐᓗᒍ:",                            // Play Video opens in:
+	SettingsQueuePlayInspect:     "ᖃᐅᔨᓴᖅᑕᐅᕕᒃ",                                  // Inspect Module
+	SettingsQueuePlaySystem:      "ᑕᑯᒃᓴᐅᑎᑦᑎᕕᒃ",                                  // Player Module
+	SettingsQueuePlayHint:        "ᓂᕈᐊᕐᓗᒍ ᑕᐃᑯᖓ 'ᑕᑯᒋᐊᕐᓗᒍ' ᐊᑐᕐᓗᒍ ᓄᖅᑲᖓᑎᑦᑎᓂᒃᑯᑦ.", // Choose which module 'Play Video' navigates to.
 	SettingsFFmpegMissing:        "ᐊᑦᑕᕐᓇᖅᑑᔪᖅ FFmpeg ᐱᔭᕆᐊᑐᔪᖅ ᓂᒡᓕᓯᒪᔪᖅ.\n\nᐃᓇᖏᕐᕕᒋᓗᒍ ᐱᓕᕆᔾᔪᑎᑦ ᐊᑐᕐᓗᒍ.\n\nᐃᓇᖏᕐᕕᒋᓂᖓ:\n%LOCALAPPDATA%\\VideoTools\\bin",
 	SettingsInstallFFmpeg:        "ᐃᓇᖏᕐᕕᒋᓗᒍ FFmpeg ᒫᓐᓇ",               // Install FFmpeg Now
 	SettingsOpenSettings:         "ᐅᒃᐱᕆᓗᒍ ᐋᖅᑭᒃᓱᐃᓂᖅ",                   // Open Settings

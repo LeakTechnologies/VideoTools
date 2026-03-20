@@ -5,6 +5,15 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/player"
 )
 
+func (s *appState) showPlayerViewForPath(path string) {
+	src, err := probeVideo(path)
+	if err != nil {
+		return
+	}
+	s.playerFile = src
+	s.showPlayerView()
+}
+
 func (s *appState) showPlayerView() {
 	s.stopPreview()
 	s.lastModule = s.active

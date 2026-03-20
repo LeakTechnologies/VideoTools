@@ -289,6 +289,12 @@ type Strings struct {
 	SettingsModuleVisibilityHint string // "Module visibility applies on the main menu."
 	SettingsShowUpscale          string // "Show Upscale module"
 	SettingsShowDisc             string // "Show Disc category (Author & Rip)"
+	// Queue behaviour
+	SettingsQueueSection         string // "Queue Behaviour"
+	SettingsQueuePlayLabel       string // "Play Video opens:"
+	SettingsQueuePlayInspect     string // "Inspect Module"
+	SettingsQueuePlaySystem      string // "Player Module"
+	SettingsQueuePlayHint        string // hint label
 	SettingsFFmpegMissing        string // "Core dependency FFmpeg is missing..."
 	SettingsInstallFFmpeg        string // "Install FFmpeg Now"
 	SettingsOpenSettings         string // "Open Settings"

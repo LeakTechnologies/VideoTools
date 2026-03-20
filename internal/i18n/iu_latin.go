@@ -270,6 +270,11 @@ var iuLatn = Strings{
 	SettingsModuleVisibilityHint: "Takujaujannarqtut isirviŋmut takujauvaaqtut.",        // Module visibility applies on the main menu.
 	SettingsShowUpscale:          "Saqquiilugu Pivaalliqtitiniq",                        // Show Upscale module
 	SettingsShowDisc:             "Saqquiilugu Taikkuninga (Sanarlugu & Nirunnasilugu)", // Show Disc category
+	SettingsQueueSection:         "Qanuriliurniq Nalinginnaavaa",         // Queue Behaviour
+	SettingsQueuePlayLabel:       "Takujautiit Atuqtariaqarmat:",         // Play Video opens in:
+	SettingsQueuePlayInspect:     "Qaimanngissitsivik",                   // Inspect Module
+	SettingsQueuePlaySystem:      "Takujautiit Manirajaq",                // Player Module
+	SettingsQueuePlayHint:        "Niruarlugu taikkuninga 'Takujautiit' atuqtariaqarmat.", // Choose which module Play Video navigates to.
 	SettingsFFmpegMissing:        "Pijariatituuq FFmpeg nalunngissimajanngilaq.\n\nInarngirviiggilugu pilirijutinik atuqtariaqarmat.\n\nInarngirviininga:\n%LOCALAPPDATA%\\VideoTools\\bin",
 	SettingsInstallFFmpeg:        "Inarngirviiggilugu FFmpeg Maanna",                     // Install FFmpeg Now
 	SettingsOpenSettings:         "Ukpiriilugu Aaqiksuiniq",                              // Open Settings
