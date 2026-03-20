@@ -1,3 +1,5 @@
+//go:build native_media
+
 package inspect
 
 import (
@@ -13,6 +15,8 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 	"image/color"
@@ -23,6 +27,11 @@ var valueBorder = utils.MustHex("#3A4360")
 
 var gridColor = utils.MustHex("#2A3A52")
 var navyBlue = utils.MustHex("#191F35")
+
+type inspectState struct {
+	player *media.VideoPlayer
+	engine *media.Engine
+}
 
 type Options struct {
 	Window      fyne.Window
@@ -73,6 +82,35 @@ func BuildView(opts Options) fyne.CanvasObject {
 	if inspectColor == nil {
 		inspectColor = utils.MustHex("#3A3F9F")
 	}
+
+	state := &inspectState{
+		player: media.NewVideoPlayer(),
+	}
+
+	state.player.OnPlay(func() {
+		if state.engine != nil {
+			state.engine.Start()
+			go inspectPlaybackLoop(state)
+		}
+	})
+
+	state.player.OnPause(func() {
+		if state.engine != nil {
+			state.engine.Pause()
+		}
+	})
+
+	state.player.OnSeek(func(target float64) {
+		if state.engine != nil {
+			state.engine.Seek(target)
+		}
+	})
+
+	state.player.OnSpeedChange(func(speed float64) {
+		if state.engine != nil {
+			state.engine.SetSpeed(speed)
+		}
+	})
 
 	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleInspect), func() {
 		if opts.OnShowMainMenu != nil {
@@ -405,16 +443,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 		)
 	}
 
-	makePlayerPlaceholder := func(icon fyne.Resource, text string) fyne.CanvasObject {
-		bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
-		bg.SetMinSize(fyne.NewSize(0, 260))
-		lbl := widget.NewLabel(text)
-		lbl.Alignment = fyne.TextAlignCenter
-		content := container.NewVBox(widget.NewIcon(icon), lbl)
-		return container.NewMax(bg, container.NewCenter(content))
-	}
-
-	var videoContainer fyne.CanvasObject = makePlayerPlaceholder(ui.GetIcon("play_arrow"), t.LabelNoVideoLoaded)
+	videoContainer := container.NewMax(
+		canvas.NewRectangle(utils.MustHex("#0F1529")),
+		state.player,
+	)
 
 	updateDisplay := func() {
 		if opts.InspectFile != nil {
@@ -438,30 +470,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 			fileLabel.SetText(fmt.Sprintf("File: %s", filename))
 			metadataGrid.Objects = []fyne.CanvasObject{buildMetadataGrid()}
 			metadataGrid.Refresh()
-
-			// Show first preview frame if available, otherwise a placeholder based on load state
-			if opts.OnGetPreviewFrame != nil {
-				if framePath := opts.OnGetPreviewFrame(); framePath != "" {
-					img := canvas.NewImageFromFile(framePath)
-					img.FillMode = canvas.ImageFillContain
-					bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
-					bg.SetMinSize(fyne.NewSize(0, 260))
-					videoContainer = container.NewMax(bg, img)
-				} else if opts.InspectInterlaceAnalyzing {
-					// Frame capture and analysis still in progress
-					videoContainer = makePlayerPlaceholder(ui.GetIcon("slow_motion_video"), t.InspectLoadingPreview)
-				} else {
-					// Analysis done but no preview available
-					videoContainer = makePlayerPlaceholder(ui.GetIcon("play_arrow"), t.InspectNoPreviewAvailable)
-				}
-			} else {
-				videoContainer = makePlayerPlaceholder(ui.GetIcon("play_arrow"), t.InspectNoPreviewAvailable)
-			}
 		} else {
 			fileLabel.SetText(t.LabelNoFile)
 			metadataGrid.Objects = []fyne.CanvasObject{metadataPlaceholder}
 			metadataGrid.Refresh()
-			videoContainer = makePlayerPlaceholder(ui.GetIcon("play_arrow"), t.LabelNoVideoLoaded)
 		}
 	}
 
@@ -474,6 +486,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 			path := reader.URI().Path()
 			reader.Close()
+			inspectLoadVideo(state, path)
 			if opts.OnLoadFile != nil {
 				opts.OnLoadFile(path)
 			}
@@ -510,4 +523,47 @@ func BuildView(opts Options) fyne.CanvasObject {
 	)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
+}
+
+func inspectPlaybackLoop(state *inspectState) {
+	defer logging.RecoverPanic()
+	defer logging.LogAllGoroutines()
+
+	for {
+		img, err := state.engine.NextFrame()
+		if err != nil {
+			return
+		}
+		state.player.SetFrame(img)
+		currentTime := state.engine.CurrentTime()
+		state.player.SetCurrentTime(currentTime)
+	}
+}
+
+func inspectLoadVideo(state *inspectState, path string) {
+	defer logging.RecoverPanicWithCallback(func() {
+		state.player.SetLoading(false)
+	})
+
+	state.player.ClearError()
+	state.player.SetLoading(true)
+
+	state.engine = media.NewEngine()
+	state.engine.SetSeekAccuracy(media.SeekAccuracyKeyframe)
+	state.engine.SetDropFrames(true)
+
+	logging.Info(logging.CatPlayer, "Inspect loadVideo: opening %s", path)
+	if err := state.engine.Open(path); err != nil {
+		logging.Error(logging.CatPlayer, "Inspect loadVideo: failed to open %s: %v", path, err)
+		state.player.SetError(err.Error())
+		state.player.SetLoading(false)
+		return
+	}
+
+	logging.Info(logging.CatPlayer, "Inspect loadVideo: successfully opened %s", path)
+	state.player.SetLoading(false)
+
+	if img, err := state.engine.NextFrame(); err == nil {
+		state.player.SetFrame(img)
+	}
 }
