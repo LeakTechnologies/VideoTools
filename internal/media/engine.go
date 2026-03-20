@@ -404,6 +404,8 @@ type Engine struct {
 	chapters       []Chapter
 	filterPipeline *filters.FilterPipeline
 
+	frameCache *PlaybackFrameCache
+
 	gpuTexUpload interface {
 		UploadFrame(img *image.RGBA) error
 		Texture() interface{}
@@ -411,6 +413,89 @@ type Engine struct {
 		Height() int
 		Delete()
 	}
+}
+
+type PlaybackFrameCache struct {
+	frames    map[int64]*image.RGBA
+	frameList []int64
+	maxSize   int
+	mu        sync.RWMutex
+}
+
+func NewPlaybackFrameCache(maxSize int) *PlaybackFrameCache {
+	if maxSize <= 0 {
+		maxSize = 30
+	}
+	return &PlaybackFrameCache{
+		frames:    make(map[int64]*image.RGBA),
+		frameList: make([]int64, 0, maxSize),
+		maxSize:   maxSize,
+	}
+}
+
+func (c *PlaybackFrameCache) Add(pts float64, frame *image.RGBA) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	key := int64(pts * 1000)
+
+	if len(c.frames) >= c.maxSize && len(c.frameList) > 0 {
+		oldest := c.frameList[0]
+		delete(c.frames, oldest)
+		c.frameList = c.frameList[1:]
+	}
+
+	c.frames[key] = frame
+	c.frameList = append(c.frameList, key)
+}
+
+func (c *PlaybackFrameCache) Get(pts float64) (*image.RGBA, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	key := int64(pts * 1000)
+	frame, ok := c.frames[key]
+	return frame, ok
+}
+
+func (c *PlaybackFrameCache) GetNearest(pts float64) (*image.RGBA, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	key := int64(pts * 1000)
+
+	if frame, ok := c.frames[key]; ok {
+		return frame, true
+	}
+
+	var nearestFrame *image.RGBA
+	minDiff := int64(^uint64(0) >> 1)
+
+	for cachedKey, frame := range c.frames {
+		diff := cachedKey - key
+		if diff < 0 {
+			diff = -diff
+		}
+		if diff < minDiff {
+			minDiff = diff
+			nearestFrame = frame
+		}
+	}
+
+	return nearestFrame, nearestFrame != nil
+}
+
+func (c *PlaybackFrameCache) Clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.frames = make(map[int64]*image.RGBA)
+	c.frameList = c.frameList[:0]
+}
+
+func (c *PlaybackFrameCache) Size() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return len(c.frames)
 }
 
 func NewEngine() *Engine {
@@ -457,6 +542,29 @@ func (e *Engine) SetMuted(muted bool) {
 
 func (e *Engine) IsMuted() bool {
 	return e.muted
+}
+
+func (e *Engine) InitFrameCache(maxSize int) {
+	e.frameCache = NewPlaybackFrameCache(maxSize)
+}
+
+func (e *Engine) GetCachedFrame(pts float64) (*image.RGBA, bool) {
+	if e.frameCache == nil {
+		return nil, false
+	}
+	return e.frameCache.GetNearest(pts)
+}
+
+func (e *Engine) AddFrameToCache(pts float64, frame *image.RGBA) {
+	if e.frameCache != nil && frame != nil {
+		e.frameCache.Add(pts, frame)
+	}
+}
+
+func (e *Engine) ClearFrameCache() {
+	if e.frameCache != nil {
+		e.frameCache.Clear()
+	}
 }
 
 func (e *Engine) SetSpeed(speed float64) {

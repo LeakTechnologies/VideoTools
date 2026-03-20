@@ -80,6 +80,8 @@
 - [x] **OnHover callback** - Trigger thumbnail extraction on seekbar hover
 - [x] **FrameCache** - Pre-decoding frames for smooth scrubbing in scrub.go
 - [x] **Async thumbnail extraction** - StartThumbnailExtraction with callback
+- [x] **PlaybackFrameCache** - Engine frame cache for smooth scrubbing
+- [x] **InitFrameCache** - Initialize frame cache with configurable size
 
 ### Crash Logging & Error Recovery
 - [x] **FFmpeg error logging** - avformat_open_input now logs FFmpeg error codes and messages
