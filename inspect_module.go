@@ -16,6 +16,42 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
+// showInspectViewForPath navigates to the inspect/player module with the given
+// file pre-loaded. Used by the job queue "Play Video" button.
+func (s *appState) showInspectViewForPath(path string) {
+	src, err := probeVideo(path)
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+		return
+	}
+	s.inspectFile = src
+	s.inspectInterlaceResult = nil
+	s.inspectInterlaceAnalyzing = true
+	s.showInspectView()
+	logging.Debug(logging.CatModule, "queue: opened in player: %s", path)
+
+	go func() {
+		if len(src.PreviewFrames) == 0 {
+			if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
+				src.PreviewFrames = frames
+			}
+		}
+		detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		result, err := detector.QuickAnalyze(ctx, path)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			s.inspectInterlaceAnalyzing = false
+			if err != nil {
+				s.inspectInterlaceResult = nil
+			} else {
+				s.inspectInterlaceResult = result
+			}
+			s.showInspectView()
+		}, false)
+	}()
+}
+
 func (s *appState) showInspectView() {
 	s.stopPreview()
 	s.lastModule = s.active
