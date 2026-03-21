@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/fontutil"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -52,11 +53,18 @@ func SetAboriginalFontData(regular, italic, bold, boldItalic []byte) {
 	}
 }
 
-// SetFontMode switches the active font family ("mono" or "aboriginal").
-// Call this from the i18n language-change listener.
+// SetFontMode switches between font modes ("mono" or "aboriginal").
+// In "aboriginal" mode, Aboriginal Sans is registered as an auxiliary font so UCAS syllabics
+// render correctly while IBM Plex Mono remains the primary for all Latin/ASCII text.
+// Call this from the i18n language-change listener, followed by a theme refresh to flush caches.
 func SetFontMode(mode string) {
 	fontMode = mode
-	logging.Debug(logging.CatUI, "SetFontMode: fontMode=%s, aboriginalFontData.regular=%v", mode, aboriginalFontData.regular != nil)
+	if mode == "aboriginal" && aboriginalFontData.regular != nil {
+		fontutil.SetAuxiliaryFont(fyne.NewStaticResource("AboriginalSans-Regular.ttf", aboriginalFontData.regular))
+	} else {
+		fontutil.SetAuxiliaryFont(nil)
+	}
+	logging.Debug(logging.CatUI, "SetFontMode: mode=%s auxiliary=%v", mode, mode == "aboriginal")
 }
 
 var (
@@ -163,32 +171,9 @@ func min(a, b int) int {
 }
 
 func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
-	if fontMode == "aboriginal" && aboriginalFontData.regular != nil {
-		// Syllabics glyphs are intricate and thin at small sizes, so shift the
-		// entire weight ladder up: regular→bold, italic→boldItalic.
-		var fontData []byte
-		var fontName string
-		switch {
-		case style.Bold && style.Italic:
-			fontData = aboriginalFontData.boldItalic
-			fontName = "AboriginalSansBOLDITALIC.ttf"
-		case style.Bold:
-			fontData = aboriginalFontData.bold
-			fontName = "AboriginalSansBOLD.ttf"
-		case style.Italic:
-			fontData = aboriginalFontData.italic
-			fontName = "AboriginalSansITALIC.ttf"
-		default:
-			fontData = aboriginalFontData.regular
-			fontName = "AboriginalSansREGULAR.ttf"
-		}
-		if fontData != nil {
-			logging.Debug(logging.CatUI, "MonoTheme.Font: using aboriginal font %s (len=%d)", fontName, len(fontData))
-			return fyne.NewStaticResource(fontName, fontData)
-		}
-		logging.Warning(logging.CatUI, "MonoTheme.Font: fontData is nil for aboriginal mode")
-	}
-	style.Monospace = true
+	// IBM Plex Mono is always the primary font. Aboriginal Sans is injected as an auxiliary
+	// via SetFontMode so UCAS syllabics fall through to it only when Mono lacks the glyph.
+	// This ensures Latin/ASCII text is always rendered in IBM Plex Mono regardless of locale.
 	if monoFontData.regular != nil {
 		var fontData []byte
 		fontName := "IBMPlexMono-Regular.ttf"
@@ -209,7 +194,6 @@ func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
 			return fyne.NewStaticResource(fontName, fontData)
 		}
 	}
-	logging.Debug(logging.CatUI, "MonoTheme.Font: falling back to default theme (fontMode=%s, aboriginalAvailable=%v)", fontMode, aboriginalFontData.regular != nil)
 	return theme.DefaultTheme().Font(style)
 }
 
