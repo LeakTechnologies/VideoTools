@@ -215,17 +215,11 @@ jobs:
 
       - name: Build Windows package
         env:
-          # Azure Trusted Signing (preferred — immediate SAC/SmartScreen trust)
-          VT_AZURE_SIGNING_ENDPOINT: ${{ secrets.VT_AZURE_SIGNING_ENDPOINT }}
-          VT_AZURE_SIGNING_ACCOUNT:  ${{ secrets.VT_AZURE_SIGNING_ACCOUNT }}
-          VT_AZURE_SIGNING_PROFILE:  ${{ secrets.VT_AZURE_SIGNING_PROFILE }}
-          AZURE_TENANT_ID:           ${{ secrets.VT_AZURE_TENANT_ID }}
-          AZURE_CLIENT_ID:           ${{ secrets.VT_AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET:       ${{ secrets.VT_AZURE_CLIENT_SECRET }}
-          # PFX fallback (traditional certificate)
-          VT_SIGN_PFX_B64:    ${{ secrets.VT_SIGN_PFX_B64 }}
-          VT_SIGN_PASSWORD:   ${{ secrets.VT_SIGN_PASSWORD }}
-          VT_SIGN_TIMESTAMP:  ${{ secrets.VT_SIGN_TIMESTAMP }}
+          VT_SIGN_EXE: ${{ secrets.VT_SIGN_EXE }}
+          VT_SIGN_PFX: ${{ secrets.VT_SIGN_PFX }}
+          VT_SIGN_PFX_B64: ${{ secrets.VT_SIGN_PFX_B64 }}
+          VT_SIGN_PASSWORD: ${{ secrets.VT_SIGN_PASSWORD }}
+          VT_SIGN_TIMESTAMP: ${{ secrets.VT_SIGN_TIMESTAMP }}
         run: |
           $projectRoot = Resolve-Path "."
           $buildOutput = Join-Path $projectRoot "VideoTools.exe"
@@ -306,22 +300,11 @@ jobs:
 
           go build -p 4 -ldflags="$ldflags" -trimpath -o $buildOutput .
 
-          # Sign if Azure Trusted Signing credentials or a PFX cert are present
-          $hasAzureCreds = $env:VT_AZURE_SIGNING_ENDPOINT -and $env:VT_AZURE_SIGNING_ACCOUNT -and $env:VT_AZURE_SIGNING_PROFILE
-          $hasPfxCreds   = $env:VT_SIGN_PFX_B64 -and $env:VT_SIGN_PASSWORD
-          if ($hasAzureCreds -or $hasPfxCreds) {
+          if ($env:VT_SIGN_EXE -and $env:VT_SIGN_EXE -ne "0") {
             $signScript = Join-Path $projectRoot "scripts\\windows\\support\\sign-exe.ps1"
-            if ($hasPfxCreds -and -not $hasAzureCreds) {
-              # Decode PFX from base64 for legacy PFX path
-              $pfxPath = Join-Path $env:TEMP "vt-sign.pfx"
-              [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:VT_SIGN_PFX_B64))
-              $tsUrl = if ($env:VT_SIGN_TIMESTAMP) { $env:VT_SIGN_TIMESTAMP } else { "http://timestamp.acs.microsoft.com" }
-              & $signScript -ExePath $buildOutput -CertPath $pfxPath -CertPassword $env:VT_SIGN_PASSWORD -TimestampUrl $tsUrl
-            } else {
-              & $signScript -ExePath $buildOutput
+            if (Test-Path $signScript) {
+              & $signScript -ExePath $buildOutput -CertPath $env:VT_SIGN_PFX -CertPassword $env:VT_SIGN_PASSWORD -TimestampUrl $env:VT_SIGN_TIMESTAMP
             }
-          } else {
-            Write-Host "[sign] Skipping: no signing credentials configured." -ForegroundColor Yellow
           }
 
           if (-not (Test-Path $distDir)) {
