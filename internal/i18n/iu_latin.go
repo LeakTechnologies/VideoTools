@@ -244,36 +244,37 @@ var iuLatn = Strings{
 	TrimExportSegments:   "Avilugit Pijjutaulutik Asinngiit Ilangit",                                           // Export as separate files
 	TrimInvalidSelection: "Pijjutaulutik Asinngilirit",                                                         // Invalid Selection
 	TrimOutput:           "Upaktiivik",                                                                         // Output
+	TrimDuration:         "Tunngeq",                                                                            // Duration
 	TrimJobAdded:         "Ilallijjugut Ikajurlugu Aggiqsijjutaujunik",                                         // Trim job added to queue
 
 	// ── Settings ──────────────────────────────────────────────────────────
 	SettingsTitle:                "Aaqiksuiniq",
-	SettingsTabGeneral:           "Tamainnut Atuqnirmut",                                // General
-	SettingsTabPreferences:       "Aaqiksuiniq",                                         // Preferences
-	SettingsTabDependencies:      "Pijariatujut",                                        // Dependencies
-	SettingsTabBenchmark:         "Qaujisarniq",                                         // Benchmark
-	SettingsTabUpdates:           "Nutaaliurniq",                                        // Updates
-	SettingsTabAbout:             "Mikssannnut",                                         // About
-	SettingsTheme:                "Takujautiit",                                         // Theme
-	SettingsOutputFolder:         "Upaktiivik Nunalingni",                               // Output Folder
-	SettingsLanguage:             "Uqausiiq",                                            // Language
-	SettingsLanguageScript:       "Titirauusiit",                                        // Script
-	SettingsScriptSyllabics:      "Qaniujaaqpait",                                       // Traditional Syllabics
-	SettingsScriptLatin:          "Qaliujaaqpait",                                       // Latin
-	SettingsAppPreferences:       "Atuqnirmut Aaqiksuiniq",                              // Application Preferences
-	SettingsMasterSettings:       "Aksuruqnarqtujut Aaqiksuiniq",                        // Master Settings
-	SettingsHardwareAccel:        "Sanajaksanik Sukkaivagunnarqtut",                     // Hardware Acceleration (Global)
-	SettingsDetect:               "Nalunaiqsilugu",                                      // Detect
-	SettingsUseAuto:              "Aulatautitaulugu",                                    // Use Auto
-	SettingsDetectedFmt:          "Nalunaiqtaulauqtuq: %s",                              // Detected: %s
-	SettingsModuleVisibility:     "Takujaujannarqtut",                                   // Module Visibility
-	SettingsModuleVisibilityHint: "Takujaujannarqtut isirviŋmut takujauvaaqtut.",        // Module visibility applies on the main menu.
-	SettingsShowUpscale:          "Saqquiilugu Pivaalliqtitiniq",                        // Show Upscale module
-	SettingsShowDisc:             "Saqquiilugu Taikkuninga (Sanarlugu & Nirunnasilugu)", // Show Disc category
-	SettingsQueueSection:         "Qanuriliurniq Nalinginnaavaa",         // Queue Behaviour
-	SettingsQueuePlayLabel:       "Takujautiit Atuqtariaqarmat:",         // Play Video opens in:
-	SettingsQueuePlayInspect:     "Qaimanngissitsivik",                   // Inspect Module
-	SettingsQueuePlaySystem:      "Takujautiit Manirajaq",                // Player Module
+	SettingsTabGeneral:           "Tamainnut Atuqnirmut",                                  // General
+	SettingsTabPreferences:       "Aaqiksuiniq",                                           // Preferences
+	SettingsTabDependencies:      "Pijariatujut",                                          // Dependencies
+	SettingsTabBenchmark:         "Qaujisarniq",                                           // Benchmark
+	SettingsTabUpdates:           "Nutaaliurniq",                                          // Updates
+	SettingsTabAbout:             "Mikssannnut",                                           // About
+	SettingsTheme:                "Takujautiit",                                           // Theme
+	SettingsOutputFolder:         "Upaktiivik Nunalingni",                                 // Output Folder
+	SettingsLanguage:             "Uqausiiq",                                              // Language
+	SettingsLanguageScript:       "Titirauusiit",                                          // Script
+	SettingsScriptSyllabics:      "Qaniujaaqpait",                                         // Traditional Syllabics
+	SettingsScriptLatin:          "Qaliujaaqpait",                                         // Latin
+	SettingsAppPreferences:       "Atuqnirmut Aaqiksuiniq",                                // Application Preferences
+	SettingsMasterSettings:       "Aksuruqnarqtujut Aaqiksuiniq",                          // Master Settings
+	SettingsHardwareAccel:        "Sanajaksanik Sukkaivagunnarqtut",                       // Hardware Acceleration (Global)
+	SettingsDetect:               "Nalunaiqsilugu",                                        // Detect
+	SettingsUseAuto:              "Aulatautitaulugu",                                      // Use Auto
+	SettingsDetectedFmt:          "Nalunaiqtaulauqtuq: %s",                                // Detected: %s
+	SettingsModuleVisibility:     "Takujaujannarqtut",                                     // Module Visibility
+	SettingsModuleVisibilityHint: "Takujaujannarqtut isirviŋmut takujauvaaqtut.",          // Module visibility applies on the main menu.
+	SettingsShowUpscale:          "Saqquiilugu Pivaalliqtitiniq",                          // Show Upscale module
+	SettingsShowDisc:             "Saqquiilugu Taikkuninga (Sanarlugu & Nirunnasilugu)",   // Show Disc category
+	SettingsQueueSection:         "Qanuriliurniq Nalinginnaavaa",                          // Queue Behaviour
+	SettingsQueuePlayLabel:       "Takujautiit Atuqtariaqarmat:",                          // Play Video opens in:
+	SettingsQueuePlayInspect:     "Qaimanngissitsivik",                                    // Inspect Module
+	SettingsQueuePlaySystem:      "Takujautiit Manirajaq",                                 // Player Module
 	SettingsQueuePlayHint:        "Niruarlugu taikkuninga 'Takujautiit' atuqtariaqarmat.", // Choose which module Play Video navigates to.
 	SettingsFFmpegMissing:        "Pijariatituuq FFmpeg nalunngissimajanngilaq.\n\nInarngirviiggilugu pilirijutinik atuqtariaqarmat.\n\nInarngirviininga:\n%LOCALAPPDATA%\\VideoTools\\bin",
 	SettingsInstallFFmpeg:        "Inarngirviiggilugu FFmpeg Maanna",                     // Install FFmpeg Now

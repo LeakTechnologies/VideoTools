@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
@@ -47,6 +48,7 @@ type trimState struct {
 	engine      *media.Engine
 	player      *media.VideoPlayer
 	resumeState *state.ResumeState
+	keyCapture  *keyboardCapture
 
 	videoPath string
 	inPoint   time.Duration
@@ -60,8 +62,27 @@ type trimState struct {
 
 	inPointLabel  *widget.Label
 	outPointLabel *widget.Label
+	durationLabel *widget.Label
 	fileLabel     *widget.Label
 	addBtn        *widget.Button
+}
+
+type keyboardCapture struct {
+	widget.BaseWidget
+	onKey func(event *desktop.KeyEvent)
+}
+
+func (k *keyboardCapture) Tapped(*fyne.PointEvent)          {}
+func (k *keyboardCapture) TappedSecondary(*fyne.PointEvent) {}
+
+func (k *keyboardCapture) KeyDown(event *desktop.KeyEvent) {
+	if k.onKey != nil {
+		k.onKey(event)
+	}
+}
+
+func (k *keyboardCapture) SetOnKey(onKey func(event *desktop.KeyEvent)) {
+	k.onKey = onKey
 }
 
 func BuildView(opts Options, initialPath string) fyne.CanvasObject {
@@ -108,6 +129,42 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		}
 	})
 
+	// Initialize keyboard capture
+	ts.keyCapture = &keyboardCapture{}
+	ts.keyCapture.ExtendBaseWidget(ts.keyCapture)
+	ts.keyCapture.SetOnKey(func(event *desktop.KeyEvent) {
+		if ts.engine == nil || ts.videoPath == "" {
+			return
+		}
+
+		switch event.Key {
+		case desktop.KeyI:
+			ts.setInPoint()
+		case desktop.KeyO:
+			ts.setOutPoint()
+		case desktop.KeyC:
+			ts.clearPoints()
+		case desktop.KeyLeft:
+			if event.Modifier&desktop.ShiftModifier != 0 {
+				// Shift+Left: jump back 1 second
+				ts.seekRelative(-1.0)
+			} else {
+				// Left: step back 1 frame
+				ts.stepFrame(-1)
+			}
+		case desktop.KeyRight:
+			if event.Modifier&desktop.ShiftModifier != 0 {
+				// Shift+Right: jump forward 1 second
+				ts.seekRelative(1.0)
+			} else {
+				// Right: step forward 1 frame
+				ts.stepFrame(1)
+			}
+		case desktop.KeySpace:
+			ts.togglePlayPause()
+		}
+	})
+
 	buildTrimBox := func(title string, content fyne.CanvasObject) *fyne.Container {
 		bg := canvas.NewRectangle(navyBlue)
 		bg.CornerRadius = 10
@@ -126,6 +183,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	// In/out point labels
 	ts.inPointLabel = widget.NewLabel(t.TrimInPoint + ": 00:00:00.000")
 	ts.outPointLabel = widget.NewLabel(t.TrimOutPoint + ": 00:00:00.000")
+	ts.durationLabel = widget.NewLabel(t.TrimDuration + ": 00:00:00.000")
 
 	// Frame stepping
 	stepBackBtn := widget.NewButton("<", func() {
@@ -153,20 +211,15 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 
 	// Set In / Set Out
 	setInBtn := widget.NewButton(t.TrimSetIn, func() {
-		ts.inPoint = time.Duration(ts.currentTime * float64(time.Second))
-		ts.inPointLabel.SetText(t.TrimInPoint + ": " + formatDuration(ts.inPoint))
+		ts.setInPoint()
 	})
 
 	setOutBtn := widget.NewButton(t.TrimSetOut, func() {
-		ts.outPoint = time.Duration(ts.currentTime * float64(time.Second))
-		ts.outPointLabel.SetText(t.TrimOutPoint + ": " + formatDuration(ts.outPoint))
+		ts.setOutPoint()
 	})
 
 	clearBtn := widget.NewButton(t.TrimClear, func() {
-		ts.inPoint = 0
-		ts.outPoint = time.Duration(ts.duration * float64(time.Second))
-		ts.inPointLabel.SetText(t.TrimInPoint + ": " + formatDuration(ts.inPoint))
-		ts.outPointLabel.SetText(t.TrimOutPoint + ": " + formatDuration(ts.outPoint))
+		ts.clearPoints()
 	})
 
 	// Mode selector
@@ -257,6 +310,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		buildTrimBox(t.TrimInPoint+" / "+t.TrimOutPoint, container.NewVBox(
 			ts.inPointLabel,
 			ts.outPointLabel,
+			ts.durationLabel,
 		)),
 	)
 
@@ -287,7 +341,103 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	backBtn.Importance = widget.LowImportance
 	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
-	return container.NewBorder(topBar, nil, nil, nil, content)
+	return container.NewBorder(topBar, nil, nil, nil, container.NewMax(s.keyCapture, content))
+}
+
+func (s *trimState) setInPoint() {
+	if s.engine == nil || s.videoPath == "" {
+		return
+	}
+	s.inPoint = time.Duration(s.currentTime * float64(time.Second))
+	if s.inPointLabel != nil {
+		s.inPointLabel.SetText(i18n.T().TrimInPoint + ": " + formatDuration(s.inPoint))
+	}
+	if s.player != nil {
+		s.player.SetInPoint(s.currentTime)
+	}
+	s.updateDurationLabel()
+}
+
+func (s *trimState) setOutPoint() {
+	if s.engine == nil || s.videoPath == "" {
+		return
+	}
+	s.outPoint = time.Duration(s.currentTime * float64(time.Second))
+	if s.outPointLabel != nil {
+		s.outPointLabel.SetText(i18n.T().TrimOutPoint + ": " + formatDuration(s.outPoint))
+	}
+	if s.player != nil {
+		s.player.SetOutPoint(s.currentTime)
+	}
+	s.updateDurationLabel()
+}
+
+func (s *trimState) clearPoints() {
+	if s.engine == nil {
+		return
+	}
+	s.inPoint = 0
+	s.outPoint = time.Duration(s.duration * float64(time.Second))
+	if s.inPointLabel != nil {
+		s.inPointLabel.SetText(i18n.T().TrimInPoint + ": " + formatDuration(s.inPoint))
+	}
+	if s.outPointLabel != nil {
+		s.outPointLabel.SetText(i18n.T().TrimOutPoint + ": " + formatDuration(s.outPoint))
+	}
+	if s.player != nil {
+		s.player.ClearTrimMarkers()
+	}
+	s.updateDurationLabel()
+}
+
+func (s *trimState) updateDurationLabel() {
+	if s.durationLabel != nil && s.outPoint > s.inPoint {
+		regionDur := s.outPoint - s.inPoint
+		durText := fmt.Sprintf("%s: %s", i18n.T().TrimDuration, formatDuration(regionDur))
+		s.durationLabel.SetText(durText)
+	}
+}
+
+func (s *trimState) stepFrame(dir int) {
+	if s.engine == nil {
+		return
+	}
+	if img, err := s.engine.Step(dir); err == nil {
+		s.player.SetFrame(img)
+		s.currentTime = s.engine.CurrentTime()
+		s.player.SetCurrentTime(s.currentTime)
+	}
+}
+
+func (s *trimState) seekRelative(seconds float64) {
+	if s.engine == nil {
+		return
+	}
+	target := s.currentTime + seconds
+	if target < 0 {
+		target = 0
+	}
+	if target > s.duration {
+		target = s.duration
+	}
+	s.engine.Seek(target)
+	if img, err := s.engine.NextFrame(); err == nil {
+		s.player.SetFrame(img)
+		s.currentTime = target
+		s.player.SetCurrentTime(s.currentTime)
+	}
+}
+
+func (s *trimState) togglePlayPause() {
+	if s.engine == nil {
+		return
+	}
+	if s.player != nil && s.player.IsPlaying() {
+		s.engine.Pause()
+	} else {
+		s.engine.Start()
+		go s.playbackLoop()
+	}
 }
 
 func (s *trimState) loadVideo(path string) {
@@ -326,6 +476,10 @@ func (s *trimState) loadVideo(path string) {
 	if s.inPointLabel != nil {
 		s.inPointLabel.SetText(i18n.T().TrimInPoint + ": " + formatDuration(0))
 	}
+	// Update player trim markers
+	s.player.SetInPoint(0)
+	s.player.SetOutPoint(s.duration)
+	s.updateDurationLabel()
 
 	chapters := s.engine.GetChapters()
 	if len(chapters) > 0 {
