@@ -226,25 +226,27 @@ var iu = Strings{
 	StatusNoActiveJobs: "○ ᐱᓕᕆᔭᐅᔪᓐᓇᖅᑐᑦ ᓄᖅᑲᖅᑐᑦ", // No active jobs
 
 	// ── Trim ──────────────────────────────────────────────────────────────
-	TrimInstructions:     "ᑕᕐᕆᔭᒐᒃᓴᒥᒃ ᐊᒐᒃᓯᓗᒍ ᐃᒡᒋᕐᓂᒧᑦ ᐋᖅᑭᒃᓱᐃᓗᒍ. ᓂᕈᐊᕐᓗᒍ ᐊᑭᓕᒐᒃᓴᖓᓂᒃ.", // Load video to set trim points
-	TrimInPoint:          "ᐃᓯᕐᕕᒃ",                                                // In Point
-	TrimOutPoint:         "ᐊᓂᒍᕐᕕᒃ",                                               // Out Point
-	TrimSetIn:            "ᐃᓯᕐᕕᒃ ᐋᖅᑭᒃᓱᐃᓗᒍ",                                       // Set In
-	TrimSetOut:           "ᐊᓂᒍᕐᕕᒃ ᐋᖅᑭᒃᓱᐃᓗᒍ",                                      // Set Out
-	TrimClear:            "ᓴᕿᙱᑦᑎᓗᒋᑦ ᐋᖅᑭᒃᓱᐃᔾᔪᑎᑦ",                                  // Clear Points
-	TrimMode:             "ᐃᒡᒋᕐᓂᒧᑦ ᑐᕌᖓᓂᖓ:",                                       // Trim Mode:
-	TrimModeKeep:         "ᓴᐳᒻᒥᓗᒍ ᐊᓐᓄᕌᒃᓯᒪᔪᖅ",                                     // Keep Region
-	TrimModeCut:          "ᐃᒡᒋᕐᓗᒍ ᐊᓐᓄᕌᒃᓯᒪᔪᖅ",                                     // Cut Region
-	TrimPreview:          "ᑕᑯᒃᓴᑦᑎᐊᕐᓗᒍ ᐃᒡᒋᕐᓂᖅ",                                    // Preview Trim
-	TrimSmartCopy:        "ᐃᓕᓴᕆᔭᐅᓗᒍ ᑐᒃᓯᓗᒍ (ᓱᒃᑲᐃᑦᑑᓪᓗᓂ)",                           // Smart Copy (Fast)
-	TrimRecode:           "ᓄᑖᕐᕕᒋᓗᒍ ᑎᑎᕋᖅᑕᐅᓂᖓ (ᐊᖏᕐᓂᖓᓂᒃ ᐊᑐᖅᑎᑕᐅᓗᒍ)",                  // Re-encode
-	TrimSegment:          "ᐊᕕᒃᑕᐅᔪᖅ",                                              // Segment
-	TrimAddSegment:       "ᐊᕕᒃᑕᐅᔪᒥᒃ ᐃᓚᓕᐅᔾᔨᓗᒍ",                                    // Add Segment
-	TrimExportSegments:   "ᐊᕙᓗᒋᑦ ᐱᔾᔪᑕᐅᑉᓗᑎᒃ ᐊᓯᖏᑦ ᐃᓚᖏᑦ",                            // Export as separate files
-	TrimInvalidSelection: "ᐱᔾᔪᑕᐅᓂᖅ ᐊᑐᖅᑎᑕᐅᓗᖅᓂᖅ",                                   // Invalid Selection
-	TrimOutput:           "ᐅᐸᒃᑎᕕᒃ",                                               // Output
-	TrimDuration:         "ᑐᓂᓗᒍ",                                                 // Duration
-	TrimJobAdded:         "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐃᓱᒃᑕᐅᔪᑦ ᐊᒐᒃᓯᔪᒍ",                              // Trim job added to queue
+	TrimInstructions:          "ᑕᕐᕆᔭᒐᒃᓴᒥᒃ ᐊᒐᒃᓯᓗᒍ ᐃᒡᒋᕐᓂᒧᑦ ᐋᖅᑭᒃᓱᐃᓗᒍ. ᓂᕈᐊᕐᓗᒍ ᐊᑭᓕᒐᒃᓴᖓᓂᒃ.",                                                                                                                                                                           // Load video to set trim points
+	TrimInPoint:               "ᐃᓯᕐᕕᒃ",                                                                                                                                                                                                                          // In Point
+	TrimOutPoint:              "ᐊᓂᒍᕐᕕᒃ",                                                                                                                                                                                                                         // Out Point
+	TrimSetIn:                 "ᐃᓯᕐᕕᒃ ᐋᖅᑭᒃᓱᐃᓗᒍ",                                                                                                                                                                                                                 // Set In
+	TrimSetOut:                "ᐊᓂᒍᕐᕕᒃ ᐋᖅᑭᒃᓱᐃᓗᒍ",                                                                                                                                                                                                                // Set Out
+	TrimClear:                 "ᓴᕿᙱᑦᑎᓗᒋᑦ ᐋᖅᑭᒃᓱᐃᔾᔪᑎᑦ",                                                                                                                                                                                                            // Clear Points
+	TrimMode:                  "ᐃᒡᒋᕐᓂᒧᑦ ᑐᕌᖓᓂᖓ:",                                                                                                                                                                                                                 // Trim Mode:
+	TrimModeKeep:              "ᓴᐳᒻᒥᓗᒍ ᐊᓐᓄᕌᒃᓯᒪᔪᖅ",                                                                                                                                                                                                               // Keep Region
+	TrimModeCut:               "ᐃᒡᒋᕐᓗᒍ ᐊᓐᓄᕌᒃᓯᒪᔪᖅ",                                                                                                                                                                                                               // Cut Region
+	TrimPreview:               "ᑕᑯᒃᓴᑦᑎᐊᕐᓗᒍ ᐃᒡᒋᕐᓂᖅ",                                                                                                                                                                                                              // Preview Trim
+	TrimSmartCopy:             "ᐃᓕᓴᕆᔭᐅᓗᒍ ᑐᒃᓯᓗᒍ (ᓱᒃᑲᐃᑦᑑᓪᓗᓂ)",                                                                                                                                                                                                     // Smart Copy (Fast)
+	TrimRecode:                "ᓄᑖᕐᕕᒋᓗᒍ ᑎᑎᕋᖅᑕᐅᓂᖓ (ᐊᖏᕐᓂᖓᓂᒃ ᐊᑐᖅᑎᑕᐅᓗᒍ)",                                                                                                                                                                                            // Re-encode
+	TrimSegment:               "ᐊᕕᒃᑕᐅᔪᖅ",                                                                                                                                                                                                                        // Segment
+	TrimAddSegment:            "ᐊᕕᒃᑕᐅᔪᒥᒃ ᐃᓚᓕᐅᔾᔨᓗᒍ",                                                                                                                                                                                                              // Add Segment
+	TrimExportSegments:        "ᐊᕙᓗᒋᑦ ᐱᔾᔪᑕᐅᑉᓗᑎᒃ ᐊᓯᖏᑦ ᐃᓚᖏᑦ",                                                                                                                                                                                                      // Export as separate files
+	TrimInvalidSelection:      "ᐱᔾᔪᑕᐅᓂᖅ ᐊᑐᖅᑎᑕᐅᓗᖅᓂᖅ",                                                                                                                                                                                                             // Invalid Selection
+	TrimOutput:                "ᐅᐸᒃᑎᕕᒃ",                                                                                                                                                                                                                         // Output
+	TrimDuration:              "ᑐᓂᓗᒍ",                                                                                                                                                                                                                           // Duration
+	TrimSmartCopyWarningTitle: "ᐃᓕᓴᕆᔭᐅᓗᒍ ᑐᒃᓯᓗᒍ ᐊᑦᑎᕐᓂᖓ",                                                                                                                                                                                                          // Smart Copy Warning
+	TrimSmartCopyWarning:      "ᐃᓕᓴᕆᔭᐅᓗᒍ ᑐᒃᓯᓗᒍ (ᐊᐃᓐᓂᒧᑦ ᓱᒃᑲᐃᑦᑑᓪᓗᓂ, ᐊᐅᓚᑦᑎᕐᓗᓂ) ᐊᑐᖅᑎᑕᐅᓗᒍ ᐋᖅᑭᒃᓱᐃᓂᖅ ᐊᑦᑎᕐᓂᒧᑦ ᐱᔾᔪᑕᐅᔪᑦ.\n\nᐅᐅᔪᑦ ᐅᐸᒃᑎᕕᒃ ᐊᑦ ᐃᓯᕐᕕᒃ ᐊᓂᒍᕐᕕᒃ ᐊᑦᑎᕐᓂᒧᑦ ᐱᔾᔪᑕᐅᔪᑦ, ᐱᔾᔪᑕᐅᓂᖅ ᐅᐅᔪᑦ ᐊᑦᑎᕐᓂᒧᑦ ᓴᐳᒻᒥᓗᒍ.\n\nᐊᓐᓄᕌᒃᓯᒪᔪᖅ ᐅᐅᔪᑦ ᐃᒡᒋᕐᓂᒧᑦ, ᐅᐅᔪᑦ ᐄᑕᕐᕕᒋᓗᒍ ᐅᐸᒃᑎᕕᒃ.\n\nᐃᓕᓴᕆᔭᐅᓗᒍ ᑐᒃᓯᓗᒍ?", // Smart Copy Warning
+	TrimJobAdded:              "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐃᓱᒃᑕᐅᔪᑦ ᐊᒐᒃᓯᔪᒍ",                                                                                                                                                                                                        // Trim job added to queue
 
 	// ── Settings ──────────────────────────────────────────────────────────
 	SettingsTitle:                "ᐋᖅᑭᒃᓱᐃᓂᖅ",                                 // Settings

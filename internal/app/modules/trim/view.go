@@ -252,17 +252,17 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 			dialog.ShowInformation(t.TrimInvalidSelection, "Out point must be after in point.", opts.Window)
 			return
 		}
-		clip := TrimClip{
-			Path:     ts.videoPath,
-			InPoint:  ts.inPoint,
-			OutPoint: ts.outPoint,
-			Duration: time.Duration(ts.duration * float64(time.Second)),
-			Mode:     ts.mode,
-			Export:   ts.export,
+		// Warn about smart copy keyframe limitations
+		if ts.export == "copy" {
+			dialog.ShowConfirm(t.TrimSmartCopyWarningTitle, t.TrimSmartCopyWarning, func(confirmed bool) {
+				if !confirmed {
+					return
+				}
+				ts.doAddToQueue(opts)
+			}, opts.Window)
+			return
 		}
-		if opts.OnAddToQueue != nil {
-			opts.OnAddToQueue(clip)
-		}
+		ts.doAddToQueue(opts)
 	})
 	ts.addBtn.Importance = widget.HighImportance
 	ts.addBtn.Disable()
@@ -395,6 +395,20 @@ func (s *trimState) updateDurationLabel() {
 		regionDur := s.outPoint - s.inPoint
 		durText := fmt.Sprintf("%s: %s", i18n.T().TrimDuration, formatDuration(regionDur))
 		s.durationLabel.SetText(durText)
+	}
+}
+
+func (s *trimState) doAddToQueue(opts Options) {
+	clip := TrimClip{
+		Path:     s.videoPath,
+		InPoint:  s.inPoint,
+		OutPoint: s.outPoint,
+		Duration: time.Duration(s.duration * float64(time.Second)),
+		Mode:     s.mode,
+		Export:   s.export,
+	}
+	if opts.OnAddToQueue != nil {
+		opts.OnAddToQueue(clip)
 	}
 }
 

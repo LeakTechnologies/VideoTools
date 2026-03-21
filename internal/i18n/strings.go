@@ -246,25 +246,27 @@ type Strings struct {
 	StatusNoActiveJobs string // "○ No active jobs"
 
 	// ── Trim ──────────────────────────────────────────────────────────────
-	TrimInstructions     string
-	TrimInPoint          string
-	TrimOutPoint         string
-	TrimSetIn            string
-	TrimSetOut           string
-	TrimClear            string
-	TrimMode             string
-	TrimModeKeep         string
-	TrimModeCut          string
-	TrimPreview          string
-	TrimSmartCopy        string
-	TrimRecode           string
-	TrimSegment          string
-	TrimAddSegment       string
-	TrimExportSegments   string
-	TrimInvalidSelection string
-	TrimOutput           string
-	TrimDuration         string
-	TrimJobAdded         string // "Trim job added to queue."
+	TrimInstructions          string
+	TrimInPoint               string
+	TrimOutPoint              string
+	TrimSetIn                 string
+	TrimSetOut                string
+	TrimClear                 string
+	TrimMode                  string
+	TrimModeKeep              string
+	TrimModeCut               string
+	TrimPreview               string
+	TrimSmartCopy             string
+	TrimRecode                string
+	TrimSegment               string
+	TrimAddSegment            string
+	TrimExportSegments        string
+	TrimInvalidSelection      string
+	TrimOutput                string
+	TrimDuration              string
+	TrimSmartCopyWarning      string
+	TrimSmartCopyWarningTitle string
+	TrimJobAdded              string // "Trim job added to queue."
 
 	// ── Settings ──────────────────────────────────────────────────────────
 	SettingsTitle                string
