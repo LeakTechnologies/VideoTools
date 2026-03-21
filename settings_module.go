@@ -23,6 +23,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/settings"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -1498,18 +1499,18 @@ func extractFileFromZip(zipPath, entryName, destPath string) error {
 // Returns (0, false) for "disabled" or unknown keys.
 func autoCheckKeyToInterval(key string) (time.Duration, bool) {
 	m := map[string]time.Duration{
-		"every_hour":   UpdateCheckHourly,
-		"every_2h":     UpdateCheck2Hours,
-		"every_3h":     UpdateCheck3Hours,
-		"every_4h":     UpdateCheck4Hours,
-		"every_6h":     UpdateCheck6Hours,
-		"every_12h":    UpdateCheck12Hours,
-		"daily":        UpdateCheckDaily,
-		"semi_weekly":  UpdateCheckSemiWeekly,
-		"weekly":       UpdateCheckWeekly,
-		"bi_weekly":    UpdateCheckBiWeekly,
-		"monthly":      UpdateCheckMonthly,
-		"bi_monthly":   UpdateCheckBiMonthly,
+		"every_hour":  UpdateCheckHourly,
+		"every_2h":    UpdateCheck2Hours,
+		"every_3h":    UpdateCheck3Hours,
+		"every_4h":    UpdateCheck4Hours,
+		"every_6h":    UpdateCheck6Hours,
+		"every_12h":   UpdateCheck12Hours,
+		"daily":       UpdateCheckDaily,
+		"semi_weekly": UpdateCheckSemiWeekly,
+		"weekly":      UpdateCheckWeekly,
+		"bi_weekly":   UpdateCheckBiWeekly,
+		"monthly":     UpdateCheckMonthly,
+		"bi_monthly":  UpdateCheckBiMonthly,
 	}
 	d, ok := m[key]
 	return d, ok
@@ -2362,5 +2363,12 @@ func (s *appState) showSettingsView() {
 	s.lastModule = s.active
 	s.active = "settings"
 	s.maximizeWindow()
-	s.setContent(buildSettingsView(s))
+	s.setContent(settings.BuildView(settings.Options{
+		Window:               s.window,
+		StatsBar:             s.statsBar,
+		OnBack:               s.showMainMenu,
+		BuildPreferencesTab:  func() fyne.CanvasObject { return buildPreferencesTab(s) },
+		BuildDependenciesTab: func() fyne.CanvasObject { return buildDependenciesTab(s) },
+		BuildBenchmarkTab:    func() fyne.CanvasObject { return buildBenchmarkTab(s) },
+	}))
 }

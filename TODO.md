@@ -57,10 +57,10 @@ Note: Full direct OpenGL/D3D11 integration requires deeper Fyne modifications. C
 - [x] **Push to origin** — All fixes pushed.
 
 ### Module Extraction (issue #22)
-- [ ] **`settings_module.go`** — opencode in progress.
-- [ ] **`queue_module.go`** — opencode in progress.
-- [ ] **`subtitles_module.go`** — next priority.
-- [ ] **`upscale_module.go`** — following subtitles.
+- [ ] **`settings_module.go`** — See `docs/SETTINGS_EXTRACTION_PLAN.md` for full plan. Estimated 1850 lines to extract.
+- [x] **`queue_module.go`** — Already uses `internal/ui/queueview.go`. Thin wrappers remain in root.
+- [ ] **`subtitles_module.go`** — Next priority after settings.
+- [ ] **`upscale_module.go`** — Following subtitles.
 
 ### Media Engine
 - [x] **SplitView fixes** — Divider color and draggable divider.
