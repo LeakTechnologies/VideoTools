@@ -2091,8 +2091,16 @@ func buildPreferencesTab(state *appState) fyne.CanvasObject {
 	langOptions := i18n.All()
 	langNames := make([]string, len(langOptions))
 	langCodes := make([]string, len(langOptions))
+	activeFont := i18n.CurrentFont()
 	for i, lang := range langOptions {
-		langNames[i] = lang.NativeName
+		// Use EnglishName for languages whose script requires a different font
+		// than the one currently active — prevents syllabics rendering as diamonds
+		// in the dropdown when the user is in Qaliujaaqpait (mono font) mode.
+		if lang.Font != activeFont {
+			langNames[i] = lang.EnglishName
+		} else {
+			langNames[i] = lang.NativeName
+		}
 		langCodes[i] = lang.Code
 	}
 
