@@ -215,10 +215,13 @@ jobs:
 
       - name: Build Windows package
         env:
-          VT_SIGN_EXE: ${{ secrets.VT_SIGN_EXE }}
-          VT_SIGN_PFX: ${{ secrets.VT_SIGN_PFX }}
-          VT_SIGN_PFX_B64: ${{ secrets.VT_SIGN_PFX_B64 }}
-          VT_SIGN_PASSWORD: ${{ secrets.VT_SIGN_PASSWORD }}
+          # SignPath.io (free OSS signing — https://signpath.io/product/open-source)
+          # Set these secrets once approved; signing is skipped when absent.
+          SIGNPATH_API_TOKEN:       ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          # PFX fallback (dev/self-signed; leave empty to skip)
+          VT_SIGN_PFX_B64:   ${{ secrets.VT_SIGN_PFX_B64 }}
+          VT_SIGN_PASSWORD:  ${{ secrets.VT_SIGN_PASSWORD }}
           VT_SIGN_TIMESTAMP: ${{ secrets.VT_SIGN_TIMESTAMP }}
         run: |
           $projectRoot = Resolve-Path "."
@@ -300,11 +303,21 @@ jobs:
 
           go build -p 4 -ldflags="$ldflags" -trimpath -o $buildOutput .
 
-          if ($env:VT_SIGN_EXE -and $env:VT_SIGN_EXE -ne "0") {
-            $signScript = Join-Path $projectRoot "scripts\\windows\\support\\sign-exe.ps1"
-            if (Test-Path $signScript) {
-              & $signScript -ExePath $buildOutput -CertPath $env:VT_SIGN_PFX -CertPassword $env:VT_SIGN_PASSWORD -TimestampUrl $env:VT_SIGN_TIMESTAMP
+          # Sign if credentials are present (SignPath takes priority over PFX)
+          $hasSignPath = $env:SIGNPATH_API_TOKEN -and $env:SIGNPATH_ORGANIZATION_ID
+          $hasPfx      = $env:VT_SIGN_PFX_B64 -and $env:VT_SIGN_PASSWORD
+          $signScript  = Join-Path $projectRoot "scripts\\windows\\support\\sign-exe.ps1"
+          if (($hasSignPath -or $hasPfx) -and (Test-Path $signScript)) {
+            if ($hasPfx -and -not $hasSignPath) {
+              $pfxPath = Join-Path $env:TEMP "vt-sign.pfx"
+              [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:VT_SIGN_PFX_B64))
+              $tsUrl = if ($env:VT_SIGN_TIMESTAMP) { $env:VT_SIGN_TIMESTAMP } else { "http://timestamp.digicert.com" }
+              & $signScript -ExePath $buildOutput -CertPath $pfxPath -CertPassword $env:VT_SIGN_PASSWORD -TimestampUrl $tsUrl
+            } else {
+              & $signScript -ExePath $buildOutput
             }
+          } else {
+            Write-Host "[sign] Skipping: no signing credentials configured." -ForegroundColor Yellow
           }
 
           if (-not (Test-Path $distDir)) {
