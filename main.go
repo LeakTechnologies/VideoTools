@@ -2334,46 +2334,33 @@ func (s *appState) showBenchmark() {
 			}
 
 			// Show results with "Run New Benchmark" option
-			resultsView := ui.BuildBenchmarkResultsView(
-				lastRun.Results,
-				rec,
-				lastRun.HardwareInfo,
-				func() {
-					// Apply recommended hardware acceleration only
-					s.applyBenchmarkRecommendation(lastRun.RecommendedEncoder)
-					s.showMainMenu()
-				},
-				func() {
-					// Close - go back to main menu
-					s.showMainMenu()
-				},
-				utils.MustHex("#4CE870"),
-				utils.MustHex("#1E1E1E"),
-				utils.MustHex("#FFFFFF"),
-			)
-
-			// Add "Run New Benchmark" button at the bottom
+			// "Run New Benchmark" sits in the action bar alongside a cache note
 			runNewBtn := widget.NewButton("Run New Benchmark", func() {
 				s.runNewBenchmark()
 			})
 			runNewBtn.Importance = widget.MediumImportance
 
-			cachedNote := widget.NewLabel(fmt.Sprintf("Showing cached results from %s", lastRun.Timestamp.Format("January 2, 2006 at 3:04 PM")))
-			cachedNote.Alignment = fyne.TextAlignCenter
+			cachedNote := widget.NewLabel(fmt.Sprintf("Cached: %s", lastRun.Timestamp.Format("Jan 2, 2006 3:04 PM")))
 			cachedNote.TextStyle = fyne.TextStyle{Italic: true}
 
-			viewWithButton := container.NewBorder(
-				nil,
-				container.NewVBox(
-					widget.NewSeparator(),
-					cachedNote,
-					container.NewCenter(runNewBtn),
-				),
-				nil, nil,
-				resultsView,
+			actionContent := container.NewHBox(cachedNote, layout.NewSpacer(), runNewBtn)
+
+			resultsView := ui.BuildBenchmarkResultsView(
+				lastRun.Results,
+				rec,
+				lastRun.HardwareInfo,
+				func() {
+					s.applyBenchmarkRecommendation(lastRun.RecommendedEncoder)
+					s.showMainMenu()
+				},
+				s.showMainMenu,
+				utils.MustHex("#4CE870"),
+				utils.MustHex("#1E1E1E"),
+				s.statsBar,
+				actionContent,
 			)
 
-			s.setContent(viewWithButton)
+			s.setContent(resultsView)
 			return
 		}
 	}
@@ -2415,7 +2402,7 @@ func (s *appState) runNewBenchmark() {
 		},
 		utils.MustHex("#4CE870"),
 		utils.MustHex("#1E1E1E"),
-		utils.MustHex("#FFFFFF"),
+		s.statsBar,
 	)
 
 	s.setContent(view.GetContainer())
@@ -2494,17 +2481,14 @@ func (s *appState) runNewBenchmark() {
 					rec,
 					hwInfo,
 					func() {
-						// Apply recommended hardware acceleration only
 						s.applyBenchmarkRecommendation(encoder)
 						s.showMainMenu()
 					},
-					func() {
-						// Close without applying
-						s.showMainMenu()
-					},
+					s.showMainMenu,
 					utils.MustHex("#4CE870"),
 					utils.MustHex("#1E1E1E"),
-					utils.MustHex("#FFFFFF"),
+					s.statsBar,
+					nil,
 				)
 
 				s.setContent(resultsView)
@@ -2701,7 +2685,7 @@ func (s *appState) showBenchmarkHistory() {
 			s.showMainMenu,
 			utils.MustHex("#4CE870"),
 			utils.MustHex("#1E1E1E"),
-			utils.MustHex("#FFFFFF"),
+			s.statsBar,
 		)
 		s.setContent(view)
 		return
@@ -2742,17 +2726,14 @@ func (s *appState) showBenchmarkHistory() {
 				rec,
 				run.HardwareInfo,
 				func() {
-					// Apply recommended hardware acceleration only
 					s.applyBenchmarkRecommendation(run.RecommendedEncoder)
 					s.showBenchmarkHistory()
 				},
-				func() {
-					// Back to history
-					s.showBenchmarkHistory()
-				},
+				s.showBenchmarkHistory,
 				utils.MustHex("#4CE870"),
 				utils.MustHex("#1E1E1E"),
-				utils.MustHex("#FFFFFF"),
+				s.statsBar,
+				nil,
 			)
 
 			s.setContent(resultsView)
@@ -2760,7 +2741,7 @@ func (s *appState) showBenchmarkHistory() {
 		s.showMainMenu,
 		utils.MustHex("#4CE870"),
 		utils.MustHex("#1E1E1E"),
-		utils.MustHex("#FFFFFF"),
+		s.statsBar,
 	)
 
 	s.setContent(view)

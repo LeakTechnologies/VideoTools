@@ -8,59 +8,67 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
 )
 
-// BuildBenchmarkProgressView creates the benchmark progress UI
+// benchmarkModuleFooter builds the standard module footer used by all benchmark
+// views: a dark status strip (32 px) above a tinted action bar (44 px).
+func benchmarkModuleFooter(tint color.Color, actionContent fyne.CanvasObject, statsBar *ConversionStatsBar) fyne.CanvasObject {
+	statusBg := canvas.NewRectangle(color.NRGBA{R: 34, G: 34, B: 34, A: 255})
+	statusBg.SetMinSize(fyne.NewSize(0, 32))
+	statusStrip := container.NewMax(statusBg, container.NewPadded(statsBar))
+
+	if actionContent == nil {
+		actionContent = layout.NewSpacer()
+	}
+	actionBg := canvas.NewRectangle(tint)
+	actionBg.SetMinSize(fyne.NewSize(0, 44))
+	actionBar := container.NewMax(actionBg, container.NewPadded(actionContent))
+
+	return container.NewVBox(statusStrip, actionBar)
+}
+
+// BuildBenchmarkProgressView creates the benchmark progress UI.
 func BuildBenchmarkProgressView(
 	hwInfo sysinfo.HardwareInfo,
-	onCancel func(),
-	titleColor, bgColor, textColor color.Color,
+	onBack func(),
+	headerColor, bgColor color.Color,
+	statsBar *ConversionStatsBar,
 ) *BenchmarkProgressView {
 	view := &BenchmarkProgressView{
-		hwInfo:     hwInfo,
-		titleColor: titleColor,
-		bgColor:    bgColor,
-		textColor:  textColor,
-		onCancel:   onCancel,
+		hwInfo:      hwInfo,
+		headerColor: headerColor,
+		bgColor:     bgColor,
+		statsBar:    statsBar,
+		onBack:      onBack,
 	}
 	view.build()
 	return view
 }
 
-// BenchmarkProgressView shows real-time benchmark progress
+// BenchmarkProgressView shows real-time benchmark progress.
 type BenchmarkProgressView struct {
-	hwInfo     sysinfo.HardwareInfo
-	titleColor color.Color
-	bgColor    color.Color
-	textColor  color.Color
-	onCancel   func()
+	hwInfo      sysinfo.HardwareInfo
+	headerColor color.Color
+	bgColor     color.Color
+	statsBar    *ConversionStatsBar
+	onBack      func()
 
 	container    *fyne.Container
 	statusLabel  *widget.Label
 	progressBar  *widget.ProgressBar
 	currentLabel *widget.Label
 	resultsBox   *fyne.Container
-	cancelBtn    *widget.Button
 }
 
 func (v *BenchmarkProgressView) build() {
-	// Header
-	title := canvas.NewText("ENCODER BENCHMARK", v.titleColor)
-	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	title.TextSize = 24
-
-	v.cancelBtn = widget.NewButton("Cancel", v.onCancel)
-	v.cancelBtn.Importance = widget.DangerImportance
-
-	header := container.NewBorder(
-		nil, nil,
-		nil,
-		v.cancelBtn,
-		container.NewCenter(title),
-	)
+	// Header bar
+	backBtn := widget.NewButton("< BENCHMARK", v.onBack)
+	backBtn.Importance = widget.LowImportance
+	topBar := TintedBar(v.headerColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// Hardware info section
 	hwInfoTitle := widget.NewLabel("System Hardware")
@@ -81,16 +89,10 @@ func (v *BenchmarkProgressView) build() {
 	hwCard := canvas.NewRectangle(color.RGBA{R: 34, G: 38, B: 48, A: 255})
 	hwCard.CornerRadius = 8
 
-	hwContent := container.NewVBox(
-		hwInfoTitle,
-		cpuLabel,
-		gpuLabel,
-		ramLabel,
-		driverLabel,
-	)
-
 	hwInfoSection := container.NewPadded(
-		container.NewMax(hwCard, hwContent),
+		container.NewMax(hwCard, container.NewVBox(
+			hwInfoTitle, cpuLabel, gpuLabel, ramLabel, driverLabel,
+		)),
 	)
 
 	// Status section
@@ -112,45 +114,42 @@ func (v *BenchmarkProgressView) build() {
 		v.currentLabel,
 	)
 
-	// Results section
+	// Results section — expands to fill remaining space
 	resultsTitle := widget.NewLabel("Results")
 	resultsTitle.TextStyle = fyne.TextStyle{Bold: true}
 	resultsTitle.Alignment = fyne.TextAlignCenter
 
 	v.resultsBox = container.NewVBox()
 	resultsScroll := container.NewVScroll(v.resultsBox)
-	resultsScroll.SetMinSize(fyne.NewSize(0, 300))
 
-	resultsSection := container.NewBorder(
-		resultsTitle,
-		nil, nil, nil,
-		resultsScroll,
+	resultsSection := container.NewBorder(resultsTitle, nil, nil, nil, resultsScroll)
+
+	// Fixed top portion — hw info + status
+	topFixed := container.NewVBox(
+		hwInfoSection,
+		widget.NewSeparator(),
+		statusSection,
+		widget.NewSeparator(),
 	)
 
-	// Main layout
 	body := container.NewBorder(
-		header,
-		nil, nil, nil,
-		container.NewVBox(
-			hwInfoSection,
-			widget.NewSeparator(),
-			statusSection,
-			widget.NewSeparator(),
-			resultsSection,
-		),
+		topBar,
+		benchmarkModuleFooter(v.headerColor, nil, v.statsBar),
+		nil, nil,
+		container.NewBorder(topFixed, nil, nil, nil, resultsSection),
 	)
 
-	v.container = container.NewPadded(body)
+	v.container = container.NewMax(body)
 }
 
-// GetContainer returns the main container
+// GetContainer returns the root container for this view.
 func (v *BenchmarkProgressView) GetContainer() *fyne.Container {
 	return v.container
 }
 
-// UpdateProgress updates the progress bar and labels
+// UpdateProgress updates the progress bar and status labels.
 func (v *BenchmarkProgressView) UpdateProgress(current, total int, encoder, preset string) {
-	pct := (float64(current) / float64(total)) * 100 // Convert to 0-100 range
+	pct := (float64(current) / float64(total)) * 100
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		v.progressBar.SetValue(pct)
 		v.statusLabel.SetText(fmt.Sprintf("Testing encoder %d of %d", current, total))
@@ -161,46 +160,34 @@ func (v *BenchmarkProgressView) UpdateProgress(current, total int, encoder, pres
 	}, false)
 }
 
-// AddResult adds a completed test result to the display
+// AddResult appends a completed test result card to the live results list.
 func (v *BenchmarkProgressView) AddResult(result benchmark.Result) {
 	var statusColor color.Color
 	var statusText string
 
 	if result.Error != "" {
-		statusColor = color.RGBA{R: 255, G: 68, B: 68, A: 255} // Red
+		statusColor = color.RGBA{R: 255, G: 68, B: 68, A: 255}
 		statusText = fmt.Sprintf("FAILED: %s", result.Error)
 	} else {
-		statusColor = color.RGBA{R: 76, G: 232, B: 112, A: 255} // Green
+		statusColor = color.RGBA{R: 76, G: 232, B: 112, A: 255}
 		statusText = fmt.Sprintf("%.1f FPS | %.1fs encoding time", result.FPS, result.EncodingTime)
 	}
 
-	// Status indicator
 	statusRect := canvas.NewRectangle(statusColor)
-	// statusRect.SetMinSize(fyne.NewSize(6, 0)) // Removed for flexible sizing
 
-	// Encoder label
 	encoderLabel := widget.NewLabel(fmt.Sprintf("%s (%s)", result.Encoder, result.Preset))
 	encoderLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	// Status label
 	statusLabel := widget.NewLabel(statusText)
 	statusLabel.Wrapping = fyne.TextWrapWord
 
-	// Card content
-	content := container.NewBorder(
-		nil, nil,
-		statusRect,
-		nil,
-		container.NewVBox(encoderLabel, statusLabel),
-	)
+	content := container.NewBorder(nil, nil, statusRect, nil,
+		container.NewVBox(encoderLabel, statusLabel))
 
-	// Card background
 	card := canvas.NewRectangle(v.bgColor)
 	card.CornerRadius = 4
 
-	item := container.NewPadded(
-		container.NewMax(card, content),
-	)
+	item := container.NewPadded(container.NewMax(card, content))
 
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		v.resultsBox.Add(item)
@@ -208,43 +195,37 @@ func (v *BenchmarkProgressView) AddResult(result benchmark.Result) {
 	}, false)
 }
 
-// SetComplete marks the benchmark as complete
+// SetComplete marks the benchmark as finished.
 func (v *BenchmarkProgressView) SetComplete() {
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		v.statusLabel.SetText("Benchmark complete!")
 		v.progressBar.SetValue(100.0)
 		v.currentLabel.SetText("")
-		v.cancelBtn.SetText("Close")
 		v.statusLabel.Refresh()
 		v.progressBar.Refresh()
 		v.currentLabel.Refresh()
-		v.cancelBtn.Refresh()
 	}, false)
 }
 
-// BuildBenchmarkResultsView creates the final results/recommendation UI
+// BuildBenchmarkResultsView creates the final results/recommendation UI.
+// actionContent is placed in the bottom action bar; pass nil for an empty bar.
 func BuildBenchmarkResultsView(
 	results []benchmark.Result,
 	recommendation benchmark.Result,
 	hwInfo sysinfo.HardwareInfo,
 	onApply func(),
-	onClose func(),
-	titleColor, bgColor, textColor color.Color,
+	onBack func(),
+	headerColor, bgColor color.Color,
+	statsBar *ConversionStatsBar,
+	actionContent fyne.CanvasObject,
 ) fyne.CanvasObject {
-	// Header
-	title := canvas.NewText("BENCHMARK RESULTS", titleColor)
-	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	title.TextSize = 24
+	// Header bar
+	backBtn := widget.NewButton("< BENCHMARK", onBack)
+	backBtn.Importance = widget.LowImportance
+	topBar := TintedBar(headerColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
-	closeBtn := widget.NewButton("Close", onClose)
-	closeBtn.Importance = widget.LowImportance
-
-	header := container.NewBorder(
-		nil, nil,
-		nil,
-		closeBtn,
-		container.NewCenter(title),
-	)
+	// Footer bar
+	footer := benchmarkModuleFooter(headerColor, actionContent, statsBar)
 
 	// Hardware info section
 	hwInfoTitle := widget.NewLabel("System Hardware")
@@ -265,200 +246,151 @@ func BuildBenchmarkResultsView(
 	hwCard := canvas.NewRectangle(color.RGBA{R: 34, G: 38, B: 48, A: 255})
 	hwCard.CornerRadius = 8
 
-	hwContent := container.NewVBox(
-		hwInfoTitle,
-		cpuLabel,
-		gpuLabel,
-		ramLabel,
-		driverLabel,
-	)
-
 	hwInfoSection := container.NewPadded(
-		container.NewMax(hwCard, hwContent),
+		container.NewMax(hwCard, container.NewVBox(
+			hwInfoTitle, cpuLabel, gpuLabel, ramLabel, driverLabel,
+		)),
 	)
 
-	// Recommendation section
-	if recommendation.Encoder != "" {
-		recTitle := widget.NewLabel("RECOMMENDED ENCODER")
-		recTitle.TextStyle = fyne.TextStyle{Bold: true}
-		recTitle.Alignment = fyne.TextAlignCenter
+	if recommendation.Encoder == "" {
+		// No results case
+		emptyMsg := widget.NewLabel("No benchmark results available")
+		emptyMsg.Alignment = fyne.TextAlignCenter
 
-		recEncoder := widget.NewLabel(fmt.Sprintf("%s (preset: %s)", recommendation.Encoder, recommendation.Preset))
-		recEncoder.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-		recEncoder.Alignment = fyne.TextAlignCenter
-
-		recStats := widget.NewLabel(fmt.Sprintf("%.1f FPS | %.1fs encoding time | Score: %.1f",
-			recommendation.FPS, recommendation.EncodingTime, recommendation.Score))
-		recStats.Alignment = fyne.TextAlignCenter
-
-		applyBtn := widget.NewButton("Apply to Settings", onApply)
-		applyBtn.Importance = widget.HighImportance
-
-		recCard := canvas.NewRectangle(color.RGBA{R: 68, G: 136, B: 255, A: 50})
-		recCard.CornerRadius = 8
-
-		recContent := container.NewVBox(
-			recTitle,
-			recEncoder,
-			recStats,
-			container.NewCenter(applyBtn),
-		)
-
-		recommendationSection := container.NewPadded(
-			container.NewMax(recCard, recContent),
-		)
-
-		// Top results list
-		topResultsTitle := widget.NewLabel("Top Encoders")
-		topResultsTitle.TextStyle = fyne.TextStyle{Bold: true}
-		topResultsTitle.Alignment = fyne.TextAlignCenter
-
-		var filtered []benchmark.Result
-		for _, result := range results {
-			if result.Error == "" {
-				filtered = append(filtered, result)
-			}
-		}
-
-		sort.Slice(filtered, func(i, j int) bool {
-			return filtered[i].Score > filtered[j].Score
-		})
-
-		var resultItems []fyne.CanvasObject
-		for i, result := range filtered {
-			rankLabel := widget.NewLabel(fmt.Sprintf("#%d", i+1))
-			rankLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-			encoderLabel := widget.NewLabel(fmt.Sprintf("%s (%s)", result.Encoder, result.Preset))
-
-			statsLabel := widget.NewLabel(fmt.Sprintf("%.1f FPS | %.1fs | Score: %.1f",
-				result.FPS, result.EncodingTime, result.Score))
-			statsLabel.TextStyle = fyne.TextStyle{Italic: true}
-
-			content := container.NewBorder(
-				nil, nil,
-				rankLabel,
-				nil,
-				container.NewVBox(encoderLabel, statsLabel),
-			)
-
-			card := canvas.NewRectangle(bgColor)
-			card.CornerRadius = 4
-
-			item := container.NewPadded(
-				container.NewMax(card, content),
-			)
-
-			resultItems = append(resultItems, item)
-		}
-
-		resultsBox := container.NewVBox(resultItems...)
-		resultsScroll := container.NewVScroll(resultsBox)
-
-		resultsSection := container.NewBorder(
-			topResultsTitle,
-			nil, nil, nil,
-			resultsScroll,
-		)
-
-		// Fixed top portion (hardware info + recommendation).
-		// Placed as the "top" of an inner Border so the results scroll
-		// expands to fill all remaining vertical space below it.
-		topFixed := container.NewVBox(
-			hwInfoSection,
-			widget.NewSeparator(),
-			recommendationSection,
-			widget.NewSeparator(),
-		)
-
-		body := container.NewBorder(
-			header,
-			nil, nil, nil,
-			container.NewBorder(
-				topFixed,
-				nil, nil, nil,
-				resultsSection,
-			),
-		)
-
-		return container.NewPadded(body)
+		return container.NewBorder(topBar, footer, nil, nil,
+			container.NewBorder(hwInfoSection, nil, nil, nil,
+				container.NewCenter(emptyMsg)))
 	}
 
-	// No results case
-	emptyMsg := widget.NewLabel("No benchmark results available")
-	emptyMsg.Alignment = fyne.TextAlignCenter
+	// Recommendation section
+	recTitle := widget.NewLabel("RECOMMENDED ENCODER")
+	recTitle.TextStyle = fyne.TextStyle{Bold: true}
+	recTitle.Alignment = fyne.TextAlignCenter
 
-	body := container.NewBorder(
-		header,
-		nil, nil, nil,
-		container.NewCenter(emptyMsg),
+	recEncoder := widget.NewLabel(fmt.Sprintf("%s (preset: %s)", recommendation.Encoder, recommendation.Preset))
+	recEncoder.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	recEncoder.Alignment = fyne.TextAlignCenter
+
+	recStats := widget.NewLabel(fmt.Sprintf("%.1f FPS | %.1fs encoding time | Score: %.1f",
+		recommendation.FPS, recommendation.EncodingTime, recommendation.Score))
+	recStats.Alignment = fyne.TextAlignCenter
+
+	applyBtn := widget.NewButton("Apply to Settings", onApply)
+	applyBtn.Importance = widget.HighImportance
+
+	recCard := canvas.NewRectangle(color.RGBA{R: 68, G: 136, B: 255, A: 50})
+	recCard.CornerRadius = 8
+
+	recommendationSection := container.NewPadded(
+		container.NewMax(recCard, container.NewVBox(
+			recTitle, recEncoder, recStats,
+			container.NewCenter(applyBtn),
+		)),
 	)
 
-	return container.NewPadded(body)
+	// Top encoders list
+	topResultsTitle := widget.NewLabel("Top Encoders")
+	topResultsTitle.TextStyle = fyne.TextStyle{Bold: true}
+	topResultsTitle.Alignment = fyne.TextAlignCenter
+
+	var filtered []benchmark.Result
+	for _, r := range results {
+		if r.Error == "" {
+			filtered = append(filtered, r)
+		}
+	}
+	sort.Slice(filtered, func(i, j int) bool {
+		return filtered[i].Score > filtered[j].Score
+	})
+
+	var resultItems []fyne.CanvasObject
+	for i, r := range filtered {
+		rankLabel := widget.NewLabel(fmt.Sprintf("#%d", i+1))
+		rankLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+		encoderLabel := widget.NewLabel(fmt.Sprintf("%s (%s)", r.Encoder, r.Preset))
+
+		statsLabel := widget.NewLabel(fmt.Sprintf("%.1f FPS | %.1fs | Score: %.1f",
+			r.FPS, r.EncodingTime, r.Score))
+		statsLabel.TextStyle = fyne.TextStyle{Italic: true}
+
+		content := container.NewBorder(nil, nil, rankLabel, nil,
+			container.NewVBox(encoderLabel, statsLabel))
+
+		card := canvas.NewRectangle(bgColor)
+		card.CornerRadius = 4
+
+		resultItems = append(resultItems, container.NewPadded(container.NewMax(card, content)))
+	}
+
+	resultsBox := container.NewVBox(resultItems...)
+	resultsScroll := container.NewVScroll(resultsBox)
+	resultsSection := container.NewBorder(topResultsTitle, nil, nil, nil, resultsScroll)
+
+	// Fixed top: hw info + recommendation; results scroll expands below
+	topFixed := container.NewVBox(
+		hwInfoSection,
+		widget.NewSeparator(),
+		recommendationSection,
+		widget.NewSeparator(),
+	)
+
+	return container.NewBorder(
+		topBar,
+		footer,
+		nil, nil,
+		container.NewBorder(topFixed, nil, nil, nil, resultsSection),
+	)
 }
 
-// BuildBenchmarkHistoryView creates the benchmark history browser UI
+// BuildBenchmarkHistoryView creates the benchmark history browser UI.
 func BuildBenchmarkHistoryView(
 	history []BenchmarkHistoryRun,
 	onSelectRun func(int),
-	onClose func(),
-	titleColor, bgColor, textColor color.Color,
+	onBack func(),
+	headerColor, bgColor color.Color,
+	statsBar *ConversionStatsBar,
 ) fyne.CanvasObject {
-	// Header
-	title := canvas.NewText("BENCHMARK HISTORY", titleColor)
-	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	title.TextSize = 24
+	// Header bar
+	backBtn := widget.NewButton("< BENCHMARK", onBack)
+	backBtn.Importance = widget.LowImportance
+	topBar := TintedBar(headerColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
-	closeBtn := widget.NewButton("← Back", onClose)
-	closeBtn.Importance = widget.LowImportance
-
-	header := container.NewBorder(
-		nil, nil,
-		closeBtn,
-		nil,
-		container.NewCenter(title),
-	)
+	// Footer bar
+	footer := benchmarkModuleFooter(headerColor, nil, statsBar)
 
 	if len(history) == 0 {
 		emptyMsg := widget.NewLabel("No benchmark history yet.\n\nRun your first benchmark to see results here.")
 		emptyMsg.Alignment = fyne.TextAlignCenter
 		emptyMsg.Wrapping = fyne.TextWrapWord
 
-		body := container.NewBorder(
-			header,
-			nil, nil, nil,
-			container.NewCenter(emptyMsg),
-		)
-
-		return container.NewPadded(body)
+		return container.NewBorder(topBar, footer, nil, nil,
+			container.NewCenter(emptyMsg))
 	}
 
-	// Build list of benchmark runs
 	var runItems []fyne.CanvasObject
 	for i, run := range history {
-		idx := i // Capture for closure
-		runItems = append(runItems, buildHistoryRunItem(run, idx, onSelectRun, bgColor, textColor))
+		idx := i
+		runItems = append(runItems, buildHistoryRunItem(run, idx, onSelectRun, bgColor))
 	}
 
 	runsList := container.NewVBox(runItems...)
 	runsScroll := container.NewVScroll(runsList)
-	// runsScroll.SetMinSize(fyne.NewSize(0, 400)) // Removed for flexible sizing
 
 	infoLabel := widget.NewLabel("Click on a benchmark run to view detailed results")
 	infoLabel.Alignment = fyne.TextAlignCenter
 	infoLabel.TextStyle = fyne.TextStyle{Italic: true}
 
-	body := container.NewBorder(
-		header,
-		container.NewVBox(widget.NewSeparator(), infoLabel),
+	return container.NewBorder(
+		topBar,
+		footer,
 		nil, nil,
-		runsScroll,
+		container.NewBorder(nil, container.NewVBox(widget.NewSeparator(), infoLabel), nil, nil,
+			runsScroll),
 	)
-
-	return container.NewPadded(body)
 }
 
-// BenchmarkHistoryRun represents a benchmark run in the history view
+// BenchmarkHistoryRun represents a benchmark run in the history view.
 type BenchmarkHistoryRun struct {
 	Timestamp          string
 	ResultCount        int
@@ -471,39 +403,23 @@ func buildHistoryRunItem(
 	run BenchmarkHistoryRun,
 	index int,
 	onSelect func(int),
-	bgColor, textColor color.Color,
+	bgColor color.Color,
 ) fyne.CanvasObject {
-	// Timestamp label
 	timeLabel := widget.NewLabel(run.Timestamp)
 	timeLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	// Recommendation info
 	recLabel := widget.NewLabel(fmt.Sprintf("Recommended: %s (%s) - %.1f FPS",
 		run.RecommendedEncoder, run.RecommendedPreset, run.RecommendedFPS))
 
-	// Result count
 	countLabel := widget.NewLabel(fmt.Sprintf("%d encoders tested", run.ResultCount))
 	countLabel.TextStyle = fyne.TextStyle{Italic: true}
 
-	// Content
-	content := container.NewVBox(
-		timeLabel,
-		recLabel,
-		countLabel,
-	)
-
-	// Card background
 	card := canvas.NewRectangle(bgColor)
 	card.CornerRadius = 4
 
 	item := container.NewPadded(
-		container.NewMax(card, content),
+		container.NewMax(card, container.NewVBox(timeLabel, recLabel, countLabel)),
 	)
 
-	// Make it tappable
-	tappable := NewTappable(item, func() {
-		onSelect(index)
-	})
-
-	return tappable
+	return NewTappable(item, func() { onSelect(index) })
 }
