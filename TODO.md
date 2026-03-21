@@ -57,7 +57,7 @@ Note: Full direct OpenGL/D3D11 integration requires deeper Fyne modifications. C
 - [x] **Push to origin** — All fixes pushed.
 
 ### Module Extraction (issue #22)
-- [ ] **`settings_module.go`** — Phase 1 complete. See `docs/SETTINGS_EXTRACTION_PLAN.md`. Module structure created, tab builders remain in root.
+- [ ] **`settings_module.go`** — Phase 1 complete. See `docs/SETTINGS_EXTRACTION_PLAN.md`. Module structure established with callback pattern. Full extraction requires extensive callback wiring.
 - [x] **`queue_module.go`** — Already uses `internal/ui/queueview.go`. Thin wrappers remain in root.
 - [ ] **`subtitles_module.go`** — Next priority after settings.
 - [ ] **`upscale_module.go`** — Following subtitles.
