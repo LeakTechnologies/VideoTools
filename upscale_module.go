@@ -312,6 +312,58 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 	}
 	hwAccelSelect.SetSelected(state.upscaleHardwareAccel)
 
+	// Manual CRF slider (0-51)
+	if state.upscaleManualCRF == 0 {
+		state.upscaleManualCRF = 16
+	}
+	crfValueLabel := widget.NewLabel(fmt.Sprintf("%d", state.upscaleManualCRF))
+	crfSlider := widget.NewSlider(0, 51)
+	crfSlider.Step = 1
+	crfSlider.Value = float64(state.upscaleManualCRF)
+	crfSlider.OnChanged = func(v float64) {
+		state.upscaleManualCRF = int(v)
+		crfValueLabel.SetText(fmt.Sprintf("%d", int(v)))
+	}
+	crfHint := widget.NewLabel(t.UpscaleCRFHint)
+	crfHint.TextStyle = fyne.TextStyle{Italic: true}
+	crfHint.Wrapping = fyne.TextWrapWord
+	crfSection := container.NewVBox(
+		container.NewGridWithColumns(2,
+			widget.NewLabel(t.UpscaleManualCRFLabel),
+			container.NewBorder(nil, nil, nil, crfValueLabel, crfSlider),
+		),
+		crfHint,
+	)
+
+	// Bitrate value entry (for CBR/VBR)
+	bitrateEntry := widget.NewEntry()
+	bitrateEntry.SetPlaceHolder("e.g. 8000k, 20M")
+	if state.upscaleManualBitrate != "" {
+		bitrateEntry.SetText(state.upscaleManualBitrate)
+	}
+	bitrateEntry.OnChanged = func(s string) {
+		state.upscaleManualBitrate = s
+	}
+	bitrateHint := widget.NewLabel(t.UpscaleBitrateHint)
+	bitrateSection := container.NewVBox(
+		container.NewGridWithColumns(2,
+			widget.NewLabel(t.UpscaleBitrateValueLabel),
+			bitrateEntry,
+		),
+		bitrateHint,
+	)
+
+	updateBitrateModeUI := func(mode string) {
+		if mode == "CRF" {
+			crfSection.Show()
+			bitrateSection.Hide()
+		} else {
+			crfSection.Hide()
+			bitrateSection.Show()
+		}
+	}
+	updateBitrateModeUI(state.upscaleBitrateMode)
+
 	// Bitrate mode
 	bitrateModeSelect := widget.NewSelect([]string{
 		"CRF (Constant Rate Factor)",
@@ -328,6 +380,7 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		default:
 			state.upscaleBitrateMode = s
 		}
+		updateBitrateModeUI(state.upscaleBitrateMode)
 	})
 	switch state.upscaleBitrateMode {
 	case "CBR":
@@ -336,32 +389,6 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		bitrateModeSelect.SetSelected("VBR (Variable Bitrate)")
 	default:
 		bitrateModeSelect.SetSelected("CRF (Constant Rate Factor)")
-	}
-
-	// Manual CRF slider (0-51)
-	if state.upscaleManualCRF == 0 {
-		state.upscaleManualCRF = 16
-	}
-	crfValueLabel := widget.NewLabel(fmt.Sprintf("%d", state.upscaleManualCRF))
-	crfSlider := widget.NewSlider(0, 51)
-	crfSlider.Step = 1
-	crfSlider.Value = float64(state.upscaleManualCRF)
-	crfSlider.OnChanged = func(v float64) {
-		state.upscaleManualCRF = int(v)
-		crfValueLabel.SetText(fmt.Sprintf("%d", int(v)))
-	}
-	crfHint := widget.NewLabel(t.UpscaleCRFHint)
-	crfHint.TextStyle = fyne.TextStyle{Italic: true}
-	crfHint.Wrapping = fyne.TextWrapWord
-
-	// Bitrate value entry (for CBR/VBR)
-	bitrateEntry := widget.NewEntry()
-	bitrateEntry.SetPlaceHolder("e.g. 8000k, 20M")
-	if state.upscaleManualBitrate != "" {
-		bitrateEntry.SetText(state.upscaleManualBitrate)
-	}
-	bitrateEntry.OnChanged = func(s string) {
-		state.upscaleManualBitrate = s
 	}
 
 	// Pixel format selection
@@ -396,16 +423,8 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			widget.NewLabel(t.UpscaleBitrateLabel),
 			bitrateModeSelect,
 		),
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleManualCRFLabel),
-			container.NewBorder(nil, nil, nil, crfValueLabel, crfSlider),
-		),
-		crfHint,
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleBitrateValueLabel),
-			bitrateEntry,
-		),
-		widget.NewLabel(t.UpscaleBitrateHint),
+		crfSection,
+		bitrateSection,
 		container.NewGridWithColumns(2,
 			widget.NewLabel(t.UpscalePixelFormatLabel),
 			pixelFormatSelect,
