@@ -42,7 +42,7 @@ type PreferencesCallbacks interface {
 	SetConvertShowDisc(show bool)
 	PersistLocale(code string, script i18n.ScriptVariant)
 	SavePrefsConfig() error
-	PrefsConfig() *PrefsConfig
+	PrefsConfig() PrefsConfig
 }
 
 type DependencyCallbacks interface {

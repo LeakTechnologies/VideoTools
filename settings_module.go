@@ -5,26 +5,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"image/color"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/settings"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -1502,7 +1497,19 @@ func applyUpdate(state *appState, tag string) {
 				return
 			}
 			newBinaryPath = tmpPath
-	}
+		}
+
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.Hide()
+		}, false)
+
+		if err := performRestart(newBinaryPath, exePath); err != nil {
+			os.Remove(newBinaryPath)
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				dialog.ShowError(fmt.Errorf("update failed: %w", err), state.window)
+			}, false)
+		}
+	}()
 }
 
 func formatRelativeTime(t time.Time) string {
@@ -1638,7 +1645,7 @@ func (a *preferencesAdapter) SavePrefsConfig() error {
 	return savePrefsConfig(a.s.prefs)
 }
 
-func (a *preferencesAdapter) PrefsConfig() *PrefsConfig {
+func (a *preferencesAdapter) PrefsConfig() prefsConfig {
 	return a.s.prefs
 }
 
@@ -1671,7 +1678,7 @@ func (a *dependencyAdapter) InstallWindowsPython(onDone func(pythonExe string)) 
 }
 
 func (a *dependencyAdapter) RunDependencyCommandWithProgress(title, message string, depCmd *dependencyCommand, onDone func(output string, err error)) {
-	runDependencyCommandWithProgress(a.s.window, title, message, (*DependencyCommand)(depCmd), onDone)
+	runDependencyCommandWithProgress(a.s.window, title, message, depCmd, onDone)
 }
 
 func (a *dependencyAdapter) ShowCommandResult(title, output string, err error) {
@@ -1686,7 +1693,7 @@ func (a *dependencyAdapter) IsDependencyAvailableForPlatform(dep Dependency) boo
 	return isDependencyAvailableForPlatform(dep)
 }
 
-func (a *dependencyAdapter) GetDependencyCommands(depName string) DependencyCommandPair {
+func (a *dependencyAdapter) GetDependencyCommands(depName string) dependencyCommandPair {
 	return getDependencyCommands(depName)
 }
 
