@@ -21,6 +21,7 @@ type ModuleInfo struct {
 	ID                  string
 	Label               string
 	Color               color.Color
+	TextColor           color.Color
 	Enabled             bool
 	Category            string
 	MissingDependencies bool // true if disabled due to missing dependencies
@@ -190,7 +191,7 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 // buildModuleTile creates a single module tile
 func buildModuleTile(mod ModuleInfo, tapped func(), dropped func([]fyne.URI)) fyne.CanvasObject {
 	logging.Debug(logging.CatUI, "building tile %s color=%v enabled=%v missingDeps=%v", mod.ID, mod.Color, mod.Enabled, mod.MissingDependencies)
-	return NewModuleTile(mod.Label, mod.Color, mod.Enabled, mod.MissingDependencies, tapped, dropped)
+	return NewModuleTile(mod.Label, mod.Color, mod.TextColor, mod.Enabled, mod.MissingDependencies, tapped, dropped)
 }
 
 // buildQueueTile creates the queue status tile

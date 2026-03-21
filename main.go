@@ -80,11 +80,12 @@ func abs(x int32) int32 {
 
 // Module describes a high level tool surface that gets a tile on the menu.
 type Module struct {
-	ID       string
-	Label    string
-	Color    color.Color
-	Category string
-	Handle   func(files []string)
+	ID        string
+	Label     string
+	Color     color.Color
+	TextColor color.Color // foreground color for tile label (white or black)
+	Category  string
+	Handle    func(files []string)
 }
 
 var (
@@ -115,24 +116,23 @@ var (
 	videotoolboxProbeOK *bool
 	amfProbeOK       *bool
 
-	// Rainbow+ palette: distinct, eye-friendly colors with high readability.
-	// Convert color remains constant.
+	// 14-step HSL spectrum: H steps ~25.7° from VT_Purple (H=260, S=60%, L=50%).
+	// Text rule: black for H=29–131 (warm/bright hues), white for all others.
 	modulesList = []Module{
-		{"convert", "Convert", utils.MustHex("#6F42C1"), "Convert", modules.HandleConvert},           // Violet (constant)
-		{"merge", "Merge", utils.MustHex("#1F6F55"), "Convert", modules.HandleMerge},                 // Deep emerald
-		{"trim", "Trim", utils.MustHex("#4A5D73"), "Convert", modules.HandleTrim},                    // Steel blue-violet
-		{"filters", "Filters", utils.MustHex("#005F5F"), "Convert", modules.HandleFilters},           // Deep petrol teal
-		{"upscale", "Upscale", utils.MustHex("#C2185B"), "Advanced", modules.HandleUpscale},          // Magenta
-		{"enhancement", "Enhancement", utils.MustHex("#00897B"), "Advanced", modules.HandleEnhance},  // Teal
-		{"audio", "Audio", utils.MustHex("#9A7500"), "Convert", modules.HandleAudio},                 // Dark amber
-		{"author", "Author", utils.MustHex("#C62828"), "Disc", modules.HandleAuthor},                 // Crimson red
-		{"rip", "Rip", utils.MustHex("#7A6A2F"), "Disc", modules.HandleRip},                          // Olive bronze
-		{"subtitles", "Subtitles", utils.MustHex("#6E3B2E"), "Convert", modules.HandleSubtitles},     // Burnt copper
-		{"thumbnail", "Thumbnail", utils.MustHex("#5E35B1"), "Screenshots", modules.HandleThumbnail}, // Violet
-		{"compare", "Compare", utils.MustHex("#E64A19"), "Inspect", modules.HandleCompare},           // Vermilion
-		{"inspect", "Inspect", utils.MustHex("#3A3F9F"), "Inspect", modules.HandleInspect},           // Deep indigo
-		{"player", "Player", utils.MustHex("#1565C0"), "Playback", modules.HandlePlayer},             // Cobalt blue
-		{"settings", "Settings", utils.MustHex("#6B717A"), "Settings", nil},                          // Steel grey
+		{"convert",    "Convert",    utils.MustHex("#6633CC"), color.White,                              "Convert",     modules.HandleConvert},
+		{"merge",      "Merge",      utils.MustHex("#A833CC"), color.White,                              "Convert",     modules.HandleMerge},
+		{"trim",       "Trim",       utils.MustHex("#CC33B0"), color.White,                              "Convert",     modules.HandleTrim},
+		{"filters",    "Filters",    utils.MustHex("#CC336E"), color.White,                              "Convert",     modules.HandleFilters},
+		{"audio",      "Audio",      utils.MustHex("#CC3B33"), color.White,                              "Convert",     modules.HandleAudio},
+		{"subtitles",  "Subtitles",  utils.MustHex("#CC7D33"), color.NRGBA{R: 0, G: 0, B: 0, A: 255},   "Convert",     modules.HandleSubtitles},
+		{"compare",    "Compare",    utils.MustHex("#CCBD33"), color.NRGBA{R: 0, G: 0, B: 0, A: 255},   "Inspect",     modules.HandleCompare},
+		{"inspect",    "Inspect",    utils.MustHex("#99CC33"), color.NRGBA{R: 0, G: 0, B: 0, A: 255},   "Inspect",     modules.HandleInspect},
+		{"upscale",    "Upscale",    utils.MustHex("#57CC33"), color.NRGBA{R: 0, G: 0, B: 0, A: 255},   "Advanced",    modules.HandleUpscale},
+		{"author",     "Author",     utils.MustHex("#33CC4F"), color.NRGBA{R: 0, G: 0, B: 0, A: 255},   "Disc",        modules.HandleAuthor},
+		{"rip",        "Rip",        utils.MustHex("#33CC91"), color.White,                              "Disc",        modules.HandleRip},
+		{"player",     "Player",     utils.MustHex("#33C4CC"), color.White,                              "Playback",    modules.HandlePlayer},
+		{"thumbnail",  "Thumbnail",  utils.MustHex("#3382CC"), color.White,                              "Screenshots", modules.HandleThumbnail},
+		{"settings",   "Settings",   utils.MustHex("#3342CC"), color.White,                              "Settings",    nil},
 	}
 
 	// Platform-specific configuration
