@@ -354,7 +354,6 @@ func BuildBenchmarkResultsView(
 
 		resultsBox := container.NewVBox(resultItems...)
 		resultsScroll := container.NewVScroll(resultsBox)
-		// resultsScroll.SetMinSize(fyne.NewSize(0, 300)) // Removed for flexible sizing
 
 		resultsSection := container.NewBorder(
 			topResultsTitle,
@@ -362,15 +361,22 @@ func BuildBenchmarkResultsView(
 			resultsScroll,
 		)
 
-		// Main layout
+		// Fixed top portion (hardware info + recommendation).
+		// Placed as the "top" of an inner Border so the results scroll
+		// expands to fill all remaining vertical space below it.
+		topFixed := container.NewVBox(
+			hwInfoSection,
+			widget.NewSeparator(),
+			recommendationSection,
+			widget.NewSeparator(),
+		)
+
 		body := container.NewBorder(
 			header,
 			nil, nil, nil,
-			container.NewVBox(
-				hwInfoSection,
-				widget.NewSeparator(),
-				recommendationSection,
-				widget.NewSeparator(),
+			container.NewBorder(
+				topFixed,
+				nil, nil, nil,
 				resultsSection,
 			),
 		)
