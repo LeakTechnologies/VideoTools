@@ -144,6 +144,8 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 			ts.setOutPoint()
 		case desktop.KeyC:
 			ts.clearPoints()
+		case desktop.KeyP:
+			ts.previewTrimRegion()
 		case desktop.KeyLeft:
 			if event.Modifier&desktop.ShiftModifier != 0 {
 				// Shift+Left: jump back 1 second
