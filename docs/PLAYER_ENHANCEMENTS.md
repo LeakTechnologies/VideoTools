@@ -428,8 +428,9 @@ internal/media/
 - [x] Keyboard handler (`internal/media/gpu/shortcuts.go`)
 - [x] Seek bar with preview (`internal/media/gpu/seekbar.go`)
 - [x] Volume control (`internal/media/gpu/seekbar.go`)
-- [ ] Fullscreen toggle
-- [x] Playback speed control (UI wired, engine supports)
+- [x] Playback speed control (</> keys + UI, wired to engine)
+- [x] Frame-accurate seeking (uses actual video FPS, not hardcoded 30)
+- [ ] Fullscreen toggle (keyboard shortcut exists, needs implementation)
 
 ### Phase 3: Smooth Seeking ✓
 - [x] Thumbnail extraction (`internal/media/thumbnail.go`)
@@ -491,5 +492,5 @@ internal/media/
 
 ---
 
-*Last Updated: 2026-03-19*
-*Version: Planning v1.0*
+*Last Updated: 2026-03-20*
+*Version: Planning v1.1*
