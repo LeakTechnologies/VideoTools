@@ -23,8 +23,8 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/settings"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -989,76 +989,6 @@ func isModuleAvailable(moduleID string) bool {
 	return hasAll
 }
 
-func buildSettingsView(state *appState) fyne.CanvasObject {
-	settingsColor := utils.MustHex("#607D8B") // Blue Grey for settings
-	t := i18n.T()
-
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleSettings), func() {
-		state.showMainMenu()
-	})
-	backBtn.Importance = widget.LowImportance
-
-	topBar := ui.TintedBar(settingsColor, container.NewHBox(backBtn, layout.NewSpacer()))
-	bottomBar := moduleFooter(settingsColor, layout.NewSpacer(), state.statsBar)
-
-	tabs := container.NewAppTabs(
-		container.NewTabItem(t.SettingsTabPreferences, ui.NewFastVScroll(container.NewPadded(buildPreferencesTab(state)))),
-		container.NewTabItem(t.SettingsTabDependencies, ui.NewFastVScroll(container.NewPadded(buildDependenciesTab(state)))),
-		container.NewTabItem(t.SettingsTabBenchmark, ui.NewFastVScroll(container.NewPadded(buildBenchmarkTab(state)))),
-	)
-	tabs.SetTabLocation(container.TabLocationTop)
-
-	return container.NewBorder(topBar, bottomBar, nil, nil, tabs)
-}
-
-func buildUpdatesTab(state *appState) fyne.CanvasObject {
-	content := container.NewVBox()
-
-	// Header
-	header := widget.NewLabel("Updates")
-	header.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(header)
-
-	desc := widget.NewLabel("Check for updates and manage app updates.")
-	desc.Wrapping = fyne.TextWrapWord
-	content.Add(desc)
-
-	content.Add(widget.NewSeparator())
-
-	// Current version
-	versionLabel := widget.NewLabel(fmt.Sprintf("Current Version: %s", fullVersion()))
-	versionLabel.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(versionLabel)
-
-	// Version hash (for debugging)
-	hashDisplay := buildCommit
-	if hashDisplay == "" || hashDisplay == "dev" {
-		hashDisplay = "development build"
-	}
-	hashLabel := widget.NewLabel(fmt.Sprintf("Version Hash: %s", hashDisplay))
-	hashLabel.TextStyle = fyne.TextStyle{Monospace: true}
-	content.Add(hashLabel)
-
-	content.Add(layout.NewSpacer())
-
-	// Check for updates button
-	checkBtn := widget.NewButton("Check for Updates", func() {
-		checkForUpdates(state)
-	})
-	checkBtn.Importance = widget.MediumImportance
-	content.Add(checkBtn)
-
-	content.Add(layout.NewSpacer())
-
-	// Info text
-	infoLabel := widget.NewLabel("Automatic updates will check for new versions\nwhen the app starts. Update checking happens\nin the background.")
-	infoLabel.Wrapping = fyne.TextWrapWord
-	infoLabel.TextStyle = fyne.TextStyle{Italic: true}
-	content.Add(infoLabel)
-
-	return content
-}
-
 const (
 	forgejoTagsAPI        = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/tags?limit=1"
 	forgejoReleasesTagAPI = "https://git.leaktechnologies.dev/api/v1/repos/leak_technologies/VideoTools/releases/tags/"
@@ -1572,300 +1502,7 @@ func applyUpdate(state *appState, tag string) {
 				return
 			}
 			newBinaryPath = tmpPath
-		}
-
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			progress.Hide()
-		}, false)
-
-		if err := performRestart(newBinaryPath, exePath); err != nil {
-			os.Remove(newBinaryPath)
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				dialog.ShowError(fmt.Errorf("update failed: %w", err), state.window)
-			}, false)
-		}
-	}()
-}
-
-func buildDependenciesTab(state *appState) fyne.CanvasObject {
-	content := container.NewVBox()
-	t := i18n.T()
-
-	// Header
-	header := widget.NewLabel(t.DependenciesTitle)
-	header.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(header)
-
-	desc := widget.NewLabel(t.DependenciesDesc)
-	desc.Wrapping = fyne.TextWrapWord
-	content.Add(desc)
-
-	content.Add(widget.NewSeparator())
-
-	// Required dependencies first, then alphabetical.
-	depNames := make([]string, 0, len(allDependencies))
-	for depName, dep := range allDependencies {
-		if !isDependencyAvailableForPlatform(dep) {
-			continue
-		}
-		depNames = append(depNames, depName)
 	}
-	sort.Slice(depNames, func(i, j int) bool {
-		di := allDependencies[depNames[i]]
-		dj := allDependencies[depNames[j]]
-		if di.Required != dj.Required {
-			return di.Required && !dj.Required
-		}
-		return strings.ToLower(di.Name) < strings.ToLower(dj.Name)
-	})
-
-	// Check all dependencies
-	for _, depName := range depNames {
-		dep := allDependencies[depName]
-
-		// Skip if no install command available for this platform
-		cmds := getDependencyCommands(depName)
-		if cmds.Install == nil && dep.Command == "ffmpeg" && runtime.GOOS != "windows" {
-			continue
-		}
-
-		isInstalled := checkDependency(dep.Command)
-
-		nameLabel := widget.NewLabel(dep.Name)
-		nameLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-		var statusIcon *widget.Icon
-		var statusText string
-		if isInstalled {
-			statusIcon = widget.NewIcon(ui.GetIcon("check"))
-			statusText = t.DependenciesInstalled
-		} else {
-			statusIcon = widget.NewIcon(ui.GetIcon("close"))
-			statusText = t.DependenciesNotInstalled
-		}
-		statusLabel := widget.NewLabel(statusText)
-		statusLabel.TextStyle = fyne.TextStyle{Italic: true}
-
-		descLabel := widget.NewLabel(dep.Description)
-		descLabel.TextStyle = fyne.TextStyle{Italic: true}
-		descLabel.Wrapping = fyne.TextWrapWord
-
-		installLabel := widget.NewLabel(dep.InstallCmd)
-		installLabel.Wrapping = fyne.TextWrapWord
-
-		var statusColor color.Color
-		if isInstalled {
-			statusColor = utils.MustHex("#4CAF50") // Green
-		} else {
-			statusColor = utils.MustHex("#F44336") // Red
-		}
-
-		statusBg := canvas.NewRectangle(statusColor)
-		statusBg.CornerRadius = 3
-
-		statusRow := container.NewHBox(statusIcon, statusBg, statusLabel)
-
-		actions := container.NewHBox()
-		cmds = getDependencyCommands(depName)
-
-		if depName == "ffmpeg" && runtime.GOOS == "windows" {
-			installBtn := widget.NewButton(t.DependenciesInstall, func() {
-				state.installWindowsFFmpegFromUI(func() {
-					dialog.ShowInformation("FFmpeg Ready", "FFmpeg is installed for this user and now available in the app.", state.window)
-					state.showSettingsView()
-				})
-			})
-			installBtn.Importance = widget.HighImportance
-			if isInstalled {
-				installBtn.Disable()
-			}
-			actions.Add(installBtn)
-		}
-
-		if depName == "realesrgan-ncnn-vulkan" && (runtime.GOOS == "windows" || runtime.GOOS == "linux") {
-			installBtn := widget.NewButton(t.DependenciesInstall, func() {
-				state.installRealESRGANFromUI(func() {
-					dialog.ShowInformation("Real-ESRGAN Ready", "Real-ESRGAN is installed and available for AI upscaling.", state.window)
-					state.showSettingsView()
-				})
-			})
-			installBtn.Importance = widget.HighImportance
-			if isInstalled {
-				installBtn.Disable()
-			}
-			actions.Add(installBtn)
-		}
-
-		if depName == "rife-ncnn-vulkan" && (runtime.GOOS == "windows" || runtime.GOOS == "linux") {
-			installBtn := widget.NewButton(t.DependenciesInstall, func() {
-				state.installRIFEFromUI(func() {
-					dialog.ShowInformation("RIFE Ready", "RIFE is installed and available for frame interpolation.", state.window)
-					state.showSettingsView()
-				})
-			})
-			installBtn.Importance = widget.HighImportance
-			if isInstalled {
-				installBtn.Disable()
-			}
-			actions.Add(installBtn)
-		}
-
-		// On Windows, if no system Python is available, show a button to
-		// bootstrap the bundled Python first, then install Whisper.
-		if depName == "whisper" && runtime.GOOS == "windows" && cmds.Install == nil && !isInstalled {
-			installBtn := widget.NewButton("Install (Python + Whisper)", func() {
-				state.installWindowsPythonFromUI(func(pythonExe string) {
-					// Python installed; now install whisper with the bundled Python.
-					runDependencyCommandWithProgress(state.window, "Installing Whisper", "Installing openai-whisper...",
-						&dependencyCommand{Command: pythonExe, Args: []string{"-m", "pip", "install", "openai-whisper"}},
-						func(out string, err error) {
-							showCommandResult(state.window, "Whisper Install", out, err)
-							state.showSettingsView()
-						})
-				})
-			})
-			installBtn.Importance = widget.HighImportance
-			actions.Add(installBtn)
-		}
-
-		if cmds.Install != nil {
-			installBtn := widget.NewButton(t.DependenciesInstall, func() {
-				runDependencyCommandWithProgress(state.window, fmt.Sprintf("Installing %s", dep.Name), dep.InstallCmd, cmds.Install, func(out string, err error) {
-					showCommandResult(state.window, fmt.Sprintf("%s Install", dep.Name), out, err)
-					state.showSettingsView()
-				})
-			})
-			installBtn.Importance = widget.HighImportance
-			if isInstalled {
-				installBtn.Disable()
-			}
-			actions.Add(installBtn)
-		}
-
-		if cmds.Uninstall != nil {
-			uninstallBtn := widget.NewButton(t.DependenciesUninstall, func() {
-				dialog.ShowConfirm(fmt.Sprintf("Uninstall %s?", dep.Name), "This will attempt to remove the dependency using your package manager.", func(ok bool) {
-					if !ok {
-						return
-					}
-					runDependencyCommandWithProgress(state.window, fmt.Sprintf("Uninstalling %s", dep.Name), dep.InstallCmd, cmds.Uninstall, func(out string, err error) {
-						showCommandResult(state.window, fmt.Sprintf("%s Uninstall", dep.Name), out, err)
-						state.showSettingsView()
-					})
-				}, state.window)
-			})
-			uninstallBtn.Importance = widget.LowImportance
-			if !isInstalled {
-				uninstallBtn.Disable()
-			}
-			actions.Add(uninstallBtn)
-		}
-
-		infoBox := container.NewVBox(
-			container.NewHBox(nameLabel, layout.NewSpacer(), statusRow),
-			descLabel,
-		)
-		if dep.Required {
-			requiredLabel := widget.NewLabel(t.DependenciesCore)
-			requiredLabel.TextStyle = fyne.TextStyle{Italic: true}
-			infoBox.Add(requiredLabel)
-		}
-
-		if !isInstalled {
-			installCmdLabel := widget.NewLabel(fmt.Sprintf(t.DependenciesInstallCmd, installLabel.Text))
-			installCmdLabel.Wrapping = fyne.TextWrapWord
-			infoBox.Add(installCmdLabel)
-		}
-
-		if actions.Objects != nil && len(actions.Objects) > 0 {
-			actionsContainer := container.NewHBox(actions.Objects...)
-			infoBox.Add(actionsContainer)
-		}
-
-		// Check which modules need this dependency
-		modulesNeeding := []string{}
-		for modID, deps := range moduleDependencies {
-			for _, d := range deps {
-				if d == depName {
-					// Find module name
-					for _, m := range modulesList {
-						if m.ID == modID {
-							modulesNeeding = append(modulesNeeding, m.Label)
-							break
-						}
-					}
-					break
-				}
-			}
-		}
-
-		if len(modulesNeeding) > 0 {
-			sort.Strings(modulesNeeding)
-			neededLabel := widget.NewLabel(t.DependenciesRequiredBy + " " + strings.Join(modulesNeeding, ", "))
-			neededLabel.TextStyle = fyne.TextStyle{Italic: true}
-			neededLabel.Wrapping = fyne.TextWrapWord
-			infoBox.Add(neededLabel)
-		}
-
-		cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
-		cardBg.CornerRadius = 6
-		card := container.NewPadded(container.NewMax(cardBg, infoBox))
-		content.Add(card)
-	}
-
-	// Refresh button
-	content.Add(widget.NewSeparator())
-	refreshBtn := widget.NewButton(t.DependenciesRefresh, func() {
-		state.showSettingsView()
-	})
-	content.Add(refreshBtn)
-
-	return content
-}
-
-func buildBenchmarkTab(state *appState) fyne.CanvasObject {
-	content := container.NewVBox()
-	t := i18n.T()
-
-	// Header
-	header := widget.NewLabel(t.BenchmarkTitle)
-	header.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(header)
-
-	desc := widget.NewLabel(t.BenchmarkDesc)
-	desc.Wrapping = fyne.TextWrapWord
-	content.Add(desc)
-
-	content.Add(widget.NewSeparator())
-
-	// Run benchmark button
-	runBtn := widget.NewButton(t.BenchmarkRunButton, func() {
-		state.showBenchmark()
-	})
-	runBtn.Importance = widget.MediumImportance
-	content.Add(container.NewCenter(runBtn))
-
-	// Show recent results if available
-	cfg, err := loadBenchmarkConfig()
-	if err == nil && len(cfg.History) > 0 {
-		content.Add(widget.NewSeparator())
-
-		recentHeader := widget.NewLabel(t.BenchmarkRecent)
-		recentHeader.TextStyle = fyne.TextStyle{Bold: true}
-		content.Add(recentHeader)
-
-		for _, run := range cfg.History[:min(3, len(cfg.History))] {
-			timestamp := run.Timestamp.Format("Jan 2, 2006 at 3:04 PM")
-			summary := fmt.Sprintf("%s - Recommended: %s",
-				timestamp, benchmark.HWAccelLabel(run.RecommendedHWAccel))
-
-			runLabel := widget.NewLabel(summary)
-			runLabel.TextStyle = fyne.TextStyle{Italic: true}
-			content.Add(runLabel)
-		}
-	}
-
-	return content
 }
 
 func formatRelativeTime(t time.Time) string {
@@ -1913,391 +1550,160 @@ func formatRelativeTime(t time.Time) string {
 	return fmt.Sprintf("%d months ago", months)
 }
 
-func buildPreferencesTab(state *appState) fyne.CanvasObject {
-	content := container.NewVBox()
-	t := i18n.T()
+type benchmarkAdapter struct {
+	s *appState
+}
 
-	header := widget.NewLabel(t.SettingsAppPreferences)
-	header.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(header)
+func (a *benchmarkAdapter) Window() fyne.Window {
+	return a.s.window
+}
 
-	content.Add(widget.NewSeparator())
+func (a *benchmarkAdapter) ShowBenchmark() {
+	a.s.showBenchmark()
+}
 
-	// Updates Section
-	updatesHeader := widget.NewLabel(t.SettingsTabUpdates)
-	updatesHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(updatesHeader)
+type preferencesAdapter struct {
+	s *appState
+}
 
-	versionLabel := widget.NewLabel(fmt.Sprintf("%s %s", t.UpdateCurrentVersion, fullVersion()))
-	versionLabel.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(versionLabel)
+func (a *preferencesAdapter) Window() fyne.Window {
+	return a.s.window
+}
 
-	hashDisplay := buildCommit
-	if hashDisplay == "" || hashDisplay == "dev" {
-		hashDisplay = "development build"
+func (a *preferencesAdapter) ShowSettingsView() {
+	a.s.showSettingsView()
+}
+
+func (a *preferencesAdapter) FullVersion() string {
+	return fullVersion()
+}
+
+func (a *preferencesAdapter) BuildCommit() string {
+	return buildCommit
+}
+
+func (a *preferencesAdapter) UpdateLastChecked() time.Time {
+	return a.s.updateLastChecked
+}
+
+func (a *preferencesAdapter) ApplyUpdate(tag string) {
+	applyUpdate(a.s, tag)
+}
+
+func (a *preferencesAdapter) CheckForUpdatesWithStatus(statusIcon *widget.Icon, statusLabel *widget.Label, onAvailable func(tag string)) {
+	checkForUpdatesWithStatus(a.s, statusIcon, statusLabel, onAvailable)
+}
+
+func (a *preferencesAdapter) ApplyUpdateStatusToUI(statusIcon *widget.Icon, statusLabel *widget.Label, onAvailable func(tag string)) {
+	applyUpdateStatusToUI(a.s, statusIcon, statusLabel, onAvailable)
+}
+
+func (a *preferencesAdapter) DetectBestHardwareAccel() string {
+	return detectBestHardwareAccel()
+}
+
+func (a *preferencesAdapter) PersistConvertConfig() {
+	a.s.persistConvertConfig()
+}
+
+func (a *preferencesAdapter) ConvertHardwareAccel() string {
+	return a.s.convert.HardwareAccel
+}
+
+func (a *preferencesAdapter) SetConvertHardwareAccel(accel string) {
+	a.s.convert.HardwareAccel = accel
+}
+
+func (a *preferencesAdapter) ConvertShowUpscale() bool {
+	return a.s.convert.ShowUpscale
+}
+
+func (a *preferencesAdapter) SetConvertShowUpscale(show bool) {
+	a.s.convert.ShowUpscale = show
+}
+
+func (a *preferencesAdapter) ConvertShowDisc() bool {
+	return a.s.convert.ShowDisc
+}
+
+func (a *preferencesAdapter) SetConvertShowDisc(show bool) {
+	a.s.convert.ShowDisc = show
+}
+
+func (a *preferencesAdapter) PersistLocale(code string, script i18n.ScriptVariant) {
+	persistLocale(code, script)
+}
+
+func (a *preferencesAdapter) SavePrefsConfig() error {
+	return savePrefsConfig(a.s.prefs)
+}
+
+func (a *preferencesAdapter) PrefsConfig() *PrefsConfig {
+	return a.s.prefs
+}
+
+type dependencyAdapter struct {
+	s *appState
+}
+
+func (a *dependencyAdapter) Window() fyne.Window {
+	return a.s.window
+}
+
+func (a *dependencyAdapter) ShowSettingsView() {
+	a.s.showSettingsView()
+}
+
+func (a *dependencyAdapter) InstallWindowsFFmpeg(onDone func()) {
+	a.s.installWindowsFFmpegFromUI(onDone)
+}
+
+func (a *dependencyAdapter) InstallRealESRGAN(onDone func()) {
+	a.s.installRealESRGANFromUI(onDone)
+}
+
+func (a *dependencyAdapter) InstallRIFE(onDone func()) {
+	a.s.installRIFEFromUI(onDone)
+}
+
+func (a *dependencyAdapter) InstallWindowsPython(onDone func(pythonExe string)) {
+	a.s.installWindowsPythonFromUI(onDone)
+}
+
+func (a *dependencyAdapter) RunDependencyCommandWithProgress(title, message string, depCmd *dependencyCommand, onDone func(output string, err error)) {
+	runDependencyCommandWithProgress(a.s.window, title, message, (*DependencyCommand)(depCmd), onDone)
+}
+
+func (a *dependencyAdapter) ShowCommandResult(title, output string, err error) {
+	showCommandResult(a.s.window, title, output, err)
+}
+
+func (a *dependencyAdapter) AllDependencies() map[string]Dependency {
+	return allDependencies
+}
+
+func (a *dependencyAdapter) IsDependencyAvailableForPlatform(dep Dependency) bool {
+	return isDependencyAvailableForPlatform(dep)
+}
+
+func (a *dependencyAdapter) GetDependencyCommands(depName string) DependencyCommandPair {
+	return getDependencyCommands(depName)
+}
+
+func (a *dependencyAdapter) CheckDependency(command string) bool {
+	return checkDependency(command)
+}
+
+func (a *dependencyAdapter) ModuleDependencies() map[string][]string {
+	return moduleDependencies
+}
+
+func (a *dependencyAdapter) ModulesList() []settings.ModuleInfo {
+	result := make([]settings.ModuleInfo, len(modulesList))
+	for i, m := range modulesList {
+		result[i] = settings.ModuleInfo{ID: m.ID, Label: m.Label}
 	}
-	hashLabel := widget.NewLabel(fmt.Sprintf("%s %s", t.UpdateVersionHash, hashDisplay))
-	hashLabel.TextStyle = fyne.TextStyle{Monospace: true}
-	content.Add(hashLabel)
-
-	// Update status indicator — icon + label side by side
-	updateStatusIcon := widget.NewIcon(nil)
-	updateStatusIcon.Hide()
-	updateStatusLabel := widget.NewLabel("")
-	updateStatusLabel.TextStyle = fyne.TextStyle{Italic: true}
-	content.Add(container.NewHBox(updateStatusIcon, updateStatusLabel))
-
-	// Install button — hidden until an update is detected
-	installBtn := widget.NewButton(t.UpdateInstall, nil)
-	installBtn.Importance = widget.HighImportance
-	installBtn.Hide()
-
-	onUpdateAvailable := func(tag string) {
-		if tag == "" {
-			installBtn.Hide()
-			return
-		}
-		installBtn.OnTapped = func() { applyUpdate(state, tag) }
-		installBtn.Show()
-	}
-
-	var checkBtn *widget.Button
-	checkBtn = widget.NewButton(t.UpdateCheckButton, func() {
-		installBtn.Hide()
-		checkForUpdatesWithStatus(state, updateStatusIcon, updateStatusLabel, onUpdateAvailable)
-	})
-	checkBtn.Importance = widget.MediumImportance
-
-	content.Add(container.NewHBox(checkBtn, installBtn))
-
-	// Auto-populate update status when the tab opens.
-	// Use the cached result if one exists; only hit the network on first open
-	// (or when the user clicks "Check for Updates" manually).
-	if !state.updateLastChecked.IsZero() {
-		applyUpdateStatusToUI(state, updateStatusIcon, updateStatusLabel, onUpdateAvailable)
-	} else {
-		checkForUpdatesWithStatus(state, updateStatusIcon, updateStatusLabel, onUpdateAvailable)
-	}
-
-	// Auto-check frequency
-	autoCheckLabel := widget.NewLabel(t.UpdateAutoCheck)
-	autoCheckLabel.TextStyle = fyne.TextStyle{}
-
-	// Canonical keys stored in config — language-agnostic so switching locale
-	// never corrupts or resets the saved preference.
-	autoCheckKeys := []string{
-		"disabled", "every_hour", "every_2h", "every_3h", "every_4h",
-		"every_6h", "every_12h", "daily", "semi_weekly", "weekly",
-		"bi_weekly", "monthly", "bi_monthly",
-	}
-	autoCheckOptions := []string{
-		t.UpdateDisabled,
-		t.UpdateEveryHour,
-		t.UpdateEvery2Hours,
-		t.UpdateEvery3Hours,
-		t.UpdateEvery4Hours,
-		t.UpdateEvery6Hours,
-		t.UpdateEvery12Hours,
-		t.UpdateDaily,
-		t.UpdateSemiWeekly,
-		t.UpdateWeekly,
-		t.UpdateBiWeekly,
-		t.UpdateMonthly,
-		t.UpdateBiMonthly,
-	}
-
-	// legacyEnglishToKey migrates configs written before canonical keys were
-	// introduced; the app defaulted to English so old values are English strings.
-	legacyEnglishToKey := map[string]string{
-		"Disabled":                    "disabled",
-		"Every hour":                  "every_hour",
-		"Every 2 hours":               "every_2h",
-		"Every 3 hours":               "every_3h",
-		"Every 4 hours":               "every_4h",
-		"Every 6 hours":               "every_6h",
-		"Every 12 hours":              "every_12h",
-		"Daily":                       "daily",
-		"Semi-weekly (every 3 days)":  "semi_weekly",
-		"Weekly":                      "weekly",
-		"Bi-weekly (every 2 weeks)":   "bi_weekly",
-		"Monthly":                     "monthly",
-		"Bi-monthly (every 2 months)": "bi_monthly",
-	}
-
-	// normalizeKey converts a saved value to a canonical key, migrating legacy
-	// English strings on first encounter and persisting the canonical form.
-	normalizeKey := func(saved string) string {
-		if saved == "" {
-			return "daily"
-		}
-		// Already a canonical key?
-		for _, k := range autoCheckKeys {
-			if k == saved {
-				return saved
-			}
-		}
-		// Legacy English string → migrate.
-		if canonical, ok := legacyEnglishToKey[saved]; ok {
-			state.prefs.AutoCheckFrequency = canonical
-			if err := savePrefsConfig(state.prefs); err != nil {
-				logging.Debug(logging.CatSystem, "failed to migrate prefs: %v", err)
-			}
-			return canonical
-		}
-		return "daily"
-	}
-
-	// keyToLabel returns the localized label for a canonical key.
-	keyToLabel := func(key string) string {
-		for i, k := range autoCheckKeys {
-			if k == key && i < len(autoCheckOptions) {
-				return autoCheckOptions[i]
-			}
-		}
-		return t.UpdateDaily
-	}
-
-	autoCheckSelect := widget.NewSelect(autoCheckOptions, func(selected string) {
-		// Save as canonical key, not the localized label.
-		for i, opt := range autoCheckOptions {
-			if opt == selected && i < len(autoCheckKeys) {
-				state.prefs.AutoCheckFrequency = autoCheckKeys[i]
-				break
-			}
-		}
-		if err := savePrefsConfig(state.prefs); err != nil {
-			logging.Debug(logging.CatSystem, "failed to save prefs: %v", err)
-		}
-	})
-
-	// Restore persisted value — normalize handles canonical keys and legacy strings.
-	autoCheckSelect.SetSelected(keyToLabel(normalizeKey(state.prefs.AutoCheckFrequency)))
-
-	autoCheckRow := container.NewHBox(autoCheckLabel, autoCheckSelect)
-	content.Add(autoCheckRow)
-
-	// Last checked / release date info
-	infoLabel := widget.NewLabel(t.SettingsUpdatesAutoInfo)
-	infoLabel.Wrapping = fyne.TextWrapWord
-	infoLabel.TextStyle = fyne.TextStyle{Italic: true}
-	content.Add(infoLabel)
-
-	content.Add(widget.NewSeparator())
-
-	// Language Section
-	langLabel := widget.NewLabel(t.SettingsLanguage)
-	langLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	langOptions := i18n.All()
-	langNames := make([]string, len(langOptions))
-	langCodes := make([]string, len(langOptions))
-	activeFont := i18n.CurrentFont()
-	for i, lang := range langOptions {
-		// Use EnglishName for languages whose script requires a different font
-		// than the one currently active — prevents syllabics rendering as diamonds
-		// in the dropdown when the user is in Qaliujaaqpait (mono font) mode.
-		if lang.Font != activeFont {
-			langNames[i] = lang.EnglishName
-		} else {
-			langNames[i] = lang.NativeName
-		}
-		langCodes[i] = lang.Code
-	}
-
-	// Inuktitut script toggle (shown only when iu is selected)
-	scriptLabel := widget.NewLabel(t.SettingsLanguageScript)
-	scriptLabel.Hide()
-
-	scriptSelect := widget.NewSelect([]string{}, func(selected string) {})
-	scriptSelect.Hide()
-
-	// Inuktitut script select — shown immediately when iu is active at build time.
-	// Language changes trigger showSettingsView() which rebuilds this whole block.
-	//
-	// Option labels are pinned to their own writing systems so they always look
-	// distinct no matter which script is currently active:
-	//   • Syllabics option always shows the syllabics characters
-	//   • Latin option always shows "Qaliujaaqpait"
-	const scriptOptSyllabics = "ᖃᓂᐅᔮᖅᐸᐃᑦ"
-	const scriptOptLatin = "Qaliujaaqpait"
-	if i18n.CurrentCode() == "iu" {
-		scriptLabel.Show()
-		scriptSelect.Show()
-		currentScript := i18n.CurrentScript()
-		scriptSelect.Options = []string{scriptOptSyllabics, scriptOptLatin}
-		if currentScript == i18n.ScriptLatin {
-			scriptSelect.SetSelected(scriptOptLatin)
-		} else {
-			scriptSelect.SetSelected(scriptOptSyllabics)
-		}
-		scriptSelect.OnChanged = func(selected string) {
-			var script i18n.ScriptVariant
-			if selected == scriptOptLatin {
-				script = i18n.ScriptLatin
-			} else {
-				script = i18n.ScriptSyllabics
-			}
-			i18n.SetLanguageWithScript("iu", script)
-			persistLocale("iu", script)
-			state.showSettingsView()
-		}
-	}
-
-	langSelect := widget.NewSelect(langNames, func(selected string) {
-		for i, name := range langNames {
-			if name == selected {
-				if langCodes[i] == i18n.CurrentCode() {
-					return // programmatic init — no change needed
-				}
-				i18n.SetLanguage(langCodes[i])
-				persistLocale(langCodes[i], i18n.CurrentScript())
-				// Rebuild the whole settings view so every dropdown, label,
-				// and select reflects the new locale immediately.
-				state.showSettingsView()
-				break
-			}
-		}
-	})
-	currentCode := i18n.CurrentCode()
-	for i, code := range langCodes {
-		if code == currentCode {
-			langSelect.SetSelected(langNames[i])
-			break
-		}
-	}
-
-	langSection := container.NewVBox(
-		langLabel,
-		langSelect,
-		container.NewHBox(scriptLabel, scriptSelect),
-	)
-	content.Add(langSection)
-
-	content.Add(widget.NewSeparator())
-
-	masterHeader := widget.NewLabel(t.SettingsMasterSettings)
-	masterHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(masterHeader)
-
-	hwLabel := widget.NewLabel(t.SettingsHardwareAccel)
-	hwLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	hwStatus := widget.NewLabel("")
-	hwStatus.TextStyle = fyne.TextStyle{Italic: true}
-	hwStatus.Wrapping = fyne.TextWrapWord
-
-	updateHwStatus := func() {
-		detected := detectBestHardwareAccel()
-		if detected == "" {
-			detected = "none"
-		}
-		hwStatus.SetText(fmt.Sprintf(t.SettingsDetectedFmt, detected))
-	}
-
-	hwSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "qsv", "amf", "vaapi", "videotoolbox"}, func(selected string) {
-		state.convert.HardwareAccel = selected
-		state.persistConvertConfig()
-		updateHwStatus()
-	})
-	hwSelect.SetSelected(state.convert.HardwareAccel)
-
-	detectBtn := widget.NewButton(t.SettingsDetect, func() {
-		best := detectBestHardwareAccel()
-		if best == "" {
-			best = "none"
-		}
-		hwSelect.SetSelected(best)
-		state.convert.HardwareAccel = best
-		state.persistConvertConfig()
-		updateHwStatus()
-	})
-	detectBtn.Importance = widget.HighImportance
-
-	autoBtn := widget.NewButton(t.SettingsUseAuto, func() {
-		hwSelect.SetSelected("auto")
-		state.convert.HardwareAccel = "auto"
-		state.persistConvertConfig()
-		updateHwStatus()
-	})
-	autoBtn.Importance = widget.MediumImportance
-
-	updateHwStatus()
-
-	content.Add(container.NewVBox(
-		hwLabel,
-		hwSelect,
-		container.NewHBox(detectBtn, autoBtn),
-		hwStatus,
-	))
-
-	content.Add(widget.NewSeparator())
-
-	moduleHeader := widget.NewLabel(t.SettingsModuleVisibility)
-	moduleHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(moduleHeader)
-
-	showUpscale := widget.NewCheck(t.SettingsShowUpscale, func(checked bool) {
-		state.convert.ShowUpscale = checked
-		state.persistConvertConfig()
-	})
-	showUpscale.SetChecked(state.convert.ShowUpscale)
-
-	visibilityItems := []fyne.CanvasObject{showUpscale}
-
-	showDisc := widget.NewCheck(t.SettingsShowDisc, func(checked bool) {
-		state.convert.ShowDisc = checked
-		state.persistConvertConfig()
-	})
-	showDisc.SetChecked(state.convert.ShowDisc)
-
-	visibilityItems = append(visibilityItems, showDisc)
-
-	visibilityHint := widget.NewLabel(t.SettingsModuleVisibilityHint)
-	visibilityHint.TextStyle = fyne.TextStyle{Italic: true}
-	visibilityHint.Wrapping = fyne.TextWrapWord
-	visibilityItems = append(visibilityItems, visibilityHint)
-
-	content.Add(container.NewVBox(visibilityItems...))
-
-	// Queue Behaviour Section
-	content.Add(widget.NewSeparator())
-
-	queueHeader := widget.NewLabel(t.SettingsQueueSection)
-	queueHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(queueHeader)
-
-	queuePlayLabel := widget.NewLabel(t.SettingsQueuePlayLabel)
-	content.Add(queuePlayLabel)
-
-	currentBehavior := state.prefs.QueuePlayBehavior
-	if currentBehavior == "" {
-		currentBehavior = "player"
-	}
-	// Order: Player Module first (default), Inspect Module second
-	queuePlayOpts := []string{t.SettingsQueuePlaySystem, t.SettingsQueuePlayInspect}
-	selectedOpt := queuePlayOpts[0]
-	if currentBehavior == "inspect" {
-		selectedOpt = queuePlayOpts[1]
-	}
-	queuePlayRadio := widget.NewRadioGroup(queuePlayOpts, func(selected string) {
-		if selected == t.SettingsQueuePlayInspect {
-			state.prefs.QueuePlayBehavior = "inspect"
-		} else {
-			state.prefs.QueuePlayBehavior = "player"
-		}
-		if err := savePrefsConfig(state.prefs); err != nil {
-			logging.Debug(logging.CatSystem, "failed to save prefs: %v", err)
-		}
-	})
-	queuePlayRadio.SetSelected(selectedOpt)
-	content.Add(queuePlayRadio)
-
-	queuePlayHint := widget.NewLabel(t.SettingsQueuePlayHint)
-	queuePlayHint.TextStyle = fyne.TextStyle{Italic: true}
-	queuePlayHint.Wrapping = fyne.TextWrapWord
-	content.Add(queuePlayHint)
-
-	return content
+	return result
 }
 
 func (s *appState) showSettingsView() {
@@ -2309,8 +1715,8 @@ func (s *appState) showSettingsView() {
 		Window:               s.window,
 		StatsBar:             s.statsBar,
 		OnBack:               s.showMainMenu,
-		BuildPreferencesTab:  func() fyne.CanvasObject { return buildPreferencesTab(s) },
-		BuildDependenciesTab: func() fyne.CanvasObject { return buildDependenciesTab(s) },
-		BuildBenchmarkTab:    func() fyne.CanvasObject { return buildBenchmarkTab(s) },
+		BuildPreferencesTab:  func() fyne.CanvasObject { return settings.BuildPreferencesTab(&preferencesAdapter{s: s}) },
+		BuildDependenciesTab: func() fyne.CanvasObject { return settings.BuildDependenciesTab(&dependencyAdapter{s: s}) },
+		BuildBenchmarkTab:    func() fyne.CanvasObject { return settings.BuildBenchmarkTab(&benchmarkAdapter{s: s}) },
 	}))
 }

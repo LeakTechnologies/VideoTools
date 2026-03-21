@@ -6,11 +6,66 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"time"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/widget"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 )
 
 const WindowsFFmpegZipURL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
 const WindowsPythonURL = "https://www.python.org/ftp/python/3.12.9/python-3.12.9-embed-amd64.zip"
 const GetPipURL = "https://bootstrap.pypa.io/get-pip.py"
+
+type BenchmarkCallbacks interface {
+	Window() fyne.Window
+	ShowBenchmark()
+}
+
+type PreferencesCallbacks interface {
+	Window() fyne.Window
+	ShowSettingsView()
+	FullVersion() string
+	BuildCommit() string
+	UpdateLastChecked() time.Time
+	ApplyUpdate(tag string)
+	CheckForUpdatesWithStatus(statusIcon *widget.Icon, statusLabel *widget.Label, onAvailable func(tag string))
+	ApplyUpdateStatusToUI(statusIcon *widget.Icon, statusLabel *widget.Label, onAvailable func(tag string))
+	DetectBestHardwareAccel() string
+	PersistConvertConfig()
+	ConvertHardwareAccel() string
+	SetConvertHardwareAccel(accel string)
+	ConvertShowUpscale() bool
+	SetConvertShowUpscale(show bool)
+	ConvertShowDisc() bool
+	SetConvertShowDisc(show bool)
+	PersistLocale(code string, script i18n.ScriptVariant)
+	SavePrefsConfig() error
+	PrefsConfig() *PrefsConfig
+}
+
+type DependencyCallbacks interface {
+	Window() fyne.Window
+	ShowSettingsView()
+	InstallWindowsFFmpeg(onDone func())
+	InstallRealESRGAN(onDone func())
+	InstallRIFE(onDone func())
+	InstallWindowsPython(onDone func(pythonExe string))
+	RunDependencyCommandWithProgress(title, message string, depCmd *DependencyCommand, onDone func(output string, err error))
+	ShowCommandResult(title, output string, err error)
+	AllDependencies() map[string]Dependency
+	IsDependencyAvailableForPlatform(dep Dependency) bool
+	GetDependencyCommands(depName string) DependencyCommandPair
+	CheckDependency(command string) bool
+	ModuleDependencies() map[string][]string
+	ModulesList() []ModuleInfo
+}
+
+type ModuleInfo struct {
+	ID    string
+	Label string
+}
 
 type PrefsConfig struct {
 	AutoCheckFrequency string `json:"AutoCheckFrequency"`
@@ -41,21 +96,6 @@ type UpdateInfo struct {
 	LatestTag    string
 	TagCommitSHA string
 	ReleaseDate  int64
-}
-
-type BenchmarkConfig struct {
-	History []BenchmarkRun `json:"history"`
-}
-
-type BenchmarkRun struct {
-	Timestamp           int64   `json:"timestamp"`
-	Encoder             string  `json:"encoder"`
-	Preset              string  `json:"preset"`
-	Resolution          string  `json:"resolution"`
-	EncodingTimeSeconds float64 `json:"encodingTimeSeconds"`
-	RecommendedEncoder  string  `json:"recommendedEncoder"`
-	RecommendedPreset   string  `json:"recommendedPreset"`
-	RecommendedCRF      int     `json:"recommendedCRF"`
 }
 
 func NewDependencyCommand(command string, args ...string) *DependencyCommand {
