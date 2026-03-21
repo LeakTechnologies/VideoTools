@@ -11,13 +11,17 @@ import (
 func (s *appState) showAbout() {
 	t := i18n.T()
 
-	var logoRes fyne.Resource
+	var vtLogoRes, ltLogoRes fyne.Resource
 	if data, err := logoAssets.ReadFile("assets/logo/VT_logo.svg"); err == nil {
-		logoRes = fyne.NewStaticResource("VT_logo.svg", data)
+		vtLogoRes = fyne.NewStaticResource("VT_logo.svg", data)
+	}
+	if data, err := logoAssets.ReadFile("assets/logo/LT_Logo-26.png"); err == nil {
+		ltLogoRes = fyne.NewStaticResource("LT_Logo-26.png", data)
 	}
 
 	about.Show(about.Options{
-		LogoResource:    logoRes,
+		LogoResource:    vtLogoRes,
+		LTLogoResource:  ltLogoRes,
 		Window:          s.window,
 		Version:         fmt.Sprintf("VideoTools %s", versionWithPlatform()),
 		Developer:       "Leak Technologies",
