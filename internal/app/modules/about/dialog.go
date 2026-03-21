@@ -37,9 +37,12 @@ type Options struct {
 	CloseLabel      string // "Close"
 	OpenLabel       string // "Open" (for X/social link button)
 
-	// LogoResource is the VT logo shown at the top of the right column.
+	// LogoResource is the VT logo (SVG/PNG) shown at the top of the right column.
 	// If nil, falls back to loading VT_Logotype1.png from the filesystem.
 	LogoResource fyne.Resource
+	// LTLogoResource is the Leak Technologies logo shown below the VT logo.
+	// If nil, falls back to loading LT_Logo-26.png from the filesystem.
+	LTLogoResource fyne.Resource
 }
 
 func generatePixelatedQRCode(docURL string) (fyne.CanvasObject, error) {
@@ -140,7 +143,12 @@ func Show(opts Options) {
 	} else if vtLogo := loadLogo("VT_Logotype1.png", 96); vtLogo != nil {
 		logoColumn.Add(vtLogo)
 	}
-	if ltLogo := loadLogo("LT_Logo-26.png", 72); ltLogo != nil {
+	if opts.LTLogoResource != nil {
+		ltLogo := canvas.NewImageFromResource(opts.LTLogoResource)
+		ltLogo.FillMode = canvas.ImageFillContain
+		ltLogo.SetMinSize(fyne.NewSize(72, 72))
+		logoColumn.Add(ltLogo)
+	} else if ltLogo := loadLogo("LT_Logo-26.png", 72); ltLogo != nil {
 		logoColumn.Add(ltLogo)
 	}
 
