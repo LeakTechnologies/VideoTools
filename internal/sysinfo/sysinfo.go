@@ -117,26 +117,55 @@ func detectCPULinux() (model, mhz string) {
 }
 
 func detectCPUWindows() (model, mhz string) {
-	// Use wmic to get CPU info
-	cmd := exec.Command("wmic", "cpu", "get", "name,maxclockspeed")
-	utils.ApplyNoWindow(cmd) // Hide command window on Windows
-	output, err := cmd.Output()
-	if err != nil {
-		logging.Debug(logging.CatSystem, "failed to run wmic cpu: %v", err)
-		return "Unknown CPU", "Unknown"
-	}
-
-	lines := strings.Split(string(output), "\n")
-	if len(lines) >= 2 {
-		// Parse the second line (first is header)
-		fields := strings.Fields(lines[1])
-		if len(fields) >= 2 {
-			mhzStr := fields[len(fields)-1] // Last field is clock speed
-			model = strings.Join(fields[:len(fields)-1], " ")
-			if mhzInt, err := strconv.Atoi(mhzStr); err == nil {
+	// Use PowerShell + CIM (preferred on Windows 10/11; wmic is deprecated).
+	// Output format: "Name|MaxClockSpeed"
+	psCmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command",
+		`$p = Get-CimInstance Win32_Processor | Select-Object -First 1; "$($p.Name)|$($p.MaxClockSpeed)"`)
+	utils.ApplyNoWindow(psCmd)
+	if out, err := psCmd.Output(); err == nil {
+		parts := strings.SplitN(strings.TrimSpace(string(out)), "|", 2)
+		if len(parts) == 2 {
+			model = strings.TrimSpace(parts[0])
+			if mhzInt, err2 := strconv.Atoi(strings.TrimSpace(parts[1])); err2 == nil {
 				mhz = fmt.Sprintf("%d MHz", mhzInt)
 			}
+			if model != "" {
+				if mhz == "" {
+					mhz = "Unknown"
+				}
+				return model, mhz
+			}
 		}
+	}
+
+	// Fallback: wmic (older Windows versions)
+	cmd := exec.Command("wmic", "cpu", "get", "name,maxclockspeed")
+	utils.ApplyNoWindow(cmd)
+	if output, err := cmd.Output(); err == nil {
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			fields := strings.Fields(strings.TrimSpace(line))
+			if len(fields) < 2 {
+				continue
+			}
+			// wmic may order columns alphabetically: MaxClockSpeed then Name,
+			// or in requested order: Name then MaxClockSpeed. Try to parse
+			// the numeric field as the clock speed.
+			last := fields[len(fields)-1]
+			if mhzInt, err2 := strconv.Atoi(last); err2 == nil && mhzInt > 100 {
+				model = strings.Join(fields[:len(fields)-1], " ")
+				mhz = fmt.Sprintf("%d MHz", mhzInt)
+				break
+			}
+			first := fields[0]
+			if mhzInt, err2 := strconv.Atoi(first); err2 == nil && mhzInt > 100 {
+				model = strings.Join(fields[1:], " ")
+				mhz = fmt.Sprintf("%d MHz", mhzInt)
+				break
+			}
+		}
+	} else {
+		logging.Debug(logging.CatSystem, "failed to run wmic cpu: %v", err)
 	}
 
 	if model == "" {
@@ -145,7 +174,6 @@ func detectCPUWindows() (model, mhz string) {
 	if mhz == "" {
 		mhz = "Unknown"
 	}
-
 	return model, mhz
 }
 
@@ -353,18 +381,32 @@ func detectRAMLinux() (readable string, mb uint64) {
 }
 
 func detectRAMWindows() (readable string, mb uint64) {
+	// Use PowerShell + CIM (preferred on Windows 10/11; wmic is deprecated).
+	psCmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command",
+		"(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory")
+	utils.ApplyNoWindow(psCmd)
+	if out, err := psCmd.Output(); err == nil {
+		bytesStr := strings.TrimSpace(string(out))
+		if bytes, err2 := strconv.ParseUint(bytesStr, 10, 64); err2 == nil && bytes > 0 {
+			mb = bytes / (1024 * 1024)
+			gb := float64(mb) / 1024.0
+			readable = fmt.Sprintf("%.1f GB", gb)
+			return readable, mb
+		}
+	}
+
+	// Fallback: wmic (older Windows versions)
 	cmd := exec.Command("wmic", "computersystem", "get", "totalphysicalmemory")
-	utils.ApplyNoWindow(cmd) // Hide command window on Windows
+	utils.ApplyNoWindow(cmd)
 	output, err := cmd.Output()
 	if err != nil {
 		logging.Debug(logging.CatSystem, "failed to run wmic computersystem: %v", err)
 		return "Unknown", 0
 	}
 
-	lines := strings.Split(string(output), "\n")
-	if len(lines) >= 2 {
-		bytesStr := strings.TrimSpace(lines[1])
-		if bytes, err := strconv.ParseUint(bytesStr, 10, 64); err == nil {
+	for _, line := range strings.Split(string(output), "\n") {
+		bytesStr := strings.TrimSpace(line)
+		if bytes, err2 := strconv.ParseUint(bytesStr, 10, 64); err2 == nil && bytes > 0 {
 			mb = bytes / (1024 * 1024)
 			gb := float64(mb) / 1024.0
 			readable = fmt.Sprintf("%.1f GB", gb)
