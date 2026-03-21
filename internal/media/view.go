@@ -573,6 +573,14 @@ func (v *VideoPlayer) IsBuffering() bool {
 	return v.isBuffering
 }
 
+func (v *VideoPlayer) CurrentFrame() *image.RGBA {
+	return v.source
+}
+
+func (v *VideoPlayer) CurrentTime() float64 {
+	return v.currentTime
+}
+
 func (v *VideoPlayer) SetError(message string) {
 	v.hasError = true
 	v.errorMessage = message
