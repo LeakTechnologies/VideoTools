@@ -30,11 +30,10 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
-// prefsConfig holds application-level preferences persisted to prefs.json.
-type prefsConfig struct {
-	AutoCheckFrequency string `json:"AutoCheckFrequency"`
-	QueuePlayBehavior  string `json:"QueuePlayBehavior"` // "player" (default) or "inspect"
-}
+type prefsConfig = settings.PrefsConfig
+type Dependency = settings.Dependency
+type dependencyCommand = settings.DependencyCommand
+type dependencyCommandPair = settings.DependencyCommandPair
 
 func loadPrefsConfig() (prefsConfig, error) {
 	var cfg prefsConfig
@@ -46,107 +45,41 @@ func savePrefsConfig(cfg prefsConfig) error {
 	return appcfg.SaveModuleJSON("prefs", cfg)
 }
 
-// Dependency represents a system dependency
-type Dependency struct {
-	Name         string
-	Command      string // Command to check if installed
-	Required     bool   // If true, core functionality requires this
-	Description  string
-	InstallCmd   string   // Command to install (platform-specific)
-	UninstallCmd string   // Command to uninstall (platform-specific, optional)
-	Platforms    []string // List of platforms: "windows", "linux", "darwin". Empty = all.
-}
-
-// dependencyCommand represents a command with optional arguments
-// command must be non-empty; args may be empty
-type dependencyCommand struct {
-	command string
-	args    []string
-}
-
-// dependencyCommandPair holds install/uninstall commands
-// nil entries mean unavailable for current platform
-type dependencyCommandPair struct {
-	install   *dependencyCommand
-	uninstall *dependencyCommand
-}
-
-const windowsFFmpegZipURL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
-
-// windowsEmbeddablePythonURL is the pinned embeddable Python release for Windows.
-// Using 3.12 for broad openai-whisper compatibility.
-const windowsEmbeddablePythonURL = "https://www.python.org/ftp/python/3.12.9/python-3.12.9-embed-amd64.zip"
-
 // getPipURL is the canonical bootstrap script for installing pip into a Python env.
 const getPipURL = "https://bootstrap.pypa.io/get-pip.py"
 
 func projectRoot() string {
-	if exe, err := os.Executable(); err == nil {
-		if dir := filepath.Dir(exe); dir != "" {
-			return dir
-		}
-	}
-	if wd, err := os.Getwd(); err == nil {
-		return wd
-	}
-	return "."
+	return settings.ProjectRoot()
 }
 
 func detectPkgManager() string {
-	managers := []string{"apt-get", "dnf", "pacman", "zypper"}
-	for _, m := range managers {
-		if _, err := exec.LookPath(m); err == nil {
-			return m
-		}
-	}
-	return ""
+	return settings.DetectPkgManager()
 }
 
 func pkgManagerInstall(pkg string) *dependencyCommand {
-	switch runtime.GOOS {
-	case "darwin":
-		if _, err := exec.LookPath("brew"); err == nil {
-			return &dependencyCommand{command: "brew", args: []string{"install", pkg}}
-		}
-	case "linux":
-		switch detectPkgManager() {
-		case "apt-get":
-			return &dependencyCommand{command: "sudo", args: []string{"apt-get", "install", "-y", pkg}}
-		case "dnf":
-			return &dependencyCommand{command: "sudo", args: []string{"dnf", "install", "-y", pkg}}
-		case "pacman":
-			return &dependencyCommand{command: "sudo", args: []string{"pacman", "-S", "--needed", "--noconfirm", pkg}}
-		case "zypper":
-			return &dependencyCommand{command: "sudo", args: []string{"zypper", "install", "-y", pkg}}
-		}
-	case "windows":
-		if _, err := exec.LookPath("choco"); err == nil {
-			return &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", fmt.Sprintf("choco install -y %s", pkg)}}
-		}
-	}
-	return nil
+	return settings.PkgManagerInstall(pkg)
 }
 
 func pkgManagerUninstall(pkg string) *dependencyCommand {
 	switch runtime.GOOS {
 	case "darwin":
 		if _, err := exec.LookPath("brew"); err == nil {
-			return &dependencyCommand{command: "brew", args: []string{"uninstall", pkg}}
+			return &dependencyCommand{Command: "brew", Args: []string{"uninstall", pkg}}
 		}
 	case "linux":
 		switch detectPkgManager() {
 		case "apt-get":
-			return &dependencyCommand{command: "sudo", args: []string{"apt-get", "remove", "-y", pkg}}
+			return &dependencyCommand{Command: "sudo", Args: []string{"apt-get", "remove", "-y", pkg}}
 		case "dnf":
-			return &dependencyCommand{command: "sudo", args: []string{"dnf", "remove", "-y", pkg}}
+			return &dependencyCommand{Command: "sudo", Args: []string{"dnf", "remove", "-y", pkg}}
 		case "pacman":
-			return &dependencyCommand{command: "sudo", args: []string{"pacman", "-Rns", "--noconfirm", pkg}}
+			return &dependencyCommand{Command: "sudo", Args: []string{"pacman", "-Rns", "--noconfirm", pkg}}
 		case "zypper":
-			return &dependencyCommand{command: "sudo", args: []string{"zypper", "remove", "-y", pkg}}
+			return &dependencyCommand{Command: "sudo", Args: []string{"zypper", "remove", "-y", pkg}}
 		}
 	case "windows":
 		if _, err := exec.LookPath("choco"); err == nil {
-			return &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", fmt.Sprintf("choco uninstall -y %s", pkg)}}
+			return &dependencyCommand{Command: "powershell", Args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", fmt.Sprintf("choco uninstall -y %s", pkg)}}
 		}
 	}
 	return nil
@@ -161,8 +94,8 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 			return dependencyCommandPair{}
 		}
 		return dependencyCommandPair{
-			install:   pkgManagerInstall("ffmpeg"),
-			uninstall: pkgManagerUninstall("ffmpeg"),
+			Install:   pkgManagerInstall("ffmpeg"),
+			Uninstall: pkgManagerUninstall("ffmpeg"),
 		}
 	case "realesrgan-ncnn-vulkan":
 		// Auto-download pre-built ncnn Vulkan binary from GitHub releases.
@@ -172,7 +105,7 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 		switch runtime.GOOS {
 		case "linux":
 			return dependencyCommandPair{
-				install: &dependencyCommand{command: "bash", args: []string{installScript, "--skip-ai=false", "--skip-dvd", "--skip-whisper"}},
+				Install: &dependencyCommand{Command: "bash", Args: []string{installScript, "--skip-ai=false", "--skip-dvd", "--skip-whisper"}},
 			}
 		}
 	case "whisper":
@@ -180,31 +113,31 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 			// Use system Python if available; otherwise fall back to the app-local bundled Python.
 			if pythonExe, ok := resolveWindowsPython(); ok {
 				return dependencyCommandPair{
-					install:   &dependencyCommand{command: pythonExe, args: []string{"-m", "pip", "install", "openai-whisper"}},
-					uninstall: &dependencyCommand{command: pythonExe, args: []string{"-m", "pip", "uninstall", "-y", "openai-whisper"}},
+					Install:   &dependencyCommand{Command: pythonExe, Args: []string{"-m", "pip", "install", "openai-whisper"}},
+					Uninstall: &dependencyCommand{Command: pythonExe, Args: []string{"-m", "pip", "uninstall", "-y", "openai-whisper"}},
 				}
 			}
 			// No Python found — the UI install button will handle bootstrapping Python first.
 			return dependencyCommandPair{}
 		}
 		return dependencyCommandPair{
-			install:   &dependencyCommand{command: "python3", args: []string{"-m", "pip", "install", "--user", "openai-whisper"}},
-			uninstall: &dependencyCommand{command: "python3", args: []string{"-m", "pip", "uninstall", "-y", "openai-whisper"}},
+			Install:   &dependencyCommand{Command: "python3", Args: []string{"-m", "pip", "install", "--user", "openai-whisper"}},
+			Uninstall: &dependencyCommand{Command: "python3", Args: []string{"-m", "pip", "uninstall", "-y", "openai-whisper"}},
 		}
 	case "tesseract":
 		switch runtime.GOOS {
 		case "windows":
 			if _, err := exec.LookPath("choco"); err == nil {
 				return dependencyCommandPair{
-					install:   &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "choco install -y tesseract"}},
-					uninstall: &dependencyCommand{command: "powershell", args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "choco uninstall -y tesseract"}},
+					Install:   &dependencyCommand{Command: "powershell", Args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "choco install -y tesseract"}},
+					Uninstall: &dependencyCommand{Command: "powershell", Args: []string{"-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "choco uninstall -y tesseract"}},
 				}
 			}
 			return dependencyCommandPair{}
 		case "darwin":
 			return dependencyCommandPair{
-				install:   pkgManagerInstall("tesseract"),
-				uninstall: pkgManagerUninstall("tesseract"),
+				Install:   pkgManagerInstall("tesseract"),
+				Uninstall: pkgManagerUninstall("tesseract"),
 			}
 		default:
 			pkg := "tesseract"
@@ -212,8 +145,8 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 				pkg = "tesseract-ocr"
 			}
 			return dependencyCommandPair{
-				install:   pkgManagerInstall(pkg),
-				uninstall: pkgManagerUninstall(pkg),
+				Install:   pkgManagerInstall(pkg),
+				Uninstall: pkgManagerUninstall(pkg),
 			}
 		}
 	}
@@ -232,7 +165,7 @@ func runDependencyCommandWithProgress(win fyne.Window, title, message string, de
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 		defer cancel()
 
-		cmd := utils.CreateCommand(ctx, depCmd.command, depCmd.args...)
+		cmd := utils.CreateCommand(ctx, depCmd.Command, depCmd.Args...)
 		cmd.Dir = projectRoot()
 		output, err := cmd.CombinedOutput()
 		trimmed := strings.TrimSpace(string(output))
@@ -416,7 +349,7 @@ func ensureWindowsAppLocalFFmpeg() (ffmpegPath, ffprobePath string, installed bo
 	defer os.Remove(zipPath)
 
 	client := &http.Client{Timeout: 10 * time.Minute}
-	resp, err := client.Get(windowsFFmpegZipURL)
+	resp, err := client.Get(settings.WindowsFFmpegZipURL)
 	if err != nil {
 		return "", "", false, fmt.Errorf("download ffmpeg package: %w", err)
 	}
@@ -838,7 +771,7 @@ func ensureWindowsEmbeddablePython() (string, error) {
 	defer os.Remove(zipPath)
 
 	client := &http.Client{Timeout: 10 * time.Minute}
-	resp, err := client.Get(windowsEmbeddablePythonURL)
+	resp, err := client.Get(settings.WindowsPythonURL)
 	if err != nil {
 		return "", fmt.Errorf("download Python: %w", err)
 	}
@@ -1691,7 +1624,7 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 
 		// Skip if no install command available for this platform
 		cmds := getDependencyCommands(depName)
-		if cmds.install == nil && dep.Command == "ffmpeg" && runtime.GOOS != "windows" {
+		if cmds.Install == nil && dep.Command == "ffmpeg" && runtime.GOOS != "windows" {
 			continue
 		}
 
@@ -1778,12 +1711,12 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 
 		// On Windows, if no system Python is available, show a button to
 		// bootstrap the bundled Python first, then install Whisper.
-		if depName == "whisper" && runtime.GOOS == "windows" && cmds.install == nil && !isInstalled {
+		if depName == "whisper" && runtime.GOOS == "windows" && cmds.Install == nil && !isInstalled {
 			installBtn := widget.NewButton("Install (Python + Whisper)", func() {
 				state.installWindowsPythonFromUI(func(pythonExe string) {
 					// Python installed; now install whisper with the bundled Python.
 					runDependencyCommandWithProgress(state.window, "Installing Whisper", "Installing openai-whisper...",
-						&dependencyCommand{command: pythonExe, args: []string{"-m", "pip", "install", "openai-whisper"}},
+						&dependencyCommand{Command: pythonExe, Args: []string{"-m", "pip", "install", "openai-whisper"}},
 						func(out string, err error) {
 							showCommandResult(state.window, "Whisper Install", out, err)
 							state.showSettingsView()
@@ -1794,9 +1727,9 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 			actions.Add(installBtn)
 		}
 
-		if cmds.install != nil {
+		if cmds.Install != nil {
 			installBtn := widget.NewButton(t.DependenciesInstall, func() {
-				runDependencyCommandWithProgress(state.window, fmt.Sprintf("Installing %s", dep.Name), dep.InstallCmd, cmds.install, func(out string, err error) {
+				runDependencyCommandWithProgress(state.window, fmt.Sprintf("Installing %s", dep.Name), dep.InstallCmd, cmds.Install, func(out string, err error) {
 					showCommandResult(state.window, fmt.Sprintf("%s Install", dep.Name), out, err)
 					state.showSettingsView()
 				})
@@ -1808,13 +1741,13 @@ func buildDependenciesTab(state *appState) fyne.CanvasObject {
 			actions.Add(installBtn)
 		}
 
-		if cmds.uninstall != nil {
+		if cmds.Uninstall != nil {
 			uninstallBtn := widget.NewButton(t.DependenciesUninstall, func() {
 				dialog.ShowConfirm(fmt.Sprintf("Uninstall %s?", dep.Name), "This will attempt to remove the dependency using your package manager.", func(ok bool) {
 					if !ok {
 						return
 					}
-					runDependencyCommandWithProgress(state.window, fmt.Sprintf("Uninstalling %s", dep.Name), dep.InstallCmd, cmds.uninstall, func(out string, err error) {
+					runDependencyCommandWithProgress(state.window, fmt.Sprintf("Uninstalling %s", dep.Name), dep.InstallCmd, cmds.Uninstall, func(out string, err error) {
 						showCommandResult(state.window, fmt.Sprintf("%s Uninstall", dep.Name), out, err)
 						state.showSettingsView()
 					})
