@@ -6424,11 +6424,15 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 				"-m", rifeModel,
 				"-n", strconv.Itoa(inputFrameCount * rifeMultiplier),
 			}
+			rifeBin, rifeFound := utils.FindTool("rife-ncnn-vulkan")
+			if !rifeFound {
+				return fmt.Errorf("RIFE interpolation failed: rife-ncnn-vulkan not found in PATH or app-local bin")
+			}
 			if logFile != nil {
 				fmt.Fprintln(logFile, "Stage: RIFE frame interpolation")
-				fmt.Fprintf(logFile, "Command: rife-ncnn-vulkan %s\n", strings.Join(rifeArgs, " "))
+				fmt.Fprintf(logFile, "Command: %s %s\n", rifeBin, strings.Join(rifeArgs, " "))
 			}
-			rifeCmd := exec.CommandContext(ctx, "rife-ncnn-vulkan", rifeArgs...)
+			rifeCmd := exec.CommandContext(ctx, rifeBin, rifeArgs...)
 			utils.ApplyNoWindow(rifeCmd)
 			rifeOut, rifeErr := rifeCmd.CombinedOutput()
 			if logFile != nil && len(rifeOut) > 0 {
@@ -6631,11 +6635,15 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			"-m", rifeModel,
 			"-n", strconv.Itoa(inputFrameCount * rifeMultiplier),
 		}
+		rifeBin2, rifeFound2 := utils.FindTool("rife-ncnn-vulkan")
+		if !rifeFound2 {
+			return fmt.Errorf("RIFE interpolation failed: rife-ncnn-vulkan not found in PATH or app-local bin")
+		}
 		if logFile != nil {
 			fmt.Fprintln(logFile, "Stage: RIFE frame interpolation")
-			fmt.Fprintf(logFile, "Command: rife-ncnn-vulkan %s\n", strings.Join(rifeArgs, " "))
+			fmt.Fprintf(logFile, "Command: %s %s\n", rifeBin2, strings.Join(rifeArgs, " "))
 		}
-		rifeCmd := exec.CommandContext(ctx, "rife-ncnn-vulkan", rifeArgs...)
+		rifeCmd := exec.CommandContext(ctx, rifeBin2, rifeArgs...)
 		utils.ApplyNoWindow(rifeCmd)
 		rifeOut, rifeErr := rifeCmd.CombinedOutput()
 		if logFile != nil && len(rifeOut) > 0 {
