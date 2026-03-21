@@ -4,8 +4,6 @@ package main
 
 import (
 	"fyne.io/fyne/v2/dialog"
-
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 )
 
 func (s *appState) showInspectView() {

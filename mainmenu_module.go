@@ -101,6 +101,7 @@ func (s *appState) showMainMenu() {
 			ID:            m.ID,
 			Label:         moduleLabel(m.ID),
 			Color:         m.Color,
+			TextColor:     m.TextColor,
 			Category:      categoryLabel(m.Category),
 			HasHandler:    m.Handle != nil,
 			DepsAvailable: isModuleAvailable(m.ID),

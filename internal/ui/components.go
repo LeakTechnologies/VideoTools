@@ -224,6 +224,7 @@ type ModuleTile struct {
 	widget.BaseWidget
 	label               string
 	color               color.Color
+	textColor           color.Color
 	enabled             bool
 	missingDependencies bool
 	onTapped            func()
@@ -233,10 +234,11 @@ type ModuleTile struct {
 }
 
 // NewModuleTile creates a new module tile
-func NewModuleTile(label string, col color.Color, enabled bool, missingDeps bool, tapped func(), dropped func([]fyne.URI)) *ModuleTile {
+func NewModuleTile(label string, col color.Color, textCol color.Color, enabled bool, missingDeps bool, tapped func(), dropped func([]fyne.URI)) *ModuleTile {
 	m := &ModuleTile{
 		label:               strings.ToUpper(label),
 		color:               col,
+		textColor:           textCol,
 		missingDependencies: missingDeps,
 		enabled:             enabled,
 		onTapped:            tapped,
@@ -310,7 +312,10 @@ func (m *ModuleTile) CreateRenderer() fyne.WidgetRenderer {
 	// with every subsequent repaint. Disabled/unavailable tiles show a 65%-dimmed
 	// version of the module colour (preserving hue) rather than a fixed orange/grey.
 	tileColor := m.color
-	labelColor := TextColor
+	labelColor := m.textColor
+	if labelColor == nil {
+		labelColor = TextColor
+	}
 	if !m.enabled {
 		if c, ok := m.color.(color.NRGBA); ok {
 			tileColor = color.NRGBA{

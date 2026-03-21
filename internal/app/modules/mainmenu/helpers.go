@@ -11,6 +11,7 @@ type SourceModule struct {
 	ID            string
 	Label         string
 	Color         color.Color
+	TextColor     color.Color
 	Category      string
 	HasHandler    bool
 	DepsAvailable bool
@@ -33,6 +34,7 @@ func BuildVisibleModules(source []SourceModule, vis Visibility) []ui.ModuleInfo 
 			ID:                  m.ID,
 			Label:               m.Label,
 			Color:               m.Color,
+			TextColor:           m.TextColor,
 			Category:            m.Category,
 			Enabled:             enabled,
 			MissingDependencies: missingDeps,
