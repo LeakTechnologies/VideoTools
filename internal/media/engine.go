@@ -28,8 +28,8 @@ import (
 	"sync"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/media/filters"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/media/filters"
 )
 
 type SeekAccuracy int
@@ -572,6 +572,10 @@ func (e *Engine) SetSpeed(speed float64) {
 
 func (e *Engine) GetSpeed() float64 {
 	return e.speed
+}
+
+func (e *Engine) GetFrameRate() float64 {
+	return e.info.FrameRate
 }
 
 func (e *Engine) SetLoading(loading bool) {

@@ -17,8 +17,12 @@ type PlayerControl interface {
 	HandleKey(key string) bool
 	SetPlaying(playing bool)
 	SetVolume(vol float64)
+	SetSpeed(speed float64)
+	SetFrameRate(fps float64)
 	IsPlaying() bool
 	Volume() float64
+	GetSpeed() float64
+	GetFrameRate() float64
 	CurrentTime() float64
 	Duration() float64
 	Seek(target float64)
@@ -144,7 +148,10 @@ func (h *ShortcutHandler) seekSeconds(delta float64) {
 }
 
 func (h *ShortcutHandler) seekFrame(delta int) {
-	fps := 30.0
+	fps := h.player.GetFrameRate()
+	if fps <= 0 {
+		fps = 30.0
+	}
 	frameTime := 1.0 / fps
 	target := h.player.CurrentTime() + (float64(delta) * frameTime)
 	duration := h.player.Duration()
@@ -169,6 +176,13 @@ func (h *ShortcutHandler) adjustVolume(delta float64) {
 }
 
 func (h *ShortcutHandler) adjustSpeed(delta float64) {
+	newSpeed := h.player.GetSpeed() + delta
+	if newSpeed < 0.25 {
+		newSpeed = 0.25
+	} else if newSpeed > 2.0 {
+		newSpeed = 2.0
+	}
+	h.player.SetSpeed(newSpeed)
 }
 
 func (h *ShortcutHandler) seekToPercent(keyName string) {

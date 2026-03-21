@@ -561,6 +561,8 @@ func inspectLoadVideo(state *inspectState, path string) {
 	}
 
 	logging.Info(logging.CatPlayer, "Inspect loadVideo: successfully opened %s", path)
+	state.player.SetDuration(state.engine.Duration())
+	state.player.SetFrameRate(state.engine.GetFrameRate())
 	state.player.SetLoading(false)
 
 	if img, err := state.engine.NextFrame(); err == nil {
