@@ -37,9 +37,13 @@ func (v *VideoPlayer) SetFrame(frame *image.RGBA) {
 ```
 
 **Verification**:
-- [ ] Add GL debug logging to verify TexSubImage2D called
+- [x] Add GL debug logging to verify TexSubImage2D called
 - [ ] Profile frame render time (<16ms target for 60fps)
 - [ ] Test with 1080p, 4K, various codecs
+
+**Debug logging added** to `internal/painter/gl/texture.go`:
+- `glRaster: TexSubImage2D texture=%d size=%dx%d (reused)` - when texture is reused
+- `glRaster: TexImage2D size=%dx%d (new texture)` - when new texture created
 
 ---
 

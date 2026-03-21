@@ -8,6 +8,7 @@
 
 | Commit | Description |
 |--------|-------------|
+| `d55e92004` | painter/gl: add debug logging for TexSubImage2D vs TexImage2D |
 | `7a5a8895c` | driver/desktop: add MouseButton4 and MouseButton5 |
 | `f56a582e8` | painter/gl: add efficient texture reuse in newGlRasterTexture |
 | `f8658a052` | Add TexSubImage2D to GL context and UpdatePixels to Raster |
