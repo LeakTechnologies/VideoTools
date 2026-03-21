@@ -36,6 +36,10 @@ type Options struct {
 	FeedbackLabel   string // feedback instructions text
 	CloseLabel      string // "Close"
 	OpenLabel       string // "Open" (for X/social link button)
+
+	// LogoResource is the VT logo shown at the top of the right column.
+	// If nil, falls back to loading VT_Logotype1.png from the filesystem.
+	LogoResource fyne.Resource
 }
 
 func generatePixelatedQRCode(docURL string) (fyne.CanvasObject, error) {
@@ -128,7 +132,12 @@ func Show(opts Options) {
 	mainContent := container.NewVBox(mainContentItems...)
 
 	logoColumn := container.NewVBox()
-	if vtLogo := loadLogo("VT_Logotype1.png", 96); vtLogo != nil {
+	if opts.LogoResource != nil {
+		vtLogo := canvas.NewImageFromResource(opts.LogoResource)
+		vtLogo.FillMode = canvas.ImageFillContain
+		vtLogo.SetMinSize(fyne.NewSize(200, 80))
+		logoColumn.Add(vtLogo)
+	} else if vtLogo := loadLogo("VT_Logotype1.png", 96); vtLogo != nil {
 		logoColumn.Add(vtLogo)
 	}
 	if ltLogo := loadLogo("LT_Logo-26.png", 72); ltLogo != nil {
