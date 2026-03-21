@@ -10,6 +10,11 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
+// perTestTimeout is the maximum time allowed for a single encoder test.
+// Hardware encoder tests (AMF, NVENC, QSV) can hang indefinitely if the
+// driver fails to initialize; this timeout ensures they are killed promptly.
+const perTestTimeout = 2 * time.Minute
+
 // Result stores the outcome of a single encoder benchmark test
 type Result struct {
 	Encoder      string  // e.g., "libx264", "h264_nvenc"
@@ -206,8 +211,11 @@ func (s *Suite) RunFullSuite(ctx context.Context, availableEncoders []string) er
 				s.Progress(current, totalTests, test.encoder, preset)
 			}
 
-			// Run the test
-			result := s.TestEncoder(ctx, test.encoder, preset)
+			// Run the test with a per-test timeout so a hung hardware
+			// encoder (e.g. AMD AMF driver init hang) doesn't block forever.
+			testCtx, testCancel := context.WithTimeout(ctx, perTestTimeout)
+			result := s.TestEncoder(testCtx, test.encoder, preset)
+			testCancel()
 			s.Results = append(s.Results, result)
 
 			// Increment and report completion
