@@ -26,6 +26,10 @@ func initLocale(a fyne.App, refreshFn func()) {
 		i18n.SetLanguageWithScript(cfg.Language, i18n.ScriptVariant(cfg.Script))
 	}
 
+	// Apply font mode for the initial language — the listener below hasn't
+	// been registered yet when SetLanguageWithScript fires, so we do it here.
+	ui.SetFontMode(i18n.CurrentFont())
+
 	i18n.RegisterListener(func() {
 		ui.SetFontMode(i18n.CurrentFont())
 		a.Driver().DoFromGoroutine(refreshFn, false)
