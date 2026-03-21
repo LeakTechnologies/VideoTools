@@ -507,7 +507,7 @@ func DarkTextLabel(label string) *canvas.Text {
 // TintedBar creates a colored bar container
 func TintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 	rect := canvas.NewRectangle(col)
-	// rect.SetMinSize(fyne.NewSize(0, 48)) // Removed for flexible sizing
+	rect.SetMinSize(fyne.NewSize(0, 48))
 	padded := container.NewPadded(body)
 	return container.NewMax(rect, padded)
 }
