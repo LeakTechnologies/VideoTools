@@ -6669,7 +6669,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		}
 		reassembleArgs = appendEncodingArgs(reassembleArgs)
 		reassembleArgs = append(reassembleArgs,
-			"-pix_fmt", "yuv420p",
+			"-pix_fmt", pixelFormat,
 			"-c:a", "copy",
 			"-shortest",
 		)
@@ -6733,7 +6733,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	args = append(args, "-c:v", videoEncoder)
 	args = appendEncodingArgs(args)
 	args = append(args,
-		"-pix_fmt", "yuv420p",
+		"-pix_fmt", pixelFormat,
 		"-c:a", "copy",
 		"-progress", "pipe:1",
 		"-nostats",

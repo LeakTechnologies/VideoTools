@@ -567,8 +567,16 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 
 		aiEnabledCheck := widget.NewCheck(t.UpscaleAIEnabled, func(checked bool) {
 			state.upscaleAIEnabled = checked
+			if checked {
+				colourAccuracySection.Show()
+			} else {
+				colourAccuracySection.Hide()
+			}
 		})
 		aiEnabledCheck.SetChecked(state.upscaleAIEnabled)
+		if !state.upscaleAIEnabled {
+			colourAccuracySection.Hide()
+		}
 
 		aiModelSelect := widget.NewSelect(aiModelOptions, func(s string) {
 			state.upscaleAIModel = aiUpscaleModelID(s)
@@ -894,8 +902,12 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		if slug == "" {
 			slug = "source"
 		}
-		outputPath := filepath.Join(videoDir, fmt.Sprintf("%s_upscaled_%s_%s.mkv",
-			videoBaseName, slug, state.upscaleMethod))
+		containerExt := state.upscaleOutputContainer
+		if containerExt == "" {
+			containerExt = "mkv"
+		}
+		outputPath := filepath.Join(videoDir, fmt.Sprintf("%s_upscaled_%s_%s.%s",
+			videoBaseName, slug, state.upscaleMethod, containerExt))
 
 		// Build description
 		description := fmt.Sprintf("Upscale to %s using %s", state.upscaleTargetRes, state.upscaleMethod)
@@ -985,6 +997,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			state.window)
 	})
 	applyBtn.Importance = widget.HighImportance
+	if state.upscaleFile == nil {
+		applyBtn.Disable()
+	}
 
 	// Keyboard shortcut: Ctrl+Enter -> Upscale Now
 	if c := state.window.Canvas(); c != nil {
@@ -1010,6 +1025,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 			state.window)
 	})
 	addQueueBtn.Importance = widget.MediumImportance
+	if state.upscaleFile == nil {
+		addQueueBtn.Disable()
+	}
 
 	// Main content
 	spacing := func() fyne.CanvasObject {
