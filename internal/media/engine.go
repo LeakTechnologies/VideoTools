@@ -491,6 +491,24 @@ func (c *PlaybackFrameCache) Size() int {
 	return len(c.frames)
 }
 
+func (c *PlaybackFrameCache) SetMaxSize(maxSize int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.maxSize = maxSize
+
+	for len(c.frameList) > maxSize && len(c.frameList) > 0 {
+		oldest := c.frameList[0]
+		delete(c.frames, oldest)
+		c.frameList = c.frameList[1:]
+	}
+}
+
+func (c *PlaybackFrameCache) MaxSize() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.maxSize
+}
+
 func NewEngine() *Engine {
 	return &Engine{
 		videoStreamIdx:    -1,
@@ -506,6 +524,9 @@ func NewEngine() *Engine {
 		seekAcc:           SeekAccuracyKeyframe,
 		numThreads:        0,
 		framePool:         make([][]byte, 0, 4),
+		lastError:         nil,
+		hwDegraded:        false,
+		hwFailCount:       0,
 	}
 }
 
@@ -699,6 +720,62 @@ func (e *Engine) recordDecodeTime(duration time.Duration) {
 	e.lastDecodeTime = time.Now()
 }
 
+func (e *Engine) GetDecodeTimeTrend() float64 {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if len(e.decodeTimes) < 5 {
+		return 0
+	}
+
+	oldAvg := 0.0
+	newAvg := 0.0
+	half := len(e.decodeTimes) / 2
+
+	for i, t := range e.decodeTimes {
+		ms := t.Seconds() * 1000
+		if i < half {
+			oldAvg += ms
+		} else {
+			newAvg += ms
+		}
+	}
+
+	oldAvg /= float64(half)
+	newAvg /= float64(len(e.decodeTimes) - half)
+
+	if oldAvg == 0 {
+		return 0
+	}
+
+	return (newAvg - oldAvg) / oldAvg
+}
+
+func (e *Engine) AdjustBufferForPerformance() {
+	trend := e.GetDecodeTimeTrend()
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if trend > 0.3 {
+		newSize := e.frameCache.Size() + 10
+		if newSize > 100 {
+			newSize = 100
+		}
+		if e.frameCache != nil {
+			e.frameCache.SetMaxSize(newSize)
+		}
+		logging.Debug(logging.CatPlayer, "Buffer increased to %d (decode trend: %.1f%%)", newSize, trend*100)
+	} else if trend < -0.2 && e.frameCache != nil {
+		currentSize := e.frameCache.Size()
+		if currentSize > 15 {
+			newSize := currentSize - 10
+			e.frameCache.SetMaxSize(newSize)
+			logging.Debug(logging.CatPlayer, "Buffer decreased to %d (decode trend: %.1f%%)", newSize, trend*100)
+		}
+	}
+}
+
 func (e *Engine) GetAverageDecodeTime() time.Duration {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -712,6 +789,45 @@ func (e *Engine) GetAverageDecodeTime() time.Duration {
 		total += t
 	}
 	return total / time.Duration(len(e.decodeTimes))
+}
+
+func (e *Engine) GetVideoBufferDepth() int {
+	if e.videoQueue == nil {
+		return 0
+	}
+	return e.videoQueue.Size()
+}
+
+func (e *Engine) GetAudioBufferDepth() int {
+	if e.audioQueue == nil {
+		return 0
+	}
+	return e.audioQueue.Size()
+}
+
+func (e *Engine) GetBufferHealth() float64 {
+	videoDepth := e.GetVideoBufferDepth()
+	audioDepth := e.GetAudioBufferDepth()
+
+	videoMax := 50
+	audioMax := 100
+
+	if e.videoQueue != nil {
+		videoMax = e.videoQueue.MaxSize()
+	}
+	if e.audioQueue != nil {
+		audioMax = e.audioQueue.MaxSize()
+	}
+
+	videoHealth := float64(videoDepth) / float64(videoMax)
+	audioHealth := float64(audioDepth) / float64(audioMax)
+
+	return (videoHealth + audioHealth) / 2.0
+}
+
+func (e *Engine) IsBuffering() bool {
+	health := e.GetBufferHealth()
+	return health < 0.2
 }
 
 func (e *Engine) SetFilterPipeline(pipeline *filters.FilterPipeline) {
@@ -1616,6 +1732,74 @@ func (e *Engine) RecoverableError(code, message string) *PlaybackError {
 
 func (e *Engine) ShouldRetry(err *PlaybackError) bool {
 	return err != nil && err.Retry
+}
+
+func (e *Engine) GetLastError() *PlaybackError {
+	return e.lastError
+}
+
+func (e *Engine) ClearError() {
+	e.lastError = nil
+}
+
+func (e *Engine) DegradeToSoftware() {
+	if e.hwDevice == HWDeviceNone {
+		return
+	}
+
+	logging.Warning(logging.CatPlayer, "Degrading from HW to software decoding")
+
+	e.mu.Lock()
+	e.hwDegraded = true
+
+	if e.hwFramesCtx != nil {
+		C.av_buffer_unref(&e.hwFramesCtx.hwctx)
+		e.hwFramesCtx = nil
+	}
+	if e.hwDeviceCtx != nil {
+		C.av_buffer_unref(&e.hwDeviceCtx.hwctx)
+		e.hwDeviceCtx = nil
+	}
+	if e.videoCodecCtx.hw_frames_ctx != nil {
+		C.av_buffer_unref(&e.videoCodecCtx.hw_frames_ctx)
+		e.videoCodecCtx.hw_frames_ctx = nil
+	}
+	e.hwDevice = HWDeviceNone
+
+	e.lastError = &PlaybackError{
+		Code:    ErrCodeHWAccel,
+		Message: "Fell back to software decoding",
+		Retry:   false,
+	}
+	e.mu.Unlock()
+
+	e.ClearFrameCache()
+}
+
+func (e *Engine) ShouldDegrade() bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.hwDegraded {
+		return false
+	}
+
+	if e.hwFailCount >= 3 {
+		return true
+	}
+	return false
+}
+
+func (e *Engine) RecordHWFailure() {
+	e.mu.Lock()
+	e.hwFailCount++
+	e.mu.Unlock()
+}
+
+func (e *Engine) ResetHWFailureCount() {
+	e.mu.Lock()
+	e.hwFailCount = 0
+	e.mu.Unlock()
 }
 
 func (e *Engine) Close() {
