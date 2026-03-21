@@ -11918,10 +11918,11 @@ Metadata: %s`,
 		contentArea,
 		interlaceSection,
 	)
-	scroll := container.NewVScroll(body)
-	scroll.SetMinSize(fyne.NewSize(0, 220))
+	// No inner VScroll here — the caller wraps metaPanel in ui.NewFastVScroll
+	// (see showConvertView). A double-scroll causes the inner one to never
+	// activate because NewMax gives it unlimited height equal to content.
 	layers := ui.NoisyBackgroundObjects(outer)
-	layers = append(layers, container.NewPadded(scroll))
+	layers = append(layers, container.NewPadded(body))
 	return container.NewMax(layers...), updateCoverDisplay
 }
 
