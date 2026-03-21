@@ -222,6 +222,11 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		ts.clearPoints()
 	})
 
+	previewBtn := widget.NewButton(t.TrimPreview, func() {
+		ts.previewTrimRegion()
+	})
+	previewBtn.Importance = widget.MediumImportance
+
 	// Mode selector
 	modeSelect := widget.NewSelect([]string{t.TrimModeKeep, t.TrimModeCut}, func(s string) {
 		if s == t.TrimModeCut {
@@ -296,6 +301,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		setOutBtn,
 		stepFwdBtn,
 		layout.NewSpacer(),
+		previewBtn,
 	)
 
 	videoContainer := container.NewMax(
@@ -451,6 +457,65 @@ func (s *trimState) togglePlayPause() {
 	} else {
 		s.engine.Start()
 		go s.playbackLoop()
+	}
+}
+
+func (s *trimState) previewTrimRegion() {
+	if s.engine == nil || s.videoPath == "" {
+		return
+	}
+	if s.outPoint <= s.inPoint {
+		return
+	}
+
+	// Seek to in point
+	inSec := s.inPoint.Seconds()
+	s.engine.Seek(inSec)
+	if img, err := s.engine.NextFrame(); err == nil {
+		s.player.SetFrame(img)
+		s.currentTime = inSec
+		s.player.SetCurrentTime(inSec)
+	}
+
+	// Start preview playback
+	s.engine.Start()
+	s.player.SetPlaying(true)
+	go s.previewPlaybackLoop()
+}
+
+func (s *trimState) previewPlaybackLoop() {
+	defer logging.RecoverPanic()
+
+	outSec := s.outPoint.Seconds()
+
+	for {
+		if s.engine == nil {
+			return
+		}
+
+		img, err := s.engine.NextFrame()
+		if err != nil {
+			s.player.SetPlaying(false)
+			return
+		}
+
+		s.player.SetFrame(img)
+		s.currentTime = s.engine.CurrentTime()
+		s.player.SetCurrentTime(s.currentTime)
+
+		// Stop at out point
+		if s.currentTime >= outSec {
+			s.engine.Pause()
+			s.player.SetPlaying(false)
+			return
+		}
+
+		// Also stop if manually paused
+		if !s.player.IsPlaying() {
+			return
+		}
+
+		time.Sleep(16 * time.Millisecond)
 	}
 }
 
