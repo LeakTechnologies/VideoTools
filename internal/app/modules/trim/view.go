@@ -316,6 +316,7 @@ func (s *trimState) loadVideo(path string) {
 		s.fileLabel.SetText(filepath.Base(path))
 	}
 	s.player.SetDuration(s.duration)
+	s.player.SetFrameRate(s.engine.GetFrameRate())
 
 	// Default out point to end of file
 	s.outPoint = time.Duration(s.duration * float64(time.Second))

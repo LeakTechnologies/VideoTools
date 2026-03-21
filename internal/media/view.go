@@ -225,6 +225,7 @@ type VideoPlayer struct {
 	duration         float64
 	volume           float64
 	speed            float64
+	frameRate        float64
 
 	displayFrame  *image.RGBA
 	displayWidth  int
@@ -247,6 +248,7 @@ type VideoPlayer struct {
 	onHover         func(float64)
 	onVolumeChange  func(float64)
 	onSpeedChange   func(float64)
+	onFrameRate     func(float64)
 	onPrevChapter   func()
 	onNextChapter   func()
 	onChapterSelect func(int)
@@ -626,6 +628,25 @@ func (v *VideoPlayer) SetSpeed(speed float64) {
 	if v.onSpeedChange != nil {
 		v.onSpeedChange(speed)
 	}
+}
+
+func (v *VideoPlayer) GetSpeed() float64 {
+	return v.speed
+}
+
+func (v *VideoPlayer) SetFrameRate(fps float64) {
+	v.frameRate = fps
+}
+
+func (v *VideoPlayer) GetFrameRate() float64 {
+	if v.frameRate > 0 {
+		return v.frameRate
+	}
+	return 30.0
+}
+
+func (v *VideoPlayer) OnFrameRate(cb func(float64)) {
+	v.onFrameRate = cb
 }
 
 func (v *VideoPlayer) SetChapters(chapters []Chapter) {
