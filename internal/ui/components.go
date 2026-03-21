@@ -56,6 +56,7 @@ func SetAboriginalFontData(regular, italic, bold, boldItalic []byte) {
 // Call this from the i18n language-change listener.
 func SetFontMode(mode string) {
 	fontMode = mode
+	logging.Debug(logging.CatUI, "SetFontMode: fontMode=%s, aboriginalFontData.regular=%v", mode, aboriginalFontData.regular != nil)
 }
 
 var (
@@ -167,16 +168,25 @@ func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
 		// entire weight ladder up: regular→bold, italic→boldItalic.
 		var fontData []byte
 		var fontName string
-		if style.Italic {
+		switch {
+		case style.Bold && style.Italic:
 			fontData = aboriginalFontData.boldItalic
 			fontName = "AboriginalSansBOLDITALIC.ttf"
-		} else {
+		case style.Bold:
 			fontData = aboriginalFontData.bold
 			fontName = "AboriginalSansBOLD.ttf"
+		case style.Italic:
+			fontData = aboriginalFontData.italic
+			fontName = "AboriginalSansITALIC.ttf"
+		default:
+			fontData = aboriginalFontData.regular
+			fontName = "AboriginalSansREGULAR.ttf"
 		}
 		if fontData != nil {
+			logging.Debug(logging.CatUI, "MonoTheme.Font: using aboriginal font %s (len=%d)", fontName, len(fontData))
 			return fyne.NewStaticResource(fontName, fontData)
 		}
+		logging.Warning(logging.CatUI, "MonoTheme.Font: fontData is nil for aboriginal mode")
 	}
 	style.Monospace = true
 	if monoFontData.regular != nil {
@@ -199,6 +209,7 @@ func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
 			return fyne.NewStaticResource(fontName, fontData)
 		}
 	}
+	logging.Debug(logging.CatUI, "MonoTheme.Font: falling back to default theme (fontMode=%s, aboriginalAvailable=%v)", fontMode, aboriginalFontData.regular != nil)
 	return theme.DefaultTheme().Font(style)
 }
 
