@@ -5063,14 +5063,18 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 					quality, _ := cfg["quality"].(string)
 					crfStr = crfForQuality(quality)
 				}
-				if actualCodec == "libx264" || actualCodec == "libx265" || actualCodec == "libvpx-vp9" {
+				if actualCodec == "libx264" || actualCodec == "libx265" || actualCodec == "libvpx-vp9" || actualCodec == "libaom-av1" {
 					args = append(args, "-crf", crfStr)
 				}
 			} else if bitrateMode == "CBR" {
-				if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
-					args = append(args, "-b:v", videoBitrate, "-minrate", videoBitrate, "-maxrate", videoBitrate, "-bufsize", videoBitrate)
+				vb, _ := cfg["videoBitrate"].(string)
+				if vb == "" {
+					vb = defaultBitrate(videoCodec, sourceWidth, sourceBitrate)
+				}
+				// libaom-av1 does not support -minrate; use -b:v/-maxrate only
+				if actualCodec == "libaom-av1" {
+					args = append(args, "-b:v", vb, "-maxrate", vb, "-bufsize", vb)
 				} else {
-					vb := defaultBitrate(videoCodec, sourceWidth, sourceBitrate)
 					args = append(args, "-b:v", vb, "-minrate", vb, "-maxrate", vb, "-bufsize", vb)
 				}
 			} else if bitrateMode == "VBR" {
@@ -5108,8 +5112,37 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			h264Profile, _ := cfg["h264Profile"].(string)
 
 			// Encoder preset
-			if encoderPreset, _ := cfg["encoderPreset"].(string); encoderPreset != "" && (actualCodec == "libx264" || actualCodec == "libx265") {
-				args = append(args, "-preset", encoderPreset)
+			if encoderPreset, _ := cfg["encoderPreset"].(string); encoderPreset != "" {
+				switch {
+				case actualCodec == "libx264" || actualCodec == "libx265":
+					args = append(args, "-preset", encoderPreset)
+				case actualCodec == "libsvtav1":
+					svtPreset := map[string]string{
+						"veryslow": "3", "slower": "4", "slow": "5",
+						"medium": "6", "fast": "8", "faster": "9",
+						"veryfast": "10", "superfast": "11", "ultrafast": "12",
+					}
+					if p, ok := svtPreset[encoderPreset]; ok {
+						args = append(args, "-preset", p)
+					} else {
+						args = append(args, "-preset", "8")
+					}
+				case actualCodec == "libaom-av1":
+					// Map to cpu-used (0=slowest/best, 8=fastest)
+					cpuUsed := map[string]string{
+						"veryslow": "1", "slower": "2", "slow": "3",
+						"medium": "4", "fast": "6", "faster": "7",
+						"veryfast": "8", "superfast": "8", "ultrafast": "8",
+					}
+					if p, ok := cpuUsed[encoderPreset]; ok {
+						args = append(args, "-cpu-used", p)
+					} else {
+						args = append(args, "-cpu-used", "4")
+					}
+				}
+			} else if actualCodec == "libaom-av1" {
+				// Always set a sensible cpu-used for libaom — default (1) is research-speed only
+				args = append(args, "-cpu-used", "4")
 			}
 
 			// Enforce true lossless for software HEVC when CRF is 0
@@ -14498,7 +14531,10 @@ func determineVideoCodec(cfg convertConfig) string {
 		} else if accel == "vaapi" {
 			return "av1_vaapi"
 		}
-		// When set to "none" or empty, use software encoder
+		// Prefer libsvtav1 (orders of magnitude faster than libaom-av1)
+		if hasFFmpegEncoder("libsvtav1") {
+			return "libsvtav1"
+		}
 		return "libaom-av1"
 	case "MPEG-2":
 		return "mpeg2video"
