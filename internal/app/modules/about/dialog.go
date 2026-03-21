@@ -128,7 +128,7 @@ func Show(opts Options) {
 	mainContent := container.NewVBox(mainContentItems...)
 
 	logoColumn := container.NewVBox()
-	if vtLogo := loadLogo("VT_Logo.png", 96); vtLogo != nil {
+	if vtLogo := loadLogo("VT_Logotype1.png", 96); vtLogo != nil {
 		logoColumn.Add(vtLogo)
 	}
 	if ltLogo := loadLogo("LT_Logo-26.png", 72); ltLogo != nil {

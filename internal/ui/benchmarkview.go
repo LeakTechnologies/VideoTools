@@ -66,8 +66,7 @@ type BenchmarkProgressView struct {
 
 func (v *BenchmarkProgressView) build() {
 	// Header bar
-	backBtn := widget.NewButton("< BENCHMARK", v.onBack)
-	backBtn.Importance = widget.LowImportance
+	backBtn := DarkTextButton("< BENCHMARK", v.onBack)
 	topBar := TintedBar(v.headerColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// Hardware info section
@@ -148,12 +147,13 @@ func (v *BenchmarkProgressView) GetContainer() *fyne.Container {
 }
 
 // UpdateProgress updates the progress bar and status labels.
-func (v *BenchmarkProgressView) UpdateProgress(current, total int, encoder, preset string) {
+// label is the human-readable encoder name (e.g. "NVENC H.264").
+func (v *BenchmarkProgressView) UpdateProgress(current, total int, label string) {
 	pct := (float64(current) / float64(total)) * 100
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		v.progressBar.SetValue(pct)
 		v.statusLabel.SetText(fmt.Sprintf("Testing encoder %d of %d", current, total))
-		v.currentLabel.SetText(fmt.Sprintf("Testing: %s (preset: %s)", encoder, preset))
+		v.currentLabel.SetText(fmt.Sprintf("Testing: %s", label))
 		v.progressBar.Refresh()
 		v.statusLabel.Refresh()
 		v.currentLabel.Refresh()
@@ -167,15 +167,15 @@ func (v *BenchmarkProgressView) AddResult(result benchmark.Result) {
 
 	if result.Error != "" {
 		statusColor = color.RGBA{R: 255, G: 68, B: 68, A: 255}
-		statusText = fmt.Sprintf("FAILED: %s", result.Error)
+		statusText = "FAILED"
 	} else {
 		statusColor = color.RGBA{R: 76, G: 232, B: 112, A: 255}
-		statusText = fmt.Sprintf("%.1f FPS | %.1fs encoding time", result.FPS, result.EncodingTime)
+		statusText = fmt.Sprintf("%.1f FPS | %.1fs", result.FPS, result.EncodingTime)
 	}
 
 	statusRect := canvas.NewRectangle(statusColor)
 
-	encoderLabel := widget.NewLabel(fmt.Sprintf("%s (%s)", result.Encoder, result.Preset))
+	encoderLabel := widget.NewLabel(benchmark.FriendlyName(result.Encoder))
 	encoderLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	statusLabel := widget.NewLabel(statusText)
@@ -220,8 +220,7 @@ func BuildBenchmarkResultsView(
 	actionContent fyne.CanvasObject,
 ) fyne.CanvasObject {
 	// Header bar
-	backBtn := widget.NewButton("< BENCHMARK", onBack)
-	backBtn.Importance = widget.LowImportance
+	backBtn := DarkTextButton("< BENCHMARK", onBack)
 	topBar := TintedBar(headerColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// Footer bar
@@ -263,17 +262,17 @@ func BuildBenchmarkResultsView(
 	}
 
 	// Recommendation section
-	recTitle := widget.NewLabel("RECOMMENDED ENCODER")
+	recTitle := widget.NewLabel("RECOMMENDED ACCELERATION")
 	recTitle.TextStyle = fyne.TextStyle{Bold: true}
 	recTitle.Alignment = fyne.TextAlignCenter
 
-	recEncoder := widget.NewLabel(fmt.Sprintf("%s (preset: %s)", recommendation.Encoder, recommendation.Preset))
-	recEncoder.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	recEncoder.Alignment = fyne.TextAlignCenter
+	recHWLabel := widget.NewLabel(benchmark.HWAccelLabel(recommendation.HWAccel))
+	recHWLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	recHWLabel.Alignment = fyne.TextAlignCenter
 
-	recStats := widget.NewLabel(fmt.Sprintf("%.1f FPS | %.1fs encoding time | Score: %.1f",
-		recommendation.FPS, recommendation.EncodingTime, recommendation.Score))
-	recStats.Alignment = fyne.TextAlignCenter
+	recDetail := widget.NewLabel(fmt.Sprintf("Best encoder: %s  •  %.1f FPS",
+		benchmark.FriendlyName(recommendation.Encoder), recommendation.FPS))
+	recDetail.Alignment = fyne.TextAlignCenter
 
 	applyBtn := widget.NewButton("Apply to Settings", onApply)
 	applyBtn.Importance = widget.HighImportance
@@ -283,39 +282,59 @@ func BuildBenchmarkResultsView(
 
 	recommendationSection := container.NewPadded(
 		container.NewMax(recCard, container.NewVBox(
-			recTitle, recEncoder, recStats,
+			recTitle, recHWLabel, recDetail,
 			container.NewCenter(applyBtn),
 		)),
 	)
 
-	// Top encoders list
-	topResultsTitle := widget.NewLabel("Top Encoders")
-	topResultsTitle.TextStyle = fyne.TextStyle{Bold: true}
-	topResultsTitle.Alignment = fyne.TextAlignCenter
+	// All encoder results, sorted by FPS (successful ones first)
+	resultsTitle := widget.NewLabel("Encoder Results")
+	resultsTitle.TextStyle = fyne.TextStyle{Bold: true}
+	resultsTitle.Alignment = fyne.TextAlignCenter
 
-	var filtered []benchmark.Result
+	// Separate passing and failing results; sort each group by FPS desc
+	var passed, failed []benchmark.Result
 	for _, r := range results {
 		if r.Error == "" {
-			filtered = append(filtered, r)
+			passed = append(passed, r)
+		} else {
+			failed = append(failed, r)
 		}
 	}
-	sort.Slice(filtered, func(i, j int) bool {
-		return filtered[i].Score > filtered[j].Score
+	sort.Slice(passed, func(i, j int) bool {
+		return passed[i].Score > passed[j].Score
 	})
+	allSorted := append(passed, failed...)
 
 	var resultItems []fyne.CanvasObject
-	for i, r := range filtered {
+	for i, r := range allSorted {
+		var statusColor color.Color
+		var statsText string
+		if r.Error == "" {
+			statusColor = color.RGBA{R: 76, G: 232, B: 112, A: 255}
+			statsText = fmt.Sprintf("%.1f FPS | %.1fs", r.FPS, r.EncodingTime)
+		} else {
+			statusColor = color.RGBA{R: 255, G: 68, B: 68, A: 255}
+			statsText = "FAILED"
+		}
+
 		rankLabel := widget.NewLabel(fmt.Sprintf("#%d", i+1))
 		rankLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-		encoderLabel := widget.NewLabel(fmt.Sprintf("%s (%s)", r.Encoder, r.Preset))
+		statusDot := canvas.NewRectangle(statusColor)
+		statusDot.SetMinSize(fyne.NewSize(6, 0))
 
-		statsLabel := widget.NewLabel(fmt.Sprintf("%.1f FPS | %.1fs | Score: %.1f",
-			r.FPS, r.EncodingTime, r.Score))
+		nameLabel := widget.NewLabel(benchmark.FriendlyName(r.Encoder))
+		nameLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+		statsLabel := widget.NewLabel(statsText)
 		statsLabel.TextStyle = fyne.TextStyle{Italic: true}
 
-		content := container.NewBorder(nil, nil, rankLabel, nil,
-			container.NewVBox(encoderLabel, statsLabel))
+		content := container.NewBorder(nil, nil,
+			container.NewHBox(rankLabel, statusDot),
+			nil,
+			container.NewVBox(nameLabel, statsLabel),
+		)
 
 		card := canvas.NewRectangle(bgColor)
 		card.CornerRadius = 4
@@ -325,7 +344,7 @@ func BuildBenchmarkResultsView(
 
 	resultsBox := container.NewVBox(resultItems...)
 	resultsScroll := container.NewVScroll(resultsBox)
-	resultsSection := container.NewBorder(topResultsTitle, nil, nil, nil, resultsScroll)
+	resultsSection := container.NewBorder(resultsTitle, nil, nil, nil, resultsScroll)
 
 	// Fixed top: hw info + recommendation; results scroll expands below
 	topFixed := container.NewVBox(
@@ -352,8 +371,7 @@ func BuildBenchmarkHistoryView(
 	statsBar *ConversionStatsBar,
 ) fyne.CanvasObject {
 	// Header bar
-	backBtn := widget.NewButton("< BENCHMARK", onBack)
-	backBtn.Importance = widget.LowImportance
+	backBtn := DarkTextButton("< BENCHMARK", onBack)
 	topBar := TintedBar(headerColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// Footer bar
@@ -394,8 +412,7 @@ func BuildBenchmarkHistoryView(
 type BenchmarkHistoryRun struct {
 	Timestamp          string
 	ResultCount        int
-	RecommendedEncoder string
-	RecommendedPreset  string
+	RecommendedHWAccel string // "nvenc", "amf", "qsv", or "none"
 	RecommendedFPS     float64
 }
 
@@ -408,8 +425,8 @@ func buildHistoryRunItem(
 	timeLabel := widget.NewLabel(run.Timestamp)
 	timeLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	recLabel := widget.NewLabel(fmt.Sprintf("Recommended: %s (%s) - %.1f FPS",
-		run.RecommendedEncoder, run.RecommendedPreset, run.RecommendedFPS))
+	recLabel := widget.NewLabel(fmt.Sprintf("Recommended: %s  •  %.1f FPS",
+		benchmark.HWAccelLabel(run.RecommendedHWAccel), run.RecommendedFPS))
 
 	countLabel := widget.NewLabel(fmt.Sprintf("%d encoders tested", run.ResultCount))
 	countLabel.TextStyle = fyne.TextStyle{Italic: true}

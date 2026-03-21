@@ -175,7 +175,7 @@ $ldflags = @(
 ) -join " "
 
 # Compile icon resource file if icon exists
-$iconPath = Join-Path $PROJECT_ROOT "assets\logo\VT_Icon.ico"
+$iconPath = Join-Path $PROJECT_ROOT "assets\logo\VT_logo.ico"
 $resourceOutput = Join-Path $PROJECT_ROOT "icon.syso"
 if ((Test-Path $iconPath) -and (Test-Command windres)) {
     $rcContent = "1 ICON `"$iconPath`""

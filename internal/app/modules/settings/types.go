@@ -1,16 +1,24 @@
 package settings
 
 import (
+	"archive/zip"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"time"
 )
 
 const WindowsFFmpegZipURL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+const WindowsFFmpegDllZipURL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
 const WindowsPythonURL = "https://www.python.org/ftp/python/3.12.9/python-3.12.9-embed-amd64.zip"
 const GetPipURL = "https://bootstrap.pypa.io/get-pip.py"
+
+const FFmpegDllBinPath = "VideoTools" + string(filepath.Separator) + "ffmpeg-dll"
 
 type PrefsConfig struct {
 	AutoCheckFrequency string `json:"AutoCheckFrequency"`
@@ -111,4 +119,108 @@ func PkgManagerInstall(pkg string) *DependencyCommand {
 		}
 	}
 	return nil
+}
+
+func FFmpegDllDir() string {
+	base := os.Getenv("LOCALAPPDATA")
+	if base == "" {
+		home, _ := os.UserHomeDir()
+		if home != "" {
+			base = filepath.Join(home, "AppData", "Local")
+		}
+	}
+	return filepath.Join(base, FFmpegDllBinPath)
+}
+
+func FFmpegDllsPresent() bool {
+	dllDir := FFmpegDllDir()
+	avcodecDll := filepath.Join(dllDir, "avcodec.dll")
+	if _, err := os.Stat(avcodecDll); err != nil {
+		return false
+	}
+	return true
+}
+
+func BootstrapFFmpegDlls() error {
+	if FFmpegDllsPresent() {
+		return nil
+	}
+
+	dllDir := FFmpegDllDir()
+	if err := os.MkdirAll(dllDir, 0o755); err != nil {
+		return fmt.Errorf("create FFmpeg DLL directory: %w", err)
+	}
+
+	zipPath := filepath.Join(os.TempDir(), "videotools-ffmpeg-dlls.zip")
+	defer os.Remove(zipPath)
+
+	out, err := os.Create(zipPath)
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+	defer out.Close()
+
+	client := &http.Client{Timeout: 10 * time.Minute}
+	resp, err := client.Get(WindowsFFmpegDllZipURL)
+	if err != nil {
+		return fmt.Errorf("download FFmpeg DLLs: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download FFmpeg DLLs: HTTP %d", resp.StatusCode)
+	}
+
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		return fmt.Errorf("save FFmpeg DLLs: %w", err)
+	}
+	out.Close()
+
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return fmt.Errorf("open zip: %w", err)
+	}
+	defer zr.Close()
+
+	for _, f := range zr.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+
+		base := strings.ToLower(filepath.Base(f.Name))
+		if !strings.HasSuffix(base, ".dll") && !strings.HasSuffix(base, ".exe") {
+			continue
+		}
+
+		src, err := f.Open()
+		if err != nil {
+			continue
+		}
+
+		dstPath := filepath.Join(dllDir, filepath.Base(f.Name))
+		dst, err := os.Create(dstPath)
+		if err != nil {
+			src.Close()
+			continue
+		}
+
+		io.Copy(dst, src)
+		src.Close()
+		dst.Close()
+	}
+
+	return nil
+}
+
+func AddFFmpegDllsToPath() error {
+	dllDir := FFmpegDllDir()
+	if !FFmpegDllsPresent() {
+		if err := BootstrapFFmpegDlls(); err != nil {
+			return err
+		}
+	}
+
+	currentPath := os.Getenv("PATH")
+	newPath := dllDir + string(os.PathListSeparator) + currentPath
+	return os.Setenv("PATH", newPath)
 }

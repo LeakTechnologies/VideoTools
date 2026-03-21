@@ -1,6 +1,6 @@
 # VideoTools - Completed Features
 
-## Version 0.1.1-dev35 (in progress) - Native Media Engine & Trim Module
+## Version 0.1.1-dev36 (in progress) - Module Extraction & Polish
 
 ### GPU Rendering Pipeline (NEW)
 - [x] **Renderer interface** (`internal/media/gpu/renderer.go`) - Abstract GPU renderer with Texture interface
