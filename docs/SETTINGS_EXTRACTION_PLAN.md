@@ -4,6 +4,21 @@
 
 Extract `settings_module.go` (2366 lines) into `internal/app/modules/settings/` following the established module extraction pattern.
 
+## Status: In Progress (Phase 1 Complete)
+
+### Completed
+- [x] Created module directory: `internal/app/modules/settings/`
+- [x] Created `view.go` with Options struct and BuildView function
+- [x] Created stub tab files (prefs_tab.go, deps_tab.go, benchmark_tab.go)
+- [x] Updated showSettingsView to use settings.BuildView
+- [x] Build passes
+
+### Remaining
+- [ ] Move tab builders to module package
+- [ ] Move helper functions (loadPrefsConfig, etc.)
+- [ ] Move bootstrap helpers (Windows dependency installation)
+- [ ] Convert settings_module.go to thin shim
+
 ## Current State
 
 **Source:** `settings_module.go` (2366 lines)
