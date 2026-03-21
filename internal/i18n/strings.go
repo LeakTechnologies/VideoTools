@@ -263,6 +263,7 @@ type Strings struct {
 	TrimExportSegments   string
 	TrimInvalidSelection string
 	TrimOutput           string
+	TrimDuration         string
 	TrimJobAdded         string // "Trim job added to queue."
 
 	// ── Settings ──────────────────────────────────────────────────────────
@@ -290,18 +291,18 @@ type Strings struct {
 	SettingsShowUpscale          string // "Show Upscale module"
 	SettingsShowDisc             string // "Show Disc category (Author & Rip)"
 	// Queue behaviour
-	SettingsQueueSection         string // "Queue Behaviour"
-	SettingsQueuePlayLabel       string // "Play Video opens:"
-	SettingsQueuePlayInspect     string // "Inspect Module"
-	SettingsQueuePlaySystem      string // "Player Module"
-	SettingsQueuePlayHint        string // hint label
-	SettingsFFmpegMissing        string // "Core dependency FFmpeg is missing..."
-	SettingsInstallFFmpeg        string // "Install FFmpeg Now"
-	SettingsOpenSettings         string // "Open Settings"
-	SettingsContinueLimited      string // "Continue Limited Mode"
-	SettingsOpenReleases         string // "Open Releases Page"
-	SettingsUpdatesInfo          string // "Check for updates and manage app updates."
-	SettingsUpdatesAutoInfo      string // "Automatic updates info"
+	SettingsQueueSection     string // "Queue Behaviour"
+	SettingsQueuePlayLabel   string // "Play Video opens:"
+	SettingsQueuePlayInspect string // "Inspect Module"
+	SettingsQueuePlaySystem  string // "Player Module"
+	SettingsQueuePlayHint    string // hint label
+	SettingsFFmpegMissing    string // "Core dependency FFmpeg is missing..."
+	SettingsInstallFFmpeg    string // "Install FFmpeg Now"
+	SettingsOpenSettings     string // "Open Settings"
+	SettingsContinueLimited  string // "Continue Limited Mode"
+	SettingsOpenReleases     string // "Open Releases Page"
+	SettingsUpdatesInfo      string // "Check for updates and manage app updates."
+	SettingsUpdatesAutoInfo  string // "Automatic updates info"
 
 	// ── Updates ───────────────────────────────────────────────────────────
 	UpdateCheckButton       string

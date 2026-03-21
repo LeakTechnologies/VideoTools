@@ -230,6 +230,7 @@ var frCA = Strings{
 	TrimExportSegments:   "Exporter en fichiers séparés",
 	TrimInvalidSelection: "Sélection invalide",
 	TrimOutput:           "Sortie:",
+	TrimDuration:         "Durée",
 	TrimJobAdded:         "Tâche de rognage ajoutée à la file d'attente.",
 
 	// ── Common Status ─────────────────────────────────────────────────────

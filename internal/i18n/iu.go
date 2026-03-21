@@ -243,36 +243,37 @@ var iu = Strings{
 	TrimExportSegments:   "ᐊᕙᓗᒋᑦ ᐱᔾᔪᑕᐅᑉᓗᑎᒃ ᐊᓯᖏᑦ ᐃᓚᖏᑦ",                            // Export as separate files
 	TrimInvalidSelection: "ᐱᔾᔪᑕᐅᓂᖅ ᐊᑐᖅᑎᑕᐅᓗᖅᓂᖅ",                                   // Invalid Selection
 	TrimOutput:           "ᐅᐸᒃᑎᕕᒃ",                                               // Output
+	TrimDuration:         "ᑐᓂᓗᒍ",                                                 // Duration
 	TrimJobAdded:         "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐃᓱᒃᑕᐅᔪᑦ ᐊᒐᒃᓯᔪᒍ",                              // Trim job added to queue
 
 	// ── Settings ──────────────────────────────────────────────────────────
-	SettingsTitle:                "ᐋᖅᑭᒃᓱᐃᓂᖅ",                     // Settings
-	SettingsTabGeneral:           "ᑕᒪᐃᓐᓄᑦ ᐊᑐᕐᓂᒧᑦ",                // General
-	SettingsTabPreferences:       "ᐋᖅᑭᒃᓱᐃᓂᖅ",                     // Preferences
-	SettingsTabDependencies:      "ᐱᔭᕆᐊᑐᔪᑦ",                      // Dependencies
-	SettingsTabBenchmark:         "ᖃᐅᔨᓴᕐᓂᖅ",                      // Benchmark
-	SettingsTabUpdates:           "ᓄᑖᓕᐅᕐᓂᖅ",                      // Updates
-	SettingsTabAbout:             "ᒥᒃᓵᓄᑦ",                        // About
-	SettingsTheme:                "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᒃ",                   // Theme
-	SettingsOutputFolder:         "ᐅᐸᒃᑎᕕᒃ ᓄᓇᓕᖕᒥ",                 // Output Folder
-	SettingsLanguage:             "ᐅᖃᐅᓯᖅ",                        // Language
-	SettingsLanguageScript:       "ᑎᑎᕋᐅᓯᖅ",                       // Script
-	SettingsScriptSyllabics:      "ᖃᓂᐅᔮᖅᐸᐃᑦ",                     // Traditional Syllabics
-	SettingsScriptLatin:          "ᓚᑎᓐ",                          // Latin
-	SettingsAppPreferences:       "ᐊᑐᕐᓂᒧᑦ ᐋᖅᑭᒃᓱᐃᓂᖅ",              // Application Preferences
-	SettingsMasterSettings:       "ᐊᒃᓱᕈᕐᓇᖅᑑᔪᑦ ᐋᖅᑭᒃᓱᐃᓂᖅ",          // Master Settings
-	SettingsHardwareAccel:        "ᓴᓇᒐᒃᓴᓂᒃ ᓱᒃᑲᐃᕙᒍᓐᓇᖅᑐᑦ",          // Hardware Acceleration (Global)
-	SettingsDetect:               "ᓇᓗᓇᐃᖅᓯᓗᒍ",                     // Detect
-	SettingsUseAuto:              "ᐊᐅᓚᑕᐅᑎᑕᐅᓗᒍ",                   // Use Auto
-	SettingsDetectedFmt:          "ᓇᓗᓇᐃᖅᑕᐅᓚᐅᖅᑐᖅ: %s",             // Detected: %s
-	SettingsModuleVisibility:     "ᑕᑯᔭᐅᔪᓐᓇᖅᑐᑦ",                   // Module Visibility
-	SettingsModuleVisibilityHint: "ᑕᑯᔭᐅᔪᓐᓇᖅᑐᑦ ᐃᓯᕐᕕᖕᒧᑦ ᑕᑯᔭᐅᕙᒃᑐᑦ.", // Module visibility applies on the main menu.
-	SettingsShowUpscale:          "ᓴᖅᑮᓗᒍ ᐱᕚᓪᓕᖅᑎᑦᑎᓂᖅ",             // Show Upscale module
-	SettingsShowDisc:             "ᓴᖅᑮᓗᒍ ᑕᐃᑯᓂᖓ (ᓴᓇᓗᒍ & ᓂᕈᓐᓇᓯᓗᒍ)", // Show Disc category (Author & Rip)
+	SettingsTitle:                "ᐋᖅᑭᒃᓱᐃᓂᖅ",                                 // Settings
+	SettingsTabGeneral:           "ᑕᒪᐃᓐᓄᑦ ᐊᑐᕐᓂᒧᑦ",                            // General
+	SettingsTabPreferences:       "ᐋᖅᑭᒃᓱᐃᓂᖅ",                                 // Preferences
+	SettingsTabDependencies:      "ᐱᔭᕆᐊᑐᔪᑦ",                                  // Dependencies
+	SettingsTabBenchmark:         "ᖃᐅᔨᓴᕐᓂᖅ",                                  // Benchmark
+	SettingsTabUpdates:           "ᓄᑖᓕᐅᕐᓂᖅ",                                  // Updates
+	SettingsTabAbout:             "ᒥᒃᓵᓄᑦ",                                    // About
+	SettingsTheme:                "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᒃ",                               // Theme
+	SettingsOutputFolder:         "ᐅᐸᒃᑎᕕᒃ ᓄᓇᓕᖕᒥ",                             // Output Folder
+	SettingsLanguage:             "ᐅᖃᐅᓯᖅ",                                    // Language
+	SettingsLanguageScript:       "ᑎᑎᕋᐅᓯᖅ",                                   // Script
+	SettingsScriptSyllabics:      "ᖃᓂᐅᔮᖅᐸᐃᑦ",                                 // Traditional Syllabics
+	SettingsScriptLatin:          "ᓚᑎᓐ",                                      // Latin
+	SettingsAppPreferences:       "ᐊᑐᕐᓂᒧᑦ ᐋᖅᑭᒃᓱᐃᓂᖅ",                          // Application Preferences
+	SettingsMasterSettings:       "ᐊᒃᓱᕈᕐᓇᖅᑑᔪᑦ ᐋᖅᑭᒃᓱᐃᓂᖅ",                      // Master Settings
+	SettingsHardwareAccel:        "ᓴᓇᒐᒃᓴᓂᒃ ᓱᒃᑲᐃᕙᒍᓐᓇᖅᑐᑦ",                      // Hardware Acceleration (Global)
+	SettingsDetect:               "ᓇᓗᓇᐃᖅᓯᓗᒍ",                                 // Detect
+	SettingsUseAuto:              "ᐊᐅᓚᑕᐅᑎᑕᐅᓗᒍ",                               // Use Auto
+	SettingsDetectedFmt:          "ᓇᓗᓇᐃᖅᑕᐅᓚᐅᖅᑐᖅ: %s",                         // Detected: %s
+	SettingsModuleVisibility:     "ᑕᑯᔭᐅᔪᓐᓇᖅᑐᑦ",                               // Module Visibility
+	SettingsModuleVisibilityHint: "ᑕᑯᔭᐅᔪᓐᓇᖅᑐᑦ ᐃᓯᕐᕕᖕᒧᑦ ᑕᑯᔭᐅᕙᒃᑐᑦ.",             // Module visibility applies on the main menu.
+	SettingsShowUpscale:          "ᓴᖅᑮᓗᒍ ᐱᕚᓪᓕᖅᑎᑦᑎᓂᖅ",                         // Show Upscale module
+	SettingsShowDisc:             "ᓴᖅᑮᓗᒍ ᑕᐃᑯᓂᖓ (ᓴᓇᓗᒍ & ᓂᕈᓐᓇᓯᓗᒍ)",             // Show Disc category (Author & Rip)
 	SettingsQueueSection:         "ᓄᖅᑲᖓᑎᑦᑎᓂᖅ ᐊᑐᐃᓐᓇᕈᕐᕕᒃ",                      // Queue Behaviour
-	SettingsQueuePlayLabel:       "ᑕᑯᒋᐊᕐᓗᒍ ᐊᑐᕐᓗᒍ:",                            // Play Video opens in:
-	SettingsQueuePlayInspect:     "ᖃᐅᔨᓴᖅᑕᐅᕕᒃ",                                  // Inspect Module
-	SettingsQueuePlaySystem:      "ᑕᑯᒃᓴᐅᑎᑦᑎᕕᒃ",                                  // Player Module
+	SettingsQueuePlayLabel:       "ᑕᑯᒋᐊᕐᓗᒍ ᐊᑐᕐᓗᒍ:",                           // Play Video opens in:
+	SettingsQueuePlayInspect:     "ᖃᐅᔨᓴᖅᑕᐅᕕᒃ",                                // Inspect Module
+	SettingsQueuePlaySystem:      "ᑕᑯᒃᓴᐅᑎᑦᑎᕕᒃ",                               // Player Module
 	SettingsQueuePlayHint:        "ᓂᕈᐊᕐᓗᒍ ᑕᐃᑯᖓ 'ᑕᑯᒋᐊᕐᓗᒍ' ᐊᑐᕐᓗᒍ ᓄᖅᑲᖓᑎᑦᑎᓂᒃᑯᑦ.", // Choose which module 'Play Video' navigates to.
 	SettingsFFmpegMissing:        "ᐊᑦᑕᕐᓇᖅᑑᔪᖅ FFmpeg ᐱᔭᕆᐊᑐᔪᖅ ᓂᒡᓕᓯᒪᔪᖅ.\n\nᐃᓇᖏᕐᕕᒋᓗᒍ ᐱᓕᕆᔾᔪᑎᑦ ᐊᑐᕐᓗᒍ.\n\nᐃᓇᖏᕐᕕᒋᓂᖓ:\n%LOCALAPPDATA%\\VideoTools\\bin",
 	SettingsInstallFFmpeg:        "ᐃᓇᖏᕐᕕᒋᓗᒍ FFmpeg ᒫᓐᓇ",               // Install FFmpeg Now

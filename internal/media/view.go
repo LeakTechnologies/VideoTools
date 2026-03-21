@@ -242,6 +242,9 @@ type VideoPlayer struct {
 
 	currentChapter int
 
+	inPoint  float64
+	outPoint float64
+
 	onPlay          func()
 	onPause         func()
 	onSeek          func(float64)
@@ -367,7 +370,7 @@ func (v *VideoPlayer) buildControls() {
 	v.subtitleBtn.Importance = widget.LowImportance
 	v.subtitleBtn.Resize(fyne.NewSize(36, 24))
 
-	v.markerCanvas = canvas.NewRaster(v.drawChapterMarkers)
+	v.markerCanvas = canvas.NewRaster(v.drawMarkers)
 	seekStack := container.NewStack(v.slider, v.markerCanvas)
 
 	if v.minimal {
@@ -787,39 +790,94 @@ func (v *VideoPlayer) scaleNearest(src image.Image, dst *image.RGBA, srcW, srcH,
 	}
 }
 
-// drawChapterMarkers renders thin tick marks over the seek slider at each
-// chapter boundary. The image background is transparent so the slider
-// beneath remains visible and interactive.
-func (v *VideoPlayer) drawChapterMarkers(w, h int) image.Image {
+// drawMarkers renders trim region markers and chapter ticks over the seek slider.
+// The image background is transparent so the slider beneath remains visible.
+func (v *VideoPlayer) drawMarkers(w, h int) image.Image {
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	if v.duration <= 0 || len(v.chapters) <= 1 {
+	if v.duration <= 0 {
 		return img
 	}
 
-	tick := color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xCC}
-	tickW := 2
-	// Leave a small vertical margin so the tick sits on the track
 	margin := h / 4
 	if margin < 2 {
 		margin = 2
 	}
 
-	// Skip index 0 — that's just the start of the video.
-	for _, ch := range v.chapters[1:] {
-		if ch.StartTime <= 0 {
-			continue
+	hasTrimMarkers := v.outPoint > v.inPoint
+
+	// Draw trim region background (highlighted area between in/out)
+	if hasTrimMarkers {
+		inX := int(v.inPoint / v.duration * float64(w))
+		outX := int(v.outPoint / v.duration * float64(w))
+		if inX < 0 {
+			inX = 0
 		}
-		x := int(ch.StartTime / v.duration * float64(w))
-		for dx := 0; dx < tickW; dx++ {
-			px := x + dx
-			if px < 0 || px >= w {
-				continue
-			}
-			for py := margin; py < h-margin; py++ {
-				img.SetRGBA(px, py, tick)
+		if outX > w {
+			outX = w
+		}
+		// Draw shaded region between in and out points
+		regionColor := color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0x30}
+		for x := inX; x < outX; x++ {
+			for y := margin; y < h-margin; y++ {
+				img.SetRGBA(x, y, regionColor)
 			}
 		}
 	}
+
+	// Draw trim In marker (left bracket)
+	if hasTrimMarkers {
+		inX := int(v.inPoint / v.duration * float64(w))
+		inMarkerColor := color.RGBA{R: 0xFF, G: 0xA5, B: 0x00, A: 0xFF} // Orange
+		inMarkerW := 3
+		for dx := 0; dx < inMarkerW; dx++ {
+			px := inX + dx
+			if px < 0 || px >= w {
+				continue
+			}
+			for py := 0; py < h; py++ {
+				img.SetRGBA(px, py, inMarkerColor)
+			}
+		}
+	}
+
+	// Draw trim Out marker (right bracket)
+	if hasTrimMarkers {
+		outX := int(v.outPoint / v.duration * float64(w))
+		outMarkerColor := color.RGBA{R: 0xFF, G: 0x45, B: 0x00, A: 0xFF} // Red-Orange
+		outMarkerW := 3
+		for dx := 0; dx < outMarkerW; dx++ {
+			px := outX + dx
+			if px < 0 || px >= w {
+				continue
+			}
+			for py := 0; py < h; py++ {
+				img.SetRGBA(px, py, outMarkerColor)
+			}
+		}
+	}
+
+	// Draw chapter markers (thin green ticks)
+	if len(v.chapters) > 1 {
+		tick := color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xCC}
+		tickW := 2
+		// Skip index 0 — that's just the start of the video.
+		for _, ch := range v.chapters[1:] {
+			if ch.StartTime <= 0 {
+				continue
+			}
+			x := int(ch.StartTime / v.duration * float64(w))
+			for dx := 0; dx < tickW; dx++ {
+				px := x + dx
+				if px < 0 || px >= w {
+					continue
+				}
+				for py := margin; py < h-margin; py++ {
+					img.SetRGBA(px, py, tick)
+				}
+			}
+		}
+	}
+
 	return img
 }
 
@@ -870,6 +928,36 @@ func (v *VideoPlayer) GetCurrentChapter() int {
 
 func (v *VideoPlayer) GetChapterCount() int {
 	return len(v.chapters)
+}
+
+func (v *VideoPlayer) SetInPoint(t float64) {
+	v.inPoint = t
+	v.refreshMarkers()
+}
+
+func (v *VideoPlayer) SetOutPoint(t float64) {
+	v.outPoint = t
+	v.refreshMarkers()
+}
+
+func (v *VideoPlayer) GetInPoint() float64 {
+	return v.inPoint
+}
+
+func (v *VideoPlayer) GetOutPoint() float64 {
+	return v.outPoint
+}
+
+func (v *VideoPlayer) ClearTrimMarkers() {
+	v.inPoint = 0
+	v.outPoint = 0
+	v.refreshMarkers()
+}
+
+func (v *VideoPlayer) refreshMarkers() {
+	if v.markerCanvas != nil {
+		v.markerCanvas.Refresh()
+	}
 }
 
 func (v *VideoPlayer) toggleFullscreen() {

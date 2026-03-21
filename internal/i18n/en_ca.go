@@ -255,6 +255,7 @@ var enCA = Strings{
 	TrimExportSegments:   "Export as separate files",
 	TrimInvalidSelection: "Invalid Selection",
 	TrimOutput:           "Output:",
+	TrimDuration:         "Duration",
 	TrimJobAdded:         "Trim job added to queue.",
 
 	// ── Settings ──────────────────────────────────────────────────────────
