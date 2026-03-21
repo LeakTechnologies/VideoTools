@@ -32,13 +32,19 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	settingsColor := utils.MustHex(ModuleColor)
 	topBar := ui.TintedBar(settingsColor, container.NewHBox(backBtn, layout.NewSpacer()))
-	bottomBar := container.NewHBox(layout.NewSpacer(), opts.StatsBar)
 
-	prefsTab := container.NewTabItem(t.SettingsTabPreferences, ui.NewFastVScroll(container.NewPadded(opts.BuildPreferencesTab())))
-	depsTab := container.NewTabItem(t.SettingsTabDependencies, ui.NewFastVScroll(container.NewPadded(opts.BuildDependenciesTab())))
-	benchTab := container.NewTabItem(t.SettingsTabBenchmark, ui.NewFastVScroll(container.NewPadded(opts.BuildBenchmarkTab())))
+	var bottomBar fyne.CanvasObject
+	if opts.StatsBar != nil {
+		bottomBar = container.NewHBox(layout.NewSpacer(), opts.StatsBar)
+	} else {
+		bottomBar = container.NewHBox(layout.NewSpacer())
+	}
 
-	tabs := container.NewAppTabs(prefsTab, depsTab, benchTab)
+	tabs := container.NewAppTabs(
+		container.NewTabItem(t.SettingsTabPreferences, ui.NewFastVScroll(container.NewPadded(opts.BuildPreferencesTab()))),
+		container.NewTabItem(t.SettingsTabDependencies, ui.NewFastVScroll(container.NewPadded(opts.BuildDependenciesTab()))),
+		container.NewTabItem(t.SettingsTabBenchmark, ui.NewFastVScroll(container.NewPadded(opts.BuildBenchmarkTab()))),
+	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, tabs)
