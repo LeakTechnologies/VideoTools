@@ -1,5 +1,27 @@
 # VideoTools Changelog
 
+## v0.1.1-dev36 (March 2026)
+
+### Module Extraction
+- **Settings module structure** — Created `internal/app/modules/settings/` with view.go and types.go
+- **Settings types moved** — PrefsConfig, Dependency, DependencyCommand types extracted to module package
+- **Constructor functions** — Added NewDependencyCommand, NewDependencyCommandPair for type safety
+
+### GPU Rendering Pipeline
+- **Fyne fork** — GPU texture optimization fork at `lt_mirror/fyne`
+- **TexSubImage2D** — Efficient texture upload in GL painter
+- **UpdatePixels wiring** — VideoPlayer SetFrame uses UpdatePixels for texture reuse
+- **Debug logging** — Added TexSubImage2D vs TexImage2D logging in newGlRasterTexture
+
+### Media Engine
+- **Adaptive buffering** — GetBufferHealth, GetDecodeTimeTrend, AdjustBufferForPerformance
+- **Error recovery** — DegradeToSoftware, ShouldDegrade for HW failure handling
+- **Speed via keyboard** — `<` / `>` keys change playback speed (0.25x-2.0x)
+- **Actual FPS seeking** — Frame seeking uses real video FPS instead of hardcoded 30
+
+### Playback Enhancements
+- **Phase 4 complete** — Buffering indicators, error recovery, performance tuning
+
 ## v0.1.1-dev35 (March 2026)
 
 ### Localization Updates (dev34 continuation)

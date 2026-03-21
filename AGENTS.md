@@ -4,16 +4,17 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev34`.
+- Current cycle: `v0.1.1-dev36`.
 - Public/stable baseline: `v0.1.1`.
 - `dev30` is closed. CI validated on 2026-03-10 (runs 219/220/221, commit 2cbb3a2).
 - `dev32` closed. CI validated on 2026-03-15.
+- `dev35` closed. Module extraction in progress.
 - Issue tracker active at `https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues`.
 - Primary planning source is `TODO.md`; shipped scope is tracked in `DONE.md`; release-facing history is `docs/CHANGELOG.md`.
 
 ## Immediate Handoff Priorities
 
-- **Phase 3 modularisation** (opencode) — Inspect, Settings, Queue extractions next. See `## Refactor Boundaries` below.
+- **Module extraction** — Continue settings_module.go extraction to `internal/app/modules/settings/`.
 - **Issue #5** (Convert UI cleanup) — layout consistency and label clarity pass on `buildConvertView` in `main.go`.
 - Do not expand scope beyond what is listed unless explicitly approved.
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.

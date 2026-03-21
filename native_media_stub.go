@@ -19,3 +19,7 @@ func (s *appState) closeNativePlayer()          {}
 func BuildConvertPlayerPane(size fyne.Size) (fyne.CanvasObject, interface{}) {
 	return nil, nil
 }
+
+func buildVideoPaneNative(_ *appState, _ fyne.Size, _ *videoSource, _ func(string)) fyne.CanvasObject {
+	return nil
+}

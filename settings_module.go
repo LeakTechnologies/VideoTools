@@ -23,6 +23,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/settings"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -1855,8 +1856,8 @@ func buildBenchmarkTab(state *appState) fyne.CanvasObject {
 
 		for _, run := range cfg.History[:min(3, len(cfg.History))] {
 			timestamp := run.Timestamp.Format("Jan 2, 2006 at 3:04 PM")
-			summary := fmt.Sprintf("%s - Recommended: %s (%s)",
-				timestamp, run.RecommendedEncoder, run.RecommendedPreset)
+			summary := fmt.Sprintf("%s - Recommended: %s",
+				timestamp, benchmark.HWAccelLabel(run.RecommendedHWAccel))
 
 			runLabel := widget.NewLabel(summary)
 			runLabel.TextStyle = fyne.TextStyle{Italic: true}

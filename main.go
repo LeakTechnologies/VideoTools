@@ -7366,7 +7366,7 @@ func runGUI() {
 	a.Settings().SetTheme(&ui.MonoTheme{})
 
 	// Load app icon from embedded logo assets
-	iconFile := "VT_Icon.ico"
+	iconFile := "VT_logo.ico"
 	if runtime.GOOS != "windows" {
 		iconFile = "VT_logo.png"
 	}
@@ -7388,6 +7388,17 @@ func runGUI() {
 	} else {
 		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
+
+	// Bootstrap FFmpeg DLLs for native media engine (runs silently in background)
+	// This downloads FFmpeg shared libraries on first run so the media engine can work
+	if HasNativeMediaPlayer() {
+		if err := settings.AddFFmpegDllsToPath(); err != nil {
+			logging.Warning(logging.CatSystem, "failed to bootstrap FFmpeg DLLs: %v", err)
+		} else {
+			logging.Info(logging.CatSystem, "FFmpeg DLLs ready for native media engine")
+		}
+	}
+
 	// Adaptive window sizing for professional cross-resolution support
 	w.SetFixedSize(false) // Allow manual resizing and maximizing
 

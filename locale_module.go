@@ -32,7 +32,14 @@ func initLocale(a fyne.App, refreshFn func()) {
 
 	i18n.RegisterListener(func() {
 		ui.SetFontMode(i18n.CurrentFont())
-		a.Driver().DoFromGoroutine(refreshFn, false)
+		// Re-apply the current theme so Fyne's font cache is cleared
+		// (painter.ClearFontCache is called by the Settings listener in runGL).
+		// Without this, the old font's glyph cache is reused and syllabics
+		// render as diamonds even though Aboriginal Sans is now active.
+		a.Driver().DoFromGoroutine(func() {
+			a.Settings().SetTheme(a.Settings().Theme())
+			refreshFn()
+		}, false)
 	})
 }
 
