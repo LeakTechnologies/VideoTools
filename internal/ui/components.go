@@ -490,6 +490,20 @@ func (r *moduleTileRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.bg, r.disabledStripe, r.label, r.lockIcon}
 }
 
+// DarkTextButton creates a clickable text element with black text, suitable
+// for use on bright backgrounds such as VT Green bars.
+func DarkTextButton(label string, onTapped func()) fyne.CanvasObject {
+	txt := canvas.NewText(label, color.Black)
+	txt.TextStyle = fyne.TextStyle{Bold: true}
+	return NewTappable(txt, onTapped)
+}
+
+// DarkTextLabel creates a canvas text label with black text, suitable for
+// use on bright backgrounds such as VT Green bars.
+func DarkTextLabel(label string) *canvas.Text {
+	return canvas.NewText(label, color.Black)
+}
+
 // TintedBar creates a colored bar container
 func TintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 	rect := canvas.NewRectangle(col)

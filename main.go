@@ -2328,19 +2328,18 @@ func (s *appState) showBenchmark() {
 			// Create recommendation from saved data
 			rec := benchmark.Result{
 				Encoder: lastRun.RecommendedEncoder,
-				Preset:  lastRun.RecommendedPreset,
+				HWAccel: lastRun.RecommendedHWAccel,
 				FPS:     lastRun.RecommendedFPS,
 				Score:   lastRun.RecommendedFPS,
 			}
 
 			// Show results with "Run New Benchmark" option
 			// "Run New Benchmark" sits in the action bar alongside a cache note
-			runNewBtn := widget.NewButton("Run New Benchmark", func() {
+			runNewBtn := ui.DarkTextButton("Run New Benchmark", func() {
 				s.runNewBenchmark()
 			})
-			runNewBtn.Importance = widget.MediumImportance
 
-			cachedNote := widget.NewLabel(fmt.Sprintf("Cached: %s", lastRun.Timestamp.Format("Jan 2, 2006 3:04 PM")))
+			cachedNote := ui.DarkTextLabel(fmt.Sprintf("Cached: %s", lastRun.Timestamp.Format("Jan 2, 2006 3:04 PM")))
 			cachedNote.TextStyle = fyne.TextStyle{Italic: true}
 
 			actionContent := container.NewHBox(cachedNote, layout.NewSpacer(), runNewBtn)
@@ -2351,9 +2350,9 @@ func (s *appState) showBenchmark() {
 				lastRun.HardwareInfo,
 				func() {
 					s.applyBenchmarkRecommendation(lastRun.RecommendedEncoder)
-					s.showMainMenu()
+					s.showSettingsView()
 				},
-				s.showMainMenu,
+				s.showSettingsView,
 				utils.MustHex("#4CE870"),
 				utils.MustHex("#1E1E1E"),
 				s.statsBar,
@@ -2388,7 +2387,7 @@ func (s *appState) runNewBenchmark() {
 		hwInfo,
 		func() {
 			if benchComplete.Load() {
-				s.showMainMenu()
+				s.showSettingsView()
 				return
 			}
 
@@ -2397,7 +2396,7 @@ func (s *appState) runNewBenchmark() {
 					return
 				}
 				cancel()
-				s.showMainMenu()
+				s.showSettingsView()
 			}, s.window)
 		},
 		utils.MustHex("#4CE870"),
@@ -2410,7 +2409,7 @@ func (s *appState) runNewBenchmark() {
 	// Run benchmark in background
 	go func() {
 		// Generate test video
-		view.UpdateProgress(0, 100, "Generating test video", "")
+		view.UpdateProgress(0, 100, "Generating test video")
 		testPath, err := suite.GenerateTestVideo(ctx, 30)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
@@ -2431,9 +2430,9 @@ func (s *appState) runNewBenchmark() {
 		logging.Debug(logging.CatSystem, "detected %d available encoders", len(availableEncoders))
 
 		// Set up progress callback
-		suite.Progress = func(current, total int, encoder, preset string) {
-			logging.Debug(logging.CatSystem, "benchmark progress: %d/%d testing %s (%s)", current, total, encoder, preset)
-			view.UpdateProgress(current, total, encoder, preset)
+		suite.Progress = func(current, total int, label string) {
+			logging.Debug(logging.CatSystem, "benchmark progress: %d/%d testing %s", current, total, label)
+			view.UpdateProgress(current, total, label)
 		}
 
 		// Run benchmark suite
@@ -2461,15 +2460,15 @@ func (s *appState) runNewBenchmark() {
 		benchComplete.Store(true)
 
 		// Get recommendation
-		encoder, preset, rec := suite.GetRecommendation()
+		encoder, rec := suite.GetRecommendation()
 
 		// Save benchmark run to history
-		if err := s.saveBenchmarkRun(suite.Results, encoder, preset, rec.FPS); err != nil {
+		if err := s.saveBenchmarkRun(suite.Results, rec); err != nil {
 			logging.Debug(logging.CatSystem, "failed to save benchmark run: %v", err)
 		}
 
 		if encoder != "" {
-			logging.Debug(logging.CatSystem, "benchmark recommendation: %s (preset: %s) - %.1f FPS", encoder, preset, rec.FPS)
+			logging.Debug(logging.CatSystem, "benchmark recommendation: %s - %.1f FPS", encoder, rec.FPS)
 
 			// Show results dialog with option to apply
 			go func() {
@@ -2482,9 +2481,9 @@ func (s *appState) runNewBenchmark() {
 					hwInfo,
 					func() {
 						s.applyBenchmarkRecommendation(encoder)
-						s.showMainMenu()
+						s.showSettingsView()
 					},
-					s.showMainMenu,
+					s.showSettingsView,
 					utils.MustHex("#4CE870"),
 					utils.MustHex("#1E1E1E"),
 					s.statsBar,
@@ -2501,25 +2500,21 @@ func (s *appState) runNewBenchmark() {
 }
 
 func (s *appState) detectHardwareEncoders() []string {
-	var available []string
+	// Software encoders are always available
+	available := []string{"libx264", "libx265"}
 
-	// Always add software encoders
-	available = append(available, "libx264", "libx265")
-
-	// Check for hardware encoders by trying to get codec info
-	encodersToCheck := []string{
-		"h264_nvenc", "hevc_nvenc", // NVIDIA
+	// Hardware encoders — checked via the cached ffmpeg -encoders output
+	// so we only spawn FFmpeg once regardless of how many encoders we probe.
+	hwEncoders := []string{
+		"h264_nvenc", "hevc_nvenc", "av1_nvenc", // NVIDIA
 		"h264_qsv", "hevc_qsv", // Intel QuickSync
-		"h264_amf", "hevc_amf", // AMD AMF
+		"h264_amf", "hevc_amf", "av1_amf", // AMD AMF
 		"h264_videotoolbox", // Apple VideoToolbox
 	}
-
-	for _, encoder := range encodersToCheck {
-		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), "-hide_banner", "-encoders")
-		output, err := cmd.CombinedOutput()
-		if err == nil && strings.Contains(string(output), encoder) {
-			available = append(available, encoder)
-			logging.Debug(logging.CatSystem, "detected available encoder: %s", encoder)
+	for _, enc := range hwEncoders {
+		if hasFFmpegEncoder(enc) {
+			available = append(available, enc)
+			logging.Debug(logging.CatSystem, "detected available encoder: %s", enc)
 		}
 	}
 
@@ -2594,19 +2589,9 @@ func resolveAV1Encoder(hardwareAccel string) (string, bool) {
 	return "libx264", false
 }
 
-func (s *appState) saveBenchmarkRun(results []benchmark.Result, encoder, preset string, fps float64) error {
-	// Map encoder to hardware acceleration setting
-	var hwAccel string
-	switch {
-	case strings.Contains(encoder, "nvenc"):
-		hwAccel = "nvenc"
-	case strings.Contains(encoder, "qsv"):
-		hwAccel = "qsv"
-	case strings.Contains(encoder, "amf"):
-		hwAccel = "amf"
-	case strings.Contains(encoder, "videotoolbox"):
-		hwAccel = "videotoolbox"
-	default:
+func (s *appState) saveBenchmarkRun(results []benchmark.Result, rec benchmark.Result) error {
+	hwAccel := rec.HWAccel
+	if hwAccel == "" {
 		hwAccel = "none"
 	}
 
@@ -2625,10 +2610,9 @@ func (s *appState) saveBenchmarkRun(results []benchmark.Result, encoder, preset 
 	run := benchmarkRun{
 		Timestamp:          time.Now(),
 		Results:            results,
-		RecommendedEncoder: encoder,
-		RecommendedPreset:  preset,
+		RecommendedEncoder: rec.Encoder,
 		RecommendedHWAccel: hwAccel,
-		RecommendedFPS:     fps,
+		RecommendedFPS:     rec.FPS,
 		HardwareInfo:       hwInfo,
 	}
 
@@ -2643,7 +2627,7 @@ func (s *appState) saveBenchmarkRun(results []benchmark.Result, encoder, preset 
 		return err
 	}
 
-	logging.Debug(logging.CatSystem, "saved benchmark run: encoder=%s preset=%s fps=%.1f results=%d", encoder, preset, fps, len(results))
+	logging.Debug(logging.CatSystem, "saved benchmark run: encoder=%s hwaccel=%s fps=%.1f results=%d", rec.Encoder, hwAccel, rec.FPS, len(results))
 	return nil
 }
 
@@ -2682,7 +2666,7 @@ func (s *appState) showBenchmarkHistory() {
 		view := ui.BuildBenchmarkHistoryView(
 			[]ui.BenchmarkHistoryRun{},
 			nil,
-			s.showMainMenu,
+			s.showSettingsView,
 			utils.MustHex("#4CE870"),
 			utils.MustHex("#1E1E1E"),
 			s.statsBar,
@@ -2697,8 +2681,7 @@ func (s *appState) showBenchmarkHistory() {
 		historyRuns = append(historyRuns, ui.BenchmarkHistoryRun{
 			Timestamp:          run.Timestamp.Format("2006-01-02 15:04:05"),
 			ResultCount:        len(run.Results),
-			RecommendedEncoder: run.RecommendedEncoder,
-			RecommendedPreset:  run.RecommendedPreset,
+			RecommendedHWAccel: run.RecommendedHWAccel,
 			RecommendedFPS:     run.RecommendedFPS,
 		})
 	}
@@ -2716,7 +2699,7 @@ func (s *appState) showBenchmarkHistory() {
 			// Create a fake recommendation result for the results view
 			rec := benchmark.Result{
 				Encoder: run.RecommendedEncoder,
-				Preset:  run.RecommendedPreset,
+				HWAccel: run.RecommendedHWAccel,
 				FPS:     run.RecommendedFPS,
 				Score:   run.RecommendedFPS,
 			}
@@ -2738,7 +2721,7 @@ func (s *appState) showBenchmarkHistory() {
 
 			s.setContent(resultsView)
 		},
-		s.showMainMenu,
+		s.showSettingsView,
 		utils.MustHex("#4CE870"),
 		utils.MustHex("#1E1E1E"),
 		s.statsBar,
@@ -11982,7 +11965,14 @@ Metadata: %s`,
 	return container.NewMax(layers...), updateCoverDisplay
 }
 
+// buildVideoPane creates the video preview pane for the Convert module.
+// When native_media is enabled, it delegates to buildVideoPaneNative which
+// uses the FFmpeg-based media engine for actual video playback.
 func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover func(string)) fyne.CanvasObject {
+	if HasNativeMediaPlayer() && src != nil {
+		return buildVideoPaneNative(state, min, src, onCover)
+	}
+
 	t := i18n.T()
 	outer := canvas.NewRectangle(utils.MustHex("#191F35"))
 	outer.CornerRadius = 8
