@@ -157,6 +157,7 @@
 - [x] **Trim view** — Added `TrimClip` struct and `OnAddToQueue` callback to native trim view.
 - [x] **Trim handler** — Fixed `internal/modules/handlers.go` to use correct logging category.
 - [x] **Trim job submission** — `submitTrimJob` creates queue.Job with proper Type, InputFile, OutputFile, and Config.
+- [x] **Settings module extraction** — Moved tab builders to `internal/app/modules/settings/tabs.go`. Created callback interfaces (BenchmarkCallbacks, PreferencesCallbacks, DependencyCallbacks) for loose coupling. Reduced settings_module.go from 2316 to ~1700 lines.
 
 ### UI Fixes
 - [x] **Back button consistency** — Module name uppercase on all modules.
