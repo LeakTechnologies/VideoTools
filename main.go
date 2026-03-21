@@ -748,6 +748,17 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 }
 
 // openFolder tries to open a folder in the OS file browser.
+// pathsAreSameFile reports whether a and b point to the same file on disk.
+// Falls back to case-insensitive path comparison when the file doesn't exist yet.
+func pathsAreSameFile(a, b string) bool {
+	ai, err1 := os.Stat(a)
+	bi, err2 := os.Stat(b)
+	if err1 == nil && err2 == nil {
+		return os.SameFile(ai, bi)
+	}
+	return strings.EqualFold(filepath.Clean(a), filepath.Clean(b))
+}
+
 func openFolder(path string) error {
 	if strings.TrimSpace(path) == "" {
 		return fmt.Errorf("path is empty")
@@ -4653,10 +4664,15 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	inputPath := cfg["inputPath"].(string)
 	outputPath := cfg["outputPath"].(string)
 
+	// Safety: refuse to overwrite the source file
+	if pathsAreSameFile(inputPath, outputPath) {
+		return fmt.Errorf("output path resolves to the same file as the input — refusing to overwrite source")
+	}
+
 	// Track success to clean up broken files on failure
 	var success bool
 	defer func() {
-		if !success && outputPath != "" {
+		if !success && outputPath != "" && !pathsAreSameFile(inputPath, outputPath) {
 			// Remove incomplete/broken output file on failure
 			if _, err := os.Stat(outputPath); err == nil {
 				logging.Debug(logging.CatFFMPEG, "removing incomplete output file: %s", outputPath)
