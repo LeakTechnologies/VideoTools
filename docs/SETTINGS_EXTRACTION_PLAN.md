@@ -9,15 +9,26 @@ Extract `settings_module.go` (2366 lines) into `internal/app/modules/settings/` 
 ### Completed
 - [x] Created module directory: `internal/app/modules/settings/`
 - [x] Created `view.go` with Options struct and BuildView function
-- [x] Created stub tab files (prefs_tab.go, deps_tab.go, benchmark_tab.go)
 - [x] Updated showSettingsView to use settings.BuildView
 - [x] Build passes
+- [x] Tab builders remain in settings_module.go via callback pattern
+
+### Current Pattern
+The module uses a callback pattern:
+- `settings_module.go` contains tab implementations
+- Tabs passed as callbacks: `BuildPreferencesTab: func() { return buildPreferencesTab(s) }`
+- This keeps complexity manageable while establishing module structure
 
 ### Remaining
-- [ ] Move tab builders to module package
+- [ ] Move tab builders to module package (requires extensive callback wiring)
 - [ ] Move helper functions (loadPrefsConfig, etc.)
 - [ ] Move bootstrap helpers (Windows dependency installation)
 - [ ] Convert settings_module.go to thin shim
+
+### Note
+Partial extraction attempts showed that full extraction requires significant
+callback wiring. The current callback pattern is a valid abstraction that
+maintains code clarity while establishing module boundaries.
 
 ## Current State
 
