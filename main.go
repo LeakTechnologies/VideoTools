@@ -116,23 +116,24 @@ var (
 	videotoolboxProbeOK *bool
 	amfProbeOK       *bool
 
-	// 14-step HSL spectrum: H steps ~25.7° from VT_Purple (H=260, S=60%, L=50%).
-	// Text rule: black for H=29–131 (warm/bright hues), white for all others.
+	// 14-step HSL spectrum: H steps ~25.7° from VT_Purple (H=267°).
+	// S=70% throughout; L is reduced for bright hues (yellow/green) so white
+	// text always has sufficient contrast (≥3.3:1 for large bold labels).
 	modulesList = []Module{
-		{"convert",    "Convert",    utils.MustHex("#6633CC"), color.White,                              "Convert",     modules.HandleConvert},
-		{"merge",      "Merge",      utils.MustHex("#A833CC"), color.White,                              "Convert",     modules.HandleMerge},
-		{"trim",       "Trim",       utils.MustHex("#CC33B0"), color.White,                              "Convert",     modules.HandleTrim},
-		{"filters",    "Filters",    utils.MustHex("#CC336E"), color.White,                              "Convert",     modules.HandleFilters},
-		{"audio",      "Audio",      utils.MustHex("#CC3B33"), color.White,                              "Convert",     modules.HandleAudio},
-		{"subtitles",  "Subtitles",  utils.MustHex("#CC7D33"), color.NRGBA{R: 0, G: 0, B: 0, A: 255},   "Convert",     modules.HandleSubtitles},
-		{"compare",    "Compare",    utils.MustHex("#CCBD33"), color.NRGBA{R: 0, G: 0, B: 0, A: 255},   "Inspect",     modules.HandleCompare},
-		{"inspect",    "Inspect",    utils.MustHex("#99CC33"), color.NRGBA{R: 0, G: 0, B: 0, A: 255},   "Inspect",     modules.HandleInspect},
-		{"upscale",    "Upscale",    utils.MustHex("#57CC33"), color.NRGBA{R: 0, G: 0, B: 0, A: 255},   "Advanced",    modules.HandleUpscale},
-		{"author",     "Author",     utils.MustHex("#33CC4F"), color.NRGBA{R: 0, G: 0, B: 0, A: 255},   "Disc",        modules.HandleAuthor},
-		{"rip",        "Rip",        utils.MustHex("#33CC91"), color.White,                              "Disc",        modules.HandleRip},
-		{"player",     "Player",     utils.MustHex("#33C4CC"), color.White,                              "Playback",    modules.HandlePlayer},
-		{"thumbnail",  "Thumbnail",  utils.MustHex("#3382CC"), color.White,                              "Screenshots", modules.HandleThumbnail},
-		{"settings",   "Settings",   utils.MustHex("#3342CC"), color.White,                              "Settings",    nil},
+		{"convert",   "Convert",   utils.MustHex("#7225D0"), color.White, "Convert",     modules.HandleConvert},
+		{"merge",     "Merge",     utils.MustHex("#B423C7"), color.White, "Convert",     modules.HandleMerge},
+		{"trim",      "Trim",      utils.MustHex("#BF2290"), color.White, "Convert",     modules.HandleTrim},
+		{"filters",   "Filters",   utils.MustHex("#BF224C"), color.White, "Convert",     modules.HandleFilters},
+		{"audio",     "Audio",     utils.MustHex("#BF3C22"), color.White, "Convert",     modules.HandleAudio},
+		{"subtitles", "Subtitles", utils.MustHex("#AD741F"), color.White, "Convert",     modules.HandleSubtitles},
+		{"compare",   "Compare",   utils.MustHex("#91931A"), color.White, "Inspect",     modules.HandleCompare},
+		{"inspect",   "Inspect",   utils.MustHex("#629C1C"), color.White, "Inspect",     modules.HandleInspect},
+		{"upscale",   "Upscale",   utils.MustHex("#2B9C1C"), color.White, "Advanced",    modules.HandleUpscale},
+		{"author",    "Author",    utils.MustHex("#1C9C44"), color.White, "Disc",        modules.HandleAuthor},
+		{"rip",       "Rip",       utils.MustHex("#1A9373"), color.White, "Disc",        modules.HandleRip},
+		{"player",    "Player",    utils.MustHex("#1D8EA5"), color.White, "Playback",    modules.HandlePlayer},
+		{"thumbnail", "Thumbnail", utils.MustHex("#2260BF"), color.White, "Screenshots", modules.HandleThumbnail},
+		{"settings",  "Settings",  utils.MustHex("#2825D0"), color.White, "Settings",    nil},
 	}
 
 	// Platform-specific configuration
