@@ -440,9 +440,9 @@ internal/media/
 
 ### Phase 4: Buffering & Polish ✓
 - [x] Loading indicators
-- [ ] Adaptive buffering
-- [ ] Error recovery
-- [ ] Performance tuning
+- [x] Adaptive buffering (GetBufferHealth, AdjustBufferForPerformance)
+- [x] Error recovery (DegradeToSoftware, ShouldDegrade)
+- [x] Performance tuning (GetDecodeTimeTrend, GetBufferHealth)
 
 ### Phase 5: Chapter Support ✓
 - [x] Chapter struct in engine
@@ -492,5 +492,5 @@ internal/media/
 
 ---
 
-*Last Updated: 2026-03-20*
-*Version: Planning v1.1*
+*Last Updated: 2026-03-21*
+*Version: Planning v1.2*
