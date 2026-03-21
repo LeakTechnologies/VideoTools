@@ -108,17 +108,12 @@ var (
 	hwAccelProbeOnce sync.Once
 	hwAccelSupported atomic.Value // map[string]bool
 
-	nvencRuntimeOnce sync.Once
-	nvencRuntimeOK   bool
-
-	qsvRuntimeOnce sync.Once
-	qsvRuntimeOK   bool
-
-	vaapiRuntimeOnce sync.Once
-	vaapiRuntimeOK   bool
-
-	videotoolboxRuntimeOnce sync.Once
-	videotoolboxRuntimeOK   bool
+	hwProbesMu       sync.Mutex
+	nvencProbeOK     *bool // nil = not yet probed or last probe failed; non-nil = confirmed available
+	qsvProbeOK       *bool
+	vaapiProbeOK     *bool
+	videotoolboxProbeOK *bool
+	amfProbeOK       *bool
 
 	// Rainbow+ palette: distinct, eye-friendly colors with high readability.
 	// Convert color remains constant.
@@ -523,121 +518,82 @@ func hwAccelAvailable(accel string) bool {
 	}
 }
 
+// probeHWAccel runs an FFmpeg null-encode probe and caches the result.
+// Successes are cached permanently (hardware won't disappear mid-session).
+// Failures are not cached — a later call may retry (handles startup timing issues).
+func probeHWAccel(cached **bool, args []string, label string) bool {
+	hwProbesMu.Lock()
+	defer hwProbesMu.Unlock()
+	if *cached != nil {
+		return **cached
+	}
+	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), args...)
+	if err := cmd.Run(); err != nil {
+		logging.Debug(logging.CatFFMPEG, "%s runtime check failed: %v", label, err)
+		return false
+	}
+	ok := true
+	*cached = &ok
+	logging.Info(logging.CatFFMPEG, "%s runtime check passed", label)
+	return true
+}
+
 // checkNvencRuntime does a real encode probe to verify NVIDIA GPU + drivers are working.
 func checkNvencRuntime() bool {
-	nvencRuntimeOnce.Do(func() {
-		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
-			"-hide_banner", "-loglevel", "error",
-			"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
-			"-frames:v", "1",
-			"-c:v", "h264_nvenc",
-			"-preset", "p1", "-b:v", "100k",
-			"-f", "null", "-",
-		)
-		if err := cmd.Run(); err != nil {
-			logging.Debug(logging.CatFFMPEG, "nvenc runtime check failed: %v", err)
-			nvencRuntimeOK = false
-		} else {
-			nvencRuntimeOK = true
-			logging.Info(logging.CatFFMPEG, "nvenc runtime check passed - NVIDIA GPU detected")
-		}
-	})
-	return nvencRuntimeOK
+	return probeHWAccel(&nvencProbeOK, []string{
+		"-hide_banner", "-loglevel", "error",
+		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+		"-frames:v", "1", "-c:v", "h264_nvenc",
+		"-preset", "p1", "-b:v", "100k",
+		"-f", "null", "-",
+	}, "nvenc")
 }
 
 // checkQsvRuntime does a real encode probe to verify Intel Quick Sync is available.
 func checkQsvRuntime() bool {
-	qsvRuntimeOnce.Do(func() {
-		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
-			"-hide_banner", "-loglevel", "error",
-			"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
-			"-frames:v", "1",
-			"-c:v", "h264_qsv",
-			"-preset", "veryfast",
-			"-f", "null", "-",
-		)
-		if err := cmd.Run(); err != nil {
-			logging.Debug(logging.CatFFMPEG, "qsv runtime check failed: %v", err)
-			qsvRuntimeOK = false
-		} else {
-			qsvRuntimeOK = true
-			logging.Info(logging.CatFFMPEG, "qsv runtime check passed - Intel Quick Sync detected")
-		}
-	})
-	return qsvRuntimeOK
+	return probeHWAccel(&qsvProbeOK, []string{
+		"-hide_banner", "-loglevel", "error",
+		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+		"-frames:v", "1", "-c:v", "h264_qsv",
+		"-preset", "veryfast",
+		"-f", "null", "-",
+	}, "qsv")
 }
 
 // checkVaapiRuntime does a real encode probe to verify VAAPI (Linux) is working.
 func checkVaapiRuntime() bool {
-	vaapiRuntimeOnce.Do(func() {
-		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
-			"-hide_banner", "-loglevel", "error",
-			"-vaapi_device", "/dev/dri/renderD128",
-			"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
-			"-frames:v", "1",
-			"-vf", "format=nv12,hwupload",
-			"-c:v", "h264_vaapi",
-			"-f", "null", "-",
-		)
-		if err := cmd.Run(); err != nil {
-			logging.Debug(logging.CatFFMPEG, "vaapi runtime check failed: %v", err)
-			vaapiRuntimeOK = false
-		} else {
-			vaapiRuntimeOK = true
-			logging.Info(logging.CatFFMPEG, "vaapi runtime check passed")
-		}
-	})
-	return vaapiRuntimeOK
+	return probeHWAccel(&vaapiProbeOK, []string{
+		"-hide_banner", "-loglevel", "error",
+		"-vaapi_device", "/dev/dri/renderD128",
+		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+		"-frames:v", "1",
+		"-vf", "format=nv12,hwupload",
+		"-c:v", "h264_vaapi",
+		"-f", "null", "-",
+	}, "vaapi")
 }
 
 // checkVideotoolboxRuntime does a real encode probe to verify macOS VideoToolbox is working.
 func checkVideotoolboxRuntime() bool {
-	videotoolboxRuntimeOnce.Do(func() {
-		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
-			"-hide_banner", "-loglevel", "error",
-			"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
-			"-frames:v", "1",
-			"-c:v", "h264_videotoolbox",
-			"-f", "null", "-",
-		)
-		if err := cmd.Run(); err != nil {
-			logging.Debug(logging.CatFFMPEG, "videotoolbox runtime check failed: %v", err)
-			videotoolboxRuntimeOK = false
-		} else {
-			videotoolboxRuntimeOK = true
-			logging.Info(logging.CatFFMPEG, "videotoolbox runtime check passed - macOS VideoToolbox detected")
-		}
-	})
-	return videotoolboxRuntimeOK
+	return probeHWAccel(&videotoolboxProbeOK, []string{
+		"-hide_banner", "-loglevel", "error",
+		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+		"-frames:v", "1", "-c:v", "h264_videotoolbox",
+		"-f", "null", "-",
+	}, "videotoolbox")
 }
 
 // checkAmfRuntime does a real encode probe to verify AMD GPU + drivers are working.
 // AMF is AMD's encoder API - it requires AMD GPU with proper drivers.
 func checkAmfRuntime() bool {
-	amfRuntimeOnce.Do(func() {
-		cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(),
-			"-hide_banner", "-loglevel", "error",
-			"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
-			"-frames:v", "1",
-			"-c:v", "h264_amf",
-			"-preset", "quality",
-			"-f", "null", "-",
-		)
-		if err := cmd.Run(); err != nil {
-			logging.Debug(logging.CatFFMPEG, "amf runtime check failed: %v", err)
-			amfRuntimeOK = false
-		} else {
-			amfRuntimeOK = true
-			logging.Info(logging.CatFFMPEG, "amf runtime check passed - AMD GPU detected")
-		}
-	})
-	return amfRuntimeOK
+	return probeHWAccel(&amfProbeOK, []string{
+		"-hide_banner", "-loglevel", "error",
+		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+		"-frames:v", "1", "-c:v", "h264_amf",
+		"-preset", "quality",
+		"-f", "null", "-",
+	}, "amf")
 }
-
-var (
-	amfRuntimeOnce sync.Once
-	amfRuntimeOK   bool
-)
 
 // openLogViewer opens a simple dialog showing the log content. If live is true, it auto-refreshes.
 func (s *appState) openLogViewer(title, path string, live bool) {
@@ -2349,7 +2305,7 @@ func (s *appState) showBenchmark() {
 				rec,
 				lastRun.HardwareInfo,
 				func() {
-					s.applyBenchmarkRecommendation(lastRun.RecommendedEncoder)
+					s.applyBenchmarkRecommendation(lastRun.RecommendedHWAccel)
 					s.showSettingsView()
 				},
 				s.showSettingsView,
@@ -2480,7 +2436,7 @@ func (s *appState) runNewBenchmark() {
 					rec,
 					hwInfo,
 					func() {
-						s.applyBenchmarkRecommendation(encoder)
+						s.applyBenchmarkRecommendation(rec.HWAccel)
 						s.showSettingsView()
 					},
 					s.showSettingsView,
@@ -2631,26 +2587,17 @@ func (s *appState) saveBenchmarkRun(results []benchmark.Result, rec benchmark.Re
 	return nil
 }
 
-func (s *appState) applyBenchmarkRecommendation(encoder string) {
-	logging.Debug(logging.CatSystem, "applying benchmark hardware recommendation from encoder=%s", encoder)
+func (s *appState) applyBenchmarkRecommendation(hwAccel string) {
+	logging.Debug(logging.CatSystem, "applying benchmark hardware recommendation: %s", hwAccel)
 
-	// Map encoder to hardware acceleration setting only; do not touch codec/preset.
-	hwAccel := s.convert.HardwareAccel
-	switch {
-	case strings.Contains(encoder, "nvenc"):
-		hwAccel = "nvenc"
-	case strings.Contains(encoder, "qsv"):
-		hwAccel = "qsv"
-	case strings.Contains(encoder, "amf"):
-		hwAccel = "amf"
-	case strings.Contains(encoder, "videotoolbox"):
-		hwAccel = "videotoolbox"
+	if hwAccel == "" {
+		hwAccel = "none"
 	}
 
+	// Intentionally do not modify codec or preset; benchmark only drives hardware path.
 	s.convert.HardwareAccel = hwAccel
 	s.persistConvertConfig()
 
-	// Intentionally do not modify codec or preset; benchmark only drives hardware path.
 	logging.Info(logging.CatSystem, "benchmark applied hardware acceleration: %s (codec/preset unchanged)", hwAccel)
 }
 
@@ -2709,7 +2656,7 @@ func (s *appState) showBenchmarkHistory() {
 				rec,
 				run.HardwareInfo,
 				func() {
-					s.applyBenchmarkRecommendation(run.RecommendedEncoder)
+					s.applyBenchmarkRecommendation(run.RecommendedHWAccel)
 					s.showBenchmarkHistory()
 				},
 				s.showBenchmarkHistory,
