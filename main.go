@@ -7389,11 +7389,12 @@ func runGUI() {
 		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
 
-	// Bootstrap FFmpeg DLLs for native media engine (runs silently in background)
-	// This downloads FFmpeg shared libraries on first run so the media engine can work
+	// Bootstrap FFmpeg DLLs for native media engine
+	// Downloads FFmpeg shared libraries on first run so the media engine can work
 	if HasNativeMediaPlayer() {
-		if err := settings.AddFFmpegDllsToPath(); err != nil {
-			logging.Warning(logging.CatSystem, "failed to bootstrap FFmpeg DLLs: %v", err)
+		if err := appcfg.AddFFmpegDllsToPath(); err != nil {
+			logging.Error(logging.CatSystem, "failed to bootstrap FFmpeg DLLs: %v", err)
+			dialog.ShowError(fmt.Errorf("VideoTools could not download FFmpeg DLLs for video playback:\n\n%v\n\nVideo playback features will be unavailable. You can try again later or check your internet connection.", err), w)
 		} else {
 			logging.Info(logging.CatSystem, "FFmpeg DLLs ready for native media engine")
 		}
