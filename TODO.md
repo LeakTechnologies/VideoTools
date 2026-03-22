@@ -59,7 +59,7 @@ Note: Full direct OpenGL/D3D11 integration requires deeper Fyne modifications. C
 ### Module Extraction (issue #22)
 - [x] **`settings_module.go`** — Tab builders extracted to `internal/app/modules/settings/tabs.go`. Callbacks implemented via adapter pattern. Reduced settings_module.go from 2316 to ~1700 lines.
 - [x] **`queue_module.go`** — Already uses `internal/ui/queueview.go`. Thin wrappers remain in root.
-- [ ] **`subtitles_module.go`** — Next priority after settings.
+- [ ] **`subtitles_module.go`** — Phase 1 complete. Package structure, types, and adapter created. View code extraction pending.
 - [ ] **`upscale_module.go`** — Following subtitles.
 
 ### Media Engine
