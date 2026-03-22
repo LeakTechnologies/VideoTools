@@ -22,6 +22,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/subtitles"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
@@ -528,7 +529,7 @@ func (s *appState) showSubtitlesView() {
 		s.subtitleOutputMode = subtitleModeExternal
 	}
 
-	s.setContent(buildSubtitlesView(s))
+	s.setContent(subtitles.BuildView(&subtitlesAdapter{s: s}))
 }
 
 func buildSubtitlesView(state *appState) fyne.CanvasObject {
@@ -1781,4 +1782,108 @@ func runFFmpeg(args []string) error {
 		return fmt.Errorf("ffmpeg failed: %w (%s)", err, strings.TrimSpace(stderr.String()))
 	}
 	return nil
+}
+
+type subtitlesAdapter struct {
+	s *appState
+}
+
+func (a *subtitlesAdapter) Window() fyne.Window {
+	return a.s.window
+}
+
+func (a *subtitlesAdapter) ShowMainMenu() {
+	a.s.showMainMenu()
+}
+
+func (a *subtitlesAdapter) ShowQueue() {
+	a.s.showQueue()
+}
+
+func (a *subtitlesAdapter) ShowModule(id string) {
+	a.s.showModule(id)
+}
+
+func (a *subtitlesAdapter) StatsBar() fyne.CanvasObject {
+	return a.s.statsBar
+}
+
+func (a *subtitlesAdapter) StopPreview() {
+	a.s.stopPreview()
+}
+
+func (a *subtitlesAdapter) MaximizeWindow() {
+	a.s.maximizeWindow()
+}
+
+func (a *subtitlesAdapter) SetContent(obj fyne.CanvasObject) {
+	a.s.setContent(obj)
+}
+
+func (a *subtitlesAdapter) UpdateQueueButtonLabel() {
+	a.s.updateQueueButtonLabel()
+}
+
+func (a *subtitlesAdapter) QueueBtn() *widget.Button {
+	return a.s.queueBtn
+}
+
+func (a *subtitlesAdapter) SetQueueBtn(btn *widget.Button) {
+	a.s.queueBtn = btn
+}
+
+func (a *subtitlesAdapter) PersistSubtitlesConfig() {
+	a.s.persistSubtitlesConfig()
+}
+
+func (a *subtitlesAdapter) ApplySubtitlesConfig(cfg subtitles.SubtitleState) {
+	a.s.applySubtitlesConfig(subtitlesConfig{
+		OutputMode:  cfg.OutputMode,
+		ModelPath:   cfg.ModelPath,
+		BackendPath: cfg.BackendPath,
+		BurnOutput:  cfg.BurnOutput,
+		TimeOffset:  cfg.TimeOffset,
+		OCRLanguage: cfg.OCRLanguage,
+		OCROutput:   cfg.OCROutput,
+	})
+}
+
+func (a *subtitlesAdapter) SetSubtitleStatus(msg string) {
+	a.s.setSubtitleStatus(msg)
+}
+
+func (a *subtitlesAdapter) SetSubtitleStatusAsync(msg string) {
+	a.s.setSubtitleStatusAsync(msg)
+}
+
+func (a *subtitlesAdapter) LoadSubtitleFile(path string) error {
+	return a.s.loadSubtitleFile(path)
+}
+
+func (a *subtitlesAdapter) ApplySubtitleTimeOffset(offsetSeconds float64) {
+	a.s.applySubtitleTimeOffset(offsetSeconds)
+}
+
+func (a *subtitlesAdapter) GenerateSubtitlesFromSpeech() {
+	a.s.generateSubtitlesFromSpeech()
+}
+
+func (a *subtitlesAdapter) ApplySubtitlesToVideo() {
+	a.s.applySubtitlesToVideo()
+}
+
+func (a *subtitlesAdapter) ClearCompletedJobs() {
+	a.s.clearCompletedJobs()
+}
+
+func (a *subtitlesAdapter) Clipboard() fyne.Clipboard {
+	return a.s.window.Clipboard()
+}
+
+func (a *subtitlesAdapter) DetectWhisperBackend() string {
+	return detectWhisperBackend()
+}
+
+func (a *subtitlesAdapter) DetectWhisperModel() string {
+	return detectWhisperModel()
 }
