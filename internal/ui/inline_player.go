@@ -42,6 +42,10 @@ func (v *InlineVideoPlayer) Load(path string) error {
 	v.engine = media.NewEngine()
 	v.engine.SetSeekAccuracy(media.SeekAccuracyKeyframe)
 	v.engine.SetDropFrames(true)
+	if hw := media.DetectHWDevice(); hw != media.HWDeviceNone {
+		v.engine.SetHWDevice(hw)
+		logging.Info(logging.CatPlayer, "InlineVideoPlayer: HW decode active (%v)", hw)
+	}
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: opening %s", path)
 	if err := v.engine.Open(path); err != nil {
@@ -54,6 +58,10 @@ func (v *InlineVideoPlayer) Load(path string) error {
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: file opened successfully")
 
 	v.engine.InitFrameCache(30)
+
+	if chapters := v.engine.GetChapters(); len(chapters) > 0 {
+		v.player.SetChapters(chapters)
+	}
 
 	duration := v.engine.Duration()
 	v.player.SetDuration(duration)
@@ -72,6 +80,10 @@ func (v *InlineVideoPlayer) Load(path string) error {
 		}, false)
 	})
 	v.scrubber.Start()
+
+	v.engine.StartThumbnailExtraction(func(t float64, img *image.RGBA) {
+		v.player.AddThumbnailFrame(t, img)
+	})
 
 	v.player.SetLoading(false)
 	return nil
@@ -143,6 +155,41 @@ func (v *InlineVideoPlayer) SelectAudioTrack(idx int) error {
 		return fmt.Errorf("no media loaded")
 	}
 	return v.engine.SelectAudioTrack(idx)
+}
+
+func (v *InlineVideoPlayer) SetVolume(vol float64) {
+	if v.engine == nil {
+		return
+	}
+	v.engine.SetVolume(float32(vol / 100.0))
+}
+
+func (v *InlineVideoPlayer) SetMuted(muted bool) {
+	if v.engine == nil {
+		return
+	}
+	v.engine.SetMuted(muted)
+}
+
+func (v *InlineVideoPlayer) GetSubtitleTracks() []media.StreamInfo {
+	if v.engine == nil {
+		return nil
+	}
+	return v.engine.GetSubtitleTracks()
+}
+
+func (v *InlineVideoPlayer) SelectSubtitleTrack(idx int) error {
+	if v.engine == nil {
+		return fmt.Errorf("no media loaded")
+	}
+	return v.engine.SelectSubtitleTrack(idx)
+}
+
+func (v *InlineVideoPlayer) DisableSubtitles() {
+	if v.engine == nil {
+		return
+	}
+	v.engine.DisableSubtitles()
 }
 
 func (v *InlineVideoPlayer) Close() {
