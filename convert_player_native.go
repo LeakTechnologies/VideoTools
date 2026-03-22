@@ -201,6 +201,8 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 			state.playerVolume = 0
 			state.playerMuted = true
 		}
+		state.setVolumeNative(state.playerVolume)
+		state.setMutedNative(state.playerMuted)
 		updateVolIcon()
 	})
 
@@ -219,6 +221,8 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		} else {
 			state.playerMuted = true
 		}
+		state.setVolumeNative(val)
+		state.setMutedNative(state.playerMuted)
 		updateVolIcon()
 	}
 	updateVolIcon()
@@ -317,9 +321,45 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		audioTrackSelect.Show()
 	}
 
+	subtitleTracks := player.GetSubtitleTracks()
+	subtitleTrackSelect := widget.NewSelect(nil, nil)
+	subtitleTrackSelect.Hide()
+	if len(subtitleTracks) > 0 {
+		names := make([]string, len(subtitleTracks)+1)
+		names[0] = "Off"
+		for i, tr := range subtitleTracks {
+			label := tr.Language
+			if tr.Title != "" {
+				label = tr.Title
+			}
+			if label == "" {
+				label = fmt.Sprintf("Sub %d", i+1)
+			}
+			if tr.CodecName != "" {
+				label += " (" + tr.CodecName + ")"
+			}
+			names[i+1] = label
+		}
+		subtitleTrackSelect.Options = names
+		subtitleTrackSelect.SetSelected(names[0])
+		subtitleTrackSelect.OnChanged = func(selected string) {
+			if selected == "Off" {
+				state.selectSubtitleTrackNative(-1)
+				return
+			}
+			for i, n := range names[1:] {
+				if n == selected {
+					state.selectSubtitleTrackNative(i)
+					break
+				}
+			}
+		}
+		subtitleTrackSelect.Show()
+	}
+
 	frameTools := container.NewBorder(nil, nil,
 		container.NewHBox(widget.NewSeparator(), frameLabel),
-		container.NewHBox(audioTrackSelect, coverBtn, saveFrameBtn, importBtn),
+		container.NewHBox(subtitleTrackSelect, audioTrackSelect, coverBtn, saveFrameBtn, importBtn),
 		nil,
 	)
 	advancedBar := container.NewMax(advancedBg, container.NewPadded(frameTools))

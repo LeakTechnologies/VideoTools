@@ -52,6 +52,24 @@ func (s *appState) selectAudioTrackNative(idx int) {
 	}
 }
 
+func (s *appState) setVolumeNative(vol float64) {
+	convertInlinePlayer.SetVolume(vol)
+}
+
+func (s *appState) setMutedNative(muted bool) {
+	convertInlinePlayer.SetMuted(muted)
+}
+
+func (s *appState) selectSubtitleTrackNative(idx int) {
+	if idx < 0 {
+		convertInlinePlayer.DisableSubtitles()
+		return
+	}
+	if err := convertInlinePlayer.SelectSubtitleTrack(idx); err != nil {
+		logging.Error(logging.CatPlayer, "SelectSubtitleTrack(%d): %v", idx, err)
+	}
+}
+
 func (s *appState) closeNativePlayer() {
 	convertInlinePlayer.Close()
 }
