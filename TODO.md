@@ -7,11 +7,11 @@ This file tracks upcoming features, improvements, and known issues.
 ### InlineVideoPlayer Wiring — HIGH PRIORITY
 The engine has all features. These are the missing bridges in `internal/ui/inline_player.go`.
 
-- [ ] **Volume / Mute wiring** — Add `SetVolume(vol float64)` and `SetMuted(muted bool)` to `InlineVideoPlayer`. Wire volume slider and mute button in `convert_player_native.go` → `native_media.go` → `engine.SetVolume/SetMuted`. Currently the slider is dead.
-- [ ] **HW decode auto-detect** — Call `DetectHWDevice()` in `InlineVideoPlayer.Load()` and apply via `engine.SetHWDevice()` before `engine.Open()`. Improves performance for H.264/H.265 HD+ content.
-- [ ] **Chapter wiring** — After `engine.Open()` in `Load()`, call `engine.GetChapters()` and pass result to `player.SetChapters()`. Enables chapter markers on seekbar and prev/next chapter navigation.
-- [ ] **Subtitle track selection** — Expose `GetSubtitleTracks()` and `SelectSubtitleTrack(idx int)` on `InlineVideoPlayer`. Wire into the advanced bar in `convert_player_native.go` (same pattern as audio track selector).
-- [ ] **Thumbnail hover preview** — Call `engine.StartThumbnailExtraction(func(t, img) { player.AddThumbnailFrame(t, img) })` in `Load()`. Populates seekbar hover thumbnails automatically.
+- [x] **Volume / Mute wiring** — `SetVolume/SetMuted` on `InlineVideoPlayer`, wired through `native_media.go` and `convert_player_native.go`.
+- [x] **HW decode auto-detect** — `DetectHWDevice()` called in `InlineVideoPlayer.Load()`, applied via `engine.SetHWDevice()`.
+- [x] **Chapter wiring** — `engine.GetChapters()` bridged to `player.SetChapters()` in `Load()`.
+- [x] **Subtitle track selection** — `GetSubtitleTracks/SelectSubtitleTrack/DisableSubtitles` exposed; subtitle selector in Convert advanced bar.
+- [x] **Thumbnail hover preview** — `engine.StartThumbnailExtraction` wired to `player.AddThumbnailFrame` in `Load()`.
 
 ### CI
 - [ ] **Confirm Windows CI 719** — Verify choco-removal fix lands green.

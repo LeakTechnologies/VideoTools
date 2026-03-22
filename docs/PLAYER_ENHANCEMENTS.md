@@ -41,11 +41,11 @@ The table below tracks which engine capabilities are actually wired end-to-end.
 | Playback speed | `engine.SetSpeed()` | — | `SetSpeed()` | not exposed in Convert UI | ✅ Engine wired, UI absent |
 | Audio track select | `engine.SelectAudioTrack()` | — | `SelectAudioTrack()` | audio track selector | ✅ Wired |
 | Error display | — | `SetError()` | `playbackLoop` error path | — | ✅ Wired |
-| **Volume / Mute** | `engine.SetVolume()` / `SetMuted()` | — | **missing** | slider + mute btn (dead) | ❌ NOT wired |
-| **HW decode** | `DetectHWDevice()` + `SetHWDevice()` | — | **missing** | — | ❌ NOT wired |
-| **Chapters** | `engine.GetChapters()` | `SetChapters()` | **missing** | — | ❌ NOT wired |
-| **Subtitle track select** | `engine.GetSubtitleTracks()` / `SelectSubtitleTrack()` | CC toggle | **missing** | — | ❌ NOT wired |
-| **Thumbnail hover preview** | `StartThumbnailExtraction()` | `AddThumbnailFrame()` / `OnHover()` | **missing** | — | ❌ NOT wired |
+| Volume / Mute | `engine.SetVolume()` / `SetMuted()` | — | `SetVolume()` / `SetMuted()` | volume slider + mute btn | ✅ Wired (dev37) |
+| HW decode | `DetectHWDevice()` + `SetHWDevice()` | — | auto in `Load()` | — | ✅ Wired (dev37) |
+| Chapters | `engine.GetChapters()` | `SetChapters()` | bridged in `Load()` | chapter markers + nav | ✅ Wired (dev37) |
+| Subtitle track select | `engine.GetSubtitleTracks()` / `SelectSubtitleTrack()` | CC toggle | `GetSubtitleTracks()` / `SelectSubtitleTrack()` / `DisableSubtitles()` | subtitle selector in advanced bar | ✅ Wired (dev37) |
+| Thumbnail hover preview | `StartThumbnailExtraction()` | `AddThumbnailFrame()` / `OnHover()` | auto in `Load()` | seekbar hover thumbnails | ✅ Wired (dev37) |
 
 ---
 

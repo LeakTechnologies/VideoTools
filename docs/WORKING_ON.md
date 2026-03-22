@@ -23,11 +23,17 @@ The `InlineVideoPlayer` wrapper (`internal/ui/inline_player.go`) does not yet br
 
 | # | Feature | File(s) to change | Priority |
 |---|---------|-------------------|----------|
-| 1 | **Volume / Mute** — `state.playerVolume/Muted` never reach `engine.SetVolume/SetMuted` | `inline_player.go`, `native_media.go`, `convert_player_native.go` | 🔴 HIGH |
-| 2 | **HW decode** — `DetectHWDevice()` exists but `InlineVideoPlayer.Load()` never calls it | `inline_player.go` | 🟡 MEDIUM |
-| 3 | **Chapters** — `engine.GetChapters()` and `player.SetChapters()` not bridged in `Load()` | `inline_player.go` | 🟡 MEDIUM |
-| 4 | **Subtitle track selection** — `GetSubtitleTracks/SelectSubtitleTrack` not exposed | `inline_player.go`, `native_media.go`, `convert_player_native.go` | 🟢 LOW |
-| 5 | **Thumbnail hover preview** — `StartThumbnailExtraction/AddThumbnailFrame/OnHover` not wired | `inline_player.go` | 🟢 LOW |
+All 5 wiring gaps resolved in commit `20e8e96` (dev37):
+
+| # | Feature | Status |
+|---|---------|--------|
+| 1 | Volume / Mute | ✅ Done |
+| 2 | HW decode auto-detect | ✅ Done |
+| 3 | Chapters → seekbar markers + nav | ✅ Done |
+| 4 | Subtitle track selection | ✅ Done |
+| 5 | Thumbnail hover preview | ✅ Done |
+
+**InlineVideoPlayer is now feature-complete.** All engine capabilities are bridged to the UI.
 
 ### Shared files — coordinate before modifying
 - `internal/ui/inline_player.go` — core wiring layer
