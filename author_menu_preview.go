@@ -2,10 +2,10 @@ package main
 
 import (
 	"bytes"
-	_ "image/jpeg"
 	"image"
 	"image/color"
 	"image/draw"
+	_ "image/jpeg"
 	"image/png"
 	"os"
 	"strconv"
@@ -21,6 +21,7 @@ import (
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
@@ -187,12 +188,12 @@ type previewParams struct {
 
 // ---- template renderers ----
 
-func pvRenderSimple(img *image.RGBA, title string, buttons []dvdMenuButton, txt, hdr, accent, dim color.RGBA, w int) {
+func pvRenderSimple(img *image.RGBA, title string, buttons []dvdMenuButton, txt, hdr, accent, dim color.RGBA, w int, t i18n.Translator) {
 	pvFillRect(img, image.Rect(0, 0, w, 72), hdr)
-	pvDrawText(img, "VideoTools DVD", 22, 36, 50, txt)
+	pvDrawText(img, t.AuthorVideoToolsDVD, 22, 36, 50, txt)
 	pvDrawText(img, utils.ShortenMiddle(title, 40), 16, 36, 98, txt)
 	pvFillRect(img, image.Rect(36, 110, w-36, 112), accent)
-	pvDrawText(img, "Select a title or chapter to play", 12, 36, 130, dim)
+	pvDrawText(img, t.AuthorSelectTitleChapter, 12, 36, 130, dim)
 	for i, btn := range buttons {
 		pvDrawText(img, btn.Label, 18, 110, 184+i*34+18, txt)
 	}
@@ -214,7 +215,7 @@ func pvRenderMinimal(img *image.RGBA, title string, buttons []dvdMenuButton, txt
 
 // ---- main render ----
 
-func renderMenuPreviewImage(p previewParams) image.Image {
+func renderMenuPreviewImage(p previewParams, t i18n.Translator) image.Image {
 	width, height := dvdMenuDimensions(p.region)
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
@@ -245,14 +246,14 @@ func renderMenuPreviewImage(p previewParams) image.Image {
 
 	title := strings.TrimSpace(p.title)
 	if title == "" {
-		title = "DVD Menu"
+		title = t.AuthorDVDMenu
 	}
 
 	switch p.template {
 	case "Minimal":
 		pvRenderMinimal(img, title, p.buttons, txt, accent, width)
 	default:
-		pvRenderSimple(img, title, p.buttons, txt, hdr, accent, dim, width)
+		pvRenderSimple(img, title, p.buttons, txt, hdr, accent, dim, width, t)
 	}
 
 	// Highlight overlay
@@ -271,6 +272,7 @@ func renderMenuPreviewImage(p previewParams) image.Image {
 // buildMenuPreviewPanel returns the interactive preview panel and a refresh trigger.
 // Call the returned function whenever any menu-related state changes.
 func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
+	t := i18n.T()
 	highlighted := -1
 	viewType := "main" // "main" or "chapters"
 
@@ -279,7 +281,7 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 	previewImg.SetMinSize(fyne.NewSize(360, 240))
 
 	navRow := container.NewHBox()
-	statusLabel := widget.NewLabel("Click a button to preview its highlight state")
+	statusLabel := widget.NewLabel(t.AuthorClickButtonPreview)
 	statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 	statusLabel.Wrapping = fyne.TextWrapWord
 
@@ -342,7 +344,7 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 			debounceTimer.Stop()
 		}
 		debounceTimer = time.AfterFunc(80*time.Millisecond, func() {
-			rendered := renderMenuPreviewImage(p)
+			rendered := renderMenuPreviewImage(p, t)
 			var buf bytes.Buffer
 			_ = png.Encode(&buf, rendered)
 			data := buf.Bytes()
@@ -399,7 +401,7 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 		if highlighted >= 0 && highlighted < len(btns) {
 			statusLabel.SetText("Highlighted: " + btns[highlighted].Label)
 		} else {
-			statusLabel.SetText("Click a button to preview its highlight state")
+			statusLabel.SetText(t.AuthorClickButtonPreview)
 		}
 	}
 
