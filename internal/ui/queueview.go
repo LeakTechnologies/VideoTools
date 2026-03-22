@@ -1,9 +1,12 @@
 package ui
 
 import (
+	"bytes"
 	"fmt"
 	"image"
 	"image/color"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -236,6 +239,15 @@ type QueueView struct {
 	callbacks  queueCallbacks
 	bgColor    color.Color
 	textColor  color.Color
+
+	// Live output panel (shown when a job is running)
+	logSection   *fyne.Container
+	logJobLabel  *widget.Label
+	logEntry     *widget.Entry
+	logScroll    *container.Scroll
+	logPath      string
+	logReading   bool // true while a read goroutine is in flight
+	logMu        sync.Mutex
 }
 
 func (v *QueueView) StopAnimations() {
@@ -320,18 +332,51 @@ func BuildQueueView(
 	// scrollable.SetMinSize(fyne.NewSize(0, 0)) // Removed for flexible sizing
 	scrollable.Offset = fyne.NewPos(0, 0)
 
+	// Live output panel — shown while a job is running
+	logJobLabel := widget.NewLabel("")
+	logJobLabel.TextStyle = fyne.TextStyle{Bold: true}
+	logJobLabel.Truncation = fyne.TextTruncateEllipsis
+
+	logEntry := widget.NewMultiLineEntry()
+	logEntry.Wrapping = fyne.TextWrapOff
+	logEntry.TextStyle = fyne.TextStyle{Monospace: true}
+	logEntry.Disable()
+
+	logScroll := container.NewVScroll(logEntry)
+	logScroll.SetMinSize(fyne.NewSize(0, 160))
+
+	logBg := canvas.NewRectangle(color.NRGBA{R: 0x0a, G: 0x0d, B: 0x18, A: 0xff})
+
+	logHeaderLabel := canvas.NewText("LIVE OUTPUT", titleColor)
+	logHeaderLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	logHeaderLabel.TextSize = 11
+
+	logHeader := container.NewHBox(logHeaderLabel, logJobLabel)
+
+	logSection := container.NewBorder(
+		container.NewPadded(logHeader),
+		nil, nil, nil,
+		container.NewMax(logBg, logScroll),
+	)
+	logSection.Hide()
+
 	body := container.NewBorder(
 		header,
-		nil, nil, nil,
+		logSection,
+		nil, nil,
 		scrollable,
 	)
 
 	view := &QueueView{
-		Root:       container.NewPadded(body),
-		Scroll:     scrollable,
-		jobList:    jobList,
-		emptyLabel: emptyLabel,
-		items:      make(map[string]*queueItemWidgets),
+		Root:        container.NewPadded(body),
+		Scroll:      scrollable,
+		jobList:     jobList,
+		emptyLabel:  emptyLabel,
+		items:       make(map[string]*queueItemWidgets),
+		logSection:  logSection,
+		logJobLabel: logJobLabel,
+		logEntry:    logEntry,
+		logScroll:   logScroll,
 		callbacks: queueCallbacks{
 			onBack:        onBack,
 			onPause:       onPause,
@@ -633,6 +678,7 @@ func (v *QueueView) UpdateRunningStatus(jobs []*queue.Job) {
 		}
 	}
 
+	var runningJob *queue.Job
 	for _, job := range jobs {
 		if job.Status != queue.JobStatusRunning {
 			continue
@@ -642,7 +688,87 @@ func (v *QueueView) UpdateRunningStatus(jobs []*queue.Job) {
 			continue
 		}
 		updateJobItem(item, job, queuePositions, v.callbacks)
+		runningJob = job
 	}
+
+	if runningJob != nil && runningJob.LogPath != "" {
+		v.showLiveLog(runningJob.Title, runningJob.LogPath)
+	} else {
+		v.hideLiveLog()
+	}
+}
+
+// showLiveLog reads the tail of the job's log file and updates the live output panel.
+// If a read is already in flight, this call is skipped to avoid pile-up.
+func (v *QueueView) showLiveLog(title, logPath string) {
+	v.logMu.Lock()
+	if v.logReading {
+		v.logMu.Unlock()
+		return
+	}
+	v.logPath = logPath
+	v.logReading = true
+	v.logMu.Unlock()
+
+	go func() {
+		content := readLogTail(logPath, 80)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			v.logMu.Lock()
+			v.logReading = false
+			v.logMu.Unlock()
+			if v.logSection == nil {
+				return
+			}
+			v.logSection.Show()
+			shortTitle := "  —  " + utils.ShortenMiddle(title, 50)
+			v.logJobLabel.SetText(shortTitle)
+			v.logEntry.SetText(content)
+			// Scroll to bottom
+			v.logScroll.ScrollToBottom()
+		}, false)
+	}()
+}
+
+// hideLiveLog hides the live output panel.
+func (v *QueueView) hideLiveLog() {
+	if v.logSection != nil {
+		v.logSection.Hide()
+	}
+}
+
+// readLogTail reads the last n lines from the given file path.
+// Returns empty string if the file cannot be read.
+func readLogTail(path string, lines int) string {
+	const maxRead = 256 * 1024 // 256 KB cap
+	f, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+
+	info, err := f.Stat()
+	if err != nil {
+		return ""
+	}
+	size := info.Size()
+	start := size - maxRead
+	if start < 0 {
+		start = 0
+	}
+	if _, err := f.Seek(start, io.SeekStart); err != nil {
+		return ""
+	}
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return ""
+	}
+
+	// Split into lines and take the last n
+	parts := bytes.Split(data, []byte("\n"))
+	if len(parts) > lines {
+		parts = parts[len(parts)-lines:]
+	}
+	return strings.TrimRight(string(bytes.Join(parts, []byte("\n"))), "\n")
 }
 
 // getStatusText returns a human-readable status string
