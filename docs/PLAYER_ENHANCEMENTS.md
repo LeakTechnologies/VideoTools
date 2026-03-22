@@ -25,6 +25,30 @@ The goal is to leverage FFmpeg's full capabilities for professional-grade video 
 
 ---
 
+## InlineVideoPlayer Wiring Status (dev37)
+
+The engine and VideoPlayer widget are feature-complete. The `InlineVideoPlayer` wrapper
+(`internal/ui/inline_player.go`) is the integration layer used by Convert and Upscale modules.
+The table below tracks which engine capabilities are actually wired end-to-end.
+
+| Feature | Engine API | Widget API | InlineVideoPlayer | UI (convert_player_native) | Status |
+|---------|-----------|------------|-------------------|---------------------------|--------|
+| Load / Open | `engine.Open()` | — | `Load()` | `state.loadVideoNative()` | ✅ Wired |
+| Play / Pause | `engine.Start()` / `Pause()` | `SetPlaying()` | `Play()` / `Pause()` | play button | ✅ Wired |
+| Seek | `engine.Seek()` | `SetCurrentTime()` | `Seek()` | step buttons / replay10 | ✅ Wired |
+| Smooth scrub | `SmoothScrubbing.RequestSeek()` | `SetCurrentTime()` | `ScrubTo()` | slider `OnChanged` | ✅ Wired |
+| Frame step | `engine.Step()` | `SetFrame()` | `StepFrame()` | prev/next frame buttons | ✅ Wired |
+| Playback speed | `engine.SetSpeed()` | — | `SetSpeed()` | not exposed in Convert UI | ✅ Engine wired, UI absent |
+| Audio track select | `engine.SelectAudioTrack()` | — | `SelectAudioTrack()` | audio track selector | ✅ Wired |
+| Error display | — | `SetError()` | `playbackLoop` error path | — | ✅ Wired |
+| **Volume / Mute** | `engine.SetVolume()` / `SetMuted()` | — | **missing** | slider + mute btn (dead) | ❌ NOT wired |
+| **HW decode** | `DetectHWDevice()` + `SetHWDevice()` | — | **missing** | — | ❌ NOT wired |
+| **Chapters** | `engine.GetChapters()` | `SetChapters()` | **missing** | — | ❌ NOT wired |
+| **Subtitle track select** | `engine.GetSubtitleTracks()` / `SelectSubtitleTrack()` | CC toggle | **missing** | — | ❌ NOT wired |
+| **Thumbnail hover preview** | `StartThumbnailExtraction()` | `AddThumbnailFrame()` / `OnHover()` | **missing** | — | ❌ NOT wired |
+
+---
+
 ## Priority 1: GPU Rendering Pipeline
 
 ### 1.1 Multi-API GPU Rendering

@@ -2,14 +2,37 @@
 
 This file tracks what each agent is currently working on to prevent conflicts and coordinate changes.
 
-**Last Updated**: 2026-01-06 19:05 UTC
+**Last Updated**: 2026-03-22 UTC
 
 ---
 
-## 🔴 Current Blockers
+## 🟢 Current Status
 
-- **Build Status**: ❌ FAILING (main.go syntax errors introduced by unified player changes)
-- **Critical Bug**: BUG-005 - CRF quality settings not showing when CRF mode selected (see ./BUGS.md)
+- **Build Status**: ✅ PASSING (Linux CI 717 green, Windows CI 719 pending — choco fix landed)
+- **Version**: v0.1.1-dev37
+- **Active Focus**: `InlineVideoPlayer` wiring gaps — engine has features, player doesn't use them
+
+---
+
+## 🎯 Active Work: InlineVideoPlayer Feature Wiring
+
+The media engine (`internal/media/engine.go`) and VideoPlayer widget (`internal/media/view.go`) are fully featured.
+The `InlineVideoPlayer` wrapper (`internal/ui/inline_player.go`) does not yet bridge all of them to the UI.
+
+### Gaps — ordered by priority
+
+| # | Feature | File(s) to change | Priority |
+|---|---------|-------------------|----------|
+| 1 | **Volume / Mute** — `state.playerVolume/Muted` never reach `engine.SetVolume/SetMuted` | `inline_player.go`, `native_media.go`, `convert_player_native.go` | 🔴 HIGH |
+| 2 | **HW decode** — `DetectHWDevice()` exists but `InlineVideoPlayer.Load()` never calls it | `inline_player.go` | 🟡 MEDIUM |
+| 3 | **Chapters** — `engine.GetChapters()` and `player.SetChapters()` not bridged in `Load()` | `inline_player.go` | 🟡 MEDIUM |
+| 4 | **Subtitle track selection** — `GetSubtitleTracks/SelectSubtitleTrack` not exposed | `inline_player.go`, `native_media.go`, `convert_player_native.go` | 🟢 LOW |
+| 5 | **Thumbnail hover preview** — `StartThumbnailExtraction/AddThumbnailFrame/OnHover` not wired | `inline_player.go` | 🟢 LOW |
+
+### Shared files — coordinate before modifying
+- `internal/ui/inline_player.go` — core wiring layer
+- `native_media.go` — bridge between appState and InlineVideoPlayer
+- `convert_player_native.go` — Convert/Upscale player UI
 
 ---
 
