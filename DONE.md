@@ -161,7 +161,7 @@
 - [x] **Inspect module extraction** — Moved `showInspectView` and `buildInspectView` to `internal/app/modules/inspect/view.go`. Root `inspect_module.go` is thin shim.
 - [x] **Queue module extraction** — Moved queue view builders and refresh helpers to `internal/app/modules/queue/view.go`. Root `queue_module.go` delegates to internal package.
 - [x] **Subtitles module extraction** — Moved package structure, types, adapter, and view code to `internal/app/modules/subtitles/`.
-- [x] **Upscale module helpers** — AI helper functions extracted to `internal/app/modules/upscale/helpers.go`. Root `upscale_module.go` is thin shim delegating to internal package.
+- [x] **Upscale module helpers** — Full module extracted to `internal/app/modules/upscale/` with helpers.go, types.go, and view.go. Root `upscale_module.go` is thin shim delegating to internal package.
 
 ### UI Fixes
 - [x] **Back button consistency** — Module name uppercase on all modules.
