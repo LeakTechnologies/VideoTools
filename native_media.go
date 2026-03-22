@@ -4,6 +4,7 @@ package main
 
 import (
 	"fyne.io/fyne/v2"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
@@ -39,6 +40,16 @@ func (s *appState) seekNative(target float64) {
 
 func (s *appState) stepFrameNative(dir int) {
 	convertInlinePlayer.StepFrame(dir)
+}
+
+func (s *appState) scrubNative(target float64) {
+	convertInlinePlayer.ScrubTo(target)
+}
+
+func (s *appState) selectAudioTrackNative(idx int) {
+	if err := convertInlinePlayer.SelectAudioTrack(idx); err != nil {
+		logging.Error(logging.CatPlayer, "SelectAudioTrack(%d): %v", idx, err)
+	}
 }
 
 func (s *appState) closeNativePlayer() {

@@ -107,7 +107,14 @@ type SmoothScrubbing struct {
 	stop        chan struct{}
 	predecoding bool
 	seekTarget  float64
+	onFrame     func(*image.RGBA)
 	mu          sync.RWMutex
+}
+
+func (s *SmoothScrubbing) SetOnFrame(cb func(*image.RGBA)) {
+	s.mu.Lock()
+	s.onFrame = cb
+	s.mu.Unlock()
 }
 
 func NewSmoothScrubbing(engine *Engine) *SmoothScrubbing {
@@ -179,6 +186,7 @@ func (s *SmoothScrubbing) predecodeFrom(startTime float64) {
 
 	framesDecoded := 0
 	maxPTS := startTime + float64(predecodeCount)*videoTimeBase*2
+	firstFrame := true
 
 	for framesDecoded < predecodeCount {
 		select {
@@ -214,6 +222,15 @@ func (s *SmoothScrubbing) predecodeFrom(startTime float64) {
 			if rgba != nil {
 				s.frameCache.Add(int64(pts*1000), rgba)
 				framesDecoded++
+				if firstFrame {
+					firstFrame = false
+					s.mu.RLock()
+					cb := s.onFrame
+					s.mu.RUnlock()
+					if cb != nil {
+						cb(rgba)
+					}
+				}
 			}
 
 			if pts > maxPTS {
