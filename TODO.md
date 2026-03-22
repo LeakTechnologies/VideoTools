@@ -1,8 +1,32 @@
-# VideoTools TODO (v0.1.1-dev36 plan)
+# VideoTools TODO
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev35 Scope (in progress)
+## Dev37 Scope (in progress)
+
+### InlineVideoPlayer Wiring — HIGH PRIORITY
+The engine has all features. These are the missing bridges in `internal/ui/inline_player.go`.
+
+- [ ] **Volume / Mute wiring** — Add `SetVolume(vol float64)` and `SetMuted(muted bool)` to `InlineVideoPlayer`. Wire volume slider and mute button in `convert_player_native.go` → `native_media.go` → `engine.SetVolume/SetMuted`. Currently the slider is dead.
+- [ ] **HW decode auto-detect** — Call `DetectHWDevice()` in `InlineVideoPlayer.Load()` and apply via `engine.SetHWDevice()` before `engine.Open()`. Improves performance for H.264/H.265 HD+ content.
+- [ ] **Chapter wiring** — After `engine.Open()` in `Load()`, call `engine.GetChapters()` and pass result to `player.SetChapters()`. Enables chapter markers on seekbar and prev/next chapter navigation.
+- [ ] **Subtitle track selection** — Expose `GetSubtitleTracks()` and `SelectSubtitleTrack(idx int)` on `InlineVideoPlayer`. Wire into the advanced bar in `convert_player_native.go` (same pattern as audio track selector).
+- [ ] **Thumbnail hover preview** — Call `engine.StartThumbnailExtraction(func(t, img) { player.AddThumbnailFrame(t, img) })` in `Load()`. Populates seekbar hover thumbnails automatically.
+
+### CI
+- [ ] **Confirm Windows CI 719** — Verify choco-removal fix lands green.
+
+### Author Module (document gaps, fix when prioritised)
+- [ ] Wire subtitle track authoring through FFmpeg mapping pipeline
+- [ ] Wire multi-audio track AC3 encoding
+
+### Rip Module (document gaps, fix when prioritised)
+- [ ] Handle `.m2ts` files in `collectVOBSets` (currently only `.vob`)
+- [ ] Implement title set selection UI (hardcoded TODO)
+
+---
+
+## Dev35 Scope (completed ✓)
 
 ### GPU Rendering Pipeline (NEW)
 - [x] **Renderer interface** (`internal/media/gpu/renderer.go`) - Abstract GPU renderer with Texture interface
