@@ -357,6 +357,12 @@ jobs:
             # Fallback: point directly at the BtbN static FFmpeg headers and libs
             $env:CGO_CFLAGS  = "-IC:\ffmpeg\include"
             $env:CGO_LDFLAGS = "-LC:\ffmpeg\lib -lavcodec -lavformat -lavutil -lswscale -lswresample -lavfilter -lbcrypt -lSecur32 -lWs2_32 -lmfplat -lstrmiids -lavrt -lole32 -luser32"
+            # Create a no-op pkg-config shim so CGO source #cgo pkg-config directives don't fail.
+            # The actual flags come from CGO_CFLAGS/CGO_LDFLAGS set above.
+            $shimDir = "C:\tools\pkg-config-shim"
+            New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
+            "@echo off`r`nexit 0" | Set-Content "$shimDir\pkg-config.bat" -Encoding ASCII
+            $env:PATH = "$shimDir;$env:PATH"
           }
 
           go mod download

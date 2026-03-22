@@ -150,6 +150,10 @@ func (s *appState) refreshQueueView() {
 					s.showMainMenu()
 				}
 			},
+			OnCancelAll: func() {
+				s.jobQueue.CancelAll()
+				s.refreshQueueView()
+			},
 			OnCopyError: func(id string) {
 				job, err := s.jobQueue.Get(id)
 				if err != nil {

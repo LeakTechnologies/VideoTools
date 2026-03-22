@@ -546,7 +546,6 @@ func checkNvencRuntime() bool {
 		"-hide_banner", "-loglevel", "error",
 		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
 		"-frames:v", "1", "-c:v", "h264_nvenc",
-		"-preset", "p1", "-b:v", "100k",
 		"-f", "null", "-",
 	}, "nvenc")
 }
@@ -587,12 +586,12 @@ func checkVideotoolboxRuntime() bool {
 
 // checkAmfRuntime does a real encode probe to verify AMD GPU + drivers are working.
 // AMF is AMD's encoder API - it requires AMD GPU with proper drivers.
+// Note: h264_amf does not use -preset; quality is set via -quality (speed|balanced|quality).
 func checkAmfRuntime() bool {
 	return probeHWAccel(&amfProbeOK, []string{
 		"-hide_banner", "-loglevel", "error",
 		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
 		"-frames:v", "1", "-c:v", "h264_amf",
-		"-preset", "quality",
 		"-f", "null", "-",
 	}, "amf")
 }
@@ -5340,6 +5339,12 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	}
 
 	if err := cmd.Wait(); err != nil {
+		// Check context first — if cancelled, return cancellation error immediately
+		// so queue.processJobs() sees context.Canceled and marks the job as Cancelled.
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
 		stderrOutput := stderrBuf.String()
 		errorExplanation := interpretFFmpegError(err)
 
@@ -10133,11 +10138,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	hwAccelHint.Wrapping = fyne.TextWrapWord
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	hwAccelHintContainer := container.NewPadded(hwAccelHint)
+	// Always show platform-relevant options so users can manually override
+	// even when auto-detection fails. The "auto" mode still probes at encode time.
 	hwAccelOptions := []string{"auto", "none"}
-	for _, hw := range []string{"nvenc", "qsv", "amf", "vaapi", "videotoolbox"} {
-		if hwAccelAvailable(hw) {
-			hwAccelOptions = append(hwAccelOptions, hw)
-		}
+	switch runtime.GOOS {
+	case "windows":
+		hwAccelOptions = append(hwAccelOptions, "nvenc", "qsv", "amf")
+	case "darwin":
+		hwAccelOptions = append(hwAccelOptions, "videotoolbox")
+	default: // Linux and others
+		hwAccelOptions = append(hwAccelOptions, "nvenc", "qsv", "vaapi", "amf")
 	}
 	hwAccelSelect := widget.NewSelect(hwAccelOptions, func(value string) {
 		state.convert.HardwareAccel = value

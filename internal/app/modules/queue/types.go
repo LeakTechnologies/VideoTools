@@ -27,6 +27,7 @@ type Options struct {
 	OnStart       func()
 	OnClear       func()
 	OnClearAll    func()
+	OnCancelAll   func()
 	OnCopyError   func(string)
 	OnViewLog     func(string)
 	OnCopyCommand func(string)

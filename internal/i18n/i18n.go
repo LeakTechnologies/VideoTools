@@ -31,12 +31,12 @@ const (
 )
 
 var (
-	mu             sync.RWMutex
-	current        = enCA           // active Strings
-	currentLang    = "en-CA"
-	currentScript  ScriptVariant
-	listeners      []func()
-	listenersMu    sync.Mutex
+	mu            sync.RWMutex
+	current       = enCA // active Strings
+	currentLang   = "en-CA"
+	currentScript ScriptVariant
+	listeners     []func()
+	listenersMu   sync.Mutex
 )
 
 // All returns the list of all registered languages.
@@ -113,7 +113,7 @@ func SetLanguageWithScript(code string, script ScriptVariant) {
 
 	mu.Lock()
 	current = merged
-	currentLang = code   // always "iu", not "iu-Latn"
+	currentLang = code // always "iu", not "iu-Latn"
 	currentScript = script
 	mu.Unlock()
 

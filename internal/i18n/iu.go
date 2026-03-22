@@ -348,6 +348,7 @@ var iu = Strings{
 	ActionQueuePauseAll:       "ᐊᑦᑐᓂᐃᓐᓇᖅᑐᑦ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",   // Pause All
 	ActionQueueResumeAll:      "ᐊᑦᑐᓂᐃᓐᓇᖅᑐᑦ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",   // Resume All
 	ActionQueueClearCompleted: "ᐃᓱᓕᓚᐅᖅᑐᑦ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",     // Clear Completed
+	ActionQueueCancelAll:      "ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᑕᒪᐃᓐᓂ",         // Cancel All Jobs
 
 	// ── History Sidebar ───────────────────────────────────────────────────
 	HistoryTitle:     "ᐊᑐᓚᐅᖅᑕᑦ",     // HISTORY

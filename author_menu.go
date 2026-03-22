@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/theme"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -70,7 +71,7 @@ type ScriptableMenu struct{}
 
 func (t *ScriptableMenu) Generate(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, mTheme *MenuTheme, logo menuLogoOptions, logFn func(string)) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
-	
+
 	// 1. Load Theme JSON
 	themePath := filepath.Join("assets", "dvd_themes", "default", "theme.json")
 	sTheme, err := theme.LoadTheme(themePath)
@@ -85,7 +86,7 @@ func (t *ScriptableMenu) Generate(ctx context.Context, workDir, title, region, a
 	renderer := theme.NewRenderer(sTheme)
 	fontData, _ := os.ReadFile(mTheme.FontPath)
 	renderer.SetFont(fontData)
-	
+
 	menuAssets, err := renderer.RenderMenu()
 	if err != nil {
 		return "", nil, fmt.Errorf("native render failed: %w", err)
@@ -96,7 +97,7 @@ func (t *ScriptableMenu) Generate(ctx context.Context, workDir, title, region, a
 	overlayPath := filepath.Join(workDir, "menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "menu_highlight.png")
 	selectPath := filepath.Join(workDir, "menu_select.png")
-	
+
 	savePNG := func(path string, img image.Image) error {
 		f, err := os.Create(path)
 		if err != nil {
@@ -578,12 +579,12 @@ func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspec
 }
 
 type dvdMenuSet struct {
-	MainMpg          string
-	MainButtons      []dvdMenuButton
-	ChaptersMpg      string
-	ChaptersButtons  []dvdMenuButton
-	ExtrasMpg        string
-	ExtrasButtons    []dvdMenuButton
+	MainMpg         string
+	MainButtons     []dvdMenuButton
+	ChaptersMpg     string
+	ChaptersButtons []dvdMenuButton
+	ExtrasMpg       string
+	ExtrasButtons   []dvdMenuButton
 }
 
 func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, extras []extraItem, logFn func(string), template MenuTemplate, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, chapterVideoPath string, chapterThumbOffset float64) (dvdMenuSet, error) {
@@ -806,9 +807,10 @@ func dvdMenuDimensions(region string) (int, int) {
 }
 
 func buildDVDMenuButtons(chapters []authorChapter, hasExtras bool, width, height int) []dvdMenuButton {
+	t := i18n.T()
 	buttons := []dvdMenuButton{
 		{
-			Label:   "Play",
+			Label:   t.AuthorPlay,
 			Command: "jump title 1;",
 		},
 	}
@@ -816,7 +818,7 @@ func buildDVDMenuButtons(chapters []authorChapter, hasExtras bool, width, height
 	// Add Chapters button if there are multiple chapters
 	if len(chapters) > 1 {
 		buttons = append(buttons, dvdMenuButton{
-			Label:   "Chapters",
+			Label:   t.AuthorChapters,
 			Command: "jump menu 2;", // Jump to chapters menu (second PGC)
 		})
 	}
@@ -828,7 +830,7 @@ func buildDVDMenuButtons(chapters []authorChapter, hasExtras bool, width, height
 			extrasMenuIndex = 3 // Chapters menu is PGC 2, so extras is PGC 3
 		}
 		buttons = append(buttons, dvdMenuButton{
-			Label:   "Extras",
+			Label:   t.AuthorExtrasMenu,
 			Command: fmt.Sprintf("jump menu %d;", extrasMenuIndex),
 		})
 	}
@@ -850,6 +852,7 @@ func buildDVDMenuButtons(chapters []authorChapter, hasExtras bool, width, height
 }
 
 func buildChapterMenuButtons(chapters []authorChapter, width, height int) []dvdMenuButton {
+	t := i18n.T()
 	buttons := []dvdMenuButton{}
 
 	// Add a button for each chapter
@@ -862,7 +865,7 @@ func buildChapterMenuButtons(chapters []authorChapter, width, height int) []dvdM
 
 	// Add Back button at the end
 	buttons = append(buttons, dvdMenuButton{
-		Label:   "Back",
+		Label:   t.AuthorBack,
 		Command: "jump menu 1;", // Jump back to main menu (first PGC)
 	})
 
@@ -885,11 +888,12 @@ func buildChapterMenuButtons(chapters []authorChapter, width, height int) []dvdM
 }
 
 type extraItem struct {
-	Title     string
-	TitleNum  int // DVD title number for this extra
+	Title    string
+	TitleNum int // DVD title number for this extra
 }
 
 func buildExtrasMenuButtons(extras []extraItem, width, height int) []dvdMenuButton {
+	t := i18n.T()
 	buttons := []dvdMenuButton{}
 
 	// Add a button for each extra
@@ -902,7 +906,7 @@ func buildExtrasMenuButtons(extras []extraItem, width, height int) []dvdMenuButt
 
 	// Add Back button at the end
 	buttons = append(buttons, dvdMenuButton{
-		Label:   "Back",
+		Label:   t.AuthorBack,
 		Command: "jump menu 1;", // Jump back to main menu (first PGC)
 	})
 
@@ -926,10 +930,11 @@ func buildExtrasMenuButtons(extras []extraItem, width, height int) []dvdMenuButt
 
 func buildMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
+	t := i18n.T()
 
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
 	if safeTitle == "" {
-		safeTitle = "DVD Menu"
+		safeTitle = t.AuthorDVDMenu
 	}
 
 	bgColor := theme.BackgroundColor
@@ -940,10 +945,10 @@ func buildMenuBackground(ctx context.Context, outputPath, title string, buttons 
 
 	filterParts := []string{
 		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText(t.AuthorVideoToolsDVD)),
 		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
 		fmt.Sprintf("drawbox=x=36:y=108:w=%d:h=2:color=%s:t=fill", width-72, accentColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=122:text=%s", fontArg, textColor, escapeDrawtextText("Select a title or chapter to play")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=122:text=%s", fontArg, textColor, escapeDrawtextText(t.AuthorSelectTitleChapter)),
 	}
 
 	for i, btn := range buttons {
@@ -993,10 +998,11 @@ func buildMenuBackground(ctx context.Context, outputPath, title string, buttons 
 // Title at top, buttons on left side, simple and elegant.
 func buildMinimalMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
+	t := i18n.T()
 
 	safeTitle := strings.ToUpper(utils.ShortenMiddle(strings.TrimSpace(title), 40))
 	if safeTitle == "" {
-		safeTitle = "DVD MENU"
+		safeTitle = strings.ToUpper(t.AuthorDVDMenu)
 	}
 
 	// Minimal theme uses pure black background with theme's text colors
@@ -1063,10 +1069,11 @@ func buildMinimalMenuBackground(ctx context.Context, outputPath, title string, b
 // - Decorative border lines
 func buildClassicMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
+	t := i18n.T()
 
 	safeTitle := strings.ToUpper(utils.ShortenMiddle(strings.TrimSpace(title), 40))
 	if safeTitle == "" {
-		safeTitle = "DVD MENU"
+		safeTitle = strings.ToUpper(t.AuthorDVDMenu)
 	}
 
 	bgColor := theme.BackgroundColor
@@ -1134,10 +1141,11 @@ func buildClassicMenuBackground(ctx context.Context, outputPath, title string, b
 // buildGridMenuBackground creates a grid menu with buttons arranged in a 2x2 or 3x2 matrix.
 func buildGridMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
+	t := i18n.T()
 
 	safeTitle := strings.ToUpper(utils.ShortenMiddle(strings.TrimSpace(title), 40))
 	if safeTitle == "" {
-		safeTitle = "DVD MENU"
+		safeTitle = strings.ToUpper(t.AuthorDVDMenu)
 	}
 
 	bgColor := theme.BackgroundColor
@@ -1210,10 +1218,11 @@ func buildGridMenuBackground(ctx context.Context, outputPath, title string, butt
 // buildFilmstripMenuBackground creates a filmstrip-style menu with wide horizontal buttons.
 func buildFilmstripMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
+	t := i18n.T()
 
 	safeTitle := strings.ToUpper(utils.ShortenMiddle(strings.TrimSpace(title), 40))
 	if safeTitle == "" {
-		safeTitle = "DVD MENU"
+		safeTitle = strings.ToUpper(t.AuthorDVDMenu)
 	}
 
 	bgColor := theme.BackgroundColor
@@ -1278,10 +1287,11 @@ func buildFilmstripMenuBackground(ctx context.Context, outputPath, title string,
 
 func buildDarkMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
+	t := i18n.T()
 
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
 	if safeTitle == "" {
-		safeTitle = "DVD Menu"
+		safeTitle = t.AuthorDVDMenu
 	}
 
 	bgColor := "0x000000"
@@ -1292,10 +1302,10 @@ func buildDarkMenuBackground(ctx context.Context, outputPath, title string, butt
 
 	filterParts := []string{
 		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText(t.AuthorVideoToolsDVD)),
 		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
 		fmt.Sprintf("drawbox=x=36:y=108:w=%d:h=2:color=%s:t=fill", width-72, accentColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=122:text=%s", fontArg, textColor, escapeDrawtextText("Select a title or chapter to play")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=122:text=%s", fontArg, textColor, escapeDrawtextText(t.AuthorSelectTitleChapter)),
 	}
 
 	for i, btn := range buttons {
@@ -1343,16 +1353,17 @@ func buildDarkMenuBackground(ctx context.Context, outputPath, title string, butt
 
 func buildPosterMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, backgroundImage string, theme *MenuTheme, logo menuLogoOptions, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
+	t := i18n.T()
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
 	if safeTitle == "" {
-		safeTitle = "DVD Menu"
+		safeTitle = t.AuthorDVDMenu
 	}
 
 	textColor := theme.TextColor
 	fontArg := menuFontArg(theme)
 
 	filterParts := []string{
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText("VideoTools DVD")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText(t.AuthorVideoToolsDVD)),
 		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=18:x=36:y=80:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
 	}
 
@@ -1401,10 +1412,11 @@ func buildPosterMenuBackground(ctx context.Context, outputPath, title string, bu
 
 func buildExtrasMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
+	t := i18n.T()
 
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
 	if safeTitle == "" {
-		safeTitle = "DVD Menu"
+		safeTitle = t.AuthorDVDMenu
 	}
 
 	bgColor := theme.BackgroundColor
@@ -1415,10 +1427,10 @@ func buildExtrasMenuBackground(ctx context.Context, outputPath, title string, bu
 
 	filterParts := []string{
 		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText("Extras")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText(t.AuthorExtrasMenu)),
 		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=52:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
 		fmt.Sprintf("drawbox=x=36:y=80:w=%d:h=2:color=%s:t=fill", width-72, accentColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=14:x=36:y=94:text=%s", fontArg, textColor, escapeDrawtextText("Select an extra to play")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=14:x=36:y=94:text=%s", fontArg, textColor, escapeDrawtextText(t.AuthorSelectExtra)),
 	}
 
 	for i, btn := range buttons {
@@ -1429,7 +1441,7 @@ func buildExtrasMenuBackground(ctx context.Context, outputPath, title string, bu
 		}
 		y := 120 + i*32
 		fontSize := 18
-		if btn.Label == "Back" {
+		if btn.Label == t.AuthorBack {
 			fontSize = 20 // Make Back button slightly larger
 		}
 		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=%d:x=80:y=%d:text=%s", fontArg, textColor, fontSize, y, label))
@@ -1444,10 +1456,11 @@ func buildExtrasMenuBackground(ctx context.Context, outputPath, title string, bu
 
 func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, thumbPaths []string, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
+	t := i18n.T()
 
 	safeTitle := utils.ShortenMiddle(strings.TrimSpace(title), 40)
 	if safeTitle == "" {
-		safeTitle = "DVD Menu"
+		safeTitle = t.AuthorDVDMenu
 	}
 
 	bgColor := theme.BackgroundColor
@@ -1458,10 +1471,10 @@ func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, 
 
 	filterParts := []string{
 		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText("Chapter Selection")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText(t.AuthorChapterSelection)),
 		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=16:x=36:y=52:text=%s", fontArg, textColor, escapeDrawtextText(safeTitle)),
 		fmt.Sprintf("drawbox=x=36:y=80:w=%d:h=2:color=%s:t=fill", width-72, accentColor),
-		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=14:x=36:y=94:text=%s", fontArg, textColor, escapeDrawtextText("Select a chapter to play")),
+		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=14:x=36:y=94:text=%s", fontArg, textColor, escapeDrawtextText(t.AuthorSelectChapterMenu)),
 	}
 
 	for i, btn := range buttons {
@@ -1472,7 +1485,7 @@ func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, 
 		}
 		y := 120 + i*32
 		fontSize := 18
-		if btn.Label == "Back" {
+		if btn.Label == t.AuthorBack {
 			fontSize = 20 // Make Back button slightly larger
 		}
 		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=%d:x=80:y=%d:text=%s", fontArg, textColor, fontSize, y, label))
@@ -1739,12 +1752,12 @@ func menuFontArg(theme *MenuTheme) string {
 	// Only use FontName if it's a known universally available font
 	if theme != nil && theme.FontName != "" {
 		safeFonts := map[string]bool{
-			"DejaVu Sans Mono":   true,
-			"DejaVu Sans":        true,
-			"Liberation Mono":    true,
-			"Liberation Sans":    true,
-			"FreeMono":           true,
-			"FreeSans":           true,
+			"DejaVu Sans Mono": true,
+			"DejaVu Sans":      true,
+			"Liberation Mono":  true,
+			"Liberation Sans":  true,
+			"FreeMono":         true,
+			"FreeSans":         true,
 		}
 		if safeFonts[theme.FontName] {
 			return fmt.Sprintf("font=%s", theme.FontName)
