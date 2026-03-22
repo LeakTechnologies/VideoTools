@@ -12,16 +12,15 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	queuepkg "git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 func (s *appState) showQueue() {
 	s.stopPreview()
 	s.stopPlayer()
-	// Only update the back target on a real forward navigation, not during back/forward jumps.
 	if s.active != "queue" && !s.navigationHistorySuppress {
 		s.lastModule = s.active
 		s.queueBackTarget = s.active
@@ -30,20 +29,18 @@ func (s *appState) showQueue() {
 	s.pushNavigationHistory("queue")
 	s.refreshQueueView()
 	if s.queueView != nil {
-		s.setContent(s.queueView.Root)
+		s.setContent(s.queueView.GetRoot())
 	}
 	s.startQueueAutoRefresh()
 	s.startQueueElapsedTicker()
 }
 
-// clearCompletedJobs removes all completed and failed jobs from the queue
 func (s *appState) clearCompletedJobs() {
 	if s.jobQueue != nil {
 		s.jobQueue.Clear()
 	}
 }
 
-// refreshQueueView rebuilds the queue UI while preserving scroll position and inline active conversion.
 func (s *appState) refreshQueueView() {
 	if s.active == "queue" {
 		now := time.Now()
@@ -53,23 +50,20 @@ func (s *appState) refreshQueueView() {
 		s.queueLastRefresh = now
 	}
 
-	// Preserve current scroll offset if we already have a view
 	if s.queueScroll != nil {
 		s.queueOffset = s.queueScroll.Offset
 	}
 
 	jobs := s.jobQueue.List()
-	// If a direct conversion is running but not represented in the queue, surface it as a pseudo job.
 	if s.convertBusy {
 		in := filepath.Base(s.convertActiveIn)
 		if in == "" && s.source != nil {
 			in = filepath.Base(s.source.Path)
 		}
 		out := filepath.Base(s.convertActiveOut)
-		jobs = append([]*queue.Job{{
-			ID:          "active-convert",
-			Type:        queue.JobTypeConvert,
-			Status:      queue.JobStatusRunning,
+		jobs = append([]*queuepkg.Job{{
+			Type:        queuepkg.JobTypeConvert,
+			Status:      queuepkg.JobStatusRunning,
 			Title:       fmt.Sprintf("Direct convert: %s", in),
 			Description: fmt.Sprintf("Output: %s", out),
 			Progress:    s.convertProgress,
@@ -82,10 +76,13 @@ func (s *appState) refreshQueueView() {
 	}
 
 	if s.queueView == nil {
-		view := ui.BuildQueueView(
-			jobs,
-			func() { // onBack
-				// Stop auto-refresh before navigating away for snappy response
+		opts := queue.Options{
+			Window: s.window,
+			Jobs:   jobs,
+			OnStopPreview: func() {
+				s.stopPreview()
+			},
+			OnBack: func() {
 				s.stopQueueAutoRefresh()
 				target := s.queueBackTarget
 				if target == "" {
@@ -97,71 +94,63 @@ func (s *appState) refreshQueueView() {
 					s.showMainMenu()
 				}
 			},
-			func(id string) { // onPause
+			OnPause: func(id string) {
 				if err := s.jobQueue.Pause(id); err != nil {
 					logging.Debug(logging.CatSystem, "failed to pause job: %v", err)
 				}
 			},
-			func(id string) { // onResume
+			OnResume: func(id string) {
 				if err := s.jobQueue.Resume(id); err != nil {
 					logging.Debug(logging.CatSystem, "failed to resume job: %v", err)
 				}
 			},
-			func(id string) { // onCancel
+			OnCancel: func(id string) {
 				if err := s.jobQueue.Cancel(id); err != nil {
 					logging.Debug(logging.CatSystem, "failed to cancel job: %v", err)
 				}
 			},
-			func(id string) { // onRemove
+			OnRemove: func(id string) {
 				if err := s.jobQueue.Remove(id); err != nil {
 					logging.Debug(logging.CatSystem, "failed to remove job: %v", err)
 				}
 			},
-			func(id string) { // onMoveUp
+			OnMoveUp: func(id string) {
 				if err := s.jobQueue.MoveUp(id); err != nil {
 					logging.Debug(logging.CatSystem, "failed to move job up: %v", err)
 				}
 			},
-			func(id string) { // onMoveDown
+			OnMoveDown: func(id string) {
 				if err := s.jobQueue.MoveDown(id); err != nil {
 					logging.Debug(logging.CatSystem, "failed to move job down: %v", err)
 				}
 			},
-			func() { // onPauseAll
+			OnPauseAll: func() {
 				s.jobQueue.PauseAll()
 			},
-			func() { // onResumeAll
+			OnResumeAll: func() {
 				s.jobQueue.ResumeAll()
 			},
-			func() { // onStart
+			OnStart: func() {
 				s.jobQueue.ResumeAll()
 			},
-			func() { // onClear
-				// Stop auto-refresh to prevent double UI updates
-				s.stopQueueAutoRefresh()
+			OnClear: func() {
 				s.jobQueue.Clear()
-
-				// Always return to main menu after clearing
 				if len(s.jobQueue.List()) == 0 {
 					s.showMainMenu()
 				} else {
-					// Restart auto-refresh and do single refresh
 					s.startQueueAutoRefresh()
 					s.refreshQueueView()
 				}
 			},
-			func() { // onClearAll
-				// Stop auto-refresh to prevent double UI updates during navigation
-				s.stopQueueAutoRefresh()
+			OnClearAll: func() {
 				s.jobQueue.ClearAll()
-				// Return to the module we were working on if possible
 				if s.lastModule != "" && s.lastModule != "queue" && s.lastModule != "menu" {
 					s.showModule(s.lastModule)
 				} else {
 					s.showMainMenu()
 				}
 			},
-			func(id string) { // onCopyError
+			OnCopyError: func(id string) {
 				job, err := s.jobQueue.Get(id)
 				if err != nil {
 					logging.Debug(logging.CatSystem, "copy error text failed: %v", err)
@@ -202,7 +191,7 @@ func (s *appState) refreshQueueView() {
 				}
 				s.window.Clipboard().SetContent(strings.TrimSpace(b.String()))
 			},
-			func(id string) { // onViewLog
+			OnViewLog: func(id string) {
 				job, err := s.jobQueue.Get(id)
 				if err != nil {
 					logging.Debug(logging.CatSystem, "view log failed: %v", err)
@@ -224,7 +213,7 @@ func (s *appState) refreshQueueView() {
 				text.Disable()
 				dialog.ShowCustom("Conversion Log", "Close", container.NewVScroll(text), s.window)
 			},
-			func(id string) { // onCopyCommand
+			OnCopyCommand: func(id string) {
 				job, err := s.jobQueue.Get(id)
 				if err != nil {
 					logging.Debug(logging.CatSystem, "copy command failed: %v", err)
@@ -238,14 +227,14 @@ func (s *appState) refreshQueueView() {
 				s.window.Clipboard().SetContent(cmdStr)
 				dialog.ShowInformation("Copied", "FFmpeg command copied to clipboard", s.window)
 			},
-			func(id string) { // onOpenFolder
+			OnOpenFolder: func(id string) {
 				job, err := s.jobQueue.Get(id)
 				if err != nil || job.OutputFile == "" {
 					return
 				}
 				_ = openFolder(filepath.Dir(job.OutputFile))
 			},
-			func(id string) { // onOpenOutput
+			OnOpenOutput: func(id string) {
 				job, err := s.jobQueue.Get(id)
 				if err != nil || job.OutputFile == "" {
 					return
@@ -264,16 +253,17 @@ func (s *appState) refreshQueueView() {
 					_ = openURL(job.OutputFile)
 				}
 			},
-			utils.MustHex("#4CE870"), // titleColor
-			gridColor,                // bgColor
-			textColor,                // textColor
-		)
+			TitleColor: utils.MustHex("#4CE870"),
+			BgColor:    gridColor,
+			TextColor:  textColor,
+		}
+
+		_, view := queue.BuildView(opts)
 
 		s.queueView = view
-		s.queueScroll = view.Scroll
-		s.setContent(view.Root)
+		s.queueScroll = view.GetScroll()
+		s.setContent(view.GetRoot())
 
-		// Restore scroll offset
 		if s.queueScroll != nil && s.active == "queue" {
 			savedOffset := s.queueOffset
 			go func() {
@@ -299,7 +289,6 @@ func (s *appState) startQueueAutoRefresh() {
 	s.queueAutoRefreshStop = stop
 	s.queueAutoRefreshRunning = true
 	go func() {
-		// Short interval keeps elapsed/progress responsive with incremental UI updates.
 		ticker := time.NewTicker(500 * time.Millisecond)
 		defer ticker.Stop()
 		for {
