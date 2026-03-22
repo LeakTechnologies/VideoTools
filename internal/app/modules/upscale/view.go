@@ -250,7 +250,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	containerSelect.SetSelected(opts.UpscaleOutputContainer())
 
-	hwAccelSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "vaapi", "qsv", "videotoolbox"}, func(s string) {
+	hwAccelSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "vaapi", "qsv", "amf"}, func(s string) {
 		opts.SetUpscaleHardwareAccel(s)
 	})
 	if opts.UpscaleHardwareAccel() == "" {
