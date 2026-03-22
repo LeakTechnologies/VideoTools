@@ -173,6 +173,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 		sourceResLabel = widget.NewLabel(fmt.Sprintf(t.UpscaleSourceFmt, state.upscaleFile.Width, state.upscaleFile.Height))
 		sourceResLabel.TextStyle = fyne.TextStyle{Italic: true}
 		videoContainer = buildVideoPane(state, fyne.NewSize(480, 270), state.upscaleFile, nil)
+		if HasNativeMediaPlayer() {
+			state.loadVideoNative(state.upscaleFile.Path)
+		}
 	} else {
 		sourceResLabel = widget.NewLabel(t.UpscaleSourceNA)
 		sourceResLabel.TextStyle = fyne.TextStyle{Italic: true}
@@ -199,6 +202,9 @@ func buildUpscaleView(state *appState) fyne.CanvasObject {
 
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					state.upscaleFile = src
+					if HasNativeMediaPlayer() {
+						state.loadVideoNative(path)
+					}
 					state.showUpscaleView()
 				}, false)
 			}()
