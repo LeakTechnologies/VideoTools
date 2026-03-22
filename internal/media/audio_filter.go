@@ -3,7 +3,9 @@
 package media
 
 /*
-#cgo pkg-config: libavfilter libavcodec libavformat libavutil
+#cgo !windows pkg-config: libavfilter libavcodec libavformat libavutil
+#cgo windows CFLAGS: -IC:/ffmpeg/include
+#cgo windows LDFLAGS: -LC:/ffmpeg/lib -lavfilter -lavcodec -lavformat -lavutil
 #include <libavfilter/avfilter.h>
 #include <libavfilter/buffersink.h>
 #include <libavfilter/buffersrc.h>
