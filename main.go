@@ -8129,20 +8129,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Navigation buttons for multiple loaded videos
 	var navButtons fyne.CanvasObject
 	if len(state.loadedVideos) > 1 {
-		prevBtn := widget.NewButton("- Prev", func() {
+		prevBtn := widget.NewButton("- "+t.ConvertNavPrev, func() {
 			state.prevVideo()
 		})
-		nextBtn := widget.NewButton("Next -", func() {
+		nextBtn := widget.NewButton(t.ConvertNavNext+" -", func() {
 			state.nextVideo()
 		})
-		videoCounter := widget.NewLabel(fmt.Sprintf("Video %d of %d", state.currentIndex+1, len(state.loadedVideos)))
+		videoCounter := widget.NewLabel(fmt.Sprintf(t.ConvertVideoOfFmt, state.currentIndex+1, len(state.loadedVideos)))
 		navButtons = container.NewHBox(prevBtn, videoCounter, nextBtn)
 	} else {
 		navButtons = container.NewHBox()
 	}
 
 	// Queue button to view queue
-	queueBtn := widget.NewButton("View Queue", func() {
+	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
 		state.showQueue()
 	})
 	state.queueBtn = queueBtn
@@ -9158,7 +9158,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	logsUseDefaultBtn.Importance = widget.LowImportance
 
-	resetSettingsBtn := widget.NewButton("Reset to Defaults", func() {
+	resetSettingsBtn := widget.NewButton(t.ConvertResetDefaults, func() {
 		if resetConvertDefaults != nil {
 			resetConvertDefaults()
 		}
@@ -10891,8 +10891,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	tabs = container.NewAppTabs(
-		container.NewTabItem("Simple", simpleScrollBox),
-		container.NewTabItem("Advanced", advancedScrollBox),
+		container.NewTabItem(t.ConvertTabSimple, simpleScrollBox),
+		container.NewTabItem(t.ConvertTabAdvanced, advancedScrollBox),
 	)
 	tabs.SetTabLocation(container.TabLocationTop)
 
@@ -10903,7 +10903,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Update mode when tab changes
 	tabs.OnSelected = func(item *container.TabItem) {
-		if item.Text == "Simple" {
+		if item.Text == t.ConvertTabSimple {
 			state.convert.Mode = "Simple"
 			logging.Debug(logging.CatUI, "convert mode selected: Simple")
 		} else {
@@ -10968,22 +10968,22 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Snippet length configuration
-	snippetLengthLabel := widget.NewLabel(fmt.Sprintf("Snippet Length: %d seconds", state.snippetLength))
+	snippetLengthLabel := widget.NewLabel(fmt.Sprintf(t.ConvertSnippetLengthFmt, state.snippetLength))
 	snippetLengthSlider := widget.NewSlider(5, 60)
 	snippetLengthSlider.SetValue(float64(state.snippetLength))
 	snippetLengthSlider.Step = 1
 	snippetLengthSlider.OnChanged = func(value float64) {
 		state.snippetLength = int(value)
-		snippetLengthLabel.SetText(fmt.Sprintf("Snippet Length: %d seconds", state.snippetLength))
+		snippetLengthLabel.SetText(fmt.Sprintf(t.ConvertSnippetLengthFmt, state.snippetLength))
 	}
 
 	// Snippet output mode
-	snippetModeLabel := widget.NewLabel("Snippet Output:")
-	snippetModeCheck := widget.NewCheck("Match Source Format", func(checked bool) {
+	snippetModeLabel := widget.NewLabel(t.ConvertSnippetOutput)
+	snippetModeCheck := widget.NewCheck(t.ConvertMatchSourceFormat, func(checked bool) {
 		state.snippetSourceFormat = checked
 	})
 	snippetModeCheck.SetChecked(state.snippetSourceFormat)
-	snippetModeHint := widget.NewLabel("Unchecked = Use Conversion Settings")
+	snippetModeHint := widget.NewLabel(t.ConvertUseConvSettings)
 	snippetModeHint.TextStyle = fyne.TextStyle{Italic: true}
 
 	snippetConfigRow := container.NewVBox(
@@ -10995,7 +10995,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetModeHint,
 	)
 
-	snippetBtn := widget.NewButton("Generate Snippet", func() {
+	snippetBtn := widget.NewButton(t.ConvertGenerateSnippet, func() {
 		if state.source == nil {
 			dialog.ShowInformation(t.DialogSnippet, "Load a video first.", state.window)
 			return
@@ -11057,7 +11057,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Button to generate snippets for all loaded videos
 	var snippetAllBtn *widget.Button
 	if len(state.loadedVideos) > 1 {
-		snippetAllBtn = widget.NewButton("Generate All Snippets", func() {
+		snippetAllBtn = widget.NewButton(t.ConvertGenerateAllSnippets, func() {
 			if state.jobQueue == nil {
 				dialog.ShowInformation(t.MenuQueue, t.DialogQueueNotInit, state.window)
 				return
@@ -11124,11 +11124,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetAllBtn.Importance = widget.HighImportance
 	}
 
-	snippetHint := widget.NewLabel("Creates a clip centred on the timeline midpoint.")
+	snippetHint := widget.NewLabel(t.ConvertSnippetHint)
 
 	var snippetOptionsBtn *widget.Button
-	snippetOptionsBtn = widget.NewButton("Snippet Options", func() {
-		toggleDrawer(&snippetDrawer, "Snippet Options", snippetConfigRow)
+	snippetOptionsBtn = widget.NewButton(t.ConvertSnippetOptions, func() {
+		toggleDrawer(&snippetDrawer, t.ConvertSnippetOptions, snippetConfigRow)
 	})
 	snippetOptionsBtn.Importance = widget.LowImportance
 	if src == nil {
@@ -11162,7 +11162,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Add horizontal padding around the split (10px on each side)
 	mainContent := container.NewPadded(mainSplit)
 
-	resetBtn := widget.NewButton("Reset", func() {
+	resetBtn := widget.NewButton(t.ConvertReset, func() {
 		if resetConvertDefaults != nil {
 			resetConvertDefaults()
 		}
@@ -11172,9 +11172,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	if state.convertBusy {
 		statusLabel.SetText(state.convertStatus)
 	} else if src != nil {
-		statusLabel.SetText("Ready to convert")
+		statusLabel.SetText(t.ConvertReadyToConvert)
 	} else {
-		statusLabel.SetText("Load a video to convert")
+		statusLabel.SetText(t.ConvertLoadVideoToConvert)
 	}
 	activity := widget.NewProgressBarInfinite()
 	activity.Stop()
@@ -11212,16 +11212,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	cancelQueueBtn.Disable()
 
 	// Add to Queue button
-	addQueueBtn := widget.NewButton("Add to Queue", func() {
+	addQueueBtn := widget.NewButton(t.ActionAddToQueue, func() {
 		state.persistConvertConfig()
 		state.executeAddToQueue()
 	})
-	if src == nil {
-		addQueueBtn.Disable()
-	}
 
 	// Add All to Queue button (only shown when multiple videos are loaded)
-	addAllQueueBtn := widget.NewButton("Add All to Queue", func() {
+	addAllQueueBtn := widget.NewButton(t.ConvertAddAllToQueue, func() {
 		state.persistConvertConfig()
 		state.executeAddAllToQueue()
 	})
@@ -11239,7 +11236,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		convertBtn.Disable()
 	}
 
-	viewLogBtn := widget.NewButton("View Log", func() {
+	viewLogBtn := widget.NewButton(t.ConvertViewLog, func() {
 		if state.convertActiveLog == "" {
 			dialog.ShowInformation(t.DialogNoLog, "No conversion log available.", state.window)
 			return
@@ -11289,13 +11286,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Auto-compare checkbox
-	autoCompareCheck := widget.NewCheck("Compare After", func(checked bool) {
+	autoCompareCheck := widget.NewCheck(t.ConvertCompareAfter, func(checked bool) {
 		state.autoCompare = checked
 	})
 	autoCompareCheck.SetChecked(state.autoCompare)
 
 	// Load/Save config buttons
-	loadCfgBtn := widget.NewButton("Load Config", func() {
+	loadCfgBtn := widget.NewButton(t.ActionLoadConfig, func() {
 		cfg, err := loadPersistedConvertConfig()
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -11310,7 +11307,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	loadCfgBtn.Importance = widget.MediumImportance
 
-	saveCfgBtn := widget.NewButton("Save Config", func() {
+	saveCfgBtn := widget.NewButton(t.ActionSaveConfig, func() {
 		if err := savePersistedConvertConfig(state.convert); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
 			return
