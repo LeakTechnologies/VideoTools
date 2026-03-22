@@ -254,9 +254,6 @@ jobs:
           path: C:\ffmpeg
           key: ffmpeg-win64-gpl-master-20250322-v1
 
-      - name: Install pkg-config (Windows)
-        run: choco install pkgconfiglite --no-progress -y
-
       - name: Download static FFmpeg (Windows)
         if: steps.cache-ffmpeg-win.outputs.cache-hit != 'true'
         run: |
