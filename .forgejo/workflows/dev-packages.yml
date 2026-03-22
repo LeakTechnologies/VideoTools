@@ -252,12 +252,13 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\ffmpeg
-          key: ffmpeg-win64-gpl-master-20250322-v1
+          key: ffmpeg-win64-gpl-shared-20250322-v1
 
       - name: Download static FFmpeg (Windows)
         if: steps.cache-ffmpeg-win.outputs.cache-hit != 'true'
         run: |
-          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
+          # Use the shared build — it includes include/ and lib/ needed for CGO compilation.
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
           Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ffmpeg.zip" -UseBasicParsing
           Expand-Archive "$env:TEMP\ffmpeg.zip" -DestinationPath "$env:TEMP\ffmpeg-extract" -Force
           $inner = Get-ChildItem "$env:TEMP\ffmpeg-extract" -Directory | Select-Object -First 1
@@ -267,7 +268,7 @@ jobs:
 
       - name: Build Windows package
         env:
-          # Static FFmpeg — headers and .a libs from BtbN MinGW static build
+          # BtbN shared FFmpeg — include/ headers and lib/ MinGW import libs at C:\ffmpeg
           PKG_CONFIG_PATH: C:\ffmpeg\lib\pkgconfig
           # SignPath.io (free OSS signing — https://signpath.io/product/open-source)
           # Set these secrets once approved; signing is skipped when absent.
@@ -345,7 +346,7 @@ jobs:
 
           $env:CGO_ENABLED = "1"
 
-          # Set baseline CGO flags for the static BtbN FFmpeg at C:\ffmpeg.
+          # Set baseline CGO flags for the BtbN shared FFmpeg at C:\ffmpeg.
           # These are always applied; real pkg-config (if available) may override them.
           $env:CGO_CFLAGS  = "-IC:\ffmpeg\include"
           $env:CGO_LDFLAGS = "-LC:\ffmpeg\lib -lavcodec -lavformat -lavutil -lswscale -lswresample -lavfilter -lbcrypt -lSecur32 -lWs2_32 -lmfplat -lstrmiids -lavrt -lole32 -luser32"
@@ -404,6 +405,16 @@ jobs:
           Copy-Item $buildOutput -Destination $pkgDir.FullName -Force
           if (Test-Path (Join-Path $projectRoot "README.md")) {
             Copy-Item (Join-Path $projectRoot "README.md") -Destination $pkgDir.FullName -Force
+          }
+          # Bundle FFmpeg DLLs (required at runtime for native_media build)
+          $ffmpegBinDir = "C:\ffmpeg\bin"
+          if (Test-Path $ffmpegBinDir) {
+            Get-ChildItem "$ffmpegBinDir\*.dll" |
+              Where-Object { $_.Name -notmatch "^(ffmpeg|ffprobe|ffplay)" } |
+              ForEach-Object { Copy-Item $_.FullName -Destination $pkgDir.FullName -Force }
+            Write-Host "[INFO] Bundled FFmpeg DLLs from $ffmpegBinDir"
+          } else {
+            Write-Host "[WARN] FFmpeg bin dir not found; DLLs not bundled" -ForegroundColor Yellow
           }
           $artifactPath = Join-Path $distDir $artifactName
           if (Test-Path $artifactPath) {
