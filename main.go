@@ -40,6 +40,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	convertmodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/convert"
+	queuemodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/trim"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
@@ -1239,7 +1240,7 @@ type appState struct {
 
 	queueAutoRefreshStop    chan struct{}
 	queueAutoRefreshRunning bool
-	queueView               *ui.QueueView
+	queueView               queuemodule.ViewAPI
 	queueElapsedStop        chan struct{}
 	queueElapsedRunning     bool
 
