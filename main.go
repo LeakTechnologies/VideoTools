@@ -458,38 +458,32 @@ func effectiveHardwareAccel(cfg convertConfig) string {
 // detectBestHardwareAccel probes available hardware acceleration backends.
 // Returns "none" if no known backend is available.
 func detectBestHardwareAccel() string {
-	switch runtime.GOOS {
-	case "darwin":
-		if hwAccelAvailable("videotoolbox") {
-			return "videotoolbox"
-		}
-		return "none"
-	case "windows":
+	if runtime.GOOS == "windows" {
 		if hwAccelAvailable("nvenc") {
 			return "nvenc"
 		}
 		if hwAccelAvailable("qsv") {
 			return "qsv"
-		}
-		if hwAccelAvailable("amf") {
-			return "amf"
-		}
-		return "none"
-	default:
-		if hwAccelAvailable("nvenc") {
-			return "nvenc"
-		}
-		if hwAccelAvailable("qsv") {
-			return "qsv"
-		}
-		if hwAccelAvailable("vaapi") {
-			return "vaapi"
 		}
 		if hwAccelAvailable("amf") {
 			return "amf"
 		}
 		return "none"
 	}
+	// Linux
+	if hwAccelAvailable("nvenc") {
+		return "nvenc"
+	}
+	if hwAccelAvailable("qsv") {
+		return "qsv"
+	}
+	if hwAccelAvailable("vaapi") {
+		return "vaapi"
+	}
+	if hwAccelAvailable("amf") {
+		return "amf"
+	}
+	return "none"
 }
 
 // hwAccelAvailable checks if the hardware acceleration is actually usable on this system.
@@ -508,12 +502,7 @@ func hwAccelAvailable(accel string) bool {
 		return checkQsvRuntime()
 	case "vaapi":
 		return checkVaapiRuntime()
-	case "videotoolbox":
-		return checkVideotoolboxRuntime()
 	case "amf":
-		// AMF is AMD-specific. Check if we have an AMD GPU and AMD drivers.
-		// For simplicity, we return false unless on Windows with AMF explicitly available.
-		// AMF support is spotty and often requires AMD's proprietary driver.
 		return checkAmfRuntime()
 	default:
 		return false
@@ -10141,12 +10130,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Always show platform-relevant options so users can manually override
 	// even when auto-detection fails. The "auto" mode still probes at encode time.
 	hwAccelOptions := []string{"auto", "none"}
-	switch runtime.GOOS {
-	case "windows":
+	if runtime.GOOS == "windows" {
 		hwAccelOptions = append(hwAccelOptions, "nvenc", "qsv", "amf")
-	case "darwin":
-		hwAccelOptions = append(hwAccelOptions, "videotoolbox")
-	default: // Linux and others
+	} else {
 		hwAccelOptions = append(hwAccelOptions, "nvenc", "qsv", "vaapi", "amf")
 	}
 	hwAccelSelect := widget.NewSelect(hwAccelOptions, func(value string) {
