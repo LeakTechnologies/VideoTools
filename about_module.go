@@ -12,8 +12,8 @@ func (s *appState) showAbout() {
 	t := i18n.T()
 
 	var vtLogoRes, ltLogoRes fyne.Resource
-	if data, err := logoAssets.ReadFile("assets/logo/VT_logo.svg"); err == nil {
-		vtLogoRes = fyne.NewStaticResource("VT_logo.svg", data)
+	if data, err := logoAssets.ReadFile("assets/logo/VT_logo.png"); err == nil {
+		vtLogoRes = fyne.NewStaticResource("VT_logo.png", data)
 	}
 	if data, err := logoAssets.ReadFile("assets/logo/LT_Logo-26.png"); err == nil {
 		ltLogoRes = fyne.NewStaticResource("LT_Logo-26.png", data)
