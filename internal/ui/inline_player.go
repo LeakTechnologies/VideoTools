@@ -3,6 +3,9 @@
 package ui
 
 import (
+	"fmt"
+	"image"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -14,6 +17,7 @@ import (
 type InlineVideoPlayer struct {
 	player  *media.VideoPlayer
 	engine  *media.Engine
+	scrubber *media.SmoothScrubbing
 	playing bool
 }
 
@@ -57,6 +61,17 @@ func (v *InlineVideoPlayer) Load(path string) error {
 	if img, err := v.engine.NextFrame(); err == nil {
 		v.player.SetFrame(img)
 	}
+
+	if v.scrubber != nil {
+		v.scrubber.Stop()
+	}
+	v.scrubber = media.NewSmoothScrubbing(v.engine)
+	v.scrubber.SetOnFrame(func(img *image.RGBA) {
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			v.player.SetFrame(img)
+		}, false)
+	})
+	v.scrubber.Start()
 
 	v.player.SetLoading(false)
 	return nil
@@ -108,8 +123,34 @@ func (v *InlineVideoPlayer) StepFrame(dir int) {
 	}
 }
 
+func (v *InlineVideoPlayer) ScrubTo(target float64) {
+	if v.engine == nil || v.scrubber == nil {
+		return
+	}
+	v.scrubber.RequestSeek(target)
+	v.player.SetCurrentTime(target)
+}
+
+func (v *InlineVideoPlayer) GetAudioTracks() []media.StreamInfo {
+	if v.engine == nil {
+		return nil
+	}
+	return v.engine.GetAudioTracks()
+}
+
+func (v *InlineVideoPlayer) SelectAudioTrack(idx int) error {
+	if v.engine == nil {
+		return fmt.Errorf("no media loaded")
+	}
+	return v.engine.SelectAudioTrack(idx)
+}
+
 func (v *InlineVideoPlayer) Close() {
 	v.playing = false
+	if v.scrubber != nil {
+		v.scrubber.Stop()
+		v.scrubber = nil
+	}
 	if v.engine != nil {
 		v.engine.Close()
 		v.engine = nil
@@ -123,6 +164,10 @@ func (v *InlineVideoPlayer) playbackLoop() {
 	for v.playing {
 		img, err := v.engine.NextFrame()
 		if err != nil {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				v.player.SetError("Playback stopped: " + err.Error())
+				v.player.SetPlaying(false)
+			}, false)
 			return
 		}
 		v.player.SetFrame(img)

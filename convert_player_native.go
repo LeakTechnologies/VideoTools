@@ -165,7 +165,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 			return
 		}
 		updateProgress(val)
-		state.seekNative(val)
+		state.scrubNative(val)
 	}
 
 	var volIcon *widget.Button
@@ -285,9 +285,41 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	advancedBg := canvas.NewRectangle(utils.MustHex("#0C111F"))
 	advancedBg.StrokeColor = gridColor
 	advancedBg.StrokeWidth = 1
+
+	audioTracks := player.GetAudioTracks()
+	audioTrackSelect := widget.NewSelect(nil, nil)
+	audioTrackSelect.Hide()
+	if len(audioTracks) > 1 {
+		names := make([]string, len(audioTracks))
+		for i, tr := range audioTracks {
+			label := tr.Language
+			if tr.Title != "" {
+				label = tr.Title
+			}
+			if label == "" {
+				label = fmt.Sprintf("Track %d", i+1)
+			}
+			if tr.CodecName != "" {
+				label += " (" + tr.CodecName + ")"
+			}
+			names[i] = label
+		}
+		audioTrackSelect.Options = names
+		audioTrackSelect.SetSelected(names[0])
+		audioTrackSelect.OnChanged = func(selected string) {
+			for i, n := range names {
+				if n == selected {
+					state.selectAudioTrackNative(i)
+					break
+				}
+			}
+		}
+		audioTrackSelect.Show()
+	}
+
 	frameTools := container.NewBorder(nil, nil,
 		container.NewHBox(widget.NewSeparator(), frameLabel),
-		container.NewHBox(coverBtn, saveFrameBtn, importBtn),
+		container.NewHBox(audioTrackSelect, coverBtn, saveFrameBtn, importBtn),
 		nil,
 	)
 	advancedBar := container.NewMax(advancedBg, container.NewPadded(frameTools))
