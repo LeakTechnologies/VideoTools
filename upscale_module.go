@@ -1,29 +1,12 @@
 package main
 
 import (
-	"fmt"
-	"image/color"
-	"net/url"
-	"path/filepath"
-	"strconv"
-	"strings"
-
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/driver/desktop"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/widget"
-
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/upscale"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"image/color"
 )
-
-// AI Helper Functions - delegates to internal package
 
 func detectAIUpscaleBackend() string {
 	return upscale.DetectAIUpscaleBackend()
@@ -70,1029 +53,147 @@ func (s *appState) showUpscaleView() {
 	s.lastModule = s.active
 	s.active = "upscale"
 	s.maximizeWindow()
-	s.setContent(buildUpscaleView(s))
+	s.setContent(upscale.BuildView(s.upscaleOptions()))
 }
 
-// buildUpscaleView creates the Upscale module UI
-func buildUpscaleView(state *appState) fyne.CanvasObject {
-	upscaleColor := moduleColor("upscale")
-	t := i18n.T()
+func (s *appState) upscaleOptions() upscale.Options {
+	return upscale.Options{
+		Window:      s.window,
+		ModuleColor: moduleColor("upscale"),
 
-	// Back button
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleUpscale), func() {
-		state.showMainMenu()
-	})
-	backBtn.Importance = widget.LowImportance
+		UpscaleFile: s.upscaleFile,
+		QueueBtn:    s.queueBtn,
 
-	// Queue button
-	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
-		state.showQueue()
-	})
-	state.queueBtn = queueBtn
-	state.updateQueueButtonLabel()
-
-	// Top bar with module color
-	topBar := ui.TintedBar(upscaleColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-
-	// Initialize state defaults
-	if state.upscaleMethod == "" {
-		state.upscaleMethod = "lanczos" // Best general-purpose traditional method
-	}
-	if state.upscaleTargetRes == "" {
-		state.upscaleTargetRes = "Match Source"
-	}
-	if state.upscaleAIModel == "" {
-		state.upscaleAIModel = "realesrgan-x4plus" // General purpose AI model
-	}
-	if state.upscaleFrameRate == "" {
-		state.upscaleFrameRate = "Source"
-	}
-	if state.upscaleQualityPreset == "" {
-		state.upscaleQualityPreset = "Near-lossless (CRF 16)"
-	}
-	if state.upscaleEncoderPreset == "" {
-		state.upscaleEncoderPreset = "slow"
-	}
-	if state.upscaleVideoCodec == "" {
-		state.upscaleVideoCodec = "H.264"
-	}
-	if state.upscaleBitrateMode == "" {
-		state.upscaleBitrateMode = "CRF"
-	}
-	if state.upscaleBitratePreset == "" {
-		state.upscaleBitratePreset = "2.5 Mbps - Medium"
-	}
-	if state.upscaleManualBitrate == "" {
-		state.upscaleManualBitrate = "2500k"
-	}
-	if state.upscaleAIPreset == "" {
-		state.upscaleAIPreset = "Balanced"
-		state.upscaleAIScale = 4.0
-		state.upscaleAIScaleUseTarget = true
-		state.upscaleAIOutputAdjust = 1.0
-		state.upscaleAIDenoise = 0.5
-		state.upscaleAITile = 512
-		state.upscaleAIOutputFormat = "png"
-		state.upscaleAIGPUAuto = true
-		state.upscaleAIThreadsLoad = 1
-		state.upscaleAIThreadsProc = 2
-		state.upscaleAIThreadsSave = 2
-	}
-	if state.upscaleBlurSigma <= 0 {
-		state.upscaleBlurSigma = 1.5
-	}
-
-	// Check AI availability on first load
-	if state.upscaleAIBackend == "" {
-		state.upscaleAIBackend = detectAIUpscaleBackend()
-		state.upscaleAIAvailable = state.upscaleAIBackend == "ncnn"
-	}
-	// Check RIFE availability on first load
-	if state.upscaleRIFEBackend == "" {
-		state.upscaleRIFEBackend = detectRIFEBackend()
-		state.upscaleRIFEAvailable = state.upscaleRIFEBackend == "ncnn"
-	}
-	if state.upscaleRIFEMultiplier == 0 {
-		state.upscaleRIFEMultiplier = 2
-	}
-	if state.upscaleRIFEModel == "" {
-		state.upscaleRIFEModel = rifeModelOptions()[0]
-	}
-	if len(state.filterActiveChain) > 0 {
-		state.upscaleFilterChain = append([]string{}, state.filterActiveChain...)
-	}
-
-	// File label
-	fileLabel := widget.NewLabel(t.LabelNoFile)
-	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	var videoContainer fyne.CanvasObject
-	var sourceResLabel *widget.Label
-	if state.upscaleFile != nil {
-		fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, filepath.Base(state.upscaleFile.Path)))
-		sourceResLabel = widget.NewLabel(fmt.Sprintf(t.UpscaleSourceFmt, state.upscaleFile.Width, state.upscaleFile.Height))
-		sourceResLabel.TextStyle = fyne.TextStyle{Italic: true}
-		videoContainer = buildVideoPane(state, fyne.NewSize(480, 270), state.upscaleFile, nil)
-		if HasNativeMediaPlayer() {
-			state.loadVideoNative(state.upscaleFile.Path)
-		}
-	} else {
-		sourceResLabel = widget.NewLabel(t.UpscaleSourceNA)
-		sourceResLabel.TextStyle = fyne.TextStyle{Italic: true}
-		videoContainer = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
-	}
-
-	// Load button
-	loadBtn := widget.NewButton(t.ActionLoadVideo, func() {
-		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
-			if err != nil || reader == nil {
-				return
+		OnShowMainMenu:           s.showMainMenu,
+		OnShowQueue:              s.showQueue,
+		OnShowFiltersView:        s.showFiltersView,
+		OnUpdateQueueButtonLabel: s.updateQueueButtonLabel,
+		OnGetStatsBar: func() *ui.ConversionStatsBar {
+			return s.statsBar
+		},
+		OnGetModuleFooter: func(col color.Color, actions fyne.CanvasObject, stats *ui.ConversionStatsBar) fyne.CanvasObject {
+			return moduleFooter(col, actions, stats)
+		},
+		OnGetGridColor: func() color.Color {
+			return gridColor
+		},
+		OnProbeVideo: func(path string) (interface{}, error) {
+			return probeVideo(path)
+		},
+		OnBuildVideoPane: func(state interface{}, size fyne.Size, src interface{}, overlay fyne.CanvasObject) fyne.CanvasObject {
+			if vs, ok := src.(*videoSource); ok {
+				return buildVideoPane(nil, size, vs, nil)
 			}
-			defer reader.Close()
+			return nil
+		},
+		OnHasNativeMediaPlayer: HasNativeMediaPlayer,
+		OnLoadVideoNative:      s.loadVideoNative,
+		OnGetFilterActiveChain: func() []string {
+			return s.filterActiveChain
+		},
 
-			path := reader.URI().Path()
-			go func() {
-				src, err := probeVideo(path)
-				if err != nil {
-					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						dialog.ShowError(err, state.window)
-					}, false)
-					return
-				}
+		UpscaleMethod:              func() string { return s.upscaleMethod },
+		UpscaleTargetRes:           func() string { return s.upscaleTargetRes },
+		UpscaleCustomWidth:         func() int { return s.upscaleCustomWidth },
+		UpscaleCustomHeight:        func() int { return s.upscaleCustomHeight },
+		UpscaleQualityPreset:       func() string { return s.upscaleQualityPreset },
+		UpscaleAIEnabled:           func() bool { return s.upscaleAIEnabled },
+		UpscaleAIModel:             func() string { return s.upscaleAIModel },
+		UpscaleAIAvailable:         func() bool { return s.upscaleAIAvailable },
+		UpscaleAIBackend:           func() string { return s.upscaleAIBackend },
+		UpscaleAIPreset:            func() string { return s.upscaleAIPreset },
+		UpscaleAIScale:             func() float64 { return s.upscaleAIScale },
+		UpscaleAIScaleUseTarget:    func() bool { return s.upscaleAIScaleUseTarget },
+		UpscaleAIOutputAdjust:      func() float64 { return s.upscaleAIOutputAdjust },
+		UpscaleAIFaceEnhance:       func() bool { return s.upscaleAIFaceEnhance },
+		UpscaleAIDenoise:           func() float64 { return s.upscaleAIDenoise },
+		UpscaleAITile:              func() int { return s.upscaleAITile },
+		UpscaleAIGPU:               func() int { return s.upscaleAIGPU },
+		UpscaleAIGPUAuto:           func() bool { return s.upscaleAIGPUAuto },
+		UpscaleAIThreadsLoad:       func() int { return s.upscaleAIThreadsLoad },
+		UpscaleAIThreadsProc:       func() int { return s.upscaleAIThreadsProc },
+		UpscaleAIThreadsSave:       func() int { return s.upscaleAIThreadsSave },
+		UpscaleAITTA:               func() bool { return s.upscaleAITTA },
+		UpscaleAIOutputFormat:      func() string { return s.upscaleAIOutputFormat },
+		UpscaleApplyFilters:        func() bool { return s.upscaleApplyFilters },
+		UpscaleFilterChain:         func() []string { return s.upscaleFilterChain },
+		UpscaleFrameRate:           func() string { return s.upscaleFrameRate },
+		UpscaleMotionInterpolation: func() bool { return s.upscaleMotionInterpolation },
+		UpscaleBlurEnabled:         func() bool { return s.upscaleBlurEnabled },
+		UpscaleBlurSigma:           func() float64 { return s.upscaleBlurSigma },
+		UpscaleEncoderPreset:       func() string { return s.upscaleEncoderPreset },
+		UpscaleVideoCodec:          func() string { return s.upscaleVideoCodec },
+		UpscaleBitrateMode:         func() string { return s.upscaleBitrateMode },
+		UpscaleBitratePreset:       func() string { return s.upscaleBitratePreset },
+		UpscaleManualBitrate:       func() string { return s.upscaleManualBitrate },
+		UpscaleRIFEBackend:         func() string { return s.upscaleRIFEBackend },
+		UpscaleRIFEAvailable:       func() bool { return s.upscaleRIFEAvailable },
+		UpscaleRIFEEnabled:         func() bool { return s.upscaleRIFEEnabled },
+		UpscaleRIFEMultiplier:      func() int { return s.upscaleRIFEMultiplier },
+		UpscaleRIFEModel:           func() string { return s.upscaleRIFEModel },
+		UpscaleHardwareAccel:       func() string { return s.upscaleHardwareAccel },
+		UpscaleOutputContainer:     func() string { return s.upscaleOutputContainer },
+		UpscaleManualCRF:           func() int { return s.upscaleManualCRF },
+		UpscalePixelFormat:         func() string { return s.upscalePixelFormat },
+		UpscaleSrcColorSpace:       func() string { return s.upscaleSrcColorSpace },
+		UpscaleColorDepth:          func() string { return s.upscaleColorDepth },
+		UpscaleSkinTone:            func() string { return s.upscaleSkinTone },
 
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					state.upscaleFile = src
-					if HasNativeMediaPlayer() {
-						state.loadVideoNative(path)
-					}
-					state.showUpscaleView()
-				}, false)
-			}()
-		}, state.window)
-	})
-	loadBtn.Importance = widget.HighImportance
+		SetUpscaleFile:                func(f interface{}) { s.upscaleFile = f.(*videoSource) },
+		SetUpscaleMethod:              func(v string) { s.upscaleMethod = v },
+		SetUpscaleTargetRes:           func(v string) { s.upscaleTargetRes = v },
+		SetUpscaleCustomWidth:         func(v int) { s.upscaleCustomWidth = v },
+		SetUpscaleCustomHeight:        func(v int) { s.upscaleCustomHeight = v },
+		SetUpscaleQualityPreset:       func(v string) { s.upscaleQualityPreset = v },
+		SetUpscaleAIEnabled:           func(v bool) { s.upscaleAIEnabled = v },
+		SetUpscaleAIModel:             func(v string) { s.upscaleAIModel = v },
+		SetUpscaleAIAvailable:         func(v bool) { s.upscaleAIAvailable = v },
+		SetUpscaleAIBackend:           func(v string) { s.upscaleAIBackend = v },
+		SetUpscaleAIPreset:            func(v string) { s.upscaleAIPreset = v },
+		SetUpscaleAIScale:             func(v float64) { s.upscaleAIScale = v },
+		SetUpscaleAIScaleUseTarget:    func(v bool) { s.upscaleAIScaleUseTarget = v },
+		SetUpscaleAIOutputAdjust:      func(v float64) { s.upscaleAIOutputAdjust = v },
+		SetUpscaleAIFaceEnhance:       func(v bool) { s.upscaleAIFaceEnhance = v },
+		SetUpscaleAIDenoise:           func(v float64) { s.upscaleAIDenoise = v },
+		SetUpscaleAITile:              func(v int) { s.upscaleAITile = v },
+		SetUpscaleAIGPU:               func(v int) { s.upscaleAIGPU = v },
+		SetUpscaleAIGPUAuto:           func(v bool) { s.upscaleAIGPUAuto = v },
+		SetUpscaleAIThreadsLoad:       func(v int) { s.upscaleAIThreadsLoad = v },
+		SetUpscaleAIThreadsProc:       func(v int) { s.upscaleAIThreadsProc = v },
+		SetUpscaleAIThreadsSave:       func(v int) { s.upscaleAIThreadsSave = v },
+		SetUpscaleAITTA:               func(v bool) { s.upscaleAITTA = v },
+		SetUpscaleAIOutputFormat:      func(v string) { s.upscaleAIOutputFormat = v },
+		SetUpscaleApplyFilters:        func(v bool) { s.upscaleApplyFilters = v },
+		SetUpscaleFilterChain:         func(chain []string) { s.upscaleFilterChain = chain },
+		SetUpscaleFrameRate:           func(v string) { s.upscaleFrameRate = v },
+		SetUpscaleMotionInterpolation: func(v bool) { s.upscaleMotionInterpolation = v },
+		SetUpscaleBlurEnabled:         func(v bool) { s.upscaleBlurEnabled = v },
+		SetUpscaleBlurSigma:           func(v float64) { s.upscaleBlurSigma = v },
+		SetUpscaleEncoderPreset:       func(v string) { s.upscaleEncoderPreset = v },
+		SetUpscaleVideoCodec:          func(v string) { s.upscaleVideoCodec = v },
+		SetUpscaleBitrateMode:         func(v string) { s.upscaleBitrateMode = v },
+		SetUpscaleBitratePreset:       func(v string) { s.upscaleBitratePreset = v },
+		SetUpscaleManualBitrate:       func(v string) { s.upscaleManualBitrate = v },
+		SetUpscaleRIFEBackend:         func(v string) { s.upscaleRIFEBackend = v },
+		SetUpscaleRIFEAvailable:       func(v bool) { s.upscaleRIFEAvailable = v },
+		SetUpscaleRIFEEnabled:         func(v bool) { s.upscaleRIFEEnabled = v },
+		SetUpscaleRIFEMultiplier:      func(v int) { s.upscaleRIFEMultiplier = v },
+		SetUpscaleRIFEModel:           func(v string) { s.upscaleRIFEModel = v },
+		SetUpscaleHardwareAccel:       func(v string) { s.upscaleHardwareAccel = v },
+		SetUpscaleOutputContainer:     func(v string) { s.upscaleOutputContainer = v },
+		SetUpscaleManualCRF:           func(v int) { s.upscaleManualCRF = v },
+		SetUpscalePixelFormat:         func(v string) { s.upscalePixelFormat = v },
+		SetUpscaleSrcColorSpace:       func(v string) { s.upscaleSrcColorSpace = v },
+		SetUpscaleColorDepth:          func(v string) { s.upscaleColorDepth = v },
+		SetUpscaleSkinTone:            func(v string) { s.upscaleSkinTone = v },
 
-	// Navigation to Filters module
-	filtersNavBtn := widget.NewButton(t.UpscaleAdjustFilters, func() {
-		if state.upscaleFile != nil {
-			state.filtersFile = state.upscaleFile
-		}
-		state.showFiltersView()
-	})
-
-	mediumBlue := utils.MustHex("#13182B")
-	navyBlue := utils.MustHex("#191F35")
-
-	buildUpscaleBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
-		bg := canvas.NewRectangle(navyBlue)
-		bg.CornerRadius = 10
-		bg.StrokeColor = gridColor
-		bg.StrokeWidth = 1
-		header := container.NewVBox(
-			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			widget.NewSeparator(),
-		)
-		body := container.NewBorder(header, nil, nil, nil, content)
-		layers := ui.NoisyBackgroundObjects(bg)
-		layers = append(layers, container.NewPadded(body))
-		return container.NewMax(layers...)
-	}
-
-	// Scaling (method + blur)
-	methodLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleMethodFmt, state.upscaleMethod))
-	methodSelect := widget.NewSelect([]string{
-		"lanczos",  // Sharp, best general purpose
-		"bicubic",  // Smooth
-		"spline",   // Balanced
-		"bilinear", // Fast, lower quality
-	}, func(s string) {
-		state.upscaleMethod = s
-		methodLabel.SetText(fmt.Sprintf(t.UpscaleMethodFmt, s))
-	})
-	methodSelect.SetSelected(state.upscaleMethod)
-
-	methodInfo := widget.NewLabel("Lanczos: Sharp, best quality\nBicubic: Smooth\nSpline: Balanced\nBilinear: Fast")
-	methodInfo.TextStyle = fyne.TextStyle{Italic: true}
-	methodInfo.Wrapping = fyne.TextWrapWord
-
-	// Resolution
-	resLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleTargetFmt, state.upscaleTargetRes))
-	resSelect := widget.NewSelect([]string{
-		"Match Source",
-		"2X (relative)",
-		"4X (relative)",
-		"720p (1280x720)",
-		"1080p (1920x1080)",
-		"1440p (2560x1440)",
-		"4K (3840x2160)",
-		"8K (7680x4320)",
-		"Custom",
-	}, func(s string) {
-		state.upscaleTargetRes = s
-		resLabel.SetText(fmt.Sprintf(t.UpscaleTargetFmt, s))
-	})
-	resSelect.SetSelected(state.upscaleTargetRes)
-
-	resolutionSection := buildUpscaleBox(t.UpscaleTargetResBox, container.NewVBox(
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleResLabel),
-			resSelect,
-		),
-		resLabel,
-		sourceResLabel,
-	))
-
-	// Video Encoding
-	encoderPresetSelect := widget.NewSelect([]string{
-		"ultrafast", "superfast", "veryfast", "faster", "fast", "medium", "slow", "slower", "veryslow",
-	}, func(s string) {
-		state.upscaleEncoderPreset = s
-	})
-	encoderPresetSelect.SetSelected(state.upscaleEncoderPreset)
-
-	// Video Codec selection
-	videoCodecOptions := []string{"H.264", "H.265", "VP9", "AV1", "Copy"}
-	videoCodecColorMap := ui.BuildVideoCodecColorMap(videoCodecOptions)
-	videoCodecSelect := ui.NewColoredSelect(videoCodecOptions, videoCodecColorMap, func(value string) {
-		state.upscaleVideoCodec = value
-	}, state.window)
-	videoCodecSelect.SetSelected(state.upscaleVideoCodec)
-
-	// Container selection
-	containerOptions := []string{"mp4", "mkv", "mov", "webm"}
-	containerColorMap := ui.BuildFormatColorMap(containerOptions)
-	containerSelect := ui.NewColoredSelect(containerOptions, containerColorMap, func(s string) {
-		state.upscaleOutputContainer = s
-	}, state.window)
-	if state.upscaleOutputContainer == "" {
-		state.upscaleOutputContainer = "mp4"
-	}
-	containerSelect.SetSelected(state.upscaleOutputContainer)
-
-	// Hardware Acceleration selection
-	hwAccelSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "vaapi", "qsv", "videotoolbox"}, func(s string) {
-		state.upscaleHardwareAccel = s
-	})
-	if state.upscaleHardwareAccel == "" {
-		state.upscaleHardwareAccel = "auto"
-	}
-	hwAccelSelect.SetSelected(state.upscaleHardwareAccel)
-
-	// Manual CRF slider (0-51)
-	if state.upscaleManualCRF == 0 {
-		state.upscaleManualCRF = 16
-	}
-	crfValueLabel := widget.NewLabel(fmt.Sprintf("%d", state.upscaleManualCRF))
-	crfSlider := widget.NewSlider(0, 51)
-	crfSlider.Step = 1
-	crfSlider.Value = float64(state.upscaleManualCRF)
-	crfSlider.OnChanged = func(v float64) {
-		state.upscaleManualCRF = int(v)
-		crfValueLabel.SetText(fmt.Sprintf("%d", int(v)))
-	}
-	crfHint := widget.NewLabel(t.UpscaleCRFHint)
-	crfHint.TextStyle = fyne.TextStyle{Italic: true}
-	crfHint.Wrapping = fyne.TextWrapWord
-	crfSection := container.NewVBox(
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleManualCRFLabel),
-			container.NewBorder(nil, nil, nil, crfValueLabel, crfSlider),
-		),
-		crfHint,
-	)
-
-	// Bitrate value entry (for CBR/VBR)
-	bitrateEntry := widget.NewEntry()
-	bitrateEntry.SetPlaceHolder("e.g. 8000k, 20M")
-	if state.upscaleManualBitrate != "" {
-		bitrateEntry.SetText(state.upscaleManualBitrate)
-	}
-	bitrateEntry.OnChanged = func(s string) {
-		state.upscaleManualBitrate = s
-	}
-	bitrateHint := widget.NewLabel(t.UpscaleBitrateHint)
-	bitrateSection := container.NewVBox(
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleBitrateValueLabel),
-			bitrateEntry,
-		),
-		bitrateHint,
-	)
-
-	updateBitrateModeUI := func(mode string) {
-		if mode == "CRF" {
-			crfSection.Show()
-			bitrateSection.Hide()
-		} else {
-			crfSection.Hide()
-			bitrateSection.Show()
-		}
-	}
-	updateBitrateModeUI(state.upscaleBitrateMode)
-
-	// Bitrate mode
-	bitrateModeSelect := widget.NewSelect([]string{
-		"CRF (Constant Rate Factor)",
-		"CBR (Constant Bitrate)",
-		"VBR (Variable Bitrate)",
-	}, func(s string) {
-		switch {
-		case strings.HasPrefix(s, "CRF"):
-			state.upscaleBitrateMode = "CRF"
-		case strings.HasPrefix(s, "CBR"):
-			state.upscaleBitrateMode = "CBR"
-		case strings.HasPrefix(s, "VBR"):
-			state.upscaleBitrateMode = "VBR"
-		default:
-			state.upscaleBitrateMode = s
-		}
-		updateBitrateModeUI(state.upscaleBitrateMode)
-	})
-	switch state.upscaleBitrateMode {
-	case "CBR":
-		bitrateModeSelect.SetSelected("CBR (Constant Bitrate)")
-	case "VBR":
-		bitrateModeSelect.SetSelected("VBR (Variable Bitrate)")
-	default:
-		bitrateModeSelect.SetSelected("CRF (Constant Rate Factor)")
-	}
-
-	// Pixel format selection
-	pixelFormatOptions := []string{"yuv420p", "yuv444p", "yuv420p10le"}
-	pixelFormatColorMap := ui.BuildPixelFormatColorMap(pixelFormatOptions)
-	pixelFormatSelect := ui.NewColoredSelect(pixelFormatOptions, pixelFormatColorMap, func(s string) {
-		state.upscalePixelFormat = s
-	}, state.window)
-	if state.upscalePixelFormat == "" {
-		state.upscalePixelFormat = "yuv420p"
-	}
-	pixelFormatSelect.SetSelected(state.upscalePixelFormat)
-
-	encodingSection := buildUpscaleBox(t.UpscaleEncodingBox, container.NewVBox(
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleVideoCodecLabel),
-			videoCodecSelect,
-		),
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleContainerLabel),
-			containerSelect,
-		),
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleHardwareAccelLabel),
-			hwAccelSelect,
-		),
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleEncoderLabel),
-			encoderPresetSelect,
-		),
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleBitrateLabel),
-			bitrateModeSelect,
-		),
-		crfSection,
-		bitrateSection,
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscalePixelFormatLabel),
-			pixelFormatSelect,
-		),
-	))
-
-	// Colour Accuracy Section
-	srcColourSelect := widget.NewSelect([]string{"auto", "bt601", "bt709", "bt2020"}, func(s string) {
-		state.upscaleSrcColorSpace = s
-	})
-	if state.upscaleSrcColorSpace == "" {
-		state.upscaleSrcColorSpace = "auto"
-	}
-	srcColourSelect.SetSelected(state.upscaleSrcColorSpace)
-
-	colorDepthSelect := widget.NewSelect([]string{"8bit", "16bit"}, func(s string) {
-		state.upscaleColorDepth = s
-	})
-	if state.upscaleColorDepth == "" {
-		state.upscaleColorDepth = "8bit"
-	}
-	colorDepthSelect.SetSelected(state.upscaleColorDepth)
-
-	skinToneSelect := widget.NewSelect([]string{"off", "subtle", "strong"}, func(s string) {
-		state.upscaleSkinTone = s
-	})
-	if state.upscaleSkinTone == "" {
-		state.upscaleSkinTone = "off"
-	}
-	skinToneSelect.SetSelected(state.upscaleSkinTone)
-
-	colourHint := widget.NewLabel(t.UpscaleColourHint)
-	colourHint.TextStyle = fyne.TextStyle{Italic: true}
-	colourHint.Wrapping = fyne.TextWrapWord
-
-	colourAccuracySection := buildUpscaleBox(t.UpscaleColourBox, container.NewVBox(
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleSrcColourLabel),
-			srcColourSelect,
-		),
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleDepthLabel),
-			colorDepthSelect,
-		),
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleSkinToneLabel),
-			skinToneSelect,
-		),
-		colourHint,
-	))
-
-	// Frame Rate
-	frameRateLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleFrameRateFmt, state.upscaleFrameRate))
-	frameRateSelect := widget.NewSelect([]string{"Source", "23.976", "24", "25", "29.97", "30", "50", "59.94", "60"}, func(s string) {
-		state.upscaleFrameRate = s
-		frameRateLabel.SetText(fmt.Sprintf(t.UpscaleFrameRateFmt, s))
-	})
-	frameRateSelect.SetSelected(state.upscaleFrameRate)
-
-	motionInterpCheck := widget.NewCheck(t.UpscaleMotionInterp, func(checked bool) {
-		state.upscaleMotionInterpolation = checked
-	})
-	motionInterpCheck.SetChecked(state.upscaleMotionInterpolation)
-
-	frameRateSection := buildUpscaleBox(t.UpscaleFrameRateBox, container.NewVBox(
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleTargetFPSLabel),
-			frameRateSelect,
-		),
-		frameRateLabel,
-		motionInterpCheck,
-		widget.NewLabel(t.UpscaleMotionHint),
-	))
-
-	aiModelOptions := aiUpscaleModelOptions()
-	aiModelLabel := aiUpscaleModelLabel(state.upscaleAIModel)
-	if aiModelLabel == "" && len(aiModelOptions) > 0 {
-		aiModelLabel = aiModelOptions[0]
-	}
-
-	// AI Upscaling Section (nested under Scaling)
-	var aiContent fyne.CanvasObject
-	if state.upscaleAIAvailable {
-		var aiTileSelect *widget.Select
-		var aiTTACheck *widget.Check
-		var aiDenoiseSlider *widget.Slider
-		var denoiseHint *widget.Label
-
-		applyAIPreset := func(preset string) {
-			state.upscaleAIPreset = preset
-			switch preset {
-			case "Ultra Fast":
-				state.upscaleAITile = 800
-				state.upscaleAITTA = false
-			case "Fast":
-				state.upscaleAITile = 800
-				state.upscaleAITTA = false
-			case "Balanced":
-				state.upscaleAITile = 512
-				state.upscaleAITTA = false
-			case "High Quality":
-				state.upscaleAITile = 256
-				state.upscaleAITTA = false
-			case "Maximum Quality":
-				state.upscaleAITile = 0
-				state.upscaleAITTA = true
+		FiltersFile: func() interface{} { return s.filtersFile },
+		SetFiltersFile: func(f interface{}) {
+			if vs, ok := f.(*videoSource); ok {
+				s.filtersFile = vs
 			}
-			if aiTileSelect != nil {
-				switch state.upscaleAITile {
-				case 256:
-					aiTileSelect.SetSelected("256")
-				case 512:
-					aiTileSelect.SetSelected("512")
-				case 800:
-					aiTileSelect.SetSelected("800")
-				default:
-					aiTileSelect.SetSelected("Auto")
-				}
-			}
-			if aiTTACheck != nil {
-				aiTTACheck.SetChecked(state.upscaleAITTA)
-			}
-		}
-
-		denoiseAvailStr := t.UpscaleDenoiseAvail
-		denoiseUnavailStr := t.UpscaleDenoiseUnavail
-
-		updateDenoiseAvailability := func(model string) {
-			if aiDenoiseSlider == nil || denoiseHint == nil {
-				return
-			}
-			if model == "realesr-general-x4v3" {
-				aiDenoiseSlider.Enable()
-				denoiseHint.SetText(denoiseAvailStr)
-			} else {
-				aiDenoiseSlider.Disable()
-				denoiseHint.SetText(denoiseUnavailStr)
-			}
-		}
-
-		aiEnabledCheck := widget.NewCheck(t.UpscaleAIEnabled, func(checked bool) {
-			state.upscaleAIEnabled = checked
-			if checked {
-				colourAccuracySection.Show()
-			} else {
-				colourAccuracySection.Hide()
-			}
-		})
-		aiEnabledCheck.SetChecked(state.upscaleAIEnabled)
-		if !state.upscaleAIEnabled {
-			colourAccuracySection.Hide()
-		}
-
-		aiModelSelect := widget.NewSelect(aiModelOptions, func(s string) {
-			state.upscaleAIModel = aiUpscaleModelID(s)
-			aiModelLabel = s
-			updateDenoiseAvailability(state.upscaleAIModel)
-		})
-		if aiModelLabel != "" {
-			aiModelSelect.SetSelected(aiModelLabel)
-		}
-
-		aiPresetSelect := widget.NewSelect([]string{"Ultra Fast", "Fast", "Balanced", "High Quality", "Maximum Quality"}, func(s string) {
-			applyAIPreset(s)
-		})
-		aiPresetSelect.SetSelected(state.upscaleAIPreset)
-
-		aiScaleSelect := widget.NewSelect([]string{"Match Target", "1x", "2x", "3x", "4x", "8x"}, func(s string) {
-			if s == "Match Target" {
-				state.upscaleAIScaleUseTarget = true
-				return
-			}
-			state.upscaleAIScaleUseTarget = false
-			switch s {
-			case "1x":
-				state.upscaleAIScale = 1
-			case "2x":
-				state.upscaleAIScale = 2
-			case "3x":
-				state.upscaleAIScale = 3
-			case "4x":
-				state.upscaleAIScale = 4
-			case "8x":
-				state.upscaleAIScale = 8
-			}
-		})
-		if state.upscaleAIScaleUseTarget {
-			aiScaleSelect.SetSelected("Match Target")
-		} else {
-			aiScaleSelect.SetSelected(fmt.Sprintf("%.0fx", state.upscaleAIScale))
-		}
-
-		aiAdjustLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleAdjustFmt, state.upscaleAIOutputAdjust))
-		aiAdjustSlider := widget.NewSlider(0.5, 2.0)
-		aiAdjustSlider.Value = state.upscaleAIOutputAdjust
-		aiAdjustSlider.Step = 0.05
-		aiAdjustSlider.OnChanged = func(v float64) {
-			state.upscaleAIOutputAdjust = v
-			aiAdjustLabel.SetText(fmt.Sprintf(t.UpscaleAdjustFmt, v))
-		}
-
-		aiDenoiseLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleDenoiseFmt, state.upscaleAIDenoise))
-		aiDenoiseSlider = widget.NewSlider(0.0, 1.0)
-		aiDenoiseSlider.Value = state.upscaleAIDenoise
-		aiDenoiseSlider.Step = 0.05
-		aiDenoiseSlider.OnChanged = func(v float64) {
-			state.upscaleAIDenoise = v
-			aiDenoiseLabel.SetText(fmt.Sprintf(t.UpscaleDenoiseFmt, v))
-		}
-
-		aiTileSelect = widget.NewSelect([]string{"Auto", "256", "512", "800"}, func(s string) {
-			switch s {
-			case "Auto":
-				state.upscaleAITile = 0
-			case "256":
-				state.upscaleAITile = 256
-			case "512":
-				state.upscaleAITile = 512
-			case "800":
-				state.upscaleAITile = 800
-			}
-		})
-		switch state.upscaleAITile {
-		case 256:
-			aiTileSelect.SetSelected("256")
-		case 512:
-			aiTileSelect.SetSelected("512")
-		case 800:
-			aiTileSelect.SetSelected("800")
-		default:
-			aiTileSelect.SetSelected("Auto")
-		}
-
-		aiOutputFormatSelect := widget.NewSelect([]string{"PNG", "JPG", "WEBP"}, func(s string) {
-			state.upscaleAIOutputFormat = strings.ToLower(s)
-		})
-		switch strings.ToLower(state.upscaleAIOutputFormat) {
-		case "jpg", "jpeg":
-			aiOutputFormatSelect.SetSelected("JPG")
-		case "webp":
-			aiOutputFormatSelect.SetSelected("WEBP")
-		default:
-			aiOutputFormatSelect.SetSelected("PNG")
-		}
-
-		aiFaceCheck := widget.NewCheck(t.UpscaleFaceEnhance, func(checked bool) {
-			state.upscaleAIFaceEnhance = checked
-		})
-		aiFaceAvailable := checkAIFaceEnhanceAvailable(state.upscaleAIBackend)
-		if !aiFaceAvailable {
-			aiFaceCheck.Disable()
-		}
-		aiFaceCheck.SetChecked(state.upscaleAIFaceEnhance && aiFaceAvailable)
-
-		aiTTACheck = widget.NewCheck(t.UpscaleTTACheck, func(checked bool) {
-			state.upscaleAITTA = checked
-		})
-		aiTTACheck.SetChecked(state.upscaleAITTA)
-
-		aiGPUSelect := widget.NewSelect([]string{"Auto", "0", "1", "2"}, func(s string) {
-			if s == "Auto" {
-				state.upscaleAIGPUAuto = true
-				return
-			}
-			state.upscaleAIGPUAuto = false
-			if gpu, err := strconv.Atoi(s); err == nil {
-				state.upscaleAIGPU = gpu
-			}
-		})
-		if state.upscaleAIGPUAuto {
-			aiGPUSelect.SetSelected("Auto")
-		} else {
-			aiGPUSelect.SetSelected(strconv.Itoa(state.upscaleAIGPU))
-		}
-
-		threadOptions := []string{"1", "2", "3", "4"}
-		aiThreadsLoad := widget.NewSelect(threadOptions, func(s string) {
-			if v, err := strconv.Atoi(s); err == nil {
-				state.upscaleAIThreadsLoad = v
-			}
-		})
-		aiThreadsLoad.SetSelected(strconv.Itoa(state.upscaleAIThreadsLoad))
-
-		aiThreadsProc := widget.NewSelect(threadOptions, func(s string) {
-			if v, err := strconv.Atoi(s); err == nil {
-				state.upscaleAIThreadsProc = v
-			}
-		})
-		aiThreadsProc.SetSelected(strconv.Itoa(state.upscaleAIThreadsProc))
-
-		aiThreadsSave := widget.NewSelect(threadOptions, func(s string) {
-			if v, err := strconv.Atoi(s); err == nil {
-				state.upscaleAIThreadsSave = v
-			}
-		})
-		aiThreadsSave.SetSelected(strconv.Itoa(state.upscaleAIThreadsSave))
-
-		denoiseHint = widget.NewLabel("")
-		denoiseHint.TextStyle = fyne.TextStyle{Italic: true}
-		updateDenoiseAvailability(state.upscaleAIModel)
-
-		aiContent = container.NewVBox(
-			widget.NewLabel(t.UpscaleAIDetected),
-			aiEnabledCheck,
-			container.NewGridWithColumns(2,
-				widget.NewLabel(t.UpscaleAIModelLabel),
-				aiModelSelect,
-			),
-			container.NewGridWithColumns(2,
-				widget.NewLabel(t.UpscaleAIPresetLabel),
-				aiPresetSelect,
-			),
-			container.NewGridWithColumns(2,
-				widget.NewLabel(t.UpscaleAIScaleLabel),
-				aiScaleSelect,
-			),
-			container.NewVBox(aiAdjustLabel, aiAdjustSlider),
-			container.NewVBox(aiDenoiseLabel, aiDenoiseSlider, denoiseHint),
-			container.NewGridWithColumns(2,
-				widget.NewLabel(t.UpscaleAITileLabel),
-				aiTileSelect,
-			),
-			container.NewGridWithColumns(2,
-				widget.NewLabel(t.UpscaleAIOutputLabel),
-				aiOutputFormatSelect,
-			),
-			aiFaceCheck,
-			aiTTACheck,
-			widget.NewSeparator(),
-			widget.NewLabel(t.UpscaleAIAdvanced),
-			container.NewGridWithColumns(2,
-				widget.NewLabel(t.UpscaleGPULabel),
-				aiGPUSelect,
-			),
-			container.NewGridWithColumns(2,
-				widget.NewLabel(t.UpscaleThreadsLabel),
-				container.NewGridWithColumns(3, aiThreadsLoad, aiThreadsProc, aiThreadsSave),
-			),
-			widget.NewLabel(t.UpscaleAINote),
-		)
-	} else {
-		backendNote := t.UpscaleAINotDetected
-		if state.upscaleAIBackend == "python" {
-			backendNote = t.UpscaleAIPython
-		}
-		aiContent = container.NewVBox(
-			widget.NewLabel(backendNote),
-			widget.NewLabel("https://github.com/xinntao/Real-ESRGAN"),
-			widget.NewLabel(t.UpscaleAIFallback),
-		)
+		},
+		JobQueue: func() *queue.Queue { return s.jobQueue },
+		AddJob:   func(job *queue.Job) { s.jobQueue.Add(job) },
 	}
-
-	aiSection := container.NewVBox(
-		widget.NewLabelWithStyle(t.UpscaleAIBox, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewSeparator(),
-		aiContent,
-	)
-
-	traditionalSection := buildUpscaleBox(t.UpscaleScalingBox, container.NewVBox(
-		widget.NewLabel(t.UpscaleClassicDesc),
-		container.NewGridWithColumns(2,
-			widget.NewLabel(t.UpscaleScalingLabel),
-			methodSelect,
-		),
-		methodLabel,
-		widget.NewSeparator(),
-		methodInfo,
-		widget.NewSeparator(),
-		aiSection,
-	))
-
-	// Filter Integration Section
-	filterApplyCheck := widget.NewCheck(t.UpscaleFilterIntLabel, func(checked bool) {
-		state.upscaleApplyFilters = checked
-	})
-	filterApplyCheck.SetChecked(state.upscaleApplyFilters)
-
-	filterIntHint := widget.NewLabel(t.UpscaleFilterIntHint)
-	filterIntHint.TextStyle = fyne.TextStyle{Italic: true}
-	filterIntHint.Wrapping = fyne.TextWrapWord
-
-	filterIntegrationSection := buildUpscaleBox(t.UpscaleFilterIntBox, container.NewVBox(
-		filterApplyCheck,
-		filterIntHint,
-	))
-
-	// RIFE Frame Interpolation Section
-	var rifeSection fyne.CanvasObject
-	if state.upscaleRIFEAvailable {
-		var updateEstFPS func()
-		var estFPSLabel *widget.Label
-
-		rifeMultiplierSelect := widget.NewSelect([]string{"2×", "4×", "8×"}, func(s string) {
-			switch s {
-			case "4×":
-				state.upscaleRIFEMultiplier = 4
-			case "8×":
-				state.upscaleRIFEMultiplier = 8
-			default:
-				state.upscaleRIFEMultiplier = 2
-			}
-			if updateEstFPS != nil {
-				updateEstFPS()
-			}
-		})
-		switch state.upscaleRIFEMultiplier {
-		case 4:
-			rifeMultiplierSelect.SetSelected("4×")
-		case 8:
-			rifeMultiplierSelect.SetSelected("8×")
-		default:
-			rifeMultiplierSelect.SetSelected("2×")
-		}
-
-		rifeModelSelect := widget.NewSelect(rifeModelOptions(), func(s string) {
-			state.upscaleRIFEModel = s
-		})
-		rifeModelSelect.SetSelected(state.upscaleRIFEModel)
-
-		rifeEnabledCheck := widget.NewCheck(t.RIFEEnabled, func(checked bool) {
-			state.upscaleRIFEEnabled = checked
-		})
-		rifeEnabledCheck.SetChecked(state.upscaleRIFEEnabled)
-
-		estFPSLabel = widget.NewLabel("")
-		estFPSLabel.TextStyle = fyne.TextStyle{Italic: true}
-		updateEstFPS = func() {
-			if state.upscaleFile != nil && state.upscaleFile.FrameRate > 0 {
-				estFPSLabel.SetText(fmt.Sprintf(t.RIFEEstFPSFmt, state.upscaleFile.FrameRate*float64(state.upscaleRIFEMultiplier)))
-			} else {
-				estFPSLabel.SetText("")
-			}
-		}
-		updateEstFPS()
-
-		rifeSection = buildUpscaleBox(t.RIFEBoxTitle, container.NewVBox(
-			widget.NewLabel(t.RIFEDetected),
-			rifeEnabledCheck,
-			container.NewGridWithColumns(2,
-				widget.NewLabel(t.RIFEMultiplierLabel),
-				rifeMultiplierSelect,
-			),
-			container.NewGridWithColumns(2,
-				widget.NewLabel(t.RIFEModelLabel),
-				rifeModelSelect,
-			),
-			estFPSLabel,
-			widget.NewLabel(t.RIFENote),
-		))
-	} else {
-		rifeLink, _ := url.Parse("https://github.com/nihui/rife-ncnn-vulkan")
-		rifeSection = buildUpscaleBox(t.RIFEBoxTitle, container.NewVBox(
-			widget.NewLabel(t.RIFENotDetected),
-			widget.NewHyperlink("nihui/rife-ncnn-vulkan", rifeLink),
-			widget.NewLabel(t.RIFEInstallHint),
-		))
-	}
-
-	// Helper function to create upscale job
-	createUpscaleJob := func() (*queue.Job, error) {
-		if state.upscaleFile == nil {
-			return nil, fmt.Errorf("no video loaded")
-		}
-
-		// Parse target resolution (preserve aspect by default)
-		targetWidth, targetHeight, preserveAspect, err := parseResolutionPreset(state.upscaleTargetRes, state.upscaleFile.Width, state.upscaleFile.Height)
-		if err != nil {
-			return nil, fmt.Errorf("invalid resolution: %w", err)
-		}
-
-		// Build output path
-		videoDir := filepath.Dir(state.upscaleFile.Path)
-		videoBaseName := strings.TrimSuffix(filepath.Base(state.upscaleFile.Path), filepath.Ext(state.upscaleFile.Path))
-		slug := sanitizeForPath(state.upscaleTargetRes)
-		if slug == "" {
-			slug = "source"
-		}
-		containerExt := state.upscaleOutputContainer
-		if containerExt == "" {
-			containerExt = "mkv"
-		}
-		outputPath := filepath.Join(videoDir, fmt.Sprintf("%s_upscaled_%s_%s.%s",
-			videoBaseName, slug, state.upscaleMethod, containerExt))
-
-		// Build description
-		description := fmt.Sprintf("Upscale to %s using %s", state.upscaleTargetRes, state.upscaleMethod)
-		if state.upscaleAIEnabled && state.upscaleAIAvailable {
-			description += fmt.Sprintf(" + AI (%s)", state.upscaleAIModel)
-		}
-		if state.upscaleRIFEEnabled && state.upscaleRIFEAvailable {
-			description += fmt.Sprintf(" + RIFE %dx", state.upscaleRIFEMultiplier)
-		}
-
-		desc := fmt.Sprintf("%s  %s", description, filepath.Base(outputPath))
-
-		return &queue.Job{
-			Type:        queue.JobTypeUpscale,
-			Title:       "Upscale: " + filepath.Base(state.upscaleFile.Path),
-			Description: desc,
-			OutputFile:  outputPath,
-			Config: map[string]interface{}{
-				"inputPath":              state.upscaleFile.Path,
-				"outputPath":             outputPath,
-				"method":                 state.upscaleMethod,
-				"encoderPreset":          state.upscaleEncoderPreset,
-				"bitrateMode":            state.upscaleBitrateMode,
-				"bitratePreset":          state.upscaleBitratePreset,
-				"manualBitrate":          state.upscaleManualBitrate,
-				"targetWidth":            float64(targetWidth),
-				"targetHeight":           float64(targetHeight),
-				"targetPreset":           state.upscaleTargetRes,
-				"sourceWidth":            float64(state.upscaleFile.Width),
-				"sourceHeight":           float64(state.upscaleFile.Height),
-				"preserveAR":             preserveAspect,
-				"useAI":                  state.upscaleAIEnabled && state.upscaleAIAvailable,
-				"aiModel":                state.upscaleAIModel,
-				"qualityPreset":          state.upscaleQualityPreset,
-				"aiBackend":              state.upscaleAIBackend,
-				"aiPreset":               state.upscaleAIPreset,
-				"aiScale":                state.upscaleAIScale,
-				"aiScaleUseTarget":       state.upscaleAIScaleUseTarget,
-				"aiOutputAdjust":         state.upscaleAIOutputAdjust,
-				"aiFaceEnhance":          state.upscaleAIFaceEnhance,
-				"aiDenoise":              state.upscaleAIDenoise,
-				"aiTile":                 float64(state.upscaleAITile),
-				"aiGPU":                  float64(state.upscaleAIGPU),
-				"aiGPUAuto":              state.upscaleAIGPUAuto,
-				"aiThreadsLoad":          float64(state.upscaleAIThreadsLoad),
-				"aiThreadsProc":          float64(state.upscaleAIThreadsProc),
-				"aiThreadsSave":          float64(state.upscaleAIThreadsSave),
-				"aiTTA":                  state.upscaleAITTA,
-				"aiOutputFormat":         state.upscaleAIOutputFormat,
-				"applyFilters":           state.upscaleApplyFilters,
-				"filterChain":            state.upscaleFilterChain,
-				"blurEnabled":            state.upscaleBlurEnabled,
-				"blurSigma":              state.upscaleBlurSigma,
-				"videoCodec":             state.upscaleVideoCodec,
-				"duration":               state.upscaleFile.Duration,
-				"sourceFrameRate":        state.upscaleFile.FrameRate,
-				"frameRate":              state.upscaleFrameRate,
-				"useMotionInterpolation": state.upscaleMotionInterpolation,
-				"useRIFE":                state.upscaleRIFEEnabled && state.upscaleRIFEAvailable,
-				"rifeModel":              state.upscaleRIFEModel,
-				"rifeMultiplier":         float64(state.upscaleRIFEMultiplier),
-				"hardwareAccel":          state.upscaleHardwareAccel,
-				"outputContainer":        state.upscaleOutputContainer,
-				"manualCRF":              float64(state.upscaleManualCRF),
-				"pixelFormat":            state.upscalePixelFormat,
-				"srcColorSpace":          state.upscaleSrcColorSpace,
-				"colorDepth":             state.upscaleColorDepth,
-				"skinTone":               state.upscaleSkinTone,
-			},
-		}, nil
-	}
-
-	// Apply/Queue buttons
-	applyBtn := widget.NewButton(t.UpscaleNow, func() {
-		job, err := createUpscaleJob()
-		if err != nil {
-			dialog.ShowError(err, state.window)
-			return
-		}
-
-		state.jobQueue.Add(job)
-		if !state.jobQueue.IsRunning() {
-			state.jobQueue.Start()
-		}
-		dialog.ShowInformation(t.UpscaleStartedTitle,
-			fmt.Sprintf(t.UpscaleStartedFmt, state.upscaleTargetRes),
-			state.window)
-	})
-	applyBtn.Importance = widget.HighImportance
-	if state.upscaleFile == nil {
-		applyBtn.Disable()
-	}
-
-	// Keyboard shortcut: Ctrl+Enter -> Upscale Now
-	if c := state.window.Canvas(); c != nil {
-		triggerUpscale := func() {
-			if !applyBtn.Disabled() && applyBtn.OnTapped != nil {
-				applyBtn.OnTapped()
-			}
-		}
-		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyReturn, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { triggerUpscale() })
-		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { triggerUpscale() })
-	}
-
-	addQueueBtn := widget.NewButton(t.ActionAddToQueue, func() {
-		job, err := createUpscaleJob()
-		if err != nil {
-			dialog.ShowError(err, state.window)
-			return
-		}
-
-		state.jobQueue.Add(job)
-		dialog.ShowInformation(t.UpscaleAddedTitle,
-			fmt.Sprintf(t.UpscaleAddedFmt, state.upscaleTargetRes, state.upscaleMethod),
-			state.window)
-	})
-	addQueueBtn.Importance = widget.MediumImportance
-	if state.upscaleFile == nil {
-		addQueueBtn.Disable()
-	}
-
-	// Main content
-	spacing := func() fyne.CanvasObject {
-		spacer := canvas.NewRectangle(color.Transparent)
-		spacer.SetMinSize(fyne.NewSize(0, 10))
-		return spacer
-	}
-
-	metaPanel, _ := buildMetadataPanel(state, state.upscaleFile, fyne.NewSize(0, 200))
-
-	leftPanel := container.NewVBox(
-		buildUpscaleBox(t.UpscaleVideoBox, container.NewVBox(
-			fileLabel,
-			loadBtn,
-			filtersNavBtn,
-			videoContainer,
-		)),
-		spacing(),
-		metaPanel,
-	)
-
-	settingsPanel := container.NewVBox(
-		traditionalSection,
-		spacing(),
-		resolutionSection,
-		spacing(),
-		encodingSection,
-		spacing(),
-		colourAccuracySection,
-		spacing(),
-		frameRateSection,
-		spacing(),
-		rifeSection,
-		spacing(),
-		filterIntegrationSection,
-	)
-
-	settingsScroll := ui.NewFastVScroll(settingsPanel)
-	// Adaptive height for small screens
-	// Avoid rigid min sizes so window snapping works across modules.
-
-	leftMin := canvas.NewRectangle(color.Transparent)
-	leftMin.SetMinSize(fyne.NewSize(560, 0))
-	leftWrapped := container.NewMax(leftMin, leftPanel)
-
-	rightMin := canvas.NewRectangle(color.Transparent)
-	rightMin.SetMinSize(fyne.NewSize(400, 0))
-	rightWrapped := container.NewMax(rightMin, settingsScroll)
-
-	split := container.NewHSplit(leftWrapped, rightWrapped)
-	split.Offset = 0.58
-	mainContent := split
-
-	content := container.NewMax(
-		append(ui.NoisyBackgroundObjects(canvas.NewRectangle(mediumBlue)), container.NewPadded(mainContent))...,
-	)
-
-	actionBar := container.NewHBox(layout.NewSpacer(), applyBtn, addQueueBtn)
-	bottomBar := moduleFooter(upscaleColor, actionBar, state.statsBar)
-
-	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
