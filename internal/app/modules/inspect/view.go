@@ -14,13 +14,15 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
-	"image/color"
 )
+
+const ModuleColor = "#4CAF50"
 
 var valueBg = utils.MustHex("#2B334A")
 var valueBorder = utils.MustHex("#3A4360")
@@ -33,55 +35,9 @@ type inspectState struct {
 	engine *media.Engine
 }
 
-type Options struct {
-	Window      fyne.Window
-	ModuleColor color.Color
-
-	InspectFile               any
-	InspectInterlaceAnalyzing bool
-	InspectInterlaceResult    any
-
-	OnShowMainMenu       func()
-	OnShowQueue          func()
-	OnShowInspectView    func()
-	OnClearCompletedJobs func()
-	OnGetStatsBar        func() fyne.CanvasObject
-	OnOpenLogViewer      func(title, path string, isTemp bool)
-
-	OnLoadFile  func(path string)
-	OnClearFile func()
-
-	OnGetFormat       func() string
-	OnGetVideoCodec   func() string
-	OnGetWidth        func() int
-	OnGetHeight       func() int
-	OnGetAspectRatio  func() string
-	OnGetFrameRate    func() float64
-	OnGetBitrate      func() int64
-	OnGetPixelFormat  func() string
-	OnGetColorSpace   func() string
-	OnGetColorRange   func() string
-	OnGetFieldOrder   func() string
-	OnGetGOPSize      func() int
-	OnGetAudioCodec   func() string
-	OnGetAudioBitrate func() int64
-	OnGetAudioRate    func() int
-	OnGetChannels     func() int
-	OnGetDuration     func() string
-	OnGetSampleAspect func() string
-	OnGetHasChapters  func() bool
-	OnGetHasMetadata  func() bool
-	OnGetTitle        func() string
-	OnGetPreviewFrame func() string
-	OnGetFilePath     func() string
-}
-
-func BuildView(opts Options) fyne.CanvasObject {
+func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	t := i18n.T()
-	inspectColor := opts.ModuleColor
-	if inspectColor == nil {
-		inspectColor = utils.MustHex("#3A3F9F")
-	}
+	inspectColor := utils.MustHex(ModuleColor)
 
 	state := &inspectState{
 		player: media.NewVideoPlayer(),
@@ -113,41 +69,31 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 
 	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleInspect), func() {
-		if opts.OnShowMainMenu != nil {
-			opts.OnShowMainMenu()
-		}
+		cb.ShowMainMenu()
 	})
 	backBtn.Importance = widget.LowImportance
 
-	queueBtn := widget.NewButton("View Queue", func() {
-		if opts.OnShowQueue != nil {
-			opts.OnShowQueue()
-		}
+	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
+		cb.ShowQueue()
 	})
 
 	clearCompletedBtn := widget.NewButton("⌫", func() {
-		if opts.OnClearCompletedJobs != nil {
-			opts.OnClearCompletedJobs()
-		}
+		cb.ClearCompletedJobs()
 	})
 	clearCompletedBtn.Importance = widget.LowImportance
 
 	topBar := ui.TintedBar(inspectColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
-	statsBar := opts.OnGetStatsBar()
+	statsBar := cb.StatsBar()
 	bottomBar := container.NewVBox(layout.NewSpacer(), statsBar)
 
 	instructions := widget.NewLabel(t.InspectInstructions)
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
-	clearBtn := widget.NewButton("Clear", func() {
-		if opts.OnClearFile != nil {
-			opts.OnClearFile()
-		}
-		if opts.OnShowInspectView != nil {
-			opts.OnShowInspectView()
-		}
+	clearBtn := widget.NewButton(t.ActionClear, func() {
+		cb.ClearFile()
+		cb.ShowInspectView()
 	})
 	clearBtn.Importance = widget.LowImportance
 
@@ -171,7 +117,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return container.NewMax(layers...)
 	}
 
-	// --- pill helpers (mirrors buildMetadataPanel in main.go) ---
 	makeValuePill := func(text string) fyne.CanvasObject {
 		bg := canvas.NewRectangle(valueBg)
 		bg.CornerRadius = 6
@@ -182,7 +127,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		lbl.Wrapping = fyne.TextTruncate
 		return container.NewMax(bg, container.NewPadded(lbl))
 	}
-	makeValuePillWithChip := func(text string, chipColor color.Color) fyne.CanvasObject {
+	makeValuePillWithChip := func(text string, chipColor fyne.Color) fyne.CanvasObject {
 		bg := canvas.NewRectangle(valueBg)
 		bg.CornerRadius = 6
 		bg.StrokeColor = valueBorder
@@ -202,82 +147,42 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return container.NewBorder(nil, nil, keyLbl, nil, value)
 	}
 
-	// placeholder shown when no file is loaded
 	metadataPlaceholder := container.NewCenter(widget.NewLabel(t.LabelNoFile))
 
-	// metadataGrid holds the live pill grid; swapped in updateDisplay
 	metadataGrid := container.NewMax(metadataPlaceholder)
 
 	buildMetadataGrid := func() fyne.CanvasObject {
-		if opts.InspectFile == nil {
+		inspectFile := cb.GetFilePath()
+		if inspectFile == "" {
 			return metadataPlaceholder
 		}
 
-		// --- collect values via callbacks ---
-		get := func(cb func() string) string {
-			if cb == nil {
-				return "Unknown"
-			}
-			if v := cb(); v != "" {
-				return v
-			}
-			return "Unknown"
-		}
-		getInt := func(cb func() int) int {
-			if cb == nil {
-				return 0
-			}
-			return cb()
-		}
-		getI64 := func(cb func() int64) int64 {
-			if cb == nil {
-				return 0
-			}
-			return cb()
-		}
-		getF := func(cb func() float64) float64 {
-			if cb == nil {
-				return 0
-			}
-			return cb()
-		}
-		getBool := func(cb func() bool) bool {
-			if cb == nil {
-				return false
-			}
-			return cb()
-		}
+		format := cb.GetFormat()
+		videoCodec := cb.GetVideoCodec()
+		width := cb.GetWidth()
+		height := cb.GetHeight()
+		aspectRatio := cb.GetAspectRatio()
+		frameRate := cb.GetFrameRate()
+		bitrate := cb.GetBitrate()
+		pixelFmt := cb.GetPixelFormat()
+		colorSpace := cb.GetColorSpace()
+		colorRange := cb.GetColorRange()
+		fieldOrder := cb.GetFieldOrder()
+		gopSize := cb.GetGOPSize()
+		audioCodec := cb.GetAudioCodec()
+		audioBitrate := cb.GetAudioBitrate()
+		audioRate := cb.GetAudioRate()
+		channels := cb.GetChannels()
+		duration := cb.GetDuration()
+		sar := cb.GetSampleAspect()
+		hasChapters := cb.GetHasChapters()
+		hasMetadata := cb.GetHasMetadata()
 
-		format := get(opts.OnGetFormat)
-		videoCodec := get(opts.OnGetVideoCodec)
-		width := getInt(opts.OnGetWidth)
-		height := getInt(opts.OnGetHeight)
-		aspectRatio := get(opts.OnGetAspectRatio)
-		frameRate := getF(opts.OnGetFrameRate)
-		bitrate := getI64(opts.OnGetBitrate)
-		pixelFmt := get(opts.OnGetPixelFormat)
-		colorSpace := get(opts.OnGetColorSpace)
-		colorRange := get(opts.OnGetColorRange)
-		fieldOrder := get(opts.OnGetFieldOrder)
-		gopSize := getInt(opts.OnGetGOPSize)
-		audioCodec := get(opts.OnGetAudioCodec)
-		audioBitrate := getI64(opts.OnGetAudioBitrate)
-		audioRate := getInt(opts.OnGetAudioRate)
-		channels := getInt(opts.OnGetChannels)
-		duration := get(opts.OnGetDuration)
-		sar := get(opts.OnGetSampleAspect)
-		hasChapters := getBool(opts.OnGetHasChapters)
-		hasMetadata := getBool(opts.OnGetHasMetadata)
-
-		// file size
 		fileSize := "Unknown"
-		if opts.OnGetFilePath != nil {
-			if fi, err := os.Stat(opts.OnGetFilePath()); err == nil {
-				fileSize = utils.FormatBytes(fi.Size())
-			}
+		if fi, err := os.Stat(inspectFile); err == nil {
+			fileSize = utils.FormatBytes(fi.Size())
 		}
 
-		// format values
 		bitrateStr := "--"
 		if bitrate > 0 {
 			bitrateStr = fmt.Sprintf("%d kbps", bitrate/1000)
@@ -319,14 +224,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 			metadataStr = "Yes"
 		}
 
-		// --- plain-text copy string (unchanged from before) ---
 		_ = fmt.Sprintf("Format: %s\nResolution: %dx%d\nDuration: %s\nFile Size: %s",
 			format, width, height, duration, fileSize)
 
-		title := ""
-		if opts.OnGetTitle != nil {
-			title = opts.OnGetTitle()
-		}
+		title := cb.GetTitle()
 
 		col1Rows := []fyne.CanvasObject{
 			makeRow("Format", makeValuePill(format)),
@@ -358,47 +259,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 			makeRow("Metadata", makeValuePill(metadataStr)),
 		)
 
-		interlaceNote := ""
-		if opts.InspectInterlaceAnalyzing {
-			interlaceNote = "Analyzing interlacing... (first 500 frames)"
-		} else if opts.InspectInterlaceResult != nil {
-			interlaceNote = "Interlace analysis complete"
-		}
-		var extra fyne.CanvasObject
-		if interlaceNote != "" {
-			extra = widget.NewLabel(interlaceNote)
-		}
-
 		rows := []fyne.CanvasObject{container.NewGridWithColumns(2, col1, col2)}
-		if extra != nil {
-			rows = append(rows, extra)
-		}
 		return container.NewVBox(rows...)
 	}
 
-	// formatMetadata returns plain text for clipboard copy
 	formatMetadata := func() string {
-		if opts.InspectFile == nil {
+		inspectFile := cb.GetFilePath()
+		if inspectFile == "" {
 			return t.LabelNoFile
 		}
-		get := func(cb func() string) string {
-			if cb == nil {
-				return ""
-			}
-			return cb()
-		}
-		path := ""
-		if opts.OnGetFilePath != nil {
-			path = opts.OnGetFilePath()
-		}
-		bitrate := int64(0)
-		if opts.OnGetBitrate != nil {
-			bitrate = opts.OnGetBitrate()
-		}
-		audioBitrate := int64(0)
-		if opts.OnGetAudioBitrate != nil {
-			audioBitrate = opts.OnGetAudioBitrate()
-		}
+		bitrate := cb.GetBitrate()
+		audioBitrate := cb.GetAudioBitrate()
 		bitrateStr := "--"
 		if bitrate > 0 {
 			bitrateStr = fmt.Sprintf("%d kbps", bitrate/1000)
@@ -407,39 +278,24 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if audioBitrate > 0 {
 			audioBitrateStr = fmt.Sprintf("%d kbps", audioBitrate/1000)
 		}
-		width := 0
-		height := 0
-		if opts.OnGetWidth != nil {
-			width = opts.OnGetWidth()
-		}
-		if opts.OnGetHeight != nil {
-			height = opts.OnGetHeight()
-		}
-		fr := 0.0
-		if opts.OnGetFrameRate != nil {
-			fr = opts.OnGetFrameRate()
-		}
-		ar := 0
-		if opts.OnGetAudioRate != nil {
-			ar = opts.OnGetAudioRate()
-		}
-		ch := 0
-		if opts.OnGetChannels != nil {
-			ch = opts.OnGetChannels()
-		}
+		width := cb.GetWidth()
+		height := cb.GetHeight()
+		fr := cb.GetFrameRate()
+		ar := cb.GetAudioRate()
+		ch := cb.GetChannels()
 		return fmt.Sprintf(
 			"File: %s\nFormat: %s\nResolution: %dx%d\nAspect Ratio: %s\nDuration: %s\n"+
 				"Video Codec: %s\nVideo Bitrate: %s\nFrame Rate: %.2f fps\n"+
 				"Pixel Format: %s\nColor Space: %s\nField Order: %s\n"+
 				"Audio Codec: %s\nAudio Bitrate: %s\nAudio Rate: %d Hz\nChannels: %d",
-			filepath.Base(path),
-			get(opts.OnGetFormat),
+			filepath.Base(inspectFile),
+			cb.GetFormat(),
 			width, height,
-			get(opts.OnGetAspectRatio),
-			get(opts.OnGetDuration),
-			get(opts.OnGetVideoCodec), bitrateStr, fr,
-			get(opts.OnGetPixelFormat), get(opts.OnGetColorSpace), get(opts.OnGetFieldOrder),
-			get(opts.OnGetAudioCodec), audioBitrateStr, ar, ch,
+			cb.GetAspectRatio(),
+			cb.GetDuration(),
+			cb.GetVideoCodec(), bitrateStr, fr,
+			cb.GetPixelFormat(), cb.GetColorSpace(), cb.GetFieldOrder(),
+			cb.GetAudioCodec(), audioBitrateStr, ar, ch,
 		)
 	}
 
@@ -449,13 +305,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	)
 
 	updateDisplay := func() {
-		if opts.InspectFile != nil {
-			// Resolve filename via callback
+		inspectFile := cb.GetFilePath()
+		if inspectFile != "" {
 			filename := "Unknown"
-			if opts.OnGetFilePath != nil {
-				if p := opts.OnGetFilePath(); p != "" {
-					filename = filepath.Base(p)
-				}
+			if p := inspectFile; p != "" {
+				filename = filepath.Base(p)
 			}
 			if len(filename) > 50 {
 				ext := filepath.Ext(filename)
@@ -467,7 +321,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 					filename = nameWithoutExt[:availableLen] + "..." + ext
 				}
 			}
-			fileLabel.SetText(fmt.Sprintf("File: %s", filename))
+			fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, filename))
 			metadataGrid.Objects = []fyne.CanvasObject{buildMetadataGrid()}
 			metadataGrid.Refresh()
 		} else {
@@ -487,21 +341,19 @@ func BuildView(opts Options) fyne.CanvasObject {
 			path := reader.URI().Path()
 			reader.Close()
 			inspectLoadVideo(state, path)
-			if opts.OnLoadFile != nil {
-				opts.OnLoadFile(path)
-			}
-		}, opts.Window)
+			cb.LoadFile(path)
+		}, cb.Window())
 	})
 
-	copyBtn := widget.NewButton("Copy Metadata", func() {
+	copyBtn := widget.NewButton(t.ActionCopyMetadata, func() {
 		metadata := formatMetadata()
-		opts.Window.Clipboard().SetContent(metadata)
-		dialog.ShowInformation("Copied", "Metadata copied to clipboard", opts.Window)
+		cb.Clipboard().SetContent(metadata)
+		dialog.ShowInformation(t.DialogCopied, t.CompareCopiedFileMsg, cb.Window())
 	})
 	copyBtn.Importance = widget.LowImportance
 
-	viewLogBtn := widget.NewButton("View Conversion Log", func() {
-		dialog.ShowInformation("No Log", "No conversion log found for this file.", opts.Window)
+	viewLogBtn := widget.NewButton(t.ActionCopyLog, func() {
+		dialog.ShowInformation(t.DialogNoLog, t.DialogNoLog, cb.Window())
 	})
 	viewLogBtn.Importance = widget.LowImportance
 	viewLogBtn.Disable()

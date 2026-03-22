@@ -16,8 +16,6 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
-// showInspectViewForPath navigates to the inspect/player module with the given
-// file pre-loaded. Used by the job queue "Play Video" button.
 func (s *appState) showInspectViewForPath(path string) {
 	src, err := probeVideo(path)
 	if err != nil {
@@ -57,103 +55,245 @@ func (s *appState) showInspectView() {
 	s.lastModule = s.active
 	s.active = "inspect"
 	s.maximizeWindow()
-	s.setContent(buildInspectView(s))
+	s.setContent(inspect.BuildView(&inspectAdapter{s: s}))
 }
 
-// buildInspectView creates the UI for inspecting a single video with player
-func buildInspectView(state *appState) fyne.CanvasObject {
-	opts := inspect.Options{
-		Window:                    state.window,
-		ModuleColor:               moduleColor("inspect"),
-		InspectFile:               state.inspectFile,
-		InspectInterlaceAnalyzing: state.inspectInterlaceAnalyzing,
-		InspectInterlaceResult:    state.inspectInterlaceResult,
-		OnShowMainMenu:            func() { state.showMainMenu() },
-		OnShowQueue:               func() { state.showQueue() },
-		OnShowInspectView:         func() { state.showInspectView() },
-		OnClearCompletedJobs:      func() { state.clearCompletedJobs() },
-		OnGetStatsBar:             func() fyne.CanvasObject { return state.statsBar },
-		OnOpenLogViewer:           func(title, path string, isTemp bool) { state.openLogViewer(title, path, isTemp) },
-		OnLoadFile: func(path string) {
-			src, err := probeVideo(path)
-			if err != nil {
-				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
-				return
-			}
-			state.inspectFile = src
-			state.inspectInterlaceResult = nil
-			state.inspectInterlaceAnalyzing = true
-			state.showInspectView()
-			logging.Debug(logging.CatModule, "loaded inspect file: %s", path)
+type inspectAdapter struct {
+	s *appState
+}
 
-			go func() {
-				// Capture first frame before interlace so it's ready when view refreshes
-				if len(src.PreviewFrames) == 0 {
-					if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
-						src.PreviewFrames = frames
-					}
-				}
+func (a *inspectAdapter) Window() fyne.Window {
+	return a.s.window
+}
 
-				detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
-				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-				defer cancel()
+func (a *inspectAdapter) ShowMainMenu() {
+	a.s.showMainMenu()
+}
 
-				result, err := detector.QuickAnalyze(ctx, path)
+func (a *inspectAdapter) ShowQueue() {
+	a.s.showQueue()
+}
 
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					state.inspectInterlaceAnalyzing = false
-					if err != nil {
-						logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
-						state.inspectInterlaceResult = nil
-					} else {
-						state.inspectInterlaceResult = result
-						logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
-					}
-					state.showInspectView()
-				}, false)
-			}()
-		},
-		OnClearFile: func() {
-			state.inspectFile = nil
-		},
-		OnGetFormat:       func() string { if state.inspectFile == nil { return "" }; return state.inspectFile.Format },
-		OnGetVideoCodec:   func() string { if state.inspectFile == nil { return "" }; return state.inspectFile.VideoCodec },
-		OnGetWidth:        func() int { if state.inspectFile == nil { return 0 }; return state.inspectFile.Width },
-		OnGetHeight:       func() int { if state.inspectFile == nil { return 0 }; return state.inspectFile.Height },
-		OnGetAspectRatio:  func() string { if state.inspectFile == nil { return "" }; return state.inspectFile.AspectRatioString() },
-		OnGetFrameRate:    func() float64 { if state.inspectFile == nil { return 0 }; return state.inspectFile.FrameRate },
-		OnGetBitrate:      func() int64 { if state.inspectFile == nil { return 0 }; return int64(state.inspectFile.Bitrate) },
-		OnGetPixelFormat:  func() string { if state.inspectFile == nil { return "" }; return state.inspectFile.PixelFormat },
-		OnGetColorSpace:   func() string { if state.inspectFile == nil { return "" }; return state.inspectFile.ColorSpace },
-		OnGetColorRange:   func() string { if state.inspectFile == nil { return "" }; return state.inspectFile.ColorRange },
-		OnGetFieldOrder:   func() string { if state.inspectFile == nil { return "" }; return state.inspectFile.FieldOrder },
-		OnGetGOPSize:      func() int { if state.inspectFile == nil { return 0 }; return state.inspectFile.GOPSize },
-		OnGetAudioCodec:   func() string { if state.inspectFile == nil { return "" }; return state.inspectFile.AudioCodec },
-		OnGetAudioBitrate: func() int64 { if state.inspectFile == nil { return 0 }; return int64(state.inspectFile.AudioBitrate) },
-		OnGetAudioRate:    func() int { if state.inspectFile == nil { return 0 }; return state.inspectFile.AudioRate },
-		OnGetChannels:     func() int { if state.inspectFile == nil { return 0 }; return state.inspectFile.Channels },
-		OnGetDuration:     func() string { if state.inspectFile == nil { return "" }; return state.inspectFile.DurationString() },
-		OnGetSampleAspect: func() string { if state.inspectFile == nil { return "" }; return state.inspectFile.SampleAspectRatio },
-		OnGetHasChapters:  func() bool { if state.inspectFile == nil { return false }; return state.inspectFile.HasChapters },
-		OnGetHasMetadata:  func() bool { if state.inspectFile == nil { return false }; return state.inspectFile.HasMetadata },
-		OnGetTitle: func() string {
-			if state.inspectFile == nil || state.inspectFile.Metadata == nil {
-				return ""
-			}
-			return state.inspectFile.Metadata["title"]
-		},
-		OnGetPreviewFrame: func() string {
-			if state.inspectFile == nil || len(state.inspectFile.PreviewFrames) == 0 {
-				return ""
-			}
-			return state.inspectFile.PreviewFrames[0]
-		},
-		OnGetFilePath: func() string {
-			if state.inspectFile == nil {
-				return ""
-			}
-			return state.inspectFile.Path
-		},
+func (a *inspectAdapter) ShowInspectView() {
+	a.s.showInspectView()
+}
+
+func (a *inspectAdapter) ClearCompletedJobs() {
+	a.s.clearCompletedJobs()
+}
+
+func (a *inspectAdapter) StatsBar() fyne.CanvasObject {
+	return a.s.statsBar
+}
+
+func (a *inspectAdapter) OpenLogViewer(title string, path string, isTemp bool) {
+	a.s.openLogViewer(title, path, isTemp)
+}
+
+func (a *inspectAdapter) LoadFile(path string) {
+	src, err := probeVideo(path)
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("failed to load video: %w", err), a.s.window)
+		return
 	}
-	return inspect.BuildView(opts)
+	a.s.inspectFile = src
+	a.s.inspectInterlaceResult = nil
+	a.s.inspectInterlaceAnalyzing = true
+	a.s.showInspectView()
+	logging.Debug(logging.CatModule, "loaded inspect file: %s", path)
+
+	go func() {
+		if len(src.PreviewFrames) == 0 {
+			if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
+				src.PreviewFrames = frames
+			}
+		}
+
+		detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+
+		result, err := detector.QuickAnalyze(ctx, path)
+
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			a.s.inspectInterlaceAnalyzing = false
+			if err != nil {
+				logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
+				a.s.inspectInterlaceResult = nil
+			} else {
+				a.s.inspectInterlaceResult = result
+				logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
+			}
+			a.s.showInspectView()
+		}, false)
+	}()
+}
+
+func (a *inspectAdapter) ClearFile() {
+	a.s.inspectFile = nil
+}
+
+func (a *inspectAdapter) GetFormat() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.Format
+}
+
+func (a *inspectAdapter) GetVideoCodec() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.VideoCodec
+}
+
+func (a *inspectAdapter) GetWidth() int {
+	if a.s.inspectFile == nil {
+		return 0
+	}
+	return a.s.inspectFile.Width
+}
+
+func (a *inspectAdapter) GetHeight() int {
+	if a.s.inspectFile == nil {
+		return 0
+	}
+	return a.s.inspectFile.Height
+}
+
+func (a *inspectAdapter) GetAspectRatio() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.AspectRatioString()
+}
+
+func (a *inspectAdapter) GetFrameRate() float64 {
+	if a.s.inspectFile == nil {
+		return 0
+	}
+	return a.s.inspectFile.FrameRate
+}
+
+func (a *inspectAdapter) GetBitrate() int64 {
+	if a.s.inspectFile == nil {
+		return 0
+	}
+	return int64(a.s.inspectFile.Bitrate)
+}
+
+func (a *inspectAdapter) GetPixelFormat() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.PixelFormat
+}
+
+func (a *inspectAdapter) GetColorSpace() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.ColorSpace
+}
+
+func (a *inspectAdapter) GetColorRange() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.ColorRange
+}
+
+func (a *inspectAdapter) GetFieldOrder() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.FieldOrder
+}
+
+func (a *inspectAdapter) GetGOPSize() int {
+	if a.s.inspectFile == nil {
+		return 0
+	}
+	return a.s.inspectFile.GOPSize
+}
+
+func (a *inspectAdapter) GetAudioCodec() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.AudioCodec
+}
+
+func (a *inspectAdapter) GetAudioBitrate() int64 {
+	if a.s.inspectFile == nil {
+		return 0
+	}
+	return int64(a.s.inspectFile.AudioBitrate)
+}
+
+func (a *inspectAdapter) GetAudioRate() int {
+	if a.s.inspectFile == nil {
+		return 0
+	}
+	return a.s.inspectFile.AudioRate
+}
+
+func (a *inspectAdapter) GetChannels() int {
+	if a.s.inspectFile == nil {
+		return 0
+	}
+	return a.s.inspectFile.Channels
+}
+
+func (a *inspectAdapter) GetDuration() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.DurationString()
+}
+
+func (a *inspectAdapter) GetSampleAspect() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.SampleAspectRatio
+}
+
+func (a *inspectAdapter) GetHasChapters() bool {
+	if a.s.inspectFile == nil {
+		return false
+	}
+	return a.s.inspectFile.HasChapters
+}
+
+func (a *inspectAdapter) GetHasMetadata() bool {
+	if a.s.inspectFile == nil {
+		return false
+	}
+	return a.s.inspectFile.HasMetadata
+}
+
+func (a *inspectAdapter) GetTitle() string {
+	if a.s.inspectFile == nil || a.s.inspectFile.Metadata == nil {
+		return ""
+	}
+	return a.s.inspectFile.Metadata["title"]
+}
+
+func (a *inspectAdapter) GetPreviewFrame() string {
+	if a.s.inspectFile == nil || len(a.s.inspectFile.PreviewFrames) == 0 {
+		return ""
+	}
+	return a.s.inspectFile.PreviewFrames[0]
+}
+
+func (a *inspectAdapter) GetFilePath() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.Path
+}
+
+func (a *inspectAdapter) Clipboard() fyne.Clipboard {
+	return a.s.window.Clipboard()
 }
