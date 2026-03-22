@@ -10,19 +10,22 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 // buildDVDRipTab creates a DVD/ISO ripping tab with import support
 func buildDVDRipTab(state *appState) fyne.CanvasObject {
+	t := i18n.T()
+
 	// DVD/ISO source
 	var sourceType string // "dvd" or "iso"
 	var isDVD5 bool
 	var isDVD9 bool
 	var titles []DVDTitle
 
-	sourceLabel := widget.NewLabel("No DVD/ISO selected")
+	sourceLabel := widget.NewLabel(t.AuthorNoDVDSelected)
 	sourceLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	var updateTitleList func()
@@ -41,7 +44,7 @@ func buildDVDRipTab(state *appState) fyne.CanvasObject {
 				sourceType = "dvd"
 				sourceLabel.SetText(fmt.Sprintf("DVD: %s", path))
 			} else {
-				dialog.ShowError(fmt.Errorf("not a valid DVD or ISO file"), state.window)
+				dialog.ShowError(fmt.Errorf(t.AuthorInvalidDVDISO), state.window)
 				return
 			}
 
@@ -62,7 +65,7 @@ func buildDVDRipTab(state *appState) fyne.CanvasObject {
 		titleList.Objects = nil
 
 		if len(titles) == 0 {
-			emptyLabel := widget.NewLabel("Import a DVD or ISO to analyze")
+			emptyLabel := widget.NewLabel(t.AuthorImportDVDISOHint)
 			emptyLabel.Alignment = fyne.TextAlignCenter
 			titleList.Add(container.NewCenter(emptyLabel))
 			return
@@ -70,12 +73,12 @@ func buildDVDRipTab(state *appState) fyne.CanvasObject {
 
 		// Add DVD5/DVD9 indicators
 		if isDVD5 {
-			dvd5Label := widget.NewLabel("🎞 DVD-5 Detected (Single Layer)")
+			dvd5Label := widget.NewLabel(t.AuthorDVD5Detected)
 			dvd5Label.Importance = widget.LowImportance
 			titleList.Add(dvd5Label)
 		}
 		if isDVD9 {
-			dvd9Label := widget.NewLabel("🎞 DVD-9 Detected (Dual Layer)")
+			dvd9Label := widget.NewLabel(t.AuthorDVD9Detected)
 			dvd9Label.Importance = widget.LowImportance
 			titleList.Add(dvd9Label)
 		}
@@ -101,7 +104,7 @@ func buildDVDRipTab(state *appState) fyne.CanvasObject {
 			titleCard.SetContent(details)
 
 			// Rip button for this title
-			ripBtn := widget.NewButton("Rip Title", func() {
+			ripBtn := widget.NewButton(t.AuthorRipTitle, func() {
 				ripTitle(title, state)
 			})
 			ripBtn.Importance = widget.HighImportance
@@ -114,9 +117,9 @@ func buildDVDRipTab(state *appState) fyne.CanvasObject {
 	}
 
 	// Rip all button
-	ripAllBtn := widget.NewButton("Rip All Titles", func() {
+	ripAllBtn := widget.NewButton(t.AuthorRipAllTitles, func() {
 		if len(titles) == 0 {
-			dialog.ShowInformation("No Titles", "Please import a DVD or ISO first", state.window)
+			dialog.ShowInformation(t.AuthorNoTitles, t.AuthorImportDVDISO, state.window)
 			return
 		}
 		ripAllTitles(titles, state)
