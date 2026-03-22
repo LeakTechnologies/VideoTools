@@ -6,6 +6,10 @@
 - **Settings module structure** — Created `internal/app/modules/settings/` with view.go and types.go
 - **Settings types moved** — PrefsConfig, Dependency, DependencyCommand types extracted to module package
 - **Constructor functions** — Added NewDependencyCommand, NewDependencyCommandPair for type safety
+- **Inspect module** — Extracted `showInspectView` and `buildInspectView` to `internal/app/modules/inspect/view.go`
+- **Queue module** — Extracted queue view builders and refresh helpers to `internal/app/modules/queue/view.go`
+- **Subtitles module** — Extracted package structure, types, adapter, and view code to `internal/app/modules/subtitles/`
+- **Upscale module helpers** — AI helper functions extracted to `internal/app/modules/upscale/helpers.go`
 
 ### GPU Rendering Pipeline
 - **Fyne fork** — GPU texture optimization fork at `lt_mirror/fyne`

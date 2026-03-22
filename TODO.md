@@ -59,8 +59,8 @@ Note: Full direct OpenGL/D3D11 integration requires deeper Fyne modifications. C
 ### Module Extraction (issue #22)
 - [x] **`settings_module.go`** — Tab builders extracted to `internal/app/modules/settings/tabs.go`. Callbacks implemented via adapter pattern. Reduced settings_module.go from 2316 to ~1700 lines.
 - [x] **`queue_module.go`** — Already uses `internal/ui/queueview.go`. Thin wrappers remain in root.
-- [ ] **`subtitles_module.go`** — Phase 1 complete. Package structure, types, and adapter created. View code extraction pending.
-- [ ] **`upscale_module.go`** — Following subtitles.
+- [x] **`subtitles_module.go`** — Extracted to `internal/app/modules/subtitles/`. Package structure, types, adapter, and view code moved.
+- [x] **`upscale_module.go`** — Helpers extracted to `internal/app/modules/upscale/helpers.go`. Root file is thin shim delegating to internal package.
 
 ### Media Engine
 - [x] **SplitView fixes** — Divider color and draggable divider.
@@ -174,7 +174,7 @@ Approach:
 - [x] **Convert player layout** — Video fills centre of player pane; transport bar pinned to bottom; VSplit gap removed.
 - [x] **Convert active state** — `s.active = "convert"` now set correctly; drop handling and keyboard shortcuts work inside the module.
 - [ ] **Drag and drop into Convert** — Files dragged onto the Convert module drop zone not being registered (opencode investigating).
-- [ ] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
+- [x] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
 
 ## Dev31 Scope
 
@@ -184,10 +184,10 @@ Approach:
   - setContent now pins window size after SetContent to prevent layout-driven resize on module switch.
 - [x] **Convert UI cleanup** (issue #5)
   - Layout consistency, label clarity, and control organization pass for external developer testing readiness. Completed in dev33 alignment pass.
-- [ ] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
-  - Move `buildInspectView`, `showSettingsView`/`buildSettingsView`, and `showQueue`/queue view out of `main.go` into dedicated `*_module.go` files.
-  - See `AGENTS.md` Refactor Boundaries for the pattern and completed-slice list.
-  - **Note**: Convert module partially modularized (entry point + state/callbacks in `internal/app/modules/convert/view.go`). Full `buildConvertView` extraction deferred due to high coupling with appState (~3500 lines, ~30+ state fields). Future work should consider extracting logical subsections first.
+- [x] **Phase 3 modularisation — Inspect, Settings, Queue** (opencode)
+   - Move `buildInspectView`, `showSettingsView`/`buildSettingsView`, and `showQueue`/queue view out of `main.go` into dedicated `*_module.go` files.
+   - Inspect, queue, subtitles, and upscale modules now in `internal/app/modules/`.
+   - **Note**: Convert module partially modularized (entry point + state/callbacks in `internal/app/modules/convert/view.go`). Full `buildConvertView` extraction deferred due to high coupling with appState (~3500 lines, ~30+ state fields). Future work should consider extracting logical subsections first.
 
 ## Near-Term Milestone: Frame Interpolation (RIFE)
 
