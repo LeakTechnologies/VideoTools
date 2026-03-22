@@ -237,12 +237,12 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	scriptSelect := widget.NewSelect([]string{}, func(selected string) {})
 	scriptSelect.Hide()
 
-	const scriptOptSyllabics = "ᖃᓂᐅᔮᖅᐸᐃᑦ"
-	const scriptOptLatin = "Qaliujaaqpait"
 	if i18n.CurrentCode() == "iu" {
 		scriptLabel.Show()
 		scriptSelect.Show()
 		currentScript := i18n.CurrentScript()
+		scriptOptSyllabics := t.SettingsScriptSyllabics
+		scriptOptLatin := t.SettingsScriptLatin
 		scriptSelect.Options = []string{scriptOptSyllabics, scriptOptLatin}
 		if currentScript == i18n.ScriptLatin {
 			scriptSelect.SetSelected(scriptOptLatin)
