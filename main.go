@@ -109,31 +109,31 @@ var (
 	hwAccelProbeOnce sync.Once
 	hwAccelSupported atomic.Value // map[string]bool
 
-	hwProbesMu       sync.Mutex
-	nvencProbeOK     *bool // nil = not yet probed or last probe failed; non-nil = confirmed available
-	qsvProbeOK       *bool
-	vaapiProbeOK     *bool
+	hwProbesMu          sync.Mutex
+	nvencProbeOK        *bool // nil = not yet probed or last probe failed; non-nil = confirmed available
+	qsvProbeOK          *bool
+	vaapiProbeOK        *bool
 	videotoolboxProbeOK *bool
-	amfProbeOK       *bool
+	amfProbeOK          *bool
 
 	// 14-step HSL spectrum: H steps ~25.7° from VT_Purple (H=267°).
 	// S=70% throughout; L is reduced for bright hues (yellow/green) so white
 	// text always has sufficient contrast (≥3.3:1 for large bold labels).
 	modulesList = []Module{
-		{"convert",   "Convert",   utils.MustHex("#7225D0"), color.White, "Convert",     modules.HandleConvert},
-		{"merge",     "Merge",     utils.MustHex("#B423C7"), color.White, "Convert",     modules.HandleMerge},
-		{"trim",      "Trim",      utils.MustHex("#BF2290"), color.White, "Convert",     modules.HandleTrim},
-		{"filters",   "Filters",   utils.MustHex("#BF224C"), color.White, "Convert",     modules.HandleFilters},
-		{"audio",     "Audio",     utils.MustHex("#BF3C22"), color.White, "Convert",     modules.HandleAudio},
-		{"subtitles", "Subtitles", utils.MustHex("#AD741F"), color.White, "Convert",     modules.HandleSubtitles},
-		{"compare",   "Compare",   utils.MustHex("#91931A"), color.White, "Inspect",     modules.HandleCompare},
-		{"inspect",   "Inspect",   utils.MustHex("#629C1C"), color.White, "Inspect",     modules.HandleInspect},
-		{"upscale",   "Upscale",   utils.MustHex("#2B9C1C"), color.White, "Advanced",    modules.HandleUpscale},
-		{"author",    "Author",    utils.MustHex("#1C9C44"), color.White, "Disc",        modules.HandleAuthor},
-		{"rip",       "Rip",       utils.MustHex("#1A9373"), color.White, "Disc",        modules.HandleRip},
-		{"player",    "Player",    utils.MustHex("#1D8EA5"), color.White, "Playback",    modules.HandlePlayer},
+		{"convert", "Convert", utils.MustHex("#7225D0"), color.White, "Convert", modules.HandleConvert},
+		{"merge", "Merge", utils.MustHex("#B423C7"), color.White, "Convert", modules.HandleMerge},
+		{"trim", "Trim", utils.MustHex("#BF2290"), color.White, "Convert", modules.HandleTrim},
+		{"filters", "Filters", utils.MustHex("#BF224C"), color.White, "Convert", modules.HandleFilters},
+		{"audio", "Audio", utils.MustHex("#BF3C22"), color.White, "Convert", modules.HandleAudio},
+		{"subtitles", "Subtitles", utils.MustHex("#AD741F"), color.White, "Convert", modules.HandleSubtitles},
+		{"compare", "Compare", utils.MustHex("#91931A"), color.White, "Inspect", modules.HandleCompare},
+		{"inspect", "Inspect", utils.MustHex("#629C1C"), color.White, "Inspect", modules.HandleInspect},
+		{"upscale", "Upscale", utils.MustHex("#2B9C1C"), color.White, "Advanced", modules.HandleUpscale},
+		{"author", "Author", utils.MustHex("#1C9C44"), color.White, "Disc", modules.HandleAuthor},
+		{"rip", "Rip", utils.MustHex("#1A9373"), color.White, "Disc", modules.HandleRip},
+		{"player", "Player", utils.MustHex("#1D8EA5"), color.White, "Playback", modules.HandlePlayer},
 		{"thumbnail", "Thumbnail", utils.MustHex("#2260BF"), color.White, "Screenshots", modules.HandleThumbnail},
-		{"settings",  "Settings",  utils.MustHex("#2825D0"), color.White, "Settings",    nil},
+		{"settings", "Settings", utils.MustHex("#2825D0"), color.White, "Settings", nil},
 	}
 
 	// Platform-specific configuration
@@ -5527,7 +5527,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			if strings.Contains(videoCodec, "x264") || strings.Contains(videoCodec, "x265") {
 				args = append(args, "-preset", preset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 			} else if strings.Contains(videoCodec, "vp9") {
-				args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
+				args = append(args, "-b:v", "0", "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 			} else if strings.Contains(videoCodec, "svtav1") {
 				// Map x264/x265 presets to SVT-AV1 presets (0-13, lower=slower/better)
 				var svtPreset string
@@ -5553,9 +5553,9 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 				default:
 					svtPreset = "8" // Fast preset for snippets
 				}
-				args = append(args, "-preset", svtPreset, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
+				args = append(args, "-preset", svtPreset, "-crf", crfVal, "-b:v", "0", "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 			} else if strings.Contains(videoCodec, "av1") {
-				args = append(args, "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
+				args = append(args, "-b:v", "0", "-crf", crfVal, "-maxrate", targetBitrate, "-bufsize", targetBitrate)
 			}
 
 			// Audio codec
