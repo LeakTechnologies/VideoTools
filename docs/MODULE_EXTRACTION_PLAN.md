@@ -48,16 +48,18 @@ This document outlines the strategy for extracting `package main` UI modules int
 | Trim | `trim_module.go` | ~200 | `internal/app/modules/trim/` |
 | Queue | `queue_module.go` | ~100 | `internal/ui/queueview.go` |
 | **Settings** | `settings_module.go` | ~600 | `internal/app/modules/settings/` |
+| **Subtitles** | `subtitles_module.go` | ~5 (in progress) | `internal/app/modules/subtitles/` |
 
 ### Pending Extractions (Priority Order)
 
-#### 1. Subtitle Extraction (HIGH)
+#### 1. Subtitle Extraction (IN PROGRESS)
 - **Root file**: `subtitles_module.go`
 - **Lines**: ~1784 total
 - **View code**: ~1200 lines in `showSubtitlesView` + `buildSubtitlesView`
 - **appState dependencies**: 100+ references
 - **Dependencies**: Whisper (python), OCR, FFmpeg subtitle filters
 - **Complexity**: HIGH - many state interactions
+- **Status**: Phase 1 complete - package structure and adapter created, view code extraction pending
 
 #### 2. Upscale Extraction (MEDIUM)
 - **Root file**: `upscale_module.go`
