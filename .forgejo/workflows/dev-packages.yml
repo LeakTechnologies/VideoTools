@@ -301,7 +301,7 @@ jobs:
             $ldflags = "$ldflags -X main.buildCommit=$gitCommit"
           }
 
-          go build -p 4 -ldflags="$ldflags" -trimpath -o $buildOutput .
+          go build -p 4 -tags native_media -ldflags="$ldflags" -trimpath -o $buildOutput .
 
           # Sign if credentials are present (SignPath takes priority over PFX)
           $hasSignPath = $env:SIGNPATH_API_TOKEN -and $env:SIGNPATH_ORGANIZATION_ID

@@ -122,7 +122,7 @@ LDFLAGS=""
 if [ -n "$GIT_COMMIT" ]; then
     LDFLAGS="-X main.buildCommit=$GIT_COMMIT"
 fi
-if go build $GSTREAMER_TAG -ldflags="$LDFLAGS" -o "$BUILD_OUTPUT" .; then
+if go build -tags native_media $GSTREAMER_TAG -ldflags="$LDFLAGS" -o "$BUILD_OUTPUT" .; then
     build_end=$(date +%s)
     build_secs=$((build_end - build_start))
     echo "Build successful! (VideoTools $FULL_VERSION)"

@@ -7,7 +7,7 @@ import (
 )
 
 func (s *appState) showInspectView() {
-	dialog.ShowInformation("Module Unavailable", "The Inspect module requires the native_media build.\n\nRebuild VideoTools with:\n  go build -tags native_media .", s.window)
+	dialog.ShowInformation("Module Unavailable", "The Inspect module is not available in this build.\n\nPlease download the latest release from leaktechnologies.dev.", s.window)
 }
 
 func (s *appState) showInspectViewForPath(path string) {

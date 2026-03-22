@@ -193,7 +193,7 @@ Write-Host "Compiling..." -NoNewline
 
 # Direct build
 Set-Location $PROJECT_ROOT
-$buildOutput = go build -ldflags "$ldflags" -o "$BUILD_OUTPUT" . 2>&1
+$buildOutput = go build -tags native_media -ldflags "$ldflags" -o "$BUILD_OUTPUT" . 2>&1
 $exitCode = $LASTEXITCODE
 
 if ($exitCode -ne 0) {

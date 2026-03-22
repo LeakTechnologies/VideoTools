@@ -119,7 +119,7 @@ if [ -n "$GIT_COMMIT" ]; then
     LDFLAGS="$LDFLAGS -X main.buildCommit=$GIT_COMMIT"
 fi
 
-if go build -ldflags="$LDFLAGS" -o "$BUILD_OUTPUT" .; then
+if go build -tags native_media -ldflags="$LDFLAGS" -o "$BUILD_OUTPUT" .; then
     echo "Cross-compilation successful!"
     echo ""
 else
