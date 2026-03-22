@@ -345,7 +345,12 @@ jobs:
 
           $env:CGO_ENABLED = "1"
 
-          # Resolve static FFmpeg link flags via pkg-config (requires pkgconfiglite)
+          # Set baseline CGO flags for the static BtbN FFmpeg at C:\ffmpeg.
+          # These are always applied; real pkg-config (if available) may override them.
+          $env:CGO_CFLAGS  = "-IC:\ffmpeg\include"
+          $env:CGO_LDFLAGS = "-LC:\ffmpeg\lib -lavcodec -lavformat -lavutil -lswscale -lswresample -lavfilter -lbcrypt -lSecur32 -lWs2_32 -lmfplat -lstrmiids -lavrt -lole32 -luser32"
+
+          # If real pkg-config is installed, let it refine the flags.
           $pkgConfig = Get-Command pkg-config -ErrorAction SilentlyContinue
           if ($pkgConfig) {
             $ffmpegLibs = "libavcodec libavformat libswscale libavutil libswresample"
@@ -354,11 +359,8 @@ jobs:
             if ($cflags) { $env:CGO_CFLAGS  = $cflags }
             if ($libs)   { $env:CGO_LDFLAGS = $libs }
           } else {
-            # Fallback: point directly at the BtbN static FFmpeg headers and libs
-            $env:CGO_CFLAGS  = "-IC:\ffmpeg\include"
-            $env:CGO_LDFLAGS = "-LC:\ffmpeg\lib -lavcodec -lavformat -lavutil -lswscale -lswresample -lavfilter -lbcrypt -lSecur32 -lWs2_32 -lmfplat -lstrmiids -lavrt -lole32 -luser32"
-            # Create a no-op pkg-config shim so CGO source #cgo pkg-config directives don't fail.
-            # The actual flags come from CGO_CFLAGS/CGO_LDFLAGS set above.
+            # No real pkg-config — create a no-op shim so #cgo pkg-config: directives
+            # in source files don't fail. CGO_CFLAGS/CGO_LDFLAGS carry the real flags.
             $shimDir = "C:\tools\pkg-config-shim"
             New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
             "@echo off`r`nexit 0" | Set-Content "$shimDir\pkg-config.bat" -Encoding ASCII

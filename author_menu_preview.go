@@ -188,7 +188,7 @@ type previewParams struct {
 
 // ---- template renderers ----
 
-func pvRenderSimple(img *image.RGBA, title string, buttons []dvdMenuButton, txt, hdr, accent, dim color.RGBA, w int, t i18n.Translator) {
+func pvRenderSimple(img *image.RGBA, title string, buttons []dvdMenuButton, txt, hdr, accent, dim color.RGBA, w int, t i18n.Strings) {
 	pvFillRect(img, image.Rect(0, 0, w, 72), hdr)
 	pvDrawText(img, t.AuthorVideoToolsDVD, 22, 36, 50, txt)
 	pvDrawText(img, utils.ShortenMiddle(title, 40), 16, 36, 98, txt)
@@ -215,7 +215,7 @@ func pvRenderMinimal(img *image.RGBA, title string, buttons []dvdMenuButton, txt
 
 // ---- main render ----
 
-func renderMenuPreviewImage(p previewParams, t i18n.Translator) image.Image {
+func renderMenuPreviewImage(p previewParams, t i18n.Strings) image.Image {
 	width, height := dvdMenuDimensions(p.region)
 	img := image.NewRGBA(image.Rect(0, 0, width, height))
 
