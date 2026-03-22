@@ -60,7 +60,7 @@ Note: Full direct OpenGL/D3D11 integration requires deeper Fyne modifications. C
 - [x] **`settings_module.go`** — Tab builders extracted to `internal/app/modules/settings/tabs.go`. Callbacks implemented via adapter pattern. Reduced settings_module.go from 2316 to ~1700 lines.
 - [x] **`queue_module.go`** — Already uses `internal/ui/queueview.go`. Thin wrappers remain in root.
 - [x] **`subtitles_module.go`** — Extracted to `internal/app/modules/subtitles/`. Package structure, types, adapter, and view code moved.
-- [x] **`upscale_module.go`** — Helpers extracted to `internal/app/modules/upscale/helpers.go`. Root file is thin shim delegating to internal package.
+- [x] **`upscale_module.go`** — Extracted to `internal/app/modules/upscale/` with helpers.go, types.go, and view.go. Root file is thin shim delegating to internal package.
 
 ### Media Engine
 - [x] **SplitView fixes** — Divider color and draggable divider.

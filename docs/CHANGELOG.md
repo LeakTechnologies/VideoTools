@@ -9,7 +9,7 @@
 - **Inspect module** — Extracted `showInspectView` and `buildInspectView` to `internal/app/modules/inspect/view.go`
 - **Queue module** — Extracted queue view builders and refresh helpers to `internal/app/modules/queue/view.go`
 - **Subtitles module** — Extracted package structure, types, adapter, and view code to `internal/app/modules/subtitles/`
-- **Upscale module helpers** — AI helper functions extracted to `internal/app/modules/upscale/helpers.go`
+- **Upscale module** — Full module extracted to `internal/app/modules/upscale/` with helpers.go, types.go, and view.go
 
 ### GPU Rendering Pipeline
 - **Fyne fork** — GPU texture optimization fork at `lt_mirror/fyne`
