@@ -238,16 +238,6 @@ func detectHardwareEncoders(cfg *PlatformConfig) []string {
 			encoders = append(encoders, "qsv")
 			logging.Debug(logging.CatSystem, "Detected QSV encoder")
 		}
-	} else if cfg.IsDarwin {
-		// macOS: Check for VideoToolbox, NVENC
-		if strings.Contains(encoderList, "h264_videotoolbox") {
-			encoders = append(encoders, "videotoolbox")
-			logging.Debug(logging.CatSystem, "Detected VideoToolbox encoder")
-		}
-		if strings.Contains(encoderList, "h264_nvenc") {
-			encoders = append(encoders, "nvenc")
-			logging.Debug(logging.CatSystem, "Detected NVENC encoder")
-		}
 	}
 
 	return encoders

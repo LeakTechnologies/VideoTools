@@ -311,7 +311,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		hwStatus.SetText(fmt.Sprintf(t.SettingsDetectedFmt, detected))
 	}
 
-	hwSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "qsv", "amf", "vaapi", "videotoolbox"}, func(selected string) {
+	hwSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "qsv", "amf", "vaapi"}, func(selected string) {
 		cb.SetConvertHardwareAccel(selected)
 		cb.PersistConvertConfig()
 		updateHwStatus()
