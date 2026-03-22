@@ -15,17 +15,10 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/subtitles"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
@@ -530,606 +523,6 @@ func (s *appState) showSubtitlesView() {
 	}
 
 	s.setContent(subtitles.BuildView(&subtitlesAdapter{s: s}))
-}
-
-func buildSubtitlesView(state *appState) fyne.CanvasObject {
-	subtitlesColor := moduleColor("subtitles")
-
-	if strings.TrimSpace(state.subtitleBackendPath) == "" {
-		if detected := detectWhisperBackend(); detected != "" {
-			state.subtitleBackendPath = detected
-			state.persistSubtitlesConfig()
-		}
-	}
-	if strings.TrimSpace(state.subtitleModelPath) == "" {
-		if detected := detectWhisperModel(); detected != "" {
-			state.subtitleModelPath = detected
-			state.persistSubtitlesConfig()
-		}
-	}
-	if strings.TrimSpace(state.subtitleRipMode) == "" {
-		state.subtitleRipMode = "Text (SRT/ASS)"
-	}
-	if strings.TrimSpace(state.subtitleOCRLanguage) == "" {
-		state.subtitleOCRLanguage = "eng"
-	}
-	if strings.TrimSpace(state.subtitleOCROutput) == "" {
-		state.subtitleOCROutput = "srt"
-	}
-	t := i18n.T()
-
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleSubtitles), func() {
-		state.showMainMenu()
-	})
-	backBtn.Importance = widget.LowImportance
-
-	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
-		state.showQueue()
-	})
-	state.queueBtn = queueBtn
-	state.updateQueueButtonLabel()
-
-	clearCompletedBtn := widget.NewButton("⌫", func() {
-		state.clearCompletedJobs()
-	})
-	clearCompletedBtn.Importance = widget.LowImportance
-
-	topBar := ui.TintedBar(subtitlesColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
-
-	videoEntry := widget.NewEntry()
-	videoEntry.SetPlaceHolder(t.SubtitlesVideoPlaceholder)
-	logging.Debug(logging.CatModule, "buildSubtitlesView: creating videoEntry with subtitleVideoPath=%s", state.subtitleVideoPath)
-	videoEntry.SetText(state.subtitleVideoPath)
-	videoEntry.OnChanged = func(val string) {
-		state.subtitleVideoPath = strings.TrimSpace(val)
-	}
-
-	subtitleEntry := widget.NewEntry()
-	subtitleEntry.SetPlaceHolder(t.SubtitlesFilePlaceholder)
-	subtitleEntry.SetText(state.subtitleFilePath)
-	subtitleEntry.OnChanged = func(val string) {
-		state.subtitleFilePath = strings.TrimSpace(val)
-	}
-
-	modelEntry := widget.NewEntry()
-	modelEntry.SetPlaceHolder(t.SubtitlesModelPlaceholder)
-	modelEntry.SetText(state.subtitleModelPath)
-	modelEntry.OnChanged = func(val string) {
-		state.subtitleModelPath = strings.TrimSpace(val)
-		state.persistSubtitlesConfig()
-	}
-
-	backendEntry := widget.NewEntry()
-	backendEntry.SetPlaceHolder(t.SubtitlesBackendPlaceholder)
-	backendEntry.SetText(state.subtitleBackendPath)
-	backendEntry.OnChanged = func(val string) {
-		state.subtitleBackendPath = strings.TrimSpace(val)
-		state.persistSubtitlesConfig()
-	}
-
-	backendLabel := widget.NewLabel("")
-	modelLabel := widget.NewLabel("")
-	offlineHint := widget.NewLabel(i18n.T().SubtitlesOfflineHint)
-	offlineHint.Wrapping = fyne.TextWrapWord
-	refreshWhisperUI := func() {
-		missingModel := strings.TrimSpace(state.subtitleModelPath) == ""
-		if missingModel {
-			offlineHint.SetText(i18n.T().SubtitlesOfflineHint)
-		} else {
-			offlineHint.SetText(i18n.T().SubtitlesOfflineModelHint)
-		}
-		if strings.TrimSpace(state.subtitleBackendPath) != "" {
-			backendLabel.SetText(fmt.Sprintf(i18n.T().SubtitlesWhisperBackendFmt, state.subtitleBackendPath))
-			backendEntry.Hide()
-		} else {
-			backendLabel.SetText("")
-			backendEntry.Show()
-		}
-		if strings.TrimSpace(state.subtitleModelPath) != "" {
-			modelLabel.SetText(fmt.Sprintf(i18n.T().SubtitlesWhisperModelFmt, state.subtitleModelPath))
-			modelEntry.Hide()
-		} else {
-			modelLabel.SetText("")
-			modelEntry.Show()
-		}
-	}
-	refreshWhisperUI()
-
-	outputEntry := widget.NewEntry()
-	outputEntry.SetPlaceHolder(t.SubtitlesOutputPlaceholder)
-	outputEntry.SetText(state.subtitleBurnOutput)
-	outputEntry.OnChanged = func(val string) {
-		state.subtitleBurnOutput = strings.TrimSpace(val)
-		state.persistSubtitlesConfig()
-	}
-
-	statusLabel := widget.NewLabel("")
-	statusLabel.Wrapping = fyne.TextWrapWord
-	state.subtitleStatusLabel = statusLabel
-	if state.subtitleStatus != "" {
-		statusLabel.SetText(state.subtitleStatus)
-	}
-
-	// Create copy button for status text
-	copyStatusBtn := widget.NewButton(t.SubtitlesCopyStatus, func() {
-		if state.subtitleStatus != "" {
-			state.window.Clipboard().SetContent(state.subtitleStatus)
-			dialog.ShowInformation("Copied", "Status text copied to clipboard", state.window)
-		}
-	})
-	copyStatusBtn.Importance = widget.LowImportance
-
-	// Create scrollable status container
-	statusScroll := container.NewVScroll(statusLabel)
-	statusScroll.SetMinSize(fyne.NewSize(0, 60))
-
-	var rebuildCues func()
-	cueList := container.NewVBox()
-	listScroll := container.NewVScroll(cueList)
-	var emptyOverlay *fyne.Container
-	rebuildCues = func() {
-		cueList.Objects = nil
-		if len(state.subtitleCues) == 0 {
-			if emptyOverlay != nil {
-				emptyOverlay.Show()
-			}
-			cueList.Refresh()
-			return
-		}
-		if emptyOverlay != nil {
-			emptyOverlay.Hide()
-		}
-		for i, cue := range state.subtitleCues {
-			idx := i
-
-			startEntry := widget.NewEntry()
-			startEntry.SetPlaceHolder("00:00:00,000")
-			startEntry.SetText(formatSRTTimestamp(cue.Start))
-			startEntry.OnChanged = func(val string) {
-				if seconds, ok := parseSRTTimestamp(val); ok {
-					state.subtitleCues[idx].Start = seconds
-				}
-			}
-
-			endEntry := widget.NewEntry()
-			endEntry.SetPlaceHolder("00:00:00,000")
-			endEntry.SetText(formatSRTTimestamp(cue.End))
-			endEntry.OnChanged = func(val string) {
-				if seconds, ok := parseSRTTimestamp(val); ok {
-					state.subtitleCues[idx].End = seconds
-				}
-			}
-
-			textEntry := widget.NewMultiLineEntry()
-			textEntry.SetText(cue.Text)
-			textEntry.Wrapping = fyne.TextWrapWord
-			textEntry.OnChanged = func(val string) {
-				state.subtitleCues[idx].Text = val
-			}
-
-			removeBtn := widget.NewButton(i18n.T().ActionRemove, func() {
-				state.subtitleCues = append(state.subtitleCues[:idx], state.subtitleCues[idx+1:]...)
-				rebuildCues()
-			})
-			removeBtn.Importance = widget.MediumImportance
-
-			timesCol := container.NewVBox(
-				widget.NewLabel(i18n.T().SubtitlesStart),
-				startEntry,
-				widget.NewLabel(i18n.T().SubtitlesEnd),
-				endEntry,
-			)
-
-			row := container.NewBorder(nil, nil, timesCol, removeBtn, textEntry)
-			cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
-			cardBg.CornerRadius = 6
-			// cardBg.SetMinSize(fyne.NewSize(0, startEntry.MinSize().Height+endEntry.MinSize().Height+textEntry.MinSize().Height+24)) // Removed for flexible sizing
-			cueList.Add(container.NewPadded(container.NewMax(cardBg, row)))
-		}
-		cueList.Refresh()
-	}
-	state.subtitleCuesRefresh = rebuildCues
-
-	handleDrop := func(items []fyne.URI) {
-		logging.Debug(logging.CatModule, "subtitles handleDrop called with %d items", len(items))
-		var videoPath string
-		var subtitlePath string
-		for _, uri := range items {
-			logging.Debug(logging.CatModule, "subtitles handleDrop: uri scheme=%s path=%s", uri.Scheme(), uri.Path())
-			if uri.Scheme() != "file" {
-				continue
-			}
-			path := uri.Path()
-			if videoPath == "" && state.isVideoFile(path) {
-				videoPath = path
-				logging.Debug(logging.CatModule, "subtitles handleDrop: identified as video: %s", path)
-			}
-			if subtitlePath == "" && state.isSubtitleFile(path) {
-				subtitlePath = path
-				logging.Debug(logging.CatModule, "subtitles handleDrop: identified as subtitle: %s", path)
-			}
-		}
-		if videoPath != "" {
-			logging.Debug(logging.CatModule, "subtitles handleDrop: setting video path to %s", videoPath)
-			state.subtitleVideoPath = videoPath
-			videoEntry.SetText(videoPath)
-			logging.Debug(logging.CatModule, "subtitles handleDrop: videoEntry text set to %s", videoPath)
-		}
-		if subtitlePath != "" {
-			logging.Debug(logging.CatModule, "subtitles handleDrop: setting subtitle path to %s", subtitlePath)
-			subtitleEntry.SetText(subtitlePath)
-			if err := state.loadSubtitleFile(subtitlePath); err != nil {
-				state.setSubtitleStatus(err.Error())
-			}
-			rebuildCues()
-		}
-	}
-
-	emptyLabel := widget.NewLabel(i18n.T().SubtitlesEmpty)
-	emptyLabel.Alignment = fyne.TextAlignCenter
-	emptyOverlay = container.NewCenter(emptyLabel)
-
-	listArea := container.NewMax(listScroll, emptyOverlay)
-
-	addCueBtn := widget.NewButton(t.SubtitlesAddCue, func() {
-		start := 0.0
-		if len(state.subtitleCues) > 0 {
-			start = state.subtitleCues[len(state.subtitleCues)-1].End
-		}
-		state.subtitleCues = append(state.subtitleCues, subtitleCue{
-			Start: start,
-			End:   start + 2.0,
-			Text:  "",
-		})
-		rebuildCues()
-	})
-	addCueBtn.Importance = widget.HighImportance
-
-	clearBtn := widget.NewButton(t.ActionClearAll, func() {
-		state.subtitleCues = nil
-		rebuildCues()
-	})
-
-	loadBtn := widget.NewButton(t.SubtitlesLoadSubtitles, func() {
-		if err := state.loadSubtitleFile(state.subtitleFilePath); err != nil {
-			state.setSubtitleStatus(err.Error())
-			return
-		}
-		rebuildCues()
-	})
-
-	saveBtn := widget.NewButton(t.SubtitlesSaveSubtitles, func() {
-		path := strings.TrimSpace(state.subtitleFilePath)
-		if path == "" {
-			path = defaultSubtitlePath(state.subtitleVideoPath)
-			state.subtitleFilePath = path
-			subtitleEntry.SetText(path)
-		}
-		if err := state.saveSubtitleFile(path); err != nil {
-			state.setSubtitleStatus(err.Error())
-			return
-		}
-		state.setSubtitleStatus(fmt.Sprintf("Saved subtitles to %s", filepath.Base(path)))
-	})
-
-	generateBtn := widget.NewButton(t.SubtitlesGenerateSpeech, func() {
-		state.generateSubtitlesFromSpeech()
-		rebuildCues()
-	})
-	generateBtn.Importance = widget.HighImportance
-
-	outputModeSelect := widget.NewSelect(
-		[]string{subtitleModeExternal, subtitleModeEmbed, subtitleModeBurn},
-		func(val string) {
-			state.subtitleOutputMode = val
-			state.persistSubtitlesConfig()
-		},
-	)
-	outputModeSelect.SetSelected(state.subtitleOutputMode)
-
-	applyBtn := widget.NewButton(t.SubtitlesCreateOutput, func() {
-		state.applySubtitlesToVideo()
-	})
-	applyBtn.Importance = widget.HighImportance
-
-	browseVideoBtn := widget.NewButton(t.ActionBrowse, func() {
-		dialog.ShowFileOpen(func(file fyne.URIReadCloser, err error) {
-			if err != nil || file == nil {
-				return
-			}
-			defer file.Close()
-			path := file.URI().Path()
-			state.subtitleVideoPath = path
-			videoEntry.SetText(path)
-		}, state.window)
-	})
-
-	browseSubtitleBtn := widget.NewButton(t.ActionBrowse, func() {
-		dialog.ShowFileOpen(func(file fyne.URIReadCloser, err error) {
-			if err != nil || file == nil {
-				return
-			}
-			defer file.Close()
-			path := file.URI().Path()
-			if err := state.loadSubtitleFile(path); err != nil {
-				state.setSubtitleStatus(err.Error())
-				return
-			}
-			subtitleEntry.SetText(path)
-			rebuildCues()
-		}, state.window)
-	})
-
-	streamSelect := widget.NewSelect([]string{}, func(val string) {
-		for i, info := range state.subtitleRipStreams {
-			if subtitleStreamLabel(info) == val {
-				state.subtitleRipIndex = i
-				return
-			}
-		}
-	})
-
-	ripModeSelect := widget.NewSelect([]string{"Text (SRT/ASS)", "Original (lossless)"}, func(val string) {
-		state.subtitleRipMode = val
-	})
-	ripModeSelect.SetSelected(state.subtitleRipMode)
-
-	ocrOutputSelect := widget.NewSelect([]string{"SRT", "ASS"}, func(val string) {
-		state.subtitleOCROutput = strings.ToLower(val)
-		state.persistSubtitlesConfig()
-	})
-	if strings.EqualFold(state.subtitleOCROutput, "ass") {
-		ocrOutputSelect.SetSelected("ASS")
-	} else {
-		ocrOutputSelect.SetSelected("SRT")
-	}
-
-	ocrLangEntry := widget.NewEntry()
-	ocrLangEntry.SetPlaceHolder("eng")
-	ocrLangEntry.SetText(state.subtitleOCRLanguage)
-	ocrLangEntry.OnChanged = func(val string) {
-		state.subtitleOCRLanguage = strings.TrimSpace(val)
-		state.persistSubtitlesConfig()
-	}
-
-	refreshRipStreams := func() {
-		options := []string{}
-		for _, info := range state.subtitleRipStreams {
-			options = append(options, subtitleStreamLabel(info))
-		}
-		if len(options) == 0 {
-			streamSelect.SetOptions([]string{})
-			streamSelect.ClearSelected()
-			state.subtitleRipIndex = 0
-			return
-		}
-		streamSelect.SetOptions(options)
-		if state.subtitleRipIndex < 0 || state.subtitleRipIndex >= len(options) {
-			state.subtitleRipIndex = 0
-		}
-		streamSelect.SetSelected(options[state.subtitleRipIndex])
-	}
-
-	detectStreamsBtn := widget.NewButton(t.SubtitlesDetectStreams, func() {
-		videoPath := strings.TrimSpace(state.subtitleVideoPath)
-		if videoPath == "" {
-			state.setSubtitleStatus("Set a video file before detecting subtitle streams.")
-			return
-		}
-		streams, err := probeSubtitleStreams(videoPath)
-		if err != nil {
-			state.setSubtitleStatus(err.Error())
-			return
-		}
-		if len(streams) == 0 {
-			state.subtitleRipStreams = nil
-			refreshRipStreams()
-			state.setSubtitleStatus("No embedded subtitle streams found.")
-			return
-		}
-		state.subtitleRipStreams = streams
-		refreshRipStreams()
-		state.setSubtitleStatus(fmt.Sprintf("Detected %d subtitle streams.", len(streams)))
-	})
-
-	ripBtn := widget.NewButton(t.SubtitlesExtractSelected, func() {
-		videoPath := strings.TrimSpace(state.subtitleVideoPath)
-		if videoPath == "" {
-			state.setSubtitleStatus("Set a video file before extracting subtitles.")
-			return
-		}
-		if len(state.subtitleRipStreams) == 0 {
-			state.setSubtitleStatus("No subtitle streams detected yet.")
-			return
-		}
-		if state.subtitleRipIndex < 0 || state.subtitleRipIndex >= len(state.subtitleRipStreams) {
-			state.setSubtitleStatus("Select a subtitle stream to extract.")
-			return
-		}
-		stream := state.subtitleRipStreams[state.subtitleRipIndex]
-		if strings.Contains(strings.ToLower(state.subtitleRipMode), "text") && !stream.IsText {
-			if _, err := exec.LookPath("tesseract"); err != nil {
-				state.setSubtitleStatus("Selected subtitle stream is image-based. Install Tesseract or use Original (lossless).")
-				return
-			}
-		}
-		state.setSubtitleStatus("Extracting subtitles...")
-		go func() {
-			outputPath, err := extractSubtitleStream(videoPath, stream, state.subtitleRipMode, state.subtitleOCRLanguage, state.subtitleOCROutput)
-			if err != nil {
-				state.setSubtitleStatusAsync(err.Error())
-				return
-			}
-			state.subtitleRipOutput = outputPath
-			state.subtitleFilePath = outputPath
-			app := fyne.CurrentApp()
-			if app != nil && app.Driver() != nil {
-				app.Driver().DoFromGoroutine(func() {
-					subtitleEntry.SetText(outputPath)
-					ext := strings.ToLower(filepath.Ext(outputPath))
-					if ext == ".srt" || ext == ".vtt" {
-						if err := state.loadSubtitleFile(outputPath); err != nil {
-							state.setSubtitleStatus(err.Error())
-							return
-						}
-						rebuildCues()
-					}
-					state.setSubtitleStatus(fmt.Sprintf("Extracted subtitles to %s", filepath.Base(outputPath)))
-				}, false)
-			} else {
-				state.setSubtitleStatusAsync(fmt.Sprintf("Extracted subtitles to %s", filepath.Base(outputPath)))
-			}
-		}()
-	})
-	ripBtn.Importance = widget.HighImportance
-
-	offsetEntry := widget.NewEntry()
-	offsetEntry.SetPlaceHolder("0.0")
-	offsetEntry.SetText(fmt.Sprintf("%.2f", state.subtitleTimeOffset))
-	offsetEntry.OnChanged = func(val string) {
-		if offset, err := strconv.ParseFloat(strings.TrimSpace(val), 64); err == nil {
-			state.subtitleTimeOffset = offset
-			state.persistSubtitlesConfig()
-		}
-	}
-
-	applyOffsetBtn := widget.NewButton(t.SubtitlesApplyOffset, func() {
-		state.applySubtitleTimeOffset(state.subtitleTimeOffset)
-	})
-	applyOffsetBtn.Importance = widget.HighImportance
-
-	offsetPlus1Btn := widget.NewButton("+1s", func() {
-		state.applySubtitleTimeOffset(1.0)
-	})
-
-	offsetMinus1Btn := widget.NewButton("-1s", func() {
-		state.applySubtitleTimeOffset(-1.0)
-	})
-
-	offsetPlus01Btn := widget.NewButton("+0.1s", func() {
-		state.applySubtitleTimeOffset(0.1)
-	})
-
-	offsetMinus01Btn := widget.NewButton("-0.1s", func() {
-		state.applySubtitleTimeOffset(-0.1)
-	})
-
-	applyControls := func() {
-		outputModeSelect.SetSelected(state.subtitleOutputMode)
-		backendEntry.SetText(state.subtitleBackendPath)
-		modelEntry.SetText(state.subtitleModelPath)
-		outputEntry.SetText(state.subtitleBurnOutput)
-		offsetEntry.SetText(fmt.Sprintf("%.2f", state.subtitleTimeOffset))
-		if strings.EqualFold(state.subtitleOCROutput, "ass") {
-			ocrOutputSelect.SetSelected("ASS")
-		} else {
-			ocrOutputSelect.SetSelected("SRT")
-		}
-		ocrLangEntry.SetText(state.subtitleOCRLanguage)
-		refreshWhisperUI()
-	}
-
-	refreshRipStreams()
-
-	loadCfgBtn := widget.NewButton(t.ActionLoadConfig, func() {
-		cfg, err := loadPersistedSubtitlesConfig()
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				dialog.ShowInformation("No Config", "No saved config found yet. It will save automatically after your first change.", state.window)
-			} else {
-				dialog.ShowError(fmt.Errorf("failed to load config: %w", err), state.window)
-			}
-			return
-		}
-		state.applySubtitlesConfig(cfg)
-		applyControls()
-	})
-
-	saveCfgBtn := widget.NewButton(t.ActionSaveConfig, func() {
-		cfg := subtitlesConfig{
-			OutputMode:  state.subtitleOutputMode,
-			ModelPath:   state.subtitleModelPath,
-			BackendPath: state.subtitleBackendPath,
-			BurnOutput:  state.subtitleBurnOutput,
-			TimeOffset:  state.subtitleTimeOffset,
-			OCRLanguage: state.subtitleOCRLanguage,
-			OCROutput:   state.subtitleOCROutput,
-		}
-		if err := savePersistedSubtitlesConfig(cfg); err != nil {
-			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
-			return
-		}
-		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("subtitles")), state.window)
-	})
-
-	resetBtn := widget.NewButton(t.ActionReset, func() {
-		cfg := defaultSubtitlesConfig()
-		state.applySubtitlesConfig(cfg)
-		applyControls()
-		state.persistSubtitlesConfig()
-	})
-
-	left := container.NewVBox(
-		widget.NewLabelWithStyle(t.SubtitlesSources, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		container.NewBorder(nil, nil, nil, browseVideoBtn, videoEntry),
-		container.NewBorder(nil, nil, nil, browseSubtitleBtn, subtitleEntry),
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle(t.SubtitlesRipSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel(i18n.T().SubtitlesExtractEmbed),
-		streamSelect,
-		container.NewHBox(detectStreamsBtn, ripBtn),
-		ripModeSelect,
-		widget.NewLabel(i18n.T().SubtitlesOCROutput),
-		ocrOutputSelect,
-		widget.NewLabel(i18n.T().SubtitlesOCRLanguage),
-		ocrLangEntry,
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle(t.SubtitlesTimingSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel(i18n.T().SubtitlesShiftOffset),
-		offsetEntry,
-		container.NewHBox(offsetMinus1Btn, offsetMinus01Btn, offsetPlus01Btn, offsetPlus1Btn),
-		applyOffsetBtn,
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle(t.SubtitlesSTTSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		offlineHint,
-		backendLabel,
-		backendEntry,
-		modelLabel,
-		modelEntry,
-		container.NewHBox(generateBtn),
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle(t.SubtitlesOutputSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		outputModeSelect,
-		outputEntry,
-		widget.NewSeparator(),
-		widget.NewLabelWithStyle(t.SubtitlesStatusSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		statusScroll,
-		container.NewHBox(copyStatusBtn),
-		widget.NewSeparator(),
-		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
-	)
-
-	right := container.NewBorder(
-		container.NewVBox(
-			widget.NewLabelWithStyle(t.SubtitlesCuesSection, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			container.NewHBox(addCueBtn, clearBtn, loadBtn, saveBtn),
-		),
-		nil,
-		nil,
-		nil,
-		listArea,
-	)
-
-	rebuildCues()
-
-	// Wrap both panels in droppable so drops anywhere will work
-	droppableLeft := ui.NewDroppable(left, handleDrop)
-	droppableRight := ui.NewDroppable(right, handleDrop)
-	content := container.NewGridWithColumns(2, droppableLeft, droppableRight)
-	scroll := container.NewVScroll(content)
-	scroll.SetMinSize(fyne.NewSize(0, 0))
-	bottomBar := moduleFooter(subtitlesColor, container.NewHBox(layout.NewSpacer(), applyBtn), state.statsBar)
-	return container.NewBorder(topBar, bottomBar, nil, nil, scroll)
 }
 
 func (s *appState) setSubtitleStatus(msg string) {
@@ -1886,4 +1279,200 @@ func (a *subtitlesAdapter) DetectWhisperBackend() string {
 
 func (a *subtitlesAdapter) DetectWhisperModel() string {
 	return detectWhisperModel()
+}
+
+func (a *subtitlesAdapter) IsVideoFile(path string) bool {
+	return a.s.isVideoFile(path)
+}
+
+func (a *subtitlesAdapter) IsSubtitleFile(path string) bool {
+	return a.s.isSubtitleFile(path)
+}
+
+func (a *subtitlesAdapter) LoadConfig() (subtitles.SubtitleState, error) {
+	cfg, err := loadPersistedSubtitlesConfig()
+	if err != nil {
+		return subtitles.SubtitleState{}, err
+	}
+	return subtitles.SubtitleState{
+		OutputMode:  cfg.OutputMode,
+		ModelPath:   cfg.ModelPath,
+		BackendPath: cfg.BackendPath,
+		BurnOutput:  cfg.BurnOutput,
+		TimeOffset:  cfg.TimeOffset,
+		OCRLanguage: cfg.OCRLanguage,
+		OCROutput:   cfg.OCROutput,
+	}, nil
+}
+
+func (a *subtitlesAdapter) SaveConfig(cfg subtitles.SubtitleState) error {
+	return savePersistedSubtitlesConfig(subtitlesConfig{
+		OutputMode:  cfg.OutputMode,
+		ModelPath:   cfg.ModelPath,
+		BackendPath: cfg.BackendPath,
+		BurnOutput:  cfg.BurnOutput,
+		TimeOffset:  cfg.TimeOffset,
+		OCRLanguage: cfg.OCRLanguage,
+		OCROutput:   cfg.OCROutput,
+	})
+}
+
+func (a *subtitlesAdapter) VideoPath() string {
+	return a.s.subtitleVideoPath
+}
+
+func (a *subtitlesAdapter) SetVideoPath(path string) {
+	a.s.subtitleVideoPath = path
+}
+
+func (a *subtitlesAdapter) FilePath() string {
+	return a.s.subtitleFilePath
+}
+
+func (a *subtitlesAdapter) SetFilePath(path string) {
+	a.s.subtitleFilePath = path
+}
+
+func (a *subtitlesAdapter) Cues() []subtitles.SubtitleCue {
+	result := make([]subtitles.SubtitleCue, len(a.s.subtitleCues))
+	for i, c := range a.s.subtitleCues {
+		result[i] = subtitles.SubtitleCue{Start: c.Start, End: c.End, Text: c.Text}
+	}
+	return result
+}
+
+func (a *subtitlesAdapter) SetCues(cues []subtitles.SubtitleCue) {
+	a.s.subtitleCues = make([]subtitleCue, len(cues))
+	for i, c := range cues {
+		a.s.subtitleCues[i] = subtitleCue{Start: c.Start, End: c.End, Text: c.Text}
+	}
+}
+
+func (a *subtitlesAdapter) UpdateCue(index int, cue subtitles.SubtitleCue) {
+	if index >= 0 && index < len(a.s.subtitleCues) {
+		a.s.subtitleCues[index] = subtitleCue{Start: cue.Start, End: cue.End, Text: cue.Text}
+	}
+}
+
+func (a *subtitlesAdapter) RemoveCue(index int) {
+	if index >= 0 && index < len(a.s.subtitleCues) {
+		a.s.subtitleCues = append(a.s.subtitleCues[:index], a.s.subtitleCues[index+1:]...)
+	}
+}
+
+func (a *subtitlesAdapter) ModelPath() string {
+	return a.s.subtitleModelPath
+}
+
+func (a *subtitlesAdapter) SetModelPath(path string) {
+	a.s.subtitleModelPath = path
+}
+
+func (a *subtitlesAdapter) BackendPath() string {
+	return a.s.subtitleBackendPath
+}
+
+func (a *subtitlesAdapter) SetBackendPath(path string) {
+	a.s.subtitleBackendPath = path
+}
+
+func (a *subtitlesAdapter) Status() string {
+	return a.s.subtitleStatus
+}
+
+func (a *subtitlesAdapter) StatusLabel() *widget.Label {
+	return a.s.subtitleStatusLabel
+}
+
+func (a *subtitlesAdapter) SetStatusLabel(lbl *widget.Label) {
+	a.s.subtitleStatusLabel = lbl
+}
+
+func (a *subtitlesAdapter) OutputMode() string {
+	return a.s.subtitleOutputMode
+}
+
+func (a *subtitlesAdapter) SetOutputMode(mode string) {
+	a.s.subtitleOutputMode = mode
+}
+
+func (a *subtitlesAdapter) BurnOutput() string {
+	return a.s.subtitleBurnOutput
+}
+
+func (a *subtitlesAdapter) SetBurnOutput(path string) {
+	a.s.subtitleBurnOutput = path
+}
+
+func (a *subtitlesAdapter) TimeOffset() float64 {
+	return a.s.subtitleTimeOffset
+}
+
+func (a *subtitlesAdapter) SetTimeOffset(offset float64) {
+	a.s.subtitleTimeOffset = offset
+}
+
+func (a *subtitlesAdapter) RipStreams() []subtitles.SubtitleStreamInfo {
+	result := make([]subtitles.SubtitleStreamInfo, len(a.s.subtitleRipStreams))
+	for i, s := range a.s.subtitleRipStreams {
+		result[i] = subtitles.SubtitleStreamInfo{
+			Index:    s.Index,
+			Codec:    s.Codec,
+			Language: s.Language,
+			Title:    s.Title,
+			Default:  s.Default,
+			Forced:   s.Forced,
+			IsText:   s.IsText,
+			IsImage:  s.IsImage,
+		}
+	}
+	return result
+}
+
+func (a *subtitlesAdapter) SetRipStreams(streams []subtitles.SubtitleStreamInfo) {
+	a.s.subtitleRipStreams = make([]subtitleStreamInfo, len(streams))
+	for i, s := range streams {
+		a.s.subtitleRipStreams[i] = subtitleStreamInfo{
+			Index:    s.Index,
+			Codec:    s.Codec,
+			Language: s.Language,
+			Title:    s.Title,
+			Default:  s.Default,
+			Forced:   s.Forced,
+			IsText:   s.IsText,
+			IsImage:  s.IsImage,
+		}
+	}
+}
+
+func (a *subtitlesAdapter) RipIndex() int {
+	return a.s.subtitleRipIndex
+}
+
+func (a *subtitlesAdapter) SetRipIndex(index int) {
+	a.s.subtitleRipIndex = index
+}
+
+func (a *subtitlesAdapter) RipMode() string {
+	return a.s.subtitleRipMode
+}
+
+func (a *subtitlesAdapter) SetRipMode(mode string) {
+	a.s.subtitleRipMode = mode
+}
+
+func (a *subtitlesAdapter) OCRLanguage() string {
+	return a.s.subtitleOCRLanguage
+}
+
+func (a *subtitlesAdapter) SetOCRLanguage(lang string) {
+	a.s.subtitleOCRLanguage = lang
+}
+
+func (a *subtitlesAdapter) OCROutput() string {
+	return a.s.subtitleOCROutput
+}
+
+func (a *subtitlesAdapter) SetOCROutput(output string) {
+	a.s.subtitleOCROutput = output
 }
