@@ -55,6 +55,7 @@ func BuildView(opts Options) (fyne.CanvasObject, ViewAPI) {
 		opts.OnStart,
 		opts.OnClear,
 		opts.OnClearAll,
+		opts.OnCancelAll,
 		opts.OnCopyError,
 		opts.OnViewLog,
 		opts.OnCopyCommand,

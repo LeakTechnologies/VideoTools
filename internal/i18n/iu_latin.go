@@ -349,6 +349,7 @@ var iuLatn = Strings{
 	ActionQueuePauseAll:       "Attuniq Puttinnik",                      // Pause All
 	ActionQueueResumeAll:      "Puttiqsaujungnik",                       // Resume All
 	ActionQueueClearCompleted: "Isulilauqtuit Pivautaulauq",             // Clear Completed
+	ActionQueueCancelAll:      "Kivfautait Tamarmik Anniqsijiit",        // Cancel All Jobs
 
 	// ── History Sidebar ───────────────────────────────────────────────────
 	HistoryTitle:     "Atulaaqtait",       // HISTORY

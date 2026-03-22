@@ -582,6 +582,30 @@ func (q *Queue) Clear() {
 	q.notifyChange()
 }
 
+// CancelAll cancels the running job and marks all pending/paused jobs as cancelled.
+// Jobs remain visible in the queue (not removed). The processor keeps running.
+func (q *Queue) CancelAll() {
+	q.mu.Lock()
+	now := time.Now()
+	for _, job := range q.jobs {
+		switch job.Status {
+		case JobStatusRunning:
+			if job.cancel != nil {
+				job.cancel()
+				job.cancel = nil
+			}
+			job.Status = JobStatusCancelled
+			job.CompletedAt = &now
+		case JobStatusPending, JobStatusPaused:
+			job.Status = JobStatusCancelled
+			job.CompletedAt = &now
+		}
+	}
+	q.rebalancePrioritiesLocked()
+	q.mu.Unlock()
+	q.notifyChange()
+}
+
 // ClearAll removes all jobs from the queue
 func (q *Queue) ClearAll() {
 	q.mu.Lock()

@@ -261,6 +261,7 @@ func BuildQueueView(
 	onStart func(),
 	onClear func(),
 	onClearAll func(),
+	onCancelAll func(),
 	onCopyError func(string),
 	onViewLog func(string),
 	onCopyCommand func(string),
@@ -297,7 +298,10 @@ func BuildQueueView(
 	clearAllBtn := widget.NewButton(t.ActionClearAll, onClearAll)
 	clearAllBtn.Importance = widget.DangerImportance
 
-	buttonRow := container.NewHBox(startAllBtn, pauseAllBtn, resumeAllBtn, clearAllBtn, clearBtn)
+	cancelAllBtn := widget.NewButton(t.ActionQueueCancelAll, onCancelAll)
+	cancelAllBtn.Importance = widget.DangerImportance
+
+	buttonRow := container.NewHBox(startAllBtn, pauseAllBtn, resumeAllBtn, cancelAllBtn, clearAllBtn, clearBtn)
 
 	header := container.NewBorder(
 		nil, nil,
