@@ -252,13 +252,14 @@ jobs:
         uses: actions/cache@v4
         with:
           path: C:\ffmpeg
-          key: ffmpeg-win64-gpl-shared-20250322-v1
+          key: ffmpeg-win64-n7.1-gpl-shared-20250322-v1
 
       - name: Download static FFmpeg (Windows)
         if: steps.cache-ffmpeg-win.outputs.cache-hit != 'true'
         run: |
-          # Use the shared build — it includes include/ and lib/ needed for CGO compilation.
-          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
+          # Pin to FFmpeg 7.1 (matches the Linux static build) for API compatibility.
+          # master-latest is a newer major version and has removed/renamed some APIs.
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-shared.zip"
           Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ffmpeg.zip" -UseBasicParsing
           Expand-Archive "$env:TEMP\ffmpeg.zip" -DestinationPath "$env:TEMP\ffmpeg-extract" -Force
           $inner = Get-ChildItem "$env:TEMP\ffmpeg-extract" -Directory | Select-Object -First 1
