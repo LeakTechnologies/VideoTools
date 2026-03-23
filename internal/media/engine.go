@@ -1349,7 +1349,7 @@ func (e *Engine) Open(path string) error {
 			continue
 		}
 
-		mediaType := C.AVMediaType(stream.codecpar.codec_type)
+		mediaType := stream.codecpar.codec_type
 		codec := C.avcodec_find_decoder(stream.codecpar.codec_id)
 		if codec == nil {
 			continue
