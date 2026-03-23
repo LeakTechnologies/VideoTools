@@ -247,15 +247,7 @@ jobs:
           name: VideoTools-windows-diagnostics
           path: dist/windows/diagnostics/windows-runner.txt
 
-      - name: Cache static FFmpeg (Windows)
-        id: cache-ffmpeg-win
-        uses: actions/cache@v4
-        with:
-          path: C:\ffmpeg
-          key: ffmpeg-win64-gpl-shared-20250323-v1
-
       - name: Download static FFmpeg (Windows)
-        if: steps.cache-ffmpeg-win.outputs.cache-hit != 'true'
         run: |
           $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
           Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ffmpeg.zip" -UseBasicParsing
