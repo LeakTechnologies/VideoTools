@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"time"
 	"unsafe"
 
 	"fyne.io/fyne/v2"

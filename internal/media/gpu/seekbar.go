@@ -11,7 +11,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
-	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -25,13 +25,13 @@ const (
 type ThumbnailCache struct {
 	mu         sync.RWMutex
 	thumbnails map[int64]string
-	paths      []string
+	paths      []int64
 }
 
 func NewThumbnailCache() *ThumbnailCache {
 	return &ThumbnailCache{
 		thumbnails: make(map[int64]string),
-		paths:      make([]string, 0, maxThumbnails),
+		paths:      make([]int64, 0, maxThumbnails),
 	}
 }
 
@@ -119,7 +119,7 @@ func NewSeekBar() *SeekBar {
 	s.preview.SetMinSize(fyne.NewSize(float32(thumbnailWidth), float32(thumbnailHeight)))
 	s.preview.Hide()
 
-	s.previewLabel = canvas.NewText("", canvas.Theme().Color("foreground"))
+	s.previewLabel = canvas.NewText("", theme.ForegroundColor())
 	s.previewLabel.TextSize = 10
 	s.previewLabel.Alignment = fyne.TextAlignCenter
 
@@ -180,7 +180,7 @@ func (s *SeekBar) MouseMoved(ev *desktop.MouseEvent) {
 		pos = 1
 	}
 
-	s.hoverTime = pos * s.duration
+	s.hoverTime = float64(pos) * s.duration
 
 	if s.onHover != nil {
 		s.onHover(s.hoverTime)
@@ -302,11 +302,11 @@ func (s *SeekBarWithThumbnails) LoadThumbnails(videoPath string) error {
 type VolumeControl struct {
 	widget.BaseWidget
 
-	slider *widget.Slider
-	icon   *widget.Button
-	mute   bool
-
-	volume float64
+	slider     *widget.Slider
+	icon       *widget.Button
+	mute       bool
+	volume     float64
+	prevVolume float64
 
 	onChange func(float64)
 }
@@ -414,4 +414,3 @@ func (r *volumeControlRenderer) Refresh() {
 func (r *volumeControlRenderer) Destroy() {
 }
 
-var prevVolume float64 = 1.0

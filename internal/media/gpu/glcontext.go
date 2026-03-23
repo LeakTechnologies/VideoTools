@@ -47,7 +47,7 @@ func NewGLContext(width, height int) (*GLContext, error) {
 	glfw.WindowHint(glfw.Visible, glfw.False)
 	glfw.WindowHint(glfw.DepthBits, 0)
 	glfw.WindowHint(glfw.StencilBits, 0)
-	glfw.WindowHint(glfw.ForwardCompat, glfw.True)
+	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
 
 	window, err := glfw.CreateWindow(width, height, "VideoTools GPU", nil, nil)
 	if err != nil {

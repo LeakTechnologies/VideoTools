@@ -10,7 +10,6 @@ import (
 	"unsafe"
 
 	"github.com/go-gl/gl/v2.1/gl"
-	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
 const (
@@ -29,10 +28,8 @@ type GLTexture struct {
 }
 
 func NewGLTexture(width, height int) (*GLTexture, error) {
-	if !glfw.Initialized() {
-		if err := glfw.Init(); err != nil {
-			return nil, fmt.Errorf("failed to init glfw: %v", err)
-		}
+	if err := initGLFW(); err != nil {
+		return nil, fmt.Errorf("failed to init glfw: %v", err)
 	}
 
 	if err := gl.Init(); err != nil {
