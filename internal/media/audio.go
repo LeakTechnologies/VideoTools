@@ -8,6 +8,7 @@ package media
 #cgo windows LDFLAGS: -LC:/ffmpeg/lib -lavcodec -lavutil -lswresample
 #include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
+#include <libavutil/avutil.h>
 #include <libavutil/opt.h>
 #include <libavutil/channel_layout.h>
 */
