@@ -5,21 +5,15 @@ package main
 import (
 	"fmt"
 	"image"
-	"image/color"
-	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
@@ -42,11 +36,9 @@ var upscalePlayers = &upscalePlayerState{
 func upscalePlayersInit() {
 	if upscalePlayers.player1 == nil {
 		upscalePlayers.player1 = media.NewInlineVideoPlayer()
-		upscalePlayers.player1.SetMinimal(true)
 	}
 	if upscalePlayers.player2 == nil {
 		upscalePlayers.player2 = media.NewInlineVideoPlayer()
-		upscalePlayers.player2.SetMinimal(true)
 	}
 	if upscalePlayers.splitView == nil {
 		upscalePlayers.splitView = media.NewSplitView()
@@ -191,8 +183,6 @@ func BuildUpscaleVideoCompare(size fyne.Size) fyne.CanvasObject {
 }
 
 func BuildUpscaleDualPlayerControls() fyne.CanvasObject {
-	t := i18n.T()
-
 	compareBtn := widget.NewButton("Compare Source/Output", func() {
 		upscalePlayers.ToggleSplit()
 	})
