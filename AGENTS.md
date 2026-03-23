@@ -4,7 +4,7 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev36`.
+- Current cycle: `v0.1.1-dev38`.
 - Public/stable baseline: `v0.1.1`.
 - `dev30` is closed. CI validated on 2026-03-10 (runs 219/220/221, commit 2cbb3a2).
 - `dev32` closed. CI validated on 2026-03-15.

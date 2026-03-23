@@ -2,21 +2,13 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev37 Scope (in progress)
-
-### InlineVideoPlayer Wiring — HIGH PRIORITY
-The engine has all features. These are the missing bridges in `internal/ui/inline_player.go`.
-
-- [x] **Volume / Mute wiring** — `SetVolume/SetMuted` on `InlineVideoPlayer`, wired through `native_media.go` and `convert_player_native.go`.
-- [x] **HW decode auto-detect** — `DetectHWDevice()` called in `InlineVideoPlayer.Load()`, applied via `engine.SetHWDevice()`.
-- [x] **Chapter wiring** — `engine.GetChapters()` bridged to `player.SetChapters()` in `Load()`.
-- [x] **Subtitle track selection** — `GetSubtitleTracks/SelectSubtitleTrack/DisableSubtitles` exposed; subtitle selector in Convert advanced bar.
-- [x] **Thumbnail hover preview** — `engine.StartThumbnailExtraction` wired to `player.AddThumbnailFrame` in `Load()`.
+## Dev38 Scope (in progress)
 
 ### CI
-- [ ] **Confirm Windows CI 719** — Verify choco-removal fix lands green.
+- [ ] **Confirm Windows CI** — Verify build passes after native_media fixes.
+- [ ] **Confirm Linux CI** — Verify build passes after native_media fixes.
 
-### Author Module (document gaps, fix when prioritised)
+### Author Module
 - [ ] Wire subtitle track authoring through FFmpeg mapping pipeline
 - [ ] Wire multi-audio track AC3 encoding
 
