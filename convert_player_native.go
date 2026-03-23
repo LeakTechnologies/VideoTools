@@ -13,12 +13,10 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -96,7 +94,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		if img == nil {
 			return
 		}
-		dlg := dialog.NewFileSave(func(w fyne.URIWriteCloser, err error) {
+		saveDlg := dialog.NewFileSave(func(w fyne.URIWriteCloser, err error) {
 			if err != nil {
 				dialog.ShowError(err, state.window)
 				return
@@ -105,11 +103,10 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 				return
 			}
 			defer w.Close()
-			name := strings.TrimSuffix(src.DisplayName, ".avi") + "-frame.png"
-			dlg.SetFileName(name)
-			dlg.Show()
 		}, state.window)
-		dlg.SetFilter(storage.NewExtensionFileFilter([]string{".png"}))
+		saveDlg.SetFilter(storage.NewExtensionFileFilter([]string{".png"}))
+		saveDlg.SetFileName(strings.TrimSuffix(src.DisplayName, ".avi") + "-frame.png")
+		saveDlg.Show()
 	})
 
 	importBtn := utils.MakeIconButton("", "Import cover art file", func() {
