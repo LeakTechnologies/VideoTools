@@ -154,3 +154,32 @@ When adding a new feature, grep for hardcoded strings:
   - cross-platform dependency actions — issue #7
   - Forgejo packaging/release workflows end-to-end — issues #8, #9, #10
 - Do not reopen bundled dependency packaging for dev builds unless explicitly requested.
+
+## Using Sub-Agents
+
+When multiple independent tasks exist within a single change, use sub-agents to parallelize work and reduce bottlenecks.
+
+### When to Use Sub-Agents
+
+- **Multiple similar fixes** (e.g., fixing same issue in 10 different files)
+- **Independent tasks** that can run concurrently
+- **Larger refactors** that can be split into logical chunks
+- **CI build failures** affecting multiple files
+
+### How to Use
+
+Use the Task tool with `subagent_type: "general"` to spawn parallel workers:
+
+```go
+// Example: parallel CI fixes
+task(description="Fix inspect module", prompt="...", subagent_type="general")
+task(description="Fix trim module", prompt="...", subagent_type="general")
+task(description="Fix other errors", prompt="...", subagent_type="general")
+```
+
+### Guidelines
+
+- Provide clear, specific instructions in the prompt
+- Include the expected commit message format
+- Verify build passes after all sub-agents complete
+- Merge any conflicting changes manually before committing
