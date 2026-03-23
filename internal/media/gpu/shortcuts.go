@@ -45,13 +45,13 @@ func (h *ShortcutHandler) OnPiP(cb func()) {
 
 func (h *ShortcutHandler) HandleShortcut(shortcut fyne.Shortcut) bool {
 	switch s := shortcut.(type) {
-	case *desktop.ShortcutKey:
+	case *desktop.CustomShortcut:
 		return h.handleKeyEvent(s.KeyName, s.Modifier)
 	}
 	return false
 }
 
-func (h *ShortcutHandler) handleKeyEvent(keyName string, modifier desktop.KeyModifier) bool {
+func (h *ShortcutHandler) handleKeyEvent(keyName fyne.KeyName, modifier fyne.KeyModifier) bool {
 	if h.player == nil {
 		return false
 	}
@@ -109,11 +109,11 @@ func (h *ShortcutHandler) handleKeyEvent(keyName string, modifier desktop.KeyMod
 		h.player.Seek(h.player.Duration())
 		return true
 
-	case fyne.KeyLess:
+	case fyne.KeyComma:
 		h.adjustSpeed(-0.25)
 		return true
 
-	case fyne.KeyGreater:
+	case fyne.KeyPeriod:
 		h.adjustSpeed(0.25)
 		return true
 
@@ -185,7 +185,7 @@ func (h *ShortcutHandler) adjustSpeed(delta float64) {
 	h.player.SetSpeed(newSpeed)
 }
 
-func (h *ShortcutHandler) seekToPercent(keyName string) {
+func (h *ShortcutHandler) seekToPercent(keyName fyne.KeyName) {
 	var percent float64
 	switch keyName {
 	case fyne.Key0:

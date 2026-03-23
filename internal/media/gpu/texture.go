@@ -8,6 +8,7 @@ import (
 	"image/color"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 )
 
 type TextureFormat int
@@ -212,7 +213,7 @@ func (s *FrameScaler) Scale(src *image.RGBA, targetW, targetH int) (*image.RGBA,
 	dst := image.NewRGBA(image.Rect(0, 0, targetW, targetH))
 	FillBlack(dst)
 
-	_, _, offX, offY := ScaleImageToFit(src, targetW, targetH)
+	_, _, offX, offY, _ := ScaleImageToFit(src, targetW, targetH)
 
 	for y := 0; y < newH; y++ {
 		for x := 0; x < targetW-offX*2; x++ {

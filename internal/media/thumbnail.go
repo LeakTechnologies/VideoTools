@@ -159,7 +159,7 @@ func (e *ThumbnailExtractor) ExtractAt(timestamp float64) (string, error) {
 }
 
 func (e *ThumbnailExtractor) extractFrame(timestamp float64) (*image.RGBA, error) {
-	C.av_seek_file(e.formatCtx, -1, 0, C.int64_t(timestamp/e.timeBase), 0, 0)
+	C.avformat_seek_file(e.formatCtx, -1, 0, C.int64_t(timestamp/e.timeBase), C.int64_t(timestamp/e.timeBase), 0)
 
 	pkt := C.av_packet_alloc()
 	defer C.av_packet_free(&pkt)

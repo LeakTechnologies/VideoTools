@@ -124,6 +124,10 @@ func (r *D3D11Renderer) SwapBuffers() error {
 func (r *D3D11Renderer) Delete() {
 }
 
+func (r *D3D11Renderer) CreateTexture(w, h int) (Texture, error) {
+	return NewD3D11Texture(w, h)
+}
+
 type D3D11Texture struct {
 	texture uintptr
 	width   int
