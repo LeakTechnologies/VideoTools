@@ -928,7 +928,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		aspectSelect,
 		widget.NewLabel("Disc Size:"),
 		discSizeSelect,
-		widget.NewLabel("DVD Title:"),
+		widget.NewLabel(t.AuthorDVDTitle),
 		titleEntry,
 		widget.NewSeparator(),
 		info,
@@ -1259,7 +1259,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 
 		logoPreviewSize.SetText(fmt.Sprintf("Logo size: %dx%d (max %dx%d)", targetW, targetH, maxW, maxH))
 	}
-	logoPickButton := widget.NewButton("Select Logo", func() {
+	logoPickButton := widget.NewButton(t.AuthorSelectLogo, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -1274,7 +1274,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		}, state.window)
 	})
 	logoPickButton.Importance = widget.MediumImportance
-	logoClearButton := widget.NewButton("Clear", func() {
+	logoClearButton := widget.NewButton(t.ActionClear, func() {
 		state.authorMenuStudioLogoPath = ""
 		logoFileEntry.SetText(logoDisplayName())
 		logoEnableCheck.SetChecked(false)
@@ -1398,7 +1398,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 	}
 	menuStructureSelect.SetSelected(state.authorMenuStructure)
 
-	extrasMenuCheck := widget.NewCheck("Enable Extras Menu", func(checked bool) {
+	extrasMenuCheck := widget.NewCheck(t.AuthorEnableExtrasMenu, func(checked bool) {
 		state.authorMenuExtrasEnabled = checked
 		state.persistAuthorConfig()
 		if schedulePreviewRefresh != nil {
@@ -1406,7 +1406,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		}
 	})
 	extrasMenuCheck.SetChecked(state.authorMenuExtrasEnabled)
-	extrasNote := widget.NewLabel("Videos marked as Extras appear in a separate menu.")
+	extrasNote := widget.NewLabel(t.AuthorExtrasNote)
 	extrasNote.Wrapping = fyne.TextWrapWord
 
 	thumbSourceSelect := widget.NewSelect([]string{
@@ -1490,7 +1490,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		safeAreaNote,
 	)
 	brandingContent := container.NewBorder(nil, nil, nil, logoPreviewGroup, brandingLeft)
-	brandingItem := widget.NewAccordionItem("Branding (Logo Overlay)", brandingContent)
+	brandingItem := widget.NewAccordionItem(t.AuthorBranding, brandingContent)
 	brandingItem.Open = false
 	brandingAccordion := widget.NewAccordion(brandingItem)
 	branding := container.NewMax(
@@ -1503,10 +1503,10 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		bg.StrokeWidth = 1
 	}
 
-	navigation := buildMenuBox("Navigation", container.NewVBox(
+	navigation := buildMenuBox(t.AuthorNavigation, container.NewVBox(
 		extrasMenuCheck,
 		extrasNote,
-		widget.NewLabel("Chapter Thumbnail Source:"),
+		widget.NewLabel(t.AuthorChapterThumbSource),
 		thumbSourceSelect,
 	))
 
@@ -1569,7 +1569,7 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 
 	updateBrandingTitle = func() {
 		if !state.authorMenuStudioLogoEnabled {
-			brandingItem.Title = "Branding: Disabled"
+			brandingItem.Title = t.AuthorBrandingDisabled
 			brandingAccordion.Refresh()
 			return
 		}
@@ -1601,9 +1601,10 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 }
 
 func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
-	generateBtn := widget.NewButton("GENERATE DVD", func() {
+	t := i18n.T()
+	generateBtn := widget.NewButton(t.AuthorGenerateDVD, func() {
 		if len(state.authorClips) == 0 && state.authorFile == nil {
-			dialog.ShowInformation("No Content", "Please add video clips or select a single video file", state.window)
+			dialog.ShowInformation(t.AuthorNoContent, t.AuthorAddVideosForDVD, state.window)
 			return
 		}
 		state.startAuthorGeneration(true)
@@ -1625,7 +1626,7 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 	summaryLabel.Wrapping = fyne.TextWrapWord
 	state.authorSummaryLabel = summaryLabel
 
-	statusLabel := widget.NewLabel("Ready")
+	statusLabel := widget.NewLabel(t.AuthorReady)
 	statusLabel.Wrapping = fyne.TextWrapWord
 	state.authorStatusLabel = statusLabel
 
@@ -1643,24 +1644,24 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 	state.authorLogScroll = logScroll
 
 	// Log control buttons
-	copyLogBtn := widget.NewButton("Copy Log", func() {
+	copyLogBtn := widget.NewButton(t.AuthorCopyLog, func() {
 		if state.authorLogFilePath != "" {
 			// Copy from file for accuracy
 			if data, err := os.ReadFile(state.authorLogFilePath); err == nil {
 				state.window.Clipboard().SetContent(string(data))
-				dialog.ShowInformation("Copied", "Full authoring log copied to clipboard", state.window)
+				dialog.ShowInformation(t.AuthorCopied, t.AuthorFullLogCopied, state.window)
 				return
 			}
 		}
 		// Fallback to in-memory log
 		state.window.Clipboard().SetContent(state.authorLogText)
-		dialog.ShowInformation("Copied", "Authoring log copied to clipboard", state.window)
+		dialog.ShowInformation(t.AuthorCopied, t.AuthorCopyLog, state.window)
 	})
 	copyLogBtn.Importance = widget.LowImportance
 
-	viewFullLogBtn := widget.NewButton("View Full Log", func() {
+	viewFullLogBtn := widget.NewButton(t.AuthorViewFullLog, func() {
 		if state.authorLogFilePath == "" || state.authorLogFilePath == "-" {
-			dialog.ShowInformation("No Log File", "No log file available to view", state.window)
+			dialog.ShowInformation(t.AuthorNoLogFile, "No log file available to view", state.window)
 			return
 		}
 		if _, err := os.Stat(state.authorLogFilePath); err != nil {
@@ -1672,18 +1673,18 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 	viewFullLogBtn.Importance = widget.LowImportance
 
 	logControls := container.NewHBox(
-		widget.NewLabel("Authoring Log (last 100 lines):"),
+		widget.NewLabel(t.AuthorAuthoringLogLabel),
 		layout.NewSpacer(),
 		copyLogBtn,
 		viewFullLogBtn,
 	)
 
 	controls := container.NewVBox(
-		widget.NewLabel("Generate DVD/ISO:"),
+		widget.NewLabel("Generate DVD/ISO:"), // TODO: i18n
 		widget.NewSeparator(),
 		summaryLabel,
 		widget.NewSeparator(),
-		widget.NewLabel("Status:"),
+		widget.NewLabel(t.AuthorStatus),
 		statusLabel,
 		progressBar,
 		widget.NewSeparator(),
@@ -1697,11 +1698,12 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 }
 
 func authorSummary(state *appState) string {
-	summary := "Ready to generate:\n\n"
+	t := i18n.T()
+	summary := t.AuthorReadyToGenerate + "\n\n"
 	if state.authorVideoTSPath != "" {
 		summary += fmt.Sprintf("VIDEO_TS: %s\n", filepath.Base(filepath.Dir(state.authorVideoTSPath)))
 	} else if len(state.authorClips) > 0 {
-		summary += fmt.Sprintf("Videos: %d\n", len(state.authorClips))
+		summary += fmt.Sprintf("%s: %d\n", t.AuthorVideos, len(state.authorClips))
 		for i, clip := range state.authorClips {
 			summary += fmt.Sprintf("  %d. %s (%.2fs)\n", i+1, clip.DisplayName, clip.Duration)
 		}
@@ -1738,6 +1740,7 @@ func authorSummary(state *appState) string {
 }
 
 func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
+	t := i18n.T()
 	if idx < 0 || idx >= len(s.authorClips) {
 		return
 	}
@@ -1752,7 +1755,7 @@ func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
 	content := container.NewVBox()
 
 	// Audio Tracks
-	content.Add(widget.NewLabelWithStyle("Audio Tracks:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
+	content.Add(widget.NewLabelWithStyle(t.AuthorAudioTracks, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 	for _, track := range src.Audio {
 		trackIdx := track.Index
 		stream := track // capture
@@ -1788,7 +1791,7 @@ func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
 	content.Add(widget.NewSeparator())
 
 	// Subtitle Tracks
-	content.Add(widget.NewLabelWithStyle("Subtitle Tracks:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
+	content.Add(widget.NewLabelWithStyle(t.AuthorSubtitleTracks, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 	for _, track := range src.Subtitles {
 		trackIdx := track.Index
 		stream := track
@@ -1820,7 +1823,7 @@ func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
 		content.Add(check)
 	}
 
-	d := dialog.NewCustom("Track Selection: "+clip.DisplayName, "Done", ui.NewFastVScroll(content), s.window)
+	d := dialog.NewCustom(t.AuthorTrackSelection+": "+clip.DisplayName, t.ActionClose, ui.NewFastVScroll(content), s.window)
 	d.Resize(fyne.NewSize(500, 400))
 	d.Show()
 }
@@ -2354,6 +2357,7 @@ func (s *appState) updateAuthorCancelButton() {
 }
 
 func (s *appState) startAuthorGeneration(startNow bool) {
+	t := i18n.T()
 	if s.authorVideoTSPath != "" {
 		title := authorOutputTitle(s)
 		outputPath := authorDefaultOutputPath("iso", title, []string{s.authorVideoTSPath})
@@ -2396,7 +2400,7 @@ func (s *appState) startAuthorGeneration(startNow bool) {
 	}
 	if len(warnings) > 0 {
 		uiCall(func() {
-			dialog.ShowConfirm("Authoring Notes", strings.Join(warnings, "\n")+"\n\nContinue?", func(ok bool) {
+			dialog.ShowConfirm(t.AuthorAuthoringNotes, strings.Join(warnings, "\n")+"\n\nContinue?", func(ok bool) {
 				if ok {
 					continuePrompt()
 				}
@@ -4127,6 +4131,7 @@ func runCommand(name string, args []string) error {
 }
 
 func (s *appState) showChapterPreview(videoPath string, chapters []authorChapter, callback func(bool, []authorChapter)) {
+	t := i18n.T()
 	loadingDlg := dialog.NewCustom("Chapter Preview", "Close", container.NewVBox(
 		widget.NewLabel(fmt.Sprintf("Detected %d chapters — generating thumbnails...", len(chapters))),
 		widget.NewProgressBarInfinite(),
@@ -4154,7 +4159,7 @@ func (s *appState) showChapterPreview(videoPath string, chapters []authorChapter
 			frameImg := canvas.NewImageFromResource(nil)
 			frameImg.FillMode = canvas.ImageFillContain
 			frameImg.SetMinSize(fyne.NewSize(380, 215))
-			frameLabel := widget.NewLabel("Select a chapter to inspect the frame")
+			frameLabel := widget.NewLabel(t.AuthorSelectChapter)
 			frameLabel.Alignment = fyne.TextAlignCenter
 			frameLabel.TextStyle = fyne.TextStyle{Italic: true}
 
