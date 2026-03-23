@@ -1,6 +1,32 @@
 # VideoTools - Completed Features
 
-## Version 0.1.1-dev36 (in progress) - Module Extraction & Polish
+## Version 0.1.1-dev38 (in progress) - Module Extraction & Native Media Fixes
+
+### CI Fixes (dev38)
+- [x] **Windows CI** - Fixed `desktop.KeyEvent` → `fyne.KeyEvent` for new Fyne API
+- [x] **Windows CI** - Fixed `fyne.Color` → `color.Color` for new Fyne API  
+- [x] **Windows CI** - Fixed native_media linker error with VT_SUBTITLE_TYPE_TEXT
+- [x] **Sub-agents** - Added usage guidelines to AGENTS.md for parallel task execution
+
+### Native Go SPU Encoder (dev38)
+- [x] **SPU encoder** - Added `MenuEncoder` to `internal/dvd/spu/spu.go`
+- [x] **VOB WriteSPU** - Added `WriteSPU()` method to `vob.Muxer` in `internal/dvd/vob/vob.go`
+- [x] **Menu wiring** - Replaced `runSpumux` calls with native `buildMenuSPU` in `author_menu.go`
+- [x] **Zero-dep** - DVD menu generation now works without external spumux binary
+
+### Module Extraction (dev38)
+- [x] **Subtitles module** - Extracted to `internal/app/modules/subtitles/`
+- [x] **Inspect module** - Extracted to `internal/app/modules/inspect/`
+- [x] **Queue module** - Extracted to `internal/app/modules/queue/`
+- [x] **Upscale module** - Extracted to `internal/app/modules/upscale/`
+- [x] **Settings module** - Completed extraction to `internal/app/modules/settings/`
+
+### Author Module i18n (dev38)
+- [x] **i18n compliance** - Added 70+ Author* strings to i18n system
+- [x] **Emoji removal** - Removed emoji from UI strings for portability
+- [x] **Cross-platform** - Added spumux availability check with graceful fallback
+
+## Version 0.1.1-dev37 (complete) - InlineVideoPlayer Wiring
 
 ### GPU Rendering Pipeline (NEW)
 - [x] **Renderer interface** (`internal/media/gpu/renderer.go`) - Abstract GPU renderer with Texture interface
