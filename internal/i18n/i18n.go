@@ -53,17 +53,19 @@ func CurrentCode() string {
 
 // CurrentFont returns the font family hint for the active language ("mono" or "aboriginal").
 // Inuktitut in Latin script uses "mono" since the romanization is standard Latin.
+// English and French ALWAYS use "mono" - Aboriginal Sans is ONLY for Inuktitut syllabics.
 func CurrentFont() string {
 	mu.RLock()
 	defer mu.RUnlock()
+	// Force mono for all non-Inuktitut languages - Aboriginal Sans should ONLY
+	// appear for Inuktitut UCAS syllabics, never for English or French
 	if currentLang == "iu" && currentScript == ScriptLatin {
 		return "mono"
 	}
-	for _, lang := range allLanguages {
-		if lang.Code == currentLang {
-			return lang.Font
-		}
+	if currentLang == "iu" {
+		return "aboriginal"
 	}
+	// All other languages (en-CA, fr-CA, etc.) MUST use mono
 	return "mono"
 }
 
