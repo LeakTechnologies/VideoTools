@@ -15,41 +15,16 @@ package media
 #include <libavutil/dict.h>
 
 /*
- * VT_SUBTITLE_TYPE_TEXT — numeric value of the "plain text" subtitle rect
- * type.  The constant has been 2 in every FFmpeg release; using a local
- * integer constant avoids the AV_SUBTITLE_TYPE_TEXT / SUBTITLE_TEXT rename
- * churn between FFmpeg 7.x and later master builds.
+ * VT_SUBTITLE_TYPE_TEXT — stable numeric value of the "plain text" subtitle
+ * rect type (has been 2 in every FFmpeg release).  Using a local constant
+ * avoids AV_SUBTITLE_TYPE_TEXT / SUBTITLE_TEXT rename churn across versions.
  */
 static const int VT_SUBTITLE_TYPE_TEXT = 2;
 
-/*
- * vt_receive_subtitle — wraps avcodec_receive_subtitle (added in FFmpeg 7.0,
- * not present in all master builds).  Falls back to avcodec_decode_subtitle2
- * when the new API is absent (LIBAVCODEC_VERSION_MAJOR >= 62).
- */
-static inline int vt_receive_subtitle(AVCodecContext *avctx,
-                                      AVSubtitle *sub, int *got_sub_ptr) {
-#if LIBAVCODEC_VERSION_MAJOR < 62
-    return avcodec_receive_subtitle(avctx, sub, got_sub_ptr);
-#else
-    (void)avctx; (void)sub; (void)got_sub_ptr;
-    return AVERROR(ENOSYS);
-#endif
-}
-
-/*
- * vt_hwdevice_alloc_frame_ctx — wraps av_hwdevice_alloc_frame_ctx (present
- * in FFmpeg 7.x, removed in later master).  Returns NULL on versions that
- * lack it so initHWDecode() fails gracefully and SW decode is used instead.
- */
-static inline AVHWFramesContext* vt_hwdevice_alloc_frame_ctx(
-        AVHWDeviceContext *d) {
-#if LIBAVCODEC_VERSION_MAJOR < 62
-    return av_hwdevice_alloc_frame_ctx(d);
-#else
-    (void)d;
-    return NULL;
-#endif
+/* vt_sub_rect0 — safely returns the first AVSubtitleRect* from a subtitle. */
+static AVSubtitleRect* vt_sub_rect0(AVSubtitle *sub) {
+    if (sub == NULL || sub->num_rects == 0 || sub->rects == NULL) return NULL;
+    return sub->rects[0];
 }
 
 static AVChapter* getChapter(AVFormatContext *fmtCtx, int index) {
@@ -68,6 +43,7 @@ import (
 	"io"
 	"sync"
 	"time"
+	"unsafe"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media/filters"
@@ -159,10 +135,10 @@ func DetectHWDevice() HWDeviceType {
 }
 
 func checkVAAPIAvailable() bool {
-	var devCtx *C.AVHWDeviceContext
+	var devCtx *C.AVBufferRef
 	if C.av_hwdevice_ctx_create(&devCtx, C.AV_HWDEVICE_TYPE_VAAPI, nil, nil, 0) == 0 {
 		if devCtx != nil {
-			C.av_buffer_unref(&devCtx.hwctx)
+			C.av_buffer_unref(&devCtx)
 		}
 		return true
 	}
@@ -170,10 +146,10 @@ func checkVAAPIAvailable() bool {
 }
 
 func checkD3D11VAAvailable() bool {
-	var devCtx *C.AVHWDeviceContext
+	var devCtx *C.AVBufferRef
 	if C.av_hwdevice_ctx_create(&devCtx, C.AV_HWDEVICE_TYPE_D3D11VA, nil, nil, 0) == 0 {
 		if devCtx != nil {
-			C.av_buffer_unref(&devCtx.hwctx)
+			C.av_buffer_unref(&devCtx)
 		}
 		return true
 	}
@@ -181,10 +157,10 @@ func checkD3D11VAAvailable() bool {
 }
 
 func checkQSVAvailable() bool {
-	var devCtx *C.AVHWDeviceContext
+	var devCtx *C.AVBufferRef
 	if C.av_hwdevice_ctx_create(&devCtx, C.AV_HWDEVICE_TYPE_QSV, nil, nil, 0) == 0 {
 		if devCtx != nil {
-			C.av_buffer_unref(&devCtx.hwctx)
+			C.av_buffer_unref(&devCtx)
 		}
 		return true
 	}
@@ -212,40 +188,50 @@ func (e *Engine) initHWDecode() error {
 		return fmt.Errorf("unsupported HW device type: %v", e.hwDevice)
 	}
 
-	var devCtx *C.AVHWDeviceContext
-	if C.av_hwdevice_ctx_create(&devCtx, hwType, nil, nil, 0) != 0 {
+	var devCtxRef *C.AVBufferRef
+	if C.av_hwdevice_ctx_create(&devCtxRef, hwType, nil, nil, 0) != 0 {
 		return fmt.Errorf("failed to create HW device context")
 	}
 
-	e.hwDeviceCtx = devCtx
+	e.hwDeviceCtx = devCtxRef
 
-	framesCtx := C.vt_hwdevice_alloc_frame_ctx(devCtx)
-	if framesCtx == nil {
-		C.av_buffer_unref(&devCtx.hwctx)
-		return fmt.Errorf("failed to create HW frames context")
+	framesCtxRef := C.av_hwframe_ctx_alloc(devCtxRef)
+	if framesCtxRef == nil {
+		C.av_buffer_unref(&devCtxRef)
+		e.hwDeviceCtx = nil
+		return fmt.Errorf("failed to allocate HW frames context")
 	}
 
-	e.hwFramesCtx = framesCtx
-	e.hwFramesCtx.width = C.uint(e.info.Width)
-	e.hwFramesCtx.height = C.uint(e.info.Height)
+	// Populate AVHWFramesContext fields via the buffer's data pointer.
+	framesCtx := (*C.AVHWFramesContext)(unsafe.Pointer(framesCtxRef.data))
+	framesCtx.width = C.int(e.info.Width)
+	framesCtx.height = C.int(e.info.Height)
 
 	hwPixFmt := e.getHWPixelFormat(hwType)
 	if hwPixFmt == C.AV_PIX_FMT_NONE {
-		C.av_buffer_unref(&framesCtx.hwctx)
+		C.av_buffer_unref(&framesCtxRef)
+		C.av_buffer_unref(&devCtxRef)
+		e.hwDeviceCtx = nil
 		return fmt.Errorf("unsupported pixel format for HW device")
 	}
 
-	e.hwFramesCtx.sw_format = hwPixFmt
-	e.hwFramesCtx.initial_pool_size = 20
+	framesCtx.sw_format = hwPixFmt
+	framesCtx.initial_pool_size = 20
 
-	if C.av_hwframe_ctx_init(framesCtx) != 0 {
-		C.av_buffer_unref(&framesCtx.hwctx)
+	if C.av_hwframe_ctx_init(framesCtxRef) != 0 {
+		C.av_buffer_unref(&framesCtxRef)
+		C.av_buffer_unref(&devCtxRef)
+		e.hwDeviceCtx = nil
 		return fmt.Errorf("failed to init HW frames context")
 	}
 
-	e.videoCodecCtx.hw_frames_ctx = C.av_buffer_ref(framesCtx)
+	e.hwFramesCtx = framesCtxRef
+	e.videoCodecCtx.hw_frames_ctx = C.av_buffer_ref(framesCtxRef)
 	if e.videoCodecCtx.hw_frames_ctx == nil {
-		C.av_buffer_unref(&framesCtx.hwctx)
+		C.av_buffer_unref(&framesCtxRef)
+		C.av_buffer_unref(&devCtxRef)
+		e.hwDeviceCtx = nil
+		e.hwFramesCtx = nil
 		return fmt.Errorf("failed to attach HW frames context")
 	}
 
@@ -308,32 +294,26 @@ func (e *Engine) decodeSubtitle(pts float64) *SubtitleOverlay {
 		}
 		defer C.av_packet_free(&pkt)
 
-		if C.avcodec_send_packet(e.subtitleCodecCtx, pkt) != 0 {
-			continue
-		}
-
-		var sub *C.AVSubtitle
+		var sub C.AVSubtitle
 		var gotSub C.int
 
-		if C.vt_receive_subtitle(e.subtitleCodecCtx, sub, &gotSub) == 0 && gotSub == 1 {
-			if sub.num_rects > 0 && sub.rects != nil {
-				rect := sub.rects[0]
-				if rect != nil && int(rect.type_) == int(C.VT_SUBTITLE_TYPE_TEXT) {
-					text := C.GoString(rect.text)
-					e.currentSubtitle = &SubtitleOverlay{
-						Text:    text,
-						X:       int(rect.x),
-						Y:       int(rect.y),
-						Width:   int(rect.w),
-						Height:  int(rect.h),
-						Visible: true,
-					}
-					e.subtitleExpiry = float64(sub.end_display_time) / 1000.0
-					C.avsubtitle_free(sub)
-					return e.currentSubtitle
+		if C.avcodec_decode_subtitle2(e.subtitleCodecCtx, &sub, &gotSub, pkt) >= 0 && gotSub == 1 {
+			rect := C.vt_sub_rect0(&sub)
+			if rect != nil && int(rect.type_) == int(C.VT_SUBTITLE_TYPE_TEXT) {
+				text := C.GoString(rect.text)
+				e.currentSubtitle = &SubtitleOverlay{
+					Text:    text,
+					X:       int(rect.x),
+					Y:       int(rect.y),
+					Width:   int(rect.w),
+					Height:  int(rect.h),
+					Visible: true,
 				}
+				e.subtitleExpiry = float64(sub.end_display_time) / 1000.0
+				C.avsubtitle_free(&sub)
+				return e.currentSubtitle
 			}
-			C.avsubtitle_free(sub)
+			C.avsubtitle_free(&sub)
 		}
 	}
 }
@@ -446,6 +426,95 @@ func (e *Engine) isCharPixel(ch rune, px, py int) bool {
 		return py >= 14 && py < 18
 	default:
 		return hash > 40
+	}
+}
+
+type Chapter struct {
+	Index     int
+	StartTime float64
+	EndTime   float64
+	Title     string
+}
+
+type Engine struct {
+	formatCtx         *C.AVFormatContext
+	videoStreamIdx    int
+	audioStreamIdx    int
+	subtitleStreamIdx int
+	videoCodecCtx     *C.AVCodecContext
+	audioCodecCtx     *C.AVCodecContext
+	subtitleCodecCtx  *C.AVCodecContext
+	swsCtx            *C.struct_SwsContext
+
+	// hwDeviceCtx and hwFramesCtx are AVBufferRef wrappers — the standard
+	// FFmpeg ownership model.  av_hwdevice_ctx_create writes to *AVBufferRef
+	// and av_hwframe_ctx_alloc returns one; both are freed with av_buffer_unref.
+	hwDeviceCtx *C.AVBufferRef
+	hwFramesCtx *C.AVBufferRef
+
+	videoQueue    *PacketQueue
+	audioQueue    *PacketQueue
+	subtitleQueue *PacketQueue
+
+	audioPlayer *AudioPlayer
+	clock       *MasterClock
+
+	frame *C.AVFrame
+
+	rgbaFrame  *C.AVFrame
+	rgbaBuffer []byte
+
+	framePool [][]byte
+
+	videoTimeBase    float64
+	audioTimeBase    float64
+	subtitleTimeBase float64
+
+	mu      sync.Mutex
+	running bool
+	paused  bool
+	stop    chan struct{}
+	loading bool
+
+	volume  float32
+	muted   bool
+	speed   float64
+	seekAcc SeekAccuracy
+
+	dropFrames       bool
+	consecutiveDrops int
+
+	bufferMode     BufferMode
+	lastDecodeTime time.Time
+	decodeTimes    []time.Duration
+
+	hwDevice    HWDeviceType
+	hwDegraded  bool
+	hwFailCount int
+
+	looping  bool
+	hasAudio bool
+
+	numThreads int
+
+	currentSubtitle *SubtitleOverlay
+	subtitleExpiry  float64
+	subtitleBgAlpha int
+
+	info           *VideoInfo
+	chapters       []Chapter
+	filterPipeline *filters.FilterPipeline
+
+	frameCache *PlaybackFrameCache
+
+	lastError *PlaybackError
+
+	gpuTexUpload interface {
+		UploadFrame(img *image.RGBA) error
+		Texture() interface{}
+		Width() int
+		Height() int
+		Delete()
 	}
 }
 
@@ -1794,11 +1863,11 @@ func (e *Engine) DegradeToSoftware() {
 	e.hwDegraded = true
 
 	if e.hwFramesCtx != nil {
-		C.av_buffer_unref(&e.hwFramesCtx.hwctx)
+		C.av_buffer_unref(&e.hwFramesCtx)
 		e.hwFramesCtx = nil
 	}
 	if e.hwDeviceCtx != nil {
-		C.av_buffer_unref(&e.hwDeviceCtx.hwctx)
+		C.av_buffer_unref(&e.hwDeviceCtx)
 		e.hwDeviceCtx = nil
 	}
 	if e.videoCodecCtx.hw_frames_ctx != nil {
@@ -1885,11 +1954,11 @@ func (e *Engine) Close() {
 		e.subtitleQueue.Close()
 	}
 	if e.hwFramesCtx != nil {
-		C.av_buffer_unref(&e.hwFramesCtx.hwctx)
+		C.av_buffer_unref(&e.hwFramesCtx)
 		e.hwFramesCtx = nil
 	}
 	if e.hwDeviceCtx != nil {
-		C.av_buffer_unref(&e.hwDeviceCtx.hwctx)
+		C.av_buffer_unref(&e.hwDeviceCtx)
 		e.hwDeviceCtx = nil
 	}
 	if e.formatCtx != nil {
