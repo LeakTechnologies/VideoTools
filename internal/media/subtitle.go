@@ -91,7 +91,7 @@ func (se *SubtitleExtractor) Open(path string) error {
 			continue
 		}
 
-		if C.AVMediaType(stream.codecpar.codec_type) != C.AVMEDIA_TYPE_SUBTITLE {
+		if stream.codecpar.codec_type != C.AVMEDIA_TYPE_SUBTITLE {
 			continue
 		}
 
