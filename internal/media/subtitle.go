@@ -328,21 +328,18 @@ func (se *SubtitleExtractor) decodeSubtitleFrame(frame *C.AVFrame, idx int) *Sub
 		startTime = time.Duration(float64(frame.pts) * se.timeBase * float64(time.Second))
 	}
 
-	if frame.pkt_duration != C.AV_NOPTS_VALUE {
-		endTime = time.Duration(float64(frame.pkt_duration)*se.timeBase*float64(time.Second)) + startTime
+	if frame.duration > 0 {
+		endTime = time.Duration(float64(frame.duration)*se.timeBase*float64(time.Second)) + startTime
 	}
 
 	text := ""
 
-	if frame.sub_type == C.SUBTITLE_TEXT {
-		format = SubtitleTypeText
-		if frame.buf != nil && frame.buf[0] != nil {
-			text = C.GoString((*C.char)(unsafe.Pointer(frame.buf[0].data)))
-		}
-	} else if frame.sub_type == C.SUBTITLE_ASS {
-		format = SubtitleTypeASS
-		if frame.buf != nil && frame.buf[0] != nil {
-			text = C.GoString((*C.char)(unsafe.Pointer(frame.buf[0].data)))
+	if frame.buf[0] != nil && frame.buf[0].data != nil {
+		text = C.GoString((*C.char)(unsafe.Pointer(frame.buf[0].data)))
+		if strings.Contains(text, "Dialogue:") {
+			format = SubtitleTypeASS
+		} else {
+			format = SubtitleTypeText
 		}
 	}
 
