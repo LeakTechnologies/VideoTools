@@ -29,18 +29,18 @@ type PacketQueue struct {
 }
 
 func NewPacketQueue() *PacketQueue {
-	return &PacketQueue{
-		maxSize: DefaultMaxQueueSize,
-	}
+	q := &PacketQueue{maxSize: DefaultMaxQueueSize}
+	q.cond = sync.NewCond(&q.mu)
+	return q
 }
 
 func NewPacketQueueWithMaxSize(maxSize int) *PacketQueue {
 	if maxSize <= 0 {
 		maxSize = DefaultMaxQueueSize
 	}
-	return &PacketQueue{
-		maxSize: maxSize,
-	}
+	q := &PacketQueue{maxSize: maxSize}
+	q.cond = sync.NewCond(&q.mu)
+	return q
 }
 
 func (q *PacketQueue) Put(pkt *C.AVPacket) {
