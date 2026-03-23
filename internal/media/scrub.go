@@ -16,6 +16,7 @@ import "C"
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"sync"
 	"unsafe"
 )
@@ -334,8 +335,8 @@ func (s *SmoothScrubbing) convertFrameToRGBA(frame *C.AVFrame) *image.RGBA {
 		&frame.linesize[0],
 		0,
 		C.int(s.engine.videoCodecCtx.height),
-		s.engine.rgbaFrame.data[:],
-		s.engine.rgbaFrame.linesize[:],
+		&s.engine.rgbaFrame.data[0],
+		&s.engine.rgbaFrame.linesize[0],
 	)
 
 	width := int(s.engine.videoCodecCtx.width)
@@ -348,7 +349,7 @@ func (s *SmoothScrubbing) convertFrameToRGBA(frame *C.AVFrame) *image.RGBA {
 	for y := 0; y < height; y++ {
 		row := data[y*linesize : y*linesize+width*4]
 		for x := 0; x < width; x++ {
-			img.Set(x, y, image.RGBA{
+			img.Set(x, y, color.RGBA{
 				R: row[x*4],
 				G: row[x*4+1],
 				B: row[x*4+2],

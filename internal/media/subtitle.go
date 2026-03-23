@@ -9,6 +9,7 @@ package media
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/avutil.h>
+#include <libavutil/dict.h>
 #include <libavutil/opt.h>
 #include <libavutil/time.h>
 */
@@ -105,15 +106,18 @@ func (se *SubtitleExtractor) Open(path string) error {
 
 		var language, title string
 		if stream.metadata != nil {
-			entry := stream.metadata
-			for entry != nil {
+			var entry *C.AVDictionaryEntry
+			for {
+				entry = C.av_dict_iterate(stream.metadata, entry)
+				if entry == nil {
+					break
+				}
 				key := C.GoString(entry.key)
 				if key == "language" {
 					language = C.GoString(entry.value)
 				} else if key == "title" {
 					title = C.GoString(entry.value)
 				}
-				entry = entry.next
 			}
 		}
 
@@ -192,7 +196,7 @@ func (se *SubtitleExtractor) ExtractSubtitles() ([]Subtitle, error) {
 	if codecCtx == nil {
 		return nil, fmt.Errorf("failed to allocate codec context")
 	}
-	defer C.avcodec_free_context(codecCtx)
+	defer C.avcodec_free_context(&codecCtx)
 
 	C.avcodec_parameters_to_context(codecCtx, stream.codecpar)
 	if C.avcodec_open2(codecCtx, codec, nil) < 0 {
@@ -203,13 +207,13 @@ func (se *SubtitleExtractor) ExtractSubtitles() ([]Subtitle, error) {
 	if frame == nil {
 		return nil, fmt.Errorf("failed to allocate frame")
 	}
-	defer C.av_frame_free(frame)
+	defer C.av_frame_free(&frame)
 
 	pkt := C.av_packet_alloc()
 	if pkt == nil {
 		return nil, fmt.Errorf("failed to allocate packet")
 	}
-	defer C.av_packet_free(pkt)
+	defer C.av_packet_free(&pkt)
 
 	subIdx := 0
 	for {
@@ -260,7 +264,7 @@ func (se *SubtitleExtractor) ExtractSubtitlesToTime(endTime time.Duration) ([]Su
 	if codecCtx == nil {
 		return nil, fmt.Errorf("failed to allocate codec context")
 	}
-	defer C.avcodec_free_context(codecCtx)
+	defer C.avcodec_free_context(&codecCtx)
 
 	C.avcodec_parameters_to_context(codecCtx, stream.codecpar)
 	if C.avcodec_open2(codecCtx, codec, nil) < 0 {
@@ -271,13 +275,13 @@ func (se *SubtitleExtractor) ExtractSubtitlesToTime(endTime time.Duration) ([]Su
 	if frame == nil {
 		return nil, fmt.Errorf("failed to allocate frame")
 	}
-	defer C.av_frame_free(frame)
+	defer C.av_frame_free(&frame)
 
 	pkt := C.av_packet_alloc()
 	if pkt == nil {
 		return nil, fmt.Errorf("failed to allocate packet")
 	}
-	defer C.av_packet_free(pkt)
+	defer C.av_packet_free(&pkt)
 
 	subIdx := 0
 	for {
