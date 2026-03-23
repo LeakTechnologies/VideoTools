@@ -69,20 +69,24 @@ type trimState struct {
 
 type keyboardCapture struct {
 	widget.BaseWidget
-	onKey func(event *desktop.KeyEvent)
+	onKey func(event *fyne.KeyEvent)
 }
 
 func (k *keyboardCapture) Tapped(*fyne.PointEvent)          {}
 func (k *keyboardCapture) TappedSecondary(*fyne.PointEvent) {}
 
-func (k *keyboardCapture) KeyDown(event *desktop.KeyEvent) {
+func (k *keyboardCapture) TypedKey(event *fyne.KeyEvent) {
 	if k.onKey != nil {
 		k.onKey(event)
 	}
 }
 
-func (k *keyboardCapture) SetOnKey(onKey func(event *desktop.KeyEvent)) {
+func (k *keyboardCapture) SetOnKey(onKey func(event *fyne.KeyEvent)) {
 	k.onKey = onKey
+}
+
+func (k *keyboardCapture) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(canvas.NewRectangle(&color.RGBA{0, 0, 0, 0}))
 }
 
 func BuildView(opts Options, initialPath string) fyne.CanvasObject {
@@ -132,37 +136,42 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	// Initialize keyboard capture
 	ts.keyCapture = &keyboardCapture{}
 	ts.keyCapture.ExtendBaseWidget(ts.keyCapture)
-	ts.keyCapture.SetOnKey(func(event *desktop.KeyEvent) {
+	ts.keyCapture.SetOnKey(func(event *fyne.KeyEvent) {
 		if ts.engine == nil || ts.videoPath == "" {
 			return
 		}
 
-		switch event.Key {
-		case desktop.KeyI:
+		var modifiers fyne.KeyModifier
+		if dd, ok := fyne.CurrentApp().Driver().(desktop.Driver); ok {
+			modifiers = dd.CurrentKeyModifiers()
+		}
+
+		switch event.Name {
+		case fyne.KeyI:
 			ts.setInPoint()
-		case desktop.KeyO:
+		case fyne.KeyO:
 			ts.setOutPoint()
-		case desktop.KeyC:
+		case fyne.KeyC:
 			ts.clearPoints()
-		case desktop.KeyP:
+		case fyne.KeyP:
 			ts.previewTrimRegion()
-		case desktop.KeyLeft:
-			if event.Modifier&desktop.ShiftModifier != 0 {
+		case fyne.KeyLeft:
+			if modifiers&fyne.KeyModifierShift != 0 {
 				// Shift+Left: jump back 1 second
 				ts.seekRelative(-1.0)
 			} else {
 				// Left: step back 1 frame
 				ts.stepFrame(-1)
 			}
-		case desktop.KeyRight:
-			if event.Modifier&desktop.ShiftModifier != 0 {
+		case fyne.KeyRight:
+			if modifiers&fyne.KeyModifierShift != 0 {
 				// Shift+Right: jump forward 1 second
 				ts.seekRelative(1.0)
 			} else {
 				// Right: step forward 1 frame
 				ts.stepFrame(1)
 			}
-		case desktop.KeySpace:
+		case fyne.KeySpace:
 			ts.togglePlayPause()
 		}
 	})
@@ -349,7 +358,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	backBtn.Importance = widget.LowImportance
 	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
-	return container.NewBorder(topBar, nil, nil, nil, container.NewMax(s.keyCapture, content))
+	return container.NewBorder(topBar, nil, nil, nil, container.NewMax(ts.keyCapture, content))
 }
 
 func (s *trimState) setInPoint() {
