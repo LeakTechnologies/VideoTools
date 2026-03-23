@@ -257,9 +257,35 @@ jobs:
       - name: Download static FFmpeg (Windows)
         if: steps.cache-ffmpeg-win.outputs.cache-hit != 'true'
         run: |
-          # Pin to FFmpeg 7.1 (matches the Linux static build) for API compatibility.
-          # master-latest is a newer major version and has removed/renamed some APIs.
-          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n7.1-latest-win64-gpl-shared.zip"
+          # BtbN's `latest` release only contains master builds.
+          # The n7.1 shared build lives in dated autobuild release tags.
+          # Search the releases API to find the most recent one that has the asset.
+          $targetAsset = "ffmpeg-n7.1-latest-win64-gpl-shared.zip"
+          $url = $null
+          $headers = @{ "User-Agent" = "VideoTools-CI/1.0"; "Accept" = "application/vnd.github+json" }
+          $apiBase = "https://api.github.com/repos/BtbN/FFmpeg-Builds/releases"
+          for ($page = 1; $page -le 10 -and -not $url; $page++) {
+            try {
+              $releases = (Invoke-WebRequest -Uri "${apiBase}?per_page=30&page=${page}" -Headers $headers -UseBasicParsing).Content | ConvertFrom-Json
+            } catch {
+              Write-Host "[WARN] GitHub API page ${page} failed: $_"
+              break
+            }
+            if (-not $releases -or $releases.Count -eq 0) { break }
+            foreach ($rel in $releases) {
+              $asset = $rel.assets | Where-Object { $_.name -eq $targetAsset } | Select-Object -First 1
+              if ($asset) {
+                $url = $asset.browser_download_url
+                Write-Host "[INFO] Found $targetAsset in release $($rel.tag_name)"
+                break
+              }
+            }
+          }
+          if (-not $url) {
+            Write-Error "Could not locate $targetAsset in any BtbN release. Check https://github.com/BtbN/FFmpeg-Builds/releases"
+            exit 1
+          }
+          Write-Host "[INFO] Downloading: $url"
           Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ffmpeg.zip" -UseBasicParsing
           Expand-Archive "$env:TEMP\ffmpeg.zip" -DestinationPath "$env:TEMP\ffmpeg-extract" -Force
           $inner = Get-ChildItem "$env:TEMP\ffmpeg-extract" -Directory | Select-Object -First 1
