@@ -362,7 +362,8 @@ func (s *SmoothScrubbing) convertFrameToRGBA(frame *C.AVFrame) *image.RGBA {
 }
 
 func (s *SmoothScrubbing) GetCachedFrame(pts float64) (*image.RGBA, bool) {
-	return s.frameCache.GetNearest(int64(pts * 1000))
+	img, _, ok := s.frameCache.GetNearest(int64(pts * 1000))
+	return img, ok
 }
 
 func (s *SmoothScrubbing) CacheSize() int {

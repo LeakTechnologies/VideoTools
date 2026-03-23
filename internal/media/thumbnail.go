@@ -16,6 +16,7 @@ import "C"
 import (
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -205,10 +206,11 @@ func (e *ThumbnailExtractor) extractFrame(timestamp float64) (*image.RGBA, error
 			)
 
 			img := image.NewRGBA(image.Rect(0, 0, e.width, e.height))
+			linesize := int(rgbaFrame.linesize[0])
 			for y := 0; y < e.height; y++ {
-				row := e.rgbaBuffer[y*rgbaFrame.linesize[0] : y*rgbaFrame.linesize[0]+e.width*4]
+				row := e.rgbaBuffer[y*linesize : y*linesize+e.width*4]
 				for x := 0; x < e.width; x++ {
-					img.Set(x, y, image.RGBA{
+					img.Set(x, y, color.RGBA{
 						R: row[x*4],
 						G: row[x*4+1],
 						B: row[x*4+2],
