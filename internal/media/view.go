@@ -498,6 +498,10 @@ func (v *VideoPlayer) SetPlaying(playing bool) {
 	}
 }
 
+func (v *VideoPlayer) IsPlaying() bool {
+	return v.isPlaying
+}
+
 func (v *VideoPlayer) SetVolume(vol float64) {
 	v.volume = vol
 	if v.volumeBtn != nil {
