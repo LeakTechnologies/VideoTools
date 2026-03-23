@@ -12,7 +12,9 @@ import (
 	"runtime"
 	"strings"
 
+	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/spu"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/theme"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/vob"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -123,13 +125,7 @@ func (t *ScriptableMenu) Generate(ctx context.Context, workDir, title, region, a
 	}
 
 	// 4. Continue with Muxing
-	menuMpg := filepath.Join(workDir, "menu.mpg")
 	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
-	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
-
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
-		return "", nil, err
-	}
 
 	// Convert ButtonRect to dvdMenuButton
 	var buttons []dvdMenuButton
@@ -144,11 +140,9 @@ func (t *ScriptableMenu) Generate(ctx context.Context, workDir, title, region, a
 		})
 	}
 
-	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
-		return "", nil, err
-	}
-	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
-		return "", nil, err
+	// Use native Go SPU encoder (zero-dep)
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 
 	return menuSpu, buttons, nil
@@ -248,9 +242,7 @@ func (t *MinimalMenu) Generate(ctx context.Context, workDir, title, region, aspe
 	overlayPath := filepath.Join(workDir, "menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "menu_highlight.png")
 	selectPath := filepath.Join(workDir, "menu_select.png")
-	menuMpg := filepath.Join(workDir, "menu.mpg")
 	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
-	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
 
 	if logFn != nil {
 		logFn("Building DVD menu assets with MinimalMenu template...")
@@ -266,14 +258,9 @@ func (t *MinimalMenu) Generate(ctx context.Context, workDir, title, region, aspe
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
-		return "", nil, err
-	}
-	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
-		return "", nil, err
-	}
-	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
-		return "", nil, err
+	// Use native Go SPU encoder (zero-dep)
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
 		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
@@ -299,9 +286,7 @@ func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	overlayPath := filepath.Join(workDir, "menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "menu_highlight.png")
 	selectPath := filepath.Join(workDir, "menu_select.png")
-	menuMpg := filepath.Join(workDir, "menu.mpg")
 	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
-	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
 
 	if logFn != nil {
 		logFn("Building DVD menu assets with SimpleMenu template...")
@@ -316,14 +301,9 @@ func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
-		return "", nil, err
-	}
-	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
-		return "", nil, err
-	}
-	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
-		return "", nil, err
+	// Use native Go SPU encoder (zero-dep)
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
 		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
@@ -349,9 +329,7 @@ func (t *ClassicMenu) Generate(ctx context.Context, workDir, title, region, aspe
 	overlayPath := filepath.Join(workDir, "menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "menu_highlight.png")
 	selectPath := filepath.Join(workDir, "menu_select.png")
-	menuMpg := filepath.Join(workDir, "menu.mpg")
 	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
-	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
 
 	if logFn != nil {
 		logFn("Building DVD menu assets with ClassicMenu template...")
@@ -366,14 +344,9 @@ func (t *ClassicMenu) Generate(ctx context.Context, workDir, title, region, aspe
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
-		return "", nil, err
-	}
-	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
-		return "", nil, err
-	}
-	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
-		return "", nil, err
+	// Use native Go SPU encoder (zero-dep)
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
 		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
@@ -399,9 +372,7 @@ func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 	overlayPath := filepath.Join(workDir, "menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "menu_highlight.png")
 	selectPath := filepath.Join(workDir, "menu_select.png")
-	menuMpg := filepath.Join(workDir, "menu.mpg")
 	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
-	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
 
 	if logFn != nil {
 		logFn("Building DVD menu assets with DarkMenu template...")
@@ -416,14 +387,9 @@ func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
-		return "", nil, err
-	}
-	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
-		return "", nil, err
-	}
-	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
-		return "", nil, err
+	// Use native Go SPU encoder (zero-dep)
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
 		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
@@ -449,9 +415,7 @@ func (t *GridMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 	overlayPath := filepath.Join(workDir, "menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "menu_highlight.png")
 	selectPath := filepath.Join(workDir, "menu_select.png")
-	menuMpg := filepath.Join(workDir, "menu.mpg")
 	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
-	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
 
 	if logFn != nil {
 		logFn("Building DVD menu assets with GridMenu template...")
@@ -466,14 +430,9 @@ func (t *GridMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
-		return "", nil, err
-	}
-	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
-		return "", nil, err
-	}
-	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
-		return "", nil, err
+	// Use native Go SPU encoder (zero-dep)
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
 		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
@@ -499,9 +458,7 @@ func (t *FilmstripMenu) Generate(ctx context.Context, workDir, title, region, as
 	overlayPath := filepath.Join(workDir, "menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "menu_highlight.png")
 	selectPath := filepath.Join(workDir, "menu_select.png")
-	menuMpg := filepath.Join(workDir, "menu.mpg")
 	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
-	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
 
 	if logFn != nil {
 		logFn("Building DVD menu assets with FilmstripMenu template...")
@@ -516,14 +473,9 @@ func (t *FilmstripMenu) Generate(ctx context.Context, workDir, title, region, as
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
-		return "", nil, err
-	}
-	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
-		return "", nil, err
-	}
-	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
-		return "", nil, err
+	// Use native Go SPU encoder (zero-dep)
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
 		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
@@ -549,9 +501,7 @@ func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	overlayPath := filepath.Join(workDir, "menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "menu_highlight.png")
 	selectPath := filepath.Join(workDir, "menu_select.png")
-	menuMpg := filepath.Join(workDir, "menu.mpg")
 	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
-	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
 
 	if logFn != nil {
 		logFn("Building DVD menu assets with PosterMenu template...")
@@ -564,14 +514,9 @@ func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspec
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
-		return "", nil, err
-	}
-	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
-		return "", nil, err
-	}
-	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
-		return "", nil, err
+	// Use native Go SPU encoder (zero-dep)
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
 		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
@@ -656,9 +601,7 @@ func buildMainMenuMPEGSet(ctx context.Context, workDir, title, region, aspect st
 	overlayPath := filepath.Join(workDir, "menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "menu_highlight.png")
 	selectPath := filepath.Join(workDir, "menu_select.png")
-	menuMpg := filepath.Join(workDir, "menu.mpg")
 	menuSpu := filepath.Join(workDir, "menu_spu.mpg")
-	spumuxXML := filepath.Join(workDir, "menu_spu.xml")
 
 	if logFn != nil {
 		logFn("Building DVD menu assets with SimpleMenu template...")
@@ -673,14 +616,9 @@ func buildMainMenuMPEGSet(ctx context.Context, workDir, title, region, aspect st
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
-		return "", err
-	}
-	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
-		return "", err
-	}
-	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
-		return "", err
+	// Use native Go SPU encoder (zero-dep)
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		return "", fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
 		logFn(fmt.Sprintf("DVD menu created: %s", filepath.Base(menuSpu)))
@@ -699,9 +637,7 @@ func buildExtrasMenuMPEGSet(ctx context.Context, workDir, title, region, aspect 
 	overlayPath := filepath.Join(workDir, "extras_menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "extras_menu_highlight.png")
 	selectPath := filepath.Join(workDir, "extras_menu_select.png")
-	menuMpg := filepath.Join(workDir, "extras_menu.mpg")
 	menuSpu := filepath.Join(workDir, "extras_menu_spu.mpg")
-	spumuxXML := filepath.Join(workDir, "extras_menu_spu.xml")
 
 	if logFn != nil {
 		logFn("Building extras menu assets...")
@@ -713,14 +649,9 @@ func buildExtrasMenuMPEGSet(ctx context.Context, workDir, title, region, aspect 
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
-		return "", nil, err
-	}
-	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
-		return "", nil, err
-	}
-	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
-		return "", nil, err
+	// Use native Go SPU encoder (zero-dep)
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
 		logFn(fmt.Sprintf("Extras menu created: %s", filepath.Base(menuSpu)))
@@ -739,9 +670,7 @@ func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspec
 	overlayPath := filepath.Join(workDir, "chapters_menu_overlay.png")
 	highlightPath := filepath.Join(workDir, "chapters_menu_highlight.png")
 	selectPath := filepath.Join(workDir, "chapters_menu_select.png")
-	menuMpg := filepath.Join(workDir, "chapters_menu.mpg")
 	menuSpu := filepath.Join(workDir, "chapters_menu_spu.mpg")
-	spumuxXML := filepath.Join(workDir, "chapters_menu_spu.xml")
 
 	if logFn != nil {
 		logFn("Building chapters menu assets...")
@@ -759,14 +688,9 @@ func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspec
 	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
 		return "", nil, err
 	}
-	if err := buildMenuMPEG(ctx, bgPath, menuMpg, region, aspect, motionBackground, logFn); err != nil {
-		return "", nil, err
-	}
-	if err := writeSpumuxXML(spumuxXML, overlayPath, highlightPath, selectPath, buttons); err != nil {
-		return "", nil, err
-	}
-	if err := runSpumux(ctx, spumuxXML, menuMpg, menuSpu, logFn); err != nil {
-		return "", nil, err
+	// Use native Go SPU encoder (zero-dep)
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
 		logFn(fmt.Sprintf("Chapters menu created: %s", filepath.Base(menuSpu)))
@@ -1657,6 +1581,69 @@ func writeSpumuxXML(path, overlayPath, highlightPath, selectPath string, buttons
 func isSpumuxAvailable() bool {
 	cmd := exec.Command("spumux", "-V")
 	return cmd.Run() == nil
+}
+
+// runNativeSpumux creates menu SPU using native Go encoder (zero-dep).
+// It takes the background image and generates an SPU-encoded VOB.
+func runNativeSpumux(ctx context.Context, overlayPath, outputPath string, logFn func(string)) error {
+	// Load overlay image
+	overlayFile, err := os.Open(overlayPath)
+	if err != nil {
+		return fmt.Errorf("open overlay: %w", err)
+	}
+	defer overlayFile.Close()
+
+	img, _, err := image.Decode(overlayFile)
+	if err != nil {
+		return fmt.Errorf("decode overlay: %w", err)
+	}
+
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+
+	logging.Info(logging.CatDVD, "Native SPU encoding menu: %dx%d", width, height)
+
+	// Use native Go SPU encoder
+	enc := spu.NewMenuEncoder(width, height)
+	enc.SetPalette(spu.DefaultPalette())
+
+	spuData, err := enc.EncodeMenuImage(img, spu.DefaultSPUOptions())
+	if err != nil {
+		return fmt.Errorf("encode SPU: %w", err)
+	}
+
+	// Create VOB with SPU
+	outFile, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("create output: %w", err)
+	}
+	defer outFile.Close()
+
+	mux := vob.NewMuxer(outFile)
+	mux.SetFrameRate(29.97)
+
+	// Write SPU at PTS 0 (menu display start)
+	if err := mux.WriteSPU(spuData, vob.SubStreamSPUBase, 0); err != nil {
+		return fmt.Errorf("write SPU: %w", err)
+	}
+
+	// Write a minimal NAV_PCK to mark the end
+	if err := mux.WriteNAV_PCK(&vob.PCIPacket{}, &vob.DSIPacket{}); err != nil {
+		return fmt.Errorf("write NAV: %w", err)
+	}
+
+	logging.Info(logging.CatDVD, "Native SPU complete: %s", outputPath)
+	return nil
+}
+
+// buildMenuSPU creates the menu SPU file using native Go encoder.
+// This replaces the external spumux call for zero-dependency operation.
+func buildMenuSPU(ctx context.Context, overlayPath, menuSpuPath string, logFn func(string)) error {
+	if logFn != nil {
+		logFn(">> Native SPU encoder")
+	}
+	return runNativeSpumux(ctx, overlayPath, menuSpuPath, logFn)
 }
 
 func runSpumux(ctx context.Context, spumuxXML, inputMpg, outputMpg string, logFn func(string)) error {
