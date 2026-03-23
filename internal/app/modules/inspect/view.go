@@ -4,6 +4,7 @@ package inspect
 
 import (
 	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,7 +128,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		lbl.Wrapping = fyne.TextTruncate
 		return container.NewMax(bg, container.NewPadded(lbl))
 	}
-	makeValuePillWithChip := func(text string, chipColor fyne.Color) fyne.CanvasObject {
+	makeValuePillWithChip := func(text string, chipColor color.Color) fyne.CanvasObject {
 		bg := canvas.NewRectangle(valueBg)
 		bg.CornerRadius = 6
 		bg.StrokeColor = valueBorder
