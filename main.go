@@ -7832,14 +7832,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 	customAspectLabel := "Custom..."
-	isStandardAspect := func(val string) bool {
-		switch strings.TrimSpace(strings.ToLower(val)) {
-		case "16:9", "4:3", "1:1", "9:16", "21:9":
-			return true
-		default:
-			return false
-		}
-	}
+	isStandardAspect := utils.IsStandardAspect
 	customAspectActive := false
 	customAspectValue := ""
 	var updateCustomAspectUI func()
@@ -7862,82 +7855,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		return label
 	}
 
-	// Debouncing helper - delays function execution until user stops typing
-	createDebouncedCallback := func(delay time.Duration, callback func(string)) func(string) {
-		var timer *time.Timer
-		var mu sync.Mutex
+	// Debouncing helper (use utils package)
+	createDebouncedCallback := utils.CreateDebouncedCallback
 
-		return func(value string) {
-			mu.Lock()
-			defer mu.Unlock()
-
-			if timer != nil {
-				timer.Stop()
-			}
-
-			timer = time.AfterFunc(delay, func() {
-				callback(value)
-			})
-		}
-	}
-
-	// Input validation helpers
-	validateCRF := func(input string) error {
-		if input == "" {
-			return nil // Empty is valid (uses quality preset)
-		}
-		val, err := strconv.Atoi(input)
-		if err != nil {
-			return fmt.Errorf("CRF must be a number")
-		}
-		if val < 0 || val > 51 {
-			return fmt.Errorf("CRF must be between 0 and 51")
-		}
-		return nil
-	}
-
-	validateBitrate := func(input string, unit string) error {
-		if input == "" {
-			return nil // Empty is valid
-		}
-		val, err := strconv.ParseFloat(input, 64)
-		if err != nil {
-			return fmt.Errorf("Bitrate must be a number")
-		}
-		if val <= 0 {
-			return fmt.Errorf("Bitrate must be positive")
-		}
-		// Warn on extremes
-		kbps := val
-		switch unit {
-		case "Mbps":
-			kbps *= 1000
-		case "Gbps":
-			kbps *= 1000000
-		}
-		// Warnings logged but don't fail validation
-		if kbps < 100 {
-			logging.Debug(logging.CatUI, "Very low bitrate (%.0f kbps) may produce poor quality", kbps)
-		}
-		if kbps > 50000 {
-			logging.Debug(logging.CatUI, "Very high bitrate (%.0f kbps) approaching lossless", kbps)
-		}
-		return nil
-	}
-
-	validateFileSize := func(input string) error {
-		if input == "" {
-			return nil // Empty is valid
-		}
-		val, err := strconv.ParseFloat(input, 64)
-		if err != nil {
-			return fmt.Errorf("File size must be a number")
-		}
-		if val <= 0 {
-			return fmt.Errorf("File size must be positive")
-		}
-		return nil
-	}
+	// Input validation helpers (use utils package)
+	validateCRF := utils.ValidateCRF
+	validateBitrate := utils.ValidateBitrate
+	validateFileSize := utils.ValidateFileSize
 
 	// Callback registry - eliminates nil checks and provides logging
 	type callbackRegistry struct {
@@ -7973,20 +7897,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var twoPassCheck *widget.Check
 	var twoPassNote *widget.Label
 
-	normalizeBitrateMode := func(mode string) string {
-		switch {
-		case strings.HasPrefix(mode, "CRF"):
-			return "CRF"
-		case strings.HasPrefix(mode, "CBR"):
-			return "CBR"
-		case strings.HasPrefix(mode, "VBR"):
-			return "VBR"
-		case strings.HasPrefix(mode, "Target Size"):
-			return "Target Size"
-		default:
-			return mode
-		}
-	}
+	normalizeBitrateMode := utils.NormalizeBitrateMode
 
 	// State setters with automatic widget synchronization
 	applyQuality := func(val string) {
