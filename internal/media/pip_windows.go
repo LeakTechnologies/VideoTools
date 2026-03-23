@@ -4,7 +4,7 @@ package media
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/driver"
 	"golang.org/x/sys/windows"
 )
 
@@ -31,14 +31,17 @@ func DisablePiPExclude(hwnd windows.Handle) error {
 }
 
 func GetWindowHandleFromFyne(win fyne.Window) windows.Handle {
-	if deskWin, ok := win.(desktop.Window); ok {
-		if glfwWin, ok := deskWin.(interface {
-			GetWin32Window() windows.Handle
-		}); ok {
-			return glfwWin.GetWin32Window()
-		}
+	nw, ok := win.(driver.NativeWindow)
+	if !ok {
+		return 0
 	}
-	return 0
+	var hwnd windows.Handle
+	nw.RunNative(func(ctx any) {
+		if wctx, ok := ctx.(driver.WindowsWindowContext); ok {
+			hwnd = windows.Handle(wctx.HWND)
+		}
+	})
+	return hwnd
 }
 
 func ApplyPiPExclude(win fyne.Window, enable bool) error {
