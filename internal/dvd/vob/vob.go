@@ -87,10 +87,10 @@ func (m *Muxer) videoFrameTicks() uint64 {
 func (m *Muxer) WritePackHeader(scr uint64) error {
 	var buf [14]byte
 	binary.BigEndian.PutUint32(buf[0:4], PackStartCode)
-	
+
 	base := scr / 300
 	ext := scr % 300
-	
+
 	buf[4] = 0x44 | uint8((base>>30)&0x07)
 	buf[5] = uint8((base >> 22) & 0xFF)
 	buf[6] = 0x01 | uint8((base>>14)&0xFE)
@@ -98,13 +98,13 @@ func (m *Muxer) WritePackHeader(scr uint64) error {
 	buf[8] = 0x01 | uint8((base<<1)&0xFE)
 	buf[9] = 0x01 | uint8((ext>>1)&0x7F)
 	buf[10] = 0x01 | uint8((ext<<7)&0x80)
-	
+
 	buf[10] |= uint8((m.muxRate >> 15) & 0x7F)
 	buf[11] = uint8((m.muxRate >> 7) & 0xFF)
 	buf[12] = 0x01 | uint8((m.muxRate<<1)&0xFE)
-	
+
 	buf[13] = 0xF8 // stuffing length = 0
-	
+
 	if _, err := m.w.Write(buf[:]); err != nil {
 		logging.Error(logging.CatDVD, "Failed to write pack header at SCR %d: %v", scr, err)
 		return fmt.Errorf("write pack header: %w", err)
@@ -119,20 +119,20 @@ func (m *Muxer) WritePESHeader(streamID uint8, subStreamID uint8, payloadLen uin
 	if hasDTS {
 		headerDataLen = 10
 	}
-	
+
 	// For Private Stream 1, we also include the 1-byte sub-stream ID
 	isPrivate1 := streamID == 0xBD
 	totalPESHeaderLen := 3 + headerDataLen // flags(1) + flags(1) + dataLen(1) + data
 	if isPrivate1 {
 		totalPESHeaderLen += 1
 	}
-	
+
 	totalLen := uint16(totalPESHeaderLen) + payloadLen
-	
+
 	var buf [20]byte
 	binary.BigEndian.PutUint32(buf[0:4], 0x00000100|uint32(streamID))
 	binary.BigEndian.PutUint16(buf[4:6], totalLen)
-	
+
 	buf[6] = 0x80 // Fixed 10
 	if hasDTS {
 		buf[7] = 0xC0 // PTS and DTS
@@ -262,7 +262,7 @@ func (m *Muxer) WritePadding(size int) error {
 		m.currentSector++
 		return nil
 	}
-	
+
 	var buf [6]byte
 	binary.BigEndian.PutUint32(buf[0:4], PaddingStreamCode)
 	binary.BigEndian.PutUint16(buf[4:6], uint16(size-6))
@@ -273,7 +273,47 @@ func (m *Muxer) WritePadding(size int) error {
 	if _, err := m.w.Write(padding); err != nil {
 		return fmt.Errorf("write padding data: %w", err)
 	}
-	
+
 	m.currentSector++
+	return nil
+}
+
+// WriteSPU writes a DVD Subpicture Unit (SPU) packet with highlight data.
+// data should be SPU-encoded bytes from the spu package.
+// subStreamID should be SubStreamSPUBase (0x20) for the first subtitle stream.
+// The PTS indicates when the SPU should be displayed.
+func (m *Muxer) WriteSPU(data []byte, subStreamID uint8, pts uint64) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	// SPU is carried in Private Stream 1 (0xBD) with substream ID
+	// Stream ID is 0xBD (189), substream ID determines the specific stream
+	streamID := uint8(0xBD)
+	payloadLen := uint16(len(data))
+
+	if err := m.WritePackHeader(m.scr); err != nil {
+		return fmt.Errorf("spu pack header: %w", err)
+	}
+	if err := m.WritePESHeader(streamID, subStreamID, payloadLen, pts, 0, false); err != nil {
+		return fmt.Errorf("spu PES header: %w", err)
+	}
+	if _, err := m.w.Write(data); err != nil {
+		return fmt.Errorf("spu payload: %w", err)
+	}
+
+	// Pad to sector boundary
+	written := 14 + 15 + len(data) // pack + private1 PES + payload
+	if rem := written % PackSize; rem != 0 {
+		if err := m.WritePadding(PackSize - rem); err != nil {
+			return fmt.Errorf("spu padding: %w", err)
+		}
+	} else {
+		m.currentSector++
+	}
+
+	// SPU display duration: typically one frame (or configurable)
+	// For now, use same timing as video frame
+	m.scr += m.videoFrameTicks()
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"image"
+	"image/color"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
@@ -43,6 +44,16 @@ func DefaultSPUOptions() SPUOptions {
 	}
 }
 
+// DefaultPalette returns a 4-color palette suitable for DVD menus.
+func DefaultPalette() color.Palette {
+	return color.Palette{
+		color.RGBA{0, 0, 0, 0},         // 0: transparent
+		color.RGBA{255, 255, 255, 255}, // 1: white (text/buttons)
+		color.RGBA{0, 0, 0, 255},       // 2: black (outline)
+		color.RGBA{128, 128, 128, 255}, // 3: gray (shadow)
+	}
+}
+
 // Encoder converts indexed images into DVD Subpicture Units (SPU).
 type Encoder struct {
 	width  int
@@ -58,11 +69,12 @@ func NewEncoder(width, height int) *Encoder {
 // Encode converts an indexed image into a binary DVD SPU packet.
 //
 // Packet layout (DVD spec 5.1.1):
-//   [0:2]      SP_DCSQ_SZ  - total packet size (big-endian uint16)
-//   [2:4]      SP_DCSQTA   - byte offset to first DCSQ from packet start
-//   [4:dcsqTA] pixel data  - top-field (even rows) then bottom-field (odd rows)
-//   [dcsqTA:]  DCSQ[0]     - forced display: SET_COLOR, SET_CONTR, SET_AREA, SET_ADDRESS
-//              DCSQ[1]     - STOP terminator (self-referencing)
+//
+//	[0:2]      SP_DCSQ_SZ  - total packet size (big-endian uint16)
+//	[2:4]      SP_DCSQTA   - byte offset to first DCSQ from packet start
+//	[4:dcsqTA] pixel data  - top-field (even rows) then bottom-field (odd rows)
+//	[dcsqTA:]  DCSQ[0]     - forced display: SET_COLOR, SET_CONTR, SET_AREA, SET_ADDRESS
+//	           DCSQ[1]     - STOP terminator (self-referencing)
 func (e *Encoder) Encode(img *image.Paletted, opts SPUOptions) ([]byte, error) {
 	logging.Debug(logging.CatDVD, "Encoding SPU %dx%d", e.width, e.height)
 
@@ -80,19 +92,15 @@ func (e *Encoder) Encode(img *image.Paletted, opts SPUOptions) ([]byte, error) {
 	botData := botField.Bytes()
 
 	// Compute byte offsets (all measured from packet start = byte 0).
-	//   header:   4 bytes (SP_DCSQ_SZ + SP_DCSQTA)
-	//   topField: starts at byte 4
-	//   botField: starts at byte 4 + len(topData)
-	//   DCSQ[0]:  starts at byte 4 + len(topData) + len(botData)
 	topOffset := uint16(4)
 	botOffset := uint16(4 + len(topData))
 	dcsqTA := uint16(4 + len(topData) + len(botData))
 
-	// Build DCSQ[0] commands (the 4-byte header is written below).
+	// Build DCSQ[0] commands
 	dcsq0Cmds := buildDCSQ0Commands(opts, e.width, e.height, topOffset, botOffset)
 	dcsq0Total := uint16(4 + len(dcsq0Cmds))
 
-	// DCSQ[1] self-reference offset = dcsqTA + size_of_DCSQ0.
+	// DCSQ[1] self-reference offset
 	dcsq1Offset := dcsqTA + dcsq0Total
 	dcsq1 := buildDCSQ1(dcsq1Offset)
 
@@ -104,33 +112,101 @@ func (e *Encoder) Encode(img *image.Paletted, opts SPUOptions) ([]byte, error) {
 	copy(buf[4:], topData)
 	copy(buf[4+len(topData):], botData)
 
-	// DCSQ[0]: delay=0, next_dcsq -> DCSQ[1], then commands.
+	// DCSQ[0]
 	d0 := int(dcsqTA)
 	binary.BigEndian.PutUint16(buf[d0:], 0x0000)
 	binary.BigEndian.PutUint16(buf[d0+2:], dcsq1Offset)
 	copy(buf[d0+4:], dcsq0Cmds)
 
-	// DCSQ[1]: STOP terminator.
+	// DCSQ[1]: STOP terminator
 	copy(buf[int(dcsq1Offset):], dcsq1)
 
-	logging.Info(logging.CatDVD, "SPU encoded: %d bytes (top=%d bot=%d)",
-		totalSize, len(topData), len(botData))
+	logging.Info(logging.CatDVD, "SPU encoded: %d bytes", totalSize)
 	return buf, nil
 }
 
+// MenuEncoder handles DVD menu SPU generation with button states.
+// It converts any image to DVD-compliant indexed palette images.
+type MenuEncoder struct {
+	width   int
+	height  int
+	palette color.Palette
+}
+
+// NewMenuEncoder creates a new menu SPU encoder.
+func NewMenuEncoder(width, height int) *MenuEncoder {
+	return &MenuEncoder{
+		width:   width,
+		height:  height,
+		palette: DefaultPalette(),
+	}
+}
+
+// SetPalette sets the 4-color palette for SPU encoding.
+func (e *MenuEncoder) SetPalette(palette color.Palette) {
+	e.palette = palette
+}
+
+// EncodeMenuImage converts any image to DVD SPU format.
+// It maps colors to the palette and generates the SPU packet.
+func (e *MenuEncoder) EncodeMenuImage(img image.Image, opts SPUOptions) ([]byte, error) {
+	if e.palette == nil {
+		e.palette = DefaultPalette()
+	}
+
+	// Convert to indexed paletted image
+	pi := image.NewPaletted(image.Rect(0, 0, e.width, e.height), e.palette)
+
+	for y := 0; y < e.height; y++ {
+		for x := 0; x < e.width; x++ {
+			c := img.At(x, y)
+			pi.SetColorIndex(x, y, e.findClosestColor(c))
+		}
+	}
+
+	enc := NewEncoder(e.width, e.height)
+	return enc.Encode(pi, opts)
+}
+
+// findClosestColor finds the closest palette color to the given color.
+func (e *MenuEncoder) findClosestColor(c color.Color) uint8 {
+	_, r, g, b := c.RGBA()
+	r >>= 8
+	g >>= 8
+	b >>= 8
+
+	minDist := ^uint32(0)
+	bestIdx := uint8(0)
+
+	for i := 0; i < len(e.palette) && i < 4; i++ {
+		pc := e.palette[i]
+		_, pr, pg, pb := pc.RGBA()
+		pr >>= 8
+		pg >>= 8
+		pb >>= 8
+
+		dr := uint32(r) - uint32(pr)
+		dg := uint32(g) - uint32(pg)
+		db := uint32(b) - uint32(pb)
+		dist := dr*dr + dg*dg + db*db
+
+		if dist < minDist {
+			minDist = dist
+			bestIdx = uint8(i)
+		}
+	}
+
+	return bestIdx
+}
+
 // buildDCSQ0Commands returns command bytes for the display-on DCSQ.
-// The caller prepends the 4-byte DCSQ header (delay + next_dcsq).
 func buildDCSQ0Commands(opts SPUOptions, w, h int, topOffset, botOffset uint16) []byte {
 	var b bytes.Buffer
 
 	// FORCED_START: force display onto screen immediately.
 	b.WriteByte(DCSQ_FORCED_START)
 
-	// SET_COLOR: 2 bytes, 4x4-bit PGC palette indices.
-	// Bits 15-12: index for pixel color 3
-	// Bits 11-8:  index for pixel color 2
-	// Bits  7-4:  index for pixel color 1
-	// Bits  3-0:  index for pixel color 0
+	// SET_COLOR
 	colorWord := uint16(opts.PaletteIndices[3])<<12 |
 		uint16(opts.PaletteIndices[2])<<8 |
 		uint16(opts.PaletteIndices[1])<<4 |
@@ -139,8 +215,7 @@ func buildDCSQ0Commands(opts SPUOptions, w, h int, topOffset, botOffset uint16) 
 	b.WriteByte(byte(colorWord >> 8))
 	b.WriteByte(byte(colorWord))
 
-	// SET_CONTR: 2 bytes, 4x4-bit alpha values (same nibble layout as SET_COLOR).
-	// 0x0 = transparent, 0xF = fully opaque.
+	// SET_CONTR
 	contWord := uint16(opts.AlphaValues[3])<<12 |
 		uint16(opts.AlphaValues[2])<<8 |
 		uint16(opts.AlphaValues[1])<<4 |
@@ -149,15 +224,12 @@ func buildDCSQ0Commands(opts SPUOptions, w, h int, topOffset, botOffset uint16) 
 	b.WriteByte(byte(contWord >> 8))
 	b.WriteByte(byte(contWord))
 
-	// SET_AREA: 6 bytes — two packed 12-bit pairs.
-	// Bytes 0-2: [x1:12][x2:12]  x1=left, x2=right (inclusive)
-	// Bytes 3-5: [y1:12][y2:12]  y1=top,  y2=bottom (inclusive)
+	// SET_AREA
 	b.WriteByte(DCSQ_SET_AREA)
 	b.Write(pack12pair(0, uint16(w-1)))
 	b.Write(pack12pair(0, uint16(h-1)))
 
-	// SET_ADDRESS: 4 bytes — top-field offset (uint16 BE), bot-field offset (uint16 BE).
-	// Both measured from packet start (byte 0).
+	// SET_ADDRESS
 	b.WriteByte(DCSQ_SET_ADDRESS)
 	b.WriteByte(byte(topOffset >> 8))
 	b.WriteByte(byte(topOffset))
@@ -178,7 +250,7 @@ func buildDCSQ1(selfOffset uint16) []byte {
 	return b
 }
 
-// pack12pair encodes two 12-bit values into 3 bytes: [v1:12][v2:12].
+// pack12pair encodes two 12-bit values into 3 bytes.
 func pack12pair(v1, v2 uint16) []byte {
 	return []byte{
 		byte(v1 >> 4),
