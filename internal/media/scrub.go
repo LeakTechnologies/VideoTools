@@ -14,11 +14,9 @@ package media
 */
 import "C"
 import (
-	"fmt"
 	"image"
 	"image/color"
 	"sync"
-	"unsafe"
 )
 
 const (
