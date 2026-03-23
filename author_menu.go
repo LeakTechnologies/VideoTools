@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/theme"
@@ -590,6 +591,20 @@ type dvdMenuSet struct {
 func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, extras []extraItem, logFn func(string), template MenuTemplate, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, chapterVideoPath string, chapterThumbOffset float64) (dvdMenuSet, error) {
 	if template == nil {
 		template = &SimpleMenu{}
+	}
+
+	// Check for spumux availability
+	if !isSpumuxAvailable() {
+		t := i18n.T()
+		logMsg := t.AuthorSpumuxNotFound
+		if runtime.GOOS == "windows" {
+			logMsg += " " + t.AuthorWindowsSpumuxHint
+		}
+		if logFn != nil {
+			logFn(logMsg)
+		}
+		// Continue without menus
+		return dvdMenuSet{}, nil
 	}
 
 	// Determine main menu buttons based on chapters and extras
@@ -1639,7 +1654,15 @@ func writeSpumuxXML(path, overlayPath, highlightPath, selectPath string, buttons
 	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
 
+func isSpumuxAvailable() bool {
+	cmd := exec.Command("spumux", "-V")
+	return cmd.Run() == nil
+}
+
 func runSpumux(ctx context.Context, spumuxXML, inputMpg, outputMpg string, logFn func(string)) error {
+	if !isSpumuxAvailable() {
+		return fmt.Errorf("spumux not available")
+	}
 	args := []string{"-m", "dvd", spumuxXML}
 	if logFn != nil {
 		logFn(fmt.Sprintf(">> spumux -m dvd %s < %s > %s", spumuxXML, filepath.Base(inputMpg), filepath.Base(outputMpg)))
