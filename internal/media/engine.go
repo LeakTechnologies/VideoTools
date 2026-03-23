@@ -1353,15 +1353,18 @@ func (e *Engine) Open(path string) error {
 
 		var language, title string
 		if stream.metadata != nil {
-			entry := stream.metadata
-			for entry != nil {
+			var entry *C.AVDictionaryEntry
+			for {
+				entry = C.av_dict_iterate(stream.metadata, entry)
+				if entry == nil {
+					break
+				}
 				key := C.GoString(entry.key)
 				if key == "language" {
 					language = C.GoString(entry.value)
 				} else if key == "title" {
 					title = C.GoString(entry.value)
 				}
-				entry = entry.next
 			}
 		}
 
@@ -1515,8 +1518,6 @@ func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.
 			return
 		}
 		defer C.sws_freeContext(swsCtx)
-
-		thumbBuffer := make([]byte, thumbSize*thumbHeight*4)
 
 		for t := 0.0; t < duration; t += interval {
 			select {
@@ -1715,7 +1716,6 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 				img = e.toRGBA()
 			}
 
-			e.UpdateSubtitles(adjustedPts)
 			if e.subtitleCodecCtx != nil {
 				sub := e.decodeSubtitle(adjustedPts)
 				if sub != nil {
