@@ -302,7 +302,8 @@ func (e *Engine) decodeSubtitle(pts float64) *SubtitleOverlay {
 
 		if C.avcodec_decode_subtitle2(e.subtitleCodecCtx, &sub, &gotSub, pkt) >= 0 && gotSub == 1 {
 			rect := C.vt_sub_rect0(&sub)
-			if rect != nil && int(C.vt_sub_rect_type(rect)) == int(C.VT_SUBTITLE_TYPE_TEXT) {
+			// AV_SUBTITLE_TYPE_TEXT = 2 (has been stable since FFmpeg 0.6)
+			if rect != nil && C.vt_sub_rect_type(rect) == 2 {
 				text := C.GoString(rect.text)
 				e.currentSubtitle = &SubtitleOverlay{
 					Text:    text,
