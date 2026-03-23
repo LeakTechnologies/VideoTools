@@ -1,6 +1,6 @@
 # DVD/ISO Engine — Implementation Status
 
-_Last updated: 2026-03-17_
+_Last updated: 2026-03-23_
 
 This document describes the current state of VideoTools' native Go DVD authoring
 engine (`internal/dvd/`). For the completion roadmap see `DVD_COMPLETION_PLAN.md`.
@@ -80,10 +80,10 @@ VTS_01_1.VOB  placed in VIDEO_TS/
 | Component | Status | Notes |
 |---|---|---|
 | 2-bit RLE encoding | ✅ Complete | Row-by-row pixel encoding |
-| Display Control Sequence (DCSQ) | ⚠️ Minimal | Structure written; area/offset hardcoded zeros |
-| Color palette support | ⚠️ Fixed | 4-color fixed palette; no user palette |
-| Contrast/timing DCSQ commands | ❌ Missing | SET_CONTR, timing not implemented |
-| Menu integration | ❌ Not wired | Encoder works standalone but not called from authoring |
+| Display Control Sequence (DCSQ) | ✅ Complete | Full implementation with area/offset |
+| Color palette support | ✅ Complete | 4-color palette with user-defined colors |
+| Contrast/timing DCSQ commands | ✅ Complete | SET_CONTR and timing implemented |
+| Menu integration | ✅ Wired | Encoder called from authoring via vob.WriteSPU |
 
 ### 5. Theme / Menu Renderer — `internal/dvd/theme/`
 
@@ -95,7 +95,7 @@ VTS_01_1.VOB  placed in VIDEO_TS/
 | `drawHighlight()` button regions | ✅ Complete | |
 | CSS-like layout parsing | ✅ Complete | center, %, px |
 | Button → DVD button definition | ✅ Complete | Button commands parsed → PGC cell command table entries |
-| Menu SPU encoding bridge | ✅ Complete | spumux handles SPU encoding; output wired into VIDEO_TS.VOB |
+| Menu SPU encoding bridge | ✅ Complete | Native Go SPU encoder (buildMenuSPU) replaces spumux; output wired into VIDEO_TS.VOB |
 | Menu VOB muxing | ✅ Complete | menu_spu.mpg → VIDEO_TS.VOB; menu PGC with pre/cell commands written to VMG IFO |
 
 ### 6. Conversion Layer — `internal/convert/`
@@ -150,8 +150,8 @@ A structurally valid DVD folder or ISO with:
 - Properly named and placed VOB files
 - IFO/BUP header files in the right location
 - UDF + ISO 9660 hybrid filesystem (for ISO output)
+- Full interactive menus with native Go SPU encoder (zero-dependency, no spumux required)
 
 What it does **not yet** produce:
 - Multi-chapter navigation (single-cell PGC only; sector addresses are placeholder 0)
 - Fast-forward/rewind seek (requires TMAPT + DSI SRI values)
-- Full interactive menus (requires SPU + theme renderer wiring into menu VOB)

@@ -1,5 +1,26 @@
 # VideoTools Changelog
 
+## v0.1.1-dev38 (March 2026)
+
+### Native DVD Engine
+- **Native Go SPU encoder** — Added `internal/dvd/spu` with RLE encoding, display sequences, and `vob.WriteSPU` to generate zero-dependency DVD menus without spumux.
+- **Menu VOB wiring** — Native SPU now wired into Author module menu generation pipeline.
+
+### CI Fixes (Fyne API Changes)
+- **Windows CI** — Fixed multiple compile errors from Fyne API changes: `desktop.KeyEvent`, `fyne.Color`, `VT_SUBTITLE_TYPE_TEXT`.
+- **FFmpeg pinning** — Pinned Windows CI to BtbN n7.1 build to match Linux CI.
+- **Build directives** — Replaced pkg-config CGO directives with explicit CFLAGS/LDFLAGS for cross-platform compatibility.
+
+### Module Extraction
+- **Subtitles module** — Full extraction to `internal/app/modules/subtitles/` with types, adapter, and view.
+- **Inspect module** — Extracted to `internal/app/modules/inspect/view.go`.
+- **Queue module** — Extracted to `internal/app/modules/queue/view.go`.
+- **Upscale module** — Full extraction to `internal/app/modules/upscale/` with helpers, types, and view.
+- **Settings module** — Created `internal/app/modules/settings/` with view and types.
+
+### i18n Compliance
+- **Author module** — Replaced hardcoded strings with i18n calls.
+
 ## v0.1.1-dev36 (March 2026)
 
 ### Module Extraction
