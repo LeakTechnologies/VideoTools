@@ -9,9 +9,48 @@ package media
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswscale/swscale.h>
+#include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/dict.h>
+
+/*
+ * VT_SUBTITLE_TYPE_TEXT — numeric value of the "plain text" subtitle rect
+ * type.  The constant has been 2 in every FFmpeg release; using a local
+ * integer constant avoids the AV_SUBTITLE_TYPE_TEXT / SUBTITLE_TEXT rename
+ * churn between FFmpeg 7.x and later master builds.
+ */
+static const int VT_SUBTITLE_TYPE_TEXT = 2;
+
+/*
+ * vt_receive_subtitle — wraps avcodec_receive_subtitle (added in FFmpeg 7.0,
+ * not present in all master builds).  Falls back to avcodec_decode_subtitle2
+ * when the new API is absent (LIBAVCODEC_VERSION_MAJOR >= 62).
+ */
+static inline int vt_receive_subtitle(AVCodecContext *avctx,
+                                      AVSubtitle *sub, int *got_sub_ptr) {
+#if LIBAVCODEC_VERSION_MAJOR < 62
+    return avcodec_receive_subtitle(avctx, sub, got_sub_ptr);
+#else
+    (void)avctx; (void)sub; (void)got_sub_ptr;
+    return AVERROR(ENOSYS);
+#endif
+}
+
+/*
+ * vt_hwdevice_alloc_frame_ctx — wraps av_hwdevice_alloc_frame_ctx (present
+ * in FFmpeg 7.x, removed in later master).  Returns NULL on versions that
+ * lack it so initHWDecode() fails gracefully and SW decode is used instead.
+ */
+static inline AVHWFramesContext* vt_hwdevice_alloc_frame_ctx(
+        AVHWDeviceContext *d) {
+#if LIBAVCODEC_VERSION_MAJOR < 62
+    return av_hwdevice_alloc_frame_ctx(d);
+#else
+    (void)d;
+    return NULL;
+#endif
+}
 
 static AVChapter* getChapter(AVFormatContext *fmtCtx, int index) {
     if (fmtCtx == NULL || index < 0 || index >= fmtCtx->nb_chapters) {
@@ -180,7 +219,7 @@ func (e *Engine) initHWDecode() error {
 
 	e.hwDeviceCtx = devCtx
 
-	framesCtx := C.av_hwdevice_alloc_frame_ctx(devCtx)
+	framesCtx := C.vt_hwdevice_alloc_frame_ctx(devCtx)
 	if framesCtx == nil {
 		C.av_buffer_unref(&devCtx.hwctx)
 		return fmt.Errorf("failed to create HW frames context")
@@ -276,10 +315,10 @@ func (e *Engine) decodeSubtitle(pts float64) *SubtitleOverlay {
 		var sub *C.AVSubtitle
 		var gotSub C.int
 
-		if C.avcodec_receive_subtitle(e.subtitleCodecCtx, sub, &gotSub) == 0 && gotSub == 1 {
+		if C.vt_receive_subtitle(e.subtitleCodecCtx, sub, &gotSub) == 0 && gotSub == 1 {
 			if sub.num_rects > 0 && sub.rects != nil {
 				rect := sub.rects[0]
-				if rect != nil && rect.type_ == C.AV_SUBTITLE_TYPE_TEXT {
+				if rect != nil && int(rect.type_) == int(C.VT_SUBTITLE_TYPE_TEXT) {
 					text := C.GoString(rect.text)
 					e.currentSubtitle = &SubtitleOverlay{
 						Text:    text,
