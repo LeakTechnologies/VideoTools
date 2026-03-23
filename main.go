@@ -59,6 +59,13 @@ import (
 	"github.com/ebitengine/oto/v3"
 )
 
+func ShowErrorLarge(err error, w fyne.Window) {
+	scroll := container.NewScroll(widget.NewLabel(err.Error()))
+	scroll.SetMinSize(fyne.NewSize(400, 200))
+	d := dialog.NewCustom("Error", "OK", scroll, w)
+	d.Show()
+}
+
 func init() {
 	if os.Getenv("GST_DEBUG") == "" {
 		os.Setenv("GST_DEBUG", "0")
@@ -7337,7 +7344,7 @@ func runGUI() {
 	if HasNativeMediaPlayer() {
 		if err := appcfg.AddFFmpegDllsToPath(); err != nil {
 			logging.Error(logging.CatSystem, "failed to bootstrap FFmpeg DLLs: %v", err)
-			dialog.ShowError(fmt.Errorf("VideoTools could not download FFmpeg DLLs for video playback:\n\n%v\n\nVideo playback features will be unavailable. You can try again later or check your internet connection.", err), w)
+			ShowErrorLarge(fmt.Errorf("VideoTools could not download FFmpeg DLLs for video playback:\n\n%v\n\nVideo playback features will be unavailable. You can try again later or check your internet connection.", err), w)
 		} else {
 			logging.Info(logging.CatSystem, "FFmpeg DLLs ready for native media engine")
 		}

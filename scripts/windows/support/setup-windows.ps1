@@ -71,10 +71,15 @@ try {
             New-Item -ItemType Directory -Path $distDir -Force | Out-Null
         }
 
-        Copy-Item $ffmpegExe -Destination $distDir -Force
-        Copy-Item $ffprobeExe -Destination $distDir -Force
+        $binDir = Join-Path $distDir "bin"
+        if (-not (Test-Path $binDir)) {
+            New-Item -ItemType Directory -Path $binDir -Force | Out-Null
+        }
 
-        Write-Host "[OK] FFmpeg installed to: $distDir" -ForegroundColor Green
+        Copy-Item $ffmpegExe -Destination $binDir -Force
+        Copy-Item $ffprobeExe -Destination $binDir -Force
+
+        Write-Host "[OK] FFmpeg installed to: $binDir" -ForegroundColor Green
         Write-Host ""
 
         $videoToolsExe = Join-Path $distDir "VideoTools.exe"
@@ -94,12 +99,13 @@ try {
         } else {
             Write-Host "FFmpeg setup complete, VideoTools.exe not found" -ForegroundColor Yellow
             Write-Host ""
-            Write-Host "FFmpeg has been downloaded to: $distDir" -ForegroundColor White
+            Write-Host "FFmpeg has been downloaded to: $binDir" -ForegroundColor White
             Write-Host ""
             Write-Host "Next steps:" -ForegroundColor Yellow
             Write-Host "  1. Build VideoTools.exe (see README.md)" -ForegroundColor White
             Write-Host "  2. Copy VideoTools.exe to: $distDir" -ForegroundColor White
-            Write-Host "  3. Run VideoTools.exe" -ForegroundColor White
+            Write-Host "  3. Copy FFmpeg files to: $binDir" -ForegroundColor White
+            Write-Host "  4. Run VideoTools.exe" -ForegroundColor White
         }
     } elseif ($System) {
         Write-Host "Installing FFmpeg system-wide..." -ForegroundColor Green
