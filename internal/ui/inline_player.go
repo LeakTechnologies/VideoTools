@@ -66,9 +66,12 @@ func (v *InlineVideoPlayer) Load(path string) error {
 	duration := v.engine.Duration()
 	v.player.SetDuration(duration)
 
+	// Start the demuxer briefly to decode the first frame for preview, then pause.
+	v.engine.Start()
 	if img, err := v.engine.NextFrame(); err == nil {
 		v.player.SetFrame(img)
 	}
+	v.engine.Pause()
 
 	if v.scrubber != nil {
 		v.scrubber.Stop()
@@ -95,6 +98,7 @@ func (v *InlineVideoPlayer) Play() {
 	}
 	v.playing = true
 	v.engine.Start()
+	v.engine.Resume()
 	go v.playbackLoop()
 }
 

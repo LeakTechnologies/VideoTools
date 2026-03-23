@@ -1564,6 +1564,15 @@ func (e *Engine) Start() {
 }
 
 func (e *Engine) demuxerLoop() {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error(logging.CatPlayer, "demuxerLoop panic: %v", r)
+			e.videoQueue.SetEOF()
+			e.audioQueue.SetEOF()
+			e.subtitleQueue.SetEOF()
+		}
+	}()
+
 	pkt := C.av_packet_alloc()
 	defer C.av_packet_free(&pkt)
 
