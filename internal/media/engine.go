@@ -15,9 +15,9 @@ package media
 #include <libavutil/dict.h>
 
 // VT_SUBTITLE_TYPE_TEXT — stable numeric value of the "plain text" subtitle
-// rect type (has been 2 in every FFmpeg release).  Using a local constant
-// avoids AV_SUBTITLE_TYPE_TEXT / SUBTITLE_TEXT rename churn across versions.
-static const int VT_SUBTITLE_TYPE_TEXT = 2;
+// rect type (has been 2 in every FFmpeg release).  Using a macro avoids
+// AV_SUBTITLE_TYPE_TEXT / SUBTITLE_TEXT rename churn across versions.
+#define VT_SUBTITLE_TYPE_TEXT 2
 
 // vt_sub_rect0 — safely returns the first AVSubtitleRect* from a subtitle.
 static AVSubtitleRect* vt_sub_rect0(AVSubtitle *sub) {
