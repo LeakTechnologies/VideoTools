@@ -79,7 +79,8 @@ func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *Maste
 	C.av_opt_set_int(unsafe.Pointer(p.swrCtx), C.CString("in_sample_rate"), C.int64_t(p.codecCtx.sample_rate), 0)
 	C.av_opt_set_sample_fmt(unsafe.Pointer(p.swrCtx), C.CString("in_sample_fmt"), p.codecCtx.sample_fmt, 0)
 
-	outLayout := C.AVChannelLayout(C.AV_CH_LAYOUT_STEREO)
+	var outLayout C.AVChannelLayout
+	C.av_channel_layout_default(&outLayout, 2)
 	C.av_opt_set_chlayout(unsafe.Pointer(p.swrCtx), C.CString("out_chlayout"), &outLayout, 0)
 	C.av_opt_set_int(unsafe.Pointer(p.swrCtx), C.CString("out_sample_rate"), TargetSampleRate, 0)
 	C.av_opt_set_sample_fmt(unsafe.Pointer(p.swrCtx), C.CString("out_sample_fmt"), C.AV_SAMPLE_FMT_S16, 0)
@@ -309,7 +310,6 @@ func (p *AudioPlayer) Close() {
 		p.otoPlayer = nil
 	}
 	if p.otoCtx != nil {
-		p.otoCtx.Close()
 		p.otoCtx = nil
 	}
 	if p.swrCtx != nil {

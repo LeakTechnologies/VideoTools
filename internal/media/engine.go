@@ -24,6 +24,11 @@ static AVSubtitleRect* vt_sub_rect0(AVSubtitle *sub) {
     if (sub == NULL || sub->num_rects == 0 || sub->rects == NULL) return NULL;
     return sub->rects[0];
 }
+// vt_sub_rect_type — reads the type field (Go keyword; enum field access unreliable via CGO).
+static int vt_sub_rect_type(AVSubtitleRect *rect) {
+    if (rect == NULL) return -1;
+    return (int)rect->type;
+}
 
 static AVChapter* getChapter(AVFormatContext *fmtCtx, int index) {
     if (fmtCtx == NULL || index < 0 || index >= fmtCtx->nb_chapters) {
@@ -297,7 +302,7 @@ func (e *Engine) decodeSubtitle(pts float64) *SubtitleOverlay {
 
 		if C.avcodec_decode_subtitle2(e.subtitleCodecCtx, &sub, &gotSub, pkt) >= 0 && gotSub == 1 {
 			rect := C.vt_sub_rect0(&sub)
-			if rect != nil && int(rect.type_) == int(C.VT_SUBTITLE_TYPE_TEXT) {
+			if rect != nil && int(C.vt_sub_rect_type(rect)) == int(C.VT_SUBTITLE_TYPE_TEXT) {
 				text := C.GoString(rect.text)
 				e.currentSubtitle = &SubtitleOverlay{
 					Text:    text,
@@ -327,7 +332,7 @@ func (e *Engine) RenderSubtitles(img *image.RGBA, currentPTS float64) *image.RGB
 	}
 
 	bounds := e.currentSubtitle.Bounds()
-	if !bounds.Intersects(img.Bounds()) {
+	if !bounds.Overlaps(img.Bounds()) {
 		return img
 	}
 
@@ -375,8 +380,6 @@ func (e *Engine) drawSubtitleText(img *image.RGBA, bounds *image.Rectangle) {
 }
 
 func (e *Engine) drawBitmapText(img *image.RGBA, text string, x, y int) {
-	bgColor := color.RGBA{R: 0, G: 0, B: 0, A: 180}
-
 	for i, ch := range text {
 		charX := x + i*16
 
@@ -507,13 +510,7 @@ type Engine struct {
 
 	lastError *PlaybackError
 
-	gpuTexUpload interface {
-		UploadFrame(img *image.RGBA) error
-		Texture() interface{}
-		Width() int
-		Height() int
-		Delete()
-	}
+	gpuTexUpload interface{}
 }
 
 type PlaybackFrameCache struct {
@@ -1251,13 +1248,13 @@ func (e *Engine) CheckCodecSupport(codecName string) bool {
 	if pkt == nil {
 		return false
 	}
-	defer C.av_packet_free(pkt)
+	defer C.av_packet_free(&pkt)
 
 	ctx := C.avcodec_alloc_context3(codec)
 	if ctx == nil {
 		return false
 	}
-	defer C.avcodec_free_context(ctx)
+	defer C.avcodec_free_context(&ctx)
 
 	if C.avcodec_open2(ctx, codec, nil) < 0 {
 		return false
@@ -1309,7 +1306,7 @@ func (e *Engine) Open(path string) error {
 		return fmt.Errorf("failed to open input file: %s", path)
 	}
 
-	ret := C.avformat_find_stream_info(e.formatCtx, nil)
+	ret = C.avformat_find_stream_info(e.formatCtx, nil)
 	if ret < 0 {
 		errBuf := make([]byte, 256)
 		C.av_strerror(ret, (*C.char)(unsafe.Pointer(&errBuf[0])), 256)
