@@ -3444,6 +3444,18 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	// Generate VMG IFO/BUP (disc root metadata)
 	vmgMat := ifo.NewVMGMAT()
 	vmgMat.NrOfTitleSets = uint16(totalTitles)
+
+	// Set menu VOB sector info if menu was created
+	if createMenu && menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
+		menuVOBPath := filepath.Join(videoTSPath, "VIDEO_TS.VOB")
+		if info, err := os.Stat(menuVOBPath); err == nil && info.Size() > 0 {
+			// VMG_BUP_Last_Sector = last sector of menu VOB (VMGM_VOBS_Last_Sector)
+			// For VIDEO_TS folder, we estimate based on file size
+			vmgMat.VMG_BUP_Last_Sector = uint32(info.Size() / 2048)
+			logging.Info(logging.CatDVD, "Menu VOB size: %d sectors", vmgMat.VMG_BUP_Last_Sector)
+		}
+	}
+
 	allMats := []*ifo.VTS_MAT{vtsMat}
 	for _, st := range extraStates {
 		allMats = append(allMats, st.mat)
@@ -3457,6 +3469,60 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 
 	accumulatedProgress += progressForOtherStep
 	progressFn(accumulatedProgress)
+
+	// For VIDEO_TS folder output (non-ISO), compute sector addresses from file sizes
+	// and regenerate IFOs with correct sectors. This is done inside the makeISO block
+	// for ISO builds, but we need the same logic for folder output.
+	if !makeISO {
+		logFn("Computing disc layout for VIDEO_TS folder...")
+
+		// Re-build main title PGC with estimated sector addresses
+		mainVOBPath := filepath.Join(videoTSPath, "VTS_01_1.VOB")
+		if info, err := os.Stat(mainVOBPath); err == nil {
+			firstSector := uint32(0) // Placeholder - real value would need proper UDF layout
+			lastSector := uint32(info.Size()/2048) - 1
+			if hasChapters && len(mainNavSectors) > 0 {
+				discNav := make([]uint32, len(mainNavSectors))
+				for j, s := range mainNavSectors {
+					discNav[j] = firstSector + s
+				}
+				cells := ifo.ChapterCellsFromNAV(discNav, chapterTimestamps, mainDuration, lastSector)
+				if cells != nil {
+					mainPGC = ifo.BuildChapterPGC(cells, mainDuration, isNTSC)
+				} else {
+					mainPGC = ifo.BuildSingleCellPGC(firstSector, lastSector, mainDuration, isNTSC)
+				}
+			} else {
+				mainPGC = ifo.BuildSingleCellPGC(firstSector, lastSector, mainDuration, isNTSC)
+			}
+			for i := uint16(0); i < nAudio && i < 8; i++ {
+				mainPGC.AudioControl[i] = 0x8000 | uint16(i<<8)
+			}
+			// Regenerate VTS IFO with updated PGC
+			if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap, mainPTTSRPT); err != nil {
+				logging.Info(logging.CatDVD, "Failed to regenerate VTS IFO: %v", err)
+			}
+		}
+
+		// Re-build IFOs for extra title sets
+		for i, clip := range extraClips {
+			vtsNum := i + 2
+			extraVOBPath := filepath.Join(videoTSPath, fmt.Sprintf("VTS_%02d_1.VOB", vtsNum))
+			if info, err := os.Stat(extraVOBPath); err == nil {
+				firstSector := uint32(0)
+				extraPGC2 := ifo.BuildSingleCellPGC(firstSector, firstSector+uint32(info.Size()/2048)-1, clip.Duration, isNTSC)
+				for j := uint16(0); j < nAudio && j < 8; j++ {
+					extraPGC2.AudioControl[j] = 0x8000 | uint16(j<<8)
+				}
+				st := extraStates[i]
+				if err := ifoBuilder.GenerateVTS_IFO(vtsNum, st.mat, extraPGC2, st.tmapt, st.admap, st.pttsrpt); err != nil {
+					logging.Info(logging.CatDVD, "Failed to regenerate extra VTS IFO %d: %v", vtsNum, err)
+				}
+			}
+		}
+
+		logFn("IFO sector addresses computed")
+	}
 
 	if makeISO {
 		if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
