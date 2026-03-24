@@ -3,6 +3,7 @@ package queue
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
@@ -38,6 +39,24 @@ func BuildView(opts Options) (fyne.CanvasObject, ViewAPI) {
 
 	_ = i18n.T()
 
+	win := opts.Window
+
+	cancelWithConfirm := func(id string) {
+		dialog.ShowConfirm("Cancel Job", "Cancel this job? Any progress will be lost.", func(ok bool) {
+			if ok && opts.OnCancel != nil {
+				opts.OnCancel(id)
+			}
+		}, win)
+	}
+
+	cancelAllWithConfirm := func() {
+		dialog.ShowConfirm("Cancel All Jobs", "Cancel all running and queued jobs? All progress will be lost.", func(ok bool) {
+			if ok && opts.OnCancelAll != nil {
+				opts.OnCancelAll()
+			}
+		}, win)
+	}
+
 	queueView := ui.BuildQueueView(
 		opts.Jobs,
 		func() {
@@ -46,7 +65,7 @@ func BuildView(opts Options) (fyne.CanvasObject, ViewAPI) {
 		},
 		opts.OnPause,
 		opts.OnResume,
-		opts.OnCancel,
+		cancelWithConfirm,
 		opts.OnRemove,
 		opts.OnMoveUp,
 		opts.OnMoveDown,
@@ -55,7 +74,7 @@ func BuildView(opts Options) (fyne.CanvasObject, ViewAPI) {
 		opts.OnStart,
 		opts.OnClear,
 		opts.OnClearAll,
-		opts.OnCancelAll,
+		cancelAllWithConfirm,
 		opts.OnCopyError,
 		opts.OnViewLog,
 		opts.OnCopyCommand,
