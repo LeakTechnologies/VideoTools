@@ -913,7 +913,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		state.persistAuthorConfig()
 	})
 
-	info := widget.NewLabel(t.AuthorRequiresFFmpeg + " " + t.AuthorRequiresSpumux)
+	info := widget.NewLabel(t.AuthorRequiresFFmpeg)
 	info.Wrapping = fyne.TextWrapWord
 
 	controls := container.NewVBox(
@@ -3325,7 +3325,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	menuVOBPath := filepath.Join(videoTSPath, "VIDEO_TS.VOB")
 	var menuPGC *ifo.ProgramChain
 	if createMenu && menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
-		// Copy the spumux-processed menu VOB into VIDEO_TS/
+		// Copy the native-encoded menu VOB into VIDEO_TS/
 		if err := authorCopyFile(menuSet.MainMpg, menuVOBPath); err != nil {
 			logging.Info(logging.CatDVD, "Failed to copy menu VOB, using minimal placeholder: %v", err)
 			if err2 := vob.CreateMinimalMenuVOB(menuVOBPath); err2 != nil {
@@ -3804,8 +3804,6 @@ func authorFriendlyError(err error) string {
 		return "Not enough disk space for authoring output."
 	case strings.Contains(lower, "output folder must be empty"):
 		return "Output folder must be empty before authoring."
-	case strings.Contains(lower, "spumux not found"), strings.Contains(lower, "spumux"):
-		return "spumux not found. Install dvdauthor package for menu support."
 	case strings.Contains(lower, "permission denied"):
 		return "Permission denied writing to output folder."
 	case strings.Contains(lower, "ffmpeg"):
@@ -3968,8 +3966,7 @@ func ensureAuthorDependencies(makeISO bool, createMenu bool) error {
 	if err := ensureExecutable(utils.GetFFmpegPath(), "ffmpeg"); err != nil {
 		return err
 	}
-	// Native engine handles IFO/VOB/ISO creation.
-	// dvdauthor/spumux/mkisofs are now optional fallbacks.
+	// Native engine handles IFO/VOB/ISO creation — no external tools required.
 	return nil
 }
 

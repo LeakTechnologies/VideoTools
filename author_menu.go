@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/spu"
@@ -536,20 +535,6 @@ type dvdMenuSet struct {
 func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, extras []extraItem, logFn func(string), template MenuTemplate, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, chapterVideoPath string, chapterThumbOffset float64) (dvdMenuSet, error) {
 	if template == nil {
 		template = &SimpleMenu{}
-	}
-
-	// Check for spumux availability
-	if !isSpumuxAvailable() {
-		t := i18n.T()
-		logMsg := t.AuthorSpumuxNotFound
-		if runtime.GOOS == "windows" {
-			logMsg += " " + t.AuthorWindowsSpumuxHint
-		}
-		if logFn != nil {
-			logFn(logMsg)
-		}
-		// Continue without menus
-		return dvdMenuSet{}, nil
 	}
 
 	// Determine main menu buttons based on chapters and extras
@@ -1578,11 +1563,6 @@ func writeSpumuxXML(path, overlayPath, highlightPath, selectPath string, buttons
 	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
 
-func isSpumuxAvailable() bool {
-	cmd := exec.Command("spumux", "-V")
-	return cmd.Run() == nil
-}
-
 // runNativeSpumux creates menu SPU using native Go encoder (zero-dep).
 // It takes the background image and generates an SPU-encoded VOB.
 func runNativeSpumux(ctx context.Context, overlayPath, outputPath string, logFn func(string)) error {
@@ -1646,35 +1626,6 @@ func buildMenuSPU(ctx context.Context, overlayPath, menuSpuPath string, logFn fu
 	return runNativeSpumux(ctx, overlayPath, menuSpuPath, logFn)
 }
 
-func runSpumux(ctx context.Context, spumuxXML, inputMpg, outputMpg string, logFn func(string)) error {
-	if !isSpumuxAvailable() {
-		return fmt.Errorf("spumux not available")
-	}
-	args := []string{"-m", "dvd", spumuxXML}
-	if logFn != nil {
-		logFn(fmt.Sprintf(">> spumux -m dvd %s < %s > %s", spumuxXML, filepath.Base(inputMpg), filepath.Base(outputMpg)))
-	}
-	cmd := exec.CommandContext(ctx, "spumux", args...)
-	inputFile, err := os.Open(inputMpg)
-	if err != nil {
-		return fmt.Errorf("open spumux input: %w", err)
-	}
-	defer inputFile.Close()
-	cmd.Stdin = inputFile
-	outFile, err := os.Create(outputMpg)
-	if err != nil {
-		return fmt.Errorf("create spumux output: %w", err)
-	}
-	defer outFile.Close()
-	cmd.Stdout = outFile
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	if err := cmd.Run(); err != nil {
-		logging.Debug(logging.CatSystem, "spumux stderr: %s", stderr.String())
-		return fmt.Errorf("spumux failed: %w", err)
-	}
-	return nil
-}
 
 func findVTLogoPath() string {
 	search := []string{

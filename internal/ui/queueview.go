@@ -243,7 +243,7 @@ type QueueView struct {
 	// Live output panel (shown when a job is running)
 	logSection   *fyne.Container
 	logJobLabel  *widget.Label
-	logEntry     *widget.Entry
+	logEntry     *widget.Label
 	logScroll    *container.Scroll
 	logPath      string
 	logReading   bool // true while a read goroutine is in flight
@@ -337,10 +337,9 @@ func BuildQueueView(
 	logJobLabel.TextStyle = fyne.TextStyle{Bold: true}
 	logJobLabel.Truncation = fyne.TextTruncateEllipsis
 
-	logEntry := widget.NewMultiLineEntry()
+	logEntry := widget.NewLabel("")
 	logEntry.Wrapping = fyne.TextWrapOff
 	logEntry.TextStyle = fyne.TextStyle{Monospace: true}
-	logEntry.Disable()
 
 	logScroll := container.NewVScroll(logEntry)
 	logScroll.SetMinSize(fyne.NewSize(0, 160))
