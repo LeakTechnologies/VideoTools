@@ -1207,6 +1207,8 @@ type appState struct {
 	authorSubtitles               []string     // Subtitle file paths
 	authorAudioTracks             []string     // Additional audio tracks
 	authorSummaryLabel            *widget.Label
+	authorDiscFillBar             *widget.ProgressBar
+	authorDiscFillLabel           *widget.Label
 	authorTreatAsChapters         bool   // Treat multiple clips as chapters
 	authorChapterSource           string // embedded, scenes, clips, manual
 	authorChaptersRefresh         func() // Refresh hook for chapter list UI
@@ -1214,7 +1216,7 @@ type appState struct {
 	authorLogText                 string
 	authorLogLines                []string // Circular buffer for last N lines
 	authorLogFilePath             string   // Path to log file for full viewing
-	authorLogEntry                *widget.Entry
+	authorLogEntry                *widget.Label
 	authorLogScroll               *ui.FastVScroll
 	authorProgress                float64
 	authorProgressBar             *widget.ProgressBar

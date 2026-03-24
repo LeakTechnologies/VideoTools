@@ -1626,6 +1626,16 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 	summaryLabel.Wrapping = fyne.TextWrapWord
 	state.authorSummaryLabel = summaryLabel
 
+	// Disc fill indicator
+	discFillBar := widget.NewProgressBar()
+	discFillBar.Min = 0
+	discFillBar.Max = 1
+	discFillLabel := widget.NewLabel("")
+	discFillLabel.Alignment = fyne.TextAlignCenter
+	state.authorDiscFillBar = discFillBar
+	state.authorDiscFillLabel = discFillLabel
+	state.updateAuthorDiscFill()
+
 	statusLabel := widget.NewLabel(t.AuthorReady)
 	statusLabel.Wrapping = fyne.TextWrapWord
 	state.authorStatusLabel = statusLabel
@@ -1634,9 +1644,9 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 	progressBar.SetValue(state.authorProgress / 100.0)
 	state.authorProgressBar = progressBar
 
-	logEntry := widget.NewMultiLineEntry()
+	logEntry := widget.NewLabel("")
 	logEntry.Wrapping = fyne.TextWrapOff
-	logEntry.Disable()
+	logEntry.TextStyle = fyne.TextStyle{Monospace: true}
 	logEntry.SetText(state.authorLogText)
 	state.authorLogEntry = logEntry
 	logScroll := ui.NewFastVScroll(logEntry)
@@ -1683,6 +1693,10 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 		widget.NewLabel("Generate DVD/ISO:"), // TODO: i18n
 		widget.NewSeparator(),
 		summaryLabel,
+		widget.NewSeparator(),
+		widget.NewLabel("Disc Capacity:"), // TODO: i18n
+		discFillLabel,
+		discFillBar,
 		widget.NewSeparator(),
 		widget.NewLabel(t.AuthorStatus),
 		statusLabel,
@@ -1926,6 +1940,37 @@ func (s *appState) updateAuthorSummary() {
 		return
 	}
 	s.authorSummaryLabel.SetText(authorSummary(s))
+	s.updateAuthorDiscFill()
+}
+
+func (s *appState) updateAuthorDiscFill() {
+	if s.authorDiscFillBar == nil {
+		return
+	}
+	capacity := discCapacityBytes(s.authorDiscSize)
+	estimated := authorEstimatedBytes(s)
+	fill := 0.0
+	if capacity > 0 && estimated > 0 {
+		fill = estimated / capacity
+		if fill > 1 {
+			fill = 1
+		}
+	}
+	s.authorDiscFillBar.SetValue(fill)
+
+	// Label: "X.XX GB / Y GB  (NN%)"
+	discLabel := s.authorDiscSize
+	if discLabel == "" {
+		discLabel = "DVD5"
+	}
+	if estimated > 0 && capacity > 0 {
+		estGB := estimated / 1e9
+		capGB := capacity / 1e9
+		pct := fill * 100
+		s.authorDiscFillLabel.SetText(fmt.Sprintf("%s — %.2f GB / %.0f GB  (%.0f%%)", discLabel, estGB, capGB, pct))
+	} else {
+		s.authorDiscFillLabel.SetText(fmt.Sprintf("%s — add videos to see estimate", discLabel))
+	}
 }
 
 func (s *appState) authorChapterSummary() (int, string) {
@@ -1993,22 +2038,66 @@ func authorTargetBitrateKbps(discSize string, totalSeconds float64) int {
 	if totalSeconds <= 0 {
 		return 0
 	}
-	var targetBytes float64
-	switch strings.ToUpper(strings.TrimSpace(discSize)) {
-	case "DVD9":
-		targetBytes = 7.3 * 1024 * 1024 * 1024
-	default:
-		targetBytes = 4.1 * 1024 * 1024 * 1024
-	}
-	totalBits := targetBytes * 8
+	// Use 85% of disc capacity for video (leave room for audio + IFO overhead)
+	usable := discCapacityBytes(discSize) * 0.85
+	totalBits := usable * 8
 	kbps := int(totalBits / totalSeconds / 1000)
-	if kbps > 9500 {
-		kbps = 9500
-	}
-	if kbps < 1500 {
-		kbps = 1500
+
+	// Per-format caps
+	switch strings.ToUpper(strings.TrimSpace(discSize)) {
+	case "BD25", "BD50", "BD66", "BD100":
+		if kbps > 40000 {
+			kbps = 40000
+		}
+		if kbps < 8000 {
+			kbps = 8000
+		}
+	default: // DVD5, DVD9
+		if kbps > 9500 {
+			kbps = 9500
+		}
+		if kbps < 1500 {
+			kbps = 1500
+		}
 	}
 	return kbps
+}
+
+// discCapacityBytes returns the usable capacity of a disc type in bytes.
+func discCapacityBytes(discSize string) float64 {
+	switch strings.ToUpper(strings.TrimSpace(discSize)) {
+	case "DVD5":
+		return 4.7e9
+	case "DVD9":
+		return 8.5e9
+	case "BD25":
+		return 25e9
+	case "BD50":
+		return 50e9
+	case "BD66":
+		return 66e9
+	case "BD100":
+		return 100e9
+	default:
+		return 4.7e9
+	}
+}
+
+// authorEstimatedBytes returns the estimated encoded size in bytes for the
+// current authoring job (video at target bitrate + audio overhead).
+func authorEstimatedBytes(state *appState) float64 {
+	totalDur := authorTotalDuration(state)
+	if totalDur <= 0 {
+		return 0
+	}
+	videoBitrateKbps := authorTargetBitrateKbps(state.authorDiscSize, totalDur)
+	// AC-3 stereo audio: ~384 kbps per clip (single default track)
+	audioBitrateKbps := 384
+	totalBitrateKbps := videoBitrateKbps + audioBitrateKbps
+	estimatedBytes := float64(totalBitrateKbps) * 1000 / 8 * totalDur
+	// Add ~80 MB overhead for IFO/BUP/NAV packs and menu assets
+	estimatedBytes += 80 * 1024 * 1024
+	return estimatedBytes
 }
 
 func (s *appState) loadEmbeddedChapters(path string) {
