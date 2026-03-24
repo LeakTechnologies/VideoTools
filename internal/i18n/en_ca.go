@@ -664,6 +664,7 @@ var enCA = Strings{
 	AuthorBurnInfo:             "This VIDEO_TS folder will be burned directly to ISO without re-encoding.",
 	AuthorVideos:               "Videos",
 	AuthorMenuTab:              "Menu",
+	AuthorPreviewTab:           "Preview",
 	AuthorGenerateTab:          "Generate",
 	AuthorEnableMenus:          "Enable DVD Menus",
 	AuthorEmbedLogo:            "Embed Logo",
