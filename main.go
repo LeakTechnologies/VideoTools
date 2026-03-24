@@ -1178,34 +1178,35 @@ type appState struct {
 	authorChapters                []authorChapter
 	authorSceneThreshold          float64
 	authorDetecting               bool
-	authorClips                   []authorClip // Multiple video clips for compilation
-	authorOutputType              string       // "dvd" or "iso"
-	authorRegion                  string       // "NTSC", "PAL", "AUTO"
-	authorAspectRatio             string       // "4:3", "16:9", "AUTO"
-	authorCreateMenu              bool         // Whether to create DVD menu
-	authorMenuTemplate            string       // "Minimal", "Simple", "Dark", "Poster"
-	authorMenuBackgroundImage     string       // Path to a user-selected background image
-	authorMenuMotionBackground    string       // Path to a motion background video (MPG)
-	authorMenuTheme               string       // "VideoTools", "Minimal", "Western", etc.
-	authorMenuCustomBgColor       string       // Custom background color hex
-	authorMenuCustomTextColor     string       // Custom text color hex
-	authorMenuCustomAccentColor   string       // Custom accent color hex
-	authorMenuTitleLogoEnabled    bool         // Enable title logo (main logo above menu)
-	authorMenuTitleLogoPath       string       // Path to title logo image
-	authorMenuTitleLogoPosition   string       // Position for title logo
-	authorMenuTitleLogoScale      float64      // Scale for title logo
-	authorMenuTitleLogoMargin     int          // Margin for title logo
-	authorMenuStudioLogoEnabled   bool         // Enable studio logo (corner logo)
-	authorMenuStudioLogoPath      string       // Path to studio logo image
-	authorMenuStudioLogoPosition  string       // "Top Left", "Top Right", "Bottom Left", "Bottom Right"
-	authorMenuStudioLogoScale     float64      // Scale for studio logo
-	authorMenuStudioLogoMargin    int          // Margin for studio logo
-	authorMenuStructure           string       // Feature only, Chapters, Extras
-	authorMenuExtrasEnabled       bool         // Show extras menu
-	authorMenuChapterThumbnailSrc string       // Auto, First Frame, Midpoint, Custom
-	authorTitle                   string       // DVD title
-	authorSubtitles               []string     // Subtitle file paths
-	authorAudioTracks             []string     // Additional audio tracks
+	authorClips                   []authorClip       // Multiple video clips for compilation
+	authorOutputType              string             // "dvd" or "iso"
+	authorRegion                  string             // "NTSC", "PAL", "AUTO"
+	authorAspectRatio             string             // "4:3", "16:9", "AUTO"
+	authorCreateMenu              bool               // Whether to create DVD menu
+	authorTabs                    *container.AppTabs // Author module tabs for dynamic updates
+	authorMenuTemplate            string             // "Minimal", "Simple", "Dark", "Poster"
+	authorMenuBackgroundImage     string             // Path to a user-selected background image
+	authorMenuMotionBackground    string             // Path to a motion background video (MPG)
+	authorMenuTheme               string             // "VideoTools", "Minimal", "Western", etc.
+	authorMenuCustomBgColor       string             // Custom background color hex
+	authorMenuCustomTextColor     string             // Custom text color hex
+	authorMenuCustomAccentColor   string             // Custom accent color hex
+	authorMenuTitleLogoEnabled    bool               // Enable title logo (main logo above menu)
+	authorMenuTitleLogoPath       string             // Path to title logo image
+	authorMenuTitleLogoPosition   string             // Position for title logo
+	authorMenuTitleLogoScale      float64            // Scale for title logo
+	authorMenuTitleLogoMargin     int                // Margin for title logo
+	authorMenuStudioLogoEnabled   bool               // Enable studio logo (corner logo)
+	authorMenuStudioLogoPath      string             // Path to studio logo image
+	authorMenuStudioLogoPosition  string             // "Top Left", "Top Right", "Bottom Left", "Bottom Right"
+	authorMenuStudioLogoScale     float64            // Scale for studio logo
+	authorMenuStudioLogoMargin    int                // Margin for studio logo
+	authorMenuStructure           string             // Feature only, Chapters, Extras
+	authorMenuExtrasEnabled       bool               // Show extras menu
+	authorMenuChapterThumbnailSrc string             // Auto, First Frame, Midpoint, Custom
+	authorTitle                   string             // DVD title
+	authorSubtitles               []string           // Subtitle file paths
+	authorAudioTracks             []string           // Additional audio tracks
 	authorSummaryLabel            *widget.Label
 	authorDiscFillBar             *widget.ProgressBar
 	authorDiscFillLabel           *widget.Label

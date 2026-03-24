@@ -673,6 +673,7 @@ type Strings struct {
 	AuthorBurnInfo             string // "This VIDEO_TS folder will be burned directly to ISO without re-encoding."
 	AuthorVideos               string // "Videos"
 	AuthorMenuTab              string // "Menu"
+	AuthorPreviewTab           string // "Preview"
 	AuthorGenerateTab          string // "Generate"
 	AuthorEnableMenus          string // "Enable DVD Menus"
 	AuthorEmbedLogo            string // "Embed Logo"

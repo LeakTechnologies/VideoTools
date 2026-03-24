@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -470,4 +471,200 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 	scheduleRefresh()
 
 	return panel, scheduleRefresh
+}
+
+// buildInteractiveMenuPreviewTab creates a full interactive DVD menu preview tab.
+// When menus are enabled, this provides a fully interactive preview where users
+// can navigate the menu and play videos by pressing the title/chapter buttons.
+func buildInteractiveMenuPreviewTab(state *appState) fyne.CanvasObject {
+	t := i18n.T()
+
+	playMainFeature := func() {
+		if len(state.authorClips) > 0 {
+			for _, c := range state.authorClips {
+				if !c.IsExtra {
+					if c.Path != "" {
+						state.showPlayerViewForPath(c.Path)
+						return
+					}
+				}
+			}
+			// If no non-extra, play first clip
+			if state.authorClips[0].Path != "" {
+				state.showPlayerViewForPath(state.authorClips[0].Path)
+			}
+		}
+	}
+
+	previewImg := canvas.NewImageFromResource(nil)
+	previewImg.FillMode = canvas.ImageFillContain
+	previewImg.SetMinSize(fyne.NewSize(640, 420))
+
+	viewType := "main"
+	highlighted := -1
+
+	btnCommands := map[int]string{}
+
+	getCurrentButtons := func() []dvdMenuButton {
+		hasExtras := false
+		for _, c := range state.authorClips {
+			if c.IsExtra {
+				hasExtras = true
+				break
+			}
+		}
+		region := state.authorRegion
+		if region == "" {
+			region = "NTSC"
+		}
+		w, h := dvdMenuDimensions(region)
+		if viewType == "chapters" {
+			return buildChapterMenuButtons(state.authorChapters, w, h)
+		}
+		if viewType == "extras" {
+			var extras []extraItem
+			for i, c := range state.authorClips {
+				if c.IsExtra {
+					extras = append(extras, extraItem{Title: c.DisplayName, TitleNum: i + 2})
+				}
+			}
+			return buildExtrasMenuButtons(extras, w, h)
+		}
+		return buildDVDMenuButtons(state.authorChapters, hasExtras, w, h)
+	}
+
+	scheduleRefresh := func() {
+		thm := resolvePreviewTheme(state)
+		tmpl := state.authorMenuTemplate
+		if tmpl == "" {
+			tmpl = "Minimal"
+		}
+		region := state.authorRegion
+		if region == "" {
+			region = "NTSC"
+		}
+		btns := getCurrentButtons()
+		hi := highlighted
+		if hi >= len(btns) {
+			hi = -1
+		}
+		p := previewParams{
+			theme:       thm,
+			template:    tmpl,
+			title:       state.authorTitle,
+			region:      region,
+			bgImagePath: state.authorMenuBackgroundImage,
+			buttons:     btns,
+			highlighted: hi,
+		}
+
+		rendered := renderMenuPreviewImage(p, t)
+		var buf bytes.Buffer
+		_ = png.Encode(&buf, rendered)
+		data := buf.Bytes()
+		runOnUI(func() {
+			previewImg.Resource = fyne.NewStaticResource("dvd_menu_preview.png", data)
+			previewImg.Refresh()
+		})
+	}
+
+	viewMainBtn := widget.NewButton("Main Menu", func() {
+		viewType = "main"
+		highlighted = 0
+		scheduleRefresh()
+	})
+	viewChaptersBtn := widget.NewButton("Chapters", func() {
+		if len(state.authorChapters) > 1 {
+			viewType = "chapters"
+			highlighted = 0
+			scheduleRefresh()
+		}
+	})
+	viewExtrasBtn := widget.NewButton("Extras", func() {
+		hasExtras := false
+		for _, c := range state.authorClips {
+			if c.IsExtra {
+				hasExtras = true
+				break
+			}
+		}
+		if hasExtras {
+			viewType = "extras"
+			highlighted = 0
+			scheduleRefresh()
+		}
+	})
+
+	rebuildNavRow := func() {
+		btns := getCurrentButtons()
+		btnCommands = map[int]string{}
+
+		hasChapters := len(state.authorChapters) > 1
+		hasExtras := false
+		for _, c := range state.authorClips {
+			if c.IsExtra {
+				hasExtras = true
+				break
+			}
+		}
+
+		viewChaptersBtn.Hidden = !hasChapters
+		viewExtrasBtn.Hidden = !hasExtras
+
+		navRow := container.NewHBox()
+		for i, btn := range btns {
+			i := i
+			b := widget.NewButton(btn.Label, func() {
+				highlighted = i
+				scheduleRefresh()
+
+				cmd := btnCommands[i]
+				switch {
+				case cmd == "jump title 1;" || strings.HasPrefix(cmd, "jump title "):
+					playMainFeature()
+				case strings.HasPrefix(cmd, "jump title "):
+					// Jump to specific title (extra)
+					titleNum := 0
+					fmt.Sscanf(cmd, "jump title %d", &titleNum)
+					extraIdx := titleNum - 2
+					if extraIdx >= 0 && extraIdx < len(state.authorClips) {
+						for j, c := range state.authorClips {
+							if c.IsExtra && j == extraIdx {
+								if c.Path != "" {
+									state.showPlayerViewForPath(c.Path)
+								}
+								break
+							}
+						}
+					}
+				case strings.HasPrefix(cmd, "jump menu "):
+					// Menu navigation handled by view buttons
+				}
+			})
+			if i == highlighted {
+				b.Importance = widget.HighImportance
+			}
+			navRow.Add(b)
+		}
+	}
+
+	// Initial state
+	if len(state.authorChapters) > 1 {
+		viewChaptersBtn.Importance = widget.HighImportance
+	}
+	if highlighted < 0 {
+		highlighted = 0
+	}
+	scheduleRefresh()
+	rebuildNavRow()
+
+	previewContainer := container.NewBorder(
+		container.NewHBox(viewMainBtn, viewChaptersBtn, viewExtrasBtn),
+		nil,
+		nil,
+		nil,
+		previewImg,
+	)
+
+	return previewContainer
 }

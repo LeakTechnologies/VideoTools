@@ -205,15 +205,27 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	topBar := ui.TintedBar(authorColor, container.NewHBox(backBtn, layout.NewSpacer(), cancelBtn, clearCompletedBtn, queueBtn))
 	bottomBar := moduleFooter(authorColor, layout.NewSpacer(), state.statsBar)
 
-	tabs := container.NewAppTabs(
-		container.NewTabItem(t.AuthorVideos, buildVideoClipsTab(state)),
-		container.NewTabItem(t.AuthorChapters, buildChaptersTab(state)),
-		container.NewTabItem(t.ModuleSubtitles, buildSubtitlesTab(state)),
-		container.NewTabItem(t.AuthorMenuTab, buildAuthorMenuTab(state)),
-		container.NewTabItem(t.ModuleSettings, buildAuthorSettingsTab(state)),
-		container.NewTabItem(t.AuthorGenerateTab, buildAuthorDiscTab(state)),
-	)
+	tabsConfig := []struct {
+		text  string
+		build func() fyne.CanvasObject
+	}{
+		{t.AuthorVideos, func() fyne.CanvasObject { return buildVideoClipsTab(state) }},
+		{t.AuthorChapters, func() fyne.CanvasObject { return buildChaptersTab(state) }},
+		{t.ModuleSubtitles, func() fyne.CanvasObject { return buildSubtitlesTab(state) }},
+		{t.AuthorMenuTab, func() fyne.CanvasObject { return buildAuthorMenuTab(state) }},
+		{t.AuthorPreviewTab, func() fyne.CanvasObject { return buildInteractiveMenuPreviewTab(state) }},
+		{t.ModuleSettings, func() fyne.CanvasObject { return buildAuthorSettingsTab(state) }},
+		{t.AuthorGenerateTab, func() fyne.CanvasObject { return buildAuthorDiscTab(state) }},
+	}
+
+	tabs := container.NewAppTabs()
+	for _, cfg := range tabsConfig {
+		tabs.Append(container.NewTabItem(cfg.text, cfg.build()))
+	}
 	tabs.SetTabLocation(container.TabLocationTop)
+
+	// Store tabs reference for dynamic updates
+	state.authorTabs = tabs
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, tabs)
 }
@@ -971,6 +983,23 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 		state.persistAuthorConfig()
 		if updateMenuControls != nil {
 			updateMenuControls(checked)
+		}
+		// Show/hide Preview tab based on menu enablement
+		if state.authorTabs != nil {
+			previewIdx := -1
+			for i, tab := range state.authorTabs.Items {
+				if tab.Text == t.AuthorPreviewTab {
+					previewIdx = i
+					break
+				}
+			}
+			if previewIdx >= 0 {
+				// Toggle visibility by selecting different tab or rebuilding
+				if !checked {
+					// Switch to videos tab to "hide" preview
+					state.authorTabs.SelectIndex(0)
+				}
+			}
 		}
 	})
 	createMenuCheck.SetChecked(state.authorCreateMenu)
