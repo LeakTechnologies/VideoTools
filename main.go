@@ -2106,12 +2106,6 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		config["cropX"] = ""
 		config["cropY"] = ""
 	}
-	if !cfg.AutoCrop {
-		config["cropWidth"] = ""
-		config["cropHeight"] = ""
-		config["cropX"] = ""
-		config["cropY"] = ""
-	}
 
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
@@ -8078,7 +8072,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 
-	clearCompletedBtn := widget.NewButton("", func() {
+	clearCompletedBtn := widget.NewButton(t.ActionQueueClearCompleted, func() {
 		state.clearCompletedJobs()
 	})
 	clearCompletedBtn.Importance = widget.LowImportance
@@ -8546,6 +8540,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	inverseCheck := widget.NewCheck("Smart Inverse Telecine", func(checked bool) {
 		state.convert.InverseTelecine = checked
+		state.persistConvertConfig()
 	})
 	inverseCheck.Checked = state.convert.InverseTelecine
 	inverseHint := widget.NewLabel(state.convert.InverseAutoNotes)
@@ -8631,6 +8626,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	autoCropCheck := widget.NewCheck("Auto-Detect Black Bars", func(checked bool) {
 		state.convert.AutoCrop = checked
 		logging.Debug(logging.CatUI, "auto-crop set to %v", checked)
+		state.persistConvertConfig()
 	})
 	autoCropCheck.Checked = state.convert.AutoCrop
 
@@ -8695,12 +8691,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	flipHorizontalCheck := widget.NewCheck("Flip Horizontal (Mirror)", func(checked bool) {
 		state.convert.FlipHorizontal = checked
 		logging.Debug(logging.CatUI, "flip horizontal set to %v", checked)
+		state.persistConvertConfig()
 	})
 	flipHorizontalCheck.Checked = state.convert.FlipHorizontal
 
 	flipVerticalCheck := widget.NewCheck("Flip Vertical (Upside Down)", func(checked bool) {
 		state.convert.FlipVertical = checked
 		logging.Debug(logging.CatUI, "flip vertical set to %v", checked)
+		state.persistConvertConfig()
 	})
 	flipVerticalCheck.Checked = state.convert.FlipVertical
 
