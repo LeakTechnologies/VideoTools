@@ -1,5 +1,20 @@
 # VideoTools Changelog
 
+## v0.1.1-dev39 (March 2026)
+
+### Player Module Fixes
+- **Panic recovery** — Added defer/recover in player module to catch CGO crashes and show user-friendly error instead of hard crash.
+- **FFmpeg DLL consistency** — Now checks for local FFmpeg at `C:\ffmpeg\bin` first (matches compilation), falls back to download only if not found.
+- **Local build fix** — Build script now copies FFmpeg DLLs to output directory (matching CI behavior).
+
+### Author Module
+- **Interactive Preview tab** — New Preview tab shows full interactive DVD menu preview with working video playback.
+- **Module extraction** — Extracted author module to `internal/app/modules/author/`.
+- **Tab visibility** — Preview tab only appears when Enable Menus is checked.
+
+### CI Fixes
+- **Submodule sync** — Pushed missing commits to lt_mirror/fyne.git to fix CI failures.
+
 ## v0.1.1-dev38 (March 2026)
 
 ### Native DVD Engine
