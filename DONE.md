@@ -1,6 +1,24 @@
 # VideoTools - Completed Features
 
-## Version 0.1.1-dev38 (in progress) - Module Extraction & Native Media Fixes
+## Version 0.1.1-dev39 (in progress) - Preview Tab & FFmpeg DLL Fixes
+
+### Player Crash Fixes (dev39)
+- [x] **Panic recovery** - Added defer/recover in showPlayerViewForPath to catch CGO crashes
+- [x] **Panic recovery** - Added panic recovery in loadVideoNative
+- [x] **FFmpeg DLL** - Fixed local build script to copy FFmpeg DLLs to output
+- [x] **FFmpeg DLL** - Use local FFmpeg at C:\ffmpeg\bin first (matches compilation)
+- [x] **FFmpeg DLL** - Fall back to BtbN download only if no local FFmpeg found
+
+### Author Module (dev39)
+- [x] **Module extraction** - Extracted author module to `internal/app/modules/author/`
+- [x] **Preview tab** - Added interactive Preview tab to Author module
+- [x] **Video playback** - Preview tab can play videos by pressing menu buttons
+- [x] **Tab visibility** - Preview tab shown only when Enable Menus is checked
+
+### CI Fixes (dev39)
+- [x] **Submodule sync** - Pushed missing commits to lt_mirror/fyne.git
+
+## Version 0.1.1-dev38 (complete) - Module Extraction & Native Media Fixes
 
 ### CI Fixes (dev38)
 - [x] **Windows CI** - Fixed `desktop.KeyEvent` → `fyne.KeyEvent` for new Fyne API
