@@ -2,13 +2,16 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev38 Scope (in progress)
+## Dev39 Scope (in progress)
 
 ### CI
-- [ ] **Confirm Windows CI** — Verify build passes after native_media fixes.
-- [ ] **Confirm Linux CI** — Verify build passes after native_media fixes.
+- [x] **Confirm Windows CI** — Build passes after submodule sync
+- [x] **Confirm Linux CI** — Build passes after submodule sync
+- [x] **FFmpeg DLL fix** — Use local FFmpeg first, fall back to download
 
 ### Author Module
+- [x] **Interactive Preview tab** — Full DVD menu preview with video playback
+- [x] **Module extraction** — Author module extracted to internal/app/modules/author/
 - [ ] Wire subtitle track authoring through FFmpeg mapping pipeline
 - [ ] Wire multi-audio track AC3 encoding
 
