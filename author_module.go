@@ -949,9 +949,6 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		state.persistAuthorConfig()
 	})
 
-	info := widget.NewLabel(t.AuthorRequiresFFmpeg)
-	info.Wrapping = fyne.TextWrapWord
-
 	controls := container.NewVBox(
 		widget.NewLabelWithStyle("Target Disc Type:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetType,
@@ -966,8 +963,6 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		discSizeSelect,
 		widget.NewLabel(t.AuthorDVDTitle),
 		titleEntry,
-		widget.NewSeparator(),
-		info,
 		widget.NewSeparator(),
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
 	)
