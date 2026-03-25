@@ -23,6 +23,11 @@ func GetConvertPlayer() *ui.InlineVideoPlayer {
 }
 
 func (s *appState) loadVideoNative(path string) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error(logging.CatPlayer, "panic in loadVideoNative: %v", r)
+		}
+	}()
 	convertInlinePlayer.Load(path)
 }
 
