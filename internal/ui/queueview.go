@@ -338,7 +338,7 @@ func BuildQueueView(
 	logJobLabel.Truncation = fyne.TextTruncateEllipsis
 
 	logEntry := widget.NewLabel("")
-	logEntry.Wrapping = fyne.TextWrapOff
+	logEntry.Wrapping = fyne.TextWrapWord
 	logEntry.TextStyle = fyne.TextStyle{Monospace: true}
 
 	logScroll := container.NewVScroll(logEntry)
@@ -665,6 +665,7 @@ func (v *QueueView) UpdateJobs(jobs []*queue.Job) {
 		v.jobList.Objects = ordered
 		v.jobList.Refresh()
 		v.Scroll.Refresh()
+		v.Root.Refresh()
 	}
 }
 
@@ -727,8 +728,10 @@ func (v *QueueView) showLiveLog(title, logPath string) {
 			shortTitle := "  —  " + utils.ShortenMiddle(title, 50)
 			v.logJobLabel.SetText(shortTitle)
 			v.logEntry.SetText(content)
-			// Scroll to bottom
+			// Scroll to bottom and refresh layout
 			v.logScroll.ScrollToBottom()
+			v.logScroll.Refresh()
+			v.Root.Refresh()
 		}, false)
 	}()
 }
@@ -737,6 +740,7 @@ func (v *QueueView) showLiveLog(title, logPath string) {
 func (v *QueueView) hideLiveLog() {
 	if v.logSection != nil {
 		v.logSection.Hide()
+		v.Root.Refresh()
 	}
 }
 
