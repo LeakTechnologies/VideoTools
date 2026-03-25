@@ -1418,39 +1418,12 @@ func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, 
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
-	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
 
-	// Overlay chapter thumbnails if available
-	inputIndex := 1
-	baseLayer := "[bg]"
+	// Skip thumbnail overlays for now - filter chain complexity is causing issues
+	// TODO: Re-enable with simpler filter chain approach
 
-	for i, thumbPath := range thumbPaths {
-		if thumbPath == "" || i >= len(buttons) {
-			continue
-		}
-		if _, err := os.Stat(thumbPath); err != nil {
-			continue
-		}
-
-		// Position thumbnail to the right of the button text
-		// Button y position: 120 + i*32, thumbnail should be at roughly y+5
-		thumbY := 125 + i*32
-		thumbX := 400 // Position on the right side
-
-		args = append(args, "-i", thumbPath)
-		scaleExpr := fmt.Sprintf("scale=80:-1")
-		// Fixed filter chain: scale thumbnail, then overlay onto base layer
-		filterExpr = fmt.Sprintf("%s;[%d:v]%s[thumb%d];[%s][thumb%d]overlay=%d:%d", filterExpr, inputIndex, scaleExpr, i, baseLayer, i, thumbX, thumbY)
-		baseLayer = fmt.Sprintf("[thumb%d]", i)
-		inputIndex++
-	}
-
-	if inputIndex == 1 {
-		// No thumbnails, use simple filter
-		args = append(args, "-filter_complex", fmt.Sprintf("[0:v]%s", filterChain), "-frames:v", "1", outputPath)
-	} else {
-		args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
-	}
+	// Use simple filter without thumbnails
+	args = append(args, "-filter_complex", fmt.Sprintf("[0:v]%s", filterChain), "-frames:v", "1", outputPath)
 
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
