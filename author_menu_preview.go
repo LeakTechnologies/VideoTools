@@ -599,6 +599,11 @@ func buildInteractiveMenuPreviewTab(state *appState) fyne.CanvasObject {
 		btns := getCurrentButtons()
 		btnCommands = map[int]string{}
 
+		// Populate button commands from button definitions
+		for i, btn := range btns {
+			btnCommands[i] = btn.Command
+		}
+
 		hasChapters := len(state.authorChapters) > 1
 		hasExtras := false
 		for _, c := range state.authorClips {
@@ -620,20 +625,23 @@ func buildInteractiveMenuPreviewTab(state *appState) fyne.CanvasObject {
 
 				cmd := btnCommands[i]
 				switch {
-				case cmd == "jump title 1;" || strings.HasPrefix(cmd, "jump title "):
-					playMainFeature()
 				case strings.HasPrefix(cmd, "jump title "):
-					// Jump to specific title (extra)
+					// Check if it's title 1 (main feature) or higher (extras)
 					titleNum := 0
 					fmt.Sscanf(cmd, "jump title %d", &titleNum)
-					extraIdx := titleNum - 2
-					if extraIdx >= 0 && extraIdx < len(state.authorClips) {
-						for j, c := range state.authorClips {
-							if c.IsExtra && j == extraIdx {
-								if c.Path != "" {
-									state.showPlayerViewForPath(c.Path)
+					if titleNum == 1 {
+						playMainFeature()
+					} else if titleNum > 1 {
+						// Jump to specific title (extra)
+						extraIdx := titleNum - 2
+						if extraIdx >= 0 && extraIdx < len(state.authorClips) {
+							for j, c := range state.authorClips {
+								if c.IsExtra && j == extraIdx {
+									if c.Path != "" {
+										state.showPlayerViewForPath(c.Path)
+									}
+									break
 								}
-								break
 							}
 						}
 					}
