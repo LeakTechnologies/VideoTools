@@ -312,6 +312,10 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 
 			extraCheck := widget.NewCheck(t.AuthorMarkAsExtra, func(checked bool) {
 				state.authorClips[idx].IsExtra = checked
+				// Auto-enable extras menu if any clips are marked as extras
+				if checked {
+					state.authorMenuExtrasEnabled = true
+				}
 				// Refresh chapters to exclude/include this clip
 				if state.authorTreatAsChapters {
 					state.authorChapters = chaptersFromClips(featureClipsOnly(state.authorClips))
@@ -1454,6 +1458,20 @@ func buildAuthorMenuTab(state *appState) fyne.CanvasObject {
 			schedulePreviewRefresh()
 		}
 	})
+
+	// Auto-enable extras menu if any clips are marked as extras
+	hasExtras := false
+	for _, c := range state.authorClips {
+		if c.IsExtra {
+			hasExtras = true
+			break
+		}
+	}
+	if hasExtras && !state.authorMenuExtrasEnabled {
+		state.authorMenuExtrasEnabled = true
+		state.persistAuthorConfig()
+	}
+
 	extrasMenuCheck.SetChecked(state.authorMenuExtrasEnabled)
 	extrasNote := widget.NewLabel(t.AuthorExtrasNote)
 	extrasNote.Wrapping = fyne.TextWrapWord
