@@ -359,8 +359,7 @@ func BuildQueueView(
 	)
 	logSection.Hide()
 
-	// Layout: queue list on left, live output on right (1/6 of width)
-	// Using HSplit for draggable divider
+	// Layout: header + scrollable list fill available space; live output pinned at bottom.
 	queueList := container.NewBorder(
 		header,
 		nil,
@@ -368,8 +367,12 @@ func BuildQueueView(
 		scrollable,
 	)
 
-	body := container.NewHSplit(queueList, logSection)
-	body.Offset = 0.85 // Default: 85% queue, 15% log (roughly 1/6 for log)
+	body := container.NewBorder(
+		nil,
+		logSection,
+		nil, nil,
+		queueList,
+	)
 
 	view := &QueueView{
 		Root:        container.NewPadded(body),
