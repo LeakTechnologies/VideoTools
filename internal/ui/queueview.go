@@ -241,13 +241,13 @@ type QueueView struct {
 	textColor  color.Color
 
 	// Live output panel (shown when a job is running)
-	logSection   *fyne.Container
-	logJobLabel  *widget.Label
-	logEntry     *widget.Label
-	logScroll    *container.Scroll
-	logPath      string
-	logReading   bool // true while a read goroutine is in flight
-	logMu        sync.Mutex
+	logSection  *fyne.Container
+	logJobLabel *widget.Label
+	logEntry    *widget.Label
+	logScroll   *container.Scroll
+	logPath     string
+	logReading  bool // true while a read goroutine is in flight
+	logMu       sync.Mutex
 }
 
 func (v *QueueView) StopAnimations() {
@@ -359,12 +359,17 @@ func BuildQueueView(
 	)
 	logSection.Hide()
 
-	body := container.NewBorder(
+	// Layout: queue list on left, live output on right (1/6 of width)
+	// Using HSplit for draggable divider
+	queueList := container.NewBorder(
 		header,
-		logSection,
+		nil,
 		nil, nil,
 		scrollable,
 	)
+
+	body := container.NewHSplit(queueList, logSection)
+	body.Offset = 0.85 // Default: 85% queue, 15% log (roughly 1/6 for log)
 
 	view := &QueueView{
 		Root:        container.NewPadded(body),
