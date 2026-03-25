@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -27,7 +26,6 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/udf"
@@ -892,55 +890,6 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		titleEntry.SetText(state.authorTitle)
 	}
 
-	loadCfgBtn := widget.NewButton(t.AuthorLoadConfig, func() {
-		cfg, err := loadPersistedAuthorConfig()
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				dialog.ShowInformation("No Config", "No saved config found yet. It will save automatically after your first change.", state.window)
-			} else {
-				dialog.ShowError(fmt.Errorf("failed to load config: %w", err), state.window)
-			}
-			return
-		}
-		state.applyAuthorConfig(cfg)
-		applyControls()
-		state.updateAuthorSummary()
-	})
-
-	saveCfgBtn := widget.NewButton(t.AuthorSaveConfig, func() {
-		cfg := authorConfig{
-			OutputType:             state.authorOutputType,
-			Region:                 state.authorRegion,
-			AspectRatio:            state.authorAspectRatio,
-			DiscSize:               state.authorDiscSize,
-			Title:                  state.authorTitle,
-			CreateMenu:             state.authorCreateMenu,
-			MenuTemplate:           state.authorMenuTemplate,
-			MenuTheme:              state.authorMenuTheme,
-			MenuBackgroundImage:    state.authorMenuBackgroundImage,
-			MenuTitleLogoEnabled:   state.authorMenuTitleLogoEnabled,
-			MenuTitleLogoPath:      state.authorMenuTitleLogoPath,
-			MenuTitleLogoPosition:  state.authorMenuTitleLogoPosition,
-			MenuTitleLogoScale:     state.authorMenuTitleLogoScale,
-			MenuTitleLogoMargin:    state.authorMenuTitleLogoMargin,
-			MenuStudioLogoEnabled:  state.authorMenuStudioLogoEnabled,
-			MenuStudioLogoPath:     state.authorMenuStudioLogoPath,
-			MenuStudioLogoPosition: state.authorMenuStudioLogoPosition,
-			MenuStudioLogoScale:    state.authorMenuStudioLogoScale,
-			MenuStudioLogoMargin:   state.authorMenuStudioLogoMargin,
-			MenuStructure:          state.authorMenuStructure,
-			MenuExtrasEnabled:      state.authorMenuExtrasEnabled,
-			MenuChapterThumbSrc:    state.authorMenuChapterThumbnailSrc,
-			TreatAsChapters:        state.authorTreatAsChapters,
-			SceneThreshold:         state.authorSceneThreshold,
-		}
-		if err := savePersistedAuthorConfig(cfg); err != nil {
-			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
-			return
-		}
-		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("author")), state.window)
-	})
-
 	resetBtn := widget.NewButton(t.AuthorReset, func() {
 		cfg := defaultAuthorConfig()
 		state.applyAuthorConfig(cfg)
@@ -964,7 +913,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		widget.NewLabel(t.AuthorDVDTitle),
 		titleEntry,
 		widget.NewSeparator(),
-		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
+		container.NewHBox(resetBtn),
 	)
 
 	return ui.NewFastVScroll(container.NewPadded(controls))
