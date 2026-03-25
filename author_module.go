@@ -390,7 +390,27 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			cardBg := canvas.NewRectangle(utils.MustHex("#171C2A"))
 			cardBg.CornerRadius = 6
 			cardBg.SetMinSize(fyne.NewSize(0, nameLabel.MinSize().Height+durationLabel.MinSize().Height+12))
-			list.Add(container.NewPadded(container.NewMax(cardBg, row)))
+			clipItem := container.NewPadded(container.NewMax(cardBg, row))
+
+			// Wrap with draggable for drag-to-reorder
+			draggableItem := ui.NewDraggableListItem(fmt.Sprintf("%d", idx), clipItem, func(id string, dir int) {
+				pos, _ := strconv.Atoi(id)
+				newPos := pos + dir
+				if newPos < 0 || newPos >= len(state.authorClips) {
+					return
+				}
+				state.authorClips[pos], state.authorClips[newPos] = state.authorClips[newPos], state.authorClips[pos]
+				if state.authorChapterSource == "clips" {
+					state.authorChapters = chaptersFromClips(featureClipsOnly(state.authorClips))
+					if state.authorChaptersRefresh != nil {
+						state.authorChaptersRefresh()
+					}
+				}
+				rebuildList()
+				state.updateAuthorSummary()
+			})
+
+			list.Add(draggableItem)
 		}
 		list.Refresh()
 	}

@@ -1727,3 +1727,42 @@ func selectAccentColor(selected string, colorMap map[string]color.Color) color.C
 	}
 	return color.NRGBA{R: 90, G: 90, B: 90, A: 255}
 }
+
+// DraggableListItem allows simple drag up/down to reorder one slot at a time.
+type DraggableListItem struct {
+	widget.BaseWidget
+	itemID    string
+	content   fyne.CanvasObject
+	onReorder func(string, int) // id, direction (-1 up, +1 down)
+	accumY    float32
+}
+
+// NewDraggableListItem creates a new draggable list item for reorderable lists.
+// The onReorder callback receives the item ID and direction (-1 for up, +1 for down).
+func NewDraggableListItem(id string, content fyne.CanvasObject, onReorder func(string, int)) *DraggableListItem {
+	d := &DraggableListItem{
+		itemID:    id,
+		content:   content,
+		onReorder: onReorder,
+	}
+	d.ExtendBaseWidget(d)
+	return d
+}
+
+func (d *DraggableListItem) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(d.content)
+}
+
+func (d *DraggableListItem) Dragged(ev *fyne.DragEvent) {
+	d.accumY += ev.Dragged.DY
+}
+
+func (d *DraggableListItem) DragEnd() {
+	const threshold float32 = 25
+	if d.accumY <= -threshold {
+		d.onReorder(d.itemID, -1)
+	} else if d.accumY >= threshold {
+		d.onReorder(d.itemID, 1)
+	}
+	d.accumY = 0
+}
