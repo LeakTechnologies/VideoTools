@@ -29,7 +29,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/author"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/udf"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/vob"
@@ -122,6 +121,7 @@ func (s *appState) persistAuthorConfig() {
 }
 
 func buildAuthorView(state *appState) fyne.CanvasObject {
+	state.stopPreview()
 	state.lastModule = state.active
 	state.active = "author"
 
@@ -129,298 +129,105 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 		state.applyAuthorConfig(cfg)
 	}
 
-	authorState := stateToAuthorState(state)
+	if state.authorOutputType == "" {
+		state.authorOutputType = "dvd"
+	}
+	if state.authorRegion == "" {
+		state.authorRegion = "AUTO"
+	}
+	if state.authorAspectRatio == "" {
+		state.authorAspectRatio = "AUTO"
+	}
+	if state.authorDiscSize == "" {
+		state.authorDiscSize = "DVD5"
+	}
+	if state.authorMenuTemplate == "" {
+		state.authorMenuTemplate = "Minimal"
+	}
+	if state.authorMenuTheme == "" {
+		state.authorMenuTheme = "VideoTools"
+	}
+	if state.authorMenuTitleLogoPosition == "" {
+		state.authorMenuTitleLogoPosition = "Center"
+	}
+	if state.authorMenuTitleLogoScale == 0 {
+		state.authorMenuTitleLogoScale = 1.0
+	}
+	if state.authorMenuTitleLogoMargin == 0 {
+		state.authorMenuTitleLogoMargin = 24
+	}
+	if state.authorMenuStudioLogoPosition == "" {
+		state.authorMenuStudioLogoPosition = "Top Right"
+	}
+	if state.authorMenuStudioLogoScale == 0 {
+		state.authorMenuStudioLogoScale = 1.0
+	}
+	if state.authorMenuStudioLogoMargin == 0 {
+		state.authorMenuStudioLogoMargin = 24
+	}
+	if state.authorMenuStructure == "" {
+		state.authorMenuStructure = "Feature + Chapters"
+	}
+	if state.authorMenuChapterThumbnailSrc == "" {
+		state.authorMenuChapterThumbnailSrc = "Auto"
+	}
 
-	opts := author.Options{
-		Window:      state.window,
-		ModuleColor: moduleColor("author"),
-		OnStopPreview: func() {
-			state.stopPreview()
-		},
-		OnShowMainMenu: func() {
-			state.showMainMenu()
-		},
-		OnShowQueue: func() {
-			state.showQueue()
-		},
-		OnAddToQueue: func(startNow bool) {
-			state.startAuthorGeneration(startNow)
-		},
-		OnClearCompleted: func() {
-			state.clearCompletedJobs()
-		},
-		OnCancelJob: func() {
-			if state.jobQueue != nil {
-				if job := state.jobQueue.CurrentRunning(); job != nil && job.Type == queue.JobTypeAuthor {
-					state.jobQueue.Cancel(job.ID)
-				}
+	authorColor := moduleColor("author")
+	t := i18n.T()
+
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleAuthor), func() {
+		state.showMainMenu()
+	})
+	backBtn.Importance = widget.LowImportance
+
+	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
+		state.showQueue()
+	})
+	state.queueBtn = queueBtn
+	state.updateQueueButtonLabel()
+
+	clearCompletedBtn := widget.NewButton("⌫", func() {
+		state.clearCompletedJobs()
+	})
+	clearCompletedBtn.Importance = widget.LowImportance
+
+	cancelBtn := widget.NewButton(t.ActionCancel, func() {
+		if state.jobQueue != nil {
+			if job := state.jobQueue.CurrentRunning(); job != nil && job.Type == queue.JobTypeAuthor {
+				state.jobQueue.Cancel(job.ID)
 			}
-		},
-		GetAuthorState: func() *author.AuthorState {
-			return authorState
-		},
-		SetAuthorState: func(s *author.AuthorState) {
-			authorStateToState(s, state)
-		},
-		OnUpdateSummary: func() {
-			state.updateAuthorSummary()
-		},
-		OnAddFiles: func(paths []string) {
-			state.addAuthorFiles(paths)
-		},
-		OnLoadEmbeddedChapters: func(path string) {
-			state.loadEmbeddedChapters(path)
-		},
-		OnShowTrackSelectionDialog: func(idx int, refresh func()) {
-			state.showTrackSelectionDialog(idx, refresh)
-		},
-		OnShowSubtitlesView: func() {
-			state.showSubtitlesView()
-		},
-		OnShowChapterPreview: func(path string, chapters []author.AuthorChapter, callback func(bool, []author.AuthorChapter)) {
-			// Convert author.AuthorChapter to authorChapter for the main package function
-			mainChapters := make([]authorChapter, len(chapters))
-			for i, ch := range chapters {
-				mainChapters[i] = authorChapter{
-					Timestamp: ch.Timestamp,
-					Title:     ch.Title,
-					Auto:      ch.Auto,
-				}
-			}
-			wrappedCallback := func(accepted bool, result []authorChapter) {
-				// Convert back to author.AuthorChapter
-				moduleChapters := make([]author.AuthorChapter, len(result))
-				for i, ch := range result {
-					moduleChapters[i] = author.AuthorChapter{
-						Timestamp: ch.Timestamp,
-						Title:     ch.Title,
-						Auto:      ch.Auto,
-					}
-				}
-				callback(accepted, moduleChapters)
-			}
-			state.showChapterPreview(path, mainChapters, wrappedCallback)
-		},
-		StatsBar:   state.statsBar,
-		QueueBtn:   state.queueBtn,
-		AuthorTabs: state.authorTabs,
-	}
-
-	return author.BuildView(opts)
-}
-
-func stateToAuthorState(state *appState) *author.AuthorState {
-	return &author.AuthorState{
-		OutputType:              state.authorOutputType,
-		Region:                  state.authorRegion,
-		AspectRatio:             state.authorAspectRatio,
-		DiscSize:                state.authorDiscSize,
-		Title:                   state.authorTitle,
-		CreateMenu:              state.authorCreateMenu,
-		MenuTemplate:            state.authorMenuTemplate,
-		MenuTheme:               state.authorMenuTheme,
-		MenuBackgroundImage:     state.authorMenuBackgroundImage,
-		MenuMotionBackground:    state.authorMenuMotionBackground,
-		MenuCustomBgColor:       state.authorMenuCustomBgColor,
-		MenuCustomTextColor:     state.authorMenuCustomTextColor,
-		MenuCustomAccentColor:   state.authorMenuCustomAccentColor,
-		MenuTitleLogoEnabled:    state.authorMenuTitleLogoEnabled,
-		MenuTitleLogoPath:       state.authorMenuTitleLogoPath,
-		MenuTitleLogoPosition:   state.authorMenuTitleLogoPosition,
-		MenuTitleLogoScale:      state.authorMenuTitleLogoScale,
-		MenuTitleLogoMargin:     state.authorMenuTitleLogoMargin,
-		MenuStudioLogoEnabled:   state.authorMenuStudioLogoEnabled,
-		MenuStudioLogoPath:      state.authorMenuStudioLogoPath,
-		MenuStudioLogoPosition:  state.authorMenuStudioLogoPosition,
-		MenuStudioLogoScale:     state.authorMenuStudioLogoScale,
-		MenuStudioLogoMargin:    state.authorMenuStudioLogoMargin,
-		MenuStructure:           state.authorMenuStructure,
-		MenuExtrasEnabled:       state.authorMenuExtrasEnabled,
-		MenuChapterThumbnailSrc: state.authorMenuChapterThumbnailSrc,
-		TreatAsChapters:         state.authorTreatAsChapters,
-		SceneThreshold:          state.authorSceneThreshold,
-		VideoTSPath:             state.authorVideoTSPath,
-		Clips:                   convertClips(state.authorClips),
-		Chapters:                convertChapters(state.authorChapters),
-		ChapterSource:           state.authorChapterSource,
-		File:                    convertVideoSource(state.authorFile),
-		Subtitles:               state.authorSubtitles,
-	}
-}
-
-func authorStateToState(as *author.AuthorState, state *appState) {
-	state.authorOutputType = as.OutputType
-	state.authorRegion = as.Region
-	state.authorAspectRatio = as.AspectRatio
-	state.authorDiscSize = as.DiscSize
-	state.authorTitle = as.Title
-	state.authorCreateMenu = as.CreateMenu
-	state.authorMenuTemplate = as.MenuTemplate
-	state.authorMenuTheme = as.MenuTheme
-	state.authorMenuBackgroundImage = as.MenuBackgroundImage
-	state.authorMenuMotionBackground = as.MenuMotionBackground
-	state.authorMenuCustomBgColor = as.MenuCustomBgColor
-	state.authorMenuCustomTextColor = as.MenuCustomTextColor
-	state.authorMenuCustomAccentColor = as.MenuCustomAccentColor
-	state.authorMenuTitleLogoEnabled = as.MenuTitleLogoEnabled
-	state.authorMenuTitleLogoPath = as.MenuTitleLogoPath
-	state.authorMenuTitleLogoPosition = as.MenuTitleLogoPosition
-	state.authorMenuTitleLogoScale = as.MenuTitleLogoScale
-	state.authorMenuTitleLogoMargin = as.MenuTitleLogoMargin
-	state.authorMenuStudioLogoEnabled = as.MenuStudioLogoEnabled
-	state.authorMenuStudioLogoPath = as.MenuStudioLogoPath
-	state.authorMenuStudioLogoPosition = as.MenuStudioLogoPosition
-	state.authorMenuStudioLogoScale = as.MenuStudioLogoScale
-	state.authorMenuStudioLogoMargin = as.MenuStudioLogoMargin
-	state.authorMenuStructure = as.MenuStructure
-	state.authorMenuExtrasEnabled = as.MenuExtrasEnabled
-	state.authorMenuChapterThumbnailSrc = as.MenuChapterThumbnailSrc
-	state.authorTreatAsChapters = as.TreatAsChapters
-	state.authorSceneThreshold = as.SceneThreshold
-	state.authorVideoTSPath = as.VideoTSPath
-	state.authorClips = convertAuthorClips(as.Clips)
-	state.authorChapters = convertAuthorChapters(as.Chapters)
-	state.authorChapterSource = as.ChapterSource
-	state.authorFile = convertBackVideoSource(as.File)
-	state.authorSubtitles = as.Subtitles
-}
-
-func convertClips(clips []authorClip) []author.AuthorClip {
-	result := make([]author.AuthorClip, len(clips))
-	for i, c := range clips {
-		result[i] = author.AuthorClip{
-			Path:           c.Path,
-			DisplayName:    c.DisplayName,
-			Duration:       c.Duration,
-			ChapterTitle:   c.ChapterTitle,
-			IsExtra:        c.IsExtra,
-			AudioTracks:    convertAudioTracks(c.AudioTracks),
-			SubtitleTracks: convertSubtitleTracks(c.SubtitleTracks),
 		}
-	}
-	return result
-}
+	})
+	cancelBtn.Importance = widget.DangerImportance
+	state.authorCancelBtn = cancelBtn
+	state.updateAuthorCancelButton()
 
-func convertAuthorClips(clips []author.AuthorClip) []authorClip {
-	result := make([]authorClip, len(clips))
-	for i, c := range clips {
-		result[i] = authorClip{
-			Path:           c.Path,
-			DisplayName:    c.DisplayName,
-			Duration:       c.Duration,
-			ChapterTitle:   c.ChapterTitle,
-			IsExtra:        c.IsExtra,
-			AudioTracks:    convertBackAudioTracks(c.AudioTracks),
-			SubtitleTracks: convertBackSubtitleTracks(c.SubtitleTracks),
-		}
-	}
-	return result
-}
+	topBar := ui.TintedBar(authorColor, container.NewHBox(backBtn, layout.NewSpacer(), cancelBtn, clearCompletedBtn, queueBtn))
+	bottomBar := moduleFooter(authorColor, layout.NewSpacer(), state.statsBar)
 
-func convertAudioTracks(tracks []authorAudioTrack) []author.AuthorAudioTrack {
-	result := make([]author.AuthorAudioTrack, len(tracks))
-	for i, t := range tracks {
-		result[i] = author.AuthorAudioTrack{
-			Index:        t.Index,
-			Language:     t.Language,
-			Codec:        t.Codec,
-			Channels:     t.Channels,
-			Label:        t.Label,
-			ExternalPath: t.ExternalPath,
-		}
+	tabsConfig := []struct {
+		text  string
+		build func() fyne.CanvasObject
+	}{
+		{t.AuthorVideos, func() fyne.CanvasObject { return buildVideoClipsTab(state) }},
+		{t.AuthorChapters, func() fyne.CanvasObject { return buildChaptersTab(state) }},
+		{t.ModuleSubtitles, func() fyne.CanvasObject { return buildSubtitlesTab(state) }},
+		{t.AuthorMenuTab, func() fyne.CanvasObject { return buildAuthorMenuTab(state) }},
+		{t.AuthorPreviewTab, func() fyne.CanvasObject { return buildInteractiveMenuPreviewTab(state) }},
+		{t.ModuleSettings, func() fyne.CanvasObject { return buildAuthorSettingsTab(state) }},
+		{t.AuthorGenerateTab, func() fyne.CanvasObject { return buildAuthorDiscTab(state) }},
 	}
-	return result
-}
 
-func convertBackAudioTracks(tracks []author.AuthorAudioTrack) []authorAudioTrack {
-	result := make([]authorAudioTrack, len(tracks))
-	for i, t := range tracks {
-		result[i] = authorAudioTrack{
-			Index:        t.Index,
-			Language:     t.Language,
-			Codec:        t.Codec,
-			Channels:     t.Channels,
-			Label:        t.Label,
-			ExternalPath: t.ExternalPath,
-		}
+	tabs := container.NewAppTabs()
+	for _, cfg := range tabsConfig {
+		tabs.Append(container.NewTabItem(cfg.text, cfg.build()))
 	}
-	return result
-}
+	tabs.SetTabLocation(container.TabLocationTop)
 
-func convertSubtitleTracks(tracks []authorSubtitleTrack) []author.AuthorSubtitleTrack {
-	result := make([]author.AuthorSubtitleTrack, len(tracks))
-	for i, t := range tracks {
-		result[i] = author.AuthorSubtitleTrack{
-			Index:        t.Index,
-			Language:     t.Language,
-			Label:        t.Label,
-			ExternalPath: t.ExternalPath,
-		}
-	}
-	return result
-}
+	// Store tabs reference for dynamic updates
+	state.authorTabs = tabs
 
-func convertBackSubtitleTracks(tracks []author.AuthorSubtitleTrack) []authorSubtitleTrack {
-	result := make([]authorSubtitleTrack, len(tracks))
-	for i, t := range tracks {
-		result[i] = authorSubtitleTrack{
-			Index:        t.Index,
-			Language:     t.Language,
-			Label:        t.Label,
-			ExternalPath: t.ExternalPath,
-		}
-	}
-	return result
-}
-
-func convertChapters(chapters []authorChapter) []author.AuthorChapter {
-	result := make([]author.AuthorChapter, len(chapters))
-	for i, c := range chapters {
-		result[i] = author.AuthorChapter{
-			Timestamp: c.Timestamp,
-			Title:     c.Title,
-			Auto:      c.Auto,
-		}
-	}
-	return result
-}
-
-func convertAuthorChapters(chapters []author.AuthorChapter) []authorChapter {
-	result := make([]authorChapter, len(chapters))
-	for i, c := range chapters {
-		result[i] = authorChapter{
-			Timestamp: c.Timestamp,
-			Title:     c.Title,
-			Auto:      c.Auto,
-		}
-	}
-	return result
-}
-
-func convertVideoSource(vs *videoSource) *author.VideoSource {
-	if vs == nil {
-		return nil
-	}
-	return &author.VideoSource{
-		Path:      vs.Path,
-		Duration:  vs.Duration,
-		Width:     vs.Width,
-		Height:    vs.Height,
-		FrameRate: vs.FrameRate,
-	}
-}
-
-func convertBackVideoSource(vs *author.VideoSource) *videoSource {
-	if vs == nil {
-		return nil
-	}
-	return &videoSource{
-		Path:      vs.Path,
-		Duration:  vs.Duration,
-		Width:     vs.Width,
-		Height:    vs.Height,
-		FrameRate: vs.FrameRate,
-	}
+	return container.NewBorder(topBar, bottomBar, nil, nil, tabs)
 }
 
 func buildVideoClipsTab(state *appState) fyne.CanvasObject {
