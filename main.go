@@ -7318,10 +7318,17 @@ func runGUI() {
 	ui.SetAboriginalFontData(aboriginalSansRegular, aboriginalSansItalic, aboriginalSansBold, aboriginalSansBoldItalic)
 
 	a.Settings().SetTheme(&ui.MonoTheme{})
-	// Flush any font-cache entries that may have been built with the default
-	// (NotoSans) theme before MonoTheme was applied, then log which font
-	// resource is selected for each text style on first use.
+	// Pre-loop flush: clear any NotoSans cache entries built before SetTheme.
 	fontutil.ClearFontCache()
+
+	// In-loop flush: SetOnStarted fires inside runGL() after Fyne registers its
+	// settings listener (which clears the font cache and refreshes all widgets).
+	// Re-applying the theme here triggers that listener so the first render always
+	// sees IBM Plex Mono for every text style, not stale DefaultTheme entries.
+	a.Lifecycle().SetOnStarted(func() {
+		a.Settings().SetTheme(a.Settings().Theme())
+	})
+
 	fontutil.SetFontCacheDebugCallback(func(styleName, fontResourceName string) {
 		logging.Info(logging.CatUI, "font-cache[%s] → %s", styleName, fontResourceName)
 	})
