@@ -1439,8 +1439,9 @@ func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, 
 
 		args = append(args, "-i", thumbPath)
 		scaleExpr := fmt.Sprintf("scale=80:-1")
-		filterExpr = fmt.Sprintf("%s;[%d:v]%s[thumb%d];%s[thumb%d]overlay=%d:%d[tmp%d]", filterExpr, inputIndex, scaleExpr, i, baseLayer, i, thumbX, thumbY, inputIndex)
-		baseLayer = fmt.Sprintf("[tmp%d]", inputIndex)
+		// Fixed filter chain: scale thumbnail, then overlay onto base layer
+		filterExpr = fmt.Sprintf("%s;[%d:v]%s[thumb%d];[%s][thumb%d]overlay=%d:%d", filterExpr, inputIndex, scaleExpr, i, baseLayer, i, thumbX, thumbY)
+		baseLayer = fmt.Sprintf("[thumb%d]", i)
 		inputIndex++
 	}
 
@@ -1625,7 +1626,6 @@ func buildMenuSPU(ctx context.Context, overlayPath, menuSpuPath string, logFn fu
 	}
 	return runNativeSpumux(ctx, overlayPath, menuSpuPath, logFn)
 }
-
 
 func findVTLogoPath() string {
 	search := []string{
