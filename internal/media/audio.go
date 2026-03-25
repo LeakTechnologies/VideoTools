@@ -24,10 +24,6 @@ import (
 	"github.com/ebitengine/oto/v3"
 )
 
-const (
-	TargetSampleRate = 48000
-	TargetChannels   = 2
-)
 
 type AudioPlayer struct {
 	codecCtx *C.AVCodecContext
@@ -91,18 +87,12 @@ func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *Maste
 		return nil, fmt.Errorf("failed to initialize resampler")
 	}
 
-	op := &oto.NewContextOptions{
-		SampleRate:   TargetSampleRate,
-		ChannelCount: TargetChannels,
-		Format:       oto.FormatSignedInt16LE,
-	}
-	otoCtx, ready, err := oto.NewContext(op)
+	otoCtx, err := GetSharedAudioContext()
 	if err != nil {
 		C.swr_free(&p.swrCtx)
 		C.av_frame_free(&p.frame)
-		return nil, fmt.Errorf("failed to create oto context: %w", err)
+		return nil, fmt.Errorf("failed to create audio context: %w", err)
 	}
-	<-ready
 
 	p.otoCtx = otoCtx
 	p.otoPlayer = otoCtx.NewPlayer(p)

@@ -48,6 +48,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
@@ -57,7 +58,6 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 	guitutils "git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 
-	"github.com/ebitengine/oto/v3"
 )
 
 func ShowErrorLarge(err error, w fyne.Window) {
@@ -12408,30 +12408,6 @@ type playSession struct {
 	gstPlayer *player.GStreamerPlayer
 }
 
-var audioCtxGlobal struct {
-	once sync.Once
-	ctx  *oto.Context
-	err  error
-}
-
-func getAudioContext(sampleRate, channels, bytesPerSample int) (*oto.Context, error) {
-	audioCtxGlobal.once.Do(func() {
-		_ = bytesPerSample
-		// Larger buffer prevents audio stuttering and underruns
-		ctx, ready, err := oto.NewContext(&oto.NewContextOptions{
-			SampleRate:   sampleRate,
-			ChannelCount: channels,
-			Format:       oto.FormatSignedInt16LE,
-			BufferSize:   170 * time.Millisecond,
-		})
-		if err == nil && ready != nil {
-			<-ready
-		}
-		audioCtxGlobal.ctx = ctx
-		audioCtxGlobal.err = err
-	})
-	return audioCtxGlobal.ctx, audioCtxGlobal.err
-}
 
 func newPlaySession(path string, w, h int, fps, duration float64, targetW, targetH int, prog func(float64), frameFunc func(int), img *canvas.Image) *playSession {
 	if fps <= 0 {
@@ -13143,7 +13119,7 @@ func (p *playSession) runAudio(offset float64) {
 		return
 	}
 	p.audioCmd = cmd
-	ctx, err := getAudioContext(sampleRate, channels, bytesPerSample)
+	ctx, err := media.GetSharedAudioContext()
 	if err != nil {
 		logging.Debug(logging.CatFFMPEG, "audio context error (video-only playback): %v", err)
 		p.audioActive.Store(false)
