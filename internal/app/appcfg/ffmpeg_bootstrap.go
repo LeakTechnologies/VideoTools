@@ -11,10 +11,59 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 const FFmpegDllBinPath = "VideoTools" + string(filepath.Separator) + "ffmpeg-dll"
 const FFmpegDllZipURL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
+
+// LocalFFmpegDllDir returns the path to local FFmpeg DLLs if they exist.
+// This allows using the same FFmpeg DLLs that were used for compilation.
+func LocalFFmpegDllDir() string {
+	// Check common installation paths
+	paths := []string{
+		"C:\\ffmpeg\\bin",
+		"C:\\Program Files\\ffmpeg\\bin",
+		filepath.Join(os.Getenv("LOCALAPPDATA"), "Programs", "ffmpeg", "bin"),
+	}
+	for _, p := range paths {
+		if _, err := os.Stat(filepath.Join(p, "avcodec.dll")); err == nil {
+			return p
+		}
+	}
+	return ""
+}
+
+// copyLocalFFmpegDlls copies FFmpeg DLLs from local installation to app data.
+// This ensures version consistency with the DLLs used for compilation.
+func copyLocalFFmpegDlls(srcDir string) error {
+	dllDir := FFmpegDllDir()
+	if err := os.MkdirAll(dllDir, 0o755); err != nil {
+		return &FFmpegBootstrapError{Err: fmt.Errorf("create directory: %w", err)}
+	}
+
+	// DLLs needed for native media (exclude CLI tools)
+	neededDLLs := []string{
+		"avcodec.dll", "avformat.dll", "avutil.dll", "swscale.dll",
+		"swresample.dll", "avfilter.dll", "avdevice.dll",
+	}
+
+	for _, dll := range neededDLLs {
+		srcPath := filepath.Join(srcDir, dll)
+		dstPath := filepath.Join(dllDir, dll)
+		if _, err := os.Stat(srcPath); err == nil {
+			data, err := os.ReadFile(srcPath)
+			if err != nil {
+				return &FFmpegBootstrapError{Err: fmt.Errorf("read %s: %w", dll, err)}
+			}
+			if err := os.WriteFile(dstPath, data, 0755); err != nil {
+				return &FFmpegBootstrapError{Err: fmt.Errorf("write %s: %w", dll, err)}
+			}
+		}
+	}
+	return nil
+}
 
 func FFmpegDllDir() string {
 	base := os.Getenv("LOCALAPPDATA")
@@ -29,8 +78,11 @@ func FFmpegDllDir() string {
 
 func FFmpegDllsPresent() bool {
 	dllDir := FFmpegDllDir()
-	avcodecDll := filepath.Join(dllDir, "avcodec.dll")
-	if _, err := os.Stat(avcodecDll); err != nil {
+	// BtbN shared builds use versioned DLL names (e.g. avcodec-61.dll).
+	// Accept both "avcodec.dll" and "avcodec-*.dll" so the presence check
+	// works regardless of FFmpeg major version.
+	matches, err := filepath.Glob(filepath.Join(dllDir, "avcodec*.dll"))
+	if err != nil || len(matches) == 0 {
 		return false
 	}
 	return true
@@ -49,9 +101,17 @@ func (e *FFmpegBootstrapError) Unwrap() error {
 }
 
 func BootstrapFFmpegDlls() error {
+	// First, try to use local FFmpeg DLLs (matching compilation)
+	if localDir := LocalFFmpegDllDir(); localDir != "" {
+		logging.Info(logging.CatSystem, "Using local FFmpeg DLLs from: %s", localDir)
+		return copyLocalFFmpegDlls(localDir)
+	}
+
 	if FFmpegDllsPresent() {
 		return nil
 	}
+
+	logging.Info(logging.CatSystem, "No local FFmpeg found, downloading from BtbN...")
 
 	dllDir := FFmpegDllDir()
 	if err := os.MkdirAll(dllDir, 0o755); err != nil {

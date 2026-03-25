@@ -33,6 +33,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/fontutil"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
@@ -7317,6 +7318,13 @@ func runGUI() {
 	ui.SetAboriginalFontData(aboriginalSansRegular, aboriginalSansItalic, aboriginalSansBold, aboriginalSansBoldItalic)
 
 	a.Settings().SetTheme(&ui.MonoTheme{})
+	// Flush any font-cache entries that may have been built with the default
+	// (NotoSans) theme before MonoTheme was applied, then log which font
+	// resource is selected for each text style on first use.
+	fontutil.ClearFontCache()
+	fontutil.SetFontCacheDebugCallback(func(styleName, fontResourceName string) {
+		logging.Info(logging.CatUI, "font-cache[%s] → %s", styleName, fontResourceName)
+	})
 
 	// Load app icon from embedded logo assets
 	iconFile := "VT_logo.ico"
