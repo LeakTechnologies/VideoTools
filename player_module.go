@@ -1,13 +1,27 @@
 package main
 
 import (
+	"fmt"
+
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/dialog"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/player"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 func (s *appState) showPlayerViewForPath(path string) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error(logging.CatPlayer, "panic in showPlayerViewForPath: %v", r)
+			dialog.ShowInformation("Playback Error",
+				fmt.Sprintf("Failed to play video: %v\n\nThe video player encountered an error. Try using a different video or rebuilding with fresh dependencies.", r),
+				s.window)
+		}
+	}()
+
 	src, err := probeVideo(path)
 	if err != nil {
+		logging.Error(logging.CatPlayer, "probeVideo failed for %s: %v", path, err)
 		return
 	}
 	s.playerFile = src
