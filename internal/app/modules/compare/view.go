@@ -40,17 +40,18 @@ type Options struct {
 	OnBuildVideoPane         func(state interface{}, size fyne.Size, src interface{}, onSeek func(float64)) fyne.CanvasObject
 }
 
-func toVideoSource(v interface{}) *videoSource {
+func toVideoSource(v interface{}) *VideoSource {
 	if v == nil {
 		return nil
 	}
-	if vs, ok := v.(*videoSource); ok {
+	if vs, ok := v.(*VideoSource); ok {
 		return vs
 	}
 	return nil
 }
 
-type videoSource struct {
+// VideoSource holds probed metadata for a video file loaded into the compare module.
+type VideoSource struct {
 	Path              string
 	Format            string
 	VideoCodec        string
@@ -73,7 +74,7 @@ type videoSource struct {
 	Duration          float64
 }
 
-func (v *videoSource) AspectRatioString() string {
+func (v *VideoSource) AspectRatioString() string {
 	if v.Height == 0 {
 		return "N/A"
 	}
@@ -87,7 +88,7 @@ func (v *videoSource) AspectRatioString() string {
 	return fmt.Sprintf("%d:%d", v.Width/g, v.Height/g)
 }
 
-func (v *videoSource) DurationString() string {
+func (v *VideoSource) DurationString() string {
 	if v.Duration <= 0 {
 		return "N/A"
 	}
@@ -179,7 +180,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		comparisonText.WriteString(fmt.Sprintf("FILE 2: %s\n", file2Name))
 		comparisonText.WriteString("\n\n")
 
-		getField := func(src *videoSource, getter func(*videoSource) string) string {
+		getField := func(src *VideoSource, getter func(*VideoSource) string) string {
 			if src == nil {
 				return ""
 			}
@@ -189,14 +190,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		comparisonText.WriteString(" FILE INFO \n")
 
 		var file1SizeBytes int64
-		file1Size := getField(file1, func(src *videoSource) string {
+		file1Size := getField(file1, func(src *VideoSource) string {
 			if fi, err := os.Stat(src.Path); err == nil {
 				file1SizeBytes = fi.Size()
 				return utils.FormatBytes(fi.Size())
 			}
 			return "Unknown"
 		})
-		file2Size := getField(file2, func(src *videoSource) string {
+		file2Size := getField(file2, func(src *VideoSource) string {
 			if fi, err := os.Stat(src.Path); err == nil {
 				if file1SizeBytes > 0 {
 					return utils.DeltaBytes(fi.Size(), file1SizeBytes)
@@ -209,30 +210,30 @@ func BuildView(opts Options) fyne.CanvasObject {
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n", "File Size:", file1Size, file2Size))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Format Family:",
-			getField(file1, func(s *videoSource) string { return s.Format }),
-			getField(file2, func(s *videoSource) string { return s.Format })))
+			getField(file1, func(s *VideoSource) string { return s.Format }),
+			getField(file2, func(s *VideoSource) string { return s.Format })))
 
 		comparisonText.WriteString("\n VIDEO \n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Codec:",
-			getField(file1, func(s *videoSource) string { return s.VideoCodec }),
-			getField(file2, func(s *videoSource) string { return s.VideoCodec })))
+			getField(file1, func(s *VideoSource) string { return s.VideoCodec }),
+			getField(file2, func(s *VideoSource) string { return s.VideoCodec })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Resolution:",
-			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%dx%d", s.Width, s.Height) }),
-			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%dx%d", s.Width, s.Height) })))
+			getField(file1, func(s *VideoSource) string { return fmt.Sprintf("%dx%d", s.Width, s.Height) }),
+			getField(file2, func(s *VideoSource) string { return fmt.Sprintf("%dx%d", s.Width, s.Height) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Aspect Ratio:",
-			getField(file1, func(s *videoSource) string { return s.AspectRatioString() }),
-			getField(file2, func(s *videoSource) string { return s.AspectRatioString() })))
+			getField(file1, func(s *VideoSource) string { return s.AspectRatioString() }),
+			getField(file2, func(s *VideoSource) string { return s.AspectRatioString() })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Frame Rate:",
-			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%.2f fps", s.FrameRate) }),
-			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%.2f fps", s.FrameRate) })))
+			getField(file1, func(s *VideoSource) string { return fmt.Sprintf("%.2f fps", s.FrameRate) }),
+			getField(file2, func(s *VideoSource) string { return fmt.Sprintf("%.2f fps", s.FrameRate) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Bitrate:",
-			getField(file1, func(s *videoSource) string { return formatBitrateFull(s.Bitrate) }),
-			getField(file2, func(s *videoSource) string {
+			getField(file1, func(s *VideoSource) string { return formatBitrateFull(s.Bitrate) }),
+			getField(file2, func(s *VideoSource) string {
 				if file1 != nil {
 					return utils.DeltaBitrate(s.Bitrate, file1.Bitrate)
 				}
@@ -240,60 +241,60 @@ func BuildView(opts Options) fyne.CanvasObject {
 			})))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Pixel Format:",
-			getField(file1, func(s *videoSource) string { return s.PixelFormat }),
-			getField(file2, func(s *videoSource) string { return s.PixelFormat })))
+			getField(file1, func(s *VideoSource) string { return s.PixelFormat }),
+			getField(file2, func(s *VideoSource) string { return s.PixelFormat })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Color Space:",
-			getField(file1, func(s *videoSource) string { return s.ColorSpace }),
-			getField(file2, func(s *videoSource) string { return s.ColorSpace })))
+			getField(file1, func(s *VideoSource) string { return s.ColorSpace }),
+			getField(file2, func(s *VideoSource) string { return s.ColorSpace })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Color Range:",
-			getField(file1, func(s *videoSource) string { return s.ColorRange }),
-			getField(file2, func(s *videoSource) string { return s.ColorRange })))
+			getField(file1, func(s *VideoSource) string { return s.ColorRange }),
+			getField(file2, func(s *VideoSource) string { return s.ColorRange })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Field Order:",
-			getField(file1, func(s *videoSource) string { return s.FieldOrder }),
-			getField(file2, func(s *videoSource) string { return s.FieldOrder })))
+			getField(file1, func(s *VideoSource) string { return s.FieldOrder }),
+			getField(file2, func(s *VideoSource) string { return s.FieldOrder })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"GOP Size:",
-			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%d", s.GOPSize) }),
-			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%d", s.GOPSize) })))
+			getField(file1, func(s *VideoSource) string { return fmt.Sprintf("%d", s.GOPSize) }),
+			getField(file2, func(s *VideoSource) string { return fmt.Sprintf("%d", s.GOPSize) })))
 
 		comparisonText.WriteString("\n AUDIO \n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Codec:",
-			getField(file1, func(s *videoSource) string { return s.AudioCodec }),
-			getField(file2, func(s *videoSource) string { return s.AudioCodec })))
+			getField(file1, func(s *VideoSource) string { return s.AudioCodec }),
+			getField(file2, func(s *VideoSource) string { return s.AudioCodec })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Bitrate:",
-			getField(file1, func(s *videoSource) string { return formatBitrateFull(s.AudioBitrate) }),
-			getField(file2, func(s *videoSource) string { return formatBitrateFull(s.AudioBitrate) })))
+			getField(file1, func(s *VideoSource) string { return formatBitrateFull(s.AudioBitrate) }),
+			getField(file2, func(s *VideoSource) string { return formatBitrateFull(s.AudioBitrate) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Sample Rate:",
-			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%d Hz", s.AudioRate) }),
-			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%d Hz", s.AudioRate) })))
+			getField(file1, func(s *VideoSource) string { return fmt.Sprintf("%d Hz", s.AudioRate) }),
+			getField(file2, func(s *VideoSource) string { return fmt.Sprintf("%d Hz", s.AudioRate) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Channels:",
-			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%d", s.Channels) }),
-			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%d", s.Channels) })))
+			getField(file1, func(s *VideoSource) string { return fmt.Sprintf("%d", s.Channels) }),
+			getField(file2, func(s *VideoSource) string { return fmt.Sprintf("%d", s.Channels) })))
 
 		comparisonText.WriteString("\n OTHER \n")
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Duration:",
-			getField(file1, func(s *videoSource) string { return s.DurationString() }),
-			getField(file2, func(s *videoSource) string { return s.DurationString() })))
+			getField(file1, func(s *VideoSource) string { return s.DurationString() }),
+			getField(file2, func(s *VideoSource) string { return s.DurationString() })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"SAR (Pixel Aspect):",
-			getField(file1, func(s *videoSource) string { return s.SampleAspectRatio }),
-			getField(file2, func(s *videoSource) string { return s.SampleAspectRatio })))
+			getField(file1, func(s *VideoSource) string { return s.SampleAspectRatio }),
+			getField(file2, func(s *VideoSource) string { return s.SampleAspectRatio })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Chapters:",
-			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasChapters) }),
-			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasChapters) })))
+			getField(file1, func(s *VideoSource) string { return fmt.Sprintf("%v", s.HasChapters) }),
+			getField(file2, func(s *VideoSource) string { return fmt.Sprintf("%v", s.HasChapters) })))
 		comparisonText.WriteString(fmt.Sprintf("%-25s | %-20s | %s\n",
 			"Metadata:",
-			getField(file1, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasMetadata) }),
-			getField(file2, func(s *videoSource) string { return fmt.Sprintf("%v", s.HasMetadata) })))
+			getField(file1, func(s *VideoSource) string { return fmt.Sprintf("%v", s.HasMetadata) }),
+			getField(file2, func(s *VideoSource) string { return fmt.Sprintf("%v", s.HasMetadata) })))
 
 		comparisonText.WriteString("\n-----------------------------------------------------------------------\n")
 
@@ -348,7 +349,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	file2Info.Wrapping = fyne.TextWrapWord
 	file2Info.TextStyle = fyne.TextStyle{}
 
-	formatMetadata := func(src *videoSource, ref *videoSource) string {
+	formatMetadata := func(src *VideoSource, ref *VideoSource) string {
 		var (
 			fileSize       = "Unknown"
 			refSize  int64 = 0
