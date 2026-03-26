@@ -50,9 +50,9 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 		OnReleasePlaybackSession: state.releasePlaybackSession,
 		OnStopPlayer:             state.stopPlayer,
 		OnProbeVideo:             func(path string) (interface{}, error) { return probeVideo(path) },
-		OnBuildVideoPane: func(state interface{}, size fyne.Size, src interface{}, onSeek func(float64)) fyne.CanvasObject {
+		OnBuildVideoPane: func(_ interface{}, size fyne.Size, src interface{}, _ func(float64)) fyne.CanvasObject {
 			if vs, ok := src.(*videoSource); ok {
-				return buildVideoPane(nil, size, vs, nil)
+				return buildVideoPane(state, size, vs, nil)
 			}
 			return nil
 		},
