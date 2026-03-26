@@ -647,6 +647,8 @@ var frCA = Strings{
 	AuthorNoChaptersForThumbs:  "Aucun chapitre disponible pour la génération de miniatures",
 	AuthorPlay:                 "Lecture",
 	AuthorBack:                 "Retour",
+	AuthorNextPage:             "Suivant >",
+	AuthorPrevPage:             "< Préc",
 	AuthorExtrasMenu:           "Extras",
 	AuthorChapterSelection:     "Sélection de Chapitre",
 	AuthorSelectExtra:          "Sélectionnez un extra à lire",

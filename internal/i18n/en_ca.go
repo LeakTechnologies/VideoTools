@@ -658,6 +658,8 @@ var enCA = Strings{
 	AuthorNoChaptersForThumbs:  "No chapters available for thumbnail generation",
 	AuthorPlay:                 "Play",
 	AuthorBack:                 "Back",
+	AuthorNextPage:             "Next >",
+	AuthorPrevPage:             "< Prev",
 	AuthorExtrasMenu:           "Extras",
 	AuthorChapterSelection:     "Chapter Selection",
 	AuthorSelectExtra:          "Select an extra to play",
