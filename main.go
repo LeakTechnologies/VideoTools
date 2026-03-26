@@ -14347,12 +14347,6 @@ func (s *appState) switchToVideo(index int) {
 	src := s.loadedVideos[index]
 	s.source = src
 
-	if len(src.PreviewFrames) > 0 {
-		s.currentFrame = src.PreviewFrames[0]
-	} else {
-		s.currentFrame = ""
-	}
-
 	s.applyInverseDefaults(src)
 	s.convert.OutputBase = s.resolveOutputBase(src, false)
 
@@ -14367,6 +14361,25 @@ func (s *appState) switchToVideo(index int) {
 	s.playerPos = 0
 	s.playerPaused = true
 
+	if len(src.PreviewFrames) == 0 {
+		// Generate frames in background to avoid blocking the UI thread
+		go func() {
+			if frames, err := capturePreviewFrames(src.Path, src.Duration); err == nil {
+				src.PreviewFrames = frames
+			}
+			frame := ""
+			if len(src.PreviewFrames) > 0 {
+				frame = src.PreviewFrames[0]
+			}
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.currentFrame = frame
+				s.showConvertView(src)
+			}, false)
+		}()
+		return
+	}
+
+	s.currentFrame = src.PreviewFrames[0]
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(src)
 	}, false)
