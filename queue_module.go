@@ -110,8 +110,26 @@ func (s *appState) refreshQueueView() {
 				}
 			},
 			OnRemove: func(id string) {
+				job, jobErr := s.jobQueue.Get(id)
 				if err := s.jobQueue.Remove(id); err != nil {
 					logging.Debug(logging.CatSystem, "failed to remove job: %v", err)
+					return
+				}
+				// Sync loadedVideos: remove the video whose path matches this job's input
+				if jobErr == nil && job.InputFile != "" {
+					for i, v := range s.loadedVideos {
+						if v.Path == job.InputFile {
+							s.loadedVideos = append(s.loadedVideos[:i], s.loadedVideos[i+1:]...)
+							// Clamp currentIndex to valid range
+							if s.currentIndex >= len(s.loadedVideos) {
+								s.currentIndex = len(s.loadedVideos) - 1
+							}
+							if s.currentIndex < 0 {
+								s.currentIndex = 0
+							}
+							break
+						}
+					}
 				}
 			},
 			OnMoveUp: func(id string) {
