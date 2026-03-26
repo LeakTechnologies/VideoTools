@@ -5052,6 +5052,58 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 				args = append(args, "-cpu-used", "4")
 			}
 
+			// Hardware encoder quality / preset
+			switch actualCodec {
+			case "h264_nvenc", "hevc_nvenc":
+				// NVENC uses -preset p1..p7 and -rc vbr / -cq for quality
+				nvencPreset := map[string]string{
+					"veryslow": "p7", "slower": "p6", "slow": "p5",
+					"medium": "p4", "fast": "p3", "faster": "p2",
+					"veryfast": "p1", "superfast": "p1", "ultrafast": "p1",
+				}
+				encoderPreset, _ := cfg["encoderPreset"].(string)
+				if p, ok := nvencPreset[encoderPreset]; ok {
+					args = append(args, "-preset", p)
+				} else {
+					args = append(args, "-preset", "p4")
+				}
+				// Quality: map CRF value to -cq (0=auto/lossless, typical range 18-28)
+				if crfStr != "" {
+					args = append(args, "-rc", "vbr", "-cq", crfStr)
+				}
+			case "h264_amf", "hevc_amf":
+				// AMF uses -quality speed|balanced|quality
+				encoderPreset, _ := cfg["encoderPreset"].(string)
+				amfQuality := map[string]string{
+					"veryslow": "quality", "slower": "quality", "slow": "quality",
+					"medium": "balanced", "fast": "speed", "faster": "speed",
+					"veryfast": "speed", "superfast": "speed", "ultrafast": "speed",
+				}
+				if q, ok := amfQuality[encoderPreset]; ok {
+					args = append(args, "-quality", q)
+				} else {
+					args = append(args, "-quality", "balanced")
+				}
+				// AMF quality control: -qp_i/-qp_p/-qp_b or -rc_mode
+				if crfStr != "" {
+					args = append(args, "-qp_i", crfStr, "-qp_p", crfStr, "-qp_b", crfStr)
+				}
+			case "h264_qsv", "hevc_qsv":
+				// QSV uses -global_quality for CQ mode
+				if crfStr != "" {
+					args = append(args, "-global_quality", crfStr)
+				}
+				encoderPreset, _ := cfg["encoderPreset"].(string)
+				qsvPreset := map[string]string{
+					"veryslow": "veryslow", "slower": "slower", "slow": "slow",
+					"medium": "medium", "fast": "fast", "faster": "faster",
+					"veryfast": "veryfast",
+				}
+				if p, ok := qsvPreset[encoderPreset]; ok {
+					args = append(args, "-preset", p)
+				}
+			}
+
 			// Enforce true lossless for software HEVC when CRF is 0
 			if actualCodec == "libx265" && crfStr == "0" {
 				args = append(args, "-x265-params", "lossless=1")
@@ -7028,8 +7080,54 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 					crfStr = "23"
 				}
 			}
-			if strings.Contains(codec, "264") || strings.Contains(codec, "265") || codec == "libvpx-vp9" || codec == "libsvtav1" || codec == "libaom-av1" {
+			if codec == "libx264" || codec == "libx265" || codec == "libvpx-vp9" || codec == "libsvtav1" || codec == "libaom-av1" {
 				args = append(args, "-crf", crfStr)
+			}
+			// Hardware encoder quality flags
+			switch codec {
+			case "h264_nvenc", "hevc_nvenc":
+				encoderPreset, _ := cfg["encoderPreset"].(string)
+				nvencPreset := map[string]string{
+					"veryslow": "p7", "slower": "p6", "slow": "p5",
+					"medium": "p4", "fast": "p3", "faster": "p2",
+					"veryfast": "p1", "superfast": "p1", "ultrafast": "p1",
+				}
+				if p, ok := nvencPreset[encoderPreset]; ok {
+					args = append(args, "-preset", p)
+				} else {
+					args = append(args, "-preset", "p4")
+				}
+				if crfStr != "" {
+					args = append(args, "-rc", "vbr", "-cq", crfStr)
+				}
+			case "h264_amf", "hevc_amf":
+				encoderPreset, _ := cfg["encoderPreset"].(string)
+				amfQuality := map[string]string{
+					"veryslow": "quality", "slower": "quality", "slow": "quality",
+					"medium": "balanced", "fast": "speed", "faster": "speed",
+					"veryfast": "speed", "superfast": "speed", "ultrafast": "speed",
+				}
+				if q, ok := amfQuality[encoderPreset]; ok {
+					args = append(args, "-quality", q)
+				} else {
+					args = append(args, "-quality", "balanced")
+				}
+				if crfStr != "" {
+					args = append(args, "-qp_i", crfStr, "-qp_p", crfStr, "-qp_b", crfStr)
+				}
+			case "h264_qsv", "hevc_qsv":
+				if crfStr != "" {
+					args = append(args, "-global_quality", crfStr)
+				}
+				encoderPreset, _ := cfg["encoderPreset"].(string)
+				qsvPreset := map[string]string{
+					"veryslow": "veryslow", "slower": "slower", "slow": "slow",
+					"medium": "medium", "fast": "fast", "faster": "faster",
+					"veryfast": "veryfast",
+				}
+				if p, ok := qsvPreset[encoderPreset]; ok {
+					args = append(args, "-preset", p)
+				}
 			}
 		} else if bitrateMode == "CBR" {
 			if videoBitrate, _ := cfg["videoBitrate"].(string); videoBitrate != "" {
