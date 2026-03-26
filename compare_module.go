@@ -3,6 +3,7 @@ package main
 import (
 	"fyne.io/fyne/v2"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/compare"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
 func (s *appState) showCompareView() {
@@ -21,7 +22,7 @@ func (s *appState) showCompareFullscreen() {
 }
 
 func buildCompareView(state *appState) fyne.CanvasObject {
-	return compare.BuildView(compare.Options{
+	content := compare.BuildView(compare.Options{
 		Window:                   state.window,
 		ModuleColor:              moduleColor("compare"),
 		CompareFile1:             state.compareFile1,
@@ -44,10 +45,15 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			return nil
 		},
 	})
+	// Window-level SetOnDropped is unreliable when a view is active; wrap the
+	// compare content in its own Droppable so drag-to-load always fires.
+	return ui.NewDroppable(content, func(items []fyne.URI) {
+		state.handleDrop(fyne.NewPos(0, 0), items)
+	})
 }
 
 func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
-	return compare.BuildFullscreenView(compare.Options{
+	content := compare.BuildFullscreenView(compare.Options{
 		Window:                  state.window,
 		CompareFile1:            state.compareFile1,
 		CompareFile2:            state.compareFile2,
@@ -59,5 +65,8 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 			}
 			return nil
 		},
+	})
+	return ui.NewDroppable(content, func(items []fyne.URI) {
+		state.handleDrop(fyne.NewPos(0, 0), items)
 	})
 }

@@ -155,7 +155,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 							opts.OnLoadVideoNative(vs.Path)
 						}
 					}
-					opts.OnShowMainMenu()
+					opts.OnRefreshView()
 				}, false)
 			}()
 		}, opts.Window)

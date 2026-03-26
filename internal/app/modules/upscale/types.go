@@ -16,6 +16,7 @@ type Options struct {
 	QueueBtn    *widget.Button
 
 	OnShowMainMenu           func()
+	OnRefreshView            func()
 	OnShowQueue              func()
 	OnShowFiltersView        func()
 	OnUpdateQueueButtonLabel func()
