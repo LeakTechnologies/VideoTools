@@ -299,34 +299,31 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	hwLabel := widget.NewLabel(t.SettingsHardwareAccel)
 	hwLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	hwStatus := widget.NewLabel("")
-	hwStatus.TextStyle = fyne.TextStyle{Italic: true}
+	hwStatus := widget.NewLabel("Press Detect to scan your hardware.")
+	hwStatus.TextStyle = fyne.TextStyle{Monospace: true}
 	hwStatus.Wrapping = fyne.TextWrapWord
-
-	updateHwStatus := func() {
-		detected := cb.DetectBestHardwareAccel()
-		if detected == "" {
-			detected = "none"
-		}
-		hwStatus.SetText(fmt.Sprintf(t.SettingsDetectedFmt, detected))
-	}
 
 	hwSelect := widget.NewSelect([]string{"auto", "none", "nvenc", "qsv", "amf", "vaapi"}, func(selected string) {
 		cb.SetConvertHardwareAccel(selected)
 		cb.PersistConvertConfig()
-		updateHwStatus()
 	})
 	hwSelect.SetSelected(cb.ConvertHardwareAccel())
 
-	detectBtn := widget.NewButton(t.SettingsDetect, func() {
-		best := cb.DetectBestHardwareAccel()
-		if best == "" {
-			best = "none"
-		}
-		hwSelect.SetSelected(best)
-		cb.SetConvertHardwareAccel(best)
-		cb.PersistConvertConfig()
-		updateHwStatus()
+	var detectBtn *widget.Button
+	detectBtn = widget.NewButton(t.SettingsDetect, func() {
+		detectBtn.SetText("Detecting...")
+		detectBtn.Disable()
+		go func() {
+			best, status := cb.DetectHardwareAccelStatus()
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				hwSelect.SetSelected(best)
+				cb.SetConvertHardwareAccel(best)
+				cb.PersistConvertConfig()
+				hwStatus.SetText(status)
+				detectBtn.SetText(t.SettingsDetect)
+				detectBtn.Enable()
+			}, false)
+		}()
 	})
 	detectBtn.Importance = widget.HighImportance
 
@@ -334,11 +331,9 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		hwSelect.SetSelected("auto")
 		cb.SetConvertHardwareAccel("auto")
 		cb.PersistConvertConfig()
-		updateHwStatus()
+		hwStatus.SetText("Set to auto — best available encoder selected at encode time.")
 	})
 	autoBtn.Importance = widget.MediumImportance
-
-	updateHwStatus()
 
 	content.Add(container.NewVBox(
 		hwLabel,

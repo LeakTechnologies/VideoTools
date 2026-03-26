@@ -493,6 +493,44 @@ func detectBestHardwareAccel() string {
 	return "none"
 }
 
+// detectHardwareAccelStatus probes all hardware encoders and returns a multi-line status
+// string describing the system hardware and which encoders are available.
+func detectHardwareAccelStatus() (best string, status string) {
+	hw := sysinfo.Detect()
+
+	check := func(accel string) string {
+		if hwAccelAvailable(accel) {
+			return "✓"
+		}
+		return "✗"
+	}
+
+	var lines []string
+	lines = append(lines, fmt.Sprintf("CPU: %s (%d cores)", hw.CPU, hw.CPUCores))
+	if hw.GPU != "" && hw.GPU != "No GPU detected" {
+		lines = append(lines, fmt.Sprintf("GPU: %s", hw.GPU))
+	}
+
+	if runtime.GOOS == "windows" {
+		lines = append(lines,
+			fmt.Sprintf("NVENC (NVIDIA):  %s", check("nvenc")),
+			fmt.Sprintf("QSV   (Intel):   %s", check("qsv")),
+			fmt.Sprintf("AMF   (AMD):     %s", check("amf")),
+		)
+	} else {
+		lines = append(lines,
+			fmt.Sprintf("NVENC (NVIDIA):  %s", check("nvenc")),
+			fmt.Sprintf("QSV   (Intel):   %s", check("qsv")),
+			fmt.Sprintf("VAAPI (Linux):   %s", check("vaapi")),
+			fmt.Sprintf("AMF   (AMD):     %s", check("amf")),
+		)
+	}
+
+	best = detectBestHardwareAccel()
+	lines = append(lines, fmt.Sprintf("Selected: %s", best))
+	return best, strings.Join(lines, "\n")
+}
+
 // hwAccelAvailable checks if the hardware acceleration is actually usable on this system.
 // It does a runtime probe to verify the hardware/driver is present and working.
 func hwAccelAvailable(accel string) bool {
@@ -526,8 +564,13 @@ func probeHWAccel(cached **bool, args []string, label string) bool {
 		return **cached
 	}
 	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), args...)
-	if err := cmd.Run(); err != nil {
-		logging.Debug(logging.CatFFMPEG, "%s runtime check failed: %v", label, err)
+	// Use CombinedOutput so the subprocess has a valid stdout/stderr handle.
+	// In a Windows GUI app (-H windowsgui) there is no console, so the inherited
+	// stdout handle is null/invalid; FFmpeg fails writing "-f null -" unless we
+	// give it a real pipe to write into.
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logging.Debug(logging.CatFFMPEG, "%s runtime check failed: %v — %s", label, err, strings.TrimSpace(string(out)))
 		return false
 	}
 	ok := true

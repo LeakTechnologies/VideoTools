@@ -33,6 +33,7 @@ type PreferencesCallbacks interface {
 	CheckForUpdatesWithStatus(statusIcon *widget.Icon, statusLabel *widget.Label, onAvailable func(tag string))
 	ApplyUpdateStatusToUI(statusIcon *widget.Icon, statusLabel *widget.Label, onAvailable func(tag string))
 	DetectBestHardwareAccel() string
+	DetectHardwareAccelStatus() (best string, status string)
 	PersistConvertConfig()
 	ConvertHardwareAccel() string
 	SetConvertHardwareAccel(accel string)
