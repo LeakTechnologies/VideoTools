@@ -149,7 +149,7 @@ func (s *appState) upscaleOptions() upscale.Options {
 		},
 		OnBuildVideoPane: func(state interface{}, size fyne.Size, src interface{}, overlay fyne.CanvasObject) fyne.CanvasObject {
 			if vs, ok := src.(*upscale.VideoSource); ok {
-				return buildVideoPane(nil, size, upscaleToMainVideoSource(vs), nil)
+				return buildVideoPane(s, size, upscaleToMainVideoSource(vs), nil)
 			}
 			return nil
 		},
