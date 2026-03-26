@@ -1595,6 +1595,27 @@ func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, 
 	accentColor := theme.AccentColor
 	fontArg := menuFontArg(theme)
 
+	// Check if we have navigation buttons to adjust layout
+	hasNavButtons := false
+	navButtonCount := 0
+	for _, btn := range buttons {
+		if btn.IsNav {
+			hasNavButtons = true
+			navButtonCount++
+		}
+	}
+
+	// Determine layout based on navigation buttons
+	startY := 120
+	rowHeight := 32
+	thumbnailX := 450 // Position thumbnails on the right side
+
+	if hasNavButtons {
+		startY = 100
+		rowHeight = 28
+		thumbnailX = 420
+	}
+
 	filterParts := []string{
 		fmt.Sprintf("drawbox=x=0:y=0:w=%d:h=72:color=%s:t=fill", width, headerColor),
 		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=28:x=36:y=20:text=%s", fontArg, textColor, escapeDrawtextText(t.AuthorChapterSelection)),
@@ -1603,29 +1624,86 @@ func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, 
 		fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=14:x=36:y=94:text=%s", fontArg, textColor, escapeDrawtextText(t.AuthorSelectChapterMenu)),
 	}
 
-	for i, btn := range buttons {
+	// Add chapter button text and track thumbnail positions
+	thumbnailYPositions := make(map[int]int) // button index -> y position
+	chapterButtonIndex := 0
+
+	for _, btn := range buttons {
 		label := escapeDrawtextText(btn.Label)
+		// Skip navigation buttons in text rendering
+		if btn.IsNav {
+			continue
+		}
 		// Truncate long chapter names for display
-		if len(label) > 50 {
-			label = label[:47] + "..."
+		if len(label) > 30 {
+			label = label[:27] + "..."
 		}
-		y := 120 + i*32
+		y := startY + chapterButtonIndex*rowHeight
 		fontSize := 18
+
+		// Skip Back button in y calculation for thumbnails
 		if btn.Label == t.AuthorBack {
-			fontSize = 20 // Make Back button slightly larger
+			fontSize = 20
+		} else if chapterButtonIndex < len(thumbPaths) && thumbPaths[chapterButtonIndex] != "" {
+			// This button has a thumbnail
+			thumbnailYPositions[chapterButtonIndex] = y
 		}
+
 		filterParts = append(filterParts, fmt.Sprintf("drawtext=%s:fontcolor=%s:fontsize=%d:x=80:y=%d:text=%s", fontArg, textColor, fontSize, y, label))
+		chapterButtonIndex++
 	}
 
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
 
-	// Skip thumbnail overlays for now - filter chain complexity is causing issues
-	// TODO: Re-enable with simpler filter chain approach
+	// Add thumbnail overlays if available
+	// Use a simple sequential overlay approach to avoid filter chain complexity
+	if len(thumbPaths) > 0 {
+		filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
 
-	// Use simple filter without thumbnails
-	args = append(args, "-filter_complex", fmt.Sprintf("[0:v]%s", filterChain), "-frames:v", "1", outputPath)
+		inputIndex := 1
+		validThumbs := 0
+		for i, thumbPath := range thumbPaths {
+			if thumbPath == "" {
+				continue
+			}
+			if _, err := os.Stat(thumbPath); err != nil {
+				continue
+			}
+
+			// Get y position for this thumbnail
+			y, ok := thumbnailYPositions[i]
+			if !ok {
+				y = startY + i*rowHeight
+			}
+			// Adjust y for thumbnail (center in button box, thumb is 80x45)
+			y = y + 2
+
+			args = append(args, "-i", thumbPath)
+
+			// Simple filter: scale thumbnail then overlay onto base
+			scaleFilter := fmt.Sprintf("[%d:v]scale=80:-1[thumb%d]", inputIndex, inputIndex)
+			overlayFilter := fmt.Sprintf("[bg][thumb%d]overlay=%d:%d[bg_tmp%d]", inputIndex, thumbnailX, y, inputIndex)
+
+			filterExpr = filterExpr + ";" + scaleFilter + ";" + overlayFilter
+			validThumbs++
+			inputIndex++
+		}
+
+		// Replace filter chain with the one including thumbnails
+		if validThumbs > 0 {
+			// Use the final base layer
+			filterExpr = strings.Replace(filterExpr, "[bg_tmp"+fmt.Sprint(inputIndex-1)+"]", "[bg]", 1)
+			args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
+		} else {
+			// No valid thumbnails, use simple filter
+			args = append(args, "-filter_complex", fmt.Sprintf("[0:v]%s", filterChain), "-frames:v", "1", outputPath)
+		}
+	} else {
+		// No thumbnails
+		args = append(args, "-filter_complex", fmt.Sprintf("[0:v]%s", filterChain), "-frames:v", "1", outputPath)
+	}
 
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
