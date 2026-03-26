@@ -13652,8 +13652,8 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		return
 	}
 
-	// If in compare module, handle up to 2 video files
-	if s.active == "compare" {
+	// If in compare module (normal or fullscreen), handle up to 2 video files
+	if s.active == "compare" || s.active == "compare-fullscreen" {
 		// Collect all video files from the dropped items
 		var videoPaths []string
 		for _, uri := range items {
@@ -15967,13 +15967,14 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 		"-ss", start,
 		"-i", path,
 		"-t", "3",
-		"-vf", "scale=640:-1:flags=lanczos,fps=8",
+		"-vf", "scale=640:-2:flags=lanczos,fps=8",
 		pattern,
 	)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		os.RemoveAll(dir)
-		return nil, fmt.Errorf("preview capture failed: %w (%s)", err, strings.TrimSpace(string(out)))
+		logging.Info(logging.CatFFMPEG, "preview capture failed for %s: %v — %s", filepath.Base(path), err, strings.TrimSpace(string(out)))
+		return nil, fmt.Errorf("preview capture failed: %w", err)
 	}
 	files, err := filepath.Glob(filepath.Join(dir, "frame-*.png"))
 	if err != nil || len(files) == 0 {
@@ -16280,6 +16281,7 @@ func probeVideo(path string) (*videoSource, error) {
 			SampleRate    string                 `json:"sample_rate"`
 			Channels      int                    `json:"channels"`
 			AvgFrameRate  string                 `json:"avg_frame_rate"`
+			RFrameRate    string                 `json:"r_frame_rate"`
 			FieldOrder    string                 `json:"field_order"`
 			SampleAspect  string                 `json:"sample_aspect_ratio"`
 			DisplayAspect string                 `json:"display_aspect_ratio"`
@@ -16354,6 +16356,8 @@ func probeVideo(path string) (*videoSource, error) {
 					src.Duration = dur
 				}
 				if fr := utils.ParseFraction(stream.AvgFrameRate); fr > 0 {
+					src.FrameRate = fr
+				} else if fr := utils.ParseFraction(stream.RFrameRate); fr > 0 && fr < 1000 {
 					src.FrameRate = fr
 				}
 				if stream.PixFmt != "" {

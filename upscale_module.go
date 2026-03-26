@@ -65,6 +65,7 @@ func (s *appState) upscaleOptions() upscale.Options {
 		QueueBtn:    s.queueBtn,
 
 		OnShowMainMenu:           s.showMainMenu,
+		OnRefreshView:            s.showUpscaleView,
 		OnShowQueue:              s.showQueue,
 		OnShowFiltersView:        s.showFiltersView,
 		OnUpdateQueueButtonLabel: s.updateQueueButtonLabel,
