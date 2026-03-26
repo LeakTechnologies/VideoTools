@@ -150,7 +150,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					opts.SetUpscaleFile(probeSrc)
-					if vs, ok := probeSrc.(*videoSource); ok {
+					if vs, ok := probeSrc.(*VideoSource); ok {
 						if opts.OnHasNativeMediaPlayer() {
 							opts.OnLoadVideoNative(vs.Path)
 						}
@@ -1019,17 +1019,18 @@ func BuildView(opts Options) fyne.CanvasObject {
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
 
-func toVideoSource(v interface{}) *videoSource {
+func toVideoSource(v interface{}) *VideoSource {
 	if v == nil {
 		return nil
 	}
-	if vs, ok := v.(*videoSource); ok {
+	if vs, ok := v.(*VideoSource); ok {
 		return vs
 	}
 	return nil
 }
 
-type videoSource struct {
+// VideoSource holds the probed metadata for a video file loaded into the upscale module.
+type VideoSource struct {
 	Path              string
 	Format            string
 	VideoCodec        string
@@ -1052,6 +1053,6 @@ type videoSource struct {
 	Duration          float64
 }
 
-func buildMetadataPanel(opts Options, src *videoSource, size fyne.Size) fyne.CanvasObject {
+func buildMetadataPanel(opts Options, src *VideoSource, size fyne.Size) fyne.CanvasObject {
 	return container.NewCenter(widget.NewLabel(""))
 }
