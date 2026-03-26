@@ -667,6 +667,8 @@ type Strings struct {
 	AuthorNoChaptersForThumbs  string // "No chapters available for thumbnail generation"
 	AuthorPlay                 string // "Play"
 	AuthorBack                 string // "Back"
+	AuthorNextPage             string // "Next >"
+	AuthorPrevPage             string // "< Prev"
 	AuthorExtrasMenu           string // "Extras"
 	AuthorChapterSelection     string // "Chapter Selection"
 	AuthorSelectExtra          string // "Select an extra to play"

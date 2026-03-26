@@ -27,6 +27,8 @@ type dvdMenuButton struct {
 	Y0      int
 	X1      int
 	Y1      int
+	IsNav   bool   // True if this is a navigation button (Next/Prev)
+	NavType string // "next" or "prev"
 }
 
 type MenuTheme struct {
@@ -723,6 +725,58 @@ func generateChapterThumbnails(ctx context.Context, workDir, videoPath string, c
 	return thumbPaths
 }
 
+// CalculateOptimalPaging calculates how to distribute chapters across menu pages.
+// Returns a slice where each element is the number of chapters for that page.
+// Earlier pages get extra chapters if distribution is uneven for better visual balance.
+func CalculateOptimalPaging(totalChapters, maxHeight, headerHeight, buttonHeight, buttonSpacing int) []int {
+	// Calculate max that fits in available space
+	availableHeight := maxHeight - headerHeight
+	maxPerPage := availableHeight / (buttonHeight + buttonSpacing)
+
+	if maxPerPage <= 0 {
+		maxPerPage = 1
+	}
+
+	// If all chapters fit on one page, just return that
+	if totalChapters <= maxPerPage {
+		return []int{totalChapters}
+	}
+
+	// Calculate number of pages needed
+	numPages := (totalChapters + maxPerPage - 1) / maxPerPage
+
+	// Distribute chapters as evenly as possible, but put extra chapters on EARLIER pages
+	// (more balanced visually - later pages are shorter, not empty-looking)
+	baseChapters := totalChapters / numPages
+	remainder := totalChapters % numPages
+
+	var chaptersPerPage []int
+	for i := 0; i < numPages; i++ {
+		count := baseChapters
+		if i < remainder {
+			count++ // Earlier pages get extra chapters
+		}
+		chaptersPerPage = append(chaptersPerPage, count)
+	}
+
+	return chaptersPerPage
+}
+
+// GetChapterRangeForPage returns the start index and count of chapters for a given page.
+// pageIndex is 0-based. Returns (startIndex, chapterCount).
+func GetChapterRangeForPage(chapters []authorChapter, chaptersPerPage []int, pageIndex int) (int, int) {
+	if pageIndex < 0 || pageIndex >= len(chaptersPerPage) {
+		return 0, 0
+	}
+
+	startIndex := 0
+	for i := 0; i < pageIndex; i++ {
+		startIndex += chaptersPerPage[i]
+	}
+
+	return startIndex, chaptersPerPage[pageIndex]
+}
+
 func dvdMenuDimensions(region string) (int, int) {
 	if strings.ToLower(region) == "pal" {
 		return 720, 576
@@ -775,31 +829,63 @@ func buildDVDMenuButtons(chapters []authorChapter, hasExtras bool, width, height
 	return buttons
 }
 
+// buildChapterMenuButtons creates buttons for ALL chapters (legacy single-page version)
 func buildChapterMenuButtons(chapters []authorChapter, width, height int) []dvdMenuButton {
+	// Use dynamic paging with default layout parameters
+	chaptersPerPage := CalculateOptimalPaging(len(chapters), height, 100, 32, 6)
+	if len(chaptersPerPage) == 1 {
+		// Single page - use original logic
+		return buildChapterMenuButtonsForPage(chapters, 0, len(chapters), width, height, false, false, 0)
+	}
+	// Multiple pages - build first page with navigation
+	return buildChapterMenuButtonsForPage(chapters, 0, chaptersPerPage[0], width, height, false, len(chaptersPerPage) > 1, 0)
+}
+
+// buildChapterMenuButtonsForPage creates buttons for a specific page of chapters.
+// chapterStart is the 0-based index of the first chapter on this page.
+// chapterCount is the number of chapters on this page.
+// totalPages is the total number of pages (0-based index).
+// currentPage is the 0-based index of this page.
+func buildChapterMenuButtonsForPage(chapters []authorChapter, chapterStart, chapterCount, width, height int, hasPrevPage, hasNextPage bool, currentPage int) []dvdMenuButton {
 	t := i18n.T()
 	buttons := []dvdMenuButton{}
 
-	// Add a button for each chapter
-	for i, ch := range chapters {
+	// Add chapter buttons for this page
+	for i := 0; i < chapterCount; i++ {
+		chapterIndex := chapterStart + i
+		if chapterIndex >= len(chapters) {
+			break
+		}
+		ch := chapters[chapterIndex]
 		buttons = append(buttons, dvdMenuButton{
 			Label:   ch.Title,
-			Command: fmt.Sprintf("jump title 1 chapter %d;", i+1),
+			Command: fmt.Sprintf("jump title 1 chapter %d;", chapterIndex+1),
 		})
 	}
 
-	// Add Back button at the end
-	buttons = append(buttons, dvdMenuButton{
-		Label:   t.AuthorBack,
-		Command: "jump menu 1;", // Jump back to main menu (first PGC)
-	})
+	// Calculate button positions - leaving room for navigation if needed
+	navButtons := 0
+	if hasPrevPage {
+		navButtons++
+	}
+	if hasNextPage {
+		navButtons++
+	}
 
-	// Position buttons - allow more buttons to fit
+	// Position buttons
 	startY := 120
 	rowHeight := 32
 	boxHeight := 26
 	x0 := 60
 	x1 := width - 60
 
+	// If we have navigation, shift chapter buttons up slightly
+	if navButtons > 0 {
+		startY = 100
+		rowHeight = 28
+	}
+
+	// Position chapter buttons
 	for i := range buttons {
 		y0 := startY + i*rowHeight
 		buttons[i].X0 = x0
@@ -807,6 +893,52 @@ func buildChapterMenuButtons(chapters []authorChapter, width, height int) []dvdM
 		buttons[i].Y0 = y0
 		buttons[i].Y1 = y0 + boxHeight
 	}
+
+	// Add navigation buttons at the bottom if needed
+	navStartY := startY + chapterCount*rowHeight + 10
+
+	if hasPrevPage {
+		prevButton := dvdMenuButton{
+			Label:   t.AuthorPrevPage,
+			Command: "jump menu 3;", // TODO: Jump to previous chapters page
+			IsNav:   true,
+			NavType: "prev",
+			X0:      x0,
+			X1:      x0 + 120,
+			Y0:      navStartY,
+			Y1:      navStartY + boxHeight,
+		}
+		buttons = append(buttons, prevButton)
+	}
+
+	if hasNextPage {
+		nextButton := dvdMenuButton{
+			Label:   t.AuthorNextPage,
+			Command: "jump menu 3;", // TODO: Jump to next chapters page
+			IsNav:   true,
+			NavType: "next",
+			X0:      x1 - 120,
+			X1:      x1,
+			Y0:      navStartY,
+			Y1:      navStartY + boxHeight,
+		}
+		buttons = append(buttons, nextButton)
+	}
+
+	// Add Back button
+	backButton := dvdMenuButton{
+		Label:   t.AuthorBack,
+		Command: "jump menu 1;", // Jump back to main menu
+	}
+	backY := navStartY
+	if navButtons > 0 {
+		backY = navStartY + rowHeight
+	}
+	backButton.X0 = x0
+	backButton.X1 = x1
+	backButton.Y0 = backY
+	backButton.Y1 = backY + boxHeight
+	buttons = append(buttons, backButton)
 
 	return buttons
 }
