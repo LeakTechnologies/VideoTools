@@ -7328,17 +7328,15 @@ func runGUI() {
 		logging.Info(logging.CatUI, "font-cache[%s] → %s", styleName, fontResourceName)
 	})
 
-	// Load app icon from embedded logo assets
-	iconFile := "VT_logo.ico"
-	if runtime.GOOS != "windows" {
-		iconFile = "VT_logo.png"
-	}
-	iconPath := "assets/logo/" + iconFile
+	// Load app icon from embedded logo assets.
+	// Use PNG on all platforms — Fyne decodes PNG natively and correctly.
+	// The .ico file is kept for windres/exe embedding via scripts/videotools.rc only.
+	iconPath := "assets/logo/VT_logo.png"
 	if f, err := logoAssets.Open(iconPath); err == nil {
 		iconData, _ := io.ReadAll(f)
 		f.Close()
 		if len(iconData) > 0 {
-			iconRes := fyne.NewStaticResource(iconFile, iconData)
+			iconRes := fyne.NewStaticResource("VT_logo.png", iconData)
 			a.SetIcon(iconRes)
 			w.SetIcon(iconRes)
 			logging.Debug(logging.CatUI, "app icon loaded from embedded resources")
@@ -11958,7 +11956,25 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		placeholderDropIndicator.StrokeWidth = 3
 		placeholderDropIndicator.StrokeColor = utils.MustHex("#4CE870")
 		stageBoxWithIndicator := container.NewMax(placeholderDropIndicator, stageBox)
-		return container.NewMax(outer, container.NewPadded(stageBoxWithIndicator))
+		// Explicit drop target so files dragged onto the player area load correctly
+		// regardless of whether the window-level SetOnDropped fires.
+		dropTarget := ui.NewDroppable(stageBoxWithIndicator, func(items []fyne.URI) {
+			var paths []string
+			for _, uri := range items {
+				if uri.Scheme() == "file" && state.isVideoFile(uri.Path()) {
+					paths = append(paths, uri.Path())
+				}
+			}
+			if len(paths) == 0 {
+				return
+			}
+			if len(paths) > 1 {
+				go state.loadMultipleVideos(paths)
+			} else {
+				go state.loadVideo(paths[0])
+			}
+		})
+		return container.NewMax(outer, container.NewPadded(dropTarget))
 	}
 
 	state.stopPreview()
