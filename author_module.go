@@ -498,19 +498,22 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 
 	listArea := container.NewMax(dropTarget, emptyOverlay)
 
-	// DVD Title entry (synced with Settings tab)
+	// Disc Title entry (synced with Settings tab)
 	dvdTitleEntry := widget.NewEntry()
-	dvdTitleEntry.SetPlaceHolder(t.AuthorDVDTitle)
+	dvdTitleEntry.SetPlaceHolder("Disc title...")
 	dvdTitleEntry.SetText(state.authorTitle)
 	dvdTitleEntry.OnChanged = func(value string) {
 		state.authorTitle = value
+		if state.authorDiscTitleEntry != nil {
+			state.authorDiscTitleEntry.SetText(value)
+		}
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
 	}
 
 	controls := container.NewBorder(
 		container.NewVBox(
-			widget.NewLabel(t.AuthorDVDTitle),
+			widget.NewLabel(t.AuthorDiscTitle),
 			dvdTitleEntry,
 			widget.NewSeparator(),
 			widget.NewLabel(t.AuthorVideosCount),
@@ -846,10 +849,14 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
 	}
+	state.authorDiscTitleEntry = titleEntry
 
 	targetType := widget.NewSelect([]string{"DVD-Video", "Blu-ray Disc"}, func(value string) {
 		if value == "DVD-Video" {
-			state.authorOutputType = "dvd"
+			// Preserve "iso" — only switch to "dvd" if coming from bluray
+			if state.authorOutputType == "bluray" {
+				state.authorOutputType = "dvd"
+			}
 			updateDynamicSettings("dvd")
 		} else {
 			state.authorOutputType = "bluray"
@@ -898,6 +905,8 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		state.persistAuthorConfig()
 	})
 
+	applyControls()
+
 	controls := container.NewVBox(
 		widget.NewLabelWithStyle("Target Disc Type:", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetType,
@@ -910,7 +919,7 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		aspectSelect,
 		widget.NewLabel("Disc Size:"),
 		discSizeSelect,
-		widget.NewLabel(t.AuthorDVDTitle),
+		widget.NewLabel(t.AuthorDiscTitle),
 		titleEntry,
 		widget.NewSeparator(),
 		container.NewHBox(resetBtn),
@@ -1755,7 +1764,7 @@ func authorSummary(state *appState) string {
 		summary += fmt.Sprintf("Output Path: %s\n", outPath)
 	}
 	if state.authorTitle != "" {
-		summary += fmt.Sprintf("DVD Title: %s\n", state.authorTitle)
+		summary += fmt.Sprintf("Disc Title: %s\n", state.authorTitle)
 	}
 	if totalDur := authorTotalDuration(state); totalDur > 0 {
 		bitrate := authorTargetBitrateKbps(state.authorDiscSize, totalDur)

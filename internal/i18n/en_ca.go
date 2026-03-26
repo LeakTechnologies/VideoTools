@@ -586,6 +586,7 @@ var enCA = Strings{
 	AuthorCompileDVD:           "COMPILE TO DVD",
 	AuthorDragDropHint:         "Drag and drop video files here...",
 	AuthorDVDTitle:             "DVD Title:",
+	AuthorDiscTitle:            "Disc Title:",
 	AuthorVideosCount:          "Videos:",
 	AuthorSelectSingle:         "Select a single video file for authoring...",
 	AuthorNoChapters:           "No chapters detected yet",
