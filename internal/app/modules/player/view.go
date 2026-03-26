@@ -54,9 +54,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.OnShowQueue()
 		}
 	})
-	if opts.QueueBtn != nil {
-		opts.QueueBtn = queueBtn
-	}
+	opts.QueueBtn = queueBtn
 	if opts.OnUpdateQueueButtonLabel != nil {
 		opts.OnUpdateQueueButtonLabel()
 	}
