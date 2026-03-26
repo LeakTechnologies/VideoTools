@@ -594,7 +594,8 @@ type Strings struct {
 	AuthorAddClipsFirst        string // "Please add video clips first"
 	AuthorCompileDVD           string // "COMPILE TO DVD"
 	AuthorDragDropHint         string // "Drag and drop video files here..."
-	AuthorDVDTitle             string // "DVD Title:"
+	AuthorDVDTitle             string // "DVD Title:" (deprecated, use AuthorDiscTitle)
+	AuthorDiscTitle            string // "Disc Title:"
 	AuthorVideosCount          string // "Videos:"
 	AuthorSelectSingle         string // "Select a single video file for authoring..."
 	AuthorNoChapters           string // "No chapters detected yet"

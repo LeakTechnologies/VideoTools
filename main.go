@@ -1205,7 +1205,8 @@ type appState struct {
 	authorMenuStructure           string             // Feature only, Chapters, Extras
 	authorMenuExtrasEnabled       bool               // Show extras menu
 	authorMenuChapterThumbnailSrc string             // Auto, First Frame, Midpoint, Custom
-	authorTitle                   string             // DVD title
+	authorTitle                   string             // Disc title
+	authorDiscTitleEntry          *widget.Entry      // Settings tab title entry (for cross-tab sync)
 	authorSubtitles               []string           // Subtitle file paths
 	authorAudioTracks             []string           // Additional audio tracks
 	authorSummaryLabel            *widget.Label

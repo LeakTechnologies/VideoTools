@@ -572,6 +572,7 @@ var frCA = Strings{
 	AuthorCompileDVD:           "COMPILER EN DVD",
 	AuthorDragDropHint:         "Glissez-déposez des fichiers vidéo ici...",
 	AuthorDVDTitle:             "Titre du DVD :",
+	AuthorDiscTitle:            "Titre du disque :",
 	AuthorVideosCount:          "Vidéos :",
 	AuthorSelectSingle:         "Sélectionnez un seul fichier vidéo pour l'auteur...",
 	AuthorNoChapters:           "Aucun chapitre détecté",
