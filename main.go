@@ -12090,11 +12090,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			if len(paths) == 0 {
 				return
 			}
-			if len(paths) > 1 {
-				go state.loadMultipleVideos(paths)
-			} else {
-				go state.loadVideo(paths[0])
-			}
+			go state.loadMultipleVideos(paths)
 		})
 		return container.NewMax(outer, container.NewPadded(dropTarget))
 	}
@@ -12521,11 +12517,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		if len(paths) == 0 {
 			return
 		}
-		if len(paths) > 1 {
-			go state.loadMultipleVideos(paths)
-		} else {
-			go state.loadVideo(paths[0])
-		}
+		go state.loadMultipleVideos(paths)
 	})
 	return container.NewMax(outer, container.NewPadded(videoDropTarget))
 }
@@ -13519,14 +13511,8 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		// Load all videos into memory (don't auto-queue)
 		// This allows users to adjust settings or generate snippets before manually queuing
-		if len(videoPaths) > 1 {
-			logging.Debug(logging.CatUI, "multiple videos dropped in convert module; loading all into memory")
-			go s.loadMultipleVideos(videoPaths)
-		} else {
-			// Single video: load it
-			logging.Debug(logging.CatUI, "single video dropped in convert module; loading: %s", videoPaths[0])
-			go s.loadVideo(videoPaths[0])
-		}
+		logging.Debug(logging.CatUI, "video(s) dropped in convert module; loading %d into memory", len(videoPaths))
+		go s.loadMultipleVideos(videoPaths)
 		return
 	}
 
@@ -14207,7 +14193,7 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	s.convert.AspectHandling = "Auto"
 
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-		// Silently load videos - showing the convert view is sufficient feedback
+		s.source = firstVideo
 		s.showConvertView(firstVideo)
 
 		// Log any failed files for debugging
