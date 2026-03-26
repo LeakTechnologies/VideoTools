@@ -38,9 +38,9 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 			return moduleFooter(moduleColor("compare"), content, state.statsBar)
 		},
 		OnProbeVideo: func(path string) (interface{}, error) { return probeVideo(path) },
-		OnBuildVideoPane: func(state interface{}, size fyne.Size, src interface{}, onSeek func(float64)) fyne.CanvasObject {
+		OnBuildVideoPane: func(_ interface{}, size fyne.Size, src interface{}, _ func(float64)) fyne.CanvasObject {
 			if vs, ok := src.(*videoSource); ok {
-				return buildVideoPane(nil, size, vs, nil)
+				return buildVideoPane(state, size, vs, nil)
 			}
 			return nil
 		},
@@ -59,9 +59,9 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 		CompareFile2:            state.compareFile2,
 		OnShowCompareFullscreen: state.showCompareView,
 		OnGetStatsBar:           func() fyne.CanvasObject { return state.statsBar },
-		OnBuildVideoPane: func(state interface{}, size fyne.Size, src interface{}, onSeek func(float64)) fyne.CanvasObject {
+		OnBuildVideoPane: func(_ interface{}, size fyne.Size, src interface{}, _ func(float64)) fyne.CanvasObject {
 			if vs, ok := src.(*videoSource); ok {
-				return buildVideoPane(nil, size, vs, nil)
+				return buildVideoPane(state, size, vs, nil)
 			}
 			return nil
 		},
