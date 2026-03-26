@@ -1609,6 +1609,10 @@ func (a *preferencesAdapter) DetectBestHardwareAccel() string {
 	return detectBestHardwareAccel()
 }
 
+func (a *preferencesAdapter) DetectHardwareAccelStatus() (best string, status string) {
+	return detectHardwareAccelStatus()
+}
+
 func (a *preferencesAdapter) PersistConvertConfig() {
 	a.s.persistConvertConfig()
 }
