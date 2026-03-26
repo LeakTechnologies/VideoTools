@@ -12509,7 +12509,25 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		nil, nil,
 		container.NewPadded(videoWithOverlay),
 	)
-	return container.NewMax(outer, container.NewPadded(stack))
+	// Wrap in a Droppable so loading a new file by drag works even when a video
+	// is already shown (window-level SetOnDropped is not reliable in this state).
+	videoDropTarget := ui.NewDroppable(stack, func(items []fyne.URI) {
+		var paths []string
+		for _, uri := range items {
+			if uri.Scheme() == "file" && state.isVideoFile(uri.Path()) {
+				paths = append(paths, uri.Path())
+			}
+		}
+		if len(paths) == 0 {
+			return
+		}
+		if len(paths) > 1 {
+			go state.loadMultipleVideos(paths)
+		} else {
+			go state.loadVideo(paths[0])
+		}
+	})
+	return container.NewMax(outer, container.NewPadded(videoDropTarget))
 }
 
 type playSession struct {
