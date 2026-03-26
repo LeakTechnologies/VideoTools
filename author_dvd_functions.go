@@ -44,7 +44,7 @@ func buildDVDRipTab(state *appState) fyne.CanvasObject {
 				sourceType = "dvd"
 				sourceLabel.SetText(fmt.Sprintf("DVD: %s", path))
 			} else {
-				dialog.ShowError(fmt.Errorf(t.AuthorInvalidDVDISO), state.window)
+				dialog.ShowError(fmt.Errorf("%s", t.AuthorInvalidDVDISO), state.window)
 				return
 			}
 

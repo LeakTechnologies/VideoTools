@@ -3446,27 +3446,77 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 
 	// Build optional menu PGC and place menu VOB
 	menuVOBPath := filepath.Join(videoTSPath, "VIDEO_TS.VOB")
-	var menuPGC *ifo.ProgramChain
+	var menuPGCs []*ifo.ProgramChain
 	if createMenu && menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
-		// Copy the native-encoded menu VOB into VIDEO_TS/
-		if err := authorCopyFile(menuSet.MainMpg, menuVOBPath); err != nil {
-			logging.Info(logging.CatDVD, "Failed to copy menu VOB, using minimal placeholder: %v", err)
+		// Concatenate all menu MPGs into VIDEO_TS.VOB:
+		// - Main menu first
+		// - Then each chapter menu page
+		menuFiles := []string{menuSet.MainMpg}
+		menuFiles = append(menuFiles, menuSet.ChaptersMpgs...)
+
+		// Create the output file
+		outFile, err := os.Create(menuVOBPath)
+		if err != nil {
+			logging.Info(logging.CatDVD, "Failed to create menu VOB: %v", err)
 			if err2 := vob.CreateMinimalMenuVOB(menuVOBPath); err2 != nil {
 				logging.Info(logging.CatDVD, "Failed to create minimal menu VOB: %v", err2)
 			}
 		} else {
-			// Build a menu PGC with one cell command per button
-			cmdTable := &ifo.DVDCommandTable{}
-			cmdTable.Pre = []ifo.DVDCommand{ifo.SetHL_BTNNCommand(1)} // highlight first button on entry
-			for _, btn := range menuSet.MainButtons {
-				cmdTable.Cell = append(cmdTable.Cell, ifo.ParseButtonCommand(btn.Command))
+			defer outFile.Close()
+			totalButtons := 0
+
+			// Process main menu (PGC 1)
+			if err := concatenateMenuFile(outFile, menuSet.MainMpg); err != nil {
+				logging.Info(logging.CatDVD, "Failed to concatenate main menu: %v", err)
+			} else {
+				// Build PGC for main menu
+				cmdTable := &ifo.DVDCommandTable{}
+				cmdTable.Pre = []ifo.DVDCommand{ifo.SetHL_BTNNCommand(1)}
+				for _, btn := range menuSet.MainButtons {
+					cmdTable.Cell = append(cmdTable.Cell, ifo.ParseButtonCommand(btn.Command))
+				}
+				menuDuration := 10.0
+				if src, err2 := probeVideo(menuSet.MainMpg); err2 == nil && src.Duration > 0 {
+					menuDuration = src.Duration
+				}
+				menuPGCs = append(menuPGCs, ifo.BuildMenuPGC(cmdTable, menuDuration, isNTSC))
+				totalButtons += len(menuSet.MainButtons)
 			}
-			menuDuration := 10.0 // default menu loop duration in seconds
-			if src, err2 := probeVideo(menuSet.MainMpg); err2 == nil && src.Duration > 0 {
-				menuDuration = src.Duration
+
+			// Process chapter menu pages (PGC 2+)
+			for pageIdx, chapterMpg := range menuSet.ChaptersMpgs {
+				if chapterMpg == "" {
+					continue
+				}
+				if err := concatenateMenuFile(outFile, chapterMpg); err != nil {
+					logging.Info(logging.CatDVD, "Failed to concatenate chapter menu page %d: %v", pageIdx+1, err)
+					continue
+				}
+
+				// Build PGC for this chapter page
+				buttons := menuSet.ChaptersButtons[pageIdx]
+				if len(buttons) > 0 {
+					cmdTable := &ifo.DVDCommandTable{}
+					cmdTable.Pre = []ifo.DVDCommand{ifo.SetHL_BTNNCommand(1)}
+					for _, btn := range buttons {
+						cmdTable.Cell = append(cmdTable.Cell, ifo.ParseButtonCommand(btn.Command))
+					}
+					menuDuration := 10.0
+					if src, err2 := probeVideo(chapterMpg); err2 == nil && src.Duration > 0 {
+						menuDuration = src.Duration
+					}
+					menuPGCs = append(menuPGCs, ifo.BuildMenuPGC(cmdTable, menuDuration, isNTSC))
+					totalButtons += len(buttons)
+				}
 			}
-			menuPGC = ifo.BuildMenuPGC(cmdTable, menuDuration, isNTSC)
-			logFn(fmt.Sprintf("Menu VOB placed with %d button(s)", len(menuSet.MainButtons)))
+
+			if err := outFile.Sync(); err != nil {
+				logging.Info(logging.CatDVD, "Failed to sync menu VOB: %v", err)
+			}
+
+			if len(menuPGCs) > 0 {
+				logFn(fmt.Sprintf("Menu VOB placed with %d PGC(s), %d total button(s)", len(menuPGCs), totalButtons))
+			}
 		}
 	} else {
 		// No menu: write a minimal single-NAV_PCK placeholder
@@ -3495,7 +3545,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		allMats = append(allMats, st.mat)
 	}
 	vtsAtrt := ifo.BuildVTS_ATRT(allMats)
-	if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGC, vtsAtrt); err != nil {
+	if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGCs, vtsAtrt); err != nil {
 		return fmt.Errorf("native vmg generation failed: %w", err)
 	}
 
@@ -3635,7 +3685,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap, mainPTTSRPT); err != nil {
 			return fmt.Errorf("ifo sector patch failed: %w", err)
 		}
-		if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGC, vtsAtrt); err != nil {
+		if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGCs, vtsAtrt); err != nil {
 			return fmt.Errorf("vmg ifo sector patch failed: %w", err)
 		}
 		logFn("IFO sector addresses patched")
@@ -3667,6 +3717,18 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 
 	progressFn(100.0)
 	return nil
+}
+
+// concatenateMenuFile appends a menu MPG file to an existing VOB file.
+func concatenateMenuFile(outFile *os.File, mpgPath string) error {
+	inFile, err := os.Open(mpgPath)
+	if err != nil {
+		return err
+	}
+	defer inFile.Close()
+
+	_, err = io.Copy(outFile, inFile)
+	return err
 }
 
 // authorCopyFile copies src to dst using a streaming io.Copy.

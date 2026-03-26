@@ -19,9 +19,22 @@ const FFmpegDllBinPath = "VideoTools" + string(filepath.Separator) + "ffmpeg-dll
 const FFmpegDllZipURL = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
 
 // LocalFFmpegDllDir returns the path to local FFmpeg DLLs if they exist.
-// This allows using the same FFmpeg DLLs that were used for compilation.
+// Checks the bundled dll/ subfolder next to the exe first, then common
+// developer install paths.
 func LocalFFmpegDllDir() string {
-	// Check common installation paths
+	// Check bundled dll/ folder alongside the executable (MSIX / portable release)
+	if exe, err := os.Executable(); err == nil {
+		bundled := filepath.Join(filepath.Dir(exe), "dll")
+		if _, err := os.Stat(filepath.Join(bundled, "avcodec.dll")); err == nil {
+			return bundled
+		}
+		// BtbN versioned names (e.g. avcodec-61.dll)
+		if matches, _ := filepath.Glob(filepath.Join(bundled, "avcodec*.dll")); len(matches) > 0 {
+			return bundled
+		}
+	}
+
+	// Common developer installation paths
 	paths := []string{
 		"C:\\ffmpeg\\bin",
 		"C:\\Program Files\\ffmpeg\\bin",

@@ -187,21 +187,74 @@ func WritePGCITI(pgc *ProgramChain) ([]byte, error) {
 	//     Bytes 12-15: PGC_Start_Byte (uint32) — offset of PGC within PGCITI
 	// Total header + 1 pointer = 16 bytes; PGC follows immediately.
 
-	const tableHeaderSize = 8  // NrOf + Reserved + EndByte
-	const ptrSize = 8          // Category + Reserved + PGC_Start_Byte
+	const tableHeaderSize = 8 // NrOf + Reserved + EndByte
+	const ptrSize = 8         // Category + Reserved + PGC_Start_Byte
 	pgcStartByte := uint32(tableHeaderSize + ptrSize)
 	endByte := pgcStartByte + uint32(len(pgcData)) - 1
 
 	var buf bytes.Buffer
-	binary.Write(&buf, binary.BigEndian, uint16(1))          // NrOf_VTS_PGCI
-	binary.Write(&buf, binary.BigEndian, uint16(0))          // Reserved
-	binary.Write(&buf, binary.BigEndian, endByte)            // EndByte
-	binary.Write(&buf, binary.BigEndian, uint16(0x8000))     // Category: entry PGC
-	binary.Write(&buf, binary.BigEndian, uint16(0))          // Reserved
-	binary.Write(&buf, binary.BigEndian, pgcStartByte)       // PGC_Start_Byte
+	binary.Write(&buf, binary.BigEndian, uint16(1))      // NrOf_VTS_PGCI
+	binary.Write(&buf, binary.BigEndian, uint16(0))      // Reserved
+	binary.Write(&buf, binary.BigEndian, endByte)        // EndByte
+	binary.Write(&buf, binary.BigEndian, uint16(0x8000)) // Category: entry PGC
+	binary.Write(&buf, binary.BigEndian, uint16(0))      // Reserved
+	binary.Write(&buf, binary.BigEndian, pgcStartByte)   // PGC_Start_Byte
 	buf.Write(pgcData)
 
 	// Pad to sector boundary
+	if rem := buf.Len() % 2048; rem != 0 {
+		buf.Write(make([]byte, 2048-rem))
+	}
+
+	return buf.Bytes(), nil
+}
+
+// WritePGCITIs serializes multiple PGCs into a VTS_PGCITI block.
+// Each PGC gets its own search pointer with correct offset.
+func WritePGCITIs(pgcs []*ProgramChain) ([]byte, error) {
+	if len(pgcs) == 0 {
+		return nil, nil
+	}
+	if len(pgcs) == 1 {
+		return WritePGCITI(pgcs[0])
+	}
+
+	const tableHeaderSize = 8
+	const ptrSize = 8
+
+	var pgcDataList [][]byte
+	var pgcData bytes.Buffer
+	for _, pgc := range pgcs {
+		data, err := serializePGC(pgc)
+		if err != nil {
+			return nil, err
+		}
+		pgcDataList = append(pgcDataList, data)
+		pgcData.Write(data)
+	}
+
+	pgcStartByte := uint32(tableHeaderSize + ptrSize*len(pgcs))
+	endByte := pgcStartByte + uint32(pgcData.Len()) - 1
+
+	var buf bytes.Buffer
+	binary.Write(&buf, binary.BigEndian, uint16(len(pgcs)))
+	binary.Write(&buf, binary.BigEndian, uint16(0))
+	binary.Write(&buf, binary.BigEndian, endByte)
+
+	currentOffset := pgcStartByte
+	for i := range pgcs {
+		var category uint16 = 0x8000
+		if i == 0 {
+			category = 0x8000
+		}
+		binary.Write(&buf, binary.BigEndian, category)
+		binary.Write(&buf, binary.BigEndian, uint16(0))
+		binary.Write(&buf, binary.BigEndian, currentOffset)
+		currentOffset += uint32(len(pgcDataList[i]))
+	}
+
+	buf.Write(pgcData.Bytes())
+
 	if rem := buf.Len() % 2048; rem != 0 {
 		buf.Write(make([]byte, 2048-rem))
 	}
