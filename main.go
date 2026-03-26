@@ -57,7 +57,6 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 	guitutils "git.leaktechnologies.dev/stu/VideoTools/internal/utils"
-
 )
 
 func ShowErrorLarge(err error, w fyne.Window) {
@@ -5150,13 +5149,28 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 	// Audio codec and settings
 	audioCodec, _ := cfg["audioCodec"].(string)
+	isWebM := strings.EqualFold(selectedFormat.Ext, ".webm")
 	if audioCodec == "Copy" && !isDVD {
-		args = append(args, "-c:a", "copy")
+		if isWebM {
+			args = append(args, "-c:a", "copy")
+		} else {
+			args = append(args, "-c:a", "copy")
+		}
 	} else {
 		var actualAudioCodec string
 		if isDVD {
 			// DVD requires AC-3 audio
 			actualAudioCodec = "ac3"
+		} else if isWebM {
+			// WebM only supports Vorbis and Opus
+			audioCodecLower := strings.ToLower(audioCodec)
+			if audioCodecLower == "aac" || audioCodecLower == "" {
+				actualAudioCodec = "libopus"
+			} else if audioCodecLower == "mp3" || audioCodecLower == "ac-3" || audioCodecLower == "flac" {
+				actualAudioCodec = "libopus"
+			} else {
+				actualAudioCodec = determineAudioCodec(convertConfig{AudioCodec: audioCodec})
+			}
 		} else {
 			actualAudioCodec = determineAudioCodec(convertConfig{AudioCodec: audioCodec})
 		}
@@ -5475,6 +5489,10 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 		useSourceFormat = modeVal
 	}
 
+	// Get output extension to check for WebM
+	outputExt, _ := cfg["outputExt"].(string)
+	isWebM := strings.EqualFold(outputExt, ".webm")
+
 	// Probe video to get duration
 	src, err := probeVideo(inputPath)
 	if err != nil {
@@ -5615,6 +5633,10 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			audioCodec := src.AudioCodec
 			if audioCodec == "" || strings.Contains(strings.ToLower(audioCodec), "wmav") {
 				audioCodec = "aac"
+			}
+			// WebM only supports Vorbis and Opus
+			if isWebM {
+				audioCodec = "libopus"
 			}
 
 			args = append(args, "-c:a", audioCodec)
@@ -11066,6 +11088,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			Config: map[string]interface{}{
 				"inputPath":       src.Path,
 				"outputPath":      outPath,
+				"outputExt":       ext,
 				"snippetLength":   float64(state.snippetLength),
 				"useSourceFormat": state.snippetSourceFormat,
 			},
@@ -11131,6 +11154,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 					Config: map[string]interface{}{
 						"inputPath":       src.Path,
 						"outputPath":      outPath,
+						"outputExt":       ext,
 						"snippetLength":   float64(state.snippetLength),
 						"useSourceFormat": state.snippetSourceFormat,
 					},
@@ -12522,7 +12546,6 @@ type playSession struct {
 	// GStreamer player for stable A/V playback
 	gstPlayer *player.GStreamerPlayer
 }
-
 
 func newPlaySession(path string, w, h int, fps, duration float64, targetW, targetH int, prog func(float64), frameFunc func(int), img *canvas.Image) *playSession {
 	if fps <= 0 {
