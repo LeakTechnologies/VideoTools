@@ -528,8 +528,9 @@ func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspec
 type dvdMenuSet struct {
 	MainMpg         string
 	MainButtons     []dvdMenuButton
-	ChaptersMpg     string
-	ChaptersButtons []dvdMenuButton
+	ChaptersMpgs    []string          // Multiple menu pages
+	ChaptersButtons [][]dvdMenuButton // Multiple pages of buttons
+	ChaptersPages   int               // Number of chapter menu pages
 	ExtrasMpg       string
 	ExtrasButtons   []dvdMenuButton
 }
@@ -551,18 +552,20 @@ func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect stri
 	}
 
 	result := dvdMenuSet{
-		MainMpg:     mainMpg,
-		MainButtons: mainButtons,
+		MainMpg:      mainMpg,
+		MainButtons:  mainButtons,
+		ChaptersMpgs: []string{},
 	}
 
 	// Generate chapters menu if there are multiple chapters
 	if len(chapters) > 1 {
-		chaptersMenuMpg, chaptersButtons, err := buildChaptersMenuMPEGSet(ctx, workDir, title, region, aspect, chapters, backgroundImage, motionBackground, theme, logFn, chapterVideoPath, chapterThumbMode, chapterThumbOffset)
+		chaptersMpgs, chaptersButtons, err := buildChaptersMenuMPEGSet(ctx, workDir, title, region, aspect, chapters, backgroundImage, motionBackground, theme, logFn, chapterVideoPath, chapterThumbMode, chapterThumbOffset)
 		if err != nil {
 			return dvdMenuSet{}, err
 		}
-		result.ChaptersMpg = chaptersMenuMpg
+		result.ChaptersMpgs = chaptersMpgs
 		result.ChaptersButtons = chaptersButtons
+		result.ChaptersPages = len(chaptersMpgs)
 	}
 
 	// Generate extras menu if there are extras
@@ -646,43 +649,94 @@ func buildExtrasMenuMPEGSet(ctx context.Context, workDir, title, region, aspect 
 	return menuSpu, buttons, nil
 }
 
-func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logFn func(string), chapterVideoPath string, chapterThumbMode ChapterThumbMode, chapterThumbOffset float64) (string, []dvdMenuButton, error) {
+func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logFn func(string), chapterVideoPath string, chapterThumbMode ChapterThumbMode, chapterThumbOffset float64) ([]string, [][]dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
-	buttons := buildChapterMenuButtons(chapters, width, height)
-	if len(buttons) == 0 {
-		return "", nil, nil
-	}
 
-	bgPath := filepath.Join(workDir, "chapters_menu_bg.png")
-	overlayPath := filepath.Join(workDir, "chapters_menu_overlay.png")
-	highlightPath := filepath.Join(workDir, "chapters_menu_highlight.png")
-	selectPath := filepath.Join(workDir, "chapters_menu_select.png")
-	menuSpu := filepath.Join(workDir, "chapters_menu_spu.mpg")
+	// Calculate optimal paging based on menu dimensions
+	// Header takes ~100px, navigation buttons at bottom if needed
+	headerHeight := 100
+	buttonHeight := 28
+	buttonSpacing := 4
+	chaptersPerPage := CalculateOptimalPaging(len(chapters), height, headerHeight, buttonHeight, buttonSpacing)
+
+	if len(chaptersPerPage) == 0 || chaptersPerPage[0] == 0 {
+		return nil, nil, nil
+	}
 
 	if logFn != nil {
-		logFn("Building chapters menu assets...")
+		logFn(fmt.Sprintf("Building chapters menu: %d chapters across %d page(s)...", len(chapters), len(chaptersPerPage)))
 	}
 
-	// Generate chapter thumbnails if video path is provided
-	var chapterThumbPaths []string
+	// Generate thumbnails for ALL chapters (we'll slice per page)
+	var allThumbPaths []string
 	if chapterVideoPath != "" && chapterThumbOffset > 0 {
-		chapterThumbPaths = generateChapterThumbnails(ctx, workDir, chapterVideoPath, chapters, ChapterThumbModeStart, chapterThumbOffset, logFn)
+		allThumbPaths = generateChapterThumbnails(ctx, workDir, chapterVideoPath, chapters, chapterThumbMode, chapterThumbOffset, logFn)
 	}
 
-	if err := buildChaptersMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), chapterThumbPaths, logFn); err != nil {
-		return "", nil, err
+	var mpgPaths []string
+	var allButtons [][]dvdMenuButton
+
+	// Build each page
+	for pageIndex, chapterCount := range chaptersPerPage {
+		chapterStart, _ := GetChapterRangeForPage(chapters, chaptersPerPage, pageIndex)
+
+		hasPrevPage := pageIndex > 0
+		hasNextPage := pageIndex < len(chaptersPerPage)-1
+
+		buttons := buildChapterMenuButtonsForPage(
+			chapters,
+			chapterStart,
+			chapterCount,
+			width,
+			height,
+			hasPrevPage,
+			hasNextPage,
+			pageIndex,
+		)
+		allButtons = append(allButtons, buttons)
+
+		// Get thumbnails for this page's chapters
+		pageThumbPaths := allThumbPaths[chapterStart : chapterStart+chapterCount]
+
+		// Pad to match button count (in case thumbnail count is less)
+		for len(pageThumbPaths) < chapterCount {
+			pageThumbPaths = append(pageThumbPaths, "")
+		}
+
+		// Build paths for this page
+		bgPath := filepath.Join(workDir, fmt.Sprintf("chapters_menu_%d_bg.png", pageIndex+1))
+		overlayPath := filepath.Join(workDir, fmt.Sprintf("chapters_menu_%d_overlay.png", pageIndex+1))
+		highlightPath := filepath.Join(workDir, fmt.Sprintf("chapters_menu_%d_highlight.png", pageIndex+1))
+		selectPath := filepath.Join(workDir, fmt.Sprintf("chapters_menu_%d_select.png", pageIndex+1))
+		menuSpu := filepath.Join(workDir, fmt.Sprintf("chapters_menu_%d_spu.mpg", pageIndex+1))
+
+		// Build background with thumbnails
+		if err := buildChaptersMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), pageThumbPaths, logFn); err != nil {
+			return nil, nil, err
+		}
+
+		// Build overlays
+		if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
+			return nil, nil, err
+		}
+
+		// Encode SPU
+		if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+			return nil, nil, fmt.Errorf("native SPU encoder: %w", err)
+		}
+
+		mpgPaths = append(mpgPaths, menuSpu)
+
+		if logFn != nil {
+			logStr := fmt.Sprintf("Chapters page %d created: %d chapters", pageIndex+1, chapterCount)
+			if hasPrevPage || hasNextPage {
+				logStr += " (with navigation)"
+			}
+			logFn(logStr)
+		}
 	}
-	if err := buildMenuOverlays(ctx, overlayPath, highlightPath, selectPath, buttons, width, height, resolveMenuTheme(theme), logFn); err != nil {
-		return "", nil, err
-	}
-	// Use native Go SPU encoder (zero-dep)
-	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
-		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
-	}
-	if logFn != nil {
-		logFn(fmt.Sprintf("Chapters menu created: %s", filepath.Base(menuSpu)))
-	}
-	return menuSpu, buttons, nil
+
+	return mpgPaths, allButtons, nil
 }
 
 // generateChapterThumbnails creates thumbnail images for each chapter.
@@ -931,10 +985,19 @@ func buildChapterMenuButtonsForPage(chapters []authorChapter, chapterStart, chap
 	// Add navigation buttons at the bottom if needed
 	navStartY := startY + chapterCount*rowHeight + 10
 
+	// PGC numbering: 1=Main, 2=ChaptersPage1, 3=ChaptersPage2, etc.
+	// currentPage is 0-based, so PGC = currentPage + 2
+	thisPGC := currentPage + 2
+
 	if hasPrevPage {
+		// Previous page: jump to PGC (currentPage + 1), or back to main if first chapter page
+		prevPGC := thisPGC - 1
+		if prevPGC < 2 {
+			prevPGC = 1 // Go back to main menu
+		}
 		prevButton := dvdMenuButton{
 			Label:   t.AuthorPrevPage,
-			Command: "jump menu 3;", // TODO: Jump to previous chapters page
+			Command: fmt.Sprintf("jump menu %d;", prevPGC),
 			IsNav:   true,
 			NavType: "prev",
 			X0:      x0,
@@ -946,9 +1009,11 @@ func buildChapterMenuButtonsForPage(chapters []authorChapter, chapterStart, chap
 	}
 
 	if hasNextPage {
+		// Next page: jump to PGC (currentPage + 3)
+		nextPGC := thisPGC + 1
 		nextButton := dvdMenuButton{
 			Label:   t.AuthorNextPage,
-			Command: "jump menu 3;", // TODO: Jump to next chapters page
+			Command: fmt.Sprintf("jump menu %d;", nextPGC),
 			IsNav:   true,
 			NavType: "next",
 			X0:      x1 - 120,

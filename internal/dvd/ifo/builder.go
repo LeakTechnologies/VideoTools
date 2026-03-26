@@ -139,10 +139,10 @@ func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain
 
 // GenerateVMG_IFO creates VIDEO_TS.IFO and VIDEO_TS.BUP.
 // All table parameters may be nil; when non-nil they are written in spec order:
-//   - srpt    → TT_SRPT at sector 1 (title search pointer table)
-//   - menuPGC → VMG_PGCITI (menu program chain)
-//   - vtsAtrt → VMG_VTS_ATRT (VTS attribute table; cross-validates stream attrs)
-func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGC *ProgramChain, vtsAtrt *VTS_ATRT) error {
+//   - srpt      → TT_SRPT at sector 1 (title search pointer table)
+//   - menuPGCs  → VMG_PGCITI (menu program chains; multiple for multi-page menus)
+//   - vtsAtrt   → VMG_VTS_ATRT (VTS attribute table; cross-validates stream attrs)
+func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGCs []*ProgramChain, vtsAtrt *VTS_ATRT) error {
 	ifoPath := filepath.Join(b.outputDir, "VIDEO_TS.IFO")
 	bupPath := filepath.Join(b.outputDir, "VIDEO_TS.BUP")
 
@@ -162,9 +162,9 @@ func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGC *ProgramC
 	}
 
 	var pgcitiData []byte
-	if menuPGC != nil {
+	if len(menuPGCs) > 0 {
 		var err error
-		pgcitiData, err = WritePGCITI(menuPGC)
+		pgcitiData, err = WritePGCITIs(menuPGCs)
 		if err != nil {
 			return fmt.Errorf("serialize vmg_pgciti: %w", err)
 		}
