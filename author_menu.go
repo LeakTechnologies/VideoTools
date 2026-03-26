@@ -534,7 +534,7 @@ type dvdMenuSet struct {
 	ExtrasButtons   []dvdMenuButton
 }
 
-func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, extras []extraItem, logFn func(string), template MenuTemplate, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, chapterVideoPath string, chapterThumbOffset float64) (dvdMenuSet, error) {
+func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, extras []extraItem, logFn func(string), template MenuTemplate, backgroundImage, motionBackground string, theme *MenuTheme, logo menuLogoOptions, chapterVideoPath string, chapterThumbMode ChapterThumbMode, chapterThumbOffset float64) (dvdMenuSet, error) {
 	if template == nil {
 		template = &SimpleMenu{}
 	}
@@ -557,7 +557,7 @@ func buildDVDMenuAssets(ctx context.Context, workDir, title, region, aspect stri
 
 	// Generate chapters menu if there are multiple chapters
 	if len(chapters) > 1 {
-		chaptersMenuMpg, chaptersButtons, err := buildChaptersMenuMPEGSet(ctx, workDir, title, region, aspect, chapters, backgroundImage, motionBackground, theme, logFn, chapterVideoPath, chapterThumbOffset)
+		chaptersMenuMpg, chaptersButtons, err := buildChaptersMenuMPEGSet(ctx, workDir, title, region, aspect, chapters, backgroundImage, motionBackground, theme, logFn, chapterVideoPath, chapterThumbMode, chapterThumbOffset)
 		if err != nil {
 			return dvdMenuSet{}, err
 		}
@@ -646,7 +646,7 @@ func buildExtrasMenuMPEGSet(ctx context.Context, workDir, title, region, aspect 
 	return menuSpu, buttons, nil
 }
 
-func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logFn func(string), chapterVideoPath string, chapterThumbOffset float64) (string, []dvdMenuButton, error) {
+func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspect string, chapters []authorChapter, backgroundImage, motionBackground string, theme *MenuTheme, logFn func(string), chapterVideoPath string, chapterThumbMode ChapterThumbMode, chapterThumbOffset float64) (string, []dvdMenuButton, error) {
 	width, height := dvdMenuDimensions(region)
 	buttons := buildChapterMenuButtons(chapters, width, height)
 	if len(buttons) == 0 {
@@ -666,7 +666,7 @@ func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspec
 	// Generate chapter thumbnails if video path is provided
 	var chapterThumbPaths []string
 	if chapterVideoPath != "" && chapterThumbOffset > 0 {
-		chapterThumbPaths = generateChapterThumbnails(ctx, workDir, chapterVideoPath, chapters, chapterThumbOffset, logFn)
+		chapterThumbPaths = generateChapterThumbnails(ctx, workDir, chapterVideoPath, chapters, ChapterThumbModeStart, chapterThumbOffset, logFn)
 	}
 
 	if err := buildChaptersMenuBackground(ctx, bgPath, title, buttons, width, height, resolveMenuTheme(theme), chapterThumbPaths, logFn); err != nil {
@@ -687,18 +687,52 @@ func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspec
 
 // generateChapterThumbnails creates thumbnail images for each chapter.
 // Returns slice of thumbnail paths in order of chapters.
-func generateChapterThumbnails(ctx context.Context, workDir, videoPath string, chapters []authorChapter, offsetSeconds float64, logFn func(string)) []string {
+// ChapterThumbMode defines how to position chapter thumbnails
+type ChapterThumbMode string
+
+const (
+	ChapterThumbModeStart    ChapterThumbMode = "start"    // At chapter start
+	ChapterThumbModeMidpoint ChapterThumbMode = "midpoint" // At chapter midpoint
+	ChapterThumbModeCustom   ChapterThumbMode = "custom"   // At custom offset from chapter start
+)
+
+// generateChapterThumbnails creates thumbnail images for each chapter.
+// mode determines where in the chapter to capture: start, midpoint, or custom offset.
+// offsetSeconds is used for custom mode (and as additional offset for start mode).
+func generateChapterThumbnails(ctx context.Context, workDir, videoPath string, chapters []authorChapter, mode ChapterThumbMode, offsetSeconds float64, logFn func(string)) []string {
 	var thumbPaths []string
 	thumbWidth := 160
 	thumbHeight := 90
 
 	for i, chapter := range chapters {
-		// Calculate timestamp: chapter start + offset
-		timestamp := chapter.Timestamp + offsetSeconds
+		var timestamp float64
+
+		switch mode {
+		case ChapterThumbModeMidpoint:
+			// Calculate midpoint: chapter start + half of assumed 5-minute duration
+			// In practice we'd need chapter duration, but we'll use a reasonable default
+			chapterDuration := 300.0 // 5 minutes default
+			if i < len(chapters)-1 {
+				chapterDuration = chapters[i+1].Timestamp - chapter.Timestamp
+			}
+			timestamp = chapter.Timestamp + (chapterDuration / 2)
+		case ChapterThumbModeCustom:
+			// Custom offset from chapter start
+			timestamp = chapter.Timestamp + offsetSeconds
+		case ChapterThumbModeStart:
+		default:
+			// Default: start with optional offset
+			timestamp = chapter.Timestamp + offsetSeconds
+		}
+
 		thumbPath := filepath.Join(workDir, fmt.Sprintf("chapter_%02d_thumb.png", i+1))
 
 		if logFn != nil {
-			logFn(fmt.Sprintf("Generating thumbnail for chapter %d at %.1fs...", i+1, timestamp))
+			modeDesc := string(mode)
+			if mode == ChapterThumbModeStart && offsetSeconds > 0 {
+				modeDesc = fmt.Sprintf("start+%.1fs", offsetSeconds)
+			}
+			logFn(fmt.Sprintf("Generating thumbnail for chapter %d at %.1fs (%s)...", i+1, timestamp, modeDesc))
 		}
 
 		args := []string{
