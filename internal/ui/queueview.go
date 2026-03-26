@@ -211,6 +211,7 @@ type queueCallbacks struct {
 	onStart       func()
 	onClear       func()
 	onClearAll    func()
+	onRetry       func(string)
 	onCopyError   func(string)
 	onViewLog     func(string)
 	onCopyCommand func(string)
@@ -274,6 +275,7 @@ func BuildQueueView(
 	onClear func(),
 	onClearAll func(),
 	onCancelAll func(),
+	onRetry func(string),
 	onCopyError func(string),
 	onViewLog func(string),
 	onCopyCommand func(string),
@@ -397,6 +399,7 @@ func BuildQueueView(
 			onStart:       onStart,
 			onClear:       onClear,
 			onClearAll:    onClearAll,
+			onRetry:       onRetry,
 			onCopyError:   onCopyError,
 			onViewLog:     onViewLog,
 			onCopyCommand: onCopyCommand,
@@ -553,6 +556,11 @@ func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
 			openOutputBtn.Importance = widget.LowImportance
 			buttons = append(buttons, container.NewVBox(openFolderBtn, openOutputBtn))
 		}
+		if (job.Status == queue.JobStatusFailed || job.Status == queue.JobStatusCancelled) && callbacks.onRetry != nil && isRetryableJobType(job.Type) {
+			retryBtn := widget.NewButton("Retry", func() { callbacks.onRetry(job.ID) })
+			retryBtn.Importance = widget.MediumImportance
+			buttons = append(buttons, retryBtn)
+		}
 		if job.Status == queue.JobStatusFailed && strings.TrimSpace(job.Error) != "" && callbacks.onCopyError != nil {
 			buttons = append(buttons,
 				widget.NewButton("Copy Error", func() { callbacks.onCopyError(job.ID) }),
@@ -569,6 +577,16 @@ func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
 	}
 
 	return container.NewHBox(buttons...)
+}
+
+// isRetryableJobType returns true for processing jobs that produce output and can be safely retried.
+func isRetryableJobType(t queue.JobType) bool {
+	switch t {
+	case queue.JobTypePlayer, queue.JobTypeInspect, queue.JobTypeCompare, queue.JobTypeBenchmark:
+		return false
+	default:
+		return true
+	}
 }
 
 // openOutputLabel returns an appropriate button label based on the output file type.

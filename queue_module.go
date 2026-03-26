@@ -154,6 +154,11 @@ func (s *appState) refreshQueueView() {
 				s.jobQueue.CancelAll()
 				s.refreshQueueView()
 			},
+			OnRetry: func(id string) {
+				if err := s.jobQueue.RetryJob(id); err != nil {
+					logging.Debug(logging.CatSystem, "retry job failed: %v", err)
+				}
+			},
 			OnCopyError: func(id string) {
 				job, err := s.jobQueue.Get(id)
 				if err != nil {
