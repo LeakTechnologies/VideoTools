@@ -36,22 +36,69 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Setup MSYS2
+      - name: Setup MSYS2 + FFmpeg dev libs
         uses: msys2/setup-msys2@v2
         with:
           update: true
           msystem: UCRT64
           install: >-
             mingw-w64-ucrt-x86_64-toolchain
+            mingw-w64-ucrt-x86_64-ffmpeg
 
-      - name: Build Windows binary
+      - name: Build Windows binary (native_media)
         shell: pwsh
         run: |
-          $env:GOOS = "windows"
-          $env:GOARCH = "amd64"
+          $msys2 = "C:\msys64\ucrt64"
+          $env:GOOS    = "windows"
+          $env:GOARCH  = "amd64"
           $env:CGO_ENABLED = "1"
+          $env:CC  = "$msys2\bin\gcc.exe"
+          $env:CXX = "$msys2\bin\g++.exe"
+          # Append MSYS2 include/lib paths — the hardcoded C:/ffmpeg paths in
+          # engine.go are silently ignored when that directory doesn't exist.
+          $env:CGO_CFLAGS  = "-I$msys2\include"
+          $env:CGO_LDFLAGS = "-L$msys2\lib"
+          $env:PATH = "$msys2\bin;" + $env:PATH
+
+          $buildVersion = git describe --tags --always 2>$null
+          $ldflags = "-s -w -H windowsgui -X main.BuildVersion=$buildVersion"
+
           New-Item -ItemType Directory -Force dist\windows | Out-Null
-          go build -ldflags "-H windowsgui" -o dist/windows/VideoTools.exe
+          go build -tags native_media -ldflags $ldflags -o dist\windows\VideoTools.exe
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Write-Host "Build complete: $(Get-Item dist\windows\VideoTools.exe | Select-Object -ExpandProperty Length) bytes"
+
+      - name: Bundle FFmpeg DLLs alongside exe
+        shell: pwsh
+        run: |
+          # Pre-populate the MSIX layout dir so pack.ps1 finds the DLLs already there.
+          # pack.ps1 uses New-Item -Force which won't clear existing files.
+          $layoutDir = "dist\windows\msix\layout"
+          New-Item -ItemType Directory -Force $layoutDir | Out-Null
+
+          $msys2Bin = "C:\msys64\ucrt64\bin"
+
+          # FFmpeg shared libs
+          Get-ChildItem $msys2Bin -Filter "av*.dll"  | Copy-Item -Destination $layoutDir -Force
+          Get-ChildItem $msys2Bin -Filter "sw*.dll"  | Copy-Item -Destination $layoutDir -Force
+
+          # MinGW runtime DLLs that the above depend on
+          @(
+            "libgcc_s_seh-1.dll",
+            "libwinpthread-1.dll",
+            "libstdc++-6.dll",
+            "zlib1.dll",
+            "libbz2-1.dll",
+            "liblzma-5.dll"
+          ) | ForEach-Object {
+            $src = Join-Path $msys2Bin $_
+            if (Test-Path $src) {
+              Copy-Item $src $layoutDir -Force
+              Write-Host "Copied $_"
+            }
+          }
+
+          Write-Host "Layout DLLs: $((Get-ChildItem $layoutDir -Filter *.dll).Count)"
 
       - name: Set version
         id: version
