@@ -43,3 +43,6 @@ scripts/git_converter/*.wmv
 scripts/git_converter/*.ts
 scripts/git_converter/*.m2ts
 scripts/git_converter/git_converter.sh
+
+# Test DVD output directory
+test_dvd/
