@@ -194,6 +194,46 @@ func (q *Queue) Get(id string) (*Job, error) {
 	return nil, fmt.Errorf("job not found: %s", id)
 }
 
+// RetryJob creates a fresh copy of a failed or cancelled job and adds it to the queue.
+func (q *Queue) RetryJob(id string) error {
+	q.mu.RLock()
+	var original *Job
+	for _, j := range q.jobs {
+		if j.ID == id {
+			original = j
+			break
+		}
+	}
+	q.mu.RUnlock()
+
+	if original == nil {
+		return fmt.Errorf("job not found: %s", id)
+	}
+	if original.Status != JobStatusFailed && original.Status != JobStatusCancelled {
+		return fmt.Errorf("job %s is not in a retryable state (%s)", id, original.Status)
+	}
+
+	// Deep-copy config map so the retry is independent of the original.
+	configCopy := make(map[string]interface{}, len(original.Config))
+	for k, v := range original.Config {
+		configCopy[k] = v
+	}
+
+	retry := &Job{
+		Type:        original.Type,
+		Status:      JobStatusPending,
+		Title:       original.Title,
+		Description: original.Description,
+		InputFile:   original.InputFile,
+		OutputFile:  original.OutputFile,
+		Config:      configCopy,
+		Priority:    original.Priority,
+		CreatedAt:   time.Now(),
+	}
+	q.Add(retry)
+	return nil
+}
+
 // List returns all jobs in the queue
 func (q *Queue) List() []*Job {
 	q.mu.RLock()
