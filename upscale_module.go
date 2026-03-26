@@ -53,7 +53,69 @@ func (s *appState) showUpscaleView() {
 	s.lastModule = s.active
 	s.active = "upscale"
 	s.maximizeWindow()
-	s.setContent(upscale.BuildView(s.upscaleOptions()))
+	content := upscale.BuildView(s.upscaleOptions())
+	s.setContent(ui.NewDroppable(content, func(items []fyne.URI) {
+		s.handleDrop(fyne.NewPos(0, 0), items)
+	}))
+}
+
+// mainToUpscaleVideoSource converts a main-package videoSource to the upscale package's
+// exported VideoSource type, which is the type expected by upscale.BuildView callbacks.
+func mainToUpscaleVideoSource(v *videoSource) *upscale.VideoSource {
+	if v == nil {
+		return nil
+	}
+	return &upscale.VideoSource{
+		Path:              v.Path,
+		Format:            v.Format,
+		VideoCodec:        v.VideoCodec,
+		Width:             v.Width,
+		Height:            v.Height,
+		FrameRate:         v.FrameRate,
+		Bitrate:           v.Bitrate,
+		PixelFormat:       v.PixelFormat,
+		ColorSpace:        v.ColorSpace,
+		ColorRange:        v.ColorRange,
+		FieldOrder:        v.FieldOrder,
+		GOPSize:           v.GOPSize,
+		AudioCodec:        v.AudioCodec,
+		AudioBitrate:      v.AudioBitrate,
+		AudioRate:         v.AudioRate,
+		Channels:          v.Channels,
+		SampleAspectRatio: v.SampleAspectRatio,
+		HasChapters:       v.HasChapters,
+		HasMetadata:       v.HasMetadata,
+		Duration:          v.Duration,
+	}
+}
+
+// upscaleToMainVideoSource converts an upscale.VideoSource back to the main-package videoSource.
+func upscaleToMainVideoSource(v *upscale.VideoSource) *videoSource {
+	if v == nil {
+		return nil
+	}
+	return &videoSource{
+		Path:              v.Path,
+		Format:            v.Format,
+		VideoCodec:        v.VideoCodec,
+		Width:             v.Width,
+		Height:            v.Height,
+		FrameRate:         v.FrameRate,
+		Bitrate:           v.Bitrate,
+		PixelFormat:       v.PixelFormat,
+		ColorSpace:        v.ColorSpace,
+		ColorRange:        v.ColorRange,
+		FieldOrder:        v.FieldOrder,
+		GOPSize:           v.GOPSize,
+		AudioCodec:        v.AudioCodec,
+		AudioBitrate:      v.AudioBitrate,
+		AudioRate:         v.AudioRate,
+		Channels:          v.Channels,
+		SampleAspectRatio: v.SampleAspectRatio,
+		HasChapters:       v.HasChapters,
+		HasMetadata:       v.HasMetadata,
+		Duration:          v.Duration,
+	}
 }
 
 func (s *appState) upscaleOptions() upscale.Options {
@@ -61,7 +123,7 @@ func (s *appState) upscaleOptions() upscale.Options {
 		Window:      s.window,
 		ModuleColor: moduleColor("upscale"),
 
-		UpscaleFile: s.upscaleFile,
+		UpscaleFile: mainToUpscaleVideoSource(s.upscaleFile),
 		QueueBtn:    s.queueBtn,
 
 		OnShowMainMenu:           s.showMainMenu,
@@ -79,11 +141,15 @@ func (s *appState) upscaleOptions() upscale.Options {
 			return gridColor
 		},
 		OnProbeVideo: func(path string) (interface{}, error) {
-			return probeVideo(path)
+			result, err := probeVideo(path)
+			if err != nil {
+				return nil, err
+			}
+			return mainToUpscaleVideoSource(result), nil
 		},
 		OnBuildVideoPane: func(state interface{}, size fyne.Size, src interface{}, overlay fyne.CanvasObject) fyne.CanvasObject {
-			if vs, ok := src.(*videoSource); ok {
-				return buildVideoPane(nil, size, vs, nil)
+			if vs, ok := src.(*upscale.VideoSource); ok {
+				return buildVideoPane(nil, size, upscaleToMainVideoSource(vs), nil)
 			}
 			return nil
 		},
@@ -140,7 +206,11 @@ func (s *appState) upscaleOptions() upscale.Options {
 		UpscaleColorDepth:          func() string { return s.upscaleColorDepth },
 		UpscaleSkinTone:            func() string { return s.upscaleSkinTone },
 
-		SetUpscaleFile:                func(f interface{}) { s.upscaleFile = f.(*videoSource) },
+		SetUpscaleFile: func(f interface{}) {
+			if vs, ok := f.(*upscale.VideoSource); ok {
+				s.upscaleFile = upscaleToMainVideoSource(vs)
+			}
+		},
 		SetUpscaleMethod:              func(v string) { s.upscaleMethod = v },
 		SetUpscaleTargetRes:           func(v string) { s.upscaleTargetRes = v },
 		SetUpscaleCustomWidth:         func(v int) { s.upscaleCustomWidth = v },
@@ -190,8 +260,8 @@ func (s *appState) upscaleOptions() upscale.Options {
 
 		FiltersFile: func() interface{} { return s.filtersFile },
 		SetFiltersFile: func(f interface{}) {
-			if vs, ok := f.(*videoSource); ok {
-				s.filtersFile = vs
+			if vs, ok := f.(*upscale.VideoSource); ok {
+				s.filtersFile = upscaleToMainVideoSource(vs)
 			}
 		},
 		JobQueue: func() *queue.Queue { return s.jobQueue },
