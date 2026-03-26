@@ -963,11 +963,21 @@ func buildMinimalMenuBackground(ctx context.Context, outputPath, title string, b
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
-	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+
+	// Only add output label if logos are enabled; otherwise FFmpeg will complain about unconnected output
+	hasLogos := logo.TitleLogo.Enabled || logo.StudioLogo.Enabled
+	var filterExpr string
+	var baseLayer string
+	if hasLogos {
+		filterExpr = fmt.Sprintf("[0:v]%s[bg]", filterChain)
+		baseLayer = "[bg]"
+	} else {
+		filterExpr = fmt.Sprintf("[0:v]%s", filterChain)
+		baseLayer = "[0:v]"
+	}
 
 	// Handle title logo and studio logo overlays
 	inputIndex := 1
-	baseLayer := "[bg]"
 
 	// Add title logo if enabled
 	if logo.TitleLogo.Enabled {
@@ -1040,11 +1050,21 @@ func buildClassicMenuBackground(ctx context.Context, outputPath, title string, b
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
-	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+
+	// Only add output label if logos are enabled; otherwise FFmpeg will complain about unconnected output
+	hasLogos := logo.TitleLogo.Enabled || logo.StudioLogo.Enabled
+	var filterExpr string
+	var baseLayer string
+	if hasLogos {
+		filterExpr = fmt.Sprintf("[0:v]%s[bg]", filterChain)
+		baseLayer = "[bg]"
+	} else {
+		filterExpr = fmt.Sprintf("[0:v]%s", filterChain)
+		baseLayer = "[0:v]"
+	}
 
 	// Handle logo overlays
 	inputIndex := 1
-	baseLayer := "[bg]"
 
 	if logo.TitleLogo.Enabled {
 		titleLogoPath := resolveMenuLogoPath(logo.TitleLogo)
@@ -1117,11 +1137,21 @@ func buildGridMenuBackground(ctx context.Context, outputPath, title string, butt
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
-	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+
+	// Only add output label if logos are enabled; otherwise FFmpeg will complain about unconnected output
+	hasLogos := logo.TitleLogo.Enabled || logo.StudioLogo.Enabled
+	var filterExpr string
+	var baseLayer string
+	if hasLogos {
+		filterExpr = fmt.Sprintf("[0:v]%s[bg]", filterChain)
+		baseLayer = "[bg]"
+	} else {
+		filterExpr = fmt.Sprintf("[0:v]%s", filterChain)
+		baseLayer = "[0:v]"
+	}
 
 	// Handle logo overlays
 	inputIndex := 1
-	baseLayer := "[bg]"
 
 	if logo.TitleLogo.Enabled {
 		titleLogoPath := resolveMenuLogoPath(logo.TitleLogo)
@@ -1187,11 +1217,21 @@ func buildFilmstripMenuBackground(ctx context.Context, outputPath, title string,
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
-	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+
+	// Only add output label if logos are enabled; otherwise FFmpeg will complain about unconnected output
+	hasLogos := logo.TitleLogo.Enabled || logo.StudioLogo.Enabled
+	var filterExpr string
+	var baseLayer string
+	if hasLogos {
+		filterExpr = fmt.Sprintf("[0:v]%s[bg]", filterChain)
+		baseLayer = "[bg]"
+	} else {
+		filterExpr = fmt.Sprintf("[0:v]%s", filterChain)
+		baseLayer = "[0:v]"
+	}
 
 	// Handle logo overlays
 	inputIndex := 1
-	baseLayer := "[bg]"
 
 	if logo.TitleLogo.Enabled {
 		titleLogoPath := resolveMenuLogoPath(logo.TitleLogo)
@@ -1251,11 +1291,21 @@ func buildDarkMenuBackground(ctx context.Context, outputPath, title string, butt
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
-	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+
+	// Only add output label if logos are enabled; otherwise FFmpeg will complain about unconnected output
+	hasLogos := logo.TitleLogo.Enabled || logo.StudioLogo.Enabled
+	var filterExpr string
+	var baseLayer string
+	if hasLogos {
+		filterExpr = fmt.Sprintf("[0:v]%s[bg]", filterChain)
+		baseLayer = "[bg]"
+	} else {
+		filterExpr = fmt.Sprintf("[0:v]%s", filterChain)
+		baseLayer = "[0:v]"
+	}
 
 	// Handle title logo and studio logo overlays
 	inputIndex := 1
-	baseLayer := "[bg]"
 
 	// Add title logo if enabled
 	if logo.TitleLogo.Enabled {
