@@ -884,11 +884,21 @@ func buildMenuBackground(ctx context.Context, outputPath, title string, buttons 
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
-	filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+
+	// Only add output label if logos are enabled; otherwise FFmpeg will complain about unconnected output
+	hasLogos := logo.TitleLogo.Enabled || logo.StudioLogo.Enabled
+	var filterExpr string
+	var baseLayer string
+	if hasLogos {
+		filterExpr = fmt.Sprintf("[0:v]%s[bg]", filterChain)
+		baseLayer = "[bg]"
+	} else {
+		filterExpr = fmt.Sprintf("[0:v]%s", filterChain)
+		baseLayer = "[0:v]"
+	}
 
 	// Handle title logo and studio logo overlays
 	inputIndex := 1
-	baseLayer := "[bg]"
 
 	// Add title logo if enabled
 	if logo.TitleLogo.Enabled {
