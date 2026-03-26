@@ -1300,11 +1300,21 @@ func buildPosterMenuBackground(ctx context.Context, outputPath, title string, bu
 	filterChain := strings.Join(filterParts, ",")
 
 	args := []string{"-y", "-i", backgroundImage}
-	filterExpr := fmt.Sprintf("[0:v]scale=%d:%d,%s[bg]", width, height, filterChain)
+
+	// Only add output label if logos are enabled; otherwise FFmpeg will complain about unconnected output
+	hasLogos := logo.TitleLogo.Enabled || logo.StudioLogo.Enabled
+	var filterExpr string
+	var baseLayer string
+	if hasLogos {
+		filterExpr = fmt.Sprintf("[0:v]scale=%d:%d,%s[bg]", width, height, filterChain)
+		baseLayer = "[bg]"
+	} else {
+		filterExpr = fmt.Sprintf("[0:v]scale=%d:%d,%s", width, height, filterChain)
+		baseLayer = "[0:v]"
+	}
 
 	// Handle title logo and studio logo overlays
 	inputIndex := 1
-	baseLayer := "[bg]"
 
 	// Add title logo if enabled
 	if logo.TitleLogo.Enabled {
@@ -1703,9 +1713,18 @@ func menuFontArg(theme *MenuTheme) string {
 
 func resolveMenuLogoPath(logo menuLogo) string {
 	if strings.TrimSpace(logo.Path) != "" {
-		return logo.Path
+		if _, err := os.Stat(logo.Path); err == nil {
+			return logo.Path
+		}
+		logging.Debug(logging.CatModule, "custom logo not found: %s", logo.Path)
+		return ""
 	}
-	return filepath.Join("assets", "logo", "VT_Logo.png")
+	defaultPath := filepath.Join("assets", "logo", "VT_Logo.png")
+	if _, err := os.Stat(defaultPath); err == nil {
+		return defaultPath
+	}
+	logging.Debug(logging.CatModule, "default logo not found: %s", defaultPath)
+	return ""
 }
 
 func resolveMenuLogoScale(logo menuLogo) float64 {
