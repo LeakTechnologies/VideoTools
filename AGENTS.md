@@ -183,3 +183,77 @@ task(description="Fix other errors", prompt="...", subagent_type="general")
 - Include the expected commit message format
 - Verify build passes after all sub-agents complete
 - Merge any conflicting changes manually before committing
+
+## Platform Scope
+
+VideoTools targets **Linux and Windows only**. macOS is not a supported platform.
+
+- Linux is the **primary development platform**. Implement features properly here first.
+- Windows is the **primary user/tester platform**. Zero new runtime dependencies — use OS-built-ins only (e.g. `isoburn.exe` for disc burning).
+- Linux may take small runtime dependencies where appropriate (e.g. `dvd+rw-tools` for disc burning).
+- Do not add macOS-specific code paths, CI jobs, or documentation.
+
+## Planned Feature: Update-Install Guard (Not Yet Implemented)
+
+**Problem:** `applyUpdate` downloads a new binary and calls `performRestart`, which terminates the running process. If a queue job or conversion is active this destroys in-progress work with no warning.
+
+**Scope:** `settings_module.go` only. No structural changes required.
+
+### Entry points to guard
+
+There are exactly two places `applyUpdate` is called:
+
+1. `settings_module.go` ~line 1040 — "Install Update" button inside the `CheckForUpdatesWithStatus` dialog (triggered when a newer version tag is available).
+2. `settings_module.go` ~line 1082 — "Install Patches" button in the same flow (triggered when same version tag but binary hash mismatch).
+
+Both are `widget.Button` `OnTapped` closures that call `applyUpdate(state, tag)` directly.
+
+### Guard logic
+
+Before calling `applyUpdate`, check two conditions:
+
+```go
+queueBusy := state.jobQueue != nil && state.jobQueue.IsRunning()
+busy := state.convertBusy || queueBusy
+```
+
+If `busy == true`, **do not call `applyUpdate`**. Instead show a blocking information dialog:
+
+```
+title:   "Update Blocked"
+message: "A job is currently running. Please wait for all jobs to finish before installing an update.\n\nUpdates require a restart and would interrupt active work."
+button:  "OK"
+```
+
+If `busy == false`, proceed with the existing `applyUpdate(state, tag)` call unchanged.
+
+### What NOT to change
+
+- Do not add an auto-retry or deferred install ("install when idle") — keep it simple.
+- Do not disable the "Check for Updates" button or hide the update dialog — only block the final install action.
+- Do not touch `applyUpdate` itself or `performRestart`.
+- Do not add the guard to `applyUpdateStatusToUI` — that function only updates UI labels, it never installs.
+- The `ApplyUpdate` adapter on `preferencesAdapter` (~line 1596) does not need changing; the guard belongs at the call site in the dialog callbacks, not in the adapter.
+
+### i18n strings to add
+
+Add to `internal/i18n/strings.go` and both locale files (`en_ca.go`, `fr_ca.go`):
+
+| Key | English value |
+|---|---|
+| `DialogUpdateBlocked` | `"Update Blocked"` |
+| `StatusUpdateBlockedByJob` | `"A job is currently running. Please wait for all jobs to finish before installing an update.\n\nUpdates require a restart and would interrupt active work."` |
+
+### Commit message
+
+```
+fix(settings): block update install while queue or conversion job is active
+```
+
+### Test plan
+
+1. Start a conversion or queue job.
+2. Open Settings → Updates tab → check for updates.
+3. When the "Install Update" or "Install Patches" dialog appears, click the install button.
+4. Verify the "Update Blocked" dialog appears and `applyUpdate` is NOT called.
+5. Let all jobs finish, then retry — verify the update proceeds normally.
