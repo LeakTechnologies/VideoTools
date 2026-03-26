@@ -2369,7 +2369,10 @@ func concatDVDMpg(inputs []string, output string) error {
 		return fmt.Errorf("failed to create concat list: %w", err)
 	}
 	for _, path := range inputs {
-		fmt.Fprintf(listFile, "file '%s'\n", strings.ReplaceAll(path, "'", "'\\''"))
+		// Use forward slashes — FFmpeg's concat demuxer handles them on all platforms
+		// and they avoid backslash-escaping issues inside single-quoted paths.
+		fwdPath := strings.ReplaceAll(path, `\`, `/`)
+		fmt.Fprintf(listFile, "file '%s'\n", strings.ReplaceAll(fwdPath, "'", `'\''`))
 	}
 	if err := listFile.Close(); err != nil {
 		return fmt.Errorf("failed to write concat list: %w", err)
@@ -2377,6 +2380,7 @@ func concatDVDMpg(inputs []string, output string) error {
 	defer os.Remove(listPath)
 
 	args := []string{
+		"-y", // Overwrite output if it exists (e.g. on retry)
 		"-hide_banner",
 		"-loglevel", "error",
 		"-f", "concat",
@@ -2389,7 +2393,16 @@ func concatDVDMpg(inputs []string, output string) error {
 		output,
 	}
 	cmd := utils.CreateCommandRaw(utils.GetFFmpegPath(), args...)
-	return cmd.Run()
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		msg := strings.TrimSpace(stderr.String())
+		if msg != "" {
+			return fmt.Errorf("%w\n%s", err, msg)
+		}
+		return err
+	}
+	return nil
 }
 
 func (s *appState) resetAuthorLog() {
