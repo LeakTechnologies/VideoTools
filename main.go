@@ -12098,15 +12098,8 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	state.stopPreview()
 
 	sourceFrame := ""
-	if len(src.PreviewFrames) == 0 {
-		if thumb, err := capturePreviewFrames(src.Path, src.Duration); err == nil && len(thumb) > 0 {
-			sourceFrame = thumb[0]
-			src.PreviewFrames = thumb
-		}
-	} else {
+	if len(src.PreviewFrames) > 0 {
 		sourceFrame = src.PreviewFrames[0]
-	}
-	if sourceFrame != "" {
 		state.currentFrame = sourceFrame
 	}
 
@@ -14202,6 +14195,17 @@ func (s *appState) loadMultipleVideos(paths []string) {
 		}
 	}, false)
 
+	// Pre-generate preview frames for remaining videos in the background
+	for _, v := range validVideos[1:] {
+		video := v
+		go func() {
+			if frames, err := capturePreviewFrames(video.Path, video.Duration); err == nil && len(frames) > 0 {
+				video.PreviewFrames = frames
+				logging.Debug(logging.CatModule, "pre-generated preview frames for %s", filepath.Base(video.Path))
+			}
+		}()
+	}
+
 	logging.Debug(logging.CatModule, "loaded %d videos into memory", len(validVideos))
 }
 
@@ -14361,28 +14365,32 @@ func (s *appState) switchToVideo(index int) {
 	s.playerPos = 0
 	s.playerPaused = true
 
-	if len(src.PreviewFrames) == 0 {
-		// Generate frames in background to avoid blocking the UI thread
-		go func() {
-			if frames, err := capturePreviewFrames(src.Path, src.Duration); err == nil {
-				src.PreviewFrames = frames
-			}
-			frame := ""
-			if len(src.PreviewFrames) > 0 {
-				frame = src.PreviewFrames[0]
-			}
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				s.currentFrame = frame
-				s.showConvertView(src)
-			}, false)
-		}()
-		return
+	if len(src.PreviewFrames) > 0 {
+		s.currentFrame = src.PreviewFrames[0]
+	} else {
+		s.currentFrame = ""
 	}
 
-	s.currentFrame = src.PreviewFrames[0]
+	// Show immediately with whatever frame we have (may be blank while frames generate)
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.showConvertView(src)
 	}, false)
+
+	// If frames aren't ready yet, generate them in background and refresh the view
+	if len(src.PreviewFrames) == 0 {
+		go func() {
+			if frames, err := capturePreviewFrames(src.Path, src.Duration); err == nil && len(frames) > 0 {
+				src.PreviewFrames = frames
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					// Only refresh if the user is still on this video
+					if s.source == src {
+						s.currentFrame = frames[0]
+						s.showConvertView(src)
+					}
+				}, false)
+			}
+		}()
+	}
 }
 
 // nextVideo switches to the next loaded video
