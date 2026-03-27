@@ -570,7 +570,7 @@ func probeHWAccel(cached **bool, args []string, label string) bool {
 	// give it a real pipe to write into.
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		logging.Debug(logging.CatFFMPEG, "%s runtime check failed: %v — %s", label, err, strings.TrimSpace(string(out)))
+		logging.Info(logging.CatFFMPEG, "%s runtime check failed: %v — %s", label, err, strings.TrimSpace(string(out)))
 		return false
 	}
 	ok := true
@@ -579,11 +579,17 @@ func probeHWAccel(cached **bool, args []string, label string) bool {
 	return true
 }
 
+// hwProbeSource is a lavfi color source that outputs yuv420p — the format all
+// hardware encoders (NVENC, QSV, AMF, VAAPI) accept directly. nullsrc produces
+// an unformatted raw buffer which can cause format negotiation failures.
+// 128x128 satisfies minimum size requirements across all encoder families.
+const hwProbeSource = "color=black:size=128x128:rate=25"
+
 // checkNvencRuntime does a real encode probe to verify NVIDIA GPU + drivers are working.
 func checkNvencRuntime() bool {
 	return probeHWAccel(&nvencProbeOK, []string{
 		"-hide_banner", "-loglevel", "error",
-		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+		"-f", "lavfi", "-i", hwProbeSource,
 		"-frames:v", "1", "-c:v", "h264_nvenc",
 		"-f", "null", "-",
 	}, "nvenc")
@@ -593,7 +599,7 @@ func checkNvencRuntime() bool {
 func checkQsvRuntime() bool {
 	return probeHWAccel(&qsvProbeOK, []string{
 		"-hide_banner", "-loglevel", "error",
-		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+		"-f", "lavfi", "-i", hwProbeSource,
 		"-frames:v", "1", "-c:v", "h264_qsv",
 		"-preset", "veryfast",
 		"-f", "null", "-",
@@ -605,7 +611,7 @@ func checkVaapiRuntime() bool {
 	return probeHWAccel(&vaapiProbeOK, []string{
 		"-hide_banner", "-loglevel", "error",
 		"-vaapi_device", "/dev/dri/renderD128",
-		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+		"-f", "lavfi", "-i", hwProbeSource,
 		"-frames:v", "1",
 		"-vf", "format=nv12,hwupload",
 		"-c:v", "h264_vaapi",
@@ -617,7 +623,7 @@ func checkVaapiRuntime() bool {
 func checkVideotoolboxRuntime() bool {
 	return probeHWAccel(&videotoolboxProbeOK, []string{
 		"-hide_banner", "-loglevel", "error",
-		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+		"-f", "lavfi", "-i", hwProbeSource,
 		"-frames:v", "1", "-c:v", "h264_videotoolbox",
 		"-f", "null", "-",
 	}, "videotoolbox")
@@ -629,7 +635,7 @@ func checkVideotoolboxRuntime() bool {
 func checkAmfRuntime() bool {
 	return probeHWAccel(&amfProbeOK, []string{
 		"-hide_banner", "-loglevel", "error",
-		"-f", "lavfi", "-i", "nullsrc=size=16x16:rate=1",
+		"-f", "lavfi", "-i", hwProbeSource,
 		"-frames:v", "1", "-c:v", "h264_amf",
 		"-f", "null", "-",
 	}, "amf")
