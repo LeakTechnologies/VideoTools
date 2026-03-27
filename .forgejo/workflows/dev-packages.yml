@@ -16,7 +16,7 @@ concurrency:
 # Bump FFMPEG_VERSION to rebuild static FFmpeg on both Linux and Windows.
 # Both jobs use the same source tarball; cache keys include the version.
 env:
-  FFMPEG_VERSION: "7.1"
+  FFMPEG_VERSION: "8.1"
 
 jobs:
   linux-package:
