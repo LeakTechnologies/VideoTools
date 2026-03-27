@@ -866,6 +866,29 @@ var formatAudioCodecs = map[string][]string{
 	".mpg":  {"AC-3", "MP2", "Copy"},
 }
 
+func ensureCompatibleCodec(cfg *convertConfig) {
+	ext := strings.ToLower(cfg.SelectedFormat.Ext)
+	if ext == "" {
+		return
+	}
+
+	if compatibleVideo, ok := formatVideoCodecs[ext]; ok {
+		if !slices.Contains(compatibleVideo, cfg.VideoCodec) && len(compatibleVideo) > 0 {
+			cfg.VideoCodec = compatibleVideo[0]
+			logging.Warning(logging.CatFFMPEG, "incompatible video codec %q for format %s, using %q",
+				cfg.VideoCodec, ext, compatibleVideo[0])
+		}
+	}
+
+	if compatibleAudio, ok := formatAudioCodecs[ext]; ok {
+		if !slices.Contains(compatibleAudio, cfg.AudioCodec) && len(compatibleAudio) > 0 {
+			cfg.AudioCodec = compatibleAudio[0]
+			logging.Warning(logging.CatFFMPEG, "incompatible audio codec %q for format %s, using %q",
+				cfg.AudioCodec, ext, compatibleAudio[0])
+		}
+	}
+}
+
 type convertConfig struct {
 	OutputBase       string
 	OutputDir        string
@@ -14769,6 +14792,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 	}
 	src := s.source
 	cfg := s.convert
+	ensureCompatibleCodec(&cfg)
 	sourceBitrate := src.Bitrate
 	isDVD := cfg.SelectedFormat.Ext == ".mpg"
 	outDir := filepath.Dir(src.Path)
