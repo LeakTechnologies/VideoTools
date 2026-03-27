@@ -62,6 +62,8 @@ var enCA = Strings{
 	DialogNoRunningJob:       "No running job to cancel.",
 	DialogISOCannotOpen:      "Open DVD ISO",
 	DialogISOCannotOpenMsg:   "DVD ISO files cannot be loaded directly.\n\nUse the Author module to re-author or browse the disc contents.",
+	DialogBurnComingSoon:     "Burn DVD",
+	DialogBurnComingSoonMsg:  "DVD burning will be available in a future update.",
 	LabelSnippet:             "Snippet:",
 	MergeStarted:             "Merge started!",
 

@@ -63,6 +63,8 @@ var frCA = Strings{
 	DialogNoRunningJob:       "Aucune tâche en cours à annuler.",
 	DialogISOCannotOpen:      "Ouvrir ISO DVD",
 	DialogISOCannotOpenMsg:   "Les fichiers ISO DVD ne peuvent pas être chargés directement.\n\nUtilisez le module Auteur pour ré-écrire ou parcourir le contenu du disque.",
+	DialogBurnComingSoon:     "Graver DVD",
+	DialogBurnComingSoonMsg:  "La gravure de DVD sera disponible dans une future mise à jour.",
 	LabelSnippet:             "Extrait :",
 	MergeStarted:             "Fusion démarrée !",
 

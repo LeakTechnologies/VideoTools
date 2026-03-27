@@ -65,6 +65,8 @@ var iu = Strings{
 	DialogNoRunningJob:       "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᑎᖕᓂᖓᓂᑦ",                                                // No running job to cancel
 	DialogISOCannotOpen:      "ISO ᑕᐃᑯᓂᖓ",                                                       // Open DVD ISO
 	DialogISOCannotOpenMsg:   "ISO ᑕᐃᑯᓂᖓ ᐱᔪᓐᓇᖅᑐᑦ ᐱᓕᕆᐊᖅᑕᐅᔾᔨᓗᒍ ᐊᐅᓚᑦᑎᐅᔪᑦ.\n\nᐊᐅᓚᑦᑎᐅᔪᑦ ᐊᐅᓚᓚᐅᕐᕕᒋᓗᒍ.", // DVD ISO files cannot be loaded directly
+	DialogBurnComingSoon:     "DVD ᐊᐅᓚᓚᐅᕐᕕᒋᓗ",                                                   // Burn DVD
+	DialogBurnComingSoonMsg:  "DVD ᐊᐅᓚᓚᐅᕐᕕᒋᓗ ᐱᓕᕆᐊᖅᑕᐅᔾᔨᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ ᐃᓱᒃᑕᐅᔪᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ.",    // DVD burning will be available in a future update
 	LabelSnippet:             "ᐃᓱᒃᑕᐅᔪᑦ:",                                                        // Snippet:
 	MergeStarted:             "ᓄᑖᕐᕕᒋᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ",                                                 // Merge started!
 
