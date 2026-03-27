@@ -4,7 +4,7 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev38`.
+- Current cycle: `v0.1.1-dev39`.
 - Public/stable baseline: `v0.1.1`.
 - `dev30` is closed. CI validated on 2026-03-10 (runs 219/220/221, commit 2cbb3a2).
 - `dev32` closed. CI validated on 2026-03-15.
@@ -14,6 +14,8 @@ These rules apply to any automation or agent working in this repo.
 
 ## Immediate Handoff Priorities
 
+- **Burn module** — Implement disc burning; see docs/BURN_MODULE_DESIGN.md
+- **Auto-grey codecs** — Filter incompatible codecs based on format; see docs/AUTO_GREY_CODECS.md
 - **Module extraction** — Continue settings_module.go extraction to `internal/app/modules/settings/`.
 - **Issue #5** (Convert UI cleanup) — layout consistency and label clarity pass on `buildConvertView` in `main.go`.
 - Do not expand scope beyond what is listed unless explicitly approved.
@@ -40,6 +42,13 @@ These rules apply to any automation or agent working in this repo.
 - `CHANGELOG.md` means `docs/CHANGELOG.md` in this repo.
 - Avoid personal names in documentation; use `user report` or `dev report` only.
 - The retired `docs.leaktechnologies.dev` site must not be used; active docs live in-repo and on the Forgejo wiki.
+
+### New Feature Documentation
+
+- Create `docs/FEATURE_NAME.md` before implementation begins
+- Include: overview, features, technical implementation, files to modify, testing checklist
+- Link design doc in TODO.md and AGENTS.md immediate priorities
+- Example: `docs/BURN_MODULE_DESIGN.md`, `docs/AUTO_GREY_CODECS.md`
 
 ## Internationalization (i18n)
 

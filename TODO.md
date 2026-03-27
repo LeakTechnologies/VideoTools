@@ -16,6 +16,12 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Implement burn logic** — Use isoburn (Windows) or growisofs (Linux)
 - [ ] **Queue integration** — Wire OnBurnISO callback
 
+### UI Improvements
+- [ ] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
+  - When format selected, filter codec/audio options to compatible only
+  - Grey out incompatible options in dropdown
+  - Auto-select compatible codec when format changes
+
 ### Author Module
 - [x] **Interactive Preview tab** — Full DVD menu preview with video playback
 - [x] **Module extraction** — Author module extracted to internal/app/modules/author/
