@@ -180,8 +180,8 @@ func packVideoAttrs(va VideoAttributes) (byte, byte) {
 //	0x080 (128) — VMGI_Last_Byte (4 bytes; last byte of this IFO sector = 2047)
 //	0x084 (132) — First_Play_PGC (4 bytes; byte offset to first-play PGC in IFO)
 //	0x088 (136) — zero_5 (56 reserved bytes — must be zero)
-//	0x0C0 (192) — TT_SRPT_Offset (4 bytes) ← Title Search Pointer Table sector
-//	0x0C4 (196) — VMG_PTT_SRPT_Offset (4 bytes; 0)
+//	0x0C0 (192) — VMGM_VOBS_Sector (4 bytes; start sector of menu VOBs; 0 if none)
+//	0x0C4 (196) — TT_SRPT_Offset (4 bytes) ← Title Search Pointer Table sector
 //	0x0C8 (200) — VMGM_PGCI_UT_Offset (4 bytes; VMG menu PGC)
 //	0x0CC (204) — VMG_PTL_MAIT_Offset (4 bytes; parental; 0)
 //	0x0D0 (208) — VMG_VTS_ATRT_Offset (4 bytes; VTS attribute table)
@@ -236,11 +236,11 @@ func SerializeVMGMAT(mat *VMG_MAT) []byte {
 
 	// 0x092-0x0BF: Reserved (46 bytes)
 
-	// 0x0C0: TT_SRPT_Offset (Title Search Pointer Table)
-	binary.BigEndian.PutUint32(b[192:196], mat.TT_SRPT_Offset)
+	// 0x0C0: VMGM_VOBS_Sector (start sector of VMGM VOBs; 0 = no menu VOBs)
+	binary.BigEndian.PutUint32(b[192:196], mat.VMGM_VOBS_Sector)
 
-	// 0x0C4: VMG_PTT_SRPT_Offset (0 = not present)
-	binary.BigEndian.PutUint32(b[196:200], mat.VMG_PTT_SRPT_Offset)
+	// 0x0C4: TT_SRPT_Offset (Title Search Pointer Table)
+	binary.BigEndian.PutUint32(b[196:200], mat.TT_SRPT_Offset)
 
 	// 0x0C8: VMGM_PGCI_UT_Offset (menu PGC; maps to VMG_PGCITI_Offset)
 	binary.BigEndian.PutUint32(b[200:204], mat.VMG_PGCITI_Offset)
