@@ -261,17 +261,28 @@ jobs:
 
           $bashPath = "C:\msys64\usr\bin\bash.exe"
 
+          # Helper: run a bash command, printing all output as plain text.
+          # Piping through ForEach-Object prevents PowerShell from treating
+          # stderr lines (e.g. MSYS2 first-run messages) as fatal ErrorRecords.
+          function Invoke-Bash([string]$cmd) {
+            & $bashPath -lc $cmd 2>&1 | ForEach-Object { Write-Host $_ }
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "bash command failed (exit $LASTEXITCODE): $cmd"
+              exit 1
+            }
+          }
+
           # Install ucrt64 toolchain if not already present
           if (-not (Test-Path "C:\msys64\ucrt64\bin\gcc.exe")) {
             Write-Host "[INFO] Installing MSYS2 ucrt64 toolchain..."
-            & $bashPath -lc "pacman -Sy --noconfirm && pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain" 2>&1
+            Invoke-Bash "pacman -Sy --noconfirm && pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain"
           } else {
             Write-Host "[INFO] ucrt64 toolchain present"
           }
 
           # Install FFmpeg (includes static .a libs and pkg-config .pc files)
           Write-Host "[INFO] Installing mingw-w64-ucrt-x86_64-ffmpeg..."
-          & $bashPath -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-ffmpeg" 2>&1
+          Invoke-Bash "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-ffmpeg"
           Write-Host "[INFO] FFmpeg static libs ready"
 
       - name: Build Windows package
