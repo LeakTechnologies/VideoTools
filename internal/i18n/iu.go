@@ -35,36 +35,38 @@ var iu = Strings{
 	ModuleSettings:    "ᐋᖅᑭᒃᓱᐃᓂᖅ",   // Settings
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
-	DialogCompare:            "ᓇᓗᓇᐃᖅᓯᓗᒋᑦ ᕿᓂᖅᓴᖨᖏᓐᓂᕐᓗᒍ",                                          // Compare Videos
-	DialogInspect:            "ᖃᐅᔨᓴᕐᓗᒍ ᕿᓂᖅᓴᖨᖏᓐᓂᕐᓗᒍ",                                            // Inspect Video
-	DialogThumbnail:          "ᐊᑭᖃᓪᓕᐊᑦ ᓴᓇᓗᒍ",                                                   // Thumbnail Generation
-	DialogSnippet:            "ᐃᓱᒃᑕᐅᔪᑦ",                                                        // Snippet
-	DialogInterlacing:        "ᓱᓕᒐᓪᓕᓕᐅᔪᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                            // Interlacing Analysis
-	DialogInterlacingResults: "ᓱᓕᒐᓪᓕᓕᐅᔪᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                    // Interlacing Analysis Results
-	DialogAutoCrop:           "ᐊᐅᑎᒃ ᑕᐅᔪᓐᓇᖅᑐᑦ",                                                  // Auto-Crop
-	DialogAutoCropDetection:  "ᐊᐅᑎᒃ ᑕᐅᔪᓐᓇᖅᑐᑦ ᓇᓗᓇᐃᖅᓯᓗᒍ",                                         // Auto-Crop Detection
-	DialogNoBlackBars:        "ᐊᑕᐃᓯᒪᔪᑦ ᓄᓇᓖᑦ ᐊᒐᒃᓯᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ. ᕿᓂᖅᓴᖨᖏᓐᓂᖅ ᐊᑐᖅᑎᑕᐅᔪᖅ ᓄᓇᓖᑦ ᑕᐅᔪᓐᓇᖅᑐᖅ.", // No black bars detected
-	DialogNoVideo:            "ᕿᓂᖅᓴᖨᖏᓐᓂᖅ ᓵᕝᕙᔪᖅ",                                                // No Video
-	DialogNoFile:             "ᓴᓗᐃᔪᖅ ᓵᕝᕙᔪᖅ",                                                    // No File
-	DialogNoConfig:           "ᐃᓄᖁᔮᖃᕐᓂᖅ ᓵᕝᕙᔪᖅ",                                                 // No Config
-	DialogConfigSaved:        "ᐃᓄᖁᔮᖃᕐᓂᖅ ᓴᐳᒻᒥᔪᒍ",                                                // Config Saved
-	DialogCopied:             "ᐊᒐᒃᓯᔪᒍ",                                                         // Copied
-	DialogNoLog:              "ᓴᓗᐃᔪᖅ ᓵᕝᕙᔪᖅ",                                                    // No Log
-	DialogQueued:             "ᐃᓚᓕᐅᔾᔨᓗᒍ",                                                       // Queued
-	DialogCancelled:          "ᐊᑎᖕᓂᖓ",                                                          // Cancelled
-	DialogBatchAdd:           "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᒋᒃᓯᔪᖅ",                                                // Batch Add
-	DialogRecovery:           "ᐃᓱᒃᑕᐅᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                                // Conversion Recovery
-	DialogSnippets:           "ᐃᓱᒃᑕᐅᔪᑦ",                                                        // Snippets
-	DialogPreview:            "ᐊᑭᖃᓪᓕᐊᑦ ᓴᓇᓗᒍ",                                                   // Generating Preview
-	DialogPlayback:           "ᑕᕐᕆᔭᒃᓴᓕᕆᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                             // Playback Unavailable
-	DialogJobQueued:          "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᒐᒃᓯᔪᒍ",                                                // Job Queued
-	DialogMerge:              "ᓄᑖᕐᕕᒋᓗᒍ",                                                        // Merge
-	DialogCancel:             "ᐊᑎᖕᓂᖓ",                                                          // Cancel
-	DialogSnippetCreated:     "ᐃᓱᒃᑕᐅᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                                // Snippet Created
-	DialogQueueNotInit:       "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ",                                               // Queue not initialized
-	DialogNoRunningJob:       "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᑎᖕᓂᖓᓂᑦ",                                               // No running job to cancel
-	LabelSnippet:             "ᐃᓱᒃᑕᐅᔪᑦ:",                                                       // Snippet:
-	MergeStarted:             "ᓄᑖᕐᕕᒋᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ",                                                // Merge started!
+	DialogCompare:            "ᓇᓗᓇᐃᖅᓯᓗᒋᑦ ᕿᓂᖅᓴᖨᖏᓐᓂᕐᓗᒍ",                                           // Compare Videos
+	DialogInspect:            "ᖃᐅᔨᓴᕐᓗᒍ ᕿᓂᖅᓴᖨᖏᓐᓂᕐᓗᒍ",                                             // Inspect Video
+	DialogThumbnail:          "ᐊᑭᖃᓪᓕᐊᑦ ᓴᓇᓗᒍ",                                                    // Thumbnail Generation
+	DialogSnippet:            "ᐃᓱᒃᑕᐅᔪᑦ",                                                         // Snippet
+	DialogInterlacing:        "ᓱᓕᒐᓪᓕᓕᐅᔪᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                             // Interlacing Analysis
+	DialogInterlacingResults: "ᓱᓕᒐᓪᓕᓕᐅᔪᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                     // Interlacing Analysis Results
+	DialogAutoCrop:           "ᐊᐅᑎᒃ ᑕᐅᔪᓐᓇᖅᑐᑦ",                                                   // Auto-Crop
+	DialogAutoCropDetection:  "ᐊᐅᑎᒃ ᑕᐅᔪᓐᓇᖅᑐᑦ ᓇᓗᓇᐃᖅᓯᓗᒍ",                                          // Auto-Crop Detection
+	DialogNoBlackBars:        "ᐊᑕᐃᓯᒪᔪᑦ ᓄᓇᓖᑦ ᐊᒐᒃᓯᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ. ᕿᓂᖅᓴᖨᖏᓐᓂᖅ ᐊᑐᖅᑎᑕᐅᔪᖅ ᓄᓇᓖᑦ ᑕᐅᔪᓐᓇᖅᑐᖅ.",  // No black bars detected
+	DialogNoVideo:            "ᕿᓂᖅᓴᖨᖏᓐᓂᖅ ᓵᕝᕙᔪᖅ",                                                 // No Video
+	DialogNoFile:             "ᓴᓗᐃᔪᖅ ᓵᕝᕙᔪᖅ",                                                     // No File
+	DialogNoConfig:           "ᐃᓄᖁᔮᖃᕐᓂᖅ ᓵᕝᕙᔪᖅ",                                                  // No Config
+	DialogConfigSaved:        "ᐃᓄᖁᔮᖃᕐᓂᖅ ᓴᐳᒻᒥᔪᒍ",                                                 // Config Saved
+	DialogCopied:             "ᐊᒐᒃᓯᔪᒍ",                                                          // Copied
+	DialogNoLog:              "ᓴᓗᐃᔪᖅ ᓵᕝᕙᔪᖅ",                                                     // No Log
+	DialogQueued:             "ᐃᓚᓕᐅᔾᔨᓗᒍ",                                                        // Queued
+	DialogCancelled:          "ᐊᑎᖕᓂᖓ",                                                           // Cancelled
+	DialogBatchAdd:           "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᒋᒃᓯᔪᖅ",                                                 // Batch Add
+	DialogRecovery:           "ᐃᓱᒃᑕᐅᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                                 // Conversion Recovery
+	DialogSnippets:           "ᐃᓱᒃᑕᐅᔪᑦ",                                                         // Snippets
+	DialogPreview:            "ᐊᑭᖃᓪᓕᐊᑦ ᓴᓇᓗᒍ",                                                    // Generating Preview
+	DialogPlayback:           "ᑕᕐᕆᔭᒃᓴᓕᕆᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                              // Playback Unavailable
+	DialogJobQueued:          "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᒐᒃᓯᔪᒍ",                                                 // Job Queued
+	DialogMerge:              "ᓄᑖᕐᕕᒋᓗᒍ",                                                         // Merge
+	DialogCancel:             "ᐊᑎᖕᓂᖓ",                                                           // Cancel
+	DialogSnippetCreated:     "ᐃᓱᒃᑕᐅᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                                 // Snippet Created
+	DialogQueueNotInit:       "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ",                                                // Queue not initialized
+	DialogNoRunningJob:       "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᑎᖕᓂᖓᓂᑦ",                                                // No running job to cancel
+	DialogISOCannotOpen:      "ISO ᑕᐃᑯᓂᖓ",                                                       // Open DVD ISO
+	DialogISOCannotOpenMsg:   "ISO ᑕᐃᑯᓂᖓ ᐱᔪᓐᓇᖅᑐᑦ ᐱᓕᕆᐊᖅᑕᐅᔾᔨᓗᒍ ᐊᐅᓚᑦᑎᐅᔪᑦ.\n\nᐊᐅᓚᑦᑎᐅᔪᑦ ᐊᐅᓚᓚᐅᕐᕕᒋᓗᒍ.", // DVD ISO files cannot be loaded directly
+	LabelSnippet:             "ᐃᓱᒃᑕᐅᔪᑦ:",                                                        // Snippet:
+	MergeStarted:             "ᓄᑖᕐᕕᒋᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ",                                                 // Merge started!
 
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert:     "ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",  // Converting
@@ -348,7 +350,7 @@ var iu = Strings{
 	ActionQueuePauseAll:       "ᐊᑦᑐᓂᐃᓐᓇᖅᑐᑦ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",   // Pause All
 	ActionQueueResumeAll:      "ᐊᑦᑐᓂᐃᓐᓇᖅᑐᑦ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",   // Resume All
 	ActionQueueClearCompleted: "ᐃᓱᓕᓚᐅᖅᑐᑦ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",     // Clear Completed
-	ActionQueueCancelAll:      "ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᑕᒪᐃᓐᓂ",         // Cancel All Jobs
+	ActionQueueCancelAll:      "ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᑕᒪᐃᓐᓂ",        // Cancel All Jobs
 
 	// ── History Sidebar ───────────────────────────────────────────────────
 	HistoryTitle:     "ᐊᑐᓚᐅᖅᑕᑦ",     // HISTORY

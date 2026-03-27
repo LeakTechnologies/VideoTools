@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	queuepkg "git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -269,8 +270,13 @@ func (s *appState) refreshQueueView() {
 				ext := strings.ToLower(filepath.Ext(job.OutputFile))
 				isVideo := false
 				switch ext {
-				case ".mp4", ".mkv", ".avi", ".mov", ".mpg", ".mpeg", ".ts", ".m2ts", ".wmv", ".flv", ".webm", ".iso", ".m4v", ".vob":
+				case ".mp4", ".mkv", ".avi", ".mov", ".mpg", ".mpeg", ".ts", ".m2ts", ".wmv", ".flv", ".webm", ".m4v", ".vob":
 					isVideo = true
+				}
+				if ext == ".iso" {
+					t := i18n.T()
+					dialog.ShowInformation(t.DialogISOCannotOpen, t.DialogISOCannotOpenMsg, s.window)
+					return
 				}
 				if isVideo && s.prefs.QueuePlayBehavior == "inspect" {
 					s.showInspectViewForPath(job.OutputFile)
