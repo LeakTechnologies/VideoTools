@@ -264,6 +264,28 @@ func (s *appState) upscaleOptions() upscale.Options {
 				s.filtersFile = upscaleToMainVideoSource(vs)
 			}
 		},
+
+		// Integrated filter controls
+		FilterBrightness: func() float64 { return s.filterBrightness },
+		FilterContrast:   func() float64 { return s.filterContrast },
+		FilterSaturation: func() float64 { return s.filterSaturation },
+		FilterSharpness:  func() float64 { return s.filterSharpness },
+		FilterDenoise:    func() float64 { return s.filterDenoise },
+		FilterGrayscale:  func() bool { return s.filterGrayscale },
+		FilterFlipH:      func() bool { return s.filterFlipH },
+		FilterFlipV:      func() bool { return s.filterFlipV },
+		FilterRotation:   func() int { return s.filterRotation },
+
+		SetFilterBrightness: func(f float64) { s.filterBrightness = f },
+		SetFilterContrast:   func(f float64) { s.filterContrast = f },
+		SetFilterSaturation: func(f float64) { s.filterSaturation = f },
+		SetFilterSharpness:  func(f float64) { s.filterSharpness = f },
+		SetFilterDenoise:    func(f float64) { s.filterDenoise = f },
+		SetFilterGrayscale:  func(b bool) { s.filterGrayscale = b },
+		SetFilterFlipH:      func(b bool) { s.filterFlipH = b },
+		SetFilterFlipV:      func(b bool) { s.filterFlipV = b },
+		SetFilterRotation:   func(i int) { s.filterRotation = i },
+
 		JobQueue: func() *queue.Queue { return s.jobQueue },
 		AddJob:   func(job *queue.Job) { s.jobQueue.Add(job) },
 	}

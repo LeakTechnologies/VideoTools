@@ -128,6 +128,27 @@ type Options struct {
 	SetFiltersFile func(f interface{})
 	JobQueue       func() *queue.Queue
 	AddJob         func(job *queue.Job)
+
+	// Filter state getters for integrated filter controls
+	FilterBrightness func() float64
+	FilterContrast   func() float64
+	FilterSaturation func() float64
+	FilterSharpness  func() float64
+	FilterDenoise    func() float64
+	FilterGrayscale  func() bool
+	FilterFlipH      func() bool
+	FilterFlipV      func() bool
+	FilterRotation   func() int
+
+	SetFilterBrightness func(f float64)
+	SetFilterContrast   func(f float64)
+	SetFilterSaturation func(f float64)
+	SetFilterSharpness  func(f float64)
+	SetFilterDenoise    func(f float64)
+	SetFilterGrayscale  func(b bool)
+	SetFilterFlipH      func(b bool)
+	SetFilterFlipV      func(b bool)
+	SetFilterRotation   func(i int)
 }
 
 const ModuleColor = "#4CAF50"
