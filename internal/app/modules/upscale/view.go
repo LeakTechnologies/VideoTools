@@ -155,7 +155,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}()
 		}, opts.Window)
 	})
-	loadBtn.Importance = widget.HighImportance
+	loadBtn.Importance = widget.LowImportance
 
 	filtersNavBtn := widget.NewButton(t.UpscaleAdjustFilters, func() {
 		if src != nil {
@@ -963,16 +963,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	metaPanel := buildMetadataPanel(opts, src, fyne.NewSize(0, 200))
 
-	leftPanel := container.NewVBox(
-		buildUpscaleBox(t.UpscaleVideoBox, container.NewVBox(
-			fileLabel,
-			loadBtn,
-			filtersNavBtn,
-			videoContainer,
-		)),
-		spacing(),
-		metaPanel,
+	// Compact action row: buttons sit beside the file label in the video box header
+	loadFiltersRow := container.NewHBox(loadBtn, filtersNavBtn, layout.NewSpacer())
+	videoBoxContent := container.NewBorder(
+		container.NewVBox(fileLabel, loadFiltersRow), nil, nil, nil,
+		videoContainer,
 	)
+	videoBox := buildUpscaleBox(t.UpscaleVideoBox, videoBoxContent)
+	metaScroll := ui.NewFastVScroll(metaPanel)
+	leftSplit := container.NewVSplit(videoBox, metaScroll)
+	leftSplit.SetOffset(0.55)
+	leftPanel := leftSplit
 
 	settingsPanel := container.NewVBox(
 		traditionalSection,
@@ -1049,5 +1050,106 @@ type VideoSource struct {
 }
 
 func buildMetadataPanel(opts Options, src *VideoSource, size fyne.Size) fyne.CanvasObject {
-	return container.NewCenter(widget.NewLabel(""))
+	outer := canvas.NewRectangle(navyBlue)
+	outer.CornerRadius = 8
+	outer.StrokeColor = gridColor
+	outer.StrokeWidth = 1
+
+	header := widget.NewLabelWithStyle("Source Metadata", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+
+	if src == nil {
+		body := container.NewVBox(
+			header,
+			widget.NewSeparator(),
+			widget.NewLabel("Load a video to inspect its technical details."),
+		)
+		layers := ui.NoisyBackgroundObjects(outer)
+		layers = append(layers, container.NewPadded(body))
+		return container.NewMax(layers...)
+	}
+
+	valueBg := utils.MustHex("#2B334A")
+	valueBorder := utils.MustHex("#3A4360")
+
+	makeValuePill := func(text string) fyne.CanvasObject {
+		bg := canvas.NewRectangle(valueBg)
+		bg.CornerRadius = 6
+		bg.StrokeColor = valueBorder
+		bg.StrokeWidth = 1
+		lbl := widget.NewLabel(text)
+		lbl.TextStyle = fyne.TextStyle{Monospace: true}
+		lbl.Wrapping = fyne.TextTruncate
+		return container.NewMax(bg, container.NewPadded(lbl))
+	}
+	makeRow := func(key string, value fyne.CanvasObject) fyne.CanvasObject {
+		keyLbl := widget.NewLabel(key + ":")
+		keyLbl.TextStyle = fyne.TextStyle{Bold: true}
+		return container.NewBorder(nil, nil, keyLbl, nil, value)
+	}
+
+	bitrate := "--"
+	if src.Bitrate > 0 {
+		bitrate = fmt.Sprintf("%d kbps", src.Bitrate/1000)
+	}
+	audioBitrate := "--"
+	if src.AudioBitrate > 0 {
+		audioBitrate = fmt.Sprintf("%d kbps", src.AudioBitrate/1000)
+	}
+	interlacing := "Progressive"
+	if src.FieldOrder != "" && src.FieldOrder != "progressive" && src.FieldOrder != "unknown" {
+		interlacing = "Interlaced (" + src.FieldOrder + ")"
+	}
+	colorRange := src.ColorRange
+	if colorRange == "tv" {
+		colorRange = "Limited (TV)"
+	} else if colorRange == "pc" || colorRange == "jpeg" {
+		colorRange = "Full (PC)"
+	}
+	chapters := "No"
+	if src.HasChapters {
+		chapters = "Yes"
+	}
+
+	// Duration display
+	durSec := int(src.Duration)
+	durStr := fmt.Sprintf("%d:%02d:%02d", durSec/3600, (durSec%3600)/60, durSec%60)
+	if durSec == 0 {
+		durStr = "--"
+	}
+	// Aspect ratio display
+	aspectStr := "--"
+	if src.Width > 0 && src.Height > 0 {
+		gcdVal := func(a, b int) int {
+			for b != 0 {
+				a, b = b, a%b
+			}
+			return a
+		}(src.Width, src.Height)
+		aspectStr = fmt.Sprintf("%d:%d (%.2f:1)", src.Width/gcdVal, src.Height/gcdVal, float64(src.Width)/float64(src.Height))
+	}
+
+	col1 := container.NewVBox(
+		makeRow("Resolution", makeValuePill(fmt.Sprintf("%dx%d", src.Width, src.Height))),
+		makeRow("Aspect Ratio", makeValuePill(aspectStr)),
+		makeRow("Frame Rate", makeValuePill(fmt.Sprintf("%.2f fps", src.FrameRate))),
+		makeRow("Duration", makeValuePill(durStr)),
+		makeRow("Interlacing", makeValuePill(interlacing)),
+		makeRow("Color Space", makeValuePill(utils.FirstNonEmpty(src.ColorSpace, "--"))),
+		makeRow("Color Range", makeValuePill(utils.FirstNonEmpty(colorRange, "--"))),
+	)
+	col2 := container.NewVBox(
+		makeRow("Video Codec", makeValuePill(utils.FirstNonEmpty(src.VideoCodec, "Unknown"))),
+		makeRow("Video Bitrate", makeValuePill(bitrate)),
+		makeRow("Pixel Format", makeValuePill(utils.FirstNonEmpty(src.PixelFormat, "--"))),
+		makeRow("Audio Codec", makeValuePill(utils.FirstNonEmpty(src.AudioCodec, "Unknown"))),
+		makeRow("Audio Bitrate", makeValuePill(audioBitrate)),
+		makeRow("Audio Rate", makeValuePill(fmt.Sprintf("%d Hz", src.AudioRate))),
+		makeRow("Chapters", makeValuePill(chapters)),
+	)
+
+	grid := container.NewGridWithColumns(2, col1, col2)
+	body := container.NewVBox(header, widget.NewSeparator(), grid)
+	layers := ui.NoisyBackgroundObjects(outer)
+	layers = append(layers, container.NewPadded(body))
+	return container.NewMax(layers...)
 }
