@@ -57,6 +57,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 
 	player := GetConvertPlayer()
 	playerWidget := player.Widget()
+	playerWidget.DisableBuiltinControls()
 
 	bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
 	bg.CornerRadius = 6

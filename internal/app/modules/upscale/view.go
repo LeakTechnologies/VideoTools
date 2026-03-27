@@ -123,7 +123,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		sourceResLabel.TextStyle = fyne.TextStyle{Italic: true}
 		videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), src, nil)
 		if opts.OnHasNativeMediaPlayer() {
-			opts.OnLoadVideoNative(src.Path)
+			go opts.OnLoadVideoNative(src.Path)
 		}
 	} else {
 		sourceResLabel = widget.NewLabel(t.UpscaleSourceNA)
@@ -150,11 +150,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					opts.SetUpscaleFile(probeSrc)
-					if vs, ok := probeSrc.(*VideoSource); ok {
-						if opts.OnHasNativeMediaPlayer() {
-							opts.OnLoadVideoNative(vs.Path)
-						}
-					}
 					opts.OnRefreshView()
 				}, false)
 			}()
