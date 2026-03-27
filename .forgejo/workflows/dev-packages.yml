@@ -167,7 +167,11 @@ jobs:
     timeout-minutes: 60
     defaults:
       run:
-        shell: powershell
+        # Override the runner's injected $ErrorActionPreference = 'Stop'.
+        # Native commands (bash, pacman, gcc) write to stderr for warnings;
+        # Stop mode turns those into fatal errors. We use explicit
+        # $LASTEXITCODE checks instead for real error detection.
+        shell: powershell -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Continue'; . '{0}'"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -259,6 +263,7 @@ jobs:
 
       - name: Install MSYS2 toolchain and codec deps
         run: |
+          $ErrorActionPreference = 'Continue'
           # MSYS2 must be pre-installed on the runner.
           # One-time setup: run scripts/ci/bootstrap-windows.ps1 from a user session,
           # or install from https://www.msys2.org then:
@@ -349,6 +354,7 @@ jobs:
           VT_SIGN_PASSWORD:  ${{ secrets.VT_SIGN_PASSWORD }}
           VT_SIGN_TIMESTAMP: ${{ secrets.VT_SIGN_TIMESTAMP }}
         run: |
+          $ErrorActionPreference = 'Continue'
           $projectRoot = Resolve-Path "."
           $buildOutput = Join-Path $projectRoot "VideoTools.exe"
           # cgo splits CC on spaces; use command names instead of absolute paths
