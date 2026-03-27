@@ -163,12 +163,17 @@ func (b *Builder) GenerateVMG_IFO(mat *VMG_MAT, srpt *TT_SRPT, menuPGCs []*Progr
 
 	var pgcitiData []byte
 	if len(menuPGCs) > 0 {
+		var firstPGCInTable int
 		var err error
-		pgcitiData, err = WritePGCITIs(menuPGCs)
+		pgcitiData, firstPGCInTable, err = WriteVMGM_PGCI_UT(menuPGCs)
 		if err != nil {
 			return fmt.Errorf("serialize vmg_pgciti: %w", err)
 		}
 		mat.VMG_PGCITI_Offset = nextSector
+		// first_play_pgc is the absolute byte offset within the IFO file of
+		// the main menu PGC. DVD players jump here on disc insertion to show
+		// the menu rather than skipping straight to title 1.
+		mat.VMG_FirstPlayPGC = mat.VMG_PGCITI_Offset*2048 + uint32(firstPGCInTable)
 		nextSector += uint32(len(pgcitiData) / 2048)
 	}
 

@@ -230,14 +230,14 @@ func SerializeVMGMAT(mat *VMG_MAT) []byte {
 
 	// 0x072-0x089: Reserved (24 bytes)
 
-	// 0x08A: VMGI_MAT_Last_Byte (endByte of the VMG MAT structure = 0x07FF - 1 = 2046?)
-	// This is the last byte of the VMGI management table (i.e., 2047 for a full sector, but
-	// set to the actual last byte of meaningful data. Using 0 = not specified is also common).
-	// Many tools set this to the size of the MAT block - 1.
-	binary.BigEndian.PutUint32(b[138:142], uint32(2047)) // last byte of 2048-byte sector
+	// 0x08A: VMGI_MAT_Last_Byte (last byte of the VMGI management table).
+	// Most tools set this to 2047 (= full 2048-byte sector - 1).
+	binary.BigEndian.PutUint32(b[138:142], uint32(2047))
 
-	// 0x08E: VMGM_VOBS_Start_Sector (start sector of menu VOB on disc; 0 = no menu)
-	binary.BigEndian.PutUint32(b[142:146], 0)
+	// 0x08E: First_Play_PGC — byte offset within the IFO file of the PGC that
+	// DVD players execute first when the disc is inserted. Set to the main menu
+	// PGC so the player shows the menu. 0 means "skip to title 1 directly".
+	binary.BigEndian.PutUint32(b[142:146], mat.VMG_FirstPlayPGC)
 
 	// 0x092-0x0BF: Reserved (46 bytes)
 
