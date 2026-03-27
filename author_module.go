@@ -4247,6 +4247,7 @@ func createAuthorLog(inputs []string, outputPath string, makeISO bool, region, a
 		mode = "ISO"
 	}
 	header := fmt.Sprintf(`VideoTools Authoring Log
+Version: %s
 Started: %s
 Inputs: %s
 Output: %s
@@ -4255,7 +4256,7 @@ Region: %s
 Aspect: %s
 Title: %s
 
-`, time.Now().Format(time.RFC3339), strings.Join(inputs, ", "), outputPath, mode, region, aspect, title)
+`, fullVersion(), time.Now().Format(time.RFC3339), strings.Join(inputs, ", "), outputPath, mode, region, aspect, title)
 	if _, err := f.WriteString(header); err != nil {
 		_ = f.Close()
 		return nil, logPath, err

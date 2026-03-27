@@ -328,12 +328,13 @@ func createConversionLog(inputPath, outputPath string, args []string) (*os.File,
 		return nil, logPath, err
 	}
 	header := fmt.Sprintf(`VideoTools Conversion Log
+Version: %s
 Started: %s
 Input: %s
 Output: %s
 Command: ffmpeg %s
 
-`, time.Now().Format(time.RFC3339), inputPath, outputPath, strings.Join(args, " "))
+`, fullVersion(), time.Now().Format(time.RFC3339), inputPath, outputPath, strings.Join(args, " "))
 	if _, err := f.WriteString(header); err != nil {
 		_ = f.Close()
 		return nil, logPath, err
