@@ -13,6 +13,11 @@ concurrency:
   group: dev-packages-${{ github.ref }}
   cancel-in-progress: true
 
+# Bump FFMPEG_VERSION to rebuild static FFmpeg on both Linux and Windows.
+# Both jobs use the same source tarball; cache keys include the version.
+env:
+  FFMPEG_VERSION: "7.1"
+
 jobs:
   linux-package:
     runs-on: ubuntu
@@ -65,7 +70,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/ffmpeg-static
-          key: ffmpeg-static-7.1-linux-v1
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-linux-v1
 
       - name: Install build deps
         run: |
@@ -74,6 +79,8 @@ jobs:
             pkg-config \
             nasm \
             yasm \
+            libx264-dev \
+            libx265-dev \
             libgl1-mesa-dev \
             libx11-dev \
             libxcursor-dev \
@@ -94,9 +101,10 @@ jobs:
         if: steps.cache-ffmpeg-linux.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
-          wget -q -O /tmp/ffmpeg.tar.bz2 https://ffmpeg.org/releases/ffmpeg-7.1.tar.bz2
+          wget -q -O /tmp/ffmpeg.tar.bz2 \
+            https://ffmpeg.org/releases/ffmpeg-${{ env.FFMPEG_VERSION }}.tar.bz2
           tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
-          cd /tmp/ffmpeg-7.1
+          cd /tmp/ffmpeg-${{ env.FFMPEG_VERSION }}
           ./configure \
             --prefix=/opt/ffmpeg-static \
             --enable-static \
@@ -107,10 +115,12 @@ jobs:
             --disable-debug \
             --enable-gpl \
             --enable-version3 \
-            --enable-avfilter
+            --enable-avfilter \
+            --enable-libx264 \
+            --enable-libx265
           make -j$(nproc)
           make install
-          rm -rf /tmp/ffmpeg-7.1 /tmp/ffmpeg.tar.bz2
+          rm -rf /tmp/ffmpeg-${{ env.FFMPEG_VERSION }} /tmp/ffmpeg.tar.bz2
 
       - name: Build Linux package
         env:
@@ -247,11 +257,11 @@ jobs:
           name: VideoTools-windows-diagnostics
           path: dist/windows/diagnostics/windows-runner.txt
 
-      - name: Install MSYS2 and FFmpeg static libs
+      - name: Install MSYS2 toolchain and codec deps
         run: |
           # MSYS2 must be pre-installed on the runner.
           # One-time setup: run scripts/ci/bootstrap-windows.ps1 from a user session,
-          # or install MSYS2 manually from https://www.msys2.org and then run:
+          # or install from https://www.msys2.org then:
           #   pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain
           if (-not (Test-Path "C:\msys64\usr\bin\bash.exe")) {
             Write-Error "MSYS2 not found at C:\msys64. Run scripts/ci/bootstrap-windows.ps1 from a user session to set up the runner."
@@ -261,9 +271,7 @@ jobs:
 
           $bashPath = "C:\msys64\usr\bin\bash.exe"
 
-          # Helper: run a bash command, printing all output as plain text.
-          # Piping through ForEach-Object prevents PowerShell from treating
-          # stderr lines (e.g. MSYS2 first-run messages) as fatal ErrorRecords.
+          # Helper: run bash, converting stderr ErrorRecords to plain text
           function Invoke-Bash([string]$cmd) {
             & $bashPath -lc $cmd 2>&1 | ForEach-Object { Write-Host $_ }
             if ($LASTEXITCODE -ne 0) {
@@ -272,23 +280,75 @@ jobs:
             }
           }
 
-          # Install ucrt64 toolchain if not already present
+          # Toolchain (gcc, make, etc.)
           if (-not (Test-Path "C:\msys64\ucrt64\bin\gcc.exe")) {
-            Write-Host "[INFO] Installing MSYS2 ucrt64 toolchain..."
+            Write-Host "[INFO] Installing ucrt64 toolchain..."
             Invoke-Bash "pacman -Sy --noconfirm && pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain"
           } else {
             Write-Host "[INFO] ucrt64 toolchain present"
           }
 
-          # Install FFmpeg (includes static .a libs and pkg-config .pc files)
-          Write-Host "[INFO] Installing mingw-w64-ucrt-x86_64-ffmpeg..."
-          Invoke-Bash "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-ffmpeg"
-          Write-Host "[INFO] FFmpeg static libs ready"
+          # Minimal external codec deps for the custom FFmpeg build
+          # nasm: assembly optimiser for x264/x265
+          # x264/x265: only external libs we enable; everything else is FFmpeg built-in
+          Write-Host "[INFO] Installing nasm, x264-dev, x265-dev..."
+          Invoke-Bash "pacman -S --needed --noconfirm nasm mingw-w64-ucrt-x86_64-x264 mingw-w64-ucrt-x86_64-x265"
+          Write-Host "[INFO] Codec deps ready"
+
+      - name: Cache static FFmpeg (Windows)
+        id: cache-ffmpeg-windows
+        uses: actions/cache@v4
+        with:
+          path: C:\ffmpeg-static
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-v1
+
+      - name: Build static FFmpeg (Windows)
+        if: steps.cache-ffmpeg-windows.outputs.cache-hit != 'true'
+        run: |
+          $bashPath = "C:\msys64\usr\bin\bash.exe"
+          $ver = "${{ env.FFMPEG_VERSION }}"
+
+          function Invoke-Bash([string]$cmd) {
+            & $bashPath -lc $cmd 2>&1 | ForEach-Object { Write-Host $_ }
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "bash failed (exit $LASTEXITCODE): $cmd"
+              exit 1
+            }
+          }
+
+          Write-Host "[INFO] Downloading FFmpeg $ver source..."
+          Invoke-Bash @"
+            set -euo pipefail
+            wget -q -O /tmp/ffmpeg.tar.bz2 https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2
+            tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
+            cd /tmp/ffmpeg-${ver}
+            ./configure \
+              --prefix=/c/ffmpeg-static \
+              --arch=x86_64 \
+              --target-os=mingw32 \
+              --enable-static \
+              --disable-shared \
+              --enable-pic \
+              --disable-doc \
+              --disable-programs \
+              --disable-debug \
+              --enable-gpl \
+              --enable-version3 \
+              --enable-avfilter \
+              --enable-libx264 \
+              --enable-libx265 \
+              --extra-cflags='-I/ucrt64/include' \
+              --extra-ldflags='-L/ucrt64/lib'
+            make -j`$(nproc)
+            make install
+            rm -rf /tmp/ffmpeg-${ver} /tmp/ffmpeg.tar.bz2
+"@
+          Write-Host "[INFO] FFmpeg $ver built at C:\ffmpeg-static"
 
       - name: Build Windows package
         env:
-          # MSYS2 ucrt64 FFmpeg — static .a libs at C:\msys64\ucrt64\lib
-          PKG_CONFIG_PATH: C:\msys64\ucrt64\lib\pkgconfig
+          # Custom minimal FFmpeg at C:\ffmpeg-static; x264/x265 in MSYS2 ucrt64
+          PKG_CONFIG_PATH: C:\ffmpeg-static\lib\pkgconfig;C:\msys64\ucrt64\lib\pkgconfig
           # SignPath.io (free OSS signing — https://signpath.io/product/open-source)
           # Set these secrets once approved; signing is skipped when absent.
           SIGNPATH_API_TOKEN:       ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -365,21 +425,21 @@ jobs:
 
           $env:CGO_ENABLED = "1"
 
-          # MSYS2 ucrt64 provides static FFmpeg libs and a real pkg-config.
-          # --static expands all transitive deps (zlib, bzip2, x264, etc.) automatically.
-          $msys2Bin    = "C:\msys64\ucrt64\bin"
+          # Custom minimal FFmpeg at C:\ffmpeg-static; x264/x265 from MSYS2 ucrt64.
+          # PKG_CONFIG_PATH covers both so --static resolves all transitive deps.
+          $msys2Bin     = "C:\msys64\ucrt64\bin"
           $pkgConfigExe = Join-Path $msys2Bin "pkg-config.exe"
-          $env:PATH    = "$msys2Bin;C:\msys64\usr\bin;$env:PATH"
-          $env:CGO_CFLAGS = "-IC:\msys64\ucrt64\include"
+          $env:PATH     = "$msys2Bin;C:\msys64\usr\bin;$env:PATH"
+          $env:CGO_CFLAGS = "-IC:\ffmpeg-static\include -IC:\msys64\ucrt64\include"
 
           $ffmpegPkgs = @("libavcodec","libavformat","libswscale","libavutil","libswresample","libavfilter")
           $staticLibs = (& $pkgConfigExe --libs --static $ffmpegPkgs 2>$null) -join " "
           if (-not $staticLibs) {
-            Write-Error "pkg-config returned no flags for FFmpeg — check MSYS2 install"
+            Write-Error "pkg-config returned no flags for FFmpeg — check C:\ffmpeg-static"
             exit 1
           }
-          # -static-libgcc prevents a dependency on libgcc_s_seh-1.dll (not a system DLL)
-          $env:CGO_LDFLAGS = "$staticLibs -static-libgcc"
+          # -static-libgcc: avoids libgcc_s_seh-1.dll dependency (not a Windows system DLL)
+          $env:CGO_LDFLAGS = "$staticLibs -static-libgcc -LC:\msys64\ucrt64\lib"
           Write-Host "[INFO] CGO_LDFLAGS: $env:CGO_LDFLAGS"
 
           go mod download
