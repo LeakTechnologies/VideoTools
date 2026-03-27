@@ -251,7 +251,7 @@ jobs:
         run: |
           $bashPath = "C:\msys64\usr\bin\bash.exe"
           if (-not (Test-Path $bashPath)) {
-            Write-Error "MSYS2 not found at C:\msys64 — ensure the runner was bootstrapped with bootstrap-windows.ps1"
+            Write-Error "MSYS2 not found at C:\msys64 - ensure the runner was bootstrapped with bootstrap-windows.ps1"
             exit 1
           }
           # mingw-w64-ucrt-x86_64-ffmpeg includes both static .a and shared .dll.a libs
