@@ -1448,14 +1448,15 @@ func NewColorCodedSelectContainer(selectWidget *widget.Select, accentColor color
 // ColoredSelect is a custom select widget with color-coded dropdown items
 type ColoredSelect struct {
 	widget.BaseWidget
-	options     []string
-	selected    string
-	colorMap    map[string]color.Color
-	onChanged   func(string)
-	popup       *widget.PopUp
-	window      fyne.Window
-	placeHolder string
-	disabled    bool
+	options         []string
+	selected        string
+	colorMap        map[string]color.Color
+	onChanged       func(string)
+	popup           *widget.PopUp
+	window          fyne.Window
+	placeHolder     string
+	disabled        bool
+	disabledOptions map[string]bool
 }
 
 // NewColoredSelect creates a new colored select widget
@@ -1527,6 +1528,29 @@ func (cs *ColoredSelect) Disable() {
 	cs.Refresh()
 }
 
+// DisableOption marks a specific option as disabled (greyed out but visible)
+func (cs *ColoredSelect) DisableOption(option string) {
+	if cs.disabledOptions == nil {
+		cs.disabledOptions = make(map[string]bool)
+	}
+	cs.disabledOptions[option] = true
+	cs.Refresh()
+}
+
+// EnableOption re-enables a previously disabled option
+func (cs *ColoredSelect) EnableOption(option string) {
+	if cs.disabledOptions != nil {
+		delete(cs.disabledOptions, option)
+	}
+	cs.Refresh()
+}
+
+// EnableAllOptions re-enables all options
+func (cs *ColoredSelect) EnableAllOptions() {
+	cs.disabledOptions = nil
+	cs.Refresh()
+}
+
 // CreateRenderer creates the renderer for the colored select
 func (cs *ColoredSelect) CreateRenderer() fyne.WidgetRenderer {
 	displayText := cs.selected
@@ -1583,19 +1607,31 @@ func (cs *ColoredSelect) showPopup() {
 	for i, option := range cs.options {
 		opt := option // Capture for closure
 
+		// Check if this option is disabled
+		isDisabled := cs.disabledOptions != nil && cs.disabledOptions[opt]
+
 		// Get color for this option
 		itemColor := cs.colorMap[opt]
 		if itemColor == nil {
 			itemColor = color.NRGBA{R: 80, G: 80, B: 80, A: 255} // Default gray
+		}
+		// Grey out disabled options
+		if isDisabled {
+			itemColor = color.NRGBA{R: 100, G: 100, B: 100, A: 128}
 		}
 
 		// Create colored indicator bar
 		colorBar := canvas.NewRectangle(itemColor)
 		colorBar.SetMinSize(fyne.NewSize(4, 24))
 
-		// Create label
-		label := widget.NewLabel(opt)
-
+		// Create label using canvas text for color control
+		textColor := selectTextColor()
+		if isDisabled {
+			textColor = color.NRGBA{R: 150, G: 150, B: 150, A: 255}
+		}
+		label := canvas.NewText(opt, textColor)
+		label.Alignment = fyne.TextAlignLeading
+		label.TextSize = 16
 		// Highlight if currently selected
 		if opt == cs.selected {
 			label.TextStyle = fyne.TextStyle{Bold: true}
@@ -1605,24 +1641,30 @@ func (cs *ColoredSelect) showPopup() {
 		itemContent := container.NewBorder(nil, nil, colorBar, nil,
 			container.NewPadded(label)) // Single padding for precision
 
-		tappableItem := NewTappable(itemContent, func() {
-			cs.selected = opt
-			if cs.onChanged != nil {
-				cs.onChanged(opt)
-			}
-			// Hide popup after a short delay to allow the selection to be processed
-			time.AfterFunc(50*time.Millisecond, func() {
-				fyne.Do(func() {
-					if cs.popup != nil {
-						cs.popup.Hide()
-						cs.popup = nil
-						cs.Refresh()
-					}
+		if isDisabled {
+			// Disabled options are not tappable - just add the label
+			items[i] = itemContent
+		} else {
+			// Create tappable item with proper padding
+			tappableItem := NewTappable(itemContent, func() {
+				cs.selected = opt
+				if cs.onChanged != nil {
+					cs.onChanged(opt)
+				}
+				// Hide popup after a short delay to allow the selection to be processed
+				time.AfterFunc(50*time.Millisecond, func() {
+					fyne.Do(func() {
+						if cs.popup != nil {
+							cs.popup.Hide()
+							cs.popup = nil
+							cs.Refresh()
+						}
+					})
 				})
 			})
-		})
 
-		items[i] = tappableItem
+			items[i] = tappableItem
+		}
 	}
 
 	// Create scrollable list with proper spacing
