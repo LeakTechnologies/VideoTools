@@ -858,11 +858,11 @@ var formatVideoCodecs = map[string][]string{
 }
 
 var formatAudioCodecs = map[string][]string{
-	".mp4":  {"AAC", "MP3", "FLAC", "Copy"},
-	".mkv":  {"AAC", "MP3", "FLAC", "Opus", "Copy"},
-	".mov":  {"AAC", "MP3", "FLAC", "Copy"},
+	".mp4":  {"AAC", "AC-3", "MP3", "FLAC", "Copy"},
+	".mkv":  {"AAC", "AC-3", "MP3", "FLAC", "Opus", "Vorbis", "Copy"},
+	".mov":  {"AAC", "AC-3", "MP3", "FLAC", "Copy"},
 	".webm": {"Opus", "Vorbis"},
-	".mpg":  {"MP2", "Copy"},
+	".mpg":  {"AC-3", "MP2", "Copy"},
 }
 
 type convertConfig struct {
@@ -8480,7 +8480,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		// Update audio codec select - grey out incompatible codecs
 		if audioCodecSelect != nil {
 			audioCodecSelect.EnableAllOptions()
-			allAudioCodecs := []string{"AAC", "Opus", "MP3", "FLAC", "Copy", "Vorbis", "MP2"}
+			allAudioCodecs := []string{"AAC", "AC-3", "Opus", "Vorbis", "MP3", "FLAC", "Copy", "MP2"}
 			for _, codec := range allAudioCodecs {
 				isCompatible := false
 				for _, c := range compatibleAudio {
@@ -10373,7 +10373,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	twoPassNote.Hide()
 
 	// Create color-coded audio codec select widget with colored dropdown items
-	audioCodecOptions := []string{"AAC", "Opus", "MP3", "FLAC", "Copy"}
+	audioCodecOptions := []string{"AAC", "AC-3", "Opus", "Vorbis", "MP3", "FLAC", "Copy"}
 	audioCodecColorMap := ui.BuildAudioCodecColorMap(audioCodecOptions)
 	audioCodecSelect = ui.NewColoredSelect(audioCodecOptions, audioCodecColorMap, func(value string) {
 		state.convert.AudioCodec = value

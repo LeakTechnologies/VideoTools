@@ -12,33 +12,33 @@ import (
 
 // Container / Format Colors (File Wrapper)
 var (
-	ColorMKV    = utils.MustHex("#3B82F6") // Blue - Flexible container
-	ColorRemux  = utils.MustHex("#9CA3AF") // Neutral Grey - Lossless remux
-	ColorMP4    = utils.MustHex("#22C55E") // Green - Consumer-friendly
-	ColorMOV    = utils.MustHex("#A855F7") // Purple - Pro / Apple lineage
-	ColorAVI    = utils.MustHex("#F97316") // Orange - Legacy container
-	ColorWEBM   = utils.MustHex("#14B8A6") // Teal - Web-native
-	ColorTS     = utils.MustHex("#F59E0B") // Amber - Broadcast / transport streams
-	ColorM2TS   = utils.MustHex("#EAB308") // Yellow - Broadcast / transport streams
+	ColorMKV   = utils.MustHex("#3B82F6") // Blue - Flexible container
+	ColorRemux = utils.MustHex("#9CA3AF") // Neutral Grey - Lossless remux
+	ColorMP4   = utils.MustHex("#22C55E") // Green - Consumer-friendly
+	ColorMOV   = utils.MustHex("#A855F7") // Purple - Pro / Apple lineage
+	ColorAVI   = utils.MustHex("#F97316") // Orange - Legacy container
+	ColorWEBM  = utils.MustHex("#14B8A6") // Teal - Web-native
+	ColorTS    = utils.MustHex("#F59E0B") // Amber - Broadcast / transport streams
+	ColorM2TS  = utils.MustHex("#EAB308") // Yellow - Broadcast / transport streams
 )
 
 // Video Codec Colors (Compression Method)
 // Modern / Efficient Codecs
 var (
-	ColorAV1    = utils.MustHex("#F97316") // Orange - Modern, efficient
-	ColorHEVC   = utils.MustHex("#22C55E") // Green - Modern, efficient
-	ColorH265   = utils.MustHex("#22C55E") // Green - Same as HEVC
-	ColorVP9    = utils.MustHex("#8B5CF6") // Violet - Modern, efficient
+	ColorAV1  = utils.MustHex("#F97316") // Orange - Modern, efficient
+	ColorHEVC = utils.MustHex("#22C55E") // Green - Modern, efficient
+	ColorH265 = utils.MustHex("#22C55E") // Green - Same as HEVC
+	ColorVP9  = utils.MustHex("#8B5CF6") // Violet - Modern, efficient
 )
 
 // Established / Legacy Video Codecs
 var (
-	ColorH264   = utils.MustHex("#3B82F6") // Blue - Compatibility
-	ColorAVC    = utils.MustHex("#3B82F6") // Blue - Same as H.264
-	ColorMPEG2  = utils.MustHex("#EAB308") // Yellow - Legacy / broadcast
-	ColorDivX   = utils.MustHex("#EF4444") // Red - Legacy
-	ColorXviD   = utils.MustHex("#EF4444") // Red - Legacy
-	ColorMPEG4  = utils.MustHex("#EF4444") // Red - Legacy
+	ColorH264  = utils.MustHex("#3B82F6") // Blue - Compatibility
+	ColorAVC   = utils.MustHex("#3B82F6") // Blue - Same as H.264
+	ColorMPEG2 = utils.MustHex("#EAB308") // Yellow - Legacy / broadcast
+	ColorDivX  = utils.MustHex("#EF4444") // Red - Legacy
+	ColorXviD  = utils.MustHex("#EF4444") // Red - Legacy
+	ColorMPEG4 = utils.MustHex("#EF4444") // Red - Legacy
 )
 
 // Audio Codec Colors (Secondary but Distinct)
@@ -187,8 +187,12 @@ func BuildAudioCodecColorMap(codecs []string) map[string]color.Color {
 		switch codec {
 		case "AAC":
 			colorMap[codec] = ColorAAC
+		case "AC-3":
+			colorMap[codec] = ColorMP3 // Reuse MP3 color (both are legacy)
 		case "Opus":
 			colorMap[codec] = ColorOpus
+		case "Vorbis":
+			colorMap[codec] = ColorAAC // Reuse AAC color (both are lossy)
 		case "MP3":
 			colorMap[codec] = ColorMP3
 		case "FLAC":
