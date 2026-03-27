@@ -22,6 +22,12 @@ type VMG_MAT struct {
 	// Disc metadata (written by SerializeVMGMAT at correct byte offsets)
 	NrOfTitleSets uint16 // total number of VTS (Video Title Sets) on this disc
 
+	// First Play PGC (0x08E): byte offset within the IFO file of the PGC that
+	// DVD players execute first when the disc is inserted. Set to the location
+	// of the main menu PGC so the player shows the menu before starting playback.
+	// A value of 0 means "no first play PGC — go directly to title 1".
+	VMG_FirstPlayPGC uint32
+
 	// Table Offsets (relative to sector 0 of VIDEO_TS.IFO)
 	TT_SRPT_Offset          uint32 // Title Search Pointer Table (0x0C0 = 192)
 	VMG_PTT_SRPT_Offset     uint32 // Part of Title Search Pointer Table (0 = absent)

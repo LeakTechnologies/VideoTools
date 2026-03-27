@@ -166,6 +166,119 @@ func toBCD(n int) uint8 {
 	return uint8((n/10)<<4 | (n % 10))
 }
 
+// WriteVMGM_PGCI_UT serializes menu PGCs into the VMGM_PGCI_UT (Language Unit)
+// format required by DVD players for menu navigation.
+//
+// Unlike VTS's flat PGCIT, the VMGM domain uses a PGCI_UT that wraps PGCs in a
+// Language Unit (LU) with an 8-byte LU record header. Without this wrapper,
+// libdvdnav reads NrOf_PGCI_SRP as NrOf_LUs and then interprets our PGC search
+// records as language unit entries, resulting in 0 PGCs and the menu being skipped.
+//
+// On-disc layout:
+//
+//	PGCI_UT header (8 bytes):
+//	  [0-1]  NrOf_LUs = 1
+//	  [2-3]  Reserved
+//	  [4-7]  End_Byte
+//	LU record (8 bytes):
+//	  [8-9]  Language code ("en" = 0x656E)
+//	  [10]   Country code modifier = 0
+//	  [11]   LU attributes = 0x83 (root menu entry)
+//	  [12-15] LU_Offset = 16 (from PGCI_UT start to LU data)
+//	LU data (at byte 16):
+//	  [0-1]  NrOf_PGCI_SRP = N
+//	  [2-3]  Reserved
+//	  [4-7]  LU End_Byte
+//	  [8..8+8*N] PGC SRPs: Category(2) + Reserved(2) + PGC_Start_Byte(4)
+//	             SRP[0]: category = 0x8300 (entry PGC, root menu)
+//	             SRP[1+]: category = 0x0000 (non-entry PGCs)
+//	             PGC_Start_Byte is relative to LU data start
+//	  [8+8*N...] PGC data
+//
+// Returns the serialized bytes (sector-padded) and the byte offset of the first
+// PGC within the returned slice (used to compute VMG_FirstPlayPGC).
+func WriteVMGM_PGCI_UT(pgcs []*ProgramChain) ([]byte, int, error) {
+	if len(pgcs) == 0 {
+		return nil, 0, nil
+	}
+
+	var pgcDataList [][]byte
+	for _, pgc := range pgcs {
+		data, err := serializePGC(pgc)
+		if err != nil {
+			return nil, 0, err
+		}
+		pgcDataList = append(pgcDataList, data)
+	}
+
+	n := len(pgcs)
+	const pgciUtHeaderSize = 8  // NrOf_LUs + Reserved + End_Byte
+	const luRecordSize = 8      // lang_code(2) + country(1) + attrs(1) + offset(4)
+	const luDataOffset = pgciUtHeaderSize + luRecordSize // = 16: LU data starts here
+
+	const luHeaderSize = 8 // NrOf_SRP + Reserved + End_Byte (within LU data)
+	const srpSize = 8      // Category + Reserved + PGC_Start_Byte
+
+	firstPGCInLU := luHeaderSize + srpSize*n // offset within LU data to first PGC
+
+	var pgcTotalSize int
+	for _, d := range pgcDataList {
+		pgcTotalSize += len(d)
+	}
+
+	luDataSize := luHeaderSize + srpSize*n + pgcTotalSize
+	luEndByte := uint32(luDataSize - 1)
+	totalSize := luDataOffset + luDataSize
+	pgciUtEndByte := uint32(totalSize - 1)
+
+	var buf bytes.Buffer
+
+	// PGCI_UT header
+	binary.Write(&buf, binary.BigEndian, uint16(1))          // NrOf_LUs
+	binary.Write(&buf, binary.BigEndian, uint16(0))          // Reserved
+	binary.Write(&buf, binary.BigEndian, pgciUtEndByte)       // End_Byte
+
+	// LU record
+	buf.WriteByte(0x65) // 'e'
+	buf.WriteByte(0x6E) // 'n' (language "en")
+	buf.WriteByte(0x00) // country code modifier
+	buf.WriteByte(0x83) // LU attributes: entry PGC (bit7) + root menu (bits 0-3 = 3)
+	binary.Write(&buf, binary.BigEndian, uint32(luDataOffset)) // LU_Offset
+
+	// LU data: PGCIT header
+	binary.Write(&buf, binary.BigEndian, uint16(n))  // NrOf_PGCI_SRP
+	binary.Write(&buf, binary.BigEndian, uint16(0))  // Reserved
+	binary.Write(&buf, binary.BigEndian, luEndByte)  // LU End_Byte
+
+	// PGC SRPs
+	currentPGCOffset := uint32(firstPGCInLU)
+	for i, d := range pgcDataList {
+		var cat uint16
+		if i == 0 {
+			cat = 0x8300 // entry PGC (bit15) + root menu type (bits 3-0 = 3)
+		}
+		binary.Write(&buf, binary.BigEndian, cat)
+		binary.Write(&buf, binary.BigEndian, uint16(0))
+		binary.Write(&buf, binary.BigEndian, currentPGCOffset)
+		currentPGCOffset += uint32(len(d))
+	}
+
+	// PGC data
+	for _, d := range pgcDataList {
+		buf.Write(d)
+	}
+
+	// Pad to sector boundary
+	if rem := buf.Len() % 2048; rem != 0 {
+		buf.Write(make([]byte, 2048-rem))
+	}
+
+	// firstPGCOffset is the byte offset of the first PGC within this slice.
+	// The caller adds (sector * 2048) to get the IFO-absolute offset for first_play_pgc.
+	firstPGCOffset := luDataOffset + firstPGCInLU
+	return buf.Bytes(), firstPGCOffset, nil
+}
+
 // WritePGCITI serializes a single PGC into a VTS_PGCITI block and returns
 // the bytes (padded to a full 2048-byte sector).
 func WritePGCITI(pgc *ProgramChain) ([]byte, error) {
