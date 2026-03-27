@@ -8372,6 +8372,39 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		pop.ShowAtPosition(fyne.NewPos(canvasSize.Width-drawerWidth-drawerInset, drawerInset))
 		return pop
 	}
+
+	// Bottom drawer for snippet options (above stats bar)
+	buildBottomDrawer := func(title string, body fyne.CanvasObject, onClose func()) *widget.PopUp {
+		closeBtn := widget.NewButton("-", func() {
+			if onClose != nil {
+				onClose()
+			}
+		})
+		closeBtn.Importance = widget.LowImportance
+		header := container.NewBorder(nil, nil,
+			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			closeBtn,
+		)
+		bodyScroll := container.NewVScroll(body)
+		bodyScroll.SetMinSize(fyne.NewSize(0, 150))
+		panel := container.NewBorder(header, nil, nil, nil, bodyScroll)
+
+		bg := canvas.NewRectangle(utils.MustHex("#13182B"))
+		bg.CornerRadius = 10
+		bg.StrokeColor = gridColor
+		bg.StrokeWidth = 1
+		drawer := container.NewMax(bg, container.NewPadded(panel))
+
+		pop := widget.NewPopUp(drawer, state.window.Canvas())
+		canvasSize := state.window.Canvas().Size()
+		drawerHeight := float32(180)
+		drawerWidth := canvasSize.Width - (drawerInset * 2)
+		pop.Resize(fyne.NewSize(drawerWidth, drawerHeight))
+		// Position at bottom, above stats bar
+		pop.ShowAtPosition(fyne.NewPos(drawerInset, canvasSize.Height-drawerHeight-drawerInset-40)) // 40 for stats bar
+		return pop
+	}
+
 	toggleDrawer := func(active **widget.PopUp, title string, body fyne.CanvasObject) {
 		if *active != nil {
 			(*active).Hide()
@@ -11409,7 +11442,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	var snippetOptionsBtn *widget.Button
 	snippetOptionsBtn = widget.NewButton(t.ConvertSnippetOptions, func() {
-		toggleDrawer(&snippetDrawer, t.ConvertSnippetOptions, snippetConfigRow)
+		if snippetDrawer != nil {
+			snippetDrawer.Hide()
+			snippetDrawer = nil
+			return
+		}
+		snippetDrawer = buildBottomDrawer(t.ConvertSnippetOptions, snippetConfigRow, func() {
+			if snippetDrawer != nil {
+				snippetDrawer.Hide()
+				snippetDrawer = nil
+			}
+		})
 	})
 	snippetOptionsBtn.Importance = widget.LowImportance
 	if src == nil {
