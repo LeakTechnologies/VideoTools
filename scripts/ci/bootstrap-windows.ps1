@@ -132,7 +132,7 @@ if (-not (Test-Command git)) {
 Write-Section "Go Installation"
 
 # Go version pinned to match go.mod
-$goVersion = "1.25.1"
+$goVersion = "1.26.1"
 $goInstalled = $false
 
 if (Test-Command go) {
