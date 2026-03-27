@@ -849,6 +849,22 @@ var formatOptions = []formatOption{
 	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video"},
 }
 
+var formatVideoCodecs = map[string][]string{
+	".mp4":  {"H.264", "H.265", "AV1", "MPEG-2", "Copy"},
+	".mkv":  {"H.264", "H.265", "AV1", "MPEG-2", "Copy"},
+	".mov":  {"H.264", "H.265", "AV1", "MPEG-2", "Copy"},
+	".webm": {"VP9", "AV1"},
+	".mpg":  {"MPEG-2", "Copy"},
+}
+
+var formatAudioCodecs = map[string][]string{
+	".mp4":  {"AAC", "MP3", "FLAC", "Copy"},
+	".mkv":  {"AAC", "MP3", "FLAC", "Opus", "Copy"},
+	".mov":  {"AAC", "MP3", "FLAC", "Copy"},
+	".webm": {"Opus", "Vorbis"},
+	".mpg":  {"MP2", "Copy"},
+}
+
 type convertConfig struct {
 	OutputBase       string
 	OutputDir        string
@@ -8400,6 +8416,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var outputExtBG *canvas.Rectangle
 	var updateOutputHint func()
 	var videoCodecSelect *ui.ColoredSelect
+	var audioCodecSelect *ui.ColoredSelect
 
 	var formatLabels []string
 	for _, opt := range formatOptions {
@@ -8431,6 +8448,58 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				updateRemuxVisibility()
 			}
 		}
+
+		// Update codec compatibility based on format
+		ext := strings.ToLower(opt.Ext)
+		compatibleVideo := formatVideoCodecs[ext]
+		compatibleAudio := formatAudioCodecs[ext]
+
+		// Update video codec select - grey out incompatible codecs
+		if videoCodecSelect != nil {
+			videoCodecSelect.EnableAllOptions()
+			allVideoCodecs := []string{"H.264", "H.265", "VP9", "AV1", "MPEG-2", "Copy"}
+			for _, codec := range allVideoCodecs {
+				isCompatible := false
+				for _, c := range compatibleVideo {
+					if codec == c {
+						isCompatible = true
+						break
+					}
+				}
+				if !isCompatible {
+					videoCodecSelect.DisableOption(codec)
+				}
+			}
+			// If current selection is now incompatible, switch to first compatible
+			if !slices.Contains(compatibleVideo, state.convert.VideoCodec) && len(compatibleVideo) > 0 {
+				state.convert.VideoCodec = compatibleVideo[0]
+				videoCodecSelect.SetSelected(compatibleVideo[0])
+			}
+		}
+
+		// Update audio codec select - grey out incompatible codecs
+		if audioCodecSelect != nil {
+			audioCodecSelect.EnableAllOptions()
+			allAudioCodecs := []string{"AAC", "Opus", "MP3", "FLAC", "Copy", "Vorbis", "MP2"}
+			for _, codec := range allAudioCodecs {
+				isCompatible := false
+				for _, c := range compatibleAudio {
+					if codec == c {
+						isCompatible = true
+						break
+					}
+				}
+				if !isCompatible {
+					audioCodecSelect.DisableOption(codec)
+				}
+			}
+			// If current selection is now incompatible, switch to first compatible
+			if !slices.Contains(compatibleAudio, state.convert.AudioCodec) && len(compatibleAudio) > 0 {
+				state.convert.AudioCodec = compatibleAudio[0]
+				audioCodecSelect.SetSelected(compatibleAudio[0])
+			}
+		}
+
 		if updateDVDOptions != nil {
 			updateDVDOptions()
 		}
@@ -8540,7 +8609,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		simpleEncodingSection      *fyne.Container
 		advancedVideoEncodingBlock *fyne.Container
 		audioEncodingSection       *fyne.Container
-		audioCodecSelect           *ui.ColoredSelect
 	)
 	// updateQualityOptions: Update quality dropdown based on codec
 
