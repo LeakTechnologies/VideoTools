@@ -303,18 +303,15 @@ jobs:
           Invoke-Bash "pacman -S --needed --noconfirm nasm mingw-w64-ucrt-x86_64-x264 mingw-w64-ucrt-x86_64-x265"
           Write-Host "[INFO] Codec deps ready"
 
-      - name: Cache static FFmpeg (Windows)
-        id: cache-ffmpeg-windows
-        uses: actions/cache@v4
-        with:
-          path: C:\ffmpeg-static
-          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-v1
-
       - name: Build static FFmpeg (Windows)
-        if: steps.cache-ffmpeg-windows.outputs.cache-hit != 'true'
-        shell: C:\msys64\usr\bin\bash.exe --login -eo pipefail {0}
+        shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
+          marker="/c/ffmpeg-static/.built-${ver}"
+          if [ -f "$marker" ]; then
+            echo "[INFO] FFmpeg ${ver} already built at /c/ffmpeg-static — skipping"
+            exit 0
+          fi
           echo "[INFO] Downloading FFmpeg ${ver} source..."
           wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
           tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
@@ -339,6 +336,7 @@ jobs:
           make -j$(nproc)
           make install
           rm -rf "/tmp/ffmpeg-${ver}" /tmp/ffmpeg.tar.bz2
+          touch "$marker"
           echo "[INFO] FFmpeg ${ver} built at /c/ffmpeg-static"
 
       - name: Build Windows package
