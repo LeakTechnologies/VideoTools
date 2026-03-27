@@ -121,6 +121,31 @@ func (v *InlineVideoPlayer) Seek(target float64) {
 	v.player.SetCurrentTime(target)
 }
 
+func (v *InlineVideoPlayer) GetChapters() []media.Chapter {
+	return v.player.GetChapters()
+}
+
+// SeekToChapter seeks to the start of the chapter at idx (0-based).
+func (v *InlineVideoPlayer) SeekToChapter(idx int) {
+	chapters := v.player.GetChapters()
+	if idx < 0 || idx >= len(chapters) {
+		return
+	}
+	v.Seek(chapters[idx].StartTime)
+}
+
+// ChapterAt returns the index of the chapter that contains t, or -1 if none.
+func (v *InlineVideoPlayer) ChapterAt(t float64) int {
+	chapters := v.player.GetChapters()
+	idx := -1
+	for i, ch := range chapters {
+		if t >= ch.StartTime {
+			idx = i
+		}
+	}
+	return idx
+}
+
 func (v *InlineVideoPlayer) SetSpeed(speed float64) {
 	if v.engine == nil {
 		return

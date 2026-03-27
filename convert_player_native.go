@@ -274,10 +274,54 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	})
 	forward10Btn.Importance = widget.LowImportance
 
+	// Speed control — cycles through common rates on each click.
+	speedSteps := []float64{0.25, 0.5, 1.0, 1.25, 1.5, 2.0}
+	speedIdx := 2 // start at 1.0×
+	var speedBtn *widget.Button
+	speedBtn = widget.NewButton("1.0×", func() {
+		speedIdx = (speedIdx + 1) % len(speedSteps)
+		speed := speedSteps[speedIdx]
+		player.SetSpeed(speed)
+		speedBtn.SetText(fmt.Sprintf("%.2g×", speed))
+	})
+	speedBtn.Importance = widget.LowImportance
+
+	// Chapter navigation — only rendered when the loaded file has chapters.
+	chapters := player.GetChapters()
+	var chapterPrevBtn, chapterNextBtn *widget.Button
+	if len(chapters) > 1 {
+		chapterPrevBtn = widget.NewButton("⏮", func() {
+			cur := player.ChapterAt(slider.Value)
+			target := cur - 1
+			if target < 0 {
+				target = 0
+			}
+			state.seekNative(chapters[target].StartTime)
+		})
+		chapterPrevBtn.Importance = widget.LowImportance
+
+		chapterNextBtn = widget.NewButton("⏭", func() {
+			cur := player.ChapterAt(slider.Value)
+			target := cur + 1
+			if target >= len(chapters) {
+				target = len(chapters) - 1
+			}
+			state.seekNative(chapters[target].StartTime)
+		})
+		chapterNextBtn.Importance = widget.LowImportance
+	}
+
 	volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
 	seekRow := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
+
 	leftBtns := container.NewHBox(replay10Btn, prevFrameBtn, playBtn, nextFrameBtn, forward10Btn)
-	rightBtns := container.NewHBox(volBox, fullBtn)
+	if chapterPrevBtn != nil {
+		leftBtns.Add(widget.NewSeparator())
+		leftBtns.Add(chapterPrevBtn)
+		leftBtns.Add(chapterNextBtn)
+	}
+
+	rightBtns := container.NewHBox(speedBtn, volBox, fullBtn)
 	mainCtrlRow := container.NewBorder(nil, nil, leftBtns, rightBtns, nil)
 
 	primaryBg := canvas.NewRectangle(color.NRGBA{R: 12, G: 17, B: 31, A: 230})
