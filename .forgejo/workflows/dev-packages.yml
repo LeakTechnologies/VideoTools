@@ -271,9 +271,12 @@ jobs:
 
           $bashPath = "C:\msys64\usr\bin\bash.exe"
 
-          # Helper: run bash, converting stderr ErrorRecords to plain text
+          # Helper: run bash with stderr merged inside bash before PowerShell sees it.
+          # Using PowerShell's 2>&1 creates ErrorRecord objects that trigger Stop
+          # even after ForEach-Object. Wrapping in a bash subshell with its own
+          # 2>&1 means PowerShell only ever receives stdout — no ErrorRecords.
           function Invoke-Bash([string]$cmd) {
-            & $bashPath -lc $cmd 2>&1 | ForEach-Object { Write-Host $_ }
+            & $bashPath -lc "( $cmd ) 2>&1" | ForEach-Object { Write-Host "$_" }
             if ($LASTEXITCODE -ne 0) {
               Write-Error "bash command failed (exit $LASTEXITCODE): $cmd"
               exit 1
