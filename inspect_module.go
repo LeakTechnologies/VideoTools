@@ -294,6 +294,21 @@ func (a *inspectAdapter) GetFilePath() string {
 	return a.s.inspectFile.Path
 }
 
+func (a *inspectAdapter) HasNativeMediaPlayer() bool {
+	return HasNativeMediaPlayer()
+}
+
+func (a *inspectAdapter) BuildVideoPane(size fyne.Size) fyne.CanvasObject {
+	if a.s.inspectFile == nil {
+		return nil
+	}
+	return buildVideoPane(a.s, size, a.s.inspectFile, nil)
+}
+
+func (a *inspectAdapter) LoadVideoNative(path string) {
+	a.s.loadVideoNative(path)
+}
+
 func (a *inspectAdapter) Clipboard() fyne.Clipboard {
 	return a.s.window.Clipboard()
 }

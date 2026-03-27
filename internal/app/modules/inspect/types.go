@@ -49,5 +49,9 @@ type ViewCallbacks interface {
 	GetPreviewFrame() string
 	GetFilePath() string
 
+	HasNativeMediaPlayer() bool
+	BuildVideoPane(size fyne.Size) fyne.CanvasObject
+	LoadVideoNative(path string)
+
 	Clipboard() fyne.Clipboard
 }
