@@ -29,6 +29,7 @@ type Strings struct {
 	ModuleAudio       string
 	ModuleAuthor      string
 	ModuleRip         string
+	ModuleBurn        string
 	ModuleBluRay      string
 	ModuleSubtitles   string
 	ModuleThumbnail   string

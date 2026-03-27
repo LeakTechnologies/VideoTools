@@ -26,6 +26,7 @@ var iu = Strings{
 	ModuleAudio:       "ᓂᐱᒃ",        // Audio
 	ModuleAuthor:      "ᓴᓇᓗᒍ",       // Author/Create
 	ModuleRip:         "ᓂᕈᓐᓇᓯᓗᒍ",    // Rip/Extract
+	ModuleBurn:        "ᕿᓂᖅᓴᕆᔭᒋᓗ",   // Burn
 	ModuleBluRay:      "Blu-Ray",
 	ModuleSubtitles:   "ᑎᑎᖅᑲᒃᓴᑦ",    // Subtitles
 	ModuleThumbnail:   "ᐊᑭᖃᓪᓕᐊᑦ",    // Thumbnail

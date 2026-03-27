@@ -27,6 +27,7 @@ var iuLatn = Strings{
 	ModuleAudio:       "Nipik",            // Audio
 	ModuleAuthor:      "Sanarlugu",        // Author/Create
 	ModuleRip:         "Nirunnasilugu",    // Rip/Extract
+	ModuleBurn:        "Qiniq",            // Burn
 	ModuleBluRay:      "Blu-Ray",
 	ModuleSubtitles:   "Titiqaksait",       // Subtitles
 	ModuleThumbnail:   "Akiqalliat",        // Thumbnail
