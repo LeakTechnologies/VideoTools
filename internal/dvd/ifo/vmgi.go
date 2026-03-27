@@ -27,10 +27,10 @@ type VMG_MAT struct {
 	// A value of 0 means "no first play PGC — go directly to title 1".
 	VMG_FirstPlayPGC uint32
 
-	// Table Offsets (relative to sector 0 of VIDEO_TS.IFO)
-	TT_SRPT_Offset          uint32 // Title Search Pointer Table (0x0C0 = 192)
-	VMG_PTT_SRPT_Offset     uint32 // Part of Title Search Pointer Table (0 = absent)
-	VMG_PGCITI_Offset       uint32 // VMG Menu PGC Information Table (VMGM_PGCI_UT)
+	// Table Offsets — sector addresses within the IFO/disc (0x0C0–0x0DC per spec)
+	VMGM_VOBS_Sector        uint32 // 0x0C0: start sector of VMGM VOBs (menu video; 0 if none)
+	TT_SRPT_Offset          uint32 // 0x0C4: sector of Title Search Pointer Table
+	VMG_PGCITI_Offset       uint32 // 0x0C8: sector of VMG Menu PGC Information Table (VMGM_PGCI_UT)
 	VMG_PTL_MAIT_Offset     uint32 // Parental Management Information (0 = absent)
 	VMG_VTS_ATRT_Offset     uint32 // VTS Attribute Table (0 = absent)
 	VMG_TXTDT_MG_Offset     uint32 // Text Data Manager (0 = absent)
@@ -254,8 +254,8 @@ func ReadVMGI(r io.Reader) (*VMG_MAT, error) {
 	mat.VMG_Category            = binary.BigEndian.Uint32(buf[34:38])
 	mat.NrOfTitleSets           = binary.BigEndian.Uint16(buf[62:64])
 	mat.VMG_FirstPlayPGC        = binary.BigEndian.Uint32(buf[132:136])
-	mat.TT_SRPT_Offset          = binary.BigEndian.Uint32(buf[192:196])
-	mat.VMG_PTT_SRPT_Offset     = binary.BigEndian.Uint32(buf[196:200])
+	mat.VMGM_VOBS_Sector        = binary.BigEndian.Uint32(buf[192:196])
+	mat.TT_SRPT_Offset          = binary.BigEndian.Uint32(buf[196:200])
 	mat.VMG_PGCITI_Offset       = binary.BigEndian.Uint32(buf[200:204])
 	mat.VMG_PTL_MAIT_Offset     = binary.BigEndian.Uint32(buf[204:208])
 	mat.VMG_VTS_ATRT_Offset     = binary.BigEndian.Uint32(buf[208:212])

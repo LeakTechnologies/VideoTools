@@ -306,14 +306,15 @@ func TestSerializeVMGMAT_Identifier(t *testing.T) {
 	}
 }
 
-// TestSerializeVMGMAT_TT_SRPTOffset verifies TT_SRPT_Offset is at byte 192 (0x0C0).
+// TestSerializeVMGMAT_TT_SRPTOffset verifies TT_SRPT_Offset is at byte 196 (0x0C4)
+// per libdvdread ifo_types.h — 0x0C0 is vmgm_vobs, not tt_srpt.
 func TestSerializeVMGMAT_TT_SRPTOffset(t *testing.T) {
 	mat := NewVMGMAT()
 	mat.TT_SRPT_Offset = 1
 	b := SerializeVMGMAT(mat)
-	got := uint32(b[192])<<24 | uint32(b[193])<<16 | uint32(b[194])<<8 | uint32(b[195])
+	got := uint32(b[196])<<24 | uint32(b[197])<<16 | uint32(b[198])<<8 | uint32(b[199])
 	if got != 1 {
-		t.Errorf("TT_SRPT_Offset at byte 192 = %d, want 1", got)
+		t.Errorf("TT_SRPT_Offset at byte 196 (0x0C4) = %d, want 1", got)
 	}
 }
 
