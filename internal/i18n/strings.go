@@ -381,29 +381,32 @@ type Strings struct {
 	HistoryNoEntries string
 
 	// ── Convert ───────────────────────────────────────────────────────────
-	ConvertDropPrompt          string
-	ConvertOutputFormat        string
-	ConvertHardwareAccel       string
-	ConvertTabSimple           string // "Simple"
-	ConvertTabAdvanced         string // "Advanced"
-	ConvertNavPrev             string // "Prev"
-	ConvertNavNext             string // "Next"
-	ConvertVideoOfFmt          string // "Video %d of %d"
-	ConvertCompareAfter        string // "Compare After"
-	ConvertReset               string // "Reset"
-	ConvertResetDefaults       string // "Reset to Defaults"
-	ConvertSnippetLengthFmt    string // "Snippet Length: %d seconds"
-	ConvertSnippetOutput       string // "Snippet Output:"
-	ConvertMatchSourceFormat   string // "Match Source Format"
-	ConvertUseConvSettings     string // "Unchecked = Use Conversion Settings"
-	ConvertSnippetHint         string // "Creates a clip centred on the timeline midpoint."
-	ConvertSnippetOptions      string // "Snippet Options"
-	ConvertGenerateSnippet     string // "Generate Snippet"
-	ConvertGenerateAllSnippets string // "Generate All Snippets"
-	ConvertReadyToConvert      string // "Ready to convert"
-	ConvertLoadVideoToConvert  string // "Load a video to convert"
-	ConvertAddAllToQueue       string // "Add All to Queue"
-	ConvertViewLog             string // "View Log"
+	ConvertDropPrompt             string
+	ConvertOutputFormat           string
+	ConvertHardwareAccel          string
+	ConvertTabSimple              string // "Simple"
+	ConvertTabAdvanced            string // "Advanced"
+	ConvertNavPrev                string // "Prev"
+	ConvertNavNext                string // "Next"
+	ConvertVideoOfFmt             string // "Video %d of %d"
+	ConvertCompareAfter           string // "Compare After"
+	ConvertReset                  string // "Reset"
+	ConvertResetDefaults          string // "Reset to Defaults"
+	ConvertSnippetLengthFmt       string // "Snippet Length: %d seconds"
+	ConvertSnippetOutput          string // "Snippet Output:"
+	ConvertMatchSourceFormat      string // "Match Source Format"
+	ConvertUseConvSettings        string // "Unchecked = Use Conversion Settings"
+	ConvertSnippetHint            string // "Creates a clip centred on the timeline midpoint."
+	ConvertSnippetOptions         string // "Snippet Options"
+	ConvertSnippetPosition        string // "Snippet Position:"
+	ConvertSnippetFromCurrent     string // "From Current Position"
+	ConvertSnippetFromCurrentHint string // "Uses playback position instead of midpoint"
+	ConvertGenerateSnippet        string // "Generate Snippet"
+	ConvertGenerateAllSnippets    string // "Generate All Snippets"
+	ConvertReadyToConvert         string // "Ready to convert"
+	ConvertLoadVideoToConvert     string // "Load a video to convert"
+	ConvertAddAllToQueue          string // "Add All to Queue"
+	ConvertViewLog                string // "View Log"
 
 	// ── Compare ──────────────────────────────────────────────────────────────────
 	CompareInstructions    string

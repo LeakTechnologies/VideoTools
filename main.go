@@ -1254,6 +1254,7 @@ type appState struct {
 	// Snippet settings
 	snippetLength       int  // Length of snippet in seconds (default: 20)
 	snippetSourceFormat bool // true = source format, false = conversion format (default: true)
+	snippetFromCurrent  bool // true = use current playback position, false = use video midpoint (default: false)
 
 	// Interlacing detection state
 	interlaceResult    *interlace.DetectionResult
@@ -5587,16 +5588,29 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 	outputExt, _ := cfg["outputExt"].(string)
 	isWebM := strings.EqualFold(outputExt, ".webm")
 
+	// Get start position: -1 means use midpoint, otherwise use the provided position
+	startPosition := -1.0
+	if posVal, ok := cfg["startPosition"].(float64); ok {
+		startPosition = posVal
+	}
+
 	// Probe video to get duration
 	src, err := probeVideo(inputPath)
 	if err != nil {
 		return err
 	}
 
-	// Calculate start time centered on midpoint
-	halfLength := float64(snippetLength) / 2.0
-	center := math.Max(0, src.Duration/2-halfLength)
-	start := fmt.Sprintf("%.2f", center)
+	// Calculate start time
+	var start string
+	if startPosition >= 0 {
+		// Use explicit start position (from current playback)
+		start = fmt.Sprintf("%.2f", startPosition)
+	} else {
+		// Default: center on midpoint
+		halfLength := float64(snippetLength) / 2.0
+		center := math.Max(0, src.Duration/2-halfLength)
+		start = fmt.Sprintf("%.2f", center)
+	}
 
 	clampSnippetBitrate := func(bitrate string, width int) string {
 		val := strings.TrimSpace(strings.ToLower(bitrate))
@@ -11214,6 +11228,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	snippetModeHint := widget.NewLabel(t.ConvertUseConvSettings)
 	snippetModeHint.TextStyle = fyne.TextStyle{Italic: true}
 
+	// Snippet position mode
+	snippetPositionLabel := widget.NewLabel(t.ConvertSnippetPosition)
+	snippetPositionCheck := widget.NewCheck(t.ConvertSnippetFromCurrent, func(checked bool) {
+		state.snippetFromCurrent = checked
+	})
+	snippetPositionCheck.SetChecked(state.snippetFromCurrent)
+	snippetPositionHint := widget.NewLabel(t.ConvertSnippetFromCurrentHint)
+	snippetPositionHint.TextStyle = fyne.TextStyle{Italic: true}
+
 	snippetConfigRow := container.NewVBox(
 		snippetLengthLabel,
 		snippetLengthSlider,
@@ -11221,6 +11244,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetModeLabel,
 		snippetModeCheck,
 		snippetModeHint,
+		widget.NewSeparator(),
+		snippetPositionLabel,
+		snippetPositionCheck,
+		snippetPositionHint,
 	)
 
 	snippetBtn := widget.NewButton(t.ConvertGenerateSnippet, func() {
@@ -11250,6 +11277,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 
+		// Determine start position
+		var startPosition float64 = -1 // -1 means use midpoint (default behavior)
+		positionDesc := "midpoint"
+		if state.snippetFromCurrent {
+			if state.playSess != nil {
+				startPosition = state.playSess.GetCurrentPosition()
+				positionDesc = "current position"
+			} else {
+				dialog.ShowInformation(t.DialogSnippet, "No video playing. Using midpoint.", state.window)
+			}
+		}
+
 		outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), time.Now().Unix(), ext)
 		outPath := filepath.Join(filepath.Dir(src.Path), outName)
 
@@ -11261,7 +11300,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		job := &queue.Job{
 			Type:        queue.JobTypeSnippet,
 			Title:       "Snippet: " + filepath.Base(src.Path),
-			Description: fmt.Sprintf("%ds snippet centred on midpoint (%s)", state.snippetLength, modeDesc),
+			Description: fmt.Sprintf("%ds snippet at %s (%s)", state.snippetLength, positionDesc, modeDesc),
 			InputFile:   src.Path,
 			OutputFile:  outPath,
 			Config: map[string]interface{}{
@@ -11270,6 +11309,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				"outputExt":       ext,
 				"snippetLength":   float64(state.snippetLength),
 				"useSourceFormat": state.snippetSourceFormat,
+				"startPosition":   startPosition,
 			},
 		}
 		state.jobQueue.Add(job)
@@ -11324,10 +11364,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				outName := fmt.Sprintf("%s-snippet-%d%s", strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)), timestamp, ext)
 				outPath := filepath.Join(filepath.Dir(src.Path), outName)
 
+				// Determine start position
+				var startPosition float64 = -1
+				positionDesc := "midpoint"
+				if state.snippetFromCurrent {
+					if state.playSess != nil {
+						startPosition = state.playSess.GetCurrentPosition()
+						positionDesc = "current position"
+					}
+				}
+
 				job := &queue.Job{
 					Type:        queue.JobTypeSnippet,
 					Title:       "Snippet: " + filepath.Base(src.Path),
-					Description: fmt.Sprintf("%ds snippet centred on midpoint (%s)", state.snippetLength, modeDesc),
+					Description: fmt.Sprintf("%ds snippet at %s (%s)", state.snippetLength, positionDesc, modeDesc),
 					InputFile:   src.Path,
 					OutputFile:  outPath,
 					Config: map[string]interface{}{
@@ -11336,6 +11386,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 						"outputExt":       ext,
 						"snippetLength":   float64(state.snippetLength),
 						"useSourceFormat": state.snippetSourceFormat,
+						"startPosition":   startPosition,
 					},
 				}
 				state.jobQueue.Add(job)
@@ -13143,6 +13194,12 @@ func (p *playSession) GetCurrentFrame() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.frameN
+}
+
+func (p *playSession) GetCurrentPosition() float64 {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.current
 }
 
 func (p *playSession) SetVolume(v float64) {
