@@ -16,6 +16,7 @@ These rules apply to any automation or agent working in this repo.
 
 - **Burn module** — Implement disc burning; see docs/BURN_MODULE_DESIGN.md
 - **Auto-grey codecs** — Filter incompatible codecs based on format; see docs/AUTO_GREY_CODECS.md
+- **Filter integration** — Merge filters into upscale module; see docs/FILTER_INTEGRATION_DESIGN.md
 - **Module extraction** — Continue settings_module.go extraction to `internal/app/modules/settings/`.
 - **Issue #5** (Convert UI cleanup) — layout consistency and label clarity pass on `buildConvertView` in `main.go`.
 - Do not expand scope beyond what is listed unless explicitly approved.
