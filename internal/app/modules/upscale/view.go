@@ -131,7 +131,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	} else {
 		sourceResLabel = widget.NewLabel(t.UpscaleSourceNA)
 		sourceResLabel.TextStyle = fyne.TextStyle{Italic: true}
-		videoContainer = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
+		videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), nil, nil)
 	}
 
 	loadBtn.OnTapped = func() {
