@@ -917,6 +917,19 @@ func buildDVDMenuButtons(chapters []authorChapter, hasExtras bool, width, height
 	return buttons
 }
 
+// countValidThumbs returns the number of non-empty, existing thumbnail paths.
+func countValidThumbs(thumbPaths []string) int {
+	n := 0
+	for _, p := range thumbPaths {
+		if p != "" {
+			if _, err := os.Stat(p); err == nil {
+				n++
+			}
+		}
+	}
+	return n
+}
+
 // buildChapterMenuButtons creates buttons for ALL chapters (legacy single-page version)
 func buildChapterMenuButtons(chapters []authorChapter, width, height int) []dvdMenuButton {
 	// Use dynamic paging with default layout parameters
@@ -1756,13 +1769,15 @@ func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, 
 
 	args := []string{"-y", "-f", "lavfi", "-i", fmt.Sprintf("color=c=%s:s=%dx%d", bgColor, width, height)}
 
-	// Add thumbnail overlays if available
-	// Use a simple sequential overlay approach to avoid filter chain complexity
+	// Add thumbnail overlays if available.
+	// Build a proper chain: each overlay consumes the previous overlay's output.
+	// The final overlay is left unlabelled so FFmpeg auto-maps it to the output.
 	if len(thumbPaths) > 0 {
-		filterExpr := fmt.Sprintf("[0:v]%s[bg]", filterChain)
+		filterExpr := fmt.Sprintf("[0:v]%s[bg0]", filterChain)
 
 		inputIndex := 1
 		validThumbs := 0
+		currentBase := "bg0"
 		for i, thumbPath := range thumbPaths {
 			if thumbPath == "" {
 				continue
@@ -1781,22 +1796,26 @@ func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, 
 
 			args = append(args, "-i", thumbPath)
 
-			// Simple filter: scale thumbnail then overlay onto base
-			scaleFilter := fmt.Sprintf("[%d:v]scale=80:-1[thumb%d]", inputIndex, inputIndex)
-			overlayFilter := fmt.Sprintf("[bg][thumb%d]overlay=%d:%d[bg_tmp%d]", inputIndex, thumbnailX, y, inputIndex)
+			scaleFilter := fmt.Sprintf("[%d:v]scale=80:-2[thumb%d]", inputIndex, inputIndex)
+			isLast := inputIndex == countValidThumbs(thumbPaths)
+			var overlayFilter string
+			if isLast {
+				// Final overlay: no output label — FFmpeg auto-maps to output
+				overlayFilter = fmt.Sprintf("[%s][thumb%d]overlay=%d:%d", currentBase, inputIndex, thumbnailX, y)
+			} else {
+				nextBase := fmt.Sprintf("bg%d", inputIndex)
+				overlayFilter = fmt.Sprintf("[%s][thumb%d]overlay=%d:%d[%s]", currentBase, inputIndex, thumbnailX, y, nextBase)
+				currentBase = nextBase
+			}
 
 			filterExpr = filterExpr + ";" + scaleFilter + ";" + overlayFilter
 			validThumbs++
 			inputIndex++
 		}
 
-		// Replace filter chain with the one including thumbnails
 		if validThumbs > 0 {
-			// Use the final base layer
-			filterExpr = strings.Replace(filterExpr, "[bg_tmp"+fmt.Sprint(inputIndex-1)+"]", "[bg]", 1)
 			args = append(args, "-filter_complex", filterExpr, "-frames:v", "1", outputPath)
 		} else {
-			// No valid thumbnails, use simple filter
 			args = append(args, "-filter_complex", fmt.Sprintf("[0:v]%s", filterChain), "-frames:v", "1", outputPath)
 		}
 	} else {
