@@ -37,6 +37,8 @@ func moduleLabel(id string) string {
 		return t.ModuleAuthor
 	case "rip":
 		return t.ModuleRip
+	case "burn":
+		return t.ModuleBurn
 	case "bluray":
 		return t.ModuleBluRay
 	case "subtitles":

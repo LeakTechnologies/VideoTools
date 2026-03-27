@@ -24,6 +24,7 @@ var frCA = Strings{
 	ModuleAudio:       "Audio",
 	ModuleAuthor:      "Créer",
 	ModuleRip:         "Extraire",
+	ModuleBurn:        "Graver",
 	ModuleBluRay:      "Blu-Ray",
 	ModuleSubtitles:   "Sous-titres",
 	ModuleThumbnail:   "Miniature",

@@ -23,6 +23,7 @@ var enCA = Strings{
 	ModuleAudio:       "Audio",
 	ModuleAuthor:      "Author",
 	ModuleRip:         "Rip",
+	ModuleBurn:        "Burn",
 	ModuleBluRay:      "Blu-Ray",
 	ModuleSubtitles:   "Subtitles",
 	ModuleThumbnail:   "Thumbnail",
