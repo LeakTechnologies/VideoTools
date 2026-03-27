@@ -397,16 +397,14 @@ jobs:
           if (Test-Path (Join-Path $projectRoot "README.md")) {
             Copy-Item (Join-Path $projectRoot "README.md") -Destination $pkgDir.FullName -Force
           }
-          # Bundle FFmpeg DLLs into dll\ subfolder (app checks <exe>/dll/ at startup)
+          # Bundle FFmpeg DLLs alongside the exe (Windows loads them before main() runs)
           $ffmpegBinDir = "C:\ffmpeg\bin"
           if (Test-Path $ffmpegBinDir) {
-            $dllSubDir = Join-Path $pkgDir.FullName "dll"
-            New-Item -ItemType Directory -Force -Path $dllSubDir | Out-Null
             Get-ChildItem "$ffmpegBinDir\*.dll" |
               Where-Object { $_.Name -notmatch "^(ffmpeg|ffprobe|ffplay)" } |
-              ForEach-Object { Copy-Item $_.FullName -Destination $dllSubDir -Force }
-            $dllCount = (Get-ChildItem $dllSubDir -Filter *.dll).Count
-            Write-Host "[INFO] Bundled $dllCount DLLs from $ffmpegBinDir into dll\"
+              ForEach-Object { Copy-Item $_.FullName -Destination $pkgDir.FullName -Force }
+            $dllCount = (Get-ChildItem $pkgDir.FullName -Filter *.dll).Count
+            Write-Host "[INFO] Bundled $dllCount DLLs from $ffmpegBinDir alongside VideoTools.exe"
           } else {
             Write-Host "[WARN] FFmpeg bin dir not found; DLLs not bundled" -ForegroundColor Yellow
           }
