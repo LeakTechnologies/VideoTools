@@ -5,6 +5,7 @@ package ui
 import (
 	"fmt"
 	"image"
+	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -15,6 +16,7 @@ import (
 )
 
 type InlineVideoPlayer struct {
+	mu      sync.Mutex // serialises all engine access (Load, Play, Pause, Seek, Step)
 	player  *media.VideoPlayer
 	engine  *media.Engine
 	scrubber *media.SmoothScrubbing
@@ -32,11 +34,21 @@ func (v *InlineVideoPlayer) Widget() *media.VideoPlayer {
 }
 
 func (v *InlineVideoPlayer) Load(path string) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
 	v.player.ClearError()
 	v.player.SetLoading(true)
 
+	// Stop any in-progress playback before swapping the engine.
+	v.playing = false
+	if v.scrubber != nil {
+		v.scrubber.Stop()
+		v.scrubber = nil
+	}
 	if v.engine != nil {
 		v.engine.Close()
+		v.engine = nil
 	}
 
 	v.engine = media.NewEngine()
@@ -73,9 +85,6 @@ func (v *InlineVideoPlayer) Load(path string) error {
 	}
 	v.engine.Pause()
 
-	if v.scrubber != nil {
-		v.scrubber.Stop()
-	}
 	v.scrubber = media.NewSmoothScrubbing(v.engine)
 	v.scrubber.SetOnFrame(func(img *image.RGBA) {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -93,16 +102,22 @@ func (v *InlineVideoPlayer) Load(path string) error {
 }
 
 func (v *InlineVideoPlayer) Play() {
-	if v.engine == nil {
+	v.mu.Lock()
+	eng := v.engine
+	if eng == nil {
+		v.mu.Unlock()
 		return
 	}
 	v.playing = true
-	v.engine.Start()
-	v.engine.Resume()
+	eng.Start()
+	eng.Resume()
+	v.mu.Unlock()
 	go v.playbackLoop()
 }
 
 func (v *InlineVideoPlayer) Pause() {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	if v.engine == nil {
 		return
 	}
@@ -111,11 +126,14 @@ func (v *InlineVideoPlayer) Pause() {
 }
 
 func (v *InlineVideoPlayer) Seek(target float64) {
-	if v.engine == nil {
+	v.mu.Lock()
+	eng := v.engine
+	v.mu.Unlock()
+	if eng == nil {
 		return
 	}
-	v.engine.Seek(target)
-	if img, err := v.engine.NextFrame(); err == nil {
+	eng.Seek(target)
+	if img, err := eng.NextFrame(); err == nil {
 		v.player.SetFrame(img)
 	}
 	v.player.SetCurrentTime(target)
@@ -147,19 +165,26 @@ func (v *InlineVideoPlayer) ChapterAt(t float64) int {
 }
 
 func (v *InlineVideoPlayer) SetSpeed(speed float64) {
-	if v.engine == nil {
+	v.mu.Lock()
+	eng := v.engine
+	v.mu.Unlock()
+	if eng == nil {
 		return
 	}
-	v.engine.SetSpeed(speed)
+	eng.SetSpeed(speed)
 }
 
 func (v *InlineVideoPlayer) StepFrame(dir int) {
-	if v.engine == nil {
+	v.mu.Lock()
+	eng := v.engine
+	if eng == nil {
+		v.mu.Unlock()
 		return
 	}
 	v.playing = false
-	v.engine.Pause()
-	if img, err := v.engine.Step(dir); err == nil {
+	eng.Pause()
+	v.mu.Unlock()
+	if img, err := eng.Step(dir); err == nil {
 		v.player.SetFrame(img)
 	}
 }
@@ -222,6 +247,8 @@ func (v *InlineVideoPlayer) DisableSubtitles() {
 }
 
 func (v *InlineVideoPlayer) Close() {
+	v.mu.Lock()
+	defer v.mu.Unlock()
 	v.playing = false
 	if v.scrubber != nil {
 		v.scrubber.Stop()
@@ -237,8 +264,18 @@ func (v *InlineVideoPlayer) playbackLoop() {
 	defer logging.RecoverPanic()
 	defer logging.LogAllGoroutines()
 
-	for v.playing {
-		img, err := v.engine.NextFrame()
+	for {
+		// Snapshot engine pointer under lock; if Load replaced it, stop this loop.
+		v.mu.Lock()
+		eng := v.engine
+		playing := v.playing
+		v.mu.Unlock()
+
+		if !playing || eng == nil {
+			return
+		}
+
+		img, err := eng.NextFrame()
 		if err != nil {
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				v.player.SetError("Playback stopped: " + err.Error())
@@ -247,8 +284,7 @@ func (v *InlineVideoPlayer) playbackLoop() {
 			return
 		}
 		v.player.SetFrame(img)
-		currentTime := v.engine.CurrentTime()
-		v.player.SetCurrentTime(currentTime)
+		v.player.SetCurrentTime(eng.CurrentTime())
 	}
 }
 
