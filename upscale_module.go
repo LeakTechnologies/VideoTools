@@ -151,7 +151,7 @@ func (s *appState) upscaleOptions() upscale.Options {
 			if vs, ok := src.(*upscale.VideoSource); ok {
 				return buildVideoPane(s, size, upscaleToMainVideoSource(vs), nil)
 			}
-			return nil
+			return buildVideoPane(s, size, nil, nil)
 		},
 		OnHasNativeMediaPlayer: HasNativeMediaPlayer,
 		OnLoadVideoNative:      s.loadVideoNative,
