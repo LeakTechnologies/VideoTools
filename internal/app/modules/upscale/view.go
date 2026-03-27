@@ -725,18 +725,29 @@ func BuildView(opts Options) fyne.CanvasObject {
 		aiSection,
 	))
 
-	// Build filter chain function - defined before the slider callbacks use it
+	// Build filter chain function - defined before the slider callbacks use it.
+	// brightness/contrast/saturation must be combined into a single eq= entry;
+	// separate eq= filters each reset the other params to their defaults.
 	buildFilterChainForUpscale := func() {
 		var chain []string
-		if opts.FilterBrightness != nil && opts.FilterBrightness() != 0 {
-			chain = append(chain, fmt.Sprintf("eq=brightness=%.2f", opts.FilterBrightness()))
+
+		// Collect eq params; only emit the filter when at least one is non-default.
+		brightness := 0.0
+		contrast := 1.0
+		saturation := 1.0
+		if opts.FilterBrightness != nil {
+			brightness = opts.FilterBrightness()
 		}
-		if opts.FilterContrast != nil && opts.FilterContrast() != 1.0 {
-			chain = append(chain, fmt.Sprintf("eq=contrast=%.2f", opts.FilterContrast()))
+		if opts.FilterContrast != nil {
+			contrast = opts.FilterContrast()
 		}
-		if opts.FilterSaturation != nil && opts.FilterSaturation() != 1.0 {
-			chain = append(chain, fmt.Sprintf("eq=saturation=%.2f", opts.FilterSaturation()))
+		if opts.FilterSaturation != nil {
+			saturation = opts.FilterSaturation()
 		}
+		if brightness != 0 || contrast != 1.0 || saturation != 1.0 {
+			chain = append(chain, fmt.Sprintf("eq=brightness=%.2f:contrast=%.2f:saturation=%.2f", brightness, contrast, saturation))
+		}
+
 		if opts.FilterSharpness != nil && opts.FilterSharpness() > 0 {
 			chain = append(chain, fmt.Sprintf("unsharp=5:5:%.2f:5:5:0.0", opts.FilterSharpness()/5))
 		}
@@ -752,7 +763,21 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if opts.FilterFlipV != nil && opts.FilterFlipV() {
 			chain = append(chain, "vflip")
 		}
+		if opts.FilterRotation != nil {
+			switch opts.FilterRotation() {
+			case 90:
+				chain = append(chain, "transpose=1")
+			case 180:
+				chain = append(chain, "transpose=1,transpose=1")
+			case 270:
+				chain = append(chain, "transpose=2")
+			}
+		}
+
 		opts.SetUpscaleFilterChain(chain)
+		if opts.SetUpscaleApplyFilters != nil {
+			opts.SetUpscaleApplyFilters(len(chain) > 0)
+		}
 	}
 
 	// Initialize filter chain
