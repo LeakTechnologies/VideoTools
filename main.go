@@ -139,7 +139,7 @@ var (
 		{"upscale", "Upscale", utils.MustHex("#2B9C1C"), color.White, "Advanced", modules.HandleUpscale},
 		{"author", "Author", utils.MustHex("#1C9C44"), color.White, "Disc", modules.HandleAuthor},
 		{"rip", "Rip", utils.MustHex("#1A9373"), color.White, "Disc", modules.HandleRip},
-		{"burn", "Burn", utils.MustHex("#D4A017"), color.White, "Disc", nil},
+		{"burn", "Burn", utils.MustHex("#178C8C"), color.White, "Disc", nil},
 		{"player", "Player", utils.MustHex("#1D8EA5"), color.White, "Playback", modules.HandlePlayer},
 		{"thumbnail", "Thumbnail", utils.MustHex("#2260BF"), color.White, "Screenshots", modules.HandleThumbnail},
 		{"settings", "Settings", utils.MustHex("#2825D0"), color.White, "Settings", nil},
