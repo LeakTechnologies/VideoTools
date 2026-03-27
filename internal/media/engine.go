@@ -1322,6 +1322,17 @@ func (e *Engine) Open(path string) error {
 	e.videoStreamIdx = int(C.av_find_best_stream(e.formatCtx, C.AVMEDIA_TYPE_VIDEO, -1, -1, &videoCodec, 0))
 	e.audioStreamIdx = int(C.av_find_best_stream(e.formatCtx, C.AVMEDIA_TYPE_AUDIO, -1, -1, &audioCodec, 0))
 	e.subtitleStreamIdx = int(C.av_find_best_stream(e.formatCtx, C.AVMEDIA_TYPE_SUBTITLE, -1, -1, &subtitleCodec, 0))
+	// av_find_best_stream returns a negative AVERROR code when no stream is
+	// found — clamp to -1 so downstream >= 0 checks and log output are clean.
+	if e.videoStreamIdx < 0 {
+		e.videoStreamIdx = -1
+	}
+	if e.audioStreamIdx < 0 {
+		e.audioStreamIdx = -1
+	}
+	if e.subtitleStreamIdx < 0 {
+		e.subtitleStreamIdx = -1
+	}
 	logging.Info(logging.CatPlayer, "Streams found - video: %d, audio: %d, subtitle: %d",
 		e.videoStreamIdx, e.audioStreamIdx, e.subtitleStreamIdx)
 
