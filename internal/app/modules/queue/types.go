@@ -34,6 +34,7 @@ type Options struct {
 	OnCopyCommand func(string)
 	OnOpenFolder  func(string)
 	OnOpenOutput  func(string)
+	OnBurnISO     func(string) // Called when user wants to burn an ISO (nil = not available)
 
 	TitleColor color.Color
 	BgColor    color.Color

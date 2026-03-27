@@ -199,6 +199,7 @@ func applyAlpha(c color.Color, alpha uint8) color.Color {
 }
 
 type queueCallbacks struct {
+	onStopPreview func()
 	onBack        func()
 	onPause       func(string)
 	onResume      func(string)
@@ -211,12 +212,14 @@ type queueCallbacks struct {
 	onStart       func()
 	onClear       func()
 	onClearAll    func()
+	onCancelAll   func()
 	onRetry       func(string)
 	onCopyError   func(string)
 	onViewLog     func(string)
 	onCopyCommand func(string)
 	onOpenFolder  func(string)
 	onOpenOutput  func(string)
+	onBurnISO     func(string) // For author jobs with ISO output
 }
 
 type queueItemWidgets struct {
@@ -281,6 +284,7 @@ func BuildQueueView(
 	onCopyCommand func(string),
 	onOpenFolder func(string),
 	onOpenOutput func(string),
+	onBurnISO func(string),
 	titleColor, bgColor, textColor color.Color,
 ) *QueueView {
 	t := i18n.T()
@@ -405,6 +409,7 @@ func BuildQueueView(
 			onCopyCommand: onCopyCommand,
 			onOpenFolder:  onOpenFolder,
 			onOpenOutput:  onOpenOutput,
+			onBurnISO:     onBurnISO,
 		},
 		bgColor:   bgColor,
 		textColor: textColor,
@@ -539,6 +544,18 @@ func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
 			widget.NewButton("Remove", func() { callbacks.onRemove(job.ID) }),
 		)
 	case queue.JobStatusCompleted, queue.JobStatusFailed, queue.JobStatusCancelled:
+		// For author jobs, show Burn DVD button if ISO output
+		if job.Type == queue.JobTypeAuthor && job.Status == queue.JobStatusCompleted {
+			outputExt := strings.ToLower(filepath.Ext(job.OutputFile))
+			if outputExt == ".iso" && callbacks.onBurnISO != nil {
+				burnBtn := widget.NewButton("Burn DVD", func() {
+					callbacks.onBurnISO(job.ID)
+				})
+				burnBtn.Importance = widget.MediumImportance
+				buttons = append(buttons, burnBtn)
+			}
+		}
+
 		// Open in Folder + Play/Open stacked, shown whenever there is an output file.
 		if job.OutputFile != "" && (callbacks.onOpenFolder != nil || callbacks.onOpenOutput != nil) {
 			openLabel := openOutputLabel(job.OutputFile)

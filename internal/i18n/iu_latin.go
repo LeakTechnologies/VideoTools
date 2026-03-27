@@ -66,6 +66,8 @@ var iuLatn = Strings{
 	DialogNoRunningJob:       "Atingniaqtilugu Aggiqsijjutaujunik",                             // No running job to cancel
 	DialogISOCannotOpen:      "ISO Taikhanik",                                                  // Open DVD ISO
 	DialogISOCannotOpenMsg:   "ISO taikhanik pijaugijumaanangitclugu.\n\nPisuvgit Autor ippa.", // DVD ISO files cannot be loaded directly
+	DialogBurnComingSoon:     "DVD Kaggianik",                                                  // Burn DVD
+	DialogBurnComingSoonMsg:  "DVD kaggianik pipkaignikpaujunik.",                              // DVD burning will be available in a future update
 	LabelSnippet:             "Ikajurlugu:",                                                    // Snippet:
 	MergeStarted:             "Nutaaliurniq Pijjugut!",                                         // Merge started!
 

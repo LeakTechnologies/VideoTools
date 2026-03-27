@@ -286,6 +286,10 @@ func (s *appState) refreshQueueView() {
 					_ = openURL(job.OutputFile)
 				}
 			},
+			OnBurnISO: func(id string) {
+				t := i18n.T()
+				dialog.ShowInformation(t.DialogBurnComingSoon, t.DialogBurnComingSoonMsg, s.window)
+			},
 			TitleColor: utils.MustHex("#4CE870"),
 			BgColor:    gridColor,
 			TextColor:  textColor,
