@@ -7394,7 +7394,7 @@ func main() {
 
 	flag.Parse()
 	logging.SetDebug(*debugFlag || os.Getenv("VIDEOTOOLS_DEBUG") != "")
-	logging.Debug(logging.CatSystem, "starting VideoTools %s at %s", fullVersion(), time.Now().Format(time.RFC3339))
+	logging.Info(logging.CatSystem, "starting VideoTools %s at %s", fullVersion(), time.Now().Format(time.RFC3339))
 
 	// Best effort: ensure GStreamer bin is on PATH for Windows before initializing players.
 	if runtime.GOOS == "windows" {
