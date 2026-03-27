@@ -60,6 +60,8 @@ var enCA = Strings{
 	DialogSnippetCreated:     "Snippet Created",
 	DialogQueueNotInit:       "Queue not initialized.",
 	DialogNoRunningJob:       "No running job to cancel.",
+	DialogISOCannotOpen:      "Open DVD ISO",
+	DialogISOCannotOpenMsg:   "DVD ISO files cannot be loaded directly.\n\nUse the Author module to re-author or browse the disc contents.",
 	LabelSnippet:             "Snippet:",
 	MergeStarted:             "Merge started!",
 

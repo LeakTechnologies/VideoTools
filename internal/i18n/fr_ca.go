@@ -61,6 +61,8 @@ var frCA = Strings{
 	DialogSnippetCreated:     "Extrait créé",
 	DialogQueueNotInit:       "File d'attente non initialisée.",
 	DialogNoRunningJob:       "Aucune tâche en cours à annuler.",
+	DialogISOCannotOpen:      "Ouvrir ISO DVD",
+	DialogISOCannotOpenMsg:   "Les fichiers ISO DVD ne peuvent pas être chargés directement.\n\nUtilisez le module Auteur pour ré-écrire ou parcourir le contenu du disque.",
 	LabelSnippet:             "Extrait :",
 	MergeStarted:             "Fusion démarrée !",
 

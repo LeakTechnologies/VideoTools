@@ -67,6 +67,8 @@ type Strings struct {
 	DialogSnippetCreated     string
 	DialogQueueNotInit       string // "Queue not initialized"
 	DialogNoRunningJob       string // "No running job to cancel"
+	DialogISOCannotOpen      string // "DVD ISO files cannot be loaded directly"
+	DialogISOCannotOpenMsg   string // "Use the Author module to re-author or browse the disc contents"
 	LabelSnippet             string // "Snippet:" (job title prefix)
 	MergeStarted             string // "Merge started!"
 
