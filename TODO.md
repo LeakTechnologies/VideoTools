@@ -22,6 +22,12 @@ This file tracks upcoming features, improvements, and known issues.
   - Grey out incompatible options in dropdown
   - Auto-select compatible codec when format changes
 
+### Filter Integration (REWORK)
+- [ ] **Create design document** — See docs/FILTER_INTEGRATION_DESIGN.md
+- [ ] **Add filters to Upscale module** — Integrate filter controls in upscale UI
+- [ ] **Refactor upscale pipeline** — Apply filters BEFORE upscale in encode chain
+- [ ] **Keep Filters module standalone** — For non-upscale filter jobs
+
 ### Author Module
 - [x] **Interactive Preview tab** — Full DVD menu preview with video playback
 - [x] **Module extraction** — Author module extracted to internal/app/modules/author/
