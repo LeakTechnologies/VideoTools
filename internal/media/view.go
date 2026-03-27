@@ -261,9 +261,10 @@ type VideoPlayer struct {
 
 	subtitleBgAlpha int
 
-	showControls bool
-	mouseInView  bool
-	minimal      bool
+	showControls          bool
+	mouseInView           bool
+	minimal               bool
+	builtinControlsLocked bool
 
 	raster        *canvas.Raster
 	currentWidth  int
@@ -1113,9 +1114,19 @@ func (v *VideoPlayer) ClearThumbnailCache() {
 	v.thumbnailCache = make(map[int64]*image.RGBA)
 }
 
+// DisableBuiltinControls prevents the hover-to-reveal overlay transport bar
+// from ever appearing. Used when the caller provides its own control row.
+func (v *VideoPlayer) DisableBuiltinControls() {
+	v.builtinControlsLocked = true
+	v.showControls = false
+	v.Refresh()
+}
+
 func (v *VideoPlayer) MouseIn(ev *desktop.MouseEvent) {
 	v.mouseInView = true
-	v.showControls = true
+	if !v.builtinControlsLocked {
+		v.showControls = true
+	}
 	v.Refresh()
 }
 
