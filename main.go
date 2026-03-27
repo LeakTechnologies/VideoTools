@@ -5600,11 +5600,16 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 		if isWMV {
 			args = append(args, "-c:v", "wmv2")
 			args = append(args, "-b:v", "2000k") // High quality bitrate for WMV
-			args = append(args, "-c:a", "wmav2")
-			if conv.AudioBitrate != "" {
-				args = append(args, "-b:a", conv.AudioBitrate)
+			// WebM doesn't support WMA audio - use Opus
+			if isWebM {
+				args = append(args, "-c:a", "libopus", "-b:a", "128k")
 			} else {
-				args = append(args, "-b:a", "192k")
+				args = append(args, "-c:a", "wmav2")
+				if conv.AudioBitrate != "" {
+					args = append(args, "-b:a", conv.AudioBitrate)
+				} else {
+					args = append(args, "-b:a", "192k")
+				}
 			}
 		} else {
 			// For non-WMV: match source codec where possible, but cap bitrate for snippets
@@ -5624,6 +5629,11 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 				videoCodec = resolved
 			default:
 				videoCodec = "libx264"
+			}
+
+			// WebM only supports VP8, VP9, and AV1 - fallback if needed
+			if isWebM && (videoCodec == "libx264" || videoCodec == "libx265") {
+				videoCodec = "libvpx-vp9"
 			}
 
 			args = append(args, "-c:v", videoCodec)
@@ -5694,6 +5704,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			}
 
 			args = append(args, "-c:a", audioCodec)
+			// For AAC/MP3 use bitrate; for Opus/WebM use appropriate bitrate
 			if strings.Contains(strings.ToLower(audioCodec), "aac") ||
 				strings.Contains(strings.ToLower(audioCodec), "mp3") {
 				if conv.AudioBitrate != "" {
@@ -5701,6 +5712,9 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 				} else {
 					args = append(args, "-b:a", "192k")
 				}
+			} else if isWebM {
+				// Opus for WebM
+				args = append(args, "-b:a", "128k")
 			}
 		}
 
@@ -5746,6 +5760,10 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 		}
 
 		videoCodec := strings.ToLower(conv.VideoCodec)
+		// WebM only supports VP8, VP9, and AV1 - fallback if needed
+		if isWebM && (videoCodec == "h.264" || videoCodec == "h.265" || videoCodec == "") {
+			videoCodec = "vp9"
+		}
 		switch videoCodec {
 		case "h.264", "":
 			args = append(args, "-c:v", "libx264")
@@ -5803,6 +5821,10 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 
 		// Apply audio codec settings
 		audioCodec := strings.ToLower(conv.AudioCodec)
+		// WebM only supports Vorbis and Opus
+		if isWebM && (audioCodec == "" || audioCodec == "aac" || audioCodec == "mp3") {
+			audioCodec = "opus"
+		}
 		switch audioCodec {
 		case "aac", "":
 			args = append(args, "-c:a", "aac")
@@ -5813,6 +5835,13 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			}
 		case "opus":
 			args = append(args, "-c:a", "libopus")
+			if conv.AudioBitrate != "" {
+				args = append(args, "-b:a", conv.AudioBitrate)
+			} else {
+				args = append(args, "-b:a", "128k")
+			}
+		case "vorbis":
+			args = append(args, "-c:a", "libvorbis")
 			if conv.AudioBitrate != "" {
 				args = append(args, "-b:a", conv.AudioBitrate)
 			} else {
@@ -5830,8 +5859,12 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 		case "copy":
 			args = append(args, "-c:a", "copy")
 		default:
-			// Fallback to AAC
-			args = append(args, "-c:a", "aac", "-b:a", "192k")
+			// Fallback to AAC (or Opus for WebM)
+			if isWebM {
+				args = append(args, "-c:a", "libopus", "-b:a", "128k")
+			} else {
+				args = append(args, "-c:a", "aac", "-b:a", "192k")
+			}
 		}
 
 		// Common args appended after progress flags
