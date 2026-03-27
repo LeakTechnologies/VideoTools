@@ -159,13 +159,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}, opts.Window)
 	}
 
-	filtersNavBtn := widget.NewButton(t.UpscaleAdjustFilters, func() {
-		if src != nil {
-			opts.SetFiltersFile(src)
-		}
-		opts.OnShowFiltersView()
-	})
-
 	buildUpscaleBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
 		bg := canvas.NewRectangle(navyBlue)
 		bg.CornerRadius = 10
@@ -732,19 +725,148 @@ func BuildView(opts Options) fyne.CanvasObject {
 		aiSection,
 	))
 
-	filterApplyCheck := widget.NewCheck(t.UpscaleFilterIntLabel, func(checked bool) {
-		opts.SetUpscaleApplyFilters(checked)
-	})
-	filterApplyCheck.SetChecked(opts.UpscaleApplyFilters())
+	// Build filter chain function - defined before the slider callbacks use it
+	buildFilterChainForUpscale := func() {
+		var chain []string
+		if opts.FilterBrightness != nil && opts.FilterBrightness() != 0 {
+			chain = append(chain, fmt.Sprintf("eq=brightness=%.2f", opts.FilterBrightness()))
+		}
+		if opts.FilterContrast != nil && opts.FilterContrast() != 1.0 {
+			chain = append(chain, fmt.Sprintf("eq=contrast=%.2f", opts.FilterContrast()))
+		}
+		if opts.FilterSaturation != nil && opts.FilterSaturation() != 1.0 {
+			chain = append(chain, fmt.Sprintf("eq=saturation=%.2f", opts.FilterSaturation()))
+		}
+		if opts.FilterSharpness != nil && opts.FilterSharpness() > 0 {
+			chain = append(chain, fmt.Sprintf("unsharp=5:5:%.2f:5:5:0.0", opts.FilterSharpness()/5))
+		}
+		if opts.FilterDenoise != nil && opts.FilterDenoise() > 0 {
+			chain = append(chain, fmt.Sprintf("hqdn3d=%.2f", opts.FilterDenoise()))
+		}
+		if opts.FilterGrayscale != nil && opts.FilterGrayscale() {
+			chain = append(chain, "hue=s=0")
+		}
+		if opts.FilterFlipH != nil && opts.FilterFlipH() {
+			chain = append(chain, "hflip")
+		}
+		if opts.FilterFlipV != nil && opts.FilterFlipV() {
+			chain = append(chain, "vflip")
+		}
+		opts.SetUpscaleFilterChain(chain)
+	}
 
-	filterIntHint := widget.NewLabel(t.UpscaleFilterIntHint)
-	filterIntHint.TextStyle = fyne.TextStyle{Italic: true}
-	filterIntHint.Wrapping = fyne.TextWrapWord
+	// Initialize filter chain
+	buildFilterChainForUpscale()
+
+	// Integrated filter controls - same as filters module
+	brightnessSlider := widget.NewSlider(-1.0, 1.0)
+	if opts.FilterBrightness != nil {
+		brightnessSlider.SetValue(opts.FilterBrightness())
+	}
+	brightnessSlider.OnChanged = func(f float64) {
+		if opts.SetFilterBrightness != nil {
+			opts.SetFilterBrightness(f)
+		}
+		buildFilterChainForUpscale()
+	}
+
+	contrastSlider := widget.NewSlider(0.0, 3.0)
+	if opts.FilterContrast != nil {
+		contrastSlider.SetValue(opts.FilterContrast())
+	}
+	contrastSlider.OnChanged = func(f float64) {
+		if opts.SetFilterContrast != nil {
+			opts.SetFilterContrast(f)
+		}
+		buildFilterChainForUpscale()
+	}
+
+	saturationSlider := widget.NewSlider(0.0, 3.0)
+	if opts.FilterSaturation != nil {
+		saturationSlider.SetValue(opts.FilterSaturation())
+	}
+	saturationSlider.OnChanged = func(f float64) {
+		if opts.SetFilterSaturation != nil {
+			opts.SetFilterSaturation(f)
+		}
+		buildFilterChainForUpscale()
+	}
+
+	sharpnessSlider := widget.NewSlider(0.0, 5.0)
+	if opts.FilterSharpness != nil {
+		sharpnessSlider.SetValue(opts.FilterSharpness())
+	}
+	sharpnessSlider.OnChanged = func(f float64) {
+		if opts.SetFilterSharpness != nil {
+			opts.SetFilterSharpness(f)
+		}
+		buildFilterChainForUpscale()
+	}
+
+	denoiseSlider := widget.NewSlider(0.0, 10.0)
+	if opts.FilterDenoise != nil {
+		denoiseSlider.SetValue(opts.FilterDenoise())
+	}
+	denoiseSlider.OnChanged = func(f float64) {
+		if opts.SetFilterDenoise != nil {
+			opts.SetFilterDenoise(f)
+		}
+		buildFilterChainForUpscale()
+	}
+
+	grayscaleCheck := widget.NewCheck("Grayscale", func(b bool) {
+		if opts.SetFilterGrayscale != nil {
+			opts.SetFilterGrayscale(b)
+		}
+		buildFilterChainForUpscale()
+	})
+	if opts.FilterGrayscale != nil {
+		grayscaleCheck.SetChecked(opts.FilterGrayscale())
+	}
+
+	flipHCheck := widget.NewCheck("Flip Horizontal", func(b bool) {
+		if opts.SetFilterFlipH != nil {
+			opts.SetFilterFlipH(b)
+		}
+		buildFilterChainForUpscale()
+	})
+	if opts.FilterFlipH != nil {
+		flipHCheck.SetChecked(opts.FilterFlipH())
+	}
+
+	flipVCheck := widget.NewCheck("Flip Vertical", func(b bool) {
+		if opts.SetFilterFlipV != nil {
+			opts.SetFilterFlipV(b)
+		}
+		buildFilterChainForUpscale()
+	})
+	if opts.FilterFlipV != nil {
+		flipVCheck.SetChecked(opts.FilterFlipV())
+	}
+
+	colorFilterBox := buildUpscaleBox("Color Correction", container.NewVBox(
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Brightness"), brightnessSlider,
+			widget.NewLabel("Contrast"), contrastSlider,
+			widget.NewLabel("Saturation"), saturationSlider,
+		),
+	))
+
+	enhanceFilterBox := buildUpscaleBox("Enhancement", container.NewVBox(
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Sharpness"), sharpnessSlider,
+			widget.NewLabel("Denoise"), denoiseSlider,
+		),
+	))
+
+	transformFilterBox := buildUpscaleBox("Transform", container.NewVBox(
+		container.NewHBox(grayscaleCheck, flipHCheck, flipVCheck),
+	))
 
 	filterIntegrationSection := buildUpscaleBox(t.UpscaleFilterIntBox, container.NewVBox(
-		filterApplyCheck,
-		filterIntHint,
-		filtersNavBtn,
+		colorFilterBox,
+		enhanceFilterBox,
+		transformFilterBox,
 	))
 
 	var rifeSection fyne.CanvasObject
