@@ -89,35 +89,36 @@ func TestWriteTT_SRPT_TitleEntry(t *testing.T) {
 
 // ─── VMG_MAT mandatory constant fields ───────────────────────────────────────
 
-// TestSerializeVMGMAT_DiscSide verifies Disc_Side = 1 at byte 52 (side A).
+// TestSerializeVMGMAT_DiscSide verifies Disc_Side = 1 at byte 42 (0x02A, side A)
+// per libdvdread ifo_types.h vmgi_mat_t layout.
 func TestSerializeVMGMAT_DiscSide(t *testing.T) {
 	b := SerializeVMGMAT(NewVMGMAT())
-	if b[52] != 1 {
-		t.Errorf("Disc_Side (byte 52) = %d, want 1 (side A)", b[52])
+	if b[42] != 1 {
+		t.Errorf("Disc_Side (byte 42 / 0x02A) = %d, want 1 (side A)", b[42])
 	}
 }
 
-// TestSerializeVMGMAT_NrOfVolumes verifies Nr_Of_Volumes = 1 at bytes 48-49.
+// TestSerializeVMGMAT_NrOfVolumes verifies Nr_Of_Volumes = 1 at bytes 38-39 (0x026).
 func TestSerializeVMGMAT_NrOfVolumes(t *testing.T) {
 	b := SerializeVMGMAT(NewVMGMAT())
-	if nr := binary.BigEndian.Uint16(b[48:50]); nr != 1 {
-		t.Errorf("Nr_Of_Volumes (byte 48) = %d, want 1", nr)
+	if nr := binary.BigEndian.Uint16(b[38:40]); nr != 1 {
+		t.Errorf("Nr_Of_Volumes (byte 38 / 0x026) = %d, want 1", nr)
 	}
 }
 
-// TestSerializeVMGMAT_ThisVolumeNr verifies This_Volume_Nr = 1 at bytes 50-51.
+// TestSerializeVMGMAT_ThisVolumeNr verifies This_Volume_Nr = 1 at bytes 40-41 (0x028).
 func TestSerializeVMGMAT_ThisVolumeNr(t *testing.T) {
 	b := SerializeVMGMAT(NewVMGMAT())
-	if nr := binary.BigEndian.Uint16(b[50:52]); nr != 1 {
-		t.Errorf("This_Volume_Nr (byte 50) = %d, want 1", nr)
+	if nr := binary.BigEndian.Uint16(b[40:42]); nr != 1 {
+		t.Errorf("This_Volume_Nr (byte 40 / 0x028) = %d, want 1", nr)
 	}
 }
 
-// TestSerializeVMGMAT_MATLastByte verifies VMGI_MAT_Last_Byte = 2047 at bytes 138-141.
+// TestSerializeVMGMAT_MATLastByte verifies VMGI_Last_Byte = 2047 at bytes 128-131 (0x080).
 func TestSerializeVMGMAT_MATLastByte(t *testing.T) {
 	b := SerializeVMGMAT(NewVMGMAT())
-	if v := binary.BigEndian.Uint32(b[138:142]); v != 2047 {
-		t.Errorf("VMGI_MAT_Last_Byte (byte 138) = %d, want 2047", v)
+	if v := binary.BigEndian.Uint32(b[128:132]); v != 2047 {
+		t.Errorf("VMGI_Last_Byte (byte 128 / 0x080) = %d, want 2047", v)
 	}
 }
 

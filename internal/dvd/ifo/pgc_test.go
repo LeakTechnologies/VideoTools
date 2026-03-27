@@ -317,14 +317,15 @@ func TestSerializeVMGMAT_TT_SRPTOffset(t *testing.T) {
 	}
 }
 
-// TestSerializeVMGMAT_NrOfTitleSets verifies NrOfTitleSets is at byte 72 (0x048).
+// TestSerializeVMGMAT_NrOfTitleSets verifies NrOfTitleSets is at byte 62 (0x03E)
+// per libdvdread ifo_types.h vmgi_mat_t layout.
 func TestSerializeVMGMAT_NrOfTitleSets(t *testing.T) {
 	mat := NewVMGMAT()
 	mat.NrOfTitleSets = 3
 	b := SerializeVMGMAT(mat)
-	got := uint16(b[72])<<8 | uint16(b[73])
+	got := uint16(b[62])<<8 | uint16(b[63])
 	if got != 3 {
-		t.Errorf("NrOfTitleSets at byte 72 = %d, want 3", got)
+		t.Errorf("NrOfTitleSets at byte 62 (0x03E) = %d, want 3", got)
 	}
 }
 
