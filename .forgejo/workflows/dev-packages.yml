@@ -247,20 +247,21 @@ jobs:
           name: VideoTools-windows-diagnostics
           path: dist/windows/diagnostics/windows-runner.txt
 
-      - name: Download static FFmpeg (Windows)
+      - name: Install FFmpeg static libs via MSYS2
         run: |
-          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
-          Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ffmpeg.zip" -UseBasicParsing
-          Expand-Archive "$env:TEMP\ffmpeg.zip" -DestinationPath "$env:TEMP\ffmpeg-extract" -Force
-          $inner = Get-ChildItem "$env:TEMP\ffmpeg-extract" -Directory | Select-Object -First 1
-          New-Item -Force -ItemType Directory "C:\ffmpeg" | Out-Null
-          Copy-Item "$($inner.FullName)\*" "C:\ffmpeg\" -Recurse -Force
-          Remove-Item "$env:TEMP\ffmpeg.zip","$env:TEMP\ffmpeg-extract" -Recurse -Force
+          $bashPath = "C:\msys64\usr\bin\bash.exe"
+          if (-not (Test-Path $bashPath)) {
+            Write-Error "MSYS2 not found at C:\msys64 — ensure the runner was bootstrapped with bootstrap-windows.ps1"
+            exit 1
+          }
+          # mingw-w64-ucrt-x86_64-ffmpeg includes both static .a and shared .dll.a libs
+          & $bashPath -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-ffmpeg" 2>&1
+          Write-Host "[INFO] FFmpeg static libs ready at C:\msys64\ucrt64\lib"
 
       - name: Build Windows package
         env:
-          # BtbN shared FFmpeg — include/ headers and lib/ MinGW import libs at C:\ffmpeg
-          PKG_CONFIG_PATH: C:\ffmpeg\lib\pkgconfig
+          # MSYS2 ucrt64 FFmpeg — static .a libs at C:\msys64\ucrt64\lib
+          PKG_CONFIG_PATH: C:\msys64\ucrt64\lib\pkgconfig
           # SignPath.io (free OSS signing — https://signpath.io/product/open-source)
           # Set these secrets once approved; signing is skipped when absent.
           SIGNPATH_API_TOKEN:       ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -337,27 +338,22 @@ jobs:
 
           $env:CGO_ENABLED = "1"
 
-          # Set baseline CGO flags for the BtbN shared FFmpeg at C:\ffmpeg.
-          # These are always applied; real pkg-config (if available) may override them.
-          $env:CGO_CFLAGS  = "-IC:\ffmpeg\include"
-          $env:CGO_LDFLAGS = "-LC:\ffmpeg\lib -lavcodec -lavformat -lavutil -lswscale -lswresample -lavfilter -lbcrypt -lSecur32 -lWs2_32 -lmfplat -lstrmiids -lavrt -lole32 -luser32"
+          # MSYS2 ucrt64 provides static FFmpeg libs and a real pkg-config.
+          # --static expands all transitive deps (zlib, bzip2, x264, etc.) automatically.
+          $msys2Bin    = "C:\msys64\ucrt64\bin"
+          $pkgConfigExe = Join-Path $msys2Bin "pkg-config.exe"
+          $env:PATH    = "$msys2Bin;C:\msys64\usr\bin;$env:PATH"
+          $env:CGO_CFLAGS = "-IC:\msys64\ucrt64\include"
 
-          # If real pkg-config is installed, let it refine the flags.
-          $pkgConfig = Get-Command pkg-config -ErrorAction SilentlyContinue
-          if ($pkgConfig) {
-            $ffmpegLibs = "libavcodec libavformat libswscale libavutil libswresample"
-            $cflags = (& pkg-config --cflags $ffmpegLibs.Split(" ") 2>$null)
-            $libs    = (& pkg-config --libs   $ffmpegLibs.Split(" ") 2>$null)
-            if ($cflags) { $env:CGO_CFLAGS  = $cflags }
-            if ($libs)   { $env:CGO_LDFLAGS = $libs }
-          } else {
-            # No real pkg-config — create a no-op shim so #cgo pkg-config: directives
-            # in source files don't fail. CGO_CFLAGS/CGO_LDFLAGS carry the real flags.
-            $shimDir = "C:\tools\pkg-config-shim"
-            New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
-            "@echo off`r`nexit 0" | Set-Content "$shimDir\pkg-config.bat" -Encoding ASCII
-            $env:PATH = "$shimDir;$env:PATH"
+          $ffmpegPkgs = @("libavcodec","libavformat","libswscale","libavutil","libswresample","libavfilter")
+          $staticLibs = (& $pkgConfigExe --libs --static $ffmpegPkgs 2>$null) -join " "
+          if (-not $staticLibs) {
+            Write-Error "pkg-config returned no flags for FFmpeg — check MSYS2 install"
+            exit 1
           }
+          # -static-libgcc prevents a dependency on libgcc_s_seh-1.dll (not a system DLL)
+          $env:CGO_LDFLAGS = "$staticLibs -static-libgcc"
+          Write-Host "[INFO] CGO_LDFLAGS: $env:CGO_LDFLAGS"
 
           go mod download
           go mod verify
@@ -397,17 +393,7 @@ jobs:
           if (Test-Path (Join-Path $projectRoot "README.md")) {
             Copy-Item (Join-Path $projectRoot "README.md") -Destination $pkgDir.FullName -Force
           }
-          # Bundle FFmpeg DLLs alongside the exe (Windows loads them before main() runs)
-          $ffmpegBinDir = "C:\ffmpeg\bin"
-          if (Test-Path $ffmpegBinDir) {
-            Get-ChildItem "$ffmpegBinDir\*.dll" |
-              Where-Object { $_.Name -notmatch "^(ffmpeg|ffprobe|ffplay)" } |
-              ForEach-Object { Copy-Item $_.FullName -Destination $pkgDir.FullName -Force }
-            $dllCount = (Get-ChildItem $pkgDir.FullName -Filter *.dll).Count
-            Write-Host "[INFO] Bundled $dllCount DLLs from $ffmpegBinDir alongside VideoTools.exe"
-          } else {
-            Write-Host "[WARN] FFmpeg bin dir not found; DLLs not bundled" -ForegroundColor Yellow
-          }
+          # No DLLs to bundle — FFmpeg is statically linked into the exe.
           $artifactPath = Join-Path $distDir $artifactName
           if (Test-Path $artifactPath) {
             Remove-Item $artifactPath -Force
