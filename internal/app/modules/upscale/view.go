@@ -98,6 +98,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetUpscaleFilterChain(append([]string{}, opts.OnGetFilterActiveChain()...))
 	}
 
+	loadBtn := widget.NewButton(t.ActionLoadVideo, nil)
+	loadBtn.Importance = widget.LowImportance
+
 	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleUpscale), func() {
 		opts.OnShowMainMenu()
 	})
@@ -109,7 +112,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	opts.QueueBtn = queueBtn
 	opts.OnUpdateQueueButtonLabel()
 
-	topBar := ui.TintedBar(upscaleColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
+	topBar := ui.TintedBar(upscaleColor, container.NewHBox(backBtn, loadBtn, layout.NewSpacer(), queueBtn))
 
 	fileLabel := widget.NewLabel(t.LabelNoFile)
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
@@ -131,7 +134,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		videoContainer = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
 	}
 
-	loadBtn := widget.NewButton(t.ActionLoadVideo, func() {
+	loadBtn.OnTapped = func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -154,8 +157,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 				}, false)
 			}()
 		}, opts.Window)
-	})
-	loadBtn.Importance = widget.LowImportance
+	}
 
 	filtersNavBtn := widget.NewButton(t.UpscaleAdjustFilters, func() {
 		if src != nil {
@@ -742,6 +744,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	filterIntegrationSection := buildUpscaleBox(t.UpscaleFilterIntBox, container.NewVBox(
 		filterApplyCheck,
 		filterIntHint,
+		filtersNavBtn,
 	))
 
 	var rifeSection fyne.CanvasObject
@@ -963,12 +966,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	metaPanel := buildMetadataPanel(opts, src, fyne.NewSize(0, 200))
 
-	// Compact action row: buttons sit beside the file label in the video box header
-	loadFiltersRow := container.NewHBox(loadBtn, filtersNavBtn, layout.NewSpacer())
-	videoBoxContent := container.NewBorder(
-		container.NewVBox(fileLabel, loadFiltersRow), nil, nil, nil,
-		videoContainer,
-	)
+	videoBoxContent := container.NewBorder(fileLabel, nil, nil, nil, videoContainer)
 	videoBox := buildUpscaleBox(t.UpscaleVideoBox, videoBoxContent)
 	metaScroll := ui.NewFastVScroll(metaPanel)
 	leftSplit := container.NewVSplit(videoBox, metaScroll)
@@ -1129,6 +1127,7 @@ func buildMetadataPanel(opts Options, src *VideoSource, size fyne.Size) fyne.Can
 	}
 
 	col1 := container.NewVBox(
+		makeRow("Title", makeValuePill(strings.TrimSuffix(filepath.Base(src.Path), filepath.Ext(src.Path)))),
 		makeRow("Resolution", makeValuePill(fmt.Sprintf("%dx%d", src.Width, src.Height))),
 		makeRow("Aspect Ratio", makeValuePill(aspectStr)),
 		makeRow("Frame Rate", makeValuePill(fmt.Sprintf("%.2f fps", src.FrameRate))),
