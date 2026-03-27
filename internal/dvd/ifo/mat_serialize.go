@@ -157,33 +157,34 @@ func packVideoAttrs(va VideoAttributes) (byte, byte) {
 }
 
 // SerializeVMGMAT returns a 2048-byte sector with all VMG_MAT fields placed
-// at the byte offsets specified by the DVD-Video specification (Part 3, §3.2).
+// at the byte offsets specified by the DVD-Video specification (Part 3, §3.2)
+// and verified against libdvdread's ifo_types.h vmgi_mat_t layout.
 //
 // Key offsets (all big-endian):
 //
 //	0x000 (0)   — VMG_Identifier "DVDVIDEO-VMG" (12 bytes)
 //	0x00C (12)  — VMG_Last_Sector (4 bytes)
 //	0x010 (16)  — [12 reserved zeros]
-//	0x01C (28)  — VMGM_VOBS_Last_Sector (4 bytes; 0 if no menu VOB)
-//	0x020 (32)  — [8 reserved zeros]
-//	0x028 (40)  — VMGI_MAT_Last_Sector (4 bytes)
-//	0x02C (44)  — VMG_Category (4 bytes; note: no 1-byte reserved gap before it)
-//	0x030 (48)  — Nr_Of_Volumes (2 bytes; always 1 for single-disc sets)
-//	0x032 (50)  — This_Volume_Nr (2 bytes; always 1)
-//	0x034 (52)  — Disc_Side (1 byte; 1 = side A)
-//	0x035 (53)  — [19 reserved zeros]
-//	0x048 (72)  — Nr_Of_Title_Sets (2 bytes; total number of VTS on disc)
-//	0x04A (74)  — Provider_Identifier (32 bytes; padded with spaces/zeros)
-//	0x06A (106) — VMG_Pos_Code (8 bytes; zeroed)
-//	0x072 (114) — [24 reserved zeros]
-//	0x08A (138) — VMGI_MAT_Last_Byte (4 bytes; endByte of this structure)
-//	0x08E (142) — VMGM_VOBS_Start_Sector (4 bytes; 0 if no menu VOB)
-//	0x092 (146) — [46 reserved zeros]
-//	0x0C0 (192) — TT_SRPT_Offset (4 bytes) ← Title Search Pointer Table
+//	0x01C (28)  — VMGM_Last_Sector (4 bytes; 0 if no menu VOB set)
+//	0x020 (32)  — zero_2 (1 byte)
+//	0x021 (33)  — specification_version (1 byte; zeroed)
+//	0x022 (34)  — VMG_Category (4 bytes)
+//	0x026 (38)  — Nr_Of_Volumes (2 bytes; always 1)
+//	0x028 (40)  — This_Volume_Nr (2 bytes; always 1)
+//	0x02A (42)  — Disc_Side (1 byte; 1 = side A)
+//	0x02B (43)  — zero_3 (19 reserved bytes — must be zero)
+//	0x03E (62)  — Nr_Of_Title_Sets (2 bytes; total VTS count on disc)
+//	0x040 (64)  — Provider_Identifier (32 bytes; zeroed)
+//	0x060 (96)  — VMG_Pos_Code (8 bytes; zeroed)
+//	0x068 (104) — zero_4 (24 reserved bytes)
+//	0x080 (128) — VMGI_Last_Byte (4 bytes; last byte of this IFO sector = 2047)
+//	0x084 (132) — First_Play_PGC (4 bytes; byte offset to first-play PGC in IFO)
+//	0x088 (136) — zero_5 (56 reserved bytes — must be zero)
+//	0x0C0 (192) — TT_SRPT_Offset (4 bytes) ← Title Search Pointer Table sector
 //	0x0C4 (196) — VMG_PTT_SRPT_Offset (4 bytes; 0)
 //	0x0C8 (200) — VMGM_PGCI_UT_Offset (4 bytes; VMG menu PGC)
 //	0x0CC (204) — VMG_PTL_MAIT_Offset (4 bytes; parental; 0)
-//	0x0D0 (208) — VMG_VTS_ATRT_Offset (4 bytes; VTS attribute table; 0)
+//	0x0D0 (208) — VMG_VTS_ATRT_Offset (4 bytes; VTS attribute table)
 //	0x0D4 (212) — VMG_TXTDT_MG_Offset (4 bytes; text data; 0)
 //	0x0D8 (216) — VMG_M_C_ADT_Offset (4 bytes; menu cell ADT; 0)
 //	0x0DC (220) — VMG_M_VOBU_ADMAP_Offset (4 bytes; menu VOBU map; 0)
@@ -197,47 +198,41 @@ func SerializeVMGMAT(mat *VMG_MAT) []byte {
 	// 0x00C: VMG_Last_Sector
 	binary.BigEndian.PutUint32(b[12:16], mat.VMG_Last_Sector)
 
-	// 0x010-0x01B: Reserved (12 bytes)
+	// 0x010-0x01B: zero_1 (12 bytes; zeroed by make)
 
-	// 0x01C: VMGM_VOBS_Last_Sector (0 = no menu VOB)
+	// 0x01C: VMGM_Last_Sector (0 = no menu VOB set)
 	binary.BigEndian.PutUint32(b[28:32], mat.VMG_BUP_Last_Sector)
 
-	// 0x020-0x027: Reserved (8 bytes)
+	// 0x020: zero_2 (1 byte), 0x021: specification_version (zeroed)
 
-	// 0x028: VMGI_MAT_Last_Sector
-	binary.BigEndian.PutUint32(b[40:44], mat.VMG_MAT_Last_Sector)
+	// 0x022: VMG_Category
+	binary.BigEndian.PutUint32(b[34:38], uint32(mat.VMG_Category))
 
-	// 0x02C: VMG_Category (note: no reserved byte before it, unlike VTS_MAT)
-	binary.BigEndian.PutUint32(b[44:48], uint32(mat.VMG_Category))
+	// 0x026: Nr_Of_Volumes (1 for single-disc sets)
+	binary.BigEndian.PutUint16(b[38:40], 1)
 
-	// 0x030: Nr_Of_Volumes (1 for single-disc sets)
-	binary.BigEndian.PutUint16(b[48:50], 1)
+	// 0x028: This_Volume_Nr (1)
+	binary.BigEndian.PutUint16(b[40:42], 1)
 
-	// 0x032: This_Volume_Nr (1)
-	binary.BigEndian.PutUint16(b[50:52], 1)
+	// 0x02A: Disc_Side (1 = side A)
+	b[42] = 1
 
-	// 0x034: Disc_Side (1 = side A)
-	b[52] = 1
+	// 0x02B-0x03D: zero_3 (19 bytes; must be zero — zeroed by make)
 
-	// 0x035-0x047: Reserved (19 bytes)
+	// 0x03E: Nr_Of_Title_Sets
+	binary.BigEndian.PutUint16(b[62:64], mat.NrOfTitleSets)
 
-	// 0x048: Nr_Of_Title_Sets
-	binary.BigEndian.PutUint16(b[72:74], mat.NrOfTitleSets)
+	// 0x040: Provider_Identifier (32 bytes; zeroed)
+	// 0x060: VMG_Pos_Code (8 bytes; zeroed)
+	// 0x068-0x07F: zero_4 (24 bytes; zeroed by make)
 
-	// 0x04A: Provider_Identifier (32 bytes; zeroed)
+	// 0x080: VMGI_Last_Byte (last byte index of this IFO sector; 2048-byte sector → 2047)
+	binary.BigEndian.PutUint32(b[128:132], uint32(2047))
 
-	// 0x06A: VMG_Pos_Code (8 bytes; zeroed)
-
-	// 0x072-0x089: Reserved (24 bytes)
-
-	// 0x08A: VMGI_MAT_Last_Byte (last byte of the VMGI management table).
-	// Most tools set this to 2047 (= full 2048-byte sector - 1).
-	binary.BigEndian.PutUint32(b[138:142], uint32(2047))
-
-	// 0x08E: First_Play_PGC — byte offset within the IFO file of the PGC that
+	// 0x084: First_Play_PGC — byte offset within the IFO file of the PGC that
 	// DVD players execute first when the disc is inserted. Set to the main menu
 	// PGC so the player shows the menu. 0 means "skip to title 1 directly".
-	binary.BigEndian.PutUint32(b[142:146], mat.VMG_FirstPlayPGC)
+	binary.BigEndian.PutUint32(b[132:136], mat.VMG_FirstPlayPGC)
 
 	// 0x092-0x0BF: Reserved (46 bytes)
 

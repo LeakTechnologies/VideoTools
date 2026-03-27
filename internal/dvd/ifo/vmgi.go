@@ -15,8 +15,7 @@ import (
 type VMG_MAT struct {
 	VMG_Identifier          [12]byte // "DVDVIDEO-VMG"
 	VMG_Last_Sector         uint32
-	VMG_BUP_Last_Sector     uint32   // VMGM_VOBS_Last_Sector (menu VOB; 0 if none)
-	VMG_MAT_Last_Sector     uint32   // VMGI_MAT_Last_Sector
+	VMG_BUP_Last_Sector     uint32 // VMGM_Last_Sector (last sector of VMGM VOBs; 0 if none)
 	VMG_Category            uint32
 
 	// Disc metadata (written by SerializeVMGMAT at correct byte offsets)
@@ -252,9 +251,9 @@ func ReadVMGI(r io.Reader) (*VMG_MAT, error) {
 	copy(mat.VMG_Identifier[:], buf[0:12])
 	mat.VMG_Last_Sector         = binary.BigEndian.Uint32(buf[12:16])
 	mat.VMG_BUP_Last_Sector     = binary.BigEndian.Uint32(buf[28:32])
-	mat.VMG_MAT_Last_Sector     = binary.BigEndian.Uint32(buf[40:44])
-	mat.VMG_Category            = binary.BigEndian.Uint32(buf[44:48])
-	mat.NrOfTitleSets           = binary.BigEndian.Uint16(buf[72:74])
+	mat.VMG_Category            = binary.BigEndian.Uint32(buf[34:38])
+	mat.NrOfTitleSets           = binary.BigEndian.Uint16(buf[62:64])
+	mat.VMG_FirstPlayPGC        = binary.BigEndian.Uint32(buf[132:136])
 	mat.TT_SRPT_Offset          = binary.BigEndian.Uint32(buf[192:196])
 	mat.VMG_PTT_SRPT_Offset     = binary.BigEndian.Uint32(buf[196:200])
 	mat.VMG_PGCITI_Offset       = binary.BigEndian.Uint32(buf[200:204])
