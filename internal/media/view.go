@@ -665,6 +665,10 @@ func (v *VideoPlayer) OnFrameRate(cb func(float64)) {
 	v.onFrameRate = cb
 }
 
+func (v *VideoPlayer) GetChapters() []Chapter {
+	return v.chapters
+}
+
 func (v *VideoPlayer) SetChapters(chapters []Chapter) {
 	v.chapters = chapters
 	v.currentChapter = 0
