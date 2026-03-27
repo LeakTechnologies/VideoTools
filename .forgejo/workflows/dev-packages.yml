@@ -251,14 +251,19 @@ jobs:
         run: |
           # Install MSYS2 if not already present on the runner
           if (-not (Test-Path "C:\msys64\usr\bin\bash.exe")) {
-            Write-Host "[INFO] MSYS2 not found - installing via winget..."
-            winget install --id MSYS2.MSYS2 -e --source winget `
-              --accept-package-agreements --accept-source-agreements --silent
+            Write-Host "[INFO] MSYS2 not found - installing via SFX archive..."
+            $sfxUrl = "https://github.com/msys2/msys2-installer/releases/download/nightly-x86_64/msys2-base-x86_64-latest.sfx.exe"
+            $sfxPath = Join-Path $env:TEMP "msys2.sfx.exe"
+            Invoke-WebRequest -Uri $sfxUrl -OutFile $sfxPath -UseBasicParsing
+            & $sfxPath -y "-oC:\" 2>&1
+            Remove-Item $sfxPath -Force -ErrorAction SilentlyContinue
             if (-not (Test-Path "C:\msys64\usr\bin\bash.exe")) {
-              Write-Error "MSYS2 install failed - bash.exe not found after install"
+              Write-Error "MSYS2 install failed - bash.exe not found after extraction"
               exit 1
             }
-            Write-Host "[INFO] MSYS2 installed"
+            # Initialise pacman keyring (required after fresh install)
+            & "C:\msys64\usr\bin\bash.exe" -lc "pacman-key --init && pacman-key --populate msys2 && pacman -Sy --noconfirm" 2>&1
+            Write-Host "[INFO] MSYS2 installed and initialised"
           } else {
             Write-Host "[INFO] MSYS2 already present"
           }
