@@ -582,8 +582,9 @@ func probeHWAccel(cached **bool, args []string, label string) bool {
 // hwProbeSource is a lavfi color source that outputs yuv420p — the format all
 // hardware encoders (NVENC, QSV, AMF, VAAPI) accept directly. nullsrc produces
 // an unformatted raw buffer which can cause format negotiation failures.
-// 128x128 satisfies minimum size requirements across all encoder families.
-const hwProbeSource = "color=black:size=128x128:rate=25"
+// 192x192 is the minimum supported by NVENC on modern drivers (older require 256+).
+// Using 1920x1080 to ensure compatibility across all hardware encoders.
+const hwProbeSource = "color=black:size=1920x1080:rate=25"
 
 // checkNvencRuntime does a real encode probe to verify NVIDIA GPU + drivers are working.
 func checkNvencRuntime() bool {
