@@ -249,40 +249,30 @@ jobs:
 
       - name: Install MSYS2 and FFmpeg static libs
         run: |
-          # Install MSYS2 if not already present on the runner
+          # MSYS2 must be pre-installed on the runner.
+          # One-time setup: run scripts/ci/bootstrap-windows.ps1 from a user session,
+          # or install MSYS2 manually from https://www.msys2.org and then run:
+          #   pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain
           if (-not (Test-Path "C:\msys64\usr\bin\bash.exe")) {
-            Write-Host "[INFO] MSYS2 not found - installing via SFX archive..."
-            $sfxUrl = "https://github.com/msys2/msys2-installer/releases/download/nightly-x86_64/msys2-base-x86_64-latest.sfx.exe"
-            $sfxPath = Join-Path $env:TEMP "msys2.sfx.exe"
-            Invoke-WebRequest -Uri $sfxUrl -OutFile $sfxPath -UseBasicParsing
-            & $sfxPath -y "-oC:\" 2>&1
-            Remove-Item $sfxPath -Force -ErrorAction SilentlyContinue
-            if (-not (Test-Path "C:\msys64\usr\bin\bash.exe")) {
-              Write-Error "MSYS2 install failed - bash.exe not found after extraction"
-              exit 1
-            }
-            # Initialise pacman keyring (required after fresh install)
-            & "C:\msys64\usr\bin\bash.exe" -lc "pacman-key --init && pacman-key --populate msys2 && pacman -Sy --noconfirm" 2>&1
-            Write-Host "[INFO] MSYS2 installed and initialised"
-          } else {
-            Write-Host "[INFO] MSYS2 already present"
+            Write-Error "MSYS2 not found at C:\msys64. Run scripts/ci/bootstrap-windows.ps1 from a user session to set up the runner."
+            exit 1
           }
+          Write-Host "[INFO] MSYS2 present"
 
           $bashPath = "C:\msys64\usr\bin\bash.exe"
 
           # Install ucrt64 toolchain if not already present
           if (-not (Test-Path "C:\msys64\ucrt64\bin\gcc.exe")) {
             Write-Host "[INFO] Installing MSYS2 ucrt64 toolchain..."
-            & $bashPath -lc "pacman -Sy --noconfirm" 2>&1
-            & $bashPath -lc "pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain" 2>&1
+            & $bashPath -lc "pacman -Sy --noconfirm && pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain" 2>&1
           } else {
-            Write-Host "[INFO] ucrt64 toolchain already present"
+            Write-Host "[INFO] ucrt64 toolchain present"
           }
 
           # Install FFmpeg (includes static .a libs and pkg-config .pc files)
           Write-Host "[INFO] Installing mingw-w64-ucrt-x86_64-ffmpeg..."
           & $bashPath -lc "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-ffmpeg" 2>&1
-          Write-Host "[INFO] FFmpeg static libs ready at C:\msys64\ucrt64\lib"
+          Write-Host "[INFO] FFmpeg static libs ready"
 
       - name: Build Windows package
         env:
