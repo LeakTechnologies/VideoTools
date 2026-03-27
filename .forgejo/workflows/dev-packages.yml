@@ -304,46 +304,34 @@ jobs:
 
       - name: Build static FFmpeg (Windows)
         if: steps.cache-ffmpeg-windows.outputs.cache-hit != 'true'
+        shell: C:\msys64\usr\bin\bash.exe --login -eo pipefail {0}
         run: |
-          $bashPath = "C:\msys64\usr\bin\bash.exe"
-          $ver = "${{ env.FFMPEG_VERSION }}"
-
-          function Invoke-Bash([string]$cmd) {
-            & $bashPath -lc $cmd 2>&1 | ForEach-Object { Write-Host $_ }
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "bash failed (exit $LASTEXITCODE): $cmd"
-              exit 1
-            }
-          }
-
-          Write-Host "[INFO] Downloading FFmpeg $ver source..."
-          Invoke-Bash @"
-            set -euo pipefail
-            wget -q -O /tmp/ffmpeg.tar.bz2 https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2
-            tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
-            cd /tmp/ffmpeg-${ver}
-            ./configure \
-              --prefix=/c/ffmpeg-static \
-              --arch=x86_64 \
-              --target-os=mingw32 \
-              --enable-static \
-              --disable-shared \
-              --enable-pic \
-              --disable-doc \
-              --disable-programs \
-              --disable-debug \
-              --enable-gpl \
-              --enable-version3 \
-              --enable-avfilter \
-              --enable-libx264 \
-              --enable-libx265 \
-              --extra-cflags='-I/ucrt64/include' \
-              --extra-ldflags='-L/ucrt64/lib'
-            make -j`$(nproc)
-            make install
-            rm -rf /tmp/ffmpeg-${ver} /tmp/ffmpeg.tar.bz2
-"@
-          Write-Host "[INFO] FFmpeg $ver built at C:\ffmpeg-static"
+          ver="${{ env.FFMPEG_VERSION }}"
+          echo "[INFO] Downloading FFmpeg ${ver} source..."
+          wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
+          tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
+          cd "/tmp/ffmpeg-${ver}"
+          ./configure \
+            --prefix=/c/ffmpeg-static \
+            --arch=x86_64 \
+            --target-os=mingw32 \
+            --enable-static \
+            --disable-shared \
+            --enable-pic \
+            --disable-doc \
+            --disable-programs \
+            --disable-debug \
+            --enable-gpl \
+            --enable-version3 \
+            --enable-avfilter \
+            --enable-libx264 \
+            --enable-libx265 \
+            --extra-cflags='-I/ucrt64/include' \
+            --extra-ldflags='-L/ucrt64/lib'
+          make -j$(nproc)
+          make install
+          rm -rf "/tmp/ffmpeg-${ver}" /tmp/ffmpeg.tar.bz2
+          echo "[INFO] FFmpeg ${ver} built at /c/ffmpeg-static"
 
       - name: Build Windows package
         env:
