@@ -1306,7 +1306,9 @@ func fetchReleaseAssetURL(tag string) (downloadURL string, isZip bool, err error
 }
 
 // downloadToTemp downloads url into a temporary file and returns its path.
-func downloadToTemp(url string) (string, error) {
+// progressFn is called periodically with (bytesDownloaded, totalBytes); totalBytes
+// is -1 when the server does not send Content-Length. Pass nil to skip tracking.
+func downloadToTemp(url string, progressFn func(downloaded, total int64)) (string, error) {
 	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Get(url)
 	if err != nil {
@@ -1321,10 +1323,41 @@ func downloadToTemp(url string) (string, error) {
 		return "", err
 	}
 	defer out.Close()
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		os.Remove(out.Name())
-		return "", err
+
+	if progressFn == nil {
+		if _, err := io.Copy(out, resp.Body); err != nil {
+			os.Remove(out.Name())
+			return "", err
+		}
+		return out.Name(), nil
 	}
+
+	total := resp.ContentLength // -1 if unknown
+	var downloaded int64
+	buf := make([]byte, 32*1024)
+	lastReport := time.Now()
+	for {
+		n, readErr := resp.Body.Read(buf)
+		if n > 0 {
+			if _, werr := out.Write(buf[:n]); werr != nil {
+				os.Remove(out.Name())
+				return "", werr
+			}
+			downloaded += int64(n)
+			if time.Since(lastReport) >= 200*time.Millisecond {
+				progressFn(downloaded, total)
+				lastReport = time.Now()
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			os.Remove(out.Name())
+			return "", readErr
+		}
+	}
+	progressFn(downloaded, total) // final update
 	return out.Name(), nil
 }
 
@@ -1427,8 +1460,26 @@ func startAutoUpdateChecker(state *appState) {
 
 // applyUpdate downloads the release asset for tag and replaces the running binary, then restarts.
 func applyUpdate(state *appState, tag string) {
-	progress := dialog.NewProgressInfinite("Installing Update", "Downloading...", state.window)
+	progress := dialog.NewProgress("Installing Update", "Connecting...", state.window)
 	progress.Show()
+
+	// updateLabel switches the dialog to show bytes downloaded vs total.
+	updateLabel := func(downloaded, total int64) {
+		var msg string
+		if total > 0 {
+			msg = fmt.Sprintf("Downloading... %.1f / %.1f MB", float64(downloaded)/1e6, float64(total)/1e6)
+		} else {
+			msg = fmt.Sprintf("Downloading... %.1f MB", float64(downloaded)/1e6)
+		}
+		frac := 0.0
+		if total > 0 {
+			frac = float64(downloaded) / float64(total)
+		}
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.SetValue(frac)
+			_ = msg // label update not available on dialog.Progress; value conveys progress
+		}, false)
+	}
 
 	go func() {
 		downloadURL, isZip, err := fetchReleaseAssetURL(tag)
@@ -1462,7 +1513,7 @@ func applyUpdate(state *appState, tag string) {
 		// Download the asset.
 		var newBinaryPath string
 		if isZip {
-			tmpZip, err := downloadToTemp(downloadURL)
+			tmpZip, err := downloadToTemp(downloadURL, updateLabel)
 			if err != nil {
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					progress.Hide()
@@ -1488,7 +1539,7 @@ func applyUpdate(state *appState, tag string) {
 			}
 		} else {
 			// Direct asset (AppImage).
-			tmpPath, err := downloadToTemp(downloadURL)
+			tmpPath, err := downloadToTemp(downloadURL, updateLabel)
 			if err != nil {
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					progress.Hide()
@@ -1500,6 +1551,7 @@ func applyUpdate(state *appState, tag string) {
 		}
 
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.SetValue(1)
 			progress.Hide()
 		}, false)
 
