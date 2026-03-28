@@ -407,6 +407,31 @@ type Strings struct {
 	ConvertLoadVideoToConvert     string // "Load a video to convert"
 	ConvertAddAllToQueue          string // "Add All to Queue"
 	ConvertViewLog                string // "View Log"
+	ConvertFFmpegCommand          string // "FFmpeg Command:"
+	ConvertFrameRate              string // "Frame Rate"
+	ConvertFormat                 string // "Format"
+	ConvertOutputFolder           string // "Output Folder"
+	ConvertOutputFilename         string // "Output Filename"
+	ConvertAutoCropHint           string // "Removes black bars to reduce file size"
+	ConvertTransformHint          string // "Apply flips and rotation to correct video orientation"
+	ConvertTargetAspectHint       string // "Pick desired output aspect (default Source)."
+	ConvertCustomAspectHint       string // "Custom aspect ratio in use."
+	ConvertBackgroundHint         string // "Crop removes edges, Letterbox/Pillarbox adds black bars to fit."
+	ConvertSettingsInfo           string // "Settings persist across videos. Change them anytime."
+	ConvertCacheDirHint           string // "Use an SSD for best performance. Leave blank to use system temp."
+	ConvertShowBatchSettings      string // "Show Batch Settings"
+	ConvertHwAccelHint            string // "Auto picks best GPU path; if encode fails, switch to none (software)."
+	ConvertTwoPassNote            string // "Two-pass encoding is ignored in CRF mode."
+	ConvertEncoderPresetHint      string // "Choose slower for better compression, faster for speed"
+	ConvertLoadVideoForCommand    string // "Load a video to see the FFmpeg command."
+	ConvertVideoFormatsHint       string // "MP4, MOV, MKV and more"
+	ConvertFrameLabel             string // "Frame: %d"
+	ConvertSnippetGenerating      string // "Generating %d-second snippet..."
+
+	// ── Merge ──────────────────────────────────────────────────────────────────
+	MergeAddClipsHint string // "Add at least two clips to merge."
+	MergeRegion       string // "Region:"
+	MergeAspect       string // "Aspect:"
 
 	// ── Compare ──────────────────────────────────────────────────────────────────
 	CompareInstructions    string
