@@ -64,7 +64,7 @@ if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 # --- DLL dependency report (non-fatal) ---
 $objdumpExe = Join-Path $msys2Bin "objdump.exe"
 if (Test-Path $objdumpExe) {
-    Write-Host "[INFO] DLL imports in $buildOutput:"
+    Write-Host "[INFO] DLL imports in ${buildOutput}:"
     & $objdumpExe -p $buildOutput 2>$null | Select-String "DLL Name" | ForEach-Object { Write-Host "  $_" }
 } else {
     Write-Host "[WARN] objdump not found; skipping DLL import report"
