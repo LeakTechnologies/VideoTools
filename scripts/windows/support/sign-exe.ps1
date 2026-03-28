@@ -70,10 +70,24 @@ if ([string]::IsNullOrWhiteSpace($CertPath)) {
 if (-not (Test-Path $CertPath)) { throw "Cert not found: $CertPath" }
 if ([string]::IsNullOrWhiteSpace($CertPassword)) { throw "-CertPassword is required for PFX signing." }
 
-$signTool = Get-Command signtool.exe -ErrorAction SilentlyContinue
-if (-not $signTool) { throw "signtool.exe not found. Install the Windows SDK." }
+$signToolPath = ""
+$signToolCmd = Get-Command signtool.exe -ErrorAction SilentlyContinue
+if ($signToolCmd) {
+    $signToolPath = $signToolCmd.Path
+} else {
+    # signtool.exe is typically not in PATH; search Windows Kits
+    $kitsRoot = "${env:ProgramFiles(x86)}\Windows Kits\10\bin"
+    if (Test-Path $kitsRoot) {
+        $candidates = Get-ChildItem -Path $kitsRoot -Directory | Sort-Object Name -Descending
+        foreach ($dir in $candidates) {
+            $candidate = Join-Path $dir.FullName "x64\signtool.exe"
+            if (Test-Path $candidate) { $signToolPath = $candidate; break }
+        }
+    }
+}
+if (-not $signToolPath) { throw "signtool.exe not found. Install the Windows SDK." }
 
 Write-Host "[sign] Mode: PFX certificate" -ForegroundColor Cyan
-& $signTool.Path sign /f $CertPath /p $CertPassword /fd SHA256 /tr $TimestampUrl /td SHA256 $exe
+& $signToolPath sign /f $CertPath /p $CertPassword /fd SHA256 /tr $TimestampUrl /td SHA256 $exe
 if ($LASTEXITCODE -ne 0) { throw "signtool failed with exit code $LASTEXITCODE" }
 Write-Host "[OK] Signed $exe (PFX)" -ForegroundColor Green
