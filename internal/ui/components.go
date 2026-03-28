@@ -1838,6 +1838,10 @@ func NewTrimTimeline(duration float64) *TrimTimeline {
 	return t
 }
 
+func (t *TrimTimeline) MinSize() fyne.Size {
+	return fyne.NewSize(400, 60)
+}
+
 func (t *TrimTimeline) SetDuration(dur float64) {
 	t.Duration = dur
 	if t.OutPoint > dur {
