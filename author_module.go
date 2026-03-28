@@ -2550,12 +2550,7 @@ func (s *appState) promptAuthorOutput(paths []string, region, aspect, title stri
 
 func authorWarnings(state *appState) []string {
 	var warnings []string
-	if len(state.authorSubtitles) > 0 {
-		warnings = append(warnings, "Subtitle tracks are not authored yet; they will be ignored.")
-	}
-	if len(state.authorAudioTracks) > 0 {
-		warnings = append(warnings, "Additional audio tracks are not authored yet; they will be ignored.")
-	}
+	// Subtitle and audio tracks are now fully wired - no warnings needed
 	if totalDur := authorTotalDuration(state); totalDur > 0 {
 		bitrate := authorTargetBitrateKbps(state.authorDiscSize, totalDur)
 		if bitrate < 3000 {
@@ -2733,12 +2728,30 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 
 	clips := make([]map[string]interface{}, 0, len(s.authorClips))
 	for _, clip := range s.authorClips {
+		// Serialize audio tracks
+		audioTracks := make([]map[string]interface{}, 0, len(clip.AudioTracks))
+		for _, at := range clip.AudioTracks {
+			audioTracks = append(audioTracks, map[string]interface{}{
+				"index":    at.Index,
+				"language": at.Language,
+			})
+		}
+		// Serialize subtitle tracks
+		subtitleTracks := make([]map[string]interface{}, 0, len(clip.SubtitleTracks))
+		for _, st := range clip.SubtitleTracks {
+			subtitleTracks = append(subtitleTracks, map[string]interface{}{
+				"index":    st.Index,
+				"language": st.Language,
+			})
+		}
 		clips = append(clips, map[string]interface{}{
-			"path":         clip.Path,
-			"displayName":  clip.DisplayName,
-			"duration":     clip.Duration,
-			"chapterTitle": clip.ChapterTitle,
-			"isExtra":      clip.IsExtra,
+			"path":           clip.Path,
+			"displayName":    clip.DisplayName,
+			"duration":       clip.Duration,
+			"chapterTitle":   clip.ChapterTitle,
+			"isExtra":        clip.IsExtra,
+			"audioTracks":    audioTracks,
+			"subtitleTracks": subtitleTracks,
 		})
 	}
 	chapters := make([]map[string]interface{}, 0, len(s.authorChapters))
@@ -3912,12 +3925,38 @@ func (s *appState) executeAuthorJob(ctx context.Context, job *queue.Job, progres
 	if rawClips, ok := cfg["clips"].([]interface{}); ok {
 		for _, rc := range rawClips {
 			if m, ok := rc.(map[string]interface{}); ok {
+				// Parse audio tracks
+				var audioTracks []authorAudioTrack
+				if rawAudio, ok := m["audioTracks"].([]interface{}); ok {
+					for _, ra := range rawAudio {
+						if ma, ok := ra.(map[string]interface{}); ok {
+							audioTracks = append(audioTracks, authorAudioTrack{
+								Index:    toInt(ma["index"]),
+								Language: toString(ma["language"]),
+							})
+						}
+					}
+				}
+				// Parse subtitle tracks
+				var subtitleTracks []authorSubtitleTrack
+				if rawSubs, ok := m["subtitleTracks"].([]interface{}); ok {
+					for _, rs := range rawSubs {
+						if ms, ok := rs.(map[string]interface{}); ok {
+							subtitleTracks = append(subtitleTracks, authorSubtitleTrack{
+								Index:    toInt(ms["index"]),
+								Language: toString(ms["language"]),
+							})
+						}
+					}
+				}
 				clips = append(clips, authorClip{
-					Path:         toString(m["path"]),
-					DisplayName:  toString(m["displayName"]),
-					Duration:     toFloat(m["duration"]),
-					ChapterTitle: toString(m["chapterTitle"]),
-					IsExtra:      toBool(m["isExtra"]),
+					Path:           toString(m["path"]),
+					DisplayName:    toString(m["displayName"]),
+					Duration:       toFloat(m["duration"]),
+					ChapterTitle:   toString(m["chapterTitle"]),
+					IsExtra:        toBool(m["isExtra"]),
+					AudioTracks:    audioTracks,
+					SubtitleTracks: subtitleTracks,
 				})
 			}
 		}
