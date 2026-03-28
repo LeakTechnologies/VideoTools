@@ -305,7 +305,7 @@ jobs:
           MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
-          marker="/c/ffmpeg-static/.built-${ver}"
+          marker="/c/ffmpeg-static/.built-${ver}-v2"
           if [ -f "$marker" ]; then
             echo "[INFO] FFmpeg ${ver} already built at /c/ffmpeg-static -- skipping"
             exit 0
@@ -327,8 +327,10 @@ jobs:
             --enable-avfilter \
             --enable-libx264 \
             --enable-libx265 \
+            --disable-vaapi \
+            --disable-iconv \
             --extra-cflags='-I/ucrt64/include' \
-            --extra-ldflags='-L/ucrt64/lib'
+            --extra-ldflags='-L/ucrt64/lib -Wl,-Bstatic,-lx264,-lx265,-Bdynamic'
           make -j$(nproc)
           make install
           rm -rf "/tmp/ffmpeg-${ver}" /tmp/ffmpeg.tar.bz2
