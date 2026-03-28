@@ -39,8 +39,14 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		FilterInterpEnabled:  state.filterInterpEnabled,
 		FilterInterpPreset:   state.filterInterpPreset,
 		FilterInterpFPS:      state.filterInterpFPS,
-		FiltersFile:          state.filtersFile,
-		FilterActiveChain:    state.filterActiveChain,
+		FiltersFile: state.filtersFile,
+		FiltersFilePath: func() string {
+			if state.filtersFile != nil {
+				return state.filtersFile.Path
+			}
+			return ""
+		}(),
+		FilterActiveChain: state.filterActiveChain,
 		OnShowMainMenu:       func() { state.showMainMenu() },
 		OnShowQueue:          func() { state.showQueue() },
 		OnShowUpscaleView:    func() { state.showUpscaleView() },
@@ -90,6 +96,21 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		OnSetInterpEnabled: func(b bool) { state.filterInterpEnabled = b },
 		OnSetInterpPreset:  func(s string) { state.filterInterpPreset = s },
 		OnSetInterpFPS:     func(s string) { state.filterInterpFPS = s },
+		OnProbeVideo: func(path string) (interface{}, error) {
+			result, err := probeVideo(path)
+			if err != nil {
+				return nil, err
+			}
+			return result, nil
+		},
+		OnBuildVideoPane: func(st interface{}, size fyne.Size, src interface{}, overlay fyne.CanvasObject) fyne.CanvasObject {
+			if vs, ok := src.(*videoSource); ok {
+				return buildVideoPane(state, size, vs, nil)
+			}
+			return buildVideoPane(state, size, nil, nil)
+		},
+		OnHasNativeMediaPlayer: HasNativeMediaPlayer,
+		OnLoadVideoNative:      state.loadVideoNative,
 		OnBuildFilterChain: func() []string {
 			return filters.BuildStylisticFilterChain(filters.FilterChainParams{
 				StylisticMode: state.filterStylisticMode,
