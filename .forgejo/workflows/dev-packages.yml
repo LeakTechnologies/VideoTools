@@ -301,11 +301,13 @@ jobs:
 
       - name: Build static FFmpeg (Windows)
         shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
+        env:
+          MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
           marker="/c/ffmpeg-static/.built-${ver}"
           if [ -f "$marker" ]; then
-            echo "[INFO] FFmpeg ${ver} already built at /c/ffmpeg-static — skipping"
+            echo "[INFO] FFmpeg ${ver} already built at /c/ffmpeg-static -- skipping"
             exit 0
           fi
           echo "[INFO] Downloading FFmpeg ${ver} source..."
@@ -314,8 +316,6 @@ jobs:
           cd "/tmp/ffmpeg-${ver}"
           ./configure \
             --prefix=/c/ffmpeg-static \
-            --arch=x86_64 \
-            --target-os=mingw32 \
             --enable-static \
             --disable-shared \
             --enable-pic \
