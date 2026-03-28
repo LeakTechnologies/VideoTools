@@ -167,11 +167,7 @@ jobs:
     timeout-minutes: 60
     defaults:
       run:
-        # Override the runner's injected $ErrorActionPreference = 'Stop'.
-        # Native commands (bash, pacman, gcc) write to stderr for warnings;
-        # Stop mode turns those into fatal errors. We use explicit
-        # $LASTEXITCODE checks instead for real error detection.
-        shell: powershell -NoLogo -NonInteractive -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Continue'; . '{0}'"
+        shell: powershell
     steps:
       - name: Checkout
         uses: actions/checkout@v4
