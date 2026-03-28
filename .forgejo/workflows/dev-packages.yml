@@ -332,8 +332,13 @@ jobs:
           rm -rf /tmp/x264-src
 
           # Build x265 from source as static-only (same dllimport issue).
+          # A shallow clone has no tags, so cmake's git describe returns nothing
+          # and X265_LATEST_TAG stays "unknown" -- splitting on "." gives a
+          # one-element list and list(GET vlist 1 ...) fails. Create a local tag
+          # on HEAD so git describe returns a parseable "major.minor.patch" string.
           echo "[INFO] Building x265 from source (static only)..."
           git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
+          cd /tmp/x265-src && git tag 4.1.0
           mkdir /tmp/x265-build && cd /tmp/x265-build
           cmake -G "MSYS Makefiles" \
             -DCMAKE_INSTALL_PREFIX=/c/ffmpeg-static \
