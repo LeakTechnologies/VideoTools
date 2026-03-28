@@ -426,7 +426,7 @@ jobs:
           $ffmpegPkgs = @("libavcodec","libavformat","libswscale","libavutil","libswresample","libavfilter")
           $staticLibs = (& $pkgConfigExe --libs --static $ffmpegPkgs 2>$null) -join " "
           if (-not $staticLibs) {
-            Write-Error "pkg-config returned no flags for FFmpeg — check C:\ffmpeg-static"
+            Write-Error "pkg-config returned no flags for FFmpeg - check C:\ffmpeg-static"
             exit 1
           }
           # -static-libgcc: avoids libgcc_s_seh-1.dll dependency (not a Windows system DLL)
