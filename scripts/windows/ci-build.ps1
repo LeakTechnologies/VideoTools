@@ -61,18 +61,24 @@ $ldflags = "-s -w -H windowsgui -X main.buildCommit=$gitCommit"
 go build -p 4 -tags native_media -ldflags="$ldflags" -trimpath -o $buildOutput .
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-# --- Sign (optional) ---
+# --- Sign (optional, non-fatal) ---
 $hasPfx      = $env:VT_SIGN_PFX_B64 -and $env:VT_SIGN_PASSWORD
 $hasSignPath = $env:SIGNPATH_API_TOKEN -and $env:SIGNPATH_ORGANIZATION_ID
 $signScript  = Join-Path $projectRoot "scripts\windows\support\sign-exe.ps1"
 if (($hasPfx -or $hasSignPath) -and (Test-Path $signScript)) {
-    if ($hasPfx -and -not $hasSignPath) {
-        $pfxPath = Join-Path $env:TEMP "vt-sign.pfx"
-        [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:VT_SIGN_PFX_B64))
-        $tsUrl = if ($env:VT_SIGN_TIMESTAMP) { $env:VT_SIGN_TIMESTAMP } else { "http://timestamp.digicert.com" }
-        & $signScript -ExePath $buildOutput -CertPath $pfxPath -CertPassword $env:VT_SIGN_PASSWORD -TimestampUrl $tsUrl
-    } else {
-        & $signScript -ExePath $buildOutput
+    try {
+        if ($hasPfx -and -not $hasSignPath) {
+            $pfxPath = Join-Path $env:TEMP "vt-sign.pfx"
+            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:VT_SIGN_PFX_B64))
+            $tsUrl = if ($env:VT_SIGN_TIMESTAMP) { $env:VT_SIGN_TIMESTAMP } else { "http://timestamp.digicert.com" }
+            & $signScript -ExePath $buildOutput -CertPath $pfxPath -CertPassword $env:VT_SIGN_PASSWORD -TimestampUrl $tsUrl
+        } else {
+            & $signScript -ExePath $buildOutput
+        }
+        if ($LASTEXITCODE -ne 0) { throw "sign-exe.ps1 exited $LASTEXITCODE" }
+    } catch {
+        Write-Host "[sign] WARNING: Signing failed: $_"
+        Write-Host "[sign] Continuing with unsigned binary."
     }
 } else {
     Write-Host "[sign] Skipping: no signing credentials configured."
