@@ -1694,6 +1694,22 @@ func toFloat(v interface{}) float64 {
 	return 0
 }
 
+func toInt(v interface{}) int {
+	switch t := v.(type) {
+	case int:
+		return t
+	case int64:
+		return int(t)
+	case int32:
+		return int(t)
+	case float64:
+		return int(t)
+	case float32:
+		return int(t)
+	}
+	return 0
+}
+
 func (s *appState) updateStatsBar() {
 	if s.statsBar == nil || s.jobQueue == nil {
 		return

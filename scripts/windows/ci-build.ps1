@@ -38,6 +38,7 @@ if (-not $staticLibs) {
 # Only add libs that pkg-config consistently omits from FFmpeg's .pc files on Windows.
 # -static-libstdc++: prevents libstdc++-6.dll runtime dependency (stdc++ appears in FFmpeg's pkg-config output)
 $env:CGO_LDFLAGS = "$staticLibs -LC:\msys64\ucrt64\lib -loleaut32 -lgdi32 -lpsapi -lavrt -lmfplat -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
+$env:CGO_LDFLAGS_ALLOW = "-Wl,.*"
 Write-Host "[INFO] CGO_LDFLAGS: $env:CGO_LDFLAGS"
 
 # --- Windows resource (icon) ---
