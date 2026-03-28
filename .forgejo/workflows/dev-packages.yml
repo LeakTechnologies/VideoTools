@@ -430,7 +430,11 @@ jobs:
             exit 1
           }
           # -static-libgcc: avoids libgcc_s_seh-1.dll dependency (not a Windows system DLL)
-          $env:CGO_LDFLAGS = "$staticLibs -static-libgcc -LC:\msys64\ucrt64\lib"
+          # Windows system libs needed by static FFmpeg that pkg-config may omit:
+          # bcrypt (crypto), Secur32/Ws2_32 (networking), mfplat/strmiids/avrt (Media Foundation),
+          # ole32/oleaut32 (COM), user32/gdi32 (Win32 UI), psapi (process info)
+          $winSysLibs = "-lbcrypt -lSecur32 -lWs2_32 -lmfplat -lstrmiids -lavrt -lole32 -loleaut32 -luser32 -lgdi32 -lpsapi"
+          $env:CGO_LDFLAGS = "$staticLibs $winSysLibs -static-libgcc -LC:\msys64\ucrt64\lib"
           Write-Host "[INFO] CGO_LDFLAGS: $env:CGO_LDFLAGS"
 
           go mod download
