@@ -38,6 +38,10 @@ const (
 	TagIDTerm = 266 // Terminal Entry
 )
 
+// partitionStart is the absolute sector where the UDF partition begins.
+// All LBN (Logical Block Number) values in UDF structures are relative to this.
+const partitionStart = uint32(257)
+
 // DescriptorTag is the common 16-byte header for all UDF descriptors.
 type DescriptorTag struct {
 	TagIdentifier     uint16
@@ -203,6 +207,13 @@ type ICBTag struct {
 	FileType               uint8
 	ParentICBLocation      ExtentAd
 	Flags                  uint16
+}
+
+// ShortAd is a UDF short allocation descriptor (8 bytes).
+// Position is an LBN relative to the partition start.
+type ShortAd struct {
+	Len      uint32
+	Position uint32
 }
 
 // CharSpec defines a character set.
@@ -396,29 +407,27 @@ func (uw *Writer) findDir(path []string) *FileNode {
 func (uw *Writer) Build() error {
 	logging.Info(logging.CatDVD, "Starting UDF Build process...")
 
-	// 1. Pre-assign UDF sectors so ISO 9660 directory records can reference
-	//    the correct physical file-data sectors (shared between both filesystems).
 	logging.Debug(logging.CatDVD, "Assigning sectors to files and directories")
 	uw.assignSectors()
 
-	// 2. Build ISO 9660 path tables and directory sectors (sectors 18-22ish).
-	//    These metadata sectors sit in the gap between the ISO 9660 VDS
-	//    (sectors 16-17) and the UDF VDS (sectors 32+).
+	// Compute total sectors so PVD VolumeSpaceSize is accurate.
+	totalSectors := uw.totalSectors()
+
 	iso := buildISO9660Layout(uw.root, 18, uw.volumeTime)
 
-	// 3. Write header with correct ISO 9660 PVD, path tables, and dir records.
-	if err := uw.writeHeaderWithISO9660(iso); err != nil {
+	if err := uw.writeHeaderWithISO9660(iso, totalSectors); err != nil {
 		logging.Error(logging.CatDVD, "Failed to write header: %v", err)
 		return fmt.Errorf("udf write header: %w", err)
 	}
 
-	// 4. Write File Set Descriptor at sector 257.
+	// FSD at sector 257. RootDirectoryICB.Location must be an LBN relative
+	// to the partition start (257), not an absolute sector number.
 	logging.Debug(logging.CatDVD, "Writing File Set Descriptor (FSD) at sector %d", uw.currentSector)
 	fsd := FileSetDescriptor{
 		RecordingDateAndTime: NewTimestamp(uw.volumeTime),
 		RootDirectoryICB: LongAd{
 			Len:      SectorSize,
-			Location: uw.root.ICBSector,
+			Location: uw.root.ICBSector - partitionStart,
 		},
 	}
 	if err := uw.WriteDescriptor(TagIDFSD, fsd); err != nil {
@@ -426,7 +435,6 @@ func (uw *Writer) Build() error {
 		return fmt.Errorf("udf write fsd: %w", err)
 	}
 
-	// 5. Write ICBs and Data
 	logging.Info(logging.CatDVD, "Writing file data nodes recursively")
 	if err := uw.writeNode(uw.root); err != nil {
 		logging.Error(logging.CatDVD, "Failed to write file nodes: %v", err)
@@ -460,8 +468,30 @@ func (uw *Writer) assignSectors() {
 	walk(uw.root)
 }
 
+// totalSectors returns the absolute sector number of the first byte past the last
+// file's data. Call only after assignSectors().
+func (uw *Writer) totalSectors() uint32 {
+	var max uint32
+	var walk func(n *FileNode)
+	walk = func(n *FileNode) {
+		var end uint32
+		if n.IsDir {
+			end = n.DataSector + 1
+		} else {
+			end = n.DataSector + uint32((n.Size+SectorSize-1)/SectorSize)
+		}
+		if end > max {
+			max = end
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	walk(uw.root)
+	return max
+}
+
 func (uw *Writer) writeNode(n *FileNode) error {
-	// 1. Write ICB at n.ICBSector
 	if uw.currentSector != n.ICBSector {
 		padding := int(n.ICBSector) - int(uw.currentSector)
 		if err := uw.writePadding(padding); err != nil {
@@ -469,25 +499,33 @@ func (uw *Writer) writeNode(n *FileNode) error {
 		}
 	}
 
-	icb := FileEntryICB{
-		ICBTag: ICBTag{
-			FileType: 4, // Default file
-		},
-		InformationLength: uint64(n.Size),
-		AccessTime:        NewTimestamp(n.ModTime),
-		ModificationTime:  NewTimestamp(n.ModTime),
-		AttributeTime:     NewTimestamp(n.ModTime),
-	}
 	if n.IsDir {
-		icb.ICBTag.FileType = 1 // Directory
-		icb.InformationLength = SectorSize
+		// Directory ICB: no allocation descriptors needed (data inline in next sector).
+		icb := FileEntryICB{
+			ICBTag: ICBTag{
+				StrategyType: 4,
+				FileType:     4, // directory
+				Flags:        0, // no allocation descriptors
+			},
+			Permissions:           0x14A5,
+			FileLinkCount:         1,
+			InformationLength:     SectorSize,
+			LogicalBlocksRecorded: 1,
+			AccessTime:            NewTimestamp(n.ModTime),
+			ModificationTime:      NewTimestamp(n.ModTime),
+			AttributeTime:         NewTimestamp(n.ModTime),
+			Checkpoint:            1,
+		}
+		if err := uw.WriteDescriptor(TagIDICB, icb); err != nil {
+			return err
+		}
+	} else {
+		// File ICB: append a ShortAd pointing to the data sectors.
+		if err := uw.writeFileEntry(n); err != nil {
+			return err
+		}
 	}
 
-	if err := uw.WriteDescriptor(TagIDICB, icb); err != nil {
-		return err
-	}
-
-	// 2. Write Data at n.DataSector
 	if uw.currentSector != n.DataSector {
 		padding := int(n.DataSector) - int(uw.currentSector)
 		if err := uw.writePadding(padding); err != nil {
@@ -508,8 +546,6 @@ func (uw *Writer) writeNode(n *FileNode) error {
 				rc.Close()
 			}
 		} else if n.LocalPath != "" {
-			// Deferred open: read file fresh from disk (avoids stale handle issues
-			// when file content is regenerated between AddDirFS and Build calls).
 			f, err := os.Open(n.LocalPath)
 			if err != nil {
 				return fmt.Errorf("open %s: %w", n.LocalPath, err)
@@ -521,7 +557,7 @@ func (uw *Writer) writeNode(n *FileNode) error {
 			f.Close()
 		}
 		uw.currentSector += uint32((n.Size + SectorSize - 1) / SectorSize)
-		padding := SectorSize - (n.Size % SectorSize)
+		padding := SectorSize - int(n.Size%SectorSize)
 		if padding != SectorSize {
 			if _, err := uw.w.Write(make([]byte, padding)); err != nil {
 				return err
@@ -529,29 +565,149 @@ func (uw *Writer) writeNode(n *FileNode) error {
 		}
 	}
 
-	// Recurse for children
 	for _, child := range n.Children {
 		if err := uw.writeNode(child); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
 func (uw *Writer) writeDirectoryData(n *FileNode) error {
-	buf := make([]byte, SectorSize)
-	offset := 0
+	var dirBuf bytes.Buffer
 
-	for _, child := range n.Children {
-		binary.LittleEndian.PutUint16(buf[offset:], TagIDFID)
-		offset += 38
-		copy(buf[offset:], child.Name)
-		offset += len(child.Name)
-		offset = (offset + 3) & ^3
+	writeFID := func(name string, characteristics uint8, icbLBN uint32) {
+		// CS0-encode the identifier (or empty for "." / ".." self-reference entries).
+		var identBytes []byte
+		if name != "" {
+			identBytes = make([]byte, 1+len(name))
+			identBytes[0] = 8 // CS0 compression byte
+			copy(identBytes[1:], name)
+		}
+		identLen := uint8(len(identBytes))
+
+		// FID body (everything after the 16-byte tag):
+		// FileVersionNumber(2) + FileCharacteristics(1) + LengthOfFileIdentifier(1)
+		// + ICB LongAd(16) + LengthOfImplementationUse(2) + FileIdentifier + padding
+		var body bytes.Buffer
+		binary.Write(&body, binary.LittleEndian, uint16(1)) // FileVersionNumber
+		body.WriteByte(characteristics)
+		body.WriteByte(identLen)
+		icbLong := LongAd{Len: SectorSize, Location: icbLBN}
+		binary.Write(&body, binary.LittleEndian, icbLong)
+		binary.Write(&body, binary.LittleEndian, uint16(0)) // LengthOfImplementationUse
+		if identLen > 0 {
+			body.Write(identBytes)
+		}
+		// Pad entire FID (tag + body) to 4-byte boundary.
+		total := 16 + body.Len()
+		if total%4 != 0 {
+			body.Write(make([]byte, 4-total%4))
+		}
+
+		bodyBytes := body.Bytes()
+		crc := CalculateCRC(bodyBytes)
+		tag := DescriptorTag{
+			TagIdentifier:     TagIDFID,
+			DescriptorVersion: 2,
+			TagLocation:       uw.currentSector,
+			DescriptorCRC:     crc,
+			DescriptorCRCLen:  uint16(len(bodyBytes)),
+		}
+		var tagBuf bytes.Buffer
+		binary.Write(&tagBuf, binary.LittleEndian, tag)
+		tagBytes := tagBuf.Bytes()
+		tagBytes[4] = CalculateChecksum(tagBytes)
+
+		dirBuf.Write(tagBytes)
+		dirBuf.Write(bodyBytes)
 	}
 
-	if _, err := uw.w.Write(buf); err != nil {
+	// "." — self reference (FileCharacteristics bit 3 = Parent set for self pointer)
+	selfLBN := n.ICBSector - partitionStart
+	writeFID("", 0x08, selfLBN) // bit3=Parent (used for self in some impls; bit1=dir not needed here)
+
+	// ".." — parent reference (simplified: points to self for root)
+	writeFID("", 0x0A, selfLBN) // bit1=dir, bit3=parent
+
+	for _, child := range n.Children {
+		childLBN := child.ICBSector - partitionStart
+		fc := uint8(0x00)
+		if child.IsDir {
+			fc = 0x02
+		}
+		writeFID(child.Name, fc, childLBN)
+	}
+
+	sector := make([]byte, SectorSize)
+	copy(sector, dirBuf.Bytes())
+	if _, err := uw.w.Write(sector); err != nil {
+		return err
+	}
+	uw.currentSector++
+	return nil
+}
+
+// writeFileEntry writes a FileEntryICB followed by a ShortAd allocation descriptor
+// that points to the file's data sectors. The entire record fits in one sector.
+func (uw *Writer) writeFileEntry(n *FileNode) error {
+	numSectors := uint32((n.Size + SectorSize - 1) / SectorSize)
+	dataLBN := n.DataSector - partitionStart
+
+	alloc := ShortAd{
+		Len:      uint32(n.Size),
+		Position: dataLBN,
+	}
+	allocSize := uint32(binary.Size(alloc))
+
+	icb := FileEntryICB{
+		ICBTag: ICBTag{
+			StrategyType: 4,
+			FileType:     5, // regular file
+			Flags:        1, // short allocation descriptors
+		},
+		Permissions:                   0x14A5,
+		FileLinkCount:                 1,
+		InformationLength:             uint64(n.Size),
+		LogicalBlocksRecorded:         uint64(numSectors),
+		AccessTime:                    NewTimestamp(n.ModTime),
+		ModificationTime:              NewTimestamp(n.ModTime),
+		AttributeTime:                 NewTimestamp(n.ModTime),
+		Checkpoint:                    1,
+		LengthOfAllocationDescriptors: allocSize,
+	}
+
+	// Serialize full ICB struct (includes DescriptorTag placeholder at bytes 0-15)
+	// then append the ShortAd, compute CRC over bytes 16..end, then fix up the tag.
+	var buf bytes.Buffer
+	if err := binary.Write(&buf, binary.LittleEndian, icb); err != nil {
+		return err
+	}
+	if err := binary.Write(&buf, binary.LittleEndian, alloc); err != nil {
+		return err
+	}
+	data := buf.Bytes()
+
+	// CRC covers everything after the 16-byte tag.
+	crcLen := uint16(len(data) - 16)
+	crc := CalculateCRC(data[16:])
+	binary.LittleEndian.PutUint16(data[8:10], crc)     // DescriptorCRC at offset 8
+	binary.LittleEndian.PutUint16(data[10:12], crcLen) // DescriptorCRCLen at offset 10
+
+	// Tag fields: TagIdentifier(0-1), DescriptorVersion(2-3), TagChecksum(4),
+	// Reserved(5), TagSerialNumber(6-7), DescriptorCRC(8-9), DescriptorCRCLen(10-11),
+	// TagLocation(12-15)
+	binary.LittleEndian.PutUint16(data[0:2], TagIDICB)
+	binary.LittleEndian.PutUint16(data[2:4], 2)                   // DescriptorVersion
+	binary.LittleEndian.PutUint32(data[12:16], uw.currentSector)  // TagLocation
+	// Recompute CRC after setting TagLocation
+	crc = CalculateCRC(data[16:])
+	binary.LittleEndian.PutUint16(data[8:10], crc)
+	data[4] = CalculateChecksum(data[:16])
+
+	sector := make([]byte, SectorSize)
+	copy(sector, data)
+	if _, err := uw.w.Write(sector); err != nil {
 		return err
 	}
 	uw.currentSector++
@@ -623,7 +779,7 @@ func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 
 // writeHeaderWithISO9660 writes the initial ISO 9660 + UDF header sectors
 // with a fully populated PVD (path tables and root directory record).
-func (uw *Writer) writeHeaderWithISO9660(iso *iso9660Layout) error {
+func (uw *Writer) writeHeaderWithISO9660(iso *iso9660Layout, totalSectors uint32) error {
 	// Sectors 0-15: System Area (blank)
 	if err := uw.writePadding(16); err != nil {
 		return err
@@ -634,13 +790,14 @@ func (uw *Writer) writeHeaderWithISO9660(iso *iso9660Layout) error {
 	rootDirSector := iso.DirSectors[0]
 
 	pvd := ISO9660PrimaryVolumeDescriptor{
-		Type:                   ISO9660PVDType,
-		Identifier:             [5]byte{'C', 'D', '0', '0', '1'},
-		Version:                1,
-		FileStructureVersion:   1,
-		TypeLPathTable:         iso.LPathSector,
-		TypeMPathTable:         iso.MPathSector,
-		RootDirectoryRecord:    buildRootDirRecord(rootDirSector, uw.volumeTime),
+		Type:                 ISO9660PVDType,
+		Identifier:           [5]byte{'C', 'D', '0', '0', '1'},
+		Version:              1,
+		FileStructureVersion: 1,
+		TypeLPathTable:       iso.LPathSector,
+		TypeMPathTable:       iso.MPathSector,
+		RootDirectoryRecord:  buildRootDirRecord(rootDirSector, uw.volumeTime),
+		VolumeSpaceSize:      isoLEBE32(totalSectors),
 	}
 	copy(pvd.VolumeIdentifier[:], uw.volumeLabel)
 	pvd.VolumeSetSize = [4]byte{1, 0, 0, 1}          // both-endian uint16 = 1
@@ -716,29 +873,40 @@ func (uw *Writer) writePaddedSector(data []byte) error {
 
 func (uw *Writer) writeVDS() error {
 	upvd := PrimaryVolumeDescriptor{
-		VolumeDescriptorSeqNumber: 0,
+		VolumeDescriptorSeqNumber: 1,
 	}
 	copy(upvd.VolumeIdentifier[:], EncodeCS0(uw.volumeLabel, 32))
 	if err := uw.WriteDescriptor(TagIDPVD, upvd); err != nil {
 		return err
 	}
 
+	// LogicalVolumeContentsUse holds a LongAd pointing to the File Set Descriptor.
+	// The FSD lives at partition LBN 0 (absolute sector 257 = partitionStart + 0).
 	lvd := LogicalVolumeDescriptor{
-		LogicalBlockSize: SectorSize,
+		VolumeDescriptorSeqNumber: 2,
+		LogicalBlockSize:          SectorSize,
 	}
+	// Encode FSD LongAd into LogicalVolumeContentsUse[0:16]
+	// LongAd: Len(4) + Location(4) + Partition(2) + ImplementationUse(6)
+	binary.LittleEndian.PutUint32(lvd.LogicalVolumeContentsUse[0:4], uint32(SectorSize))
+	binary.LittleEndian.PutUint32(lvd.LogicalVolumeContentsUse[4:8], 0)  // LBN 0 = FSD
+	binary.LittleEndian.PutUint16(lvd.LogicalVolumeContentsUse[8:10], 0) // partition 0
 	if err := uw.WriteDescriptor(TagIDLVD, lvd); err != nil {
 		return err
 	}
 
 	pd := PartitionDescriptor{
-		PartitionStartingLocation: 257,
+		VolumeDescriptorSeqNumber: 3,
+		PartitionFlags:            1, // allocated
+		PartitionStartingLocation: partitionStart,
 		PartitionLength:           1000,
 	}
 	if err := uw.WriteDescriptor(TagIDPD, pd); err != nil {
 		return err
 	}
 
-	if err := uw.writePadding(1); err != nil {
+	// Terminating Descriptor closes the VDS sequence.
+	if err := uw.WriteDescriptor(TagIDTD, struct{}{}); err != nil {
 		return err
 	}
 
