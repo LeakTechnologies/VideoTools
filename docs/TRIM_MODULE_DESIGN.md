@@ -144,11 +144,113 @@ ffmpeg -i input.mp4 \
 - [x] Frame caching for smooth scrubbing
 
 ## Future Enhancements ⬜
-- [ ] Multiple trim regions in single operation
+
+- [x] Multiple trim regions in single operation (2026-03-28)
+- [x] Split to clips vs embed chapters (2026-03-28)
 - [ ] Batch trim multiple files with same In/Out offsets
 - [ ] Save trim presets (e.g., "Remove first 30s and last 10s")
 - [ ] Visual waveform for audio-based trimming
 - [ ] Chapter-aware trimming (trim to chapter boundaries)
+
+## Multi-Segment Trim (Implemented 2026-03-28)
+
+### Overview
+The timeline widget supports multiple trim segments. Users can either:
+1. **Split to Clips** - Each segment becomes a separate output file
+2. **Keep Intact + Chapters** - Full video with chapter markers at segment boundaries
+
+### UI Components
+
+```
+┌─────────────────────────────────────────────────────┐
+│ Timeline: [===SEGMENT 1===] [===SEGMENT 2===]      │
+│        │IN1─────OUT1│  │IN2─────OUT2│              │
+│ ───────██████████████  ███████████████───────────── │
+│        ^                          ^                │
+│    Green Handle              Green Handle          │
+│    (draggable)              (draggable)            │
+│                                                     │
+│ [+ Add Segment]  [Clear All]                       │
+│                                                     │
+│ Output Mode: ○ Split to Clips  ● Keep + Chapters │
+└─────────────────────────────────────────────────────┘
+```
+
+### Data Structure
+```go
+type TrimSegment struct {
+    InPoint  float64 // Start time in seconds
+    OutPoint float64 // End time in seconds
+}
+
+type TrimState struct {
+    Segments   []TrimSegment    // Multiple trim regions
+    OutputMode string           // "clips" or "chapters"
+}
+```
+
+### Timeline Widget API
+```go
+// Create timeline with single segment (backward compatible)
+timeline := ui.NewTrimTimeline(duration)
+
+// Add new segment (for multi-segment mode)
+timeline.AddSegment(inPoint, outPoint)
+
+// Remove segment by index
+timeline.RemoveSegment(index)
+
+// Get all segments
+segments := timeline.GetSegments()
+
+// Set output mode
+timeline.SetOutputMode("clips")   // Split to multiple files
+timeline.SetOutputMode("chapters") // Single file with chapters
+```
+
+### Implementation Details
+
+#### Timeline Widget (`internal/ui/components.go`)
+- `TrimTimeline` widget with draggable handles
+- Supports multiple segment pairs (in/out handles)
+- Visual differentiation: green handles for in-points, red for out-points
+- Position indicator (blue line) shows current playback position
+
+#### Trim Module (`internal/app/modules/trim/view.go`)
+- Extended `trimState` to hold `[]TrimSegment` instead of single in/out
+- Segment list UI for add/remove operations
+- Output mode toggle (clips vs chapters)
+
+#### FFmpeg Output
+
+**Split to Clips (multiple files):**
+```bash
+# Segment 1
+ffmpeg -i input.mp4 -ss IN1 -to OUT1 -c copy output_part1.mp4
+# Segment 2  
+ffmpeg -i input.mp4 -ss IN2 -to OUT2 -c copy output_part2.mp4
+```
+
+**Keep Intact + Chapters (single file):**
+```bash
+# Extract segments, concat with chapter metadata
+ffmpeg -i input.mp4 -ss IN1 -to OUT1 -c copy -metadata title="Chapter 1" part1.mp4
+ffmpeg -i input.mp4 -ss IN2 -to OUT2 -c copy -metadata title="Chapter 2" part2.mp4
+# Concat with chapter file
+ffmpeg -f concat -safe 0 -i chapters.txt -c copy output_with_chapters.mp4
+```
+
+### Testing Checklist
+
+- [ ] Add first segment - handles appear on timeline
+- [ ] Add second segment - two handle pairs visible
+- [ ] Drag in-point handle - updates segment start
+- [ ] Drag out-point handle - updates segment end  
+- [ ] Remove segment - timeline updates
+- [ ] Select "Split to Clips" - creates multiple jobs
+- [ ] Select "Keep + Chapters" - creates single job with chapter metadata
+- [ ] Clear all - resets to single full-video segment
+- [ ] Preview plays through all segments in order
 
 ## Module Color
 **Cyan** - #44DDFF (already defined in modulesList)

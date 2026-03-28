@@ -17,15 +17,27 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Queue integration** — Wire OnBurnISO callback
 
 ### UI Improvements
-- [ ] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
-  - When format selected, filter codec/audio options to compatible only
-  - Grey out incompatible options in dropdown
-  - Auto-select compatible codec when format changes
+- [x] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
+  - [x] When format selected, filter codec/audio options to compatible only
+  - [x] Grey out incompatible options in dropdown
+  - [x] Auto-select compatible codec when format changes
+
+### Snippet Module
+- [x] **Move drawer to bottom** — Collapsible drawer above stats bar
+- [x] **Add "from current position" option** — Use playback position instead of midpoint
+
+### Trim Module (REWORK)
+- [x] **Add draggable timeline widget** — See docs/TRIM_MODULE_DESIGN.md
+  - [x] Green handle for in-point
+  - [x] Red handle for out-point
+  - [x] Visual timeline bar with selected region
+- [ ] **Multi-segment support** — Add/remove trim segments
+  - [ ] Output mode: split to clips vs keep + chapters
 
 ### Filter Integration (REWORK)
-- [ ] **Create design document** — See docs/FILTER_INTEGRATION_DESIGN.md
-- [ ] **Add filters to Upscale module** — Integrate filter controls in upscale UI
-- [ ] **Refactor upscale pipeline** — Apply filters BEFORE upscale in encode chain
+- [x] **Create design document** — See docs/FILTER_INTEGRATION_DESIGN.md
+- [x] **Add filters to Upscale module** — Integrate filter controls in upscale UI
+- [x] **Refactor upscale pipeline** — Apply filters BEFORE upscale in encode chain
 - [ ] **Keep Filters module standalone** — For non-upscale filter jobs
 
 ### Author Module
