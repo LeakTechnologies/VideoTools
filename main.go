@@ -1496,6 +1496,7 @@ func (s *appState) addToHistory(job *queue.Job) {
 
 // showHistoryDetails displays detailed information about a history entry
 func (s *appState) showHistoryDetails(entry ui.HistoryEntry) {
+	t := i18n.T()
 	// Format config
 	var configLines []string
 	for key, value := range entry.Config {
@@ -1567,7 +1568,7 @@ Config:
 	var ffmpegSection fyne.CanvasObject
 	if entry.FFmpegCmd != "" {
 		cmdWidget := ui.NewFFmpegCommandWidget(entry.FFmpegCmd, s.window)
-		cmdLabel := widget.NewLabel("FFmpeg Command:")
+		cmdLabel := widget.NewLabel(t.ConvertFFmpegCommand)
 		cmdLabel.TextStyle = fyne.TextStyle{Bold: true}
 		ffmpegSection = container.NewVBox(
 			widget.NewSeparator(),
@@ -3763,7 +3764,7 @@ func (s *appState) showMergeView() {
 	buildList = func() {
 		listBox.Objects = nil
 		if len(s.mergeClips) == 0 {
-			emptyLabel := widget.NewLabel("Add at least two clips to merge.")
+			emptyLabel := widget.NewLabel(t.MergeAddClipsHint)
 			emptyLabel.Alignment = fyne.TextAlignCenter
 			// Make empty state a drop target
 			emptyDrop := ui.NewDroppable(container.NewCenter(emptyLabel), func(items []fyne.URI) {
@@ -3965,9 +3966,9 @@ func (s *appState) showMergeView() {
 	dvdAspectSelect.SetSelected(s.mergeDVDAspect)
 
 	dvdOptionsRow := container.NewHBox(
-		widget.NewLabel("Region:"),
+		widget.NewLabel(t.MergeRegion),
 		dvdRegionSelect,
-		widget.NewLabel("Aspect:"),
+		widget.NewLabel(t.MergeAspect),
 		dvdAspectSelect,
 	)
 
@@ -9029,7 +9030,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		detectCropBtn.Disable()
 	}
 
-	autoCropHint := widget.NewLabel("Removes black bars to reduce file size (15-30% typical reduction)")
+	autoCropHint := widget.NewLabel(t.ConvertAutoCropHint)
 	autoCropHint.Wrapping = fyne.TextWrapWord
 
 	// Flip and Rotation controls
@@ -9073,7 +9074,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		rotationSelect.SetSelected("0 deg")
 	}
 
-	transformHint := widget.NewLabel("Apply flips and rotation to correct video orientation")
+	transformHint := widget.NewLabel(t.ConvertTransformHint)
 	transformHint.Wrapping = fyne.TextWrapWord
 
 	aspectTargets := []string{sourceAspectLabel, "16:9", "4:3", "1:1", "9:16", "21:9", customAspectLabel}
@@ -9163,7 +9164,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.OutputAspect = "Source"
 	}
 	targetAspectSelect.SetSelected(aspectLabelForValue(state.convert.OutputAspect))
-	targetAspectHint := widget.NewLabel("Pick desired output aspect (default Source).")
+	targetAspectHint := widget.NewLabel(t.ConvertTargetAspectHint)
 	targetAspectHint.Wrapping = fyne.TextWrapWord
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	targetAspectHintContainer := container.NewPadded(targetAspectHint)
@@ -9173,7 +9174,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	customAspectEntry.OnChanged = func(val string) {
 		applyCustomAspect(val)
 	}
-	customAspectHint := widget.NewLabel("Custom aspect ratio in use.")
+	customAspectHint := widget.NewLabel(t.ConvertCustomAspectHint)
 	customAspectHint.Wrapping = fyne.TextWrapWord
 	customAspectBox := container.NewVBox(
 		widget.NewLabelWithStyle("Custom Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -9198,7 +9199,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	aspectOptions.SetSelected(state.convert.AspectHandling)
 
-	backgroundHint := widget.NewLabel("Crop removes edges, Letterbox/Pillarbox adds black bars to fit.")
+	backgroundHint := widget.NewLabel(t.ConvertBackgroundHint)
 	aspectBox := container.NewVBox(
 		widget.NewLabelWithStyle("Aspect Handling", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		aspectOptions,
@@ -10402,7 +10403,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	pixelFormatSelect.SetSelected(state.convert.PixelFormat)
 
 	// Hardware Acceleration with hint
-	hwAccelHint := widget.NewLabel("Auto picks the best available GPU path; if encode fails, switch to none (software).")
+	hwAccelHint := widget.NewLabel(t.ConvertHwAccelHint)
 	hwAccelHint.Wrapping = fyne.TextWrapWord
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	hwAccelHintContainer := container.NewPadded(hwAccelHint)
@@ -10439,7 +10440,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.TwoPass = checked
 	})
 	twoPassCheck.Checked = state.convert.TwoPass
-	twoPassNote = widget.NewLabel("Two-pass encoding is ignored in CRF mode.")
+	twoPassNote = widget.NewLabel(t.ConvertTwoPassNote)
 	twoPassNote.Wrapping = fyne.TextWrapWord
 	twoPassNote.Hide()
 
@@ -10898,7 +10899,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	simpleEncodingSection = buildConvertBox("Video Encoding", container.NewVBox(
 		qualitySectionSimple,
 		widget.NewLabelWithStyle("Encoder Speed/Quality", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Choose slower for better compression, faster for speed"),
+		widget.NewLabel(t.ConvertEncoderPresetHint),
 		widget.NewLabelWithStyle("Encoder Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		simplePresetSelect,
 		widget.NewSeparator(),
