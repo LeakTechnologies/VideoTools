@@ -49,10 +49,16 @@ This file tracks upcoming features, improvements, and known issues.
 ### Rip Module (document gaps, fix when prioritised)
 - [ ] Handle `.m2ts` files in `collectVOBSets` (currently only `.vob`)
 - [ ] Implement title set selection UI (hardcoded TODO)
+- [ ] **Clone Disc to ISO** — See docs/CLONE_DISC_DESIGN.md
+  - Add clone button to Rip module
+  - Implement sector-by-sector disc copy
+  - Queue integration
 
----
-
-## Dev35 Scope (completed ✓)
+### Author Module
+- [x] **Interactive Preview tab** — Full DVD menu preview with video playback
+- [x] **Module extraction** — Author module extracted to internal/app/modules/author/
+- [x] Wire subtitle track authoring through FFmpeg mapping pipeline
+- [ ] Wire multi-audio track AC3 encoding
 
 ### GPU Rendering Pipeline (NEW)
 - [x] **Renderer interface** (`internal/media/gpu/renderer.go`) - Abstract GPU renderer with Texture interface
