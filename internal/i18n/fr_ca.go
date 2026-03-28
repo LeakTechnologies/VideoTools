@@ -412,6 +412,7 @@ var frCA = Strings{
 	ConvertSettingsInfo:           "Les paramètres persistent entre les vidéos. Modifiez-les à tout moment.",
 	ConvertCacheDirHint:           "Utilisez un SSD pour de meilleures performances. Laissez vide pour utiliser le temporaire système.",
 	ConvertShowBatchSettings:      "Afficher les paramètres par lot",
+	ConvertHideBatchSettings:      "Masquer les paramètres par lot",
 	ConvertHwAccelHint:            "Choix automatique du meilleur GPU ; si l'encodage échoue, passer en logiciel.",
 	ConvertTwoPassNote:            "L'encodage en deux passes est ignoré en mode CRF.",
 	ConvertEncoderPresetHint:      "Choisir plus lent pour une meilleure compression, plus rapide pour la vitesse",
@@ -419,6 +420,10 @@ var frCA = Strings{
 	ConvertVideoFormatsHint:       "MP4, MOV, MKV et plus",
 	ConvertFrameLabel:             "Image : %d",
 	ConvertSnippetGenerating:      "Génération d'un extrait de %d secondes...\nCela peut prendre 20-30 secondes pour les fichiers WMV.",
+	ConvertAutoNameHint:           "Jetons : <actress>, <studio>, <scene>, <title>, <series>, <date>, <filename>",
+	ConvertInterlaceAnalyzing:     "Analyse de l'entrelacement... (premières 500 images)",
+	ConvertInterlaceInfo:          "Gauche : Original | Droite : Désentrelacé",
+	ConvertInspectHint:            "Chargez un clip pour inspecter ses détails techniques.",
 
 	// ── Merge ──────────────────────────────────────────────────────────────────
 	MergeAddClipsHint: "Ajoutez au moins deux clips à fusionner.",

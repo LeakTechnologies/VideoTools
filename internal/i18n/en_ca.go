@@ -411,6 +411,7 @@ var enCA = Strings{
 	ConvertSettingsInfo:           "Settings persist across videos. Change them anytime to affect all subsequent videos.",
 	ConvertCacheDirHint:           "Use an SSD for best performance. Leave blank to use system temp.",
 	ConvertShowBatchSettings:      "Show Batch Settings",
+	ConvertHideBatchSettings:      "Hide Batch Settings",
 	ConvertHwAccelHint:            "Auto picks the best available GPU path; if encode fails, switch to none (software).",
 	ConvertTwoPassNote:            "Two-pass encoding is ignored in CRF mode.",
 	ConvertEncoderPresetHint:      "Choose slower for better compression, faster for speed",
@@ -418,6 +419,10 @@ var enCA = Strings{
 	ConvertVideoFormatsHint:       "MP4, MOV, MKV and more",
 	ConvertFrameLabel:             "Frame: %d",
 	ConvertSnippetGenerating:      "Generating %d-second snippet...\nThis may take 20-30 seconds for WMV files.",
+	ConvertAutoNameHint:           "Tokens: <actress>, <studio>, <scene>, <title>, <series>, <date>, <filename>",
+	ConvertInterlaceAnalyzing:     "Analyzing interlacing... (first 500 frames)",
+	ConvertInterlaceInfo:          "Left: Original | Right: Deinterlaced",
+	ConvertInspectHint:            "Load a clip to inspect its technical details.",
 
 	// ── Merge ──────────────────────────────────────────────────────────────────
 	MergeAddClipsHint: "Add at least two clips to merge.",
