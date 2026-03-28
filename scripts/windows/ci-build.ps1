@@ -29,6 +29,18 @@ $env:CXX = "g++"
 $env:CGO_CFLAGS = "-IC:\ffmpeg-static\include -IC:\msys64\ucrt64\include"
 $env:PKG_CONFIG_PATH = "C:\ffmpeg-static\lib\pkgconfig;C:\msys64\ucrt64\lib\pkgconfig"
 
+# Promote MSYS2 static archives into the ffmpeg prefix so the linker finds
+# them via -LC:/ffmpeg-static/lib (first in search order) rather than
+# resolving to MSYS2's DLL import libs in ucrt64/lib.
+foreach ($lib in @("x264", "x265", "bz2", "z")) {
+    $src = "C:\msys64\ucrt64\lib\lib${lib}.a"
+    $dst = "C:\ffmpeg-static\lib\lib${lib}.a"
+    if ((Test-Path $src) -and -not (Test-Path $dst)) {
+        Copy-Item $src $dst -Force
+        Write-Host "[INFO] Promoted static archive: lib${lib}.a"
+    }
+}
+
 $ffmpegPkgs = @("libavcodec","libavformat","libswscale","libavutil","libswresample","libavfilter")
 $staticLibs = (& $pkgConfigExe --libs --static $ffmpegPkgs 2>$null) -join " "
 if (-not $staticLibs) {
