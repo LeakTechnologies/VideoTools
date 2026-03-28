@@ -61,9 +61,9 @@ jobs:
           path: |
             /var/cache/apt
             /var/lib/apt
-          key: ${{ runner.os }}-apt-${{ hashFiles('.forgejo/workflows/dev-packages.yml') }}
+          key: ${{ runner.os }}-apt-build-deps-v1
           restore-keys: |
-            ${{ runner.os }}-apt-
+            ${{ runner.os }}-apt-build-deps-
 
       - name: Cache static FFmpeg (Linux)
         id: cache-ffmpeg-linux
@@ -210,7 +210,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-          cache: false
+          cache: true
 
       - name: Windows runner diagnostics
         run: |
@@ -337,8 +337,6 @@ jobs:
 
       - name: Build Windows package
         env:
-          # Custom minimal FFmpeg at C:\ffmpeg-static; x264/x265 in MSYS2 ucrt64
-          PKG_CONFIG_PATH: C:\ffmpeg-static\lib\pkgconfig;C:\msys64\ucrt64\lib\pkgconfig
           # SignPath.io (free OSS signing — https://signpath.io/product/open-source)
           # Set these secrets once approved; signing is skipped when absent.
           SIGNPATH_API_TOKEN:       ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -349,141 +347,8 @@ jobs:
           VT_SIGN_TIMESTAMP: ${{ secrets.VT_SIGN_TIMESTAMP }}
         run: |
           $ErrorActionPreference = 'Continue'
-          $projectRoot = Resolve-Path "."
-          $buildOutput = Join-Path $projectRoot "VideoTools.exe"
-          # cgo splits CC on spaces; use command names instead of absolute paths
-          # so "C:\Program Files\..." paths do not get truncated to "C:\Program".
-          $gccCmd = Get-Command gcc -ErrorAction SilentlyContinue
-          if ($gccCmd) {
-            $env:CC = "gcc"
-            $env:CXX = "g++"
-          }
-          $appVersion = ""
-          $versionFile = Join-Path $projectRoot "VERSION"
-          if (Test-Path $versionFile) {
-            $appVersion = (Get-Content $versionFile -Raw).Trim()
-          }
-          if ([string]::IsNullOrWhiteSpace($appVersion)) {
-            $appVersionLine = (Get-Content (Join-Path $projectRoot "main.go") | Select-String -Pattern 'appVersion' | Select-Object -First 1).ToString()
-            if ($appVersionLine) {
-              $parts = $appVersionLine -split ([char]34)
-              if ($parts.Length -ge 2) {
-                $appVersion = $parts[1]
-              }
-            }
-          }
-          if ([string]::IsNullOrWhiteSpace($appVersion)) {
-            $appVersion = "v0.1.1-dev"
-          }
-          $gitCommit = ""
-          if (Get-Command git -ErrorAction SilentlyContinue) {
-            $gitCommit = (git -C $projectRoot rev-parse --short HEAD 2>$null).Trim()
-          }
-          if ([string]::IsNullOrWhiteSpace($gitCommit)) {
-            $gitCommit = "nogit"
-          }
-          $channel = "stable"
-          if ($appVersion -match "-dev") {
-            $channel = "dev"
-          }
-          $version = $appVersion
-          $distDir = Join-Path $projectRoot "dist\\windows"
-          $artifactName = "$version`_windows.zip"
-
-          if ($env:VT_SIGN_PFX_B64) {
-            $pfxPath = Join-Path $env:TEMP "vt-sign.pfx"
-            [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:VT_SIGN_PFX_B64))
-            $env:VT_SIGN_PFX = $pfxPath
-          }
-
-          $rcFile = Join-Path $projectRoot "scripts\\videotools.rc"
-          $sysoFile = Join-Path $projectRoot "videotools_windows_amd64.syso"
-          if (Test-Path $rcFile) {
-            $windresCandidates = @()
-            $windresCmd = Get-Command windres -ErrorAction SilentlyContinue
-            if ($windresCmd) {
-              $windresCandidates += $windresCmd.Path
-            }
-            $windresCandidates += "C:\\ProgramData\\chocolatey\\bin\\windres.exe"
-            $windresCandidates += "C:\\MinGW\\bin\\windres.exe"
-            $windresPath = $windresCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
-            if ($windresPath) {
-              & $windresPath $rcFile -O coff -o $sysoFile | Out-Null
-            } else {
-              Write-Host "[WARN] windres not found; Windows icon will not be embedded." -ForegroundColor Yellow
-            }
-          }
-
-          $env:CGO_ENABLED = "1"
-
-          # Custom minimal FFmpeg at C:\ffmpeg-static; x264/x265 from MSYS2 ucrt64.
-          # PKG_CONFIG_PATH covers both so --static resolves all transitive deps.
-          $msys2Bin     = "C:\msys64\ucrt64\bin"
-          $pkgConfigExe = Join-Path $msys2Bin "pkg-config.exe"
-          $env:PATH     = "$msys2Bin;C:\msys64\usr\bin;$env:PATH"
-          $env:CGO_CFLAGS = "-IC:\ffmpeg-static\include -IC:\msys64\ucrt64\include"
-
-          $ffmpegPkgs = @("libavcodec","libavformat","libswscale","libavutil","libswresample","libavfilter")
-          $staticLibs = (& $pkgConfigExe --libs --static $ffmpegPkgs 2>$null) -join " "
-          if (-not $staticLibs) {
-            Write-Error "pkg-config returned no flags for FFmpeg - check C:\ffmpeg-static"
-            exit 1
-          }
-          # -static-libgcc: avoids libgcc_s_seh-1.dll dependency (not a Windows system DLL)
-          # Windows system libs needed by static FFmpeg that pkg-config may omit:
-          # bcrypt (crypto), Secur32/Ws2_32 (networking), mfplat/strmiids/avrt (Media Foundation),
-          # ole32/oleaut32 (COM), user32/gdi32 (Win32 UI), psapi (process info)
-          $winSysLibs = "-lbcrypt -lSecur32 -lWs2_32 -lmfplat -lstrmiids -lavrt -lole32 -loleaut32 -luser32 -lgdi32 -lpsapi"
-          $env:CGO_LDFLAGS = "$staticLibs $winSysLibs -static-libgcc -LC:\msys64\ucrt64\lib"
-          Write-Host "[INFO] CGO_LDFLAGS: $env:CGO_LDFLAGS"
-
-          go mod download
-          go mod verify
-
-          # Get git commit hash for version info
-          $gitCommit = ""
-          try { $gitCommit = git rev-parse --short HEAD } catch { }
-          $ldflags = "-s -w -H windowsgui"
-          if ($gitCommit) {
-            $ldflags = "$ldflags -X main.buildCommit=$gitCommit"
-          }
-
-          go build -p 4 -tags native_media -ldflags="$ldflags" -trimpath -o $buildOutput .
-
-          # Sign if credentials are present (SignPath takes priority over PFX)
-          $hasSignPath = $env:SIGNPATH_API_TOKEN -and $env:SIGNPATH_ORGANIZATION_ID
-          $hasPfx      = $env:VT_SIGN_PFX_B64 -and $env:VT_SIGN_PASSWORD
-          $signScript  = Join-Path $projectRoot "scripts\\windows\\support\\sign-exe.ps1"
-          if (($hasSignPath -or $hasPfx) -and (Test-Path $signScript)) {
-            if ($hasPfx -and -not $hasSignPath) {
-              $pfxPath = Join-Path $env:TEMP "vt-sign.pfx"
-              [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:VT_SIGN_PFX_B64))
-              $tsUrl = if ($env:VT_SIGN_TIMESTAMP) { $env:VT_SIGN_TIMESTAMP } else { "http://timestamp.digicert.com" }
-              & $signScript -ExePath $buildOutput -CertPath $pfxPath -CertPassword $env:VT_SIGN_PASSWORD -TimestampUrl $tsUrl
-            } else {
-              & $signScript -ExePath $buildOutput
-            }
-          } else {
-            Write-Host "[sign] Skipping: no signing credentials configured." -ForegroundColor Yellow
-          }
-
-          if (-not (Test-Path $distDir)) {
-            New-Item -ItemType Directory -Force -Path $distDir | Out-Null
-          }
-          $pkgDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "vt-build-$([Guid]::NewGuid())") -Force
-          Copy-Item $buildOutput -Destination $pkgDir.FullName -Force
-          if (Test-Path (Join-Path $projectRoot "README.md")) {
-            Copy-Item (Join-Path $projectRoot "README.md") -Destination $pkgDir.FullName -Force
-          }
-          # No DLLs to bundle — FFmpeg is statically linked into the exe.
-          $artifactPath = Join-Path $distDir $artifactName
-          if (Test-Path $artifactPath) {
-            Remove-Item $artifactPath -Force
-          }
-          Compress-Archive -Path (Join-Path $pkgDir.FullName "*") -DestinationPath $artifactPath
-          Remove-Item $pkgDir.FullName -Recurse -Force
-
-          Write-Host "[INFO] MSIX packaging skipped for host runner mode" -ForegroundColor Yellow
+          & (Join-Path $env:GITHUB_WORKSPACE "scripts\windows\ci-build.ps1")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v3
