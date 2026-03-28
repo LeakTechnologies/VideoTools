@@ -65,6 +65,7 @@ type trimState struct {
 	durationLabel *widget.Label
 	fileLabel     *widget.Label
 	addBtn        *widget.Button
+	timeline      *ui.TrimTimeline
 }
 
 type keyboardCapture struct {
@@ -320,9 +321,43 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		ts.player,
 	)
 
-	// Left: video + toolbar + selection labels
+	// Timeline with draggable handles
+	ts.timeline = ui.NewTrimTimeline(1.0) // Default to 1 second, will update when video loads
+	ts.timeline.SetMinSize(fyne.NewSize(400, 60))
+	ts.timeline.OnInPointChange = func(pos float64) {
+		ts.inPoint = time.Duration(pos * float64(time.Second))
+		if ts.inPointLabel != nil {
+			ts.inPointLabel.SetText(i18n.T().TrimInPoint + ": " + formatDuration(ts.inPoint))
+		}
+		if ts.player != nil {
+			ts.player.SetInPoint(pos)
+		}
+		ts.updateDurationLabel()
+	}
+	ts.timeline.OnOutPointChange = func(pos float64) {
+		ts.outPoint = time.Duration(pos * float64(time.Second))
+		if ts.outPointLabel != nil {
+			ts.outPointLabel.SetText(i18n.T().TrimOutPoint + ": " + formatDuration(ts.outPoint))
+		}
+		if ts.player != nil {
+			ts.player.SetOutPoint(pos)
+		}
+		ts.updateDurationLabel()
+	}
+	ts.timeline.OnPositionChange = func(pos float64) {
+		ts.currentTime = pos
+		if ts.engine != nil {
+			ts.engine.Seek(pos)
+		}
+		if ts.player != nil {
+			ts.player.SetCurrentTime(pos)
+		}
+	}
+
+	// Left: video + timeline + toolbar + selection labels
 	leftSide := container.NewVBox(
 		container.NewVBox(videoContainer),
+		ts.timeline,
 		toolbar,
 		buildTrimBox(t.TrimInPoint+" / "+t.TrimOutPoint, container.NewVBox(
 			ts.inPointLabel,
@@ -552,6 +587,15 @@ func (s *trimState) loadVideo(path string) {
 	s.engine.InitFrameCache(30)
 	s.videoPath = path
 	s.duration = s.engine.Duration()
+
+	// Update timeline widget with new duration
+	if s.timeline != nil {
+		s.timeline.SetDuration(s.duration)
+		s.timeline.SetInPoint(0)
+		s.timeline.SetOutPoint(s.duration)
+		s.timeline.SetPosition(0)
+	}
+
 	if s.fileLabel != nil {
 		s.fileLabel.SetText(filepath.Base(path))
 	}
