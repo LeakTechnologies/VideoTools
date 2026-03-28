@@ -292,12 +292,13 @@ jobs:
             Write-Host "[INFO] ucrt64 toolchain present"
           }
 
-          # Minimal external codec deps for the custom FFmpeg build
-          # nasm: assembly optimiser for x264/x265
-          # x264/x265: only external libs we enable; everything else is FFmpeg built-in
-          Write-Host "[INFO] Installing nasm, x264-dev, x265-dev..."
-          Invoke-Bash "pacman -S --needed --noconfirm nasm mingw-w64-ucrt-x86_64-x264 mingw-w64-ucrt-x86_64-x265"
-          Write-Host "[INFO] Codec deps ready"
+          # nasm: assembly optimiser required by x264/x265 source builds
+          # cmake: required to build x265 from source
+          # x264/x265 are built from source as static-only (no DLL) so FFmpeg
+          # compiles without __declspec(dllimport), enabling true static linkage.
+          Write-Host "[INFO] Installing nasm and cmake..."
+          Invoke-Bash "pacman -S --needed --noconfirm nasm mingw-w64-ucrt-x86_64-cmake"
+          Write-Host "[INFO] Build tools ready"
 
       - name: Build static FFmpeg (Windows)
         shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
@@ -305,11 +306,46 @@ jobs:
           MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
-          marker="/c/ffmpeg-static/.built-${ver}-v2"
+          marker="/c/ffmpeg-static/.built-${ver}-v3"
           if [ -f "$marker" ]; then
-            echo "[INFO] FFmpeg ${ver} already built at /c/ffmpeg-static -- skipping"
+            echo "[INFO] FFmpeg ${ver} (v3) already built at /c/ffmpeg-static -- skipping"
             exit 0
           fi
+          mkdir -p /c/ffmpeg-static
+          export PKG_CONFIG_PATH="/c/ffmpeg-static/lib/pkgconfig:/ucrt64/lib/pkgconfig"
+
+          # Build x264 from source as static-only.
+          # MSYS2's x264 package headers use __declspec(dllimport); building
+          # static-only produces headers without it, so FFmpeg object files will
+          # reference plain x264_* symbols that libx264.a satisfies.
+          echo "[INFO] Building x264 from source (static only)..."
+          git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
+          cd /tmp/x264-src
+          ./configure \
+            --prefix=/c/ffmpeg-static \
+            --enable-static \
+            --disable-shared \
+            --disable-opencl \
+            --disable-cli
+          make -j$(nproc)
+          make install
+          rm -rf /tmp/x264-src
+
+          # Build x265 from source as static-only (same dllimport issue).
+          echo "[INFO] Building x265 from source (static only)..."
+          git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
+          mkdir /tmp/x265-build && cd /tmp/x265-build
+          cmake -G "MSYS Makefiles" \
+            -DCMAKE_INSTALL_PREFIX=/c/ffmpeg-static \
+            -DENABLE_SHARED=OFF \
+            -DENABLE_CLI=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            /tmp/x265-src/source
+          make -j$(nproc)
+          make install
+          rm -rf /tmp/x265-src /tmp/x265-build
+
+          # Build FFmpeg against the static x264/x265 we just installed.
           echo "[INFO] Downloading FFmpeg ${ver} source..."
           wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
           tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
@@ -329,13 +365,13 @@ jobs:
             --enable-libx265 \
             --disable-vaapi \
             --disable-iconv \
-            --extra-cflags='-I/ucrt64/include' \
-            --extra-ldflags='-L/ucrt64/lib -Wl,-Bstatic,-lx264,-lx265,-Bdynamic'
+            --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
+            --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib'
           make -j$(nproc)
           make install
           rm -rf "/tmp/ffmpeg-${ver}" /tmp/ffmpeg.tar.bz2
           touch "$marker"
-          echo "[INFO] FFmpeg ${ver} built at /c/ffmpeg-static"
+          echo "[INFO] FFmpeg ${ver} (v3) built at /c/ffmpeg-static"
 
       - name: Build Windows package
         env:
