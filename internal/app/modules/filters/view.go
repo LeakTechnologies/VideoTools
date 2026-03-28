@@ -2,6 +2,7 @@ package filters
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -44,6 +45,7 @@ type Options struct {
 	FilterInterpPreset  string
 	FilterInterpFPS     string
 	FiltersFile         any
+	FiltersFilePath     string
 	FilterActiveChain   []string
 
 	OnShowMainMenu       func()
@@ -84,6 +86,11 @@ type Options struct {
 	OnBuildFilterChain func() []string
 
 	OnDroppedFiles func(paths []fyne.URI)
+
+	OnProbeVideo           func(path string) (interface{}, error)
+	OnBuildVideoPane       func(state interface{}, size fyne.Size, src interface{}, overlay fyne.CanvasObject) fyne.CanvasObject
+	OnHasNativeMediaPlayer func() bool
+	OnLoadVideoNative      func(path string)
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
@@ -130,10 +137,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	var videoContainer fyne.CanvasObject
 	if opts.FiltersFile != nil {
-		fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, "video loaded"))
-		videoContainer = container.NewCenter(widget.NewLabel(t.FiltersVideoPreview))
+		if opts.FiltersFilePath != "" {
+			fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, filepath.Base(opts.FiltersFilePath)))
+		} else {
+			fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, "video loaded"))
+		}
+		videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), opts.FiltersFile, nil)
+		if opts.OnHasNativeMediaPlayer != nil && opts.OnHasNativeMediaPlayer() && opts.FiltersFilePath != "" {
+			go opts.OnLoadVideoNative(opts.FiltersFilePath)
+		}
 	} else {
-		videoContainer = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
+		videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), nil, nil)
 	}
 
 	loadBtn := widget.NewButton("Load Video", func() {
