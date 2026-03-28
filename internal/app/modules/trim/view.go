@@ -323,7 +323,6 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 
 	// Timeline with draggable handles
 	ts.timeline = ui.NewTrimTimeline(1.0) // Default to 1 second, will update when video loads
-	ts.timeline.SetMinSize(fyne.NewSize(400, 60))
 	ts.timeline.OnInPointChange = func(pos float64) {
 		ts.inPoint = time.Duration(pos * float64(time.Second))
 		if ts.inPointLabel != nil {
