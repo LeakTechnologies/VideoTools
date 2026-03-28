@@ -37,7 +37,7 @@ if (-not $staticLibs) {
 }
 # Only add libs that pkg-config consistently omits from FFmpeg's .pc files on Windows.
 # -static-libstdc++: prevents libstdc++-6.dll runtime dependency (stdc++ appears in FFmpeg's pkg-config output)
-$env:CGO_LDFLAGS = "$staticLibs -loleaut32 -lgdi32 -lpsapi -lavrt -lmfplat -static-libgcc -static-libstdc++ -LC:\msys64\ucrt64\lib"
+$env:CGO_LDFLAGS = "$staticLibs -LC:\msys64\ucrt64\lib -loleaut32 -lgdi32 -lpsapi -lavrt -lmfplat -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
 Write-Host "[INFO] CGO_LDFLAGS: $env:CGO_LDFLAGS"
 
 # --- Windows resource (icon) ---
@@ -60,6 +60,15 @@ go mod verify
 $ldflags = "-s -w -H windowsgui -X main.buildCommit=$gitCommit"
 go build -p 4 -tags native_media -ldflags="$ldflags" -trimpath -o $buildOutput .
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+# --- DLL dependency report (non-fatal) ---
+$objdumpExe = Join-Path $msys2Bin "objdump.exe"
+if (Test-Path $objdumpExe) {
+    Write-Host "[INFO] DLL imports in $buildOutput:"
+    & $objdumpExe -p $buildOutput 2>$null | Select-String "DLL Name" | ForEach-Object { Write-Host "  $_" }
+} else {
+    Write-Host "[WARN] objdump not found; skipping DLL import report"
+}
 
 # --- Sign (optional, non-fatal) ---
 $hasPfx      = $env:VT_SIGN_PFX_B64 -and $env:VT_SIGN_PASSWORD
