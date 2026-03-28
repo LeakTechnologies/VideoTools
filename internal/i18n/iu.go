@@ -364,6 +364,20 @@ var iu = Strings{
 	ConvertOutputFormat:  "ᐅᐸᒃᑎᕕᒃ ᐊᕕᒃᑕᐅᓯᒪᓂᖓ",    // Output Format
 	ConvertHardwareAccel: "ᓴᓇᒐᒃᓴᓂᒃ ᓱᒃᑲᐃᕙᒍᓐᓇᖅᑐᑦ", // Hardware Acceleration
 
+	ConvertReset:                  "ᓴᕿᙱᑦᑎᓗᒍ",                            // Reset
+	ConvertResetDefaults:          "ᓴᕿᙱᑦᑎᓗᒍ ᐃᓱᒃᓴᐃᓂᖅ",                    // Reset to Defaults
+	ConvertSnippetLengthFmt:       "ᐃᒡᒋᕐᓗᒍ ᓱᐱᑦᑎᓂᖅ: %d ᓈᓚᓇᓈᔅ",            // Snippet Length: %d seconds
+	ConvertSnippetOutput:          "ᐃᒡᒋᕐᓗᒍ ᐅᐸᒃᑎᕕᒃ:",                     // Snippet Output:
+	ConvertMatchSourceFormat:      "ᐊᓱᓕᖅᓴᐃᓂᖅ",                           // Match Source Format
+	ConvertUseConvSettings:        "ᐅᓇᓗᒍ = ᐊᓯᔾᔨᕆᐊᖅᑐᖅ ᓱᒃᑲᐃᕙᒍᓐᓇᖅᑐᑦ",       // Unchecked = Use Conversion Settings
+	ConvertSnippetHint:            "ᐃᒡᒋᕐᓗᒍ ᐊᑕᙱᓂᖅ ᐃᓱᒃᓴᐃᓂᖅ ᐃᓂᖅ ᑎᑎᕋᖅᑕᐅᓂᖅ.", // Creates a clip centred on the timeline midpoint.
+	ConvertSnippetOptions:         "ᐃᒡᒋᕐᓗᒍ ᐃᓱᒃᑲᐃᕙᒍᓐᓇᖅᑐᑦ",                // Snippet Options
+	ConvertSnippetPosition:        "ᐃᒡᒋᕐᓗᒍ ᑎᐅᓂᖅᓱᐃᓂᖅ:",                   // Snippet Position:
+	ConvertSnippetFromCurrent:     "ᐃᓂᖅ ᐱᕚᓪᓕᖅᐸᐅᔪᑦ ᑎᐅᓂᖅ",                 // From Current Position
+	ConvertSnippetFromCurrentHint: "ᐊᓱᓕᕆᔾᔪᑎᑦ ᑎᐅᓂᖅᓱᐃᓂᖅ ᐊᓂᒃᓴᐃᓂᖅ ᐃᓱᒃᓴᐃᓂᖅ",  // Uses playback position instead of midpoint
+	ConvertGenerateSnippet:        "ᐃᒡᒋᕐᓗᒍ ᐊᓱᒃᓴᐃᓂᖅ",                     // Generate Snippet
+	ConvertGenerateAllSnippets:    "ᐃᒡᒋᕐᓗᒍ ᐊᓱᒃᓴᐃᓂᖅ ᐊᓱᒃᓴᐃᓂᖅ",             // Generate All Snippets
+
 	// ── Compare ──────────────────────────────────────────────────────────────────
 	CompareInstructions:    "ᑕᕐᕆᔭᒐᒃᓴᑦ ᒪᕐᕉᒃ ᐊᒐᒃᓯᓗᒋᒃ ᓇᓗᓇᐃᖅᓯᓗᒋᑦ. ᐅᐸᒃᓯᓗᒋᒃ ᅎᕝᕙᓘᓐᓃᑦ ᐸᓯᔭᒃᓴᒥᒃ ᐊᑐᕐᓗᒍ.", // Load two videos to compare
 	CompareFullscreen:      "ᐊᖏᕐᓂᖓᓂᒃ ᑕᑯᒃᓴᑦᑎᐊᕐᓗᒍ",                                              // Fullscreen Compare

@@ -365,6 +365,20 @@ var iuLatn = Strings{
 	ConvertOutputFormat:  "Upaktiivik Aviktausimaninga",     // Output Format
 	ConvertHardwareAccel: "Sanajaksanik Sukkaivagunnarqtut", // Hardware Acceleration
 
+	ConvertReset:                  "Aqiitchauliruti",                                // Reset
+	ConvertResetDefaults:          "Aqiitchauliruti Agguutaiqqanut",                 // Reset to Defaults
+	ConvertSnippetLengthFmt:       "Igiqsiurniq Nalunaiqsirnirniq: %d sek",          // Snippet Length: %d seconds
+	ConvertSnippetOutput:          "Igiqsiurniq Upaktiivik:",                        // Snippet Output:
+	ConvertMatchSourceFormat:      "Anngatamaqsiurniq",                              // Match Source Format
+	ConvertUseConvSettings:        "Ilaqtunik = Agguutaiqqanut Ukiuqsi",             // Unchecked = Use Conversion Settings
+	ConvertSnippetHint:            "Igiqsiurniq sukkavinit nuliaqsailiniq.",         // Creates a clip centred on the timeline midpoint.
+	ConvertSnippetOptions:         "Igiqsiurniq Agguutaiqqanut",                     // Snippet Options
+	ConvertSnippetPosition:        "Igiqsiurniq Wiqditjunniq:",                      // Snippet Position:
+	ConvertSnippetFromCurrent:     "Wiqditjunnik Anngatamaqsikjunniq",               // From Current Position
+	ConvertSnippetFromCurrentHint: "Wiqditjunniq aulappianniak anngatamaqsikjunniq", // Uses playback position instead of midpoint
+	ConvertGenerateSnippet:        "Igiqsiurniq Sakkutilik",                         // Generate Snippet
+	ConvertGenerateAllSnippets:    "Igiqsiurniq Sakkutilik Allatgun",                // Generate All Snippets
+
 	// ── Compare ──────────────────────────────────────────────────────────────────
 	CompareInstructions:    "Tarvijaksait Marruuk agaksillugik nalunaiqsilugit. Upaksillugik uqqaatijaksaqmik atuqlugu.",    // Load two videos
 	CompareFullscreen:      "Angirningani Takujautiit",                                                                      // Fullscreen Compare
