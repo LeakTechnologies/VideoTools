@@ -1808,3 +1808,275 @@ func (d *DraggableListItem) DragEnd() {
 	}
 	d.accumY = 0
 }
+
+type TrimTimeline struct {
+	widget.BaseWidget
+	Duration         float64 // Total duration in seconds
+	InPoint          float64 // In point in seconds (0 to Duration)
+	OutPoint         float64 // Out point in seconds (0 to Duration)
+	CurrentPos       float64 // Current playback position
+	OnInPointChange  func(float64)
+	OnOutPointChange func(float64)
+	OnPositionChange func(float64)
+
+	draggingIn  bool
+	draggingOut bool
+	draggingPos bool
+	dragStartX  float32
+	handleWidth float32
+}
+
+func NewTrimTimeline(duration float64) *TrimTimeline {
+	t := &TrimTimeline{
+		Duration:    duration,
+		InPoint:     0,
+		OutPoint:    duration,
+		CurrentPos:  0,
+		handleWidth: 16,
+	}
+	t.ExtendBaseWidget(t)
+	return t
+}
+
+func (t *TrimTimeline) SetDuration(dur float64) {
+	t.Duration = dur
+	if t.OutPoint > dur {
+		t.OutPoint = dur
+	}
+	if t.InPoint > t.OutPoint {
+		t.InPoint = 0
+	}
+	t.Refresh()
+}
+
+func (t *TrimTimeline) SetInPoint(inPt float64) {
+	if inPt < 0 {
+		inPt = 0
+	}
+	if inPt > t.Duration {
+		inPt = t.Duration
+	}
+	if inPt > t.OutPoint {
+		inPt = t.OutPoint
+	}
+	t.InPoint = inPt
+	if t.OnInPointChange != nil {
+		t.OnInPointChange(inPt)
+	}
+	t.Refresh()
+}
+
+func (t *TrimTimeline) SetOutPoint(outPt float64) {
+	if outPt < 0 {
+		outPt = 0
+	}
+	if outPt > t.Duration {
+		outPt = t.Duration
+	}
+	if outPt < t.InPoint {
+		outPt = t.InPoint
+	}
+	t.OutPoint = outPt
+	if t.OnOutPointChange != nil {
+		t.OnOutPointChange(outPt)
+	}
+	t.Refresh()
+}
+
+func (t *TrimTimeline) SetPosition(pos float64) {
+	if pos < 0 {
+		pos = 0
+	}
+	if pos > t.Duration {
+		pos = t.Duration
+	}
+	t.CurrentPos = pos
+	t.Refresh()
+}
+
+func (t *TrimTimeline) CreateRenderer() fyne.WidgetRenderer {
+	return &trimTimelineRenderer{timeline: t}
+}
+
+type trimTimelineRenderer struct {
+	timeline *TrimTimeline
+}
+
+func (r *trimTimelineRenderer) Destroy() {}
+
+func (r *trimTimelineRenderer) Layout(size fyne.Size) {
+	// Handled by Refresh
+}
+
+func (r *trimTimelineRenderer) MinSize() fyne.Size {
+	return fyne.NewSize(400, 60)
+}
+
+func (r *trimTimelineRenderer) Refresh() {
+	// Handled in objects
+}
+
+func (r *trimTimelineRenderer) Objects() []fyne.CanvasObject {
+	t := r.timeline
+	handleW := t.handleWidth
+	barHeight := float32(40)
+	handleHeight := float32(50)
+
+	size := t.Size()
+	if size.Width < 100 {
+		size = fyne.NewSize(400, 60)
+	}
+
+	usableWidth := size.Width - (handleW * 2)
+	if usableWidth < 50 {
+		usableWidth = 50
+	}
+
+	// Calculate positions
+	inX := handleW + (float32(t.InPoint/t.Duration) * usableWidth)
+	outX := float32(t.OutPoint/t.Duration)*usableWidth + handleW - handleW
+
+	// Background bar (full duration)
+	bg := canvas.NewRectangle(utils.MustHex("#2A2F45"))
+	bg.SetMinSize(fyne.NewSize(size.Width, barHeight))
+	bg.Move(fyne.NewPos(0, (size.Height-barHeight)/2))
+
+	// Selected region (between in and out points)
+	selectedRect := canvas.NewRectangle(utils.MustHex("#4A90D9"))
+	selectedWidth := outX - inX
+	if selectedWidth < 0 {
+		selectedWidth = 0
+	}
+	selectedRect.SetMinSize(fyne.NewSize(selectedWidth, barHeight-4))
+	selectedRect.Move(fyne.NewPos(inX+2, (size.Height-barHeight)/2+2))
+
+	// Left handle (in-point) - draggable
+	inHandle := canvas.NewRectangle(utils.MustHex("#22C55E"))
+	inHandle.SetMinSize(fyne.NewSize(handleW, handleHeight))
+	inHandle.CornerRadius = 4
+	// Position centered vertically, overlapping the bar
+	inHandle.Move(fyne.NewPos(inX-handleW/2, (size.Height-handleHeight)/2))
+
+	// Right handle (out-point) - draggable
+	outHandle := canvas.NewRectangle(utils.MustHex("#EF4444"))
+	outHandle.SetMinSize(fyne.NewSize(handleW, handleHeight))
+	outHandle.CornerRadius = 4
+	outHandle.Move(fyne.NewPos(inX+selectedWidth-handleW/2, (size.Height-handleHeight)/2))
+
+	// Current position indicator (blue line)
+	posX := handleW + (float32(t.CurrentPos/t.Duration) * usableWidth)
+	posIndicator := canvas.NewRectangle(theme.Color(theme.ColorNamePrimary))
+	posIndicator.SetMinSize(fyne.NewSize(2, handleHeight))
+	posIndicator.Move(fyne.NewPos(posX-1, (size.Height-handleHeight)/2))
+
+	// Time labels
+	inLabel := canvas.NewText(formatTimelineTime(t.InPoint), color.White)
+	inLabel.TextSize = 11
+	inLabel.Move(fyne.NewPos(inX-handleW/2, 0))
+
+	outLabel := canvas.NewText(formatTimelineTime(t.OutPoint), color.White)
+	outLabel.TextSize = 11
+	outLabel.Move(fyne.NewPos(inX+selectedWidth-handleW/2-30, 0))
+
+	return []fyne.CanvasObject{bg, selectedRect, inHandle, outHandle, posIndicator, inLabel, outLabel}
+}
+
+func formatTimelineTime(seconds float64) string {
+	h := int(seconds) / 3600
+	m := (int(seconds) % 3600) / 60
+	s := int(seconds) % 60
+	ms := int((seconds - float64(int(seconds))) * 1000)
+	if h > 0 {
+		return fmt.Sprintf("%d:%02d:%02d.%03d", h, m, s, ms)
+	}
+	return fmt.Sprintf("%d:%02d.%03d", m, s, ms)
+}
+
+func (t *TrimTimeline) Tapped(ev *fyne.PointEvent) {
+	t.handleTap(ev.Position)
+}
+
+func (t *TrimTimeline) handleTap(pos fyne.Position) {
+	size := t.Size()
+	handleW := t.handleWidth
+	usableWidth := size.Width - (handleW * 2)
+	if usableWidth < 50 {
+		usableWidth = 50
+	}
+
+	inX := handleW + (float32(t.InPoint/t.Duration) * usableWidth)
+	outX := float32(t.OutPoint/t.Duration)*usableWidth + handleW - handleW
+
+	// Check if tap is near in handle
+	if pos.X >= inX-handleW && pos.X <= inX+handleW {
+		t.SetInPoint(t.CurrentPos)
+		return
+	}
+	// Check if tap is near out handle
+	if pos.X >= outX-handleW && pos.X <= outX+handleW {
+		t.SetOutPoint(t.CurrentPos)
+		return
+	}
+	// Otherwise, set position to tap point
+	newPos := float64((pos.X-handleW)/usableWidth) * t.Duration
+	if newPos < 0 {
+		newPos = 0
+	}
+	if newPos > t.Duration {
+		newPos = t.Duration
+	}
+	t.SetPosition(newPos)
+	if t.OnPositionChange != nil {
+		t.OnPositionChange(newPos)
+	}
+}
+
+func (t *TrimTimeline) Dragged(ev *fyne.DragEvent) {
+	size := t.Size()
+	handleW := t.handleWidth
+	usableWidth := size.Width - (handleW * 2)
+	if usableWidth < 50 {
+		usableWidth = 50
+	}
+
+	newPos := float64((ev.Position.X-handleW)/usableWidth) * t.Duration
+	if newPos < 0 {
+		newPos = 0
+	}
+	if newPos > t.Duration {
+		newPos = t.Duration
+	}
+
+	// Determine which handle is being dragged based on initial click
+	// For simplicity, we'll use a state flag set on DragStart
+	if t.draggingIn {
+		if newPos > t.OutPoint {
+			newPos = t.OutPoint
+		}
+		t.InPoint = newPos
+		if t.OnInPointChange != nil {
+			t.OnInPointChange(newPos)
+		}
+	} else if t.draggingOut {
+		if newPos < t.InPoint {
+			newPos = t.InPoint
+		}
+		t.OutPoint = newPos
+		if t.OnOutPointChange != nil {
+			t.OnOutPointChange(newPos)
+		}
+	} else if t.draggingPos {
+		t.CurrentPos = newPos
+		if t.OnPositionChange != nil {
+			t.OnPositionChange(newPos)
+		}
+	}
+
+	t.Refresh()
+}
+
+func (t *TrimTimeline) DragEnd() {
+	t.draggingIn = false
+	t.draggingOut = false
+	t.draggingPos = false
+}
