@@ -4041,7 +4041,7 @@ func (s *appState) showMergeView() {
 	motionInterpCheck.SetChecked(s.mergeMotionInterpolation)
 
 	frameRateRow := container.NewVBox(
-		widget.NewLabel("Frame Rate"),
+		widget.NewLabel(t.ConvertFrameRate),
 		frameRateSelect,
 		motionInterpCheck,
 	)
@@ -4169,7 +4169,7 @@ func (s *appState) showMergeView() {
 
 	rightPanel := container.NewVBox(
 		widget.NewLabelWithStyle("Output Options", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		widget.NewLabel("Format"),
+		widget.NewLabel(t.ConvertFormat),
 		formatSelect,
 		dvdOptionsContainer,
 		widget.NewSeparator(),
@@ -4178,9 +4178,9 @@ func (s *appState) showMergeView() {
 		keepAllCheck,
 		chapterCheck,
 		widget.NewSeparator(),
-		widget.NewLabel("Output Folder"),
+		widget.NewLabel(t.ConvertOutputFolder),
 		container.NewBorder(nil, nil, nil, browseDirBtn, outputDirEntry),
-		widget.NewLabel("Output Filename"),
+		widget.NewLabel(t.ConvertOutputFilename),
 		outputFilenameEntry,
 		widget.NewSeparator(),
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
@@ -8861,7 +8861,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	autoNameHint := widget.NewLabel("Tokens: <actress>, <studio>, <scene>, <title>, <series>, <date>, <filename>")
+	autoNameHint := widget.NewLabel(t.ConvertAutoNameHint)
 	autoNameHint.Wrapping = fyne.TextWrapWord
 
 	if state.convert.UseAutoNaming {
@@ -9365,7 +9365,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	simplePresetSelect.SetSelected(state.convert.EncoderPreset)
 
 	// Settings management for batch operations
-	settingsInfoLabel := widget.NewLabel("Settings persist across videos. Change them anytime to affect all subsequent videos.")
+	settingsInfoLabel := widget.NewLabel(t.ConvertSettingsInfo)
 	settingsInfoLabel.Alignment = fyne.TextAlignCenter
 	settingsInfoLabel.Wrapping = fyne.TextWrapWord
 	// Wrap in padded container for proper text wrapping in narrow windows
@@ -9375,7 +9375,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	cacheDirEntry := widget.NewEntry()
 	cacheDirEntry.SetPlaceHolder("System temp (recommended SSD)")
 	cacheDirEntry.SetText(state.convert.TempDir)
-	cacheDirHint := widget.NewLabel("Use an SSD for best performance. Leave blank to use system temp.")
+	cacheDirHint := widget.NewLabel(t.ConvertCacheDirHint)
 	cacheDirHint.Wrapping = fyne.TextWrapWord
 	// Wrap in padded container for proper text wrapping in narrow windows
 	cacheDirHintContainer := container.NewPadded(cacheDirHint)
@@ -9456,7 +9456,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	settingsContent.Hide()
 
 	settingsVisible := false
-	toggleSettingsLabel := widget.NewLabel("Show Batch Settings")
+	toggleSettingsLabel := widget.NewLabel(t.ConvertShowBatchSettings)
 	toggleSettingsLabel.Wrapping = fyne.TextWrapWord
 	toggleSettingsLabel.Alignment = fyne.TextAlignCenter
 
@@ -9464,10 +9464,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	toggleSettingsBtn = widget.NewButton("", func() {
 		if settingsVisible {
 			settingsContent.Hide()
-			toggleSettingsLabel.SetText("Show Batch Settings")
+			toggleSettingsLabel.SetText(t.ConvertShowBatchSettings)
 		} else {
 			settingsContent.Show()
-			toggleSettingsLabel.SetText("Hide Batch Settings")
+			toggleSettingsLabel.SetText(t.ConvertHideBatchSettings)
 		}
 		settingsVisible = !settingsVisible
 	})
@@ -11847,7 +11847,7 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.
 		body := container.NewVBox(
 			top,
 			widget.NewSeparator(),
-			widget.NewLabel("Load a clip to inspect its technical details."),
+			widget.NewLabel(t.ConvertInspectHint),
 			layout.NewSpacer(),
 		)
 		layers := ui.NoisyBackgroundObjects(outer)
@@ -12091,7 +12091,7 @@ Metadata: %s`,
 
 	var interlaceSection fyne.CanvasObject
 	if state.interlaceAnalyzing {
-		statusLabel := widget.NewLabel("Analyzing interlacing... (first 500 frames)")
+		statusLabel := widget.NewLabel(t.ConvertInterlaceAnalyzing)
 		statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 		interlaceSection = container.NewVBox(
 			widget.NewSeparator(),
@@ -12189,7 +12189,7 @@ Metadata: %s`,
 							// Adaptive size for small screens
 							previewImg.SetMinSize(fyne.NewSize(640, 360))
 
-							infoLabel := widget.NewLabel("Left: Original | Right: Deinterlaced")
+							infoLabel := widget.NewLabel(t.ConvertInterlaceInfo)
 							infoLabel.Alignment = fyne.TextAlignCenter
 							infoLabel.TextStyle = fyne.TextStyle{Bold: true}
 
@@ -16162,7 +16162,7 @@ func (s *appState) generateSnippet() {
 	var progressDialog dialog.Dialog
 	if needsReencode {
 		progressDialog = dialog.NewCustom("Generating Snippet", "Cancel",
-			widget.NewLabel("Generating 20-second snippet...\nThis may take 20-30 seconds for WMV files."),
+			widget.NewLabel(fmt.Sprintf(t.ConvertSnippetGenerating, 20)),
 			s.window)
 		progressDialog.Show()
 	}

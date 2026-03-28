@@ -420,6 +420,7 @@ type Strings struct {
 	ConvertSettingsInfo           string // "Settings persist across videos. Change them anytime."
 	ConvertCacheDirHint           string // "Use an SSD for best performance. Leave blank to use system temp."
 	ConvertShowBatchSettings      string // "Show Batch Settings"
+	ConvertHideBatchSettings      string // "Hide Batch Settings"
 	ConvertHwAccelHint            string // "Auto picks best GPU path; if encode fails, switch to none (software)."
 	ConvertTwoPassNote            string // "Two-pass encoding is ignored in CRF mode."
 	ConvertEncoderPresetHint      string // "Choose slower for better compression, faster for speed"
@@ -427,6 +428,10 @@ type Strings struct {
 	ConvertVideoFormatsHint       string // "MP4, MOV, MKV and more"
 	ConvertFrameLabel             string // "Frame: %d"
 	ConvertSnippetGenerating      string // "Generating %d-second snippet..."
+	ConvertAutoNameHint           string // "Tokens: <actress>, <studio>, <scene>, <title>, <series>, <date>, <filename>"
+	ConvertInterlaceAnalyzing     string // "Analyzing interlacing..."
+	ConvertInterlaceInfo          string // "Left: Original | Right: Deinterlaced"
+	ConvertInspectHint            string // "Load a clip to inspect its technical details."
 
 	// ── Merge ──────────────────────────────────────────────────────────────────
 	MergeAddClipsHint string // "Add at least two clips to merge."
