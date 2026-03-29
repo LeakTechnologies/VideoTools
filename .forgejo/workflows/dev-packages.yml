@@ -330,6 +330,7 @@ jobs:
             --disable-cli
           make -j$(nproc)
           make install
+          cp /c/ffmpeg-static/lib/pkgconfig/x264.pc /ucrt64/lib/pkgconfig/x264.pc
           rm -rf /tmp/x264-src
 
           # Build x265 from source as static-only (same dllimport issue).
@@ -366,6 +367,9 @@ jobs:
           echo 'Libs: -L${libdir} -lx265'     >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Libs.private: -lstdc++ -lm'   >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Cflags: -I${includedir}'      >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          # Also copy into the ucrt64 system pkgconfig dir so FFmpeg's configure
+          # finds x265 even if it forks a sub-shell that drops PKG_CONFIG_PATH.
+          cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
           echo "[INFO] x265.pc written; pkg-config test:"
           pkg-config --modversion x265 || true
 
