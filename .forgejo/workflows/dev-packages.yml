@@ -365,8 +365,14 @@ jobs:
           echo 'Description: H.265/HEVC encoder' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Version: 4.1.0'               >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Libs: -L${libdir} -lx265'     >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Libs.private: -Wl,-Bstatic -lstdc++ -lsupc++ -Wl,-Bdynamic -lm' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Cflags: -I${includedir}'      >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          # Append Libs.private using absolute paths from gcc --print-file-name so
+          # the linker uses the exact static archives rather than guessing shared vs static.
+          stdc_a=$(gcc --print-file-name=libstdc++.a)
+          supc_a=$(gcc --print-file-name=libsupc++.a)
+          echo "[INFO] libstdc++.a: $stdc_a (exists: $(test -f "$stdc_a" && echo YES || echo NO))"
+          echo "[INFO] libsupc++.a: $supc_a (exists: $(test -f "$supc_a" && echo YES || echo NO))"
+          echo "Libs.private: $stdc_a $supc_a -lm" >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           # Also copy into the ucrt64 system pkgconfig dir so FFmpeg's configure
           # finds x265 even if it forks a sub-shell that drops PKG_CONFIG_PATH.
           cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
