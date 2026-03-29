@@ -370,8 +370,16 @@ jobs:
           # Also copy into the ucrt64 system pkgconfig dir so FFmpeg's configure
           # finds x265 even if it forks a sub-shell that drops PKG_CONFIG_PATH.
           cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
-          echo "[INFO] x265.pc written; pkg-config test:"
-          pkg-config --modversion x265 || true
+          echo "[INFO] pkg-config diagnostics:"
+          echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+          echo "  x265.pc in ffmpeg-static: $(test -f /c/ffmpeg-static/lib/pkgconfig/x265.pc && echo YES || echo NO)"
+          echo "  x265.pc in ucrt64:        $(test -f /ucrt64/lib/pkgconfig/x265.pc && echo YES || echo NO)"
+          echo "  libx265.a:                $(test -f /c/ffmpeg-static/lib/libx265.a && echo YES || echo NO)"
+          echo "  --modversion:    $(pkg-config --modversion x265 2>&1 || echo FAIL)"
+          echo "  --static-exists: $(pkg-config --static --exists x265 2>&1 && echo OK || echo FAIL)"
+          echo "  --static-cflags: $(pkg-config --static --cflags x265 2>&1 || echo FAIL)"
+          echo "  --static-libs:   $(pkg-config --static --libs x265 2>&1 || echo FAIL)"
+          echo "  x265.pc content:"; cat /c/ffmpeg-static/lib/pkgconfig/x265.pc
 
           # Build FFmpeg against the static x264/x265 we just installed.
           echo "[INFO] Downloading FFmpeg ${ver} source..."
@@ -394,7 +402,8 @@ jobs:
             --disable-vaapi \
             --disable-iconv \
             --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
-            --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib'
+            --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib' \
+            || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
           make -j$(nproc)
           make install
           rm -rf "/tmp/ffmpeg-${ver}" /tmp/ffmpeg.tar.bz2
