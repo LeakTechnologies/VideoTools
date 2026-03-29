@@ -365,7 +365,7 @@ jobs:
           echo 'Description: H.265/HEVC encoder' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Version: 4.1.0'               >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Libs: -L${libdir} -lx265'     >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Libs.private: -lstdc++ -lm'   >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs.private: -static-libstdc++ -lm' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Cflags: -I${includedir}'      >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           # Also copy into the ucrt64 system pkgconfig dir so FFmpeg's configure
           # finds x265 even if it forks a sub-shell that drops PKG_CONFIG_PATH.
