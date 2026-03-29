@@ -351,9 +351,23 @@ jobs:
           make -j$(nproc)
           make install
           rm -rf /tmp/x265-src /tmp/x265-build
-          # CMake writes a Windows-style prefix (C:/ffmpeg-static) in x265.pc.
-          # MSYS2 pkg-config cannot parse it; rewrite the prefix line in-place.
-          sed -i 's|^prefix=.*|prefix=/c/ffmpeg-static|' /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          cd /tmp
+          # CMake on Windows writes CRLF line endings and Windows-style paths into
+          # x265.pc, both of which break MSYS2 pkg-config. Overwrite with a clean
+          # LF-only file using POSIX paths. echo writes LF in bash on MSYS2.
+          echo 'prefix=/c/ffmpeg-static'       > /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'exec_prefix=${prefix}'        >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'libdir=${prefix}/lib'         >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'includedir=${prefix}/include' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo ''                             >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Name: x265'                   >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Description: H.265/HEVC encoder' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Version: 4.1.0'               >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs: -L${libdir} -lx265'     >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs.private: -lstdc++ -lm'   >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Cflags: -I${includedir}'      >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo "[INFO] x265.pc written; pkg-config test:"
+          pkg-config --modversion x265 || true
 
           # Build FFmpeg against the static x264/x265 we just installed.
           echo "[INFO] Downloading FFmpeg ${ver} source..."
