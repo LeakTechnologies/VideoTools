@@ -306,9 +306,9 @@ jobs:
           MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
-          marker="/c/ffmpeg-static/.built-${ver}-v3"
+          marker="/c/ffmpeg-static/.built-${ver}-v4"
           if [ -f "$marker" ]; then
-            echo "[INFO] FFmpeg ${ver} (v3) already built at /c/ffmpeg-static -- skipping"
+            echo "[INFO] FFmpeg ${ver} (v4) already built at /c/ffmpeg-static -- skipping"
             exit 0
           fi
           mkdir -p /c/ffmpeg-static
@@ -351,6 +351,21 @@ jobs:
           make -j$(nproc)
           make install
           rm -rf /tmp/x265-src /tmp/x265-build
+          # CMake writes Windows-style prefix (C:/ffmpeg-static) in x265.pc, which
+          # MSYS2 pkg-config cannot parse. Overwrite with POSIX-path version.
+          cat > /c/ffmpeg-static/lib/pkgconfig/x265.pc << 'EOF'
+prefix=/c/ffmpeg-static
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: x265
+Description: H.265/HEVC video encoder
+Version: 4.1.0
+Libs: -L${libdir} -lx265
+Libs.private: -lstdc++ -lm
+Cflags: -I${includedir}
+EOF
 
           # Build FFmpeg against the static x264/x265 we just installed.
           echo "[INFO] Downloading FFmpeg ${ver} source..."
@@ -378,7 +393,7 @@ jobs:
           make install
           rm -rf "/tmp/ffmpeg-${ver}" /tmp/ffmpeg.tar.bz2
           touch "$marker"
-          echo "[INFO] FFmpeg ${ver} (v3) built at /c/ffmpeg-static"
+          echo "[INFO] FFmpeg ${ver} (v4) built at /c/ffmpeg-static"
 
       - name: Build Windows package
         env:
