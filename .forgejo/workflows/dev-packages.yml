@@ -351,21 +351,9 @@ jobs:
           make -j$(nproc)
           make install
           rm -rf /tmp/x265-src /tmp/x265-build
-          # CMake writes Windows-style prefix (C:/ffmpeg-static) in x265.pc, which
-          # MSYS2 pkg-config cannot parse. Overwrite with POSIX-path version.
-          cat > /c/ffmpeg-static/lib/pkgconfig/x265.pc << 'EOF'
-prefix=/c/ffmpeg-static
-exec_prefix=${prefix}
-libdir=${prefix}/lib
-includedir=${prefix}/include
-
-Name: x265
-Description: H.265/HEVC video encoder
-Version: 4.1.0
-Libs: -L${libdir} -lx265
-Libs.private: -lstdc++ -lm
-Cflags: -I${includedir}
-EOF
+          # CMake writes a Windows-style prefix (C:/ffmpeg-static) in x265.pc.
+          # MSYS2 pkg-config cannot parse it; rewrite the prefix line in-place.
+          sed -i 's|^prefix=.*|prefix=/c/ffmpeg-static|' /c/ffmpeg-static/lib/pkgconfig/x265.pc
 
           # Build FFmpeg against the static x264/x265 we just installed.
           echo "[INFO] Downloading FFmpeg ${ver} source..."
