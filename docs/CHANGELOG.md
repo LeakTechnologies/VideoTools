@@ -11,6 +11,7 @@
 - **Interactive Preview tab** — New Preview tab shows full interactive DVD menu preview with working video playback.
 - **Module extraction** — Extracted author module to `internal/app/modules/author/`.
 - **Tab visibility** — Preview tab only appears when Enable Menus is checked.
+- **IFO audio track table** — VTS_MAT audio attributes now correctly reflect actual track codec, channel count, and language. Added `AudioCodingModeFromCodec`, `LanguageCodeBytes`, and `NumChannelsField` helpers to `internal/dvd/ifo` with unit tests.
 
 ### CI Fixes
 - **Submodule sync** — Pushed missing commits to lt_mirror/fyne.git to fix CI failures.

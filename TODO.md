@@ -43,6 +43,7 @@ This file tracks upcoming features, improvements, and known issues.
 ### Author Module
 - [x] **Interactive Preview tab** — Full DVD menu preview with video playback
 - [x] **Module extraction** — Author module extracted to internal/app/modules/author/
+- [x] **IFO audio track table** — VTS_MAT audio attributes populated from actual track codec/channels/language
 - [ ] Wire subtitle track authoring through FFmpeg mapping pipeline
 - [ ] Wire multi-audio track AC3 encoding
 

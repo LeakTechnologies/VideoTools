@@ -18,6 +18,7 @@ These rules apply to any automation or agent working in this repo.
 - **Auto-grey codecs** — Filter incompatible codecs based on format; see docs/AUTO_GREY_CODECS.md
 - **Filter integration** — Merge filters into upscale module; see docs/FILTER_INTEGRATION_DESIGN.md
 - **Module extraction** — Continue settings_module.go extraction to `internal/app/modules/settings/`.
+- **IFO audio table** — Done (dev39). Audio attributes now populated from track data; helpers in `internal/dvd/ifo/audio.go`.
 - **Issue #5** (Convert UI cleanup) — layout consistency and label clarity pass on `buildConvertView` in `main.go`.
 - Do not expand scope beyond what is listed unless explicitly approved.
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
