@@ -2953,7 +2953,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			// Default tracks
 			if src != nil {
 				for _, at := range src.Audio {
-					c.AudioTracks = append(c.AudioTracks, authorAudioTrack{Index: at.Index, Language: at.Language})
+					c.AudioTracks = append(c.AudioTracks, authorAudioTrack{Index: at.Index, Language: at.Language, Codec: at.Codec, Channels: at.Channels})
 				}
 				for _, st := range src.Subtitles {
 					c.SubtitleTracks = append(c.SubtitleTracks, authorSubtitleTrack{Index: st.Index, Language: st.Language})
@@ -3320,11 +3320,20 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	}
 	vtsMat.VTS_Audio_Streams_Count = nAudio
 	for i := uint16(0); i < nAudio && i < 8; i++ {
+		var track authorAudioTrack
+		if int(i) < len(featureClips[0].AudioTracks) {
+			track = featureClips[0].AudioTracks[i]
+		}
+		multichannel := uint8(0)
+		if track.Channels > 2 {
+			multichannel = 1
+		}
 		vtsMat.VTS_Audio_Attributes[i] = ifo.AudioAttributes{
-			AudioCodingMode: 0, // AC-3
-			Multichannel:    0,
-			SampleRate:      0, // 48 kHz
-			NumChannels:     1, // 2ch stereo (value = channels - 1)
+			AudioCodingMode: ifo.AudioCodingModeFromCodec(track.Codec),
+			Multichannel:    multichannel,
+			LanguageCode:    ifo.LanguageCodeBytes(track.Language),
+			SampleRate:      0, // DVD standard: 48 kHz
+			NumChannels:     ifo.NumChannelsField(track.Channels),
 		}
 	}
 
