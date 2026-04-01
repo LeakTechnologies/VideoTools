@@ -1306,6 +1306,7 @@ type appState struct {
 	authorTreatAsChapters         bool   // Treat multiple clips as chapters
 	authorChapterSource           string // embedded, scenes, clips, manual
 	authorChaptersRefresh         func() // Refresh hook for chapter list UI
+	authorClipsRefresh            func() // Refresh hook for video clips list UI
 	authorDiscSize                string // "DVD5" or "DVD9"
 	authorLogText                 string
 	authorLogLines                []string // Circular buffer for last N lines
@@ -13879,6 +13880,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				s.authorFile = nil
 				s.authorOutputType = "iso"
 				s.loadVideoTSChapters(videoTSPath)
+				// Reload the view to reflect the new VIDEO_TS source.
 				fyne.CurrentApp().Driver().DoFromGoroutine(s.showAuthorView, false)
 			}()
 			return
@@ -13889,10 +13891,9 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			return
 		}
 
-		go func() {
-			s.addAuthorFiles(videoPaths)
-			fyne.CurrentApp().Driver().DoFromGoroutine(s.showAuthorView, false)
-		}()
+		// Already in author view — probe files off the main thread and refresh the
+		// clip list via the registered callback. No full view rebuild needed.
+		go s.addAuthorFiles(videoPaths)
 		return
 	}
 

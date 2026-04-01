@@ -122,6 +122,7 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	state.stopPreview()
 	state.lastModule = state.active
 	state.active = "author"
+	state.authorClipsRefresh = nil // cleared until buildVideoClipsTab registers it
 
 	if cfg, err := loadPersistedAuthorConfig(); err == nil {
 		state.applyAuthorConfig(cfg)
@@ -526,6 +527,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 		listArea,
 	)
 
+	state.authorClipsRefresh = rebuildList
 	rebuildList()
 	return container.NewPadded(controls)
 }
@@ -1946,6 +1948,13 @@ func (s *appState) addAuthorFiles(paths []string) {
 	// Clear the disc title entry widget directly instead of rebuilding the whole view.
 	if s.authorDiscTitleEntry != nil {
 		s.authorDiscTitleEntry.SetText("")
+	}
+	// Notify the clips list to rebuild if it is currently visible.
+	if s.authorClipsRefresh != nil {
+		app := fyne.CurrentApp()
+		if app != nil && app.Driver() != nil {
+			app.Driver().DoFromGoroutine(s.authorClipsRefresh, false)
+		}
 	}
 }
 
