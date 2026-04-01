@@ -15,7 +15,7 @@
 - [x] **Video playback** - Preview tab can play videos by pressing menu buttons
 - [x] **Tab visibility** - Preview tab shown only when Enable Menus is checked
 - [x] **IFO audio track table** - VTS_MAT audio attributes now populated from actual track data (codec, channels, language) instead of hardcoded AC-3/stereo defaults
-- [x] **Author drag crash fix** - `addAuthorFiles` moved off the UI thread in both drop paths; removed blocking `showAuthorView()` rebuild from within `addAuthorFiles`
+- [x] **Author drag crash fix** - `addAuthorFiles` moved off the UI thread; added `authorClipsRefresh` callback so drops no longer trigger a full 7-tab view rebuild (including GPU texture uploads) on the main thread during DnD completion
 
 ### CI Fixes (dev39)
 - [x] **Submodule sync** - Pushed missing commits to lt_mirror/fyne.git
