@@ -12,6 +12,7 @@
 - **Module extraction** — Extracted author module to `internal/app/modules/author/`.
 - **Tab visibility** — Preview tab only appears when Enable Menus is checked.
 - **IFO audio track table** — VTS_MAT audio attributes now correctly reflect actual track codec, channel count, and language. Added `AudioCodingModeFromCodec`, `LanguageCodeBytes`, and `NumChannelsField` helpers to `internal/dvd/ifo` with unit tests.
+- **Drag crash fix** — Dragging a video file into the Author module no longer hard-crashes back to the login screen. `addAuthorFiles` now runs in a goroutine so the UI main thread is free to complete the X11 DnD handshake during probe; removed the internal `showAuthorView()` rebuild (replaced with a targeted title-entry clear).
 
 ### CI Fixes
 - **Submodule sync** — Pushed missing commits to lt_mirror/fyne.git to fix CI failures.
