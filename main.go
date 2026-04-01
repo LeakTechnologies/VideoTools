@@ -13873,12 +13873,14 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		}
 
 		if videoTSPath != "" {
-			s.authorVideoTSPath = videoTSPath
-			s.authorClips = nil
-			s.authorFile = nil
-			s.authorOutputType = "iso"
-			s.loadVideoTSChapters(videoTSPath)
-			s.showAuthorView()
+			go func() {
+				s.authorVideoTSPath = videoTSPath
+				s.authorClips = nil
+				s.authorFile = nil
+				s.authorOutputType = "iso"
+				s.loadVideoTSChapters(videoTSPath)
+				fyne.CurrentApp().Driver().DoFromGoroutine(s.showAuthorView, false)
+			}()
 			return
 		}
 
@@ -13887,8 +13889,10 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			return
 		}
 
-		s.addAuthorFiles(videoPaths)
-		s.showAuthorView()
+		go func() {
+			s.addAuthorFiles(videoPaths)
+			fyne.CurrentApp().Driver().DoFromGoroutine(s.showAuthorView, false)
+		}()
 		return
 	}
 

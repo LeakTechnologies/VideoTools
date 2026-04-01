@@ -487,8 +487,10 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			}
 		}
 		if len(paths) > 0 {
-			state.addAuthorFiles(paths)
-			rebuildList()
+			go func() {
+				state.addAuthorFiles(paths)
+				rebuildList()
+			}()
 		}
 	})
 
@@ -1941,17 +1943,9 @@ func (s *appState) addAuthorFiles(paths []string) {
 	}
 	s.authorTitle = ""
 	s.updateAuthorSummary()
-	// Update the UI for the title entry if the settings tab is currently visible.
-	// This ensures the title entry visually resets as well.
-	if s.active == "author" && s.window.Canvas() != nil {
-		app := fyne.CurrentApp()
-		if app != nil && app.Driver() != nil {
-			app.Driver().DoFromGoroutine(func() {
-				// Rebuild the settings tab to refresh its controls.
-				// This is a bit heavy, but ensures the titleEntry reflects the change.
-				s.showAuthorView()
-			}, false)
-		}
+	// Clear the disc title entry widget directly instead of rebuilding the whole view.
+	if s.authorDiscTitleEntry != nil {
+		s.authorDiscTitleEntry.SetText("")
 	}
 }
 
