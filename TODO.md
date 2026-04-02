@@ -47,7 +47,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Create design document** — See docs/FILTER_INTEGRATION_DESIGN.md
 - [x] **Add filters to Upscale module** — Integrate filter controls in upscale UI
 - [x] **Refactor upscale pipeline** — Apply filters BEFORE upscale in encode chain
-- [ ] **Keep Filters module standalone** — For non-upscale filter jobs
+- [x] **Keep Filters module standalone** — For non-upscale filter jobs
 
 ### Author Module
 - [x] **Interactive Preview tab** — Full DVD menu preview with video playback
