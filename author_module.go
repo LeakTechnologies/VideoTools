@@ -3472,12 +3472,17 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	// Build optional menu PGC and place menu VOB
 	menuVOBPath := filepath.Join(videoTSPath, "VIDEO_TS.VOB")
 	var menuPGCs []*ifo.ProgramChain
+	var menuMpgPaths []string // parallel to menuPGCs; used for M5 sector patching
 	if createMenu && menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
 		// Concatenate all menu MPGs into VIDEO_TS.VOB:
 		// - Main menu first
 		// - Then each chapter menu page
+		// - Then extras menu (if present)
 		menuFiles := []string{menuSet.MainMpg}
 		menuFiles = append(menuFiles, menuSet.ChaptersMpgs...)
+		if menuSet.ExtrasMpg != "" {
+			menuFiles = append(menuFiles, menuSet.ExtrasMpg)
+		}
 
 		// Create the output file
 		outFile, err := os.Create(menuVOBPath)
@@ -3505,6 +3510,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 					menuDuration = src.Duration
 				}
 				menuPGCs = append(menuPGCs, ifo.BuildMenuPGC(cmdTable, menuDuration, isNTSC))
+				menuMpgPaths = append(menuMpgPaths, menuSet.MainMpg)
 				totalButtons += len(menuSet.MainButtons)
 			}
 
@@ -3531,7 +3537,28 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 						menuDuration = src.Duration
 					}
 					menuPGCs = append(menuPGCs, ifo.BuildMenuPGC(cmdTable, menuDuration, isNTSC))
+					menuMpgPaths = append(menuMpgPaths, chapterMpg)
 					totalButtons += len(buttons)
+				}
+			}
+
+			// Process extras menu (last PGC, if present)
+			if menuSet.ExtrasMpg != "" && len(menuSet.ExtrasButtons) > 0 {
+				if err := concatenateMenuFile(outFile, menuSet.ExtrasMpg); err != nil {
+					logging.Info(logging.CatDVD, "Failed to concatenate extras menu: %v", err)
+				} else {
+					cmdTable := &ifo.DVDCommandTable{}
+					cmdTable.Pre = []ifo.DVDCommand{ifo.SetHL_BTNNCommand(1)}
+					for _, btn := range menuSet.ExtrasButtons {
+						cmdTable.Cell = append(cmdTable.Cell, ifo.ParseButtonCommand(btn.Command))
+					}
+					extrasDuration := 10.0
+					if src, err2 := probeVideo(menuSet.ExtrasMpg); err2 == nil && src.Duration > 0 {
+						extrasDuration = src.Duration
+					}
+					menuPGCs = append(menuPGCs, ifo.BuildMenuPGC(cmdTable, extrasDuration, isNTSC))
+					menuMpgPaths = append(menuMpgPaths, menuSet.ExtrasMpg)
+					totalButtons += len(menuSet.ExtrasButtons)
 				}
 			}
 
@@ -3658,12 +3685,40 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			return 0, 0, false
 		}
 
+		// M4: Set VMGM_VOBS_Sector — disc-absolute start sector of VIDEO_TS.VOB.
+		if first, _, ok := vtsSector("VIDEO_TS.VOB"); ok {
+			vmgMat.VMGM_VOBS_Sector = first
+			logging.Info(logging.CatDVD, "VMGM_VOBS_Sector set to %d", first)
+		}
+
+		// M5: Patch menu PGC CellPlayback sectors using disc layout of VIDEO_TS.VOB.
+		// Each menu MPG occupies ceil(fileSize/2048) sectors inside VIDEO_TS.VOB.
+		if menuVOBFirst, _, ok := vtsSector("VIDEO_TS.VOB"); ok && len(menuPGCs) > 0 && len(menuMpgPaths) == len(menuPGCs) {
+			discStart := menuVOBFirst
+			for i, pgc := range menuPGCs {
+				mpgPath := menuMpgPaths[i]
+				var mpgSectors uint32
+				if fi, err := os.Stat(mpgPath); err == nil && fi.Size() > 0 {
+					mpgSectors = uint32((fi.Size() + 2047) / 2048)
+				} else {
+					mpgSectors = 1
+				}
+				discEnd := discStart + mpgSectors - 1
+				if len(pgc.CellPlayback) > 0 {
+					pgc.CellPlayback[0].FirstSector = discStart
+					pgc.CellPlayback[0].FirstILVUEndSector = discEnd
+					pgc.CellPlayback[0].LastVOBUStartSector = discStart
+					pgc.CellPlayback[0].LastSector = discEnd
+				}
+				logging.Info(logging.CatDVD, "Menu PGC %d (%s) sectors: %d – %d", i+1, mpgPath, discStart, discEnd)
+				discStart = discEnd + 1
+			}
+		}
+
 		// Re-build the main title PGC with the actual disc sector range.
 		if first, count, ok := vtsSector("VTS_01_1.VOB"); ok {
 			lastSector := first + count - 1
 			logging.Info(logging.CatDVD, "Main VOB disc sectors: %d – %d", first, lastSector)
-			// Tell the IFO where the title VOBs start on disc (vtstt_vobs at 0x0C4).
-			vtsMat.VTSTT_VOBS_Sector = first
 			if hasChapters && len(mainNavSectors) > 0 {
 				// Convert VOB-relative NAV_PCK sectors to disc-absolute.
 				discNav := make([]uint32, len(mainNavSectors))
@@ -3694,12 +3749,11 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			vobName := fmt.Sprintf("VTS_%02d_1.VOB", vtsNum)
 			ifoName := fmt.Sprintf("VTS_%02d_0.IFO", vtsNum)
 			if first, count, ok := vtsSector(vobName); ok {
-				st := extraStates[i]
-				st.mat.VTSTT_VOBS_Sector = first
 				extraPGC2 := ifo.BuildSingleCellPGC(first, first+count-1, clip.Duration, isNTSC)
 				for j := uint16(0); j < nAudio && j < 8; j++ {
 					extraPGC2.AudioControl[j] = 0x8000 | uint16(j<<8)
 				}
+				st := extraStates[i]
 				if err := ifoBuilder.GenerateVTS_IFO(vtsNum, st.mat, extraPGC2, st.tmapt, st.admap, st.pttsrpt); err != nil {
 					logging.Info(logging.CatDVD, "IFO sector patch failed for extra %d: %v", vtsNum, err)
 				}

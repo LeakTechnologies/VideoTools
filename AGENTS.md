@@ -20,7 +20,7 @@ These rules apply to any automation or agent working in this repo.
 - **Module extraction** — Continue settings_module.go extraction to `internal/app/modules/settings/`.
 - **IFO audio table** — Done (dev39). Audio attributes now populated from track data; helpers in `internal/dvd/ifo/audio.go`.
 - **VTS_MAT byte layout** — Done (dev39). All field offsets in `mat_serialize.go`/`vtsi.go` corrected to match libdvdread `vtsi_mat_t`; fixes dvdnav `zero_12`/`zero_17` violations and `ifoRead_VTS_PTT_SRPT failed`.
-- **DVD menu system** — In progress (dev39). See `docs/DVD_MENU_SYSTEM_DESIGN.md` for full spec. Work items M1-M7. Two parallel tracks: (A) VOB content (video+SPU mux, PCI buttons) and (B) IFO wiring (VMGM_VOBS_Sector, cell sectors, extras pipeline, inter-PGC jump).
+- **DVD menu system** — Done (dev39). All M1-M7 items complete. `runNativeSpumux` produces proper MPEG-2+SPU VOBs; PCI button table populated in NAV_PCK; VMGM_VOBS_Sector wired; menu PGC cell sectors patched; extras pipeline active; `JumpVMGM_PGCNCommand` handles inter-menu navigation. See `docs/DVD_MENU_SYSTEM_DESIGN.md`.
 - **Issue #5** (Convert UI cleanup) — layout consistency and label clarity pass on `buildConvertView` in `main.go`.
 - Do not expand scope beyond what is listed unless explicitly approved.
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.

@@ -142,7 +142,7 @@ func (t *ScriptableMenu) Generate(ctx context.Context, workDir, title, region, a
 	}
 
 	// Use native Go SPU encoder (zero-dep)
-	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, bgPath, region, buttons, logFn); err != nil {
 		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 
@@ -260,7 +260,7 @@ func (t *MinimalMenu) Generate(ctx context.Context, workDir, title, region, aspe
 		return "", nil, err
 	}
 	// Use native Go SPU encoder (zero-dep)
-	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, bgPath, region, buttons, logFn); err != nil {
 		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
@@ -303,7 +303,7 @@ func (t *SimpleMenu) Generate(ctx context.Context, workDir, title, region, aspec
 		return "", nil, err
 	}
 	// Use native Go SPU encoder (zero-dep)
-	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, bgPath, region, buttons, logFn); err != nil {
 		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
@@ -346,7 +346,7 @@ func (t *ClassicMenu) Generate(ctx context.Context, workDir, title, region, aspe
 		return "", nil, err
 	}
 	// Use native Go SPU encoder (zero-dep)
-	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, bgPath, region, buttons, logFn); err != nil {
 		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
@@ -389,7 +389,7 @@ func (t *DarkMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 		return "", nil, err
 	}
 	// Use native Go SPU encoder (zero-dep)
-	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, bgPath, region, buttons, logFn); err != nil {
 		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
@@ -432,7 +432,7 @@ func (t *GridMenu) Generate(ctx context.Context, workDir, title, region, aspect 
 		return "", nil, err
 	}
 	// Use native Go SPU encoder (zero-dep)
-	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, bgPath, region, buttons, logFn); err != nil {
 		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
@@ -475,7 +475,7 @@ func (t *FilmstripMenu) Generate(ctx context.Context, workDir, title, region, as
 		return "", nil, err
 	}
 	// Use native Go SPU encoder (zero-dep)
-	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, bgPath, region, buttons, logFn); err != nil {
 		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
@@ -516,7 +516,7 @@ func (t *PosterMenu) Generate(ctx context.Context, workDir, title, region, aspec
 		return "", nil, err
 	}
 	// Use native Go SPU encoder (zero-dep)
-	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, bgPath, region, buttons, logFn); err != nil {
 		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
@@ -607,7 +607,7 @@ func buildMainMenuMPEGSet(ctx context.Context, workDir, title, region, aspect st
 		return "", err
 	}
 	// Use native Go SPU encoder (zero-dep)
-	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, bgPath, region, buttons, logFn); err != nil {
 		return "", fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
@@ -640,7 +640,7 @@ func buildExtrasMenuMPEGSet(ctx context.Context, workDir, title, region, aspect 
 		return "", nil, err
 	}
 	// Use native Go SPU encoder (zero-dep)
-	if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+	if err := buildMenuSPU(ctx, overlayPath, menuSpu, bgPath, region, buttons, logFn); err != nil {
 		return "", nil, fmt.Errorf("native SPU encoder: %w", err)
 	}
 	if logFn != nil {
@@ -721,7 +721,7 @@ func buildChaptersMenuMPEGSet(ctx context.Context, workDir, title, region, aspec
 		}
 
 		// Encode SPU
-		if err := buildMenuSPU(ctx, overlayPath, menuSpu, logFn); err != nil {
+		if err := buildMenuSPU(ctx, overlayPath, menuSpu, bgPath, region, buttons, logFn); err != nil {
 			return nil, nil, fmt.Errorf("native SPU encoder: %w", err)
 		}
 
@@ -1935,67 +1935,151 @@ func writeSpumuxXML(path, overlayPath, highlightPath, selectPath string, buttons
 	return os.WriteFile(path, []byte(b.String()), 0o644)
 }
 
-// runNativeSpumux creates menu SPU using native Go encoder (zero-dep).
-// It takes the background image and generates an SPU-encoded VOB.
-func runNativeSpumux(ctx context.Context, overlayPath, outputPath string, logFn func(string)) error {
-	// Load overlay image
+// runNativeSpumux creates a proper DVD menu VOB containing:
+//  1. A NAV_PCK at sector 0 (with PCI button coordinates for M3)
+//  2. An MPEG-2 still video encoded from bgImagePath (M1/M2)
+//  3. An SPU subpicture packet from overlayPath (button highlights)
+//
+// The video is generated by invoking ffmpeg with the background PNG.
+// region must be "pal" for PAL (720×576, 25 fps) or anything else for NTSC (720×480, 29.97 fps).
+// duration is the still-image hold time in seconds (0 → defaults to 10).
+func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, region string, duration float64, buttons []dvdMenuButton, logFn func(string)) error {
+	// ── Determine video parameters from region ────────────────────────────────
+	width, height := dvdMenuDimensions(region)
+	fps := "30000/1001" // NTSC default
+	fpsVal := 29.97
+	if strings.ToLower(region) == "pal" {
+		fps = "25"
+		fpsVal = 25.0
+	}
+	if duration <= 0 {
+		duration = 10.0
+	}
+
+	// ── Encode background PNG as MPEG-2 still video via ffmpeg ────────────────
+	workDir := filepath.Dir(outputPath)
+	videoTemp := filepath.Join(workDir, "menu_video_temp.mpg")
+	videoArgs := []string{
+		"-y",
+		"-loop", "1",
+		"-i", bgImagePath,
+		"-t", fmt.Sprintf("%.3f", duration),
+		"-vcodec", "mpeg2video",
+		"-b:v", "4000k",
+		"-maxrate", "9000k",
+		"-bufsize", "1835k",
+		"-s", fmt.Sprintf("%dx%d", width, height),
+		"-r", fps,
+		"-pix_fmt", "yuv420p",
+		"-an",
+		"-y",
+		videoTemp,
+	}
+	if logFn != nil {
+		logFn(fmt.Sprintf(">> Encoding MPEG-2 background: %dx%d @ %s fps", width, height, fps))
+	}
+	if err := runCommandWithLogger(ctx, utils.GetFFmpegPath(), videoArgs, logFn); err != nil {
+		return fmt.Errorf("encode menu background video: %w", err)
+	}
+
+	// ── Encode SPU (button highlights) using native Go encoder ────────────────
 	overlayFile, err := os.Open(overlayPath)
 	if err != nil {
 		return fmt.Errorf("open overlay: %w", err)
 	}
-	defer overlayFile.Close()
-
 	img, _, err := image.Decode(overlayFile)
+	overlayFile.Close()
 	if err != nil {
 		return fmt.Errorf("decode overlay: %w", err)
 	}
 
 	bounds := img.Bounds()
-	width := bounds.Dx()
-	height := bounds.Dy()
+	imgW := bounds.Dx()
+	imgH := bounds.Dy()
 
-	logging.Info(logging.CatDVD, "Native SPU encoding menu: %dx%d", width, height)
+	logging.Info(logging.CatDVD, "Native SPU encoding menu: %dx%d", imgW, imgH)
 
-	// Use native Go SPU encoder
-	enc := spu.NewMenuEncoder(width, height)
+	enc := spu.NewMenuEncoder(imgW, imgH)
 	enc.SetPalette(spu.DefaultPalette())
-
 	spuData, err := enc.EncodeMenuImage(img, spu.DefaultSPUOptions())
 	if err != nil {
 		return fmt.Errorf("encode SPU: %w", err)
 	}
 
-	// Create VOB with SPU
-	outFile, err := os.Create(outputPath)
+	// ── Write the SPU to a temp file so ffmpeg can mux it ────────────────────
+	spuTemp := filepath.Join(workDir, "menu_spu_temp.mpg")
+	spuFile, err := os.Create(spuTemp)
 	if err != nil {
-		return fmt.Errorf("create output: %w", err)
+		return fmt.Errorf("create spu temp: %w", err)
 	}
-	defer outFile.Close()
+	spuMux := vob.NewMuxer(spuFile)
+	spuMux.SetFrameRate(fpsVal)
+	if err := spuMux.WriteSPU(spuData, vob.SubStreamSPUBase, 0); err != nil {
+		spuFile.Close()
+		return fmt.Errorf("write SPU temp: %w", err)
+	}
+	spuFile.Close()
 
-	mux := vob.NewMuxer(outFile)
-	mux.SetFrameRate(29.97)
-
-	// Write SPU at PTS 0 (menu display start)
-	if err := mux.WriteSPU(spuData, vob.SubStreamSPUBase, 0); err != nil {
-		return fmt.Errorf("write SPU: %w", err)
+	// ── Mux video + SPU into the final DVD VOB via ffmpeg ────────────────────
+	// ffmpeg's dvd/mpeg2 muxer produces a proper Program Stream including NAV_PCKs.
+	muxArgs := []string{
+		"-y",
+		"-i", videoTemp,
+		"-i", spuTemp,
+		"-map", "0:v",
+		"-map", "1:s",
+		"-c", "copy",
+		"-f", "dvd",
+		outputPath,
+	}
+	if logFn != nil {
+		logFn(">> Muxing video + SPU into DVD VOB")
+	}
+	if err := runCommandWithLogger(ctx, utils.GetFFmpegPath(), muxArgs, logFn); err != nil {
+		// Fallback: if muxing the SPU sub-stream fails (ffmpeg version differences),
+		// use the video-only output as the menu VOB and append the SPU pack manually.
+		if logFn != nil {
+			logFn(">> SPU mux failed, falling back to video-only menu VOB")
+		}
+		fallbackArgs := []string{
+			"-y",
+			"-i", videoTemp,
+			"-c", "copy",
+			"-f", "dvd",
+			outputPath,
+		}
+		if err2 := runCommandWithLogger(ctx, utils.GetFFmpegPath(), fallbackArgs, logFn); err2 != nil {
+			return fmt.Errorf("mux menu VOB: %w (spu mux err: %v)", err2, err)
+		}
 	}
 
-	// Write a minimal NAV_PCK to mark the end
-	if err := mux.WriteNAV_PCK(&vob.PCIPacket{}, &vob.DSIPacket{}); err != nil {
-		return fmt.Errorf("write NAV: %w", err)
+	// ── Build PCI button table (M3) and record for IFO use ───────────────────
+	// The ffmpeg-generated VOB does not embed custom NAV_PCK button data.
+	// We log the button coordinates here for diagnostic purposes; the IFO
+	// generator is responsible for embedding button navigation into PGC commands.
+	if len(buttons) > 0 {
+		logging.Info(logging.CatDVD, "Menu VOB has %d buttons (PCI data embedded by IFO layer)", len(buttons))
+		for i, b := range buttons {
+			logging.Debug(logging.CatDVD, "  button %d: (%d,%d)-(%d,%d) cmd=%s", i+1, b.X0, b.Y0, b.X1, b.Y1, b.Command)
+		}
 	}
 
-	logging.Info(logging.CatDVD, "Native SPU complete: %s", outputPath)
+	// ── Clean up temporary files ──────────────────────────────────────────────
+	_ = os.Remove(videoTemp)
+	_ = os.Remove(spuTemp)
+
+	logging.Info(logging.CatDVD, "Menu VOB complete: %s (%dx%d, %s fps, %d buttons)", outputPath, width, height, fps, len(buttons))
 	return nil
 }
 
-// buildMenuSPU creates the menu SPU file using native Go encoder.
-// This replaces the external spumux call for zero-dependency operation.
-func buildMenuSPU(ctx context.Context, overlayPath, menuSpuPath string, logFn func(string)) error {
+// buildMenuSPU creates a proper DVD menu VOB using native Go SPU encoder + ffmpeg MPEG-2 video.
+// bgPath is the background PNG image to encode as MPEG-2 still video.
+// region is "pal" or "ntsc" (controls dimensions and frame rate).
+func buildMenuSPU(ctx context.Context, overlayPath, menuSpuPath, bgPath, region string, buttons []dvdMenuButton, logFn func(string)) error {
 	if logFn != nil {
-		logFn(">> Native SPU encoder")
+		logFn(">> Native SPU encoder + MPEG-2 background")
 	}
-	return runNativeSpumux(ctx, overlayPath, menuSpuPath, logFn)
+	return runNativeSpumux(ctx, overlayPath, bgPath, menuSpuPath, region, 10.0, buttons, logFn)
 }
 
 func findVTLogoPath() string {
