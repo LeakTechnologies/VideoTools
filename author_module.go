@@ -202,7 +202,17 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	state.updateAuthorCancelButton()
 
 	topBar := ui.TintedBar(authorColor, container.NewHBox(backBtn, layout.NewSpacer(), cancelBtn, clearCompletedBtn, queueBtn))
-	bottomBar := moduleFooter(authorColor, layout.NewSpacer(), state.statsBar)
+
+	generateBtn := widget.NewButton(t.AuthorGenerateDVD, func() {
+		if len(state.authorClips) == 0 && state.authorFile == nil {
+			dialog.ShowInformation(t.AuthorNoContent, t.AuthorAddVideosForDVD, state.window)
+			return
+		}
+		state.startAuthorGeneration(true)
+	})
+	generateBtn.Importance = widget.HighImportance
+
+	bottomBar := moduleFooter(authorColor, container.NewHBox(layout.NewSpacer(), generateBtn), state.statsBar)
 
 	tabsConfig := []struct {
 		text  string
