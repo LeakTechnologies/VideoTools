@@ -55,6 +55,13 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **IFO audio track table** — VTS_MAT audio attributes populated from actual track codec/channels/language
 - [ ] Wire subtitle track authoring through FFmpeg mapping pipeline
 - [ ] Wire multi-audio track AC3 encoding
+- [ ] **Multi-disc authoring** — See docs/MULTI_DISC_AUTHORING.md
+  - Volume management UI (2-9 discs per set)
+  - Per-volume clip assignment with drag-and-drop
+  - Capacity indicators per volume
+  - Auto-balance clips across volumes
+  - Batch compile all volumes
+  - Per-volume ISO output with volume labels
 
 ### Rip Module (document gaps, fix when prioritised)
 - [ ] Handle `.m2ts` files in `collectVOBSets` (currently only `.vob`)
