@@ -505,6 +505,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 	dvdTitleEntry := widget.NewEntry()
 	dvdTitleEntry.SetPlaceHolder("Disc title...")
 	dvdTitleEntry.SetText(state.authorTitle)
+	state.authorVideosTitleEntry = dvdTitleEntry
 	dvdTitleEntry.OnChanged = func(value string) {
 		state.authorTitle = value
 		if state.authorDiscTitleEntry != nil {
@@ -853,6 +854,9 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		state.authorTitle = value
 		if state.authorDiscTitleEntry != nil {
 			state.authorDiscTitleEntry.SetText(value)
+		}
+		if state.authorVideosTitleEntry != nil {
+			state.authorVideosTitleEntry.SetText(value)
 		}
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
