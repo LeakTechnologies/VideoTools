@@ -24,6 +24,13 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Queue integration** — Wire JobTypeBurn to executeBurnJob()
 - [ ] **Implement burn logic** — Use IMAPI2 (Windows) or SG_IO (Linux) for direct API calls
   - Note: Waiting on ISO engine (M1-M7) for production-ready ISOs
+- [ ] **Multi-drive batch burning** — See docs/BURN_MODULE_DESIGN.md §Phase 3
+  - Detect all writable optical drives
+  - Parallel burning across multiple drives
+  - Batch mode for multi-volume sets (Disc 1-N across available drives)
+  - Sequential fallback for single-drive systems
+  - Per-drive progress tracking and error recovery
+  - Post-burn verification (read-back checksum)
 
 ### UI Improvements
 - [x] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
