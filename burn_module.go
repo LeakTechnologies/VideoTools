@@ -27,7 +27,7 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 
 	header := widget.NewLabelWithStyle(t.ModuleBurn, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
-	sourceLabel := widget.NewLabel("ISO File:")
+	sourceLabel := widget.NewLabel(t.BurnSelectISO)
 	sourceEntry := widget.NewEntry()
 	sourceEntry.SetPlaceHolder("Drop ISO file or click to browse...")
 
@@ -40,37 +40,36 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 		}, s.window)
 	})
 
-	driveLabel := widget.NewLabel("Drive:")
-	driveSelect := widget.NewSelect([]string{"Detecting drives..."}, func(val string) {})
+	driveLabel := widget.NewLabel(t.BurnSelectDrive)
+	driveSelect := widget.NewSelect([]string{t.BurnNoDrivesFound}, func(val string) {})
 
-	refreshDrivesBtn := widget.NewButton("Refresh", func() {
+	refreshDrivesBtn := widget.NewButton(t.ActionRefresh, func() {
 		drives := detectOpticalDrives()
 		options := []string{}
 		for _, d := range drives {
 			options = append(options, d)
 		}
 		if len(options) == 0 {
-			options = append(options, "No drives found")
+			options = append(options, t.BurnNoDrivesFound)
 		}
 		driveSelect.SetOptions(options)
 		driveSelect.SetSelected(options[0])
 	})
-	refreshDrivesBtn.Refresh()
 
-	speedLabel := widget.NewLabel("Speed:")
+	speedLabel := widget.NewLabel(t.BurnSpeed)
 	speedSelect := widget.NewSelect([]string{"Auto", "1x", "2x", "4x", "8x"}, func(val string) {})
 	speedSelect.SetSelected("Auto")
 
-	ejectCheck := widget.NewCheck("Eject when complete", func(checked bool) {})
+	ejectCheck := widget.NewCheck(t.BurnEject, func(checked bool) {})
 
-	burnBtn := widget.NewButton("Burn to Disc", func() {
+	burnBtn := widget.NewButton(t.BurnStart, func() {
 		isoPath := sourceEntry.Text()
 		drive := driveSelect.Selected
 		if isoPath == "" {
 			dialog.ShowInformation(t.DialogNoFile, "Please select an ISO file", s.window)
 			return
 		}
-		if drive == "" || drive == "No drives found" {
+		if drive == "" || drive == t.BurnNoDrivesFound {
 			dialog.ShowInformation(t.DialogNoFile, "Please select a drive", s.window)
 			return
 		}

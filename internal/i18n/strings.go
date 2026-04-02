@@ -146,6 +146,15 @@ type Strings struct {
 	LabelNoVideoLoaded string // "No video loaded"
 	LabelFileFmt       string // "File: %s"
 
+	// ── Burn Module ────────────────────────────────────────────────────────────
+	BurnSelectISO     string // "Select ISO file to burn"
+	BurnSelectDrive   string // "Select target drive"
+	BurnSpeed         string // "Burn speed"
+	BurnEject         string // "Eject when complete"
+	BurnNoDrivesFound string // "No drives found"
+	BurnStart         string // "Burn to Disc"
+	BurnProgress      string // "Burning..."
+
 	// ── Inspect Module ────────────────────────────────────────────────────────
 	InspectInstructions       string // "Load a video to inspect..."
 	InspectLoadingPreview     string // "Loading preview..."

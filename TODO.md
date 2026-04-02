@@ -19,10 +19,20 @@ This file tracks upcoming features, improvements, and known issues.
 
 ### Burn Module (NEW)
 - [x] **Create design document** — See docs/BURN_MODULE_DESIGN.md
-- [ ] **Add module entry** — Wire in main.go showBurnView()
-- [ ] **Implement UI** — Source selection, drive detection, burn options
-- [ ] **Implement burn logic** — Use isoburn (Windows) or growisofs (Linux)
-- [ ] **Queue integration** — Wire OnBurnISO callback
+- [x] **Add module entry** — Wire in main.go showBurnView()
+- [x] **Implement UI** — Source selection, drive detection, burn options
+- [x] **Queue integration** — Wire JobTypeBurn to executeBurnJob()
+- [ ] **Implement burn logic** — Use IMAPI2 (Windows) or SG_IO (Linux) for direct API calls
+  - Note: Waiting on ISO engine (M1-M7) for production-ready ISOs
+
+### ISO Engine (Claude's work - do not interfere)
+- [ ] **M1** — Encode menu background as MPEG-2 via ffmpeg
+- [ ] **M2** — Write proper DVD VOB with video+SPU muxed
+- [ ] **M3** — Populate PCI button rectangles in NAV_PCK
+- [ ] **M4** — Set VMGM_VOBS_Sector from ISO disc layout
+- [ ] **M5** — Patch menu PGC cell sectors from disc location
+- [ ] **M6** — Wire ExtrasMpg/ExtrasButtons into VOB and menuPGCs
+- [ ] **M7** — Implement JumpVMGM_PGCN command
 
 ### UI Improvements
 - [x] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
