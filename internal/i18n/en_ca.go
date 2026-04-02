@@ -144,6 +144,15 @@ var enCA = Strings{
 	InspectLoadingPreview:     "Loading preview...",
 	InspectNoPreviewAvailable: "No preview available",
 
+	// ── Burn Module ────────────────────────────────────────────────────────────
+	BurnSelectISO:     "ISO File:",
+	BurnSelectDrive:   "Drive:",
+	BurnSpeed:         "Speed:",
+	BurnEject:         "Eject when complete",
+	BurnNoDrivesFound: "No drives found",
+	BurnStart:         "Burn to Disc",
+	BurnProgress:      "Burning...",
+
 	// ── Audio Module ───────────────────────────────────────────────────────────
 	AudioInstructions:    "Drop video file here or click to browse",
 	AudioOutputFormat:    "Output Format:",

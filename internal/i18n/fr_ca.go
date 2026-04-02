@@ -145,6 +145,15 @@ var frCA = Strings{
 	InspectLoadingPreview:     "Chargement de l'aperçu...",
 	InspectNoPreviewAvailable: "Aperçu non disponible",
 
+	// ── Burn Module ────────────────────────────────────────────────────────────
+	BurnSelectISO:     "Fichier ISO :",
+	BurnSelectDrive:   "Lecteur :",
+	BurnSpeed:         "Vitesse :",
+	BurnEject:         "Éjecter à la fin",
+	BurnNoDrivesFound: "Aucun lecteur trouvé",
+	BurnStart:         "Graver sur disque",
+	BurnProgress:      "Gravure en cours...",
+
 	// ── Audio Module ───────────────────────────────────────────────────────────
 	AudioInstructions:    "Déposez un fichier vidéo ici ou cliquez pour parcourir",
 	AudioOutputFormat:    "Format de sortie :",
