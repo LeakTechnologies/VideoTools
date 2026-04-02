@@ -115,7 +115,7 @@ jobs:
           cd /tmp/x264-src
           ./configure --prefix=/opt/ffmpeg-static --enable-static --disable-shared --disable-opencl --disable-cli
           make -j$(nproc) && make install
-          rm -rf /tmp/x264-src
+          cd /tmp && rm -rf /tmp/x264-src
 
           # Build x265 from source (static only)
           echo "[INFO] Building x265 from source..."
@@ -128,7 +128,7 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release \
                 /tmp/x265-src/source
           make -j$(nproc) && make install
-          rm -rf /tmp/x265-src /tmp/x265-build
+          cd /tmp && rm -rf /tmp/x265-src /tmp/x265-build
 
           # Build FFmpeg from source
           echo "[INFO] Building FFmpeg ${ver} from source..."
@@ -384,10 +384,14 @@ jobs:
 
           # x265 is a C++ library; FFmpeg configure link test uses gcc (not g++),
           # so C++ runtime symbols (operator new, RTTI, etc.) must be supplied
-          # explicitly. Use absolute paths from gcc --print-file-name to avoid
-          # linker search-order ambiguity between static and import-lib archives.
-          stdc_a=$(gcc --print-file-name=libstdc++.a)
-          supc_a=$(gcc --print-file-name=libsupc++.a)
+          # explicitly.
+          # IMPORTANT: gcc --print-file-name=libstdc++.a returns the DLL import
+          # stub in /ucrt64/lib/, NOT the real static archive. Use
+          # --print-libgcc-file-name to locate the GCC library directory where
+          # the actual static libstdc++.a and libsupc++.a live.
+          gcc_libdir=$(dirname $(gcc --print-libgcc-file-name))
+          stdc_a="${gcc_libdir}/libstdc++.a"
+          supc_a="${gcc_libdir}/libsupc++.a"
           echo "[INFO] libstdc++.a: $stdc_a (exists: $(test -f "$stdc_a" && echo YES || echo NO))"
           echo "[INFO] libsupc++.a: $supc_a (exists: $(test -f "$supc_a" && echo YES || echo NO))"
           echo "Libs.private: $stdc_a $supc_a -lm" >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
