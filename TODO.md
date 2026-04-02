@@ -16,6 +16,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Confirm Windows CI** — Build passes after submodule sync
 - [x] **Confirm Linux CI** — Build passes after submodule sync
 - [x] **FFmpeg DLL fix** — Use local FFmpeg first, fall back to download
+- [x] **filters_module.go build fix** — Removed invalid `*videoSource` type assertion (Go 1.26 CI failure)
 
 ### Burn Module (NEW)
 - [x] **Create design document** — See docs/BURN_MODULE_DESIGN.md

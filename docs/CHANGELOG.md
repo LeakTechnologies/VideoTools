@@ -28,6 +28,7 @@
 
 ### CI Fixes
 - **Submodule sync** — Pushed missing commits to lt_mirror/fyne.git to fix CI failures.
+- **filters_module.go** — Removed invalid `*videoSource` type assertion at line 110; `state.filtersFile` is `*videoSource` not `interface{}`, causing a Go 1.26 build failure in CI.
 
 ## v0.1.1-dev38 (March 2026)
 
