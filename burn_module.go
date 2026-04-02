@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -112,10 +114,6 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 	return container.NewBorder(content, footer, nil, nil)
 }
 
-func detectOpticalDrives() []string {
-	return nil
-}
-
 func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
 	cfg := job.Config
 	isoPath, _ := cfg["source"].(string)
@@ -128,9 +126,17 @@ func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressC
 
 	progressCallback(0.1)
 
-	// TODO: Implement actual burn using IMAPI2 (Windows) or SG_IO ioctl (Linux)
-	// This is a placeholder that simulates the burn process
+	// Validate ISO exists
+	if _, err := os.Stat(isoPath); err != nil {
+		return fmt.Errorf("ISO file not found: %s", isoPath)
+	}
+
+	// Perform the burn
+	if err := burnISO(isoPath, drive, speed, eject); err != nil {
+		return fmt.Errorf("burn failed: %w", err)
+	}
 
 	progressCallback(1.0)
+	logging.Info(logging.CatDisc, "Burn completed successfully")
 	return nil
 }
