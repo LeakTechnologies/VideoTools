@@ -55,6 +55,7 @@ var enCA = Strings{
 	DialogSnippets:           "Snippets",
 	DialogPreview:            "Generating Preview",
 	DialogPlayback:           "Playback Unavailable",
+	DialogPlaybackError:      "Embedded video playback requires FFmpeg/FFplay to be available.\n\nPlease either:\n1. Install FFmpeg on your system (includes ffplay)\n2. Use the Preview slider for frame-by-frame preview\n3. Use an external player (mpv, VLC)",
 	DialogJobQueued:          "Job Queued",
 	DialogMerge:              "Merge",
 	DialogCancel:             "Cancel",
