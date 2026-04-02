@@ -355,6 +355,7 @@ type Strings struct {
 
 	// ── Dependencies ─────────────────────────────────────────────────────
 	DependenciesTitle        string // "System Dependencies"
+	DependenciesMissing      string // "Missing Dependencies"
 	DependenciesDesc         string // "Manage VideoTools dependencies..."
 	DependenciesInstalled    string // "Installed"
 	DependenciesNotInstalled string // "Not Installed"
