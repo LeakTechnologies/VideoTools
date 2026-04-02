@@ -27,6 +27,7 @@
 
 ### CI Fixes (dev39)
 - [x] **Submodule sync** - Pushed missing commits to lt_mirror/fyne.git
+- [x] **filters_module.go build fix** - Removed invalid `.(*videoSource)` type assertion; `state.filtersFile` is already `*videoSource`, Go 1.26 CI failure fixed
 
 ### Filter Integration (dev39)
 - [x] **Create design document** - See docs/FILTER_INTEGRATION_DESIGN.md
