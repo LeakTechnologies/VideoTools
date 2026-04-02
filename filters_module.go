@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
@@ -101,7 +102,56 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 			}
 			state.jobQueue.Add(job)
 		},
-		OnApplyFilters:     func() {},
+		OnApplyFilters: func() {},
+		OnFilterNow: func() {
+			if state.filtersFile == nil {
+				return
+			}
+			src := state.filtersFile.(*videoSource)
+			path := src.Path
+			dir := filepath.Dir(path)
+			name := filepath.Base(path)
+			ext := filepath.Ext(name)
+			base := name[:len(name)-len(ext)]
+			outputPath := filepath.Join(dir, fmt.Sprintf("%s_filtered%s", base, ext))
+
+			cfg := state.filterJobConfig()
+			cfg["outputPath"] = outputPath
+
+			state.filterBusy = true
+			state.filterActiveIn = path
+			state.filterActiveOut = outputPath
+			state.filterProgress = 0
+			state.filterFPS = 0
+			state.filterSpeed = 0
+			state.filterETA = 0
+
+			go func() {
+				ctx, cancel := context.WithCancel(context.Background())
+				state.filterCancel = cancel
+
+				err := state.executeFilterJob(ctx, &queue.Job{
+					Type:   queue.JobTypeFilter,
+					Config: cfg,
+				}, func(p float64) {
+					state.filterProgress = p
+					if state.statsBar != nil {
+						state.applyFilterStatusToUI()
+					}
+				})
+
+				state.filterBusy = false
+				state.filterCancel = nil
+				if state.statsBar != nil {
+					state.applyFilterStatusToUI()
+				}
+				if err != nil {
+					dialog.ShowError(fmt.Errorf("filter failed: %w", err), state.window)
+				} else {
+					dialog.ShowInformation("Filter Complete", fmt.Sprintf("Output saved to:\n%s", outputPath), state.window)
+				}
+			}()
+		},
 		OnPersistConfig:    func() {},
 		OnSetBrightness:    func(f float64) { state.filterBrightness = f },
 		OnSetContrast:      func(f float64) { state.filterContrast = f },
@@ -332,4 +382,25 @@ func (s *appState) executeFilterJob(ctx context.Context, job *queue.Job, progres
 	}
 
 	return nil
+}
+
+func (s *appState) applyFilterStatusToUI() {
+	if s.statsBar == nil {
+		return
+	}
+	if s.filterBusy {
+		eta := ""
+		if s.filterETA > 0 {
+			eta = s.filterETA.Round(time.Second).String()
+		}
+		elapsed := ""
+		remaining := ""
+		if s.filterProgress > 0 && s.filterProgress < 100 {
+			// Calculate remaining time from progress
+			remaining = fmt.Sprintf("Remaining: %s", s.filterETA.Round(time.Second))
+		}
+		s.statsBar.UpdateStatsWithDetails(1, 0, 0, 0, 0, s.filterProgress, s.filterFPS, s.filterSpeed, eta, elapsed, remaining, "Filter: "+filepath.Base(s.filterActiveIn))
+	} else {
+		s.statsBar.UpdateStats(0, 0, 0, 0, 0, 0, "")
+	}
 }
