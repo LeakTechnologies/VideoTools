@@ -27,6 +27,12 @@
 ### CI Fixes (dev39)
 - [x] **Submodule sync** - Pushed missing commits to lt_mirror/fyne.git
 
+### Filter Integration (dev39)
+- [x] **Create design document** - See docs/FILTER_INTEGRATION_DESIGN.md
+- [x] **Add filters to Upscale module** - Integrate filter controls in upscale UI
+- [x] **Refactor upscale pipeline** - Apply filters BEFORE upscale in encode chain
+- [x] **Keep Filters module standalone** - Filters module can now queue filter-only jobs without upscaling; "Add to Queue" button added; executeFilterJob supports color correction, enhancement, transform, and stylistic filters via FFmpeg
+
 ## Version 0.1.1-dev38 (complete) - Module Extraction & Native Media Fixes
 
 ### CI Fixes (dev38)
