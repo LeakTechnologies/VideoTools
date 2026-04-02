@@ -59,6 +59,7 @@ type Options struct {
 	OnUpdateFile    func(file any)
 	OnSendToUpscale func()
 	OnApplyFilters  func()
+	OnFilterNow     func()
 
 	OnPersistConfig func()
 
@@ -499,7 +500,16 @@ func BuildView(opts Options) fyne.CanvasObject {
 	statsBar := opts.OnGetStatsBar()
 
 	bottomBar := container.NewVBox(
-		container.NewHBox(layout.NewSpacer(), applyBtn, widget.NewButton("Add to Queue", func() {
+		container.NewHBox(layout.NewSpacer(), applyBtn, widget.NewButton("Filter Now", func() {
+			if opts.FiltersFile == nil {
+				dialog.ShowInformation("No Video", "Please load a video first.", opts.Window)
+				return
+			}
+			buildFilterChain()
+			if opts.OnFilterNow != nil {
+				opts.OnFilterNow()
+			}
+		}), widget.NewButton("Add to Queue", func() {
 			if opts.FiltersFile == nil {
 				dialog.ShowInformation("No Video", "Please load a video first.", opts.Window)
 				return

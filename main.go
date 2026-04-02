@@ -1135,6 +1135,14 @@ type appState struct {
 	convertFPS                float64
 	convertSpeed              float64
 	convertETA                time.Duration
+	filterBusy                bool
+	filterCancel              context.CancelFunc
+	filterActiveIn            string
+	filterActiveOut           string
+	filterProgress            float64
+	filterFPS                 float64
+	filterSpeed               float64
+	filterETA                 time.Duration
 	playSess                  *playSession
 	jobQueue                  *queue.Queue
 	statsBar                  *ui.ConversionStatsBar
