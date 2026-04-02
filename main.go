@@ -844,6 +844,55 @@ var formatOptions = []formatOption{
 	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video"},
 }
 
+// formatVideoCodecs maps format extension to compatible video codec friendly names.
+var formatVideoCodecs = map[string][]string{
+	".mp4":  {"H.264", "H.265", "AV1", "MPEG-2", "Copy"},
+	".mkv":  {"H.264", "H.265", "AV1", "VP9", "MPEG-2", "Copy"},
+	".mov":  {"H.264", "H.265", "AV1", "MPEG-2", "Copy"},
+	".webm": {"VP9", "AV1"},
+	".mpg":  {"MPEG-2", "Copy"},
+}
+
+// formatAudioCodecs maps format extension to compatible audio codec friendly names.
+var formatAudioCodecs = map[string][]string{
+	".mp4":  {"AAC", "MP3", "AC-3", "FLAC", "Copy"},
+	".mkv":  {"AAC", "MP3", "AC-3", "FLAC", "Opus", "Copy"},
+	".mov":  {"AAC", "MP3", "AC-3", "FLAC", "Copy"},
+	".webm": {"Opus", "Vorbis"},
+	".mpg":  {"MP2", "AC-3", "Copy"},
+}
+
+// ensureCompatibleCodec adjusts cfg's VideoCodec and AudioCodec to be compatible
+// with the selected format. If the current codec is incompatible, it is replaced
+// with the first compatible option.
+func ensureCompatibleCodec(cfg *convertConfig) {
+	ext := strings.ToLower(cfg.SelectedFormat.Ext)
+	if compatibleVideo, ok := formatVideoCodecs[ext]; ok && len(compatibleVideo) > 0 {
+		found := false
+		for _, c := range compatibleVideo {
+			if c == cfg.VideoCodec {
+				found = true
+				break
+			}
+		}
+		if !found {
+			cfg.VideoCodec = compatibleVideo[0]
+		}
+	}
+	if compatibleAudio, ok := formatAudioCodecs[ext]; ok && len(compatibleAudio) > 0 {
+		found := false
+		for _, c := range compatibleAudio {
+			if c == cfg.AudioCodec {
+				found = true
+				break
+			}
+		}
+		if !found {
+			cfg.AudioCodec = compatibleAudio[0]
+		}
+	}
+}
+
 type convertConfig struct {
 	OutputBase       string
 	OutputDir        string
