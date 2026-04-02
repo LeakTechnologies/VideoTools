@@ -2020,74 +2020,179 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 	}
 	spuFile.Close()
 
-	// ── Mux video + SPU into the final DVD VOB via ffmpeg ────────────────────
-	// ffmpeg's dvd/mpeg2 muxer produces a proper Program Stream including NAV_PCKs.
-	muxArgs := []string{
-		"-y",
-		"-i", videoTemp,
-		"-i", spuTemp,
-		"-map", "0:v",
-		"-map", "1:s",
-		"-c", "copy",
-		"-f", "dvd",
-		outputPath,
+	// ── Write the final DVD VOB natively (NAV_PCK + video + SPU) ─────────────
+	// ffmpeg's -f dvd muxer does NOT produce proper NAV packs at sector boundaries,
+	// which causes VLC/libdvdnav to crash. We write the VOB directly using the
+	// native vob.Muxer which produces spec-compliant NAV_PCKs.
+	outFile, err := os.Create(outputPath)
+	if err != nil {
+		return fmt.Errorf("create output VOB: %w", err)
 	}
-	if logFn != nil {
-		logFn(">> Muxing video + SPU into DVD VOB")
-	}
-	if err := runCommandWithLogger(ctx, utils.GetFFmpegPath(), muxArgs, logFn); err != nil {
-		// Fallback: if muxing the SPU sub-stream fails (ffmpeg version differences),
-		// use the video-only output as the menu VOB and append the SPU pack manually.
+
+	m := vob.NewMuxer(outFile)
+	m.SetFrameRate(fpsVal)
+
+	// Sector 0: NAV_PCK with button table (M3 compliance)
+	if len(buttons) > 0 {
+		pciBtns := make([]vob.PCIButton, len(buttons))
+		for i, b := range buttons {
+			prev := uint8(i)
+			next := uint8(i + 2)
+			if i == 0 {
+				prev = uint8(len(buttons))
+			}
+			if i == len(buttons)-1 {
+				next = 1
+			}
+			pciBtns[i] = vob.PCIButton{
+				X0: b.X0, Y0: b.Y0, X1: b.X1, Y1: b.Y1,
+				Up: prev, Down: next, Left: uint8(i + 1), Right: uint8(i + 1),
+				CmdNr: uint8(i + 1),
+			}
+		}
+		pci := &vob.PCIPacket{
+			Buttons: pciBtns,
+			HL_GI: vob.HL_GI{
+				BTN_SL_NS: 1,
+				BTN_NS:    uint8(len(buttons)),
+			},
+		}
+		if err := m.WriteNAV_PCK(pci, &vob.DSIPacket{}); err != nil {
+			outFile.Close()
+			return fmt.Errorf("write NAV_PCK: %w", err)
+		}
 		if logFn != nil {
-			logFn(">> SPU mux failed, falling back to video-only menu VOB")
+			logFn(fmt.Sprintf(">> NAV_PCK written at sector 0 (%d buttons)", len(buttons)))
 		}
-		fallbackArgs := []string{
-			"-y",
-			"-i", videoTemp,
-			"-c", "copy",
-			"-f", "dvd",
-			outputPath,
-		}
-		if err2 := runCommandWithLogger(ctx, utils.GetFFmpegPath(), fallbackArgs, logFn); err2 != nil {
-			return fmt.Errorf("mux menu VOB: %w (spu mux err: %v)", err2, err)
+	} else {
+		if err := m.WriteNAV_PCK(&vob.PCIPacket{}, &vob.DSIPacket{}); err != nil {
+			outFile.Close()
+			return fmt.Errorf("write NAV_PCK: %w", err)
 		}
 	}
 
-	// ── Patch PCI button table into the generated VOB NAV_PCKs ──────────────
-	// ffmpeg's dvd muxer writes zero PCI highlight data. We post-process the
-	// VOB to inject button geometry and command indices so dvdnav knows where
-	// each button is and which cell command to run on activation.
-	if len(buttons) > 0 {
-		n := len(buttons)
-		pciBtns := make([]vob.PCIButton, n)
-		for i, b := range buttons {
-			// Up/Down wrap vertically. For a single column of buttons:
-			//   button 1 Up → last button; button n Down → button 1.
-			prev := uint8(i)   // 0-based → 1-based: button i's prev is i (i.e. i+1-1)
-			next := uint8(i+2) // next button (1-based)
-			if i == 0 {
-				prev = uint8(n) // first button wraps up to last
+	// Read the MPEG-2 video elementary stream and write it as video PES packets
+	videoData, err := os.ReadFile(videoTemp)
+	if err != nil {
+		outFile.Close()
+		return fmt.Errorf("read video temp: %w", err)
+	}
+
+	// Split video ES into VOBU-sized chunks (each VOBU = ~0.4-0.5s of video)
+	// For a still image, we write one VOBU per GOP (group of pictures).
+	// Find GOP boundaries by looking for sequence headers or picture start codes.
+	navInterval := int(m.VideoFrameTicks() * 15) // NAV every ~15 frames (~0.5s at 29.97fps)
+	frameCount := 0
+	pts := uint64(0)
+
+	// Write video in chunks, inserting NAV_PCKs at regular intervals
+	chunkSize := 2000 // Max PES payload per pack (leaves room for headers)
+	for offset := 0; offset < len(videoData); {
+		// Determine chunk size
+		end := offset + chunkSize
+		if end > len(videoData) {
+			end = len(videoData)
+		}
+		chunk := videoData[offset:end]
+
+		if err := m.WriteVideo(chunk, pts); err != nil {
+			outFile.Close()
+			return fmt.Errorf("write video: %w", err)
+		}
+
+		frameCount++
+		pts += m.videoFrameTicks()
+
+		// Insert NAV_PCK at regular intervals
+		if frameCount%15 == 0 {
+			if len(buttons) > 0 {
+				pciBtns := make([]vob.PCIButton, len(buttons))
+				for i, b := range buttons {
+					prev := uint8(i)
+					next := uint8(i + 2)
+					if i == 0 {
+						prev = uint8(len(buttons))
+					}
+					if i == len(buttons)-1 {
+						next = 1
+					}
+					pciBtns[i] = vob.PCIButton{
+						X0: b.X0, Y0: b.Y0, X1: b.X1, Y1: b.Y1,
+						Up: prev, Down: next, Left: uint8(i + 1), Right: uint8(i + 1),
+						CmdNr: uint8(i + 1),
+					}
+				}
+				pci := &vob.PCIPacket{
+					Buttons:     pciBtns,
+					LVOBU_S_PTM: uint32(pts),
+					LVOBU_E_PTM: uint32(pts + m.videoFrameTicks()*15),
+					HL_GI: vob.HL_GI{
+						BTN_SL_NS: 1,
+						BTN_NS:    uint8(len(buttons)),
+					},
+				}
+				if err := m.WriteNAV_PCK(pci, &vob.DSIPacket{}); err != nil {
+					outFile.Close()
+					return fmt.Errorf("write NAV_PCK: %w", err)
+				}
+			} else {
+				if err := m.WriteNAV_PCK(&vob.PCIPacket{}, &vob.DSIPacket{}); err != nil {
+					outFile.Close()
+					return fmt.Errorf("write NAV_PCK: %w", err)
+				}
 			}
-			if i == n-1 {
-				next = 1 // last button wraps down to first
+		}
+
+		offset = end
+	}
+
+	// Write SPU packet
+	if err := m.WriteSPU(spuData, vob.SubStreamSPUBase, 0); err != nil {
+		outFile.Close()
+		return fmt.Errorf("write SPU: %w", err)
+	}
+
+	// Final NAV_PCK
+	if len(buttons) > 0 {
+		pciBtns := make([]vob.PCIButton, len(buttons))
+		for i, b := range buttons {
+			prev := uint8(i)
+			next := uint8(i + 2)
+			if i == 0 {
+				prev = uint8(len(buttons))
+			}
+			if i == len(buttons)-1 {
+				next = 1
 			}
 			pciBtns[i] = vob.PCIButton{
-				X0:    b.X0,
-				Y0:    b.Y0,
-				X1:    b.X1,
-				Y1:    b.Y1,
-				Up:    prev,
-				Down:  next,
-				Left:  uint8(i + 1), // self (no horizontal nav)
-				Right: uint8(i + 1),
-				CmdNr: uint8(i + 1), // 1-based cell command index
+				X0: b.X0, Y0: b.Y0, X1: b.X1, Y1: b.Y1,
+				Up: prev, Down: next, Left: uint8(i + 1), Right: uint8(i + 1),
+				CmdNr: uint8(i + 1),
 			}
-			logging.Debug(logging.CatDVD, "  PCI button %d: (%d,%d)-(%d,%d) up=%d dn=%d cmd=%d",
-				i+1, b.X0, b.Y0, b.X1, b.Y1, prev, next, i+1)
 		}
-		if err := vob.PatchVOBPCI(outputPath, pciBtns); err != nil {
-			logging.Info(logging.CatDVD, "Warning: PCI patch failed: %v", err)
+		if err := m.WriteNAV_PCK(&vob.PCIPacket{
+			Buttons: pciBtns,
+			HL_GI: vob.HL_GI{
+				BTN_SL_NS: 1,
+				BTN_NS:    uint8(len(buttons)),
+			},
+		}, &vob.DSIPacket{}); err != nil {
+			outFile.Close()
+			return fmt.Errorf("write final NAV_PCK: %w", err)
 		}
+	} else {
+		if err := m.WriteNAV_PCK(&vob.PCIPacket{}, &vob.DSIPacket{}); err != nil {
+			outFile.Close()
+			return fmt.Errorf("write final NAV_PCK: %w", err)
+		}
+	}
+
+	if err := outFile.Close(); err != nil {
+		return fmt.Errorf("close output VOB: %w", err)
+	}
+
+	if logFn != nil {
+		logFn(fmt.Sprintf(">> Menu VOB written: %d sectors, %d NAV_PCKs", m.currentSector, len(m.NAVPCKSectors)))
 	}
 
 	// ── Clean up temporary files ──────────────────────────────────────────────
