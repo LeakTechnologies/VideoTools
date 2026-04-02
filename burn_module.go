@@ -32,11 +32,11 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 	sourceEntry.SetPlaceHolder("Drop ISO file or click to browse...")
 
 	browseBtn := widget.NewButton(t.ActionBrowse, func() {
-		dialog.ShowFileOpen(func(uri fyne.URI, err error) {
-			if err != nil || uri == nil {
+		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			if err != nil || reader == nil {
 				return
 			}
-			sourceEntry.SetText(uri.Path())
+			sourceEntry.SetText(reader.URI().Path())
 		}, s.window)
 	})
 
@@ -63,7 +63,7 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 	ejectCheck := widget.NewCheck(t.BurnEject, func(checked bool) {})
 
 	burnBtn := widget.NewButton(t.BurnStart, func() {
-		isoPath := sourceEntry.Text()
+		isoPath := sourceEntry.Text
 		drive := driveSelect.Selected
 		if isoPath == "" {
 			dialog.ShowInformation(t.DialogNoFile, "Please select an ISO file", s.window)
@@ -77,7 +77,6 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 		logging.Info(logging.CatDisc, "Starting burn: ISO=%s Drive=%s", isoPath, drive)
 
 		job := &queue.Job{
-			ID:     queue.NewJobID(),
 			Type:   queue.JobTypeBurn,
 			Status: queue.JobStatusPending,
 			Config: map[string]interface{}{

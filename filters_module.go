@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -87,7 +88,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 			}
 			path := ""
 			if state.filtersFile != nil {
-				path = state.filtersFile.(*videoSource).Path
+				path = state.filtersFile.Path
 			}
 			job := &queue.Job{
 				Type:        queue.JobTypeFilter,
@@ -98,7 +99,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 				Config:      state.filterJobConfig(),
 				Description: "Apply filters to video",
 			}
-			state.jobQueue.AddJob(job)
+			state.jobQueue.Add(job)
 		},
 		OnApplyFilters:     func() {},
 		OnPersistConfig:    func() {},
@@ -158,8 +159,7 @@ func (s *appState) filterJobConfig() map[string]interface{} {
 
 	// Input/output paths
 	if s.filtersFile != nil {
-		src := s.filtersFile.(*videoSource)
-		cfg["inputPath"] = src.Path
+		cfg["inputPath"] = s.filtersFile.Path
 	}
 
 	// Color correction
