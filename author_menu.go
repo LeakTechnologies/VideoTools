@@ -2053,14 +2053,40 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 		}
 	}
 
-	// ── Build PCI button table (M3) and record for IFO use ───────────────────
-	// The ffmpeg-generated VOB does not embed custom NAV_PCK button data.
-	// We log the button coordinates here for diagnostic purposes; the IFO
-	// generator is responsible for embedding button navigation into PGC commands.
+	// ── Patch PCI button table into the generated VOB NAV_PCKs ──────────────
+	// ffmpeg's dvd muxer writes zero PCI highlight data. We post-process the
+	// VOB to inject button geometry and command indices so dvdnav knows where
+	// each button is and which cell command to run on activation.
 	if len(buttons) > 0 {
-		logging.Info(logging.CatDVD, "Menu VOB has %d buttons (PCI data embedded by IFO layer)", len(buttons))
+		n := len(buttons)
+		pciBtns := make([]vob.PCIButton, n)
 		for i, b := range buttons {
-			logging.Debug(logging.CatDVD, "  button %d: (%d,%d)-(%d,%d) cmd=%s", i+1, b.X0, b.Y0, b.X1, b.Y1, b.Command)
+			// Up/Down wrap vertically. For a single column of buttons:
+			//   button 1 Up → last button; button n Down → button 1.
+			prev := uint8(i)   // 0-based → 1-based: button i's prev is i (i.e. i+1-1)
+			next := uint8(i+2) // next button (1-based)
+			if i == 0 {
+				prev = uint8(n) // first button wraps up to last
+			}
+			if i == n-1 {
+				next = 1 // last button wraps down to first
+			}
+			pciBtns[i] = vob.PCIButton{
+				X0:    b.X0,
+				Y0:    b.Y0,
+				X1:    b.X1,
+				Y1:    b.Y1,
+				Up:    prev,
+				Down:  next,
+				Left:  uint8(i + 1), // self (no horizontal nav)
+				Right: uint8(i + 1),
+				CmdNr: uint8(i + 1), // 1-based cell command index
+			}
+			logging.Debug(logging.CatDVD, "  PCI button %d: (%d,%d)-(%d,%d) up=%d dn=%d cmd=%d",
+				i+1, b.X0, b.Y0, b.X1, b.Y1, prev, next, i+1)
+		}
+		if err := vob.PatchVOBPCI(outputPath, pciBtns); err != nil {
+			logging.Info(logging.CatDVD, "Warning: PCI patch failed: %v", err)
 		}
 	}
 

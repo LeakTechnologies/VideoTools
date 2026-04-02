@@ -3764,6 +3764,16 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 
 		// Pass 2: Rewrite VTS_01_0.IFO and VIDEO_TS.IFO with correct sectors.
+
+		// When a menu is present, add a post-play command to the title PGC so
+		// that the player returns to the main menu (PGC 1) after title playback ends.
+		if len(menuPGCs) > 0 {
+			if mainPGC.CommandTable == nil {
+				mainPGC.CommandTable = &ifo.DVDCommandTable{}
+			}
+			mainPGC.CommandTable.Post = []ifo.DVDCommand{ifo.JumpVMGM_PGCNCommand(1)}
+		}
+
 		if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap, mainPTTSRPT); err != nil {
 			return fmt.Errorf("ifo sector patch failed: %w", err)
 		}
@@ -3771,6 +3781,29 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			return fmt.Errorf("vmg ifo sector patch failed: %w", err)
 		}
 		logFn("IFO sector addresses patched")
+
+		// Write BUP files (backup copies of IFOs required by hardware players).
+		for _, name := range []string{"VIDEO_TS.IFO", "VTS_01_0.IFO"} {
+			ifoPath := filepath.Join(videoTSPath, name)
+			bupName := name[:len(name)-4] + ".BUP"
+			bupPath := filepath.Join(videoTSPath, bupName)
+			if src, err := os.ReadFile(ifoPath); err == nil {
+				if err := os.WriteFile(bupPath, src, 0o644); err != nil {
+					logging.Info(logging.CatDVD, "Warning: failed to write %s: %v", bupName, err)
+				}
+			}
+		}
+		// BUP files for extra VTS sets
+		for i := range extraClips {
+			vtsNum := i + 2
+			name := fmt.Sprintf("VTS_%02d_0.IFO", vtsNum)
+			ifoPath := filepath.Join(videoTSPath, name)
+			bupName := fmt.Sprintf("VTS_%02d_0.BUP", vtsNum)
+			bupPath := filepath.Join(videoTSPath, bupName)
+			if src, err := os.ReadFile(ifoPath); err == nil {
+				_ = os.WriteFile(bupPath, src, 0o644)
+			}
+		}
 
 		// Pass 3: Build the ISO — AddDirFS(discRoot) adds VIDEO_TS/ and AUDIO_TS/
 		// as proper subdirectories, matching the DVD-Video layout spec.

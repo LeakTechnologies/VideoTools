@@ -3,6 +3,8 @@ package vob
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
+	"os"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
@@ -285,5 +287,134 @@ func (m *Muxer) writePESPrivate2(streamID uint8, payload []byte) error {
 		logging.Error(logging.CatDVD, "Failed to write Private2 payload: %v", err)
 		return fmt.Errorf("private2 payload: %w", err)
 	}
+	return nil
+}
+
+// PatchVOBPCI opens the DVD VOB at path and patches the PCI highlight/button
+// table in every NAV_PCK sector found in the file.
+//
+// ffmpeg's dvd muxer generates NAV_PCKs with zeroed PCI highlight data, so
+// button geometry and command numbers must be injected as a post-processing
+// step. This function scans the file sector-by-sector (2048 bytes/sector),
+// identifies NAV_PCK sectors by the PACK header (00 00 01 BA) followed by a
+// PCI PES packet (00 00 01 BF 03 D4), and patches the button table in each.
+//
+// buttons provides the button geometry. CmdNr for each should be its 1-based
+// index in the PGC cell command table (1 = first button's action, etc.).
+// Navigation neighbours (Up/Down/Left/Right) default to vertical wrapping
+// if left zero.
+func PatchVOBPCI(path string, buttons []PCIButton) error {
+	if len(buttons) == 0 {
+		return nil
+	}
+
+	f, err := os.OpenFile(path, os.O_RDWR, 0644)
+	if err != nil {
+		return fmt.Errorf("PatchVOBPCI open: %w", err)
+	}
+	defer f.Close()
+
+	sector := make([]byte, 2048)
+	var sectorIdx int64
+	patched := 0
+
+	for {
+		_, err := io.ReadFull(f, sector)
+		if err == io.EOF || err == io.ErrUnexpectedEOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("PatchVOBPCI read sector %d: %w", sectorIdx, err)
+		}
+
+		// Only inspect sectors that begin with a PS PACK header.
+		if sector[0] != 0x00 || sector[1] != 0x00 || sector[2] != 0x01 || sector[3] != 0xBA {
+			sectorIdx++
+			continue
+		}
+
+		// Locate the PCI PES packet: 00 00 01 BF 03 D4
+		// The PCI payload is 980 bytes (0x03D4) and immediately follows the 6-byte PES header.
+		pciStart := -1
+		for i := 4; i < 2048-5; i++ {
+			if sector[i] == 0x00 && sector[i+1] == 0x00 && sector[i+2] == 0x01 &&
+				sector[i+3] == 0xBF && sector[i+4] == 0x03 && sector[i+5] == 0xD4 {
+				pciStart = i + 6
+				break
+			}
+		}
+
+		if pciStart < 0 || pciStart+980 > 2048 {
+			sectorIdx++
+			continue
+		}
+
+		pci := sector[pciStart : pciStart+980]
+
+		// ── Patch HL_GI button data ───────────────────────────────────────────
+		n := len(buttons)
+		if n > pciMaxButtons {
+			n = pciMaxButtons
+		}
+		pci[pciOffBtnSLNS] = 1       // initially-selected button (1-based)
+		pci[pciOffBtnNS] = uint8(n)  // total button count
+
+		for i, btn := range buttons[:n] {
+			off := pciOffBtnTable + i*pciBtnEntrySize
+			btnNr := uint8(i + 1) // 1-based
+
+			x0 := uint16(btn.X0) & 0x3FF
+			x1 := uint16(btn.X1) & 0x3FF
+			y0 := uint16(btn.Y0) & 0x3FF
+			y1 := uint16(btn.Y1) & 0x3FF
+
+			autoAct := uint8(0)
+			if btn.AutoAction {
+				autoAct = 1
+			}
+
+			// Bit-pack coordinates per libdvdread btn_posi_t layout.
+			pci[off+0] = (autoAct << 7) | (btnNr << 2) | uint8(x0>>8)
+			pci[off+1] = uint8(x0)
+			pci[off+2] = uint8(x1 >> 2)
+			pci[off+3] = (uint8(x1&0x3) << 6) | uint8(y0>>4)
+			pci[off+4] = (uint8(y0&0xF) << 4) | uint8(y1>>6)
+			pci[off+5] = uint8(y1&0x3F) << 2
+
+			// Navigation neighbours (6 bits each, packed into 3 bytes).
+			up, dn, lf, rt := btn.Up, btn.Down, btn.Left, btn.Right
+			if up == 0 {
+				up = btnNr
+			}
+			if dn == 0 {
+				dn = btnNr
+			}
+			if lf == 0 {
+				lf = btnNr
+			}
+			if rt == 0 {
+				rt = btnNr
+			}
+			pci[off+6] = (up << 2) | (dn >> 4)
+			pci[off+7] = (dn << 4) | (lf >> 2)
+			pci[off+8] = (lf << 6) | rt
+
+			// Cell command index to execute on button activation (1-based).
+			pci[off+9] = btn.CmdNr
+			// bytes 10–17 remain zero
+		}
+
+		// Seek back to this sector's start and write the patched data.
+		if _, err := f.Seek(sectorIdx*2048, io.SeekStart); err != nil {
+			return fmt.Errorf("PatchVOBPCI seek: %w", err)
+		}
+		if _, err := f.Write(sector); err != nil {
+			return fmt.Errorf("PatchVOBPCI write: %w", err)
+		}
+		patched++
+		sectorIdx++
+	}
+
+	logging.Info(logging.CatDVD, "PatchVOBPCI: patched %d NAV_PCK sectors in %s with %d buttons", patched, path, len(buttons))
 	return nil
 }
