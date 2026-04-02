@@ -13,6 +13,7 @@
 - **Tab visibility** — Preview tab only appears when Enable Menus is checked.
 - **IFO audio track table** — VTS_MAT audio attributes now correctly reflect actual track codec, channel count, and language. Added `AudioCodingModeFromCodec`, `LanguageCodeBytes`, and `NumChannelsField` helpers to `internal/dvd/ifo` with unit tests.
 - **Drag crash fix (revised)** — Dragging a video file into the Author module no longer hard-crashes back to the login screen. Root cause was `handleDrop` triggering a full 7-tab `showAuthorView()` rebuild on the main thread during DnD completion, which rendered a 720×480 GPU texture concurrent with the XWayland/GLFW DnD handshake. Fixed by adding an `authorClipsRefresh` callback (same pattern as `authorChaptersRefresh`) so drops only update the clip list widget — no view rebuild, no GPU upload during DnD. `addAuthorFiles` also runs off the main thread.
+- **VTS_MAT byte layout** — Corrected all field byte offsets in `mat_serialize.go`/`vtsi.go` to match the packed `vtsi_mat_t` struct in libdvdread `ifo_types.h`. Previous code wrote table offsets at 0x1A2–0x1BE (inside `zero_17`) and audio attributes at 0x08D (inside `zero_12`). Now: table offsets at 0x0C8–0x0E4, video attrs at 0x200, audio count/attrs at 0x203/0x204, subpicture count/attrs at 0x255/0x256; `vtsi_last_byte` at 0x080; `vtstt_vobs` (title VOB start sector) at 0x0C4. Fixes dvdnav `zero_12`/`zero_17` violations and `ifoRead_VTS_PTT_SRPT failed`.
 
 ### CI Fixes
 - **Submodule sync** — Pushed missing commits to lt_mirror/fyne.git to fix CI failures.

@@ -16,6 +16,7 @@
 - [x] **Tab visibility** - Preview tab shown only when Enable Menus is checked
 - [x] **IFO audio track table** - VTS_MAT audio attributes now populated from actual track data (codec, channels, language) instead of hardcoded AC-3/stereo defaults
 - [x] **Author drag crash fix** - `addAuthorFiles` moved off the UI thread; added `authorClipsRefresh` callback so drops no longer trigger a full 7-tab view rebuild (including GPU texture uploads) on the main thread during DnD completion
+- [x] **VTS_MAT byte layout** - Fixed all field offsets in `mat_serialize.go` and `vtsi.go` to match libdvdread `vtsi_mat_t`; table offsets now at 0x0C8–0x0E4, title audio/video/subpicture attrs at correct positions, `vtsi_last_byte` and `vtstt_vobs` written; eliminates `zero_12`/`zero_17` violations and `ifoRead_VTS_PTT_SRPT failed` in dvdnav
 
 ### CI Fixes (dev39)
 - [x] **Submodule sync** - Pushed missing commits to lt_mirror/fyne.git

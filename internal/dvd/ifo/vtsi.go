@@ -13,17 +13,20 @@ import (
 // VTS_MAT represents the Video Title Set Information Management Table.
 type VTS_MAT struct {
 	VTS_Identifier          [12]byte // "DVDVIDEO-VTS"
-	VTS_Last_Sector         uint32
-	VTS_BUP_Last_Sector     uint32
-	VTS_MAT_Last_Sector     uint32
+	VTS_Last_Sector         uint32   // last sector of entire VTS (IFO+VOBs)
+	VTS_BUP_Last_Sector     uint32   // vtsi_last_sector: last sector of VTSI IFO on disc
+	VTSI_Last_Byte          uint32   // last byte index of the VTSI IFO file (file_size - 1)
 	VTS_Category            uint32
 	VTS_Attributes          VideoAttributes
 	VTS_Audio_Streams_Count uint16
 	VTS_Audio_Attributes    [8]AudioAttributes
 	VTS_Subpicture_Count    uint16
 	VTS_Subpicture_Attrs    [32]SubpictureAttributes
-	
-	// Table Offsets (relative to sector 0)
+
+	// Disc sector addresses
+	VTSTT_VOBS_Sector uint32 // start sector of title VOBs on disc (at 0x0C4)
+
+	// Table Offsets (sector-relative to start of VTS IFO file)
 	VTS_PTT_SRPT_Offset     uint32 // Part of Title Search Pointer Table
 	VTS_PGCITI_Offset       uint32 // PGC Information Table
 	VTS_M_PGCI_UT_Offset    uint32 // Menu PGC Unit Table
@@ -311,30 +314,21 @@ func ReadVTSI(r io.Reader) (*VTS_MAT, error) {
 	}
 	mat := &VTS_MAT{}
 	copy(mat.VTS_Identifier[:], buf[0:12])
-	mat.VTS_Last_Sector         = binary.BigEndian.Uint32(buf[12:16])
-	mat.VTS_BUP_Last_Sector     = binary.BigEndian.Uint32(buf[28:32])
-	mat.VTS_MAT_Last_Sector     = binary.BigEndian.Uint32(buf[40:44])
-	mat.VTS_Category            = binary.BigEndian.Uint32(buf[45:49])
-	mat.VTS_Audio_Streams_Count = binary.BigEndian.Uint16(buf[139:141])
-	for i := 0; i < 8; i++ {
-		off := 141 + i*8
-		aa := &mat.VTS_Audio_Attributes[i]
-		aa.AudioCodingMode = (buf[off+0] >> 5) & 0x07
-		aa.Multichannel    = (buf[off+0] >> 4) & 0x01
-		aa.SampleRate      = (buf[off+1] >> 4) & 0x03
-		aa.NumChannels     = buf[off+1] & 0x07
-		copy(aa.LanguageCode[:], buf[off+2:off+4])
-		aa.SpecificCode    = buf[off+4]
-	}
-	mat.VTS_Subpicture_Count = binary.BigEndian.Uint16(buf[222:224])
-	for i := 0; i < 32; i++ {
-		off := 224 + i*6
-		sp := &mat.VTS_Subpicture_Attrs[i]
-		sp.CodingMode = buf[off+0]
-		copy(sp.LanguageCode[:], buf[off+2:off+4])
-		sp.SpecificCode = buf[off+4]
-	}
-	// 0x200 (512): VTS title video attributes
+	mat.VTS_Last_Sector     = binary.BigEndian.Uint32(buf[12:16])
+	mat.VTS_BUP_Last_Sector = binary.BigEndian.Uint32(buf[28:32])
+	mat.VTS_Category        = binary.BigEndian.Uint32(buf[34:38])
+	mat.VTSI_Last_Byte      = binary.BigEndian.Uint32(buf[128:132])
+	mat.VTSTT_VOBS_Sector   = binary.BigEndian.Uint32(buf[196:200])
+	mat.VTS_PTT_SRPT_Offset     = binary.BigEndian.Uint32(buf[200:204])
+	mat.VTS_PGCITI_Offset       = binary.BigEndian.Uint32(buf[204:208])
+	mat.VTS_M_PGCI_UT_Offset    = binary.BigEndian.Uint32(buf[208:212])
+	mat.VTS_TMAPTI_Offset       = binary.BigEndian.Uint32(buf[212:216])
+	mat.VTS_M_C_ADT_Offset      = binary.BigEndian.Uint32(buf[216:220])
+	mat.VTS_M_VOBU_ADMAP_Offset = binary.BigEndian.Uint32(buf[220:224])
+	mat.VTS_C_ADT_Offset        = binary.BigEndian.Uint32(buf[224:228])
+	mat.VTS_VOBU_ADMAP_Offset   = binary.BigEndian.Uint32(buf[228:232])
+
+	// 0x200 (512): VTS title domain video attributes
 	mat.VTS_Attributes.CompressionMode  = (buf[512] >> 6) & 0x03
 	mat.VTS_Attributes.TVSystem         = (buf[512] >> 4) & 0x03
 	mat.VTS_Attributes.AspectRatio      = (buf[512] >> 2) & 0x03
@@ -345,13 +339,29 @@ func ReadVTSI(r io.Reader) (*VTS_MAT, error) {
 	mat.VTS_Attributes.Letterboxed      = (buf[513] >> 1) & 0x01
 	mat.VTS_Attributes.FilmMode         = buf[513] & 0x01
 
-	mat.VTS_PTT_SRPT_Offset     = binary.BigEndian.Uint32(buf[418:422])
-	mat.VTS_PGCITI_Offset       = binary.BigEndian.Uint32(buf[422:426])
-	mat.VTS_M_PGCI_UT_Offset    = binary.BigEndian.Uint32(buf[426:430])
-	mat.VTS_TMAPTI_Offset       = binary.BigEndian.Uint32(buf[430:434])
-	mat.VTS_M_C_ADT_Offset      = binary.BigEndian.Uint32(buf[434:438])
-	mat.VTS_M_VOBU_ADMAP_Offset = binary.BigEndian.Uint32(buf[438:442])
-	mat.VTS_C_ADT_Offset        = binary.BigEndian.Uint32(buf[442:446])
-	mat.VTS_VOBU_ADMAP_Offset   = binary.BigEndian.Uint32(buf[446:450])
+	// 0x203 (515): nr_of_vts_audio_streams
+	mat.VTS_Audio_Streams_Count = uint16(buf[515])
+	// 0x204 (516): vts_audio_attr[8]
+	for i := 0; i < 8; i++ {
+		off := 516 + i*8
+		aa := &mat.VTS_Audio_Attributes[i]
+		aa.AudioCodingMode = (buf[off+0] >> 5) & 0x07
+		aa.Multichannel    = (buf[off+0] >> 4) & 0x01
+		aa.SampleRate      = (buf[off+1] >> 4) & 0x03
+		aa.NumChannels     = buf[off+1] & 0x07
+		copy(aa.LanguageCode[:], buf[off+2:off+4])
+		aa.SpecificCode    = buf[off+4]
+	}
+
+	// 0x255 (597): nr_of_vts_subp_streams
+	mat.VTS_Subpicture_Count = uint16(buf[597])
+	// 0x256 (598): vts_subp_attr[32]
+	for i := 0; i < 32; i++ {
+		off := 598 + i*6
+		sp := &mat.VTS_Subpicture_Attrs[i]
+		sp.CodingMode = buf[off+0]
+		copy(sp.LanguageCode[:], buf[off+2:off+4])
+		sp.SpecificCode = buf[off+4]
+	}
 	return mat, nil
 }
