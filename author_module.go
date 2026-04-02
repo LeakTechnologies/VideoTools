@@ -848,8 +848,12 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 
 	titleEntry := widget.NewEntry()
 	titleEntry.SetPlaceHolder("Disc title...")
+	titleEntry.SetText(state.authorTitle)
 	titleEntry.OnChanged = func(value string) {
 		state.authorTitle = value
+		if state.authorDiscTitleEntry != nil {
+			state.authorDiscTitleEntry.SetText(value)
+		}
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
 	}
