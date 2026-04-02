@@ -26,6 +26,14 @@ func JumpTTCommand(titleN int) DVDCommand {
 	return DVDCommand{0x30, 0x00, 0x00, 0x00, 0x00, 0x00, byte(titleN), 0x00}
 }
 
+// JumpVMGM_PGCNCommand returns a VM instruction that jumps to PGC N (1-based) in the
+// VMGM (Video Manager Menu) domain. Used for inter-menu navigation between the main
+// menu, chapter pages, and extras menu.
+// Encoding: JumpSS VMGM menu PGC N — opcode 0x30, sub-opcode 0x06.
+func JumpVMGM_PGCNCommand(pgcN int) DVDCommand {
+	return DVDCommand{0x30, 0x06, 0x00, 0x00, 0x00, 0x00, byte(pgcN), 0x00}
+}
+
 // SetHL_BTNNCommand returns a VM instruction that selects button N (1-based) as
 // the default highlighted button when the menu PGC is entered.
 // Encoding observed in dvdauthor output: 0x36 NN 00 00 00 00 00 00.
@@ -41,8 +49,10 @@ func NOPCommand() DVDCommand {
 // ParseButtonCommand translates a dvdauthor-style command string to a DVDCommand.
 //
 // Supported forms:
-//   - "jump title N;"    → JumpTT(N) — play title N on the disc
+//   - "jump title N;"           → JumpTT(N) — play title N on the disc
 //   - "jump title N chapter M;" → JumpTT(N) (chapter ignored; chapter seek not yet implemented)
+//   - "jump menu N;"            → JumpVMGM_PGCN(N) — jump to VMGM PGC N (inter-menu navigation)
+//   - "jump menu pgc N;"        → JumpVMGM_PGCN(N) — alternate form
 //
 // Unrecognised commands fall back to NOP.
 func ParseButtonCommand(cmd string) DVDCommand {
@@ -58,7 +68,14 @@ func ParseButtonCommand(cmd string) DVDCommand {
 		return JumpTTCommand(titleN)
 	}
 
-	// "jump menu N" — inter-PGC navigation not yet supported; use NOP
+	var pgcN int
+	if n, _ := fmt.Sscanf(cmd, "jump menu pgc %d", &pgcN); n == 1 {
+		return JumpVMGM_PGCNCommand(pgcN)
+	}
+	if n, _ := fmt.Sscanf(cmd, "jump menu %d", &pgcN); n == 1 {
+		return JumpVMGM_PGCNCommand(pgcN)
+	}
+
 	return NOPCommand()
 }
 

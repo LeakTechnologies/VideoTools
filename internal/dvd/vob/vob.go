@@ -76,11 +76,16 @@ func (m *Muxer) SetFrameRate(fps float64) {
 	logging.Debug(logging.CatDVD, "VOB muxer frame rate set to %.3f fps (%d 27MHz ticks/frame)", fps, m.ticksPerVideoFrame)
 }
 
-func (m *Muxer) videoFrameTicks() uint64 {
+func (m *Muxer) VideoFrameTicks() uint64 {
 	if m.ticksPerVideoFrame == 0 {
 		return 900_900 // NTSC default
 	}
 	return m.ticksPerVideoFrame
+}
+
+// CurrentSector returns the current sector position in the VOB.
+func (m *Muxer) CurrentSector() uint32 {
+	return m.currentSector
 }
 
 // WritePackHeader writes a Pack Header to the stream.
@@ -209,7 +214,7 @@ func (m *Muxer) WriteVideo(data []byte, pts uint64) error {
 	}
 
 	// Advance SCR by one video frame's duration (frame-rate accurate).
-	m.scr += m.videoFrameTicks()
+	m.scr += m.VideoFrameTicks()
 	return nil
 }
 
@@ -314,6 +319,6 @@ func (m *Muxer) WriteSPU(data []byte, subStreamID uint8, pts uint64) error {
 
 	// SPU display duration: typically one frame (or configurable)
 	// For now, use same timing as video frame
-	m.scr += m.videoFrameTicks()
+	m.scr += m.VideoFrameTicks()
 	return nil
 }

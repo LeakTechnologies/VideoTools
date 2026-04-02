@@ -67,8 +67,6 @@ func detectCPU() (model, mhz string) {
 		return detectCPULinux()
 	case "windows":
 		return detectCPUWindows()
-	case "darwin":
-		return detectCPUDarwin()
 	default:
 		return "Unknown CPU", "Unknown"
 	}
@@ -177,30 +175,6 @@ func detectCPUWindows() (model, mhz string) {
 	return model, mhz
 }
 
-func detectCPUDarwin() (model, mhz string) {
-	// Use sysctl to get CPU info
-	cmdModel := exec.Command("sysctl", "-n", "machdep.cpu.brand_string")
-	if output, err := cmdModel.Output(); err == nil {
-		model = strings.TrimSpace(string(output))
-	}
-
-	cmdMHz := exec.Command("sysctl", "-n", "hw.cpufrequency")
-	if output, err := cmdMHz.Output(); err == nil {
-		if hz, err := strconv.ParseUint(strings.TrimSpace(string(output)), 10, 64); err == nil {
-			mhz = fmt.Sprintf("%.0f MHz", float64(hz)/1000000)
-		}
-	}
-
-	if model == "" {
-		model = "Unknown CPU"
-	}
-	if mhz == "" {
-		mhz = "Unknown"
-	}
-
-	return model, mhz
-}
-
 // detectGPU returns GPU model and driver version
 func detectGPU() (model, driver string) {
 	switch runtime.GOOS {
@@ -208,8 +182,6 @@ func detectGPU() (model, driver string) {
 		return detectGPULinux()
 	case "windows":
 		return detectGPUWindows()
-	case "darwin":
-		return detectGPUDarwin()
 	default:
 		return "Unknown GPU", "Unknown"
 	}
@@ -308,38 +280,6 @@ func detectGPUWindows() (model, driver string) {
 	return "No GPU detected", "N/A"
 }
 
-func detectGPUDarwin() (model, driver string) {
-	// macOS uses system_profiler for GPU info
-	cmd := exec.Command("system_profiler", "SPDisplaysDataType")
-	output, err := cmd.Output()
-	if err == nil {
-		lines := strings.Split(string(output), "\n")
-		for _, line := range lines {
-			if strings.Contains(line, "Chipset Model:") {
-				parts := strings.SplitN(line, ":", 2)
-				if len(parts) == 2 {
-					model = strings.TrimSpace(parts[1])
-				}
-			}
-			if strings.Contains(line, "Metal:") {
-				parts := strings.SplitN(line, ":", 2)
-				if len(parts) == 2 {
-					driver = "Metal " + strings.TrimSpace(parts[1])
-				}
-			}
-		}
-	}
-
-	if model == "" {
-		model = "Unknown GPU"
-	}
-	if driver == "" {
-		driver = "Unknown"
-	}
-
-	return model, driver
-}
-
 // detectRAM returns total system RAM
 func detectRAM() (readable string, mb uint64) {
 	switch runtime.GOOS {
@@ -347,8 +287,6 @@ func detectRAM() (readable string, mb uint64) {
 		return detectRAMLinux()
 	case "windows":
 		return detectRAMWindows()
-	case "darwin":
-		return detectRAMDarwin()
 	default:
 		return "Unknown", 0
 	}
@@ -412,25 +350,6 @@ func detectRAMWindows() (readable string, mb uint64) {
 			readable = fmt.Sprintf("%.1f GB", gb)
 			return readable, mb
 		}
-	}
-
-	return "Unknown", 0
-}
-
-func detectRAMDarwin() (readable string, mb uint64) {
-	cmd := exec.Command("sysctl", "-n", "hw.memsize")
-	output, err := cmd.Output()
-	if err != nil {
-		logging.Debug(logging.CatSystem, "failed to run sysctl hw.memsize: %v", err)
-		return "Unknown", 0
-	}
-
-	bytesStr := strings.TrimSpace(string(output))
-	if bytes, err := strconv.ParseUint(bytesStr, 10, 64); err == nil {
-		mb = bytes / (1024 * 1024)
-		gb := float64(mb) / 1024.0
-		readable = fmt.Sprintf("%.1f GB", gb)
-		return readable, mb
 	}
 
 	return "Unknown", 0

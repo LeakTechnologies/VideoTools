@@ -14,6 +14,16 @@ type FilterChainParams struct {
 	Interlacing   string
 }
 
+// noiseFilter generates an ffmpeg noise filter string for film/tape grain effects.
+// strength is 0.0–1.0; mapped to noise all_strength with averaged+uniform flags.
+func noiseFilter(strength float64) string {
+	s := strength * 50 // scale to 0–50 range (ffmpeg noise uses 0–50)
+	if s > 50 {
+		s = 50
+	}
+	return fmt.Sprintf("noise=alls=%.0f:allf=u", s)
+}
+
 // BuildStylisticFilterChain creates FFmpeg filter chains for decade-based stylistic effects.
 func BuildStylisticFilterChain(p FilterChainParams) []string {
 	var chain []string
@@ -23,9 +33,9 @@ func BuildStylisticFilterChain(p FilterChainParams) []string {
 		chain = append(chain, "eq=contrast=1.0:saturation=0.9:brightness=0.02")
 		chain = append(chain, "unsharp=6:6:0.2:6:6:0.2")
 		chain = append(chain, "scale=iw*0.8:ih*0.8:flags=lanczos")
-		chain = append(chain, "fftnorm=nor=0.08:Links=0")
+		chain = append(chain, noiseFilter(0.08))
 		if p.TapeNoise > 0 {
-			chain = append(chain, fmt.Sprintf("fftnorm=nor=%.2f:Links=0", p.TapeNoise*0.1))
+			chain = append(chain, noiseFilter(p.TapeNoise*0.1))
 		}
 		if p.TrackingError > 0 {
 			chain = append(chain, fmt.Sprintf("crop='iw-mod(iw*%f/200,1)':'ih-mod(ih*%f/200,1)':%f:%f",
@@ -36,9 +46,9 @@ func BuildStylisticFilterChain(p FilterChainParams) []string {
 		chain = append(chain, "eq=contrast=1.05:saturation=1.0:brightness=0.0")
 		chain = append(chain, "unsharp=5:5:0.4:5:5:0.4")
 		chain = append(chain, "scale=iw*0.9:ih*0.9:flags=lanczos")
-		chain = append(chain, "fftnorm=nor=0.06:Links=0")
+		chain = append(chain, noiseFilter(0.06))
 		if p.TapeNoise > 0 {
-			chain = append(chain, fmt.Sprintf("fftnorm=nor=%.2f:Links=0", p.TapeNoise*0.08))
+			chain = append(chain, noiseFilter(p.TapeNoise*0.08))
 		}
 		if p.Dropout > 0 {
 			scratches := int(p.Dropout * 5)
@@ -51,7 +61,7 @@ func BuildStylisticFilterChain(p FilterChainParams) []string {
 		chain = append(chain, "colorchannelmixer=.299:.587:.114:0:.299:.587:.114:0:.299:.587:.114")
 		chain = append(chain, "eq=contrast=1.1:brightness=-0.02")
 		chain = append(chain, "unsharp=4:4:0.3:4:4:0.3")
-		chain = append(chain, "fftnorm=nor=0.05:Links=0")
+		chain = append(chain, noiseFilter(0.05))
 		if p.ColorBleeding {
 			chain = append(chain, "unsharp=7:7:0.8:7:7:0.8")
 		}
@@ -61,7 +71,7 @@ func BuildStylisticFilterChain(p FilterChainParams) []string {
 		chain = append(chain, "colorchannelmixer=.393:.769:.189:0:.393:.769:.189:0:.393:.769:.189")
 		chain = append(chain, "eq=contrast=1.15:brightness=0.05")
 		chain = append(chain, "unsharp=8:8:0.1:8:8:0.1")
-		chain = append(chain, "fftnorm=nor=0.12:Links=0")
+		chain = append(chain, noiseFilter(0.12))
 		if p.TrackingError > 0 {
 			chain = append(chain, fmt.Sprintf("crop='iw-mod(iw*%f/100,2)':'ih-mod(ih*%f/100,2)':%f:%f",
 				p.TrackingError*3, p.TrackingError*1.5, p.TrackingError*5, p.TrackingError*2))
@@ -70,34 +80,34 @@ func BuildStylisticFilterChain(p FilterChainParams) []string {
 	case "70s":
 		chain = append(chain, "eq=contrast=0.95:saturation=0.85:brightness=0.05")
 		chain = append(chain, "unsharp=5:5:0.3:5:5:0.3")
-		chain = append(chain, "fftnorm=nor=0.15:Links=0")
+		chain = append(chain, noiseFilter(0.15))
 		if p.ChromaNoise > 0 {
-			chain = append(chain, fmt.Sprintf("fftnorm=nor=%.2f:Links=0", p.ChromaNoise*0.2))
+			chain = append(chain, noiseFilter(p.ChromaNoise*0.2))
 		}
 
 	case "80s":
 		chain = append(chain, "eq=contrast=1.1:saturation=1.2:brightness=0.02")
 		chain = append(chain, "unsharp=3:3:0.4:3:3:0.4")
-		chain = append(chain, "fftnorm=nor=0.2:Links=0")
+		chain = append(chain, noiseFilter(0.2))
 		if p.ColorBleeding {
 			chain = append(chain, "format=yuv420p,scale=iw+2:ih+2:flags=neighbor,crop=iw:ih")
 		}
 		if p.ChromaNoise > 0 {
-			chain = append(chain, fmt.Sprintf("fftnorm=nor=%.2f:Links=0", p.ChromaNoise*0.3))
+			chain = append(chain, noiseFilter(p.ChromaNoise*0.3))
 		}
 
 	case "90s":
 		chain = append(chain, "eq=contrast=1.05:saturation=1.1:brightness=0.0")
 		chain = append(chain, "unsharp=3:3:0.5:3:3:0.5")
-		chain = append(chain, "fftnorm=nor=0.1:Links=0")
+		chain = append(chain, noiseFilter(0.1))
 		if p.TapeNoise > 0 {
-			chain = append(chain, fmt.Sprintf("fftnorm=nor=%.2f:Links=0", p.TapeNoise*0.15))
+			chain = append(chain, noiseFilter(p.TapeNoise*0.15))
 		}
 
 	case "VHS":
 		chain = append(chain, "eq=contrast=1.08:saturation=1.15:brightness=0.03")
 		chain = append(chain, "unsharp=4:4:0.4:4:4:0.4")
-		chain = append(chain, "fftnorm=nor=0.18:Links=0")
+		chain = append(chain, noiseFilter(0.18))
 		if p.ColorBleeding {
 			chain = append(chain, "format=yuv420p,scale=iw+4:ih+4:flags=neighbor,crop=iw:ih")
 		}
@@ -118,9 +128,9 @@ func BuildStylisticFilterChain(p FilterChainParams) []string {
 		chain = append(chain, "eq=contrast=1.15:saturation=0.9:brightness=-0.05")
 		chain = append(chain, "scale=640:480:flags=neighbor")
 		chain = append(chain, "unsharp=2:2:0.8:2:2:0.8")
-		chain = append(chain, "fftnorm=nor=0.25:Links=0")
+		chain = append(chain, noiseFilter(0.25))
 		if p.ChromaNoise > 0 {
-			chain = append(chain, fmt.Sprintf("fftnorm=nor=%.2f:Links=0", p.ChromaNoise*0.4))
+			chain = append(chain, noiseFilter(p.ChromaNoise*0.4))
 		}
 	}
 

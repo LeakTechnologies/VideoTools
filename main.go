@@ -161,8 +161,6 @@ func moduleColor(id string) color.Color {
 
 func openURL(url string) error {
 	switch runtime.GOOS {
-	case "darwin":
-		return exec.Command("open", url).Start()
 	case "windows":
 		return utils.HideWindowExec("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	default:
@@ -792,8 +790,6 @@ func openFolder(path string) error {
 	switch runtime.GOOS {
 	case "windows":
 		cmd = exec.Command("explorer", p)
-	case "darwin":
-		cmd = exec.Command("open", p)
 	default:
 		cmd = exec.Command("xdg-open", p)
 	}
@@ -813,8 +809,6 @@ func openFile(path string) error {
 			p = abs
 		}
 		cmd = utils.CreateCommandRaw("cmd", "/c", "start", "", p)
-	case "darwin":
-		cmd = utils.CreateCommandRaw("open", path)
 	default:
 		cmd = utils.CreateCommandRaw("xdg-open", path)
 	}
@@ -850,41 +844,51 @@ var formatOptions = []formatOption{
 	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video"},
 }
 
+// formatVideoCodecs maps format extension to compatible video codec friendly names.
 var formatVideoCodecs = map[string][]string{
 	".mp4":  {"H.264", "H.265", "AV1", "MPEG-2", "Copy"},
-	".mkv":  {"H.264", "H.265", "AV1", "MPEG-2", "Copy"},
+	".mkv":  {"H.264", "H.265", "AV1", "VP9", "MPEG-2", "Copy"},
 	".mov":  {"H.264", "H.265", "AV1", "MPEG-2", "Copy"},
 	".webm": {"VP9", "AV1"},
 	".mpg":  {"MPEG-2", "Copy"},
 }
 
+// formatAudioCodecs maps format extension to compatible audio codec friendly names.
 var formatAudioCodecs = map[string][]string{
-	".mp4":  {"AAC", "AC-3", "MP3", "FLAC", "Copy"},
-	".mkv":  {"AAC", "AC-3", "MP3", "FLAC", "Opus", "Vorbis", "Copy"},
-	".mov":  {"AAC", "AC-3", "MP3", "FLAC", "Copy"},
+	".mp4":  {"AAC", "MP3", "AC-3", "FLAC", "Copy"},
+	".mkv":  {"AAC", "MP3", "AC-3", "FLAC", "Opus", "Copy"},
+	".mov":  {"AAC", "MP3", "AC-3", "FLAC", "Copy"},
 	".webm": {"Opus", "Vorbis"},
-	".mpg":  {"AC-3", "MP2", "Copy"},
+	".mpg":  {"MP2", "AC-3", "Copy"},
 }
 
+// ensureCompatibleCodec adjusts cfg's VideoCodec and AudioCodec to be compatible
+// with the selected format. If the current codec is incompatible, it is replaced
+// with the first compatible option.
 func ensureCompatibleCodec(cfg *convertConfig) {
 	ext := strings.ToLower(cfg.SelectedFormat.Ext)
-	if ext == "" {
-		return
-	}
-
-	if compatibleVideo, ok := formatVideoCodecs[ext]; ok {
-		if !slices.Contains(compatibleVideo, cfg.VideoCodec) && len(compatibleVideo) > 0 {
+	if compatibleVideo, ok := formatVideoCodecs[ext]; ok && len(compatibleVideo) > 0 {
+		found := false
+		for _, c := range compatibleVideo {
+			if c == cfg.VideoCodec {
+				found = true
+				break
+			}
+		}
+		if !found {
 			cfg.VideoCodec = compatibleVideo[0]
-			logging.Warning(logging.CatFFMPEG, "incompatible video codec %q for format %s, using %q",
-				cfg.VideoCodec, ext, compatibleVideo[0])
 		}
 	}
-
-	if compatibleAudio, ok := formatAudioCodecs[ext]; ok {
-		if !slices.Contains(compatibleAudio, cfg.AudioCodec) && len(compatibleAudio) > 0 {
+	if compatibleAudio, ok := formatAudioCodecs[ext]; ok && len(compatibleAudio) > 0 {
+		found := false
+		for _, c := range compatibleAudio {
+			if c == cfg.AudioCodec {
+				found = true
+				break
+			}
+		}
+		if !found {
 			cfg.AudioCodec = compatibleAudio[0]
-			logging.Warning(logging.CatFFMPEG, "incompatible audio codec %q for format %s, using %q",
-				cfg.AudioCodec, ext, compatibleAudio[0])
 		}
 	}
 }
@@ -1131,6 +1135,14 @@ type appState struct {
 	convertFPS                float64
 	convertSpeed              float64
 	convertETA                time.Duration
+	filterBusy                bool
+	filterCancel              context.CancelFunc
+	filterActiveIn            string
+	filterActiveOut           string
+	filterProgress            float64
+	filterFPS                 float64
+	filterSpeed               float64
+	filterETA                 time.Duration
 	playSess                  *playSession
 	jobQueue                  *queue.Queue
 	statsBar                  *ui.ConversionStatsBar
@@ -1298,6 +1310,7 @@ type appState struct {
 	authorMenuChapterThumbnailSrc string             // Auto, First Frame, Midpoint, Custom
 	authorTitle                   string             // Disc title
 	authorDiscTitleEntry          *widget.Entry      // Settings tab title entry (for cross-tab sync)
+	authorVideosTitleEntry        *widget.Entry      // Videos tab title entry (for cross-tab sync)
 	authorSubtitles               []string           // Subtitle file paths
 	authorAudioTracks             []string           // Additional audio tracks
 	authorSummaryLabel            *widget.Label
@@ -1306,6 +1319,7 @@ type appState struct {
 	authorTreatAsChapters         bool   // Treat multiple clips as chapters
 	authorChapterSource           string // embedded, scenes, clips, manual
 	authorChaptersRefresh         func() // Refresh hook for chapter list UI
+	authorClipsRefresh            func() // Refresh hook for video clips list UI
 	authorDiscSize                string // "DVD5" or "DVD9"
 	authorLogText                 string
 	authorLogLines                []string // Circular buffer for last N lines
@@ -1719,7 +1733,7 @@ func (s *appState) updateStatsBar() {
 
 	// Find the currently running job to get its progress and stats
 	var progress, fps, speed float64
-	var eta, jobTitle string
+	var eta, elapsed, remaining, jobTitle string
 	if running > 0 {
 		jobs := s.jobQueue.List()
 		for _, job := range jobs {
@@ -1737,6 +1751,16 @@ func (s *appState) updateStatsBar() {
 					}
 					if etaDuration, ok := job.Config["eta"].(time.Duration); ok && etaDuration > 0 {
 						eta = etaDuration.Round(time.Second).String()
+					}
+				}
+
+				// Calculate elapsed and remaining time
+				if job.StartedAt != nil {
+					elapsed = fmt.Sprintf("Elapsed: %s", time.Since(*job.StartedAt).Round(time.Second))
+					if progress > 0 && progress < 100 {
+						elapsedSec := time.Since(*job.StartedAt).Seconds()
+						remainingSec := elapsedSec*(100/progress) - elapsedSec
+						remaining = fmt.Sprintf("Remaining: %s", time.Duration(remainingSec*float64(time.Second)).Round(time.Second))
 					}
 				}
 				break
@@ -1758,7 +1782,7 @@ func (s *appState) updateStatsBar() {
 		}
 	}
 
-	s.statsBar.UpdateStatsWithDetails(running, pending, completed, failed, cancelled, progress, fps, speed, eta, jobTitle)
+	s.statsBar.UpdateStatsWithDetails(running, pending, completed, failed, cancelled, progress, fps, speed, eta, elapsed, remaining, jobTitle)
 }
 
 func (s *appState) queueProgressCounts() (completed, total int) {
@@ -4161,7 +4185,7 @@ func (s *appState) showMergeView() {
 
 	// Use border layout so the list expands to fill available vertical space
 	leftTop := container.NewVBox(
-		widget.NewLabelWithStyle("Clips to Merge", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionClipsToMerge, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		container.NewHBox(addBtn, clearBtn),
 	)
 
@@ -4184,7 +4208,7 @@ func (s *appState) showMergeView() {
 	)
 
 	rightPanel := container.NewVBox(
-		widget.NewLabelWithStyle("Output Options", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionOutputOptions, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel(t.ConvertFormat),
 		formatSelect,
 		dvdOptionsContainer,
@@ -4304,7 +4328,7 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 	case queue.JobTypeTrim:
 		return s.executeTrimJob(ctx, job, progressCallback)
 	case queue.JobTypeFilter:
-		return fmt.Errorf("filter jobs not yet implemented")
+		return s.executeFilterJob(ctx, job, progressCallback)
 	case queue.JobTypeUpscale:
 		return s.executeUpscaleJob(ctx, job, progressCallback)
 	case queue.JobTypeAudio:
@@ -8661,7 +8685,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		logging.Debug(logging.CatUI, "DVD aspect set to %s", value)
 		state.convert.OutputAspect = value
 	})
-	dvdAspectLabel := widget.NewLabelWithStyle("DVD Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	dvdAspectLabel := widget.NewLabelWithStyle(t.ConvertSectionDVDApect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
 	// DVD info label showing specs based on format selected
 	dvdInfoLabel := widget.NewLabel("")
@@ -9193,7 +9217,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	customAspectHint := widget.NewLabel(t.ConvertCustomAspectHint)
 	customAspectHint.Wrapping = fyne.TextWrapWord
 	customAspectBox := container.NewVBox(
-		widget.NewLabelWithStyle("Custom Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionCustomAspect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		customAspectEntry,
 		customAspectHint,
 	)
@@ -9217,7 +9241,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	backgroundHint := widget.NewLabel(t.ConvertBackgroundHint)
 	aspectBox := container.NewVBox(
-		widget.NewLabelWithStyle("Aspect Handling", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionAspectHandling, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		aspectOptions,
 		backgroundHint,
 	)
@@ -9387,7 +9411,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Wrap in padded container for proper text wrapping in narrow windows
 	settingsInfoContainer := container.NewPadded(settingsInfoLabel)
 
-	cacheDirLabel := widget.NewLabelWithStyle("Cache/Temp Directory", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	cacheDirLabel := widget.NewLabelWithStyle(t.ConvertSectionCacheDir, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	cacheDirEntry := widget.NewEntry()
 	cacheDirEntry.SetPlaceHolder("System temp (recommended SSD)")
 	cacheDirEntry.SetText(state.convert.TempDir)
@@ -9417,7 +9441,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	cacheUseSystemBtn.Importance = widget.LowImportance
 
-	logsDirLabel := widget.NewLabelWithStyle("Logs Directory", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	logsDirLabel := widget.NewLabelWithStyle(t.ConvertSectionLogsDir, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	logsDirEntry := widget.NewEntry()
 	logsDirEntry.SetPlaceHolder(defaultLogsDir())
 	logsDirEntry.SetText(state.convert.LogDir)
@@ -9581,7 +9605,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	manualCrfRow = container.NewVBox(
 		func() *widget.Label {
-			manualCrfLabel = widget.NewLabelWithStyle("Manual CRF (overrides Quality preset)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+			manualCrfLabel = widget.NewLabelWithStyle(t.ConvertSectionManualCRF, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 			return manualCrfLabel
 		}(),
 		crfEntryWrapper,
@@ -9830,13 +9854,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
 
 	// Manual bitrate row (hidden by default)
-	manualBitrateLabel := widget.NewLabelWithStyle("Manual Bitrate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	manualBitrateLabel := widget.NewLabelWithStyle(t.ConvertSectionManualBitrate, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	manualBitrateRow = container.NewVBox(manualBitrateLabel, manualBitrateInput)
 	manualBitrateRow.Hide()
 
 	// Create bitrate container now that bitratePresetSelect is initialized
 	bitrateContainer = container.NewVBox(
-		widget.NewLabelWithStyle("Bitrate Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionBitratePreset, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		bitratePresetSelect,
 		manualBitrateRow,
 	)
@@ -9881,7 +9905,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	customAspectHintSimple := widget.NewLabel("Custom aspect ratio in use.")
 	customAspectHintSimple.Wrapping = fyne.TextWrapWord
 	customAspectBoxSimple := container.NewVBox(
-		widget.NewLabelWithStyle("Custom Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionCustomAspect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		customAspectEntrySimple,
 		customAspectHintSimple,
 	)
@@ -10076,7 +10100,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Create target size container
 	targetSizeContainer = container.NewVBox(
-		widget.NewLabelWithStyle("Target File Size", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionTargetFileSize, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetFileSizeSelect,
 		targetSizeManualRow,
 	)
@@ -10677,7 +10701,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		qualitySelectSimple,
 	)
 	qualitySectionAdv = container.NewVBox(
-		widget.NewLabelWithStyle("Quality Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionQualityPreset, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		qualitySelectAdv,
 	)
 
@@ -10914,42 +10938,42 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	simpleEncodingSection = buildConvertBox("Video Encoding", container.NewVBox(
 		qualitySectionSimple,
-		widget.NewLabelWithStyle("Encoder Speed/Quality", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionEncoderSpeed, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel(t.ConvertEncoderPresetHint),
-		widget.NewLabelWithStyle("Encoder Preset", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionEncoderPreset, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		simplePresetSelect,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Bitrate (simple presets)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionBitrateSimple, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		simpleBitrateSelect,
 	))
 
 	outputSectionSimple := buildConvertBox("Output", container.NewVBox(
-		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionFormat, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox, // DVD options appear here when DVD format selected
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Output Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionOutputFolder, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputDirRow,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Output Filename", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionOutputFilename, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputNameRow,
 		outputHintContainer,
 		appendSuffixCheck,
 	))
 
 	resolutionSectionSimple := buildConvertBox("Resolution & Frame Rate", container.NewVBox(
-		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionTargetResolution, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelectSimple,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionFrameRate, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		frameRateSelect,
 		motionInterpCheck,
 	))
 
 	aspectSectionSimple := buildConvertBox("Aspect Ratio", container.NewVBox(
-		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionTargetAspect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelectSimple,
 		targetAspectHintContainer,
 		widget.NewSeparator(),
@@ -10970,8 +10994,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	)
 
 	// Advanced mode options - full controls with organized sections
-	videoCodecLabel := widget.NewLabelWithStyle("Video Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	presetLabel := widget.NewLabelWithStyle("Encoder Preset (speed vs quality)", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	videoCodecLabel := widget.NewLabelWithStyle(t.ConvertSectionVideoCodec, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	presetLabel := widget.NewLabelWithStyle(t.ConvertSectionEncoderPreset, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	videoCodecRow := ui.NewRatioRowWithGap(videoCodecLabel, presetLabel, 0.3, 10)
 	videoCodecControls := ui.NewRatioRowWithGap(
 		container.NewPadded(videoCodecContainer),
@@ -10985,7 +11009,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		videoCodecControls,
 		encoderPresetHintContainer,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Bitrate Mode", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionBitrateMode, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		bitrateModeSelect,
 		qualitySectionAdv,
 		crfContainer,
@@ -10993,18 +11017,18 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		targetSizeContainer,
 		encodingHintContainer,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Target Resolution", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionTargetResolution, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelect,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Frame Rate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionFrameRate, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		frameRateSelect,
 		frameRateHintContainer,
 		motionInterpCheck,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Pixel Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionPixelFormat, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		pixelFormatSelect,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Hardware Acceleration", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionHardwareAccel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		hwAccelSelect,
 		hwAccelHintContainer,
 		twoPassCheck,
@@ -11012,34 +11036,34 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	))
 
 	audioEncodingSection = buildConvertBox("Audio Encoding", container.NewVBox(
-		widget.NewLabelWithStyle("Audio Codec", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionAudioCodec, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioCodecContainer,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Audio Bitrate", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionAudioBitrate, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioBitrateSelect,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Audio Channels", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionAudioChannels, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioChannelsSelect,
 	))
 
 	outputSectionAdvanced := buildConvertBox("Output", container.NewVBox(
-		widget.NewLabelWithStyle("Format", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionFormat, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
 		preserveChaptersCheck,
 		dvdAspectBox, // DVD options appear here when DVD format selected
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Output Folder", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionOutputFolder, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputDirRow,
 		widget.NewSeparator(),
-		widget.NewLabelWithStyle("Output Filename", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionOutputFilename, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputNameRow,
 		outputHintContainer,
 		appendSuffixCheck,
 	))
 
 	aspectSectionAdvanced := buildConvertBox("Aspect Ratio", container.NewVBox(
-		widget.NewLabelWithStyle("Target Aspect Ratio", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionTargetAspect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelect,
 		targetAspectHintContainer,
 		widget.NewSeparator(),
@@ -11057,7 +11081,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	transformSection := buildConvertBox("Video Transformations", container.NewVBox(
 		flipHorizontalCheck,
 		flipVerticalCheck,
-		widget.NewLabelWithStyle("Rotation", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		widget.NewLabelWithStyle(t.ConvertSectionRotation, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		rotationSelect,
 		transformHint,
 	))
@@ -11856,7 +11880,7 @@ func buildMetadataPanel(state *appState, src *videoSource, min fyne.Size) (fyne.
 	// Don't set rigid MinSize - let the container be flexible for better splitter movement
 	// outer.SetMinSize(min)
 
-	header := widget.NewLabelWithStyle("Metadata", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	header := widget.NewLabelWithStyle(t.ConvertSectionMetadata, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	var top fyne.CanvasObject = header
 
 	if src == nil {
@@ -13873,12 +13897,15 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		}
 
 		if videoTSPath != "" {
-			s.authorVideoTSPath = videoTSPath
-			s.authorClips = nil
-			s.authorFile = nil
-			s.authorOutputType = "iso"
-			s.loadVideoTSChapters(videoTSPath)
-			s.showAuthorView()
+			go func() {
+				s.authorVideoTSPath = videoTSPath
+				s.authorClips = nil
+				s.authorFile = nil
+				s.authorOutputType = "iso"
+				s.loadVideoTSChapters(videoTSPath)
+				// Reload the view to reflect the new VIDEO_TS source.
+				fyne.CurrentApp().Driver().DoFromGoroutine(s.showAuthorView, false)
+			}()
 			return
 		}
 
@@ -13887,8 +13914,9 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 			return
 		}
 
-		s.addAuthorFiles(videoPaths)
-		s.showAuthorView()
+		// Already in author view — probe files off the main thread and refresh the
+		// clip list via the registered callback. No full view rebuild needed.
+		go s.addAuthorFiles(videoPaths)
 		return
 	}
 

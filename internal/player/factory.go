@@ -119,8 +119,6 @@ func GetPlatformFFplayPaths() []string {
 	switch runtime.GOOS {
 	case "windows":
 		return []string{"ffplay.exe", "ffplay"}
-	case "darwin":
-		return []string{"ffplay"}
 	default:
 		return []string{"ffplay"}
 	}

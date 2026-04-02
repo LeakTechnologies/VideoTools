@@ -544,17 +544,24 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 		}
 
 		if cmds.Install != nil {
-			installBtn := widget.NewButton(t.DependenciesInstall, func() {
-				cb.RunDependencyCommandWithProgress(fmt.Sprintf("Installing %s", dep.Name), dep.InstallCmd, cmds.Install, func(out string, err error) {
-					cb.ShowCommandResult(fmt.Sprintf("%s Install", dep.Name), out, err)
-					cb.ShowSettingsView()
+			// Skip generic install button if we already added a special case button
+			// (realesrgan-ncnn-vulkan and rife-ncnn-vulkan have custom install handlers)
+			hasSpecialInstallButton := (depName == "realesrgan-ncnn-vulkan" || depName == "rife-ncnn-vulkan") &&
+				(runtime.GOOS == "windows" || runtime.GOOS == "linux")
+
+			if !hasSpecialInstallButton {
+				installBtn := widget.NewButton(t.DependenciesInstall, func() {
+					cb.RunDependencyCommandWithProgress(fmt.Sprintf("Installing %s", dep.Name), dep.InstallCmd, cmds.Install, func(out string, err error) {
+						cb.ShowCommandResult(fmt.Sprintf("%s Install", dep.Name), out, err)
+						cb.ShowSettingsView()
+					})
 				})
-			})
-			installBtn.Importance = widget.HighImportance
-			if isInstalled {
-				installBtn.Disable()
+				installBtn.Importance = widget.HighImportance
+				if isInstalled {
+					installBtn.Disable()
+				}
+				actions.Add(installBtn)
 			}
-			actions.Add(installBtn)
 		}
 
 		if cmds.Uninstall != nil {

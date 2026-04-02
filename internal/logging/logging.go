@@ -32,6 +32,7 @@ const (
 	CatPlayer  Category = "[PLAYER]"
 	CatEnhance Category = "[ENHANCE]"
 	CatDVD     Category = "[DVD]"
+	CatDisc    Category = "[DISC]"
 )
 
 // Categories represents a log category

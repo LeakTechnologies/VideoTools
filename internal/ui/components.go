@@ -1065,6 +1065,8 @@ type ConversionStatsBar struct {
 	fps       float64
 	speed     float64
 	eta       string
+	elapsed   string
+	remaining string
 	onTapped  func()
 }
 
@@ -1091,7 +1093,7 @@ func (c *ConversionStatsBar) UpdateStats(running, pending, completed, failed, ca
 }
 
 // UpdateStatsWithDetails updates the stats display with detailed conversion info
-func (c *ConversionStatsBar) UpdateStatsWithDetails(running, pending, completed, failed, cancelled int, progress, fps, speed float64, eta, jobTitle string) {
+func (c *ConversionStatsBar) UpdateStatsWithDetails(running, pending, completed, failed, cancelled int, progress, fps, speed float64, eta, elapsed, remaining, jobTitle string) {
 	c.updateStats(func() {
 		c.running = running
 		c.pending = pending
@@ -1102,6 +1104,8 @@ func (c *ConversionStatsBar) UpdateStatsWithDetails(running, pending, completed,
 		c.fps = fps
 		c.speed = speed
 		c.eta = eta
+		c.elapsed = elapsed
+		c.remaining = remaining
 		c.jobTitle = jobTitle
 	})
 }
@@ -1215,6 +1219,14 @@ func (r *conversionStatsRenderer) Refresh() {
 		// Show ETA if available
 		if r.bar.eta != "" {
 			statusStr += " • ETA " + r.bar.eta
+		}
+
+		// Show elapsed and remaining time
+		if r.bar.elapsed != "" {
+			statusStr += " • " + r.bar.elapsed
+		}
+		if r.bar.remaining != "" {
+			statusStr += " • " + r.bar.remaining
 		}
 
 		if r.bar.pending > 0 {

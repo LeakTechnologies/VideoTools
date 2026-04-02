@@ -56,6 +56,7 @@ var frCA = Strings{
 	DialogSnippets:           "Extraits",
 	DialogPreview:            "Génération de l'aperçu",
 	DialogPlayback:           "Lecture non disponible",
+	DialogPlaybackError:      "La lecture vidéo intégrée nécessite FFmpeg/FFplay.\n\nVeuillez soit :\n1. Installer FFmpeg sur votre système (inclut ffplay)\n2. Utiliser le curseur Aperçu pour une prévisualisation image par image\n3. Utiliser un lecteur externe (mpv, VLC)",
 	DialogJobQueued:          "Tâche en file",
 	DialogMerge:              "Fusionner",
 	DialogCancel:             "Annuler",
@@ -144,6 +145,15 @@ var frCA = Strings{
 	InspectInstructions:       "Chargez une vidéo pour inspecter ses propriétés et prévisualiser la lecture. Glissez une vidéo ici ou utilisez le bouton ci-dessous.",
 	InspectLoadingPreview:     "Chargement de l'aperçu...",
 	InspectNoPreviewAvailable: "Aperçu non disponible",
+
+	// ── Burn Module ────────────────────────────────────────────────────────────
+	BurnSelectISO:     "Fichier ISO :",
+	BurnSelectDrive:   "Lecteur :",
+	BurnSpeed:         "Vitesse :",
+	BurnEject:         "Éjecter à la fin",
+	BurnNoDrivesFound: "Aucun lecteur trouvé",
+	BurnStart:         "Graver sur disque",
+	BurnProgress:      "Gravure en cours...",
 
 	// ── Audio Module ───────────────────────────────────────────────────────────
 	AudioInstructions:    "Déposez un fichier vidéo ici ou cliquez pour parcourir",
@@ -338,6 +348,7 @@ var frCA = Strings{
 
 	// ── Dependencies ─────────────────────────────────────────────────────
 	DependenciesTitle:        "Dépendances système",
+	DependenciesMissing:      "Dépendances manquantes",
 	DependenciesDesc:         "Gérer les dépendances de VideoTools. Certains modules nécessitent des outils spécifiques.",
 	DependenciesInstalled:    "Installé",
 	DependenciesNotInstalled: "Non installé",
@@ -424,6 +435,40 @@ var frCA = Strings{
 	ConvertInterlaceAnalyzing:     "Analyse de l'entrelacement... (premières 500 images)",
 	ConvertInterlaceInfo:          "Gauche : Original | Droite : Désentrelacé",
 	ConvertInspectHint:            "Chargez un clip pour inspecter ses détails techniques.",
+
+	// ── Convert Section Headers ─────────────────────────────────────────────
+	ConvertSectionOutputOptions:  "Options de sortie",
+	ConvertSectionTargetFileSize: "Taille cible du fichier",
+	ConvertSectionQualityPreset:  "Préréglage de qualité",
+	ConvertSectionManualCRF:      "CRF manuel (remplace le préréglage de qualité)",
+	ConvertSectionBitratePreset:  "Préréglage de débit",
+	ConvertSectionManualBitrate:  "Débit manuel",
+	ConvertSectionEncoderSpeed:   "Rapport vitesse/qualité",
+	ConvertSectionEncoderPreset:  "Préréglage d'encodeur",
+	ConvertSectionCustomAspect:   "Format d'image personnalisé",
+	ConvertSectionAspectHandling: "Gestion du format",
+	ConvertSectionDVDApect:       "Format DVD",
+	ConvertSectionCacheDir:       "Répertoire cache/temp",
+	ConvertSectionLogsDir:        "Répertoire des journaux",
+	ConvertSectionClipsToMerge:   "Clips à fusionner",
+
+	// ── Convert Simple Tab Section Headers ──────────────────────────────────
+	ConvertSectionFormat:           "Format",
+	ConvertSectionOutputFolder:     "Dossier de sortie",
+	ConvertSectionOutputFilename:   "Nom de fichier de sortie",
+	ConvertSectionTargetResolution: "Résolution cible",
+	ConvertSectionFrameRate:        "Fréquence d'images",
+	ConvertSectionTargetAspect:     "Format d'image cible",
+	ConvertSectionVideoCodec:       "Codec vidéo",
+	ConvertSectionAudioCodec:       "Codec audio",
+	ConvertSectionAudioBitrate:     "Débit audio",
+	ConvertSectionAudioChannels:    "Canaux audio",
+	ConvertSectionPixelFormat:      "Format de pixel",
+	ConvertSectionHardwareAccel:    "Accélération matérielle",
+	ConvertSectionBitrateMode:      "Mode de débit",
+	ConvertSectionRotation:         "Rotation",
+	ConvertSectionBitrateSimple:    "Débit (préréglages simples)",
+	ConvertSectionMetadata:         "Métadonnées",
 
 	// ── Merge ──────────────────────────────────────────────────────────────────
 	MergeAddClipsHint: "Ajoutez au moins deux clips à fusionner.",

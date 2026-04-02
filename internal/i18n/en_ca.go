@@ -55,6 +55,7 @@ var enCA = Strings{
 	DialogSnippets:           "Snippets",
 	DialogPreview:            "Generating Preview",
 	DialogPlayback:           "Playback Unavailable",
+	DialogPlaybackError:      "Embedded video playback requires FFmpeg/FFplay to be available.\n\nPlease either:\n1. Install FFmpeg on your system (includes ffplay)\n2. Use the Preview slider for frame-by-frame preview\n3. Use an external player (mpv, VLC)",
 	DialogJobQueued:          "Job Queued",
 	DialogMerge:              "Merge",
 	DialogCancel:             "Cancel",
@@ -143,6 +144,15 @@ var enCA = Strings{
 	InspectInstructions:       "Load a video to inspect its properties and preview playback. Drag a video here or use the button below.",
 	InspectLoadingPreview:     "Loading preview...",
 	InspectNoPreviewAvailable: "No preview available",
+
+	// ── Burn Module ────────────────────────────────────────────────────────────
+	BurnSelectISO:     "ISO File:",
+	BurnSelectDrive:   "Drive:",
+	BurnSpeed:         "Speed:",
+	BurnEject:         "Eject when complete",
+	BurnNoDrivesFound: "No drives found",
+	BurnStart:         "Burn to Disc",
+	BurnProgress:      "Burning...",
 
 	// ── Audio Module ───────────────────────────────────────────────────────────
 	AudioInstructions:    "Drop video file here or click to browse",
@@ -337,6 +347,7 @@ var enCA = Strings{
 
 	// ── Dependencies ─────────────────────────────────────────────────────
 	DependenciesTitle:        "System Dependencies",
+	DependenciesMissing:      "Missing Dependencies",
 	DependenciesDesc:         "Manage VideoTools dependencies. Some modules require specific tools to be installed.",
 	DependenciesInstalled:    "Installed",
 	DependenciesNotInstalled: "Not Installed",
@@ -423,6 +434,40 @@ var enCA = Strings{
 	ConvertInterlaceAnalyzing:     "Analyzing interlacing... (first 500 frames)",
 	ConvertInterlaceInfo:          "Left: Original | Right: Deinterlaced",
 	ConvertInspectHint:            "Load a clip to inspect its technical details.",
+
+	// ── Convert Section Headers ─────────────────────────────────────────────
+	ConvertSectionOutputOptions:  "Output Options",
+	ConvertSectionTargetFileSize: "Target File Size",
+	ConvertSectionQualityPreset:  "Quality Preset",
+	ConvertSectionManualCRF:      "Manual CRF (overrides Quality preset)",
+	ConvertSectionBitratePreset:  "Bitrate Preset",
+	ConvertSectionManualBitrate:  "Manual Bitrate",
+	ConvertSectionEncoderSpeed:   "Encoder Speed/Quality",
+	ConvertSectionEncoderPreset:  "Encoder Preset",
+	ConvertSectionCustomAspect:   "Custom Aspect Ratio",
+	ConvertSectionAspectHandling: "Aspect Handling",
+	ConvertSectionDVDApect:       "DVD Aspect Ratio",
+	ConvertSectionCacheDir:       "Cache/Temp Directory",
+	ConvertSectionLogsDir:        "Logs Directory",
+	ConvertSectionClipsToMerge:   "Clips to Merge",
+
+	// ── Convert Simple Tab Section Headers ──────────────────────────────────
+	ConvertSectionFormat:           "Format",
+	ConvertSectionOutputFolder:     "Output Folder",
+	ConvertSectionOutputFilename:   "Output Filename",
+	ConvertSectionTargetResolution: "Target Resolution",
+	ConvertSectionFrameRate:        "Frame Rate",
+	ConvertSectionTargetAspect:     "Target Aspect Ratio",
+	ConvertSectionVideoCodec:       "Video Codec",
+	ConvertSectionAudioCodec:       "Audio Codec",
+	ConvertSectionAudioBitrate:     "Audio Bitrate",
+	ConvertSectionAudioChannels:    "Audio Channels",
+	ConvertSectionPixelFormat:      "Pixel Format",
+	ConvertSectionHardwareAccel:    "Hardware Acceleration",
+	ConvertSectionBitrateMode:      "Bitrate Mode",
+	ConvertSectionRotation:         "Rotation",
+	ConvertSectionBitrateSimple:    "Bitrate (simple presets)",
+	ConvertSectionMetadata:         "Metadata",
 
 	// ── Merge ──────────────────────────────────────────────────────────────────
 	MergeAddClipsHint: "Add at least two clips to merge.",

@@ -98,7 +98,7 @@ func (b *Builder) GenerateVTS_IFO(vtsNumber int, mat *VTS_MAT, pgc *ProgramChain
 	}
 
 	mat.VTS_Last_Sector = nextSector - 1
-	mat.VTS_MAT_Last_Sector = 0
+	mat.VTSI_Last_Byte = nextSector*2048 - 1
 
 	var buf bytes.Buffer
 

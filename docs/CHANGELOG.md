@@ -11,9 +11,24 @@
 - **Interactive Preview tab** — New Preview tab shows full interactive DVD menu preview with working video playback.
 - **Module extraction** — Extracted author module to `internal/app/modules/author/`.
 - **Tab visibility** — Preview tab only appears when Enable Menus is checked.
+- **IFO audio track table** — VTS_MAT audio attributes now correctly reflect actual track codec, channel count, and language. Added `AudioCodingModeFromCodec`, `LanguageCodeBytes`, and `NumChannelsField` helpers to `internal/dvd/ifo` with unit tests.
+- **Drag crash fix (revised)** — Dragging a video file into the Author module no longer hard-crashes back to the login screen. Root cause was `handleDrop` triggering a full 7-tab `showAuthorView()` rebuild on the main thread during DnD completion, which rendered a 720×480 GPU texture concurrent with the XWayland/GLFW DnD handshake. Fixed by adding an `authorClipsRefresh` callback (same pattern as `authorChaptersRefresh`) so drops only update the clip list widget — no view rebuild, no GPU upload during DnD. `addAuthorFiles` also runs off the main thread.
+- **VTS_MAT byte layout** — Corrected all field byte offsets in `mat_serialize.go`/`vtsi.go` to match the packed `vtsi_mat_t` struct in libdvdread `ifo_types.h`. Previous code wrote table offsets at 0x1A2–0x1BE (inside `zero_17`) and audio attributes at 0x08D (inside `zero_12`). Now: table offsets at 0x0C8–0x0E4, video attrs at 0x200, audio count/attrs at 0x203/0x204, subpicture count/attrs at 0x255/0x256; `vtsi_last_byte` at 0x080; `vtstt_vobs` (title VOB start sector) at 0x0C4. Fixes dvdnav `zero_12`/`zero_17` violations and `ifoRead_VTS_PTT_SRPT failed`.
+- **DVD menu VOB (M1/M2)** — `runNativeSpumux` now encodes the background PNG as an MPEG-2 still-video via ffmpeg and muxes it with SPU subpicture data into a proper DVD Program Stream VOB (`VIDEO_TS.VOB`). Falls back to video-only output if ffmpeg SPU mux fails.
+- **PCI button table (M3)** — `PCIButton` struct added to `internal/dvd/vob/nav.go`. `WriteNAV_PCK` serializes up to 36 buttons with libdvdread-compatible bit-packed coordinate encoding (BTN_SL_NS at byte 94, BTN_NS at 95, entries at 98).
+- **VMGM_VOBS_Sector (M4)** — `vmgMat.VMGM_VOBS_Sector` now set from the ISO layout pass so dvdnav can locate `VIDEO_TS.VOB` on disc.
+- **Menu PGC sector patching (M5)** — `CellPlayback[0]` First/LastSector fields in each menu PGC updated with disc-absolute sector ranges derived from per-MPG file sizes and the `VIDEO_TS.VOB` disc start sector. Folder-mode equivalent added: sector offsets computed from individual MPG file sizes (cumulative), and `VMGM_VOBS_Sector` set to `VMG_Last_Sector+1` so libdvdread opens `VIDEO_TS.VOB` for the VMGM domain instead of treating it as absent.
+- **VOB sector counter fix** — `WriteVideo` in `vob.go` no longer double-increments `currentSector`. The unconditional post-padding `currentSector++` has been restored to an `else` branch so `WritePadding` (which already increments) and the direct increment are mutually exclusive. This corrects `nv_pck_lbn` values in all NAV_PCKs for the menu VOB, fixing a VLC/dvdnav crash when navigating a generated DVD folder.
+- **ExtrasMpg wiring (M6)** — `menuSet.ExtrasMpg` concatenated into `VIDEO_TS.VOB`; extras PGC built and included in the VMGM PGC table.
+- **JumpVMGM_PGCN command (M7)** — `JumpVMGM_PGCNCommand(pgcN)` added to `internal/dvd/ifo/commands.go`; `ParseButtonCommand` now translates `"jump menu N;"` / `"jump menu pgc N;"` to the correct inter-menu PGC jump opcode (0x30, 0x06).
+
+### Filter Integration (Complete)
+- **Standalone filter jobs** — Filters module can now queue filter-only jobs without upscaling. "Add to Queue" button added to Filters module UI.
+- **Filter job execution** — `executeFilterJob` supports color correction (brightness/contrast/saturation), enhancement (sharpness/denoise), transform (flip/rotate/grayscale), and stylistic filters (VHS/80s/Webcam effects) via FFmpeg.
 
 ### CI Fixes
 - **Submodule sync** — Pushed missing commits to lt_mirror/fyne.git to fix CI failures.
+- **filters_module.go** — Removed invalid `*videoSource` type assertion at line 110; `state.filtersFile` is `*videoSource` not `interface{}`, causing a Go 1.26 build failure in CI.
 
 ## v0.1.1-dev38 (March 2026)
 
