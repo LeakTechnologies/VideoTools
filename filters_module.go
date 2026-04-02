@@ -1,10 +1,17 @@
 package main
 
 import (
+	"fmt"
+	"path/filepath"
+	"strings"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/filters"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 func (s *appState) showFiltersView() {
@@ -17,36 +24,36 @@ func (s *appState) showFiltersView() {
 
 func buildFiltersView(state *appState) fyne.CanvasObject {
 	opts := filters.Options{
-		Window:               state.window,
-		ModuleColor:          moduleColor("filters"),
-		FilterBrightness:     state.filterBrightness,
-		FilterContrast:       state.filterContrast,
-		FilterSaturation:     state.filterSaturation,
-		FilterSharpness:      state.filterSharpness,
-		FilterDenoise:        state.filterDenoise,
-		FilterGrayscale:      state.filterGrayscale,
-		FilterFlipH:          state.filterFlipH,
-		FilterFlipV:          state.filterFlipV,
-		FilterRotation:       state.filterRotation,
-		FilterStylisticMode:  state.filterStylisticMode,
-		FilterScanlines:      state.filterScanlines,
-		FilterChromaNoise:    state.filterChromaNoise,
-		FilterColorBleeding:  state.filterColorBleeding,
-		FilterTapeNoise:      state.filterTapeNoise,
-		FilterTrackingError:  state.filterTrackingError,
-		FilterDropout:        state.filterDropout,
-		FilterInterlacing:    state.filterInterlacing,
-		FilterInterpEnabled:  state.filterInterpEnabled,
-		FilterInterpPreset:   state.filterInterpPreset,
-		FilterInterpFPS:      state.filterInterpFPS,
-		FiltersFile: state.filtersFile,
+		Window:              state.window,
+		ModuleColor:         moduleColor("filters"),
+		FilterBrightness:    state.filterBrightness,
+		FilterContrast:      state.filterContrast,
+		FilterSaturation:    state.filterSaturation,
+		FilterSharpness:     state.filterSharpness,
+		FilterDenoise:       state.filterDenoise,
+		FilterGrayscale:     state.filterGrayscale,
+		FilterFlipH:         state.filterFlipH,
+		FilterFlipV:         state.filterFlipV,
+		FilterRotation:      state.filterRotation,
+		FilterStylisticMode: state.filterStylisticMode,
+		FilterScanlines:     state.filterScanlines,
+		FilterChromaNoise:   state.filterChromaNoise,
+		FilterColorBleeding: state.filterColorBleeding,
+		FilterTapeNoise:     state.filterTapeNoise,
+		FilterTrackingError: state.filterTrackingError,
+		FilterDropout:       state.filterDropout,
+		FilterInterlacing:   state.filterInterlacing,
+		FilterInterpEnabled: state.filterInterpEnabled,
+		FilterInterpPreset:  state.filterInterpPreset,
+		FilterInterpFPS:     state.filterInterpFPS,
+		FiltersFile:         state.filtersFile,
 		FiltersFilePath: func() string {
 			if state.filtersFile != nil {
 				return state.filtersFile.Path
 			}
 			return ""
 		}(),
-		FilterActiveChain: state.filterActiveChain,
+		FilterActiveChain:    state.filterActiveChain,
 		OnShowMainMenu:       func() { state.showMainMenu() },
 		OnShowQueue:          func() { state.showQueue() },
 		OnShowUpscaleView:    func() { state.showUpscaleView() },
@@ -73,6 +80,25 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 				state.upscaleFile = state.filtersFile
 				state.upscaleFilterChain = append([]string{}, state.filterActiveChain...)
 			}
+		},
+		OnAddToQueue: func() {
+			if state.filtersFile == nil {
+				return
+			}
+			path := ""
+			if state.filtersFile != nil {
+				path = state.filtersFile.(*videoSource).Path
+			}
+			job := &queue.Job{
+				Type:        queue.JobTypeFilter,
+				Status:      queue.JobStatusPending,
+				Title:       "Filter",
+				InputFile:   path,
+				OutputFile:  "",
+				Config:      state.filterJobConfig(),
+				Description: "Apply filters to video",
+			}
+			state.jobQueue.AddJob(job)
 		},
 		OnApplyFilters:     func() {},
 		OnPersistConfig:    func() {},
@@ -125,4 +151,185 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		},
 	}
 	return filters.BuildView(opts)
+}
+
+func (s *appState) filterJobConfig() map[string]interface{} {
+	cfg := make(map[string]interface{})
+
+	// Input/output paths
+	if s.filtersFile != nil {
+		src := s.filtersFile.(*videoSource)
+		cfg["inputPath"] = src.Path
+	}
+
+	// Color correction
+	cfg["brightness"] = s.filterBrightness
+	cfg["contrast"] = s.filterContrast
+	cfg["saturation"] = s.filterSaturation
+
+	// Enhancement
+	cfg["sharpness"] = s.filterSharpness
+	cfg["denoise"] = s.filterDenoise
+	cfg["grayscale"] = s.filterGrayscale
+
+	// Transform
+	cfg["flipH"] = s.filterFlipH
+	cfg["flipV"] = s.filterFlipV
+	cfg["rotation"] = s.filterRotation
+
+	// Stylistic
+	cfg["stylisticMode"] = s.filterStylisticMode
+	cfg["scanlines"] = s.filterScanlines
+	cfg["chromaNoise"] = s.filterChromaNoise
+	cfg["colorBleeding"] = s.filterColorBleeding
+	cfg["tapeNoise"] = s.filterTapeNoise
+	cfg["trackingError"] = s.filterTrackingError
+	cfg["dropout"] = s.filterDropout
+	cfg["interlacing"] = s.filterInterlacing
+
+	// Frame interpolation
+	cfg["interpEnabled"] = s.filterInterpEnabled
+	cfg["interpPreset"] = s.filterInterpPreset
+	cfg["interpFPS"] = s.filterInterpFPS
+
+	// Active filter chain
+	if len(s.filterActiveChain) > 0 {
+		cfg["filterChain"] = s.filterActiveChain
+	}
+
+	return cfg
+}
+
+func (s *appState) executeFilterJob(ctx context.Context, job *queue.Job, progress func(float64)) error {
+	cfg := job.Config
+	inputPath, _ := cfg["inputPath"].(string)
+	if inputPath == "" {
+		return fmt.Errorf("no input file")
+	}
+
+	outputPath, _ := cfg["outputPath"].(string)
+	if outputPath == "" {
+		// Generate output path from input path
+		dir := filepath.Dir(inputPath)
+		name := filepath.Base(inputPath)
+		ext := filepath.Ext(name)
+		base := name[:len(name)-len(ext)]
+		outputPath = filepath.Join(dir, fmt.Sprintf("%s_filtered%s", base, ext))
+	}
+
+	// Build filter chain from job config
+	var chain []string
+
+	// Color correction (brightness/contrast/saturation use eq filter)
+	brightness, _ := cfg["brightness"].(float64)
+	contrast, _ := cfg["contrast"].(float64)
+	saturation, _ := cfg["saturation"].(float64)
+	if brightness != 0 || contrast != 1.0 || saturation != 1.0 {
+		chain = append(chain, fmt.Sprintf("eq=brightness=%.2f:contrast=%.2f:saturation=%.2f", brightness, contrast, saturation))
+	}
+
+	// Sharpness
+	sharpness, _ := cfg["sharpness"].(float64)
+	if sharpness > 0 {
+		chain = append(chain, fmt.Sprintf("unsharp=5:5:%.2f:5:5:0.0", sharpness/5))
+	}
+
+	// Denoise
+	denoise, _ := cfg["denoise"].(float64)
+	if denoise > 0 {
+		chain = append(chain, fmt.Sprintf("hqdn3d=%.2f", denoise))
+	}
+
+	// Grayscale
+	if grayscale, _ := cfg["grayscale"].(bool); grayscale {
+		chain = append(chain, "hue=s=0")
+	}
+
+	// Flip
+	if flipH, _ := cfg["flipH"].(bool); flipH {
+		chain = append(chain, "hflip")
+	}
+	if flipV, _ := cfg["flipV"].(bool); flipV {
+		chain = append(chain, "vflip")
+	}
+
+	// Rotation
+	if rotation, _ := cfg["rotation"].(int); rotation > 0 {
+		switch rotation {
+		case 90:
+			chain = append(chain, "transpose=1")
+		case 180:
+			chain = append(chain, "transpose=1,transpose=1")
+		case 270:
+			chain = append(chain, "transpose=2")
+		}
+	}
+
+	// Stylistic filters
+	stylisticMode, _ := cfg["stylisticMode"].(string)
+	if stylisticMode != "" && stylisticMode != "None" {
+		stylisticParams := filters.FilterChainParams{
+			StylisticMode: stylisticMode,
+		}
+		if v, ok := cfg["scanlines"].(bool); ok {
+			stylisticParams.Scanlines = v
+		}
+		if v, ok := cfg["chromaNoise"].(float64); ok {
+			stylisticParams.ChromaNoise = v
+		}
+		if v, ok := cfg["colorBleeding"].(bool); ok {
+			stylisticParams.ColorBleeding = v
+		}
+		if v, ok := cfg["tapeNoise"].(float64); ok {
+			stylisticParams.TapeNoise = v
+		}
+		if v, ok := cfg["trackingError"].(float64); ok {
+			stylisticParams.TrackingError = v
+		}
+		if v, ok := cfg["dropout"].(float64); ok {
+			stylisticParams.Dropout = v
+		}
+		if v, ok := cfg["interlacing"].(string); ok {
+			stylisticParams.Interlacing = v
+		}
+		stylisticChain := filters.BuildStylisticFilterChain(stylisticParams)
+		chain = append(chain, stylisticChain...)
+	}
+
+	if len(chain) == 0 {
+		return fmt.Errorf("no filters configured")
+	}
+
+	// Combine filter chain
+	filterStr := strings.Join(chain, ",")
+
+	logging.Info(logging.CatFFMPEG, "Executing filter job: %s -> %s", inputPath, outputPath)
+	logging.Debug(logging.CatFFMPEG, "Filter chain: %s", filterStr)
+
+	// Build ffmpeg arguments
+	args := []string{
+		"-y", "-hide_banner", "-loglevel", "error",
+		"-i", inputPath,
+		"-vf", filterStr,
+		"-c:a", "copy",
+		"-progress", "pipe:1", "-nostats",
+		outputPath,
+	}
+
+	// Probe source for duration
+	src, err := probeVideo(inputPath)
+	if err != nil {
+		return fmt.Errorf("failed to probe input: %w", err)
+	}
+	totalDur := src.Duration
+	if totalDur <= 0 {
+		totalDur = 1.0
+	}
+
+	ffmpeg := utils.GetFFmpegPath()
+	if err := runFFmpegWithProgress(ctx, ffmpeg, args, totalDur, progress); err != nil {
+		return fmt.Errorf("filter encode failed: %w", err)
+	}
+
+	return nil
 }
