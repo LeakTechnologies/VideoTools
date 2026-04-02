@@ -193,10 +193,10 @@ Note: Full direct OpenGL/D3D11 integration requires deeper Fyne modifications. C
   - `internal/convert/dvd.go:155-163` — `fmt.Sscanf` error ignored
 
 ### Missing i18n Strings (50+ hardcoded)
+- [x] **internal/app/modules/deps/dialog.go:32** — "Missing Dependencies" → Added DependenciesMissing
 - [ ] **main.go** — ~50 hardcoded strings ("Close", "Cancel", "Convert Now", dialog titles, button labels)
 - [ ] **internal/ui/command_editor.go** — ~15 hardcoded strings ("Ready", dialog strings)
 - [ ] **internal/ui/benchmarkview.go** — ~20 hardcoded strings ("CPU:", "GPU:", labels)
-- [ ] **internal/app/modules/deps/dialog.go:32** — "Missing Dependencies"
 
 ### Debug Output in Production
 - [ ] **Replace fmt.Println/Printf** — Debug statements should use proper logging:
