@@ -107,8 +107,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 			if state.filtersFile == nil {
 				return
 			}
-			src := state.filtersFile.(*videoSource)
-			path := src.Path
+			path := state.filtersFile.Path
 			dir := filepath.Dir(path)
 			name := filepath.Base(path)
 			ext := filepath.Ext(name)
