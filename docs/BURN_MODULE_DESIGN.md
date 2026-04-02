@@ -2,21 +2,20 @@
 
 ## Overview
 
-The **Burn** module provides DVD/BD disc burning functionality from ISO files or VIDEO_TS folders.
+The **Burn** module provides DVD/BD disc burning functionality from ISO files using OS-native tools only. No FFmpeg or other external dependencies required.
 
 ## Features
 
 ### Phase 1: Basic Disc Burning
-- [ ] Burn DVD ISO to disc
-- [ ] Burn VIDEO_TS folder to disc
+- [ ] Burn ISO to disc (DVD/BD)
 - [ ] Select target drive
 - [ ] Show burn progress
 
 ### Phase 2: Advanced Features
 - [ ] Burn multiple ISOs in queue
-- [ ] Verify after burn
 - [ ] Burn speed selection
 - [ ] Eject after burn
+- [ ] Handle disc types (DVD-R, DVD+R, DVD-RW, DVD+RW, BD-R, BD-RE)
 
 ## Technical Implementation
 
@@ -27,54 +26,52 @@ The **Burn** module provides DVD/BD disc burning functionality from ISO files or
 
 ### UI Components
 1. **Source Selection**
-   - ISO file picker
-   - VIDEO_TS folder picker
+   - ISO file picker (drag & drop supported)
    - Recent sources list
 
 2. **Drive Selection**
    - Auto-detect writable drives
    - Show disc capacity (DVD5, DVD9, BD25, BD50)
-   - Show available space
 
 3. **Burn Options**
    - Burn speed (1x, 2x, 4x, max)
-   - Verify written data
    - Eject disc when complete
-   - Number of copies
 
 4. **Progress Display**
    - Overall progress bar
    - Current speed
    - Time remaining
-   - Write method (dao, incremental)
 
-### Command Line Tools
+### Command Line Tools (OS-Native Only)
 
 #### Windows
-- **isoburn.exe** (built-in since Windows 8)
+- **isoburn.exe** (built-in since Windows 8, no external dependencies)
   ```
   isoburn /q D:\path\to\disc.iso E:
   ```
-- **cdrecord** (via cdrtools)
-- **imgburn** (optional, if installed)
+  - `/q` - quiet mode (no UI)
+  - First param: ISO path
+  - Second param: drive letter
 
 #### Linux
-- **growisofs** (dvd+rw-tools)
+- **growisofs** (from dvd+rw-tools package, most Linux distributions include this)
   ```
-  growisofs -Z /dev/dvd -V "DVD_LABEL" -r -J /path/to/VIDEO_TS
+  growisofs -Z /dev/dvd -V "DISC_LABEL" -r -J /path/to/disc.iso
   ```
-- **cdrecord** (cdrtools)
+  - `-Z` - burn/initialise
+  - `-V` - volume label
+  - `-r` - make rock ridge extensions
+  - `-J` - make Joliet directory
 
 ### Architecture
 
 ```go
 type BurnConfig struct {
-    Source      string   // ISO path or VIDEO_TS folder
-    Drive       string   // Target drive letter (Windows) or device (Linux)
+    Source      string   // ISO file path
+    Drive       string   // Target drive letter (Windows) or device (Linux, e.g. /dev/sr0)
     Speed       int      // Burn speed (0 = auto/max)
-    Verify      bool     // Verify written data
     Eject       bool     // Eject when complete
-    Copies      int      // Number of copies
+    Copies      int      // Number of copies (future)
 }
 
 type BurnProgress struct {
@@ -84,6 +81,18 @@ type BurnProgress struct {
     ETA      time.Duration
 }
 ```
+
+### Drive Detection
+
+#### Windows
+- Use `GetDriveType()` Win32 API
+- Filter for `DRIVE_CDROM` type
+- Check for writable media using `DeviceIoControl`
+
+#### Linux
+- Scan `/dev/sr*` and `/dev/dvd*` for writable devices
+- Use `sysfs` or `ioctl` to check disc status
+- Common paths: `/dev/sr0`, `/dev/sr1`, `/dev/dvd`, `/dev/dvd1`
 
 ### Queue Integration
 - Add `JobTypeBurn` to queue types
@@ -109,9 +118,7 @@ type BurnProgress struct {
 
 ## Testing Checklist
 
-- [ ] Burn DVD ISO to blank DVD-R
-- [ ] Burn VIDEO_TS folder to blank DVD-R
-- [ ] Verify written data matches source
+- [ ] Burn ISO to blank DVD-R
 - [ ] Handle disc full error gracefully
 - [ ] Handle write error and retry
 - [ ] Test with DVD+R, DVD-RW, DVD+RW
@@ -119,11 +126,12 @@ type BurnProgress struct {
 
 ## Dependencies
 
-- Windows: isoburn.exe (built-in since Windows 8)
-- Linux: dvd+rw-tools (growisofs)
+- **Windows**: isoburn.exe (built-in since Windows 8, no external deps)
+- **Linux**: growisofs (from dvd+rw-tools, included in most distros)
 
 ## Notes
 
 - No FFmpeg required for burning
 - Use OS-native tools only
-- Support both DAO (disc-at-once) and incremental
+- ISOs must be pre-created (use Author module)
+- No post-burn verification (not supported by OS tools)
