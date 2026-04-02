@@ -2081,7 +2081,6 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 	// Split video ES into VOBU-sized chunks (each VOBU = ~0.4-0.5s of video)
 	// For a still image, we write one VOBU per GOP (group of pictures).
 	// Find GOP boundaries by looking for sequence headers or picture start codes.
-	navInterval := int(m.VideoFrameTicks() * 15) // NAV every ~15 frames (~0.5s at 29.97fps)
 	frameCount := 0
 	pts := uint64(0)
 
@@ -2101,7 +2100,7 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 		}
 
 		frameCount++
-		pts += m.videoFrameTicks()
+		pts += m.VideoFrameTicks()
 
 		// Insert NAV_PCK at regular intervals
 		if frameCount%15 == 0 {
@@ -2125,7 +2124,7 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 				pci := &vob.PCIPacket{
 					Buttons:     pciBtns,
 					LVOBU_S_PTM: uint32(pts),
-					LVOBU_E_PTM: uint32(pts + m.videoFrameTicks()*15),
+					LVOBU_E_PTM: uint32(pts + m.VideoFrameTicks()*15),
 					HL_GI: vob.HL_GI{
 						BTN_SL_NS: 1,
 						BTN_NS:    uint8(len(buttons)),
@@ -2192,7 +2191,7 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 	}
 
 	if logFn != nil {
-		logFn(fmt.Sprintf(">> Menu VOB written: %d sectors, %d NAV_PCKs", m.currentSector, len(m.NAVPCKSectors)))
+		logFn(fmt.Sprintf(">> Menu VOB written: %d sectors, %d NAV_PCKs", m.CurrentSector(), len(m.NAVPCKSectors)))
 	}
 
 	// ── Clean up temporary files ──────────────────────────────────────────────
