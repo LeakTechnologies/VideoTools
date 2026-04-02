@@ -58,10 +58,6 @@ func pkgManagerInstall(pkg string) *dependencyCommand {
 
 func pkgManagerUninstall(pkg string) *dependencyCommand {
 	switch runtime.GOOS {
-	case "darwin":
-		if _, err := exec.LookPath("brew"); err == nil {
-			return &dependencyCommand{Command: "brew", Args: []string{"uninstall", pkg}}
-		}
 	case "linux":
 		switch detectPkgManager() {
 		case "apt-get":
@@ -130,11 +126,6 @@ func getDependencyCommands(depName string) dependencyCommandPair {
 				}
 			}
 			return dependencyCommandPair{}
-		case "darwin":
-			return dependencyCommandPair{
-				Install:   pkgManagerInstall("tesseract"),
-				Uninstall: pkgManagerUninstall("tesseract"),
-			}
 		default:
 			pkg := "tesseract"
 			if detectPkgManager() == "apt-get" {
@@ -217,7 +208,7 @@ var allDependencies = map[string]Dependency{
 		Required:    true,
 		Description: "Core video processing engine",
 		InstallCmd:  getFFmpegInstallCmd(),
-		Platforms:   []string{"windows", "linux", "darwin"},
+		Platforms:   []string{"windows", "linux"},
 	},
 	"realesrgan-ncnn-vulkan": {
 		Name:        "Real-ESRGAN",
@@ -241,7 +232,7 @@ var allDependencies = map[string]Dependency{
 		Required:    false,
 		Description: "AI subtitle generation",
 		InstallCmd:  "pip3 install --user openai-whisper",
-		Platforms:   []string{"windows", "linux", "darwin"},
+		Platforms:   []string{"windows", "linux"},
 	},
 	"tesseract": {
 		Name:        "Tesseract OCR",
@@ -249,7 +240,7 @@ var allDependencies = map[string]Dependency{
 		Required:    false,
 		Description: "OCR for image-based subtitles",
 		InstallCmd:  "Install via package manager (tesseract-ocr)",
-		Platforms:   []string{"windows", "linux", "darwin"},
+		Platforms:   []string{"windows", "linux"},
 	},
 }
 
@@ -257,8 +248,6 @@ func getFFmpegInstallCmd() string {
 	switch runtime.GOOS {
 	case "linux":
 		return "Install from Settings (recommended) or run: ./scripts/linux/install.sh"
-	case "darwin":
-		return "Install from Settings (recommended) or run: brew install ffmpeg"
 	case "windows":
 		return "Install from Settings (recommended) or run: .\\scripts\\windows\\install.ps1"
 	default:

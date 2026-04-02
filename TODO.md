@@ -172,7 +172,7 @@ Note: Full direct OpenGL/D3D11 integration requires deeper Fyne modifications. C
 ## Code Quality Issues (dev39 carry-forward)
 
 ### Dead Code / Unused Code
-- [ ] **Remove darwin/macOS code blocks** — AGENTS.md states macOS not supported, but main.go has unreachable `case "darwin":` blocks (lines 164, 795-796, 816-817)
+- [x] **Remove darwin/macOS code blocks** — AGENTS.md states macOS not supported. Removed from main.go, settings_module.go, internal/utils/gui_detection.go, internal/sysinfo/sysinfo.go, internal/player/factory.go, internal/app/modules/settings/types.go. Remaining only in _fyne (vendored).
 - [ ] **Fix unused parameters** — `_ = unit` in `internal/utils/validation.go:34`, `_ = cmd` in `internal/utils/proc_other.go:9`
 
 ### Silent Error Handling

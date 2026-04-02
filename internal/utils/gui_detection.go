@@ -65,8 +65,6 @@ func DetectGUIEnvironment() GUIEnvironment {
 		env.detectLinuxGUI()
 	case "windows":
 		env.detectWindowsGUI()
-	case "darwin":
-		env.detectMacGUI()
 	}
 
 	return env
@@ -292,41 +290,6 @@ func (env *GUIEnvironment) detectWindowsScale() {
 					}
 				}
 			}
-		}
-	}
-}
-
-// detectMacGUI handles macOS-specific GUI detection
-func (env *GUIEnvironment) detectMacGUI() {
-	env.DisplayServer = "darwin"
-	env.DesktopEnvironment = "macos"
-
-	// macOS has good built-in scaling
-	if cmd, err := exec.Command("system_profiler", "SPDisplaysDataType", "-json").Output(); err == nil {
-		// Parse macOS display info for retina/HiDPI detection
-		displayInfo := string(cmd)
-		if strings.Contains(displayInfo, "Retina") || strings.Contains(displayInfo, "HiDPI") {
-			env.ScaleFactor = 2.0
-		}
-	}
-
-	// GPU detection for macOS
-	env.GPUInfo.detectMacGPU()
-}
-
-// detectMacGPU performs GPU detection on macOS
-func (env *GPUInfo) detectMacGPU() {
-	if cmd, err := exec.Command("system_profiler", "SPDisplaysDataType").Output(); err == nil {
-		gpuInfo := string(cmd)
-		if strings.Contains(strings.ToLower(gpuInfo), "amd") || strings.Contains(strings.ToLower(gpuInfo), "radeon") {
-			env.Vendor = "amd"
-			env.Supported = true
-		} else if strings.Contains(strings.ToLower(gpuInfo), "intel") {
-			env.Vendor = "intel"
-			env.Supported = true
-		} else if strings.Contains(strings.ToLower(gpuInfo), "nvidia") {
-			env.Vendor = "nvidia"
-			env.Supported = true
 		}
 	}
 }
