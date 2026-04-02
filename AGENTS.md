@@ -20,6 +20,7 @@ These rules apply to any automation or agent working in this repo.
 - **Module extraction** — Continue settings_module.go extraction to `internal/app/modules/settings/`.
 - **IFO audio table** — Done (dev39). Audio attributes now populated from track data; helpers in `internal/dvd/ifo/audio.go`.
 - **VTS_MAT byte layout** — Done (dev39). All field offsets in `mat_serialize.go`/`vtsi.go` corrected to match libdvdread `vtsi_mat_t`; fixes dvdnav `zero_12`/`zero_17` violations and `ifoRead_VTS_PTT_SRPT failed`.
+- **DVD menu system** — In progress (dev39). See `docs/DVD_MENU_SYSTEM_DESIGN.md` for full spec. Work items M1-M7. Two parallel tracks: (A) VOB content (video+SPU mux, PCI buttons) and (B) IFO wiring (VMGM_VOBS_Sector, cell sectors, extras pipeline, inter-PGC jump).
 - **Issue #5** (Convert UI cleanup) — layout consistency and label clarity pass on `buildConvertView` in `main.go`.
 - Do not expand scope beyond what is listed unless explicitly approved.
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
@@ -204,6 +205,7 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 - Windows is the **primary user/tester platform**. Zero new runtime dependencies — use OS-built-ins only (e.g. `isoburn.exe` for disc burning).
 - Linux may take small runtime dependencies where appropriate (e.g. `dvd+rw-tools` for disc burning).
 - Do not add macOS-specific code paths, CI jobs, or documentation.
+- **Existing darwin code should be removed** when found during code reviews or refactoring — there is no reason for any `case "darwin":` blocks to exist in this codebase.
 
 ## Planned Feature: Update-Install Guard (Not Yet Implemented)
 
