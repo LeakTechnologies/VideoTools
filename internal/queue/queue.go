@@ -33,6 +33,7 @@ const (
 	JobTypeBenchmark JobType = "benchmark"
 	JobTypeSnippet   JobType = "snippet"
 	JobTypeEditJob   JobType = "editjob" // NEW: editable jobs
+	JobTypeBurn      JobType = "burn"
 )
 
 // JobStatus represents the current state of a job
