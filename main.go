@@ -4260,7 +4260,7 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 	case queue.JobTypeTrim:
 		return s.executeTrimJob(ctx, job, progressCallback)
 	case queue.JobTypeFilter:
-		return fmt.Errorf("filter jobs not yet implemented")
+		return s.executeFilterJob(ctx, job, progressCallback)
 	case queue.JobTypeUpscale:
 		return s.executeUpscaleJob(ctx, job, progressCallback)
 	case queue.JobTypeAudio:

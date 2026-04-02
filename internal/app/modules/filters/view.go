@@ -84,8 +84,8 @@ type Options struct {
 	OnSetInterpFPS     func(s string)
 
 	OnBuildFilterChain func() []string
-
-	OnDroppedFiles func(paths []fyne.URI)
+	OnAddToQueue       func()
+	OnDroppedFiles     func(paths []fyne.URI)
 
 	OnProbeVideo           func(path string) (interface{}, error)
 	OnBuildVideoPane       func(state interface{}, size fyne.Size, src interface{}, overlay fyne.CanvasObject) fyne.CanvasObject
@@ -499,7 +499,16 @@ func BuildView(opts Options) fyne.CanvasObject {
 	statsBar := opts.OnGetStatsBar()
 
 	bottomBar := container.NewVBox(
-		container.NewHBox(layout.NewSpacer(), applyBtn),
+		container.NewHBox(layout.NewSpacer(), applyBtn, widget.NewButton("Add to Queue", func() {
+			if opts.FiltersFile == nil {
+				dialog.ShowInformation("No Video", "Please load a video first.", opts.Window)
+				return
+			}
+			buildFilterChain()
+			if opts.OnAddToQueue != nil {
+				opts.OnAddToQueue()
+			}
+		})),
 		statsBar,
 	)
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
