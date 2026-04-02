@@ -79,6 +79,7 @@ jobs:
             pkg-config \
             nasm \
             yasm \
+            cmake \
             libgl1-mesa-dev \
             libx11-dev \
             libxcursor-dev \
@@ -99,12 +100,58 @@ jobs:
       - name: Setup static FFmpeg (Linux)
         run: |
           set -euo pipefail
+          ver="${{ env.FFMPEG_VERSION }}"
+          marker="/opt/ffmpeg-static/.built-${ver}-v2"
+          if [ -f "$marker" ]; then
+            echo "[INFO] FFmpeg ${ver} already built (marker: $marker)"
+            exit 0
+          fi
           mkdir -p /opt/ffmpeg-static
-          # Download pre-built static FFmpeg with H.265 support
-          wget -q -O /tmp/ffmpeg.tar.xz "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz"
-          tar xf /tmp/ffmpeg.tar.xz -C /tmp
-          cp -r /tmp/ffmpeg-master-latest-linux64-gpl/* /opt/ffmpeg-static/
-          rm -rf /tmp/ffmpeg-*
+
+          # Build x264 from source (static only)
+          echo "[INFO] Building x264 from source..."
+          rm -rf /tmp/x264-src
+          git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
+          cd /tmp/x264-src
+          ./configure --prefix=/opt/ffmpeg-static --enable-static --disable-shared --disable-opencl --disable-cli
+          make -j$(nproc) && make install
+          rm -rf /tmp/x264-src
+
+          # Build x265 from source (static only)
+          echo "[INFO] Building x265 from source..."
+          rm -rf /tmp/x265-src /tmp/x265-build
+          git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
+          cd /tmp/x265-src && git tag 4.1.0
+          mkdir /tmp/x265-build && cd /tmp/x265-build
+          cmake -DCMAKE_INSTALL_PREFIX=/opt/ffmpeg-static \
+                -DENABLE_SHARED=OFF -DENABLE_CLI=OFF \
+                -DCMAKE_BUILD_TYPE=Release \
+                /tmp/x265-src/source
+          make -j$(nproc) && make install
+          rm -rf /tmp/x265-src /tmp/x265-build
+
+          # Build FFmpeg from source
+          echo "[INFO] Building FFmpeg ${ver} from source..."
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
+          tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
+          mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
+          cd /tmp/ffmpeg-src
+          PKG_CONFIG_PATH=/opt/ffmpeg-static/lib/pkgconfig \
+          ./configure \
+            --prefix=/opt/ffmpeg-static \
+            --enable-static --disable-shared --enable-pic \
+            --disable-doc --disable-programs --disable-debug \
+            --enable-gpl --enable-version3 --enable-avfilter \
+            --enable-libx264 --enable-libx265 \
+            --extra-cflags="-I/opt/ffmpeg-static/include" \
+            --extra-ldflags="-L/opt/ffmpeg-static/lib" \
+            || { echo "=== config.log (last 80 lines) ==="; tail -80 ffbuild/config.log; exit 1; }
+          make -j$(nproc) && make install
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+
+          touch "$marker"
+          echo "[INFO] FFmpeg ${ver} Linux build complete"
 
       - name: Build Linux package
         env:
@@ -290,15 +337,91 @@ jobs:
           MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
-          mkdir -p /c/ffmpeg-static
-          # Download pre-built static FFmpeg with H.265 support
-          echo "[INFO] Downloading pre-built FFmpeg for Windows..."
-          wget -q -O /tmp/ffmpeg.zip "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip"
-          unzip -q /tmp/ffmpeg.zip -d /tmp
-          cp -r /tmp/ffmpeg-master-latest-win64-gpl/* /c/ffmpeg-static/
-          # Find and copy pkgconfig files
-          find /c/ffmpeg-static -name "*.pc" -exec cp {} /c/ffmpeg-static/lib/pkgconfig/ \; 2>/dev/null || true
-          rm -rf /tmp/ffmpeg-*
+          marker="/c/ffmpeg-static/.built-${ver}-v5"
+          if [ -f "$marker" ]; then
+            echo "[INFO] FFmpeg ${ver} already built (marker: $marker)"
+            exit 0
+          fi
+          mkdir -p /c/ffmpeg-static/lib/pkgconfig
+          mkdir -p /c/ffmpeg-static/include
+
+          # Build x264 from source (static only, no DLL — avoids __declspec(dllimport))
+          echo "[INFO] Building x264 from source (static only)..."
+          rm -rf /tmp/x264-src
+          git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
+          cd /tmp/x264-src
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared --disable-opencl --disable-cli
+          make -j$(nproc) && make install
+          cp /c/ffmpeg-static/lib/pkgconfig/x264.pc /ucrt64/lib/pkgconfig/x264.pc
+          rm -rf /tmp/x264-src
+
+          # Build x265 from source (static only, no DLL)
+          echo "[INFO] Building x265 from source (static only)..."
+          rm -rf /tmp/x265-src /tmp/x265-build
+          git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
+          cd /tmp/x265-src && git tag 4.1.0
+          mkdir /tmp/x265-build && cd /tmp/x265-build
+          cmake -G "MSYS Makefiles" \
+                -DCMAKE_INSTALL_PREFIX=/c/ffmpeg-static \
+                -DENABLE_SHARED=OFF -DENABLE_CLI=OFF \
+                -DCMAKE_BUILD_TYPE=Release \
+                /tmp/x265-src/source
+          make -j$(nproc) && make install
+          rm -rf /tmp/x265-src /tmp/x265-build
+
+          # Overwrite x265.pc: CMake writes Windows paths + CRLF line endings;
+          # MSYS2 pkg-config cannot parse either. Write with echo (LF, POSIX paths).
+          echo 'prefix=/c/ffmpeg-static'           > /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'exec_prefix=${prefix}'            >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'libdir=${prefix}/lib'             >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'includedir=${prefix}/include'     >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Name: x265'                       >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Description: H.265/HEVC encoder' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Version: 4.1.0'                   >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs: -L${libdir} -lx265'        >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Cflags: -I${includedir}'         >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+
+          # x265 is a C++ library; FFmpeg configure link test uses gcc (not g++),
+          # so C++ runtime symbols (operator new, RTTI, etc.) must be supplied
+          # explicitly. Use absolute paths from gcc --print-file-name to avoid
+          # linker search-order ambiguity between static and import-lib archives.
+          stdc_a=$(gcc --print-file-name=libstdc++.a)
+          supc_a=$(gcc --print-file-name=libsupc++.a)
+          echo "[INFO] libstdc++.a: $stdc_a (exists: $(test -f "$stdc_a" && echo YES || echo NO))"
+          echo "[INFO] libsupc++.a: $supc_a (exists: $(test -f "$supc_a" && echo YES || echo NO))"
+          echo "Libs.private: $stdc_a $supc_a -lm" >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+
+          cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
+
+          echo "[INFO] pkg-config diagnostics:"
+          echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+          echo "  x265 --static --exists: $(pkg-config --static --exists x265 2>&1 && echo OK || echo FAIL)"
+          echo "  x265 --static --libs:   $(pkg-config --static --libs x265 2>&1 || echo FAIL)"
+
+          # Build FFmpeg from source
+          echo "[INFO] Building FFmpeg ${ver} from source..."
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
+          tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
+          mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
+          cd /tmp/ffmpeg-src
+          ./configure \
+            --prefix=/c/ffmpeg-static \
+            --enable-static --disable-shared --enable-pic \
+            --disable-doc --disable-programs --disable-debug \
+            --enable-gpl --enable-version3 --enable-avfilter \
+            --enable-libx264 --enable-libx265 \
+            --disable-vaapi --disable-iconv \
+            --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
+            --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib' \
+            || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
+          make -j$(nproc) && make install
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          cd /tmp
+
+          touch "$marker"
+          echo "[INFO] FFmpeg ${ver} Windows build complete"
 
       - name: Build Windows package
         env:
