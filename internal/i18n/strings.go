@@ -62,6 +62,7 @@ type Strings struct {
 	DialogSnippets           string
 	DialogPreview            string
 	DialogPlayback           string
+	DialogPlaybackError      string // Error message when playback fails
 	DialogJobQueued          string
 	DialogMerge              string
 	DialogCancel             string

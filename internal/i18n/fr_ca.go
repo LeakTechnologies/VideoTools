@@ -56,6 +56,7 @@ var frCA = Strings{
 	DialogSnippets:           "Extraits",
 	DialogPreview:            "Génération de l'aperçu",
 	DialogPlayback:           "Lecture non disponible",
+	DialogPlaybackError:      "La lecture vidéo intégrée nécessite FFmpeg/FFplay.\n\nVeuillez soit :\n1. Installer FFmpeg sur votre système (inclut ffplay)\n2. Utiliser le curseur Aperçu pour une prévisualisation image par image\n3. Utiliser un lecteur externe (mpv, VLC)",
 	DialogJobQueued:          "Tâche en file",
 	DialogMerge:              "Fusionner",
 	DialogCancel:             "Annuler",
