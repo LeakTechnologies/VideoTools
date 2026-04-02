@@ -3514,6 +3514,10 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			totalButtons := 0
 
 			// Process main menu (PGC 1)
+			// Verify NAV packs before concatenation
+			navCount := countNavPacks(menuSet.MainMpg)
+			logging.Info(logging.CatDVD, "Main menu MPG has %d NAV packs before concatenation", navCount)
+
 			if err := concatenateMenuFile(outFile, menuSet.MainMpg); err != nil {
 				logging.Info(logging.CatDVD, "Failed to concatenate main menu: %v", err)
 			} else {
@@ -3891,6 +3895,32 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 }
 
 // concatenateMenuFile appends a menu MPG file to an existing VOB file.
+func countNavPacks(vobPath string) int {
+	f, err := os.Open(vobPath)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+
+	count := 0
+	buf := make([]byte, 2048)
+	for {
+		n, err := f.Read(buf)
+		if err != nil || n < 2048 {
+			break
+		}
+		// Check for NAV pack: pack header (0x000001BA) followed by private stream 1 (0x000001BD with substream 0xBF)
+		if buf[0] == 0x00 && buf[1] == 0x00 && buf[2] == 0x01 && buf[3] == 0xBA {
+			stuffing := buf[13] & 0x07
+			offset := 14 + int(stuffing)
+			if offset+3 < len(buf) && buf[offset] == 0x00 && buf[offset+1] == 0x00 && buf[offset+2] == 0x01 && buf[offset+3] == 0xBF {
+				count++
+			}
+		}
+	}
+	return count
+}
+
 func concatenateMenuFile(outFile *os.File, mpgPath string) error {
 	inFile, err := os.Open(mpgPath)
 	if err != nil {
