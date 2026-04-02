@@ -4,17 +4,34 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev39 Scope (in progress)
 
+### DVD Menu System (see docs/DVD_MENU_SYSTEM_DESIGN.md)
+- [x] **M1/M2** — Encode menu background as MPEG-2 still video via ffmpeg; mux video+SPU into proper DVD VOB
+- [x] **M3** — Populate PCI button rectangles (BTN_NS, button coords) in NAV_PCK
+- [x] **M4** — Set `VMGM_VOBS_Sector` from ISO disc layout pass
+- [x] **M5** — Patch menu PGC CellPlayback sectors from VIDEO_TS.VOB disc location (ISO + folder mode)
+- [x] **M6** — Wire ExtrasMpg/ExtrasButtons into VIDEO_TS.VOB and menuPGCs
+- [x] **M7** — Implement JumpVMGM_PGCN command; fix chapters/extras button commands
+
 ### CI
 - [x] **Confirm Windows CI** — Build passes after submodule sync
 - [x] **Confirm Linux CI** — Build passes after submodule sync
 - [x] **FFmpeg DLL fix** — Use local FFmpeg first, fall back to download
+- [x] **filters_module.go build fix** — Removed invalid `*videoSource` type assertion (Go 1.26 CI failure)
 
 ### Burn Module (NEW)
-- [ ] **Create design document** — See docs/BURN_MODULE_DESIGN.md
-- [ ] **Add module entry** — Wire in main.go showBurnView()
-- [ ] **Implement UI** — Source selection, drive detection, burn options
-- [ ] **Implement burn logic** — Use isoburn (Windows) or growisofs (Linux)
-- [ ] **Queue integration** — Wire OnBurnISO callback
+- [x] **Create design document** — See docs/BURN_MODULE_DESIGN.md
+- [x] **Add module entry** — Wire in main.go showBurnView()
+- [x] **Implement UI** — Source selection, drive detection, burn options
+- [x] **Queue integration** — Wire JobTypeBurn to executeBurnJob()
+- [ ] **Implement burn logic** — Use IMAPI2 (Windows) or SG_IO (Linux) for direct API calls
+  - Note: Waiting on ISO engine (M1-M7) for production-ready ISOs
+- [ ] **Multi-drive batch burning** — See docs/BURN_MODULE_DESIGN.md §Phase 3
+  - Detect all writable optical drives
+  - Parallel burning across multiple drives
+  - Batch mode for multi-volume sets (Disc 1-N across available drives)
+  - Sequential fallback for single-drive systems
+  - Per-drive progress tracking and error recovery
+  - Post-burn verification (read-back checksum)
 
 ### UI Improvements
 - [x] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
@@ -38,13 +55,21 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Create design document** — See docs/FILTER_INTEGRATION_DESIGN.md
 - [x] **Add filters to Upscale module** — Integrate filter controls in upscale UI
 - [x] **Refactor upscale pipeline** — Apply filters BEFORE upscale in encode chain
-- [ ] **Keep Filters module standalone** — For non-upscale filter jobs
+- [x] **Keep Filters module standalone** — For non-upscale filter jobs
 
 ### Author Module
 - [x] **Interactive Preview tab** — Full DVD menu preview with video playback
 - [x] **Module extraction** — Author module extracted to internal/app/modules/author/
+- [x] **IFO audio track table** — VTS_MAT audio attributes populated from actual track codec/channels/language
 - [ ] Wire subtitle track authoring through FFmpeg mapping pipeline
 - [ ] Wire multi-audio track AC3 encoding
+- [ ] **Multi-disc authoring** — See docs/MULTI_DISC_AUTHORING.md
+  - Volume management UI (2-9 discs per set)
+  - Per-volume clip assignment with drag-and-drop
+  - Capacity indicators per volume
+  - Auto-balance clips across volumes
+  - Batch compile all volumes
+  - Per-volume ISO output with volume labels
 
 ### Rip Module (document gaps, fix when prioritised)
 - [ ] Handle `.m2ts` files in `collectVOBSets` (currently only `.vob`)
@@ -159,6 +184,33 @@ Note: Full direct OpenGL/D3D11 integration requires deeper Fyne modifications. C
 - [x] **Trim module stub update** — Added OnAddToQueue, TrimClip, ModuleColor, OnShowQueue to match main.go.
 - [x] **Back button consistency** — Module name uppercase.
 - [x] **Thumbnail contact sheet fix** — Header height + filename truncation.
+
+## Code Quality Issues (dev39 carry-forward)
+
+### Dead Code / Unused Code
+- [x] **Remove darwin/macOS code blocks** — AGENTS.md states macOS not supported. Removed from main.go, settings_module.go, internal/utils/gui_detection.go, internal/sysinfo/sysinfo.go, internal/player/factory.go, internal/app/modules/settings/types.go. Remaining only in _fyne (vendored).
+- [x] **Fix unused parameters** — Added explanatory comments in validation.go and proc_other.go
+
+### Silent Error Handling
+- [ ] **Log instead of discard errors** — Multiple places where errors are silently ignored:
+  - `internal/dvd/vob/sri.go:70` — `io.ReadFull` error discarded
+  - `internal/player/gstreamer_player.go:269` — Seek error explicitly discarded
+  - `internal/queue/edit.go:139-144,192-197` — JSON marshal errors silently ignored
+  - `internal/convert/dvd.go:155-163` — `fmt.Sscanf` error ignored
+
+### Missing i18n Strings (50+ hardcoded)
+- [x] **internal/app/modules/deps/dialog.go:32** — "Missing Dependencies" → Added DependenciesMissing
+- [ ] **main.go** — ~50 hardcoded strings ("Close", "Cancel", "Convert Now", dialog titles, button labels)
+- [ ] **internal/ui/command_editor.go** — ~15 hardcoded strings ("Ready", dialog strings)
+- [ ] **internal/ui/benchmarkview.go** — ~20 hardcoded strings ("CPU:", "GPU:", labels)
+
+### Debug Output in Production
+- [ ] **Replace fmt.Println/Printf** — Debug statements should use proper logging:
+  - `internal/modules/handlers.go:16-101` — Multiple `fmt.Println()` debug output
+  - `internal/ui/components.go:269,275,287` — `fmt.Printf()` in drop handler
+
+### Race Conditions
+- [ ] **Queue notifyChange goroutine** — `internal/queue/queue.go:100-104` spawns goroutine accessing queue state without locking
 
 ## Agent Work Tracking
 

@@ -250,42 +250,44 @@ func TestSerializeVTSMAT_LastSector(t *testing.T) {
 	}
 }
 
-// TestSerializeVTSMAT_PGCITOffset verifies VTS_PGCITI_Offset is at byte 422 (0x1A6).
+// TestSerializeVTSMAT_PGCITOffset verifies VTS_PGCITI_Offset is at byte 204 (0x0CC)
+// per libdvdread ifo_types.h vtsi_mat_t layout (vts_pgcit field).
 func TestSerializeVTSMAT_PGCITOffset(t *testing.T) {
 	mat := NewVTSMAT()
 	mat.VTS_PGCITI_Offset = 1 // sector 1 (typical first-available sector)
 	b := SerializeVTSMAT(mat)
-	got := uint32(b[422])<<24 | uint32(b[423])<<16 | uint32(b[424])<<8 | uint32(b[425])
+	got := uint32(b[204])<<24 | uint32(b[205])<<16 | uint32(b[206])<<8 | uint32(b[207])
 	if got != 1 {
-		t.Errorf("VTS_PGCITI_Offset at byte 422 = %d, want 1", got)
+		t.Errorf("VTS_PGCITI_Offset at byte 204 (0x0CC) = %d, want 1", got)
 	}
-	// Also verify the old position (byte 229) is NOT the offset field.
-	// Byte 229 should be zero for a default MAT.
-	old := uint32(b[229])<<24 | uint32(b[230])<<16 | uint32(b[231])<<8 | uint32(b[232])
+	// Verify the old wrong position (byte 422) is zero.
+	old := uint32(b[422])<<24 | uint32(b[423])<<16 | uint32(b[424])<<8 | uint32(b[425])
 	if old == 1 {
-		t.Errorf("VTS_PGCITI_Offset appears at old wrong position (byte 229); fix not applied")
+		t.Errorf("VTS_PGCITI_Offset still appears at old wrong position (byte 422); fix not applied")
 	}
 }
 
-// TestSerializeVTSMAT_TMAPTOffset verifies VTS_TMAPTI_Offset is at byte 430 (0x1AE).
+// TestSerializeVTSMAT_TMAPTOffset verifies VTS_TMAPTI_Offset is at byte 212 (0x0D4)
+// per libdvdread ifo_types.h vtsi_mat_t layout (vts_tmapt field).
 func TestSerializeVTSMAT_TMAPTOffset(t *testing.T) {
 	mat := NewVTSMAT()
 	mat.VTS_TMAPTI_Offset = 2
 	b := SerializeVTSMAT(mat)
-	got := uint32(b[430])<<24 | uint32(b[431])<<16 | uint32(b[432])<<8 | uint32(b[433])
+	got := uint32(b[212])<<24 | uint32(b[213])<<16 | uint32(b[214])<<8 | uint32(b[215])
 	if got != 2 {
-		t.Errorf("VTS_TMAPTI_Offset at byte 430 = %d, want 2", got)
+		t.Errorf("VTS_TMAPTI_Offset at byte 212 (0x0D4) = %d, want 2", got)
 	}
 }
 
-// TestSerializeVTSMAT_VOBUADMAPOffset verifies VTS_VOBU_ADMAP_Offset is at byte 446 (0x1BE).
+// TestSerializeVTSMAT_VOBUADMAPOffset verifies VTS_VOBU_ADMAP_Offset is at byte 228 (0x0E4)
+// per libdvdread ifo_types.h vtsi_mat_t layout (vts_vobu_admap field).
 func TestSerializeVTSMAT_VOBUADMAPOffset(t *testing.T) {
 	mat := NewVTSMAT()
 	mat.VTS_VOBU_ADMAP_Offset = 3
 	b := SerializeVTSMAT(mat)
-	got := uint32(b[446])<<24 | uint32(b[447])<<16 | uint32(b[448])<<8 | uint32(b[449])
+	got := uint32(b[228])<<24 | uint32(b[229])<<16 | uint32(b[230])<<8 | uint32(b[231])
 	if got != 3 {
-		t.Errorf("VTS_VOBU_ADMAP_Offset at byte 446 = %d, want 3", got)
+		t.Errorf("VTS_VOBU_ADMAP_Offset at byte 228 (0x0E4) = %d, want 3", got)
 	}
 }
 

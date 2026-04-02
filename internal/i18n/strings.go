@@ -62,6 +62,7 @@ type Strings struct {
 	DialogSnippets           string
 	DialogPreview            string
 	DialogPlayback           string
+	DialogPlaybackError      string // Error message when playback fails
 	DialogJobQueued          string
 	DialogMerge              string
 	DialogCancel             string
@@ -145,6 +146,15 @@ type Strings struct {
 	LabelNoFile        string // "No file loaded"
 	LabelNoVideoLoaded string // "No video loaded"
 	LabelFileFmt       string // "File: %s"
+
+	// ── Burn Module ────────────────────────────────────────────────────────────
+	BurnSelectISO     string // "Select ISO file to burn"
+	BurnSelectDrive   string // "Select target drive"
+	BurnSpeed         string // "Burn speed"
+	BurnEject         string // "Eject when complete"
+	BurnNoDrivesFound string // "No drives found"
+	BurnStart         string // "Burn to Disc"
+	BurnProgress      string // "Burning..."
 
 	// ── Inspect Module ────────────────────────────────────────────────────────
 	InspectInstructions       string // "Load a video to inspect..."
@@ -346,6 +356,7 @@ type Strings struct {
 
 	// ── Dependencies ─────────────────────────────────────────────────────
 	DependenciesTitle        string // "System Dependencies"
+	DependenciesMissing      string // "Missing Dependencies"
 	DependenciesDesc         string // "Manage VideoTools dependencies..."
 	DependenciesInstalled    string // "Installed"
 	DependenciesNotInstalled string // "Not Installed"
@@ -432,6 +443,40 @@ type Strings struct {
 	ConvertInterlaceAnalyzing     string // "Analyzing interlacing..."
 	ConvertInterlaceInfo          string // "Left: Original | Right: Deinterlaced"
 	ConvertInspectHint            string // "Load a clip to inspect its technical details."
+
+	// ── Convert Section Headers ─────────────────────────────────────────────
+	ConvertSectionOutputOptions  string // "Output Options"
+	ConvertSectionTargetFileSize string // "Target File Size"
+	ConvertSectionQualityPreset  string // "Quality Preset"
+	ConvertSectionManualCRF      string // "Manual CRF (overrides Quality preset)"
+	ConvertSectionBitratePreset  string // "Bitrate Preset"
+	ConvertSectionManualBitrate  string // "Manual Bitrate"
+	ConvertSectionEncoderSpeed   string // "Encoder Speed/Quality"
+	ConvertSectionEncoderPreset  string // "Encoder Preset"
+	ConvertSectionCustomAspect   string // "Custom Aspect Ratio"
+	ConvertSectionAspectHandling string // "Aspect Handling"
+	ConvertSectionDVDApect       string // "DVD Aspect Ratio"
+	ConvertSectionCacheDir       string // "Cache/Temp Directory"
+	ConvertSectionLogsDir        string // "Logs Directory"
+	ConvertSectionClipsToMerge   string // "Clips to Merge" (for Merge module)
+
+	// ── Convert Simple Tab Section Headers ──────────────────────────────────
+	ConvertSectionFormat           string // "Format"
+	ConvertSectionOutputFolder     string // "Output Folder"
+	ConvertSectionOutputFilename   string // "Output Filename"
+	ConvertSectionTargetResolution string // "Target Resolution"
+	ConvertSectionFrameRate        string // "Frame Rate"
+	ConvertSectionTargetAspect     string // "Target Aspect Ratio"
+	ConvertSectionVideoCodec       string // "Video Codec"
+	ConvertSectionAudioCodec       string // "Audio Codec"
+	ConvertSectionAudioBitrate     string // "Audio Bitrate"
+	ConvertSectionAudioChannels    string // "Audio Channels"
+	ConvertSectionPixelFormat      string // "Pixel Format"
+	ConvertSectionHardwareAccel    string // "Hardware Acceleration"
+	ConvertSectionBitrateMode      string // "Bitrate Mode"
+	ConvertSectionRotation         string // "Rotation"
+	ConvertSectionBitrateSimple    string // "Bitrate (simple presets)"
+	ConvertSectionMetadata         string // "Metadata"
 
 	// ── Merge ──────────────────────────────────────────────────────────────────
 	MergeAddClipsHint string // "Add at least two clips to merge."

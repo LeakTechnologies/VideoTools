@@ -131,10 +131,6 @@ func DetectPkgManager() string {
 
 func PkgManagerInstall(pkg string) *DependencyCommand {
 	switch runtime.GOOS {
-	case "darwin":
-		if _, err := exec.LookPath("brew"); err == nil {
-			return NewDependencyCommand("brew", "install", pkg)
-		}
 	case "linux":
 		switch DetectPkgManager() {
 		case "apt-get":

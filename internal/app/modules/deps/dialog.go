@@ -6,8 +6,11 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
+// Dependency describes a single external dependency that a module requires.
 type Dependency struct {
 	Name       string
 	InstallCmd string
@@ -19,9 +22,10 @@ func ShowMissingDependencies(window fyne.Window, missing []Dependency) {
 		return
 	}
 
-	var message strings.Builder
-	message.WriteString("This module requires the following dependencies:\n\n")
+	t := i18n.T()
+	logging.Debug(logging.CatModule, "showing missing dependencies dialog: %d missing", len(missing))
 
+	var message strings.Builder
 	for _, dep := range missing {
 		message.WriteString(fmt.Sprintf(" %s\n", dep.Name))
 		if strings.TrimSpace(dep.InstallCmd) != "" {
@@ -29,5 +33,5 @@ func ShowMissingDependencies(window fyne.Window, missing []Dependency) {
 		}
 	}
 
-	dialog.ShowInformation("Missing Dependencies", message.String(), window)
+	dialog.ShowInformation(t.DependenciesMissing, message.String(), window)
 }

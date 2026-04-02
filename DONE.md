@@ -14,9 +14,26 @@
 - [x] **Preview tab** - Added interactive Preview tab to Author module
 - [x] **Video playback** - Preview tab can play videos by pressing menu buttons
 - [x] **Tab visibility** - Preview tab shown only when Enable Menus is checked
+- [x] **IFO audio track table** - VTS_MAT audio attributes now populated from actual track data (codec, channels, language) instead of hardcoded AC-3/stereo defaults
+- [x] **Author drag crash fix** - `addAuthorFiles` moved off the UI thread; added `authorClipsRefresh` callback so drops no longer trigger a full 7-tab view rebuild (including GPU texture uploads) on the main thread during DnD completion
+- [x] **VTS_MAT byte layout** - Fixed all field offsets in `mat_serialize.go` and `vtsi.go` to match libdvdread `vtsi_mat_t`; table offsets now at 0x0C8–0x0E4, title audio/video/subpicture attrs at correct positions, `vtsi_last_byte` and `vtstt_vobs` written; eliminates `zero_12`/`zero_17` violations and `ifoRead_VTS_PTT_SRPT failed` in dvdnav
+- [x] **DVD menu VOB video (M1/M2)** - `runNativeSpumux` now encodes background PNG as MPEG-2 still video via ffmpeg and muxes video+SPU into proper DVD Program Stream VOB; falls back to video-only if SPU sub-stream mux fails
+- [x] **PCI button table (M3)** - `PCIButton` struct added to `internal/dvd/vob/nav.go`; `WriteNAV_PCK` serializes up to 36 button entries with libdvdread-compatible coordinate packing at offset 98 within PCI payload; BTN_SL_NS/BTN_NS written at correct offsets 94/95
+- [x] **VMGM_VOBS_Sector (M4)** - `vmgMat.VMGM_VOBS_Sector` set from `vtsSector("VIDEO_TS.VOB")` in ISO layout pass so dvdnav can locate the menu VOB on disc
+- [x] **Menu PGC sector patching (M5)** - Each menu PGC `CellPlayback[0]` First/LastSector fields patched with actual disc sector range computed from per-MPG file sizes and the VIDEO_TS.VOB disc start sector; folder-mode equivalent added (cumulative file-size-based offsets, VMGM_VOBS_Sector set to VMG_Last_Sector+1 to ensure libdvdread opens VIDEO_TS.VOB)
+- [x] **VOB sector counter fix** - `WriteVideo` restored to mutual-exclusive increment: `currentSector++` only in `else` branch when no padding; `WritePadding` handles it when padding is written. Fixes double-increment bug (introduced by opencode) that corrupted `nv_pck_lbn` in menu VOB NAV_PCKs → VLC/dvdnav crash
+- [x] **ExtrasMpg wiring (M6)** - `menuSet.ExtrasMpg` concatenated into `VIDEO_TS.VOB`; extras PGC built and tracked in `menuMpgPaths` slice alongside main/chapters PGCs
+- [x] **JumpVMGM_PGCN command (M7)** - `JumpVMGM_PGCNCommand(pgcN)` added to `internal/dvd/ifo/commands.go`; `ParseButtonCommand` translates `"jump menu N;"` / `"jump menu pgc N;"` to inter-menu PGC jump instructions
 
 ### CI Fixes (dev39)
 - [x] **Submodule sync** - Pushed missing commits to lt_mirror/fyne.git
+- [x] **filters_module.go build fix** - Removed invalid `.(*videoSource)` type assertion; `state.filtersFile` is already `*videoSource`, Go 1.26 CI failure fixed
+
+### Filter Integration (dev39)
+- [x] **Create design document** - See docs/FILTER_INTEGRATION_DESIGN.md
+- [x] **Add filters to Upscale module** - Integrate filter controls in upscale UI
+- [x] **Refactor upscale pipeline** - Apply filters BEFORE upscale in encode chain
+- [x] **Keep Filters module standalone** - Filters module can now queue filter-only jobs without upscaling; "Add to Queue" button added; executeFilterJob supports color correction, enhancement, transform, and stylistic filters via FFmpeg
 
 ## Version 0.1.1-dev38 (complete) - Module Extraction & Native Media Fixes
 

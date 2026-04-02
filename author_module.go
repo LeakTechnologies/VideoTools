@@ -122,6 +122,7 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	state.stopPreview()
 	state.lastModule = state.active
 	state.active = "author"
+	state.authorClipsRefresh = nil // cleared until buildVideoClipsTab registers it
 
 	if cfg, err := loadPersistedAuthorConfig(); err == nil {
 		state.applyAuthorConfig(cfg)
@@ -201,7 +202,17 @@ func buildAuthorView(state *appState) fyne.CanvasObject {
 	state.updateAuthorCancelButton()
 
 	topBar := ui.TintedBar(authorColor, container.NewHBox(backBtn, layout.NewSpacer(), cancelBtn, clearCompletedBtn, queueBtn))
-	bottomBar := moduleFooter(authorColor, layout.NewSpacer(), state.statsBar)
+
+	generateBtn := widget.NewButton(t.AuthorGenerateDVD, func() {
+		if len(state.authorClips) == 0 && state.authorFile == nil {
+			dialog.ShowInformation(t.AuthorNoContent, t.AuthorAddVideosForDVD, state.window)
+			return
+		}
+		state.startAuthorGeneration(true)
+	})
+	generateBtn.Importance = widget.HighImportance
+
+	bottomBar := moduleFooter(authorColor, container.NewHBox(layout.NewSpacer(), generateBtn), state.statsBar)
 
 	tabsConfig := []struct {
 		text  string
@@ -487,8 +498,10 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			}
 		}
 		if len(paths) > 0 {
-			state.addAuthorFiles(paths)
-			rebuildList()
+			go func() {
+				state.addAuthorFiles(paths)
+				rebuildList()
+			}()
 		}
 	})
 
@@ -502,6 +515,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 	dvdTitleEntry := widget.NewEntry()
 	dvdTitleEntry.SetPlaceHolder("Disc title...")
 	dvdTitleEntry.SetText(state.authorTitle)
+	state.authorVideosTitleEntry = dvdTitleEntry
 	dvdTitleEntry.OnChanged = func(value string) {
 		state.authorTitle = value
 		if state.authorDiscTitleEntry != nil {
@@ -524,6 +538,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 		listArea,
 	)
 
+	state.authorClipsRefresh = rebuildList
 	rebuildList()
 	return container.NewPadded(controls)
 }
@@ -844,8 +859,15 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 
 	titleEntry := widget.NewEntry()
 	titleEntry.SetPlaceHolder("Disc title...")
+	titleEntry.SetText(state.authorTitle)
 	titleEntry.OnChanged = func(value string) {
 		state.authorTitle = value
+		if state.authorDiscTitleEntry != nil {
+			state.authorDiscTitleEntry.SetText(value)
+		}
+		if state.authorVideosTitleEntry != nil {
+			state.authorVideosTitleEntry.SetText(value)
+		}
 		state.updateAuthorSummary()
 		state.persistAuthorConfig()
 	}
@@ -1941,16 +1963,15 @@ func (s *appState) addAuthorFiles(paths []string) {
 	}
 	s.authorTitle = ""
 	s.updateAuthorSummary()
-	// Update the UI for the title entry if the settings tab is currently visible.
-	// This ensures the title entry visually resets as well.
-	if s.active == "author" && s.window.Canvas() != nil {
+	// Clear the disc title entry widget directly instead of rebuilding the whole view.
+	if s.authorDiscTitleEntry != nil {
+		s.authorDiscTitleEntry.SetText("")
+	}
+	// Notify the clips list to rebuild if it is currently visible.
+	if s.authorClipsRefresh != nil {
 		app := fyne.CurrentApp()
 		if app != nil && app.Driver() != nil {
-			app.Driver().DoFromGoroutine(func() {
-				// Rebuild the settings tab to refresh its controls.
-				// This is a bit heavy, but ensures the titleEntry reflects the change.
-				s.showAuthorView()
-			}, false)
+			app.Driver().DoFromGoroutine(s.authorClipsRefresh, false)
 		}
 	}
 }
@@ -2953,7 +2974,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			// Default tracks
 			if src != nil {
 				for _, at := range src.Audio {
-					c.AudioTracks = append(c.AudioTracks, authorAudioTrack{Index: at.Index, Language: at.Language})
+					c.AudioTracks = append(c.AudioTracks, authorAudioTrack{Index: at.Index, Language: at.Language, Codec: at.Codec, Channels: at.Channels})
 				}
 				for _, st := range src.Subtitles {
 					c.SubtitleTracks = append(c.SubtitleTracks, authorSubtitleTrack{Index: st.Index, Language: st.Language})
@@ -3320,11 +3341,20 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	}
 	vtsMat.VTS_Audio_Streams_Count = nAudio
 	for i := uint16(0); i < nAudio && i < 8; i++ {
+		var track authorAudioTrack
+		if int(i) < len(featureClips[0].AudioTracks) {
+			track = featureClips[0].AudioTracks[i]
+		}
+		multichannel := uint8(0)
+		if track.Channels > 2 {
+			multichannel = 1
+		}
 		vtsMat.VTS_Audio_Attributes[i] = ifo.AudioAttributes{
-			AudioCodingMode: 0, // AC-3
-			Multichannel:    0,
-			SampleRate:      0, // 48 kHz
-			NumChannels:     1, // 2ch stereo (value = channels - 1)
+			AudioCodingMode: ifo.AudioCodingModeFromCodec(track.Codec),
+			Multichannel:    multichannel,
+			LanguageCode:    ifo.LanguageCodeBytes(track.Language),
+			SampleRate:      0, // DVD standard: 48 kHz
+			NumChannels:     ifo.NumChannelsField(track.Channels),
 		}
 	}
 
@@ -3460,12 +3490,17 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	// Build optional menu PGC and place menu VOB
 	menuVOBPath := filepath.Join(videoTSPath, "VIDEO_TS.VOB")
 	var menuPGCs []*ifo.ProgramChain
+	var menuMpgPaths []string // parallel to menuPGCs; used for M5 sector patching
 	if createMenu && menuSet.MainMpg != "" && len(menuSet.MainButtons) > 0 {
 		// Concatenate all menu MPGs into VIDEO_TS.VOB:
 		// - Main menu first
 		// - Then each chapter menu page
+		// - Then extras menu (if present)
 		menuFiles := []string{menuSet.MainMpg}
 		menuFiles = append(menuFiles, menuSet.ChaptersMpgs...)
+		if menuSet.ExtrasMpg != "" {
+			menuFiles = append(menuFiles, menuSet.ExtrasMpg)
+		}
 
 		// Create the output file
 		outFile, err := os.Create(menuVOBPath)
@@ -3479,6 +3514,10 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			totalButtons := 0
 
 			// Process main menu (PGC 1)
+			// Verify NAV packs before concatenation
+			navCount := countNavPacks(menuSet.MainMpg)
+			logging.Info(logging.CatDVD, "Main menu MPG has %d NAV packs before concatenation", navCount)
+
 			if err := concatenateMenuFile(outFile, menuSet.MainMpg); err != nil {
 				logging.Info(logging.CatDVD, "Failed to concatenate main menu: %v", err)
 			} else {
@@ -3493,6 +3532,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 					menuDuration = src.Duration
 				}
 				menuPGCs = append(menuPGCs, ifo.BuildMenuPGC(cmdTable, menuDuration, isNTSC))
+				menuMpgPaths = append(menuMpgPaths, menuSet.MainMpg)
 				totalButtons += len(menuSet.MainButtons)
 			}
 
@@ -3519,7 +3559,28 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 						menuDuration = src.Duration
 					}
 					menuPGCs = append(menuPGCs, ifo.BuildMenuPGC(cmdTable, menuDuration, isNTSC))
+					menuMpgPaths = append(menuMpgPaths, chapterMpg)
 					totalButtons += len(buttons)
+				}
+			}
+
+			// Process extras menu (last PGC, if present)
+			if menuSet.ExtrasMpg != "" && len(menuSet.ExtrasButtons) > 0 {
+				if err := concatenateMenuFile(outFile, menuSet.ExtrasMpg); err != nil {
+					logging.Info(logging.CatDVD, "Failed to concatenate extras menu: %v", err)
+				} else {
+					cmdTable := &ifo.DVDCommandTable{}
+					cmdTable.Pre = []ifo.DVDCommand{ifo.SetHL_BTNNCommand(1)}
+					for _, btn := range menuSet.ExtrasButtons {
+						cmdTable.Cell = append(cmdTable.Cell, ifo.ParseButtonCommand(btn.Command))
+					}
+					extrasDuration := 10.0
+					if src, err2 := probeVideo(menuSet.ExtrasMpg); err2 == nil && src.Duration > 0 {
+						extrasDuration = src.Duration
+					}
+					menuPGCs = append(menuPGCs, ifo.BuildMenuPGC(cmdTable, extrasDuration, isNTSC))
+					menuMpgPaths = append(menuMpgPaths, menuSet.ExtrasMpg)
+					totalButtons += len(menuSet.ExtrasButtons)
 				}
 			}
 
@@ -3618,6 +3679,44 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			}
 		}
 
+		// Patch menu PGC cell sectors and VMGM_VOBS_Sector for folder mode.
+		// For ISO builds, the M5 block inside makeISO handles this with disc-absolute
+		// sectors from the UDF layout pass. For folder mode we compute sector offsets
+		// from the individual menu MPG file sizes (each file is sector-aligned because
+		// the native VOB muxer pads to 2048-byte boundaries).
+		if len(menuPGCs) > 0 && len(menuMpgPaths) == len(menuPGCs) {
+			discStart := uint32(0)
+			for i, mpgPath := range menuMpgPaths {
+				if i >= len(menuPGCs) {
+					break
+				}
+				var mpgSectors uint32
+				if fi, err2 := os.Stat(mpgPath); err2 == nil && fi.Size() > 0 {
+					mpgSectors = uint32((fi.Size() + 2047) / 2048)
+				} else {
+					mpgSectors = 1
+				}
+				discEnd := discStart + mpgSectors - 1
+				if len(menuPGCs[i].CellPlayback) > 0 {
+					menuPGCs[i].CellPlayback[0].FirstSector = discStart
+					menuPGCs[i].CellPlayback[0].FirstILVUEndSector = discEnd
+					menuPGCs[i].CellPlayback[0].LastVOBUStartSector = discStart
+					menuPGCs[i].CellPlayback[0].LastSector = discEnd
+				}
+				logging.Info(logging.CatDVD, "Menu PGC %d folder sectors: %d – %d", i+1, discStart, discEnd)
+				discStart = discEnd + 1
+			}
+			// VMGM_VOBS_Sector must be non-zero so libdvdread opens VIDEO_TS.VOB
+			// for the VMGM domain. For a VIDEO_TS folder the VOB logically starts
+			// just after the IFO; VMG_Last_Sector+1 is the conventional value.
+			vmgMat.VMGM_VOBS_Sector = vmgMat.VMG_Last_Sector + 1
+			if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGCs, vtsAtrt); err != nil {
+				logging.Info(logging.CatDVD, "Failed to regenerate VMG IFO for folder mode: %v", err)
+			} else {
+				logFn("VMG IFO updated with menu sector addresses")
+			}
+		}
+
 		logFn("IFO sector addresses computed")
 	}
 
@@ -3644,6 +3743,36 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 				return info.DataSector, info.SectorCount, true
 			}
 			return 0, 0, false
+		}
+
+		// M4: Set VMGM_VOBS_Sector — disc-absolute start sector of VIDEO_TS.VOB.
+		if first, _, ok := vtsSector("VIDEO_TS.VOB"); ok {
+			vmgMat.VMGM_VOBS_Sector = first
+			logging.Info(logging.CatDVD, "VMGM_VOBS_Sector set to %d", first)
+		}
+
+		// M5: Patch menu PGC CellPlayback sectors using disc layout of VIDEO_TS.VOB.
+		// Each menu MPG occupies ceil(fileSize/2048) sectors inside VIDEO_TS.VOB.
+		if menuVOBFirst, _, ok := vtsSector("VIDEO_TS.VOB"); ok && len(menuPGCs) > 0 && len(menuMpgPaths) == len(menuPGCs) {
+			discStart := menuVOBFirst
+			for i, pgc := range menuPGCs {
+				mpgPath := menuMpgPaths[i]
+				var mpgSectors uint32
+				if fi, err := os.Stat(mpgPath); err == nil && fi.Size() > 0 {
+					mpgSectors = uint32((fi.Size() + 2047) / 2048)
+				} else {
+					mpgSectors = 1
+				}
+				discEnd := discStart + mpgSectors - 1
+				if len(pgc.CellPlayback) > 0 {
+					pgc.CellPlayback[0].FirstSector = discStart
+					pgc.CellPlayback[0].FirstILVUEndSector = discEnd
+					pgc.CellPlayback[0].LastVOBUStartSector = discStart
+					pgc.CellPlayback[0].LastSector = discEnd
+				}
+				logging.Info(logging.CatDVD, "Menu PGC %d (%s) sectors: %d – %d", i+1, mpgPath, discStart, discEnd)
+				discStart = discEnd + 1
+			}
 		}
 
 		// Re-build the main title PGC with the actual disc sector range.
@@ -3695,6 +3824,16 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 
 		// Pass 2: Rewrite VTS_01_0.IFO and VIDEO_TS.IFO with correct sectors.
+
+		// When a menu is present, add a post-play command to the title PGC so
+		// that the player returns to the main menu (PGC 1) after title playback ends.
+		if len(menuPGCs) > 0 {
+			if mainPGC.CommandTable == nil {
+				mainPGC.CommandTable = &ifo.DVDCommandTable{}
+			}
+			mainPGC.CommandTable.Post = []ifo.DVDCommand{ifo.JumpVMGM_PGCNCommand(1)}
+		}
+
 		if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap, mainPTTSRPT); err != nil {
 			return fmt.Errorf("ifo sector patch failed: %w", err)
 		}
@@ -3702,6 +3841,29 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			return fmt.Errorf("vmg ifo sector patch failed: %w", err)
 		}
 		logFn("IFO sector addresses patched")
+
+		// Write BUP files (backup copies of IFOs required by hardware players).
+		for _, name := range []string{"VIDEO_TS.IFO", "VTS_01_0.IFO"} {
+			ifoPath := filepath.Join(videoTSPath, name)
+			bupName := name[:len(name)-4] + ".BUP"
+			bupPath := filepath.Join(videoTSPath, bupName)
+			if src, err := os.ReadFile(ifoPath); err == nil {
+				if err := os.WriteFile(bupPath, src, 0o644); err != nil {
+					logging.Info(logging.CatDVD, "Warning: failed to write %s: %v", bupName, err)
+				}
+			}
+		}
+		// BUP files for extra VTS sets
+		for i := range extraClips {
+			vtsNum := i + 2
+			name := fmt.Sprintf("VTS_%02d_0.IFO", vtsNum)
+			ifoPath := filepath.Join(videoTSPath, name)
+			bupName := fmt.Sprintf("VTS_%02d_0.BUP", vtsNum)
+			bupPath := filepath.Join(videoTSPath, bupName)
+			if src, err := os.ReadFile(ifoPath); err == nil {
+				_ = os.WriteFile(bupPath, src, 0o644)
+			}
+		}
 
 		// Pass 3: Build the ISO — AddDirFS(discRoot) adds VIDEO_TS/ and AUDIO_TS/
 		// as proper subdirectories, matching the DVD-Video layout spec.
@@ -3733,6 +3895,32 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 }
 
 // concatenateMenuFile appends a menu MPG file to an existing VOB file.
+func countNavPacks(vobPath string) int {
+	f, err := os.Open(vobPath)
+	if err != nil {
+		return 0
+	}
+	defer f.Close()
+
+	count := 0
+	buf := make([]byte, 2048)
+	for {
+		n, err := f.Read(buf)
+		if err != nil || n < 2048 {
+			break
+		}
+		// Check for NAV pack: pack header (0x000001BA) followed by private stream 1 (0x000001BD with substream 0xBF)
+		if buf[0] == 0x00 && buf[1] == 0x00 && buf[2] == 0x01 && buf[3] == 0xBA {
+			stuffing := buf[13] & 0x07
+			offset := 14 + int(stuffing)
+			if offset+3 < len(buf) && buf[offset] == 0x00 && buf[offset+1] == 0x00 && buf[offset+2] == 0x01 && buf[offset+3] == 0xBF {
+				count++
+			}
+		}
+	}
+	return count
+}
+
 func concatenateMenuFile(outFile *os.File, mpgPath string) error {
 	inFile, err := os.Open(mpgPath)
 	if err != nil {

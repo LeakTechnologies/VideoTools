@@ -828,8 +828,14 @@ func getStatusText(job *queue.Job, queuePositions map[string]int) string {
 		return "Status: Pending"
 	case queue.JobStatusRunning:
 		elapsed := ""
+		remaining := ""
 		if job.StartedAt != nil {
 			elapsed = fmt.Sprintf(" | Elapsed: %s", time.Since(*job.StartedAt).Round(time.Second))
+			if job.Progress > 0 && job.Progress < 100 {
+				elapsedSec := time.Since(*job.StartedAt).Seconds()
+				remainingSec := elapsedSec*(100/job.Progress) - elapsedSec
+				remaining = fmt.Sprintf(" | Remaining: %s", time.Duration(remainingSec*float64(time.Second)).Round(time.Second))
+			}
 		}
 
 		// Add FPS and speed info if available in Config
@@ -846,7 +852,7 @@ func getStatusText(job *queue.Job, queuePositions map[string]int) string {
 			}
 		}
 
-		return fmt.Sprintf("Status: Running | Progress: %.1f%%%s%s", job.Progress, elapsed, extras)
+		return fmt.Sprintf("Status: Running | Progress: %.1f%%%s%s%s", job.Progress, elapsed, remaining, extras)
 	case queue.JobStatusPaused:
 		// Display position in queue for paused jobs too
 		if pos, ok := queuePositions[job.ID]; ok {
