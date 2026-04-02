@@ -346,6 +346,7 @@ var enCA = Strings{
 
 	// ── Dependencies ─────────────────────────────────────────────────────
 	DependenciesTitle:        "System Dependencies",
+	DependenciesMissing:      "Missing Dependencies",
 	DependenciesDesc:         "Manage VideoTools dependencies. Some modules require specific tools to be installed.",
 	DependenciesInstalled:    "Installed",
 	DependenciesNotInstalled: "Not Installed",

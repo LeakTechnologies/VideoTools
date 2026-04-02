@@ -347,6 +347,7 @@ var frCA = Strings{
 
 	// ── Dependencies ─────────────────────────────────────────────────────
 	DependenciesTitle:        "Dépendances système",
+	DependenciesMissing:      "Dépendances manquantes",
 	DependenciesDesc:         "Gérer les dépendances de VideoTools. Certains modules nécessitent des outils spécifiques.",
 	DependenciesInstalled:    "Installé",
 	DependenciesNotInstalled: "Non installé",
