@@ -376,21 +376,65 @@ func WritePGCITIs(pgcs []*ProgramChain) ([]byte, error) {
 }
 
 // BuildMenuPGC creates a PGC for a DVD menu with the given button command table.
-// numButtons is used for documentation only; the actual commands come from cmdTable.
-// duration is the menu loop duration in seconds.
+// duration is the menu loop duration in seconds (used for playback time fields;
+// the cell still-time is set to 0xFF = infinite so the player waits for input).
 func BuildMenuPGC(cmdTable *DVDCommandTable, duration float64, isNTSC bool) *ProgramChain {
-	return &ProgramChain{
+	pgc := &ProgramChain{
 		NrOfPrograms: 1,
 		NrOfCells:    1,
 		PlaybackTime: SecondsToPlaybackTime(duration, isNTSC),
+
+		// Restrict user operations that don't apply to menus (fast-forward, angle,
+		// audio/subpicture stream change, etc.). Value matches dvdauthor output for
+		// standard menus: allow button navigation and title jump only.
+		ProhibitedOps: 0x024C08C4,
+
+		// Enable subpicture stream 0 for the menu overlay (button highlights).
+		// Byte layout of SubpictureCtl[i]:
+		//   bit 15   : active (1 = stream is enabled)
+		//   bits 14-8: stream number for 4:3 display (0x7F = stream 0)
+		//   bits 7-0 : stream number for widescreen/letterbox/pan-scan (0x7F = stream 0)
+		// 0x00FF0000 in the uint32 = 0x00FF for the 4:3 entry, upper word zero.
+		// We store the control word in the low 16 bits of SubpictureCtl[0].
+		SubpictureCtl: func() [32]uint32 {
+			var s [32]uint32
+			// Enable SPU stream 0 in all display modes.
+			// uint32 packs as: [letterbox_sn(7)|0][pan-scan_sn(7)|0][wide_sn(7)|?][4:3_sn(7)|active]
+			// Simplest form that activates stream 0 on 4:3: 0x00FF0100
+			// (active=1, sn=0 for 4:3; 0xFF/0xFF for others = "not available")
+			s[0] = 0x00FF0100
+			return s
+		}(),
+
+		// YCbCr palette entries for SPU button highlights (indices 0-3).
+		// These match the spu.DefaultPalette() RGB values converted to studio-swing YCbCr.
+		// Entry format: [0x00, Y, Cb, Cr]
+		//   Index 0: transparent (black, alpha=0) — Y=16, Cb=128, Cr=128
+		//   Index 1: white (text/button highlight) — Y=235, Cb=128, Cr=128
+		//   Index 2: black (outline)               — Y=16,  Cb=128, Cr=128
+		//   Index 3: gray (shadow)                 — Y=128, Cb=128, Cr=128
+		Palette: [16][4]byte{
+			{0x00, 0x10, 0x80, 0x80}, // 0: transparent/black
+			{0x00, 0xEB, 0x80, 0x80}, // 1: white
+			{0x00, 0x10, 0x80, 0x80}, // 2: black outline
+			{0x00, 0x80, 0x80, 0x80}, // 3: gray shadow
+		},
+
+		// StillTime: 0xFF = infinite still — hold the menu indefinitely until
+		// the user presses a button. Without this, the player advances after
+		// the playback duration expires.
+		StillTime: 0xFF,
+
 		Programs:     []ProgramInfo{{EntryCell: 1}},
 		CellPlayback: []CellPlayback{{
 			PlaybackTime: SecondsToPlaybackTime(duration, isNTSC),
-			CommandNr:    0, // no auto cell command; buttons trigger cell command table
+			CommandNr:    0,   // buttons trigger cell command table; no auto-command
+			StillTime:    0xFF, // hold cell indefinitely
 		}},
 		CellPosition: []CellPosition{{VOBID: 1, CellID: 1}},
 		CommandTable: cmdTable,
 	}
+	return pgc
 }
 
 // serializePGC writes a PGC into its on-disc binary representation.
