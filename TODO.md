@@ -5,12 +5,12 @@ This file tracks upcoming features, improvements, and known issues.
 ## Dev39 Scope (in progress)
 
 ### DVD Menu System (see docs/DVD_MENU_SYSTEM_DESIGN.md)
-- [ ] **M1/M2** — Encode menu background as MPEG-2 still video; write proper video+SPU VOB
-- [ ] **M3** — Populate PCI button rectangles (BTN_NS, button coords) in NAV_PCK
-- [ ] **M4** — Set `VMGM_VOBS_Sector` from ISO disc layout pass
-- [ ] **M5** — Patch menu PGC CellPlayback sectors from VIDEO_TS.VOB disc location
-- [ ] **M6** — Wire ExtrasMpg/ExtrasButtons into VIDEO_TS.VOB and menuPGCs
-- [ ] **M7** — Implement JumpVMGM_PGCN command; fix chapters/extras button commands
+- [x] **M1/M2** — Encode menu background as MPEG-2 still video via ffmpeg; mux video+SPU into proper DVD VOB
+- [x] **M3** — Populate PCI button rectangles (BTN_NS, button coords) in NAV_PCK
+- [x] **M4** — Set `VMGM_VOBS_Sector` from ISO disc layout pass
+- [x] **M5** — Patch menu PGC CellPlayback sectors from VIDEO_TS.VOB disc location
+- [x] **M6** — Wire ExtrasMpg/ExtrasButtons into VIDEO_TS.VOB and menuPGCs
+- [x] **M7** — Implement JumpVMGM_PGCN command; fix chapters/extras button commands
 
 ### CI
 - [x] **Confirm Windows CI** — Build passes after submodule sync
@@ -24,15 +24,6 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Queue integration** — Wire JobTypeBurn to executeBurnJob()
 - [ ] **Implement burn logic** — Use IMAPI2 (Windows) or SG_IO (Linux) for direct API calls
   - Note: Waiting on ISO engine (M1-M7) for production-ready ISOs
-
-### ISO Engine (Claude's work - do not interfere)
-- [ ] **M1** — Encode menu background as MPEG-2 via ffmpeg
-- [ ] **M2** — Write proper DVD VOB with video+SPU muxed
-- [ ] **M3** — Populate PCI button rectangles in NAV_PCK
-- [ ] **M4** — Set VMGM_VOBS_Sector from ISO disc layout
-- [ ] **M5** — Patch menu PGC cell sectors from disc location
-- [ ] **M6** — Wire ExtrasMpg/ExtrasButtons into VOB and menuPGCs
-- [ ] **M7** — Implement JumpVMGM_PGCN command
 
 ### UI Improvements
 - [x] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
