@@ -1302,6 +1302,7 @@ type appState struct {
 	authorMenuChapterThumbnailSrc string             // Auto, First Frame, Midpoint, Custom
 	authorTitle                   string             // Disc title
 	authorDiscTitleEntry          *widget.Entry      // Settings tab title entry (for cross-tab sync)
+	authorVideosTitleEntry        *widget.Entry      // Videos tab title entry (for cross-tab sync)
 	authorSubtitles               []string           // Subtitle file paths
 	authorAudioTracks             []string           // Additional audio tracks
 	authorSummaryLabel            *widget.Label
@@ -1724,7 +1725,7 @@ func (s *appState) updateStatsBar() {
 
 	// Find the currently running job to get its progress and stats
 	var progress, fps, speed float64
-	var eta, jobTitle string
+	var eta, elapsed, remaining, jobTitle string
 	if running > 0 {
 		jobs := s.jobQueue.List()
 		for _, job := range jobs {
@@ -1742,6 +1743,16 @@ func (s *appState) updateStatsBar() {
 					}
 					if etaDuration, ok := job.Config["eta"].(time.Duration); ok && etaDuration > 0 {
 						eta = etaDuration.Round(time.Second).String()
+					}
+				}
+
+				// Calculate elapsed and remaining time
+				if job.StartedAt != nil {
+					elapsed = fmt.Sprintf("Elapsed: %s", time.Since(*job.StartedAt).Round(time.Second))
+					if progress > 0 && progress < 100 {
+						elapsedSec := time.Since(*job.StartedAt).Seconds()
+						remainingSec := elapsedSec*(100/progress) - elapsedSec
+						remaining = fmt.Sprintf("Remaining: %s", time.Duration(remainingSec*float64(time.Second)).Round(time.Second))
 					}
 				}
 				break
@@ -1763,7 +1774,7 @@ func (s *appState) updateStatsBar() {
 		}
 	}
 
-	s.statsBar.UpdateStatsWithDetails(running, pending, completed, failed, cancelled, progress, fps, speed, eta, jobTitle)
+	s.statsBar.UpdateStatsWithDetails(running, pending, completed, failed, cancelled, progress, fps, speed, eta, elapsed, remaining, jobTitle)
 }
 
 func (s *appState) queueProgressCounts() (completed, total int) {
