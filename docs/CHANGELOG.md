@@ -21,6 +21,10 @@
 - **ExtrasMpg wiring (M6)** — `menuSet.ExtrasMpg` concatenated into `VIDEO_TS.VOB`; extras PGC built and included in the VMGM PGC table.
 - **JumpVMGM_PGCN command (M7)** — `JumpVMGM_PGCNCommand(pgcN)` added to `internal/dvd/ifo/commands.go`; `ParseButtonCommand` now translates `"jump menu N;"` / `"jump menu pgc N;"` to the correct inter-menu PGC jump opcode (0x30, 0x06).
 
+### Filter Integration (Complete)
+- **Standalone filter jobs** — Filters module can now queue filter-only jobs without upscaling. "Add to Queue" button added to Filters module UI.
+- **Filter job execution** — `executeFilterJob` supports color correction (brightness/contrast/saturation), enhancement (sharpness/denoise), transform (flip/rotate/grayscale), and stylistic filters (VHS/80s/Webcam effects) via FFmpeg.
+
 ### CI Fixes
 - **Submodule sync** — Pushed missing commits to lt_mirror/fyne.git to fix CI failures.
 
