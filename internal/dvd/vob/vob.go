@@ -209,9 +209,8 @@ func (m *Muxer) WriteVideo(data []byte, pts uint64) error {
 		if err := m.WritePadding(PackSize - rem); err != nil {
 			return fmt.Errorf("video padding: %w", err)
 		}
-	} else {
-		m.currentSector++
 	}
+	m.currentSector++
 
 	// Advance SCR by one video frame's duration (frame-rate accurate).
 	m.scr += m.VideoFrameTicks()
