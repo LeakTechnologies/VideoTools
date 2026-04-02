@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Burn** module provides DVD/BD disc burning functionality from ISO files using OS-native tools only. No FFmpeg or other external dependencies required.
+The **Burn** module provides DVD/BD disc burning functionality from ISO files using direct OS APIs. Uses Windows IMAPI2 on Windows and SG_IO ioctl on Linux.
 
 ## Features
 
@@ -42,45 +42,56 @@ The **Burn** module provides DVD/BD disc burning functionality from ISO files us
    - Current speed
    - Time remaining
 
-### Command Line Tools (OS-Native Only)
+### Command Line Tools
 
-#### Windows
-- **isoburn.exe** (built-in since Windows 8, no external dependencies)
-  ```
-  isoburn /q D:\path\to\disc.iso E:
-  ```
-  - `/q` - quiet mode (no UI)
-  - First param: ISO path
-  - Second param: drive letter
+**Important**: There are no pre-installed CLI tools for disc burning on any OS. We must use direct OS API calls for a truly insular implementation.
 
-#### Linux
-- **growisofs** (from dvd+rw-tools package, most Linux distributions include this)
-  ```
-  growisofs -Z /dev/dvd -V "DISC_LABEL" -r -J /path/to/disc.iso
-  ```
-  - `-Z` - burn/initialise
-  - `-V` - volume label
-  - `-r` - make rock ridge extensions
-  - `-J` - make Joliet directory
+#### Windows: IMAPI2 (Image Mastering API)
+- Use COM interface `IMapiDiscMaster`, `IDiscRecorder2`
+- Located in `golang.org/x/sys/windows` and `github.com/go-ole/go-ole`
+- No external dependencies beyond standard Windows SDK bindings
+
+#### Linux: ioctl via syscall
+- Direct ioctl calls to `/dev/sr*` (SG_IO)
+- No external dependencies - uses native `syscall` package
+
+**No FFmpeg, no cdrtools, no growisofs, no external CLI tools.**
 
 ### Architecture
 
 ```go
+// BurnConfig holds configuration for a burn job
 type BurnConfig struct {
     Source      string   // ISO file path
-    Drive       string   // Target drive letter (Windows) or device (Linux, e.g. /dev/sr0)
-    Speed       int      // Burn speed (0 = auto/max)
-    Eject       bool     // Eject when complete
-    Copies      int      // Number of copies (future)
+    Drive       string   // Target drive path (Windows: \\.\CDROM0, Linux: /dev/sr0)
+    Speed       int      // Burn speed in KB/s (0 = auto/max)
+    Eject       bool     // Eject disc when complete
 }
 
+// BurnProgress holds progress information
 type BurnProgress struct {
     Written  int64   // bytes written
     Total    int64   // total bytes
     Speed    float64 // MB/s
     ETA      time.Duration
+    Status   string  // current status message
 }
 ```
+
+### Implementation Strategy
+
+#### Windows (IMAPI2 via COM)
+- Use `IMapiDiscMaster` to enumerate drives
+- Use `IDiscRecorder2` to open drive and write
+- `IStream` for ISO file data transfer
+- Progress via `IWriteEngine2` callback interface
+- Requires `golang.org/x/sys/windows` (already in deps)
+
+#### Linux (SG_IO ioctl via syscall)
+- Open `/dev/sr0` with `O_RDWR|O_NONBLOCK`
+- Use `SG_IO` ioctl with SCSI commands for burning
+- CDB commands: MODE SELECT, WRITE (10/12)
+- Requires only standard `syscall` package
 
 ### Drive Detection
 
@@ -124,14 +135,11 @@ type BurnProgress struct {
 - [ ] Test with DVD+R, DVD-RW, DVD+RW
 - [ ] Test BD burning (if applicable)
 
-## Dependencies
+### Dependencies
 
-- **Windows**: isoburn.exe (built-in since Windows 8, no external deps)
-- **Linux**: growisofs (from dvd+rw-tools, included in most distros)
+- **Windows**: IMAPI2 COM interfaces via `golang.org/x/sys/windows`
+- **Linux**: SG_IO ioctl via native `syscall` package
 
-## Notes
+**No new dependencies added** - uses existing `golang.org/x/sys` (already in go.mod).
 
-- No FFmpeg required for burning
-- Use OS-native tools only
-- ISOs must be pre-created (use Author module)
-- No post-burn verification (not supported by OS tools)
+**FFmpeg is the core video processing dependency** and remains unchanged.
