@@ -3662,6 +3662,8 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		if first, count, ok := vtsSector("VTS_01_1.VOB"); ok {
 			lastSector := first + count - 1
 			logging.Info(logging.CatDVD, "Main VOB disc sectors: %d – %d", first, lastSector)
+			// Tell the IFO where the title VOBs start on disc (vtstt_vobs at 0x0C4).
+			vtsMat.VTSTT_VOBS_Sector = first
 			if hasChapters && len(mainNavSectors) > 0 {
 				// Convert VOB-relative NAV_PCK sectors to disc-absolute.
 				discNav := make([]uint32, len(mainNavSectors))
@@ -3692,11 +3694,12 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			vobName := fmt.Sprintf("VTS_%02d_1.VOB", vtsNum)
 			ifoName := fmt.Sprintf("VTS_%02d_0.IFO", vtsNum)
 			if first, count, ok := vtsSector(vobName); ok {
+				st := extraStates[i]
+				st.mat.VTSTT_VOBS_Sector = first
 				extraPGC2 := ifo.BuildSingleCellPGC(first, first+count-1, clip.Duration, isNTSC)
 				for j := uint16(0); j < nAudio && j < 8; j++ {
 					extraPGC2.AudioControl[j] = 0x8000 | uint16(j<<8)
 				}
-				st := extraStates[i]
 				if err := ifoBuilder.GenerateVTS_IFO(vtsNum, st.mat, extraPGC2, st.tmapt, st.admap, st.pttsrpt); err != nil {
 					logging.Info(logging.CatDVD, "IFO sector patch failed for extra %d: %v", vtsNum, err)
 				}
