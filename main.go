@@ -161,8 +161,6 @@ func moduleColor(id string) color.Color {
 
 func openURL(url string) error {
 	switch runtime.GOOS {
-	case "darwin":
-		return exec.Command("open", url).Start()
 	case "windows":
 		return utils.HideWindowExec("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	default:
@@ -792,8 +790,6 @@ func openFolder(path string) error {
 	switch runtime.GOOS {
 	case "windows":
 		cmd = exec.Command("explorer", p)
-	case "darwin":
-		cmd = exec.Command("open", p)
 	default:
 		cmd = exec.Command("xdg-open", p)
 	}
@@ -813,8 +809,6 @@ func openFile(path string) error {
 			p = abs
 		}
 		cmd = utils.CreateCommandRaw("cmd", "/c", "start", "", p)
-	case "darwin":
-		cmd = utils.CreateCommandRaw("open", path)
 	default:
 		cmd = utils.CreateCommandRaw("xdg-open", path)
 	}

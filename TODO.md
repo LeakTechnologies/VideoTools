@@ -4,6 +4,14 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev39 Scope (in progress)
 
+### DVD Menu System (see docs/DVD_MENU_SYSTEM_DESIGN.md)
+- [ ] **M1/M2** — Encode menu background as MPEG-2 still video; write proper video+SPU VOB
+- [ ] **M3** — Populate PCI button rectangles (BTN_NS, button coords) in NAV_PCK
+- [ ] **M4** — Set `VMGM_VOBS_Sector` from ISO disc layout pass
+- [ ] **M5** — Patch menu PGC CellPlayback sectors from VIDEO_TS.VOB disc location
+- [ ] **M6** — Wire ExtrasMpg/ExtrasButtons into VIDEO_TS.VOB and menuPGCs
+- [ ] **M7** — Implement JumpVMGM_PGCN command; fix chapters/extras button commands
+
 ### CI
 - [x] **Confirm Windows CI** — Build passes after submodule sync
 - [x] **Confirm Linux CI** — Build passes after submodule sync
@@ -160,6 +168,33 @@ Note: Full direct OpenGL/D3D11 integration requires deeper Fyne modifications. C
 - [x] **Trim module stub update** — Added OnAddToQueue, TrimClip, ModuleColor, OnShowQueue to match main.go.
 - [x] **Back button consistency** — Module name uppercase.
 - [x] **Thumbnail contact sheet fix** — Header height + filename truncation.
+
+## Code Quality Issues (dev39 carry-forward)
+
+### Dead Code / Unused Code
+- [ ] **Remove darwin/macOS code blocks** — AGENTS.md states macOS not supported, but main.go has unreachable `case "darwin":` blocks (lines 164, 795-796, 816-817)
+- [ ] **Fix unused parameters** — `_ = unit` in `internal/utils/validation.go:34`, `_ = cmd` in `internal/utils/proc_other.go:9`
+
+### Silent Error Handling
+- [ ] **Log instead of discard errors** — Multiple places where errors are silently ignored:
+  - `internal/dvd/vob/sri.go:70` — `io.ReadFull` error discarded
+  - `internal/player/gstreamer_player.go:269` — Seek error explicitly discarded
+  - `internal/queue/edit.go:139-144,192-197` — JSON marshal errors silently ignored
+  - `internal/convert/dvd.go:155-163` — `fmt.Sscanf` error ignored
+
+### Missing i18n Strings (50+ hardcoded)
+- [ ] **main.go** — ~50 hardcoded strings ("Close", "Cancel", "Convert Now", dialog titles, button labels)
+- [ ] **internal/ui/command_editor.go** — ~15 hardcoded strings ("Ready", dialog strings)
+- [ ] **internal/ui/benchmarkview.go** — ~20 hardcoded strings ("CPU:", "GPU:", labels)
+- [ ] **internal/app/modules/deps/dialog.go:32** — "Missing Dependencies"
+
+### Debug Output in Production
+- [ ] **Replace fmt.Println/Printf** — Debug statements should use proper logging:
+  - `internal/modules/handlers.go:16-101` — Multiple `fmt.Println()` debug output
+  - `internal/ui/components.go:269,275,287` — `fmt.Printf()` in drop handler
+
+### Race Conditions
+- [ ] **Queue notifyChange goroutine** — `internal/queue/queue.go:100-104` spawns goroutine accessing queue state without locking
 
 ## Agent Work Tracking
 

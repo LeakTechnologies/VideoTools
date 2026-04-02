@@ -31,7 +31,7 @@ func ValidateBitrate(input string, unit string) error {
 	if val <= 0 {
 		return fmt.Errorf("Bitrate must be positive")
 	}
-	_ = unit
+	_ = unit // Reserved for future unit validation (Kbps/Mbps/Gbps)
 	return nil
 }
 
