@@ -18,7 +18,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **FFmpeg DLL fix** — Use local FFmpeg first, fall back to download
 
 ### Burn Module (NEW)
-- [ ] **Create design document** — See docs/BURN_MODULE_DESIGN.md
+- [x] **Create design document** — See docs/BURN_MODULE_DESIGN.md
 - [ ] **Add module entry** — Wire in main.go showBurnView()
 - [ ] **Implement UI** — Source selection, drive detection, burn options
 - [ ] **Implement burn logic** — Use isoburn (Windows) or growisofs (Linux)
