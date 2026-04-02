@@ -8,7 +8,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **M1/M2** — Encode menu background as MPEG-2 still video via ffmpeg; mux video+SPU into proper DVD VOB
 - [x] **M3** — Populate PCI button rectangles (BTN_NS, button coords) in NAV_PCK
 - [x] **M4** — Set `VMGM_VOBS_Sector` from ISO disc layout pass
-- [x] **M5** — Patch menu PGC CellPlayback sectors from VIDEO_TS.VOB disc location
+- [x] **M5** — Patch menu PGC CellPlayback sectors from VIDEO_TS.VOB disc location (ISO + folder mode)
 - [x] **M6** — Wire ExtrasMpg/ExtrasButtons into VIDEO_TS.VOB and menuPGCs
 - [x] **M7** — Implement JumpVMGM_PGCN command; fix chapters/extras button commands
 
