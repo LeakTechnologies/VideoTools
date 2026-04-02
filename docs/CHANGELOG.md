@@ -17,7 +17,7 @@
 - **DVD menu VOB (M1/M2)** — `runNativeSpumux` now encodes the background PNG as an MPEG-2 still-video via ffmpeg and muxes it with SPU subpicture data into a proper DVD Program Stream VOB (`VIDEO_TS.VOB`). Falls back to video-only output if ffmpeg SPU mux fails.
 - **PCI button table (M3)** — `PCIButton` struct added to `internal/dvd/vob/nav.go`. `WriteNAV_PCK` serializes up to 36 buttons with libdvdread-compatible bit-packed coordinate encoding (BTN_SL_NS at byte 94, BTN_NS at 95, entries at 98).
 - **VMGM_VOBS_Sector (M4)** — `vmgMat.VMGM_VOBS_Sector` now set from the ISO layout pass so dvdnav can locate `VIDEO_TS.VOB` on disc.
-- **Menu PGC sector patching (M5)** — `CellPlayback[0]` First/LastSector fields in each menu PGC updated with disc-absolute sector ranges derived from per-MPG file sizes and the `VIDEO_TS.VOB` disc start sector.
+- **Menu PGC sector patching (M5)** — `CellPlayback[0]` First/LastSector fields in each menu PGC updated with disc-absolute sector ranges derived from per-MPG file sizes and the `VIDEO_TS.VOB` disc start sector. Folder-mode equivalent added: sector offsets computed from individual MPG file sizes (cumulative), and `VMGM_VOBS_Sector` set to `VMG_Last_Sector+1` so libdvdread opens `VIDEO_TS.VOB` for the VMGM domain instead of treating it as absent.
 - **ExtrasMpg wiring (M6)** — `menuSet.ExtrasMpg` concatenated into `VIDEO_TS.VOB`; extras PGC built and included in the VMGM PGC table.
 - **JumpVMGM_PGCN command (M7)** — `JumpVMGM_PGCNCommand(pgcN)` added to `internal/dvd/ifo/commands.go`; `ParseButtonCommand` now translates `"jump menu N;"` / `"jump menu pgc N;"` to the correct inter-menu PGC jump opcode (0x30, 0x06).
 

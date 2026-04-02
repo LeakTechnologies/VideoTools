@@ -3675,6 +3675,44 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			}
 		}
 
+		// Patch menu PGC cell sectors and VMGM_VOBS_Sector for folder mode.
+		// For ISO builds, the M5 block inside makeISO handles this with disc-absolute
+		// sectors from the UDF layout pass. For folder mode we compute sector offsets
+		// from the individual menu MPG file sizes (each file is sector-aligned because
+		// the native VOB muxer pads to 2048-byte boundaries).
+		if len(menuPGCs) > 0 && len(menuMpgPaths) == len(menuPGCs) {
+			discStart := uint32(0)
+			for i, mpgPath := range menuMpgPaths {
+				if i >= len(menuPGCs) {
+					break
+				}
+				var mpgSectors uint32
+				if fi, err2 := os.Stat(mpgPath); err2 == nil && fi.Size() > 0 {
+					mpgSectors = uint32((fi.Size() + 2047) / 2048)
+				} else {
+					mpgSectors = 1
+				}
+				discEnd := discStart + mpgSectors - 1
+				if len(menuPGCs[i].CellPlayback) > 0 {
+					menuPGCs[i].CellPlayback[0].FirstSector = discStart
+					menuPGCs[i].CellPlayback[0].FirstILVUEndSector = discEnd
+					menuPGCs[i].CellPlayback[0].LastVOBUStartSector = discStart
+					menuPGCs[i].CellPlayback[0].LastSector = discEnd
+				}
+				logging.Info(logging.CatDVD, "Menu PGC %d folder sectors: %d – %d", i+1, discStart, discEnd)
+				discStart = discEnd + 1
+			}
+			// VMGM_VOBS_Sector must be non-zero so libdvdread opens VIDEO_TS.VOB
+			// for the VMGM domain. For a VIDEO_TS folder the VOB logically starts
+			// just after the IFO; VMG_Last_Sector+1 is the conventional value.
+			vmgMat.VMGM_VOBS_Sector = vmgMat.VMG_Last_Sector + 1
+			if err := ifoBuilder.GenerateVMG_IFO(vmgMat, srpt, menuPGCs, vtsAtrt); err != nil {
+				logging.Info(logging.CatDVD, "Failed to regenerate VMG IFO for folder mode: %v", err)
+			} else {
+				logFn("VMG IFO updated with menu sector addresses")
+			}
+		}
+
 		logFn("IFO sector addresses computed")
 	}
 
