@@ -433,6 +433,40 @@ type Strings struct {
 	ConvertInterlaceInfo          string // "Left: Original | Right: Deinterlaced"
 	ConvertInspectHint            string // "Load a clip to inspect its technical details."
 
+	// ── Convert Section Headers ─────────────────────────────────────────────
+	ConvertSectionOutputOptions  string // "Output Options"
+	ConvertSectionTargetFileSize string // "Target File Size"
+	ConvertSectionQualityPreset  string // "Quality Preset"
+	ConvertSectionManualCRF      string // "Manual CRF (overrides Quality preset)"
+	ConvertSectionBitratePreset  string // "Bitrate Preset"
+	ConvertSectionManualBitrate  string // "Manual Bitrate"
+	ConvertSectionEncoderSpeed   string // "Encoder Speed/Quality"
+	ConvertSectionEncoderPreset  string // "Encoder Preset"
+	ConvertSectionCustomAspect   string // "Custom Aspect Ratio"
+	ConvertSectionAspectHandling string // "Aspect Handling"
+	ConvertSectionDVDApect       string // "DVD Aspect Ratio"
+	ConvertSectionCacheDir       string // "Cache/Temp Directory"
+	ConvertSectionLogsDir        string // "Logs Directory"
+	ConvertSectionClipsToMerge   string // "Clips to Merge" (for Merge module)
+
+	// ── Convert Simple Tab Section Headers ──────────────────────────────────
+	ConvertSectionFormat           string // "Format"
+	ConvertSectionOutputFolder     string // "Output Folder"
+	ConvertSectionOutputFilename   string // "Output Filename"
+	ConvertSectionTargetResolution string // "Target Resolution"
+	ConvertSectionFrameRate        string // "Frame Rate"
+	ConvertSectionTargetAspect     string // "Target Aspect Ratio"
+	ConvertSectionVideoCodec       string // "Video Codec"
+	ConvertSectionAudioCodec       string // "Audio Codec"
+	ConvertSectionAudioBitrate     string // "Audio Bitrate"
+	ConvertSectionAudioChannels    string // "Audio Channels"
+	ConvertSectionPixelFormat      string // "Pixel Format"
+	ConvertSectionHardwareAccel    string // "Hardware Acceleration"
+	ConvertSectionBitrateMode      string // "Bitrate Mode"
+	ConvertSectionRotation         string // "Rotation"
+	ConvertSectionBitrateSimple    string // "Bitrate (simple presets)"
+	ConvertSectionMetadata         string // "Metadata"
+
 	// ── Merge ──────────────────────────────────────────────────────────────────
 	MergeAddClipsHint string // "Add at least two clips to merge."
 	MergeRegion       string // "Region:"
