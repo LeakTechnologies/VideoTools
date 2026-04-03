@@ -70,7 +70,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/ffmpeg-static
-          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-linux-v1
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-linux-v2
 
       - name: Install build deps
         run: |
@@ -269,12 +269,15 @@ jobs:
           }
 
           # Toolchain (gcc, make, etc.) - required for Go CGO linking
+          # Also install unzip for FFmpeg extraction
           if (-not (Test-Path "C:\msys64\ucrt64\bin\gcc.exe")) {
             Write-Host "[INFO] Installing ucrt64 toolchain..."
             Invoke-Bash "pacman -Sy --noconfirm && pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain"
           } else {
             Write-Host "[INFO] ucrt64 toolchain present"
           }
+          Write-Host "[INFO] Installing unzip..."
+          Invoke-Bash "pacman -S --needed --noconfirm unzip"
           Write-Host "[INFO] Build tools ready"
 
       - name: Setup static FFmpeg (Windows)
