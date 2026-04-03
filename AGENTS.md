@@ -193,7 +193,7 @@ Open an issue or ask before touching the "Setup static FFmpeg" steps.
   - Windows first-run FFmpeg bootstrap — issue #18
   - cross-platform dependency actions — issue #7
   - Forgejo packaging/release workflows end-to-end — issues #8, #9, #10
-- Do not reopen bundled dependency packaging for dev builds unless explicitly requested.
+  - Do not reopen bundled dependency packaging for dev builds unless explicitly requested.
 
 ## Using Sub-Agents
 
