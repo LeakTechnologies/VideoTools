@@ -70,7 +70,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /opt/ffmpeg-static
-          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-linux-v2
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-linux-v3
 
       - name: Install build deps
         run: |
@@ -101,7 +101,7 @@ jobs:
         run: |
           set -euo pipefail
           ver="${{ env.FFMPEG_VERSION }}"
-          marker="/opt/ffmpeg-static/.built-${ver}-v2"
+          marker="/opt/ffmpeg-static/.built-${ver}-v3"
           if [ -f "$marker" ]; then
             echo "[INFO] FFmpeg ${ver} already built (marker: $marker)"
             exit 0
@@ -130,8 +130,10 @@ jobs:
           make -j$(nproc) && make install
           cd /tmp && rm -rf /tmp/x265-src /tmp/x265-build
 
-          # Overwrite x265.pc: CMake may omit Libs.private entirely, leaving
-          # C++ runtime and math symbols unresolved in FFmpeg's configure link test.
+          # Overwrite x265.pc: CMake omits C++ runtime from Libs, leaving operator
+          # new, RTTI vtables etc. unresolved in FFmpeg's configure link test.
+          # FFmpeg configure calls `pkg-config --libs` (no --static), so Libs.private
+          # is never included. C++ deps must be in Libs for the link test to succeed.
           echo 'prefix=/opt/ffmpeg-static'          > /opt/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'exec_prefix=${prefix}'             >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'libdir=${prefix}/lib'              >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
@@ -140,8 +142,7 @@ jobs:
           echo 'Name: x265'                        >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Description: H.265/HEVC encoder'  >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Version: 4.1.0'                    >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Libs: -L${libdir} -lx265'         >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Libs.private: -lstdc++ -lm'       >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs: -L${libdir} -lx265 -lstdc++ -lm' >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Cflags: -I${includedir}'          >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
 
           # Build FFmpeg from source
@@ -351,7 +352,7 @@ jobs:
           MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
-          marker="/c/ffmpeg-static/.built-${ver}-v5"
+          marker="/c/ffmpeg-static/.built-${ver}-v6"
           if [ -f "$marker" ]; then
             echo "[INFO] FFmpeg ${ver} already built (marker: $marker)"
             exit 0
@@ -385,9 +386,11 @@ jobs:
 
           # Overwrite x265.pc: CMake writes Windows paths + CRLF line endings;
           # MSYS2 pkg-config cannot parse either. Write with echo (LF, POSIX paths).
-          # Libs.private uses -l flags so the linker finds /ucrt64/lib/libstdc++.a
-          # (the DLL import stub, sufficient for FFmpeg's configure link test).
-          # The actual Go binary uses -static-libstdc++ in CGO_LDFLAGS.
+          # C++ runtime deps go in Libs (not Libs.private) because FFmpeg configure
+          # calls `pkg-config --libs` without --static, so Libs.private is never seen.
+          # -lstdc++ satisfies std::__throw_length_error via the DLL import stub.
+          # -lsupc++ (GCC private static archive) satisfies operator new/delete,
+          # __cxa_guard_acquire/release, and RTTI vtables.
           echo 'prefix=/c/ffmpeg-static'           > /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'exec_prefix=${prefix}'            >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'libdir=${prefix}/lib'             >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
@@ -396,16 +399,15 @@ jobs:
           echo 'Name: x265'                       >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Description: H.265/HEVC encoder' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Version: 4.1.0'                   >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Libs: -L${libdir} -lx265'        >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Libs.private: -lstdc++ -lsupc++ -lm' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs: -L${libdir} -lx265 -lstdc++ -lsupc++ -lm' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Cflags: -I${includedir}'         >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
 
           cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
 
           echo "[INFO] pkg-config diagnostics:"
           echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
-          echo "  x265 --static --exists: $(pkg-config --static --exists x265 2>&1 && echo OK || echo FAIL)"
-          echo "  x265 --static --libs:   $(pkg-config --static --libs x265 2>&1 || echo FAIL)"
+          echo "  x265 --exists: $(pkg-config --exists x265 2>&1 && echo OK || echo FAIL)"
+          echo "  x265 --libs:   $(pkg-config --libs x265 2>&1 || echo FAIL)"
 
           # Build FFmpeg from source
           echo "[INFO] Building FFmpeg ${ver} from source..."

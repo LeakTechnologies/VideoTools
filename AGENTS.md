@@ -126,9 +126,13 @@ in a static link.
 
 **x265.pc must be overwritten after cmake install.**
 CMake writes Windows-style paths and CRLF line endings that MSYS2 pkg-config cannot parse.
-It also omits `Libs.private`, leaving C++ runtime and math symbols unresolved in
-FFmpeg's configure link test. The echo-command overwrite (LF, POSIX paths, with
-`Libs.private: -lstdc++ -lsupc++ -lm` on Windows / `-lstdc++ -lm` on Linux) is required.
+It also omits the C++ runtime from Libs. The echo-command overwrite (LF, POSIX paths) is required.
+C++ deps (`-lstdc++ -lsupc++ -lm` on Windows / `-lstdc++ -lm` on Linux) must go in **`Libs`**
+(not `Libs.private`) because FFmpeg configure calls `pkg-config --libs` without `--static`,
+so `Libs.private` is never included in the configure link test. On Linux, `-lstdc++` resolves
+to libstdc++.so.6 which exports operator new, RTTI vtables etc. On Windows, `-lstdc++` provides
+the DLL import stub (for std::__throw_length_error) and `-lsupc++` provides the GCC-private static
+archive (for operator new/delete, __cxa_guard, RTTI vtables).
 
 **cmake must be in the Linux apt-get install deps** (for x265 source build).
 **nasm and mingw-w64-ucrt-x86_64-cmake must be installed in the Windows MSYS2 step** (for x264/x265 source builds).
