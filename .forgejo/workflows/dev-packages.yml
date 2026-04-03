@@ -130,6 +130,20 @@ jobs:
           make -j$(nproc) && make install
           cd /tmp && rm -rf /tmp/x265-src /tmp/x265-build
 
+          # Overwrite x265.pc: CMake may omit Libs.private entirely, leaving
+          # C++ runtime and math symbols unresolved in FFmpeg's configure link test.
+          echo 'prefix=/opt/ffmpeg-static'          > /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'exec_prefix=${prefix}'             >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'libdir=${prefix}/lib'              >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'includedir=${prefix}/include'      >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo ''                                  >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Name: x265'                        >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Description: H.265/HEVC encoder'  >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Version: 4.1.0'                    >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs: -L${libdir} -lx265'         >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs.private: -lstdc++ -lm'       >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Cflags: -I${includedir}'          >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+
           # Build FFmpeg from source
           echo "[INFO] Building FFmpeg ${ver} from source..."
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
@@ -384,17 +398,10 @@ jobs:
 
           # x265 is a C++ library; FFmpeg configure link test uses gcc (not g++),
           # so C++ runtime symbols (operator new, RTTI, etc.) must be supplied
-          # explicitly.
-          # IMPORTANT: gcc --print-file-name=libstdc++.a returns the DLL import
-          # stub in /ucrt64/lib/, NOT the real static archive. Use
-          # --print-libgcc-file-name to locate the GCC library directory where
-          # the actual static libstdc++.a and libsupc++.a live.
-          gcc_libdir=$(dirname $(gcc --print-libgcc-file-name))
-          stdc_a="${gcc_libdir}/libstdc++.a"
-          supc_a="${gcc_libdir}/libsupc++.a"
-          echo "[INFO] libstdc++.a: $stdc_a (exists: $(test -f "$stdc_a" && echo YES || echo NO))"
-          echo "[INFO] libsupc++.a: $supc_a (exists: $(test -f "$supc_a" && echo YES || echo NO))"
-          echo "Libs.private: $stdc_a $supc_a -lm" >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          # explicitly. On MSYS2 ucrt64, libstdc++.a in /ucrt64/lib is the DLL
+          # import stub — sufficient for the link test to pass. The actual Go
+          # binary uses -static-libstdc++ in CGO_LDFLAGS (ci-build.ps1).
+          echo "Libs.private: -lstdc++ -lsupc++ -lm" >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
 
           cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
 
