@@ -109,6 +109,33 @@ When adding a new feature, grep for hardcoded strings:
 - Use `scripts/windows/install.ps1` or `scripts/windows/install.bat` from PowerShell/CMD.
 - `scripts/linux/install.sh` is for bash shells only; do not run it from PowerShell.
 
+## CI Build — Settled Decisions (Do Not Revert)
+
+The following decisions in `.forgejo/workflows/dev-packages.yml` were reached after multiple failed attempts and must not be changed without explicit approval:
+
+**FFmpeg must be built from source — never use BtbN pre-built packages.**
+BtbN Windows packages contain executables only, no static `.a` libraries.
+BtbN Linux packages do not bundle `libx264.a`/`libx265.a`.
+Both result in `cannot find -lx264/-lx265` linker errors in the CGO build.
+`unzip` is not available in the MSYS2 bash environment — a BtbN `.zip` approach also fails immediately.
+
+**x264 and x265 must be built from source as static-only.**
+MSYS2's prebuilt x264/x265 packages install headers with `__declspec(dllimport)`,
+causing `libavcodec.a` to reference `__imp_x264_*` symbols that can never be satisfied
+in a static link.
+
+**x265.pc must be overwritten after cmake install.**
+CMake writes Windows-style paths and CRLF line endings that MSYS2 pkg-config cannot parse.
+It also omits `Libs.private`, leaving C++ runtime and math symbols unresolved in
+FFmpeg's configure link test. The echo-command overwrite (LF, POSIX paths, with
+`Libs.private: -lstdc++ -lsupc++ -lm` on Windows / `-lstdc++ -lm` on Linux) is required.
+
+**cmake must be in the Linux apt-get install deps** (for x265 source build).
+**nasm and mingw-w64-ucrt-x86_64-cmake must be installed in the Windows MSYS2 step** (for x264/x265 source builds).
+
+If CI is failing, read the build log carefully before changing the FFmpeg setup strategy.
+Open an issue or ask before touching the "Setup static FFmpeg" steps.
+
 ## Coordination
 
 - Ask before changing workflow entrypoints or automation behavior.
