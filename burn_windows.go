@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -44,7 +43,9 @@ func getDriveInfo(drive string) (name, capacity string, err error) {
 
 	// Get volume info
 	var volumeName [256]uint16
-	windows.GetVolumeInformation(drivePath, &volumeName, nil, nil, nil)
+	var serialNum, maxCompLen, flags uint32
+	var fileSystem [256]uint16
+	windows.GetVolumeInformation(drivePath, &volumeName[0], 0, &serialNum, &maxCompLen, &flags, &fileSystem[0], 0)
 	name = windows.UTF16ToString(volumeName[:])
 
 	if name == "" {
@@ -52,7 +53,7 @@ func getDriveInfo(drive string) (name, capacity string, err error) {
 	}
 
 	// Get disk free space
-	var freeBytesAvailable, totalNumberOfBytes, totalNumberOfFreeBytes int64
+	var freeBytesAvailable, totalNumberOfBytes, totalNumberOfFreeBytes uint64
 	windows.GetDiskFreeSpaceEx(drivePath, &freeBytesAvailable, &totalNumberOfBytes, &totalNumberOfFreeBytes)
 
 	gb := float64(totalNumberOfBytes) / (1024 * 1024 * 1024)
