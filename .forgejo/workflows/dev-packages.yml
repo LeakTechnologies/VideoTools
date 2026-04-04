@@ -433,6 +433,16 @@ jobs:
           touch "$marker"
           echo "[INFO] FFmpeg ${ver} Windows build complete"
 
+      - name: Free disk space before Go build
+        run: |
+          # MSYS2 package cache and temp files from the FFmpeg build can consume
+          # several GB; remove them before the CGO build to avoid "No space left
+          # on device" errors during GCC intermediate file generation.
+          Remove-Item "C:\msys64\var\cache\pacman\pkg\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item "C:\msys64\tmp\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host "[INFO] Disk cleanup complete"
+          Get-PSDrive C | Select-Object Used, Free | ForEach-Object { Write-Host "[INFO] C: used=$([math]::Round($_.Used/1GB,1))GB free=$([math]::Round($_.Free/1GB,1))GB" }
+
       - name: Build Windows package
         env:
           # SignPath.io (free OSS signing — https://signpath.io/product/open-source)
