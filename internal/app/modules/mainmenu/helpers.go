@@ -28,7 +28,8 @@ func BuildVisibleModules(source []SourceModule, vis Visibility) []ui.ModuleInfo 
 		if !isVisibleByPreference(m.ID, vis) {
 			continue
 		}
-		enabled := m.ID == "settings" || (m.HasHandler && m.DepsAvailable)
+		// Modules without handlers (settings, burn, filemanager) are always enabled
+		enabled := m.ID == "settings" || m.ID == "burn" || m.ID == "filemanager" || (m.HasHandler && m.DepsAvailable)
 		missingDeps := m.HasHandler && !m.DepsAvailable && m.ID != "settings"
 		out = append(out, ui.ModuleInfo{
 			ID:                  m.ID,
