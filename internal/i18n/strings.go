@@ -73,6 +73,8 @@ type Strings struct {
 	DialogISOCannotOpenMsg   string // "Use the Author module to re-author or browse the disc contents"
 	DialogBurnComingSoon     string // "Burn DVD"
 	DialogBurnComingSoonMsg  string // "DVD burning will be available in a future update."
+	DialogUpdateBlocked      string // "Update Blocked"
+	StatusUpdateBlockedByJob string // shown when install is attempted while a job is running
 	LabelSnippet             string // "Snippet:" (job title prefix)
 	MergeStarted             string // "Merge started!"
 

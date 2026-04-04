@@ -1026,6 +1026,12 @@ func checkForUpdates(state *appState) {
 				latestTag := info.latestTag
 				installBtn := widget.NewButton("Install Update", func() {
 					d.Hide()
+					queueBusy := state.jobQueue != nil && state.jobQueue.IsRunning()
+					if state.convertBusy || queueBusy {
+						t := i18n.T()
+						dialog.ShowInformation(t.DialogUpdateBlocked, t.StatusUpdateBlockedByJob, state.window)
+						return
+					}
 					applyUpdate(state, latestTag)
 				})
 				installBtn.Importance = widget.HighImportance
@@ -1068,6 +1074,12 @@ func checkForUpdates(state *appState) {
 				currentTag := appVersion
 				installBtn := widget.NewButton("Install Patches", func() {
 					d.Hide()
+					queueBusy := state.jobQueue != nil && state.jobQueue.IsRunning()
+					if state.convertBusy || queueBusy {
+						t := i18n.T()
+						dialog.ShowInformation(t.DialogUpdateBlocked, t.StatusUpdateBlockedByJob, state.window)
+						return
+					}
 					applyUpdate(state, currentTag)
 				})
 				installBtn.Importance = widget.HighImportance

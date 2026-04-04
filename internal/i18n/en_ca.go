@@ -66,6 +66,8 @@ var enCA = Strings{
 	DialogISOCannotOpenMsg:   "DVD ISO files cannot be loaded directly.\n\nUse the Author module to re-author or browse the disc contents.",
 	DialogBurnComingSoon:     "Burn DVD",
 	DialogBurnComingSoonMsg:  "DVD burning will be available in a future update.",
+	DialogUpdateBlocked:      "Update Blocked",
+	StatusUpdateBlockedByJob: "A job is currently running. Please wait for all jobs to finish before installing an update.\n\nUpdates require a restart and would interrupt active work.",
 	LabelSnippet:             "Snippet:",
 	MergeStarted:             "Merge started!",
 
