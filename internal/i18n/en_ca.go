@@ -44,6 +44,7 @@ var enCA = Strings{
 	DialogNoBlackBars:        "No black bars detected. Video is already fully cropped.",
 	DialogNoVideo:            "No Video",
 	DialogNoFile:             "No File",
+	DialogLoadVideoFirst:     "Load a video first.",
 	DialogNoConfig:           "No Config",
 	DialogConfigSaved:        "Config Saved",
 	DialogCopied:             "Copied",
