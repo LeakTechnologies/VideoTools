@@ -50,6 +50,12 @@ if (-not $staticLibs) {
     Write-Error "pkg-config returned no flags for FFmpeg - check C:\ffmpeg-static"
     exit 1
 }
+# -lsupc++ appears transitively from x265.pc (required for FFmpeg's configure link
+# test to resolve vtable symbols against the GCC-private static archive). It must
+# NOT appear in the final binary link alongside -lstdc++ (the DLL import stub):
+# both define std::type_info::operator== and the linker rejects multiple definitions.
+# The import-stub thunks from -lstdc++ are sufficient for the final binary.
+$staticLibs = (($staticLibs -split '\s+') | Where-Object { $_ -ne '-lsupc++' }) -join ' '
 # Only add libs that pkg-config consistently omits from FFmpeg's .pc files on Windows.
 # -static-libstdc++: prevents libstdc++-6.dll runtime dependency (stdc++ appears in FFmpeg's pkg-config output)
 $env:CGO_LDFLAGS = "$staticLibs -LC:\msys64\ucrt64\lib -loleaut32 -lgdi32 -lpsapi -lavrt -lmfplat -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
