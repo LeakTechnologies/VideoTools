@@ -16,6 +16,7 @@ var iuLatn = Strings{
 	MenuResults:   "Sivulliqpaujut",             // Results
 	MenuAbout:     "Mikssannnut / Ikajuqtuiniq", // About / Support
 	MenuLogs:      "Titiraqtausimaujut",         // Logs
+	MenuFiles:     "Qinik",                      // Files (machine-generated, needs human review)
 
 	// ── Module Names ─────────────────────────────────────────────────────
 	ModuleConvert:     "Asijjiariaqtuq",   // Convert

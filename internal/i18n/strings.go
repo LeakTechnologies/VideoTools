@@ -18,6 +18,7 @@ type Strings struct {
 	MenuResults   string
 	MenuAbout     string
 	MenuLogs      string
+	MenuFiles     string // "Files" (quick access dropdown)
 
 	// ── Module Names ─────────────────────────────────────────────────────
 	ModuleConvert     string
