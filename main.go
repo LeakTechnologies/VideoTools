@@ -2853,8 +2853,7 @@ func (s *appState) showModule(id string) {
 	case "rip":
 		s.showRipView()
 	case "burn":
-		t := i18n.T()
-		dialog.ShowInformation(t.DialogBurnComingSoon, t.DialogBurnComingSoonMsg, s.window)
+		s.showBurnView()
 	case "subtitles":
 		s.showSubtitlesView()
 	case "settings":

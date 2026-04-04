@@ -25,14 +25,15 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Implement UI** — Source selection, drive detection, burn options
 - [x] **Queue integration** — Wire JobTypeBurn to executeBurnJob()
 - [ ] **Implement burn logic** — Use IMAPI2 (Windows) or SG_IO (Linux) for direct API calls
-  - Note: Waiting on ISO engine (M1-M7) for production-ready ISOs
+  - [ ] Windows: Implement IMAPI2 COM interface in burn_windows.go
+  - [ ] Linux: Implement SG_IO ioctl in burn_linux.go
+  - [ ] Add getDriveInfo() to show disc capacity (DVD5/9, BD25/50)
+  - [ ] Add verify option (post-burn read-back)
 - [ ] **Multi-drive batch burning** — See docs/BURN_MODULE_DESIGN.md §Phase 3
-  - Detect all writable optical drives
-  - Parallel burning across multiple drives
-  - Batch mode for multi-volume sets (Disc 1-N across available drives)
-  - Sequential fallback for single-drive systems
-  - Per-drive progress tracking and error recovery
-  - Post-burn verification (read-back checksum)
+  - [ ] Detect all writable optical drives
+  - [ ] Parallel burning across multiple drives
+  - [ ] Per-drive progress tracking
+  - [ ] Post-burn verification (read-back checksum)
 
 ### UI Improvements
 - [x] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
