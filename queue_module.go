@@ -267,7 +267,12 @@ func (s *appState) refreshQueueView() {
 				if err != nil || job.OutputFile == "" {
 					return
 				}
-				ext := strings.ToLower(filepath.Ext(job.OutputFile))
+				outputFile := job.OutputFile
+				if info, err := os.Stat(outputFile); err == nil && info.IsDir() {
+					_ = openFolder(outputFile)
+					return
+				}
+				ext := strings.ToLower(filepath.Ext(outputFile))
 				isVideo := false
 				switch ext {
 				case ".mp4", ".mkv", ".avi", ".mov", ".mpg", ".mpeg", ".ts", ".m2ts", ".wmv", ".flv", ".webm", ".m4v", ".vob":
@@ -279,11 +284,11 @@ func (s *appState) refreshQueueView() {
 					return
 				}
 				if isVideo && s.prefs.QueuePlayBehavior == "inspect" {
-					s.showInspectViewForPath(job.OutputFile)
+					s.showInspectViewForPath(outputFile)
 				} else if isVideo {
-					s.showPlayerViewForPath(job.OutputFile)
+					s.showPlayerViewForPath(outputFile)
 				} else {
-					_ = openURL(job.OutputFile)
+					_ = openURL(outputFile)
 				}
 			},
 			OnBurnISO: func(id string) {
@@ -295,7 +300,12 @@ func (s *appState) refreshQueueView() {
 				if err != nil || job.OutputFile == "" {
 					return
 				}
-				src := &videoSource{Path: job.OutputFile, DisplayName: filepath.Base(job.OutputFile)}
+				outputFile := job.OutputFile
+				if info, err := os.Stat(outputFile); err == nil && info.IsDir() {
+					_ = openFolder(outputFile)
+					return
+				}
+				src := &videoSource{Path: outputFile, DisplayName: filepath.Base(outputFile)}
 				switch module {
 				case "convert":
 					s.source = src
