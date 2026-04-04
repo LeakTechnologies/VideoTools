@@ -15,22 +15,11 @@ These rules apply to any automation or agent working in this repo.
 
 ## Immediate Handoff Priorities
 
-- **Burn module** — Implement disc burning; see docs/BURN_MODULE_DESIGN.md
-- **Auto-grey codecs** — Filter incompatible codecs based on format; see docs/AUTO_GREY_CODECS.md
-- **Filter integration** — Merge filters into upscale module; see docs/FILTER_INTEGRATION_DESIGN.md
-- **Module extraction** — Continue settings_module.go extraction to `internal/app/modules/settings/`.
-- **IFO audio table** — Done (dev39, closed). Audio attributes now populated from track data; helpers in `internal/dvd/ifo/audio.go`.
-- **VTS_MAT byte layout** — Done (dev39, closed). All field offsets in `mat_serialize.go`/`vtsi.go` corrected to match libdvdread `vtsi_mat_t`; fixes dvdnav `zero_12`/`zero_17` violations and `ifoRead_VTS_PTT_SRPT failed`.
-- **DVD menu system** — Done (dev39, closed). All M1-M7 items complete. `runNativeSpumux` produces proper MPEG-2+SPU VOBs; PCI button table populated in NAV_PCK; VMGM_VOBS_Sector wired (ISO: from UDF layout pass; folder: VMG_Last_Sector+1); menu PGC cell sectors patched for both ISO and folder outputs; extras pipeline active; `JumpVMGM_PGCNCommand` handles inter-menu navigation. See `docs/DVD_MENU_SYSTEM_DESIGN.md`.
+- **Burn module** — Implement burn logic (IMAPI2 on Windows, SG_IO on Linux); UI is wired. See `docs/BURN_MODULE_DESIGN.md`.
+- **Module extraction** — Continue `settings_module.go` extraction to `internal/app/modules/settings/`.
 - **Issue #5** (Convert UI cleanup) — layout consistency and label clarity pass on `buildConvertView` in `main.go`.
 - Do not expand scope beyond what is listed unless explicitly approved.
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
-
-## Dev30 Closeout (Complete)
-
-- `dev30` closed 2026-03-11. Checklist at `docs/DEV30_FINALIZATION_CHECKLIST.md`.
-- CI confirmed green on commit 2cbb3a2. Release assets verified on Forgejo.
-- Smoke test and dependency validation carried forward as issues #3, #4, #5, #18.
 
 ## Commit Discipline
 
@@ -65,7 +54,8 @@ All user-facing strings MUST use the i18n system. Never hardcode display strings
 2. **Add new strings** to `internal/i18n/strings.go` first (defines the key)
 3. **Add English translation** to `internal/i18n/en_ca.go` (source of truth)
 4. **Add French translation** to `internal/i18n/fr_ca.go`
-5. **Module names** already localized: use `t.ModuleXxx` (e.g., `t.ModuleConvert`)
+5. **Add Inuktitut placeholders** to `internal/i18n/iu.go` (syllabics) and `internal/i18n/iu_latin.go` (Latin). Machine-generated translations are acceptable but must carry a `// machine-generated, needs human review` comment. See `docs/localization-policy.md` for the full policy.
+6. **Module names** already localized: use `t.ModuleXxx` (e.g., `t.ModuleConvert`)
 6. **Actions** already localized: use `t.ActionXxx` (e.g., `t.ActionSave`)
 7. **Common labels** already localized: use `t.LabelXxx` (e.g., `t.LabelNoFile`)
 
@@ -146,9 +136,7 @@ Open an issue or ask before touching the "Setup static FFmpeg" steps.
 - Ask before changing workflow entrypoints or automation behavior.
 - If a change affects installs/builds, add a short note in docs.
 - Keep Forgejo release publishing aligned to `VERSION`; do not retarget releases to older dev tags.
-- Be careful with tag/release operations:
-  - `v0.1.1-dev29` is historical
-  - current release work must stay on `v0.1.1-dev30` until `dev31` starts
+- Be careful with tag/release operations — do not retarget or delete existing dev tags.
 - Old workflow runs must not be used as evidence of current release state.
 
 ## Repository Hygiene
@@ -171,7 +159,7 @@ Open an issue or ask before touching the "Setup static FFmpeg" steps.
   - `enhancement_module.go` — `buildEnhancementView` (placeholder)
   - `upscale_module.go` — full upscale view + AI helpers
   - `compare_module.go` — `showCompareView`, `showCompareFullscreen`, `buildCompareView`, `buildCompareFullscreenView`
-- `main.go` is now ~15,248 lines (down from ~16,726). Remaining large blocks:
+- `main.go` is now ~16,925 lines. Remaining large blocks:
   - `buildConvertView` (~3,500 lines) — entry point shim exists; full extraction requires appState decoupling first
   - Inspect view (`showInspectView` + `buildInspectView`)
   - Settings view (`showSettingsView` + `buildSettingsView`)
@@ -190,11 +178,11 @@ Open an issue or ask before touching the "Setup static FFmpeg" steps.
   - move app logic into `internal/app/`
   - move the executable entrypoint toward `cmd/videotools/`
 
-## Validation Priorities For Dev31
+## Validation Priorities For Dev40
 
-- Issues #3 and #4 are closed. Issue #5 (Convert UI cleanup) is the remaining dev31 UI item.
+- Issue #5 (Convert UI cleanup) is the remaining open UI item.
 - Phase 3 modularisation is ongoing secondary work — Inspect, Settings, Queue are the next candidates.
-- Carry-forward validations (tracked as issues, not blocking dev31 code work):
+- Carry-forward validations (tracked as issues, not blocking dev40 code work):
   - Windows first-run FFmpeg bootstrap — issue #18
   - cross-platform dependency actions — issue #7
   - Forgejo packaging/release workflows end-to-end — issues #8, #9, #10
@@ -239,67 +227,3 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 - Do not add macOS-specific code paths, CI jobs, or documentation.
 - **Existing darwin code should be removed** when found during code reviews or refactoring — there is no reason for any `case "darwin":` blocks to exist in this codebase.
 
-## Planned Feature: Update-Install Guard (Not Yet Implemented)
-
-**Problem:** `applyUpdate` downloads a new binary and calls `performRestart`, which terminates the running process. If a queue job or conversion is active this destroys in-progress work with no warning.
-
-**Scope:** `settings_module.go` only. No structural changes required.
-
-### Entry points to guard
-
-There are exactly two places `applyUpdate` is called:
-
-1. `settings_module.go` ~line 1040 — "Install Update" button inside the `CheckForUpdatesWithStatus` dialog (triggered when a newer version tag is available).
-2. `settings_module.go` ~line 1082 — "Install Patches" button in the same flow (triggered when same version tag but binary hash mismatch).
-
-Both are `widget.Button` `OnTapped` closures that call `applyUpdate(state, tag)` directly.
-
-### Guard logic
-
-Before calling `applyUpdate`, check two conditions:
-
-```go
-queueBusy := state.jobQueue != nil && state.jobQueue.IsRunning()
-busy := state.convertBusy || queueBusy
-```
-
-If `busy == true`, **do not call `applyUpdate`**. Instead show a blocking information dialog:
-
-```
-title:   "Update Blocked"
-message: "A job is currently running. Please wait for all jobs to finish before installing an update.\n\nUpdates require a restart and would interrupt active work."
-button:  "OK"
-```
-
-If `busy == false`, proceed with the existing `applyUpdate(state, tag)` call unchanged.
-
-### What NOT to change
-
-- Do not add an auto-retry or deferred install ("install when idle") — keep it simple.
-- Do not disable the "Check for Updates" button or hide the update dialog — only block the final install action.
-- Do not touch `applyUpdate` itself or `performRestart`.
-- Do not add the guard to `applyUpdateStatusToUI` — that function only updates UI labels, it never installs.
-- The `ApplyUpdate` adapter on `preferencesAdapter` (~line 1596) does not need changing; the guard belongs at the call site in the dialog callbacks, not in the adapter.
-
-### i18n strings to add
-
-Add to `internal/i18n/strings.go` and both locale files (`en_ca.go`, `fr_ca.go`):
-
-| Key | English value |
-|---|---|
-| `DialogUpdateBlocked` | `"Update Blocked"` |
-| `StatusUpdateBlockedByJob` | `"A job is currently running. Please wait for all jobs to finish before installing an update.\n\nUpdates require a restart and would interrupt active work."` |
-
-### Commit message
-
-```
-fix(settings): block update install while queue or conversion job is active
-```
-
-### Test plan
-
-1. Start a conversion or queue job.
-2. Open Settings → Updates tab → check for updates.
-3. When the "Install Update" or "Install Patches" dialog appears, click the install button.
-4. Verify the "Update Blocked" dialog appears and `applyUpdate` is NOT called.
-5. Let all jobs finish, then retry — verify the update proceeds normally.
