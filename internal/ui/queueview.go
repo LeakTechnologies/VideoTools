@@ -199,27 +199,29 @@ func applyAlpha(c color.Color, alpha uint8) color.Color {
 }
 
 type queueCallbacks struct {
-	onStopPreview func()
-	onBack        func()
-	onPause       func(string)
-	onResume      func(string)
-	onCancel      func(string)
-	onRemove      func(string)
-	onMoveUp      func(string)
-	onMoveDown    func(string)
-	onPauseAll    func()
-	onResumeAll   func()
-	onStart       func()
-	onClear       func()
-	onClearAll    func()
-	onCancelAll   func()
-	onRetry       func(string)
-	onCopyError   func(string)
-	onViewLog     func(string)
-	onCopyCommand func(string)
-	onOpenFolder  func(string)
-	onOpenOutput  func(string)
-	onBurnISO     func(string) // For author jobs with ISO output
+	onStopPreview    func()
+	onBack           func()
+	onPause          func(string)
+	onResume         func(string)
+	onCancel         func(string)
+	onRemove         func(string)
+	onMoveUp         func(string)
+	onMoveDown       func(string)
+	onPauseAll       func()
+	onResumeAll      func()
+	onStart          func()
+	onClear          func()
+	onClearAll       func()
+	onCancelAll      func()
+	onRetry          func(string)
+	onCopyError      func(string)
+	onViewLog        func(string)
+	onCopyCommand    func(string)
+	onOpenFolder     func(string)
+	onOpenOutput     func(string)
+	onBurnISO        func(string)
+	onOpenInModule   func(string, string) // jobID, module name
+	onScheduleModule func(string, string) // jobID, module name - for pending jobs
 }
 
 type queueItemWidgets struct {
@@ -285,6 +287,8 @@ func BuildQueueView(
 	onOpenFolder func(string),
 	onOpenOutput func(string),
 	onBurnISO func(string),
+	onOpenInModule func(string, string),
+	onScheduleModule func(string, string),
 	titleColor, bgColor, textColor color.Color,
 ) *QueueView {
 	t := i18n.T()
@@ -391,25 +395,27 @@ func BuildQueueView(
 		logEntry:    logEntry,
 		logScroll:   logScroll,
 		callbacks: queueCallbacks{
-			onBack:        onBack,
-			onPause:       onPause,
-			onResume:      onResume,
-			onCancel:      onCancel,
-			onRemove:      onRemove,
-			onMoveUp:      onMoveUp,
-			onMoveDown:    onMoveDown,
-			onPauseAll:    onPauseAll,
-			onResumeAll:   onResumeAll,
-			onStart:       onStart,
-			onClear:       onClear,
-			onClearAll:    onClearAll,
-			onRetry:       onRetry,
-			onCopyError:   onCopyError,
-			onViewLog:     onViewLog,
-			onCopyCommand: onCopyCommand,
-			onOpenFolder:  onOpenFolder,
-			onOpenOutput:  onOpenOutput,
-			onBurnISO:     onBurnISO,
+			onBack:           onBack,
+			onPause:          onPause,
+			onResume:         onResume,
+			onCancel:         onCancel,
+			onRemove:         onRemove,
+			onMoveUp:         onMoveUp,
+			onMoveDown:       onMoveDown,
+			onPauseAll:       onPauseAll,
+			onResumeAll:      onResumeAll,
+			onStart:          onStart,
+			onClear:          onClear,
+			onClearAll:       onClearAll,
+			onRetry:          onRetry,
+			onCopyError:      onCopyError,
+			onViewLog:        onViewLog,
+			onCopyCommand:    onCopyCommand,
+			onOpenFolder:     onOpenFolder,
+			onOpenOutput:     onOpenOutput,
+			onBurnISO:        onBurnISO,
+			onOpenInModule:   nil,
+			onScheduleModule: nil,
 		},
 		bgColor:   bgColor,
 		textColor: textColor,
@@ -502,6 +508,11 @@ func buildJobItem(
 			callbacks.onMoveDown(id)
 		}
 	})
+
+	// Add right-click context menu
+	wrapped.onTappedSecondary = func(ev *fyne.PointEvent) {
+		buildQueueItemContextMenu(job, callbacks, ev)
+	}
 
 	return &queueItemWidgets{
 		jobID:       job.ID,
@@ -909,10 +920,11 @@ func ModuleColor(t queue.JobType) color.Color {
 // draggableJobItem allows simple drag up/down to reorder one slot at a time.
 type draggableJobItem struct {
 	widget.BaseWidget
-	jobID     string
-	content   fyne.CanvasObject
-	onReorder func(string, int) // id, direction (-1 up, +1 down)
-	accumY    float32
+	jobID             string
+	content           fyne.CanvasObject
+	onReorder         func(string, int) // id, direction (-1 up, +1 down)
+	onTappedSecondary func(*fyne.PointEvent)
+	accumY            float32
 }
 
 func newDraggableJobItem(id string, content fyne.CanvasObject, onReorder func(string, int)) *draggableJobItem {
@@ -942,4 +954,37 @@ func (d *draggableJobItem) DragEnd() {
 		d.onReorder(d.jobID, 1)
 	}
 	d.accumY = 0
+}
+
+func (d *draggableJobItem) TappedSecondary(ev *fyne.PointEvent) {
+	if d.onTappedSecondary != nil {
+		d.onTappedSecondary(ev)
+	}
+}
+
+func buildQueueItemContextMenu(job *queue.Job, callbacks queueCallbacks, ev *fyne.PointEvent) {
+	t := i18n.T()
+	menu := fyne.NewMenu("")
+
+	menu.Items = append(menu.Items, &fyne.MenuItem{
+		Label:  t.FileManagerOpenInspect,
+		Action: func() { callbacks.onOpenOutput(job.ID) },
+	})
+
+	if job.Status == queue.JobStatusCompleted {
+		menu.Items = append(menu.Items, &fyne.MenuItem{
+			Label:  t.FileManagerOpenConvert,
+			Action: func() { callbacks.onOpenInModule(job.ID, "convert") },
+		})
+	}
+
+	if job.Status == queue.JobStatusPending || job.Status == queue.JobStatusPaused {
+		menu.Items = append(menu.Items, &fyne.MenuItem{
+			Label:  "Schedule: Convert on completion",
+			Action: func() { callbacks.onScheduleModule(job.ID, "convert") },
+		})
+	}
+
+	pop := widget.NewPopUpMenu(menu, fyne.CurrentApp().Driver().CanvasForObject(nil))
+	pop.ShowAtPosition(ev.Position)
 }
