@@ -33,13 +33,13 @@ VideoTools is a modular application for video processing. While many features ar
 | Author  | ✅ **Implemented**            | DVD authoring with menu templates.                                     |
 | Queue   | ✅ **Implemented**            | Job queue management with history.                                     |
 | Settings| ✅ **Implemented**            | Preferences for language and hardware acceleration.                    |
+| Subtitles | ✅ **Implemented**          | Lossless extraction and OCR of image-based tracks; burn-in support.        |
 | Blu-ray | 🔄 **Planned**                | Comprehensive planning is complete. Implementation is for a future release. |
 
-### Suggested Modules (All Planned)
+### Suggested Modules (Planned)
 
-The following modules have been suggested and are planned for future development, but are not yet implemented:
+The following modules are planned for future development but are not yet implemented:
 
-*   Subtitle Management
 *   Advanced Stream Management
 *   GIF Creation
 *   Cropping Tools
