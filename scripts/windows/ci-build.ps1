@@ -26,7 +26,9 @@ $env:PATH = "$msys2Bin;C:\msys64\usr\bin;$env:PATH"
 $env:CGO_ENABLED = "1"
 $env:CC = "gcc"
 $env:CXX = "g++"
-$env:CGO_CFLAGS = "-IC:\ffmpeg-static\include -IC:\msys64\ucrt64\include"
+# -g0: disable debug info in CGO intermediate files; FFmpeg headers produce
+# enormous .s temp files in C:\Windows\Temp that exhaust disk space otherwise.
+$env:CGO_CFLAGS = "-IC:\ffmpeg-static\include -IC:\msys64\ucrt64\include -g0"
 $env:PKG_CONFIG_PATH = "C:\ffmpeg-static\lib\pkgconfig;C:\msys64\ucrt64\lib\pkgconfig"
 
 # Promote bz2 and zlib static archives from MSYS2 into the ffmpeg prefix
