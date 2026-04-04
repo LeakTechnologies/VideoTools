@@ -42,6 +42,15 @@ This file tracks upcoming features, improvements, and known issues.
   - [x] "Open in Inspect" for any file (green pill)
   - [x] "Open in Author" for DVD files (teal pill)
 
+### Quick Access Dropdown (NEW)
+- [x] **Design document** — See docs/QUICK_ACCESS_DROPDOWN.md
+- [x] **Files dropdown** — Added to main menu header
+- [x] **Open Files callback** — OnOpenMore callback wired
+- [x] **Open Output Folder callback** — OnOpenFolder callback wired
+- [x] **Recent Files** — Lists recent files with module context
+- [ ] **Recent file tracking** — Need to persist recent files list
+- [ ] **Module callbacks** — Wire OnOpenMore/OnOpenFolder per module
+
 ### VR360 Video Processing (FUTURE)
 - [ ] **Create design document** — See docs/VR360_VIDEO_PROCESSING.md
 - [ ] **Viewport extraction** — Convert 360° to flat video with fixed perspective
