@@ -68,8 +68,8 @@ var iu = Strings{
 	DialogISOCannotOpenMsg:   "ISO ᑕᐃᑯᓂᖓ ᐱᔪᓐᓇᖅᑐᑦ ᐱᓕᕆᐊᖅᑕᐅᔾᔨᓗᒍ ᐊᐅᓚᑦᑎᐅᔪᑦ.\n\nᐊᐅᓚᑦᑎᐅᔪᑦ ᐊᐅᓚᓚᐅᕐᕕᒋᓗᒍ.", // DVD ISO files cannot be loaded directly
 	DialogBurnComingSoon:     "DVD ᐊᐅᓚᓚᐅᕐᕕᒋᓗ",                                                   // Burn DVD
 	DialogBurnComingSoonMsg:  "DVD ᐊᐅᓚᓚᐅᕐᕕᒋᓗ ᐱᓕᕆᐊᖅᑕᐅᔾᔨᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ ᐃᓱᒃᑕᐅᔪᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ.",    // DVD burning will be available in a future update
-	DialogUpdateBlocked:      "ᓄᑖᓕᕆᓂᖅ ᓄᖅᑲᖅᑕᐅᔪᖅ",                                                   // Update Blocked
-	StatusUpdateBlockedByJob: "ᐱᓕᕆᐊᖅ ᐃᓂᒃᓴᒥᓐᓃᑦᑐᖅ. ᐅᑯᐊ ᑐᕌᖓᔪᑦ ᐱᓕᕆᐊᑦ ᑭᑎᑕᐅᔭᕆᐊᖃᓐᓂᖓᓂᒃ ᓄᑖᓕᕆᓂᕐᒥᒃ ᐊᔪᖅᓴᖅᑎᑦᑎᓗᒍ.\n\nᓄᑖᓕᕆᓂᖅ ᓄᑕᐅᓂᕐᒥᒃ ᐱᒻᒪᕆᐊᓘᕗᖅ ᐱᓕᕆᐊᑦ ᑕᖅᑲᐅᖓᓂᒃ ᑎᑭᑕᐅᓗᑎᒃ.", // A job is currently running. Wait for all jobs to finish before installing an update.
+	DialogUpdateBlocked:      "ᓄᑖᓕᕆᓂᖅ ᓄᖅᑲᖅᑕᐅᔪᖅ",                                                   // machine-generated, needs human review — means: software update is blocked/cannot proceed
+	StatusUpdateBlockedByJob: "ᐱᓕᕆᐊᖅ ᐃᓂᒃᓴᒥᓐᓃᑦᑐᖅ. ᐅᑯᐊ ᑐᕌᖓᔪᑦ ᐱᓕᕆᐊᑦ ᑭᑎᑕᐅᔭᕆᐊᖃᓐᓂᖓᓂᒃ ᓄᑖᓕᕆᓂᕐᒥᒃ ᐊᔪᖅᓴᖅᑎᑦᑎᓗᒍ.\n\nᓄᑖᓕᕆᓂᖅ ᓄᑕᐅᓂᕐᒥᒃ ᐱᒻᒪᕆᐊᓘᕗᖅ ᐱᓕᕆᐊᑦ ᑕᖅᑲᐅᖓᓂᒃ ᑎᑭᑕᐅᓗᑎᒃ.", // machine-generated, needs human review — means: a background job is running; wait before installing the update
 	LabelSnippet:             "ᐃᓱᒃᑕᐅᔪᑦ:",                                                        // Snippet:
 	MergeStarted:             "ᓄᑖᕐᕕᒋᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ",                                                 // Merge started!
 
