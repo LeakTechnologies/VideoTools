@@ -2,7 +2,7 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev39 Scope (in progress)
+## Dev40 Scope (in progress)
 
 ### DVD Menu System (see docs/DVD_MENU_SYSTEM_DESIGN.md)
 - [x] **M1/M2** — Encode menu background as MPEG-2 still video via ffmpeg; mux video+SPU into proper DVD VOB
@@ -17,7 +17,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Confirm Linux CI** — Build passes after submodule sync
 - [x] **FFmpeg DLL fix** — Use local FFmpeg first, fall back to download
 - [x] **filters_module.go build fix** — Removed invalid `*videoSource` type assertion (Go 1.26 CI failure)
-- [x] **Pre-built FFmpeg** — Use BtbN pre-built binaries instead of source builds to resolve C++ ABI linking
+- [x] **From-source FFmpeg** — Build FFmpeg/x264/x265 from source; fix x265.pc Libs, Windows multiple-definition, disk space (dev39, CI green runs 1098/1099/1100)
 
 ### Burn Module (NEW)
 - [x] **Create design document** — See docs/BURN_MODULE_DESIGN.md
