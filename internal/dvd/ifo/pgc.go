@@ -390,19 +390,16 @@ func BuildMenuPGC(cmdTable *DVDCommandTable, duration float64, isNTSC bool) *Pro
 		ProhibitedOps: 0x024C08C4,
 
 		// Enable subpicture stream 0 for the menu overlay (button highlights).
-		// Byte layout of SubpictureCtl[i]:
-		//   bit 15   : active (1 = stream is enabled)
-		//   bits 14-8: stream number for 4:3 display (0x7F = stream 0)
-		//   bits 7-0 : stream number for widescreen/letterbox/pan-scan (0x7F = stream 0)
-		// 0x00FF0000 in the uint32 = 0x00FF for the 4:3 entry, upper word zero.
-		// We store the control word in the low 16 bits of SubpictureCtl[0].
+		// Each SubpictureCtl entry is a uint32 stored big-endian on disc:
+		//   byte 0 (bits 31-24): 4:3 mode      — bit 7 = active, bits 6-0 = stream number
+		//   byte 1 (bits 23-16): widescreen     — bit 7 = active, bits 6-0 = stream number
+		//   byte 2 (bits 15-8):  letterbox      — bit 7 = active, bits 6-0 = stream number
+		//   byte 3 (bits 7-0):   pan & scan     — bit 7 = active, bits 6-0 = stream number
+		// libdvdread zero-check: (value & 0x1f1f1f1f) must equal 0 (reserved bits).
+		// 0x80000000 = 4:3 mode active with stream 0; other modes inactive/unused.
 		SubpictureCtl: func() [32]uint32 {
 			var s [32]uint32
-			// Enable SPU stream 0 in all display modes.
-			// uint32 packs as: [letterbox_sn(7)|0][pan-scan_sn(7)|0][wide_sn(7)|?][4:3_sn(7)|active]
-			// Simplest form that activates stream 0 on 4:3: 0x00FF0100
-			// (active=1, sn=0 for 4:3; 0xFF/0xFF for others = "not available")
-			s[0] = 0x00FF0100
+			s[0] = 0x80000000 // 4:3 mode active, stream 0
 			return s
 		}(),
 
