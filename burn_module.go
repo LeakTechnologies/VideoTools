@@ -132,13 +132,17 @@ func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressC
 
 	progressCallback(0.1)
 
-	// Validate ISO exists
 	if _, err := os.Stat(isoPath); err != nil {
 		return fmt.Errorf("ISO file not found: %s", isoPath)
 	}
 
-	// Perform the burn
-	if err := burnISO(isoPath, drive, speed, eject); err != nil {
+	burnProgress := func(p BurnProgress) {
+		if p.Total > 0 {
+			progressCallback(float64(p.Written) / float64(p.Total) * 0.8)
+		}
+	}
+
+	if err := burnISO(isoPath, drive, speed, eject, verify, burnProgress); err != nil {
 		return fmt.Errorf("burn failed: %w", err)
 	}
 

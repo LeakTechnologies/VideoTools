@@ -464,6 +464,32 @@ type Strings struct {
 	ConvertSectionLogsDir        string // "Logs Directory"
 	ConvertSectionClipsToMerge   string // "Clips to Merge" (for Merge module)
 
+	// ── Convert Box Titles (buildConvertBox headers) ────────────────────────
+	ConvertSectionVideoEncoding      string // "Video Encoding"
+	ConvertSectionAudioEncoding      string // "Audio Encoding"
+	ConvertSectionOutput             string // "Output"
+	ConvertSectionResolutionFPS      string // "Resolution & Frame Rate"
+	ConvertSectionAspectRatio        string // "Aspect Ratio"
+	ConvertSectionAutoCrop           string // "Auto-Crop"
+	ConvertSectionTransformations    string // "Video Transformations"
+	ConvertSectionDeinterlacing      string // "Deinterlacing"
+
+	// ── Convert Actions & Labels ─────────────────────────────────────────────
+	ConvertActionStart          string // "Convert" — primary convert button
+	ConvertActionCancelJob      string // "Cancel Active Job"
+	ConvertCommandPreview       string // "Command Preview"
+	ConvertCoverArtLabel        string // "Cover Art"
+	ConvertOutputFileFmt        string // "Output file: %s"
+	ConvertDefaultPathFmt       string // "Default: %s"
+	ConvertAnalyzeInterlacing   string // "Analyze Interlacing"
+	ConvertAnalyzing            string // "Analyzing..."
+	ConvertDetectCrop           string // "Detect Crop"
+	ConvertDetecting            string // "Detecting..."
+	ConvertAspectRatioEntry     string // "Enter a ratio like 1.90 or 256:135."
+	ConvertRemuxHint            string // "Remux mode: stream copy. Encoding controls are disabled."
+	ConvertUseSystemTemp        string // "Use System Temp"
+	ConvertUseDefault           string // "Use Default"
+
 	// ── Convert Simple Tab Section Headers ──────────────────────────────────
 	ConvertSectionFormat           string // "Format"
 	ConvertSectionOutputFolder     string // "Output Folder"
