@@ -159,6 +159,15 @@ var frCA = Strings{
 	BurnProgress:      "Gravure en cours...",
 	BurnCapacity:      "Capacité : %s",
 
+	// ── File Manager Module ─────────────────────────────────────────────────────
+	ModuleFileManager:        "Gestionnaire de fichiers",
+	FileManagerOpenIn:        "Ouvrir avec %s",
+	FileManagerOpenInspect:   "Ouvrir dans Inspect",
+	FileManagerOpenConvert:   "Ouvrir dans Convert",
+	FileManagerOpenAudio:     "Ouvrir dans Audio",
+	FileManagerOpenSubtitles: "Ouvrir dans Subtitles",
+	FileManagerOpenAuthor:    "Ouvrir dans Author",
+
 	// ── Audio Module ───────────────────────────────────────────────────────────
 	AudioInstructions:    "Déposez un fichier vidéo ici ou cliquez pour parcourir",
 	AudioOutputFormat:    "Format de sortie :",

@@ -160,6 +160,15 @@ type Strings struct {
 	BurnProgress      string // "Burning..."
 	BurnCapacity      string // "Capacity: %s"
 
+	// ── File Manager Module ─────────────────────────────────────────────────────
+	ModuleFileManager        string // "File Manager"
+	FileManagerOpenIn        string // "Open in %s"
+	FileManagerOpenInspect   string // "Open in Inspect"
+	FileManagerOpenConvert   string // "Open in Convert"
+	FileManagerOpenAudio     string // "Open in Audio"
+	FileManagerOpenSubtitles string // "Open in Subtitles"
+	FileManagerOpenAuthor    string // "Open in Author"
+
 	// ── Inspect Module ────────────────────────────────────────────────────────
 	InspectInstructions       string // "Load a video to inspect..."
 	InspectLoadingPreview     string // "Loading preview..."
@@ -321,13 +330,13 @@ type Strings struct {
 	// ── Settings — Output Defaults ────────────────────────────────────────────
 	SettingsDefaultOutputDir     string // "Default Output Directory"
 	SettingsDefaultOutputDirHint string // hint: applies to Convert when no folder set per-job
-	SettingsFFmpegMissing    string // "Core dependency FFmpeg is missing..."
-	SettingsInstallFFmpeg    string // "Install FFmpeg Now"
-	SettingsOpenSettings     string // "Open Settings"
-	SettingsContinueLimited  string // "Continue Limited Mode"
-	SettingsOpenReleases     string // "Open Releases Page"
-	SettingsUpdatesInfo      string // "Check for updates and manage app updates."
-	SettingsUpdatesAutoInfo  string // "Automatic updates info"
+	SettingsFFmpegMissing        string // "Core dependency FFmpeg is missing..."
+	SettingsInstallFFmpeg        string // "Install FFmpeg Now"
+	SettingsOpenSettings         string // "Open Settings"
+	SettingsContinueLimited      string // "Continue Limited Mode"
+	SettingsOpenReleases         string // "Open Releases Page"
+	SettingsUpdatesInfo          string // "Check for updates and manage app updates."
+	SettingsUpdatesAutoInfo      string // "Automatic updates info"
 
 	// ── Updates ───────────────────────────────────────────────────────────
 	UpdateCheckButton       string
@@ -469,30 +478,30 @@ type Strings struct {
 	ConvertSectionClipsToMerge   string // "Clips to Merge" (for Merge module)
 
 	// ── Convert Box Titles (buildConvertBox headers) ────────────────────────
-	ConvertSectionVideoEncoding      string // "Video Encoding"
-	ConvertSectionAudioEncoding      string // "Audio Encoding"
-	ConvertSectionOutput             string // "Output"
-	ConvertSectionResolutionFPS      string // "Resolution & Frame Rate"
-	ConvertSectionAspectRatio        string // "Aspect Ratio"
-	ConvertSectionAutoCrop           string // "Auto-Crop"
-	ConvertSectionTransformations    string // "Video Transformations"
-	ConvertSectionDeinterlacing      string // "Deinterlacing"
+	ConvertSectionVideoEncoding   string // "Video Encoding"
+	ConvertSectionAudioEncoding   string // "Audio Encoding"
+	ConvertSectionOutput          string // "Output"
+	ConvertSectionResolutionFPS   string // "Resolution & Frame Rate"
+	ConvertSectionAspectRatio     string // "Aspect Ratio"
+	ConvertSectionAutoCrop        string // "Auto-Crop"
+	ConvertSectionTransformations string // "Video Transformations"
+	ConvertSectionDeinterlacing   string // "Deinterlacing"
 
 	// ── Convert Actions & Labels ─────────────────────────────────────────────
-	ConvertActionStart          string // "Convert" — primary convert button
-	ConvertActionCancelJob      string // "Cancel Active Job"
-	ConvertCommandPreview       string // "Command Preview"
-	ConvertCoverArtLabel        string // "Cover Art"
-	ConvertOutputFileFmt        string // "Output file: %s"
-	ConvertDefaultPathFmt       string // "Default: %s"
-	ConvertAnalyzeInterlacing   string // "Analyze Interlacing"
-	ConvertAnalyzing            string // "Analyzing..."
-	ConvertDetectCrop           string // "Detect Crop"
-	ConvertDetecting            string // "Detecting..."
-	ConvertAspectRatioEntry     string // "Enter a ratio like 1.90 or 256:135."
-	ConvertRemuxHint            string // "Remux mode: stream copy. Encoding controls are disabled."
-	ConvertUseSystemTemp        string // "Use System Temp"
-	ConvertUseDefault           string // "Use Default"
+	ConvertActionStart        string // "Convert" — primary convert button
+	ConvertActionCancelJob    string // "Cancel Active Job"
+	ConvertCommandPreview     string // "Command Preview"
+	ConvertCoverArtLabel      string // "Cover Art"
+	ConvertOutputFileFmt      string // "Output file: %s"
+	ConvertDefaultPathFmt     string // "Default: %s"
+	ConvertAnalyzeInterlacing string // "Analyze Interlacing"
+	ConvertAnalyzing          string // "Analyzing..."
+	ConvertDetectCrop         string // "Detect Crop"
+	ConvertDetecting          string // "Detecting..."
+	ConvertAspectRatioEntry   string // "Enter a ratio like 1.90 or 256:135."
+	ConvertRemuxHint          string // "Remux mode: stream copy. Encoding controls are disabled."
+	ConvertUseSystemTemp      string // "Use System Temp"
+	ConvertUseDefault         string // "Use Default"
 
 	// ── Convert Simple Tab Section Headers ──────────────────────────────────
 	ConvertSectionFormat           string // "Format"

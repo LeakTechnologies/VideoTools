@@ -28,6 +28,9 @@ var iuLatn = Strings{
 	ModuleAuthor:      "Sanarlugu",        // Author/Create
 	ModuleRip:         "Nirunnasilugu",    // Rip/Extract
 	ModuleBurn:        "Qiniq",            // Burn
+
+	// File Manager Module (machine-generated, needs human review)
+	ModuleFileManager: "Iluqtuq", // File Manager
 	ModuleBluRay:      "Blu-Ray",
 	ModuleSubtitles:   "Titiqaksait",       // Subtitles
 	ModuleThumbnail:   "Akiqalliat",        // Thumbnail
@@ -37,42 +40,42 @@ var iuLatn = Strings{
 	ModuleSettings:    "Aaqiksuiniq",       // Settings
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
-	DialogCompare:            "Nalunaiqsiluggit Quliaqtuit",                                    // Compare Videos
-	DialogInspect:            "Qaujisarlugu Quliaqtuit",                                        // Inspect Video
-	DialogThumbnail:          "Akiqalliat Sanarlugu",                                           // Thumbnail Generation
-	DialogSnippet:            "Ikajurlugu",                                                     // Snippet
-	DialogInterlacing:        "Silgillirtilugu Asijjiariaqtuq",                                 // Interlacing Analysis
-	DialogInterlacingResults: "Silgillirtilugu Asijjiariaqtuq Pijjugut",                        // Interlacing Analysis Results
-	DialogAutoCrop:           "Aumiqsirtilugu",                                                 // Auto-Crop
-	DialogAutoCropDetection:  "Aumiqsirtilugu Nalunaiqsi",                                      // Auto-Crop Detection
-	DialogNoBlackBars:        "Annuraaktilugu Pijjut. Quliaqtuit Anniqsirtilugu.",              // No black bars detected
-	DialogNoVideo:            "Quliaqtuit Annaganngittuq",                                      // No Video
-	DialogNoFile:             "Santimi Annaganngittuq",                                         // No File
-	DialogNoConfig:           "Aanniqsirtilugu Annaganngittuq",                                 // No Config
-	DialogConfigSaved:        "Aanniqsirtilugu Sapummijugut",                                   // Config Saved
-	DialogCopied:             "Agagsijugut",                                                    // Copied
-	DialogNoLog:              "Santimi Annaganngittuq",                                         // No Log
-	DialogQueued:             "Ilallijjugut",                                                   // Queued
-	DialogCancelled:          "Atingninga",                                                     // Cancelled
-	DialogBatchAdd:           "Ilallijjugut Aggiqsijjutilugu",                                  // Batch Add
-	DialogRecovery:           "Ijunniaqtilugu Piujusirtilugu",                                  // Conversion Recovery
-	DialogSnippets:           "Ikajurlugit",                                                    // Snippets
-	DialogPreview:            "Akiqalliat Sanarlugu",                                           // Generating Preview
-	DialogPlayback:           "Tarvijaksalirijut Piujusirtilugu",                               // Playback Unavailable
-	DialogJobQueued:          "Ilallijjugut Aggiqsijjutaujunik",                                // Job Queued
-	DialogMerge:              "Nutaaliurniq",                                                   // Merge
-	DialogCancel:             "Atingninga",                                                     // Cancel
-	DialogSnippetCreated:     "Ikajurlugu Pijjugut",                                            // Snippet Created
-	DialogQueueNotInit:       "Ilallijjugut Pijuqsirtilugu",                                    // Queue not initialized
-	DialogNoRunningJob:       "Atingniaqtilugu Aggiqsijjutaujunik",                             // No running job to cancel
-	DialogISOCannotOpen:      "ISO Taikhanik",                                                  // Open DVD ISO
-	DialogISOCannotOpenMsg:   "ISO taikhanik pijaugijumaanangitclugu.\n\nPisuvgit Autor ippa.", // DVD ISO files cannot be loaded directly
-	DialogBurnComingSoon:     "DVD Kaggianik",                                                  // Burn DVD
-	DialogBurnComingSoonMsg:  "DVD kaggianik pipkaignikpaujunik.",                              // DVD burning will be available in a future update
-	DialogUpdateBlocked:      "Nutaaliqpallaarumasuq Nalinginnaanginnaq",                       // machine-generated, needs human review — means: software update is blocked/cannot proceed
+	DialogCompare:            "Nalunaiqsiluggit Quliaqtuit",                                                                                                                                                                      // Compare Videos
+	DialogInspect:            "Qaujisarlugu Quliaqtuit",                                                                                                                                                                          // Inspect Video
+	DialogThumbnail:          "Akiqalliat Sanarlugu",                                                                                                                                                                             // Thumbnail Generation
+	DialogSnippet:            "Ikajurlugu",                                                                                                                                                                                       // Snippet
+	DialogInterlacing:        "Silgillirtilugu Asijjiariaqtuq",                                                                                                                                                                   // Interlacing Analysis
+	DialogInterlacingResults: "Silgillirtilugu Asijjiariaqtuq Pijjugut",                                                                                                                                                          // Interlacing Analysis Results
+	DialogAutoCrop:           "Aumiqsirtilugu",                                                                                                                                                                                   // Auto-Crop
+	DialogAutoCropDetection:  "Aumiqsirtilugu Nalunaiqsi",                                                                                                                                                                        // Auto-Crop Detection
+	DialogNoBlackBars:        "Annuraaktilugu Pijjut. Quliaqtuit Anniqsirtilugu.",                                                                                                                                                // No black bars detected
+	DialogNoVideo:            "Quliaqtuit Annaganngittuq",                                                                                                                                                                        // No Video
+	DialogNoFile:             "Santimi Annaganngittuq",                                                                                                                                                                           // No File
+	DialogNoConfig:           "Aanniqsirtilugu Annaganngittuq",                                                                                                                                                                   // No Config
+	DialogConfigSaved:        "Aanniqsirtilugu Sapummijugut",                                                                                                                                                                     // Config Saved
+	DialogCopied:             "Agagsijugut",                                                                                                                                                                                      // Copied
+	DialogNoLog:              "Santimi Annaganngittuq",                                                                                                                                                                           // No Log
+	DialogQueued:             "Ilallijjugut",                                                                                                                                                                                     // Queued
+	DialogCancelled:          "Atingninga",                                                                                                                                                                                       // Cancelled
+	DialogBatchAdd:           "Ilallijjugut Aggiqsijjutilugu",                                                                                                                                                                    // Batch Add
+	DialogRecovery:           "Ijunniaqtilugu Piujusirtilugu",                                                                                                                                                                    // Conversion Recovery
+	DialogSnippets:           "Ikajurlugit",                                                                                                                                                                                      // Snippets
+	DialogPreview:            "Akiqalliat Sanarlugu",                                                                                                                                                                             // Generating Preview
+	DialogPlayback:           "Tarvijaksalirijut Piujusirtilugu",                                                                                                                                                                 // Playback Unavailable
+	DialogJobQueued:          "Ilallijjugut Aggiqsijjutaujunik",                                                                                                                                                                  // Job Queued
+	DialogMerge:              "Nutaaliurniq",                                                                                                                                                                                     // Merge
+	DialogCancel:             "Atingninga",                                                                                                                                                                                       // Cancel
+	DialogSnippetCreated:     "Ikajurlugu Pijjugut",                                                                                                                                                                              // Snippet Created
+	DialogQueueNotInit:       "Ilallijjugut Pijuqsirtilugu",                                                                                                                                                                      // Queue not initialized
+	DialogNoRunningJob:       "Atingniaqtilugu Aggiqsijjutaujunik",                                                                                                                                                               // No running job to cancel
+	DialogISOCannotOpen:      "ISO Taikhanik",                                                                                                                                                                                    // Open DVD ISO
+	DialogISOCannotOpenMsg:   "ISO taikhanik pijaugijumaanangitclugu.\n\nPisuvgit Autor ippa.",                                                                                                                                   // DVD ISO files cannot be loaded directly
+	DialogBurnComingSoon:     "DVD Kaggianik",                                                                                                                                                                                    // Burn DVD
+	DialogBurnComingSoonMsg:  "DVD kaggianik pipkaignikpaujunik.",                                                                                                                                                                // DVD burning will be available in a future update
+	DialogUpdateBlocked:      "Nutaaliqpallaarumasuq Nalinginnaanginnaq",                                                                                                                                                         // machine-generated, needs human review — means: software update is blocked/cannot proceed
 	StatusUpdateBlockedByJob: "Suliaq malinngajumiittara. Suliait tamarmik isumalaurtinnagit nutaaliqpallaarumasuq aturlugit.\n\nNutaaliqpallaarumasuq nutaaliurniq pijariiqtitisariaqarpoq sulianik isumalaurtitsimannginnani.", // machine-generated, needs human review — means: a background job is running; wait before installing the update
-	LabelSnippet:             "Ikajurlugu:",                                                    // Snippet:
-	MergeStarted:             "Nutaaliurniq Pijjugut!",                                         // Merge started!
+	LabelSnippet:             "Ikajurlugu:",                                                                                                                                                                                      // Snippet:
+	MergeStarted:             "Nutaaliurniq Pijjugut!",                                                                                                                                                                           // Merge started!
 
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert:     "Asijjiariaqtuq",   // Converting
@@ -287,16 +290,16 @@ var iuLatn = Strings{
 	SettingsQueuePlayHint:        "Niruarlugu taikkuninga 'Takujautiit' atuqtariaqarmat.", // Choose which module Play Video navigates to.
 
 	// ── Settings — Output Defaults ────────────────────────────────────────────
-	SettingsDefaultOutputDir:     "Upaktivik Nalunaiqsimanngitsoq",                                                       // machine-generated, needs human review — Default Output Directory
+	SettingsDefaultOutputDir:     "Upaktivik Nalunaiqsimanngitsoq",                                                                   // machine-generated, needs human review — Default Output Directory
 	SettingsDefaultOutputDirHint: "Allatgutilikkunnik atuqtauvoq upaktivik ililiriittinnagu. Tarvijaksaq ililiriitinnaago atuqlugu.", // machine-generated, needs human review
 
-	SettingsFFmpegMissing:        "Pijariatituuq FFmpeg nalunngissimajanngilaq.\n\nInarngirviiggilugu pilirijutinik atuqtariaqarmat.\n\nInarngirviininga:\n%LOCALAPPDATA%\\VideoTools\\bin",
-	SettingsInstallFFmpeg:        "Inarngirviiggilugu FFmpeg Maanna",                     // Install FFmpeg Now
-	SettingsOpenSettings:         "Ukpiriilugu Aaqiksuiniq",                              // Open Settings
-	SettingsContinueLimited:      "Kajusiilugu Ajurunniiqutauninnga",                     // Continue Limited Mode
-	SettingsOpenReleases:         "Ukpiriilugu Nutausimaujut Makpigaq",                   // Open Releases Page
-	SettingsUpdatesInfo:          "Qaujisarlugu Atuqlullu Nutaat.",                       // Check for updates and manage app updates.
-	SettingsUpdatesAutoInfo:      "Aulatautitaulugu Qaujisarniq Nutaat Aaqiksimaujumit.", // Checks automatically based on schedule.
+	SettingsFFmpegMissing:   "Pijariatituuq FFmpeg nalunngissimajanngilaq.\n\nInarngirviiggilugu pilirijutinik atuqtariaqarmat.\n\nInarngirviininga:\n%LOCALAPPDATA%\\VideoTools\\bin",
+	SettingsInstallFFmpeg:   "Inarngirviiggilugu FFmpeg Maanna",                     // Install FFmpeg Now
+	SettingsOpenSettings:    "Ukpiriilugu Aaqiksuiniq",                              // Open Settings
+	SettingsContinueLimited: "Kajusiilugu Ajurunniiqutauninnga",                     // Continue Limited Mode
+	SettingsOpenReleases:    "Ukpiriilugu Nutausimaujut Makpigaq",                   // Open Releases Page
+	SettingsUpdatesInfo:     "Qaujisarlugu Atuqlullu Nutaat.",                       // Check for updates and manage app updates.
+	SettingsUpdatesAutoInfo: "Aulatautitaulugu Qaujisarniq Nutaat Aaqiksimaujumit.", // Checks automatically based on schedule.
 
 	// ── Updates ───────────────────────────────────────────────────────────
 	UpdateCheckButton:       "Qaujisarlugu Nutaat",                                                                                                                                // Check for Updates
@@ -387,28 +390,28 @@ var iuLatn = Strings{
 	ConvertGenerateAllSnippets:    "Igiqsiurniq Sakkutilik Allatgun",                // Generate All Snippets
 
 	// ── Convert Box Titles & Actions (Issue #5) ───────────────────────────────
-	ConvertSectionVideoEncoding:   "Tarvijaksaq Nutaqqutigijauniq",                                            // machine-generated, needs human review — Video Encoding
-	ConvertSectionAudioEncoding:   "Nipingit Nutaqqutigijauniq",                                               // machine-generated, needs human review — Audio Encoding
-	ConvertSectionOutput:          "Upaktivik",                                                                // machine-generated, needs human review — Output
-	ConvertSectionResolutionFPS:   "Piusilik Ammalu Tarvijaksait Naglingniqsaujait",                           // machine-generated, needs human review — Resolution & Frame Rate
-	ConvertSectionAspectRatio:     "Piusilik Katimajinga",                                                     // machine-generated, needs human review — Aspect Ratio
-	ConvertSectionAutoCrop:        "Aulappianniarniit Alianait Nanngiarlugu",                                  // machine-generated, needs human review — Auto-Crop
-	ConvertSectionTransformations: "Tarvijaksaq Allatgutilik",                                                 // machine-generated, needs human review — Video Transformations
-	ConvertSectionDeinterlacing:   "Tungavikkut Allatgutilik",                                                 // machine-generated, needs human review — Deinterlacing
-	ConvertActionStart:            "Allatgutilik",                                                             // machine-generated, needs human review — Convert
-	ConvertActionCancelJob:        "Piliriaksaq Atuqtauniit Nungutissavaa",                                    // machine-generated, needs human review — Cancel Active Job
-	ConvertCommandPreview:         "Aulajariarvingit Takujaujariaqanginnagu",                                  // machine-generated, needs human review — Command Preview
-	ConvertCoverArtLabel:          "Nipilik Nunaliarvingit",                                                   // machine-generated, needs human review — Cover Art
-	ConvertOutputFileFmt:          "Upaktivik ililiriit: %s",                                                  // machine-generated, needs human review — Output file: %s
-	ConvertDefaultPathFmt:         "Nalunaiqsimanngitsoq: %s",                                                 // machine-generated, needs human review — Default: %s
-	ConvertAnalyzeInterlacing:     "Tungavikkut Qaujimajaujariaqanginnagu",                                    // machine-generated, needs human review — Analyze Interlacing
-	ConvertAnalyzing:              "Qaujimajaujariaqanginnagu...",                                              // machine-generated, needs human review — Analyzing...
-	ConvertDetectCrop:             "Alianait Nanngiarlugu Nalunaiqsilugu",                                     // machine-generated, needs human review — Detect Crop
-	ConvertDetecting:              "Nalunaiqsimajarluni...",                                                    // machine-generated, needs human review — Detecting...
-	ConvertAspectRatioEntry:       "Katimajinga titirarlugu tamarmik 1.90 uvvalu 256:135.",                    // machine-generated, needs human review — Enter a ratio like 1.90 or 256:135.
+	ConvertSectionVideoEncoding:   "Tarvijaksaq Nutaqqutigijauniq",                                                            // machine-generated, needs human review — Video Encoding
+	ConvertSectionAudioEncoding:   "Nipingit Nutaqqutigijauniq",                                                               // machine-generated, needs human review — Audio Encoding
+	ConvertSectionOutput:          "Upaktivik",                                                                                // machine-generated, needs human review — Output
+	ConvertSectionResolutionFPS:   "Piusilik Ammalu Tarvijaksait Naglingniqsaujait",                                           // machine-generated, needs human review — Resolution & Frame Rate
+	ConvertSectionAspectRatio:     "Piusilik Katimajinga",                                                                     // machine-generated, needs human review — Aspect Ratio
+	ConvertSectionAutoCrop:        "Aulappianniarniit Alianait Nanngiarlugu",                                                  // machine-generated, needs human review — Auto-Crop
+	ConvertSectionTransformations: "Tarvijaksaq Allatgutilik",                                                                 // machine-generated, needs human review — Video Transformations
+	ConvertSectionDeinterlacing:   "Tungavikkut Allatgutilik",                                                                 // machine-generated, needs human review — Deinterlacing
+	ConvertActionStart:            "Allatgutilik",                                                                             // machine-generated, needs human review — Convert
+	ConvertActionCancelJob:        "Piliriaksaq Atuqtauniit Nungutissavaa",                                                    // machine-generated, needs human review — Cancel Active Job
+	ConvertCommandPreview:         "Aulajariarvingit Takujaujariaqanginnagu",                                                  // machine-generated, needs human review — Command Preview
+	ConvertCoverArtLabel:          "Nipilik Nunaliarvingit",                                                                   // machine-generated, needs human review — Cover Art
+	ConvertOutputFileFmt:          "Upaktivik ililiriit: %s",                                                                  // machine-generated, needs human review — Output file: %s
+	ConvertDefaultPathFmt:         "Nalunaiqsimanngitsoq: %s",                                                                 // machine-generated, needs human review — Default: %s
+	ConvertAnalyzeInterlacing:     "Tungavikkut Qaujimajaujariaqanginnagu",                                                    // machine-generated, needs human review — Analyze Interlacing
+	ConvertAnalyzing:              "Qaujimajaujariaqanginnagu...",                                                             // machine-generated, needs human review — Analyzing...
+	ConvertDetectCrop:             "Alianait Nanngiarlugu Nalunaiqsilugu",                                                     // machine-generated, needs human review — Detect Crop
+	ConvertDetecting:              "Nalunaiqsimajarluni...",                                                                   // machine-generated, needs human review — Detecting...
+	ConvertAspectRatioEntry:       "Katimajinga titirarlugu tamarmik 1.90 uvvalu 256:135.",                                    // machine-generated, needs human review — Enter a ratio like 1.90 or 256:135.
 	ConvertRemuxHint:              "Tungavikkut allatgutilik: silattuqsimavoq. Nutaqqutigijauniq aulajariit atuqtaunngillat.", // machine-generated, needs human review — Remux mode: stream copy. Encoding controls are disabled.
-	ConvertUseSystemTemp:          "Tamarmik Aulajariit Atuqlugit",                                            // machine-generated, needs human review — Use System Temp
-	ConvertUseDefault:             "Nalunaiqsimanngitsoq Atuqlugu",                                            // machine-generated, needs human review — Use Default
+	ConvertUseSystemTemp:          "Tamarmik Aulajariit Atuqlugit",                                                            // machine-generated, needs human review — Use System Temp
+	ConvertUseDefault:             "Nalunaiqsimanngitsoq Atuqlugu",                                                            // machine-generated, needs human review — Use Default
 
 	// ── Compare ──────────────────────────────────────────────────────────────────
 	CompareInstructions:    "Tarvijaksait Marruuk agaksillugik nalunaiqsilugit. Upaksillugik uqqaatijaksaqmik atuqlugu.",    // Load two videos

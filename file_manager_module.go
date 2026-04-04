@@ -58,7 +58,7 @@ func (s *appState) buildFileManagerView() fyne.CanvasObject {
 		entries:     []FileEntry{},
 	}
 
-	header := widget.NewLabelWithStyle("File Manager", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	header := widget.NewLabelWithStyle(t.ModuleFileManager, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
 	state.breadcrumb = widget.NewLabel(state.currentPath)
 	state.breadcrumb.TextStyle = fyne.TextStyle{Monospace: true}
@@ -178,6 +178,81 @@ func (state *fmState) fmOnSelected(id widget.ListItemID) {
 		state.history = append(state.history[:state.historyPos+1], entry.Path)
 		state.historyPos++
 		state.fmRefresh()
+		return
+	}
+	state.fmShowContextMenu(entry, id)
+}
+
+func (state *fmState) fmShowContextMenu(entry FileEntry, id widget.ListItemID) {
+	t := i18n.T()
+	menu := fyne.NewMenu("")
+
+	ext := entry.Ext
+	isVideo := isVideoFile(ext)
+	isAudio := isAudioFile(ext)
+	isSubtitle := isSubtitleFile(ext)
+	isDVD := isDVDFile(ext)
+
+	if isVideo {
+		menu.Items = append(menu.Items, &fyne.MenuItem{
+			Label: t.FileManagerOpenConvert,
+			Action: func() {
+				state.openInModule("convert", entry.Path)
+			},
+		})
+	}
+
+	if isAudio {
+		menu.Items = append(menu.Items, &fyne.MenuItem{
+			Label: t.FileManagerOpenAudio,
+			Action: func() {
+				state.openInModule("audio", entry.Path)
+			},
+		})
+	}
+
+	if isSubtitle {
+		menu.Items = append(menu.Items, &fyne.MenuItem{
+			Label: t.FileManagerOpenSubtitles,
+			Action: func() {
+				state.openInModule("subtitles", entry.Path)
+			},
+		})
+	}
+
+	if isDVD {
+		menu.Items = append(menu.Items, &fyne.MenuItem{
+			Label: t.FileManagerOpenAuthor,
+			Action: func() {
+				state.openInModule("author", entry.Path)
+			},
+		})
+	}
+
+	menu.Items = append(menu.Items, &fyne.MenuItem{
+		Label: t.FileManagerOpenInspect,
+		Action: func() {
+			state.openInModule("inspect", entry.Path)
+		},
+	})
+
+	pop := widget.NewPopUpMenu(menu, state.s.window.Canvas())
+	pop.Show()
+}
+
+func (state *fmState) openInModule(module, path string) {
+	switch module {
+	case "convert":
+		state.s.source = &videoSource{Path: path, DisplayName: filepath.Base(path)}
+		state.s.showConvertView(state.s.source)
+	case "audio":
+		state.s.showAudioView()
+	case "subtitles":
+		state.s.showSubtitlesView()
+	case "author":
+		state.s.showAuthorView()
+	case "inspect":
+		state.s.showInspectView()
 	}
 }
 
@@ -279,4 +354,25 @@ func formatFileSize(size int64) string {
 		return fmt.Sprintf("%.1f MB", float64(size)/1024/1024)
 	}
 	return fmt.Sprintf("%.1f GB", float64(size)/1024/1024/1024)
+}
+
+var videoExts = map[string]bool{".mp4": true, ".mkv": true, ".avi": true, ".mov": true, ".wmv": true, ".flv": true, ".webm": true, ".ts": true, ".m2ts": true, ".vob": true, ".mpg": true}
+var audioExts = map[string]bool{".mp3": true, ".aac": true, ".flac": true, ".wav": true, ".ogg": true, ".m4a": true, ".opus": true}
+var subtitleExts = map[string]bool{".srt": true, ".ass": true, ".ssa": true, ".vtt": true}
+var dvdExts = map[string]bool{".iso": true, ".img": true}
+
+func isVideoFile(ext string) bool {
+	return videoExts[ext]
+}
+
+func isAudioFile(ext string) bool {
+	return audioExts[ext]
+}
+
+func isSubtitleFile(ext string) bool {
+	return subtitleExts[ext]
+}
+
+func isDVDFile(ext string) bool {
+	return dvdExts[ext]
 }

@@ -159,6 +159,15 @@ var enCA = Strings{
 	BurnProgress:      "Burning...",
 	BurnCapacity:      "Capacity: %s",
 
+	// ── File Manager Module ─────────────────────────────────────────────────────
+	ModuleFileManager:        "File Manager",
+	FileManagerOpenIn:        "Open in %s",
+	FileManagerOpenInspect:   "Open in Inspect",
+	FileManagerOpenConvert:   "Open in Convert",
+	FileManagerOpenAudio:     "Open in Audio",
+	FileManagerOpenSubtitles: "Open in Subtitles",
+	FileManagerOpenAuthor:    "Open in Author",
+
 	// ── Audio Module ───────────────────────────────────────────────────────────
 	AudioInstructions:    "Drop video file here or click to browse",
 	AudioOutputFormat:    "Output Format:",
