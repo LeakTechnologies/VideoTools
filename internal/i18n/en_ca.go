@@ -7,12 +7,17 @@ var enCA = Strings{
 	AppTitle: "VideoTools",
 
 	// ── Main Menu ────────────────────────────────────────────────────────
-	MenuQueue:     "Queue",
-	MenuBenchmark: "Benchmark",
-	MenuResults:   "Results",
-	MenuAbout:     "About / Support",
-	MenuLogs:      "Logs",
-	MenuFiles:     "Files",
+	MenuQueue:           "Queue",
+	MenuBenchmark:       "Benchmark",
+	MenuResults:         "Results",
+	MenuAbout:           "About / Support",
+	MenuLogs:            "Logs",
+	MenuFiles:           "Files",
+	MenuFilesOpen:       "Open Files...",
+	MenuFilesRecent:     "Recent Files",
+	MenuFilesOpenFolder: "Open Output Folder",
+	MenuFilesAddMore:    "Add More Files",
+	MenuFilesGoTo:       "Go to %s",
 
 	// ── Module Names ─────────────────────────────────────────────────────
 	ModuleConvert:     "Convert",

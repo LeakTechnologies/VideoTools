@@ -8,12 +8,17 @@ var frCA = Strings{
 	AppTitle: "VideoTools",
 
 	// ── Main Menu ────────────────────────────────────────────────────────
-	MenuQueue:     "File d'attente",
-	MenuBenchmark: "Référence",
-	MenuResults:   "Résultats",
-	MenuAbout:     "À propos / Soutien",
-	MenuLogs:      "Journaux",
-	MenuFiles:     "Fichiers",
+	MenuQueue:           "File d'attente",
+	MenuBenchmark:       "Référence",
+	MenuResults:         "Résultats",
+	MenuAbout:           "À propos / Soutien",
+	MenuLogs:            "Journaux",
+	MenuFiles:           "Fichiers",
+	MenuFilesOpen:       "Ouvrir des fichiers...",
+	MenuFilesRecent:     "Fichiers récents",
+	MenuFilesOpenFolder: "Ouvrir le dossier de sortie",
+	MenuFilesAddMore:    "Ajouter plus de fichiers",
+	MenuFilesGoTo:       "Aller à %s",
 
 	// ── Module Names ─────────────────────────────────────────────────────
 	ModuleConvert:     "Convertir",

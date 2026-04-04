@@ -10,12 +10,17 @@ var iu = Strings{
 	AppTitle: "VideoTools",
 
 	// ── Main Menu ────────────────────────────────────────────────────────
-	MenuQueue:     "ᓄᐊᑕᐅᓯᒪᔪᑦ",         // Queue
-	MenuBenchmark: "ᖃᐅᔨᓴᕐᓂᖅ",          // Benchmark
-	MenuResults:   "ᓯᕗᓪᓕᖅᐸᐅᔪᑦ",        // Results
-	MenuAbout:     "ᒥᒃᓵᓄᑦ / ᐃᑲᔪᖅᑐᐃᓂᖅ", // About / Support
-	MenuLogs:      "ᑎᑎᕋᖅᑕᐅᓯᒪᔪᑦ",       // Logs
-	MenuFiles:     "ᕿᓂᖅ",              // Files (machine-generated, needs human review)
+	MenuQueue:           "ᓄᐊᑕᐅᓯᒪᔪᑦ",             // Queue
+	MenuBenchmark:       "ᖃᐅᔨᓴᕐᓂᖅ",              // Benchmark
+	MenuResults:         "ᓯᕗᓪᓕᖅᐸᐅᔪᑦ",            // Results
+	MenuAbout:           "ᒥᒃᓵᓄᑦ / ᐃᑲᔪᖅᑐᐃᓂᖅ",     // About / Support
+	MenuLogs:            "ᑎᑎᕋᖅᑕᐅᓯᒪᔪᑦ",           // Logs
+	MenuFiles:           "ᕿᓂᖅ",                  // Files (machine-generated, needs human review)
+	MenuFilesOpen:       "ᕿᓂᖅ ᐃᑲᔪᖅᑐᐃᓂᕆᔪᑦ...",    // Open Files... (machine-generated, needs human review)
+	MenuFilesRecent:     "ᕿᓂᖅ ᐃᓚᖅᓯᕐᓂᖅ",          // Recent Files (machine-generated, needs human review)
+	MenuFilesOpenFolder: "ᐃᓚᖅᓯᕐᓂᖅ ᕿᓂᖅ ᐃᑲᔪᖅᑐᐃᓂᖅ", // Open Output Folder (machine-generated, needs human review)
+	MenuFilesAddMore:    "ᕿᓂᖅ ᓱᓕᖅᐸᐅᔪᑦ...",       // Add More Files (machine-generated, needs human review)
+	MenuFilesGoTo:       "ᐊᓱᓕᖅᐸᐅᔪᑦ %s",          // Go to %s (machine-generated, needs human review)
 
 	// ── Module Names ─────────────────────────────────────────────────────
 	ModuleConvert:     "ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",  // Convert
