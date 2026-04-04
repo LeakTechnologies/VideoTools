@@ -309,6 +309,10 @@ var frCA = Strings{
 	SettingsQueuePlayInspect:     "Module Inspecter",
 	SettingsQueuePlaySystem:      "Module Lecteur",
 	SettingsQueuePlayHint:        "Choisissez le module interne vers lequel « Lire la vidéo » navigue après un travail.",
+
+	// ── Settings — Output Defaults ────────────────────────────────────────────
+	SettingsDefaultOutputDir:     "Dossier de sortie par défaut",
+	SettingsDefaultOutputDirHint: "Appliqué à la conversion lorsqu'aucun dossier de sortie n'est défini pour le travail. Laissez vide pour utiliser le dossier de la vidéo source.",
 	SettingsFFmpegMissing:        "La dépendance principale FFmpeg est manquante.\n\nInstallez-la pour déverrouiller la plupart des modules.\n\nCible d'installation :\n%LOCALAPPDATA%\\VideoTools\\bin",
 	SettingsInstallFFmpeg:        "Installer FFmpeg maintenant",
 	SettingsOpenSettings:         "Ouvrir les paramètres",

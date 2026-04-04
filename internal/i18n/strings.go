@@ -317,6 +317,10 @@ type Strings struct {
 	SettingsQueuePlayInspect string // "Inspect Module"
 	SettingsQueuePlaySystem  string // "Player Module"
 	SettingsQueuePlayHint    string // hint label
+
+	// ── Settings — Output Defaults ────────────────────────────────────────────
+	SettingsDefaultOutputDir     string // "Default Output Directory"
+	SettingsDefaultOutputDirHint string // hint: applies to Convert when no folder set per-job
 	SettingsFFmpegMissing    string // "Core dependency FFmpeg is missing..."
 	SettingsInstallFFmpeg    string // "Install FFmpeg Now"
 	SettingsOpenSettings     string // "Open Settings"

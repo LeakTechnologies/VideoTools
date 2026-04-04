@@ -7743,6 +7743,7 @@ func runGUI() {
 
 	if prefs, err := loadPrefsConfig(); err == nil {
 		state.prefs = prefs
+		state.defaultOutputDir = prefs.DefaultOutputDir
 	} else if !errors.Is(err, os.ErrNotExist) {
 		logging.Debug(logging.CatSystem, "failed to load persisted prefs: %v", err)
 	}
@@ -8651,6 +8652,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	getOutputDir := func() string {
 		if strings.TrimSpace(state.convert.OutputDir) != "" {
 			return state.convert.OutputDir
+		}
+		if strings.TrimSpace(state.defaultOutputDir) != "" {
+			return state.defaultOutputDir
+		}
+		if root := defaultVideoToolsRoot(); root != "" {
+			return root
 		}
 		if src != nil {
 			return filepath.Dir(src.Path)

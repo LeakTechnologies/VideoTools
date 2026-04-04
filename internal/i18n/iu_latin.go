@@ -285,6 +285,11 @@ var iuLatn = Strings{
 	SettingsQueuePlayInspect:     "Qaimanngissitsivik",                                    // Inspect Module
 	SettingsQueuePlaySystem:      "Takujautiit Manirajaq",                                 // Player Module
 	SettingsQueuePlayHint:        "Niruarlugu taikkuninga 'Takujautiit' atuqtariaqarmat.", // Choose which module Play Video navigates to.
+
+	// ── Settings — Output Defaults ────────────────────────────────────────────
+	SettingsDefaultOutputDir:     "Upaktivik Nalunaiqsimanngitsoq",                                                       // machine-generated, needs human review — Default Output Directory
+	SettingsDefaultOutputDirHint: "Allatgutilikkunnik atuqtauvoq upaktivik ililiriittinnagu. Tarvijaksaq ililiriitinnaago atuqlugu.", // machine-generated, needs human review
+
 	SettingsFFmpegMissing:        "Pijariatituuq FFmpeg nalunngissimajanngilaq.\n\nInarngirviiggilugu pilirijutinik atuqtariaqarmat.\n\nInarngirviininga:\n%LOCALAPPDATA%\\VideoTools\\bin",
 	SettingsInstallFFmpeg:        "Inarngirviiggilugu FFmpeg Maanna",                     // Install FFmpeg Now
 	SettingsOpenSettings:         "Ukpiriilugu Aaqiksuiniq",                              // Open Settings
