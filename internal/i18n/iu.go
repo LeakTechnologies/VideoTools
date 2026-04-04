@@ -15,6 +15,7 @@ var iu = Strings{
 	MenuResults:   "ᓯᕗᓪᓕᖅᐸᐅᔪᑦ",        // Results
 	MenuAbout:     "ᒥᒃᓵᓄᑦ / ᐃᑲᔪᖅᑐᐃᓂᖅ", // About / Support
 	MenuLogs:      "ᑎᑎᕋᖅᑕᐅᓯᒪᔪᑦ",       // Logs
+	MenuFiles:     "ᕿᓂᖅ",              // Files (machine-generated, needs human review)
 
 	// ── Module Names ─────────────────────────────────────────────────────
 	ModuleConvert:     "ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",  // Convert

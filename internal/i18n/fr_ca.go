@@ -13,6 +13,7 @@ var frCA = Strings{
 	MenuResults:   "Résultats",
 	MenuAbout:     "À propos / Soutien",
 	MenuLogs:      "Journaux",
+	MenuFiles:     "Fichiers",
 
 	// ── Module Names ─────────────────────────────────────────────────────
 	ModuleConvert:     "Convertir",

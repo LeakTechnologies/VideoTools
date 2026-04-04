@@ -12,6 +12,7 @@ var enCA = Strings{
 	MenuResults:   "Results",
 	MenuAbout:     "About / Support",
 	MenuLogs:      "Logs",
+	MenuFiles:     "Files",
 
 	// ── Module Names ─────────────────────────────────────────────────────
 	ModuleConvert:     "Convert",

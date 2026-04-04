@@ -49,7 +49,8 @@ type HistoryEntry struct {
 // Populated by the caller from i18n.T() so this package stays language-agnostic.
 type MenuLabels struct {
 	// Header buttons
-	Logs string
+	Logs  string
+	Files string // "Files" dropdown button
 
 	// Queue tile prefix ("QUEUE")
 	Queue string
@@ -73,7 +74,7 @@ type MenuLabels struct {
 }
 
 // BuildMainMenu creates the main menu view with module tiles grouped by category
-func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onToggleSidebar func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
+func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onToggleSidebar func(), onFilesClick func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
 	title := canvas.NewText(titleText, titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 20
@@ -83,8 +84,11 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 	sidebarToggleBtn := widget.NewButton("☰", onToggleSidebar)
 	sidebarToggleBtn.Importance = widget.LowImportance
 
+	filesBtn := widget.NewButton(labels.Files, onFilesClick)
+	filesBtn.Importance = widget.LowImportance
+
 	// Build header controls — only show logs button if callback is provided
-	headerControls := []fyne.CanvasObject{sidebarToggleBtn}
+	headerControls := []fyne.CanvasObject{sidebarToggleBtn, filesBtn}
 	if onLogsClick != nil {
 		logsBtn := widget.NewButton(labels.Logs, onLogsClick)
 		logsBtn.Importance = widget.LowImportance
