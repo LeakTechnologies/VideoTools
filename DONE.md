@@ -9,12 +9,27 @@
 - [x] **Queue integration** - JobTypeBurn wired to executeBurnJob()
 - [x] **Verify option** - Added checkbox with i18n support
 - [x] **Drive capacity** - getDriveInfo() shows disc size in drive selector
+- [x] **Main menu visibility** - Fixed burn/filemanager modules not appearing (were filtered out due to nil handler)
 
 ### File Manager (dev40)
 - [x] **Design document** - Created docs/FILE_MANAGER_DESIGN.md with:
   - Lightweight UI with tabs, breadcrumbs, file list
   - Right-click context menu for module integration
   - Colour pills for module identification
+
+### Quick Access Dropdown (dev40)
+- [x] **Files dropdown** - Added to main menu header between sidebar toggle and Queue
+- [x] **Context awareness** - Shows different options based on current module
+- [x] **Open Files** - Button triggers OnOpenMore callback (placeholder)
+- [x] **Open Output Folder** - Button triggers OnOpenFolder callback (placeholder)
+- [x] **Recent Files** - Lists recent files with module context
+- [x] **Design document** - Created docs/QUICK_ACCESS_DROPDOWN.md
+- [x] **i18n** - All strings localized in en_ca, fr_ca, iu, iu_latin
+
+### Queue Fixes (dev40)
+- [x] **Right-click crash** - Fixed hard crash when right-clicking completed VIDEO_TS/author job
+  - Added os.Stat check to detect directory outputs
+  - Opens as folder instead of trying to probe as video
 
 ## Version 0.1.1-dev39 (complete) - Preview Tab, DVD Menu System & CI Green
 
