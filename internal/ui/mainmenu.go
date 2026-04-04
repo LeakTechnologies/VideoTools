@@ -49,8 +49,13 @@ type HistoryEntry struct {
 // Populated by the caller from i18n.T() so this package stays language-agnostic.
 type MenuLabels struct {
 	// Header buttons
-	Logs  string
-	Files string // "Files" dropdown button
+	Logs            string
+	Files           string // "Files" dropdown button
+	FilesOpen       string // "Open Files..."
+	FilesRecent     string // "Recent Files"
+	FilesOpenFolder string // "Open Output Folder"
+	FilesAddMore    string // "Add More Files"
+	FilesGoTo       string // "Go to %s"
 
 	// Queue tile prefix ("QUEUE")
 	Queue string
@@ -73,8 +78,25 @@ type MenuLabels struct {
 	HistoryNoEntries  string
 }
 
+// FilesDropdownData holds data needed to build the files dropdown menu.
+// This enables context-aware actions based on the current module.
+type FilesDropdownData struct {
+	CurrentModule string       // Current active module ID (e.g., "convert", "author")
+	RecentFiles   []RecentFile // Recently opened files
+	OnFileClick   func(string) // Callback when a recent file is clicked
+	OnOpenFolder  func()       // Callback to open current output folder
+	OnOpenMore    func()       // Callback to add more files to current module
+}
+
+// RecentFile represents a recently opened file for the dropdown
+type RecentFile struct {
+	Path        string
+	DisplayName string
+	Module      string // Which module it was opened in
+}
+
 // BuildMainMenu creates the main menu view with module tiles grouped by category
-func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onToggleSidebar func(), onFilesClick func(), sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
+func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onToggleSidebar func(), filesDropdownData *FilesDropdownData, sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
 	title := canvas.NewText(titleText, titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 20
@@ -84,11 +106,10 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 	sidebarToggleBtn := widget.NewButton("☰", onToggleSidebar)
 	sidebarToggleBtn.Importance = widget.LowImportance
 
-	filesBtn := widget.NewButton(labels.Files, onFilesClick)
-	filesBtn.Importance = widget.LowImportance
+	filesDropdown := buildFilesDropdown(labels, filesDropdownData, textColor)
 
 	// Build header controls — only show logs button if callback is provided
-	headerControls := []fyne.CanvasObject{sidebarToggleBtn, filesBtn}
+	headerControls := []fyne.CanvasObject{sidebarToggleBtn, filesDropdown}
 	if onLogsClick != nil {
 		logsBtn := widget.NewButton(labels.Logs, onLogsClick)
 		logsBtn.Importance = widget.LowImportance
@@ -397,4 +418,76 @@ func buildHistoryItem(
 	item := container.NewPadded(container.NewMax(card, content))
 
 	return NewTappable(item, func() { onEntryClick(capturedEntry) })
+}
+
+// buildFilesDropdown creates a dropdown menu with context-aware options
+func buildFilesDropdown(labels MenuLabels, data *FilesDropdownData, textColor color.Color) fyne.CanvasObject {
+	btn := widget.NewButton(labels.Files, func() {
+		menu := fyne.NewMenu("")
+
+		menu.Items = append(menu.Items, &fyne.MenuItem{
+			Label: labels.FilesOpen,
+			Action: func() {
+				if data != nil && data.OnOpenMore != nil {
+					data.OnOpenMore()
+				}
+			},
+		})
+
+		if data != nil && data.OnOpenFolder != nil {
+			menu.Items = append(menu.Items, &fyne.MenuItem{
+				Label:  labels.FilesOpenFolder,
+				Action: data.OnOpenFolder,
+			})
+		}
+
+		if data != nil && len(data.RecentFiles) > 0 {
+			menu.Items = append(menu.Items, fyne.NewMenuItemSeparator())
+			menu.Items = append(menu.Items, &fyne.MenuItem{
+				Label:    labels.FilesRecent,
+				Disabled: true,
+			})
+			for _, file := range data.RecentFiles {
+				captured := file
+				moduleLabel := fmt.Sprintf(labels.FilesGoTo, moduleLabelForID(captured.Module))
+				menu.Items = append(menu.Items, &fyne.MenuItem{
+					Label: fmt.Sprintf("  %s (%s)", captured.DisplayName, moduleLabel),
+					Action: func() {
+						if data.OnFileClick != nil {
+							data.OnFileClick(captured.Path)
+						}
+					},
+				})
+			}
+		}
+
+		pop := widget.NewPopUpMenu(menu, fyne.CurrentApp().Driver().CanvasForObject(nil))
+		btn := fyne.CurrentApp().Driver().CanvasForObject(nil).Focused()
+		if btn != nil {
+			pos := btn.(*widget.Button).Size()
+			pop.ShowAtPosition(fyne.NewPos(pos.Width, pos.Height))
+		}
+	})
+	btn.Importance = widget.LowImportance
+	return btn
+}
+
+// moduleLabelForID returns the display label for a module ID
+func moduleLabelForID(moduleID string) string {
+	switch moduleID {
+	case "convert":
+		return "Convert"
+	case "author":
+		return "Author"
+	case "audio":
+		return "Audio"
+	case "subtitles":
+		return "Subtitles"
+	case "inspect":
+		return "Inspect"
+	case "player":
+		return "Player"
+	default:
+		return moduleID
+	}
 }

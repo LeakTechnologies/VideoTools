@@ -122,6 +122,11 @@ func (s *appState) showMainMenu() {
 	menuLabels := ui.MenuLabels{
 		Logs:                t.MenuLogs,
 		Files:               t.MenuFiles,
+		FilesOpen:           t.MenuFilesOpen,
+		FilesRecent:         t.MenuFilesRecent,
+		FilesOpenFolder:     t.MenuFilesOpenFolder,
+		FilesAddMore:        t.MenuFilesAddMore,
+		FilesGoTo:           t.MenuFilesGoTo,
 		Queue:               t.MenuQueue,
 		CategoryConvert:     t.CategoryConvert,
 		CategoryInspect:     t.CategoryInspect,
@@ -185,7 +190,7 @@ func (s *appState) showMainMenu() {
 		// Toggle sidebar - use throttled refresh to prevent lag
 		s.sidebarVisible = !s.sidebarVisible
 		s.refreshMainMenuThrottled()
-	}, s.showFileManagerView, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal)
+	}, nil, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal)
 
 	// Update stats bar
 	s.updateStatsBar()

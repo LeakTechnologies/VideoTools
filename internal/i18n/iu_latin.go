@@ -11,12 +11,17 @@ var iuLatn = Strings{
 	AppTitle: "VideoTools",
 
 	// ── Main Menu ────────────────────────────────────────────────────────
-	MenuQueue:     "Nuatausimaujut",             // Queue
-	MenuBenchmark: "Qaujisarniq",                // Benchmark
-	MenuResults:   "Sivulliqpaujut",             // Results
-	MenuAbout:     "Mikssannnut / Ikajuqtuiniq", // About / Support
-	MenuLogs:      "Titiraqtausimaujut",         // Logs
-	MenuFiles:     "Qinik",                      // Files (machine-generated, needs human review)
+	MenuQueue:           "Nuatausimaujut",             // Queue
+	MenuBenchmark:       "Qaujisarniq",                // Benchmark
+	MenuResults:         "Sivulliqpaujut",             // Results
+	MenuAbout:           "Mikssannnut / Ikajuqtuiniq", // About / Support
+	MenuLogs:            "Titiraqtausimaujut",         // Logs
+	MenuFiles:           "Qinik",                      // Files (machine-generated, needs human review)
+	MenuFilesOpen:       "Qinik ikajuqtunik...",       // Open Files... (machine-generated, needs human review)
+	MenuFilesRecent:     "Qinik ilaqsimaujut",         // Recent Files (machine-generated, needs human review)
+	MenuFilesOpenFolder: "Ilaggit qukiqsuallu",        // Open Output Folder (machine-generated, needs human review)
+	MenuFilesAddMore:    "Qinik peqqittunik...",       // Add More Files (machine-generated, needs human review)
+	MenuFilesGoTo:       "Aggiqsualuu %s",             // Go to %s (machine-generated, needs human review)
 
 	// ── Module Names ─────────────────────────────────────────────────────
 	ModuleConvert:     "Asijjiariaqtuq",   // Convert

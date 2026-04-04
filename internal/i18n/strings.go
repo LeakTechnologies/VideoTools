@@ -13,12 +13,17 @@ type Strings struct {
 	AppTitle string
 
 	// ── Main Menu ────────────────────────────────────────────────────────
-	MenuQueue     string
-	MenuBenchmark string
-	MenuResults   string
-	MenuAbout     string
-	MenuLogs      string
-	MenuFiles     string // "Files" (quick access dropdown)
+	MenuQueue           string
+	MenuBenchmark       string
+	MenuResults         string
+	MenuAbout           string
+	MenuLogs            string
+	MenuFiles           string // "Files" (quick access dropdown)
+	MenuFilesOpen       string // "Open Files..."
+	MenuFilesRecent     string // "Recent Files"
+	MenuFilesOpenFolder string // "Open Output Folder"
+	MenuFilesAddMore    string // "Add More Files"
+	MenuFilesGoTo       string // "Go to %s"
 
 	// ── Module Names ─────────────────────────────────────────────────────
 	ModuleConvert     string
