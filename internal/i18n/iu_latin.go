@@ -69,6 +69,8 @@ var iuLatn = Strings{
 	DialogISOCannotOpenMsg:   "ISO taikhanik pijaugijumaanangitclugu.\n\nPisuvgit Autor ippa.", // DVD ISO files cannot be loaded directly
 	DialogBurnComingSoon:     "DVD Kaggianik",                                                  // Burn DVD
 	DialogBurnComingSoonMsg:  "DVD kaggianik pipkaignikpaujunik.",                              // DVD burning will be available in a future update
+	DialogUpdateBlocked:      "Nutaaliqpallaarumasuq Nalinginnaanginnaq",                       // Update Blocked
+	StatusUpdateBlockedByJob: "Suliaq malinngajumiittara. Suliait tamarmik isumalaurtinnagit nutaaliqpallaarumasuq aturlugit.\n\nNutaaliqpallaarumasuq nutaaliurniq pijariiqtitisariaqarpoq sulianik isumalaurtitsimannginnani.", // A job is currently running. Wait for all jobs to finish before installing an update.
 	LabelSnippet:             "Ikajurlugu:",                                                    // Snippet:
 	MergeStarted:             "Nutaaliurniq Pijjugut!",                                         // Merge started!
 
