@@ -154,9 +154,11 @@ type Strings struct {
 	BurnSelectDrive   string // "Select target drive"
 	BurnSpeed         string // "Burn speed"
 	BurnEject         string // "Eject when complete"
+	BurnVerify        string // "Verify after burn"
 	BurnNoDrivesFound string // "No drives found"
 	BurnStart         string // "Burn to Disc"
 	BurnProgress      string // "Burning..."
+	BurnCapacity      string // "Capacity: %s"
 
 	// ── Inspect Module ────────────────────────────────────────────────────────
 	InspectInstructions       string // "Load a video to inspect..."

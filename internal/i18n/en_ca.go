@@ -152,9 +152,11 @@ var enCA = Strings{
 	BurnSelectDrive:   "Drive:",
 	BurnSpeed:         "Speed:",
 	BurnEject:         "Eject when complete",
+	BurnVerify:        "Verify after burn",
 	BurnNoDrivesFound: "No drives found",
 	BurnStart:         "Burn to Disc",
 	BurnProgress:      "Burning...",
+	BurnCapacity:      "Capacity: %s",
 
 	// ── Audio Module ───────────────────────────────────────────────────────────
 	AudioInstructions:    "Drop video file here or click to browse",

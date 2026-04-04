@@ -153,9 +153,11 @@ var frCA = Strings{
 	BurnSelectDrive:   "Lecteur :",
 	BurnSpeed:         "Vitesse :",
 	BurnEject:         "Éjecter à la fin",
+	BurnVerify:        "Vérifier après gravure",
 	BurnNoDrivesFound: "Aucun lecteur trouvé",
 	BurnStart:         "Graver sur disque",
 	BurnProgress:      "Gravure en cours...",
+	BurnCapacity:      "Capacité : %s",
 
 	// ── Audio Module ───────────────────────────────────────────────────────────
 	AudioInstructions:    "Déposez un fichier vidéo ici ou cliquez pour parcourir",

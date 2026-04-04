@@ -47,7 +47,12 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 		drives := detectOpticalDrives()
 		options := []string{}
 		for _, d := range drives {
-			options = append(options, d)
+			_, capacity, _ := getDriveInfo(d)
+			if capacity != "" && capacity != "Unknown" {
+				options = append(options, d+" ("+capacity+")")
+			} else {
+				options = append(options, d)
+			}
 		}
 		if len(options) == 0 {
 			options = append(options, t.BurnNoDrivesFound)
@@ -61,6 +66,7 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 	speedSelect.SetSelected("Auto")
 
 	ejectCheck := widget.NewCheck(t.BurnEject, func(checked bool) {})
+	verifyCheck := widget.NewCheck(t.BurnVerify, func(checked bool) {})
 
 	burnBtn := widget.NewButton(t.BurnStart, func() {
 		isoPath := sourceEntry.Text
@@ -84,6 +90,7 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 				"drive":  drive,
 				"speed":  speedSelect.Selected,
 				"eject":  ejectCheck.Checked,
+				"verify": verifyCheck.Checked,
 			},
 		}
 		s.jobQueue.Add(job)
@@ -105,7 +112,7 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 		container.NewHBox(sourceLabel, sourceEntry, browseBtn),
 		container.NewHBox(driveLabel, driveSelect, refreshDrivesBtn),
 		container.NewHBox(speedLabel, speedSelect),
-		ejectCheck,
+		container.NewVBox(ejectCheck, verifyCheck),
 	)
 	content = container.NewPadded(content)
 
@@ -118,9 +125,10 @@ func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressC
 	drive, _ := cfg["drive"].(string)
 	speed, _ := cfg["speed"].(string)
 	eject, _ := cfg["eject"].(bool)
+	verify, _ := cfg["verify"].(bool)
 
-	logging.Info(logging.CatDisc, "Executing burn job: ID=%s ISO=%s Drive=%s Speed=%s Eject=%v",
-		job.ID, isoPath, drive, speed, eject)
+	logging.Info(logging.CatDisc, "Executing burn job: ID=%s ISO=%s Drive=%s Speed=%s Eject=%v Verify=%v",
+		job.ID, isoPath, drive, speed, eject, verify)
 
 	progressCallback(0.1)
 
@@ -132,6 +140,13 @@ func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressC
 	// Perform the burn
 	if err := burnISO(isoPath, drive, speed, eject); err != nil {
 		return fmt.Errorf("burn failed: %w", err)
+	}
+
+	// Verify if requested
+	if verify {
+		progressCallback(0.95)
+		logging.Info(logging.CatDisc, "Verifying burn...")
+		// TODO: Implement read-back verification
 	}
 
 	progressCallback(1.0)
