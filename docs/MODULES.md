@@ -39,10 +39,10 @@ Merge joins multiple video clips into a single output file. Features include:
 
 **Current Status:** Implemented with queue support.
 
-### Trim 🔄 PLANNED (Lossless-Cut Inspired)
-Trim provides frame-accurate cutting with lossless-first philosophy (inspired by Lossless-Cut). Features include:
+### Trim 🔄 PLANNED
+Trim provides frame-accurate cutting with a lossless-first approach. Features include:
 
-#### Core Lossless-Cut Features
+#### Core Features
 - ⏳ **Lossless-First Approach** - Stream copy when possible, smart re-encode fallback
 - ⏳ **Keyframe-Snapping Timeline** - Visual keyframe markers with smart snapping
 - ⏳ **Frame-Accurate Navigation** - Reuse VT_Player's keyframe detection system
@@ -50,8 +50,8 @@ Trim provides frame-accurate cutting with lossless-first philosophy (inspired by
 - ⏳ **Multi-Segment Trimming** - Multiple cuts from single source with auto-chapters
 
 #### UI/UX Features
-- ⏳ **Timeline Interface** - Zoomable timeline with keyframe visibility (reuse VT_Player)
-- ⏳ **Visual Markers** - Blue (in), Red (out), Green (current position)
+- ⏳ **Timeline Interface** - Zoomable timeline with keyframe visibility
+- ⏳ **Visual Markers** - In-point, out-point, and current position indicators
 - ⏳ **Keyboard Shortcuts** - I (in), O (out), X (clear), ←→ (frames), ↑↓ (keyframes)
 - ⏳ **Preview System** - Instant segment preview with loop option
 - ⏳ **Quality Indicators** - Real-time feedback on export method and quality
@@ -64,9 +64,7 @@ Trim provides frame-accurate cutting with lossless-first philosophy (inspired by
 - ⏳ **Error Recovery** - Smart suggestions when export fails
 
 **FFmpeg Features:** Seeking, segment muxer, stream copying, smart re-encoding
-**Integration:** Reuses VT_Player's keyframe detector and timeline widget
 **Current Status:** Planned; depends on player stability work.
-**Inspiration:** Lossless-Cut's lossless-first philosophy with modern enhancements
 
 ### Filters ✅ IMPLEMENTED
 Filters module provides video and audio processing effects:
@@ -161,29 +159,24 @@ Unified disc authoring and menu generation for DVD and Blu-ray:
 
 **FFmpeg Features:** MPEG-2/H.264/HEVC encoding, muxing, and asset generation
 
-## Additional Suggested Modules
-
-### Subtitle
+### Subtitles ✅ IMPLEMENTED
 Dedicated subtitle handling module:
-- Extract subtitle tracks (SRT, ASS, SSA, VTT)
-- Add or replace subtitle files
-- Burn (hardcode) subtitles into video
-- Convert between subtitle formats
-- Adjust subtitle timing/sync
-- Multi-language subtitle management
+- ✅ Extract embedded subtitle tracks (SRT, ASS, SSA, VTT)
+- ✅ Lossless extraction of text-based tracks
+- ✅ OCR extraction of image-based tracks to SRT/ASS (requires Tesseract; language codes: `eng`, `fra`, `iku`)
+- ✅ Burn (hardcode) subtitles into video
+- ⏳ Add or replace subtitle files
+- ⏳ Convert between subtitle formats
+- ⏳ Adjust subtitle timing/sync
 
 **FFmpeg Features:** Subtitle filters, subtitle codec support
 
+**Current Status:** Implemented. See `internal/app/modules/subtitles/`.
+
+## Additional Suggested Modules
+
 ### Streams
 Advanced stream management for complex files:
-- View all streams (video/audio/subtitle/data) in detail
-- Select which streams to keep or remove
-- Reorder stream priority/default flags
-- Map streams to different output files
-- Handle multiple video angles or audio tracks
-- Copy or transcode individual streams
-
-**FFmpeg Features:** Stream mapping, stream selection
 
 ### GIF
 Create animated GIFs from videos:
@@ -232,6 +225,5 @@ Extract still images from video:
 ### 🔄 Planned / In Progress
 - 🔄 **Player stabilization** (single-process A/V sync, frame-accurate seeking)
 - 🔄 **Trim module**
-- 🔄 **Subtitles**
 - 🔄 **Blu-ray authoring**
 - 🔄 **Enhancement pipeline**
