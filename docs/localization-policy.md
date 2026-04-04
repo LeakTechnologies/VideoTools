@@ -1,198 +1,179 @@
-# VideoTools Localization Strategy and Implementation Guide
+# VideoTools Localization Policy
 
 ## Overview
 
-This document provides a comprehensive guide to VideoTools' localization system, including implementation details, contribution guidelines, and cultural considerations.
+VideoTools uses a custom Go-based localization system. All user-facing strings are
+defined as fields on a `Strings` struct and served through a simple package API.
+There is no dependency on external i18n libraries (the `go-i18n` reference visible in
+`_fyne/` belongs to the Fyne submodule, not VideoTools).
 
-## Quick Start
+## Supported Languages
 
-### Architecture
-- **Primary System**: VideoTools-controlled localization via go-i18n
-- **Fyne Integration**: Minimal, only for system dialogs
-- **Strategy**: Module-by-module localization with cultural respect
+| Code    | Name                   | Script        | Status                        |
+|---------|------------------------|---------------|-------------------------------|
+| `en-CA` | English (Canada)       | Latin         | Source of truth — complete    |
+| `fr-CA` | French (Canada)        | Latin         | Active — maintained           |
+| `iu`    | Inuktitut (ᐃᓄᒃᑎᑐᑦ)  | UCAS syllabics | Placeholder — needs review    |
+| `iu-Latn` | Inuktitut (Qaliujaaqpait) | Latin romanization | Placeholder — needs review |
 
-### Language Priority
-1. **English (en-CA)** - Source language
-2. **French (fr-CA)** - Canadian official language
-3. **Indigenous Languages** - Inuktitut, Cree (human-reviewed)
-4. **Global Languages** - Future expansion
+Cree and other languages listed in earlier planning documents are **not implemented**
+and have no locale files. Do not reference them as supported.
 
-## Implementation Guide
+## File Structure
 
-### File Structure
+All locale files live in `internal/i18n/`:
+
 ```
-localization/
-├── en-CA/
-│   ├── meta.json
-│   ├── common.json
-│   ├── convert.json
-│   └── [module files]
-├── fr-CA/
-│   └── [same structure]
-├── iu/
-│   ├── meta.json
-│   ├── common.syllabics.json
-│   ├── common.roman.json
-│   └── [dual-script modules]
-└── cr/
-    └── [dual-script structure]
+internal/i18n/
+├── strings.go      — Strings struct definition (all keys); CompletionPercent helper
+├── i18n.go         — T(), SetLanguage(), SetLanguageWithScript(), fallback logic
+├── languages.go    — allLanguages registry (shown in Settings language picker)
+├── en_ca.go        — English (Canada) — source of truth
+├── fr_ca.go        — French (Canada)
+├── iu.go           — Inuktitut syllabics
+└── iu_latin.go     — Inuktitut romanized Latin (registered as "iu-Latn")
 ```
 
-### Key Naming Convention
-```
-[module].[category].[item]
-```
+## API
 
-Examples:
-- `convert.output.format` - Output format label
-- `player.controls.play` - Play button
-- `error.file.not_found` - File not found error
-- `common.button.ok` - Generic OK button
-
-### Usage in Code
 ```go
-// Primary localization
-btn := widget.NewButton(localization.T("convert.start"), onClick)
+// Get the current Strings (en-CA fallback for any empty field):
+t := i18n.T()
+label := widget.NewLabel(t.ModuleConvert)
+btn := widget.NewButton(t.ActionSave, onClick)
 
-// Optional generic (whitelisted only)
-cancelBtn := widget.NewButton(localization.Generic("Cancel"), onClick)
+// Switch language (called from Settings):
+i18n.SetLanguage("fr-CA")
+i18n.SetLanguageWithScript("iu", i18n.ScriptLatin)
+
+// Query active language:
+code := i18n.CurrentCode()   // e.g. "iu"
+font := i18n.CurrentFont()   // "mono" or "aboriginal"
 ```
+
+## Adding a New String
+
+1. Add the field to `internal/i18n/strings.go` with a comment:
+   ```go
+   DialogUpdateBlocked string // "Update Blocked"
+   ```
+2. Add the English value to `en_ca.go` — this is the source of truth.
+3. Add the French translation to `fr_ca.go`.
+4. Add Inuktitut placeholders to `iu.go` and `iu_latin.go` — see
+   **Indigenous Language Handling** below for required comment format.
+
+Never leave any locale file missing a key. Missing keys silently fall back to an empty
+string (not en-CA) in the UI unless the `fallback()` function runs, which it does at
+`SetLanguage` time — but only if the field was empty at registration. Safe practice is
+to always populate all four files.
+
+## Key Naming Conventions
+
+Fields on `Strings` follow these prefixes:
+
+| Prefix       | Use                              | Example                   |
+|--------------|----------------------------------|---------------------------|
+| `Module`     | Module/tab names                 | `ModuleConvert`           |
+| `Action`     | Button labels / verb actions     | `ActionSave`, `ActionCancel` |
+| `Label`      | Static descriptive labels        | `LabelOutput`, `LabelNoFile` |
+| `Status`     | Status/progress messages         | `StatusComplete`, `StatusFailed` |
+| `Dialog`     | Dialog titles and short messages | `DialogConfirm`, `DialogUpdateBlocked` |
 
 ## Localization Rules
 
-### Brand Protection
-- **VT**: Never translated, never localized
-- **VideoTools**: Translated by meaning only for non-Latin scripts
+### Brand
+
+- **VT** and **VideoTools** are never translated.
+- Do not translate proper nouns (codec names, container names, tool names).
 
 ### Terminology
-- **Movie**: Digital files (MP4, MKV, MOV)
-- **Film**: Physical media (8mm, 16mm, 35mm)
-- Never use these terms interchangeably
 
-### Script Handling
-- **Indigenous languages**: Dual-script support (syllabics + romanized)
-- **No machine translation** for Indigenous languages
-- **Human review required** for all Indigenous translations
+- **Movie** — digital files (MP4, MKV, etc.)
+- **Film** — physical media (8mm, 16mm, 35mm)
+- Do not use these terms interchangeably.
 
-## Testing
+### Fallback
 
-### Automated Tests
-- Translation completeness checking
-- Key consistency validation
-- UI layout expansion testing (pseudo-languages)
-- Script rendering validation
+The fallback chain is:
 
-### Manual Tests
-- In-context translation verification
-- Module-by-module validation
-- Language switching functionality
+1. User-selected language and script variant
+2. en-CA (for any empty/missing field in the selected locale)
+
+There is no "emergency fallback string" beyond en-CA. If en-CA is missing a field the
+UI will show an empty string — catch this with `CompletionPercent` before release.
+
+### Script Variants (Inuktitut)
+
+Inuktitut users can choose between syllabics (UCAS, `iu.go`) and Latin romanization
+(`iu_latin.go`) in Settings. The language code stored in preferences is always `"iu"`;
+the script variant is stored separately. `SetLanguageWithScript("iu", ScriptLatin)`
+loads `iu_latin.go`. The font switches automatically: syllabics uses Aboriginal Sans,
+Latin uses the standard mono font.
 
 ## Indigenous Language Handling
 
 ### Current Status
 
-The Inuktitut translations in `iu.go` (Unified Canadian Aboriginal Syllabics) and
-`iu_latin.go` (romanized Latin) are **machine-generated placeholders**. They have not
-been reviewed by a fluent speaker. The localization-policy statement "no machine
-translation for Indigenous languages" reflects the long-term goal, not the current
-state — these files exist to test dual-script rendering and provide a starting point,
-not to represent authoritative Inuktitut.
+All strings in `iu.go` and `iu_latin.go` are **machine-generated placeholders**. They
+have not been reviewed by a fluent speaker. As of April 2026, no Inuktitut strings are
+human-reviewed. The files exist to exercise dual-script rendering and font switching,
+not to provide authoritative translations.
 
-### Why This Matters
+### Why Accuracy Matters
 
 Inuktitut is a living language spoken by Inuit communities across Nunavut, Nunavik,
-and Nunatsiavut. Using inaccurate or culturally inappropriate translations — even in a
-technical UI — can be perceived as disrespectful or tokenistic. Machine translation of
-Inuktitut is particularly unreliable because:
+and Nunatsiavut. Inaccurate or tokenistic translations in a public UI can cause harm.
+Machine translation of Inuktitut is particularly unreliable because:
 
-- Standard LLM/MT systems have very limited Inuktitut training data.
-- Technical vocabulary (software concepts like "queue", "job", "restart") has no
-  established community-agreed Inuktitut equivalent; machine output is often a
-  phonetic borrowing or a misleading approximation.
-- The syllabics orthography has regional variants; machine output may not match the
-  conventions familiar to a specific community.
+- LLM and MT systems have very limited Inuktitut training data.
+- Technical software concepts ("job queue", "codec", "restart") have no
+  community-agreed Inuktitut equivalent; machine output is often a phonetic borrowing
+  or a misleading approximation.
+- The UCAS syllabics orthography has regional variants; machine output may not match
+  the conventions of any particular community.
 
-### Rules for Adding New Strings
+### Rules for Adding New Inuktitut Strings
 
-1. **Add the string to all locale files** — `en_ca.go`, `fr_ca.go`, `iu.go`,
-   `iu_latin.go`. Never leave a locale file missing a key; missing keys fall back to
-   an empty string in the UI.
-
-2. **Machine translation is acceptable as a placeholder** but must be accompanied by
-   a `// machine-generated, needs human review` comment on the same line. Example:
+1. **Machine-generated placeholders are acceptable**, but must carry a comment:
    ```go
-   StatusUpdateBlockedByJob: "Suliaq malinngajumiittara...", // machine-generated, needs human review
+   // machine-generated, needs human review
+   ```
+   Include a plain-English gloss of the intended meaning when the concept is technical:
+   ```go
+   DialogUpdateBlocked: "Nutaaliqpallaarumasuq Nalinginnaanginnaq", // machine-generated, needs human review — means: software update cannot be installed right now
    ```
 
-3. **Flag technical-concept strings explicitly.** When a string introduces a concept
-   with no clear Inuktitut equivalent (e.g. "job queue", "binary restart", "codec"),
-   add a comment explaining the intended meaning in plain English so a future reviewer
-   has context:
-   ```go
-   DialogUpdateBlocked: "Nutaaliqpallaarumasuq Nalinginnaanginnaq", // machine-generated — means: software update cannot be installed right now
-   ```
+2. **Do not back-translate** to verify. Running the Inuktitut output through another
+   model to check it produces false confidence. Human review is the only valid check.
 
-4. **Do not back-translate** machine output to verify it. Generating Inuktitut with
-   one model and checking it with another gives false confidence. The only valid review
-   is by a fluent human speaker.
+3. **Never leave a key blank.** A marked placeholder is better than a silent fallback
+   that breaks the UI for users who selected Inuktitut.
 
-5. **Do not remove or leave blank** an Inuktitut string just because you are unsure of
-   the translation. A placeholder — clearly marked — is better than a silent fallback
-   to English, which breaks the UI contract for users who have selected Inuktitut.
+4. Both `iu.go` (syllabics) and `iu_latin.go` (Latin) must be updated together. Do
+   not assume a syllabics translation is equivalent to its Latin romanization — they
+   are treated as independent reviews.
 
 ### Path to Human Review
 
-When a fluent Inuktitut speaker or a community translator reviews strings:
+When a fluent speaker or community translator reviews a string:
 
 - Remove the `// machine-generated, needs human review` comment.
-- Add a `// reviewed` comment with the review date (year is sufficient): `// reviewed 2026`.
-- If the reviewer requests romanization changes (iu_latin.go) separately from
-  syllabics changes (iu.go), treat them as independent reviews — do not assume
-  syllabics approval implies Latin approval or vice versa.
+- Add `// reviewed YYYY` (year is sufficient).
+- Syllabics and Latin romanization reviews are independent — do not mark both reviewed
+  based on one reviewer's approval unless they reviewed both scripts.
 
-### Scope of Current Machine-Generated Strings
+Inuktitut should not be advertised as a fully supported language until all strings in
+both scripts carry `// reviewed`.
 
-All strings currently in `iu.go` and `iu_latin.go` are machine-generated unless
-explicitly marked `// reviewed`. As of April 2026, no strings have been human-reviewed.
-Any new strings added without a human reviewer must carry the `// machine-generated`
-comment.
+## Translation Completeness
 
----
+`internal/i18n/strings.go` exposes `CompletionPercent(s, reference Strings) float64`
+which compares a locale against en-CA. Run it manually or in a test to detect gaps
+before release. There are currently no automated CI checks for translation completeness.
 
 ## Contributing
 
-### Translation Guidelines
-1. Follow key naming conventions
-2. Provide context for ambiguous terms
-3. Maintain terminology consistency
-4. Include cultural notes where relevant
-
-### Indigenous Languages
-- Follow the rules in the **Indigenous Language Handling** section above.
-- Must include reviewer credit/approval before the `// machine-generated` comment is removed.
-- Dual-script (syllabics + Latin romanization) required for Inuktitut.
-- Cultural appropriateness review required before any public-facing release targets Inuktitut as a supported language.
-
-## Configuration
-
-### Language Preference
-```json
-{
-  "language": "en-CA",
-  "secondaryScript": false,
-  "autoDetect": true
-}
-```
-
-### Fallback Chain
-1. User-selected language
-2. User-selected language + secondary script
-3. English (en-CA)
-4. Emergency fallback string
-
-## Resources
-
-For module-specific localization guides, see:
-- Convert Module Localization (planned)
-- Player Module Localization (planned)
-- UI Components Localization (planned)
+1. Follow the key naming conventions above.
+2. Provide context comments for ambiguous terms.
+3. For Inuktitut, follow the **Indigenous Language Handling** rules.
+4. Never hardcode user-visible strings — all UI text must go through `i18n.T()`.
