@@ -32,8 +32,8 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Multi-drive batch burning** — See docs/BURN_MODULE_DESIGN.md §Phase 3
 
 ### File Manager (NEW)
-- [ ] **Create design document** — See docs/FILE_MANAGER_DESIGN.md
-- [ ] **Basic navigation** — List files, folder navigation, breadcrumb trail
+- [x] **Create design document** — See docs/FILE_MANAGER_DESIGN.md
+- [x] **Basic navigation** — List files, folder navigation, breadcrumb trail
 - [ ] **Multi-tab support** — Open multiple folders in tabs
 - [ ] **Context menu** — Right-click to open files in modules
   - [ ] "Open in Convert" for video files (red pill)
@@ -41,6 +41,17 @@ This file tracks upcoming features, improvements, and known issues.
   - [ ] "Open in Subtitles" for subtitle files (yellow pill)
   - [ ] "Open in Inspect" for any file (green pill)
   - [ ] "Open in Author" for DVD files (teal pill)
+
+### VR360 Video Processing (FUTURE)
+- [ ] **Create design document** — See docs/VR360_VIDEO_PROCESSING.md
+- [ ] **Viewport extraction** — Convert 360° to flat video with fixed perspective
+  - [ ] Detect 360° video format
+  - [ ] Add v360 filter to FFmpeg build
+  - [ ] Build UI with yaw/pitch/FOV sliders
+  - [ ] Live preview with view cone overlay
+  - [ ] Export to flat MP4
+- [ ] **Stabilization** — Reduce shakiness in handheld 360° footage
+- [ ] **Format conversion** — Equirect ↔ Cubemap, fisheye de-warp
 
 ### UI Improvements
 - [x] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
