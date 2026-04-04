@@ -67,6 +67,8 @@ var frCA = Strings{
 	DialogISOCannotOpenMsg:   "Les fichiers ISO DVD ne peuvent pas être chargés directement.\n\nUtilisez le module Auteur pour ré-écrire ou parcourir le contenu du disque.",
 	DialogBurnComingSoon:     "Graver DVD",
 	DialogBurnComingSoonMsg:  "La gravure de DVD sera disponible dans une future mise à jour.",
+	DialogUpdateBlocked:      "Mise à jour bloquée",
+	StatusUpdateBlockedByJob: "Une tâche est en cours d'exécution. Veuillez attendre la fin de toutes les tâches avant d'installer une mise à jour.\n\nLes mises à jour nécessitent un redémarrage et interrompraient le travail en cours.",
 	LabelSnippet:             "Extrait :",
 	MergeStarted:             "Fusion démarrée !",
 
