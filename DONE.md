@@ -1,5 +1,21 @@
 # VideoTools - Completed Features
 
+## Version 0.1.1-dev40 (in progress) - Burn Module & File Manager
+
+### Burn Module (dev40)
+- [x] **Design document** - Created docs/BURN_MODULE_DESIGN.md
+- [x] **Module entry** - Wired showBurnView() in main.go
+- [x] **UI implementation** - Source selection, drive detection, burn options
+- [x] **Queue integration** - JobTypeBurn wired to executeBurnJob()
+- [x] **Verify option** - Added checkbox with i18n support
+- [x] **Drive capacity** - getDriveInfo() shows disc size in drive selector
+
+### File Manager (dev40)
+- [x] **Design document** - Created docs/FILE_MANAGER_DESIGN.md with:
+  - Lightweight UI with tabs, breadcrumbs, file list
+  - Right-click context menu for module integration
+  - Colour pills for module identification
+
 ## Version 0.1.1-dev39 (complete) - Preview Tab, DVD Menu System & CI Green
 
 ### Player Crash Fixes (dev39)
