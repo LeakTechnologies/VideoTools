@@ -380,6 +380,30 @@ var iu = Strings{
 	ConvertGenerateSnippet:        "ᐃᒡᒋᕐᓗᒍ ᐊᓱᒃᓴᐃᓂᖅ",                     // Generate Snippet
 	ConvertGenerateAllSnippets:    "ᐃᒡᒋᕐᓗᒍ ᐊᓱᒃᓴᐃᓂᖅ ᐊᓱᒃᓴᐃᓂᖅ",             // Generate All Snippets
 
+	// ── Convert Box Titles & Actions (Issue #5) ───────────────────────────────
+	ConvertSectionVideoEncoding:   "ᑕᕐᕆᔭᒐᒃᓴᖅ ᓄᑖᕐᕕᒋᓗᒍ",                                                   // machine-generated, needs human review — Video Encoding
+	ConvertSectionAudioEncoding:   "ᓂᐱᒋᔭᖅ ᓄᑖᕐᕕᒋᓗᒍ",                                                       // machine-generated, needs human review — Audio Encoding
+	ConvertSectionOutput:          "ᐅᐸᒃᑎᕕᒃ",                                                                // machine-generated, needs human review — Output
+	ConvertSectionResolutionFPS:   "ᐊᖏᕐᓂᖓ ᐊᒻᒪ ᑕᕐᕆᔭᒐᒃᓴᐃᑦ ᑭᑭᑕᐅᓂᖓᑦ",                                          // machine-generated, needs human review — Resolution & Frame Rate
+	ConvertSectionAspectRatio:     "ᐊᖏᕐᓂᖓᑕ ᐊᑭᖓ",                                                          // machine-generated, needs human review — Aspect Ratio
+	ConvertSectionAutoCrop:        "ᐊᖑᑎᒋᓗᒍ ᐊᕙᑎᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                               // machine-generated, needs human review — Auto-Crop
+	ConvertSectionTransformations: "ᑕᕐᕆᔭᒐᒃᓴᖅ ᐊᓯᔾᔨᕆᐊᖅᑐᑦ",                                                    // machine-generated, needs human review — Video Transformations
+	ConvertSectionDeinterlacing:   "ᑐᙵᕕᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                                      // machine-generated, needs human review — Deinterlacing
+	ConvertActionStart:            "ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                                             // machine-generated, needs human review — Convert
+	ConvertActionCancelJob:        "ᐱᓕᕆᐊᖅ ᐱᓕᕆᔭᐅᔪᖅ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",                                              // machine-generated, needs human review — Cancel Active Job
+	ConvertCommandPreview:         "ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᑕᑯᒃᓴᑦᑎᐊᕐᓗᒍ",                                                 // machine-generated, needs human review — Command Preview
+	ConvertCoverArtLabel:          "ᓂᐱᒋᔭᖅ ᑕᑯᒃᓴᑦᑎᐊᕐᓗᒍ",                                                      // machine-generated, needs human review — Cover Art
+	ConvertOutputFileFmt:          "ᐅᐸᒃᑎᕕᒃ ᐃᓚᖓ: %s",                                                       // machine-generated, needs human review — Output file: %s
+	ConvertDefaultPathFmt:         "ᓇᓗᓇᐃᕈᑎᖓ: %s",                                                          // machine-generated, needs human review — Default: %s
+	ConvertAnalyzeInterlacing:     "ᑐᙵᕕᒃᑯᑦ ᖃᐅᔨᓴᕐᓗᒍ",                                                        // machine-generated, needs human review — Analyze Interlacing
+	ConvertAnalyzing:              "ᖃᐅᔨᓴᕐᓂᖅ...",                                                             // machine-generated, needs human review — Analyzing...
+	ConvertDetectCrop:             "ᐊᕙᑎᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ ᓇᓗᓇᐃᖅᓯᓗᒍ",                                              // machine-generated, needs human review — Detect Crop
+	ConvertDetecting:              "ᓇᓗᓇᐃᖅᓯᓂᖅ...",                                                            // machine-generated, needs human review — Detecting...
+	ConvertAspectRatioEntry:       "ᐊᑭᖓᓂᒃ ᑎᑎᕋᕐᓗᒍ ᐅᑎᖅᑎᑦᑎᓗᒍ 1.90 ᐅᕝᕙᓘᓐᓃᑦ 256:135.",                          // machine-generated, needs human review — Enter a ratio like 1.90 or 256:135.
+	ConvertRemuxHint:              "ᑐᙵᕕᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ: ᓯᕗᓪᓕᖅᐸᐅᔭᕆᐊᖅᑐᖅ. ᓄᑖᕐᕕᒋᓗᒍ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᐊᑐᖅᑕᐅᙱᓚᑦ.", // machine-generated, needs human review — Remux mode: stream copy. Encoding controls are disabled.
+	ConvertUseSystemTemp:          "ᑕᒪᐃᓐᓂ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᐊᑐᕐᓗᒍ",                                                // machine-generated, needs human review — Use System Temp
+	ConvertUseDefault:             "ᓇᓗᓇᐃᕈᑎᖓ ᐊᑐᕐᓗᒍ",                                                         // machine-generated, needs human review — Use Default
+
 	// ── Compare ──────────────────────────────────────────────────────────────────
 	CompareInstructions:    "ᑕᕐᕆᔭᒐᒃᓴᑦ ᒪᕐᕉᒃ ᐊᒐᒃᓯᓗᒋᒃ ᓇᓗᓇᐃᖅᓯᓗᒋᑦ. ᐅᐸᒃᓯᓗᒋᒃ ᅎᕝᕙᓘᓐᓃᑦ ᐸᓯᔭᒃᓴᒥᒃ ᐊᑐᕐᓗᒍ.", // Load two videos to compare
 	CompareFullscreen:      "ᐊᖏᕐᓂᖓᓂᒃ ᑕᑯᒃᓴᑦᑎᐊᕐᓗᒍ",                                              // Fullscreen Compare

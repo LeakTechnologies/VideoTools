@@ -381,6 +381,30 @@ var iuLatn = Strings{
 	ConvertGenerateSnippet:        "Igiqsiurniq Sakkutilik",                         // Generate Snippet
 	ConvertGenerateAllSnippets:    "Igiqsiurniq Sakkutilik Allatgun",                // Generate All Snippets
 
+	// ── Convert Box Titles & Actions (Issue #5) ───────────────────────────────
+	ConvertSectionVideoEncoding:   "Tarvijaksaq Nutaqqutigijauniq",                                            // machine-generated, needs human review — Video Encoding
+	ConvertSectionAudioEncoding:   "Nipingit Nutaqqutigijauniq",                                               // machine-generated, needs human review — Audio Encoding
+	ConvertSectionOutput:          "Upaktivik",                                                                // machine-generated, needs human review — Output
+	ConvertSectionResolutionFPS:   "Piusilik Ammalu Tarvijaksait Naglingniqsaujait",                           // machine-generated, needs human review — Resolution & Frame Rate
+	ConvertSectionAspectRatio:     "Piusilik Katimajinga",                                                     // machine-generated, needs human review — Aspect Ratio
+	ConvertSectionAutoCrop:        "Aulappianniarniit Alianait Nanngiarlugu",                                  // machine-generated, needs human review — Auto-Crop
+	ConvertSectionTransformations: "Tarvijaksaq Allatgutilik",                                                 // machine-generated, needs human review — Video Transformations
+	ConvertSectionDeinterlacing:   "Tungavikkut Allatgutilik",                                                 // machine-generated, needs human review — Deinterlacing
+	ConvertActionStart:            "Allatgutilik",                                                             // machine-generated, needs human review — Convert
+	ConvertActionCancelJob:        "Piliriaksaq Atuqtauniit Nungutissavaa",                                    // machine-generated, needs human review — Cancel Active Job
+	ConvertCommandPreview:         "Aulajariarvingit Takujaujariaqanginnagu",                                  // machine-generated, needs human review — Command Preview
+	ConvertCoverArtLabel:          "Nipilik Nunaliarvingit",                                                   // machine-generated, needs human review — Cover Art
+	ConvertOutputFileFmt:          "Upaktivik ililiriit: %s",                                                  // machine-generated, needs human review — Output file: %s
+	ConvertDefaultPathFmt:         "Nalunaiqsimanngitsoq: %s",                                                 // machine-generated, needs human review — Default: %s
+	ConvertAnalyzeInterlacing:     "Tungavikkut Qaujimajaujariaqanginnagu",                                    // machine-generated, needs human review — Analyze Interlacing
+	ConvertAnalyzing:              "Qaujimajaujariaqanginnagu...",                                              // machine-generated, needs human review — Analyzing...
+	ConvertDetectCrop:             "Alianait Nanngiarlugu Nalunaiqsilugu",                                     // machine-generated, needs human review — Detect Crop
+	ConvertDetecting:              "Nalunaiqsimajarluni...",                                                    // machine-generated, needs human review — Detecting...
+	ConvertAspectRatioEntry:       "Katimajinga titirarlugu tamarmik 1.90 uvvalu 256:135.",                    // machine-generated, needs human review — Enter a ratio like 1.90 or 256:135.
+	ConvertRemuxHint:              "Tungavikkut allatgutilik: silattuqsimavoq. Nutaqqutigijauniq aulajariit atuqtaunngillat.", // machine-generated, needs human review — Remux mode: stream copy. Encoding controls are disabled.
+	ConvertUseSystemTemp:          "Tamarmik Aulajariit Atuqlugit",                                            // machine-generated, needs human review — Use System Temp
+	ConvertUseDefault:             "Nalunaiqsimanngitsoq Atuqlugu",                                            // machine-generated, needs human review — Use Default
+
 	// ── Compare ──────────────────────────────────────────────────────────────────
 	CompareInstructions:    "Tarvijaksait Marruuk agaksillugik nalunaiqsilugit. Upaksillugik uqqaatijaksaqmik atuqlugu.",    // Load two videos
 	CompareFullscreen:      "Angirningani Takujautiit",                                                                      // Fullscreen Compare
