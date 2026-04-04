@@ -79,9 +79,9 @@ func BuildLinearTMAPT(totalSectors uint32, durationSeconds float64, timeUnit int
 //	[2-3]  Reserved (uint16)
 //	[4-7]  EndByte (uint32)
 //	[8-11] TMAP[0] start byte offset = 12 (uint32)
-//	[12-13] NrOf_Entries (uint16)
-//	[14]   Time_Unit (uint8)
-//	[15]   Reserved (uint8)
+//	[12]   zero_1 (uint8, must be 0)
+//	[13]   Time_Unit (uint8)
+//	[14-15] NrOf_Entries (uint16)
 //	[16+]  Entries (uint32 each)
 func WriteTMAPT(t *VTS_TMAPT) ([]byte, error) {
 	if t == nil || len(t.Sectors) == 0 {
@@ -101,10 +101,10 @@ func WriteTMAPT(t *VTS_TMAPT) ([]byte, error) {
 	binary.Write(&buf, binary.BigEndian, endByte)          // EndByte
 	binary.Write(&buf, binary.BigEndian, tmapOffset)       // TMAP[0] start byte
 
-	// TMAP header
-	binary.Write(&buf, binary.BigEndian, uint16(nEntries)) // NrOf_Entries
+	// TMAP header (spec: zero_1[1] | Time_Unit[1] | NrOf_Entries[2])
+	buf.WriteByte(0x00)                                    // zero_1 (must be 0)
 	buf.WriteByte(t.TimeUnit)                              // Time_Unit
-	buf.WriteByte(0x00)                                    // Reserved
+	binary.Write(&buf, binary.BigEndian, uint16(nEntries)) // NrOf_Entries
 
 	// Entries: bit 31 = ECCE (0 for single cell); bits 0-30 = sector address
 	for _, s := range t.Sectors {
