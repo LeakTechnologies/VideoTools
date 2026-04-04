@@ -290,6 +290,25 @@ func (s *appState) refreshQueueView() {
 				t := i18n.T()
 				dialog.ShowInformation(t.DialogBurnComingSoon, t.DialogBurnComingSoonMsg, s.window)
 			},
+			OnOpenInModule: func(jobID, module string) {
+				job, err := s.jobQueue.Get(jobID)
+				if err != nil || job.OutputFile == "" {
+					return
+				}
+				src := &videoSource{Path: job.OutputFile, DisplayName: filepath.Base(job.OutputFile)}
+				switch module {
+				case "convert":
+					s.source = src
+					s.showConvertView(src)
+				case "inspect":
+					s.showInspectViewForPath(job.OutputFile)
+				case "audio":
+					s.showAudioView()
+				}
+			},
+			OnScheduleModule: func(jobID, module string) {
+				logging.Info(logging.CatSystem, "scheduled module %s for job %s on completion", module, jobID)
+			},
 			TitleColor: utils.MustHex("#4CE870"),
 			BgColor:    gridColor,
 			TextColor:  textColor,
