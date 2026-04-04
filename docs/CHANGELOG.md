@@ -1,5 +1,12 @@
 # VideoTools Changelog
 
+## v0.1.1-dev40 (April 2026)
+
+### In Progress
+- **Burn module** — Implement burn logic via IMAPI2 (Windows) / SG_IO (Linux); see `docs/BURN_MODULE_DESIGN.md`.
+- **Update-install guard** — Block `applyUpdate` while a queue or conversion job is active; see `AGENTS.md`.
+- **Issue #5** — Convert UI layout consistency and label clarity pass.
+
 ## v0.1.1-dev39 (March 2026)
 
 ### Player Module Fixes
@@ -29,6 +36,11 @@
 ### CI Fixes
 - **Submodule sync** — Pushed missing commits to lt_mirror/fyne.git to fix CI failures.
 - **filters_module.go** — Removed invalid `*videoSource` type assertion at line 110; `state.filtersFile` is `*videoSource` not `interface{}`, causing a Go 1.26 build failure in CI.
+- **FFmpeg from source (Windows/Linux)** — Switched from BtbN pre-built packages to building FFmpeg, x264, and x265 from source. BtbN packages provide executables only (no `.a` static libraries) and bundle x264/x265 headers with `__declspec(dllimport)`, making static CGO linking impossible.
+- **x265.pc C++ deps in Libs** — Moved `-lstdc++`/`-lsupc++`/`-lm` from `Libs.private` to `Libs` in the generated x265.pc. FFmpeg configure calls `pkg-config --libs` without `--static`, so `Libs.private` is never seen during the configure link test; the C++ runtime must be in the public `Libs` field.
+- **Windows multiple-definition fix** — Stripped `-lsupc++` from `CGO_LDFLAGS` after `pkg-config --libs --static`. `libsupc++.a` (real static archive) and `libstdc++.dll.a` (DLL import stub) both define `std::type_info::operator==`; removing `-lsupc++` from the final Go binary link eliminates the duplicate symbol. `-lsupc++` remains in x265.pc for FFmpeg configure.
+- **Windows disk space** — Added `-g0` to `CGO_CFLAGS` to suppress DWARF debug info in CGO intermediate `.s` files (FFmpeg headers otherwise generate multi-GB temp files in `C:\WINDOWS\TEMP`). Added MSYS2 package-cache/temp cleanup step before the Go build.
+- **Linux cache invalidation** — Bumped Linux cache key `v2→v3` to force a rebuild with the corrected x265.pc after the `Libs.private` → `Libs` change.
 
 ## v0.1.1-dev38 (March 2026)
 

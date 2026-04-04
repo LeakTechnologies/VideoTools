@@ -4,11 +4,12 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev39`.
+- Current cycle: `v0.1.1-dev40`.
 - Public/stable baseline: `v0.1.1`.
 - `dev30` is closed. CI validated on 2026-03-10 (runs 219/220/221, commit 2cbb3a2).
 - `dev32` closed. CI validated on 2026-03-15.
 - `dev35` closed. Module extraction in progress.
+- `dev39` closed. CI validated on 2026-04-04 (runs 1098/1099/1100, commit 90cac7a).
 - Issue tracker active at `https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues`.
 - Primary planning source is `TODO.md`; shipped scope is tracked in `DONE.md`; release-facing history is `docs/CHANGELOG.md`.
 
@@ -18,9 +19,9 @@ These rules apply to any automation or agent working in this repo.
 - **Auto-grey codecs** — Filter incompatible codecs based on format; see docs/AUTO_GREY_CODECS.md
 - **Filter integration** — Merge filters into upscale module; see docs/FILTER_INTEGRATION_DESIGN.md
 - **Module extraction** — Continue settings_module.go extraction to `internal/app/modules/settings/`.
-- **IFO audio table** — Done (dev39). Audio attributes now populated from track data; helpers in `internal/dvd/ifo/audio.go`.
-- **VTS_MAT byte layout** — Done (dev39). All field offsets in `mat_serialize.go`/`vtsi.go` corrected to match libdvdread `vtsi_mat_t`; fixes dvdnav `zero_12`/`zero_17` violations and `ifoRead_VTS_PTT_SRPT failed`.
-- **DVD menu system** — Done (dev39). All M1-M7 items complete. `runNativeSpumux` produces proper MPEG-2+SPU VOBs; PCI button table populated in NAV_PCK; VMGM_VOBS_Sector wired (ISO: from UDF layout pass; folder: VMG_Last_Sector+1); menu PGC cell sectors patched for both ISO and folder outputs; extras pipeline active; `JumpVMGM_PGCNCommand` handles inter-menu navigation. See `docs/DVD_MENU_SYSTEM_DESIGN.md`.
+- **IFO audio table** — Done (dev39, closed). Audio attributes now populated from track data; helpers in `internal/dvd/ifo/audio.go`.
+- **VTS_MAT byte layout** — Done (dev39, closed). All field offsets in `mat_serialize.go`/`vtsi.go` corrected to match libdvdread `vtsi_mat_t`; fixes dvdnav `zero_12`/`zero_17` violations and `ifoRead_VTS_PTT_SRPT failed`.
+- **DVD menu system** — Done (dev39, closed). All M1-M7 items complete. `runNativeSpumux` produces proper MPEG-2+SPU VOBs; PCI button table populated in NAV_PCK; VMGM_VOBS_Sector wired (ISO: from UDF layout pass; folder: VMG_Last_Sector+1); menu PGC cell sectors patched for both ISO and folder outputs; extras pipeline active; `JumpVMGM_PGCNCommand` handles inter-menu navigation. See `docs/DVD_MENU_SYSTEM_DESIGN.md`.
 - **Issue #5** (Convert UI cleanup) — layout consistency and label clarity pass on `buildConvertView` in `main.go`.
 - Do not expand scope beyond what is listed unless explicitly approved.
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.

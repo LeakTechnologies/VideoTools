@@ -1,6 +1,6 @@
 # VideoTools - Completed Features
 
-## Version 0.1.1-dev39 (in progress) - Preview Tab & FFmpeg DLL Fixes
+## Version 0.1.1-dev39 (complete) - Preview Tab, DVD Menu System & CI Green
 
 ### Player Crash Fixes (dev39)
 - [x] **Panic recovery** - Added defer/recover in showPlayerViewForPath to catch CGO crashes
@@ -28,7 +28,11 @@
 ### CI Fixes (dev39)
 - [x] **Submodule sync** - Pushed missing commits to lt_mirror/fyne.git
 - [x] **filters_module.go build fix** - Removed invalid `.(*videoSource)` type assertion; `state.filtersFile` is already `*videoSource`, Go 1.26 CI failure fixed
-- [x] **Pre-built FFmpeg** - Switched to BtbN/FFmpeg-Builds pre-built static binaries instead of from-source builds to resolve C++ ABI linking issues
+- [x] **FFmpeg from source** - Switched to building FFmpeg/x264/x265 from source on both platforms; BtbN pre-built packages have no static `.a` libraries and DllImport-decorated x264/x265 headers
+- [x] **x265.pc Libs fix** - C++ runtime deps moved from `Libs.private` to `Libs` so FFmpeg configure (which calls pkg-config without --static) sees them in its link test
+- [x] **Windows multiple-definition fix** - Strip `-lsupc++` from CGO_LDFLAGS after pkg-config; prevents duplicate `std::type_info::operator==` between libsupc++.a and libstdc++.dll.a
+- [x] **Windows disk space** - Added `-g0` to CGO_CFLAGS and MSYS2 cache cleanup step to prevent temp file exhaustion during Go build
+- [x] **CI fully green** - Both Linux (run 1098) and Windows (run 1099) pass; release artifacts published (run 1100)
 
 ### Filter Integration (dev39)
 - [x] **Create design document** - See docs/FILTER_INTEGRATION_DESIGN.md
