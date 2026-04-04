@@ -140,6 +140,7 @@ var (
 		{"author", "Author", utils.MustHex("#1C9C44"), color.White, "Disc", modules.HandleAuthor},
 		{"rip", "Rip", utils.MustHex("#1A9373"), color.White, "Disc", modules.HandleRip},
 		{"burn", "Burn", utils.MustHex("#178C8C"), color.White, "Disc", nil},
+		{"filemanager", "Files", utils.MustHex("#0D7C8C"), color.White, "Disc", nil},
 		{"player", "Player", utils.MustHex("#1D8EA5"), color.White, "Playback", modules.HandlePlayer},
 		{"thumbnail", "Thumbnail", utils.MustHex("#2260BF"), color.White, "Screenshots", modules.HandleThumbnail},
 		{"settings", "Settings", utils.MustHex("#2825D0"), color.White, "Settings", nil},
@@ -2854,6 +2855,8 @@ func (s *appState) showModule(id string) {
 		s.showRipView()
 	case "burn":
 		s.showBurnView()
+	case "filemanager":
+		s.showFileManagerView()
 	case "subtitles":
 		s.showSubtitlesView()
 	case "settings":
@@ -8463,7 +8466,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var buildCommandPreview func() fyne.CanvasObject
 
 	// Command Preview toggle button (drawer)
-	cmdPreviewBtn := widget.NewButton("Command Preview", func() {
+	cmdPreviewBtn := widget.NewButton(t.ConvertCommandPreview, func() {
 		if src == nil {
 			return
 		}
@@ -8501,7 +8504,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.CoverArtPath = path
 		coverLabel.SetText(state.convert.CoverLabel())
 		if coverDisplay != nil {
-			coverDisplay.SetText("Cover Art: " + state.convert.CoverLabel())
+			coverDisplay.SetText(t.ConvertCoverArtLabel + ": " + state.convert.CoverLabel())
 		}
 		if updateMetaCover != nil {
 			updateMetaCover()
@@ -8663,13 +8666,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		return filepath.Join(outDir, state.convert.OutputFile())
 	}
 
-	outputHint := widget.NewLabel(fmt.Sprintf("Output file: %s", getOutputPathPreview()))
+	outputHint := widget.NewLabel(fmt.Sprintf(t.ConvertOutputFileFmt, getOutputPathPreview()))
 	outputHint.Wrapping = fyne.TextWrapWord
 	// Wrap hint in padded container to ensure proper text wrapping in narrow windows
 	outputHintContainer := container.NewPadded(outputHint)
 
 	updateOutputHint = func() {
-		outputHint.SetText(fmt.Sprintf("Output file: %s", getOutputPathPreview()))
+		outputHint.SetText(fmt.Sprintf(t.ConvertOutputFileFmt, getOutputPathPreview()))
 		if strings.TrimSpace(state.convert.OutputBase) == "" {
 			outputHintContainer.Show()
 		} else {
@@ -8942,14 +8945,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Interlacing Analysis Button (Simple Menu)
 	var analyzeInterlaceBtn *widget.Button
 	var analyzeInterlaceView fyne.CanvasObject
-	analyzeInterlaceBtn, analyzeInterlaceView = makePanelButton("Analyze Interlacing", func() {
+	analyzeInterlaceBtn, analyzeInterlaceView = makePanelButton(t.ConvertAnalyzeInterlacing, func() {
 		if src == nil {
 			dialog.ShowInformation(t.DialogInterlacing, "Load a video first.", state.window)
 			return
 		}
 		go func() {
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				analyzeInterlaceBtn.SetText("Analyzing...")
+				analyzeInterlaceBtn.SetText(t.ConvertAnalyzing)
 				analyzeInterlaceBtn.Disable()
 			}, false)
 
@@ -8960,7 +8963,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			result, err := detector.QuickAnalyze(ctx, src.Path)
 
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				analyzeInterlaceBtn.SetText("Analyze Interlacing")
+				analyzeInterlaceBtn.SetText(t.ConvertAnalyzeInterlacing)
 				analyzeInterlaceBtn.Enable()
 
 				if err != nil {
@@ -9017,17 +9020,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	var detectCropBtn *widget.Button
 	var detectCropView fyne.CanvasObject
-	detectCropBtn, detectCropView = makePanelButton("Detect Crop", func() {
+	detectCropBtn, detectCropView = makePanelButton(t.ConvertDetectCrop, func() {
 		if src == nil {
 			dialog.ShowInformation(t.DialogAutoCrop, "Load a video first.", state.window)
 			return
 		}
 		// Run detection in background
 		go func() {
-			detectCropBtn.SetText("Detecting...")
+			detectCropBtn.SetText(t.ConvertDetecting)
 			detectCropBtn.Disable()
 			defer func() {
-				detectCropBtn.SetText("Detect Crop")
+				detectCropBtn.SetText(t.ConvertDetectCrop)
 				detectCropBtn.Enable()
 			}()
 
@@ -9172,7 +9175,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		if utils.ParseAspectValue(val) <= 0 {
 			for _, hint := range customAspectHintLabels {
-				hint.SetText("Enter a ratio like 1.90 or 256:135.")
+				hint.SetText(t.ConvertAspectRatioEntry)
 			}
 			return
 		}
@@ -9266,7 +9269,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Cover art display on one line
-	coverDisplay = widget.NewLabel("Cover Art: " + state.convert.CoverLabel())
+	coverDisplay = widget.NewLabel(t.ConvertCoverArtLabel + ": " + state.convert.CoverLabel())
 
 	// Create color-coded video codec select widget with colored dropdown items
 	videoCodecOptions := []string{"H.264", "H.265", "VP9", "AV1", "MPEG-2", "Copy"}
@@ -9433,7 +9436,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}, state.window)
 	})
 	cacheBrowseBtn.Importance = widget.MediumImportance
-	cacheUseSystemBtn := widget.NewButton("Use System Temp", func() {
+	cacheUseSystemBtn := widget.NewButton(t.ConvertUseSystemTemp, func() {
 		cacheDirEntry.SetText("")
 		state.convert.TempDir = ""
 		utils.SetTempDir("")
@@ -9444,7 +9447,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	logsDirEntry := widget.NewEntry()
 	logsDirEntry.SetPlaceHolder(defaultLogsDir())
 	logsDirEntry.SetText(state.convert.LogDir)
-	logsDirHint := widget.NewLabel(fmt.Sprintf("Default: %s", defaultLogsDir()))
+	logsDirHint := widget.NewLabel(fmt.Sprintf(t.ConvertDefaultPathFmt, defaultLogsDir()))
 	logsDirHint.Wrapping = fyne.TextWrapWord
 	logsDirHintContainer := container.NewPadded(logsDirHint)
 	applyLogsDir := func(val string) {
@@ -9466,7 +9469,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}, state.window)
 	})
 	logsBrowseBtn.Importance = widget.MediumImportance
-	logsUseDefaultBtn := widget.NewButton("Use Default", func() {
+	logsUseDefaultBtn := widget.NewButton(t.ConvertUseDefault, func() {
 		logsDirEntry.SetText("")
 	})
 	logsUseDefaultBtn.Importance = widget.LowImportance
@@ -10195,7 +10198,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				}
 			}
 			if encodingHint != nil {
-				encodingHint.SetText("Remux mode: stream copy. Encoding controls are disabled.")
+				encodingHint.SetText(t.ConvertRemuxHint)
 			}
 			if updateQualityVisibility != nil {
 				updateQualityVisibility()
@@ -10935,7 +10938,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	simpleEncodingSection = buildConvertBox("Video Encoding", container.NewVBox(
+	simpleEncodingSection = buildConvertBox(t.ConvertSectionVideoEncoding, container.NewVBox(
 		qualitySectionSimple,
 		widget.NewLabelWithStyle(t.ConvertSectionEncoderSpeed, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		widget.NewLabel(t.ConvertEncoderPresetHint),
@@ -10946,7 +10949,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		simpleBitrateSelect,
 	))
 
-	outputSectionSimple := buildConvertBox("Output", container.NewVBox(
+	outputSectionSimple := buildConvertBox(t.ConvertSectionOutput, container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionFormat, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
@@ -10962,7 +10965,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		appendSuffixCheck,
 	))
 
-	resolutionSectionSimple := buildConvertBox("Resolution & Frame Rate", container.NewVBox(
+	resolutionSectionSimple := buildConvertBox(t.ConvertSectionResolutionFPS, container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionTargetResolution, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		resolutionSelectSimple,
 		widget.NewSeparator(),
@@ -10971,7 +10974,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		motionInterpCheck,
 	))
 
-	aspectSectionSimple := buildConvertBox("Aspect Ratio", container.NewVBox(
+	aspectSectionSimple := buildConvertBox(t.ConvertSectionAspectRatio, container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionTargetAspect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelectSimple,
 		targetAspectHintContainer,
@@ -11003,7 +11006,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		10,
 	)
 
-	advancedVideoEncodingBlock = buildConvertBox("Video Encoding", container.NewVBox(
+	advancedVideoEncodingBlock = buildConvertBox(t.ConvertSectionVideoEncoding, container.NewVBox(
 		videoCodecRow,
 		videoCodecControls,
 		encoderPresetHintContainer,
@@ -11034,7 +11037,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		twoPassNote,
 	))
 
-	audioEncodingSection = buildConvertBox("Audio Encoding", container.NewVBox(
+	audioEncodingSection = buildConvertBox(t.ConvertSectionAudioEncoding, container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionAudioCodec, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioCodecContainer,
 		widget.NewSeparator(),
@@ -11045,7 +11048,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		audioChannelsSelect,
 	))
 
-	outputSectionAdvanced := buildConvertBox("Output", container.NewVBox(
+	outputSectionAdvanced := buildConvertBox(t.ConvertSectionOutput, container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionFormat, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatContainer,
 		chapterWarningLabel, // Warning when converting chapters to DVD
@@ -11061,7 +11064,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		appendSuffixCheck,
 	))
 
-	aspectSectionAdvanced := buildConvertBox("Aspect Ratio", container.NewVBox(
+	aspectSectionAdvanced := buildConvertBox(t.ConvertSectionAspectRatio, container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionTargetAspect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		targetAspectSelect,
 		targetAspectHintContainer,
@@ -11071,13 +11074,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		makeForceAspectCheck(),
 	))
 
-	autoCropSection := buildConvertBox("Auto-Crop", container.NewVBox(
+	autoCropSection := buildConvertBox(t.ConvertSectionAutoCrop, container.NewVBox(
 		autoCropCheck,
 		detectCropView,
 		autoCropHint,
 	))
 
-	transformSection := buildConvertBox("Video Transformations", container.NewVBox(
+	transformSection := buildConvertBox(t.ConvertSectionTransformations, container.NewVBox(
 		flipHorizontalCheck,
 		flipVerticalCheck,
 		widget.NewLabelWithStyle(t.ConvertSectionRotation, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -11085,7 +11088,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		transformHint,
 	))
 
-	deinterlaceSection := buildConvertBox("Deinterlacing", container.NewVBox(
+	deinterlaceSection := buildConvertBox(t.ConvertSectionDeinterlacing, container.NewVBox(
 		analyzeInterlaceView,
 		inverseCheck,
 		inverseHint,
@@ -11161,7 +11164,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		inverseHint.SetText(state.convert.InverseAutoNotes)
 		coverLabel.SetText(state.convert.CoverLabel())
 		if coverDisplay != nil {
-			coverDisplay.SetText("Cover Art: " + state.convert.CoverLabel())
+			coverDisplay.SetText(t.ConvertCoverArtLabel + ": " + state.convert.CoverLabel())
 		}
 
 		updateAspectBoxVisibility()
@@ -11556,7 +11559,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	cancelBtn.Importance = widget.DangerImportance
 	cancelBtn.Disable()
 
-	cancelQueueBtn = widget.NewButton("Cancel Active Job", func() {
+	cancelQueueBtn = widget.NewButton(t.ConvertActionCancelJob, func() {
 		if state.jobQueue == nil {
 			dialog.ShowInformation(t.DialogCancel, t.DialogQueueNotInit, state.window)
 			return
@@ -11591,7 +11594,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		addAllQueueBtn.Hide()
 	}
 
-	convertBtn = widget.NewButton("CONVERT NOW", func() {
+	convertBtn = widget.NewButton(t.ConvertActionStart, func() {
 		state.persistConvertConfig()
 		state.executeConversion()
 	})
@@ -12093,7 +12096,7 @@ Metadata: %s`,
 	}
 
 	// Interlacing Analysis Section
-	analyzeBtn := widget.NewButton("Analyze Interlacing", func() {
+	analyzeBtn := widget.NewButton(t.ConvertAnalyzeInterlacing, func() {
 		if state.source == nil {
 			return
 		}
