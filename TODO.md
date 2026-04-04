@@ -28,12 +28,19 @@ This file tracks upcoming features, improvements, and known issues.
   - [ ] Windows: Implement IMAPI2 COM interface in burn_windows.go
   - [ ] Linux: Implement SG_IO ioctl in burn_linux.go
   - [ ] Add getDriveInfo() to show disc capacity (DVD5/9, BD25/50)
-  - [ ] Add verify option (post-burn read-back)
+  - [x] Add verify option (post-burn read-back)
 - [ ] **Multi-drive batch burning** — See docs/BURN_MODULE_DESIGN.md §Phase 3
-  - [ ] Detect all writable optical drives
-  - [ ] Parallel burning across multiple drives
-  - [ ] Per-drive progress tracking
-  - [ ] Post-burn verification (read-back checksum)
+
+### File Manager (NEW)
+- [ ] **Create design document** — See docs/FILE_MANAGER_DESIGN.md
+- [ ] **Basic navigation** — List files, folder navigation, breadcrumb trail
+- [ ] **Multi-tab support** — Open multiple folders in tabs
+- [ ] **Context menu** — Right-click to open files in modules
+  - [ ] "Open in Convert" for video files (red pill)
+  - [ ] "Open in Audio" for audio files (orange pill)
+  - [ ] "Open in Subtitles" for subtitle files (yellow pill)
+  - [ ] "Open in Inspect" for any file (green pill)
+  - [ ] "Open in Author" for DVD files (teal pill)
 
 ### UI Improvements
 - [x] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
