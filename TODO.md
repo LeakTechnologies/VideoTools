@@ -35,12 +35,12 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Create design document** — See docs/FILE_MANAGER_DESIGN.md
 - [x] **Basic navigation** — List files, folder navigation, breadcrumb trail
 - [ ] **Multi-tab support** — Open multiple folders in tabs
-- [ ] **Context menu** — Right-click to open files in modules
-  - [ ] "Open in Convert" for video files (red pill)
-  - [ ] "Open in Audio" for audio files (orange pill)
-  - [ ] "Open in Subtitles" for subtitle files (yellow pill)
-  - [ ] "Open in Inspect" for any file (green pill)
-  - [ ] "Open in Author" for DVD files (teal pill)
+- [x] **Context menu** — Right-click to open files in modules
+  - [x] "Open in Convert" for video files (red pill)
+  - [x] "Open in Audio" for audio files (orange pill)
+  - [x] "Open in Subtitles" for subtitle files (yellow pill)
+  - [x] "Open in Inspect" for any file (green pill)
+  - [x] "Open in Author" for DVD files (teal pill)
 
 ### VR360 Video Processing (FUTURE)
 - [ ] **Create design document** — See docs/VR360_VIDEO_PROCESSING.md

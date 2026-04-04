@@ -27,6 +27,9 @@ var iu = Strings{
 	ModuleAuthor:      "ᓴᓇᓗᒍ",       // Author/Create
 	ModuleRip:         "ᓂᕈᓐᓇᓯᓗᒍ",    // Rip/Extract
 	ModuleBurn:        "ᕿᓂᖅᓴᕆᔭᒋᓗ",   // Burn
+
+	// File Manager Module (machine-generated, needs human review)
+	ModuleFileManager: "ᐃᓕᑦᔪᖃᕆᔭᒋᓗ", // File Manager
 	ModuleBluRay:      "Blu-Ray",
 	ModuleSubtitles:   "ᑎᑎᖅᑲᒃᓴᑦ",    // Subtitles
 	ModuleThumbnail:   "ᐊᑭᖃᓪᓕᐊᑦ",    // Thumbnail
@@ -36,42 +39,42 @@ var iu = Strings{
 	ModuleSettings:    "ᐋᖅᑭᒃᓱᐃᓂᖅ",   // Settings
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
-	DialogCompare:            "ᓇᓗᓇᐃᖅᓯᓗᒋᑦ ᕿᓂᖅᓴᖨᖏᓐᓂᕐᓗᒍ",                                           // Compare Videos
-	DialogInspect:            "ᖃᐅᔨᓴᕐᓗᒍ ᕿᓂᖅᓴᖨᖏᓐᓂᕐᓗᒍ",                                             // Inspect Video
-	DialogThumbnail:          "ᐊᑭᖃᓪᓕᐊᑦ ᓴᓇᓗᒍ",                                                    // Thumbnail Generation
-	DialogSnippet:            "ᐃᓱᒃᑕᐅᔪᑦ",                                                         // Snippet
-	DialogInterlacing:        "ᓱᓕᒐᓪᓕᓕᐅᔪᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                             // Interlacing Analysis
-	DialogInterlacingResults: "ᓱᓕᒐᓪᓕᓕᐅᔪᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                     // Interlacing Analysis Results
-	DialogAutoCrop:           "ᐊᐅᑎᒃ ᑕᐅᔪᓐᓇᖅᑐᑦ",                                                   // Auto-Crop
-	DialogAutoCropDetection:  "ᐊᐅᑎᒃ ᑕᐅᔪᓐᓇᖅᑐᑦ ᓇᓗᓇᐃᖅᓯᓗᒍ",                                          // Auto-Crop Detection
-	DialogNoBlackBars:        "ᐊᑕᐃᓯᒪᔪᑦ ᓄᓇᓖᑦ ᐊᒐᒃᓯᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ. ᕿᓂᖅᓴᖨᖏᓐᓂᖅ ᐊᑐᖅᑎᑕᐅᔪᖅ ᓄᓇᓖᑦ ᑕᐅᔪᓐᓇᖅᑐᖅ.",  // No black bars detected
-	DialogNoVideo:            "ᕿᓂᖅᓴᖨᖏᓐᓂᖅ ᓵᕝᕙᔪᖅ",                                                 // No Video
-	DialogNoFile:             "ᓴᓗᐃᔪᖅ ᓵᕝᕙᔪᖅ",                                                     // No File
-	DialogNoConfig:           "ᐃᓄᖁᔮᖃᕐᓂᖅ ᓵᕝᕙᔪᖅ",                                                  // No Config
-	DialogConfigSaved:        "ᐃᓄᖁᔮᖃᕐᓂᖅ ᓴᐳᒻᒥᔪᒍ",                                                 // Config Saved
-	DialogCopied:             "ᐊᒐᒃᓯᔪᒍ",                                                          // Copied
-	DialogNoLog:              "ᓴᓗᐃᔪᖅ ᓵᕝᕙᔪᖅ",                                                     // No Log
-	DialogQueued:             "ᐃᓚᓕᐅᔾᔨᓗᒍ",                                                        // Queued
-	DialogCancelled:          "ᐊᑎᖕᓂᖓ",                                                           // Cancelled
-	DialogBatchAdd:           "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᒋᒃᓯᔪᖅ",                                                 // Batch Add
-	DialogRecovery:           "ᐃᓱᒃᑕᐅᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                                 // Conversion Recovery
-	DialogSnippets:           "ᐃᓱᒃᑕᐅᔪᑦ",                                                         // Snippets
-	DialogPreview:            "ᐊᑭᖃᓪᓕᐊᑦ ᓴᓇᓗᒍ",                                                    // Generating Preview
-	DialogPlayback:           "ᑕᕐᕆᔭᒃᓴᓕᕆᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                              // Playback Unavailable
-	DialogJobQueued:          "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᒐᒃᓯᔪᒍ",                                                 // Job Queued
-	DialogMerge:              "ᓄᑖᕐᕕᒋᓗᒍ",                                                         // Merge
-	DialogCancel:             "ᐊᑎᖕᓂᖓ",                                                           // Cancel
-	DialogSnippetCreated:     "ᐃᓱᒃᑕᐅᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                                 // Snippet Created
-	DialogQueueNotInit:       "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ",                                                // Queue not initialized
-	DialogNoRunningJob:       "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᑎᖕᓂᖓᓂᑦ",                                                // No running job to cancel
-	DialogISOCannotOpen:      "ISO ᑕᐃᑯᓂᖓ",                                                       // Open DVD ISO
-	DialogISOCannotOpenMsg:   "ISO ᑕᐃᑯᓂᖓ ᐱᔪᓐᓇᖅᑐᑦ ᐱᓕᕆᐊᖅᑕᐅᔾᔨᓗᒍ ᐊᐅᓚᑦᑎᐅᔪᑦ.\n\nᐊᐅᓚᑦᑎᐅᔪᑦ ᐊᐅᓚᓚᐅᕐᕕᒋᓗᒍ.", // DVD ISO files cannot be loaded directly
-	DialogBurnComingSoon:     "DVD ᐊᐅᓚᓚᐅᕐᕕᒋᓗ",                                                   // Burn DVD
-	DialogBurnComingSoonMsg:  "DVD ᐊᐅᓚᓚᐅᕐᕕᒋᓗ ᐱᓕᕆᐊᖅᑕᐅᔾᔨᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ ᐃᓱᒃᑕᐅᔪᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ.",    // DVD burning will be available in a future update
-	DialogUpdateBlocked:      "ᓄᑖᓕᕆᓂᖅ ᓄᖅᑲᖅᑕᐅᔪᖅ",                                                   // machine-generated, needs human review — means: software update is blocked/cannot proceed
+	DialogCompare:            "ᓇᓗᓇᐃᖅᓯᓗᒋᑦ ᕿᓂᖅᓴᖨᖏᓐᓂᕐᓗᒍ",                                                                                                  // Compare Videos
+	DialogInspect:            "ᖃᐅᔨᓴᕐᓗᒍ ᕿᓂᖅᓴᖨᖏᓐᓂᕐᓗᒍ",                                                                                                    // Inspect Video
+	DialogThumbnail:          "ᐊᑭᖃᓪᓕᐊᑦ ᓴᓇᓗᒍ",                                                                                                           // Thumbnail Generation
+	DialogSnippet:            "ᐃᓱᒃᑕᐅᔪᑦ",                                                                                                                // Snippet
+	DialogInterlacing:        "ᓱᓕᒐᓪᓕᓕᐅᔪᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                                                                                    // Interlacing Analysis
+	DialogInterlacingResults: "ᓱᓕᒐᓪᓕᓕᐅᔪᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                                                                            // Interlacing Analysis Results
+	DialogAutoCrop:           "ᐊᐅᑎᒃ ᑕᐅᔪᓐᓇᖅᑐᑦ",                                                                                                          // Auto-Crop
+	DialogAutoCropDetection:  "ᐊᐅᑎᒃ ᑕᐅᔪᓐᓇᖅᑐᑦ ᓇᓗᓇᐃᖅᓯᓗᒍ",                                                                                                 // Auto-Crop Detection
+	DialogNoBlackBars:        "ᐊᑕᐃᓯᒪᔪᑦ ᓄᓇᓖᑦ ᐊᒐᒃᓯᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ. ᕿᓂᖅᓴᖨᖏᓐᓂᖅ ᐊᑐᖅᑎᑕᐅᔪᖅ ᓄᓇᓖᑦ ᑕᐅᔪᓐᓇᖅᑐᖅ.",                                                         // No black bars detected
+	DialogNoVideo:            "ᕿᓂᖅᓴᖨᖏᓐᓂᖅ ᓵᕝᕙᔪᖅ",                                                                                                        // No Video
+	DialogNoFile:             "ᓴᓗᐃᔪᖅ ᓵᕝᕙᔪᖅ",                                                                                                            // No File
+	DialogNoConfig:           "ᐃᓄᖁᔮᖃᕐᓂᖅ ᓵᕝᕙᔪᖅ",                                                                                                         // No Config
+	DialogConfigSaved:        "ᐃᓄᖁᔮᖃᕐᓂᖅ ᓴᐳᒻᒥᔪᒍ",                                                                                                        // Config Saved
+	DialogCopied:             "ᐊᒐᒃᓯᔪᒍ",                                                                                                                 // Copied
+	DialogNoLog:              "ᓴᓗᐃᔪᖅ ᓵᕝᕙᔪᖅ",                                                                                                            // No Log
+	DialogQueued:             "ᐃᓚᓕᐅᔾᔨᓗᒍ",                                                                                                               // Queued
+	DialogCancelled:          "ᐊᑎᖕᓂᖓ",                                                                                                                  // Cancelled
+	DialogBatchAdd:           "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᒋᒃᓯᔪᖅ",                                                                                                        // Batch Add
+	DialogRecovery:           "ᐃᓱᒃᑕᐅᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                                                                                        // Conversion Recovery
+	DialogSnippets:           "ᐃᓱᒃᑕᐅᔪᑦ",                                                                                                                // Snippets
+	DialogPreview:            "ᐊᑭᖃᓪᓕᐊᑦ ᓴᓇᓗᒍ",                                                                                                           // Generating Preview
+	DialogPlayback:           "ᑕᕐᕆᔭᒃᓴᓕᕆᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                                                                                     // Playback Unavailable
+	DialogJobQueued:          "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᒐᒃᓯᔪᒍ",                                                                                                        // Job Queued
+	DialogMerge:              "ᓄᑖᕐᕕᒋᓗᒍ",                                                                                                                // Merge
+	DialogCancel:             "ᐊᑎᖕᓂᖓ",                                                                                                                  // Cancel
+	DialogSnippetCreated:     "ᐃᓱᒃᑕᐅᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                                                                                        // Snippet Created
+	DialogQueueNotInit:       "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ",                                                                                                       // Queue not initialized
+	DialogNoRunningJob:       "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᑎᖕᓂᖓᓂᑦ",                                                                                                       // No running job to cancel
+	DialogISOCannotOpen:      "ISO ᑕᐃᑯᓂᖓ",                                                                                                              // Open DVD ISO
+	DialogISOCannotOpenMsg:   "ISO ᑕᐃᑯᓂᖓ ᐱᔪᓐᓇᖅᑐᑦ ᐱᓕᕆᐊᖅᑕᐅᔾᔨᓗᒍ ᐊᐅᓚᑦᑎᐅᔪᑦ.\n\nᐊᐅᓚᑦᑎᐅᔪᑦ ᐊᐅᓚᓚᐅᕐᕕᒋᓗᒍ.",                                                        // DVD ISO files cannot be loaded directly
+	DialogBurnComingSoon:     "DVD ᐊᐅᓚᓚᐅᕐᕕᒋᓗ",                                                                                                          // Burn DVD
+	DialogBurnComingSoonMsg:  "DVD ᐊᐅᓚᓚᐅᕐᕕᒋᓗ ᐱᓕᕆᐊᖅᑕᐅᔾᔨᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ ᐃᓱᒃᑕᐅᔪᑦ ᐃᓚᓕᐅᔾᔨᓗᒍ.",                                                           // DVD burning will be available in a future update
+	DialogUpdateBlocked:      "ᓄᑖᓕᕆᓂᖅ ᓄᖅᑲᖅᑕᐅᔪᖅ",                                                                                                        // machine-generated, needs human review — means: software update is blocked/cannot proceed
 	StatusUpdateBlockedByJob: "ᐱᓕᕆᐊᖅ ᐃᓂᒃᓴᒥᓐᓃᑦᑐᖅ. ᐅᑯᐊ ᑐᕌᖓᔪᑦ ᐱᓕᕆᐊᑦ ᑭᑎᑕᐅᔭᕆᐊᖃᓐᓂᖓᓂᒃ ᓄᑖᓕᕆᓂᕐᒥᒃ ᐊᔪᖅᓴᖅᑎᑦᑎᓗᒍ.\n\nᓄᑖᓕᕆᓂᖅ ᓄᑕᐅᓂᕐᒥᒃ ᐱᒻᒪᕆᐊᓘᕗᖅ ᐱᓕᕆᐊᑦ ᑕᖅᑲᐅᖓᓂᒃ ᑎᑭᑕᐅᓗᑎᒃ.", // machine-generated, needs human review — means: a background job is running; wait before installing the update
-	LabelSnippet:             "ᐃᓱᒃᑕᐅᔪᑦ:",                                                        // Snippet:
-	MergeStarted:             "ᓄᑖᕐᕕᒋᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ",                                                 // Merge started!
+	LabelSnippet:             "ᐃᓱᒃᑕᐅᔪᑦ:",                                                                                                               // Snippet:
+	MergeStarted:             "ᓄᑖᕐᕕᒋᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ",                                                                                                        // Merge started!
 
 	// ── Module Category Labels ────────────────────────────────────────────
 	CategoryConvert:     "ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",  // Converting
@@ -286,16 +289,16 @@ var iu = Strings{
 	SettingsQueuePlayHint:        "ᓂᕈᐊᕐᓗᒍ ᑕᐃᑯᖓ 'ᑕᑯᒋᐊᕐᓗᒍ' ᐊᑐᕐᓗᒍ ᓄᖅᑲᖓᑎᑦᑎᓂᒃᑯᑦ.", // Choose which module 'Play Video' navigates to.
 
 	// ── Settings — Output Defaults ────────────────────────────────────────────
-	SettingsDefaultOutputDir:     "ᐅᐸᒃᑎᕕᒃ ᓇᓗᓇᐃᕈᑎᖓ",                                                  // machine-generated, needs human review — Default Output Directory
+	SettingsDefaultOutputDir:     "ᐅᐸᒃᑎᕕᒃ ᓇᓗᓇᐃᕈᑎᖓ",                                                     // machine-generated, needs human review — Default Output Directory
 	SettingsDefaultOutputDirHint: "ᐊᓯᔾᔨᕆᐊᖅᑐᕕᒃ ᐊᑐᕐᓗᒍ ᐅᐸᒃᑎᕕᒃ ᐃᓂᓕᐅᕆᓯᒪᙱᑦᑎᓪᓗᒍ. ᑕᕐᕆᔭᒐᒃᓴᖅ ᐃᓂᖓᓂ ᐊᑐᕐᓗᒍ ᓄᖅᑲᕐᓗᒍ.", // machine-generated, needs human review
 
-	SettingsFFmpegMissing:        "ᐊᑦᑕᕐᓇᖅᑑᔪᖅ FFmpeg ᐱᔭᕆᐊᑐᔪᖅ ᓂᒡᓕᓯᒪᔪᖅ.\n\nᐃᓇᖏᕐᕕᒋᓗᒍ ᐱᓕᕆᔾᔪᑎᑦ ᐊᑐᕐᓗᒍ.\n\nᐃᓇᖏᕐᕕᒋᓂᖓ:\n%LOCALAPPDATA%\\VideoTools\\bin",
-	SettingsInstallFFmpeg:        "ᐃᓇᖏᕐᕕᒋᓗᒍ FFmpeg ᒫᓐᓇ",               // Install FFmpeg Now
-	SettingsOpenSettings:         "ᐅᒃᐱᕆᓗᒍ ᐋᖅᑭᒃᓱᐃᓂᖅ",                   // Open Settings
-	SettingsContinueLimited:      "ᑲᔪᓯᓗᒍ ᐊᔪᕈᓐᓃᕈᑕᐅᓂᖓ",                  // Continue Limited Mode
-	SettingsOpenReleases:         "ᐅᒃᐱᕆᓗᒍ ᓄᑕᐅᓯᒪᔪᑦ ᒪᒃᐱᒐᖅ",              // Open Releases Page
-	SettingsUpdatesInfo:          "ᖃᐅᔨᓴᕐᓗᒍ ᐊᑐᕐᓗᓪᓗ ᓄᑖᑦ.",               // Check for updates and manage app updates.
-	SettingsUpdatesAutoInfo:      "ᐊᐅᓚᑕᐅᑎᑕᐅᓗᒍ ᖃᐅᔨᓴᕐᓂᖅ ᓄᑖᑦ ᐋᖅᑭᒃᓯᒪᔪᒥᑦ.", // Checks for updates automatically based on the schedule above.
+	SettingsFFmpegMissing:   "ᐊᑦᑕᕐᓇᖅᑑᔪᖅ FFmpeg ᐱᔭᕆᐊᑐᔪᖅ ᓂᒡᓕᓯᒪᔪᖅ.\n\nᐃᓇᖏᕐᕕᒋᓗᒍ ᐱᓕᕆᔾᔪᑎᑦ ᐊᑐᕐᓗᒍ.\n\nᐃᓇᖏᕐᕕᒋᓂᖓ:\n%LOCALAPPDATA%\\VideoTools\\bin",
+	SettingsInstallFFmpeg:   "ᐃᓇᖏᕐᕕᒋᓗᒍ FFmpeg ᒫᓐᓇ",               // Install FFmpeg Now
+	SettingsOpenSettings:    "ᐅᒃᐱᕆᓗᒍ ᐋᖅᑭᒃᓱᐃᓂᖅ",                   // Open Settings
+	SettingsContinueLimited: "ᑲᔪᓯᓗᒍ ᐊᔪᕈᓐᓃᕈᑕᐅᓂᖓ",                  // Continue Limited Mode
+	SettingsOpenReleases:    "ᐅᒃᐱᕆᓗᒍ ᓄᑕᐅᓯᒪᔪᑦ ᒪᒃᐱᒐᖅ",              // Open Releases Page
+	SettingsUpdatesInfo:     "ᖃᐅᔨᓴᕐᓗᒍ ᐊᑐᕐᓗᓪᓗ ᓄᑖᑦ.",               // Check for updates and manage app updates.
+	SettingsUpdatesAutoInfo: "ᐊᐅᓚᑕᐅᑎᑕᐅᓗᒍ ᖃᐅᔨᓴᕐᓂᖅ ᓄᑖᑦ ᐋᖅᑭᒃᓯᒪᔪᒥᑦ.", // Checks for updates automatically based on the schedule above.
 
 	// ── Updates ───────────────────────────────────────────────────────────
 	UpdateCheckButton:       "ᖃᐅᔨᓴᕐᓗᒍ ᓄᑖᑦ",                                                                                         // Check for Updates
@@ -386,28 +389,28 @@ var iu = Strings{
 	ConvertGenerateAllSnippets:    "ᐃᒡᒋᕐᓗᒍ ᐊᓱᒃᓴᐃᓂᖅ ᐊᓱᒃᓴᐃᓂᖅ",             // Generate All Snippets
 
 	// ── Convert Box Titles & Actions (Issue #5) ───────────────────────────────
-	ConvertSectionVideoEncoding:   "ᑕᕐᕆᔭᒐᒃᓴᖅ ᓄᑖᕐᕕᒋᓗᒍ",                                                   // machine-generated, needs human review — Video Encoding
-	ConvertSectionAudioEncoding:   "ᓂᐱᒋᔭᖅ ᓄᑖᕐᕕᒋᓗᒍ",                                                       // machine-generated, needs human review — Audio Encoding
-	ConvertSectionOutput:          "ᐅᐸᒃᑎᕕᒃ",                                                                // machine-generated, needs human review — Output
-	ConvertSectionResolutionFPS:   "ᐊᖏᕐᓂᖓ ᐊᒻᒪ ᑕᕐᕆᔭᒐᒃᓴᐃᑦ ᑭᑭᑕᐅᓂᖓᑦ",                                          // machine-generated, needs human review — Resolution & Frame Rate
-	ConvertSectionAspectRatio:     "ᐊᖏᕐᓂᖓᑕ ᐊᑭᖓ",                                                          // machine-generated, needs human review — Aspect Ratio
-	ConvertSectionAutoCrop:        "ᐊᖑᑎᒋᓗᒍ ᐊᕙᑎᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                               // machine-generated, needs human review — Auto-Crop
-	ConvertSectionTransformations: "ᑕᕐᕆᔭᒐᒃᓴᖅ ᐊᓯᔾᔨᕆᐊᖅᑐᑦ",                                                    // machine-generated, needs human review — Video Transformations
-	ConvertSectionDeinterlacing:   "ᑐᙵᕕᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                                      // machine-generated, needs human review — Deinterlacing
-	ConvertActionStart:            "ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                                             // machine-generated, needs human review — Convert
-	ConvertActionCancelJob:        "ᐱᓕᕆᐊᖅ ᐱᓕᕆᔭᐅᔪᖅ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",                                              // machine-generated, needs human review — Cancel Active Job
-	ConvertCommandPreview:         "ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᑕᑯᒃᓴᑦᑎᐊᕐᓗᒍ",                                                 // machine-generated, needs human review — Command Preview
-	ConvertCoverArtLabel:          "ᓂᐱᒋᔭᖅ ᑕᑯᒃᓴᑦᑎᐊᕐᓗᒍ",                                                      // machine-generated, needs human review — Cover Art
-	ConvertOutputFileFmt:          "ᐅᐸᒃᑎᕕᒃ ᐃᓚᖓ: %s",                                                       // machine-generated, needs human review — Output file: %s
-	ConvertDefaultPathFmt:         "ᓇᓗᓇᐃᕈᑎᖓ: %s",                                                          // machine-generated, needs human review — Default: %s
-	ConvertAnalyzeInterlacing:     "ᑐᙵᕕᒃᑯᑦ ᖃᐅᔨᓴᕐᓗᒍ",                                                        // machine-generated, needs human review — Analyze Interlacing
-	ConvertAnalyzing:              "ᖃᐅᔨᓴᕐᓂᖅ...",                                                             // machine-generated, needs human review — Analyzing...
-	ConvertDetectCrop:             "ᐊᕙᑎᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ ᓇᓗᓇᐃᖅᓯᓗᒍ",                                              // machine-generated, needs human review — Detect Crop
-	ConvertDetecting:              "ᓇᓗᓇᐃᖅᓯᓂᖅ...",                                                            // machine-generated, needs human review — Detecting...
-	ConvertAspectRatioEntry:       "ᐊᑭᖓᓂᒃ ᑎᑎᕋᕐᓗᒍ ᐅᑎᖅᑎᑦᑎᓗᒍ 1.90 ᐅᕝᕙᓘᓐᓃᑦ 256:135.",                          // machine-generated, needs human review — Enter a ratio like 1.90 or 256:135.
+	ConvertSectionVideoEncoding:   "ᑕᕐᕆᔭᒐᒃᓴᖅ ᓄᑖᕐᕕᒋᓗᒍ",                                              // machine-generated, needs human review — Video Encoding
+	ConvertSectionAudioEncoding:   "ᓂᐱᒋᔭᖅ ᓄᑖᕐᕕᒋᓗᒍ",                                                 // machine-generated, needs human review — Audio Encoding
+	ConvertSectionOutput:          "ᐅᐸᒃᑎᕕᒃ",                                                        // machine-generated, needs human review — Output
+	ConvertSectionResolutionFPS:   "ᐊᖏᕐᓂᖓ ᐊᒻᒪ ᑕᕐᕆᔭᒐᒃᓴᐃᑦ ᑭᑭᑕᐅᓂᖓᑦ",                                   // machine-generated, needs human review — Resolution & Frame Rate
+	ConvertSectionAspectRatio:     "ᐊᖏᕐᓂᖓᑕ ᐊᑭᖓ",                                                    // machine-generated, needs human review — Aspect Ratio
+	ConvertSectionAutoCrop:        "ᐊᖑᑎᒋᓗᒍ ᐊᕙᑎᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                       // machine-generated, needs human review — Auto-Crop
+	ConvertSectionTransformations: "ᑕᕐᕆᔭᒐᒃᓴᖅ ᐊᓯᔾᔨᕆᐊᖅᑐᑦ",                                            // machine-generated, needs human review — Video Transformations
+	ConvertSectionDeinterlacing:   "ᑐᙵᕕᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                              // machine-generated, needs human review — Deinterlacing
+	ConvertActionStart:            "ᐊᓯᔾᔨᕆᐊᖅᑐᖅ",                                                     // machine-generated, needs human review — Convert
+	ConvertActionCancelJob:        "ᐱᓕᕆᐊᖅ ᐱᓕᕆᔭᐅᔪᖅ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ",                                      // machine-generated, needs human review — Cancel Active Job
+	ConvertCommandPreview:         "ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᑕᑯᒃᓴᑦᑎᐊᕐᓗᒍ",                                         // machine-generated, needs human review — Command Preview
+	ConvertCoverArtLabel:          "ᓂᐱᒋᔭᖅ ᑕᑯᒃᓴᑦᑎᐊᕐᓗᒍ",                                              // machine-generated, needs human review — Cover Art
+	ConvertOutputFileFmt:          "ᐅᐸᒃᑎᕕᒃ ᐃᓚᖓ: %s",                                                // machine-generated, needs human review — Output file: %s
+	ConvertDefaultPathFmt:         "ᓇᓗᓇᐃᕈᑎᖓ: %s",                                                   // machine-generated, needs human review — Default: %s
+	ConvertAnalyzeInterlacing:     "ᑐᙵᕕᒃᑯᑦ ᖃᐅᔨᓴᕐᓗᒍ",                                                // machine-generated, needs human review — Analyze Interlacing
+	ConvertAnalyzing:              "ᖃᐅᔨᓴᕐᓂᖅ...",                                                    // machine-generated, needs human review — Analyzing...
+	ConvertDetectCrop:             "ᐊᕙᑎᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ ᓇᓗᓇᐃᖅᓯᓗᒍ",                                     // machine-generated, needs human review — Detect Crop
+	ConvertDetecting:              "ᓇᓗᓇᐃᖅᓯᓂᖅ...",                                                   // machine-generated, needs human review — Detecting...
+	ConvertAspectRatioEntry:       "ᐊᑭᖓᓂᒃ ᑎᑎᕋᕐᓗᒍ ᐅᑎᖅᑎᑦᑎᓗᒍ 1.90 ᐅᕝᕙᓘᓐᓃᑦ 256:135.",                   // machine-generated, needs human review — Enter a ratio like 1.90 or 256:135.
 	ConvertRemuxHint:              "ᑐᙵᕕᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ: ᓯᕗᓪᓕᖅᐸᐅᔭᕆᐊᖅᑐᖅ. ᓄᑖᕐᕕᒋᓗᒍ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᐊᑐᖅᑕᐅᙱᓚᑦ.", // machine-generated, needs human review — Remux mode: stream copy. Encoding controls are disabled.
-	ConvertUseSystemTemp:          "ᑕᒪᐃᓐᓂ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᐊᑐᕐᓗᒍ",                                                // machine-generated, needs human review — Use System Temp
-	ConvertUseDefault:             "ᓇᓗᓇᐃᕈᑎᖓ ᐊᑐᕐᓗᒍ",                                                         // machine-generated, needs human review — Use Default
+	ConvertUseSystemTemp:          "ᑕᒪᐃᓐᓂ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᐊᑐᕐᓗᒍ",                                        // machine-generated, needs human review — Use System Temp
+	ConvertUseDefault:             "ᓇᓗᓇᐃᕈᑎᖓ ᐊᑐᕐᓗᒍ",                                                 // machine-generated, needs human review — Use Default
 
 	// ── Compare ──────────────────────────────────────────────────────────────────
 	CompareInstructions:    "ᑕᕐᕆᔭᒐᒃᓴᑦ ᒪᕐᕉᒃ ᐊᒐᒃᓯᓗᒋᒃ ᓇᓗᓇᐃᖅᓯᓗᒋᑦ. ᐅᐸᒃᓯᓗᒋᒃ ᅎᕝᕙᓘᓐᓃᑦ ᐸᓯᔭᒃᓴᒥᒃ ᐊᑐᕐᓗᒍ.", // Load two videos to compare
