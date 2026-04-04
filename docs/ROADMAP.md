@@ -8,40 +8,27 @@ This roadmap is intentionally lightweight. It captures the next few high-priorit
 - Items can move between buckets as priorities change.
 - We update this at the start of each dev cycle.
 
-## Current State
+## Current State (dev40)
 
-- dev21 focused on stylistic filters and enhancement module planning.
-- Filters module now includes decade-based authentic effects (8mm, 16mm, B&W Film, Silent Film, VHS, Webcam).
-- Player stability identified as critical blocker for enhancement development.
-- dev23 delivered UI cleanup (dropdown styling, settings panel polish, about/support layout).
+- Core modules fully implemented: Convert, Merge, Filters, Audio, Thumb, Inspect, Compare, Rip, Author, Queue, Settings, Subtitles.
+- DVD authoring engine is native Go (no dvdauthor/xorriso). Menu system complete (M1–M7).
+- Localization active for en-CA, fr-CA, and Inuktitut (syllabics + Latin).
+- CI green on both Linux and Windows with from-source FFmpeg static builds.
+- Burn module UI wired; burn logic (IMAPI2/SG_IO) pending.
 
-## Now (dev24 focus)
+## Now (dev40 focus)
 
-- **Rock-solid video player implementation** - CRITICAL PRIORITY
-  - Fix fundamental A/V synchronization issues
-  - Implement frame-accurate seeking without restarts
-  - Add hardware acceleration (CUDA/VA-API/VideoToolbox)
-  - Integrate chapter detection from Author module
-  - Build foundation for frame extraction and keyframing
-  - Eliminate seeking glitches and desync issues
+- **Burn module** — Implement disc burn logic via IMAPI2 (Windows) / SG_IO (Linux).
+  See `docs/BURN_MODULE_DESIGN.md`.
 
-- **Enhancement module foundation** - DEPENDS ON PLAYER
-  - Unified Filters + Upscale workflow
-  - Content-type aware processing (general/anime/film)
-  - Add blur control alongside sharpen/denoise
-  - AI model management system (extensible for future models)
-  - Multi-pass processing pipeline
-  - Before/after preview system
-  - Real-time enhancement feedback
+- **Update-install guard** — Block `applyUpdate` while a queue or conversion job is active.
+  See `AGENTS.md` for spec.
 
-- **Upscale workflow parity**
-  - Replace Upscale output quality with Convert-style Bitrate Mode controls
-  - Ensure FFmpeg-based upscale jobs report progress in queue
-- **Authoring structure upgrade**
-  - Feature/Extras/Gallery content types with subtype grouping
-  - Chapter thumbnails auto-generated for Feature only
-  - Galleries authored as still-image slideshows under Extras
-  - Cross-platform DVD authoring parity (same dvdauthor XML + ISO flags)
+- **Convert UI cleanup** — Layout consistency and label clarity pass on `buildConvertView`.
+  Tracked as issue #5.
+
+- **Player stabilization** — Single-process A/V sync, frame-accurate seeking.
+  Blocker for Trim module and Enhancement pipeline.
 
 ## Next (dev25+)
 
@@ -65,31 +52,14 @@ This roadmap is intentionally lightweight. It captures the next few high-priorit
   - Cross-platform frame extraction
   - Hardware-accelerated enhancement pipeline
 
-## Localization Implementation (Parallel Track)
+## Localization
 
-- **Localization Infrastructure Foundation**
-  - Core localization system with go-i18n integration
-  - Language pack structure and key architecture
-  - Canadian English (en-CA) as authoritative source
-  - Fyne integration limits (system dialogs only)
+The localization system is implemented. See `docs/localization-policy.md` for the full policy.
 
-- **Module-by-Module Localization**
-  - Common UI elements (menus, dialogs, status messages)
-  - Convert module localization (technical terminology)
-  - Queue system localization (job management, progress)
-  - Error messages and status indicators
-
-- **Indigenous Language Support**
-  - Inuktitut dual-script support (syllabics + romanized)
-  - Cree syllabics integration
-  - Human-review workflow and cultural validation
-  - Community contribution guidelines
-
-- **Quality Assurance Framework**
-  - Pseudo-language testing (long strings, RTL simulation)
-  - Automated translation completeness checking
-  - UI layout expansion validation
-  - Script rendering and font support testing
+- en-CA and fr-CA are maintained and complete.
+- Inuktitut (syllabics + Latin romanization) is present as machine-generated placeholders pending human review.
+- All user-facing strings use `i18n.T().KeyName` — no hardcoded display strings.
+- `CompletionPercent` helper available for gap detection.
 
 ## Later
 
