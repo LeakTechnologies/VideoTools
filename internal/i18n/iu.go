@@ -284,6 +284,11 @@ var iu = Strings{
 	SettingsQueuePlayInspect:     "ᖃᐅᔨᓴᖅᑕᐅᕕᒃ",                                // Inspect Module
 	SettingsQueuePlaySystem:      "ᑕᑯᒃᓴᐅᑎᑦᑎᕕᒃ",                               // Player Module
 	SettingsQueuePlayHint:        "ᓂᕈᐊᕐᓗᒍ ᑕᐃᑯᖓ 'ᑕᑯᒋᐊᕐᓗᒍ' ᐊᑐᕐᓗᒍ ᓄᖅᑲᖓᑎᑦᑎᓂᒃᑯᑦ.", // Choose which module 'Play Video' navigates to.
+
+	// ── Settings — Output Defaults ────────────────────────────────────────────
+	SettingsDefaultOutputDir:     "ᐅᐸᒃᑎᕕᒃ ᓇᓗᓇᐃᕈᑎᖓ",                                                  // machine-generated, needs human review — Default Output Directory
+	SettingsDefaultOutputDirHint: "ᐊᓯᔾᔨᕆᐊᖅᑐᕕᒃ ᐊᑐᕐᓗᒍ ᐅᐸᒃᑎᕕᒃ ᐃᓂᓕᐅᕆᓯᒪᙱᑦᑎᓪᓗᒍ. ᑕᕐᕆᔭᒐᒃᓴᖅ ᐃᓂᖓᓂ ᐊᑐᕐᓗᒍ ᓄᖅᑲᕐᓗᒍ.", // machine-generated, needs human review
+
 	SettingsFFmpegMissing:        "ᐊᑦᑕᕐᓇᖅᑑᔪᖅ FFmpeg ᐱᔭᕆᐊᑐᔪᖅ ᓂᒡᓕᓯᒪᔪᖅ.\n\nᐃᓇᖏᕐᕕᒋᓗᒍ ᐱᓕᕆᔾᔪᑎᑦ ᐊᑐᕐᓗᒍ.\n\nᐃᓇᖏᕐᕕᒋᓂᖓ:\n%LOCALAPPDATA%\\VideoTools\\bin",
 	SettingsInstallFFmpeg:        "ᐃᓇᖏᕐᕕᒋᓗᒍ FFmpeg ᒫᓐᓇ",               // Install FFmpeg Now
 	SettingsOpenSettings:         "ᐅᒃᐱᕆᓗᒍ ᐋᖅᑭᒃᓱᐃᓂᖅ",                   // Open Settings

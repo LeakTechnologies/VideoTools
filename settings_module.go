@@ -1706,6 +1706,16 @@ func (a *preferencesAdapter) PrefsConfig() prefsConfig {
 	return a.s.prefs
 }
 
+func (a *preferencesAdapter) DefaultOutputDir() string {
+	return a.s.defaultOutputDir
+}
+
+func (a *preferencesAdapter) SetDefaultOutputDir(dir string) {
+	a.s.defaultOutputDir = dir
+	a.s.prefs.DefaultOutputDir = dir
+	savePrefsConfig(a.s.prefs)
+}
+
 type dependencyAdapter struct {
 	s *appState
 }

@@ -405,6 +405,47 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	queuePlayHint.Wrapping = fyne.TextWrapWord
 	content.Add(queuePlayHint)
 
+	content.Add(widget.NewSeparator())
+
+	outputHeader := widget.NewLabel(t.SettingsDefaultOutputDir)
+	outputHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(outputHeader)
+
+	outputDirEntry := widget.NewEntry()
+	outputDirEntry.SetPlaceHolder("~/Videos/VideoTools")
+	outputDirEntry.SetText(cb.DefaultOutputDir())
+	outputDirEntry.OnChanged = func(val string) {
+		cb.SetDefaultOutputDir(strings.TrimSpace(val))
+	}
+
+	outputBrowseBtn := widget.NewButton(t.ActionBrowse, func() {
+		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
+			if err != nil || uri == nil {
+				return
+			}
+			path := uri.Path()
+			outputDirEntry.SetText(path)
+			cb.SetDefaultOutputDir(path)
+		}, cb.Window())
+	})
+	outputBrowseBtn.Importance = widget.MediumImportance
+
+	outputClearBtn := widget.NewButton(t.ConvertUseDefault, func() {
+		outputDirEntry.SetText("")
+		cb.SetDefaultOutputDir("")
+	})
+	outputClearBtn.Importance = widget.LowImportance
+
+	outputHint := widget.NewLabel(t.SettingsDefaultOutputDirHint)
+	outputHint.TextStyle = fyne.TextStyle{Italic: true}
+	outputHint.Wrapping = fyne.TextWrapWord
+
+	content.Add(container.NewBorder(nil, nil, nil,
+		container.NewHBox(outputBrowseBtn, outputClearBtn),
+		outputDirEntry,
+	))
+	content.Add(outputHint)
+
 	return content
 }
 

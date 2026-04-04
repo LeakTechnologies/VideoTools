@@ -309,6 +309,10 @@ var enCA = Strings{
 	SettingsQueuePlayInspect:     "Inspect Module",
 	SettingsQueuePlaySystem:      "Player Module",
 	SettingsQueuePlayHint:        "Choose which internal module 'Play Video' navigates to after a job completes.",
+
+	// ── Settings — Output Defaults ────────────────────────────────────────────
+	SettingsDefaultOutputDir:     "Default Output Directory",
+	SettingsDefaultOutputDirHint: "Applied to Convert when no output folder is set for the job. Leave blank to use the source video's folder.",
 	SettingsFFmpegMissing:        "Core dependency FFmpeg is missing.\n\nInstall now to unlock most modules.\n\nInstall target:\n%LOCALAPPDATA%\\VideoTools\\bin",
 	SettingsInstallFFmpeg:        "Install FFmpeg Now",
 	SettingsOpenSettings:         "Open Settings",

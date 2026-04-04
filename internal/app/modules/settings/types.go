@@ -44,6 +44,8 @@ type PreferencesCallbacks interface {
 	PersistLocale(code string, script i18n.ScriptVariant)
 	SavePrefsConfig() error
 	PrefsConfig() PrefsConfig
+	DefaultOutputDir() string
+	SetDefaultOutputDir(dir string)
 }
 
 type DependencyCallbacks interface {
@@ -71,6 +73,7 @@ type ModuleInfo struct {
 type PrefsConfig struct {
 	AutoCheckFrequency string `json:"AutoCheckFrequency"`
 	QueuePlayBehavior  string `json:"QueuePlayBehavior"`
+	DefaultOutputDir   string `json:"DefaultOutputDir"`
 }
 
 type Dependency struct {
