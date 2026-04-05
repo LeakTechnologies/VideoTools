@@ -22,6 +22,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	tooltipwidget "github.com/dweymouth/fyne-tooltip/widget"
 )
 
 type monoFonts struct {
@@ -234,7 +235,7 @@ type ModuleTile struct {
 }
 
 // NewModuleTile creates a new module tile
-func NewModuleTile(label string, col color.Color, textCol color.Color, enabled bool, missingDeps bool, tapped func(), dropped func([]fyne.URI)) *ModuleTile {
+func NewModuleTile(label string, col color.Color, textCol color.Color, enabled bool, missingDeps bool, tapped func(), dropped func([]fyne.URI), tooltip string) *ModuleTile {
 	m := &ModuleTile{
 		label:               strings.ToUpper(label),
 		color:               col,
@@ -245,6 +246,14 @@ func NewModuleTile(label string, col color.Color, textCol color.Color, enabled b
 		onDropped:           dropped,
 	}
 	m.ExtendBaseWidget(m)
+
+	// Set tooltip if provided
+	if tooltip != "" {
+		var twe tooltipwidget.ToolTipWidgetExtend
+		twe.ExtendToolTipWidget(m)
+		twe.SetToolTip(tooltip)
+	}
+
 	return m
 }
 
