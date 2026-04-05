@@ -84,6 +84,7 @@ func BuildView(opts Options) (fyne.CanvasObject, ViewAPI) {
 		opts.OnBurnISO,
 		opts.OnOpenInModule,
 		opts.OnScheduleModule,
+		opts.Window,
 		opts.TitleColor,
 		opts.BgColor,
 		opts.TextColor,
