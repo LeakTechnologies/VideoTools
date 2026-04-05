@@ -192,7 +192,7 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 
 	addSection(labels.CategoryConvert, "convert", "merge", "trim", "filters", "audio", "subtitles")
 	addSection(labels.CategoryInspect, "compare", "inspect", "upscale")
-	addSection(labels.CategoryDisc, "author", "rip", "bluray")
+	addSection(labels.CategoryDisc, "author", "rip", "burn")
 	addSection(labels.CategoryPlayback, "player", "thumbnail", "settings")
 
 	gridBox := container.NewVBox(rows...)
