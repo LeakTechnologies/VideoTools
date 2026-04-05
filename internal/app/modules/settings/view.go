@@ -1,6 +1,8 @@
 package settings
 
 import (
+	"strings"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
@@ -27,7 +29,7 @@ type Options struct {
 func BuildView(opts Options) fyne.CanvasObject {
 	t := i18n.T()
 
-	backBtn := widget.NewButton("< "+t.ModuleSettings, opts.OnBack)
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleSettings), opts.OnBack)
 	backBtn.Importance = widget.LowImportance
 
 	settingsColor := utils.MustHex(ModuleColor)
