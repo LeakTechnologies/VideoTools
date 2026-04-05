@@ -127,6 +127,7 @@ func (s *appState) showMainMenu() {
 		FilesOpenFolder:     t.MenuFilesOpenFolder,
 		FilesAddMore:        t.MenuFilesAddMore,
 		FilesGoTo:           t.MenuFilesGoTo,
+		Window:              s.window,
 		Queue:               t.MenuQueue,
 		CategoryConvert:     t.CategoryConvert,
 		CategoryInspect:     t.CategoryInspect,

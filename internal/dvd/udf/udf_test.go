@@ -135,3 +135,54 @@ func TestCalculateCRC_DifferentInputs(t *testing.T) {
 		t.Errorf("CalculateCRC collision: both inputs produced 0x%04X", a)
 	}
 }
+
+// TestWriteDescriptor_TagOffsets verifies that WriteDescriptor places DescriptorCRC and
+// DescriptorCRCLen at the correct byte offsets within the 16-byte tag header.
+// UDF spec: [8-9] DescriptorCRC, [10-11] DescriptorCRCLen, [12-15] TagLocation.
+// Regression: a prior bug wrote CRC to offset 10 and CRCLen to offset 12.
+func TestWriteDescriptor_TagOffsets(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewWriter(&buf, "OFFSET_TEST")
+
+	// Trigger WriteDescriptor indirectly by building with an empty tree.
+	// Build() writes FSD (TagIDFSD) and other volume descriptors via WriteDescriptor.
+	if err := w.Build(); err != nil {
+		t.Fatalf("Build() failed: %v", err)
+	}
+	data := buf.Bytes()
+
+	// The FSD is at sector 257 (offset 257*2048).
+	const fsdOffset = 257 * SectorSize
+	if len(data) < fsdOffset+16 {
+		t.Fatalf("output too short to contain FSD at sector 257")
+	}
+	tag := data[fsdOffset : fsdOffset+16]
+
+	// TagIdentifier at [0-1] should be TagIDFSD (256).
+	tagID := uint16(tag[0]) | uint16(tag[1])<<8
+	if tagID != TagIDFSD {
+		t.Errorf("FSD TagIdentifier = %d, want %d (TagIDFSD)", tagID, TagIDFSD)
+	}
+
+	// DescriptorCRCLen at [10-11] must be non-zero (FSD is larger than the 16-byte tag).
+	crcLen := uint16(tag[10]) | uint16(tag[11])<<8
+	if crcLen == 0 {
+		t.Errorf("FSD DescriptorCRCLen at offset 10 = 0; "+
+			"likely CRC/CRCLen swapped to wrong offsets (regression check)")
+	}
+
+	// DescriptorCRC at [8-9] must equal the CRC of the descriptor content.
+	storedCRC := uint16(tag[8]) | uint16(tag[9])<<8
+	content := data[fsdOffset+16 : fsdOffset+16+int(crcLen)]
+	expectedCRC := CalculateCRC(content)
+	if storedCRC != expectedCRC {
+		t.Errorf("FSD DescriptorCRC at offset 8 = 0x%04X, want 0x%04X "+
+			"(CRC of %d content bytes)", storedCRC, expectedCRC, crcLen)
+	}
+
+	// TagChecksum at [4] must be valid.
+	wantChecksum := CalculateChecksum(tag)
+	if tag[4] != wantChecksum {
+		t.Errorf("FSD TagChecksum = 0x%02X, want 0x%02X", tag[4], wantChecksum)
+	}
+}

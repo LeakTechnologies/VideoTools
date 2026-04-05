@@ -57,6 +57,8 @@ type MenuLabels struct {
 	FilesAddMore    string // "Add More Files"
 	FilesGoTo       string // "Go to %s"
 
+	Window fyne.Window // needed for context menu positioning
+
 	// Queue tile prefix ("QUEUE")
 	Queue string
 
@@ -106,7 +108,7 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 	sidebarToggleBtn := widget.NewButton("☰", onToggleSidebar)
 	sidebarToggleBtn.Importance = widget.LowImportance
 
-	filesDropdown := buildFilesDropdown(labels, filesDropdownData, textColor)
+	filesDropdown := buildFilesDropdown(labels, filesDropdownData, textColor, labels.Window)
 
 	// Build header controls — only show logs button if callback is provided
 	headerControls := []fyne.CanvasObject{sidebarToggleBtn, filesDropdown}
@@ -421,7 +423,7 @@ func buildHistoryItem(
 }
 
 // buildFilesDropdown creates a dropdown menu with context-aware options
-func buildFilesDropdown(labels MenuLabels, data *FilesDropdownData, textColor color.Color) fyne.CanvasObject {
+func buildFilesDropdown(labels MenuLabels, data *FilesDropdownData, textColor color.Color, win fyne.Window) fyne.CanvasObject {
 	btn := widget.NewButton(labels.Files, func() {
 		menu := fyne.NewMenu("")
 
@@ -461,8 +463,8 @@ func buildFilesDropdown(labels MenuLabels, data *FilesDropdownData, textColor co
 			}
 		}
 
-		pop := widget.NewPopUpMenu(menu, fyne.CurrentApp().Driver().CanvasForObject(nil))
-		btn := fyne.CurrentApp().Driver().CanvasForObject(nil).Focused()
+		pop := widget.NewPopUpMenu(menu, win.Canvas())
+		btn := win.Canvas().Focused()
 		if btn != nil {
 			pos := btn.(*widget.Button).Size()
 			pop.ShowAtPosition(fyne.NewPos(pos.Width, pos.Height))

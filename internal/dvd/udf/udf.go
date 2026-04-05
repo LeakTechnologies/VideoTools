@@ -761,8 +761,9 @@ func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 	crcLen := uint16(len(data) - 16)
 	crc := CalculateCRC(data[16:])
 
-	binary.LittleEndian.PutUint16(data[10:12], crc)
-	binary.LittleEndian.PutUint16(data[12:14], crcLen)
+	binary.LittleEndian.PutUint16(data[8:10], crc)    // DescriptorCRC at offset 8
+	binary.LittleEndian.PutUint16(data[10:12], crcLen) // DescriptorCRCLen at offset 10
+	// TagLocation (offset 12-15) is already set via the tag struct above.
 
 	checksum := CalculateChecksum(data[:16])
 	data[4] = checksum
