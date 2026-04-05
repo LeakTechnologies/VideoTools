@@ -4,14 +4,17 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
 func (s *appState) showBurnView() {
@@ -24,13 +27,16 @@ func (s *appState) showBurnView() {
 
 func (s *appState) buildBurnView() fyne.CanvasObject {
 	t := i18n.T()
+	burnColor := moduleColor("burn")
 
-	header := widget.NewLabelWithStyle(t.ModuleBurn, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	// Top navigation bar (matches Rip/Audio module pattern)
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleBurn), s.showMainMenu)
+	backBtn.Importance = widget.LowImportance
+	topBar := ui.TintedBar(burnColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
-	sourceLabel := widget.NewLabel(t.BurnSelectISO)
+	// ISO file entry + browse button
 	sourceEntry := widget.NewEntry()
 	sourceEntry.SetPlaceHolder("Drop ISO file or click to browse...")
-
 	browseBtn := widget.NewButton(t.ActionBrowse, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
@@ -39,10 +45,10 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 			sourceEntry.SetText(reader.URI().Path())
 		}, s.window)
 	})
+	sourceRow := container.NewBorder(nil, nil, nil, browseBtn, sourceEntry)
 
-	driveLabel := widget.NewLabel(t.BurnSelectDrive)
+	// Drive select + refresh button
 	driveSelect := widget.NewSelect([]string{t.BurnNoDrivesFound}, func(val string) {})
-
 	refreshDrivesBtn := widget.NewButton(t.ActionRefresh, func() {
 		drives := detectOpticalDrives()
 		options := []string{}
@@ -60,14 +66,31 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 		driveSelect.SetOptions(options)
 		driveSelect.SetSelected(options[0])
 	})
+	driveRow := container.NewBorder(nil, nil, nil, refreshDrivesBtn, driveSelect)
 
-	speedLabel := widget.NewLabel(t.BurnSpeed)
+	// Speed
 	speedSelect := widget.NewSelect([]string{"Auto", "1x", "2x", "4x", "8x"}, func(val string) {})
 	speedSelect.SetSelected("Auto")
 
+	// Options
 	ejectCheck := widget.NewCheck(t.BurnEject, func(checked bool) {})
 	verifyCheck := widget.NewCheck(t.BurnVerify, func(checked bool) {})
 
+	// Form gives consistent label-width alignment (matches Convert/Rip style)
+	form := widget.NewForm(
+		widget.NewFormItem(t.BurnSelectISO, sourceRow),
+		widget.NewFormItem(t.BurnSelectDrive, driveRow),
+		widget.NewFormItem(t.BurnSpeed, speedSelect),
+	)
+
+	controls := container.NewVBox(
+		form,
+		widget.NewSeparator(),
+		ejectCheck,
+		verifyCheck,
+	)
+
+	// Action buttons
 	burnBtn := widget.NewButton(t.BurnStart, func() {
 		isoPath := sourceEntry.Text
 		drive := driveSelect.Selected
@@ -99,24 +122,14 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 		}
 		dialog.ShowInformation(t.DialogQueued, "Burn job added to queue.", s.window)
 	})
+	burnBtn.Importance = widget.HighImportance
 
-	cancelBtn := widget.NewButton(t.ActionCancel, func() {
-		s.showMainMenu()
-	})
+	cancelBtn := widget.NewButton(t.ActionCancel, s.showMainMenu)
 
-	footer := moduleFooter(moduleColor("burn"), container.NewHBox(cancelBtn, burnBtn), s.statsBar)
+	footer := moduleFooter(burnColor, container.NewHBox(cancelBtn, layout.NewSpacer(), burnBtn), s.statsBar)
 
-	content := container.NewVBox(
-		header,
-		widget.NewSeparator(),
-		container.NewHBox(sourceLabel, sourceEntry, browseBtn),
-		container.NewHBox(driveLabel, driveSelect, refreshDrivesBtn),
-		container.NewHBox(speedLabel, speedSelect),
-		container.NewVBox(ejectCheck, verifyCheck),
-	)
-	content = container.NewPadded(content)
-
-	return container.NewBorder(content, footer, nil, nil)
+	return container.NewBorder(topBar, footer, nil, nil,
+		container.NewVScroll(container.NewPadded(controls)))
 }
 
 func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
