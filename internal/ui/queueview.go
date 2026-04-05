@@ -295,6 +295,15 @@ func BuildQueueView(
 ) *QueueView {
 	t := i18n.T()
 
+	// Determine if there are active jobs (running or pending)
+	hasActiveJobs := false
+	for _, job := range jobs {
+		if job.Status == queue.JobStatusRunning || job.Status == queue.JobStatusPending {
+			hasActiveJobs = true
+			break
+		}
+	}
+
 	// Header
 	titleText := t.QueueTitle
 	if titleText == "" {
@@ -325,7 +334,13 @@ func BuildQueueView(
 	cancelAllBtn := widget.NewButton(t.ActionQueueCancelAll, onCancelAll)
 	cancelAllBtn.Importance = widget.DangerImportance
 
-	buttonRow := container.NewHBox(startAllBtn, pauseAllBtn, resumeAllBtn, cancelAllBtn, clearAllBtn, clearBtn)
+	// Only show Cancel All button when there are active jobs
+	var buttonRow *fyne.Container
+	if hasActiveJobs {
+		buttonRow = container.NewHBox(startAllBtn, pauseAllBtn, resumeAllBtn, cancelAllBtn, clearAllBtn, clearBtn)
+	} else {
+		buttonRow = container.NewHBox(startAllBtn, pauseAllBtn, resumeAllBtn, clearAllBtn, clearBtn)
+	}
 
 	header := container.NewBorder(
 		nil, nil,
