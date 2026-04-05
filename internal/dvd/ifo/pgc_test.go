@@ -159,7 +159,7 @@ func TestWriteTMAPT_NrOf(t *testing.T) {
 	}
 }
 
-// TestWriteTMAPT_EntryHeader verifies NrOf_Entries and TimeUnit within the TMAP body.
+// TestWriteTMAPT_EntryHeader verifies zero_1, TimeUnit, and NrOf_Entries within the TMAP body.
 func TestWriteTMAPT_EntryHeader(t *testing.T) {
 	const timeUnit = 2
 	const duration = 60.0
@@ -169,14 +169,17 @@ func TestWriteTMAPT_EntryHeader(t *testing.T) {
 		t.Fatalf("WriteTMAPT failed: %v", err)
 	}
 	// TMAP body starts at byte 12 (8-byte header + 4-byte offset pointer).
-	// [12-13] NrOf_Entries, [14] TimeUnit, [15] Reserved.
-	nrEntries := binary.BigEndian.Uint16(data[12:14])
+	// Spec layout: [12] zero_1, [13] Time_Unit, [14-15] NrOf_Entries.
+	if data[12] != 0x00 {
+		t.Errorf("zero_1 = 0x%02x, want 0x00", data[12])
+	}
+	if data[13] != timeUnit {
+		t.Errorf("TimeUnit = %d, want %d", data[13], timeUnit)
+	}
+	nrEntries := binary.BigEndian.Uint16(data[14:16])
 	wantEntries := uint16(len(tmapt.Sectors))
 	if nrEntries != wantEntries {
 		t.Errorf("NrOf_Entries = %d, want %d", nrEntries, wantEntries)
-	}
-	if data[14] != timeUnit {
-		t.Errorf("TimeUnit = %d, want %d", data[14], timeUnit)
 	}
 }
 
