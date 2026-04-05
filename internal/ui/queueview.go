@@ -222,6 +222,7 @@ type queueCallbacks struct {
 	onBurnISO        func(string)
 	onOpenInModule   func(string, string) // jobID, module name
 	onScheduleModule func(string, string) // jobID, module name - for pending jobs
+	Window           fyne.Window          // needed for context menu positioning
 }
 
 type queueItemWidgets struct {
@@ -289,6 +290,7 @@ func BuildQueueView(
 	onBurnISO func(string),
 	onOpenInModule func(string, string),
 	onScheduleModule func(string, string),
+	Window fyne.Window,
 	titleColor, bgColor, textColor color.Color,
 ) *QueueView {
 	t := i18n.T()
@@ -414,8 +416,9 @@ func BuildQueueView(
 			onOpenFolder:     onOpenFolder,
 			onOpenOutput:     onOpenOutput,
 			onBurnISO:        onBurnISO,
-			onOpenInModule:   nil,
-			onScheduleModule: nil,
+			onOpenInModule:   onOpenInModule,
+			onScheduleModule: onScheduleModule,
+			Window:           Window,
 		},
 		bgColor:   bgColor,
 		textColor: textColor,
@@ -985,6 +988,6 @@ func buildQueueItemContextMenu(job *queue.Job, callbacks queueCallbacks, ev *fyn
 		})
 	}
 
-	pop := widget.NewPopUpMenu(menu, fyne.CurrentApp().Driver().CanvasForObject(nil))
+	pop := widget.NewPopUpMenu(menu, callbacks.Window.Canvas())
 	pop.ShowAtPosition(ev.Position)
 }

@@ -34,10 +34,10 @@ type Options struct {
 	OnCopyCommand func(string)
 	OnOpenFolder  func(string)
 	OnOpenOutput  func(string)
-	OnBurnISO     func(string) // Called when user wants to burn an ISO (nil = not available)
+	OnBurnISO     func(string)
 
-	OnOpenInModule   func(string, string) // jobID, module name - for completed jobs
-	OnScheduleModule func(string, string) // jobID, module name - for pending jobs
+	OnOpenInModule   func(string, string) // jobID, module name
+	OnScheduleModule func(string, string) // jobID, module name
 
 	TitleColor color.Color
 	BgColor    color.Color
