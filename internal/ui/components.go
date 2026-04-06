@@ -1478,6 +1478,7 @@ type ColoredSelect struct {
 	placeHolder     string
 	disabled        bool
 	disabledOptions map[string]bool
+	tooltip         string
 }
 
 // NewColoredSelect creates a new colored select widget
@@ -1493,6 +1494,17 @@ func NewColoredSelect(options []string, colorMap map[string]color.Color, onChang
 		cs.selected = options[0]
 	}
 	cs.ExtendBaseWidget(cs)
+	return cs
+}
+
+// NewColoredSelectWithTooltip creates a new colored select widget with tooltip
+func NewColoredSelectWithTooltip(options []string, colorMap map[string]color.Color, onChange func(string), window fyne.Window, tooltip string) *ColoredSelect {
+	cs := NewColoredSelect(options, colorMap, onChange, window)
+	if tooltip != "" {
+		var twe tooltipwidget.ToolTipWidgetExtend
+		twe.ExtendToolTipWidget(cs)
+		twe.SetToolTip(tooltip)
+	}
 	return cs
 }
 

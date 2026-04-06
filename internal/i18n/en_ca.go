@@ -38,6 +38,14 @@ var enCA = Strings{
 	ModulePlayer:      "Player",
 	ModuleSettings:    "Settings",
 
+	// ── Tooltips ─────────────────────────────────────────────────────────
+	TooltipConvertFormat:  "Output video format (MP4, MKV, etc.)",
+	TooltipConvertQuality: "Video quality preset (CRF value)",
+	TooltipConvertCodec:   "Video codec (H.264, H.265, etc.)",
+	TooltipConvertAudio:   "Audio codec and settings",
+	TooltipConvertOutput:  "Output file location",
+	TooltipConvertStart:   "Start conversion",
+
 	// ── Dialog Titles ───────────────────────────────────────────────────────
 	DialogCompare:            "Compare Videos",
 	DialogInspect:            "Inspect Video",

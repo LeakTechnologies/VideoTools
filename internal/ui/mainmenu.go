@@ -85,7 +85,7 @@ type MenuLabels struct {
 type FilesDropdownData struct {
 	CurrentModule string       // Current active module ID (e.g., "convert", "author")
 	RecentFiles   []RecentFile // Recently opened files
-	OnFileClick   func(string) // Callback when a recent file is clicked
+	OnFileClick   func(path, module string) // Callback when a recent file is clicked
 	OnOpenFolder  func()       // Callback to open current output folder
 	OnOpenMore    func()       // Callback to add more files to current module
 }
@@ -456,7 +456,7 @@ func buildFilesDropdown(labels MenuLabels, data *FilesDropdownData, textColor co
 					Label: fmt.Sprintf("  %s (%s)", captured.DisplayName, moduleLabel),
 					Action: func() {
 						if data.OnFileClick != nil {
-							data.OnFileClick(captured.Path)
+							data.OnFileClick(captured.Path, captured.Module)
 						}
 					},
 				})

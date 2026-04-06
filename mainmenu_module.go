@@ -187,11 +187,41 @@ func (s *appState) showMainMenu() {
 		)
 	}
 
+	recentEntries := s.recentFiles.Entries()
+	recentUI := make([]ui.RecentFile, len(recentEntries))
+	for i, e := range recentEntries {
+		recentUI[i] = ui.RecentFile{
+			Path:        e.Path,
+			DisplayName: e.DisplayName,
+			Module:      e.Module,
+		}
+	}
+	filesData := &ui.FilesDropdownData{
+		RecentFiles: recentUI,
+		OnFileClick: func(path, module string) {
+			switch module {
+			case "convert":
+				go s.loadVideo(path)
+			case "author":
+				go func() {
+					s.loadVideoTSChapters(path)
+					fyne.CurrentApp().Driver().DoFromGoroutine(s.showAuthorView, false)
+				}()
+			case "inspect":
+				s.showInspectViewForPath(path)
+			case "player":
+				s.showPlayerViewForPath(path)
+			default:
+				go s.loadVideo(path)
+			}
+		},
+	}
+
 	menu := ui.BuildMainMenu(t.AppTitle, menuLabels, mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, func() {
 		// Toggle sidebar - use throttled refresh to prevent lag
 		s.sidebarVisible = !s.sidebarVisible
 		s.refreshMainMenuThrottled()
-	}, nil, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal)
+	}, filesData, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal)
 
 	// Update stats bar
 	s.updateStatsBar()
