@@ -407,6 +407,19 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 
 	content.Add(widget.NewSeparator())
 
+	tooltipsHeader := widget.NewLabel(t.SettingsShowTooltips)
+	tooltipsHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(tooltipsHeader)
+
+	showTooltipsCheck := widget.NewCheck("", func(enabled bool) {
+		prefs.ShowTooltips = enabled
+		cb.SavePrefsConfig()
+	})
+	showTooltipsCheck.Checked = prefs.ShowTooltips
+	content.Add(showTooltipsCheck)
+
+	content.Add(widget.NewSeparator())
+
 	outputHeader := widget.NewLabel(t.SettingsDefaultOutputDir)
 	outputHeader.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(outputHeader)

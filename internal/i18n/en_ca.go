@@ -46,6 +46,8 @@ var enCA = Strings{
 	TooltipConvertOutput:  "Output file location",
 	TooltipConvertStart:   "Start conversion",
 
+	SettingsShowTooltips: "Show tooltips",
+
 	// ── Dialog Titles ───────────────────────────────────────────────────────
 	DialogCompare:            "Compare Videos",
 	DialogInspect:            "Inspect Video",

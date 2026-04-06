@@ -7747,6 +7747,7 @@ func runGUI() {
 	if prefs, err := loadPrefsConfig(); err == nil {
 		state.prefs = prefs
 		state.defaultOutputDir = prefs.DefaultOutputDir
+		ui.ShowTooltips = prefs.ShowTooltips
 	} else if !errors.Is(err, os.ErrNotExist) {
 		logging.Debug(logging.CatSystem, "failed to load persisted prefs: %v", err)
 	}

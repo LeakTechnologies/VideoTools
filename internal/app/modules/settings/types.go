@@ -74,6 +74,7 @@ type PrefsConfig struct {
 	AutoCheckFrequency string `json:"AutoCheckFrequency"`
 	QueuePlayBehavior  string `json:"QueuePlayBehavior"`
 	DefaultOutputDir   string `json:"DefaultOutputDir"`
+	ShowTooltips       bool   `json:"ShowTooltips"`
 }
 
 type Dependency struct {

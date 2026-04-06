@@ -47,11 +47,14 @@ type Strings struct {
 	// ── Tooltips ─────────────────────────────────────────────────────────
 	// Convert module
 	TooltipConvertFormat  string // "Output video format (MP4, MKV, etc.)"
-	TooltipConvertQuality string // "Video quality preset ( CRF value)"
+	TooltipConvertQuality string // "Video quality preset (CRF value)"
 	TooltipConvertCodec   string // "Video codec (H.264, H.265, etc.)"
 	TooltipConvertAudio   string // "Audio codec and settings"
 	TooltipConvertOutput  string // "Output file location"
 	TooltipConvertStart   string // "Start conversion"
+
+	// Settings
+	SettingsShowTooltips string // "Show tooltips"
 
 	// Dialog Titles
 	DialogCompare            string
