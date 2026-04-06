@@ -984,25 +984,42 @@ func buildQueueItemContextMenu(job *queue.Job, callbacks queueCallbacks, ev *fyn
 	t := i18n.T()
 	menu := fyne.NewMenu("")
 
-	menu.Items = append(menu.Items, &fyne.MenuItem{
-		Label:  t.FileManagerOpenInspect,
-		Action: func() { callbacks.onOpenOutput(job.ID) },
-	})
+	// Add Open item only if callback is available
+	if callbacks.onOpenOutput != nil {
+		menu.Items = append(menu.Items, &fyne.MenuItem{
+			Label:  t.FileManagerOpenInspect,
+			Action: func() { callbacks.onOpenOutput(job.ID) },
+		})
+	}
 
-	if job.Status == queue.JobStatusCompleted {
+	if job.Status == queue.JobStatusCompleted && callbacks.onOpenInModule != nil {
 		menu.Items = append(menu.Items, &fyne.MenuItem{
 			Label:  t.FileManagerOpenConvert,
 			Action: func() { callbacks.onOpenInModule(job.ID, "convert") },
 		})
 	}
 
-	if job.Status == queue.JobStatusPending || job.Status == queue.JobStatusPaused {
+	if (job.Status == queue.JobStatusPending || job.Status == queue.JobStatusPaused) && callbacks.onScheduleModule != nil {
 		menu.Items = append(menu.Items, &fyne.MenuItem{
 			Label:  "Schedule: Convert on completion",
 			Action: func() { callbacks.onScheduleModule(job.ID, "convert") },
 		})
 	}
 
-	pop := widget.NewPopUpMenu(menu, callbacks.Window.Canvas())
+	// Don't show empty menu
+	if len(menu.Items) == 0 {
+		return
+	}
+
+	// Defensive: ensure Window and Canvas are valid
+	if callbacks.Window == nil {
+		return
+	}
+	canvas := callbacks.Window.Canvas()
+	if canvas == nil {
+		return
+	}
+
+	pop := widget.NewPopUpMenu(menu, canvas)
 	pop.ShowAtPosition(ev.Position)
 }
