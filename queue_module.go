@@ -264,7 +264,12 @@ func (s *appState) refreshQueueView() {
 			},
 			OnOpenOutput: func(id string) {
 				job, err := s.jobQueue.Get(id)
-				if err != nil || job.OutputFile == "" {
+				if err != nil {
+					logging.Debug(logging.CatSystem, "OnOpenOutput: job not found: %s", id)
+					return
+				}
+				if job.OutputFile == "" {
+					logging.Debug(logging.CatSystem, "OnOpenOutput: no output file for job: %s", id)
 					return
 				}
 				outputFile := job.OutputFile
@@ -297,7 +302,12 @@ func (s *appState) refreshQueueView() {
 			},
 			OnOpenInModule: func(jobID, module string) {
 				job, err := s.jobQueue.Get(jobID)
-				if err != nil || job.OutputFile == "" {
+				if err != nil {
+					logging.Debug(logging.CatSystem, "OnOpenInModule: job not found: %s", jobID)
+					return
+				}
+				if job.OutputFile == "" {
+					logging.Debug(logging.CatSystem, "OnOpenInModule: no output file for job: %s", jobID)
 					return
 				}
 				outputFile := job.OutputFile
@@ -311,7 +321,7 @@ func (s *appState) refreshQueueView() {
 					s.source = src
 					s.showConvertView(src)
 				case "inspect":
-					s.showInspectViewForPath(job.OutputFile)
+					s.showInspectViewForPath(outputFile)
 				case "audio":
 					s.showAudioView()
 				}
