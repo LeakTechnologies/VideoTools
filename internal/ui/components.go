@@ -271,7 +271,7 @@ func NewModuleTile(label string, col color.Color, textCol color.Color, enabled b
 	return m
 }
 
-// DraggedOver implements desktop.Droppable interface
+// DraggedOver implements fyne.DropTarget
 func (m *ModuleTile) DraggedOver(pos fyne.Position) {
 	logging.Debug(logging.CatUI, "DraggedOver tile=%s enabled=%v pos=%v", m.label, m.enabled, pos)
 	if m.enabled {
@@ -280,34 +280,28 @@ func (m *ModuleTile) DraggedOver(pos fyne.Position) {
 	}
 }
 
-// DraggedOut is called when drag leaves the tile
+// DraggedOut implements fyne.DropTarget
 func (m *ModuleTile) DraggedOut() {
 	logging.Debug(logging.CatUI, "DraggedOut tile=%s", m.label)
 	m.draggedOver = false
 	m.Refresh()
 }
 
-// Dropped implements desktop.Droppable interface
+// Dropped implements fyne.DropTarget
 func (m *ModuleTile) Dropped(pos fyne.Position, items []fyne.URI) {
-	fmt.Printf("[DROPTILE] Dropped on tile=%s enabled=%v itemCount=%d\n", m.label, m.enabled, len(items))
 	logging.Debug(logging.CatUI, "Dropped on tile=%s enabled=%v items=%v", m.label, m.enabled, items)
-	// Reset dragged over state
 	m.draggedOver = false
 
 	if m.enabled && m.onDropped != nil {
-		fmt.Printf("[DROPTILE] Calling callback for %s\n", m.label)
 		logging.Debug(logging.CatUI, "Calling onDropped callback for %s", m.label)
-		// Trigger flash animation
 		m.flashing = true
 		m.Refresh()
-		// Reset flash after 300ms
 		time.AfterFunc(300*time.Millisecond, func() {
 			m.flashing = false
 			m.Refresh()
 		})
 		m.onDropped(items)
 	} else {
-		fmt.Printf("[DROPTILE] Drop IGNORED on %s: enabled=%v hasCallback=%v\n", m.label, m.enabled, m.onDropped != nil)
 		logging.Debug(logging.CatUI, "Drop ignored: enabled=%v hasCallback=%v", m.enabled, m.onDropped != nil)
 	}
 }
