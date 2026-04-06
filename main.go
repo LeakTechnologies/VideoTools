@@ -43,6 +43,7 @@ import (
 	convertmodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/convert"
 	queuemodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/trim"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/app/recentfiles"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/convert"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
@@ -1145,6 +1146,7 @@ type appState struct {
 	filterSpeed               float64
 	filterETA                 time.Duration
 	playSess                  *playSession
+	recentFiles               *recentfiles.Manager
 	jobQueue                  *queue.Queue
 	statsBar                  *ui.ConversionStatsBar
 	queueBtn                  *widget.Button
@@ -7706,6 +7708,7 @@ func runGUI() {
 		audioNormTruePeak:   audioDefaults.NormTruePeak,
 		audioOutputDir:      audioDefaults.OutputDir,
 		audioSelectedTracks: make(map[int]bool),
+		recentFiles:         recentfiles.New(),
 		// Application Preferences defaults
 		defaultOutputDir:     "",
 		defaultVideoCodec:    "libx264",
@@ -8636,7 +8639,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	formatContainer := ui.NewColoredSelect(formatLabels, formatColors, func(selected string) {
+	formatContainer := ui.NewColoredSelectWithTooltip(formatLabels, formatColors, func(selected string) {
 		if syncingFormat {
 			return
 		}
@@ -8646,7 +8649,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				break
 			}
 		}
-	}, state.window)
+	}, state.window, t.TooltipConvertFormat)
 	formatContainer.SetSelected(state.convert.SelectedFormat.Label)
 
 	getOutputDir := func() string {
@@ -8758,21 +8761,21 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Convert quality selects to ColoredSelect and register with state manager
 	qualityColorMap := ui.BuildQualityColorMap(qualityOptions)
 
-	qualitySelectSimple = ui.NewColoredSelect(qualityOptions, qualityColorMap, func(value string) {
+	qualitySelectSimple = ui.NewColoredSelectWithTooltip(qualityOptions, qualityColorMap, func(value string) {
 		logging.Debug(logging.CatUI, "quality preset %s (simple)", value)
 		setQuality(value)
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	}, state.window)
+	}, state.window, t.TooltipConvertQuality)
 
-	qualitySelectAdv = ui.NewColoredSelect(qualityOptions, qualityColorMap, func(value string) {
+	qualitySelectAdv = ui.NewColoredSelectWithTooltip(qualityOptions, qualityColorMap, func(value string) {
 		logging.Debug(logging.CatUI, "quality preset %s (advanced)", value)
 		setQuality(value)
 		if buildCommandPreview != nil {
 			buildCommandPreview()
 		}
-	}, state.window)
+	}, state.window, t.TooltipConvertQuality)
 
 	if !slices.Contains(qualityOptions, state.convert.Quality) {
 		state.convert.Quality = "Standard (CRF 23)"
@@ -13911,6 +13914,7 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				s.authorClips = nil
 				s.authorFile = nil
 				s.authorOutputType = "iso"
+				s.recentFiles.Add(videoTSPath, filepath.Base(videoTSPath), "author")
 				s.loadVideoTSChapters(videoTSPath)
 				// Reload the view to reflect the new VIDEO_TS source.
 				fyne.CurrentApp().Driver().DoFromGoroutine(s.showAuthorView, false)
@@ -14465,6 +14469,7 @@ func (s *appState) loadVideo(path string) {
 	}
 
 	logging.Debug(logging.CatModule, "video loaded %+v", src)
+	s.recentFiles.Add(path, filepath.Base(path), "convert")
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.source = src
 		s.showConvertView(src)
