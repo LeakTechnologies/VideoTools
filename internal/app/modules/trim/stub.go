@@ -23,6 +23,7 @@ import (
 type Options struct {
 	Window         fyne.Window
 	ModuleColor    color.Color
+	StatsBar       fyne.CanvasObject
 	OnShowMainMenu func()
 	OnShowQueue    func()
 	OnAddToQueue   func(clip TrimClip)
@@ -197,9 +198,12 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 
 	state.videoPreview = ui.NewVideoPreview()
 
-	bg := canvas.NewRectangle(darkBg)
-	bg.SetMinSize(fyne.NewSize(0, 280))
-	videoArea := container.NewMax(bg, state.videoPreview.GetContainer())
+	videoStage := canvas.NewRectangle(navyBlue)
+	videoStage.CornerRadius = 8
+	videoStage.StrokeColor = gridColor
+	videoStage.StrokeWidth = 1
+	_ = darkBg // retained for potential future use
+	videoArea := container.NewMax(videoStage, state.videoPreview.GetContainer())
 
 	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleTrim), opts.OnShowMainMenu)
 	backBtn.Importance = widget.LowImportance
@@ -222,15 +226,27 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		container.NewHBox(widget.NewLabel(t.TrimOutPoint+":"), state.outEntry),
 	))
 
-	btnRow := container.NewHBox(layout.NewSpacer(), openBtn, previewBtn, layout.NewSpacer())
-
 	split := container.NewHSplit(
-		container.NewVBox(videoArea, leftPanel),
-		container.NewVBox(rightPanel, selPanel),
+		container.NewBorder(nil, container.NewVBox(leftPanel), nil, nil, videoArea),
+		container.NewVBox(rightPanel, selPanel, container.NewHBox(layout.NewSpacer(), openBtn, previewBtn)),
 	)
 	split.Offset = 0.65
 
-	return container.NewBorder(topBar, btnRow, nil, nil, split)
+	// Footer matching other modules' moduleFooter pattern.
+	footerBg := canvas.NewRectangle(trimColor)
+	footerBg.SetMinSize(fyne.NewSize(0, 44))
+	footerContent := container.NewMax(footerBg, container.NewPadded(container.NewHBox(layout.NewSpacer())))
+	var footer fyne.CanvasObject
+	if opts.StatsBar != nil {
+		statsBg := canvas.NewRectangle(&color.RGBA{R: 34, G: 34, B: 34, A: 255})
+		statsBg.SetMinSize(fyne.NewSize(0, 32))
+		statsStrip := container.NewMax(statsBg, container.NewPadded(opts.StatsBar))
+		footer = container.NewVBox(statsStrip, footerContent)
+	} else {
+		footer = footerContent
+	}
+
+	return container.NewBorder(topBar, footer, nil, nil, split)
 }
 
 func formatMs(ms int64) string {

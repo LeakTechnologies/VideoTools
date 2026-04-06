@@ -28,6 +28,7 @@ import (
 type Options struct {
 	Window         fyne.Window
 	ModuleColor    color.Color
+	StatsBar       fyne.CanvasObject
 	OnShowMainMenu func()
 	OnShowQueue    func()
 	OnAddToQueue   func(clip TrimClip)
@@ -316,10 +317,11 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		previewBtn,
 	)
 
-	videoContainer := container.NewMax(
-		canvas.NewRectangle(color.Black),
-		ts.player,
-	)
+	videoStage := canvas.NewRectangle(navyBlue)
+	videoStage.CornerRadius = 8
+	videoStage.StrokeColor = gridColor
+	videoStage.StrokeWidth = 1
+	videoContainer := container.NewMax(videoStage, ts.player)
 
 	// Timeline with draggable handles
 	ts.timeline = ui.NewTrimTimeline(1.0) // Default to 1 second, will update when video loads
@@ -354,15 +356,19 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	}
 
 	// Left: video + timeline + toolbar + selection labels
-	leftSide := container.NewVBox(
-		container.NewVBox(videoContainer),
-		ts.timeline,
-		toolbar,
-		buildTrimBox(t.TrimInPoint+" / "+t.TrimOutPoint, container.NewVBox(
-			ts.inPointLabel,
-			ts.outPointLabel,
-			ts.durationLabel,
-		)),
+	leftSide := container.NewBorder(
+		nil,
+		container.NewVBox(
+			ts.timeline,
+			toolbar,
+			buildTrimBox(t.TrimInPoint+" / "+t.TrimOutPoint, container.NewVBox(
+				ts.inPointLabel,
+				ts.outPointLabel,
+				ts.durationLabel,
+			)),
+		),
+		nil, nil,
+		videoContainer,
 	)
 
 	// Right: settings + actions
@@ -392,7 +398,21 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	backBtn.Importance = widget.LowImportance
 	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
-	return container.NewBorder(topBar, nil, nil, nil, container.NewMax(ts.keyCapture, content))
+	// Footer: tinted action bar matching other modules' moduleFooter pattern.
+	footerBg := canvas.NewRectangle(trimColor)
+	footerBg.SetMinSize(fyne.NewSize(0, 44))
+	footerContent := container.NewMax(footerBg, container.NewPadded(container.NewHBox(layout.NewSpacer())))
+	var footer fyne.CanvasObject
+	if opts.StatsBar != nil {
+		statsBg := canvas.NewRectangle(&color.RGBA{R: 34, G: 34, B: 34, A: 255})
+		statsBg.SetMinSize(fyne.NewSize(0, 32))
+		statsStrip := container.NewMax(statsBg, container.NewPadded(opts.StatsBar))
+		footer = container.NewVBox(statsStrip, footerContent)
+	} else {
+		footer = footerContent
+	}
+
+	return container.NewBorder(topBar, footer, nil, nil, container.NewMax(ts.keyCapture, content))
 }
 
 func (s *trimState) setInPoint() {
