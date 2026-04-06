@@ -25,6 +25,20 @@ import (
 	tooltipwidget "github.com/dweymouth/fyne-tooltip/widget"
 )
 
+// ShowTooltips controls whether tooltips are displayed globally.
+// Set this from main.go based on user preferences.
+var ShowTooltips bool = true
+
+// SetTooltip adds a tooltip to a widget if ShowTooltips is enabled
+func SetTooltip(wid fyne.Widget, tooltip string) {
+	if !ShowTooltips || tooltip == "" {
+		return
+	}
+	var twe tooltipwidget.ToolTipWidgetExtend
+	twe.ExtendToolTipWidget(wid)
+	twe.SetToolTip(tooltip)
+}
+
 type monoFonts struct {
 	regular    []byte
 	italic     []byte
@@ -1500,7 +1514,7 @@ func NewColoredSelect(options []string, colorMap map[string]color.Color, onChang
 // NewColoredSelectWithTooltip creates a new colored select widget with tooltip
 func NewColoredSelectWithTooltip(options []string, colorMap map[string]color.Color, onChange func(string), window fyne.Window, tooltip string) *ColoredSelect {
 	cs := NewColoredSelect(options, colorMap, onChange, window)
-	if tooltip != "" {
+	if ShowTooltips && tooltip != "" {
 		var twe tooltipwidget.ToolTipWidgetExtend
 		twe.ExtendToolTipWidget(cs)
 		twe.SetToolTip(tooltip)
