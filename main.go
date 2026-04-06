@@ -12405,13 +12405,17 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		placeholderDropIndicator.StrokeWidth = 3
 		placeholderDropIndicator.StrokeColor = utils.MustHex("#4CE870")
 		stageBoxWithIndicator := container.NewMax(placeholderDropIndicator, stageBox)
-		// Explicit drop target so files dragged onto the player area load correctly
-		// regardless of whether the window-level SetOnDropped fires.
 		dropTarget := ui.NewDroppable(stageBoxWithIndicator, func(items []fyne.URI) {
 			var paths []string
 			for _, uri := range items {
-				if uri.Scheme() == "file" && state.isVideoFile(uri.Path()) {
-					paths = append(paths, uri.Path())
+				if uri.Scheme() != "file" {
+					continue
+				}
+				path := uri.Path()
+				if info, err := os.Stat(path); err == nil && info.IsDir() {
+					paths = append(paths, state.findVideoFiles(path)...)
+				} else if state.isVideoFile(path) {
+					paths = append(paths, path)
 				}
 			}
 			if len(paths) == 0 {
@@ -12825,13 +12829,17 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		nil, nil,
 		container.NewPadded(videoWithOverlay),
 	)
-	// Wrap in a Droppable so loading a new file by drag works even when a video
-	// is already shown (window-level SetOnDropped is not reliable in this state).
 	videoDropTarget := ui.NewDroppable(stack, func(items []fyne.URI) {
 		var paths []string
 		for _, uri := range items {
-			if uri.Scheme() == "file" && state.isVideoFile(uri.Path()) {
-				paths = append(paths, uri.Path())
+			if uri.Scheme() != "file" {
+				continue
+			}
+			path := uri.Path()
+			if info, err := os.Stat(path); err == nil && info.IsDir() {
+				paths = append(paths, state.findVideoFiles(path)...)
+			} else if state.isVideoFile(path) {
+				paths = append(paths, path)
 			}
 		}
 		if len(paths) == 0 {
