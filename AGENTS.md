@@ -224,6 +224,17 @@ Stub implementations must expose the **identical** method set as the real type s
 
 The entry `player_module.go` in the completed Phase 3 list refers to the root-level `player_module.go` (shows the legacy static player view), **not** to the native media player stack above.
 
+### Approved Exceptions to InlineVideoPlayer Rule
+
+The following modules create `media.Engine()` directly instead of using `InlineVideoPlayer`. This is intentional because they require **two simultaneous video streams** which `InlineVideoPlayer` does not support.
+
+| Module | File | Reason |
+|--------|------|--------|
+| Compare | `compare/fullscreen_native.go` | Side-by-side video comparison requires two independent engines |
+| Upscale | `upscale_player_native.go` | Preview window + main player require two engines with custom playback loops |
+
+**Do NOT refactor these modules to use InlineVideoPlayer** — the dual-engine architecture is required for their functionality.
+
 ---
 
 ## Validation Priorities For Dev40
