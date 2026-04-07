@@ -86,12 +86,12 @@ func (s *appState) probeAudioTracks(path string) ([]audioTrackInfo, error) {
 }
 
 func (s *appState) loadAudioFile(path string) {
-	logging.Debug(logging.CatUI, "loading audio file: %s", path)
+	logging.Debug(logging.CatAudio, "loading audio file: %s", path)
 	s.audioFileInfoLabel.SetText("Loading: " + filepath.Base(path))
 
 	src, err := probeVideo(path)
 	if err != nil {
-		logging.Debug(logging.CatUI, "failed to probe video: %v", err)
+		logging.Error(logging.CatAudio, "audio probe failed: path=%s err=%v", path, err)
 		dialog.ShowError(fmt.Errorf("Failed to load file: %v", err), s.window)
 		s.audioFileInfoLabel.SetText("Failed to load file")
 		return
@@ -100,7 +100,7 @@ func (s *appState) loadAudioFile(path string) {
 
 	tracks, err := s.probeAudioTracks(path)
 	if err != nil {
-		logging.Debug(logging.CatUI, "failed to probe audio tracks: %v", err)
+		logging.Error(logging.CatAudio, "audio track probe failed: path=%s err=%v", path, err)
 		dialog.ShowError(fmt.Errorf("Failed to detect audio tracks: %v", err), s.window)
 		s.audioFileInfoLabel.SetText("Failed to detect audio tracks")
 		return
@@ -200,7 +200,7 @@ func (s *appState) refreshAudioView() {
 func (s *appState) addAudioBatchFile(path string) {
 	src, err := probeVideo(path)
 	if err != nil {
-		logging.Debug(logging.CatUI, "failed to probe video for batch: %v", err)
+		logging.Error(logging.CatAudio, "audio batch probe failed: path=%s err=%v", path, err)
 		dialog.ShowError(fmt.Errorf("Failed to load file: %v", err), s.window)
 		return
 	}
@@ -211,7 +211,7 @@ func (s *appState) addAudioBatchFile(path string) {
 	}
 	s.audioBatchFiles = append(s.audioBatchFiles, src)
 	s.updateAudioBatchFilesList()
-	logging.Debug(logging.CatUI, "added batch file: %s", path)
+	logging.Debug(logging.CatAudio, "added batch file: %s", path)
 }
 
 func (s *appState) removeAudioBatchFile(index int) {
@@ -401,7 +401,7 @@ func (s *appState) persistAudioConfig() {
 		OutputDir:      s.audioOutputDir,
 	}
 	if err := saveAudioConfig(cfg); err != nil {
-		logging.Debug(logging.CatSystem, "failed to persist audio config: %v", err)
+		logging.Error(logging.CatAudio, "failed to persist audio config: err=%v", err)
 	}
 }
 
