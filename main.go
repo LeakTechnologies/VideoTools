@@ -16469,6 +16469,13 @@ type audioStreamInfo struct {
 	Channels int
 }
 
+type inspectChapter struct {
+	Index     int
+	StartTime float64
+	EndTime   float64
+	Title     string
+}
+
 type videoSource struct {
 	Path                  string
 	DisplayName           string
@@ -16489,11 +16496,16 @@ type videoSource struct {
 	PreviewFrames         []string
 	EmbeddedCoverArt      string // Path to extracted embedded cover art, if any
 
+	// Chapters
+	Chapters []inspectChapter // Parsed chapter information
+
 	// Advanced metadata
 	SampleAspectRatio  string // Pixel Aspect Ratio (SAR) - e.g., "1:1", "40:33"
 	DisplayAspectRatio string // Display Aspect Ratio (DAR) - e.g., "16:9"
 	ColorSpace         string // Color space/primaries - e.g., "bt709", "bt601"
 	ColorRange         string // Color range - "tv" (limited) or "pc" (full)
+	ColorTransfer      string // Color transfer function - e.g., "bt1886", "smpte2084" (PQ), "hlg"
+	ColorPrimaries     string // Color primaries - e.g., "bt709", "bt2020"
 	GOPSize            int    // GOP size / keyframe interval
 	HasChapters        bool   // Whether file has embedded chapters
 	HasMetadata        bool   // Whether file has title/copyright/etc metadata
@@ -16748,28 +16760,39 @@ func probeVideo(path string) (*videoSource, error) {
 			Tags       map[string]interface{} `json:"tags"`
 		} `json:"format"`
 		Streams []struct {
-			Index         int                    `json:"index"`
-			CodecType     string                 `json:"codec_type"`
-			CodecName     string                 `json:"codec_name"`
-			Width         int                    `json:"width"`
-			Height        int                    `json:"height"`
-			Duration      string                 `json:"duration"`
-			BitRate       string                 `json:"bit_rate"`
-			PixFmt        string                 `json:"pix_fmt"`
-			SampleRate    string                 `json:"sample_rate"`
-			Channels      int                    `json:"channels"`
-			AvgFrameRate  string                 `json:"avg_frame_rate"`
-			RFrameRate    string                 `json:"r_frame_rate"`
-			FieldOrder    string                 `json:"field_order"`
-			SampleAspect  string                 `json:"sample_aspect_ratio"`
-			DisplayAspect string                 `json:"display_aspect_ratio"`
-			Tags          map[string]interface{} `json:"tags"`
-			Disposition   struct {
+			Index          int                    `json:"index"`
+			CodecType      string                 `json:"codec_type"`
+			CodecName      string                 `json:"codec_name"`
+			Width          int                    `json:"width"`
+			Height         int                    `json:"height"`
+			Duration       string                 `json:"duration"`
+			BitRate        string                 `json:"bit_rate"`
+			PixFmt         string                 `json:"pix_fmt"`
+			SampleRate     string                 `json:"sample_rate"`
+			Channels       int                    `json:"channels"`
+			AvgFrameRate   string                 `json:"avg_frame_rate"`
+			RFrameRate     string                 `json:"r_frame_rate"`
+			FieldOrder     string                 `json:"field_order"`
+			SampleAspect   string                 `json:"sample_aspect_ratio"`
+			DisplayAspect  string                 `json:"display_aspect_ratio"`
+			ColorSpace     string                 `json:"color_space"`
+			ColorRange     string                 `json:"color_range"`
+			ColorTransfer  string                 `json:"color_transfer"`
+			ColorPrimaries string                 `json:"color_primaries"`
+			Tags           map[string]interface{} `json:"tags"`
+			Disposition    struct {
 				AttachedPic int `json:"attached_pic"`
 			} `json:"disposition"`
 		} `json:"streams"`
 		Chapters []struct {
-			ID int `json:"id"`
+			ID        int    `json:"id"`
+			TimeBase  string `json:"time_base"`
+			Start     int    `json:"start"`
+			StartTime string `json:"start_time"`
+			EndTime   string `json:"end_time"`
+			Tags      struct {
+				Title string `json:"title"`
+			} `json:"tags"`
 		} `json:"chapters"`
 	}
 	if err := json.Unmarshal(out, &result); err != nil {
@@ -16802,6 +16825,30 @@ func probeVideo(path string) (*videoSource, error) {
 	// Check for chapters
 	if len(result.Chapters) > 0 {
 		src.HasChapters = true
+		src.Chapters = make([]inspectChapter, 0, len(result.Chapters))
+		duration := src.Duration
+		for _, ch := range result.Chapters {
+			startTime := 0.0
+			endTime := 0.0
+			if st, err := utils.ParseFloat(ch.StartTime); err == nil {
+				startTime = st
+			}
+			if st, err := utils.ParseFloat(ch.EndTime); err == nil {
+				endTime = st
+			} else if duration > 0 {
+				endTime = duration
+			}
+			title := ch.Tags.Title
+			if title == "" {
+				title = fmt.Sprintf("Chapter %d", ch.ID)
+			}
+			src.Chapters = append(src.Chapters, inspectChapter{
+				Index:     ch.ID,
+				StartTime: startTime,
+				EndTime:   endTime,
+				Title:     title,
+			})
+		}
 		logging.Debug(logging.CatFFMPEG, "found %d chapter(s) in video", len(result.Chapters))
 	}
 
@@ -16846,6 +16893,20 @@ func probeVideo(path string) (*videoSource, error) {
 				}
 				if stream.DisplayAspect != "" && stream.DisplayAspect != "0:1" {
 					src.DisplayAspectRatio = stream.DisplayAspect
+				}
+				if stream.ColorSpace != "" && stream.ColorSpace != "unknown" {
+					src.ColorSpace = stream.ColorSpace
+				} else if stream.ColorPrimaries != "" && stream.ColorPrimaries != "unknown" {
+					src.ColorSpace = stream.ColorPrimaries
+				}
+				if stream.ColorRange != "" && stream.ColorRange != "unknown" {
+					src.ColorRange = stream.ColorRange
+				}
+				if stream.ColorTransfer != "" && stream.ColorTransfer != "unknown" {
+					src.ColorTransfer = stream.ColorTransfer
+				}
+				if stream.ColorPrimaries != "" && stream.ColorPrimaries != "unknown" {
+					src.ColorPrimaries = stream.ColorPrimaries
 				}
 				if br, err := utils.ParseInt(stream.BitRate); err == nil && br > 0 {
 					videoStreamBitrate = br

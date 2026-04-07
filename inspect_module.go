@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -287,6 +288,79 @@ func (a *inspectAdapter) GetHasChapters() bool {
 		return false
 	}
 	return a.s.inspectFile.HasChapters
+}
+
+func (a *inspectAdapter) GetChapters() []inspect.Chapter {
+	if a.s.inspectFile == nil {
+		return nil
+	}
+	chapters := make([]inspect.Chapter, len(a.s.inspectFile.Chapters))
+	for i, ch := range a.s.inspectFile.Chapters {
+		chapters[i] = inspect.Chapter{
+			Index:     ch.Index,
+			StartTime: ch.StartTime,
+			EndTime:   ch.EndTime,
+			Title:     ch.Title,
+		}
+	}
+	return chapters
+}
+
+func (a *inspectAdapter) GetColorTransfer() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.ColorTransfer
+}
+
+func (a *inspectAdapter) GetColorPrimaries() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.ColorPrimaries
+}
+
+func (a *inspectAdapter) GetEmbeddedCoverArt() string {
+	if a.s.inspectFile == nil {
+		return ""
+	}
+	return a.s.inspectFile.EmbeddedCoverArt
+}
+
+func (a *inspectAdapter) SaveMetadata(title, author, description string) error {
+	if a.s.inspectFile == nil {
+		return fmt.Errorf("no file loaded")
+	}
+	inputPath := a.s.inspectFile.Path
+
+	tmpPath := inputPath + ".tmp"
+
+	args := []string{
+		"-i", inputPath,
+		"-c", "copy",
+		"-metadata", fmt.Sprintf("title=%s", title),
+		"-metadata", fmt.Sprintf("artist=%s", author),
+		"-metadata", fmt.Sprintf("description=%s", description),
+		"-y",
+		tmpPath,
+	}
+
+	cmd := utils.CreateCommand(context.Background(), utils.GetFFmpegPath(), args...)
+	utils.ApplyNoWindow(cmd)
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to save metadata: %w", err)
+	}
+
+	if err := os.Rename(tmpPath, inputPath); err != nil {
+		return fmt.Errorf("failed to replace file: %w", err)
+	}
+
+	a.s.inspectFile.Metadata["title"] = title
+	a.s.inspectFile.Metadata["artist"] = author
+	a.s.inspectFile.Metadata["description"] = description
+
+	return nil
 }
 
 func (a *inspectAdapter) GetHasMetadata() bool {
