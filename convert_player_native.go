@@ -83,8 +83,6 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	dropAnimation.AutoReverse = true
 	dropAnimation.RepeatCount = 3
 
-	_ = dropAnimation // triggered on file drop, not at widget creation
-
 	coverBtn := utils.MakeIconButton("", t.ActionSave+" Frame", func() {
 		img := playerWidget.CurrentFrame()
 		if img == nil {
@@ -165,17 +163,23 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	slider := widget.NewSlider(0, math.Max(1, src.Duration))
 	slider.Step = 0.5
 
+	// frameLabel declared here so updateProgress can reference it via closure.
+	var frameLabel *widget.Label
+
 	var updatingProgress bool
 	updateProgress := func(val float64) {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			updatingProgress = true
 			currentTime.SetText(formatClock(val))
 			slider.SetValue(val)
+			if frameLabel != nil && src.FrameRate > 0 {
+				frameLabel.SetText(fmt.Sprintf("Frame: %d", int(val*src.FrameRate)))
+			}
 			updatingProgress = false
 		}, false)
 	}
 
-	frameLabel := widget.NewLabel("Frame: 0")
+	frameLabel = widget.NewLabel("Frame: 0")
 	frameLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
 	slider.OnChanged = func(val float64) {
@@ -189,10 +193,19 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	// Feed playback position back to the seek slider as the video plays.
 	player.SetOnProgress(updateProgress)
 
+	// Reset play button and seek position when video reaches end-of-stream.
+	var playBtn *widget.Button
+	player.SetOnEnd(func() {
+		state.playerPaused = true
+		slider.SetValue(0)
+		currentTime.SetText(formatClock(0))
+		if playBtn != nil {
+			playBtn.Icon = ui.GetIcon("play_arrow")
+			playBtn.Refresh()
+		}
+	})
+
 	var volIcon *widget.Button
-	ensureSession := func() bool {
-		return true
-	}
 
 	updateVolIcon := func() {
 		if volIcon == nil {
@@ -207,9 +220,6 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	}
 
 	volIcon = widget.NewButtonWithIcon("", ui.GetIcon("volume_up"), func() {
-		if !ensureSession() {
-			return
-		}
 		if state.playerMuted || state.playerVolume <= 0 {
 			target := state.lastVolume
 			if target <= 0 {
@@ -249,7 +259,6 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	updateVolIcon()
 	volSlider.Refresh()
 
-	var playBtn *widget.Button
 	playBtn = widget.NewButtonWithIcon("", ui.GetIcon("play_arrow"), func() {
 		if state.playerPaused {
 			state.playNative()
@@ -431,11 +440,35 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 
 	controls := container.NewVBox(primaryBar, advancedBar)
 
+	// Wrap the video stage so files dropped directly onto the player are handled.
+	dropZone := ui.NewDroppable(videoStageWithIndicator, func(items []fyne.URI) {
+		for _, item := range items {
+			p := item.Path()
+			if p != "" && state.isVideoFile(p) {
+				dropAnimation.Start()
+				go state.loadVideo(p)
+				return
+			}
+		}
+	})
+	dropZone.SetOnDrag(
+		func() {
+			dropIndicator.StrokeColor = color.NRGBA{R: 76, G: 175, B: 80, A: 200}
+			dropIndicator.StrokeWidth = 3
+			dropIndicator.Refresh()
+		},
+		func() {
+			dropIndicator.StrokeColor = color.NRGBA{R: 76, G: 175, B: 80, A: 0}
+			dropIndicator.StrokeWidth = 0
+			dropIndicator.Refresh()
+		},
+	)
+
 	stack := container.NewBorder(
 		nil,
 		controls,
 		nil, nil,
-		container.NewPadded(videoStageWithIndicator),
+		container.NewPadded(dropZone),
 	)
 
 	return container.NewMax(outer, container.NewPadded(stack))
