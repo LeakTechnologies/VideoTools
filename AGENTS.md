@@ -178,6 +178,54 @@ Open an issue or ask before touching the "Setup static FFmpeg" steps.
   - move app logic into `internal/app/`
   - move the executable entrypoint toward `cmd/videotools/`
 
+## Native Media Player
+
+Architecture reference: `docs/NATIVE_PLAYER.md` — read this before touching any player code.
+
+### The One Rule
+
+**All modules must use `ui.InlineVideoPlayer` as their API layer. Period.**
+
+Do not call `media.NewEngine()` inside a module. Do not write a per-module playback goroutine. Do not call `media.NewVideoPlayer()` directly. Get the widget via `opts.Player.Widget()`.
+
+### Three-Layer Stack
+
+```
+internal/media   Engine          — CGo/FFmpeg demux + decode + audio (oto v3)
+internal/media   VideoPlayer     — Fyne widget: renders frames, built-in controls overlay
+internal/ui      InlineVideoPlayer — THE API layer every module talks to
+```
+
+### Adding a New Module with Video
+
+1. Declare a singleton `*ui.InlineVideoPlayer` in `native_media.go` (real) and `native_media_stub.go` (stub returning `ui.NewInlineVideoPlayer()`).
+2. Add `Player *ui.InlineVideoPlayer` to the module's `Options` struct in **both** `view.go` and `stub.go`.
+3. Wire `Player: GetXxxPlayer()` in `main.go`.
+4. Use only `InlineVideoPlayer` methods inside the module — see `docs/NATIVE_PLAYER.md` for the full API surface.
+
+### Current Module Singletons
+
+| Module  | Getter              | Notes |
+|---------|---------------------|-------|
+| Convert | `GetConvertPlayer()` | Custom control row; `DisableBuiltinControls()` called |
+| Trim    | `GetTrimPlayer()`    | Built-in controls overlay; in/out markers; preview region via `SetOnProgress` |
+
+### What the `native_media` Build Tag Gates
+
+- `native_media.go` — real singletons, `HasNativeMediaPlayer() → true`, CGo player methods
+- `native_media_stub.go` — no-op stubs, `HasNativeMediaPlayer() → false`
+- `internal/media/` — CGo engine and widget (only compiled with tag)
+- `internal/ui/inline_player.go` — real player (only compiled with tag)
+- `internal/ui/inline_player_stub.go` — no-op stub (only compiled without tag)
+
+Stub implementations must expose the **identical** method set as the real type so all callers compile on every target.
+
+### Reference in `AGENTS.md` Line 158
+
+The entry `player_module.go` in the completed Phase 3 list refers to the root-level `player_module.go` (shows the legacy static player view), **not** to the native media player stack above.
+
+---
+
 ## Validation Priorities For Dev40
 
 - Issue #5 (Convert UI cleanup) is the remaining open UI item.
