@@ -1,11 +1,41 @@
 # VideoTools Changelog
 
-## v0.1.1-dev40 (April 2026)
+## v0.1.1-dev41 (April 2026)
 
 ### In Progress
-- **Burn module** — Implement burn logic via IMAPI2 (Windows) / SG_IO (Linux); see `docs/BURN_MODULE_DESIGN.md`.
-- **Update-install guard** — Block `applyUpdate` while a queue or conversion job is active; see `AGENTS.md`.
-- **Issue #5** — Convert UI layout consistency and label clarity pass.
+- **Burn logic** — IMAPI2 (Windows) / SG_IO (Linux) implementation; see `docs/BURN_MODULE_DESIGN.md`.
+- **Module Pipeline (`&&`)** — Two-module chain execution with intermediate file cleanup.
+- **Recent files tracking** — Persist recent files list for Quick Access dropdown.
+- **Module callbacks** — Wire OnOpenMore/OnOpenFolder per module in Quick Access dropdown.
+
+## v0.1.1-dev40 (April 2026)
+
+### Native Media Player
+- **InlineVideoPlayer unified** — All modules (Convert, Trim, Inspect) now use `ui.InlineVideoPlayer` as the single API layer. No module manages its own engine or playback goroutine.
+- **Inspect module player** — `GetInspectPlayer()` singleton wired; player widget embedded in Inspect view; `StartThumbnailExtraction` fires on load.
+- **Inspect freeze fix** — `probeVideo` (ffprobe subprocess) moved off the main goroutine; UI renders immediately and refreshes when probe completes.
+- **EOF handling** — Playback loop distinguishes clean end-of-stream from errors; `SetOnEnd` fires on main goroutine; play button resets correctly.
+- **Dual-engine exceptions documented** — Compare and Upscale use two engines directly (required for simultaneous streams); documented in `AGENTS.md` and `docs/NATIVE_PLAYER.md`.
+
+### Logging Standardisation
+- **Module categories** — Added `CatConvert`, `CatTrim`, `CatMerge`, `CatFilters`, `CatAudio`, `CatAuthor` log categories.
+- **Error elevation** — Config load, probe, and encode failures promoted from `Debug` to `Error` with full path context across Convert, Trim, Merge, Filters, Audio, and Author modules.
+
+### UI / UX
+- **Tooltip system** — Global enable/disable in Settings; tooltips on module tiles and Convert controls.
+- **Drop targets** — `.ts`, `.m2ts`, `.vob` added to valid video extensions; toast notifications for wrong-format drops; green border hover feedback on drop zones.
+- **Trim style** — Player and footer aligned to match other modules.
+
+### Documentation
+- **`docs/NATIVE_PLAYER.md`** — Full reference for the three-layer player stack, API surface, module integration pattern, and approved exceptions.
+- **`AGENTS.md` Native Player section** — Architecture rule enforced; dual-engine exceptions documented.
+- Deleted six stale player docs superseded by the above.
+
+### Bug Fixes
+- **Queue right-click safety** — Nil checks prevent crashes on context menu.
+- **DnD dispatch** — `DropTarget` wired correctly for Convert and module tile drops.
+- **Trim type assertion** — Removed invalid `Widget().(*media.VideoPlayer)` assertion.
+- **CI** — Windows build green (runs 1184+); Linux green throughout.
 
 ## v0.1.1-dev39 (March 2026)
 

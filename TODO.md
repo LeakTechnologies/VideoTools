@@ -2,7 +2,42 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev40 Scope (in progress)
+## Dev41 Scope (in progress)
+
+### Burn Module — Logic
+- [ ] **Windows** — Implement IMAPI2 COM interface in `burn_windows.go`
+- [ ] **Linux** — Implement SG_IO ioctl in `burn_linux.go`
+- [ ] **Drive info** — `getDriveInfo()` to show disc capacity (DVD5/9, BD25/50)
+- [ ] **Multi-drive batch burning** — See `docs/BURN_MODULE_DESIGN.md` §Phase 3
+
+### Module Pipeline (`&&` feature)
+- [ ] `pipelineActive` state machine on `appState` (off / waiting-step1 / waiting-step2)
+- [ ] `&&` button in main menu header, visually reflects state
+- [ ] Module tile dimming for invalid Step 2 targets
+- [ ] `PipelineAfter` + `PipelineDeleteOnSuccess` fields on `queue.Job`
+- [ ] Queue runner: chain execution + intermediate file cleanup
+- [ ] "Keep intermediate files" toggle in Settings → Preferences
+
+### Quick Access Dropdown
+- [ ] **Recent file tracking** — Persist recent files list to disk
+- [ ] **Module callbacks** — Wire `OnOpenMore`/`OnOpenFolder` per module
+
+### File Manager
+- [ ] **Multi-tab support** — Open multiple folders in tabs
+
+### Logging — Remaining Modules
+- [ ] **CatInspect** — Add category; switch interlace analysis logs from `CatSystem`
+- [ ] **CatRip / CatBurn** — Evaluate whether `CatDVD`/`CatDisc` is sufficient or dedicated categories needed
+
+### Carry-forward Issues
+- [ ] **Issue #5** — Convert UI layout consistency and label clarity pass
+- [ ] **Issue #18** — Windows first-run FFmpeg bootstrap
+- [ ] **Issue #21** — Native disc authoring (replace dvdauthor/spumux/xorriso)
+- [ ] **Linux CI** — Pre-built container image to reduce apt install time
+
+---
+
+## Dev40 Scope (closed)
 
 ### DVD Menu System (see docs/DVD_MENU_SYSTEM_DESIGN.md)
 - [x] **M1/M2** — Encode menu background as MPEG-2 still video via ffmpeg; mux video+SPU into proper DVD VOB

@@ -110,12 +110,14 @@ func (s *appState) scanDVDStructure(path string) error {
 func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
 	cfg := job.Config
 	if cfg == nil {
+		logging.Error(logging.CatRip, "rip job config missing: job=%s", job.ID)
 		return errors.New("rip job config missing")
 	}
 	sourcePath := toString(cfg["sourcePath"])
 	outputPath := toString(cfg["outputPath"])
 	format := toString(cfg["format"])
 	if sourcePath == "" || outputPath == "" {
+		logging.Error(logging.CatRip, "rip job missing paths: job=%s", job.ID)
 		return errors.New("rip job missing paths")
 	}
 
