@@ -3038,7 +3038,7 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 			for _, p := range videoPaths {
 				src, err := probeVideo(p)
 				if err != nil {
-					logging.Debug(logging.CatModule, "failed to probe merge clip %s: %v", p, err)
+					logging.Error(logging.CatMerge, "merge clip probe failed: path=%s err=%v", p, err)
 					continue
 				}
 				clips = append(clips, mergeClip{
@@ -3883,7 +3883,7 @@ func (s *appState) showMergeView() {
 	if cfg, err := loadPersistedMergeConfig(); err == nil {
 		s.applyMergeConfig(cfg)
 	} else if !errors.Is(err, os.ErrNotExist) {
-		logging.Debug(logging.CatSystem, "failed to load persisted merge config: %v", err)
+		logging.Error(logging.CatMerge, "failed to load persisted merge config: err=%v", err)
 	}
 
 	if s.mergeFormat == "" {
