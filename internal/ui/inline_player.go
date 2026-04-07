@@ -100,9 +100,13 @@ func (v *InlineVideoPlayer) Load(path string) error {
 	v.player.SetDuration(duration)
 
 	// Start the demuxer briefly to decode the first frame for preview, then pause.
+	// SetFrame writes directly to v.raster (not through Fyne's object model) so it
+	// must run on the main goroutine to avoid racing the renderer.
 	v.engine.Start()
 	if img, err := v.engine.NextFrame(); err == nil {
-		v.player.SetFrame(img)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			v.player.SetFrame(img)
+		}, false)
 	}
 	v.engine.Pause()
 
@@ -345,8 +349,12 @@ func (v *InlineVideoPlayer) playbackLoop() {
 			return
 		}
 		t := eng.CurrentTime()
-		v.player.SetFrame(img)
-		v.player.SetCurrentTime(t)
+		// SetFrame/SetCurrentTime write directly to raster state and must run
+		// on the main goroutine to avoid racing the renderer.
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			v.player.SetFrame(img)
+			v.player.SetCurrentTime(t)
+		}, false)
 		if onProg != nil {
 			onProg(t)
 		}
