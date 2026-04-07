@@ -16,11 +16,21 @@ import (
 )
 
 type InlineVideoPlayer struct {
-	mu      sync.Mutex // serialises all engine access (Load, Play, Pause, Seek, Step)
-	player  *media.VideoPlayer
-	engine  *media.Engine
-	scrubber *media.SmoothScrubbing
-	playing bool
+	mu         sync.Mutex // serialises all engine access (Load, Play, Pause, Seek, Step)
+	player     *media.VideoPlayer
+	engine     *media.Engine
+	scrubber   *media.SmoothScrubbing
+	playing    bool
+	onProgress func(float64) // called from playbackLoop with current time in seconds
+}
+
+// SetOnProgress registers a callback that is called from the playback goroutine
+// with the current playback time (in seconds) on each decoded frame.
+// The callback must be safe to call from a goroutine.
+func (v *InlineVideoPlayer) SetOnProgress(fn func(float64)) {
+	v.mu.Lock()
+	v.onProgress = fn
+	v.mu.Unlock()
 }
 
 func NewInlineVideoPlayer() *InlineVideoPlayer {
@@ -269,6 +279,7 @@ func (v *InlineVideoPlayer) playbackLoop() {
 		v.mu.Lock()
 		eng := v.engine
 		playing := v.playing
+		onProg := v.onProgress
 		v.mu.Unlock()
 
 		if !playing || eng == nil {
@@ -283,8 +294,12 @@ func (v *InlineVideoPlayer) playbackLoop() {
 			}, false)
 			return
 		}
+		t := eng.CurrentTime()
 		v.player.SetFrame(img)
-		v.player.SetCurrentTime(eng.CurrentTime())
+		v.player.SetCurrentTime(t)
+		if onProg != nil {
+			onProg(t)
+		}
 	}
 }
 

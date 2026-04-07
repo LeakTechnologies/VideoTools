@@ -5,7 +5,10 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"image/png"
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -80,13 +83,27 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	dropAnimation.AutoReverse = true
 	dropAnimation.RepeatCount = 3
 
+	_ = dropAnimation // triggered on file drop, not at widget creation
+
 	coverBtn := utils.MakeIconButton("", t.ActionSave+" Frame", func() {
 		img := playerWidget.CurrentFrame()
 		if img == nil {
 			return
 		}
+		f, err := os.CreateTemp("", "vt-cover-*.png")
+		if err != nil {
+			dialog.ShowError(err, state.window)
+			return
+		}
+		if encErr := png.Encode(f, img); encErr != nil {
+			f.Close()
+			os.Remove(f.Name())
+			dialog.ShowError(encErr, state.window)
+			return
+		}
+		f.Close()
 		if onCover != nil {
-			onCover("")
+			onCover(f.Name())
 		}
 	})
 
@@ -104,9 +121,12 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 				return
 			}
 			defer w.Close()
+			if encErr := png.Encode(w, img); encErr != nil {
+				dialog.ShowError(encErr, state.window)
+			}
 		}, state.window)
 		saveDlg.SetFilter(storage.NewExtensionFileFilter([]string{".png"}))
-		saveDlg.SetFileName(strings.TrimSuffix(src.DisplayName, ".avi") + "-frame.png")
+		saveDlg.SetFileName(strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)) + "-frame.png")
 		saveDlg.Show()
 	})
 
@@ -165,6 +185,9 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		updateProgress(val)
 		state.scrubNative(val)
 	}
+
+	// Feed playback position back to the seek slider as the video plays.
+	player.SetOnProgress(updateProgress)
 
 	var volIcon *widget.Button
 	ensureSession := func() bool {
