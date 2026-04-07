@@ -51,6 +51,13 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Recent file tracking** — Need to persist recent files list
 - [ ] **Module callbacks** — Wire OnOpenMore/OnOpenFolder per module
 
+### Logging Improvements (Dev40)
+- [x] **Add CatConvert** — Logging category for convert module
+- [x] **Add CatTrim** — Logging category for trim module
+- [x] **Add CatMerge** — Logging category for merge module
+- [x] **Error-level logging** — Elevate config load and probe failures to Error level with context
+- [x] **Preview frame capture** — Add error logging for ffmpeg frame capture failures
+
 ### VR360 Video Processing (FUTURE)
 - [ ] **Create design document** — See docs/VR360_VIDEO_PROCESSING.md
 - [ ] **Viewport extraction** — Convert 360° to flat video with fixed perspective
