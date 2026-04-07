@@ -28,6 +28,7 @@ func (s *appState) showInspectViewForPath(path string) {
 	go func() {
 		src, err := probeVideo(path)
 		if err != nil {
+			logging.Error(logging.CatInspect, "inspect probe failed: path=%s err=%v", path, err)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.inspectInterlaceAnalyzing = false
 				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
@@ -114,6 +115,7 @@ func (a *inspectAdapter) LoadFile(path string) {
 	go func() {
 		src, err := probeVideo(path)
 		if err != nil {
+			logging.Error(logging.CatInspect, "inspect probe failed: path=%s err=%v", path, err)
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				a.s.inspectInterlaceAnalyzing = false
 				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), a.s.window)

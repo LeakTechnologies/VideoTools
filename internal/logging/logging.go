@@ -41,6 +41,7 @@ const (
 	CatAuthor  Category = "[AUTHOR]"
 	CatRip     Category = "[RIP]"
 	CatBurn    Category = "[BURN]"
+	CatInspect Category = "[INSPECT]"
 )
 
 // Categories represents a log category
