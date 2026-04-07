@@ -149,6 +149,7 @@ func (v *InlineVideoPlayer) Load(path string) error {
 	})
 
 	v.player.SetLoading(false)
+	v.player.Refresh()
 	return nil
 }
 
