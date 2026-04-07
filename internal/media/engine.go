@@ -439,6 +439,7 @@ type Chapter struct {
 }
 
 type Engine struct {
+	filePath          string
 	formatCtx         *C.AVFormatContext
 	videoStreamIdx    int
 	audioStreamIdx    int
@@ -1290,6 +1291,8 @@ func (e *Engine) Thumbnail(seconds float64) (*image.RGBA, error) {
 }
 
 func (e *Engine) Open(path string) error {
+	e.filePath = path
+
 	cPath := C.CString(path)
 	defer C.free(unsafe.Pointer(cPath))
 
@@ -1504,32 +1507,113 @@ func (e *Engine) Open(path string) error {
 	return nil
 }
 
+// StartThumbnailExtraction opens an independent decoder (separate from the live
+// playback engine) and extracts one 160×90 thumbnail every 10 seconds.
+// Using a separate AVFormatContext means thumbnail extraction never races with
+// the main engine's demuxer, queue, or paused/playing state.
 func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.RGBA)) {
+	e.mu.Lock()
+	path := e.filePath
+	duration := e.info.Duration
+	e.mu.Unlock()
+
+	if path == "" || duration <= 0 {
+		return
+	}
+
 	go func() {
 		defer logging.RecoverPanic()
 
-		duration := e.Duration()
-		if duration <= 0 {
+		const (
+			thumbW    = 160
+			thumbH    = 90
+			interval  = 10.0
+		)
+
+		// --- open independent format context ---
+		cPath := C.CString(path)
+		defer C.free(unsafe.Pointer(cPath))
+
+		var fmtCtx *C.AVFormatContext
+		if C.avformat_open_input(&fmtCtx, cPath, nil, nil) != 0 {
+			logging.Warning(logging.CatPlayer, "thumbnail: failed to open %s", path)
+			return
+		}
+		defer C.avformat_close_input(&fmtCtx)
+
+		if C.avformat_find_stream_info(fmtCtx, nil) < 0 {
 			return
 		}
 
-		interval := 10.0
-		if interval < 1 {
-			interval = 1
+		// find first video stream
+		vidIdx := -1
+		var codec *C.AVCodec
+		for i := 0; i < int(fmtCtx.nb_streams); i++ {
+			stream := *(**C.AVStream)(unsafe.Pointer(
+				uintptr(unsafe.Pointer(fmtCtx.streams)) + uintptr(i)*unsafe.Sizeof(uintptr(0))))
+			if stream.codecpar.codec_type == C.AVMEDIA_TYPE_VIDEO {
+				vidIdx = i
+				codec = C.avcodec_find_decoder(stream.codecpar.codec_id)
+				break
+			}
+		}
+		if vidIdx < 0 || codec == nil {
+			return
 		}
 
-		thumbSize := 160
-		thumbHeight := 90
+		stream := *(**C.AVStream)(unsafe.Pointer(
+			uintptr(unsafe.Pointer(fmtCtx.streams)) + uintptr(vidIdx)*unsafe.Sizeof(uintptr(0))))
 
+		codecCtx := C.avcodec_alloc_context3(codec)
+		if codecCtx == nil {
+			return
+		}
+		defer C.avcodec_free_context(&codecCtx)
+
+		C.avcodec_parameters_to_context(codecCtx, stream.codecpar)
+		codecCtx.thread_count = 2
+		if C.avcodec_open2(codecCtx, codec, nil) < 0 {
+			return
+		}
+
+		timeBase := float64(stream.time_base.num) / float64(stream.time_base.den)
+
+		// scale to thumbnail size
 		swsCtx := C.sws_getContext(
-			e.videoCodecCtx.width, e.videoCodecCtx.height, e.videoCodecCtx.pix_fmt,
-			C.int(thumbSize), C.int(thumbHeight), C.AV_PIX_FMT_RGBA,
-			C.SWS_BICUBIC|C.SWS_ACCURATE_RND, nil, nil, nil,
+			codecCtx.width, codecCtx.height, codecCtx.pix_fmt,
+			C.int(thumbW), C.int(thumbH), C.AV_PIX_FMT_RGBA,
+			C.SWS_BICUBIC, nil, nil, nil,
 		)
 		if swsCtx == nil {
 			return
 		}
 		defer C.sws_freeContext(swsCtx)
+
+		rgbaFrame := C.av_frame_alloc()
+		if rgbaFrame == nil {
+			return
+		}
+		defer C.av_frame_free(&rgbaFrame)
+
+		numBytes := int(C.av_image_get_buffer_size(C.AV_PIX_FMT_RGBA, C.int(thumbW), C.int(thumbH), 1))
+		rgbaBuf := make([]byte, numBytes)
+		C.av_image_fill_arrays(
+			&rgbaFrame.data[0], &rgbaFrame.linesize[0],
+			(*C.uint8_t)(unsafe.Pointer(&rgbaBuf[0])),
+			C.AV_PIX_FMT_RGBA, C.int(thumbW), C.int(thumbH), 1,
+		)
+
+		frame := C.av_frame_alloc()
+		if frame == nil {
+			return
+		}
+		defer C.av_frame_free(&frame)
+
+		pkt := C.av_packet_alloc()
+		if pkt == nil {
+			return
+		}
+		defer C.av_packet_free(&pkt)
 
 		for t := 0.0; t < duration; t += interval {
 			select {
@@ -1538,17 +1622,46 @@ func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.
 			default:
 			}
 
-			if err := e.Seek(t); err != nil {
-				continue
-			}
+			// seek to target
+			target := C.int64_t(t / timeBase)
+			C.avformat_seek_file(fmtCtx, C.int(vidIdx), 0, target, target, 0)
+			C.avcodec_flush_buffers(codecCtx)
 
-			img, err := e.NextFrame()
-			if err != nil || img == nil {
-				continue
-			}
+			// decode one frame
+			decoded := false
+			for !decoded {
+				if C.av_read_frame(fmtCtx, pkt) < 0 {
+					break
+				}
+				if int(pkt.stream_index) != vidIdx {
+					C.av_packet_unref(pkt)
+					continue
+				}
 
-			if onFrame != nil {
-				onFrame(t, img)
+				if C.avcodec_send_packet(codecCtx, pkt) == 0 {
+					if C.avcodec_receive_frame(codecCtx, frame) == 0 {
+						C.sws_scale(
+							swsCtx,
+							&frame.data[0], &frame.linesize[0],
+							0, codecCtx.height,
+							&rgbaFrame.data[0], &rgbaFrame.linesize[0],
+						)
+
+						img := image.NewRGBA(image.Rect(0, 0, thumbW, thumbH))
+						stride := int(rgbaFrame.linesize[0])
+						for y := 0; y < thumbH; y++ {
+							src := rgbaBuf[y*stride : y*stride+thumbW*4]
+							dst := img.Pix[y*img.Stride : y*img.Stride+thumbW*4]
+							copy(dst, src)
+						}
+
+						if onFrame != nil {
+							onFrame(t, img)
+						}
+						decoded = true
+					}
+				}
+				C.av_packet_unref(pkt)
 			}
 		}
 	}()
