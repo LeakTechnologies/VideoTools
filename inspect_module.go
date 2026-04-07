@@ -13,34 +13,46 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/inspect"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/interlace"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 func (s *appState) showInspectViewForPath(path string) {
-	src, err := probeVideo(path)
-	if err != nil {
-		dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
-		return
-	}
-	s.inspectFile = src
+	// Show the view immediately — probe runs in the background so the UI doesn't freeze.
+	s.inspectFile = nil
 	s.inspectInterlaceResult = nil
 	s.inspectInterlaceAnalyzing = true
 	s.showInspectView()
-	logging.Debug(logging.CatModule, "queue: opened in player: %s", path)
+	logging.Debug(logging.CatModule, "queue: opening in inspect: %s", path)
 
 	go func() {
-		if len(src.PreviewFrames) == 0 {
-			if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
-				src.PreviewFrames = frames
-			}
+		src, err := probeVideo(path)
+		if err != nil {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.inspectInterlaceAnalyzing = false
+				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+			}, false)
+			return
 		}
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			s.inspectFile = src
+			s.showInspectView()
+		}, false)
+
+		// Start native player load now that probe has the file metadata.
+		// This runs off the main goroutine; the player widget is already embedded
+		// in the view and will update itself when the engine is ready.
+		if err := GetInspectPlayer().Load(path); err != nil {
+			logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
+		}
+
 		detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
-		result, err := detector.QuickAnalyze(ctx, path)
+		result, intErr := detector.QuickAnalyze(ctx, path)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			s.inspectInterlaceAnalyzing = false
-			if err != nil {
+			if intErr != nil {
 				s.inspectInterlaceResult = nil
 			} else {
 				s.inspectInterlaceResult = result
@@ -91,34 +103,43 @@ func (a *inspectAdapter) OpenLogViewer(title string, path string, isTemp bool) {
 }
 
 func (a *inspectAdapter) LoadFile(path string) {
-	src, err := probeVideo(path)
-	if err != nil {
-		dialog.ShowError(fmt.Errorf("failed to load video: %w", err), a.s.window)
-		return
-	}
-	a.s.inspectFile = src
+	// Show view immediately with loading state — probeVideo blocks on ffprobe and must
+	// not run on the main goroutine or the UI will freeze.
+	a.s.inspectFile = nil
 	a.s.inspectInterlaceResult = nil
 	a.s.inspectInterlaceAnalyzing = true
 	a.s.showInspectView()
-	logging.Debug(logging.CatModule, "loaded inspect file: %s", path)
+	logging.Debug(logging.CatModule, "loading inspect file: %s", path)
 
 	go func() {
-		if len(src.PreviewFrames) == 0 {
-			if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
-				src.PreviewFrames = frames
-			}
+		src, err := probeVideo(path)
+		if err != nil {
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				a.s.inspectInterlaceAnalyzing = false
+				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), a.s.window)
+			}, false)
+			return
+		}
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			a.s.inspectFile = src
+			a.s.showInspectView()
+		}, false)
+
+		// Start native player load now that probe has the file metadata.
+		if err := GetInspectPlayer().Load(path); err != nil {
+			logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
 		}
 
 		detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 
-		result, err := detector.QuickAnalyze(ctx, path)
+		result, intErr := detector.QuickAnalyze(ctx, path)
 
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			a.s.inspectInterlaceAnalyzing = false
-			if err != nil {
-				logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
+			if intErr != nil {
+				logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", intErr)
 				a.s.inspectInterlaceResult = nil
 			} else {
 				a.s.inspectInterlaceResult = result
@@ -294,19 +315,8 @@ func (a *inspectAdapter) GetFilePath() string {
 	return a.s.inspectFile.Path
 }
 
-func (a *inspectAdapter) HasNativeMediaPlayer() bool {
-	return HasNativeMediaPlayer()
-}
-
-func (a *inspectAdapter) BuildVideoPane(size fyne.Size) fyne.CanvasObject {
-	if a.s.inspectFile == nil {
-		return nil
-	}
-	return buildVideoPane(a.s, size, a.s.inspectFile, nil)
-}
-
-func (a *inspectAdapter) LoadVideoNative(path string) {
-	a.s.loadVideoNative(path)
+func (a *inspectAdapter) Player() *ui.InlineVideoPlayer {
+	return GetInspectPlayer()
 }
 
 func (a *inspectAdapter) Clipboard() fyne.Clipboard {

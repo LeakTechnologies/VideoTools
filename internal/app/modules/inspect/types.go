@@ -4,6 +4,7 @@ package inspect
 
 import (
 	"fyne.io/fyne/v2"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
 type InspectState struct {
@@ -49,9 +50,7 @@ type ViewCallbacks interface {
 	GetPreviewFrame() string
 	GetFilePath() string
 
-	HasNativeMediaPlayer() bool
-	BuildVideoPane(size fyne.Size) fyne.CanvasObject
-	LoadVideoNative(path string)
+	Player() *ui.InlineVideoPlayer
 
 	Clipboard() fyne.Clipboard
 }
