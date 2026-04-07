@@ -542,6 +542,10 @@ var iuLatn = Strings{
 	RipConfigSavedTitle: "Aaqiksijautit Sapummijausimaujut",                                                                 // Config Saved
 	RipConfigSavedFmt:   "Sapummijausimaujuq %s-mut",                                                                        // Saved to %s
 	RipErrNoSource:      "DVD/ISO/VIDEO_TS naqituinanga aaqiksuilugu",                                                       // set a source path
+	RipCSSEncrypted:     "CSS Siuulliqpaujuq",                                                                               // CSS Encrypted
+	RipCSSDecrypting:    "CSS Siuulliqpaujuq Ilusimajunga...",                                                               // Decrypting CSS...
+	RipCSSNotEncrypted:  "Siuulliqpaugannuqqaqtut",                                                                          // Not Encrypted
+	RipCSSStatusFmt:     "Siuulliqpauganngit: %s",                                                                           // Encryption: %s
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "Maanna Pivaalliqtitilugu",                                // UPSCALE NOW

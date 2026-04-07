@@ -581,6 +581,10 @@ var enCA = Strings{
 	RipConfigSavedTitle: "Config Saved",
 	RipConfigSavedFmt:   "Saved to %s",
 	RipErrNoSource:      "set a DVD/ISO/VIDEO_TS source path",
+	RipCSSEncrypted:     "CSS Encrypted",
+	RipCSSDecrypting:    "Decrypting CSS...",
+	RipCSSNotEncrypted:  "Not Encrypted",
+	RipCSSStatusFmt:     "Encryption: %s",
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "UPSCALE NOW",

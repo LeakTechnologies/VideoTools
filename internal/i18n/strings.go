@@ -593,6 +593,10 @@ type Strings struct {
 	RipConfigSavedTitle string
 	RipConfigSavedFmt   string // "Saved to %s"
 	RipErrNoSource      string
+	RipCSSEncrypted     string // "CSS Encrypted"
+	RipCSSDecrypting    string // "Decrypting CSS..."
+	RipCSSNotEncrypted  string // "Not Encrypted"
+	RipCSSStatusFmt     string // "Encryption: %s"
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow             string
