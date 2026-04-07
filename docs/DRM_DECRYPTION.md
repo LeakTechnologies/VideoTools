@@ -86,3 +86,58 @@ This decryption support is for **archival purposes only**:
 - Preservation of physical media
 
 VideoTools does not circumvent copy protection on media the user does not own.
+
+---
+
+## DVD Region Codes
+
+The Author module supports setting region codes during DVD creation:
+
+### Implementation Status
+
+- [x] Region constants defined in `internal/dvd/region/region.go`
+- [x] Region field added to `appState.authorPlaybackRegion`
+- [ ] UI selector in Author settings (pending)
+- [ ] VMG_Category field populated during IFO generation (pending)
+
+### Region Codes
+
+| Code | Value | Description |
+|------|-------|-------------|
+| `RegionFree` | `0x00FFFFFE` | Plays everywhere (default for archival) |
+| `Region1` | `0x00000001` | USA, Canada, US Territories |
+| `Region2` | `0x00000002` | Europe, Japan, South Africa, Middle East |
+| `Region3` | `0x00000004` | Southeast Asia, East Asia |
+| `Region4` | `0x00000008` | Latin America, Australia, New Zealand |
+| `Region5` | `0x00000010` | Africa, Russia, North Korea, South Asia |
+| `Region6` | `0x00000020` | China |
+| `Region7` | `0x00000040` | Reserved (special use) |
+| `Region8` | `0x00000080` | International venues (airlines, cruise ships) |
+
+### Usage
+
+```go
+import "git.leaktechnologies.dev/stu/VideoTools/internal/dvd/region"
+
+// Region-free (recommended for archival)
+cat := region.RegionFreeCategory()
+
+// Multi-region (e.g., regions 1, 2, 4)
+cat := region.Category(region.Region1 | region.Region2 | region.Region4)
+```
+
+### UI Integration (Planned)
+
+Author settings will include a region dropdown:
+- **Region-free (recommended)** - Default
+- **Region 1** - USA/Canada
+- **Region 2** - Europe/Japan
+- **Multi-region...** - Submenu with checkbox combinations
+- **Custom...** - Hex input for advanced users
+
+### Author Workflow
+
+1. User selects region in Author settings
+2. Region stored in `appState.authorPlaybackRegion`
+3. During IFO generation, `VMG_Category` field populated with region mask
+4. Resulting DVD/ISO plays in players matching the region
