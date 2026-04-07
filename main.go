@@ -14087,57 +14087,40 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		return
 	}
 
-	// If in author module, add video clips
+	// Author module has its own dedicated drop handler on the clip list widget for
+	// regular video files. Only handle VIDEO_TS folder drops here (for re-authoring
+	// existing DVDs), not regular video clips.
 	if s.active == "author" {
-		var videoPaths []string
-		var videoTSPath string
 		for _, uri := range items {
 			if uri.Scheme() != "file" {
 				continue
 			}
 			path := uri.Path()
 			if info, err := os.Stat(path); err == nil && info.IsDir() {
+				var videoTSPath string
 				if strings.EqualFold(filepath.Base(path), "VIDEO_TS") {
 					videoTSPath = path
-					break
+				} else {
+					videoTSChild := filepath.Join(path, "VIDEO_TS")
+					if info, err := os.Stat(videoTSChild); err == nil && info.IsDir() {
+						videoTSPath = videoTSChild
+					}
 				}
-				videoTSChild := filepath.Join(path, "VIDEO_TS")
-				if info, err := os.Stat(videoTSChild); err == nil && info.IsDir() {
-					videoTSPath = videoTSChild
-					break
+				if videoTSPath != "" {
+					go func() {
+						s.authorVideoTSPath = videoTSPath
+						s.authorClips = nil
+						s.authorFile = nil
+						s.authorOutputType = "iso"
+						s.recentFiles.Add(videoTSPath, filepath.Base(videoTSPath), "author")
+						s.loadVideoTSChapters(videoTSPath)
+						fyne.CurrentApp().Driver().DoFromGoroutine(s.showAuthorView, false)
+					}()
+					return
 				}
-				videos := s.findVideoFiles(path)
-				videoPaths = append(videoPaths, videos...)
-			} else if s.isVideoFile(path) {
-				videoPaths = append(videoPaths, path)
 			}
 		}
-
-		if videoTSPath != "" {
-			go func() {
-				s.authorVideoTSPath = videoTSPath
-				s.authorClips = nil
-				s.authorFile = nil
-				s.authorOutputType = "iso"
-				s.recentFiles.Add(videoTSPath, filepath.Base(videoTSPath), "author")
-				s.loadVideoTSChapters(videoTSPath)
-				// Reload the view to reflect the new VIDEO_TS source.
-				fyne.CurrentApp().Driver().DoFromGoroutine(s.showAuthorView, false)
-			}()
-			return
-		}
-
-		if len(videoPaths) == 0 {
-			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			if msg := dropMismatchMessage(items, "author"); msg != "" {
-				ui.ShowToast(s.window, msg, ui.ToastWarning)
-			}
-			return
-		}
-
-		// Already in author view — probe files off the main thread and refresh the
-		// clip list via the registered callback. No full view rebuild needed.
-		go s.addAuthorFiles(videoPaths)
+		// Regular video files are handled by author_module.go's drop handler
 		return
 	}
 

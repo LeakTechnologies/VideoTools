@@ -430,49 +430,7 @@ func (v *VideoPlayer) SetFrame(img *image.RGBA) {
 		return
 	}
 
-	size := v.Size()
-	w := int(size.Width)
-	h := int(size.Height)
-	if w <= 0 || h <= 0 {
-		v.Refresh()
-		return
-	}
-
-	availableH := h
-	if v.showControls {
-		availableH = h - controlBarHeight
-		if availableH < 0 {
-			availableH = h
-		}
-	}
-
-	newW := w
-	newH := availableH
-	scaleX := float64(w) / float64(srcW)
-	scaleY := float64(availableH) / float64(srcH)
-	scale := scaleX
-	if scaleY < scale {
-		scale = scaleY
-	}
-	newW = int(float64(srcW) * scale)
-	newH = int(float64(srcH) * scale)
-	offsetX := (w - newW) / 2
-	offsetY := (availableH - newH) / 2
-
-	displayImg := image.NewRGBA(image.Rect(0, 0, w, availableH))
-	draw.Draw(displayImg, displayImg.Bounds(), image.Black, image.Point{}, draw.Src)
-	v.scaleNearest(img, displayImg, srcW, srcH, newW, newH, offsetX, offsetY)
-
-	if v.raster != nil && v.currentWidth == w && v.currentHeight == availableH {
-		v.raster.UpdatePixels(w, availableH, displayImg.Pix)
-	} else {
-		v.raster = canvas.NewRaster(func(rw, rh int) image.Image {
-			return displayImg
-		})
-		v.currentWidth = w
-		v.currentHeight = availableH
-		v.Refresh()
-	}
+	v.Refresh()
 }
 
 func (v *VideoPlayer) SetDuration(d float64) {
