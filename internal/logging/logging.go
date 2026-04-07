@@ -38,6 +38,7 @@ const (
 	CatMerge   Category = "[MERGE]"
 	CatFilters Category = "[FILTERS]"
 	CatAudio   Category = "[AUDIO]"
+	CatAuthor  Category = "[AUTHOR]"
 )
 
 // Categories represents a log category

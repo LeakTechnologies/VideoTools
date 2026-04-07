@@ -114,7 +114,7 @@ func (s *appState) persistAuthorConfig() {
 		SceneThreshold:         s.authorSceneThreshold,
 	}
 	if err := savePersistedAuthorConfig(cfg); err != nil {
-		logging.Debug(logging.CatSystem, "failed to persist author config: %v", err)
+		logging.Error(logging.CatAuthor, "failed to persist author config: err=%v", err)
 	}
 }
 
