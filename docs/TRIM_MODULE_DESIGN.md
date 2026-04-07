@@ -254,3 +254,52 @@ ffmpeg -f concat -safe 0 -i chapters.txt -c copy output_with_chapters.mp4
 
 ## Module Color
 **Cyan** - #44DDFF (already defined in modulesList)
+
+## Logging
+
+Uses `CatTrim` category for all trim module logging:
+
+```go
+logging.Info(logging.CatTrim, "loadVideo: opening %s", path)
+logging.Error(logging.CatTrim, "loadVideo failed: path=%s err=%v", path, err)
+```
+
+## Native Media Player Architecture
+
+The trim module uses `ui.InlineVideoPlayer` as the API layer to the media engine:
+
+```go
+// In native_media.go
+var trimInlinePlayer = ui.NewInlineVideoPlayer()
+func GetTrimPlayer() *ui.InlineVideoPlayer { return trimInlinePlayer }
+
+// Passed via Options
+trim.BuildView(trim.Options{
+    Player: GetTrimPlayer(),
+    ...
+})
+
+// Inside trim module - use the API only, never media.Engine directly
+type Options struct {
+    Player *ui.InlineVideoPlayer // shared player singleton from host app
+    ...
+}
+
+ts := &trimState{
+    inlinePlayer: opts.Player,
+    player:       opts.Player.Widget().(*media.VideoPlayer),
+}
+
+// Wire controls through InlineVideoPlayer
+ts.player.OnPlay(func() {
+    ts.inlinePlayer.Play()
+})
+```
+
+### Why This Architecture
+
+- InlineVideoPlayer owns engine lifecycle, HW detection, playback loop
+- Modules should NOT create `media.NewEngine()` directly
+- All player operations go through InlineVideoPlayer API
+
+See `docs/NATIVE_PLAYER.md` for full architecture details.
