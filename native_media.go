@@ -28,7 +28,12 @@ func (s *appState) loadVideoNative(path string) {
 			logging.Error(logging.CatPlayer, "panic in loadVideoNative: %v", r)
 		}
 	}()
-	convertInlinePlayer.Load(path)
+	if err := convertInlinePlayer.Load(path); err != nil {
+		logging.Error(logging.CatPlayer, "loadVideoNative failed: path=%s err=%v", path, err)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			ui.ShowToast(s.window, "Native player could not open this file.", ui.ToastWarning)
+		}, false)
+	}
 }
 
 func (s *appState) playNative() {

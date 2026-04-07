@@ -636,8 +636,10 @@ func (r *tappableRenderer) Objects() []fyne.CanvasObject {
 // Droppable wraps any canvas object and makes it a drop target (files/URIs)
 type Droppable struct {
 	widget.BaseWidget
-	content   fyne.CanvasObject
-	onDropped func([]fyne.URI)
+	content       fyne.CanvasObject
+	onDropped     func([]fyne.URI)
+	onDraggedOver func()
+	onDraggedOut  func()
 }
 
 // NewDroppable creates a new droppable wrapper
@@ -650,6 +652,12 @@ func NewDroppable(content fyne.CanvasObject, onDropped func([]fyne.URI)) *Droppa
 	return d
 }
 
+// SetOnDrag registers optional callbacks for drag-enter and drag-leave events.
+func (d *Droppable) SetOnDrag(over func(), out func()) {
+	d.onDraggedOver = over
+	d.onDraggedOut = out
+}
+
 // CreateRenderer creates the renderer for the droppable
 func (d *Droppable) CreateRenderer() fyne.WidgetRenderer {
 	return &droppableRenderer{
@@ -658,13 +666,19 @@ func (d *Droppable) CreateRenderer() fyne.WidgetRenderer {
 	}
 }
 
-// DraggedOver highlights when drag is over (optional)
+// DraggedOver implements fyne.DropTarget
 func (d *Droppable) DraggedOver(pos fyne.Position) {
 	_ = pos
+	if d.onDraggedOver != nil {
+		d.onDraggedOver()
+	}
 }
 
-// DraggedOut clears highlight (optional)
+// DraggedOut implements fyne.DropTarget
 func (d *Droppable) DraggedOut() {
+	if d.onDraggedOut != nil {
+		d.onDraggedOut()
+	}
 }
 
 // Dropped handles drop events

@@ -3,8 +3,10 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"image"
+	"io"
 	"sync"
 
 	"fyne.io/fyne/v2"
@@ -22,6 +24,7 @@ type InlineVideoPlayer struct {
 	scrubber   *media.SmoothScrubbing
 	playing    bool
 	onProgress func(float64) // called from playbackLoop with current time in seconds
+	onEnd      func()        // called on clean end-of-stream; NOT called on error
 }
 
 // SetOnProgress registers a callback that is called from the playback goroutine
@@ -30,6 +33,14 @@ type InlineVideoPlayer struct {
 func (v *InlineVideoPlayer) SetOnProgress(fn func(float64)) {
 	v.mu.Lock()
 	v.onProgress = fn
+	v.mu.Unlock()
+}
+
+// SetOnEnd registers a callback that fires when playback reaches end-of-stream.
+// It is dispatched on the main Fyne goroutine and is safe to update UI from.
+func (v *InlineVideoPlayer) SetOnEnd(fn func()) {
+	v.mu.Lock()
+	v.onEnd = fn
 	v.mu.Unlock()
 }
 
@@ -288,10 +299,24 @@ func (v *InlineVideoPlayer) playbackLoop() {
 
 		img, err := eng.NextFrame()
 		if err != nil {
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				v.player.SetError("Playback stopped: " + err.Error())
-				v.player.SetPlaying(false)
-			}, false)
+			if errors.Is(err, io.EOF) {
+				// Clean end of stream — reset state and notify the UI.
+				v.mu.Lock()
+				v.playing = false
+				endFn := v.onEnd
+				v.mu.Unlock()
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					v.player.SetPlaying(false)
+					if endFn != nil {
+						endFn()
+					}
+				}, false)
+			} else {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					v.player.SetError("Playback stopped: " + err.Error())
+					v.player.SetPlaying(false)
+				}, false)
+			}
 			return
 		}
 		t := eng.CurrentTime()
