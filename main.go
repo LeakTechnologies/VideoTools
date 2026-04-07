@@ -120,6 +120,7 @@ var (
 
 	hwProbesMu          sync.Mutex
 	nvencProbeOK        *bool // nil = not yet probed or last probe failed; non-nil = confirmed available
+	av1NvencProbeOK     *bool // separate: av1_nvenc requires Ada Lovelace (RTX 40xx+); Ampere fails
 	qsvProbeOK          *bool
 	vaapiProbeOK        *bool
 	videotoolboxProbeOK *bool
@@ -596,6 +597,19 @@ func checkNvencRuntime() bool {
 		"-frames:v", "1", "-c:v", "h264_nvenc",
 		"-f", "null", "-",
 	}, "nvenc")
+}
+
+// checkAV1NvencRuntime probes av1_nvenc specifically.
+// av1_nvenc requires Ada Lovelace (RTX 40-series+); Ampere (RTX 30-series) and older
+// will pass the h264_nvenc probe but fail at runtime for AV1. Without this separate
+// probe we incorrectly try av1_nvenc on Ampere GPUs and get "No capable devices found".
+func checkAV1NvencRuntime() bool {
+	return probeHWAccel(&av1NvencProbeOK, []string{
+		"-hide_banner", "-loglevel", "error",
+		"-f", "lavfi", "-i", hwProbeSource,
+		"-frames:v", "1", "-c:v", "av1_nvenc",
+		"-f", "null", "-",
+	}, "av1_nvenc")
 }
 
 // checkQsvRuntime does a real encode probe to verify Intel Quick Sync is available.
@@ -2246,7 +2260,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
-		Description: fmt.Sprintf("Output: %s  %s", utils.ShortenMiddle(filepath.Base(src.Path), 40), utils.ShortenMiddle(filepath.Base(outPath), 40)),
+		Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(outPath), 40)),
 		InputFile:   src.Path,
 		OutputFile:  outPath,
 		Config:      config,
@@ -2379,7 +2393,7 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
-		Description: fmt.Sprintf("Output: %s  %s", utils.ShortenMiddle(filepath.Base(src.Path), 40), utils.ShortenMiddle(filepath.Base(outPath), 40)),
+		Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(outPath), 40)),
 		InputFile:   src.Path,
 		OutputFile:  outPath,
 		Config:      config,
@@ -2655,7 +2669,10 @@ func resolveHEVCHWEncoder() (string, bool) {
 func resolveAV1Encoder(hardwareAccel string) (string, bool) {
 	switch hardwareAccel {
 	case "nvenc":
-		if hasFFmpegEncoder("av1_nvenc") {
+		// Must runtime-probe av1_nvenc separately from h264_nvenc — AV1 NVENC
+		// requires Ada Lovelace (RTX 40xx+) while h264_nvenc works on Ampere (RTX 30xx).
+		// hasFFmpegEncoder only checks compilation support, not GPU capability.
+		if checkAV1NvencRuntime() {
 			return "av1_nvenc", true
 		}
 	case "qsv":
