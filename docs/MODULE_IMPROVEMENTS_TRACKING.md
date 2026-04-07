@@ -55,8 +55,8 @@
 ## Remaining Modules (future)
 
 ### Inspect Module
-- [ ] Add CatInspect
-- [ ] Add error logging for probe failures
+- [x] Add CatInspect
+- [x] Add error logging for probe failures (2 locations)
 - [ ] Tooltips
 - [ ] Documentation
 
