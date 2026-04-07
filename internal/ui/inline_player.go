@@ -25,6 +25,7 @@ type InlineVideoPlayer struct {
 	playing    bool
 	onProgress func(float64) // called from playbackLoop with current time in seconds
 	onEnd      func()        // called on clean end-of-stream; NOT called on error
+	seekCh     chan float64  // capacity-1 channel; seekLoop drains it serially
 }
 
 // SetOnProgress registers a callback that is called from the playback goroutine
@@ -47,15 +48,32 @@ func (v *InlineVideoPlayer) SetOnEnd(fn func()) {
 func NewInlineVideoPlayer() *InlineVideoPlayer {
 	v := &InlineVideoPlayer{
 		player: media.NewInlineVideoPlayer(),
+		seekCh: make(chan float64, 1),
 	}
+	go v.seekLoop()
 	// Wire the widget's built-in controls to this player by default.
 	// Modules that need custom logic (e.g. Trim) can overwrite via OnPlay/OnPause/OnSeek.
 	p := v.player
 	p.OnPlay(func() { v.Play() })
 	p.OnPause(func() { v.Pause() })
-	p.OnSeek(func(target float64) { v.Seek(target) })
+	// OnSeek sends to the debounce channel — rapid slider drags drop intermediate
+	// positions and the seekLoop runs each accepted seek off the event goroutine.
+	p.OnSeek(func(target float64) {
+		select {
+		case v.seekCh <- target:
+		default: // a seek is already queued; drop this one
+		}
+	})
 	p.OnSpeedChange(func(speed float64) { v.SetSpeed(speed) })
 	return v
+}
+
+// seekLoop drains seekCh and executes seeks serially on a dedicated goroutine,
+// keeping engine.Seek + NextFrame off the main event goroutine.
+func (v *InlineVideoPlayer) seekLoop() {
+	for target := range v.seekCh {
+		v.Seek(target)
+	}
 }
 
 func (v *InlineVideoPlayer) Widget() *media.VideoPlayer {
@@ -166,10 +184,14 @@ func (v *InlineVideoPlayer) Seek(target float64) {
 		return
 	}
 	eng.Seek(target)
-	if img, err := eng.NextFrame(); err == nil {
-		v.player.SetFrame(img)
-	}
-	v.player.SetCurrentTime(target)
+	img, err := eng.NextFrame()
+	// SetFrame/SetCurrentTime write directly to raster state — dispatch to main thread.
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		if err == nil {
+			v.player.SetFrame(img)
+		}
+		v.player.SetCurrentTime(target)
+	}, false)
 }
 
 func (v *InlineVideoPlayer) GetChapters() []media.Chapter {
