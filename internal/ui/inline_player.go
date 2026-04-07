@@ -207,7 +207,32 @@ func (v *InlineVideoPlayer) StepFrame(dir int) {
 	v.mu.Unlock()
 	if img, err := eng.Step(dir); err == nil {
 		v.player.SetFrame(img)
+		v.player.SetCurrentTime(eng.CurrentTime())
 	}
+}
+
+func (v *InlineVideoPlayer) Duration() float64 {
+	v.mu.Lock()
+	eng := v.engine
+	v.mu.Unlock()
+	if eng == nil {
+		return 0
+	}
+	return eng.Duration()
+}
+
+func (v *InlineVideoPlayer) FrameRate() float64 {
+	v.mu.Lock()
+	eng := v.engine
+	v.mu.Unlock()
+	if eng == nil {
+		return 0
+	}
+	return eng.GetFrameRate()
+}
+
+func (v *InlineVideoPlayer) CurrentTime() float64 {
+	return v.player.CurrentTime()
 }
 
 func (v *InlineVideoPlayer) ScrubTo(target float64) {

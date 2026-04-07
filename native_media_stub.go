@@ -4,6 +4,7 @@ package main
 
 import (
 	"fyne.io/fyne/v2"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
 func HasNativeMediaPlayer() bool {
@@ -27,4 +28,8 @@ func BuildConvertPlayerPane(size fyne.Size) (fyne.CanvasObject, interface{}) {
 
 func buildVideoPaneNative(_ *appState, _ fyne.Size, _ *videoSource, _ func(string)) fyne.CanvasObject {
 	return nil
+}
+
+func GetTrimPlayer() *ui.InlineVideoPlayer {
+	return ui.NewInlineVideoPlayer()
 }

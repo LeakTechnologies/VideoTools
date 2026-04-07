@@ -3541,6 +3541,7 @@ func buildTrimView(state *appState) fyne.CanvasObject {
 		Window:         state.window,
 		ModuleColor:    moduleColor("trim"),
 		StatsBar:       state.statsBar,
+		Player:         GetTrimPlayer(),
 		OnShowMainMenu: state.showMainMenu,
 		OnShowQueue:    state.showQueue,
 		OnAddToQueue: func(clip trim.TrimClip) {
