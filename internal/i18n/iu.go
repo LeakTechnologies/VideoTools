@@ -541,6 +541,10 @@ var iu = Strings{
 	RipConfigSavedTitle: "ᐋᖅᑭᒃᓱᐃᔾᔪᑎᑦ ᓴᐳᒻᒥᔭᐅᓚᐅᖅᑐᑦ",                                      // Config Saved
 	RipConfigSavedFmt:   "ᓴᐳᒻᒥᔭᐅᓚᐅᖅᑐᖅ %s-ᒧᑦ",                                           // Saved to %s
 	RipErrNoSource:      "DVD/ISO/VIDEO_TS ᓇᑭᑐᐃᓐᓇᖓ ᐋᖅᑭᒃᓱᐃᓗᒍ",                           // set a source path
+	RipCSSEncrypted:     "CSS ᓯᕗᓪᓕᖅᐸᐅᔪᑦ",                                               // CSS Encrypted
+	RipCSSDecrypting:    "CSS ᓯᕗᓪᓕᖅᐸᐅᔪᑦ ᐃᓗᓯᒪᔪᑦ...",                                     // Decrypting CSS...
+	RipCSSNotEncrypted:  "ᓯᕗᓪᓕᖅᐸᐅᔪᖓᓄᖅᑲᖅᑐᑦ",                                             // Not Encrypted
+	RipCSSStatusFmt:     "ᓯᕗᓪᓕᖅᐸᐅᔪᖓ: %s",                                               // Encryption: %s
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "ᒫᓐᓇ ᐱᕚᓪᓕᖅᑎᑦᑎᓗᒍ",                      // UPSCALE NOW

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/css"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -294,6 +295,18 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	}
 	if cleanup != nil {
 		defer cleanup()
+	}
+
+	// Check for CSS encryption
+	ifoPath := filepath.Join(videoTSPath, "VIDEO_TS.IFO")
+	isEncrypted, err := css.IsCSSEncrypted(ifoPath)
+	if err != nil {
+		appendLog(fmt.Sprintf("Warning: could not check encryption status: %v", err))
+		isEncrypted = false
+	}
+
+	if isEncrypted {
+		appendLog("CSS encryption detected - will decrypt during processing")
 	}
 
 	sets, err := CollectVOBSets(videoTSPath)

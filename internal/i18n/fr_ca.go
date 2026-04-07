@@ -581,6 +581,10 @@ var frCA = Strings{
 	RipConfigSavedTitle: "Configuration enregistrée",
 	RipConfigSavedFmt:   "Enregistré dans %s",
 	RipErrNoSource:      "définissez un chemin source DVD/ISO/VIDEO_TS",
+	RipCSSEncrypted:     "Chiffré CSS",
+	RipCSSDecrypting:    "Déchiffrement CSS...",
+	RipCSSNotEncrypted:  "Non chiffré",
+	RipCSSStatusFmt:     "Chiffrement : %s",
 
 	// ── Upscale ──────────────────────────────────────────────────────────────────
 	UpscaleNow:             "AGRANDIR MAINTENANT",
