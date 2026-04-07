@@ -33,3 +33,7 @@ func buildVideoPaneNative(_ *appState, _ fyne.Size, _ *videoSource, _ func(strin
 func GetTrimPlayer() *ui.InlineVideoPlayer {
 	return ui.NewInlineVideoPlayer()
 }
+
+func GetInspectPlayer() *ui.InlineVideoPlayer {
+	return ui.NewInlineVideoPlayer()
+}

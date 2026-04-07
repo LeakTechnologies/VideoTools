@@ -352,7 +352,7 @@ func (s *appState) executeFilterJob(ctx context.Context, job *queue.Job, progres
 	// Combine filter chain
 	filterStr := strings.Join(chain, ",")
 
-	logging.Info(logging.CatFFMPEG, "Executing filter job: %s -> %s", inputPath, outputPath)
+	logging.Info(logging.CatFilters, "Executing filter job: %s -> %s", inputPath, outputPath)
 	logging.Debug(logging.CatFFMPEG, "Filter chain: %s", filterStr)
 
 	// Build ffmpeg arguments
@@ -368,6 +368,7 @@ func (s *appState) executeFilterJob(ctx context.Context, job *queue.Job, progres
 	// Probe source for duration
 	src, err := probeVideo(inputPath)
 	if err != nil {
+		logging.Error(logging.CatFilters, "filter probe failed: input=%s err=%v", inputPath, err)
 		return fmt.Errorf("failed to probe input: %w", err)
 	}
 	totalDur := src.Duration
@@ -377,6 +378,7 @@ func (s *appState) executeFilterJob(ctx context.Context, job *queue.Job, progres
 
 	ffmpeg := utils.GetFFmpegPath()
 	if err := runFFmpegWithProgress(ctx, ffmpeg, args, totalDur, progress); err != nil {
+		logging.Error(logging.CatFilters, "filter encode failed: input=%s output=%s err=%v", inputPath, outputPath, err)
 		return fmt.Errorf("filter encode failed: %w", err)
 	}
 

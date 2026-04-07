@@ -264,13 +264,17 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		)
 	}
 
+	player := cb.Player()
 	var videoContainer fyne.CanvasObject
-	if cb.GetFilePath() != "" && cb.HasNativeMediaPlayer() {
-		videoContainer = cb.BuildVideoPane(fyne.NewSize(480, 270))
-		go cb.LoadVideoNative(cb.GetFilePath())
+	bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
+	bg.SetMinSize(fyne.NewSize(480, 270))
+	if cb.GetFilePath() != "" {
+		// The adapter is responsible for calling player.Load — the view just embeds
+		// the widget. This avoids re-triggering a load on every view rebuild.
+		videoContainer = container.NewMax(bg, player.Widget())
 	} else {
 		videoContainer = container.NewMax(
-			canvas.NewRectangle(utils.MustHex("#0F1529")),
+			bg,
 			container.NewCenter(widget.NewLabel("Load a video to preview")),
 		)
 	}
