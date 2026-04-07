@@ -39,6 +39,16 @@ var frCA = Strings{
 	ModulePlayer:      "Lecteur",
 	ModuleSettings:    "Paramètres",
 
+	SettingsShowTooltips: "Afficher les info-bulles",
+
+	// ── Tooltips ─────────────────────────────────────────────────────────
+	TooltipConvertFormat:  "Format vidéo de sortie (MP4, MKV, etc.)",
+	TooltipConvertQuality: "Préréglage de qualité vidéo (valeur CRF)",
+	TooltipConvertCodec:   "Codec vidéo (H.264, H.265, etc.)",
+	TooltipConvertAudio:   "Codec audio et paramètres",
+	TooltipConvertOutput:  "Emplacement du fichier de sortie",
+	TooltipConvertStart:   "Démarrer la conversion",
+
 	// ── Dialog Titles ───────────────────────────────────────────────────────
 	DialogCompare:            "Comparer les vidéos",
 	DialogInspect:            "Inspecter la vidéo",
