@@ -35,6 +35,7 @@ const (
 	CatDisc    Category = "[DISC]"
 	CatConvert Category = "[CONVERT]"
 	CatTrim    Category = "[TRIM]"
+	CatMerge   Category = "[MERGE]"
 )
 
 // Categories represents a log category
