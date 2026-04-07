@@ -2845,7 +2845,7 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 	job := &queue.Job{
 		Type:        queue.JobTypeAuthor,
 		Title:       fmt.Sprintf("Author DVD: %s", titleLabel),
-		Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(sanitizedOutputPath), 40)),
+		Description: fmt.Sprintf("%s: %s", map[bool]string{true: "ISO", false: "VIDEO_TS"}[makeISO], utils.ShortenMiddle(filepath.Base(sanitizedOutputPath), 40)),
 		InputFile:   paths[0],
 		OutputFile:  sanitizedOutputPath,
 		Config:      config,
