@@ -2683,6 +2683,10 @@ func resolveAV1Encoder(hardwareAccel string) (string, bool) {
 		if hasFFmpegEncoder("av1_amf") {
 			return "av1_amf", true
 		}
+	case "vaapi":
+		if hasFFmpegEncoder("av1_vaapi") {
+			return "av1_vaapi", true
+		}
 	}
 	if hasFFmpegEncoder("libsvtav1") {
 		return "libsvtav1", true
@@ -15058,20 +15062,10 @@ func determineVideoCodec(cfg convertConfig) string {
 	case "VP9":
 		return "libvpx-vp9"
 	case "AV1":
-		if accel == "amf" {
-			return "av1_amf"
-		} else if accel == "nvenc" {
-			return "av1_nvenc"
-		} else if accel == "qsv" {
-			return "av1_qsv"
-		} else if accel == "vaapi" {
-			return "av1_vaapi"
-		}
-		// Prefer libsvtav1 (orders of magnitude faster than libaom-av1)
-		if hasFFmpegEncoder("libsvtav1") {
-			return "libsvtav1"
-		}
-		return "libaom-av1"
+		// resolveAV1Encoder handles per-backend capability checks (e.g. av1_nvenc
+		// requires Ada Lovelace; a generic NVENC probe passing on Ampere is not enough).
+		enc, _ := resolveAV1Encoder(accel)
+		return enc
 	case "MPEG-2":
 		return "mpeg2video"
 	case "mpeg2video":
