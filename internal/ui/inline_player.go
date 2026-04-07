@@ -45,9 +45,17 @@ func (v *InlineVideoPlayer) SetOnEnd(fn func()) {
 }
 
 func NewInlineVideoPlayer() *InlineVideoPlayer {
-	return &InlineVideoPlayer{
+	v := &InlineVideoPlayer{
 		player: media.NewInlineVideoPlayer(),
 	}
+	// Wire the widget's built-in controls to this player by default.
+	// Modules that need custom logic (e.g. Trim) can overwrite via OnPlay/OnPause/OnSeek.
+	p := v.player
+	p.OnPlay(func() { v.Play() })
+	p.OnPause(func() { v.Pause() })
+	p.OnSeek(func(target float64) { v.Seek(target) })
+	p.OnSpeedChange(func(speed float64) { v.SetSpeed(speed) })
+	return v
 }
 
 func (v *InlineVideoPlayer) Widget() *media.VideoPlayer {
