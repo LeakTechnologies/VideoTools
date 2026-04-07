@@ -40,6 +40,7 @@ const (
 	CatAudio   Category = "[AUDIO]"
 	CatAuthor  Category = "[AUTHOR]"
 	CatRip     Category = "[RIP]"
+	CatBurn    Category = "[BURN]"
 )
 
 // Categories represents a log category

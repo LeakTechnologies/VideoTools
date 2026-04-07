@@ -146,6 +146,7 @@ func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressC
 	progressCallback(0.1)
 
 	if _, err := os.Stat(isoPath); err != nil {
+		logging.Error(logging.CatBurn, "ISO file not found: path=%s err=%v", isoPath, err)
 		return fmt.Errorf("ISO file not found: %s", isoPath)
 	}
 
@@ -156,17 +157,18 @@ func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressC
 	}
 
 	if err := burnISO(isoPath, drive, speed, eject, verify, burnProgress); err != nil {
+		logging.Error(logging.CatBurn, "burn failed: ISO=%s Drive=%s err=%v", isoPath, drive, err)
 		return fmt.Errorf("burn failed: %w", err)
 	}
 
 	// Verify if requested
 	if verify {
 		progressCallback(0.95)
-		logging.Info(logging.CatDisc, "Verifying burn...")
+		logging.Info(logging.CatBurn, "Verifying burn...")
 		// TODO: Implement read-back verification
 	}
 
 	progressCallback(1.0)
-	logging.Info(logging.CatDisc, "Burn completed successfully")
+	logging.Info(logging.CatBurn, "Burn completed successfully: ISO=%s Drive=%s", isoPath, drive)
 	return nil
 }
