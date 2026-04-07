@@ -1458,7 +1458,7 @@ type authorSubtitleTrack struct {
 
 func (s *appState) persistConvertConfig() {
 	if err := savePersistedConvertConfig(s.convert); err != nil {
-		logging.Debug(logging.CatSystem, "failed to persist convert config: %v", err)
+		logging.Error(logging.CatConvert, "failed to persist convert config: err=%v", err)
 	}
 }
 
@@ -2908,6 +2908,9 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 	logging.Debug(logging.CatModule, "found %d video files to process", len(videoPaths))
 
 	if len(videoPaths) == 0 {
+		if msg := dropMismatchMessage(items, moduleID); msg != "" {
+			ui.ShowToast(s.window, msg, ui.ToastWarning)
+		}
 		return
 	}
 
@@ -3160,6 +3163,110 @@ func (s *appState) isSubtitleFile(path string) bool {
 		}
 	}
 	return false
+}
+
+// dropFileType classifies a single file path into a broad category used to
+// produce format-mismatch notifications when files are dropped onto the wrong
+// module.
+type dropFileType int
+
+const (
+	dropTypeUnknown   dropFileType = iota
+	dropTypeVideo                  // regular video file
+	dropTypeAudio                  // audio-only file
+	dropTypeSubtitle               // subtitle / caption file
+	dropTypeDiscImage              // ISO, IMG, BIN/CUE, NRG, MDS/MDF
+	dropTypeDVDFile                // IFO, VOB, BUP — DVD structure files
+	dropTypeImage                  // JPEG, PNG, BMP, TIFF …
+	dropTypeDocument               // PDF, DOCX, TXT …
+)
+
+func classifyDropFile(path string) dropFileType {
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".iso", ".img", ".nrg", ".mdf", ".mds", ".bin", ".cue":
+		return dropTypeDiscImage
+	case ".ifo", ".vob", ".bup":
+		return dropTypeDVDFile
+	case ".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".webp", ".gif":
+		return dropTypeImage
+	case ".pdf", ".docx", ".doc", ".txt", ".rtf", ".odt", ".xlsx", ".csv":
+		return dropTypeDocument
+	case ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm",
+		".m4v", ".mpg", ".mpeg", ".3gp", ".ogv", ".ts", ".m2ts":
+		return dropTypeVideo
+	case ".mp3", ".flac", ".aac", ".opus", ".m4a", ".wav", ".ogg",
+		".wma", ".alac", ".ape":
+		return dropTypeAudio
+	case ".srt", ".vtt", ".ass", ".ssa", ".mks", ".sub":
+		return dropTypeSubtitle
+	}
+	return dropTypeUnknown
+}
+
+// dropMismatchMessage returns a human-readable warning when the supplied items
+// are a known type that doesn't belong in activeModule. Returns "" when the
+// type is correct or unknown (to avoid false positives on exotic extensions).
+func dropMismatchMessage(items []fyne.URI, activeModule string) string {
+	if len(items) == 0 {
+		return ""
+	}
+
+	var types []dropFileType
+	for _, uri := range items {
+		if uri.Scheme() != "file" {
+			continue
+		}
+		t := classifyDropFile(uri.Path())
+		if t != dropTypeUnknown {
+			types = append(types, t)
+		}
+	}
+	if len(types) == 0 {
+		return ""
+	}
+
+	first := types[0]
+	for _, t := range types[1:] {
+		if t != first {
+			return "" // mixed types — skip
+		}
+	}
+
+	switch first {
+	case dropTypeDiscImage:
+		switch activeModule {
+		case "convert", "merge", "trim", "upscale", "filters", "audio", "subtitles", "thumbnail":
+			return "Disc images can't be opened here. Use Rip to extract video from an ISO, or Burn to write one to disc."
+		}
+	case dropTypeDVDFile:
+		switch activeModule {
+		case "convert", "merge", "trim", "upscale", "filters", "audio", "subtitles", "thumbnail":
+			return "DVD structure files (.IFO/.VOB) belong in the Author or Rip module."
+		}
+	case dropTypeAudio:
+		switch activeModule {
+		case "convert", "merge", "trim", "upscale", "filters", "thumbnail":
+			return "That's an audio file. Drop it on the Audio module to extract or convert it."
+		}
+	case dropTypeSubtitle:
+		switch activeModule {
+		case "convert", "merge", "trim", "upscale", "filters", "audio", "thumbnail":
+			return "Subtitle files belong in the Subtitles module."
+		}
+	case dropTypeImage:
+		return "Image files aren't supported here. VideoTools works with video and audio files."
+	case dropTypeDocument:
+		return "That file type isn't supported by VideoTools."
+	case dropTypeVideo:
+		switch activeModule {
+		case "burn":
+			return "Burn only accepts disc images (.ISO). Convert your video to ISO via Author first."
+		case "rip":
+			return "Rip extracts from discs or disc images, not video files. Try Convert, Trim, or Merge."
+		}
+	}
+	return ""
 }
 
 func firstLocalDropPath(items []fyne.URI) string {
@@ -4713,7 +4820,9 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 	// Safety: refuse to overwrite the source file
 	if pathsAreSameFile(inputPath, outputPath) {
-		return fmt.Errorf("output path resolves to the same file as the input — refusing to overwrite source")
+		err := fmt.Errorf("output path resolves to the same file as the input — refusing to overwrite source")
+		logging.Error(logging.CatConvert, "convert job validation failed: input=%s output=%s err=%v", inputPath, outputPath, err)
+		return err
 	}
 
 	// Track success to clean up broken files on failure
@@ -7742,7 +7851,7 @@ func runGUI() {
 			state.convert.FrameRate = "Source"
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
-		logging.Debug(logging.CatSystem, "failed to load persisted convert config: %v", err)
+		logging.Error(logging.CatConvert, "failed to load persisted convert config: err=%v", err)
 	}
 
 	if prefs, err := loadPrefsConfig(); err == nil {
@@ -13841,11 +13950,12 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			if msg := dropMismatchMessage(items, "convert"); msg != "" {
+				ui.ShowToast(s.window, msg, ui.ToastWarning)
+			}
 			return
 		}
 
-		// Load all videos into memory (don't auto-queue)
-		// This allows users to adjust settings or generate snippets before manually queuing
 		logging.Debug(logging.CatUI, "video(s) dropped in convert module; loading %d into memory", len(videoPaths))
 		go s.loadMultipleVideos(videoPaths)
 		return
@@ -13876,6 +13986,9 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			if msg := dropMismatchMessage(items, "audio"); msg != "" {
+				ui.ShowToast(s.window, msg, ui.ToastWarning)
+			}
 			return
 		}
 
@@ -13934,6 +14047,9 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			if msg := dropMismatchMessage(items, "author"); msg != "" {
+				ui.ShowToast(s.window, msg, ui.ToastWarning)
+			}
 			return
 		}
 
@@ -13975,7 +14091,11 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			dialog.ShowInformation(t.DialogCompare, "No video files found in dropped items.", s.window)
+			msg := dropMismatchMessage(items, "compare")
+			if msg == "" {
+				msg = "No video files found in the dropped items."
+			}
+			ui.ShowToast(s.window, msg, ui.ToastWarning)
 			return
 		}
 
@@ -14066,7 +14186,11 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			dialog.ShowInformation(t.DialogInspect, "No video files found in dropped items.", s.window)
+			msg := dropMismatchMessage(items, "inspect")
+			if msg == "" {
+				msg = "No video files found in the dropped items."
+			}
+			ui.ShowToast(s.window, msg, ui.ToastWarning)
 			return
 		}
 
@@ -14138,7 +14262,11 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			dialog.ShowInformation(t.DialogThumbnail, "No video files found in dropped items.", s.window)
+			msg := dropMismatchMessage(items, "thumbnail")
+			if msg == "" {
+				msg = "No video files found in the dropped items."
+			}
+			ui.ShowToast(s.window, msg, ui.ToastWarning)
 			return
 		}
 
@@ -14162,7 +14290,11 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			dialog.ShowInformation(t.ModuleFilters, "No video files found in dropped items.", s.window)
+			msg := dropMismatchMessage(items, "filters")
+			if msg == "" {
+				msg = "No video files found in the dropped items."
+			}
+			ui.ShowToast(s.window, msg, ui.ToastWarning)
 			return
 		}
 
@@ -14201,7 +14333,11 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
-			dialog.ShowInformation(t.ModuleUpscale, "No video files found in dropped items.", s.window)
+			msg := dropMismatchMessage(items, "upscale")
+			if msg == "" {
+				msg = "No video files found in the dropped items."
+			}
+			ui.ShowToast(s.window, msg, ui.ToastWarning)
 			return
 		}
 
@@ -14248,6 +14384,9 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		if len(videoPaths) == 0 {
 			logging.Debug(logging.CatUI, "no valid video files in dropped items")
+			if msg := dropMismatchMessage(items, "merge"); msg != "" {
+				ui.ShowToast(s.window, msg, ui.ToastWarning)
+			}
 			return
 		}
 
@@ -14423,7 +14562,7 @@ func (s *appState) loadVideo(path string) {
 	logging.Info(logging.CatModule, "loadVideo: probing %s", path)
 	src, err := probeVideo(path)
 	if err != nil {
-		logging.Error(logging.CatFFMPEG, "ffprobe failed for %s: %v", path, err)
+		logging.Error(logging.CatConvert, "ffprobe failed: path=%s err=%v", path, err)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			s.showErrorWithCopy("Failed to Analyze Video", fmt.Errorf("failed to analyze %s: %w", filepath.Base(path), err))
 		}, false)
@@ -15618,7 +15757,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 
 		if err := cmd.Start(); err != nil {
 			close(progressQuit)
-			logging.Debug(logging.CatFFMPEG, "convert failed to start: %v", err)
+			logging.Error(logging.CatConvert, "convert failed to start: input=%s output=%s err=%v", src.Path, outPath, err)
 			_ = saveConvertRecovery(convertRecoveryState{
 				Active:    false,
 				StartedAt: recoveryStarted,
@@ -15663,7 +15802,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 				return
 			}
 			stderrOutput := strings.TrimSpace(stderr.String())
-			logging.Debug(logging.CatFFMPEG, "convert failed: %v stderr=%s", err, stderrOutput)
+			logging.Error(logging.CatConvert, "convert failed: input=%s output=%s err=%v stderr=%s", src.Path, outPath, err, stderrOutput)
 			if logFile != nil {
 				fmt.Fprintf(logFile, "\nStatus: failed at %s\nError: %v\nStderr:\n%s\n", time.Now().Format(time.RFC3339), err, stderrOutput)
 			}
@@ -15746,7 +15885,7 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			setStatus("Validating output")
 		}, false)
 		if _, probeErr := probeVideo(outPath); probeErr != nil {
-			logging.Debug(logging.CatFFMPEG, "convert probe failed: %v", probeErr)
+			logging.Error(logging.CatConvert, "convert probe failed: input=%s output=%s err=%v", src.Path, outPath, probeErr)
 			_ = saveConvertRecovery(convertRecoveryState{
 				Active:    false,
 				StartedAt: recoveryStarted,

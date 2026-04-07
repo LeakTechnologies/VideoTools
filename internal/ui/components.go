@@ -2125,3 +2125,64 @@ func (t *TrimTimeline) DragEnd() {
 	t.draggingOut = false
 	t.draggingPos = false
 }
+
+// ToastSeverity controls the accent colour of a toast notification.
+type ToastSeverity int
+
+const (
+	ToastInfo    ToastSeverity = iota // neutral blue-grey
+	ToastWarning                      // amber
+	ToastError                        // red
+)
+
+// ShowToast displays a non-blocking notification bar at the bottom of the
+// window canvas. It auto-dismisses after ~3.5 seconds. Safe to call from
+// any goroutine.
+func ShowToast(win fyne.Window, message string, severity ToastSeverity) {
+	if win == nil {
+		return
+	}
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		showToastOnMain(win, message, severity)
+	}, false)
+}
+
+func showToastOnMain(win fyne.Window, message string, severity ToastSeverity) {
+	var bg color.Color
+	switch severity {
+	case ToastWarning:
+		bg = color.NRGBA{R: 180, G: 110, B: 0, A: 230}
+	case ToastError:
+		bg = color.NRGBA{R: 160, G: 30, B: 30, A: 230}
+	default:
+		bg = color.NRGBA{R: 40, G: 50, B: 70, A: 230}
+	}
+
+	rect := canvas.NewRectangle(bg)
+	rect.CornerRadius = 8
+
+	lbl := canvas.NewText(message, color.White)
+	lbl.TextSize = 13
+	lbl.TextStyle = fyne.TextStyle{Monospace: true}
+	lbl.Alignment = fyne.TextAlignCenter
+
+	content := container.NewMax(rect, container.NewPadded(container.NewCenter(lbl)))
+
+	pop := widget.NewPopUp(content, win.Canvas())
+
+	// Size and position: full-width bar pinned 16px above the bottom edge.
+	winSize := win.Canvas().Size()
+	toastW := winSize.Width - 32
+	if toastW < 200 {
+		toastW = 200
+	}
+	toastH := float32(44)
+	pop.Resize(fyne.NewSize(toastW, toastH))
+	pop.Move(fyne.NewPos(16, winSize.Height-toastH-16))
+	pop.Show()
+
+	// Auto-dismiss.
+	time.AfterFunc(3500*time.Millisecond, func() {
+		fyne.CurrentApp().Driver().DoFromGoroutine(pop.Hide, false)
+	})
+}
