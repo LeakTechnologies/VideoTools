@@ -50,7 +50,7 @@ func NewInlineVideoPlayer() *InlineVideoPlayer {
 	}
 }
 
-func (v *InlineVideoPlayer) Widget() fyne.CanvasObject {
+func (v *InlineVideoPlayer) Widget() *media.VideoPlayer {
 	return v.player
 }
 

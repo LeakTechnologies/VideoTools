@@ -106,7 +106,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 
 	ts := &trimState{
 		inlinePlayer: opts.Player,
-		player:       opts.Player.Widget().(*media.VideoPlayer),
+		player:       opts.Player.Widget(),
 		resumeState:  resume,
 		mode:         "keep",
 		export:       "copy",
