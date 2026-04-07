@@ -14,6 +14,13 @@ type InspectState struct {
 	InspectInterlaceAnalyzing bool
 }
 
+type Chapter struct {
+	Index     int
+	StartTime float64
+	EndTime   float64
+	Title     string
+}
+
 type ViewCallbacks interface {
 	Window() fyne.Window
 	ShowMainMenu()
@@ -36,6 +43,8 @@ type ViewCallbacks interface {
 	GetPixelFormat() string
 	GetColorSpace() string
 	GetColorRange() string
+	GetColorTransfer() string
+	GetColorPrimaries() string
 	GetFieldOrder() string
 	GetGOPSize() int
 	GetAudioCodec() string
@@ -45,6 +54,9 @@ type ViewCallbacks interface {
 	GetDuration() string
 	GetSampleAspect() string
 	GetHasChapters() bool
+	GetChapters() []Chapter
+	GetEmbeddedCoverArt() string
+	SaveMetadata(title, author, description string) error
 	GetHasMetadata() bool
 	GetTitle() string
 	GetPreviewFrame() string

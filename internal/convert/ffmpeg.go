@@ -112,8 +112,17 @@ func ProbeVideo(path string) (*VideoSource, error) {
 			BitRate    string                 `json:"bit_rate"`
 			Tags       map[string]interface{} `json:"tags"`
 		} `json:"format"`
-		Chapters []interface{} `json:"chapters"`
-		Streams  []struct {
+		Chapters []struct {
+			ID        int    `json:"id"`
+			TimeBase  string `json:"time_base"`
+			Start     int    `json:"start"`
+			StartTime string `json:"start_time"`
+			EndTime   string `json:"end_time"`
+			Tags      struct {
+				Title string `json:"title"`
+			} `json:"tags"`
+		} `json:"chapters"`
+		Streams []struct {
 			Index           int    `json:"index"`
 			CodecType       string `json:"codec_type"`
 			CodecName       string `json:"codec_name"`
@@ -164,6 +173,35 @@ func ProbeVideo(path string) (*VideoSource, error) {
 
 	// Check for chapters
 	src.HasChapters = len(result.Chapters) > 0
+	if src.HasChapters {
+		src.Chapters = make([]Chapter, 0, len(result.Chapters))
+		duration := src.Duration
+		for _, ch := range result.Chapters {
+			startTime := 0.0
+			endTime := 0.0
+
+			if st, err := utils.ParseFloat(ch.StartTime); err == nil {
+				startTime = st
+			}
+			if st, err := utils.ParseFloat(ch.EndTime); err == nil {
+				endTime = st
+			} else if duration > 0 {
+				endTime = duration
+			}
+
+			title := ch.Tags.Title
+			if title == "" {
+				title = fmt.Sprintf("Chapter %d", ch.ID)
+			}
+
+			src.Chapters = append(src.Chapters, Chapter{
+				Index:     ch.ID,
+				StartTime: startTime,
+				EndTime:   endTime,
+				Title:     title,
+			})
+		}
+	}
 
 	// Check for metadata (title, artist, copyright, etc.)
 	if result.Format.Tags != nil && len(result.Format.Tags) > 0 {

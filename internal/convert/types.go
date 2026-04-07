@@ -67,6 +67,14 @@ func (c ConvertConfig) CoverLabel() string {
 	return filepath.Base(c.CoverArtPath)
 }
 
+// Chapter represents a single chapter in a video file
+type Chapter struct {
+	Index     int
+	StartTime float64
+	EndTime   float64
+	Title     string
+}
+
 // VideoSource represents metadata about a video file
 type VideoSource struct {
 	Path             string
@@ -86,6 +94,9 @@ type VideoSource struct {
 	FieldOrder       string
 	PreviewFrames    []string
 	EmbeddedCoverArt string // Path to extracted embedded cover art, if any
+
+	// Chapters
+	Chapters []Chapter // Parsed chapter information
 
 	// Advanced metadata
 	SampleAspectRatio string // Pixel Aspect Ratio (SAR) - e.g., "1:1", "40:33"

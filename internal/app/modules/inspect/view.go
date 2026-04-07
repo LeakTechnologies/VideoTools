@@ -3,11 +3,14 @@
 package inspect
 
 import (
+	"encoding/json"
 	"fmt"
 	"image/color"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -20,6 +23,21 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
+
+func copyFile(src, dst string) error {
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer srcFile.Close()
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+	_, err = io.Copy(dstFile, srcFile)
+	return err
+}
 
 const ModuleColor = "#4CAF50"
 
@@ -132,6 +150,8 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		pixelFmt := cb.GetPixelFormat()
 		colorSpace := cb.GetColorSpace()
 		colorRange := cb.GetColorRange()
+		colorTransfer := cb.GetColorTransfer()
+		colorPrimaries := cb.GetColorPrimaries()
 		fieldOrder := cb.GetFieldOrder()
 		gopSize := cb.GetGOPSize()
 		audioCodec := cb.GetAudioCodec()
@@ -170,6 +190,26 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			colorRange = "Full (PC)"
 		}
 
+		colorTransferStr := colorTransfer
+		if colorTransferStr == "smpte2084" {
+			colorTransferStr = "PQ (HDR10)"
+		} else if colorTransferStr == "bt1886" {
+			colorTransferStr = "Rec. 1886"
+		} else if colorTransferStr == "hlg" {
+			colorTransferStr = "HLG (HDR)"
+		} else if colorTransferStr == "arib-std-b67" {
+			colorTransferStr = "HLG (ARIB)"
+		}
+
+		colorPrimariesStr := colorPrimaries
+		if colorPrimariesStr == "bt2020" {
+			colorPrimariesStr = "Rec. 2020"
+		} else if colorPrimariesStr == "bt709" {
+			colorPrimariesStr = "Rec. 709"
+		} else if colorPrimariesStr == "bt601" {
+			colorPrimariesStr = "Rec. 601"
+		}
+
 		interlacing := "Progressive"
 		if fieldOrder != "" && fieldOrder != "progressive" && fieldOrder != "unknown" && fieldOrder != "Unknown" {
 			interlacing = "Interlaced (" + fieldOrder + ")"
@@ -203,6 +243,8 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			makeRow("Interlacing", makeValuePill(interlacing)),
 			makeRow("Color Space", makeValuePill(colorSpace)),
 			makeRow("Color Range", makeValuePill(colorRange)),
+			makeRow("Color Transfer", makeValuePill(colorTransferStr)),
+			makeRow("Color Primaries", makeValuePill(colorPrimariesStr)),
 			makeRow("GOP Size", makeValuePill(gopStr)),
 			makeRow("File Size", makeValuePill(fileSize)),
 		}
@@ -334,13 +376,176 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 
 	actionButtons := container.NewHBox(loadBtn, copyBtn, viewLogBtn, clearBtn)
 
+	editMetaBtn := widget.NewButton("Edit Metadata", func() {
+		currentTitle := cb.GetTitle()
+		currentAuthor := ""
+		currentDesc := ""
+		if cb.GetFilePath() != "" {
+			if src := cb.GetFilePath(); src != "" {
+				if m := cb.GetFilePath(); m != "" {
+				}
+			}
+		}
+
+		titleEntry := widget.NewEntry()
+		titleEntry.SetText(currentTitle)
+		authorEntry := widget.NewEntry()
+		authorEntry.SetText(currentAuthor)
+		descEntry := widget.NewMultiLineEntry()
+		descEntry.SetText(currentDesc)
+
+		form := dialog.NewForm("Edit Metadata", "Save", "Cancel",
+			[]*widget.FormItem{
+				widget.NewFormItem("Title", titleEntry),
+				widget.NewFormItem("Author", authorEntry),
+				widget.NewFormItem("Description", descEntry),
+			},
+			func(confirmed bool) {
+				if !confirmed {
+					return
+				}
+				go func() {
+					err := cb.SaveMetadata(titleEntry.Text, authorEntry.Text, descEntry.Text)
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						if err != nil {
+							dialog.ShowError(fmt.Errorf("failed to save metadata: %w", err), cb.Window())
+						} else {
+							dialog.ShowInformation("Metadata Saved", "Metadata updated successfully", cb.Window())
+							cb.ShowInspectView()
+						}
+					}, false)
+				}()
+			}, cb.Window())
+		form.Show()
+	})
+	editMetaBtn.Importance = widget.LowImportance
+	actionButtons = container.NewHBox(loadBtn, editMetaBtn, copyBtn, viewLogBtn, clearBtn)
+
+	if coverPath := cb.GetEmbeddedCoverArt(); coverPath != "" {
+		exportCoverBtn := widget.NewButton("Export Cover", func() {
+			dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
+				if err != nil || writer == nil {
+					return
+				}
+				destPath := writer.URI().Path()
+				writer.Close()
+				if err := copyFile(coverPath, destPath); err != nil {
+					dialog.ShowError(fmt.Errorf("failed to export cover: %w", err), cb.Window())
+				} else {
+					dialog.ShowInformation("Cover Exported", fmt.Sprintf("Saved to: %s", destPath), cb.Window())
+				}
+			}, cb.Window())
+		})
+		exportCoverBtn.Importance = widget.LowImportance
+		actionButtons = container.NewHBox(loadBtn, copyBtn, exportCoverBtn, viewLogBtn, clearBtn)
+	}
+
+	exportJSONBtn := widget.NewButton("Export JSON", func() {
+		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
+			if err != nil || writer == nil {
+				return
+			}
+			destPath := writer.URI().Path()
+			writer.Close()
+
+			jsonData := map[string]interface{}{
+				"file":   cb.GetFilePath(),
+				"format": cb.GetFormat(),
+				"video": map[string]interface{}{
+					"codec":          cb.GetVideoCodec(),
+					"width":          cb.GetWidth(),
+					"height":         cb.GetHeight(),
+					"frameRate":      cb.GetFrameRate(),
+					"bitrate":        cb.GetBitrate(),
+					"pixelFmt":       cb.GetPixelFormat(),
+					"colorSpace":     cb.GetColorSpace(),
+					"colorRange":     cb.GetColorRange(),
+					"colorTransfer":  cb.GetColorTransfer(),
+					"colorPrimaries": cb.GetColorPrimaries(),
+				},
+				"audio": map[string]interface{}{
+					"codec":    cb.GetAudioCodec(),
+					"bitrate":  cb.GetAudioBitrate(),
+					"rate":     cb.GetAudioRate(),
+					"channels": cb.GetChannels(),
+				},
+				"chapters": cb.GetChapters(),
+				"metadata": map[string]string{
+					"title": cb.GetTitle(),
+				},
+			}
+			jsonBytes, err := json.MarshalIndent(jsonData, "", "  ")
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to create JSON: %w", err), cb.Window())
+				return
+			}
+			if err := os.WriteFile(destPath, jsonBytes, 0644); err != nil {
+				dialog.ShowError(fmt.Errorf("failed to save JSON: %w", err), cb.Window())
+			} else {
+				dialog.ShowInformation("JSON Exported", fmt.Sprintf("Saved to: %s", destPath), cb.Window())
+			}
+		}, cb.Window())
+	})
+	exportJSONBtn.Importance = widget.LowImportance
+	if coverPath := cb.GetEmbeddedCoverArt(); coverPath != "" {
+		exportCoverBtn := widget.NewButton("Export Cover", func() {
+			dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
+				if err != nil || writer == nil {
+					return
+				}
+				destPath := writer.URI().Path()
+				writer.Close()
+				if err := copyFile(coverPath, destPath); err != nil {
+					dialog.ShowError(fmt.Errorf("failed to export cover: %w", err), cb.Window())
+				} else {
+					dialog.ShowInformation("Cover Exported", fmt.Sprintf("Saved to: %s", destPath), cb.Window())
+				}
+			}, cb.Window())
+		})
+		exportCoverBtn.Importance = widget.LowImportance
+		actionButtons = container.NewHBox(loadBtn, copyBtn, exportJSONBtn, exportCoverBtn, viewLogBtn, clearBtn)
+	} else {
+		actionButtons = container.NewHBox(loadBtn, copyBtn, exportJSONBtn, viewLogBtn, clearBtn)
+	}
+
 	leftColumn := container.NewBorder(
 		fileLabel,
 		nil, nil, nil,
 		videoContainer,
 	)
 
-	rightColumn := buildInspectBox("Metadata", container.NewScroll(metadataGrid))
+	chaptersTab := container.NewVBox()
+	if hasChapters := cb.GetHasChapters(); hasChapters {
+		chapters := cb.GetChapters()
+		if len(chapters) > 0 {
+			for _, ch := range chapters {
+				startDur := time.Duration(ch.StartTime * float64(time.Second))
+				endDur := time.Duration(ch.EndTime * float64(time.Second))
+				row := container.NewHBox(
+					widget.NewLabel(fmt.Sprintf("%d", ch.Index)),
+					widget.NewLabel(ch.Title),
+					layout.NewSpacer(),
+					widget.NewLabel(startDur.String()),
+					widget.NewLabel(" → "),
+					widget.NewLabel(endDur.String()),
+				)
+				chaptersTab.Add(row)
+			}
+		}
+	} else {
+		chaptersTab.Add(widget.NewLabel("No chapters"))
+	}
+
+	metadataTabContent := container.NewScroll(metadataGrid)
+	chaptersTabContent := container.NewScroll(chaptersTab)
+
+	tabContainer := container.NewAppTabs(
+		container.NewTabItem("Metadata", metadataTabContent),
+		container.NewTabItem("Chapters", chaptersTabContent),
+	)
+	tabContainer.SetTabLocation(container.TabLocationTop)
+
+	rightColumn := buildInspectBox("Information", tabContainer)
 
 	content := container.NewBorder(
 		container.NewVBox(instructionsRow, actionButtons, widget.NewSeparator()),
@@ -350,4 +555,3 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
-
