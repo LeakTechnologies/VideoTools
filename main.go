@@ -3939,20 +3939,25 @@ func (s *appState) showMergeView() {
 			for i, c := range s.mergeClips {
 				idx := i
 				name := filepath.Base(c.Path)
-				label := widget.NewLabel(utils.ShortenMiddle(name, 50))
+				durStr := ""
+				if c.Duration > 0 {
+					d := time.Duration(c.Duration * float64(time.Second))
+					durStr = fmt.Sprintf(" [%02d:%02d:%02d]", int(d.Hours()), int(d.Minutes())%60, int(d.Seconds())%60)
+				}
+				label := widget.NewLabel(utils.ShortenMiddle(name, 40) + durStr)
 				chEntry := widget.NewEntry()
 				chEntry.SetText(c.Chapter)
 				chEntry.SetPlaceHolder(fmt.Sprintf("Part %d", i+1))
 				chEntry.OnChanged = func(val string) {
 					s.mergeClips[idx].Chapter = val
 				}
-				upBtn := widget.NewButton("", func() {
+				upBtn := widget.NewButton("↑", func() {
 					if idx > 0 {
 						s.mergeClips[idx-1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx-1]
 						buildList()
 					}
 				})
-				downBtn := widget.NewButton("", func() {
+				downBtn := widget.NewButton("↓", func() {
 					if idx < len(s.mergeClips)-1 {
 						s.mergeClips[idx+1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx+1]
 						buildList()
@@ -3987,25 +3992,48 @@ func (s *appState) showMergeView() {
 	}
 
 	addFiles = func(paths []string) {
+		// Filter to video files only before probing.
+		var videoPaths []string
 		for _, p := range paths {
-			src, err := probeVideo(p)
-			if err != nil {
-				dialog.ShowError(fmt.Errorf("failed to probe %s: %w", p, err), s.window)
-				continue
+			if s.isVideoFile(p) {
+				videoPaths = append(videoPaths, p)
+			} else if msg := dropMismatchMessage([]fyne.URI{storage.NewFileURI(p)}, "merge"); msg != "" {
+				ui.ShowToast(s.window, msg, ui.ToastWarning)
+				return
 			}
-			s.mergeClips = append(s.mergeClips, mergeClip{
-				Path:     p,
-				Chapter:  strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)),
-				Duration: src.Duration,
-			})
 		}
-		if len(s.mergeClips) >= 2 && s.mergeOutputDir == "" {
-			s.mergeOutputDir = filepath.Dir(s.mergeClips[0].Path)
+		if len(videoPaths) == 0 {
+			return
 		}
-		if len(s.mergeClips) >= 2 && s.mergeOutputFilename == "" {
-			s.mergeOutputFilename = "merged.mkv"
-		}
-		buildList()
+
+		// Probe off the main thread — probeVideo runs ffprobe and must not block UI.
+		go func() {
+			var added []mergeClip
+			for _, p := range videoPaths {
+				src, err := probeVideo(p)
+				if err != nil {
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						dialog.ShowError(fmt.Errorf("failed to probe %s: %w", filepath.Base(p), err), s.window)
+					}, false)
+					continue
+				}
+				added = append(added, mergeClip{
+					Path:     p,
+					Chapter:  strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)),
+					Duration: src.Duration,
+				})
+			}
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.mergeClips = append(s.mergeClips, added...)
+				if len(s.mergeClips) >= 2 && s.mergeOutputDir == "" {
+					s.mergeOutputDir = filepath.Dir(s.mergeClips[0].Path)
+				}
+				if len(s.mergeClips) >= 2 && s.mergeOutputFilename == "" {
+					s.mergeOutputFilename = "merged.mkv"
+				}
+				buildList()
+			}, false)
+		}()
 	}
 
 	addBtn := widget.NewButton("Add Files", func() {
@@ -4217,7 +4245,7 @@ func (s *appState) showMergeView() {
 			dialog.ShowError(err, s.window)
 			return
 		}
-		dialog.ShowInformation(t.DialogQueued, "Merge job added to queue.", s.window)
+		ui.ShowToast(s.window, "Merge job added to queue.", ui.ToastInfo)
 		if s.jobQueue != nil && !s.jobQueue.IsRunning() {
 			s.jobQueue.Start()
 		}
@@ -4230,7 +4258,7 @@ func (s *appState) showMergeView() {
 		if s.jobQueue != nil && !s.jobQueue.IsRunning() {
 			s.jobQueue.Start()
 		}
-		dialog.ShowInformation(t.DialogMerge, t.MergeStarted, s.window)
+		ui.ShowToast(s.window, t.MergeStarted, ui.ToastInfo)
 	})
 	if len(s.mergeClips) < 2 {
 		addQueueBtn.Disable()
@@ -16422,7 +16450,7 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		os.RemoveAll(dir)
-		logging.Info(logging.CatFFMPEG, "preview capture failed for %s: %v — %s", filepath.Base(path), err, strings.TrimSpace(string(out)))
+		logging.Error(logging.CatConvert, "preview capture failed: path=%s duration=%.1f err=%v output=%s", path, duration, err, strings.TrimSpace(string(out)))
 		return nil, fmt.Errorf("preview capture failed: %w", err)
 	}
 	files, err := filepath.Glob(filepath.Join(dir, "frame-*.png"))
