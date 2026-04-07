@@ -62,6 +62,35 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Stabilization** — Reduce shakiness in handheld 360° footage
 - [ ] **Format conversion** — Equirect ↔ Cubemap, fisheye de-warp
 
+### Module Pipeline (`&&` feature) — DESIGNED, NOT YET BUILT
+
+Two-module chains where the output of Step 1 is automatically fed into Step 2,
+with the intermediate file cleaned up on success (unless the user opts to keep it).
+
+**Design decisions (finalised):**
+- Limit to exactly two modules — no A → B → C chains.
+- "Keep intermediate files" lives in **Settings → Preferences** (persistent, default off).
+  - Only delete the intermediate if Step 2 succeeded AND the file is not the original source.
+  - If Step 2 fails, keep the intermediate and notify the user.
+- After queuing Step 1, **auto-return** to main menu in "Step 2 pick" state.
+- Valid second steps: Convert, Trim, Upscale, Thumbnail, Filters, Audio, Subtitles.
+  - Rip, Burn, Author, Inspect are excluded (no single-file video output).
+- Module tiles for **invalid Step 2 targets are dimmed** when in "pick Step 2" state.
+- Pre-configure both steps upfront (Step 1 output path is known before it runs).
+  - `PipelineAfter string` — job ID of the preceding job; Step 2 stays blocked until Step 1 completes successfully.
+  - `PipelineDeleteOnSuccess string` — absolute path of the intermediate file to remove after Step 2 succeeds.
+- Queue runner: on Step 1 success, un-block and auto-start Step 2.
+  On Step 2 success, delete the intermediate (unless preference is "keep").
+
+**What needs to be built:**
+- [ ] `pipelineActive` state machine on `appState` (off / waiting-step1 / waiting-step2)
+- [ ] `&&` button in main menu header, visually reflects state (off / glowing / showing "A → ?")
+- [ ] Module tile dimming for invalid Step 2 targets
+- [ ] `PipelineAfter` + `PipelineDeleteOnSuccess` fields on `queue.Job`
+- [ ] Queue runner: chain execution + intermediate file deletion
+- [ ] "Keep intermediate files" toggle in Settings → Preferences
+- [ ] Each module's "Add to Queue" checks `state.pipelineActive` and links jobs
+
 ### UI Improvements
 - [x] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
   - [x] When format selected, filter codec/audio options to compatible only

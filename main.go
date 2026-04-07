@@ -3134,7 +3134,11 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 // isVideoFile checks if a file has a video extension
 func (s *appState) isVideoFile(path string) bool {
 	ext := strings.ToLower(filepath.Ext(path))
-	videoExts := []string{".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg", ".3gp", ".ogv"}
+	videoExts := []string{
+		".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm",
+		".m4v", ".mpg", ".mpeg", ".3gp", ".ogv",
+		".ts", ".m2ts", ".vob", // MPEG-2 transport streams and DVD video
+	}
 	for _, videoExt := range videoExts {
 		if ext == videoExt {
 			return true
