@@ -122,9 +122,11 @@ var (
 	nvencProbeOK        *bool // nil = not yet probed or last probe failed; non-nil = confirmed available
 	av1NvencProbeOK     *bool // separate: av1_nvenc requires Ada Lovelace (RTX 40xx+); Ampere fails
 	qsvProbeOK          *bool
+	av1QsvProbeOK       *bool // separate: av1_qsv requires Arc/Meteor Lake; older iGPUs fail
 	vaapiProbeOK        *bool
 	videotoolboxProbeOK *bool
 	amfProbeOK          *bool
+	av1AmfProbeOK       *bool // separate: av1_amf requires RDNA 3 (RX 7000+); RDNA 2 fails
 
 	// 14-step HSL spectrum: H steps ~25.7° from VT_Purple (H=267°).
 	// S=70% throughout; L is reduced for bright hues (yellow/green) so white
@@ -621,6 +623,30 @@ func checkQsvRuntime() bool {
 		"-preset", "veryfast",
 		"-f", "null", "-",
 	}, "qsv")
+}
+
+// checkAV1QsvRuntime probes av1_qsv specifically.
+// av1_qsv requires Intel Arc or Meteor Lake iGPU; older iGPUs pass the h264_qsv
+// probe but fail at runtime for AV1.
+func checkAV1QsvRuntime() bool {
+	return probeHWAccel(&av1QsvProbeOK, []string{
+		"-hide_banner", "-loglevel", "error",
+		"-f", "lavfi", "-i", hwProbeSource,
+		"-frames:v", "1", "-c:v", "av1_qsv",
+		"-f", "null", "-",
+	}, "av1_qsv")
+}
+
+// checkAV1AmfRuntime probes av1_amf specifically.
+// av1_amf requires RDNA 3 (RX 7000+); RDNA 2 passes the h264_amf probe but
+// fails at runtime for AV1.
+func checkAV1AmfRuntime() bool {
+	return probeHWAccel(&av1AmfProbeOK, []string{
+		"-hide_banner", "-loglevel", "error",
+		"-f", "lavfi", "-i", hwProbeSource,
+		"-frames:v", "1", "-c:v", "av1_amf",
+		"-f", "null", "-",
+	}, "av1_amf")
 }
 
 // checkVaapiRuntime does a real encode probe to verify VAAPI (Linux) is working.
@@ -2676,11 +2702,13 @@ func resolveAV1Encoder(hardwareAccel string) (string, bool) {
 			return "av1_nvenc", true
 		}
 	case "qsv":
-		if hasFFmpegEncoder("av1_qsv") {
+		// av1_qsv requires Arc/Meteor Lake; older iGPUs pass the h264_qsv probe but fail for AV1.
+		if checkAV1QsvRuntime() {
 			return "av1_qsv", true
 		}
 	case "amf":
-		if hasFFmpegEncoder("av1_amf") {
+		// av1_amf requires RDNA 3 (RX 7000+); RDNA 2 passes h264_amf but fails for AV1.
+		if checkAV1AmfRuntime() {
 			return "av1_amf", true
 		}
 	case "vaapi":
