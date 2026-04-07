@@ -34,6 +34,7 @@ const (
 	CatDVD     Category = "[DVD]"
 	CatDisc    Category = "[DISC]"
 	CatConvert Category = "[CONVERT]"
+	CatTrim    Category = "[TRIM]"
 )
 
 // Categories represents a log category

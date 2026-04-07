@@ -4,7 +4,6 @@ package trim
 
 import (
 	"fmt"
-	"image"
 	"image/color"
 	"path/filepath"
 	"strings"
@@ -29,6 +28,7 @@ type Options struct {
 	Window         fyne.Window
 	ModuleColor    color.Color
 	StatsBar       fyne.CanvasObject
+	Player         *ui.InlineVideoPlayer // shared player singleton from the host app
 	OnShowMainMenu func()
 	OnShowQueue    func()
 	OnAddToQueue   func(clip TrimClip)
@@ -46,17 +46,19 @@ type TrimClip struct {
 }
 
 type trimState struct {
-	engine      *media.Engine
-	player      *media.VideoPlayer
-	resumeState *state.ResumeState
-	keyCapture  *keyboardCapture
+	inlinePlayer *ui.InlineVideoPlayer // API layer — never touch the engine directly
+	player       *media.VideoPlayer    // display widget, sourced from inlinePlayer.Widget()
+	resumeState  *state.ResumeState
+	keyCapture   *keyboardCapture
 
 	videoPath string
 	inPoint   time.Duration
 	outPoint  time.Duration
 
-	currentTime float64
-	duration    float64
+	currentTime    float64
+	duration       float64
+	previewActive  bool      // true while preview-region playback is running
+	lastSave       time.Time // throttles resume-position writes
 
 	mode   string // "keep" or "cut"
 	export string // "copy" or "reencode"
@@ -99,39 +101,41 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 
 	resume, err := state.NewResumeState("")
 	if err != nil {
-		logging.Warning(logging.CatPlayer, "Failed to init resume state: %v", err)
+		logging.Warning(logging.CatTrim, "Failed to init resume state: %v", err)
 	}
 
 	ts := &trimState{
-		player:      media.NewVideoPlayer(),
-		resumeState: resume,
-		mode:        "keep",
-		export:      "copy",
+		inlinePlayer: opts.Player,
+		player:       opts.Player.Widget().(*media.VideoPlayer),
+		resumeState:  resume,
+		mode:         "keep",
+		export:       "copy",
 	}
 
+	// Wire built-in player widget controls through InlineVideoPlayer so the
+	// engine is never touched directly from the trim module.
 	ts.player.OnPlay(func() {
-		if ts.engine != nil {
-			ts.engine.Start()
-			go ts.playbackLoop()
+		if ts.videoPath != "" {
+			ts.inlinePlayer.Play()
 		}
 	})
 
 	ts.player.OnPause(func() {
-		if ts.engine != nil {
-			ts.engine.Pause()
+		if ts.videoPath != "" {
+			ts.inlinePlayer.Pause()
 		}
 	})
 
 	ts.player.OnSeek(func(target float64) {
-		if ts.engine != nil {
-			ts.engine.Seek(target)
+		if ts.videoPath != "" {
+			ts.inlinePlayer.ScrubTo(target)
 			ts.currentTime = target
 		}
 	})
 
 	ts.player.OnSpeedChange(func(speed float64) {
-		if ts.engine != nil {
-			ts.engine.SetSpeed(speed)
+		if ts.videoPath != "" {
+			ts.inlinePlayer.SetSpeed(speed)
 		}
 	})
 
@@ -139,7 +143,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	ts.keyCapture = &keyboardCapture{}
 	ts.keyCapture.ExtendBaseWidget(ts.keyCapture)
 	ts.keyCapture.SetOnKey(func(event *fyne.KeyEvent) {
-		if ts.engine == nil || ts.videoPath == "" {
+		if ts.videoPath == "" {
 			return
 		}
 
@@ -200,25 +204,14 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 
 	// Frame stepping
 	stepBackBtn := widget.NewButton("<", func() {
-		if ts.engine != nil {
-			target := ts.currentTime - 0.033
-			if target < 0 {
-				target = 0
-			}
-			ts.engine.Seek(target)
-			if img, err := ts.engine.NextFrame(); err == nil {
-				ts.player.SetFrame(img)
-				ts.currentTime = target
-				ts.player.SetCurrentTime(target)
-			}
+		if ts.videoPath != "" {
+			ts.stepFrame(-1)
 		}
 	})
 
 	stepFwdBtn := widget.NewButton(">", func() {
-		if ts.engine != nil {
-			if img, err := ts.engine.Step(1); err == nil {
-				ts.player.SetFrame(img)
-			}
+		if ts.videoPath != "" {
+			ts.stepFrame(1)
 		}
 	})
 
@@ -347,8 +340,8 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	}
 	ts.timeline.OnPositionChange = func(pos float64) {
 		ts.currentTime = pos
-		if ts.engine != nil {
-			ts.engine.Seek(pos)
+		if ts.videoPath != "" {
+			ts.inlinePlayer.ScrubTo(pos)
 		}
 		if ts.player != nil {
 			ts.player.SetCurrentTime(pos)
@@ -416,7 +409,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 }
 
 func (s *trimState) setInPoint() {
-	if s.engine == nil || s.videoPath == "" {
+	if s.videoPath == "" {
 		return
 	}
 	s.inPoint = time.Duration(s.currentTime * float64(time.Second))
@@ -430,7 +423,7 @@ func (s *trimState) setInPoint() {
 }
 
 func (s *trimState) setOutPoint() {
-	if s.engine == nil || s.videoPath == "" {
+	if s.videoPath == "" {
 		return
 	}
 	s.outPoint = time.Duration(s.currentTime * float64(time.Second))
@@ -444,7 +437,7 @@ func (s *trimState) setOutPoint() {
 }
 
 func (s *trimState) clearPoints() {
-	if s.engine == nil {
+	if s.videoPath == "" {
 		return
 	}
 	s.inPoint = 0
@@ -484,18 +477,15 @@ func (s *trimState) doAddToQueue(opts Options) {
 }
 
 func (s *trimState) stepFrame(dir int) {
-	if s.engine == nil {
+	if s.videoPath == "" {
 		return
 	}
-	if img, err := s.engine.Step(dir); err == nil {
-		s.player.SetFrame(img)
-		s.currentTime = s.engine.CurrentTime()
-		s.player.SetCurrentTime(s.currentTime)
-	}
+	s.inlinePlayer.StepFrame(dir)
+	s.currentTime = s.inlinePlayer.CurrentTime()
 }
 
 func (s *trimState) seekRelative(seconds float64) {
-	if s.engine == nil {
+	if s.videoPath == "" {
 		return
 	}
 	target := s.currentTime + seconds
@@ -505,83 +495,28 @@ func (s *trimState) seekRelative(seconds float64) {
 	if target > s.duration {
 		target = s.duration
 	}
-	s.engine.Seek(target)
-	if img, err := s.engine.NextFrame(); err == nil {
-		s.player.SetFrame(img)
-		s.currentTime = target
-		s.player.SetCurrentTime(s.currentTime)
-	}
+	s.inlinePlayer.Seek(target)
+	s.currentTime = target
 }
 
 func (s *trimState) togglePlayPause() {
-	if s.engine == nil {
+	if s.videoPath == "" {
 		return
 	}
 	if s.player != nil && s.player.IsPlaying() {
-		s.engine.Pause()
+		s.inlinePlayer.Pause()
 	} else {
-		s.engine.Start()
-		go s.playbackLoop()
+		s.inlinePlayer.Play()
 	}
 }
 
 func (s *trimState) previewTrimRegion() {
-	if s.engine == nil || s.videoPath == "" {
+	if s.videoPath == "" || s.outPoint <= s.inPoint {
 		return
 	}
-	if s.outPoint <= s.inPoint {
-		return
-	}
-
-	// Seek to in point
-	inSec := s.inPoint.Seconds()
-	s.engine.Seek(inSec)
-	if img, err := s.engine.NextFrame(); err == nil {
-		s.player.SetFrame(img)
-		s.currentTime = inSec
-		s.player.SetCurrentTime(inSec)
-	}
-
-	// Start preview playback
-	s.engine.Start()
-	s.player.SetPlaying(true)
-	go s.previewPlaybackLoop()
-}
-
-func (s *trimState) previewPlaybackLoop() {
-	defer logging.RecoverPanic()
-
-	outSec := s.outPoint.Seconds()
-
-	for {
-		if s.engine == nil {
-			return
-		}
-
-		img, err := s.engine.NextFrame()
-		if err != nil {
-			s.player.SetPlaying(false)
-			return
-		}
-
-		s.player.SetFrame(img)
-		s.currentTime = s.engine.CurrentTime()
-		s.player.SetCurrentTime(s.currentTime)
-
-		// Stop at out point
-		if s.currentTime >= outSec {
-			s.engine.Pause()
-			s.player.SetPlaying(false)
-			return
-		}
-
-		// Also stop if manually paused
-		if !s.player.IsPlaying() {
-			return
-		}
-
-		time.Sleep(16 * time.Millisecond)
-	}
+	s.previewActive = true
+	s.inlinePlayer.Seek(s.inPoint.Seconds())
+	s.inlinePlayer.Play()
 }
 
 func (s *trimState) loadVideo(path string) {
@@ -591,118 +526,80 @@ func (s *trimState) loadVideo(path string) {
 
 	s.player.ClearError()
 	s.player.SetLoading(true)
-	s.engine = media.NewEngine()
-	s.engine.SetSeekAccuracy(media.SeekAccuracyKeyframe)
-	s.engine.SetDropFrames(true)
+	s.previewActive = false
 
-	logging.Info(logging.CatPlayer, "Trim loadVideo: opening %s", path)
-	if err := s.engine.Open(path); err != nil {
-		logging.Error(logging.CatPlayer, "Trim loadVideo: failed to open %s: %v", path, err)
-		s.player.SetLoading(false)
+	logging.Info(logging.CatTrim, "loadVideo: opening %s", path)
+	if err := s.inlinePlayer.Load(path); err != nil {
+		// InlineVideoPlayer.Load already logs and shows a toast; just reflect in widget.
+		logging.Error(logging.CatTrim, "loadVideo failed: path=%s err=%v", path, err)
 		s.player.SetError(fmt.Sprintf("Failed to open: %v", err))
 		return
 	}
 
-	s.engine.InitFrameCache(30)
+	// Load() handles: engine open, first frame, thumbnail extraction, chapters, duration on widget.
+	// Trim-specific setup follows.
 	s.videoPath = path
-	s.duration = s.engine.Duration()
+	s.duration = s.inlinePlayer.Duration()
+	s.currentTime = 0
 
-	// Update timeline widget with new duration
 	if s.timeline != nil {
 		s.timeline.SetDuration(s.duration)
 		s.timeline.SetInPoint(0)
 		s.timeline.SetOutPoint(s.duration)
 		s.timeline.SetPosition(0)
 	}
-
 	if s.fileLabel != nil {
 		s.fileLabel.SetText(filepath.Base(path))
 	}
-	s.player.SetDuration(s.duration)
-	s.player.SetFrameRate(s.engine.GetFrameRate())
 
-	// Default out point to end of file
+	s.player.SetFrameRate(s.inlinePlayer.FrameRate())
+
+	s.inPoint = 0
 	s.outPoint = time.Duration(s.duration * float64(time.Second))
-	if s.outPointLabel != nil {
-		s.outPointLabel.SetText(i18n.T().TrimOutPoint + ": " + formatDuration(s.outPoint))
-	}
 	if s.inPointLabel != nil {
 		s.inPointLabel.SetText(i18n.T().TrimInPoint + ": " + formatDuration(0))
 	}
-	// Update player trim markers
+	if s.outPointLabel != nil {
+		s.outPointLabel.SetText(i18n.T().TrimOutPoint + ": " + formatDuration(s.outPoint))
+	}
 	s.player.SetInPoint(0)
 	s.player.SetOutPoint(s.duration)
 	s.updateDurationLabel()
 
-	chapters := s.engine.GetChapters()
-	if len(chapters) > 0 {
-		s.player.SetChapters(chapters)
-	}
-
-	// Check for saved playback position
-	var resumePos float64
-	if s.resumeState != nil {
-		if savedPos, ok := s.resumeState.GetPosition(path); ok && s.resumeState.ShouldResume(savedPos) {
-			resumePos = savedPos.Position
+	// Register progress callback: tracks current time, saves resume position, stops preview.
+	s.inlinePlayer.SetOnProgress(func(t float64) {
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			s.currentTime = t
+			if s.timeline != nil {
+				s.timeline.SetPosition(t)
+			}
+		}, false)
+		if s.previewActive && t >= s.outPoint.Seconds() {
+			s.previewActive = false
+			s.inlinePlayer.Pause()
 		}
-	}
-
-	if img, err := s.engine.NextFrame(); err == nil {
-		s.player.SetFrame(img)
-	}
-	s.player.SetLoading(false)
-
-	// Background thumbnail extraction
-	s.engine.StartThumbnailExtraction(func(t float64, thumb *image.RGBA) {
-		s.player.AddThumbnailFrame(t, thumb)
+		if time.Since(s.lastSave) >= 5*time.Second && s.duration > 0 {
+			s.lastSave = time.Now()
+			if s.resumeState != nil {
+				s.resumeState.SavePosition(path, t, s.duration)
+			}
+		}
 	})
 
-	if resumePos > 0 {
-		s.engine.Seek(resumePos)
-		s.currentTime = resumePos
-		s.player.SetCurrentTime(resumePos)
-		if img, err := s.engine.NextFrame(); err == nil {
-			s.player.SetFrame(img)
+	s.inlinePlayer.SetOnEnd(func() {
+		s.previewActive = false
+	})
+
+	// Restore saved position if available.
+	if s.resumeState != nil {
+		if saved, ok := s.resumeState.GetPosition(path); ok && s.resumeState.ShouldResume(saved) {
+			s.inlinePlayer.Seek(saved.Position)
+			s.currentTime = saved.Position
 		}
 	}
 
 	if s.addBtn != nil {
 		s.addBtn.Enable()
-	}
-}
-
-func (s *trimState) playbackLoop() {
-	defer logging.RecoverPanic()
-	defer logging.LogAllGoroutines()
-
-	saveTicker := time.NewTicker(5 * time.Second)
-	defer saveTicker.Stop()
-
-	for {
-		select {
-		case <-saveTicker.C:
-			if s.engine != nil && s.videoPath != "" {
-				pos := s.engine.CurrentTime()
-				dur := s.engine.Duration()
-				if s.resumeState != nil && dur > 0 {
-					s.resumeState.SavePosition(s.videoPath, pos, dur)
-				}
-			}
-		default:
-			img, err := s.engine.NextFrame()
-			if err != nil {
-				return
-			}
-			s.player.SetFrame(img)
-			s.currentTime = s.engine.CurrentTime()
-			s.player.SetCurrentTime(s.currentTime)
-		}
-	}
-}
-
-func (s *trimState) savePlaybackPosition(path string) {
-	if s.resumeState != nil && s.engine != nil && s.duration > 0 {
-		s.resumeState.SavePosition(path, s.currentTime, s.duration)
 	}
 }
 

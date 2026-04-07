@@ -24,6 +24,7 @@ type Options struct {
 	Window         fyne.Window
 	ModuleColor    color.Color
 	StatsBar       fyne.CanvasObject
+	Player         *ui.InlineVideoPlayer
 	OnShowMainMenu func()
 	OnShowQueue    func()
 	OnAddToQueue   func(clip TrimClip)

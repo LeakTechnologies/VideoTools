@@ -9,9 +9,11 @@ import (
 )
 
 var convertInlinePlayer *ui.InlineVideoPlayer
+var trimInlinePlayer *ui.InlineVideoPlayer
 
 func init() {
 	convertInlinePlayer = ui.NewInlineVideoPlayer()
+	trimInlinePlayer = ui.NewInlineVideoPlayer()
 }
 
 func HasNativeMediaPlayer() bool {
@@ -20,6 +22,10 @@ func HasNativeMediaPlayer() bool {
 
 func GetConvertPlayer() *ui.InlineVideoPlayer {
 	return convertInlinePlayer
+}
+
+func GetTrimPlayer() *ui.InlineVideoPlayer {
+	return trimInlinePlayer
 }
 
 func (s *appState) loadVideoNative(path string) {
