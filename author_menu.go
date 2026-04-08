@@ -2312,18 +2312,21 @@ func resolveMenuTheme(theme *MenuTheme) *MenuTheme {
 	return menuThemes["VideoTools"]
 }
 
+func escapeFontPath(p string) string {
+	p = strings.ReplaceAll(p, "\\", "/")
+	p = strings.ReplaceAll(p, ":", "\\:")
+	p = strings.ReplaceAll(p, "'", "\\'")
+	return p
+}
+
 func menuFontArg(theme *MenuTheme) string {
 	if theme != nil && theme.FontPath != "" {
 		if _, err := os.Stat(theme.FontPath); err == nil {
-			escapedPath := strings.ReplaceAll(theme.FontPath, ":", "\\:")
-			escapedPath = strings.ReplaceAll(escapedPath, "'", "\\'")
-			return fmt.Sprintf("fontfile=%s", escapedPath)
+			return fmt.Sprintf("fontfile=%s", escapeFontPath(theme.FontPath))
 		}
 	}
 	if p := embeddedFontPath(); p != "" {
-		escapedPath := strings.ReplaceAll(p, ":", "\\:")
-		escapedPath = strings.ReplaceAll(escapedPath, "'", "\\'")
-		return fmt.Sprintf("fontfile=%s", escapedPath)
+		return fmt.Sprintf("fontfile=%s", escapeFontPath(p))
 	}
 	return "font=monospace"
 }
