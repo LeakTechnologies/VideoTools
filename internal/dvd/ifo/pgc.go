@@ -53,6 +53,8 @@ type ChapterCell struct {
 // totalDuration is the total duration of the title in seconds.
 //
 // Returns nil if fewer than 2 chapters or no NAV_PCKs.
+//
+// Deprecated: Use ChapterCellsFromNAVPtm for accurate PTS-based mapping.
 func ChapterCellsFromNAV(navSectors []uint32, timestamps []float64, totalDuration float64, lastVOBSector uint32) []ChapterCell {
 	if len(timestamps) < 2 || len(navSectors) == 0 || totalDuration <= 0 {
 		return nil
@@ -78,6 +80,59 @@ func ChapterCellsFromNAV(navSectors []uint32, timestamps []float64, totalDuratio
 			nextIdx := vobuIdxFor(timestamps[i+1])
 			if nextIdx > 0 {
 				cells[i].LastSector = navSectors[nextIdx] - 1
+			} else {
+				cells[i].LastSector = cells[i].FirstSector
+			}
+			cells[i].Duration = timestamps[i+1] - ts
+		} else {
+			cells[i].LastSector = lastVOBSector
+			cells[i].Duration = totalDuration - ts
+		}
+	}
+	return cells
+}
+
+// NavPCKInfo carries the sector address and presentation timestamp of one VOBU.
+type NavPCKInfo struct {
+	Sector uint32
+	PTM    uint32 // 90kHz ticks
+}
+
+// ChapterCellsFromNAVPtm builds chapter cell boundaries using actual NAV_PCK
+// presentation timestamps for accurate chapter-to-sector mapping.
+//
+// navs provides sector addresses and PTMs (in 90kHz ticks) for every VOBU.
+// timestamps are chapter start times in seconds (first must be 0.0).
+// lastVOBSector is the last sector of the VOB file.
+// totalDuration is the full title duration in seconds.
+func ChapterCellsFromNAVPtm(navs []NavPCKInfo, timestamps []float64, totalDuration float64, lastVOBSector uint32) []ChapterCell {
+	if len(timestamps) < 2 || len(navs) == 0 || totalDuration <= 0 {
+		return nil
+	}
+
+	vobuForTime := func(ts float64) int {
+		targetPTM := uint32(ts * 90000)
+		lo, hi := 0, len(navs)-1
+		for lo < hi {
+			mid := (lo + hi + 1) / 2
+			if navs[mid].PTM <= targetPTM {
+				lo = mid
+			} else {
+				hi = mid - 1
+			}
+		}
+		return lo
+	}
+
+	n := len(timestamps)
+	cells := make([]ChapterCell, n)
+	for i, ts := range timestamps {
+		idx := vobuForTime(ts)
+		cells[i].FirstSector = navs[idx].Sector
+		if i+1 < n {
+			nextIdx := vobuForTime(timestamps[i+1])
+			if nextIdx > idx {
+				cells[i].LastSector = navs[nextIdx].Sector - 1
 			} else {
 				cells[i].LastSector = cells[i].FirstSector
 			}
@@ -212,8 +267,8 @@ func WriteVMGM_PGCI_UT(pgcs []*ProgramChain) ([]byte, int, error) {
 	}
 
 	n := len(pgcs)
-	const pgciUtHeaderSize = 8  // NrOf_LUs + Reserved + End_Byte
-	const luRecordSize = 8      // lang_code(2) + country(1) + attrs(1) + offset(4)
+	const pgciUtHeaderSize = 8                           // NrOf_LUs + Reserved + End_Byte
+	const luRecordSize = 8                               // lang_code(2) + country(1) + attrs(1) + offset(4)
 	const luDataOffset = pgciUtHeaderSize + luRecordSize // = 16: LU data starts here
 
 	const luHeaderSize = 8 // NrOf_SRP + Reserved + End_Byte (within LU data)
@@ -234,21 +289,21 @@ func WriteVMGM_PGCI_UT(pgcs []*ProgramChain) ([]byte, int, error) {
 	var buf bytes.Buffer
 
 	// PGCI_UT header
-	binary.Write(&buf, binary.BigEndian, uint16(1))          // NrOf_LUs
-	binary.Write(&buf, binary.BigEndian, uint16(0))          // Reserved
-	binary.Write(&buf, binary.BigEndian, pgciUtEndByte)       // End_Byte
+	binary.Write(&buf, binary.BigEndian, uint16(1))     // NrOf_LUs
+	binary.Write(&buf, binary.BigEndian, uint16(0))     // Reserved
+	binary.Write(&buf, binary.BigEndian, pgciUtEndByte) // End_Byte
 
 	// LU record
-	buf.WriteByte(0x65) // 'e'
-	buf.WriteByte(0x6E) // 'n' (language "en")
-	buf.WriteByte(0x00) // country code modifier
-	buf.WriteByte(0x83) // LU attributes: entry PGC (bit7) + root menu (bits 0-3 = 3)
+	buf.WriteByte(0x65)                                        // 'e'
+	buf.WriteByte(0x6E)                                        // 'n' (language "en")
+	buf.WriteByte(0x00)                                        // country code modifier
+	buf.WriteByte(0x83)                                        // LU attributes: entry PGC (bit7) + root menu (bits 0-3 = 3)
 	binary.Write(&buf, binary.BigEndian, uint32(luDataOffset)) // LU_Offset
 
 	// LU data: PGCIT header
-	binary.Write(&buf, binary.BigEndian, uint16(n))  // NrOf_PGCI_SRP
-	binary.Write(&buf, binary.BigEndian, uint16(0))  // Reserved
-	binary.Write(&buf, binary.BigEndian, luEndByte)  // LU End_Byte
+	binary.Write(&buf, binary.BigEndian, uint16(n)) // NrOf_PGCI_SRP
+	binary.Write(&buf, binary.BigEndian, uint16(0)) // Reserved
+	binary.Write(&buf, binary.BigEndian, luEndByte) // LU End_Byte
 
 	// PGC SRPs
 	currentPGCOffset := uint32(firstPGCInLU)
@@ -422,10 +477,10 @@ func BuildMenuPGC(cmdTable *DVDCommandTable, duration float64, isNTSC bool) *Pro
 		// the playback duration expires.
 		StillTime: 0xFF,
 
-		Programs:     []ProgramInfo{{EntryCell: 1}},
+		Programs: []ProgramInfo{{EntryCell: 1}},
 		CellPlayback: []CellPlayback{{
 			PlaybackTime: SecondsToPlaybackTime(duration, isNTSC),
-			CommandNr:    0,   // buttons trigger cell command table; no auto-command
+			CommandNr:    0,    // buttons trigger cell command table; no auto-command
 			StillTime:    0xFF, // hold cell indefinitely
 		}},
 		CellPosition: []CellPosition{{VOBID: 1, CellID: 1}},

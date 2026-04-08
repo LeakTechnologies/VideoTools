@@ -3384,10 +3384,12 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	logFn("Scanning VOBs for NAV_PCK positions...")
 	mainVOBPath := filepath.Join(videoTSPath, "VTS_01_1.VOB")
 	var mainNavSectors []uint32
+	var mainNavInfos []ifo.NavPCKInfo
 	var mainAdmap *ifo.VOBU_ADMAP
 	if navs, err2 := vob.ScanVOBNAVPCKs(mainVOBPath); err2 == nil {
 		for _, n := range navs {
 			mainNavSectors = append(mainNavSectors, n.Sector)
+			mainNavInfos = append(mainNavInfos, ifo.NavPCKInfo{Sector: n.Sector, PTM: n.PTM})
 		}
 		mainAdmap = ifo.BuildVOBU_ADMAP(mainNavSectors)
 		logFn(fmt.Sprintf("  VTS_01_1.VOB: %d VOBUs indexed", len(navs)))
@@ -3414,8 +3416,7 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	if hasChapters {
 		nChapters = uint16(len(chapterTimestamps))
 		mainPTTSRPT = &ifo.VTS_PTT_SRPT{NrOfChapters: nChapters}
-		// Placeholder sectors (0) — corrected in pass 2 for ISO builds.
-		cells := ifo.ChapterCellsFromNAV(mainNavSectors, chapterTimestamps, mainDuration, 0)
+		cells := ifo.ChapterCellsFromNAVPtm(mainNavInfos, chapterTimestamps, mainDuration, 0)
 		if cells != nil {
 			mainPGC = ifo.BuildChapterPGC(cells, mainDuration, isNTSC)
 		} else {
@@ -3651,11 +3652,11 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			firstSector := uint32(0) // Placeholder - real value would need proper UDF layout
 			lastSector := uint32(info.Size()/2048) - 1
 			if hasChapters && len(mainNavSectors) > 0 {
-				discNav := make([]uint32, len(mainNavSectors))
-				for j, s := range mainNavSectors {
-					discNav[j] = firstSector + s
+				discNav := make([]ifo.NavPCKInfo, len(mainNavInfos))
+				for j, info := range mainNavInfos {
+					discNav[j] = ifo.NavPCKInfo{Sector: firstSector + info.Sector, PTM: info.PTM}
 				}
-				cells := ifo.ChapterCellsFromNAV(discNav, chapterTimestamps, mainDuration, lastSector)
+				cells := ifo.ChapterCellsFromNAVPtm(discNav, chapterTimestamps, mainDuration, lastSector)
 				if cells != nil {
 					mainPGC = ifo.BuildChapterPGC(cells, mainDuration, isNTSC)
 				} else {
@@ -3791,12 +3792,11 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			lastSector := first + count - 1
 			logging.Info(logging.CatDVD, "Main VOB disc sectors: %d – %d", first, lastSector)
 			if hasChapters && len(mainNavSectors) > 0 {
-				// Convert VOB-relative NAV_PCK sectors to disc-absolute.
-				discNav := make([]uint32, len(mainNavSectors))
-				for j, s := range mainNavSectors {
-					discNav[j] = first + s
+				discNav := make([]ifo.NavPCKInfo, len(mainNavInfos))
+				for j, info := range mainNavInfos {
+					discNav[j] = ifo.NavPCKInfo{Sector: first + info.Sector, PTM: info.PTM}
 				}
-				cells := ifo.ChapterCellsFromNAV(discNav, chapterTimestamps, mainDuration, lastSector)
+				cells := ifo.ChapterCellsFromNAVPtm(discNav, chapterTimestamps, mainDuration, lastSector)
 				if cells != nil {
 					mainPGC = ifo.BuildChapterPGC(cells, mainDuration, isNTSC)
 				} else {
