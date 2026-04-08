@@ -3668,6 +3668,13 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 			for i := uint16(0); i < nAudio && i < 8; i++ {
 				mainPGC.AudioControl[i] = 0x8000 | uint16(i<<8)
 			}
+			// Add return-to-menu post-command when menu is present
+			if len(menuPGCs) > 0 {
+				if mainPGC.CommandTable == nil {
+					mainPGC.CommandTable = &ifo.DVDCommandTable{}
+				}
+				mainPGC.CommandTable.Post = []ifo.DVDCommand{ifo.JumpVMGM_PGCNCommand(1)}
+			}
 			// Regenerate VTS IFO with updated PGC
 			if err := ifoBuilder.GenerateVTS_IFO(1, vtsMat, mainPGC, mainTMAPT, mainAdmap, mainPTTSRPT); err != nil {
 				logging.Info(logging.CatDVD, "Failed to regenerate VTS IFO: %v", err)
