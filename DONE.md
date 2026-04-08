@@ -2,6 +2,14 @@
 
 ## Version 0.1.1-dev40 (in progress) - Burn Module & File Manager
 
+### DVD Authoring Fixes (dev40)
+- [x] **UDF PartitionLength** — Fixed hardcoded 1000 sectors (~2MB) to `totalSectors - partitionStart`; VLC UDF path resolution now works for full-size DVDs
+- [x] **Menu PTS timestamps** — Fixed menu VOB PTS incrementing by 27MHz ticks instead of 90kHz; was 300x too large, causing continuous VLC timestamp conversion errors
+- [x] **Menu font** — Embedded IBM Plex Mono via `go:embed`; extracted to temp file for FFmpeg drawtext. No longer falls back to generic monospace on installed builds
+- [x] **Chapter navigation** — Replaced linear interpolation (`ts/total*navCount`) with binary search on actual NAV_PCK PTMs for accurate chapter-to-sector mapping
+- [x] **Return-to-menu** — Added `JumpVMGM_PGCN(1)` post-command to title PGCs in folder builds (was ISO-only); extras now also return to menu
+- [x] **Extras return-to-menu** — Extra title PGCs get the same post-command as the main feature
+
 ### Burn Module (dev40)
 - [x] **Design document** - Created docs/BURN_MODULE_DESIGN.md
 - [x] **Module entry** - Wired showBurnView() in main.go

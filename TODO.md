@@ -32,7 +32,7 @@ This file tracks upcoming features, improvements, and known issues.
 ### Carry-forward Issues
 - [ ] **Issue #5** — Convert UI layout consistency and label clarity pass
 - [ ] **Issue #18** — Windows first-run FFmpeg bootstrap
-- [ ] **Issue #21** — Native disc authoring (replace dvdauthor/spumux/xorriso)
+- [ ] **Issue #21** — Native disc authoring — remaining: PTS validation on FFmpeg-remuxed feature VOBs, hardware player testing
 - [ ] **Linux CI** — Pre-built container image to reduce apt install time
 
 ---
