@@ -8,6 +8,13 @@
 - **Recent files tracking** — Persist recent files list for Quick Access dropdown.
 - **Module callbacks** — Wire OnOpenMore/OnOpenFolder per module in Quick Access dropdown.
 
+### DVD Authoring
+- **UDF PartitionLength fix** — Calculated from actual file sizes instead of hardcoded 1000 sectors. VLC can now resolve UDF paths for full-size DVDs.
+- **Menu PTS timestamps** — Menu VOB PTS was 300x too large (27MHz instead of 90kHz ticks), causing continuous VLC timestamp errors. Fixed.
+- **Menu font embedding** — IBM Plex Mono TTF embedded in binary via `go:embed`; no more fallback to generic monospace on installed builds.
+- **Chapter navigation** — Chapter cell boundaries now use binary search on actual NAV_PCK PTMs instead of linear interpolation, fixing chapter skip errors on VBR content.
+- **Return-to-menu** — `JumpVMGM_PGCN(1)` post-command added to all title PGCs (feature + extras) in both folder and ISO builds.
+
 ## v0.1.1-dev40 (April 2026)
 
 ### Native Media Player
