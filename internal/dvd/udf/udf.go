@@ -118,12 +118,12 @@ type LogicalVolumeDescriptor struct {
 	LogicalBlockSize          uint32
 	DomainIdentifier          EntityID
 	LogicalVolumeContentsUse  [16]byte
-	MapTableLength                uint32
-	NumberOfPartitionMaps         uint32
-	ImplementationIdentifier      EntityID
-	ImplementationUse             [128]byte
-	IntegritySequenceExtent       ExtentAd
-	PartitionMaps                 [64]byte // Fixed for now
+	MapTableLength            uint32
+	NumberOfPartitionMaps     uint32
+	ImplementationIdentifier  EntityID
+	ImplementationUse         [128]byte
+	IntegritySequenceExtent   ExtentAd
+	PartitionMaps             [64]byte // Fixed for now
 }
 
 // PartitionDescriptor (PD) - Defines a physical partition on the volume.
@@ -698,8 +698,8 @@ func (uw *Writer) writeFileEntry(n *FileNode) error {
 	// Reserved(5), TagSerialNumber(6-7), DescriptorCRC(8-9), DescriptorCRCLen(10-11),
 	// TagLocation(12-15)
 	binary.LittleEndian.PutUint16(data[0:2], TagIDICB)
-	binary.LittleEndian.PutUint16(data[2:4], 2)                   // DescriptorVersion
-	binary.LittleEndian.PutUint32(data[12:16], uw.currentSector)  // TagLocation
+	binary.LittleEndian.PutUint16(data[2:4], 2)                  // DescriptorVersion
+	binary.LittleEndian.PutUint32(data[12:16], uw.currentSector) // TagLocation
 	// Recompute CRC after setting TagLocation
 	crc = CalculateCRC(data[16:])
 	binary.LittleEndian.PutUint16(data[8:10], crc)
@@ -761,7 +761,7 @@ func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 	crcLen := uint16(len(data) - 16)
 	crc := CalculateCRC(data[16:])
 
-	binary.LittleEndian.PutUint16(data[8:10], crc)    // DescriptorCRC at offset 8
+	binary.LittleEndian.PutUint16(data[8:10], crc)     // DescriptorCRC at offset 8
 	binary.LittleEndian.PutUint16(data[10:12], crcLen) // DescriptorCRCLen at offset 10
 	// TagLocation (offset 12-15) is already set via the tag struct above.
 
@@ -801,9 +801,9 @@ func (uw *Writer) writeHeaderWithISO9660(iso *iso9660Layout, totalSectors uint32
 		VolumeSpaceSize:      isoLEBE32(totalSectors),
 	}
 	copy(pvd.VolumeIdentifier[:], uw.volumeLabel)
-	pvd.VolumeSetSize = [4]byte{1, 0, 0, 1}          // both-endian uint16 = 1
-	pvd.VolumeSequenceNumber = [4]byte{1, 0, 0, 1}    // both-endian uint16 = 1
-	pvd.LogicalBlockSize = [4]byte{0, 8, 8, 0}        // both-endian uint16 = 2048
+	pvd.VolumeSetSize = [4]byte{1, 0, 0, 1}        // both-endian uint16 = 1
+	pvd.VolumeSequenceNumber = [4]byte{1, 0, 0, 1} // both-endian uint16 = 1
+	pvd.LogicalBlockSize = [4]byte{0, 8, 8, 0}     // both-endian uint16 = 2048
 	lebe := isoLEBE32(ptSize)
 	copy(pvd.PathTableSize[:], lebe[:])
 	pvd.VolumeCreationDate = NewISOTimestamp(uw.volumeTime)
@@ -845,7 +845,7 @@ func (uw *Writer) writeHeaderWithISO9660(iso *iso9660Layout, totalSectors uint32
 		return err
 	}
 
-	if err := uw.writeVDS(); err != nil {
+	if err := uw.writeVDS(totalSectors); err != nil {
 		return err
 	}
 
@@ -872,7 +872,7 @@ func (uw *Writer) writePaddedSector(data []byte) error {
 	return nil
 }
 
-func (uw *Writer) writeVDS() error {
+func (uw *Writer) writeVDS(totalSectors uint32) error {
 	upvd := PrimaryVolumeDescriptor{
 		VolumeDescriptorSeqNumber: 1,
 	}
@@ -900,7 +900,7 @@ func (uw *Writer) writeVDS() error {
 		VolumeDescriptorSeqNumber: 3,
 		PartitionFlags:            1, // allocated
 		PartitionStartingLocation: partitionStart,
-		PartitionLength:           1000,
+		PartitionLength:           totalSectors - partitionStart,
 	}
 	if err := uw.WriteDescriptor(TagIDPD, pd); err != nil {
 		return err
