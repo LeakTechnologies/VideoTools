@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/xml"
 	"fmt"
 	"image"
@@ -18,6 +19,9 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
+
+//go:embed assets/fonts/IBMPlexMono-Regular.ttf
+var ibmPlexMonoTTF []byte
 
 type dvdMenuButton struct {
 	ID      string
@@ -2231,7 +2235,6 @@ func findVTLogoPath() string {
 }
 
 func findMenuFontPath() string {
-	// Get absolute path to working directory
 	wd, err := os.Getwd()
 	if err == nil {
 		p := filepath.Join(wd, "assets", "fonts", "IBMPlexMono-Regular.ttf")
@@ -2239,7 +2242,6 @@ func findMenuFontPath() string {
 			return p
 		}
 	}
-	// Try executable directory
 	if exe, err := os.Executable(); err == nil {
 		dir := filepath.Dir(exe)
 		p := filepath.Join(dir, "assets", "fonts", "IBMPlexMono-Regular.ttf")
@@ -2247,7 +2249,31 @@ func findMenuFontPath() string {
 			return p
 		}
 	}
-	return ""
+	return embeddedFontPath()
+}
+
+var cachedEmbeddedFontPath string
+
+func embeddedFontPath() string {
+	if cachedEmbeddedFontPath != "" {
+		if _, err := os.Stat(cachedEmbeddedFontPath); err == nil {
+			return cachedEmbeddedFontPath
+		}
+	}
+	f, err := os.CreateTemp("", "videotools-font-*.ttf")
+	if err != nil {
+		logging.Error(logging.CatDVD, "failed to create temp font file: %v", err)
+		return ""
+	}
+	if _, err := f.Write(ibmPlexMonoTTF); err != nil {
+		f.Close()
+		os.Remove(f.Name())
+		logging.Error(logging.CatDVD, "failed to write embedded font: %v", err)
+		return ""
+	}
+	f.Close()
+	cachedEmbeddedFontPath = f.Name()
+	return f.Name()
 }
 
 func resolveMenuTheme(theme *MenuTheme) *MenuTheme {
@@ -2287,31 +2313,18 @@ func resolveMenuTheme(theme *MenuTheme) *MenuTheme {
 }
 
 func menuFontArg(theme *MenuTheme) string {
-	// Try FontPath first (specific font file)
 	if theme != nil && theme.FontPath != "" {
 		if _, err := os.Stat(theme.FontPath); err == nil {
-			// Escape the font path for FFmpeg filter - replace : and ' with escaped versions
 			escapedPath := strings.ReplaceAll(theme.FontPath, ":", "\\:")
 			escapedPath = strings.ReplaceAll(escapedPath, "'", "\\'")
 			return fmt.Sprintf("fontfile=%s", escapedPath)
 		}
 	}
-	// FontPath doesn't exist or is empty - use system-wide fonts
-	// Only use FontName if it's a known universally available font
-	if theme != nil && theme.FontName != "" {
-		safeFonts := map[string]bool{
-			"DejaVu Sans Mono": true,
-			"DejaVu Sans":      true,
-			"Liberation Mono":  true,
-			"Liberation Sans":  true,
-			"FreeMono":         true,
-			"FreeSans":         true,
-		}
-		if safeFonts[theme.FontName] {
-			return fmt.Sprintf("font=%s", theme.FontName)
-		}
+	if p := embeddedFontPath(); p != "" {
+		escapedPath := strings.ReplaceAll(p, ":", "\\:")
+		escapedPath = strings.ReplaceAll(escapedPath, "'", "\\'")
+		return fmt.Sprintf("fontfile=%s", escapedPath)
 	}
-	// Fallback to most universally available monospace font on Linux
 	return "font=monospace"
 }
 
