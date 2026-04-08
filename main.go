@@ -1326,6 +1326,7 @@ type appState struct {
 	authorSceneThreshold          float64
 	authorDetecting               bool
 	authorClips                   []authorClip       // Multiple video clips for compilation
+	authorClipsMu                 sync.Mutex         // Guards addAuthorFiles against concurrent calls
 	authorOutputType              string             // "dvd" or "iso"
 	authorRegion                  string             // "NTSC", "PAL", "AUTO"
 	authorAspectRatio             string             // "4:3", "16:9", "AUTO"
