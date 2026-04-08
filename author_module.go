@@ -435,7 +435,6 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			}
 			defer reader.Close()
 			state.addAuthorFiles([]string{reader.URI().Path()})
-			rebuildList()
 		}, state.window)
 	})
 	addBtn.Importance = widget.HighImportance
@@ -498,10 +497,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			}
 		}
 		if len(paths) > 0 {
-			go func() {
-				state.addAuthorFiles(paths)
-				rebuildList()
-			}()
+			go state.addAuthorFiles(paths)
 		}
 	})
 
@@ -1885,8 +1881,23 @@ func (s *appState) showTrackSelectionDialog(idx int, refresh func()) {
 }
 
 func (s *appState) addAuthorFiles(paths []string) {
+	s.authorClipsMu.Lock()
+	defer s.authorClipsMu.Unlock()
+
 	wasEmpty := len(s.authorClips) == 0
 	for _, path := range paths {
+		duplicate := false
+		for _, existing := range s.authorClips {
+			if existing.Path == path {
+				duplicate = true
+				break
+			}
+		}
+		if duplicate {
+			logging.Info(logging.CatDVD, "Skipping duplicate clip: %s", filepath.Base(path))
+			continue
+		}
+
 		// Check if this is a directory containing a project file
 		info, err := os.Stat(path)
 		if err == nil && info.IsDir() {
