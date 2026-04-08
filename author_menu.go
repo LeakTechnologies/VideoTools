@@ -2082,7 +2082,9 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 	// For a still image, we write one VOBU per GOP (group of pictures).
 	// Find GOP boundaries by looking for sequence headers or picture start codes.
 	frameCount := 0
-	pts := uint64(0)
+	pts90 := uint64(0)
+
+	ticksPerFrame90 := m.VideoFrameTicks() / 300
 
 	// Write video in chunks, inserting NAV_PCKs at regular intervals
 	chunkSize := 2000 // Max PES payload per pack (leaves room for headers)
@@ -2094,13 +2096,13 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 		}
 		chunk := videoData[offset:end]
 
-		if err := m.WriteVideo(chunk, pts); err != nil {
+		if err := m.WriteVideo(chunk, pts90); err != nil {
 			outFile.Close()
 			return fmt.Errorf("write video: %w", err)
 		}
 
 		frameCount++
-		pts += m.VideoFrameTicks()
+		pts90 += ticksPerFrame90
 
 		// Insert NAV_PCK at regular intervals
 		if frameCount%15 == 0 {
@@ -2123,8 +2125,8 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 				}
 				pci := &vob.PCIPacket{
 					Buttons:     pciBtns,
-					LVOBU_S_PTM: uint32(pts),
-					LVOBU_E_PTM: uint32(pts + m.VideoFrameTicks()*15),
+					LVOBU_S_PTM: uint32(pts90),
+					LVOBU_E_PTM: uint32(pts90 + ticksPerFrame90*15),
 					HL_GI: vob.HL_GI{
 						BTN_SL_NS: 1,
 						BTN_NS:    uint8(len(buttons)),
