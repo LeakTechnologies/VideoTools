@@ -3691,6 +3691,12 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 				for j := uint16(0); j < nAudio && j < 8; j++ {
 					extraPGC2.AudioControl[j] = 0x8000 | uint16(j<<8)
 				}
+				if len(menuPGCs) > 0 {
+					if extraPGC2.CommandTable == nil {
+						extraPGC2.CommandTable = &ifo.DVDCommandTable{}
+					}
+					extraPGC2.CommandTable.Post = []ifo.DVDCommand{ifo.JumpVMGM_PGCNCommand(1)}
+				}
 				st := extraStates[i]
 				if err := ifoBuilder.GenerateVTS_IFO(vtsNum, st.mat, extraPGC2, st.tmapt, st.admap, st.pttsrpt); err != nil {
 					logging.Info(logging.CatDVD, "Failed to regenerate extra VTS IFO %d: %v", vtsNum, err)
@@ -3830,6 +3836,12 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 				extraPGC2 := ifo.BuildSingleCellPGC(first, first+count-1, clip.Duration, isNTSC)
 				for j := uint16(0); j < nAudio && j < 8; j++ {
 					extraPGC2.AudioControl[j] = 0x8000 | uint16(j<<8)
+				}
+				if len(menuPGCs) > 0 {
+					if extraPGC2.CommandTable == nil {
+						extraPGC2.CommandTable = &ifo.DVDCommandTable{}
+					}
+					extraPGC2.CommandTable.Post = []ifo.DVDCommand{ifo.JumpVMGM_PGCNCommand(1)}
 				}
 				st := extraStates[i]
 				if err := ifoBuilder.GenerateVTS_IFO(vtsNum, st.mat, extraPGC2, st.tmapt, st.admap, st.pttsrpt); err != nil {
