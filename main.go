@@ -3097,6 +3097,12 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 		return
 	}
 
+	// If upscale module and multiple files, add all to queue
+	if moduleID == "upscale" && len(videoPaths) > 1 {
+		go s.batchAddToUpscaleQueue(videoPaths)
+		return
+	}
+
 	// If compare module, load up to 2 videos into compare slots
 	if moduleID == "compare" {
 		go func() {
@@ -3597,6 +3603,117 @@ func (s *appState) batchAddToQueue(paths []string) {
 			}
 			s.loadVideos(combined)
 			s.showModule("convert")
+		}
+	}, false)
+}
+
+// batchAddToUpscaleQueue adds multiple videos to the upscale queue
+func (s *appState) batchAddToUpscaleQueue(paths []string) {
+	logging.Debug(logging.CatModule, "batch adding %d videos to upscale queue", len(paths))
+	t := i18n.T()
+
+	addedCount := 0
+	failedCount := 0
+	var failedFiles []string
+	var firstValidPath string
+
+	for _, path := range paths {
+		src, err := probeVideo(path)
+		if err != nil {
+			logging.Debug(logging.CatModule, "failed to parse metadata for %s: %v", path, err)
+			failedCount++
+			failedFiles = append(failedFiles, filepath.Base(path))
+			continue
+		}
+
+		if firstValidPath == "" {
+			firstValidPath = path
+		}
+
+		outDir := filepath.Dir(path)
+		outputBase := sanitizeForPath(src.Format) + "_upscale"
+		outName := outputBase + ".mp4"
+		outPath := filepath.Join(outDir, outName)
+
+		config := map[string]interface{}{
+			"inputPath":              path,
+			"outputPath":             outPath,
+			"outputBase":             outputBase,
+			"method":                 s.upscaleMethod,
+			"targetRes":              s.upscaleTargetRes,
+			"customWidth":            s.upscaleCustomWidth,
+			"customHeight":           s.upscaleCustomHeight,
+			"qualityPreset":          s.upscaleQualityPreset,
+			"useAI":                  s.upscaleAIEnabled,
+			"aiModel":                s.upscaleAIModel,
+			"aiBackend":              s.upscaleAIBackend,
+			"aiPreset":               s.upscaleAIPreset,
+			"aiScale":                s.upscaleAIScale,
+			"aiScaleUseTarget":       s.upscaleAIScaleUseTarget,
+			"aiOutputAdjust":         s.upscaleAIOutputAdjust,
+			"aiFaceEnhance":          s.upscaleAIFaceEnhance,
+			"aiDenoise":              s.upscaleAIDenoise,
+			"aiTile":                 s.upscaleAITile,
+			"aiGPU":                  s.upscaleAIGPU,
+			"aiGPUAuto":              s.upscaleAIGPUAuto,
+			"aiThreadsLoad":          s.upscaleAIThreadsLoad,
+			"aiThreadsProc":          s.upscaleAIThreadsProc,
+			"aiThreadsSave":          s.upscaleAIThreadsSave,
+			"aiTTA":                  s.upscaleAITTA,
+			"aiOutputFormat":         s.upscaleAIOutputFormat,
+			"applyFilters":           s.upscaleApplyFilters,
+			"filterChain":            s.upscaleFilterChain,
+			"frameRate":              s.upscaleFrameRate,
+			"useMotionInterpolation": s.upscaleMotionInterpolation,
+			"useRIFE":                s.upscaleRIFEEnabled,
+			"rifeModel":              s.upscaleRIFEModel,
+			"rifeMultiplier":         s.upscaleRIFEMultiplier,
+			"blurEnabled":            s.upscaleBlurEnabled,
+			"blurSigma":              s.upscaleBlurSigma,
+			"encoderPreset":          s.upscaleEncoderPreset,
+			"videoCodec":             s.upscaleVideoCodec,
+			"bitrateMode":            s.upscaleBitrateMode,
+			"bitratePreset":          s.upscaleBitratePreset,
+			"manualBitrate":          s.upscaleManualBitrate,
+			"hardwareAccel":          s.upscaleHardwareAccel,
+			"outputContainer":        s.upscaleOutputContainer,
+			"manualCRF":              s.upscaleManualCRF,
+			"pixelFormat":            s.upscalePixelFormat,
+			"srcColorSpace":          s.upscaleSrcColorSpace,
+			"colorDepth":             s.upscaleColorDepth,
+		}
+
+		job := &queue.Job{
+			Type:        queue.JobTypeUpscale,
+			Title:       fmt.Sprintf("Upscale %s", filepath.Base(path)),
+			Description: fmt.Sprintf("Output: %s", filepath.Base(outPath)),
+			InputFile:   path,
+			OutputFile:  outPath,
+			Config:      config,
+		}
+
+		s.jobQueue.Add(job)
+		addedCount++
+	}
+
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		if addedCount > 0 {
+			msg := fmt.Sprintf("Added %d video(s) to the upscale queue!", addedCount)
+			if failedCount > 0 {
+				msg += fmt.Sprintf("\n\n%d file(s) failed to analyze:\n%s", failedCount, strings.Join(failedFiles, ", "))
+			}
+			dialog.ShowInformation(t.DialogBatchAdd, msg, s.window)
+		} else {
+			msg := fmt.Sprintf("Failed to analyze %d file(s):\n%s", failedCount, strings.Join(failedFiles, ", "))
+			s.showErrorWithCopy("Batch Upscale Add Failed", fmt.Errorf("%s", msg))
+		}
+
+		if firstValidPath != "" {
+			src, err := probeVideo(firstValidPath)
+			if err == nil {
+				s.upscaleFile = src
+				s.showModule("upscale")
+			}
 		}
 	}, false)
 }
