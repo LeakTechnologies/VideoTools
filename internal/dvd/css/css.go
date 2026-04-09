@@ -1,11 +1,10 @@
-// Package css implements DVD Content Scramble System (CSS) decryption
-// for archival purposes. Supports decrypting protected VOB/IFO data.
+// Package css implements DVD Content Scramble System (CSS) decryption.
 package css
 
 import (
-	"encoding/binary"
 	"errors"
 	"io"
+	"os"
 )
 
 var (
@@ -15,219 +14,95 @@ var (
 )
 
 const (
-	SectorSize      = 2048
-	ScrambledSector = 0x40000
-	TitleKeySize    = 5
-	DiscKeySize     = 5
-	PlayerKeySize   = 5
+	SectorSize    = 2048
+	TitleKeySize  = 5
+	DiscKeySize   = 5
+	PlayerKeySize = 5
 )
 
-// Decryptor handles CSS decryption for DVD sectors.
+// Decryptor holds a title key and decrypts CSS-scrambled DVD sectors.
 type Decryptor struct {
-	titleKey  [TitleKeySize]byte
-	discKey   [DiscKeySize]byte
-	encrypted bool
+	titleKey [TitleKeySize]byte
 }
 
-// NewDecryptor creates a CSS decryptor from a title key.
-// The title key is extracted from the disc's key block.
+// NewDecryptor creates a Decryptor from a plaintext title key.
 func NewDecryptor(titleKey [TitleKeySize]byte) *Decryptor {
-	d := &Decryptor{titleKey: titleKey}
-	return d
+	return &Decryptor{titleKey: titleKey}
 }
 
-// NewDecryptorFromDiscKey creates a decryptor by deriving title key from disc key.
-func NewDecryptorFromDiscKey(discKey [DiscKeySize]byte, encryptedTitleKey []byte) (*Decryptor, error) {
-	if len(encryptedTitleKey) < TitleKeySize {
-		return nil, ErrNoTitleKey
-	}
-	d := &Decryptor{discKey: discKey}
-	d.decryptTitleKey(encryptedTitleKey)
-	return d, nil
+// NewDecryptorFromDiscKey creates a Decryptor by decrypting an encrypted title key
+// with the given disc key.
+func NewDecryptorFromDiscKey(discKey [DiscKeySize]byte, encryptedTitleKey [TitleKeySize]byte) *Decryptor {
+	return &Decryptor{titleKey: DecryptTitleKey(discKey, encryptedTitleKey)}
 }
 
-// decryptTitleKey decrypts an encrypted title key using the disc key.
-func (d *Decryptor) decryptTitleKey(encrypted []byte) {
-	var key [TitleKeySize]byte
-	for i := 0; i < TitleKeySize; i++ {
-		key[i] = encrypted[i] ^ d.discKey[i]
-	}
-	d.titleKey = key
-}
-
-// IsEncrypted returns true if the sector appears to be CSS encrypted.
-func IsEncrypted(sector []byte) bool {
-	if len(sector) < SectorSize {
-		return false
-	}
-	// CSS encrypted sectors have specific byte patterns
-	// Check for scrambled sector marker
-	return (binary.BigEndian.Uint32(sector[0:4]) & 0xFFFFFF00) != 0x00000100
-}
-
-// DecryptSector decrypts a single DVD sector in place.
-// Returns ErrNotEncrypted if the sector doesn't appear encrypted.
+// DecryptSector decrypts a CSS-scrambled 2048-byte sector in place.
+// If the sector's scrambling flag is not set, it is left unchanged.
 func (d *Decryptor) DecryptSector(sector []byte) error {
 	if len(sector) < SectorSize {
 		return ErrInvalidSector
 	}
-
-	if !IsEncrypted(sector) {
-		return ErrNotEncrypted
-	}
-
-	// CSS stream cipher decryption
-	d.decryptCSS(sector)
+	unscrambleSector(d.titleKey, sector)
 	return nil
 }
 
-// decryptCSS applies the CSS stream cipher to decrypt a sector.
-func (d *Decryptor) decryptCSS(sector []byte) {
-	var lfsr1, lfsr2 uint32
-
-	// Initialize LFSRs from title key
-	lfsr1 = uint32(d.titleKey[0])<<9 | uint32(d.titleKey[1])<<1 | uint32(d.titleKey[2]>>7)
-	lfsr2 = uint32(d.titleKey[2])<<5 | uint32(d.titleKey[3])>>3 | uint32(d.titleKey[4])<<5
-
-	for i := 0; i < SectorSize; i++ {
-		// Clock LFSR1
-		bit1 := ((lfsr1 >> 8) ^ (lfsr1 >> 4) ^ (lfsr1 >> 2) ^ lfsr1) & 1
-		lfsr1 = (lfsr1 >> 1) | (bit1 << 15)
-
-		// Clock LFSR2
-		bit2 := ((lfsr2 >> 1) ^ (lfsr2 >> 2) ^ (lfsr2 >> 4) ^ lfsr2) & 1
-		lfsr2 = (lfsr2 >> 1) | (bit2 << 15)
-
-		// XOR with sector data
-		sector[i] ^= byte(((lfsr1 ^ lfsr2) & 0xFF))
-	}
-}
-
-// DecryptReadStream decrypts CSS-encrypted VOB data using stream cipher.
-// This is the common case for encrypted movie content.
-func (d *Decryptor) DecryptReadStream(data []byte, sectorOffset int64) {
-	var lfsr1, lfsr2 uint32
-
-	// Initialize LFSRs from title key
-	lfsr1 = uint32(d.titleKey[0])<<9 | uint32(d.titleKey[1])<<1 | uint32(d.titleKey[2]>>7)
-	lfsr2 = uint32(d.titleKey[2])<<5 | uint32(d.titleKey[3])>>3 | uint32(d.titleKey[4])<<5
-
-	// Skip to sector-aligned position
-	offset := int(sectorOffset % SectorSize)
-
-	for i := 0; i < len(data); i++ {
-		// Clock LFSRs on sector boundaries
-		if (i+offset)%SectorSize == 0 {
-			lfsr1 = uint32(d.titleKey[0])<<9 | uint32(d.titleKey[1])<<1 | uint32(d.titleKey[2]>>7)
-			lfsr2 = uint32(d.titleKey[2])<<5 | uint32(d.titleKey[3])>>3 | uint32(d.titleKey[4])<<5
-		}
-
-		bit1 := ((lfsr1 >> 8) ^ (lfsr1 >> 4) ^ (lfsr1 >> 2) ^ lfsr1) & 1
-		lfsr1 = (lfsr1 >> 1) | (bit1 << 15)
-
-		bit2 := ((lfsr2 >> 1) ^ (lfsr2 >> 2) ^ (lfsr2 >> 4) ^ lfsr2) & 1
-		lfsr2 = (lfsr2 >> 1) | (bit2 << 15)
-
-		data[i] ^= byte(((lfsr1 ^ lfsr2) & 0xFF))
-	}
-}
-
-// DecryptReader wraps an io.Reader to decrypt CSS-encrypted VOB data on the fly.
+// DecryptReader wraps an io.Reader to transparently decrypt CSS-scrambled sectors.
 type DecryptReader struct {
-	reader      io.Reader
-	decryptor   *Decryptor
-	sectorBuf   [SectorSize]byte
-	bufPos      int
-	bufLen      int
-	sectorCount int64
+	r      io.Reader
+	d      *Decryptor
+	buf    [SectorSize]byte
+	bufPos int
+	bufLen int
 }
 
-// NewDecryptReader creates a reader that decrypts data from the underlying source.
+// NewDecryptReader creates a DecryptReader that decrypts data from r sector by sector.
 func NewDecryptReader(r io.Reader, d *Decryptor) *DecryptReader {
-	return &DecryptReader{reader: r, decryptor: d}
+	return &DecryptReader{r: r, d: d}
 }
 
-func (dr *DecryptReader) Read(p []byte) (n int, err error) {
+func (dr *DecryptReader) Read(p []byte) (int, error) {
 	total := 0
-
 	for total < len(p) {
-		// Refill buffer if empty
 		if dr.bufPos >= dr.bufLen {
-			dr.bufLen, err = io.ReadFull(dr.reader, dr.sectorBuf[:])
+			n, err := io.ReadFull(dr.r, dr.buf[:])
 			if err != nil {
 				if total > 0 {
 					return total, nil
 				}
-				return total, err
+				if err == io.ErrUnexpectedEOF {
+					// Partial final sector — pass through as-is.
+					dr.bufLen = n
+					dr.bufPos = 0
+					break
+				}
+				return 0, err
 			}
-
-			// Decrypt the sector
-			if IsEncrypted(dr.sectorBuf[:]) {
-				dr.decryptor.DecryptSector(dr.sectorBuf[:])
+			if IsScrambledSector(dr.buf[:]) {
+				_ = dr.d.DecryptSector(dr.buf[:])
 			}
 			dr.bufPos = 0
-			dr.sectorCount++
+			dr.bufLen = n
 		}
-
-		// Copy from buffer to output
-		copied := copy(p[total:], dr.sectorBuf[dr.bufPos:dr.bufLen])
+		copied := copy(p[total:], dr.buf[dr.bufPos:dr.bufLen])
 		total += copied
 		dr.bufPos += copied
 	}
-
 	return total, nil
 }
 
-// TitleKeys represents the decrypted title keys for a DVD.
-type TitleKeys struct {
-	keys [][TitleKeySize]byte
-}
-
-// ExtractTitleKeys attempts to extract title keys from a VIDEO_TS.IFO file.
-// This requires the disc key which is typically obtained via authentication.
-func ExtractTitleKeys(vmgi io.ReadSeeker, discKey [DiscKeySize]byte) (*TitleKeys, error) {
-	// Read VMGI to find title key locations
-	// Title keys are stored in the disc key block
-	var keys [][TitleKeySize]byte
-
-	// Seek to key block location in IFO
-	_, err := vmgi.Seek(128, io.SeekStart) // Typical location for key block
+// DecryptVOB decrypts a CSS-scrambled VOB file to outPath, returning bytes written.
+func DecryptVOB(vobPath, outPath string, d *Decryptor) (int64, error) {
+	in, err := os.Open(vobPath)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
+	defer in.Close()
 
-	// Read encrypted title keys
-	encKeys := make([]byte, TitleKeySize)
-	for {
-		_, err := io.ReadFull(vmgi, encKeys)
-		if err != nil {
-			break
-		}
-
-		// Decrypt title key with disc key
-		var tk [TitleKeySize]byte
-		for i := 0; i < TitleKeySize; i++ {
-			tk[i] = encKeys[i] ^ discKey[i%DiscKeySize]
-		}
-		keys = append(keys, tk)
+	out, err := os.Create(outPath)
+	if err != nil {
+		return 0, err
 	}
+	defer out.Close()
 
-	if len(keys) == 0 {
-		return nil, ErrNoTitleKey
-	}
-
-	return &TitleKeys{keys: keys}, nil
-}
-
-// Get returns the title key for title index i.
-func (tk *TitleKeys) Get(i int) ([TitleKeySize]byte, bool) {
-	if i < 0 || i >= len(tk.keys) {
-		return [TitleKeySize]byte{}, false
-	}
-	return tk.keys[i], true
-}
-
-// Count returns the number of title keys.
-func (tk *TitleKeys) Count() int {
-	return len(tk.keys)
+	return io.Copy(out, NewDecryptReader(in, d))
 }
