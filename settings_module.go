@@ -1699,11 +1699,23 @@ func (a *preferencesAdapter) PersistLocale(code string, script i18n.ScriptVarian
 }
 
 func (a *preferencesAdapter) SavePrefsConfig() error {
-	return savePrefsConfig(a.s.prefs)
+	err := savePrefsConfig(a.s.prefs)
+	if err != nil {
+		logging.Error(logging.CatSystem, "SavePrefsConfig failed: %v", err)
+	}
+	return err
 }
 
 func (a *preferencesAdapter) PrefsConfig() prefsConfig {
 	return a.s.prefs
+}
+
+func (a *preferencesAdapter) SetShowTooltips(enabled bool) {
+	a.s.prefs.ShowTooltips = enabled
+	ui.ShowTooltips = enabled
+	if err := savePrefsConfig(a.s.prefs); err != nil {
+		logging.Error(logging.CatSystem, "SetShowTooltips save failed: %v", err)
+	}
 }
 
 func (a *preferencesAdapter) DefaultOutputDir() string {

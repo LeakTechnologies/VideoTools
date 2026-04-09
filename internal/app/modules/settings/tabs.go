@@ -412,9 +412,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	content.Add(tooltipsHeader)
 
 	showTooltipsCheck := widget.NewCheck("", func(enabled bool) {
-		prefs.ShowTooltips = enabled
-		ui.ShowTooltips = enabled
-		cb.SavePrefsConfig()
+		cb.SetShowTooltips(enabled)
 	})
 	showTooltipsCheck.Checked = prefs.ShowTooltips
 	content.Add(showTooltipsCheck)
