@@ -44,6 +44,7 @@ type PreferencesCallbacks interface {
 	PersistLocale(code string, script i18n.ScriptVariant)
 	SavePrefsConfig() error
 	PrefsConfig() PrefsConfig
+	SetShowTooltips(enabled bool)
 	DefaultOutputDir() string
 	SetDefaultOutputDir(dir string)
 }
