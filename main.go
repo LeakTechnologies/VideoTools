@@ -858,32 +858,39 @@ func openFile(path string) error {
 }
 
 type formatOption struct {
-	Label      string
-	Ext        string
-	VideoCodec string
+	Label        string
+	Ext          string
+	VideoCodec   string
+	DevicePreset string // e.g., "iPhone", "Android", "Chromecast" — enables auto-compatible settings
 }
 
 var formatOptions = []formatOption{
+	// Device Presets - Optimized for specific devices
+	{"iPhone (Most Compatible)", ".mp4", "libx264", "iPhone"},
+	{"Android (Most Compatible)", ".mp4", "libx264", "Android"},
+	{"Chromecast (Most Compatible)", ".mp4", "libx264", "Chromecast"},
+	{"Fire TV (Most Compatible)", ".mp4", "libx264", "FireTV"},
+	{"Web (Fast Start)", ".mp4", "libx264", "web"},
 	// H.264 - Widely compatible, older standard
-	{"MP4 (H.264)", ".mp4", "libx264"},
-	{"MOV (H.264)", ".mov", "libx264"},
+	{"MP4 (H.264)", ".mp4", "libx264", ""},
+	{"MOV (H.264)", ".mov", "libx264", ""},
 	// Remux - No re-encode
-	{"MKV (Remux)", ".mkv", "copy"},
+	{"MKV (Remux)", ".mkv", "copy", ""},
 	// H.265/HEVC - Better compression than H.264
-	{"MP4 (H.265)", ".mp4", "libx265"},
-	{"MKV (H.265)", ".mkv", "libx265"},
-	{"MOV (H.265)", ".mov", "libx265"},
+	{"MP4 (H.265)", ".mp4", "libx265", ""},
+	{"MKV (H.265)", ".mkv", "libx265", ""},
+	{"MOV (H.265)", ".mov", "libx265", ""},
 	// AV1 - Best compression, slower encode
-	{"MP4 (AV1)", ".mp4", "libaom-av1"},
-	{"MKV (AV1)", ".mkv", "libaom-av1"},
-	{"WebM (AV1)", ".webm", "libaom-av1"},
+	{"MP4 (AV1)", ".mp4", "libaom-av1", ""},
+	{"MKV (AV1)", ".mkv", "libaom-av1", ""},
+	{"WebM (AV1)", ".webm", "libaom-av1", ""},
 	// VP9 - Google codec, good for web
-	{"WebM (VP9)", ".webm", "libvpx-vp9"},
+	{"WebM (VP9)", ".webm", "libvpx-vp9", ""},
 	// ProRes - Professional/editing codec
-	{"MOV (ProRes)", ".mov", "prores_ks"},
+	{"MOV (ProRes)", ".mov", "prores_ks", ""},
 	// MPEG-2 - DVD standard
-	{"DVD-NTSC (MPEG-2)", ".mpg", "mpeg2video"},
-	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video"},
+	{"DVD-NTSC (MPEG-2)", ".mpg", "mpeg2video", ""},
+	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video", ""},
 }
 
 // formatVideoCodecs maps format extension to compatible video codec friendly names.
@@ -8758,6 +8765,67 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 			if updateRemuxVisibility != nil {
 				updateRemuxVisibility()
+			}
+		}
+
+		// Apply device-specific optimizations
+		if opt.DevicePreset != "" {
+			switch opt.DevicePreset {
+			case "iPhone":
+				state.convert.H264Profile = "high"
+				state.convert.H264Level = "4.0"
+				state.convert.VideoCodec = "H.264"
+				state.convert.EncoderPreset = "medium"
+				if videoCodecSelect != nil {
+					videoCodecSelect.SetSelected("H.264")
+					videoCodecSelect.EnableOption("H.264")
+					videoCodecSelect.DisableOption("H.265")
+					videoCodecSelect.DisableOption("VP9")
+					videoCodecSelect.DisableOption("AV1")
+				}
+			case "Android":
+				state.convert.H264Profile = "high"
+				state.convert.H264Level = "4.1"
+				state.convert.VideoCodec = "H.264"
+				state.convert.EncoderPreset = "medium"
+				if videoCodecSelect != nil {
+					videoCodecSelect.SetSelected("H.264")
+					videoCodecSelect.EnableOption("H.264")
+					videoCodecSelect.DisableOption("H.265")
+					videoCodecSelect.DisableOption("VP9")
+					videoCodecSelect.DisableOption("AV1")
+				}
+			case "Chromecast":
+				state.convert.H264Profile = "high"
+				state.convert.H264Level = "4.0"
+				state.convert.VideoCodec = "H.264"
+				state.convert.EncoderPreset = "medium"
+				if videoCodecSelect != nil {
+					videoCodecSelect.SetSelected("H.264")
+					videoCodecSelect.EnableOption("H.264")
+					videoCodecSelect.DisableOption("H.265")
+					videoCodecSelect.DisableOption("VP9")
+					videoCodecSelect.DisableOption("AV1")
+				}
+			case "FireTV":
+				state.convert.H264Profile = "high"
+				state.convert.H264Level = "4.0"
+				state.convert.VideoCodec = "H.264"
+				state.convert.EncoderPreset = "medium"
+				if videoCodecSelect != nil {
+					videoCodecSelect.SetSelected("H.264")
+					videoCodecSelect.EnableOption("H.264")
+					videoCodecSelect.DisableOption("H.265")
+					videoCodecSelect.DisableOption("VP9")
+					videoCodecSelect.DisableOption("AV1")
+				}
+			case "web":
+				state.convert.VideoCodec = "H.264"
+				state.convert.EncoderPreset = "medium"
+				state.convert.Quality = "Standard (CRF 23)"
+				if videoCodecSelect != nil {
+					videoCodecSelect.SetSelected("H.264")
+				}
 			}
 		}
 
