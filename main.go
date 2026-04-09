@@ -14581,6 +14581,12 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				s.playerFile = src
 				s.showPlayerView()
 				logging.Debug(logging.CatModule, "loaded video into player module")
+
+				// Also load into the player widget
+				player := GetConvertPlayer()
+				if player != nil {
+					_ = player.Load(src.Path)
+				}
 			}, false)
 		}()
 
