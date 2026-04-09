@@ -4,6 +4,23 @@ This file tracks upcoming features, improvements, and known issues.
 
 ## Dev41 Scope (in progress)
 
+### Upscale Module Improvements
+
+See `docs/UPSCALE_MODULE_DESIGN.md` for detailed analysis.
+
+#### Priority 1: Content-Aware Presets
+- [ ] **Add content-type presets** — Auto-Detect, Animation, Live Action, Archive/Restoration
+- [ ] **Archive preset** — Auto-chain: deinterlace → denoise → upscale for VHS/old content
+- [ ] **Auto-detect** — Analyze interlacing, noise level, resolution; recommend settings
+
+#### Priority 2: Scale Recommendations
+- [ ] **Scale recommendations** — Recommend 2x for 360p/480p sources (4x often degrades quality)
+- [ ] **Source-based guidance** — Show quality warning for very low-res sources
+
+#### Priority 3: Additional Models (Extensibility)
+- [ ] **SPAN model** — Add to model catalog
+- [ ] **Model catalog refinement** — Ensure clean abstraction for future models
+
 ### Burn Module — Logic
 - [ ] **Windows** — Implement IMAPI2 COM interface in `burn_windows.go`
 - [ ] **Linux** — Implement SG_IO ioctl in `burn_linux.go`
