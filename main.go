@@ -867,18 +867,6 @@ type formatOption struct {
 }
 
 var formatOptions = []formatOption{
-	// Device Presets - Optimized for specific devices
-	{"iPhone (Most Compatible)", ".mp4", "libx264", "iPhone", true, false},
-	{"Android (Most Compatible)", ".mp4", "libx264", "Android", true, true},
-	{"Chromecast (Most Compatible)", ".mp4", "libx264", "Chromecast", true, true},
-	{"Fire TV (Most Compatible)", ".mp4", "libx264", "FireTV", true, false},
-	{"Smart TV (Most Compatible)", ".mp4", "libx264", "SmartTV", true, false},
-	{"PlayStation 4", ".mp4", "libx264", "PS4", false, false},
-	{"PlayStation 5", ".mp4", "libx264", "PS5", true, false},
-	{"Xbox One", ".mp4", "libx264", "XboxOne", false, false},
-	{"Xbox Series X", ".mp4", "libx264", "XboxSeriesX", true, false},
-	{"Nintendo Switch", ".mp4", "libx264", "Switch", false, false},
-	{"Web (Fast Start)", ".mp4", "libx264", "web", false, false},
 	// H.264 - Widely compatible, older standard
 	{"MP4 (H.264)", ".mp4", "libx264", "", false, false},
 	{"MOV (H.264)", ".mov", "libx264", "", false, false},
@@ -899,6 +887,38 @@ var formatOptions = []formatOption{
 	// MPEG-2 - DVD standard
 	{"DVD-NTSC (MPEG-2)", ".mpg", "mpeg2video", "", false, false},
 	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video", "", false, false},
+}
+
+// hwPreset is a complete device-optimised encoding configuration.
+// Selecting a preset applies all fields to convert settings at once.
+type hwPreset struct {
+	Label         string
+	FormatLabel   string // must match a Label in formatOptions
+	EncoderPreset string // e.g., "medium", "fast"
+	Quality       string // e.g., "High (CRF 18)"
+	H264Profile   string // "baseline", "main", "high"
+	H264Level     string // "4.0", "4.1", "5.1"; "" = leave unset
+	TargetRes     string // "Source", "720p", "1080p", "4K"
+	PixelFormat   string // "yuv420p"
+	AudioCodec    string // "AAC", "AC-3"
+	AudioBitrate  string // "128k", "192k", "256k"
+	AudioChannels string // "Source", "Stereo"
+	AllowHEVC     bool   // H.265 supported by device
+	AllowAV1      bool   // AV1 supported by device
+}
+
+var hwPresets = []hwPreset{
+	{"iPhone", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "4.0", "1080p", "yuv420p", "AAC", "192k", "Stereo", true, false},
+	{"Android", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", true, true},
+	{"Chromecast", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", true, true},
+	{"Fire TV", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", true, false},
+	{"Smart TV", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", true, false},
+	{"PlayStation 4", "MP4 (H.264)", "medium", "High (CRF 18)", "main", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", false, false},
+	{"PlayStation 5", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "5.1", "4K", "yuv420p", "AAC", "256k", "Stereo", true, false},
+	{"Xbox One", "MP4 (H.264)", "medium", "High (CRF 18)", "main", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", false, false},
+	{"Xbox Series X", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "5.1", "4K", "yuv420p", "AAC", "256k", "Stereo", true, false},
+	{"Nintendo Switch", "MP4 (H.264)", "medium", "Standard (CRF 23)", "main", "4.1", "720p", "yuv420p", "AAC", "192k", "Stereo", false, false},
+	{"Web (Fast Start)", "MP4 (H.264)", "fast", "Standard (CRF 23)", "high", "", "Source", "yuv420p", "AAC", "128k", "Stereo", false, false},
 }
 
 // formatVideoCodecs maps format extension to compatible video codec friendly names.
@@ -8783,43 +8803,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 
-		// Apply device-specific optimizations
-		if opt.DevicePreset != "" {
-			state.convert.H264Profile = "high"
-			state.convert.EncoderPreset = "medium"
-
-			switch opt.DevicePreset {
-			case "iPhone":
-				state.convert.H264Level = "4.0"
-			case "Android", "Chromecast", "FireTV", "SmartTV", "PS5", "XboxSeriesX":
-				state.convert.H264Level = "4.1"
-			case "PS4", "XboxOne", "Switch":
-				state.convert.H264Level = "4.1"
-				state.convert.H264Profile = "main"
-			case "web":
-				state.convert.H264Level = ""
-			}
-
-			// Enable/disable codecs based on device capabilities
-			if videoCodecSelect != nil {
-				videoCodecSelect.SetSelected("H.264")
-				videoCodecSelect.EnableOption("H.264")
-				videoCodecSelect.EnableOption("H.265")
-				videoCodecSelect.EnableOption("AV1")
-				videoCodecSelect.EnableOption("VP9")
-
-				if !opt.SupportsHEVC {
-					videoCodecSelect.DisableOption("H.265")
-				}
-				if !opt.SupportsAV1 {
-					videoCodecSelect.DisableOption("AV1")
-				}
-				// Devices don't support MPEG-2 or Copy in the preset
-				videoCodecSelect.DisableOption("MPEG-2")
-				videoCodecSelect.DisableOption("Copy")
-			}
-		}
-
 		// Update codec compatibility based on format
 		ext := strings.ToLower(opt.Ext)
 		compatibleVideo := formatVideoCodecs[ext]
@@ -8986,7 +8969,29 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		simpleEncodingSection      *fyne.Container
 		advancedVideoEncodingBlock *fyne.Container
 		audioEncodingSection       *fyne.Container
+		applyDevicePreset          func(hwPreset)
 	)
+	// Device preset selector — applyDevicePreset is in the var block above and assigned later
+	// once all encode widgets are constructed. The closure captures it by reference.
+	devicePresetLabels := []string{"None"}
+	for _, dp := range hwPresets {
+		devicePresetLabels = append(devicePresetLabels, dp.Label)
+	}
+	devicePresetSelect := widget.NewSelect(devicePresetLabels, func(val string) {
+		if val == "None" || val == "" {
+			return
+		}
+		for _, dp := range hwPresets {
+			if dp.Label == val {
+				if applyDevicePreset != nil {
+					applyDevicePreset(dp)
+				}
+				break
+			}
+		}
+	})
+	devicePresetSelect.SetSelected("None")
+
 	// updateQualityOptions: Update quality dropdown based on codec
 
 	// Base quality options (without lossless or manual)
@@ -10784,6 +10789,79 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	audioChannelsSelect.SetSelected(state.convert.AudioChannels)
 
+	// applyDevicePreset applies a complete hwPreset to all encoding state and widgets.
+	// Defined here so all selects are in scope for the closure.
+	applyDevicePreset = func(dp hwPreset) {
+		// Apply container format first (updates codec compat lists etc.)
+		if dp.FormatLabel != "" {
+			for _, opt := range formatOptions {
+				if opt.Label == dp.FormatLabel {
+					applySelectedFormat(opt)
+					formatContainer.SetSelected(opt.Label)
+					break
+				}
+			}
+		}
+
+		// Apply video codec and H.264 profile/level.
+		state.convert.VideoCodec = "H.264"
+		state.convert.H264Profile = dp.H264Profile
+		state.convert.H264Level = dp.H264Level
+		videoCodecSelect.EnableAllOptions()
+		if !dp.AllowHEVC {
+			videoCodecSelect.DisableOption("H.265")
+		}
+		if !dp.AllowAV1 {
+			videoCodecSelect.DisableOption("AV1")
+		}
+		videoCodecSelect.DisableOption("MPEG-2")
+		videoCodecSelect.DisableOption("Copy")
+		videoCodecSelect.SetSelected("H.264")
+
+		// Apply quality via state manager (syncs all quality widgets).
+		setQuality(dp.Quality)
+
+		// Apply encoder preset on both simple and advanced selects.
+		state.convert.EncoderPreset = dp.EncoderPreset
+		encoderPresetSelect.SetSelected(dp.EncoderPreset)
+		simplePresetSelect.SetSelected(dp.EncoderPreset)
+
+		// Apply resolution via state manager (syncs both resolution widgets).
+		if dp.TargetRes != "" {
+			setResolution(dp.TargetRes)
+		}
+
+		// Apply pixel format.
+		if dp.PixelFormat != "" {
+			state.convert.PixelFormat = dp.PixelFormat
+			pixelFormatSelect.SetSelected(dp.PixelFormat)
+		}
+
+		// Apply audio settings.
+		if dp.AudioCodec != "" {
+			state.convert.AudioCodec = dp.AudioCodec
+			audioCodecSelect.SetSelected(dp.AudioCodec)
+		}
+		if dp.AudioBitrate != "" {
+			state.convert.AudioBitrate = dp.AudioBitrate
+			audioBitrateSelect.SetSelected(dp.AudioBitrate)
+		}
+		if dp.AudioChannels != "" {
+			state.convert.AudioChannels = dp.AudioChannels
+			audioChannelsSelect.SetSelected(dp.AudioChannels)
+		}
+
+		if updateQualityOptions != nil {
+			updateQualityOptions()
+		}
+		if updateQualityVisibility != nil {
+			updateQualityVisibility()
+		}
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
+	}
+
 	// Now define updateDVDOptions with access to resolution and framerate selects
 	wasDVD := false
 	updateDVDOptions = func() {
@@ -11246,8 +11324,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		makeForceAspectCheck(),
 	))
 
+	devicePresetSectionSimple := buildConvertBox("Device Presets", container.NewVBox(
+		widget.NewLabel("Apply all encoding settings optimised for a target device."),
+		devicePresetSelect,
+	))
+
 	// Simple mode options - minimal controls, aspect locked to Source
 	simpleOptions := container.NewVBox(
+		devicePresetSectionSimple,
+		sectionGap(),
 		outputSectionSimple,
 		sectionGap(),
 		simpleEncodingSection,
@@ -11357,7 +11442,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		inverseHint,
 	))
 
+	devicePresetSectionAdv := buildConvertBox("Device Presets", container.NewVBox(
+		widget.NewLabel("Apply all encoding settings optimised for a target device."),
+		devicePresetSelect,
+	))
+
 	advancedOptions := container.NewVBox(
+		devicePresetSectionAdv,
+		sectionGap(),
 		outputSectionAdvanced,
 		sectionGap(),
 		advancedVideoEncodingBlock,
@@ -11382,6 +11474,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.Mode = "Simple"
 
 		// Format selection handled below in UI redesign
+		devicePresetSelect.SetSelected("None")
 		videoCodecSelect.SetSelected(state.convert.VideoCodec)
 		qualitySelectSimple.SetSelected(state.convert.Quality)
 		qualitySelectAdv.SetSelected(state.convert.Quality)
