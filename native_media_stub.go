@@ -11,11 +11,11 @@ func HasNativeMediaPlayer() bool {
 	return false
 }
 
-func (s *appState) loadVideoNative(path string)    {}
-func (s *appState) playNative()                    {}
-func (s *appState) pauseNative()                   {}
-func (s *appState) seekNative(target float64)      {}
-func (s *appState) stepFrameNative(dir int)        {}
+func (s *appState) loadVideoNative(path string)       {}
+func (s *appState) playNative()                       {}
+func (s *appState) pauseNative()                      {}
+func (s *appState) seekNative(target float64)         {}
+func (s *appState) stepFrameNative(dir int)           {}
 func (s *appState) scrubNative(target float64)        {}
 func (s *appState) selectAudioTrackNative(idx int)    {}
 func (s *appState) setVolumeNative(vol float64)       {}
@@ -35,5 +35,9 @@ func GetTrimPlayer() *ui.InlineVideoPlayer {
 }
 
 func GetInspectPlayer() *ui.InlineVideoPlayer {
+	return ui.NewInlineVideoPlayer()
+}
+
+func GetConvertPlayer() *ui.InlineVideoPlayer {
 	return ui.NewInlineVideoPlayer()
 }

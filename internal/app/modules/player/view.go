@@ -33,6 +33,7 @@ type Options struct {
 	OnProbeVideo             func(path string) (interface{}, error)
 	OnBuildVideoPane         func(state interface{}, size fyne.Size, src interface{}, onSeek func(float64)) fyne.CanvasObject
 	OnGetPlayerFooter        func(content fyne.CanvasObject) fyne.CanvasObject
+	OnLoadVideo              func(path string) // Load video into player
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
@@ -102,6 +103,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 					}
 
 					opts.PlayerFile = src
+
+					// If we have a path, load it into the player
+					if vs, ok := src.(interface{ Path() string }); ok {
+						if opts.OnLoadVideo != nil {
+							opts.OnLoadVideo(vs.Path())
+						}
+					}
+
+					// Rebuild the view to show the loaded video
 					if opts.OnShowPlayerView != nil {
 						opts.OnShowPlayerView()
 					}
