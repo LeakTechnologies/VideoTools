@@ -1033,6 +1033,87 @@ type convertConfig struct {
 
 type convertRecoveryState = appcfg.ConvertRecoveryState
 
+// userPreset captures all encoding-relevant convertConfig fields under a user-defined name.
+// Output paths, UI mode, and source-specific values are intentionally excluded.
+type userPreset struct {
+	Name                   string       `json:"name"`
+	SelectedFormat         formatOption `json:"selectedFormat"`
+	VideoCodec             string       `json:"videoCodec"`
+	EncoderPreset          string       `json:"encoderPreset"`
+	Quality                string       `json:"quality"`
+	BitrateMode            string       `json:"bitrateMode"`
+	BitratePreset          string       `json:"bitratePreset"`
+	VideoBitrate           string       `json:"videoBitrate"`
+	CRF                    string       `json:"crf"`
+	TargetFileSize         string       `json:"targetFileSize"`
+	TargetResolution       string       `json:"targetResolution"`
+	FrameRate              string       `json:"frameRate"`
+	UseMotionInterpolation bool         `json:"useMotionInterpolation"`
+	PixelFormat            string       `json:"pixelFormat"`
+	HardwareAccel          string       `json:"hardwareAccel"`
+	TwoPass                bool         `json:"twoPass"`
+	H264Profile            string       `json:"h264Profile"`
+	H264Level              string       `json:"h264Level"`
+	AudioCodec             string       `json:"audioCodec"`
+	AudioBitrate           string       `json:"audioBitrate"`
+	AudioChannels          string       `json:"audioChannels"`
+	AudioSampleRate        string       `json:"audioSampleRate"`
+	NormalizeAudio         bool         `json:"normalizeAudio"`
+	OutputAspect           string       `json:"outputAspect"`
+	AspectHandling         string       `json:"aspectHandling"`
+	ForceAspect            bool         `json:"forceAspect"`
+	PreserveChapters       bool         `json:"preserveChapters"`
+}
+
+type userPresetsConfig struct {
+	Presets []userPreset `json:"presets"`
+}
+
+// userPresetFromConfig captures all encoding-relevant fields from the current config.
+func userPresetFromConfig(name string, cfg convertConfig) userPreset {
+	return userPreset{
+		Name:                   name,
+		SelectedFormat:         cfg.SelectedFormat,
+		VideoCodec:             cfg.VideoCodec,
+		EncoderPreset:          cfg.EncoderPreset,
+		Quality:                cfg.Quality,
+		BitrateMode:            cfg.BitrateMode,
+		BitratePreset:          cfg.BitratePreset,
+		VideoBitrate:           cfg.VideoBitrate,
+		CRF:                    cfg.CRF,
+		TargetFileSize:         cfg.TargetFileSize,
+		TargetResolution:       cfg.TargetResolution,
+		FrameRate:              cfg.FrameRate,
+		UseMotionInterpolation: cfg.UseMotionInterpolation,
+		PixelFormat:            cfg.PixelFormat,
+		HardwareAccel:          cfg.HardwareAccel,
+		TwoPass:                cfg.TwoPass,
+		H264Profile:            cfg.H264Profile,
+		H264Level:              cfg.H264Level,
+		AudioCodec:             cfg.AudioCodec,
+		AudioBitrate:           cfg.AudioBitrate,
+		AudioChannels:          cfg.AudioChannels,
+		AudioSampleRate:        cfg.AudioSampleRate,
+		NormalizeAudio:         cfg.NormalizeAudio,
+		OutputAspect:           cfg.OutputAspect,
+		AspectHandling:         cfg.AspectHandling,
+		ForceAspect:            cfg.ForceAspect,
+		PreserveChapters:       cfg.PreserveChapters,
+	}
+}
+
+func loadUserPresets() ([]userPreset, error) {
+	var cfg userPresetsConfig
+	if _, err := appcfg.LoadModuleJSON("user_presets", &cfg); err != nil {
+		return nil, err
+	}
+	return cfg.Presets, nil
+}
+
+func saveUserPresets(presets []userPreset) error {
+	return appcfg.SaveModuleJSON("user_presets", userPresetsConfig{Presets: presets})
+}
+
 func (c convertConfig) OutputFile() string {
 	base := strings.TrimSpace(c.OutputBase)
 	if base == "" {
@@ -1349,6 +1430,9 @@ type appState struct {
 	// Interlacing detection state
 	interlaceResult    *interlace.DetectionResult
 	interlaceAnalyzing bool
+
+	// User-defined encoding presets
+	userPresets []userPreset
 
 	// History sidebar state
 	historyEntries []ui.HistoryEntry
@@ -7988,6 +8072,14 @@ func runGUI() {
 	}
 	utils.SetTempDir(state.convert.TempDir)
 
+	// Initialize user-defined encoding presets
+	if presets, err := loadUserPresets(); err == nil {
+		state.userPresets = presets
+	} else {
+		state.userPresets = []userPreset{}
+		logging.Debug(logging.CatSystem, "failed to load user presets: %v", err)
+	}
+
 	// Initialize conversion history
 	if historyCfg, err := loadHistoryConfig(); err == nil {
 		state.historyEntries = historyCfg.Entries
@@ -8970,6 +9062,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		advancedVideoEncodingBlock *fyne.Container
 		audioEncodingSection       *fyne.Container
 		applyDevicePreset          func(hwPreset)
+		applyUserPreset            func(userPreset)
 	)
 	// Device preset selector — applyDevicePreset is in the var block above and assigned later
 	// once all encode widgets are constructed. The closure captures it by reference.
@@ -8991,6 +9084,82 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	})
 	devicePresetSelect.SetSelected("None")
+
+	// User preset selector — applyUserPreset assigned after all encode widgets exist.
+	buildUserPresetLabels := func() []string {
+		labels := []string{"None"}
+		for _, p := range state.userPresets {
+			labels = append(labels, p.Name)
+		}
+		return labels
+	}
+	userPresetSelect := widget.NewSelect(buildUserPresetLabels(), func(val string) {
+		if val == "None" || val == "" {
+			return
+		}
+		for _, p := range state.userPresets {
+			if p.Name == val {
+				if applyUserPreset != nil {
+					applyUserPreset(p)
+				}
+				break
+			}
+		}
+	})
+	userPresetSelect.SetSelected("None")
+
+	deleteUserPresetBtn := widget.NewButton("Delete", func() {
+		sel := userPresetSelect.Selected
+		if sel == "None" || sel == "" {
+			return
+		}
+		updated := state.userPresets[:0]
+		for _, p := range state.userPresets {
+			if p.Name != sel {
+				updated = append(updated, p)
+			}
+		}
+		state.userPresets = updated
+		if err := saveUserPresets(state.userPresets); err != nil {
+			logging.Error(logging.CatConvert, "failed to save user presets: %v", err)
+		}
+		userPresetSelect.Options = buildUserPresetLabels()
+		userPresetSelect.SetSelected("None")
+		userPresetSelect.Refresh()
+	})
+
+	saveUserPresetBtn := widget.NewButton("Save Current Settings as Preset...", func() {
+		entry := widget.NewEntry()
+		entry.SetPlaceHolder("Preset name, e.g. \"4K Archival\"")
+		dialog.ShowCustomConfirm("Save Preset", "Save", "Cancel", entry, func(ok bool) {
+			if !ok {
+				return
+			}
+			name := strings.TrimSpace(entry.Text)
+			if name == "" {
+				return
+			}
+			// Replace existing preset with same name, or append.
+			preset := userPresetFromConfig(name, state.convert)
+			replaced := false
+			for i, p := range state.userPresets {
+				if p.Name == name {
+					state.userPresets[i] = preset
+					replaced = true
+					break
+				}
+			}
+			if !replaced {
+				state.userPresets = append(state.userPresets, preset)
+			}
+			if err := saveUserPresets(state.userPresets); err != nil {
+				logging.Error(logging.CatConvert, "failed to save user presets: %v", err)
+			}
+			userPresetSelect.Options = buildUserPresetLabels()
+			userPresetSelect.SetSelected(name)
+			userPresetSelect.Refresh()
+		}, state.window)
+	})
 
 	// updateQualityOptions: Update quality dropdown based on codec
 
@@ -10862,6 +11031,130 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
+	// applyUserPreset applies a saved user preset to all encoding state and widgets.
+	applyUserPreset = func(up userPreset) {
+		// Format
+		if up.SelectedFormat.Label != "" {
+			for _, opt := range formatOptions {
+				if opt.Label == up.SelectedFormat.Label {
+					applySelectedFormat(opt)
+					formatContainer.SetSelected(opt.Label)
+					break
+				}
+			}
+		}
+
+		// Video codec
+		if up.VideoCodec != "" {
+			state.convert.VideoCodec = up.VideoCodec
+			videoCodecSelect.SetSelected(up.VideoCodec)
+		}
+		state.convert.H264Profile = up.H264Profile
+		state.convert.H264Level = up.H264Level
+
+		// Quality
+		if up.Quality != "" {
+			setQuality(up.Quality)
+		}
+
+		// Encoder preset
+		if up.EncoderPreset != "" {
+			state.convert.EncoderPreset = up.EncoderPreset
+			encoderPresetSelect.SetSelected(up.EncoderPreset)
+			simplePresetSelect.SetSelected(up.EncoderPreset)
+		}
+
+		// Bitrate mode
+		if up.BitrateMode != "" {
+			friendly := reverseMap[up.BitrateMode]
+			if friendly == "" {
+				friendly = up.BitrateMode
+			}
+			bitrateModeSelect.SetSelected(friendly)
+		}
+
+		// Bitrate preset
+		if up.BitratePreset != "" {
+			setBitratePreset(up.BitratePreset)
+		}
+
+		// CRF (manual)
+		if up.CRF != "" {
+			state.convert.CRF = up.CRF
+			if crfEntry != nil {
+				crfEntry.SetText(up.CRF)
+			}
+		}
+
+		// Resolution
+		if up.TargetResolution != "" {
+			setResolution(up.TargetResolution)
+		}
+
+		// Frame rate
+		if up.FrameRate != "" {
+			state.convert.FrameRate = up.FrameRate
+			frameRateSelect.SetSelected(up.FrameRate)
+			updateFrameRateHint()
+		}
+
+		// Motion interpolation
+		state.convert.UseMotionInterpolation = up.UseMotionInterpolation
+		motionInterpCheck.SetChecked(up.UseMotionInterpolation)
+
+		// Pixel format
+		if up.PixelFormat != "" {
+			state.convert.PixelFormat = up.PixelFormat
+			pixelFormatSelect.SetSelected(up.PixelFormat)
+		}
+
+		// Hardware accel
+		if up.HardwareAccel != "" {
+			state.convert.HardwareAccel = up.HardwareAccel
+			hwAccelSelect.SetSelected(up.HardwareAccel)
+		}
+
+		// Two-pass
+		state.convert.TwoPass = up.TwoPass
+		twoPassCheck.SetChecked(up.TwoPass)
+
+		// Audio
+		if up.AudioCodec != "" {
+			state.convert.AudioCodec = up.AudioCodec
+			audioCodecSelect.SetSelected(up.AudioCodec)
+		}
+		if up.AudioBitrate != "" {
+			state.convert.AudioBitrate = up.AudioBitrate
+			audioBitrateSelect.SetSelected(up.AudioBitrate)
+		}
+		if up.AudioChannels != "" {
+			state.convert.AudioChannels = up.AudioChannels
+			audioChannelsSelect.SetSelected(up.AudioChannels)
+		}
+		state.convert.AudioSampleRate = up.AudioSampleRate
+		state.convert.NormalizeAudio = up.NormalizeAudio
+
+		// Output / aspect
+		state.convert.OutputAspect = up.OutputAspect
+		state.convert.AspectHandling = up.AspectHandling
+		state.convert.ForceAspect = up.ForceAspect
+		state.convert.PreserveChapters = up.PreserveChapters
+		preserveChaptersCheck.SetChecked(up.PreserveChapters)
+
+		if updateQualityOptions != nil {
+			updateQualityOptions()
+		}
+		if updateQualityVisibility != nil {
+			updateQualityVisibility()
+		}
+		if updateEncodingControls != nil {
+			updateEncodingControls()
+		}
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
+	}
+
 	// Now define updateDVDOptions with access to resolution and framerate selects
 	wasDVD := false
 	updateDVDOptions = func() {
@@ -11329,9 +11622,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		devicePresetSelect,
 	))
 
+	userPresetSectionSimple := buildConvertBox("User Presets", container.NewVBox(
+		container.NewBorder(nil, nil, nil, deleteUserPresetBtn, userPresetSelect),
+		saveUserPresetBtn,
+	))
+
 	// Simple mode options - minimal controls, aspect locked to Source
 	simpleOptions := container.NewVBox(
 		devicePresetSectionSimple,
+		sectionGap(),
+		userPresetSectionSimple,
 		sectionGap(),
 		outputSectionSimple,
 		sectionGap(),
@@ -11447,8 +11747,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		devicePresetSelect,
 	))
 
+	userPresetSectionAdv := buildConvertBox("User Presets", container.NewVBox(
+		container.NewBorder(nil, nil, nil, deleteUserPresetBtn, userPresetSelect),
+		saveUserPresetBtn,
+	))
+
 	advancedOptions := container.NewVBox(
 		devicePresetSectionAdv,
+		sectionGap(),
+		userPresetSectionAdv,
 		sectionGap(),
 		outputSectionAdvanced,
 		sectionGap(),
@@ -11475,6 +11782,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		// Format selection handled below in UI redesign
 		devicePresetSelect.SetSelected("None")
+		userPresetSelect.SetSelected("None")
 		videoCodecSelect.SetSelected(state.convert.VideoCodec)
 		qualitySelectSimple.SetSelected(state.convert.Quality)
 		qualitySelectAdv.SetSelected(state.convert.Quality)
