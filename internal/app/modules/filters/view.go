@@ -491,7 +491,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	settingsScroll := ui.NewFastVScroll(settingsPanel)
 
 	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6},
-		container.NewVBox(leftPanel, container.NewCenter(videoContainer)),
+		container.NewBorder(leftPanel, nil, nil, nil, videoContainer),
 		settingsScroll,
 	)
 

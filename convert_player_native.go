@@ -58,12 +58,17 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		stageWidth = stageHeight * aspect
 	}
 
+	// Ensure the play button state is consistent: every time a new player pane
+	// is built, the player starts paused (Load() always ends in paused state).
+	state.playerPaused = true
+
 	player := GetConvertPlayer()
 	playerWidget := player.Widget()
 	playerWidget.DisableBuiltinControls()
 
 	bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
 	bg.CornerRadius = 6
+	bg.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
 
 	dropIndicator := canvas.NewRectangle(color.NRGBA{R: 76, G: 175, B: 80, A: 0})
 	dropIndicator.CornerRadius = 8

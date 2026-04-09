@@ -1,6 +1,8 @@
 package main
 
 import (
+	"path/filepath"
+
 	"fyne.io/fyne/v2"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/upscale"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
@@ -96,6 +98,7 @@ func upscaleToMainVideoSource(v *upscale.VideoSource) *videoSource {
 	}
 	return &videoSource{
 		Path:              v.Path,
+		DisplayName:       filepath.Base(v.Path),
 		Format:            v.Format,
 		VideoCodec:        v.VideoCodec,
 		Width:             v.Width,
