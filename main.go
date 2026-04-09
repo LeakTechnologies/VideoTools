@@ -862,35 +862,43 @@ type formatOption struct {
 	Ext          string
 	VideoCodec   string
 	DevicePreset string // e.g., "iPhone", "Android", "Chromecast" — enables auto-compatible settings
+	SupportsHEVC bool   // Device supports H.265
+	SupportsAV1  bool   // Device supports AV1
 }
 
 var formatOptions = []formatOption{
 	// Device Presets - Optimized for specific devices
-	{"iPhone (Most Compatible)", ".mp4", "libx264", "iPhone"},
-	{"Android (Most Compatible)", ".mp4", "libx264", "Android"},
-	{"Chromecast (Most Compatible)", ".mp4", "libx264", "Chromecast"},
-	{"Fire TV (Most Compatible)", ".mp4", "libx264", "FireTV"},
-	{"Web (Fast Start)", ".mp4", "libx264", "web"},
+	{"iPhone (Most Compatible)", ".mp4", "libx264", "iPhone", true, false},
+	{"Android (Most Compatible)", ".mp4", "libx264", "Android", true, true},
+	{"Chromecast (Most Compatible)", ".mp4", "libx264", "Chromecast", true, true},
+	{"Fire TV (Most Compatible)", ".mp4", "libx264", "FireTV", true, false},
+	{"Smart TV (Most Compatible)", ".mp4", "libx264", "SmartTV", true, false},
+	{"PlayStation 4", ".mp4", "libx264", "PS4", false, false},
+	{"PlayStation 5", ".mp4", "libx264", "PS5", true, false},
+	{"Xbox One", ".mp4", "libx264", "XboxOne", false, false},
+	{"Xbox Series X", ".mp4", "libx264", "XboxSeriesX", true, false},
+	{"Nintendo Switch", ".mp4", "libx264", "Switch", false, false},
+	{"Web (Fast Start)", ".mp4", "libx264", "web", false, false},
 	// H.264 - Widely compatible, older standard
-	{"MP4 (H.264)", ".mp4", "libx264", ""},
-	{"MOV (H.264)", ".mov", "libx264", ""},
+	{"MP4 (H.264)", ".mp4", "libx264", "", false, false},
+	{"MOV (H.264)", ".mov", "libx264", "", false, false},
 	// Remux - No re-encode
-	{"MKV (Remux)", ".mkv", "copy", ""},
-	// H.265/HEVC - Better compression than H.264
-	{"MP4 (H.265)", ".mp4", "libx265", ""},
-	{"MKV (H.265)", ".mkv", "libx265", ""},
-	{"MOV (H.265)", ".mov", "libx265", ""},
-	// AV1 - Best compression, slower encode
-	{"MP4 (AV1)", ".mp4", "libaom-av1", ""},
-	{"MKV (AV1)", ".mkv", "libaom-av1", ""},
-	{"WebM (AV1)", ".webm", "libaom-av1", ""},
+	{"MKV (Remux)", ".mkv", "copy", "", false, false},
+	// H.265/HEVC - Higher quality than H.264
+	{"MP4 (H.265)", ".mp4", "libx265", "", false, false},
+	{"MKV (H.265)", ".mkv", "libx265", "", false, false},
+	{"MOV (H.265)", ".mov", "libx265", "", false, false},
+	// AV1 - Best compression, newest format
+	{"MP4 (AV1)", ".mp4", "libaom-av1", "", false, false},
+	{"MKV (AV1)", ".mkv", "libaom-av1", "", false, false},
+	{"WebM (AV1)", ".webm", "libaom-av1", "", false, false},
 	// VP9 - Google codec, good for web
-	{"WebM (VP9)", ".webm", "libvpx-vp9", ""},
+	{"WebM (VP9)", ".webm", "libvpx-vp9", "", false, false},
 	// ProRes - Professional/editing codec
-	{"MOV (ProRes)", ".mov", "prores_ks", ""},
+	{"MOV (ProRes)", ".mov", "prores_ks", "", false, false},
 	// MPEG-2 - DVD standard
-	{"DVD-NTSC (MPEG-2)", ".mpg", "mpeg2video", ""},
-	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video", ""},
+	{"DVD-NTSC (MPEG-2)", ".mpg", "mpeg2video", "", false, false},
+	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video", "", false, false},
 }
 
 // formatVideoCodecs maps format extension to compatible video codec friendly names.
@@ -8770,62 +8778,38 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		// Apply device-specific optimizations
 		if opt.DevicePreset != "" {
+			state.convert.H264Profile = "high"
+			state.convert.EncoderPreset = "medium"
+
 			switch opt.DevicePreset {
 			case "iPhone":
-				state.convert.H264Profile = "high"
 				state.convert.H264Level = "4.0"
-				state.convert.VideoCodec = "H.264"
-				state.convert.EncoderPreset = "medium"
-				if videoCodecSelect != nil {
-					videoCodecSelect.SetSelected("H.264")
-					videoCodecSelect.EnableOption("H.264")
-					videoCodecSelect.DisableOption("H.265")
-					videoCodecSelect.DisableOption("VP9")
-					videoCodecSelect.DisableOption("AV1")
-				}
-			case "Android":
-				state.convert.H264Profile = "high"
+			case "Android", "Chromecast", "FireTV", "SmartTV", "PS5", "XboxSeriesX":
 				state.convert.H264Level = "4.1"
-				state.convert.VideoCodec = "H.264"
-				state.convert.EncoderPreset = "medium"
-				if videoCodecSelect != nil {
-					videoCodecSelect.SetSelected("H.264")
-					videoCodecSelect.EnableOption("H.264")
-					videoCodecSelect.DisableOption("H.265")
-					videoCodecSelect.DisableOption("VP9")
-					videoCodecSelect.DisableOption("AV1")
-				}
-			case "Chromecast":
-				state.convert.H264Profile = "high"
-				state.convert.H264Level = "4.0"
-				state.convert.VideoCodec = "H.264"
-				state.convert.EncoderPreset = "medium"
-				if videoCodecSelect != nil {
-					videoCodecSelect.SetSelected("H.264")
-					videoCodecSelect.EnableOption("H.264")
-					videoCodecSelect.DisableOption("H.265")
-					videoCodecSelect.DisableOption("VP9")
-					videoCodecSelect.DisableOption("AV1")
-				}
-			case "FireTV":
-				state.convert.H264Profile = "high"
-				state.convert.H264Level = "4.0"
-				state.convert.VideoCodec = "H.264"
-				state.convert.EncoderPreset = "medium"
-				if videoCodecSelect != nil {
-					videoCodecSelect.SetSelected("H.264")
-					videoCodecSelect.EnableOption("H.264")
-					videoCodecSelect.DisableOption("H.265")
-					videoCodecSelect.DisableOption("VP9")
-					videoCodecSelect.DisableOption("AV1")
-				}
+			case "PS4", "XboxOne", "Switch":
+				state.convert.H264Level = "4.1"
+				state.convert.H264Profile = "main"
 			case "web":
-				state.convert.VideoCodec = "H.264"
-				state.convert.EncoderPreset = "medium"
-				state.convert.Quality = "Standard (CRF 23)"
-				if videoCodecSelect != nil {
-					videoCodecSelect.SetSelected("H.264")
+				state.convert.H264Level = ""
+			}
+
+			// Enable/disable codecs based on device capabilities
+			if videoCodecSelect != nil {
+				videoCodecSelect.SetSelected("H.264")
+				videoCodecSelect.EnableOption("H.264")
+				videoCodecSelect.EnableOption("H.265")
+				videoCodecSelect.EnableOption("AV1")
+				videoCodecSelect.EnableOption("VP9")
+
+				if !opt.SupportsHEVC {
+					videoCodecSelect.DisableOption("H.265")
 				}
+				if !opt.SupportsAV1 {
+					videoCodecSelect.DisableOption("AV1")
+				}
+				// Devices don't support MPEG-2 or Copy in the preset
+				videoCodecSelect.DisableOption("MPEG-2")
+				videoCodecSelect.DisableOption("Copy")
 			}
 		}
 
