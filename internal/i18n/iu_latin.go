@@ -420,78 +420,79 @@ var iuLatn = Strings{
 	ConvertUseDefault:             "Nalunaiqsimanngitsoq Atuqlugu",                                                            // machine-generated, needs human review — Use Default
 
 	// Convert (machine-generated)
-	ConvertAddAllToQueue:           "All to Queue",                                                                         // machine-generated
-	ConvertAutoCropHint:            "Removes black bars to reduce file size",                                               // machine-generated
-	ConvertAutoNameHint:            "Tokens: <actress>, <studio>, <scene>, <title>, <series>, <date>, <filename>",          // machine-generated
-	ConvertBackgroundHint:          "Crop removes edges, Letterbox/Pillarbox adds black bars to fit.",                      // machine-generated
-	ConvertCacheDirHint:            "Use an SSD for best performance. Leave blank to use system temp.",                     // machine-generated
-	ConvertCompareAfter:            "Compare After",                                                                        // machine-generated
-	ConvertCustomAspectHint:        "Custom aspect ratio in use.",                                                          // machine-generated
-	ConvertEncoderPresetHint:       "Choose slower for better compression, faster for speed",                               // machine-generated
-	ConvertFFmpegCommand:           "FFmpeg Command:",                                                                      // machine-generated
-	ConvertFormat:                  "Format",                                                                               // machine-generated
-	ConvertFrameLabel:              "Frame: %d",                                                                            // machine-generated
-	ConvertFrameRate:               "Frame Rate",                                                                           // machine-generated
-	ConvertHideBatchSettings:       "Hide Batch Settings",                                                                  // machine-generated
-	ConvertHwAccelHint:             "Auto picks the best available GPU path; if encode fails, switch to none (software).",  // machine-generated
-	ConvertInspectHint:             "Load a clip to inspect its technical details.",                                        // machine-generated
-	ConvertInterlaceAnalyzing:      "Analyzing interlacing... (first 500 frames)",                                          // machine-generated
-	ConvertInterlaceInfo:           "Left: Original | Right: Deinterlaced",                                                 // machine-generated
-	ConvertLoadVideoForCommand:     "Load a video to see the FFmpeg command.",                                              // machine-generated
-	ConvertLoadVideoToConvert:      "Load a video to convert",                                                              // machine-generated
-	ConvertNavNext:                 "Next",                                                                                 // machine-generated
-	ConvertNavPrev:                 "Prev",                                                                                 // machine-generated
-	ConvertOutputFilename:          "Output Filename",                                                                      // machine-generated
-	ConvertOutputFolder:            "Output Folder",                                                                        // machine-generated
-	ConvertReadyToConvert:          "Ready to convert",                                                                     // machine-generated
-	ConvertSectionAspectHandling:   "Aspect Handling",                                                                      // machine-generated
-	ConvertSectionAudioBitrate:     "Audio Bitrate",                                                                        // machine-generated
-	ConvertSectionAudioChannels:    "Audio Channels",                                                                       // machine-generated
-	ConvertSectionAudioCodec:       "Audio Codec",                                                                          // machine-generated
-	ConvertSectionBitrateMode:      "Bitrate Mode",                                                                         // machine-generated
-	ConvertSectionBitratePreset:    "Bitrate Preset",                                                                       // machine-generated
-	ConvertSectionBitrateSimple:    "Bitrate (simple presets)",                                                             // machine-generated
-	ConvertSectionCacheDir:         "Cache/Temp Directory",                                                                 // machine-generated
-	ConvertSectionClipsToMerge:     "Clips to Merge",                                                                       // machine-generated
-	ConvertSectionCustomAspect:     "Custom Aspect Ratio",                                                                  // machine-generated
-	ConvertSectionDVDApect:         "DVD Aspect Ratio",                                                                     // machine-generated
-	ConvertSectionEncoderPreset:    "Encoder Preset",                                                                       // machine-generated
-	ConvertSectionEncoderSpeed:     "Encoder Speed/Quality",                                                                // machine-generated
-	ConvertSectionFormat:           "Format",                                                                               // machine-generated
-	ConvertSectionFrameRate:        "Frame Rate",                                                                           // machine-generated
-	ConvertSectionHardwareAccel:    "Hardware Acceleration",                                                                // machine-generated
-	ConvertSectionLogsDir:          "Logs Directory",                                                                       // machine-generated
-	ConvertSectionManualBitrate:    "Manual Bitrate",                                                                       // machine-generated
-	ConvertSectionManualCRF:        "Manual CRF",                                                                           // machine-generated
-	ConvertSectionMetadata:         "Metadata",                                                                             // machine-generated
-	ConvertSectionOutputFilename:   "Output Filename",                                                                      // machine-generated
-	ConvertSectionOutputFolder:     "Output Folder",                                                                        // machine-generated
-	ConvertSectionOutputOptions:    "Output Options",                                                                       // machine-generated
-	ConvertSectionPixelFormat:      "Pixel Format",                                                                         // machine-generated
-	ConvertSectionQualityPreset:    "Quality Preset",                                                                       // machine-generated
-	ConvertSectionRotation:         "Rotation",                                                                             // machine-generated
-	ConvertSectionTargetAspect:     "Target Aspect Ratio",                                                                  // machine-generated
-	ConvertSectionTargetFileSize:   "Target File Size",                                                                     // machine-generated
-	ConvertSectionTargetResolution: "Target Resolution",                                                                    // machine-generated
-	ConvertSectionVideoCodec:       "Video Codec",                                                                          // machine-generated
-	ConvertSettingsInfo:            "Settings persist across videos. Change them anytime to affect all subsequent videos.", // machine-generated
-	ConvertShowBatchSettings:       "Show Batch Settings",                                                                  // machine-generated
-	ConvertSnippetGenerating:       "Generating %d-second snippet...",                                                      // machine-generated
-	ConvertTabAdvanced:             "Advanced",                                                                             // machine-generated
-	ConvertTabSimple:               "Simple",                                                                               // machine-generated
-	ConvertTargetAspectHint:        "Pick desired output aspect (default Source).",                                         // machine-generated
-	ConvertTransformHint:           "Apply flips and rotation to correct video orientation",                                // machine-generated
-	ConvertTwoPassNote:             "Two-pass encoding is ignored in CRF mode.",                                            // machine-generated
-	ConvertVideoFormatsHint:        "MP4, MOV, MKV and more",                                                               // machine-generated
-	ConvertVideoOfFmt:              "Video %d of %d",                                                                       // machine-generated
-	ConvertViewLog:                 "View Log",                                                                             // machine-generated
-	FileManagerOpenConvert:         "Open in Convert",                                                                      // machine-generated
-	TooltipConvertAudio:            "Audio codec and settings",                                                             // machine-generated
-	TooltipConvertCodec:            "Video codec (H.264, H.265, etc.)",                                                     // machine-generated
-	TooltipConvertFormat:           "Output video format (MP4, MKV, etc.)",                                                 // machine-generated
-	TooltipConvertOutput:           "Output file location",                                                                 // machine-generated
-	TooltipConvertQuality:          "Video quality preset (CRF value)",                                                     // machine-generated
-	TooltipConvertStart:            "Start conversion",                                                                     // machine-generated
+	ConvertAddAllToQueue:             "All to Queue",                                                                         // machine-generated
+	ConvertAutoCropHint:              "Removes black bars to reduce file size",                                               // machine-generated
+	ConvertAutoNameHint:              "Tokens: <actress>, <studio>, <scene>, <title>, <series>, <date>, <filename>",          // machine-generated
+	ConvertBackgroundHint:            "Crop removes edges, Letterbox/Pillarbox adds black bars to fit.",                      // machine-generated
+	ConvertCacheDirHint:              "Use an SSD for best performance. Leave blank to use system temp.",                     // machine-generated
+	ConvertCompareAfter:              "Compare After",                                                                        // machine-generated
+	ConvertCustomAspectHint:          "Custom aspect ratio in use.",                                                          // machine-generated
+	ConvertEncoderPresetHint:         "Choose slower for better compression, faster for speed",                               // machine-generated
+	ConvertFFmpegCommand:             "FFmpeg Command:",                                                                      // machine-generated
+	ConvertFormat:                    "Format",                                                                               // machine-generated
+	ConvertFrameLabel:                "Frame: %d",                                                                            // machine-generated
+	ConvertFrameRate:                 "Frame Rate",                                                                           // machine-generated
+	ConvertHideBatchSettings:         "Hide Batch Settings",                                                                  // machine-generated
+	ConvertHwAccelHint:               "Auto picks the best available GPU path; if encode fails, switch to none (software).",  // machine-generated
+	ConvertInspectHint:               "Load a clip to inspect its technical details.",                                        // machine-generated
+	ConvertInterlaceAnalyzing:        "Analyzing interlacing... (first 500 frames)",                                          // machine-generated
+	ConvertInterlaceInfo:             "Left: Original | Right: Deinterlaced",                                                 // machine-generated
+	ConvertLoadVideoForCommand:       "Load a video to see the FFmpeg command.",                                              // machine-generated
+	ConvertLoadVideoToConvert:        "Load a video to convert",                                                              // machine-generated
+	ConvertNavNext:                   "Next",                                                                                 // machine-generated
+	ConvertNavPrev:                   "Prev",                                                                                 // machine-generated
+	ConvertOutputFilename:            "Output Filename",                                                                      // machine-generated
+	ConvertOutputFolder:              "Output Folder",                                                                        // machine-generated
+	ConvertReadyToConvert:            "Ready to convert",                                                                     // machine-generated
+	ConvertSectionAspectHandling:     "Aspect Handling",                                                                      // machine-generated
+	ConvertSectionAudioBitrate:       "Audio Bitrate",                                                                        // machine-generated
+	ConvertSectionAudioChannels:      "Audio Channels",                                                                       // machine-generated
+	ConvertSectionAudioCodec:         "Audio Codec",                                                                          // machine-generated
+	ConvertSectionBitrateMode:        "Bitrate Mode",                                                                         // machine-generated
+	ConvertSectionBitratePreset:      "Bitrate Preset",                                                                       // machine-generated
+	ConvertSectionBitrateSimple:      "Bitrate (simple presets)",                                                             // machine-generated
+	ConvertSectionCacheDir:           "Cache/Temp Directory",                                                                 // machine-generated
+	ConvertSectionClipsToMerge:       "Clips to Merge",                                                                       // machine-generated
+	ConvertSectionCustomAspect:       "Custom Aspect Ratio",                                                                  // machine-generated
+	ConvertSectionDVDApect:           "DVD Aspect Ratio",                                                                     // machine-generated
+	ConvertSectionEncoderPreset:      "Encoder Preset",                                                                       // machine-generated
+	ConvertSectionEncoderSpeed:       "Encoder Speed/Quality",                                                                // machine-generated
+	ConvertSectionFormat:             "Format",                                                                               // machine-generated
+	ConvertSectionFrameRate:          "Frame Rate",                                                                           // machine-generated
+	ConvertSectionHardwareAccel:      "Hardware Acceleration",                                                                // machine-generated
+	ConvertSectionLogsDir:            "Logs Directory",                                                                       // machine-generated
+	ConvertSectionManualBitrate:      "Manual Bitrate",                                                                       // machine-generated
+	ConvertSectionManualCRF:          "Manual CRF",                                                                           // machine-generated
+	ConvertSectionMetadata:           "Metadata",                                                                             // machine-generated
+	ConvertSectionOutputFilename:     "Output Filename",                                                                      // machine-generated
+	ConvertSectionOutputFolder:       "Output Folder",                                                                        // machine-generated
+	ConvertSectionOutputOptions:      "Output Options",                                                                       // machine-generated
+	ConvertSectionPixelFormat:        "Pixel Format",                                                                         // machine-generated
+	ConvertSectionQualityPreset:      "Quality Preset",                                                                       // machine-generated
+	ConvertSectionRotation:           "Rotation",                                                                             // machine-generated
+	ConvertSectionTargetAspect:       "Target Aspect Ratio",                                                                  // machine-generated
+	ConvertSectionTargetFileSize:     "Target File Size",                                                                     // machine-generated
+	ConvertSectionTargetResolution:   "Target Resolution",                                                                    // machine-generated
+	ConvertSectionVideoCodec:         "Video Codec",                                                                          // machine-generated
+	ConvertSettingsInfo:              "Settings persist across videos. Change them anytime to affect all subsequent videos.", // machine-generated
+	ConvertShowBatchSettings:         "Show Batch Settings",                                                                  // machine-generated
+	ConvertSnippetGenerating:         "Generating %d-second snippet...",                                                      // machine-generated
+	ConvertTabAdvanced:               "Advanced",                                                                             // machine-generated
+	ConvertTabSimple:                 "Simple",                                                                               // machine-generated
+	ConvertTargetAspectHint:          "Pick desired output aspect (default Source).",                                         // machine-generated
+	ConvertTransformHint:             "Apply flips and rotation to correct video orientation",                                // machine-generated
+	ConvertTwoPassNote:               "Two-pass encoding is ignored in CRF mode.",                                            // machine-generated
+	ConvertVideoFormatsHint:          "MP4, MOV, MKV and more",                                                               // machine-generated
+	ConvertVideoOfFmt:                "Video %d of %d",                                                                       // machine-generated
+	ConvertViewLog:                   "View Log",                                                                             // machine-generated
+	FileManagerOpenConvert:           "Open in Convert",                                                                      // machine-generated
+	TooltipConvertAudio:              "Audio codec and settings",                                                             // machine-generated
+	TooltipConvertCodec:              "Video codec (H.264, H.265, etc.)",                                                     // machine-generated
+	TooltipConvertFormat:             "Output video format (MP4, MKV, etc.)",                                                 // machine-generated
+	TooltipConvertFormatDevicePreset: "Device-optimized formats ensure compatibility",                                        // machine-generated
+	TooltipConvertOutput:             "Output file location",                                                                 // machine-generated
+	TooltipConvertQuality:            "Video quality preset (CRF value)",                                                     // machine-generated
+	TooltipConvertStart:              "Start conversion",                                                                     // machine-generated
 
 	// ── Compare ──────────────────────────────────────────────────────────────────
 	CompareInstructions:    "Tarvijaksait Marruuk agaksillugik nalunaiqsilugit. Upaksillugik uqqaatijaksaqmik atuqlugu.",    // Load two videos

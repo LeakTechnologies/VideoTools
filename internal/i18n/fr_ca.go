@@ -42,12 +42,13 @@ var frCA = Strings{
 	SettingsShowTooltips: "Afficher les info-bulles",
 
 	// ── Tooltips ─────────────────────────────────────────────────────────
-	TooltipConvertFormat:  "Format vidéo de sortie (MP4, MKV, etc.)",
-	TooltipConvertQuality: "Préréglage de qualité vidéo (valeur CRF)",
-	TooltipConvertCodec:   "Codec vidéo (H.264, H.265, etc.)",
-	TooltipConvertAudio:   "Codec audio et paramètres",
-	TooltipConvertOutput:  "Emplacement du fichier de sortie",
-	TooltipConvertStart:   "Démarrer la conversion",
+	TooltipConvertFormat:             "Format vidéo de sortie (MP4, MKV, etc.)",
+	TooltipConvertFormatDevicePreset: "Les formats optimisés pour appareil garantissent la compatibilité avec iPhone, Android, Chromecast, etc.",
+	TooltipConvertQuality:            "Préréglage de qualité vidéo (valeur CRF)",
+	TooltipConvertCodec:              "Codec vidéo (H.264, H.265, etc.)",
+	TooltipConvertAudio:              "Codec audio et paramètres",
+	TooltipConvertOutput:             "Emplacement du fichier de sortie",
+	TooltipConvertStart:              "Démarrer la conversion",
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
 	DialogCompare:            "Comparer les vidéos",

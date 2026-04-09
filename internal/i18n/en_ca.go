@@ -39,12 +39,13 @@ var enCA = Strings{
 	ModuleSettings:    "Settings",
 
 	// ── Tooltips ─────────────────────────────────────────────────────────
-	TooltipConvertFormat:  "Output video format (MP4, MKV, etc.)",
-	TooltipConvertQuality: "Video quality preset (CRF value)",
-	TooltipConvertCodec:   "Video codec (H.264, H.265, etc.)",
-	TooltipConvertAudio:   "Audio codec and settings",
-	TooltipConvertOutput:  "Output file location",
-	TooltipConvertStart:   "Start conversion",
+	TooltipConvertFormat:             "Output video format (MP4, MKV, etc.)",
+	TooltipConvertFormatDevicePreset: "Device-optimized formats ensure compatibility with iPhone, Android, Chromecast, and more",
+	TooltipConvertQuality:            "Video quality preset (CRF value)",
+	TooltipConvertCodec:              "Video codec (H.264, H.265, etc.)",
+	TooltipConvertAudio:              "Audio codec and settings",
+	TooltipConvertOutput:             "Output file location",
+	TooltipConvertStart:              "Start conversion",
 
 	SettingsShowTooltips: "Show tooltips",
 
