@@ -1681,6 +1681,11 @@ func (e *Engine) Start() {
 	e.paused = false
 	e.mu.Unlock()
 
+	// Unpause the clock so SyncVideo/WaitForPTS work correctly.
+	// The clock is initialized paused so it doesn't advance during Open/setup.
+	// Resetting ptsTime here means the clock starts from 0 when demuxing begins.
+	e.clock.SetPaused(false)
+
 	go e.demuxerLoop()
 }
 

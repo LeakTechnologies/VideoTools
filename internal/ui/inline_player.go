@@ -126,13 +126,14 @@ func (v *InlineVideoPlayer) Load(path string) error {
 	v.player.SetDuration(duration)
 
 	// Start the demuxer briefly to decode the first frame for preview, then pause.
-	// SetFrame writes directly to v.raster (not through Fyne's object model) so it
-	// must run on the main goroutine to avoid racing the renderer.
+	// SetFrame/SetLoading write to widget state and must run on the main goroutine.
+	// Use blocking DoFromGoroutine (true) for SetFrame so the preview frame is
+	// committed before we return and the caller rebuilds the view around this widget.
 	v.engine.Start()
 	if img, err := v.engine.NextFrame(); err == nil {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetFrame(img)
-		}, false)
+		}, true)
 	}
 	v.engine.Pause()
 
@@ -148,8 +149,10 @@ func (v *InlineVideoPlayer) Load(path string) error {
 		v.player.AddThumbnailFrame(t, img)
 	})
 
-	v.player.SetLoading(false)
-	v.player.Refresh()
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		v.player.SetLoading(false)
+		v.player.Refresh()
+	}, false)
 	return nil
 }
 
