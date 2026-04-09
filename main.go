@@ -2342,7 +2342,14 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 	cfg := s.convert
 	cfg.OutputBase = outputBase
 
-	outDir := filepath.Dir(src.Path)
+	outDir := strings.TrimSpace(cfg.OutputDir)
+	if outDir == "" {
+		if strings.TrimSpace(s.defaultOutputDir) != "" {
+			outDir = s.defaultOutputDir
+		} else {
+			outDir = filepath.Dir(src.Path)
+		}
+	}
 	outName := cfg.OutputFile()
 	if outName == "" {
 		outName = "converted" + cfg.SelectedFormat.Ext
