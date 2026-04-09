@@ -129,7 +129,11 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 			}
 		}, state.window)
 		saveDlg.SetFilter(storage.NewExtensionFileFilter([]string{".png"}))
-		saveDlg.SetFileName(strings.TrimSuffix(src.DisplayName, filepath.Ext(src.DisplayName)) + "-frame.png")
+		displayName := ""
+		if src != nil {
+			displayName = src.DisplayName
+		}
+		saveDlg.SetFileName(strings.TrimSuffix(displayName, filepath.Ext(displayName)) + "-frame.png")
 		saveDlg.Show()
 	})
 
@@ -161,11 +165,18 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	stageWithPlayer := container.NewMax(bg, playerWidget)
 	videoStageWithIndicator := container.NewMax(dropIndicator, stageWithPlayer)
 
+	srcDuration := 0.0
+	srcFrameRate := 0.0
+	if src != nil {
+		srcDuration = src.Duration
+		srcFrameRate = src.FrameRate
+	}
+
 	currentTime := widget.NewLabel("0:00")
-	totalTime := widget.NewLabel(formatClock(src.Duration))
+	totalTime := widget.NewLabel(formatClock(srcDuration))
 	totalTime.Alignment = fyne.TextAlignTrailing
 
-	slider := widget.NewSlider(0, math.Max(1, src.Duration))
+	slider := widget.NewSlider(0, math.Max(1, srcDuration))
 	slider.Step = 0.5
 
 	// frameLabel declared here so updateProgress can reference it via closure.
@@ -177,8 +188,8 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 			updatingProgress = true
 			currentTime.SetText(formatClock(val))
 			slider.SetValue(val)
-			if frameLabel != nil && src.FrameRate > 0 {
-				frameLabel.SetText(fmt.Sprintf("Frame: %d", int(val*src.FrameRate)))
+			if frameLabel != nil && srcFrameRate > 0 {
+				frameLabel.SetText(fmt.Sprintf("Frame: %d", int(val*srcFrameRate)))
 			}
 			updatingProgress = false
 		}, false)
@@ -282,7 +293,9 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		state.playerPaused = true
 		state.pauseNative()
 		state.stepFrameNative(-1)
-		frameLabel.SetText(fmt.Sprintf("Frame: %d", int(playerWidget.CurrentTime()*src.FrameRate)))
+		if srcFrameRate > 0 {
+			frameLabel.SetText(fmt.Sprintf("Frame: %d", int(playerWidget.CurrentTime()*srcFrameRate)))
+		}
 	})
 	prevFrameBtn.Importance = widget.LowImportance
 
@@ -290,7 +303,9 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		state.playerPaused = true
 		state.pauseNative()
 		state.stepFrameNative(1)
-		frameLabel.SetText(fmt.Sprintf("Frame: %d", int(playerWidget.CurrentTime()*src.FrameRate)))
+		if srcFrameRate > 0 {
+			frameLabel.SetText(fmt.Sprintf("Frame: %d", int(playerWidget.CurrentTime()*srcFrameRate)))
+		}
 	})
 	nextFrameBtn.Importance = widget.LowImportance
 
@@ -307,7 +322,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	replay10Btn.Importance = widget.LowImportance
 
 	forward10Btn := widget.NewButtonWithIcon("", ui.GetIcon("forward_10"), func() {
-		state.seekNative(math.Min(src.Duration, slider.Value+10))
+		state.seekNative(math.Min(srcDuration, slider.Value+10))
 	})
 	forward10Btn.Importance = widget.LowImportance
 

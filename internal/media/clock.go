@@ -27,6 +27,8 @@ func NewMasterClock() *MasterClock {
 		startTime: time.Now(),
 		ptsTime:   time.Now(),
 		speed:     RealtimeSpeed,
+		paused:    true, // start paused so the clock doesn't advance during Open/setup;
+		// unpaused by Engine.Start() when the demuxer actually begins.
 	}
 }
 
