@@ -28,7 +28,7 @@ const (
 	subtitleModeEmbed    = "Embed Subtitle Track"
 	subtitleModeBurn     = "Burn In Subtitles"
 
-	ModuleColor = "#9C27B0"
+	ModuleColor = "#AD741F"
 )
 
 func BuildView(cb ViewCallbacks) fyne.CanvasObject {

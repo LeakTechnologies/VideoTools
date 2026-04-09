@@ -39,7 +39,7 @@ func copyFile(src, dst string) error {
 	return err
 }
 
-const ModuleColor = "#4CAF50"
+const ModuleColor = "#629C1C"
 
 var valueBg = utils.MustHex("#2B334A")
 var valueBorder = utils.MustHex("#3A4360")

@@ -16,7 +16,7 @@ import (
 // In standard builds this uses the OnBuildVideoPane callback.
 // Build with -tags native_media for the frame-accurate engine version.
 func BuildFullscreenView(opts Options) fyne.CanvasObject {
-	compareColor := utils.MustHex("#9C27B0")
+	compareColor := utils.MustHex("#91931A")
 	t := i18n.T()
 
 	backBtn := widget.NewButton(t.CompareBackToView, func() {

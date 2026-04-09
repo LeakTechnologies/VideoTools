@@ -19,7 +19,7 @@ import (
 // BuildFullscreenView renders a side-by-side fullscreen comparison using
 // the native FFmpeg media engine for frame-accurate playback.
 func BuildFullscreenView(opts Options) fyne.CanvasObject {
-	compareColor := utils.MustHex("#9C27B0")
+	compareColor := utils.MustHex("#91931A")
 	t := i18n.T()
 
 	file1 := toVideoSource(opts.CompareFile1)
