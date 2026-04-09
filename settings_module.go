@@ -226,6 +226,14 @@ var allDependencies = map[string]Dependency{
 		InstallCmd:  "Install from Settings — downloads pre-built ncnn Vulkan binary automatically",
 		Platforms:   []string{"windows", "linux"},
 	},
+	"realcugan-ncnn-vulkan": {
+		Name:        "Real-CUGAN",
+		Command:     "realcugan-ncnn-vulkan",
+		Required:    false,
+		Description: "AI video upscaling optimized for animated content (auto-downloaded from GitHub releases)",
+		InstallCmd:  "Install from Settings — downloads pre-built ncnn Vulkan binary automatically",
+		Platforms:   []string{"windows", "linux"},
+	},
 	"whisper": {
 		Name:        "Whisper",
 		Command:     "whisper",
@@ -677,6 +685,42 @@ func ensureAppLocalRIFE() (string, error) {
 	return destPath, nil
 }
 
+// ensureAppLocalRealCUGAN downloads the Real-CUGAN ncnn Vulkan binary if not
+// already present. Works on both Windows and Linux.
+func ensureAppLocalRealCUGAN() (string, error) {
+	execName := "realcugan-ncnn-vulkan"
+	destPath := appLocalToolPath(execName)
+
+	if _, err := os.Stat(destPath); err == nil {
+		return destPath, nil // already installed
+	}
+
+	var assetPattern string
+	switch runtime.GOOS {
+	case "windows":
+		assetPattern = "windows"
+	case "linux":
+		assetPattern = "ubuntu"
+	default:
+		return "", fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+
+	downloadURL, err := getLatestGitHubReleaseAssetURL("nihui", "realcugan-ncnn-vulkan", assetPattern)
+	if err != nil {
+		return "", fmt.Errorf("find Real-CUGAN release: %w", err)
+	}
+
+	exeFile := execName
+	if runtime.GOOS == "windows" {
+		exeFile = execName + ".exe"
+	}
+
+	if err := downloadAndExtractBinary(downloadURL, exeFile, destPath); err != nil {
+		return "", fmt.Errorf("install Real-CUGAN: %w", err)
+	}
+	return destPath, nil
+}
+
 func (s *appState) installRealESRGANFromUI(onSuccess func()) {
 	progress := dialog.NewProgressInfinite("Installing Real-ESRGAN", "Downloading Real-ESRGAN ncnn Vulkan. This may take a moment.", s.window)
 	progress.Show()
@@ -690,6 +734,26 @@ func (s *appState) installRealESRGANFromUI(onSuccess func()) {
 				return
 			}
 			logging.Info(logging.CatSystem, "Real-ESRGAN installed at %s", toolPath)
+			if onSuccess != nil {
+				onSuccess()
+			}
+		}, false)
+	}()
+}
+
+func (s *appState) installRealCUGANFromUI(onSuccess func()) {
+	progress := dialog.NewProgressInfinite("Installing Real-CUGAN", "Downloading Real-CUGAN ncnn Vulkan. This may take a moment.", s.window)
+	progress.Show()
+
+	go func() {
+		toolPath, err := ensureAppLocalRealCUGAN()
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			progress.Hide()
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("failed to install Real-CUGAN: %w", err), s.window)
+				return
+			}
+			logging.Info(logging.CatSystem, "Real-CUGAN installed at %s", toolPath)
 			if onSuccess != nil {
 				onSuccess()
 			}
@@ -1746,6 +1810,10 @@ func (a *dependencyAdapter) InstallWindowsFFmpeg(onDone func()) {
 
 func (a *dependencyAdapter) InstallRealESRGAN(onDone func()) {
 	a.s.installRealESRGANFromUI(onDone)
+}
+
+func (a *dependencyAdapter) InstallRealCUGAN(onDone func()) {
+	a.s.installRealCUGANFromUI(onDone)
 }
 
 func (a *dependencyAdapter) InstallRIFE(onDone func()) {

@@ -1412,6 +1412,7 @@ type appState struct {
 	upscaleRIFEEnabled         bool     // user opted in
 	upscaleRIFEMultiplier      int      // 2 or 4
 	upscaleRIFEModel           string   // "rife-v4.6", "rife-v4.13-lite", "rife-anime"
+	upscaleRealCUGANAvailable  bool     // runtime detection result for Real-CUGAN
 
 	// Output & colour accuracy settings
 	upscaleHardwareAccel   string // "auto", "none", "nvenc", "vaapi", "qsv", "videotoolbox"
@@ -6866,10 +6867,25 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			progressCallback(40)
 		}
 
+		aiBinary := "realesrgan-ncnn-vulkan"
+		aiModelName := aiModel
+
+		if strings.HasPrefix(aiModel, "realcugan") {
+			aiBinary = "realcugan-ncnn-vulkan"
+			switch aiModel {
+			case "realcugan-pro":
+				aiModelName = "pro"
+			case "realcugan-se":
+				aiModelName = "se"
+			case "realcugan-no-denoise":
+				aiModelName = "se"
+			}
+		}
+
 		aiArgs := []string{
 			"-i", inputFramesDir,
 			"-o", outputFramesDir,
-			"-n", aiModel,
+			"-n", aiModelName,
 			"-s", fmt.Sprintf("%.2f", outScale),
 			"-j", fmt.Sprintf("%d:%d:%d", aiThreadsLoad, aiThreadsProc, aiThreadsSave),
 			"-f", frameExt,
@@ -6886,16 +6902,31 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		if aiModel == "realesr-general-x4v3" {
 			aiArgs = append(aiArgs, "-dn", fmt.Sprintf("%.2f", aiDenoise))
 		}
+		if strings.HasPrefix(aiModel, "realcugan") {
+			denoiseLevel := 1
+			if aiDenoise > 0.7 {
+				denoiseLevel = 3
+			} else if aiDenoise > 0.4 {
+				denoiseLevel = 2
+			} else if aiDenoise > 0.1 {
+				denoiseLevel = 1
+			} else {
+				denoiseLevel = 0
+			}
+			if aiModel != "realcugan-no-denoise" {
+				aiArgs = append(aiArgs, "-n", strconv.Itoa(denoiseLevel))
+			}
+		}
 		if aiFaceEnhance && logFile != nil {
 			fmt.Fprintln(logFile, "Note: face enhancement requested but not supported in ncnn backend")
 		}
 
 		if logFile != nil {
-			fmt.Fprintln(logFile, "Stage: Real-ESRGAN")
-			fmt.Fprintf(logFile, "Command: realesrgan-ncnn-vulkan %s\n", strings.Join(aiArgs, " "))
+			fmt.Fprintln(logFile, "Stage: AI Upscale ("+aiBinary+")")
+			fmt.Fprintf(logFile, "Command: %s %s\n", aiBinary, strings.Join(aiArgs, " "))
 		}
 
-		aiCmd := exec.CommandContext(ctx, "realesrgan-ncnn-vulkan", aiArgs...)
+		aiCmd := exec.CommandContext(ctx, aiBinary, aiArgs...)
 		utils.ApplyNoWindow(aiCmd)
 		aiOut, err := aiCmd.CombinedOutput()
 		if logFile != nil && len(aiOut) > 0 {

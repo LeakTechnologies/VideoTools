@@ -54,6 +54,7 @@ type DependencyCallbacks interface {
 	ShowSettingsView()
 	InstallWindowsFFmpeg(onDone func())
 	InstallRealESRGAN(onDone func())
+	InstallRealCUGAN(onDone func())
 	InstallRIFE(onDone func())
 	InstallWindowsPython(onDone func(pythonExe string))
 	RunDependencyCommandWithProgress(title, message string, depCmd *DependencyCommand, onDone func(output string, err error))
