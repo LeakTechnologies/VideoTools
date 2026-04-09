@@ -68,6 +68,7 @@ type Options struct {
 	UpscaleRIFEEnabled         func() bool
 	UpscaleRIFEMultiplier      func() int
 	UpscaleRIFEModel           func() string
+	UpscaleRealCUGANAvailable  func() bool
 	UpscaleHardwareAccel       func() string
 	UpscaleOutputContainer     func() string
 	UpscaleManualCRF           func() int
@@ -116,6 +117,7 @@ type Options struct {
 	SetUpscaleRIFEEnabled         func(v bool)
 	SetUpscaleRIFEMultiplier      func(v int)
 	SetUpscaleRIFEModel           func(s string)
+	SetUpscaleRealCUGANAvailable  func(v bool)
 	SetUpscaleHardwareAccel       func(s string)
 	SetUpscaleOutputContainer     func(s string)
 	SetUpscaleManualCRF           func(v int)
@@ -151,4 +153,4 @@ type Options struct {
 	SetFilterRotation   func(i int)
 }
 
-const ModuleColor = "#4CAF50"
+const ModuleColor = "#2B9C1C"
