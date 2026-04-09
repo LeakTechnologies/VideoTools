@@ -7,10 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
+
+var jobSeq uint64 // monotonic counter; avoids timestamp collisions on Windows
 
 // JobType represents the type of job to execute
 type JobType string
@@ -661,9 +664,13 @@ func (q *Queue) ClearAll() {
 	q.notifyChange()
 }
 
-// generateID generates a unique ID for a job
+// generateID generates a unique ID for a job.
+// Uses a monotonic counter so that batch-adds within the same nanosecond
+// (common on Windows where the system timer resolution can be ≥100 ns) still
+// produce distinct IDs.
 func generateID() string {
-	return fmt.Sprintf("job-%d", time.Now().UnixNano())
+	seq := atomic.AddUint64(&jobSeq, 1)
+	return fmt.Sprintf("job-%d-%d", time.Now().UnixNano(), seq)
 }
 
 // rebalancePrioritiesLocked assigns descending priorities so earlier items are selected first
