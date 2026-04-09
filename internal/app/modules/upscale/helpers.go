@@ -8,6 +8,69 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
+type ModelFamily int
+
+const (
+	ModelFamilyRealESRGAN ModelFamily = iota
+	ModelFamilyRealCUGAN
+)
+
+type ModelInfo struct {
+	ID              string
+	Label           string
+	Family          ModelFamily
+	SupportsDenoise bool
+	SupportsTTA     bool
+	DefaultScale    int
+}
+
+var modelCatalog = []ModelInfo{
+	// Real-ESRGAN models
+	{ID: "realesrgan-x4plus", Label: "General (RealESRGAN x4)", Family: ModelFamilyRealESRGAN, SupportsDenoise: false, SupportsTTA: true, DefaultScale: 4},
+	{ID: "realesrgan-x4plus-anime", Label: "Anime (RealESRGAN x4)", Family: ModelFamilyRealESRGAN, SupportsDenoise: false, SupportsTTA: true, DefaultScale: 4},
+	{ID: "realesr-animevideov3", Label: "Anime Video (RealESRGAN)", Family: ModelFamilyRealESRGAN, SupportsDenoise: false, SupportsTTA: true, DefaultScale: 4},
+	{ID: "realesr-general-x4v3", Label: "General Fast (RealESRGAN)", Family: ModelFamilyRealESRGAN, SupportsDenoise: true, SupportsTTA: true, DefaultScale: 4},
+	{ID: "realesrgan-x2plus", Label: "2x General (RealESRGAN)", Family: ModelFamilyRealESRGAN, SupportsDenoise: false, SupportsTTA: true, DefaultScale: 2},
+	{ID: "realesrnet-x4plus", Label: "Clean Restore (RealESRGAN)", Family: ModelFamilyRealESRGAN, SupportsDenoise: false, SupportsTTA: true, DefaultScale: 4},
+	// Real-CUGAN models
+	{ID: "realcugan-pro", Label: "Pro (Real-CUGAN)", Family: ModelFamilyRealCUGAN, SupportsDenoise: true, SupportsTTA: true, DefaultScale: 2},
+	{ID: "realcugan-se", Label: "Standard (Real-CUGAN)", Family: ModelFamilyRealCUGAN, SupportsDenoise: true, SupportsTTA: true, DefaultScale: 2},
+	{ID: "realcugan-no-denoise", Label: "No Denoise (Real-CUGAN)", Family: ModelFamilyRealCUGAN, SupportsDenoise: false, SupportsTTA: true, DefaultScale: 2},
+}
+
+func ModelOptions() []string {
+	labels := make([]string, len(modelCatalog))
+	for i, m := range modelCatalog {
+		labels[i] = m.Label
+	}
+	return labels
+}
+
+func ModelInfoFromID(id string) *ModelInfo {
+	for _, m := range modelCatalog {
+		if m.ID == id {
+			return &m
+		}
+	}
+	return nil
+}
+
+func ModelLabelFromID(id string) string {
+	if m := ModelInfoFromID(id); m != nil {
+		return m.Label
+	}
+	return ""
+}
+
+func ModelIDFromLabel(label string) string {
+	for _, m := range modelCatalog {
+		if m.Label == label {
+			return m.ID
+		}
+	}
+	return "realesrgan-x4plus"
+}
+
 func DetectAIUpscaleBackend() string {
 	if _, ok := utils.FindTool("realesrgan-ncnn-vulkan"); ok {
 		return "ncnn"
@@ -26,6 +89,11 @@ func DetectAIUpscaleBackend() string {
 	return ""
 }
 
+func DetectRealCUGANAvailable() bool {
+	_, ok := utils.FindTool("realcugan-ncnn-vulkan")
+	return ok
+}
+
 func CheckAIFaceEnhanceAvailable(backend string) bool {
 	if backend != "python" {
 		return false
@@ -38,53 +106,6 @@ func CheckAIFaceEnhanceAvailable(backend string) bool {
 	cmd = exec.Command("python", "-c", "import realesrgan, gfpgan")
 	utils.ApplyNoWindow(cmd)
 	return cmd.Run() == nil
-}
-
-func ModelOptions() []string {
-	return []string{
-		"General (RealESRGAN_x4plus)",
-		"Anime/Illustration (RealESRGAN_x4plus_anime_6B)",
-		"Anime Video (realesr-animevideov3)",
-		"General Tiny (realesr-general-x4v3)",
-		"2x General (RealESRGAN_x2plus)",
-		"Clean Restore (realesrnet-x4plus)",
-	}
-}
-
-func ModelIDFromLabel(label string) string {
-	switch label {
-	case "Anime/Illustration (RealESRGAN_x4plus_anime_6B)":
-		return "realesrgan-x4plus-anime"
-	case "Anime Video (realesr-animevideov3)":
-		return "realesr-animevideov3"
-	case "General Tiny (realesr-general-x4v3)":
-		return "realesr-general-x4v3"
-	case "2x General (RealESRGAN_x2plus)":
-		return "realesrgan-x2plus"
-	case "Clean Restore (realesrnet-x4plus)":
-		return "realesrnet-x4plus"
-	default:
-		return "realesrgan-x4plus"
-	}
-}
-
-func ModelLabelFromID(modelID string) string {
-	switch modelID {
-	case "realesrgan-x4plus-anime":
-		return "Anime/Illustration (RealESRGAN_x4plus_anime_6B)"
-	case "realesr-animevideov3":
-		return "Anime Video (realesr-animevideov3)"
-	case "realesr-general-x4v3":
-		return "General Tiny (realesr-general-x4v3)"
-	case "realesrgan-x2plus":
-		return "2x General (RealESRGAN_x2plus)"
-	case "realesrnet-x4plus":
-		return "Clean Restore (realesrnet-x4plus)"
-	case "realesrgan-x4plus":
-		return "General (RealESRGAN_x4plus)"
-	default:
-		return ""
-	}
 }
 
 func ParseResolutionPreset(preset string, srcW, srcH int) (width, height int, preserveAspect bool, err error) {

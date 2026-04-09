@@ -88,6 +88,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetUpscaleRIFEBackend(DetectRIFEBackend())
 		opts.SetUpscaleRIFEAvailable(opts.UpscaleRIFEBackend() == "ncnn")
 	}
+	if opts.UpscaleRealCUGANAvailable() == false {
+		opts.SetUpscaleRealCUGANAvailable(DetectRealCUGANAvailable())
+	}
 	if opts.UpscaleRIFEMultiplier() == 0 {
 		opts.SetUpscaleRIFEMultiplier(2)
 	}

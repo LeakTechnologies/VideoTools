@@ -581,6 +581,20 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 			actions.Add(installBtn)
 		}
 
+		if depName == "realcugan-ncnn-vulkan" && (runtime.GOOS == "windows" || runtime.GOOS == "linux") {
+			installBtn := widget.NewButton(t.DependenciesInstall, func() {
+				cb.InstallRealCUGAN(func() {
+					dialog.ShowInformation("Real-CUGAN Ready", "Real-CUGAN is installed and available for AI upscaling.", cb.Window())
+					cb.ShowSettingsView()
+				})
+			})
+			installBtn.Importance = widget.HighImportance
+			if isInstalled {
+				installBtn.Disable()
+			}
+			actions.Add(installBtn)
+		}
+
 		if depName == "whisper" && runtime.GOOS == "windows" && cmds.Install == nil && !isInstalled {
 			installBtn := widget.NewButton("Install (Python + Whisper)", func() {
 				cb.InstallWindowsPython(func(pythonExe string) {
@@ -598,8 +612,8 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 
 		if cmds.Install != nil {
 			// Skip generic install button if we already added a special case button
-			// (realesrgan-ncnn-vulkan and rife-ncnn-vulkan have custom install handlers)
-			hasSpecialInstallButton := (depName == "realesrgan-ncnn-vulkan" || depName == "rife-ncnn-vulkan") &&
+			// (realesrgan-ncnn-vulkan, realcugan-ncnn-vulkan, and rife-ncnn-vulkan have custom install handlers)
+			hasSpecialInstallButton := (depName == "realesrgan-ncnn-vulkan" || depName == "realcugan-ncnn-vulkan" || depName == "rife-ncnn-vulkan") &&
 				(runtime.GOOS == "windows" || runtime.GOOS == "linux")
 
 			if !hasSpecialInstallButton {
