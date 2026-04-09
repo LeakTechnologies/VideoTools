@@ -2,6 +2,13 @@
 
 ## Version 0.1.1-dev40 (in progress) - Burn Module & File Manager
 
+### Upscale Module (dev40)
+- [x] **Real-CUGAN support** — Added model catalog with Real-CUGAN (Pro, Standard, No Denoise)
+- [x] **Model catalog abstraction** — Extensible ModelInfo struct for future models (SPAN, Waifu2x, etc.)
+- [x] **Dual-binary execution** — Automatically selects correct ncnn binary based on model family
+- [x] **Auto-download installer** — ensureAppLocalRealCUGAN() with GitHub releases integration
+- [x] **Dependency UI** — Real-CUGAN install button in Settings → Dependencies
+
 ### DVD Authoring Fixes (dev40)
 - [x] **UDF PartitionLength** — Fixed hardcoded 1000 sectors (~2MB) to `totalSectors - partitionStart`; VLC UDF path resolution now works for full-size DVDs
 - [x] **Menu PTS timestamps** — Fixed menu VOB PTS incrementing by 27MHz ticks instead of 90kHz; was 300x too large, causing continuous VLC timestamp conversion errors
