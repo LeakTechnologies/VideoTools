@@ -340,7 +340,7 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 			"-ss", fmt.Sprintf("%.2f", ts),
 			"-nostdin",
 			"-i", config.VideoPath,
-			"-vf", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp),
+			"-vf", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp, ts),
 			"-frames:v", "1",
 			"-y",
 		}
@@ -401,10 +401,13 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 		sampleFPS = 0.01
 	}
 
-	// Build select filter using trim + fps to evenly sample across duration
-	selectFilter := fmt.Sprintf("trim=start=%.2f:end=%.2f,fps=%.6f,setpts=PTS-STARTPTS+%.2f/TB",
-		startTime,
-		endTime,
+	// Use fps + setpts as the select filter — trim is intentionally omitted here.
+	// The trim filter causes FFmpeg to flush and reinitialize downstream filters at its
+	// end boundary, which can expose the codec's MCU-padded coded dimensions (e.g.
+	// 480×368 for a 480×360 display) and make the inner pad filter fail with
+	// "padded dimensions cannot be smaller than input dimensions".
+	// Instead, we apply the time window via -ss/-t input options (see args below).
+	selectFilter := fmt.Sprintf("fps=%.6f,setpts=PTS-STARTPTS+%.2f/TB",
 		sampleFPS,
 		startTime,
 	)
@@ -412,9 +415,11 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 	baseName := strings.TrimSuffix(filepath.Base(config.VideoPath), filepath.Ext(config.VideoPath))
 	outputPath := filepath.Join(config.OutputDir, fmt.Sprintf("%s_contact_sheet.%s", baseName, config.Format))
 
-	// Build tile filter with padding between thumbnails
+	// Build tile filter with padding between thumbnails.
+	// Pass ts=0 so that the contact sheet timestamps use %{pts:hms} (the setpts above
+	// restores the original presentation timestamps for each sampled frame).
 	padding := 8 // Pixels of padding between each thumbnail
-	tileFilter := fmt.Sprintf("%s,tile=%dx%d:padding=%d", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp), config.Columns, config.Rows, padding)
+	tileFilter := fmt.Sprintf("%s,tile=%dx%d:padding=%d", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp, 0), config.Columns, config.Rows, padding)
 
 	// Build video filter — fetch detailed info once here to avoid duplicate ffprobe calls
 	var vfilter string
@@ -425,9 +430,14 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 		vfilter = fmt.Sprintf("%s,%s", selectFilter, tileFilter)
 	}
 
-	// Build FFmpeg command — progress flags must appear before the output path
+	// Build FFmpeg command.
+	// -ss / -t as INPUT options (before -i) perform fast keyframe seeking without
+	// inserting a trim filter, avoiding the filter-graph reinitialisation that was
+	// causing the pad failure on MCU-padded codecs (Xvid, MPEG-4 ASP, etc.).
 	args := []string{
 		"-nostdin",
+		"-ss", fmt.Sprintf("%.2f", startTime),
+		"-t", fmt.Sprintf("%.2f", availableDuration),
 		"-i", config.VideoPath,
 		"-vf", vfilter,
 		"-frames:v", "1",
@@ -557,8 +567,20 @@ func (g *Generator) buildMetadataFilter(
 	return logoFilter
 }
 
-func (g *Generator) buildThumbFilter(thumbWidth, thumbHeight int, showTimestamp bool) string {
-	filter := fmt.Sprintf("scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2",
+// buildThumbFilter constructs an FFmpeg video filter string for thumbnail scaling,
+// padding, and optional timestamp overlay.
+//
+// ts controls the timestamp drawtext behaviour:
+//   - ts == 0: use the FFmpeg %{pts:hms} expression (suitable for contact sheets where
+//     setpts has already restored real presentation timestamps).
+//   - ts > 0: hardcode the formatted timestamp string (suitable for individual thumbnails
+//     generated with an input seek (-ss), which resets the PTS counter to 0 and makes
+//     %{pts:hms} always read 00:00:00.000).
+func (g *Generator) buildThumbFilter(thumbWidth, thumbHeight int, showTimestamp bool, ts float64) string {
+	// setsar=1 normalises the sample aspect ratio before scale so that
+	// non-square-pixel sources (e.g. some DVDs and older MPEG-4 ASPs) are
+	// handled correctly without the scale filter seeing a stretched frame.
+	filter := fmt.Sprintf("setsar=1,scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:black",
 		thumbWidth,
 		thumbHeight,
 		thumbWidth,
@@ -570,7 +592,20 @@ func (g *Generator) buildThumbFilter(thumbWidth, thumbHeight int, showTimestamp 
 		fontArg = fmt.Sprintf("fontfile='%s'", escapeFilterPath(fontPath))
 	}
 	if showTimestamp {
-		filter += fmt.Sprintf(",drawtext=text='%%{pts\\:hms}':fontcolor=white:fontsize=18:%s:box=1:boxcolor=black@0.5:boxborderw=4:x=w-text_w-6:y=h-text_h-6", fontArg)
+		var tsText string
+		if ts > 0 {
+			// Hardcode the timestamp so that input-seek PTS resets don't corrupt the overlay.
+			totalSec := int(ts)
+			h := totalSec / 3600
+			m := (totalSec % 3600) / 60
+			s := totalSec % 60
+			ms := int((ts - float64(totalSec)) * 1000)
+			tsText = fmt.Sprintf("%02d\\:%02d\\:%02d.%03d", h, m, s, ms)
+		} else {
+			// Contact sheet: setpts restores real PTS so %{pts:hms} is accurate.
+			tsText = "%{pts\\:hms}"
+		}
+		filter += fmt.Sprintf(",drawtext=text='%s':fontcolor=white:fontsize=18:%s:box=1:boxcolor=black@0.5:boxborderw=4:x=w-text_w-6:y=h-text_h-6", tsText, fontArg)
 	}
 	return filter
 }
