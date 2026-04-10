@@ -2394,6 +2394,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		"displayAspectRatio": src.DisplayAspectRatio,
 		"sourceDuration":     src.Duration,
 		"sourceBitrate":      src.Bitrate,
+		"sourceFrameRate":    src.FrameRate,
 		"fieldOrder":         src.FieldOrder,
 		"autoCompare":        s.autoCompare, // Include auto-compare flag
 	}
@@ -2540,6 +2541,7 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 		"displayAspectRatio": src.DisplayAspectRatio,
 		"sourceDuration":     src.Duration,
 		"sourceBitrate":      src.Bitrate,
+		"sourceFrameRate":    src.FrameRate,
 		"fieldOrder":         src.FieldOrder,
 		"autoCompare":        s.autoCompare,
 	}
@@ -5492,6 +5494,19 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 
 		if len(vf) > 0 {
 			args = append(args, "-vf", strings.Join(vf, ","))
+		}
+
+		// When the user chose "Source" frame rate, pin the output to the exact source
+		// frame rate using -r. Without this, FFmpeg may silently re-timestamp frames
+		// when muxing to MP4 from AVI (or other containers with imprecise timing),
+		// causing the output to report a different frame rate (e.g. 30 instead of 25).
+		if (frameRate == "" || frameRate == "Source") && !useMotionInterp {
+			if srcFPS, ok := cfg["sourceFrameRate"].(float64); ok && srcFPS > 0 {
+				// Format as a clean fraction where possible to avoid rounding artefacts.
+				// For common rates (24000/1001, 30000/1001, etc.) just let FFmpeg pick
+				// from the decimal; for everything else this is accurate enough.
+				args = append(args, "-r", strconv.FormatFloat(srcFPS, 'f', 6, 64))
+			}
 		}
 	}
 
@@ -15299,9 +15314,22 @@ func (s *appState) loadVideo(path string) {
 
 	logging.Debug(logging.CatModule, "video loaded %+v", src)
 	s.recentFiles.Add(path, filepath.Base(path), "convert")
+
+	// Capture active module before entering the UI goroutine so we can route back
+	// to the correct view. Without this, dropping a file on the Player module's
+	// video stage called loadVideo → showConvertView even when the user was in
+	// the Player module.
+	activeAtLoad := s.active
+
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.source = src
-		s.showConvertView(src)
+		switch activeAtLoad {
+		case "player":
+			s.playerFile = src
+			s.showPlayerView()
+		default:
+			s.showConvertView(src)
+		}
 	}, false)
 }
 
