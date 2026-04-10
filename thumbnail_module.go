@@ -19,6 +19,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	thumbsvc "git.leaktechnologies.dev/stu/VideoTools/internal/thumbnail"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
@@ -47,6 +48,7 @@ func (s *appState) clearThumbnailLiveGrid() {
 
 // setThumbnailLiveContactSheet replaces the live preview with a single full-panel
 // contact sheet image. Uses MaxLayout so the image expands to fill the panel.
+// Clicking the image opens it in a full-window inspector.
 func (s *appState) setThumbnailLiveContactSheet(path string) {
 	if s.thumbnailLiveGrid == nil {
 		s.thumbnailLiveGrid = container.NewGridWrap(fyne.NewSize(160, 100))
@@ -54,15 +56,31 @@ func (s *appState) setThumbnailLiveContactSheet(path string) {
 	img := canvas.NewImageFromFile(path)
 	img.FillMode = canvas.ImageFillContain
 	img.SetMinSize(fyne.NewSize(300, 200))
+	tappable := ui.NewTappable(img, func() { s.showImageInspector(path) })
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.thumbnailLiveGrid.Layout = layout.NewMaxLayout()
-		s.thumbnailLiveGrid.Objects = []fyne.CanvasObject{img}
+		s.thumbnailLiveGrid.Objects = []fyne.CanvasObject{tappable}
 		s.thumbnailLiveGrid.Refresh()
 	}, false)
 }
 
+// showImageInspector opens a near-full-window dialog so the user can inspect a
+// generated thumbnail or contact sheet at full size. Safe to call from any goroutine.
+func (s *appState) showImageInspector(path string) {
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		winSize := s.window.Canvas().Size()
+		img := canvas.NewImageFromFile(path)
+		img.FillMode = canvas.ImageFillContain
+		img.SetMinSize(fyne.NewSize(winSize.Width-80, winSize.Height-120))
+		d := dialog.NewCustom("", "Close", img, s.window)
+		d.Resize(fyne.NewSize(winSize.Width-40, winSize.Height-60))
+		d.Show()
+	}, false)
+}
+
 // addThumbnailLivePreview adds a single generated thumbnail to the live preview
-// grid. Safe to call from any goroutine.
+// grid. Clicking the thumbnail opens it in a full-window inspector. Safe to call
+// from any goroutine.
 func (s *appState) addThumbnailLivePreview(path string) {
 	if s.thumbnailLiveGrid == nil {
 		s.thumbnailLiveGrid = container.NewGridWrap(fyne.NewSize(160, 100))
@@ -70,8 +88,9 @@ func (s *appState) addThumbnailLivePreview(path string) {
 	img := canvas.NewImageFromFile(path)
 	img.FillMode = canvas.ImageFillContain
 	img.SetMinSize(fyne.NewSize(160, 100))
+	tappable := ui.NewTappable(img, func() { s.showImageInspector(path) })
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-		s.thumbnailLiveGrid.Add(img)
+		s.thumbnailLiveGrid.Add(tappable)
 		s.thumbnailLiveGrid.Refresh()
 	}, false)
 }
