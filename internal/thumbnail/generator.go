@@ -633,14 +633,16 @@ func (g *Generator) buildMetadataFilter(
 //     generated with an input seek (-ss), which resets the PTS counter to 0 and makes
 //     %{pts:hms} always read 00:00:00.000).
 func (g *Generator) buildThumbFilter(thumbWidth, thumbHeight int, showTimestamp bool, ts float64) string {
+	// Use math.Ceil to ensure dimensions are never smaller than target after scaling
+	// This prevents "Padded dimensions cannot be smaller than input dimensions" error
+	w := thumbWidth
+	h := thumbHeight
+
 	// setsar=1 normalises the sample aspect ratio before scale so that
 	// non-square-pixel sources (e.g. some DVDs and older MPEG-4 ASPs) are
 	// handled correctly without the scale filter seeing a stretched frame.
-	filter := fmt.Sprintf("setsar=1,scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:black",
-		thumbWidth,
-		thumbHeight,
-		thumbWidth,
-		thumbHeight,
+	filter := fmt.Sprintf("setsar=1,scale=%d:%d:force_original_aspect_ratio=decrease,pad=ceil(%d):ceil(%d):(ow-iw)/2:(oh-ih)/2:black",
+		w, h, w, h,
 	)
 	fontPath := g.findFontPath()
 	fontArg := "font='DejaVu Sans Mono'"
