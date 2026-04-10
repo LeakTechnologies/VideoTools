@@ -65,14 +65,25 @@ func (s *appState) setThumbnailLiveContactSheet(path string) {
 }
 
 // showImageInspector opens a near-full-window dialog so the user can inspect a
-// generated thumbnail or contact sheet at full size. Safe to call from any goroutine.
+// generated thumbnail or contact sheet at full size. Clicking the image closes it.
+// Safe to call from any goroutine.
 func (s *appState) showImageInspector(path string) {
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		winSize := s.window.Canvas().Size()
 		img := canvas.NewImageFromFile(path)
 		img.FillMode = canvas.ImageFillContain
 		img.SetMinSize(fyne.NewSize(winSize.Width-80, winSize.Height-120))
+
 		d := dialog.NewCustom("", "Close", img, s.window)
+
+		// Click the image to close the dialog
+		tappable := ui.NewTappable(img, func() {
+			d.Hide()
+		})
+
+		// Replace content with tappable wrapper
+		d.Hide()
+		d = dialog.NewCustom("", "Close", tappable, s.window)
 		d.Resize(fyne.NewSize(winSize.Width-40, winSize.Height-60))
 		d.Show()
 	}, false)
