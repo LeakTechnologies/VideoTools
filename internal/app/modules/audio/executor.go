@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -51,6 +53,15 @@ func ExecuteFromJob(ctx context.Context, job *queue.Job, progressCallback func(f
 	if cfg == nil {
 		return fmt.Errorf("audio job config missing")
 	}
+
+	// Ensure output directory exists
+	outputPath := job.OutputFile
+	if outputDir := filepath.Dir(outputPath); outputDir != "" {
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return fmt.Errorf("failed to create output directory: %w", err)
+		}
+	}
+
 	opts := ExecuteOptions{
 		InputPath:        job.InputFile,
 		OutputPath:       job.OutputFile,

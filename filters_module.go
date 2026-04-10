@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -264,6 +265,13 @@ func (s *appState) executeFilterJob(ctx context.Context, job *queue.Job, progres
 		ext := filepath.Ext(name)
 		base := name[:len(name)-len(ext)]
 		outputPath = filepath.Join(dir, fmt.Sprintf("%s_filtered%s", base, ext))
+	}
+
+	// Ensure output directory exists
+	if outputDir := filepath.Dir(outputPath); outputDir != "" {
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return fmt.Errorf("failed to create output directory: %w", err)
+		}
 	}
 
 	// Build filter chain from job config
