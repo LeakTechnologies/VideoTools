@@ -33,7 +33,8 @@ type Options struct {
 	OnProbeVideo             func(path string) (interface{}, error)
 	OnBuildVideoPane         func(state interface{}, size fyne.Size, src interface{}, onSeek func(float64)) fyne.CanvasObject
 	OnGetPlayerFooter        func(content fyne.CanvasObject) fyne.CanvasObject
-	OnLoadVideo              func(path string) // Load video into player
+	OnLoadVideo              func(path string)        // Load video into player engine
+	OnPlayerFileLoaded       func(src interface{})   // Called after probe succeeds so the host can persist the file reference
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
@@ -61,27 +62,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	topBar := ui.TintedBar(playerColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
 
-	instructions := widget.NewLabel(t.PlayerInstructions)
-	instructions.Wrapping = fyne.TextWrapWord
-	instructions.Alignment = fyne.TextAlignCenter
-
-	fileLabel := widget.NewLabel(t.LabelNoFile)
-	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
-
-	playerSize := fyne.NewSize(640, 360)
-
-	var videoContainer fyne.CanvasObject
-	if opts.PlayerFile != nil {
-		if getPath, ok := opts.PlayerFile.(interface{ Path() string }); ok {
-			fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, filepath.Base(getPath.Path())))
-		}
-		if opts.OnBuildVideoPane != nil {
-			videoContainer = opts.OnBuildVideoPane(nil, playerSize, opts.PlayerFile, nil)
-		}
-	} else {
-		videoContainer = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
-	}
-
+	// Load button — opens a file dialog and probes the selected video.
 	loadBtn := widget.NewButton(t.ActionLoadVideo, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
@@ -104,14 +85,20 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 					opts.PlayerFile = src
 
-					// If we have a path, load it into the player
+					// Persist the file reference in the host state so the view
+					// rebuild picks it up via state.playerFile.
+					if opts.OnPlayerFileLoaded != nil {
+						opts.OnPlayerFileLoaded(src)
+					}
+
+					// Load into the player engine.
 					if vs, ok := src.(interface{ Path() string }); ok {
 						if opts.OnLoadVideo != nil {
 							opts.OnLoadVideo(vs.Path())
 						}
 					}
 
-					// Rebuild the view to show the loaded video
+					// Rebuild the view to show the loaded video.
 					if opts.OnShowPlayerView != nil {
 						opts.OnShowPlayerView()
 					}
@@ -135,17 +122,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	clearBtn.Importance = widget.MediumImportance
 
-	buttonContainer := container.NewHBox(loadBtn, clearBtn)
-
-	mainContent := container.NewVBox(
-		instructions,
-		widget.NewSeparator(),
-		fileLabel,
-		buttonContainer,
-		videoContainer,
-	)
-
-	content := container.NewPadded(mainContent)
 	var bottomBar fyne.CanvasObject
 	if opts.OnGetPlayerFooter != nil {
 		bottomBar = opts.OnGetPlayerFooter(layout.NewSpacer())
@@ -153,5 +129,47 @@ func BuildView(opts Options) fyne.CanvasObject {
 		bottomBar = container.NewVBox(opts.StatsBar, layout.NewSpacer())
 	}
 
-	return container.NewBorder(topBar, bottomBar, nil, nil, content)
+	// When a video is loaded, fill the entire available space with the player
+	// pane (which already includes its own seek bar and controls).
+	if opts.PlayerFile != nil {
+		var fileName string
+		if getPath, ok := opts.PlayerFile.(interface{ Path() string }); ok {
+			fileName = filepath.Base(getPath.Path())
+		}
+
+		fileLabel := widget.NewLabel(fmt.Sprintf(t.LabelFileFmt, fileName))
+		fileLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+		headerRow := container.NewHBox(fileLabel, layout.NewSpacer(), clearBtn)
+
+		// Pass size (0,0) so buildVideoPaneNative uses the defaults and the
+		// container layout handles actual sizing via expansion.
+		var videoPane fyne.CanvasObject
+		if opts.OnBuildVideoPane != nil {
+			videoPane = opts.OnBuildVideoPane(nil, fyne.NewSize(0, 0), opts.PlayerFile, nil)
+		}
+		if videoPane == nil {
+			videoPane = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
+		}
+
+		return container.NewBorder(
+			container.NewVBox(topBar, container.NewPadded(headerRow)),
+			bottomBar,
+			nil, nil,
+			videoPane,
+		)
+	}
+
+	// No video loaded — show a centered prompt.
+	instructions := widget.NewLabel(t.PlayerInstructions)
+	instructions.Wrapping = fyne.TextWrapWord
+	instructions.Alignment = fyne.TextAlignCenter
+
+	emptyState := container.NewCenter(container.NewVBox(
+		instructions,
+		widget.NewSeparator(),
+		container.NewCenter(loadBtn),
+	))
+
+	return container.NewBorder(topBar, bottomBar, nil, nil, emptyState)
 }

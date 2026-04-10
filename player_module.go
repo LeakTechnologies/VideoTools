@@ -59,6 +59,11 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 		OnGetPlayerFooter: func(content fyne.CanvasObject) fyne.CanvasObject {
 			return moduleFooter(moduleColor("player"), content, state.statsBar)
 		},
+		OnPlayerFileLoaded: func(src interface{}) {
+			if vs, ok := src.(*videoSource); ok {
+				state.playerFile = vs
+			}
+		},
 		OnLoadVideo: func(path string) {
 			player := GetConvertPlayer()
 			if player != nil {
