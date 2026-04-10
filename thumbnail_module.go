@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 
 	thumbpkg "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/thumbnail"
@@ -29,6 +31,31 @@ func init() {
 	}
 	thumbsvc.SetFontData(ibmPlexMonoRegular)
 	thumbsvc.SetBoldFontData(ibmPlexMonoBold)
+}
+
+// clearThumbnailLiveGrid resets the live preview grid before a new job starts.
+func (s *appState) clearThumbnailLiveGrid() {
+	if s.thumbnailLiveGrid == nil {
+		s.thumbnailLiveGrid = container.NewGridWrap(fyne.NewSize(160, 100))
+	} else {
+		s.thumbnailLiveGrid.Objects = []fyne.CanvasObject{}
+		s.thumbnailLiveGrid.Refresh()
+	}
+}
+
+// addThumbnailLivePreview adds a single generated thumbnail to the live preview
+// grid. Safe to call from any goroutine.
+func (s *appState) addThumbnailLivePreview(path string) {
+	if s.thumbnailLiveGrid == nil {
+		s.thumbnailLiveGrid = container.NewGridWrap(fyne.NewSize(160, 100))
+	}
+	img := canvas.NewImageFromFile(path)
+	img.FillMode = canvas.ImageFillContain
+	img.SetMinSize(fyne.NewSize(160, 100))
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		s.thumbnailLiveGrid.Add(img)
+		s.thumbnailLiveGrid.Refresh()
+	}, false)
 }
 
 func (s *appState) showThumbnailView() {
@@ -147,6 +174,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 	opts := thumbpkg.Options{
 		Window:                  state.window,
 		ModuleColor:             moduleColor("thumbnail"),
+		LivePreviewGrid:         state.thumbnailLiveGrid,
 		ThumbnailFile:           state.thumbnailFile,
 		ThumbnailFiles:          thumbFiles,
 		ThumbnailFileName:       thumbFileName,
@@ -267,6 +295,9 @@ func (s *appState) executeThumbnailJob(ctx context.Context, job *queue.Job, prog
 		progressCallback(0)
 	}
 
+	// Reset the live preview grid so the user sees only the current job's output.
+	s.clearThumbnailLiveGrid()
+
 	totalThumbs := count
 	if contactSheet {
 		totalThumbs = columns * rows
@@ -298,6 +329,9 @@ func (s *appState) executeThumbnailJob(ctx context.Context, job *queue.Job, prog
 			if progressCallback != nil {
 				progressCallback(pct)
 			}
+		},
+		OnThumbGenerated: func(path string) {
+			s.addThumbnailLivePreview(path)
 		},
 	}
 

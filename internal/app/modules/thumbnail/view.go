@@ -25,7 +25,8 @@ type Options struct {
 	ThumbnailFiles          []any
 	ThumbnailFileName       string   // base filename of the active file
 	ThumbnailFileNames      []string // base filenames for all loaded files
-	ThumbnailPreviewFrame   string   // path to first preview frame image
+	ThumbnailPreviewFrame   string          // path to first preview frame image
+	LivePreviewGrid         fyne.CanvasObject // persistent live-preview container; updated externally as thumbnails are generated
 	ThumbnailCount          int
 	ThumbnailWidth          int
 	ThumbnailSheetWidth     int
@@ -418,21 +419,21 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	viewQueueBtn.Importance = widget.MediumImportance
 
+	// --- Settings panel (left, fixed width) ---
 	var previewWidget fyne.CanvasObject
 	if opts.ThumbnailPreviewFrame != "" {
 		img := canvas.NewImageFromFile(opts.ThumbnailPreviewFrame)
 		img.FillMode = canvas.ImageFillContain
-		img.SetMinSize(fyne.NewSize(0, 160))
+		img.SetMinSize(fyne.NewSize(0, 120))
 		bg := canvas.NewRectangle(navyBlue)
 		previewWidget = container.NewMax(bg, img)
 	}
 
-	leftColumnItems := []fyne.CanvasObject{}
+	settingsPanelItems := []fyne.CanvasObject{}
 	if previewWidget != nil {
-		leftColumnItems = append(leftColumnItems, previewWidget)
+		settingsPanelItems = append(settingsPanelItems, previewWidget, widget.NewSeparator())
 	}
-	leftColumnItems = append(leftColumnItems, contactSheetRow, timestampRow, widget.NewSeparator())
-	leftColumn := container.NewVBox(leftColumnItems...)
+	settingsPanelItems = append(settingsPanelItems, contactSheetRow, timestampRow, widget.NewSeparator(), settingsOptions)
 
 	if len(opts.ThumbnailFiles) > 0 {
 		videoFmt := or(opts.VideoFmt, "Video %d")
@@ -458,22 +459,41 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 		listScroll := container.NewVScroll(list)
-		listScroll.SetMinSize(fyne.NewSize(0, 0))
-		leftColumn.Add(widget.NewLabel(or(opts.LoadedVideosLabel, "Loaded Videos:")))
-		leftColumn.Add(listScroll)
+		listScroll.SetMinSize(fyne.NewSize(0, 80))
+		settingsPanelItems = append(settingsPanelItems, widget.NewSeparator(), widget.NewLabel(or(opts.LoadedVideosLabel, "Loaded Videos:")), listScroll)
 	}
 
-	rightColumn := container.NewVScroll(settingsOptions)
+	settingsPanel := container.NewVScroll(container.NewVBox(settingsPanelItems...))
 
-	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6}, leftColumn, rightColumn)
+	// --- Live preview panel (right, expands to fill) ---
+	liveHeader := widget.NewLabelWithStyle("Generated Thumbnails", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 
-	content := container.NewBorder(
-		container.NewVBox(instructions, widget.NewSeparator(), fileLabel, container.NewHBox(loadBtn, clearBtn)),
-		nil,
-		nil,
-		nil,
-		mainContent,
+	var liveBody fyne.CanvasObject
+	if opts.LivePreviewGrid != nil {
+		liveBody = container.NewScroll(opts.LivePreviewGrid)
+	} else {
+		placeholder := widget.NewLabel("Thumbnails will appear here as they are generated.")
+		placeholder.Wrapping = fyne.TextWrapWord
+		placeholder.Alignment = fyne.TextAlignCenter
+		liveBody = container.NewCenter(placeholder)
+	}
+
+	livePanel := container.NewBorder(
+		container.NewVBox(liveHeader, widget.NewSeparator()),
+		nil, nil, nil,
+		liveBody,
 	)
+
+	mainContent := container.New(&fixedHSplitLayout{ratio: 0.32}, settingsPanel, livePanel)
+
+	topRow := container.NewVBox(
+		instructions,
+		widget.NewSeparator(),
+		container.NewBorder(nil, nil, nil, container.NewHBox(loadBtn, clearBtn), fileLabel),
+		widget.NewSeparator(),
+	)
+
+	content := container.NewBorder(topRow, nil, nil, nil, mainContent)
 
 	statsBar := opts.OnGetStatsBar()
 
