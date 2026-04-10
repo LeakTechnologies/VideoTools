@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 
 	thumbpkg "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/thumbnail"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
@@ -38,9 +39,26 @@ func (s *appState) clearThumbnailLiveGrid() {
 	if s.thumbnailLiveGrid == nil {
 		s.thumbnailLiveGrid = container.NewGridWrap(fyne.NewSize(160, 100))
 	} else {
+		s.thumbnailLiveGrid.Layout = layout.NewGridWrapLayout(fyne.NewSize(160, 100))
 		s.thumbnailLiveGrid.Objects = []fyne.CanvasObject{}
 		s.thumbnailLiveGrid.Refresh()
 	}
+}
+
+// setThumbnailLiveContactSheet replaces the live preview with a single full-panel
+// contact sheet image. Uses MaxLayout so the image expands to fill the panel.
+func (s *appState) setThumbnailLiveContactSheet(path string) {
+	if s.thumbnailLiveGrid == nil {
+		s.thumbnailLiveGrid = container.NewGridWrap(fyne.NewSize(160, 100))
+	}
+	img := canvas.NewImageFromFile(path)
+	img.FillMode = canvas.ImageFillContain
+	img.SetMinSize(fyne.NewSize(300, 200))
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		s.thumbnailLiveGrid.Layout = layout.NewMaxLayout()
+		s.thumbnailLiveGrid.Objects = []fyne.CanvasObject{img}
+		s.thumbnailLiveGrid.Refresh()
+	}, false)
 }
 
 // addThumbnailLivePreview adds a single generated thumbnail to the live preview
@@ -339,9 +357,15 @@ func (s *appState) executeThumbnailJob(ctx context.Context, job *queue.Job, prog
 				progressCallback(pct)
 			}
 		},
-		OnThumbGenerated: func(path string) {
+	}
+	if contactSheet {
+		config.OnThumbGenerated = func(path string) {
+			s.setThumbnailLiveContactSheet(path)
+		}
+	} else {
+		config.OnThumbGenerated = func(path string) {
 			s.addThumbnailLivePreview(path)
-		},
+		}
 	}
 
 	result, err := generator.Generate(jobCtx, config)
