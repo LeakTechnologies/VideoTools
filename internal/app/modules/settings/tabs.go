@@ -589,7 +589,15 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 			}
 		}
 
-		if cmds.Uninstall != nil {
+		// Skip uninstall button for bundled tools (they're included in release binary)
+		bundledDeps := map[string]bool{
+			"realesrgan-ncnn-vulkan": true,
+			"realcugan-ncnn-vulkan":  true,
+			"rife-ncnn-vulkan":       true,
+		}
+		showUninstall := cmds.Uninstall != nil && !bundledDeps[depName]
+
+		if showUninstall {
 			uninstallBtn := widget.NewButton(t.DependenciesUninstall, func() {
 				dialog.ShowConfirm(fmt.Sprintf("Uninstall %s?", dep.Name), "This will attempt to remove the dependency using your package manager.", func(ok bool) {
 					if !ok {
