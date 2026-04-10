@@ -171,10 +171,19 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		}
 	}
 
+	// Assign live grid only when non-nil. Assigning a nil *fyne.Container to a
+	// fyne.CanvasObject interface produces a non-nil interface (typed nil), which
+	// fools the nil check in BuildView and causes a hard crash when Fyne tries to
+	// call methods on the underlying nil pointer.
+	var liveGrid fyne.CanvasObject
+	if state.thumbnailLiveGrid != nil {
+		liveGrid = state.thumbnailLiveGrid
+	}
+
 	opts := thumbpkg.Options{
 		Window:                  state.window,
 		ModuleColor:             moduleColor("thumbnail"),
-		LivePreviewGrid:         state.thumbnailLiveGrid,
+		LivePreviewGrid:         liveGrid,
 		ThumbnailFile:           state.thumbnailFile,
 		ThumbnailFiles:          thumbFiles,
 		ThumbnailFileName:       thumbFileName,
