@@ -1,12 +1,40 @@
 # VideoTools Changelog
 
-## v0.1.1-dev41 (April 2026)
+## v0.1.1-dev42 (April 2026)
 
 ### In Progress
 - **Burn logic** — IMAPI2 (Windows) / SG_IO (Linux) implementation; see `docs/BURN_MODULE_DESIGN.md`.
 - **Module Pipeline (`&&`)** — Two-module chain execution with intermediate file cleanup.
 - **Recent files tracking** — Persist recent files list for Quick Access dropdown.
 - **Module callbacks** — Wire OnOpenMore/OnOpenFolder per module in Quick Access dropdown.
+- **Player module** — Thumbnail scrubber hover preview; additional playback testing.
+
+## v0.1.1-dev41 (April 2026)
+
+### Convert Module
+- **Device presets** — Separated from format selector into a dedicated section; 11 presets (iPhone, Android, PS4, Xbox, Apple TV, etc.) each set ALL encoding variables (codec, bitrate, resolution, audio, pixel format).
+- **User-defined presets** — Named presets that capture the full encoding configuration (codec, CRF, bitrate mode, frame rate, hardware accel, aspect, audio, etc.); save / apply / delete from the convert view; persisted to JSON via `appcfg`.
+- **Batch output directory** — Batch convert jobs now respect the configured output directory instead of always writing beside the source file.
+- **Source frame rate pinning** — `sourceFrameRate` stored in job config; `-r <fps>` explicitly passed to FFmpeg when "Source" is selected, preventing AVI→MP4 re-timestamping (e.g. 25 fps becoming 30 fps).
+- **Device preset expansion** — HEVC and AV1 codec options added to device preset definitions.
+
+### Upscale Module
+- **Batch queue** — Multiple files can be drag-dropped into the upscale module; all are queued with full config (`targetWidth`, `targetHeight`, `sourceFrameRate`, `preserveAR`, `GroupID`) and the first valid video is shown for review.
+- **Real-CUGAN support** — Model catalog abstraction added; Real-CUGAN available as an AI upscaling backend alongside Real-ESRGAN.
+
+### Thumbnail Module
+- **Contact sheet pad crash fixed** — `trim` filter removed from filtergraph; time window applied via `-ss`/`-t` input options instead. Eliminates "padded dimensions cannot be smaller than input dimensions" on Xvid/MPEG-4 ASP sources with MCU-padded coded dimensions.
+- **Individual thumbnail timestamps fixed** — Timestamps were always `00:00:00.000` because input seek resets the PTS counter. Drawtext now hardcodes the formatted timestamp string (`HH\:MM\:SS.mmm`) for individually-seeked frames; contact sheet continues to use `%{pts:hms}` via `setpts`.
+- **`setsar=1` added** — Normalises sample aspect ratio before scale so non-square-pixel sources render correctly.
+- **Live preview grid** — Thumbnails appear in the module UI as they are generated. A persistent `GridWrap` container is updated in real time via `OnThumbGenerated`; the grid resets at the start of each new job. Layout redesigned: settings panel (32%) left, live preview panel (68%) right.
+
+### Player Module
+- **Routing bug fixed** — Loading a video while in the Player module no longer navigates to the Convert module. `loadVideo` now captures the active module and routes back to `showPlayerView()` when appropriate.
+- **File state persistence fixed** — `state.playerFile` was never updated via the file-dialog load path, causing the view to rebuild showing "No video loaded." `OnPlayerFileLoaded` callback added to persist the probed source before the view rebuilds.
+- **Layout** — When a video is loaded the player pane fills the full available space via `container.NewBorder` with the video as the expanding center; empty state shows centered instructions and load button.
+
+### UI / Visual
+- **Module color alignment** — Subtitles (`#AD741F`), Inspect (`#629C1C`), Upscale (`#2B9C1C`), and Compare (`#91931A`) interior colors now match their main menu button colors.
 
 ### DVD Authoring
 - **UDF PartitionLength fix** — Calculated from actual file sizes instead of hardcoded 1000 sectors. VLC can now resolve UDF paths for full-size DVDs.
