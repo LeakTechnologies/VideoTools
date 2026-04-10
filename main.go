@@ -3617,7 +3617,9 @@ func (s *appState) batchAddToUpscaleQueue(paths []string) {
 	addedCount := 0
 	failedCount := 0
 	var failedFiles []string
-	var firstValidPath string
+	var validPaths []string
+
+	batchGroupID := fmt.Sprintf("upscale-batch-%d", time.Now().Unix())
 
 	for _, path := range paths {
 		src, err := probeVideo(path)
@@ -3628,14 +3630,18 @@ func (s *appState) batchAddToUpscaleQueue(paths []string) {
 			continue
 		}
 
-		if firstValidPath == "" {
-			firstValidPath = path
-		}
+		validPaths = append(validPaths, path)
 
 		outDir := filepath.Dir(path)
 		outputBase := sanitizeForPath(src.Format) + "_upscale"
 		outName := outputBase + ".mp4"
 		outPath := filepath.Join(outDir, outName)
+
+		targetWidth, targetHeight, preserveAR, _ := parseResolutionPreset(s.upscaleTargetRes, src.Width, src.Height)
+		if s.upscaleTargetRes == "Custom" {
+			targetWidth = s.upscaleCustomWidth
+			targetHeight = s.upscaleCustomHeight
+		}
 
 		config := map[string]interface{}{
 			"inputPath":              path,
@@ -3643,8 +3649,15 @@ func (s *appState) batchAddToUpscaleQueue(paths []string) {
 			"outputBase":             outputBase,
 			"method":                 s.upscaleMethod,
 			"targetRes":              s.upscaleTargetRes,
+			"targetWidth":            targetWidth,
+			"targetHeight":           targetHeight,
 			"customWidth":            s.upscaleCustomWidth,
 			"customHeight":           s.upscaleCustomHeight,
+			"preserveAR":             preserveAR,
+			"sourceWidth":            src.Width,
+			"sourceHeight":           src.Height,
+			"duration":               src.Duration,
+			"sourceFrameRate":        src.FrameRate,
 			"qualityPreset":          s.upscaleQualityPreset,
 			"useAI":                  s.upscaleAIEnabled,
 			"aiModel":                s.upscaleAIModel,
@@ -3692,6 +3705,7 @@ func (s *appState) batchAddToUpscaleQueue(paths []string) {
 			InputFile:   path,
 			OutputFile:  outPath,
 			Config:      config,
+			GroupID:     batchGroupID,
 		}
 
 		s.jobQueue.Add(job)
@@ -3710,12 +3724,9 @@ func (s *appState) batchAddToUpscaleQueue(paths []string) {
 			s.showErrorWithCopy("Batch Upscale Add Failed", fmt.Errorf("%s", msg))
 		}
 
-		if firstValidPath != "" {
-			src, err := probeVideo(firstValidPath)
-			if err == nil {
-				s.upscaleFile = src
-				s.showModule("upscale")
-			}
+		if len(validPaths) > 0 {
+			s.loadVideos(validPaths)
+			s.showModule("upscale")
 		}
 	}, false)
 }

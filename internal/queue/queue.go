@@ -67,7 +67,8 @@ type Job struct {
 	CreatedAt   time.Time              `json:"created_at"`
 	StartedAt   *time.Time             `json:"started_at,omitempty"`
 	CompletedAt *time.Time             `json:"completed_at,omitempty"`
-	Priority    int                    `json:"priority"` // Higher priority = runs first
+	Priority    int                    `json:"priority"`           // Higher priority = runs first
+	GroupID     string                 `json:"group_id,omitempty"` // Batch group ID for related jobs
 	cancel      context.CancelFunc     `json:"-"`
 }
 
