@@ -276,6 +276,8 @@ func isDependencyAvailableForPlatform(dep Dependency) bool {
 }
 
 // checkDependency checks if a command is available (system PATH or app-local bin).
+// Bundled tools (realesrgan-ncnn-vulkan, realcugan-ncnn-vulkan, rife-ncnn-vulkan)
+// are always considered installed since they're included in the release binary.
 func checkDependency(command string) bool {
 	if command == "ffmpeg" {
 		// Respect app-configured runtime paths so app-local FFmpeg bootstrap counts as installed.
@@ -287,9 +289,15 @@ func checkDependency(command string) bool {
 		}
 	}
 
+	// Bundled AI tools are always available in release builds
+	switch command {
+	case "realesrgan-ncnn-vulkan", "realcugan-ncnn-vulkan", "rife-ncnn-vulkan":
+		return true
+	}
+
 	// Check app-local bin directory for tools that may have been auto-downloaded.
 	switch command {
-	case "realesrgan-ncnn-vulkan", "rife-ncnn-vulkan":
+	case "realesrgan-ncnn-vulkan", "rife-ncnn-vulkan", "realcugan-ncnn-vulkan":
 		if _, err := os.Stat(appLocalToolPath(command)); err == nil {
 			return true
 		}
