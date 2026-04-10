@@ -15391,6 +15391,14 @@ func (s *appState) loadMultipleVideos(paths []string) {
 		s.convert.CoverArtPath = ""
 	}
 	s.convert.AspectHandling = "Auto"
+	s.playerReady = false
+	s.playerPos = 0
+	s.playerPaused = true
+
+	// Load into the native media player (same as loadVideo does).
+	if HasNativeMediaPlayer() {
+		s.loadVideoNative(firstVideo.Path)
+	}
 
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.source = firstVideo
