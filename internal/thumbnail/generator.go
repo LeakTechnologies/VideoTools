@@ -33,6 +33,10 @@ type Config struct {
 	ShowTimestamp bool    // Overlay timestamp on thumbnails
 	ShowMetadata  bool    // Show metadata header on contact sheet
 	Progress      func(float64)
+	// OnThumbGenerated is called each time a thumbnail file is written to disk.
+	// For individual thumbnails it fires once per frame; for a contact sheet it
+	// fires once when the final composite image is complete.
+	OnThumbGenerated func(path string)
 }
 
 // Generator creates thumbnails from videos
@@ -371,6 +375,9 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 			Height:    thumbHeight,
 			Size:      fi.Size(),
 		})
+		if config.OnThumbGenerated != nil {
+			config.OnThumbGenerated(outputPath)
+		}
 		if config.Progress != nil && total > 0 {
 			config.Progress((float64(i+1) / float64(total)) * 100)
 		}
@@ -463,6 +470,10 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 		if err := cmd.Run(); err != nil {
 			return "", fmt.Errorf("failed to generate contact sheet: %w", err)
 		}
+	}
+
+	if config.OnThumbGenerated != nil {
+		config.OnThumbGenerated(outputPath)
 	}
 
 	return outputPath, nil

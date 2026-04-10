@@ -1340,7 +1340,8 @@ type appState struct {
 	thumbnailSheetWidth     int
 	thumbnailColumns        int
 	thumbnailRows           int
-	thumbnailLastOutputPath string // Path to last generated output
+	thumbnailLastOutputPath string         // Path to last generated output
+	thumbnailLiveGrid       *fyne.Container // Persistent live-preview grid; survives view rebuilds
 
 	// Player module state
 	playerFile *videoSource
