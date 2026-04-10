@@ -5159,6 +5159,13 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 	inputPath := cfg["inputPath"].(string)
 	outputPath := cfg["outputPath"].(string)
 
+	// Ensure output directory exists before attempting conversion
+	if outputDir := filepath.Dir(outputPath); outputDir != "" {
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return fmt.Errorf("failed to create output directory: %w", err)
+		}
+	}
+
 	// Safety: refuse to overwrite the source file
 	if pathsAreSameFile(inputPath, outputPath) {
 		err := fmt.Errorf("output path resolves to the same file as the input — refusing to overwrite source")
@@ -6510,6 +6517,13 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	targetHeight := int(cfg["targetHeight"].(float64))
 	targetPreset, _ := cfg["targetPreset"].(string)
 	sourceWidth := int(toFloat(cfg["sourceWidth"]))
+
+	// Ensure output directory exists before attempting upscale
+	if outputDir := filepath.Dir(outputPath); outputDir != "" {
+		if err := os.MkdirAll(outputDir, 0755); err != nil {
+			return fmt.Errorf("failed to create output directory: %w", err)
+		}
+	}
 	sourceHeight := int(toFloat(cfg["sourceHeight"]))
 	preserveAR := true
 	if v, ok := cfg["preserveAR"].(bool); ok {
