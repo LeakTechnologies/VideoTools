@@ -538,6 +538,7 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 
 		// Bundled tools are included in release binary - no install/uninstall needed
 		bundledDeps := map[string]bool{
+			"ffmpeg":                 true,
 			"realesrgan-ncnn-vulkan": true,
 			"realcugan-ncnn-vulkan":  true,
 			"rife-ncnn-vulkan":       true,
@@ -547,20 +548,6 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 
 		actions := container.NewHBox()
 		cmds = cb.GetDependencyCommands(depName)
-
-		if depName == "ffmpeg" && runtime.GOOS == "windows" {
-			installBtn := widget.NewButton(t.DependenciesInstall, func() {
-				cb.InstallWindowsFFmpeg(func() {
-					dialog.ShowInformation("FFmpeg Ready", "FFmpeg is installed for this user and now available in the app.", cb.Window())
-					cb.ShowSettingsView()
-				})
-			})
-			installBtn.Importance = widget.HighImportance
-			if isInstalled {
-				installBtn.Disable()
-			}
-			actions.Add(installBtn)
-		}
 
 		if cmds.Install != nil {
 			// Skip install button for bundled deps
