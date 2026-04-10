@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -454,21 +455,63 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 	if config.Format == "jpg" {
 		args = append(args, "-q:v", fmt.Sprintf("%d", 31-(config.Quality*30/100)))
 	}
-
-	if config.Progress != nil {
-		args = append(args, "-progress", "pipe:1", "-stats_period", "0.2", "-nostats")
-	}
 	args = append(args, outputPath)
 
+	// Contact sheet is a single FFmpeg pass that produces exactly 1 output frame
+	// (the tiled composite). FFmpeg's -progress frame= would only tick once at the
+	// very end, giving no intermediate feedback. Use a time-based ticker instead so
+	// the UI shows smooth progress while the command runs.
+	cmd := exec.CommandContext(ctx, g.FFmpegPath, args...)
+	hideCmd(cmd)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
 	if config.Progress != nil {
-		if err := runFFmpegWithProgress(ctx, g.FFmpegPath, args, availableDuration, totalThumbs, config.Progress); err != nil {
-			return "", fmt.Errorf("failed to generate contact sheet: %w", err)
+		config.Progress(0)
+
+		// Heuristic estimate: ~1s processing per 60s of video, min 3s, max 120s.
+		estimatedMs := int64(availableDuration / 60 * 1000)
+		if estimatedMs < 3000 {
+			estimatedMs = 3000
+		} else if estimatedMs > 120000 {
+			estimatedMs = 120000
 		}
+
+		done := make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(300 * time.Millisecond)
+			defer ticker.Stop()
+			start := time.Now()
+			for {
+				select {
+				case <-done:
+					return
+				case <-ticker.C:
+					elapsed := time.Since(start).Milliseconds()
+					pct := float64(elapsed) / float64(estimatedMs) * 90 // cap at 90%; 100% on completion
+					if pct > 90 {
+						pct = 90
+					}
+					config.Progress(pct)
+				}
+			}
+		}()
+
+		runErr := cmd.Run()
+		close(done)
+		if runErr != nil {
+			if ctx.Err() != nil {
+				return "", ctx.Err()
+			}
+			return "", fmt.Errorf("failed to generate contact sheet: %w (%s)", runErr, strings.TrimSpace(stderr.String()))
+		}
+		config.Progress(100)
 	} else {
-		cmd := exec.CommandContext(ctx, g.FFmpegPath, args...)
-		hideCmd(cmd)
 		if err := cmd.Run(); err != nil {
-			return "", fmt.Errorf("failed to generate contact sheet: %w", err)
+			if ctx.Err() != nil {
+				return "", ctx.Err()
+			}
+			return "", fmt.Errorf("failed to generate contact sheet: %w (%s)", err, strings.TrimSpace(stderr.String()))
 		}
 	}
 
