@@ -238,19 +238,19 @@ func (g *Generator) getDetailedVideoInfo(ctx context.Context, videoPath string) 
 	// Parse video stream info
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	if len(lines) >= 1 {
-		videoCodec = strings.ToUpper(lines[0])
+		videoCodec = strings.ToUpper(strings.TrimSpace(lines[0]))
 	}
 	if len(lines) >= 2 {
 		// Parse frame rate (format: "30000/1001" or "30/1")
-		fpsStr := lines[1]
+		fpsStr := strings.TrimSpace(lines[1])
 		var num, den float64
 		if _, err := fmt.Sscanf(fpsStr, "%f/%f", &num, &den); err == nil && den > 0 {
 			fps = num / den
 		}
 	}
-	if len(lines) >= 3 && lines[2] != "N/A" {
+	if len(lines) >= 3 && strings.TrimSpace(lines[2]) != "N/A" {
 		// Parse bitrate if available
-		fmt.Sscanf(lines[2], "%f", &bitrate)
+		fmt.Sscanf(strings.TrimSpace(lines[2]), "%f", &bitrate)
 	}
 
 	// Get audio codec and bitrate
@@ -267,10 +267,10 @@ func (g *Generator) getDetailedVideoInfo(ctx context.Context, videoPath string) 
 	if err == nil {
 		audioLines := strings.Split(strings.TrimSpace(string(output)), "\n")
 		if len(audioLines) >= 1 {
-			audioCodec = strings.ToUpper(audioLines[0])
+			audioCodec = strings.ToUpper(strings.TrimSpace(audioLines[0]))
 		}
-		if len(audioLines) >= 2 && audioLines[1] != "N/A" {
-			fmt.Sscanf(audioLines[1], "%f", &audioBitrate)
+		if len(audioLines) >= 2 && strings.TrimSpace(audioLines[1]) != "N/A" {
+			fmt.Sscanf(strings.TrimSpace(audioLines[1]), "%f", &audioBitrate)
 		}
 	}
 
