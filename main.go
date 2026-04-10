@@ -9482,6 +9482,19 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	outputDirBtnBG.SetMinSize(fyne.NewSize(92, 36))
 	outputDirBtn := ui.NewTappable(container.NewMax(outputDirBtnBG, container.NewPadded(outputDirBtnLabel)), browseOutputDir)
 
+	outputDirClearBtnLabel := canvas.NewText("Clear", textColor)
+	outputDirClearBtnLabel.Alignment = fyne.TextAlignCenter
+	outputDirClearBtnLabel.TextSize = 14
+	outputDirClearBtnBG := canvas.NewRectangle(utils.MustHex("#344256"))
+	outputDirClearBtnBG.CornerRadius = 8
+	outputDirClearBtnBG.SetMinSize(fyne.NewSize(60, 36))
+	outputDirClearBtn := ui.NewTappable(container.NewMax(outputDirClearBtnBG, container.NewPadded(outputDirClearBtnLabel)), func() {
+		state.convert.OutputDir = ""
+		outputDirEntry.SetText("")
+		updateOutputHint()
+		state.persistConvertConfig()
+	})
+
 	outputExtLabel = widget.NewLabel(state.convert.SelectedFormat.Ext)
 	outputExtLabel.Alignment = fyne.TextAlignCenter
 	outputExtBG = canvas.NewRectangle(ui.GetContainerColor(strings.TrimPrefix(state.convert.SelectedFormat.Ext, ".")))
@@ -9497,7 +9510,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		return container.NewMax(bg, container.NewPadded(row))
 	}
 
-	outputDirRow := buildOutputRow(outputDirEntry, outputDirBtn)
+	outputDirRow := buildOutputRow(outputDirEntry, container.NewHBox(outputDirClearBtn, outputDirBtn))
 	outputNameRow := buildOutputRow(outputEntry, outputExtPill)
 
 	applyAutoName := func(force bool) {
