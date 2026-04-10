@@ -536,6 +536,15 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 
 		statusRow := container.NewHBox(statusIcon, statusBg, statusLabel)
 
+		// Bundled tools are included in release binary - no install/uninstall needed
+		bundledDeps := map[string]bool{
+			"realesrgan-ncnn-vulkan": true,
+			"realcugan-ncnn-vulkan":  true,
+			"rife-ncnn-vulkan":       true,
+			"whisper":                true,
+			"tesseract":              true,
+		}
+
 		actions := container.NewHBox()
 		cmds = cb.GetDependencyCommands(depName)
 
@@ -553,28 +562,9 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 			actions.Add(installBtn)
 		}
 
-		if depName == "whisper" && runtime.GOOS == "windows" && cmds.Install == nil && !isInstalled {
-			installBtn := widget.NewButton("Install (Python + Whisper)", func() {
-				cb.InstallWindowsPython(func(pythonExe string) {
-					cb.RunDependencyCommandWithProgress("Installing Whisper", "Installing openai-whisper...",
-						NewDependencyCommand(pythonExe, "-m", "pip", "install", "openai-whisper"),
-						func(out string, err error) {
-							cb.ShowCommandResult("Whisper Install", out, err)
-							cb.ShowSettingsView()
-						})
-				})
-			})
-			installBtn.Importance = widget.HighImportance
-			actions.Add(installBtn)
-		}
-
 		if cmds.Install != nil {
-			// Skip generic install button if we already added a special case button
-			// (whisper has a custom install button for Windows Python)
-			hasSpecialInstallButton := (depName == "whisper") &&
-				(runtime.GOOS == "windows")
-
-			if !hasSpecialInstallButton {
+			// Skip install button for bundled deps
+			if !bundledDeps[depName] {
 				installBtn := widget.NewButton(t.DependenciesInstall, func() {
 					cb.RunDependencyCommandWithProgress(fmt.Sprintf("Installing %s", dep.Name), dep.InstallCmd, cmds.Install, func(out string, err error) {
 						cb.ShowCommandResult(fmt.Sprintf("%s Install", dep.Name), out, err)
@@ -589,12 +579,7 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 			}
 		}
 
-		// Skip uninstall button for bundled tools (they're included in release binary)
-		bundledDeps := map[string]bool{
-			"realesrgan-ncnn-vulkan": true,
-			"realcugan-ncnn-vulkan":  true,
-			"rife-ncnn-vulkan":       true,
-		}
+		// Skip uninstall button for bundled tools
 		showUninstall := cmds.Uninstall != nil && !bundledDeps[depName]
 
 		if showUninstall {

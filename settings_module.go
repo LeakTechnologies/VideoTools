@@ -291,7 +291,7 @@ func checkDependency(command string) bool {
 
 	// Bundled AI tools are always available in release builds
 	switch command {
-	case "realesrgan-ncnn-vulkan", "realcugan-ncnn-vulkan", "rife-ncnn-vulkan":
+	case "realesrgan-ncnn-vulkan", "realcugan-ncnn-vulkan", "rife-ncnn-vulkan", "whisper", "tesseract":
 		return true
 	}
 
