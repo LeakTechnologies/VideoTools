@@ -1340,7 +1340,7 @@ type appState struct {
 	thumbnailSheetWidth     int
 	thumbnailColumns        int
 	thumbnailRows           int
-	thumbnailLastOutputPath string         // Path to last generated output
+	thumbnailLastOutputPath string          // Path to last generated output
 	thumbnailLiveGrid       *fyne.Container // Persistent live-preview grid; survives view rebuilds
 
 	// Player module state
@@ -8936,7 +8936,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			closeBtn,
 		)
 		bodyScroll := container.NewVScroll(body)
-		bodyScroll.SetMinSize(fyne.NewSize(0, 150))
+		bodyScroll.SetMinSize(fyne.NewSize(0, 200))
 		panel := container.NewBorder(header, nil, nil, nil, bodyScroll)
 
 		bg := canvas.NewRectangle(utils.MustHex("#13182B"))
@@ -8947,7 +8947,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		pop := widget.NewPopUp(drawer, state.window.Canvas())
 		canvasSize := state.window.Canvas().Size()
-		drawerHeight := float32(180)
+		drawerHeight := float32(240)
 		drawerWidth := canvasSize.Width - (drawerInset * 2)
 		pop.Resize(fyne.NewSize(drawerWidth, drawerHeight))
 		// Position at bottom, above stats bar
