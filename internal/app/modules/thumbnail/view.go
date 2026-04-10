@@ -473,7 +473,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		liveBody = container.NewScroll(opts.LivePreviewGrid)
 	} else {
 		placeholder := widget.NewLabel("Thumbnails will appear here as they are generated.")
-		placeholder.Wrapping = fyne.TextWrapWord
 		placeholder.Alignment = fyne.TextAlignCenter
 		liveBody = container.NewCenter(placeholder)
 	}
