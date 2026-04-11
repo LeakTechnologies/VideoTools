@@ -14,6 +14,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/filters"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
@@ -22,7 +23,9 @@ func (s *appState) showFiltersView() {
 	s.lastModule = s.active
 	s.active = "filters"
 	s.maximizeWindow()
-	s.setContent(buildFiltersView(s))
+	s.setContent(ui.NewDroppable(buildFiltersView(s), func(items []fyne.URI) {
+		s.handleDrop(fyne.NewPos(0, 0), items)
+	}))
 }
 
 func buildFiltersView(state *appState) fyne.CanvasObject {
