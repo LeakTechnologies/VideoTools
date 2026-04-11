@@ -50,6 +50,12 @@ type ViewCallbacks interface {
 	ShowQueue()
 	StatsBar() fyne.CanvasObject
 
+	// Player for subtitle preview
+	HasPlayer() bool
+	PlayerWidget() fyne.CanvasObject
+	LoadVideoInPlayer(path string)
+	SetProgressCallback(fn func(t float64))
+
 	StopPreview()
 	MaximizeWindow()
 	SetContent(obj fyne.CanvasObject)

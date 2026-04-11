@@ -253,6 +253,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			cb.SetVideoPath(videoPath)
 			videoEntry.SetText(videoPath)
 			logging.Debug(logging.CatModule, "subtitles handleDrop: videoEntry text set to %s", videoPath)
+			cb.LoadVideoInPlayer(videoPath)
 		}
 		if subtitlePath != "" {
 			logging.Debug(logging.CatModule, "subtitles handleDrop: setting subtitle path to %s", subtitlePath)
@@ -338,6 +339,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			path := file.URI().Path()
 			cb.SetVideoPath(path)
 			videoEntry.SetText(path)
+			cb.LoadVideoInPlayer(path)
 		}, cb.Window())
 	})
 
@@ -568,6 +570,38 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		cb.PersistSubtitlesConfig()
 	})
 
+	// Build the video preview player pane (native_media builds only).
+	// subCueLabel shows the active subtitle cue in sync with playback.
+	var playerSection fyne.CanvasObject
+	subCueLabel := widget.NewLabel("")
+	subCueLabel.Alignment = fyne.TextAlignCenter
+	subCueLabel.Wrapping = fyne.TextWrapWord
+	if cb.HasPlayer() {
+		playerBg := canvas.NewRectangle(utils.MustHex("#0F1529"))
+		playerBg.SetMinSize(fyne.NewSize(0, 260))
+		playerPane := container.NewMax(playerBg, cb.PlayerWidget())
+
+		cueBg := canvas.NewRectangle(utils.MustHex("#0D1118"))
+		cueBg.SetMinSize(fyne.NewSize(0, 48))
+		cueBar := container.NewMax(cueBg, container.NewPadded(subCueLabel))
+
+		playerSection = container.NewVBox(playerPane, cueBar)
+
+		cb.SetProgressCallback(func(t float64) {
+			cues := cb.Cues()
+			text := ""
+			for _, cue := range cues {
+				if t >= cue.Start && t <= cue.End {
+					text = cue.Text
+					break
+				}
+			}
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				subCueLabel.SetText(text)
+			}, false)
+		})
+	}
+
 	left := container.NewVBox(
 		widget.NewLabelWithStyle(t.SubtitlesSources, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		container.NewBorder(nil, nil, nil, browseVideoBtn, videoEntry),
@@ -623,9 +657,16 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 
 	droppableLeft := ui.NewDroppable(left, handleDrop)
 	droppableRight := ui.NewDroppable(right, handleDrop)
-	content := container.NewGridWithColumns(2, droppableLeft, droppableRight)
-	scroll := container.NewVScroll(content)
+	twoCol := container.NewGridWithColumns(2, droppableLeft, droppableRight)
+	scroll := container.NewVScroll(twoCol)
 	scroll.SetMinSize(fyne.NewSize(0, 0))
+
+	var content fyne.CanvasObject
+	if playerSection != nil {
+		content = container.NewBorder(playerSection, nil, nil, nil, scroll)
+	} else {
+		content = scroll
+	}
 
 	var bottomBar fyne.CanvasObject
 	if cb.StatsBar() != nil {
@@ -634,7 +675,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		bottomBar = container.NewBorder(nil, nil, nil, applyBtn, layout.NewSpacer())
 	}
 
-	return container.NewBorder(topBar, bottomBar, nil, nil, scroll)
+	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
 
 func formatSRTTimestamp(seconds float64) string {

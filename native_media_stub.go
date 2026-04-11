@@ -41,3 +41,7 @@ func GetInspectPlayer() *ui.InlineVideoPlayer {
 func GetConvertPlayer() *ui.InlineVideoPlayer {
 	return ui.NewInlineVideoPlayer()
 }
+
+func GetSubtitlePlayer() *ui.InlineVideoPlayer {
+	return ui.NewInlineVideoPlayer()
+}
