@@ -3100,6 +3100,12 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 		return
 	}
 
+	// If convert module with single file, load it
+	if moduleID == "convert" && len(videoPaths) == 1 {
+		go s.loadVideo(videoPaths[0])
+		return
+	}
+
 	// If upscale module and multiple files, add all to queue
 	if moduleID == "upscale" && len(videoPaths) > 1 {
 		go s.batchAddToUpscaleQueue(videoPaths)
@@ -3737,30 +3743,14 @@ func (s *appState) showConvertView(file *videoSource) {
 		s.lastModule = s.active
 	}
 	s.active = "convert"
-	convertmodule.ShowView(
-		s.lastModule,
-		"convert",
-		videoSourceToConvertSource(file),
-		&convertmodule.ConvertState{
-			LastModule:     s.lastModule,
-			Active:         s.active,
-			Source:         videoSourceToConvertSource(s.source),
-			OutputBase:     s.convert.OutputBase,
-			CoverArtPath:   s.convert.CoverArtPath,
-			AspectHandling: s.convert.AspectHandling,
-			OutputAspect:   s.convert.OutputAspect,
-			AspectUserSet:  s.convert.AspectUserSet,
-		},
-		convertmodule.ConvertCallbacks{
-			OnStopPreview:    s.stopPreview,
-			OnMaximizeWindow: s.maximizeWindow,
-			OnSetContent:     s.setContent,
-			OnPersistConfig:  s.persistConvertConfig,
-			OnBuildView: func(src *convertmodule.VideoSourceInfo) fyne.CanvasObject {
-				return buildConvertView(s, convertSourceToVideoSource(src))
-			},
-		},
-	)
+
+	// Build the content first
+	content := buildConvertView(s, file)
+
+	// Wrap with Droppable for drag-drop support
+	s.setContent(ui.NewDroppable(content, func(items []fyne.URI) {
+		s.handleDrop(fyne.NewPos(0, 0), items)
+	}))
 }
 
 func videoSourceToConvertSource(v *videoSource) *convertmodule.VideoSourceInfo {
