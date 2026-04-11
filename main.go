@@ -15326,6 +15326,7 @@ func (s *appState) loadVideo(path string) {
 	}
 
 	if found >= 0 {
+		cleanupVideoSourceTempFiles(s.loadedVideos[found])
 		s.loadedVideos[found] = src
 		s.currentIndex = found
 	} else if len(s.loadedVideos) > 0 {
@@ -15391,6 +15392,12 @@ func (s *appState) loadMultipleVideos(paths []string) {
 		return
 	}
 
+	// Clean up temp files from the previously loaded set before replacing.
+	for _, v := range s.loadedVideos {
+		cleanupVideoSourceTempFiles(v)
+	}
+	cleanupCoverArtIfTemp(s.convert.CoverArtPath)
+
 	// Load all videos into loadedVideos array
 	s.loadedVideos = validVideos
 	s.currentIndex = 0
@@ -15452,6 +15459,10 @@ func (s *appState) loadMultipleVideos(paths []string) {
 
 func (s *appState) clearVideo() {
 	logging.Debug(logging.CatModule, "clearing loaded video")
+	for _, v := range s.loadedVideos {
+		cleanupVideoSourceTempFiles(v)
+	}
+	cleanupCoverArtIfTemp(s.convert.CoverArtPath)
 	s.releasePlaybackSession()
 	s.stopPlayer()
 	s.source = nil
@@ -17171,6 +17182,36 @@ func capturePreviewFrames(path string, duration float64) ([]string, error) {
 	}
 	slices.Sort(files)
 	return files, nil
+}
+
+// cleanupVideoSourceTempFiles removes temporary files that VideoTools created
+// for src: the preview-frame directory (videotools-frames-*) and any extracted
+// embedded cover-art PNG. Safe to call with nil.
+func cleanupVideoSourceTempFiles(src *videoSource) {
+	if src == nil {
+		return
+	}
+	if len(src.PreviewFrames) > 0 {
+		dir := filepath.Dir(src.PreviewFrames[0])
+		if strings.Contains(filepath.Base(dir), "videotools-frames-") {
+			_ = os.RemoveAll(dir)
+		}
+	}
+	if src.EmbeddedCoverArt != "" {
+		_ = os.Remove(src.EmbeddedCoverArt)
+	}
+}
+
+// cleanupCoverArtIfTemp removes path only if it is a VideoTools-generated
+// temp cover-art file. Never deletes user-selected originals.
+func cleanupCoverArtIfTemp(path string) {
+	if path == "" {
+		return
+	}
+	base := filepath.Base(path)
+	if strings.HasPrefix(base, "videotools-cover-") || strings.HasPrefix(base, "videotools-embedded-cover-") {
+		_ = os.Remove(path)
+	}
 }
 
 type audioStreamInfo struct {
