@@ -15359,9 +15359,13 @@ func (s *appState) loadVideo(path string) {
 			s.showPlayerView()
 		default:
 			s.showConvertView(src)
-			// Post-rebuild refresh so the first frame is visible after re-insertion.
+			// Refresh must run AFTER setContent's async fyne.Do(update) completes —
+			// queuing a nested dispatch ensures the widget is already in the active
+			// canvas when Refresh fires, so the stored first frame is actually painted.
 			if HasNativeMediaPlayer() {
-				GetConvertPlayer().Widget().Refresh()
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					GetConvertPlayer().Widget().Refresh()
+				}, false)
 			}
 		}
 	}, false)
@@ -15431,10 +15435,14 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.source = firstVideo
 		s.showConvertView(firstVideo)
-		// Post-rebuild refresh: showConvertView replaces the view, so the player
-		// widget must be refreshed after re-insertion to display the preview frame.
+		// Queue Refresh in a nested dispatch so it runs after setContent's
+		// async fyne.Do(update) has committed the new window content. Calling
+		// Refresh synchronously here fires before the canvas swap completes,
+		// which leaves the player widget unredrawn.
 		if HasNativeMediaPlayer() {
-			GetConvertPlayer().Widget().Refresh()
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				GetConvertPlayer().Widget().Refresh()
+			}, false)
 		}
 
 		// Log any failed files for debugging
