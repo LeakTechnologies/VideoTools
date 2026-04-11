@@ -617,14 +617,15 @@ func (g *Generator) buildMetadataFilter(
 		boldFontArg = fmt.Sprintf("fontfile='%s'", escapeFilterPath(boldFontPath))
 	}
 
-	// Build the composite filter.
-	// Text y positions are centred within the header:
-	// block spans y=32..98 (≈86 px) → (150−86)/2 ≈ 32 px top margin.
+	// Build the composite filter with adjusted positions for larger fonts and 2-line title.
+	// Title (line1): fontsize 24, 2 lines = ~48px, starts at y=20
+	// Line 2 (resolution): fontsize 18, starts at y=80
+	// Line 3 (codecs): fontsize 18, starts at y=112
 	baseFilter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
-			"drawtext=text='%s':fontcolor=0x4CE870:fontsize=24:%s:x=10:y=28,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=18:%s:x=10:y=68,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=18:%s:x=10:y=102",
+			"drawtext=text='%s':fontcolor=0x4CE870:fontsize=24:%s:x=10:y=20,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=18:%s:x=10:y=80,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=18:%s:x=10:y=112",
 		selectFilter,
 		tileFilter,
 		sheetWidth,
