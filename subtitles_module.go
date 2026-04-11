@@ -1376,6 +1376,29 @@ func (a *subtitlesAdapter) SetBackendPath(path string) {
 	a.s.subtitleBackendPath = path
 }
 
+func (a *subtitlesAdapter) HasPlayer() bool {
+	return HasNativeMediaPlayer()
+}
+
+func (a *subtitlesAdapter) PlayerWidget() fyne.CanvasObject {
+	return GetSubtitlePlayer().Widget()
+}
+
+func (a *subtitlesAdapter) LoadVideoInPlayer(path string) {
+	if path == "" {
+		return
+	}
+	go func() {
+		if err := GetSubtitlePlayer().Load(path); err != nil {
+			logging.Error(logging.CatPlayer, "subtitle player load failed: path=%s err=%v", path, err)
+		}
+	}()
+}
+
+func (a *subtitlesAdapter) SetProgressCallback(fn func(t float64)) {
+	GetSubtitlePlayer().SetOnProgress(fn)
+}
+
 func (a *subtitlesAdapter) Status() string {
 	return a.s.subtitleStatus
 }
