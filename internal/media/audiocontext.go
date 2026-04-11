@@ -1,6 +1,7 @@
 package media
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -35,7 +36,13 @@ func GetSharedAudioContext() (*oto.Context, error) {
 			BufferSize:   audioBufferSize,
 		})
 		if err == nil && ready != nil {
-			<-ready
+			select {
+			case <-ready:
+			case <-time.After(10 * time.Second):
+				// Audio device init timed out — continue without audio rather than hanging forever.
+				err = fmt.Errorf("audio device init timed out")
+				ctx = nil
+			}
 		}
 		sharedOtoCtx.ctx = ctx
 		sharedOtoCtx.err = err
