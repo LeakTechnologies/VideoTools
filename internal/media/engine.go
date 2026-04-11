@@ -1419,6 +1419,24 @@ func (e *Engine) Open(path string) error {
 		if err := e.initHWDecode(); err != nil {
 			logging.Warning(logging.CatPlayer, "HW decode init failed, falling back to software: %v", err)
 			e.hwDevice = HWDeviceNone
+			// Re-allocate the codec context clean, without any partial HW state
+			C.avcodec_free_context(&e.videoCodecCtx)
+			swCodec := C.avcodec_find_decoder(streams[e.videoStreamIdx].codecpar.codec_id)
+			if swCodec == nil {
+				C.avformat_close_input(&e.formatCtx)
+				return fmt.Errorf("no software video decoder found for fallback")
+			}
+			videoCodec = swCodec
+			e.videoCodecCtx = C.avcodec_alloc_context3(videoCodec)
+			if e.videoCodecCtx == nil {
+				C.avformat_close_input(&e.formatCtx)
+				return fmt.Errorf("failed to allocate software video codec context")
+			}
+			C.avcodec_parameters_to_context(e.videoCodecCtx, streams[e.videoStreamIdx].codecpar)
+			if e.numThreads > 0 {
+				e.videoCodecCtx.thread_count = C.int(e.numThreads)
+			}
+			logging.Info(logging.CatPlayer, "SW fallback: re-allocated codec ctx for %s", C.GoString((*C.char)(unsafe.Pointer(videoCodec.name))))
 		}
 	}
 
@@ -1430,21 +1448,28 @@ func (e *Engine) Open(path string) error {
 
 	e.info.Width = int(e.videoCodecCtx.width)
 	e.info.Height = int(e.videoCodecCtx.height)
-	e.info.CodecName = C.GoString((*C.char)(unsafe.Pointer(e.videoCodecCtx.codec.name)))
-	e.info.PixelFormat = C.GoString((*C.char)(unsafe.Pointer(av_get_pix_fmt_name(e.videoCodecCtx.pix_fmt))))
+	if e.videoCodecCtx.codec != nil {
+		e.info.CodecName = C.GoString((*C.char)(unsafe.Pointer(e.videoCodecCtx.codec.name)))
+	}
+	if fmtName := av_get_pix_fmt_name(e.videoCodecCtx.pix_fmt); fmtName != nil {
+		e.info.PixelFormat = C.GoString((*C.char)(unsafe.Pointer(fmtName)))
+	}
 
 	avgFrameRate := streams[e.videoStreamIdx].avg_frame_rate
 	if avgFrameRate.num > 0 {
 		e.info.FrameRate = float64(avgFrameRate.num) / float64(avgFrameRate.den)
 	}
 
+	logging.Info(logging.CatPlayer, "Opening video codec: %s %dx%d pix_fmt=%d", e.info.CodecName, e.info.Width, e.info.Height, e.videoCodecCtx.pix_fmt)
 	if C.avcodec_open2(e.videoCodecCtx, videoCodec, nil) < 0 {
 		C.avcodec_free_context(&e.videoCodecCtx)
 		C.avformat_close_input(&e.formatCtx)
 		return fmt.Errorf("failed to open video codec")
 	}
+	logging.Info(logging.CatPlayer, "Video codec opened OK")
 
 	if e.audioStreamIdx >= 0 {
+		logging.Info(logging.CatPlayer, "Opening audio codec for stream %d", e.audioStreamIdx)
 		e.audioCodecCtx = C.avcodec_alloc_context3(audioCodec)
 		if e.audioCodecCtx != nil {
 			C.avcodec_parameters_to_context(e.audioCodecCtx, streams[e.audioStreamIdx].codecpar)
@@ -1456,6 +1481,7 @@ func (e *Engine) Open(path string) error {
 				e.audioStreamIdx = -1
 				e.info.HasAudio = false
 			} else {
+				logging.Info(logging.CatPlayer, "Audio codec opened OK, creating audio player")
 				ap, err := NewAudioPlayer(e.audioCodecCtx, e.audioQueue, e.clock, e.audioTimeBase)
 				if err != nil {
 					logging.Error(logging.CatPlayer, "Failed to create audio player: %v", err)
@@ -1464,6 +1490,7 @@ func (e *Engine) Open(path string) error {
 					e.audioStreamIdx = -1
 					e.info.HasAudio = false
 				} else {
+					logging.Info(logging.CatPlayer, "Audio player created OK")
 					e.audioPlayer = ap
 					e.audioPlayer.SetVolume(e.volume)
 					e.audioPlayer.SetMuted(e.muted)
