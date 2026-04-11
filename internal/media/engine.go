@@ -196,47 +196,14 @@ func (e *Engine) initHWDecode() error {
 		return fmt.Errorf("failed to create HW device context")
 	}
 
+	// Attach hw_device_ctx; FFmpeg will set up frames context internally at
+	// avcodec_open2 time.  We keep our own ref in e.hwDeviceCtx for cleanup.
+	e.videoCodecCtx.hw_device_ctx = C.av_buffer_ref(devCtxRef)
+	if e.videoCodecCtx.hw_device_ctx == nil {
+		C.av_buffer_unref(&devCtxRef)
+		return fmt.Errorf("failed to attach HW device context to codec ctx")
+	}
 	e.hwDeviceCtx = devCtxRef
-
-	framesCtxRef := C.av_hwframe_ctx_alloc(devCtxRef)
-	if framesCtxRef == nil {
-		C.av_buffer_unref(&devCtxRef)
-		e.hwDeviceCtx = nil
-		return fmt.Errorf("failed to allocate HW frames context")
-	}
-
-	// Populate AVHWFramesContext fields via the buffer's data pointer.
-	framesCtx := (*C.AVHWFramesContext)(unsafe.Pointer(framesCtxRef.data))
-	framesCtx.width = C.int(e.info.Width)
-	framesCtx.height = C.int(e.info.Height)
-
-	hwPixFmt := e.getHWPixelFormat(hwType)
-	if hwPixFmt == C.AV_PIX_FMT_NONE {
-		C.av_buffer_unref(&framesCtxRef)
-		C.av_buffer_unref(&devCtxRef)
-		e.hwDeviceCtx = nil
-		return fmt.Errorf("unsupported pixel format for HW device")
-	}
-
-	framesCtx.sw_format = hwPixFmt
-	framesCtx.initial_pool_size = 20
-
-	if C.av_hwframe_ctx_init(framesCtxRef) != 0 {
-		C.av_buffer_unref(&framesCtxRef)
-		C.av_buffer_unref(&devCtxRef)
-		e.hwDeviceCtx = nil
-		return fmt.Errorf("failed to init HW frames context")
-	}
-
-	e.hwFramesCtx = framesCtxRef
-	e.videoCodecCtx.hw_frames_ctx = C.av_buffer_ref(framesCtxRef)
-	if e.videoCodecCtx.hw_frames_ctx == nil {
-		C.av_buffer_unref(&framesCtxRef)
-		C.av_buffer_unref(&devCtxRef)
-		e.hwDeviceCtx = nil
-		e.hwFramesCtx = nil
-		return fmt.Errorf("failed to attach HW frames context")
-	}
 
 	logging.Info(logging.CatPlayer, "HW decode enabled: %v", e.hwDevice)
 	return nil
@@ -1896,14 +1863,25 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	}
 	defer C.av_frame_free(&swFrame)
 
-	if C.av_hwframe_get_buffer(e.hwFramesCtx, swFrame, 0) != 0 {
-		return nil, fmt.Errorf("failed to get HW frame buffer")
-	}
-
+	// av_hwframe_transfer_data allocates the SW buffer automatically when
+	// swFrame has no data (src.hw_frames_ctx drives allocation).
 	swFrame.pict_type = 0
-
 	if C.av_hwframe_transfer_data(swFrame, e.frame, 0) != 0 {
 		return nil, fmt.Errorf("failed to transfer HW frame to SW")
+	}
+
+	// If sws_getContext was built for a HW pixel format (e.g. AV_PIX_FMT_D3D11),
+	// it won't work on a SW frame.  Rebuild it for the actual SW output format.
+	if e.swsCtx != nil && C.int(swFrame.format) != C.int(e.videoCodecCtx.pix_fmt) {
+		C.sws_freeContext(e.swsCtx)
+		e.swsCtx = C.sws_getContext(
+			swFrame.width, swFrame.height, (C.enum_AVPixelFormat)(swFrame.format),
+			swFrame.width, swFrame.height, C.AV_PIX_FMT_RGBA,
+			C.SWS_BICUBIC|C.SWS_ACCURATE_RND, nil, nil, nil,
+		)
+		if e.swsCtx == nil {
+			return nil, fmt.Errorf("failed to rebuild sws context for HW frame format %d", swFrame.format)
+		}
 	}
 
 	origFrame := e.frame
