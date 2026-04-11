@@ -126,14 +126,20 @@ func (v *InlineVideoPlayer) Load(path string) error {
 	v.player.SetDuration(duration)
 
 	// Start the demuxer briefly to decode the first frame for preview, then pause.
-	// SetFrame/SetLoading write to widget state and must run on the main goroutine.
-	// Use blocking DoFromGoroutine (true) for SetFrame so the preview frame is
-	// committed before we return and the caller rebuilds the view around this widget.
+	// Seek(0) resets the master clock to t=0 after the demuxer goroutine starts.
+	// Without this, the clock may advance >100ms before the first packet is decoded,
+	// causing SyncVideo to classify PTS≈0 as "late" and drop the frame — leaving
+	// the preview area black.
 	v.engine.Start()
+	_ = v.engine.Seek(0)
 	if img, err := v.engine.NextFrame(); err == nil {
+		// Use blocking dispatch so the frame is committed before the caller
+		// rebuilds the view around this widget.
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetFrame(img)
 		}, true)
+	} else {
+		logging.Warning(logging.CatPlayer, "InlineVideoPlayer: first-frame fetch failed: %v", err)
 	}
 	v.engine.Pause()
 

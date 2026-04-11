@@ -15358,6 +15358,10 @@ func (s *appState) loadVideo(path string) {
 			s.showPlayerView()
 		default:
 			s.showConvertView(src)
+			// Post-rebuild refresh so the first frame is visible after re-insertion.
+			if HasNativeMediaPlayer() {
+				GetConvertPlayer().Widget().Refresh()
+			}
 		}
 	}, false)
 }
@@ -15420,6 +15424,11 @@ func (s *appState) loadMultipleVideos(paths []string) {
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		s.source = firstVideo
 		s.showConvertView(firstVideo)
+		// Post-rebuild refresh: showConvertView replaces the view, so the player
+		// widget must be refreshed after re-insertion to display the preview frame.
+		if HasNativeMediaPlayer() {
+			GetConvertPlayer().Widget().Refresh()
+		}
 
 		// Log any failed files for debugging
 		if len(failedFiles) > 0 {
