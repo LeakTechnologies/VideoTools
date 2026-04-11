@@ -541,17 +541,41 @@ func (g *Generator) buildMetadataFilter(
 	seconds := int(duration) % 60
 	durationStr := fmt.Sprintf("%02d\\:%02d\\:%02d", hours, minutes, seconds)
 
-	// Get just the filename without path, truncate if too long
+	// Get just the filename without path, handle for 2-line title support
 	filename := filepath.Base(config.VideoPath)
-	maxFilenameLen := 50
-	if len(filename) > maxFilenameLen {
-		ext := filepath.Ext(filename)
-		name := strings.TrimSuffix(filename, ext)
-		if len(ext) > 5 {
-			filename = filename[:maxFilenameLen-3] + "..."
-		} else {
-			filename = name[:maxFilenameLen-len(ext)-3] + "..." + ext
+	ext := strings.ToLower(filepath.Ext(filename)) // always show extension lowercase
+	name := strings.TrimSuffix(filename, ext)
+
+	var line1a, line1b string
+	maxLineLen := 40 // max characters per line
+	if len(filename) > maxLineLen*2 {
+		// Very long filename - split into 2 lines, preserve extension at end of line 2
+		extLen := len(ext)
+		if extLen > 6 {
+			extLen = 6 // cap for display
 		}
+		// First line takes up to maxLineLen
+		if len(name) > maxLineLen-3 {
+			line1a = name[:maxLineLen-3] + "..."
+		} else {
+			line1a = name
+		}
+		// Second line: remaining + extension
+		remaining := len(name) - (maxLineLen - 3)
+		if remaining > 0 {
+			line1b = "..." + name[len(name)-remaining:] + ext
+		} else {
+			line1b = ext
+		}
+	} else if len(filename) > maxLineLen {
+		// Medium length - wrap once
+		half := len(name) / 2
+		line1a = name[:half]
+		line1b = name[half:] + ext
+	} else {
+		// Short enough - single line
+		line1a = filename
+		line1b = ""
 	}
 
 	// Calculate sheet dimensions accounting for padding between thumbnails
@@ -561,8 +585,13 @@ func (g *Generator) buildMetadataFilter(
 
 	// Build metadata text lines.
 	// Use · (middle dot) as separator — pipe (|) is treated as a newline by FFmpeg drawtext.
-	// Line 1: Filename and file size (bold) — escape for drawtext single-quoted text= value
-	line1 := fmt.Sprintf("%s (%.1f MB)", escapeDrawtextText(filename), fileSizeMB)
+	// Line 1: Filename (up to 2 lines) and file size (bold) — escape for drawtext single-quoted text= value
+	var line1 string
+	if line1b != "" {
+		line1 = fmt.Sprintf("%s\\n%s (%.1f MB)", escapeDrawtextText(line1a), escapeDrawtextText(line1b), fileSizeMB)
+	} else {
+		line1 = fmt.Sprintf("%s (%.1f MB)", escapeDrawtextText(line1a), fileSizeMB)
+	}
 	// Line 2: Resolution, frame rate, and duration
 	line2 := fmt.Sprintf("%dx%d @ %.2f fps · %s", videoWidth, videoHeight, fps, durationStr)
 	// Line 3: Codecs and bitrates
@@ -593,9 +622,9 @@ func (g *Generator) buildMetadataFilter(
 	// block spans y=32..98 (≈86 px) → (150−86)/2 ≈ 32 px top margin.
 	baseFilter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
-			"drawtext=text='%s':fontcolor=0x4CE870:fontsize=20:%s:x=10:y=32,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=16:%s:x=10:y=70,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=16:%s:x=10:y=102",
+			"drawtext=text='%s':fontcolor=0x4CE870:fontsize=24:%s:x=10:y=28,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=18:%s:x=10:y=68,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=18:%s:x=10:y=102",
 		selectFilter,
 		tileFilter,
 		sheetWidth,
