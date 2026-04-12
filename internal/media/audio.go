@@ -177,86 +177,99 @@ func (p *AudioPlayer) ResetEOF() {
 }
 
 func (p *AudioPlayer) Read(buf []byte) (int, error) {
+	// Drain any leftover decoded audio first.
 	if len(p.leftover) > 0 {
 		n := copy(buf, p.leftover)
 		p.leftover = p.leftover[n:]
 		return n, nil
 	}
 
-	for {
-		p.mu.Lock()
-		paused := p.paused
-		looping := p.looping
-		clock := p.clock
-		p.mu.Unlock()
+	p.mu.Lock()
+	paused := p.paused
+	looping := p.looping
+	p.mu.Unlock()
 
-		if paused && clock != nil {
-			clock.WaitForPTS(clock.GetTime())
-			continue
+	// Paused — return silence immediately so oto's goroutine never blocks.
+	if paused {
+		for i := range buf {
+			buf[i] = 0
 		}
+		return len(buf), nil
+	}
 
-		if paused {
-			time.Sleep(10 * time.Millisecond)
-			continue
-		}
-
-		pkt, ok := p.queue.Get()
-		if !ok {
+	// Non-blocking packet fetch. If nothing is queued yet (e.g. engine.Start()
+	// hasn't run) we return silence rather than blocking. This is what allows
+	// NewAudioPlayer / Play() to return before the demux goroutine is running.
+	pkt, ok := p.queue.TryGet()
+	if !ok {
+		// Distinguish "nothing yet" from "stream finished".
+		if p.queue.IsClosedOrEOF() {
 			if looping {
 				p.mu.Lock()
 				p.eofReceived = true
 				p.mu.Unlock()
-				time.Sleep(100 * time.Millisecond)
-				continue
+			} else {
+				return 0, io.EOF
 			}
-			return 0, io.EOF
+		}
+		// Queue temporarily empty — output silence.
+		for i := range buf {
+			buf[i] = 0
+		}
+		return len(buf), nil
+	}
+
+	// We have a packet — free it when done regardless of the decode path.
+	defer C.av_packet_free(&pkt)
+
+	p.mu.Lock()
+	p.eofReceived = false
+	p.mu.Unlock()
+
+	if C.avcodec_send_packet(p.codecCtx, pkt) != 0 {
+		logging.Debug(logging.CatPlayer, "Failed to send packet to audio decoder")
+		// Return silence for this packet rather than blocking.
+		for i := range buf {
+			buf[i] = 0
+		}
+		return len(buf), nil
+	}
+
+	for C.avcodec_receive_frame(p.codecCtx, p.frame) == 0 {
+		pts := float64(p.frame.pts) * p.timeBase
+		if p.clock != nil {
+			p.clock.SetTime(pts)
 		}
 
-		p.mu.Lock()
-		if p.eofReceived {
-			p.eofReceived = false
+		data, err := p.resample()
+		if err != nil {
+			logging.Warning(logging.CatPlayer, "Audio resample error: %v", err)
+			continue
 		}
-		p.mu.Unlock()
-
-		defer C.av_packet_free(&pkt)
-
-		if C.avcodec_send_packet(p.codecCtx, pkt) != 0 {
-			logging.Debug(logging.CatPlayer, "Failed to send packet to audio decoder")
+		if len(data) == 0 {
 			continue
 		}
 
-		for C.avcodec_receive_frame(p.codecCtx, p.frame) == 0 {
-			pts := float64(p.frame.pts) * p.timeBase
+		p.mu.Lock()
+		volMul := p.volumeMul
+		p.mu.Unlock()
 
-			if clock != nil {
-				clock.SetTime(pts)
-			}
-
-			data, err := p.resample()
-			if err != nil {
-				logging.Warning(logging.CatPlayer, "Audio resample error: %v", err)
-				continue
-			}
-
-			if len(data) == 0 {
-				continue
-			}
-
-			p.mu.Lock()
-			volMul := p.volumeMul
-			p.mu.Unlock()
-
-			if volMul != 1.0 && volMul != 0 {
-				data = p.applyVolume(data, volMul)
-			}
-
-			n := copy(buf, data)
-			if n < len(data) {
-				p.leftover = data[n:]
-			}
-			return n, nil
+		if volMul != 1.0 && volMul != 0 {
+			data = p.applyVolume(data, volMul)
 		}
+
+		n := copy(buf, data)
+		if n < len(data) {
+			p.leftover = data[n:]
+		}
+		return n, nil
 	}
+
+	// Packet decoded but yielded no audio frames — return silence.
+	for i := range buf {
+		buf[i] = 0
+	}
+	return len(buf), nil
 }
 
 func (p *AudioPlayer) applyVolume(data []byte, volMul float32) []byte {
