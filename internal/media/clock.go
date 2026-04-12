@@ -72,17 +72,14 @@ func (c *MasterClock) IsPaused() bool {
 func (c *MasterClock) SetSpeed(speed float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	wasPaused := c.paused
-	if !wasPaused {
-		c.pts = c.GetTime()
+	if !c.paused {
+		// Inline GetTime() logic — calling GetTime() here would deadlock because
+		// that method also acquires c.mu and Go mutexes are not re-entrant.
+		elapsed := time.Since(c.ptsTime).Seconds() * c.speed
+		c.pts = c.pts + elapsed
 		c.ptsTime = time.Now()
 	}
 	c.speed = speed
-	if wasPaused {
-		c.paused = true
-	} else {
-		c.paused = false
-	}
 }
 
 func (c *MasterClock) GetSpeed() float64 {
