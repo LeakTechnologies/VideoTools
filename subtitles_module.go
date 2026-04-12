@@ -1384,6 +1384,10 @@ func (a *subtitlesAdapter) PlayerWidget() fyne.CanvasObject {
 	return GetSubtitlePlayer().Widget()
 }
 
+func (a *subtitlesAdapter) SetPlayerOnTapEmpty(fn func()) {
+	GetSubtitlePlayer().SetOnTapEmpty(fn)
+}
+
 func (a *subtitlesAdapter) LoadVideoInPlayer(path string) {
 	if path == "" {
 		return

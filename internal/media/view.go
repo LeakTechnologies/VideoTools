@@ -49,16 +49,26 @@ type SplitView struct {
 	leftSource    *image.RGBA
 	rightSource   *image.RGBA
 	onDividerMove func(float32)
+	leftIdleText  string
+	rightIdleText string
 }
 
 func NewSplitView() *SplitView {
 	s := &SplitView{
-		divider: 0.5,
+		divider:       0.5,
+		leftIdleText:  "DRAG TO LOAD VIDEO",
+		rightIdleText: "NO SOURCE",
 	}
 	s.leftImg = canvas.NewImageFromImage(nil)
 	s.rightImg = canvas.NewImageFromImage(nil)
 	s.ExtendBaseWidget(s)
 	return s
+}
+
+// SetIdleText configures the overlay text shown on each side when no frame is set.
+func (s *SplitView) SetIdleText(left, right string) {
+	s.leftIdleText = left
+	s.rightIdleText = right
 }
 
 func (s *SplitView) CreateRenderer() fyne.WidgetRenderer {
@@ -159,24 +169,30 @@ func (s *SplitView) DragEnd() {
 func (s *SplitView) draw(w, h int) image.Image {
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 
-	if s.leftSource == nil && s.rightSource == nil {
-		return img
-	}
-
 	splitX := int(float32(w) * s.divider)
 
 	if s.leftSource != nil {
 		leftRect := image.Rect(0, 0, splitX, h)
 		draw.Draw(img, leftRect, s.leftSource, image.Point{}, draw.Src)
+	} else {
+		bars := drawSMPTEBars(splitX, h, s.leftIdleText)
+		draw.Draw(img, image.Rect(0, 0, splitX, h), bars, image.Point{}, draw.Src)
 	}
 
-	if s.rightSource != nil {
-		rightSrcX := 0
-		rightRect := image.Rect(splitX+dividerWidth, 0, w, h)
-		if s.leftSource != nil {
-			rightSrcX = splitX
+	rightX := splitX + dividerWidth
+	rightW := w - rightX
+	if rightW > 0 {
+		if s.rightSource != nil {
+			rightRect := image.Rect(rightX, 0, w, h)
+			srcX := 0
+			if s.leftSource != nil {
+				srcX = splitX
+			}
+			draw.Draw(img, rightRect, s.rightSource, image.Point{X: srcX}, draw.Src)
+		} else {
+			bars := drawSMPTEBars(rightW, h, s.rightIdleText)
+			draw.Draw(img, image.Rect(rightX, 0, w, h), bars, image.Point{}, draw.Src)
 		}
-		draw.Draw(img, rightRect, s.rightSource, image.Point{X: rightSrcX}, draw.Src)
 	}
 
 	drawColor := dividerColor
@@ -261,7 +277,8 @@ type VideoPlayer struct {
 	onFullscreen    func(bool)
 	onPiP           func()
 	onSubtitles     func(bool)
-	onTapEmpty      func() // called when tapped with no video loaded
+	onTapEmpty func() // called when tapped with no video loaded
+	idleText   string // overlay text shown by SMPTE bars when source is nil
 
 	subtitleBgAlpha int
 
@@ -285,6 +302,7 @@ func NewVideoPlayer() *VideoPlayer {
 		isPlaying:    false,
 		isLoading:    false,
 		chapters:     make([]Chapter, 0),
+		idleText:     "DRAG TO LOAD VIDEO",
 	}
 	v.ExtendBaseWidget(v)
 	v.buildControls()
@@ -302,6 +320,7 @@ func NewInlineVideoPlayer() *VideoPlayer {
 		isPlaying:    false,
 		isLoading:    false,
 		chapters:     make([]Chapter, 0),
+		idleText:     "DRAG TO LOAD VIDEO",
 	}
 	v.ExtendBaseWidget(v)
 	v.buildControls()
@@ -1120,6 +1139,13 @@ func (v *VideoPlayer) SetOnTapEmpty(fn func()) {
 	v.onTapEmpty = fn
 }
 
+// SetIdleText sets the text displayed on the SMPTE bars when no video is loaded.
+// Use "DRAG TO LOAD VIDEO" for primary source players and "NO SOURCE" for
+// secondary/output players that are populated programmatically.
+func (v *VideoPlayer) SetIdleText(text string) {
+	v.idleText = text
+}
+
 func formatVideoTime(seconds float64) string {
 	t := time.Duration(seconds * float64(time.Second))
 	h := int(t.Hours())
@@ -1186,7 +1212,7 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 		if v.showControls {
 			availableH = h - controlBarHeight
 		}
-		return drawSMPTEBars(w, availableH)
+		return drawSMPTEBars(w, availableH, v.idleText)
 	}
 
 	src := v.source
@@ -1272,7 +1298,7 @@ func smpteFillRect(img *image.RGBA, x, y, w, h int, c color.RGBA) {
 	}
 }
 
-func drawSMPTEBars(w, h int) *image.RGBA {
+func drawSMPTEBars(w, h int, idleText string) *image.RGBA {
 	if w <= 0 || h <= 0 {
 		return image.NewRGBA(image.Rect(0, 0, max(w, 1), max(h, 1)))
 	}
@@ -1358,15 +1384,15 @@ func drawSMPTEBars(w, h int) *image.RGBA {
 		bx += bw
 	}
 
-	// Text overlay: black box + "DRAG TO LOAD VIDEO" centred in top 2/3
-	drawSMPTEText(img, w, topH)
+	// Text overlay: black box centred in the top section
+	if idleText != "" {
+		drawSMPTEText(img, w, topH, idleText)
+	}
 
 	return img
 }
 
-func drawSMPTEText(img *image.RGBA, w, topH int) {
-	const text = "DRAG TO LOAD VIDEO"
-
+func drawSMPTEText(img *image.RGBA, w, topH int, text string) {
 	face := getSMPTEFontFace(48)
 	if face == nil {
 		return

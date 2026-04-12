@@ -80,6 +80,14 @@ func (v *InlineVideoPlayer) Widget() *media.VideoPlayer {
 	return v.player
 }
 
+func (v *InlineVideoPlayer) SetOnTapEmpty(fn func()) {
+	v.player.SetOnTapEmpty(fn)
+}
+
+func (v *InlineVideoPlayer) SetIdleText(text string) {
+	v.player.SetIdleText(text)
+}
+
 func (v *InlineVideoPlayer) Load(path string) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
