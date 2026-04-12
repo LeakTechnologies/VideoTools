@@ -178,14 +178,30 @@ func (e *Engine) GetHWDevice() HWDeviceType {
 	return e.hwDevice
 }
 
-// codecSupportsHWDevice returns true when codec has at least one
-// AVCodecHWConfig entry that uses AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX
-// for the device type that matches e.hwDevice.
-// WMV3, MPEG-2, and many older codecs have no HW entries at all — calling
-// initHWDecode on them attaches a hw_device_ctx that the decoder ignores
-// during avcodec_open2 but then dereferences on the first avcodec_send_packet,
-// causing an access violation.
-func (e *Engine) codecSupportsHWDevice(codec *C.AVCodec) bool {
+// codecCanUseHWDevice returns true only for codecs that are known to work
+// correctly with hw_device_ctx and no get_format callback.
+//
+// Several codecs (notably VC-1/WMV3 and MPEG-2) advertise D3D11VA support via
+// avcodec_get_hw_config but require a get_format callback to negotiate the HW
+// pixel format at decode time.  Without that callback the decoder selects a SW
+// format, then crashes inside avcodec_send_packet when it tries to allocate HW
+// surfaces against the un-negotiated format.
+//
+// The codecs listed below have been validated to work with the simpler
+// hw_device_ctx-only path (no get_format callback):
+//   h264, hevc, vp9, av1, vp8
+//
+// Everything else falls back to software decode.
+func (e *Engine) codecCanUseHWDevice(codec *C.AVCodec) bool {
+	name := C.GoString((*C.char)(unsafe.Pointer(codec.name)))
+	switch name {
+	case "h264", "hevc", "vp9", "av1", "vp8":
+		// Good — these work reliably with hw_device_ctx alone.
+	default:
+		return false
+	}
+
+	// Also verify the codec actually has an HW config entry for this device.
 	var hwType C.enum_AVHWDeviceType
 	switch e.hwDevice {
 	case HWDeviceVAAPI:
@@ -1418,7 +1434,7 @@ func (e *Engine) Open(path string) error {
 
 	if e.hwDevice != HWDeviceNone {
 		codecName := C.GoString((*C.char)(unsafe.Pointer(videoCodec.name)))
-		if !e.codecSupportsHWDevice(videoCodec) {
+		if !e.codecCanUseHWDevice(videoCodec) {
 			logging.Info(logging.CatPlayer, "Codec %s has no HW config for device %v — using SW decode", codecName, e.hwDevice)
 			e.hwDevice = HWDeviceNone
 		} else if err := e.initHWDecode(); err != nil {
