@@ -1763,10 +1763,16 @@ func (e *Engine) Seek(seconds float64) error {
 
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
+	logging.Debug(logging.CatPlayer, "Seek: queues flushed")
 
+	// videoCodecMu must be held around avcodec_flush_buffers to serialise
+	// against NextFrame() which holds the same lock during send/receive.
 	if e.videoCodecCtx != nil {
+		e.videoCodecMu.Lock()
 		C.avcodec_flush_buffers(e.videoCodecCtx)
+		e.videoCodecMu.Unlock()
 	}
+	logging.Debug(logging.CatPlayer, "Seek: video codec flushed")
 
 	// Audio codec flush must go through AudioPlayer.FlushCodec() to serialise
 	// against the concurrent decode happening in AudioPlayer.Read() (oto
@@ -1778,8 +1784,10 @@ func (e *Engine) Seek(seconds float64) error {
 	} else if e.audioCodecCtx != nil {
 		C.avcodec_flush_buffers(e.audioCodecCtx)
 	}
+	logging.Debug(logging.CatPlayer, "Seek: audio codec flushed")
 
 	e.clock.SetTime(seconds)
+	logging.Debug(logging.CatPlayer, "Seek: clock reset to %.2f", seconds)
 	return nil
 }
 
@@ -1797,6 +1805,59 @@ func (e *Engine) Step(frames int) (*image.RGBA, error) {
 		}
 	}
 	return lastFrame, nil
+}
+
+// GrabFrame decodes and returns the first available video frame without any
+// clock synchronisation or frame-drop logic. It is safe to call from any
+// goroutine and is designed for obtaining a preview frame at load time when
+// the engine may be paused and the audio clock may not yet be stable.
+//
+// A timeout prevents hanging on files where the demuxer or codec stalls.
+func (e *Engine) GrabFrame(timeout time.Duration) (*image.RGBA, error) {
+	deadline := time.Now().Add(timeout)
+	logging.Debug(logging.CatPlayer, "GrabFrame: waiting for first video frame (timeout=%v)", timeout)
+
+	for time.Now().Before(deadline) {
+		// Non-blocking fetch — retry until a packet arrives or EOF/timeout.
+		pkt, ok := e.videoQueue.TryGet()
+		if !ok {
+			if e.videoQueue.IsClosedOrEOF() {
+				logging.Debug(logging.CatPlayer, "GrabFrame: video queue EOF")
+				return nil, io.EOF
+			}
+			time.Sleep(5 * time.Millisecond)
+			continue
+		}
+
+		// Lock codec around send+receive so we don't race with NextFrame or
+		// SmoothScrubbing if they start concurrently.
+		e.videoCodecMu.Lock()
+		sendRet := C.avcodec_send_packet(e.videoCodecCtx, pkt)
+		C.av_packet_free(&pkt)
+		if sendRet != 0 {
+			e.videoCodecMu.Unlock()
+			continue // bad or non-video packet; try the next one
+		}
+
+		// Drain all frames produced by this packet; return the first.
+		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
+			e.videoCodecMu.Unlock()
+			logging.Debug(logging.CatPlayer, "GrabFrame: got frame pts=%.3f", float64(e.frame.pts)*e.videoTimeBase)
+
+			if e.hwDevice != HWDeviceNone {
+				img, err := e.retrieveHWFrame()
+				if err != nil {
+					logging.Warning(logging.CatPlayer, "GrabFrame: HW retrieve failed (%v), falling back to SW", err)
+					img = e.toRGBA()
+				}
+				return img, nil
+			}
+			return e.toRGBA(), nil
+		}
+		e.videoCodecMu.Unlock()
+	}
+
+	return nil, fmt.Errorf("timed out waiting for first video frame")
 }
 
 func (e *Engine) NextFrame() (*image.RGBA, error) {
