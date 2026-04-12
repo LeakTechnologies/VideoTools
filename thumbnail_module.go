@@ -196,8 +196,12 @@ func (s *appState) loadMultipleThumbnailVideos(paths []string) {
 
 func buildThumbnailView(state *appState) fyne.CanvasObject {
 	thumbFiles := make([]any, len(state.thumbnailFiles))
+	thumbFilePaths := make([]string, len(state.thumbnailFiles))
 	for i, f := range state.thumbnailFiles {
 		thumbFiles[i] = f
+		if f != nil {
+			thumbFilePaths[i] = f.Path
+		}
 	}
 
 	t := i18n.T()
@@ -234,6 +238,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		LivePreviewGrid:         liveGrid,
 		ThumbnailFile:           state.thumbnailFile,
 		ThumbnailFiles:          thumbFiles,
+		ThumbnailFilePaths:      thumbFilePaths,
 		ThumbnailFileName:       thumbFileName,
 		ThumbnailFileNames:      thumbFileNames,
 		ThumbnailPreviewFrame:   thumbPreviewFrame,
@@ -292,6 +297,19 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 			state.jobQueue.Add(job)
 			if !state.jobQueue.IsRunning() {
 				state.jobQueue.Start()
+			}
+		},
+		OnCreateThumbJobForPath: func(path string) {
+			job := state.createThumbnailJobForPath(path)
+			state.jobQueue.Add(job)
+			if !state.jobQueue.IsRunning() {
+				state.jobQueue.Start()
+			}
+		},
+		OnSelectThumbnailFile: func(id int) {
+			if id >= 0 && id < len(state.thumbnailFiles) {
+				state.thumbnailFile = state.thumbnailFiles[id]
+				state.showThumbnailView()
 			}
 		},
 		OnPersistConfig: func() { state.persistThumbnailConfig() },

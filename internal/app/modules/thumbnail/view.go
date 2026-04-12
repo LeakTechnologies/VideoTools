@@ -23,9 +23,10 @@ type Options struct {
 
 	ThumbnailFile           any
 	ThumbnailFiles          []any
-	ThumbnailFileName       string   // base filename of the active file
-	ThumbnailFileNames      []string // base filenames for all loaded files
-	ThumbnailPreviewFrame   string          // path to first preview frame image
+	ThumbnailFilePaths      []string
+	ThumbnailFileName       string            // base filename of the active file
+	ThumbnailFileNames      []string          // base filenames for all loaded files
+	ThumbnailPreviewFrame   string            // path to first preview frame image
 	LivePreviewGrid         fyne.CanvasObject // persistent live-preview container; updated externally as thumbnails are generated
 	ThumbnailCount          int
 	ThumbnailWidth          int
@@ -53,43 +54,45 @@ type Options struct {
 	OnSetThumbnailContactSheet   func(b bool)
 	OnSetThumbnailShowTimestamps func(b bool)
 
-	OnCreateThumbJob func()
+	OnCreateThumbJob        func()
+	OnCreateThumbJobForPath func(path string)
+	OnSelectThumbnailFile   func(id int)
 
 	OnPersistConfig func()
 
 	// Labels — all user-visible strings (fall back to English if empty)
-	BackLabel                string
-	ViewQueueLabel           string
-	InstructionsLabel        string
-	NoFileLabel              string
-	FileLoadedLabel          string
-	LoadVideoLabel           string
-	ClearLabel               string
-	ContactSheetToggleLabel  string
-	ShowTimestampsLabel      string
-	ContactSheetGridLabel    string
-	IndividualThumbsLabel    string
-	ThumbnailSizeLabel       string
-	ColumnsFmt               string // "Columns: %d"
-	RowsFmt                  string // "Rows: %d"
-	TotalFmt                 string // "Total thumbnails: %d"
-	CountFmt                 string // "Thumbnail Count: %d"
-	WidthFmt                 string // "Thumbnail Width: %d px"
-	GenerateNowLabel         string
-	AddToQueueLabel          string
-	AddAllToQueueLabel       string
-	LoadedVideosLabel        string
-	VideoFmt                 string // "Video %d"
+	BackLabel               string
+	ViewQueueLabel          string
+	InstructionsLabel       string
+	NoFileLabel             string
+	FileLoadedLabel         string
+	LoadVideoLabel          string
+	ClearLabel              string
+	ContactSheetToggleLabel string
+	ShowTimestampsLabel     string
+	ContactSheetGridLabel   string
+	IndividualThumbsLabel   string
+	ThumbnailSizeLabel      string
+	ColumnsFmt              string // "Columns: %d"
+	RowsFmt                 string // "Rows: %d"
+	TotalFmt                string // "Total thumbnails: %d"
+	CountFmt                string // "Thumbnail Count: %d"
+	WidthFmt                string // "Thumbnail Width: %d px"
+	GenerateNowLabel        string
+	AddToQueueLabel         string
+	AddAllToQueueLabel      string
+	LoadedVideosLabel       string
+	VideoFmt                string // "Video %d"
 	// Dialog strings
-	NoVideoTitle      string
-	NoVideoMsg        string
-	StartedTitle      string
-	StartedMsg        string
-	JobQueuedTitle    string
-	JobQueuedMsg      string
-	NoVideosTitle     string
-	NoVideosMsg       string
-	JobsQueuedFmt     string // "Queued %d thumbnail jobs."
+	NoVideoTitle   string
+	NoVideoMsg     string
+	StartedTitle   string
+	StartedMsg     string
+	JobQueuedTitle string
+	JobQueuedMsg   string
+	NoVideosTitle  string
+	NoVideosMsg    string
+	JobsQueuedFmt  string // "Queued %d thumbnail jobs."
 }
 
 func or(s, fallback string) string {
@@ -403,7 +406,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 			dialog.ShowInformation(noVideosTitle, noVideosMsg, opts.Window)
 			return
 		}
-		if opts.OnCreateThumbJob != nil {
+		if opts.OnCreateThumbJobForPath != nil && len(opts.ThumbnailFilePaths) > 0 {
+			for _, path := range opts.ThumbnailFilePaths {
+				opts.OnCreateThumbJobForPath(path)
+			}
+		} else if opts.OnCreateThumbJob != nil {
 			for range opts.ThumbnailFiles {
 				opts.OnCreateThumbJob()
 			}
@@ -454,7 +461,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 			},
 		)
 		list.OnSelected = func(id widget.ListItemID) {
-			if opts.OnShowThumbnailView != nil {
+			if opts.OnSelectThumbnailFile != nil {
+				opts.OnSelectThumbnailFile(id)
+			} else if opts.OnShowThumbnailView != nil {
 				opts.OnShowThumbnailView()
 			}
 		}
