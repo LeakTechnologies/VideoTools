@@ -621,19 +621,20 @@ func (g *Generator) buildMetadataFilter(
 	// Title (line1): fontsize 24, 2 lines = ~48px, starts at y=20
 	// Line 2 (resolution): fontsize 18, starts at y=80
 	// Line 3 (codecs): fontsize 18, starts at y=112
+	textPadding := 32
 	baseFilter := fmt.Sprintf(
 		"%s,%s,pad=%d:%d:0:%d:0x0B0F1A,"+
-			"drawtext=text='%s':fontcolor=0x4CE870:fontsize=24:%s:x=10:y=20,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=18:%s:x=10:y=80,"+
-			"drawtext=text='%s':fontcolor=white:fontsize=18:%s:x=10:y=112",
+			"drawtext=text='%s':fontcolor=0x4CE870:fontsize=24:%s:x=%d:y=20,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=18:%s:x=%d:y=80,"+
+			"drawtext=text='%s':fontcolor=white:fontsize=18:%s:x=%d:y=112",
 		selectFilter,
 		tileFilter,
 		sheetWidth,
 		sheetHeight+headerHeight,
 		headerHeight,
-		line1, boldFontArg,
-		line2, regularFontArg,
-		line3, regularFontArg,
+		line1, boldFontArg, textPadding,
+		line2, regularFontArg, textPadding,
+		line3, regularFontArg, textPadding,
 	)
 
 	logoPath := g.findLogoPath()
