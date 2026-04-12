@@ -7,6 +7,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"math"
 	"sync"
 	"time"
 
@@ -1289,9 +1290,15 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 // ---- SMPTE 75% colour bars idle state ----
 
 var (
-	smpteVCRFontData []byte
-	smpteFontFace    font.Face
-	smpteFontOnce    sync.Once
+	smpteVCRFontData  []byte
+	smpteParsedFont   *opentype.Font
+	smpteFontParseOnce sync.Once
+
+	// last-used face cache — avoids re-creating the face on every idle repaint
+	// when the window size hasn't changed.
+	smpteFaceMu       sync.Mutex
+	smpteFaceLastSize float64
+	smpteFaceLastFace font.Face
 )
 
 // SetVCRFont registers the VCR OSD Mono TTF bytes so drawSMPTEBars can use it.
@@ -1300,8 +1307,11 @@ func SetVCRFont(data []byte) {
 	smpteVCRFontData = data
 }
 
+// getSMPTEFontFace returns a font.Face at the requested point size.
+// The underlying *opentype.Font is parsed once; faces are created on demand
+// and the last-used face is cached so steady-state repaints are allocation-free.
 func getSMPTEFontFace(size float64) font.Face {
-	smpteFontOnce.Do(func() {
+	smpteFontParseOnce.Do(func() {
 		if len(smpteVCRFontData) == 0 {
 			return
 		}
@@ -1310,18 +1320,36 @@ func getSMPTEFontFace(size float64) font.Face {
 			logging.Warning(logging.CatPlayer, "SMPTE: failed to parse VCR font: %v", err)
 			return
 		}
-		face, err := opentype.NewFace(f, &opentype.FaceOptions{
-			Size:    size,
-			DPI:     72,
-			Hinting: font.HintingFull,
-		})
-		if err != nil {
-			logging.Warning(logging.CatPlayer, "SMPTE: failed to create VCR font face: %v", err)
-			return
-		}
-		smpteFontFace = face
+		smpteParsedFont = f
 	})
-	return smpteFontFace
+	if smpteParsedFont == nil {
+		return nil
+	}
+
+	rounded := math.Round(size)
+	smpteFaceMu.Lock()
+	if rounded == smpteFaceLastSize && smpteFaceLastFace != nil {
+		f := smpteFaceLastFace
+		smpteFaceMu.Unlock()
+		return f
+	}
+	smpteFaceMu.Unlock()
+
+	face, err := opentype.NewFace(smpteParsedFont, &opentype.FaceOptions{
+		Size:    rounded,
+		DPI:     72,
+		Hinting: font.HintingFull,
+	})
+	if err != nil {
+		logging.Warning(logging.CatPlayer, "SMPTE: failed to create font face at size %.0f: %v", rounded, err)
+		return nil
+	}
+
+	smpteFaceMu.Lock()
+	smpteFaceLastSize = rounded
+	smpteFaceLastFace = face
+	smpteFaceMu.Unlock()
+	return face
 }
 
 func smpteFillRect(img *image.RGBA, x, y, w, h int, c color.RGBA) {
@@ -1425,7 +1453,17 @@ func drawSMPTEBars(w, h int, idleText string) *image.RGBA {
 }
 
 func drawSMPTEText(img *image.RGBA, w, topH int, text string) {
-	face := getSMPTEFontFace(48)
+	// Scale font proportionally to the bars width.
+	// Reference: 48pt looks right at 1024px wide (the SVG canvas size).
+	// Clamp so it stays legible at both very small and very large sizes.
+	fontSize := math.Round(48.0 * float64(w) / 1024.0)
+	if fontSize < 10 {
+		fontSize = 10
+	} else if fontSize > 72 {
+		fontSize = 72
+	}
+
+	face := getSMPTEFontFace(fontSize)
 	if face == nil {
 		return
 	}
@@ -1442,13 +1480,19 @@ func drawSMPTEText(img *image.RGBA, w, topH int, text string) {
 	metrics := face.Metrics()
 	textH := metrics.Ascent.Ceil() + metrics.Descent.Ceil()
 
-	padX := 20
-	padY := 12
+	// Padding scales with font size
+	padX := int(math.Round(float64(fontSize) * 0.4))
+	padY := int(math.Round(float64(fontSize) * 0.25))
 	boxW := textW + padX*2
 	boxH := textH + padY*2
 
+	// Clamp box so it never bleeds outside the bars (can happen at very small sizes)
+	if boxW > w {
+		boxW = w
+	}
+
 	boxX := (w - boxW) / 2
-	boxY := (topH/2 - boxH/2)
+	boxY := topH/2 - boxH/2
 	if boxY < 0 {
 		boxY = 0
 	}
@@ -1456,12 +1500,14 @@ func drawSMPTEText(img *image.RGBA, w, topH int, text string) {
 	// Black backing box
 	smpteFillRect(img, boxX, boxY, boxW, boxH, color.RGBA{0x10, 0x10, 0x10, 0xff})
 
-	// Draw text using golang.org/x/image/font drawer
+	// Draw text — clip the draw origin so text stays inside the box
+	dotX := boxX + padX
+	dotY := boxY + padY + metrics.Ascent.Ceil()
 	drawer := &font.Drawer{
 		Dst:  img,
 		Src:  image.NewUniform(color.RGBA{0xeb, 0xeb, 0xeb, 0xff}),
 		Face: face,
-		Dot:  fixed.P(boxX+padX, boxY+padY+metrics.Ascent.Ceil()),
+		Dot:  fixed.P(dotX, dotY),
 	}
 	drawer.DrawString(text)
 }
