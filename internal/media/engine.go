@@ -460,8 +460,9 @@ type Engine struct {
 	lastDecodeTime time.Time
 	decodeTimes    []time.Duration
 
-	hwDevice    HWDeviceType
-	hwDegraded  bool
+	hwDevice      HWDeviceType
+	hwDegraded    bool
+	videoDecoded  bool // set true after first successful video frame decode
 	hwFailCount int
 
 	looping  bool
@@ -1763,16 +1764,23 @@ func (e *Engine) Seek(seconds float64) error {
 
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
-	logging.Debug(logging.CatPlayer, "Seek: queues flushed")
+	logging.Info(logging.CatPlayer, "Seek: queues flushed, flushing video codec")
 
 	// videoCodecMu must be held around avcodec_flush_buffers to serialise
 	// against NextFrame() which holds the same lock during send/receive.
-	if e.videoCodecCtx != nil {
+	//
+	// Guard: only flush if at least one frame has been decoded. For D3D11VA
+	// hardware decoders the hardware frame pool is lazily allocated on the
+	// first decoded frame; calling avcodec_flush_buffers before that happens
+	// dereferences an uninitialized pool and causes an access violation crash.
+	if e.videoCodecCtx != nil && e.videoDecoded {
 		e.videoCodecMu.Lock()
 		C.avcodec_flush_buffers(e.videoCodecCtx)
 		e.videoCodecMu.Unlock()
+		logging.Info(logging.CatPlayer, "Seek: video codec flushed, flushing audio codec")
+	} else {
+		logging.Info(logging.CatPlayer, "Seek: skipping video codec flush (no frames decoded yet), flushing audio codec")
 	}
-	logging.Debug(logging.CatPlayer, "Seek: video codec flushed")
 
 	// Audio codec flush must go through AudioPlayer.FlushCodec() to serialise
 	// against the concurrent decode happening in AudioPlayer.Read() (oto
@@ -1784,10 +1792,10 @@ func (e *Engine) Seek(seconds float64) error {
 	} else if e.audioCodecCtx != nil {
 		C.avcodec_flush_buffers(e.audioCodecCtx)
 	}
-	logging.Debug(logging.CatPlayer, "Seek: audio codec flushed")
+	logging.Info(logging.CatPlayer, "Seek: audio codec flushed, resetting clock")
 
 	e.clock.SetTime(seconds)
-	logging.Debug(logging.CatPlayer, "Seek: clock reset to %.2f", seconds)
+	logging.Info(logging.CatPlayer, "Seek: complete at %.2f", seconds)
 	return nil
 }
 
@@ -1842,7 +1850,8 @@ func (e *Engine) GrabFrame(timeout time.Duration) (*image.RGBA, error) {
 		// Drain all frames produced by this packet; return the first.
 		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
 			e.videoCodecMu.Unlock()
-			logging.Debug(logging.CatPlayer, "GrabFrame: got frame pts=%.3f", float64(e.frame.pts)*e.videoTimeBase)
+			e.videoDecoded = true
+			logging.Info(logging.CatPlayer, "GrabFrame: got frame pts=%.3f", float64(e.frame.pts)*e.videoTimeBase)
 
 			if e.hwDevice != HWDeviceNone {
 				img, err := e.retrieveHWFrame()
@@ -1900,6 +1909,7 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
 			pts := float64(e.frame.pts) * e.videoTimeBase
 			e.videoCodecMu.Unlock() // release before any blocking / rendering work
+			e.videoDecoded = true
 
 			adjustedPts := pts * e.speed
 
