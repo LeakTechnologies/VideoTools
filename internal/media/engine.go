@@ -1890,32 +1890,40 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	}
 	defer C.av_frame_free(&swFrame)
 
-	// av_hwframe_transfer_data allocates the SW buffer automatically when
-	// swFrame has no data (src.hw_frames_ctx drives allocation).
-	swFrame.pict_type = 0
+	// av_hwframe_transfer_data downloads the HW surface to CPU.
+	// Passing a plain av_frame_alloc() frame (no hw_frames_ctx) causes FFmpeg
+	// to allocate CPU pixel buffers automatically and set swFrame.format to the
+	// actual SW format (NV12 for D3D11VA, YUV420P for VAAPI, etc.).
 	if C.av_hwframe_transfer_data(swFrame, e.frame, 0) != 0 {
 		return nil, fmt.Errorf("failed to transfer HW frame to SW")
 	}
 
-	// If sws_getContext was built for a HW pixel format (e.g. AV_PIX_FMT_D3D11),
-	// it won't work on a SW frame.  Rebuild it for the actual SW output format.
-	if e.swsCtx != nil && C.int(swFrame.format) != C.int(e.videoCodecCtx.pix_fmt) {
-		C.sws_freeContext(e.swsCtx)
-		e.swsCtx = C.sws_getContext(
-			swFrame.width, swFrame.height, (C.enum_AVPixelFormat)(swFrame.format),
-			swFrame.width, swFrame.height, C.AV_PIX_FMT_RGBA,
-			C.SWS_BICUBIC|C.SWS_ACCURATE_RND, nil, nil, nil,
-		)
-		if e.swsCtx == nil {
-			return nil, fmt.Errorf("failed to rebuild sws context for HW frame format %d", swFrame.format)
-		}
+	// Use a temporary sws context matched to swFrame.format rather than
+	// rebuilding e.swsCtx in place.  Modifying e.swsCtx here would corrupt the
+	// next software-decoded frame (e.g. after a seek or codec reset) which may
+	// be in YUV420P while e.swsCtx would now be configured for NV12.
+	swFmt := C.enum_AVPixelFormat(swFrame.format)
+	w := swFrame.width
+	h := swFrame.height
+	hwSwsCtx := C.sws_getContext(
+		w, h, swFmt,
+		w, h, C.AV_PIX_FMT_RGBA,
+		C.SWS_BILINEAR, nil, nil, nil,
+	)
+	if hwSwsCtx == nil {
+		return nil, fmt.Errorf("failed to create sws context for hw pixel format %d", int(swFmt))
 	}
+	defer C.sws_freeContext(hwSwsCtx)
 
-	origFrame := e.frame
-	e.frame = swFrame
-	img := e.toRGBA()
-	e.frame = origFrame
+	C.sws_scale(
+		hwSwsCtx,
+		&swFrame.data[0], &swFrame.linesize[0],
+		0, h,
+		&e.rgbaFrame.data[0], &e.rgbaFrame.linesize[0],
+	)
 
+	img := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
+	copy(img.Pix, e.rgbaBuffer)
 	return img, nil
 }
 
