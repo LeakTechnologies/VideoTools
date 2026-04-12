@@ -178,6 +178,37 @@ func (e *Engine) GetHWDevice() HWDeviceType {
 	return e.hwDevice
 }
 
+// codecSupportsHWDevice returns true when codec has at least one
+// AVCodecHWConfig entry that uses AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX
+// for the device type that matches e.hwDevice.
+// WMV3, MPEG-2, and many older codecs have no HW entries at all — calling
+// initHWDecode on them attaches a hw_device_ctx that the decoder ignores
+// during avcodec_open2 but then dereferences on the first avcodec_send_packet,
+// causing an access violation.
+func (e *Engine) codecSupportsHWDevice(codec *C.AVCodec) bool {
+	var hwType C.enum_AVHWDeviceType
+	switch e.hwDevice {
+	case HWDeviceVAAPI:
+		hwType = C.AV_HWDEVICE_TYPE_VAAPI
+	case HWDeviceD3D11VA:
+		hwType = C.AV_HWDEVICE_TYPE_D3D11VA
+	case HWDeviceQSV:
+		hwType = C.AV_HWDEVICE_TYPE_QSV
+	default:
+		return false
+	}
+	for i := C.int(0); ; i++ {
+		cfg := C.avcodec_get_hw_config(codec, i)
+		if cfg == nil {
+			return false
+		}
+		if cfg.methods&C.AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX != 0 &&
+			cfg.device_type == hwType {
+			return true
+		}
+	}
+}
+
 func (e *Engine) initHWDecode() error {
 	var hwType C.enum_AVHWDeviceType
 	switch e.hwDevice {
@@ -1386,7 +1417,11 @@ func (e *Engine) Open(path string) error {
 	}
 
 	if e.hwDevice != HWDeviceNone {
-		if err := e.initHWDecode(); err != nil {
+		codecName := C.GoString((*C.char)(unsafe.Pointer(videoCodec.name)))
+		if !e.codecSupportsHWDevice(videoCodec) {
+			logging.Info(logging.CatPlayer, "Codec %s has no HW config for device %v — using SW decode", codecName, e.hwDevice)
+			e.hwDevice = HWDeviceNone
+		} else if err := e.initHWDecode(); err != nil {
 			logging.Warning(logging.CatPlayer, "HW decode init failed, falling back to software: %v", err)
 			e.hwDevice = HWDeviceNone
 			// Re-allocate the codec context clean, without any partial HW state
