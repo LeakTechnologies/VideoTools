@@ -98,16 +98,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 	leftPanel := buildAudioLeftPanel(opts)
 	rightPanel := buildAudioRightPanel(opts)
 
-	mainSplit := container.New(&fixedHSplitLayout{ratio: 0.5}, leftPanel, rightPanel)
+	mainSplit := container.NewVSplit(leftPanel, rightPanel)
+	mainSplit.SetOffset(0.45)
 
-	extractBtn := widget.NewButton("Extract Now", func() {
+	extractBtn := widget.NewButton(t.AudioExtractNow, func() {
 		if opts.OnStartExtraction != nil {
 			opts.OnStartExtraction(false)
 		}
 	})
 	extractBtn.Importance = widget.HighImportance
 
-	queueBtn := widget.NewButton("Add to Queue", func() {
+	queueBtn := widget.NewButton(t.AudioAddToQueue, func() {
 		if opts.OnStartExtraction != nil {
 			opts.OnStartExtraction(true)
 		}
@@ -139,7 +140,7 @@ func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 
 	dropContainer := container.NewPadded(dropZone)
 
-	browseBtn := widget.NewButton("Browse for Video", func() {
+	browseBtn := widget.NewButton(t.AudioBrowseForVideo, func() {
 		dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
 			if err != nil || uc == nil {
 				return
@@ -156,14 +157,14 @@ func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 
 	trackListContainer := container.NewVBox()
 
-	selectAllBtn := widget.NewButton("Select All", nil)
-	deselectAllBtn := widget.NewButton("Deselect All", nil)
+	selectAllBtn := widget.NewButton(t.AudioSelectAll, nil)
+	deselectAllBtn := widget.NewButton(t.AudioDeselectAll, nil)
 
 	trackControls := container.NewHBox(selectAllBtn, deselectAllBtn)
 
 	batchListContainer := container.NewVBox()
 
-	batchModeCheck := widget.NewCheck("Batch Mode (process multiple files)", func(checked bool) {
+	batchModeCheck := widget.NewCheck(t.AudioBatchMode, func(checked bool) {
 		opts.BatchMode = checked
 		if opts.OnRefreshView != nil {
 			opts.OnRefreshView()
@@ -174,7 +175,7 @@ func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 	batchContent := container.NewVBox(
 		batchModeCheck,
 		container.NewHBox(
-			widget.NewButton("Add Files", func() {
+			widget.NewButton(t.AudioAddFiles, func() {
 				dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
 					if err != nil || uc == nil {
 						return
@@ -185,7 +186,7 @@ func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 					}
 				}, opts.Window)
 			}),
-			widget.NewButton("Clear", func() {
+			widget.NewButton(t.AudioClearFiles, func() {
 				if opts.OnClearBatchFiles != nil {
 					opts.OnClearBatchFiles()
 				}
@@ -254,7 +255,7 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 	qualitySelect.SetSelected(opts.Quality)
 	formatRadio.SetSelected(opts.OutputFormat)
 
-	normalizeCheck := widget.NewCheck("Apply EBU R128 Normalization", func(checked bool) {
+	normalizeCheck := widget.NewCheck(t.AudioNormalization, func(checked bool) {
 		opts.Normalize = checked
 		if opts.OnUpdateNormVisibility != nil {
 			opts.OnUpdateNormVisibility()
@@ -265,25 +266,25 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 	})
 	normalizeCheck.SetChecked(opts.Normalize)
 
-	lufsLabel := widget.NewLabel(fmt.Sprintf("Target LUFS: %.1f", opts.NormTargetLUFS))
+	lufsLabel := widget.NewLabel(fmt.Sprintf("%s %.1f", t.AudioTargetLUFS, opts.NormTargetLUFS))
 	lufsSlider := widget.NewSlider(-30, -10)
 	lufsSlider.SetValue(opts.NormTargetLUFS)
 	lufsSlider.Step = 0.5
 	lufsSlider.OnChanged = func(value float64) {
 		opts.NormTargetLUFS = value
-		lufsLabel.SetText(fmt.Sprintf("Target LUFS: %.1f", value))
+		lufsLabel.SetText(fmt.Sprintf("%s %.1f", t.AudioTargetLUFS, value))
 		if opts.OnPersistConfig != nil {
 			opts.OnPersistConfig()
 		}
 	}
 
-	peakLabel := widget.NewLabel(fmt.Sprintf("True Peak: %.1f dB", opts.NormTruePeak))
+	peakLabel := widget.NewLabel(fmt.Sprintf("%s %.1f dB", t.AudioTruePeak, opts.NormTruePeak))
 	peakSlider := widget.NewSlider(-3, 0)
 	peakSlider.SetValue(opts.NormTruePeak)
 	peakSlider.Step = 0.1
 	peakSlider.OnChanged = func(value float64) {
 		opts.NormTruePeak = value
-		peakLabel.SetText(fmt.Sprintf("True Peak: %.1f dB", value))
+		peakLabel.SetText(fmt.Sprintf("%s %.1f dB", t.AudioTruePeak, value))
 		if opts.OnPersistConfig != nil {
 			opts.OnPersistConfig()
 		}
@@ -342,38 +343,13 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 	}
 
 	rightContent := container.NewVBox(
-		buildAudioBox("Format", container.NewVBox(formatLabel, formatRadio)),
-		buildAudioBox("Quality", container.NewVBox(qualityLabel, qualitySelect)),
-		buildAudioBox("Bitrate", container.NewVBox(bitrateLabel, bitrateEntry)),
-		buildAudioBox("Normalization", container.NewVBox(normalizeCheck, normOptions)),
-		buildAudioBox("Output", container.NewVBox(outputDirLabel, outputDirRow, statusLabel, progressBar)),
+		buildAudioBox(t.AudioFormat, container.NewVBox(formatLabel, formatRadio)),
+		buildAudioBox(t.AudioQuality, container.NewVBox(qualityLabel, qualitySelect)),
+		buildAudioBox(t.AudioBitrate, container.NewVBox(bitrateLabel, bitrateEntry)),
+		buildAudioBox(t.AudioNormSection, container.NewVBox(normalizeCheck, normOptions)),
+		buildAudioBox(t.AudioOutput, container.NewVBox(outputDirLabel, outputDirRow, statusLabel, progressBar)),
 	)
 
 	scrollable := ui.NewFastVScroll(rightContent)
 	return scrollable
-}
-
-type fixedHSplitLayout struct {
-	ratio float32
-}
-
-func (f *fixedHSplitLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	if len(objects) < 2 {
-		return
-	}
-	width := float32(size.Width)
-	leftWidth := float32(int(width * f.ratio))
-	objects[0].Move(fyne.NewPos(0, 0))
-	objects[0].Resize(fyne.NewSize(leftWidth, size.Height))
-	objects[1].Move(fyne.NewPos(leftWidth, 0))
-	objects[1].Resize(fyne.NewSize(size.Width-leftWidth, size.Height))
-}
-
-func (f *fixedHSplitLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
-	if len(objects) < 2 {
-		return fyne.NewSize(0, 0)
-	}
-	min1 := objects[0].MinSize()
-	min2 := objects[1].MinSize()
-	return fyne.NewSize(min1.Width+min2.Width, max(min1.Height, min2.Height))
 }

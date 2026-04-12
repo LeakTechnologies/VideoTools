@@ -165,6 +165,29 @@ var iuLatn = Strings{
 	AudioQualityPreset:   "Pivaalliqsimaninga Atuqtaujuksaq:",                      // Quality Preset:
 	AudioBitrate:         "Uqausiirmut Akingit:",                                   // Bitrate:
 	AudioOutputDirectory: "Upaktiivik Nunalingni:",                                 // Output Directory:
+	AudioExtractNow:      "Apiriuti Atujujuq",                                      // Extract Now
+	AudioAddToQueue:      "Qanikkarlugu nutaqqivikkut",                             // Add to Queue
+	AudioBrowseForVideo:  "Tarvijaksaqmik niruarlugu",                              // Browse for Video
+	AudioSelectAll:       "Nunaliqijaujuq",                                         // Select All
+	AudioDeselectAll:     "Nunaliqijaujuq unik",                                    // Deselect All
+	AudioBatchMode:       "Sarvimut upaktiivik (miksikup ilanginnik)",              // Batch mode
+	AudioAddFiles:        "Ilanginnik niruarlugu",                                  // Add Files
+	AudioClearFiles:      "Ukaivik",                                                // Clear
+	AudioNormalization:   "EBU R128 pivaalliqsimaningaq pivalaviuqtijuq",           // Apply EBU R128 Normalization
+	AudioTargetLUFS:      "Pivaalliqsimaninga LUFS:",                               // Target LUFS:
+	AudioTruePeak:        "Pirrvinnirmut pivaalliqsimaninga:",                      // True Peak:
+	AudioNoFilesAdded:    "Ilanginnik agaksisimanngillaq",                          // No files added
+	AudioFormat:          "Upaktiivik",                                             // Format
+	AudioQuality:         "Pivaalliqsimaninga",                                     // Quality
+	AudioNormSection:     "Pivaalliqsimaningaq",                                    // Normalization
+	AudioOutput:          "Upaktiiviknuttaqut",                                     // Output
+	AudioNoTracksFound:   "Upaktiivik agaksisimanngillaq",                          // machine-generated, needs human review
+	AudioErrLoadFile:     "Ilak utirviqsaaq agaksisimanngillaq",                    // machine-generated, needs human review
+	AudioErrDetectTracks: "Upaktiivik aviktausimaninga agaksisimanngillaq",         // machine-generated, needs human review
+	AudioErrNoFile:       "Ilanginnik agaksisimanngillaq",                          // machine-generated, needs human review
+	AudioErrNoTracks:     "Upaktiivik agaksisimanngillaq niruarlugu",               // machine-generated, needs human review
+	AudioErrNoBatchFiles: "Ilanginnik sarvinik agaksisimanngillaq",                 // machine-generated, needs human review
+	AudioErrOutputDir:    "Upaktiivik nunalingni agaksisimanngillaq",               // machine-generated, needs human review
 
 	// ── Filters Module ─────────────────────────────────────────────────────────
 	FiltersInstructions:      "Asikkaarutaujunik atuliqlugu tarvijaksaqmut. Takujautiit uqausiirmut nutaarviggilugu.", // Apply filters

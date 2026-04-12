@@ -2260,20 +2260,15 @@ func embeddedFontPath() string {
 			return cachedEmbeddedFontPath
 		}
 	}
-	f, err := os.CreateTemp("", "videotools-font-*.ttf")
-	if err != nil {
-		logging.Error(logging.CatDVD, "failed to create temp font file: %v", err)
-		return ""
-	}
-	if _, err := f.Write(ibmPlexMonoTTF); err != nil {
-		f.Close()
-		os.Remove(f.Name())
+	// Use a fixed name so repeated runs overwrite the same file instead of
+	// accumulating hundreds of temp files that are never cleaned up.
+	fixed := filepath.Join(os.TempDir(), "videotools-font.ttf")
+	if err := os.WriteFile(fixed, ibmPlexMonoTTF, 0o644); err != nil {
 		logging.Error(logging.CatDVD, "failed to write embedded font: %v", err)
 		return ""
 	}
-	f.Close()
-	cachedEmbeddedFontPath = f.Name()
-	return f.Name()
+	cachedEmbeddedFontPath = fixed
+	return fixed
 }
 
 func resolveMenuTheme(theme *MenuTheme) *MenuTheme {

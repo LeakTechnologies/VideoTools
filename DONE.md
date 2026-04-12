@@ -1,5 +1,21 @@
 # VideoTools - Completed Features
 
+## Version 0.1.1-dev42 (in progress) - Player & Module Improvements
+
+### Player Module (dev42)
+- [x] **SMPTE bars in 4:3 ratio** — Idle video player shows colour bars in proper 4:3 aspect with letterboxing/pillarboxing
+- [x] **Native Fyne icons** — Replaced emoji transport controls (▶, ⏸, 🔊, ⛶) with theme.IconName equivalents in view.go, renderer.go, seekbar.go, opengl.go
+- [x] **Video loading fix** — Changed `buildVideoPane` condition from `HasNativeMediaPlayer() && src != nil` to `HasNativeMediaPlayer()` so the native player shows SMPTE bars when no video is loaded
+- [x] **Module switching cleanup** — Added `closeNativePlayer()` to `stopPlayer()` to prevent audio hanging when switching modules
+- [x] **Window focus on startup** — Added `w.Show()` + `w.RequestFocus()` before `ShowAndRun()` so the window appears on top after updates
+- [x] **Drag-drop debug logging** — Added verbose logging to `handleDrop()` and `loadMultipleVideos()` to trace file recognition issues
+
+### Convert Module (dev42)
+- [x] **Improvement plan** — Created `docs/CONVERT_MODULE_IMPROVEMENTS.md` with 10 phases covering missing UI controls, format presets, subtitle/audio track selection, video filters, metadata handling, presets, and i18n
+
+### Audio Module (dev42)
+- [x] **Improvement plan** — Created `docs/AUDIO_MODULE_IMPROVEMENTS.md` with 7 phases covering layout consistency, native player, track selection, batch processing, visualization, output handling, and consistency with Convert
+
 ## Version 0.1.1-dev40 (in progress) - Burn Module & File Manager
 
 ### Upscale Module (dev40)

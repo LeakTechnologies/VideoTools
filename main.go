@@ -8158,6 +8158,10 @@ func runGUI() {
 		logging.Debug(logging.CatUI, "app icon not found; continuing without custom icon")
 	}
 
+	// Remove any leftover VideoTools temp files from previous sessions that
+	// crashed or were force-killed before cleanup could run.
+	go sweepOrphanTempFiles()
+
 	// Bootstrap FFmpeg DLLs for native media engine
 	// Downloads FFmpeg shared libraries on first run so the media engine can work
 	if HasNativeMediaPlayer() {
@@ -17178,6 +17182,38 @@ func (s *appState) generateSnippet() {
 		}
 		dialog.ShowInformation(t.DialogSnippetCreated, fmt.Sprintf("Saved %s", outPath), s.window)
 	}, false)
+}
+
+// sweepOrphanTempFiles removes VideoTools temp files left behind by previous
+// sessions that crashed before cleanup could run. Safe to call in a goroutine
+// at startup — it only removes files/dirs matching well-known VT prefixes.
+func sweepOrphanTempFiles() {
+	tmp := os.TempDir()
+	entries, err := os.ReadDir(tmp)
+	if err != nil {
+		return
+	}
+	prefixes := []string{
+		"videotools-frames-",
+		"videotools-dvd-",
+		"videotools-author-",
+		"videotools-benchmark",
+		"videotools-chapter-thumbs",
+		"vt-cover-",
+		"vt-trim-",
+		"vt-merge-",
+		"vt-ai-upscale-",
+		"vt-rife-",
+	}
+	for _, e := range entries {
+		name := e.Name()
+		for _, pfx := range prefixes {
+			if strings.HasPrefix(name, pfx) {
+				_ = os.RemoveAll(filepath.Join(tmp, name))
+				break
+			}
+		}
+	}
 }
 
 func capturePreviewFrames(path string, duration float64) ([]string, error) {

@@ -2,24 +2,76 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev41 Scope (in progress)
+## Dev42 Scope (in progress)
 
-### Upscale Module Improvements
+### Convert Module Improvements
 
-See `docs/UPSCALE_MODULE_DESIGN.md` for detailed analysis.
+See `docs/CONVERT_MODULE_IMPROVEMENTS.md` for full plan.
 
-#### Priority 1: Content-Aware Presets
-- [ ] **Add content-type presets** — Auto-Detect, Animation, Live Action, Archive/Restoration
-- [ ] **Archive preset** — Auto-chain: deinterlace → denoise → upscale for VHS/old content
-- [ ] **Auto-detect** — Analyze interlacing, noise level, resolution; recommend settings
+#### Phase 1: Missing UI Controls (HIGH)
+- [ ] **Audio Sample Rate dropdown** — Config field exists, no UI
+- [ ] **Normalize Audio checkbox** — Config field exists, no UI; need LUFS/TruePeak sliders
+- [ ] **Deinterlace Mode dropdown** — Auto/Force/Off; method dropdown: Yadif/BWDIF
+- [ ] **H.264 Profile/Level controls** — Applied by device presets but no manual UI
 
-#### Priority 2: Scale Recommendations
-- [ ] **Scale recommendations** — Recommend 2x for 360p/480p sources (4x often degrades quality)
-- [ ] **Source-based guidance** — Show quality warning for very low-res sources
+#### Phase 2: Format Presets (HIGH)
+- [ ] **Consolidate presets** — Move inline format definitions to `presets.go`
+- [ ] **Add missing formats** — AVI, FLV, TS/M2TS, 3GP, OGG
+- [ ] **x264/x265 tuning** — Film/Animation/Grain/Stillimage/Fastdecode
 
-#### Priority 3: Additional Models (Extensibility)
-- [ ] **SPAN model** — Add to model catalog
-- [ ] **Model catalog refinement** — Ensure clean abstraction for future models
+#### Phase 3: Subtitle Track Selection (HIGH)
+- [ ] **Per-track mode dropdown** — Passthrough/Burn-in/None per subtitle stream
+- [ ] **Forced subtitle handling** — Auto-detect and burn forced tracks
+
+#### Phase 4: Audio Stream Mapping (HIGH)
+- [ ] **Per-stream audio track selection** — Encode/Copy/None per audio stream
+- [ ] **Multiple audio output tracks** — Encode same source to multiple codecs
+
+#### Phase 5: Video Filter Integration (MEDIUM)
+- [ ] **Quick filter toggles** — Denoise, Sharpen, Deblock, Stabilize in Convert
+- [ ] **Speed change** — 0.25x - 2.0x speed control
+
+#### Phase 6: Metadata Handling (MEDIUM)
+- [ ] **Metadata passthrough** — Copy/strip source metadata checkbox
+- [ ] **Custom metadata editor** — Title, Artist, Album, Year, Comment
+- [ ] **Cover art in output** — Passthrough, external file, or screenshot
+
+#### Phase 7: Preset System Completion (MEDIUM)
+- [ ] **User preset Save/Load/Delete UI** — Struct exists, no UI
+- [ ] **Device presets** — iPhone, iPad, Android, Apple TV, YouTube, Discord, etc.
+- [ ] **Platform/social presets** — YouTube, Vimeo, TikTok
+
+#### Phase 9: i18n (HIGH — Issue #5)
+- [ ] **~50 hardcoded strings** in buildConvertView need i18n keys
+
+### Audio Module Improvements
+
+See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
+
+#### Phase 1: Layout Consistency (HIGH)
+- [ ] **Replace custom HSplit** with `container.NewVSplit`
+- [ ] **Consistent module box styling** — Reuse Convert's pattern
+- [ ] **Proper header bar** with module title, stats integration
+
+#### Phase 2: Native Player Integration (HIGH)
+- [ ] **InlineVideoPlayer** — Add player singleton like Convert
+- [ ] **Video preview pane** — Same layout pattern as Convert
+- [ ] **SMPTE bars idle state** — "DROP VIDEO TO LOAD"
+
+#### Phase 3: Track Selection (MEDIUM)
+- [ ] **Enhanced track list** — Codec icons, language flags, duration
+- [ ] **Output naming preview** — Show filename before extraction
+- [ ] **Track reordering** — Up/down buttons for export order
+
+#### Phase 4: Batch Processing (MEDIUM)
+- [ ] **Enhanced batch list** — File type badge, duration, size, status
+- [ ] **Batch sorting** — By name, duration, size, status
+- [ ] **Batch progress** — Per-file progress, ETA
+
+### Player Module
+- [ ] **SMPTE bars in 4:3 ratio** — Done, may want to adjust default aspect
+- [ ] **Video loading in Convert** — Drag-drop now works, monitor for edge cases
+- [ ] **Module switching cleanup** — closeNativePlayer() added to stopPlayer()
 
 ### Burn Module — Logic
 - [ ] **Windows** — Implement IMAPI2 COM interface in `burn_windows.go`

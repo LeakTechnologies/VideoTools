@@ -164,6 +164,29 @@ var iu = Strings{
 	AudioQualityPreset:   "ᐱᕚᓪᓕᖅᓯᒪᓂᖓ ᐊᑐᖅᑕᐅᔪᒃᓴᖅ:",            // Quality Preset:
 	AudioBitrate:         "ᐅᖃᐅᓯᕐᒧᑦ ᐊᑭᖏᑦ:",                   // Bitrate:
 	AudioOutputDirectory: "ᐅᐸᒃᑎᕕᒃ ᓄᓇᓕᖕᒥ:",                   // Output Directory:
+	AudioExtractNow:      "ᐊᐱᕆᒍᑦ ᐊᑕᐅᔪᒃ",                     // Extract Now
+	AudioAddToQueue:      "ᖃᓂᒃᑲᕐᓗᒍ ᓄᑖᕐᕕᒡᒑᖅᑐᑦ",               // Add to Queue
+	AudioBrowseForVideo:  "ᑕᕐᕆᔭᒐᒃᓴᒥᒃ ᓂᕈᐊᕐᓗᒍ",                // Browse for Video
+	AudioSelectAll:       "ᓄᓇᓕᒋᔭᐅᔪᒃ",                        // Select All
+	AudioDeselectAll:     "ᓄᓇᓕᒋᔭᐅᔪᒃ ᐅᓂᒃ",                    // Deselect All
+	AudioBatchMode:       "ᓴᕐᕕᒍᑎᒥᒃ ᐅᐸᒃᑎᕕᒃ (ᒥᒃᓯᑯᑉ ᐃᓚᖏᓐᓂᒃ)",   // Batch mode
+	AudioAddFiles:        "ᐃᓚᖏᓐᓂᒃ ᓂᕈᐊᕐᓗᒍ",                   // Add Files
+	AudioClearFiles:      "ᐅᑲᐃᕐᕕᒃ",                          // Clear
+	AudioNormalization:   "EBU R128 ᐱᕚᓪᓕᖅᓯᒪᓂᖅ ᐱᕙᓚᕐᕕᒍ",       // Apply EBU R128 Normalization
+	AudioTargetLUFS:      "LUFS ᐱᕚᓪᓕᖅᓯᒪᓂᖓ:",                 // Target LUFS:
+	AudioTruePeak:        "ᐱᕆᕐᕕᖕᒧᑦ ᐱᕚᓪᓕᖅᓯᒪᓂᖓ:",              // True Peak:
+	AudioNoFilesAdded:    "ᐃᓚᖏᓐᓂᒃ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ",                // No files added
+	AudioFormat:          "ᐅᐸᒃᑎᕕᒃ",                          // Format
+	AudioQuality:         "ᐱᕚᓪᓕᖅᓯᒪᓂᖓ",                       // Quality
+	AudioNormSection:     "ᐱᕚᓪᓕᖅᓯᒪᓂᖅ",                       // Normalization
+	AudioOutput:          "ᐅᐸᒃᑎᕕᒡᒑᖅᑐᑦ",                      // Output
+	AudioNoTracksFound:   "ᐅᐸᒃᑎᕕᒃ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ",                // machine-generated, needs human review
+	AudioErrLoadFile:     "ᐃᓚᒃ ᐅᑎᕐᕕᒃᓴᖅ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ",           // machine-generated, needs human review
+	AudioErrDetectTracks: "ᐅᐸᒃᑎᕕᒃ ᐊᕕᒃᑕᐅᓯᒪᓂᖓ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ",      // machine-generated, needs human review
+	AudioErrNoFile:       "ᐃᓚᖏᓐᓂᒃ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ",                // machine-generated, needs human review
+	AudioErrNoTracks:     "ᐅᐸᒃᑎᕕᒃ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ ᓂᕈᐊᕐᓗᒍ",         // machine-generated, needs human review
+	AudioErrNoBatchFiles: "ᐃᓚᖏᓐᓂᒃ ᓴᕐᕕᒐᖅᑐᑦ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ",        // machine-generated, needs human review
+	AudioErrOutputDir:    "ᐅᐸᒃᑎᕕᒃ ᓄᓇᓕᖕᒥ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ",          // machine-generated, needs human review
 
 	// ── Filters Module ─────────────────────────────────────────────────────────
 	FiltersInstructions:      "ᐊᓯᒃᑳᕈᑕᐅᔪᓂᒃ ᐊᑐᓕᖅᑎᑦᑎᓗᒍ ᑕᕐᕆᔭᒐᒃᓴᒧᑦ. ᑕᑯᒃᓴᑦᑎᐊᕈᑎᑦ ᐅᖃᐅᓯᕐᒧᑦ ᓄᑖᕐᕕᒋᓗᒍ.", // Apply filters and color corrections
