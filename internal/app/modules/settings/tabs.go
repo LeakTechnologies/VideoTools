@@ -2,6 +2,8 @@ package settings
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -423,9 +425,22 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	outputHeader.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(outputHeader)
 
+	// Platform-specific default output directory
+	defaultPath := "~/Videos/VideoTools"
+	if runtime.GOOS == "windows" {
+		homeDir := os.Getenv("USERPROFILE")
+		if homeDir != "" {
+			defaultPath = filepath.Join(homeDir, "Videos", "VideoTools")
+		}
+	}
+
 	outputDirEntry := widget.NewEntry()
-	outputDirEntry.SetPlaceHolder("~/Videos/VideoTools")
-	outputDirEntry.SetText(cb.DefaultOutputDir())
+	outputDirEntry.SetPlaceHolder(defaultPath)
+	currentDir := cb.DefaultOutputDir()
+	if currentDir == "" {
+		currentDir = defaultPath
+	}
+	outputDirEntry.SetText(currentDir)
 	outputDirEntry.OnChanged = func(val string) {
 		cb.SetDefaultOutputDir(strings.TrimSpace(val))
 	}
