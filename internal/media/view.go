@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"golang.org/x/image/font"
@@ -277,8 +278,8 @@ type VideoPlayer struct {
 	onFullscreen    func(bool)
 	onPiP           func()
 	onSubtitles     func(bool)
-	onTapEmpty func() // called when tapped with no video loaded
-	idleText   string // overlay text shown by SMPTE bars when source is nil
+	onTapEmpty      func() // called when tapped with no video loaded
+	idleText        string // overlay text shown by SMPTE bars when source is nil
 
 	subtitleBgAlpha int
 
@@ -328,7 +329,8 @@ func NewInlineVideoPlayer() *VideoPlayer {
 }
 
 func (v *VideoPlayer) buildControls() {
-	v.playBtn = widget.NewButton("▶", v.togglePlay)
+	th := fyne.CurrentApp().Settings().Theme()
+	v.playBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameMediaPlay), v.togglePlay)
 	v.playBtn.Importance = widget.LowImportance
 	v.playBtn.Resize(fyne.NewSize(36, 36))
 
@@ -350,7 +352,7 @@ func (v *VideoPlayer) buildControls() {
 	v.durLabel = canvas.NewText("00:00:00", color.White)
 	v.durLabel.TextSize = 12
 
-	v.volumeBtn = widget.NewButton("🔊", v.toggleMute)
+	v.volumeBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameVolumeUp), v.toggleMute)
 	v.volumeBtn.Importance = widget.LowImportance
 	v.volumeBtn.Resize(fyne.NewSize(36, 36))
 
@@ -358,12 +360,12 @@ func (v *VideoPlayer) buildControls() {
 	v.speedBtn.Importance = widget.LowImportance
 	v.speedBtn.Resize(fyne.NewSize(36, 24))
 
-	v.prevChapterBtn = widget.NewButton("⏮", v.prevChapter)
+	v.prevChapterBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameMediaSkipPrevious), v.prevChapter)
 	v.prevChapterBtn.Importance = widget.LowImportance
 	v.prevChapterBtn.Resize(fyne.NewSize(36, 24))
 	v.prevChapterBtn.Hide()
 
-	v.nextChapterBtn = widget.NewButton("⏭", v.nextChapter)
+	v.nextChapterBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameMediaSkipNext), v.nextChapter)
 	v.nextChapterBtn.Importance = widget.LowImportance
 	v.nextChapterBtn.Resize(fyne.NewSize(36, 24))
 	v.nextChapterBtn.Hide()
@@ -382,11 +384,11 @@ func (v *VideoPlayer) buildControls() {
 	v.errorLabel.TextStyle = fyne.TextStyle{Bold: true}
 	v.errorLabel.Hide()
 
-	v.fullscreenBtn = widget.NewButton("⛶", v.toggleFullscreen)
+	v.fullscreenBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameViewFullScreen), v.toggleFullscreen)
 	v.fullscreenBtn.Importance = widget.LowImportance
 	v.fullscreenBtn.Resize(fyne.NewSize(36, 24))
 
-	v.pipBtn = widget.NewButton("📺", v.togglePiP)
+	v.pipBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameWindowMaximize), v.togglePiP)
 	v.pipBtn.Importance = widget.LowImportance
 	v.pipBtn.Resize(fyne.NewSize(36, 24))
 
@@ -472,10 +474,11 @@ func (v *VideoPlayer) SetCurrentTime(t float64) {
 func (v *VideoPlayer) SetPlaying(playing bool) {
 	v.isPlaying = playing
 	if v.playBtn != nil {
+		th := fyne.CurrentApp().Settings().Theme()
 		if playing {
-			v.playBtn.SetText("⏸")
+			v.playBtn.SetIcon(th.Icon(theme.IconNameMediaPause))
 		} else {
-			v.playBtn.SetText("▶")
+			v.playBtn.SetIcon(th.Icon(theme.IconNameMediaPlay))
 		}
 	}
 }
@@ -487,12 +490,13 @@ func (v *VideoPlayer) IsPlaying() bool {
 func (v *VideoPlayer) SetVolume(vol float64) {
 	v.volume = vol
 	if v.volumeBtn != nil {
+		th := fyne.CurrentApp().Settings().Theme()
 		if vol <= 0 {
-			v.volumeBtn.SetText("🔇")
+			v.volumeBtn.SetIcon(th.Icon(theme.IconNameVolumeMute))
 		} else if vol < 0.5 {
-			v.volumeBtn.SetText("🔉")
+			v.volumeBtn.SetIcon(th.Icon(theme.IconNameVolumeDown))
 		} else {
-			v.volumeBtn.SetText("🔊")
+			v.volumeBtn.SetIcon(th.Icon(theme.IconNameVolumeUp))
 		}
 	}
 }
