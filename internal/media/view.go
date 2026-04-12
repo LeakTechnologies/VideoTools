@@ -444,7 +444,6 @@ func (v *VideoPlayer) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (v *VideoPlayer) SetFrame(img *image.RGBA) {
-	logging.Debug(logging.CatPlayer, "VideoPlayer.SetFrame: img=%v", img != nil)
 	v.source = img
 	if img == nil {
 		return
@@ -1239,21 +1238,13 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 			offsetY = (availableH - smpteH) / 2
 		}
 
-		// Create full-size image with black background
+		// Create full-size image, flood-fill with VT dark background.
 		img := image.NewRGBA(image.Rect(0, 0, w, availableH))
-		for y := 0; y < availableH; y++ {
-			for x := 0; x < w; x++ {
-				img.Set(x, y, color.RGBA{0x10, 0x15, 0x29, 0xff})
-			}
-		}
+		draw.Draw(img, img.Bounds(), image.NewUniform(color.RGBA{0x0F, 0x15, 0x29, 0xFF}), image.Point{}, draw.Src)
 
-		// Draw SMPTE bars in the 4:3 area
+		// Composite the SMPTE bars into the letterboxed/pillarboxed region.
 		smpteImg := drawSMPTEBars(smpteW, smpteH, v.idleText)
-		for y := 0; y < smpteH; y++ {
-			for x := 0; x < smpteW; x++ {
-				img.Set(offsetX+x, offsetY+y, smpteImg.At(x, y))
-			}
-		}
+		draw.Draw(img, image.Rect(offsetX, offsetY, offsetX+smpteW, offsetY+smpteH), smpteImg, image.Point{}, draw.Src)
 
 		return img
 	}
