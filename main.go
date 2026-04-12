@@ -13161,7 +13161,7 @@ Metadata: %s`,
 // When native_media is enabled, it delegates to buildVideoPaneNative which
 // uses the FFmpeg-based media engine for actual video playback.
 func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover func(string)) fyne.CanvasObject {
-	if HasNativeMediaPlayer() && src != nil {
+	if HasNativeMediaPlayer() {
 		return buildVideoPaneNative(state, min, src, onCover)
 	}
 
