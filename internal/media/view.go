@@ -1216,7 +1216,45 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 		if v.showControls {
 			availableH = h - controlBarHeight
 		}
-		return drawSMPTEBars(w, availableH, v.idleText)
+
+		// Draw SMPTE bars in 4:3 ratio with letterboxing
+		targetAspect := 4.0 / 3.0
+		availableAspect := float64(w) / float64(availableH)
+
+		var smpteW, smpteH int
+		var offsetX, offsetY int
+
+		if availableAspect > targetAspect {
+			// Player is wider than 4:3 - pillarbox (black bars on sides)
+			smpteH = availableH
+			smpteW = int(float64(smpteH) * targetAspect)
+			offsetX = (w - smpteW) / 2
+			offsetY = 0
+		} else {
+			// Player is taller than 4:3 - letterbox (black bars top/bottom)
+			smpteW = w
+			smpteH = int(float64(smpteW) / targetAspect)
+			offsetX = 0
+			offsetY = (availableH - smpteH) / 2
+		}
+
+		// Create full-size image with black background
+		img := image.NewRGBA(image.Rect(0, 0, w, availableH))
+		for y := 0; y < availableH; y++ {
+			for x := 0; x < w; x++ {
+				img.Set(x, y, color.RGBA{0x10, 0x15, 0x29, 0xff})
+			}
+		}
+
+		// Draw SMPTE bars in the 4:3 area
+		smpteImg := drawSMPTEBars(smpteW, smpteH, v.idleText)
+		for y := 0; y < smpteH; y++ {
+			for x := 0; x < smpteW; x++ {
+				img.Set(offsetX+x, offsetY+y, smpteImg.At(x, y))
+			}
+		}
+
+		return img
 	}
 
 	src := v.source
