@@ -8,6 +8,7 @@ import (
 	"image"
 	"io"
 	"sync"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -133,14 +134,13 @@ func (v *InlineVideoPlayer) Load(path string) error {
 	duration := v.engine.Duration()
 	v.player.SetDuration(duration)
 
-	// Start the demuxer briefly to decode the first frame for preview, then pause.
-	// Seek(0) resets the master clock to t=0 after the demuxer goroutine starts.
-	// Without this, the clock may advance >100ms before the first packet is decoded,
-	// causing SyncVideo to classify PTS≈0 as "late" and drop the frame — leaving
-	// the preview area black.
+	// Start the demuxer so packets begin flowing, then seek to the start.
+	// We use GrabFrame instead of NextFrame for the initial preview because
+	// NextFrame does PTS synchronisation that can deadlock or drop all frames
+	// when the audio clock races ahead of the first video PTS after a seek.
 	v.engine.Start()
 	_ = v.engine.Seek(0)
-	if img, err := v.engine.NextFrame(); err == nil {
+	if img, err := v.engine.GrabFrame(8 * time.Second); err == nil {
 		// Use blocking dispatch so the frame is committed before the caller
 		// rebuilds the view around this widget.
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
