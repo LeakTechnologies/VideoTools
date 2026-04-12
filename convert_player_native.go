@@ -164,8 +164,6 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		dlg.Show()
 	})
 
-	dropAnimation.Start()
-
 	stageWithPlayer := container.NewMax(bg, playerWidget)
 	videoStageWithIndicator := container.NewMax(dropIndicator, stageWithPlayer)
 
@@ -466,14 +464,18 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 
 	// Wrap the video stage so files dropped directly onto the player are handled.
 	dropZone := ui.NewDroppable(videoStageWithIndicator, func(items []fyne.URI) {
+		var paths []string
 		for _, item := range items {
 			p := item.Path()
 			if p != "" && state.isVideoFile(p) {
-				dropAnimation.Start()
-				go state.loadVideo(p)
-				return
+				paths = append(paths, p)
 			}
 		}
+		if len(paths) == 0 {
+			return
+		}
+		dropAnimation.Start()
+		go state.loadMultipleVideos(paths)
 	})
 	dropZone.SetOnDrag(
 		func() {
