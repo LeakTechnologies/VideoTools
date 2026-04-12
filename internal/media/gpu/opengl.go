@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -172,7 +173,8 @@ func NewVideoPlayerGPU() *VideoPlayerGPU {
 }
 
 func (v *VideoPlayerGPU) buildUI() {
-	v.playBtn = widget.NewButton("▶", v.togglePlay)
+	th := fyne.CurrentApp().Settings().Theme()
+	v.playBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameMediaPlay), v.togglePlay)
 	v.playBtn.Importance = widget.LowImportance
 
 	v.slider = widget.NewSlider(0, 100)
@@ -192,7 +194,7 @@ func (v *VideoPlayerGPU) buildUI() {
 	v.durLabel = canvas.NewText("00:00:00", color.White)
 	v.durLabel.TextSize = 12
 
-	v.volumeBtn = widget.NewButton("🔊", v.toggleMute)
+	v.volumeBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameVolumeUp), v.toggleMute)
 	v.volumeBtn.Importance = widget.LowImportance
 
 	v.controlBar = canvas.NewRectangle(controlBarBG)
@@ -252,10 +254,11 @@ func (v *VideoPlayerGPU) SetCurrentTime(t float64) {
 func (v *VideoPlayerGPU) SetPlaying(playing bool) {
 	v.isPlaying = playing
 	if v.playBtn != nil {
+		th := fyne.CurrentApp().Settings().Theme()
 		if playing {
-			v.playBtn.SetText("⏸")
+			v.playBtn.SetIcon(th.Icon(theme.IconNameMediaPause))
 		} else {
-			v.playBtn.SetText("▶")
+			v.playBtn.SetIcon(th.Icon(theme.IconNameMediaPlay))
 		}
 	}
 }
@@ -263,12 +266,13 @@ func (v *VideoPlayerGPU) SetPlaying(playing bool) {
 func (v *VideoPlayerGPU) SetVolume(vol float64) {
 	v.volume = vol
 	if v.volumeBtn != nil {
+		th := fyne.CurrentApp().Settings().Theme()
 		if vol <= 0 {
-			v.volumeBtn.SetText("🔇")
+			v.volumeBtn.SetIcon(th.Icon(theme.IconNameVolumeMute))
 		} else if vol < 0.5 {
-			v.volumeBtn.SetText("🔉")
+			v.volumeBtn.SetIcon(th.Icon(theme.IconNameVolumeDown))
 		} else {
-			v.volumeBtn.SetText("🔊")
+			v.volumeBtn.SetIcon(th.Icon(theme.IconNameVolumeUp))
 		}
 	}
 }
