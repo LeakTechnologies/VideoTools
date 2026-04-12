@@ -81,11 +81,13 @@ func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *Maste
 	C.av_opt_set_int(unsafe.Pointer(p.swrCtx), C.CString("out_sample_rate"), TargetSampleRate, 0)
 	C.av_opt_set_sample_fmt(unsafe.Pointer(p.swrCtx), C.CString("out_sample_fmt"), C.AV_SAMPLE_FMT_S16, 0)
 
+	logging.Info(logging.CatPlayer, "NewAudioPlayer: swr_init rate=%d fmt=%d", p.codecCtx.sample_rate, p.codecCtx.sample_fmt)
 	if C.swr_init(p.swrCtx) < 0 {
 		C.swr_free(&p.swrCtx)
 		C.av_frame_free(&p.frame)
 		return nil, fmt.Errorf("failed to initialize resampler")
 	}
+	logging.Info(logging.CatPlayer, "NewAudioPlayer: swr_init OK, getting audio context")
 
 	otoCtx, err := GetSharedAudioContext()
 	if err != nil {
@@ -93,10 +95,13 @@ func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *Maste
 		C.av_frame_free(&p.frame)
 		return nil, fmt.Errorf("failed to create audio context: %w", err)
 	}
+	logging.Info(logging.CatPlayer, "NewAudioPlayer: got audio context, creating player")
 
 	p.otoCtx = otoCtx
 	p.otoPlayer = otoCtx.NewPlayer(p)
+	logging.Info(logging.CatPlayer, "NewAudioPlayer: player created, calling Play()")
 	p.otoPlayer.Play()
+	logging.Info(logging.CatPlayer, "NewAudioPlayer: Play() returned OK")
 
 	return p, nil
 }
