@@ -891,6 +891,7 @@ func (g *Generator) calculateTimestamps(config Config, duration float64) []float
 // ExtractFrame extracts a single frame at a specific timestamp
 func (g *Generator) ExtractFrame(ctx context.Context, videoPath string, timestamp float64, outputPath string, width, height int) error {
 	args := []string{
+		"-nostdin",
 		"-ss", fmt.Sprintf("%.2f", timestamp),
 		"-i", videoPath,
 		"-frames:v", "1",
@@ -910,6 +911,7 @@ func (g *Generator) ExtractFrame(ctx context.Context, videoPath string, timestam
 	args = append(args, outputPath)
 
 	cmd := exec.CommandContext(ctx, g.FFmpegPath, args...)
+	hideCmd(cmd)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to extract frame: %w", err)
 	}
