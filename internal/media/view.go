@@ -17,6 +17,9 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/math/fixed"
 )
 
 const (
@@ -258,6 +261,7 @@ type VideoPlayer struct {
 	onFullscreen    func(bool)
 	onPiP           func()
 	onSubtitles     func(bool)
+	onTapEmpty      func() // called when tapped with no video loaded
 
 	subtitleBgAlpha int
 
@@ -1103,7 +1107,17 @@ func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {
 		logging.Info(logging.CatPlayer, "VideoPlayer error: %s", v.errorMessage)
 		return
 	}
+	if v.source == nil {
+		if v.onTapEmpty != nil {
+			v.onTapEmpty()
+		}
+		return
+	}
 	v.togglePlay()
+}
+
+func (v *VideoPlayer) SetOnTapEmpty(fn func()) {
+	v.onTapEmpty = fn
 }
 
 func formatVideoTime(seconds float64) string {
@@ -1168,7 +1182,11 @@ func (r *videoPlayerRenderer) MinSize() fyne.Size {
 
 func (v *VideoPlayer) draw(w, h int) image.Image {
 	if v.source == nil {
-		return image.NewRGBA(image.Rect(0, 0, w, h))
+		availableH := h
+		if v.showControls {
+			availableH = h - controlBarHeight
+		}
+		return drawSMPTEBars(w, availableH)
 	}
 
 	src := v.source
@@ -1206,4 +1224,186 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 	v.scaleNearest(src, img, srcW, srcH, newW, newH, offsetX, offsetY)
 
 	return img
+}
+
+// ---- SMPTE 75% colour bars idle state ----
+
+var (
+	smpteVCRFontData []byte
+	smpteFontFace    font.Face
+	smpteFontOnce    sync.Once
+)
+
+// SetVCRFont registers the VCR OSD Mono TTF bytes so drawSMPTEBars can use it.
+// Call this once at startup from main before the first video player is shown.
+func SetVCRFont(data []byte) {
+	smpteVCRFontData = data
+}
+
+func getSMPTEFontFace(size float64) font.Face {
+	smpteFontOnce.Do(func() {
+		if len(smpteVCRFontData) == 0 {
+			return
+		}
+		f, err := opentype.Parse(smpteVCRFontData)
+		if err != nil {
+			logging.Warning(logging.CatPlayer, "SMPTE: failed to parse VCR font: %v", err)
+			return
+		}
+		face, err := opentype.NewFace(f, &opentype.FaceOptions{
+			Size:    size,
+			DPI:     72,
+			Hinting: font.HintingFull,
+		})
+		if err != nil {
+			logging.Warning(logging.CatPlayer, "SMPTE: failed to create VCR font face: %v", err)
+			return
+		}
+		smpteFontFace = face
+	})
+	return smpteFontFace
+}
+
+func smpteFillRect(img *image.RGBA, x, y, w, h int, c color.RGBA) {
+	for py := y; py < y+h; py++ {
+		for px := x; px < x+w; px++ {
+			img.SetRGBA(px, py, c)
+		}
+	}
+}
+
+func drawSMPTEBars(w, h int) *image.RGBA {
+	if w <= 0 || h <= 0 {
+		return image.NewRGBA(image.Rect(0, 0, max(w, 1), max(h, 1)))
+	}
+
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+
+	// Row heights: top 66.67%, mid 8.33%, bottom 25% (matching SVG proportions)
+	topH := int(float64(h) * 0.6667)
+	midH := int(float64(h) * 0.0833)
+	botH := h - topH - midH
+	midY := topH
+	botY := topH + midH
+
+	// Top row: 7 equal bars
+	topColors := [7]color.RGBA{
+		{0xb4, 0xb4, 0xb4, 0xff}, // light grey
+		{0xb4, 0xb4, 0x10, 0xff}, // yellow
+		{0x10, 0xb4, 0xb4, 0xff}, // cyan
+		{0x10, 0xb4, 0x10, 0xff}, // green
+		{0xb4, 0x10, 0xb4, 0xff}, // magenta
+		{0xb4, 0x10, 0x10, 0xff}, // red
+		{0x10, 0x10, 0xb4, 0xff}, // blue
+	}
+	barW := w / 7
+	for i, c := range topColors {
+		x := i * barW
+		bw := barW
+		if i == 6 {
+			bw = w - x // absorb rounding remainder
+		}
+		smpteFillRect(img, x, 0, bw, topH, c)
+	}
+
+	// Mid row: 7 equal bars (reversed / different pattern per SMPTE)
+	midColors := [7]color.RGBA{
+		{0x10, 0x10, 0xb4, 0xff}, // blue
+		{0x10, 0x10, 0x10, 0xff}, // black
+		{0xb4, 0x10, 0xb4, 0xff}, // magenta
+		{0x10, 0x10, 0x10, 0xff}, // black
+		{0x10, 0xb4, 0xb4, 0xff}, // cyan
+		{0x10, 0x10, 0x10, 0xff}, // black
+		{0xb4, 0xb4, 0xb4, 0xff}, // light grey
+	}
+	for i, c := range midColors {
+		x := i * barW
+		bw := barW
+		if i == 6 {
+			bw = w - x
+		}
+		smpteFillRect(img, x, midY, bw, midH, c)
+	}
+
+	// Bottom row: variable-width PLUGE blocks (proportional to SVG 1024px layout)
+	// SVG widths at 1024px: 181.85, 183.17, 183.99, 182.42, (PLUGE 3×48.76), 146.29
+	// Normalised fractions:
+	botFracs := [8]float64{
+		181.85 / 1024.0, // dark navy
+		183.17 / 1024.0, // white
+		183.99 / 1024.0, // purple
+		182.42 / 1024.0, // reference black
+		48.76 / 1024.0,  // PLUGE -2 (darker)
+		48.76 / 1024.0,  // reference black
+		48.76 / 1024.0,  // PLUGE +2 (lighter)
+		146.29 / 1024.0, // reference black
+	}
+	botColors := [8]color.RGBA{
+		{0x00, 0x21, 0x4c, 0xff}, // dark navy
+		{0xeb, 0xeb, 0xeb, 0xff}, // near-white
+		{0x4c, 0x00, 0x82, 0xff}, // purple
+		{0x10, 0x10, 0x10, 0xff}, // reference black
+		{0x08, 0x08, 0x08, 0xff}, // PLUGE sub-black
+		{0x10, 0x10, 0x10, 0xff}, // reference black
+		{0x18, 0x18, 0x18, 0xff}, // PLUGE super-black
+		{0x10, 0x10, 0x10, 0xff}, // reference black
+	}
+	bx := 0
+	for i, frac := range botFracs {
+		bw := int(frac * float64(w))
+		if i == 7 {
+			bw = w - bx // absorb remainder
+		}
+		smpteFillRect(img, bx, botY, bw, botH, botColors[i])
+		bx += bw
+	}
+
+	// Text overlay: black box + "DRAG TO LOAD VIDEO" centred in top 2/3
+	drawSMPTEText(img, w, topH)
+
+	return img
+}
+
+func drawSMPTEText(img *image.RGBA, w, topH int) {
+	const text = "DRAG TO LOAD VIDEO"
+
+	face := getSMPTEFontFace(48)
+	if face == nil {
+		return
+	}
+
+	// Measure text width using font advance
+	var textPx fixed.Int26_6
+	for _, r := range text {
+		adv, ok := face.GlyphAdvance(r)
+		if ok {
+			textPx += adv
+		}
+	}
+	textW := textPx.Ceil()
+	metrics := face.Metrics()
+	textH := metrics.Ascent.Ceil() + metrics.Descent.Ceil()
+
+	padX := 20
+	padY := 12
+	boxW := textW + padX*2
+	boxH := textH + padY*2
+
+	boxX := (w - boxW) / 2
+	boxY := (topH/2 - boxH/2)
+	if boxY < 0 {
+		boxY = 0
+	}
+
+	// Black backing box
+	smpteFillRect(img, boxX, boxY, boxW, boxH, color.RGBA{0x10, 0x10, 0x10, 0xff})
+
+	// Draw text using golang.org/x/image/font drawer
+	drawer := &font.Drawer{
+		Dst:  img,
+		Src:  image.NewUniform(color.RGBA{0xeb, 0xeb, 0xeb, 0xff}),
+		Face: face,
+		Dot:  fixed.P(boxX+padX, boxY+padY+metrics.Ascent.Ceil()),
+	}
+	drawer.DrawString(text)
 }

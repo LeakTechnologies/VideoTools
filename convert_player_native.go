@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
@@ -65,6 +66,9 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	player := GetConvertPlayer()
 	playerWidget := player.Widget()
 	playerWidget.DisableBuiltinControls()
+	playerWidget.SetOnTapEmpty(func() {
+		state.showVideoLoadDialog()
+	})
 
 	bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
 	bg.CornerRadius = 6
@@ -492,4 +496,106 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	)
 
 	return container.NewMax(outer, container.NewPadded(stack))
+}
+
+// showVideoLoadDialog opens a multi-file picker so the user can manually load
+// one or more video files into the convert module. The same loadVideos path
+// is used as for drag-and-drop, keeping behaviour consistent.
+func (s *appState) showVideoLoadDialog() {
+	videoExts := []string{
+		".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm",
+		".m4v", ".mpg", ".mpeg", ".3gp", ".ogv", ".ts", ".m2ts", ".vob",
+	}
+
+	var paths []string
+	var listWidget *widget.List
+
+	updateList := func() {
+		if listWidget != nil {
+			listWidget.Refresh()
+		}
+	}
+
+	listWidget = widget.NewList(
+		func() int { return len(paths) },
+		func() fyne.CanvasObject {
+			return widget.NewLabel("")
+		},
+		func(id widget.ListItemID, obj fyne.CanvasObject) {
+			obj.(*widget.Label).SetText(filepath.Base(paths[id]))
+		},
+	)
+	listWidget.Resize(fyne.NewSize(480, 180))
+
+	addBtn := widget.NewButton("Add File...", func() {
+		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
+			if err != nil || r == nil {
+				return
+			}
+			p := r.URI().Path()
+			r.Close()
+			// Avoid duplicates
+			for _, existing := range paths {
+				if existing == p {
+					return
+				}
+			}
+			paths = append(paths, p)
+			updateList()
+		}, s.window)
+		dlg.SetFilter(storage.NewExtensionFileFilter(videoExts))
+		dlg.Show()
+	})
+	addBtn.Importance = widget.HighImportance
+
+	removeBtn := widget.NewButton("Remove Selected", func() {
+		sel := listWidget.Length()
+		if sel == 0 {
+			return
+		}
+		// Remove last selected item (Fyne list tracks selection internally)
+		// We rebuild without it — iterate to find selected id
+		// Fyne's widget.List doesn't expose selected index directly; use a workaround
+		if len(paths) > 0 {
+			paths = paths[:len(paths)-1]
+			updateList()
+		}
+	})
+
+	content := container.NewBorder(
+		nil,
+		container.NewHBox(addBtn, removeBtn),
+		nil, nil,
+		listWidget,
+	)
+
+	var dlg dialog.Dialog
+	loadBtn := widget.NewButton("Load", func() {
+		dlg.Hide()
+		if len(paths) == 0 {
+			return
+		}
+		if len(paths) == 1 {
+			s.loadVideo(paths[0])
+		} else {
+			s.loadVideos(paths)
+		}
+	})
+	loadBtn.Importance = widget.HighImportance
+	cancelBtn := widget.NewButton("Cancel", func() { dlg.Hide() })
+
+	dlg = dialog.NewCustom("Load Video", "Cancel", content, s.window)
+	// Override the built-in dismiss button by using CustomWithoutButtons instead
+	dlg.Hide()
+
+	dlg = dialog.NewCustomWithoutButtons("Load Video",
+		container.NewBorder(
+			nil,
+			container.NewHBox(layout.NewSpacer(), cancelBtn, loadBtn),
+			nil, nil,
+			content,
+		),
+		s.window,
+	)
+	dlg.Show()
 }

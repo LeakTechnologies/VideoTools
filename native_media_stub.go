@@ -11,6 +11,8 @@ func HasNativeMediaPlayer() bool {
 	return false
 }
 
+func initNativeMediaAssets() {}
+
 func (s *appState) loadVideoNative(path string)       {}
 func (s *appState) playNative()                       {}
 func (s *appState) pauseNative()                      {}
@@ -29,6 +31,8 @@ func BuildConvertPlayerPane(size fyne.Size) (fyne.CanvasObject, interface{}) {
 func buildVideoPaneNative(_ *appState, _ fyne.Size, _ *videoSource, _ func(string)) fyne.CanvasObject {
 	return nil
 }
+
+func (s *appState) showVideoLoadDialog() {}
 
 func GetTrimPlayer() *ui.InlineVideoPlayer {
 	return ui.NewInlineVideoPlayer()

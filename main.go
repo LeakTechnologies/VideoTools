@@ -8162,6 +8162,7 @@ func runGUI() {
 			ShowErrorLarge(fmt.Errorf("VideoTools could not download FFmpeg DLLs for video playback:\n\n%v\n\nVideo playback features will be unavailable. You can try again later or check your internet connection.", err), w)
 		} else {
 			logging.Info(logging.CatSystem, "FFmpeg DLLs ready for native media engine")
+			initNativeMediaAssets()
 			// Pre-warm the shared audio context during startup so the first video
 			// load doesn't block on WASAPI/oto initialisation.
 			go func() {

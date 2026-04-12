@@ -5,6 +5,7 @@ package main
 import (
 	"fyne.io/fyne/v2"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
@@ -38,6 +39,10 @@ func GetInspectPlayer() *ui.InlineVideoPlayer {
 
 func GetSubtitlePlayer() *ui.InlineVideoPlayer {
 	return subtitleInlinePlayer
+}
+
+func initNativeMediaAssets() {
+	media.SetVCRFont(vcrOSDMono)
 }
 
 func (s *appState) loadVideoNative(path string) {
