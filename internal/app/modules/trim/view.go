@@ -289,7 +289,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	ts.fileLabel = fileLabel
 
 	// Browse button
-	openBtn := widget.NewButton(t.ActionBrowse, func() {
+	openVideoFile := func() {
 		dialog.ShowFileOpen(func(f fyne.URIReadCloser, err error) {
 			if err != nil || f == nil {
 				return
@@ -298,7 +298,9 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 			f.Close()
 			ts.loadVideo(path)
 		}, opts.Window)
-	})
+	}
+	openBtn := widget.NewButton(t.ActionBrowse, openVideoFile)
+	ts.player.SetOnTapEmpty(openVideoFile)
 
 	// Toolbar row under the player
 	toolbar := container.NewHBox(

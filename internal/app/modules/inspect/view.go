@@ -307,19 +307,10 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	}
 
 	player := cb.Player()
-	var videoContainer fyne.CanvasObject
 	bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
 	bg.SetMinSize(fyne.NewSize(480, 270))
-	if cb.GetFilePath() != "" {
-		// The adapter is responsible for calling player.Load — the view just embeds
-		// the widget. This avoids re-triggering a load on every view rebuild.
-		videoContainer = container.NewMax(bg, player.Widget())
-	} else {
-		videoContainer = container.NewMax(
-			bg,
-			container.NewCenter(widget.NewLabel("Load a video to preview")),
-		)
-	}
+	// Always embed the player widget — it shows SMPTE bars when no source is loaded.
+	videoContainer := container.NewMax(bg, player.Widget())
 
 	updateDisplay := func() {
 		inspectFile := cb.GetFilePath()
@@ -350,7 +341,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 
 	updateDisplay()
 
-	loadBtn := widget.NewButton(t.ActionLoadVideo, func() {
+	openInspectFile := func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -359,7 +350,9 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			reader.Close()
 			cb.LoadFile(path)
 		}, cb.Window())
-	})
+	}
+	loadBtn := widget.NewButton(t.ActionLoadVideo, openInspectFile)
+	player.Widget().SetOnTapEmpty(openInspectFile)
 
 	copyBtn := widget.NewButton(t.ActionCopyMetadata, func() {
 		metadata := formatMetadata()

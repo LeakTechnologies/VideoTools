@@ -32,7 +32,9 @@ func (v *InlineVideoPlayer) SetVolume(vol float64)          {}
 func (v *InlineVideoPlayer) SetMuted(muted bool)            {}
 func (v *InlineVideoPlayer) SelectAudioTrack(idx int) error { return nil }
 func (v *InlineVideoPlayer) SelectSubtitleTrack(idx int) error { return nil }
-func (v *InlineVideoPlayer) DisableSubtitles()              {}
+func (v *InlineVideoPlayer) DisableSubtitles()                 {}
+func (v *InlineVideoPlayer) SetOnTapEmpty(fn func())           {}
+func (v *InlineVideoPlayer) SetIdleText(text string)           {}
 
 func BuildInlinePlayerPane(size fyne.Size) (fyne.CanvasObject, *InlineVideoPlayer) {
 	return nil, nil

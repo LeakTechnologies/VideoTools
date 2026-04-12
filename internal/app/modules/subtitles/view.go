@@ -330,7 +330,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	})
 	applyBtn.Importance = widget.HighImportance
 
-	browseVideoBtn := widget.NewButton(t.ActionBrowse, func() {
+	openSubtitleVideo := func() {
 		dialog.ShowFileOpen(func(file fyne.URIReadCloser, err error) {
 			if err != nil || file == nil {
 				return
@@ -341,7 +341,9 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			videoEntry.SetText(path)
 			cb.LoadVideoInPlayer(path)
 		}, cb.Window())
-	})
+	}
+	browseVideoBtn := widget.NewButton(t.ActionBrowse, openSubtitleVideo)
+	cb.SetPlayerOnTapEmpty(openSubtitleVideo)
 
 	browseSubtitleBtn := widget.NewButton(t.ActionBrowse, func() {
 		dialog.ShowFileOpen(func(file fyne.URIReadCloser, err error) {
