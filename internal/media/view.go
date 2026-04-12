@@ -444,6 +444,7 @@ func (v *VideoPlayer) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (v *VideoPlayer) SetFrame(img *image.RGBA) {
+	logging.Debug(logging.CatPlayer, "VideoPlayer.SetFrame: img=%v", img != nil)
 	v.source = img
 	if img == nil {
 		return

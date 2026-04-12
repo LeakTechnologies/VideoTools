@@ -7976,6 +7976,10 @@ func (s *appState) stopPlayer() {
 	s.stopProgressLoop()
 	s.playerReady = false
 	s.playerPaused = true
+	// Close native media player to stop audio and free resources
+	if HasNativeMediaPlayer() {
+		s.closeNativePlayer()
+	}
 }
 
 func main() {
@@ -14655,7 +14659,7 @@ func (s *appState) importCoverImage(path string) (string, error) {
 func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 	defer logging.RecoverPanic()
 	t := i18n.T()
-	logging.Info(logging.CatUI, "handleDrop: pos=%v itemCount=%d", pos, len(items))
+	logging.Info(logging.CatUI, "handleDrop: active=%s pos=%v itemCount=%d", s.active, pos, len(items))
 	if len(items) == 0 {
 		return
 	}
@@ -14674,10 +14678,12 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 	// If in convert module, handle all files
 	if s.active == "convert" {
+		logging.Debug(logging.CatUI, "handleDrop: in convert module, processing items")
 		// Collect all video files from the dropped items
 		var videoPaths []string
 		for _, uri := range items {
 			if uri.Scheme() != "file" {
+				logging.Debug(logging.CatUI, "skipping non-file URI: %s", uri.String())
 				continue
 			}
 			path := uri.Path()
@@ -14689,7 +14695,10 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				videos := s.findVideoFiles(path)
 				videoPaths = append(videoPaths, videos...)
 			} else if s.isVideoFile(path) {
+				logging.Debug(logging.CatUI, "isVideoFile=true for: %s", path)
 				videoPaths = append(videoPaths, path)
+			} else {
+				logging.Debug(logging.CatUI, "isVideoFile=false for: %s (ext=%s)", path, filepath.Ext(path))
 			}
 		}
 
@@ -15383,18 +15392,20 @@ func (s *appState) loadVideo(path string) {
 
 // loadMultipleVideos loads multiple videos into memory without auto-queuing
 func (s *appState) loadMultipleVideos(paths []string) {
-	logging.Debug(logging.CatModule, "loading %d videos into memory", len(paths))
+	logging.Info(logging.CatModule, "loadMultipleVideos: loading %d videos into memory", len(paths))
 
 	var validVideos []*videoSource
 	var failedFiles []string
 
 	for _, path := range paths {
+		logging.Debug(logging.CatModule, "loadMultipleVideos: probing %s", path)
 		src, err := probeVideo(path)
 		if err != nil {
-			logging.Debug(logging.CatFFMPEG, "ffprobe failed for %s: %v", path, err)
+			logging.Debug(logging.CatFFMPEG, "loadMultipleVideos: ffprobe failed for %s: %v", path, err)
 			failedFiles = append(failedFiles, filepath.Base(path))
 			continue
 		}
+		logging.Debug(logging.CatModule, "loadMultipleVideos: probe succeeded for %s", path)
 		validVideos = append(validVideos, src)
 	}
 
