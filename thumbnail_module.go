@@ -247,8 +247,9 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		ThumbnailSheetWidth:     state.thumbnailSheetWidth,
 		ThumbnailColumns:        state.thumbnailColumns,
 		ThumbnailRows:           state.thumbnailRows,
-		ThumbnailContactSheet:   state.thumbnailContactSheet,
-		ThumbnailShowTimestamps: state.thumbnailShowTimestamps,
+		ThumbnailOutputMode:      state.thumbnailOutputMode,
+		ThumbnailContactSheet:    state.thumbnailOutputMode == "contactSheet" || state.thumbnailOutputMode == "both",
+		ThumbnailShowTimestamps:  state.thumbnailShowTimestamps,
 		OnShowMainMenu:          func() { state.showMainMenu() },
 		OnShowQueue:             func() { state.showQueue() },
 		OnShowThumbnailView:     func() { state.showThumbnailView() },
@@ -287,8 +288,9 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		OnSetThumbnailSheetWidth:     func(i int) { state.thumbnailSheetWidth = i },
 		OnSetThumbnailColumns:        func(i int) { state.thumbnailColumns = i },
 		OnSetThumbnailRows:           func(i int) { state.thumbnailRows = i },
-		OnSetThumbnailContactSheet:   func(b bool) { state.thumbnailContactSheet = b },
-		OnSetThumbnailShowTimestamps: func(b bool) { state.thumbnailShowTimestamps = b },
+		OnSetThumbnailOutputMode:      func(mode string) { state.thumbnailOutputMode = mode },
+		OnSetThumbnailContactSheet:    func(b bool) {},
+		OnSetThumbnailShowTimestamps:  func(b bool) { state.thumbnailShowTimestamps = b },
 		OnCreateThumbJob: func() {
 			if state.thumbnailFile == nil {
 				return
@@ -356,7 +358,12 @@ func (s *appState) executeThumbnailJob(ctx context.Context, job *queue.Job, prog
 	outputDir := cfg["outputDir"].(string)
 	count := int(cfg["count"].(float64))
 	width := int(cfg["width"].(float64))
-	contactSheet := cfg["contactSheet"].(bool)
+	outputMode := "individual"
+	if raw, ok := cfg["outputMode"]; ok {
+		if v, ok := raw.(string); ok {
+			outputMode = v
+		}
+	}
 	showTimestamp := false
 	if raw, ok := cfg["showTimestamp"]; ok {
 		if v, ok := raw.(bool); ok {
@@ -374,7 +381,7 @@ func (s *appState) executeThumbnailJob(ctx context.Context, job *queue.Job, prog
 	s.clearThumbnailLiveGrid()
 
 	totalThumbs := count
-	if contactSheet {
+	if outputMode == "contactSheet" || outputMode == "both" {
 		totalThumbs = columns * rows
 	}
 	perThumb := 20 * time.Second
@@ -395,18 +402,18 @@ func (s *appState) executeThumbnailJob(ctx context.Context, job *queue.Job, prog
 		Width:         width,
 		Format:        "jpg",
 		Quality:       85,
-		ContactSheet:  contactSheet,
+		OutputMode:    outputMode,
 		Columns:       columns,
 		Rows:          rows,
 		ShowTimestamp: showTimestamp,
-		ShowMetadata:  contactSheet,
+		ShowMetadata:  outputMode == "contactSheet" || outputMode == "both",
 		Progress: func(pct float64) {
 			if progressCallback != nil {
 				progressCallback(pct)
 			}
 		},
 	}
-	if contactSheet {
+	if outputMode == "contactSheet" || outputMode == "both" {
 		config.OnThumbGenerated = func(path string) {
 			s.setThumbnailLiveContactSheet(path)
 		}
@@ -435,17 +442,26 @@ func (s *appState) createThumbnailJobForPath(path string) *queue.Job {
 	videoBaseName := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path))
 	outputDir := filepath.Join(videoDir, fmt.Sprintf("%s_thumbnails", videoBaseName))
 	outputFile := outputDir
-	if s.thumbnailContactSheet {
+
+	needContactSheet := s.thumbnailOutputMode == "contactSheet" || s.thumbnailOutputMode == "both"
+	needIndividual := s.thumbnailOutputMode == "individual" || s.thumbnailOutputMode == "both"
+
+	if needContactSheet && !needIndividual {
 		outputDir = videoDir
 		outputFile = filepath.Join(videoDir, fmt.Sprintf("%s_contact_sheet.jpg", videoBaseName))
+	} else if needContactSheet && needIndividual {
+		outputFile = filepath.Join(outputDir, fmt.Sprintf("%s_contact_sheet.jpg", videoBaseName))
 	}
 
 	var count, width int
 	var description string
-	if s.thumbnailContactSheet {
+	if needContactSheet {
 		count = s.thumbnailColumns * s.thumbnailRows
 		width = s.thumbnailSheetWidth
 		description = fmt.Sprintf("Contact sheet: %dx%d grid (%d thumbnails)", s.thumbnailColumns, s.thumbnailRows, count)
+		if needIndividual {
+			description = fmt.Sprintf("Contact sheet + %d thumbnails (%dpx)", s.thumbnailCount, s.thumbnailWidth)
+		}
 	} else {
 		count = s.thumbnailCount
 		width = s.thumbnailWidth
@@ -463,7 +479,7 @@ func (s *appState) createThumbnailJobForPath(path string) *queue.Job {
 			"outputDir":     outputDir,
 			"count":         float64(count),
 			"width":         float64(width),
-			"contactSheet":  s.thumbnailContactSheet,
+			"outputMode":    s.thumbnailOutputMode,
 			"showTimestamp": s.thumbnailShowTimestamps,
 			"columns":       float64(s.thumbnailColumns),
 			"rows":          float64(s.thumbnailRows),

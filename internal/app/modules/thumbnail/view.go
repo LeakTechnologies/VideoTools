@@ -33,8 +33,9 @@ type Options struct {
 	ThumbnailSheetWidth     int
 	ThumbnailColumns        int
 	ThumbnailRows           int
-	ThumbnailContactSheet   bool
-	ThumbnailShowTimestamps bool
+	ThumbnailOutputMode      string
+	ThumbnailContactSheet    bool
+	ThumbnailShowTimestamps  bool
 
 	OnShowMainMenu       func()
 	OnShowQueue          func()
@@ -51,8 +52,9 @@ type Options struct {
 	OnSetThumbnailSheetWidth     func(i int)
 	OnSetThumbnailColumns        func(i int)
 	OnSetThumbnailRows           func(i int)
-	OnSetThumbnailContactSheet   func(b bool)
-	OnSetThumbnailShowTimestamps func(b bool)
+	OnSetThumbnailOutputMode      func(mode string)
+	OnSetThumbnailContactSheet    func(b bool)
+	OnSetThumbnailShowTimestamps  func(b bool)
 
 	OnCreateThumbJob        func()
 	OnCreateThumbJobForPath func(path string)
