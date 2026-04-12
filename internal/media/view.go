@@ -1315,8 +1315,6 @@ func drawSMPTEBars(w, h int, idleText string) *image.RGBA {
 	botH := h - topH - midH
 	midY := topH
 	botY := topH + midH
-
-	// Top row: 7 equal bars
 	topColors := [7]color.RGBA{
 		{0xb4, 0xb4, 0xb4, 0xff}, // light grey
 		{0xb4, 0xb4, 0x10, 0xff}, // yellow
