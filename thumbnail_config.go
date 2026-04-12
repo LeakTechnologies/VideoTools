@@ -20,7 +20,7 @@ func savePersistedThumbnailConfig(cfg thumbnailConfig) error {
 }
 
 func (s *appState) applyThumbnailConfig(cfg thumbnailConfig) {
-	s.thumbnailContactSheet = cfg.ContactSheet
+	s.thumbnailOutputMode = cfg.OutputMode
 	s.thumbnailShowTimestamps = cfg.ShowTimestamps
 	s.thumbnailCount = cfg.Count
 	s.thumbnailWidth = cfg.Width
@@ -31,7 +31,7 @@ func (s *appState) applyThumbnailConfig(cfg thumbnailConfig) {
 
 func (s *appState) persistThumbnailConfig() {
 	cfg := thumbnailConfig{
-		ContactSheet:   s.thumbnailContactSheet,
+		OutputMode:     s.thumbnailOutputMode,
 		ShowTimestamps: s.thumbnailShowTimestamps,
 		Count:          s.thumbnailCount,
 		Width:          s.thumbnailWidth,

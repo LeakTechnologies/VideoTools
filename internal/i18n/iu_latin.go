@@ -652,6 +652,10 @@ var iuLatn = Strings{
 	ThumbnailContactSheetToggle: "Takujautiit Titiqaq Sanarlugu (Atausiinnaq Takujautiit)",                           // Contact sheet toggle
 	ThumbnailShowTimestamps:     "Akiligaaksait Takujautinnit Saqquiilugit",                                          // Show timestamps
 	ThumbnailContactSheetGrid:   "Takujautiit Titiqaq Katitigisimaujuq",                                              // Contact Sheet Grid
+	ThumbnailOutputMode:         "Apigiiuqt Aviktausimaninga",                                                        // Output Mode // machine-generated, needs human review
+	ThumbnailModeIndividual:     "Takujautinnit",                                                                     // Individual // machine-generated, needs human review
+	ThumbnailModeContactSheet:   "Takujautiit Titiqaq",                                                               // Contact Sheet
+	ThumbnailModeBoth:           "Takujautinnit Ama Titiqaq",                                                         // Both // machine-generated, needs human review
 	ThumbnailSize:               "Takujautiit Angirninnga:",                                                          // Thumbnail Size:
 	ThumbnailCountFmt:           "Takujautiit Amirsuqatigiit: %d",                                                    // Thumbnail Count: %d
 	ThumbnailWidthFmt:           "Takujautiit Angirninnga: %d px",                                                    // Thumbnail Width: %d px

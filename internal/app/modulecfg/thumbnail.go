@@ -9,18 +9,24 @@ import (
 )
 
 type ThumbnailConfig struct {
-	ContactSheet   bool `json:"contactSheet"`
-	ShowTimestamps bool `json:"showTimestamps"`
-	Count          int  `json:"count"`
-	Width          int  `json:"width"`
-	SheetWidth     int  `json:"sheetWidth"`
-	Columns        int  `json:"columns"`
-	Rows           int  `json:"rows"`
+	OutputMode     string `json:"outputMode"` // "individual", "contactSheet", "both"
+	ShowTimestamps bool   `json:"showTimestamps"`
+	Count          int    `json:"count"`
+	Width          int    `json:"width"`
+	SheetWidth     int    `json:"sheetWidth"`
+	Columns        int    `json:"columns"`
+	Rows           int    `json:"rows"`
 }
+
+const (
+	ThumbnailModeIndividual   = "individual"
+	ThumbnailModeContactSheet = "contactSheet"
+	ThumbnailModeBoth         = "both"
+)
 
 func DefaultThumbnailConfig() ThumbnailConfig {
 	return ThumbnailConfig{
-		ContactSheet:   false,
+		OutputMode:     ThumbnailModeIndividual,
 		ShowTimestamps: false,
 		Count:          24,
 		Width:          320,
@@ -54,6 +60,9 @@ func LoadThumbnailConfig() (ThumbnailConfig, error) {
 	}
 	if cfg.Rows == 0 {
 		cfg.Rows = 8
+	}
+	if cfg.OutputMode == "" {
+		cfg.OutputMode = ThumbnailModeIndividual
 	}
 	return cfg, nil
 }
