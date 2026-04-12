@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/audio"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 )
@@ -86,14 +87,15 @@ func (s *appState) probeAudioTracks(path string) ([]audioTrackInfo, error) {
 }
 
 func (s *appState) loadAudioFile(path string) {
+	t := i18n.T()
 	logging.Debug(logging.CatAudio, "loading audio file: %s", path)
-	s.audioFileInfoLabel.SetText("Loading: " + filepath.Base(path))
+	s.audioFileInfoLabel.SetText(t.AudioErrLoadFile + ": " + filepath.Base(path))
 
 	src, err := probeVideo(path)
 	if err != nil {
 		logging.Error(logging.CatAudio, "audio probe failed: path=%s err=%v", path, err)
-		dialog.ShowError(fmt.Errorf("Failed to load file: %v", err), s.window)
-		s.audioFileInfoLabel.SetText("Failed to load file")
+		dialog.ShowError(fmt.Errorf("%s: %v", t.AudioErrLoadFile, err), s.window)
+		s.audioFileInfoLabel.SetText(t.AudioErrLoadFile)
 		return
 	}
 	s.audioFile = src
@@ -101,14 +103,14 @@ func (s *appState) loadAudioFile(path string) {
 	tracks, err := s.probeAudioTracks(path)
 	if err != nil {
 		logging.Error(logging.CatAudio, "audio track probe failed: path=%s err=%v", path, err)
-		dialog.ShowError(fmt.Errorf("Failed to detect audio tracks: %v", err), s.window)
-		s.audioFileInfoLabel.SetText("Failed to detect audio tracks")
+		dialog.ShowError(fmt.Errorf("%s: %v", t.AudioErrDetectTracks, err), s.window)
+		s.audioFileInfoLabel.SetText(t.AudioErrDetectTracks)
 		return
 	}
 
 	if len(tracks) == 0 {
-		dialog.ShowInformation("No Audio", "This file does not contain any audio tracks.", s.window)
-		s.audioFileInfoLabel.SetText("No audio tracks found")
+		dialog.ShowInformation(t.ModuleAudio, t.AudioNoTracksFound, s.window)
+		s.audioFileInfoLabel.SetText(t.AudioNoTracksFound)
 		return
 	}
 
@@ -123,8 +125,9 @@ func (s *appState) loadAudioFile(path string) {
 }
 
 func (s *appState) updateAudioFileInfo() {
+	t := i18n.T()
 	if s.audioFile == nil {
-		s.audioFileInfoLabel.SetText("No file loaded")
+		s.audioFileInfoLabel.SetText(t.LabelNoFile)
 		return
 	}
 	info := fmt.Sprintf("File: %s\nDuration: %s\nFormat: %s",
@@ -222,13 +225,14 @@ func (s *appState) removeAudioBatchFile(index int) {
 }
 
 func (s *appState) updateAudioBatchFilesList() {
+	t := i18n.T()
 	if s.audioBatchListContainer == nil {
 		return
 	}
 	s.audioBatchListContainer.Objects = nil
 
 	if len(s.audioBatchFiles) == 0 {
-		s.audioBatchListContainer.Add(widget.NewLabel("No files added"))
+		s.audioBatchListContainer.Add(widget.NewLabel(t.AudioNoFilesAdded))
 	} else {
 		for i, src := range s.audioBatchFiles {
 			idx := i
