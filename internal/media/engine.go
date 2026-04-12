@@ -440,11 +440,12 @@ type Engine struct {
 	audioTimeBase    float64
 	subtitleTimeBase float64
 
-	mu      sync.Mutex
-	running bool
-	paused  bool
-	stop    chan struct{}
-	loading bool
+	mu        sync.Mutex
+	formatMu  sync.Mutex // serialises av_read_frame vs avformat_seek_file
+	running   bool
+	paused    bool
+	stop      chan struct{}
+	loading   bool
 
 	volume  float32
 	muted   bool
@@ -1701,23 +1702,30 @@ func (e *Engine) demuxerLoop() {
 		case <-e.stop:
 			return
 		default:
-			if C.av_read_frame(e.formatCtx, pkt) < 0 {
-				e.videoQueue.SetEOF()
-				e.audioQueue.SetEOF()
-				e.subtitleQueue.SetEOF()
-				return
-			}
-
-			streamIdx := int(pkt.stream_index)
-			if streamIdx == e.videoStreamIdx {
-				e.videoQueue.Put(pkt)
-			} else if streamIdx == e.audioStreamIdx {
-				e.audioQueue.Put(pkt)
-			} else if streamIdx == e.subtitleStreamIdx && e.subtitleCodecCtx != nil {
-				e.subtitleQueue.Put(pkt)
-			}
-			C.av_packet_unref(pkt)
 		}
+
+		// Serialise av_read_frame against avformat_seek_file — AVFormatContext
+		// is not thread-safe; concurrent access from Seek() causes hard crashes.
+		e.formatMu.Lock()
+		ret := C.av_read_frame(e.formatCtx, pkt)
+		e.formatMu.Unlock()
+
+		if ret < 0 {
+			e.videoQueue.SetEOF()
+			e.audioQueue.SetEOF()
+			e.subtitleQueue.SetEOF()
+			return
+		}
+
+		streamIdx := int(pkt.stream_index)
+		if streamIdx == e.videoStreamIdx {
+			e.videoQueue.Put(pkt)
+		} else if streamIdx == e.audioStreamIdx {
+			e.audioQueue.Put(pkt)
+		} else if streamIdx == e.subtitleStreamIdx && e.subtitleCodecCtx != nil {
+			e.subtitleQueue.Put(pkt)
+		}
+		C.av_packet_unref(pkt)
 	}
 }
 
@@ -1743,7 +1751,10 @@ func (e *Engine) Seek(seconds float64) error {
 		flags = C.int(AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ACCURATE)
 	}
 
-	if C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), target, target, target, flags) < 0 {
+	e.formatMu.Lock()
+	seekRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), target, target, target, flags)
+	e.formatMu.Unlock()
+	if seekRet < 0 {
 		return fmt.Errorf("seek failed")
 	}
 
