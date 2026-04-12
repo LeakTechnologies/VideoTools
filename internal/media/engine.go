@@ -1755,20 +1755,26 @@ func (e *Engine) Seek(seconds float64) error {
 	seekRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), target, target, target, flags)
 	e.formatMu.Unlock()
 	if seekRet < 0 {
+		logging.Warning(logging.CatPlayer, "Seek to %.2f failed (ret=%d)", seconds, seekRet)
 		return fmt.Errorf("seek failed")
 	}
+	logging.Info(logging.CatPlayer, "Seek to %.2f OK, flushing queues", seconds)
 
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
 
-	if e.audioPlayer != nil {
-		e.audioPlayer.ResetEOF()
-	}
-
 	if e.videoCodecCtx != nil {
 		C.avcodec_flush_buffers(e.videoCodecCtx)
 	}
-	if e.audioCodecCtx != nil {
+
+	// Audio codec flush must go through AudioPlayer.FlushCodec() to serialise
+	// against the concurrent decode happening in AudioPlayer.Read() (oto
+	// callback goroutine). Calling avcodec_flush_buffers directly while Read()
+	// holds the codec causes a hard crash.
+	if e.audioPlayer != nil {
+		e.audioPlayer.FlushCodec()
+		e.audioPlayer.ResetEOF()
+	} else if e.audioCodecCtx != nil {
 		C.avcodec_flush_buffers(e.audioCodecCtx)
 	}
 

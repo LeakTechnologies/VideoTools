@@ -45,6 +45,7 @@ type AudioPlayer struct {
 	paused bool
 
 	mu          sync.Mutex
+	codecMu     sync.Mutex // serialises codec ops in Read() against FlushCodec() from Seek()
 	volumeMul   float32
 	eofReceived bool
 	looping     bool
@@ -226,9 +227,14 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	p.eofReceived = false
 	p.mu.Unlock()
 
-	if C.avcodec_send_packet(p.codecCtx, pkt) != 0 {
+	// codecMu serialises decode operations against FlushCodec() called from
+	// Seek(). AVCodecContext is not thread-safe — concurrent send/receive and
+	// flush_buffers cause hard crashes.
+	p.codecMu.Lock()
+	sendOK := C.avcodec_send_packet(p.codecCtx, pkt) == 0
+	if !sendOK {
+		p.codecMu.Unlock()
 		logging.Debug(logging.CatPlayer, "Failed to send packet to audio decoder")
-		// Return silence for this packet rather than blocking.
 		for i := range buf {
 			buf[i] = 0
 		}
@@ -237,6 +243,8 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 
 	for C.avcodec_receive_frame(p.codecCtx, p.frame) == 0 {
 		pts := float64(p.frame.pts) * p.timeBase
+		p.codecMu.Unlock()
+
 		if p.clock != nil {
 			p.clock.SetTime(pts)
 		}
@@ -244,10 +252,10 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 		data, err := p.resample()
 		if err != nil {
 			logging.Warning(logging.CatPlayer, "Audio resample error: %v", err)
-			continue
+			return len(buf), nil
 		}
 		if len(data) == 0 {
-			continue
+			return len(buf), nil
 		}
 
 		p.mu.Lock()
@@ -264,12 +272,23 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 		}
 		return n, nil
 	}
+	p.codecMu.Unlock()
 
 	// Packet decoded but yielded no audio frames — return silence.
 	for i := range buf {
 		buf[i] = 0
 	}
 	return len(buf), nil
+}
+
+// FlushCodec flushes the audio codec's internal buffers. Must be called from
+// Seek() instead of avcodec_flush_buffers directly, so it is serialised
+// against any concurrent decode in Read().
+func (p *AudioPlayer) FlushCodec() {
+	p.codecMu.Lock()
+	C.avcodec_flush_buffers(p.codecCtx)
+	p.codecMu.Unlock()
+	p.leftover = p.leftover[:0]
 }
 
 func (p *AudioPlayer) applyVolume(data []byte, volMul float32) []byte {
