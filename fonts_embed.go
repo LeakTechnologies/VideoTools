@@ -25,3 +25,6 @@ var aboriginalSansBold []byte
 
 //go:embed assets/fonts/AboriginalSansBOLDITALIC.ttf
 var aboriginalSansBoldItalic []byte
+
+//go:embed assets/fonts/VCR-OSD-mono.ttf
+var vcrOSDMono []byte
