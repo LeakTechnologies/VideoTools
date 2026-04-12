@@ -8347,6 +8347,7 @@ func runGUI() {
 		}
 	}()
 
+	w.Show()
 	w.RequestFocus()
 	w.ShowAndRun()
 }
