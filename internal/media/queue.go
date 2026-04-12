@@ -154,3 +154,26 @@ func (q *PacketQueue) IsClosed() bool {
 	defer q.mu.Unlock()
 	return q.closed
 }
+
+// TryGet returns a packet if one is available, without blocking.
+// Returns (nil, false) immediately when the queue is empty.
+func (q *PacketQueue) TryGet() (*C.AVPacket, bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	if len(q.packets) == 0 {
+		return nil, false
+	}
+
+	pkt := q.packets[0]
+	q.packets = q.packets[1:]
+	q.cond.Signal()
+	return pkt, true
+}
+
+// IsClosedOrEOF returns true when the queue is drained and no more packets will arrive.
+func (q *PacketQueue) IsClosedOrEOF() bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return (q.closed || q.eof) && len(q.packets) == 0
+}
