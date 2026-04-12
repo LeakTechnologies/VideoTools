@@ -1823,14 +1823,14 @@ func (e *Engine) Step(frames int) (*image.RGBA, error) {
 // A timeout prevents hanging on files where the demuxer or codec stalls.
 func (e *Engine) GrabFrame(timeout time.Duration) (*image.RGBA, error) {
 	deadline := time.Now().Add(timeout)
-	logging.Debug(logging.CatPlayer, "GrabFrame: waiting for first video frame (timeout=%v)", timeout)
+	logging.Info(logging.CatPlayer, "GrabFrame: waiting for first video frame (timeout=%v, hwDevice=%v)", timeout, e.hwDevice)
 
 	for time.Now().Before(deadline) {
 		// Non-blocking fetch — retry until a packet arrives or EOF/timeout.
 		pkt, ok := e.videoQueue.TryGet()
 		if !ok {
 			if e.videoQueue.IsClosedOrEOF() {
-				logging.Debug(logging.CatPlayer, "GrabFrame: video queue EOF")
+				logging.Info(logging.CatPlayer, "GrabFrame: video queue EOF/closed")
 				return nil, io.EOF
 			}
 			time.Sleep(5 * time.Millisecond)
@@ -1839,24 +1839,35 @@ func (e *Engine) GrabFrame(timeout time.Duration) (*image.RGBA, error) {
 
 		// Lock codec around send+receive so we don't race with NextFrame or
 		// SmoothScrubbing if they start concurrently.
+		logging.Info(logging.CatPlayer, "GrabFrame: sending packet to video codec")
 		e.videoCodecMu.Lock()
 		sendRet := C.avcodec_send_packet(e.videoCodecCtx, pkt)
 		C.av_packet_free(&pkt)
 		if sendRet != 0 {
 			e.videoCodecMu.Unlock()
+			logging.Info(logging.CatPlayer, "GrabFrame: avcodec_send_packet returned %d, skipping", int(sendRet))
 			continue // bad or non-video packet; try the next one
 		}
 
+		logging.Info(logging.CatPlayer, "GrabFrame: packet sent OK, calling avcodec_receive_frame")
 		// Drain all frames produced by this packet; return the first.
 		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
 			e.videoCodecMu.Unlock()
 			e.videoDecoded = true
-			logging.Info(logging.CatPlayer, "GrabFrame: got frame pts=%.3f", float64(e.frame.pts)*e.videoTimeBase)
+			logging.Info(logging.CatPlayer, "GrabFrame: got frame pts=%.3f hw_frames_ctx=%v", float64(e.frame.pts)*e.videoTimeBase, e.frame.hw_frames_ctx != nil)
 
 			if e.hwDevice != HWDeviceNone {
 				img, err := e.retrieveHWFrame()
 				if err != nil {
-					logging.Warning(logging.CatPlayer, "GrabFrame: HW retrieve failed (%v), falling back to SW", err)
+					logging.Warning(logging.CatPlayer, "GrabFrame: HW retrieve failed (%v)", err)
+					if e.frame.hw_frames_ctx != nil {
+						// True HW frame — cannot safely call toRGBA() on GPU texture memory.
+						// Re-acquire lock and try the next packet.
+						logging.Info(logging.CatPlayer, "GrabFrame: frame is HW, cannot SW fallback — skipping")
+						e.videoCodecMu.Lock()
+						break
+					}
+					// hw_frames_ctx is nil: codec produced a SW frame despite hwDevice being set.
 					img = e.toRGBA()
 				}
 				return img, nil
@@ -1931,6 +1942,12 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 				img, err = e.retrieveHWFrame()
 				if err != nil {
 					logging.Warning(logging.CatPlayer, "HW frame retrieve failed: %v", err)
+					if e.frame.hw_frames_ctx != nil {
+						// True HW frame — reading GPU texture memory as CPU would crash.
+						// Skip this frame and try the next one.
+						e.videoCodecMu.Lock()
+						continue
+					}
 					img = e.toRGBA()
 				}
 			} else {
