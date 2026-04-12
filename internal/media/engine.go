@@ -440,8 +440,9 @@ type Engine struct {
 	audioTimeBase    float64
 	subtitleTimeBase float64
 
-	mu        sync.Mutex
-	formatMu  sync.Mutex // serialises av_read_frame vs avformat_seek_file
+	mu           sync.Mutex
+	formatMu     sync.Mutex // serialises av_read_frame vs avformat_seek_file
+	videoCodecMu sync.Mutex // serialises avcodec_send_packet / avcodec_receive_frame on videoCodecCtx
 	running   bool
 	paused    bool
 	stop      chan struct{}
@@ -1824,13 +1825,20 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 		}
 		defer C.av_packet_free(&pkt)
 
+		// Hold videoCodecMu around every avcodec_send/receive call so that
+		// SmoothScrubbing (which also touches videoCodecCtx) cannot race with us.
+		// The lock is released before any slow operations (WaitForPTS, toRGBA) and
+		// re-acquired only when we need to call avcodec_receive_frame again.
+		e.videoCodecMu.Lock()
 		if C.avcodec_send_packet(e.videoCodecCtx, pkt) != 0 {
+			e.videoCodecMu.Unlock()
 			logging.Debug(logging.CatPlayer, "Failed to send packet to video decoder")
 			continue
 		}
 
 		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
 			pts := float64(e.frame.pts) * e.videoTimeBase
+			e.videoCodecMu.Unlock() // release before any blocking / rendering work
 
 			adjustedPts := pts * e.speed
 
@@ -1842,6 +1850,7 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 
 			delay := e.clock.SyncVideo(adjustedPts)
 			if delay < 0 {
+				e.videoCodecMu.Lock() // re-acquire for next avcodec_receive_frame
 				continue
 			}
 
@@ -1866,6 +1875,7 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 
 			return img, nil
 		}
+		e.videoCodecMu.Unlock()
 	}
 }
 
