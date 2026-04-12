@@ -321,7 +321,8 @@ func NewVolumeControl() *VolumeControl {
 	v.slider.SetValue(1.0)
 	v.slider.OnChanged = v.onSliderChange
 
-	v.icon = widget.NewButton("🔊", v.onIconTap)
+	th := fyne.CurrentApp().Settings().Theme()
+	v.icon = widget.NewButtonWithIcon("", th.Icon(theme.IconNameVolumeUp), v.onIconTap)
 	v.icon.Importance = widget.LowImportance
 
 	return v
@@ -375,12 +376,13 @@ func (v *VolumeControl) onIconTap() {
 }
 
 func (v *VolumeControl) updateIcon() {
+	th := fyne.CurrentApp().Settings().Theme()
 	if v.mute || v.volume == 0 {
-		v.icon.SetText("🔇")
+		v.icon.SetIcon(th.Icon(theme.IconNameVolumeMute))
 	} else if v.volume < 0.5 {
-		v.icon.SetText("🔉")
+		v.icon.SetIcon(th.Icon(theme.IconNameVolumeDown))
 	} else {
-		v.icon.SetText("🔊")
+		v.icon.SetIcon(th.Icon(theme.IconNameVolumeUp))
 	}
 }
 
@@ -413,4 +415,3 @@ func (r *volumeControlRenderer) Refresh() {
 
 func (r *volumeControlRenderer) Destroy() {
 }
-
