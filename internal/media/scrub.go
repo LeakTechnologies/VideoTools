@@ -11,6 +11,7 @@ package media
 #include <libswscale/swscale.h>
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/hwcontext.h>
 */
 import "C"
 import (
@@ -396,16 +397,37 @@ func (s *SmoothScrubbing) predecodeAhead() {
 // convertFrameToRGBA converts a decoded AVFrame to *image.RGBA using private
 // conversion buffers (s.swsCtx / s.rgbaFrame / s.rgbaBuffer).  Lazy-initialises
 // those buffers on first call.  Must NOT be called while holding videoCodecMu.
+//
+// For hardware-decoded frames (hw_frames_ctx != nil, e.g. D3D11VA), the frame
+// is first transferred to CPU memory via av_hwframe_transfer_data before any
+// sws conversion.  Calling sws_scale on a HW frame directly would read GPU
+// texture memory as CPU memory and crash.
 func (s *SmoothScrubbing) convertFrameToRGBA(frame *C.AVFrame) *image.RGBA {
+	// Download HW frame to CPU before doing anything with pixel data.
+	// This must happen outside convertMu because it can be slow.
+	if frame.hw_frames_ctx != nil {
+		swFrame := C.av_frame_alloc()
+		if swFrame == nil {
+			return nil
+		}
+		defer C.av_frame_free(&swFrame)
+		if C.av_hwframe_transfer_data(swFrame, frame, 0) != 0 {
+			return nil
+		}
+		frame = swFrame
+	}
+
 	s.convertMu.Lock()
 
 	// Lazy-init: create our own sws context and output buffers.
-	// videoCodecCtx.width/height/pix_fmt are set once at open time and never
-	// change during playback, so reading them without videoCodecMu is safe here.
+	// We use frame.format (the actual SW pixel format) rather than
+	// videoCodecCtx.pix_fmt, because for HW-decoded streams the codec ctx
+	// reports a HW format (e.g. AV_PIX_FMT_D3D11) which sws cannot handle.
+	// videoCodecCtx.width/height are set once at open and are safe to read here.
 	if s.swsCtx == nil {
 		w := s.engine.videoCodecCtx.width
 		h := s.engine.videoCodecCtx.height
-		pixFmt := s.engine.videoCodecCtx.pix_fmt
+		pixFmt := C.enum_AVPixelFormat(frame.format)
 
 		s.swsCtx = C.sws_getContext(
 			w, h, pixFmt,
