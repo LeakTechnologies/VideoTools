@@ -651,6 +651,10 @@ var iu = Strings{
 	ThumbnailContactSheetToggle: "ᑕᑯᒃᓴᑦᑎᐊᕐᕕᒃ ᑎᑎᖅᑲᖅ ᓴᓇᓗᒍ (ᐊᑕᐅᓯᕐᒥᒃ ᑕᑯᒃᓴᑦᑎᐊᕈᑎᒃ)",              // Contact Sheet toggle
 	ThumbnailShowTimestamps:     "ᐊᑭᓕᒐᒃᓴᑦ ᑕᑯᒃᓴᑦᑎᐊᕈᑎᓂ ᓴᖅᑮᓗᒋᑦ",                               // Show timestamps
 	ThumbnailContactSheetGrid:   "ᑕᑯᒃᓴᑦᑎᐊᕐᕕᒃ ᑎᑎᖅᑲᖅ ᑲᑎᑦᑎᓯᒪᔪᖅ",                               // Contact Sheet Grid
+	ThumbnailOutputMode:         "ᐊᐱᕆᒍᑦ ᐊᕕᒃᑕᐅᓯᒪᓂᖓ",                                         // Output Mode // machine-generated, needs human review
+	ThumbnailModeIndividual:     "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᓂᒃ",                                             // Individual // machine-generated, needs human review
+	ThumbnailModeContactSheet:   "ᑕᑯᒃᓴᑦᑎᐊᕐᕕᒃ ᑎᑎᖅᑲᖅ",                                        // Contact Sheet
+	ThumbnailModeBoth:           "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᓂᒃ ᐊᒻᒪ ᑎᑎᖅᑲᖅ",                                   // Both // machine-generated, needs human review
 	ThumbnailSize:               "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᒃ ᐊᖏᕐᓂᖓ:",                                       // Thumbnail Size:
 	ThumbnailCountFmt:           "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᑦ ᐊᒥᓱᑦ: %d",                                     // Thumbnail Count: %d
 	ThumbnailWidthFmt:           "ᑕᑯᒃᓴᑦᑎᐊᕈᑎᒃ ᐊᖏᔪᑦ: %d px",                                  // Thumbnail Width: %d px

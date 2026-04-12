@@ -718,6 +718,10 @@ type Strings struct {
 	ThumbnailContactSheetToggle string // "Generate Contact Sheet (single image)"
 	ThumbnailShowTimestamps     string // "Show timestamps on thumbnails"
 	ThumbnailContactSheetGrid   string // "Contact Sheet Grid" (box title)
+	ThumbnailOutputMode         string // "Output Mode"
+	ThumbnailModeIndividual     string // "Individual"
+	ThumbnailModeContactSheet   string // "Contact Sheet"
+	ThumbnailModeBoth           string // "Both"
 	ThumbnailSize               string // "Thumbnail Size:"
 	ThumbnailCountFmt           string // "Thumbnail Count: %d"
 	ThumbnailWidthFmt           string // "Thumbnail Width: %d px"

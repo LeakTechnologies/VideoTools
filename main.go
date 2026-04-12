@@ -1335,7 +1335,7 @@ type appState struct {
 	thumbnailFiles          []*videoSource
 	thumbnailCount          int
 	thumbnailWidth          int
-	thumbnailContactSheet   bool
+	thumbnailOutputMode     string
 	thumbnailShowTimestamps bool
 	thumbnailSheetWidth     int
 	thumbnailColumns        int

@@ -28,9 +28,9 @@ type Config struct {
 	Format        string  // "png" or "jpg"
 	StartOffset   float64 // Start generating from this timestamp
 	EndOffset     float64 // Stop generating before this timestamp
-	ContactSheet  bool    // Generate a single contact sheet instead of individual files
-	Columns       int     // Contact sheet columns (if ContactSheet=true)
-	Rows          int     // Contact sheet rows (if ContactSheet=true)
+	OutputMode    string  // "individual", "contactSheet", or "both"
+	Columns       int     // Contact sheet columns (if OutputMode includes contactSheet)
+	Rows          int     // Contact sheet rows (if OutputMode includes contactSheet)
 	ShowTimestamp bool    // Overlay timestamp on thumbnails
 	ShowMetadata  bool    // Show metadata header on contact sheet
 	Progress      func(float64)
@@ -102,7 +102,7 @@ func (g *Generator) Generate(ctx context.Context, config Config) (*GenerateResul
 	if config.Quality == 0 && config.Format == "jpg" {
 		config.Quality = 85
 	}
-	if config.ContactSheet {
+	if config.OutputMode == "contactSheet" || config.OutputMode == "both" {
 		if config.Columns == 0 {
 			config.Columns = 3
 		}
@@ -123,7 +123,10 @@ func (g *Generator) Generate(ctx context.Context, config Config) (*GenerateResul
 	// Calculate thumbnail dimensions
 	thumbWidth, thumbHeight := g.calculateDimensions(width, height, config.Width, config.Height)
 
-	if config.ContactSheet {
+	needContactSheet := config.OutputMode == "contactSheet" || config.OutputMode == "both"
+	needIndividual := config.OutputMode == "individual" || config.OutputMode == "both"
+
+	if needContactSheet {
 		// Generate contact sheet — pass pre-computed dimensions to avoid duplicate ffprobe calls
 		contactSheetPath, err := g.generateContactSheet(ctx, config, duration, width, height, thumbWidth, thumbHeight)
 		if err != nil {
@@ -142,8 +145,9 @@ func (g *Generator) Generate(ctx context.Context, config Config) (*GenerateResul
 				Size:      fi.Size(),
 			}}
 		}
-	} else {
-		// Generate individual thumbnails
+	}
+
+	if needIndividual {
 		thumbnails, err := g.generateIndividual(ctx, config, duration, thumbWidth, thumbHeight)
 		if err != nil {
 			result.Error = err.Error()
