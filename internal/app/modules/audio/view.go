@@ -120,17 +120,34 @@ func BuildView(opts Options) fyne.CanvasObject {
 		queueBtn,
 	)
 
-	bottomBar := container.NewVBox(
-		actionBar,
-	)
+	var bottomBar fyne.CanvasObject
+	if opts.OnGetStatsBar != nil {
+		statsBar := opts.OnGetStatsBar()
+		if statsBar != nil {
+			audioColor := opts.ModuleColor
+			if audioColor == nil {
+				audioColor = utils.MustHex("#9A7500")
+			}
+			bg := canvas.NewRectangle(audioColor)
+			bg.SetMinSize(fyne.NewSize(0, 44))
+			tinted := container.NewMax(bg, container.NewPadded(actionBar))
+			bottomBar = container.NewVBox(statsBar, tinted)
+		} else {
+			bottomBar = actionBar
+		}
+	} else {
+		bottomBar = actionBar
+	}
 
 	return container.NewBorder(topBar, bottomBar, nil, nil, mainSplit)
 }
 
 func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 	t := i18n.T()
+
 	dropLabel := widget.NewLabel(t.AudioInstructions)
 	dropLabel.Alignment = fyne.TextAlignCenter
+	dropLabel.Wrapping = fyne.TextWrapWord
 
 	dropZone := ui.NewDroppable(dropLabel, func(items []fyne.URI) {
 		if opts.OnDroppedFiles != nil {
