@@ -2091,9 +2091,7 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 		e.mu.Unlock()
 
 		if paused {
-			if hasAudio {
-				e.clock.WaitForPTS(e.clock.GetTime())
-			}
+			time.Sleep(50 * time.Millisecond)
 			continue
 		}
 
@@ -2424,10 +2422,10 @@ func (e *Engine) Close() {
 		e.mu.Unlock()
 		return
 	}
-	close(e.stop)
 	e.running = false
 	e.paused = false
 	e.mu.Unlock()
+	close(e.stop)
 
 	e.videoQueue.Close()
 	e.audioQueue.Close()
