@@ -2035,11 +2035,23 @@ func (e *Engine) GrabFrame(timeout time.Duration) (*image.RGBA, error) {
 		}
 
 		logging.Info(logging.CatPlayer, "GrabFrame: packet sent OK, calling avcodec_receive_frame")
-		// Drain all frames produced by this packet; return the first.
+		// Drain all frames produced by this packet; return the first valid one.
 		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
-			e.videoCodecMu.Unlock()
 			e.videoDecoded = true
-			logging.Info(logging.CatPlayer, "GrabFrame: got frame pts=%.3f hw_frames_ctx=%v", float64(e.frame.pts)*e.videoTimeBase, e.frame.hw_frames_ctx != nil)
+
+			// Skip frames with AV_NOPTS_VALUE PTS or zero dimensions.
+			// These are codec artefacts (e.g. MPEG4 B-frames before the first
+			// reference frame) and produce garbage when converted to RGBA.
+			if e.frame.pts == C.AV_NOPTS_VALUE || e.frame.pts < 0 ||
+				e.frame.width <= 0 || e.frame.height <= 0 {
+				logging.Debug(logging.CatPlayer, "GrabFrame: skipping invalid frame pts=%d w=%d h=%d", int64(e.frame.pts), int(e.frame.width), int(e.frame.height))
+				e.videoCodecMu.Lock()
+				continue
+			}
+
+			pts := float64(e.frame.pts) * e.videoTimeBase
+			e.videoCodecMu.Unlock()
+			logging.Info(logging.CatPlayer, "GrabFrame: got frame pts=%.3f hw_frames_ctx=%v", pts, e.frame.hw_frames_ctx != nil)
 
 			if e.hwDevice != HWDeviceNone {
 				img, err := e.retrieveHWFrame()
@@ -2126,6 +2138,14 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 			pts := float64(e.frame.pts) * e.videoTimeBase
 			e.videoCodecMu.Unlock() // release before any blocking / rendering work
 			e.videoDecoded = true
+
+			// Skip frames with invalid PTS (AV_NOPTS_VALUE or negative).
+			// These are codec artefacts and produce garbage timestamps.
+			if e.frame.pts == C.AV_NOPTS_VALUE || e.frame.pts < 0 {
+				logging.Debug(logging.CatPlayer, "NextFrame: skipping invalid frame pts=%d", int64(e.frame.pts))
+				e.videoCodecMu.Lock()
+				continue
+			}
 
 			if verbose {
 				logging.Info(logging.CatPlayer, "NextFrame #%d: got frame pts=%.3f hw_frames_ctx=%v", nf, pts, e.frame.hw_frames_ctx != nil)
