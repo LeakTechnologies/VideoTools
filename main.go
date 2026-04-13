@@ -13271,22 +13271,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		placeholderDropIndicator.StrokeColor = utils.MustHex("#4CE870")
 		stageBoxWithIndicator := container.NewMax(placeholderDropIndicator, stageBox)
 		dropTarget := ui.NewDroppable(stageBoxWithIndicator, func(items []fyne.URI) {
-			var paths []string
-			for _, uri := range items {
-				if uri.Scheme() != "file" {
-					continue
-				}
-				path := uri.Path()
-				if info, err := os.Stat(path); err == nil && info.IsDir() {
-					paths = append(paths, state.findVideoFiles(path)...)
-				} else if state.isVideoFile(path) {
-					paths = append(paths, path)
-				}
-			}
-			if len(paths) == 0 {
-				return
-			}
-			go state.loadMultipleVideos(paths)
+			state.handleDrop(fyne.NewPos(0, 0), items)
 		})
 		return container.NewMax(outer, container.NewPadded(dropTarget))
 	}
@@ -13695,22 +13680,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		container.NewPadded(videoWithOverlay),
 	)
 	videoDropTarget := ui.NewDroppable(stack, func(items []fyne.URI) {
-		var paths []string
-		for _, uri := range items {
-			if uri.Scheme() != "file" {
-				continue
-			}
-			path := uri.Path()
-			if info, err := os.Stat(path); err == nil && info.IsDir() {
-				paths = append(paths, state.findVideoFiles(path)...)
-			} else if state.isVideoFile(path) {
-				paths = append(paths, path)
-			}
-		}
-		if len(paths) == 0 {
-			return
-		}
-		go state.loadMultipleVideos(paths)
+		state.handleDrop(fyne.NewPos(0, 0), items)
 	})
 	return container.NewMax(outer, container.NewPadded(videoDropTarget))
 }
