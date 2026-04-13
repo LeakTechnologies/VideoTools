@@ -823,6 +823,7 @@ func (e *Engine) SetSpeed(speed float64) {
 		speed = 4
 	}
 	e.speed = speed
+	e.clock.SetSpeed(speed)
 }
 
 func (e *Engine) GetSpeed() float64 {
@@ -2149,21 +2150,19 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 				logging.Info(logging.CatPlayer, "NextFrame #%d: got frame pts=%.3f hw_frames_ctx=%v", nf, pts, e.frame.hw_frames_ctx != nil)
 			}
 
-			adjustedPts := pts * e.speed
-
 			if hasAudio {
 				if verbose {
-					logging.Info(logging.CatPlayer, "NextFrame #%d: WaitForPTS(%.3f)", nf, adjustedPts)
+					logging.Info(logging.CatPlayer, "NextFrame #%d: WaitForPTS(%.3f)", nf, pts)
 				}
-				e.clock.WaitForPTS(adjustedPts)
+				e.clock.WaitForPTS(pts)
 			} else {
-				e.clock.SetTime(adjustedPts)
+				e.clock.SetTime(pts)
 			}
 
 			if verbose {
-				logging.Info(logging.CatPlayer, "NextFrame #%d: SyncVideo(%.3f) clockNow=%.3f", nf, adjustedPts, e.clock.GetTime())
+				logging.Info(logging.CatPlayer, "NextFrame #%d: SyncVideo(%.3f) clockNow=%.3f", nf, pts, e.clock.GetTime())
 			}
-			delay := e.clock.SyncVideo(adjustedPts)
+			delay := e.clock.SyncVideo(pts)
 			if delay < 0 {
 				if verbose {
 					logging.Info(logging.CatPlayer, "NextFrame #%d: frame late (delay=%.3f), dropping", nf, delay)
@@ -2194,9 +2193,9 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 			}
 
 			if e.subtitleCodecCtx != nil {
-				sub := e.decodeSubtitle(adjustedPts)
+				sub := e.decodeSubtitle(pts)
 				if sub != nil {
-					img = e.RenderSubtitles(img, adjustedPts)
+					img = e.RenderSubtitles(img, pts)
 				}
 			}
 
