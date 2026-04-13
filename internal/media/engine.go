@@ -48,6 +48,10 @@ static AVChapter* getChapter(AVFormatContext *fmtCtx, int index) {
 // hw_frames_ctx here is the pattern from FFmpeg's hw_decode.c example.
 //
 // ctx->opaque must hold the desired HW pixel format cast to void* (intptr_t).
+//
+// NOTE: D3D11VA decoders may offer either AV_PIX_FMT_D3D11 or
+// AV_PIX_FMT_D3D11VA_VLD in the pix_fmts list depending on the FFmpeg
+// version.  We accept both so the callback works with old and new builds.
 static enum AVPixelFormat vt_get_hw_format(AVCodecContext *ctx,
                                             const enum AVPixelFormat *pix_fmts)
 {
@@ -58,15 +62,22 @@ static enum AVPixelFormat vt_get_hw_format(AVCodecContext *ctx,
     int w, h;
 
     for (p = pix_fmts; *p != AV_PIX_FMT_NONE; p++) {
-        if (*p != target)
+        // Accept the target format OR the legacy D3D11VA_VLD equivalent.
+        // FFmpeg versions differ on which format name D3D11VA offers.
+        if (*p != target
+            && !(target == AV_PIX_FMT_D3D11 && *p == AV_PIX_FMT_D3D11VA_VLD))
             continue;
+
+        // Use the codec-offered format, not our target, so sw_format and
+        // hw_frames_ctx match what the decoder actually produces.
+        enum AVPixelFormat chosen = *p;
 
         frames_ref = NULL;
 
         // Try codec-specific constraints first (needs SPS parsed; may return
         // an error on first call before SPS is available — that is expected).
         if (avcodec_get_hw_frames_parameters(ctx, ctx->hw_device_ctx,
-                                             target, &frames_ref) < 0
+                                             chosen, &frames_ref) < 0
                 || frames_ref == NULL) {
             // Fall back: build a frames context with safe defaults.
             frames_ref = av_hwframe_ctx_alloc(ctx->hw_device_ctx);
@@ -76,7 +87,7 @@ static enum AVPixelFormat vt_get_hw_format(AVCodecContext *ctx,
             fc            = (AVHWFramesContext *)frames_ref->data;
             w             = ctx->coded_width  ? ctx->coded_width  : ctx->width;
             h             = ctx->coded_height ? ctx->coded_height : ctx->height;
-            fc->format            = target;
+            fc->format            = chosen;
             fc->sw_format         = AV_PIX_FMT_NV12;
             fc->width             = w;
             fc->height            = h;
@@ -96,7 +107,7 @@ static enum AVPixelFormat vt_get_hw_format(AVCodecContext *ctx,
         if (!ctx->hw_frames_ctx)
             return AV_PIX_FMT_NONE;
 
-        return target;
+        return chosen;
     }
 
     return AV_PIX_FMT_NONE;
@@ -109,6 +120,10 @@ static enum AVPixelFormat vt_get_hw_format(AVCodecContext *ctx,
 // causing a crash in avcodec_send_packet.
 // CGo cannot assign C function pointers to struct fields directly, so we use
 // a C helper for the assignment.
+//
+// For D3D11VA, we prefer AV_PIX_FMT_D3D11 (new API) but the vt_get_hw_format
+// callback also accepts AV_PIX_FMT_D3D11VA_VLD (legacy) to cover builds where
+// the codec offers the old format name.
 static void vt_set_get_format(AVCodecContext *ctx, int hw_pix_fmt) {
     ctx->opaque       = (void*)(intptr_t)hw_pix_fmt;
     ctx->get_format   = vt_get_hw_format;
@@ -269,7 +284,8 @@ func (e *Engine) GetHWDevice() HWDeviceType {
 //
 // The codecs listed below have been validated to work with the simpler
 // hw_device_ctx-only path (no get_format callback):
-//   h264, hevc, vp9, av1, vp8
+//
+//	h264, hevc, vp9, av1, vp8
 //
 // Everything else falls back to software decode.
 func (e *Engine) codecCanUseHWDevice(codec *C.AVCodec) bool {
@@ -581,10 +597,10 @@ type Engine struct {
 	mu           sync.Mutex
 	formatMu     sync.Mutex // serialises av_read_frame vs avformat_seek_file
 	videoCodecMu sync.Mutex // serialises avcodec_send_packet / avcodec_receive_frame on videoCodecCtx
-	running   bool
-	paused    bool
-	stop      chan struct{}
-	loading   bool
+	running      bool
+	paused       bool
+	stop         chan struct{}
+	loading      bool
 
 	volume  float32
 	muted   bool
@@ -598,10 +614,10 @@ type Engine struct {
 	lastDecodeTime time.Time
 	decodeTimes    []time.Duration
 
-	hwDevice      HWDeviceType
-	hwDegraded    bool
-	videoDecoded  bool // set true after first successful video frame decode
-	hwFailCount int
+	hwDevice     HWDeviceType
+	hwDegraded   bool
+	videoDecoded bool // set true after first successful video frame decode
+	hwFailCount  int
 
 	looping  bool
 	hasAudio bool
@@ -1667,9 +1683,9 @@ func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.
 		defer logging.RecoverPanic()
 
 		const (
-			thumbW    = 160
-			thumbH    = 90
-			interval  = 10.0
+			thumbW   = 160
+			thumbH   = 90
+			interval = 10.0
 		)
 
 		// --- open independent format context ---
