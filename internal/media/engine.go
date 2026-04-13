@@ -45,6 +45,7 @@ import (
 	"image/draw"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -530,6 +531,9 @@ type Engine struct {
 	lastError *PlaybackError
 
 	gpuTexUpload interface{}
+
+	// nextFrameCount counts NextFrame invocations; used for first-call verbose logging.
+	nextFrameCount int64
 }
 
 type PlaybackFrameCache struct {
@@ -1625,17 +1629,20 @@ func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.
 		}
 
 		timeBase := float64(stream.time_base.num) / float64(stream.time_base.den)
-
-		// scale to thumbnail size
-		swsCtx := C.sws_getContext(
-			codecCtx.width, codecCtx.height, codecCtx.pix_fmt,
-			C.int(thumbW), C.int(thumbH), C.AV_PIX_FMT_RGBA,
-			C.SWS_BICUBIC, nil, nil, nil,
-		)
-		if swsCtx == nil {
+		if timeBase <= 0 {
+			logging.Warning(logging.CatPlayer, "thumbnail: stream %d has invalid timeBase (%v), skipping", vidIdx, timeBase)
 			return
 		}
-		defer C.sws_freeContext(swsCtx)
+
+		// swsCtx is created lazily after the first decoded frame so we can use
+		// frame.format (the actual SW pixel format) rather than codecCtx.pix_fmt
+		// (set at open time, may be 0/NONE or a HW format placeholder).
+		var swsCtx *C.struct_SwsContext
+		defer func() {
+			if swsCtx != nil {
+				C.sws_freeContext(swsCtx)
+			}
+		}()
 
 		rgbaFrame := C.av_frame_alloc()
 		if rgbaFrame == nil {
@@ -1663,6 +1670,8 @@ func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.
 		}
 		defer C.av_packet_free(&pkt)
 
+		logging.Info(logging.CatPlayer, "thumbnail: starting extraction (duration=%.1fs interval=%.0fs timeBase=%g)", duration, interval, timeBase)
+
 		for t := 0.0; t < duration; t += interval {
 			select {
 			case <-e.stop:
@@ -1672,6 +1681,7 @@ func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.
 
 			// seek to target
 			target := C.int64_t(t / timeBase)
+			logging.Info(logging.CatPlayer, "thumbnail: seeking to t=%.1fs (pts=%d)", t, int64(target))
 			C.avformat_seek_file(fmtCtx, C.int(vidIdx), 0, target, target, 0)
 			C.avcodec_flush_buffers(codecCtx)
 
@@ -1688,6 +1698,24 @@ func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.
 
 				if C.avcodec_send_packet(codecCtx, pkt) == 0 {
 					if C.avcodec_receive_frame(codecCtx, frame) == 0 {
+						// Lazy-init swsCtx using actual frame pixel format.
+						// Using frame.format instead of codecCtx.pix_fmt avoids
+						// mismatches when the codec updates the format after open.
+						if swsCtx == nil {
+							pixFmt := C.enum_AVPixelFormat(frame.format)
+							logging.Info(logging.CatPlayer, "thumbnail: creating swsCtx (pixFmt=%d w=%d h=%d)", int(pixFmt), int(codecCtx.width), int(codecCtx.height))
+							swsCtx = C.sws_getContext(
+								codecCtx.width, codecCtx.height, pixFmt,
+								C.int(thumbW), C.int(thumbH), C.AV_PIX_FMT_RGBA,
+								C.SWS_BICUBIC, nil, nil, nil,
+							)
+							if swsCtx == nil {
+								logging.Warning(logging.CatPlayer, "thumbnail: sws_getContext failed for pixFmt=%d", int(pixFmt))
+								C.av_packet_unref(pkt)
+								break // skip this thumbnail, try next interval
+							}
+						}
+
 						C.sws_scale(
 							swsCtx,
 							&frame.data[0], &frame.linesize[0],
@@ -1932,6 +1960,12 @@ func (e *Engine) GrabFrame(timeout time.Duration) (*image.RGBA, error) {
 }
 
 func (e *Engine) NextFrame() (*image.RGBA, error) {
+	nf := atomic.AddInt64(&e.nextFrameCount, 1)
+	verbose := nf <= 5
+	if verbose {
+		logging.Info(logging.CatPlayer, "NextFrame #%d: enter (hwDevice=%v hasAudio=%v)", nf, e.hwDevice, e.hasAudio)
+	}
+
 	for {
 		e.mu.Lock()
 		paused := e.paused
@@ -1945,6 +1979,9 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 			continue
 		}
 
+		if verbose {
+			logging.Info(logging.CatPlayer, "NextFrame #%d: calling videoQueue.Get()", nf)
+		}
 		pkt, ok := e.videoQueue.Get()
 		if !ok {
 			if e.IsLooping() {
@@ -1955,38 +1992,65 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 			}
 			return nil, io.EOF
 		}
-		defer C.av_packet_free(&pkt)
 
 		// Hold videoCodecMu around every avcodec_send/receive call so that
 		// SmoothScrubbing (which also touches videoCodecCtx) cannot race with us.
 		// The lock is released before any slow operations (WaitForPTS, toRGBA) and
 		// re-acquired only when we need to call avcodec_receive_frame again.
+		//
+		// Note: pkt is freed explicitly (not via defer) so that each outer-loop
+		// iteration frees its own packet rather than accumulating defers that
+		// all reference the same variable and would only free the final pkt.
+		if verbose {
+			logging.Info(logging.CatPlayer, "NextFrame #%d: locking videoCodecMu, calling avcodec_send_packet", nf)
+		}
 		e.videoCodecMu.Lock()
-		if C.avcodec_send_packet(e.videoCodecCtx, pkt) != 0 {
+		sendRet := C.avcodec_send_packet(e.videoCodecCtx, pkt)
+		C.av_packet_free(&pkt) // free immediately — codec has already copied what it needs
+		if sendRet != 0 {
 			e.videoCodecMu.Unlock()
-			logging.Debug(logging.CatPlayer, "Failed to send packet to video decoder")
+			logging.Debug(logging.CatPlayer, "NextFrame: failed to send packet to video decoder (ret=%d)", int(sendRet))
 			continue
 		}
 
+		if verbose {
+			logging.Info(logging.CatPlayer, "NextFrame #%d: avcodec_send_packet OK, entering receive loop", nf)
+		}
 		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
 			pts := float64(e.frame.pts) * e.videoTimeBase
 			e.videoCodecMu.Unlock() // release before any blocking / rendering work
 			e.videoDecoded = true
 
+			if verbose {
+				logging.Info(logging.CatPlayer, "NextFrame #%d: got frame pts=%.3f hw_frames_ctx=%v", nf, pts, e.frame.hw_frames_ctx != nil)
+			}
+
 			adjustedPts := pts * e.speed
 
 			if hasAudio {
+				if verbose {
+					logging.Info(logging.CatPlayer, "NextFrame #%d: WaitForPTS(%.3f)", nf, adjustedPts)
+				}
 				e.clock.WaitForPTS(adjustedPts)
 			} else {
 				e.clock.SetTime(adjustedPts)
 			}
 
+			if verbose {
+				logging.Info(logging.CatPlayer, "NextFrame #%d: SyncVideo(%.3f) clockNow=%.3f", nf, adjustedPts, e.clock.GetTime())
+			}
 			delay := e.clock.SyncVideo(adjustedPts)
 			if delay < 0 {
+				if verbose {
+					logging.Info(logging.CatPlayer, "NextFrame #%d: frame late (delay=%.3f), dropping", nf, delay)
+				}
 				e.videoCodecMu.Lock() // re-acquire for next avcodec_receive_frame
 				continue
 			}
 
+			if verbose {
+				logging.Info(logging.CatPlayer, "NextFrame #%d: converting frame to RGBA", nf)
+			}
 			var img *image.RGBA
 			if e.hwDevice != HWDeviceNone {
 				var err error
@@ -2012,6 +2076,9 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 				}
 			}
 
+			if verbose {
+				logging.Info(logging.CatPlayer, "NextFrame #%d: returning frame pts=%.3f", nf, pts)
+			}
 			return img, nil
 		}
 		e.videoCodecMu.Unlock()
