@@ -343,8 +343,8 @@ var iu = Strings{
 	UpdateVersionHash:       "ᑐᑭᓯᒪᑎᑦᑎᔪᖅ:",                                                                                          // Version Hash:
 	UpdateChecking:          "ᖃᐅᔨᓴᕐᓂᐊᖅᑐᖅ ᓄᑖᑦ...",                                                                                   // Checking for updates...
 	UpdateError:             "ᑐᓂᓯᔪᓐᓇᓚᐅᖅᓯᒪᙱᑦᑐᖅ ᓄᑖᑦ ᖃᐅᔨᒋᐊᕈᑎᒃᓴᓄᑦ.",                                                                    // Could not reach update server.
-	UpdateAvailableFmt:      "⬤ ᓄᑖᖅ ᑐᓂᔭᐅᔪᓐᓇᖅᑐᖅ: %s (%s)",                                                                           // Update available: %s (%s)
-	UpdateNewBuildAvailable: "⬤ ᓄᑖᖅ ᐱᓕᕆᔾᔪᑕᐅᔪᖅ: %s (%s)",                                                                            // New build available: %s (%s)
+	UpdateAvailableFmt:      "● ᓄᑖᖅ ᑐᓂᔭᐅᔪᓐᓇᖅᑐᖅ: %s (%s)",                                                                           // Update available: %s (%s)
+	UpdateNewBuildAvailable: "● ᓄᑖᖅ ᐱᓕᕆᔾᔪᑕᐅᔪᖅ: %s (%s)",                                                                            // New build available: %s (%s)
 	UpdateUpToDateFmt:       "✓ ᐊᓄᕌᓂᖅᑐᖅ (%s, %s)",                                                                                  // Up to date (latest: %s, %s)
 	UpdateAutoCheck:         "ᐊᐅᓚᑕᐅᑎᑕᐅᓗᒍ ᖃᐅᔨᓴᖅ:",                                                                                   // Auto-check:
 	UpdateDisabled:          "ᐊᑦᑐᐃᓂᖃᖏᑦᑐᖅ",                                                                                          // Disabled
