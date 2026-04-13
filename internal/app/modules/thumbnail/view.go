@@ -33,9 +33,9 @@ type Options struct {
 	ThumbnailSheetWidth     int
 	ThumbnailColumns        int
 	ThumbnailRows           int
-	ThumbnailOutputMode      string
-	ThumbnailContactSheet    bool
-	ThumbnailShowTimestamps  bool
+	ThumbnailOutputMode     string
+	ThumbnailContactSheet   bool
+	ThumbnailShowTimestamps bool
 
 	OnShowMainMenu       func()
 	OnShowQueue          func()
@@ -52,9 +52,9 @@ type Options struct {
 	OnSetThumbnailSheetWidth     func(i int)
 	OnSetThumbnailColumns        func(i int)
 	OnSetThumbnailRows           func(i int)
-	OnSetThumbnailOutputMode      func(mode string)
-	OnSetThumbnailContactSheet    func(b bool)
-	OnSetThumbnailShowTimestamps  func(b bool)
+	OnSetThumbnailOutputMode     func(mode string)
+	OnSetThumbnailContactSheet   func(b bool)
+	OnSetThumbnailShowTimestamps func(b bool)
 
 	OnCreateThumbJob        func()
 	OnCreateThumbJobForPath func(path string)
@@ -75,6 +75,10 @@ type Options struct {
 	ContactSheetGridLabel   string
 	IndividualThumbsLabel   string
 	ThumbnailSizeLabel      string
+	OutputModeLabel         string
+	ModeIndividualLabel     string
+	ModeContactSheetLabel   string
+	ModeBothLabel           string
 	ColumnsFmt              string // "Columns: %d"
 	RowsFmt                 string // "Rows: %d"
 	TotalFmt                string // "Total thumbnails: %d"
@@ -186,24 +190,49 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	clearBtn.Importance = widget.LowImportance
 
-	contactSheetCheck := widget.NewCheck("", func(checked bool) {
-		if opts.OnSetThumbnailContactSheet != nil {
-			opts.OnSetThumbnailContactSheet(checked)
-		}
-		if opts.OnPersistConfig != nil {
-			opts.OnPersistConfig()
-		}
-		if opts.OnShowThumbnailView != nil {
-			opts.OnShowThumbnailView()
-		}
-	})
-	contactSheetCheck.Checked = opts.ThumbnailContactSheet
-	contactSheetLabel := widget.NewLabel(or(opts.ContactSheetToggleLabel, "Generate Contact Sheet (single image)"))
-	contactSheetLabel.Wrapping = fyne.TextWrapWord
-	contactSheetToggle := ui.NewTappable(contactSheetLabel, func() {
-		contactSheetCheck.SetChecked(!contactSheetCheck.Checked)
-	})
-	contactSheetRow := container.NewBorder(nil, nil, contactSheetCheck, nil, contactSheetToggle)
+	outputModeRadio := widget.NewRadioGroup(
+		[]string{
+			or(opts.ModeIndividualLabel, "Individual"),
+			or(opts.ModeContactSheetLabel, "Contact Sheet"),
+			or(opts.ModeBothLabel, "Both"),
+		},
+		func(value string) {
+			switch value {
+			case or(opts.ModeIndividualLabel, "Individual"):
+				if opts.OnSetThumbnailOutputMode != nil {
+					opts.OnSetThumbnailOutputMode("individual")
+				}
+			case or(opts.ModeContactSheetLabel, "Contact Sheet"):
+				if opts.OnSetThumbnailOutputMode != nil {
+					opts.OnSetThumbnailOutputMode("contactSheet")
+				}
+			case or(opts.ModeBothLabel, "Both"):
+				if opts.OnSetThumbnailOutputMode != nil {
+					opts.OnSetThumbnailOutputMode("both")
+				}
+			}
+			if opts.OnPersistConfig != nil {
+				opts.OnPersistConfig()
+			}
+			if opts.OnShowThumbnailView != nil {
+				opts.OnShowThumbnailView()
+			}
+		},
+	)
+	switch opts.ThumbnailOutputMode {
+	case "contactSheet":
+		outputModeRadio.SetSelected(or(opts.ModeContactSheetLabel, "Contact Sheet"))
+	case "both":
+		outputModeRadio.SetSelected(or(opts.ModeBothLabel, "Both"))
+	default:
+		outputModeRadio.SetSelected(or(opts.ModeIndividualLabel, "Individual"))
+	}
+	outputModeRadio.Horizontal = true
+
+	outputModeBox := container.NewVBox(
+		widget.NewLabelWithStyle(or(opts.OutputModeLabel, "Output Mode"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		outputModeRadio,
+	)
 
 	timestampCheck := widget.NewCheck("", func(checked bool) {
 		if opts.OnSetThumbnailShowTimestamps != nil {
@@ -243,7 +272,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 	widthFmt := or(opts.WidthFmt, "Thumbnail Width: %d px")
 
 	var settingsOptions fyne.CanvasObject
-	if opts.ThumbnailContactSheet {
+	showContactSheet := opts.ThumbnailOutputMode == "contactSheet" || opts.ThumbnailOutputMode == "both"
+
+	if showContactSheet {
 		colLabel := widget.NewLabel(fmt.Sprintf(columnsFmt, opts.ThumbnailColumns))
 		rowLabel := widget.NewLabel(fmt.Sprintf(rowsFmt, opts.ThumbnailRows))
 
@@ -442,7 +473,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	if previewWidget != nil {
 		settingsPanelItems = append(settingsPanelItems, previewWidget, widget.NewSeparator())
 	}
-	settingsPanelItems = append(settingsPanelItems, contactSheetRow, timestampRow, widget.NewSeparator(), settingsOptions)
+	settingsPanelItems = append(settingsPanelItems, outputModeBox, timestampRow, widget.NewSeparator(), settingsOptions)
 
 	if len(opts.ThumbnailFiles) > 0 {
 		videoFmt := or(opts.VideoFmt, "Video %d")
