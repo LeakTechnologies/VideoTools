@@ -2045,8 +2045,7 @@ func (e *Engine) GrabFrame(timeout time.Duration) (*image.RGBA, error) {
 			// reference frame) and produce garbage when converted to RGBA.
 			if e.frame.pts == C.AV_NOPTS_VALUE || e.frame.pts < 0 ||
 				e.frame.width <= 0 || e.frame.height <= 0 {
-				logging.Debug(logging.CatPlayer, "GrabFrame: skipping invalid frame pts=%d w=%d h=%d", int64(e.frame.pts), int(e.frame.width), int(e.frame.height))
-				e.videoCodecMu.Lock()
+				logging.Info(logging.CatPlayer, "GrabFrame: skipping invalid frame pts=%d w=%d h=%d", int64(e.frame.pts), int(e.frame.width), int(e.frame.height))
 				continue
 			}
 
@@ -2141,7 +2140,7 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 			// Skip frames with invalid PTS (AV_NOPTS_VALUE or negative).
 			// These are codec artefacts and produce garbage timestamps.
 			if e.frame.pts == C.AV_NOPTS_VALUE || e.frame.pts < 0 {
-				logging.Debug(logging.CatPlayer, "NextFrame: skipping invalid frame pts=%d", int64(e.frame.pts))
+				logging.Info(logging.CatPlayer, "NextFrame: skipping invalid frame pts=%d", int64(e.frame.pts))
 				e.videoCodecMu.Lock()
 				continue
 			}
