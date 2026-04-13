@@ -37,33 +37,83 @@ static AVChapter* getChapter(AVFormatContext *fmtCtx, int index) {
     return fmtCtx->chapters[index];
 }
 
-// vt_get_hw_format is a get_format callback for hardware-accelerated decoding.
-// Without this callback, FFmpeg cannot negotiate the HW pixel format for many
-// codecs (including h264 + D3D11VA), causing avcodec_send_packet to crash on the
-// first packet when it tries to lazily allocate the HW frame pool.
+// vt_get_hw_format is the get_format callback for hardware-accelerated decoding.
+// It is required by D3D11VA and other HW backends: without it FFmpeg cannot
+// negotiate the HW pixel format, and avcodec_send_packet crashes on the first
+// packet.
 //
-// ctx->opaque is expected to hold the desired HW pixel format cast to void*.
-// If the codec offers that format, it is returned so FFmpeg can set up the HW
-// frames context via hw_device_ctx.  Otherwise AV_PIX_FMT_NONE is returned and
-// FFmpeg falls back to its default software format selection.
+// When the target HW format is found, this callback also fully initialises
+// hw_frames_ctx using avcodec_get_hw_frames_parameters (codec-specific
+// constraints) with a fallback to NV12 + a 20-frame pool.  Setting
+// hw_frames_ctx here is the pattern from FFmpeg's hw_decode.c example.
+//
+// ctx->opaque must hold the desired HW pixel format cast to void* (intptr_t).
 static enum AVPixelFormat vt_get_hw_format(AVCodecContext *ctx,
                                             const enum AVPixelFormat *pix_fmts)
 {
     enum AVPixelFormat target = (enum AVPixelFormat)(intptr_t)ctx->opaque;
     const enum AVPixelFormat *p;
+    AVBufferRef *frames_ref;
+    AVHWFramesContext *fc;
+    int w, h;
+
     for (p = pix_fmts; *p != AV_PIX_FMT_NONE; p++) {
-        if (*p == target)
-            return *p;
+        if (*p != target)
+            continue;
+
+        frames_ref = NULL;
+
+        // Try codec-specific constraints first (needs SPS parsed; may return
+        // an error on first call before SPS is available — that is expected).
+        if (avcodec_get_hw_frames_parameters(ctx, ctx->hw_device_ctx,
+                                             target, &frames_ref) < 0
+                || frames_ref == NULL) {
+            // Fall back: build a frames context with safe defaults.
+            frames_ref = av_hwframe_ctx_alloc(ctx->hw_device_ctx);
+            if (!frames_ref)
+                return AV_PIX_FMT_NONE;
+
+            fc            = (AVHWFramesContext *)frames_ref->data;
+            w             = ctx->coded_width  ? ctx->coded_width  : ctx->width;
+            h             = ctx->coded_height ? ctx->coded_height : ctx->height;
+            fc->format            = target;
+            fc->sw_format         = AV_PIX_FMT_NV12;
+            fc->width             = w;
+            fc->height            = h;
+            fc->initial_pool_size = 20;
+        }
+
+        if (av_hwframe_ctx_init(frames_ref) < 0) {
+            av_buffer_unref(&frames_ref);
+            return AV_PIX_FMT_NONE;
+        }
+
+        // Attach the initialised pool to the codec context.
+        av_buffer_unref(&ctx->hw_frames_ctx);
+        ctx->hw_frames_ctx = av_buffer_ref(frames_ref);
+        av_buffer_unref(&frames_ref);
+
+        if (!ctx->hw_frames_ctx)
+            return AV_PIX_FMT_NONE;
+
+        return target;
     }
+
     return AV_PIX_FMT_NONE;
 }
 
-// vt_set_get_format wires the get_format callback and stores the target HW
-// pixel format in ctx->opaque.  CGo cannot assign C function pointers to struct
-// fields directly, so we use a C helper for the assignment.
+// vt_set_get_format wires the get_format callback, stores the target HW pixel
+// format in ctx->opaque, and forces single-threaded decode.  D3D11VA (and
+// other HW backends) do not support frame-level multi-threading: each worker
+// thread gets a copy of the codec context with hw_frames_ctx still NULL,
+// causing a crash in avcodec_send_packet.
+// CGo cannot assign C function pointers to struct fields directly, so we use
+// a C helper for the assignment.
 static void vt_set_get_format(AVCodecContext *ctx, int hw_pix_fmt) {
-    ctx->opaque     = (void*)(intptr_t)hw_pix_fmt;
-    ctx->get_format = vt_get_hw_format;
+    ctx->opaque       = (void*)(intptr_t)hw_pix_fmt;
+    ctx->get_format   = vt_get_hw_format;
+    ctx->thread_count = 1;
+    ctx->thread_type  = 0;
 }
 */
 import "C"
