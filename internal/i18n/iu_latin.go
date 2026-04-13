@@ -344,8 +344,8 @@ var iuLatn = Strings{
 	UpdateVersionHash:       "Tukisimatitijuq:",                                                                                                                                   // Version Hash:
 	UpdateChecking:          "Qaujisarniaqtuq Nutaat...",                                                                                                                          // Checking for updates...
 	UpdateError:             "Tunisijunnailaursimajuq nutaat qaujisarniaqtaunirmut.",                                                                                              // Could not reach update server.
-	UpdateAvailableFmt:      "⬤ Nutaaq Tunijaujannarqtuq: %s (%s)",                                                                                                                // Update available: %s (%s)
-	UpdateNewBuildAvailable: "⬤ Nutaaq Pilirijijautaujuq: %s (%s)",                                                                                                                // New build available: %s (%s)
+	UpdateAvailableFmt:      "● Nutaaq Tunijaujannarqtuq: %s (%s)",                                                                                                                // Update available: %s (%s)
+	UpdateNewBuildAvailable: "● Nutaaq Pilirijijautaujuq: %s (%s)",                                                                                                                // New build available: %s (%s)
 	UpdateUpToDateFmt:       "✓ Anulaaniqtuq (%s, %s)",                                                                                                                            // Up to date (latest: %s, %s)
 	UpdateAutoCheck:         "Aulatautitaulugu Qaujisaq:",                                                                                                                         // Auto-check:
 	UpdateDisabled:          "Attuiniqanngittuq",                                                                                                                                  // Disabled
