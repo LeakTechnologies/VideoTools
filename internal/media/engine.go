@@ -36,6 +36,35 @@ static AVChapter* getChapter(AVFormatContext *fmtCtx, int index) {
     }
     return fmtCtx->chapters[index];
 }
+
+// vt_get_hw_format is a get_format callback for hardware-accelerated decoding.
+// Without this callback, FFmpeg cannot negotiate the HW pixel format for many
+// codecs (including h264 + D3D11VA), causing avcodec_send_packet to crash on the
+// first packet when it tries to lazily allocate the HW frame pool.
+//
+// ctx->opaque is expected to hold the desired HW pixel format cast to void*.
+// If the codec offers that format, it is returned so FFmpeg can set up the HW
+// frames context via hw_device_ctx.  Otherwise AV_PIX_FMT_NONE is returned and
+// FFmpeg falls back to its default software format selection.
+static enum AVPixelFormat vt_get_hw_format(AVCodecContext *ctx,
+                                            const enum AVPixelFormat *pix_fmts)
+{
+    enum AVPixelFormat target = (enum AVPixelFormat)(intptr_t)ctx->opaque;
+    const enum AVPixelFormat *p;
+    for (p = pix_fmts; *p != AV_PIX_FMT_NONE; p++) {
+        if (*p == target)
+            return *p;
+    }
+    return AV_PIX_FMT_NONE;
+}
+
+// vt_set_get_format wires the get_format callback and stores the target HW
+// pixel format in ctx->opaque.  CGo cannot assign C function pointers to struct
+// fields directly, so we use a C helper for the assignment.
+static void vt_set_get_format(AVCodecContext *ctx, int hw_pix_fmt) {
+    ctx->opaque     = (void*)(intptr_t)hw_pix_fmt;
+    ctx->get_format = vt_get_hw_format;
+}
 */
 import "C"
 import (
@@ -244,8 +273,9 @@ func (e *Engine) initHWDecode() error {
 		return fmt.Errorf("failed to create HW device context")
 	}
 
-	// Attach hw_device_ctx; FFmpeg will set up frames context internally at
-	// avcodec_open2 time.  We keep our own ref in e.hwDeviceCtx for cleanup.
+	// Attach hw_device_ctx; FFmpeg will use it to set up the HW frames context
+	// once get_format selects the HW pixel format.
+	// We keep our own ref in e.hwDeviceCtx for cleanup.
 	e.videoCodecCtx.hw_device_ctx = C.av_buffer_ref(devCtxRef)
 	if e.videoCodecCtx.hw_device_ctx == nil {
 		C.av_buffer_unref(&devCtxRef)
@@ -253,7 +283,17 @@ func (e *Engine) initHWDecode() error {
 	}
 	e.hwDeviceCtx = devCtxRef
 
-	logging.Info(logging.CatPlayer, "HW decode enabled: %v", e.hwDevice)
+	// Set get_format callback so FFmpeg can properly negotiate the HW pixel
+	// format at decode time.  Without this, FFmpeg's internal avcodec_send_packet
+	// path crashes on the first packet when it tries to lazily allocate the HW
+	// frame pool against an un-negotiated format (observed with H.264 + D3D11VA).
+	//
+	// vt_set_get_format is a C helper because CGo cannot assign C function
+	// pointers to struct fields from Go code directly.
+	hwFmt := e.getHWPixelFormat(hwType)
+	C.vt_set_get_format(e.videoCodecCtx, C.int(hwFmt))
+
+	logging.Info(logging.CatPlayer, "HW decode enabled: %v (hwFmt=%d)", e.hwDevice, int(hwFmt))
 	return nil
 }
 
