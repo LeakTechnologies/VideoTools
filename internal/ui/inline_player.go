@@ -142,20 +142,10 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	v.player.SetDuration(duration)
 
 	// Start the demuxer so packets begin flowing, then seek to the start.
-	// We use GrabFrame instead of NextFrame for the initial preview because
-	// NextFrame does PTS synchronisation that can deadlock or drop all frames
-	// when the audio clock races ahead of the first video PTS after a seek.
+	// Skip GrabFrame for initial preview - it can crash on some videos.
+	// Playback will deliver frames via the scrubber instead.
 	v.engine.Start()
 	_ = v.engine.Seek(0)
-	if img, err := v.engine.GrabFrame(8 * time.Second); err == nil {
-		// Use blocking dispatch so the frame is committed before the caller
-		// rebuilds the view around this widget.
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			v.player.SetFrame(img)
-		}, true)
-	} else {
-		logging.Warning(logging.CatPlayer, "InlineVideoPlayer: first-frame fetch failed: %v", err)
-	}
 	v.engine.Pause()
 
 	v.scrubber = media.NewSmoothScrubbing(v.engine)
