@@ -569,6 +569,7 @@ type Engine struct {
 	audioCodecCtx     *C.AVCodecContext
 	subtitleCodecCtx  *C.AVCodecContext
 	swsCtx            *C.struct_SwsContext
+	swsFmt            C.enum_AVPixelFormat
 
 	// hwDeviceCtx and hwFramesCtx are AVBufferRef wrappers — the standard
 	// FFmpeg ownership model.  av_hwdevice_ctx_create writes to *AVBufferRef
@@ -1641,16 +1642,12 @@ func (e *Engine) Open(path string) error {
 		return fmt.Errorf("failed to allocate frame")
 	}
 
-	e.swsCtx = C.sws_getContext(
-		e.videoCodecCtx.width, e.videoCodecCtx.height, e.videoCodecCtx.pix_fmt,
-		e.videoCodecCtx.width, e.videoCodecCtx.height, C.AV_PIX_FMT_RGBA,
-		C.SWS_BICUBIC|C.SWS_ACCURATE_RND, nil, nil, nil,
-	)
-
-	if e.swsCtx == nil {
-		e.Close()
-		return fmt.Errorf("failed to create sws context")
-	}
+	// Lazy swsCtx creation: defer until we know the actual pixel format.
+	// For HW decode (D3D11VA), videoCodecCtx.pix_fmt is still NONE at open
+	// time and only gets set after the first avcodec_receive_frame. Creating
+	// swsCtx here with format NONE would produce an invalid context that
+	// crashes sws_scale. Instead, create it lazily on first frame decode
+	// using the actual frame format (e.frame.format).
 
 	e.rgbaFrame = C.av_frame_alloc()
 	numBytes := C.av_image_get_buffer_size(C.AV_PIX_FMT_RGBA, e.videoCodecCtx.width, e.videoCodecCtx.height, 1)
@@ -2286,6 +2283,33 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	return img, nil
 }
 
+// ensureSwsCtx lazily creates e.swsCtx using the actual pixel format of the
+// currently decoded frame. When HW decode is active, videoCodecCtx.pix_fmt is
+// NONE at Open time, so we can't create swsCtx until we see a real frame.
+func (e *Engine) ensureSwsCtx(fmt C.enum_AVPixelFormat) {
+	if e.swsCtx != nil && e.swsFmt == fmt {
+		return
+	}
+	if e.swsCtx != nil {
+		C.sws_freeContext(e.swsCtx)
+		e.swsCtx = nil
+	}
+	w := e.videoCodecCtx.width
+	h := e.videoCodecCtx.height
+	e.swsCtx = C.sws_getContext(
+		w, h, fmt,
+		w, h, C.AV_PIX_FMT_RGBA,
+		C.SWS_BICUBIC|C.SWS_ACCURATE_RND, nil, nil, nil,
+	)
+	if e.swsCtx != nil {
+		e.swsFmt = fmt
+		logging.Info(logging.CatPlayer, "ensureSwsCtx: created swsCtx for fmt=%d", int(fmt))
+	} else {
+		logging.Warning(logging.CatPlayer, "ensureSwsCtx: sws_getContext failed for fmt=%d", int(fmt))
+		e.swsFmt = 0
+	}
+}
+
 func (e *Engine) toRGBA() (img *image.RGBA) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2473,6 +2497,7 @@ func (e *Engine) Close() {
 	if e.swsCtx != nil {
 		C.sws_freeContext(e.swsCtx)
 		e.swsCtx = nil
+		e.swsFmt = 0
 	}
 	if e.videoCodecCtx != nil {
 		if e.videoCodecCtx.hw_frames_ctx != nil {
