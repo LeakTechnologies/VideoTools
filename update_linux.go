@@ -4,37 +4,56 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"os"
-	"syscall"
+	"os/exec"
+	"path/filepath"
 )
 
 // performRestart replaces currentExePath with newBinaryPath then re-executes the process.
+// On Linux we use a helper script to handle the replace asynchronously.
 func performRestart(newBinaryPath, currentExePath string) error {
 	if err := os.Chmod(newBinaryPath, 0755); err != nil {
 		return fmt.Errorf("chmod: %w", err)
 	}
-	if err := os.Rename(newBinaryPath, currentExePath); err != nil {
-		// Cross-device rename (e.g. /tmp → /home); fall back to copy.
-		if cpErr := copyUpdateFile(newBinaryPath, currentExePath); cpErr != nil {
-			return fmt.Errorf("replace binary: %w", err)
-		}
-		os.Remove(newBinaryPath)
-	}
-	return syscall.Exec(currentExePath, os.Args, os.Environ())
-}
 
-func copyUpdateFile(src, dst string) error {
-	in, err := os.Open(src)
+	absCurrent, err := filepath.Abs(currentExePath)
 	if err != nil {
-		return err
+		absCurrent = currentExePath
 	}
-	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
+	absNew, err := filepath.Abs(newBinaryPath)
 	if err != nil {
-		return err
+		absNew = newBinaryPath
 	}
-	defer out.Close()
-	_, err = io.Copy(out, in)
-	return err
+
+	script := fmt.Sprintf(`#!/bin/bash
+src='%s'
+dst='%s'
+ok=false
+for i in $(seq 1 60); do
+	sleep 0.5
+	if cp -f "$src" "$dst" 2>/dev/null; then
+		ok=true
+		break
+	fi
+done
+rm -f "$src"
+if $ok; then
+	exec "$dst"
+fi
+`, absNew, absCurrent)
+
+	scriptPath := absNew + ".update_helper"
+	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
+		return fmt.Errorf("write helper: %w", err)
+	}
+
+	cmd := exec.Command(scriptPath)
+	cmd.Stdin = nil
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("launch updater: %w", err)
+	}
+	os.Exit(0)
+	return nil
 }
