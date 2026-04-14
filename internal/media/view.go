@@ -445,6 +445,7 @@ func (v *VideoPlayer) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (v *VideoPlayer) SetFrame(img *image.RGBA) {
+	logging.Debug(logging.CatPlayer, "SetFrame called: img=%v", img != nil)
 	v.source = img
 	if img == nil {
 		return
@@ -1290,8 +1291,8 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 // ---- SMPTE 75% colour bars idle state ----
 
 var (
-	smpteVCRFontData  []byte
-	smpteParsedFont   *opentype.Font
+	smpteVCRFontData   []byte
+	smpteParsedFont    *opentype.Font
 	smpteFontParseOnce sync.Once
 
 	// last-used face cache — avoids re-creating the face on every idle repaint
