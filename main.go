@@ -13431,11 +13431,6 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		// Frame counter label
 		frameLabel := widget.NewLabel("Frame: 0")
 		frameLabel.TextStyle = fyne.TextStyle{Monospace: true}
-		updateFrame := func(frameNum int) {
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				frameLabel.SetText(fmt.Sprintf("Frame: %d", frameNum))
-			}, false)
-		}
 
 		var volIcon *widget.Button
 		var updatingVolume bool
