@@ -89,7 +89,14 @@ func (v *InlineVideoPlayer) SetIdleText(text string) {
 	v.player.SetIdleText(text)
 }
 
-func (v *InlineVideoPlayer) Load(path string) error {
+func (v *InlineVideoPlayer) Load(path string) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error(logging.CatPlayer, "Load panic: %v", r)
+			err = fmt.Errorf("Load panic: %v", r)
+		}
+	}()
+
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
