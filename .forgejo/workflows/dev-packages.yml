@@ -157,6 +157,7 @@ jobs:
             --disable-doc --disable-programs --disable-debug \
             --enable-gpl --enable-version3 --enable-avfilter \
             --enable-libx264 --enable-libx265 \
+            --disable-d3d11va --disable-dxva2 --disable-vaapi --disable-vdpau --disable-omx --disable-mmal --disable-nvdec --disable-nvenc \
             --extra-cflags="-I/opt/ffmpeg-static/include" \
             --extra-ldflags="-L/opt/ffmpeg-static/lib" \
             || { echo "=== config.log (last 80 lines) ==="; tail -80 ffbuild/config.log; exit 1; }
