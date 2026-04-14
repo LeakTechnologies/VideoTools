@@ -2007,7 +2007,15 @@ func (e *Engine) Step(frames int) (*image.RGBA, error) {
 // the engine may be paused and the audio clock may not yet be stable.
 //
 // A timeout prevents hanging on files where the demuxer or codec stalls.
-func (e *Engine) GrabFrame(timeout time.Duration) (*image.RGBA, error) {
+func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr error) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error(logging.CatPlayer, "GrabFrame panic: %v", r)
+			retImg = nil
+			retErr = fmt.Errorf("GrabFrame panic: %v", r)
+		}
+	}()
+
 	deadline := time.Now().Add(timeout)
 	logging.Info(logging.CatPlayer, "GrabFrame: waiting for first video frame (timeout=%v, hwDevice=%v)", timeout, e.hwDevice)
 
@@ -2255,7 +2263,14 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	return img, nil
 }
 
-func (e *Engine) toRGBA() *image.RGBA {
+func (e *Engine) toRGBA() (img *image.RGBA) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error(logging.CatPlayer, "toRGBA panic: %v", r)
+			img = nil
+		}
+	}()
+
 	C.sws_scale(
 		e.swsCtx,
 		&e.frame.data[0], &e.frame.linesize[0],
