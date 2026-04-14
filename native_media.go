@@ -15,6 +15,7 @@ var inspectInlinePlayer *ui.InlineVideoPlayer
 var subtitleInlinePlayer *ui.InlineVideoPlayer
 
 func init() {
+	logging.Info(logging.CatSystem, "INIT: native_media build tag IS active - using InlineVideoPlayer")
 	convertInlinePlayer = ui.NewInlineVideoPlayer()
 	trimInlinePlayer = ui.NewInlineVideoPlayer()
 	inspectInlinePlayer = ui.NewInlineVideoPlayer()
