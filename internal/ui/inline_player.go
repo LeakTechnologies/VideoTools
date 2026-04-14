@@ -151,6 +151,7 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 
 	v.scrubber = media.NewSmoothScrubbing(v.engine)
 	v.scrubber.SetOnFrame(func(img *image.RGBA) {
+		logging.Info(logging.CatPlayer, "scrubber OnFrame callback: img=%v", img != nil)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetFrame(img)
 		}, false)
