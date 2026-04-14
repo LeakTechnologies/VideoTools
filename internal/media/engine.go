@@ -588,6 +588,9 @@ type Engine struct {
 	rgbaFrame  *C.AVFrame
 	rgbaBuffer []byte
 
+	hwRgbaFrame  *C.AVFrame
+	hwRgbaBuffer []byte
+
 	framePool [][]byte
 
 	videoTimeBase    float64
@@ -2226,24 +2229,19 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	}
 	defer C.av_frame_free(&swFrame)
 
-	// av_hwframe_transfer_data downloads the HW surface to CPU.
-	// Passing a plain av_frame_alloc() frame (no hw_frames_ctx) causes FFmpeg
-	// to allocate CPU pixel buffers automatically and set swFrame.format to the
-	// actual SW format (NV12 for D3D11VA, YUV420P for VAAPI, etc.).
 	if C.av_hwframe_transfer_data(swFrame, e.frame, 0) != 0 {
+		logging.Warning(logging.CatPlayer, "retrieveHWFrame: av_hwframe_transfer_data failed")
 		return nil, fmt.Errorf("failed to transfer HW frame to SW")
 	}
 
-	// Use a temporary sws context matched to swFrame.format rather than
-	// rebuilding e.swsCtx in place.  Modifying e.swsCtx here would corrupt the
-	// next software-decoded frame (e.g. after a seek or codec reset) which may
-	// be in YUV420P while e.swsCtx would now be configured for NV12.
 	swFmt := C.enum_AVPixelFormat(swFrame.format)
-	w := swFrame.width
-	h := swFrame.height
+	w := int(swFrame.width)
+	h := int(swFrame.height)
+	logging.Debug(logging.CatPlayer, "retrieveHWFrame: swFmt=%d w=%d h=%d linesize=%d", int(swFmt), w, h, int(swFrame.linesize[0]))
+
 	hwSwsCtx := C.sws_getContext(
-		w, h, swFmt,
-		w, h, C.AV_PIX_FMT_RGBA,
+		swFrame.width, swFrame.height, swFmt,
+		swFrame.width, swFrame.height, C.AV_PIX_FMT_RGBA,
 		C.SWS_BILINEAR, nil, nil, nil,
 	)
 	if hwSwsCtx == nil {
@@ -2251,15 +2249,31 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	}
 	defer C.sws_freeContext(hwSwsCtx)
 
+	// Use dedicated HW conversion buffers to avoid racing with toRGBA()
+	// which uses e.rgbaFrame/e.rgbaBuffer under videoCodecMu.
+	needSize := w * h * 4
+	if len(e.hwRgbaBuffer) < needSize || e.hwRgbaFrame == nil {
+		if e.hwRgbaFrame != nil {
+			C.av_frame_free(&e.hwRgbaFrame)
+		}
+		e.hwRgbaFrame = C.av_frame_alloc()
+		e.hwRgbaBuffer = make([]byte, needSize)
+		C.av_image_fill_arrays(
+			&e.hwRgbaFrame.data[0], &e.hwRgbaFrame.linesize[0],
+			(*C.uint8_t)(unsafe.Pointer(&e.hwRgbaBuffer[0])), C.AV_PIX_FMT_RGBA,
+			C.int(w), C.int(h), 1,
+		)
+	}
+
 	C.sws_scale(
 		hwSwsCtx,
 		&swFrame.data[0], &swFrame.linesize[0],
-		0, h,
-		&e.rgbaFrame.data[0], &e.rgbaFrame.linesize[0],
+		0, swFrame.height,
+		&e.hwRgbaFrame.data[0], &e.hwRgbaFrame.linesize[0],
 	)
 
-	img := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
-	copy(img.Pix, e.rgbaBuffer)
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	copy(img.Pix, e.hwRgbaBuffer)
 	return img, nil
 }
 
@@ -2488,6 +2502,10 @@ func (e *Engine) Close() {
 	if e.rgbaFrame != nil {
 		C.av_frame_free(&e.rgbaFrame)
 		e.rgbaFrame = nil
+	}
+	if e.hwRgbaFrame != nil {
+		C.av_frame_free(&e.hwRgbaFrame)
+		e.hwRgbaFrame = nil
 	}
 
 	logging.Info(logging.CatPlayer, "Engine closed")
