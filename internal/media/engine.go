@@ -2061,26 +2061,26 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 			}
 
 			pts := float64(e.frame.pts) * e.videoTimeBase
-			e.videoCodecMu.Unlock()
 			logging.Info(logging.CatPlayer, "GrabFrame: got frame pts=%.3f hw_frames_ctx=%v", pts, e.frame.hw_frames_ctx != nil)
 
+			var img *image.RGBA
 			if e.hwDevice != HWDeviceNone {
-				img, err := e.retrieveHWFrame()
+				var err error
+				img, err = e.retrieveHWFrame()
 				if err != nil {
 					logging.Warning(logging.CatPlayer, "GrabFrame: HW retrieve failed (%v)", err)
 					if e.frame.hw_frames_ctx != nil {
-						// True HW frame — cannot safely call toRGBA() on GPU texture memory.
-						// Re-acquire lock and try the next packet.
 						logging.Info(logging.CatPlayer, "GrabFrame: frame is HW, cannot SW fallback — skipping")
 						e.videoCodecMu.Lock()
-						break
+						continue
 					}
-					// hw_frames_ctx is nil: codec produced a SW frame despite hwDevice being set.
 					img = e.toRGBA()
 				}
-				return img, nil
+			} else {
+				img = e.toRGBA()
 			}
-			return e.toRGBA(), nil
+			e.videoCodecMu.Unlock()
+			return img, nil
 		}
 		e.videoCodecMu.Unlock()
 	}
@@ -2144,21 +2144,43 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 			logging.Info(logging.CatPlayer, "NextFrame #%d: avcodec_send_packet OK, entering receive loop", nf)
 		}
 		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
-			pts := float64(e.frame.pts) * e.videoTimeBase
-			e.videoCodecMu.Unlock() // release before any blocking / rendering work
 			e.videoDecoded = true
 
 			// Skip frames with invalid PTS (AV_NOPTS_VALUE or negative).
 			// These are codec artefacts and produce garbage timestamps.
 			if e.frame.pts == C.AV_NOPTS_VALUE || e.frame.pts < 0 {
 				logging.Info(logging.CatPlayer, "NextFrame: skipping invalid frame pts=%d", int64(e.frame.pts))
-				e.videoCodecMu.Lock()
 				continue
 			}
+
+			pts := float64(e.frame.pts) * e.videoTimeBase
 
 			if verbose {
 				logging.Info(logging.CatPlayer, "NextFrame #%d: got frame pts=%.3f hw_frames_ctx=%v", nf, pts, e.frame.hw_frames_ctx != nil)
 			}
+
+			// Convert the frame to RGBA while still holding the codec lock.
+			// e.frame is a shared buffer owned by videoCodecCtx and can be
+			// overwritten by the next avcodec_receive_frame call, so all
+			// reads from it must happen under videoCodecMu.
+			var img *image.RGBA
+			if e.hwDevice != HWDeviceNone {
+				var err error
+				img, err = e.retrieveHWFrame()
+				if err != nil {
+					logging.Warning(logging.CatPlayer, "HW frame retrieve failed: %v", err)
+					if e.frame.hw_frames_ctx != nil {
+						continue
+					}
+					img = e.toRGBA()
+				}
+			} else {
+				img = e.toRGBA()
+			}
+
+			// Now that we have our own copy of the frame data, we can
+			// release the codec lock for PTS sync and frame display.
+			e.videoCodecMu.Unlock()
 
 			if hasAudio {
 				if verbose {
@@ -2179,27 +2201,6 @@ func (e *Engine) NextFrame() (*image.RGBA, error) {
 				}
 				e.videoCodecMu.Lock() // re-acquire for next avcodec_receive_frame
 				continue
-			}
-
-			if verbose {
-				logging.Info(logging.CatPlayer, "NextFrame #%d: converting frame to RGBA", nf)
-			}
-			var img *image.RGBA
-			if e.hwDevice != HWDeviceNone {
-				var err error
-				img, err = e.retrieveHWFrame()
-				if err != nil {
-					logging.Warning(logging.CatPlayer, "HW frame retrieve failed: %v", err)
-					if e.frame.hw_frames_ctx != nil {
-						// True HW frame — reading GPU texture memory as CPU would crash.
-						// Skip this frame and try the next one.
-						e.videoCodecMu.Lock()
-						continue
-					}
-					img = e.toRGBA()
-				}
-			} else {
-				img = e.toRGBA()
 			}
 
 			if e.subtitleCodecCtx != nil {
@@ -2229,6 +2230,9 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	}
 	defer C.av_frame_free(&swFrame)
 
+	// Transfer HW surface to CPU memory. This must happen while videoCodecMu
+	// is held because e.frame (the HW frame) is owned by the codec context
+	// and can be overwritten by the next avcodec_receive_frame call.
 	if C.av_hwframe_transfer_data(swFrame, e.frame, 0) != 0 {
 		logging.Warning(logging.CatPlayer, "retrieveHWFrame: av_hwframe_transfer_data failed")
 		return nil, fmt.Errorf("failed to transfer HW frame to SW")
@@ -2237,7 +2241,6 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	swFmt := C.enum_AVPixelFormat(swFrame.format)
 	w := int(swFrame.width)
 	h := int(swFrame.height)
-	logging.Debug(logging.CatPlayer, "retrieveHWFrame: swFmt=%d w=%d h=%d linesize=%d", int(swFmt), w, h, int(swFrame.linesize[0]))
 
 	hwSwsCtx := C.sws_getContext(
 		swFrame.width, swFrame.height, swFmt,
@@ -2249,20 +2252,21 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	}
 	defer C.sws_freeContext(hwSwsCtx)
 
-	// Use dedicated HW conversion buffers to avoid racing with toRGBA()
-	// which uses e.rgbaFrame/e.rgbaBuffer under videoCodecMu.
-	needSize := w * h * 4
-	if len(e.hwRgbaBuffer) < needSize || e.hwRgbaFrame == nil {
+	rowStride := C.int(w * 4)
+	bufSize := w * h * 4
+	if len(e.hwRgbaBuffer) < bufSize || e.hwRgbaFrame == nil {
 		if e.hwRgbaFrame != nil {
 			C.av_frame_free(&e.hwRgbaFrame)
 		}
 		e.hwRgbaFrame = C.av_frame_alloc()
-		e.hwRgbaBuffer = make([]byte, needSize)
+		e.hwRgbaBuffer = make([]byte, bufSize)
 		C.av_image_fill_arrays(
 			&e.hwRgbaFrame.data[0], &e.hwRgbaFrame.linesize[0],
 			(*C.uint8_t)(unsafe.Pointer(&e.hwRgbaBuffer[0])), C.AV_PIX_FMT_RGBA,
 			C.int(w), C.int(h), 1,
 		)
+		// Ensure linesize matches our stride expectation
+		e.hwRgbaFrame.linesize[0] = rowStride
 	}
 
 	C.sws_scale(
@@ -2273,7 +2277,12 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	)
 
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
-	copy(img.Pix, e.hwRgbaBuffer)
+	srcStride := int(e.hwRgbaFrame.linesize[0])
+	for y := 0; y < h; y++ {
+		src := e.hwRgbaBuffer[y*srcStride : y*srcStride+w*4]
+		dst := img.Pix[y*img.Stride : y*img.Stride+w*4]
+		copy(dst, src)
+	}
 	return img, nil
 }
 
