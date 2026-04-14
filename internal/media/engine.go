@@ -2281,7 +2281,6 @@ func (e *Engine) toRGBA() (img *image.RGBA) {
 	w, h := int(e.videoCodecCtx.width), int(e.videoCodecCtx.height)
 
 	e.mu.Lock()
-	var img *image.RGBA
 	if len(e.framePool) > 0 {
 		buf := e.framePool[len(e.framePool)-1]
 		e.framePool = e.framePool[:len(e.framePool)-1]
