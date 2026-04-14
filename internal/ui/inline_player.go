@@ -8,6 +8,7 @@ import (
 	"image"
 	"io"
 	"sync"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -141,10 +142,16 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	v.player.SetDuration(duration)
 
 	// Start the demuxer so packets begin flowing, then seek to the start.
-	// Skip GrabFrame for initial preview - it can crash on some videos.
-	// Playback will deliver frames via the scrubber instead.
+	// Get the first frame for immediate display.
 	v.engine.Start()
-	_ = v.engine.Seek(0)
+	if img, err := v.engine.GrabFrame(4 * time.Second); err == nil {
+		logging.Info(logging.CatPlayer, "Got initial frame: %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			v.player.SetFrame(img)
+		}, true)
+	} else {
+		logging.Warning(logging.CatPlayer, "Initial frame fetch failed: %v", err)
+	}
 	v.engine.Pause()
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: load completed, engine ready")
