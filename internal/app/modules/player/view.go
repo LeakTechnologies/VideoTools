@@ -33,8 +33,8 @@ type Options struct {
 	OnProbeVideo             func(path string) (interface{}, error)
 	OnBuildVideoPane         func(state interface{}, size fyne.Size, src interface{}, onSeek func(float64)) fyne.CanvasObject
 	OnGetPlayerFooter        func(content fyne.CanvasObject) fyne.CanvasObject
-	OnLoadVideo              func(path string)        // Load video into player engine
-	OnPlayerFileLoaded       func(src interface{})   // Called after probe succeeds so the host can persist the file reference
+	OnLoadVideo              func(path string)     // Load video into player engine
+	OnPlayerFileLoaded       func(src interface{}) // Called after probe succeeds so the host can persist the file reference
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
@@ -160,16 +160,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		)
 	}
 
-	// No video loaded — show a centered prompt.
-	instructions := widget.NewLabel(t.PlayerInstructions)
-	instructions.Wrapping = fyne.TextWrapWord
-	instructions.Alignment = fyne.TextAlignCenter
+	// No video loaded — still use native player widget (shows SMPTE bars)
+	var videoPane fyne.CanvasObject
+	if opts.OnBuildVideoPane != nil {
+		videoPane = opts.OnBuildVideoPane(nil, fyne.NewSize(0, 0), opts.PlayerFile, nil)
+	}
+	if videoPane == nil {
+		videoPane = container.NewCenter(widget.NewLabel(t.LabelNoVideoLoaded))
+	}
 
-	emptyState := container.NewCenter(container.NewVBox(
-		instructions,
-		widget.NewSeparator(),
-		container.NewCenter(loadBtn),
-	))
-
-	return container.NewBorder(topBar, bottomBar, nil, nil, emptyState)
+	return container.NewBorder(topBar, bottomBar, nil, nil, videoPane)
 }
