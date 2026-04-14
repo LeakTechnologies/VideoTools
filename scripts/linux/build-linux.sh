@@ -80,33 +80,12 @@ else
 fi
 echo ""
 
-echo "Checking for GStreamer (required for player)..."
-# GStreamer is now mandatory - verify it's installed
+echo "Checking build prerequisites..."
 if ! command -v pkg-config &> /dev/null; then
     echo "ERROR: pkg-config not found. Install pkg-config to build VideoTools."
     exit 1
 fi
-if ! pkg-config --exists gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0; then
-    echo "ERROR: GStreamer development libraries not found."
-    echo "Please run: ./scripts/linux/install.sh"
-    echo "Or install manually:"
-    echo "  Ubuntu/Debian: sudo apt-get install libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base"
-    echo "  Fedora:       sudo dnf install gstreamer1-devel gstreamer1-plugins-base-devel"
-    echo "  Arch:        sudo pacman -S gstreamer gst-plugins-base"
-    exit 1
-fi
-echo "GStreamer found ($(pkg-config --modversion gstreamer-1.0))"
-echo ""
 
-# Check if GStreamer should be used (optional)
-GSTREAMER_TAG=""
-if pkg-config --exists gstreamer-1.0 gstreamer-app-1.0 gstreamer-video-1.0 2>/dev/null; then
-    echo "Building VideoTools with GStreamer player..."
-    GSTREAMER_TAG="-tags gstreamer"
-else
-    echo "Building VideoTools with fallback players (MPV/FFplay/VLC)..."
-    echo "Note: Install GStreamer for native player: sudo apt-get install libgstreamer1.0-dev"
-fi
 # Build timer
 build_start=$(date +%s)
 # Fyne needs cgo for GLFW/OpenGL bindings; build with CGO enabled.
@@ -122,7 +101,7 @@ LDFLAGS=""
 if [ -n "$GIT_COMMIT" ]; then
     LDFLAGS="-X main.buildCommit=$GIT_COMMIT"
 fi
-if go build -tags native_media $GSTREAMER_TAG -ldflags="$LDFLAGS" -o "$BUILD_OUTPUT" .; then
+if go build -tags native_media -ldflags="$LDFLAGS" -o "$BUILD_OUTPUT" .; then
     build_end=$(date +%s)
     build_secs=$((build_end - build_start))
     echo "Build successful! (VideoTools $FULL_VERSION)"

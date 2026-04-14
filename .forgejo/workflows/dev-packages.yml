@@ -88,8 +88,6 @@ jobs:
             libxi-dev \
             libxxf86vm-dev \
             libasound2-dev \
-            libgstreamer1.0-dev \
-            libgstreamer-plugins-base1.0-dev \
             tesseract-ocr \
             tesseract-ocr-eng \
             tesseract-ocr-fra \
