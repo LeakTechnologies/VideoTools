@@ -13416,30 +13416,17 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		// Frame counter label
 		frameLabel := widget.NewLabel("Frame: 0")
 		frameLabel.TextStyle = fyne.TextStyle{Monospace: true}
-		updateFrame := func(frameNum int) {
-			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-				frameLabel.SetText(fmt.Sprintf("Frame: %d", frameNum))
-			}, false)
-		}
 
 		var volIcon *widget.Button
 		var updatingVolume bool
 		ensureSession := func() bool {
-			if HasNativeMediaPlayer() {
-				return true
+			if !HasNativeMediaPlayer() {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowInformation(t.DialogPlayback, "Native media player not available.\n\nPlease report this issue.", state.window)
+				}, false)
+				return false
 			}
-			if state.playSess == nil {
-				state.playSess = newPlaySession(src.Path, src.Width, src.Height, src.FrameRate, src.Duration, int(targetWidth-28), int(targetHeight-40), updateProgress, updateFrame, img)
-				if state.playSess == nil {
-					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						dialog.ShowInformation(t.DialogPlayback, "Embedded video playback requires GStreamer to be installed correctly.\n\nPlease either:\n1. Install/fix GStreamer on your system\n2. Use the Preview slider for frame-by-frame preview\n3. Use an external player (mpv, VLC, or ffplay)", state.window)
-					}, false)
-					return false
-				}
-				state.playSess.SetVolume(state.playerVolume)
-				state.playerPaused = true
-			}
-			return state.playSess != nil
+			return true
 		}
 
 		// Immediate seeking for responsive playback
@@ -13453,7 +13440,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				return
 			}
 			if ensureSession() {
-				state.playSess.Seek(val)
+				state.seekNative(val)
 			}
 		}
 		updateVolIcon := func() {
@@ -13478,12 +13465,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				}
 				state.playerVolume = target
 				state.playerMuted = false
-				state.playSess.SetVolume(target)
+				state.setVolumeNative(target)
 			} else {
 				state.lastVolume = state.playerVolume
 				state.playerVolume = 0
 				state.playerMuted = true
-				state.playSess.SetVolume(0)
+				state.setVolumeNative(0)
 			}
 			updateVolIcon()
 		})
@@ -13502,7 +13489,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 				state.playerMuted = true
 			}
 			if ensureSession() {
-				state.playSess.SetVolume(val)
+				state.setVolumeNative(val)
 			}
 			updateVolIcon()
 		}
@@ -13510,28 +13497,12 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		volSlider.Refresh()
 		var playBtn *widget.Button
 		playBtn = widget.NewButtonWithIcon("", ui.GetIcon("play_arrow"), func() {
-			if HasNativeMediaPlayer() {
-				if state.playerPaused {
-					state.playNative()
-					state.playerPaused = false
-					playBtn.Icon = ui.GetIcon("pause")
-				} else {
-					state.pauseNative()
-					state.playerPaused = true
-					playBtn.Icon = ui.GetIcon("play_arrow")
-				}
-				playBtn.Refresh()
-				return
-			}
-			if !ensureSession() {
-				return
-			}
 			if state.playerPaused {
-				state.playSess.Play()
+				state.playNative()
 				state.playerPaused = false
 				playBtn.Icon = ui.GetIcon("pause")
 			} else {
-				state.playSess.Pause()
+				state.pauseNative()
 				state.playerPaused = true
 				playBtn.Icon = ui.GetIcon("play_arrow")
 			}
@@ -13541,27 +13512,11 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 
 		// Frame stepping buttons
 		prevFrameBtn := widget.NewButtonWithIcon("", ui.GetIcon("skip_previous"), func() {
-			if HasNativeMediaPlayer() {
-				state.stepFrameNative(-1)
-				return
-			}
-			if !ensureSession() {
-				return
-			}
-			state.playerPaused = true
-			state.playSess.StepFrame(-1)
+			state.stepFrameNative(-1)
 		})
 		prevFrameBtn.Importance = widget.LowImportance
 		nextFrameBtn := widget.NewButtonWithIcon("", ui.GetIcon("skip_next"), func() {
-			if HasNativeMediaPlayer() {
-				state.stepFrameNative(1)
-				return
-			}
-			if !ensureSession() {
-				return
-			}
-			state.playerPaused = true
-			state.playSess.StepFrame(1)
+			state.stepFrameNative(1)
 		})
 		nextFrameBtn.Importance = widget.LowImportance
 
@@ -13573,25 +13528,11 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 		})
 		// ±10s skip buttons
 		replay10Btn := widget.NewButtonWithIcon("", ui.GetIcon("replay_10"), func() {
-			if HasNativeMediaPlayer() {
-				state.seekNative(math.Max(0, slider.Value-10))
-				return
-			}
-			if !ensureSession() {
-				return
-			}
-			state.playSess.Seek(math.Max(0, slider.Value-10))
+			state.seekNative(math.Max(0, slider.Value-10))
 		})
 		replay10Btn.Importance = widget.LowImportance
 		forward10Btn := widget.NewButtonWithIcon("", ui.GetIcon("forward_10"), func() {
-			if HasNativeMediaPlayer() {
-				state.seekNative(math.Min(src.Duration, slider.Value+10))
-				return
-			}
-			if !ensureSession() {
-				return
-			}
-			state.playSess.Seek(math.Min(src.Duration, slider.Value+10))
+			state.seekNative(math.Min(src.Duration, slider.Value+10))
 		})
 		forward10Btn.Importance = widget.LowImportance
 
