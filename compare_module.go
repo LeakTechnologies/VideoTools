@@ -77,7 +77,7 @@ func buildCompareView(state *appState) fyne.CanvasObject {
 				ms := &videoSource{Path: vs.Path, Width: vs.Width, Height: vs.Height, FrameRate: vs.FrameRate, Duration: vs.Duration}
 				return buildVideoPane(state, size, ms, nil)
 			}
-			return nil
+			return buildVideoPane(state, size, nil, nil)
 		},
 	})
 	// Window-level SetOnDropped is unreliable when a view is active; wrap the
@@ -99,7 +99,7 @@ func buildCompareFullscreenView(state *appState) fyne.CanvasObject {
 				ms := &videoSource{Path: vs.Path, Width: vs.Width, Height: vs.Height, FrameRate: vs.FrameRate, Duration: vs.Duration}
 				return buildVideoPane(state, size, ms, nil)
 			}
-			return nil
+			return buildVideoPane(state, size, nil, nil)
 		},
 	})
 	return ui.NewDroppable(content, func(items []fyne.URI) {

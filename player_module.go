@@ -51,10 +51,12 @@ func buildPlayerView(state *appState) fyne.CanvasObject {
 		OnStopPlayer:             state.stopPlayer,
 		OnProbeVideo:             func(path string) (interface{}, error) { return probeVideo(path) },
 		OnBuildVideoPane: func(_ interface{}, size fyne.Size, src interface{}, _ func(float64)) fyne.CanvasObject {
-			if vs, ok := src.(*videoSource); ok {
-				return buildVideoPane(state, size, vs, nil)
+			var vs *videoSource
+			if v, ok := src.(*videoSource); ok {
+				vs = v
 			}
-			return nil
+			// Pass nil to buildVideoPane to get SMPTE bars when no video loaded
+			return buildVideoPane(state, size, vs, nil)
 		},
 		OnGetPlayerFooter: func(content fyne.CanvasObject) fyne.CanvasObject {
 			return moduleFooter(moduleColor("player"), content, state.statsBar)
