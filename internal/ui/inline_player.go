@@ -148,6 +148,8 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	_ = v.engine.Seek(0)
 	v.engine.Pause()
 
+	logging.Info(logging.CatPlayer, "InlineVideoPlayer: load completed, engine ready")
+
 	v.scrubber = media.NewSmoothScrubbing(v.engine)
 	v.scrubber.SetOnFrame(func(img *image.RGBA) {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
