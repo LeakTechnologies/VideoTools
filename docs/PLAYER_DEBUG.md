@@ -20,6 +20,10 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 - [ ] **Scrub goroutine races** — `SmoothScrubbing.predecodeFrom`/`predecodeAhead` use `e.videoCodecCtx` under `videoCodecMu`, but `NextFrame` unlocks `videoCodecMu` before doing HW frame transfer. If scrub starts during that window, both decode into the same codec context. Needs: either hold `videoCodecMu` through HW transfer, or pause scrub during playback.
 - [ ] **SW decode crash after 5 frames** — AV1 and H.264 software decode also crash after ~5 frames. Log shows `NextFrame #5: returning frame pts=0.167 hw_frames_ctx=false` (SW, not HW). Added panic recovery to NextFrame and predecodeAhead.
 
+## Future Features
+
+- **Dynamic test patterns** — Fully dynamically generated test patterns for monitor calibration (SMPTE, grayscale, color bars, etc.)
+
 ## Current Status
 
 - ✅ SMPTE bars display correctly when no video loaded
