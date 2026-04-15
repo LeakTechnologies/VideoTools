@@ -23,6 +23,12 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 ## Future Features
 
 - **Dynamic test patterns** — Fully dynamically generated test patterns for monitor calibration (SMPTE, grayscale, color bars, etc.)
+- **Test module** — Replace Player module with comprehensive test card generator featuring:
+  - SMPTE color bars (various resolutions)
+  - BBC Test Card F and other historical test cards
+  - Grayscale/pluge patterns
+  - Geometric patterns (circles, gradients, etc.)
+  - Audio test tones
 
 ## Current Status
 
