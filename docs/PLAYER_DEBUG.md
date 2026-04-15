@@ -18,6 +18,14 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 
 - [ ] **D3D11VA hard crash after several frames** — H.264 files with D3D11VA decode crash silently (segfault) after decoding 5+ frames. Last log: `NextFrame #5: returning frame pts=0.167 hw_frames_ctx=true`. The crash happens in CGo, likely in `av_hwframe_transfer_data` or `sws_scale` during HW→SW conversion. The dedicated buffer fix may resolve this; needs testing.
 - [ ] **Scrub goroutine races** — `SmoothScrubbing.predecodeFrom`/`predecodeAhead` use `e.videoCodecCtx` under `videoCodecMu`, but `NextFrame` unlocks `videoCodecMu` before doing HW frame transfer. If scrub starts during that window, both decode into the same codec context. Needs: either hold `videoCodecMu` through HW transfer, or pause scrub during playback.
+- [ ] **SW decode crash after 5 frames** — AV1 and H.264 software decode also crash after ~5 frames. Log shows `NextFrame #5: returning frame pts=0.167 hw_frames_ctx=false` (SW, not HW). Added panic recovery to NextFrame and predecodeAhead.
+
+## Current Status
+
+- ✅ SMPTE bars display correctly when no video loaded
+- ✅ First frame displays (GrabFrame with 4s timeout works)
+- ✅ Frames #1-5 decode and display successfully
+- ⚠️ Crash on frame #5-6 in NextFrame/predecodeAhead (CGo segfault)
 - [ ] **Speed changes don't affect audio** — `AudioPlayer.Read()` doesn't resample audio tempo/pitch when speed changes
 - [ ] **`GrabFrame` timeout too short** — Default 8s may not be enough for some files; should be configurable
 
@@ -68,6 +76,8 @@ Play()  → engine.Resume() → playbackLoop() → engine.NextFrame() (loop)
 | Herzog.avi | AVI | MPEG4 | No (SW) | Loads, plays 2 frames, then crashes (older builds); now plays |
 | Horny Sports.avi | AVI | MPEG4 | No (SW) | Loads, plays ~2 frames, freezes (older); now works |
 | Meng vs Sting.mp4 | MP4 | H.264 | Yes (D3D11VA) | Loads, plays 5 frames, hard crash (CGo segfault) |
+| ECW Terry Funk vs Cactus Jack.mp4 | MOV | h264 | No | Crash after frame 5 |
+| 2 Minutes.mp4 | MP4 | AV1 | No | Crash after frame 5 |
 
 ### Relevant Files
 
