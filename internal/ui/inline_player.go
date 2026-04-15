@@ -144,6 +144,7 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	// Start the demuxer so packets begin flowing, then seek to the start.
 	// Get the first frame for immediate display.
 	v.engine.Start()
+	logging.Info(logging.CatPlayer, "Load: calling GrabFrame")
 	if img, err := v.engine.GrabFrame(4 * time.Second); err == nil {
 		logging.Info(logging.CatPlayer, "Got initial frame: %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -152,6 +153,7 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	} else {
 		logging.Warning(logging.CatPlayer, "Initial frame fetch failed: %v", err)
 	}
+	logging.Info(logging.CatPlayer, "Load: GrabFrame completed, pausing engine")
 	v.engine.Pause()
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: load completed, engine ready")
