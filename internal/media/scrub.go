@@ -18,6 +18,8 @@ import (
 	"image"
 	"sync"
 	"unsafe"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 const (
@@ -315,6 +317,12 @@ func (s *SmoothScrubbing) predecodeLoop() {
 }
 
 func (s *SmoothScrubbing) predecodeAhead() {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error(logging.CatPlayer, "predecodeAhead panic: %v", r)
+		}
+	}()
+
 	s.mu.RLock()
 	if s.predecoding {
 		s.mu.RUnlock()
