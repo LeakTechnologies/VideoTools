@@ -2085,7 +2085,15 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 	return nil, fmt.Errorf("timed out waiting for first video frame")
 }
 
-func (e *Engine) NextFrame() (*image.RGBA, error) {
+func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error(logging.CatPlayer, "NextFrame panic: %v", r)
+			retImg = nil
+			retErr = fmt.Errorf("NextFrame panic: %v", r)
+		}
+	}()
+
 	nf := atomic.AddInt64(&e.nextFrameCount, 1)
 	verbose := nf <= 5
 	if verbose {
