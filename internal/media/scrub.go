@@ -18,6 +18,8 @@ import (
 	"image"
 	"sync"
 	"unsafe"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 const (
