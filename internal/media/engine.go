@@ -2071,9 +2071,11 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 						e.videoCodecMu.Lock()
 						continue
 					}
+					e.ensureSwsCtx(e.videoCodecCtx.pix_fmt)
 					img = e.toRGBA()
 				}
 			} else {
+				e.ensureSwsCtx(e.videoCodecCtx.pix_fmt)
 				img = e.toRGBA()
 			}
 			e.videoCodecMu.Unlock()
