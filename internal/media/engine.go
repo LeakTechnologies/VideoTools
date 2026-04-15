@@ -2326,6 +2326,7 @@ func (e *Engine) toRGBA() (img *image.RGBA) {
 		}
 	}()
 
+	logging.Info(logging.CatPlayer, "toRGBA: entering sws_scale, swsCtx=%v", e.swsCtx != nil)
 	C.sws_scale(
 		e.swsCtx,
 		&e.frame.data[0], &e.frame.linesize[0],
