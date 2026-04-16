@@ -23,6 +23,7 @@
 #include <libavutil/error.h>
 #include <string.h>
 #include <errno.h>
+#include <libswresample/swresample.h>
 
 /* Sentinel placed in *exc_code_out when a pre-flight check fails. */
 #define SAFE_BRIDGE_PREFLIGHT_FAIL 0xDEAD0001u
@@ -87,4 +88,22 @@ int safe_avcodec_receive_frame(AVCodecContext* ctx, AVFrame* frame,
     if (!frame)          { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
 
     return avcodec_receive_frame(ctx, frame);
+}
+
+/* -------------------------------------------------------------------------
+ * audio_swr_convert_packed
+ * CGo-safe swr_convert for packed (interleaved) output formats.
+ *
+ * Passing &outPtr to swr_convert from Go violates the CGo rule that forbids
+ * a Go pointer to Go memory that itself contains a Go pointer (the heap
+ * address of the PCM buffer).  This wrapper constructs the double-pointer on
+ * the C stack so Go only needs to pass a flat uint8_t*.
+ * ---------------------------------------------------------------------- */
+int audio_swr_convert_packed(SwrContext* swr, uint8_t* out_buf, int out_count,
+                              AVFrame* frame) {
+    if (!swr || !out_buf || !frame) return AVERROR(EINVAL);
+    /* C-local pointer — not visible to the Go GC. */
+    uint8_t* out_ptr = out_buf;
+    return swr_convert(swr, &out_ptr, out_count,
+                       (const uint8_t**)frame->data, frame->nb_samples);
 }
