@@ -1632,6 +1632,11 @@ func (e *Engine) Open(path string) error {
 		if e.audioCodecCtx != nil {
 			C.avcodec_parameters_to_context(e.audioCodecCtx, streams[e.audioStreamIdx].codecpar)
 			e.audioTimeBase = float64(streams[e.audioStreamIdx].time_base.num) / float64(streams[e.audioStreamIdx].time_base.den)
+			// Force single-threaded decode for audio. FFmpeg's lazy thread-pool
+			// initialisation inside avcodec_send_packet can crash on Windows when
+			// the caller is the oto audio goroutine rather than a Go-owned goroutine.
+			e.audioCodecCtx.thread_count = 1
+			e.audioCodecCtx.thread_type = 0
 			if C.avcodec_open2(e.audioCodecCtx, audioCodec, nil) < 0 {
 				logging.Warning(logging.CatPlayer, "Failed to open audio codec")
 				C.avcodec_free_context(&e.audioCodecCtx)
@@ -1640,6 +1645,9 @@ func (e *Engine) Open(path string) error {
 				e.info.HasAudio = false
 			} else {
 				logging.Info(logging.CatPlayer, "Audio codec opened OK, creating audio player")
+				logging.Info(logging.CatPlayer, "Audio codec: sample_rate=%d fmt=%d codec_id=%d extradata_size=%d",
+					e.audioCodecCtx.sample_rate, e.audioCodecCtx.sample_fmt,
+					e.audioCodecCtx.codec_id, e.audioCodecCtx.extradata_size)
 				ap, err := NewAudioPlayer(e.audioCodecCtx, e.audioQueue, e.clock, e.audioTimeBase)
 				if err != nil {
 					logging.Error(logging.CatPlayer, "Failed to create audio player: %v", err)
@@ -1906,12 +1914,22 @@ func (e *Engine) demuxerLoop() {
 		}
 	}()
 
+	logging.Info(logging.CatPlayer, "demuxerLoop: started (vidIdx=%d audioIdx=%d)", e.videoStreamIdx, e.audioStreamIdx)
+
 	pkt := C.av_packet_alloc()
+	if pkt == nil {
+		logging.Error(logging.CatPlayer, "demuxerLoop: av_packet_alloc returned nil")
+		e.videoQueue.SetEOF()
+		e.audioQueue.SetEOF()
+		return
+	}
 	defer C.av_packet_free(&pkt)
 
+	firstPkt := true
 	for {
 		select {
 		case <-e.stop:
+			logging.Info(logging.CatPlayer, "demuxerLoop: stop signal received, exiting")
 			return
 		default:
 		}
@@ -1922,7 +1940,13 @@ func (e *Engine) demuxerLoop() {
 		ret := C.av_read_frame(e.formatCtx, pkt)
 		e.formatMu.Unlock()
 
+		if firstPkt {
+			firstPkt = false
+			logging.Info(logging.CatPlayer, "demuxerLoop: first av_read_frame ret=%d stream=%d", int(ret), int(pkt.stream_index))
+		}
+
 		if ret < 0 {
+			logging.Info(logging.CatPlayer, "demuxerLoop: av_read_frame EOF/error ret=%d, setting queue EOF", int(ret))
 			e.videoQueue.SetEOF()
 			e.audioQueue.SetEOF()
 			e.subtitleQueue.SetEOF()

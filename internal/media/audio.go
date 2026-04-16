@@ -11,6 +11,7 @@ package media
 #include <libavutil/avutil.h>
 #include <libavutil/opt.h>
 #include <libavutil/channel_layout.h>
+#include "safe_bridge.h"
 */
 import "C"
 import (
@@ -50,6 +51,7 @@ type AudioPlayer struct {
 	eofReceived bool
 	looping     bool
 	firstPktLogged bool
+	codecDead   bool // set when avcodec_send_packet raises a C-level exception; disables decode permanently
 }
 
 func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *MasterClock, timeBase float64) (*AudioPlayer, error) {
@@ -232,21 +234,59 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	// Seek(). AVCodecContext is not thread-safe — concurrent send/receive and
 	// flush_buffers cause hard crashes.
 	p.codecMu.Lock()
-	if !p.firstPktLogged {
-		p.firstPktLogged = true
-		logging.Info(logging.CatPlayer, "AudioPlayer.Read: sending first packet to audio codec (size=%d)", pkt.size)
-	}
-	sendOK := C.avcodec_send_packet(p.codecCtx, pkt) == 0
-	if !sendOK {
+
+	// If a previous C-level exception killed the codec, return silence forever.
+	if p.codecDead {
 		p.codecMu.Unlock()
-		logging.Debug(logging.CatPlayer, "Failed to send packet to audio decoder")
 		for i := range buf {
 			buf[i] = 0
 		}
 		return len(buf), nil
 	}
 
-	for C.avcodec_receive_frame(p.codecCtx, p.frame) == 0 {
+	if !p.firstPktLogged {
+		p.firstPktLogged = true
+		var diag C.CodecDiagnostic
+		C.diagnose_avcodec_state(p.codecCtx, pkt, &diag)
+		logging.Info(logging.CatPlayer,
+			"AudioPlayer.Read: first pkt (size=%d) — ctx=%d codec=%d priv_data=%d extradata_size=%d extradata=%d rate=%d ch=%d codec_id=%d",
+			pkt.size,
+			int(diag.ctx_ok), int(diag.codec_ok), int(diag.priv_data_ok),
+			int(diag.extradata_size), int(diag.extradata_ok),
+			int(diag.sample_rate), int(diag.channels), int(diag.codec_id))
+	}
+
+	var excCode C.uint32_t
+	sendRet := C.safe_avcodec_send_packet(p.codecCtx, pkt, &excCode)
+	if excCode != 0 {
+		logging.Error(logging.CatPlayer, "AudioPlayer.Read: safe_avcodec_send_packet pre-flight failed (exc=0x%08X) — disabling audio decode", uint32(excCode))
+		p.codecDead = true
+		p.codecMu.Unlock()
+		for i := range buf {
+			buf[i] = 0
+		}
+		return len(buf), nil
+	}
+	if sendRet != 0 {
+		p.codecMu.Unlock()
+		logging.Debug(logging.CatPlayer, "Failed to send packet to audio decoder (ret=%d)", int(sendRet))
+		for i := range buf {
+			buf[i] = 0
+		}
+		return len(buf), nil
+	}
+
+	var recvExc C.uint32_t
+	for {
+		recvRet := C.safe_avcodec_receive_frame(p.codecCtx, p.frame, &recvExc)
+		if recvExc != 0 {
+			logging.Error(logging.CatPlayer, "AudioPlayer.Read: avcodec_receive_frame raised Windows exception 0x%08X — disabling audio decode", uint32(recvExc))
+			p.codecDead = true
+			break
+		}
+		if recvRet != 0 {
+			break
+		}
 		pts := float64(p.frame.pts) * p.timeBase
 		p.codecMu.Unlock()
 

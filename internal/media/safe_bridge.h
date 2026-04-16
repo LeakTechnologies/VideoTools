@@ -1,0 +1,59 @@
+/*
+ * safe_bridge.h — Pre-flight diagnostic wrapper for FFmpeg codec calls.
+ *
+ * See safe_bridge.c for full explanation.
+ */
+
+#pragma once
+#include <stdint.h>
+#include <libavcodec/avcodec.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* Sentinel placed in *exc_code_out when a pre-flight null check fires. */
+#define SAFE_BRIDGE_PREFLIGHT_FAIL 0xDEAD0001u
+
+/*
+ * CodecDiagnostic — snapshot of key codec/packet state for crash diagnostics.
+ * Safe to populate even when priv_data is NULL.
+ */
+typedef struct CodecDiagnostic {
+    int ctx_ok;          /* 1 if ctx != NULL */
+    int codec_ok;        /* 1 if ctx->codec != NULL */
+    int priv_data_ok;    /* 1 if ctx->priv_data != NULL */
+    int codec_id;        /* ctx->codec_id */
+    int extradata_size;  /* ctx->extradata_size */
+    int extradata_ok;    /* 1 if ctx->extradata != NULL */
+    int sample_rate;     /* ctx->sample_rate */
+    int channels;        /* ctx->ch_layout.nb_channels */
+    int pkt_ok;          /* 1 if pkt != NULL */
+    int pkt_size;        /* pkt->size */
+    int pkt_data_ok;     /* 1 if pkt->data != NULL */
+} CodecDiagnostic;
+
+/*
+ * diagnose_avcodec_state — fills *out with key fields from ctx/pkt.
+ * Does NOT touch ctx->priv_data or any codec-private structure.
+ */
+void diagnose_avcodec_state(AVCodecContext* ctx, const AVPacket* pkt,
+                             CodecDiagnostic* out);
+
+/*
+ * safe_avcodec_send_packet — pre-flight checked avcodec_send_packet.
+ * Sets *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL if a null check fires.
+ * Sets *exc_code_out = 0 on normal success or AVERROR return from FFmpeg.
+ */
+int safe_avcodec_send_packet(AVCodecContext* ctx, const AVPacket* pkt,
+                              uint32_t* exc_code_out);
+
+/*
+ * safe_avcodec_receive_frame — pre-flight checked avcodec_receive_frame.
+ */
+int safe_avcodec_receive_frame(AVCodecContext* ctx, AVFrame* frame,
+                                uint32_t* exc_code_out);
+
+#ifdef __cplusplus
+}
+#endif
