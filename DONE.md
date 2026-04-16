@@ -1,5 +1,13 @@
 # VideoTools - Completed Features
 
+## Version 0.1.1-dev43 (complete) - Player Stability Audit
+
+### Native Media Player — Thread-Safety & Crash Fixes (dev43)
+- [x] **Pixel format crash fix** — `GrabFrame` and `NextFrame` now use `frame.format` (actual decoded pixel format) instead of `videoCodecCtx.pix_fmt` when calling `ensureSwsCtx`. `videoCodecCtx.pix_fmt` can be `AV_PIX_FMT_NONE` until the codec processes its first SPS; passing it to `sws_getContext` returned nil, causing `sws_scale(nil, …)` → C SIGSEGV. `NextFrame` SW decode path was also missing the `ensureSwsCtx` call entirely.
+- [x] **Close/demuxer race fix** — `Engine.Close()` previously freed `formatCtx` and `videoCodecCtx` immediately after `close(e.stop)`, while `demuxerLoop` may still be inside `av_read_frame`. Added `sync.WaitGroup` (`demuxerWg`) to `Engine`; `demuxerLoop` signals Done on exit, `Close()` waits before freeing any FFmpeg context.
+- [x] **NextFrame/Close codec race fix** — `Close()` now acquires `videoCodecMu` before freeing `videoCodecCtx`, ensuring any in-flight `NextFrame` decode cycle has completed.
+- [x] **seekLoop goroutine leak fix** — `InlineVideoPlayer.seekCh` was never closed, so the `seekLoop` goroutine leaked on every `Close()`. `seekCh` is now owned by `Load()`: closed and reallocated each time a file is opened; `Close()` closes it to drain the goroutine. `OnSeek` callback guards against nil/closed channel under the player mutex.
+
 ## Version 0.1.1-dev42 (complete) - Player Stabilization & Module Improvements
 
 ### Native Media Player — GStreamer Removal (dev42)

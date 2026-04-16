@@ -8,7 +8,11 @@ Player stabilisation complete. D3D11VA decode, audio sync, GStreamer removal, an
 
 See DONE.md for full dev42 change log.
 
-## Dev43 Scope (in progress)
+## Dev43 Scope (closed)
+
+Player thread-safety audit shipped. Pixel format crash, Close/demuxer race, and seekLoop goroutine leak all fixed. See DONE.md.
+
+## Dev44 Scope (in progress)
 
 ### Convert Module Improvements — Phase 1 (HIGH)
 
