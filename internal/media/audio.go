@@ -30,6 +30,15 @@ import (
 // 64 slots gives ~1.5 s of headroom before backpressure kicks in.
 const pcmChannelCap = 64
 
+// audioChunk is a decoded, resampled PCM buffer tagged with its stream PTS.
+// The PTS is used by Read() to update the master clock at the moment audio
+// data is actually consumed (played), not when it was decoded.  This keeps
+// the clock from racing ~1.5 s ahead of playback due to the decode buffer.
+type audioChunk struct {
+	pts  float64
+	data []byte
+}
+
 // AudioPlayer decodes audio packets on a dedicated goroutine (audioDecodeLoop)
 // and exposes the result through the io.Reader interface used by oto.
 //
@@ -61,9 +70,9 @@ type AudioPlayer struct {
 	looping   bool
 
 	// Decode bridge: audioDecodeLoop → Read()
-	pcmCh      chan []byte   // decoded, resampled, volume-applied PCM chunks
-	leftover   []byte        // partial chunk carried across Read() calls
-	decodeStop chan struct{}  // closed by Close() to stop audioDecodeLoop
+	pcmCh      chan audioChunk // decoded, resampled, volume-applied PCM chunks
+	leftover   []byte          // partial chunk carried across Read() calls
+	decodeStop chan struct{}    // closed by Close() to stop audioDecodeLoop
 	decodeWg   sync.WaitGroup
 
 	// Diagnostic / state flags (all protected by codecMu or mu as noted)
@@ -79,7 +88,7 @@ func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *Maste
 		timeBase:   timeBase,
 		volume:     1.0,
 		volumeMul:  1.0,
-		pcmCh:      make(chan []byte, pcmChannelCap),
+		pcmCh:      make(chan audioChunk, pcmChannelCap),
 		decodeStop: make(chan struct{}),
 	}
 
@@ -237,9 +246,10 @@ func (p *AudioPlayer) audioDecodeLoop() {
 			pts := float64(p.frame.pts) * p.timeBase
 			p.codecMu.Unlock()
 
-			if p.clock != nil {
-				p.clock.SetTime(pts)
-			}
+			// NOTE: clock.SetTime is intentionally NOT called here.
+			// The clock is updated in Read() when audio data is actually
+			// consumed by oto, keeping the master clock in sync with
+			// playback position rather than decode position (~1.5 s ahead).
 
 			data, err := p.resample()
 			if err != nil {
@@ -257,12 +267,13 @@ func (p *AudioPlayer) audioDecodeLoop() {
 				}
 
 				// Copy to avoid sharing the resampler's internal buffer.
-				chunk := make([]byte, len(data))
-				copy(chunk, data)
+				pcmData := make([]byte, len(data))
+				copy(pcmData, data)
 
-				// Send to Read(); block until there's space or stop is signalled.
+				// Send to Read() tagged with this frame's PTS so the clock
+				// advances when the data is played, not when it is decoded.
 				select {
-				case p.pcmCh <- chunk:
+				case p.pcmCh <- audioChunk{pts: pts, data: pcmData}:
 				case <-p.decodeStop:
 					return
 				}
@@ -312,9 +323,15 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 			}
 			return 0, io.EOF
 		}
-		n := copy(buf, chunk)
-		if n < len(chunk) {
-			p.leftover = chunk[n:]
+		// Advance the master clock at the moment audio data is played,
+		// not when it was decoded.  This prevents the decode buffer
+		// (~1.5 s) from pushing the clock ahead of the video display.
+		if p.clock != nil {
+			p.clock.SetTime(chunk.pts)
+		}
+		n := copy(buf, chunk.data)
+		if n < len(chunk.data) {
+			p.leftover = chunk.data[n:]
 		}
 		return n, nil
 	default:
