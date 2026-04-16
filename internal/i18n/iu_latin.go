@@ -303,6 +303,8 @@ var iuLatn = Strings{
 	SettingsScriptSyllabics:      "Qaniujaaqpait",                                         // Traditional Syllabics
 	SettingsScriptLatin:          "Qaliujaaqpait",                                         // Latin
 	SettingsAppPreferences:       "Atuqnirmut Aaqiksuiniq",                                // Application Preferences
+	SettingsHWDecode:             "Sanajaksanik Takujautiit Niruqtillugu",                 // Hardware Video Decode
+	SettingsHWDecodeHint:         "GPU niruqtilliqaugaqtuq. Saqqutuqtuinnatillugu.",       // machine-generated, needs human review
 	SettingsMasterSettings:       "Aksuruqnarqtujut Aaqiksuiniq",                          // Master Settings
 	SettingsHardwareAccel:        "Sanajaksanik Sukkaivagunnarqtut",                       // Hardware Acceleration (Global)
 	SettingsDetect:               "Nalunaiqsilugu",                                        // Detect

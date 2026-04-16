@@ -120,6 +120,13 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	if hw := media.DetectHWDevice(); hw != media.HWDeviceNone {
 		v.engine.SetHWDevice(hw)
 		logging.Info(logging.CatPlayer, "InlineVideoPlayer: HW decode active (%v)", hw)
+	} else {
+		logging.Info(logging.CatPlayer, "InlineVideoPlayer: using SW decode (HW decode %v)", func() string {
+			if media.HWDecodeEnabled() {
+				return "enabled but not available"
+			}
+			return "disabled in Settings"
+		}())
 	}
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: opening %s", path)

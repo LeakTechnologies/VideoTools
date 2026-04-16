@@ -1790,6 +1790,18 @@ func (a *preferencesAdapter) SetShowTooltips(enabled bool) {
 	}
 }
 
+func (a *preferencesAdapter) HWDecodeEnabled() bool {
+	return hwDecodeEnabled()
+}
+
+func (a *preferencesAdapter) SetHWDecodeEnabled(enabled bool) {
+	setHWDecodeEnabled(enabled)
+	a.s.prefs.HWDecodeEnabled = enabled
+	if err := savePrefsConfig(a.s.prefs); err != nil {
+		logging.Error(logging.CatSystem, "SetHWDecodeEnabled save failed: %v", err)
+	}
+}
+
 func (a *preferencesAdapter) DefaultOutputDir() string {
 	return a.s.defaultOutputDir
 }

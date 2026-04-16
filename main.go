@@ -8241,6 +8241,7 @@ func runGUI() {
 		state.prefs = prefs
 		state.defaultOutputDir = prefs.DefaultOutputDir
 		ui.ShowTooltips = prefs.ShowTooltips
+		setHWDecodeEnabled(prefs.HWDecodeEnabled)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		logging.Debug(logging.CatSystem, "failed to load persisted prefs: %v", err)
 	}

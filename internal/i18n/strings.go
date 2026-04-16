@@ -56,6 +56,8 @@ type Strings struct {
 
 	// Settings
 	SettingsShowTooltips string // "Show tooltips"
+	SettingsHWDecode     string // "Hardware Video Decode"
+	SettingsHWDecodeHint string // warning about D3D11VA crash risk
 
 	// Dialog Titles
 	DialogCompare            string

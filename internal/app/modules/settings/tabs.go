@@ -421,6 +421,23 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 
 	content.Add(widget.NewSeparator())
 
+	hwDecodeHeader := widget.NewLabel(t.SettingsHWDecode)
+	hwDecodeHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(hwDecodeHeader)
+
+	hwDecodeCheck := widget.NewCheck("", func(enabled bool) {
+		cb.SetHWDecodeEnabled(enabled)
+	})
+	hwDecodeCheck.Checked = prefs.HWDecodeEnabled
+	content.Add(hwDecodeCheck)
+
+	hwDecodeHint := widget.NewLabel(t.SettingsHWDecodeHint)
+	hwDecodeHint.TextStyle = fyne.TextStyle{Italic: true}
+	hwDecodeHint.Wrapping = fyne.TextWrapWord
+	content.Add(hwDecodeHint)
+
+	content.Add(widget.NewSeparator())
+
 	outputHeader := widget.NewLabel(t.SettingsDefaultOutputDir)
 	outputHeader.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(outputHeader)

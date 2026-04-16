@@ -11,6 +11,9 @@ func HasNativeMediaPlayer() bool {
 	return false
 }
 
+func hwDecodeEnabled() bool   { return false }
+func setHWDecodeEnabled(bool) {}
+
 func initNativeMediaAssets() {}
 
 func (s *appState) loadVideoNative(path string)       {}

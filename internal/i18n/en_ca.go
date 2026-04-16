@@ -48,6 +48,8 @@ var enCA = Strings{
 	TooltipConvertStart:              "Start conversion",
 
 	SettingsShowTooltips: "Show tooltips",
+	SettingsHWDecode:     "Hardware Video Decode",
+	SettingsHWDecodeHint: "Use GPU-accelerated video decoding (D3D11VA/VAAPI). May cause crashes on some drivers. Disable if playback fails.",
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
 	DialogCompare:            "Compare Videos",
