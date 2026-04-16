@@ -45,6 +45,8 @@ type PreferencesCallbacks interface {
 	SavePrefsConfig() error
 	PrefsConfig() PrefsConfig
 	SetShowTooltips(enabled bool)
+	HWDecodeEnabled() bool
+	SetHWDecodeEnabled(enabled bool)
 	DefaultOutputDir() string
 	SetDefaultOutputDir(dir string)
 }
@@ -77,6 +79,7 @@ type PrefsConfig struct {
 	QueuePlayBehavior  string `json:"QueuePlayBehavior"`
 	DefaultOutputDir   string `json:"DefaultOutputDir"`
 	ShowTooltips       bool   `json:"ShowTooltips"`
+	HWDecodeEnabled    bool   `json:"HWDecodeEnabled"`
 }
 
 type Dependency struct {

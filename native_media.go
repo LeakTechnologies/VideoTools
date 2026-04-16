@@ -22,6 +22,14 @@ func init() {
 	subtitleInlinePlayer = ui.NewInlineVideoPlayer()
 }
 
+func hwDecodeEnabled() bool {
+	return media.HWDecodeEnabled()
+}
+
+func setHWDecodeEnabled(enabled bool) {
+	media.SetHWDecodeEnabled(enabled)
+}
+
 func HasNativeMediaPlayer() bool {
 	return true
 }

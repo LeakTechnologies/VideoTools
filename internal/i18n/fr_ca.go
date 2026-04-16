@@ -40,6 +40,8 @@ var frCA = Strings{
 	ModuleSettings:    "Paramètres",
 
 	SettingsShowTooltips: "Afficher les info-bulles",
+	SettingsHWDecode:     "Decodage video materiel",
+	SettingsHWDecodeHint: "Utiliser le decodage video accelere par GPU (D3D11VA/VAAPI). Peut causer des plantages avec certains pilotes. Desactiver si la lecture echoue.",
 
 	// ── Tooltips ─────────────────────────────────────────────────────────
 	TooltipConvertFormat:             "Format vidéo de sortie (MP4, MKV, etc.)",

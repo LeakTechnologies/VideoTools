@@ -219,7 +219,28 @@ const (
 	HWDeviceQSV
 )
 
+// hwDecodeEnabled controls whether hardware-accelerated video decoding is used.
+// D3D11VA crashes in avcodec_send_packet are C-level access violations that
+// Go's recover() cannot catch, killing the process instantly.  Until the
+// C bridge (safe_bridge.c) wraps FFmpeg calls in SEH/__try, HW decode is
+// disabled to guarantee process stability.  SW decode handles 720p/1080p
+// H.264/HEVC reliably on any modern CPU.
+var hwDecodeEnabled = false
+
+// SetHWDecodeEnabled allows the caller (e.g. Settings) to opt in to HW
+// decode.  The default is off because D3D11VA crashes cannot be caught by Go.
+func SetHWDecodeEnabled(enabled bool) {
+	hwDecodeEnabled = enabled
+}
+
+func HWDecodeEnabled() bool {
+	return hwDecodeEnabled
+}
+
 func DetectHWDevice() HWDeviceType {
+	if !hwDecodeEnabled {
+		return HWDeviceNone
+	}
 	if checkVAAPIAvailable() {
 		return HWDeviceVAAPI
 	}
@@ -2068,7 +2089,7 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 					logging.Warning(logging.CatPlayer, "GrabFrame: HW retrieve failed (%v)", err)
 					if e.frame.hw_frames_ctx != nil {
 						logging.Info(logging.CatPlayer, "GrabFrame: frame is HW, cannot SW fallback — skipping")
-						e.videoCodecMu.Lock()
+						// videoCodecMu is already held; do NOT Lock again.
 						continue
 					}
 					e.ensureSwsCtx(e.videoCodecCtx.pix_fmt)

@@ -302,6 +302,8 @@ var iu = Strings{
 	SettingsScriptSyllabics:      "ᖃᓂᐅᔮᖅᐸᐃᑦ",                                 // Traditional Syllabics
 	SettingsScriptLatin:          "ᓚᑎᓐ",                                      // Latin
 	SettingsAppPreferences:       "ᐊᑐᕐᓂᒧᑦ ᐋᖅᑭᒃᓱᐃᓂᖅ",                          // Application Preferences
+	SettingsHWDecode:             "ᓴᓇᒐᒃᓴᓂᒃ ᑕᒃᔪᐊᑎᑦ ᓂᕈᖅᑎᓪᓗᒍ",                   // Hardware Video Decode
+	SettingsHWDecodeHint:         "GPU ᓂᕈᖅᑎᓪᓕᖅᐹᒃᑐᖅ. ᓴᖅᑮᑦᑐᐃᓐᓇᑎᓪᓗᒍ.",           // machine-generated, needs human review
 	SettingsMasterSettings:       "ᐊᒃᓱᕈᕐᓇᖅᑑᔪᑦ ᐋᖅᑭᒃᓱᐃᓂᖅ",                      // Master Settings
 	SettingsHardwareAccel:        "ᓴᓇᒐᒃᓴᓂᒃ ᓱᒃᑲᐃᕙᒍᓐᓇᖅᑐᑦ",                      // Hardware Acceleration (Global)
 	SettingsDetect:               "ᓇᓗᓇᐃᖅᓯᓗᒍ",                                 // Detect
