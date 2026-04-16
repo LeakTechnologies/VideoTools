@@ -2,54 +2,40 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev42 Scope (in progress)
+## Dev42 Scope (closed)
 
-### Convert Module Improvements
+Player stabilisation complete. D3D11VA decode, audio sync, GStreamer removal, and SMPTE idle state all ship. Audio module i18n and layout partially done. Thumbnail module gets 3-way output mode and image inspector.
+
+See DONE.md for full dev42 change log.
+
+## Dev43 Scope (in progress)
+
+### Convert Module Improvements — Phase 1 (HIGH)
 
 See `docs/CONVERT_MODULE_IMPROVEMENTS.md` for full plan.
 
-#### Phase 1: Missing UI Controls (HIGH)
 - [ ] **Audio Sample Rate dropdown** — Config field exists, no UI
 - [ ] **Normalize Audio checkbox** — Config field exists, no UI; need LUFS/TruePeak sliders
 - [ ] **Deinterlace Mode dropdown** — Auto/Force/Off; method dropdown: Yadif/BWDIF
 - [ ] **H.264 Profile/Level controls** — Applied by device presets but no manual UI
 
-#### Phase 2: Format Presets (HIGH)
+### Convert Module i18n (HIGH — Issue #5)
+
+- [ ] **~50 hardcoded strings** in buildConvertView need i18n keys
+- [ ] Add new keys to `internal/i18n/strings.go`, `en_ca.go`, `fr_ca.go`, `iu.go`, `iu_latin.go`
+
+### Convert Module Improvements — Phase 2 (HIGH)
+
 - [ ] **Consolidate presets** — Move inline format definitions to `presets.go`
 - [ ] **Add missing formats** — AVI, FLV, TS/M2TS, 3GP, OGG
 - [ ] **x264/x265 tuning** — Film/Animation/Grain/Stillimage/Fastdecode
-
-#### Phase 3: Subtitle Track Selection (HIGH)
-- [ ] **Per-track mode dropdown** — Passthrough/Burn-in/None per subtitle stream
-- [ ] **Forced subtitle handling** — Auto-detect and burn forced tracks
-
-#### Phase 4: Audio Stream Mapping (HIGH)
-- [ ] **Per-stream audio track selection** — Encode/Copy/None per audio stream
-- [ ] **Multiple audio output tracks** — Encode same source to multiple codecs
-
-#### Phase 5: Video Filter Integration (MEDIUM)
-- [ ] **Quick filter toggles** — Denoise, Sharpen, Deblock, Stabilize in Convert
-- [ ] **Speed change** — 0.25x - 2.0x speed control
-
-#### Phase 6: Metadata Handling (MEDIUM)
-- [ ] **Metadata passthrough** — Copy/strip source metadata checkbox
-- [ ] **Custom metadata editor** — Title, Artist, Album, Year, Comment
-- [ ] **Cover art in output** — Passthrough, external file, or screenshot
-
-#### Phase 7: Preset System Completion (MEDIUM)
-- [ ] **User preset Save/Load/Delete UI** — Struct exists, no UI
-- [ ] **Device presets** — iPhone, iPad, Android, Apple TV, YouTube, Discord, etc.
-- [ ] **Platform/social presets** — YouTube, Vimeo, TikTok
-
-#### Phase 9: i18n (HIGH — Issue #5)
-- [ ] **~50 hardcoded strings** in buildConvertView need i18n keys
 
 ### Audio Module Improvements
 
 See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 
-#### Phase 1: Layout Consistency (HIGH)
-- [ ] **Replace custom HSplit** with `container.NewVSplit`
+#### Phase 1: Layout Consistency (HIGH) — partially done in dev42
+- [x] **Replace custom HSplit** with `container.NewVSplit` — done in dev42
 - [ ] **Consistent module box styling** — Reuse Convert's pattern
 - [ ] **Proper header bar** with module title, stats integration
 
@@ -63,23 +49,15 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [ ] **Output naming preview** — Show filename before extraction
 - [ ] **Track reordering** — Up/down buttons for export order
 
-#### Phase 4: Batch Processing (MEDIUM)
-- [ ] **Enhanced batch list** — File type badge, duration, size, status
-- [ ] **Batch sorting** — By name, duration, size, status
-- [ ] **Batch progress** — Per-file progress, ETA
+### Burn Module — Logic (HIGH)
 
-### Player Module
-- [ ] **SMPTE bars in 4:3 ratio** — Done, may want to adjust default aspect
-- [ ] **Video loading in Convert** — Drag-drop now works, monitor for edge cases
-- [ ] **Module switching cleanup** — closeNativePlayer() added to stopPlayer()
-
-### Burn Module — Logic
 - [ ] **Windows** — Implement IMAPI2 COM interface in `burn_windows.go`
 - [ ] **Linux** — Implement SG_IO ioctl in `burn_linux.go`
 - [ ] **Drive info** — `getDriveInfo()` to show disc capacity (DVD5/9, BD25/50)
 - [ ] **Multi-drive batch burning** — See `docs/BURN_MODULE_DESIGN.md` §Phase 3
 
 ### Module Pipeline (`&&` feature)
+
 - [ ] `pipelineActive` state machine on `appState` (off / waiting-step1 / waiting-step2)
 - [ ] `&&` button in main menu header, visually reflects state
 - [ ] Module tile dimming for invalid Step 2 targets
