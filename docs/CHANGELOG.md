@@ -2,12 +2,70 @@
 
 ## v0.1.1-dev42 (April 2026)
 
-### In Progress
-- **Burn logic** — IMAPI2 (Windows) / SG_IO (Linux) implementation; see `docs/BURN_MODULE_DESIGN.md`.
-- **Module Pipeline (`&&`)** — Two-module chain execution with intermediate file cleanup.
-- **Recent files tracking** — Persist recent files list for Quick Access dropdown.
-- **Module callbacks** — Wire OnOpenMore/OnOpenFolder per module in Quick Access dropdown.
-- **Player module** — Thumbnail scrubber hover preview; additional playback testing.
+### Native Media Player — GStreamer Removal
+- **GStreamer fully removed** — All `internal/player/gstreamer*` deleted; `native_media` build tag is the only player path. No more GStreamer dependency at runtime or build time.
+- **Player lifecycle fix** — `closeNativePlayer()` prevents audio hanging on module switch; `Widget().Refresh()` deferred after canvas swap.
+
+### Native Media Player — D3D11VA / HW Decode Stabilisation
+- **D3D11VA get_format callback** — Accepts `AV_PIX_FMT_D3D11VA_VLD` so D3D11VA decode starts on first packet.
+- **H.264 + D3D11VA crash fix** — Pre-warm D3D11VA before first decode call.
+- **Dedicated HW frame buffers** — Separate `hwFramesCtx` prevents races between HW download and SW display paths.
+- **Lazy swsCtx creation** — Created on first `toRGBA()` call; avoids crash from invalid pixel format before first HW decode.
+- **HW frame transfer mutex** — `videoCodecMu` held during HW→SW transfer; eliminates concurrent AVCodecContext access.
+- **HW decode codec filtering** — Only codecs that work without `get_format` callback get HW decode enabled.
+- **AV_NOPTS_VALUE guard** — Skip frames with invalid PTS instead of passing them downstream.
+- **D3D11VA flush guard** — `avcodec_flush_buffers` skipped before first decoded frame.
+- **Safe HW frame download** — `av_hwframe_transfer_data` wrapped in recover/retry; falls back to SW decode on failure.
+
+### Native Media Player — Audio / A-V Sync
+- **A/V clock fix** — Master clock `SetSpeed()` wired after speed changes; no more 2× playback after resume.
+- **AudioPlayer.Read() non-blocking** — Returns immediately on empty buffer; prevents playback hang.
+- **Audio seek serialisation** — Codec operations serialized against `Seek()`; prevents hard crash from concurrent access.
+- **Pause spin-loop fix** — Sleep instead of busy-wait; `Close()` no longer races with pause state.
+- **Audio context pre-warm** — Created at startup to avoid WASAPI initialization hang.
+- **SetSpeed deadlock fix** — Speed changes no longer block the audio callback thread.
+
+### Native Media Player — SMPTE Bars & Idle State
+- **SMPTE colour bars** — Click-to-load dialog when no video is loaded; consistent across all module players.
+- **4:3 ratio with letterboxing** — Proper aspect ratio regardless of player size.
+- **Dynamic sizing** — Bars scale to player widget dimensions instead of fixed 1920×1080.
+- **Proportional idle text** — "Click to load video" text scales with bar width.
+
+### Native Media Player — Misc
+- **Native Fyne icons** — Replaced emoji transport controls with `theme.IconName` equivalents.
+- **SmoothScrubbing crash fix** — Fixed crash on HW-decoded frames in thumbnail scrubber.
+- **GrabFrame deadlock fix** — Invalid PTS frames no longer block the decode loop.
+- **Letterbox fill** — Removed per-frame debug log; fixed fill colour on dark backgrounds.
+
+### Convert Module
+- **Clear button for output folder** — One-click reset of the output directory field.
+- **Output directory creation** — Directories created before running convert/thumbnail/filter jobs.
+- **Drag-drop first frame** — First frame appears immediately after file drop.
+
+### Audio Module
+- **VSplit layout** — Replaced custom HSplit with `container.NewVSplit`.
+- **Stats bar footer** — Added to Audio module.
+- **i18n** — All user-facing strings use i18n keys.
+- **Drop label wrapping** — Cleaner layout on narrow windows.
+
+### Thumbnail Module
+- **3-way output mode** — Individual / Contact Sheet / Both selector replaces boolean toggle.
+- **Image inspector** — Click any thumbnail or contact sheet tile to inspect at full window size.
+- **Contact sheet pad crash fix** — `trim` filter removed; time window via `-ss`/`-t` input options.
+- **CRLF line-break fix** — `\r` trimmed from ffprobe output on Windows.
+- **Per-file "Add All to Queue"** — Creates individual jobs per file instead of a single batch.
+
+### Subtitles Module
+- **Video preview player** — Added video preview with synced subtitle overlay.
+
+### CI & Build
+- **libdrm-dev** — Added to Linux CI for FFmpeg build.
+- **FFmpeg hwaccel disabled in CI** — Avoids libdrm runtime dependency.
+- **Update status icon** — Replaced ⬤ with ● for cross-platform rendering.
+
+### Misc
+- **Temp file cleanup** — Preview-frame and cover-art temp files cleaned on video unload.
+- **FFmpeg install button removed** — FFmpeg bundled in binary; redundant button removed.
 
 ## v0.1.1-dev41 (April 2026)
 

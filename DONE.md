@@ -1,20 +1,82 @@
 # VideoTools - Completed Features
 
-## Version 0.1.1-dev42 (in progress) - Player & Module Improvements
+## Version 0.1.1-dev42 (complete) - Player Stabilization & Module Improvements
 
-### Player Module (dev42)
-- [x] **SMPTE bars in 4:3 ratio** — Idle video player shows colour bars in proper 4:3 aspect with letterboxing/pillarboxing
-- [x] **Native Fyne icons** — Replaced emoji transport controls (▶, ⏸, 🔊, ⛶) with theme.IconName equivalents in view.go, renderer.go, seekbar.go, opengl.go
-- [x] **Video loading fix** — Changed `buildVideoPane` condition from `HasNativeMediaPlayer() && src != nil` to `HasNativeMediaPlayer()` so the native player shows SMPTE bars when no video is loaded
-- [x] **Module switching cleanup** — Added `closeNativePlayer()` to `stopPlayer()` to prevent audio hanging when switching modules
-- [x] **Window focus on startup** — Added `w.Show()` + `w.RequestFocus()` before `ShowAndRun()` so the window appears on top after updates
-- [x] **Drag-drop debug logging** — Added verbose logging to `handleDrop()` and `loadMultipleVideos()` to trace file recognition issues
+### Native Media Player — GStreamer Removal (dev42)
+- [x] **GStreamer code removed** — All `internal/player/gstreamer*` deleted; `native_media` build tag is the only player path. No more GStreamer dependency.
+- [x] **Player widget lifecycle** — `closeNativePlayer()` prevents audio hanging on module switch; `Widget().Refresh()` deferred after canvas swap to avoid blank panes.
+
+### Native Media Player — D3D11VA / HW Decode Stabilisation (dev42)
+- [x] **D3D11VA get_format callback** — `get_format` callback added to codec context; accepts `AV_PIX_FMT_D3D11VA_VLD` so D3D11VA decode starts on first packet.
+- [x] **H.264 + D3D11VA crash fix** — Fixed `avcodec_send_packet` crash by pre-warming D3D11VA before first decode call.
+- [x] **Dedicated HW frame buffers** — Separate `hwFramesCtx` prevents races between HW download and SW display paths.
+- [x] **Lazy swsCtx creation** — `swsCtx` created on first `toRGBA()` call; avoids crash from invalid pixel format before first HW decode.
+- [x] **HW frame transfer mutex** — `videoCodecMu` held during HW→SW transfer and RGBA conversion; eliminates concurrent AVCodecContext access.
+- [x] **HW decode codec filtering** — Only codecs that work without `get_format` callback get HW decode enabled; prevents crashes on VC-1, MPEG-2 etc.
+- [x] **AV_NOPTS_VALUE guard** — `GrabFrame` and `NextFrame` skip frames with invalid PTS instead of passing them to audio/player.
+- [x] **D3D11VA flush guard** — `avcodec_flush_buffers` skipped before first decoded frame to prevent crash.
+- [x] **Safe HW frame download** — `av_hwframe_transfer_data` wrapped in recover/retry; falls back to SW decode on failure.
+
+### Native Media Player — Audio/A-V Sync (dev42)
+- [x] **A/V clock double-speed fix** — Master clock `SetSpeed()` wired after speed changes; no more 2× playback after resume.
+- [x] **AudioPlayer.Read() non-blocking** — Read returns immediately if buffer empty; prevents playback hang when audio underruns.
+- [x] **Audio seek serialisation** — Codec operations serialized against Seek() to prevent hard crash from concurrent access.
+- [x] **Pause spin-loop prevention** — Pause loop sleeps instead of busy-waiting; Close() doesn't race with pause state.
+- [x] **Audio context pre-warm** — Audio context created at startup to avoid WASAPI initialization hang on first playback.
+- [x] **SetSpeed deadlock fix** — Speed changes no longer block the audio callback thread.
+
+### Native Media Player — SMPTE Bars & Idle State (dev42)
+- [x] **SMPTE colour bars idle state** — Click-to-load dialog when no video is loaded; consistent across all module players.
+- [x] **SMPTE bars in 4:3 ratio** — Letterboxing/pillarboxing for proper aspect ratio.
+- [x] **SMPTE bars scaled to player size** — Dynamic sizing instead of fixed 1920×1080.
+- [x] **SMPTE idle text scaled proportionally** — Text size adapts to bar width.
+
+### Native Media Player — Misc (dev42)
+- [x] **Native Fyne icons** — Replaced emoji transport controls (▶, ⏸, 🔊, ⛶) with `theme.IconName` equivalents.
+- [x] **SmoothScrubbing crash fix** — Fixed crash on HW-decoded frames in thumbnail scrubber.
+- [x] **GrabFrame deadlock fix** — Invalid PTS frames no longer block the decode loop.
+- [x] **Letterbox fill performance** — Removed per-frame debug log; fixed fill colour on dark backgrounds.
+- [x] **Initial frame display** — GrabFrame restored for first frame; skip only on subsequent calls to avoid crash.
+- [x] **Panic recovery** — Added `recoverPanic` in GrabFrame, toRGBA, NextFrame, predecodeAhead, Load functions.
 
 ### Convert Module (dev42)
 - [x] **Improvement plan** — Created `docs/CONVERT_MODULE_IMPROVEMENTS.md` with 10 phases covering missing UI controls, format presets, subtitle/audio track selection, video filters, metadata handling, presets, and i18n
+- [x] **Clear button for output folder** — Added Clear button next to output directory in Convert settings.
+- [x] **Output directory creation** — Ensure output directories exist before running convert/thumbnail/filter jobs.
+- [x] **Drag-drop first frame fix** — `loadMultipleVideos` now calls `loadVideoNative` so the first frame appears immediately after drop.
 
 ### Audio Module (dev42)
-- [x] **Improvement plan** — Created `docs/AUDIO_MODULE_IMPROVEMENTS.md` with 7 phases covering layout consistency, native player, track selection, batch processing, visualization, output handling, and consistency with Convert
+- [x] **Improvement plan** — Created `docs/AUDIO_MODULE_IMPROVEMENTS.md` with 7 phases.
+- [x] **VSplit layout** — Replaced custom HSplit with `container.NewVSplit` for consistency.
+- [x] **Stats bar footer** — Added stats bar footer to Audio module.
+- [x] **i18n all user-facing strings** — All Audio module labels and buttons use i18n keys.
+- [x] **Drop label wrapping** — Wrapped drop label text for cleaner layout.
+
+### Thumbnail Module (dev42)
+- [x] **3-way output mode toggle** — Individual / Contact Sheet / Both selector replaces the old ContactSheet boolean.
+- [x] **Image inspector** — Click any thumbnail or contact sheet tile to inspect at full window size.
+- [x] **Contact sheet pad crash fix** — `trim` filter removed from filtergraph; time window via `-ss`/`-t` input options instead. Eliminates "padded dimensions cannot be smaller than input dimensions" on Xvid/MPEG-4 ASP.
+- [x] **Contact sheet progress** — Full-panel display with live progress bar during generation.
+- [x] **Contact sheet metadata** — Left-padding matched to logo (32px); metadata text vertically centred in header.
+- [x] **CRLF line-break fix** — `\r` trimmed from ffprobe output to prevent `drawtext` line-break issues on Windows.
+- [x] **TextWrapWord fix** — Placeholder label no longer stacks vertically in `NewCenter`.
+- [x] **All to Queue per-file jobs** — "Add All to Queue" creates individual jobs per file instead of a single batch job.
+
+### Subtitles Module (dev42)
+- [x] **Video preview player** — Added video preview with synced subtitle overlay in Subtitles module.
+
+### Snippet Module (dev42)
+- [x] **Options drawer height** — Increased height to avoid unnecessary scrolling.
+
+### CI & Build (dev42)
+- [x] **libdrm-dev build dep** — Added `libdrm-dev` to Linux CI for FFmpeg.
+- [x] **FFmpeg hwaccel disabled in CI** — GPU/hwaccel disabled in FFmpeg configure to avoid libdrm runtime dependency.
+- [x] **Update script** — Linux binary replacement uses helper script.
+- [x] **Update status icon** — Replaced ⬤ (black large circle) with ● (bullet) for reliable cross-platform rendering.
+
+### Misc (dev42)
+- [x] **Temp file cleanup** — Preview-frame and cover-art temp files cleaned up on video unload.
+- [x] **FFmpeg install button removed** — FFmpeg is bundled in binary; redundant install button removed from Settings.
 
 ## Version 0.1.1-dev40 (in progress) - Burn Module & File Manager
 

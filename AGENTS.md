@@ -4,21 +4,19 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev40`.
+- Current cycle: `v0.1.1-dev42`.
 - Public/stable baseline: `v0.1.1`.
-- `dev30` is closed. CI validated on 2026-03-10 (runs 219/220/221, commit 2cbb3a2).
-- `dev32` closed. CI validated on 2026-03-15.
-- `dev35` closed. Module extraction in progress.
-- `dev39` closed. CI validated on 2026-04-04 (runs 1098/1099/1100, commit 90cac7a).
+- `dev42` closed. Player stabilisation (D3D11VA, audio sync, GStreamer removal), thumbnail 3-way output, audio i18n, convert drop fixes. No version bump yet — pending testing.
+- `dev40` closed. CI validated.
 - Issue tracker active at `https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues`.
 - Primary planning source is `TODO.md`; shipped scope is tracked in `DONE.md`; release-facing history is `docs/CHANGELOG.md`.
 
 ## Immediate Handoff Priorities
 
 - **Burn module** — Implement burn logic (IMAPI2 on Windows, SG_IO on Linux); UI is wired. See `docs/BURN_MODULE_DESIGN.md`.
-- **Module extraction** — Continue `settings_module.go` extraction to `internal/app/modules/settings/`.
-- **Issue #5** (Convert UI cleanup) — layout consistency and label clarity pass on `buildConvertView` in `main.go`.
-- Do not expand scope beyond what is listed unless explicitly approved.
+- **Convert Module Improvements Phase 1** — Audio Sample Rate, Normalize Audio, Deinterlace, H.264 Profile/Level UI controls. See `docs/CONVERT_MODULE_IMPROVEMENTS.md`.
+- **Issue #5** (Convert i18n) — ~50 hardcoded strings in buildConvertView need i18n keys.
+- **Do not expand scope beyond what is listed unless explicitly approved.**
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
 
 ## Commit Discipline
