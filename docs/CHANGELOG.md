@@ -1,5 +1,13 @@
 # VideoTools Changelog
 
+## v0.1.1-dev43 (April 2026)
+
+### Native Media Player — Thread-Safety & Crash Fixes
+- **Pixel format crash fix** — `GrabFrame` and `NextFrame` now derive the `sws` pixel format from `frame.format` (the actual decoded format) rather than `videoCodecCtx.pix_fmt`, which is `AV_PIX_FMT_NONE` until the codec parses its first SPS. A nil `swsCtx` produced by `sws_getContext` caused an unrecoverable C SIGSEGV inside `sws_scale`. `NextFrame`'s SW decode path was also missing the `ensureSwsCtx` call entirely.
+- **Close/demuxer race** — Added `sync.WaitGroup demuxerWg` to `Engine`. `demuxerLoop` signals Done on exit. `Engine.Close()` now waits for the demuxer to fully exit before freeing `formatCtx`, `videoCodecCtx`, or any other FFmpeg resource, eliminating the use-after-free crash window.
+- **NextFrame/Close codec race** — `Close()` acquires `videoCodecMu` before freeing `videoCodecCtx`, ensuring any in-flight `NextFrame` decode cycle has completed first.
+- **seekLoop goroutine leak** — `InlineVideoPlayer.seekCh` was never closed, leaking the `seekLoop` goroutine on every `Close()`. Ownership moved to `Load()`: channel is closed and reallocated per file. `Close()` closes the channel to drain the goroutine. The `OnSeek` widget callback guards against a nil channel under the player mutex.
+
 ## v0.1.1-dev42 (April 2026)
 
 ### Native Media Player — GStreamer Removal

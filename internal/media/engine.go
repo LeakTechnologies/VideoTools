@@ -622,6 +622,7 @@ type Engine struct {
 	mu           sync.Mutex
 	formatMu     sync.Mutex // serialises av_read_frame vs avformat_seek_file
 	videoCodecMu sync.Mutex // serialises avcodec_send_packet / avcodec_receive_frame on videoCodecCtx
+	demuxerWg    sync.WaitGroup // tracks demuxerLoop goroutine; Close waits before freeing contexts
 	running      bool
 	paused       bool
 	stop         chan struct{}
@@ -1890,10 +1891,12 @@ func (e *Engine) Start() {
 	// Resetting ptsTime here means the clock starts from 0 when demuxing begins.
 	e.clock.SetPaused(false)
 
+	e.demuxerWg.Add(1)
 	go e.demuxerLoop()
 }
 
 func (e *Engine) demuxerLoop() {
+	defer e.demuxerWg.Done()
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Error(logging.CatPlayer, "demuxerLoop panic: %v", r)
@@ -2096,7 +2099,7 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 					img = e.toRGBA()
 				}
 			} else {
-				e.ensureSwsCtx(e.videoCodecCtx.pix_fmt)
+				e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
 				img = e.toRGBA()
 			}
 			e.videoCodecMu.Unlock()
@@ -2203,6 +2206,7 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 					img = e.toRGBA()
 				}
 			} else {
+				e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
 				img = e.toRGBA()
 			}
 
@@ -2516,16 +2520,36 @@ func (e *Engine) Close() {
 	e.running = false
 	e.paused = false
 	e.mu.Unlock()
+
+	// Signal the demuxer goroutine to exit.
 	close(e.stop)
 
+	// Closing the queues unblocks any goroutine blocked in queue.Put() (which
+	// waits when the queue is full). This lets the demuxer proceed to the next
+	// loop iteration where it will see <-e.stop and exit.
 	e.videoQueue.Close()
 	e.audioQueue.Close()
+	if e.subtitleQueue != nil {
+		e.subtitleQueue.Close()
+	}
 
+	// Wait for demuxerLoop to fully exit before freeing any FFmpeg contexts.
+	// Without this wait, demuxerLoop may still be inside av_read_frame when we
+	// call avformat_close_input, causing a use-after-free crash.
+	e.demuxerWg.Wait()
+
+	// Close audio before freeing the audio codec context.
 	if e.audioPlayer != nil {
 		e.audioPlayer.Close()
 		e.audioPlayer = nil
 	}
 
+	// Acquire videoCodecMu before freeing the video codec context. This ensures
+	// that any in-flight NextFrame decode (which holds videoCodecMu during
+	// avcodec_send/receive) has completed before we pull the context out from
+	// under it. After videoQueue.Close() above, the next Get() in NextFrame
+	// returns !ok, so NextFrame will not attempt to acquire videoCodecMu again.
+	e.videoCodecMu.Lock()
 	if e.swsCtx != nil {
 		C.sws_freeContext(e.swsCtx)
 		e.swsCtx = nil
@@ -2538,17 +2562,6 @@ func (e *Engine) Close() {
 		C.avcodec_free_context(&e.videoCodecCtx)
 		e.videoCodecCtx = nil
 	}
-	if e.audioCodecCtx != nil {
-		C.avcodec_free_context(&e.audioCodecCtx)
-		e.audioCodecCtx = nil
-	}
-	if e.subtitleCodecCtx != nil {
-		C.avcodec_free_context(&e.subtitleCodecCtx)
-		e.subtitleCodecCtx = nil
-	}
-	if e.subtitleQueue != nil {
-		e.subtitleQueue.Close()
-	}
 	if e.hwFramesCtx != nil {
 		C.av_buffer_unref(&e.hwFramesCtx)
 		e.hwFramesCtx = nil
@@ -2556,10 +2569,6 @@ func (e *Engine) Close() {
 	if e.hwDeviceCtx != nil {
 		C.av_buffer_unref(&e.hwDeviceCtx)
 		e.hwDeviceCtx = nil
-	}
-	if e.formatCtx != nil {
-		C.avformat_close_input(&e.formatCtx)
-		e.formatCtx = nil
 	}
 	if e.frame != nil {
 		C.av_frame_free(&e.frame)
@@ -2572,6 +2581,25 @@ func (e *Engine) Close() {
 	if e.hwRgbaFrame != nil {
 		C.av_frame_free(&e.hwRgbaFrame)
 		e.hwRgbaFrame = nil
+	}
+	e.videoCodecMu.Unlock()
+
+	if e.audioCodecCtx != nil {
+		C.avcodec_free_context(&e.audioCodecCtx)
+		e.audioCodecCtx = nil
+	}
+	if e.subtitleCodecCtx != nil {
+		C.avcodec_free_context(&e.subtitleCodecCtx)
+		e.subtitleCodecCtx = nil
+	}
+
+	// formatCtx is safe to free now: demuxerWg.Wait() guarantees demuxerLoop
+	// has exited (no concurrent av_read_frame), and Seek holds e.mu which we
+	// would need to call — but Close already set running=false so Seek returns
+	// early. Direct access is safe here.
+	if e.formatCtx != nil {
+		C.avformat_close_input(&e.formatCtx)
+		e.formatCtx = nil
 	}
 
 	logging.Info(logging.CatPlayer, "Engine closed")

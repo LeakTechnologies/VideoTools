@@ -49,9 +49,10 @@ func (v *InlineVideoPlayer) SetOnEnd(fn func()) {
 func NewInlineVideoPlayer() *InlineVideoPlayer {
 	v := &InlineVideoPlayer{
 		player: media.NewInlineVideoPlayer(),
-		seekCh: make(chan float64, 1),
+		// seekCh starts nil; Load() allocates it and starts seekLoop each time
+		// a file is opened. This avoids a leaked goroutine when a player is
+		// constructed but never loaded, and makes Load() the single owner.
 	}
-	go v.seekLoop()
 	// Wire the widget's built-in controls to this player by default.
 	// Modules that need custom logic (e.g. Trim) can overwrite via OnPlay/OnPause/OnSeek.
 	p := v.player
@@ -60,8 +61,14 @@ func NewInlineVideoPlayer() *InlineVideoPlayer {
 	// OnSeek sends to the debounce channel — rapid slider drags drop intermediate
 	// positions and the seekLoop runs each accepted seek off the event goroutine.
 	p.OnSeek(func(target float64) {
+		v.mu.Lock()
+		ch := v.seekCh
+		v.mu.Unlock()
+		if ch == nil {
+			return
+		}
 		select {
-		case v.seekCh <- target:
+		case ch <- target:
 		default: // a seek is already queued; drop this one
 		}
 	})
@@ -113,6 +120,13 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 		v.engine.Close()
 		v.engine = nil
 	}
+	// Recycle seekCh so seekLoop can be restarted for the new file.
+	// Close() may have already closed it; either way, create a fresh one.
+	if v.seekCh != nil {
+		close(v.seekCh)
+	}
+	v.seekCh = make(chan float64, 1)
+	go v.seekLoop()
 
 	v.engine = media.NewEngine()
 	v.engine.SetSeekAccuracy(media.SeekAccuracyKeyframe)
@@ -303,10 +317,14 @@ func (v *InlineVideoPlayer) CurrentTime() float64 {
 }
 
 func (v *InlineVideoPlayer) ScrubTo(target float64) {
-	if v.engine == nil || v.scrubber == nil {
+	v.mu.Lock()
+	eng := v.engine
+	scrubber := v.scrubber
+	v.mu.Unlock()
+	if eng == nil || scrubber == nil {
 		return
 	}
-	v.scrubber.RequestSeek(target)
+	scrubber.RequestSeek(target)
 	v.player.SetCurrentTime(target)
 }
 
@@ -370,6 +388,11 @@ func (v *InlineVideoPlayer) Close() {
 	if v.engine != nil {
 		v.engine.Close()
 		v.engine = nil
+	}
+	// Close seekCh so seekLoop goroutine exits cleanly.
+	if v.seekCh != nil {
+		close(v.seekCh)
+		v.seekCh = nil
 	}
 }
 
