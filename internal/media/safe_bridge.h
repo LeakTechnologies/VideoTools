@@ -7,6 +7,7 @@
 #pragma once
 #include <stdint.h>
 #include <libavcodec/avcodec.h>
+#include <libswresample/swresample.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,6 +54,23 @@ int safe_avcodec_send_packet(AVCodecContext* ctx, const AVPacket* pkt,
  */
 int safe_avcodec_receive_frame(AVCodecContext* ctx, AVFrame* frame,
                                 uint32_t* exc_code_out);
+
+/*
+ * audio_swr_convert_packed — CGo-safe wrapper around swr_convert for packed
+ * (interleaved) output formats (e.g. AV_SAMPLE_FMT_S16).
+ *
+ * The standard swr_convert signature takes uint8_t** for the output, which
+ * requires passing &outPtr from Go — a Go stack pointer containing a Go heap
+ * pointer.  Go 1.21+ CGo rules forbid this ("Go pointer to unpinned Go
+ * pointer").  This wrapper takes a flat uint8_t* and forms the double-pointer
+ * internally on the C stack, keeping the violation out of Go.
+ *
+ * out_buf  — caller-allocated output buffer (Go or C memory; must hold at
+ *             least out_count * channels * bytes_per_sample bytes).
+ * Returns the number of samples converted per channel, or a negative AVERROR.
+ */
+int audio_swr_convert_packed(SwrContext* swr, uint8_t* out_buf, int out_count,
+                              AVFrame* frame);
 
 #ifdef __cplusplus
 }

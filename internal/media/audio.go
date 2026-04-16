@@ -463,8 +463,12 @@ func (p *AudioPlayer) resample() ([]byte, error) {
 		p.resampleBuf = make([]byte, neededSize)
 	}
 
+	// audio_swr_convert_packed is a CGo-safe wrapper: it takes a flat
+	// uint8_t* and forms the double-pointer on the C stack internally,
+	// avoiding the "Go pointer to unpinned Go pointer" CGo violation that
+	// occurs when passing &outPtr directly to swr_convert from Go.
 	outPtr := (*C.uint8_t)(unsafe.Pointer(&p.resampleBuf[0]))
-	gotSamples := C.swr_convert(p.swrCtx, &outPtr, C.int(maxSamples), &p.frame.data[0], p.frame.nb_samples)
+	gotSamples := C.audio_swr_convert_packed(p.swrCtx, outPtr, C.int(maxSamples), p.frame)
 	if gotSamples < 0 {
 		logging.Error(logging.CatPlayer, "Audio resample failed with code: %d", gotSamples)
 		return nil, fmt.Errorf("resample error: %d", gotSamples)
