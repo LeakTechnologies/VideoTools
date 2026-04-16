@@ -49,6 +49,7 @@ type AudioPlayer struct {
 	volumeMul   float32
 	eofReceived bool
 	looping     bool
+	firstPktLogged bool
 }
 
 func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *MasterClock, timeBase float64) (*AudioPlayer, error) {
@@ -231,6 +232,10 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	// Seek(). AVCodecContext is not thread-safe — concurrent send/receive and
 	// flush_buffers cause hard crashes.
 	p.codecMu.Lock()
+	if !p.firstPktLogged {
+		p.firstPktLogged = true
+		logging.Info(logging.CatPlayer, "AudioPlayer.Read: sending first packet to audio codec (size=%d)", pkt.size)
+	}
 	sendOK := C.avcodec_send_packet(p.codecCtx, pkt) == 0
 	if !sendOK {
 		p.codecMu.Unlock()
