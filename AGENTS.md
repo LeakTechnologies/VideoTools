@@ -4,15 +4,19 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev42`.
+- Current cycle: `v0.1.1-dev44`.
 - Public/stable baseline: `v0.1.1`.
-- `dev42` closed. Player stabilisation (D3D11VA, audio sync, GStreamer removal), thumbnail 3-way output, audio i18n, convert drop fixes. No version bump yet — pending testing.
+- `dev43` closed. Player thread-safety audit: pixel format SIGSEGV fix, Close/demuxer WaitGroup, NextFrame/Close codec race gate, seekLoop goroutine leak. Pending smoke test.
+- `dev42` closed. Player stabilisation (D3D11VA, audio sync, GStreamer removal), thumbnail 3-way output, audio i18n, convert drop fixes.
 - `dev40` closed. CI validated.
 - Issue tracker active at `https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues`.
 - Primary planning source is `TODO.md`; shipped scope is tracked in `DONE.md`; release-facing history is `docs/CHANGELOG.md`.
+- **Player debug log:** `docs/PLAYER_DEBUG.md` — keep this up to date as issues are found and fixed. Update it before closing any player-related issue.
 
 ## Immediate Handoff Priorities
 
+- **Player smoke test (dev44)** — Verify dev43 fixes hold: load and play H.264/AV1/MPEG4 files in SW decode mode; confirm no frame-5 crash. Update `docs/PLAYER_DEBUG.md` Videos Tested table with results.
+- **Player P1 fixes (dev44)** — See `docs/PLAYER_DEBUG.md` Known Issues. Top items: `predecodeFrom` sharing `formatCtx` with `demuxerLoop`; audio queue not flushed before seek; dead `predecodeAhead` code.
 - **Burn module** — Implement burn logic (IMAPI2 on Windows, SG_IO on Linux); UI is wired. See `docs/BURN_MODULE_DESIGN.md`.
 - **Convert Module Improvements Phase 1** — Audio Sample Rate, Normalize Audio, Deinterlace, H.264 Profile/Level UI controls. See `docs/CONVERT_MODULE_IMPROVEMENTS.md`.
 - **Issue #5** (Convert i18n) — ~50 hardcoded strings in buildConvertView need i18n keys.
