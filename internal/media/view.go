@@ -29,14 +29,14 @@ const (
 	vtGreen              = 0x4CE870
 	hoverPadding         = 8
 	controlBarHeight     = 48
-	controlBarHeightMini = 32
+	controlBarHeightMini = 44
 	controlAlpha         = 0xCC
 )
 
 var (
 	dividerColor      = color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xFF}
 	dividerHoverColor = color.RGBA{R: 0x7F, G: 0xFF, B: 0xA0, A: 0xFF}
-	controlBarBG      = color.RGBA{R: 0x19, G: 0x1F, B: 0x35, A: controlAlpha}
+	controlBarBG      = color.RGBA{R: 0x0A, G: 0x0E, B: 0x1A, A: 0xD0}
 	sliderFill        = color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xFF}
 	sliderBackground  = color.RGBA{R: 0x40, G: 0x40, B: 0x50, A: 0x80}
 )
@@ -289,6 +289,7 @@ type VideoPlayer struct {
 	mouseInView           bool
 	minimal               bool
 	builtinControlsLocked bool
+	controlHideTimer      *time.Timer
 
 	raster        *canvas.Raster
 	currentWidth  int
@@ -414,9 +415,13 @@ func (v *VideoPlayer) buildControls() {
 	if v.minimal {
 		controlRow := container.NewHBox(
 			v.playBtn,
-			layout.NewSpacer(),
+			v.timeLabel,
 			seekStack,
-			layout.NewSpacer(),
+			v.durLabel,
+			v.speedBtn,
+			v.volumeBtn,
+			v.volumeSlider,
+			v.fullscreenBtn,
 		)
 		v.controlBar = canvas.NewRectangle(controlBarBG)
 		v.controlBar.CornerRadius = 0
@@ -1129,14 +1134,43 @@ func (v *VideoPlayer) MouseIn(ev *desktop.MouseEvent) {
 	v.mouseInView = true
 	if !v.builtinControlsLocked {
 		v.showControls = true
+		v.resetControlHideTimer()
 	}
 	v.Refresh()
 }
 
+func (v *VideoPlayer) MouseMoved(ev *desktop.MouseEvent) {
+	if v.builtinControlsLocked {
+		return
+	}
+	if !v.showControls {
+		v.showControls = true
+		v.Refresh()
+	}
+	v.resetControlHideTimer()
+}
+
 func (v *VideoPlayer) MouseOut() {
 	v.mouseInView = false
+	if v.controlHideTimer != nil {
+		v.controlHideTimer.Stop()
+	}
 	v.showControls = false
 	v.Refresh()
+}
+
+func (v *VideoPlayer) resetControlHideTimer() {
+	if v.controlHideTimer != nil {
+		v.controlHideTimer.Stop()
+	}
+	v.controlHideTimer = time.AfterFunc(3*time.Second, func() {
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			if v.mouseInView {
+				v.showControls = false
+				v.Refresh()
+			}
+		}, false)
+	})
 }
 
 func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {
@@ -1184,6 +1218,7 @@ func (r *videoPlayerRenderer) Objects() []fyne.CanvasObject {
 }
 
 func (r *videoPlayerRenderer) Layout(size fyne.Size) {
+	// Raster always fills the full widget — controls are an overlay.
 	if r.VideoPlayer.raster != nil {
 		r.VideoPlayer.raster.Resize(size)
 	}
@@ -1192,17 +1227,12 @@ func (r *videoPlayerRenderer) Layout(size fyne.Size) {
 	if r.minimal {
 		barHeight = float32(controlBarHeightMini)
 	}
-	if !r.showControls {
-		barHeight = 0
-	}
-
-	r.VideoPlayer.controlBar.Resize(fyne.NewSize(size.Width, barHeight))
-	r.VideoPlayer.controlBar.Move(fyne.NewPos(0, size.Height-barHeight))
-
-	r.VideoPlayer.controls.Resize(fyne.NewSize(size.Width, barHeight))
-	r.VideoPlayer.controls.Move(fyne.NewPos(0, size.Height-barHeight))
 
 	if r.showControls {
+		r.VideoPlayer.controlBar.Resize(fyne.NewSize(size.Width, barHeight))
+		r.VideoPlayer.controlBar.Move(fyne.NewPos(0, size.Height-barHeight))
+		r.VideoPlayer.controls.Resize(fyne.NewSize(size.Width, barHeight))
+		r.VideoPlayer.controls.Move(fyne.NewPos(0, size.Height-barHeight))
 		r.VideoPlayer.controlBar.Show()
 		r.VideoPlayer.controls.Show()
 	} else {
@@ -1227,9 +1257,6 @@ func (r *videoPlayerRenderer) MinSize() fyne.Size {
 func (v *VideoPlayer) draw(w, h int) image.Image {
 	if v.source == nil {
 		availableH := h
-		if v.showControls {
-			availableH = h - controlBarHeight
-		}
 
 		// Draw SMPTE bars in 4:3 ratio with letterboxing
 		targetAspect := 4.0 / 3.0
@@ -1272,9 +1299,6 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 	}
 
 	availableH := h
-	if v.showControls {
-		availableH = h - controlBarHeight
-	}
 
 	newW := w
 	newH := availableH
