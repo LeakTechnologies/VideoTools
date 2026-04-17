@@ -378,7 +378,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	rightBtns := container.NewHBox(speedBtn, volBox, fullBtn)
 	mainCtrlRow := container.NewBorder(nil, nil, leftBtns, rightBtns, nil)
 
-	primaryBg := canvas.NewRectangle(color.NRGBA{R: 12, G: 17, B: 31, A: 230})
+	primaryBg := canvas.NewRectangle(color.NRGBA{R: 8, G: 12, B: 24, A: 200})
 	primaryBar := container.NewMax(primaryBg, container.NewPadded(container.NewVBox(seekRow, mainCtrlRow)))
 
 	gridColor := ui.GridColor
@@ -460,8 +460,6 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	)
 	advancedBar := container.NewMax(advancedBg, container.NewPadded(frameTools))
 
-	controls := container.NewVBox(primaryBar, advancedBar)
-
 	// Wrap the video stage so files dropped directly onto the player are handled.
 	dropZone := ui.NewDroppable(videoStageWithIndicator, func(items []fyne.URI) {
 		state.handleDrop(fyne.NewPos(0, 0), items)
@@ -479,11 +477,18 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		},
 	)
 
+	// Overlay the transport controls at the bottom of the video stage.
+	// advancedBar (frame counter, tracks, tools) stays as a compact strip below.
+	videoWithControls := container.NewStack(
+		dropZone,
+		container.NewBorder(nil, primaryBar, nil, nil, nil),
+	)
+
 	stack := container.NewBorder(
 		nil,
-		controls,
+		advancedBar,
 		nil, nil,
-		container.NewPadded(dropZone),
+		container.NewPadded(videoWithControls),
 	)
 
 	return container.NewMax(outer, container.NewPadded(stack))
