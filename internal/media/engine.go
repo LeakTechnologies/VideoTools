@@ -1618,6 +1618,14 @@ func (e *Engine) Open(path string) error {
 		e.info.FrameRate = float64(avgFrameRate.num) / float64(avgFrameRate.den)
 	}
 
+	// Force single-threaded decode for the video codec.  FFmpeg's lazy
+	// thread-pool initialisation can crash on Windows when the thread pool
+	// is first touched (typically around frame 6 for H.264) because the
+	// Win32 thread environment differs from what the codec expects.
+	// thread_type=0 disables both frame-level and slice-level parallelism.
+	e.videoCodecCtx.thread_count = 1
+	e.videoCodecCtx.thread_type = 0
+
 	logging.Info(logging.CatPlayer, "Opening video codec: %s %dx%d pix_fmt=%d", e.info.CodecName, e.info.Width, e.info.Height, e.videoCodecCtx.pix_fmt)
 	if C.avcodec_open2(e.videoCodecCtx, videoCodec, nil) < 0 {
 		C.avcodec_free_context(&e.videoCodecCtx)
@@ -2145,7 +2153,7 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 	}()
 
 	nf := atomic.AddInt64(&e.nextFrameCount, 1)
-	verbose := nf <= 5
+	verbose := nf <= 20
 	if verbose {
 		logging.Info(logging.CatPlayer, "NextFrame #%d: enter (hwDevice=%v hasAudio=%v)", nf, e.hwDevice, e.hasAudio)
 	}
