@@ -301,6 +301,14 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	p.mu.Unlock()
 
 	if paused {
+		// Drain one buffered chunk per call without advancing the clock.
+		// This empties pcmCh while paused so that on resume the clock does
+		// not jump forward by however much audio was pre-decoded (up to ~1.5s),
+		// which was causing visible seek jumps when toggling pause.
+		select {
+		case <-p.pcmCh:
+		default:
+		}
 		for i := range buf {
 			buf[i] = 0
 		}
