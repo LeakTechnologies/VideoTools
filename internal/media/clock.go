@@ -32,7 +32,25 @@ func NewMasterClock() *MasterClock {
 	}
 }
 
+// SetTime advances the clock to pts. It is a monotonic ratchet: if pts is
+// less than the current clock value the call is a no-op. This prevents audio
+// chunks delivered out-of-order (or consumed late by oto) from collapsing the
+// clock backward and causing WaitForPTS to hang indefinitely.
+//
+// Use ResetTime for unconditional resets (e.g. after a seek operation).
 func (c *MasterClock) SetTime(pts float64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if pts <= c.pts {
+		return
+	}
+	c.pts = pts
+	c.ptsTime = time.Now()
+}
+
+// ResetTime unconditionally sets the clock to pts, including backward jumps.
+// Use this after seek operations where the PTS will legitimately decrease.
+func (c *MasterClock) ResetTime(pts float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.pts = pts

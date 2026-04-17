@@ -2036,7 +2036,7 @@ func (e *Engine) Seek(seconds float64) error {
 	}
 	logging.Info(logging.CatPlayer, "Seek: audio codec flushed, resetting clock")
 
-	e.clock.SetTime(seconds)
+	e.clock.ResetTime(seconds)
 	logging.Info(logging.CatPlayer, "Seek: complete at %.2f", seconds)
 	return nil
 }
@@ -2261,7 +2261,7 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 			delay := e.clock.SyncVideo(pts)
 			if delay < 0 {
 				if verbose {
-					logging.Info(logging.CatPlayer, "NextFrame #%d: frame late (delay=%.3f), dropping", nf, delay)
+					logging.Info(logging.CatPlayer, "NextFrame #%d: frame late (delay=%v), dropping", nf, delay)
 				}
 				e.videoCodecMu.Lock() // re-acquire for next avcodec_receive_frame
 				continue
