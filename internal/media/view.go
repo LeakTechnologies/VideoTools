@@ -220,6 +220,7 @@ type VideoPlayer struct {
 	timeLabel      *canvas.Text
 	durLabel       *canvas.Text
 	volumeBtn      *widget.Button
+	volumeSlider   *widget.Slider
 	speedBtn       *widget.Button
 	prevChapterBtn *widget.Button
 	nextChapterBtn *widget.Button
@@ -357,6 +358,15 @@ func (v *VideoPlayer) buildControls() {
 	v.volumeBtn.Importance = widget.LowImportance
 	v.volumeBtn.Resize(fyne.NewSize(36, 36))
 
+	v.volumeSlider = widget.NewSlider(0, 100)
+	v.volumeSlider.Value = v.volume * 100
+	v.volumeSlider.OnChanged = func(pos float64) {
+		v.volume = pos / 100.0
+		if v.onVolumeChange != nil {
+			v.onVolumeChange(v.volume)
+		}
+	}
+
 	v.speedBtn = widget.NewButton("1x", v.toggleSpeed)
 	v.speedBtn.Importance = widget.LowImportance
 	v.speedBtn.Resize(fyne.NewSize(36, 24))
@@ -426,6 +436,7 @@ func (v *VideoPlayer) buildControls() {
 			layout.NewSpacer(),
 			v.speedBtn,
 			v.volumeBtn,
+			v.volumeSlider,
 			v.subtitleBtn,
 			v.pipBtn,
 			v.fullscreenBtn,
