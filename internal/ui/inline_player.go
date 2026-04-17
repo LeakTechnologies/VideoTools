@@ -73,6 +73,7 @@ func NewInlineVideoPlayer() *InlineVideoPlayer {
 		}
 	})
 	p.OnSpeedChange(func(speed float64) { v.SetSpeed(speed) })
+	p.OnVolumeChange(func(vol float64) { v.SetVolume(vol * 100) })
 	return v
 }
 

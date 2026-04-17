@@ -124,6 +124,13 @@ func (c *MasterClock) WaitForPTS(targetPTS float64) {
 	}
 
 	for {
+		c.mu.Lock()
+		paused := c.paused
+		c.mu.Unlock()
+		if paused {
+			return
+		}
+
 		master := c.GetTime()
 		diff := targetPTS - master
 

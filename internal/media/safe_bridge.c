@@ -1,3 +1,4 @@
+//go:build native_media
 /*
  * safe_bridge.c — Pre-flight diagnostic wrapper for FFmpeg codec calls.
  *
