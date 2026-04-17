@@ -33,15 +33,23 @@ func NewMasterClock() *MasterClock {
 }
 
 // SetTime advances the clock to pts. It is a monotonic ratchet: if pts is
-// less than the current clock value the call is a no-op. This prevents audio
-// chunks delivered out-of-order (or consumed late by oto) from collapsing the
-// clock backward and causing WaitForPTS to hang indefinitely.
+// less than the *current computed clock value* (anchor + wall-elapsed) the
+// call is a no-op. This prevents audio chunks — whether pre-buffered by oto
+// before playback or re-anchored mid-stream — from resetting ptsTime and
+// collapsing the wall-elapsed component, which was the root cause of
+// WaitForPTS hanging after a brief backward clock jump.
 //
 // Use ResetTime for unconditional resets (e.g. after a seek operation).
 func (c *MasterClock) SetTime(pts float64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if pts <= c.pts {
+	var current float64
+	if c.paused {
+		current = c.pts
+	} else {
+		current = c.pts + time.Since(c.ptsTime).Seconds()*c.speed
+	}
+	if pts <= current {
 		return
 	}
 	c.pts = pts
