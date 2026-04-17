@@ -155,6 +155,24 @@ func (q *PacketQueue) IsClosed() bool {
 	return q.closed
 }
 
+// TryPut enqueues pkt if the queue is below its limit, and returns true.
+// If the queue is already at capacity the packet is NOT enqueued and the
+// caller must free it; returns false. Never blocks.
+func (q *PacketQueue) TryPut(pkt *C.AVPacket) bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	if q.closed || q.eof || len(q.packets) >= q.maxSize {
+		return false
+	}
+
+	cloned := C.av_packet_alloc()
+	C.av_packet_ref(cloned, pkt)
+	q.packets = append(q.packets, cloned)
+	q.cond.Signal()
+	return true
+}
+
 // TryGet returns a packet if one is available, without blocking.
 // Returns (nil, false) immediately when the queue is empty.
 func (q *PacketQueue) TryGet() (*C.AVPacket, bool) {

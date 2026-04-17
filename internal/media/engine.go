@@ -613,7 +613,8 @@ type Engine struct {
 	hwRgbaFrame  *C.AVFrame
 	hwRgbaBuffer []byte
 
-	framePool [][]byte
+	framePool    [][]byte
+	framepoolMu  sync.Mutex // protects framePool only — must NOT be acquired under videoCodecMu
 
 	videoTimeBase    float64
 	audioTimeBase    float64
@@ -1963,11 +1964,15 @@ func (e *Engine) demuxerLoop() {
 
 		streamIdx := int(pkt.stream_index)
 		if streamIdx == e.videoStreamIdx {
-			e.videoQueue.Put(pkt)
+			e.videoQueue.Put(pkt) // blocking: never drop video packets
 		} else if streamIdx == e.audioStreamIdx {
-			e.audioQueue.Put(pkt)
+			// Non-blocking: if the audio queue is saturated, discard the
+			// packet rather than stalling the demuxer and starving the video
+			// queue.  A skipped AAC frame (23 ms) is inaudible compared to
+			// a several-second video freeze.
+			e.audioQueue.TryPut(pkt)
 		} else if streamIdx == e.subtitleStreamIdx && e.subtitleCodecCtx != nil {
-			e.subtitleQueue.Put(pkt)
+			e.subtitleQueue.TryPut(pkt)
 		}
 		C.av_packet_unref(pkt)
 	}
@@ -2395,7 +2400,7 @@ func (e *Engine) toRGBA() (img *image.RGBA) {
 
 	w, h := int(e.videoCodecCtx.width), int(e.videoCodecCtx.height)
 
-	e.mu.Lock()
+	e.framepoolMu.Lock()
 	if len(e.framePool) > 0 {
 		buf := e.framePool[len(e.framePool)-1]
 		e.framePool = e.framePool[:len(e.framePool)-1]
@@ -2407,7 +2412,7 @@ func (e *Engine) toRGBA() (img *image.RGBA) {
 			}
 		}
 	}
-	e.mu.Unlock()
+	e.framepoolMu.Unlock()
 
 	if img == nil {
 		img = image.NewRGBA(image.Rect(0, 0, w, h))
@@ -2422,8 +2427,8 @@ func (e *Engine) ReleaseFrame(img *image.RGBA) {
 		return
 	}
 
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.framepoolMu.Lock()
+	defer e.framepoolMu.Unlock()
 
 	if len(e.framePool) < 4 {
 		buf := make([]byte, len(img.Pix))
@@ -2433,8 +2438,8 @@ func (e *Engine) ReleaseFrame(img *image.RGBA) {
 }
 
 func (e *Engine) GetFramePoolSize() int {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.framepoolMu.Lock()
+	defer e.framepoolMu.Unlock()
 	return len(e.framePool)
 }
 
