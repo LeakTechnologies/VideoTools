@@ -359,7 +359,9 @@ func (v *VideoPlayer) buildControls() {
 	v.volumeBtn.Resize(fyne.NewSize(36, 36))
 
 	v.volumeSlider = widget.NewSlider(0, 100)
+	v.volumeSlider.Orientation = widget.Vertical
 	v.volumeSlider.Value = v.volume * 100
+	v.volumeSlider.Resize(fyne.NewSize(24, 100))
 	v.volumeSlider.OnChanged = func(pos float64) {
 		v.volume = pos / 100.0
 		if v.onVolumeChange != nil {
