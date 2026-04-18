@@ -399,7 +399,6 @@ func (v *InlineVideoPlayer) Close() {
 
 func (v *InlineVideoPlayer) playbackLoop() {
 	defer logging.RecoverPanic()
-	defer logging.LogAllGoroutines()
 
 	for {
 		// Snapshot engine pointer under lock; if Load replaced it, stop this loop.
