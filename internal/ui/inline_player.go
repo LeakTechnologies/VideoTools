@@ -490,15 +490,18 @@ func (v *InlineVideoPlayer) playbackLoop() {
 			return
 		}
 		t := eng.CurrentTime()
-		// SetFrame/SetCurrentTime write directly to raster state and must run
-		// on the main goroutine to avoid racing the renderer.
+		// Synchronous dispatch (true) ensures at most one frame update is
+		// pending on the main goroutine at a time. Async dispatch (false)
+		// lets the queue grow unbounded, making button clicks feel frozen
+		// until the backlog drains. v.mu is NOT held here, so Pause/Seek
+		// callbacks on the main goroutine can acquire it without deadlock.
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetFrame(img)
 			v.player.SetCurrentTime(t)
 			if onFrm != nil {
 				onFrm(img)
 			}
-		}, false)
+		}, true)
 		if onProg != nil {
 			onProg(t)
 		}
