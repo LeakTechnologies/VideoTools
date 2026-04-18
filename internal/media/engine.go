@@ -2063,9 +2063,9 @@ func (e *Engine) Seek(seconds float64) error {
 	// frames would be converted to RGBA and queued, only to be dropped by
 	// NextFrame.  Setting seekFlushBefore here ensures the decode loop skips
 	// them even if it races ahead of the codec flush.
-	e.mu.Lock()
+	// Seek() holds e.mu for its entire duration (defer at top of function),
+	// so seekFlushBefore can be written directly — no additional lock needed.
 	e.seekFlushBefore = seconds - 0.15 // 150ms tolerance for keyframe alignment
-	e.mu.Unlock()
 
 	// videoCodecMu must be held around avcodec_flush_buffers to serialise
 	// against NextFrame() which holds the same lock during send/receive.
@@ -2075,23 +2075,12 @@ func (e *Engine) Seek(seconds float64) error {
 	// first decoded frame; calling avcodec_flush_buffers before that happens
 	// dereferences an uninitialized pool and causes an access violation crash.
 	if e.videoCodecCtx != nil && e.videoDecoded {
-		logging.Info(logging.CatPlayer, "Seek: acquiring videoCodecMu")
 		e.videoCodecMu.Lock()
-		logging.Info(logging.CatPlayer, "Seek: videoCodecMu acquired")
-		// With FF_THREAD_FRAME the codec runs N internal frame-decode threads.
-		// avcodec_flush_buffers calls ff_thread_flush() which waits for every
-		// thread to complete.  If those threads are blocked waiting for reference
-		// frames that will never arrive (we just flushed the demuxer queue), the
-		// wait never returns.  The fix: send a NULL drain packet first so the
-		// frame threads receive an EOF signal and can exit their wait loops; then
-		// drain all buffered output so the threads reach idle state; then flush.
-		logging.Info(logging.CatPlayer, "Seek: sending drain packet")
+		// Drain buffered frames before flushing so the codec's internal state is
+		// clean.  avcodec_flush_buffers resets the codec for reuse after the drain.
 		C.avcodec_send_packet(e.videoCodecCtx, nil)
-		logging.Info(logging.CatPlayer, "Seek: drain packet sent, receiving frames")
 		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
-			// discard — just draining thread output so threads become idle
 		}
-		logging.Info(logging.CatPlayer, "Seek: drain complete, calling avcodec_flush_buffers")
 		C.avcodec_flush_buffers(e.videoCodecCtx)
 		e.videoCodecMu.Unlock()
 		logging.Info(logging.CatPlayer, "Seek: video codec flushed, flushing audio codec")
@@ -2127,6 +2116,58 @@ drainDone:
 
 	logging.Info(logging.CatPlayer, "Seek: complete at %.2f", seconds)
 	return nil
+}
+
+// ResetAfterGrab repositions the format context to the start and resets the
+// clock/audio codec without flushing the video codec.  It is used exclusively
+// by InlineVideoPlayer.Load() after GrabFrame() to reset the clock without
+// triggering the avcodec_flush_buffers hang that occurs before videoDecodeLoop
+// has started.  Skipping the video codec flush is safe here because:
+//   - videoDecodeLoop has not started yet (it starts on the first Resume).
+//   - Position 0 of any well-formed file starts with an IDR (keyframe), so the
+//     decoder self-resets the moment it receives that packet.
+func (e *Engine) ResetAfterGrab() {
+	logging.Info(logging.CatPlayer, "ResetAfterGrab: repositioning to start")
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.formatCtx == nil {
+		return
+	}
+
+	// Reposition the format context to the very beginning.
+	e.formatMu.Lock()
+	C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), 0, 0, 0, 0)
+	e.formatMu.Unlock()
+
+	// Flush demuxer queues so stale packets from GrabFrame don't reach the
+	// decode loop; fresh packets from position 0 will fill them after Start.
+	e.videoQueue.Flush()
+	e.audioQueue.Flush()
+
+	// Flush audio codec so audio starts cleanly from position 0.
+	if e.audioPlayer != nil {
+		e.audioPlayer.FlushCodec()
+		e.audioPlayer.ResetEOF()
+	} else if e.audioCodecCtx != nil {
+		C.avcodec_flush_buffers(e.audioCodecCtx)
+	}
+
+	// Reset master clock to 0 so the first decoded frames are not treated as late.
+	e.clock.ResetTime(0)
+
+	// Drain any frames GrabFrame may have left in frameQueue.
+	for {
+		select {
+		case <-e.frameQueue:
+		default:
+			goto grabDone
+		}
+	}
+grabDone:
+	e.decodeEOFSent = false
+	e.seekFlushBefore = 0 // e.mu already held via defer above
+	logging.Info(logging.CatPlayer, "ResetAfterGrab: done")
 }
 
 func (e *Engine) Step(frames int) (*image.RGBA, error) {
