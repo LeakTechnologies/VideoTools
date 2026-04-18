@@ -204,12 +204,14 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	} else {
 		logging.Warning(logging.CatPlayer, "Initial frame fetch failed: %v", err)
 	}
-	logging.Info(logging.CatPlayer, "Load: GrabFrame completed, seeking to 0 to reset clock")
-	// Seek resets the master clock to 0 via clock.ResetTime(0). Without this,
-	// the clock has been ticking since Start() and is already ahead of pts=0
-	// by however long GrabFrame took, causing the first video frames to be
-	// dropped as late when the user presses Play.
-	v.engine.Seek(0)
+	logging.Info(logging.CatPlayer, "Load: GrabFrame completed, resetting to start")
+	// ResetAfterGrab repositions the format to 0 and resets the clock without
+	// flushing the video codec.  Seek(0) caused a self-deadlock: Seek() holds
+	// e.mu for its entire duration and then the seekFlushBefore assignment
+	// called e.mu.Lock() again, hanging permanently before the codec flush.
+	// The video codec flush is also unnecessary here because videoDecodeLoop
+	// has not started yet and position 0 always begins with an IDR keyframe.
+	v.engine.ResetAfterGrab()
 	v.engine.Pause()
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: load completed, engine ready")
