@@ -4394,6 +4394,7 @@ func buildAuthorFFmpegArgs(clip authorClip, outputPath, region, aspect string, p
 		"-y",
 		"-hide_banner",
 		"-loglevel", "error",
+		"-threads", "auto",
 		"-i", clip.Path,
 	}
 

@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	preDecodeFrames   = 30
-	seekPrerollFrames = 10
+	scrubPreDecodeFrames = 30
+	seekPrerollFrames    = 10
 )
 
 type FrameCache struct {
@@ -148,9 +148,9 @@ func NewSmoothScrubbing(engine *Engine) *SmoothScrubbing {
 	frame := C.av_frame_alloc() // may be nil — predecodeFrom checks before use
 	return &SmoothScrubbing{
 		engine:      engine,
-		frameCache:  NewFrameCache(preDecodeFrames),
+		frameCache:  NewFrameCache(scrubPreDecodeFrames),
 		seekQueue:   make(chan float64, 1),
-		decodeQueue: make(chan struct{}, preDecodeFrames),
+		decodeQueue: make(chan struct{}, scrubPreDecodeFrames),
 		stop:        make(chan struct{}),
 		frame:       frame,
 	}
@@ -339,7 +339,7 @@ func (s *SmoothScrubbing) predecodeAhead() {
 	s.mu.RUnlock()
 
 	currentTime := s.engine.CurrentTime()
-	maxPTS := currentTime + float64(preDecodeFrames)*videoTimeBase*2
+	maxPTS := currentTime + float64(scrubPreDecodeFrames)*videoTimeBase*2
 
 	s.convertMu.Lock()
 	frame := s.frame
