@@ -10,7 +10,12 @@ import (
 )
 
 const (
-	MaxDriftThreshold = 0.1
+	// MaxDriftThreshold is how far behind the clock a video frame can be
+	// before it is dropped entirely. 300ms gives enough headroom for a slow
+	// single-threaded H.264 I-frame decode (80-150ms) plus the synchronous
+	// Fyne render dispatch (~14ms) without triggering spurious drops at
+	// every GOP boundary (~2s for typical content).
+	MaxDriftThreshold = 0.3
 	MaxWaitTime       = 100 * time.Millisecond
 	RealtimeSpeed     = 1.0
 )
