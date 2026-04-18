@@ -440,6 +440,17 @@ func (v *InlineVideoPlayer) Close() {
 		close(seekCh)
 	}
 
+	// Reset the widget to idle (SMPTE bars) so the last video frame isn't
+	// left on screen after the user clears the video.
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		v.player.SetFrame(nil)
+		v.player.SetDuration(0)
+		v.player.SetCurrentTime(0)
+		v.player.SetChapters(nil)
+		v.player.ClearThumbnailCache()
+		v.player.Refresh()
+	}, false)
+
 	// Heavy teardown (wg.Wait, demuxerWg.Wait, FFmpeg free) runs off-thread.
 	go func() {
 		if scrubber != nil {
