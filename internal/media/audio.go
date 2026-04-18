@@ -17,6 +17,7 @@ import "C"
 import (
 	"fmt"
 	"io"
+	"math"
 	"sync"
 	"time"
 	"unsafe"
@@ -74,6 +75,15 @@ type AudioPlayer struct {
 	leftover   []byte          // partial chunk carried across Read() calls
 	decodeStop chan struct{}    // closed by Close() to stop audioDecodeLoop
 	decodeWg   sync.WaitGroup
+
+	// Wall-clock anchor for master clock advancement.
+	// oto pre-buffers audio (default 500 ms), so chunk.pts in Read() is ahead
+	// of actual playback by the buffer depth. Using raw chunk.pts would jump
+	// the master clock 100–500 ms ahead in one burst, causing video to appear
+	// to skip. The anchor lets the clock tick at wall rate instead.
+	clockAnchorPTS  float64
+	clockAnchorWall time.Time
+	clockAnchored   bool
 
 	// Diagnostic / state flags (all protected by codecMu or mu as noted)
 	codecDead bool // set when codec raises a pre-flight error; stops decode loop
@@ -331,11 +341,42 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 			}
 			return 0, io.EOF
 		}
-		// Advance the master clock at the moment audio data is played,
-		// not when it was decoded.  This prevents the decode buffer
-		// (~1.5 s) from pushing the clock ahead of the video display.
+		// Advance the master clock using a wall-clock anchor rather than
+		// raw chunk.pts. oto pre-buffers audio (default 500 ms), so it
+		// may call Read() many times in a burst to fill its buffer. Each
+		// call with chunk.pts would jump the clock by a chunk duration
+		// (~23 ms) even though real time has barely elapsed, causing video
+		// to perceive multiple frames as simultaneously late and display
+		// them in a rapid burst. The anchor lets the clock advance at wall
+		// rate: clockPTS = anchorPTS + elapsed_since_anchor.
+		// Re-anchor after seeks or significant drift (> 150 ms).
 		if p.clock != nil {
-			p.clock.SetTime(chunk.pts)
+			now := time.Now()
+			p.mu.Lock()
+			if !p.clockAnchored {
+				p.clockAnchorPTS = chunk.pts
+				p.clockAnchorWall = now
+				p.clockAnchored = true
+				p.mu.Unlock()
+				p.clock.SetTime(chunk.pts)
+			} else {
+				wallElapsed := now.Sub(p.clockAnchorWall).Seconds()
+				clockPTS := p.clockAnchorPTS + wallElapsed
+				drift := chunk.pts - clockPTS
+				if math.Abs(drift) > 0.150 {
+					// Large drift: seek or codec event. Re-anchor to actual PTS.
+					logging.Debug(logging.CatPlayer, "audio: clock re-anchored %.3f→%.3f (drift %.0fms)", clockPTS, chunk.pts, drift*1000)
+					p.clockAnchorPTS = chunk.pts
+					p.clockAnchorWall = now
+					clockPTS = chunk.pts
+				} else if drift > 0.005 {
+					// Small positive drift: audio running slightly fast.
+					// Debug only — the wall clock will catch up naturally.
+					logging.Debug(logging.CatPlayer, "audio: clock drift +%.0fms (chunk.pts=%.3f wall=%.3f)", drift*1000, chunk.pts, clockPTS)
+				}
+				p.mu.Unlock()
+				p.clock.SetTime(clockPTS)
+			}
 		}
 		n := copy(buf, chunk.data)
 		if n < len(chunk.data) {
@@ -363,6 +404,10 @@ func (p *AudioPlayer) FlushCodec() {
 	p.codecMu.Lock()
 	C.avcodec_flush_buffers(p.codecCtx)
 	p.codecMu.Unlock()
+	// Reset the wall-clock anchor so the next chunk re-establishes the base.
+	p.mu.Lock()
+	p.clockAnchored = false
+	p.mu.Unlock()
 }
 
 func (p *AudioPlayer) SetVolume(vol float32) {
@@ -408,6 +453,9 @@ func (p *AudioPlayer) Pause() {
 func (p *AudioPlayer) Resume() {
 	p.mu.Lock()
 	p.paused = false
+	// Reset anchor: wall clock kept ticking during pause, so the old anchor
+	// would compute a stale (too-large) elapsed and push the clock ahead.
+	p.clockAnchored = false
 	p.mu.Unlock()
 }
 

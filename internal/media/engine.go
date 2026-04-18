@@ -2260,16 +2260,23 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 				e.clock.SetTime(pts)
 			}
 
+			clockNow := e.clock.GetTime()
 			if verbose {
-				logging.Info(logging.CatPlayer, "NextFrame #%d: SyncVideo(%.3f) clockNow=%.3f", nf, pts, e.clock.GetTime())
+				logging.Info(logging.CatPlayer, "NextFrame #%d: SyncVideo(%.3f) clockNow=%.3f", nf, pts, clockNow)
 			}
 			delay := e.clock.SyncVideo(pts)
 			if delay < 0 {
+				// Frame drop: clock is more than MaxDriftThreshold ahead of pts.
+				logging.Debug(logging.CatPlayer, "frame DROP #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
 				if verbose {
 					logging.Info(logging.CatPlayer, "NextFrame #%d: frame late (delay=%v), dropping", nf, delay)
 				}
 				e.videoCodecMu.Lock() // re-acquire for next avcodec_receive_frame
 				continue
+			}
+			// Log frames that are late but within the drop threshold.
+			if delay == 0 && clockNow-pts > 0.010 {
+				logging.Debug(logging.CatPlayer, "frame LATE #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
 			}
 
 			if e.subtitleCodecCtx != nil {

@@ -5,6 +5,8 @@ package media
 import (
 	"sync"
 	"time"
+
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 const (
@@ -51,6 +53,13 @@ func (c *MasterClock) SetTime(pts float64) {
 	}
 	if pts <= current {
 		return
+	}
+	jump := pts - current
+	if jump > 0.040 {
+		// Clock advancing faster than real-time; log for sync diagnostics.
+		// Normal: wall-time elapsed + 1 chunk period (~23 ms). Anything larger
+		// suggests audio pre-buffering or a codec event drove the clock forward.
+		logging.Debug(logging.CatPlayer, "clock: SetTime jump +%.0fms (%.3f→%.3f)", jump*1000, current, pts)
 	}
 	c.pts = pts
 	c.ptsTime = time.Now()
