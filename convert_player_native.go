@@ -378,7 +378,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	rightBtns := container.NewHBox(speedBtn, volBox, fullBtn)
 	mainCtrlRow := container.NewBorder(nil, nil, leftBtns, rightBtns, nil)
 
-	primaryBg := canvas.NewRectangle(color.NRGBA{R: 8, G: 12, B: 24, A: 200})
+	primaryBg := canvas.NewRectangle(color.NRGBA{R: 8, G: 12, B: 24, A: 120})
 	primaryBar := container.NewMax(primaryBg, container.NewPadded(container.NewVBox(seekRow, mainCtrlRow)))
 
 	gridColor := ui.GridColor
