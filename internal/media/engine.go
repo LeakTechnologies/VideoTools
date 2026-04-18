@@ -2269,8 +2269,15 @@ func (e *Engine) videoDecodeLoop() {
 		e.mu.Unlock()
 
 		if paused {
-			time.Sleep(10 * time.Millisecond)
-			continue
+			// When paused with at least one queued frame, sleep — the queue
+			// already has a seek-preview frame for NextFrame to return.
+			// When the queue is empty (e.g. immediately after a seek while
+			// paused) fall through and decode one frame so Seek() can get
+			// a preview without hanging.
+			if len(e.frameQueue) >= 1 {
+				time.Sleep(10 * time.Millisecond)
+				continue
+			}
 		}
 
 		// Non-blocking packet fetch so we can check stop/pause between packets.
@@ -2359,20 +2366,21 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 		hasAudio := e.hasAudio
 		e.mu.Unlock()
 
-		if paused {
-			time.Sleep(50 * time.Millisecond)
-			continue
-		}
-
 		// Read from the pre-decoded frame queue.  videoDecodeLoop fills it
 		// asynchronously so the display goroutine never blocks on codec work.
 		var df decodedFrame
 		select {
 		case df = <-e.frameQueue:
+			// got a frame — fall through to render/sync
 		default:
-			// Queue temporarily empty — decode loop is catching up (e.g. first
-			// frame, or immediately after a seek).  Yield briefly and retry.
-			time.Sleep(1 * time.Millisecond)
+			if paused {
+				// Queue empty while paused: the decode loop will fill one frame
+				// for a seek preview; yield and retry rather than hanging.
+				time.Sleep(10 * time.Millisecond)
+			} else {
+				// Queue temporarily empty during normal playback (decode catching up).
+				time.Sleep(1 * time.Millisecond)
+			}
 			continue
 		}
 
