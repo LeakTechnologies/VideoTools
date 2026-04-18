@@ -138,6 +138,7 @@ import (
 	"image/color"
 	"image/draw"
 	"io"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -145,6 +146,24 @@ import (
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media/filters"
+)
+
+// decodedFrame is a fully decoded and colour-converted video frame ready for display.
+type decodedFrame struct {
+	img *image.RGBA
+	pts float64
+}
+
+const (
+	// preDecodeFrames is the size of the decode-ahead ring buffer.  8 frames at
+	// 30 fps = 267 ms of headroom — enough to absorb a slow H.264 I-frame decode
+	// (~150 ms single-threaded) without ever stalling the display goroutine.
+	preDecodeFrames = 8
+
+	// decodeEOFPTS is a sentinel PTS value used to signal end-of-stream through
+	// the frameQueue channel without closing it (closing would prevent reuse after
+	// a Seek-to-start / loop).
+	decodeEOFPTS = -1.0
 )
 
 type SeekAccuracy int
@@ -667,6 +686,15 @@ type Engine struct {
 
 	// nextFrameCount counts NextFrame invocations; used for first-call verbose logging.
 	nextFrameCount int64
+
+	// Decode-ahead pipeline.  videoDecodeLoop runs as a dedicated goroutine that
+	// pre-decodes and colour-converts frames into frameQueue.  NextFrame drains
+	// the queue and handles PTS sync, keeping I-frame decode latency invisible.
+	frameQueue      chan decodedFrame
+	decodeLoopStop  chan struct{}
+	decodeLoopWg    sync.WaitGroup
+	decodeLoopActive bool // true while videoDecodeLoop goroutine is alive
+	decodeEOFSent    bool // true once the EOF sentinel has been enqueued
 }
 
 type PlaybackFrameCache struct {
@@ -788,6 +816,8 @@ func NewEngine() *Engine {
 		lastError:         nil,
 		hwDegraded:        false,
 		hwFailCount:       0,
+		frameQueue:        make(chan decodedFrame, preDecodeFrames),
+		decodeLoopStop:    make(chan struct{}),
 	}
 }
 
@@ -1200,6 +1230,16 @@ func (e *Engine) Resume() {
 	}
 	e.paused = false
 	e.clock.SetPaused(false)
+
+	// Start the decode-ahead goroutine on the first Resume after Start().
+	// We defer this to Resume (not Start) because GrabFrame runs between
+	// Start and the first Play and reads videoQueue directly — starting the
+	// decode loop earlier would race with GrabFrame over the same packets.
+	if !e.decodeLoopActive {
+		e.decodeLoopActive = true
+		e.decodeLoopWg.Add(1)
+		go e.videoDecodeLoop()
+	}
 	e.mu.Unlock()
 
 	if e.audioPlayer != nil {
@@ -1619,13 +1659,21 @@ func (e *Engine) Open(path string) error {
 		e.info.FrameRate = float64(avgFrameRate.num) / float64(avgFrameRate.den)
 	}
 
-	// Force single-threaded decode for the video codec.  FFmpeg's lazy
-	// thread-pool initialisation can crash on Windows when the thread pool
-	// is first touched (typically around frame 6 for H.264) because the
-	// Win32 thread environment differs from what the codec expects.
-	// thread_type=0 disables both frame-level and slice-level parallelism.
-	e.videoCodecCtx.thread_count = 1
-	e.videoCodecCtx.thread_type = 0
+	// Enable frame-level threading (FF_THREAD_FRAME = 1) for SW decode.
+	// Unlike slice threading (FF_THREAD_SLICE = 2), frame threading creates
+	// its pool eagerly at avcodec_open2 time — not lazily on the first packet
+	// — which avoids the Win32 thread-environment crash seen with slice threads.
+	// Cap at 4 threads: beyond 4, H.264 gains little and decode-ahead buffering
+	// (preDecodeFrames) already hides the remaining I-frame latency.
+	{
+		n := runtime.NumCPU()
+		if n > 4 {
+			n = 4
+		}
+		e.videoCodecCtx.thread_count = C.int(n)
+		e.videoCodecCtx.thread_type = 1 // FF_THREAD_FRAME
+		logging.Info(logging.CatPlayer, "SW video decode: thread_count=%d FF_THREAD_FRAME", n)
+	}
 
 	logging.Info(logging.CatPlayer, "Opening video codec: %s %dx%d pix_fmt=%d", e.info.CodecName, e.info.Width, e.info.Height, e.videoCodecCtx.pix_fmt)
 	if C.avcodec_open2(e.videoCodecCtx, videoCodec, nil) < 0 {
@@ -2042,6 +2090,19 @@ func (e *Engine) Seek(seconds float64) error {
 	logging.Info(logging.CatPlayer, "Seek: audio codec flushed, resetting clock")
 
 	e.clock.ResetTime(seconds)
+
+	// Drain any pre-decoded frames from before the seek; they have stale PTS.
+	for {
+		select {
+		case <-e.frameQueue:
+		default:
+			goto drainDone
+		}
+	}
+drainDone:
+	// Allow videoDecodeLoop to send a new EOF sentinel if needed after this seek.
+	e.decodeEOFSent = false
+
 	logging.Info(logging.CatPlayer, "Seek: complete at %.2f", seconds)
 	return nil
 }
@@ -2148,6 +2209,138 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 	return nil, fmt.Errorf("timed out waiting for first video frame")
 }
 
+// sendToFrameQueue puts df into e.frameQueue, retrying until space is available,
+// the decode loop is stopped, or the engine has been paused long enough that the
+// full buffer (preDecodeFrames × frame-time) already covers the pause.
+// Returns false only when the decode loop should exit entirely.
+func (e *Engine) sendToFrameQueue(df decodedFrame) bool {
+	pauseRetries := 0
+	for {
+		select {
+		case e.frameQueue <- df:
+			return true
+		case <-e.decodeLoopStop:
+			return false
+		case <-time.After(5 * time.Millisecond):
+			e.mu.Lock()
+			paused := e.paused
+			e.mu.Unlock()
+			if paused {
+				pauseRetries++
+				// After 15 ms (3 × 5 ms) with a full queue while paused, drop
+				// this frame. The queue already holds preDecodeFrames frames
+				// (~267 ms at 30 fps), which is more than enough to resume
+				// smoothly. Dropping one frame here is imperceptible.
+				if pauseRetries >= 3 {
+					return true
+				}
+			} else {
+				pauseRetries = 0
+			}
+		}
+	}
+}
+
+// videoDecodeLoop is the dedicated decode goroutine.  It reads packets from
+// videoQueue, calls avcodec_send/receive_frame under videoCodecMu, converts
+// each frame to RGBA, and queues the result in frameQueue for NextFrame to
+// consume.  This decouples I-frame decode latency from the display path.
+func (e *Engine) videoDecodeLoop() {
+	defer e.decodeLoopWg.Done()
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error(logging.CatPlayer, "videoDecodeLoop panic: %v", r)
+		}
+	}()
+
+	logging.Info(logging.CatPlayer, "videoDecodeLoop: started")
+
+	for {
+		// Check stop signal without blocking.
+		select {
+		case <-e.decodeLoopStop:
+			logging.Info(logging.CatPlayer, "videoDecodeLoop: stopped")
+			return
+		default:
+		}
+
+		e.mu.Lock()
+		paused := e.paused
+		e.mu.Unlock()
+
+		if paused {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+
+		// Non-blocking packet fetch so we can check stop/pause between packets.
+		rawPkt, ok := e.videoQueue.TryGet()
+		if !ok {
+			if e.videoQueue.IsClosedOrEOF() {
+				// Only send the EOF sentinel once per stream.
+				e.mu.Lock()
+				sent := e.decodeEOFSent
+				e.mu.Unlock()
+				if !sent {
+					e.mu.Lock()
+					e.decodeEOFSent = true
+					e.mu.Unlock()
+					e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS})
+				}
+			}
+			time.Sleep(1 * time.Millisecond)
+			continue
+		}
+
+		// Decode the packet under videoCodecMu.
+		e.videoCodecMu.Lock()
+		sendRet := C.avcodec_send_packet(e.videoCodecCtx, rawPkt)
+		C.av_packet_free(&rawPkt)
+		if sendRet != 0 {
+			e.videoCodecMu.Unlock()
+			continue
+		}
+
+		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
+			e.videoDecoded = true
+
+			if e.frame.pts == C.AV_NOPTS_VALUE || e.frame.pts < 0 {
+				continue
+			}
+
+			pts := float64(e.frame.pts) * e.videoTimeBase
+
+			// Convert to RGBA while still holding videoCodecMu — e.frame is
+			// owned by the codec context and can be overwritten on the next
+			// avcodec_receive_frame call.
+			var img *image.RGBA
+			if e.hwDevice != HWDeviceNone {
+				var err error
+				img, err = e.retrieveHWFrame()
+				if err != nil {
+					logging.Warning(logging.CatPlayer, "videoDecodeLoop: HW retrieve failed: %v", err)
+					if e.frame.hw_frames_ctx != nil {
+						continue
+					}
+					img = e.toRGBA()
+				}
+			} else {
+				e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
+				img = e.toRGBA()
+			}
+
+			e.videoCodecMu.Unlock()
+
+			if !e.sendToFrameQueue(decodedFrame{img: img, pts: pts}) {
+				return // decodeLoopStop was closed
+			}
+
+			e.videoCodecMu.Lock()
+		}
+		e.videoCodecMu.Unlock()
+	}
+}
+
 func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -2159,9 +2352,6 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 
 	nf := atomic.AddInt64(&e.nextFrameCount, 1)
 	verbose := nf <= 20
-	if verbose {
-		logging.Info(logging.CatPlayer, "NextFrame #%d: enter (hwDevice=%v hasAudio=%v)", nf, e.hwDevice, e.hasAudio)
-	}
 
 	for {
 		e.mu.Lock()
@@ -2174,11 +2364,20 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 			continue
 		}
 
-		if verbose {
-			logging.Info(logging.CatPlayer, "NextFrame #%d: calling videoQueue.Get()", nf)
+		// Read from the pre-decoded frame queue.  videoDecodeLoop fills it
+		// asynchronously so the display goroutine never blocks on codec work.
+		var df decodedFrame
+		select {
+		case df = <-e.frameQueue:
+		default:
+			// Queue temporarily empty — decode loop is catching up (e.g. first
+			// frame, or immediately after a seek).  Yield briefly and retry.
+			time.Sleep(1 * time.Millisecond)
+			continue
 		}
-		pkt, ok := e.videoQueue.Get()
-		if !ok {
+
+		// EOF sentinel from videoDecodeLoop.
+		if df.pts == decodeEOFPTS {
 			if e.IsLooping() {
 				if err := e.Seek(0); err != nil {
 					return nil, err
@@ -2188,110 +2387,39 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 			return nil, io.EOF
 		}
 
-		// Hold videoCodecMu around every avcodec_send/receive call so that
-		// SmoothScrubbing (which also touches videoCodecCtx) cannot race with us.
-		// The lock is released before any slow operations (WaitForPTS, toRGBA) and
-		// re-acquired only when we need to call avcodec_receive_frame again.
-		//
-		// Note: pkt is freed explicitly (not via defer) so that each outer-loop
-		// iteration frees its own packet rather than accumulating defers that
-		// all reference the same variable and would only free the final pkt.
+		pts := df.pts
+		img := df.img
+
 		if verbose {
-			logging.Info(logging.CatPlayer, "NextFrame #%d: locking videoCodecMu, calling avcodec_send_packet", nf)
+			clockNow := e.clock.GetTime()
+			logging.Info(logging.CatPlayer, "NextFrame #%d: pts=%.3f clockNow=%.3f", nf, pts, clockNow)
 		}
-		e.videoCodecMu.Lock()
-		sendRet := C.avcodec_send_packet(e.videoCodecCtx, pkt)
-		C.av_packet_free(&pkt) // free immediately — codec has already copied what it needs
-		if sendRet != 0 {
-			e.videoCodecMu.Unlock()
-			logging.Debug(logging.CatPlayer, "NextFrame: failed to send packet to video decoder (ret=%d)", int(sendRet))
+
+		// A/V sync: wait for the master clock to reach this frame's PTS.
+		if hasAudio {
+			e.clock.WaitForPTS(pts)
+		} else {
+			e.clock.SetTime(pts)
+		}
+
+		clockNow := e.clock.GetTime()
+		delay := e.clock.SyncVideo(pts)
+		if delay < 0 {
+			logging.Debug(logging.CatPlayer, "frame DROP #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
 			continue
 		}
-
-		if verbose {
-			logging.Info(logging.CatPlayer, "NextFrame #%d: avcodec_send_packet OK, entering receive loop", nf)
+		if delay == 0 && clockNow-pts > 0.010 {
+			logging.Debug(logging.CatPlayer, "frame LATE #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
 		}
-		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
-			e.videoDecoded = true
 
-			// Skip frames with invalid PTS (AV_NOPTS_VALUE or negative).
-			// These are codec artefacts and produce garbage timestamps.
-			if e.frame.pts == C.AV_NOPTS_VALUE || e.frame.pts < 0 {
-				logging.Info(logging.CatPlayer, "NextFrame: skipping invalid frame pts=%d", int64(e.frame.pts))
-				continue
+		if e.subtitleCodecCtx != nil {
+			sub := e.decodeSubtitle(pts)
+			if sub != nil {
+				img = e.RenderSubtitles(img, pts)
 			}
-
-			pts := float64(e.frame.pts) * e.videoTimeBase
-
-			if verbose {
-				logging.Info(logging.CatPlayer, "NextFrame #%d: got frame pts=%.3f hw_frames_ctx=%v", nf, pts, e.frame.hw_frames_ctx != nil)
-			}
-
-			// Convert the frame to RGBA while still holding the codec lock.
-			// e.frame is a shared buffer owned by videoCodecCtx and can be
-			// overwritten by the next avcodec_receive_frame call, so all
-			// reads from it must happen under videoCodecMu.
-			var img *image.RGBA
-			if e.hwDevice != HWDeviceNone {
-				var err error
-				img, err = e.retrieveHWFrame()
-				if err != nil {
-					logging.Warning(logging.CatPlayer, "HW frame retrieve failed: %v", err)
-					if e.frame.hw_frames_ctx != nil {
-						continue
-					}
-					img = e.toRGBA()
-				}
-			} else {
-				e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
-				img = e.toRGBA()
-			}
-
-			// Now that we have our own copy of the frame data, we can
-			// release the codec lock for PTS sync and frame display.
-			e.videoCodecMu.Unlock()
-
-			if hasAudio {
-				if verbose {
-					logging.Info(logging.CatPlayer, "NextFrame #%d: WaitForPTS(%.3f)", nf, pts)
-				}
-				e.clock.WaitForPTS(pts)
-			} else {
-				e.clock.SetTime(pts)
-			}
-
-			clockNow := e.clock.GetTime()
-			if verbose {
-				logging.Info(logging.CatPlayer, "NextFrame #%d: SyncVideo(%.3f) clockNow=%.3f", nf, pts, clockNow)
-			}
-			delay := e.clock.SyncVideo(pts)
-			if delay < 0 {
-				// Frame drop: clock is more than MaxDriftThreshold ahead of pts.
-				logging.Debug(logging.CatPlayer, "frame DROP #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
-				if verbose {
-					logging.Info(logging.CatPlayer, "NextFrame #%d: frame late (delay=%v), dropping", nf, delay)
-				}
-				e.videoCodecMu.Lock() // re-acquire for next avcodec_receive_frame
-				continue
-			}
-			// Log frames that are late but within the drop threshold.
-			if delay == 0 && clockNow-pts > 0.010 {
-				logging.Debug(logging.CatPlayer, "frame LATE #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
-			}
-
-			if e.subtitleCodecCtx != nil {
-				sub := e.decodeSubtitle(pts)
-				if sub != nil {
-					img = e.RenderSubtitles(img, pts)
-				}
-			}
-
-			if verbose {
-				logging.Info(logging.CatPlayer, "NextFrame #%d: returning frame pts=%.3f", nf, pts)
-			}
-			return img, nil
 		}
-		e.videoCodecMu.Unlock()
+
+		return img, nil
 	}
 }
 
@@ -2576,6 +2704,23 @@ func (e *Engine) Close() {
 	if e.subtitleQueue != nil {
 		e.subtitleQueue.Close()
 	}
+
+	// Stop the decode-ahead goroutine.  It must exit before we acquire
+	// videoCodecMu below, because it holds that lock during avcodec_send/receive.
+	// Closing decodeLoopStop unblocks sendToFrameQueue if the loop is waiting
+	// there.  Closing videoQueue (done above) unblocks TryGet + IsClosedOrEOF.
+	close(e.decodeLoopStop)
+	e.decodeLoopWg.Wait()
+
+	// Drain any pre-decoded frames so the channel is empty before GC.
+	for {
+		select {
+		case <-e.frameQueue:
+		default:
+			goto closeDrainDone
+		}
+	}
+closeDrainDone:
 
 	// Wait for demuxerLoop to fully exit before freeing any FFmpeg contexts.
 	// Without this wait, demuxerLoop may still be inside av_read_frame when we

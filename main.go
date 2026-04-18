@@ -3978,6 +3978,7 @@ func (s *appState) executeTrimJob(ctx context.Context, job *queue.Job, progressC
 	case mode == "keep" && export == "reencode":
 		args := []string{
 			"-y", "-hide_banner", "-loglevel", "error",
+			"-threads", "auto",
 			"-ss", fmt.Sprintf("%.3f", inPoint),
 			"-to", fmt.Sprintf("%.3f", outPoint),
 			"-i", inputPath,
@@ -4068,6 +4069,7 @@ func (s *appState) executeTrimJob(ctx context.Context, job *queue.Job, progressC
 		// Remove a region using filter_complex trim+concat
 		args := []string{
 			"-y", "-hide_banner", "-loglevel", "error",
+			"-threads", "auto",
 			"-i", inputPath,
 			"-filter_complex", fmt.Sprintf(
 				"[0:v]trim=0:%.3f,setpts=PTS-STARTPTS[v1];"+
@@ -4853,6 +4855,7 @@ func (s *appState) executeMergeJob(ctx context.Context, job *queue.Job, progress
 		"-y",
 		"-hide_banner",
 		"-loglevel", "error",
+		"-threads", "auto",
 	}
 	if format == "mkv-copy" {
 		args = append(args, "-fflags", "+genpts")
@@ -5175,6 +5178,7 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 		"-y",
 		"-hide_banner",
 		"-loglevel", "error",
+		"-threads", "auto",
 	}
 
 	// Check if this is a DVD format (special handling required)
@@ -6264,7 +6268,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			}
 		}
 
-		args = append(args, "-y", "-hide_banner", "-loglevel", "error")
+		args = append(args, "-y", "-hide_banner", "-loglevel", "error", "-threads", "auto")
 	} else {
 		// Conversion format mode: Use configured conversion settings
 		// This allows previewing what the final converted output will look like
@@ -6274,6 +6278,7 @@ func (s *appState) executeSnippetJob(ctx context.Context, job *queue.Job, progre
 			"-y",
 			"-hide_banner",
 			"-loglevel", "error",
+			"-threads", "auto",
 			"-ss", start,
 			"-i", inputPath,
 			"-t", fmt.Sprintf("%d", snippetLength),
@@ -7143,6 +7148,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		reassembleArgs := []string{
 			"-y",
 			"-hide_banner",
+			"-threads", "auto",
 			"-framerate", fmt.Sprintf("%.3f", outputFPS),
 			"-i", reassemblePattern,
 			"-i", inputPath,
@@ -7350,6 +7356,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 		reassemblePattern := filepath.Join(rifeFramesDir, "%08d.png")
 		reassembleArgs := []string{
 			"-y", "-hide_banner",
+			"-threads", "auto",
 			"-framerate", fmt.Sprintf("%.3f", outputFPS),
 			"-i", reassemblePattern,
 			"-i", inputPath,
@@ -7411,6 +7418,7 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 	args := []string{
 		"-y",
 		"-hide_banner",
+		"-threads", "auto",
 		"-i", inputPath,
 	}
 
