@@ -24,8 +24,9 @@ type InlineVideoPlayer struct {
 	engine     *media.Engine
 	scrubber   *media.SmoothScrubbing
 	playing    bool
-	onProgress func(float64) // called from playbackLoop with current time in seconds
-	onEnd      func()        // called on clean end-of-stream; NOT called on error
+	onProgress func(float64)    // called from playbackLoop with current time in seconds
+	onEnd      func()           // called on clean end-of-stream; NOT called on error
+	onFrame    func(*image.RGBA) // called on every rendered frame (playback + scrub)
 	seekCh     chan float64  // capacity-1 channel; seekLoop drains it serially
 }
 
@@ -43,6 +44,15 @@ func (v *InlineVideoPlayer) SetOnProgress(fn func(float64)) {
 func (v *InlineVideoPlayer) SetOnEnd(fn func()) {
 	v.mu.Lock()
 	v.onEnd = fn
+	v.mu.Unlock()
+}
+
+// SetOnFrame registers a callback that receives every rendered frame (both
+// during playback and scrubbing). Called on the main Fyne goroutine.
+// Pass nil to clear. Use this to mirror frames to a secondary surface.
+func (v *InlineVideoPlayer) SetOnFrame(fn func(*image.RGBA)) {
+	v.mu.Lock()
+	v.onFrame = fn
 	v.mu.Unlock()
 }
 
@@ -185,6 +195,12 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 		logging.Info(logging.CatPlayer, "scrubber OnFrame callback: img=%v", img != nil)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetFrame(img)
+			v.mu.Lock()
+			fn := v.onFrame
+			v.mu.Unlock()
+			if fn != nil {
+				fn(img)
+			}
 		}, false)
 	})
 	v.scrubber.Start()
@@ -406,6 +422,7 @@ func (v *InlineVideoPlayer) playbackLoop() {
 		eng := v.engine
 		playing := v.playing
 		onProg := v.onProgress
+		onFrm := v.onFrame
 		v.mu.Unlock()
 
 		if !playing || eng == nil {
@@ -440,6 +457,9 @@ func (v *InlineVideoPlayer) playbackLoop() {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetFrame(img)
 			v.player.SetCurrentTime(t)
+			if onFrm != nil {
+				onFrm(img)
+			}
 		}, false)
 		if onProg != nil {
 			onProg(t)

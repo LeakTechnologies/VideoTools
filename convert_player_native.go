@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"image/png"
 	"math"
@@ -316,31 +317,10 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	})
 	nextFrameBtn.Importance = widget.LowImportance
 
-	// Fullscreen opens a dedicated borderless window showing only the player.
-	// The playerWidget is detached from the main layout while fullscreen is active
-	// and restored when the window closes.
-	var fullscreenWin fyne.Window
-	fullBtn := widget.NewButtonWithIcon("", navy("fullscreen"), func() {
-		if fullscreenWin != nil {
-			fullscreenWin.Close()
-			return
-		}
-		stageWithPlayer.Remove(playerWidget)
-		stageWithPlayer.Refresh()
-		fullscreenWin = fyne.CurrentApp().NewWindow("")
-		fullscreenWin.SetContent(container.NewMax(
-			canvas.NewRectangle(color.Black),
-			playerWidget,
-		))
-		fullscreenWin.SetFullScreen(true)
-		fullscreenWin.Show()
-		fullscreenWin.SetOnClosed(func() {
-			fullscreenWin = nil
-			stageWithPlayer.Add(playerWidget)
-			stageWithPlayer.Refresh()
-		})
-	})
-	fullBtn.Importance = widget.LowImportance
+	// fullBtn is defined after the helper closures (greenCircleBtn, greenSquareBtn,
+	// visibleSlider) so it can use them. Forward-declared here so replay10Btn etc.
+	// can appear before it in the source.
+	var fullBtn *widget.Button
 
 	replay10Btn := widget.NewButtonWithIcon("", navy("replay_10"), func() {
 		state.seekNative(math.Max(0, slider.Value-10))
@@ -414,6 +394,92 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 
 	volBox := container.NewHBox(volIcon, visibleSlider(volSlider))
 	seekRow := container.NewBorder(nil, nil, currentTime, totalTime, visibleSlider(slider))
+
+	// Fullscreen: mirrors frames into a canvas.Image in a dedicated window.
+	// The playerWidget stays in the main layout — Fyne widgets can't move between
+	// windows, so we copy each decoded frame to a secondary canvas.Image instead.
+	var fullscreenWin fyne.Window
+	fullBtn = widget.NewButtonWithIcon("", navy("fullscreen"), func() {
+		if fullscreenWin != nil {
+			fullscreenWin.Close()
+			return
+		}
+		fsImg := canvas.NewImageFromImage(playerWidget.CurrentFrame())
+		fsImg.FillMode = canvas.ImageFillContain
+
+		player.SetOnFrame(func(img *image.RGBA) {
+			fsImg.Image = img
+			fsImg.Refresh()
+		})
+
+		fsPlayBtn := widget.NewButtonWithIcon("", navy("pause"), nil)
+		if state.playerPaused {
+			fsPlayBtn.Icon = navy("play_arrow")
+		}
+		fsPlayBtn.OnTapped = func() {
+			if state.playerPaused {
+				state.playNative()
+				state.playerPaused = false
+				fsPlayBtn.Icon = navy("pause")
+				playBtn.Icon = navy("pause")
+			} else {
+				state.pauseNative()
+				state.playerPaused = true
+				fsPlayBtn.Icon = navy("play_arrow")
+				playBtn.Icon = navy("play_arrow")
+			}
+			fsPlayBtn.Refresh()
+			playBtn.Refresh()
+		}
+		fsPlayBtn.Importance = widget.LowImportance
+
+		fsExitBtn := widget.NewButtonWithIcon("", navy("fullscreen_exit"), func() {
+			fullscreenWin.Close()
+		})
+		fsExitBtn.Importance = widget.LowImportance
+
+		fsSeek := widget.NewSlider(0, player.Duration())
+		fsSeek.Step = 0.1
+		fsSeek.Value = player.CurrentTime()
+		var fsUpdatingSeek bool
+		player.SetOnProgress(func(t float64) {
+			if !fsUpdatingSeek {
+				fsSeek.SetValue(t)
+			}
+		})
+		fsSeek.OnChanged = func(val float64) {
+			fsUpdatingSeek = true
+			state.seekNative(val)
+			fsUpdatingSeek = false
+		}
+
+		ctrlBg := canvas.NewRectangle(color.NRGBA{R: 0x0A, G: 0x0E, B: 0x1A, A: 0xD0})
+		ctrlBar := container.NewMax(ctrlBg, container.NewPadded(
+			container.NewBorder(nil, nil,
+				container.NewHBox(greenCircleBtn(fsPlayBtn)),
+				container.NewHBox(greenSquareBtn(fsExitBtn)),
+				visibleSlider(fsSeek),
+			),
+		))
+
+		content := container.NewBorder(nil, ctrlBar, nil, nil, fsImg)
+
+		fullscreenWin = fyne.CurrentApp().NewWindow("")
+		fullscreenWin.SetContent(container.NewMax(canvas.NewRectangle(color.Black), content))
+		fullscreenWin.SetFullScreen(true)
+		fullscreenWin.Canvas().SetOnTypedKey(func(ev *fyne.KeyEvent) {
+			if ev.Name == fyne.KeyEscape {
+				fullscreenWin.Close()
+			}
+		})
+		fullscreenWin.Show()
+		fullscreenWin.SetOnClosed(func() {
+			fullscreenWin = nil
+			player.SetOnFrame(nil)
+			player.SetOnProgress(updateProgress)
+		})
+	})
+	fullBtn.Importance = widget.LowImportance
 
 	leftBtns := container.NewHBox(
 		greenSquareBtn(replay10Btn),
