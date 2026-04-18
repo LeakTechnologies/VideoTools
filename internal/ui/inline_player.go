@@ -116,28 +116,47 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	}()
 
 	v.mu.Lock()
-	defer v.mu.Unlock()
 
 	v.player.ClearError()
 	v.player.SetLoading(true)
 
-	// Stop any in-progress playback before swapping the engine.
+	// Snapshot and clear the previous engine/scrubber before swapping in new
+	// ones. Clearing under the lock prevents concurrent callers (seekLoop,
+	// Seek, playbackLoop) from using the old engine after we've released it.
 	v.playing = false
-	if v.scrubber != nil {
-		v.scrubber.Stop()
-		v.scrubber = nil
-	}
-	if v.engine != nil {
-		v.engine.Close()
-		v.engine = nil
-	}
-	// Recycle seekCh so seekLoop can be restarted for the new file.
-	// Close() may have already closed it; either way, create a fresh one.
-	if v.seekCh != nil {
-		close(v.seekCh)
-	}
+	oldScrubber := v.scrubber
+	oldEngine := v.engine
+	oldSeekCh := v.seekCh
+	v.scrubber = nil
+	v.engine = nil
+	v.seekCh = nil
+
+	// Fresh seek channel and loop for the new file.
 	v.seekCh = make(chan float64, 1)
 	go v.seekLoop()
+
+	v.mu.Unlock()
+
+	// Close the old seekCh synchronously so seekLoop exits and can't forward
+	// stale seeks to the new engine we're about to create.
+	if oldSeekCh != nil {
+		close(oldSeekCh)
+	}
+
+	// Tear down old resources off the caller's goroutine (scrubber.Stop and
+	// engine.Close both block waiting for goroutines and FFmpeg calls).
+	go func() {
+		if oldScrubber != nil {
+			oldScrubber.Stop()
+		}
+		if oldEngine != nil {
+			oldEngine.Close()
+		}
+	}()
+
+	// Re-acquire the lock for the rest of Load (engine open, scrubber setup).
+	v.mu.Lock()
+	defer v.mu.Unlock()
 
 	v.engine = media.NewEngine()
 	v.engine.SetSeekAccuracy(media.SeekAccuracyKeyframe)
@@ -395,22 +414,36 @@ func (v *InlineVideoPlayer) DisableSubtitles() {
 }
 
 func (v *InlineVideoPlayer) Close() {
+	// Snapshot resources and clear all fields atomically under the lock so that
+	// any concurrent caller (seekLoop, playbackLoop, Seek, Load) immediately
+	// sees a nil engine and stops. The actual teardown — which blocks while
+	// waiting for goroutines and FFmpeg calls to finish — runs on a background
+	// goroutine so the UI thread is never frozen when the user presses Back.
 	v.mu.Lock()
-	defer v.mu.Unlock()
 	v.playing = false
-	if v.scrubber != nil {
-		v.scrubber.Stop()
-		v.scrubber = nil
+	scrubber := v.scrubber
+	engine := v.engine
+	seekCh := v.seekCh
+	v.scrubber = nil
+	v.engine = nil
+	v.seekCh = nil
+	v.mu.Unlock()
+
+	// Close seekCh synchronously so seekLoop exits before Load() might create
+	// a new one. seekLoop ranges over the old channel; closing it unblocks it.
+	if seekCh != nil {
+		close(seekCh)
 	}
-	if v.engine != nil {
-		v.engine.Close()
-		v.engine = nil
-	}
-	// Close seekCh so seekLoop goroutine exits cleanly.
-	if v.seekCh != nil {
-		close(v.seekCh)
-		v.seekCh = nil
-	}
+
+	// Heavy teardown (wg.Wait, demuxerWg.Wait, FFmpeg free) runs off-thread.
+	go func() {
+		if scrubber != nil {
+			scrubber.Stop() // waits for predecodeFrom goroutines to exit
+		}
+		if engine != nil {
+			engine.Close() // waits for demuxer, then frees FFmpeg contexts
+		}
+	}()
 }
 
 func (v *InlineVideoPlayer) playbackLoop() {
