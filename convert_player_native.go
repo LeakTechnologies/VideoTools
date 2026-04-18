@@ -223,6 +223,11 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		}
 	})
 
+	// navy returns a VT-Navy tinted icon for use on VT-green button backgrounds.
+	navy := func(name string) fyne.Resource {
+		return recoloredSVG{ui.GetIcon(name), "#0F1529"}
+	}
+
 	var volIcon *widget.Button
 
 	updateVolIcon := func() {
@@ -230,14 +235,14 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 			return
 		}
 		if state.playerMuted || state.playerVolume <= 0 {
-			volIcon.Icon = ui.GetIcon("volume_mute")
+			volIcon.Icon = navy("volume_mute")
 		} else {
-			volIcon.Icon = ui.GetIcon("volume_up")
+			volIcon.Icon = navy("volume_up")
 		}
 		volIcon.Refresh()
 	}
 
-	volIcon = widget.NewButtonWithIcon("", ui.GetIcon("volume_up"), func() {
+	volIcon = widget.NewButtonWithIcon("", navy("volume_up"), func() {
 		if state.playerMuted || state.playerVolume <= 0 {
 			target := state.lastVolume
 			if target <= 0 {
@@ -277,21 +282,21 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	updateVolIcon()
 	volSlider.Refresh()
 
-	playBtn = widget.NewButtonWithIcon("", ui.GetIcon("play_arrow"), func() {
+	playBtn = widget.NewButtonWithIcon("", navy("play_arrow"), func() {
 		if state.playerPaused {
 			state.playNative()
 			state.playerPaused = false
-			playBtn.Icon = ui.GetIcon("pause")
+			playBtn.Icon = navy("pause")
 		} else {
 			state.pauseNative()
 			state.playerPaused = true
-			playBtn.Icon = ui.GetIcon("play_arrow")
+			playBtn.Icon = navy("play_arrow")
 		}
 		playBtn.Refresh()
 	})
 	playBtn.Importance = widget.LowImportance
 
-	prevFrameBtn := widget.NewButtonWithIcon("", ui.GetIcon("skip_previous"), func() {
+	prevFrameBtn := widget.NewButtonWithIcon("", navy("skip_previous"), func() {
 		state.playerPaused = true
 		state.pauseNative()
 		state.stepFrameNative(-1)
@@ -301,7 +306,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	})
 	prevFrameBtn.Importance = widget.LowImportance
 
-	nextFrameBtn := widget.NewButtonWithIcon("", ui.GetIcon("skip_next"), func() {
+	nextFrameBtn := widget.NewButtonWithIcon("", navy("skip_next"), func() {
 		state.playerPaused = true
 		state.pauseNative()
 		state.stepFrameNative(1)
@@ -311,40 +316,60 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	})
 	nextFrameBtn.Importance = widget.LowImportance
 
-	fullBtn := utils.MakeIconButton("", "Toggle fullscreen", func() {
-		if state.window == nil {
+	// Fullscreen opens a dedicated borderless window showing only the player.
+	// The playerWidget is detached from the main layout while fullscreen is active
+	// and restored when the window closes.
+	var fullscreenWin fyne.Window
+	fullBtn := widget.NewButtonWithIcon("", navy("fullscreen"), func() {
+		if fullscreenWin != nil {
+			fullscreenWin.Close()
 			return
 		}
-		state.window.SetFullScreen(!state.window.FullScreen())
+		stageWithPlayer.Remove(playerWidget)
+		stageWithPlayer.Refresh()
+		fullscreenWin = fyne.CurrentApp().NewWindow("")
+		fullscreenWin.SetContent(container.NewMax(
+			canvas.NewRectangle(color.Black),
+			playerWidget,
+		))
+		fullscreenWin.SetFullScreen(true)
+		fullscreenWin.Show()
+		fullscreenWin.SetOnClosed(func() {
+			fullscreenWin = nil
+			stageWithPlayer.Add(playerWidget)
+			stageWithPlayer.Refresh()
+		})
 	})
+	fullBtn.Importance = widget.LowImportance
 
-	replay10Btn := widget.NewButtonWithIcon("", ui.GetIcon("replay_10"), func() {
+	replay10Btn := widget.NewButtonWithIcon("", navy("replay_10"), func() {
 		state.seekNative(math.Max(0, slider.Value-10))
 	})
 	replay10Btn.Importance = widget.LowImportance
 
-	forward10Btn := widget.NewButtonWithIcon("", ui.GetIcon("forward_10"), func() {
+	forward10Btn := widget.NewButtonWithIcon("", navy("forward_10"), func() {
 		state.seekNative(math.Min(srcDuration, slider.Value+10))
 	})
 	forward10Btn.Importance = widget.LowImportance
 
-	// Speed control — cycles through common rates on each click.
-	speedSteps := []float64{0.25, 0.5, 1.0, 1.25, 1.5, 2.0}
-	speedIdx := 2 // start at 1.0×
-	var speedBtn *widget.Button
-	speedBtn = widget.NewButton("1.0×", func() {
-		speedIdx = (speedIdx + 1) % len(speedSteps)
-		speed := speedSteps[speedIdx]
-		player.SetSpeed(speed)
-		speedBtn.SetText(fmt.Sprintf("%.2g×", speed))
+	// Speed control — select widget cycling common rates.
+	speedSteps := []float64{0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0}
+	speedLabels := []string{"0.25×", "0.5×", "0.75×", "1×", "1.25×", "1.5×", "2×"}
+	speedSelect := widget.NewSelect(speedLabels, func(s string) {
+		for i, lbl := range speedLabels {
+			if lbl == s {
+				player.SetSpeed(speedSteps[i])
+				break
+			}
+		}
 	})
-	speedBtn.Importance = widget.LowImportance
+	speedSelect.SetSelected("1×")
 
 	// Chapter navigation — only rendered when the loaded file has chapters.
 	chapters := player.GetChapters()
 	var chapterPrevBtn, chapterNextBtn *widget.Button
 	if len(chapters) > 1 {
-		chapterPrevBtn = widget.NewButton("⏮", func() {
+		chapterPrevBtn = widget.NewButtonWithIcon("", navy("skip_previous"), func() {
 			cur := player.ChapterAt(slider.Value)
 			target := cur - 1
 			if target < 0 {
@@ -354,7 +379,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		})
 		chapterPrevBtn.Importance = widget.LowImportance
 
-		chapterNextBtn = widget.NewButton("⏭", func() {
+		chapterNextBtn = widget.NewButtonWithIcon("", navy("skip_next"), func() {
 			cur := player.ChapterAt(slider.Value)
 			target := cur + 1
 			if target >= len(chapters) {
@@ -403,7 +428,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		leftBtns.Add(greenSquareBtn(chapterNextBtn))
 	}
 
-	rightBtns := container.NewHBox(speedBtn, volBox, fullBtn)
+	rightBtns := container.NewHBox(speedSelect, volBox, fullBtn)
 	mainCtrlRow := container.NewBorder(nil, nil, leftBtns, rightBtns, nil)
 
 	primaryBg := canvas.NewRectangle(color.NRGBA{R: 8, G: 12, B: 24, A: 140})
