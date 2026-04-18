@@ -204,7 +204,12 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	} else {
 		logging.Warning(logging.CatPlayer, "Initial frame fetch failed: %v", err)
 	}
-	logging.Info(logging.CatPlayer, "Load: GrabFrame completed, pausing engine")
+	logging.Info(logging.CatPlayer, "Load: GrabFrame completed, seeking to 0 to reset clock")
+	// Seek resets the master clock to 0 via clock.ResetTime(0). Without this,
+	// the clock has been ticking since Start() and is already ahead of pts=0
+	// by however long GrabFrame took, causing the first video frames to be
+	// dropped as late when the user presses Play.
+	v.engine.Seek(0)
 	v.engine.Pause()
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: load completed, engine ready")
