@@ -365,20 +365,48 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		chapterNextBtn.Importance = widget.LowImportance
 	}
 
-	volBox := container.NewHBox(volIcon, container.NewMax(volSlider))
-	seekRow := container.NewBorder(nil, nil, currentTime, totalTime, container.NewMax(slider))
+	// greenCircleBtn wraps a button in a VT-green filled circle (for play/pause).
+	greenCircleBtn := func(btn *widget.Button) fyne.CanvasObject {
+		bg := canvas.NewRectangle(utils.MustHex("#4CE870"))
+		bg.CornerRadius = 18
+		btn.Importance = widget.LowImportance
+		return container.NewStack(bg, btn)
+	}
+	// greenSquareBtn wraps a button in a VT-green rounded square (for transport controls).
+	greenSquareBtn := func(btn *widget.Button) fyne.CanvasObject {
+		bg := canvas.NewRectangle(utils.MustHex("#4CE870"))
+		bg.CornerRadius = 6
+		btn.Importance = widget.LowImportance
+		return container.NewStack(bg, btn)
+	}
+	// visibleSlider wraps a slider with a visible track background.
+	visibleSlider := func(sl *widget.Slider) fyne.CanvasObject {
+		track := canvas.NewRectangle(color.NRGBA{R: 60, G: 75, B: 110, A: 220})
+		track.CornerRadius = 3
+		track.SetMinSize(fyne.NewSize(0, 6))
+		return container.NewStack(container.NewCenter(track), sl)
+	}
 
-	leftBtns := container.NewHBox(replay10Btn, prevFrameBtn, playBtn, nextFrameBtn, forward10Btn)
+	volBox := container.NewHBox(volIcon, visibleSlider(volSlider))
+	seekRow := container.NewBorder(nil, nil, currentTime, totalTime, visibleSlider(slider))
+
+	leftBtns := container.NewHBox(
+		greenSquareBtn(replay10Btn),
+		greenSquareBtn(prevFrameBtn),
+		greenCircleBtn(playBtn),
+		greenSquareBtn(nextFrameBtn),
+		greenSquareBtn(forward10Btn),
+	)
 	if chapterPrevBtn != nil {
 		leftBtns.Add(widget.NewSeparator())
-		leftBtns.Add(chapterPrevBtn)
-		leftBtns.Add(chapterNextBtn)
+		leftBtns.Add(greenSquareBtn(chapterPrevBtn))
+		leftBtns.Add(greenSquareBtn(chapterNextBtn))
 	}
 
 	rightBtns := container.NewHBox(speedBtn, volBox, fullBtn)
 	mainCtrlRow := container.NewBorder(nil, nil, leftBtns, rightBtns, nil)
 
-	primaryBg := canvas.NewRectangle(color.NRGBA{R: 8, G: 12, B: 24, A: 120})
+	primaryBg := canvas.NewRectangle(color.NRGBA{R: 8, G: 12, B: 24, A: 140})
 	primaryBar := container.NewMax(primaryBg, container.NewPadded(container.NewVBox(seekRow, mainCtrlRow)))
 
 	gridColor := ui.GridColor
@@ -478,11 +506,16 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	)
 
 	// Overlay the transport controls at the bottom of the video stage.
-	// advancedBar (frame counter, tracks, tools) stays as a compact strip below.
-	videoWithControls := container.NewStack(
-		dropZone,
-		container.NewBorder(nil, primaryBar, nil, nil, nil),
-	)
+	// Hide the overlay entirely when no video is loaded — SMPTE bars stay.
+	var videoWithControls fyne.CanvasObject
+	if src != nil {
+		videoWithControls = container.NewStack(
+			dropZone,
+			container.NewBorder(nil, primaryBar, nil, nil, nil),
+		)
+	} else {
+		videoWithControls = dropZone
+	}
 
 	stack := container.NewBorder(
 		nil,
