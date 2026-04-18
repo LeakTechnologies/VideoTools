@@ -1660,21 +1660,15 @@ func (e *Engine) Open(path string) error {
 		e.info.FrameRate = float64(avgFrameRate.num) / float64(avgFrameRate.den)
 	}
 
-	// Enable frame-level threading (FF_THREAD_FRAME = 1) for SW decode.
-	// Unlike slice threading (FF_THREAD_SLICE = 2), frame threading creates
-	// its pool eagerly at avcodec_open2 time — not lazily on the first packet
-	// — which avoids the Win32 thread-environment crash seen with slice threads.
-	// Cap at 4 threads: beyond 4, H.264 gains little and decode-ahead buffering
-	// (preDecodeFrames) already hides the remaining I-frame latency.
-	{
-		n := runtime.NumCPU()
-		if n > 4 {
-			n = 4
-		}
-		e.videoCodecCtx.thread_count = C.int(n)
-		e.videoCodecCtx.thread_type = 1 // FF_THREAD_FRAME
-		logging.Info(logging.CatPlayer, "SW video decode: thread_count=%d FF_THREAD_FRAME", n)
-	}
+	// SW decode: force single-threaded (thread_count=1).
+	// FF_THREAD_FRAME (multi-frame parallel decode) causes avcodec_receive_frame
+	// to block while internal frame threads wait for reference data; if the
+	// demuxer queue is flushed mid-decode (seek) those threads deadlock and
+	// avcodec_flush_buffers never returns.  FF_THREAD_SLICE causes a Win32
+	// thread-environment crash on first packet.  The 8-frame pre-decode buffer
+	// (preDecodeFrames) already hides single-thread I-frame latency.
+	e.videoCodecCtx.thread_count = 1
+	logging.Info(logging.CatPlayer, "SW video decode: thread_count=1 (single-threaded, seek-safe)")
 
 	logging.Info(logging.CatPlayer, "Opening video codec: %s %dx%d pix_fmt=%d", e.info.CodecName, e.info.Width, e.info.Height, e.videoCodecCtx.pix_fmt)
 	if C.avcodec_open2(e.videoCodecCtx, videoCodec, nil) < 0 {
