@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,7 @@ var (
 	debugOn    = false
 	logsDir    string
 
+	suppressMu       sync.Mutex
 	suppressCount    = make(map[string]int)
 	suppressLastMsg  = make(map[string]time.Time)
 	suppressThrottle = 5 * time.Second
@@ -172,9 +174,12 @@ func Debug(cat Category, format string, args ...interface{}) {
 	logger.Printf("%s %s", timestamp, msg)
 }
 
-// shouldSuppress returns true if the message should be suppressed due to repetition
+// shouldSuppress returns true if the message should be suppressed due to repetition.
+// Thread-safe: all access to the suppress maps is protected by suppressMu.
 func shouldSuppress(msg string) bool {
 	now := time.Now()
+	suppressMu.Lock()
+	defer suppressMu.Unlock()
 
 	lastMsg, exists := suppressLastMsg[msg]
 	if exists && now.Sub(lastMsg) < suppressThrottle {
