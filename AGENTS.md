@@ -148,6 +148,18 @@ Open an issue or ask before touching the "Setup static FFmpeg" steps.
 - Put platform packaging assets under `packaging/<platform>/`.
 - Do not commit ad-hoc logs, scratch files, backup files, or one-off test files to root.
 
+### No New Root-Level Go Files — Hard Rule
+
+**Do not add new `.go` files to the repository root.** The root already has 38 files in `package main`; every new file added there deepens the coupling and makes the eventual `internal/` migration harder.
+
+When adding new functionality:
+- Create it in the appropriate `internal/` sub-package from the start.
+- If it belongs to an existing module (e.g. convert, player, author), add it to that module's directory under `internal/app/modules/` or create a new one.
+- If it is truly app-level wiring (the thin glue between `main` and a module), it may live in a *temporary* root shim file — but that shim must be listed in the refactor plan (`docs/REFACTOR_DEV30_PLAN.md`) as a future extraction target.
+- Types, helpers, and utilities that don't depend on `appState` must go in `internal/` immediately — there is no justification for adding them to root.
+
+If you are unsure where new code belongs, default to `internal/` and ask rather than defaulting to root.
+
 ## Refactor Boundaries
 
 - Current refactor plan: `docs/REFACTOR_DEV30_PLAN.md`.
