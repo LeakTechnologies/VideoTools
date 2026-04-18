@@ -2075,7 +2075,9 @@ func (e *Engine) Seek(seconds float64) error {
 	// first decoded frame; calling avcodec_flush_buffers before that happens
 	// dereferences an uninitialized pool and causes an access violation crash.
 	if e.videoCodecCtx != nil && e.videoDecoded {
+		logging.Info(logging.CatPlayer, "Seek: acquiring videoCodecMu")
 		e.videoCodecMu.Lock()
+		logging.Info(logging.CatPlayer, "Seek: videoCodecMu acquired")
 		// With FF_THREAD_FRAME the codec runs N internal frame-decode threads.
 		// avcodec_flush_buffers calls ff_thread_flush() which waits for every
 		// thread to complete.  If those threads are blocked waiting for reference
@@ -2083,10 +2085,13 @@ func (e *Engine) Seek(seconds float64) error {
 		// wait never returns.  The fix: send a NULL drain packet first so the
 		// frame threads receive an EOF signal and can exit their wait loops; then
 		// drain all buffered output so the threads reach idle state; then flush.
+		logging.Info(logging.CatPlayer, "Seek: sending drain packet")
 		C.avcodec_send_packet(e.videoCodecCtx, nil)
+		logging.Info(logging.CatPlayer, "Seek: drain packet sent, receiving frames")
 		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
 			// discard — just draining thread output so threads become idle
 		}
+		logging.Info(logging.CatPlayer, "Seek: drain complete, calling avcodec_flush_buffers")
 		C.avcodec_flush_buffers(e.videoCodecCtx)
 		e.videoCodecMu.Unlock()
 		logging.Info(logging.CatPlayer, "Seek: video codec flushed, flushing audio codec")
