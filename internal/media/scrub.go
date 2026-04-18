@@ -128,6 +128,7 @@ type SmoothScrubbing struct {
 	seekTarget  float64
 	onFrame     func(*image.RGBA)
 	mu          sync.RWMutex
+	wg          sync.WaitGroup // tracks seekHandler, predecodeLoop, predecodeFrom goroutines
 
 	// Private decode / conversion resources — never shared with the engine.
 	frame      *C.AVFrame
@@ -156,12 +157,17 @@ func NewSmoothScrubbing(engine *Engine) *SmoothScrubbing {
 }
 
 func (s *SmoothScrubbing) Start() {
-	go s.predecodeLoop()
-	go s.seekHandler()
+	s.wg.Add(2)
+	go func() { defer s.wg.Done(); s.predecodeLoop() }()
+	go func() { defer s.wg.Done(); s.seekHandler() }()
 }
 
 func (s *SmoothScrubbing) Stop() {
 	close(s.stop)
+	// Wait for all goroutines to exit before freeing CGo resources.
+	// Without this, predecodeFrom/predecodeAhead may still be using s.frame
+	// or s.swsCtx when we free them, causing a use-after-free crash.
+	s.wg.Wait()
 
 	// Free all private CGo resources.
 	s.convertMu.Lock()
@@ -213,7 +219,8 @@ func (s *SmoothScrubbing) handleSeek(target float64) {
 	s.predecoding = false
 	s.mu.Unlock()
 
-	go s.predecodeFrom(target)
+	s.wg.Add(1)
+	go func() { defer s.wg.Done(); s.predecodeFrom(target) }()
 }
 
 func (s *SmoothScrubbing) predecodeFrom(startTime float64) {
