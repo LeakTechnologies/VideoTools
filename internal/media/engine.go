@@ -693,8 +693,9 @@ type Engine struct {
 	frameQueue      chan decodedFrame
 	decodeLoopStop  chan struct{}
 	decodeLoopWg    sync.WaitGroup
-	decodeLoopActive bool // true while videoDecodeLoop goroutine is alive
-	decodeEOFSent    bool // true once the EOF sentinel has been enqueued
+	decodeLoopActive bool    // true while videoDecodeLoop goroutine is alive
+	decodeEOFSent    bool    // true once the EOF sentinel has been enqueued
+	seekFlushBefore  float64 // set by Seek(); decode loop skips RGBA for pts below this
 }
 
 type PlaybackFrameCache struct {
@@ -2102,6 +2103,11 @@ func (e *Engine) Seek(seconds float64) error {
 drainDone:
 	// Allow videoDecodeLoop to send a new EOF sentinel if needed after this seek.
 	e.decodeEOFSent = false
+	// Tell videoDecodeLoop to skip RGBA conversion for frames before this PTS.
+	// Long GOPs require decoding many reference frames after a keyframe seek
+	// before reaching the target position; converting those to RGBA wastes CPU
+	// and floods frameQueue with frames that NextFrame will just drop.
+	e.seekFlushBefore = seconds - 0.15 // 150ms tolerance for keyframe alignment
 
 	logging.Info(logging.CatPlayer, "Seek: complete at %.2f", seconds)
 	return nil
@@ -2317,6 +2323,25 @@ func (e *Engine) videoDecodeLoop() {
 
 			pts := float64(e.frame.pts) * e.videoTimeBase
 
+			// Skip RGBA conversion for pre-seek reference frames.  After a
+			// keyframe seek the codec must decode all frames from the GOP
+			// boundary to the seek target; converting those to RGBA wastes
+			// CPU and fills frameQueue with stale frames that NextFrame will
+			// only drop.  We still need avcodec_receive_frame for the
+			// reference-frame chain, so we can't skip the decode itself.
+			e.mu.Lock()
+			flushBefore := e.seekFlushBefore
+			e.mu.Unlock()
+			if flushBefore > 0 && pts < flushBefore {
+				continue // decode but skip RGBA + queue
+			}
+			// Reached the target region — clear the flush guard.
+			if flushBefore > 0 {
+				e.mu.Lock()
+				e.seekFlushBefore = 0
+				e.mu.Unlock()
+			}
+
 			// Convert to RGBA while still holding videoCodecMu — e.frame is
 			// owned by the codec context and can be overwritten on the next
 			// avcodec_receive_frame call.
@@ -2413,7 +2438,7 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 		clockNow := e.clock.GetTime()
 		delay := e.clock.SyncVideo(pts)
 		if delay < 0 {
-			logging.Debug(logging.CatPlayer, "frame DROP #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
+			logging.Warning(logging.CatPlayer, "frame DROP #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
 			continue
 		}
 		if delay == 0 && clockNow-pts > 0.010 {
@@ -2533,7 +2558,7 @@ func (e *Engine) toRGBA() (img *image.RGBA) {
 		}
 	}()
 
-	logging.Info(logging.CatPlayer, "toRGBA: entering sws_scale, swsCtx=%v", e.swsCtx != nil)
+	logging.Debug(logging.CatPlayer, "toRGBA: entering sws_scale, swsCtx=%v", e.swsCtx != nil)
 	C.sws_scale(
 		e.swsCtx,
 		&e.frame.data[0], &e.frame.linesize[0],
