@@ -2062,6 +2062,17 @@ func (e *Engine) Seek(seconds float64) error {
 	e.audioQueue.Flush()
 	logging.Info(logging.CatPlayer, "Seek: queues flushed, flushing video codec")
 
+	// Set the pre-seek skip guard BEFORE flushing the codec.  After the queue
+	// flush the demuxer immediately starts producing new-position packets;
+	// videoDecodeLoop can pick one up and send it to the codec before we reach
+	// avcodec_flush_buffers below.  Without the guard those early reference
+	// frames would be converted to RGBA and queued, only to be dropped by
+	// NextFrame.  Setting seekFlushBefore here ensures the decode loop skips
+	// them even if it races ahead of the codec flush.
+	e.mu.Lock()
+	e.seekFlushBefore = seconds - 0.15 // 150ms tolerance for keyframe alignment
+	e.mu.Unlock()
+
 	// videoCodecMu must be held around avcodec_flush_buffers to serialise
 	// against NextFrame() which holds the same lock during send/receive.
 	//
@@ -2103,11 +2114,6 @@ func (e *Engine) Seek(seconds float64) error {
 drainDone:
 	// Allow videoDecodeLoop to send a new EOF sentinel if needed after this seek.
 	e.decodeEOFSent = false
-	// Tell videoDecodeLoop to skip RGBA conversion for frames before this PTS.
-	// Long GOPs require decoding many reference frames after a keyframe seek
-	// before reaching the target position; converting those to RGBA wastes CPU
-	// and floods frameQueue with frames that NextFrame will just drop.
-	e.seekFlushBefore = seconds - 0.15 // 150ms tolerance for keyframe alignment
 
 	logging.Info(logging.CatPlayer, "Seek: complete at %.2f", seconds)
 	return nil
@@ -2333,7 +2339,14 @@ func (e *Engine) videoDecodeLoop() {
 			flushBefore := e.seekFlushBefore
 			e.mu.Unlock()
 			if flushBefore > 0 && pts < flushBefore {
-				continue // decode but skip RGBA + queue
+				// Release the codec lock so Seek()'s avcodec_flush_buffers can
+				// proceed if it is waiting.  After re-acquiring, the next
+				// avcodec_receive_frame call will return EAGAIN if Seek() has
+				// already flushed the codec, cleanly exiting the inner loop.
+				e.videoCodecMu.Unlock()
+				runtime.Gosched()
+				e.videoCodecMu.Lock()
+				continue
 			}
 			// Reached the target region — clear the flush guard.
 			if flushBefore > 0 {
