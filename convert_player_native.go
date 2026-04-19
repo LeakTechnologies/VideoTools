@@ -264,6 +264,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	volSlider := widget.NewSlider(0, 100)
 	volSlider.Step = 1
 	volSlider.Value = state.playerVolume
+	volSlider.Resize(fyne.NewSize(150, 40))
 	var updatingVolume bool
 	volSlider.OnChanged = func(val float64) {
 		if updatingVolume {
