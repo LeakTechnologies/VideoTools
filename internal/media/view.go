@@ -469,6 +469,8 @@ func (v *VideoPlayer) SetFrame(img *image.RGBA) {
 	logging.Debug(logging.CatPlayer, "SetFrame called: img=%v", img != nil)
 	v.source = img
 	if img == nil {
+		// Trigger redraw to show SMPTE bars when video is cleared
+		v.Refresh()
 		return
 	}
 
