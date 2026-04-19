@@ -60,7 +60,7 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 | SW decode playback (H.264, AV1, MPEG4) | ⚠️ Fixed in dev43 — needs smoke test |
 | HW decode (D3D11VA) opt-in | ⚠️ Crashes on some files when enabled; opt-in with warning. SW fallback path has same pix_fmt bug (dev43-186fa244) |
 | Seek / scrub | ⚠️ Works but shares formatCtx read position with demuxer (P1) |
-| Audio sync | ⚠️ Sync correct at start, but audio may jump to start after seek on files with multiple audio tracks |
+| Audio sync | ⚠️ Fixed audio starts on Play() — needs test |
 | Speed change | ⚠️ Video timing correct; audio does not pitch-shift |
 | Close() / Load() lifecycle | ✅ WaitGroup + mutex gate added in dev43 |
 | seekLoop goroutine lifecycle | ✅ Fixed in dev43 |
