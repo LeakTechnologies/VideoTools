@@ -2462,17 +2462,30 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 		var df decodedFrame
 		select {
 		case df = <-e.frameQueue:
-			// got a frame — fall through to render/sync
+			// fast path — frame ready without stalling
 		default:
 			if paused {
-				// Queue empty while paused: the decode loop will fill one frame
+				// Queue empty while paused: decode loop will fill one frame
 				// for a seek preview; yield and retry rather than hanging.
 				time.Sleep(10 * time.Millisecond)
-			} else {
-				// Queue temporarily empty during normal playback (decode catching up).
-				time.Sleep(1 * time.Millisecond)
+				continue
 			}
-			continue
+			// Stall during active playback (startup latency or I-frame decode).
+			// Pause the clock so wall time during the stall doesn't accumulate
+			// as A/V drift, then block until the decode loop catches up.
+			if hasAudio {
+				e.clock.SetPaused(true)
+			}
+			df = <-e.frameQueue
+			if hasAudio {
+				userPaused := e.IsPaused()
+				if !userPaused && df.pts != decodeEOFPTS {
+					// Re-anchor clock to this frame's PTS — eliminates drift from
+					// both startup latency and I-frame stalls in one step.
+					e.clock.ResetTime(df.pts)
+				}
+				e.clock.SetPaused(userPaused)
+			}
 		}
 
 		// EOF sentinel from videoDecodeLoop.
