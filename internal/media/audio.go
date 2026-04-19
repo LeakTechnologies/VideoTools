@@ -137,9 +137,12 @@ func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *Maste
 	go p.audioDecodeLoop()
 
 	p.otoPlayer = otoCtx.NewPlayer(p)
-	logging.Info(logging.CatPlayer, "NewAudioPlayer: player created, calling Play()")
-	p.otoPlayer.Play()
-	logging.Info(logging.CatPlayer, "NewAudioPlayer: Play() returned OK")
+	// Do NOT call Play() here - audio will start playing immediately.
+	// Instead, audio is started when user presses Play() via AudioPlayer.Resume().
+	// Set paused=true initially so Read() returns silence until Play is called.
+	p.paused = true
+
+	logging.Info(logging.CatPlayer, "NewAudioPlayer: player created (not playing yet)")
 
 	return p, nil
 }
@@ -405,12 +408,18 @@ func (p *AudioPlayer) Pause() {
 	p.mu.Lock()
 	p.paused = true
 	p.mu.Unlock()
+	if p.otoPlayer != nil {
+		p.otoPlayer.Pause()
+	}
 }
 
 func (p *AudioPlayer) Resume() {
 	p.mu.Lock()
 	p.paused = false
 	p.mu.Unlock()
+	if p.otoPlayer != nil {
+		p.otoPlayer.Play()
+	}
 }
 
 func (p *AudioPlayer) IsPaused() bool {
