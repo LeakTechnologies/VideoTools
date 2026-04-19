@@ -289,6 +289,7 @@ type VideoPlayer struct {
 	mouseInView           bool
 	minimal               bool
 	builtinControlsLocked bool
+	suppressSeek          bool // true while SetCurrentTime is updating the slider programmatically
 	controlHideTimer      *time.Timer
 
 	raster        *canvas.Raster
@@ -339,6 +340,9 @@ func (v *VideoPlayer) buildControls() {
 
 	v.slider = widget.NewSlider(0, 100)
 	v.slider.OnChanged = func(pos float64) {
+		if v.suppressSeek {
+			return
+		}
 		v.isSeeking = true
 		if v.duration > 0 {
 			target := (pos / 100.0) * v.duration
@@ -486,7 +490,9 @@ func (v *VideoPlayer) SetCurrentTime(t float64) {
 	v.currentTime = t
 	v.updateTimeLabels()
 	if v.duration > 0 {
+		v.suppressSeek = true
 		v.slider.SetValue((t / v.duration) * 100)
+		v.suppressSeek = false
 	}
 }
 
