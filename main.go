@@ -8933,9 +8933,9 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		return pop
 	}
 
-	// Bottom drawer for snippet options (above stats bar)
+	// Bottom drawer for snippet options (slides up from below the button)
 	buildBottomDrawer := func(title string, body fyne.CanvasObject, onClose func()) *widget.PopUp {
-		closeBtn := widget.NewButton("-", func() {
+		closeBtn := widget.NewButton("x", func() {
 			if onClose != nil {
 				onClose()
 			}
@@ -8946,7 +8946,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			closeBtn,
 		)
 		bodyScroll := container.NewVScroll(body)
-		bodyScroll.SetMinSize(fyne.NewSize(0, 200))
+		bodyScroll.SetMinSize(fyne.NewSize(0, 180))
 		panel := container.NewBorder(header, nil, nil, nil, bodyScroll)
 
 		bg := canvas.NewRectangle(utils.MustHex("#13182B"))
@@ -8957,11 +8957,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		pop := widget.NewPopUp(drawer, state.window.Canvas())
 		canvasSize := state.window.Canvas().Size()
-		drawerHeight := float32(240)
+		drawerHeight := float32(220)
 		drawerWidth := canvasSize.Width - (drawerInset * 2)
 		pop.Resize(fyne.NewSize(drawerWidth, drawerHeight))
-		// Position at bottom, above stats bar
-		pop.ShowAtPosition(fyne.NewPos(drawerInset, canvasSize.Height-drawerHeight-drawerInset-40)) // 40 for stats bar
+		// Position: drawer slides UP from below. Top edge should be above the snippet row.
+		// snippetRow is ~32px high in the footer. Position drawer so its bottom aligns
+		// with the bottom of the button area (above stats bar).
+		statsBarHeight := float32(40)
+		footerRowHeight := float32(32)
+		drawerTop := canvasSize.Height - drawerHeight - drawerInset - statsBarHeight - footerRowHeight
+		pop.ShowAtPosition(fyne.NewPos(drawerInset, drawerTop))
 		return pop
 	}
 
