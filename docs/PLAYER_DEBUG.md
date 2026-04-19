@@ -40,6 +40,7 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 - [ ] **predecodeFrom shares formatCtx read position with demuxerLoop** `(dev43-186fa244)` — Both `predecodeFrom` (scrubber) and `demuxerLoop` call `av_read_frame` on the same `formatCtx`, serialised per-call via `formatMu`. The per-call lock is correct, but both sides advance the read pointer in an interleaved fashion: the scrubber consumes packets the demuxer would have queued, and vice versa. This does not crash but can produce corrupted/stuck playback after a seek. Fix: give `SmoothScrubbing` its own independent `AVFormatContext` (same pattern as `StartThumbnailExtraction`), or pause the demuxer before scrub reads.
 - [ ] **Speed changes do not affect audio tempo** `(dev43-186fa244)` — `AudioPlayer.Read()` does not resample audio pitch/tempo when speed != 1.0. Video frames are dropped/waited to match speed, but audio plays at 1× regardless. Requires `swr_convert` with a rate ratio or a time-stretch filter.
 - [ ] **Audio queue not flushed before seek** `(dev43-186fa244)` — `Seek()` flushes the video queue and calls `AudioPlayer.FlushCodec()` but stale packets may remain in `audioQueue` between the codec flush and the demuxer seek. These play as a brief audio glitch at the seek point.
+- [ ] **Audio jumps to start after seek** — Some files with multiple audio tracks (e.g., intro + main program) may have FFmpeg switch audio tracks after seek, causing audio to jump to start. Need to force audio stream index after seek.
 
 ### P2 — Quality / UX
 
@@ -59,7 +60,7 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 | SW decode playback (H.264, AV1, MPEG4) | ⚠️ Fixed in dev43 — needs smoke test |
 | HW decode (D3D11VA) opt-in | ⚠️ Crashes on some files when enabled; opt-in with warning. SW fallback path has same pix_fmt bug (dev43-186fa244) |
 | Seek / scrub | ⚠️ Works but shares formatCtx read position with demuxer (P1) |
-| Audio sync | ✅ Correct at 1× speed |
+| Audio sync | ⚠️ Sync correct at start, but audio may jump to start after seek on files with multiple audio tracks |
 | Speed change | ⚠️ Video timing correct; audio does not pitch-shift |
 | Close() / Load() lifecycle | ✅ WaitGroup + mutex gate added in dev43 |
 | seekLoop goroutine lifecycle | ✅ Fixed in dev43 |
