@@ -2131,14 +2131,9 @@ drainDone:
 	return nil
 }
 
-// ResetAfterGrab repositions the format context to the start and resets the
-// clock/audio codec without flushing the video codec.  It is used exclusively
-// by InlineVideoPlayer.Load() after GrabFrame() to reset the clock without
-// triggering the avcodec_flush_buffers hang that occurs before videoDecodeLoop
-// has started.  Skipping the video codec flush is safe here because:
-//   - videoDecodeLoop has not started yet (it starts on the first Resume).
-//   - Position 0 of any well-formed file starts with an IDR (keyframe), so the
-//     decoder self-resets the moment it receives that packet.
+// ResetAfterGrab repositions the format context to the start and resets all
+// codec state after GrabFrame().  It is used exclusively by
+// InlineVideoPlayer.Load() after GrabFrame() to prepare for clean playback.
 func (e *Engine) ResetAfterGrab() {
 	logging.Info(logging.CatPlayer, "ResetAfterGrab: repositioning to start")
 	e.mu.Lock()
@@ -2157,6 +2152,22 @@ func (e *Engine) ResetAfterGrab() {
 	// decode loop; fresh packets from position 0 will fill them after Start.
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
+
+	// Flush the video codec to drain any frames GrabFrame left buffered inside
+	// the decoder (B-frame reordering means the codec holds decoded frames that
+	// were never drained after GrabFrame returned).  Without this they surface
+	// as stale high-PTS frames at the start of playback.
+	// videoDecodeLoop has not started yet so there is no concurrent access;
+	// the e.mu → videoCodecMu lock order is the same as Seek().
+	if e.videoCodecCtx != nil && e.videoDecoded {
+		e.videoCodecMu.Lock()
+		C.avcodec_send_packet(e.videoCodecCtx, nil)
+		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
+		}
+		C.avcodec_flush_buffers(e.videoCodecCtx)
+		e.videoCodecMu.Unlock()
+		logging.Info(logging.CatPlayer, "ResetAfterGrab: video codec flushed")
+	}
 
 	// Flush audio codec so audio starts cleanly from position 0.
 	if e.audioPlayer != nil {
