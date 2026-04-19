@@ -2104,7 +2104,16 @@ func (e *Engine) Seek(seconds float64) error {
 	}
 	logging.Info(logging.CatPlayer, "Seek: audio codec flushed, resetting clock")
 
-	e.clock.ResetTime(seconds)
+	// Mirror the ResetAfterGrab latency offset: after flushing audio the oto
+	// hardware buffer contains silence for ~AudioBufferLatency before new
+	// audio from the seek position reaches the speakers.  Starting the clock
+	// that amount behind the seek target makes WaitForPTS hold the first
+	// post-seek video frame until audio output actually catches up.
+	if e.audioPlayer != nil {
+		e.clock.ResetTime(seconds - AudioBufferLatency.Seconds())
+	} else {
+		e.clock.ResetTime(seconds)
+	}
 
 	// Drain any pre-decoded frames from before the seek; they have stale PTS.
 	for {
@@ -2157,8 +2166,14 @@ func (e *Engine) ResetAfterGrab() {
 		C.avcodec_flush_buffers(e.audioCodecCtx)
 	}
 
-	// Reset master clock to 0 so the first decoded frames are not treated as late.
-	e.clock.ResetTime(0)
+	// Start the clock slightly behind 0 to compensate for the oto hardware
+	// output buffer latency.  Audio samples fed to oto reach the speakers
+	// ~AudioBufferLatency later; starting the clock at -AudioBufferLatency
+	// makes WaitForPTS hold the first video frame until oto's silence buffer
+	// drains and real audio output begins — achieving A/V sync from frame 1.
+	// AudioPlayer.Read() advances the clock via SetTime(pts-AudioBufferLatency)
+	// so it continuously tracks actual audio output position during playback.
+	e.clock.ResetTime(-AudioBufferLatency.Seconds())
 
 	// Drain any frames GrabFrame may have left in frameQueue.
 	for {
@@ -2478,13 +2493,10 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 			}
 			df = <-e.frameQueue
 			if hasAudio {
-				userPaused := e.IsPaused()
-				if !userPaused && df.pts != decodeEOFPTS {
-					// Re-anchor clock to this frame's PTS — eliminates drift from
-					// both startup latency and I-frame stalls in one step.
-					e.clock.ResetTime(df.pts)
-				}
-				e.clock.SetPaused(userPaused)
+				// Resume clock at the paused position — don't ResetTime here.
+				// AudioPlayer.Read() drives the clock via SetTime(pts-latency),
+				// so it self-corrects to audio output position after any stall.
+				e.clock.SetPaused(e.IsPaused())
 			}
 		}
 

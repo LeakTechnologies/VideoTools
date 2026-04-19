@@ -87,6 +87,7 @@ func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *Maste
 		timeBase:   timeBase,
 		volume:     1.0,
 		volumeMul:  1.0,
+		paused:     true, // stay silent until engine.Resume() — prevents audio bleed during Load/GrabFrame
 		pcmCh:      make(chan audioChunk, pcmChannelCap),
 		decodeStop: make(chan struct{}),
 	}
@@ -330,6 +331,14 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 			}
 			return 0, io.EOF
 		}
+		// Drive the master clock from audio output position.
+		// This chunk is being handed to oto's hardware buffer; it will actually
+		// reach the speakers after AudioBufferLatency.  Subtracting that latency
+		// makes the clock represent "what's being heard right now" rather than
+		// "what's been decoded/buffered".  Video WaitForPTS then waits until the
+		// clock (= audio output position) reaches the video frame's PTS,
+		// producing true A/V sync without any fixed wall-time offset.
+		p.clock.SetTime(chunk.pts - AudioBufferLatency.Seconds())
 		n := copy(buf, chunk.data)
 		if n < len(chunk.data) {
 			p.leftover = chunk.data[n:]
