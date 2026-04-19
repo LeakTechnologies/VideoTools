@@ -507,6 +507,7 @@ func (v *VideoPlayer) SetPlaying(playing bool) {
 		} else {
 			v.playBtn.SetIcon(th.Icon(theme.IconNameMediaPlay))
 		}
+		v.playBtn.Refresh()
 	}
 }
 
