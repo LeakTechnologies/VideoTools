@@ -18,7 +18,9 @@ const (
 	// providing enough headroom against underruns on typical hardware.
 	// pcmChannelCap (64 × ~23ms ≈ 1.5s) provides the upstream buffer, so
 	// the OS buffer only needs to be small.
-	audioBufferSize = 100 * time.Millisecond
+	// 50ms strikes a balance between low latency and avoiding underruns.
+	// Can reduce further if the system handles it.
+	audioBufferSize = 50 * time.Millisecond
 	// AudioBufferLatency is the nominal end-to-end audio output latency
 	// (oto hardware buffer).  Used to compensate the master clock so that
 	// video PTS is displayed when the corresponding audio samples actually
