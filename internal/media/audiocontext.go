@@ -13,10 +13,17 @@ const (
 	TargetSampleRate = 48000
 	// TargetChannels is the number of output channels (stereo).
 	TargetChannels = 2
-	// audioBufferSize is the oto context buffer duration.
-	// 500ms provides smooth playback with sufficient headroom against underruns.
-	// The old value of 170ms was too small and caused stuttering on slower systems.
-	audioBufferSize = 500 * time.Millisecond
+	// audioBufferSize is the oto hardware output buffer duration.
+	// 100ms is low enough that A/V desync is imperceptible while still
+	// providing enough headroom against underruns on typical hardware.
+	// pcmChannelCap (64 × ~23ms ≈ 1.5s) provides the upstream buffer, so
+	// the OS buffer only needs to be small.
+	audioBufferSize = 100 * time.Millisecond
+	// AudioBufferLatency is the nominal end-to-end audio output latency
+	// (oto hardware buffer).  Used to compensate the master clock so that
+	// video PTS is displayed when the corresponding audio samples actually
+	// reach the speakers rather than when they are fed to the OS buffer.
+	AudioBufferLatency = audioBufferSize
 )
 
 var sharedOtoCtx struct {
