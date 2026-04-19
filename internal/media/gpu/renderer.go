@@ -62,6 +62,8 @@ type VideoRenderer struct {
 	showControls bool
 	mouseInView  bool
 
+	suppressSeek bool // true while SetCurrentTime updates the slider programmatically
+
 	onPlay         func()
 	onPause        func()
 	onSeek         func(float64)
@@ -90,6 +92,9 @@ func (v *VideoRenderer) buildUI() {
 
 	v.slider = widget.NewSlider(0, 100)
 	v.slider.OnChanged = func(pos float64) {
+		if v.suppressSeek {
+			return
+		}
 		if v.duration > 0 {
 			target := (pos / 100.0) * v.duration
 			v.currentTime = target
@@ -152,7 +157,9 @@ func (v *VideoRenderer) SetCurrentTime(t float64) {
 	v.currentTime = t
 	v.updateTimeLabels()
 	if v.duration > 0 {
+		v.suppressSeek = true
 		v.slider.SetValue((t / v.duration) * 100)
+		v.suppressSeek = false
 	}
 }
 
