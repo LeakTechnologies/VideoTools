@@ -138,6 +138,7 @@ import (
 	"image/color"
 	"image/draw"
 	"io"
+	"math"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -694,8 +695,13 @@ type Engine struct {
 	decodeLoopStop  chan struct{}
 	decodeLoopWg    sync.WaitGroup
 	decodeLoopActive bool    // true while videoDecodeLoop goroutine is alive
-	decodeEOFSent    bool    // true once the EOF sentinel has been enqueued
-	seekFlushBefore  float64 // set by Seek(); decode loop skips RGBA for pts below this
+	decodeEOFSent       bool    // true once the EOF sentinel has been enqueued
+	// seekFlushBefore is read/written by both Seek() and videoDecodeLoop.
+	// Seek() holds e.mu; videoDecodeLoop holds videoCodecMu at the read site.
+	// Acquiring e.mu inside videoCodecMu creates a lock-order deadlock with
+	// Seek() (which does e.mu → videoCodecMu).  Atomic access eliminates
+	// the nested lock entirely — no mutex needed for this field.
+	seekFlushBefore atomic.Uint64 // math.Float64bits; 0 = guard inactive
 }
 
 type PlaybackFrameCache struct {
@@ -2063,9 +2069,7 @@ func (e *Engine) Seek(seconds float64) error {
 	// frames would be converted to RGBA and queued, only to be dropped by
 	// NextFrame.  Setting seekFlushBefore here ensures the decode loop skips
 	// them even if it races ahead of the codec flush.
-	// Seek() holds e.mu for its entire duration (defer at top of function),
-	// so seekFlushBefore can be written directly — no additional lock needed.
-	e.seekFlushBefore = seconds - 0.15 // 150ms tolerance for keyframe alignment
+	e.seekFlushBefore.Store(math.Float64bits(seconds - 0.15))
 
 	// videoCodecMu must be held around avcodec_flush_buffers to serialise
 	// against NextFrame() which holds the same lock during send/receive.
@@ -2166,7 +2170,7 @@ func (e *Engine) ResetAfterGrab() {
 	}
 grabDone:
 	e.decodeEOFSent = false
-	e.seekFlushBefore = 0 // e.mu already held via defer above
+	e.seekFlushBefore.Store(0)
 	logging.Info(logging.CatPlayer, "ResetAfterGrab: done")
 }
 
@@ -2386,24 +2390,22 @@ func (e *Engine) videoDecodeLoop() {
 			// CPU and fills frameQueue with stale frames that NextFrame will
 			// only drop.  We still need avcodec_receive_frame for the
 			// reference-frame chain, so we can't skip the decode itself.
-			e.mu.Lock()
-			flushBefore := e.seekFlushBefore
-			e.mu.Unlock()
+			// seekFlushBefore is atomic so we can read it here without acquiring
+			// e.mu — holding e.mu inside videoCodecMu creates a lock-order
+			// deadlock with Seek() (which does e.mu → videoCodecMu).
+			flushBefore := math.Float64frombits(e.seekFlushBefore.Load())
 			if flushBefore > 0 && pts < flushBefore {
-				// Release the codec lock so Seek()'s avcodec_flush_buffers can
+				// Release videoCodecMu so Seek()'s avcodec_flush_buffers can
 				// proceed if it is waiting.  After re-acquiring, the next
-				// avcodec_receive_frame call will return EAGAIN if Seek() has
-				// already flushed the codec, cleanly exiting the inner loop.
+				// avcodec_receive_frame call returns EAGAIN if the codec was
+				// flushed, cleanly exiting the inner loop.
 				e.videoCodecMu.Unlock()
 				runtime.Gosched()
 				e.videoCodecMu.Lock()
 				continue
 			}
-			// Reached the target region — clear the flush guard.
 			if flushBefore > 0 {
-				e.mu.Lock()
-				e.seekFlushBefore = 0
-				e.mu.Unlock()
+				e.seekFlushBefore.Store(0)
 			}
 
 			// Convert to RGBA while still holding videoCodecMu — e.frame is
