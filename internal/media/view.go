@@ -360,7 +360,7 @@ func (v *VideoPlayer) buildControls() {
 	v.durLabel.TextSize = 12
 
 	v.volumeBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameVolumeUp), v.toggleMute)
-	v.volumeBtn.Importance = widget.LowImportance
+	v.volumeBtn.Importance = widget.MediumImportance
 	v.volumeBtn.Resize(fyne.NewSize(36, 36))
 
 	v.volumeSlider = widget.NewSlider(0, 100)
