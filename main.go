@@ -10193,8 +10193,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 	stateMgr.OnBitrateModeChange(applyBitrateMode)
-	// Set initial selection
-	bitrateModeRadio.SetSelected(state.convert.BitrateMode)
+	// Set initial selection (default to CRF if empty)
+	initialMode := state.convert.BitrateMode
+	if initialMode == "" {
+		initialMode = "CRF"
+	}
+	bitrateModeRadio.SetSelected(initialMode)
 
 	// Manual CRF entry
 	// CRF entry with debouncing (300ms delay) and validation
