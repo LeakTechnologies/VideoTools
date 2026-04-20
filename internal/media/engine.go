@@ -2170,12 +2170,19 @@ func (e *Engine) ResetAfterGrab() {
 	}
 
 	// Flush audio codec so audio starts cleanly from position 0.
+	// The stale packets that arrived between Start() and the seek in
+	// ResetAfterGrab are caught here. DoubleFlush drains any late-arriving PCM.
 	if e.audioPlayer != nil {
 		e.audioPlayer.FlushCodec()
 		e.audioPlayer.ResetEOF()
 	} else if e.audioCodecCtx != nil {
 		C.avcodec_flush_buffers(e.audioCodecCtx)
 	}
+
+	// Ensure no stale audio packets from the initial demuxer run
+	// (between Start() and avformat_seek_file above) reach the audio
+	// decoder. The demuxerLoop is still running, but these are stale.
+	e.audioQueue.Flush()
 
 	// Start the clock slightly behind 0 to compensate for the oto hardware
 	// output buffer latency.  Audio samples fed to oto reach the speakers
