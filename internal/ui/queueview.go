@@ -394,10 +394,11 @@ func BuildQueueView(
 		scrollable,
 	)
 
-	// Add tinted bars at top and bottom using the titleColor (8px for visibility)
-	topBarBg := canvas.NewRectangle(titleColor)
+	// Add tinted bars at top and bottom - use green (#2E7D32) like benchmark module
+	bannerColor := color.RGBA{R: 46, G: 125, B: 50, A: 255}
+	topBarBg := canvas.NewRectangle(bannerColor)
 	topBarBg.SetMinSize(fyne.NewSize(0, 8))
-	bottomBarBg := canvas.NewRectangle(titleColor)
+	bottomBarBg := canvas.NewRectangle(bannerColor)
 	bottomBarBg.SetMinSize(fyne.NewSize(0, 8))
 
 	body := container.NewBorder(
