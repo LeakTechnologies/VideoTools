@@ -396,10 +396,15 @@ onScheduleModule func(string, string),
 
 	// Add tinted bars at top and bottom - use titleColor parameter 
 	// which is the module's color (green by default from queue_module.go)
-	topBarBg := canvas.NewRectangle(titleColor)
-	topBarBg.SetMinSize(fyne.NewSize(0, 8))
-	bottomBarBg := canvas.NewRectangle(titleColor)
-	bottomBarBg.SetMinSize(fyne.NewSize(0, 8))
+	// If titleColor is nil, fall back to green
+	barColor := titleColor
+	if barColor == nil {
+		barColor = color.RGBA{R: 46, G: 200, B: 112, A: 255} // #4CE870
+	}
+	topBarBg := canvas.NewRectangle(barColor)
+	topBarBg.SetMinSize(fyne.NewSize(100, 8))
+	bottomBarBg := canvas.NewRectangle(barColor)
+	bottomBarBg.SetMinSize(fyne.NewSize(100, 8))
 
 	body := container.NewBorder(
 		nil,
