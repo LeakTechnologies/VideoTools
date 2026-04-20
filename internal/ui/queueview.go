@@ -384,7 +384,8 @@ onScheduleModule func(string, string),
 		nil, nil, nil,
 		container.NewMax(logBg, logScroll),
 	)
-	logSection.Hide()
+	// Live output now visible by default (was hidden before)
+	// logSection.Hide() - removed to show live output panel
 
 	// Layout: header + scrollable list fill available space; live output pinned at bottom.
 	queueList := container.NewBorder(
@@ -395,16 +396,16 @@ onScheduleModule func(string, string),
 	)
 
 	// Add tinted bars at top and bottom - use titleColor parameter 
-	// which is the module's color (green by default from queue_module.go)
+	// Matching other modules (48px tinted bars like benchmark, trim, etc.)
 	// If titleColor is nil, fall back to green
 	barColor := titleColor
 	if barColor == nil {
 		barColor = color.RGBA{R: 46, G: 200, B: 112, A: 255} // #4CE870
 	}
 	topBarBg := canvas.NewRectangle(barColor)
-	topBarBg.SetMinSize(fyne.NewSize(100, 8))
+	topBarBg.SetMinSize(fyne.NewSize(0, 48))
 	bottomBarBg := canvas.NewRectangle(barColor)
-	bottomBarBg.SetMinSize(fyne.NewSize(100, 8))
+	bottomBarBg.SetMinSize(fyne.NewSize(0, 48))
 
 	body := container.NewBorder(
 		nil,
