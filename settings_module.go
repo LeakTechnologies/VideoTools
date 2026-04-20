@@ -1791,7 +1791,11 @@ func (a *preferencesAdapter) SetShowTooltips(enabled bool) {
 }
 
 func (a *preferencesAdapter) HWDecodeEnabled() bool {
-	return hwDecodeEnabled()
+	return a.s.prefs.HWDecodeEnabled
+}
+
+func (a *preferencesAdapter) ShowPlayer() func() {
+	return func() { a.s.showPlayerView() }
 }
 
 func (a *preferencesAdapter) SetHWDecodeEnabled(enabled bool) {

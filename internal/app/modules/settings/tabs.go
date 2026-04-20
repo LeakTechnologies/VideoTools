@@ -436,6 +436,16 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	hwDecodeHint.Wrapping = fyne.TextWrapWord
 	content.Add(hwDecodeHint)
 
+	testPatternBtn := widget.NewButton(t.SettingsTestPattern, func() {
+		cb.ShowPlayer()
+	})
+	content.Add(testPatternBtn)
+
+	testPatternHint := widget.NewLabel(t.SettingsTestPatternHint)
+	testPatternHint.TextStyle = fyne.TextStyle{Italic: true}
+	testPatternHint.Wrapping = fyne.TextWrapWord
+	content.Add(testPatternHint)
+
 	content.Add(widget.NewSeparator())
 
 	outputHeader := widget.NewLabel(t.SettingsDefaultOutputDir)

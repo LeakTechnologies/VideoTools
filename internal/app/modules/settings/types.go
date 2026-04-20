@@ -47,6 +47,7 @@ type PreferencesCallbacks interface {
 	SetShowTooltips(enabled bool)
 	HWDecodeEnabled() bool
 	SetHWDecodeEnabled(enabled bool)
+	ShowPlayer() func()
 	DefaultOutputDir() string
 	SetDefaultOutputDir(dir string)
 }

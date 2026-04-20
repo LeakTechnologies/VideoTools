@@ -55,9 +55,11 @@ type Strings struct {
 	TooltipConvertStart              string // "Start conversion"
 
 	// Settings
-	SettingsShowTooltips string // "Show tooltips"
-	SettingsHWDecode     string // "Hardware Video Decode"
-	SettingsHWDecodeHint string // warning about D3D11VA crash risk
+	SettingsShowTooltips    string // "Show tooltips"
+	SettingsHWDecode       string // "Hardware Video Decode"
+	SettingsHWDecodeHint   string // warning about D3D11VA crash risk
+	SettingsTestPattern     string // "Test Pattern"
+	SettingsTestPatternHint string // "Show SMPTE color bars for display calibration"
 
 	// Dialog Titles
 	DialogCompare            string

@@ -47,9 +47,11 @@ var enCA = Strings{
 	TooltipConvertOutput:             "Output file location",
 	TooltipConvertStart:              "Start conversion",
 
-	SettingsShowTooltips: "Show tooltips",
-	SettingsHWDecode:     "Hardware Video Decode",
-	SettingsHWDecodeHint: "Use GPU-accelerated video decoding (D3D11VA/VAAPI). May cause crashes on some drivers. Disable if playback fails.",
+	SettingsShowTooltips:    "Show tooltips",
+	SettingsHWDecode:       "Hardware Video Decode",
+	SettingsHWDecodeHint:   "Use GPU-accelerated video decoding (D3D11VA/VAAPI). May cause crashes on some drivers. Disable if playback fails.",
+	SettingsTestPattern:      "Test Pattern",
+	SettingsTestPatternHint:  "Shows SMPTE color bars for display calibration. Close video to view.",
 
 	// ── Dialog Titles ───────────────────────────────────────────────────────
 	DialogCompare:            "Compare Videos",
