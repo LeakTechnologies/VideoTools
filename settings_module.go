@@ -481,6 +481,38 @@ func appLocalToolPath(name string) string {
 	return filepath.Join(appLocalBinDir(), name)
 }
 
+// findAIUpscaleTool checks bundled tools first (in tools/ directory next to executable),
+// then app-local, then PATH. Returns empty string if not found.
+func findAIUpscaleTool(name string) string {
+	// Check bundled tools directory (next to executable)
+	if execPath, err := os.Executable(); err == nil {
+		execDir := filepath.Dir(execPath)
+		bundledDir := filepath.Join(execDir, "tools")
+		bundledPath := bundledDir
+		if runtime.GOOS == "windows" {
+			bundledPath = filepath.Join(bundledDir, name+".exe")
+		} else {
+			bundledPath = filepath.Join(bundledDir, name)
+		}
+		if _, err := os.Stat(bundledPath); err == nil {
+			return bundledPath
+		}
+	}
+
+	// Check app-local directory
+	localPath := appLocalToolPath(name)
+	if _, err := os.Stat(localPath); err == nil {
+		return localPath
+	}
+
+	// Check PATH
+	if path, err := exec.LookPath(name); err == nil {
+		return path
+	}
+
+	return ""
+}
+
 // getLatestGitHubReleaseAssetURL queries the GitHub releases API for the
 // latest release of owner/repo and returns the download URL of the asset
 // whose name contains assetPattern.
@@ -623,11 +655,14 @@ func downloadAndExtractBinary(url, executableName, destPath string) error {
 // already present. Works on both Windows and Linux.
 func ensureAppLocalRealESRGAN() (string, error) {
 	execName := "realesrgan-ncnn-vulkan"
-	destPath := appLocalToolPath(execName)
 
-	if _, err := os.Stat(destPath); err == nil {
-		return destPath, nil // already installed
+	// Check bundled/app-local/PATH first (bundled tools preferred)
+	if toolPath := findAIUpscaleTool(execName); toolPath != "" {
+		return toolPath, nil
 	}
+
+	// Need to download
+	destPath := appLocalToolPath(execName)
 
 	var assetPattern string
 	switch runtime.GOOS {
@@ -658,14 +693,17 @@ func ensureAppLocalRealESRGAN() (string, error) {
 }
 
 // ensureAppLocalRIFE downloads the RIFE ncnn Vulkan binary if not already present.
-// Works on both Windows and Linux.
+// Checks bundled tools first.
 func ensureAppLocalRIFE() (string, error) {
 	execName := "rife-ncnn-vulkan"
-	destPath := appLocalToolPath(execName)
 
-	if _, err := os.Stat(destPath); err == nil {
-		return destPath, nil // already installed
+	// Check bundled/app-local/PATH first
+	if toolPath := findAIUpscaleTool(execName); toolPath != "" {
+		return toolPath, nil
 	}
+
+	// Need to download
+	destPath := appLocalToolPath(execName)
 
 	var assetPattern string
 	switch runtime.GOOS {
@@ -693,15 +731,18 @@ func ensureAppLocalRIFE() (string, error) {
 	return destPath, nil
 }
 
-// ensureAppLocalRealCUGAN downloads the Real-CUGAN ncnn Vulkan binary if not
-// already present. Works on both Windows and Linux.
+// ensureAppLocalRealCUGAN downloads the Real-CUGAN ncnn Vulkan binary.
+// Checks bundled tools first.
 func ensureAppLocalRealCUGAN() (string, error) {
 	execName := "realcugan-ncnn-vulkan"
-	destPath := appLocalToolPath(execName)
 
-	if _, err := os.Stat(destPath); err == nil {
-		return destPath, nil // already installed
+	// Check bundled/app-local/PATH first
+	if toolPath := findAIUpscaleTool(execName); toolPath != "" {
+		return toolPath, nil
 	}
+
+	// Need to download
+	destPath := appLocalToolPath(execName)
 
 	var assetPattern string
 	switch runtime.GOOS {
