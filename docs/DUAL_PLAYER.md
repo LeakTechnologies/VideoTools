@@ -97,12 +97,30 @@ Requirements:
 - Filter chain must be computationally cheap
 - Machine must have sufficient CPU
 
-### Strategy 2: On-Demand Preview
+### Strategy 2: On-Demand Preview (Recommended)
 
-User clicks "Preview" button:
-1. Process single frame through filter/AI
-2. Display result in right pane
-3. Click again to refresh
+When user scrubs the seek bar, render ~5 seconds of processed output:
+1. User moves seek bar to position
+2. System renders 5-second segment starting at that position
+3. Processed output plays in right pane while user watches
+4. Click "Refresh" to re-render with new settings
+
+This is how Topaz handles it - render segment on seek, not real-time.
+
+Implementation:
+```go
+// On seek/scrub action
+func onSeek(position float64) {
+    // Render 5-second segment at position
+    go func() {
+        outputPath := renderSegment(src.Path, position, 5*time.Second, filterChain)
+        rightEngine.Close()
+        rightEngine.Open(outputPath)
+        rightEngine.Seek(0)
+        rightEngine.Start()
+    }()
+}
+```
 
 ### Strategy 3: Segment Preview
 
