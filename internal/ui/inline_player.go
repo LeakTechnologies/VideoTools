@@ -187,6 +187,9 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 
 	if chapters := v.engine.GetChapters(); len(chapters) > 0 {
 		v.player.SetChapters(chapters)
+		// Wire chapter navigation callbacks
+		v.player.OnPrevChapter(func() { v.prevChapter() })
+		v.player.OnNextChapter(func() { v.nextChapter() })
 	}
 
 	duration := v.engine.Duration()
@@ -300,13 +303,38 @@ func (v *InlineVideoPlayer) SeekToChapter(idx int) {
 // ChapterAt returns the index of the chapter that contains t, or -1 if none.
 func (v *InlineVideoPlayer) ChapterAt(t float64) int {
 	chapters := v.player.GetChapters()
-	idx := -1
 	for i, ch := range chapters {
-		if t >= ch.StartTime {
-			idx = i
+		if t >= ch.StartTime && (i == len(chapters)-1 || t < chapters[i+1].StartTime) {
+			return i
 		}
 	}
-	return idx
+	return -1
+}
+
+// prevChapter seeks to the previous chapter
+func (v *InlineVideoPlayer) prevChapter() {
+	chapters := v.player.GetChapters()
+	if len(chapters) == 0 {
+		return
+	}
+	current := v.player.GetCurrentChapter()
+	if current <= 0 {
+		return
+	}
+	v.Seek(chapters[current-1].StartTime)
+}
+
+// nextChapter seeks to the next chapter
+func (v *InlineVideoPlayer) nextChapter() {
+	chapters := v.player.GetChapters()
+	if len(chapters) == 0 {
+		return
+	}
+current := v.player.GetCurrentChapter()
+	if current >= len(chapters)-1 {
+		return
+	}
+	v.Seek(chapters[current+1].StartTime)
 }
 
 func (v *InlineVideoPlayer) SetSpeed(speed float64) {
