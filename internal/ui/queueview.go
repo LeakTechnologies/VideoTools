@@ -394,6 +394,12 @@ func BuildQueueView(
 		scrollable,
 	)
 
+	// Add tinted bars at top and bottom using the titleColor (8px for visibility)
+	topBarBg := canvas.NewRectangle(titleColor)
+	topBarBg.SetMinSize(fyne.NewSize(0, 8))
+	bottomBarBg := canvas.NewRectangle(titleColor)
+	bottomBarBg.SetMinSize(fyne.NewSize(0, 8))
+
 	body := container.NewBorder(
 		nil,
 		logSection,
@@ -401,8 +407,15 @@ func BuildQueueView(
 		queueList,
 	)
 
+	// Wrap with tinted bars at top and bottom
+	bodyWithBars := container.NewVBox(
+		topBarBg,
+		body,
+		bottomBarBg,
+	)
+
 	view := &QueueView{
-		Root:        container.NewPadded(body),
+		Root:        container.NewPadded(bodyWithBars),
 		Scroll:      scrollable,
 		jobList:     jobList,
 		emptyLabel:  emptyLabel,
