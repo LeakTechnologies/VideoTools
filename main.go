@@ -9233,8 +9233,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Forward declarations for encoding controls (used in reset/update callbacks)
 	var (
-		bitrateModeRadio         *widget.RadioGroup
-		bitrateModeSelect      *widget.Select
+		bitrateModeSelect          *widget.Select
 		bitratePresetSelect        *widget.Select
 		videoBitrateEntry          *widget.Entry
 		manualBitrateRow           *fyne.Container
@@ -10168,17 +10167,25 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewSeparator(),
 	)
 
-	// Bitrate Mode - horizontal radio buttons
+	// Bitrate Mode with descriptions
 	bitrateModeOptions := []string{
-		"CRF",
-		"CBR",
-		"VBR",
-		"Target Size",
+		"CRF (Constant Rate Factor)",
+		"CBR (Constant Bitrate)",
+		"VBR (Variable Bitrate)",
+		"Target Size (Calculate from file size)",
 	}
-	bitrateModeRadio = widget.NewRadioGroup(bitrateModeOptions, func(value string) {
-		stateMgr.SetBitrateMode(value)
-	})
-	bitrateModeRadio.Horizontal = true
+	bitrateModeMap := map[string]string{
+		"CRF (Constant Rate Factor)":             "CRF",
+		"CBR (Constant Bitrate)":                 "CBR",
+		"VBR (Variable Bitrate)":                 "VBR",
+		"Target Size (Calculate from file size)": "Target Size",
+	}
+	reverseMap := map[string]string{
+		"CRF":         "CRF (Constant Rate Factor)",
+		"CBR":         "CBR (Constant Bitrate)",
+		"VBR":         "VBR (Variable Bitrate)",
+		"Target Size": "Target Size (Calculate from file size)",
+	}
 	applyBitrateMode := func(value string) {
 		state.convert.BitrateMode = normalizeBitrateMode(value)
 		logging.Debug(logging.CatUI, "bitrate mode set to %s", state.convert.BitrateMode)
@@ -10193,12 +10200,22 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 	stateMgr.OnBitrateModeChange(applyBitrateMode)
-	// Set initial selection (default to CRF if empty)
-	initialMode := state.convert.BitrateMode
-	if initialMode == "" {
-		initialMode = "CRF"
+	bitrateModeSelect = widget.NewSelect(bitrateModeOptions, func(value string) {
+		// Extract short code from label
+		if shortCode, ok := bitrateModeMap[value]; ok {
+			stateMgr.SetBitrateMode(shortCode)
+		} else {
+			stateMgr.SetBitrateMode(value)
+		}
+	})
+	// Set selected using full label
+	if fullLabel, ok := reverseMap[state.convert.BitrateMode]; ok {
+		bitrateModeSelect.SetSelected(fullLabel)
+	} else {
+		bitrateModeSelect.SetSelected(state.convert.BitrateMode)
 	}
-	bitrateModeRadio.SetSelected(initialMode)
+	state.convert.BitrateMode = normalizeBitrateMode(state.convert.BitrateMode)
+	stateMgr.SetBitrateMode(state.convert.BitrateMode)
 
 	// Manual CRF entry
 	// CRF entry with debouncing (300ms delay) and validation
@@ -10760,7 +10777,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		// Move to CBR for predictable output when a preset is chosen
 		if preset.Bitrate != "" && stateMgr.BitrateMode() != "CBR" && stateMgr.BitrateMode() != "VBR" {
 			stateMgr.SetBitrateMode("CBR")
-			bitrateModeRadio.SetSelected("CBR")
+			if label, ok := reverseMap["CBR"]; ok {
+				bitrateModeSelect.SetSelected(label)
+			} else {
+				bitrateModeSelect.SetSelected("CBR (Constant Bitrate)")
+			}
 		}
 
 		if preset.Bitrate != "" {
@@ -11248,7 +11269,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		// Bitrate mode
 		if up.BitrateMode != "" {
-			bitrateModeRadio.SetSelected(up.BitrateMode)
+			friendly := reverseMap[up.BitrateMode]
+			if friendly == "" {
+				friendly = up.BitrateMode
+			}
+			bitrateModeSelect.SetSelected(friendly)
 		}
 
 		// Bitrate preset
@@ -11838,7 +11863,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		encoderPresetHintContainer,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle(t.ConvertSectionBitrateMode, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-		bitrateModeRadio,
+		bitrateModeSelect,
 		qualitySectionAdv,
 		crfContainer,
 		bitrateContainer,
@@ -11966,7 +11991,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		qualitySelectAdv.SetSelected(state.convert.Quality)
 		simplePresetSelect.SetSelected(state.convert.EncoderPreset)
 		encoderPresetSelect.SetSelected(state.convert.EncoderPreset)
-		bitrateModeRadio.SetSelected(state.convert.BitrateMode)
+		bitrateModeSelect.SetSelected(reverseMap[state.convert.BitrateMode])
 		bitratePresetSelect.SetSelected(state.convert.BitratePreset)
 		simpleBitrateSelect.SetSelected(state.convert.BitratePreset)
 		crfEntry.SetText(state.convert.CRF)
