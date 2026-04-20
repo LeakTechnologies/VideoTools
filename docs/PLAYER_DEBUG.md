@@ -44,7 +44,7 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 
 ### P2 — Quality / UX
 
-- [ ] **`SmoothScrubbing.predecodeAhead` never triggered** `(dev43-186fa244)` — `predecodeLoop` reads from `s.decodeQueue` but nothing in the codebase writes to `s.decodeQueue`. `predecodeAhead` is dead code. Either wire it (trigger on `NextFrame` milestones) or remove it to reduce confusion.
+- [x] **`SmoothScrubbing.predecodeAhead` never triggered** `(dev44-fcc195a2)` — Removed the dead code. Wire it up if you want frame pre-caching during scrub.
 - [ ] **`retrieveHWFrame` creates a new `sws_getContext` per frame** `(dev43-186fa244)` — HW→SW conversion path allocates and frees an `sws` context on every decoded frame. This is correct for correctness (format may vary) but expensive at high frame rates. Cache the context keyed on `(format, width, height)`.
 - [ ] **`Duration()` reads `formatCtx` without a lock** `(dev43-186fa244)` — A nil `formatCtx` check exists but the window between the check and the read is not protected. If `Close()` runs concurrently, this could dereference a freed pointer. Low-frequency; guard with `e.mu`.
 - [ ] **`DegradeToSoftware()` races with active decode** `(dev43-186fa244)` — Frees `hwDeviceCtx`/`hwFramesCtx` without holding `videoCodecMu`. Only called from paths not currently wired up so not a live crash risk, but should acquire `videoCodecMu` before touching HW contexts.
