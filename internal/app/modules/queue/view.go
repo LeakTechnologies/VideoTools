@@ -88,7 +88,6 @@ func BuildView(opts Options) (fyne.CanvasObject, ViewAPI) {
 		opts.TitleColor,
 		opts.BgColor,
 		opts.TextColor,
-		opts.StatsBar,
 	)
 
 	return queueView.Root, &queueViewWrapper{view: queueView}

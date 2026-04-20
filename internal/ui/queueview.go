@@ -289,10 +289,9 @@ onOpenFolder func(string),
 	onOpenOutput func(string),
 	onBurnISO func(string),
 	onOpenInModule func(string, string),
-	onScheduleModule func(string, string),
+onScheduleModule func(string, string),
 	Window fyne.Window,
 	titleColor, bgColor, textColor color.Color,
-	statsBar fyne.CanvasObject,
 ) *QueueView {
 	t := i18n.T()
 
@@ -346,26 +345,9 @@ onOpenFolder func(string),
 	header := container.NewBorder(
 		nil, nil,
 		backBtn,
-		nil,
+		buttonRow,
 		container.NewCenter(title),
 	)
-
-	// Footer: tinted action bar like other modules
-	bannerColor := color.RGBA{R: 46, G: 125, B: 50, A: 255}
-	footerBg := canvas.NewRectangle(bannerColor)
-	footerBg.SetMinSize(fyne.NewSize(0, 44))
-	footerContent := container.NewMax(footerBg, container.NewPadded(buttonRow))
-	footer := footerContent
-
-	// Stats bar if provided
-	if statsBar != nil {
-		statsBg := canvas.NewRectangle(&color.RGBA{R: 34, G: 34, B: 34, A: 255})
-		statsBg.SetMinSize(fyne.NewSize(0, 32))
-		statsStrip := container.NewMax(statsBg, container.NewPadded(statsBar))
-		footer = container.NewVBox(statsStrip, footerContent)
-	}
-
-	_ = footer // will use in Border
 
 	jobList := container.NewVBox()
 	emptyMsg := widget.NewLabel(t.QueueEmpty)
@@ -413,6 +395,8 @@ onOpenFolder func(string),
 	)
 
 	// Add tinted bars at top and bottom - use green (#2E7D32) like benchmark module
+	// Green tinted bars at top/bottom matching benchmark
+	bannerColor := color.RGBA{R: 46, G: 125, B: 50, A: 255}
 	topBarBg := canvas.NewRectangle(bannerColor)
 	topBarBg.SetMinSize(fyne.NewSize(0, 8))
 	bottomBarBg := canvas.NewRectangle(bannerColor)

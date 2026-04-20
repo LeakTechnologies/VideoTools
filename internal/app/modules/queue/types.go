@@ -42,8 +42,6 @@ type Options struct {
 	TitleColor color.Color
 	BgColor    color.Color
 	TextColor  color.Color
-
-	StatsBar fyne.CanvasObject
 }
 
 type ViewAPI interface {
