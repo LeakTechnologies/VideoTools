@@ -366,7 +366,6 @@ func (v *VideoPlayer) buildControls() {
 	v.volumeSlider = widget.NewSlider(0, 100)
 	v.volumeSlider.Value = v.volume * 100
 	v.volumeSlider.Resize(fyne.NewSize(150, 40))
-	v.volumeSlider.MinSize = fyne.NewSize(150, 40)
 	v.volumeSlider.OnChanged = func(pos float64) {
 		v.volume = pos / 100.0
 		if v.onVolumeChange != nil {
