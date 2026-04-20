@@ -3,6 +3,8 @@
 package main
 
 import (
+	"time"
+
 	"fyne.io/fyne/v2"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
@@ -10,6 +12,7 @@ import (
 )
 
 var convertInlinePlayer *ui.InlineVideoPlayer
+var convertPreviewPlayer *ui.InlineVideoPlayer // right pane for processed preview
 var trimInlinePlayer *ui.InlineVideoPlayer
 var inspectInlinePlayer *ui.InlineVideoPlayer
 var subtitleInlinePlayer *ui.InlineVideoPlayer
@@ -17,6 +20,7 @@ var subtitleInlinePlayer *ui.InlineVideoPlayer
 func init() {
 	logging.Info(logging.CatSystem, "INIT: native_media build tag IS active - using InlineVideoPlayer")
 	convertInlinePlayer = ui.NewInlineVideoPlayer()
+	convertPreviewPlayer = ui.NewInlineVideoPlayer()
 	trimInlinePlayer = ui.NewInlineVideoPlayer()
 	inspectInlinePlayer = ui.NewInlineVideoPlayer()
 	subtitleInlinePlayer = ui.NewInlineVideoPlayer()
@@ -36,6 +40,10 @@ func HasNativeMediaPlayer() bool {
 
 func GetConvertPlayer() *ui.InlineVideoPlayer {
 	return convertInlinePlayer
+}
+
+func GetConvertPreviewPlayer() *ui.InlineVideoPlayer {
+	return convertPreviewPlayer
 }
 
 func GetTrimPlayer() *ui.InlineVideoPlayer {
@@ -86,6 +94,21 @@ func (s *appState) stepFrameNative(dir int) {
 
 func (s *appState) scrubNative(target float64) {
 	convertInlinePlayer.ScrubTo(target)
+}
+
+func (s *appState) renderDualPlayerPreview(seconds float64, duration time.Duration) {
+	// Renders 5 seconds of processed video at the seek position called from upscale module
+	logging.Info(logging.CatPlayer, "renderDualPlayerPreview: pos=%.1fs duration=%v", seconds, duration)
+	
+	if s.upscaleFile == nil {
+		logging.Warning(logging.CatPlayer, "renderDualPlayerPreview: no source file loaded")
+		return
+	}
+	
+	// TODO: Implement actual FFmpeg rendering with filter/AI settings
+	// 1. Get current filter chain or AI settings
+	// 2. Run FFmpeg to render segment 
+	// 3. Load result into convertPreviewPlayer
 }
 
 func (s *appState) selectAudioTrackNative(idx int) {

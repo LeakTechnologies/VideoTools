@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/upscale"
@@ -161,6 +162,11 @@ func (s *appState) upscaleOptions() upscale.Options {
 		OnGetFilterActiveChain: func() []string {
 			return s.filterActiveChain
 		},
+		OnDualPlayerSeek: func(seconds float64) {
+			// When source seekbar moves, render 5-second preview at that position
+			s.renderDualPlayerPreview(seconds, 5*time.Second)
+		},
+		OnDualPlayerRender: s.renderDualPlayerPreview,
 
 		UpscaleMethod:              func() string { return s.upscaleMethod },
 		UpscaleTargetRes:           func() string { return s.upscaleTargetRes },

@@ -1,6 +1,8 @@
 package upscale
 
 import (
+	"time"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
@@ -28,6 +30,10 @@ type Options struct {
 	OnHasNativeMediaPlayer   func() bool
 	OnLoadVideoNative        func(path string)
 	OnGetFilterActiveChain   func() []string
+
+	// Dual player callbacks for split-view preview
+	OnDualPlayerSeek   func(seconds float64) // triggered when source seekbar moves
+	OnDualPlayerRender func(seconds float64, duration time.Duration) // render segment
 
 	UpscaleMethod              func() string
 	UpscaleTargetRes           func() string
