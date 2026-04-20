@@ -394,12 +394,11 @@ onScheduleModule func(string, string),
 		scrollable,
 	)
 
-	// Add tinted bars at top and bottom - use green (#2E7D32) like benchmark module
-	// Green tinted bars at top/bottom matching benchmark
-	bannerColor := color.RGBA{R: 46, G: 125, B: 50, A: 255}
-	topBarBg := canvas.NewRectangle(bannerColor)
+	// Add tinted bars at top and bottom - use titleColor parameter 
+	// which is the module's color (green by default from queue_module.go)
+	topBarBg := canvas.NewRectangle(titleColor)
 	topBarBg.SetMinSize(fyne.NewSize(0, 8))
-	bottomBarBg := canvas.NewRectangle(bannerColor)
+	bottomBarBg := canvas.NewRectangle(titleColor)
 	bottomBarBg.SetMinSize(fyne.NewSize(0, 8))
 
 	body := container.NewBorder(
