@@ -2,6 +2,7 @@ package sysinfo
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"runtime"
@@ -23,6 +24,8 @@ type HardwareInfo struct {
 	RAMMBytes uint64 `json:"ram_mb"`
 	OS        string `json:"os"`
 	Arch      string `json:"arch"`
+	Distro    string `json:"distro"`
+	Desktop   string `json:"desktop"`
 }
 
 // Detect gathers system hardware information
@@ -41,6 +44,12 @@ func Detect() HardwareInfo {
 
 	// Detect RAM
 	info.RAM, info.RAMMBytes = detectRAM()
+
+	// Detect Linux distro and desktop environment
+	if runtime.GOOS == "linux" {
+		info.Distro = detectDistro()
+		info.Desktop = detectDesktopEnv()
+	}
 
 	return info
 }
@@ -366,4 +375,69 @@ func (h HardwareInfo) Summary() string {
 		h.GPUDriver,
 		h.RAM,
 	)
+}
+
+// detectDistro detects the Linux distribution
+func detectDistro() string {
+	// Check /etc/os-release first
+	if data, err := os.ReadFile("/etc/os-release"); err == nil {
+		content := string(data)
+		for _, line := range strings.Split(content, "\n") {
+			if strings.HasPrefix(line, "PRETTY_NAME=") {
+				return strings.Trim(strings.TrimPrefix(line, "PRETTY_NAME="), "\"")
+			}
+			if strings.HasPrefix(line, "NAME=") && !strings.HasPrefix(line, "NAME_LIKE") {
+				return strings.Trim(strings.TrimPrefix(line, "NAME="), "\"")
+			}
+		}
+	}
+
+	// Fallback: check specific distribution files
+	distros := []string{
+		"/etc/arch-release",   // Arch
+		"/etc/debian_version", // Debian
+		"/etc/fedora-release", // Fedora
+		"/etc/gentoo-release", // Gentoo
+		"/etc/SuSE-release",   // openSUSE
+		"/etc/redhat-release", // RHEL/CentOS
+		"/etc/ubuntu-release", // Ubuntu
+	}
+
+	for _, d := range distros {
+		if _, err := os.Stat(d); err == nil {
+			if data, err := os.ReadFile(d); err == nil {
+				return strings.TrimSpace(string(data))
+			}
+		}
+	}
+
+	return "Linux (unknown)"
+}
+
+// detectDesktopEnv detects the desktop environment
+func detectDesktopEnv() string {
+	// Check common desktop environment variables
+	envVars := []string{
+		"XDG_CURRENT_DESKTOP",
+		"DESKTOP_SESSION",
+		"GNOME_DESKTOP_SESSION_ID",
+		"KDE_FULL_SESSION",
+		"XFCE4_SESSION",
+	}
+
+	for _, env := range envVars {
+		if val := os.Getenv(env); val != "" {
+			return val
+		}
+	}
+
+	// Check for running desktop environment processes
+	desktops := []string{"gnome", "kde", "xfce", "mate", "lxde", "cinnamon", "i3", "sway"}
+	for _, desktop := range desktops {
+		if out, err := exec.Command("pgrep", "-x", desktop).Output(); err == nil && len(out) > 0 {
+			return strings.ToUpper(desktop)
+		}
+	}
+
+	return "Unknown"
 }
