@@ -18,8 +18,6 @@ import (
 	"image"
 	"sync"
 	"unsafe"
-
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 const (
@@ -118,17 +116,20 @@ func (c *FrameCache) Size() int {
 // Each SmoothScrubbing instance owns its own AVFrame (s.frame) so it never
 // writes to engine.frame.  The RGBA conversion context (s.swsCtx / s.rgbaFrame /
 // s.rgbaBuffer) is also private to avoid racing with engine.toRGBA().
+//
+// NOTE: predecodeAhead was removed in dev44. It received signals on decodeQueue
+// but nothing ever sent to that channel, making it dead code.
+// Wire it up if you want frame pre-caching during scrub.
 type SmoothScrubbing struct {
 	engine      *Engine
 	frameCache  *FrameCache
 	seekQueue   chan float64
-	decodeQueue chan struct{}
 	stop        chan struct{}
 	predecoding bool
 	seekTarget  float64
 	onFrame     func(*image.RGBA)
 	mu          sync.RWMutex
-	wg          sync.WaitGroup // tracks seekHandler, predecodeLoop, predecodeFrom goroutines
+	wg          sync.WaitGroup // tracks seekHandler goroutine
 
 	// Private decode / conversion resources — never shared with the engine.
 	frame      *C.AVFrame
@@ -150,22 +151,20 @@ func NewSmoothScrubbing(engine *Engine) *SmoothScrubbing {
 		engine:      engine,
 		frameCache:  NewFrameCache(scrubPreDecodeFrames),
 		seekQueue:   make(chan float64, 1),
-		decodeQueue: make(chan struct{}, scrubPreDecodeFrames),
 		stop:        make(chan struct{}),
 		frame:       frame,
 	}
 }
 
 func (s *SmoothScrubbing) Start() {
-	s.wg.Add(2)
-	go func() { defer s.wg.Done(); s.predecodeLoop() }()
+	s.wg.Add(1)
 	go func() { defer s.wg.Done(); s.seekHandler() }()
 }
 
 func (s *SmoothScrubbing) Stop() {
 	close(s.stop)
 	// Wait for all goroutines to exit before freeing CGo resources.
-	// Without this, predecodeFrom/predecodeAhead may still be using s.frame
+	// Without this, predecodeFrom may still be using s.frame
 	// or s.swsCtx when we free them, causing a use-after-free crash.
 	s.wg.Wait()
 
@@ -306,103 +305,6 @@ func (s *SmoothScrubbing) predecodeFrom(startTime float64) {
 
 			if pts > maxPTS {
 				break
-			}
-		}
-		s.engine.videoCodecMu.Unlock()
-	}
-}
-
-func (s *SmoothScrubbing) predecodeLoop() {
-	for {
-		select {
-		case <-s.stop:
-			return
-		case <-s.decodeQueue:
-			s.predecodeAhead()
-		}
-	}
-}
-
-func (s *SmoothScrubbing) predecodeAhead() {
-	defer func() {
-		if r := recover(); r != nil {
-			logging.Error(logging.CatPlayer, "predecodeAhead panic: %v", r)
-		}
-	}()
-
-	s.mu.RLock()
-	if s.predecoding {
-		s.mu.RUnlock()
-		return
-	}
-	videoTimeBase := s.engine.videoTimeBase
-	s.mu.RUnlock()
-
-	currentTime := s.engine.CurrentTime()
-	maxPTS := currentTime + float64(scrubPreDecodeFrames)*videoTimeBase*2
-
-	s.convertMu.Lock()
-	frame := s.frame
-	s.convertMu.Unlock()
-	if frame == nil {
-		return
-	}
-
-	pkt := C.av_packet_alloc()
-	defer C.av_packet_free(&pkt)
-
-	framesDecoded := 0
-
-	for framesDecoded < 5 {
-		select {
-		case <-s.stop:
-			return
-		default:
-		}
-
-		s.engine.formatMu.Lock()
-		ret := C.av_read_frame(s.engine.formatCtx, pkt)
-		s.engine.formatMu.Unlock()
-		if ret < 0 {
-			break
-		}
-
-		if int(pkt.stream_index) != s.engine.videoStreamIdx {
-			C.av_packet_unref(pkt)
-			continue
-		}
-
-		pts := float64(pkt.pts) * videoTimeBase
-		if pts < currentTime {
-			C.av_packet_unref(pkt)
-			continue
-		}
-		if pts > maxPTS {
-			C.av_packet_unref(pkt)
-			break
-		}
-
-		s.engine.videoCodecMu.Lock()
-		sendOK := C.avcodec_send_packet(s.engine.videoCodecCtx, pkt) == 0
-		s.engine.videoCodecMu.Unlock()
-		C.av_packet_unref(pkt)
-
-		if !sendOK {
-			continue
-		}
-
-		s.engine.videoCodecMu.Lock()
-		for C.avcodec_receive_frame(s.engine.videoCodecCtx, frame) == 0 {
-			pts = float64(frame.pts) * videoTimeBase
-			s.engine.videoCodecMu.Unlock()
-
-			rgba := s.convertFrameToRGBA(frame)
-
-			s.engine.videoCodecMu.Lock()
-
-			if rgba != nil {
-				s.frameCache.Add(int64(pts*1000), rgba)
-				framesDecoded++
 			}
 		}
 		s.engine.videoCodecMu.Unlock()
