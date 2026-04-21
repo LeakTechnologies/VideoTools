@@ -16,6 +16,9 @@ extern "C" {
 /* Sentinel placed in *exc_code_out when a pre-flight null check fires. */
 #define SAFE_BRIDGE_PREFLIGHT_FAIL 0xDEAD0001u
 
+/* Sentinel for Windows SEH-caught access violations */
+#define SAFE_BRIDGE_ACCESS_VIOLATION 0xDEAD0002u
+
 /*
  * CodecDiagnostic — snapshot of key codec/packet state for crash diagnostics.
  * Safe to populate even when priv_data is NULL.
@@ -51,6 +54,8 @@ int safe_avcodec_send_packet(AVCodecContext* ctx, const AVPacket* pkt,
 
 /*
  * safe_avcodec_receive_frame — pre-flight checked avcodec_receive_frame.
+ * Includes SEH protection on Windows to catch D3D11VA access violations.
+ * Sets *exc_code_out = SAFE_BRIDGE_ACCESS_VIOLATION on Windows AV caught.
  */
 int safe_avcodec_receive_frame(AVCodecContext* ctx, AVFrame* frame,
                                 uint32_t* exc_code_out);

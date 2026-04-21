@@ -4,14 +4,19 @@
  *
  * A C-level SIGSEGV/access-violation inside avcodec_send_packet cannot be
  * caught by Go's recover() or by GCC __try/__except (which is MSVC-only).
- * This bridge provides two protections:
+ * This bridge provides three protections:
  *
  *  1. Pre-flight null checks on the codec context and packet.  If any
  *     pointer the decoder would dereference on entry is NULL, we return
  *     AVERROR(EINVAL) and set *exc_code_out to a sentinel value before
  *     the crash can occur.
  *
- *  2. A diagnostic struct (CodecDiagnostic) so Go callers can log the
+ *  2. SEH (Structured Exception Handling) on Windows to catch access
+ *     violations from D3D11VA hardware decode.  When an AV is caught,
+ *     we set *exc_code_out to SAFE_BRIDGE_ACCESS_VIOLATION and return
+ *     AVERROR(EINVAL) so the Go caller can handle it gracefully.
+ *
+ *  3. A diagnostic struct (CodecDiagnostic) so Go callers can log the
  *     exact field that caused the failure — useful for root-cause analysis.
  *
  * NOTE: If the crash occurs *inside* a non-NULL codec's private state (e.g.
@@ -28,6 +33,14 @@
 
 /* Sentinel placed in *exc_code_out when a pre-flight check fails. */
 #define SAFE_BRIDGE_PREFLIGHT_FAIL 0xDEAD0001u
+
+/* Sentinel for Windows SEH-caught access violations */
+#define SAFE_BRIDGE_ACCESS_VIOLATION 0xDEAD0002u
+
+/* Windows SEH includes */
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 /* -------------------------------------------------------------------------
  * diagnose_avcodec_state
@@ -57,9 +70,10 @@ void diagnose_avcodec_state(AVCodecContext* ctx, const AVPacket* pkt,
 
 /* -------------------------------------------------------------------------
  * safe_avcodec_send_packet
- * Runs pre-flight checks, then calls avcodec_send_packet.
+ * Runs pre-flight checks, then calls avcodec_send_packet with SEH on Windows.
  * *exc_code_out == 0 on success or normal AVERROR return.
  * *exc_code_out == SAFE_BRIDGE_PREFLIGHT_FAIL if a pre-flight check fires.
+ * *exc_code_out == SAFE_BRIDGE_ACCESS_VIOLATION if SEH catches an AV (Windows).
  * ---------------------------------------------------------------------- */
 int safe_avcodec_send_packet(AVCodecContext* ctx, const AVPacket* pkt,
                               uint32_t* exc_code_out) {
@@ -68,27 +82,45 @@ int safe_avcodec_send_packet(AVCodecContext* ctx, const AVPacket* pkt,
     /* Pre-flight: null-check every pointer the codec will dereference. */
     if (!ctx)            { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     if (!ctx->codec)     { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
-    if (!ctx->priv_data) { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     if (!pkt)            { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     if (!pkt->data)      { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     if (pkt->size <= 0)  { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
 
+#ifdef _WIN32
+    /* SEH wrapper to catch access violations from D3D11VA HW decode */
+    __try {
+        return avcodec_send_packet(ctx, pkt);
+    } __except(EXCEPTION_EXECUTE_HANDLER) {
+        *exc_code_out = SAFE_BRIDGE_ACCESS_VIOLATION;
+        return AVERROR(EINVAL);
+    }
+#else
     return avcodec_send_packet(ctx, pkt);
+#endif
 }
 
 /* -------------------------------------------------------------------------
  * safe_avcodec_receive_frame
- * Pre-flight checks then avcodec_receive_frame.
+ * Pre-flight checks then avcodec_receive_frame with SEH on Windows.
+ * *exc_code_out == SAFE_BRIDGE_ACCESS_VIOLATION if SEH catches an AV (Windows).
  * ---------------------------------------------------------------------- */
 int safe_avcodec_receive_frame(AVCodecContext* ctx, AVFrame* frame,
                                 uint32_t* exc_code_out) {
     *exc_code_out = 0;
 
     if (!ctx)            { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
-    if (!ctx->priv_data) { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     if (!frame)          { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
 
+#ifdef _WIN32
+    __try {
+        return avcodec_receive_frame(ctx, frame);
+    } __except(EXCEPTION_EXECUTE_HANDLER) {
+        *exc_code_out = SAFE_BRIDGE_ACCESS_VIOLATION;
+        return AVERROR(EINVAL);
+    }
+#else
     return avcodec_receive_frame(ctx, frame);
+#endif
 }
 
 /* -------------------------------------------------------------------------
