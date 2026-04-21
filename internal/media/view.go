@@ -214,6 +214,7 @@ func (s *SplitView) draw(w, h int) image.Image {
 type VideoPlayer struct {
 	widget.BaseWidget
 	source *image.RGBA
+	muted  bool
 
 	playBtn        *widget.Button
 	slider         *widget.Slider
@@ -542,7 +543,8 @@ func (v *VideoPlayer) togglePlay() {
 }
 
 func (v *VideoPlayer) toggleMute() {
-	if v.volume > 0 {
+	v.muted = !v.muted
+	if v.muted {
 		v.SetVolume(0)
 	} else {
 		v.SetVolume(1.0)
