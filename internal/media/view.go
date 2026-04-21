@@ -368,7 +368,7 @@ func (v *VideoPlayer) buildControls() {
 	v.volumeSlider.Value = v.volume * 100
 	v.volumeSlider.Resize(fyne.NewSize(150, 40))
 	v.volumeSlider.OnChanged = func(pos float64) {
-		v.volume = pos / 100.0
+		v.SetVolume(pos / 100.0)
 		if v.onVolumeChange != nil {
 			v.onVolumeChange(v.volume)
 		}
@@ -528,6 +528,9 @@ func (v *VideoPlayer) SetVolume(vol float64) {
 			v.volumeBtn.SetIcon(th.Icon(theme.IconNameVolumeUp))
 		}
 	}
+	if v.volumeSlider != nil {
+		v.volumeSlider.Value = vol * 100
+	}
 }
 
 func (v *VideoPlayer) togglePlay() {
@@ -546,8 +549,14 @@ func (v *VideoPlayer) toggleMute() {
 	v.muted = !v.muted
 	if v.muted {
 		v.SetVolume(0)
+		if v.volumeSlider != nil {
+			v.volumeSlider.Value = 0
+		}
 	} else {
 		v.SetVolume(1.0)
+		if v.volumeSlider != nil {
+			v.volumeSlider.Value = 100
+		}
 	}
 	if v.onVolumeChange != nil {
 		v.onVolumeChange(v.volume)
