@@ -395,9 +395,8 @@ onScheduleModule func(string, string),
 		scrollable,
 	)
 
-	// Add tinted bars at top and bottom - use titleColor parameter 
+// Add tinted bars at top and bottom - use titleColor parameter
 	// Matching other modules (48px tinted bars like benchmark, trim, etc.)
-	// If titleColor is nil, fall back to green
 	barColor := titleColor
 	if barColor == nil {
 		barColor = color.RGBA{R: 46, G: 200, B: 112, A: 255} // #4CE870
@@ -407,11 +406,17 @@ onScheduleModule func(string, string),
 	bottomBarBg := canvas.NewRectangle(barColor)
 	bottomBarBg.SetMinSize(fyne.NewSize(0, 48))
 
-	body := container.NewBorder(
-		nil,
-		logSection,
+	// Use BorderLayout: top bar at top, bottom bar at bottom, content fills middle
+	bodyWithBars := container.NewBorder(
+		topBarBg,
+		bottomBarBg,
 		nil, nil,
-		queueList,
+		container.NewBorder(
+			nil,
+			logSection,
+			nil, nil,
+			queueList,
+		),
 	)
 
 	// Wrap with tinted bars at top and bottom
@@ -941,7 +946,7 @@ func ModuleColor(t queue.JobType) color.Color {
 	case queue.JobTypeFilter:
 		return color.RGBA{R: 63, G: 81, B: 181, A: 255} // Blue (#3F51B5)
 	case queue.JobTypeUpscale:
-		return color.RGBA{R: 194, G: 24, B: 91, A: 255} // Pink (#C2185B)
+		return color.RGBA{R: 43, G: 156, B: 28, A: 255} // Green (#2B9C1C) - matching upscale module
 	case queue.JobTypeAudio:
 		return color.RGBA{R: 46, G: 125, B: 50, A: 255} // Green (#2E7D32)
 	case queue.JobTypeThumbnail:
