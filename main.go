@@ -3098,6 +3098,29 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 		return
 	}
 
+	// If upscale module with single file, probe and load it
+	if moduleID == "upscale" && len(videoPaths) == 1 {
+		go func() {
+			defer logging.RecoverPanic()
+			src, err := probeVideo(videoPaths[0])
+			if err != nil {
+				logging.Debug(logging.CatModule, "failed to load video for upscale: %v", err)
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
+				}, false)
+				return
+			}
+
+			time.Sleep(350 * time.Millisecond)
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				s.upscaleFile = src
+				s.showUpscaleView()
+				logging.Debug(logging.CatModule, "loaded video into upscale module")
+			}, false)
+		}()
+		return
+	}
+
 	// If compare module, load up to 2 videos into compare slots
 	if moduleID == "compare" {
 		go func() {
@@ -7062,10 +7085,18 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 
 		if logFile != nil {
 			fmt.Fprintln(logFile, "Stage: AI Upscale ("+aiBinary+")")
-			fmt.Fprintf(logFile, "Command: %s %s\n", aiBinary, strings.Join(aiArgs, " "))
 		}
 
-		aiCmd := exec.CommandContext(ctx, aiBinary, aiArgs...)
+		// Use full path from FindTool (checks PATH and app-local bin)
+		aiPath, aiPathFound := utils.FindTool(aiBinary)
+		if !aiPathFound {
+			return fmt.Errorf("AI upscaling tool not found: %s (not in PATH or app-local bin)", aiBinary)
+		}
+		if logFile != nil {
+			fmt.Fprintf(logFile, "Command: %s %s\n", aiPath, strings.Join(aiArgs, " "))
+		}
+
+		aiCmd := exec.CommandContext(ctx, aiPath, aiArgs...)
 		utils.ApplyNoWindow(aiCmd)
 		aiOut, err := aiCmd.CombinedOutput()
 		if logFile != nil && len(aiOut) > 0 {
