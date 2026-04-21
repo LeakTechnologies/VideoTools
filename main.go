@@ -8241,6 +8241,10 @@ func runGUI() {
 		audioOutputDir:      audioDefaults.OutputDir,
 		audioSelectedTracks: make(map[int]bool),
 		recentFiles:         recentfiles.New(),
+		// Filter defaults (must be set to avoid grey video)
+		filterBrightness:    0,
+		filterContrast:      1.0,
+		filterSaturation:    1.0,
 		// Application Preferences defaults
 		defaultOutputDir:     "",
 		defaultVideoCodec:    "libx264",
