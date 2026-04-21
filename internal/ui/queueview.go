@@ -407,6 +407,7 @@ onScheduleModule func(string, string),
 	bottomBarBg.SetMinSize(fyne.NewSize(0, 48))
 
 	// Use BorderLayout: top bar at top, bottom bar at bottom, content fills middle
+	// Live output (logSection) is pinned at bottom, queue list fills remaining space
 	bodyWithBars := container.NewBorder(
 		topBarBg,
 		bottomBarBg,
@@ -417,13 +418,6 @@ onScheduleModule func(string, string),
 			nil, nil,
 			queueList,
 		),
-	)
-
-	// Wrap with tinted bars at top and bottom
-	bodyWithBars := container.NewVBox(
-		topBarBg,
-		body,
-		bottomBarBg,
 	)
 
 	view := &QueueView{

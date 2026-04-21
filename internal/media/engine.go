@@ -661,10 +661,11 @@ type Engine struct {
 	lastDecodeTime time.Time
 	decodeTimes    []time.Duration
 
-	hwDevice     HWDeviceType
-	hwDegraded   bool
-	videoDecoded bool // set true after first successful video frame decode
-	hwFailCount  int
+	hwDevice       HWDeviceType
+	hwDegraded     bool
+	videoDecoded   bool   // set true after first successful video frame decode
+	videoDecodeDead bool  // set true when SEH catches access violation in video decode
+	hwFailCount    int
 
 	looping  bool
 	hasAudio bool
@@ -2083,7 +2084,11 @@ func (e *Engine) Seek(seconds float64) error {
 		// Drain buffered frames before flushing so the codec's internal state is
 		// clean.  avcodec_flush_buffers resets the codec for reuse after the drain.
 		C.avcodec_send_packet(e.videoCodecCtx, nil)
-		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
+		for {
+			_, recvExc := SafeReceiveFrame(e.videoCodecCtx, e.frame)
+			if recvExc != 0 {
+				break
+			}
 		}
 		C.avcodec_flush_buffers(e.videoCodecCtx)
 		e.videoCodecMu.Unlock()
@@ -2162,7 +2167,11 @@ func (e *Engine) ResetAfterGrab() {
 	if e.videoCodecCtx != nil && e.videoDecoded {
 		e.videoCodecMu.Lock()
 		C.avcodec_send_packet(e.videoCodecCtx, nil)
-		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
+		for {
+			_, recvExc := SafeReceiveFrame(e.videoCodecCtx, e.frame)
+			if recvExc != 0 {
+				break
+			}
 		}
 		C.avcodec_flush_buffers(e.videoCodecCtx)
 		e.videoCodecMu.Unlock()
@@ -2257,8 +2266,14 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 		// SmoothScrubbing if they start concurrently.
 		logging.Info(logging.CatPlayer, "GrabFrame: sending packet to video codec")
 		e.videoCodecMu.Lock()
-		sendRet := C.avcodec_send_packet(e.videoCodecCtx, pkt)
+		sendRet, excCode := SafeSendPacket(e.videoCodecCtx, pkt)
 		C.av_packet_free(&pkt)
+		if excCode != 0 {
+			e.videoCodecMu.Unlock()
+			logging.Error(logging.CatPlayer, "GrabFrame: avcodec_send_packet SEH exception (exc=0x%08X) — disabling video decode", excCode)
+			e.videoDecodeDead = true
+			return nil, fmt.Errorf("video decode access violation: 0x%08X", excCode)
+		}
 		if sendRet != 0 {
 			e.videoCodecMu.Unlock()
 			logging.Info(logging.CatPlayer, "GrabFrame: avcodec_send_packet returned %d, skipping", int(sendRet))
@@ -2267,7 +2282,17 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 
 		logging.Info(logging.CatPlayer, "GrabFrame: packet sent OK, calling avcodec_receive_frame")
 		// Drain all frames produced by this packet; return the first valid one.
-		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
+		for {
+			recvRet, recvExc := SafeReceiveFrame(e.videoCodecCtx, e.frame)
+			if recvExc != 0 {
+				logging.Error(logging.CatPlayer, "GrabFrame: avcodec_receive_frame SEH exception (exc=0x%08X) — disabling video decode", recvExc)
+				e.videoDecodeDead = true
+				e.videoCodecMu.Unlock()
+				return nil, fmt.Errorf("video decode access violation: 0x%08X", recvExc)
+			}
+			if recvRet != 0 {
+				break // EAGAIN or EOF
+			}
 			e.videoDecoded = true
 
 			// Skip frames with AV_NOPTS_VALUE PTS or zero dimensions.
@@ -2401,14 +2426,30 @@ func (e *Engine) videoDecodeLoop() {
 
 		// Decode the packet under videoCodecMu.
 		e.videoCodecMu.Lock()
-		sendRet := C.avcodec_send_packet(e.videoCodecCtx, rawPkt)
+		sendRet, excCode := SafeSendPacket(e.videoCodecCtx, rawPkt)
 		C.av_packet_free(&rawPkt)
+		if excCode != 0 {
+			e.videoCodecMu.Unlock()
+			logging.Error(logging.CatPlayer, "videoDecodeLoop: avcodec_send_packet SEH exception (exc=0x%08X) — stopping decode", excCode)
+			e.videoDecodeDead = true
+			return
+		}
 		if sendRet != 0 {
 			e.videoCodecMu.Unlock()
 			continue
 		}
 
-		for C.avcodec_receive_frame(e.videoCodecCtx, e.frame) == 0 {
+		for {
+			recvRet, recvExc := SafeReceiveFrame(e.videoCodecCtx, e.frame)
+			if recvExc != 0 {
+				e.videoCodecMu.Unlock()
+				logging.Error(logging.CatPlayer, "videoDecodeLoop: avcodec_receive_frame SEH exception (exc=0x%08X) — stopping decode", recvExc)
+				e.videoDecodeDead = true
+				return
+			}
+			if recvRet != 0 {
+				break
+			}
 			e.videoDecoded = true
 
 			if e.frame.pts == C.AV_NOPTS_VALUE || e.frame.pts < 0 {
