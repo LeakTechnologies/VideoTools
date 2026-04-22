@@ -2310,8 +2310,8 @@ func resolveMenuTheme(theme *MenuTheme) *MenuTheme {
 func escapeFontPath(p string) string {
 	p = strings.ReplaceAll(p, "\\", "/")
 	p = strings.ReplaceAll(p, ":", "\\:")
-	p = strings.ReplaceAll(p, "'", "\\'")
-	return p
+	p = strings.ReplaceAll(p, "'", "'\\''")
+	return "'" + p + "'"
 }
 
 func menuFontArg(theme *MenuTheme) string {
