@@ -379,6 +379,18 @@ func (p *AudioPlayer) FlushCodec() {
 	p.codecMu.Unlock()
 }
 
+// DrainPCM discards all buffered PCM chunks without flushing the codec.
+// Used by ResetAfterGrab to clear pre-buffered audio from GrabFrame without
+// resetting codec state (the initial packet/frame has already been sent).
+func (p *AudioPlayer) DrainPCM() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.leftover = p.leftover[:0]
+	for len(p.pcmCh) > 0 {
+		<-p.pcmCh
+	}
+}
+
 func (p *AudioPlayer) SetVolume(vol float32) {
 	p.mu.Lock()
 	p.volume = vol
