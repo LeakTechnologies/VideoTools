@@ -160,6 +160,7 @@ Close() / Load()-into-existing-player
 | Meng vs Sting.mp4 | MP4 | H.264 | D3D11VA | ❌ crash frame 5 | HW off by default; SW path needs re-test |
 | ECW Terry Funk vs Cactus Jack.mp4 | MOV | H.264 | SW | ❌ crash frame 5 | ✅ fix applied — needs re-test |
 | 2 Minutes.mp4 | MP4 | AV1 | SW | ❌ crash frame 5 | ✅ fix applied — needs re-test |
+| Audio Sync.mp4 | MP4 | H.264 50fps | SW | N/A | ✅ Audio/video sync verified at 50fps |
 
 ---
 
