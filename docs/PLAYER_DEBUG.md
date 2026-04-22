@@ -4,6 +4,13 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 
 ---
 
+## Fixed (dev44 cycle)
+
+- [x] **HW-fallback SW path uses wrong pixel format** — Both `GrabFrame` and `videoDecodeLoop` called `ensureSwsCtx(e.videoCodecCtx.pix_fmt)` in the HW-fallback branch instead of `ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))`. Same `AV_PIX_FMT_NONE` crash as dev43 but missed in the HW-fallback paths. Also fixed the redundant `videoCodecMu.Unlock()` in the `continue` case.
+- [x] **predecodeFrom shares formatCtx with demuxerLoop** — `SmoothScrubbing.predecodeFrom` now opens its own independent `AVFormatContext` (same pattern as `StartThumbnailExtraction`). Scrubbing no longer races with the main demuxer loop for read position.
+- [x] **Audio queue not flushed before scrub seek** — `handleSeek` now calls `flushEngineQueues()` (flushes video queue + audio codec) before seeking on the scrubber's own `fmtCtx`. Stale audio packets no longer play as glitch after scrub.
+- [x] **`SmoothScrubbing.predecodeAhead` dead code removed** — The channel-based predecode-ahead mechanism was never wired up. Removed.
+
 ## Fixed (dev43 cycle)
 
 - [x] **SW decode SIGSEGV after ~5 frames** `(dev43-297aa24a)` — `GrabFrame` and `NextFrame` called `ensureSwsCtx(e.videoCodecCtx.pix_fmt)`. For many codecs (H.264, AV1, HEVC) `videoCodecCtx.pix_fmt` is `AV_PIX_FMT_NONE` until the first SPS is parsed; `sws_getContext` returned nil, `sws_scale(nil, …)` produced an unrecoverable C SIGSEGV that Go's `recover()` cannot catch. Fixed: use `C.enum_AVPixelFormat(e.frame.format)` — the actual decoded frame format — in both call sites. `NextFrame`'s SW decode path was also missing the `ensureSwsCtx` call entirely.
@@ -36,15 +43,11 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 
 ### P1 — Playback correctness
 
-- [ ] **HW-fallback SW path uses wrong pixel format** `(dev43-186fa244)` — When HW decode fails (`retrieveHWFrame` errors) and the frame has no `hw_frames_ctx` (SW fallback possible), both `GrabFrame` and `NextFrame` call `ensureSwsCtx(e.videoCodecCtx.pix_fmt)` instead of `ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))`. This is the same `AV_PIX_FMT_NONE` crash fixed for the pure SW path in dev43 but missed in the HW-fallback branches. Since HW decode is off by default this won't bite most users, but will crash if D3D11VA is enabled and degrades mid-stream.
-- [ ] **predecodeFrom shares formatCtx read position with demuxerLoop** `(dev43-186fa244)` — Both `predecodeFrom` (scrubber) and `demuxerLoop` call `av_read_frame` on the same `formatCtx`, serialised per-call via `formatMu`. The per-call lock is correct, but both sides advance the read pointer in an interleaved fashion: the scrubber consumes packets the demuxer would have queued, and vice versa. This does not crash but can produce corrupted/stuck playback after a seek. Fix: give `SmoothScrubbing` its own independent `AVFormatContext` (same pattern as `StartThumbnailExtraction`), or pause the demuxer before scrub reads.
 - [ ] **Speed changes do not affect audio tempo** `(dev43-186fa244)` — `AudioPlayer.Read()` does not resample audio pitch/tempo when speed != 1.0. Video frames are dropped/waited to match speed, but audio plays at 1× regardless. Requires `swr_convert` with a rate ratio or a time-stretch filter.
-- [ ] **Audio queue not flushed before seek** `(dev43-186fa244)` — `Seek()` flushes the video queue and calls `AudioPlayer.FlushCodec()` but stale packets may remain in `audioQueue` between the codec flush and the demuxer seek. These play as a brief audio glitch at the seek point.
 - [ ] **Audio jumps to start after seek** — Some files with multiple audio tracks (e.g., intro + main program) may have FFmpeg switch audio tracks after seek, causing audio to jump to start. Need to force audio stream index after seek.
 
 ### P2 — Quality / UX
 
-- [x] **`SmoothScrubbing.predecodeAhead` never triggered** `(dev44-fcc195a2)` — Removed the dead code. Wire it up if you want frame pre-caching during scrub.
 - [ ] **`retrieveHWFrame` creates a new `sws_getContext` per frame** `(dev43-186fa244)` — HW→SW conversion path allocates and frees an `sws` context on every decoded frame. This is correct for correctness (format may vary) but expensive at high frame rates. Cache the context keyed on `(format, width, height)`.
 - [ ] **`Duration()` reads `formatCtx` without a lock** `(dev43-186fa244)` — A nil `formatCtx` check exists but the window between the check and the read is not protected. If `Close()` runs concurrently, this could dereference a freed pointer. Low-frequency; guard with `e.mu`.
 - [ ] **`DegradeToSoftware()` races with active decode** `(dev43-186fa244)` — Frees `hwDeviceCtx`/`hwFramesCtx` without holding `videoCodecMu`. Only called from paths not currently wired up so not a live crash risk, but should acquire `videoCodecMu` before touching HW contexts.
@@ -58,9 +61,9 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 | SMPTE bars display when no video loaded | ✅ |
 | First frame displays after Load() | ✅ |
 | SW decode playback (H.264, AV1, MPEG4) | ⚠️ Fixed in dev43 — needs smoke test |
-| HW decode (D3D11VA) opt-in | ⚠️ Crashes on some files when enabled; opt-in with warning. SW fallback path has same pix_fmt bug (dev43-186fa244) |
-| Seek / scrub | ⚠️ Works but shares formatCtx read position with demuxer (P1) |
-| Audio sync | ⚠️ Fixed audio starts on Play() — needs test |
+| HW decode (D3D11VA) opt-in | ⚠️ HW path crashes; SW fallback path now fixed (dev44) |
+| Seek / scrub | ✅ Independent formatCtx per scrubber (dev44) |
+| Audio sync | ⚠️ Clock fix applied (dev44) — needs smoke test |
 | Speed change | ⚠️ Video timing correct; audio does not pitch-shift |
 | Close() / Load() lifecycle | ✅ WaitGroup + mutex gate added in dev43 |
 | seekLoop goroutine lifecycle | ✅ Fixed in dev43 |
@@ -153,14 +156,14 @@ Close() / Load()-into-existing-player
 
 ## Videos Tested
 
-| Video | Container | Codec | HW | dev42 | dev43 |
-|-------|-----------|-------|----|-------|-------|
-| Herzog.avi | AVI | MPEG4 | SW | ✅ Plays | needs re-test |
-| Horny Sports.avi | AVI | MPEG4 | SW | ✅ Plays | needs re-test |
-| Meng vs Sting.mp4 | MP4 | H.264 | D3D11VA | ❌ crash frame 5 | HW off by default; SW path needs re-test |
-| ECW Terry Funk vs Cactus Jack.mp4 | MOV | H.264 | SW | ❌ crash frame 5 | ✅ fix applied — needs re-test |
-| 2 Minutes.mp4 | MP4 | AV1 | SW | ❌ crash frame 5 | ✅ fix applied — needs re-test |
-| Audio Sync.mp4 | MP4 | H.264 50fps | SW | N/A | ✅ Audio/video sync verified at 50fps |
+| Video | Container | Codec | HW | dev42 | dev43 | dev44 |
+|-------|-----------|-------|----|-------|-------|-------|
+| Herzog.avi | AVI | MPEG4 | SW | ✅ Plays | needs re-test | needs re-test |
+| Horny Sports.avi | AVI | MPEG4 | SW | ✅ Plays | needs re-test | needs re-test |
+| Meng vs Sting.mp4 | MP4 | H.264 | D3D11VA | ❌ crash frame 5 | HW off by default; SW path needs re-test | HW path crashes; SW fallback now fixed |
+| ECW Terry Funk vs Cactus Jack.mp4 | MOV | H.264 | SW | ❌ crash frame 5 | ✅ pix_fmt fix applied — needs re-test | ✅ |
+| 2 Minutes.mp4 | MP4 | AV1 | SW | ❌ crash frame 5 | ✅ pix_fmt fix applied — needs re-test | ✅ |
+| Audio Sync.mp4 | MP4 | H.264 50fps | SW | N/A | ✅ Audio/video sync verified | ✅ |
 
 ---
 

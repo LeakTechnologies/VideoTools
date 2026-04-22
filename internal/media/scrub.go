@@ -15,6 +15,7 @@ package media
 */
 import "C"
 import (
+	"fmt"
 	"image"
 	"sync"
 	"unsafe"
@@ -129,14 +130,17 @@ type SmoothScrubbing struct {
 	seekTarget  float64
 	onFrame     func(*image.RGBA)
 	mu          sync.RWMutex
-	wg          sync.WaitGroup // tracks seekHandler goroutine
+	wg          sync.WaitGroup
 
-	// Private decode / conversion resources — never shared with the engine.
+	fmtCtx   *C.AVFormatContext
+	codecCtx *C.AVCodecContext
+	videoIdx C.int
+
 	frame      *C.AVFrame
 	swsCtx     *C.struct_SwsContext
 	rgbaFrame  *C.AVFrame
 	rgbaBuffer []byte
-	convertMu  sync.Mutex // guards lazy init of swsCtx / rgbaFrame / rgbaBuffer
+	convertMu  sync.Mutex
 }
 
 func (s *SmoothScrubbing) SetOnFrame(cb func(*image.RGBA)) {
@@ -146,14 +150,76 @@ func (s *SmoothScrubbing) SetOnFrame(cb func(*image.RGBA)) {
 }
 
 func NewSmoothScrubbing(engine *Engine) *SmoothScrubbing {
-	frame := C.av_frame_alloc() // may be nil — predecodeFrom checks before use
-	return &SmoothScrubbing{
-		engine:      engine,
-		frameCache:  NewFrameCache(scrubPreDecodeFrames),
-		seekQueue:   make(chan float64, 1),
-		stop:        make(chan struct{}),
-		frame:       frame,
+	s := &SmoothScrubbing{
+		engine:     engine,
+		frameCache: NewFrameCache(scrubPreDecodeFrames),
+		seekQueue:  make(chan float64, 1),
+		stop:       make(chan struct{}),
 	}
+
+	if err := s.openDecoder(); err != nil {
+		logging.Warning(logging.CatPlayer, "SmoothScrubbing: openDecoder failed: %v", err)
+	}
+
+	s.Start()
+	return s
+}
+
+func (s *SmoothScrubbing) openDecoder() error {
+	s.engine.mu.Lock()
+	path := s.engine.filePath
+	s.engine.mu.Unlock()
+	if path == "" {
+		return fmt.Errorf("no file path")
+	}
+
+	cPath := C.CString(path)
+	defer C.free(unsafe.Pointer(cPath))
+
+	if C.avformat_open_input(&s.fmtCtx, cPath, nil, nil) != 0 {
+		return fmt.Errorf("avformat_open_input failed")
+	}
+
+	if C.avformat_find_stream_info(s.fmtCtx, nil) < 0 {
+		C.avformat_close_input(&s.fmtCtx)
+		return fmt.Errorf("avformat_find_stream_info failed")
+	}
+
+	s.engine.mu.RLock()
+	vidIdx := s.engine.videoStreamIdx
+	s.engine.mu.RUnlock()
+	if vidIdx < 0 {
+		C.avformat_close_input(&s.fmtCtx)
+		return fmt.Errorf("no video stream")
+	}
+	s.videoIdx = C.int(vidIdx)
+
+	streams := (*[1 << 30]*C.AVStream)(unsafe.Pointer(s.fmtCtx.streams))
+	stream := streams[vidIdx]
+
+	codec := C.avcodec_find_decoder(stream.codecpar.codec_id)
+	if codec == nil {
+		C.avformat_close_input(&s.fmtCtx)
+		return fmt.Errorf("no decoder found")
+	}
+
+	s.codecCtx = C.avcodec_alloc_context3(codec)
+	if s.codecCtx == nil {
+		C.avformat_close_input(&s.fmtCtx)
+		return fmt.Errorf("avcodec_alloc_context3 failed")
+	}
+
+	C.avcodec_parameters_to_context(s.codecCtx, stream.codecpar)
+	s.codecCtx.thread_count = 2
+
+	if C.avcodec_open2(s.codecCtx, codec, nil) < 0 {
+		C.avcodec_free_context(&s.codecCtx)
+		C.avformat_close_input(&s.fmtCtx)
+		return fmt.Errorf("avcodec_open2 failed")
+	}
+
+	s.frame = C.av_frame_alloc()
+	return nil
 }
 
 func (s *SmoothScrubbing) Start() {
@@ -163,12 +229,8 @@ func (s *SmoothScrubbing) Start() {
 
 func (s *SmoothScrubbing) Stop() {
 	close(s.stop)
-	// Wait for all goroutines to exit before freeing CGo resources.
-	// Without this, predecodeFrom may still be using s.frame
-	// or s.swsCtx when we free them, causing a use-after-free crash.
 	s.wg.Wait()
 
-	// Free all private CGo resources.
 	s.convertMu.Lock()
 	defer s.convertMu.Unlock()
 
@@ -185,6 +247,14 @@ func (s *SmoothScrubbing) Stop() {
 		s.swsCtx = nil
 	}
 	s.rgbaBuffer = nil
+	if s.codecCtx != nil {
+		C.avcodec_free_context(&s.codecCtx)
+		s.codecCtx = nil
+	}
+	if s.fmtCtx != nil {
+		C.avformat_close_input(&s.fmtCtx)
+		s.fmtCtx = nil
+	}
 }
 
 func (s *SmoothScrubbing) RequestSeek(target float64) {
@@ -212,7 +282,8 @@ func (s *SmoothScrubbing) handleSeek(target float64) {
 	s.frameCache.Clear()
 	s.mu.Unlock()
 
-	s.engine.Seek(target)
+	s.flushEngineQueues()
+	s.seekOwnFormatCtx(target)
 
 	s.mu.Lock()
 	s.predecoding = false
@@ -222,24 +293,52 @@ func (s *SmoothScrubbing) handleSeek(target float64) {
 	go func() { defer s.wg.Done(); s.predecodeFrom(target) }()
 }
 
+func (s *SmoothScrubbing) seekOwnFormatCtx(target float64) {
+	if s.fmtCtx == nil || s.codecCtx == nil {
+		return
+	}
+
+	s.engine.mu.RLock()
+	timeBase := s.engine.videoTimeBase
+	s.engine.mu.RUnlock()
+
+	pts := C.int64_t(target / timeBase)
+	C.avformat_seek_file(s.fmtCtx, s.videoIdx, pts, pts, pts, 0)
+
+	s.engine.videoCodecMu.Lock()
+	C.avcodec_flush_buffers(s.codecCtx)
+	s.engine.videoCodecMu.Unlock()
+}
+
+func (s *SmoothScrubbing) flushEngineQueues() {
+	s.engine.mu.Lock()
+	defer s.engine.mu.Unlock()
+	s.engine.videoQueue.Flush()
+	if s.engine.audioPlayer != nil {
+		s.engine.audioPlayer.FlushCodec()
+		s.engine.audioPlayer.ResetEOF()
+	}
+}
+
 func (s *SmoothScrubbing) predecodeFrom(startTime float64) {
+	if s.fmtCtx == nil || s.codecCtx == nil {
+		return
+	}
+
 	s.mu.RLock()
 	predecodeCount := seekPrerollFrames
-	videoTimeBase := s.engine.videoTimeBase
+	timeBase := s.engine.videoTimeBase
 	s.mu.RUnlock()
 
 	s.convertMu.Lock()
 	frame := s.frame
 	s.convertMu.Unlock()
-	if frame == nil {
-		return
-	}
 
 	pkt := C.av_packet_alloc()
 	defer C.av_packet_free(&pkt)
 
 	framesDecoded := 0
-	maxPTS := startTime + float64(predecodeCount)*videoTimeBase*2
+	maxPTS := startTime + float64(predecodeCount)*timeBase*2
 	firstFrame := true
 
 	for framesDecoded < predecodeCount {
@@ -249,43 +348,38 @@ func (s *SmoothScrubbing) predecodeFrom(startTime float64) {
 		default:
 		}
 
-		// av_read_frame is not thread-safe with demuxerLoop — use formatMu.
-		s.engine.formatMu.Lock()
-		ret := C.av_read_frame(s.engine.formatCtx, pkt)
-		s.engine.formatMu.Unlock()
-		if ret < 0 {
+		if C.av_read_frame(s.fmtCtx, pkt) < 0 {
 			break
 		}
 
-		if int(pkt.stream_index) != s.engine.videoStreamIdx {
+		if int(pkt.stream_index) != int(s.videoIdx) {
 			C.av_packet_unref(pkt)
 			continue
 		}
 
-		pts := float64(pkt.pts) * videoTimeBase
+		pts := float64(pkt.pts) * timeBase
 		if pts > maxPTS {
 			C.av_packet_unref(pkt)
 			break
 		}
 
-		// avcodec_send/receive on videoCodecCtx must not race with NextFrame.
 		s.engine.videoCodecMu.Lock()
-		sendOK := C.avcodec_send_packet(s.engine.videoCodecCtx, pkt) == 0
+		if C.avcodec_send_packet(s.codecCtx, pkt) != 0 {
+			s.engine.videoCodecMu.Unlock()
+			C.av_packet_unref(pkt)
+			continue
+		}
 		s.engine.videoCodecMu.Unlock()
 		C.av_packet_unref(pkt)
 
-		if !sendOK {
-			continue
-		}
-
 		s.engine.videoCodecMu.Lock()
-		for C.avcodec_receive_frame(s.engine.videoCodecCtx, frame) == 0 {
-			pts = float64(frame.pts) * videoTimeBase
-			s.engine.videoCodecMu.Unlock() // release before slow conversion
+		for C.avcodec_receive_frame(s.codecCtx, frame) == 0 {
+			pts = float64(frame.pts) * timeBase
+			s.engine.videoCodecMu.Unlock()
 
 			rgba := s.convertFrameToRGBA(frame)
 
-			s.engine.videoCodecMu.Lock() // re-acquire for next receive_frame
+			s.engine.videoCodecMu.Lock()
 
 			if rgba != nil {
 				s.frameCache.Add(int64(pts*1000), rgba)

@@ -2279,10 +2279,10 @@ func (e *Engine) GrabFrame(timeout time.Duration) (retImg *image.RGBA, retErr er
 					logging.Warning(logging.CatPlayer, "GrabFrame: HW retrieve failed (%v)", err)
 					if e.frame.hw_frames_ctx != nil {
 						logging.Info(logging.CatPlayer, "GrabFrame: frame is HW, cannot SW fallback — skipping")
-						// videoCodecMu is already held; do NOT Lock again.
+						e.videoCodecMu.Unlock()
 						continue
 					}
-					e.ensureSwsCtx(e.videoCodecCtx.pix_fmt)
+					e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
 					img = e.toRGBA()
 				}
 			} else {
@@ -2456,8 +2456,10 @@ func (e *Engine) videoDecodeLoop() {
 				if err != nil {
 					logging.Warning(logging.CatPlayer, "videoDecodeLoop: HW retrieve failed: %v", err)
 					if e.frame.hw_frames_ctx != nil {
+						e.videoCodecMu.Unlock()
 						continue
 					}
+					e.ensureSwsCtx(C.enum_AVPixelFormat(e.frame.format))
 					img = e.toRGBA()
 				}
 			} else {
