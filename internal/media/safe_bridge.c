@@ -79,12 +79,16 @@ int safe_avcodec_send_packet(AVCodecContext* ctx, const AVPacket* pkt,
                               uint32_t* exc_code_out) {
     *exc_code_out = 0;
 
-    /* Pre-flight: null-check every pointer the codec will dereference. */
+    /* Pre-flight: null-check every pointer the codec will dereference.
+     * NOTE: pkt may be NULL for drain (avcodec_send_packet with NULL drains the codec).
+     * We allow NULL pkt but require a valid ctx and codec. */
     if (!ctx)            { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     if (!ctx->codec)     { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
-    if (!pkt)            { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
-    if (!pkt->data)      { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
-    if (pkt->size <= 0)  { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
+    /* pkt == NULL is valid for drain; otherwise require valid packet */
+    if (pkt != NULL) {
+        if (!pkt->data)      { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
+        if (pkt->size <= 0)  { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
+    }
 
 #if defined(_WIN32) && !defined(__GNUC__)
     /* SEH wrapper to catch access violations from D3D11VA HW decode (MSVC only, not MinGW) */
