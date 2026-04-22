@@ -293,8 +293,17 @@ func (p *AudioPlayer) audioDecodeLoop() {
 func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	// Drain any leftover from the previous chunk first.
 	if len(p.leftover) > 0 {
+		p.mu.Lock()
+		volumeMul := p.volumeMul
+		p.mu.Unlock()
+
 		n := copy(buf, p.leftover)
 		p.leftover = p.leftover[n:]
+		if volumeMul != 1.0 {
+			for i := 0; i < n; i++ {
+				buf[i] = byte(float32(buf[i]) * volumeMul)
+			}
+		}
 		return n, nil
 	}
 
@@ -342,7 +351,17 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 		// clock (= audio output position) reaches the video frame's PTS,
 		// producing true A/V sync without any fixed wall-time offset.
 		p.clock.SetTime(chunk.pts - AudioBufferLatency.Seconds())
+
+		p.mu.Lock()
+		volumeMul := p.volumeMul
+		p.mu.Unlock()
+
 		n := copy(buf, chunk.data)
+		if volumeMul != 1.0 {
+			for i := 0; i < n; i++ {
+				buf[i] = byte(float32(buf[i]) * volumeMul)
+			}
+		}
 		if n < len(chunk.data) {
 			p.leftover = chunk.data[n:]
 		}
