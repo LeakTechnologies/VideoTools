@@ -2169,6 +2169,15 @@ func (e *Engine) ResetAfterGrab() {
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
 
+	// Drain any pre-buffered PCM chunks from audioDecodeLoop so the audio
+	// clock doesn't jump forward when playback starts. audioDecodeLoop may have
+	// pre-buffered several seconds of audio during GrabFrame before ResetAfterGrab
+	// is called; if those chunks sit in pcmCh, the first AudioPlayer.Read() call
+	// will consume them and set the clock to ~5s, dropping all initial video frames.
+	if e.audioPlayer != nil {
+		e.audioPlayer.DrainPCM()
+	}
+
 	// Reset clock to 0 so audio/video are in sync when playback starts.
 	e.clock.SetTime(0)
 	e.clock.SetPaused(true)
