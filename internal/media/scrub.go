@@ -19,6 +19,8 @@ import (
 	"image"
 	"sync"
 	"unsafe"
+
+	"github.com/leaktechnologies/VideoTools/internal/media/logging"
 )
 
 const (
@@ -185,9 +187,9 @@ func (s *SmoothScrubbing) openDecoder() error {
 		return fmt.Errorf("avformat_find_stream_info failed")
 	}
 
-	s.engine.mu.RLock()
+	s.engine.mu.Lock()
 	vidIdx := s.engine.videoStreamIdx
-	s.engine.mu.RUnlock()
+	s.engine.mu.Unlock()
 	if vidIdx < 0 {
 		C.avformat_close_input(&s.fmtCtx)
 		return fmt.Errorf("no video stream")
@@ -298,9 +300,9 @@ func (s *SmoothScrubbing) seekOwnFormatCtx(target float64) {
 		return
 	}
 
-	s.engine.mu.RLock()
+	s.engine.mu.Lock()
 	timeBase := s.engine.videoTimeBase
-	s.engine.mu.RUnlock()
+	s.engine.mu.Unlock()
 
 	pts := C.int64_t(target / timeBase)
 	C.avformat_seek_file(s.fmtCtx, s.videoIdx, pts, pts, pts, 0)
