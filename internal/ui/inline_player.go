@@ -253,6 +253,19 @@ func (v *InlineVideoPlayer) Play() {
 		return
 	}
 	v.playing = true
+
+	// If already running, check if we need to restart after EOF/Seek to start.
+	// Start() returns early if e.running==true, so we need to check and seek.
+	if eng.IsRunning() {
+		currentTime := eng.CurrentTime()
+		duration := eng.Duration()
+		// If we're near the end (within 0.5s of duration) or at position 0 after having played,
+		// seek to start to restart playback.
+		if currentTime >= duration-0.5 || (currentTime < 0.1 && duration > 1.0) {
+			eng.Seek(0)
+		}
+	}
+
 	eng.Start()
 	eng.Resume()
 	v.mu.Unlock()
