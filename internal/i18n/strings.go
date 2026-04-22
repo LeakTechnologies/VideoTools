@@ -58,6 +58,8 @@ type Strings struct {
 	SettingsShowTooltips    string // "Show tooltips"
 	SettingsHWDecode       string // "Hardware Video Decode"
 	SettingsHWDecodeHint   string // warning about D3D11VA crash risk
+	SettingsUseVCRFont     string // "VCR OSD MONO Font"
+	SettingsUseVCRFontHint string // "Use the VCR OSD MONO font..."
 	SettingsTestPattern     string // "Test Pattern"
 	SettingsTestPatternHint string // "Show SMPTE color bars for display calibration"
 

@@ -8186,7 +8186,6 @@ func runGUI() {
 			ShowErrorLarge(fmt.Errorf("VideoTools could not download FFmpeg DLLs for video playback:\n\n%v\n\nVideo playback features will be unavailable. You can try again later or check your internet connection.", err), w)
 		} else {
 			logging.Info(logging.CatSystem, "FFmpeg DLLs ready for native media engine")
-			initNativeMediaAssets()
 			// Pre-warm the shared audio context during startup so the first video
 			// load doesn't block on WASAPI/oto initialisation.
 			go func() {
@@ -8287,6 +8286,10 @@ func runGUI() {
 		setHWDecodeEnabled(prefs.HWDecodeEnabled)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		logging.Debug(logging.CatSystem, "failed to load persisted prefs: %v", err)
+	}
+
+	if HasNativeMediaPlayer() {
+		initNativeMediaAssets(state)
 	}
 	utils.SetTempDir(state.convert.TempDir)
 

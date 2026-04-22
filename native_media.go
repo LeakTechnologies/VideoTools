@@ -58,8 +58,9 @@ func GetSubtitlePlayer() *ui.InlineVideoPlayer {
 	return subtitleInlinePlayer
 }
 
-func initNativeMediaAssets() {
+func initNativeMediaAssets(s *appState) {
 	media.SetVCRFont(vcrOSDMono)
+	applyVCRFontPreference(s.prefs.UseVCRFont)
 }
 
 func (s *appState) loadVideoNative(path string) {
