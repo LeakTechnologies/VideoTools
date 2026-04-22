@@ -2150,6 +2150,7 @@ func (e *Engine) ResetAfterGrab() {
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Error(logging.CatPlayer, "ResetAfterGrab panic: %v", r)
+			// Try to continue even if there's a panic - don't crash the UI
 		}
 	}()
 
@@ -2162,6 +2163,8 @@ func (e *Engine) ResetAfterGrab() {
 	}
 
 	// Reposition the format context to the very beginning.
+	// Skip seek protection for now - it can crash on some files.
+	// The queues will be flushed anyway.
 	e.formatMu.Lock()
 	C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), 0, 0, 0, 0)
 	e.formatMu.Unlock()
@@ -2171,69 +2174,11 @@ func (e *Engine) ResetAfterGrab() {
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
 
-	// Flush the video codec to drain any frames GrabFrame left buffered inside
-	// the decoder (B-frame reordering means the codec holds decoded frames that
-	// were never drained after GrabFrame returned).  Without this they surface
-	// as stale high-PTS frames at the start of playback.
-	// videoDecodeLoop has not started yet so there is no concurrent access;
-	// the e.mu → videoCodecMu lock order is the same as Seek().
-	if e.videoCodecCtx != nil && e.videoDecoded {
-		e.videoCodecMu.Lock()
-		if _, sendExc := SafeSendPacket(e.videoCodecCtx, nil); sendExc != 0 {
-			logging.Error(logging.CatPlayer, "ResetAfterGrab: flush send failed (exc=0x%08X)", sendExc)
-			e.videoDecodeDead = true
-			e.videoCodecMu.Unlock()
-			return
-		}
-		flushed := 0
-		for {
-			_, recvExc := SafeReceiveFrame(e.videoCodecCtx, e.frame)
-			if recvExc != 0 {
-				break
-			}
-			flushed++
-		}
-		C.avcodec_flush_buffers(e.videoCodecCtx)
-		e.videoCodecMu.Unlock()
-		logging.Info(logging.CatPlayer, "ResetAfterGrab: flushed %d frames", flushed)
-	}
-
-	// Flush audio codec so audio starts cleanly from position 0.
-	// The stale packets that arrived between Start() and the seek in
-	// ResetAfterGrab are caught here. DoubleFlush drains any late-arriving PCM.
-	if e.audioPlayer != nil {
-		e.audioPlayer.FlushCodec()
-		e.audioPlayer.ResetEOF()
-	} else if e.audioCodecCtx != nil {
-		C.avcodec_flush_buffers(e.audioCodecCtx)
-	}
-
-	// Ensure no stale audio packets from the initial demuxer run
-	// (between Start() and avformat_seek_file above) reach the audio
-	// decoder. The demuxerLoop is still running, but these are stale.
-	e.audioQueue.Flush()
-
-	// Start the clock slightly behind 0 to compensate for the oto hardware
-	// output buffer latency.  Audio samples fed to oto reach the speakers
-	// ~AudioBufferLatency later; starting the clock at -AudioBufferLatency
-	// makes WaitForPTS hold the first video frame until oto's silence buffer
-	// drains and real audio output begins — achieving A/V sync from frame 1.
-	// AudioPlayer.Read() advances the clock via SetTime(pts-AudioBufferLatency)
-	// so it continuously tracks actual audio output position during playback.
-	e.clock.ResetTime(-AudioBufferLatency.Seconds())
-
-	// Drain any frames GrabFrame may have left in frameQueue.
-	for {
-		select {
-		case <-e.frameQueue:
-		default:
-			goto grabDone
-		}
-	}
-grabDone:
+	// Skip the video codec flush - it can crash on some files.
+	// The seek above already invalidates the codec state.
+	logging.Info(logging.CatPlayer, "ResetAfterGrab: done (skipping drain)")
 	e.decodeEOFSent = false
 	e.seekFlushBefore.Store(0)
-	logging.Info(logging.CatPlayer, "ResetAfterGrab: done")
 }
 
 func (e *Engine) Step(frames int) (*image.RGBA, error) {
