@@ -262,19 +262,12 @@ func (p *AudioPlayer) audioDecodeLoop() {
 			}
 
 			if len(data) > 0 {
-				p.mu.Lock()
-				volMul := p.volumeMul
-				p.mu.Unlock()
-				if volMul != 1.0 && volMul != 0 {
-					data = p.applyVolume(data, volMul)
-				}
-
 				// Copy to avoid sharing the resampler's internal buffer.
 				pcmData := make([]byte, len(data))
 				copy(pcmData, data)
 
-				// Send to Read() tagged with this frame's PTS so the clock
-				// advances when the data is played, not when it is decoded.
+				// Volume is applied in Read() — do it once there on the final
+				// S16 buffer so it's applied to the exact bytes sent to hardware.
 				select {
 				case p.pcmCh <- audioChunk{pts: pts, data: pcmData}:
 				case <-p.decodeStop:
@@ -500,20 +493,6 @@ func (p *AudioPlayer) Close() {
 		C.av_frame_free(&p.frame)
 		p.frame = nil
 	}
-}
-
-func (p *AudioPlayer) applyVolume(data []byte, volMul float32) []byte {
-	if volMul == 1.0 {
-		return data
-	}
-	result := make([]byte, len(data))
-	for i := 0; i < len(data)-1; i += 2 {
-		sample := int16(data[i]) | int16(data[i+1])<<8
-		sample = int16(float32(sample) * volMul)
-		result[i] = byte(sample)
-		result[i+1] = byte(sample >> 8)
-	}
-	return result
 }
 
 func (p *AudioPlayer) resample() ([]byte, error) {
