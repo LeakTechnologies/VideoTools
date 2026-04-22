@@ -2083,11 +2083,11 @@ func (e *Engine) Seek(seconds float64) error {
 		e.videoCodecMu.Lock()
 		// Drain buffered frames before flushing so the codec's internal state is
 		// clean.  avcodec_flush_buffers resets the codec for reuse after the drain.
-		if sendRet, sendExc := SafeSendPacket(e.videoCodecCtx, nil); sendExc != 0 {
+		if _, sendExc := SafeSendPacket(e.videoCodecCtx, nil); sendExc != 0 {
 			logging.Error(logging.CatPlayer, "Seek: flush send failed (exc=0x%08X)", sendExc)
 			e.videoDecodeDead = true
 			e.videoCodecMu.Unlock()
-			return
+			return fmt.Errorf("flush send failed")
 		}
 		flushed := 0
 		for {
@@ -2173,7 +2173,7 @@ func (e *Engine) ResetAfterGrab() {
 	// the e.mu → videoCodecMu lock order is the same as Seek().
 	if e.videoCodecCtx != nil && e.videoDecoded {
 		e.videoCodecMu.Lock()
-		if sendRet, sendExc := SafeSendPacket(e.videoCodecCtx, nil); sendExc != 0 {
+		if _, sendExc := SafeSendPacket(e.videoCodecCtx, nil); sendExc != 0 {
 			logging.Error(logging.CatPlayer, "ResetAfterGrab: flush send failed (exc=0x%08X)", sendExc)
 			e.videoDecodeDead = true
 			e.videoCodecMu.Unlock()
