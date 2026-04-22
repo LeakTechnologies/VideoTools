@@ -1227,6 +1227,20 @@ func (e *Engine) Pause() {
 	if e.audioPlayer != nil {
 		e.audioPlayer.Pause()
 	}
+}
+
+func (e *Engine) DrainAudio() {
+	if e.audioPlayer != nil {
+		e.audioPlayer.DrainPCM()
+	}
+}
+	e.paused = true
+	e.clock.SetPaused(true)
+	e.mu.Unlock()
+
+	if e.audioPlayer != nil {
+		e.audioPlayer.Pause()
+	}
 	logging.Info(logging.CatPlayer, "Engine paused")
 }
 
