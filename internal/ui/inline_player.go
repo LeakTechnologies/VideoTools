@@ -254,19 +254,9 @@ func (v *InlineVideoPlayer) Play() {
 	}
 	v.playing = true
 
-	// If already running, check if we need to restart after EOF/Seek to start.
-	// Start() returns early if e.running==true, so we need to check and seek.
-	if eng.IsRunning() {
-		currentTime := eng.CurrentTime()
-		duration := eng.Duration()
-		// If we're near the end (within 0.5s of duration) or at position 0 after having played,
-		// seek to start to restart playback.
-		if currentTime >= duration-0.5 || (currentTime < 0.1 && duration > 1.0) {
-			eng.Seek(0)
-		}
-	}
-
+	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Start()")
 	eng.Start()
+	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Resume()")
 	eng.Resume()
 	v.mu.Unlock()
 	go v.playbackLoop()
@@ -523,6 +513,7 @@ func (v *InlineVideoPlayer) playbackLoop() {
 
 		img, err := eng.NextFrame()
 		if err != nil {
+			logging.Info(logging.CatPlayer, "playbackLoop: NextFrame returned err=%v", err)
 			if errors.Is(err, io.EOF) {
 				// Clean end of stream — reset state and notify the UI.
 				v.mu.Lock()

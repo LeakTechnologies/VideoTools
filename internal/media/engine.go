@@ -1232,8 +1232,14 @@ func (e *Engine) Pause() {
 
 func (e *Engine) Resume() {
 	e.mu.Lock()
-	if !e.running || !e.paused {
+	if !e.running {
 		e.mu.Unlock()
+		logging.Info(logging.CatPlayer, "Engine.Resume: not running, returning")
+		return
+	}
+	if !e.paused {
+		e.mu.Unlock()
+		logging.Info(logging.CatPlayer, "Engine.Resume: not paused, returning")
 		return
 	}
 	e.paused = false
@@ -1950,12 +1956,10 @@ func (e *Engine) Start() {
 		return
 	}
 	e.running = true
-	e.paused = false
+	e.paused = true
 	e.mu.Unlock()
 
-	// Unpause the clock so SyncVideo/WaitForPTS work correctly.
-	// The clock is initialized paused so it doesn't advance during Open/setup.
-	// Resetting ptsTime here means the clock starts from 0 when demuxing begins.
+	logging.Info(logging.CatPlayer, "Engine.Start: starting demuxerLoop")
 	e.clock.SetPaused(false)
 
 	e.demuxerWg.Add(1)
