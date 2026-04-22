@@ -2157,7 +2157,7 @@ func (e *Engine) ResetAfterGrab() {
 		}
 	}()
 
-	logging.Info(logging.CatPlayer, "ResetAfterGrab: just flushing queues")
+	logging.Info(logging.CatPlayer, "ResetAfterGrab: flushing queues and resetting clock")
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -2165,10 +2165,15 @@ func (e *Engine) ResetAfterGrab() {
 		return
 	}
 
-	// Skip avformat_seek_file - it crashes on some files.
-	// Just flush the queues so stale packets don't reach decode.
+	// Flush queues so stale packets don't reach decode.
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
+
+	// Reset clock to 0 so audio/video are in sync when playback starts.
+	// Without this, the audio clock drifts during Load() and causes ~5 second
+	// offset (audio at ~5s while video starts at 0).
+	e.clock.SetTime(0)
+	e.clock.SetPaused(true)
 
 	logging.Info(logging.CatPlayer, "ResetAfterGrab: done")
 	e.decodeEOFSent = false
