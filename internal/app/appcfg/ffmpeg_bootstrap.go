@@ -56,25 +56,36 @@ func copyLocalFFmpegDlls(srcDir string) error {
 		return &FFmpegBootstrapError{Err: fmt.Errorf("create directory: %w", err)}
 	}
 
-	// DLLs needed for native media (exclude CLI tools)
-	neededDLLs := []string{
-		"avcodec.dll", "avformat.dll", "avutil.dll", "swscale.dll",
-		"swresample.dll", "avfilter.dll", "avdevice.dll",
+	entries, err := os.ReadDir(srcDir)
+	if err != nil {
+		return &FFmpegBootstrapError{Err: fmt.Errorf("read directory: %w", err)}
 	}
 
-	for _, dll := range neededDLLs {
-		srcPath := filepath.Join(srcDir, dll)
-		dstPath := filepath.Join(dllDir, dll)
-		if _, err := os.Stat(srcPath); err == nil {
+	copied := 0
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasSuffix(strings.ToLower(name), ".dll") {
+			srcPath := filepath.Join(srcDir, name)
+			dstPath := filepath.Join(dllDir, name)
 			data, err := os.ReadFile(srcPath)
 			if err != nil {
-				return &FFmpegBootstrapError{Err: fmt.Errorf("read %s: %w", dll, err)}
+				return &FFmpegBootstrapError{Err: fmt.Errorf("read %s: %w", name, err)}
 			}
 			if err := os.WriteFile(dstPath, data, 0755); err != nil {
-				return &FFmpegBootstrapError{Err: fmt.Errorf("write %s: %w", dll, err)}
+				return &FFmpegBootstrapError{Err: fmt.Errorf("write %s: %w", name, err)}
 			}
+			copied++
 		}
 	}
+
+	if copied == 0 {
+		return &FFmpegBootstrapError{Err: fmt.Errorf("no DLLs found in %s", srcDir)}
+	}
+
+	logging.Info(logging.CatSystem, "Copied %d DLLs from local FFmpeg", copied)
 	return nil
 }
 
