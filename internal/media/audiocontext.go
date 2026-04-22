@@ -13,13 +13,12 @@ const (
 	TargetSampleRate = 48000
 	// TargetChannels is the number of output channels (stereo).
 	TargetChannels = 2
-	// audioBufferSize is the oto hardware output buffer duration.
-	// 100ms is low enough that A/V desync is imperceptible while still
-	// providing enough headroom against underruns on typical hardware.
-	// pcmChannelCap (64 × ~23ms ≈ 1.5s) provides the upstream buffer, so
-	// the OS buffer only needs to be small.
-	// 50ms strikes a balance between low latency and avoiding underruns.
-	// Can reduce further if the system handles it.
+// audioBufferSize is the oto hardware output buffer duration.
+// 50ms provides headroom against underruns on typical hardware.
+// Total end-to-end audio latency includes OS buffer + hardware DAC (~10-30ms),
+// so the actual display-to-speaker latency is ~60-80ms. This value compensates
+// for the oto buffer only; the remaining pipeline latency causes video to
+// display slightly early relative to audio — which is imperceptible.
 	audioBufferSize = 50 * time.Millisecond
 	// AudioBufferLatency is the nominal end-to-end audio output latency
 	// (oto hardware buffer).  Used to compensate the master clock so that
