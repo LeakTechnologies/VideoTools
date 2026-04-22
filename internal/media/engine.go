@@ -2157,7 +2157,15 @@ func (e *Engine) ResetAfterGrab() {
 		}
 	}()
 
-	logging.Info(logging.CatPlayer, "ResetAfterGrab: flushing queues and resetting clock")
+	clockTimeBefore := float64(0)
+	clockTimeAfter := float64(0)
+	e.mu.Lock()
+	if e.clock != nil {
+		clockTimeBefore = e.clock.GetTime()
+	}
+	e.mu.Unlock()
+
+	logging.Info(logging.CatPlayer, "ResetAfterGrab: flushing queues and resetting clock (clock before=%.3f)", clockTimeBefore)
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -2174,6 +2182,8 @@ func (e *Engine) ResetAfterGrab() {
 	// offset (audio at ~5s while video starts at 0).
 	e.clock.SetTime(0)
 	e.clock.SetPaused(true)
+	clockTimeAfter = e.clock.GetTime()
+	logging.Info(logging.CatPlayer, "ResetAfterGrab: done (clock after=%.3f)", clockTimeAfter)
 
 	logging.Info(logging.CatPlayer, "ResetAfterGrab: done")
 	e.decodeEOFSent = false
@@ -2733,6 +2743,10 @@ func (e *Engine) Duration() float64 {
 }
 
 func (e *Engine) CurrentTime() float64 {
+	return e.clock.GetTime()
+}
+
+func (e *Engine) GetClockTime() float64 {
 	return e.clock.GetTime()
 }
 

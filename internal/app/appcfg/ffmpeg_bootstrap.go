@@ -50,6 +50,8 @@ func LocalFFmpegDllDir() string {
 
 // copyLocalFFmpegDlls copies FFmpeg DLLs from local installation to app data.
 // This ensures version consistency with the DLLs used for compilation.
+// If the local FFmpeg is incomplete (e.g., missing liblzma), it falls back to
+// downloading the full BtbN package.
 func copyLocalFFmpegDlls(srcDir string) error {
 	dllDir := FFmpegDllDir()
 	if err := os.MkdirAll(dllDir, 0o755); err != nil {
@@ -79,6 +81,39 @@ func copyLocalFFmpegDlls(srcDir string) error {
 			}
 			copied++
 		}
+	}
+
+	// Check if critical DLLs are missing (e.g., liblzma from incomplete local FFmpeg)
+	// If missing, download the full BtbN package to fill in the gaps.
+	criticalDLLs := []string{"avcodec.dll", "avformat.dll", "avutil.dll"}
+	missingCritical := false
+	for _, dll := range criticalDLLs {
+		if _, err := os.Stat(filepath.Join(dllDir, dll)); os.IsNotExist(err) {
+			missingCritical = true
+			break
+		}
+	}
+
+	// Also check for transitive deps that may be missing from local FFmpeg
+	transitiveDLLs := []string{"liblzma.dll", "libbz2.dll", "libzlib.dll"}
+	for _, dll := range transitiveDLLs {
+		dllName := strings.ToLower(dll)
+		found := false
+		for _, entry := range entries {
+			if strings.ToLower(entry.Name()) == dllName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			missingCritical = true
+			break
+		}
+	}
+
+	if missingCritical {
+		logging.Info(logging.CatSystem, "Local FFmpeg is incomplete, downloading full BtbN package...")
+		return downloadBtbNSharedBinaries()
 	}
 
 	if copied == 0 {
@@ -125,10 +160,13 @@ func (e *FFmpegBootstrapError) Unwrap() error {
 }
 
 func BootstrapFFmpegDlls() error {
-	// First, try to use local FFmpeg DLLs (matching compilation)
 	if localDir := LocalFFmpegDllDir(); localDir != "" {
 		logging.Info(logging.CatSystem, "Using local FFmpeg DLLs from: %s", localDir)
-		return copyLocalFFmpegDlls(localDir)
+		if err := copyLocalFFmpegDlls(localDir); err != nil {
+			logging.Warning(logging.CatSystem, "Local FFmpeg copy failed: %v, trying BtbN download", err)
+			return downloadBtbNSharedBinaries()
+		}
+		return nil
 	}
 
 	if FFmpegDllsPresent() {
@@ -136,7 +174,11 @@ func BootstrapFFmpegDlls() error {
 	}
 
 	logging.Info(logging.CatSystem, "No local FFmpeg found, downloading from BtbN...")
+	return downloadBtbNSharedBinaries()
+}
 
+// downloadBtbNSharedBinaries downloads and extracts the full BtbN shared FFmpeg package.
+func downloadBtbNSharedBinaries() error {
 	dllDir := FFmpegDllDir()
 	if err := os.MkdirAll(dllDir, 0o755); err != nil {
 		return &FFmpegBootstrapError{Err: fmt.Errorf("create directory: %w", err)}
@@ -167,6 +209,11 @@ func BootstrapFFmpegDlls() error {
 	}
 	out.Close()
 
+	return extractBtbNZip(zipPath, dllDir)
+}
+
+// extractBtbNZip extracts DLLs and EXEs from a BtbN shared FFmpeg zip.
+func extractBtbNZip(zipPath, dllDir string) error {
 	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return &FFmpegBootstrapError{Err: fmt.Errorf("open zip: %w", err)}
