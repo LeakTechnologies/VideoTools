@@ -42,6 +42,21 @@
 #include <windows.h>
 #endif
 
+#ifdef __GNUC__
+#include <setjmp.h>
+#include <signal.h>
+
+static jmp_buf jump_buffer;
+static volatile sig_atomic_t jump_set = 0;
+
+static void signal_handler(int sig) {
+    (void)sig;
+    if (jump_set) {
+        longjmp(jump_buffer, 1);
+    }
+}
+#endif
+
 /* -------------------------------------------------------------------------
  * diagnose_avcodec_state
  * Fills *out with key fields from ctx/pkt without touching private decoder
@@ -90,7 +105,22 @@ int safe_avcodec_send_packet(AVCodecContext* ctx, const AVPacket* pkt,
         if (pkt->size <= 0)  { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     }
 
-#if defined(_WIN32) && !defined(__GNUC__)
+#ifdef __GNUC__
+    /* Signal handler to catch SIGSEGV on MinGW (SEH not available) */
+    void (*old_handler)(int) = signal(SIGSEGV, signal_handler);
+
+    jump_set = 1;
+    if (setjmp(jump_buffer)) {
+        jump_set = 0;
+        signal(SIGSEGV, old_handler);
+        *exc_code_out = SAFE_BRIDGE_ACCESS_VIOLATION;
+        return AVERROR(EINVAL);
+    }
+    int ret = avcodec_send_packet(ctx, pkt);
+    jump_set = 0;
+    signal(SIGSEGV, old_handler);
+    return ret;
+#elif defined(_WIN32) && !defined(__GNUC__)
     /* SEH wrapper to catch access violations from D3D11VA HW decode (MSVC only, not MinGW) */
     __try {
         return avcodec_send_packet(ctx, pkt);
@@ -115,7 +145,22 @@ int safe_avcodec_receive_frame(AVCodecContext* ctx, AVFrame* frame,
     if (!ctx)            { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     if (!frame)          { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
 
-#if defined(_WIN32) && !defined(__GNUC__)
+#ifdef __GNUC__
+    /* Signal handler to catch SIGSEGV on MinGW */
+    void (*old_handler)(int) = signal(SIGSEGV, signal_handler);
+
+    jump_set = 1;
+    if (setjmp(jump_buffer)) {
+        jump_set = 0;
+        signal(SIGSEGV, old_handler);
+        *exc_code_out = SAFE_BRIDGE_ACCESS_VIOLATION;
+        return AVERROR(EINVAL);
+    }
+    int ret = avcodec_receive_frame(ctx, frame);
+    jump_set = 0;
+    signal(SIGSEGV, old_handler);
+    return ret;
+#elif defined(_WIN32) && !defined(__GNUC__)
     __try {
         return avcodec_receive_frame(ctx, frame);
     } __except(EXCEPTION_EXECUTE_HANDLER) {

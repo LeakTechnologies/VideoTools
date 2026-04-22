@@ -2147,6 +2147,12 @@ drainDone:
 // codec state after GrabFrame().  It is used exclusively by
 // InlineVideoPlayer.Load() after GrabFrame() to prepare for clean playback.
 func (e *Engine) ResetAfterGrab() {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error(logging.CatPlayer, "ResetAfterGrab panic: %v", r)
+		}
+	}()
+
 	logging.Info(logging.CatPlayer, "ResetAfterGrab: repositioning to start")
 	e.mu.Lock()
 	defer e.mu.Unlock()
