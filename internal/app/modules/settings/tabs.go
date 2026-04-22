@@ -436,6 +436,21 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	hwDecodeHint.Wrapping = fyne.TextWrapWord
 	content.Add(hwDecodeHint)
 
+	vcrFontHeader := widget.NewLabel(t.SettingsUseVCRFont)
+	vcrFontHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(vcrFontHeader)
+
+	vcrFontCheck := widget.NewCheck("", func(enabled bool) {
+		cb.SetUseVCRFont(enabled)
+	})
+	vcrFontCheck.Checked = prefs.UseVCRFont
+	content.Add(vcrFontCheck)
+
+	vcrFontHint := widget.NewLabel(t.SettingsUseVCRFontHint)
+	vcrFontHint.TextStyle = fyne.TextStyle{Italic: true}
+	vcrFontHint.Wrapping = fyne.TextWrapWord
+	content.Add(vcrFontHint)
+
 	testPatternBtn := widget.NewButton(t.SettingsTestPattern, func() {
 		cb.ShowPlayer()
 	})

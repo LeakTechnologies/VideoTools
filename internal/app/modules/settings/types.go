@@ -47,6 +47,8 @@ type PreferencesCallbacks interface {
 	SetShowTooltips(enabled bool)
 	HWDecodeEnabled() bool
 	SetHWDecodeEnabled(enabled bool)
+	UseVCRFont() bool
+	SetUseVCRFont(useVCR bool)
 	ShowPlayer() func()
 	DefaultOutputDir() string
 	SetDefaultOutputDir(dir string)
@@ -81,6 +83,7 @@ type PrefsConfig struct {
 	DefaultOutputDir   string `json:"DefaultOutputDir"`
 	ShowTooltips       bool   `json:"ShowTooltips"`
 	HWDecodeEnabled    bool   `json:"HWDecodeEnabled"`
+	UseVCRFont          bool   `json:"UseVCRFont"`
 }
 
 type Dependency struct {
