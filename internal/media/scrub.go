@@ -20,7 +20,7 @@ import (
 	"sync"
 	"unsafe"
 
-	"github.com/leaktechnologies/VideoTools/internal/media/logging"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
 const (
