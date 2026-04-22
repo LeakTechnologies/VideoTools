@@ -255,6 +255,13 @@ func (v *InlineVideoPlayer) Play() {
 	v.playing = true
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Start()")
+
+	// Drain any audio that buffered during thumbnail extraction.
+	// audioDecodeLoop runs during Load() and pre-buffers audio while thumbnails
+	// are being generated. Without draining here, the first audio chunk consumed
+	// by Read() would have pts ~5s, jumping the clock and dropping initial video frames.
+	eng.DrainAudio()
+
 	eng.Start()
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Resume()")
 	eng.Resume()
