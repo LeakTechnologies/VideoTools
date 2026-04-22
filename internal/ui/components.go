@@ -50,6 +50,30 @@ var monoFontData monoFonts
 var aboriginalFontData monoFonts
 var fontMode = "mono"
 
+// MonoFontPreference controls which monospace font is used ("ibm" or "vcr").
+// Set via SetMonoFontPreference() and checked by MonoTheme.Font().
+var MonoFontPreference = "ibm"
+
+// vcrOSDFontData holds the VCR OSD Mono font data (single weight, no variants).
+var vcrOSDFontData []byte
+
+// SetVCRFontData registers the VCR OSD Mono font for the test pattern.
+// This font is always used in the test pattern regardless of MonoFontPreference.
+func SetVCRFontData(data []byte) {
+	vcrOSDFontData = data
+}
+
+// SetMonoFontPreference sets the monospace font preference ("ibm" or "vcr").
+// When changed, call fyne.CurrentApp().Settings().SetTheme(theme) to refresh.
+func SetMonoFontPreference(pref string) {
+	MonoFontPreference = pref
+}
+
+// GetMonoFontPreference returns the current monospace font preference.
+func GetMonoFontPreference() string {
+	return MonoFontPreference
+}
+
 func SetMonoFontData(regular, italic, bold, boldItalic []byte) {
 	monoFontData = monoFonts{
 		regular:    regular,
@@ -186,9 +210,14 @@ func min(a, b int) int {
 }
 
 func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
-	// IBM Plex Mono is always the primary font. Aboriginal Sans is injected as an auxiliary
+	// VCR OSD Mono is used when MonoFontPreference is "vcr". It has no Bold/Italic variants.
+	// IBM Plex Mono is used when preference is "ibm" and has variants.
+	if MonoFontPreference == "vcr" && vcrOSDFontData != nil {
+		return fyne.NewStaticResource("VCR-OSD-mono.ttf", vcrOSDFontData)
+	}
+
+	// IBM Plex Mono is the primary font. Aboriginal Sans is injected as an auxiliary
 	// via SetFontMode so UCAS syllabics fall through to it only when Mono lacks the glyph.
-	// This ensures Latin/ASCII text is always rendered in IBM Plex Mono regardless of locale.
 	if monoFontData.regular != nil {
 		var fontData []byte
 		fontName := "IBMPlexMono-Regular.ttf"
