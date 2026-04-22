@@ -10,6 +10,8 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 - [x] **predecodeFrom shares formatCtx with demuxerLoop** — `SmoothScrubbing.predecodeFrom` now opens its own independent `AVFormatContext` (same pattern as `StartThumbnailExtraction`). Scrubbing no longer races with the main demuxer loop for read position.
 - [x] **Audio queue not flushed before scrub seek** — `handleSeek` now calls `flushEngineQueues()` (flushes video queue + audio codec) before seeking on the scrubber's own `fmtCtx`. Stale audio packets no longer play as glitch after scrub.
 - [x] **`SmoothScrubbing.predecodeAhead` dead code removed** — The channel-based predecode-ahead mechanism was never wired up. Removed.
+- [x] **Volume/mute not working** — `AudioPlayer.Read()` was copying raw PCM samples to the output buffer without applying volume. Fixed: added `applyVolumeS16()` to apply volume (0-1 range) to 16-bit stereo samples. Also removed duplicate volume application from decode loop.
+- [x] **Double volume application** — Decode loop was applying volume to S16 data with `applyVolume()`, then `Read()` was applying it again with `applyVolumeS16()`. Fixed by removing volume application from decode loop — only apply in `Read()`.
 
 ## Fixed (dev43 cycle)
 
@@ -63,7 +65,8 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 | SW decode playback (H.264, AV1, MPEG4) | ⚠️ Fixed in dev43 — needs smoke test |
 | HW decode (D3D11VA) opt-in | ⚠️ HW path crashes; SW fallback path now fixed (dev44) |
 | Seek / scrub | ✅ Independent formatCtx per scrubber (dev44) |
-| Audio sync | ⚠️ Clock fix applied (dev44) — needs smoke test |
+| Audio sync | ✅ Clock fix applied; playback working (dev44) |
+| Volume / mute | ✅ Fixed (dev44) |
 | Speed change | ⚠️ Video timing correct; audio does not pitch-shift |
 | Close() / Load() lifecycle | ✅ WaitGroup + mutex gate added in dev43 |
 | seekLoop goroutine lifecycle | ✅ Fixed in dev43 |
