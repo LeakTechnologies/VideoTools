@@ -342,12 +342,16 @@ onScheduleModule func(string, string),
 		buttonRow = container.NewHBox(startAllBtn, pauseAllBtn, resumeAllBtn, clearAllBtn, clearBtn)
 	}
 
-	header := container.NewBorder(
-		nil, nil,
+	// Header content for the top bar
+	headerContent := container.NewHBox(
 		backBtn,
+		layout.NewSpacer(),
 		buttonRow,
-		container.NewCenter(title),
 	)
+	headerTitle := container.NewCenter(title)
+
+	// Combine header title and content in the top tinted bar area
+	combinedHeader := container.NewVBox(headerTitle, headerContent)
 
 	jobList := container.NewVBox()
 	emptyMsg := widget.NewLabel(t.QueueEmpty)
@@ -389,7 +393,7 @@ onScheduleModule func(string, string),
 
 	// queueList fills most of the window, with header at top
 	queueList := container.NewBorder(
-		header,
+		combinedHeader,
 		nil,
 		nil, nil,
 		scrollable,
