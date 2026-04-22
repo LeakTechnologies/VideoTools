@@ -2,4 +2,4 @@
 
 package main
 
-func applyVCRFontPreference(useVCR bool) {}
+func applyVCRFontPreference(font string) {}

@@ -436,20 +436,33 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	hwDecodeHint.Wrapping = fyne.TextWrapWord
 	content.Add(hwDecodeHint)
 
-	vcrFontHeader := widget.NewLabel(t.SettingsUseVCRFont)
-	vcrFontHeader.TextStyle = fyne.TextStyle{Bold: true}
-	content.Add(vcrFontHeader)
+	fontHeader := widget.NewLabel(t.SettingsFont)
+	fontHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(fontHeader)
 
-	vcrFontCheck := widget.NewCheck("", func(enabled bool) {
-		cb.SetUseVCRFont(enabled)
+	fontOptions := []string{t.SettingsFontIBM, t.SettingsFontVCR}
+	currentFont := prefs.PlayerFont
+	if currentFont == "" {
+		currentFont = "ibm"
+	}
+	fontSelect := widget.NewSelect(fontOptions, func(selected string) {
+		if selected == t.SettingsFontVCR {
+			cb.SetPlayerFont("vcr")
+		} else {
+			cb.SetPlayerFont("ibm")
+		}
 	})
-	vcrFontCheck.Checked = prefs.UseVCRFont
-	content.Add(vcrFontCheck)
+	if currentFont == "vcr" {
+		fontSelect.SetSelected(t.SettingsFontVCR)
+	} else {
+		fontSelect.SetSelected(t.SettingsFontIBM)
+	}
+	content.Add(fontSelect)
 
-	vcrFontHint := widget.NewLabel(t.SettingsUseVCRFontHint)
-	vcrFontHint.TextStyle = fyne.TextStyle{Italic: true}
-	vcrFontHint.Wrapping = fyne.TextWrapWord
-	content.Add(vcrFontHint)
+	fontHint := widget.NewLabel(t.SettingsFontHint)
+	fontHint.TextStyle = fyne.TextStyle{Italic: true}
+	fontHint.Wrapping = fyne.TextWrapWord
+	content.Add(fontHint)
 
 	testPatternBtn := widget.NewButton(t.SettingsTestPattern, func() {
 		cb.ShowPlayer()

@@ -50,8 +50,10 @@ var enCA = Strings{
 	SettingsShowTooltips:    "Show tooltips",
 	SettingsHWDecode:       "Hardware Video Decode",
 	SettingsHWDecodeHint:   "Use GPU-accelerated video decoding (D3D11VA/VAAPI). May cause crashes on some drivers. Disable if playback fails.",
-	SettingsUseVCRFont:       "VCR OSD MONO Font",
-	SettingsUseVCRFontHint:   "Use the VCR OSD MONO font in the player OSD and test pattern instead of IBM Plex Mono.",
+	SettingsFont:              "Player Font",
+	SettingsFontHint:          "Font used in the player OSD and test pattern",
+	SettingsFontIBM:           "IBM Plex Mono",
+	SettingsFontVCR:           "VCR OSD Mono",
 	SettingsTestPattern:      "Test Pattern",
 	SettingsTestPatternHint:  "Shows SMPTE color bars for display calibration. Close video to view.",
 

@@ -1806,16 +1806,16 @@ func (a *preferencesAdapter) SetHWDecodeEnabled(enabled bool) {
 	}
 }
 
-func (a *preferencesAdapter) UseVCRFont() bool {
-	return a.s.prefs.UseVCRFont
+func (a *preferencesAdapter) PlayerFont() string {
+	return a.s.prefs.PlayerFont
 }
 
-func (a *preferencesAdapter) SetUseVCRFont(useVCR bool) {
-	a.s.prefs.UseVCRFont = useVCR
+func (a *preferencesAdapter) SetPlayerFont(font string) {
+	a.s.prefs.PlayerFont = font
 	if err := savePrefsConfig(a.s.prefs); err != nil {
-		logging.Error(logging.CatSystem, "SetUseVCRFont save failed: %v", err)
+		logging.Error(logging.CatSystem, "SetPlayerFont save failed: %v", err)
 	}
-	applyVCRFontPreference(useVCR)
+	applyVCRFontPreference(font)
 }
 
 func (a *preferencesAdapter) DefaultOutputDir() string {
