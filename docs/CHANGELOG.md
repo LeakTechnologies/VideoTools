@@ -1,5 +1,19 @@
 # VideoTools Changelog
 
+## v0.1.1-dev44 (April 2026)
+
+### Native Media Player — Playback & Sync Fixes
+- **Start/Resume state fix** — `Start()` was setting `e.paused=false` before starting the decode goroutine, but `Resume()` checked `!e.paused` and returned early. Decode loop never started on Play. Fixed: `Start()` now sets `e.paused=false` after launching goroutines.
+- **Audio/video sync on load** — Audio clock drifted during `Load()` because `audioDecodeLoop` ran during `GrabFrame`, causing ~5 second offset before playback. Fixed by resetting clock to 0 in `ResetAfterGrab`.
+- **Test pattern font** — Test pattern always renders with VCR OSD Mono font regardless of user preference.
+- **FFmpeg bootstrap simplification** — Always downloads BtbN pre-built package to guarantee complete DLL set (avoids local installs with missing dependencies like liblzma).
+
+### Settings
+- **Player font preference** — Users can choose between IBM Plex Mono and VCR OSD Mono for the OSD. VCR OSD Mono has no Bold/Italic variants; UI gracefully falls back to Regular weight.
+
+### Known Issues (documented for tracker)
+- See `docs/PLAYER_DEBUG.md` for full list of known player issues including: `predecodeFrom` sharing `formatCtx` with `demuxerLoop`, audio queue not flushed before seek, speed changes not affecting audio tempo, D3D11VA crashes when enabled.
+
 ## v0.1.1-dev43 (April 2026)
 
 ### Native Media Player — Thread-Safety & Crash Fixes
