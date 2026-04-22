@@ -1,4 +1,4 @@
-﻿name: Forgejo Publish Release
+name: Forgejo Publish Release
 
 on:
   workflow_dispatch:
@@ -434,11 +434,19 @@ jobs:
 
       - name: Free disk space before Go build
         run: |
+          $ErrorActionPreference = 'Continue'
           # MSYS2 package cache and temp files from the FFmpeg build can consume
           # several GB; remove them before the CGO build to avoid "No space left
           # on device" errors during GCC intermediate file generation.
+          Write-Host "[INFO] Cleaning MSYS2 pacman cache..."
           Remove-Item "C:\msys64\var\cache\pacman\pkg\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host "[INFO] Cleaning MSYS2 tmp..."
           Remove-Item "C:\msys64\tmp\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host "[INFO] Cleaning Go build cache..."
+          Remove-Item "$env:LOCALAPPDATA\go-build\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host "[INFO] Cleaning Windows temp..."
+          Remove-Item "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
           Write-Host "[INFO] Disk cleanup complete"
           Get-PSDrive C | Select-Object Used, Free | ForEach-Object { Write-Host "[INFO] C: used=$([math]::Round($_.Used/1GB,1))GB free=$([math]::Round($_.Free/1GB,1))GB" }
 
