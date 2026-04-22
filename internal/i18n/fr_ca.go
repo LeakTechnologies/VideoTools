@@ -42,6 +42,12 @@ var frCA = Strings{
 	SettingsShowTooltips: "Afficher les info-bulles",
 	SettingsHWDecode:     "Decodage video materiel",
 	SettingsHWDecodeHint: "Utiliser le decodage video accelere par GPU (D3D11VA/VAAPI). Peut causer des plantages avec certains pilotes. Desactiver si la lecture echoue.",
+	SettingsFont:         "Police du lecteur",
+	SettingsFontHint:     "Police utilisee dans l'interface du lecteur et le motif de test",
+	SettingsFontIBM:      "IBM Plex Mono",
+	SettingsFontVCR:      "VCR OSD Mono",
+	SettingsTestPattern:  "Motif de test",
+	SettingsTestPatternHint: "Affiche les barres de couleurs SMPTE pour l'etalonnage de l'ecran. Fermez la video pour voir.",
 
 	// ── Tooltips ─────────────────────────────────────────────────────────
 	TooltipConvertFormat:             "Format vidéo de sortie (MP4, MKV, etc.)",

@@ -6,6 +6,6 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
 )
 
-func applyVCRFontPreference(useVCR bool) {
-	media.SetUseVCRFontPreference(useVCR)
+func applyVCRFontPreference(font string) {
+	media.SetPlayerFontPreference(font)
 }

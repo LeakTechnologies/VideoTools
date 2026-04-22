@@ -1368,10 +1368,9 @@ func SetVCRFont(data []byte) {
 	smpteVCRFontData = data
 }
 
-// SetUseVCRFontPreference controls whether the VCR OSD Mono font is used in the test pattern.
-// Call this from main after loading user preferences.
-func SetUseVCRFontPreference(useVCR bool) {
-	useVCRFontPreference = useVCR
+// SetPlayerFontPreference sets the font for the test pattern.
+func SetPlayerFontPreference(font string) {
+	useVCRFontPreference = font == "vcr"
 }
 
 // getSMPTEFontFace returns a font.Face at the requested point size.
