@@ -1356,10 +1356,6 @@ var (
 	smpteFaceMu       sync.Mutex
 	smpteFaceLastSize float64
 	smpteFaceLastFace font.Face
-
-	// useVCRFontPreference controls whether the VCR font is used (true) or default system font (false).
-	// Defaults to true when VCR font data is available.
-	useVCRFontPreference = true
 )
 
 // SetVCRFont registers the VCR OSD Mono TTF bytes so drawSMPTEBars can use it.
@@ -1368,19 +1364,11 @@ func SetVCRFont(data []byte) {
 	smpteVCRFontData = data
 }
 
-// SetPlayerFontPreference sets the font for the test pattern.
-func SetPlayerFontPreference(font string) {
-	useVCRFontPreference = font == "vcr"
-}
-
-// getSMPTEFontFace returns a font.Face at the requested point size.
+// getSMPTEFontFace returns the VCR OSD Mono font face at the requested point size.
+// The test pattern always uses VCR OSD Mono regardless of user font preference.
 // The underlying *opentype.Font is parsed once; faces are created on demand
 // and the last-used face is cached so steady-state repaints are allocation-free.
 func getSMPTEFontFace(size float64) font.Face {
-	if !useVCRFontPreference {
-		return nil
-	}
-
 	smpteFontParseOnce.Do(func() {
 		if len(smpteVCRFontData) == 0 {
 			return
@@ -1419,41 +1407,6 @@ func getSMPTEFontFace(size float64) font.Face {
 	smpteFaceLastSize = rounded
 	smpteFaceLastFace = face
 	smpteFaceMu.Unlock()
-	return face
-}
-
-var defaultFontFace font.Face
-var defaultFontSize float64
-var defaultFontMu sync.Mutex
-
-func loadDefaultFont(size float64) font.Face {
-	defaultFontMu.Lock()
-	defer defaultFontMu.Unlock()
-
-	rounded := math.Round(size)
-	if rounded == defaultFontSize && defaultFontFace != nil {
-		return defaultFontFace
-	}
-
-	fontBytes := theme.TextFont().Content()
-	f, err := opentype.Parse(fontBytes)
-	if err != nil {
-		logging.Warning(logging.CatPlayer, "SMPTE: failed to parse default font: %v", err)
-		return nil
-	}
-
-	face, err := opentype.NewFace(f, &opentype.FaceOptions{
-		Size:    rounded,
-		DPI:     72,
-		Hinting: font.HintingFull,
-	})
-	if err != nil {
-		logging.Warning(logging.CatPlayer, "SMPTE: failed to create default font face at size %.0f: %v", rounded, err)
-		return nil
-	}
-
-	defaultFontSize = rounded
-	defaultFontFace = face
 	return face
 }
 
@@ -1568,13 +1521,11 @@ func drawSMPTEText(img *image.RGBA, w, topH int, text string) {
 		fontSize = 72
 	}
 
+	// Test pattern always uses VCR OSD Mono font
 	face := getSMPTEFontFace(fontSize)
 	if face == nil {
-		// Fallback to system default font when VCR font preference is disabled
-		face = loadDefaultFont(fontSize)
-		if face == nil {
-			return
-		}
+		// No text if VCR font not available
+		return
 	}
 
 	// Measure text width using font advance

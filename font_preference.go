@@ -3,9 +3,9 @@
 package main
 
 import (
-	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
 func applyVCRFontPreference(font string) {
-	media.SetPlayerFontPreference(font)
+	ui.SetMonoFontPreference(font)
 }

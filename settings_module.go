@@ -1816,6 +1816,7 @@ func (a *preferencesAdapter) SetPlayerFont(font string) {
 		logging.Error(logging.CatSystem, "SetPlayerFont save failed: %v", err)
 	}
 	applyVCRFontPreference(font)
+	fyne.CurrentApp().Settings().SetTheme(fyne.CurrentApp().Settings().Theme())
 }
 
 func (a *preferencesAdapter) DefaultOutputDir() string {
