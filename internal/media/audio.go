@@ -293,16 +293,14 @@ func (p *AudioPlayer) audioDecodeLoop() {
 func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	// Drain any leftover from the previous chunk first.
 	if len(p.leftover) > 0 {
+		n := copy(buf, p.leftover)
+		p.leftover = p.leftover[n:]
+
 		p.mu.Lock()
 		volumeMul := p.volumeMul
 		p.mu.Unlock()
-
-		n := copy(buf, p.leftover)
-		p.leftover = p.leftover[n:]
 		if volumeMul != 1.0 {
-			for i := 0; i < n; i++ {
-				buf[i] = byte(float32(buf[i]) * volumeMul)
-			}
+			applyVolumeS16(buf[:n], volumeMul)
 		}
 		return n, nil
 	}
@@ -352,16 +350,15 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 		// producing true A/V sync without any fixed wall-time offset.
 		p.clock.SetTime(chunk.pts - AudioBufferLatency.Seconds())
 
+		n := copy(buf, chunk.data)
+
 		p.mu.Lock()
 		volumeMul := p.volumeMul
 		p.mu.Unlock()
-
-		n := copy(buf, chunk.data)
 		if volumeMul != 1.0 {
-			for i := 0; i < n; i++ {
-				buf[i] = byte(float32(buf[i]) * volumeMul)
-			}
+			applyVolumeS16(buf[:n], volumeMul)
 		}
+
 		if n < len(chunk.data) {
 			p.leftover = chunk.data[n:]
 		}
@@ -420,6 +417,18 @@ func (p *AudioPlayer) updateVolumeMul() {
 		p.volumeMul = 0
 	} else {
 		p.volumeMul = p.volume
+	}
+}
+
+func applyVolumeS16(buf []byte, vol float32) {
+	// S16 stereo: each sample is 2 bytes (L, R interleaved).
+	// Process in 2-byte steps.
+	n := len(buf) &^ 1 // round down to even
+	for i := 0; i < n; i += 2 {
+		sample := int16(buf[i]) | int16(buf[i+1])<<8
+		sample = int16(float32(sample) * vol)
+		buf[i] = byte(sample)
+		buf[i+1] = byte(sample >> 8)
 	}
 }
 
