@@ -2150,11 +2150,10 @@ func (e *Engine) ResetAfterGrab() {
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Error(logging.CatPlayer, "ResetAfterGrab panic: %v", r)
-			// Try to continue even if there's a panic - don't crash the UI
 		}
 	}()
 
-	logging.Info(logging.CatPlayer, "ResetAfterGrab: repositioning to start")
+	logging.Info(logging.CatPlayer, "ResetAfterGrab: just flushing queues")
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -2162,21 +2161,12 @@ func (e *Engine) ResetAfterGrab() {
 		return
 	}
 
-	// Reposition the format context to the very beginning.
-	// Skip seek protection for now - it can crash on some files.
-	// The queues will be flushed anyway.
-	e.formatMu.Lock()
-	C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), 0, 0, 0, 0)
-	e.formatMu.Unlock()
-
-	// Flush demuxer queues so stale packets from GrabFrame don't reach the
-	// decode loop; fresh packets from position 0 will fill them after Start.
+	// Skip avformat_seek_file - it crashes on some files.
+	// Just flush the queues so stale packets don't reach decode.
 	e.videoQueue.Flush()
 	e.audioQueue.Flush()
 
-	// Skip the video codec flush - it can crash on some files.
-	// The seek above already invalidates the codec state.
-	logging.Info(logging.CatPlayer, "ResetAfterGrab: done (skipping drain)")
+	logging.Info(logging.CatPlayer, "ResetAfterGrab: done")
 	e.decodeEOFSent = false
 	e.seekFlushBefore.Store(0)
 }
