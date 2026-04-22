@@ -86,8 +86,8 @@ int safe_avcodec_send_packet(AVCodecContext* ctx, const AVPacket* pkt,
     if (!pkt->data)      { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     if (pkt->size <= 0)  { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
 
-#ifdef _WIN32
-    /* SEH wrapper to catch access violations from D3D11VA HW decode */
+#if defined(_WIN32) && !defined(__GNUC__)
+    /* SEH wrapper to catch access violations from D3D11VA HW decode (MSVC only, not MinGW) */
     __try {
         return avcodec_send_packet(ctx, pkt);
     } __except(EXCEPTION_EXECUTE_HANDLER) {
@@ -111,7 +111,7 @@ int safe_avcodec_receive_frame(AVCodecContext* ctx, AVFrame* frame,
     if (!ctx)            { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     if (!frame)          { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__GNUC__)
     __try {
         return avcodec_receive_frame(ctx, frame);
     } __except(EXCEPTION_EXECUTE_HANDLER) {
