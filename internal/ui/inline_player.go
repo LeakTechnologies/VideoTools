@@ -498,6 +498,7 @@ func (v *InlineVideoPlayer) Close() {
 func (v *InlineVideoPlayer) playbackLoop() {
 	defer logging.RecoverPanic()
 
+	frameCount := 0
 	for {
 		// Snapshot engine pointer under lock; if Load replaced it, stop this loop.
 		v.mu.Lock()
@@ -512,6 +513,12 @@ func (v *InlineVideoPlayer) playbackLoop() {
 		}
 
 		img, err := eng.NextFrame()
+		frameCount++
+		t := eng.CurrentTime()
+		clockT := eng.GetClockTime()
+		if frameCount <= 20 || frameCount%100 == 0 {
+			logging.Info(logging.CatPlayer, "playbackLoop frame #%d: pts=%.3f clock=%.3f diff=%.3f", frameCount, t, clockT, t-clockT)
+		}
 		if err != nil {
 			logging.Info(logging.CatPlayer, "playbackLoop: NextFrame returned err=%v", err)
 			if errors.Is(err, io.EOF) {
@@ -534,7 +541,6 @@ func (v *InlineVideoPlayer) playbackLoop() {
 			}
 			return
 		}
-		t := eng.CurrentTime()
 		// Synchronous dispatch (true) ensures at most one frame update is
 		// pending on the main goroutine at a time. Async dispatch (false)
 		// lets the queue grow unbounded, making button clicks feel frozen

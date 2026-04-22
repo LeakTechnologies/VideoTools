@@ -341,7 +341,11 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 		// "what's been decoded/buffered".  Video WaitForPTS then waits until the
 		// clock (= audio output position) reaches the video frame's PTS,
 		// producing true A/V sync without any fixed wall-time offset.
-		p.clock.SetTime(chunk.pts - AudioBufferLatency.Seconds())
+		adjustedPTS := chunk.pts - AudioBufferLatency.Seconds()
+		if adjustedPTS > 0.001 {
+			logging.Debug(logging.CatPlayer, "Audio Read: clock.SetTime(%.3f) [chunk.pts=%.3f, latency=%.3f]", adjustedPTS, chunk.pts, AudioBufferLatency.Seconds())
+		}
+		p.clock.SetTime(adjustedPTS)
 		n := copy(buf, chunk.data)
 		if n < len(chunk.data) {
 			p.leftover = chunk.data[n:]
