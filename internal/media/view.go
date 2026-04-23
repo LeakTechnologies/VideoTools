@@ -1207,6 +1207,16 @@ func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {
 	v.togglePlay()
 }
 
+func (v *VideoPlayer) TypedKey(event *fyne.KeyEvent) {
+	if v.source == nil {
+		return
+	}
+	switch event.Name {
+	case fyne.KeySpace:
+		v.togglePlay()
+	}
+}
+
 func (v *VideoPlayer) SetOnTapEmpty(fn func()) {
 	v.onTapEmpty = fn
 }
