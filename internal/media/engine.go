@@ -2187,15 +2187,33 @@ func (e *Engine) ResetAfterGrab() {
 		e.audioPlayer.DrainPCM()
 	}
 
+	// Flush the video codec to drain any frames GrabFrame left buffered inside
+	// the decoder. H.264 B-frame reordering causes the codec to hold decoded
+	// frames that were never retrieved after GrabFrame returned, making them
+	// appear as the "first" frames when videoDecodeLoop starts (high-PTS frames
+	// surfacing at position 0). videoDecodeLoop has not started yet so acquiring
+	// videoCodecMu is safe here under the e.mu we already hold.
+	if e.videoCodecCtx != nil && e.videoDecoded {
+		e.videoCodecMu.Lock()
+		SafeSendPacket(e.videoCodecCtx, nil)
+		for {
+			ret, _ := SafeReceiveFrame(e.videoCodecCtx, e.frame)
+			if ret != 0 {
+				break
+			}
+		}
+		C.avcodec_flush_buffers(e.videoCodecCtx)
+		e.videoCodecMu.Unlock()
+		logging.Info(logging.CatPlayer, "ResetAfterGrab: video codec flushed (B-frame drain)")
+	}
+
 	// Reset clock to 0 so audio/video are in sync when playback starts.
 	e.clock.SetTime(0)
 	e.clock.SetPaused(true)
 
-	logging.Info(logging.CatPlayer, "ResetAfterGrab: done")
-
-	logging.Info(logging.CatPlayer, "ResetAfterGrab: done")
 	e.decodeEOFSent = false
 	e.seekFlushBefore.Store(0)
+	logging.Info(logging.CatPlayer, "ResetAfterGrab: done")
 }
 
 func (e *Engine) Step(frames int) (*image.RGBA, error) {

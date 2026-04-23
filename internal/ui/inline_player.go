@@ -200,20 +200,18 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	v.engine.Start()
 	logging.Info(logging.CatPlayer, "Load: calling GrabFrame")
 	if img, err := v.engine.GrabFrame(4 * time.Second); err == nil {
-		logging.Info(logging.CatPlayer, "Got initial frame: %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
+		logging.Info(logging.CatPlayer, "Load: GrabFrame success %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetFrame(img)
 		}, true)
 	} else {
-		logging.Warning(logging.CatPlayer, "Initial frame fetch failed: %v", err)
+		logging.Error(logging.CatPlayer, "Load: GrabFrame failed (player shows SMPTE bars): %v", err)
 	}
 	logging.Info(logging.CatPlayer, "Load: GrabFrame completed, resetting to start")
-	// ResetAfterGrab repositions the format to 0 and resets the clock without
-	// flushing the video codec.  Seek(0) caused a self-deadlock: Seek() holds
-	// e.mu for its entire duration and then the seekFlushBefore assignment
-	// called e.mu.Lock() again, hanging permanently before the codec flush.
-	// The video codec flush is also unnecessary here because videoDecodeLoop
-	// has not started yet and position 0 always begins with an IDR keyframe.
+	// ResetAfterGrab repositions the format to 0, drains B-frame buffered
+	// codec frames, and resets the clock. Seek(0) was not used here because
+	// it self-deadlocked (Seek holds e.mu; seekFlushBefore then tried to
+	// re-acquire e.mu which is not re-entrant).
 	v.engine.ResetAfterGrab()
 	v.engine.Pause()
 
