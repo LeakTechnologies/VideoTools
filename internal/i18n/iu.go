@@ -303,7 +303,11 @@ var iu = Strings{
 	SettingsScriptLatin:          "ᓚᑎᓐ",                                      // Latin
 	SettingsAppPreferences:       "ᐊᑐᕐᓂᒧᑦ ᐋᖅᑭᒃᓱᐃᓂᖅ",                          // Application Preferences
 	SettingsHWDecode:             "ᓴᓇᒐᒃᓴᓂᒃ ᑕᒃᔪᐊᑎᑦ ᓂᕈᖅᑎᓪᓗᒍ",                   // Hardware Video Decode
-	SettingsHWDecodeHint:         "GPU ᓂᕈᖅᑎᓪᓕᖅᐹᒃᑐᖅ. ᓴᖅᑮᑦᑐᐃᓐᓇᑎᓪᓗᒍ.",           // machine-generated, needs human review
+	SettingsHWDecodeAuto:         "ᓇᓗᓇᐃᖅᓯᓗᒍ ᐊᐅᓚᑕᐅᑎᑕᐅᓗᒍ",                   // machine-generated, needs human review: Auto-detect
+	SettingsHWDecodeAvailable:    "ᓴᖅᑮᓗᒍ",                                  // machine-generated, needs human review: Available
+	SettingsHWDecodeUnavailable: "ᓴᖅᑮᓗᒍ ᕿᓐᓄᑦ",                        // machine-generated, needs human review: Unavailable
+	SettingsHWDecodeDetecting:    "ᓇᓗᓇᐃᖅᓯᓗᒍ...",                            // machine-generated, needs human review: Detecting...
+	SettingsHWDecodeAutoHint:       "GPU ᓂᕈᖅᑎᓪᓕᖅᐹᒃᑐᖅ. ᓴᖅᑮᑦᑐᐃᓐᓇᑎᓪᓗᒍ.",           // machine-generated, needs human review
 	SettingsMasterSettings:       "ᐊᒃᓱᕈᕐᓇᖅᑑᔪᑦ ᐋᖅᑭᒃᓱᐃᓂᖅ",                      // Master Settings
 	SettingsHardwareAccel:        "ᓴᓇᒐᒃᓴᓂᒃ ᓱᒃᑲᐃᕙᒍᓐᓇᖅᑐᑦ",                      // Hardware Acceleration (Global)
 	SettingsDetect:               "ᓇᓗᓇᐃᖅᓯᓗᒍ",                                 // Detect

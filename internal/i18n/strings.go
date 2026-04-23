@@ -56,8 +56,12 @@ type Strings struct {
 
 	// Settings
 	SettingsShowTooltips    string // "Show tooltips"
-	SettingsHWDecode       string // "Hardware Video Decode"
-	SettingsHWDecodeHint   string // warning about D3D11VA crash risk
+	SettingsHWDecode           string // "Hardware Video Decode"
+	SettingsHWDecodeAuto   string // "Auto-detect"
+	SettingsHWDecodeAvailable   string // "Available"
+	SettingsHWDecodeUnavailable string // "Unavailable"
+	SettingsHWDecodeDetecting  string // "Detecting..."
+	SettingsHWDecodeAutoHint string // "Auto-detect and use GPU-accelerated video decoding (D3D11VA/VAAPI). Disable if playback fails."
 	SettingsFont           string // "Player Font"
 	SettingsFontHint       string // "Font used in the player OSD and test pattern"
 	SettingsFontIBM        string // "IBM Plex Mono"
