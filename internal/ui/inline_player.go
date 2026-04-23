@@ -397,6 +397,36 @@ func (v *InlineVideoPlayer) CurrentTime() float64 {
 	return v.player.CurrentTime()
 }
 
+func (v *InlineVideoPlayer) GetClockTime() float64 {
+	v.mu.Lock()
+	eng := v.engine
+	v.mu.Unlock()
+	if eng == nil {
+		return -1
+	}
+	return eng.CurrentTime()
+}
+
+func (v *InlineVideoPlayer) GetLastVideoPTS() float64 {
+	v.mu.Lock()
+	eng := v.engine
+	v.mu.Unlock()
+	if eng == nil {
+		return -1
+	}
+	return eng.GetLastVideoPTS()
+}
+
+func (v *InlineVideoPlayer) GetLastAudioPTS() float64 {
+	v.mu.Lock()
+	eng := v.engine
+	v.mu.Unlock()
+	if eng == nil {
+		return -1
+	}
+	return eng.GetLastAudioPTS()
+}
+
 func (v *InlineVideoPlayer) ScrubTo(target float64) {
 	v.mu.Lock()
 	eng := v.engine

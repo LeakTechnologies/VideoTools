@@ -702,7 +702,8 @@ type Engine struct {
 	// Acquiring e.mu inside videoCodecMu creates a lock-order deadlock with
 	// Seek() (which does e.mu → videoCodecMu).  Atomic access eliminates
 	// the nested lock entirely — no mutex needed for this field.
-	seekFlushBefore atomic.Uint64 // math.Float64bits; 0 = guard inactive
+	seekFlushBefore  atomic.Uint64 // math.Float64bits; 0 = guard inactive
+	lastVideoPTSBits atomic.Uint64 // math.Float64bits of the last video PTS handed to the display
 }
 
 type PlaybackFrameCache struct {
@@ -1233,15 +1234,6 @@ func (e *Engine) DrainAudio() {
 	if e.audioPlayer != nil {
 		e.audioPlayer.DrainPCM()
 	}
-}
-	e.paused = true
-	e.clock.SetPaused(true)
-	e.mu.Unlock()
-
-	if e.audioPlayer != nil {
-		e.audioPlayer.Pause()
-	}
-	logging.Info(logging.CatPlayer, "Engine paused")
 }
 
 func (e *Engine) Resume() {
@@ -2584,6 +2576,8 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 			logging.Debug(logging.CatPlayer, "frame LATE #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
 		}
 
+		e.lastVideoPTSBits.Store(math.Float64bits(pts))
+
 		if e.subtitleCodecCtx != nil {
 			sub := e.decodeSubtitle(pts)
 			if sub != nil {
@@ -2759,6 +2753,25 @@ func (e *Engine) Duration() float64 {
 
 func (e *Engine) CurrentTime() float64 {
 	return e.clock.GetTime()
+}
+
+// GetLastVideoPTS returns the PTS of the most recent video frame handed to the display.
+// Returns -1 before any frame has been shown.
+func (e *Engine) GetLastVideoPTS() float64 {
+	bits := e.lastVideoPTSBits.Load()
+	if bits == 0 {
+		return -1
+	}
+	return math.Float64frombits(bits)
+}
+
+// GetLastAudioPTS returns the PTS of the most recent audio chunk output by the player.
+// Returns -1 when there is no audio player or no audio has been output yet.
+func (e *Engine) GetLastAudioPTS() float64 {
+	if e.audioPlayer == nil {
+		return -1
+	}
+	return e.audioPlayer.GetLastPTS()
 }
 
 type PlaybackError struct {
