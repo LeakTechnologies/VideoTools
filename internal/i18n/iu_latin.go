@@ -304,7 +304,11 @@ var iuLatn = Strings{
 	SettingsScriptLatin:          "Qaliujaaqpait",                                         // Latin
 	SettingsAppPreferences:       "Atuqnirmut Aaqiksuiniq",                                // Application Preferences
 	SettingsHWDecode:             "Sanajaksanik Takujautiit Niruqtillugu",                 // Hardware Video Decode
-	SettingsHWDecodeHint:         "GPU niruqtilliqaugaqtuq. Saqqutuqtuinnatillugu.",       // machine-generated, needs human review
+	SettingsHWDecodeAuto:         "Nalunaiqsilugu Atulatautitaulugu",                     // machine-generated, needs human review: Auto-detect
+	SettingsHWDecodeAvailable:    "Saqquiilugu",                                        // machine-generated, needs human review: Available
+	SettingsHWDecodeUnavailable: "Saqquiilugu Saqqutuqtuinnatillugu",                   // machine-generated, needs human review: Unavailable
+	SettingsHWDecodeDetecting:    "Nalunaiqsilugu...",                                  // machine-generated, needs human review: Detecting...
+	SettingsHWDecodeAutoHint:       "GPU niruqtilliqaugaqtuq. Saqqutuqtuinnatillugu.",       // machine-generated, needs human review
 	SettingsMasterSettings:       "Aksuruqnarqtujut Aaqiksuiniq",                          // Master Settings
 	SettingsHardwareAccel:        "Sanajaksanik Sukkaivagunnarqtut",                       // Hardware Acceleration (Global)
 	SettingsDetect:               "Nalunaiqsilugu",                                        // Detect

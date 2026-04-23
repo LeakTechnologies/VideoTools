@@ -425,13 +425,33 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	hwDecodeHeader.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(hwDecodeHeader)
 
-	hwDecodeCheck := widget.NewCheck("", func(enabled bool) {
+	hwDecodeAutoCheck := widget.NewCheck(t.SettingsHWDecodeAuto, func(enabled bool) {
 		cb.SetHWDecodeEnabled(enabled)
 	})
-	hwDecodeCheck.Checked = prefs.HWDecodeEnabled
-	content.Add(hwDecodeCheck)
 
-	hwDecodeHint := widget.NewLabel(t.SettingsHWDecodeHint)
+	hwDecodeStatus := widget.NewLabel(t.SettingsHWDecodeDetecting)
+	hwDecodeStatus.TextStyle = fyne.TextStyle{Italic: true}
+	content.Add(hwDecodeStatus)
+
+	go func() {
+		available := appcfg.DetectHWDeviceType() != 0
+		var label string
+		if available {
+			label = t.SettingsHWDecodeAvailable
+		} else {
+			label = t.SettingsHWDecodeUnavailable
+		}
+		hwDecodeStatus.SetText(label)
+		if prefs.HWDecodeEnabled && available {
+			cb.SetHWDecodeEnabled(true)
+		}
+		hwDecodeAutoCheck.Checked = prefs.HWDecodeEnabled && available
+		hwDecodeAutoCheck.Disable()
+	}()
+
+	content.Add(hwDecodeAutoCheck)
+
+	hwDecodeHint := widget.NewLabel(t.SettingsHWDecodeAutoHint)
 	hwDecodeHint.TextStyle = fyne.TextStyle{Italic: true}
 	hwDecodeHint.Wrapping = fyne.TextWrapWord
 	content.Add(hwDecodeHint)
