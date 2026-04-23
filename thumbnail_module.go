@@ -107,6 +107,11 @@ func (s *appState) addThumbnailLivePreview(path string) {
 }
 
 func (s *appState) showThumbnailView() {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Crash(logging.CatModule, "panic in showThumbnailView: %v", r)
+		}
+	}()
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "thumbnail"
