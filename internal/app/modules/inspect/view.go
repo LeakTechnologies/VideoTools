@@ -529,12 +529,126 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		chaptersTab.Add(widget.NewLabel("No chapters"))
 	}
 
+	// Sync panel — live A/V sync diagnostics updated on every playback frame.
+	clockPill := makeValuePill("--")
+	audioPTSPill := makeValuePill("--")
+	videoPTSPill := makeValuePill("--")
+	deltaPill := makeValuePill("--")
+	statusPill := makeValuePill("--")
+
+	// setPillText walks the value-pill container to update the embedded label.
+	// makeValuePill builds: container.NewMax(bg, container.NewPadded(lbl))
+	setPillText := func(pill fyne.CanvasObject, text string) {
+		c, ok := pill.(*fyne.Container)
+		if !ok {
+			return
+		}
+		for _, obj := range c.Objects {
+			if inner, ok := obj.(*fyne.Container); ok {
+				for _, o2 := range inner.Objects {
+					if lbl, ok := o2.(*widget.Label); ok {
+						lbl.SetText(text)
+						return
+					}
+				}
+			}
+		}
+	}
+	setPillBG := func(pill fyne.CanvasObject, col color.Color) {
+		c, ok := pill.(*fyne.Container)
+		if !ok {
+			return
+		}
+		if bg, ok := c.Objects[0].(*canvas.Rectangle); ok {
+			bg.FillColor = col
+			bg.Refresh()
+		}
+	}
+
+	formatPTS := func(pts float64) string {
+		if pts < 0 {
+			return "--"
+		}
+		h := int(pts) / 3600
+		m := (int(pts) % 3600) / 60
+		s := int(pts) % 60
+		ms := int((pts-float64(int(pts)))*1000)
+		return fmt.Sprintf("%02d:%02d:%02d.%03d", h, m, s, ms)
+	}
+
+	syncRow := func(key string, pill fyne.CanvasObject) fyne.CanvasObject {
+		return container.NewBorder(nil, nil,
+			widget.NewLabelWithStyle(key+":", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			nil, pill)
+	}
+
+	syncContent := container.NewVBox(
+		syncRow("Clock", clockPill),
+		syncRow("Audio PTS", audioPTSPill),
+		syncRow("Video PTS", videoPTSPill),
+		widget.NewSeparator(),
+		syncRow("A/V Delta", deltaPill),
+		syncRow("Status", statusPill),
+		widget.NewSeparator(),
+		widget.NewLabel("green <16ms · yellow <50ms · red ≥50ms"),
+	)
+
+	syncGreen := color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xFF}
+	syncYellow := color.RGBA{R: 0xFF, G: 0xD0, B: 0x00, A: 0xFF}
+	syncRed := color.RGBA{R: 0xFF, G: 0x4C, B: 0x4C, A: 0xFF}
+
+	cb.Player().SetOnProgress(func(_ float64) {
+		clockT := cb.GetClockTime()
+		aPTS := cb.GetLastAudioPTS()
+		vPTS := cb.GetLastVideoPTS()
+
+		var deltaStr, statusStr string
+		var accentColor color.Color = valueBg
+
+		if aPTS >= 0 && vPTS >= 0 {
+			deltaMs := (vPTS - aPTS) * 1000
+			if deltaMs > 0 {
+				deltaStr = fmt.Sprintf("+%.1f ms (video ahead)", deltaMs)
+			} else if deltaMs < 0 {
+				deltaStr = fmt.Sprintf("%.1f ms (audio ahead)", deltaMs)
+			} else {
+				deltaStr = "0.0 ms"
+			}
+			abs := deltaMs
+			if abs < 0 {
+				abs = -abs
+			}
+			switch {
+			case abs < 16:
+				statusStr, accentColor = "SYNCED", syncGreen
+			case abs < 50:
+				statusStr, accentColor = "DRIFTING", syncYellow
+			default:
+				statusStr, accentColor = "OUT OF SYNC", syncRed
+			}
+		} else {
+			deltaStr, statusStr = "--", "--"
+		}
+
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			setPillText(clockPill, formatPTS(clockT))
+			setPillText(audioPTSPill, formatPTS(aPTS))
+			setPillText(videoPTSPill, formatPTS(vPTS))
+			setPillText(deltaPill, deltaStr)
+			setPillText(statusPill, statusStr)
+			setPillBG(deltaPill, accentColor)
+			setPillBG(statusPill, accentColor)
+		}, false)
+	})
+
 	metadataTabContent := container.NewScroll(metadataGrid)
 	chaptersTabContent := container.NewScroll(chaptersTab)
+	syncTabContent := container.NewScroll(syncContent)
 
 	tabContainer := container.NewAppTabs(
 		container.NewTabItem("Metadata", metadataTabContent),
 		container.NewTabItem("Chapters", chaptersTabContent),
+		container.NewTabItem("Sync", syncTabContent),
 	)
 	tabContainer.SetTabLocation(container.TabLocationTop)
 

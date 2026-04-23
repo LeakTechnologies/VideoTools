@@ -395,6 +395,18 @@ func (a *inspectAdapter) Player() *ui.InlineVideoPlayer {
 	return GetInspectPlayer()
 }
 
+func (a *inspectAdapter) GetClockTime() float64 {
+	return GetInspectPlayer().GetClockTime()
+}
+
+func (a *inspectAdapter) GetLastVideoPTS() float64 {
+	return GetInspectPlayer().GetLastVideoPTS()
+}
+
+func (a *inspectAdapter) GetLastAudioPTS() float64 {
+	return GetInspectPlayer().GetLastAudioPTS()
+}
+
 func (a *inspectAdapter) Clipboard() fyne.Clipboard {
 	return a.s.window.Clipboard()
 }

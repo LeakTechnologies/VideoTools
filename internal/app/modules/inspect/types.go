@@ -64,5 +64,9 @@ type ViewCallbacks interface {
 
 	Player() *ui.InlineVideoPlayer
 
+	GetClockTime() float64
+	GetLastVideoPTS() float64
+	GetLastAudioPTS() float64
+
 	Clipboard() fyne.Clipboard
 }

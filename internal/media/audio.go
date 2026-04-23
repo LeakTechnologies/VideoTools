@@ -17,7 +17,9 @@ import "C"
 import (
 	"fmt"
 	"io"
+	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -73,6 +75,10 @@ type AudioPlayer struct {
 	leftover   []byte          // partial chunk carried across Read() calls
 	decodeStop chan struct{}    // closed by Close() to stop audioDecodeLoop
 	decodeWg   sync.WaitGroup
+
+	// lastPTSBits holds math.Float64bits of the most recent audio PTS fed to
+	// the master clock via Read().  Atomic so GetLastPTS() is lock-free.
+	lastPTSBits atomic.Uint64
 
 	// Diagnostic / state flags (all protected by codecMu or mu as noted)
 	codecDead bool // set when codec raises a pre-flight error; stops decode loop
@@ -342,6 +348,7 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 		// clock (= audio output position) reaches the video frame's PTS,
 		// producing true A/V sync without any fixed wall-time offset.
 		p.clock.SetTime(chunk.pts - AudioBufferLatency.Seconds())
+		p.lastPTSBits.Store(math.Float64bits(chunk.pts))
 
 		n := copy(buf, chunk.data)
 
@@ -475,6 +482,16 @@ func (p *AudioPlayer) IsLooping() bool {
 
 func (p *AudioPlayer) ResetEOF() {
 	// Nothing to reset — EOF is signalled by pcmCh being closed.
+}
+
+// GetLastPTS returns the PTS of the most recent audio chunk consumed by Read().
+// Returns -1 if no audio has been output yet.
+func (p *AudioPlayer) GetLastPTS() float64 {
+	bits := p.lastPTSBits.Load()
+	if bits == 0 {
+		return -1
+	}
+	return math.Float64frombits(bits)
 }
 
 func (p *AudioPlayer) Close() {
