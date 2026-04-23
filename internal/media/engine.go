@@ -1966,7 +1966,10 @@ func (e *Engine) Start() {
 	e.mu.Unlock()
 
 	logging.Info(logging.CatPlayer, "Engine.Start: starting demuxerLoop")
-	e.clock.SetPaused(false)
+	// Clock stays paused here — Resume() unpauses it on the first Play().
+	// Start() runs during Load (before the user presses Play); if we unpaused
+	// here the clock would tick through the entire idle window and the first
+	// video frame would be seconds behind by the time Play is pressed.
 
 	e.demuxerWg.Add(1)
 	go e.demuxerLoop()
