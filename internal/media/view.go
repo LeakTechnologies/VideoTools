@@ -211,6 +211,8 @@ func (s *SplitView) draw(w, h int) image.Image {
 	return img
 }
 
+var _ fyne.Focusable = (*VideoPlayer)(nil)
+
 type VideoPlayer struct {
 	widget.BaseWidget
 	source *image.RGBA
@@ -1194,6 +1196,10 @@ func (v *VideoPlayer) resetControlHideTimer() {
 }
 
 func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {
+	canvas := fyne.CurrentApp().Driver().CanvasForObject(v)
+	if canvas != nil {
+		canvas.Focus(v)
+	}
 	if v.hasError && v.errorMessage != "" {
 		logging.Info(logging.CatPlayer, "VideoPlayer error: %s", v.errorMessage)
 		return
@@ -1216,6 +1222,10 @@ func (v *VideoPlayer) TypedKey(event *fyne.KeyEvent) {
 		v.togglePlay()
 	}
 }
+
+func (v *VideoPlayer) FocusGained() {}
+func (v *VideoPlayer) FocusLost()  {}
+func (v *VideoPlayer) TypedRune(r rune) {}
 
 func (v *VideoPlayer) SetOnTapEmpty(fn func()) {
 	v.onTapEmpty = fn
