@@ -305,7 +305,8 @@ var iu = Strings{
 	SettingsHWDecode:             "ᓴᓇᒐᒃᓴᓂᒃ ᑕᒃᔪᐊᑎᑦ ᓂᕈᖅᑎᓪᓗᒍ",                   // Hardware Video Decode
 	SettingsHWDecodeAuto:         "ᓇᓗᓇᐃᖅᓯᓗᒍ ᐊᐅᓚᑕᐅᑎᑕᐅᓗᒍ",                   // machine-generated, needs human review: Auto-detect
 	SettingsHWDecodeAvailable:    "ᓴᖅᑮᓗᒍ",                                  // machine-generated, needs human review: Available
-	SettingsHWDecodeUnavailable: "ᓴᖅᑮᓗᒍ ᕿᓐᓄᑦ",                        // machine-generated, needs human review: Unavailable
+	SettingsHWDecodeUnavailable: "ᓴᖅᑮᓗᒍ ᕿᓐᓄᑦ",                        // machine-generated, needs human review: Not Compatible
+	SettingsHWDecodeNotCompatible: "ᓴᖅᑮᓗᒍ ᕿᓐᓄᑦ",                    // machine-generated, needs human review: Not Compatible
 	SettingsHWDecodeDetecting:    "ᓇᓗᓇᐃᖅᓯᓗᒍ...",                            // machine-generated, needs human review: Detecting...
 	SettingsHWDecodeAutoHint:       "GPU ᓂᕈᖅᑎᓪᓕᖅᐹᒃᑐᖅ. ᓴᖅᑮᑦᑐᐃᓐᓇᑎᓪᓗᒍ.",           // machine-generated, needs human review
 	SettingsMasterSettings:       "ᐊᒃᓱᕈᕐᓇᖅᑑᔪᑦ ᐋᖅᑭᒃᓱᐃᓂᖅ",                      // Master Settings

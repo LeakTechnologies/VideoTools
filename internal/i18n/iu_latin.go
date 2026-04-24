@@ -306,7 +306,8 @@ var iuLatn = Strings{
 	SettingsHWDecode:             "Sanajaksanik Takujautiit Niruqtillugu",                 // Hardware Video Decode
 	SettingsHWDecodeAuto:         "Nalunaiqsilugu Atulatautitaulugu",                     // machine-generated, needs human review: Auto-detect
 	SettingsHWDecodeAvailable:    "Saqquiilugu",                                        // machine-generated, needs human review: Available
-	SettingsHWDecodeUnavailable: "Saqquiilugu Saqqutuqtuinnatillugu",                   // machine-generated, needs human review: Unavailable
+	SettingsHWDecodeUnavailable: "Saqquiilugu Saqqutuqtuinnatillugu",                    // machine-generated, needs human review: Not Compatible
+	SettingsHWDecodeNotCompatible: "Saqquiilugu Saqqutuqtuinnatillugu",                    // machine-generated, needs human review: Not Compatible
 	SettingsHWDecodeDetecting:    "Nalunaiqsilugu...",                                  // machine-generated, needs human review: Detecting...
 	SettingsHWDecodeAutoHint:       "GPU niruqtilliqaugaqtuq. Saqqutuqtuinnatillugu.",       // machine-generated, needs human review
 	SettingsMasterSettings:       "Aksuruqnarqtujut Aaqiksuiniq",                          // Master Settings
