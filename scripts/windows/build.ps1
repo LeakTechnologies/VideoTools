@@ -214,14 +214,14 @@ if (Test-Path $BUILD_OUTPUT) {
     Write-Host ""
 
     # Copy FFmpeg DLLs to output directory (required for native_media build)
-    $ffmpegBinDir = "E:\dependencies\ffmpeg\bin"
+    $ffmpegBinDir = "C:\ffmpeg\bin"
     if (Test-Path $ffmpegBinDir) {
         Get-ChildItem "$ffmpegBinDir\*.dll" |
             Where-Object { $_.Name -notmatch "^(ffmpeg|ffprobe|ffplay)" } |
             ForEach-Object { Copy-Item $_.FullName -Destination (Split-Path $BUILD_OUTPUT) -Force }
         Write-Host "Copied FFmpeg DLLs to output" -ForegroundColor Green
     } else {
-        Write-Host "Warning: E:\dependencies\ffmpeg\bin not found, DLLs not copied. Run install-deps first." -ForegroundColor Yellow
+        Write-Host "Warning: C:\ffmpeg\bin not found, DLLs not copied. Run install-deps first." -ForegroundColor Yellow
     }
 } else {
     Write-Host " Build failed: executable not found" -ForegroundColor Red

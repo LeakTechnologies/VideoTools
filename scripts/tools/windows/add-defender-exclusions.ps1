@@ -28,7 +28,7 @@ Write-Host ""
 $goBuildCache = "$env:LOCALAPPDATA\go-build"
 $goModCache = "$env:USERPROFILE\go"
 $projectDir = Split-Path -Parent $PSScriptRoot
-$msys64 = "E:\dependencies\msys64"
+$msys64 = "C:\msys64"
 
 Write-Host "Adding exclusions..." -ForegroundColor Yellow
 Write-Host ""
