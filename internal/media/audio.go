@@ -33,8 +33,7 @@ import (
 const pcmChannelCap = 64
 
 // audioChunk is a decoded, resampled PCM buffer tagged with its stream PTS.
-// The PTS is carried for diagnostics; the master clock is driven purely by
-// wall time (engine.Resume → clock.SetPaused(false)) and not updated here.
+// Read() drives the master clock via clock.SetTime(pts - AudioBufferLatency).
 type audioChunk struct {
 	pts  float64
 	data []byte
@@ -255,10 +254,8 @@ func (p *AudioPlayer) audioDecodeLoop() {
 			pts := float64(p.frame.pts) * p.timeBase
 			p.codecMu.Unlock()
 
-			// The master clock is NOT driven from audio at all.
-			// It runs on pure wall time from the moment engine.Resume() is
-			// called. Audio and video both anchor to that same reference, so
-			// no clock.SetTime() calls are needed here or in Read().
+			// PCM is pushed to pcmCh; Read() will call clock.SetTime(pts-latency)
+			// when it consumes the chunk, driving the master clock from audio output.
 
 			data, err := p.resample()
 			if err != nil {
