@@ -1416,7 +1416,7 @@ func getSMPTEFontFace(size float64) font.Face {
 	face, err := opentype.NewFace(smpteParsedFont, &opentype.FaceOptions{
 		Size:    rounded,
 		DPI:     72,
-		Hinting: font.HintingFull,
+		Hinting: font.HintingNone,
 	})
 	if err != nil {
 		logging.Warning(logging.CatPlayer, "SMPTE: failed to create font face at size %.0f: %v", rounded, err)
