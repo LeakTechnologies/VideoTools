@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/upscale"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"image/color"
