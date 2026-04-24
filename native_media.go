@@ -66,6 +66,7 @@ func GetUpscalePlayer() *ui.InlineVideoPlayer {
 
 func initNativeMediaAssets(s *appState) {
 	ui.SetVCRFontData(vcrOSDMono)
+	media.SetVCRFont(vcrOSDMono)
 	ui.SetFontSizePreference(s.prefs.FontSize)
 	applyVCRFontPreference(s.prefs.PlayerFont)
 }
