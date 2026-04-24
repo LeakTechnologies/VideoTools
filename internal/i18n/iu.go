@@ -477,6 +477,8 @@ var iu = Strings{
 	ConvertSectionAudioChannels:      "Audio Channels",                                                                       // machine-generated
 	ConvertSectionAudioSampleRate:  "Sample Rate",                                                                        // machine-generated
 	ConvertSectionAudioNormalize:  "Normalize Audio",                                                                    // machine-generated
+	ConvertLabelLUFS:          "LUFS",                                                                           // machine-generated
+	ConvertLabelTruePeak:      "dBTP",                                                                          // machine-generated
 	ConvertDeinterlaceMode:         "Deinterlace Mode",                                                                   // machine-generated
 	ConvertDeinterlaceMethod:       "Deinterlace Method",                                                                  // machine-generated
 	ConvertH264Profile:            "H.264 Profile",                                                                       // machine-generated

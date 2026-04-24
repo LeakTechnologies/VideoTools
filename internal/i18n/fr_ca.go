@@ -534,6 +534,8 @@ var frCA = Strings{
 	ConvertSectionAudioChannels:    "Canaux audio",
 	ConvertSectionAudioSampleRate: "Fréquence d'échantillonnage",
 	ConvertSectionAudioNormalize:   "Normaliser l'audio",
+	ConvertLabelLUFS:         "LUFS",
+	ConvertLabelTruePeak:     "dBTP",
 	ConvertDeinterlaceMode:         "Mode de désentrelacement",
 	ConvertDeinterlaceMethod:      "Méthode de désentrelacement",
 	ConvertH264Profile:            "Profil H.264",

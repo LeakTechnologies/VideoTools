@@ -534,6 +534,8 @@ var enCA = Strings{
 	ConvertSectionAudioChannels:    "Audio Channels",
 	ConvertSectionAudioSampleRate: "Sample Rate",
 	ConvertSectionAudioNormalize:   "Normalize Audio",
+	ConvertLabelLUFS:         "LUFS",
+	ConvertLabelTruePeak:     "dBTP",
 	ConvertDeinterlaceMode:         "Deinterlace Mode",
 	ConvertDeinterlaceMethod:      "Deinterlace Method",
 	ConvertH264Profile:            "H.264 Profile",
