@@ -20,24 +20,24 @@ try { $gitCommit = (git rev-parse --short HEAD 2>$null).Trim() } catch {}
 if (-not $gitCommit) { $gitCommit = "nogit" }
 
 # --- Toolchain ---
-$msys2Bin = "C:\msys64\ucrt64\bin"
+$msys2Bin = "E:\dependencies\msys64\ucrt64\bin"
 $pkgConfigExe = Join-Path $msys2Bin "pkg-config.exe"
-$env:PATH = "$msys2Bin;C:\msys64\usr\bin;$env:PATH"
+$env:PATH = "$msys2Bin;E:\dependencies\msys64\usr\bin;$env:PATH"
 $env:CGO_ENABLED = "1"
 $env:CC = "gcc"
 $env:CXX = "g++"
 # -g0: disable debug info in CGO intermediate files; FFmpeg headers produce
 # enormous .s temp files in C:\Windows\Temp that exhaust disk space otherwise.
-$env:CGO_CFLAGS = "-IC:\ffmpeg-static\include -IC:\msys64\ucrt64\include -g0"
-$env:PKG_CONFIG_PATH = "C:\ffmpeg-static\lib\pkgconfig;C:\msys64\ucrt64\lib\pkgconfig"
+$env:CGO_CFLAGS = "-IE:\dependencies\ffmpeg-static\include -IE:\dependencies\msys64\ucrt64\include -g0"
+$env:PKG_CONFIG_PATH = "E:\dependencies\ffmpeg-static\lib\pkgconfig;E:\dependencies\msys64\ucrt64\lib\pkgconfig"
 
 # Promote bz2 and zlib static archives from MSYS2 into the ffmpeg prefix
-# so the linker finds them first via -LC:/ffmpeg-static/lib.
-# x264 and x265 are built from source directly into /c/ffmpeg-static and
+# so the linker finds them first via -LE:/dependencies/ffmpeg-static/lib.
+# x264 and x265 are built from source directly into /e/dependencies/ffmpeg-static and
 # must NOT be replaced here -- their static archives have no __declspec(dllimport).
 foreach ($lib in @("bz2", "z")) {
-    $src = "C:\msys64\ucrt64\lib\lib${lib}.a"
-    $dst = "C:\ffmpeg-static\lib\lib${lib}.a"
+    $src = "E:\dependencies\msys64\ucrt64\lib\lib${lib}.a"
+    $dst = "E:\dependencies\ffmpeg-static\lib\lib${lib}.a"
     if ((Test-Path $src) -and -not (Test-Path $dst)) {
         Copy-Item $src $dst -Force
         Write-Host "[INFO] Promoted static archive: lib${lib}.a"
@@ -47,7 +47,7 @@ foreach ($lib in @("bz2", "z")) {
 $ffmpegPkgs = @("libavcodec","libavformat","libswscale","libavutil","libswresample","libavfilter")
 $staticLibs = (& $pkgConfigExe --libs --static $ffmpegPkgs 2>$null) -join " "
 if (-not $staticLibs) {
-    Write-Error "pkg-config returned no flags for FFmpeg - check C:\ffmpeg-static"
+    Write-Error "pkg-config returned no flags for FFmpeg - check E:\dependencies\ffmpeg-static"
     exit 1
 }
 # -lsupc++ appears transitively from x265.pc (required for FFmpeg's configure link
@@ -58,7 +58,7 @@ if (-not $staticLibs) {
 $staticLibs = (($staticLibs -split '\s+') | Where-Object { $_ -ne '-lsupc++' }) -join ' '
 # Only add libs that pkg-config consistently omits from FFmpeg's .pc files on Windows.
 # -static-libstdc++: prevents libstdc++-6.dll runtime dependency (stdc++ appears in FFmpeg's pkg-config output)
-$env:CGO_LDFLAGS = "$staticLibs -LC:\msys64\ucrt64\lib -loleaut32 -lgdi32 -lpsapi -lavrt -lmfplat -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
+$env:CGO_LDFLAGS = "$staticLibs -LE:\dependencies\msys64\ucrt64\lib -loleaut32 -lgdi32 -lpsapi -lavrt -lmfplat -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
 $env:CGO_LDFLAGS_ALLOW = "-Wl,.*"
 Write-Host "[INFO] CGO_LDFLAGS: $env:CGO_LDFLAGS"
 
