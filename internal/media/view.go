@@ -1324,7 +1324,11 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 		draw.Draw(img, img.Bounds(), image.NewUniform(color.RGBA{0x0F, 0x15, 0x29, 0xFF}), image.Point{}, draw.Src)
 
 		// Composite the SMPTE bars into the letterboxed/pillarboxed region.
-		smpteImg := drawSMPTEBars(smpteW, smpteH, v.idleText)
+		overlayText := v.idleText
+		if v.isLoading {
+			overlayText = "NOW LOADING"
+		}
+		smpteImg := drawSMPTEBars(smpteW, smpteH, overlayText)
 		draw.Draw(img, image.Rect(offsetX, offsetY, offsetX+smpteW, offsetY+smpteH), smpteImg, image.Point{}, draw.Src)
 
 		return img
