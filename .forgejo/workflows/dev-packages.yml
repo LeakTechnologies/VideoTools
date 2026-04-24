@@ -442,8 +442,19 @@ jobs:
           Remove-Item "C:\msys64\var\cache\pacman\pkg\*" -Recurse -Force -ErrorAction SilentlyContinue
           Write-Host "[INFO] Cleaning MSYS2 tmp..."
           Remove-Item "C:\msys64\tmp\*" -Recurse -Force -ErrorAction SilentlyContinue
+
+          # Go build cache — transient compilation artefacts, safe to wipe before each run.
           Write-Host "[INFO] Cleaning Go build cache..."
           Remove-Item "$env:LOCALAPPDATA\go-build\*" -Recurse -Force -ErrorAction SilentlyContinue
+          # SYSTEM account Go caches live under the system profile, not the user profile.
+          Remove-Item "C:\Windows\System32\config\systemprofile\AppData\Local\go-build\*" -Recurse -Force -ErrorAction SilentlyContinue
+
+          # Go module cache — accumulates every module version ever downloaded and is
+          # never self-pruned. This is the primary long-term C: drain on the runner.
+          Write-Host "[INFO] Cleaning Go module cache..."
+          Remove-Item "$env:GOPATH\pkg\mod\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item "C:\Windows\System32\config\systemprofile\go\pkg\mod\*" -Recurse -Force -ErrorAction SilentlyContinue
+
           Write-Host "[INFO] Cleaning Windows temp..."
           Remove-Item "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
