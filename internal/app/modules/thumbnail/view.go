@@ -159,11 +159,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 	fileLabel := widget.NewLabel(or(opts.NoFileLabel, "[NO VIDEO LOADED]"))
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	if opts.ThumbnailFile != nil {
+	if opts.ThumbnailFile != nil && opts.ThumbnailFileName != "" {
 		name := opts.ThumbnailFileName
-		if name == "" {
-			name = or(opts.FileLoadedLabel, "File: video loaded")
-		}
 		fileLabel.SetText(name)
 	}
 
