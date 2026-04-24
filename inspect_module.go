@@ -111,7 +111,7 @@ func (a *inspectAdapter) LoadFile(path string) {
 	a.s.inspectInterlaceResult = nil
 	a.s.inspectInterlaceAnalyzing = true
 	a.s.showInspectView()
-	logging.Debug(logging.CatModule, "loading inspect file: %s", path)
+	logging.Info(logging.CatInspect, "inspect: loading file: %s", path)
 
 	go func() {
 		src, err := probeVideo(path)
@@ -123,6 +123,7 @@ func (a *inspectAdapter) LoadFile(path string) {
 			}, false)
 			return
 		}
+		logging.Info(logging.CatInspect, "inspect: probe complete, loading player")
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			a.s.inspectFile = src
 			a.s.showInspectView()

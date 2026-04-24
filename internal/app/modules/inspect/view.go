@@ -307,6 +307,9 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 
 	player := cb.Player()
 	bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
+	bg.CornerRadius = 8
+	bg.StrokeColor = gridColor
+	bg.StrokeWidth = 1
 	bg.SetMinSize(fyne.NewSize(480, 270))
 	// Always embed the player widget — it shows SMPTE bars when no source is loaded.
 	videoContainer := container.NewMax(bg, player.Widget())

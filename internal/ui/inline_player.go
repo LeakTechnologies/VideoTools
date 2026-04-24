@@ -201,9 +201,13 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	logging.Info(logging.CatPlayer, "Load: calling GrabFrame")
 	if img, err := v.engine.GrabFrame(4 * time.Second); err == nil {
 		logging.Info(logging.CatPlayer, "Load: GrabFrame success %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
+		// Non-blocking dispatch: v.mu is held here; the UI thread may be
+		// concurrently in BuildView calling SetOnProgress (which also needs v.mu).
+		// A blocking dispatch (true) deadlocks in that case. The frame will be
+		// shown on the next UI refresh cycle — acceptable for a load thumbnail.
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetFrame(img)
-		}, true)
+		}, false)
 	} else {
 		logging.Error(logging.CatPlayer, "Load: GrabFrame failed (player shows SMPTE bars): %v", err)
 	}
