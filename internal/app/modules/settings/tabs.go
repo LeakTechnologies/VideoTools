@@ -457,7 +457,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		if available {
 			label = t.SettingsHWDecodeAvailable
 		} else {
-			label = t.SettingsHWDecodeUnavailable
+			label = t.SettingsHWDecodeNotCompatible
 		}
 		hwDecodeStatus.SetText(label)
 		if prefs.HWDecodeEnabled && available {
