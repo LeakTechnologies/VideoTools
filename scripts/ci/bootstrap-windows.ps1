@@ -178,7 +178,7 @@ if (-not $goInstalled) {
 
 Write-Section "MSYS2 Installation"
 
-$msys2Root = "E:\dependencies\msys64"
+$msys2Root = "C:\msys64"
 $msys2Installed = $false
 
 if (Test-Path $msys2Root) {

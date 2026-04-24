@@ -309,13 +309,13 @@ jobs:
           # One-time setup: run scripts/ci/bootstrap-windows.ps1 from a user session,
           # or install from https://www.msys2.org then:
           #   pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain
-          if (-not (Test-Path "E:\dependencies\msys64\usr\bin\bash.exe")) {
-            Write-Error "MSYS2 not found at E:\dependencies\msys64. Run scripts/ci/bootstrap-windows.ps1 from a user session to set up the runner."
+          if (-not (Test-Path "C:\msys64\usr\bin\bash.exe")) {
+            Write-Error "MSYS2 not found at C:\msys64. Run scripts/ci/bootstrap-windows.ps1 from a user session to set up the runner."
             exit 1
           }
           Write-Host "[INFO] MSYS2 present"
 
-          $bashPath = "E:\dependencies\msys64\usr\bin\bash.exe"
+          $bashPath = "C:\msys64\usr\bin\bash.exe"
 
           # Helper: run bash with stderr merged inside bash before PowerShell sees it.
           # Using PowerShell's 2>&1 creates ErrorRecord objects that trigger Stop
@@ -330,7 +330,7 @@ jobs:
           }
 
           # Toolchain (gcc, make, etc.)
-          if (-not (Test-Path "E:\dependencies\msys64\ucrt64\bin\gcc.exe")) {
+          if (-not (Test-Path "C:\msys64\ucrt64\bin\gcc.exe")) {
             Write-Host "[INFO] Installing ucrt64 toolchain..."
             Invoke-Bash "pacman -Sy --noconfirm && pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain"
           } else {
@@ -346,27 +346,27 @@ jobs:
           Write-Host "[INFO] Build tools ready"
 
       - name: Setup static FFmpeg (Windows)
-        shell: E:/dependencies/msys64/usr/bin/bash.exe --login -eo pipefail {0}
+        shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
         env:
           MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
-          marker="/e/dependencies/ffmpeg-static/.built-${ver}-v6"
+          marker="/c/ffmpeg-static/.built-${ver}-v6"
           if [ -f "$marker" ]; then
             echo "[INFO] FFmpeg ${ver} already built (marker: $marker)"
             exit 0
           fi
-          mkdir -p /e/dependencies/ffmpeg-static/lib/pkgconfig
-          mkdir -p /e/dependencies/ffmpeg-static/include
+          mkdir -p /c/ffmpeg-static/lib/pkgconfig
+          mkdir -p /c/ffmpeg-static/include
 
           # Build x264 from source (static only, no DLL — avoids __declspec(dllimport))
           echo "[INFO] Building x264 from source (static only)..."
           rm -rf /tmp/x264-src
           git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
           cd /tmp/x264-src
-          ./configure --prefix=/e/dependencies/ffmpeg-static --enable-static --disable-shared --disable-opencl --disable-cli
+          ./configure --prefix=/c/ffmpeg-static --enable-static --disable-shared --disable-opencl --disable-cli
           make -j$(nproc) && make install
-          cp /e/dependencies/ffmpeg-static/lib/pkgconfig/x264.pc /ucrt64/lib/pkgconfig/x264.pc
+          cp /c/ffmpeg-static/lib/pkgconfig/x264.pc /ucrt64/lib/pkgconfig/x264.pc
           rm -rf /tmp/x264-src
 
           # Build x265 from source (static only, no DLL)
@@ -376,7 +376,7 @@ jobs:
           cd /tmp/x265-src && git tag 4.1.0
           mkdir /tmp/x265-build && cd /tmp/x265-build
           cmake -G "MSYS Makefiles" \
-                -DCMAKE_INSTALL_PREFIX=/e/dependencies/ffmpeg-static \
+                -DCMAKE_INSTALL_PREFIX=/c/ffmpeg-static \
                 -DENABLE_SHARED=OFF -DENABLE_CLI=OFF \
                 -DCMAKE_BUILD_TYPE=Release \
                 /tmp/x265-src/source
@@ -390,18 +390,18 @@ jobs:
           # -lstdc++ satisfies std::__throw_length_error via the DLL import stub.
           # -lsupc++ (GCC private static archive) satisfies operator new/delete,
           # __cxa_guard_acquire/release, and RTTI vtables.
-          echo 'prefix=/e/dependencies/ffmpeg-static'           > /e/dependencies/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'exec_prefix=${prefix}'            >> /e/dependencies/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'libdir=${prefix}/lib'             >> /e/dependencies/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'includedir=${prefix}/include'     >> /e/dependencies/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo ''                                 >> /e/dependencies/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Name: x265'                       >> /e/dependencies/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Description: H.265/HEVC encoder' >> /e/dependencies/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Version: 4.1.0'                   >> /e/dependencies/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Libs: -L${libdir} -lx265 -lstdc++ -lsupc++ -lm' >> /e/dependencies/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Cflags: -I${includedir}'         >> /e/dependencies/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'prefix=/c/ffmpeg-static'           > /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'exec_prefix=${prefix}'            >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'libdir=${prefix}/lib'             >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'includedir=${prefix}/include'     >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo ''                                 >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Name: x265'                       >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Description: H.265/HEVC encoder' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Version: 4.1.0'                   >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Libs: -L${libdir} -lx265 -lstdc++ -lsupc++ -lm' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Cflags: -I${includedir}'         >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
 
-          cp /e/dependencies/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
+          cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
 
           echo "[INFO] pkg-config diagnostics:"
           echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
@@ -416,14 +416,14 @@ jobs:
           mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
           cd /tmp/ffmpeg-src
           ./configure \
-            --prefix=/e/dependencies/ffmpeg-static \
+            --prefix=/c/ffmpeg-static \
             --enable-static --disable-shared --enable-pic \
             --disable-doc --disable-programs --disable-debug \
             --enable-gpl --enable-version3 --enable-avfilter \
             --enable-libx264 --enable-libx265 \
             --disable-vaapi --disable-iconv \
-            --extra-cflags='-I/e/dependencies/ffmpeg-static/include -I/ucrt64/include' \
-            --extra-ldflags='-L/e/dependencies/ffmpeg-static/lib -L/ucrt64/lib' \
+            --extra-cflags='-I/c/ffmpeg-static/include -I/ucrt64/include' \
+            --extra-ldflags='-L/c/ffmpeg-static/lib -L/ucrt64/lib' \
             || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
           make -j$(nproc) && make install
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
@@ -439,9 +439,9 @@ jobs:
           # several GB; remove them before the CGO build to avoid "No space left
           # on device" errors during GCC intermediate file generation.
           Write-Host "[INFO] Cleaning MSYS2 pacman cache..."
-          Remove-Item "E:\dependencies\msys64\var\cache\pacman\pkg\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item "C:\msys64\var\cache\pacman\pkg\*" -Recurse -Force -ErrorAction SilentlyContinue
           Write-Host "[INFO] Cleaning MSYS2 tmp..."
-          Remove-Item "E:\dependencies\msys64\tmp\*" -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item "C:\msys64\tmp\*" -Recurse -Force -ErrorAction SilentlyContinue
 
           # Go build cache — transient compilation artefacts, safe to wipe before each run.
           Write-Host "[INFO] Cleaning Go build cache..."
