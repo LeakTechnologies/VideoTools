@@ -9102,6 +9102,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var updateOutputHint func()
 	var videoCodecSelect *ui.ColoredSelect
 	var audioCodecSelect *ui.ColoredSelect
+	var normalizeAudioCheck *widget.Check
+	var profileLevelContainer *fyne.Container
 
 	var formatLabels []string
 	for _, opt := range formatOptions {
@@ -9622,6 +9624,22 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	inverseCheck.Checked = state.convert.InverseTelecine
 	inverseHint := widget.NewLabel(state.convert.InverseAutoNotes)
 
+	// Deinterlace Mode
+	deinterlaceModeOptions := []string{"Off", "Auto", "Force"}
+	deinterlaceModeSelect := widget.NewSelect(deinterlaceModeOptions, func(value string) {
+		state.convert.Deinterlace = value
+		logging.Debug(logging.CatUI, "deinterlace mode set to %s", value)
+	})
+	deinterlaceModeSelect.SetSelected(state.convert.Deinterlace)
+
+	// Deinterlace Method
+	deinterlaceMethodOptions := []string{"yadif", "bwdif"}
+	deinterlaceMethodSelect := widget.NewSelect(deinterlaceMethodOptions, func(value string) {
+		state.convert.DeinterlaceMethod = value
+		logging.Debug(logging.CatUI, "deinterlace method set to %s", value)
+	})
+	deinterlaceMethodSelect.SetSelected(state.convert.DeinterlaceMethod)
+
 	makePanelButton := func(label string, onTap func()) (*widget.Button, fyne.CanvasObject) {
 		btn := widget.NewButton(label, onTap)
 		btn.Importance = widget.LowImportance
@@ -9966,6 +9984,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoCodecSelect = ui.NewColoredSelect(videoCodecOptions, videoCodecColorMap, func(value string) {
 		state.convert.VideoCodec = value
 		logging.Debug(logging.CatUI, "video codec set to %s", value)
+		// Toggle H.264 profile/level visibility
+		if value == "H.264" {
+			profileLevelContainer.Show()
+		} else {
+			profileLevelContainer.Hide()
+		}
 		var preferredExt string
 		if state.convert.SelectedFormat.Ext != "" {
 			preferredExt = state.convert.SelectedFormat.Ext
@@ -11196,6 +11220,21 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	audioChannelsSelect.SetSelected(state.convert.AudioChannels)
 
+	// Audio Sample Rate
+	audioSampleRateOptions := []string{"Source", "22050", "44100", "48000", "96000"}
+	audioSampleRateSelect := widget.NewSelect(audioSampleRateOptions, func(value string) {
+		state.convert.AudioSampleRate = value
+		logging.Debug(logging.CatUI, "audio sample rate set to %s", value)
+	})
+	audioSampleRateSelect.SetSelected(state.convert.AudioSampleRate)
+
+	// Normalize Audio
+	normalizeAudioCheck = widget.NewCheck(t.ConvertSectionAudioNormalize, func(checked bool) {
+		state.convert.NormalizeAudio = checked
+		logging.Debug(logging.CatUI, "normalize audio set to %v", checked)
+	})
+	normalizeAudioCheck.Checked = state.convert.NormalizeAudio
+
 	// applyDevicePreset applies a complete hwPreset to all encoding state and widgets.
 	// Defined here so all selects are in scope for the closure.
 	applyDevicePreset = func(dp hwPreset) {
@@ -11888,10 +11927,40 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		10,
 	)
 
+	// H.264 Profile and Level (shown when H.264 is selected)
+	h264ProfileOptions := []string{"Baseline", "Main", "High", "High 10"}
+	h264ProfileSelect := widget.NewSelect(h264ProfileOptions, func(value string) {
+		state.convert.H264Profile = value
+		logging.Debug(logging.CatUI, "H.264 profile set to %s", value)
+	})
+	h264ProfileSelect.SetSelected(state.convert.H264Profile)
+
+	h264LevelOptions := []string{"3.0", "3.1", "4.0", "4.1", "4.2", "5.0", "5.1", "5.2"}
+	h264LevelSelect := widget.NewSelect(h264LevelOptions, func(value string) {
+		state.convert.H264Level = value
+		logging.Debug(logging.CatUI, "H.264 level set to %s", value)
+	})
+	h264LevelSelect.SetSelected(state.convert.H264Level)
+
+	profileLevelContainer = container.NewVBox(
+		container.NewGridWithColumns(2,
+			container.NewPadded(container.NewVBox(
+				widget.NewLabelWithStyle(t.ConvertH264Profile, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+				h264ProfileSelect,
+			)),
+			container.NewPadded(container.NewVBox(
+				widget.NewLabelWithStyle(t.ConvertH264Level, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+				h264LevelSelect,
+			)),
+		),
+	)
+	profileLevelContainer.Hide()
+
 	advancedVideoEncodingBlock = buildConvertBox(t.ConvertSectionVideoEncoding, container.NewVBox(
 		videoCodecRow,
 		videoCodecControls,
 		encoderPresetHintContainer,
+		profileLevelContainer,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle(t.ConvertSectionBitrateMode, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		bitrateModeRadio,
@@ -11928,6 +11997,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle(t.ConvertSectionAudioChannels, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		audioChannelsSelect,
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle(t.ConvertSectionAudioSampleRate, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		audioSampleRateSelect,
+		widget.NewSeparator(),
+		normalizeAudioCheck,
 	))
 
 	outputSectionAdvanced := buildConvertBox(t.ConvertSectionOutput, container.NewVBox(
@@ -11971,6 +12045,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	))
 
 	deinterlaceSection := buildConvertBox(t.ConvertSectionDeinterlacing, container.NewVBox(
+		widget.NewLabelWithStyle(t.ConvertDeinterlaceMode, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		deinterlaceModeSelect,
+		widget.NewLabelWithStyle(t.ConvertDeinterlaceMethod, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		deinterlaceMethodSelect,
+		widget.NewSeparator(),
 		analyzeInterlaceView,
 		inverseCheck,
 		inverseHint,
@@ -12052,6 +12131,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		audioCodecSelect.SetSelected(state.convert.AudioCodec)
 		audioBitrateSelect.SetSelected(state.convert.AudioBitrate)
 		audioChannelsSelect.SetSelected(state.convert.AudioChannels)
+		audioSampleRateSelect.SetSelected(state.convert.AudioSampleRate)
+		normalizeAudioCheck.SetChecked(state.convert.NormalizeAudio)
+		deinterlaceModeSelect.SetSelected(state.convert.Deinterlace)
+		deinterlaceMethodSelect.SetSelected(state.convert.DeinterlaceMethod)
+		h264ProfileSelect.SetSelected(state.convert.H264Profile)
+		h264LevelSelect.SetSelected(state.convert.H264Level)
 		cacheDirEntry.SetText(state.convert.TempDir)
 		utils.SetTempDir(state.convert.TempDir)
 		logsDirEntry.SetText(state.convert.LogDir)

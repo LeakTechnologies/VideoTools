@@ -476,6 +476,12 @@ var iuLatn = Strings{
 	ConvertSectionAspectHandling:     "Aspect Handling",                                                                      // machine-generated
 	ConvertSectionAudioBitrate:       "Audio Bitrate",                                                                        // machine-generated
 	ConvertSectionAudioChannels:      "Audio Channels",                                                                       // machine-generated
+	ConvertSectionAudioSampleRate:  "Sample Rate",                                                                        // machine-generated
+	ConvertSectionAudioNormalize:  "Normalize Audio",                                                                    // machine-generated
+	ConvertDeinterlaceMode:         "Deinterlace Mode",                                                                   // machine-generated
+	ConvertDeinterlaceMethod:       "Deinterlace Method",                                                                  // machine-generated
+	ConvertH264Profile:            "H.264 Profile",                                                                       // machine-generated
+	ConvertH264Level:              "H.264 Level",                                                                        // machine-generated
 	ConvertSectionAudioCodec:         "Audio Codec",                                                                          // machine-generated
 	ConvertSectionBitrateMode:        "Bitrate Mode",                                                                         // machine-generated
 	ConvertSectionBitratePreset:      "Bitrate Preset",                                                                       // machine-generated
