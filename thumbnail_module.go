@@ -112,14 +112,24 @@ func (s *appState) showThumbnailView() {
 			logging.Crash(logging.CatModule, "panic in showThumbnailView: %v", r)
 		}
 	}()
+	logging.Debug(logging.CatModule, "showThumbnailView: start")
+	start := time.Now()
 	s.stopPreview()
 	s.lastModule = s.active
 	s.active = "thumbnail"
 	s.maximizeWindow()
+	elapsed := time.Since(start)
+	logging.Debug(logging.CatModule, "showThumbnailView: pre-config %v", elapsed)
+	start = time.Now()
 	if cfg, err := loadPersistedThumbnailConfig(); err == nil {
 		s.applyThumbnailConfig(cfg)
 	}
+	elapsed = time.Since(start)
+	logging.Debug(logging.CatModule, "showThumbnailView: config loaded %v", elapsed)
+	start = time.Now()
 	s.setContent(buildThumbnailView(s))
+	elapsed = time.Since(start)
+	logging.Debug(logging.CatModule, "showThumbnailView: done %v", elapsed)
 }
 
 func (s *appState) addThumbnailSource(src *videoSource) {

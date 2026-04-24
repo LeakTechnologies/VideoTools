@@ -2214,6 +2214,11 @@ func registerPrimaryActionShortcut(window fyne.Window, action func()) {
 }
 
 func (s *appState) setContent(body fyne.CanvasObject) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Crash(logging.CatUI, "panic in setContent: %v", r)
+		}
+	}()
 	// Capture size before the async update so the window does not resize when
 	// the new module's content has different minimum sizes (issue #4).
 	var savedSize fyne.Size

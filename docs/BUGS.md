@@ -55,6 +55,28 @@ Track all bugs, issues, and behavioral problems here. Update this file whenever 
 - **Assigned To**: Unassigned
 - **Verified**: No
 
+### BUG-011: Thumbnail module hangs then crashes on open
+- **Status**: 🔴 OPEN
+- **Reporter**: User (2026-04-24)
+- **Module**: Thumbnail
+- **Description**: When clicking the Thumbnail module from the main menu, the app hangs for several seconds then crashes without any error output.
+- **Steps to Reproduce**:
+  1. Launch VT
+  2. Click Thumbnail module tile in main menu
+  3. Expected: View opens normally
+  4. Actual: Long hang, then crash
+- **Impact**: Critical - Thumbnail module is unusable
+- **Investigation Notes**:
+  - Added panic recovery to `setContent()` in main.go (debug logging in place)
+  - Added debug logging to `showThumbnailView()` in thumbnail_module.go
+  - Need user to test and check logs for root cause
+- **Files to Check**:
+  - `main.go:2216-2246` - setContent() with panic recovery
+  - `thumbnail_module.go:109-127` - showThumbnailView() with debug logging
+  - Log output for crash details
+- **Assigned To**: opencode
+- **Verified**: No (investigating)
+
 ---
 
 ## 🟠 High Priority Bugs (Major Issues)
