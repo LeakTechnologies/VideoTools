@@ -273,20 +273,79 @@ func BuildView(opts Options) fyne.CanvasObject {
 		crfHint,
 	)
 
+	bitratePresetOptions := []string{
+		"1 Mbps - Low",
+		"2.5 Mbps - Medium",
+		"5 Mbps - High",
+		"8 Mbps - Higher",
+		"10 Mbps - Very High",
+		"15 Mbps - Ultra",
+		"Custom",
+	}
+	bitratePresetSelect := widget.NewSelect(bitratePresetOptions, func(val string) {
+		opts.SetUpscaleBitratePreset(val)
+		if val == "Custom" {
+			bitrateEntry.Show()
+			customCheck.Checked = true
+		} else {
+			bitrateEntry.Hide()
+			customCheck.Checked = false
+			var bitrate string
+			switch val {
+			case "1 Mbps - Low":
+				bitrate = "1000k"
+			case "2.5 Mbps - Medium":
+				bitrate = "2500k"
+			case "5 Mbps - High":
+				bitrate = "5000k"
+			case "8 Mbps - Higher":
+				bitrate = "8000k"
+			case "10 Mbps - Very High":
+				bitrate = "10000k"
+			case "15 Mbps - Ultra":
+				bitrate = "15000k"
+			}
+			opts.SetUpscaleManualBitrate(bitrate)
+		}
+	})
+	currentPreset := opts.UpscaleBitratePreset()
+	if currentPreset == "" {
+		currentPreset = "2.5 Mbps - Medium"
+	}
+	bitratePresetSelect.SetSelected(currentPreset)
+
 	bitrateEntry := widget.NewEntry()
 	bitrateEntry.SetPlaceHolder("e.g. 8000k, 20M")
+	bitrateEntry.Hide()
 	if opts.UpscaleManualBitrate() != "" {
 		bitrateEntry.SetText(opts.UpscaleManualBitrate())
 	}
 	bitrateEntry.OnChanged = func(s string) {
 		opts.SetUpscaleManualBitrate(s)
 	}
+
+	customCheck := widget.NewCheck("Custom", func(checked bool) {
+		if checked {
+			bitratePresetSelect.SetSelected("Custom")
+			bitrateEntry.Show()
+		} else {
+			bitratePresetSelect.SetSelected("2.5 Mbps - Medium")
+			bitrateEntry.Hide()
+			opts.SetUpscaleManualBitrate("2500k")
+		}
+	})
+	customCheck.Checked = false
 	bitrateHint := widget.NewLabel(t.UpscaleBitrateHint)
 	bitrateSection := container.NewVBox(
 		container.NewGridWithColumns(2,
 			widget.NewLabel(t.UpscaleBitrateValueLabel),
-			bitrateEntry,
+			bitratePresetSelect,
 		),
+		container.NewGridWithColumns(2,
+			widget.NewLabel(""),
+			customCheck,
+		),
+		bitrateEntry,
 		bitrateHint,
 	)
 
@@ -419,8 +478,20 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	motionInterpCheck := widget.NewCheck(t.UpscaleMotionInterp, func(checked bool) {
 		opts.SetUpscaleMotionInterpolation(checked)
+		if checked {
+			frameRateSection.Hide()
+			opts.SetUpscaleFrameRate("Source")
+			frameRateSelect.SetSelected("Source")
+		} else {
+			frameRateSection.Show()
+		}
 	})
 	motionInterpCheck.SetChecked(opts.UpscaleMotionInterpolation())
+
+	// Hide frame rate if RIFE is already enabled on load
+	if opts.UpscaleMotionInterpolation() {
+		frameRateSection.Hide()
+	}
 
 	frameRateSection := buildUpscaleBox(t.UpscaleFrameRateBox, container.NewVBox(
 		container.NewGridWithColumns(2,
