@@ -344,6 +344,24 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		hwStatus,
 	))
 
+	fontSizeLabel := widget.NewLabel("Font Size")
+	fontSizeLabel.TextStyle = fyne.TextStyle{Bold: true}
+
+	fontSizeSelect := widget.NewSelect([]string{"large", "small"}, func(selected string) {
+		cb.SetFontSize(selected)
+	})
+	fontSizeSelect.SetSelected(cb.FontSize())
+
+	fontSizeHint := widget.NewLabel("Large: 16pt text. Small: 14pt text.")
+	fontSizeHint.TextStyle = fyne.TextStyle{Monospace: true}
+	fontSizeHint.Wrapping = fyne.TextWrapWord
+
+	content.Add(container.NewVBox(
+		fontSizeLabel,
+		fontSizeSelect,
+		fontSizeHint,
+	))
+
 	content.Add(widget.NewSeparator())
 
 	moduleHeader := widget.NewLabel(t.SettingsModuleVisibility)
