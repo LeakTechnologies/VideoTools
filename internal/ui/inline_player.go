@@ -254,13 +254,28 @@ func (v *InlineVideoPlayer) Play() {
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Start()")
 
-	// Drain any audio that buffered during thumbnail extraction.
-	// audioDecodeLoop runs during Load() and pre-buffers audio while thumbnails
-	// are being generated. Without draining here, the first audio chunk consumed
-	// by Read() would have pts ~5s, jumping the clock and dropping initial video frames.
-	eng.DrainAudio()
+	if eng.IsRunning() {
+		// Resuming from pause: audioDecodeLoop was pcmCh-capacity (~1.47s) ahead
+		// of the actual playback position when paused. Those packets are consumed
+		// from audioQueue and cannot be un-consumed. A mini-seek to the current
+		// clock position flushes all queues and codecs, repositioning every
+		// pipeline stage back to the pause point. Without this, the first audio
+		// chunk after resume is ~1.47s ahead, the clock jumps, and all video
+		// frames in that gap are dropped.
+		currentTime := eng.CurrentTime()
+		logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: resuming at %.3f, seeking to resync pipeline", currentTime)
+		if err := eng.Seek(currentTime); err != nil {
+			logging.Warning(logging.CatPlayer, "InlineVideoPlayer.Play: seek-on-resume failed: %v", err)
+		}
+	} else {
+		// Initial play: drain audio pre-buffered during thumbnail extraction.
+		// audioDecodeLoop runs during Load() and pre-buffers audio while thumbnails
+		// are being generated. Without draining here, the first audio chunk consumed
+		// by Read() would have pts ~5s, jumping the clock and dropping initial video frames.
+		eng.DrainAudio()
+		eng.Start()
+	}
 
-	eng.Start()
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Resume()")
 	eng.Resume()
 	v.mu.Unlock()
