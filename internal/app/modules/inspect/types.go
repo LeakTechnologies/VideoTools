@@ -69,4 +69,5 @@ type ViewCallbacks interface {
 	GetLastAudioPTS() float64
 
 	Clipboard() fyne.Clipboard
+	ModuleFooter(content fyne.CanvasObject) fyne.CanvasObject
 }

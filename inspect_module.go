@@ -410,3 +410,7 @@ func (a *inspectAdapter) GetLastAudioPTS() float64 {
 func (a *inspectAdapter) Clipboard() fyne.Clipboard {
 	return a.s.window.Clipboard()
 }
+
+func (a *inspectAdapter) ModuleFooter(content fyne.CanvasObject) fyne.CanvasObject {
+	return moduleFooter(utils.MustHex(inspect.ModuleColor), content, a.s.statsBar)
+}
