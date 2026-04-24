@@ -579,9 +579,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	subCueLabel.Alignment = fyne.TextAlignCenter
 	subCueLabel.Wrapping = fyne.TextWrapWord
 	if cb.HasPlayer() {
-		playerBg := canvas.NewRectangle(utils.MustHex("#0F1529"))
-		playerBg.SetMinSize(fyne.NewSize(0, 260))
-		playerPane := container.NewMax(playerBg, cb.PlayerWidget())
+		playerPane := ui.BuildPlayerContainer(cb.PlayerWidget(), fyne.NewSize(0, 260))
 
 		cueBg := canvas.NewRectangle(utils.MustHex("#0D1118"))
 		cueBg.SetMinSize(fyne.NewSize(0, 48))

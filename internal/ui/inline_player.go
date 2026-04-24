@@ -11,11 +11,8 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
 
 type InlineVideoPlayer struct {
@@ -614,11 +611,5 @@ func (v *InlineVideoPlayer) playbackLoop() {
 
 func BuildInlinePlayerPane(size fyne.Size) (fyne.CanvasObject, *InlineVideoPlayer) {
 	player := NewInlineVideoPlayer()
-
-	bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
-	bg.SetMinSize(size)
-
-	container := container.NewMax(bg, player.Widget())
-
-	return container, player
+	return BuildPlayerContainer(player.Widget(), size), player
 }
