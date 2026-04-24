@@ -259,7 +259,12 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 		OnShowQueue:             func() { state.showQueue() },
 		OnShowThumbnailView:     func() { state.showThumbnailView() },
 		OnClearCompletedJobs:    func() { state.clearCompletedJobs() },
-		OnGetStatsBar:           func() fyne.CanvasObject { return state.statsBar },
+		OnGetStatsBar: func() fyne.CanvasObject {
+				if state.statsBar == nil {
+					return nil
+				}
+				return state.statsBar
+			},
 		OnLoadFile: func(path string) {
 			src, err := probeVideo(path)
 			if err != nil {
