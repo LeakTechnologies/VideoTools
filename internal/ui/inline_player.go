@@ -109,6 +109,7 @@ func (v *InlineVideoPlayer) SetIdleText(text string) {
 }
 
 func (v *InlineVideoPlayer) Load(path string) (err error) {
+	logging.Info(logging.CatPlayer, "Load: called for %s", path)
 	defer func() {
 		if r := recover(); r != nil {
 			logging.Error(logging.CatPlayer, "Load panic: %v", r)
