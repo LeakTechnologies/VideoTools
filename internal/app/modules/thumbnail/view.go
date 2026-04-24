@@ -315,7 +315,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 
-		sizeOptions := []string{"240 px", "300 px", "360 px", "420 px", "480 px"}
+		sizeOptions := []string{"240 px", "300 px", "360 px", "420 px", "480 px", "540 px", "640 px"}
 		sizeSelect := widget.NewSelect(sizeOptions, func(val string) {
 			var width int
 			switch val {
@@ -329,6 +329,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 				width = 420
 			case "480 px":
 				width = 480
+			case "540 px":
+				width = 540
+			case "640 px":
+				width = 640
 			}
 			if opts.OnSetThumbnailSheetWidth != nil {
 				opts.OnSetThumbnailSheetWidth(width)
@@ -342,10 +346,16 @@ func BuildView(opts Options) fyne.CanvasObject {
 			sizeSelect.SetSelected("240 px")
 		case 300:
 			sizeSelect.SetSelected("300 px")
+		case 360:
+			sizeSelect.SetSelected("360 px")
 		case 420:
 			sizeSelect.SetSelected("420 px")
 		case 480:
 			sizeSelect.SetSelected("480 px")
+		case 540:
+			sizeSelect.SetSelected("540 px")
+		case 640:
+			sizeSelect.SetSelected("640 px")
 		default:
 			sizeSelect.SetSelected("360 px")
 		}
