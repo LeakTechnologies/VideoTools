@@ -155,15 +155,14 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 		}
 	}()
 
-	// Re-acquire the lock for the rest of Load (engine open, scrubber setup).
-	v.mu.Lock()
-	defer v.mu.Unlock()
-
-	v.engine = media.NewEngine()
-	v.engine.SetSeekAccuracy(media.SeekAccuracyKeyframe)
-	v.engine.SetDropFrames(true)
+	// All heavy work (engine open, GrabFrame) runs without v.mu so the main
+	// goroutine is never blocked acquiring v.mu while Load is inside FFmpeg.
+	// v.mu is held only briefly at the end to swap in the live engine/scrubber.
+	eng := media.NewEngine()
+	eng.SetSeekAccuracy(media.SeekAccuracyKeyframe)
+	eng.SetDropFrames(true)
 	if hw := media.DetectHWDevice(); hw != media.HWDeviceNone {
-		v.engine.SetHWDevice(hw)
+		eng.SetHWDevice(hw)
 		logging.Info(logging.CatPlayer, "InlineVideoPlayer: HW decode active (%v)", hw)
 	} else {
 		logging.Info(logging.CatPlayer, "InlineVideoPlayer: using SW decode (HW decode %v)", func() string {
@@ -175,40 +174,28 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	}
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: opening %s", path)
-	if err := v.engine.Open(path); err != nil {
+	if err := eng.Open(path); err != nil {
 		logging.Error(logging.CatPlayer, "InlineVideoPlayer: failed to open %s: %v", path, err)
-		v.player.SetError(err.Error())
-		v.player.SetLoading(false)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			v.player.SetError(err.Error())
+			v.player.SetLoading(false)
+		}, false)
 		return err
 	}
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: file opened successfully")
+	eng.InitFrameCache(30)
 
-	v.engine.InitFrameCache(30)
+	chapters := eng.GetChapters()
+	duration := eng.Duration()
 
-	if chapters := v.engine.GetChapters(); len(chapters) > 0 {
-		v.player.SetChapters(chapters)
-		// Wire chapter navigation callbacks
-		v.player.OnPrevChapter(func() { v.prevChapter() })
-		v.player.OnNextChapter(func() { v.nextChapter() })
-	}
-
-	duration := v.engine.Duration()
-	v.player.SetDuration(duration)
-
-	// Start the demuxer so packets begin flowing, then seek to the start.
-	// Get the first frame for immediate display.
-	v.engine.Start()
+	// Start demuxer and grab first frame for immediate display.
+	eng.Start()
 	logging.Info(logging.CatPlayer, "Load: calling GrabFrame")
-	if img, err := v.engine.GrabFrame(4 * time.Second); err == nil {
+	var firstFrame *image.RGBA
+	if img, err := eng.GrabFrame(4 * time.Second); err == nil {
 		logging.Info(logging.CatPlayer, "Load: GrabFrame success %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
-		// Non-blocking dispatch: v.mu is held here; the UI thread may be
-		// concurrently in BuildView calling SetOnProgress (which also needs v.mu).
-		// A blocking dispatch (true) deadlocks in that case. The frame will be
-		// shown on the next UI refresh cycle — acceptable for a load thumbnail.
-		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			v.player.SetFrame(img)
-		}, false)
+		firstFrame = img
 	} else {
 		logging.Error(logging.CatPlayer, "Load: GrabFrame failed (player shows SMPTE bars): %v", err)
 	}
@@ -217,13 +204,13 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	// codec frames, and resets the clock. Seek(0) was not used here because
 	// it self-deadlocked (Seek holds e.mu; seekFlushBefore then tried to
 	// re-acquire e.mu which is not re-entrant).
-	v.engine.ResetAfterGrab()
-	v.engine.Pause()
+	eng.ResetAfterGrab()
+	eng.Pause()
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: load completed, engine ready")
 
-	v.scrubber = media.NewSmoothScrubbing(v.engine)
-	v.scrubber.SetOnFrame(func(img *image.RGBA) {
+	scrubber := media.NewSmoothScrubbing(eng)
+	scrubber.SetOnFrame(func(img *image.RGBA) {
 		logging.Info(logging.CatPlayer, "scrubber OnFrame callback: img=%v", img != nil)
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetFrame(img)
@@ -235,13 +222,29 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 			}
 		}, false)
 	})
-	v.scrubber.Start()
 
-	v.engine.StartThumbnailExtraction(func(t float64, img *image.RGBA) {
+	// Briefly lock to publish the live engine and scrubber.
+	v.mu.Lock()
+	v.engine = eng
+	v.scrubber = scrubber
+	v.mu.Unlock()
+
+	scrubber.Start()
+
+	eng.StartThumbnailExtraction(func(t float64, img *image.RGBA) {
 		v.player.AddThumbnailFrame(t, img)
 	})
 
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		if len(chapters) > 0 {
+			v.player.SetChapters(chapters)
+			v.player.OnPrevChapter(func() { v.prevChapter() })
+			v.player.OnNextChapter(func() { v.nextChapter() })
+		}
+		v.player.SetDuration(duration)
+		if firstFrame != nil {
+			v.player.SetFrame(firstFrame)
+		}
 		v.player.SetLoading(false)
 		v.player.Refresh()
 	}, false)
