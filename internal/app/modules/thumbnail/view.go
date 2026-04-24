@@ -384,25 +384,63 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 
-		widthLabel := widget.NewLabel(fmt.Sprintf(widthFmt, opts.ThumbnailWidth))
-		widthSlider := widget.NewSlider(160, 640)
-		widthSlider.Value = float64(opts.ThumbnailWidth)
-		widthSlider.Step = 32
-		widthSlider.OnChanged = func(val float64) {
-			if opts.OnSetThumbnailWidth != nil {
-				opts.OnSetThumbnailWidth(int(val))
+		individualSizeOptions := []string{"160 px", "192 px", "224 px", "256 px", "288 px", "320 px", "352 px", "384 px", "416 px", "448 px", "480 px", "512 px", "544 px", "576 px", "608 px", "640 px"}
+		widthSelect := widget.NewSelect(individualSizeOptions, func(val string) {
+			var width int
+			switch val {
+			case "160 px":
+				width = 160
+			case "192 px":
+				width = 192
+			case "224 px":
+				width = 224
+			case "256 px":
+				width = 256
+			case "288 px":
+				width = 288
+			case "320 px":
+				width = 320
+			case "352 px":
+				width = 352
+			case "384 px":
+				width = 384
+			case "416 px":
+				width = 416
+			case "448 px":
+				width = 448
+			case "480 px":
+				width = 480
+			case "512 px":
+				width = 512
+			case "544 px":
+				width = 544
+			case "576 px":
+				width = 576
+			case "608 px":
+				width = 608
+			case "640 px":
+				width = 640
 			}
-			widthLabel.SetText(fmt.Sprintf(widthFmt, int(val)))
+			if opts.OnSetThumbnailWidth != nil {
+				opts.OnSetThumbnailWidth(width)
+			}
+			widthLabel.SetText(fmt.Sprintf(widthFmt, width))
 			if opts.OnPersistConfig != nil {
 				opts.OnPersistConfig()
 			}
+		})
+		switch opts.ThumbnailWidth {
+		case 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640:
+			widthSelect.SetSelected(fmt.Sprintf("%d px", opts.ThumbnailWidth))
+		default:
+			widthSelect.SetSelected("320 px")
 		}
 
 		settingsOptions = buildThumbBox(or(opts.IndividualThumbsLabel, "Individual Thumbnails"), container.NewVBox(
 			countLabel,
 			countSlider,
 			widthLabel,
-			widthSlider,
+			widthSelect,
 		))
 	}
 
