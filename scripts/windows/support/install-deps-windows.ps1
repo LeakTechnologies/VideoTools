@@ -94,7 +94,7 @@ function Test-AllDependencies {
         "C:\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll",
         "C:\Program Files\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll",
         "C:\Program Files (x86)\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll",
-        "C:\msys64\mingw64\bin\gstreamer-1.0-0.dll",
+        "E:\dependencies\msys64\mingw64\bin\gstreamer-1.0-0.dll",
         "C:\GStreamer\1.0\x86_64\bin\gstreamer-1.0-0.dll",
         "C:\gstreamer\1.0\msvc_x86_64\bin\gstreamer-1.0-0.dll"
     )
