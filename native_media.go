@@ -67,6 +67,12 @@ func GetUpscalePlayer() *ui.InlineVideoPlayer {
 func initNativeMediaAssets(s *appState) {
 	ui.SetVCRFontData(vcrOSDMono)
 	media.SetVCRFont(vcrOSDMono)
+	// Pre-detect hardware decode capability on the main goroutine before the
+	// GLFW event loop starts.  D3D11VA device creation (Windows) uses COM STA
+	// dispatch which deadlocks with the GLFW message pump when called later
+	// from a background goroutine.  WarmHWDeviceCache() caches the result so
+	// all subsequent Load() calls return immediately without touching COM.
+	media.WarmHWDeviceCache()
 	ui.SetFontSizePreference(s.prefs.FontSize)
 	applyVCRFontPreference(s.prefs.PlayerFont)
 }

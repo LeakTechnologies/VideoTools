@@ -257,20 +257,43 @@ func HWDecodeEnabled() bool {
 	return hwDecodeEnabled
 }
 
+// hwDeviceDetected caches the result of the one-time hardware detection so
+// that av_hwdevice_ctx_create is never called from a background goroutine
+// after the GLFW message loop has started (on Windows, D3D11VA device creation
+// uses COM STA dispatch and deadlocks with the GLFW message pump).
+var (
+	hwDeviceDetected   HWDeviceType
+	hwDeviceDetectOnce sync.Once
+)
+
+// WarmHWDeviceCache runs the hardware-detection probes synchronously on the
+// calling goroutine and caches the result.  Call this once from the main
+// goroutine before ShowAndRun() so that subsequent DetectHWDevice() calls
+// from background goroutines return the cached value without touching COM.
+func WarmHWDeviceCache() {
+	_ = DetectHWDevice()
+}
+
 func DetectHWDevice() HWDeviceType {
 	if !hwDecodeEnabled {
 		return HWDeviceNone
 	}
-	if checkVAAPIAvailable() {
-		return HWDeviceVAAPI
-	}
-	if checkD3D11VAAvailable() {
-		return HWDeviceD3D11VA
-	}
-	if checkQSVAvailable() {
-		return HWDeviceQSV
-	}
-	return HWDeviceNone
+	// Run the expensive av_hwdevice_ctx_create probes only once; reuse the
+	// cached result on every subsequent call.  This avoids the Windows COM STA
+	// deadlock that occurs when D3D11VA is probed from a background goroutine
+	// while the GLFW event loop is processing messages on the main thread.
+	hwDeviceDetectOnce.Do(func() {
+		if checkVAAPIAvailable() {
+			hwDeviceDetected = HWDeviceVAAPI
+		} else if checkD3D11VAAvailable() {
+			hwDeviceDetected = HWDeviceD3D11VA
+		} else if checkQSVAvailable() {
+			hwDeviceDetected = HWDeviceQSV
+		} else {
+			hwDeviceDetected = HWDeviceNone
+		}
+	})
+	return hwDeviceDetected
 }
 
 func checkVAAPIAvailable() bool {
