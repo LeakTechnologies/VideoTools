@@ -282,14 +282,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 		"15 Mbps - Ultra",
 		"Custom",
 	}
+	// Pre-declare so the closure below can reference them before their initialization.
+	var bitrateEntry *widget.Entry
+	var customCheck *widget.Check
 	bitratePresetSelect := widget.NewSelect(bitratePresetOptions, func(val string) {
 		opts.SetUpscaleBitratePreset(val)
 		if val == "Custom" {
 			bitrateEntry.Show()
-			customCheck.Checked = true
+			customCheck.SetChecked(true)
 		} else {
 			bitrateEntry.Hide()
-			customCheck.Checked = false
+			customCheck.SetChecked(false)
 			var bitrate string
 			switch val {
 			case "1 Mbps - Low":
@@ -308,13 +311,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.SetUpscaleManualBitrate(bitrate)
 		}
 	})
-	currentPreset := opts.UpscaleBitratePreset()
-	if currentPreset == "" {
-		currentPreset = "2.5 Mbps - Medium"
-	}
-	bitratePresetSelect.SetSelected(currentPreset)
 
-	bitrateEntry := widget.NewEntry()
+	bitrateEntry = widget.NewEntry()
 	bitrateEntry.SetPlaceHolder("e.g. 8000k, 20M")
 	bitrateEntry.Hide()
 	if opts.UpscaleManualBitrate() != "" {
@@ -324,7 +322,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetUpscaleManualBitrate(s)
 	}
 
-	customCheck := widget.NewCheck("Custom", func(checked bool) {
+	customCheck = widget.NewCheck("Custom", func(checked bool) {
 		if checked {
 			bitratePresetSelect.SetSelected("Custom")
 			bitrateEntry.Show()
@@ -334,7 +332,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.SetUpscaleManualBitrate("2500k")
 		}
 	})
-	customCheck.Checked = false
+
+	// SetSelected after both bitrateEntry and customCheck are initialised;
+	// it fires OnChanged immediately which would panic on nil pointers otherwise.
+	currentPreset := opts.UpscaleBitratePreset()
+	if currentPreset == "" {
+		currentPreset = "2.5 Mbps - Medium"
+	}
+	bitratePresetSelect.SetSelected(currentPreset)
 	bitrateHint := widget.NewLabel(t.UpscaleBitrateHint)
 	bitrateSection := container.NewVBox(
 		container.NewGridWithColumns(2,
@@ -476,6 +481,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	frameRateSelect.SetSelected(opts.UpscaleFrameRate())
 
+	// Pre-declare so the closure can reference frameRateSection before it's built.
+	var frameRateSection fyne.CanvasObject
 	motionInterpCheck := widget.NewCheck(t.UpscaleMotionInterp, func(checked bool) {
 		opts.SetUpscaleMotionInterpolation(checked)
 		if checked {
@@ -486,14 +493,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 			frameRateSection.Show()
 		}
 	})
-	motionInterpCheck.SetChecked(opts.UpscaleMotionInterpolation())
 
-	// Hide frame rate if RIFE is already enabled on load
-	if opts.UpscaleMotionInterpolation() {
-		frameRateSection.Hide()
-	}
-
-	frameRateSection := buildUpscaleBox(t.UpscaleFrameRateBox, container.NewVBox(
+	frameRateSection = buildUpscaleBox(t.UpscaleFrameRateBox, container.NewVBox(
 		container.NewGridWithColumns(2,
 			widget.NewLabel(t.UpscaleTargetFPSLabel),
 			frameRateSelect,
@@ -502,6 +503,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		motionInterpCheck,
 		widget.NewLabel(t.UpscaleMotionHint),
 	))
+
+	// Set initial check state and visibility without triggering the callback.
+	motionInterpCheck.Checked = opts.UpscaleMotionInterpolation()
+	if opts.UpscaleMotionInterpolation() {
+		frameRateSection.Hide()
+	}
 
 	aiModelOptions := ModelOptions()
 	aiModelLabel := ModelLabelFromID(opts.UpscaleAIModel())
