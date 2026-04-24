@@ -248,15 +248,15 @@ func (m *MonoTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
 func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
 	switch name {
 	case theme.SizeNamePadding:
-		return 6
-	case theme.SizeNameInnerPadding:
 		return 8
+	case theme.SizeNameInnerPadding:
+		return 10
 	case theme.SizeNameText:
-		return 14
+		return 16
 	case theme.SizeNameHeadingText:
-		return 18
+		return 22
 	case theme.SizeNameSubHeadingText:
-		return 15
+		return 18
 	case theme.SizeNameInputBorder:
 		return 0
 	}
