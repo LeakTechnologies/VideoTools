@@ -59,3 +59,7 @@ func GetConvertPreviewPlayer() *ui.InlineVideoPlayer {
 func GetSubtitlePlayer() *ui.InlineVideoPlayer {
 	return ui.NewInlineVideoPlayer()
 }
+
+func GetUpscalePlayer() *ui.InlineVideoPlayer {
+	return ui.NewInlineVideoPlayer()
+}
