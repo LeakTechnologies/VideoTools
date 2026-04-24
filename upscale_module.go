@@ -62,6 +62,20 @@ func (s *appState) showUpscaleView() {
 	}))
 }
 
+func (s *appState) loadUpscaleVideo(path string) {
+	defer func() {
+		if r := recover(); r != nil {
+			logging.Error(logging.CatPlayer, "panic in loadUpscaleVideo: %v", r)
+		}
+	}()
+	if err := GetUpscalePlayer().Load(path); err != nil {
+		logging.Error(logging.CatPlayer, "loadUpscaleVideo failed: path=%s err=%v", path, err)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			ui.ShowToast(s.window, "Native player could not open this file.", ui.ToastWarning)
+		}, false)
+	}
+}
+
 // mainToUpscaleVideoSource converts a main-package videoSource to the upscale package's
 // exported VideoSource type, which is the type expected by upscale.BuildView callbacks.
 func mainToUpscaleVideoSource(v *videoSource) *upscale.VideoSource {
@@ -158,7 +172,7 @@ func (s *appState) upscaleOptions() upscale.Options {
 			return buildVideoPane(s, size, nil, nil)
 		},
 		OnHasNativeMediaPlayer: HasNativeMediaPlayer,
-		OnLoadVideoNative:      s.loadVideoNative,
+		OnLoadVideoNative:      s.loadUpscaleVideo,
 		OnGetFilterActiveChain: func() []string {
 			return s.filterActiveChain
 		},
