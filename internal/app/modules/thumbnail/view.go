@@ -315,7 +315,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 
-		sizeOptions := []string{"240 px", "300 px", "360 px", "420 px", "480 px", "540 px", "640 px"}
+		sizeOptions := []string{"240 px", "300 px", "360 px", "420 px", "480 px", "540 px", "576 px", "640 px"}
 		sizeSelect := widget.NewSelect(sizeOptions, func(val string) {
 			var width int
 			switch val {
@@ -331,6 +331,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 				width = 480
 			case "540 px":
 				width = 540
+			case "576 px":
+				width = 576
 			case "640 px":
 				width = 640
 			}
@@ -354,6 +356,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 			sizeSelect.SetSelected("480 px")
 		case 540:
 			sizeSelect.SetSelected("540 px")
+		case 576:
+			sizeSelect.SetSelected("576 px")
 		case 640:
 			sizeSelect.SetSelected("640 px")
 		default:
@@ -384,40 +388,20 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 
-		individualSizeOptions := []string{"160 px", "192 px", "224 px", "256 px", "288 px", "320 px", "352 px", "384 px", "416 px", "448 px", "480 px", "512 px", "544 px", "576 px", "608 px", "640 px"}
+		individualSizeOptions := []string{"160 px", "240 px", "320 px", "480 px", "576 px", "640 px"}
 		widthSelect := widget.NewSelect(individualSizeOptions, func(val string) {
 			var width int
 			switch val {
 			case "160 px":
 				width = 160
-			case "192 px":
-				width = 192
-			case "224 px":
-				width = 224
-			case "256 px":
-				width = 256
-			case "288 px":
-				width = 288
+			case "240 px":
+				width = 240
 			case "320 px":
 				width = 320
-			case "352 px":
-				width = 352
-			case "384 px":
-				width = 384
-			case "416 px":
-				width = 416
-			case "448 px":
-				width = 448
 			case "480 px":
 				width = 480
-			case "512 px":
-				width = 512
-			case "544 px":
-				width = 544
 			case "576 px":
 				width = 576
-			case "608 px":
-				width = 608
 			case "640 px":
 				width = 640
 			}
@@ -430,7 +414,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		})
 		switch opts.ThumbnailWidth {
-		case 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640:
+		case 160, 240, 320, 480, 576, 640:
 			widthSelect.SetSelected(fmt.Sprintf("%d px", opts.ThumbnailWidth))
 		default:
 			widthSelect.SetSelected("320 px")
