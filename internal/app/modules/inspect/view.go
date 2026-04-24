@@ -312,6 +312,8 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	bg.StrokeWidth = 1
 	bg.SetMinSize(fyne.NewSize(480, 270))
 	// Always embed the player widget — it shows SMPTE bars when no source is loaded.
+	// Disable built-in controls: inspect manages playback state itself.
+	player.Widget().DisableBuiltinControls()
 	videoContainer := container.NewMax(bg, player.Widget())
 
 	updateDisplay := func() {
