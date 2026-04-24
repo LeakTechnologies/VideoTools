@@ -312,11 +312,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		previewBtn,
 	)
 
-	videoStage := canvas.NewRectangle(navyBlue)
-	videoStage.CornerRadius = 8
-	videoStage.StrokeColor = gridColor
-	videoStage.StrokeWidth = 1
-	videoContainer := container.NewMax(videoStage, ts.player)
+	videoContainer := ui.BuildPlayerContainer(ts.player, fyne.NewSize(0, 0))
 
 	// Timeline with draggable handles
 	ts.timeline = ui.NewTrimTimeline(1.0) // Default to 1 second, will update when video loads

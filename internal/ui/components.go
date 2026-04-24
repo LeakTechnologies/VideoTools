@@ -2250,3 +2250,23 @@ func showToastOnMain(win fyne.Window, message string, severity ToastSeverity) {
 		fyne.CurrentApp().Driver().DoFromGoroutine(pop.Hide, false)
 	})
 }
+
+// BuildPlayerContainer is the canonical way to embed a player widget in any
+// module view.  It wraps widget in a Max container backed by a consistently
+// styled rectangle: dark fill (#0F1529), 8-px corner radius, 1-px GridColor
+// border.  Pass fyne.NewSize(0, 0) when no explicit minimum size is needed.
+//
+// Callers that manage their own playback UI (inspect, convert) should call
+// widget.(*media.VideoPlayer).DisableBuiltinControls() before or after this;
+// modules that rely on the built-in control bar (trim, subtitles) should leave
+// controls enabled.
+func BuildPlayerContainer(widget fyne.CanvasObject, minSize fyne.Size) fyne.CanvasObject {
+	bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
+	bg.CornerRadius = 8
+	bg.StrokeColor = GridColor
+	bg.StrokeWidth = 1
+	if minSize.Width > 0 || minSize.Height > 0 {
+		bg.SetMinSize(minSize)
+	}
+	return container.NewMax(bg, widget)
+}

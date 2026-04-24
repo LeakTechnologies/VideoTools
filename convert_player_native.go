@@ -71,10 +71,6 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		state.showVideoLoadDialog()
 	})
 
-	bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
-	bg.CornerRadius = 6
-	bg.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
-
 	dropIndicator := canvas.NewRectangle(color.NRGBA{R: 76, G: 175, B: 80, A: 0})
 	dropIndicator.CornerRadius = 8
 	dropIndicator.StrokeWidth = 3
@@ -165,7 +161,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		dlg.Show()
 	})
 
-	stageWithPlayer := container.NewMax(bg, playerWidget)
+	stageWithPlayer := ui.BuildPlayerContainer(playerWidget, fyne.NewSize(stageWidth, stageHeight))
 	videoStageWithIndicator := container.NewMax(dropIndicator, stageWithPlayer)
 
 	srcDuration := 0.0

@@ -266,33 +266,38 @@ var (
 	hwDeviceDetectOnce sync.Once
 )
 
+func doHWDetect() {
+	if checkVAAPIAvailable() {
+		hwDeviceDetected = HWDeviceVAAPI
+	} else if checkD3D11VAAvailable() {
+		hwDeviceDetected = HWDeviceD3D11VA
+	} else if checkQSVAvailable() {
+		hwDeviceDetected = HWDeviceQSV
+	}
+	// HWDeviceNone is the zero value; no else branch needed.
+}
+
 // WarmHWDeviceCache runs the hardware-detection probes synchronously on the
-// calling goroutine and caches the result.  Call this once from the main
-// goroutine before ShowAndRun() so that subsequent DetectHWDevice() calls
-// from background goroutines return the cached value without touching COM.
+// calling goroutine regardless of the hwDecodeEnabled flag, then caches the
+// result.  Call this once from the main goroutine before ShowAndRun() so that
+// subsequent DetectHWDevice() calls from background goroutines always return
+// the cached value without touching COM.
+//
+// The unconditional probe is required to handle the case where the user starts
+// with HW decode disabled and enables it mid-session via Settings: without this
+// the sync.Once would fire later from a Load() background goroutine and
+// deadlock with the GLFW message pump (Windows D3D11VA COM STA).
 func WarmHWDeviceCache() {
-	_ = DetectHWDevice()
+	hwDeviceDetectOnce.Do(doHWDetect)
 }
 
 func DetectHWDevice() HWDeviceType {
 	if !hwDecodeEnabled {
 		return HWDeviceNone
 	}
-	// Run the expensive av_hwdevice_ctx_create probes only once; reuse the
-	// cached result on every subsequent call.  This avoids the Windows COM STA
-	// deadlock that occurs when D3D11VA is probed from a background goroutine
-	// while the GLFW event loop is processing messages on the main thread.
-	hwDeviceDetectOnce.Do(func() {
-		if checkVAAPIAvailable() {
-			hwDeviceDetected = HWDeviceVAAPI
-		} else if checkD3D11VAAvailable() {
-			hwDeviceDetected = HWDeviceD3D11VA
-		} else if checkQSVAvailable() {
-			hwDeviceDetected = HWDeviceQSV
-		} else {
-			hwDeviceDetected = HWDeviceNone
-		}
-	})
+	// The sync.Once was already fired by WarmHWDeviceCache() at startup so
+	// this Do() is a no-op on all subsequent calls from background goroutines.
+	hwDeviceDetectOnce.Do(doHWDetect)
 	return hwDeviceDetected
 }
 
