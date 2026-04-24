@@ -481,8 +481,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	frameRateSelect.SetSelected(opts.UpscaleFrameRate())
 
-	// Pre-declare so the closure can reference frameRateSection before it's built.
+	// Pre-declare so the motionInterpCheck closure can reference it before construction.
 	var frameRateSection fyne.CanvasObject
+
+	// motionInterpCheck lives OUTSIDE frameRateSection so it stays visible even
+	// when the frame rate selector is hidden (users need to be able to uncheck it).
 	motionInterpCheck := widget.NewCheck(t.UpscaleMotionInterp, func(checked bool) {
 		opts.SetUpscaleMotionInterpolation(checked)
 		if checked {
@@ -490,9 +493,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.SetUpscaleFrameRate("Source")
 			frameRateSelect.SetSelected("Source")
 		} else {
-			frameRateSection.Show()
+			// Restore the frame rate selector only when RIFE is also inactive.
+			if !opts.UpscaleRIFEEnabled() || !opts.UpscaleRIFEAvailable() {
+				frameRateSection.Show()
+			}
 		}
 	})
+	motionInterpHint := widget.NewLabel(t.UpscaleMotionHint)
+	motionInterpHint.TextStyle = fyne.TextStyle{Italic: true}
+	motionInterpHint.Wrapping = fyne.TextWrapWord
 
 	frameRateSection = buildUpscaleBox(t.UpscaleFrameRateBox, container.NewVBox(
 		container.NewGridWithColumns(2,
@@ -500,13 +509,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 			frameRateSelect,
 		),
 		frameRateLabel,
-		motionInterpCheck,
-		widget.NewLabel(t.UpscaleMotionHint),
 	))
 
-	// Set initial check state and visibility without triggering the callback.
+	// Apply initial visibility without firing callbacks — either flag suppresses
+	// the manual frame rate selector.
 	motionInterpCheck.Checked = opts.UpscaleMotionInterpolation()
-	if opts.UpscaleMotionInterpolation() {
+	if opts.UpscaleMotionInterpolation() || (opts.UpscaleRIFEEnabled() && opts.UpscaleRIFEAvailable()) {
 		frameRateSection.Hide()
 	}
 
@@ -1009,6 +1017,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 		rifeEnabledCheck := widget.NewCheck(t.RIFEEnabled, func(checked bool) {
 			opts.SetUpscaleRIFEEnabled(checked)
+			if checked {
+				frameRateSection.Hide()
+			} else {
+				if !motionInterpCheck.Checked {
+					frameRateSection.Show()
+				}
+			}
 		})
 		rifeEnabledCheck.SetChecked(opts.UpscaleRIFEEnabled())
 
@@ -1211,6 +1226,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 		colourAccuracySection,
 		spacing(),
 		frameRateSection,
+		motionInterpCheck,
+		motionInterpHint,
 		spacing(),
 		rifeSection,
 		spacing(),
