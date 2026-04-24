@@ -570,6 +570,8 @@ type Strings struct {
 	ConvertSectionAudioChannels    string // "Audio Channels"
 	ConvertSectionAudioSampleRate string // "Audio Sample Rate"
 	ConvertSectionAudioNormalize  string // "Normalize Audio"
+	ConvertLabelLUFS         string // "LUFS"
+	ConvertLabelTruePeak     string // "TruePeak"
 	ConvertDeinterlaceMode        string // "Deinterlace Mode"
 	ConvertDeinterlaceMethod     string // "Deinterlace Method"
 	ConvertH264Profile           string // "H.264 Profile"

@@ -1001,6 +1001,8 @@ type convertConfig struct {
 	AudioChannels   string // Source, Mono, Stereo, 5.1
 	AudioSampleRate string // Source, 44100, 48000
 	NormalizeAudio  bool   // Force stereo + 48kHz for compatibility
+	NormalizeLUFS   float64 // LUFS target (default -16)
+	NormalizeTruePeak float64 // TruePeak max (default -1.5)
 
 	// Other settings
 	InverseTelecine  bool
@@ -1046,6 +1048,8 @@ type userPreset struct {
 	AudioChannels          string       `json:"audioChannels"`
 	AudioSampleRate        string       `json:"audioSampleRate"`
 	NormalizeAudio         bool         `json:"normalizeAudio"`
+	NormalizeLUFS          float64      `json:"normalizeLUFS"`
+	NormalizeTruePeak      float64      `json:"normalizeTruePeak"`
 	OutputAspect           string       `json:"outputAspect"`
 	AspectHandling         string       `json:"aspectHandling"`
 	ForceAspect            bool         `json:"forceAspect"`
@@ -1082,6 +1086,8 @@ func userPresetFromConfig(name string, cfg convertConfig) userPreset {
 		AudioChannels:          cfg.AudioChannels,
 		AudioSampleRate:        cfg.AudioSampleRate,
 		NormalizeAudio:         cfg.NormalizeAudio,
+		NormalizeLUFS:           cfg.NormalizeLUFS,
+		NormalizeTruePeak:      cfg.NormalizeTruePeak,
 		OutputAspect:           cfg.OutputAspect,
 		AspectHandling:         cfg.AspectHandling,
 		ForceAspect:            cfg.ForceAspect,
@@ -1159,6 +1165,8 @@ func defaultConvertConfig() convertConfig {
 		AudioChannels:   "Source",
 		AudioSampleRate: "Source",
 		NormalizeAudio:  false,
+		NormalizeLUFS:   -16.0,
+		NormalizeTruePeak: -1.5,
 
 		InverseTelecine:  true,
 		InverseAutoNotes: "Default smoothing for interlaced footage.",
@@ -11235,6 +11243,49 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	normalizeAudioCheck.Checked = state.convert.NormalizeAudio
 
+	// Normalize sliders (LUFS and TruePeak)
+	normalizeLUFSValue := state.convert.NormalizeLUFS
+	if normalizeLUFSValue == 0 {
+		normalizeLUFSValue = -16.0
+	}
+	normalizeTruePeakValue := state.convert.NormalizeTruePeak
+	if normalizeTruePeakValue == 0 {
+		normalizeTruePeakValue = -1.5
+	}
+	lufsLabel := widget.NewLabel(fmt.Sprintf("%.0f LUFS", normalizeLUFSValue))
+	truePeakLabel := widget.NewLabel(fmt.Sprintf("%.1f dBTP", normalizeTruePeakValue))
+	normalizeLUFSSlider := widget.NewSlider(-24, -9)
+	normalizeLUFSSlider.Step = 1
+	normalizeLUFSSlider.SetValue(normalizeLUFSValue)
+	normalizeLUFSSlider.OnChanged = func(value float64) {
+		state.convert.NormalizeLUFS = value
+		lufsLabel.SetText(fmt.Sprintf("%.0f LUFS", value))
+	}
+	normalizeTruePeakSlider := widget.NewSlider(-9, 0)
+	normalizeTruePeakSlider.Step = 0.5
+	normalizeTruePeakSlider.SetValue(normalizeTruePeakValue)
+	normalizeTruePeakSlider.OnChanged = func(value float64) {
+		state.convert.NormalizeTruePeak = value
+		truePeakLabel.SetText(fmt.Sprintf("%.1f dBTP", value))
+	}
+	var normalizeSliderContainer *fyne.Container
+	normalizeSliderContainer = container.NewVBox(
+		container.NewGridWithColumns(2, lufsLabel, normalizeLUFSSlider),
+		container.NewGridWithColumns(2, truePeakLabel, normalizeTruePeakSlider),
+	)
+	updateNormalizeSliders := func() {
+		if state.convert.NormalizeAudio {
+			normalizeSliderContainer.Show()
+		} else {
+			normalizeSliderContainer.Hide()
+		}
+	}
+	normalizeAudioCheck.OnChanged = func(checked bool) {
+		updateNormalizeSliders()
+	}
+	// Initialize visibility
+	updateNormalizeSliders()
+
 	// applyDevicePreset applies a complete hwPreset to all encoding state and widgets.
 	// Defined here so all selects are in scope for the closure.
 	applyDevicePreset = func(dp hwPreset) {
@@ -12002,6 +12053,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		audioSampleRateSelect,
 		widget.NewSeparator(),
 		normalizeAudioCheck,
+		normalizeSliderContainer,
 	))
 
 	outputSectionAdvanced := buildConvertBox(t.ConvertSectionOutput, container.NewVBox(
@@ -12133,6 +12185,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		audioChannelsSelect.SetSelected(state.convert.AudioChannels)
 		audioSampleRateSelect.SetSelected(state.convert.AudioSampleRate)
 		normalizeAudioCheck.SetChecked(state.convert.NormalizeAudio)
+		normalizeLUFSSlider.SetValue(state.convert.NormalizeLUFS)
+		normalizeTruePeakSlider.SetValue(state.convert.NormalizeTruePeak)
 		deinterlaceModeSelect.SetSelected(state.convert.Deinterlace)
 		deinterlaceMethodSelect.SetSelected(state.convert.DeinterlaceMethod)
 		h264ProfileSelect.SetSelected(state.convert.H264Profile)
@@ -15508,11 +15562,19 @@ func (s *appState) startConvert(status *widget.Label, btn, cancelBtn *widget.But
 			}
 		}
 
-		// Audio sample rate
+		// Audio sample rate and normalize
 		if cfg.NormalizeAudio {
-			// Force 48kHz for maximum compatibility
-			args = append(args, "-ar", "48000")
-			logging.Debug(logging.CatFFMPEG, "audio normalization: forcing 48kHz sample rate")
+			// Apply loudnorm filter with LUFS and TruePeak values
+			lufs := cfg.NormalizeLUFS
+			if lufs == 0 {
+				lufs = -16
+			}
+			tp := cfg.NormalizeTruePeak
+			if tp == 0 {
+				tp = -1.5
+			}
+			args = append(args, "-af", fmt.Sprintf("loudnorm=I=%.0f:TP=%.1f:LRA=11", lufs, tp))
+			logging.Debug(logging.CatFFMPEG, "audio normalization: %.0f LUFS, %.1f dBTP", lufs, tp)
 		} else if cfg.AudioSampleRate != "" && cfg.AudioSampleRate != "Source" {
 			args = append(args, "-ar", cfg.AudioSampleRate)
 		}
