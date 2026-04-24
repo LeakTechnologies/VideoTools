@@ -49,6 +49,8 @@ type PreferencesCallbacks interface {
 	SetHWDecodeEnabled(enabled bool)
 	PlayerFont() string
 	SetPlayerFont(font string)
+	FontSize() string
+	SetFontSize(size string)
 	ShowPlayer() func()
 	DefaultOutputDir() string
 	SetDefaultOutputDir(dir string)
@@ -84,6 +86,7 @@ type PrefsConfig struct {
 	ShowTooltips       bool   `json:"ShowTooltips"`
 	HWDecodeEnabled    bool   `json:"HWDecodeEnabled"`
 	PlayerFont         string `json:"PlayerFont"`
+	FontSize           string `json:"FontSize"`
 }
 
 type Dependency struct {

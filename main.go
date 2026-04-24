@@ -8294,6 +8294,7 @@ func runGUI() {
 		state.defaultOutputDir = prefs.DefaultOutputDir
 		ui.ShowTooltips = prefs.ShowTooltips
 		setHWDecodeEnabled(prefs.HWDecodeEnabled)
+		ui.SetFontSizePreference(prefs.FontSize)
 	} else if !errors.Is(err, os.ErrNotExist) {
 		logging.Debug(logging.CatSystem, "failed to load persisted prefs: %v", err)
 	}

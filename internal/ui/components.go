@@ -49,29 +49,30 @@ type monoFonts struct {
 var monoFontData monoFonts
 var aboriginalFontData monoFonts
 var fontMode = "mono"
+var vcrFontData []byte
 
 // MonoFontPreference controls which monospace font is used ("ibm" or "vcr").
 // Set via SetMonoFontPreference() and checked by MonoTheme.Font().
+// When changed, call fyne.CurrentApp().Settings().SetTheme(theme) to refresh.
 var MonoFontPreference = "ibm"
 
-// vcrOSDFontData holds the VCR OSD Mono font data (single weight, no variants).
-var vcrOSDFontData []byte
+// FontSizePreference controls UI text size ("large" or "small").
+var FontSizePreference = "large"
 
-// SetVCRFontData registers the VCR OSD Mono font for the test pattern.
-// This font is always used in the test pattern regardless of MonoFontPreference.
-func SetVCRFontData(data []byte) {
-	vcrOSDFontData = data
-}
-
-// SetMonoFontPreference sets the monospace font preference ("ibm" or "vcr").
-// When changed, call fyne.CurrentApp().Settings().SetTheme(theme) to refresh.
 func SetMonoFontPreference(pref string) {
 	MonoFontPreference = pref
 }
 
-// GetMonoFontPreference returns the current monospace font preference.
 func GetMonoFontPreference() string {
 	return MonoFontPreference
+}
+
+func SetFontSizePreference(size string) {
+	FontSizePreference = size
+}
+
+func GetFontSizePreference() string {
+	return FontSizePreference
 }
 
 func SetMonoFontData(regular, italic, bold, boldItalic []byte) {
@@ -81,6 +82,10 @@ func SetMonoFontData(regular, italic, bold, boldItalic []byte) {
 		bold:       bold,
 		boldItalic: boldItalic,
 	}
+}
+
+func SetVCRFontData(data []byte) {
+	vcrFontData = data
 }
 
 func SetAboriginalFontData(regular, italic, bold, boldItalic []byte) {
@@ -212,8 +217,8 @@ func min(a, b int) int {
 func (m *MonoTheme) Font(style fyne.TextStyle) fyne.Resource {
 	// VCR OSD Mono is used when MonoFontPreference is "vcr". It has no Bold/Italic variants.
 	// IBM Plex Mono is used when preference is "ibm" and has variants.
-	if MonoFontPreference == "vcr" && vcrOSDFontData != nil {
-		return fyne.NewStaticResource("VCR-OSD-mono.ttf", vcrOSDFontData)
+	if MonoFontPreference == "vcr" && vcrFontData != nil {
+		return fyne.NewStaticResource("VCR-OSD-mono.ttf", vcrFontData)
 	}
 
 	// IBM Plex Mono is the primary font. Aboriginal Sans is injected as an auxiliary
@@ -246,17 +251,33 @@ func (m *MonoTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
 }
 
 func (m *MonoTheme) Size(name fyne.ThemeSizeName) float32 {
+	isLarge := FontSizePreference != "small"
+	padding := float32(8)
+	innerPadding := float32(10)
+	if !isLarge {
+		padding = float32(6)
+		innerPadding = float32(8)
+	}
 	switch name {
 	case theme.SizeNamePadding:
-		return 8
+		return padding
 	case theme.SizeNameInnerPadding:
-		return 10
+		return innerPadding
 	case theme.SizeNameText:
-		return 16
+		if isLarge {
+			return 16
+		}
+		return 14
 	case theme.SizeNameHeadingText:
-		return 22
-	case theme.SizeNameSubHeadingText:
+		if isLarge {
+			return 22
+		}
 		return 18
+	case theme.SizeNameSubHeadingText:
+		if isLarge {
+			return 18
+		}
+		return 15
 	case theme.SizeNameInputBorder:
 		return 0
 	}

@@ -1819,6 +1819,22 @@ func (a *preferencesAdapter) SetPlayerFont(font string) {
 	fyne.CurrentApp().Settings().SetTheme(fyne.CurrentApp().Settings().Theme())
 }
 
+func (a *preferencesAdapter) FontSize() string {
+	if a.s.prefs.FontSize == "" {
+		return "large"
+	}
+	return a.s.prefs.FontSize
+}
+
+func (a *preferencesAdapter) SetFontSize(size string) {
+	a.s.prefs.FontSize = size
+	if err := savePrefsConfig(a.s.prefs); err != nil {
+		logging.Error(logging.CatSystem, "SetFontSize save failed: %v", err)
+	}
+	ui.SetFontSizePreference(size)
+	fyne.CurrentApp().Settings().SetTheme(fyne.CurrentApp().Settings().Theme())
+}
+
 func (a *preferencesAdapter) DefaultOutputDir() string {
 	return a.s.defaultOutputDir
 }
