@@ -14041,22 +14041,24 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 
 		// Load first video
 		videoPath := videoPaths[0]
+		logging.Info(logging.CatInspect, "inspect: probing dropped file: %s", videoPath)
 		go func() {
 			src, err := probeVideo(videoPath)
 			if err != nil {
-				logging.Debug(logging.CatModule, "failed to load video for inspect: %v", err)
+				logging.Error(logging.CatInspect, "inspect probe failed: %v", err)
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					dialog.ShowError(fmt.Errorf("failed to load video: %w", err), s.window)
 				}, false)
 				return
 			}
+			logging.Info(logging.CatInspect, "inspect: probe complete, loading player")
 
 			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 				s.inspectFile = src
 				s.inspectInterlaceResult = nil
 				s.inspectInterlaceAnalyzing = true
 				s.showInspectView()
-				logging.Debug(logging.CatModule, "loaded video into inspect module")
+				logging.Info(logging.CatInspect, "inspect: view refreshed with file metadata")
 			}, false)
 
 			// Load native player now that probe is done and view is being shown.
