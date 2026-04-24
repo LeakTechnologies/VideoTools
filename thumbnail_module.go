@@ -115,14 +115,20 @@ func (s *appState) showThumbnailView() {
 	logging.Debug(logging.CatModule, "showThumbnailView: start")
 	start := time.Now()
 	s.stopPreview()
+	entering := s.active != "thumbnail"
 	s.lastModule = s.active
 	s.active = "thumbnail"
 	s.maximizeWindow()
 	elapsed := time.Since(start)
 	logging.Debug(logging.CatModule, "showThumbnailView: pre-config %v", elapsed)
 	start = time.Now()
-	if cfg, err := loadPersistedThumbnailConfig(); err == nil {
-		s.applyThumbnailConfig(cfg)
+	// Only load persisted config when navigating into the module from elsewhere.
+	// Internal refreshes (output mode change, file selection, etc.) already have
+	// correct in-memory state; reading disk every rebuild adds unnecessary I/O.
+	if entering {
+		if cfg, err := loadPersistedThumbnailConfig(); err == nil {
+			s.applyThumbnailConfig(cfg)
+		}
 	}
 	elapsed = time.Since(start)
 	logging.Debug(logging.CatModule, "showThumbnailView: config loaded %v", elapsed)
@@ -276,16 +282,21 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 				return state.statsBar
 			},
 		OnLoadFile: func(path string) {
-			src, err := probeVideo(path)
-			if err != nil {
-				dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
-				return
-			}
-			state.thumbnailFile = src
-			state.addThumbnailSource(src)
-			state.showThumbnailView()
-			logging.Debug(logging.CatModule, "loaded thumbnail file: %s", path)
+			// probeVideo shells out to ffprobe and must not run on the UI goroutine.
 			go func() {
+				src, err := probeVideo(path)
+				if err != nil {
+					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+						dialog.ShowError(fmt.Errorf("failed to load video: %w", err), state.window)
+					}, false)
+					return
+				}
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					state.thumbnailFile = src
+					state.addThumbnailSource(src)
+					state.showThumbnailView()
+					logging.Debug(logging.CatModule, "loaded thumbnail file: %s", path)
+				}, false)
 				if len(src.PreviewFrames) == 0 {
 					if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
 						src.PreviewFrames = frames
