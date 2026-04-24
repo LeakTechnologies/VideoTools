@@ -63,6 +63,7 @@ func NewInlineVideoPlayer() *InlineVideoPlayer {
 		// a file is opened. This avoids a leaked goroutine when a player is
 		// constructed but never loaded, and makes Load() the single owner.
 	}
+	v.player.SetIdleText("DRAG TO LOAD VIDEO")
 	// Wire the widget's built-in controls to this player by default.
 	// Modules that need custom logic (e.g. Trim) can overwrite via OnPlay/OnPause/OnSeek.
 	p := v.player
