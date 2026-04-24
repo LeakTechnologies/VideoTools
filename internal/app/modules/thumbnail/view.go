@@ -388,18 +388,22 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 
-		individualSizeOptions := []string{"160 px", "240 px", "320 px", "480 px", "576 px", "640 px"}
+		individualSizeOptions := []string{"240 px", "300 px", "360 px", "420 px", "480 px", "540 px", "576 px", "640 px"}
 		widthSelect := widget.NewSelect(individualSizeOptions, func(val string) {
 			var width int
 			switch val {
-			case "160 px":
-				width = 160
 			case "240 px":
 				width = 240
-			case "320 px":
-				width = 320
+			case "300 px":
+				width = 300
+			case "360 px":
+				width = 360
+			case "420 px":
+				width = 420
 			case "480 px":
 				width = 480
+			case "540 px":
+				width = 540
 			case "576 px":
 				width = 576
 			case "640 px":
@@ -414,7 +418,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		})
 		switch opts.ThumbnailWidth {
-		case 160, 240, 320, 480, 576, 640:
+		case 240, 300, 360, 420, 480, 540, 576, 640:
 			widthSelect.SetSelected(fmt.Sprintf("%d px", opts.ThumbnailWidth))
 		default:
 			widthSelect.SetSelected("320 px")
