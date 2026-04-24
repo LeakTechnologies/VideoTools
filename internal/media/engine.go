@@ -2054,17 +2054,26 @@ func (e *Engine) Seek(seconds float64) error {
 	target := C.int64_t(seconds / e.videoTimeBase)
 
 	var flags C.int
+	var minTS C.int64_t
 	switch e.seekAcc {
 	case SeekAccuracyFrame:
 		flags = C.int(AVSEEK_FLAG_FRAME)
+		minTS = target
 	case SeekAccuracyKeyframe:
-		flags = 0
+		// AVSEEK_FLAG_BACKWARD: seek to the keyframe at or before target.
+		// Widening min_ts to 0 allows FFmpeg to find the preceding keyframe
+		// when target falls between keyframes, which is the common case.
+		// Without this, avformat_seek_file with min=target often fails for
+		// backward seeks, leaving the position unchanged.
+		flags = C.int(AVSEEK_FLAG_BACKWARD)
+		minTS = 0
 	case SeekAccuracyAccurate:
 		flags = C.int(AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ACCURATE)
+		minTS = 0
 	}
 
 	e.formatMu.Lock()
-	seekRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), target, target, target, flags)
+	seekRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, target, flags)
 	e.formatMu.Unlock()
 	if seekRet < 0 {
 		logging.Warning(logging.CatPlayer, "Seek to %.2f failed (ret=%d)", seconds, seekRet)

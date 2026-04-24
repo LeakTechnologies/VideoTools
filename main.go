@@ -3200,35 +3200,40 @@ func (s *appState) handleModuleDrop(moduleID string, items []fyne.URI) {
 				s.inspectInterlaceAnalyzing = true
 				s.showModule(moduleID)
 				logging.Debug(logging.CatModule, "loaded video for inspect module")
-
-				// Auto-run interlacing detection in background
-				go func() {
-					// Capture preview frames before running interlace analysis
-					if len(src.PreviewFrames) == 0 {
-						if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
-							src.PreviewFrames = frames
-						}
-					}
-
-					detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
-					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-					defer cancel()
-
-					result, err := detector.QuickAnalyze(ctx, path)
-
-					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						s.inspectInterlaceAnalyzing = false
-						if err != nil {
-							logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
-							s.inspectInterlaceResult = nil
-						} else {
-							s.inspectInterlaceResult = result
-							logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
-						}
-						s.showInspectView() // Refresh to show results
-					}, false)
-				}()
 			}, false)
+
+			// Load native player after view is shown.
+			if err := GetInspectPlayer().Load(path); err != nil {
+				logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
+			}
+
+			// Auto-run interlacing detection in background
+			go func() {
+				// Capture preview frames before running interlace analysis
+				if len(src.PreviewFrames) == 0 {
+					if frames, ferr := capturePreviewFrames(path, src.Duration); ferr == nil && len(frames) > 0 {
+						src.PreviewFrames = frames
+					}
+				}
+
+				detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				defer cancel()
+
+				result, err := detector.QuickAnalyze(ctx, path)
+
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					s.inspectInterlaceAnalyzing = false
+					if err != nil {
+						logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
+						s.inspectInterlaceResult = nil
+					} else {
+						s.inspectInterlaceResult = result
+						logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
+					}
+					s.showInspectView() // Refresh to show results
+				}, false)
+			}()
 		}()
 		return
 	}
@@ -14035,8 +14040,9 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 		}
 
 		// Load first video
+		videoPath := videoPaths[0]
 		go func() {
-			src, err := probeVideo(videoPaths[0])
+			src, err := probeVideo(videoPath)
 			if err != nil {
 				logging.Debug(logging.CatModule, "failed to load video for inspect: %v", err)
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -14051,36 +14057,40 @@ func (s *appState) handleDrop(pos fyne.Position, items []fyne.URI) {
 				s.inspectInterlaceAnalyzing = true
 				s.showInspectView()
 				logging.Debug(logging.CatModule, "loaded video into inspect module")
-
-				// Auto-run interlacing detection in background
-				videoPath := videoPaths[0]
-				go func() {
-					// Capture preview frames before running interlace analysis
-					if len(src.PreviewFrames) == 0 {
-						if frames, ferr := capturePreviewFrames(videoPath, src.Duration); ferr == nil && len(frames) > 0 {
-							src.PreviewFrames = frames
-						}
-					}
-
-					detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
-					ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-					defer cancel()
-
-					result, err := detector.QuickAnalyze(ctx, videoPath)
-
-					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-						s.inspectInterlaceAnalyzing = false
-						if err != nil {
-							logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
-							s.inspectInterlaceResult = nil
-						} else {
-							s.inspectInterlaceResult = result
-							logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
-						}
-						s.showInspectView() // Refresh to show results
-					}, false)
-				}()
 			}, false)
+
+			// Load native player now that probe is done and view is being shown.
+			if err := GetInspectPlayer().Load(videoPath); err != nil {
+				logging.Error(logging.CatPlayer, "inspect player load failed: %v", err)
+			}
+
+			// Auto-run interlacing detection in background
+			go func() {
+				// Capture preview frames before running interlace analysis
+				if len(src.PreviewFrames) == 0 {
+					if frames, ferr := capturePreviewFrames(videoPath, src.Duration); ferr == nil && len(frames) > 0 {
+						src.PreviewFrames = frames
+					}
+				}
+
+				detector := interlace.NewDetector(utils.GetFFmpegPath(), utils.GetFFprobePath())
+				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+				defer cancel()
+
+				result, err := detector.QuickAnalyze(ctx, videoPath)
+
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					s.inspectInterlaceAnalyzing = false
+					if err != nil {
+						logging.Debug(logging.CatSystem, "auto interlacing analysis failed: %v", err)
+						s.inspectInterlaceResult = nil
+					} else {
+						s.inspectInterlaceResult = result
+						logging.Debug(logging.CatSystem, "auto interlacing analysis complete: %s", result.Status)
+					}
+					s.showInspectView() // Refresh to show results
+				}, false)
+			}()
 		}()
 
 		return

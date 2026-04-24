@@ -67,8 +67,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 
 	topBar := ui.TintedBar(inspectColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
-	statsBar := cb.StatsBar()
-	bottomBar := container.NewVBox(layout.NewSpacer(), statsBar)
+	bottomBar := cb.ModuleFooter(nil)
 
 	instructions := widget.NewLabel(t.InspectInstructions)
 	instructions.Wrapping = fyne.TextWrapWord
