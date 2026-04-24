@@ -190,35 +190,18 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	clearBtn.Importance = widget.LowImportance
 
+	// Construct with nil OnChanged so that the initialising SetSelected call
+	// below does not fire the callback and trigger infinite recursion
+	// (SetSelected fires OnChanged when the value changes from the zero "").
 	outputModeRadio := widget.NewRadioGroup(
 		[]string{
 			or(opts.ModeIndividualLabel, "Individual"),
 			or(opts.ModeContactSheetLabel, "Contact Sheet"),
 			or(opts.ModeBothLabel, "Both"),
 		},
-		func(value string) {
-			switch value {
-			case or(opts.ModeIndividualLabel, "Individual"):
-				if opts.OnSetThumbnailOutputMode != nil {
-					opts.OnSetThumbnailOutputMode("individual")
-				}
-			case or(opts.ModeContactSheetLabel, "Contact Sheet"):
-				if opts.OnSetThumbnailOutputMode != nil {
-					opts.OnSetThumbnailOutputMode("contactSheet")
-				}
-			case or(opts.ModeBothLabel, "Both"):
-				if opts.OnSetThumbnailOutputMode != nil {
-					opts.OnSetThumbnailOutputMode("both")
-				}
-			}
-			if opts.OnPersistConfig != nil {
-				opts.OnPersistConfig()
-			}
-			if opts.OnShowThumbnailView != nil {
-				opts.OnShowThumbnailView()
-			}
-		},
+		nil,
 	)
+	outputModeRadio.Horizontal = true
 	switch opts.ThumbnailOutputMode {
 	case "contactSheet":
 		outputModeRadio.SetSelected(or(opts.ModeContactSheetLabel, "Contact Sheet"))
@@ -227,7 +210,28 @@ func BuildView(opts Options) fyne.CanvasObject {
 	default:
 		outputModeRadio.SetSelected(or(opts.ModeIndividualLabel, "Individual"))
 	}
-	outputModeRadio.Horizontal = true
+	outputModeRadio.OnChanged = func(value string) {
+		switch value {
+		case or(opts.ModeIndividualLabel, "Individual"):
+			if opts.OnSetThumbnailOutputMode != nil {
+				opts.OnSetThumbnailOutputMode("individual")
+			}
+		case or(opts.ModeContactSheetLabel, "Contact Sheet"):
+			if opts.OnSetThumbnailOutputMode != nil {
+				opts.OnSetThumbnailOutputMode("contactSheet")
+			}
+		case or(opts.ModeBothLabel, "Both"):
+			if opts.OnSetThumbnailOutputMode != nil {
+				opts.OnSetThumbnailOutputMode("both")
+			}
+		}
+		if opts.OnPersistConfig != nil {
+			opts.OnPersistConfig()
+		}
+		if opts.OnShowThumbnailView != nil {
+			opts.OnShowThumbnailView()
+		}
+	}
 
 	outputModeBox := container.NewVBox(
 		widget.NewLabelWithStyle(or(opts.OutputModeLabel, "Output Mode"), fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
