@@ -385,6 +385,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 
+		widthLabel := widget.NewLabel(fmt.Sprintf(widthFmt, opts.ThumbnailWidth))
 		individualSizeOptions := []string{"240 px", "300 px", "360 px", "420 px", "480 px", "540 px", "576 px", "640 px"}
 		widthSelect := widget.NewSelect(individualSizeOptions, func(val string) {
 			var width int
