@@ -538,10 +538,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	statsBar := opts.OnGetStatsBar()
 
-	bottomBar := container.NewVBox(
+	bottomItems := []fyne.CanvasObject{
 		container.NewHBox(addAllBtn, addQueueBtn, layout.NewSpacer(), generateNowBtn),
-		statsBar,
-	)
+	}
+	if statsBar != nil {
+		bottomItems = append(bottomItems, statsBar)
+	}
+	bottomBar := container.NewVBox(bottomItems...)
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
 }
 
