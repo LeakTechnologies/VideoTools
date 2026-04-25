@@ -11,10 +11,13 @@ import (
 
 // FormatOption represents a video output format with its associated codec
 type FormatOption struct {
-	Label      string
-	Ext        string
-	VideoCodec string
-	Name       string // Alias for Label for flexibility
+	Label        string
+	Ext          string
+	VideoCodec   string
+	Name         string // Alias for Label for flexibility
+	DevicePreset string // Device preset name this format is paired with, if any
+	SupportsHEVC bool   // Format container supports H.265
+	SupportsAV1  bool   // Format container supports AV1
 }
 
 // ConvertConfig holds all configuration for a video conversion operation
@@ -36,6 +39,7 @@ type ConvertConfig struct {
 	PixelFormat      string // yuv420p, yuv422p, yuv444p
 	HardwareAccel    string // none, nvenc, vaapi, qsv, videotoolbox
 	TwoPass          bool   // Enable two-pass encoding for VBR
+	EncoderTune      string // None, Film, Animation, Grain, Stillimage, Fastdecode
 
 	// Audio encoding settings
 	AudioCodec    string // AAC, Opus, MP3, FLAC, Copy

@@ -844,94 +844,19 @@ func openFile(path string) error {
 	return cmd.Start()
 }
 
-type formatOption struct {
-	Label        string
-	Ext          string
-	VideoCodec   string
-	DevicePreset string // e.g., "iPhone", "Android", "Chromecast" — enables auto-compatible settings
-	SupportsHEVC bool   // Device supports H.265
-	SupportsAV1  bool   // Device supports AV1
-}
+// formatOption and hwPreset are type aliases to the canonical definitions in internal/convert.
+type formatOption = convert.FormatOption
+type hwPreset = convert.HWPreset
 
-var formatOptions = []formatOption{
-	// H.264 - Widely compatible, older standard
-	{"MP4 (H.264)", ".mp4", "libx264", "", false, false},
-	{"MOV (H.264)", ".mov", "libx264", "", false, false},
-	// Remux - No re-encode
-	{"MKV (Remux)", ".mkv", "copy", "", false, false},
-	// H.265/HEVC - Higher quality than H.264
-	{"MP4 (H.265)", ".mp4", "libx265", "", false, false},
-	{"MKV (H.265)", ".mkv", "libx265", "", false, false},
-	{"MOV (H.265)", ".mov", "libx265", "", false, false},
-	// AV1 - Best compression, newest format
-	{"MP4 (AV1)", ".mp4", "libaom-av1", "", false, false},
-	{"MKV (AV1)", ".mkv", "libaom-av1", "", false, false},
-	{"WebM (AV1)", ".webm", "libaom-av1", "", false, false},
-	// VP9 - Google codec, good for web
-	{"WebM (VP9)", ".webm", "libvpx-vp9", "", false, false},
-	// ProRes - Professional/editing codec
-	{"MOV (ProRes)", ".mov", "prores_ks", "", false, false},
-	// MPEG-2 - DVD standard
-	{"DVD-NTSC (MPEG-2)", ".mpg", "mpeg2video", "", false, false},
-	{"DVD-PAL (MPEG-2)", ".mpg", "mpeg2video", "", false, false},
-}
-
-// hwPreset is a complete device-optimised encoding configuration.
-// Selecting a preset applies all fields to convert settings at once.
-type hwPreset struct {
-	Label         string
-	FormatLabel   string // must match a Label in formatOptions
-	EncoderPreset string // e.g., "medium", "fast"
-	Quality       string // e.g., "High (CRF 18)"
-	H264Profile   string // "baseline", "main", "high"
-	H264Level     string // "4.0", "4.1", "5.1"; "" = leave unset
-	TargetRes     string // "Source", "720p", "1080p", "4K"
-	PixelFormat   string // "yuv420p"
-	AudioCodec    string // "AAC", "AC-3"
-	AudioBitrate  string // "128k", "192k", "256k"
-	AudioChannels string // "Source", "Stereo"
-	AllowHEVC     bool   // H.265 supported by device
-	AllowAV1      bool   // AV1 supported by device
-}
-
-var hwPresets = []hwPreset{
-	{"iPhone", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "4.0", "1080p", "yuv420p", "AAC", "192k", "Stereo", true, false},
-	{"Android", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", true, true},
-	{"Chromecast", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", true, true},
-	{"Fire TV", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", true, false},
-	{"Smart TV", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", true, false},
-	{"PlayStation 4", "MP4 (H.264)", "medium", "High (CRF 18)", "main", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", false, false},
-	{"PlayStation 5", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "5.1", "4K", "yuv420p", "AAC", "256k", "Stereo", true, false},
-	{"Xbox One", "MP4 (H.264)", "medium", "High (CRF 18)", "main", "4.1", "1080p", "yuv420p", "AAC", "192k", "Stereo", false, false},
-	{"Xbox Series X", "MP4 (H.264)", "medium", "High (CRF 18)", "high", "5.1", "4K", "yuv420p", "AAC", "256k", "Stereo", true, false},
-	{"Nintendo Switch", "MP4 (H.264)", "medium", "Standard (CRF 23)", "main", "4.1", "720p", "yuv420p", "AAC", "192k", "Stereo", false, false},
-	{"Web (Fast Start)", "MP4 (H.264)", "fast", "Standard (CRF 23)", "high", "", "Source", "yuv420p", "AAC", "128k", "Stereo", false, false},
-}
-
-// formatVideoCodecs maps format extension to compatible video codec friendly names.
-var formatVideoCodecs = map[string][]string{
-	".mp4":  {"H.264", "H.265", "AV1", "MPEG-2", "Copy"},
-	".mkv":  {"H.264", "H.265", "AV1", "VP9", "MPEG-2", "Copy"},
-	".mov":  {"H.264", "H.265", "AV1", "MPEG-2", "Copy"},
-	".webm": {"VP9", "AV1"},
-	".mpg":  {"MPEG-2", "Copy"},
-}
-
-// formatAudioCodecs maps format extension to compatible audio codec friendly names.
-var formatAudioCodecs = map[string][]string{
-	".mp4":  {"AAC", "MP3", "AC-3", "FLAC", "Copy"},
-	".mkv":  {"AAC", "MP3", "AC-3", "FLAC", "Opus", "Copy"},
-	".mov":  {"AAC", "MP3", "AC-3", "FLAC", "Copy"},
-	".webm": {"Opus", "Vorbis"},
-	".mpg":  {"MP2", "AC-3", "Copy"},
-}
+var formatOptions = convert.FormatOptions
+var hwPresets = convert.HWPresets
 
 // ensureCompatibleCodec adjusts cfg's VideoCodec and AudioCodec to be compatible
 // with the selected format. If the current codec is incompatible, it is replaced
 // with the first compatible option.
 func ensureCompatibleCodec(cfg *convertConfig) {
 	ext := strings.ToLower(cfg.SelectedFormat.Ext)
-	if compatibleVideo, ok := formatVideoCodecs[ext]; ok && len(compatibleVideo) > 0 {
+	if compatibleVideo, ok := convert.FormatVideoCodecs[ext]; ok && len(compatibleVideo) > 0 {
 		found := false
 		for _, c := range compatibleVideo {
 			if c == cfg.VideoCodec {
@@ -943,7 +868,7 @@ func ensureCompatibleCodec(cfg *convertConfig) {
 			cfg.VideoCodec = compatibleVideo[0]
 		}
 	}
-	if compatibleAudio, ok := formatAudioCodecs[ext]; ok && len(compatibleAudio) > 0 {
+	if compatibleAudio, ok := convert.FormatAudioCodecs[ext]; ok && len(compatibleAudio) > 0 {
 		found := false
 		for _, c := range compatibleAudio {
 			if c == cfg.AudioCodec {
@@ -982,6 +907,7 @@ type convertConfig struct {
 	PixelFormat            string // yuv420p, yuv422p, yuv444p
 	HardwareAccel          string // auto, none, nvenc, amf, vaapi, qsv, videotoolbox
 	TwoPass                bool   // Enable two-pass encoding for VBR
+	EncoderTune            string // None, Film, Animation, Grain, Stillimage, Fastdecode (libx264/libx265 only)
 	H264Profile            string // baseline, main, high (for H.264 compatibility)
 	H264Level              string // 3.0, 3.1, 4.0, 4.1, 5.0, 5.1 (for H.264 compatibility)
 	Deinterlace            string // Auto, Force, Off
@@ -1041,6 +967,7 @@ type userPreset struct {
 	PixelFormat            string       `json:"pixelFormat"`
 	HardwareAccel          string       `json:"hardwareAccel"`
 	TwoPass                bool         `json:"twoPass"`
+	EncoderTune            string       `json:"encoderTune"`
 	H264Profile            string       `json:"h264Profile"`
 	H264Level              string       `json:"h264Level"`
 	AudioCodec             string       `json:"audioCodec"`
@@ -1079,6 +1006,7 @@ func userPresetFromConfig(name string, cfg convertConfig) userPreset {
 		PixelFormat:            cfg.PixelFormat,
 		HardwareAccel:          cfg.HardwareAccel,
 		TwoPass:                cfg.TwoPass,
+		EncoderTune:            cfg.EncoderTune,
 		H264Profile:            cfg.H264Profile,
 		H264Level:              cfg.H264Level,
 		AudioCodec:             cfg.AudioCodec,
@@ -2366,6 +2294,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		"pixelFormat":        cfg.PixelFormat,
 		"hardwareAccel":      cfg.HardwareAccel,
 		"twoPass":            cfg.TwoPass,
+		"encoderTune":        cfg.EncoderTune,
 		"h264Profile":        cfg.H264Profile,
 		"h264Level":          cfg.H264Level,
 		"deinterlace":        cfg.Deinterlace,
@@ -2513,6 +2442,7 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 		"pixelFormat":        cfg.PixelFormat,
 		"hardwareAccel":      cfg.HardwareAccel,
 		"twoPass":            cfg.TwoPass,
+		"encoderTune":        cfg.EncoderTune,
 		"h264Profile":        cfg.H264Profile,
 		"h264Level":          cfg.H264Level,
 		"deinterlace":        cfg.Deinterlace,
@@ -3572,6 +3502,7 @@ func (s *appState) batchAddToQueue(paths []string) {
 			"pixelFormat":       s.convert.PixelFormat,
 			"hardwareAccel":     s.convert.HardwareAccel,
 			"twoPass":           s.convert.TwoPass,
+			"encoderTune":       s.convert.EncoderTune,
 			"h264Profile":       s.convert.H264Profile,
 			"h264Level":         s.convert.H264Level,
 			"deinterlace":       s.convert.Deinterlace,
@@ -5681,6 +5612,13 @@ func (s *appState) executeConvertJob(ctx context.Context, job *queue.Job, progre
 			} else if actualCodec == "libaom-av1" {
 				// Always set a sensible cpu-used for libaom — default (1) is research-speed only
 				args = append(args, "-cpu-used", "4")
+			}
+
+			// Encoder tune (libx264 / libx265 software only)
+			if tune, _ := cfg["encoderTune"].(string); tune != "" && tune != "None" {
+				if actualCodec == "libx264" || actualCodec == "libx265" {
+					args = append(args, "-tune", strings.ToLower(tune))
+				}
 			}
 
 			// Hardware encoder quality / preset
@@ -9112,6 +9050,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var audioCodecSelect *ui.ColoredSelect
 	var normalizeAudioCheck *widget.Check
 	var profileLevelContainer *fyne.Container
+	var tuneContainer *fyne.Container
+	var tuneSelect *widget.Select
 
 	var formatLabels []string
 	for _, opt := range formatOptions {
@@ -9146,8 +9086,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 		// Update codec compatibility based on format
 		ext := strings.ToLower(opt.Ext)
-		compatibleVideo := formatVideoCodecs[ext]
-		compatibleAudio := formatAudioCodecs[ext]
+		compatibleVideo := convert.FormatVideoCodecs[ext]
+		compatibleAudio := convert.FormatAudioCodecs[ext]
 
 		// Update video codec select - grey out incompatible codecs
 		if videoCodecSelect != nil {
@@ -9992,11 +9932,16 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoCodecSelect = ui.NewColoredSelect(videoCodecOptions, videoCodecColorMap, func(value string) {
 		state.convert.VideoCodec = value
 		logging.Debug(logging.CatUI, "video codec set to %s", value)
-		// Toggle H.264 profile/level visibility
+		// Toggle H.264 profile/level and tune visibility
 		if value == "H.264" {
 			profileLevelContainer.Show()
+			tuneContainer.Show()
+		} else if value == "H.265" {
+			profileLevelContainer.Hide()
+			tuneContainer.Show()
 		} else {
 			profileLevelContainer.Hide()
+			tuneContainer.Hide()
 		}
 		var preferredExt string
 		if state.convert.SelectedFormat.Ext != "" {
@@ -11300,10 +11245,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		}
 
-		// Apply video codec and H.264 profile/level.
+		// Apply video codec, H.264 profile/level, and reset tune.
 		state.convert.VideoCodec = "H.264"
 		state.convert.H264Profile = dp.H264Profile
 		state.convert.H264Level = dp.H264Level
+		state.convert.EncoderTune = "None"
+		tuneSelect.SetSelected("None")
 		videoCodecSelect.EnableAllOptions()
 		if !dp.AllowHEVC {
 			videoCodecSelect.DisableOption("H.265")
@@ -11441,6 +11388,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		// Two-pass
 		state.convert.TwoPass = up.TwoPass
 		twoPassCheck.SetChecked(up.TwoPass)
+
+		// Tune
+		tune := up.EncoderTune
+		if tune == "" {
+			tune = "None"
+		}
+		state.convert.EncoderTune = tune
+		tuneSelect.SetSelected(tune)
 
 		// Audio
 		if up.AudioCodec != "" {
@@ -12007,11 +11962,35 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	)
 	profileLevelContainer.Hide()
 
+	tuneOptions := []string{"None", "Film", "Animation", "Grain", "Stillimage", "Fastdecode"}
+	tuneSelect = widget.NewSelect(tuneOptions, func(value string) {
+		state.convert.EncoderTune = value
+		if buildCommandPreview != nil {
+			buildCommandPreview()
+		}
+	})
+	if state.convert.EncoderTune == "" {
+		state.convert.EncoderTune = "None"
+	}
+	tuneSelect.SetSelected(state.convert.EncoderTune)
+	tuneContainer = container.NewVBox(
+		container.NewGridWithColumns(2,
+			container.NewPadded(container.NewVBox(
+				widget.NewLabelWithStyle("Tune", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+				tuneSelect,
+			)),
+		),
+	)
+	if state.convert.VideoCodec != "H.264" && state.convert.VideoCodec != "H.265" {
+		tuneContainer.Hide()
+	}
+
 	advancedVideoEncodingBlock = buildConvertBox(t.ConvertSectionVideoEncoding, container.NewVBox(
 		videoCodecRow,
 		videoCodecControls,
 		encoderPresetHintContainer,
 		profileLevelContainer,
+		tuneContainer,
 		widget.NewSeparator(),
 		widget.NewLabelWithStyle(t.ConvertSectionBitrateMode, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		bitrateModeRadio,
