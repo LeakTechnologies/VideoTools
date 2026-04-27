@@ -114,10 +114,15 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 		}
 	}()
 
-	v.mu.Lock()
+	// Widget mutations (ClearError, SetLoading) touch Fyne widget state and must
+	// run on the main goroutine. Dispatching async lets Load() continue
+	// immediately without waiting for a round-trip through the event loop.
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		v.player.ClearError()
+		v.player.SetLoading(true)
+	}, false)
 
-	v.player.ClearError()
-	v.player.SetLoading(true)
+	v.mu.Lock()
 
 	// Snapshot and clear the previous engine/scrubber before swapping in new
 	// ones. Clearing under the lock prevents concurrent callers (seekLoop,

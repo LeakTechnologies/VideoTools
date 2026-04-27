@@ -19,6 +19,10 @@ var (
 	debugOn    = false
 	logsDir    string
 
+	// fileMu serialises concurrent writes to file so goroutines never interleave
+	// partial log lines, and lets Error/Fatal call Sync() without a race.
+	fileMu sync.Mutex
+
 	suppressMu       sync.Mutex
 	suppressCount    = make(map[string]int)
 	suppressLastMsg  = make(map[string]time.Time)
@@ -71,6 +75,20 @@ func Init() {
 		return
 	}
 	file = f
+
+	// Flush the OS write cache every 500 ms so log entries appear on disk
+	// promptly even when the process hangs between Sync() calls.
+	go func() {
+		t := time.NewTicker(500 * time.Millisecond)
+		defer t.Stop()
+		for range t.C {
+			fileMu.Lock()
+			if file != nil {
+				file.Sync()
+			}
+			fileMu.Unlock()
+		}
+	}()
 }
 
 // GetCrashLogPath returns path for crash-specific log file
@@ -137,14 +155,28 @@ func LogAllGoroutines() {
 	Crash(CatSystem, "%s", FullStackTrace())
 }
 
+// writeLog writes a pre-formatted log line to the log file under fileMu.
+// It must NOT be called with fileMu already held (no re-entrancy).
+func writeLog(line string) {
+	fileMu.Lock()
+	if file != nil {
+		fmt.Fprintln(file, line)
+	}
+	fileMu.Unlock()
+}
+
 // Error logs an error message with a category (always logged, even when debug is off)
 func Error(cat Category, format string, args ...interface{}) {
 	msg := fmt.Sprintf("%s ERROR: %s", cat, fmt.Sprintf(format, args...))
 	timestamp := time.Now().Format(time.RFC3339Nano)
+	line := timestamp + " " + msg
+	writeLog(line)
+	fileMu.Lock()
 	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+		file.Sync()
 	}
-	history = append(history, fmt.Sprintf("%s %s", timestamp, msg))
+	fileMu.Unlock()
+	history = append(history, line)
 	if len(history) > historyMax {
 		history = history[len(history)-historyMax:]
 	}
@@ -155,9 +187,7 @@ func Error(cat Category, format string, args ...interface{}) {
 func Warning(cat Category, format string, args ...interface{}) {
 	msg := fmt.Sprintf("%s WARNING: %s", cat, fmt.Sprintf(format, args...))
 	timestamp := time.Now().Format(time.RFC3339Nano)
-	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
-	}
+	writeLog(timestamp + " " + msg)
 	logger.Printf("%s %s", timestamp, msg)
 }
 
@@ -168,9 +198,7 @@ func Debug(cat Category, format string, args ...interface{}) {
 	}
 	msg := fmt.Sprintf("%s %s", cat, fmt.Sprintf(format, args...))
 	timestamp := time.Now().Format(time.RFC3339Nano)
-	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
-	}
+	writeLog(timestamp + " " + msg)
 	logger.Printf("%s %s", timestamp, msg)
 }
 
@@ -201,9 +229,7 @@ func Info(cat Category, format string, args ...interface{}) {
 		return
 	}
 
-	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
-	}
+	writeLog(timestamp + " " + msg)
 	logger.Printf("%s %s", timestamp, msg)
 }
 
@@ -212,10 +238,13 @@ func Crash(cat Category, format string, args ...interface{}) {
 	msg := fmt.Sprintf("%s CRASH: %s", cat, fmt.Sprintf(format, args...))
 	timestamp := time.Now().Format(time.RFC3339Nano)
 
-	// Log to main log file
+	line := timestamp + " " + msg
+	writeLog(line)
+	fileMu.Lock()
 	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
+		file.Sync()
 	}
+	fileMu.Unlock()
 	logger.Printf("%s %s", timestamp, msg)
 
 	// Also log to dedicated crash log
@@ -230,10 +259,12 @@ func Crash(cat Category, format string, args ...interface{}) {
 func Fatal(cat Category, format string, args ...interface{}) {
 	msg := fmt.Sprintf("%s FATAL: %s", cat, fmt.Sprintf(format, args...))
 	timestamp := time.Now().Format(time.RFC3339Nano)
+	writeLog(timestamp + " " + msg)
+	fileMu.Lock()
 	if file != nil {
-		fmt.Fprintf(file, "%s %s\n", timestamp, msg)
 		file.Sync()
 	}
+	fileMu.Unlock()
 	logger.Printf("%s %s", timestamp, msg)
 	os.Exit(1)
 }
