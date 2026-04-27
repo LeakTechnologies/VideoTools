@@ -583,6 +583,23 @@ type Strings struct {
 	ConvertSectionRotation         string // "Rotation"
 	ConvertSectionBitrateSimple    string // "Bitrate (simple presets)"
 	ConvertSectionMetadata         string // "Metadata"
+	ConvertSectionEncoderTune      string // "Tune"
+
+	// ── Convert Preset Panels ────────────────────────────────────────────────
+	ConvertDevicePresets         string // "Device Presets"
+	ConvertUserPresets           string // "User Presets"
+	ConvertSavePreset            string // "Save Preset" — dialog title
+	ConvertPresetNamePlaceholder string // placeholder for preset name entry
+
+	// ── Convert Bitrate Mode Hints ───────────────────────────────────────────
+	ConvertBitrateModeHintCRF           string // CRF mode explanation
+	ConvertBitrateModeHintCBR           string // CBR mode explanation
+	ConvertBitrateModeHintVBR           string // VBR mode explanation
+	ConvertBitrateModeHintTargetSize    string // Target Size mode explanation
+	ConvertBitrateModeHintLosslessCRF   string // Lossless quality + CRF
+	ConvertBitrateModeHintLosslessCBR   string // Lossless quality + CBR
+	ConvertBitrateModeHintLosslessVBR   string // Lossless quality + VBR
+	ConvertBitrateModeHintLosslessTarget string // Lossless quality + target size
 
 	// ── Merge ──────────────────────────────────────────────────────────────────
 	MergeAddClipsHint string // "Add at least two clips to merge."
