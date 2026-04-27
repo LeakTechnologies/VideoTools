@@ -24,7 +24,42 @@ type InlineVideoPlayer struct {
 	onProgress func(float64)    // called from playbackLoop with current time in seconds
 	onEnd      func()           // called on clean end-of-stream; NOT called on error
 	onFrame    func(*image.RGBA) // called on every rendered frame (playback + scrub)
-	seekCh     chan float64  // capacity-1 channel; seekLoop drains it serially
+	onLoad     func(LoadEvent)   // fired on main goroutine at each load milestone
+	seekCh     chan float64      // capacity-1 channel; seekLoop drains it serially
+}
+
+// LoadPhase identifies a milestone in the video load pipeline.
+type LoadPhase int
+
+const (
+	LoadPhaseStarted    LoadPhase = iota // Load() entered; engine not yet open
+	LoadPhaseOpen                        // avformat_open_input + find_stream_info done
+	LoadPhaseFirstFrame                  // first video frame decoded and ready to display
+	LoadPhaseReady                       // player UI updated; video is fully usable
+	LoadPhaseFailed                      // load aborted with an error
+)
+
+func (p LoadPhase) String() string {
+	switch p {
+	case LoadPhaseStarted:
+		return "Starting"
+	case LoadPhaseOpen:
+		return "Engine open"
+	case LoadPhaseFirstFrame:
+		return "First frame"
+	case LoadPhaseReady:
+		return "Ready"
+	case LoadPhaseFailed:
+		return "Failed"
+	}
+	return "Unknown"
+}
+
+// LoadEvent is delivered to the onLoad callback at each load milestone.
+type LoadEvent struct {
+	Phase LoadPhase
+	At    time.Time
+	Err   error // non-nil only when Phase == LoadPhaseFailed
 }
 
 // SetOnProgress registers a callback that is called from the playback goroutine
@@ -51,6 +86,27 @@ func (v *InlineVideoPlayer) SetOnFrame(fn func(*image.RGBA)) {
 	v.mu.Lock()
 	v.onFrame = fn
 	v.mu.Unlock()
+}
+
+// SetOnLoad registers a callback that is fired on the main Fyne goroutine at
+// each milestone during Load() — Started, Open, FirstFrame, Ready, Failed.
+// Use this to drive diagnostic displays without polling.
+func (v *InlineVideoPlayer) SetOnLoad(fn func(LoadEvent)) {
+	v.mu.Lock()
+	v.onLoad = fn
+	v.mu.Unlock()
+}
+
+// fireLoad dispatches a LoadEvent to the onLoad callback on the main goroutine.
+// It is safe to call from any goroutine.
+func (v *InlineVideoPlayer) fireLoad(evt LoadEvent) {
+	v.mu.Lock()
+	fn := v.onLoad
+	v.mu.Unlock()
+	if fn == nil {
+		return
+	}
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() { fn(evt) }, false)
 }
 
 func NewInlineVideoPlayer() *InlineVideoPlayer {
@@ -113,6 +169,8 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 			err = fmt.Errorf("Load panic: %v", r)
 		}
 	}()
+
+	v.fireLoad(LoadEvent{Phase: LoadPhaseStarted, At: time.Now()})
 
 	// Widget mutations (ClearError, SetLoading) touch Fyne widget state and must
 	// run on the main goroutine. Dispatching async lets Load() continue
@@ -179,6 +237,7 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: opening %s", path)
 	if err := eng.Open(path); err != nil {
 		logging.Error(logging.CatPlayer, "InlineVideoPlayer: failed to open %s: %v", path, err)
+		v.fireLoad(LoadEvent{Phase: LoadPhaseFailed, At: time.Now(), Err: err})
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetError(err.Error())
 			v.player.SetLoading(false)
@@ -187,6 +246,7 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	}
 
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer: file opened successfully")
+	v.fireLoad(LoadEvent{Phase: LoadPhaseOpen, At: time.Now()})
 	eng.InitFrameCache(30)
 
 	chapters := eng.GetChapters()
@@ -199,6 +259,7 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	if img, err := eng.GrabFrame(4 * time.Second); err == nil {
 		logging.Info(logging.CatPlayer, "Load: GrabFrame success %dx%d", img.Bounds().Dx(), img.Bounds().Dy())
 		firstFrame = img
+		v.fireLoad(LoadEvent{Phase: LoadPhaseFirstFrame, At: time.Now()})
 	} else {
 		logging.Error(logging.CatPlayer, "Load: GrabFrame failed (player shows SMPTE bars): %v", err)
 	}
@@ -238,6 +299,7 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 		v.player.AddThumbnailFrame(t, img)
 	})
 
+	readyAt := time.Now()
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		if len(chapters) > 0 {
 			v.player.SetChapters(chapters)
@@ -250,6 +312,12 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 		}
 		v.player.SetLoading(false)
 		v.player.Refresh()
+		v.mu.Lock()
+		fn := v.onLoad
+		v.mu.Unlock()
+		if fn != nil {
+			fn(LoadEvent{Phase: LoadPhaseReady, At: readyAt})
+		}
 	}, false)
 	return nil
 }

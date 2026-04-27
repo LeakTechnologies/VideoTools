@@ -580,7 +580,47 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			nil, pill)
 	}
 
+	// Load state pills — updated by SetOnLoad milestones from the player.
+	loadOpenPill := makeValuePill("--")
+	loadFramePill := makeValuePill("--")
+	loadReadyPill := makeValuePill("--")
+
+	formatWall := func(t time.Time) string {
+		return t.Format("15:04:05.000")
+	}
+
+	cb.Player().SetOnLoad(func(evt ui.LoadEvent) {
+		// Already on main goroutine; update pills directly.
+		switch evt.Phase {
+		case ui.LoadPhaseStarted:
+			setPillText(loadOpenPill, "--")
+			setPillText(loadFramePill, "--")
+			setPillText(loadReadyPill, "--")
+			setPillBG(loadReadyPill, valueBg)
+		case ui.LoadPhaseOpen:
+			setPillText(loadOpenPill, formatWall(evt.At))
+		case ui.LoadPhaseFirstFrame:
+			setPillText(loadFramePill, formatWall(evt.At))
+		case ui.LoadPhaseReady:
+			setPillText(loadReadyPill, formatWall(evt.At))
+			setPillBG(loadReadyPill, color.RGBA{R: 0x4C, G: 0xE8, B: 0x70, A: 0xFF})
+		case ui.LoadPhaseFailed:
+			errText := "Failed"
+			if evt.Err != nil {
+				errText = "Failed: " + evt.Err.Error()
+			}
+			setPillText(loadReadyPill, errText)
+			setPillBG(loadReadyPill, color.RGBA{R: 0xFF, G: 0x4C, B: 0x4C, A: 0xFF})
+		}
+	})
+
 	syncContent := container.NewVBox(
+		widget.NewLabelWithStyle("Load State", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		syncRow("Engine open", loadOpenPill),
+		syncRow("First frame", loadFramePill),
+		syncRow("Ready", loadReadyPill),
+		widget.NewSeparator(),
+		widget.NewLabelWithStyle("A/V Sync", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		syncRow("Clock", clockPill),
 		syncRow("Audio PTS", audioPTSPill),
 		syncRow("Video PTS", videoPTSPill),
