@@ -1553,6 +1553,13 @@ func (e *Engine) Open(path string) error {
 		return fmt.Errorf("failed to open input file: %s", path)
 	}
 
+	// Cap probe depth so unusual files don't stall the engine indefinitely.
+	// probesize is in bytes; max_analyze_duration is in AV_TIME_BASE units (µs).
+	// 10 MB / 10 s is generous enough for any well-formed file, including those
+	// with DTS/AC-3 audio that need more packets than AAC.
+	e.formatCtx.probesize = C.int64_t(10_000_000)
+	e.formatCtx.max_analyze_duration = C.int64_t(10_000_000)
+
 	ret = C.avformat_find_stream_info(e.formatCtx, nil)
 	if ret < 0 {
 		errBuf := make([]byte, 256)
