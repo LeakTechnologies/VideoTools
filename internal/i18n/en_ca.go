@@ -559,7 +559,7 @@ var enCA = Strings{
 	ConvertSectionDeinterlacing:   "Deinterlacing",
 	ConvertActionStart:            "Convert",
 	ConvertActionCancelJob:        "Cancel Active Job",
-	ConvertCommandPreview:         "Command Preview",
+	ConvertCommandPreview:         "FFmpeg Command Preview",
 	ConvertCoverArtLabel:          "Cover Art",
 	ConvertOutputFileFmt:          "Output file: %s",
 	ConvertDefaultPathFmt:         "Default: %s",
@@ -571,6 +571,21 @@ var enCA = Strings{
 	ConvertRemuxHint:              "Remux mode: stream copy. Encoding controls are disabled.",
 	ConvertUseSystemTemp:          "Use System Temp",
 	ConvertUseDefault:             "Use Default",
+
+	ConvertSectionEncoderTune:      "Tune",
+	ConvertDevicePresets:           "Device Presets",
+	ConvertUserPresets:             "User Presets",
+	ConvertSavePreset:              "Save Preset",
+	ConvertPresetNamePlaceholder:   `Preset name, e.g. "4K Archival"`,
+
+	ConvertBitrateModeHintCRF:            "CRF mode: Constant quality — file size varies. Lower CRF = better quality.",
+	ConvertBitrateModeHintCBR:            "CBR mode: Constant bitrate — predictable file size, variable quality. Use for strict size requirements or streaming.",
+	ConvertBitrateModeHintVBR:            "VBR mode: Variable bitrate — targets average bitrate with 2× peak cap. Efficient quality. Uses 2-pass encoding.",
+	ConvertBitrateModeHintTargetSize:     "Target Size mode: Calculates bitrate to hit exact file size. Best for strict size limits.",
+	ConvertBitrateModeHintLosslessCRF:    "Lossless mode with CRF 0. Perfect quality preservation for H.265/AV1.",
+	ConvertBitrateModeHintLosslessCBR:    "Lossless quality with constant bitrate. May achieve smaller file size than pure lossless CRF.",
+	ConvertBitrateModeHintLosslessVBR:    "Lossless quality with variable bitrate. Efficient file size while maintaining lossless quality.",
+	ConvertBitrateModeHintLosslessTarget: "Lossless quality with target size. Calculates bitrate to achieve exact file size with best possible quality.",
 
 	// ── Merge ──────────────────────────────────────────────────────────────────
 	MergeAddClipsHint: "Add at least two clips to merge.",

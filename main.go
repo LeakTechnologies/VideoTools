@@ -8988,7 +8988,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			return
 		}
 		body := buildCommandPreview()
-		toggleDrawer(&commandDrawer, "FFmpeg Command Preview", body)
+		toggleDrawer(&commandDrawer, t.ConvertCommandPreview, body)
 	})
 	cmdPreviewBtn.Importance = widget.LowImportance
 
@@ -9319,8 +9319,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	saveUserPresetBtn := widget.NewButton("Save Current Settings as Preset...", func() {
 		entry := widget.NewEntry()
-		entry.SetPlaceHolder("Preset name, e.g. \"4K Archival\"")
-		dialog.ShowCustomConfirm("Save Preset", "Save", "Cancel", entry, func(ok bool) {
+		entry.SetPlaceHolder(t.ConvertPresetNamePlaceholder)
+		dialog.ShowCustomConfirm(t.ConvertSavePreset, t.ActionSave, t.ActionCancel, entry, func(ok bool) {
 			if !ok {
 				return
 			}
@@ -10895,35 +10895,31 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				}
 				state.convert.CRF = "0"
 				crfEntry.Disable()
-				hint = "Lossless mode with CRF 0. Perfect quality preservation for H.265/AV1."
+				hint = t.ConvertBitrateModeHintLosslessCRF
 			case "CBR":
-				hint = "Lossless quality with constant bitrate. May achieve smaller file size than pure lossless CRF."
+				hint = t.ConvertBitrateModeHintLosslessCBR
 			case "VBR":
-				hint = "Lossless quality with variable bitrate. Efficient file size while maintaining lossless quality."
+				hint = t.ConvertBitrateModeHintLosslessVBR
 			case "Target Size":
-				hint = "Lossless quality with target size. Calculates bitrate to achieve exact file size with best possible quality."
+				hint = t.ConvertBitrateModeHintLosslessTarget
 			}
 		} else {
 			crfEntry.Enable()
 			switch mode {
 			case "CRF", "":
-				// Show only CRF controls
-				hint = "CRF mode: Constant quality - file size varies. Lower CRF = better quality."
+				hint = t.ConvertBitrateModeHintCRF
 			case "CBR":
-				// Show only bitrate controls
-				hint = "CBR mode: Constant bitrate - predictable file size, variable quality. Use for strict size requirements or streaming."
+				hint = t.ConvertBitrateModeHintCBR
 			case "VBR":
-				// Show only bitrate controls
-				hint = "VBR mode: Variable bitrate - targets average bitrate with 2x peak cap. Efficient quality. Uses 2-pass encoding."
+				hint = t.ConvertBitrateModeHintVBR
 			case "Target Size":
-				// Show only target size controls
-				hint = "Target Size mode: Calculates bitrate to hit exact file size. Best for strict size limits."
+				hint = t.ConvertBitrateModeHintTargetSize
 			}
 		}
 
 		if showCRF && showManualCRF {
 			if manualCrfLabel != nil {
-				manualCrfLabel.SetText("Manual CRF (overrides Quality preset)")
+				manualCrfLabel.SetText(t.ConvertSectionManualCRF)
 			}
 			if manualCrfRow != nil {
 				manualCrfRow.Show()
@@ -11896,12 +11892,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		makeForceAspectCheck(),
 	))
 
-	devicePresetSectionSimple := buildConvertBox("Device Presets", container.NewVBox(
+	devicePresetSectionSimple := buildConvertBox(t.ConvertDevicePresets, container.NewVBox(
 		widget.NewLabel("Apply all encoding settings optimised for a target device."),
 		devicePresetSelect,
 	))
 
-	userPresetSectionSimple := buildConvertBox("User Presets", container.NewVBox(
+	userPresetSectionSimple := buildConvertBox(t.ConvertUserPresets, container.NewVBox(
 		container.NewBorder(nil, nil, nil, deleteUserPresetBtn, userPresetSelect),
 		saveUserPresetBtn,
 	))
@@ -11976,7 +11972,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	tuneContainer = container.NewVBox(
 		container.NewGridWithColumns(2,
 			container.NewPadded(container.NewVBox(
-				widget.NewLabelWithStyle("Tune", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+				widget.NewLabelWithStyle(t.ConvertSectionEncoderTune, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 				tuneSelect,
 			)),
 		),
@@ -12086,12 +12082,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		inverseHint,
 	))
 
-	devicePresetSectionAdv := buildConvertBox("Device Presets", container.NewVBox(
+	devicePresetSectionAdv := buildConvertBox(t.ConvertDevicePresets, container.NewVBox(
 		widget.NewLabel("Apply all encoding settings optimised for a target device."),
 		devicePresetSelect,
 	))
 
-	userPresetSectionAdv := buildConvertBox("User Presets", container.NewVBox(
+	userPresetSectionAdv := buildConvertBox(t.ConvertUserPresets, container.NewVBox(
 		container.NewBorder(nil, nil, nil, deleteUserPresetBtn, userPresetSelect),
 		saveUserPresetBtn,
 	))
