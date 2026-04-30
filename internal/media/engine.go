@@ -852,8 +852,13 @@ func NewEngine() *Engine {
 		videoStreamIdx:    -1,
 		audioStreamIdx:    -1,
 		subtitleStreamIdx: -1,
-		videoQueue:        NewPacketQueue(),
-		audioQueue:        NewPacketQueue(),
+		// Smaller queue caps reduce demuxer blocking time and shrink the audio
+		// tail after video EOF.  videoQueue at 50 packets gives ~1.7s of
+		// encoded-packet headroom (enough for one GOP boundary) without letting
+		// the blocking Put hold the demuxer away from audio for >1.7s.
+		// audioQueue at 32 packets caps the post-EOF audio drain to <0.75s.
+		videoQueue:        NewPacketQueueWithMaxSize(50),
+		audioQueue:        NewPacketQueueWithMaxSize(32),
 		subtitleQueue:     NewPacketQueue(),
 		clock:             NewMasterClock(),
 		stop:              make(chan struct{}),
@@ -2284,9 +2289,17 @@ func (e *Engine) ResetAfterGrab() {
 		logging.Info(logging.CatPlayer, "ResetAfterGrab: video codec flushed (B-frame drain)")
 	}
 
-	// Reset clock to 0 so audio/video are in sync when playback starts.
-	e.clock.SetTime(0)
+	// Reset clock unconditionally to 0. ResetTime (not SetTime) is required
+	// here: SetTime is a monotonic ratchet and is silently a no-op if the
+	// clock is already above 0.
+	e.clock.ResetTime(0)
 	e.clock.SetPaused(true)
+
+	// Also reset the audio player's last PTS so the first Read()
+	// doesn't jump the clock forward by pre-buffered audio.
+	if e.audioPlayer != nil {
+		e.audioPlayer.ResetLastPTS()
+	}
 
 	e.decodeEOFSent = false
 	e.seekFlushBefore.Store(0)
