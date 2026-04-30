@@ -62,14 +62,22 @@ Rolling checklist of known issues, fixes applied, and remaining work for the nat
 |-------|-------|
 | SMPTE bars display when no video loaded | ✅ |
 | First frame displays after Load() | ✅ |
-| SW decode playback (H.264, AV1, MPEG4) | ⚠️ Fixed in dev43 — needs smoke test |
+| SW decode playback (H.264, AV1, MPEG4) | ✅ Smoke tested (Gravity trailer) — needed improvement |
 | HW decode (D3D11VA) opt-in | ⚠️ HW path crashes; SW fallback path now fixed (dev44) |
 | Seek / scrub | ✅ Independent formatCtx per scrubber (dev44) |
 | Audio sync | ✅ Clock fix applied; playback working (dev44) |
 | Volume / mute | ✅ Fixed (dev44) |
-| Speed change | ⚠️ Video timing correct; audio does not pitch-shift |
+| Speed change | ✅ Video timing correct; audio pitch-shift now working (dev44) |
 | Close() / Load() lifecycle | ✅ WaitGroup + mutex gate added in dev43 |
 | seekLoop goroutine lifecycle | ✅ Fixed in dev43 |
+
+---
+
+## Videos Tested (dev44)
+
+| Date | Video | Format | Result | Notes |
+|------|-------|--------|--------|-------|
+| 2026-04-30 | Gravity - 2K Trailer.mp4 | H.264/AC3 | ⚠️ Improved | Initial jump to 22s fixed; audio less choppy after 56s; speed change now works |
 
 ---
 
