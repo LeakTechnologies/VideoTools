@@ -235,8 +235,6 @@ func (p *AudioPlayer) audioDecodeLoop() {
 			continue
 		}
 
-		logging.Info(logging.CatPlayer, "audioDecodeLoop: avcodec_send_packet OK, receiving frames")
-
 		// Receive all frames produced by this packet.
 		for {
 			var recvExc C.uint32_t
@@ -286,20 +284,30 @@ func (p *AudioPlayer) audioDecodeLoop() {
 	}
 }
 
-// Read is called by oto's audio goroutine.  It ONLY reads from pcmCh — no
-// FFmpeg calls are made here.
 func (p *AudioPlayer) Read(buf []byte) (int, error) {
+	p.mu.Lock()
+	speed := p.speed
+	p.mu.Unlock()
+
 	// Drain any leftover from the previous chunk first.
-	if len(p.leftover) > 0 {
+	if len(p.leftover) >0 {
 		n := copy(buf, p.leftover)
 		p.leftover = p.leftover[n:]
 
 		p.mu.Lock()
 		volumeMul := p.volumeMul
 		p.mu.Unlock()
+
 		if volumeMul != 1.0 {
 			applyVolumeS16(buf[:n], volumeMul)
 		}
+
+		// For speed != 1.0, adjust the returned data.
+		if speed != 1.0 {
+			adjusted := p.adjustSamplesForSpeed(buf[:n], speed)
+			n = copy(buf, adjusted)
+		}
+
 		return n, nil
 	}
 
@@ -310,9 +318,6 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 
 	if paused {
 		// Drain one buffered chunk per call without advancing the clock.
-		// This empties pcmCh while paused so that on resume the clock does
-		// not jump forward by however much audio was pre-decoded (up to ~1.5s),
-		// which was causing visible seek jumps when toggling pause.
 		select {
 		case <-p.pcmCh:
 		default:
@@ -339,17 +344,14 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 			}
 			return 0, io.EOF
 		}
-		// Drive the master clock from audio output position.
-		// This chunk is being handed to oto's hardware buffer; it will actually
-		// reach the speakers after AudioBufferLatency.  Subtracting that latency
-		// makes the clock represent "what's being heard right now" rather than
-		// "what's been decoded/buffered".  Video WaitForPTS then waits until the
-		// clock (= audio output position) reaches the video frame's PTS,
-		// producing true A/V sync without any fixed wall-time offset.
+	// Drive the master clock from audio output position.
 		p.clock.SetTime(chunk.pts - AudioBufferLatency.Seconds())
 		p.lastPTSBits.Store(math.Float64bits(chunk.pts))
 
-		n := copy(buf, chunk.data)
+		// Adjust chunk data based on speed.
+		adjustedData := p.adjustSamplesForSpeed(chunk.data, speed)
+
+		n := copy(buf, adjustedData)
 
 		p.mu.Lock()
 		volumeMul := p.volumeMul
@@ -358,8 +360,8 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 			applyVolumeS16(buf[:n], volumeMul)
 		}
 
-		if n < len(chunk.data) {
-			p.leftover = chunk.data[n:]
+		if n < len(adjustedData) {
+			p.leftover = adjustedData[n:]
 		}
 		return n, nil
 	default:
@@ -371,8 +373,55 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	}
 }
 
-// FlushCodec discards buffered PCM and flushes the codec's internal state.
-// Called from Seek() — must not be called concurrently with Close().
+// adjustSamplesForSpeed adjusts audio samples based on playback speed.
+// At 0.5x: duplicates samples (slower playback).
+// At 2.0x: skips samples (faster playback).
+func (p *AudioPlayer) adjustSamplesForSpeed(data []byte, speed float64) []byte {
+	if speed <= 0 {
+		speed = 1.0
+	}
+
+	// S16 stereo: 4 bytes per sample frame (2 bytes per channel, 2 channels).
+	bytesPerFrame := 4
+	if speed == 1.0 {
+		return data
+	}
+
+	// Calculate how many output frames we need from input frames.
+	inputFrames := len(data) / bytesPerFrame
+	var outputFrames int
+	if speed < 1.0 {
+		// Slower: we need more frames (duplicate).
+		outputFrames = int(float64(inputFrames) / speed)
+	} else {
+		// Faster: we need fewer frames (skip).
+		outputFrames = int(float64(inputFrames) / speed)
+	}
+
+	output := make([]byte, outputFrames*bytesPerFrame)
+	outputIdx := 0
+	for i := 0; i < inputFrames && outputIdx < len(output); i++ {
+		srcStart := i * bytesPerFrame
+		srcEnd := srcStart + bytesPerFrame
+		if speed < 1.0 {
+			// Duplicate this frame.
+			copy(output[outputIdx:], data[srcStart:srcEnd])
+			outputIdx += bytesPerFrame
+			// For very slow speeds, duplicate multiple times.
+			duplicates := int(1.0 / speed)
+			for d := 1; d < duplicates && outputIdx < len(output); d++ {
+				copy(output[outputIdx:], data[srcStart:srcEnd])
+				outputIdx += bytesPerFrame
+			}
+		} else {
+			// Skip frames (we already divided inputFrames by speed).
+			copy(output[outputIdx:], data[srcStart:srcEnd])
+			outputIdx += bytesPerFrame
+		}
+	}
+	return output[:outputIdx]
+}
+
 func (p *AudioPlayer) FlushCodec() {
 	// Discard any pending decoded audio so seek takes effect immediately.
 	p.leftover = p.leftover[:0]
@@ -493,23 +542,16 @@ func (p *AudioPlayer) GetLastPTS() float64 {
 	return math.Float64frombits(bits)
 }
 
+func (p *AudioPlayer) ResetLastPTS() {
+	p.lastPTSBits.Store(0)
+	logging.Info(logging.CatPlayer, "AudioPlayer: ResetLastPTS (clock reset)")
+}
+
 func (p *AudioPlayer) SetSpeed(speed float64) {
 	p.mu.Lock()
 	p.speed = speed
 	p.mu.Unlock()
-	// Update swresample output rate to match speed
-	// At 0.5x speed, we need 2x samples (slower playback = more samples)
-	// At 2.0x speed, we need 0.5x samples (faster playback = fewer samples)
-	newRate := int64(float64(TargetSampleRate) / speed)
-	if newRate < 8000 {
-		newRate = 8000
-	}
-	if newRate > 192000 {
-		newRate = 192000
-	}
-	C.av_opt_set_int(unsafe.Pointer(p.swrCtx), C.CString("out_sample_rate"), C.int64_t(newRate), 0)
-	C.swr_init(p.swrCtx)
-	logging.Info(logging.CatPlayer, "AudioPlayer.SetSpeed: speed=%.2f, new rate=%d", speed, newRate)
+	logging.Info(logging.CatPlayer, "AudioPlayer.SetSpeed: speed=%.2f", speed)
 }
 
 func (p *AudioPlayer) Close() {
