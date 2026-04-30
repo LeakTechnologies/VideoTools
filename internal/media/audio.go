@@ -59,6 +59,7 @@ type AudioPlayer struct {
 	resampleBuf []byte
 
 	timeBase float64
+	speed    float64 // playback speed; 1.0 = normal, 0.5 = half speed, 2.0 = double speed
 
 	volume float32
 	muted  bool
@@ -90,6 +91,7 @@ func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *Maste
 		clock:      clock,
 		frame:      C.av_frame_alloc(),
 		timeBase:   timeBase,
+		speed:      1.0,
 		volume:     1.0,
 		volumeMul:  1.0,
 		paused:     true, // stay silent until engine.Resume() — prevents audio bleed during Load/GrabFrame
@@ -489,6 +491,25 @@ func (p *AudioPlayer) GetLastPTS() float64 {
 		return -1
 	}
 	return math.Float64frombits(bits)
+}
+
+func (p *AudioPlayer) SetSpeed(speed float64) {
+	p.mu.Lock()
+	p.speed = speed
+	p.mu.Unlock()
+	// Update swresample output rate to match speed
+	// At 0.5x speed, we need 2x samples (slower playback = more samples)
+	// At 2.0x speed, we need 0.5x samples (faster playback = fewer samples)
+	newRate := int64(float64(TargetSampleRate) / speed)
+	if newRate < 8000 {
+		newRate = 8000
+	}
+	if newRate > 192000 {
+		newRate = 192000
+	}
+	C.av_opt_set_int(unsafe.Pointer(p.swrCtx), C.CString("out_sample_rate"), C.int64_t(newRate), 0)
+	C.swr_init(p.swrCtx)
+	logging.Info(logging.CatPlayer, "AudioPlayer.SetSpeed: speed=%.2f, new rate=%d", speed, newRate)
 }
 
 func (p *AudioPlayer) Close() {

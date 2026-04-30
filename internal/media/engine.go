@@ -37,6 +37,15 @@ static AVChapter* getChapter(AVFormatContext *fmtCtx, int index) {
     return fmtCtx->chapters[index];
 }
 
+// avformat_get_stream — safely return the n-th AVStream* from an AVFormatContext.
+// Returns NULL if idx is out of range or the context is NULL.
+AVStream* avformat_get_stream(AVFormatContext *fmtCtx, unsigned int idx) {
+    if (fmtCtx == NULL || idx >= (unsigned int)fmtCtx->nb_streams) {
+        return NULL;
+    }
+    return fmtCtx->streams[idx];
+}
+
 // vt_get_hw_format is the get_format callback for hardware-accelerated decoding.
 // It is required by D3D11VA and other HW backends: without it FFmpeg cannot
 // negotiate the HW pixel format, and avcodec_send_packet crashes on the first
@@ -660,6 +669,9 @@ type Engine struct {
 
 	hwRgbaFrame  *C.AVFrame
 	hwRgbaBuffer []byte
+	hwSwsCtx     *C.struct_SwsContext // cached swscale context for HW→RGBA
+	hwSwsFmt     C.enum_AVPixelFormat
+	hwSwsW, hwSwsH int
 
 	framePool    [][]byte
 	framepoolMu  sync.Mutex // protects framePool only — must NOT be acquired under videoCodecMu
@@ -918,6 +930,9 @@ func (e *Engine) SetSpeed(speed float64) {
 	}
 	e.speed = speed
 	e.clock.SetSpeed(speed)
+	if e.audioPlayer != nil {
+		e.audioPlayer.SetSpeed(speed)
+	}
 }
 
 func (e *Engine) GetSpeed() float64 {
@@ -2120,6 +2135,24 @@ func (e *Engine) Seek(seconds float64) error {
 	e.audioQueue.Flush()
 	logging.Info(logging.CatPlayer, "Seek: queues flushed, flushing video codec")
 
+	// Re-set audio stream index after seek to prevent audio jumping to start
+	// Some files with multiple audio tracks may have FFmpeg switch streams after seek.
+	if e.audioStreamIdx >= 0 && e.formatCtx != nil {
+		stream := C.avformat_get_stream(e.formatCtx, C.uint(e.audioStreamIdx))
+		if stream == nil || stream.codecpar == nil {
+			logging.Warning(logging.CatPlayer, "Seek: audio stream %d no longer valid, searching for new audio stream", e.audioStreamIdx)
+			// Find a new audio stream
+			for i := 0; i < int(e.formatCtx.nb_streams); i++ {
+				s := C.avformat_get_stream(e.formatCtx, C.uint(i))
+				if s != nil && s.codecpar != nil && s.codecpar.codec_type == C.AVMEDIA_TYPE_AUDIO {
+					e.audioStreamIdx = i
+					logging.Info(logging.CatPlayer, "Seek: re-set audio stream to %d", i)
+					break
+				}
+			}
+		}
+	}
+
 	// Set the pre-seek skip guard BEFORE flushing the codec.  After the queue
 	// flush the demuxer immediately starts producing new-position packets;
 	// videoDecodeLoop can pick one up and send it to the codec before we reach
@@ -2677,15 +2710,24 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	w := int(swFrame.width)
 	h := int(swFrame.height)
 
-	hwSwsCtx := C.sws_getContext(
-		swFrame.width, swFrame.height, swFmt,
-		swFrame.width, swFrame.height, C.AV_PIX_FMT_RGBA,
-		C.SWS_BILINEAR, nil, nil, nil,
-	)
-	if hwSwsCtx == nil {
-		return nil, fmt.Errorf("failed to create sws context for hw pixel format %d", int(swFmt))
+	// Reuse cached sws context if format/width/height unchanged.
+	if e.hwSwsCtx == nil || e.hwSwsFmt != swFmt || e.hwSwsW != w || e.hwSwsH != h {
+		if e.hwSwsCtx != nil {
+			C.sws_freeContext(e.hwSwsCtx)
+		}
+		e.hwSwsCtx = C.sws_getContext(
+			swFrame.width, swFrame.height, swFmt,
+			swFrame.width, swFrame.height, C.AV_PIX_FMT_RGBA,
+			C.SWS_BILINEAR, nil, nil, nil,
+		)
+		if e.hwSwsCtx == nil {
+			return nil, fmt.Errorf("failed to create sws context for hw pixel format %d", int(swFmt))
+		}
+		e.hwSwsFmt = swFmt
+		e.hwSwsW = w
+		e.hwSwsH = h
+		logging.Info(logging.CatPlayer, "retrieveHWFrame: created cached swsCtx for fmt=%d %dx%d", int(swFmt), w, h)
 	}
-	defer C.sws_freeContext(hwSwsCtx)
 
 	rowStride := C.int(w * 4)
 	bufSize := w * h * 4
@@ -2705,7 +2747,7 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	}
 
 	C.sws_scale(
-		hwSwsCtx,
+		e.hwSwsCtx,
 		&swFrame.data[0], &swFrame.linesize[0],
 		0, swFrame.height,
 		&e.hwRgbaFrame.data[0], &e.hwRgbaFrame.linesize[0],
@@ -2810,6 +2852,8 @@ func (e *Engine) GetFramePoolSize() int {
 }
 
 func (e *Engine) Duration() float64 {
+	e.formatMu.Lock()
+	defer e.formatMu.Unlock()
 	if e.formatCtx == nil {
 		return 0
 	}
@@ -2883,6 +2927,9 @@ func (e *Engine) DegradeToSoftware() {
 	e.mu.Lock()
 	e.hwDegraded = true
 
+	// Acquire videoCodecMu to protect codec context access against
+	// concurrent NextFrame/avcodec_* calls.
+	e.videoCodecMu.Lock()
 	if e.hwFramesCtx != nil {
 		C.av_buffer_unref(&e.hwFramesCtx)
 		e.hwFramesCtx = nil
@@ -2896,15 +2943,14 @@ func (e *Engine) DegradeToSoftware() {
 		e.videoCodecCtx.hw_frames_ctx = nil
 	}
 	e.hwDevice = HWDeviceNone
+	e.videoCodecMu.Unlock()
 
 	e.lastError = &PlaybackError{
 		Code:    ErrCodeHWAccel,
 		Message: "Fell back to software decoding",
 		Retry:   false,
 	}
-	e.mu.Unlock()
-
-	e.ClearFrameCache()
+e.mu.Unlock()
 }
 
 func (e *Engine) ShouldDegrade() bool {
