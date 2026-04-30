@@ -13,6 +13,7 @@ package media
 import "C"
 import (
 	"sync"
+	"time"
 )
 
 const (
@@ -194,4 +195,31 @@ func (q *PacketQueue) IsClosedOrEOF() bool {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	return (q.closed || q.eof) && len(q.packets) == 0
+}
+
+// TimedGet blocks until a packet is available, the queue closes/reaches EOF,
+// or the timeout elapses.  Returns (nil, false) on timeout or drain.
+// Unlike TryGet it does not spin — the caller's goroutine sleeps on the cond
+// and wakes immediately when TryPut/Put signals a new packet.
+func (q *PacketQueue) TimedGet(d time.Duration) (*C.AVPacket, bool) {
+	deadline := time.Now().Add(d)
+	// Timer fires after d and broadcasts to wake any cond.Wait() callers.
+	timer := time.AfterFunc(d, func() { q.cond.Broadcast() })
+	defer timer.Stop()
+
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	for len(q.packets) == 0 && !q.closed && !q.eof {
+		if time.Now().After(deadline) {
+			return nil, false
+		}
+		q.cond.Wait()
+	}
+	if len(q.packets) == 0 {
+		return nil, false
+	}
+	pkt := q.packets[0]
+	q.packets = q.packets[1:]
+	q.cond.Signal()
+	return pkt, true
 }

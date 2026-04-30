@@ -187,14 +187,17 @@ func (p *AudioPlayer) audioDecodeLoop() {
 			continue
 		}
 
-		// Non-blocking packet fetch.
-		pkt, ok := p.queue.TryGet()
+		// Block up to 20 ms for the next audio packet.  This avoids the
+		// 1 ms spin loop that competed with videoDecodeLoop for CPU during
+		// SW H.264 decode when the audio queue was frequently empty.
+		// TryPut calls cond.Signal(), so TimedGet wakes immediately on
+		// a new packet rather than waiting the full 20 ms.
+		pkt, ok := p.queue.TimedGet(20 * time.Millisecond)
 		if !ok {
 			if p.queue.IsClosedOrEOF() {
 				logging.Info(logging.CatPlayer, "audioDecodeLoop: queue EOF/closed, exiting")
 				return
 			}
-			time.Sleep(1 * time.Millisecond)
 			continue
 		}
 
