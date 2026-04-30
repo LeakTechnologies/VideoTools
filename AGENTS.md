@@ -6,7 +6,8 @@ These rules apply to any automation or agent working in this repo.
 
 - Current cycle: `v0.1.1-dev44`.
 - Public/stable baseline: `v0.1.1`.
-- `dev43` closed. Player thread-safety audit: pixel format SIGSEGV fix, Close/demuxer WaitGroup, NextFrame/Close codec race gate, seekLoop goroutine leak. Pending smoke test.
+- `dev44` in progress. Completed: Convert Phase 1 (Audio SR, Normalize, Deinterlace, H.264 Profile/Level), Convert Phase 2 (preset consolidation, AVI/TS/FLV formats, tune dropdown), Convert i18n (Issue #5), player load hang fix (widget threading + probe limits), Inspect load-state diagnostics (LoadEvent milestone system). Remaining: Audio Module Phase 1+2, Burn logic, Module Pipeline.
+- `dev43` closed. Player thread-safety audit: pixel format SIGSEGV fix, Close/demuxer WaitGroup, NextFrame/Close codec race gate, seekLoop goroutine leak.
 - `dev42` closed. Player stabilisation (D3D11VA, audio sync, GStreamer removal), thumbnail 3-way output, audio i18n, convert drop fixes.
 - `dev40` closed. CI validated.
 - Issue tracker active at `https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues`.
@@ -15,11 +16,10 @@ These rules apply to any automation or agent working in this repo.
 
 ## Immediate Handoff Priorities
 
-- **Player smoke test (dev44)** — Verify dev43 fixes hold: load and play H.264/AV1/MPEG4 files in SW decode mode; confirm no frame-5 crash. Update `docs/PLAYER_DEBUG.md` Videos Tested table with results.
-- **Player P1 fixes (dev44)** — See `docs/PLAYER_DEBUG.md` Known Issues. Top items: `predecodeFrom` sharing `formatCtx` with `demuxerLoop`; audio queue not flushed before seek; dead `predecodeAhead` code.
+- **Audio Module Phase 1 (dev44)** — Consistent box styling + proper header bar (matches Convert layout pattern). See `docs/AUDIO_MODULE_IMPROVEMENTS.md`.
+- **Audio Module Phase 2 (dev44)** — InlineVideoPlayer singleton + SMPTE idle state. Follow the same pattern as Convert/Inspect: singleton in `native_media.go`, Options in `view.go`, wired in `inspect_module.go`-style shim.
 - **Burn module** — Implement burn logic (IMAPI2 on Windows, SG_IO on Linux); UI is wired. See `docs/BURN_MODULE_DESIGN.md`.
-- **Convert Module Improvements Phase 1** — Audio Sample Rate, Normalize Audio, Deinterlace, H.264 Profile/Level UI controls. See `docs/CONVERT_MODULE_IMPROVEMENTS.md`.
-- **Issue #5** (Convert i18n) — ~50 hardcoded strings in buildConvertView need i18n keys.
+- **Module Pipeline (`&&`)** — Two-module chain state machine. See `TODO.md` for the full spec; design decisions are finalised.
 - **Do not expand scope beyond what is listed unless explicitly approved.**
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
 
@@ -223,6 +223,7 @@ internal/ui      InlineVideoPlayer — THE API layer every module talks to
 |---------|---------------------|-------|
 | Convert | `GetConvertPlayer()` | Custom control row; `DisableBuiltinControls()` called |
 | Trim    | `GetTrimPlayer()`    | Built-in controls overlay; in/out markers; preview region via `SetOnProgress` |
+| Inspect | `GetInspectPlayer()` | Built-in controls disabled; `SetOnLoad` wired to Sync tab load-state pills |
 
 ### What the `native_media` Build Tag Gates
 
@@ -249,46 +250,82 @@ The following modules create `media.Engine()` directly instead of using `InlineV
 
 **Do NOT refactor these modules to use InlineVideoPlayer** — the dual-engine architecture is required for their functionality.
 
----
-
-## Validation Priorities For Dev40
-
-- Issue #5 (Convert UI cleanup) is the remaining open UI item.
-- Phase 3 modularisation is ongoing secondary work — Inspect, Settings, Queue are the next candidates.
-- Carry-forward validations (tracked as issues, not blocking dev40 code work):
-  - Windows first-run FFmpeg bootstrap — issue #18
-  - cross-platform dependency actions — issue #7
-  - Forgejo packaging/release workflows end-to-end — issues #8, #9, #10
-  - Do not reopen bundled dependency packaging for dev builds unless explicitly requested.
-
 ## Using Sub-Agents
 
-When multiple independent tasks exist within a single change, use sub-agents to parallelize work and reduce bottlenecks.
+Claude Code supports spawning purpose-built sub-agents for parallelising independent work or protecting the main context window from large search results.
 
-### When to Use Sub-Agents
+### Available Agent Types
 
-- **Multiple similar fixes** (e.g., fixing same issue in 10 different files)
-- **Independent tasks** that can run concurrently
-- **Larger refactors** that can be split into logical chunks
-- **CI build failures** affecting multiple files
+| Type | Use for |
+|------|---------|
+| `Explore` | Fast read-only code search — finding files by pattern, grepping for symbols, answering "where is X defined?" Don't use for open-ended analysis or cross-file consistency checks. |
+| `Plan` | Architecture and implementation planning before writing code. Returns step-by-step plans and identifies critical files. |
+| `general-purpose` | Multi-step research, searches across the codebase, any task that may need several rounds of tool use. |
+| `claude-code-guide` | Questions about the Claude Code CLI, Claude API, or Anthropic SDK. |
 
-### How to Use
+### When to Spawn a Sub-Agent
 
-Use the Task tool with `subagent_type: "general"` to spawn parallel workers:
+- **Multiple similar fixes** across many files (e.g. same CI error in 10 modules)
+- **Independent tasks** with no shared state (parallelize freely)
+- **Large codebase searches** that would flood the main context
+- **Architecture review** before starting a feature (use `Plan`)
 
-```go
-// Example: parallel CI fixes
-task(description="Fix inspect module", prompt="...", subagent_type="general")
-task(description="Fix trim module", prompt="...", subagent_type="general")
-task(description="Fix other errors", prompt="...", subagent_type="general")
+### Correct Invocation Syntax
+
+Sub-agents are invoked via the `Agent` tool — not as Go code:
+
 ```
+Agent(
+  description="Fix inspect module build errors",
+  subagent_type="general-purpose",
+  prompt="Fix all build errors in internal/app/modules/inspect/. ..."
+)
+```
+
+To run agents in parallel, emit multiple Agent tool calls in a single response.
 
 ### Guidelines
 
-- Provide clear, specific instructions in the prompt
-- Include the expected commit message format
-- Verify build passes after all sub-agents complete
-- Merge any conflicting changes manually before committing
+- Brief the agent like a colleague who has no prior context — include file paths, what was tried, and the expected outcome.
+- Verify results: an agent's summary describes intent, not necessarily what it did. Read diffs before reporting work complete.
+- Prefer foreground agents when their result informs the next step; use `run_in_background: true` only for genuinely independent work.
+- After all agents complete, verify the build passes before committing.
+
+## Hooks & Automation
+
+Claude Code hooks are shell commands that fire at defined lifecycle points (before/after tool calls, before commit, etc.). Configure them in `.claude/settings.json` under the `hooks` key, or use `/update-config` to add them interactively.
+
+### Recommended Hooks for This Repo
+
+**i18n guard (pre-commit):** Catch hardcoded UI strings before they land.
+```bash
+# Fires before every commit — fails if raw string literals appear in widget constructors
+grep -rn 'widget\.NewLabel("[^"]\+"\|widget\.NewButton("[^"]\+"\|dialog\.Show[A-Za-z]*("[^"]\+' \
+  --include="*.go" internal/ *.go \
+  | grep -v '_test\.go' | grep -v '\.pb\.go' \
+  && echo "ERROR: hardcoded UI strings found — use i18n.T().KeyName" && exit 1 \
+  || true
+```
+
+**Player debug log reminder (post player-file edit):** Prompts to update `docs/PLAYER_DEBUG.md` whenever a player-related file is modified.
+
+**Conventions:**
+- Hooks that gate commits should `exit 1` on failure so the commit is blocked.
+- Keep hook scripts short; move complex logic into `scripts/hooks/` and call from there.
+- Document any new hook in this file so other agents know it exists.
+
+## Available Skills (Slash Commands)
+
+These slash commands are available in Claude Code sessions and should be used proactively:
+
+| Skill | When to use |
+|-------|-------------|
+| `/review` | Review a pull request before merge — runs a multi-agent review pass |
+| `/security-review` | Security audit of pending branch changes |
+| `/simplify` | After completing a feature — checks for reuse opportunities and fixes quality issues |
+| `/schedule` | Schedule a background agent for a future task (e.g. clean up a feature flag in 2 weeks) |
+| `/update-config` | Add hooks, permissions, or env vars to `.claude/settings.json` |
+| `/init` | Regenerate `CLAUDE.md` when project structure changes significantly |
 
 ## Platform Scope
 
