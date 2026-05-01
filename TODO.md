@@ -939,7 +939,9 @@ logic moves to `internal/app/modules/{name}/`, a thin `package main` shim at roo
   - PTS-based drift correction mechanisms
   - Ring buffers for audio and video
 
-- [ ] **Hardware Acceleration Integration**
+- [x] **Hardware Acceleration Integration** (done dev44)
+  - [x] Upscale module: sync upscaleHardwareAccel from master setting
+  - [x] Filters module: add hardware acceleration dropdown
   - Auto-detect available backends (CUDA, VA-API, VideoToolbox)
   - FFmpeg hardware acceleration through native flags
   - Fallback to software acceleration when hardware unavailable

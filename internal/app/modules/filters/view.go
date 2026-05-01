@@ -3,6 +3,7 @@ package filters
 import (
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -47,6 +48,9 @@ type Options struct {
 	FiltersFile         any
 	FiltersFilePath     string
 	FilterActiveChain   []string
+
+	HardwareAccel func() string
+	SetHardwareAccel func(s string)
 
 	OnShowMainMenu       func()
 	OnShowQueue          func()
@@ -458,6 +462,35 @@ func BuildView(opts Options) fyne.CanvasObject {
 	))
 	buildFilterChain()
 
+	// Hardware acceleration
+	hwAccelOptions := []string{"auto", "none"}
+	if runtime.GOOS == "windows" {
+		hwAccelOptions = append(hwAccelOptions, "nvenc", "qsv", "amf")
+	} else {
+		hwAccelOptions = append(hwAccelOptions, "nvenc", "qsv", "vaapi", "amf")
+	}
+	hwAccelSelect := widget.NewSelect(hwAccelOptions, func(value string) {
+		if opts.SetHardwareAccel != nil {
+			opts.SetHardwareAccel(value)
+		}
+	})
+	if opts.HardwareAccel != nil {
+		hwAccel := opts.HardwareAccel()
+		if hwAccel == "" {
+			hwAccel = "auto"
+		}
+		hwAccelSelect.SetSelected(hwAccel)
+	} else {
+		hwAccelSelect.SetSelected("auto")
+	}
+
+	hwAccelSection := buildFilterBox("Hardware Acceleration", container.NewVBox(
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Hardware Accel:"),
+			hwAccelSelect,
+		),
+	))
+
 	applyBtn := widget.NewButton("Apply Filters", func() {
 		if opts.FiltersFile == nil {
 			dialog.ShowInformation("No Video", "Please load a video first.", opts.Window)
@@ -484,6 +517,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		enhanceSection,
 		transformSection,
 		interpSection,
+		hwAccelSection,
 		creativeSection,
 		stylisticSection,
 	)

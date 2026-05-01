@@ -60,6 +60,8 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 			return ""
 		}(),
 		FilterActiveChain:    state.filterActiveChain,
+		HardwareAccel:        func() string { return state.convert.HardwareAccel },
+		SetHardwareAccel:      func(s string) { state.convert.HardwareAccel = s },
 		OnShowMainMenu:       func() { state.showMainMenu() },
 		OnShowQueue:          func() { state.showQueue() },
 		OnShowUpscaleView:    func() { state.showUpscaleView() },

@@ -11124,6 +11124,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.HardwareAccel = "auto"
 	}
 	hwAccelSelect.SetSelected(state.convert.HardwareAccel)
+	state.upscaleHardwareAccel = state.convert.HardwareAccel // sync upscale HW accel from master setting
 
 	// Two-Pass encoding
 	twoPassCheck = widget.NewCheck("Enable Two-Pass Encoding", func(checked bool) {

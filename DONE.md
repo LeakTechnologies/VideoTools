@@ -8,6 +8,10 @@
 - **Test pattern font** — Test pattern always renders with VCR OSD Mono font regardless of user preference.
 - **FFmpeg bootstrap simplification** — Always downloads BtbN pre-built package to guarantee complete DLL set.
 
+### Hardware Acceleration Parity (dev44)
+- **Upscale module** — Initialize `upscaleHardwareAccel` from master `state.convert.HardwareAccel` so it's not empty on first use.
+- **Filters module** — Add hardware acceleration dropdown with platform-appropriate options (nvenc, qsv, vaapi, amf on Linux; nvenc, qsv, amf on Windows). Wired to master setting via `HardwareAccel`/`SetHardwareAccel` callbacks.
+
 ### Settings
 - **Player font preference** — Users can choose between IBM Plex Mono and VCR OSD Mono for the OSD. VCR OSD Mono has no Bold/Italic variants; UI gracefully falls back to Regular weight.
 
