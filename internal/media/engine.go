@@ -2671,8 +2671,19 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 		}
 
 		// A/V sync: wait for the master clock to reach this frame's PTS.
+		traceAction := "display"
 		if hasAudio {
 			e.clock.WaitForPTS(pts)
+			// Snap: after a frameQueue stall (I-frame decode delay) or a startup
+			// burst, audio may have advanced c.pts past pts+threshold while the
+			// clock was nominally paused. If we let SyncVideo see that overshoot
+			// it drops the frame and starts a cascade. Resetting to pts here
+			// displays the frame; audio SetTime() calls re-advance the clock
+			// within 1-2 frame periods.
+			if e.clock.GetTime()-pts >= MaxDriftThreshold {
+				e.clock.ResetTime(pts)
+				traceAction = "snap"
+			}
 		} else {
 			e.clock.SetTime(pts)
 		}
@@ -2681,11 +2692,13 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 		delay := e.clock.SyncVideo(pts)
 		if delay < 0 {
 			logging.Warning(logging.CatPlayer, "frame DROP #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
+			logging.PlayerFrameTrace(nf, pts, clockNow, "drop", (clockNow-pts)*1000)
 			continue
 		}
 		if delay == 0 && clockNow-pts > 0.010 {
 			logging.Debug(logging.CatPlayer, "frame LATE #%d pts=%.3f clock=%.3f behind=%.0fms", nf, pts, clockNow, (clockNow-pts)*1000)
 		}
+		logging.PlayerFrameTrace(nf, pts, clockNow, traceAction, (clockNow-pts)*1000)
 
 		e.lastVideoPTSBits.Store(math.Float64bits(pts))
 
