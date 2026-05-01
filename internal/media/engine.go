@@ -2116,17 +2116,16 @@ func (e *Engine) Seek(seconds float64) error {
 		flags = C.int(AVSEEK_FLAG_FRAME)
 		minTS = target
 	case SeekAccuracyKeyframe:
-		// Seek to the keyframe at or before target.
-		// Both min_ts and max_ts need widening for seeks to the very beginning:
-		// some containers store the first I-frame at PTS=1 (one timebase tick)
-		// rather than exactly 0.  The window [INT64_MIN/2, 0] still excludes that
-		// keyframe because PTS=1 > max_ts=0.  When target==0 we allow max_ts up to
-		// 1000 ticks (~11 ms at 90 kHz) so the first I-frame is always reachable.
-		// For all other targets maxTS stays at target so we never overshoot.
-		flags = C.int(AVSEEK_FLAG_BACKWARD)
 		minTS = C.int64_t(math.MinInt64 / 2)
 		if target == 0 {
+			// AVSEEK_FLAG_BACKWARD requires result ≤ ts=0.  Many containers place the
+			// first I-frame at PTS=1 (one timebase tick ≈ 11µs at 90kHz), which is > 0
+			// and therefore excluded by the BACKWARD constraint.  Use flags=0 so FFmpeg
+			// finds the nearest keyframe in either direction within [minTS, 1000].
+			flags = 0
 			maxTS = 1000
+		} else {
+			flags = C.int(AVSEEK_FLAG_BACKWARD)
 		}
 	case SeekAccuracyAccurate:
 		flags = C.int(AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ACCURATE)
