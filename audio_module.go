@@ -39,6 +39,7 @@ func buildAudioView(state *appState) fyne.CanvasObject {
 	opts := audio.Options{
 		Window:                     state.window,
 		ModuleColor:                moduleColor("audio"),
+		Player:                     GetAudioPlayer(),
 		BatchMode:                  state.audioBatchMode,
 		OutputFormat:               state.audioOutputFormat,
 		Quality:                    state.audioQuality,

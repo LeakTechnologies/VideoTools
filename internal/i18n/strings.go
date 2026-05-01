@@ -177,9 +177,10 @@ type Strings struct {
 	LabelLanguage      string
 	LabelVersion       string
 	LabelLicense       string
-	LabelNoFile        string // "No file loaded"
-	LabelNoVideoLoaded string // "No video loaded"
-	LabelFileFmt       string // "File: %s"
+	LabelNoFile           string // "No file loaded"
+	LabelNoVideoLoaded    string // "No video loaded"
+	LabelDropVideoToLoad string // "DROP VIDEO TO LOAD"
+	LabelFileFmt          string // "File: %s"
 
 	// ── Burn Module ────────────────────────────────────────────────────────────
 	BurnSelectISO     string // "Select ISO file to burn"

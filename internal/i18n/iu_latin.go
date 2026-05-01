@@ -150,9 +150,10 @@ var iuLatn = Strings{
 	LabelLanguage:      "Uqausiiq",                       // Language
 	LabelVersion:       "Titiraqsimaujuq",                // Version
 	LabelLicense:       "Atuqniimut Anirraaq",            // License
-	LabelNoFile:        "Ilanginnik Agaksisimanngillaq",  // No file loaded
-	LabelNoVideoLoaded: "Tarvijaksaq Agaksisimanngillaq", // No video loaded
-	LabelFileFmt:       "Ilanga: %s",                     // File: %s
+	LabelNoFile:           "Ilanginnik Agaksisimanngillaq",  // No file loaded
+	LabelNoVideoLoaded:    "Tarvijaksaq Agaksisimanngillaq", // No video loaded
+	LabelDropVideoToLoad: "Tarviga Aullaksisimanngillat",      // Drop video to load
+	LabelFileFmt:          "Ilanga: %s",                     // File: %s
 
 	// ── Inspect Module ────────────────────────────────────────────────────────
 	InspectInstructions:       "Tarvijaksaqmik Agaksillugu qaujigiarrlugu attanangittumikkullu. Upaksillugu uqqaatijaksaqmik atuqlugu.", // Load a video to inspect
