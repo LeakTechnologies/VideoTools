@@ -27,6 +27,11 @@ var (
 	suppressCount    = make(map[string]int)
 	suppressLastMsg  = make(map[string]time.Time)
 	suppressThrottle = 5 * time.Second
+
+	// playerTraceMu guards traceFile and traceEnabled.
+	playerTraceMu      sync.Mutex
+	traceFile          *os.File
+	playerTraceEnabled = false
 )
 
 const (
@@ -75,6 +80,11 @@ func Init() {
 		return
 	}
 	file = f
+
+	// Enable per-frame playback trace when the env var is set.
+	if os.Getenv("VIDEOTOOLS_PLAYER_TRACE") != "" {
+		SetPlayerTrace(true)
+	}
 
 	// Flush the OS write cache every 500 ms so log entries appear on disk
 	// promptly even when the process hangs between Sync() calls.
@@ -310,4 +320,58 @@ func LogsDir() string {
 
 func logFilePath(name string) string {
 	return filepath.Join(LogsDir(), name)
+}
+
+// GetPlayerTracePath returns the path for the per-frame playback trace log.
+func GetPlayerTracePath() string {
+	return logFilePath("player_trace.log")
+}
+
+// SetPlayerTrace enables or disables per-frame playback trace logging.
+// When enabled, a CSV trace is written to player_trace.log for post-mortem
+// frame-by-frame AV sync analysis. Enabling opens the trace file; disabling
+// closes it.
+func SetPlayerTrace(enabled bool) {
+	playerTraceMu.Lock()
+	defer playerTraceMu.Unlock()
+	if enabled == playerTraceEnabled {
+		return
+	}
+	playerTraceEnabled = enabled
+	if enabled {
+		f, err := os.OpenFile(GetPlayerTracePath(), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "videotools: cannot open player trace: %v\n", err)
+			playerTraceEnabled = false
+			return
+		}
+		traceFile = f
+		fmt.Fprintln(traceFile, "timestamp,frame,pts,clock,action,behind_ms")
+	} else {
+		if traceFile != nil {
+			traceFile.Sync()
+			traceFile.Close()
+			traceFile = nil
+		}
+	}
+}
+
+// PlayerTraceEnabled reports whether per-frame trace logging is active.
+func PlayerTraceEnabled() bool {
+	playerTraceMu.Lock()
+	defer playerTraceMu.Unlock()
+	return playerTraceEnabled
+}
+
+// PlayerFrameTrace records one frame decision to the trace file.
+// action is one of: "display", "drop", "stall", "snap".
+// behindMs is clock-pts in milliseconds (positive = clock ahead of pts).
+func PlayerFrameTrace(frameNum int64, pts, clock float64, action string, behindMs float64) {
+	playerTraceMu.Lock()
+	defer playerTraceMu.Unlock()
+	if !playerTraceEnabled || traceFile == nil {
+		return
+	}
+	fmt.Fprintf(traceFile, "%s,%d,%.3f,%.3f,%s,%.0f\n",
+		time.Now().Format(time.RFC3339Nano), frameNum, pts, clock, action, behindMs)
 }

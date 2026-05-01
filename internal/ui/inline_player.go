@@ -16,16 +16,17 @@ import (
 )
 
 type InlineVideoPlayer struct {
-	mu         sync.Mutex // serialises all engine access (Load, Play, Pause, Seek, Step)
-	player     *media.VideoPlayer
-	engine     *media.Engine
-	scrubber   *media.SmoothScrubbing
-	playing    bool
-	onProgress func(float64)    // called from playbackLoop with current time in seconds
-	onEnd      func()           // called on clean end-of-stream; NOT called on error
-	onFrame    func(*image.RGBA) // called on every rendered frame (playback + scrub)
-	onLoad     func(LoadEvent)   // fired on main goroutine at each load milestone
-	seekCh     chan float64      // capacity-1 channel; seekLoop drains it serially
+	mu          sync.Mutex // serialises all engine access (Load, Play, Pause, Seek, Step)
+	player      *media.VideoPlayer
+	engine      *media.Engine
+	scrubber    *media.SmoothScrubbing
+	playing     bool
+	currentPath string          // path of the most recently loaded file; used for EOF→reload
+	onProgress  func(float64)   // called from playbackLoop with current time in seconds
+	onEnd       func()          // called on clean end-of-stream; NOT called on error
+	onFrame     func(*image.RGBA) // called on every rendered frame (playback + scrub)
+	onLoad      func(LoadEvent)  // fired on main goroutine at each load milestone
+	seekCh      chan float64     // capacity-1 channel; seekLoop drains it serially
 }
 
 // LoadPhase identifies a milestone in the video load pipeline.
@@ -186,6 +187,7 @@ func (v *InlineVideoPlayer) Load(path string) (err error) {
 	// ones. Clearing under the lock prevents concurrent callers (seekLoop,
 	// Seek, playbackLoop) from using the old engine after we've released it.
 	v.playing = false
+	v.currentPath = path
 	oldScrubber := v.scrubber
 	oldEngine := v.engine
 	oldSeekCh := v.seekCh
@@ -649,6 +651,7 @@ func (v *InlineVideoPlayer) playbackLoop() {
 				v.mu.Lock()
 				v.playing = false
 				endFn := v.onEnd
+				reloadPath := v.currentPath
 				v.mu.Unlock()
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					v.player.SetPlaying(false)
@@ -656,6 +659,16 @@ func (v *InlineVideoPlayer) playbackLoop() {
 						endFn()
 					}
 				}, false)
+				// Reload the file so the user can play it again. Load() closes
+				// the dead engine, reopens from scratch, and leaves the player
+				// paused at the first frame — ready for another Play().
+				if reloadPath != "" {
+					go func() {
+						if err := v.Load(reloadPath); err != nil {
+							logging.Error(logging.CatPlayer, "playbackLoop: EOF reload failed: %v", err)
+						}
+					}()
+				}
 			} else {
 				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 					v.player.SetError("Playback stopped: " + err.Error())
