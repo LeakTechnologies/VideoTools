@@ -62,12 +62,13 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 
 ### Module Pipeline (`&&` feature)
 
-- [ ] `pipelineActive` state machine on `appState` (off / waiting-step1 / waiting-step2)
-- [ ] `&&` button in main menu header, visually reflects state
-- [ ] Module tile dimming for invalid Step 2 targets
-- [ ] `PipelineAfter` + `PipelineDeleteOnSuccess` fields on `queue.Job`
-- [ ] Queue runner: chain execution + intermediate file cleanup
-- [ ] "Keep intermediate files" toggle in Settings → Preferences
+- [x] `pipelineActive` state machine on `appState` (off / waiting-step1 / waiting-step2)
+- [x] `&&` button in main menu header, visually reflects state
+- [x] Module tile dimming for invalid Step 2 targets
+- [x] `PipelineAfter` + `PipelineDeleteOnSuccess` fields on `queue.Job`
+- [x] Queue runner: chain execution + intermediate file cleanup
+- [x] `PipelineKeepIntermediate` field in PrefsConfig (Settings toggle UI pending)
+- [ ] "Keep intermediate files" toggle in Settings → Preferences (field exists, UI not yet wired)
 
 ### Quick Access Dropdown
 - [ ] **Recent file tracking** — Persist recent files list to disk
