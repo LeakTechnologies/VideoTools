@@ -36,10 +36,12 @@ func saveAudioConfig(cfg audioConfig) error {
 }
 
 func buildAudioView(state *appState) fyne.CanvasObject {
+	audioPlayer := GetAudioPlayer()
+	audioPlayer.SetIdleText(i18n.T().LabelDropVideoToLoad)
 	opts := audio.Options{
 		Window:                     state.window,
 		ModuleColor:                moduleColor("audio"),
-		Player:                     GetAudioPlayer(),
+		Player:                     audioPlayer,
 		BatchMode:                  state.audioBatchMode,
 		OutputFormat:               state.audioOutputFormat,
 		Quality:                    state.audioQuality,
