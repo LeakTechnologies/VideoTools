@@ -2116,15 +2116,19 @@ func (e *Engine) Seek(seconds float64) error {
 		minTS = target
 	case SeekAccuracyKeyframe:
 		// AVSEEK_FLAG_BACKWARD: seek to the keyframe at or before target.
-		// Widening min_ts to 0 allows FFmpeg to find the preceding keyframe
-		// when target falls between keyframes, which is the common case.
-		// Without this, avformat_seek_file with min=target often fails for
-		// backward seeks, leaving the position unchanged.
+		// Using INT64_MIN/2 as min_ts (rather than 0) is critical for seeking
+		// to the very beginning: some containers store the first keyframe at
+		// PTS=1 (one timebase tick) rather than exactly 0.  With min_ts=0 and
+		// max_ts=target=0 the window [0,0] excludes that keyframe and
+		// avformat_seek_file returns -1.  Allowing negative min_ts lets FFmpeg
+		// find the keyframe regardless of any fractional start offset.  For
+		// all other seek positions the preceding keyframe is always ≥ 0, so
+		// this change has no effect on normal mid-stream seeks.
 		flags = C.int(AVSEEK_FLAG_BACKWARD)
-		minTS = 0
+		minTS = C.int64_t(math.MinInt64 / 2)
 	case SeekAccuracyAccurate:
 		flags = C.int(AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ACCURATE)
-		minTS = 0
+		minTS = C.int64_t(math.MinInt64 / 2)
 	}
 
 	e.formatMu.Lock()
