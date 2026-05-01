@@ -169,8 +169,9 @@ var enCA = Strings{
 	LabelLanguage:      "Language",
 	LabelVersion:       "Version",
 	LabelLicense:       "License",
-	LabelNoFile:        "No file loaded",
-	LabelNoVideoLoaded: "No video loaded",
+	LabelNoFile:           "No file loaded",
+	LabelNoVideoLoaded:    "No video loaded",
+	LabelDropVideoToLoad: "DROP VIDEO TO LOAD",
 	LabelFileFmt:       "File: %s",
 
 	// ── Inspect Module ────────────────────────────────────────────────────────

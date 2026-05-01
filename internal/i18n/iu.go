@@ -149,9 +149,10 @@ var iu = Strings{
 	LabelLanguage:      "ᐅᖃᐅᓯᖅ",              // Language
 	LabelVersion:       "ᑎᑎᕋᖅᓯᒪᔪᖅ",           // Version
 	LabelLicense:       "ᐊᑐᕐᓂᒧᑦ ᐊᓂᕐᕋᖅ",       // License
-	LabelNoFile:        "ᐃᓚᖏᓐᓂᒃ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ",   // No file loaded
-	LabelNoVideoLoaded: "ᑕᕐᕆᔭᒐᒃᓴᖅ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ", // No video loaded
-	LabelFileFmt:       "ᐃᓚᖓ: %s",            // File: %s
+	LabelNoFile:           "ᐃᓚᖏᓐᓂᒃ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ",   // No file loaded
+	LabelNoVideoLoaded:    "ᑕᕐᕆᔭᒐᒃᓴᖅ ᐊᒐᒃᓯᓯᒪᙱᓚᖅ", // No video loaded
+	LabelDropVideoToLoad: "ᐃᓚᖏᓐᓂᒃ ᑕᕐᕆᔭᒐᒃ ᓂᕈᐊᕐᓗᒍ",   // Drop video to load
+	LabelFileFmt:          "ᐃᓚᖓ: %s",            // File: %s
 
 	// ── Inspect Module ────────────────────────────────────────────────────────
 	InspectInstructions:       "ᑕᕐᕆᔭᒐᒃᓴᒥᒃ ᐊᒐᒃᓯᓗᒍ ᖃᐅᔨᒋᐊᕐᓗᒍ ᐊᑦᑕᓇᖏᑦᑐᒃᑯᑦ. ᐅᐸᒃᓯᓗᒍ ᅎᕝᕙᓘᓐᓃᑦ ᐸᓯᔭᒃᓴᒥᒃ ᐊᑐᕐᓗᒍ.", // Load a video to inspect

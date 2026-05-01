@@ -63,3 +63,7 @@ func GetSubtitlePlayer() *ui.InlineVideoPlayer {
 func GetUpscalePlayer() *ui.InlineVideoPlayer {
 	return ui.NewInlineVideoPlayer()
 }
+
+func GetAudioPlayer() *ui.InlineVideoPlayer {
+	return ui.NewInlineVideoPlayer()
+}

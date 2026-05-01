@@ -25,6 +25,8 @@ type Options struct {
 	Window      fyne.Window
 	ModuleColor color.Color
 
+	Player *ui.InlineVideoPlayer
+
 	// State fields
 	BatchMode            bool
 	FileInfoLabel        *widget.Label
@@ -95,11 +97,23 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	topBar := ui.TintedBar(audioColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
-	leftPanel := buildAudioLeftPanel(opts)
-	rightPanel := buildAudioRightPanel(opts)
+	// Video preview pane
+	var videoContainer fyne.CanvasObject
+	if opts.Player != nil {
+		videoContainer = opts.Player.Widget()
+	} else {
+		videoContainer = buildAudioSMPTE()
+	}
 
-	mainSplit := container.NewVSplit(leftPanel, rightPanel)
-	mainSplit.SetOffset(0.45)
+	// Audio options panel (combines left and right panels)
+	audioOptionsPanel := container.NewVBox(
+		buildAudioLeftPanel(opts),
+		buildAudioRightPanel(opts),
+	)
+	audioScroll := ui.NewFastVScroll(audioOptionsPanel)
+
+	mainSplit := container.NewHSplit(videoContainer, audioScroll)
+	mainSplit.SetOffset(0.5)
 
 	extractBtn := widget.NewButton(t.AudioExtractNow, func() {
 		if opts.OnStartExtraction != nil {
@@ -369,4 +383,13 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 
 	scrollable := ui.NewFastVScroll(rightContent)
 	return scrollable
+}
+
+// buildAudioSMPTE creates a SMPTE color bars widget for the audio module idle state
+func buildAudioSMPTE() fyne.CanvasObject {
+	t := i18n.T()
+	label := widget.NewLabel(t.LabelDropVideoToLoad)
+	label.Alignment = fyne.TextAlignCenter
+	label.TextStyle = fyne.TextStyle{Bold: true}
+	return container.NewCenter(label)
 }

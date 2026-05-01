@@ -12,6 +12,11 @@
 - **Upscale module** — Initialize `upscaleHardwareAccel` from master `state.convert.HardwareAccel` so it's not empty on first use.
 - **Filters module** — Add hardware acceleration dropdown with platform-appropriate options (nvenc, qsv, vaapi, amf on Linux; nvenc, qsv, amf on Windows). Wired to master setting via `HardwareAccel`/`SetHardwareAccel` callbacks.
 
+### Audio Module Phase 2 — Native Player Integration (dev44)
+- **InlineVideoPlayer singleton** — Added `GetAudioPlayer()` in `native_media.go` and stub in `native_media_stub.go`.
+- **Video preview pane** — Added video container using `opts.Player.Widget()` in audio `BuildView()`, with idle state showing "DROP VIDEO TO LOAD" label.
+- **Wired in audio_module.go** — Player passed to Options struct; video pane added to layout with HSplit (50/50 split).
+
 ### Settings
 - **Player font preference** — Users can choose between IBM Plex Mono and VCR OSD Mono for the OSD. VCR OSD Mono has no Bold/Italic variants; UI gracefully falls back to Regular weight.
 

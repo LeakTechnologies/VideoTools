@@ -17,6 +17,7 @@ var trimInlinePlayer *ui.InlineVideoPlayer
 var inspectInlinePlayer *ui.InlineVideoPlayer
 var subtitleInlinePlayer *ui.InlineVideoPlayer
 var upscaleInlinePlayer *ui.InlineVideoPlayer
+var audioInlinePlayer *ui.InlineVideoPlayer
 
 func init() {
 	logging.Info(logging.CatSystem, "INIT: native_media build tag IS active - using InlineVideoPlayer")
@@ -26,6 +27,7 @@ func init() {
 	inspectInlinePlayer = ui.NewInlineVideoPlayer()
 	subtitleInlinePlayer = ui.NewInlineVideoPlayer()
 	upscaleInlinePlayer = ui.NewInlineVideoPlayer()
+	audioInlinePlayer = ui.NewInlineVideoPlayer()
 }
 
 func hwDecodeEnabled() bool {
@@ -62,6 +64,10 @@ func GetSubtitlePlayer() *ui.InlineVideoPlayer {
 
 func GetUpscalePlayer() *ui.InlineVideoPlayer {
 	return upscaleInlinePlayer
+}
+
+func GetAudioPlayer() *ui.InlineVideoPlayer {
+	return audioInlinePlayer
 }
 
 func initNativeMediaAssets(s *appState) {

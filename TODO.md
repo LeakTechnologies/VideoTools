@@ -43,10 +43,10 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [ ] **Consistent module box styling** — Reuse Convert's pattern
 - [ ] **Proper header bar** with module title, stats integration
 
-#### Phase 2: Native Player Integration (HIGH)
-- [ ] **InlineVideoPlayer** — Add player singleton like Convert
-- [ ] **Video preview pane** — Same layout pattern as Convert
-- [ ] **SMPTE bars idle state** — "DROP VIDEO TO LOAD"
+#### Phase 2: Native Player Integration (HIGH) - done dev44
+- [x] **InlineVideoPlayer** — Add player singleton like Convert
+- [x] **Video preview pane** — Same layout pattern as Convert
+- [x] **SMPTE bars idle state** — "DROP VIDEO TO LOAD"
 
 #### Phase 3: Track Selection (MEDIUM)
 - [ ] **Enhanced track list** — Codec icons, language flags, duration
