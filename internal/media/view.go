@@ -295,6 +295,11 @@ type VideoPlayer struct {
 	suppressSeek          bool // true while SetCurrentTime is updating the slider programmatically
 	controlHideTimer      *time.Timer
 
+	// VCR-style OSD overlay
+	osdBg    *canvas.Rectangle
+	osdText  *canvas.Text
+	osdTimer *time.Timer
+
 	raster        *canvas.Raster
 	currentWidth  int
 	currentHeight int
@@ -341,6 +346,7 @@ func (v *VideoPlayer) buildControls() {
 	v.playBtn.Importance = widget.LowImportance
 	v.playBtn.Resize(fyne.NewSize(36, 36))
 
+	var lastSliderPos float64
 	v.slider = widget.NewSlider(0, 100)
 	v.slider.OnChanged = func(pos float64) {
 		if v.suppressSeek {
@@ -353,7 +359,14 @@ func (v *VideoPlayer) buildControls() {
 			if v.onSeek != nil {
 				v.onSeek(target)
 			}
+			// OSD: show seek direction with target time
+			icon := fmt.Sprintf("⏩ %s", formatVideoTime(target))
+			if pos < lastSliderPos {
+				icon = fmt.Sprintf("⏪ %s", formatVideoTime(target))
+			}
+			v.showOSD(icon)
 		}
+		lastSliderPos = pos
 	}
 
 	v.timeLabel = canvas.NewText("00:00:00", color.White)
@@ -462,6 +475,16 @@ func (v *VideoPlayer) buildControls() {
 		)
 		_ = layout.NewBorderLayout(v.controls, nil, nil, nil)
 	}
+
+	// VCR-style OSD — hidden until a transport action fires
+	v.osdBg = canvas.NewRectangle(color.NRGBA{R: 0, G: 0, B: 0, A: 185})
+	v.osdBg.CornerRadius = 8
+	v.osdText = canvas.NewText("▶", color.NRGBA{R: 0, G: 230, B: 80, A: 255})
+	v.osdText.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	v.osdText.TextSize = 42
+	v.osdText.Alignment = fyne.TextAlignCenter
+	v.osdBg.Hide()
+	v.osdText.Hide()
 }
 
 func (v *VideoPlayer) CreateRenderer() fyne.WidgetRenderer {
@@ -535,12 +558,40 @@ func (v *VideoPlayer) SetVolume(vol float64) {
 	}
 }
 
+// showOSD displays a VCR-style icon in the upper-centre of the video for 1.5 s.
+// Safe to call from any goroutine.
+func (v *VideoPlayer) showOSD(icon string) {
+	if v.osdText == nil || v.osdBg == nil {
+		return
+	}
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		v.osdText.Text = icon
+		v.osdText.Refresh()
+		v.osdBg.Show()
+		v.osdText.Show()
+		v.Refresh()
+	}, false)
+
+	if v.osdTimer != nil {
+		v.osdTimer.Stop()
+	}
+	v.osdTimer = time.AfterFunc(1500*time.Millisecond, func() {
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			v.osdBg.Hide()
+			v.osdText.Hide()
+			v.Refresh()
+		}, false)
+	})
+}
+
 func (v *VideoPlayer) togglePlay() {
 	if v.isPlaying {
+		v.showOSD("⏸")
 		if v.onPause != nil {
 			v.onPause()
 		}
 	} else {
+		v.showOSD("▶")
 		if v.onPlay != nil {
 			v.onPlay()
 		}
@@ -554,11 +605,13 @@ func (v *VideoPlayer) toggleMute() {
 		if v.volumeSlider != nil {
 			v.volumeSlider.Value = 0
 		}
+		v.showOSD("▷ ╳") // mute icon
 	} else {
 		v.SetVolume(1.0)
 		if v.volumeSlider != nil {
 			v.volumeSlider.Value = 100
 		}
+		v.showOSD("♪") // audio restored
 	}
 	if v.onVolumeChange != nil {
 		v.onVolumeChange(v.volume)
@@ -576,7 +629,17 @@ func (v *VideoPlayer) toggleSpeed() {
 	}
 
 	nextIdx := (found + 1) % len(speeds)
-	v.SetSpeed(speeds[nextIdx])
+	next := speeds[nextIdx]
+	v.SetSpeed(next)
+	icon := fmt.Sprintf("%.2g×", next)
+	if next == 1.0 {
+		icon = "▶  1×"
+	} else if next < 1.0 {
+		icon = fmt.Sprintf("◀  %.2g×", next)
+	} else {
+		icon = fmt.Sprintf("▶▶ %.2g×", next)
+	}
+	v.showOSD(icon)
 }
 
 func (v *VideoPlayer) SetLoading(loading bool) {
@@ -1254,7 +1317,13 @@ func (r *videoPlayerRenderer) Objects() []fyne.CanvasObject {
 	if r.VideoPlayer.raster == nil {
 		r.VideoPlayer.raster = canvas.NewRaster(r.VideoPlayer.draw)
 	}
-	return []fyne.CanvasObject{r.VideoPlayer.raster, r.VideoPlayer.controlBar, r.VideoPlayer.controls}
+	return []fyne.CanvasObject{
+		r.VideoPlayer.raster,
+		r.VideoPlayer.controlBar,
+		r.VideoPlayer.controls,
+		r.VideoPlayer.osdBg,
+		r.VideoPlayer.osdText,
+	}
 }
 
 func (r *videoPlayerRenderer) Layout(size fyne.Size) {
@@ -1279,6 +1348,15 @@ func (r *videoPlayerRenderer) Layout(size fyne.Size) {
 		r.VideoPlayer.controlBar.Hide()
 		r.VideoPlayer.controls.Hide()
 	}
+
+	// OSD: fixed-width pill anchored upper-centre of the video area.
+	const osdW, osdH = float32(160), float32(64)
+	osdX := (size.Width - osdW) / 2
+	osdY := float32(24)
+	r.VideoPlayer.osdBg.Resize(fyne.NewSize(osdW, osdH))
+	r.VideoPlayer.osdBg.Move(fyne.NewPos(osdX, osdY))
+	r.VideoPlayer.osdText.Resize(fyne.NewSize(osdW, osdH))
+	r.VideoPlayer.osdText.Move(fyne.NewPos(osdX, osdY+6))
 }
 
 func (r *videoPlayerRenderer) Refresh() {
