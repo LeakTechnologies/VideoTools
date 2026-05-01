@@ -1496,6 +1496,11 @@ type appState struct {
 	hardwareAcceleration string // "auto", "none", "nvenc", "qsv", "vaapi"
 	uiTheme              string // "Dark", "Light", "System"
 	autoPreview          bool   // Enable auto-preview functionality
+
+	// Module pipeline state ("" = off, "step1" = waiting for step1 job, "step2" = waiting for step2 job)
+	pipelineStep        string
+	pipelineStep1ID     string // Job ID of the step1 job once queued
+	pipelineStep1OutFile string // Expected output file of step1 (for reference)
 }
 
 type mergeClip struct {
@@ -2343,13 +2348,12 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		Config:      config,
 	}
 
-	// Add to top (after running job) if requested and queue is running
-	if addToTop && s.jobQueue.IsRunning() {
+	// Add to top (after running job) if requested, queue is running, and no pipeline active
+	if addToTop && s.jobQueue.IsRunning() && s.pipelineStep == "" {
 		s.jobQueue.AddNext(job)
 		logging.Debug(logging.CatSystem, "added convert job to top of queue: %s", job.ID)
 	} else {
-		s.jobQueue.Add(job)
-		logging.Debug(logging.CatSystem, "added convert job to queue: %s", job.ID)
+		s.pipelineAdd(job)
 	}
 
 	return nil
@@ -2485,8 +2489,7 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 		Config:      config,
 	}
 
-	s.jobQueue.Add(job)
-	logging.Debug(logging.CatSystem, "added convert job to queue: %s", job.ID)
+	s.pipelineAdd(job)
 
 	return nil
 }
@@ -3894,8 +3897,11 @@ func (s *appState) submitTrimJob(clip trim.TrimClip) {
 	}
 
 	if s.jobQueue != nil {
-		s.jobQueue.Add(job)
-		dialog.ShowInformation(t.DialogJobQueued, t.TrimJobAdded, s.window)
+		prevStep := s.pipelineStep
+		s.pipelineAdd(job)
+		if prevStep == "" {
+			dialog.ShowInformation(t.DialogJobQueued, t.TrimJobAdded, s.window)
+		}
 	}
 }
 

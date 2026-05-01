@@ -67,9 +67,11 @@ type Job struct {
 	CreatedAt   time.Time              `json:"created_at"`
 	StartedAt   *time.Time             `json:"started_at,omitempty"`
 	CompletedAt *time.Time             `json:"completed_at,omitempty"`
-	Priority    int                    `json:"priority"`           // Higher priority = runs first
-	GroupID     string                 `json:"group_id,omitempty"` // Batch group ID for related jobs
-	cancel      context.CancelFunc     `json:"-"`
+	Priority               int                    `json:"priority"`                          // Higher priority = runs first
+	GroupID                string                 `json:"group_id,omitempty"`                // Batch group ID for related jobs
+	PipelineAfter          string                 `json:"pipeline_after,omitempty"`          // Job ID that must complete before this runs
+	PipelineDeleteOnSuccess string                `json:"pipeline_delete_on_success,omitempty"` // Intermediate file to delete after success
+	cancel                 context.CancelFunc     `json:"-"`
 }
 
 // JobExecutor is a function that executes a job
@@ -425,6 +427,16 @@ func (q *Queue) ResumeAll() {
 	go q.processJobs()
 }
 
+// findJobByIDLocked returns the job with the given ID; caller must hold mu.
+func (q *Queue) findJobByIDLocked(id string) *Job {
+	for _, j := range q.jobs {
+		if j.ID == id {
+			return j
+		}
+	}
+	return nil
+}
+
 // processJobs continuously processes pending jobs
 func (q *Queue) processJobs() {
 	defer logging.RecoverPanic() // Catch and log any panics in job processing
@@ -451,11 +463,20 @@ func (q *Queue) processJobs() {
 			continue
 		}
 
-		// Find highest priority pending job
+		// Find highest priority pending job that is not blocked by a pipeline dependency
 		var nextJob *Job
 		highestPriority := -1
 		for _, job := range q.jobs {
-			if job.Status == JobStatusPending && job.Priority > highestPriority {
+			if job.Status != JobStatusPending {
+				continue
+			}
+			if job.PipelineAfter != "" {
+				upstream := q.findJobByIDLocked(job.PipelineAfter)
+				if upstream == nil || upstream.Status != JobStatusCompleted {
+					continue // blocked — upstream not done yet
+				}
+			}
+			if job.Priority > highestPriority {
 				nextJob = job
 				highestPriority = job.Priority
 			}
@@ -511,9 +532,18 @@ func (q *Queue) processJobs() {
 			nextJob.Progress = 100.0
 			nextJob.CompletedAt = &now
 		}
+		deleteIntermediate := nextJob.PipelineDeleteOnSuccess
 		nextJob.cancel = nil
 		q.mu.Unlock()
 		q.notifyChange()
+
+		if deleteIntermediate != "" {
+			if err := os.Remove(deleteIntermediate); err != nil && !os.IsNotExist(err) {
+				logging.Warning(logging.CatSystem, "pipeline cleanup: failed to delete intermediate %s: %v", deleteIntermediate, err)
+			} else {
+				logging.Debug(logging.CatSystem, "pipeline cleanup: deleted intermediate %s", deleteIntermediate)
+			}
+		}
 	}
 }
 
