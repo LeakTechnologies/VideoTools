@@ -293,24 +293,24 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 	p.mu.Unlock()
 
 	// Drain any leftover from the previous chunk first.
-	if len(p.leftover) >0 {
-		n := copy(buf, p.leftover)
+	p.mu.Lock()
+	leftoverLen := len(p.leftover)
+	var n int
+	if leftoverLen > 0 {
+		n = copy(buf, p.leftover)
 		p.leftover = p.leftover[n:]
+	}
+	volumeMul := p.volumeMul
+	p.mu.Unlock()
 
-		p.mu.Lock()
-		volumeMul := p.volumeMul
-		p.mu.Unlock()
-
+	if leftoverLen > 0 {
 		if volumeMul != 1.0 {
 			applyVolumeS16(buf[:n], volumeMul)
 		}
-
-		// For speed != 1.0, adjust the returned data.
 		if speed != 1.0 {
 			adjusted := p.adjustSamplesForSpeed(buf[:n], speed)
 			n = copy(buf, adjusted)
 		}
-
 		return n, nil
 	}
 
@@ -364,7 +364,9 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 		}
 
 		if n < len(adjustedData) {
+			p.mu.Lock()
 			p.leftover = adjustedData[n:]
+			p.mu.Unlock()
 		}
 		return n, nil
 	default:
@@ -426,12 +428,17 @@ func (p *AudioPlayer) adjustSamplesForSpeed(data []byte, speed float64) []byte {
 }
 
 func (p *AudioPlayer) FlushCodec() {
-	// Discard any pending decoded audio so seek takes effect immediately.
+	p.mu.Lock()
 	p.leftover = p.leftover[:0]
-	for len(p.pcmCh) > 0 {
-		<-p.pcmCh
+	p.mu.Unlock()
+drain:
+	for {
+		select {
+		case <-p.pcmCh:
+		default:
+			break drain
+		}
 	}
-	// Flush the codec under its lock.
 	p.codecMu.Lock()
 	C.avcodec_flush_buffers(p.codecCtx)
 	p.codecMu.Unlock()
