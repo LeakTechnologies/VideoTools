@@ -2109,30 +2109,35 @@ func (e *Engine) Seek(seconds float64) error {
 	target := C.int64_t(seconds / e.videoTimeBase)
 
 	var flags C.int
-	var minTS C.int64_t
+	var minTS, maxTS C.int64_t
+	maxTS = target // default: exact upper bound
 	switch e.seekAcc {
 	case SeekAccuracyFrame:
 		flags = C.int(AVSEEK_FLAG_FRAME)
 		minTS = target
 	case SeekAccuracyKeyframe:
-		// AVSEEK_FLAG_BACKWARD: seek to the keyframe at or before target.
-		// Using INT64_MIN/2 as min_ts (rather than 0) is critical for seeking
-		// to the very beginning: some containers store the first keyframe at
-		// PTS=1 (one timebase tick) rather than exactly 0.  With min_ts=0 and
-		// max_ts=target=0 the window [0,0] excludes that keyframe and
-		// avformat_seek_file returns -1.  Allowing negative min_ts lets FFmpeg
-		// find the keyframe regardless of any fractional start offset.  For
-		// all other seek positions the preceding keyframe is always ≥ 0, so
-		// this change has no effect on normal mid-stream seeks.
+		// Seek to the keyframe at or before target.
+		// Both min_ts and max_ts need widening for seeks to the very beginning:
+		// some containers store the first I-frame at PTS=1 (one timebase tick)
+		// rather than exactly 0.  The window [INT64_MIN/2, 0] still excludes that
+		// keyframe because PTS=1 > max_ts=0.  When target==0 we allow max_ts up to
+		// 1000 ticks (~11 ms at 90 kHz) so the first I-frame is always reachable.
+		// For all other targets maxTS stays at target so we never overshoot.
 		flags = C.int(AVSEEK_FLAG_BACKWARD)
 		minTS = C.int64_t(math.MinInt64 / 2)
+		if target == 0 {
+			maxTS = 1000
+		}
 	case SeekAccuracyAccurate:
 		flags = C.int(AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ACCURATE)
 		minTS = C.int64_t(math.MinInt64 / 2)
+		if target == 0 {
+			maxTS = 1000
+		}
 	}
 
 	e.formatMu.Lock()
-	seekRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, target, flags)
+	seekRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, maxTS, flags)
 	e.formatMu.Unlock()
 	if seekRet < 0 {
 		logging.Warning(logging.CatPlayer, "Seek to %.2f failed (ret=%d)", seconds, seekRet)
