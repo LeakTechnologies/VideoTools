@@ -106,7 +106,7 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 				Config:      state.filterJobConfig(),
 				Description: "Apply filters to video",
 			}
-			state.jobQueue.Add(job)
+			state.pipelineAdd(job)
 		},
 		OnApplyFilters: func() {},
 		OnFilterNow: func() {

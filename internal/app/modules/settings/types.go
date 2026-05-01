@@ -80,13 +80,14 @@ type ModuleInfo struct {
 }
 
 type PrefsConfig struct {
-	AutoCheckFrequency string `json:"AutoCheckFrequency"`
-	QueuePlayBehavior  string `json:"QueuePlayBehavior"`
-	DefaultOutputDir   string `json:"DefaultOutputDir"`
-	ShowTooltips       bool   `json:"ShowTooltips"`
-	HWDecodeEnabled    bool   `json:"HWDecodeEnabled"`
-	PlayerFont         string `json:"PlayerFont"`
-	FontSize           string `json:"FontSize"`
+	AutoCheckFrequency      string `json:"AutoCheckFrequency"`
+	QueuePlayBehavior       string `json:"QueuePlayBehavior"`
+	DefaultOutputDir        string `json:"DefaultOutputDir"`
+	ShowTooltips            bool   `json:"ShowTooltips"`
+	HWDecodeEnabled         bool   `json:"HWDecodeEnabled"`
+	PlayerFont              string `json:"PlayerFont"`
+	FontSize                string `json:"FontSize"`
+	PipelineKeepIntermediate bool  `json:"PipelineKeepIntermediate"`
 }
 
 type Dependency struct {

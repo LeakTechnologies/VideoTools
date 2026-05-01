@@ -294,6 +294,7 @@ func (s *appState) startAudioExtraction(addToQueue bool) {
 		return
 	}
 
+	inPipeline := s.pipelineStep != ""
 	jobsCreated := 0
 
 	if s.audioBatchMode {
@@ -379,7 +380,9 @@ func (s *appState) startAudioExtraction(addToQueue bool) {
 					"truePeak":   s.audioNormTruePeak,
 				},
 			}
-			if addToQueue {
+			if s.pipelineStep != "" {
+				s.pipelineAdd(job)
+			} else if addToQueue {
 				s.jobQueue.Add(job)
 			} else {
 				s.jobQueue.AddNext(job)
@@ -391,9 +394,11 @@ func (s *appState) startAudioExtraction(addToQueue bool) {
 	if !s.jobQueue.IsRunning() {
 		s.jobQueue.Start()
 	}
-	s.audioStatusLabel.SetText(fmt.Sprintf("Queued %d extraction job(s)", jobsCreated))
-	if !addToQueue {
-		s.showQueue()
+	if !inPipeline {
+		s.audioStatusLabel.SetText(fmt.Sprintf("Queued %d extraction job(s)", jobsCreated))
+		if !addToQueue {
+			s.showQueue()
+		}
 	}
 }
 

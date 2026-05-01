@@ -117,6 +117,23 @@ func (s *appState) showMainMenu() {
 		ShowDisc:    s.convert.ShowDisc,
 	})
 
+	// In pipeline step2 mode: dim modules that cannot serve as step2 targets.
+	// Invalid step2 = anything that doesn't accept a single video as input and
+	// produce a single processed output (disc tools, comparison, playback, settings).
+	if s.pipelineStep == "step2" {
+		invalidStep2 := map[string]bool{
+			"rip": true, "burn": true, "author": true,
+			"inspect": true, "compare": true, "player": true,
+			"filemanager": true, "settings": true, "merge": true,
+		}
+		for i := range mods {
+			if invalidStep2[mods[i].ID] {
+				mods[i].Enabled = false
+				mods[i].MissingDependencies = false
+			}
+		}
+	}
+
 	titleColor := utils.MustHex("#4CE870")
 	t := i18n.T()
 	menuLabels := ui.MenuLabels{
@@ -221,7 +238,8 @@ func (s *appState) showMainMenu() {
 		// Toggle sidebar - use throttled refresh to prevent lag
 		s.sidebarVisible = !s.sidebarVisible
 		s.refreshMainMenuThrottled()
-	}, filesData, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal)
+	}, filesData, s.sidebarVisible, sidebar, titleColor, queueColor, textColor, queueCompleted, queueTotal,
+		s.pipelineStep, s.togglePipeline)
 
 	// Update stats bar
 	s.updateStatsBar()
@@ -265,4 +283,54 @@ func (s *appState) refreshMainMenuSidebar() {
 	// For now, use throttled refresh to prevent cascading rebuilds
 	// In the future, could optimize to only update sidebar component
 	s.refreshMainMenuThrottled()
+}
+
+// togglePipeline cycles the pipeline state machine:
+//   "" → "step1" (activate, waiting for step1 job)
+//   "step1" → ""  (cancel before step1 is queued)
+//   "step2" → ""  (cancel after step1 is queued — step1 job remains standalone)
+func (s *appState) togglePipeline() {
+	switch s.pipelineStep {
+	case "":
+		s.pipelineStep = "step1"
+	default:
+		// Cancel pipeline — step1 job (if queued) stays in queue as a normal job
+		s.pipelineStep = ""
+		s.pipelineStep1ID = ""
+		s.pipelineStep1OutFile = ""
+	}
+	s.refreshMainMenuThrottled()
+}
+
+// pipelineAdd adds a job to the queue, respecting the active pipeline state.
+// In step1 mode: records the job as step1 and navigates back to the main menu.
+// In step2 mode: blocks the job on step1 completion and navigates to the queue.
+// Otherwise: adds the job normally.
+func (s *appState) pipelineAdd(job *queue.Job) {
+	switch s.pipelineStep {
+	case "step1":
+		s.jobQueue.Add(job)
+		s.pipelineStep1ID = job.ID
+		s.pipelineStep1OutFile = job.OutputFile
+		s.pipelineStep = "step2"
+		if !s.jobQueue.IsRunning() {
+			s.jobQueue.Start()
+		}
+		fyne.CurrentApp().Driver().DoFromGoroutine(s.showMainMenu, false)
+	case "step2":
+		job.PipelineAfter = s.pipelineStep1ID
+		if !s.prefs.PipelineKeepIntermediate && s.pipelineStep1OutFile != "" {
+			job.PipelineDeleteOnSuccess = s.pipelineStep1OutFile
+		}
+		s.jobQueue.Add(job)
+		s.pipelineStep = ""
+		s.pipelineStep1ID = ""
+		s.pipelineStep1OutFile = ""
+		if !s.jobQueue.IsRunning() {
+			s.jobQueue.Start()
+		}
+		fyne.CurrentApp().Driver().DoFromGoroutine(s.showQueue, false)
+	default:
+		s.jobQueue.Add(job)
+	}
 }

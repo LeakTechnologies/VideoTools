@@ -97,8 +97,10 @@ type RecentFile struct {
 	Module      string // Which module it was opened in
 }
 
-// BuildMainMenu creates the main menu view with module tiles grouped by category
-func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onToggleSidebar func(), filesDropdownData *FilesDropdownData, sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int) fyne.CanvasObject {
+// BuildMainMenu creates the main menu view with module tiles grouped by category.
+// pipelineStep: "" = off, "step1" = waiting for first job, "step2" = waiting for second job.
+// onPipelineToggle: called when the && button is clicked; nil hides the button.
+func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, onModuleClick func(string), onModuleDrop func(string, []fyne.URI), onQueueClick func(), onLogsClick func(), onToggleSidebar func(), filesDropdownData *FilesDropdownData, sidebarVisible bool, sidebar fyne.CanvasObject, titleColor, queueColor, textColor color.Color, queueCompleted, queueTotal int, pipelineStep string, onPipelineToggle func()) fyne.CanvasObject {
 	title := canvas.NewText(titleText, titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 20
@@ -116,6 +118,21 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 		logsBtn := widget.NewButton(labels.Logs, onLogsClick)
 		logsBtn.Importance = widget.LowImportance
 		headerControls = append(headerControls, logsBtn)
+	}
+	if onPipelineToggle != nil {
+		pipelineLabel := "&&"
+		pipelineImportance := widget.LowImportance
+		switch pipelineStep {
+		case "step1":
+			pipelineLabel = "[ && ]"
+			pipelineImportance = widget.HighImportance
+		case "step2":
+			pipelineLabel = "A → ?"
+			pipelineImportance = widget.HighImportance
+		}
+		pipelineBtn := widget.NewButton(pipelineLabel, onPipelineToggle)
+		pipelineBtn.Importance = pipelineImportance
+		headerControls = append(headerControls, pipelineBtn)
 	}
 	headerControls = append(headerControls, queueTile)
 

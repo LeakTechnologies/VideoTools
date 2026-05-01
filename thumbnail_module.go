@@ -327,7 +327,7 @@ func buildThumbnailView(state *appState) fyne.CanvasObject {
 				return
 			}
 			job := state.createThumbnailJobForPath(state.thumbnailFile.Path)
-			state.jobQueue.Add(job)
+			state.pipelineAdd(job)
 			if !state.jobQueue.IsRunning() {
 				state.jobQueue.Start()
 			}
