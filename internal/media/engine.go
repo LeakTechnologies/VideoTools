@@ -2194,8 +2194,8 @@ func (e *Engine) Seek(seconds float64) error {
 		}
 		flushed := 0
 		for {
-			_, recvExc := SafeReceiveFrame(e.videoCodecCtx, e.frame)
-			if recvExc != 0 {
+			recvRet, recvExc := SafeReceiveFrame(e.videoCodecCtx, e.frame)
+			if recvExc != 0 || recvRet != 0 {
 				break
 			}
 			flushed++
