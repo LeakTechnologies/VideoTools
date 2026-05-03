@@ -25,8 +25,8 @@ See `docs/CONVERT_MODULE_IMPROVEMENTS.md` for full plan.
 
 ### Convert Module i18n (HIGH — Issue #5)
 
-- [ ] **~50 hardcoded strings** in buildConvertView need i18n keys
-- [ ] Add new keys to `internal/i18n/strings.go`, `en_ca.go`, `fr_ca.go`, `iu.go`, `iu_latin.go`
+- [x] **~42 hardcoded strings** i18n'd: checkboxes, buttons, dialog messages, back button
+- [x] New keys added to `internal/i18n/strings.go`, `en_ca.go`, `fr_ca.go`, `iu.go`, `iu_latin.go`
 
 ### Convert Module Improvements — Phase 2 (HIGH)
 
