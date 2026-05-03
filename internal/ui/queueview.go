@@ -389,19 +389,43 @@ onScheduleModule func(string, string),
 
 	logHeader := container.NewHBox(logHeaderLabel, logJobLabel)
 
-	logSection := container.NewBorder(
+	// Live output content area
+	logContent := container.NewMax(logBg, logScroll)
+
+	// Build the inner log section with header and content
+	innerLogSection := container.NewBorder(
 		container.NewPadded(logHeader),
 		nil, nil, nil,
-		container.NewMax(logBg, logScroll),
+		container.NewPadded(logContent),
+	)
+
+	// Wrap with 4px VT green outline using Border layout
+	// Top/bottom/left/right borders are 4px green rectangles
+	vtGreen := color.NRGBA{R: 0x4c, G: 0xe8, B: 0x70, A: 0xff}
+	topBorder := canvas.NewRectangle(vtGreen)
+	topBorder.SetMinSize(fyne.NewSize(0, 4))
+	bottomBorder := canvas.NewRectangle(vtGreen)
+	bottomBorder.SetMinSize(fyne.NewSize(0, 4))
+	leftBorder := canvas.NewRectangle(vtGreen)
+	leftBorder.SetMinSize(fyne.NewSize(4, 0))
+	rightBorder := canvas.NewRectangle(vtGreen)
+	rightBorder.SetMinSize(fyne.NewSize(4, 0))
+
+	logSection := container.NewBorder(
+		topBorder,
+		bottomBorder,
+		leftBorder,
+		rightBorder,
+		innerLogSection,
 	)
 	// Live output now visible by default (was hidden before)
 // logSection.Hide() - removed to show live output panel
 
-	// queueList fills most of the window, with header at top
-	// Use BorderLayout: top bar at top, content fills middle
+	// Use BorderLayout: top bar at top, live output at bottom, queue list fills middle
 	bodyWithBars := container.NewBorder(
 		topBar,
-		nil, nil, nil,
+		logSection,
+		nil, nil,
 		scrollable,
 	)
 
