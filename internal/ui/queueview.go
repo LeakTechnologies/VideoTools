@@ -1007,23 +1007,29 @@ func getStatusText(job *queue.Job, queuePositions map[string]int) string {
 func ModuleColor(t queue.JobType) color.Color {
 	switch t {
 	case queue.JobTypeConvert:
-		return color.RGBA{R: 111, G: 66, B: 193, A: 255} // Purple (#6F42C1)
+		return utils.MustHex("#7225D0") // Purple - matches Convert module
 	case queue.JobTypeMerge:
-		return color.RGBA{R: 46, G: 125, B: 50, A: 255} // Green (#2E7D32)
+		return utils.MustHex("#B423C7") // Purple - matches Merge module
 	case queue.JobTypeTrim:
-		return color.RGBA{R: 239, G: 108, B: 0, A: 255} // Orange (#EF6C00)
+		return utils.MustHex("#BF2290") // Orange - matches Trim module
 	case queue.JobTypeFilter:
-		return color.RGBA{R: 63, G: 81, B: 181, A: 255} // Blue (#3F51B5)
+		return utils.MustHex("#BF224C") // Red - matches Filters module
 	case queue.JobTypeUpscale:
-		return color.RGBA{R: 43, G: 156, B: 28, A: 255} // Green (#2B9C1C) - matching upscale module
+		return utils.MustHex("#2B9C1C") // Green - matches Upscale module
 	case queue.JobTypeAudio:
-		return color.RGBA{R: 46, G: 125, B: 50, A: 255} // Green (#2E7D32)
+		return utils.MustHex("#BF3C22") // Green - matches Audio module
 	case queue.JobTypeThumbnail:
-		return color.RGBA{R: 63, G: 81, B: 181, A: 255} // Blue (#3F51B5)
+		return utils.MustHex("#2260BF") // Blue - matches Thumbnail module
+	case queue.JobTypeCompare:
+		return utils.MustHex("#91931A") // Yellow-Green - matches Compare module
+	case queue.JobTypeInspect:
+		return utils.MustHex("#629C1C") // Green - matches Inspect module
 	case queue.JobTypeAuthor:
-		return color.RGBA{R: 239, G: 108, B: 0, A: 255} // Orange (#EF6C00)
+		return utils.MustHex("#1C9C44") // Green - matches Author module
 	case queue.JobTypeRip:
-		return color.RGBA{R: 46, G: 125, B: 50, A: 255} // Green (#2E7D32)
+		return utils.MustHex("#1A9373") // Green-Teal - matches Rip module
+	case queue.JobTypePlayer:
+		return utils.MustHex("#1D8EA5") // Cyan - matches Player module
 	default:
 		return color.Gray{Y: 180}
 	}
