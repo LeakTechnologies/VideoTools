@@ -67,8 +67,8 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [x] Module tile dimming for invalid Step 2 targets
 - [x] `PipelineAfter` + `PipelineDeleteOnSuccess` fields on `queue.Job`
 - [x] Queue runner: chain execution + intermediate file cleanup
-- [x] `PipelineKeepIntermediate` field in PrefsConfig (Settings toggle UI pending)
-- [ ] "Keep intermediate files" toggle in Settings → Preferences (field exists, UI not yet wired)
+- [x] `PipelineKeepIntermediate` field in PrefsConfig
+- [x] "Keep intermediate files" toggle in Settings → Preferences
 
 ### Quick Access Dropdown
 - [ ] **Recent file tracking** — Persist recent files list to disk
