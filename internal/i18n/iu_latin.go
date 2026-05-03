@@ -74,6 +74,10 @@ var iuLatn = Strings{
 	DialogSnippetCreated:     "Ikajurlugu Pijjugut",                                                                                                                                                                              // Snippet Created
 	DialogQueueNotInit:       "Ilallijjugut Pijuqsirtilugu",                                                                                                                                                                      // Queue not initialized
 	DialogNoRunningJob:       "Atingniaqtilugu Aggiqsijjutaujunik",                                                                                                                                                               // No running job to cancel
+	DialogNoLogMsg:           "Nalunaarusiangit pijaugijumaanangitsoq.",                                  // machine-generated — No conversion log available.
+	DialogNoConfigMsg:        "Ilitarijausimanngitsoq nalinginnaqtumik. Tamanna pigiaqhimaaqtilugu.",     // machine-generated — No saved config found yet
+	DialogSavedToFmt:         "Pivallianngitsoq %s",                                                     // machine-generated — Saved to %s
+	DialogJobCancelledFmt:    "Aggiqsijjutaujuq: %s",                                                    // machine-generated — Cancelled job: %s
 	DialogISOCannotOpen:      "ISO Taikhanik",                                                                                                                                                                                    // Open DVD ISO
 	DialogISOCannotOpenMsg:   "ISO taikhanik pijaugijumaanangitclugu.\n\nPisuvgit Autor ippa.",                                                                                                                                   // DVD ISO files cannot be loaded directly
 	DialogBurnComingSoon:     "DVD Kaggianik",                                                                                                                                                                                    // Burn DVD
@@ -451,6 +455,23 @@ var iuLatn = Strings{
 	ConvertRemuxHint:              "Tungavikkut allatgutilik: silattuqsimavoq. Nutaqqutigijauniq aulajariit atuqtaunngillat.", // machine-generated, needs human review — Remux mode: stream copy. Encoding controls are disabled.
 	ConvertUseSystemTemp:          "Tamarmik Aulajariit Atuqlugit",                                                            // machine-generated, needs human review — Use System Temp
 	ConvertUseDefault:             "Nalunaiqsimanngitsoq Atuqlugu",                                                            // machine-generated, needs human review — Use Default
+
+	ConvertSavePresetBtn:           "Save Current Settings as Preset...",                                  // machine-generated
+	ConvertKeepChapters:            "Keep chapters",                                                       // machine-generated
+	ConvertChapterLostWarning:      "Chapters will be lost — DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.", // machine-generated
+	ConvertAutoNameFromMeta:        "Auto-name from metadata",                                             // machine-generated
+	ConvertAppendSuffix:            "Append \"-convert\" to filename",                                     // machine-generated
+	ConvertSmartITC:                "Smart Inverse Telecine",                                              // machine-generated
+	ConvertAutoDetectBlackBars:     "Auto-Detect Black Bars",                                              // machine-generated
+	ConvertFlipHorizontal:          "Flip Horizontal (Mirror)",                                            // machine-generated
+	ConvertFlipVertical:            "Flip Vertical (Upside Down)",                                         // machine-generated
+	ConvertForceAspectMeta:         "Force aspect metadata (DAR/SAR)",                                     // machine-generated
+	ConvertMotionInterp:            "Use Motion Interpolation (slower, smoother frame rate changes)",       // machine-generated
+	ConvertEnableTwoPass:           "Enable Two-Pass Encoding",                                            // machine-generated
+	ConvertDevicePresetHint:        "Apply all encoding settings optimised for a target device.",           // machine-generated
+	ConvertSnippetNoVideoMsg:       "No video playing. Using midpoint.",                                   // machine-generated
+	ConvertSnippetJobQueuedFmt:     "%ds snippet job added to queue.",                                     // machine-generated
+	ConvertSnippetAllQueuedFmt:     "Added %d snippet jobs to queue.\nEach %ds long.",                     // machine-generated
 
 	// Convert (machine-generated)
 	ConvertAddAllToQueue:             "All to Queue",                                                                         // machine-generated

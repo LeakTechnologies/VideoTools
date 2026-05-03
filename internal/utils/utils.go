@@ -59,6 +59,25 @@ func GetFFplayPath() string {
 	return "ffplay" // Fallback
 }
 
+// VerifyTool checks that a tool binary exists AND runs (not just file exists).
+// Returns the path and true if the tool runs successfully with --version or similar.
+func VerifyTool(name string) (string, bool) {
+	path, ok := FindTool(name)
+	if !ok {
+		return "", false
+	}
+	// Quick smoke test: run with --version or -h (should exit quickly)
+	cmd := HideWindowExec(path, "--version")
+	if err := cmd.Run(); err != nil {
+		// Try -h as fallback
+		cmd = HideWindowExec(path, "-h")
+		if err := cmd.Run(); err != nil {
+			return "", false
+		}
+	}
+	return path, true
+}
+
 // FindTool returns the absolute path to a named tool binary, or ("", false) if not found.
 // Checks system PATH first, then the VideoTools app-local bin directory so that
 // tools installed via the Settings panel are detected even when not in PATH.

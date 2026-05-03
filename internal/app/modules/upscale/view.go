@@ -193,6 +193,30 @@ func BuildView(opts Options) fyne.CanvasObject {
 	methodInfo.TextStyle = fyne.TextStyle{Italic: true}
 	methodInfo.Wrapping = fyne.TextWrapWord
 
+	// One-click preset selector
+	presetDescLabel := widget.NewLabel("")
+	presetDescLabel.TextStyle = fyne.TextStyle{Italic: true}
+	presetDescLabel.Wrapping = fyne.TextWrapWord
+
+	presetLabel := widget.NewLabel("Workflow Preset:")
+	presetSelect := widget.NewSelect(PresetOptions(), func(s string) {
+		if p := PresetInfoFromLabel(s); p != nil {
+			opts.SetUpscaleAIModel(p.Model)
+			opts.SetUpscaleTargetRes(p.TargetRes)
+			opts.SetUpscaleFrameRate(p.FrameRate)
+			opts.SetUpscaleVideoCodec(p.VideoCodec)
+			opts.SetUpscaleEncoderPreset(p.QualityPreset)
+			opts.SetUpscaleManualCRF(float64(p.CRF))
+			opts.SetUpscaleRIFEEnabled(p.EnableRIFE)
+			opts.SetUpscaleRIFEMultiplier(p.RIFEMultiplier)
+			presetDescLabel.SetText(p.Description)
+			// Note: UI refresh happens on next BuildView call
+		} else {
+			presetDescLabel.SetText("")
+		}
+	})
+	presetSelect.SetSelected("")
+
 	resLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleTargetFmt, opts.UpscaleTargetRes()))
 	resSelect := widget.NewSelect([]string{
 		"Match Source",
@@ -803,6 +827,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	traditionalSection := buildUpscaleBox(t.UpscaleScalingBox, container.NewVBox(
 		widget.NewLabel(t.UpscaleClassicDesc),
+		container.NewGridWithColumns(2,
+			widget.NewLabel("Workflow Preset:"),
+			presetSelect,
+		),
+		presetDescLabel,
 		container.NewGridWithColumns(2,
 			widget.NewLabel(t.UpscaleScalingLabel),
 			methodSelect,

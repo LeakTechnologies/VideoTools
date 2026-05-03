@@ -4163,7 +4163,7 @@ func (s *appState) showMergeView() {
 		s.mergeFrameRate = "Source"
 	}
 
-	backBtn := widget.NewButton("< MERGE", func() {
+	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleMerge), func() {
 		s.showMainMenu()
 	})
 	backBtn.Importance = widget.LowImportance
@@ -7049,10 +7049,10 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 			fmt.Fprintln(logFile, "Stage: AI Upscale ("+aiBinary+")")
 		}
 
-		// Use full path from FindTool (checks PATH and app-local bin)
-		aiPath, aiPathFound := utils.FindTool(aiBinary)
+		// Use full path from VerifyTool (checks PATH and app-local bin + smoke test)
+		aiPath, aiPathFound := utils.VerifyTool(aiBinary)
 		if !aiPathFound {
-			return fmt.Errorf("AI upscaling tool not found: %s (not in PATH or app-local bin)", aiBinary)
+			return fmt.Errorf("AI upscaling tool not found or not working: %s (not in PATH or app-local bin, or fails to run)", aiBinary)
 		}
 		if logFile != nil {
 			fmt.Fprintf(logFile, "Command: %s %s\n", aiPath, strings.Join(aiArgs, " "))
@@ -7112,9 +7112,9 @@ func (s *appState) executeUpscaleJob(ctx context.Context, job *queue.Job, progre
 				"-m", rifeModel,
 				"-n", strconv.Itoa(inputFrameCount * rifeMultiplier),
 			}
-			rifeBin, rifeFound := utils.FindTool("rife-ncnn-vulkan")
+			rifeBin, rifeFound := utils.VerifyTool("rife-ncnn-vulkan")
 			if !rifeFound {
-				return fmt.Errorf("RIFE interpolation failed: rife-ncnn-vulkan not found in PATH or app-local bin")
+				return fmt.Errorf("RIFE interpolation failed: rife-ncnn-vulkan not found in PATH or app-local bin, or fails to run")
 			}
 			if logFile != nil {
 				fmt.Fprintln(logFile, "Stage: RIFE frame interpolation")
@@ -8869,7 +8869,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	back := widget.NewButton("< CONVERT", func() {
+	back := widget.NewButton("< "+strings.ToUpper(t.ModuleConvert), func() {
 		state.showMainMenu()
 	})
 	back.Importance = widget.LowImportance
@@ -9234,7 +9234,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	dvdAspectBox.Hide() // Hidden by default
 
 	// Chapter preservation
-	preserveChaptersCheck := widget.NewCheck("Keep chapters", func(checked bool) {
+	preserveChaptersCheck := widget.NewCheck(t.ConvertKeepChapters, func(checked bool) {
 		state.convert.PreserveChapters = checked
 	})
 	preserveChaptersCheck.SetChecked(state.convert.PreserveChapters)
@@ -9306,7 +9306,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	userPresetSelect.SetSelected("None")
 
-	deleteUserPresetBtn := widget.NewButton("Delete", func() {
+	deleteUserPresetBtn := widget.NewButton(t.ActionDelete, func() {
 		sel := userPresetSelect.Selected
 		if sel == "None" || sel == "" {
 			return
@@ -9326,7 +9326,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		userPresetSelect.Refresh()
 	})
 
-	saveUserPresetBtn := widget.NewButton("Save Current Settings as Preset...", func() {
+	saveUserPresetBtn := widget.NewButton(t.ConvertSavePresetBtn, func() {
 		entry := widget.NewEntry()
 		entry.SetPlaceHolder(t.ConvertPresetNamePlaceholder)
 		dialog.ShowCustomConfirm(t.ConvertSavePreset, t.ActionSave, t.ActionCancel, entry, func(ok bool) {
@@ -9534,7 +9534,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		updateOutputHint()
 	}
 
-	autoNameCheck = widget.NewCheck("Auto-name from metadata", func(checked bool) {
+	autoNameCheck = widget.NewCheck(t.ConvertAutoNameFromMeta, func(checked bool) {
 		state.convert.UseAutoNaming = checked
 		applyAutoName(true)
 	})
@@ -9558,7 +9558,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		applyAutoName(true)
 	}
 
-	appendSuffixCheck := widget.NewCheck("Append \"-convert\" to filename", func(checked bool) {
+	appendSuffixCheck := widget.NewCheck(t.ConvertAppendSuffix, func(checked bool) {
 		state.convert.AppendSuffix = checked
 		// Recalculate and update the output base to reflect the suffix change
 		// Always pass false for keepExisting to regenerate from source
@@ -9574,7 +9574,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	appendSuffixCheck.Checked = state.convert.AppendSuffix
 
-	inverseCheck := widget.NewCheck("Smart Inverse Telecine", func(checked bool) {
+	inverseCheck := widget.NewCheck(t.ConvertSmartITC, func(checked bool) {
 		state.convert.InverseTelecine = checked
 		state.persistConvertConfig()
 	})
@@ -9611,7 +9611,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var analyzeInterlaceView fyne.CanvasObject
 	analyzeInterlaceBtn, analyzeInterlaceView = makePanelButton(t.ConvertAnalyzeInterlacing, func() {
 		if src == nil {
-			dialog.ShowInformation(t.DialogInterlacing, "Load a video first.", state.window)
+			dialog.ShowInformation(t.DialogInterlacing, t.DialogLoadVideoFirst, state.window)
 			return
 		}
 		go func() {
@@ -9675,7 +9675,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 
 	// Auto-crop controls
-	autoCropCheck := widget.NewCheck("Auto-Detect Black Bars", func(checked bool) {
+	autoCropCheck := widget.NewCheck(t.ConvertAutoDetectBlackBars, func(checked bool) {
 		state.convert.AutoCrop = checked
 		logging.Debug(logging.CatUI, "auto-crop set to %v", checked)
 		state.persistConvertConfig()
@@ -9686,7 +9686,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var detectCropView fyne.CanvasObject
 	detectCropBtn, detectCropView = makePanelButton(t.ConvertDetectCrop, func() {
 		if src == nil {
-			dialog.ShowInformation(t.DialogAutoCrop, "Load a video first.", state.window)
+			dialog.ShowInformation(t.DialogAutoCrop, t.DialogLoadVideoFirst, state.window)
 			return
 		}
 		// Run detection in background
@@ -9740,14 +9740,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	autoCropHint.Wrapping = fyne.TextWrapWord
 
 	// Flip and Rotation controls
-	flipHorizontalCheck := widget.NewCheck("Flip Horizontal (Mirror)", func(checked bool) {
+	flipHorizontalCheck := widget.NewCheck(t.ConvertFlipHorizontal, func(checked bool) {
 		state.convert.FlipHorizontal = checked
 		logging.Debug(logging.CatUI, "flip horizontal set to %v", checked)
 		state.persistConvertConfig()
 	})
 	flipHorizontalCheck.Checked = state.convert.FlipHorizontal
 
-	flipVerticalCheck := widget.NewCheck("Flip Vertical (Upside Down)", func(checked bool) {
+	flipVerticalCheck := widget.NewCheck(t.ConvertFlipVertical, func(checked bool) {
 		state.convert.FlipVertical = checked
 		logging.Debug(logging.CatUI, "flip vertical set to %v", checked)
 		state.persistConvertConfig()
@@ -9801,7 +9801,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 	makeForceAspectCheck := func() *widget.Check {
-		check := widget.NewCheck("Force aspect metadata (DAR/SAR)", func(checked bool) {
+		check := widget.NewCheck(t.ConvertForceAspectMeta, func(checked bool) {
 			syncForceAspect(checked)
 		})
 		check.SetChecked(state.convert.ForceAspect)
@@ -10000,7 +10000,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	videoCodecContainer := videoCodecSelect // Use the widget directly instead of wrapping
 
 	// Chapter warning label (shown when converting file with chapters to DVD)
-	chapterWarningLabel := widget.NewLabel("  Chapters will be lost - DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.")
+	chapterWarningLabel := widget.NewLabel("  " + t.ConvertChapterLostWarning)
 	chapterWarningLabel.Wrapping = fyne.TextWrapWord
 	chapterWarningLabel.TextStyle = fyne.TextStyle{Italic: true}
 	updateChapterWarning = func() {
@@ -10100,7 +10100,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.TempDir = strings.TrimSpace(val)
 		utils.SetTempDir(state.convert.TempDir)
 	}
-	cacheBrowseBtn := widget.NewButton("Browse...", func() {
+	cacheBrowseBtn := widget.NewButton(t.ActionBrowse, func() {
 		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
 			if err != nil || uri == nil {
 				return
@@ -10135,7 +10135,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	logsDirEntry.OnChanged = func(val string) {
 		applyLogsDir(val)
 	}
-	logsBrowseBtn := widget.NewButton("Browse...", func() {
+	logsBrowseBtn := widget.NewButton(t.ActionBrowse, func() {
 		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
 			if err != nil || uri == nil {
 				return
@@ -10569,7 +10569,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	customAspectEntrySimple.OnChanged = func(val string) {
 		applyCustomAspect(val)
 	}
-	customAspectHintSimple := widget.NewLabel("Custom aspect ratio in use.")
+	customAspectHintSimple := widget.NewLabel(t.ConvertCustomAspectHint)
 	customAspectHintSimple.Wrapping = fyne.TextWrapWord
 	customAspectBoxSimple := container.NewVBox(
 		widget.NewLabelWithStyle(t.ConvertSectionCustomAspect, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -11087,7 +11087,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	updateFrameRateHint()
 
 	// Motion Interpolation checkbox
-	motionInterpCheck := widget.NewCheck("Use Motion Interpolation (slower, smoother frame rate changes)", func(checked bool) {
+	motionInterpCheck := widget.NewCheck(t.ConvertMotionInterp, func(checked bool) {
 		state.convert.UseMotionInterpolation = checked
 		logging.Debug(logging.CatUI, "motion interpolation set to %v", checked)
 	})
@@ -11136,7 +11136,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	state.upscaleHardwareAccel = state.convert.HardwareAccel // sync upscale HW accel from master setting
 
 	// Two-Pass encoding
-	twoPassCheck = widget.NewCheck("Enable Two-Pass Encoding", func(checked bool) {
+	twoPassCheck = widget.NewCheck(t.ConvertEnableTwoPass, func(checked bool) {
 		state.convert.TwoPass = checked
 	})
 	twoPassCheck.Checked = state.convert.TwoPass
@@ -11903,7 +11903,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	))
 
 	devicePresetSectionSimple := buildConvertBox(t.ConvertDevicePresets, container.NewVBox(
-		widget.NewLabel("Apply all encoding settings optimised for a target device."),
+		widget.NewLabel(t.ConvertDevicePresetHint),
 		devicePresetSelect,
 	))
 
@@ -12093,7 +12093,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	))
 
 	devicePresetSectionAdv := buildConvertBox(t.ConvertDevicePresets, container.NewVBox(
-		widget.NewLabel("Apply all encoding settings optimised for a target device."),
+		widget.NewLabel(t.ConvertDevicePresetHint),
 		devicePresetSelect,
 	))
 
@@ -12350,7 +12350,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	snippetBtn := widget.NewButton(t.ConvertGenerateSnippet, func() {
 		if state.source == nil {
-			dialog.ShowInformation(t.DialogSnippet, "Load a video first.", state.window)
+			dialog.ShowInformation(t.DialogSnippet, t.DialogLoadVideoFirst, state.window)
 			return
 		}
 		if state.jobQueue == nil {
@@ -12384,10 +12384,10 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 					startPosition = cp.CurrentTime()
 					positionDesc = "current position"
 				} else {
-					dialog.ShowInformation(t.DialogSnippet, "No video playing. Using midpoint.", state.window)
+					dialog.ShowInformation(t.DialogSnippet, t.ConvertSnippetNoVideoMsg, state.window)
 				}
 			} else {
-				dialog.ShowInformation(t.DialogSnippet, "No video playing. Using midpoint.", state.window)
+				dialog.ShowInformation(t.DialogSnippet, t.ConvertSnippetNoVideoMsg, state.window)
 			}
 		}
 
@@ -12418,7 +12418,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		if !state.jobQueue.IsRunning() {
 			state.jobQueue.Start()
 		}
-		dialog.ShowInformation(t.DialogSnippet, fmt.Sprintf("%ds snippet job added to queue.", state.snippetLength), state.window)
+		dialog.ShowInformation(t.DialogSnippet, fmt.Sprintf(t.ConvertSnippetJobQueuedFmt, state.snippetLength), state.window)
 	})
 	snippetBtn.Importance = widget.MediumImportance
 	if src == nil {
@@ -12503,7 +12503,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 					state.jobQueue.Start()
 				}
 				dialog.ShowInformation(t.DialogSnippets,
-					fmt.Sprintf("Added %d snippet jobs to queue.\nEach %ds long.", jobsAdded, state.snippetLength),
+					fmt.Sprintf(t.ConvertSnippetAllQueuedFmt, jobsAdded, state.snippetLength),
 					state.window)
 			}
 		})
@@ -12582,7 +12582,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var convertBtn *widget.Button
 	var cancelBtn *widget.Button
 	var cancelQueueBtn *widget.Button
-	cancelBtn = widget.NewButton("Cancel", func() {
+	cancelBtn = widget.NewButton(t.ActionCancel, func() {
 		state.cancelConvert(cancelBtn, convertBtn, activity, statusLabel)
 	})
 	cancelBtn.Importance = widget.DangerImportance
@@ -12602,7 +12602,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			dialog.ShowError(fmt.Errorf("failed to cancel job: %w", err), state.window)
 			return
 		}
-		dialog.ShowInformation(t.DialogCancelled, fmt.Sprintf("Cancelled job: %s", job.Title), state.window)
+		dialog.ShowInformation(t.DialogCancelled, fmt.Sprintf(t.DialogJobCancelledFmt, job.Title), state.window)
 	})
 	cancelQueueBtn.Importance = widget.DangerImportance
 	cancelQueueBtn.Disable()
@@ -12634,7 +12634,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	viewLogBtn := widget.NewButton(t.ConvertViewLog, func() {
 		if state.convertActiveLog == "" {
-			dialog.ShowInformation(t.DialogNoLog, "No conversion log available.", state.window)
+			dialog.ShowInformation(t.DialogNoLog, t.DialogNoLogMsg, state.window)
 			return
 		}
 		state.openLogViewer("Conversion Log", state.convertActiveLog, state.convertBusy)
@@ -12692,7 +12692,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		cfg, err := loadPersistedConvertConfig()
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				dialog.ShowInformation(t.DialogNoConfig, "No saved config found yet. It will save automatically after your first change.", state.window)
+				dialog.ShowInformation(t.DialogNoConfig, t.DialogNoConfigMsg, state.window)
 			} else {
 				dialog.ShowError(fmt.Errorf("failed to load config: %w", err), state.window)
 			}
@@ -12708,7 +12708,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
 			return
 		}
-		dialog.ShowInformation(t.DialogConfigSaved, fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("convert")), state.window)
+		dialog.ShowInformation(t.DialogConfigSaved, fmt.Sprintf(t.DialogSavedToFmt, configpath.ModuleConfigPath("convert")), state.window)
 	})
 	saveCfgBtn.Importance = widget.MediumImportance
 
@@ -12718,7 +12718,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	buildCommandPreview = func() fyne.CanvasObject {
 		if src == nil {
-			return widget.NewLabel("Load a video to see the FFmpeg command.")
+			return widget.NewLabel(t.ConvertLoadVideoForCommand)
 		}
 
 		// Build command from current state

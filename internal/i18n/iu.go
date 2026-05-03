@@ -73,6 +73,10 @@ var iu = Strings{
 	DialogSnippetCreated:     "ᐃᓱᒃᑕᐅᔪᑦ ᐱᔪᓐᓇᖅᑐᑦ",                                                                                                        // Snippet Created
 	DialogQueueNotInit:       "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐱᔪᓐᓇᖅᑐᑦ",                                                                                                       // Queue not initialized
 	DialogNoRunningJob:       "ᐃᓚᓕᐅᔾᔨᓗᒍ ᐊᑎᖕᓂᖓᓂᑦ",                                                                                                       // No running job to cancel
+	DialogNoLogMsg:           "ᑕᐃᑯᖓ ᐃᓄᓕᕐᓂᖅ ᓄᖅᑲᖅᑕᐅᓯᒪᔪᖅ.",                                                                                                 // machine-generated — No conversion log available.
+	DialogNoConfigMsg:        "ᐸᕐᓇᐅᑎᖃᙱᓚᖅ ᓄᖅᑲᖅᑕᐅᓯᒪᔪᖅ. ᑕᕝᕙᓂ ᐱᓕᕆᐊᒧᑦ ᓴᓇᔭᐅᓯᒪᑐᐃᓐᓇᕆᐊᖃᕐᒥᒐᒥ.",                                                                     // machine-generated — No saved config found yet
+	DialogSavedToFmt:         "ᐸᕐᓇᔭᐅᓯᒪᔪᖅ %s",                                                                                                           // machine-generated — Saved to %s
+	DialogJobCancelledFmt:    "ᐃᓚᓕᐅᕐᓂᖅ ᓄᖅᑲᖅᑕᐅᓯᒪᔪᖅ: %s",                                                                                                  // machine-generated — Cancelled job: %s
 	DialogISOCannotOpen:      "ISO ᑕᐃᑯᓂᖓ",                                                                                                              // Open DVD ISO
 	DialogISOCannotOpenMsg:   "ISO ᑕᐃᑯᓂᖓ ᐱᔪᓐᓇᖅᑐᑦ ᐱᓕᕆᐊᖅᑕᐅᔾᔨᓗᒍ ᐊᐅᓚᑦᑎᐅᔪᑦ.\n\nᐊᐅᓚᑦᑎᐅᔪᑦ ᐊᐅᓚᓚᐅᕐᕕᒋᓗᒍ.",                                                        // DVD ISO files cannot be loaded directly
 	DialogBurnComingSoon:     "DVD ᐊᐅᓚᓚᐅᕐᕕᒋᓗ",                                                                                                          // Burn DVD
@@ -450,6 +454,23 @@ var iu = Strings{
 	ConvertRemuxHint:              "ᑐᙵᕕᒃᑯᑦ ᐊᓯᔾᔨᕆᐊᖅᑐᖅ: ᓯᕗᓪᓕᖅᐸᐅᔭᕆᐊᖅᑐᖅ. ᓄᑖᕐᕕᒋᓗᒍ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᐊᑐᖅᑕᐅᙱᓚᑦ.", // machine-generated, needs human review — Remux mode: stream copy. Encoding controls are disabled.
 	ConvertUseSystemTemp:          "ᑕᒪᐃᓐᓂ ᐊᑐᓕᕙᒍᓐᓇᖅᑐᑦ ᐊᑐᕐᓗᒍ",                                        // machine-generated, needs human review — Use System Temp
 	ConvertUseDefault:             "ᓇᓗᓇᐃᕈᑎᖓ ᐊᑐᕐᓗᒍ",                                                 // machine-generated, needs human review — Use Default
+
+	ConvertSavePresetBtn:           "Save Current Settings as Preset...",                                  // machine-generated
+	ConvertKeepChapters:            "Keep chapters",                                                       // machine-generated
+	ConvertChapterLostWarning:      "Chapters will be lost — DVD format doesn't support embedded chapters. Use MKV/MP4 to preserve chapters.", // machine-generated
+	ConvertAutoNameFromMeta:        "Auto-name from metadata",                                             // machine-generated
+	ConvertAppendSuffix:            "Append \"-convert\" to filename",                                     // machine-generated
+	ConvertSmartITC:                "Smart Inverse Telecine",                                              // machine-generated
+	ConvertAutoDetectBlackBars:     "Auto-Detect Black Bars",                                              // machine-generated
+	ConvertFlipHorizontal:          "Flip Horizontal (Mirror)",                                            // machine-generated
+	ConvertFlipVertical:            "Flip Vertical (Upside Down)",                                         // machine-generated
+	ConvertForceAspectMeta:         "Force aspect metadata (DAR/SAR)",                                     // machine-generated
+	ConvertMotionInterp:            "Use Motion Interpolation (slower, smoother frame rate changes)",       // machine-generated
+	ConvertEnableTwoPass:           "Enable Two-Pass Encoding",                                            // machine-generated
+	ConvertDevicePresetHint:        "Apply all encoding settings optimised for a target device.",           // machine-generated
+	ConvertSnippetNoVideoMsg:       "No video playing. Using midpoint.",                                   // machine-generated
+	ConvertSnippetJobQueuedFmt:     "%ds snippet job added to queue.",                                     // machine-generated
+	ConvertSnippetAllQueuedFmt:     "Added %d snippet jobs to queue.\nEach %ds long.",                     // machine-generated
 
 	// Convert (machine-generated)
 	ConvertAddAllToQueue:             "All to Queue",                                                                         // machine-generated

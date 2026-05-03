@@ -101,6 +101,10 @@ type Strings struct {
 	DialogSnippetCreated     string
 	DialogQueueNotInit       string // "Queue not initialized"
 	DialogNoRunningJob       string // "No running job to cancel"
+	DialogNoLogMsg           string // "No conversion log available."
+	DialogNoConfigMsg        string // "No saved config found yet. It will save automatically after your first change."
+	DialogSavedToFmt         string // "Saved to %s"
+	DialogJobCancelledFmt    string // "Cancelled job: %s"
 	DialogISOCannotOpen      string // "DVD ISO files cannot be loaded directly"
 	DialogISOCannotOpenMsg   string // "Use the Author module to re-author or browse the disc contents"
 	DialogBurnComingSoon     string // "Burn DVD"
@@ -592,7 +596,23 @@ type Strings struct {
 	ConvertDevicePresets         string // "Device Presets"
 	ConvertUserPresets           string // "User Presets"
 	ConvertSavePreset            string // "Save Preset" — dialog title
+	ConvertSavePresetBtn         string // "Save Current Settings as Preset..." — button label
 	ConvertPresetNamePlaceholder string // placeholder for preset name entry
+	ConvertKeepChapters          string // "Keep chapters"
+	ConvertChapterLostWarning    string // DVD chapter loss warning
+	ConvertAutoNameFromMeta      string // "Auto-name from metadata"
+	ConvertAppendSuffix          string // "Append \"-convert\" to filename"
+	ConvertSmartITC              string // "Smart Inverse Telecine"
+	ConvertAutoDetectBlackBars   string // "Auto-Detect Black Bars"
+	ConvertFlipHorizontal        string // "Flip Horizontal (Mirror)"
+	ConvertFlipVertical          string // "Flip Vertical (Upside Down)"
+	ConvertForceAspectMeta       string // "Force aspect metadata (DAR/SAR)"
+	ConvertMotionInterp          string // "Use Motion Interpolation (slower, smoother frame rate changes)"
+	ConvertEnableTwoPass         string // "Enable Two-Pass Encoding"
+	ConvertDevicePresetHint      string // "Apply all encoding settings optimised for a target device."
+	ConvertSnippetNoVideoMsg     string // "No video playing. Using midpoint."
+	ConvertSnippetJobQueuedFmt   string // "%ds snippet job added to queue."
+	ConvertSnippetAllQueuedFmt   string // "Added %d snippet jobs to queue.\nEach %ds long."
 
 	// ── Convert Bitrate Mode Hints ───────────────────────────────────────────
 	ConvertBitrateModeHintCRF           string // CRF mode explanation
