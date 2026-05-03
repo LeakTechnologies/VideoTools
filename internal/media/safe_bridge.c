@@ -11,13 +11,21 @@
  *     AVERROR(EINVAL) and set *exc_code_out to a sentinel value before
  *     the crash can occur.
  *
- *  2. SEH (Structured Exception Handling) on Windows to catch access
- *     violations from D3D11VA hardware decode.  When an AV is caught,
- *     we set *exc_code_out to SAFE_BRIDGE_ACCESS_VIOLATION and return
- *     AVERROR(EINVAL) so the Go caller can handle it gracefully.
+ *  2. Crash recovery via structured/vectored exception handling:
+ *
+ *       Windows + MSVC  : __try/__except  (native SEH)
+ *       Windows + MinGW : AddVectoredExceptionHandler + thread-local setjmp
+ *                         (VEH works with GCC; SIGSEGV signal does NOT catch
+ *                         hardware access violations on Windows)
+ *       Linux / macOS   : SIGSEGV signal handler + thread-local setjmp
+ *                         (SA_NODEFER keeps the handler re-entrant per-thread)
  *
  *  3. A diagnostic struct (CodecDiagnostic) so Go callers can log the
  *     exact field that caused the failure — useful for root-cause analysis.
+ *
+ * Thread safety: all setjmp contexts use __thread (GCC thread-local storage)
+ * so concurrent codec operations on different goroutines cannot corrupt each
+ * other's recovery state.
  *
  * NOTE: If the crash occurs *inside* a non-NULL codec's private state (e.g.
  * a bug in the AAC decoder itself), these checks cannot prevent it.  The
@@ -34,34 +42,120 @@
 /* Sentinel placed in *exc_code_out when a pre-flight check fails. */
 #define SAFE_BRIDGE_PREFLIGHT_FAIL 0xDEAD0001u
 
-/* Sentinel for Windows SEH-caught access violations */
+/* Sentinel for a caught access violation. */
 #define SAFE_BRIDGE_ACCESS_VIOLATION 0xDEAD0002u
 
-/* Windows SEH includes */
-#ifdef _WIN32
-#include <windows.h>
-#endif
+/* =========================================================================
+ * Platform-specific crash-recovery setup
+ * ======================================================================= */
 
-#ifdef __GNUC__
+#if defined(_WIN32) && defined(__GNUC__)
+/* ---- Windows + MinGW: Vectored Exception Handler + thread-local setjmp ---
+ *
+ * signal(SIGSEGV) on MinGW only catches software raise(SIGSEGV) — it does
+ * NOT catch hardware access violations (which are CPU exceptions routed
+ * through Windows SEH).  AddVectoredExceptionHandler is a Win32 API that
+ * fires before the OS unwinds the stack, and it works fine with GCC/MinGW.
+ *
+ * Each call site registers a VEH for its duration and removes it on return
+ * or recovery.  Thread-local storage ensures concurrent calls on different
+ * threads cannot corrupt each other's setjmp context.
+ */
+#include <windows.h>
+#include <setjmp.h>
+
+static __thread jmp_buf  tl_veh_buf;
+static __thread volatile int tl_veh_set = 0;
+
+static LONG WINAPI veh_codec_handler(PEXCEPTION_POINTERS ep) {
+    if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
+        if (tl_veh_set) {
+            tl_veh_set = 0;
+            longjmp(tl_veh_buf, 1);
+        }
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+/* Convenience macro: wrap CALL in VEH recovery, storing result in RET.
+ * On a caught AV: sets *exc_code_out and returns AVERROR(EINVAL). */
+#define SAFE_CALL(CALL, RET, exc_code_out)                              \
+    do {                                                                 \
+        volatile PVOID _veh = AddVectoredExceptionHandler(1,            \
+                                  veh_codec_handler);                   \
+        tl_veh_set = 1;                                                  \
+        if (setjmp(tl_veh_buf)) {                                        \
+            tl_veh_set = 0;                                              \
+            RemoveVectoredExceptionHandler((PVOID)_veh);                \
+            *(exc_code_out) = SAFE_BRIDGE_ACCESS_VIOLATION;             \
+            return AVERROR(EINVAL);                                      \
+        }                                                                \
+        (RET) = (CALL);                                                  \
+        tl_veh_set = 0;                                                  \
+        RemoveVectoredExceptionHandler((PVOID)_veh);                    \
+    } while (0)
+
+#elif defined(_WIN32) && !defined(__GNUC__)
+/* ---- Windows + MSVC: native SEH ---------------------------------------- */
+#include <windows.h>
+
+#define SAFE_CALL(CALL, RET, exc_code_out)                              \
+    __try {                                                              \
+        (RET) = (CALL);                                                  \
+    } __except(EXCEPTION_EXECUTE_HANDLER) {                             \
+        *(exc_code_out) = SAFE_BRIDGE_ACCESS_VIOLATION;                 \
+        return AVERROR(EINVAL);                                          \
+    }
+
+#elif defined(__GNUC__)
+/* ---- Linux / macOS: SIGSEGV signal handler + thread-local setjmp --------
+ *
+ * Unlike Windows, SIGSEGV on Linux/macOS IS delivered for hardware access
+ * violations (null dereferences, bad pointer reads, etc.).  The handler uses
+ * thread-local storage so concurrent invocations on different goroutines are
+ * independent.
+ */
 #include <setjmp.h>
 #include <signal.h>
 
-static jmp_buf jump_buffer;
-static volatile sig_atomic_t jump_set = 0;
+static __thread jmp_buf  tl_sig_buf;
+static __thread volatile int tl_sig_set = 0;
 
-static void signal_handler(int sig) {
+static void sig_segv_handler(int sig) {
     (void)sig;
-    if (jump_set) {
-        longjmp(jump_buffer, 1);
+    if (tl_sig_set) {
+        tl_sig_set = 0;
+        longjmp(tl_sig_buf, 1);
     }
 }
+
+#define SAFE_CALL(CALL, RET, exc_code_out)                              \
+    do {                                                                 \
+        void (*_old)(int) = signal(SIGSEGV, sig_segv_handler);          \
+        tl_sig_set = 1;                                                  \
+        if (setjmp(tl_sig_buf)) {                                        \
+            tl_sig_set = 0;                                              \
+            signal(SIGSEGV, _old);                                       \
+            *(exc_code_out) = SAFE_BRIDGE_ACCESS_VIOLATION;             \
+            return AVERROR(EINVAL);                                      \
+        }                                                                \
+        (RET) = (CALL);                                                  \
+        tl_sig_set = 0;                                                  \
+        signal(SIGSEGV, _old);                                           \
+    } while (0)
+
+#else
+/* ---- No crash protection available ------------------------------------- */
+#define SAFE_CALL(CALL, RET, exc_code_out) \
+    (RET) = (CALL)
 #endif
 
-/* -------------------------------------------------------------------------
+
+/* =========================================================================
  * diagnose_avcodec_state
  * Fills *out with key fields from ctx/pkt without touching private decoder
  * state.  Safe to call even if ctx->priv_data is NULL.
- * ---------------------------------------------------------------------- */
+ * ======================================================================= */
 void diagnose_avcodec_state(AVCodecContext* ctx, const AVPacket* pkt,
                              CodecDiagnostic* out) {
     memset(out, 0, sizeof(*out));
@@ -83,96 +177,46 @@ void diagnose_avcodec_state(AVCodecContext* ctx, const AVPacket* pkt,
     }
 }
 
-/* -------------------------------------------------------------------------
+/* =========================================================================
  * safe_avcodec_send_packet
- * Runs pre-flight checks, then calls avcodec_send_packet with SEH on Windows.
- * *exc_code_out == 0 on success or normal AVERROR return.
- * *exc_code_out == SAFE_BRIDGE_PREFLIGHT_FAIL if a pre-flight check fires.
- * *exc_code_out == SAFE_BRIDGE_ACCESS_VIOLATION if SEH catches an AV (Windows).
- * ---------------------------------------------------------------------- */
+ * Runs pre-flight checks, then calls avcodec_send_packet with platform
+ * crash recovery.
+ * ======================================================================= */
 int safe_avcodec_send_packet(AVCodecContext* ctx, const AVPacket* pkt,
                               uint32_t* exc_code_out) {
     *exc_code_out = 0;
 
     /* Pre-flight: null-check every pointer the codec will dereference.
-     * NOTE: pkt may be NULL for drain (avcodec_send_packet with NULL drains the codec).
-     * We allow NULL pkt but require a valid ctx and codec. */
-    if (!ctx)            { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
-    if (!ctx->codec)     { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
-    /* pkt == NULL is valid for drain; otherwise require valid packet */
+     * pkt may be NULL for drain; otherwise require valid packet data. */
+    if (!ctx)        { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
+    if (!ctx->codec) { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     if (pkt != NULL) {
-        if (!pkt->data)      { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
-        if (pkt->size <= 0)  { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
+        if (!pkt->data)     { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
+        if (pkt->size <= 0) { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
     }
 
-#ifdef __GNUC__
-    /* Signal handler to catch SIGSEGV on MinGW (SEH not available) */
-    void (*old_handler)(int) = signal(SIGSEGV, signal_handler);
-
-    jump_set = 1;
-    if (setjmp(jump_buffer)) {
-        jump_set = 0;
-        signal(SIGSEGV, old_handler);
-        *exc_code_out = SAFE_BRIDGE_ACCESS_VIOLATION;
-        return AVERROR(EINVAL);
-    }
-    int ret = avcodec_send_packet(ctx, pkt);
-    jump_set = 0;
-    signal(SIGSEGV, old_handler);
+    int ret = 0;
+    SAFE_CALL(avcodec_send_packet(ctx, pkt), ret, exc_code_out);
     return ret;
-#elif defined(_WIN32) && !defined(__GNUC__)
-    /* SEH wrapper to catch access violations from D3D11VA HW decode (MSVC only, not MinGW) */
-    __try {
-        return avcodec_send_packet(ctx, pkt);
-    } __except(EXCEPTION_EXECUTE_HANDLER) {
-        *exc_code_out = SAFE_BRIDGE_ACCESS_VIOLATION;
-        return AVERROR(EINVAL);
-    }
-#else
-    return avcodec_send_packet(ctx, pkt);
-#endif
 }
 
-/* -------------------------------------------------------------------------
+/* =========================================================================
  * safe_avcodec_receive_frame
- * Pre-flight checks then avcodec_receive_frame with SEH on Windows.
- * *exc_code_out == SAFE_BRIDGE_ACCESS_VIOLATION if SEH catches an AV (Windows).
- * ---------------------------------------------------------------------- */
+ * Pre-flight checks then avcodec_receive_frame with platform crash recovery.
+ * ======================================================================= */
 int safe_avcodec_receive_frame(AVCodecContext* ctx, AVFrame* frame,
                                 uint32_t* exc_code_out) {
     *exc_code_out = 0;
 
-    if (!ctx)            { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
-    if (!frame)          { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
+    if (!ctx)   { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
+    if (!frame) { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
 
-#ifdef __GNUC__
-    /* Signal handler to catch SIGSEGV on MinGW */
-    void (*old_handler)(int) = signal(SIGSEGV, signal_handler);
-
-    jump_set = 1;
-    if (setjmp(jump_buffer)) {
-        jump_set = 0;
-        signal(SIGSEGV, old_handler);
-        *exc_code_out = SAFE_BRIDGE_ACCESS_VIOLATION;
-        return AVERROR(EINVAL);
-    }
-    int ret = avcodec_receive_frame(ctx, frame);
-    jump_set = 0;
-    signal(SIGSEGV, old_handler);
+    int ret = 0;
+    SAFE_CALL(avcodec_receive_frame(ctx, frame), ret, exc_code_out);
     return ret;
-#elif defined(_WIN32) && !defined(__GNUC__)
-    __try {
-        return avcodec_receive_frame(ctx, frame);
-    } __except(EXCEPTION_EXECUTE_HANDLER) {
-        *exc_code_out = SAFE_BRIDGE_ACCESS_VIOLATION;
-        return AVERROR(EINVAL);
-    }
-#else
-    return avcodec_receive_frame(ctx, frame);
-#endif
 }
 
-/* -------------------------------------------------------------------------
+/* =========================================================================
  * audio_swr_convert_packed
  * CGo-safe swr_convert for packed (interleaved) output formats.
  *
@@ -180,11 +224,10 @@ int safe_avcodec_receive_frame(AVCodecContext* ctx, AVFrame* frame,
  * a Go pointer to Go memory that itself contains a Go pointer (the heap
  * address of the PCM buffer).  This wrapper constructs the double-pointer on
  * the C stack so Go only needs to pass a flat uint8_t*.
- * ---------------------------------------------------------------------- */
+ * ======================================================================= */
 int audio_swr_convert_packed(SwrContext* swr, uint8_t* out_buf, int out_count,
                               AVFrame* frame) {
     if (!swr || !out_buf || !frame) return AVERROR(EINVAL);
-    /* C-local pointer — not visible to the Go GC. */
     uint8_t* out_ptr = out_buf;
     return swr_convert(swr, &out_ptr, out_count,
                        (const uint8_t**)frame->data, frame->nb_samples);
