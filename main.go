@@ -8108,9 +8108,8 @@ func runGUI() {
 	if subIconsFS, err := fs.Sub(iconsFS, "assets/icons"); err == nil {
 		ui.SetIconsFS(subIconsFS)
 	}
-	if subFlagsFS, err := fs.Sub(flagsFS, "assets/flags"); err == nil {
-		ui.SetFlagsFS(subFlagsFS)
-	}
+	// flagsFS is already rooted at assets/flags due to the embed directive
+	ui.SetFlagsFS(flagsFS)
 	ui.SetMonoFontData(ibmPlexMonoRegular, ibmPlexMonoItalic, ibmPlexMonoBold, ibmPlexMonoBoldItalic)
 	ui.SetAboriginalFontData(aboriginalSansRegular, aboriginalSansItalic, aboriginalSansBold, aboriginalSansBoldItalic)
 
