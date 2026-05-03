@@ -371,6 +371,8 @@ var frCA = Strings{
 	SettingsQueuePlayInspect:     "Module Inspecter",
 	SettingsQueuePlaySystem:      "Module Lecteur",
 	SettingsQueuePlayHint:        "Choisissez le module interne vers lequel « Lire la vidéo » navigue après un travail.",
+	SettingsPipelineKeepIntermediate:     "Conserver les fichiers intermédiaires des tâches enchaînées",
+	SettingsPipelineKeepIntermediateHint: "Lorsqu'une tâche enchaînée (A → B) se termine, le fichier intermédiaire produit par l'étape 1 est supprimé par défaut. Activez cette option pour le conserver.",
 
 	// ── Settings — Output Defaults ────────────────────────────────────────────
 	SettingsDefaultOutputDir:     "Dossier de sortie par défaut",

@@ -401,6 +401,18 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	queuePlayHint.Wrapping = fyne.TextWrapWord
 	content.Add(queuePlayHint)
 
+	keepIntermediateCheck := widget.NewCheck(t.SettingsPipelineKeepIntermediate, func(checked bool) {
+		prefs.PipelineKeepIntermediate = checked
+		cb.SavePrefsConfig()
+	})
+	keepIntermediateCheck.SetChecked(prefs.PipelineKeepIntermediate)
+	content.Add(keepIntermediateCheck)
+
+	keepIntermediateHint := widget.NewLabel(t.SettingsPipelineKeepIntermediateHint)
+	keepIntermediateHint.TextStyle = fyne.TextStyle{Italic: true}
+	keepIntermediateHint.Wrapping = fyne.TextWrapWord
+	content.Add(keepIntermediateHint)
+
 	content.Add(widget.NewSeparator())
 
 	tooltipsHeader := widget.NewLabel(t.SettingsShowTooltips)

@@ -372,6 +372,8 @@ var enCA = Strings{
 	SettingsQueuePlayInspect:     "Inspect Module",
 	SettingsQueuePlaySystem:      "Player Module",
 	SettingsQueuePlayHint:        "Choose which internal module 'Play Video' navigates to after a job completes.",
+	SettingsPipelineKeepIntermediate:     "Keep intermediate files from pipeline jobs",
+	SettingsPipelineKeepIntermediateHint: "When a pipeline job (A → B) completes, the intermediate file produced by Step 1 is deleted by default. Enable this to keep it.",
 
 	// ── Settings — Output Defaults ────────────────────────────────────────────
 	SettingsDefaultOutputDir:     "Default Output Directory",

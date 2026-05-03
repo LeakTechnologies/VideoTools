@@ -382,6 +382,8 @@ type Strings struct {
 	SettingsQueuePlayInspect string // "Inspect Module"
 	SettingsQueuePlaySystem  string // "Player Module"
 	SettingsQueuePlayHint    string // hint label
+	SettingsPipelineKeepIntermediate     string // "Keep intermediate files"
+	SettingsPipelineKeepIntermediateHint string // hint label
 
 	// ── Settings — Output Defaults ────────────────────────────────────────────
 	SettingsDefaultOutputDir     string // "Default Output Directory"
