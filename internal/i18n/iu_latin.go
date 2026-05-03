@@ -11,7 +11,7 @@ var iuLatn = Strings{
 	AppTitle: "VideoTools",
 
 	// ── Main Menu ────────────────────────────────────────────────────────
-	MenuQueue:           "Nuatausimaujut",             // Queue
+	MenuQueue:           "NUATAUSIMAUJUT",             // QUEUE
 	MenuBenchmark:       "Qaujisarniq",                // Benchmark
 	MenuResults:         "Sivulliqpaujut",             // Results
 	MenuAbout:           "Mikssannnut / Ikajuqtuiniq", // About / Support

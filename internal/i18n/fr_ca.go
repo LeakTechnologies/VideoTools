@@ -8,7 +8,7 @@ var frCA = Strings{
 	AppTitle: "VideoTools",
 
 	// ── Main Menu ────────────────────────────────────────────────────────
-	MenuQueue:           "File d'attente",
+	MenuQueue:           "FILE D'ATTENTE",
 	MenuBenchmark:       "Référence",
 	MenuResults:         "Résultats",
 	MenuAbout:           "À propos / Soutien",
