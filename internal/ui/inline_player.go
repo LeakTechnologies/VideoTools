@@ -336,31 +336,51 @@ func (v *InlineVideoPlayer) Play() {
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Start()")
 
 	if eng.IsRunning() {
-		// Resuming from pause: audioDecodeLoop was pcmCh-capacity (~1.47s) ahead
-		// of the actual playback position when paused. Those packets are consumed
-		// from audioQueue and cannot be un-consumed. A mini-seek to the current
-		// clock position flushes all queues and codecs, repositioning every
-		// pipeline stage back to the pause point. Without this, the first audio
-		// chunk after resume is ~1.47s ahead, the clock jumps, and all video
-		// frames in that gap are dropped.
+		// Resuming from pause: seek back to the current clock position to
+		// resync every pipeline stage (demuxer, packet queues, codecs) back
+		// to the pause point. Without this the first audio chunk after resume
+		// is ~1.47 s ahead, the clock jumps, and all video frames in that
+		// gap are dropped.
 		currentTime := eng.CurrentTime()
 		logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: resuming at %.3f, seeking to resync pipeline", currentTime)
 		if err := eng.Seek(currentTime); err != nil {
 			logging.Warning(logging.CatPlayer, "InlineVideoPlayer.Play: seek-on-resume failed: %v", err)
 		}
+		v.mu.Unlock()
+
+		// Gate Resume on the first decoded frame so audio and video always
+		// start together. videoDecodeLoop is already running; when it sees
+		// paused=true and an empty frameQueue it decodes one frame, so
+		// WaitForFrame normally returns within a single decode interval
+		// (~10-30 ms for SW H.264). Check v.playing before unpausing in
+		// case the user cancelled by pressing Pause during the wait.
+		go func() {
+			eng.WaitForFrame(500 * time.Millisecond)
+			v.mu.Lock()
+			stillPlaying := v.playing
+			v.mu.Unlock()
+			if !stillPlaying {
+				return
+			}
+			logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Resume()")
+			eng.Resume()
+			v.playbackLoop()
+		}()
 	} else {
 		// Initial play: drain audio pre-buffered during thumbnail extraction.
-		// audioDecodeLoop runs during Load() and pre-buffers audio while thumbnails
-		// are being generated. Without draining here, the first audio chunk consumed
-		// by Read() would have pts ~5s, jumping the clock and dropping initial video frames.
+		// audioDecodeLoop runs during Load() and pre-buffers audio while
+		// thumbnails are being generated. Without draining, the first audio
+		// chunk consumed by Read() has pts ~5 s, jumping the clock and
+		// dropping all initial video frames.
+		// Resume() is called immediately because it is what starts
+		// videoDecodeLoop (deferred from Start to avoid racing with GrabFrame).
 		eng.DrainAudio()
 		eng.Start()
+		logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Resume()")
+		eng.Resume()
+		v.mu.Unlock()
+		go v.playbackLoop()
 	}
-
-	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Resume()")
-	eng.Resume()
-	v.mu.Unlock()
-	go v.playbackLoop()
 }
 
 func (v *InlineVideoPlayer) Pause() {

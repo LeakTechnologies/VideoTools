@@ -1284,6 +1284,24 @@ func (e *Engine) DrainAudio() {
 	}
 }
 
+// WaitForFrame blocks until at least one decoded frame is ready in the pipeline
+// or the timeout elapses. Returns true if a frame became available.
+//
+// Call this after Seek() and before Resume() when videoDecodeLoop is already
+// running (resume-from-pause). videoDecodeLoop decodes one frame when it sees
+// paused=true and an empty queue, so this returns in well under 100 ms for
+// typical content. The timeout is a safety net for slow decoders or edge cases.
+func (e *Engine) WaitForFrame(timeout time.Duration) bool {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if len(e.frameQueue) > 0 {
+			return true
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	return len(e.frameQueue) > 0
+}
+
 func (e *Engine) Resume() {
 	e.mu.Lock()
 	if !e.running {
