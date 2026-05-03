@@ -206,7 +206,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.SetUpscaleFrameRate(p.FrameRate)
 			opts.SetUpscaleVideoCodec(p.VideoCodec)
 			opts.SetUpscaleEncoderPreset(p.QualityPreset)
-			opts.SetUpscaleManualCRF(float64(p.CRF))
+			opts.SetUpscaleManualCRF(p.CRF)
 			opts.SetUpscaleRIFEEnabled(p.EnableRIFE)
 			opts.SetUpscaleRIFEMultiplier(p.RIFEMultiplier)
 			presetDescLabel.SetText(p.Description)
@@ -828,7 +828,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	traditionalSection := buildUpscaleBox(t.UpscaleScalingBox, container.NewVBox(
 		widget.NewLabel(t.UpscaleClassicDesc),
 		container.NewGridWithColumns(2,
-			widget.NewLabel("Workflow Preset:"),
+			presetLabel,
 			presetSelect,
 		),
 		presetDescLabel,
