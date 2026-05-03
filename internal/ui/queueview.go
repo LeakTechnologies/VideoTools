@@ -491,16 +491,18 @@ func buildJobItem(
 	statusRect.SetMinSize(fyne.NewSize(6, 0))
 
 	// Thumbnail image with 3px colored outline matching module color
+	// Height matches two lines of text (title + description)
 	var thumbnailWidget fyne.CanvasObject
 	if job.ThumbnailPath != "" {
 		if img, err := fyne.LoadResourceFromPath(job.ThumbnailPath); err == nil {
 			thumbImg := canvas.NewImageFromResource(img)
 			thumbImg.FillMode = canvas.ImageFillContain
-			thumbImg.SetMinSize(fyne.NewSize(120, 68)) // 16:9 aspect ratio
+			// Height = ~40px (two lines of text at 16px each)
+			thumbImg.SetMinSize(fyne.NewSize(72, 40)) // ~16:9 scaled to 40px height
 			// 3px outline using module color
 			moduleColor := ModuleColor(job.Type)
 			outlineBg := canvas.NewRectangle(moduleColor)
-			outlineBg.SetMinSize(fyne.NewSize(126, 74)) // 120+6 x 68+6 = 3px each side
+			outlineBg.SetMinSize(fyne.NewSize(78, 46)) // 72+6 x 40+6 = 3px each side
 			thumbnailWidget = container.NewMax(outlineBg, container.NewPadded(thumbImg))
 		}
 	}

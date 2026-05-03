@@ -52,8 +52,9 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
-	statepkg "git.leaktechnologies.dev/stu/VideoTools/internal/state"
+	statepkg 	"git.leaktechnologies.dev/stu/VideoTools/internal/state"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/thumbnail"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 	guitutils "git.leaktechnologies.dev/stu/VideoTools/internal/utils"
@@ -2348,6 +2349,9 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		Config:      config,
 	}
 
+	// Generate thumbnail in background
+	s.generateJobThumbnail(job)
+
 	// Add to top (after running job) if requested, queue is running, and no pipeline active
 	if addToTop && s.jobQueue.IsRunning() && s.pipelineStep == "" {
 		s.jobQueue.AddNext(job)
@@ -2488,6 +2492,9 @@ func (s *appState) addConvertToQueueForSourceWithOutputs(src *videoSource, used 
 		OutputFile:  outPath,
 		Config:      config,
 	}
+
+	// Generate thumbnail in background
+	s.generateJobThumbnail(job)
 
 	s.pipelineAdd(job)
 
@@ -3537,6 +3544,9 @@ func (s *appState) batchAddToQueue(paths []string) {
 			Config:      config,
 		}
 
+		// Generate thumbnail in background
+		s.generateJobThumbnail(job)
+
 		s.jobQueue.Add(job)
 		addedCount++
 	}
@@ -3675,6 +3685,9 @@ func (s *appState) batchAddToUpscaleQueue(paths []string) {
 			Config:      config,
 			GroupID:     batchGroupID,
 		}
+
+		// Generate thumbnail in background
+		s.generateJobThumbnail(job)
 
 		s.jobQueue.Add(job)
 		addedCount++
@@ -17238,4 +17251,44 @@ func formatBitrateFull(bps int) string {
 		return fmt.Sprintf("%.1f Mbps (%.0f kbps)", mbps, kbps)
 	}
 	return fmt.Sprintf("%.0f kbps (%.2f Mbps)", kbps, mbps)
+}
+
+// generateJobThumbnail generates a midpoint thumbnail for a queue job.
+// It runs in a background goroutine and updates the job's ThumbnailPath when done.
+func (s *appState) generateJobThumbnail(job *queue.Job) {
+	if job == nil || job.InputFile == "" {
+		return
+	}
+	// Check if thumbnail already exists
+	if job.ThumbnailPath != "" {
+		return
+	}
+	// Generate thumbnail in background
+	go func() {
+		tmpDir := os.TempDir()
+		thumbPath := filepath.Join(tmpDir, fmt.Sprintf("vt-thumb-%s.jpg", job.ID))
+		
+		// Use the thumbnail generator to extract a midpoint frame
+		generator := thumbnail.NewGenerator(utils.GetFFmpegPath())
+		duration := 0.0
+		if d, ok := job.Config["sourceDuration"].(float64); ok {
+			duration = d
+		}
+		if duration <= 0 {
+			// Try to get duration from ffprobe
+			// For simplicity, just use 10s as default
+			duration = 60.0
+		}
+		midpoint := duration / 2.0
+		
+		err := generator.ExtractFrame(context.Background(), job.InputFile, midpoint, thumbPath, 120, 68)
+		if err != nil {
+			logging.Debug(logging.CatSystem, "failed to generate thumbnail for job %s: %v", job.ID, err)
+			return
+		}
+		
+		// Update the job's ThumbnailPath
+		job.ThumbnailPath = thumbPath
+		logging.Debug(logging.CatSystem, "generated thumbnail for job %s: %s", job.ID, thumbPath)
+	}()
 }
