@@ -18,10 +18,10 @@ Player thread-safety audit shipped. Pixel format crash, Close/demuxer race, and 
 
 See `docs/CONVERT_MODULE_IMPROVEMENTS.md` for full plan.
 
-- [ ] **Audio Sample Rate dropdown** — Config field exists, no UI
-- [ ] **Normalize Audio checkbox** — Config field exists, no UI; need LUFS/TruePeak sliders
-- [ ] **Deinterlace Mode dropdown** — Auto/Force/Off; method dropdown: Yadif/BWDIF
-- [ ] **H.264 Profile/Level controls** — Applied by device presets but no manual UI
+- [x] **Audio Sample Rate dropdown** — `audioSampleRateSelect` wired in buildConvertView
+- [x] **Normalize Audio checkbox** — `normalizeAudioCheck` + LUFS/TruePeak sliders wired
+- [x] **Deinterlace Mode dropdown** — `deinterlaceModeSelect` + `deinterlaceMethodSelect` wired
+- [x] **H.264 Profile/Level controls** — `h264ProfileSelect` / `h264LevelSelect` wired; shown when H.264 codec is active
 
 ### Convert Module i18n (HIGH — Issue #5)
 
@@ -52,6 +52,14 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [ ] **Enhanced track list** — Codec icons, language flags, duration
 - [ ] **Output naming preview** — Show filename before extraction
 - [ ] **Track reordering** — Up/down buttons for export order
+
+### Upscale Module Improvements (dev44) - done
+- [x] **One-click presets** — Hobbyist SD→HD, Semi-Pro 1080p→4K, Anime, Restoration, Social Media workflows
+- [x] **UI clarity** — Preset dropdown with description labels, clear AI+RIFE workflow
+- [x] **Detection reliability** — VerifyTool() checks PATH + app-local bin + smoke test
+- [x] **Optimization guide** — See `docs/UPSCALE_OPTIMIZATION.md` for hobbyist/semi-pro workflows
+- [x] **Hardware acceleration** — Sync upscale HW accel from master setting
+- [x] **Filters module HW accel** — Add hardware acceleration dropdown
 
 ### Burn Module — Logic (HIGH)
 
