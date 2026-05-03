@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -247,6 +248,8 @@ type QueueView struct {
 	bgColor    color.Color
 	textColor  color.Color
 
+	statusBadgeLabel *canvas.Text
+
 	// Live output panel (shown when a job is running)
 	logSection  *fyne.Container
 	logJobLabel *widget.Label
@@ -342,16 +345,19 @@ onScheduleModule func(string, string),
 		buttonRow = container.NewHBox(startAllBtn, pauseAllBtn, resumeAllBtn, clearAllBtn, clearBtn)
 	}
 
-	// Header content for the top bar
-	headerContent := container.NewHBox(
+	// Status badge for queue (shows active/completed counts)
+	statusBadge := canvas.NewText("", textColor)
+	statusBadge.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	statusBadge.TextSize = 11
+
+	// Header with TintedBar (matches other modules)
+	headerTitle := container.NewHBox(
 		backBtn,
 		layout.NewSpacer(),
+		statusBadge,
 		buttonRow,
 	)
-	headerTitle := container.NewCenter(title)
-
-	// Combine header title and content in the top tinted bar area
-	combinedHeader := container.NewVBox(headerTitle, headerContent)
+	topBar := TintedBar(bgColor, headerTitle)
 
 	jobList := container.NewVBox()
 	emptyMsg := widget.NewLabel(t.QueueEmpty)
@@ -392,76 +398,48 @@ onScheduleModule func(string, string),
 // logSection.Hide() - removed to show live output panel
 
 	// queueList fills most of the window, with header at top
-	queueList := container.NewBorder(
-		combinedHeader,
-		nil,
-		nil, nil,
+	// Use BorderLayout: top bar at top, content fills middle
+	bodyWithBars := container.NewBorder(
+		topBar,
+		nil, nil, nil,
 		scrollable,
 	)
 
-	// Add tinted bars at top and bottom - use titleColor parameter
-	// Matching other modules (48px tinted bars like benchmark, trim, etc.)
-	barColor := titleColor
-	if barColor == nil {
-		barColor = color.RGBA{R: 46, G: 200, B: 112, A: 255} // #4CE870
-	}
-	topBarBg := canvas.NewRectangle(barColor)
-	topBarBg.SetMinSize(fyne.NewSize(0, 48))
-	bottomBarBg := canvas.NewRectangle(barColor)
-	bottomBarBg.SetMinSize(fyne.NewSize(0, 48))
-
-	// Use BorderLayout: top bar at top, bottom bar at bottom, content fills middle
-	// Live output (logSection) is pinned at bottom, queue list fills remaining space
-	bodyWithBars := container.NewBorder(
-		topBarBg,
-		bottomBarBg,
-		nil, nil,
-		container.NewBorder(
-			nil,
-			logSection,
-			nil, nil,
-			queueList,
-		),
-	)
-
 	view := &QueueView{
-		Root:        container.NewPadded(bodyWithBars),
+		Root:        bodyWithBars,
 		Scroll:      scrollable,
 		jobList:     jobList,
 		emptyLabel:  emptyLabel,
 		items:       make(map[string]*queueItemWidgets),
+		statusBadgeLabel: statusBadge,
 		logSection:  logSection,
 		logJobLabel: logJobLabel,
 		logEntry:    logEntry,
 		logScroll:   logScroll,
-		callbacks: queueCallbacks{
-			onBack:           onBack,
-			onPause:          onPause,
-			onResume:         onResume,
-			onCancel:         onCancel,
-			onRemove:         onRemove,
-			onMoveUp:         onMoveUp,
-			onMoveDown:       onMoveDown,
-			onPauseAll:       onPauseAll,
-			onResumeAll:      onResumeAll,
-			onStart:          onStart,
-			onClear:          onClear,
-			onClearAll:       onClearAll,
-			onRetry:          onRetry,
-			onCopyError:      onCopyError,
-			onViewLog:        onViewLog,
-			onCopyCommand:    onCopyCommand,
-			onOpenFolder:     onOpenFolder,
-			onOpenOutput:     onOpenOutput,
-			onBurnISO:        onBurnISO,
-			onOpenInModule:   onOpenInModule,
+		callbacks:  queueCallbacks{
+			onPause:    onPause,
+			onResume:   onResume,
+			onCancel:   onCancel,
+			onRemove:   onRemove,
+			onMoveUp:   onMoveUp,
+			onMoveDown: onMoveDown,
+			onPauseAll: onPauseAll,
+			onResumeAll: onResumeAll,
+			onStart:     onStart,
+			onClear:     onClear,
+			onClearAll:  onClearAll,
+			onCancelAll: onCancelAll,
+			onRetry:     onRetry,
+			onCopyError: onCopyError,
+			onViewLog:   onViewLog,
+			onCopyCommand: onCopyCommand,
+			onOpenFolder: onOpenFolder,
+			onOpenOutput: onOpenOutput,
+			onBurnISO:    onBurnISO,
+			onOpenInModule: onOpenInModule,
 			onScheduleModule: onScheduleModule,
-			Window:           Window,
 		},
-		bgColor:   bgColor,
-		textColor: textColor,
 	}
-	view.UpdateJobs(jobs)
 	return view
 }
 
@@ -757,6 +735,39 @@ func (v *QueueView) UpdateJobs(jobs []*queue.Job) {
 		v.Scroll.Refresh()
 		v.Root.Refresh()
 	}
+
+	// Update status badge with job counts
+	activeCount, completedCount, failedCount := 0, 0, 0
+	for _, job := range jobs {
+		switch job.Status {
+		case queue.JobStatusRunning, queue.JobStatusPending, queue.JobStatusPaused:
+			activeCount++
+		case queue.JobStatusCompleted:
+			completedCount++
+		case queue.JobStatusFailed, queue.JobStatusCancelled:
+			failedCount++
+		}
+	}
+
+	badgeText := ""
+	if activeCount > 0 {
+		badgeText += i18n.T().QueueInProgress + ":" + strconv.Itoa(activeCount)
+	}
+	if completedCount > 0 {
+		if badgeText != "" {
+			badgeText += " "
+		}
+		badgeText += i18n.T().QueueCompleted + ":" + strconv.Itoa(completedCount)
+	}
+	if failedCount > 0 {
+		if badgeText != "" {
+			badgeText += " "
+		}
+		badgeText += i18n.T().QueueFailed + ":" + strconv.Itoa(failedCount)
+	}
+
+	v.statusBadgeLabel.Text = badgeText
+	v.statusBadgeLabel.Refresh()
 }
 
 // UpdateRunningStatus updates elapsed/progress text for running jobs without rebuilding the list.
