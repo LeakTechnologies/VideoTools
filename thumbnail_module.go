@@ -430,6 +430,15 @@ func (s *appState) executeThumbnailJob(ctx context.Context, job *queue.Job, prog
 	defer cancel()
 
 	generator := thumbsvc.NewGenerator(utils.GetFFmpegPath())
+
+	// Create log file for thumbnail job
+	logDir := outputDir
+	if outputMode == "contactSheet" || outputMode == "both" {
+		logDir = filepath.Dir(outputDir)
+	}
+	logPath := filepath.Join(logDir, fmt.Sprintf("thumbnail_%s.log", time.Now().Format("20060102_150405")))
+	job.LogPath = logPath
+
 	config := thumbsvc.Config{
 		VideoPath:     inputPath,
 		OutputDir:     outputDir,
@@ -447,6 +456,7 @@ func (s *appState) executeThumbnailJob(ctx context.Context, job *queue.Job, prog
 				progressCallback(pct)
 			}
 		},
+		LogPath: logPath,
 	}
 	if outputMode == "contactSheet" || outputMode == "both" {
 		config.OnThumbGenerated = func(path string) {

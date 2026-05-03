@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -33,6 +34,7 @@ type Config struct {
 	Rows          int     // Contact sheet rows (if OutputMode includes contactSheet)
 	ShowTimestamp bool    // Overlay timestamp on thumbnails
 	ShowMetadata  bool    // Show metadata header on contact sheet
+	LogPath       string  // Path to log file for FFmpeg output
 	Progress      func(float64)
 	// OnThumbGenerated is called each time a thumbnail file is written to disk.
 	// For individual thumbnails it fires once per frame; for a contact sheet it
@@ -363,6 +365,15 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 
 		cmd := exec.CommandContext(ctx, g.FFmpegPath, args...)
 		hideCmd(cmd)
+		// Write FFmpeg output to log file if configured
+		if config.LogPath != "" {
+			logFile, err := os.Create(config.LogPath)
+			if err == nil {
+				cmd.Stdout = logFile
+				cmd.Stderr = logFile
+				defer logFile.Close()
+			}
+		}
 		if err := cmd.Run(); err != nil {
 			return nil, fmt.Errorf("failed to generate thumbnail %d: %w", i+1, err)
 		}
@@ -469,6 +480,15 @@ func (g *Generator) generateContactSheet(ctx context.Context, config Config, dur
 	hideCmd(cmd)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
+	// Write FFmpeg output to log file if configured
+	if config.LogPath != "" {
+		logFile, err := os.Create(config.LogPath)
+		if err == nil {
+			cmd.Stdout = logFile
+			cmd.Stderr = io.MultiWriter(&stderr, logFile)
+			defer logFile.Close()
+		}
+	}
 
 	if config.Progress != nil {
 		config.Progress(0)
@@ -676,7 +696,8 @@ func (g *Generator) buildThumbFilter(thumbWidth, thumbHeight int, showTimestamp 
 	// setsar=1 normalises the sample aspect ratio before scale so that
 	// non-square-pixel sources (e.g. some DVDs and older MPEG-4 ASPs) are
 	// handled correctly without the scale filter seeing a stretched frame.
-	filter := fmt.Sprintf("setsar=1,scale=%d:%d:force_original_aspect_ratio=decrease,pad=ceil(%d):ceil(%d):(ow-iw)/2:(oh-ih)/2:black",
+	// Add yadif=1 deinterlace to avoid interlacing artifacts in thumbnails.
+	filter := fmt.Sprintf("setsar=1,yadif=1,scale=%d:%d:force_original_aspect_ratio=decrease,pad=ceil(%d):ceil(%d):(ow-iw)/2:(oh-ih)/2:black",
 		w, h, w, h,
 	)
 	fontPath := g.findFontPath()
