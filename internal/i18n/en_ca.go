@@ -7,7 +7,7 @@ var enCA = Strings{
 	AppTitle: "VideoTools",
 
 	// ── Main Menu ────────────────────────────────────────────────────────
-	MenuQueue:           "Queue",
+	MenuQueue:           "QUEUE",
 	MenuBenchmark:       "Benchmark",
 	MenuResults:         "Results",
 	MenuAbout:           "About / Support",

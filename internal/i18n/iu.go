@@ -10,7 +10,7 @@ var iu = Strings{
 	AppTitle: "VideoTools",
 
 	// ── Main Menu ────────────────────────────────────────────────────────
-	MenuQueue:           "ᓄᐊᑕᐅᓯᒪᔪᑦ",             // Queue
+	MenuQueue:           "ᓄᐊᑕᐅᓯᒪᔪᑦ",             // QUEUE
 	MenuBenchmark:       "ᖃᐅᔨᓴᕐᓂᖅ",              // Benchmark
 	MenuResults:         "ᓯᕗᓪᓕᖅᐸᐅᔪᑦ",            // Results
 	MenuAbout:           "ᒥᒃᓵᓄᑦ / ᐃᑲᔪᖅᑐᐃᓂᖅ",     // About / Support

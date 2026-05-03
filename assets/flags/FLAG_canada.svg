@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="256"
+   height="128"
+   viewBox="0 0 256 128"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   sodipodi:docname="FLAG_canada.svg"
+   xml:space="preserve"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="px"
+     inkscape:zoom="4.5585937"
+     inkscape:cx="134.80034"
+     inkscape:cy="89.610968"
+     inkscape:window-width="2560"
+     inkscape:window-height="1369"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" /><defs
+     id="defs1" /><g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"><g
+       id="g1"
+       transform="scale(0.02666667)"><path
+         fill="#d52b1e"
+         d="m 0,0 h 2400 l 99,99 H 7101 L 7200,0 H 9600 V 4800 H 7200 l -99,-99 H 2499 l -99,99 H 0 Z"
+         id="path1" /><path
+         fill="#ffffff"
+         d="M 2400,0 H 7200 V 4800 H 2400 Z m 2490,4430 -45,-863 a 95,95 0 0 1 111,-98 l 859,151 -116,-320 a 65,65 0 0 1 20,-73 l 941,-762 -212,-99 a 65,65 0 0 1 -34,-79 l 186,-572 -542,115 a 65,65 0 0 1 -73,-38 l -105,-247 -423,454 a 65,65 0 0 1 -111,-57 l 204,-1052 -327,189 a 65,65 0 0 1 -91,-27 l -332,-652 -332,652 a 65,65 0 0 1 -91,27 l -327,-189 204,1052 a 65,65 0 0 1 -111,57 l -423,-454 -105,247 a 65,65 0 0 1 -73,38 l -542,-115 186,572 a 65,65 0 0 1 -34,79 l -212,99 941,762 a 65,65 0 0 1 20,73 l -116,320 859,-151 a 95,95 0 0 1 111,98 l -45,863 z"
+         id="path2" /></g></g></svg>
