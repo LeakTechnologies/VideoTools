@@ -83,16 +83,20 @@ type Queue struct {
 	executor JobExecutor
 	running  bool
 	mu       sync.RWMutex
-	onChange func() // Callback when queue state changes
+	onChange func()       // Callback when queue state changes
+	notifyCh chan struct{} // capacity-1 coalescing channel; see notifyChange
 }
 
 // New creates a new queue with the given executor
 func New(executor JobExecutor) *Queue {
-	return &Queue{
+	q := &Queue{
 		jobs:     make([]*Job, 0),
 		executor: executor,
 		running:  false,
+		notifyCh: make(chan struct{}, 1),
 	}
+	go q.notifyWorker()
+	return q
 }
 
 // SetChangeCallback sets a callback to be called when the queue state changes
@@ -102,12 +106,29 @@ func (q *Queue) SetChangeCallback(callback func()) {
 	q.onChange = callback
 }
 
-// notifyChange triggers the onChange callback if set
-// Must be called without holding the mutex lock
+// notifyChange signals the worker that queue state has changed.
+// Must be called without holding the mutex. Rapid successive calls are
+// coalesced: if a notification is already pending the send is skipped and
+// the in-flight worker pass will observe the latest state when it fires.
 func (q *Queue) notifyChange() {
-	if q.onChange != nil {
-		// Call in goroutine to avoid blocking and potential deadlocks
-		go q.onChange()
+	select {
+	case q.notifyCh <- struct{}{}:
+	default:
+	}
+}
+
+// notifyWorker is a single long-lived goroutine that serialises onChange
+// callbacks. It replaces the previous pattern of spawning a new goroutine
+// on every notifyChange call, which caused unbounded goroutine fan-out
+// during high-frequency progress updates on long encode jobs.
+func (q *Queue) notifyWorker() {
+	for range q.notifyCh {
+		q.mu.RLock()
+		fn := q.onChange
+		q.mu.RUnlock()
+		if fn != nil {
+			fn()
+		}
 	}
 }
 
