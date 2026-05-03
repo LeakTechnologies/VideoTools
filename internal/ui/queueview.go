@@ -421,15 +421,14 @@ onScheduleModule func(string, string),
 	// Live output now visible by default (was hidden before)
 // logSection.Hide() - removed to show live output panel
 
-	// Restore 48px bottom VT green bar (matches other modules)
-	bottomBarBg := canvas.NewRectangle(vtGreen)
-	bottomBarBg.SetMinSize(fyne.NewSize(0, 48))
+	// Bottom TintedBar (matches other modules like benchmark)
+	bottomBar := TintedBar(vtGreen, layout.NewSpacer())
 
-	// Use BorderLayout: top bar (TintedBar), bottom bar (48px green), content fills middle
+	// Use BorderLayout: top bar (TintedBar), bottom bar (TintedBar), content fills middle
 	// Live output (logSection) is pinned at bottom of content area
 	bodyWithBars := container.NewBorder(
 		topBar,
-		bottomBarBg,
+		bottomBar,
 		nil, nil,
 		container.NewBorder(
 			nil,
