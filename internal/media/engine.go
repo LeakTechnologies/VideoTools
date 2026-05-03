@@ -1969,6 +1969,12 @@ func (e *Engine) StartThumbnailExtraction(onFrame func(time float64, img *image.
 			// decode one frame
 			decoded := false
 			for !decoded {
+				select {
+				case <-e.stop:
+					return
+				default:
+				}
+
 				if C.av_read_frame(fmtCtx, pkt) < 0 {
 					break
 				}
