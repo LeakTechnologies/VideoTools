@@ -766,11 +766,6 @@ func buildFlagLangSelect(langs []i18n.Language, activeFont, currentCode string, 
 			img.SetMinSize(fyne.NewSize(24, 16))
 			img.FillMode = canvas.ImageFillContain
 			objs = append(objs, img)
-		} else {
-			// Placeholder rectangle when flag fails to load
-			placeholder := canvas.NewRectangle(color.NRGBA{R: 200, G: 200, B: 200, A: 255})
-			placeholder.SetMinSize(fyne.NewSize(24, 16))
-			objs = append(objs, placeholder)
 		}
 		lbl := canvas.NewText(displayName(lang), textCol)
 		lbl.Alignment = fyne.TextAlignLeading
