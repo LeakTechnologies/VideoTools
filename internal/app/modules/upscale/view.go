@@ -286,7 +286,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetUpscaleManualCRF(int(v))
 		crfValueLabel.SetText(fmt.Sprintf("%d", int(v)))
 	}
-	crfHint := widget.NewLabel(t.UpscaleCRFHint)
+		crfHint := newWrappingLabel(t.UpscaleCRFHint)
 	crfHint.TextStyle = fyne.TextStyle{Italic: true}
 	crfHint.Wrapping = fyne.TextWrapWord
 	crfSection := container.NewVBox(
@@ -364,7 +364,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		currentPreset = "2.5 Mbps - Medium"
 	}
 	bitratePresetSelect.SetSelected(currentPreset)
-	bitrateHint := widget.NewLabel(t.UpscaleBitrateHint)
+		bitrateHint := newWrappingLabel(t.UpscaleBitrateHint)
 	bitrateSection := container.NewVBox(
 		container.NewGridWithColumns(2,
 			widget.NewLabel(t.UpscaleBitrateValueLabel),
@@ -478,7 +478,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	skinToneSelect.SetSelected(opts.UpscaleSkinTone())
 
-	colourHint := widget.NewLabel(t.UpscaleColourHint)
+		colourHint := newWrappingLabel(t.UpscaleColourHint)
 	colourHint.TextStyle = fyne.TextStyle{Italic: true}
 	colourHint.Wrapping = fyne.TextWrapWord
 
@@ -523,7 +523,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 	})
-	motionInterpHint := widget.NewLabel(t.UpscaleMotionHint)
+		motionInterpHint := newWrappingLabel(t.UpscaleMotionHint)
 	motionInterpHint.TextStyle = fyne.TextStyle{Italic: true}
 	motionInterpHint.Wrapping = fyne.TextWrapWord
 
@@ -805,7 +805,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 				widget.NewLabel(t.UpscaleThreadsLabel),
 				container.NewGridWithColumns(3, aiThreadsLoad, aiThreadsProc, aiThreadsSave),
 			),
-			widget.NewLabel(t.UpscaleAINote),
+			newWrappingLabel(t.UpscaleAINote),
 		)
 	} else {
 		backendNote := t.UpscaleAINotDetected
@@ -815,7 +815,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		aiContent = container.NewVBox(
 			widget.NewLabel(backendNote),
 			widget.NewLabel("https://github.com/xinntao/Real-ESRGAN"),
-			widget.NewLabel(t.UpscaleAIFallback),
+			newWrappingLabel(t.UpscaleAIFallback),
 		)
 	}
 
@@ -826,7 +826,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	)
 
 	traditionalSection := buildUpscaleBox(t.UpscaleScalingBox, container.NewVBox(
-		widget.NewLabel(t.UpscaleClassicDesc),
+		newWrappingLabel(t.UpscaleClassicDesc),
 		container.NewGridWithColumns(2,
 			presetLabel,
 			presetSelect,
@@ -1079,14 +1079,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 				rifeModelSelect,
 			),
 			estFPSLabel,
-			widget.NewLabel(t.RIFENote),
+			newWrappingLabel(t.RIFENote),
 		))
 	} else {
 		rifeLink, _ := url.Parse("https://github.com/nihui/rife-ncnn-vulkan")
 		rifeSection = buildUpscaleBox(t.RIFEBoxTitle, container.NewVBox(
 			widget.NewLabel(t.RIFENotDetected),
 			widget.NewHyperlink("nihui/rife-ncnn-vulkan", rifeLink),
-			widget.NewLabel(t.RIFEInstallHint),
+			newWrappingLabel(t.RIFEInstallHint),
 		))
 	}
 
@@ -1425,4 +1425,11 @@ func buildMetadataPanel(opts Options, src *VideoSource, size fyne.Size) fyne.Can
 	layers := ui.NoisyBackgroundObjects(outer)
 	layers = append(layers, container.NewPadded(body))
 	return container.NewMax(layers...)
+}
+
+// newWrappingLabel creates a label with word wrap enabled.
+func newWrappingLabel(text string) *widget.Label {
+	l := widget.NewLabel(text)
+	l.Wrapping = fyne.TextWrapWord
+	return l
 }
