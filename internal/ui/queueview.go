@@ -490,6 +490,21 @@ func buildJobItem(
 	statusRect := canvas.NewRectangle(statusColor)
 	statusRect.SetMinSize(fyne.NewSize(6, 0))
 
+	// Thumbnail image with 3px colored outline matching module color
+	var thumbnailWidget fyne.CanvasObject
+	if job.ThumbnailPath != "" {
+		if img, err := fyne.LoadResourceFromPath(job.ThumbnailPath); err == nil {
+			thumbImg := canvas.NewImageFromResource(img)
+			thumbImg.FillMode = canvas.ImageFillContain
+			thumbImg.SetMinSize(fyne.NewSize(120, 68)) // 16:9 aspect ratio
+			// 3px outline using module color
+			moduleColor := ModuleColor(job.Type)
+			outlineBg := canvas.NewRectangle(moduleColor)
+			outlineBg.SetMinSize(fyne.NewSize(126, 74)) // 120+6 x 68+6 = 3px each side
+			thumbnailWidget = container.NewMax(outlineBg, container.NewPadded(thumbImg))
+		}
+	}
+
 	// Title and description
 	titleText := utils.ShortenMiddle(job.Title, 60)
 	descText := utils.ShortenMiddle(job.Description, 90)
@@ -535,13 +550,23 @@ func buildJobItem(
 		statusLabel,
 	)
 
-	// Main content
-	content := container.NewBorder(
-		nil, nil,
-		statusRect,
-		buttonBox,
-		infoBox,
-	)
+	// Main content with optional thumbnail on the left
+	var content fyne.CanvasObject
+	if thumbnailWidget != nil {
+		content = container.NewBorder(
+			nil, nil,
+			statusRect,
+			buttonBox,
+			container.NewHBox(thumbnailWidget, layout.NewSpacer(), infoBox),
+		)
+	} else {
+		content = container.NewBorder(
+			nil, nil,
+			statusRect,
+			buttonBox,
+			infoBox,
+		)
+	}
 
 	// Card background
 	card := canvas.NewRectangle(bgColor)
