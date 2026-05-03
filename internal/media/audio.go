@@ -81,7 +81,8 @@ type AudioPlayer struct {
 	lastPTSBits atomic.Uint64
 
 	// Diagnostic / state flags (all protected by codecMu or mu as noted)
-	codecDead bool // set when codec raises a pre-flight error; stops decode loop
+	codecDead bool        // set when codec raises a pre-flight error; stops decode loop
+	closed    atomic.Bool // set by Close(); causes Read() to return io.EOF immediately
 }
 
 func NewAudioPlayer(codecCtx *C.AVCodecContext, queue *PacketQueue, clock *MasterClock, timeBase float64) (*AudioPlayer, error) {
@@ -288,6 +289,10 @@ func (p *AudioPlayer) audioDecodeLoop() {
 }
 
 func (p *AudioPlayer) Read(buf []byte) (int, error) {
+	if p.closed.Load() {
+		return 0, io.EOF
+	}
+
 	p.mu.Lock()
 	speed := p.speed
 	p.mu.Unlock()
@@ -565,25 +570,35 @@ func (p *AudioPlayer) SetSpeed(speed float64) {
 }
 
 func (p *AudioPlayer) Close() {
-	// Stop the decode goroutine first; it must exit before we free the codec.
+	// Mark closed immediately so any in-flight Read() call returns io.EOF
+	// rather than accessing fields we are about to tear down.
+	p.closed.Store(true)
+
+	// Stop the decode goroutine. When it exits its deferred close(p.pcmCh)
+	// fires, which causes any pending Read() select to unblock with ok=false.
 	if p.decodeStop != nil {
 		close(p.decodeStop)
 		p.decodeStop = nil
 	}
 	p.decodeWg.Wait()
 
-	// Drain any remaining decoded PCM so the closed channel can be GC'd.
+	// Pause then close the oto player. Pause() stops audio output immediately;
+	// Close() blocks until the current Read() invocation (if any) completes,
+	// ensuring no concurrent access to p's fields from the oto callback thread
+	// after this point.
+	if p.otoPlayer != nil {
+		p.otoPlayer.Pause()
+		p.otoPlayer.Close()
+		p.otoPlayer = nil
+	}
+	p.otoCtx = nil
+
+	// Drain any remaining PCM now that both the decode goroutine and oto are
+	// fully stopped — no concurrent receiver on pcmCh any more.
 	for len(p.pcmCh) > 0 {
 		<-p.pcmCh
 	}
 
-	if p.otoPlayer != nil {
-		p.otoPlayer.Close()
-		p.otoPlayer = nil
-	}
-	if p.otoCtx != nil {
-		p.otoCtx = nil
-	}
 	if p.swrCtx != nil {
 		C.swr_free(&p.swrCtx)
 		p.swrCtx = nil
