@@ -7,17 +7,20 @@ var allLanguages = []Language{
 		EnglishName: "English (Canada)",
 		NativeName:  "English (Canada)",
 		Font:        "mono",
+		Flag:        "FLAG_canada.svg",
 	},
 	{
 		Code:        "fr-CA",
 		EnglishName: "French (Canada)",
 		NativeName:  "Français (Canada)",
 		Font:        "mono",
+		Flag:        "FLAG_quebec.svg",
 	},
 	{
 		Code:        "iu",
 		EnglishName: "Inuktitut",
 		NativeName:  "ᐃᓄᒃᑎᑐᑦ",
 		Font:        "aboriginal",
+		Flag:        "FLAG_nunavut.svg",
 	},
 }

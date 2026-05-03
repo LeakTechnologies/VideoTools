@@ -121,6 +121,37 @@ func SetIconsFS(embedFS fs.FS) {
 	iconsEmbedFS = embedFS
 }
 
+var (
+	flagCache    = make(map[string]fyne.Resource)
+	flagsEmbedFS fs.FS
+)
+
+// SetFlagsFS initialises the embedded flags filesystem used by GetFlag.
+func SetFlagsFS(embedFS fs.FS) {
+	flagsEmbedFS = embedFS
+}
+
+// GetFlag loads a flag SVG resource by filename (e.g. "FLAG_canada.svg").
+// Returns nil if the filesystem is not initialised or the file is not found.
+func GetFlag(filename string) fyne.Resource {
+	if filename == "" {
+		return nil
+	}
+	if cached, ok := flagCache[filename]; ok {
+		return cached
+	}
+	if flagsEmbedFS == nil {
+		return nil
+	}
+	data, err := fs.ReadFile(flagsEmbedFS, filename)
+	if err != nil {
+		return nil
+	}
+	res := fyne.NewStaticResource(filename, data)
+	flagCache[filename] = res
+	return res
+}
+
 func GetIcon(name string) fyne.Resource {
 	if cached, ok := iconCache[name]; ok {
 		return cached

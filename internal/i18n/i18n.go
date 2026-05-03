@@ -19,6 +19,7 @@ type Language struct {
 	EnglishName string // e.g. "English (Canada)"
 	NativeName  string // e.g. "Français (Canada)", "ᐃᓄᒃᑎᑐᑦ"
 	Font        string // "mono" or "aboriginal" (Aboriginal Sans)
+	Flag        string // flag image filename, e.g. "FLAG_canada.svg"
 }
 
 // ScriptVariant is an optional writing system choice (e.g. for Inuktitut).

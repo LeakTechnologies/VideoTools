@@ -2,11 +2,13 @@ package settings
 
 import (
 	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -14,7 +16,6 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"image/color"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
@@ -220,19 +221,6 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	langLabel := widget.NewLabel(t.SettingsLanguage)
 	langLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	langOptions := i18n.All()
-	langNames := make([]string, len(langOptions))
-	langCodes := make([]string, len(langOptions))
-	activeFont := i18n.CurrentFont()
-	for i, lang := range langOptions {
-		if lang.Font != activeFont {
-			langNames[i] = lang.EnglishName
-		} else {
-			langNames[i] = lang.NativeName
-		}
-		langCodes[i] = lang.Code
-	}
-
 	scriptLabel := widget.NewLabel(t.SettingsLanguageScript)
 	scriptLabel.Hide()
 
@@ -264,26 +252,14 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		}
 	}
 
-	langSelect := widget.NewSelect(langNames, func(selected string) {
-		for i, name := range langNames {
-			if name == selected {
-				if langCodes[i] == i18n.CurrentCode() {
-					return
-				}
-				i18n.SetLanguage(langCodes[i])
-				cb.PersistLocale(langCodes[i], i18n.CurrentScript())
-				cb.ShowSettingsView()
-				break
-			}
+	langSelect := buildFlagLangSelect(i18n.All(), i18n.CurrentFont(), i18n.CurrentCode(), cb.Window(), func(code string) {
+		if code == i18n.CurrentCode() {
+			return
 		}
+		i18n.SetLanguage(code)
+		cb.PersistLocale(code, i18n.CurrentScript())
+		cb.ShowSettingsView()
 	})
-	currentCode := i18n.CurrentCode()
-	for i, code := range langCodes {
-		if code == currentCode {
-			langSelect.SetSelected(langNames[i])
-			break
-		}
-	}
 
 	langSection := container.NewVBox(
 		langLabel,
@@ -753,4 +729,97 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 	content.Add(refreshBtn)
 
 	return content
+}
+
+// buildFlagLangSelect creates a language selector that shows a flag icon alongside
+// each language name. Tapping opens a popup list; selecting calls onChange with the
+// chosen language code. The view is rebuilt by the caller after a selection.
+func buildFlagLangSelect(langs []i18n.Language, activeFont, currentCode string, window fyne.Window, onChange func(string)) fyne.CanvasObject {
+	var popup *widget.PopUp
+
+	textCol := color.NRGBA{R: 230, G: 236, B: 245, A: 255}
+	bgCol := color.NRGBA{R: 52, G: 66, B: 86, A: 255}
+
+	displayName := func(lang i18n.Language) string {
+		if lang.Font == activeFont {
+			return lang.NativeName
+		}
+		return lang.EnglishName
+	}
+
+	makeRow := func(lang i18n.Language, bold bool) fyne.CanvasObject {
+		objs := []fyne.CanvasObject{}
+		if res := ui.GetFlag(lang.Flag); res != nil {
+			img := canvas.NewImageFromResource(res)
+			img.SetMinSize(fyne.NewSize(24, 16))
+			img.FillMode = canvas.ImageFillContain
+			objs = append(objs, img)
+		}
+		lbl := canvas.NewText(displayName(lang), textCol)
+		lbl.Alignment = fyne.TextAlignLeading
+		lbl.TextSize = 16
+		if bold {
+			lbl.TextStyle = fyne.TextStyle{Bold: true}
+		}
+		objs = append(objs, lbl)
+		return container.NewHBox(objs...)
+	}
+
+	var currentLang i18n.Language
+	for _, l := range langs {
+		if l.Code == currentCode {
+			currentLang = l
+			break
+		}
+	}
+
+	bg := canvas.NewRectangle(bgCol)
+	bg.CornerRadius = 8
+	bg.SetMinSize(fyne.NewSize(0, 36))
+
+	caret := canvas.NewText("▾", textCol)
+	caret.TextSize = 14
+
+	buttonContent := container.NewBorder(nil, nil, nil, caret,
+		container.NewPadded(makeRow(currentLang, false)))
+
+	var tappable *ui.Tappable
+	tappable = ui.NewTappable(container.NewMax(bg, buttonContent), func() {
+		if popup != nil {
+			popup.Hide()
+			popup = nil
+			return
+		}
+
+		items := make([]fyne.CanvasObject, len(langs))
+		for i, lang := range langs {
+			l := lang
+			row := makeRow(l, l.Code == currentCode)
+			items[i] = ui.NewTappable(container.NewPadded(row), func() {
+				onChange(l.Code)
+				time.AfterFunc(50*time.Millisecond, func() {
+					fyne.Do(func() {
+						if popup != nil {
+							popup.Hide()
+							popup = nil
+						}
+					})
+				})
+			})
+		}
+
+		list := container.NewVBox(items...)
+		scroll := container.NewVScroll(list)
+		popupW := float32(280)
+		popupH := float32(len(langs)) * 44
+		scroll.SetMinSize(fyne.NewSize(popupW, popupH))
+
+		popup = widget.NewPopUp(scroll, window.Canvas())
+		popup.Resize(fyne.NewSize(popupW, popupH))
+		pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(tappable)
+		pos.Y += tappable.Size().Height
+		popup.ShowAtPosition(pos)
+	})
+
+	return tappable
 }
