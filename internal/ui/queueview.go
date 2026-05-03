@@ -491,18 +491,18 @@ func buildJobItem(
 	statusRect.SetMinSize(fyne.NewSize(6, 0))
 
 	// Thumbnail image with 3px colored outline matching module color
-	// Height matches two lines of text (title + description)
+	// Height = 80-100px (visible size) + 6px outline = 86-106px total
 	var thumbnailWidget fyne.CanvasObject
 	if job.ThumbnailPath != "" {
 		if img, err := fyne.LoadResourceFromPath(job.ThumbnailPath); err == nil {
 			thumbImg := canvas.NewImageFromResource(img)
 			thumbImg.FillMode = canvas.ImageFillContain
-			// Height = ~40px (two lines of text at 16px each)
-			thumbImg.SetMinSize(fyne.NewSize(72, 40)) // ~16:9 scaled to 40px height
+			// Height = 90px (visible) + 6px outline = 96px total
+			thumbImg.SetMinSize(fyne.NewSize(160, 90)) // ~16:9 aspect ratio
 			// 3px outline using module color
 			moduleColor := ModuleColor(job.Type)
 			outlineBg := canvas.NewRectangle(moduleColor)
-			outlineBg.SetMinSize(fyne.NewSize(78, 46)) // 72+6 x 40+6 = 3px each side
+			outlineBg.SetMinSize(fyne.NewSize(166, 96)) // 160+6 x 90+6 = 3px each side
 			thumbnailWidget = container.NewMax(outlineBg, container.NewPadded(thumbImg))
 		}
 	}
@@ -555,11 +555,17 @@ func buildJobItem(
 	// Main content with optional thumbnail on the left
 	var content fyne.CanvasObject
 	if thumbnailWidget != nil {
+		// Thumbnail left, spacer, then infoBox (title + description + progress)
 		content = container.NewBorder(
 			nil, nil,
 			statusRect,
 			buttonBox,
-			container.NewHBox(thumbnailWidget, layout.NewSpacer(), infoBox),
+			container.NewBorder(
+				nil, nil,
+				thumbnailWidget,
+				nil,
+				infoBox,
+			),
 		)
 	} else {
 		content = container.NewBorder(
