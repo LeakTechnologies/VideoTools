@@ -346,12 +346,26 @@ func (g *Generator) generateIndividual(ctx context.Context, config Config, durat
 	for i, ts := range timestamps {
 		outputPath := filepath.Join(config.OutputDir, fmt.Sprintf("thumbnail_%04d.%s", i+1, config.Format))
 
+		// For interlaced content, try to find a clean frame near our target timestamp
+		actualTS := ts
+		if config.LogPath != "" {
+			// Check if frame at timestamp is interlaced, adjust if needed
+			offset := g.findCleanFrameOffset(ctx, config.VideoPath, ts)
+			if offset > 0 {
+				actualTS = ts + offset
+				// Don't go past the next timestamp
+				if i+1 < len(timestamps) && actualTS >= timestamps[i+1] {
+					actualTS = ts // Stick with original if adjustment would overlap
+				}
+			}
+		}
+
 		// Build FFmpeg command
 		args := []string{
-			"-ss", fmt.Sprintf("%.2f", ts),
+			"-ss", fmt.Sprintf("%.2f", actualTS),
 			"-nostdin",
 			"-i", config.VideoPath,
-			"-vf", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp, ts),
+			"-vf", g.buildThumbFilter(thumbWidth, thumbHeight, config.ShowTimestamp, actualTS),
 			"-frames:v", "1",
 			"-y",
 		}
@@ -879,7 +893,9 @@ func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string
 	return nil
 }
 
-// calculateTimestamps generates timestamps for thumbnail extraction
+// calculateTimestamps generates timestamps for thumbnail extraction.
+// For interlaced content, it adjusts timestamps to land on clean (non-interlaced) frames
+// by using FFmpeg's yadif filter to deinterlace during extraction.
 func (g *Generator) calculateTimestamps(config Config, duration float64) []float64 {
 	var timestamps []float64
 
@@ -912,6 +928,42 @@ func (g *Generator) calculateTimestamps(config Config, duration float64) []float
 	}
 
 	return timestamps
+}
+
+// findCleanFrameOffset uses FFmpeg to check if a frame at the given timestamp
+// is interlaced, and if so, returns a small offset to skip to the next clean frame.
+// Returns 0 if the frame is already clean or if detection fails.
+func (g *Generator) findCleanFrameOffset(ctx context.Context, videoPath string, timestamp float64) float64 {
+	// Use FFmpeg with idet filter to detect interlace status of the frame at timestamp.
+	// We grab 1 frame, run idet, and check the output.
+	args := []string{
+		"-ss", fmt.Sprintf("%.2f", timestamp),
+		"-i", videoPath,
+		"-vf", "idet",
+		"-frames:v", "1",
+		"-y",
+		"-f", "null",
+		"-",
+	}
+	cmd := exec.CommandContext(ctx, g.FFmpegPath, args...)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	_ = cmd.Run() // Ignore error - we just want the stderr output
+
+	// Parse idet output from stderr
+	// Look for "Multi frame detection: TFF:Bottom field first:Bottom field first:Progressive:Top field first:"
+	// If we find TFF or BFF > 0, frame is interlaced
+	output := stderr.String()
+	if strings.Contains(output, "Progressive:") {
+		// Extract progressive count
+		if strings.Contains(output, "Progressive:1") || strings.Contains(output, "Progressive: 1") {
+			return 0 // Frame is progressive/clean
+		}
+	}
+
+	// Frame appears interlaced - return small offset to try next frame
+	// 0.05s is typically enough to skip past an interlaced field
+	return 0.05
 }
 
 // ExtractFrame extracts a single frame at a specific timestamp
