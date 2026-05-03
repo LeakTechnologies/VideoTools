@@ -1093,6 +1093,11 @@ logic moves to `internal/app/modules/{name}/`, a thin `package main` shim at roo
 - [ ] **Performance monitoring** - Resource usage tracking and optimization
 - [ ] **Cross-platform testing** - Linux and Windows parity
 
+### Queue Module UI Polish
+- [ ] **Button styling** - Make queue action buttons (Cancel, Remove, etc.) consistent with other modules
+- [ ] **Visual feedback** - Improve button states and hover effects in queue view
+- [ ] **Layout consistency** - Ensure queue buttons match Convert/Player module patterns
+
 ## Technical Debt Addressed
 
 ### Player Architecture
