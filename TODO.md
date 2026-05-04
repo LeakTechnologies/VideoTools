@@ -40,8 +40,8 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 
 #### Phase 1: Layout Consistency (HIGH) — partially done in dev42
 - [x] **Replace custom HSplit** with `container.NewVSplit` — done in dev42
-- [ ] **Consistent module box styling** — Reuse Convert's pattern
-- [ ] **Proper header bar** with module title, stats integration
+- [x] **Consistent module box styling** — Added `buildAudioBox()` helper, Convert-style boxes
+- [x] **Proper header bar** with module title, stats integration — `TintedBar` header + stats bar wired
 
 #### Phase 2: Native Player Integration (HIGH) - done dev44
 - [x] **InlineVideoPlayer** — Add player singleton like Convert
@@ -1102,9 +1102,11 @@ logic moves to `internal/app/modules/{name}/`, a thin `package main` shim at roo
 - [ ] **Cross-platform testing** - Linux and Windows parity
 
 ### Queue Module UI Polish
-- [ ] **Button styling** - Make queue action buttons (Cancel, Remove, etc.) consistent with other modules
+- [x] **Button styling** - Queue action buttons have proper Importance settings (Medium, Low, Danger)
+- [x] **Thumbnail preview** - 90px thumbnails with 3px module-color outline
+- [x] **Module colors** - `ModuleColor()` now exactly matches main menu (all 13 modules)
+- [x] **Layout** - TintedBar header, 48px bottom bar, status badge
 - [ ] **Visual feedback** - Improve button states and hover effects in queue view
-- [ ] **Layout consistency** - Ensure queue buttons match Convert/Player module patterns
 
 ## Technical Debt Addressed
 
