@@ -1,5 +1,68 @@
 # VideoTools - Completed Features
 
+## Version 0.1.1-dev45 (complete) - UI Polish & Parity
+
+### Convert Module Improvements - Phase 1 (HIGH)
+- **Audio Sample Rate dropdown** — `audioSampleRateSelect` wired in buildConvertView
+- **Normalize Audio checkbox** — `normalizeAudioCheck` + LUFS/TruePeak sliders wired
+- **Deinterlace Mode dropdown** — `deinterlaceModeSelect` + `deinterlaceMethodSelect` wired
+- **H.264 Profile/Level controls** — `h264ProfileSelect` / `h264LevelSelect` wired; shown when H.264 codec is active
+
+### Convert Module i18n (HIGH - Issue #5)
+- **~42 hardcoded strings** i18n'd: checkboxes, buttons, dialog messages, back button
+- **New keys added** to `internal/i18n/strings.go`, `en_ca.go`, `fr_ca.go`, `iu.go`, `iu_latin.go`
+
+### Convert Module Improvements - Phase 2 (HIGH)
+- **One-click presets** — Hobbyist SD→HD, Semi-Pro 1080p→4K, Anime, Restoration, Social Media workflows
+- **UI clarity** — Preset dropdown with description labels, clear AI+RIFE workflow
+- **Detection reliability** — VerifyTool() checks PATH + app-local bin + smoke test
+- **Optimization guide** — See `docs/UPSCALE_OPTIMIZATION.md` for hobbyist/semi-pro workflows
+- **Hardware acceleration** — Sync upscale HW accel from master setting
+- **Filters module HW accel** — Add hardware acceleration dropdown
+
+### Audio Module Phase 2 (HIGH)
+- **InlineVideoPlayer** — Add player singleton like Convert
+- **Video preview pane** — Same layout pattern as Convert
+- **SMPTE bars idle state** — "DROP VIDEO TO LOAD"
+
+### Audio Module Phase 1 (HIGH)
+- **Consistent box styling** — Added `buildAudioBox()` helper, Convert-style boxes
+- **Proper header bar** — `TintedBar` with module title + stats integration wired
+
+### Upscale Module Improvements (dev44)
+- **One-click presets** — Hobbyist SD→HD, Semi-Pro 1080p→4K, Anime, Restoration, Social Media workflows
+- **UI clarity** — Preset dropdown with description labels, clear AI+RIFE workflow
+- **Detection reliability** — VerifyTool() checks PATH + app-local bin + smoke test
+- **Optimization guide** — See `docs/UPSCALE_OPTIMIZATION.md`
+- **Hardware acceleration** — Sync upscale HW accel from master setting
+
+### Queue Module UI Polish (dev44)
+- **TintedBar header** — Replaced custom header with `TintedBar` matching other modules
+- **Status badge** — Shows active/completed/failed counts in header
+- **48px bottom bar** — Restored VT green `TintedBar` (matches other modules)
+- **Live output panel** — 4px VT green outline border
+- **Thumbnail preview** — 90px tall with 3px module-color outline, auto-generated midpoint frame
+- **Module colors** — `ModuleColor()` exactly matches main menu (all 13 modules)
+- **Layout fixes** — Thumbnail left, text right; proper spacing
+
+### Flags & i18n (dev44)
+- **Language dropdown** — Fixed flag loading (removed incorrect `fs.Sub`); SVG flags now visible
+- **Main menu** — "QUEUE" button uppercase in all 4 locales
+
+### Thumbnail Quality (dev44)
+- **Deinterlace filter** — `yadif=1` added to avoid interlaced frames
+- **Interlace detection** — `findCleanFrameOffset()` skips to clean frames
+- **Job log file** — Each thumbnail job writes FFmpeg output to timestamped log
+
+### Module Pipeline (`&&` feature) (dev44)
+- **Pipeline state machine** — `pipelineActive` on `appState` (off/waiting-step1/waiting-step2)
+- **`&&` button** — Main menu header reflects state
+- **Module tile dimming** — Invalid Step 2 targets dimmed
+- **Queue integration** — `PipelineAfter` + `PipelineDeleteOnSuccess` fields on `queue.Job`
+- **Intermediate files** — "Keep intermediate files" toggle in Settings → Preferences
+
+---
+
 ## Version 0.1.1-dev44 (complete) - Playback & Sync Fixes
 
 ### Native Media Player — Playback & Sync Fixes (dev44)
