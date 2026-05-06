@@ -18,6 +18,7 @@ type FormatOption struct {
 	DevicePreset string // Device preset name this format is paired with, if any
 	SupportsHEVC bool   // Format container supports H.265
 	SupportsAV1  bool   // Format container supports AV1
+	Legacy       bool   // Marks format as legacy — available for remuxing old files, not recommended for new outputs
 }
 
 // ConvertConfig holds all configuration for a video conversion operation

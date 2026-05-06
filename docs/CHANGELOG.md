@@ -25,6 +25,11 @@
 - **Video preview pane** — Same layout pattern as Convert
 - **SMPTE bars idle state** — "DROP VIDEO TO LOAD"
 
+### Audio Module Phase 3 (MEDIUM) - done dev45
+- **Enhanced track list** — Codec colors, language flags, duration display
+- **Output naming preview** — Shows filename before extraction
+- **Track reordering** — Up/down buttons (UI ready, logic wired)
+
 ### Audio Module Phase 1 (HIGH)
 - **Consistent box styling** — Added `buildAudioBox()` helper, Convert-style boxes
 - **Proper header bar** — `TintedBar` with module title + stats integration wired
