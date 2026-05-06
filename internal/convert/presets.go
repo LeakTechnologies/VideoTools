@@ -23,10 +23,16 @@ var FormatOptions = []FormatOption{
 	{Label: "DVD-NTSC (MPEG-2)", Ext: ".mpg", VideoCodec: "mpeg2video"},
 	{Label: "DVD-PAL (MPEG-2)", Ext: ".mpg", VideoCodec: "mpeg2video"},
 	// AVI — legacy Windows compatibility
-	{Label: "AVI (H.264)", Ext: ".avi", VideoCodec: "libx264"},
+	{Label: "AVI (H.264)", Ext: ".avi", VideoCodec: "libx264", Legacy: true},
 	// TS — broadcast and streaming
 	{Label: "TS (H.264)", Ext: ".ts", VideoCodec: "libx264"},
 	{Label: "TS (MPEG-2)", Ext: ".ts", VideoCodec: "mpeg2video"},
+	// FLV — legacy Flash Video (H.264 + AAC/MP3)
+	{Label: "FLV (H.264)", Ext: ".flv", VideoCodec: "libx264", Legacy: true},
+	// 3GP — legacy mobile (3G phones)
+	{Label: "3GP (H.264)", Ext: ".3gp", VideoCodec: "libx264", Legacy: true},
+	// OGG — legacy open container (Theora video + Vorbis audio)
+	{Label: "OGG (Theora)", Ext: ".ogv", VideoCodec: "libtheora", Legacy: true},
 }
 
 // HWPreset is a complete device-optimised encoding configuration.
@@ -71,6 +77,9 @@ var FormatVideoCodecs = map[string][]string{
 	".mpg":  {"MPEG-2", "Copy"},
 	".avi":  {"H.264", "Copy"},
 	".ts":   {"H.264", "H.265", "MPEG-2", "Copy"},
+	".flv":  {"H.264", "Copy"},
+	".3gp":  {"H.264", "Copy"},
+	".ogv":  {"Theora", "Copy"},
 }
 
 // FormatAudioCodecs maps format extension to compatible audio codec friendly names.
@@ -82,4 +91,6 @@ var FormatAudioCodecs = map[string][]string{
 	".mpg":  {"MP2", "AC-3", "Copy"},
 	".avi":  {"MP3", "AAC", "AC-3", "Copy"},
 	".ts":   {"AAC", "MP2", "AC-3", "Copy"},
+	".3gp":  {"AAC", "AMR-NB", "Copy"},
+	".ogv":  {"Vorbis", "Copy"},
 }

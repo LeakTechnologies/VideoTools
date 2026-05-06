@@ -8,14 +8,17 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/audio"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
 // audioTrackInfo is an alias for the internal type.
@@ -51,10 +54,11 @@ func buildAudioView(state *appState) fyne.CanvasObject {
 		NormTargetLUFS:             state.audioNormTargetLUFS,
 		NormTruePeak:               state.audioNormTruePeak,
 		OnShowMainMenu:             func() { state.showMainMenu() },
-		OnRefreshView:              func() {},
-		OnUpdateBatchFilesList:     func() {},
-		OnUpdateBitrateVisibility:  func() {},
+		OnRefreshView:              func() { state.refreshAudioView() },
+		OnUpdateBatchFilesList:     func() { state.updateAudioBatchFilesList() },
+		OnUpdateBitrateVisibility:  func() { state.updateAudioBitrateVisibility() },
 		OnUpdateBitrateFromQuality: func() { state.updateAudioBitrateFromQuality() },
+		OnUpdateOutputPreview:      func() { state.updateOutputPreview() },
 		OnUpdateNormVisibility:     func() { state.updateNormalizationVisibility() },
 		OnPersistConfig:            func() { state.persistAudioConfig() },
 		OnLoadFile:                 func(path string) { state.loadAudioFile(path) },
@@ -141,12 +145,49 @@ func (s *appState) updateAudioFileInfo() {
 	s.audioFileInfoLabel.SetText(info)
 }
 
+func (s *appState) updateOutputPreview() {
+	if s.audioPreviewLabel == nil {
+		return
+	}
+	if s.audioFile == nil {
+		s.audioPreviewLabel.SetText("")
+		return
+	}
+
+	ext := audio.GetAudioFileExtension(s.audioOutputFormat)
+	baseName := strings.TrimSuffix(filepath.Base(s.audioFile.Path), filepath.Ext(s.audioFile.Path))
+
+	// Show preview for first selected track (or track 0)
+	trackIndex := 0
+	if len(s.audioTracks) > 0 {
+		for _, track := range s.audioTracks {
+			if s.audioSelectedTracks[track.Index] {
+				trackIndex = track.Index
+				break
+			}
+		}
+	}
+
+	langSuffix := ""
+	for _, track := range s.audioTracks {
+		if track.Index == trackIndex && track.Language != "" && track.Language != "und" {
+			langSuffix = "_" + track.Language
+			break
+		}
+	}
+
+	outputName := fmt.Sprintf("%s_track%d%s.%s", baseName, trackIndex, langSuffix, ext)
+	s.audioPreviewLabel.SetText(outputName)
+}
+
 func (s *appState) updateAudioTrackList() {
 	s.audioTrackListContainer.Objects = nil
 
-	for _, track := range s.audioTracks {
-		trackCopy := track
+	for idx := range s.audioTracks {
+		track := &s.audioTracks[idx]
+		trackCopy := *track
 
+		// Build track info string with codec color, language flag, duration
 		channelStr := fmt.Sprintf("%dch", track.Channels)
 		if track.Channels == 1 {
 			channelStr = "Mono"
@@ -162,22 +203,77 @@ func (s *appState) updateAudioTrackList() {
 			bitrateStr = fmt.Sprintf("%d kbps", track.Bitrate/1000)
 		}
 
+		durationStr := ""
+		if track.Duration > 0 {
+			durationStr = formatShortDuration(track.Duration)
+		}
+
+		// Codec color indicator
+		codecColor := ui.GetAudioCodecColor(track.Codec)
+		codecIndicator := canvas.NewRectangle(codecColor)
+		codecIndicator.SetMinSize(fyne.NewSize(4, 20))
+
+		// Language flag (if available)
+		languageStr := ""
+		if track.Language != "" {
+			languageStr = fmt.Sprintf("(%s)", track.Language)
+		}
+
+		// Track label with codec, channels, sample rate, bitrate, duration
 		trackLabel := fmt.Sprintf("[Track %d] %s %s %s", track.Index, track.Codec, channelStr, sampleRateStr)
 		if bitrateStr != "" {
 			trackLabel += " " + bitrateStr
 		}
-		if track.Language != "" {
-			trackLabel += fmt.Sprintf(" (%s)", track.Language)
+		if durationStr != "" {
+			trackLabel += " [" + durationStr + "]"
+		}
+		if languageStr != "" {
+			trackLabel += " " + languageStr
 		}
 		if track.Title != "" {
 			trackLabel += fmt.Sprintf(" - %s", track.Title)
 		}
+		if track.Default {
+			trackLabel += " ★" // Default track indicator
+		}
 
+		// Track row with codec indicator, checkbox, and up/down buttons for reordering
 		check := widget.NewCheck(trackLabel, func(checked bool) {
 			s.audioSelectedTracks[trackCopy.Index] = checked
 		})
 		check.SetChecked(s.audioSelectedTracks[trackCopy.Index])
-		s.audioTrackListContainer.Add(check)
+
+		// Reorder buttons (up/down)
+		upBtn := widget.NewButton("↑", func(idx int) func() {
+			return func() {
+				if idx > 0 {
+					s.audioTracks[idx], s.audioTracks[idx-1] = s.audioTracks[idx-1], s.audioTracks[idx]
+					s.updateAudioTrackList()
+				}
+			}
+		}(idx))
+		upBtn.Importance = widget.LowImportance
+		upBtn.Disable() // TODO: implement proper reordering with selected tracks map update
+
+		downBtn := widget.NewButton("↓", func(idx int) func() {
+			return func() {
+				if idx < len(s.audioTracks)-1 {
+					s.audioTracks[idx], s.audioTracks[idx+1] = s.audioTracks[idx+1], s.audioTracks[idx]
+					s.updateAudioTrackList()
+				}
+			}
+		}(idx))
+		downBtn.Importance = widget.LowImportance
+		downBtn.Disable() // TODO: implement proper reordering with selected tracks map update
+
+		trackRow := container.NewHBox(
+			codecIndicator,
+			check,
+			layout.NewSpacer(),
+			upBtn,
+			downBtn,
+		)
+		s.audioTrackListContainer.Add(trackRow)
 	}
 	s.audioTrackListContainer.Refresh()
 }

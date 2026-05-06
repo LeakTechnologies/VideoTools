@@ -50,6 +50,7 @@ type Options struct {
 	SourceFile           string
 	TrackInfo            []TrackInfo
 	IsBusy               bool
+	OutputPreviewLabel   *widget.Label // Shows expected output filename
 
 	// Callbacks
 	OnShowMainMenu             func()
@@ -57,6 +58,7 @@ type Options struct {
 	OnUpdateBatchFilesList     func()
 	OnUpdateBitrateVisibility  func()
 	OnUpdateBitrateFromQuality func()
+	OnUpdateOutputPreview      func() // Update output filename preview
 	OnUpdateNormVisibility     func()
 	OnPersistConfig            func()
 	OnLoadFile                 func(path string)
@@ -76,6 +78,7 @@ type TrackInfo struct {
 	Channels   int
 	SampleRate int
 	Bitrate    int
+	Duration   float64 // Track duration in seconds
 	Language   string
 	Title      string
 	Default    bool
@@ -272,11 +275,19 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 		if opts.OnUpdateBitrateVisibility != nil {
 			opts.OnUpdateBitrateVisibility()
 		}
+		if opts.OnUpdateOutputPreview != nil {
+			opts.OnUpdateOutputPreview()
+		}
 		if opts.OnPersistConfig != nil {
 			opts.OnPersistConfig()
 		}
 	})
 	formatRadio.Horizontal = true
+
+	outputPreviewLabel := widget.NewLabel("")
+	outputPreviewLabel.TextStyle = fyne.TextStyle{Italic: true}
+	outputPreviewLabel.Wrapping = fyne.TextWrapWord
+	opts.OutputPreviewLabel = outputPreviewLabel
 
 	qualityLabel := widget.NewLabel(t.AudioQualityPreset)
 	qualityLabel.TextStyle = fyne.TextStyle{Bold: true}
@@ -396,7 +407,7 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 		buildAudioBox(t.AudioQuality, container.NewVBox(qualityLabel, qualitySelect)),
 		buildAudioBox(t.AudioBitrate, container.NewVBox(bitrateLabel, bitrateEntry)),
 		buildAudioBox(t.AudioNormSection, container.NewVBox(normalizeCheck, normOptions)),
-		buildAudioBox(t.AudioOutput, container.NewVBox(outputDirLabel, outputDirRow, statusLabel, progressBar)),
+		buildAudioBox(t.AudioOutput, container.NewVBox(outputDirLabel, outputDirRow, widget.NewLabel("Output preview:"), outputPreviewLabel, statusLabel, progressBar)),
 	)
 
 	scrollable := ui.NewFastVScroll(rightContent)

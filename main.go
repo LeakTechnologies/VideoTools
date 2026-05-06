@@ -1485,6 +1485,7 @@ type appState struct {
 	audioNormOptionsContainer *fyne.Container
 	audioStatusLabel          *widget.Label
 	audioProgressBar          *widget.ProgressBar
+	audioPreviewLabel         *widget.Label // Output filename preview
 	audioBatchListContainer   *fyne.Container
 	audioLeftPanel            *fyne.Container
 	audioSingleContent        *fyne.Container
@@ -9076,7 +9077,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	var formatLabels []string
 	for _, opt := range formatOptions {
-		formatLabels = append(formatLabels, opt.Label)
+		label := opt.Label
+		if opt.Legacy {
+			label += " (legacy)"
+		}
+		formatLabels = append(formatLabels, label)
 	}
 
 	// Format selector

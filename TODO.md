@@ -48,10 +48,10 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [x] **Video preview pane** — Same layout pattern as Convert
 - [x] **SMPTE bars idle state** — "DROP VIDEO TO LOAD"
 
-#### Phase 3: Track Selection (MEDIUM)
-- [ ] **Enhanced track list** — Codec icons, language flags, duration
-- [ ] **Output naming preview** — Show filename before extraction
-- [ ] **Track reordering** — Up/down buttons for export order
+#### Phase 3: Track Selection (MEDIUM) - done dev45
+- [x] **Enhanced track list** — Codec colors, language flags, duration display
+- [x] **Output naming preview** — Show filename before extraction
+- [x] **Track reordering** — Up/down buttons for export order (UI ready, logic wired)
 
 ### Upscale Module Improvements (dev44) - done
 - [x] **One-click presets** — Hobbyist SD→HD, Semi-Pro 1080p→4K, Anime, Restoration, Social Media workflows

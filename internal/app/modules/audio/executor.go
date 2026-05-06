@@ -112,6 +112,7 @@ func ProbeAudioTracks(path string) ([]TrackInfo, error) {
 			Channels    int                    `json:"channels"`
 			SampleRate  string                 `json:"sample_rate"`
 			BitRate     string                 `json:"bit_rate"`
+			Duration    string                 `json:"duration"`
 			Tags        map[string]interface{} `json:"tags"`
 			Disposition struct {
 				Default int `json:"default"`
@@ -136,6 +137,9 @@ func ProbeAudioTracks(path string) ([]TrackInfo, error) {
 		}
 		if br, err := strconv.Atoi(stream.BitRate); err == nil {
 			track.Bitrate = br
+		}
+		if dur, err := strconv.ParseFloat(stream.Duration, 64); err == nil {
+			track.Duration = dur
 		}
 		if lang, ok := stream.Tags["language"].(string); ok {
 			track.Language = lang
