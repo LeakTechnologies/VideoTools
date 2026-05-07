@@ -7,6 +7,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	mainmenumodule "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/mainmenu"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
@@ -235,27 +236,40 @@ func (s *appState) showMainMenu() {
 			}
 		},
 		OnOpenFolder: func() {
-			// Open output folder based on current module
-			outputDir := s.convert.OutputDir
+			var outputDir string
+			switch s.active {
+			case "audio":
+				outputDir = s.audioOutputDir
+			default:
+				outputDir = s.convert.OutputDir
+			}
 			if outputDir == "" {
 				outputDir = s.defaultOutputDir
 			}
 			if outputDir != "" {
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					exec.Command("explorer", outputDir).Start()
-				}, false)
+				exec.Command("explorer", outputDir).Start()
 			}
 		},
 		OnOpenMore: func() {
-			// Load file into current module
 			switch s.active {
-			case "convert", "trim", "inspect", "player":
-				s.loadVideo("")
 			case "audio":
-				// Audio module handles its own file dialog
-				s.showMainMenu() // placeholder - audio module has its own browse
+				dialog.ShowFileOpen(func(r fyne.URIReadCloser, err error) {
+					if err != nil || r == nil {
+						return
+					}
+					path := r.URI().Path()
+					r.Close()
+					go s.loadAudioFile(path)
+				}, s.window)
 			default:
-				s.loadVideo("")
+				dialog.ShowFileOpen(func(r fyne.URIReadCloser, err error) {
+					if err != nil || r == nil {
+						return
+					}
+					path := r.URI().Path()
+					r.Close()
+					go s.loadVideo(path)
+				}, s.window)
 			}
 		},
 	}

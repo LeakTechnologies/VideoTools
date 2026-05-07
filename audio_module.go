@@ -126,6 +126,7 @@ func (s *appState) loadAudioFile(path string) {
 	for _, track := range tracks {
 		s.audioSelectedTracks[track.Index] = true
 	}
+	s.recentFiles.Add(path, filepath.Base(path), "audio")
 	s.updateAudioFileInfo()
 	s.updateAudioTrackList()
 	logging.Debug(logging.CatUI, "loaded %d audio tracks from %s", len(tracks), filepath.Base(path))
@@ -253,7 +254,9 @@ func (s *appState) updateAudioTrackList() {
 			}
 		}(idx))
 		upBtn.Importance = widget.LowImportance
-		upBtn.Disable() // TODO: implement proper reordering with selected tracks map update
+		if idx == 0 {
+			upBtn.Disable()
+		}
 
 		downBtn := widget.NewButton("↓", func(idx int) func() {
 			return func() {
@@ -264,7 +267,9 @@ func (s *appState) updateAudioTrackList() {
 			}
 		}(idx))
 		downBtn.Importance = widget.LowImportance
-		downBtn.Disable() // TODO: implement proper reordering with selected tracks map update
+		if idx == len(s.audioTracks)-1 {
+			downBtn.Disable()
+		}
 
 		trackRow := container.NewHBox(
 			codecIndicator,

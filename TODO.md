@@ -48,10 +48,10 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [x] **Video preview pane** — Same layout pattern as Convert
 - [x] **SMPTE bars idle state** — "DROP VIDEO TO LOAD"
 
-#### Phase 3: Track Selection (MEDIUM) - done dev45
+#### Phase 3: Track Selection (MEDIUM) - done dev46
 - [x] **Enhanced track list** — Codec colors, language flags, duration display
 - [x] **Output naming preview** — Show filename before extraction
-- [x] **Track reordering** — Up/down buttons for export order (UI ready, logic wired)
+- [x] **Track reordering** — Up/down buttons enabled; boundary conditions (first/last track) handled
 
 ### Upscale Module Improvements (dev44) - done
 - [x] **One-click presets** — Hobbyist SD→HD, Semi-Pro 1080p→4K, Anime, Restoration, Social Media workflows
@@ -79,8 +79,8 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [x] "Keep intermediate files" toggle in Settings → Preferences
 
 ### Quick Access Dropdown
-- [ ] **Recent file tracking** — Persist recent files list to disk
-- [ ] **Module callbacks** — Wire `OnOpenMore`/`OnOpenFolder` per module
+- [x] **Recent file tracking** — Persisted to disk; audio, inspect, player modules now track recent files
+- [x] **Module callbacks** — `OnOpenMore` opens file dialog per module; `OnOpenFolder` respects audio output dir
 
 ### File Manager
 - [ ] **Multi-tab support** — Open multiple folders in tabs
