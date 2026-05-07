@@ -97,6 +97,12 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [x] **Build script** — `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs with all deps statically linked
 - [x] **CI update** — `ci-build.ps1` bundles DLLs in `ffmpeg-dll/` subfolder within release ZIP
 
+### Main Menu Refactor (dev46)
+- [ ] **Move main menu UI** — Extract main menu code from `main.go` to `internal/app/modules/mainmenu/`
+- [ ] **Wire Quick Access Dropdown** — Pass `FilesDropdownData` to `BuildMainMenu()`, wire `OnOpenMore`/`OnOpenFolder` callbacks
+- [ ] **Refactor showMainMenu()** — Move from `main.go` to `mainmenu` package, keep `showModule()` routing in `main.go`
+- [ ] **Estimated work** — 4-6 hours (find code ~lines 8200-8500 in main.go, extract, test)
+
 ### Carry-forward Issues
 - [ ] **Issue #5** — Convert UI layout consistency and label clarity pass
 - [ ] **Issue #21** — Native disc authoring — remaining: PTS validation on FFmpeg-remuxed feature VOBs, hardware player testing
