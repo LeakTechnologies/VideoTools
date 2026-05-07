@@ -132,8 +132,12 @@ if (Test-Path $ffmpegDllSource) {
         Copy-Item $_.FullName -Destination $ffmpegDllDest -Force
     }
     Write-Host "[INFO] Bundled FFmpeg DLLs in ffmpeg-dll/ subfolder"
+    # Verify DLLs were copied
+    $dllCount = (Get-ChildItem -Path $ffmpegDllDest -Filter "*.dll" | Measure-Object).Count
+    Write-Host "[INFO] Copied $dllCount DLLs to ffmpeg-dll/"
 } else {
-    Write-Host "[WARN] FFmpeg shared DLLs not found at $ffmpegDllSource — run build-ffmpeg-shared.ps1 first"
+    Write-Error "[ERROR] FFmpeg shared DLLs not found at $ffmpegDllSource — build-ffmpeg-shared step may have failed"
+    exit 1
 }
 
 # README

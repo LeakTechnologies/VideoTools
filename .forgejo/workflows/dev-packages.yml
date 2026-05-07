@@ -565,7 +565,6 @@ jobs:
         with:
           name: VideoTools-windows
           path: dist/windows
-        continue-on-error: true
 
       - name: Install jq
         run: |
