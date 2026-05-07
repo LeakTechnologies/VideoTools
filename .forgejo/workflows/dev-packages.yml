@@ -461,6 +461,12 @@ jobs:
           Write-Host "[INFO] Disk cleanup complete"
           Get-PSDrive C | Select-Object Used, Free | ForEach-Object { Write-Host "[INFO] C: used=$([math]::Round($_.Used/1GB,1))GB free=$([math]::Round($_.Free/1GB,1))GB" }
 
+      - name: Build FFmpeg shared DLLs for runtime
+        run: |
+          $ErrorActionPreference = 'Continue'
+          & (Join-Path $env:GITHUB_WORKSPACE "scripts\windows\build-ffmpeg-shared.ps1")
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Build Windows package
         env:
           # SignPath.io (free OSS signing — https://signpath.io/product/open-source)
