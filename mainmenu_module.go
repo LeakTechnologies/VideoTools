@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os/exec"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -233,8 +234,30 @@ func (s *appState) showMainMenu() {
 				go s.loadVideo(path)
 			}
 		},
-		OnOpenFolder: nil,  // TODO: wire in future update
-		OnOpenMore:   nil,  // TODO: wire per-module in future update
+		OnOpenFolder: func() {
+			// Open output folder based on current module
+			outputDir := s.convert.OutputDir
+			if outputDir == "" {
+				outputDir = s.defaultOutputDir
+			}
+			if outputDir != "" {
+				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+					exec.Command("explorer", outputDir).Start()
+				}, false)
+			}
+		},
+		OnOpenMore: func() {
+			// Load file into current module
+			switch s.active {
+			case "convert", "trim", "inspect", "player":
+				s.loadVideo("")
+			case "audio":
+				// Audio module handles its own file dialog
+				s.showMainMenu() // placeholder - audio module has its own browse
+			default:
+				s.loadVideo("")
+			}
+		},
 	}
 
 	menu := ui.BuildMainMenu(t.AppTitle, menuLabels, mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, func() {
