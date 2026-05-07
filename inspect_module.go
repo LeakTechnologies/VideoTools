@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -19,6 +20,7 @@ import (
 )
 
 func (s *appState) showInspectViewForPath(path string) {
+	s.recentFiles.Add(path, filepath.Base(path), "inspect")
 	// Show the view immediately — probe runs in the background so the UI doesn't freeze.
 	s.inspectFile = nil
 	s.inspectInterlaceResult = nil

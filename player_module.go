@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
@@ -25,6 +26,7 @@ func (s *appState) showPlayerViewForPath(path string) {
 		return
 	}
 	s.playerFile = src
+	s.recentFiles.Add(path, filepath.Base(path), "player")
 	s.showPlayerView()
 }
 
