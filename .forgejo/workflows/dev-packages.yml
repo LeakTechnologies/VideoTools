@@ -462,10 +462,62 @@ jobs:
           Get-PSDrive C | Select-Object Used, Free | ForEach-Object { Write-Host "[INFO] C: used=$([math]::Round($_.Used/1GB,1))GB free=$([math]::Round($_.Free/1GB,1))GB" }
 
       - name: Build FFmpeg shared DLLs for runtime
+        shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
+        env:
+          MSYSTEM: UCRT64
         run: |
-          $ErrorActionPreference = 'Continue'
-          & (Join-Path $env:GITHUB_WORKSPACE "scripts\windows\build-ffmpeg-shared.ps1")
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ver="${{ env.FFMPEG_VERSION }}"
+          shared_dir="/c/ffmpeg-shared"
+          build_dir="/c/ffmpeg-shared-build"
+          rm -rf "$shared_dir" "$build_dir"
+          mkdir -p "$shared_dir/dll"
+
+          # Build x264 (static, for linking into FFmpeg shared)
+          echo "[INFO] Building x264 for shared FFmpeg..."
+          rm -rf /tmp/x264-src
+          git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
+          cd /tmp/x264-src
+          ./configure --prefix=$shared_dir --enable-static --disable-shared --disable-cli --disable-interlaced --disable-asm
+          make -j$(nproc) && make install
+
+          # Build x265 (static, for linking into FFmpeg shared)
+          echo "[INFO] Building x265 for shared FFmpeg..."
+          rm -rf /tmp/x265-src /tmp/x265-build
+          git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
+          cd /tmp/x265-src && git tag 4.1.0
+          mkdir /tmp/x265-build && cd /tmp/x265-build
+          cmake -G 'MSYS Makefiles' \
+                -DCMAKE_INSTALL_PREFIX=$shared_dir \
+                -DENABLE_SHARED=OFF -DENABLE_CLI=OFF \
+                -DCMAKE_BUILD_TYPE=Release \
+                ../x265-src/source
+          make -j$(nproc) && make install
+
+          # Build FFmpeg shared DLLs
+          echo "[INFO] Building FFmpeg ${ver} shared DLLs..."
+          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
+          tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
+          mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
+          cd /tmp/ffmpeg-src
+          ./configure \
+            --prefix=$shared_dir \
+            --enable-shared --disable-static \
+            --disable-doc --disable-programs \
+            --enable-gpl --enable-version3 \
+            --enable-libx264 --enable-libx265 \
+            --disable-vaapi --disable-iconv \
+            --extra-cflags="-I${shared_dir}/include" \
+            --extra-ldflags="-L${shared_dir}/lib"
+          make -j$(nproc) && make install
+
+          # Copy only DLLs to dll/ subfolder
+          echo "[INFO] Copying DLLs to dll/ subfolder..."
+          cp "$shared_dir/bin/"*.dll "$shared_dir/dll/"
+          ls -la "$shared_dir/dll/"
+
+          rm -rf /tmp/x264-src /tmp/x265-src /tmp/x265-build /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          echo "[INFO] FFmpeg shared DLLs built in $shared_dir/dll/"
 
       - name: Build Windows package
         env:
