@@ -561,9 +561,9 @@ func (q *Queue) processJobs() {
 
 		if deleteIntermediate != "" {
 			if err := os.Remove(deleteIntermediate); err != nil && !os.IsNotExist(err) {
-				logging.Warning(logging.CatSystem, "pipeline cleanup: failed to delete intermediate %s: %v", deleteIntermediate, err)
+				logging.Warning(logging.CatQueue, "pipeline cleanup: failed to delete intermediate %s: %v", deleteIntermediate, err)
 			} else {
-				logging.Debug(logging.CatSystem, "pipeline cleanup: deleted intermediate %s", deleteIntermediate)
+				logging.Debug(logging.CatQueue, "pipeline cleanup: deleted intermediate %s", deleteIntermediate)
 			}
 		}
 	}

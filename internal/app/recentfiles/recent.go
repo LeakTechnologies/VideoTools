@@ -13,10 +13,16 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
 
-const (
+	const (
 	maxEntries  = 15
 	storageName = "recent_files"
 )
+
+// cat is the logging category for recent files operations.
+// Uses CatUI since this is a UI-facing feature.
+func cat() logging.Category {
+	return logging.CatUI
+}
 
 // Entry is one record in the recent-files list.
 type Entry struct {
@@ -37,7 +43,7 @@ type Manager struct {
 func New() *Manager {
 	m := &Manager{}
 	if err := m.load(); err != nil && !os.IsNotExist(err) {
-		logging.Debug(logging.CatSystem, "recentfiles: load error (ignored): %v", err)
+		logging.Debug(cat(), "recentfiles: load error (ignored): %v", err)
 	}
 	return m
 }
@@ -79,7 +85,7 @@ func (m *Manager) Add(path, displayName, module string) {
 
 	go func() {
 		if err := saveEntries(snapshot); err != nil {
-			logging.Debug(logging.CatSystem, "recentfiles: save error: %v", err)
+			logging.Debug(cat(), "recentfiles: save error: %v", err)
 		}
 	}()
 }
@@ -109,7 +115,7 @@ func (m *Manager) Remove(path, module string) {
 
 	go func() {
 		if err := saveEntries(snapshot); err != nil {
-			logging.Debug(logging.CatSystem, "recentfiles: save error: %v", err)
+			logging.Debug(cat(), "recentfiles: save error: %v", err)
 		}
 	}()
 }

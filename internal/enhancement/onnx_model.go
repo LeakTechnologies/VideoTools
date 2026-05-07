@@ -65,7 +65,7 @@ func (m *ONNXModel) Load() error {
 	// For now, simulate successful loading
 	m.loaded = true
 
-	logging.Debug(logging.CatEnhance, "ONNX model loaded: %s", m.name)
+	logging.Debug(logging.CatModule, "ONNX model loaded: %s", m.name)
 	return nil
 }
 
@@ -134,7 +134,7 @@ func (m *ONNXModel) Close() error {
 	// TODO: Close ONNX session when implemented
 
 	m.loaded = false
-	logging.Debug(logging.CatEnhance, "ONNX model closed: %s", m.name)
+	logging.Debug(logging.CatModule, "ONNX model closed: %s", m.name)
 	return nil
 }
 

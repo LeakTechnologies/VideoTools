@@ -61,12 +61,12 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [x] **Hardware acceleration** — Sync upscale HW accel from master setting
 - [x] **Filters module HW accel** — Add hardware acceleration dropdown
 
-### Burn Module — Logic (HIGH)
-
-- [ ] **Windows** — Implement IMAPI2 COM interface in `burn_windows.go`
-- [ ] **Linux** — Implement SG_IO ioctl in `burn_linux.go`
-- [ ] **Drive info** — `getDriveInfo()` to show disc capacity (DVD5/9, BD25/50)
-- [ ] **Multi-drive batch burning** — See `docs/BURN_MODULE_DESIGN.md` §Phase 3
+### Burn Module — Logic (HIGH) - done dev45
+- [x] **Windows** — `isoburn.exe` (built-in Windows 7+ tool) with eject via IOCTL_STORAGE_EJECT_MEDIA
+- [x] **Linux** — `growisofs` (dvd+rw-tools) with SG_IO progress parsing + SHA-256 verify
+- [x] **Drive info** — `getDriveInfo()` shows disc capacity (DVD5/9, BD25/50)
+- [ ] **Multi-drive batch burning** — See `docs/BURN_MODULE_DESIGN.md` §Phase 3 (future)
+- [ ] **IMAPI2 COM** — Replace `isoburn.exe` for proper progress/control (future, complex)
 
 ### Module Pipeline (`&&` feature)
 
@@ -85,13 +85,20 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 ### File Manager
 - [ ] **Multi-tab support** — Open multiple folders in tabs
 
-### Logging — Remaining Modules
-- [ ] **CatInspect** — Add category; switch interlace analysis logs from `CatSystem`
-- [ ] **CatRip / CatBurn** — Evaluate whether `CatDVD`/`CatDisc` is sufficient or dedicated categories needed
+### Logging — Audit (done dev45)
+- [x] **Remove unused categories** — `CatEnhance`, `CatRip` removed from `internal/logging/logging.go`
+- [x] **Add CatQueue** — New category for queue operations
+- [x] **Wire logging fixes** — `enhancement_module.go`, `onnx_model.go` now use `CatModule`; `rip_module.go` now uses `CatDisc`
+- [x] **Fix recentfiles.go** — Changed `CatSystem` misuse to `CatUI` via `cat()` helper
+
+### FFmpeg DLL Bootstrap Fix (done dev45)
+- [x] **Bundle DLLs in release** — FFmpeg shared DLLs built from source, bundled in `ffmpeg-dll/` subfolder (not root)
+- [x] **Remove BtbN download** — `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
+- [x] **Build script** — `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs with all deps statically linked
+- [x] **CI update** — `ci-build.ps1` bundles DLLs in `ffmpeg-dll/` subfolder within release ZIP
 
 ### Carry-forward Issues
 - [ ] **Issue #5** — Convert UI layout consistency and label clarity pass
-- [ ] **Issue #18** — Windows first-run FFmpeg bootstrap
 - [ ] **Issue #21** — Native disc authoring — remaining: PTS validation on FFmpeg-remuxed feature VOBs, hardware player testing
 - [ ] **Linux CI** — Pre-built container image to reduce apt install time
 

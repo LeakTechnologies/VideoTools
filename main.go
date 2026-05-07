@@ -2356,7 +2356,7 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 	// Add to top (after running job) if requested, queue is running, and no pipeline active
 	if addToTop && s.jobQueue.IsRunning() && s.pipelineStep == "" {
 		s.jobQueue.AddNext(job)
-		logging.Debug(logging.CatSystem, "added convert job to top of queue: %s", job.ID)
+		logging.Debug(logging.CatQueue, "added convert job to top of queue: %s", job.ID)
 	} else {
 		s.pipelineAdd(job)
 	}
@@ -8496,7 +8496,7 @@ func (s *appState) executeAddToQueue() {
 		// Auto-start queue if not already running
 		if s.jobQueue != nil && !s.jobQueue.IsRunning() && !s.convertBusy {
 			s.jobQueue.Start()
-			logging.Debug(logging.CatUI, "queue auto-started after adding job")
+			logging.Debug(logging.CatQueue, "queue auto-started after adding job")
 		}
 	}
 }
@@ -8508,11 +8508,11 @@ func (s *appState) executeAddAllToQueue() {
 	} else {
 		// Update queue button to show new count
 		s.updateQueueButtonLabel()
-		logging.Debug(logging.CatUI, "Added %d jobs to queue", count)
+		logging.Debug(logging.CatQueue, "Added %d jobs to queue", count)
 		// Auto-start queue if not already running
 		if s.jobQueue != nil && !s.jobQueue.IsRunning() && !s.convertBusy {
 			s.jobQueue.Start()
-			logging.Debug(logging.CatUI, "queue auto-started after adding %d jobs", count)
+			logging.Debug(logging.CatQueue, "queue auto-started after adding %d jobs", count)
 		}
 	}
 }
@@ -8528,7 +8528,7 @@ func (s *appState) executeConversion() {
 	// Start the queue if not already running
 	if s.jobQueue != nil && !s.jobQueue.IsRunning() {
 		s.jobQueue.Start()
-		logging.Debug(logging.CatSystem, "started queue from Convert Now")
+		logging.Debug(logging.CatQueue, "started queue from Convert Now")
 	}
 
 	// Clear the loaded video from convert module

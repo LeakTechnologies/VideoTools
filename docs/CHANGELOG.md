@@ -30,9 +30,30 @@
 - **Output naming preview** — Shows filename before extraction
 - **Track reordering** — Up/down buttons (UI ready, logic wired)
 
+### Burn Module (HIGH) - done dev45
+- **Windows burn** — `isoburn.exe` (built-in) with eject via `IOCTL_STORAGE_EJECT_MEDIA`
+- **Linux burn** — `growisofs` with progress parsing + SHA-256 verify
+- **Drive detection** — Windows (GetLogicalDrives) + Linux (/dev/sr*, /dev/disk/by-path)
+- **Drive info** — Capacity labels (BD-50/25, DVD-9/5)
+- **Logging** — `CatBurn` category, error handling improved
+
 ### Audio Module Phase 1 (HIGH)
 - **Consistent box styling** — Added `buildAudioBox()` helper, Convert-style boxes
 - **Proper header bar** — `TintedBar` with module title + stats integration wired
+
+### Logging Audit (dev45)
+- **Remove unused categories** — `CatEnhance`, `CatRip` removed from `internal/logging/logging.go`
+- **Add CatQueue** — New category for queue operations, wired in `queue.go` and `main.go`
+- **Fix enhancement module** — `CatEnhance` → `CatModule` in `enhancement_module.go` and `onnx_model.go`
+- **Fix rip module** — `CatRip` → `CatDisc` in `rip_module.go`
+- **Fix recentfiles.go** — `CatSystem` misuse → `CatUI` via `cat()` helper
+
+### FFmpeg DLL Bootstrap Fix (dev45)
+- **Bundle DLLs in release** — FFmpeg shared DLLs built from source with all deps statically linked
+- **Remove BtbN download** — `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
+- **Build script** — `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs from source
+- **CI update** — `ci-build.ps1` bundles DLLs in `ffmpeg-dll/` subfolder (not root) within release ZIP
+- **Legacy fallback** — `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\ffmpeg-dll` for old installs
 
 ### Queue Module UI Polish (dev44)
 - **TintedBar header** — Replaced custom header with `TintedBar` matching other modules
