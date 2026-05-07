@@ -214,7 +214,8 @@ func (s *appState) showMainMenu() {
 		}
 	}
 	filesData := &ui.FilesDropdownData{
-		RecentFiles: recentUI,
+		CurrentModule: s.active,
+		RecentFiles:   recentUI,
 		OnFileClick: func(path, module string) {
 			switch module {
 			case "convert":
@@ -232,6 +233,8 @@ func (s *appState) showMainMenu() {
 				go s.loadVideo(path)
 			}
 		},
+		OnOpenFolder: nil,  // TODO: wire in future update
+		OnOpenMore:   nil,  // TODO: wire per-module in future update
 	}
 
 	menu := ui.BuildMainMenu(t.AppTitle, menuLabels, mods, s.showModule, s.handleModuleDrop, s.showQueue, nil, func() {
