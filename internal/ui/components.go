@@ -141,10 +141,12 @@ func GetFlag(filename string) fyne.Resource {
 		return cached
 	}
 	if flagsEmbedFS == nil {
+		logging.Info(logging.CatUI, "GetFlag: flagsEmbedFS is nil for %s", filename)
 		return nil
 	}
 	data, err := fs.ReadFile(flagsEmbedFS, filename)
 	if err != nil {
+		logging.Info(logging.CatUI, "GetFlag: failed to read %s: %v", filename, err)
 		return nil
 	}
 	res := fyne.NewStaticResource(filename, data)
