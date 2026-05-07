@@ -122,6 +122,30 @@ if (Test-Path $ffmpegDllSource) {
     Write-Host "[INFO] Bundled FFmpeg DLLs in ffmpeg-dll/ subfolder"
     $dllCount = (Get-ChildItem -Path $ffmpegDllDest -Filter "*.dll" | Measure-Object).Count
     Write-Host "[INFO] Copied $dllCount DLLs to ffmpeg-dll/"
+    # Copy transitive DLL dependencies (e.g. liblzma-5.dll from x264/x265)
+    $objdumpExe = "C:\msys64\ucrt64\bin\objdump.exe"
+    if (Test-Path $objdumpExe) {
+        $deps = @{}
+        Get-ChildItem -Path $ffmpegDllDest -Filter "*.dll" | ForEach-Object {
+            & $objdumpExe -p $_.FullName 2>$null | Select-String "DLL Name" | ForEach-Object {
+                $dep = ($_ -split ':')[1].Trim()
+                if ($dep -notin @("KERNEL32.dll","USER32.dll","GDI32.dll","SHELL32.dll","ole32.dll","OLEAUT32.dll","ADVAPI32.dll","MSVCRT.dll","ntdll.dll","win32u.dll","SHLWAPI.dll","VERSION.dll","IMM32.dll","KERNELBASE.dll","WS2_32.dll","oleaut32.dll")) {
+                    $deps[$dep] = $true
+                }
+            }
+        }
+        # Copy missing DLLs from MSYS2
+        $msys2Bin = "C:\msys64\ucrt64\bin"
+        $deps.Keys | ForEach-Object {
+            $depName = $_
+            $src = Join-Path $msys2Bin $depName
+            $dst = Join-Path $ffmpegDllDest $depName
+            if ((Test-Path $src) -and -not (Test-Path $dst)) {
+                Copy-Item $src $dst -Force
+                Write-Host "[INFO] Copied transitive dep: $depName"
+            }
+        }
+    }
 } else {
     Write-Error "[ERROR] FFmpeg shared DLLs not found at $ffmpegDllSource"
     exit 1
