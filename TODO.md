@@ -99,9 +99,14 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 
 ### Main Menu Refactor (dev46)
 - [ ] **Move main menu UI** — Extract main menu code from `main.go` to `internal/app/modules/mainmenu/`
-- [ ] **Wire Quick Access Dropdown** — Pass `FilesDropdownData` to `BuildMainMenu()`, wire `OnOpenMore`/`OnOpenFolder` callbacks
-- [ ] **Refactor showMainMenu()** — Move from `main.go` to `mainmenu` package, keep `showModule()` routing in `main.go`
-- [ ] **Estimated work** — 4-6 hours (find code ~lines 8200-8500 in main.go, extract, test)
+- [x] **Wire Quick Access Dropdown** — `FilesDropdownData` wired, `OnFileClick`/`OnOpenFolder`/`OnOpenMore` callbacks functional
+- [ ] **Refactor showMainMenu()** — Move from `mainmenu_module.go` to `internal/app/modules/mainmenu/`, keep `showModule()` routing in `main.go`
+- [ ] **Estimated work** — 4-6 hours (extract `showMainMenu()` from `mainmenu_module.go`, test)
+
+### Windows CI Fix (dev46) - DONE
+- [x] **Build FFmpeg shared DLLs** — Added CI step to build shared DLLs from source
+- [x] **Bundle in release** — `ffmpeg-dll/` subfolder now included in Windows ZIP
+- [x] **Fix Red CI** — Windows job now builds and packages correctly
 
 ### Carry-forward Issues
 - [ ] **Issue #5** — Convert UI layout consistency and label clarity pass
