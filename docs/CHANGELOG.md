@@ -1,5 +1,26 @@
 # VideoTools Changelog
 
+## v0.1.1-dev46 (June 2026)
+
+### Quick Access Dropdown - Functional
+- **FilesDropdownData wired** — `CurrentModule`, `RecentFiles`, `OnFileClick` passed to `BuildMainMenu()`
+- **OnOpenFolder callback** — Opens current module's output folder via explorer
+- **OnOpenMore callback** — Loads file into current module (`loadVideo()` for most)
+- **Recent files navigation** — Clicking recent file opens it in correct module
+
+### Windows CI Fix
+- **Build FFmpeg shared DLLs** — Added `build-ffmpeg-shared.ps1` step in Windows CI job
+- **Bundle DLLs in release** — `ffmpeg-dll/` subfolder now included in Windows ZIP
+- **Fix missing Windows artifacts** — DLLs now built before packaging
+
+### FFmpeg DLL Bootstrap (from dev45)
+- **Bundle DLLs in release** — FFmpeg shared DLLs built from source with all deps statically linked
+- **Remove BtbN download** — `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
+- **Build script** — `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs from source
+- **Legacy fallback** — `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\ffmpeg-dll` for old installs
+
+---
+
 ## v0.1.1-dev45 (May 2026)
 
 ### Convert Module Improvements - Phase 1 (HIGH)
