@@ -434,6 +434,28 @@ jobs:
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y jq
 
+      - name: Prepare publish metadata
+        id: publish-meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_base=""
+          if [ -f "VERSION" ]; then
+            version_base="$(tr -d '\r\n' < VERSION)"
+          fi
+          if [ -z "$version_base" ]; then
+            version_base="$(grep -m1 'appVersion' main.go | sed -E 's/.*"([^"]+)".*/\1/')"
+          fi
+          if [ -z "$version_base" ]; then
+            version_base="v0.1.1-dev"
+          fi
+          channel="stable"
+          if echo "$version_base" | grep -q '\-dev'; then
+            channel="dev"
+          fi
+          echo "version_base=$version_base" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+
       - name: Publish Forgejo release (dev)
         if: env.FORGEJO_TOKEN != ''
         shell: bash
@@ -446,8 +468,8 @@ jobs:
             exit 0
           fi
 
-          version_base="${{ steps.meta.outputs.version_base }}"
-          channel="${{ steps.meta.outputs.channel }}"
+          version_base="${{ steps.publish-meta.outputs.version_base }}"
+          channel="${{ steps.publish-meta.outputs.channel }}"
 
           api_url="${FORGEJO_API_URL}"
           repo="${GITHUB_REPOSITORY}"
