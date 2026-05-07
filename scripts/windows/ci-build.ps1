@@ -26,15 +26,10 @@ $env:PATH = "$msys2Bin;C:\msys64\usr\bin;$env:PATH"
 $env:CGO_ENABLED = "1"
 $env:CC = "gcc"
 $env:CXX = "g++"
-# -g0: disable debug info in CGO intermediate files; FFmpeg headers produce
-# enormous .s temp files in C:\Windows\Temp that exhaust disk space otherwise.
 $env:CGO_CFLAGS = "-IC:\ffmpeg-static\include -IC:\msys64\ucrt64\include -g0"
 $env:PKG_CONFIG_PATH = "C:\ffmpeg-static\lib\pkgconfig;C:\msys64\ucrt64\lib\pkgconfig"
 
 # Promote bz2 and zlib static archives from MSYS2 into the ffmpeg prefix
-# so the linker finds them first via -LC:/ffmpeg-static/lib.
-# x264 and x265 are built from source directly into /c/ffmpeg-static and
-# must NOT be replaced here -- their static archives have no __declspec(dllimport).
 foreach ($lib in @("bz2", "z")) {
     $src = "C:\msys64\ucrt64\lib\lib${lib}.a"
     $dst = "C:\ffmpeg-static\lib\lib${lib}.a"
@@ -50,14 +45,7 @@ if (-not $staticLibs) {
     Write-Error "pkg-config returned no flags for FFmpeg - check C:\ffmpeg-static"
     exit 1
 }
-# -lsupc++ appears transitively from x265.pc (required for FFmpeg's configure link
-# test to resolve vtable symbols against the GCC-private static archive). It must
-# NOT appear in the final binary link alongside -lstdc++ (the DLL import stub):
-# both define std::type_info::operator== and the linker rejects multiple definitions.
-# The import-stub thunks from -lstdc++ are sufficient for the final binary.
 $staticLibs = (($staticLibs -split '\s+') | Where-Object { $_ -ne '-lsupc++' }) -join ' '
-# Only add libs that pkg-config consistently omits from FFmpeg's .pc files on Windows.
-# -static-libstdc++: prevents libstdc++-6.dll runtime dependency (stdc++ appears in FFmpeg's pkg-config output)
 $env:CGO_LDFLAGS = "$staticLibs -LC:\msys64\ucrt64\lib -loleaut32 -lgdi32 -lpsapi -lavrt -lmfplat -static-libgcc -static-libstdc++ -Wl,-Bstatic,-lpthread -Wl,-Bdynamic"
 $env:CGO_LDFLAGS_ALLOW = "-Wl,.*"
 Write-Host "[INFO] CGO_LDFLAGS: $env:CGO_LDFLAGS"
@@ -132,11 +120,10 @@ if (Test-Path $ffmpegDllSource) {
         Copy-Item $_.FullName -Destination $ffmpegDllDest -Force
     }
     Write-Host "[INFO] Bundled FFmpeg DLLs in ffmpeg-dll/ subfolder"
-    # Verify DLLs were copied
     $dllCount = (Get-ChildItem -Path $ffmpegDllDest -Filter "*.dll" | Measure-Object).Count
     Write-Host "[INFO] Copied $dllCount DLLs to ffmpeg-dll/"
 } else {
-    Write-Error "[ERROR] FFmpeg shared DLLs not found at $ffmpegDllSource — build-ffmpeg-shared step may have failed"
+    Write-Error "[ERROR] FFmpeg shared DLLs not found at $ffmpegDllSource"
     exit 1
 }
 
