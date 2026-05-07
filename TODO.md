@@ -110,7 +110,7 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 
 ### Carry-forward Issues
 - [ ] **Issue #5** — Convert UI layout consistency and label clarity pass
-- [ ] **Issue #21** — Native disc authoring — remaining: PTS validation on FFmpeg-remuxed feature VOBs, hardware player testing
+- [x] **Issue #21** — Native disc authoring — PTS validation added: ValidateNAVPTMs + SynthesizeAndPatchPTMs synthesize timestamps when FFmpeg writes zero PTMs; hardware player testing needed
 - [ ] **Linux CI** — Pre-built container image to reduce apt install time
 
 ---

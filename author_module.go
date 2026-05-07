@@ -3387,6 +3387,15 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 	var mainNavInfos []ifo.NavPCKInfo
 	var mainAdmap *ifo.VOBU_ADMAP
 	if navs, err2 := vob.ScanVOBNAVPCKs(mainVOBPath); err2 == nil {
+		// Validate PTMs — FFmpeg's dvd muxer can write zero PTMs when remuxing
+		// with -c copy. Without valid PTMs, PatchVOBUSRI produces all
+		// SRIEndOfCell entries, disabling trick-play on hardware players.
+		if !vob.ValidateNAVPTMs(navs) && len(navs) > 0 {
+			logFn(fmt.Sprintf("  PTMs invalid — synthesizing %d timestamps (duration %.1fs)", len(navs), mainDuration))
+			if err3 := vob.SynthesizeAndPatchPTMs(mainVOBPath, navs, mainDuration); err3 != nil {
+				logging.Info(logging.CatDVD, "PTM synthesis failed for main VOB: %v", err3)
+			}
+		}
 		for _, n := range navs {
 			mainNavSectors = append(mainNavSectors, n.Sector)
 			mainNavInfos = append(mainNavInfos, ifo.NavPCKInfo{Sector: n.Sector, PTM: n.PTM})
@@ -3459,6 +3468,12 @@ func (s *appState) runAuthoringPipeline(ctx context.Context, paths []string, reg
 		}
 		var extraAdmap *ifo.VOBU_ADMAP
 		if navs, err2 := vob.ScanVOBNAVPCKs(extraVOBPath); err2 == nil {
+			if !vob.ValidateNAVPTMs(navs) && len(navs) > 0 {
+				logFn(fmt.Sprintf("  PTMs invalid — synthesizing %d timestamps for extra %d (%.1fs)", len(navs), vtsNum, clip.Duration))
+				if err3 := vob.SynthesizeAndPatchPTMs(extraVOBPath, navs, clip.Duration); err3 != nil {
+					logging.Info(logging.CatDVD, "PTM synthesis failed for extra %d: %v", vtsNum, err3)
+				}
+			}
 			extraSectors := make([]uint32, len(navs))
 			for j, n := range navs {
 				extraSectors[j] = n.Sector

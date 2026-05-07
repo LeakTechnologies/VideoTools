@@ -120,8 +120,136 @@ func TestPatchVOBUSRI_BackwardEntry(t *testing.T) {
 
 // TestPatchVOBUSRI_TooFewVOBUs verifies no error when count < 2.
 func TestPatchVOBUSRI_TooFewVOBUs(t *testing.T) {
-	path, navs := buildTimedVOB(t,1, 90000)
+	path, navs := buildTimedVOB(t, 1, 90000)
 	if err := PatchVOBUSRI(path, navs); err != nil {
 		t.Errorf("PatchVOBUSRI with 1 VOBU: %v", err)
+	}
+}
+
+// ─── ValidateNAVPTMs ─────────────────────────────────────────────────────────
+
+func TestValidateNAVPTMs_Valid(t *testing.T) {
+	navs := []NAVPCKInfo{
+		{Sector: 0, PTM: 0},
+		{Sector: 5, PTM: 90000},
+		{Sector: 10, PTM: 180000},
+	}
+	if !ValidateNAVPTMs(navs) {
+		t.Error("expected valid PTMs to pass validation")
+	}
+}
+
+func TestValidateNAVPTMs_AllZero(t *testing.T) {
+	navs := []NAVPCKInfo{
+		{Sector: 0, PTM: 0},
+		{Sector: 5, PTM: 0},
+		{Sector: 10, PTM: 0},
+	}
+	if ValidateNAVPTMs(navs) {
+		t.Error("all-zero PTMs should fail validation")
+	}
+}
+
+func TestValidateNAVPTMs_NonMonotonic(t *testing.T) {
+	navs := []NAVPCKInfo{
+		{Sector: 0, PTM: 90000},
+		{Sector: 5, PTM: 45000}, // decreases
+		{Sector: 10, PTM: 180000},
+	}
+	if ValidateNAVPTMs(navs) {
+		t.Error("non-monotonic PTMs should fail validation")
+	}
+}
+
+func TestValidateNAVPTMs_OneNonZero(t *testing.T) {
+	navs := []NAVPCKInfo{
+		{Sector: 0, PTM: 0},
+		{Sector: 5, PTM: 90000},
+		{Sector: 10, PTM: 0},
+	}
+	// Only one non-zero but they're not monotonic — should fail
+	if ValidateNAVPTMs(navs) {
+		t.Error("single non-zero with regression should fail validation")
+	}
+}
+
+func TestValidateNAVPTMs_Empty(t *testing.T) {
+	if ValidateNAVPTMs(nil) {
+		t.Error("empty slice should fail validation")
+	}
+}
+
+// ─── SynthesizeAndPatchPTMs ──────────────────────────────────────────────────
+
+func TestSynthesizeAndPatchPTMs_LinearSpread(t *testing.T) {
+	// VOB with 5 NAV_PCKs all having PTM=0 (simulates FFmpeg zero-PTM output).
+	path, navs := buildTimedVOB(t, 5, 0)
+
+	const duration = 4.0 // seconds
+	if err := SynthesizeAndPatchPTMs(path, navs, duration); err != nil {
+		t.Fatalf("SynthesizeAndPatchPTMs: %v", err)
+	}
+
+	// After synthesis, navs should have linearly distributed PTMs.
+	// duration=4s, 5 VOBUs → step = 4*90000/4 = 90000 ticks per VOBU.
+	expected := []uint32{0, 90000, 180000, 270000, 360000}
+	for i, want := range expected {
+		if navs[i].PTM != want {
+			t.Errorf("navs[%d].PTM = %d, want %d", i, navs[i].PTM, want)
+		}
+	}
+
+	// Verify the VOB file was patched correctly.
+	got, err := ScanVOBNAVPCKs(path)
+	if err != nil {
+		t.Fatalf("ScanVOBNAVPCKs after patch: %v", err)
+	}
+	for i, want := range expected {
+		if got[i].PTM != want {
+			t.Errorf("on-disk PTM[%d] = %d, want %d", i, got[i].PTM, want)
+		}
+	}
+}
+
+func TestSynthesizeAndPatchPTMs_SingleVOBU(t *testing.T) {
+	path, navs := buildTimedVOB(t, 1, 0)
+	if err := SynthesizeAndPatchPTMs(path, navs, 10.0); err != nil {
+		t.Fatalf("SynthesizeAndPatchPTMs single: %v", err)
+	}
+	if navs[0].PTM != 0 {
+		t.Errorf("single VOBU PTM = %d, want 0", navs[0].PTM)
+	}
+}
+
+func TestSynthesizeAndPatchPTMs_MakesValidForSRI(t *testing.T) {
+	// Zero PTMs would make PatchVOBUSRI produce all SRIEndOfCell entries.
+	// After synthesis they should produce valid seek entries.
+	path, navs := buildTimedVOB(t, 10, 0)
+
+	if err := SynthesizeAndPatchPTMs(path, navs, 9.0); err != nil {
+		t.Fatalf("SynthesizeAndPatchPTMs: %v", err)
+	}
+	if !ValidateNAVPTMs(navs) {
+		t.Fatal("PTMs should be valid after synthesis")
+	}
+
+	if err := PatchVOBUSRI(path, navs); err != nil {
+		t.Fatalf("PatchVOBUSRI after synthesis: %v", err)
+	}
+
+	// At least one SRI entry in the first sector should be non-SRIEndOfCell.
+	f, _ := os.Open(path)
+	defer f.Close()
+	buf := make([]byte, PackSize)
+	f.Read(buf)
+	allEndOfCell := true
+	for k := 0; k < dsiVOBUSRICount; k++ {
+		if binary.BigEndian.Uint32(buf[sriByteOffset+k*4:]) != SRIEndOfCell {
+			allEndOfCell = false
+			break
+		}
+	}
+	if allEndOfCell {
+		t.Error("all SRI entries are SRIEndOfCell after synthesis — seek table not built")
 	}
 }
