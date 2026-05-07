@@ -519,6 +519,16 @@ jobs:
           rm -rf /tmp/x264-src /tmp/x265-src /tmp/x265-build /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
           echo "[INFO] FFmpeg shared DLLs built in $shared_dir/dll/"
 
+      - name: Verify FFmpeg shared DLLs
+        run: |
+          if (Test-Path "C:\ffmpeg-shared\dll") {
+            $dllCount = (Get-ChildItem "C:\ffmpeg-shared\dll\*.dll" | Measure-Object).Count
+            Write-Host "[INFO] Found $dllCount DLLs in C:\ffmpeg-shared\dll\"
+          } else {
+            Write-Error "[ERROR] C:\ffmpeg-shared\dll\ not found!"
+            exit 1
+          }
+
       - name: Build Windows package
         env:
           # SignPath.io (free OSS signing — https://signpath.io/product/open-source)
@@ -558,7 +568,6 @@ jobs:
         with:
           name: VideoTools-linux
           path: dist/linux
-        continue-on-error: true
 
       - name: Download Windows artifacts
         uses: actions/download-artifact@v3
