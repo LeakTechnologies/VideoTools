@@ -105,44 +105,50 @@ jobs:
             echo "[INFO] FFmpeg ${ver} already built (marker: $marker)"
             exit 0
           fi
-          mkdir -p /opt/ffmpeg-static
+          mkdir -p /opt/ffmpeg-static/lib/pkgconfig
+          mkdir -p /opt/ffmpeg-static/include
 
-          # Build x264 from source (static only)
-          echo "[INFO] Building x264 from source..."
+          # Build x264 from source (static only, no DLL)
+          echo "[INFO] Building x264 from source (static only)..."
           rm -rf /tmp/x264-src
           git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
           cd /tmp/x264-src
           ./configure --prefix=/opt/ffmpeg-static --enable-static --disable-shared --disable-opencl --disable-cli
           make -j$(nproc) && make install
-          cd /tmp && rm -rf /tmp/x264-src
+          cp /opt/ffmpeg-static/lib/pkgconfig/x264.pc /ucrt64/lib/pkgconfig/x264.pc || true
+          rm -rf /tmp/x264-src
 
-          # Build x265 from source (static only)
-          echo "[INFO] Building x265 from source..."
+          # Build x265 from source (static only, no DLL)
+          echo "[INFO] Building x265 from source (static only)..."
           rm -rf /tmp/x265-src /tmp/x265-build
           git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
           cd /tmp/x265-src && git tag 4.1.0
           mkdir /tmp/x265-build && cd /tmp/x265-build
-          cmake -DCMAKE_INSTALL_PREFIX=/opt/ffmpeg-static \
+          cmake -G "Unix Makefiles" \
+                -DCMAKE_INSTALL_PREFIX=/opt/ffmpeg-static \
                 -DENABLE_SHARED=OFF -DENABLE_CLI=OFF \
                 -DCMAKE_BUILD_TYPE=Release \
-                /tmp/x265-src/source
+                ../x265-src/source
           make -j$(nproc) && make install
-          cd /tmp && rm -rf /tmp/x265-src /tmp/x265-build
+          rm -rf /tmp/x265-src /tmp/x265-build
 
-          # Overwrite x265.pc: CMake omits C++ runtime from Libs, leaving operator
-          # new, RTTI vtables etc. unresolved in FFmpeg's configure link test.
-          # FFmpeg configure calls `pkg-config --libs` (no --static), so Libs.private
-          # is never included. C++ deps must be in Libs for the link test to succeed.
-          echo 'prefix=/opt/ffmpeg-static'          > /opt/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'exec_prefix=${prefix}'             >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'libdir=${prefix}/lib'              >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'includedir=${prefix}/include'      >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo ''                                  >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Name: x265'                        >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Description: H.265/HEVC encoder'  >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Version: 4.1.0'                    >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          # Overwrite x265.pc
+          echo 'prefix=/opt/ffmpeg-static'           > /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'exec_prefix=${prefix}'            >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'libdir=${prefix}/lib'             >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'includedir=${prefix}/include'     >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo ''                                 >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Name: x265'                       >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Description: H.265/HEVC encoder' >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Version: 4.1.0'                   >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Libs: -L${libdir} -lx265 -lstdc++ -lm' >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
-          echo 'Cflags: -I${includedir}'          >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          echo 'Cflags: -I${includedir}'         >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
+          cp /opt/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc || true
+
+          echo "[INFO] pkg-config diagnostics:"
+          echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+          echo "  x265 --exists: $(pkg-config --exists x265 2>&1 && echo OK || echo FAIL)"
+          echo "  x265 --libs:   $(pkg-config --libs x265 2>&1 || echo FAIL)"
 
           # Build FFmpeg from source
           echo "[INFO] Building FFmpeg ${ver} from source..."
@@ -151,18 +157,19 @@ jobs:
           tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
           mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
           cd /tmp/ffmpeg-src
-          PKG_CONFIG_PATH=/opt/ffmpeg-static/lib/pkgconfig \
           ./configure \
             --prefix=/opt/ffmpeg-static \
             --enable-static --disable-shared --enable-pic \
             --disable-doc --disable-programs --disable-debug \
             --enable-gpl --enable-version3 --enable-avfilter \
             --enable-libx264 --enable-libx265 \
-            --extra-cflags="-I/opt/ffmpeg-static/include" \
-            --extra-ldflags="-L/opt/ffmpeg-static/lib" \
-            || { echo "=== config.log (last 80 lines) ==="; tail -80 ffbuild/config.log; exit 1; }
+            --disable-vaapi --disable-iconv \
+            --extra-cflags='-I/opt/ffmpeg-static/include -I/ucrt64/include' \
+            --extra-ldflags='-L/opt/ffmpeg-static/lib -L/ucrt64/lib' \
+            || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
           make -j$(nproc) && make install
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
+          cd /tmp
 
           touch "$marker"
           echo "[INFO] FFmpeg ${ver} Linux build complete"
@@ -170,17 +177,14 @@ jobs:
       - name: Build Linux package
         env:
           PKG_CONFIG_PATH: /opt/ffmpeg-static/lib/pkgconfig
-          VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
         run: |
           set -euo pipefail
-          export CGO_LDFLAGS="$(pkg-config --libs --static libavcodec libavformat libswscale libavutil libswresample 2>/dev/null || true)"
           chmod +x scripts/linux/build.sh
           ./scripts/linux/build.sh
 
       - name: Build Linux AppImage
         env:
           VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
-          VT_VERSION_BASE: ${{ steps.meta.outputs.version_base }}
         run: |
           mkdir -p .cache/appimage
           curl -L -o .cache/appimage/linuxdeploy-x86_64.AppImage https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
@@ -196,16 +200,19 @@ jobs:
           channel="${{ steps.meta.outputs.channel }}"
           version_base="${{ steps.meta.outputs.version_base }}"
           artifact_src="$(ls dist/linux/${channel}/*.zip | head -n1)"
-          artifact_dst="dist/linux/${channel}/${version_base}_linux.zip"
+          artifact_dst="dist/linux/${version_base}_linux.zip"
           mv "$artifact_src" "$artifact_dst"
+          if [ -d "dist/linux/${channel}" ]; then
+            mv "dist/linux/${channel}/"*.AppImage "dist/linux/${version_base}_linux.AppImage"
+          fi
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v3
         with:
           name: VideoTools-linux
           path: |
-            dist/linux/${{ steps.meta.outputs.channel }}/*.zip
-            dist/linux/${{ steps.meta.outputs.channel }}/*.AppImage
+            dist/linux/*.zip
+            dist/linux/*.AppImage
 
   windows-package:
     runs-on: windows
@@ -257,58 +264,9 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Windows runner diagnostics
-        run: |
-          $reportDir = Join-Path $env:GITHUB_WORKSPACE "dist\\windows\\diagnostics"
-          New-Item -ItemType Directory -Force -Path $reportDir | Out-Null
-          $reportPath = Join-Path $reportDir "windows-runner.txt"
-
-          function Resolve-KitTool {
-            param([string]$exeName)
-            $cmd = Get-Command $exeName -ErrorAction SilentlyContinue
-            if ($cmd) { return $cmd.Path }
-            $kitsRoot = "${env:ProgramFiles(x86)}\\Windows Kits\\10\\bin"
-            if (-not (Test-Path $kitsRoot)) { return "" }
-            $candidates = Get-ChildItem -Path $kitsRoot -Directory | Sort-Object Name -Descending
-            foreach ($dir in $candidates) {
-              $path = Join-Path $dir.FullName "x64\\$exeName"
-              if (Test-Path $path) { return $path }
-            }
-            return ""
-          }
-
-          $osInfo = Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber
-          $goVersion = ""
-          if (Get-Command go -ErrorAction SilentlyContinue) { $goVersion = (go version) }
-          $gccVersion = ""
-          if (Get-Command gcc -ErrorAction SilentlyContinue) { $gccVersion = (gcc --version | Select-Object -First 1) }
-          $windresVersion = ""
-          if (Get-Command windres -ErrorAction SilentlyContinue) { $windresVersion = (windres --version | Select-Object -First 1) }
-          $makeappxPath = Resolve-KitTool -exeName "makeappx.exe"
-          $signtoolPath = Resolve-KitTool -exeName "signtool.exe"
-
-          @(
-            "OS: $($osInfo.Caption) $($osInfo.Version) (Build $($osInfo.BuildNumber))",
-            "Go: $goVersion",
-            "GCC: $gccVersion",
-            "windres: $windresVersion",
-            "makeappx.exe: " + ($(if ($makeappxPath) { $makeappxPath } else { "MISSING" })),
-            "signtool.exe: " + ($(if ($signtoolPath) { $signtoolPath } else { "MISSING" }))
-          ) | Out-File -FilePath $reportPath -Encoding UTF8
-
-      - name: Upload Windows diagnostics
-        uses: actions/upload-artifact@v3
-        with:
-          name: VideoTools-windows-diagnostics
-          path: dist/windows/diagnostics/windows-runner.txt
-
       - name: Install MSYS2 toolchain and codec deps
         run: |
           $ErrorActionPreference = 'Continue'
-          # MSYS2 must be pre-installed on the runner.
-          # One-time setup: run scripts/ci/bootstrap-windows.ps1 from a user session,
-          # or install from https://www.msys2.org then:
-          #   pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain
           if (-not (Test-Path "C:\msys64\usr\bin\bash.exe")) {
             Write-Error "MSYS2 not found at C:\msys64. Run scripts/ci/bootstrap-windows.ps1 from a user session to set up the runner."
             exit 1
@@ -317,10 +275,6 @@ jobs:
 
           $bashPath = "C:\msys64\usr\bin\bash.exe"
 
-          # Helper: run bash with stderr merged inside bash before PowerShell sees it.
-          # Using PowerShell's 2>&1 creates ErrorRecord objects that trigger Stop
-          # even after ForEach-Object. Wrapping in a bash subshell with its own
-          # 2>&1 means PowerShell only ever receives stdout — no ErrorRecords.
           function Invoke-Bash([string]$cmd) {
             & $bashPath -lc "( $cmd ) 2>&1" | ForEach-Object { Write-Host "$_" }
             if ($LASTEXITCODE -ne 0) {
@@ -329,7 +283,7 @@ jobs:
             }
           }
 
-          # Toolchain (gcc, make, etc.)
+          # Toolchain
           if (-not (Test-Path "C:\msys64\ucrt64\bin\gcc.exe")) {
             Write-Host "[INFO] Installing ucrt64 toolchain..."
             Invoke-Bash "pacman -Sy --noconfirm && pacman -S --needed --noconfirm base-devel mingw-w64-ucrt-x86_64-toolchain"
@@ -337,10 +291,7 @@ jobs:
             Write-Host "[INFO] ucrt64 toolchain present"
           }
 
-          # nasm: assembly optimiser required by x264/x265 source builds
-          # cmake: required to build x265 from source
-          # x264/x265 are built from source as static-only (no DLL) so FFmpeg
-          # compiles without __declspec(dllimport), enabling true static linkage.
+          # nasm, cmake
           Write-Host "[INFO] Installing nasm and cmake..."
           Invoke-Bash "pacman -S --needed --noconfirm nasm mingw-w64-ucrt-x86_64-cmake"
           Write-Host "[INFO] Build tools ready"
@@ -359,7 +310,7 @@ jobs:
           mkdir -p /c/ffmpeg-static/lib/pkgconfig
           mkdir -p /c/ffmpeg-static/include
 
-          # Build x264 from source (static only, no DLL — avoids __declspec(dllimport))
+          # Build x264 from source (static only)
           echo "[INFO] Building x264 from source (static only)..."
           rm -rf /tmp/x264-src
           git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
@@ -369,7 +320,7 @@ jobs:
           cp /c/ffmpeg-static/lib/pkgconfig/x264.pc /ucrt64/lib/pkgconfig/x264.pc
           rm -rf /tmp/x264-src
 
-          # Build x265 from source (static only, no DLL)
+          # Build x265 from source (static only)
           echo "[INFO] Building x265 from source (static only)..."
           rm -rf /tmp/x265-src /tmp/x265-build
           git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
@@ -379,17 +330,11 @@ jobs:
                 -DCMAKE_INSTALL_PREFIX=/c/ffmpeg-static \
                 -DENABLE_SHARED=OFF -DENABLE_CLI=OFF \
                 -DCMAKE_BUILD_TYPE=Release \
-                /tmp/x265-src/source
+                ../x265-src/source
           make -j$(nproc) && make install
           rm -rf /tmp/x265-src /tmp/x265-build
 
-          # Overwrite x265.pc: CMake writes Windows paths + CRLF line endings;
-          # MSYS2 pkg-config cannot parse either. Write with echo (LF, POSIX paths).
-          # C++ runtime deps go in Libs (not Libs.private) because FFmpeg configure
-          # calls `pkg-config --libs` without --static, so Libs.private is never seen.
-          # -lstdc++ satisfies std::__throw_length_error via the DLL import stub.
-          # -lsupc++ (GCC private static archive) satisfies operator new/delete,
-          # __cxa_guard_acquire/release, and RTTI vtables.
+          # Overwrite x265.pc
           echo 'prefix=/c/ffmpeg-static'           > /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'exec_prefix=${prefix}'            >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'libdir=${prefix}/lib'             >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
@@ -400,7 +345,6 @@ jobs:
           echo 'Version: 4.1.0'                   >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Libs: -L${libdir} -lx265 -lstdc++ -lsupc++ -lm' >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Cflags: -I${includedir}'         >> /c/ffmpeg-static/lib/pkgconfig/x265.pc
-
           cp /c/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc
 
           echo "[INFO] pkg-config diagnostics:"
@@ -435,110 +379,20 @@ jobs:
       - name: Free disk space before Go build
         run: |
           $ErrorActionPreference = 'Continue'
-          # MSYS2 package cache and temp files from the FFmpeg build can consume
-          # several GB; remove them before the CGO build to avoid "No space left
-          # on device" errors during GCC intermediate file generation.
-          Write-Host "[INFO] Cleaning MSYS2 pacman cache..."
           Remove-Item "C:\msys64\var\cache\pacman\pkg\*" -Recurse -Force -ErrorAction SilentlyContinue
-          Write-Host "[INFO] Cleaning MSYS2 tmp..."
           Remove-Item "C:\msys64\tmp\*" -Recurse -Force -ErrorAction SilentlyContinue
-
-          # Go build cache — transient compilation artefacts, safe to wipe before each run.
-          Write-Host "[INFO] Cleaning Go build cache..."
           Remove-Item "$env:LOCALAPPDATA\go-build\*" -Recurse -Force -ErrorAction SilentlyContinue
-          # SYSTEM account Go caches live under the system profile, not the user profile.
           Remove-Item "C:\Windows\System32\config\systemprofile\AppData\Local\go-build\*" -Recurse -Force -ErrorAction SilentlyContinue
-
-          # Go module cache — accumulates every module version ever downloaded and is
-          # never self-pruned. This is the primary long-term C: drain on the runner.
-          Write-Host "[INFO] Cleaning Go module cache..."
           Remove-Item "$env:GOPATH\pkg\mod\*" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item "C:\Windows\System32\config\systemprofile\go\pkg\mod\*" -Recurse -Force -ErrorAction SilentlyContinue
-
-          Write-Host "[INFO] Cleaning Windows temp..."
           Remove-Item "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
           Remove-Item "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
           Write-Host "[INFO] Disk cleanup complete"
           Get-PSDrive C | Select-Object Used, Free | ForEach-Object { Write-Host "[INFO] C: used=$([math]::Round($_.Used/1GB,1))GB free=$([math]::Round($_.Free/1GB,1))GB" }
 
-      - name: Build FFmpeg shared DLLs for runtime
-        shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
-        env:
-          MSYSTEM: UCRT64
-        run: |
-          ver="${{ env.FFMPEG_VERSION }}"
-          shared_dir="/c/ffmpeg-shared"
-          build_dir="/c/ffmpeg-shared-build"
-          rm -rf "$shared_dir" "$build_dir"
-          mkdir -p "$shared_dir/dll"
-
-          # Build x264 (static, for linking into FFmpeg shared)
-          echo "[INFO] Building x264 for shared FFmpeg..."
-          rm -rf /tmp/x264-src
-          git clone --depth=1 https://code.videolan.org/videolan/x264.git /tmp/x264-src
-          cd /tmp/x264-src
-          ./configure --prefix=$shared_dir --enable-static --disable-shared --disable-cli --disable-interlaced --disable-asm
-          make -j$(nproc) && make install
-
-          # Build x265 (static, for linking into FFmpeg shared)
-          echo "[INFO] Building x265 for shared FFmpeg..."
-          rm -rf /tmp/x265-src /tmp/x265-build
-          git clone --depth=1 https://bitbucket.org/multicoreware/x265_git.git /tmp/x265-src
-          cd /tmp/x265-src && git tag 4.1.0
-          mkdir /tmp/x265-build && cd /tmp/x265-build
-          cmake -G 'MSYS Makefiles' \
-                -DCMAKE_INSTALL_PREFIX=$shared_dir \
-                -DENABLE_SHARED=OFF -DENABLE_CLI=OFF \
-                -DCMAKE_BUILD_TYPE=Release \
-                ../x265-src/source
-          make -j$(nproc) && make install
-
-          # Build FFmpeg shared DLLs
-          echo "[INFO] Building FFmpeg ${ver} shared DLLs..."
-          rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
-          wget -q -O /tmp/ffmpeg.tar.bz2 "https://ffmpeg.org/releases/ffmpeg-${ver}.tar.bz2"
-          tar xf /tmp/ffmpeg.tar.bz2 -C /tmp
-          mv /tmp/ffmpeg-${ver} /tmp/ffmpeg-src
-          cd /tmp/ffmpeg-src
-          ./configure \
-            --prefix=$shared_dir \
-            --enable-shared --disable-static \
-            --disable-doc --disable-programs \
-            --enable-gpl --enable-version3 \
-            --enable-libx264 --enable-libx265 \
-            --disable-vaapi --disable-iconv \
-            --extra-cflags="-I${shared_dir}/include" \
-            --extra-ldflags="-L${shared_dir}/lib"
-          make -j$(nproc) && make install
-
-          # Copy only DLLs to dll/ subfolder
-          echo "[INFO] Copying DLLs to dll/ subfolder..."
-          cp "$shared_dir/bin/"*.dll "$shared_dir/dll/"
-          ls -la "$shared_dir/dll/"
-
-          rm -rf /tmp/x264-src /tmp/x265-src /tmp/x265-build /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
-          echo "[INFO] FFmpeg shared DLLs built in $shared_dir/dll/"
-
-      - name: Verify FFmpeg shared DLLs
-        run: |
-          if (Test-Path "C:\ffmpeg-shared\dll") {
-            $dllCount = (Get-ChildItem "C:\ffmpeg-shared\dll\*.dll" | Measure-Object).Count
-            Write-Host "[INFO] Found $dllCount DLLs in C:\ffmpeg-shared\dll\"
-          } else {
-            Write-Error "[ERROR] C:\ffmpeg-shared\dll\ not found!"
-            exit 1
-          }
-
       - name: Build Windows package
         env:
-          # SignPath.io (free OSS signing — https://signpath.io/product/open-source)
-          # Set these secrets once approved; signing is skipped when absent.
-          SIGNPATH_API_TOKEN:       ${{ secrets.SIGNPATH_API_TOKEN }}
-          SIGNPATH_ORGANIZATION_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
-          # PFX fallback (dev/self-signed; leave empty to skip)
-          VT_SIGN_PFX_B64:   ${{ secrets.VT_SIGN_PFX_B64 }}
-          VT_SIGN_PASSWORD:  ${{ secrets.VT_SIGN_PASSWORD }}
-          VT_SIGN_TIMESTAMP: ${{ secrets.VT_SIGN_TIMESTAMP }}
+          VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
         run: |
           $ErrorActionPreference = 'Continue'
           & (Join-Path $env:GITHUB_WORKSPACE "scripts\windows\ci-build.ps1")
@@ -592,73 +446,23 @@ jobs:
             exit 0
           fi
 
-          if [ -z "${FORGEJO_API_URL:-}" ]; then
-            echo "FORGEJO_API_URL is required in secrets."
-            exit 1
-          fi
-          if [ -z "${FORGEJO_TOKEN:-}" ]; then
-            echo "FORGEJO_TOKEN is required in secrets."
-            exit 1
-          fi
-
-          version_base=""
-          if [ -f "VERSION" ]; then
-            version_base="$(tr -d '\r\n' < VERSION)"
-          fi
-          if [ -z "$version_base" ]; then
-            version_base="$(grep -m1 'appVersion' main.go | sed -E 's/.*"([^"]+)".*/\1/')"
-          fi
-          if [ -z "$version_base" ]; then
-            version_base="v0.1.1-dev"
-          fi
-          channel="stable"
-          prerelease="false"
-          if echo "$version_base" | grep -q '\-dev'; then
-            channel="dev"
-            prerelease="true"
-          fi
+          version_base="${{ steps.meta.outputs.version_base }}"
+          channel="${{ steps.meta.outputs.channel }}"
 
           api_url="${FORGEJO_API_URL}"
           repo="${GITHUB_REPOSITORY}"
           tag="${version_base}"
           name="Build ${version_base}"
-          changelog_file="docs/CHANGELOG.md"
-
-          changelog_section=""
-          if [ -f "${changelog_file}" ]; then
-            changelog_section=$(awk -v ver="${version_base}" '
-              BEGIN { capture=0 }
-              $0 ~ "^## " {
-                if (capture) exit
-                if ($0 ~ "^## " ver "([[:space:]]|$)") { capture=1; next }
-              }
-              capture { print }
-            ' "${changelog_file}")
+          prerelease="false"
+          if echo "$version_base" | grep -q '\-dev'; then
+            prerelease="true"
           fi
 
-          release_body="Nightly build from ${GITHUB_SHA} (Forgejo dev pipeline). Assets are replaced each run."
-          changelog_highlights=""
-          if [ -n "${changelog_section}" ]; then
-            changelog_highlights=$(printf '%s\n' "${changelog_section}" | awk '
-              BEGIN { count=0 }
-              /^- / {
-                line=$0
-                sub(/^- \*\*/, "- ", line)
-                sub(/\*\* - /, ": ", line)
-                print line
-                count++
-                if (count >= 8) exit
-              }
-            ')
-          fi
-          if [ -n "${changelog_highlights}" ]; then
-            release_body="${release_body}"$'\n\n'"### Highlights (${version_base})"$'\n'"${changelog_highlights}"$'\n\n'"Full details: docs/CHANGELOG.md"
-          fi
-
+          # Create release
           release_payload=$(jq -n \
             --arg tag "${tag}" \
             --arg name "${name}" \
-            --arg body "${release_body}" \
+            --arg body "Nightly build from ${GITHUB_SHA} (Forgejo dev pipeline). Assets are replaced each run." \
             --arg target "${GITHUB_SHA}" \
             --argjson prerelease "${prerelease}" \
             '{
@@ -675,6 +479,7 @@ jobs:
 
           release_id=$(echo "${release_json}" | jq -r '.id // empty')
           if [ -z "${release_id}" ]; then
+            # Release might already exist, try to get it
             release_json=$(curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
               "${api_url}/repos/${repo}/releases/tags/${tag}" || true)
             release_id=$(echo "${release_json}" | jq -r '.id // empty')
@@ -686,71 +491,12 @@ jobs:
             exit 1
           fi
 
-          update_payload=$(jq -n \
-            --arg tag "${tag}" \
-            --arg name "${name}" \
-            --arg body "${release_body}" \
-            --arg target "${GITHUB_SHA}" \
-            --argjson prerelease "${prerelease}" \
-            '{
-              tag_name: $tag,
-              name: $name,
-              body: $body,
-              draft: false,
-              prerelease: $prerelease,
-              target_commitish: $target
-            }')
-          curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" -H "Content-Type: application/json" \
-            -X PATCH "${api_url}/repos/${repo}/releases/${release_id}" -d "${update_payload}" >/dev/null
-
-          purge_release_assets() {
-            local assets_json
-            local delete_error=0
-            assets_json=$(curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" \
-              "${api_url}/repos/${repo}/releases/${release_id}/assets")
-            if [ -z "${assets_json}" ]; then
-              return
-            fi
-            mapfile -t asset_ids < <(echo "${assets_json}" | jq -r '.[].id')
-            for asset_id in "${asset_ids[@]}"; do
-              if [ -n "${asset_id}" ] && [ "${asset_id}" != "null" ]; then
-                echo "Removing existing asset id=${asset_id}..."
-                if ! curl -fsS -X DELETE -H "Authorization: token ${FORGEJO_TOKEN}" \
-                  "${api_url}/repos/${repo}/releases/${release_id}/assets/${asset_id}" >/dev/null; then
-                  echo "Failed to delete asset id=${asset_id}."
-                  delete_error=1
-                fi
-              fi
-            done
-            if [ "${delete_error}" -ne 0 ]; then
-              echo "Asset purge failed; aborting upload."
-              exit 1
-            fi
-          }
-
-          delete_asset_by_name() {
-            local target_name="$1"
-            local assets_json asset_id
-            assets_json=$(curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" \
-              "${api_url}/repos/${repo}/releases/${release_id}/assets")
-            asset_id=$(echo "${assets_json}" | jq -r --arg n "${target_name}" '.[] | select(.name == $n) | .id' | head -n1)
-            if [ -n "${asset_id}" ] && [ "${asset_id}" != "null" ]; then
-              echo "Removing existing asset name=${target_name} id=${asset_id}..."
-              curl -fsS -X DELETE -H "Authorization: token ${FORGEJO_TOKEN}" \
-                "${api_url}/repos/${repo}/releases/${release_id}/assets/${asset_id}" >/dev/null
-            fi
-          }
-
-          echo "Purging existing release assets..."
-          purge_release_assets
-
-          # Upload only existing artifacts
+          # Upload Linux assets
           if [ -d "dist/linux" ]; then
             for file in dist/linux/*.zip dist/linux/*.AppImage; do
-              if [ -f "${file}" ]; then
-                name=$(basename "${file}")
+              if [ -f "$file" ]; then
+                name=$(basename "$file")
                 echo "Uploading ${name}..."
-                delete_asset_by_name "${name}"
                 curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" \
                   -H "Content-Type: application/octet-stream" \
                   --data-binary @"${file}" \
@@ -759,12 +505,12 @@ jobs:
             done
           fi
 
+          # Upload Windows assets
           if [ -d "dist/windows" ]; then
             for file in dist/windows/*.zip; do
-              if [ -f "${file}" ]; then
-                name=$(basename "${file}")
+              if [ -f "$file" ]; then
+                name=$(basename "$file")
                 echo "Uploading ${name}..."
-                delete_asset_by_name "${name}"
                 curl -fsS -H "Authorization: token ${FORGEJO_TOKEN}" \
                   -H "Content-Type: application/octet-stream" \
                   --data-binary @"${file}" \
@@ -773,7 +519,4 @@ jobs:
             done
           fi
 
-      - name: Skip release upload (missing token)
-        if: env.FORGEJO_TOKEN == ''
-        run: |
-          echo "FORGEJO_TOKEN not set; skipping release upload."
+          echo "Release ${tag} published successfully."
