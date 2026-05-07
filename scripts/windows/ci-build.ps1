@@ -119,10 +119,28 @@ if (($hasPfx -or $hasSignPath) -and (Test-Path $signScript)) {
 $distDir = Join-Path $projectRoot "dist\windows"
 New-Item -ItemType Directory -Force -Path $distDir | Out-Null
 $pkgDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "vt-build-$([Guid]::NewGuid())") -Force
+
+# Main executable
 Copy-Item $buildOutput -Destination $pkgDir.FullName -Force
+
+# Bundle FFmpeg DLLs in ffmpeg-dll/ subfolder (not root!)
+$ffmpegDllSource = "C:\ffmpeg-shared\dll"
+$ffmpegDllDest = Join-Path $pkgDir.FullName "ffmpeg-dll"
+if (Test-Path $ffmpegDllSource) {
+    New-Item -ItemType Directory -Force -Path $ffmpegDllDest | Out-Null
+    Get-ChildItem -Path $ffmpegDllSource -Filter "*.dll" | ForEach-Object {
+        Copy-Item $_.FullName -Destination $ffmpegDllDest -Force
+    }
+    Write-Host "[INFO] Bundled FFmpeg DLLs in ffmpeg-dll/ subfolder"
+} else {
+    Write-Host "[WARN] FFmpeg shared DLLs not found at $ffmpegDllSource — run build-ffmpeg-shared.ps1 first"
+}
+
+# README
 if (Test-Path (Join-Path $projectRoot "README.md")) {
     Copy-Item (Join-Path $projectRoot "README.md") -Destination $pkgDir.FullName -Force
 }
+
 $artifactPath = Join-Path $distDir "${appVersion}_windows.zip"
 if (Test-Path $artifactPath) { Remove-Item $artifactPath -Force }
 Compress-Archive -Path (Join-Path $pkgDir.FullName "*") -DestinationPath $artifactPath

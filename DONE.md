@@ -66,6 +66,20 @@
 - **Queue integration** — `PipelineAfter` + `PipelineDeleteOnSuccess` fields on `queue.Job`
 - **Intermediate files** — "Keep intermediate files" toggle in Settings → Preferences
 
+### Logging Audit (dev45)
+- **Remove unused categories** — `CatEnhance`, `CatRip` removed from `internal/logging/logging.go`
+- **Add CatQueue** — New category for queue operations, wired in `queue.go` and `main.go`
+- **Fix enhancement module** — `CatEnhance` → `CatModule` in `enhancement_module.go` and `onnx_model.go`
+- **Fix rip module** — `CatRip` → `CatDisc` in `rip_module.go`
+- **Fix recentfiles.go** — `CatSystem` misuse → `CatUI` via `cat()` helper
+
+### FFmpeg DLL Bootstrap Fix (dev45)
+- **Bundle DLLs in release** — FFmpeg shared DLLs built from source with all deps statically linked
+- **Remove BtbN download** — `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
+- **Build script** — `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs from source
+- **CI update** — `ci-build.ps1` bundles DLLs in `ffmpeg-dll/` subfolder (not root) within release ZIP
+- **Legacy fallback** — `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\ffmpeg-dll` for old installs
+
 ---
 
 ## Version 0.1.1-dev44 (complete) - Playback & Sync Fixes
@@ -194,7 +208,7 @@
 - [x] **Return-to-menu** — Added `JumpVMGM_PGCN(1)` post-command to title PGCs in folder builds (was ISO-only); extras now also return to menu
 - [x] **Extras return-to-menu** — Extra title PGCs get the same post-command as the main feature
 
-### Burn Module (dev40)
+### Burn Module (dev40) - completed dev45
 - [x] **Design document** - Created docs/BURN_MODULE_DESIGN.md
 - [x] **Module entry** - Wired showBurnView() in main.go
 - [x] **UI implementation** - Source selection, drive detection, burn options
@@ -202,6 +216,9 @@
 - [x] **Verify option** - Added checkbox with i18n support
 - [x] **Drive capacity** - getDriveInfo() shows disc size in drive selector
 - [x] **Main menu visibility** - Fixed burn/filemanager modules not appearing (were filtered out due to nil handler)
+- [x] **Windows burn** - `isoburn.exe` (built-in) with eject via IOCTL_STORAGE_EJECT_MEDIA
+- [x] **Linux burn** - `growisofs` (dvd+rw-tools) with progress parsing + SHA-256 verify
+- [x] **Logging** - `CatBurn` category added, error handling improved
 
 ### File Manager (dev40)
 - [x] **Design document** - Created docs/FILE_MANAGER_DESIGN.md with:

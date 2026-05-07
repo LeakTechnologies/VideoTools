@@ -41,7 +41,6 @@ const (
 	CatSystem  Category = "[SYS]"
 	CatModule  Category = "[MODULE]"
 	CatPlayer  Category = "[PLAYER]"
-	CatEnhance Category = "[ENHANCE]"
 	CatDVD     Category = "[DVD]"
 	CatDisc    Category = "[DISC]"
 	CatConvert Category = "[CONVERT]"
@@ -50,9 +49,9 @@ const (
 	CatFilters Category = "[FILTERS]"
 	CatAudio   Category = "[AUDIO]"
 	CatAuthor  Category = "[AUTHOR]"
-	CatRip     Category = "[RIP]"
 	CatBurn    Category = "[BURN]"
 	CatInspect Category = "[INSPECT]"
+	CatQueue   Category = "[QUEUE]"
 )
 
 // Categories represents a log category

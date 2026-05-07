@@ -122,7 +122,7 @@ func NewEnhancementModule(player player.VTPlayer) *EnhancementModule {
 
 // AnalyzeContent performs intelligent content analysis using FFmpeg
 func (m *EnhancementModule) AnalyzeContent(path string) (*ContentAnalysis, error) {
-	logging.Debug(logging.CatEnhance, "Starting content analysis for: %s", path)
+	logging.Debug(logging.CatModule, "Starting content analysis for: %s", path)
 
 	// Use FFprobe to get video information
 	cmd := utils.CreateCommand(m.ctx, utils.GetFFprobePath(),
@@ -157,7 +157,7 @@ func (m *EnhancementModule) AnalyzeContent(path string) (*ContentAnalysis, error
 	// Update content analysis with advanced skin tone information
 	contentAnalysis.SkinTones = advancedSkinAnalysis
 
-	logging.Debug(logging.CatEnhance, "Advanced skin analysis applied: %+v", advancedSkinAnalysis)
+	logging.Debug(logging.CatModule, "Advanced skin analysis applied: %+v", advancedSkinAnalysis)
 	return contentAnalysis, nil
 }
 
@@ -265,7 +265,7 @@ func (m *EnhancementModule) SelectModel(analysis *ContentAnalysis) string {
 
 // ProcessVideo processes video through the enhancement pipeline
 func (m *EnhancementModule) ProcessVideo(inputPath, outputPath string) error {
-	logging.Debug(logging.CatEnhance, "Starting video enhancement: %s -> %s", inputPath, outputPath)
+	logging.Debug(logging.CatModule, "Starting video enhancement: %s -> %s", inputPath, outputPath)
 
 	m.inputPath = inputPath
 	m.outputPath = outputPath
@@ -281,7 +281,7 @@ func (m *EnhancementModule) ProcessVideo(inputPath, outputPath string) error {
 
 	// Select appropriate model
 	modelName := m.SelectModel(analysis)
-	logging.Debug(logging.CatEnhance, "Selected model: %s for content type: %s", modelName, analysis.Type)
+	logging.Debug(logging.CatModule, "Selected model: %s for content type: %s", modelName, analysis.Type)
 
 	// Load the AI model
 	model, err := m.loadModel(modelName)
@@ -314,14 +314,14 @@ func (m *EnhancementModule) ProcessVideo(inputPath, outputPath string) error {
 			// Extract current frame from player
 			frame, err := m.extractCurrentFrame()
 			if err != nil {
-				logging.Error(logging.CatEnhance, "Frame extraction failed: %v", err)
+				logging.Error(logging.CatModule, "Frame extraction failed: %v", err)
 				continue
 			}
 
 			// Apply AI enhancement to frame
 			enhancedFrame, err := m.currentModel.ProcessFrame(frame)
 			if err != nil {
-				logging.Error(logging.CatEnhance, "Frame enhancement failed: %v", err)
+				logging.Error(logging.CatModule, "Frame enhancement failed: %v", err)
 				continue
 			}
 
@@ -354,7 +354,7 @@ func (m *EnhancementModule) ProcessVideo(inputPath, outputPath string) error {
 	}
 
 	m.active = false
-	logging.Debug(logging.CatEnhance, "Video enhancement completed successfully")
+	logging.Debug(logging.CatModule, "Video enhancement completed successfully")
 	return nil
 }
 
@@ -450,7 +450,7 @@ func (m *EnhancementModule) Cancel() {
 	if m.active {
 		m.active = false
 		m.cancel()
-		logging.Debug(logging.CatEnhance, "Enhancement cancelled")
+		logging.Debug(logging.CatModule, "Enhancement cancelled")
 	}
 }
 
