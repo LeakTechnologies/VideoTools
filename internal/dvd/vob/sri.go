@@ -86,6 +86,75 @@ func ScanVOBNAVPCKs(path string) ([]NAVPCKInfo, error) {
 	return navs, nil
 }
 
+// ValidateNAVPTMs returns true if the PTM sequence in navs is usable for
+// VOBU_SRI construction: at least two values must be non-zero and the sequence
+// must be monotonically non-decreasing.
+//
+// FFmpeg's dvd muxer sometimes writes zero PTMs when remuxing with -c copy.
+// Calling this after ScanVOBNAVPCKs lets the pipeline detect that case and
+// synthesize timestamps before building the seek table.
+func ValidateNAVPTMs(navs []NAVPCKInfo) bool {
+	nonZero := 0
+	for _, n := range navs {
+		if n.PTM > 0 {
+			nonZero++
+		}
+	}
+	if nonZero < 2 {
+		return false
+	}
+	for i := 1; i < len(navs); i++ {
+		if navs[i].PTM < navs[i-1].PTM {
+			return false
+		}
+	}
+	return true
+}
+
+// SynthesizeAndPatchPTMs distributes PTMs linearly across the given duration for
+// every NAV_PCK in navs, updates the slice in place, and patches the
+// vobu_s_ptm field in each corresponding sector of the VOB file.
+//
+// This is the fallback used when ValidateNAVPTMs returns false. The synthesized
+// timestamps are not frame-accurate but are sufficient for VOBU_SRI seek-table
+// construction and hardware player clock display.
+//
+// duration is in seconds; PTMs are stored in 90 kHz ticks.
+func SynthesizeAndPatchPTMs(path string, navs []NAVPCKInfo, duration float64) error {
+	if len(navs) == 0 {
+		return nil
+	}
+
+	// Synthesize: linearly spread timestamps from 0 to duration.
+	durationTicks := int64(duration * 90000)
+	n := len(navs)
+	for i := range navs {
+		if n == 1 {
+			navs[i].PTM = 0
+		} else {
+			navs[i].PTM = uint32(durationTicks * int64(i) / int64(n-1))
+		}
+	}
+
+	// Patch vobu_s_ptm (4 bytes at pciPTMByteOffset) in every NAV_PCK sector.
+	f, err := os.OpenFile(path, os.O_RDWR, 0)
+	if err != nil {
+		return fmt.Errorf("SynthesizeAndPatchPTMs open: %w", err)
+	}
+	defer f.Close()
+
+	var buf [4]byte
+	for _, nav := range navs {
+		binary.BigEndian.PutUint32(buf[:], nav.PTM)
+		offset := int64(nav.Sector)*PackSize + pciPTMByteOffset
+		if _, err := f.WriteAt(buf[:], offset); err != nil {
+			return fmt.Errorf("SynthesizeAndPatchPTMs sector %d: %w", nav.Sector, err)
+		}
+	}
+	logging.Info(logging.CatDVD, "SynthesizeAndPatchPTMs: wrote %d synthesized PTMs to %s (duration=%.2fs)", len(navs), path, duration)
+	return nil
+}
+
 // PatchVOBUSRI reads a VOB file, computes the VOBU_SRI relative-seek table for
 // every NAV_PCK from the scanned timing data, and writes the patched entries back
 // to the file in-place.
