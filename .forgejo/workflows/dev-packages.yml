@@ -524,11 +524,15 @@ jobs:
               -X DELETE "${api_url}/repos/${repo}/releases/${release_id}/assets/${asset_id}" >/dev/null || true
           done
 
-          # Update release body so it reflects the commit that produced these assets.
+          # Update release body and target_commitish so the in-app update check
+          # matches the binary that was just uploaded.
           curl -sS -H "Authorization: token ${FORGEJO_TOKEN}" \
             -H "Content-Type: application/json" \
             -X PATCH "${api_url}/repos/${repo}/releases/${release_id}" \
-            -d "$(jq -n --arg body "Nightly build from \`${GITHUB_SHA}\` (Forgejo dev pipeline). Assets replaced on each successful push." '{body: $body}')" \
+            -d "$(jq -n \
+              --arg body "Nightly build from \`${GITHUB_SHA}\` (Forgejo dev pipeline). Assets replaced on each successful push." \
+              --arg target "${GITHUB_SHA}" \
+              '{body: $body, target_commitish: $target}')" \
             >/dev/null || true
 
           # Upload Linux assets
