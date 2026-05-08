@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
+	mediafilters "git.leaktechnologies.dev/stu/VideoTools/internal/media/filters"
 )
 
 type InlineVideoPlayer struct {
@@ -509,6 +510,24 @@ func (v *InlineVideoPlayer) FrameRate() float64 {
 
 func (v *InlineVideoPlayer) CurrentTime() float64 {
 	return v.player.CurrentTime()
+}
+
+// SetFilterPipeline installs a video filter graph on the active engine.
+// The pipeline takes effect on the next decoded frame; call RefreshCurrentFrame
+// immediately after to force a re-decode at the current position.
+func (v *InlineVideoPlayer) SetFilterPipeline(pipeline *mediafilters.FilterPipeline) {
+	v.mu.Lock()
+	eng := v.engine
+	v.mu.Unlock()
+	if eng != nil {
+		eng.SetFilterPipeline(pipeline)
+	}
+}
+
+// RefreshCurrentFrame seeks to the current position, forcing the engine to
+// re-decode the frame — useful after changing the filter pipeline on a paused player.
+func (v *InlineVideoPlayer) RefreshCurrentFrame() {
+	v.Seek(v.CurrentTime())
 }
 
 func (v *InlineVideoPlayer) GetClockTime() float64 {

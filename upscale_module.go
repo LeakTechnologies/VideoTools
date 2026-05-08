@@ -74,7 +74,10 @@ func (s *appState) loadUpscaleVideo(path string) {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			ui.ShowToast(s.window, "Native player could not open this file.", ui.ToastWarning)
 		}, false)
+		return
 	}
+	// Load preview player and apply current filter pipeline for live before/after feedback.
+	go s.loadUpscalePreviewVideo(path)
 }
 
 // mainToUpscaleVideoSource converts a main-package videoSource to the upscale package's
@@ -177,8 +180,28 @@ func (s *appState) upscaleOptions() upscale.Options {
 		OnGetFilterActiveChain: func() []string {
 			return s.filterActiveChain
 		},
+		BuildOriginalPlayerPane: func() fyne.CanvasObject {
+			if !HasNativeMediaPlayer() {
+				return nil
+			}
+			w := GetUpscalePlayer().Widget()
+			if w == nil {
+				return nil
+			}
+			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 0))
+		},
+		BuildPreviewPlayerPane: func() fyne.CanvasObject {
+			if !HasNativeMediaPlayer() {
+				return nil
+			}
+			w := GetUpscalePreviewPlayer().Widget()
+			if w == nil {
+				return nil
+			}
+			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 0))
+		},
+		OnFilterChanged: func() { s.applyUpscalePreview() },
 		OnDualPlayerSeek: func(seconds float64) {
-			// When source seekbar moves, render 5-second preview at that position
 			s.renderDualPlayerPreview(seconds, 5*time.Second)
 		},
 		OnDualPlayerRender: s.renderDualPlayerPreview,

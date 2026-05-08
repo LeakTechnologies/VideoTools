@@ -192,7 +192,28 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 			return buildVideoPane(state, size, nil, nil)
 		},
 		OnHasNativeMediaPlayer: HasNativeMediaPlayer,
-		OnLoadVideoNative:      state.loadVideoNative,
+		OnLoadVideoNative:      state.loadFiltersVideo,
+		BuildOriginalPlayerPane: func() fyne.CanvasObject {
+			if !HasNativeMediaPlayer() {
+				return nil
+			}
+			w := GetFiltersPlayer().Widget()
+			if w == nil {
+				return nil
+			}
+			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 0))
+		},
+		BuildPreviewPlayerPane: func() fyne.CanvasObject {
+			if !HasNativeMediaPlayer() {
+				return nil
+			}
+			w := GetFiltersPreviewPlayer().Widget()
+			if w == nil {
+				return nil
+			}
+			return ui.BuildPlayerContainer(w, fyne.NewSize(0, 0))
+		},
+		OnFilterChanged: func() { state.applyFiltersPreview() },
 		OnBuildFilterChain: func() []string {
 			return filters.BuildStylisticFilterChain(filters.FilterChainParams{
 				StylisticMode: state.filterStylisticMode,
