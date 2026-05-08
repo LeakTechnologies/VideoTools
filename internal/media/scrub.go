@@ -108,21 +108,20 @@ func (c *FrameCache) Size() int {
 // SmoothScrubbing pre-decodes frames around the current seek position so that
 // scrubbing feels instant.
 //
-// Thread-safety notes
-// ───────────────────
-// predecodeFrom / predecodeAhead call FFmpeg APIs that share state with the
-// engine's demuxer loop and NextFrame:
+// Thread-safety
+// ─────────────
+// Each SmoothScrubbing instance opens its own AVFormatContext (s.fmtCtx) and
+// AVCodecContext (s.codecCtx) — it never touches the engine's format or codec
+// state directly.
 //
-//   - av_read_frame on formatCtx races with demuxerLoop  → protected by engine.formatMu
-//   - avcodec_send/receive on videoCodecCtx races with NextFrame → protected by engine.videoCodecMu
-//
-// Each SmoothScrubbing instance owns its own AVFrame (s.frame) so it never
-// writes to engine.frame.  The RGBA conversion context (s.swsCtx / s.rgbaFrame /
-// s.rgbaBuffer) is also private to avoid racing with engine.toRGBA().
-//
-// NOTE: predecodeAhead was removed in dev44. It received signals on decodeQueue
-// but nothing ever sent to that channel, making it dead code.
-// Wire it up if you want frame pre-caching during scrub.
+//   - s.fmtCtx / s.codecCtx: seekOwnFormatCtx and predecodeFrom must not run
+//     concurrently.  handleSeek cancels any running predecodeFrom (close
+//     decodeStop + decodeWg.Wait) before calling seekOwnFormatCtx, so only one
+//     goroutine ever accesses these at a time.
+//   - Codec send/receive/flush (s.codecCtx) are additionally guarded by codecMu
+//     so that the brief window between the seek and the new predecodeFrom start
+//     cannot overlap with a still-exiting goroutine.
+//   - s.swsCtx / s.rgbaFrame / s.rgbaBuffer: protected by convertMu.
 type SmoothScrubbing struct {
 	engine      *Engine
 	frameCache  *FrameCache
@@ -143,6 +142,13 @@ type SmoothScrubbing struct {
 	rgbaFrame  *C.AVFrame
 	rgbaBuffer []byte
 	convertMu  sync.Mutex
+	codecMu    sync.Mutex // guards s.codecCtx: send/receive/flush
+
+	// decodeStop is closed to signal the running predecodeFrom to exit early.
+	// decodeWg tracks whether a predecodeFrom goroutine is currently running.
+	// Both are written only from the seekHandler goroutine (handleSeek).
+	decodeStop chan struct{}
+	decodeWg   sync.WaitGroup
 }
 
 func (s *SmoothScrubbing) SetOnFrame(cb func(*image.RGBA)) {
@@ -157,7 +163,11 @@ func NewSmoothScrubbing(engine *Engine) *SmoothScrubbing {
 		frameCache: NewFrameCache(scrubPreDecodeFrames),
 		seekQueue:  make(chan float64, 1),
 		stop:       make(chan struct{}),
+		decodeStop: make(chan struct{}),
 	}
+	// Close decodeStop immediately so the first handleSeek's decodeWg.Wait()
+	// returns instantly (no goroutine is running yet).
+	close(s.decodeStop)
 
 	if err := s.openDecoder(); err != nil {
 		logging.Warning(logging.CatPlayer, "SmoothScrubbing: openDecoder failed: %v", err)
@@ -278,6 +288,14 @@ func (s *SmoothScrubbing) seekHandler() {
 }
 
 func (s *SmoothScrubbing) handleSeek(target float64) {
+	// Cancel any running predecodeFrom and wait for it to fully exit before
+	// touching fmtCtx/codecCtx.  decodeStop and decodeWg are only written
+	// here (single seekHandler goroutine), so no additional lock is needed.
+	close(s.decodeStop)
+	s.decodeWg.Wait()
+	s.decodeStop = make(chan struct{})
+	decodeStop := s.decodeStop
+
 	s.mu.Lock()
 	s.seekTarget = target
 	s.predecoding = true
@@ -292,7 +310,12 @@ func (s *SmoothScrubbing) handleSeek(target float64) {
 	s.mu.Unlock()
 
 	s.wg.Add(1)
-	go func() { defer s.wg.Done(); s.predecodeFrom(target) }()
+	s.decodeWg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		defer s.decodeWg.Done()
+		s.predecodeFrom(target, decodeStop)
+	}()
 }
 
 func (s *SmoothScrubbing) seekOwnFormatCtx(target float64) {
@@ -307,9 +330,9 @@ func (s *SmoothScrubbing) seekOwnFormatCtx(target float64) {
 	pts := C.int64_t(target / timeBase)
 	C.avformat_seek_file(s.fmtCtx, s.videoIdx, pts, pts, pts, 0)
 
-	s.engine.videoCodecMu.Lock()
+	s.codecMu.Lock()
 	C.avcodec_flush_buffers(s.codecCtx)
-	s.engine.videoCodecMu.Unlock()
+	s.codecMu.Unlock()
 }
 
 func (s *SmoothScrubbing) flushEngineQueues() {
@@ -322,7 +345,7 @@ func (s *SmoothScrubbing) flushEngineQueues() {
 	}
 }
 
-func (s *SmoothScrubbing) predecodeFrom(startTime float64) {
+func (s *SmoothScrubbing) predecodeFrom(startTime float64, decodeStop <-chan struct{}) {
 	if s.fmtCtx == nil || s.codecCtx == nil {
 		return
 	}
@@ -347,6 +370,8 @@ func (s *SmoothScrubbing) predecodeFrom(startTime float64) {
 		select {
 		case <-s.stop:
 			return
+		case <-decodeStop:
+			return
 		default:
 		}
 
@@ -365,23 +390,23 @@ func (s *SmoothScrubbing) predecodeFrom(startTime float64) {
 			break
 		}
 
-		s.engine.videoCodecMu.Lock()
+		s.codecMu.Lock()
 		if C.avcodec_send_packet(s.codecCtx, pkt) != 0 {
-			s.engine.videoCodecMu.Unlock()
+			s.codecMu.Unlock()
 			C.av_packet_unref(pkt)
 			continue
 		}
-		s.engine.videoCodecMu.Unlock()
+		s.codecMu.Unlock()
 		C.av_packet_unref(pkt)
 
-		s.engine.videoCodecMu.Lock()
+		s.codecMu.Lock()
 		for C.avcodec_receive_frame(s.codecCtx, frame) == 0 {
 			pts = float64(frame.pts) * timeBase
-			s.engine.videoCodecMu.Unlock()
+			s.codecMu.Unlock()
 
 			rgba := s.convertFrameToRGBA(frame)
 
-			s.engine.videoCodecMu.Lock()
+			s.codecMu.Lock()
 
 			if rgba != nil {
 				s.frameCache.Add(int64(pts*1000), rgba)
@@ -392,9 +417,9 @@ func (s *SmoothScrubbing) predecodeFrom(startTime float64) {
 					cb := s.onFrame
 					s.mu.RUnlock()
 					if cb != nil {
-						s.engine.videoCodecMu.Unlock()
+						s.codecMu.Unlock()
 						cb(rgba)
-						s.engine.videoCodecMu.Lock()
+						s.codecMu.Lock()
 					}
 				}
 			}
@@ -403,13 +428,13 @@ func (s *SmoothScrubbing) predecodeFrom(startTime float64) {
 				break
 			}
 		}
-		s.engine.videoCodecMu.Unlock()
+		s.codecMu.Unlock()
 	}
 }
 
 // convertFrameToRGBA converts a decoded AVFrame to *image.RGBA using private
 // conversion buffers (s.swsCtx / s.rgbaFrame / s.rgbaBuffer).  Lazy-initialises
-// those buffers on first call.  Must NOT be called while holding videoCodecMu.
+// those buffers on first call.  Must NOT be called while holding codecMu.
 //
 // For hardware-decoded frames (hw_frames_ctx != nil, e.g. D3D11VA), the frame
 // is first transferred to CPU memory via av_hwframe_transfer_data before any
@@ -432,14 +457,13 @@ func (s *SmoothScrubbing) convertFrameToRGBA(frame *C.AVFrame) *image.RGBA {
 
 	s.convertMu.Lock()
 
-	// Lazy-init: create our own sws context and output buffers.
-	// We use frame.format (the actual SW pixel format) rather than
-	// videoCodecCtx.pix_fmt, because for HW-decoded streams the codec ctx
-	// reports a HW format (e.g. AV_PIX_FMT_D3D11) which sws cannot handle.
-	// videoCodecCtx.width/height are set once at open and are safe to read here.
+	// Lazy-init: create sws context and output buffers sized to our own codec
+	// context (s.codecCtx), not the engine's.  Using frame.format (the actual
+	// SW pixel format) rather than codecCtx.pix_fmt because HW-decoded streams
+	// report a HW format in the codec context that sws cannot handle.
 	if s.swsCtx == nil {
-		w := s.engine.videoCodecCtx.width
-		h := s.engine.videoCodecCtx.height
+		w := s.codecCtx.width
+		h := s.codecCtx.height
 		pixFmt := C.enum_AVPixelFormat(frame.format)
 
 		s.swsCtx = C.sws_getContext(
@@ -472,8 +496,8 @@ func (s *SmoothScrubbing) convertFrameToRGBA(frame *C.AVFrame) *image.RGBA {
 	swsCtx := s.swsCtx
 	rgbaFrame := s.rgbaFrame
 	rgbaBuffer := s.rgbaBuffer
-	width := int(s.engine.videoCodecCtx.width)
-	height := int(s.engine.videoCodecCtx.height)
+	width := int(s.codecCtx.width)
+	height := int(s.codecCtx.height)
 	s.convertMu.Unlock()
 
 	C.sws_scale(
