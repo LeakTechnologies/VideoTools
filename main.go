@@ -3911,6 +3911,7 @@ func (s *appState) submitTrimJob(clip trim.TrimClip) {
 	}
 
 	if s.jobQueue != nil {
+		s.generateJobThumbnail(job)
 		prevStep := s.pipelineStep
 		s.pipelineAdd(job)
 		if prevStep == "" {
@@ -4732,6 +4733,7 @@ func (s *appState) addMergeToQueue(startNow bool) error {
 		OutputFile:  mergeOutput,
 		Config:      config,
 	}
+	s.generateJobThumbnail(job)
 	s.jobQueue.Add(job)
 	if startNow && s.jobQueue != nil && !s.jobQueue.IsRunning() {
 		s.jobQueue.Start()
@@ -12431,6 +12433,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 				"startPosition":   startPosition,
 			},
 		}
+		state.generateJobThumbnail(job)
 		state.jobQueue.Add(job)
 		if !state.jobQueue.IsRunning() {
 			state.jobQueue.Start()
@@ -12511,6 +12514,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 						"startPosition":   startPosition,
 					},
 				}
+				state.generateJobThumbnail(job)
 				state.jobQueue.Add(job)
 				jobsAdded++
 			}
@@ -17291,8 +17295,11 @@ func (s *appState) generateJobThumbnail(job *queue.Job) {
 			return
 		}
 		
-		// Update the job's ThumbnailPath
+		// Update the job's ThumbnailPath and refresh the queue card
 		job.ThumbnailPath = thumbPath
 		logging.Debug(logging.CatSystem, "generated thumbnail for job %s: %s", job.ID, thumbPath)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			s.refreshQueueView()
+		}, false)
 	}()
 }
