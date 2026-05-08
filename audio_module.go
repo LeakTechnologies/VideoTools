@@ -432,6 +432,7 @@ func (s *appState) startAudioExtraction(addToQueue bool) {
 					"truePeak":   s.audioNormTruePeak,
 				},
 			}
+			s.generateJobThumbnail(job)
 			if addToQueue {
 				s.jobQueue.Add(job)
 			} else {
@@ -481,6 +482,7 @@ func (s *appState) startAudioExtraction(addToQueue bool) {
 					"truePeak":   s.audioNormTruePeak,
 				},
 			}
+			s.generateJobThumbnail(job)
 			if s.pipelineStep != "" {
 				s.pipelineAdd(job)
 			} else if addToQueue {

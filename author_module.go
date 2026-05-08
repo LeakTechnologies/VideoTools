@@ -2865,6 +2865,7 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 	s.resetAuthorLog()
 	s.setAuthorStatus("Queued authoring job...")
 	s.setAuthorProgress(0)
+	s.generateJobThumbnail(job)
 	s.jobQueue.Add(job)
 	if startNow && !s.jobQueue.IsRunning() {
 		s.jobQueue.Start()
@@ -2910,6 +2911,7 @@ func (s *appState) addAuthorVideoTSToQueue(videoTSPath, title, outputPath string
 	s.resetAuthorLog()
 	s.setAuthorStatus("Queued authoring job...")
 	s.setAuthorProgress(0)
+	s.generateJobThumbnail(job)
 	s.jobQueue.Add(job)
 	if startNow && !s.jobQueue.IsRunning() {
 		s.jobQueue.Start()

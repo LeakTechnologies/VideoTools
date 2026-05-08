@@ -336,6 +336,9 @@ func (s *appState) upscaleOptions() upscale.Options {
 		SetFilterRotation:   func(i int) { s.filterRotation = i },
 
 		JobQueue: func() *queue.Queue { return s.jobQueue },
-		AddJob:   func(job *queue.Job) { s.jobQueue.Add(job) },
+		AddJob: func(job *queue.Job) {
+			s.generateJobThumbnail(job)
+			s.jobQueue.Add(job)
+		},
 	}
 }
