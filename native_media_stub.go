@@ -67,3 +67,12 @@ func GetUpscalePlayer() *ui.InlineVideoPlayer {
 func GetAudioPlayer() *ui.InlineVideoPlayer {
 	return ui.NewInlineVideoPlayer()
 }
+
+func GetFiltersPlayer() *ui.InlineVideoPlayer        { return ui.NewInlineVideoPlayer() }
+func GetFiltersPreviewPlayer() *ui.InlineVideoPlayer { return ui.NewInlineVideoPlayer() }
+func GetUpscalePreviewPlayer() *ui.InlineVideoPlayer { return ui.NewInlineVideoPlayer() }
+
+func (s *appState) loadFiltersVideo(_ string)           {}
+func (s *appState) applyFiltersPreview()                {}
+func (s *appState) loadUpscalePreviewVideo(_ string)    {}
+func (s *appState) applyUpscalePreview()                {}

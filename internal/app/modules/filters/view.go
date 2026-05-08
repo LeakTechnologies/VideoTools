@@ -96,6 +96,14 @@ type Options struct {
 	OnBuildVideoPane       func(state interface{}, size fyne.Size, src interface{}, overlay fyne.CanvasObject) fyne.CanvasObject
 	OnHasNativeMediaPlayer func() bool
 	OnLoadVideoNative      func(path string)
+
+	// Dual before/after player panes. When both return non-nil the view shows
+	// a split original|filtered layout instead of the single-pane fallback.
+	BuildOriginalPlayerPane func() fyne.CanvasObject
+	BuildPreviewPlayerPane  func() fyne.CanvasObject
+	// OnFilterChanged is called after every filter parameter change so the host
+	// can rebuild and apply the filter pipeline to the preview player.
+	OnFilterChanged func()
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
@@ -135,24 +143,49 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if opts.OnBuildFilterChain != nil {
 			opts.OnBuildFilterChain()
 		}
+		if opts.OnFilterChanged != nil {
+			opts.OnFilterChanged()
+		}
 	}
 
 	fileLabel := widget.NewLabel(t.LabelNoFile)
 	fileLabel.TextStyle = fyne.TextStyle{Bold: true}
 
-	var videoContainer fyne.CanvasObject
 	if opts.FiltersFile != nil {
 		if opts.FiltersFilePath != "" {
 			fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, filepath.Base(opts.FiltersFilePath)))
 		} else {
 			fileLabel.SetText(fmt.Sprintf(t.LabelFileFmt, "video loaded"))
 		}
-		videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), opts.FiltersFile, nil)
 		if opts.OnHasNativeMediaPlayer != nil && opts.OnHasNativeMediaPlayer() && opts.FiltersFilePath != "" {
 			go opts.OnLoadVideoNative(opts.FiltersFilePath)
 		}
+	}
+
+	// Build player area — dual before/after panes when available, single pane otherwise.
+	var videoArea fyne.CanvasObject
+	var origPane, prevPane fyne.CanvasObject
+	if opts.BuildOriginalPlayerPane != nil {
+		origPane = opts.BuildOriginalPlayerPane()
+	}
+	if opts.BuildPreviewPlayerPane != nil {
+		prevPane = opts.BuildPreviewPlayerPane()
+	}
+	if origPane != nil && prevPane != nil {
+		labelStyle := fyne.TextStyle{Bold: true}
+		origLabel := widget.NewLabelWithStyle("ORIGINAL", fyne.TextAlignCenter, labelStyle)
+		filtLabel := widget.NewLabelWithStyle("FILTERED", fyne.TextAlignCenter, labelStyle)
+		origCol := container.NewBorder(origLabel, nil, nil, nil, origPane)
+		filtCol := container.NewBorder(filtLabel, nil, nil, nil, prevPane)
+		videoArea = container.NewGridWithColumns(2, origCol, filtCol)
 	} else {
-		videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), nil, nil)
+		var videoContainer fyne.CanvasObject
+		if opts.FiltersFile != nil {
+			videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), opts.FiltersFile, nil)
+		} else {
+			videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), nil, nil)
+		}
+		videoArea = videoContainer
 	}
 
 	loadBtn := widget.NewButton("Load Video", func() {
@@ -525,7 +558,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	settingsScroll := ui.NewFastVScroll(settingsPanel)
 
 	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6},
-		container.NewBorder(leftPanel, nil, nil, nil, videoContainer),
+		container.NewBorder(leftPanel, nil, nil, nil, videoArea),
 		settingsScroll,
 	)
 

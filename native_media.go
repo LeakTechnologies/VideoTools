@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
+	mediafilters "git.leaktechnologies.dev/stu/VideoTools/internal/media/filters"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
@@ -18,6 +19,9 @@ var inspectInlinePlayer *ui.InlineVideoPlayer
 var subtitleInlinePlayer *ui.InlineVideoPlayer
 var upscaleInlinePlayer *ui.InlineVideoPlayer
 var audioInlinePlayer *ui.InlineVideoPlayer
+var filtersInlinePlayer *ui.InlineVideoPlayer
+var filtersPreviewPlayer *ui.InlineVideoPlayer
+var upscalePreviewPlayer *ui.InlineVideoPlayer
 
 func init() {
 	logging.Info(logging.CatSystem, "INIT: native_media build tag IS active - using InlineVideoPlayer")
@@ -28,6 +32,9 @@ func init() {
 	subtitleInlinePlayer = ui.NewInlineVideoPlayer()
 	upscaleInlinePlayer = ui.NewInlineVideoPlayer()
 	audioInlinePlayer = ui.NewInlineVideoPlayer()
+	filtersInlinePlayer = ui.NewInlineVideoPlayer()
+	filtersPreviewPlayer = ui.NewInlineVideoPlayer()
+	upscalePreviewPlayer = ui.NewInlineVideoPlayer()
 }
 
 func hwDecodeEnabled() bool {
@@ -68,6 +75,115 @@ func GetUpscalePlayer() *ui.InlineVideoPlayer {
 
 func GetAudioPlayer() *ui.InlineVideoPlayer {
 	return audioInlinePlayer
+}
+
+func GetFiltersPlayer() *ui.InlineVideoPlayer {
+	return filtersInlinePlayer
+}
+
+func GetFiltersPreviewPlayer() *ui.InlineVideoPlayer {
+	return filtersPreviewPlayer
+}
+
+func GetUpscalePreviewPlayer() *ui.InlineVideoPlayer {
+	return upscalePreviewPlayer
+}
+
+// loadFiltersVideo loads path into both the original and preview filters players.
+// The preview player gets the current filter pipeline applied after load.
+func (s *appState) loadFiltersVideo(path string) {
+	if err := filtersInlinePlayer.Load(path); err != nil {
+		logging.Error(logging.CatPlayer, "loadFiltersVideo: %v", err)
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			ui.ShowToast(s.window, "Native player could not open this file.", ui.ToastWarning)
+		}, false)
+	}
+	if err := filtersPreviewPlayer.Load(path); err != nil {
+		logging.Error(logging.CatPlayer, "loadFiltersPreviewVideo: %v", err)
+		return
+	}
+	s.applyFiltersPreview()
+}
+
+// applyFiltersPreview rebuilds the filter pipeline from the current appState
+// filter settings and applies it to the preview player, then forces a re-decode.
+func (s *appState) applyFiltersPreview() {
+	if filtersPreviewPlayer == nil {
+		return
+	}
+	pipeline := s.buildFiltersPreviewPipeline()
+	filtersPreviewPlayer.SetFilterPipeline(pipeline)
+	filtersPreviewPlayer.RefreshCurrentFrame()
+}
+
+// buildFiltersPreviewPipeline constructs a FilterPipeline from the current
+// filter state for live preview. Supports colour correction, sharpening, and
+// denoising; transform and stylistic effects are encode-only.
+func (s *appState) buildFiltersPreviewPipeline() *mediafilters.FilterPipeline {
+	pipeline := mediafilters.NewFilterPipeline()
+
+	sat := s.filterSaturation
+	if s.filterGrayscale {
+		sat = 0
+	}
+	if s.filterBrightness != 0 || s.filterContrast != 1 || sat != 1 {
+		pipeline.Add(mediafilters.FilterConfig{
+			Type: mediafilters.FilterColor,
+			Params: map[string]interface{}{
+				"brightness": s.filterBrightness,
+				"contrast":   s.filterContrast,
+				"saturation": sat,
+				"gamma":      1.0,
+			},
+			Enable: true,
+		})
+	}
+
+	if s.filterSharpness > 0 {
+		pipeline.Add(mediafilters.FilterConfig{
+			Type: mediafilters.FilterSharpen,
+			Params: map[string]interface{}{
+				"luma":   s.filterSharpness,
+				"chroma": s.filterSharpness * 0.5,
+			},
+			Enable: true,
+		})
+	}
+
+	if s.filterDenoise > 0 {
+		spatial := int(s.filterDenoise/2) + 1
+		if spatial > 10 {
+			spatial = 10
+		}
+		pipeline.Add(mediafilters.FilterConfig{
+			Type: mediafilters.FilterDenoise,
+			Params: map[string]interface{}{
+				"spatial":  spatial,
+				"temporal": spatial,
+				"env":      "s",
+			},
+			Enable: true,
+		})
+	}
+
+	return pipeline
+}
+
+func (s *appState) loadUpscalePreviewVideo(path string) {
+	if err := upscalePreviewPlayer.Load(path); err != nil {
+		logging.Error(logging.CatPlayer, "loadUpscalePreviewVideo: %v", err)
+		return
+	}
+	s.applyUpscalePreview()
+}
+
+func (s *appState) applyUpscalePreview() {
+	if upscalePreviewPlayer == nil {
+		return
+	}
+	pipeline := s.buildFiltersPreviewPipeline()
+	upscalePreviewPlayer.SetFilterPipeline(pipeline)
+	upscalePreviewPlayer.RefreshCurrentFrame()
 }
 
 func initNativeMediaAssets(s *appState) {

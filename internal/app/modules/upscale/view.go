@@ -896,6 +896,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if opts.SetUpscaleApplyFilters != nil {
 			opts.SetUpscaleApplyFilters(len(chain) > 0)
 		}
+		if opts.OnFilterChanged != nil {
+			opts.OnFilterChanged()
+		}
 	}
 
 	// Initialize filter chain
@@ -1238,7 +1241,31 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	metaPanel := buildMetadataPanel(opts, src, fyne.NewSize(0, 200))
 
-	videoBoxContent := container.NewBorder(fileLabel, nil, nil, nil, videoContainer)
+	// Dual before/after panes when both player builders are available.
+	var videoArea fyne.CanvasObject
+	var origPane, prevPane fyne.CanvasObject
+	if opts.BuildOriginalPlayerPane != nil {
+		origPane = opts.BuildOriginalPlayerPane()
+	}
+	if opts.BuildPreviewPlayerPane != nil {
+		prevPane = opts.BuildPreviewPlayerPane()
+	}
+	if origPane != nil && prevPane != nil {
+		labelStyle := fyne.TextStyle{Bold: true}
+		origCol := container.NewBorder(
+			widget.NewLabelWithStyle("ORIGINAL", fyne.TextAlignCenter, labelStyle),
+			nil, nil, nil, origPane,
+		)
+		filtCol := container.NewBorder(
+			widget.NewLabelWithStyle("FILTERED", fyne.TextAlignCenter, labelStyle),
+			nil, nil, nil, prevPane,
+		)
+		videoArea = container.NewGridWithColumns(2, origCol, filtCol)
+	} else {
+		videoArea = videoContainer
+	}
+
+	videoBoxContent := container.NewBorder(fileLabel, nil, nil, nil, videoArea)
 	videoBox := buildUpscaleBox(t.UpscaleVideoBox, videoBoxContent)
 	metaScroll := ui.NewFastVScroll(metaPanel)
 	leftSplit := container.NewVSplit(videoBox, metaScroll)

@@ -31,9 +31,15 @@ type Options struct {
 	OnLoadVideoNative        func(path string)
 	OnGetFilterActiveChain   func() []string
 
-	// Dual player callbacks for split-view preview
-	OnDualPlayerSeek   func(seconds float64) // triggered when source seekbar moves
-	OnDualPlayerRender func(seconds float64, duration time.Duration) // render segment
+	// Dual before/after player panes for live filter feedback.
+	BuildOriginalPlayerPane func() fyne.CanvasObject
+	BuildPreviewPlayerPane  func() fyne.CanvasObject
+	// OnFilterChanged is called when any integrated filter setting changes.
+	OnFilterChanged func()
+
+	// Legacy render-based dual player (stub; kept for API compat)
+	OnDualPlayerSeek   func(seconds float64)
+	OnDualPlayerRender func(seconds float64, duration time.Duration)
 
 	UpscaleMethod              func() string
 	UpscaleTargetRes           func() string
