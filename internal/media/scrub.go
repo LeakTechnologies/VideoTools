@@ -165,9 +165,6 @@ func NewSmoothScrubbing(engine *Engine) *SmoothScrubbing {
 		stop:       make(chan struct{}),
 		decodeStop: make(chan struct{}),
 	}
-	// Close decodeStop immediately so the first handleSeek's decodeWg.Wait()
-	// returns instantly (no goroutine is running yet).
-	close(s.decodeStop)
 
 	if err := s.openDecoder(); err != nil {
 		logging.Warning(logging.CatPlayer, "SmoothScrubbing: openDecoder failed: %v", err)
