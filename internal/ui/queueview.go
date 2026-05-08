@@ -316,7 +316,7 @@ onScheduleModule func(string, string),
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 24
 
-	backBtn := widget.NewButton(t.ActionBack, onBack)
+	backBtn := widget.NewButton("< QUEUE", onBack)
 	backBtn.Importance = widget.LowImportance
 
 	startAllBtn := widget.NewButton(t.ActionQueueStart, onStart)
@@ -357,7 +357,7 @@ onScheduleModule func(string, string),
 		statusBadge,
 		buttonRow,
 	)
-	topBar := TintedBar(bgColor, headerTitle)
+	topBar := TintedBar(color.NRGBA{R: 0x4c, G: 0xe8, B: 0x70, A: 0xff}, headerTitle)
 
 	jobList := container.NewVBox()
 	emptyMsg := widget.NewLabel(t.QueueEmpty)
@@ -399,27 +399,13 @@ onScheduleModule func(string, string),
 		container.NewPadded(logContent),
 	)
 
-	// Wrap with 4px VT green outline using Border layout
-	// Top/bottom/left/right borders are 4px green rectangles
 	vtGreen := color.NRGBA{R: 0x4c, G: 0xe8, B: 0x70, A: 0xff}
-	topBorder := canvas.NewRectangle(vtGreen)
-	topBorder.SetMinSize(fyne.NewSize(0, 4))
-	bottomBorder := canvas.NewRectangle(vtGreen)
-	bottomBorder.SetMinSize(fyne.NewSize(0, 4))
-	leftBorder := canvas.NewRectangle(vtGreen)
-	leftBorder.SetMinSize(fyne.NewSize(4, 0))
-	rightBorder := canvas.NewRectangle(vtGreen)
-	rightBorder.SetMinSize(fyne.NewSize(4, 0))
+	logOuterRect := canvas.NewRectangle(color.NRGBA{R: 0x0a, G: 0x0d, B: 0x18, A: 0xff})
+	logOuterRect.StrokeColor = vtGreen
+	logOuterRect.StrokeWidth = 3
+	logOuterRect.CornerRadius = 8
 
-	logSection := container.NewBorder(
-		topBorder,
-		bottomBorder,
-		leftBorder,
-		rightBorder,
-		innerLogSection,
-	)
-	// Live output now visible by default (was hidden before)
-// logSection.Hide() - removed to show live output panel
+	logSection := container.NewMax(logOuterRect, container.NewPadded(innerLogSection))
 
 	// Bottom TintedBar (matches other modules like benchmark)
 	bottomBar := TintedBar(vtGreen, layout.NewSpacer())
