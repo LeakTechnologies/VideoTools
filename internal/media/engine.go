@@ -2121,6 +2121,9 @@ func (e *Engine) demuxerLoop() {
 }
 
 func (e *Engine) Seek(seconds float64) error {
+	if seconds < 0 {
+		seconds = 0
+	}
 	logging.Info(logging.CatPlayer, "Seeking to %.2f seconds (accuracy: %v)", seconds, e.seekAcc)
 
 	e.mu.Lock()
@@ -2142,15 +2145,15 @@ func (e *Engine) Seek(seconds float64) error {
 	case SeekAccuracyKeyframe:
 		minTS = C.int64_t(math.MinInt64 / 2)
 		if target == 0 {
-			// AVSEEK_FLAG_BACKWARD requires result ≤ ts=0.  Many containers place the
-			// first I-frame at PTS=1 (one timebase tick ≈ 11µs at 90kHz), which is > 0
-			// and therefore excluded by the BACKWARD constraint.  Use flags=0 so FFmpeg
-			// finds the nearest keyframe in either direction within [minTS, 1000].
-			flags = 0
+			// Many containers place the first I-frame at PTS=1 (one timebase tick),
+			// so expand the window slightly to allow it.
 			maxTS = 1000
-		} else {
-			flags = C.int(AVSEEK_FLAG_BACKWARD)
 		}
+		// flags=0 (no BACKWARD): finds the nearest keyframe in either direction.
+		// AVSEEK_FLAG_BACKWARD fails on many files with B-frames or unusual PTS/DTS
+		// ordering because the BACKWARD constraint (result ≤ ts) cannot be satisfied
+		// by the forward-facing index structure.  The thumbnail seeker uses flags=0
+		// successfully on every file; mirror that approach here.
 	case SeekAccuracyAccurate:
 		flags = C.int(AVSEEK_FLAG_BACKWARD | AVSEEK_FLAG_ACCURATE)
 		minTS = C.int64_t(math.MinInt64 / 2)
@@ -2163,7 +2166,7 @@ func (e *Engine) Seek(seconds float64) error {
 	seekRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, maxTS, flags)
 	e.formatMu.Unlock()
 	if seekRet < 0 {
-		logging.Warning(logging.CatPlayer, "Seek to %.2f failed (ret=%d)", seconds, seekRet)
+		logging.Warning(logging.CatPlayer, "Seek to %.2f failed (ret=%d 0x%08X)", seconds, seekRet, uint32(seekRet))
 		return fmt.Errorf("seek failed")
 	}
 	logging.Info(logging.CatPlayer, "Seek to %.2f OK, flushing queues", seconds)
