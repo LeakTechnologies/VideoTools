@@ -2615,6 +2615,10 @@ func (e *Engine) videoDecodeLoop() {
 				var err error
 				img, err = e.retrieveHWFrame()
 				if err != nil {
+					if e.videoDecodeDead {
+						e.videoCodecMu.Unlock()
+						return
+					}
 					logging.Warning(logging.CatPlayer, "videoDecodeLoop: HW retrieve failed: %v", err)
 					if e.frame.hw_frames_ctx != nil {
 						e.videoCodecMu.Unlock()
@@ -2762,8 +2766,14 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 	// Transfer HW surface to CPU memory. This must happen while videoCodecMu
 	// is held because e.frame (the HW frame) is owned by the codec context
 	// and can be overwritten by the next avcodec_receive_frame call.
-	if C.av_hwframe_transfer_data(swFrame, e.frame, 0) != 0 {
-		logging.Warning(logging.CatPlayer, "retrieveHWFrame: av_hwframe_transfer_data failed")
+	transferRet, transferExc := SafeHWFrameTransfer(swFrame, e.frame, 0)
+	if transferRet != 0 {
+		if transferExc != 0 {
+			logging.Error(logging.CatPlayer, "retrieveHWFrame: av_hwframe_transfer_data SEH exception (exc=0x%08X) — disabling HW decode", transferExc)
+			e.videoDecodeDead = true
+		} else {
+			logging.Warning(logging.CatPlayer, "retrieveHWFrame: av_hwframe_transfer_data failed")
+		}
 		return nil, fmt.Errorf("failed to transfer HW frame to SW")
 	}
 
@@ -2807,12 +2817,16 @@ func (e *Engine) retrieveHWFrame() (*image.RGBA, error) {
 		e.hwRgbaFrame.linesize[0] = rowStride
 	}
 
-	C.sws_scale(
-		e.hwSwsCtx,
-		&swFrame.data[0], &swFrame.linesize[0],
-		0, swFrame.height,
-		&e.hwRgbaFrame.data[0], &e.hwRgbaFrame.linesize[0],
-	)
+	scaleRet, scaleExc := SafeSwsScaleFrame(e.hwSwsCtx, swFrame, 0, int(swFrame.height), e.hwRgbaFrame)
+	if scaleRet < 0 {
+		if scaleExc != 0 {
+			logging.Error(logging.CatPlayer, "retrieveHWFrame: sws_scale SEH exception (exc=0x%08X) — disabling HW decode", scaleExc)
+			e.videoDecodeDead = true
+		} else {
+			logging.Warning(logging.CatPlayer, "retrieveHWFrame: sws_scale failed")
+		}
+		return nil, fmt.Errorf("sws_scale failed during HW→RGBA conversion")
+	}
 
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	srcStride := int(e.hwRgbaFrame.linesize[0])
@@ -2860,12 +2874,15 @@ func (e *Engine) toRGBA() (img *image.RGBA) {
 	}()
 
 	logging.Debug(logging.CatPlayer, "toRGBA: entering sws_scale, swsCtx=%v", e.swsCtx != nil)
-	C.sws_scale(
-		e.swsCtx,
-		&e.frame.data[0], &e.frame.linesize[0],
-		0, e.videoCodecCtx.height,
-		&e.rgbaFrame.data[0], &e.rgbaFrame.linesize[0],
-	)
+	swsRet, swsExc := SafeSwsScaleFrame(e.swsCtx, e.frame, 0, int(e.videoCodecCtx.height), e.rgbaFrame)
+	if swsRet < 0 {
+		if swsExc != 0 {
+			logging.Error(logging.CatPlayer, "toRGBA: sws_scale SEH exception (exc=0x%08X)", swsExc)
+		} else {
+			logging.Warning(logging.CatPlayer, "toRGBA: sws_scale failed")
+		}
+		return nil
+	}
 
 	w, h := int(e.videoCodecCtx.width), int(e.videoCodecCtx.height)
 
@@ -3100,6 +3117,13 @@ closeDrainDone:
 		C.sws_freeContext(e.swsCtx)
 		e.swsCtx = nil
 		e.swsFmt = 0
+	}
+	if e.hwSwsCtx != nil {
+		C.sws_freeContext(e.hwSwsCtx)
+		e.hwSwsCtx = nil
+		e.hwSwsFmt = 0
+		e.hwSwsW = 0
+		e.hwSwsH = 0
 	}
 	if e.videoCodecCtx != nil {
 		if e.videoCodecCtx.hw_frames_ctx != nil {
