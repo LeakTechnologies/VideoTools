@@ -246,6 +246,17 @@ slots per 100 ms) rather than irregular timing. Linux/macOS fall back to a
 master clock reaches the frame's presentation timestamp, then `clock.SyncVideo`
 drops frames that arrive more than `MaxDriftThreshold` (300 ms) late.
 
+**Drift safeguards:**
+- `SetTime` is a monotonic ratchet (ignores backward jumps) — prevents clock
+  collapse from pre-buffered or re-anchored audio chunks.
+- During a `frameQueue` stall (I-frame decode delay), the clock is paused to stop
+  wall-time from accumulating as artificial A/V drift.
+- After any stall, if the clock has advanced `≥ MaxDriftThreshold` past the
+  current frame PTS, the clock is snapped back to PTS (`ResetTime`) and the
+  frame is displayed rather than dropped — prevents cascade drop storms.
+- Audio underrun logging: `Read()` counts consecutive silent callbacks and logs
+  a warning at 10 frames (~230 ms) and every 50 thereafter.
+
 ### Key design choices
 
 | Choice | Reason |
@@ -255,6 +266,10 @@ drops frames that arrive more than `MaxDriftThreshold` (300 ms) late.
 | `scaleNearest` on raw `Pix` bytes | Avoids `image.Image` interface dispatch + `RGBA() uint32` conversion per pixel; direct 4-byte copy per output pixel |
 | `DoFromGoroutine(false)` for time/callbacks | `SetCurrentTime` mutates Fyne widgets (must run on main goroutine) but is non-critical; async keeps the playback goroutine unblocked |
 | `frameQueue` buffered to 8 frames | ~160 ms headroom at 50 fps; absorbs single-threaded H.264 I-frame decode spikes (~150 ms) without stalling display |
+| `flags=0` (no `AVSEEK_FLAG_BACKWARD`) for keyframe seek | `AVSEEK_FLAG_BACKWARD` fails on H.264 with B-frames — the "must be ≤ ts" constraint can't be satisfied by forward-facing container indices; `flags=0` (nearest in either direction) succeeds on all tested files |
+| Adaptive seek accuracy fallback | After a keyframe seek, peek at the first video packet PTS; if it's >2s from target, re-seek with `AVSEEK_FLAG_ACCURATE` to land exactly. Stream position is restored by a second `avformat_seek_file` so no packets are lost |
+| Audio EOF codec drain | On queue EOF, `audioDecodeLoop` sends a NULL drain packet to the codec and flushes remaining frames into `pcmCh` — recovers the last ~100-200 ms that audio codecs buffer internally |
+| SEH protection for HW decode hot path | `safe_bridge.c` wraps `av_hwframe_transfer_data` and `sws_scale` (in addition to `avcodec_send/receive`) via VEH on Windows/MinGW, MSVC `__try`, or SIGSEGV on Linux/macOS — D3D11VA surfaces can fault if the GPU mapping is stale |
 
 ---
 
@@ -323,7 +338,68 @@ opts.Player.SetOnProgress(func(t float64) {
 
 ---
 
+## Known Issues & Stability Notes
+
+### Hardware decode (D3D11VA / VAAPI)
+
+HW decode is **disabled by default** for SW decode stability. The engine auto-detects
+HW capability but `hwDevice` defaults to `HWDeviceNone`. When HW is enabled:
+
+- `avcodec_send_packet` and `avcodec_receive_frame` are SEH-protected via `safe_bridge.c`.
+- `av_hwframe_transfer_data` and `sws_scale` in `retrieveHWFrame` are SEH-protected via
+  `SafeHWFrameTransfer` / `SafeSwsScaleFrame` wrappers in `seh_wrapper.go`.
+- Any caught access violation sets `videoDecodeDead = true` and stops the decode goroutine
+  rather than crashing the process.
+- `hwSwsCtx` (the cached `SwsContext` for HW→RGBA conversion) is freed in `Engine.Close()`.
+
+### Clock drift
+
+The master clock is audio-driven and advances via wall-time between audio callbacks.
+Known edge cases:
+
+- **Long audio underruns** — if `pcmCh` is empty for >10 audio callbacks (~230 ms),
+  a warning is logged (`audio underrun: N consecutive silent frames`). The clock still
+  advances via wall-time, but if audio was never ahead of the clock anchor, frames may
+  be displayed early. The snap mechanism in `NextFrame` handles clock overshoot.
+- **Monotonic ratchet** — `SetTime` ignores backward jumps. After a seek, `ResetTime`
+  must be called explicitly (done by `Engine.Seek()`).
+- **No wall-time correction goroutine** — the clock is anchored purely to audio PTS and
+  wall-elapsed. There is no background goroutine comparing clock time to a wall-time reference.
+  This is sufficient for files without audio glitches; long-running playback on files with
+  intermittent audio errors may drift without recovery.
+
+### Seek behaviour
+
+- **Keyframe seek** (default, `SeekAccuracyKeyframe`): uses `flags=0` so FFmpeg picks
+  the nearest keyframe in either direction. Fast, typically < 5ms on indexed containers.
+- **Adaptive accuracy fallback**: if the keyframe is >2s from target, the engine
+  automatically retries with `AVSEEK_FLAG_ACCURATE` which seeks frame-by-frame from the
+  last keyframe. This is slower (proportional to GOP size × frame decode time) but transparent.
+- **GrabFrame** (scrubbing) does NOT use adaptive fallback — it reads from `SmoothScrubbing`'s
+  own format context which seeks independently.
+- **`AVSEEK_FLAG_BACKWARD`** is only used in the `SeekAccuracyAccurate` explicit path.
+  It fails on many H.264 files with B-frames; avoid unless exact frame accuracy is required.
+
+### Audio EOF
+
+Before this was fixed, the last ~100-200 ms of every file's audio was silently dropped
+because `demuxerLoop` called `audioQueue.SetEOF()` without first flushing the audio codec's
+internal buffer. Fixed: `audioDecodeLoop` now sends a NULL drain packet (`avcodec_send_packet(NULL)`)
+and pulls all remaining frames into `pcmCh` before exiting.
+
+### 50 fps on 60 Hz display
+
+The 2-1-1-1-1 cadence (one 33 ms vsync slot, four 16 ms slots per 100 ms) is structural
+and cannot be eliminated without frame interpolation or direct display output. `WaitVsync`
+makes the pattern regular so it is perceived as consistent cadence rather than random judder.
+VLC exhibits the same cadence on the same content when using Fyne-equivalent SW rendering.
+
+---
+
 ## Planned Improvements
+
+Items that were previously planned and are now implemented are documented above
+in **Key design choices** and **Known Issues & Stability Notes**.
 
 ### 1. Bilinear scaling
 
@@ -373,7 +449,16 @@ a keyboard shortcut. This data is the foundation for auto-tuning
 `MaxDriftThreshold` and for diagnosing per-file sync anomalies (like the
 `pts_delay=2719ms` VLC had to compensate for on the wrestling file).
 
-### 3. Direct display output (long term)
+### 3. Clock drift correction goroutine
+
+A background goroutine that periodically compares the audio-driven clock to a
+wall-time reference would let the engine detect and correct long-running drift
+caused by audio underruns or system scheduling jitter. Proposed: a goroutine
+waking every 250 ms that calls `clock.SetTime(wallElapsed + initialAnchor)` only
+if no audio callback has advanced the clock within a configurable window. This
+requires tracking `lastAudioAdvanceAt time.Time` in `MasterClock`.
+
+### 4. Direct display output (long term)
 
 Bypassing Fyne's texture upload for the video rect would let us:
 - Present frames directly via a D3D11 swap chain on Windows (zero-copy from
@@ -384,3 +469,26 @@ Bypassing Fyne's texture upload for the video rect would let us:
 This requires embedding a platform-native window surface inside the Fyne canvas
 object, which Fyne supports via `driver.NativeWindow`. The implementation is
 significant but would enable true hardware-accelerated playback with no CPU copy.
+
+---
+
+## Player Settings (Planned)
+
+A **Player** tab inside the app Settings module will expose:
+
+| Setting | Type | Notes |
+|---------|------|-------|
+| Hardware decode | Toggle | Enable D3D11VA/VAAPI; restarts engine on change |
+| HW decode device | Dropdown | Auto / D3D11VA / VAAPI / QSV |
+| Seek accuracy | Dropdown | Keyframe (fast) / Accurate (exact) |
+| Scale mode | Dropdown | Nearest / Bilinear / Auto |
+| Audio output device | Dropdown | From oto's available outputs |
+| Audio buffer latency | Slider | 20–200 ms; affects A/V sync offset |
+| Max drift threshold | Slider | 100–500 ms; when to drop vs. hold frames |
+| Frame queue size | Slider | 4–32; buffer for I-frame decode spikes |
+| Thread count | Spinner | 1–CPU count; 1 = safe for seek, N = faster decode |
+| Vsync mode | Dropdown | DwmFlush / Timer / Off |
+
+These map directly to `Engine` and `MasterClock` fields. All require an engine
+restart (`Close()` + re-`Open()`) to take effect, except volume, mute, and
+vsync which can be applied live.
