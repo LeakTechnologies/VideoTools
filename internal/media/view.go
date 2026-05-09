@@ -9,6 +9,7 @@ import (
 	"image/draw"
 	"math"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -215,8 +216,17 @@ var _ fyne.Focusable = (*VideoPlayer)(nil)
 
 type VideoPlayer struct {
 	widget.BaseWidget
-	source *image.RGBA
+	// source is the current video frame delivered by the playback goroutine.
+	// atomic.Pointer lets SetFrame be called directly from any goroutine without
+	// a DoFromGoroutine round-trip; draw() reads it on Fyne's render goroutine.
+	source atomic.Pointer[image.RGBA]
 	muted  bool
+
+	// drawBuf is a pre-allocated output buffer reused across draw() calls to
+	// avoid allocating ~8 MB per frame at 50fps (≈400 MB/s of GC pressure).
+	drawBuf  *image.RGBA
+	drawBufW int
+	drawBufH int
 
 	playBtn        *widget.Button
 	slider         *widget.Slider
@@ -493,19 +503,11 @@ func (v *VideoPlayer) CreateRenderer() fyne.WidgetRenderer {
 
 func (v *VideoPlayer) SetFrame(img *image.RGBA) {
 	logging.Debug(logging.CatPlayer, "SetFrame called: img=%v", img != nil)
-	v.source = img
-	if img == nil {
-		// Trigger redraw to show SMPTE bars when video is cleared
-		v.Refresh()
+	v.source.Store(img)
+	if img != nil && (img.Bounds().Dx() == 0 || img.Bounds().Dy() == 0) {
 		return
 	}
-
-	srcW := img.Bounds().Dx()
-	srcH := img.Bounds().Dy()
-	if srcW == 0 || srcH == 0 {
-		return
-	}
-
+	// Refresh is goroutine-safe; no DoFromGoroutine needed.
 	v.Refresh()
 }
 
@@ -671,7 +673,7 @@ func (v *VideoPlayer) IsBuffering() bool {
 }
 
 func (v *VideoPlayer) CurrentFrame() *image.RGBA {
-	return v.source
+	return v.source.Load()
 }
 
 func (v *VideoPlayer) CurrentTime() float64 {
@@ -845,7 +847,11 @@ func (v *VideoPlayer) updateChapterMarkers() {
 	}
 }
 
-func (v *VideoPlayer) scaleNearest(src image.Image, dst *image.RGBA, srcW, srcH, dstW, dstH, offsetX, offsetY int) {
+// scaleNearest scales src into the [offsetX, offsetY, offsetX+dstW, offsetY+dstH]
+// region of dst using nearest-neighbour sampling.  Both images must be *image.RGBA
+// so the inner loop can copy raw Pix bytes directly — avoiding the per-pixel
+// interface dispatch and RGBA() uint32 conversion of the image.Image path.
+func (v *VideoPlayer) scaleNearest(src *image.RGBA, dst *image.RGBA, srcW, srcH, dstW, dstH, offsetX, offsetY int) {
 	if dstW == 0 || dstH == 0 {
 		return
 	}
@@ -853,9 +859,11 @@ func (v *VideoPlayer) scaleNearest(src image.Image, dst *image.RGBA, srcW, srcH,
 	scaleX := float64(srcW) / float64(dstW)
 	scaleY := float64(srcH) / float64(dstH)
 
-	bounds := dst.Bounds()
-	pix := dst.Pix
-	stride := dst.Stride
+	dstBounds := dst.Bounds()
+	dstPix := dst.Pix
+	dstStride := dst.Stride
+	srcPix := src.Pix
+	srcStride := src.Stride
 
 	for y := 0; y < dstH; y++ {
 		srcY := int(float64(y) * scaleY)
@@ -863,10 +871,11 @@ func (v *VideoPlayer) scaleNearest(src image.Image, dst *image.RGBA, srcW, srcH,
 			srcY = srcH - 1
 		}
 		dstY := y + offsetY
-		if dstY < bounds.Min.Y || dstY >= bounds.Max.Y {
+		if dstY < dstBounds.Min.Y || dstY >= dstBounds.Max.Y {
 			continue
 		}
-		rowStart := (dstY - bounds.Min.Y) * stride
+		dstRowBase := (dstY - dstBounds.Min.Y) * dstStride
+		srcRowBase := srcY * srcStride
 
 		for x := 0; x < dstW; x++ {
 			srcX := int(float64(x) * scaleX)
@@ -874,16 +883,15 @@ func (v *VideoPlayer) scaleNearest(src image.Image, dst *image.RGBA, srcW, srcH,
 				srcX = srcW - 1
 			}
 			dstX := x + offsetX
-			if dstX < bounds.Min.X || dstX >= bounds.Max.X {
+			if dstX < dstBounds.Min.X || dstX >= dstBounds.Max.X {
 				continue
 			}
-
-			r, g, b, a := src.At(srcX, srcY).RGBA()
-			pixOffset := rowStart + (dstX-bounds.Min.X)*4
-			pix[pixOffset] = byte(r >> 8)
-			pix[pixOffset+1] = byte(g >> 8)
-			pix[pixOffset+2] = byte(b >> 8)
-			pix[pixOffset+3] = byte(a >> 8)
+			dstOff := dstRowBase + (dstX-dstBounds.Min.X)*4
+			srcOff := srcRowBase + srcX*4
+			dstPix[dstOff] = srcPix[srcOff]
+			dstPix[dstOff+1] = srcPix[srcOff+1]
+			dstPix[dstOff+2] = srcPix[srcOff+2]
+			dstPix[dstOff+3] = srcPix[srcOff+3]
 		}
 	}
 }
@@ -1267,7 +1275,7 @@ func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {
 		logging.Info(logging.CatPlayer, "VideoPlayer error: %s", v.errorMessage)
 		return
 	}
-	if v.source == nil {
+	if v.source.Load() == nil {
 		if v.onTapEmpty != nil {
 			v.onTapEmpty()
 		}
@@ -1277,7 +1285,7 @@ func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {
 }
 
 func (v *VideoPlayer) TypedKey(event *fyne.KeyEvent) {
-	if v.source == nil {
+	if v.source.Load() == nil {
 		return
 	}
 	switch event.Name {
@@ -1373,7 +1381,8 @@ func (r *videoPlayerRenderer) MinSize() fyne.Size {
 }
 
 func (v *VideoPlayer) draw(w, h int) image.Image {
-	if v.source == nil {
+	src := v.source.Load()
+	if src == nil {
 		availableH := h
 
 		// Draw SMPTE bars in 4:3 ratio with letterboxing
@@ -1412,18 +1421,22 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 		return img
 	}
 
-	src := v.source
 	srcW := src.Bounds().Dx()
 	srcH := src.Bounds().Dy()
 
-	if srcW == 0 || srcH == 0 {
-		return image.NewRGBA(image.Rect(0, 0, w, h))
-	}
-
 	availableH := h
 
-	newW := w
-	newH := availableH
+	// Ensure the pre-allocated draw buffer matches the current widget size.
+	if v.drawBuf == nil || v.drawBufW != w || v.drawBufH != availableH {
+		v.drawBuf = image.NewRGBA(image.Rect(0, 0, w, availableH))
+		v.drawBufW = w
+		v.drawBufH = availableH
+	}
+
+	if srcW == 0 || srcH == 0 {
+		draw.Draw(v.drawBuf, v.drawBuf.Bounds(), image.Black, image.Point{}, draw.Src)
+		return v.drawBuf
+	}
 
 	scaleX := float64(w) / float64(srcW)
 	scaleY := float64(availableH) / float64(srcH)
@@ -1432,18 +1445,17 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 		scale = scaleY
 	}
 
-	newW = int(float64(srcW) * scale)
-	newH = int(float64(srcH) * scale)
+	newW := int(float64(srcW) * scale)
+	newH := int(float64(srcH) * scale)
 
 	offsetX := (w - newW) / 2
 	offsetY := (availableH - newH) / 2
 
-	img := image.NewRGBA(image.Rect(0, 0, w, availableH))
-	draw.Draw(img, img.Bounds(), image.Black, image.Point{}, draw.Src)
+	// Fill with black (letterbox / pillarbox borders).
+	draw.Draw(v.drawBuf, v.drawBuf.Bounds(), image.Black, image.Point{}, draw.Src)
+	v.scaleNearest(src, v.drawBuf, srcW, srcH, newW, newH, offsetX, offsetY)
 
-	v.scaleNearest(src, img, srcW, srcH, newW, newH, offsetX, offsetY)
-
-	return img
+	return v.drawBuf
 }
 
 // ---- SMPTE 75% colour bars idle state ----
