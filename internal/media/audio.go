@@ -80,6 +80,11 @@ type AudioPlayer struct {
 	// the master clock via Read().  Atomic so GetLastPTS() is lock-free.
 	lastPTSBits atomic.Uint64
 
+	// underrunCount is the number of consecutive Read() calls that returned
+	// silence because pcmCh was empty.  Reset to 0 on each successful chunk.
+	// Logged as a warning at threshold to aid A/V sync diagnostics.
+	underrunCount atomic.Int64
+
 	// Diagnostic / state flags (all protected by codecMu or mu as noted)
 	codecDead bool        // set when codec raises a pre-flight error; stops decode loop
 	closed    atomic.Bool // set by Close(); causes Read() to return io.EOF immediately
@@ -196,7 +201,8 @@ func (p *AudioPlayer) audioDecodeLoop() {
 		pkt, ok := p.queue.TimedGet(20 * time.Millisecond)
 		if !ok {
 			if p.queue.IsClosedOrEOF() {
-				logging.Info(logging.CatPlayer, "audioDecodeLoop: queue EOF/closed, exiting")
+				logging.Info(logging.CatPlayer, "audioDecodeLoop: queue EOF — flushing codec tail")
+				p.flushCodecTail()
 				return
 			}
 			continue
@@ -352,7 +358,8 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 			}
 			return 0, io.EOF
 		}
-	// Drive the master clock from audio output position.
+		p.underrunCount.Store(0)
+		// Drive the master clock from audio output position.
 		p.clock.SetTime(chunk.pts - AudioBufferLatency.Seconds())
 		p.lastPTSBits.Store(math.Float64bits(chunk.pts))
 
@@ -376,6 +383,11 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 		return n, nil
 	default:
 		// No decoded audio ready yet — return silence.
+		// Each oto callback is ~23 ms; log a warning after ~230 ms of silence.
+		n := p.underrunCount.Add(1)
+		if n == 10 || (n > 10 && n%50 == 0) {
+			logging.Warning(logging.CatPlayer, "audio underrun: %d consecutive silent frames (~%.0fms)", n, float64(n)*23)
+		}
 		for i := range buf {
 			buf[i] = 0
 		}
@@ -607,6 +619,46 @@ func (p *AudioPlayer) Close() {
 		C.av_frame_free(&p.frame)
 		p.frame = nil
 	}
+}
+
+// flushCodecTail sends a drain (NULL) packet to the audio codec and pushes any
+// remaining buffered frames into pcmCh.  Called once when the packet queue
+// signals EOF, recovering the last ~100-200 ms that the codec holds internally.
+func (p *AudioPlayer) flushCodecTail() {
+	p.codecMu.Lock()
+	if p.codecDead {
+		p.codecMu.Unlock()
+		return
+	}
+	var excCode C.uint32_t
+	C.safe_avcodec_send_packet(p.codecCtx, nil, &excCode)
+	if excCode != 0 {
+		logging.Warning(logging.CatPlayer, "flushCodecTail: drain send exception (exc=0x%08X)", uint32(excCode))
+		p.codecMu.Unlock()
+		return
+	}
+
+	for {
+		var recvExc C.uint32_t
+		if C.safe_avcodec_receive_frame(p.codecCtx, p.frame, &recvExc) != 0 {
+			break
+		}
+		pts := float64(p.frame.pts) * p.timeBase
+		p.codecMu.Unlock()
+
+		if data, err := p.resample(); err == nil && len(data) > 0 {
+			pcmData := make([]byte, len(data))
+			copy(pcmData, data)
+			select {
+			case p.pcmCh <- audioChunk{pts: pts, data: pcmData}:
+			case <-p.decodeStop:
+				p.codecMu.Lock()
+				return
+			}
+		}
+		p.codecMu.Lock()
+	}
+	p.codecMu.Unlock()
 }
 
 func (p *AudioPlayer) resample() ([]byte, error) {
