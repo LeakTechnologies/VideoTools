@@ -716,18 +716,25 @@ func (v *InlineVideoPlayer) playbackLoop() {
 			}
 			return
 		}
-		// Synchronous dispatch (true) ensures at most one frame update is
-		// pending on the main goroutine at a time. Async dispatch (false)
-		// lets the queue grow unbounded, making button clicks feel frozen
-		// until the backlog drains. v.mu is NOT held here, so Pause/Seek
-		// callbacks on the main goroutine can acquire it without deadlock.
+
+		// Align the frame swap to the display vsync boundary.
+		// WaitVsync() takes 0–16 ms; the audio clock self-corrects within
+		// 1–2 frame periods after the small delay.
+		media.WaitVsync()
+
+		// Frame delivery: atomic store + goroutine-safe widget.Refresh().
+		// No DoFromGoroutine round-trip needed — SetFrame is now lock-free.
+		v.player.SetFrame(img)
+
+		// Time and callback dispatch: async (non-blocking).  SetCurrentTime
+		// must run on the main goroutine because it mutates Fyne widgets; false
+		// keeps the playback goroutine from stalling if the UI is briefly busy.
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-			v.player.SetFrame(img)
 			v.player.SetCurrentTime(t)
 			if onFrm != nil {
 				onFrm(img)
 			}
-		}, true)
+		}, false)
 		if onProg != nil {
 			onProg(t)
 		}
