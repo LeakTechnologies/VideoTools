@@ -2164,6 +2164,47 @@ func (e *Engine) Seek(seconds float64) error {
 
 	e.formatMu.Lock()
 	seekRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, maxTS, flags)
+
+	// Adaptive accuracy fallback: for keyframe seeks, peek at the first video
+	// packet to detect when the nearest keyframe is >2s away from the target.
+	// Peeked packets are discarded; avformat_seek_file repositions the stream
+	// so the demuxerLoop always reads from the correct position regardless of
+	// how many packets were consumed during the peek.
+	if seekRet >= 0 && e.seekAcc == SeekAccuracyKeyframe {
+		landedSecs := -1.0
+		peekPkt := C.av_packet_alloc()
+		if peekPkt != nil {
+			for i := 0; i < 5 && landedSecs < 0; i++ {
+				if C.av_read_frame(e.formatCtx, peekPkt) < 0 {
+					break
+				}
+				if int(peekPkt.stream_index) == e.videoStreamIdx &&
+					int64(peekPkt.pts) != int64(C.AV_NOPTS_VALUE) {
+					landedSecs = float64(peekPkt.pts) * e.videoTimeBase
+				}
+				C.av_packet_unref(peekPkt)
+			}
+			C.av_packet_free(&peekPkt)
+		}
+
+		if landedSecs >= 0 && math.Abs(landedSecs-seconds) > 2.0 {
+			// Keyframe is far from target — try frame-accurate seek.
+			logging.Info(logging.CatPlayer, "Seek: keyframe landed at %.2f (target %.2f, diff=%.1fs) — accurate fallback", landedSecs, seconds, math.Abs(landedSecs-seconds))
+			accurateRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx),
+				C.int64_t(math.MinInt64/2), target, target,
+				C.int(AVSEEK_FLAG_ACCURATE|AVSEEK_FLAG_BACKWARD))
+			if accurateRet < 0 {
+				logging.Warning(logging.CatPlayer, "Seek: accurate fallback failed (ret=%d) — restoring keyframe position", accurateRet)
+				C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, maxTS, flags)
+			} else {
+				logging.Info(logging.CatPlayer, "Seek: accurate fallback OK")
+			}
+		} else {
+			// Within tolerance or no video packet found — restore stream to keyframe start.
+			C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, maxTS, flags)
+		}
+	}
+
 	e.formatMu.Unlock()
 	if seekRet < 0 {
 		logging.Warning(logging.CatPlayer, "Seek to %.2f failed (ret=%d 0x%08X)", seconds, seekRet, uint32(seekRet))
