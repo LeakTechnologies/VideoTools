@@ -31,10 +31,19 @@ Pure CGo wrapper around libavformat + libavcodec + libswscale + libswresample.
 
 ### VideoPlayer widget (`internal/media/view.go`)
 
-Fyne widget that renders decoded frames using `canvas.Raster` + the vendored
-`UpdatePixels` extension (efficient in-place pixel swap without texture recreation).
+Fyne widget backed by `canvas.Raster`. The raster's `draw(w, h int) image.Image`
+callback is invoked on Fyne's render goroutine at every repaint (vsync-aligned
+because Fyne calls `SwapBuffers` with `SwapInterval=1`).
 
-- `SetFrame(*image.RGBA)` — displays a frame; scales to widget size maintaining aspect ratio
+- `SetFrame(*image.RGBA)` — atomically stores the new frame via
+  `atomic.Pointer[image.RGBA]` and calls `widget.Refresh()`. Goroutine-safe;
+  no `DoFromGoroutine` round-trip required.
+- `draw()` — reads the atomic frame pointer, writes into a **pre-allocated
+  `*image.RGBA` buffer** (one allocation per widget-resize, not per frame),
+  letterboxes/pillarboxes with black, then scales via `scaleNearest`.
+- `scaleNearest` — nearest-neighbour downscale operating directly on `src.Pix`
+  / `dst.Pix` byte slices; avoids the `image.Image` interface dispatch and
+  `RGBA() uint32` conversion that the generic path would incur per pixel.
 - `SetDuration / SetCurrentTime` — drives the built-in seek bar
 - `SetInPoint / SetOutPoint` — draws trim markers on the seek bar
 - `AddThumbnailFrame` — populates the hover-scrub thumbnail cache
@@ -188,25 +197,103 @@ opts.Player.SetOnEnd(func() {
 
 ---
 
+## Frame Delivery Pipeline
+
+```
+demuxerLoop ──► videoQueue (packets) ──► videoDecodeLoop ──► frameQueue (8 decoded frames)
+                                                                      │
+                                                               playbackLoop
+                                                                      │
+                                                               NextFrame() — A/V sync
+                                                                      │
+                                                            WaitVsync() — DwmFlush / 60Hz timer
+                                                                      │
+                                                        SetFrame() — atomic.Pointer store
+                                                                      │
+                                                     Fyne render goroutine calls draw()
+                                                                      │
+                                                        scaleNearest() → pre-alloc buffer
+                                                                      │
+                                                              GPU texture upload
+```
+
+### Goroutine roles
+
+| Goroutine | Owns |
+|-----------|------|
+| `demuxerLoop` | `AVFormatContext` reads via `formatMu`; pushes packets to queues |
+| `videoDecodeLoop` | codec send/receive under `videoCodecMu`; pushes RGBA frames to `frameQueue` |
+| `audioDecodeLoop` | audio codec + swresample; drives `oto` player buffer |
+| `playbackLoop` | pulls frames, does A/V sync, calls `WaitVsync`, updates widget |
+| Fyne render | calls `draw()` at vsync; reads `atomic.Pointer` frame |
+| `seekHandler` | processes `seekQueue` from `SmoothScrubbing` |
+
+### Why `WaitVsync`
+
+At 50 fps on a 60 Hz display, 15 video frames must be spread across 18 vsync
+slots per 300 ms. Without vsync alignment, frame swap can land anywhere within a
+16.7 ms vsync window, producing irregular display durations (0–33 ms per frame)
+perceived as judder. `WaitVsync()` calls `DwmFlush()` on Windows (blocks until
+the DWM compose cycle) so every swap lands right after a vsync edge. The result
+is the mathematically unavoidable 2-1-1-1-1 cadence (one 33 ms slot, four 16 ms
+slots per 100 ms) rather than irregular timing. Linux/macOS fall back to a
+60 Hz-aligned `time.Sleep`.
+
+### A/V synchronisation
+
+`MasterClock` is driven by the audio output timestamp (set via `AudioPlayer.Read`
+→ `SetTime`). `NextFrame()` calls `clock.WaitForPTS(pts)` which sleeps until the
+master clock reaches the frame's presentation timestamp, then `clock.SyncVideo`
+drops frames that arrive more than `MaxDriftThreshold` (300 ms) late.
+
+### Key design choices
+
+| Choice | Reason |
+|--------|--------|
+| `atomic.Pointer[image.RGBA]` for `VideoPlayer.source` | `SetFrame` is called from the playback goroutine; `draw()` reads on Fyne's render goroutine — atomics eliminate both the data race and the `DoFromGoroutine(true)` round-trip |
+| Pre-allocated `drawBuf` in `VideoPlayer` | Avoids ~8 MB allocation per frame (~400 MB/s GC pressure at 50 fps); reallocated only on widget resize |
+| `scaleNearest` on raw `Pix` bytes | Avoids `image.Image` interface dispatch + `RGBA() uint32` conversion per pixel; direct 4-byte copy per output pixel |
+| `DoFromGoroutine(false)` for time/callbacks | `SetCurrentTime` mutates Fyne widgets (must run on main goroutine) but is non-critical; async keeps the playback goroutine unblocked |
+| `frameQueue` buffered to 8 frames | ~160 ms headroom at 50 fps; absorbs single-threaded H.264 I-frame decode spikes (~150 ms) without stalling display |
+
+---
+
 ## Playback Loop Internals
 
 `InlineVideoPlayer.Play()` launches `playbackLoop()` in a goroutine:
 
 ```
 for each frame:
-    snapshot engine + playing flag + onProgress callback under mutex
+    snapshot engine + playing flag + callbacks under mutex
     if not playing → return
-    img, err := eng.NextFrame()
-    if err == io.EOF → call SetOnEnd on main thread, return cleanly
-    if err != nil   → call SetError on main thread, return
-    widget.SetFrame(img)
-    widget.SetCurrentTime(t)
-    onProgress(t)             ← fires SetOnProgress callbacks
+    img, err := eng.NextFrame()        ← blocks on A/V clock (WaitForPTS)
+    if err == io.EOF → notify main thread, reload, return
+    if err != nil   → notify main thread, return
+    media.WaitVsync()                  ← align to display vsync boundary
+    v.player.SetFrame(img)             ← atomic store + widget.Refresh()
+    DoFromGoroutine(false, func() {    ← async; does not block playback goroutine
+        v.player.SetCurrentTime(t)
+        onFrm(img)                     ← frame-mirror callback
+    })
+    onProgress(t)                      ← progress callback (any goroutine)
 ```
 
 `Pause()` sets `v.playing = false`; the loop exits on next iteration.
 `Load()` replaces the engine under the mutex; any running loop exits because
 its engine snapshot no longer matches.
+
+### Known timing constraint: 50 fps on 60 Hz
+
+`WaitVsync` makes the judder pattern regular but cannot eliminate it — 15 frames
+cannot divide evenly into 18 vsync slots. Eliminating the judder entirely would
+require either:
+- **Frame interpolation** — generate a synthetic frame for the extra slot (complex,
+  latency cost).
+- **Direct display output** — bypass Fyne and present via a D3D11 swap chain or
+  OpenGL surface with precise vsync control (significant work; tracked below).
+
+Both are future work. The current implementation matches the cadence VLC produces
+without a hardware overlay.
 
 ---
 
@@ -233,3 +320,67 @@ opts.Player.SetOnProgress(func(t float64) {
     }
 })
 ```
+
+---
+
+## Planned Improvements
+
+### 1. Bilinear scaling
+
+`scaleNearest` is fast but produces aliasing on non-integer scale factors
+(visible on fine horizontal lines / text in the source video). The next step is
+to add a `scaleBilinear` path that uses the four surrounding source pixels for
+each destination pixel. Selection logic:
+
+- Use bilinear when `scale < 1.0` (downscaling: avoids moiré/aliasing).
+- Use nearest when `scale >= 1.0` (upscaling: nearest is sharper for pixel art
+  / screen recordings; bilinear would add unnecessary blur).
+- Add a widget-level `SetScaleMode(Nearest|Bilinear|Auto)` so modules can
+  override if needed.
+
+Implementation note: both `src` and `dst` are `*image.RGBA` so the inner loop
+can still work on raw `Pix` bytes; bilinear just needs four source pixel reads
+and a weighted average (integer arithmetic, no floats inside the inner loop).
+
+### 2. Frame timing metrics
+
+To diagnose A/V sync drift, judder, and dropped frames the engine should
+accumulate per-frame timing data and expose it for display/logging.
+
+Proposed additions to `Engine`:
+
+```go
+type FrameTimingStats struct {
+    FrameNum      int64
+    PTS           float64   // frame presentation timestamp
+    ClockAtDecode float64   // master clock when NextFrame returned
+    DisplayedAt   time.Time // wall time when SetFrame was called
+    Dropped       bool
+}
+
+// Ring buffer of the last N frames (e.g. 300 = 6s at 50fps)
+func (e *Engine) FrameTimingHistory() []FrameTimingStats
+func (e *Engine) ResetFrameTimingHistory()
+```
+
+From these, derived metrics:
+- **A/V drift** = `ClockAtDecode - PTS` (positive = video ahead of audio)
+- **Display jitter** = stddev of `DisplayedAt[i+1] - DisplayedAt[i]`
+- **Drop rate** = `dropped / total`
+
+The stats can be exposed in the Inspect module or via a dev overlay toggled by
+a keyboard shortcut. This data is the foundation for auto-tuning
+`MaxDriftThreshold` and for diagnosing per-file sync anomalies (like the
+`pts_delay=2719ms` VLC had to compensate for on the wrestling file).
+
+### 3. Direct display output (long term)
+
+Bypassing Fyne's texture upload for the video rect would let us:
+- Present frames directly via a D3D11 swap chain on Windows (zero-copy from
+  HW decode to screen).
+- Use OpenGL PBO (pixel buffer objects) for async CPU→GPU upload, hiding the
+  transfer latency behind the decode of the next frame.
+
+This requires embedding a platform-native window surface inside the Fyne canvas
+object, which Fyne supports via `driver.NativeWindow`. The implementation is
+significant but would enable true hardware-accelerated playback with no CPU copy.
