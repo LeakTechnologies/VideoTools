@@ -3,9 +3,9 @@
 package media
 
 /*
-#cgo !windows pkg-config: libavcodec libavutil
+#cgo !windows pkg-config: libavcodec libavutil libswscale
 #cgo windows CFLAGS: -IC:/ffmpeg/include
-#cgo windows LDFLAGS: -LC:/ffmpeg/lib -lavcodec -lavutil
+#cgo windows LDFLAGS: -LC:/ffmpeg/lib -lavcodec -lavutil -lswscale
 #include <libavcodec/avcodec.h>
 #include "safe_bridge.h"
 #include <stdint.h>
@@ -24,5 +24,22 @@ func SafeSendPacket(ctx *C.AVCodecContext, pkt *C.AVPacket) (int, uint32) {
 func SafeReceiveFrame(ctx *C.AVCodecContext, frame *C.AVFrame) (int, uint32) {
 	var excCode C.uint32_t
 	ret := int(C.safe_avcodec_receive_frame(ctx, frame, &excCode))
+	return ret, uint32(excCode)
+}
+
+// SafeHWFrameTransfer wraps av_hwframe_transfer_data with SEH protection.
+// Returns (ret, excCode); excCode != 0 means an access violation was caught.
+func SafeHWFrameTransfer(dst *C.AVFrame, src *C.AVFrame, flags int) (int, uint32) {
+	var excCode C.uint32_t
+	ret := int(C.safe_av_hwframe_transfer_data(dst, src, C.int(flags), &excCode))
+	return ret, uint32(excCode)
+}
+
+// SafeSwsScaleFrame wraps sws_scale with SEH protection, taking AVFrame pointers
+// instead of uint8_t** to avoid CGo double-pointer restrictions.
+// Returns (ret, excCode); excCode != 0 means an access violation was caught.
+func SafeSwsScaleFrame(ctx *C.struct_SwsContext, src *C.AVFrame, srcY, srcH int, dst *C.AVFrame) (int, uint32) {
+	var excCode C.uint32_t
+	ret := int(C.safe_sws_scale_frame(ctx, src, C.int(srcY), C.int(srcH), dst, &excCode))
 	return ret, uint32(excCode)
 }

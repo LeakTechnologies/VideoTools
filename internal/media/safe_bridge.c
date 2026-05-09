@@ -38,6 +38,8 @@
 #include <string.h>
 #include <errno.h>
 #include <libswresample/swresample.h>
+#include <libswscale/swscale.h>
+#include <libavutil/hwcontext.h>
 
 /* Sentinel placed in *exc_code_out when a pre-flight check fails. */
 #define SAFE_BRIDGE_PREFLIGHT_FAIL 0xDEAD0001u
@@ -213,6 +215,42 @@ int safe_avcodec_receive_frame(AVCodecContext* ctx, AVFrame* frame,
 
     int ret = 0;
     SAFE_CALL(avcodec_receive_frame(ctx, frame), ret, exc_code_out);
+    return ret;
+}
+
+/* =========================================================================
+ * safe_av_hwframe_transfer_data
+ * Transfers a hardware-accelerated frame to CPU memory with crash recovery.
+ * D3D11VA frames can fault on access if the GPU surface mapping is stale or
+ * if the device context was lost between decode and transfer.
+ * ======================================================================= */
+int safe_av_hwframe_transfer_data(AVFrame* dst, const AVFrame* src, int flags,
+                                   uint32_t* exc_code_out) {
+    *exc_code_out = 0;
+    if (!dst || !src) { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
+    int ret = 0;
+    SAFE_CALL(av_hwframe_transfer_data(dst, src, flags), ret, exc_code_out);
+    return ret;
+}
+
+/* =========================================================================
+ * safe_sws_scale_frame
+ * Wraps sws_scale using the data/linesize arrays from AVFrame pointers directly.
+ * Using AVFrame* avoids CGo's prohibition on passing Go pointers that contain
+ * other Go pointers (the uint8_t** double-pointer case).  A crash here indicates
+ * a corrupted or unmapped frame buffer (common on HW decode device loss).
+ * ======================================================================= */
+int safe_sws_scale_frame(struct SwsContext* ctx, AVFrame* src,
+                          int srcSliceY, int srcSliceH,
+                          AVFrame* dst, uint32_t* exc_code_out) {
+    *exc_code_out = 0;
+    if (!ctx || !src || !dst) { *exc_code_out = SAFE_BRIDGE_PREFLIGHT_FAIL; return AVERROR(EINVAL); }
+    int ret = 0;
+    SAFE_CALL(sws_scale(ctx,
+                        (const uint8_t *const *)src->data, src->linesize,
+                        srcSliceY, srcSliceH,
+                        dst->data, dst->linesize),
+              ret, exc_code_out);
     return ret;
 }
 

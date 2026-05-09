@@ -8,6 +8,8 @@
 #include <stdint.h>
 #include <libavcodec/avcodec.h>
 #include <libswresample/swresample.h>
+#include <libswscale/swscale.h>
+#include <libavutil/hwcontext.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,6 +61,24 @@ int safe_avcodec_send_packet(AVCodecContext* ctx, const AVPacket* pkt,
  */
 int safe_avcodec_receive_frame(AVCodecContext* ctx, AVFrame* frame,
                                 uint32_t* exc_code_out);
+
+/*
+ * safe_av_hwframe_transfer_data — wraps av_hwframe_transfer_data with crash recovery.
+ * D3D11VA surfaces can trigger access violations if the frame or GPU mapping is
+ * stale; this wrapper catches and reports the exception rather than crashing.
+ */
+int safe_av_hwframe_transfer_data(AVFrame* dst, const AVFrame* src, int flags,
+                                   uint32_t* exc_code_out);
+
+/*
+ * safe_sws_scale_frame — wraps sws_scale using AVFrame data/linesize arrays directly.
+ * Takes AVFrame* instead of uint8_t** to avoid CGo double-pointer restrictions.
+ * On an access violation (e.g. corrupted HW frame data pointer) it catches the
+ * exception and returns AVERROR(EINVAL) with *exc_code_out set.
+ */
+int safe_sws_scale_frame(struct SwsContext* ctx, AVFrame* src,
+                          int srcSliceY, int srcSliceH,
+                          AVFrame* dst, uint32_t* exc_code_out);
 
 /*
  * audio_swr_convert_packed — CGo-safe wrapper around swr_convert for packed
