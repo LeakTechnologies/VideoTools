@@ -28,6 +28,10 @@ func (s *appState) showPlayerViewForPath(path string) {
 	s.playerFile = src
 	s.recentFiles.Add(path, filepath.Base(path), "player")
 	s.showPlayerView()
+	// Load the video into the player engine after showing the view.
+	// buildVideoPane uses GetConvertPlayer(); without this call the transport
+	// controls appear but the engine has no video so Play() is a no-op.
+	go s.loadVideoNative(path)
 }
 
 func (s *appState) showPlayerView() {
