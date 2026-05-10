@@ -2192,7 +2192,7 @@ func (e *Engine) Seek(seconds float64) error {
 			logging.Info(logging.CatPlayer, "Seek: keyframe landed at %.2f (target %.2f, diff=%.1fs) — accurate fallback", landedSecs, seconds, math.Abs(landedSecs-seconds))
 			accurateRet := C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx),
 				C.int64_t(math.MinInt64/2), target, target,
-				C.int(AVSEEK_FLAG_ACCURATE|AVSEEK_FLAG_BACKWARD))
+				C.int(AVSEEK_FLAG_ACCURATE))
 			if accurateRet < 0 {
 				logging.Warning(logging.CatPlayer, "Seek: accurate fallback failed (ret=%d) — restoring keyframe position", accurateRet)
 				C.avformat_seek_file(e.formatCtx, C.int(e.videoStreamIdx), minTS, target, maxTS, flags)
@@ -2280,6 +2280,10 @@ func (e *Engine) Seek(seconds float64) error {
 	// callback goroutine). Calling avcodec_flush_buffers directly while Read()
 	// holds the codec causes a hard crash.
 	if e.audioPlayer != nil {
+		// Arm the seek guard before flushing so Read() discards any stale chunks
+		// that arrive between the queue flush and the codec flush.  Without this
+		// the audio from the keyframe position (often 0) bleeds through audibly.
+		e.audioPlayer.SetSeekTarget(seconds)
 		e.audioPlayer.FlushCodec()
 		e.audioPlayer.ResetEOF()
 	} else if e.audioCodecCtx != nil {

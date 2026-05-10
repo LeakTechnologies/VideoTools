@@ -85,6 +85,14 @@ type AudioPlayer struct {
 	// Logged as a warning at threshold to aid A/V sync diagnostics.
 	underrunCount atomic.Int64
 
+	// seekGuardActive / seekTargetBits: when a seek sets a target, Read() silently
+	// discards audio chunks whose PTS is more than seekTolerance below the target.
+	// This prevents the "audio plays from keyframe start" bug when the keyframe is
+	// far behind the seek point.  Cleared automatically when the first in-range
+	// chunk is consumed.
+	seekGuardActive atomic.Bool
+	seekTargetBits  atomic.Uint64
+
 	// Diagnostic / state flags (all protected by codecMu or mu as noted)
 	codecDead bool        // set when codec raises a pre-flight error; stops decode loop
 	closed    atomic.Bool // set by Close(); causes Read() to return io.EOF immediately
@@ -358,6 +366,21 @@ func (p *AudioPlayer) Read(buf []byte) (int, error) {
 			}
 			return 0, io.EOF
 		}
+
+		// Seek guard: discard audio chunks that predate the seek target.
+		// This prevents audible playback from the keyframe position when the
+		// keyframe is far behind the requested seek point.
+		if p.seekGuardActive.Load() {
+			seekTarget := math.Float64frombits(p.seekTargetBits.Load())
+			if chunk.pts < seekTarget-seekTolerance {
+				for i := range buf {
+					buf[i] = 0
+				}
+				return len(buf), nil
+			}
+			p.seekGuardActive.Store(false)
+		}
+
 		p.underrunCount.Store(0)
 		// Drive the master clock from audio output position.
 		p.clock.SetTime(chunk.pts - AudioBufferLatency.Seconds())
@@ -442,6 +465,19 @@ func (p *AudioPlayer) adjustSamplesForSpeed(data []byte, speed float64) []byte {
 		}
 	}
 	return output[:outputIdx]
+}
+
+// seekTolerance is how far before the seek target a chunk must be to be discarded.
+// A half-frame of audio (12 ms) avoids discarding the first valid chunk due to rounding.
+const seekTolerance = 0.05
+
+// SetSeekTarget arms the audio seek guard.  Read() will silently discard any
+// chunk whose PTS is more than seekTolerance seconds below seconds, preventing
+// audible playback from the keyframe position when the keyframe is behind the
+// seek target.  The guard disarms automatically on the first in-range chunk.
+func (p *AudioPlayer) SetSeekTarget(seconds float64) {
+	p.seekTargetBits.Store(math.Float64bits(seconds))
+	p.seekGuardActive.Store(true)
 }
 
 func (p *AudioPlayer) FlushCodec() {
