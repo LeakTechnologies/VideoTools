@@ -764,7 +764,7 @@ func buildFlagLangSelect(langs []i18n.Language, activeFont, currentCode string, 
 		objs := []fyne.CanvasObject{}
 		if res := ui.GetFlag(lang.Flag); res != nil {
 			img := canvas.NewImageFromResource(res)
-			img.SetMinSize(fyne.NewSize(24, 16))
+			img.SetMinSize(fyne.NewSize(24, 12))
 			img.FillMode = canvas.ImageFillContain
 			objs = append(objs, img)
 		}
