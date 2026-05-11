@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"io"
 	"io/fs"
@@ -13386,17 +13387,30 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 
 	if src == nil {
 		smpteRaster := canvas.NewRaster(func(w, h int) image.Image {
-			return smpte.DrawBars(w, h, "DRAG TO LOAD VIDEO")
+			if w <= 0 || h <= 0 {
+				return image.NewRGBA(image.Rect(0, 0, 1, 1))
+			}
+			// Match the native player: render bars at 4:3 with dark pillarboxing.
+			const targetAspect = 4.0 / 3.0
+			var smpteW, smpteH, offsetX, offsetY int
+			if float64(w)/float64(h) > targetAspect {
+				smpteH = h
+				smpteW = int(float64(h) * targetAspect)
+				offsetX = (w - smpteW) / 2
+			} else {
+				smpteW = w
+				smpteH = int(float64(w) / targetAspect)
+				offsetY = (h - smpteH) / 2
+			}
+			img := image.NewRGBA(image.Rect(0, 0, w, h))
+			draw.Draw(img, img.Bounds(), image.NewUniform(color.RGBA{R: 0x0F, G: 0x15, B: 0x29, A: 0xFF}), image.Point{}, draw.Src)
+			bars := smpte.DrawBars(smpteW, smpteH, "DRAG TO LOAD VIDEO")
+			draw.Draw(img, image.Rect(offsetX, offsetY, offsetX+smpteW, offsetY+smpteH), bars, image.Point{}, draw.Src)
+			return img
 		})
 		smpteRaster.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
 
-		dropIndicator := canvas.NewRectangle(color.NRGBA{R: 76, G: 175, B: 80, A: 0})
-		dropIndicator.CornerRadius = 8
-		dropIndicator.StrokeWidth = 3
-		dropIndicator.StrokeColor = utils.MustHex("#4CE870")
-
-		stageContent := container.NewMax(smpteRaster, dropIndicator)
-		dropTarget := ui.NewDroppable(stageContent, func(items []fyne.URI) {
+		dropTarget := ui.NewDroppable(smpteRaster, func(items []fyne.URI) {
 			state.handleDrop(fyne.NewPos(0, 0), items)
 		})
 		return container.NewMax(outer, container.NewPadded(dropTarget))
