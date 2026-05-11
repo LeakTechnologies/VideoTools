@@ -158,11 +158,12 @@ $env:GOOS = "windows"
 $env:GOARCH = "amd64"
 $env:CGO_ENABLED = "1"
 
-# Set GCC compiler explicitly if available
+# Set GCC compiler explicitly if available.
+# Wrap in quotes so CGO handles paths that contain spaces (e.g. C:\Program Files\...).
 $gccPath = (Get-Command gcc -ErrorAction SilentlyContinue).Source
 if ($gccPath) {
-    $env:CC = $gccPath
-    $env:CXX = $gccPath -replace "gcc\.exe$", "g++.exe"
+    $env:CC  = "`"$gccPath`""
+    $env:CXX = "`"$($gccPath -replace 'gcc\.exe$', 'g++.exe')`""
 }
 
 # Build flags
