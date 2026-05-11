@@ -316,20 +316,16 @@ onScheduleModule func(string, string),
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 24
 
-	backBtn := widget.NewButton("< QUEUE", onBack)
-	backBtn.Importance = widget.LowImportance
+	backBtn := DarkTextButton("< QUEUE", onBack)
 
 	startAllBtn := widget.NewButton(t.ActionQueueStart, onStart)
 	startAllBtn.Importance = widget.MediumImportance
 
-	pauseAllBtn := widget.NewButton(t.ActionQueuePauseAll, onPauseAll)
-	pauseAllBtn.Importance = widget.LowImportance
+	pauseAllBtn := DarkTextButton(t.ActionQueuePauseAll, onPauseAll)
 
-	resumeAllBtn := widget.NewButton(t.ActionQueueResumeAll, onResumeAll)
-	resumeAllBtn.Importance = widget.LowImportance
+	resumeAllBtn := DarkTextButton(t.ActionQueueResumeAll, onResumeAll)
 
-	clearBtn := widget.NewButton(t.ActionQueueClearCompleted, onClear)
-	clearBtn.Importance = widget.LowImportance
+	clearBtn := DarkTextButton(t.ActionQueueClearCompleted, onClear)
 
 	clearAllBtn := widget.NewButton(t.ActionClearAll, onClearAll)
 	clearAllBtn.Importance = widget.DangerImportance
@@ -346,7 +342,7 @@ onScheduleModule func(string, string),
 	}
 
 	// Status badge for queue (shows active/completed counts)
-	statusBadge := canvas.NewText("", textColor)
+	statusBadge := canvas.NewText("", color.Black)
 	statusBadge.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	statusBadge.TextSize = 11
 
@@ -476,20 +472,26 @@ func buildJobItem(
 	statusRect := canvas.NewRectangle(statusColor)
 	statusRect.SetMinSize(fyne.NewSize(6, 0))
 
-	// Thumbnail image with 3px colored outline matching module color
-	// Height = 80-100px (visible size) + 6px outline = 86-106px total
+	// Thumbnail: module-color border around a dark-bg inner area containing the image.
+	// ImageFillContain preserves the full frame; the dark inner bg (#0A0E1A) replaces
+	// the grey letterbox bars that appeared when the video was not 16:9.
 	var thumbnailWidget fyne.CanvasObject
 	if job.ThumbnailPath != "" {
 		if img, err := fyne.LoadResourceFromPath(job.ThumbnailPath); err == nil {
 			thumbImg := canvas.NewImageFromResource(img)
 			thumbImg.FillMode = canvas.ImageFillContain
-			// Height = 90px (visible) + 6px outline = 96px total
-			thumbImg.SetMinSize(fyne.NewSize(160, 90)) // ~16:9 aspect ratio
-			// 3px outline using module color
-			moduleColor := ModuleColor(job.Type)
-			outlineBg := canvas.NewRectangle(moduleColor)
-			outlineBg.SetMinSize(fyne.NewSize(166, 96)) // 160+6 x 90+6 = 3px each side
-			thumbnailWidget = container.NewMax(outlineBg, container.NewPadded(thumbImg))
+			thumbImg.SetMinSize(fyne.NewSize(160, 90))
+
+			innerBg := canvas.NewRectangle(utils.MustHex("#0A0E1A"))
+			moduleCol := ModuleColor(job.Type)
+			outerBorder := canvas.NewRectangle(moduleCol)
+			outerBorder.CornerRadius = 3
+			outerBorder.SetMinSize(fyne.NewSize(168, 98))
+
+			thumbnailWidget = container.NewMax(
+				outerBorder,
+				container.NewPadded(container.NewMax(innerBg, thumbImg)),
+			)
 		}
 	}
 
@@ -1022,6 +1024,8 @@ func ModuleColor(t queue.JobType) color.Color {
 		return utils.MustHex("#1A9373") // Green-Teal - matches Rip module
 	case queue.JobTypePlayer:
 		return utils.MustHex("#1D8EA5") // Cyan - matches Player module
+	case queue.JobTypeSnippet:
+		return utils.MustHex("#00BCD4") // Cyan - matches Snippet badge color
 	default:
 		return color.Gray{Y: 180}
 	}
