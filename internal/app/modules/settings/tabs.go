@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
@@ -789,8 +790,7 @@ func buildFlagLangSelect(langs []i18n.Language, activeFont, currentCode string, 
 	bg.CornerRadius = 8
 	bg.SetMinSize(fyne.NewSize(0, 36))
 
-	caret := canvas.NewText("▾", textCol)
-	caret.TextSize = 14
+	caret := widget.NewIcon(theme.MenuDropDownIcon())
 
 	buttonContent := container.NewBorder(nil, nil, nil, caret,
 		container.NewPadded(makeRow(currentLang, false)))
