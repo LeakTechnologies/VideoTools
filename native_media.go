@@ -9,7 +9,6 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
 	mediafilters "git.leaktechnologies.dev/stu/VideoTools/internal/media/filters"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/smpte"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 )
 
@@ -189,7 +188,6 @@ func (s *appState) applyUpscalePreview() {
 
 func initNativeMediaAssets(s *appState) {
 	ui.SetVCRFontData(vcrOSDMono)
-	smpte.SetVCRFont(vcrOSDMono)
 	// Pre-detect hardware decode capability on the main goroutine before the
 	// GLFW event loop starts.  D3D11VA device creation (Windows) uses COM STA
 	// dispatch which deadlocks with the GLFW message pump when called later

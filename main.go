@@ -8117,6 +8117,7 @@ func runGUI() {
 	ui.SetFlagsFS(flagsFS)
 	ui.SetMonoFontData(ibmPlexMonoRegular, ibmPlexMonoItalic, ibmPlexMonoBold, ibmPlexMonoBoldItalic)
 	ui.SetAboriginalFontData(aboriginalSansRegular, aboriginalSansItalic, aboriginalSansBold, aboriginalSansBoldItalic)
+	smpte.SetVCRFont(vcrOSDMono)
 
 	a.Settings().SetTheme(&ui.MonoTheme{})
 	// Pre-loop flush: clear any NotoSans cache entries built before SetTheme.
