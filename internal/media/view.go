@@ -7,7 +7,6 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
-	"math"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,9 +19,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/opentype"
-	"golang.org/x/image/math/fixed"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/smpte"
 )
 
 const (
@@ -178,7 +175,7 @@ func (s *SplitView) draw(w, h int) image.Image {
 		leftRect := image.Rect(0, 0, splitX, h)
 		draw.Draw(img, leftRect, s.leftSource, image.Point{}, draw.Src)
 	} else {
-		bars := drawSMPTEBars(splitX, h, s.leftIdleText)
+		bars := smpte.DrawBars(splitX, h, s.leftIdleText)
 		draw.Draw(img, image.Rect(0, 0, splitX, h), bars, image.Point{}, draw.Src)
 	}
 
@@ -193,7 +190,7 @@ func (s *SplitView) draw(w, h int) image.Image {
 			}
 			draw.Draw(img, rightRect, s.rightSource, image.Point{X: srcX}, draw.Src)
 		} else {
-			bars := drawSMPTEBars(rightW, h, s.rightIdleText)
+			bars := smpte.DrawBars(rightW, h, s.rightIdleText)
 			draw.Draw(img, image.Rect(rightX, 0, w, h), bars, image.Point{}, draw.Src)
 		}
 	}
@@ -1415,7 +1412,7 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 		if v.isLoading {
 			overlayText = "NOW LOADING"
 		}
-		smpteImg := drawSMPTEBars(smpteW, smpteH, overlayText)
+		smpteImg := smpte.DrawBars(smpteW, smpteH, overlayText)
 		draw.Draw(img, image.Rect(offsetX, offsetY, offsetX+smpteW, offsetY+smpteH), smpteImg, image.Point{}, draw.Src)
 
 		return img
@@ -1458,230 +1455,4 @@ func (v *VideoPlayer) draw(w, h int) image.Image {
 	return v.drawBuf
 }
 
-// ---- SMPTE 75% colour bars idle state ----
 
-var (
-	smpteVCRFontData   []byte
-	smpteParsedFont    *opentype.Font
-	smpteFontParseOnce sync.Once
-
-	// last-used face cache — avoids re-creating the face on every idle repaint
-	// when the window size hasn't changed.
-	smpteFaceMu       sync.Mutex
-	smpteFaceLastSize float64
-	smpteFaceLastFace font.Face
-)
-
-// SetVCRFont registers the VCR OSD Mono TTF bytes so drawSMPTEBars can use it.
-// Call this once at startup from main before the first video player is shown.
-func SetVCRFont(data []byte) {
-	smpteVCRFontData = data
-}
-
-// getSMPTEFontFace returns the VCR OSD Mono font face at the requested point size.
-// The test pattern always uses VCR OSD Mono regardless of user font preference.
-// The underlying *opentype.Font is parsed once; faces are created on demand
-// and the last-used face is cached so steady-state repaints are allocation-free.
-func getSMPTEFontFace(size float64) font.Face {
-	smpteFontParseOnce.Do(func() {
-		if len(smpteVCRFontData) == 0 {
-			return
-		}
-		f, err := opentype.Parse(smpteVCRFontData)
-		if err != nil {
-			logging.Warning(logging.CatPlayer, "SMPTE: failed to parse VCR font: %v", err)
-			return
-		}
-		smpteParsedFont = f
-	})
-	if smpteParsedFont == nil {
-		return nil
-	}
-
-	rounded := math.Round(size)
-	smpteFaceMu.Lock()
-	if rounded == smpteFaceLastSize && smpteFaceLastFace != nil {
-		f := smpteFaceLastFace
-		smpteFaceMu.Unlock()
-		return f
-	}
-	smpteFaceMu.Unlock()
-
-	face, err := opentype.NewFace(smpteParsedFont, &opentype.FaceOptions{
-		Size:    rounded,
-		DPI:     72,
-		Hinting: font.HintingNone,
-	})
-	if err != nil {
-		logging.Warning(logging.CatPlayer, "SMPTE: failed to create font face at size %.0f: %v", rounded, err)
-		return nil
-	}
-
-	smpteFaceMu.Lock()
-	smpteFaceLastSize = rounded
-	smpteFaceLastFace = face
-	smpteFaceMu.Unlock()
-	return face
-}
-
-func smpteFillRect(img *image.RGBA, x, y, w, h int, c color.RGBA) {
-	for py := y; py < y+h; py++ {
-		for px := x; px < x+w; px++ {
-			img.SetRGBA(px, py, c)
-		}
-	}
-}
-
-func drawSMPTEBars(w, h int, idleText string) *image.RGBA {
-	if w <= 0 || h <= 0 {
-		return image.NewRGBA(image.Rect(0, 0, max(w, 1), max(h, 1)))
-	}
-
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
-
-	// Row heights: top 66.67%, mid 8.33%, bottom 25% (matching SVG proportions)
-	topH := int(float64(h) * 0.6667)
-	midH := int(float64(h) * 0.0833)
-	botH := h - topH - midH
-	midY := topH
-	botY := topH + midH
-	topColors := [7]color.RGBA{
-		{0xb4, 0xb4, 0xb4, 0xff}, // light grey
-		{0xb4, 0xb4, 0x10, 0xff}, // yellow
-		{0x10, 0xb4, 0xb4, 0xff}, // cyan
-		{0x10, 0xb4, 0x10, 0xff}, // green
-		{0xb4, 0x10, 0xb4, 0xff}, // magenta
-		{0xb4, 0x10, 0x10, 0xff}, // red
-		{0x10, 0x10, 0xb4, 0xff}, // blue
-	}
-	barW := w / 7
-	for i, c := range topColors {
-		x := i * barW
-		bw := barW
-		if i == 6 {
-			bw = w - x // absorb rounding remainder
-		}
-		smpteFillRect(img, x, 0, bw, topH, c)
-	}
-
-	// Mid row: 7 equal bars (reversed / different pattern per SMPTE)
-	midColors := [7]color.RGBA{
-		{0x10, 0x10, 0xb4, 0xff}, // blue
-		{0x10, 0x10, 0x10, 0xff}, // black
-		{0xb4, 0x10, 0xb4, 0xff}, // magenta
-		{0x10, 0x10, 0x10, 0xff}, // black
-		{0x10, 0xb4, 0xb4, 0xff}, // cyan
-		{0x10, 0x10, 0x10, 0xff}, // black
-		{0xb4, 0xb4, 0xb4, 0xff}, // light grey
-	}
-	for i, c := range midColors {
-		x := i * barW
-		bw := barW
-		if i == 6 {
-			bw = w - x
-		}
-		smpteFillRect(img, x, midY, bw, midH, c)
-	}
-
-	// Bottom row: variable-width PLUGE blocks (proportional to SVG 1024px layout)
-	// SVG widths at 1024px: 181.85, 183.17, 183.99, 182.42, (PLUGE 3×48.76), 146.29
-	// Normalised fractions:
-	botFracs := [8]float64{
-		181.85 / 1024.0, // dark navy
-		183.17 / 1024.0, // white
-		183.99 / 1024.0, // purple
-		182.42 / 1024.0, // reference black
-		48.76 / 1024.0,  // PLUGE -2 (darker)
-		48.76 / 1024.0,  // reference black
-		48.76 / 1024.0,  // PLUGE +2 (lighter)
-		146.29 / 1024.0, // reference black
-	}
-	botColors := [8]color.RGBA{
-		{0x00, 0x21, 0x4c, 0xff}, // dark navy
-		{0xeb, 0xeb, 0xeb, 0xff}, // near-white
-		{0x4c, 0x00, 0x82, 0xff}, // purple
-		{0x10, 0x10, 0x10, 0xff}, // reference black
-		{0x08, 0x08, 0x08, 0xff}, // PLUGE sub-black
-		{0x10, 0x10, 0x10, 0xff}, // reference black
-		{0x18, 0x18, 0x18, 0xff}, // PLUGE super-black
-		{0x10, 0x10, 0x10, 0xff}, // reference black
-	}
-	bx := 0
-	for i, frac := range botFracs {
-		bw := int(frac * float64(w))
-		if i == 7 {
-			bw = w - bx // absorb remainder
-		}
-		smpteFillRect(img, bx, botY, bw, botH, botColors[i])
-		bx += bw
-	}
-
-	// Text overlay: black box centred in the top section
-	if idleText != "" {
-		drawSMPTEText(img, w, topH, idleText)
-	}
-
-	return img
-}
-
-func drawSMPTEText(img *image.RGBA, w, topH int, text string) {
-	// Scale font proportionally to the bars width.
-	// Reference: 48pt looks right at 1024px wide (the SVG canvas size).
-	// Clamp so it stays legible at both very small and very large sizes.
-	fontSize := math.Round(48.0 * float64(w) / 1024.0)
-	if fontSize < 10 {
-		fontSize = 10
-	} else if fontSize > 72 {
-		fontSize = 72
-	}
-
-	// Test pattern always uses VCR OSD Mono font
-	face := getSMPTEFontFace(fontSize)
-	if face == nil {
-		// No text if VCR font not available
-		return
-	}
-
-	// Measure text width using font advance
-	var textPx fixed.Int26_6
-	for _, r := range text {
-		adv, ok := face.GlyphAdvance(r)
-		if ok {
-			textPx += adv
-		}
-	}
-	textW := textPx.Ceil()
-	metrics := face.Metrics()
-	textH := metrics.Ascent.Ceil() + metrics.Descent.Ceil()
-
-	// Padding scales with font size
-	padX := int(math.Round(float64(fontSize) * 0.4))
-	padY := int(math.Round(float64(fontSize) * 0.25))
-	boxW := textW + padX*2
-	boxH := textH + padY*2
-
-	// Clamp box so it never bleeds outside the bars (can happen at very small sizes)
-	if boxW > w {
-		boxW = w
-	}
-
-	boxX := (w - boxW) / 2
-	boxY := topH/2 - boxH/2
-	if boxY < 0 {
-		boxY = 0
-	}
-
-	// Black backing box
-	smpteFillRect(img, boxX, boxY, boxW, boxH, color.RGBA{0x10, 0x10, 0x10, 0xff})
-
-	// Draw text — clip the draw origin so text stays inside the box
-	dotX := boxX + padX
-	dotY := boxY + padY + metrics.Ascent.Ceil()
-	drawer := &font.Drawer{
-		Dst:  img,
-		Src:  image.NewUniform(color.RGBA{0xeb, 0xeb, 0xeb, 0xff}),
-		Face: face,
-		Dot:  fixed.P(dotX, dotY),
-	}
-	drawer.DrawString(text)
-}

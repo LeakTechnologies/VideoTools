@@ -8,6 +8,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"image"
 	"image/color"
 	"image/png"
 	"io"
@@ -52,6 +53,7 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/modules"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/smpte"
 	statepkg 	"git.leaktechnologies.dev/stu/VideoTools/internal/state"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/thumbnail"
@@ -13382,69 +13384,18 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	// outer.SetMinSize(fyne.NewSize(targetWidth, targetHeight))
 
 	if src == nil {
-		stage := canvas.NewRectangle(utils.MustHex("#0F1529"))
-		stage.CornerRadius = 6
-		stage.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
-
-		silhouetteIcon := container.New(layout.NewGridWrapLayout(fyne.NewSize(64, 64)),
-			widget.NewIcon(recoloredSVG{ui.GetIcon("slow_motion_video"), "#4CE870"}))
-
-		hintMain := widget.NewLabelWithStyle("Drop a video or open one to start playback", fyne.TextAlignCenter, fyne.TextStyle{Monospace: true, Bold: true})
-		hintSub := widget.NewLabel("MP4, MOV, MKV and more")
-		hintSub.Alignment = fyne.TextAlignCenter
-
-		open := widget.NewButton("Open File", func() {
-			logging.Debug(logging.CatUI, "convert open file dialog requested")
-			dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
-				if err != nil {
-					logging.Debug(logging.CatUI, "file open error: %v", err)
-					return
-				}
-				if r == nil {
-					return
-				}
-				path := r.URI().Path()
-				r.Close()
-				go state.loadVideo(path)
-			}, state.window)
-			dlg.Resize(fyne.NewSize(600, 400))
-			dlg.Show()
+		smpteRaster := canvas.NewRaster(func(w, h int) image.Image {
+			return smpte.DrawBars(w, h, "DRAG TO LOAD VIDEO")
 		})
+		smpteRaster.SetMinSize(fyne.NewSize(stageWidth, stageHeight))
 
-		addMultiple := widget.NewButton("Add Multiple", func() {
-			logging.Debug(logging.CatUI, "convert add multiple files dialog requested")
-			dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
-				if err != nil {
-					logging.Debug(logging.CatUI, "file open error: %v", err)
-					return
-				}
-				if r == nil {
-					return
-				}
-				path := r.URI().Path()
-				r.Close()
-				// For now, load the first selected file
-				// In a real multi-select dialog, you'd get all selected files
-				go state.loadVideo(path)
-			}, state.window)
-			dlg.Resize(fyne.NewSize(600, 400))
-			dlg.Show()
-		})
+		dropIndicator := canvas.NewRectangle(color.NRGBA{R: 76, G: 175, B: 80, A: 0})
+		dropIndicator.CornerRadius = 8
+		dropIndicator.StrokeWidth = 3
+		dropIndicator.StrokeColor = utils.MustHex("#4CE870")
 
-		placeholder := container.NewVBox(
-			container.NewCenter(silhouetteIcon),
-			container.NewCenter(hintMain),
-			container.NewCenter(hintSub),
-			container.NewCenter(container.NewHBox(open, addMultiple)),
-		)
-		stageBox := container.NewMax(stage, container.NewCenter(placeholder))
-		// Add drop indicator border to placeholder too
-		placeholderDropIndicator := canvas.NewRectangle(color.NRGBA{R: 76, G: 175, B: 80, A: 0})
-		placeholderDropIndicator.CornerRadius = 8
-		placeholderDropIndicator.StrokeWidth = 3
-		placeholderDropIndicator.StrokeColor = utils.MustHex("#4CE870")
-		stageBoxWithIndicator := container.NewMax(placeholderDropIndicator, stageBox)
-		dropTarget := ui.NewDroppable(stageBoxWithIndicator, func(items []fyne.URI) {
+		stageContent := container.NewMax(smpteRaster, dropIndicator)
+		dropTarget := ui.NewDroppable(stageContent, func(items []fyne.URI) {
 			state.handleDrop(fyne.NewPos(0, 0), items)
 		})
 		return container.NewMax(outer, container.NewPadded(dropTarget))
