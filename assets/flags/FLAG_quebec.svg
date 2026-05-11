@@ -1,54 +1,9 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- Created with Inkscape (http://www.inkscape.org/) -->
-
-<svg
-   width="256"
-   height="128"
-   viewBox="0 0 256 128"
-   version="1.1"
-   id="svg1"
-   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
-   sodipodi:docname="FLAG_quebec.svg"
-   xml:space="preserve"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:xlink="http://www.w3.org/1999/xlink"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
-     id="namedview1"
-     pagecolor="#505050"
-     bordercolor="#eeeeee"
-     borderopacity="1"
-     inkscape:showpageshadow="0"
-     inkscape:pageopacity="0"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#505050"
-     inkscape:document-units="px"
-     inkscape:zoom="4.5585937"
-     inkscape:cx="128.43873"
-     inkscape:cy="89.830334"
-     inkscape:window-width="2560"
-     inkscape:window-height="1369"
-     inkscape:window-x="-8"
-     inkscape:window-y="-8"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" /><defs
-     id="defs1" /><g
-     inkscape:label="Layer 1"
-     inkscape:groupmode="layer"
-     id="layer1"><g
-       id="g2"
-       transform="scale(0.02)"><path
-         fill="#ffffff"
-         d="M 0,0 H 9600 V 6400 H 0 Z"
-         id="path1" /><g
-         id="b"><path
-           fill="#003da5"
-           d="M 4000,0 V 2400 H 0 V 0 Z M 2309,1622 v -129 h -115 c 0,-66 32,-130 66,-150 20,-17 65,-25 104,-5 51,29 54,113 28,151 243,-45 219,-280 136,-365 -67,-69 -140,-79 -196,-58 -128,46 -214,199 -218,427 h -67 c 0,-207 36,-273 130,-534 48,-123 19,-275 -65,-415 -31,-50 -69,-95 -112,-144 -43,49 -81,94 -112,144 -84,140 -113,292 -65,415 94,261 130,327 130,534 h -67 c -4,-228 -90,-381 -218,-427 -56,-21 -129,-11 -196,58 -83,85 -107,320 136,365 -26,-38 -23,-122 28,-151 39,-20 84,-12 104,5 34,20 66,84 66,150 h -115 v 129 h 239 c -3,67 -39,119 -106,148 8,28 49,85 105,81 11,60 21,94 71,149 50,-55 60,-89 71,-149 56,4 97,-53 105,-81 -67,-29 -103,-81 -106,-148 z"
-           id="a" /><use
-           xlink:href="#a"
-           x="5600"
-           id="use1" /></g><use
-         xlink:href="#b"
-         y="4000"
-         id="use2" /></g></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 128">
+  <rect width="256" height="128" fill="#003da5"/>
+  <rect x="107" width="42" height="128" fill="#ffffff"/>
+  <rect y="43" width="256" height="42" fill="#ffffff"/>
+  <path fill="#ffffff" transform="translate(54,22)" d="M0,-16 L-4,-8 L-18,-4 L-8,4 L-5,14 L0,10 L5,14 L8,4 L18,-4 L4,-8 Z M-5,10 H5 V18 H-5 Z"/>
+  <path fill="#ffffff" transform="translate(202,22)" d="M0,-16 L-4,-8 L-18,-4 L-8,4 L-5,14 L0,10 L5,14 L8,4 L18,-4 L4,-8 Z M-5,10 H5 V18 H-5 Z"/>
+  <path fill="#ffffff" transform="translate(54,106)" d="M0,-16 L-4,-8 L-18,-4 L-8,4 L-5,14 L0,10 L5,14 L8,4 L18,-4 L4,-8 Z M-5,10 H5 V18 H-5 Z"/>
+  <path fill="#ffffff" transform="translate(202,106)" d="M0,-16 L-4,-8 L-18,-4 L-8,4 L-5,14 L0,10 L5,14 L8,4 L18,-4 L4,-8 Z M-5,10 H5 V18 H-5 Z"/>
+</svg>
