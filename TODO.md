@@ -113,6 +113,15 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [x] **Issue #21** — Native disc authoring — PTS validation added: ValidateNAVPTMs + SynthesizeAndPatchPTMs synthesize timestamps when FFmpeg writes zero PTMs; hardware player testing needed
 - [ ] **Linux CI** — Pre-built container image to reduce apt install time
 
+### PAL→NTSC Conversion Pipeline (opencode) — See `docs/PAL_NTSC_CONVERSION.md`
+
+The rip module faithfully preserves PAL source material (576i, 25 fps) but the
+Convert module has no path to convert it to NTSC for authoring. Three gaps to close:
+
+- [ ] **Rip: deinterlace on re-encode** — When format is H.264 MKV/MP4 and source is interlaced, add `yadif=mode=1` to the video filter chain in `BuildRipArgs` (`internal/app/modules/rip/executor.go`). Should detect interlacing from the IFO `titleInfo` or from a quick ffprobe scan, not unconditionally.
+- [ ] **Convert: PAL→NTSC preset** — New preset in `internal/convert/presets.go` (or equivalent): deinterlace (`yadif`), scale 720×576→720×480 with lanczos, fps 25→30000/1001, audio pitch correction `atempo=24/25` (≈ 0.9600) to undo the 4 % PAL speedup.
+- [ ] **Convert UI: expose the preset** — Surface "PAL → NTSC" in the Convert module's preset/format picker. See `docs/PAL_NTSC_CONVERSION.md` for ffmpeg filter chain details and the pitch-correction rationale.
+
 ---
 
 ## Dev40 Scope (closed)
@@ -523,6 +532,7 @@ Items currently being worked on by other agents — update when assignments chan
 |----------|-----------------------------------------------------------|-------------|
 | opencode | Drag and drop into Convert (issue carried from dev32)     | In progress |
 | opencode | Phase 3 modularisation — Inspect, Settings, Queue         | In progress |
+| opencode | PAL→NTSC conversion pipeline — see `docs/PAL_NTSC_CONVERSION.md` | Queued |
 | gemini   | Native disc authoring / DVD conversion (issue #21) + Wiki | In progress |
 
 ## Road to v0.1.2 — First Public Stable Release
