@@ -20,6 +20,7 @@ import (
 
 var gridColor = utils.MustHex("#2A3A52")
 var navyBlue = utils.MustHex("#191F35")
+var mediumBlue = utils.MustHex("#13182B")
 
 type Options struct {
 	Window      fyne.Window
@@ -57,7 +58,7 @@ type Options struct {
 	OnShowUpscaleView    func()
 	OnShowFiltersView    func()
 	OnClearCompletedJobs func()
-	OnGetStatsBar        func() fyne.CanvasObject
+	OnGetStatsBar        func() *ui.ConversionStatsBar
 
 	OnLoadFile      func(path string)
 	OnUpdateFile    func(file any)
@@ -104,6 +105,7 @@ type Options struct {
 	// OnFilterChanged is called after every filter parameter change so the host
 	// can rebuild and apply the filter pipeline to the preview player.
 	OnFilterChanged func()
+	OnGetModuleFooter func(color.Color, fyne.CanvasObject, *ui.ConversionStatsBar) fyne.CanvasObject
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
@@ -120,7 +122,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	backBtn.Importance = widget.LowImportance
 
-	queueBtn := widget.NewButton("View Queue", func() {
+	loadBtn := widget.NewButton(t.ActionLoadVideo, nil)
+	loadBtn.Importance = widget.LowImportance
+
+	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
 		if opts.OnShowQueue != nil {
 			opts.OnShowQueue()
 		}
@@ -133,11 +138,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	clearCompletedBtn.Importance = widget.LowImportance
 
-	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
-
-	instructions := widget.NewLabel(t.FiltersInstructions)
-	instructions.Wrapping = fyne.TextWrapWord
-	instructions.Alignment = fyne.TextAlignCenter
+	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, loadBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
 	buildFilterChain := func() {
 		if opts.OnBuildFilterChain != nil {
@@ -182,13 +183,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 		var videoContainer fyne.CanvasObject
 		if opts.FiltersFile != nil {
 			videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), opts.FiltersFile, nil)
-		} else {
-			videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), nil, nil)
-		}
-		videoArea = videoContainer
+	} else {
+		videoContainer = opts.OnBuildVideoPane(nil, fyne.NewSize(480, 270), nil, nil)
 	}
+	videoArea = videoContainer
+}
 
-	loadBtn := widget.NewButton("Load Video", func() {
+	loadBtn.OnTapped = func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -199,8 +200,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 				opts.OnLoadFile(path)
 			}
 		}, opts.Window)
-	})
-	loadBtn.Importance = widget.HighImportance
+	}
 
 	upscaleNavBtn := widget.NewButton("Send to Upscale →", func() {
 		if opts.OnSendToUpscale != nil {
@@ -216,11 +216,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 		bg.CornerRadius = 10
 		bg.StrokeColor = gridColor
 		bg.StrokeWidth = 1
-		body := container.NewVBox(
+		header := container.NewVBox(
 			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			widget.NewSeparator(),
-			content,
 		)
+		body := container.NewBorder(header, nil, nil, nil, content)
 		layers := ui.NoisyBackgroundObjects(bg)
 		layers = append(layers, container.NewPadded(body))
 		return container.NewMax(layers...)
@@ -537,13 +537,34 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	applyBtn.Importance = widget.HighImportance
 
-	leftPanel := container.NewVBox(
-		instructions,
-		widget.NewSeparator(),
-		fileLabel,
-		loadBtn,
-		upscaleNavBtn,
+	filterNowBtn := widget.NewButton("Filter Now", func() {
+		if opts.FiltersFile == nil {
+			dialog.ShowInformation("No Video", "Please load a video first.", opts.Window)
+			return
+		}
+		buildFilterChain()
+		if opts.OnFilterNow != nil {
+			opts.OnFilterNow()
+		}
+	})
+
+	addQueueBtn := widget.NewButton("Add to Queue", func() {
+		if opts.FiltersFile == nil {
+			dialog.ShowInformation("No Video", "Please load a video first.", opts.Window)
+			return
+		}
+		buildFilterChain()
+		if opts.OnAddToQueue != nil {
+			opts.OnAddToQueue()
+		}
+	})
+
+	videoBoxContent := container.NewBorder(
+		container.NewHBox(fileLabel, layout.NewSpacer(), upscaleNavBtn),
+		nil, nil, nil,
+		videoArea,
 	)
+	videoBox := buildFilterBox("Video", videoBoxContent)
 
 	settingsPanel := container.NewVBox(
 		colorSection,
@@ -557,61 +578,23 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	settingsScroll := ui.NewFastVScroll(settingsPanel)
 
-	mainContent := container.New(&fixedHSplitLayout{ratio: 0.6},
-		container.NewBorder(leftPanel, nil, nil, nil, videoArea),
-		settingsScroll,
+	leftMin := canvas.NewRectangle(color.Transparent)
+	leftMin.SetMinSize(fyne.NewSize(560, 0))
+	leftWrapped := container.NewMax(leftMin, videoBox)
+
+	rightMin := canvas.NewRectangle(color.Transparent)
+	rightMin.SetMinSize(fyne.NewSize(400, 0))
+	rightWrapped := container.NewMax(rightMin, settingsScroll)
+
+	split := container.NewHSplit(leftWrapped, rightWrapped)
+	split.Offset = 0.58
+
+	content := container.NewMax(
+		append(ui.NoisyBackgroundObjects(canvas.NewRectangle(mediumBlue)), container.NewPadded(split))...,
 	)
 
-	content := container.NewPadded(mainContent)
+	actionBar := container.NewHBox(layout.NewSpacer(), applyBtn, filterNowBtn, addQueueBtn)
+	bottomBar := opts.OnGetModuleFooter(filtersColor, actionBar, opts.OnGetStatsBar())
 
-	statsBar := opts.OnGetStatsBar()
-
-	bottomBar := container.NewVBox(
-		container.NewHBox(layout.NewSpacer(), applyBtn, widget.NewButton("Filter Now", func() {
-			if opts.FiltersFile == nil {
-				dialog.ShowInformation("No Video", "Please load a video first.", opts.Window)
-				return
-			}
-			buildFilterChain()
-			if opts.OnFilterNow != nil {
-				opts.OnFilterNow()
-			}
-		}), widget.NewButton("Add to Queue", func() {
-			if opts.FiltersFile == nil {
-				dialog.ShowInformation("No Video", "Please load a video first.", opts.Window)
-				return
-			}
-			buildFilterChain()
-			if opts.OnAddToQueue != nil {
-				opts.OnAddToQueue()
-			}
-		})),
-		statsBar,
-	)
 	return container.NewBorder(topBar, bottomBar, nil, nil, content)
-}
-
-type fixedHSplitLayout struct {
-	ratio float32
-}
-
-func (f *fixedHSplitLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	if len(objects) < 2 {
-		return
-	}
-	width := float32(size.Width)
-	leftWidth := float32(int(width * f.ratio))
-	objects[0].Move(fyne.NewPos(0, 0))
-	objects[0].Resize(fyne.NewSize(leftWidth, size.Height))
-	objects[1].Move(fyne.NewPos(leftWidth, 0))
-	objects[1].Resize(fyne.NewSize(size.Width-leftWidth, size.Height))
-}
-
-func (f *fixedHSplitLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
-	if len(objects) < 2 {
-		return fyne.NewSize(0, 0)
-	}
-	min1 := objects[0].MinSize()
-	min2 := objects[1].MinSize()
-	return fyne.NewSize(min1.Width+min2.Width, max(min1.Height, min2.Height))
 }

@@ -107,13 +107,13 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 
 	queueTile := buildQueueTile(labels.Queue, queueCompleted, queueTotal, queueColor, textColor, onQueueClick)
 
-	sidebarToggleBtn := widget.NewButton("☰", onToggleSidebar)
-	sidebarToggleBtn.Importance = widget.LowImportance
+	historyBtn := widget.NewButton(labels.HistoryTitle, onToggleSidebar)
+	historyBtn.Importance = widget.LowImportance
 
 	filesDropdown := buildFilesDropdown(labels, filesDropdownData, textColor, labels.Window)
 
 	// Build header controls — only show logs button if callback is provided
-	headerControls := []fyne.CanvasObject{sidebarToggleBtn, filesDropdown}
+	headerControls := []fyne.CanvasObject{historyBtn, filesDropdown}
 	if onLogsClick != nil {
 		logsBtn := widget.NewButton(labels.Logs, onLogsClick)
 		logsBtn.Importance = widget.LowImportance
@@ -275,6 +275,7 @@ func BuildHistorySidebar(
 	onClearAll func(int),
 	selectedTab int,
 	onTabChanged func(int),
+	onToggleSidebar func(),
 	titleColor, bgColor, textColor color.Color,
 ) fyne.CanvasObject {
 	// Filter by status
@@ -314,10 +315,15 @@ func BuildHistorySidebar(
 		}
 	}
 
-	// Header
+	// Header — clicking title dismisses sidebar
 	title := canvas.NewText(labels.HistoryTitle, titleColor)
 	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	title.TextSize = 18
+	titleTappable := NewTappable(title, func() {
+		if onToggleSidebar != nil {
+			onToggleSidebar()
+		}
+	})
 	clearBtn := widget.NewButton(labels.HistoryClearAll, func() {
 		if onClearAll == nil {
 			return
@@ -334,7 +340,7 @@ func BuildHistorySidebar(
 	clearBtn.Importance = widget.LowImportance
 
 	header := container.NewVBox(
-		container.NewBorder(nil, nil, title, clearBtn, nil),
+		container.NewBorder(nil, nil, titleTappable, clearBtn, nil),
 		widget.NewSeparator(),
 	)
 
