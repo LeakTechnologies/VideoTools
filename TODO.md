@@ -115,12 +115,13 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 
 ### PAL→NTSC Conversion Pipeline (opencode) — See `docs/PAL_NTSC_CONVERSION.md`
 
-The rip module faithfully preserves PAL source material (576i, 25 fps) but the
-Convert module has no path to convert it to NTSC for authoring. Three gaps to close:
+Single-title convert-during-rip is implemented (IFO interlace detection + checkbox in Rip module). Full one-touch disc conversion with menu preservation requires three further stages:
 
-- [ ] **Rip: deinterlace on re-encode** — When format is H.264 MKV/MP4 and source is interlaced, add `yadif=mode=1` to the video filter chain in `BuildRipArgs` (`internal/app/modules/rip/executor.go`). Should detect interlacing from the IFO `titleInfo` or from a quick ffprobe scan, not unconditionally.
-- [ ] **Convert: PAL→NTSC preset** — New preset in `internal/convert/presets.go` (or equivalent): deinterlace (`yadif`), scale 720×576→720×480 with lanczos, fps 25→30000/1001, audio pitch correction `atempo=24/25` (≈ 0.9600) to undo the 4 % PAL speedup.
-- [ ] **Convert UI: expose the preset** — Surface "PAL → NTSC" in the Convert module's preset/format picker. See `docs/PAL_NTSC_CONVERSION.md` for ffmpeg filter chain details and the pitch-correction rationale.
+- [x] **IFO interlace detection** — `TitleInfo.Interlaced` from FilmMode byte (`internal/dvd/ifo/extract.go`)
+- [x] **Convert-during-rip checkbox** — "Convert PAL → NTSC during rip" in Rip module enrichment options; injects `yadif=mode=1,scale=720:480:flags=lanczos,fps=30000/1001` + `atempo=0.9600` for H.264 formats only
+- [ ] **Stage 1 — Full-disc extraction mode** — Rip module option to iterate all `VTS_nn` sets and the `VIDEO_TS.VOB` menu; CSS decryption already available in `internal/dvd/css`; output goes to a staging directory
+- [ ] **Stage 2 — Per-stream NTSC conversion including menus** — Title VOBs re-encode H.264; menu VOBs must re-encode as MPEG-2 (DVD compliance); subtitle/SPU timestamps remapped proportionally (25→29.97)
+- [ ] **Stage 3 — Author module: NTSC IFO regeneration** — Automated mode in Author that accepts converted streams and regenerates all IFO files with correct NTSC cell durations, PGC timestamps, and chapter offsets
 
 ---
 
@@ -532,8 +533,7 @@ Items currently being worked on by other agents — update when assignments chan
 |----------|-----------------------------------------------------------|-------------|
 | opencode | Drag and drop into Convert (issue carried from dev32)     | In progress |
 | opencode | Phase 3 modularisation — Inspect, Settings, Queue         | In progress |
-| opencode | PAL→NTSC conversion pipeline — see `docs/PAL_NTSC_CONVERSION.md` | Queued |
-| gemini   | Native disc authoring / DVD conversion (issue #21) + Wiki | In progress |
+| opencode | PAL→NTSC pipeline — full-disc extraction + NTSC IFO regeneration (stages 1–3) | Queued |
 
 ## Road to v0.1.2 — First Public Stable Release
 
@@ -562,7 +562,7 @@ Remaining root files to extract — largest first (each becomes a dev cycle task
 
 | Priority | Root file(s) | Lines | Target |
 |----------|-------------|-------|--------|
-| 1 | `author_module.go`, `author_menu.go`, `author_dvd_functions.go` | ~5,800 | `internal/app/modules/author/` — after Gemini finishes Phase 5 |
+| 1 | `author_module.go`, `author_menu.go`, `author_dvd_functions.go` | ~5,800 | `internal/app/modules/author/` |
 | 2 | `subtitles_module.go` | 1,782 | `internal/app/modules/subtitles/` |
 | 3 | `settings_module.go` | 1,381 | `internal/app/modules/settings/` — opencode in progress |
 | 4 | `upscale_module.go` | 993 | `internal/app/modules/upscale/` |
