@@ -122,9 +122,13 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 	}
 
 	execOpts := ripmod.ExecuteOptions{
-		SourcePath: sourcePath,
-		OutputPath: outputPath,
-		Format:     format,
+		SourcePath:       sourcePath,
+		OutputPath:       outputPath,
+		Format:           format,
+		EmbedChapters:    toBool(cfg["embedChapters"]),
+		AllAudioTracks:   toBool(cfg["allAudioTracks"]),
+		IncludeSubtitles: toBool(cfg["includeSubtitles"]),
+		DiscTitle:        toString(cfg["discTitle"]),
 		GetLogsDir: getLogsDir,
 		LogSuffix:  conversionLogSuffix,
 		OnProbeVideo: func(path string) (*ripmod.ProbeResult, error) {
