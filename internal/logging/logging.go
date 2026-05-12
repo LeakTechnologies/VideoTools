@@ -16,8 +16,9 @@ var (
 	logger     = log.New(os.Stderr, "[videotools] ", log.LstdFlags|log.Lmicroseconds)
 	filePath   string
 	historyMax = 500
-	debugOn    = false
-	logsDir    string
+	debugOn        = false
+	verboseDiscOn  = false
+	logsDir        string
 
 	// fileMu serialises concurrent writes to file so goroutines never interleave
 	// partial log lines, and lets Error/Fatal call Sync() without a race.
@@ -297,6 +298,16 @@ func Reopen() {
 // SetDebug enables or disables debug logging.
 func SetDebug(enabled bool) {
 	debugOn = enabled
+}
+
+// SetVerboseDisc enables or disables verbose disc-subsystem logging.
+func SetVerboseDisc(enabled bool) {
+	verboseDiscOn = enabled
+}
+
+// IsVerboseDisc reports whether verbose disc logging is active.
+func IsVerboseDisc() bool {
+	return verboseDiscOn
 }
 
 // FilePath returns the active log file path, if initialized.

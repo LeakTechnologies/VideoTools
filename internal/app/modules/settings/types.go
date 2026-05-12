@@ -47,6 +47,8 @@ type PreferencesCallbacks interface {
 	SetShowTooltips(enabled bool)
 	HWDecodeEnabled() bool
 	SetHWDecodeEnabled(enabled bool)
+	VerboseDiscLogging() bool
+	SetVerboseDiscLogging(enabled bool)
 	PlayerFont() string
 	SetPlayerFont(font string)
 	FontSize() string
@@ -84,10 +86,11 @@ type PrefsConfig struct {
 	QueuePlayBehavior       string `json:"QueuePlayBehavior"`
 	DefaultOutputDir        string `json:"DefaultOutputDir"`
 	ShowTooltips            bool   `json:"ShowTooltips"`
-	HWDecodeEnabled         bool   `json:"HWDecodeEnabled"`
-	PlayerFont              string `json:"PlayerFont"`
-	FontSize                string `json:"FontSize"`
-	PipelineKeepIntermediate bool  `json:"PipelineKeepIntermediate"`
+	HWDecodeEnabled          bool   `json:"HWDecodeEnabled"`
+	PlayerFont               string `json:"PlayerFont"`
+	FontSize                 string `json:"FontSize"`
+	PipelineKeepIntermediate bool   `json:"PipelineKeepIntermediate"`
+	VerboseDiscLogging       bool   `json:"VerboseDiscLogging"`
 }
 
 type Dependency struct {
