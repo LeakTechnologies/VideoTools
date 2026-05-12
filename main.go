@@ -2344,14 +2344,6 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		config["cropY"] = ""
 	}
 
-	// PAL→NTSC preset: inject custom video filter chain and audio pitch correction.
-	// These are read by buildFFmpegCommandFromJob and override the normal filter building.
-	if strings.Contains(cfg.SelectedFormat.Label, "PAL → NTSC") {
-		config["customVideoFilters"] = "yadif=mode=1,scale=720:480:flags=lanczos,fps=30000/1001"
-		config["audioFilter"] = "atempo=0.9600"
-		logging.Debug(logging.CatConvert, "PAL→NTSC preset: customVideoFilters and audioFilter set")
-	}
-
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
@@ -7723,17 +7715,6 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 		}
 	}
 
-	// Custom video filter override — when set, replaces the entire vf chain.
-	// Used by the PAL→NTSC preset (yadif=mode=1, scale=720:480:flags=lanczos, fps=30000/1001).
-	if customVF, _ := cfg["customVideoFilters"].(string); customVF != "" {
-		logging.Debug(logging.CatFFMPEG, "buildFFmpegCommandFromJob: using customVideoFilters=%s", customVF)
-		vf = strings.Split(customVF, ",")
-		// Ensure no double-quoted items from JSON roundtrip
-		for i := range vf {
-			vf[i] = strings.Trim(vf[i], "\"'")
-		}
-	}
-
 	if len(vf) > 0 {
 		args = append(args, "-vf", strings.Join(vf, ","))
 	}
@@ -7975,12 +7956,6 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 			}
 		}
 
-		// Custom audio filter — appended after channel downmix.
-		// Used by the PAL→NTSC preset for atempo=0.9600 pitch correction.
-		if audioFilter, _ := cfg["audioFilter"].(string); audioFilter != "" {
-			logging.Debug(logging.CatFFMPEG, "buildFFmpegCommandFromJob: using audioFilter=%s", audioFilter)
-			args = append(args, "-af", audioFilter)
-		}
 	}
 
 	// Output
@@ -9239,27 +9214,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			buildCommandPreview()
 		}
 
-		// PAL→NTSC preset: apply all settings from PALToNTSCPreset when selected.
-		if strings.Contains(opt.Label, "PAL → NTSC") {
-			preset := convert.PALToNTSCPreset()
-			state.convert.VideoCodec = preset.VideoCodec
-			state.convert.EncoderPreset = preset.EncoderPreset
-			state.convert.CRF = preset.CRF
-			state.convert.BitrateMode = preset.BitrateMode
-			state.convert.TargetResolution = preset.TargetResolution
-			state.convert.FrameRate = preset.FrameRate
-			state.convert.PixelFormat = preset.PixelFormat
-			state.convert.HardwareAccel = preset.HardwareAccel
-			state.convert.Deinterlace = "Force"
-			state.convert.DeinterlaceMethod = "yadif"
-			state.convert.AudioCodec = preset.AudioCodec
-			state.convert.AudioBitrate = preset.AudioBitrate
-			state.convert.AudioChannels = preset.AudioChannels
-			logging.Info(logging.CatConvert, "PAL→NTSC preset applied: %+v", preset)
-			if updateEncodingControls != nil {
-				updateEncodingControls()
-			}
-		}
 	}
 
 	formatContainer := ui.NewColoredSelectWithTooltip(formatLabels, formatColors, func(selected string) {
