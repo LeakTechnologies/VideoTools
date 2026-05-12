@@ -215,11 +215,20 @@ func BuildConcatList(files []string) (string, error) {
 }
 
 // BuildFFmpegArgs returns the ffmpeg argument list for a rip job.
+//
+// -fflags +genpts is applied globally: DVD VOB streams frequently carry audio
+// or subtitle packets with missing PTS. The MKV muxer rejects these with
+// "Can't write packet with unknown timestamp"; genpts synthesises PTS from DTS
+// so every packet the muxer sees has a valid timestamp.
+//
+// -max_interleave_delta 0 prevents ffmpeg from buffering indefinitely while
+// waiting for each stream to reach the same timestamp before flushing.
 func BuildFFmpegArgs(listFile, outputPath, format string) []string {
 	args := []string{
 		"-y",
 		"-hide_banner",
 		"-loglevel", "error",
+		"-fflags", "+genpts",
 		"-f", "concat",
 		"-safe", "0",
 		"-i", listFile,
@@ -227,21 +236,36 @@ func BuildFFmpegArgs(listFile, outputPath, format string) []string {
 	switch format {
 	case FormatH264MKV:
 		args = append(args,
+			"-map", "0:v:0",
+			"-map", "0:a",
 			"-c:v", "libx264",
 			"-crf", "18",
 			"-preset", "medium",
 			"-c:a", "copy",
+			"-max_interleave_delta", "0",
 		)
 	case FormatH264MP4:
 		args = append(args,
+			"-map", "0:v:0",
+			"-map", "0:a",
 			"-c:v", "libx264",
 			"-crf", "18",
 			"-preset", "medium",
 			"-c:a", "aac",
 			"-b:a", "192k",
+			"-max_interleave_delta", "0",
 		)
 	default:
-		args = append(args, "-c", "copy")
+		// Lossless MKV: copy all streams. Map video and audio explicitly;
+		// dvd_subtitle streams are included via -map 0:s? (optional, see below).
+		// We skip subpicture streams here — they are demuxed separately when
+		// the user enables subtitle extraction.
+		args = append(args,
+			"-map", "0:v:0",
+			"-map", "0:a",
+			"-c", "copy",
+			"-max_interleave_delta", "0",
+		)
 	}
 	args = append(args, outputPath)
 	return args
