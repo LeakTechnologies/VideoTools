@@ -84,15 +84,22 @@ type Options struct {
 
 // ExecuteOptions holds everything the executor needs (no UI access).
 type ExecuteOptions struct {
-	SourcePath          string
-	OutputPath          string
-	Format              string
-	GetLogsDir          func() string
-	LogSuffix           string
-	OnProbeVideo        func(path string) (*ProbeResult, error)
-	OnRunCommand        func(name string, args []string, logFn func(string)) error
-	OnAppendLog         func(line string)
-	OnSetProgress       func(percent float64)
-	ProgressCallback    func(float64)
-	OnLogFileCreated    func(logPath string) // called once when the log file is opened
+	SourcePath string
+	OutputPath string
+	Format     string
+
+	// Enrichment options — all default to false for backwards compat.
+	EmbedChapters   bool   // read IFO and write chapter metadata into output
+	AllAudioTracks  bool   // map every audio stream (not just the first)
+	IncludeSubtitles bool  // include dvd_subtitle bitmap streams
+	DiscTitle       string // embedded as MKV/MP4 title tag; empty = skip
+
+	GetLogsDir   func() string
+	LogSuffix    string
+	OnProbeVideo func(path string) (*ProbeResult, error)
+	OnRunCommand func(name string, args []string, logFn func(string)) error
+	OnAppendLog  func(line string)
+	OnSetProgress func(percent float64)
+	ProgressCallback func(float64)
+	OnLogFileCreated func(logPath string)
 }

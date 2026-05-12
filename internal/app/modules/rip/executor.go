@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/css"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
@@ -214,16 +216,26 @@ func BuildConcatList(files []string) (string, error) {
 	return listFile.Name(), nil
 }
 
-// BuildFFmpegArgs returns the ffmpeg argument list for a rip job.
+// RipArgs holds parameters for BuildRipArgs.
+type RipArgs struct {
+	ListFile       string
+	OutputPath     string
+	Format         string
+	MetaFile       string   // path to ffmetadata file; empty = no chapter/title metadata
+	AudioLangs     []string // per-stream ISO 639-1 language codes; nil = no tagging
+	SubtitleLangs  []string // per-stream subtitle language codes; nil = no subs
+	DiscTitle      string   // embedded title tag; empty = skip
+}
+
+// BuildRipArgs returns the ffmpeg argument list for a rip job.
 //
-// -fflags +genpts is applied globally: DVD VOB streams frequently carry audio
-// or subtitle packets with missing PTS. The MKV muxer rejects these with
-// "Can't write packet with unknown timestamp"; genpts synthesises PTS from DTS
-// so every packet the muxer sees has a valid timestamp.
+// -fflags +genpts: DVD VOB audio/subtitle packets frequently have missing PTS.
+// The MKV muxer rejects them with "Can't write packet with unknown timestamp";
+// genpts synthesises PTS from DTS so every packet has a valid timestamp.
 //
-// -max_interleave_delta 0 prevents ffmpeg from buffering indefinitely while
-// waiting for each stream to reach the same timestamp before flushing.
-func BuildFFmpegArgs(listFile, outputPath, format string) []string {
+// -max_interleave_delta 0: prevents ffmpeg from buffering indefinitely while
+// waiting for each stream to reach the same presentation timestamp before flushing.
+func BuildRipArgs(ra RipArgs) []string {
 	args := []string{
 		"-y",
 		"-hide_banner",
@@ -231,44 +243,112 @@ func BuildFFmpegArgs(listFile, outputPath, format string) []string {
 		"-fflags", "+genpts",
 		"-f", "concat",
 		"-safe", "0",
-		"-i", listFile,
+		"-i", ra.ListFile,
 	}
-	switch format {
+
+	metaInputIdx := -1
+	if ra.MetaFile != "" {
+		args = append(args, "-f", "ffmetadata", "-i", ra.MetaFile)
+		metaInputIdx = 1
+	}
+
+	// Stream mapping
+	args = append(args, "-map", "0:v:0")
+	args = append(args, "-map", "0:a")
+	if len(ra.SubtitleLangs) > 0 {
+		args = append(args, "-map", "0:s?")
+	}
+
+	// Metadata source
+	if metaInputIdx >= 0 {
+		args = append(args, "-map_metadata", fmt.Sprintf("%d", metaInputIdx))
+		args = append(args, "-map_chapters", fmt.Sprintf("%d", metaInputIdx))
+	} else {
+		args = append(args, "-map_metadata", "-1") // strip existing metadata
+	}
+
+	// Codec
+	switch ra.Format {
 	case FormatH264MKV:
 		args = append(args,
-			"-map", "0:v:0",
-			"-map", "0:a",
 			"-c:v", "libx264",
 			"-crf", "18",
 			"-preset", "medium",
 			"-c:a", "copy",
-			"-max_interleave_delta", "0",
 		)
 	case FormatH264MP4:
 		args = append(args,
-			"-map", "0:v:0",
-			"-map", "0:a",
 			"-c:v", "libx264",
 			"-crf", "18",
 			"-preset", "medium",
 			"-c:a", "aac",
 			"-b:a", "192k",
-			"-max_interleave_delta", "0",
 		)
 	default:
-		// Lossless MKV: copy all streams. Map video and audio explicitly;
-		// dvd_subtitle streams are included via -map 0:s? (optional, see below).
-		// We skip subpicture streams here — they are demuxed separately when
-		// the user enables subtitle extraction.
-		args = append(args,
-			"-map", "0:v:0",
-			"-map", "0:a",
-			"-c", "copy",
-			"-max_interleave_delta", "0",
-		)
+		args = append(args, "-c", "copy")
 	}
-	args = append(args, outputPath)
+
+	// Per-stream language metadata
+	for i, lang := range ra.AudioLangs {
+		if lang != "" {
+			args = append(args, fmt.Sprintf("-metadata:s:a:%d", i), "language="+lang)
+		}
+	}
+	for i, lang := range ra.SubtitleLangs {
+		if lang != "" {
+			args = append(args, fmt.Sprintf("-metadata:s:s:%d", i), "language="+lang)
+		}
+	}
+
+	// Disc/movie title
+	if ra.DiscTitle != "" {
+		args = append(args, "-metadata", "title="+ra.DiscTitle)
+	}
+
+	args = append(args, "-max_interleave_delta", "0")
+	args = append(args, ra.OutputPath)
 	return args
+}
+
+// BuildFFmpegArgs is the legacy single-call signature kept for Archivist mode.
+func BuildFFmpegArgs(listFile, outputPath, format string) []string {
+	return BuildRipArgs(RipArgs{
+		ListFile:   listFile,
+		OutputPath: outputPath,
+		Format:     format,
+	})
+}
+
+// WriteChapterFile writes an ffmetadata file containing chapter timestamps and
+// an optional title tag. Returns the file path; caller must remove it when done.
+func WriteChapterFile(chapters []float64, totalDuration float64, title string) (string, error) {
+	f, err := os.CreateTemp(utils.TempDir(), "vt-chapters-*.txt")
+	if err != nil {
+		return "", fmt.Errorf("create chapter file: %w", err)
+	}
+	defer f.Close()
+
+	fmt.Fprintln(f, ";FFMETADATA1")
+	if title != "" {
+		fmt.Fprintf(f, "title=%s\n", title)
+	}
+	fmt.Fprintln(f)
+
+	for i, start := range chapters {
+		startMs := int64(math.Round(start * 1000))
+		var endMs int64
+		if i+1 < len(chapters) {
+			endMs = int64(math.Round(chapters[i+1] * 1000))
+		} else {
+			endMs = int64(math.Round(totalDuration * 1000))
+		}
+		if endMs <= startMs {
+			endMs = startMs + 1
+		}
+		fmt.Fprintf(f, "[CHAPTER]\nTIMEBASE=1/1000\nSTART=%d\nEND=%d\ntitle=Chapter %d\n\n",
+			startMs, endMs, i+1)
+	}
+	return f.Name(), nil
 }
 
 // Execute runs a rip job synchronously, calling back for progress and log lines.
@@ -362,7 +442,68 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		return executeArchivist(ctx, opts, set, listFile, outputDir, appendLog, updateProgress)
 	}
 
-	args := BuildFFmpegArgs(listFile, outputPath, format)
+	// ── IFO enrichment ────────────────────────────────────────────────────────
+	// Find the VTS IFO that corresponds to the selected title set (e.g. VTS_01).
+	ra := RipArgs{
+		ListFile:   listFile,
+		OutputPath: outputPath,
+		Format:     format,
+		DiscTitle:  opts.DiscTitle,
+	}
+
+	vtsName := set.Name // e.g. "VTS_01"
+	vtsIFO := filepath.Join(videoTSPath, vtsName+"_0.IFO")
+	titleInfo, ifoErr := ifo.ReadTitleInfo(vtsIFO)
+	if ifoErr != nil {
+		appendLog(fmt.Sprintf("Warning: could not read IFO for enrichment: %v", ifoErr))
+	}
+
+	if titleInfo != nil {
+		if titleInfo.HasAngles {
+			appendLog("Note: multi-angle content detected — only the primary angle will be ripped")
+		}
+
+		// Chapter embedding
+		if opts.EmbedChapters && len(titleInfo.Chapters) > 1 {
+			appendLog(fmt.Sprintf("Embedding %d chapters", len(titleInfo.Chapters)))
+			metaPath, err := WriteChapterFile(titleInfo.Chapters, titleInfo.Duration, opts.DiscTitle)
+			if err != nil {
+				appendLog(fmt.Sprintf("Warning: chapter file creation failed: %v", err))
+			} else {
+				defer os.Remove(metaPath)
+				ra.MetaFile = metaPath
+				ra.DiscTitle = "" // already in metafile; avoid duplicate -metadata title=
+			}
+		} else if opts.DiscTitle != "" {
+			// Title-only metadata file (no chapters)
+			metaPath, err := WriteChapterFile(nil, titleInfo.Duration, opts.DiscTitle)
+			if err == nil {
+				defer os.Remove(metaPath)
+				ra.MetaFile = metaPath
+				ra.DiscTitle = ""
+			}
+		}
+
+		// Audio language tags
+		if opts.AllAudioTracks {
+			for _, t := range titleInfo.Audio {
+				ra.AudioLangs = append(ra.AudioLangs, t.Language)
+			}
+			if len(titleInfo.Audio) > 0 {
+				appendLog(fmt.Sprintf("Mapping %d audio track(s)", len(titleInfo.Audio)))
+			}
+		}
+
+		// Subtitle streams
+		if opts.IncludeSubtitles && len(titleInfo.Subtitles) > 0 {
+			for _, t := range titleInfo.Subtitles {
+				ra.SubtitleLangs = append(ra.SubtitleLangs, t.Language)
+			}
+			appendLog(fmt.Sprintf("Including %d subtitle stream(s)", len(titleInfo.Subtitles)))
+		}
+	}
+
+	args := BuildRipArgs(ra)
 	appendLog(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
 	updateProgress(10)
 	if err := opts.OnRunCommand(utils.GetFFmpegPath(), args, appendLog); err != nil {

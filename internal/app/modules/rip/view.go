@@ -38,11 +38,15 @@ func savePersistedRipConfig(cfg ripConfig) error {
 
 // viewState holds local UI state while the rip view is active.
 type viewState struct {
-	sourcePath string
-	outputPath string
-	format     string
-	logText    string
-	progress   float64
+	sourcePath       string
+	outputPath       string
+	format           string
+	embedChapters    bool
+	allAudioTracks   bool
+	includeSubtitles bool
+	discTitle        string
+	logText          string
+	progress         float64
 
 	statusLabel *widget.Label
 	progressBar *widget.ProgressBar
@@ -52,10 +56,18 @@ type viewState struct {
 
 func (vs *viewState) applyConfig(cfg ripConfig) {
 	vs.format = cfg.Format
+	vs.embedChapters = cfg.EmbedChapters
+	vs.allAudioTracks = cfg.AllAudioTracks
+	vs.includeSubtitles = cfg.IncludeSubtitles
 }
 
 func (vs *viewState) persistConfig() {
-	cfg := ripConfig{Format: vs.format}
+	cfg := ripConfig{
+		Format:           vs.format,
+		EmbedChapters:    vs.embedChapters,
+		AllAudioTracks:   vs.allAudioTracks,
+		IncludeSubtitles: vs.includeSubtitles,
+	}
 	if err := savePersistedRipConfig(cfg); err != nil {
 		logging.Debug(logging.CatSystem, "failed to persist rip config: %v", err)
 	}
@@ -249,9 +261,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 			InputFile:   vs.sourcePath,
 			OutputFile:  vs.outputPath,
 			Config: map[string]interface{}{
-				"sourcePath": vs.sourcePath,
-				"outputPath": vs.outputPath,
-				"format":     vs.format,
+				"sourcePath":       vs.sourcePath,
+				"outputPath":       vs.outputPath,
+				"format":           vs.format,
+				"embedChapters":    vs.embedChapters,
+				"allAudioTracks":   vs.allAudioTracks,
+				"includeSubtitles": vs.includeSubtitles,
+				"discTitle":        vs.discTitle,
 			},
 		}
 		vs.resetLog()
@@ -309,11 +325,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 
 	saveCfgBtn := widget.NewButton(t.ActionSaveConfig, func() {
-		cfg := ripConfig{Format: vs.format}
-		if err := savePersistedRipConfig(cfg); err != nil {
-			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), opts.Window)
-			return
-		}
+		vs.persistConfig()
 		dialog.ShowInformation(t.RipConfigSavedTitle, fmt.Sprintf(t.RipConfigSavedFmt, configpath.ModuleConfigPath("rip")), opts.Window)
 	})
 
@@ -341,6 +353,53 @@ func BuildView(opts Options) fyne.CanvasObject {
 		outputEntry.SetText("")
 	})
 	clearISOBtn.Importance = widget.LowImportance
+
+	// ── Enrichment options ───────────────────────────────────────────────────
+	titleEntry := widget.NewEntry()
+	titleEntry.SetPlaceHolder("Disc / movie title (embedded as metadata)")
+	titleEntry.SetText(vs.discTitle)
+	titleEntry.OnChanged = func(v string) { vs.discTitle = strings.TrimSpace(v) }
+
+	chaptersCheck := widget.NewCheck("Embed chapters", func(v bool) {
+		vs.embedChapters = v
+		vs.persistConfig()
+	})
+	chaptersCheck.SetChecked(vs.embedChapters)
+
+	allAudioCheck := widget.NewCheck("All audio tracks (with language tags)", func(v bool) {
+		vs.allAudioTracks = v
+		vs.persistConfig()
+	})
+	allAudioCheck.SetChecked(vs.allAudioTracks)
+
+	subsCheck := widget.NewCheck("Include subtitles (DVD bitmap)", func(v bool) {
+		vs.includeSubtitles = v
+		vs.persistConfig()
+	})
+	subsCheck.SetChecked(vs.includeSubtitles)
+
+	enrichPanel := widget.NewCard("Metadata & Streams", "",
+		container.NewVBox(
+			widget.NewLabelWithStyle("Title", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			titleEntry,
+			chaptersCheck,
+			allAudioCheck,
+			subsCheck,
+		),
+	)
+
+	// Pre-fill title from source path when source changes
+	sourceChangedHook := func(path string) {
+		if vs.discTitle == "" && path != "" {
+			base := filepath.Base(strings.TrimSuffix(path, string(filepath.Separator)))
+			if strings.EqualFold(base, "VIDEO_TS") {
+				base = filepath.Base(filepath.Dir(path))
+			}
+			base = strings.TrimSuffix(base, filepath.Ext(base))
+			titleEntry.SetText(base)
+			vs.discTitle = base
+		}
+	}
 
 	controls := container.NewVBox(
 		widget.NewLabelWithStyle(t.RipSource, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -370,6 +429,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 					}
 				}
 
+				sourceChangedHook(path)
 				vs.outputPath = DefaultOutputPath(path, vs.format)
 				if opts.SetRipOutputPath != nil {
 					opts.SetRipOutputPath(vs.outputPath)
@@ -380,6 +440,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		clearISOBtn,
 		widget.NewLabelWithStyle(t.RipFormatLabel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
+		enrichPanel,
 		widget.NewLabelWithStyle(t.LabelOutput, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),

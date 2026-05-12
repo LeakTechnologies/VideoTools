@@ -9,12 +9,18 @@ import (
 )
 
 type RipConfig struct {
-	Format string `json:"format"`
+	Format           string `json:"format"`
+	EmbedChapters    bool   `json:"embed_chapters"`
+	AllAudioTracks   bool   `json:"all_audio_tracks"`
+	IncludeSubtitles bool   `json:"include_subtitles"`
 }
 
 func DefaultRipConfig() RipConfig {
 	return RipConfig{
-		Format: "Lossless MKV (Copy)",
+		Format:         "Lossless MKV (Copy)",
+		EmbedChapters:  true,
+		AllAudioTracks: true,
+		// IncludeSubtitles defaults false — some discs have broken sub streams
 	}
 }
 
