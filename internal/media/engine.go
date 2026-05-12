@@ -162,6 +162,7 @@ import (
 type decodedFrame struct {
 	img *image.RGBA
 	pts float64
+	gen uint64 // seek generation at time of decode; NextFrame drops stale generations
 }
 
 const (
@@ -743,6 +744,7 @@ type Engine struct {
 	// Seek() (which does e.mu → videoCodecMu).  Atomic access eliminates
 	// the nested lock entirely — no mutex needed for this field.
 	seekFlushBefore  atomic.Uint64 // math.Float64bits; 0 = guard inactive
+	seekGen          atomic.Uint64 // incremented on each Seek(); frames carry the gen at decode time
 	lastVideoPTSBits atomic.Uint64 // math.Float64bits of the last video PTS handed to the display
 }
 
@@ -2269,6 +2271,10 @@ func (e *Engine) Seek(seconds float64) error {
 			flushed++
 		}
 		C.avcodec_flush_buffers(e.videoCodecCtx)
+		// Increment seekGen inside videoCodecMu so it is serialised with the
+		// gen capture in videoDecodeLoop.  Any frame decoded before this point
+		// carries the old gen and will be dropped by NextFrame.
+		e.seekGen.Add(1)
 		e.videoCodecMu.Unlock()
 		logging.Info(logging.CatPlayer, "Seek: flushed %d frames", flushed)
 	} else {
@@ -2587,7 +2593,7 @@ func (e *Engine) videoDecodeLoop() {
 					e.mu.Lock()
 					e.decodeEOFSent = true
 					e.mu.Unlock()
-					e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS})
+					e.sendToFrameQueue(decodedFrame{pts: decodeEOFPTS, gen: e.seekGen.Load()})
 				}
 			}
 			time.Sleep(1 * time.Millisecond)
@@ -2677,9 +2683,14 @@ func (e *Engine) videoDecodeLoop() {
 				img = e.toRGBA()
 			}
 
+			// Capture seekGen while still holding videoCodecMu so the read is
+			// serialised with Seek()'s increment (which also runs inside
+			// videoCodecMu).  This prevents a stale frame that slipped past the
+			// codec flush from arriving in frameQueue with the post-seek gen.
+			gen := e.seekGen.Load()
 			e.videoCodecMu.Unlock()
 
-			if !e.sendToFrameQueue(decodedFrame{img: img, pts: pts}) {
+			if !e.sendToFrameQueue(decodedFrame{img: img, pts: pts, gen: gen}) {
 				return // decodeLoopStop was closed
 			}
 
@@ -2748,6 +2759,17 @@ func (e *Engine) NextFrame() (retImg *image.RGBA, retErr error) {
 
 		pts := df.pts
 		img := df.img
+
+		// Drop frames that predate the current seek.  A stale frame from before
+		// a backward seek can arrive in frameQueue after Seek() has already run
+		// its drain, because videoDecodeLoop releases videoCodecMu before calling
+		// sendToFrameQueue.  Without this guard the stale frame causes WaitForPTS
+		// to block until the clock (now driven by audio at the new position) creeps
+		// all the way back up to the old PTS, producing a freeze followed by a
+		// visible forward jump — exactly the "glitch then wrong position" symptom.
+		if df.gen != e.seekGen.Load() {
+			continue
+		}
 
 		if verbose {
 			clockNow := e.clock.GetTime()
