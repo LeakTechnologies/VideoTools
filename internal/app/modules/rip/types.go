@@ -82,17 +82,43 @@ type Options struct {
 	SetRipLogScroll   func(*container.Scroll)
 }
 
+// DiscTitleTrack describes one audio or subtitle stream on a disc title.
+type DiscTitleTrack struct {
+	Language string
+	Codec    string
+	Channels int // 0 for subtitle tracks
+}
+
+// DiscTitle describes one title entry from the DVD's TT_SRPT.
+type DiscTitle struct {
+	Number      int // 1-based title number on the disc
+	VTSNumber   int
+	NumChapters int
+	Duration    float64
+	Audio       []DiscTitleTrack
+	Subtitles   []DiscTitleTrack
+	HasAngles   bool
+}
+
+// DiscScanResult holds the outcome of scanning a disc source directory.
+type DiscScanResult struct {
+	Titles []DiscTitle
+}
+
 // ExecuteOptions holds everything the executor needs (no UI access).
 type ExecuteOptions struct {
 	SourcePath string
 	OutputPath string
 	Format     string
 
+	// VTSNumber selects a specific VTS to rip. 0 = largest set (default = main feature).
+	VTSNumber int
+
 	// Enrichment options — all default to false for backwards compat.
-	EmbedChapters   bool   // read IFO and write chapter metadata into output
-	AllAudioTracks  bool   // map every audio stream (not just the first)
-	IncludeSubtitles bool  // include dvd_subtitle bitmap streams
-	DiscTitle       string // embedded as MKV/MP4 title tag; empty = skip
+	EmbedChapters    bool   // read IFO and write chapter metadata into output
+	AllAudioTracks   bool   // map every audio stream (not just the first)
+	IncludeSubtitles bool   // include dvd_subtitle bitmap streams (MKV only)
+	DiscTitle        string // embedded as MKV/MP4 title tag; empty = skip
 
 	GetLogsDir   func() string
 	LogSuffix    string

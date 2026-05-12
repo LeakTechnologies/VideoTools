@@ -255,7 +255,8 @@ func BuildRipArgs(ra RipArgs) []string {
 	// Stream mapping
 	args = append(args, "-map", "0:v:0")
 	args = append(args, "-map", "0:a")
-	if len(ra.SubtitleLangs) > 0 {
+	// dvd_subtitle (VOBSUB bitmap) is valid in MKV but not in MP4
+	if len(ra.SubtitleLangs) > 0 && ra.Format != FormatH264MP4 {
 		args = append(args, "-map", "0:s?")
 	}
 
@@ -294,9 +295,11 @@ func BuildRipArgs(ra RipArgs) []string {
 			args = append(args, fmt.Sprintf("-metadata:s:a:%d", i), "language="+lang)
 		}
 	}
-	for i, lang := range ra.SubtitleLangs {
-		if lang != "" {
-			args = append(args, fmt.Sprintf("-metadata:s:s:%d", i), "language="+lang)
+	if ra.Format != FormatH264MP4 {
+		for i, lang := range ra.SubtitleLangs {
+			if lang != "" {
+				args = append(args, fmt.Sprintf("-metadata:s:s:%d", i), "language="+lang)
+			}
 		}
 	}
 
@@ -421,7 +424,21 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		return fmt.Errorf("no VOB files found in VIDEO_TS")
 	}
 
-	set := sets[0]
+	var set VobSet
+	if opts.VTSNumber > 0 {
+		vtsName := fmt.Sprintf("VTS_%02d", opts.VTSNumber)
+		for _, s := range sets {
+			if s.Name == vtsName {
+				set = s
+				break
+			}
+		}
+		if set.Name == "" {
+			return fmt.Errorf("VTS_%02d not found on disc", opts.VTSNumber)
+		}
+	} else {
+		set = sets[0]
+	}
 	appendLog(fmt.Sprintf("Using title set: %s", set.Name))
 	listFile, err := BuildConcatList(set.Files)
 	if err != nil {

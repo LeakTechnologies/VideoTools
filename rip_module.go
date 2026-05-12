@@ -121,10 +121,21 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 		return errors.New("rip job missing paths")
 	}
 
+	vtsNumber := 0
+	if v, ok := cfg["vtsNumber"]; ok {
+		switch n := v.(type) {
+		case int:
+			vtsNumber = n
+		case float64:
+			vtsNumber = int(n)
+		}
+	}
+
 	execOpts := ripmod.ExecuteOptions{
 		SourcePath:       sourcePath,
 		OutputPath:       outputPath,
 		Format:           format,
+		VTSNumber:        vtsNumber,
 		EmbedChapters:    toBool(cfg["embedChapters"]),
 		AllAudioTracks:   toBool(cfg["allAudioTracks"]),
 		IncludeSubtitles: toBool(cfg["includeSubtitles"]),
