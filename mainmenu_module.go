@@ -200,6 +200,10 @@ func (s *appState) showMainMenu() {
 			func(idx int) {
 				s.historyTabIdx = idx
 			},
+			func() {
+				s.sidebarVisible = false
+				s.refreshMainMenuThrottled()
+			},
 			titleColor,
 			utils.MustHex("#1A1F2E"),
 			textColor,

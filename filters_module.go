@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
@@ -67,7 +68,10 @@ func buildFiltersView(state *appState) fyne.CanvasObject {
 		OnShowUpscaleView:    func() { state.showUpscaleView() },
 		OnShowFiltersView:    func() { state.showFiltersView() },
 		OnClearCompletedJobs: func() { state.clearCompletedJobs() },
-		OnGetStatsBar:        func() fyne.CanvasObject { return state.statsBar },
+		OnGetStatsBar:        func() *ui.ConversionStatsBar { return state.statsBar },
+		OnGetModuleFooter: func(col color.Color, actions fyne.CanvasObject, stats *ui.ConversionStatsBar) fyne.CanvasObject {
+			return moduleFooter(col, actions, stats)
+		},
 		OnLoadFile: func(path string) {
 			go func() {
 				src, err := probeVideo(path)

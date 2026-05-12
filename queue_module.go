@@ -338,6 +338,7 @@ func (s *appState) refreshQueueView() {
 
 		s.queueView = view
 		s.queueScroll = view.GetScroll()
+		view.UpdateJobs(jobs)
 		s.setContent(view.GetRoot())
 
 		if s.queueScroll != nil && s.active == "queue" {

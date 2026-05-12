@@ -318,14 +318,22 @@ onScheduleModule func(string, string),
 
 	backBtn := DarkTextButton("< QUEUE", onBack)
 
+	// Status badge for queue (shows active/completed counts)
+	statusBadge := canvas.NewText("", color.Black)
+	statusBadge.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	statusBadge.TextSize = 11
+
 	startAllBtn := widget.NewButton(t.ActionQueueStart, onStart)
 	startAllBtn.Importance = widget.MediumImportance
 
-	pauseAllBtn := DarkTextButton(t.ActionQueuePauseAll, onPauseAll)
+	pauseAllBtn := widget.NewButton(t.ActionQueuePauseAll, onPauseAll)
+	pauseAllBtn.Importance = widget.LowImportance
 
-	resumeAllBtn := DarkTextButton(t.ActionQueueResumeAll, onResumeAll)
+	resumeAllBtn := widget.NewButton(t.ActionQueueResumeAll, onResumeAll)
+	resumeAllBtn.Importance = widget.LowImportance
 
-	clearBtn := DarkTextButton(t.ActionQueueClearCompleted, onClear)
+	clearBtn := widget.NewButton(t.ActionQueueClearCompleted, onClear)
+	clearBtn.Importance = widget.LowImportance
 
 	clearAllBtn := widget.NewButton(t.ActionClearAll, onClearAll)
 	clearAllBtn.Importance = widget.DangerImportance
@@ -333,7 +341,6 @@ onScheduleModule func(string, string),
 	cancelAllBtn := widget.NewButton(t.ActionQueueCancelAll, onCancelAll)
 	cancelAllBtn.Importance = widget.DangerImportance
 
-	// Only show Cancel All button when there are active jobs
 	var buttonRow *fyne.Container
 	if hasActiveJobs {
 		buttonRow = container.NewHBox(startAllBtn, pauseAllBtn, resumeAllBtn, cancelAllBtn, clearAllBtn, clearBtn)
@@ -341,17 +348,17 @@ onScheduleModule func(string, string),
 		buttonRow = container.NewHBox(startAllBtn, pauseAllBtn, resumeAllBtn, clearAllBtn, clearBtn)
 	}
 
-	// Status badge for queue (shows active/completed counts)
-	statusBadge := canvas.NewText("", color.Black)
-	statusBadge.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	statusBadge.TextSize = 11
+	// Action buttons sit in a dark-background container within the green header
+	// so white widget-button text and DangerImportance red are clearly readable.
+	btnBg := canvas.NewRectangle(color.NRGBA{R: 0x0b, G: 0x0f, B: 0x1a, A: 0xff})
+	btnBg.CornerRadius = 6
+	actionGroup := container.NewMax(btnBg, container.NewPadded(buttonRow))
 
-	// Header with TintedBar (matches other modules)
 	headerTitle := container.NewHBox(
 		backBtn,
 		layout.NewSpacer(),
+		actionGroup,
 		statusBadge,
-		buttonRow,
 	)
 	topBar := TintedBar(color.NRGBA{R: 0x4c, G: 0xe8, B: 0x70, A: 0xff}, headerTitle)
 
@@ -472,9 +479,7 @@ func buildJobItem(
 	statusRect := canvas.NewRectangle(statusColor)
 	statusRect.SetMinSize(fyne.NewSize(6, 0))
 
-	// Thumbnail: module-color border around a dark-bg inner area containing the image.
-	// ImageFillContain preserves the full frame; the dark inner bg (#0A0E1A) replaces
-	// the grey letterbox bars that appeared when the video was not 16:9.
+	// Thumbnail: dark inner area with a thin module-colour stroke around the image.
 	var thumbnailWidget fyne.CanvasObject
 	if job.ThumbnailPath != "" {
 		if img, err := fyne.LoadResourceFromPath(job.ThumbnailPath); err == nil {
@@ -484,13 +489,15 @@ func buildJobItem(
 
 			innerBg := canvas.NewRectangle(utils.MustHex("#0A0E1A"))
 			moduleCol := ModuleColor(job.Type)
-			outerBorder := canvas.NewRectangle(moduleCol)
-			outerBorder.CornerRadius = 3
-			outerBorder.SetMinSize(fyne.NewSize(168, 98))
+			borderStroke := canvas.NewRectangle(color.Transparent)
+			borderStroke.StrokeColor = moduleCol
+			borderStroke.StrokeWidth = 1.5
+			borderStroke.CornerRadius = 2
 
 			thumbnailWidget = container.NewMax(
-				outerBorder,
-				container.NewPadded(container.NewMax(innerBg, thumbImg)),
+				innerBg,
+				thumbImg,
+				borderStroke,
 			)
 		}
 	}
