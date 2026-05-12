@@ -22,7 +22,6 @@ var FormatOptions = []FormatOption{
 	// Disc — DVD presets
 	{Label: "DVD-NTSC (MPEG-2)", Ext: ".mpg", VideoCodec: "mpeg2video"},
 	{Label: "DVD-PAL (MPEG-2)", Ext: ".mpg", VideoCodec: "mpeg2video"},
-	{Label: "PAL → NTSC (DVD)", Ext: ".mp4", VideoCodec: "libx264"},
 	// AVI — legacy Windows compatibility
 	{Label: "AVI (H.264)", Ext: ".avi", VideoCodec: "libx264", Legacy: true},
 	// TS — broadcast and streaming
@@ -94,32 +93,4 @@ var FormatAudioCodecs = map[string][]string{
 	".ts":   {"AAC", "MP2", "AC-3", "Copy"},
 	".3gp":  {"AAC", "AMR-NB", "Copy"},
 	".ogv":  {"Vorbis", "Copy"},
-}
-
-// PALToNTSCPreset returns a ConvertConfig for PAL→NTSC conversion.
-// The preset applies:
-//   - Deinterlace: yadif=mode=1 (for interlaced PAL sources)
-//   - Scale to DVD NTSC resolution: 720×480
-//   - Frame rate: 30000/1001 (29.97 fps NTSC)
-//   - Audio pitch correction: atempo=0.9600 (24/25 ratio)
-func PALToNTSCPreset() ConvertConfig {
-	return ConvertConfig{
-		SelectedFormat:   FormatOption{Label: "PAL → NTSC (DVD)", Ext: ".mp4", VideoCodec: "libx264"},
-		Quality:          "High (CRF 18)",
-		Mode:             "Advanced",
-		VideoCodec:       "H.264",
-		EncoderPreset:    "medium",
-		CRF:              "18",
-		BitrateMode:      "CRF",
-		TargetResolution: "720x480",
-		FrameRate:        "29.97",
-		PixelFormat:      "yuv420p",
-		HardwareAccel:    "none",
-		AudioCodec:       "AAC",
-		AudioBitrate:     "192k",
-		AudioChannels:    "Stereo",
-		InverseTelecine:  false,
-		AspectHandling:   "letterbox",
-		OutputAspect:     "source",
-	}
 }
