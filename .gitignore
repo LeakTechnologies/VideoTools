@@ -32,6 +32,8 @@ ffmpeg-windows.zip
 ffmpeg-temp/
 dist/
 packaging/windows/msix/*.pfx
+# FFmpeg DLLs — built by CI and bundled in ffmpeg-dll/ at release time; never committed
+*.dll
 
 # Ignore sample media/output in git_converter helper
 scripts/git_converter/Converted/
