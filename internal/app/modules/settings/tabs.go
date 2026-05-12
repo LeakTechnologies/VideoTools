@@ -416,6 +416,23 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 
 	content.Add(widget.NewSeparator())
 
+	discLogHeader := widget.NewLabel("Disc Verbose Logging")
+	discLogHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(discLogHeader)
+
+	verboseDiscCheck := widget.NewCheck("Enable verbose disc logging", func(checked bool) {
+		cb.SetVerboseDiscLogging(checked)
+	})
+	verboseDiscCheck.SetChecked(cb.VerboseDiscLogging())
+	content.Add(verboseDiscCheck)
+
+	verboseDiscHint := widget.NewLabel("Logs detailed sector layout, IFO table offsets, SPU DCSQ parameters, and NAV_PCK button geometry to videotools.log. Enable when diagnosing disc authoring or menu issues.")
+	verboseDiscHint.TextStyle = fyne.TextStyle{Italic: true}
+	verboseDiscHint.Wrapping = fyne.TextWrapWord
+	content.Add(verboseDiscHint)
+
+	content.Add(widget.NewSeparator())
+
 	tooltipsHeader := widget.NewLabel(t.SettingsShowTooltips)
 	tooltipsHeader.TextStyle = fyne.TextStyle{Bold: true}
 	content.Add(tooltipsHeader)

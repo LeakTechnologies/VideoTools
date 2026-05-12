@@ -1806,6 +1806,18 @@ func (a *preferencesAdapter) SetHWDecodeEnabled(enabled bool) {
 	}
 }
 
+func (a *preferencesAdapter) VerboseDiscLogging() bool {
+	return a.s.prefs.VerboseDiscLogging
+}
+
+func (a *preferencesAdapter) SetVerboseDiscLogging(enabled bool) {
+	a.s.prefs.VerboseDiscLogging = enabled
+	logging.SetVerboseDisc(enabled)
+	if err := savePrefsConfig(a.s.prefs); err != nil {
+		logging.Error(logging.CatSystem, "SetVerboseDiscLogging save failed: %v", err)
+	}
+}
+
 func (a *preferencesAdapter) PlayerFont() string {
 	return a.s.prefs.PlayerFont
 }
