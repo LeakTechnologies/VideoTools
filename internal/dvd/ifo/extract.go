@@ -265,6 +265,62 @@ func audioCodecName(mode uint8) string {
 	}
 }
 
+// ReadTitleList opens the VIDEO_TS.IFO at vmgPath and returns all title entries
+// from the TT_SRPT table. Returns nil, nil if the table is absent or empty.
+func ReadTitleList(vmgPath string) ([]TitleSearchPointer, error) {
+	f, err := os.Open(vmgPath)
+	if err != nil {
+		return nil, fmt.Errorf("open VMG IFO %s: %w", vmgPath, err)
+	}
+	defer f.Close()
+
+	mat, err := ReadVMGI(f)
+	if err != nil {
+		return nil, fmt.Errorf("parse VMG_MAT: %w", err)
+	}
+
+	if mat.TT_SRPT_Offset == 0 {
+		logging.Info(logging.CatDVD, "ReadTitleList: TT_SRPT absent (offset=0)")
+		return nil, nil
+	}
+
+	srptBase := int64(mat.TT_SRPT_Offset) * 2048
+
+	hdr := make([]byte, 8)
+	if _, err := f.ReadAt(hdr, srptBase); err != nil {
+		return nil, fmt.Errorf("read TT_SRPT header: %w", err)
+	}
+	numTitles := int(binary.BigEndian.Uint16(hdr[0:2]))
+	if numTitles == 0 {
+		return nil, nil
+	}
+	if numTitles > 99 {
+		numTitles = 99
+	}
+
+	// Each TitleSearchPointer is 12 bytes
+	data := make([]byte, numTitles*12)
+	if _, err := f.ReadAt(data, srptBase+8); err != nil {
+		return nil, fmt.Errorf("read TT_SRPT entries: %w", err)
+	}
+
+	titles := make([]TitleSearchPointer, numTitles)
+	for i := 0; i < numTitles; i++ {
+		off := i * 12
+		titles[i] = TitleSearchPointer{
+			TitleType:       data[off],
+			NumAngles:       data[off+1],
+			NumChapters:     binary.BigEndian.Uint16(data[off+2 : off+4]),
+			ParentalID:      binary.BigEndian.Uint16(data[off+4 : off+6]),
+			VTSNumber:       data[off+6],
+			VTS_TitleNumber: data[off+7],
+			StartSector:     binary.BigEndian.Uint32(data[off+8 : off+12]),
+		}
+	}
+	logging.Info(logging.CatDVD, "ReadTitleList: found %d titles", numTitles)
+	return titles, nil
+}
+
 // trimNull removes null bytes and trailing spaces from a string.
 func trimNull(s string) string {
 	s = strings.ReplaceAll(s, "\x00", "")

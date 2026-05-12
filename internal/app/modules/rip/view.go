@@ -48,6 +48,9 @@ type viewState struct {
 	logText          string
 	progress         float64
 
+	scanResult     *DiscScanResult
+	selectedTitles map[int]bool // title Number → selected
+
 	statusLabel *widget.Label
 	progressBar *widget.ProgressBar
 	logEntry    *widget.Entry
@@ -123,6 +126,10 @@ func (vs *viewState) setProgress(percent float64) {
 func BuildView(opts Options) fyne.CanvasObject {
 	t := i18n.T()
 
+	// rebuildEnrich is assigned after the enrichment widgets are created;
+	// declared here so formatSelect and the drop handler can capture it by ref.
+	var rebuildEnrich func()
+
 	vs := &viewState{
 		sourcePath: opts.RipSourcePath,
 		outputPath: opts.RipOutputPath,
@@ -196,6 +203,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.SetRipOutputPath(vs.outputPath)
 		}
 		vs.persistConfig()
+		if rebuildEnrich != nil {
+			rebuildEnrich()
+		}
 	})
 	formatSelect.SetSelected(vs.format)
 
@@ -254,26 +264,68 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if strings.TrimSpace(vs.outputPath) == "" {
 			vs.outputPath = DefaultOutputPath(vs.sourcePath, vs.format)
 		}
-		job := &queue.Job{
-			Type:        queue.JobTypeRip,
-			Title:       fmt.Sprintf("Rip DVD: %s", filepath.Base(vs.sourcePath)),
-			Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(vs.outputPath), 40)),
-			InputFile:   vs.sourcePath,
-			OutputFile:  vs.outputPath,
-			Config: map[string]interface{}{
-				"sourcePath":       vs.sourcePath,
-				"outputPath":       vs.outputPath,
-				"format":           vs.format,
-				"embedChapters":    vs.embedChapters,
-				"allAudioTracks":   vs.allAudioTracks,
-				"includeSubtitles": vs.includeSubtitles,
-				"discTitle":        vs.discTitle,
-			},
+
+		// Build list of (vtsNumber, outputPath, title) for each job to enqueue.
+		type titleJob struct {
+			vtsNumber  int
+			outputPath string
+			jobTitle   string
 		}
+		var jobs []titleJob
+
+		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {
+			ext := filepath.Ext(vs.outputPath)
+			base := strings.TrimSuffix(vs.outputPath, ext)
+			for _, dt := range vs.scanResult.Titles {
+				if !vs.selectedTitles[dt.Number] {
+					continue
+				}
+				titlePath := fmt.Sprintf("%s_Title_%02d%s", base, dt.Number, ext)
+				jobs = append(jobs, titleJob{
+					vtsNumber:  dt.VTSNumber,
+					outputPath: titlePath,
+					jobTitle:   fmt.Sprintf("Rip DVD Title %d: %s", dt.Number, filepath.Base(vs.sourcePath)),
+				})
+			}
+			if len(jobs) == 0 {
+				return fmt.Errorf("no titles selected")
+			}
+		} else {
+			vtsNumber := 0
+			if vs.scanResult != nil && len(vs.scanResult.Titles) == 1 {
+				vtsNumber = vs.scanResult.Titles[0].VTSNumber
+			}
+			jobs = []titleJob{{
+				vtsNumber:  vtsNumber,
+				outputPath: vs.outputPath,
+				jobTitle:   fmt.Sprintf("Rip DVD: %s", filepath.Base(vs.sourcePath)),
+			}}
+		}
+
+		for _, j := range jobs {
+			job := &queue.Job{
+				Type:        queue.JobTypeRip,
+				Title:       j.jobTitle,
+				Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(j.outputPath), 40)),
+				InputFile:   vs.sourcePath,
+				OutputFile:  j.outputPath,
+				Config: map[string]interface{}{
+					"sourcePath":       vs.sourcePath,
+					"outputPath":       j.outputPath,
+					"format":           vs.format,
+					"embedChapters":    vs.embedChapters,
+					"allAudioTracks":   vs.allAudioTracks,
+					"includeSubtitles": vs.includeSubtitles,
+					"discTitle":        vs.discTitle,
+					"vtsNumber":        j.vtsNumber,
+				},
+			}
+			opts.AddJob(job)
+		}
+
 		vs.resetLog()
-		vs.setStatus("Queued rip job...")
+		vs.setStatus(fmt.Sprintf("Queued %d rip job(s)...", len(jobs)))
 		vs.setProgress(0)
-		opts.AddJob(job)
 		if runNow && !jq.IsRunning() {
 			jq.Start()
 		}
@@ -366,7 +418,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	chaptersCheck.SetChecked(vs.embedChapters)
 
-	allAudioCheck := widget.NewCheck("All audio tracks (with language tags)", func(v bool) {
+	allAudioCheck := widget.NewCheck("All audio tracks", func(v bool) {
 		vs.allAudioTracks = v
 		vs.persistConfig()
 	})
@@ -378,15 +430,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	subsCheck.SetChecked(vs.includeSubtitles)
 
-	enrichPanel := widget.NewCard("Metadata & Streams", "",
-		container.NewVBox(
-			widget.NewLabelWithStyle("Title", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			titleEntry,
-			chaptersCheck,
-			allAudioCheck,
-			subsCheck,
-		),
-	)
+	enrichContent := container.NewVBox()
+	enrichPanel := widget.NewCard("Metadata & Streams", "", enrichContent)
 
 	// Pre-fill title from source path when source changes
 	sourceChangedHook := func(path string) {
@@ -400,6 +445,110 @@ func BuildView(opts Options) fyne.CanvasObject {
 			vs.discTitle = base
 		}
 	}
+
+	buildTitleCheckLabel := func(dt DiscTitle) string {
+		label := fmt.Sprintf("Title %d — %s, %d chapters", dt.Number, FormatDuration(dt.Duration), dt.NumChapters)
+		if len(dt.Audio) > 0 {
+			parts := make([]string, 0, len(dt.Audio))
+			for _, a := range dt.Audio {
+				c := strings.ToUpper(a.Codec)
+				if a.Language != "" {
+					c += " [" + strings.ToUpper(a.Language) + "]"
+				}
+				parts = append(parts, c)
+			}
+			label += " — " + strings.Join(parts, ", ")
+		}
+		return label
+	}
+
+	rebuildEnrich = func() {
+		var mainTitle *DiscTitle
+		if vs.scanResult != nil && len(vs.scanResult.Titles) > 0 {
+			mainTitle = &vs.scanResult.Titles[0]
+		}
+
+		// Chapter checkbox
+		chapLabel := "Embed chapters"
+		if mainTitle != nil {
+			if mainTitle.NumChapters > 1 {
+				chapLabel = fmt.Sprintf("Embed chapters (%d)", mainTitle.NumChapters)
+				chaptersCheck.Enable()
+			} else {
+				chapLabel = "Embed chapters (none on disc)"
+				chaptersCheck.SetChecked(false)
+				chaptersCheck.Disable()
+			}
+		} else {
+			chaptersCheck.Enable()
+		}
+		chaptersCheck.Text = chapLabel
+		chaptersCheck.Refresh()
+
+		// Audio checkbox
+		audioLabel := "All audio tracks"
+		if mainTitle != nil && len(mainTitle.Audio) > 0 {
+			if langs := langList(mainTitle.Audio); langs != "" {
+				audioLabel = fmt.Sprintf("All audio tracks (%d: %s)", len(mainTitle.Audio), langs)
+			} else {
+				audioLabel = fmt.Sprintf("All audio tracks (%d)", len(mainTitle.Audio))
+			}
+		}
+		allAudioCheck.Text = audioLabel
+		allAudioCheck.Refresh()
+
+		// Subtitle checkbox
+		subsLabel := "Include subtitles (DVD bitmap)"
+		if vs.format == FormatH264MP4 {
+			subsLabel = "Include subtitles (not supported in MP4)"
+			subsCheck.SetChecked(false)
+			subsCheck.Disable()
+		} else if mainTitle != nil {
+			if len(mainTitle.Subtitles) == 0 {
+				subsLabel = "Include subtitles (none on disc)"
+				subsCheck.SetChecked(false)
+				subsCheck.Disable()
+			} else {
+				subsLabel = fmt.Sprintf("Include subtitles (%d streams)", len(mainTitle.Subtitles))
+				subsCheck.Enable()
+			}
+		} else {
+			subsCheck.Enable()
+		}
+		subsCheck.Text = subsLabel
+		subsCheck.Refresh()
+
+		// Rebuild content objects
+		objs := []fyne.CanvasObject{
+			widget.NewLabelWithStyle("Title", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			titleEntry,
+			chaptersCheck,
+			allAudioCheck,
+			subsCheck,
+		}
+
+		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {
+			objs = append(objs, widget.NewSeparator())
+			objs = append(objs,
+				widget.NewLabelWithStyle(
+					fmt.Sprintf("Titles on disc (%d) — select to rip:", len(vs.scanResult.Titles)),
+					fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
+			for _, dt := range vs.scanResult.Titles {
+				dt := dt // capture
+				ch := widget.NewCheck(buildTitleCheckLabel(dt), func(v bool) {
+					vs.selectedTitles[dt.Number] = v
+				})
+				ch.SetChecked(vs.selectedTitles[dt.Number])
+				objs = append(objs, ch)
+			}
+		}
+
+		enrichContent.Objects = objs
+		enrichContent.Refresh()
+	}
+
+	// Initial render of enrichment panel (no scan result yet)
+	rebuildEnrich()
 
 	controls := container.NewVBox(
 		widget.NewLabelWithStyle(t.RipSource, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -421,7 +570,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 						logging.Info(logging.CatDVD, "User dropped ISO: detected as %s", discType)
 					}
 				} else {
-					// Check if it's a VIDEO_TS folder
 					if info, err := os.Stat(filepath.Join(path, "VIDEO_TS.IFO")); err == nil && !info.IsDir() {
 						if opts.OnScanDVDStruct != nil {
 							opts.OnScanDVDStruct(path)
@@ -435,6 +583,33 @@ func BuildView(opts Options) fyne.CanvasObject {
 					opts.SetRipOutputPath(vs.outputPath)
 				}
 				outputEntry.SetText(vs.outputPath)
+
+				// Reset previous scan state and trigger a new background scan.
+				// ISO sources are skipped — UDF extraction would be too slow.
+				vs.scanResult = nil
+				vs.selectedTitles = nil
+				rebuildEnrich()
+				if !strings.HasSuffix(strings.ToLower(path), ".iso") {
+					go func() {
+						vtsp, _, err := ResolveVideoTSPath(path)
+						if err != nil {
+							return
+						}
+						result, scanErr := ScanDisc(vtsp)
+						fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+							if scanErr != nil {
+								logging.Warning(logging.CatDVD, "disc scan failed: %v", scanErr)
+							} else {
+								vs.scanResult = result
+								vs.selectedTitles = make(map[int]bool)
+								for _, dt := range result.Titles {
+									vs.selectedTitles[dt.Number] = true
+								}
+							}
+							rebuildEnrich()
+						}, false)
+					}()
+				}
 			}
 		}),
 		clearISOBtn,
