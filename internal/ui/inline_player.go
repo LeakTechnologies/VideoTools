@@ -332,8 +332,22 @@ func (v *InlineVideoPlayer) Play() {
 		v.mu.Unlock()
 		return
 	}
-	v.playing = true
 
+	// Guard: if a playbackLoop is already running, just ensure the engine is
+	// unpaused and sync the widget icon. Do NOT seek or spawn a new goroutine —
+	// stacking concurrent playbackLoops disrupts the audio/video pipeline.
+	if v.playing {
+		v.mu.Unlock()
+		if eng.IsPaused() {
+			eng.Resume()
+		}
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			v.player.SetPlaying(true)
+		}, false)
+		return
+	}
+
+	v.playing = true
 	logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Start()")
 
 	if eng.IsRunning() {
@@ -365,6 +379,9 @@ func (v *InlineVideoPlayer) Play() {
 			}
 			logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Resume()")
 			eng.Resume()
+			fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+				v.player.SetPlaying(true)
+			}, false)
 			v.playbackLoop()
 		}()
 	} else {
@@ -380,18 +397,25 @@ func (v *InlineVideoPlayer) Play() {
 		logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Resume()")
 		eng.Resume()
 		v.mu.Unlock()
+		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+			v.player.SetPlaying(true)
+		}, false)
 		go v.playbackLoop()
 	}
 }
 
 func (v *InlineVideoPlayer) Pause() {
 	v.mu.Lock()
-	defer v.mu.Unlock()
 	if v.engine == nil {
+		v.mu.Unlock()
 		return
 	}
 	v.playing = false
 	v.engine.Pause()
+	v.mu.Unlock()
+	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+		v.player.SetPlaying(false)
+	}, false)
 }
 
 func (v *InlineVideoPlayer) Seek(target float64) {
