@@ -225,6 +225,7 @@ type RipArgs struct {
 	AudioLangs     []string // per-stream ISO 639-1 language codes; nil = no tagging
 	SubtitleLangs  []string // per-stream subtitle language codes; nil = no subs
 	DiscTitle      string   // embedded title tag; empty = skip
+	Interlaced     bool     // when true and format is H.264, adds yadif=mode=1 deinterlace filter
 }
 
 // BuildRipArgs returns the ffmpeg argument list for a rip job.
@@ -269,6 +270,12 @@ func BuildRipArgs(ra RipArgs) []string {
 	}
 
 	// Codec
+	// Deinterlace filter for interlaced PAL sources on H.264 re-encode paths.
+	if ra.Interlaced && (ra.Format == FormatH264MKV || ra.Format == FormatH264MP4) {
+		args = append(args, "-vf", "yadif=mode=1")
+		logging.Info(logging.CatDVD, "BuildRipArgs: interlaced source detected — added yadif=mode=1")
+	}
+
 	switch ra.Format {
 	case FormatH264MKV:
 		args = append(args,
@@ -473,6 +480,13 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	titleInfo, ifoErr := ifo.ReadTitleInfo(vtsIFO)
 	if ifoErr != nil {
 		appendLog(fmt.Sprintf("Warning: could not read IFO for enrichment: %v", ifoErr))
+	}
+
+	if titleInfo != nil {
+		ra.Interlaced = titleInfo.Interlaced
+		if titleInfo.Interlaced {
+			appendLog("Source IFO reports interlaced video — H.264 re-encode will apply yadif deinterlace")
+		}
 	}
 
 	if titleInfo != nil {
