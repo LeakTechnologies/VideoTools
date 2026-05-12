@@ -107,8 +107,7 @@ The converted streams and timing data are handed off to the Author module to:
 
 This is the largest gap. The Author module already exists
 (`author_module.go`, `author_dvd_functions.go`, `author_menu.go`) but needs
-an automated "receive converted streams and regenerate NTSC disc" mode. This
-work is currently **reserved for the gemini agent**.
+an automated "receive converted streams and regenerate NTSC disc" mode.
 
 ### Known hard problems
 
@@ -130,15 +129,13 @@ work is currently **reserved for the gemini agent**.
 | 2 | Convert-during-rip checkbox (single title set, H.264) | done | ✅ |
 | 3 | Multi-VTS extraction mode in Rip module | opencode | queued |
 | 4 | Per-stream NTSC conversion (including menu re-encode) | opencode | queued |
-| 5 | Author module: automated NTSC IFO regeneration from converted streams | gemini | queued |
+| 5 | Author module: automated NTSC IFO regeneration from converted streams | opencode | queued |
 | 6 | Burn: one-touch "rip PAL → burn NTSC" end-to-end path | — | future |
 
 ---
 
-## Files not to touch
+## Files not to touch during incremental work
 
-- `author_module.go`, `author_dvd_functions.go`, `author_menu.go` —
-  reserved for gemini's DVD authoring work.
 - `internal/convert/` — PAL→NTSC is a disc-pipeline feature; the Convert
   module handles arbitrary file re-encodes and has no DVD-specific paths.
 - The Rip `FormatArchivist` path — stream-copy only, no re-encode filters.
