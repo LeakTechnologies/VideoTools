@@ -139,6 +139,7 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 		EmbedChapters:    toBool(cfg["embedChapters"]),
 		AllAudioTracks:   toBool(cfg["allAudioTracks"]),
 		IncludeSubtitles: toBool(cfg["includeSubtitles"]),
+		ConvertToNTSC:    toBool(cfg["convertToNTSC"]),
 		DiscTitle:        toString(cfg["discTitle"]),
 		GetLogsDir: getLogsDir,
 		LogSuffix:  conversionLogSuffix,
