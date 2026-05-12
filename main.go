@@ -2344,6 +2344,14 @@ func (s *appState) addConvertToQueueForSource(src *videoSource, addToTop bool) e
 		config["cropY"] = ""
 	}
 
+	// PAL→NTSC preset: inject custom video filter chain and audio pitch correction.
+	// These are read by buildFFmpegCommandFromJob and override the normal filter building.
+	if strings.Contains(cfg.SelectedFormat.Label, "PAL → NTSC") {
+		config["customVideoFilters"] = "yadif=mode=1,scale=720:480:flags=lanczos,fps=30000/1001"
+		config["audioFilter"] = "atempo=0.9600"
+		logging.Debug(logging.CatConvert, "PAL→NTSC preset: customVideoFilters and audioFilter set")
+	}
+
 	job := &queue.Job{
 		Type:        queue.JobTypeConvert,
 		Title:       fmt.Sprintf("Convert %s", filepath.Base(src.Path)),
@@ -7615,6 +7623,12 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 			scaleFilter = "scale=-2:2160"
 		case "8K":
 			scaleFilter = "scale=-2:4320"
+		default:
+			// Try "WxH" format (e.g. "720x480", "1920x1080")
+			if w, h, ok := parseResolutionWxH(targetResolution); ok {
+				scaleFilter = fmt.Sprintf("scale=%d:%d:flags=lanczos", w, h)
+				logging.Debug(logging.CatFFMPEG, "scale: parsed WxH resolution %s → %s", targetResolution, scaleFilter)
+			}
 		}
 		if scaleFilter != "" {
 			vf = append(vf, scaleFilter)
@@ -7706,6 +7720,17 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 			vf = append(vf, fmt.Sprintf("minterpolate=fps=%s:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1", frameRate))
 		} else {
 			vf = append(vf, "fps="+frameRate)
+		}
+	}
+
+	// Custom video filter override — when set, replaces the entire vf chain.
+	// Used by the PAL→NTSC preset (yadif=mode=1, scale=720:480:flags=lanczos, fps=30000/1001).
+	if customVF, _ := cfg["customVideoFilters"].(string); customVF != "" {
+		logging.Debug(logging.CatFFMPEG, "buildFFmpegCommandFromJob: using customVideoFilters=%s", customVF)
+		vf = strings.Split(customVF, ",")
+		// Ensure no double-quoted items from JSON roundtrip
+		for i := range vf {
+			vf[i] = strings.Trim(vf[i], "\"'")
 		}
 	}
 
@@ -7949,12 +7974,37 @@ func buildFFmpegCommandFromJob(job *queue.Job) string {
 				args = append(args, "-af", "pan=stereo|c0=c1|c1=c0")
 			}
 		}
+
+		// Custom audio filter — appended after channel downmix.
+		// Used by the PAL→NTSC preset for atempo=0.9600 pitch correction.
+		if audioFilter, _ := cfg["audioFilter"].(string); audioFilter != "" {
+			logging.Debug(logging.CatFFMPEG, "buildFFmpegCommandFromJob: using audioFilter=%s", audioFilter)
+			args = append(args, "-af", audioFilter)
+		}
 	}
 
 	// Output
 	args = append(args, "OUTPUT")
 
 	return "ffmpeg " + strings.Join(args, " ")
+}
+
+// parseResolutionWxH attempts to parse a "WxH" resolution string (e.g. "720x480").
+// Returns the width, height, and true on success.
+func parseResolutionWxH(s string) (int, int, bool) {
+	parts := strings.Split(s, "x")
+	if len(parts) != 2 {
+		parts = strings.Split(s, "X")
+	}
+	if len(parts) != 2 {
+		return 0, 0, false
+	}
+	w, errW := strconv.Atoi(strings.TrimSpace(parts[0]))
+	h, errH := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if errW != nil || errH != nil || w <= 0 || h <= 0 {
+		return 0, 0, false
+	}
+	return w, h, true
 }
 
 func (s *appState) shutdown() {
@@ -9187,6 +9237,28 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		if buildCommandPreview != nil {
 			buildCommandPreview()
+		}
+
+		// PAL→NTSC preset: apply all settings from PALToNTSCPreset when selected.
+		if strings.Contains(opt.Label, "PAL → NTSC") {
+			preset := convert.PALToNTSCPreset()
+			state.convert.VideoCodec = preset.VideoCodec
+			state.convert.EncoderPreset = preset.EncoderPreset
+			state.convert.CRF = preset.CRF
+			state.convert.BitrateMode = preset.BitrateMode
+			state.convert.TargetResolution = preset.TargetResolution
+			state.convert.FrameRate = preset.FrameRate
+			state.convert.PixelFormat = preset.PixelFormat
+			state.convert.HardwareAccel = preset.HardwareAccel
+			state.convert.Deinterlace = "Force"
+			state.convert.DeinterlaceMethod = "yadif"
+			state.convert.AudioCodec = preset.AudioCodec
+			state.convert.AudioBitrate = preset.AudioBitrate
+			state.convert.AudioChannels = preset.AudioChannels
+			logging.Info(logging.CatConvert, "PAL→NTSC preset applied: %+v", preset)
+			if updateEncodingControls != nil {
+				updateEncodingControls()
+			}
 		}
 	}
 

@@ -31,6 +31,11 @@ type TitleInfo struct {
 	// HasAngles is true when the IFO contains cells with angle-block mode set,
 	// indicating multi-angle content.
 	HasAngles bool
+
+	// Interlaced is true when the VTS video attributes indicate video-originated
+	// (camera) content (FilmMode == 0). Film-originated content (FilmMode == 1)
+	// is progressive. This drives the deinterlace decision in the Rip module.
+	Interlaced bool
 }
 
 // TrackInfo is a minimal description of one audio or subtitle track.
@@ -100,6 +105,13 @@ func ReadTitleInfo(ifoPath string) (*TitleInfo, error) {
 			Codec:    "dvd_subtitle",
 		})
 	}
+
+	// ── Interlaced detection from VTS video attributes ──────────────────────────
+	// FilmMode==0 means video-originated (camera) → interlaced.
+	// FilmMode==1 means film-originated → progressive (24/25 fps).
+	info.Interlaced = (mat.VTS_Attributes.FilmMode == 0)
+	logging.Info(logging.CatDVD, "IFO extract: FilmMode=%d → Interlaced=%v (PAL=%v)",
+		mat.VTS_Attributes.FilmMode, info.Interlaced, !info.IsNTSC)
 
 	logging.Info(logging.CatDVD, "IFO extract: %d audio, %d subtitle tracks", nAudio, nSub)
 
