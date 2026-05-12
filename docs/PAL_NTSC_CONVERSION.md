@@ -1,104 +1,144 @@
 # PAL → NTSC Conversion Pipeline
 
-## Problem
-
-The Rip module faithfully preserves whatever is on disc. A PAL DVD source
-(720×576, 25 fps, interlaced) passes through unchanged. This is correct for
-archival — but means:
-
-- H.264 re-encode mode bakes in 576i interlacing (no `yadif` applied)
-- The Convert module has no PAL→NTSC path
-- Authoring the ripped file back as NTSC produces wrong IFO timestamps and
-  a 4 % speed/pitch error
-
 ## Background: why audio needs pitch correction
 
-PAL DVDs contain film that was originally shot at 24 fps (23.976 strictly).
+PAL DVDs contain film originally shot at 24 fps (23.976 strictly).
 The PAL master speeds the film up from 24→25 fps (a 4.167 % increase) and
-records the audio at that higher speed. When converting back to NTSC
-(23.976 fps, presented via 3:2 pulldown at 29.97 fps), the audio must be
+records audio at that higher speed. When converting back to NTSC
+(23.976 fps, presented via 3:2 pulldown at 29.97 fps), audio must be
 slowed down by the reciprocal factor: `24/25 = 0.9600`.
 
 Without pitch correction the output runs fast and sounds like chipmunks.
 
-## Three gaps to close
+---
 
-### 1. Rip: deinterlace on H.264 re-encode
+## Status: what is implemented
 
-**File:** `internal/app/modules/rip/executor.go` → `BuildRipArgs`
+### IFO interlace detection
 
-When `Format` is `FormatH264MKV` or `FormatH264MP4` and the source IFO
-indicates interlaced video (`titleInfo` scan field, or a quick ffprobe), add
-`yadif=mode=1` to the video filter chain.
+**File:** `internal/dvd/ifo/extract.go`
 
-```go
-// in BuildRipArgs, H.264 branch:
-"-vf", "yadif=mode=1",
-"-c:v", "libx264",
-"-crf", "18",
-"-preset", "medium",
+`TitleInfo.Interlaced bool` is derived from the `FilmMode` byte in each
+VTS attribute block:
+
+- `FilmMode == 0` → camera/interlaced → `Interlaced = true`
+- `FilmMode == 1` → film/progressive → `Interlaced = false`
+
+The detection result is logged at parse time.
+
+### Convert-during-rip (Rip module)
+
+**File:** `internal/app/modules/rip/view.go` + `executor.go`
+
+A **"Convert PAL → NTSC during rip"** checkbox is present in the Rip module's
+enrichment options section. It is enabled only for H.264 re-encode formats
+(MKV and MP4); it is disabled with an explanatory label for Lossless and
+Archivist formats (which are stream-copy only).
+
+When the checkbox is ticked the executor (`BuildRipArgs`) injects:
+
+```
+Video:  -vf "yadif=mode=1,scale=720:480:flags=lanczos,fps=30000/1001"
+Audio:  -af "atempo=0.9600"
 ```
 
-Do **not** apply unconditionally — progressive sources must not be filtered.
-Heuristic: if `titleInfo != nil && titleInfo.Interlaced` (field to add to
-`ifo.TitleInfo`), apply the filter. Fall back to ffprobe `field_order` if
-the IFO flag is absent.
+If the checkbox is off but the IFO reports an interlaced source and the
+format is H.264, only `yadif=mode=1` is applied (no scale or fps change).
 
-### 2. Convert: PAL→NTSC preset
+Filter notes:
+- `yadif=mode=1` — field-aware deinterlace (send-frame mode)
+- `scale=720:480:flags=lanczos` — lanczos preserves sharpness; SAR metadata
+  carries the original DAR so 4:3 / 16:9 is not distorted
+- `fps=30000/1001` — sets presentation rate to 29.97 NTSC
+- `atempo=0.9600` — single-pass pitch correction; valid range 0.5–2.0
 
-**File:** `internal/convert/presets.go` (or wherever DVD-specific presets live)
+The job config key is `"convertToNTSC": bool`, read in `rip_module.go /
+executeRipJob`.
 
-The complete ffmpeg filter chain:
+---
+
+## What is not yet implemented: full disc with menu preservation
+
+Convert-during-rip works for the main feature of a single title set. A true
+one-touch PAL→NTSC with working menus requires significantly more:
+
+### What "full disc" means
+
+A DVD disc contains:
+- **VMGI** (`VIDEO_TS.IFO` / `VIDEO_TS.VOB`) — the disc menu
+- **VTS sets** (`VTS_nn_0.IFO`, `VTS_nn_n.VOB`) — one per title set
+
+The current Rip module only extracts the main feature VOB from one VTS set.
+Menu VOBs and secondary title sets are not touched.
+
+### The full pipeline (not yet built)
+
+#### Stage 1 — Extract full disc
+
+The Rip module needs an "extract full disc" mode that:
+
+1. Iterates every VTS set (`VTS_01` … `VTS_nn`) and the VMGI menu
+2. Decrypts each VOB via CSS (already available in `internal/dvd/css`)
+3. Demuxes into per-VTS elementary streams (audio + video per stream, keeping
+   all audio tracks and subtitle streams)
+
+#### Stage 2 — Convert each stream to NTSC
+
+Each extracted VOB/elementary stream is passed through the same filter chain:
 
 ```
 Video:  yadif=mode=1, scale=720:480:flags=lanczos, fps=30000/1001
-Audio:  atempo=0.9600
+Audio:  atempo=0.9600  (per audio track)
 ```
 
-Full argument sketch:
+Menu VOBs contain MPEG-2 video — they must be re-encoded to MPEG-2 at 720×480
+29.97 fps (menus are not H.264). Audio in menus is typically AC-3; pitch
+correction still applies.
 
-```
-ffmpeg -i input.mkv \
-  -vf "yadif=mode=1,scale=720:480:flags=lanczos,fps=30000/1001" \
-  -c:v libx264 -crf 18 -preset medium \
-  -c:a aac -af "atempo=0.9600" \
-  -b:a 192k \
-  output_ntsc.mp4
-```
+#### Stage 3 — Author NTSC disc structure
 
-Notes:
-- `yadif=mode=1` — field-aware deinterlace (send frame mode); use `mode=3`
-  for send field (doubles frame rate) if quality matters more than speed.
-- `scale=720:480:flags=lanczos` — lanczos is slower but sharper than bilinear
-  for downscale. Preserves the original 4:3 or 16:9 display aspect ratio
-  because both 720×576 and 720×480 use SAR metadata to signal the true DAR.
-- `fps=30000/1001` — changes the presentation rate to NTSC; combined with
-  the audio slowdown this puts A/V back in sync.
-- `atempo=0.9600` — valid range for a single `atempo` filter is 0.5–2.0,
-  so 0.96 is fine as a single pass.
+The converted streams and timing data are handed off to the Author module to:
 
-### 3. Convert UI: expose the preset
+1. Regenerate all IFO files with correct NTSC timing (cell durations, PGC
+   timestamps, chapter offsets — all derived from the new frame count and fps)
+2. Re-author the menu VOB with updated navigation commands if cell addresses
+   changed
+3. Write the final `VIDEO_TS/` directory ready for burning or ISO creation
 
-Surface the preset in the Convert module's format/preset picker under a
-**"Disc"** group or similar. Label: `PAL → NTSC (DVD)`.
+This is the largest gap. The Author module already exists
+(`author_module.go`, `author_dvd_functions.go`, `author_menu.go`) but needs
+an automated "receive converted streams and regenerate NTSC disc" mode. This
+work is currently **reserved for the gemini agent**.
 
-The preset should pre-fill:
-- Output resolution: 720×480
-- Frame rate: 29.97 fps
-- Deinterlace: yadif (auto-on)
-- Audio: AAC 192k + atempo pitch correction
+### Known hard problems
 
-## Files to touch
+| Problem | Notes |
+|---------|-------|
+| Menu button highlight colours | DVD menus use a CLUT palette for button highlights; addresses change if VOB cell layout shifts |
+| Multi-angle titles | Each angle stream must be converted separately and re-muxed |
+| Seamless branching | Some discs use PGC branching chains; cell addresses in new IFOs must exactly match new VOB pack positions |
+| Audio track mapping | Multi-language discs have several audio streams per VTS; each needs independent atempo pass |
+| Forced subtitles | Bitmap subtitle streams (DVD_SUBTITLE) are not affected by fps/scale changes but their display timestamps must be remapped |
 
-| File | Change |
-|------|--------|
-| `internal/dvd/ifo/extract.go` | Add `Interlaced bool` to `TitleInfo`; detect from video attr byte |
-| `internal/app/modules/rip/executor.go` | Conditionally add `yadif` vf in `BuildRipArgs` |
-| `internal/convert/presets.go` | New `DVDNTSCFromPAL()` preset function |
-| Convert UI (wherever presets are surfaced) | Add `PAL → NTSC (DVD)` option |
+---
 
-## Do not touch
+## Roadmap
+
+| # | Milestone | Owner | Status |
+|---|-----------|-------|--------|
+| 1 | IFO interlace detection | done | ✅ |
+| 2 | Convert-during-rip checkbox (single title set, H.264) | done | ✅ |
+| 3 | Multi-VTS extraction mode in Rip module | opencode | queued |
+| 4 | Per-stream NTSC conversion (including menu re-encode) | opencode | queued |
+| 5 | Author module: automated NTSC IFO regeneration from converted streams | gemini | queued |
+| 6 | Burn: one-touch "rip PAL → burn NTSC" end-to-end path | — | future |
+
+---
+
+## Files not to touch
 
 - `author_module.go`, `author_dvd_functions.go`, `author_menu.go` —
-  currently reserved; gemini's DVD authoring work is active here.
-- The rip `FormatArchivist` path — stream-copy only, no re-encode.
+  reserved for gemini's DVD authoring work.
+- `internal/convert/` — PAL→NTSC is a disc-pipeline feature; the Convert
+  module handles arbitrary file re-encodes and has no DVD-specific paths.
+- The Rip `FormatArchivist` path — stream-copy only, no re-encode filters.
