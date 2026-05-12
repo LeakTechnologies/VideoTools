@@ -225,8 +225,8 @@ type RipArgs struct {
 	AudioLangs     []string // per-stream ISO 639-1 language codes; nil = no tagging
 	SubtitleLangs  []string // per-stream subtitle language codes; nil = no subs
 	DiscTitle      string   // embedded title tag; empty = skip
-	Interlaced     bool     // when true and format is H.264, adds yadif=mode=1 deinterlace filter
-	ConvertToNTSC  bool     // full PAL→NTSC: yadif + scale 720×480 + 29.97 fps + atempo pitch fix
+	Interlaced      bool   // when true and format is H.264, adds yadif=mode=1 deinterlace filter
+	RegionConvert   string // "" (none), "pal2ntsc", "ntsc2pal"
 }
 
 // BuildRipArgs returns the ffmpeg argument list for a rip job.
@@ -271,12 +271,17 @@ func BuildRipArgs(ra RipArgs) []string {
 	}
 
 	// Video filter chain — built before codec args so -vf precedes -c:v.
-	// ConvertToNTSC takes priority: it includes deinterlace + scale + fps in one pass.
-	// Interlaced-only falls back to a plain yadif when ConvertToNTSC is not set.
-	if ra.ConvertToNTSC && (ra.Format == FormatH264MKV || ra.Format == FormatH264MP4) {
+	// RegionConvert takes priority and includes deinterlace + scale + fps in one pass.
+	// Interlaced-only falls back to a plain yadif when no region conversion is set.
+	isH264 := ra.Format == FormatH264MKV || ra.Format == FormatH264MP4
+	switch {
+	case ra.RegionConvert == "pal2ntsc" && isH264:
 		args = append(args, "-vf", "yadif=mode=1,scale=720:480:flags=lanczos,fps=30000/1001")
 		logging.Info(logging.CatDVD, "BuildRipArgs: PAL→NTSC — yadif + scale 720×480 + 29.97 fps")
-	} else if ra.Interlaced && (ra.Format == FormatH264MKV || ra.Format == FormatH264MP4) {
+	case ra.RegionConvert == "ntsc2pal" && isH264:
+		args = append(args, "-vf", "yadif=mode=1,scale=720:576:flags=lanczos,fps=25")
+		logging.Info(logging.CatDVD, "BuildRipArgs: NTSC→PAL — yadif + scale 720×576 + 25 fps")
+	case ra.Interlaced && isH264:
 		args = append(args, "-vf", "yadif=mode=1")
 		logging.Info(logging.CatDVD, "BuildRipArgs: interlaced source — yadif=mode=1")
 	}
@@ -289,9 +294,11 @@ func BuildRipArgs(ra RipArgs) []string {
 			"-preset", "medium",
 			"-c:a", "copy",
 		)
-		if ra.ConvertToNTSC {
-			// Pitch-correct audio: undo the 4 % PAL speedup (24/25 = 0.9600).
+		switch ra.RegionConvert {
+		case "pal2ntsc":
 			args = append(args, "-af", "atempo=0.9600")
+		case "ntsc2pal":
+			args = append(args, "-af", "atempo=1.0417")
 		}
 	case FormatH264MP4:
 		args = append(args,
@@ -301,8 +308,11 @@ func BuildRipArgs(ra RipArgs) []string {
 			"-c:a", "aac",
 			"-b:a", "192k",
 		)
-		if ra.ConvertToNTSC {
+		switch ra.RegionConvert {
+		case "pal2ntsc":
 			args = append(args, "-af", "atempo=0.9600")
+		case "ntsc2pal":
+			args = append(args, "-af", "atempo=1.0417")
 		}
 	default:
 		args = append(args, "-c", "copy")
@@ -417,7 +427,8 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 
 	videoTSPath, cleanup, err := ResolveVideoTSPath(sourcePath)
 	if err != nil {
-		return err
+		appendLog(fmt.Sprintf("Error resolving source path: %v", err))
+		return fmt.Errorf("resolve source: %w", err)
 	}
 	if cleanup != nil {
 		defer cleanup()
@@ -435,11 +446,18 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		appendLog("CSS encryption detected - will decrypt during processing")
 	}
 
+	// Full-disc extraction mode — processes all VTS sets + menu, regenerates IFOs.
+	if opts.ExtractMode == "full" {
+		return executeFullDiscRip(ctx, opts, videoTSPath, isEncrypted, appendLog, updateProgress)
+	}
+
 	sets, err := CollectVOBSets(videoTSPath)
 	if err != nil {
-		return err
+		appendLog(fmt.Sprintf("Error collecting VOB sets: %v", err))
+		return fmt.Errorf("collect VOB sets: %w", err)
 	}
 	if len(sets) == 0 {
+		appendLog("Error: no VOB files found in VIDEO_TS — ISO extraction may have produced an incomplete result")
 		return fmt.Errorf("no VOB files found in VIDEO_TS")
 	}
 
@@ -453,6 +471,7 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 			}
 		}
 		if set.Name == "" {
+			appendLog(fmt.Sprintf("Error: VTS_%02d not found on disc", opts.VTSNumber))
 			return fmt.Errorf("VTS_%02d not found on disc", opts.VTSNumber)
 		}
 	} else {
@@ -461,7 +480,8 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	appendLog(fmt.Sprintf("Using title set: %s", set.Name))
 	listFile, err := BuildConcatList(set.Files)
 	if err != nil {
-		return err
+		appendLog(fmt.Sprintf("Error building concat list: %v", err))
+		return fmt.Errorf("build concat list: %w", err)
 	}
 	defer os.Remove(listFile)
 
@@ -496,11 +516,16 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 
 	if titleInfo != nil {
 		ra.Interlaced = titleInfo.Interlaced
-		ra.ConvertToNTSC = opts.ConvertToNTSC
-		if opts.ConvertToNTSC {
+		ra.RegionConvert = opts.RegionConvert
+		switch opts.RegionConvert {
+		case "pal2ntsc":
 			appendLog("PAL→NTSC conversion enabled — yadif deinterlace + scale 720×480 + 29.97 fps + pitch correction")
-		} else if titleInfo.Interlaced {
-			appendLog("Source IFO reports interlaced video — H.264 re-encode will apply yadif deinterlace")
+		case "ntsc2pal":
+			appendLog("NTSC→PAL conversion enabled — yadif deinterlace + scale 720×576 + 25 fps + pitch correction")
+		default:
+			if titleInfo.Interlaced {
+				appendLog("Source IFO reports interlaced video — H.264 re-encode will apply yadif deinterlace")
+			}
 		}
 	}
 
@@ -672,4 +697,268 @@ func BuildISOExtractCommand(isoPath, destDir string) (string, []string, error) {
 		return "bsdtar", []string{"-C", destDir, "-xf", isoPath, "VIDEO_TS"}, nil
 	}
 	return "", nil, fmt.Errorf("no ISO extraction tool found (install xorriso, 7z, or bsdtar)")
+}
+
+// CollectMenuVOB returns the VIDEO_TS.VOB file as a single-entry VobSet.
+// Returns nil if the menu VOB doesn't exist.
+func CollectMenuVOB(videoTS string) *VobSet {
+	menuVOB := filepath.Join(videoTS, "VIDEO_TS.VOB")
+	info, err := os.Stat(menuVOB)
+	if err != nil || info.IsDir() || info.Size() == 0 {
+		return nil
+	}
+	return &VobSet{
+		Name:  "VIDEO_TS",
+		Files: []string{menuVOB},
+		Size:  info.Size(),
+	}
+}
+
+// FullDiscOutputPath returns the directory path for full-disc extraction output.
+// The output is always a VIDEO_TS directory structure.
+func FullDiscOutputPath(sourcePath string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		home = "."
+	}
+	baseDir := filepath.Join(home, "Videos", "VideoTools", "DVD_Rips")
+	name := strings.TrimSuffix(filepath.Base(sourcePath), filepath.Ext(sourcePath))
+	if strings.EqualFold(name, "video_ts") {
+		name = filepath.Base(filepath.Dir(sourcePath))
+	}
+	name = SanitizeForPath(name)
+	if name == "" {
+		name = "dvd_disc"
+	}
+	return UniqueFilePath(filepath.Join(baseDir, name))
+}
+
+// executeFullDiscRip runs full-disc extraction with region conversion and IFO regeneration.
+// Stages 1-3 combined: extracts all VTS sets + menu VOB, applies region conversion,
+// and regenerates IFO/BUP files with correct NTSC/PAL timing.
+func executeFullDiscRip(ctx context.Context, opts ExecuteOptions, videoTSPath string, isEncrypted bool, appendLog func(string), updateProgress func(float64)) error {
+	outputDir := opts.OutputPath
+
+	// Collect all VTS sets
+	sets, err := CollectVOBSets(videoTSPath)
+	if err != nil {
+		appendLog(fmt.Sprintf("Error collecting VOB sets: %v", err))
+		return fmt.Errorf("collect VOB sets: %w", err)
+	}
+	if len(sets) == 0 {
+		appendLog("Error: no VOB files found in VIDEO_TS")
+		return fmt.Errorf("no VOB files found in VIDEO_TS")
+	}
+
+	// Collect menu VOB
+	menuSet := CollectMenuVOB(videoTSPath)
+	if menuSet != nil {
+		appendLog(fmt.Sprintf("Found menu VOB: VIDEO_TS.VOB (%d MB)", menuSet.Size/(1024*1024)))
+	}
+
+	// Determine conversion direction
+	isNTSC := true // default for output
+	pal2ntsc := opts.RegionConvert == "pal2ntsc"
+	ntsc2pal := opts.RegionConvert == "ntsc2pal"
+	hasConversion := pal2ntsc || ntsc2pal
+
+	if hasConversion {
+		dir := "NTSC"
+		if ntsc2pal {
+			dir = "PAL"
+			isNTSC = false
+		}
+		appendLog(fmt.Sprintf("Full-disc extraction: converting all VTS sets to %s (DVD-Video MPEG-2)", dir))
+	} else {
+		appendLog("Full-disc extraction: extracting all VTS sets (no region conversion)")
+	}
+
+	// Create output VIDEO_TS directory
+	videoTSOut := filepath.Join(outputDir, "VIDEO_TS")
+	if err := os.MkdirAll(videoTSOut, 0755); err != nil {
+		return fmt.Errorf("create output VIDEO_TS dir: %w", err)
+	}
+
+	// Build per-VTS ffmpeg filter chain
+	var vfFilter, afFilter string
+	if pal2ntsc {
+		vfFilter = "yadif=mode=1,scale=720:480:flags=lanczos,fps=30000/1001"
+		afFilter = "atempo=0.9600"
+		appendLog("Applying PAL→NTSC conversion: yadif deinterlace + scale 720x480 + 29.97 fps + pitch correction")
+	} else if ntsc2pal {
+		vfFilter = "yadif=mode=1,scale=720:576:flags=lanczos,fps=25"
+		afFilter = "atempo=1.0417"
+		appendLog("Applying NTSC→PAL conversion: yadif deinterlace + scale 720x576 + 25 fps + pitch correction")
+	}
+
+	var convertedSets []convertedVTS
+
+	totalSteps := len(sets)
+	if menuSet != nil {
+		totalSteps++
+	}
+	step := 0
+
+	// Process each VTS set
+	for _, set := range sets {
+		step++
+		appendLog(fmt.Sprintf("[%d/%d] Processing %s (%d files, %d MB)...",
+			step, totalSteps, set.Name, len(set.Files), set.Size/(1024*1024)))
+
+		vtsOut := filepath.Join(videoTSOut, set.Name+".VOB")
+
+		// Build concat list
+		listFile, err := BuildConcatList(set.Files)
+		if err != nil {
+			return fmt.Errorf("build concat list for %s: %w", set.Name, err)
+		}
+
+		if err := convertVOBWithRegion(ctx, opts, listFile, vtsOut, set.Name, vfFilter, afFilter, isEncrypted, appendLog, updateProgress); err != nil {
+			os.Remove(listFile)
+			return err
+		}
+		os.Remove(listFile)
+
+		// Probe converted VOB duration
+		duration := probeDuration(vtsOut, opts.OnRunCommand, appendLog)
+		vobInfo, _ := os.Stat(vtsOut)
+
+		// Read chapter info from original IFO
+		var chapterSec []float64
+		var titleDuration float64
+		vtsIFO := filepath.Join(videoTSPath, set.Name+"_0.IFO")
+		if titleInfo, err := ifo.ReadTitleInfo(vtsIFO); err == nil && len(titleInfo.Chapters) > 1 {
+			chapterSec = titleInfo.Chapters
+			titleDuration = titleInfo.Duration
+		}
+
+		// Scale chapter timestamps for region conversion
+		if hasConversion && duration > 0 && titleDuration > 0 {
+			factor := duration / titleDuration
+			for i := range chapterSec {
+				chapterSec[i] *= factor
+			}
+		}
+
+		convertedSets = append(convertedSets, convertedVTS{
+			Name:       set.Name,
+			VOBPath:    vtsOut,
+			VOBSize:    vobInfo.Size(),
+			Duration:   duration,
+			ChapterSec: chapterSec,
+		})
+		updateProgress(float64(step) / float64(totalSteps) * 80)
+	}
+
+	// Process menu VOB
+	if menuSet != nil {
+		step++
+		appendLog(fmt.Sprintf("[%d/%d] Processing menu VIDEO_TS.VOB (%d MB)...",
+			step, totalSteps, menuSet.Size/(1024*1024)))
+
+		menuOut := filepath.Join(videoTSOut, "VIDEO_TS.VOB")
+		listFile, err := BuildConcatList(menuSet.Files)
+		if err != nil {
+			return fmt.Errorf("build concat list for menu: %w", err)
+		}
+
+		// Menu VOBs always use MPEG-2 video (DVD compliant)
+		if err := convertVOBWithRegion(ctx, opts, listFile, menuOut, "VIDEO_TS", vfFilter, afFilter, isEncrypted, appendLog, updateProgress); err != nil {
+			os.Remove(listFile)
+			return err
+		}
+		os.Remove(listFile)
+
+		vobInfo, _ := os.Stat(menuOut)
+		convertedSets = append(convertedSets, convertedVTS{
+			Name:    "VIDEO_TS",
+			VOBPath: menuOut,
+			VOBSize: vobInfo.Size(),
+			IsMenu:  true,
+		})
+		updateProgress(float64(step) / float64(totalSteps) * 80)
+	}
+
+	appendLog("VOB extraction and conversion complete. Regenerating IFO/BUP files...")
+	updateProgress(85)
+
+	// Stage 3: IFO regeneration
+	if err := RegenerateIFOs(videoTSPath, videoTSOut, convertedSets, isNTSC, appendLog); err != nil {
+		appendLog(fmt.Sprintf("IFO regeneration error: %v", err))
+		return fmt.Errorf("IFO regeneration: %w", err)
+	}
+
+	updateProgress(100)
+	appendLog(fmt.Sprintf("Full-disc extraction complete. Output: %s", videoTSOut))
+	return nil
+}
+
+// convertVOBWithRegion runs ffmpeg to convert a VOB concat list with optional region conversion.
+func convertVOBWithRegion(ctx context.Context, opts ExecuteOptions, listFile, outputPath, setName, vfFilter, afFilter string, isEncrypted bool, appendLog func(string), updateProgress func(float64)) error {
+	args := []string{
+		"-y",
+		"-hide_banner",
+		"-loglevel", "error",
+		"-fflags", "+genpts",
+		"-f", "concat",
+		"-safe", "0",
+		"-i", listFile,
+	}
+
+	// Map streams
+	args = append(args, "-map", "0:v:0")
+	args = append(args, "-map", "0:a:0?")
+	args = append(args, "-map", "0:a:1?")
+	args = append(args, "-map", "0:s?")
+	args = append(args, "-map_metadata", "-1")
+
+	// Region conversion filters
+	if vfFilter != "" {
+		args = append(args, "-vf", vfFilter)
+	}
+	if afFilter != "" {
+		args = append(args, "-af", afFilter)
+	}
+
+	// DVD-compliant MPEG-2 video + AC-3 audio
+	args = append(args,
+		"-c:v", "mpeg2video",
+		"-q:v", "5",
+		"-c:a", "ac3",
+		"-b:a", "192k",
+		"-c:s", "copy",
+		"-max_interleave_delta", "0",
+		outputPath,
+	)
+
+	appendLog(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
+	if err := opts.OnRunCommand(utils.GetFFmpegPath(), args, appendLog); err != nil {
+		return fmt.Errorf("%s conversion failed: %w", setName, err)
+	}
+	return nil
+}
+
+// probeDuration returns the duration in seconds of a VOB file by quick ffprobe.
+func probeDuration(vobPath string, onRunCommand func(string, []string, func(string)) error, appendLog func(string)) float64 {
+	args := []string{
+		"-v", "error",
+		"-show_entries", "format=duration",
+		"-of", "csv=p=0",
+		vobPath,
+	}
+	var durationStr string
+	logFn := func(line string) {
+		if durationStr == "" {
+			durationStr = strings.TrimSpace(line)
+		}
+	}
+	if err := onRunCommand(utils.GetFFprobePath(), args, logFn); err != nil {
+		appendLog(fmt.Sprintf("Warning: could not probe duration for %s: %v", filepath.Base(vobPath), err))
+		return 0
+	}
+	var d float64
+	if _, err := fmt.Sscanf(durationStr, "%f", &d); err != nil {
+		return 0
+	}
+	return d
 }

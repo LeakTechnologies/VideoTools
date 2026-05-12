@@ -1,5 +1,16 @@
 # VideoTools Changelog
 
+## v0.1.1-dev47 (May 2026)
+
+### PAL→NTSC Full-Disc Conversion Pipeline — Stages 1-3
+
+- **Full-disc extraction mode** — New "Full disc extraction (DVD-Video with IFO regeneration)" checkbox in Rip module. Enabled when region conversion is active, iterates ALL VTS sets + VIDEO_TS.VOB menu.
+- **DVD-compliant MPEG-2 conversion** — Each VTS set re-encoded as MPEG-2 video + AC-3 audio with region conversion filter chain (yadif deinterlace, scale, fps, atempo).
+- **Menu VOB processing** — `CollectMenuVOB()` gathers VIDEO_TS.VOB for conversion alongside title VOBs.
+- **IFO/BUP regeneration** — New `RegenerateIFOs()` in `internal/app/modules/rip/ifo_regen.go` reads original IFO structure and writes new VTS and VMG IFO files with correct NTSC/PAL attributes, PGC timing, TMAPT sector maps, and chapter tables.
+- **New API** — `ExecuteOptions.ExtractMode` field ("main" or "full").
+- **New files:** `internal/app/modules/rip/ifo_regen.go`
+
 ## v0.1.1-dev46 (June 2026)
 
 ### Quick Access Dropdown - Functional

@@ -57,10 +57,11 @@ executeRipJob`.
 
 ---
 
-## What is not yet implemented: full disc with menu preservation
+## Full disc with menu preservation — now implemented
 
-Convert-during-rip works for the main feature of a single title set. A true
-one-touch PAL→NTSC with working menus requires significantly more:
+The full-disc extraction mode converts ALL VTS sets on a PAL DVD to NTSC
+(including menus) and regenerates IFO/BUP files for the converted structure.
+This produces a complete, playable NTSC VIDEO_TS directory.
 
 ### What "full disc" means
 
@@ -71,43 +72,44 @@ A DVD disc contains:
 The current Rip module only extracts the main feature VOB from one VTS set.
 Menu VOBs and secondary title sets are not touched.
 
-### The full pipeline (not yet built)
+### The full pipeline — now implemented
 
 #### Stage 1 — Extract full disc
 
-The Rip module needs an "extract full disc" mode that:
+The Rip module has an "extract full disc" mode that:
 
 1. Iterates every VTS set (`VTS_01` … `VTS_nn`) and the VMGI menu
 2. Decrypts each VOB via CSS (already available in `internal/dvd/css`)
-3. Demuxes into per-VTS elementary streams (audio + video per stream, keeping
-   all audio tracks and subtitle streams)
+3. Re-encodes to DVD-compliant MPEG-2 with region conversion filters
+4. Generates a `VIDEO_TS/` directory with converted VOBs
+
+**Key files:** `internal/app/modules/rip/executor.go` — `executeFullDiscRip()`,
+`CollectMenuVOB()`, `convertVOBWithRegion()`
 
 #### Stage 2 — Convert each stream to NTSC
 
-Each extracted VOB/elementary stream is passed through the same filter chain:
+Each VOB set is passed through the same filter chain:
 
 ```
-Video:  yadif=mode=1, scale=720:480:flags=lanczos, fps=30000/1001
+Video:  yadif=mode=1, scale=720:480:flags=lanczos, fps=30000/1001  (PAL→NTSC)
 Audio:  atempo=0.9600  (per audio track)
 ```
 
-Menu VOBs contain MPEG-2 video — they must be re-encoded to MPEG-2 at 720×480
-29.97 fps (menus are not H.264). Audio in menus is typically AC-3; pitch
-correction still applies.
+Menu VOBs are re-encoded as MPEG-2 at 720×480 29.97 fps with AC-3 audio and
+pitch correction.
 
-#### Stage 3 — Author NTSC disc structure
+#### Stage 3 — Regenerate NTSC IFO structure
 
-The converted streams and timing data are handed off to the Author module to:
+A new `RegenerateIFOs()` function handles IFO generation:
 
-1. Regenerate all IFO files with correct NTSC timing (cell durations, PGC
-   timestamps, chapter offsets — all derived from the new frame count and fps)
-2. Re-author the menu VOB with updated navigation commands if cell addresses
-   changed
-3. Write the final `VIDEO_TS/` directory ready for burning or ISO creation
+1. Reads the original IFO structure (VMG_MAT, VTS_MAT, TT_SRPT)
+2. Creates new VTS_MAT with NTSC video attributes (525/60, 720x480, MPEG-2)
+3. Generates single-cell PGCs with NTSC-correct playback timing
+4. Builds TMAPT from converted VOB sector layout
+5. Creates VTS_PTT_SRPT chapter tables from IFO chapter data
+6. Generates complete VTS_xx_0.IFO/BUP and VIDEO_TS.IFO/BUP
 
-This is the largest gap. The Author module already exists
-(`author_module.go`, `author_dvd_functions.go`, `author_menu.go`) but needs
-an automated "receive converted streams and regenerate NTSC disc" mode.
+**Key file:** `internal/app/modules/rip/ifo_regen.go` — `RegenerateIFOs()`
 
 ### Known hard problems
 
@@ -127,9 +129,9 @@ an automated "receive converted streams and regenerate NTSC disc" mode.
 |---|-----------|-------|--------|
 | 1 | IFO interlace detection | done | ✅ |
 | 2 | Convert-during-rip checkbox (single title set, H.264) | done | ✅ |
-| 3 | Multi-VTS extraction mode in Rip module | opencode | queued |
-| 4 | Per-stream NTSC conversion (including menu re-encode) | opencode | queued |
-| 5 | Author module: automated NTSC IFO regeneration from converted streams | opencode | queued |
+| 3 | Multi-VTS extraction mode in Rip module | done | ✅ |
+| 4 | Per-stream NTSC conversion (including menu re-encode) | done | ✅ |
+| 5 | Author module: automated NTSC IFO regeneration from converted streams | done | ✅ |
 | 6 | Burn: one-touch "rip PAL → burn NTSC" end-to-end path | — | future |
 
 ---
