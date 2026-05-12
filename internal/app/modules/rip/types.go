@@ -114,12 +114,17 @@ type ExecuteOptions struct {
 	// VTSNumber selects a specific VTS to rip. 0 = largest set (default = main feature).
 	VTSNumber int
 
-	// Enrichment options — all default to false for backwards compat.
+	// ExtractMode controls whether only the main feature (default) or the full disc
+	// (all VTS sets + menu VOB) is extracted. "" or "main" = main feature only.
+	// "full" = full disc extraction with IFO regeneration (DVD-Video output).
+	ExtractMode string
+
+	// Enrichment options — all default to false/"" for backwards compat.
 	EmbedChapters    bool   // read IFO and write chapter metadata into output
 	AllAudioTracks   bool   // map every audio stream (not just the first)
 	IncludeSubtitles bool   // include dvd_subtitle bitmap streams (MKV only)
 	DiscTitle        string // embedded as MKV/MP4 title tag; empty = skip
-	ConvertToNTSC    bool   // transcode PAL→NTSC during rip (yadif + scale 720×480 + 29.97 fps + pitch)
+	RegionConvert    string // "" (none), "pal2ntsc", "ntsc2pal"
 
 	GetLogsDir   func() string
 	LogSuffix    string

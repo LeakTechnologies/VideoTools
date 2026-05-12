@@ -44,7 +44,8 @@ type viewState struct {
 	embedChapters    bool
 	allAudioTracks   bool
 	includeSubtitles bool
-	convertToNTSC    bool
+	regionConvert    string // "" (none), "pal2ntsc", "ntsc2pal"
+	extractMode      string // "" (main feature) or "full" (full disc with IFO regen)
 	discTitle        string
 	logText          string
 	progress         float64
@@ -266,6 +267,33 @@ func BuildView(opts Options) fyne.CanvasObject {
 			vs.outputPath = DefaultOutputPath(vs.sourcePath, vs.format)
 		}
 
+		// Full-disc extraction is always a single job.
+		if vs.extractMode == "full" {
+			job := &queue.Job{
+				Type:        queue.JobTypeRip,
+				Title:       fmt.Sprintf("Full disc: %s", filepath.Base(vs.sourcePath)),
+				Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(vs.outputPath), 40)),
+				InputFile:   vs.sourcePath,
+				OutputFile:  vs.outputPath,
+				Config: map[string]interface{}{
+					"sourcePath":    vs.sourcePath,
+					"outputPath":    vs.outputPath,
+					"format":        vs.format,
+					"regionConvert": vs.regionConvert,
+					"extractMode":   vs.extractMode,
+					"discTitle":     vs.discTitle,
+				},
+			}
+			opts.AddJob(job)
+			vs.resetLog()
+			vs.setStatus("Queued full-disc rip job...")
+			vs.setProgress(0)
+			if runNow && !jq.IsRunning() {
+				jq.Start()
+			}
+			return nil
+		}
+
 		// Build list of (vtsNumber, outputPath, title) for each job to enqueue.
 		type titleJob struct {
 			vtsNumber  int
@@ -317,7 +345,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 					"embedChapters":    vs.embedChapters,
 					"allAudioTracks":   vs.allAudioTracks,
 					"includeSubtitles": vs.includeSubtitles,
-					"convertToNTSC":    vs.convertToNTSC,
+					"regionConvert":    vs.regionConvert,
 					"discTitle":        vs.discTitle,
 					"vtsNumber":        j.vtsNumber,
 				},
@@ -432,10 +460,41 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	subsCheck.SetChecked(vs.includeSubtitles)
 
-	ntscCheck := widget.NewCheck("Convert PAL → NTSC during rip", func(v bool) {
-		vs.convertToNTSC = v
+	var fullDiscCheck *widget.Check // assigned below; referenced by ntscSelect callback
+	fullDiscCheck = widget.NewCheck("Full disc extraction (DVD-Video with IFO regeneration)", func(v bool) {
+		if v && vs.regionConvert != "" {
+			vs.extractMode = "full"
+			vs.outputPath = FullDiscOutputPath(vs.sourcePath)
+		} else {
+			vs.extractMode = ""
+			vs.outputPath = DefaultOutputPath(vs.sourcePath, vs.format)
+		}
+		if opts.SetRipOutputPath != nil {
+			opts.SetRipOutputPath(vs.outputPath)
+		}
+		outputEntry.SetText(vs.outputPath)
 	})
-	ntscCheck.SetChecked(vs.convertToNTSC)
+	fullDiscCheck.SetChecked(false)
+	fullDiscCheck.Disable()
+
+	ntscSelect := widget.NewSelect([]string{"None", "PAL → NTSC", "NTSC → PAL"}, func(value string) {
+		switch value {
+		case "PAL → NTSC":
+			vs.regionConvert = "pal2ntsc"
+		case "NTSC → PAL":
+			vs.regionConvert = "ntsc2pal"
+		default:
+			vs.regionConvert = ""
+		}
+		if vs.regionConvert != "" && vs.scanResult != nil && len(vs.scanResult.Titles) > 0 {
+			vs.extractMode = "full"
+			fullDiscCheck.SetChecked(true)
+		} else {
+			vs.extractMode = ""
+			fullDiscCheck.SetChecked(false)
+		}
+	})
+	ntscSelect.SetSelected("None")
 
 	enrichContent := container.NewVBox()
 	enrichPanel := widget.NewCard("Metadata & Streams", "", enrichContent)
@@ -525,16 +584,20 @@ func BuildView(opts Options) fyne.CanvasObject {
 		subsCheck.Text = subsLabel
 		subsCheck.Refresh()
 
-		// PAL→NTSC checkbox — only meaningful on H.264 re-encode formats
+		// Region conversion dropdown — only shown on H.264 re-encode formats.
 		if vs.format == FormatLosslessMKV || vs.format == FormatArchivist {
-			ntscCheck.Text = "Convert PAL → NTSC (not available in copy/archivist mode)"
-			ntscCheck.SetChecked(false)
-			ntscCheck.Disable()
+			ntscSelect.Hide()
+			fullDiscCheck.Hide()
 		} else {
-			ntscCheck.Text = "Convert PAL → NTSC during rip"
-			ntscCheck.Enable()
+			ntscSelect.Show()
+			// Full-disc checkbox is only relevant when region conversion is active
+			if vs.regionConvert != "" && vs.scanResult != nil && len(vs.scanResult.Titles) > 0 {
+				fullDiscCheck.Show()
+				fullDiscCheck.Enable()
+			} else {
+				fullDiscCheck.Hide()
+			}
 		}
-		ntscCheck.Refresh()
 
 		// Rebuild content objects
 		objs := []fyne.CanvasObject{
@@ -543,7 +606,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 			chaptersCheck,
 			allAudioCheck,
 			subsCheck,
-			ntscCheck,
+			widget.NewLabelWithStyle("Region Conversion", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+			ntscSelect,
+			fullDiscCheck,
 		}
 
 		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {

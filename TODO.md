@@ -12,7 +12,7 @@ See DONE.md for full dev42 change log.
 
 Player thread-safety audit shipped. Pixel format crash, Close/demuxer race, and seekLoop goroutine leak all fixed. See DONE.md.
 
-## Dev44 Scope (in progress)
+## Dev44 Scope (closed)
 
 ### Convert Module Improvements — Phase 1 (HIGH)
 
@@ -113,15 +113,15 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [x] **Issue #21** — Native disc authoring — PTS validation added: ValidateNAVPTMs + SynthesizeAndPatchPTMs synthesize timestamps when FFmpeg writes zero PTMs; hardware player testing needed
 - [ ] **Linux CI** — Pre-built container image to reduce apt install time
 
-### PAL→NTSC Conversion Pipeline (opencode) — See `docs/PAL_NTSC_CONVERSION.md`
+### PAL→NTSC Conversion Pipeline — See `docs/PAL_NTSC_CONVERSION.md`
 
-Single-title convert-during-rip is implemented (IFO interlace detection + checkbox in Rip module). Full one-touch disc conversion with menu preservation requires three further stages:
+Full-disc extraction with region conversion and IFO regeneration is now implemented:
 
 - [x] **IFO interlace detection** — `TitleInfo.Interlaced` from FilmMode byte (`internal/dvd/ifo/extract.go`)
 - [x] **Convert-during-rip checkbox** — "Convert PAL → NTSC during rip" in Rip module enrichment options; injects `yadif=mode=1,scale=720:480:flags=lanczos,fps=30000/1001` + `atempo=0.9600` for H.264 formats only
-- [ ] **Stage 1 — Full-disc extraction mode** — Rip module option to iterate all `VTS_nn` sets and the `VIDEO_TS.VOB` menu; CSS decryption already available in `internal/dvd/css`; output goes to a staging directory
-- [ ] **Stage 2 — Per-stream NTSC conversion including menus** — Title VOBs re-encode H.264; menu VOBs must re-encode as MPEG-2 (DVD compliance); subtitle/SPU timestamps remapped proportionally (25→29.97)
-- [ ] **Stage 3 — Author module: NTSC IFO regeneration** — Automated mode in Author that accepts converted streams and regenerates all IFO files with correct NTSC cell durations, PGC timestamps, and chapter offsets
+- [x] **Stage 1 — Full-disc extraction mode** — Rip module iterates all `VTS_nn` sets and the `VIDEO_TS.VOB` menu; CSS decryption; `CollectMenuVOB()` + `executeFullDiscRip()`
+- [x] **Stage 2 — Per-stream NTSC conversion including menus** — All VOBs re-encoded as MPEG-2 (DVD compliance) with region conversion filter chain; AC-3 audio with atempo; menu VOBs included
+- [x] **Stage 3 — IFO/BUP regeneration from converted streams** — `RegenerateIFOs()` reads original IFO structure, creates new VTS_MAT/VMG_MAT with NTSC attributes, generates PGC/TMAPT/PTT_SRPT, and writes complete IFO/BUP files
 
 ---
 
