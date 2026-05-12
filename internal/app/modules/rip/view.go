@@ -44,6 +44,7 @@ type viewState struct {
 	embedChapters    bool
 	allAudioTracks   bool
 	includeSubtitles bool
+	convertToNTSC    bool
 	discTitle        string
 	logText          string
 	progress         float64
@@ -316,6 +317,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 					"embedChapters":    vs.embedChapters,
 					"allAudioTracks":   vs.allAudioTracks,
 					"includeSubtitles": vs.includeSubtitles,
+					"convertToNTSC":    vs.convertToNTSC,
 					"discTitle":        vs.discTitle,
 					"vtsNumber":        j.vtsNumber,
 				},
@@ -430,6 +432,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	subsCheck.SetChecked(vs.includeSubtitles)
 
+	ntscCheck := widget.NewCheck("Convert PAL → NTSC during rip", func(v bool) {
+		vs.convertToNTSC = v
+	})
+	ntscCheck.SetChecked(vs.convertToNTSC)
+
 	enrichContent := container.NewVBox()
 	enrichPanel := widget.NewCard("Metadata & Streams", "", enrichContent)
 
@@ -518,6 +525,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 		subsCheck.Text = subsLabel
 		subsCheck.Refresh()
 
+		// PAL→NTSC checkbox — only meaningful on H.264 re-encode formats
+		if vs.format == FormatLosslessMKV || vs.format == FormatArchivist {
+			ntscCheck.Text = "Convert PAL → NTSC (not available in copy/archivist mode)"
+			ntscCheck.SetChecked(false)
+			ntscCheck.Disable()
+		} else {
+			ntscCheck.Text = "Convert PAL → NTSC during rip"
+			ntscCheck.Enable()
+		}
+		ntscCheck.Refresh()
+
 		// Rebuild content objects
 		objs := []fyne.CanvasObject{
 			widget.NewLabelWithStyle("Title", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
@@ -525,6 +543,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			chaptersCheck,
 			allAudioCheck,
 			subsCheck,
+			ntscCheck,
 		}
 
 		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {

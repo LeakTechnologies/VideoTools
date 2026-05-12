@@ -226,6 +226,7 @@ type RipArgs struct {
 	SubtitleLangs  []string // per-stream subtitle language codes; nil = no subs
 	DiscTitle      string   // embedded title tag; empty = skip
 	Interlaced     bool     // when true and format is H.264, adds yadif=mode=1 deinterlace filter
+	ConvertToNTSC  bool     // full PAL→NTSC: yadif + scale 720×480 + 29.97 fps + atempo pitch fix
 }
 
 // BuildRipArgs returns the ffmpeg argument list for a rip job.
@@ -269,11 +270,15 @@ func BuildRipArgs(ra RipArgs) []string {
 		args = append(args, "-map_metadata", "-1") // strip existing metadata
 	}
 
-	// Codec
-	// Deinterlace filter for interlaced PAL sources on H.264 re-encode paths.
-	if ra.Interlaced && (ra.Format == FormatH264MKV || ra.Format == FormatH264MP4) {
+	// Video filter chain — built before codec args so -vf precedes -c:v.
+	// ConvertToNTSC takes priority: it includes deinterlace + scale + fps in one pass.
+	// Interlaced-only falls back to a plain yadif when ConvertToNTSC is not set.
+	if ra.ConvertToNTSC && (ra.Format == FormatH264MKV || ra.Format == FormatH264MP4) {
+		args = append(args, "-vf", "yadif=mode=1,scale=720:480:flags=lanczos,fps=30000/1001")
+		logging.Info(logging.CatDVD, "BuildRipArgs: PAL→NTSC — yadif + scale 720×480 + 29.97 fps")
+	} else if ra.Interlaced && (ra.Format == FormatH264MKV || ra.Format == FormatH264MP4) {
 		args = append(args, "-vf", "yadif=mode=1")
-		logging.Info(logging.CatDVD, "BuildRipArgs: interlaced source detected — added yadif=mode=1")
+		logging.Info(logging.CatDVD, "BuildRipArgs: interlaced source — yadif=mode=1")
 	}
 
 	switch ra.Format {
@@ -284,6 +289,10 @@ func BuildRipArgs(ra RipArgs) []string {
 			"-preset", "medium",
 			"-c:a", "copy",
 		)
+		if ra.ConvertToNTSC {
+			// Pitch-correct audio: undo the 4 % PAL speedup (24/25 = 0.9600).
+			args = append(args, "-af", "atempo=0.9600")
+		}
 	case FormatH264MP4:
 		args = append(args,
 			"-c:v", "libx264",
@@ -292,6 +301,9 @@ func BuildRipArgs(ra RipArgs) []string {
 			"-c:a", "aac",
 			"-b:a", "192k",
 		)
+		if ra.ConvertToNTSC {
+			args = append(args, "-af", "atempo=0.9600")
+		}
 	default:
 		args = append(args, "-c", "copy")
 	}
@@ -484,7 +496,10 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 
 	if titleInfo != nil {
 		ra.Interlaced = titleInfo.Interlaced
-		if titleInfo.Interlaced {
+		ra.ConvertToNTSC = opts.ConvertToNTSC
+		if opts.ConvertToNTSC {
+			appendLog("PAL→NTSC conversion enabled — yadif deinterlace + scale 720×480 + 29.97 fps + pitch correction")
+		} else if titleInfo.Interlaced {
 			appendLog("Source IFO reports interlaced video — H.264 re-encode will apply yadif deinterlace")
 		}
 	}

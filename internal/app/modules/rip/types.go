@@ -119,6 +119,7 @@ type ExecuteOptions struct {
 	AllAudioTracks   bool   // map every audio stream (not just the first)
 	IncludeSubtitles bool   // include dvd_subtitle bitmap streams (MKV only)
 	DiscTitle        string // embedded as MKV/MP4 title tag; empty = skip
+	ConvertToNTSC    bool   // transcode PAL→NTSC during rip (yadif + scale 720×480 + 29.97 fps + pitch)
 
 	GetLogsDir   func() string
 	LogSuffix    string
