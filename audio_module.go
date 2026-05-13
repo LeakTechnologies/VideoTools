@@ -387,6 +387,9 @@ func (s *appState) updateAudioBatchFilesList() {
 }
 
 func (s *appState) updateAudioBitrateVisibility() {
+	if s.audioBitrateEntry == nil {
+		return
+	}
 	if s.audioOutputFormat == "FLAC" || s.audioOutputFormat == "WAV" {
 		s.audioBitrateEntry.Disable()
 	} else {
