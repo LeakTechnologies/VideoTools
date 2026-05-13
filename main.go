@@ -1423,6 +1423,12 @@ type appState struct {
 	authorCancelBtn               *widget.Button
 	authorVideoTSPath             string
 
+	// Burn module state
+	burnLogText     string
+	burnLogEntry    *widget.Label
+	burnLogScroll   *container.Scroll
+	burnLogFilePath string
+
 	// Rip module state
 	ripSourcePath  string
 	ripOutputPath  string
@@ -4775,6 +4781,8 @@ func (s *appState) jobExecutor(ctx context.Context, job *queue.Job, progressCall
 		return s.executeAuthorJob(ctx, job, progressCallback)
 	case queue.JobTypeRip:
 		return s.executeRipJob(ctx, job, progressCallback)
+	case queue.JobTypeBurn:
+		return s.executeBurnJob(ctx, job, progressCallback)
 	default:
 		return fmt.Errorf("unknown job type: %s", job.Type)
 	}

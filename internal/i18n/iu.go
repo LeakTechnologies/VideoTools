@@ -328,8 +328,9 @@ var iu = Strings{
 	SettingsQueuePlayInspect:     "ᖃᐅᔨᓴᖅᑕᐅᕕᒃ",                                // Inspect Module
 	SettingsQueuePlaySystem:      "ᑕᑯᒃᓴᐅᑎᑦᑎᕕᒃ",                               // Player Module
 	SettingsQueuePlayHint:        "ᓂᕈᐊᕐᓗᒍ ᑕᐃᑯᖓ 'ᑕᑯᒋᐊᕐᓗᒍ' ᐊᑐᕐᓗᒍ ᓄᖅᑲᖓᑎᑦᑎᓂᒃᑯᑦ.", // Choose which module 'Play Video' navigates to.
-	SettingsPipelineKeepIntermediate:     "ᑐᙵᕕᒋᔭᐅᔪᑦ ᓂᐅᕐᕈᑎᒋᔭᐅᔪᑦ ᐃᓄᑐᐊᕐᓂᒃ ᓄᖅᑲᖓᑎᑦᑎᓂᒃᑯᑦ", // machine-generated — Keep intermediate files from pipeline jobs
-	SettingsPipelineKeepIntermediateHint: "ᓄᖅᑲᖓᑎᑦᑎᓂᖅ (ᐊ → ᐸ) ᐃᓄᓕᕐᓗᓂ, ᑐᙵᕕᒋᔭᐅᔪᖅ ᑲᔪᓯᑎᑕᐅᔪᖅ ᓯᕗᓪᓕᐅᔪᒥ ᓴᓇᔭᐅᔪᖅ ᐋᔩᕆᔭᐅᕗᖅ. ᓴᓇᔭᐅᓯᒪᔪᖅ ᐃᓂᖓᓂ ᐊᑐᕐᓗᒍ ᓄᖅᑲᕐᓗᒍ.", // machine-generated — keep it hint
+	SettingsPipelineSection:              "ᓄᖅᑲᖓᑎᑦᑎᓂᖅ (&&)",                                                  // machine-generated — Module Chaining (&&)
+	SettingsPipelineKeepIntermediate:     "ᑐᙵᕕᒋᔭᐅᔪᑦ ᓴᓇᔭᐅᔪᑦ ᐃᓄᑐᐊᕐᓂᒃ ᓄᖅᑲᖓᑎᑦᑎᓂᒃᑯᑦ",                     // machine-generated, needs human review — Keep temporary files from chained jobs
+	SettingsPipelineKeepIntermediateHint: "ᒪᕐᕉᒃ ᓄᖅᑲᖓᑎᑦᑎᓂᒃᑯᑦ ᐊᑕᐅᓯᒃ ᐊᓯᐊᓂ ᐱᓕᕆᓚᐅᖅᐳᒃ (Convert && Rip), ᓯᕗᓪᓕᐅᔪᖅ ᑎᑎᕋᕐᔪᐊᖅ ᐋᔩᕆᔭᐅᕗᖅ ᒪᕐᕉᖓᓂᒃ ᐱᓕᕆᓚᐅᖅᐳᓂ. ᐃᒃᐱᒋᓗᒍ ᓴᓇᔭᐅᓯᒪᔪᖅ ᑕᑯᒃᓴᐅᑎᑦᑎᕙᓪᓕᐊᓂᐊᕐᒪᑦ.", // machine-generated, needs human review
 
 	// ── Settings — Output Defaults ────────────────────────────────────────────
 	SettingsDefaultOutputDir:     "ᐅᐸᒃᑎᕕᒃ ᓇᓗᓇᐃᕈᑎᖓ",                                                     // machine-generated, needs human review — Default Output Directory

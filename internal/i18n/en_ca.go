@@ -193,6 +193,7 @@ var enCA = Strings{
 	BurnStart:         "Burn to Disc",
 	BurnProgress:      "Burning...",
 	BurnCapacity:      "Capacity: %s",
+	BurnLog:           "Burn Log:",
 
 	// ── File Manager Module ─────────────────────────────────────────────────────
 	ModuleFileManager:        "File Manager",
@@ -376,9 +377,11 @@ var enCA = Strings{
 	SettingsQueuePlayInspect:     "Inspect Module",
 	SettingsQueuePlaySystem:      "Player Module",
 	SettingsQueuePlayHint:        "Choose which internal module 'Play Video' navigates to after a job completes.",
-	SettingsPipelineKeepIntermediate:     "Keep intermediate files from pipeline jobs",
-	SettingsPipelineKeepIntermediateHint: "When a pipeline job (A → B) completes, the intermediate file produced by Step 1 is deleted by default. Enable this to keep it.",
+	SettingsPipelineSection:              "Module Chaining (&&)",
 
+	SettingsPipelineKeepIntermediate:     "Keep temporary files from chained jobs",
+
+	SettingsPipelineKeepIntermediateHint: "When two modules run one after another (e.g. Convert && Rip), the temporary file from the first step is normally deleted once the second finishes. Enable this to keep it for inspection.",
 	// ── Settings — Output Defaults ────────────────────────────────────────────
 	SettingsDefaultOutputDir:     "Default Output Directory",
 	SettingsDefaultOutputDirHint: "Applied to Convert when no output folder is set for the job. Leave blank to use the source video's folder.",
@@ -908,7 +911,7 @@ var enCA = Strings{
 	AuthorExportChapters:       "Export Chapters",
 	AuthorTreatAsChapters:      "Treat videos as chapters",
 	AuthorTrackSelection:       "Track Selection",
-	AuthorAuthoringLogLabel:    "Authoring Log (last 100 lines):",
+	AuthorAuthoringLogLabel:    "Authoring Log:",
 	AuthorReadyToGenerate:      "Ready to generate:",
 	AuthorStatus:               "Status:",
 	AuthorAudioTracks:          "Audio Tracks:",

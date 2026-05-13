@@ -192,6 +192,7 @@ var frCA = Strings{
 	BurnStart:         "Graver sur disque",
 	BurnProgress:      "Gravure en cours...",
 	BurnCapacity:      "Capacité : %s",
+	BurnLog:           "Journal de gravure :",
 
 	// ── File Manager Module ─────────────────────────────────────────────────────
 	ModuleFileManager:        "Gestionnaire de fichiers",
@@ -375,9 +376,11 @@ var frCA = Strings{
 	SettingsQueuePlayInspect:     "Module Inspecter",
 	SettingsQueuePlaySystem:      "Module Lecteur",
 	SettingsQueuePlayHint:        "Choisissez le module interne vers lequel « Lire la vidéo » navigue après un travail.",
-	SettingsPipelineKeepIntermediate:     "Conserver les fichiers intermédiaires des tâches enchaînées",
-	SettingsPipelineKeepIntermediateHint: "Lorsqu'une tâche enchaînée (A → B) se termine, le fichier intermédiaire produit par l'étape 1 est supprimé par défaut. Activez cette option pour le conserver.",
+	SettingsPipelineSection:              "Enchaînement de modules (&&)",
 
+	SettingsPipelineKeepIntermediate:     "Conserver les fichiers temporaires des tâches enchaînées",
+
+	SettingsPipelineKeepIntermediateHint: "Lorsque deux modules s'exécutent l'un après l'autre (p. ex. Convert && Rip), le fichier temporaire de la première étape est normalement supprimé après la seconde. Activez cette option pour le conserver à des fins d'inspection.",
 	// ── Settings — Output Defaults ────────────────────────────────────────────
 	SettingsDefaultOutputDir:     "Dossier de sortie par défaut",
 	SettingsDefaultOutputDirHint: "Appliqué à la conversion lorsqu'aucun dossier de sortie n'est défini pour le travail. Laissez vide pour utiliser le dossier de la vidéo source.",

@@ -2457,14 +2457,7 @@ func (s *appState) appendAuthorLog(line string) {
 		return
 	}
 
-	// Keep only last 100 lines for UI display (tail behavior)
-	const maxLines = 100
 	s.authorLogLines = append(s.authorLogLines, line)
-	if len(s.authorLogLines) > maxLines {
-		s.authorLogLines = s.authorLogLines[len(s.authorLogLines)-maxLines:]
-	}
-
-	// Rebuild text from buffer
 	s.authorLogText = strings.Join(s.authorLogLines, "\n")
 
 	if s.authorLogEntry != nil {

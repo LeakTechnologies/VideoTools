@@ -402,6 +402,10 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	queuePlayHint.Wrapping = fyne.TextWrapWord
 	content.Add(queuePlayHint)
 
+	pipelineHeader := widget.NewLabel(t.SettingsPipelineSection)
+	pipelineHeader.TextStyle = fyne.TextStyle{Bold: true}
+	content.Add(pipelineHeader)
+
 	keepIntermediateCheck := widget.NewCheck(t.SettingsPipelineKeepIntermediate, func(checked bool) {
 		prefs.PipelineKeepIntermediate = checked
 		cb.SavePrefsConfig()

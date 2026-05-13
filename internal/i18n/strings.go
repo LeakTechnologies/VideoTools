@@ -196,6 +196,7 @@ type Strings struct {
 	BurnStart         string // "Burn to Disc"
 	BurnProgress      string // "Burning..."
 	BurnCapacity      string // "Capacity: %s"
+	BurnLog           string // "Burn Log:"
 
 	// ── File Manager Module ─────────────────────────────────────────────────────
 	ModuleFileManager        string // "File Manager"
@@ -386,7 +387,8 @@ type Strings struct {
 	SettingsQueuePlayInspect string // "Inspect Module"
 	SettingsQueuePlaySystem  string // "Player Module"
 	SettingsQueuePlayHint    string // hint label
-	SettingsPipelineKeepIntermediate     string // "Keep intermediate files"
+	SettingsPipelineSection              string // "Module Chaining (&&)"
+	SettingsPipelineKeepIntermediate     string // "Keep temporary files from chained jobs"
 	SettingsPipelineKeepIntermediateHint string // hint label
 
 	// ── Settings — Output Defaults ────────────────────────────────────────────
@@ -922,7 +924,7 @@ type Strings struct {
 	AuthorExportChapters       string // "Export Chapters"
 	AuthorTreatAsChapters      string // "Treat videos as chapters"
 	AuthorTrackSelection       string // "Track Selection"
-	AuthorAuthoringLogLabel    string // "Authoring Log (last 100 lines):"
+	AuthorAuthoringLogLabel    string // "Authoring Log:"
 	AuthorReadyToGenerate      string // "Ready to generate:"
 	AuthorStatus               string // "Status:"
 	AuthorAudioTracks          string // "Audio Tracks:"
