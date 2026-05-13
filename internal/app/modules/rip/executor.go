@@ -587,7 +587,19 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	if titleInfo != nil {
 		dur = titleInfo.Duration
 	}
-	if err := runFFmpegWithProgress(ctx, utils.GetFFmpegPath(), args, dur, updateProgress, appendLog); err != nil {
+	if dur <= 0 && len(set.Files) > 0 {
+		probed := probeDuration(set.Files[0], opts.OnRunCommand, appendLog)
+		if probed > 0 {
+			dur = probed
+			appendLog(fmt.Sprintf("Probed duration from VOB: %.1f seconds", dur))
+		}
+	}
+	updateStatus := func(msg string) {
+		if opts.OnSetStatus != nil {
+			opts.OnSetStatus(msg)
+		}
+	}
+	if err := runFFmpegWithProgress(ctx, utils.GetFFmpegPath(), args, dur, updateProgress, appendLog, updateStatus); err != nil {
 		return err
 	}
 	updateProgress(100)
@@ -974,8 +986,9 @@ func probeDuration(vobPath string, onRunCommand func(string, []string, func(stri
 }
 
 // runFFmpegWithProgress runs ffmpeg with -progress pipe:1 output and parses
-// out_time_ms to call progressCallback with a percentage.
-func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string, totalDur float64, progressCallback func(float64), logFn func(string)) error {
+// out_time_us to call progressCallback with a percentage and statusCallback with
+// a compact ETA string (e.g. "42% — ETA 2m 34s").
+func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string, totalDur float64, progressCallback func(float64), logFn func(string), statusCallback func(string)) error {
 	cmd := exec.CommandContext(ctx, ffmpegPath, args...)
 	utils.ApplyNoWindow(cmd)
 	stdout, err := cmd.StdoutPipe()
@@ -985,6 +998,7 @@ func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
+	startTime := time.Now()
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("ffmpeg start: %w (%s)", err, strings.TrimSpace(stderr.String()))
 	}
@@ -992,21 +1006,37 @@ func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string
 	go func() {
 		scanner := bufio.NewScanner(stdout)
 		var lastPct float64
+		var lastStatusUpdate time.Time
 		for scanner.Scan() {
 			line := scanner.Text()
 			parts := strings.SplitN(line, "=", 2)
 			if len(parts) != 2 {
 				continue
 			}
-			if parts[0] == "out_time_ms" && totalDur > 0 && progressCallback != nil {
-				if ms, err := strconv.ParseFloat(parts[1], 64); err == nil {
-					pct := (ms / 1000000.0 / totalDur) * 100
+			if parts[0] == "out_time_us" && totalDur > 0 {
+				if micros, err := strconv.ParseFloat(parts[1], 64); err == nil {
+					currentSec := micros / 1000000.0
+					pct := (currentSec / totalDur) * 100
 					if pct > 100 {
 						pct = 100
 					}
 					if pct-lastPct >= 0.5 {
 						lastPct = pct
-						progressCallback(pct)
+						if progressCallback != nil {
+							progressCallback(pct)
+						}
+						remainingSec := totalDur - currentSec
+						if remainingSec > 0 && statusCallback != nil && time.Since(lastStatusUpdate) > 2*time.Second {
+							lastStatusUpdate = time.Now()
+							elapsed := time.Since(startTime).Seconds()
+							rate := 1.0
+							if elapsed > 1 {
+								rate = currentSec / elapsed
+							}
+							etaSec := remainingSec / rate
+							eta := time.Duration(etaSec) * time.Second
+							statusCallback(formatETA(int(pct), eta))
+						}
 					}
 				}
 			}
@@ -1016,6 +1046,9 @@ func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string
 	err = cmd.Wait()
 	if progressCallback != nil {
 		progressCallback(100)
+	}
+	if statusCallback != nil {
+		statusCallback("")
 	}
 	if err != nil {
 		if ctx.Err() != nil {
@@ -1028,4 +1061,18 @@ func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string
 		return fmt.Errorf("ffmpeg failed: %w", err)
 	}
 	return nil
+}
+
+// formatETA returns a compact string like "ETA 2m 34s" or "ETA < 1s".
+func formatETA(pct int, eta time.Duration) string {
+	if eta <= 0 {
+		return fmt.Sprintf("%d%% — ETA < 1s", pct)
+	}
+	eta = eta.Round(time.Second)
+	m := int(eta.Minutes())
+	s := int(eta.Seconds()) % 60
+	if m > 0 {
+		return fmt.Sprintf("%d%% — ETA %dm %ds", pct, m, s)
+	}
+	return fmt.Sprintf("%d%% — ETA %ds", pct, s)
 }

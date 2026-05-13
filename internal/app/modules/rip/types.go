@@ -135,6 +135,7 @@ type ExecuteOptions struct {
 	OnRunCommand func(name string, args []string, logFn func(string)) error
 	OnAppendLog  func(line string)
 	OnSetProgress func(percent float64)
+	OnSetStatus  func(string)
 	ProgressCallback func(float64)
 	OnLogFileCreated func(logPath string)
 }
