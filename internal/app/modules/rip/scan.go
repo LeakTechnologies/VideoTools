@@ -2,12 +2,74 @@ package rip
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 )
+
+// classifyDiscType returns a human-readable disc type string based on total
+// VIDEO_TS size in bytes, or "" when the path isn't available (ISO/BLURAY).
+func classifyDiscType(totalBytes int64) string {
+	switch {
+	case totalBytes < 0:
+		return ""
+	case totalBytes < 500_000_000:
+		return "MiniDVD"
+	case totalBytes < 4_500_000_000:
+		return "DVD-5"
+	case totalBytes < 8_500_000_000:
+		return "DVD-9"
+	case totalBytes < 9_000_000_000:
+		return "DVD-10"
+	case totalBytes < 15_000_000_000:
+		return "DVD-18"
+	default:
+		return ""
+	}
+}
+
+// classifyDiscRegion reads the VMG_Category from the VMG_MAT and returns a
+// human-readable region string, or "" when it cannot be determined.
+func classifyDiscRegion(category uint32) string {
+	regionMask := byte(category & 0xFF)
+	// All regions set or none set → region-free.
+	if regionMask == 0 || regionMask == 0xFF {
+		return "Region Free"
+	}
+	// Bit 0 = region 1, bit 1 = region 2, etc.
+	for i := 0; i < 8; i++ {
+		if regionMask == (1 << i) {
+			return fmt.Sprintf("Region %d", i+1)
+		}
+	}
+	// Multiple regions flagged → list them.
+	var regions []string
+	for i := 0; i < 8; i++ {
+		if regionMask&(1<<i) != 0 {
+			regions = append(regions, fmt.Sprintf("%d", i+1))
+		}
+	}
+	if len(regions) > 0 {
+		return "Regions " + strings.Join(regions, ", ")
+	}
+	return ""
+}
+
+// totalVideoTSSize sums all file sizes in the VIDEO_TS directory.
+func totalVideoTSSize(videoTSPath string) int64 {
+	var total int64
+	filepath.Walk(videoTSPath, func(path string, fi os.FileInfo, err error) error {
+		if err != nil || fi.IsDir() {
+			return nil
+		}
+		total += fi.Size()
+		return nil
+	})
+	return total
+}
 
 // ScanDisc reads the VMG IFO and per-VTS IFOs to populate a DiscScanResult.
 // It is safe to call from a goroutine; it performs no UI work.
@@ -18,11 +80,31 @@ func ScanDisc(videoTSPath string) (*DiscScanResult, error) {
 		return nil, fmt.Errorf("read title list: %w", err)
 	}
 
+	// Read VMG_MAT for region info.
+	vmgFile, err := os.Open(vmgPath)
+	var region string
+	if err == nil {
+		if mat, rErr := ifo.ReadVMGI(vmgFile); rErr == nil {
+			region = classifyDiscRegion(mat.VMG_Category)
+		}
+		vmgFile.Close()
+	} else {
+		logging.Warning(logging.CatDVD, "ScanDisc: failed to open VMG IFO for region: %v", err)
+	}
+
+	// Calculate total disc size and classify.
+	discSize := totalVideoTSSize(videoTSPath)
+	discType := classifyDiscType(discSize)
+
 	// Cache per-VTS IFO reads — multiple titles can share a VTS.
 	type vtsKey = int
 	vtsCache := map[vtsKey]*ifo.TitleInfo{}
 
-	result := &DiscScanResult{}
+	result := &DiscScanResult{
+		DiscType:  discType,
+		TotalSize: discSize,
+		Region:    region,
+	}
 	for i, t := range tsps {
 		dt := DiscTitle{
 			Number:      i + 1,
@@ -64,7 +146,8 @@ func ScanDisc(videoTSPath string) (*DiscScanResult, error) {
 		}
 		result.Titles = append(result.Titles, dt)
 	}
-	logging.Info(logging.CatDVD, "ScanDisc: %d titles in VIDEO_TS", len(result.Titles))
+	logging.Info(logging.CatDVD, "ScanDisc: %d titles in VIDEO_TS, type=%s, size=%d, region=%s",
+		len(result.Titles), result.DiscType, result.TotalSize, result.Region)
 	return result, nil
 }
 

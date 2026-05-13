@@ -829,9 +829,19 @@ func buildAuthorSettingsTab(state *appState) fyne.CanvasObject {
 		if target == "bluray" {
 			regionSelect.Options = []string{"AUTO", "1080p", "4K UHD"}
 			discSizeSelect.Options = []string{"BD25", "BD50", "BD66", "BD100"}
+			if state.authorDiscSize == "" || (state.authorDiscSize != "BD25" && state.authorDiscSize != "BD50" && state.authorDiscSize != "BD66" && state.authorDiscSize != "BD100") {
+				state.authorDiscSize = "BD25"
+			}
+			discSizeSelect.SetSelected(state.authorDiscSize)
+			regionSelect.SetSelected("AUTO")
 		} else {
 			regionSelect.Options = []string{"AUTO", "NTSC", "PAL"}
 			discSizeSelect.Options = []string{"DVD5", "DVD9"}
+			if state.authorDiscSize == "" || (state.authorDiscSize != "DVD5" && state.authorDiscSize != "DVD9") {
+				state.authorDiscSize = "DVD5"
+			}
+			discSizeSelect.SetSelected(state.authorDiscSize)
+			regionSelect.SetSelected("AUTO")
 		}
 		regionSelect.Refresh()
 		discSizeSelect.Refresh()

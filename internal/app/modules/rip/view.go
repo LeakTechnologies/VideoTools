@@ -604,8 +604,30 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 
+		// Disc info label
+		var discInfo string
+		if vs.scanResult != nil {
+			parts := []string{}
+			if vs.scanResult.DiscType != "" {
+				parts = append(parts, vs.scanResult.DiscType)
+			}
+			if vs.scanResult.Region != "" {
+				parts = append(parts, vs.scanResult.Region)
+			}
+			if vs.scanResult.TotalSize > 0 {
+				parts = append(parts, fmt.Sprintf("%.1f GB", float64(vs.scanResult.TotalSize)/1e9))
+			}
+			discInfo = strings.Join(parts, " · ")
+		}
+
 		// Rebuild content objects
-		objs := []fyne.CanvasObject{
+		objs := []fyne.CanvasObject{}
+		if discInfo != "" {
+			infoLabel := widget.NewLabel(discInfo)
+			infoLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+			objs = append(objs, infoLabel, widget.NewSeparator())
+		}
+		objs = append(objs,
 			widget.NewLabelWithStyle("Title", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			titleEntry,
 			chaptersCheck,
@@ -614,7 +636,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			widget.NewLabelWithStyle("Region Conversion", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			ntscSelect,
 			fullDiscCheck,
-		}
+		)
 
 		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {
 			objs = append(objs, widget.NewSeparator())

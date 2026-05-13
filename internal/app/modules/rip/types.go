@@ -102,7 +102,10 @@ type DiscTitle struct {
 
 // DiscScanResult holds the outcome of scanning a disc source directory.
 type DiscScanResult struct {
-	Titles []DiscTitle
+	DiscType  string // "DVD-5", "DVD-9", "DVD-10", "BD-25", "BD-50", or ""
+	TotalSize int64  // total size of all files in VIDEO_TS in bytes
+	Region    string // e.g. "Region 1", "Region Free", or ""
+	Titles    []DiscTitle
 }
 
 // ExecuteOptions holds everything the executor needs (no UI access).
