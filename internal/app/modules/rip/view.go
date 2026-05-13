@@ -679,19 +679,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 					opts.SetRipSourcePath(path)
 				}
 
-				// Dynamic detection for ISO files
-				if strings.HasSuffix(strings.ToLower(path), ".iso") {
-					if discType, err := udf.IdentifyDiscFormat(path); err == nil {
-						logging.Info(logging.CatDVD, "User dropped ISO: detected as %s", discType)
-					}
-				} else {
-					if info, err := os.Stat(filepath.Join(path, "VIDEO_TS.IFO")); err == nil && !info.IsDir() {
-						if opts.OnScanDVDStruct != nil {
-							opts.OnScanDVDStruct(path)
-						}
-					}
-				}
-
 				sourceChangedHook(path)
 				vs.outputPath = DefaultOutputPath(path, vs.format)
 				if opts.SetRipOutputPath != nil {
@@ -700,11 +687,39 @@ func BuildView(opts Options) fyne.CanvasObject {
 				outputEntry.SetText(vs.outputPath)
 
 				// Reset previous scan state and trigger a new background scan.
-				// ISO sources are skipped — UDF extraction would be too slow.
 				vs.scanResult = nil
 				vs.selectedTitles = nil
 				rebuildEnrich()
-				if !strings.HasSuffix(strings.ToLower(path), ".iso") {
+
+				isISO := strings.HasSuffix(strings.ToLower(path), ".iso")
+				if isISO {
+					go func() {
+						fi, err := os.Stat(path)
+						if err != nil {
+							logging.Warning(logging.CatDVD, "ISO stat failed: %v", err)
+							return
+						}
+						discType := classifyDiscType(fi.Size())
+						udfType, _ := udf.IdentifyDiscFormat(path)
+						if udfType == udf.DiscTypeBluRay {
+							discType = "BD"
+						}
+						result := &DiscScanResult{
+							DiscType:  discType,
+							TotalSize: fi.Size(),
+						}
+						fyne.CurrentApp().Driver().DoFromGoroutine(func() {
+							vs.scanResult = result
+							vs.selectedTitles = nil
+							rebuildEnrich()
+						}, false)
+					}()
+				} else {
+					if info, err := os.Stat(filepath.Join(path, "VIDEO_TS.IFO")); err == nil && !info.IsDir() {
+						if opts.OnScanDVDStruct != nil {
+							opts.OnScanDVDStruct(path)
+						}
+					}
 					go func() {
 						vtsp, _, err := ResolveVideoTSPath(path)
 						if err != nil {
