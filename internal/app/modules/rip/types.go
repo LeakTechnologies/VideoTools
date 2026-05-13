@@ -50,7 +50,7 @@ type Options struct {
 	QueueBtn       *widget.Button
 	RipStatusLabel *widget.Label
 	RipProgressBar *widget.ProgressBar
-	RipLogEntry    *widget.Entry
+	RipLogEntry    *widget.Label
 	RipLogScroll   *container.Scroll
 
 	// Navigation.
@@ -78,7 +78,7 @@ type Options struct {
 	SetQueueBtn       func(*widget.Button)
 	SetRipStatusLabel func(*widget.Label)
 	SetRipProgressBar func(*widget.ProgressBar)
-	SetRipLogEntry    func(*widget.Entry)
+	SetRipLogEntry    func(*widget.Label)
 	SetRipLogScroll   func(*container.Scroll)
 }
 

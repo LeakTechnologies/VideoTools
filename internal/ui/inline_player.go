@@ -30,40 +30,6 @@ type InlineVideoPlayer struct {
 	seekCh      chan float64     // capacity-1 channel; seekLoop drains it serially
 }
 
-// LoadPhase identifies a milestone in the video load pipeline.
-type LoadPhase int
-
-const (
-	LoadPhaseStarted    LoadPhase = iota // Load() entered; engine not yet open
-	LoadPhaseOpen                        // avformat_open_input + find_stream_info done
-	LoadPhaseFirstFrame                  // first video frame decoded and ready to display
-	LoadPhaseReady                       // player UI updated; video is fully usable
-	LoadPhaseFailed                      // load aborted with an error
-)
-
-func (p LoadPhase) String() string {
-	switch p {
-	case LoadPhaseStarted:
-		return "Starting"
-	case LoadPhaseOpen:
-		return "Engine open"
-	case LoadPhaseFirstFrame:
-		return "First frame"
-	case LoadPhaseReady:
-		return "Ready"
-	case LoadPhaseFailed:
-		return "Failed"
-	}
-	return "Unknown"
-}
-
-// LoadEvent is delivered to the onLoad callback at each load milestone.
-type LoadEvent struct {
-	Phase LoadPhase
-	At    time.Time
-	Err   error // non-nil only when Phase == LoadPhaseFailed
-}
-
 // SetOnProgress registers a callback that is called from the playback goroutine
 // with the current playback time (in seconds) on each decoded frame.
 // The callback must be safe to call from a goroutine.
