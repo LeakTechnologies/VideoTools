@@ -177,6 +177,14 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 				}, false)
 			}
 		},
+		OnSetStatus: func(msg string) {
+			app := fyne.CurrentApp()
+			if app != nil && app.Driver() != nil {
+				app.Driver().DoFromGoroutine(func() {
+					s.setRipStatus(msg)
+				}, false)
+			}
+		},
 		ProgressCallback: progressCallback,
 		OnLogFileCreated: func(logPath string) { job.LogPath = logPath },
 	}
