@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 	"image/color"
@@ -85,6 +86,9 @@ type TrackInfo struct {
 }
 
 func BuildView(opts Options) fyne.CanvasObject {
+	defer logging.RecoverPanic()
+	logging.Info(logging.CatModule, "audio.BuildView: entering, Player=%v, ModuleColor=%v", opts.Player != nil, opts.ModuleColor)
+
 	t := i18n.T()
 
 	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleAudio), func() {
@@ -103,18 +107,23 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// Video preview pane
 	var videoContainer fyne.CanvasObject
 	if opts.Player != nil {
+		logging.Info(logging.CatModule, "audio.BuildView: calling opts.Player.Widget()")
 		videoContainer = opts.Player.Widget()
+		logging.Info(logging.CatModule, "audio.BuildView: Widget() returned %v", videoContainer != nil)
 	} else {
+		logging.Info(logging.CatModule, "audio.BuildView: Player is nil, using SMPTE")
 		videoContainer = buildAudioSMPTE()
 	}
 
 	// Audio options panel (combines left and right panels)
-	audioOptionsPanel := container.NewVBox(
-		buildAudioLeftPanel(opts),
-		buildAudioRightPanel(opts),
-	)
+	logging.Info(logging.CatModule, "audio.BuildView: building left panel")
+	leftPanel := buildAudioLeftPanel(opts)
+	logging.Info(logging.CatModule, "audio.BuildView: building right panel")
+	rightPanel := buildAudioRightPanel(opts)
+	audioOptionsPanel := container.NewVBox(leftPanel, rightPanel)
 	audioScroll := ui.NewFastVScroll(audioOptionsPanel)
 
+	logging.Info(logging.CatModule, "audio.BuildView: creating HSplit")
 	mainSplit := container.NewHSplit(videoContainer, audioScroll)
 	mainSplit.SetOffset(0.5)
 

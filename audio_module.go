@@ -39,11 +39,28 @@ func saveAudioConfig(cfg audioConfig) error {
 }
 
 func buildAudioView(state *appState) fyne.CanvasObject {
+	defer logging.RecoverPanic()
+	logging.Info(logging.CatModule, "buildAudioView: entering")
+
 	audioPlayer := GetAudioPlayer()
-	audioPlayer.SetIdleText(i18n.T().LabelDropVideoToLoad)
+	logging.Info(logging.CatModule, "buildAudioView: GetAudioPlayer returned player=%v", audioPlayer != nil)
+
+	if audioPlayer == nil {
+		logging.Error(logging.CatModule, "buildAudioView: GetAudioPlayer returned nil!")
+	} else {
+		audioPlayer.SetIdleText(i18n.T().LabelDropVideoToLoad)
+		logging.Info(logging.CatModule, "buildAudioView: SetIdleText done")
+	}
+
+	modColor := moduleColor("audio")
+	logging.Info(logging.CatModule, "buildAudioView: moduleColor=%v", modColor)
+
+	statsBar := state.statsBar
+	logging.Info(logging.CatModule, "buildAudioView: statsBar=%v", statsBar != nil)
+
 	opts := audio.Options{
 		Window:                     state.window,
-		ModuleColor:                moduleColor("audio"),
+		ModuleColor:                modColor,
 		Player:                     audioPlayer,
 		BatchMode:                  state.audioBatchMode,
 		OutputFormat:               state.audioOutputFormat,
@@ -76,17 +93,33 @@ func buildAudioView(state *appState) fyne.CanvasObject {
 				}
 			}
 		},
-		OnGetStatsBar: func() fyne.CanvasObject { return state.statsBar },
+		OnGetStatsBar: func() fyne.CanvasObject { return statsBar },
 	}
-	return audio.BuildView(opts)
+	logging.Info(logging.CatModule, "buildAudioView: Options built, calling audio.BuildView")
+	result := audio.BuildView(opts)
+	logging.Info(logging.CatModule, "buildAudioView: audio.BuildView returned result=%v", result != nil)
+	return result
 }
 
 func (s *appState) showAudioView() {
+	defer logging.RecoverPanic()
+	logging.Info(logging.CatModule, "showAudioView: entering, lastModule=%s", s.active)
+
 	s.stopPreview()
+	logging.Info(logging.CatModule, "showAudioView: stopPreview done")
+
 	s.lastModule = s.active
 	s.active = "audio"
+	logging.Info(logging.CatModule, "showAudioView: active set to audio")
+
 	s.maximizeWindow()
-	s.setContent(buildAudioView(s))
+	logging.Info(logging.CatModule, "showAudioView: maximizeWindow done")
+
+	content := buildAudioView(s)
+	logging.Info(logging.CatModule, "showAudioView: buildAudioView returned content=%v", content != nil)
+
+	s.setContent(content)
+	logging.Info(logging.CatModule, "showAudioView: setContent dispatched")
 }
 
 func (s *appState) probeAudioTracks(path string) ([]audioTrackInfo, error) {
