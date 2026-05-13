@@ -251,7 +251,7 @@ type QueueView struct {
 	statusBadgeLabel *canvas.Text
 
 	// Live output panel (shown when a job is running)
-	logSection  *fyne.Container
+	logSection  fyne.CanvasObject
 	logJobLabel *widget.Label
 	logEntry    *widget.Label
 	logScroll   *container.Scroll
@@ -384,31 +384,15 @@ onScheduleModule func(string, string),
 	logScroll := container.NewVScroll(logEntry)
 	logScroll.SetMinSize(fyne.NewSize(0, 160))
 
-	logBg := canvas.NewRectangle(color.NRGBA{R: 0x0a, G: 0x0d, B: 0x18, A: 0xff})
-
-	logHeaderLabel := canvas.NewText("LIVE OUTPUT", titleColor)
-	logHeaderLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	logHeaderLabel.TextSize = 11
-
-	logHeader := container.NewHBox(logHeaderLabel, logJobLabel)
-
-	// Live output content area
-	logContent := container.NewMax(logBg, logScroll)
-
-	// Build the inner log section with header and content
-	innerLogSection := container.NewBorder(
-		container.NewPadded(logHeader),
-		nil, nil, nil,
-		container.NewPadded(logContent),
-	)
-
 	vtGreen := color.NRGBA{R: 0x4c, G: 0xe8, B: 0x70, A: 0xff}
-	logOuterRect := canvas.NewRectangle(color.NRGBA{R: 0x0a, G: 0x0d, B: 0x18, A: 0xff})
-	logOuterRect.StrokeColor = vtGreen
-	logOuterRect.StrokeWidth = 3
-	logOuterRect.CornerRadius = 8
-
-	logSection := container.NewMax(logOuterRect, container.NewPadded(innerLogSection))
+	logSection := NewConsoleBox(
+		"LIVE OUTPUT",
+		vtGreen,
+		logScroll,
+		func() string { return logEntry.Text },
+		Window,
+		logJobLabel,
+	)
 
 	// Bottom TintedBar (matches other modules like benchmark)
 	bottomBar := TintedBar(vtGreen, layout.NewSpacer())

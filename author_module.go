@@ -1691,22 +1691,6 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 	logScroll.SetMinSize(fyne.NewSize(0, 200))
 	state.authorLogScroll = logScroll
 
-	// Log control buttons
-	copyLogBtn := widget.NewButton(t.AuthorCopyLog, func() {
-		if state.authorLogFilePath != "" {
-			// Copy from file for accuracy
-			if data, err := os.ReadFile(state.authorLogFilePath); err == nil {
-				state.window.Clipboard().SetContent(string(data))
-				dialog.ShowInformation(t.AuthorCopied, t.AuthorFullLogCopied, state.window)
-				return
-			}
-		}
-		// Fallback to in-memory log
-		state.window.Clipboard().SetContent(state.authorLogText)
-		dialog.ShowInformation(t.AuthorCopied, t.AuthorCopyLog, state.window)
-	})
-	copyLogBtn.Importance = widget.LowImportance
-
 	viewFullLogBtn := widget.NewButton(t.AuthorViewFullLog, func() {
 		if state.authorLogFilePath == "" || state.authorLogFilePath == "-" {
 			dialog.ShowInformation(t.AuthorNoLogFile, "No log file available to view", state.window)
@@ -1720,10 +1704,20 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 	})
 	viewFullLogBtn.Importance = widget.LowImportance
 
-	logControls := container.NewHBox(
-		widget.NewLabel(t.AuthorAuthoringLogLabel),
-		layout.NewSpacer(),
-		copyLogBtn,
+	authorGreen := utils.MustHex("#1C9C44")
+	logSection := ui.NewConsoleBox(
+		t.AuthorAuthoringLogLabel,
+		authorGreen,
+		logScroll,
+		func() string {
+			if state.authorLogFilePath != "" {
+				if data, err := os.ReadFile(state.authorLogFilePath); err == nil {
+					return string(data)
+				}
+			}
+			return state.authorLogText
+		},
+		state.window,
 		viewFullLogBtn,
 	)
 
@@ -1740,8 +1734,7 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 		statusLabel,
 		progressBar,
 		widget.NewSeparator(),
-		logControls,
-		logScroll,
+		logSection,
 		widget.NewSeparator(),
 		generateBtn,
 	)
