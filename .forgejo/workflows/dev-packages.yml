@@ -115,7 +115,7 @@ jobs:
           cd /tmp/x264-src
           ./configure --prefix=/opt/ffmpeg-static --enable-static --disable-shared --disable-opencl --disable-cli
           make -j$(nproc) && make install
-          cp /opt/ffmpeg-static/lib/pkgconfig/x264.pc /ucrt64/lib/pkgconfig/x264.pc || true
+          cd /tmp
           rm -rf /tmp/x264-src
 
           # Build x265 from source (static only, no DLL)
@@ -143,7 +143,7 @@ jobs:
           echo 'Version: 4.1.0'                   >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Libs: -L${libdir} -lx265 -lstdc++ -lm' >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
           echo 'Cflags: -I${includedir}'         >> /opt/ffmpeg-static/lib/pkgconfig/x265.pc
-          cp /opt/ffmpeg-static/lib/pkgconfig/x265.pc /ucrt64/lib/pkgconfig/x265.pc || true
+          cd /tmp
 
           echo "[INFO] pkg-config diagnostics:"
           echo "  PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
@@ -164,8 +164,8 @@ jobs:
             --enable-gpl --enable-version3 --enable-avfilter \
             --enable-libx264 --enable-libx265 \
             --disable-vaapi --disable-iconv \
-            --extra-cflags='-I/opt/ffmpeg-static/include -I/ucrt64/include' \
-            --extra-ldflags='-L/opt/ffmpeg-static/lib -L/ucrt64/lib' \
+            --extra-cflags='-I/opt/ffmpeg-static/include' \
+            --extra-ldflags='-L/opt/ffmpeg-static/lib' \
             || { echo "=== ffbuild/config.log (last 80 lines) ==="; tail -80 ffbuild/config.log 2>/dev/null; exit 1; }
           make -j$(nproc) && make install
           rm -rf /tmp/ffmpeg-src /tmp/ffmpeg.tar.bz2
