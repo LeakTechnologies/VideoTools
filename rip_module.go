@@ -83,7 +83,7 @@ func (s *appState) buildRipView() fyne.CanvasObject {
 		},
 		SetRipStatusLabel: func(lbl *widget.Label) { s.ripStatusLabel = lbl },
 		SetRipProgressBar: func(bar *widget.ProgressBar) { s.ripProgressBar = bar },
-		SetRipLogEntry:    func(e *widget.Entry) { s.ripLogEntry = e },
+		SetRipLogEntry:    func(l *widget.Label) { s.ripLogEntry = l },
 		SetRipLogScroll:   func(sc *container.Scroll) { s.ripLogScroll = sc },
 	}
 	return ripmod.BuildView(opts)

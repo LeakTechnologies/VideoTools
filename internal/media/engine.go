@@ -219,13 +219,6 @@ type VideoInfo struct {
 	VideoTracks    []StreamInfo
 }
 
-type StreamInfo struct {
-	Index     int
-	CodecName string
-	Language  string
-	Title     string
-}
-
 type SubtitleOverlay struct {
 	Text    string
 	X       int
@@ -629,13 +622,6 @@ func (e *Engine) isCharPixel(ch rune, px, py int) bool {
 	default:
 		return hash > 40
 	}
-}
-
-type Chapter struct {
-	Index     int
-	StartTime float64
-	EndTime   float64
-	Title     string
 }
 
 type Engine struct {

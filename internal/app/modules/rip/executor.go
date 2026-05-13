@@ -2,6 +2,7 @@ package rip
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"math"
@@ -9,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -575,9 +577,17 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	}
 
 	args := BuildRipArgs(ra)
+	// Insert progress tracking before the output path (last arg)
+	progressArgs := []string{"-progress", "pipe:1", "-nostats"}
+	args = append(args[:len(args)-1], append(progressArgs, args[len(args)-1])...)
 	appendLog(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
 	updateProgress(10)
-	if err := opts.OnRunCommand(utils.GetFFmpegPath(), args, appendLog); err != nil {
+
+	dur := 0.0
+	if titleInfo != nil {
+		dur = titleInfo.Duration
+	}
+	if err := runFFmpegWithProgress(ctx, utils.GetFFmpegPath(), args, dur, updateProgress, appendLog); err != nil {
 		return err
 	}
 	updateProgress(100)
@@ -961,4 +971,61 @@ func probeDuration(vobPath string, onRunCommand func(string, []string, func(stri
 		return 0
 	}
 	return d
+}
+
+// runFFmpegWithProgress runs ffmpeg with -progress pipe:1 output and parses
+// out_time_ms to call progressCallback with a percentage.
+func runFFmpegWithProgress(ctx context.Context, ffmpegPath string, args []string, totalDur float64, progressCallback func(float64), logFn func(string)) error {
+	cmd := exec.CommandContext(ctx, ffmpegPath, args...)
+	utils.ApplyNoWindow(cmd)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("stdout pipe: %w", err)
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("ffmpeg start: %w (%s)", err, strings.TrimSpace(stderr.String()))
+	}
+
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		var lastPct float64
+		for scanner.Scan() {
+			line := scanner.Text()
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			if parts[0] == "out_time_ms" && totalDur > 0 && progressCallback != nil {
+				if ms, err := strconv.ParseFloat(parts[1], 64); err == nil {
+					pct := (ms / 1000000.0 / totalDur) * 100
+					if pct > 100 {
+						pct = 100
+					}
+					if pct-lastPct >= 0.5 {
+						lastPct = pct
+						progressCallback(pct)
+					}
+				}
+			}
+		}
+	}()
+
+	err = cmd.Wait()
+	if progressCallback != nil {
+		progressCallback(100)
+	}
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		stderrStr := strings.TrimSpace(stderr.String())
+		if stderrStr != "" && logFn != nil {
+			logFn(stderrStr)
+		}
+		return fmt.Errorf("ffmpeg failed: %w", err)
+	}
+	return nil
 }

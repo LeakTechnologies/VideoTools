@@ -1428,7 +1428,7 @@ type appState struct {
 	ripOutputPath  string
 	ripFormat      string
 	ripLogText     string
-	ripLogEntry    *widget.Entry
+	ripLogEntry    *widget.Label
 	ripLogScroll   *container.Scroll
 	ripProgress    float64
 	ripProgressBar *widget.ProgressBar

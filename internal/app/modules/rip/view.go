@@ -3,11 +3,13 @@ package rip
 import (
 	"errors"
 	"fmt"
+	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -55,7 +57,7 @@ type viewState struct {
 
 	statusLabel *widget.Label
 	progressBar *widget.ProgressBar
-	logEntry    *widget.Entry
+	logEntry    *widget.Label
 	logScroll   *container.Scroll
 }
 
@@ -228,12 +230,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetRipProgressBar(progressBar)
 	}
 
-	logEntry := widget.NewMultiLineEntry()
-	logEntry.Wrapping = fyne.TextWrapOff
-	logEntry.Disable()
-	logEntry.SetText(vs.logText)
+	logEntry := widget.NewLabel("")
+	logEntry.Wrapping = fyne.TextWrapWord
+	logEntry.TextStyle = fyne.TextStyle{Monospace: true}
+	if vs.logText != "" {
+		logEntry.SetText(vs.logText)
+	}
 	vs.logEntry = logEntry
 	logScroll := container.NewVScroll(logEntry)
+	logScroll.SetMinSize(fyne.NewSize(0, 160))
 	vs.logScroll = logScroll
 	if opts.SetRipLogEntry != nil {
 		opts.SetRipLogEntry(logEntry)
@@ -242,6 +247,21 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetRipLogScroll(logScroll)
 	}
 
+	// Log background
+	logBg := canvas.NewRectangle(color.NRGBA{R: 0x0a, G: 0x0d, B: 0x18, A: 0xff})
+	logContent := container.NewMax(logBg, logScroll)
+
+	// Log outline — teal to match rip module color #1A9373
+	ripTeal := color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0xff}
+	logOuterRect := canvas.NewRectangle(color.NRGBA{R: 0x0a, G: 0x0d, B: 0x18, A: 0xff})
+	logOuterRect.StrokeColor = ripTeal
+	logOuterRect.StrokeWidth = 3
+	logOuterRect.CornerRadius = 8
+
+	logHeaderLabel := canvas.NewText(t.RipLog, ripTeal)
+	logHeaderLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	logHeaderLabel.TextSize = 11
+
 	copyLogBtn := widget.NewButton(t.ActionCopyLog, func() {
 		if strings.TrimSpace(vs.logText) == "" {
 			return
@@ -249,6 +269,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.Window.Clipboard().SetContent(vs.logText)
 	})
 	copyLogBtn.Importance = widget.LowImportance
+
+	logHeader := container.NewHBox(logHeaderLabel, layout.NewSpacer(), copyLogBtn)
+	innerLogSection := container.NewBorder(
+		container.NewPadded(logHeader),
+		nil, nil, nil,
+		container.NewPadded(logContent),
+	)
+	logSection := container.NewMax(logOuterRect, container.NewPadded(innerLogSection))
 
 	applyControls := func() {
 		formatSelect.SetSelected(vs.format)
@@ -708,12 +736,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		statusLabel,
 		progressBar,
 		widget.NewSeparator(),
-		container.NewHBox(
-			widget.NewLabelWithStyle(t.RipLog, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
-			layout.NewSpacer(),
-			copyLogBtn,
-		),
-		logScroll,
+		logSection,
 	)
 
 	var bottomBar fyne.CanvasObject
