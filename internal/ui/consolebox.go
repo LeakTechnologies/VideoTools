@@ -48,7 +48,6 @@ func NewConsoleBox(
 			}
 			window.Clipboard().SetContent(text)
 		})
-		copyBtn.Importance = widget.LowImportance
 		pillParts = append(pillParts, copyBtn)
 	}
 	pill := container.NewMax(pillBg, container.NewHBox(pillParts...))
