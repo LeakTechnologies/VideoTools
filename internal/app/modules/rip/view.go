@@ -753,13 +753,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		widget.NewLabelWithStyle(t.LabelStatus, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		statusLabel,
 		progressBar,
-		widget.NewSeparator(),
-		logSection,
 	)
 
 	var bottomBar fyne.CanvasObject
 	if opts.OnModuleFooter != nil {
 		bottomBar = opts.OnModuleFooter(opts.ModuleColor, container.NewHBox(addQueueBtn, layout.NewSpacer(), runNowBtn), opts.OnGetStatsBar())
 	}
-	return container.NewBorder(topBar, bottomBar, nil, nil, container.NewVScroll(container.NewPadded(controls)))
+	return container.NewBorder(topBar, bottomBar, nil, nil,
+		container.NewBorder(nil, logSection, nil, nil,
+			container.NewVScroll(container.NewPadded(controls)),
+		))
 }

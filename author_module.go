@@ -1743,13 +1743,12 @@ func buildAuthorDiscTab(state *appState) fyne.CanvasObject {
 		widget.NewLabel(t.AuthorStatus),
 		statusLabel,
 		progressBar,
-		widget.NewSeparator(),
-		logSection,
-		widget.NewSeparator(),
 		generateBtn,
 	)
 
-	return ui.NewFastVScroll(container.NewPadded(controls))
+	return container.NewBorder(nil, logSection, nil, nil,
+		ui.NewFastVScroll(container.NewPadded(controls)),
+	)
 }
 
 func authorSummary(state *appState) string {
