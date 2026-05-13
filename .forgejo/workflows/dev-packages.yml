@@ -97,6 +97,8 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get install -y tesseract-ocr-iku || true
 
       - name: Setup static FFmpeg (Linux)
+        env:
+          PKG_CONFIG_PATH: /opt/ffmpeg-static/lib/pkgconfig
         run: |
           set -euo pipefail
           ver="${{ env.FFMPEG_VERSION }}"
