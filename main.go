@@ -2932,6 +2932,8 @@ func (s *appState) showBenchmarkHistory() {
 }
 
 func (s *appState) showModule(id string) {
+	logging.Info(logging.CatModule, "showModule: id=%s", id)
+
 	if id != "queue" {
 		s.stopQueueAutoRefresh()
 		s.stopQueueElapsedTicker()
@@ -2950,6 +2952,8 @@ func (s *appState) showModule(id string) {
 	if id != "queue" {
 		s.pushNavigationHistory(id)
 	}
+
+	logging.Info(logging.CatModule, "showModule: dispatching to module handler for %s", id)
 
 	switch id {
 	case "convert":
@@ -2973,7 +2977,9 @@ func (s *appState) showModule(id string) {
 	// case "enhancement":
 	//	s.showEnhancementView() // TODO: Implement when enhancement module is complete
 	case "audio":
+		logging.Info(logging.CatModule, "showModule: entering audio module")
 		s.showAudioView()
+		logging.Info(logging.CatModule, "showModule: audio module returned")
 	case "author":
 		s.showAuthorView()
 	case "rip":
