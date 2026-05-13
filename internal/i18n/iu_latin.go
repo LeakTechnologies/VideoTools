@@ -329,8 +329,9 @@ var iuLatn = Strings{
 	SettingsQueuePlayInspect:     "Qaimanngissitsivik",                                    // Inspect Module
 	SettingsQueuePlaySystem:      "Takujautiit Manirajaq",                                 // Player Module
 	SettingsQueuePlayHint:        "Niruarlugu taikkuninga 'Takujautiit' atuqtariaqarmat.", // Choose which module Play Video navigates to.
-	SettingsPipelineKeepIntermediate:     "Piginnaaliginnarlugit atorutissatitaanngitsumik nalunaarusiangit",           // machine-generated — Keep intermediate files from pipeline jobs
-	SettingsPipelineKeepIntermediateHint: "Atorutissatitaanngitsoq (A → B) naalanngimmat, piginnaaliginnarlugit nalunaarusiangit silattunikkaluaq piginnaasimajumit uqquijausimanngitsoq. Piginnaaliginnarlugit atorlugit nalinginnaavaa.", // machine-generated — keep it hint
+	SettingsPipelineSection:              "Nukkaqtititiriiq (&&)",                                                                                                                         // machine-generated — Module Chaining (&&)
+	SettingsPipelineKeepIntermediate:     "Piqtanngittunik napagialik piginnaaliginnarlugit atuqtariaqarmat",                                                                              // machine-generated, needs human review — Keep temporary files from chained jobs
+	SettingsPipelineKeepIntermediateHint: "Marruinnaq nukkaqtititiriiq atuqtariaqarput (e.g. Convert && Rip), suliassamik siulliup sananira atorunnaarneqarpoq kingulliup naalunginnerani. Usserlugu atorunnaarnissaanut.", // machine-generated, needs human review
 
 	// ── Settings — Output Defaults ────────────────────────────────────────────
 	SettingsDefaultOutputDir:     "Upaktivik Nalunaiqsimanngitsoq",                                                                   // machine-generated, needs human review — Default Output Directory

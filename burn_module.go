@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -18,6 +19,30 @@ import (
 	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
 )
+
+func (s *appState) resetBurnLog() {
+	s.burnLogText = ""
+	s.burnLogFilePath = ""
+	if s.burnLogEntry != nil {
+		s.burnLogEntry.SetText("")
+	}
+	if s.burnLogScroll != nil {
+		s.burnLogScroll.ScrollToTop()
+	}
+}
+
+func (s *appState) appendBurnLog(line string) {
+	if strings.TrimSpace(line) == "" {
+		return
+	}
+	s.burnLogText += line + "\n"
+	if s.burnLogEntry != nil {
+		s.burnLogEntry.SetText(s.burnLogText)
+	}
+	if s.burnLogScroll != nil {
+		s.burnLogScroll.ScrollToBottom()
+	}
+}
 
 func (s *appState) showBurnView() {
 	s.stopPreview()
@@ -105,6 +130,12 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 			return
 		}
 
+		s.resetBurnLog()
+		s.appendBurnLog(fmt.Sprintf("Burn started: %s", time.Now().Format(time.RFC3339)))
+		s.appendBurnLog(fmt.Sprintf("ISO: %s", isoPath))
+		s.appendBurnLog(fmt.Sprintf("Drive: %s", drive))
+		s.appendBurnLog(fmt.Sprintf("Speed: %s", speedSelect.Selected))
+
 		logging.Info(logging.CatDisc, "Starting burn: ISO=%s Drive=%s", isoPath, drive)
 
 		job := &queue.Job{
@@ -130,8 +161,31 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 
 	footer := moduleFooter(burnColor, container.NewHBox(cancelBtn, layout.NewSpacer(), burnBtn), s.statsBar)
 
+	// Log section (ConsoleBox)
+	logEntry := widget.NewLabel("")
+	logEntry.Wrapping = fyne.TextWrapWord
+	logEntry.TextStyle = fyne.TextStyle{Monospace: true}
+	if s.burnLogText != "" {
+		logEntry.SetText(s.burnLogText)
+	}
+	s.burnLogEntry = logEntry
+	logScroll := container.NewVScroll(logEntry)
+	logScroll.SetMinSize(fyne.NewSize(0, 160))
+	s.burnLogScroll = logScroll
+
+	burnTeal := utils.MustHex("#178C8C")
+	logSection := ui.NewConsoleBox(
+		t.BurnLog,
+		burnTeal,
+		logScroll,
+		func() string { return s.burnLogText },
+		s.window,
+	)
+
 	return container.NewBorder(topBar, footer, nil, nil,
-		container.NewVScroll(container.NewPadded(controls)))
+		container.NewVScroll(container.NewPadded(
+			container.NewVBox(controls, widget.NewSeparator(), logSection),
+		)))
 }
 
 func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
@@ -142,12 +196,20 @@ func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressC
 	eject, _ := cfg["eject"].(bool)
 	verify, _ := cfg["verify"].(bool)
 
+	s.appendBurnLog(fmt.Sprintf("Executing burn job: %s", job.ID))
+	s.appendBurnLog(fmt.Sprintf("ISO: %s", isoPath))
+	s.appendBurnLog(fmt.Sprintf("Drive: %s", drive))
+	s.appendBurnLog(fmt.Sprintf("Speed: %s", speed))
+	s.appendBurnLog(fmt.Sprintf("Eject after burn: %v", eject))
+	s.appendBurnLog(fmt.Sprintf("Verify after burn: %v", verify))
+
 	logging.Info(logging.CatBurn, "Executing burn job: ID=%s ISO=%s Drive=%s Speed=%s Eject=%v Verify=%v",
 		job.ID, isoPath, drive, speed, eject, verify)
 
 	progressCallback(0.1)
 
 	if _, err := os.Stat(isoPath); err != nil {
+		s.appendBurnLog(fmt.Sprintf("ERROR: ISO file not found: %s", isoPath))
 		logging.Error(logging.CatBurn, "ISO file not found: path=%s err=%v", isoPath, err)
 		return fmt.Errorf("ISO file not found: %s", isoPath)
 	}
@@ -155,10 +217,16 @@ func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressC
 	burnProgress := func(p BurnProgress) {
 		if p.Total > 0 {
 			progressCallback(float64(p.Written) / float64(p.Total) * 0.8)
+			pct := float64(p.Written) / float64(p.Total) * 100
+			if p.Status != "" {
+				s.appendBurnLog(fmt.Sprintf("  [%.0f%%] %s", pct, p.Status))
+			}
 		}
 	}
 
+	s.appendBurnLog("Starting write operation...")
 	if err := burnISO(isoPath, drive, speed, eject, verify, burnProgress); err != nil {
+		s.appendBurnLog(fmt.Sprintf("ERROR: Burn failed: %v", err))
 		logging.Error(logging.CatBurn, "burn failed: ISO=%s Drive=%s err=%v", isoPath, drive, err)
 		return fmt.Errorf("burn failed: %w", err)
 	}
@@ -166,14 +234,18 @@ func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressC
 	// Verify if requested (Linux only — Windows uses isoburn.exe internal verify)
 	if verify {
 		progressCallback(0.9)
+		s.appendBurnLog("Verifying burn...")
 		logging.Info(logging.CatBurn, "Verifying burn...")
 		if err := verifyBurnAfterBurn(isoPath, drive); err != nil {
+			s.appendBurnLog(fmt.Sprintf("ERROR: Verify failed: %v", err))
 			logging.Error(logging.CatBurn, "verify failed: ISO=%s Drive=%s err=%v", isoPath, drive, err)
 			return fmt.Errorf("verify failed: %w", err)
 		}
+		s.appendBurnLog("Verify completed successfully.")
 	}
 
 	progressCallback(1.0)
+	s.appendBurnLog("Burn completed successfully.")
 	logging.Info(logging.CatBurn, "Burn completed successfully: ISO=%s Drive=%s", isoPath, drive)
 	return nil
 }
