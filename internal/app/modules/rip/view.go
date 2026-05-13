@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -247,36 +246,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetRipLogScroll(logScroll)
 	}
 
-	// Log background
-	logBg := canvas.NewRectangle(color.NRGBA{R: 0x0a, G: 0x0d, B: 0x18, A: 0xff})
-	logContent := container.NewMax(logBg, logScroll)
-
-	// Log outline — teal to match rip module color #1A9373
 	ripTeal := color.NRGBA{R: 0x1a, G: 0x93, B: 0x73, A: 0xff}
-	logOuterRect := canvas.NewRectangle(color.NRGBA{R: 0x0a, G: 0x0d, B: 0x18, A: 0xff})
-	logOuterRect.StrokeColor = ripTeal
-	logOuterRect.StrokeWidth = 3
-	logOuterRect.CornerRadius = 8
-
-	logHeaderLabel := canvas.NewText(t.RipLog, ripTeal)
-	logHeaderLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	logHeaderLabel.TextSize = 11
-
-	copyLogBtn := widget.NewButton(t.ActionCopyLog, func() {
-		if strings.TrimSpace(vs.logText) == "" {
-			return
-		}
-		opts.Window.Clipboard().SetContent(vs.logText)
-	})
-	copyLogBtn.Importance = widget.LowImportance
-
-	logHeader := container.NewHBox(logHeaderLabel, layout.NewSpacer(), copyLogBtn)
-	innerLogSection := container.NewBorder(
-		container.NewPadded(logHeader),
-		nil, nil, nil,
-		container.NewPadded(logContent),
+	logSection := ui.NewConsoleBox(
+		t.RipLog,
+		ripTeal,
+		logScroll,
+		func() string { return vs.logText },
+		opts.Window,
 	)
-	logSection := container.NewMax(logOuterRect, container.NewPadded(innerLogSection))
 
 	applyControls := func() {
 		formatSelect.SetSelected(vs.format)
