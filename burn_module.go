@@ -183,9 +183,9 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 	)
 
 	return container.NewBorder(topBar, footer, nil, nil,
-		container.NewVScroll(container.NewPadded(
-			container.NewVBox(controls, widget.NewSeparator(), logSection),
-		)))
+		container.NewBorder(nil, logSection, nil, nil,
+			container.NewVScroll(container.NewPadded(controls)),
+		))
 }
 
 func (s *appState) executeBurnJob(ctx context.Context, job *queue.Job, progressCallback func(float64)) error {
