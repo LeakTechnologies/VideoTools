@@ -430,6 +430,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 	clearISOBtn := widget.NewButton(t.RipClearISO, func() {
 		vs.sourcePath = ""
 		vs.outputPath = ""
+		vs.resetLog()
+		vs.scanResult = nil
+		vs.selectedTitles = nil
+		rebuildEnrich()
 		if opts.SetRipSourcePath != nil {
 			opts.SetRipSourcePath("")
 		}
