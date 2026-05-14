@@ -1,6 +1,7 @@
 package rip
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"image/color"
@@ -15,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
+	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/udf"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
@@ -132,6 +134,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// rebuildEnrich is assigned after the enrichment widgets are created;
 	// declared here so formatSelect and the drop handler can capture it by ref.
 	var rebuildEnrich func()
+	var discInfoLabel *widget.Label
 
 	vs := &viewState{
 		sourcePath: opts.RipSourcePath,
@@ -506,7 +509,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	ntscSelect.SetSelected("None")
 
 	enrichContent := container.NewVBox()
-	enrichPanel := widget.NewCard("Metadata & Streams", "", enrichContent)
+	enrichPanel := widget.NewCard("Metadata & Streams", "Drop a DVD or ISO to see disc information", enrichContent)
 
 	// Pre-fill title from source path when source changes
 	sourceChangedHook := func(path string) {
@@ -608,7 +611,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 
-		// Disc info label
+		// Disc info label at the top of the view
 		var discInfo string
 		if vs.scanResult != nil {
 			parts := []string{}
@@ -623,15 +626,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 			discInfo = strings.Join(parts, " · ")
 		}
+		if discInfo != "" {
+			discInfoLabel.SetText("⏺  " + discInfo)
+			discInfoLabel.Show()
+		} else {
+			discInfoLabel.Hide()
+		}
 
 		// Rebuild content objects
-		objs := []fyne.CanvasObject{}
-		if discInfo != "" {
-			infoLabel := widget.NewLabel(discInfo)
-			infoLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-			objs = append(objs, infoLabel, widget.NewSeparator())
-		}
-		objs = append(objs,
+		objs := []fyne.CanvasObject{
 			widget.NewLabelWithStyle("Title", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			titleEntry,
 			chaptersCheck,
@@ -640,7 +643,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			widget.NewLabelWithStyle("Region Conversion", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			ntscSelect,
 			fullDiscCheck,
-		)
+		}
 
 		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {
 			objs = append(objs, widget.NewSeparator())
@@ -665,7 +668,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// Initial render of enrichment panel (no scan result yet)
 	rebuildEnrich()
 
+	discInfoLabel = widget.NewLabel("")
+	discInfoLabel.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
+	discInfoLabel.Hide()
+
 	controls := container.NewVBox(
+		discInfoLabel,
 		widget.NewLabelWithStyle(t.RipSource, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
 			path := ""
@@ -704,8 +712,24 @@ func BuildView(opts Options) fyne.CanvasObject {
 						if udfType == udf.DiscTypeBluRay {
 							discType = "BD"
 						}
+
+						// Try to read region from VIDEO_TS.IFO within the ISO
+						region := ""
+						f, openErr := os.Open(path)
+						if openErr == nil {
+							udfReader := udf.NewReader(f)
+							ifoData, readErr := udfReader.ReadFileData("VIDEO_TS/VIDEO_TS.IFO")
+							if readErr == nil {
+								if mat, matErr := ifo.ReadVMGI(bytes.NewReader(ifoData)); matErr == nil {
+									region = classifyDiscRegion(mat.VMG_Category)
+								}
+							}
+							f.Close()
+						}
+
 						result := &DiscScanResult{
 							DiscType:  discType,
+							Region:    region,
 							TotalSize: fi.Size(),
 						}
 						fyne.CurrentApp().Driver().DoFromGoroutine(func() {
