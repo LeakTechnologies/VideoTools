@@ -1,135 +1,73 @@
 # VideoTools Roadmap
 
-This roadmap is intentionally lightweight. It captures the next few high-priority goals without locking the project into a rigid plan.
+A lightweight forward look. Updated at the start of each dev cycle.
 
-## How We Use This
+## Current State (v0.1.1-dev47)
 
-- The roadmap is a short list, not a full backlog.
-- Items can move between buckets as priorities change.
-- We update this at the start of each dev cycle.
+- Core modules shipped: Convert, Merge, Filters, Audio, Thumb, Inspect, Compare, Rip, Author, Burn, Queue, Settings, Subtitles, Upscale, Enhancement (placeholder).
+- Native Go DVD authoring engine with full M1-M7 menu system.
+- Native media player: CGo/FFmpeg engine, InlineVideoPlayer API layer, D3D11VA, audio sync, thread-safe.
+- Disc ripping with IFO scanning, ISO support via UDF reader, region detection, progress with ETA.
+- Burn module: isoburn.exe (Windows), growisofs (Linux), ConsoleBox log, drive info.
+- Module Pipeline (&&): two-module chain state machine with queue integration.
+- PAL→NTSC / NTSC→PAL full-disc conversion with IFO regeneration.
+- Localization: en-CA, fr-CA, Inuktitut (syllabics + Latin, machine-translated).
+- CI green on Linux + Windows with from-source FFmpeg static builds.
 
-## Current State (dev40)
+## Now (dev47 focus)
 
-- Core modules fully implemented: Convert, Merge, Filters, Audio, Thumb, Inspect, Compare, Rip, Author, Queue, Settings, Subtitles.
-- DVD authoring engine is native Go (no dvdauthor/xorriso). Menu system complete (M1–M7).
-- Localization active for en-CA, fr-CA, and Inuktitut (syllabics + Latin).
-- CI green on both Linux and Windows with from-source FFmpeg static builds.
-- Burn module UI wired; burn logic (IMAPI2/SG_IO) pending.
+- **Burn multi-drive batch** — Queue multiple ISOs across available burners.
+  See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
 
-## Now (dev40 focus)
+- **IMAPI2 COM** — Replace isoburn.exe on Windows for proper progress callbacks.
+  See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 
-- **Burn module** — Implement disc burn logic via IMAPI2 (Windows) / SG_IO (Linux).
-  See `docs/BURN_MODULE_DESIGN.md`.
+- **Main Menu refactor** — Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
 
-- **Update-install guard** — Block `applyUpdate` while a queue or conversion job is active.
-  See `AGENTS.md` for spec.
+- **Convert Phase 2 polish** — x264/x265 tuning preset sanity, format dropdown ordering.
 
-- **Convert UI cleanup** — Layout consistency and label clarity pass on `buildConvertView`.
-  Tracked as issue #5.
+- **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
 
-- **Player stabilization** — Single-process A/V sync, frame-accurate seeking.
-  Blocker for Trim module and Enhancement pipeline.
+## Next
 
-## Next (dev25+)
-
-- **Enhancement module completion** - DEPENDS ON PLAYER
+- **Enhancement module** — DEPENDS ON PLAYER
   - Open-source AI model integration (BasicVSR, RIFE, RealCUGan)
-  - Model registry system for easy addition of new models
+  - Model registry for easy addition
   - Content-aware model selection
-  - Advanced restoration (SVFR, SeedVR2, diffusion-based)
-  - Quality-aware enhancement strategies
 
-- **Trim module with timeline interface** - DEPENDS ON PLAYER
+- **Trim module** — DEPENDS ON PLAYER
   - Frame-accurate trimming and cutting
-  - Manual chapter support with keyframing
   - Visual timeline with chapter markers
-  - Preview-based trimming with exact frame selection
-  - Import chapter detection from Author module
+  - Preview-based frame selection
 
-- **Professional workflow integration**
-  - Seamless module communication (Player ↔ Enhancement ↔ Trim)
-  - Batch enhancement processing through queue
-  - Cross-platform frame extraction
+- **Professional workflow**
+  - Seamless module chaining (Player ↔ Enhancement ↔ Trim)
+  - Batch processing through queue
   - Hardware-accelerated enhancement pipeline
 
 ## Localization
 
-The localization system is implemented. See `docs/localization-policy.md` for the full policy.
+See `docs/localization-policy.md` for the full policy.
 
-- en-CA and fr-CA are maintained and complete.
-- Inuktitut (syllabics + Latin romanization) is present as machine-generated placeholders pending human review.
-- All user-facing strings use `i18n.T().KeyName` — no hardcoded display strings.
-- `CompletionPercent` helper available for gap detection.
+- en-CA and fr-CA maintained and complete.
+- Inuktitut (syllabics + Latin) machine-generated, needs human review.
+- All user-facing strings use `i18n.T().KeyName`.
 
-## Later
+## Versioning
 
-- **Advanced AI features**
-  - AI-powered scene detection
-  - Intelligent upscaling model selection
-  - Temporal consistency algorithms
-  - Custom model training framework
-  - Cloud processing options
-
-- **Module expansion**
-  - Audio enhancement and restoration
-  - Subtitle processing and burning
-  - Multi-track management
-  - Advanced metadata editing
-
-- **Global Language Expansion**
-  - European languages (German, Spanish, Italian)
-  - Asian languages (Japanese, Chinese, Korean)
-  - Right-to-left language support
-  - Cultural adaptation for regional markets
-
-## Versioning Note
-
-We keep a continuous global `dev` counter and do not reset it per public version.
+Continuous global `dev` counter, not reset per public version.
 
 Examples:
-- `v0.1.4-dev55`
-- `v0.1.6-dev72`
+- `v0.1.1-dev55`
+- `v0.1.4-dev72`
 
-Public releases use the base version only (for example `v0.1.6`), while dev builds keep increasing `-devN` across cycles.
+Public releases use the base version only (e.g. `v0.1.2`).
 
 ## Public Version Bump Policy
 
-We do not bump public version by dev-count depth alone. We bump when release gates are satisfied.
-
-Minimum gate to move from `v0.1.1-devN` to `v0.1.2`:
-- Windows and Linux package workflows are green on the release candidate commit.
-- Full module smoke test pass using `docs/TESTING_MODULE_CHECKLIST.md`.
-- No known P0/P1 regressions in conversion stability, queue reliability, or subtitle sync handling.
-- Changelog section is complete and matches release scope.
-- Deferred items are documented in `TODO.md` with explicit carry-over to the next cycle.
-
-## Technical Debt and Architecture
-
-### Player Module Critical Issues Identified
-
-The current video player has fundamental architectural problems preventing stable playback:
-
-1. **Separate A/V Processes** - No synchronization, guaranteed drift
-2. **Command-Line Interface Limitations** - VLC/MPV controllers use basic CLI, not proper IPC
-3. **Frame-Accurate Seeking** - Seeking restarts processes with full re-decoding
-4. **No Frame Extraction** - Critical for enhancement and chapter functionality
-5. **Poor Buffer Management** - Small audio buffers cause stuttering
-6. **No Hardware Acceleration** - Software decoding causes high CPU usage
-
-### Proposed Go-Based Solution
-
-**Unified FFmpeg Player Architecture:**
-- Single FFmpeg process with multiplexed A/V output
-- Proper PTS-based synchronization with drift correction
-- Frame buffer pooling and memory management
-- Hardware acceleration through FFmpeg's native support
-- Frame extraction via pipe without restarts
-
-**Key Implementation Strategies:**
-- Ring buffers for audio/video to eliminate stuttering
-- Master clock reference for A/V sync
-- Adaptive frame timing with drift correction
-- Zero-copy frame operations where possible
-- Hardware backend detection and utilization
-
-This player enhancement is the foundation requirement for all advanced features including enhancement module and all other features that depend on reliable video playback.
+Minimum gate for `v0.1.1-devN` → `v0.1.2`:
+- Windows and Linux package workflows green on release candidate.
+- Full module smoke test pass per `docs/TESTING_MODULE_CHECKLIST.md`.
+- No known P0/P1 regressions in conversion, queue, or subtitle sync.
+- Changelog complete and matches release scope.
+- Deferred items documented in `TODO.md` with explicit carry-over.

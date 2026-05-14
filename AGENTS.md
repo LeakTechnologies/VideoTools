@@ -4,22 +4,24 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev44`.
+- Current cycle: `v0.1.1-dev47`.
 - Public/stable baseline: `v0.1.1`.
-- `dev44` in progress. Completed: Convert Phase 1 (Audio SR, Normalize, Deinterlace, H.264 Profile/Level), Convert Phase 2 (preset consolidation, AVI/TS/FLV formats, tune dropdown), Convert i18n (Issue #5), player load hang fix (widget threading + probe limits), Inspect load-state diagnostics (LoadEvent milestone system). Remaining: Audio Module Phase 1+2, Burn logic, Module Pipeline.
-- `dev43` closed. Player thread-safety audit: pixel format SIGSEGV fix, Close/demuxer WaitGroup, NextFrame/Close codec race gate, seekLoop goroutine leak.
-- `dev42` closed. Player stabilisation (D3D11VA, audio sync, GStreamer removal), thumbnail 3-way output, audio i18n, convert drop fixes.
-- `dev40` closed. CI validated.
+- `dev47` in progress. Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
+- `dev46` closed. PAL→NTSC full-disc conversion pipeline with IFO regeneration, Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
+- `dev45` closed. Convert Phase 1+2 (SR, Normalize, Deinterlace, H.264 Profile/Level, presets, AVI/TS/FLV), Convert i18n, Module Pipeline (&&), logging audit, FFmpeg DLL bootstrap.
+- `dev44` closed. Player thread-safety audit, D3D11VA, audio sync, GStreamer removal, Queue UI polish, thumbnail improvements, flags/i18n.
+- `dev43` closed. Player thread-safety: pixel format SIGSEGV fix, Close/demuxer WaitGroup, NextFrame/Close codec race, seekLoop goroutine leak.
+- `dev42` closed. Player stabilisation (D3D11VA, audio sync, GStreamer removal), thumbnail 3-way output, audio i18n.
 - Issue tracker active at `https://git.leaktechnologies.dev/leak_technologies/VideoTools/issues`.
 - Primary planning source is `TODO.md`; shipped scope is tracked in `DONE.md`; release-facing history is `docs/CHANGELOG.md`.
 - **Player debug log:** `docs/PLAYER_DEBUG.md` — keep this up to date as issues are found and fixed. Update it before closing any player-related issue.
 
 ## Immediate Handoff Priorities
 
-- **Audio Module Phase 1 (dev44)** — Consistent box styling + proper header bar (matches Convert layout pattern). See `docs/AUDIO_MODULE_IMPROVEMENTS.md`.
-- **Audio Module Phase 2 (dev44)** — InlineVideoPlayer singleton + SMPTE idle state. Follow the same pattern as Convert/Inspect: singleton in `native_media.go`, Options in `view.go`, wired in `inspect_module.go`-style shim.
-- **Burn module** — Implement burn logic (IMAPI2 on Windows, SG_IO on Linux); UI is wired. See `docs/BURN_MODULE_DESIGN.md`.
-- **Module Pipeline (`&&`)** — Two-module chain state machine. See `TODO.md` for the full spec; design decisions are finalised.
+- **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
+- **IMAPI2 COM replacement** — Replace isoburn.exe on Windows for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
+- **Main Menu refactor** — Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
+- **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
 - **Do not expand scope beyond what is listed unless explicitly approved.**
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
 
