@@ -424,6 +424,83 @@ func (r *Reader) ReadDescriptor(sector uint32) (uint16, []byte, error) {
 	return tagID, data, nil
 }
 
+// ReadFileData returns the raw bytes of a single file identified by its UDF path
+// (e.g. "VIDEO_TS/VIDEO_TS.IFO"). The path separator is "/" and matching is
+// case-insensitive.
+func (r *Reader) ReadFileData(udfPath string) ([]byte, error) {
+	parts := strings.Split(strings.Trim(udfPath, "/"), "/")
+
+	avdp, err := r.readAVDP()
+	if err != nil {
+		return nil, fmt.Errorf("read AVDP: %w", err)
+	}
+	lvd, err := r.findLVD(avdp.MainVolumeDescriptorSeq)
+	if err != nil {
+		return nil, fmt.Errorf("find LVD: %w", err)
+	}
+	fsd, err := r.findFSD(lvd)
+	if err != nil {
+		return nil, fmt.Errorf("find FSD: %w", err)
+	}
+
+	// Walk from root ICB through each path component.
+	icb := fsd.RootDirectoryICB
+	for _, part := range parts {
+		tagID, data, err := r.ReadDescriptor(icb.Location)
+		if err != nil || tagID != TagIDICB {
+			return nil, fmt.Errorf("read ICB at %d: tag=%d err=%v", icb.Location, tagID, err)
+		}
+		entry := &FileEntryICB{}
+		binary.Read(bytes.NewReader(data), binary.LittleEndian, entry)
+
+		if entry.ICBTag.FileType != 1 { // Not a directory
+			return nil, fmt.Errorf("expected directory at component %q", part)
+		}
+
+		fids, err := r.readFIDs(entry)
+		if err != nil {
+			return nil, fmt.Errorf("read FIDs: %w", err)
+		}
+
+		found := false
+		for _, fid := range fids {
+			if fid.Name == "." || fid.Name == ".." {
+				continue
+			}
+			if !strings.EqualFold(fid.Name, part) {
+				continue
+			}
+			icb = fid.ICB
+			found = true
+			break
+		}
+		if !found {
+			return nil, fmt.Errorf("path component %q not found in ISO", part)
+		}
+	}
+
+	// Read file data
+	tagID, data, err := r.ReadDescriptor(icb.Location)
+	if err != nil || tagID != TagIDICB {
+		return nil, fmt.Errorf("read file ICB at %d: tag=%d err=%v", icb.Location, tagID, err)
+	}
+	entry := &FileEntryICB{}
+	binary.Read(bytes.NewReader(data), binary.LittleEndian, entry)
+
+	if entry.ICBTag.FileType != 2 { // Not a file
+		return nil, fmt.Errorf("expected file but found type %d", entry.ICBTag.FileType)
+	}
+
+	buf := make([]byte, icb.Len)
+	if _, err := r.rs.Seek(int64(icb.Location)*SectorSize, io.SeekStart); err != nil {
+		return nil, fmt.Errorf("seek to file data: %w", err)
+	}
+	if _, err := io.ReadFull(r.rs, buf); err != nil {
+		return nil, fmt.Errorf("read file data: %w", err)
+	}
+	return buf, nil
+}
+
 // GetVolumeLabel returns the disc label from the PVD.
 func (r *Reader) GetVolumeLabel() (string, error) {
 	tagID, data, err := r.ReadDescriptor(32)
