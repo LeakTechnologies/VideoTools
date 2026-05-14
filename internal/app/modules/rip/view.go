@@ -509,7 +509,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 	ntscSelect.SetSelected("None")
 
 	enrichContent := container.NewVBox()
-	enrichPanel := widget.NewCard("Metadata & Streams", "Drop a DVD or ISO to see disc information", enrichContent)
 
 	// Pre-fill title from source path when source changes
 	sourceChangedHook := func(path string) {
@@ -626,14 +625,16 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 			discInfo = strings.Join(parts, " · ")
 		}
-		if discInfo != "" {
-			discInfoLabel.SetText("⏺  " + discInfo)
-			discInfoLabel.Show()
-		} else {
-			discInfoLabel.Hide()
+		if discInfoLabel != nil {
+			if discInfo != "" {
+				discInfoLabel.SetText("⏺  " + discInfo)
+				discInfoLabel.Show()
+			} else {
+				discInfoLabel.Hide()
+			}
 		}
 
-		// Rebuild content objects
+			// Rebuild content objects
 		objs := []fyne.CanvasObject{
 			widget.NewLabelWithStyle("Title", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			titleEntry,
@@ -673,7 +674,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 	discInfoLabel.Hide()
 
 	controls := container.NewVBox(
-		discInfoLabel,
 		widget.NewLabelWithStyle(t.RipSource, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		ui.NewDroppable(sourceEntry, func(items []fyne.URI) {
 			path := ""
@@ -769,7 +769,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 		clearISOBtn,
 		widget.NewLabelWithStyle(t.RipFormatLabel, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		formatSelect,
-		enrichPanel,
+		discInfoLabel,
+		enrichContent,
 		widget.NewLabelWithStyle(t.LabelOutput, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		outputEntry,
 		container.NewHBox(resetBtn, loadCfgBtn, saveCfgBtn),
