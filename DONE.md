@@ -91,8 +91,8 @@
 - **Bundle DLLs in release** — FFmpeg shared DLLs built from source with all deps statically linked
 - **Remove BtbN download** — `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
 - **Build script** — `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs from source
-- **CI update** — `ci-build.ps1` bundles DLLs in `ffmpeg-dll/` subfolder (not root) within release ZIP
-- **Legacy fallback** — `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\ffmpeg-dll` for old installs
+- **CI update** — `ci-build.ps1` bundles DLLs in `DLL/` subfolder (not root) within release ZIP
+- **Legacy fallback** — `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\DLL` for old installs
 
 ---
 

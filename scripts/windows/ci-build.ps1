@@ -111,17 +111,17 @@ $pkgDir = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "vt-build-$([G
 # Main executable
 Copy-Item $buildOutput -Destination $pkgDir.FullName -Force
 
-# Bundle FFmpeg DLLs in ffmpeg-dll/ subfolder (not root!)
+# Bundle FFmpeg DLLs in DLL/ subfolder (not root!)
 $ffmpegDllSource = "C:\ffmpeg-shared\dll"
-$ffmpegDllDest = Join-Path $pkgDir.FullName "ffmpeg-dll"
+$ffmpegDllDest = Join-Path $pkgDir.FullName "DLL"
 if (Test-Path $ffmpegDllSource) {
     New-Item -ItemType Directory -Force -Path $ffmpegDllDest | Out-Null
     Get-ChildItem -Path $ffmpegDllSource -Filter "*.dll" | ForEach-Object {
         Copy-Item $_.FullName -Destination $ffmpegDllDest -Force
     }
-    Write-Host "[INFO] Bundled FFmpeg DLLs in ffmpeg-dll/ subfolder"
+    Write-Host "[INFO] Bundled FFmpeg DLLs in DLL/ subfolder"
     $dllCount = (Get-ChildItem -Path $ffmpegDllDest -Filter "*.dll" | Measure-Object).Count
-    Write-Host "[INFO] Copied $dllCount DLLs to ffmpeg-dll/"
+    Write-Host "[INFO] Copied $dllCount DLLs to DLL/"
     # Copy transitive DLL dependencies (e.g. liblzma-5.dll from x264/x265)
     $objdumpExe = "C:\msys64\ucrt64\bin\objdump.exe"
     if (Test-Path $objdumpExe) {

@@ -21,14 +21,14 @@
 
 ### Windows CI Fix
 - **Build FFmpeg shared DLLs** — Added `build-ffmpeg-shared.ps1` step in Windows CI job
-- **Bundle DLLs in release** — `ffmpeg-dll/` subfolder now included in Windows ZIP
+- **Bundle DLLs in release** — `DLL/` subfolder now included in Windows ZIP
 - **Fix missing Windows artifacts** — DLLs now built before packaging
 
 ### FFmpeg DLL Bootstrap (from dev45)
 - **Bundle DLLs in release** — FFmpeg shared DLLs built from source with all deps statically linked
 - **Remove BtbN download** — `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
 - **Build script** — `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs from source
-- **Legacy fallback** — `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\ffmpeg-dll` for old installs
+- **Legacy fallback** — `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\DLL` for old installs
 
 ---
 
@@ -84,8 +84,8 @@
 - **Bundle DLLs in release** — FFmpeg shared DLLs built from source with all deps statically linked
 - **Remove BtbN download** — `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
 - **Build script** — `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs from source
-- **CI update** — `ci-build.ps1` bundles DLLs in `ffmpeg-dll/` subfolder (not root) within release ZIP
-- **Legacy fallback** — `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\ffmpeg-dll` for old installs
+- **CI update** — `ci-build.ps1` bundles DLLs in `DLL/` subfolder (not root) within release ZIP
+- **Legacy fallback** — `FFmpegDllDir()` still checks `%LOCALAPPDATA%\VideoTools\DLL` for old installs
 
 ### Queue Module UI Polish (dev44)
 - **TintedBar header** — Replaced custom header with `TintedBar` matching other modules
