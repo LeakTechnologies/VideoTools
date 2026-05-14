@@ -192,22 +192,33 @@ type cropConfig struct {
 
 ## Implementation Details
 
-### Step 1: Auto-detect
+Reference implementation: [PeteJobi/VideoCropper](https://github.com/PeteJobi/VideoCropper) (WinUI 3, .NET 9).
 
-When user clicks "Detect Crop":
-1. Run FFmpeg with `cropdetect` filter
-2. Parse output for crop values (take mode/median)
-3. Display detected values in UI
-4. Auto-apply if user confirms
+### Step 1: Load & Visual Frame
 
-### Step 2: Manual Adjustment
+User loads a video into the crop UI. A draggable resize frame appears over the video preview:
+- **Drag center** — Move entire crop region
+- **Drag edges/corners** — Resize
+- **Coordinate boxes** (X, Y, Width, Height) update live; manual entry moves/resizes the frame
+- **Zoom into frame** — Magnifies the crop region for precision work with small selections
+- **Center Frame** — Snaps crop region to video centre
+
+### Step 2: Aspect Ratio Lock
+
+Toggle on/off. When locked, resizing one edge auto-adjusts the others to maintain ratio. Presets: 16:9, 4:3, 2.39:1, 1:1, 9:16, Original.
+
+### Step 3: Auto-detect
+
+"Detect Crop" button runs FFmpeg `cropdetect`, parses output, populates the frame coordinates.
+
+### Step 4: Manual Adjustment
 
 Sliders for each edge:
 - Range: 0 to (video dimension / 2)
 - Step: 2 pixels (DVD-aligned)
 - Live preview updates as sliders move
 
-### Step 3: Output Calculation
+### Step 5: Output Calculation
 
 Show calculated output size:
 ```
@@ -216,9 +227,9 @@ Crop:   Top=40, Bottom=40, Left=0, Right=0
 Output: 1920x1000 (16:9 → 1.91:1)
 ```
 
-### Step 4: Preview
+### Step 6: Execute
 
-Show cropped frame in player before encoding.
+"Crop!" button runs ffmpeg with crop filter. Progress bar with pause/cancel. Output file: `input_CROPPED.ext` in same folder.
 
 ---
 

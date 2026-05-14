@@ -92,10 +92,10 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 - [x] **Fix recentfiles.go** — Changed `CatSystem` misuse to `CatUI` via `cat()` helper
 
 ### FFmpeg DLL Bootstrap Fix (done dev45)
-- [x] **Bundle DLLs in release** — FFmpeg shared DLLs built from source, bundled in `ffmpeg-dll/` subfolder (not root)
+- [x] **Bundle DLLs in release** — FFmpeg shared DLLs built from source, bundled in `DLL/` subfolder (not root)
 - [x] **Remove BtbN download** — `ffmpeg_bootstrap.go` no longer downloads from BtbN (eliminates `liblzma-5.dll` errors)
 - [x] **Build script** — `scripts/windows/build-ffmpeg-shared.ps1` builds FFmpeg shared DLLs with all deps statically linked
-- [x] **CI update** — `ci-build.ps1` bundles DLLs in `ffmpeg-dll/` subfolder within release ZIP
+- [x] **CI update** — `ci-build.ps1` bundles DLLs in `DLL/` subfolder within release ZIP
 
 ### Main Menu Refactor (dev46)
 - [ ] **Move main menu UI** — Extract main menu code from `main.go` to `internal/app/modules/mainmenu/`
@@ -105,7 +105,7 @@ See `docs/AUDIO_MODULE_IMPROVEMENTS.md` for full plan.
 
 ### Windows CI Fix (dev46) - DONE
 - [x] **Build FFmpeg shared DLLs** — Added CI step to build shared DLLs from source
-- [x] **Bundle in release** — `ffmpeg-dll/` subfolder now included in Windows ZIP
+- [x] **Bundle in release** — `DLL/` subfolder now included in Windows ZIP
 - [x] **Fix Red CI** — Windows job now builds and packages correctly
 
 ### Carry-forward Issues

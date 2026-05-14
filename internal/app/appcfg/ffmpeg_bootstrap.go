@@ -11,19 +11,29 @@ import (
 )
 
 // FFmpegDllDir returns the directory where FFmpeg DLLs are expected.
-// We look next to the executable first (bundled), then fall back to
-// %LOCALAPPDATA%\VideoTools\ffmpeg-dll (legacy download path).
+// Lookup order:
+//  1. <exe-dir>/DLL/   (CI/release bundled subfolder)
+//  2. <exe-dir>/               (flat DLLs next to exe — local dev builds,
+//                                flattened user extraction)
+//  3. %LOCALAPPDATA%\VideoTools\DLL (legacy download path)
 func FFmpegDllDir() string {
-	// Check next to executable (bundled DLLs)
 	if exePath, err := os.Executable(); err == nil {
 		exeDir := filepath.Dir(exePath)
-		bundledDir := filepath.Join(exeDir, "ffmpeg-dll")
+
+		// 1. DLL/ subfolder (CI/release packaging)
+		bundledDir := filepath.Join(exeDir, "DLL")
 		if dllsPresent(bundledDir) {
 			return bundledDir
 		}
+
+		// 2. Flat DLLs next to the exe (local dev builds,
+		//    or users who extracted files flat from the ZIP)
+		if dllsPresent(exeDir) {
+			return exeDir
+		}
 	}
 
-	// Fall back to LOCALAPPDATA (legacy path for old installs)
+	// 3. Fall back to LOCALAPPDATA (legacy path for old installs)
 	base := os.Getenv("LOCALAPPDATA")
 	if base == "" {
 		home, _ := os.UserHomeDir()
@@ -31,7 +41,7 @@ func FFmpegDllDir() string {
 			base = filepath.Join(home, "AppData", "Local")
 		}
 	}
-	return filepath.Join(base, "VideoTools", "ffmpeg-dll")
+	return filepath.Join(base, "VideoTools", "DLL")
 }
 
 func dllsPresent(dir string) bool {
@@ -53,7 +63,7 @@ func AddFFmpegDllsToPath() error {
 
 	if !FFmpegDllsPresent() {
 		logging.Error(logging.CatSystem, "FFmpeg DLLs not found in %s — video playback will be unavailable", dllDir)
-		return fmt.Errorf("FFmpeg DLLs not found in %s (expected bundled ffmpeg-dll/ next to exe)", dllDir)
+		return fmt.Errorf("FFmpeg DLLs not found in %s (looked in: DLL/ next to exe, exe directory, %%LOCALAPPDATA%%/VideoTools/DLL)", dllDir)
 	}
 
 	currentPath := os.Getenv("PATH")
