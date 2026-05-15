@@ -7,7 +7,7 @@ These rules apply to any automation or agent working in this repo.
 - Current cycle: `v0.1.1-dev47`.
 - Public/stable baseline: `v0.1.1`.
 - `dev47` in progress (nearly complete). Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir fallback for DLL resolution, `DLL/` folder rename (was `ffmpeg-dll/`), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
-- `dev46` closed. PAL→NTSC convert-during-rip checkbox + IFO interlace detection (full-disc pipeline stages 1–3 remain queued), Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
+- `dev46` closed. Full PAL→NTSC disc pipeline shipped: full-disc extraction (all VTS sets + menu VOB), per-stream MPEG-2 NTSC re-encode with yadif/atempo, IFO/BUP regeneration with NTSC attributes (`executor.go`, `ifo_regen.go`). Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
 - `dev45` closed. Convert Phase 1+2 (SR, Normalize, Deinterlace, H.264 Profile/Level, presets, AVI/TS/FLV), Convert i18n, Module Pipeline (&&), logging audit, FFmpeg DLL bootstrap.
 - `dev44` closed. Player thread-safety audit, D3D11VA, audio sync, GStreamer removal, Queue UI polish, thumbnail improvements, flags/i18n.
 - `dev43` closed. Player thread-safety: pixel format SIGSEGV fix, Close/demuxer WaitGroup, NextFrame/Close codec race, seekLoop goroutine leak.
@@ -26,7 +26,7 @@ These rules apply to any automation or agent working in this repo.
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
 
 ### Recently Shipped (dev47)
-- **DLL folder rename** — `ffmpeg-dll/` renamed to `DLL/` in bootstrap (`internal/app/appcfg/ffmpeg_bootstrap.go`), CI packaging (`scripts/windows/ci-build.ps1`), and all docs.
+- **DLL folder rename** — `ffmpeg-dll/` renamed to `DLL/` in bootstrap (`internal/app/appcfg/ffmpeg_bootstrap.go`), CI packaging (`scripts/windows/ci-build.ps1`), local dev build (`scripts/windows/build.ps1`), and all docs. **All DLLs go in `DLL/` subfolder — never flat next to exe in packaging.**
 - **Flat exe-dir DLL resolution** — `FFmpegDllDir()` now checks `<exe-dir>/DLL/`, then `<exe-dir>/` (flat DLLs), then `%LOCALAPPDATA%\VideoTools\DLL`. Users who extract the ZIP flat (exe + DLLs in same dir) will now find them.
 - **Disc info at top of rip view** — Type/region/size shown as standalone label above controls (no card wrapper).
 - **Progress bar with ETA** — `runFFmpegWithProgress` parses `out_time_us`, computes encode rate, shows `"42% — ETA 2m 34s"`.
