@@ -43,6 +43,7 @@
   .controls button.active { border-color: var(--vt-text); background: var(--vt-text); color: var(--vt-navy); }
   .controls button.current-cycle { border-color: var(--shipped); border-width: 2.5px; }
   .controls button.action-btn { border-width: 2.5px; }
+  .filter-dot { display: inline-block; width: 16px; height: 16px; border-radius: 50%; margin-right: 0.35rem; vertical-align: middle; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.1); }
   .filter-label { font-size: 0.7rem; color: var(--vt-text-muted); display: flex; align-items: center; padding: 0 0.25rem; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
   .search-wrap { position: relative; display: inline-flex; align-items: center; margin-bottom: 1.25rem; width: 100%; max-width: 520px; }
   .search-wrap svg { position: absolute; left: 0.8rem; color: #475569; pointer-events: none; flex-shrink: 0; }
@@ -200,12 +201,12 @@
 <div class="controls" id="filters">
   <span class="filter-label">Status</span>
   <button class="active" data-filter="all">All</button>
-  <button data-filter="shipped">Shipped</button>
-  <button data-filter="done">Done (Untested)</button>
-  <button data-filter="active">In Progress</button>
-  <button data-filter="planned">Planned</button>
-  <button data-filter="future">Future</button>
-  <button data-filter="deprecated">Deprecated</button>
+  <button data-filter="shipped"><span class="filter-dot" style="background:var(--shipped)"></span>Shipped</button>
+  <button data-filter="done"><span class="filter-dot" style="background:var(--done)"></span>Done (Untested)</button>
+  <button data-filter="active"><span class="filter-dot" style="background:var(--active)"></span>In Progress</button>
+  <button data-filter="planned"><span class="filter-dot" style="background:var(--planned)"></span>Planned</button>
+  <button data-filter="future"><span class="filter-dot" style="background:var(--future)"></span>Future</button>
+  <button data-filter="deprecated"><span class="filter-dot" style="background:var(--deprecated)"></span>Deprecated</button>
 </div>
 <div class="controls" id="module-filters"></div>
 <div class="controls" id="cycle-filters"></div>
