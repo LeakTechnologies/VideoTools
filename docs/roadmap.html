@@ -28,8 +28,8 @@
     font-family: 'IBM Plex Mono', 'SF Mono', 'Fira Code', monospace;
     background: var(--vt-navy); color: var(--vt-text); padding: 2rem;
   }
-  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.25rem; }
-  .page-header img { height: 72px; width: auto; object-fit: contain; }
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.25rem; padding-right: 2rem; }
+  .page-header img { height: 96px; width: auto; object-fit: contain; margin-left: 3rem; }
   h1 { font-size: 2rem; font-weight: 500; letter-spacing: -0.02em; color: var(--shipped); }
   .subtitle { color: var(--vt-text-muted); margin-bottom: 1.5rem; font-size: 0.85rem; letter-spacing: 0.02em; }
   .controls { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
@@ -121,7 +121,9 @@
     background: var(--vt-navy-light); border-radius: 12px; max-width: 540px; width: 90%;
     max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
     border: 1px solid var(--vt-border); padding: 1.5rem; position: relative;
+    cursor: grab;
   }
+  .modal.panning { cursor: grabbing; user-select: none; }
   .modal-close {
     position: absolute; top: 0.75rem; right: 1rem;
     background: none; border: none; font-size: 1.4rem; cursor: pointer;
@@ -1026,6 +1028,47 @@ render();
   // Suppress card click after a drag
   boardEl.addEventListener('click', (e) => {
     if (moved) { e.stopImmediatePropagation(); moved = false; }
+  }, true);
+})();
+
+// --- Modal drag-to-scroll (changelog / checklist) ---
+(function() {
+  let modalMoved = false;
+
+  document.addEventListener('mousedown', (e) => {
+    const modal = e.target.closest('.modal');
+    if (!modal) return;
+    const overlay = modal.closest('.modal-overlay');
+    if (!overlay || !overlay.classList.contains('open')) return;
+    modal._dragStartY = e.clientY;
+    modal._dragScrollY = modal.scrollTop;
+    modal._dragMoved = false;
+    modal.classList.add('panning');
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    const modal = document.querySelector('.modal-overlay.open .modal.panning');
+    if (!modal || modal._dragStartY === undefined) return;
+    const dy = e.clientY - modal._dragStartY;
+    if (Math.abs(dy) > 4) modal._dragMoved = true;
+    modal.scrollTop = modal._dragScrollY - dy;
+  });
+
+  document.addEventListener('mouseup', () => {
+    const modal = document.querySelector('.modal-overlay.open .modal.panning');
+    if (!modal) return;
+    modal.classList.remove('panning');
+    modalMoved = modal._dragMoved;
+    modal._dragStartY = undefined;
+    modal._dragScrollY = undefined;
+  });
+
+  // Suppress overlay close if a drag happened inside the modal
+  document.addEventListener('click', (e) => {
+    if (modalMoved) {
+      modalMoved = false;
+      e.stopImmediatePropagation();
+    }
   }, true);
 })();
 
