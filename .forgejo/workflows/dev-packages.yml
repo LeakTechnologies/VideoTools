@@ -392,6 +392,48 @@ jobs:
           Write-Host "[INFO] Disk cleanup complete"
           Get-PSDrive C | Select-Object Used, Free | ForEach-Object { Write-Host "[INFO] C: used=$([math]::Round($_.Used/1GB,1))GB free=$([math]::Round($_.Free/1GB,1))GB" }
 
+      - name: Cache FFmpeg shared DLLs (BtbN)
+        id: cache-ffmpeg-shared
+        uses: actions/cache@v4
+        with:
+          path: C:\ffmpeg-shared\dll
+          key: ffmpeg-shared-win64-lgpl-v1
+
+      - name: Download FFmpeg shared DLLs (BtbN)
+        if: steps.cache-ffmpeg-shared.outputs.cache-hit != 'true'
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dllDest = "C:\ffmpeg-shared\dll"
+          New-Item -ItemType Directory -Force -Path $dllDest | Out-Null
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-lgpl-shared.zip"
+          $zipPath = "$env:TEMP\ffmpeg-shared.zip"
+          Write-Host "[INFO] Downloading BtbN FFmpeg shared DLLs..."
+          Invoke-WebRequest -Uri $url -OutFile $zipPath -UseBasicParsing -TimeoutSec 300
+          $extractDir = "$env:TEMP\ffmpeg-shared-extract"
+          Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+          $binDir = Get-ChildItem -Path $extractDir -Recurse -Directory | Where-Object { $_.Name -eq "bin" } | Select-Object -First 1
+          if (-not $binDir) { throw "[ERROR] BtbN archive missing bin/ directory" }
+          $copied = 0
+          Get-ChildItem -Path $binDir.FullName -Filter "*.dll" | ForEach-Object {
+            Copy-Item $_.FullName -Destination $dllDest -Force
+            $copied++
+          }
+          Remove-Item $zipPath -Force
+          Remove-Item $extractDir -Recurse -Force
+          if ($copied -eq 0) { throw "[ERROR] No DLLs found in BtbN archive bin/" }
+          Write-Host "[INFO] Copied $copied FFmpeg DLLs to $dllDest"
+
+      - name: Verify FFmpeg shared DLLs
+        run: |
+          $dllDest = "C:\ffmpeg-shared\dll"
+          $avcodec = Get-ChildItem -Path $dllDest -Filter "avcodec*.dll" -ErrorAction SilentlyContinue
+          if (-not $avcodec) {
+            Write-Error "[ERROR] avcodec*.dll not found in $dllDest — DLL bundling will fail"
+            exit 1
+          }
+          $count = (Get-ChildItem -Path $dllDest -Filter "*.dll").Count
+          Write-Host "[INFO] FFmpeg shared DLLs ready: $count DLLs in $dllDest"
+
       - name: Build Windows package
         env:
           VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}

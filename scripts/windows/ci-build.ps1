@@ -114,14 +114,18 @@ Copy-Item $buildOutput -Destination $pkgDir.FullName -Force
 # Bundle FFmpeg DLLs in DLL/ subfolder (not root!)
 $ffmpegDllSource = "C:\ffmpeg-shared\dll"
 $ffmpegDllDest = Join-Path $pkgDir.FullName "DLL"
-if (Test-Path $ffmpegDllSource) {
+$avcodecPresent = Get-ChildItem -Path $ffmpegDllSource -Filter "avcodec*.dll" -ErrorAction SilentlyContinue
+if ((Test-Path $ffmpegDllSource) -and $avcodecPresent) {
     New-Item -ItemType Directory -Force -Path $ffmpegDllDest | Out-Null
     Get-ChildItem -Path $ffmpegDllSource -Filter "*.dll" | ForEach-Object {
         Copy-Item $_.FullName -Destination $ffmpegDllDest -Force
     }
-    Write-Host "[INFO] Bundled FFmpeg DLLs in DLL/ subfolder"
     $dllCount = (Get-ChildItem -Path $ffmpegDllDest -Filter "*.dll" | Measure-Object).Count
-    Write-Host "[INFO] Copied $dllCount DLLs to DLL/"
+    if ($dllCount -eq 0) {
+        Write-Error "[ERROR] DLL copy produced 0 files — aborting"
+        exit 1
+    }
+    Write-Host "[INFO] Bundled $dllCount FFmpeg DLLs in DLL/ subfolder"
     # Copy transitive DLL dependencies (e.g. liblzma-5.dll from x264/x265)
     $objdumpExe = "C:\msys64\ucrt64\bin\objdump.exe"
     if (Test-Path $objdumpExe) {
@@ -147,7 +151,7 @@ if (Test-Path $ffmpegDllSource) {
         }
     }
 } else {
-    Write-Error "[ERROR] FFmpeg shared DLLs not found at $ffmpegDllSource"
+    Write-Error "[ERROR] FFmpeg shared DLLs missing or incomplete at $ffmpegDllSource (need avcodec*.dll). Run the 'Download FFmpeg shared DLLs' CI step before packaging."
     exit 1
 }
 
