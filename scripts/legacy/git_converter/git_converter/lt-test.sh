@@ -2,7 +2,7 @@
 # ===================================================================
 #  LT-Test Interface - VideoTools Feature Testing
 #  Small interface identical to VideoTools for testing new features
-#  Author: Jake (LT Convert)
+#  Author: LT Convert Team
 #  Purpose: Test ground for VideoTools integration
 # ===================================================================
 

@@ -312,7 +312,7 @@ Copy-Item C:\ForgejoRunner\backup\runner.yaml C:\ForgejoRunner\config\
 ## Contact and Support
 
 ### Internal Support
-- **Administrator**: Stu Leak <leaktechnologies@proton.me>
+- **Administrator**: <leaktechnologies@proton.me>
 - **Documentation**: `docs/ci/windows-runner.md`
 - **Bootstrap script**: `scripts/ci/bootstrap-windows.ps1`
 

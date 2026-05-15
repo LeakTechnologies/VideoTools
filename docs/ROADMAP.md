@@ -37,7 +37,7 @@ timeline
 - Native Go DVD authoring engine with full M1-M7 menu system.
 - Native media player: CGo/FFmpeg engine, InlineVideoPlayer API layer, D3D11VA, audio sync, thread-safe.
 - Disc ripping: IFO scanning, ISO via UDF reader, region detection, progress with ETA.
-- **Seamless branching**: `-f dvdvideo` demuxer now used for single-title rips (FFmpeg 8.1+). **Status: Done (untested)** — awaiting Jake.
+- **Seamless branching**: `-f dvdvideo` demuxer now used for single-title rips (FFmpeg 8.1+). **Status: Done (untested)** — awaiting tester.
 - **DLL bootstrap**: `DLL/` folder with flat exe-dir fallback — no more DLL errors on extraction. **Status: Done (untested)**.
 - Burn module: isoburn.exe (Windows), growisofs (Linux), ConsoleBox log, drive info.
 - Module Pipeline (&&): two-module chain state machine with queue integration.

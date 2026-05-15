@@ -1,10 +1,10 @@
 # 🤖 AI-Speak: Development Collaboration Guide
 
-**🎯 PURPOSE:** This file serves as the central collaboration hub between Stu's AI and development team for the lt-convert.sh cross-platform video converter project.
+**🎯 PURPOSE:** This file serves as the central collaboration hub between the AI assistant and development team for the lt-convert.sh cross-platform video converter project.
 
 **👥 Partners:** 
-- Stu's AI Assistant (development partner)
-- Stu (human developer & tester)
+- AI Assistant (development partner)
+- Human Developer & Tester
 - User (Windows testing & feedback)
 
 **📅 Project:** lt-convert.sh - Cross-platform Video Converter  
@@ -21,7 +21,7 @@
 
 ---
 
-## 📖 **HOW TO USE THIS FILE (For Stu's AI)**
+## 📖 **HOW TO USE THIS FILE (For AI Assistant)**
 
 ### **🔍 READING THIS FILE:**
 1. **Start at the top** - understand project context
@@ -122,7 +122,7 @@
 - [ ] Preset system for common configurations
 - [ ] Integration with video metadata databases
 
-### 💡 **SUGGESTED IMPROVEMENTS FOR STU TO CONSIDER:**
+### 💡 **SUGGESTED IMPROVEMENTS TO CONSIDER:**
 - [ ] **Progress bars** using `pv` or custom progress indicators
 - [ ] **Batch queue system** for processing multiple files sequentially
 - [ ] **Configuration file** support for saving user preferences
@@ -139,10 +139,10 @@
 ## 💬 **Conversation Log**
 
 ### 2025-12-14 - Line endings + sync
-**Stu's AI:** Added `.gitattributes` to enforce LF endings for all shell scripts, preventing Windows CRLF issues. Pulled/merged Jake's latest `lt-convert.sh` changes and set the script executable bit. Repo is clean and up to date on `master`.
+**AI Assistant:** Added `.gitattributes` to enforce LF endings for all shell scripts, preventing Windows CRLF issues. Pulled/merged the latest `lt-convert.sh` changes and set the script executable bit. Repo is clean and up to date on `master`.
 
 ### 2025-12-14 - Initial Cross-Platform Fixes
-**Stu's AI:** "My friend Stu uses Wayland Linux and he said that drag and drop function onto 'lt-convert.sh' did not work for him. He said that it also did not detect video files within his current folder."
+**AI Assistant:** "A developer using Wayland Linux reported that drag and drop onto 'lt-convert.sh' did not work, and it also did not detect video files within the current folder."
 
 **Response:** Implemented comprehensive cross-platform fixes:
 - Fixed file detection using explicit scanning instead of `nullglob`
@@ -151,7 +151,7 @@
 - Improved path resolution for different shells
 - Added more video format support
 
-**Status:** ✅ **RESOLVED** - Awaiting testing feedback from Stu
+**Status:** ✅ **RESOLVED** - Awaiting testing feedback
 
 ---
 
@@ -164,7 +164,7 @@
 - [ ] Drag-and-drop from File Explorer
 
 ### **Linux Testing**
-- [ ] Wayland drag-and-drop (GNOME/KDE) **← STU TO TEST**
+- [ ] Wayland drag-and-drop (GNOME/KDE) **← NEEDS TESTING**
 - [ ] X11 drag-and-drop
 - [ ] Terminal execution
 - [ ] Hardware detection (NVIDIA/AMD/Intel)
@@ -175,7 +175,7 @@
 **Status:** ⏳ **AWAITING TEST RESULTS**
 **Testers:** 
 - User: Windows ✅ (confirmed working)
-- Stu: Linux Wayland 🔄 **PENDING** (after pulling latest `.gitattributes` + executable bit)
+- Linux Wayland 🔄 **PENDING** (after pulling latest `.gitattributes` + executable bit)
 
 **Expected Results:**
 - Drag files onto script → Should process them
@@ -203,7 +203,7 @@
 
 ## 🔄 **Next Steps**
 
-1. **Immediate:** Get feedback from Stu on Wayland testing
+1. **Immediate:** Get feedback on Wayland testing
 2. **Short-term:** Address any compatibility issues found; add progress bars and batch queue processing
 3. **Medium-term:** Build comprehensive test suite; plan subtitle support once core is stable
 4. **Long-term:** Consider GUI frontend development
@@ -212,7 +212,7 @@
 
 ## 📞 **Contact & Collaboration**
 
-**For Stu's AI:** When working on this project, please:
+**For AI Assistant:** When working on this project, please:
 
 ### **Workflow Rules**
 - Commit after every meaningful change; keep commits small and descriptive.
@@ -226,7 +226,7 @@
 4. Update conversation log with user feedback
 
 ### **💡 PROACTIVE IMPROVEMENTS:**
-5. **REGULARLY SUGGEST** improvements and optimizations to Stu
+5. **REGULARLY SUGGEST** improvements and optimizations
 6. **IDENTIFY OPPORTUNITIES** for:
    - Performance enhancements
    - User experience improvements
@@ -250,7 +250,7 @@
 ### **⚠️ CRITICAL:**
 - **NEVER IMPLEMENT** a feature without cross-platform consideration
 - **ALWAYS NOTIFY** in this file when platform-specific code is added
-- **COORDINATE TESTING** with Stu and user feedback before marking complete
+- **COORDINATE TESTING** with developer and user feedback before marking complete
 
 **Goal:** Create the most robust, cross-platform video converter available.
 
