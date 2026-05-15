@@ -154,8 +154,8 @@ import (
 	"time"
 	"unsafe"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/media/filters"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media/filters"
 )
 
 // decodedFrame is a fully decoded and colour-converted video frame ready for display.

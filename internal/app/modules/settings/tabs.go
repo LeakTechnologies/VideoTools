@@ -18,11 +18,11 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/appcfg"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/benchmark"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 func BuildBenchmarkTab(cb BenchmarkCallbacks) fyne.CanvasObject {

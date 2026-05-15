@@ -21,9 +21,9 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/widget"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCover func(string)) fyne.CanvasObject {

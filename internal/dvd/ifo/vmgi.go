@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // VMG_MAT represents the Video Manager Information Management Table.

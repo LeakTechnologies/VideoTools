@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // NAVPCKInfo holds the sector address and presentation timestamp of one NAV_PCK.

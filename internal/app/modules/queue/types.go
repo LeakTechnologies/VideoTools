@@ -5,7 +5,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
 )
 
 type Options struct {

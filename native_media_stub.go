@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 )
 
 func HasNativeMediaPlayer() bool {

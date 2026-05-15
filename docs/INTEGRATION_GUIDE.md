@@ -63,7 +63,7 @@ formatSelect := widget.NewSelect(formatLabels, func(value string) {
 **After Integration:**
 ```go
 // Import the convert package
-import "git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+import "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/convert"
 
 // Use FormatOptions from convert package
 var formatLabels []string
@@ -259,7 +259,7 @@ type FormatOption struct { ... }
 
 **Import in main.go:**
 ```go
-import "git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+import "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/convert"
 
 // Then reference as:
 // convert.VideoSource
@@ -273,7 +273,7 @@ import "git.leaktechnologies.dev/stu/VideoTools/internal/convert"
 
 - [ ] **Import convert package** in main.go
   ```go
-  import "git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+  import "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/convert"
   ```
 
 - [ ] **Update format selection**
@@ -403,7 +403,7 @@ User Interface (main.go)
 // At top of main.go
 import (
     // ... existing imports
-    "git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+    "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/convert"
 )
 ```
 
@@ -506,7 +506,7 @@ Once integration is complete, consider:
 ### Issue: "undefined: convert" in main.go
 **Solution:** Add import statement at top of main.go
 ```go
-import "git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+import "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/convert"
 ```
 
 ### Issue: formatOption not found

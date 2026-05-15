@@ -2,9 +2,9 @@ package main
 
 import (
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/appcfg"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/appcfg"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 )
 
 const localePrefKey = "locale"

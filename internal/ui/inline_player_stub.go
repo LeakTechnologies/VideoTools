@@ -6,7 +6,7 @@ import (
 	"image"
 
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media"
 )
 
 type InlineVideoPlayer struct{}

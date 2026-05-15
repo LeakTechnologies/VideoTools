@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"math"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // pgcHeaderSize is the fixed byte size of a PGC header on disc.

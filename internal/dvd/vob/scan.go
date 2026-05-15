@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // ScanVOBForNAVPCKs reads a DVD VOB file and returns the sector offset

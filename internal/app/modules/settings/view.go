@@ -9,9 +9,9 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"image/color"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 const ModuleColor = "#607D8B"

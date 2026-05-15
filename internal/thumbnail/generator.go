@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 // Config contains configuration for thumbnail generation

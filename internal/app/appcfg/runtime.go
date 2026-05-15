@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/benchmark"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/sysinfo"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/configpath"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/benchmark"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/sysinfo"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 )
 
 type ConvertRecoveryState struct {

@@ -3,7 +3,7 @@
 package main
 
 import (
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 )
 
 func applyVCRFontPreference(font string) {

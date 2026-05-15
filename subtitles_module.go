@@ -16,10 +16,10 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/subtitles"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modulecfg"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/subtitles"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 const (

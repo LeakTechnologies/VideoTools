@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // Builder coordinates the construction of IFO and BUP files.

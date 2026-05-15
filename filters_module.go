@@ -12,11 +12,11 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/filters"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/filters"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 func (s *appState) showFiltersView() {

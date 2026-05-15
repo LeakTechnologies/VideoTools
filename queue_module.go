@@ -12,11 +12,11 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/queue"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	queuepkg "git.leaktechnologies.dev/stu/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/queue"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	queuepkg "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 func (s *appState) showQueue() {

@@ -6,8 +6,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/player"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/player"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 func (s *appState) showPlayerViewForPath(path string) {

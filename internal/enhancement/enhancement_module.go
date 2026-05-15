@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/player"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 // AIModel interface defines the contract for video enhancement models

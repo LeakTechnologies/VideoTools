@@ -2,7 +2,7 @@
 
 package appcfg
 
-import "git.leaktechnologies.dev/stu/VideoTools/internal/media"
+import "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media"
 
 func DetectHWDeviceType() int {
 	if !media.HWDecodeEnabled() {

@@ -1,6 +1,6 @@
 package app
 
-import "git.leaktechnologies.dev/stu/VideoTools/internal/convert"
+import "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/convert"
 
 // DVDConvertConfig wraps the convert.convertConfig for DVD-specific operations
 // This adapter allows main.go to work with the convert package without refactoring

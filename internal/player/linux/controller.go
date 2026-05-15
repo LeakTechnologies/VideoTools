@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"sync"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 const playerWindowTitle = "videotools-player"

@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/upscale"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/upscale"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 	"image/color"
 )
 

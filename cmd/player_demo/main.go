@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/player"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/player"
 )
 
 func main() {

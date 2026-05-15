@@ -10,13 +10,13 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
-	ripmod "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/rip"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/queue"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	ripmod "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/rip"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/ifo"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 func (s *appState) showRipView() {

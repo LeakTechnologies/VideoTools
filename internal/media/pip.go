@@ -4,7 +4,7 @@ package media
 
 import (
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 type PiPController struct {

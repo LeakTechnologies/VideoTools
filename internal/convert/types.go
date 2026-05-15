@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 // FormatOption represents a video output format with its associated codec

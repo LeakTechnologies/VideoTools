@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // ScriptableTheme defines the structure of a moddable DVD menu theme.

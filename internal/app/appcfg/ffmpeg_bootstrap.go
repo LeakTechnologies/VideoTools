@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // FFmpegDllDir returns the directory where FFmpeg DLLs are expected.

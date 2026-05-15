@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // EnsureLinuxDesktopEntry installs a user-level desktop entry and icon so GNOME can
