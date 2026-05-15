@@ -551,6 +551,7 @@ function applyFilters() {
       const cycleTag = card.querySelector('.cycle-tag')?.textContent || '';
       const cycleMatch = currentCycleFilter === 'all' || cycleTag === currentCycleFilter;
       let searchMatch = true;
+      if (term) {
         const title = (card.querySelector('.card-title')?.textContent || '').toLowerCase();
         const desc  = (card.querySelector('.card-desc')?.textContent  || '').toLowerCase();
         const cycle = (card.querySelector('.cycle-tag')?.textContent  || '').toLowerCase();
