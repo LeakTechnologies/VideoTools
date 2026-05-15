@@ -72,7 +72,7 @@
     border: 1px solid var(--vt-border);
   }
   .legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--vt-text-muted); }
-  .legend-swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); }
+  .legend-swatch { width: 16px; height: 16px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); flex-shrink: 0; }
   .board {
     display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem; min-height: 70vh;
     cursor: grab; user-select: none;
@@ -614,7 +614,7 @@ for (const moduleName of Object.keys(roadmap)) {
   const btn = document.createElement('button');
   btn.dataset.module = moduleName;
   const color = moduleColors[moduleName] || '#6366f1';
-  btn.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:0.35rem;vertical-align:middle;flex-shrink:0;"></span>${moduleName.toUpperCase()}`;
+  btn.innerHTML = `<span class="filter-dot" style="background:${color}"></span>${moduleName.toUpperCase()}`;
   moduleFilterContainer.appendChild(btn);
 }
 
