@@ -604,7 +604,7 @@ func TintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 // PillButton renders a pill-shaped button matching the roadmap's visual style:
 // dark background, coloured border, centred text, hover lightens border, active inverts.
 type PillButton struct {
-	widget.BaseWidget
+	widget.DisableableWidget
 	Label     string
 	BorderCol color.Color
 	OnTapped  func()
@@ -632,6 +632,9 @@ func (p *PillButton) CreateRenderer() fyne.WidgetRenderer {
 }
 
 func (p *PillButton) MouseIn(*desktop.MouseEvent) {
+	if p.Disabled() {
+		return
+	}
 	p.hovered = true
 	p.Refresh()
 }
@@ -644,6 +647,9 @@ func (p *PillButton) MouseOut() {
 func (p *PillButton) MouseMoved(*desktop.MouseEvent) {}
 
 func (p *PillButton) Tapped(*fyne.PointEvent) {
+	if p.Disabled() {
+		return
+	}
 	if p.OnTapped != nil {
 		p.OnTapped()
 	}
@@ -669,15 +675,20 @@ func (r *pillButtonRenderer) Refresh() {
 	navyLight := utils.MustHex("#1a1f35")
 	navy := utils.MustHex("#0F1529")
 	muted := utils.MustHex("#94a3b8")
-	if p.Active {
+	switch {
+	case p.Disabled():
+		r.bg.FillColor = navyLight
+		r.bg.StrokeColor = muted
+		r.txt.Color = muted
+	case p.Active:
 		r.bg.FillColor = p.BorderCol
 		r.bg.StrokeColor = p.BorderCol
 		r.txt.Color = navy
-	} else if p.hovered {
+	case p.hovered:
 		r.bg.FillColor = navyLight
 		r.bg.StrokeColor = muted
 		r.txt.Color = color.White
-	} else {
+	default:
 		r.bg.FillColor = navyLight
 		r.bg.StrokeColor = p.BorderCol
 		r.txt.Color = color.White
