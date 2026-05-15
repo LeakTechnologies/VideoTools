@@ -159,6 +159,12 @@
   <button data-filter="future">Future</button>
 </div>
 <div class="controls" id="module-filters"></div>
+<div class="controls" style="margin-top:-0.75rem;">
+  <button id="changelogBtn" style="background:var(--vt-card);border-color:var(--done);color:var(--vt-text);display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.4rem 1rem;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    Changelog
+  </button>
+</div>
 
 <div class="board" id="board"></div>
 
@@ -190,6 +196,17 @@
       <h3>Related Docs</h3>
       <ul id="modalDocs"></ul>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="changelogModal">
+  <div class="modal" style="max-width:680px;">
+    <button class="modal-close" id="changelogModalClose">&times;</button>
+    <h2 style="margin-bottom:1.25rem;display:flex;align-items:center;gap:0.5rem;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--done)" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Changelog
+    </h2>
+    <div id="changelogBody"></div>
   </div>
 </div>
 
@@ -522,6 +539,77 @@ function openModal(item, moduleName) {
 document.getElementById('modalClose').addEventListener('click', () => modal.classList.remove('open'));
 modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('open'); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.classList.remove('open'); });
+
+// --- Changelog ---
+const cycleOrder = ['dev48','dev47','dev46','dev45','dev44','dev43','dev42','dev40'];
+
+function buildChangelog() {
+  const byCycle = {};
+  for (const [mod, data] of Object.entries(roadmap)) {
+    for (const item of data.items) {
+      const cy = item.cycle;
+      if (cy === 'future') continue;
+      if (item.status !== 'shipped' && item.status !== 'done') continue;
+      if (!byCycle[cy]) byCycle[cy] = [];
+      byCycle[cy].push({ ...item, module: mod });
+    }
+  }
+  const cycles = Object.keys(byCycle).sort((a, b) => {
+    const ia = cycleOrder.indexOf(a);
+    const ib = cycleOrder.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a < b ? 1 : -1;
+  });
+
+  const body = document.getElementById('changelogBody');
+  body.innerHTML = '';
+  for (const cycle of cycles) {
+    const items = byCycle[cycle];
+    const section = document.createElement('div');
+    section.style.cssText = 'margin-bottom:1.25rem;border-bottom:1px solid var(--vt-border);padding-bottom:1rem;';
+    section.innerHTML = `<h3 style="font-size:1rem;margin-bottom:0.5rem;color:var(--vt-text);">${cycle}</h3>`;
+
+    const grouped = {};
+    for (const item of items) {
+      if (!grouped[item.module]) grouped[item.module] = [];
+      grouped[item.module].push(item);
+    }
+
+    for (const [mod, mitems] of Object.entries(grouped)) {
+      const color = moduleColors[mod] || '#6366f1';
+      const block = document.createElement('div');
+      block.style.cssText = 'margin-bottom:0.5rem;';
+      block.innerHTML = `<div style="font-size:0.75rem;font-weight:600;color:${color};margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.04em;">${mod}</div>`;
+      const ul = document.createElement('ul');
+      ul.style.cssText = 'list-style:none;padding:0;margin:0;';
+      for (const item of mitems) {
+        const li = document.createElement('li');
+        li.style.cssText = 'font-size:0.8rem;padding:0.2rem 0;color:var(--vt-text-muted);display:flex;align-items:center;gap:0.4rem;';
+        const dot = document.createElement('span');
+        dot.style.cssText = `display:inline-block;width:6px;height:6px;border-radius:50%;background:${item.status === 'shipped' ? 'var(--shipped)' : 'var(--done)'};flex-shrink:0;`;
+        li.appendChild(dot);
+        li.appendChild(document.createTextNode(item.title));
+        ul.appendChild(li);
+      }
+      block.appendChild(ul);
+      section.appendChild(block);
+    }
+    body.appendChild(section);
+  }
+}
+
+document.getElementById('changelogBtn').addEventListener('click', () => {
+  buildChangelog();
+  document.getElementById('changelogModal').classList.add('open');
+});
+document.getElementById('changelogModalClose').addEventListener('click', () => {
+  document.getElementById('changelogModal').classList.remove('open');
+});
+document.getElementById('changelogModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
 
 render();
 </script>
