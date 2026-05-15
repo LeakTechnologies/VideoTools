@@ -6,8 +6,8 @@ These rules apply to any automation or agent working in this repo.
 
 - Current cycle: `v0.1.1-dev47`.
 - Public/stable baseline: `v0.1.1`.
-- `dev47` in progress. Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
-- `dev46` closed. PAL→NTSC full-disc conversion pipeline with IFO regeneration, Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
+- `dev47` in progress (nearly complete). Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir fallback for DLL resolution, `DLL/` folder rename (was `ffmpeg-dll/`), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
+- `dev46` closed. PAL→NTSC convert-during-rip checkbox + IFO interlace detection (full-disc pipeline stages 1–3 remain queued), Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
 - `dev45` closed. Convert Phase 1+2 (SR, Normalize, Deinterlace, H.264 Profile/Level, presets, AVI/TS/FLV), Convert i18n, Module Pipeline (&&), logging audit, FFmpeg DLL bootstrap.
 - `dev44` closed. Player thread-safety audit, D3D11VA, audio sync, GStreamer removal, Queue UI polish, thumbnail improvements, flags/i18n.
 - `dev43` closed. Player thread-safety: pixel format SIGSEGV fix, Close/demuxer WaitGroup, NextFrame/Close codec race, seekLoop goroutine leak.
@@ -25,9 +25,18 @@ These rules apply to any automation or agent working in this repo.
 - **Do not expand scope beyond what is listed unless explicitly approved.**
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
 
+### Recently Shipped (dev47)
+- **DLL folder rename** — `ffmpeg-dll/` renamed to `DLL/` in bootstrap (`internal/app/appcfg/ffmpeg_bootstrap.go`), CI packaging (`scripts/windows/ci-build.ps1`), and all docs.
+- **Flat exe-dir DLL resolution** — `FFmpegDllDir()` now checks `<exe-dir>/DLL/`, then `<exe-dir>/` (flat DLLs), then `%LOCALAPPDATA%\VideoTools\DLL`. Users who extract the ZIP flat (exe + DLLs in same dir) will now find them.
+- **Disc info at top of rip view** — Type/region/size shown as standalone label above controls (no card wrapper).
+- **Progress bar with ETA** — `runFFmpegWithProgress` parses `out_time_us`, computes encode rate, shows `"42% — ETA 2m 34s"`.
+- **UDF ReadFileData** — `reader.go` can now read individual files from ISO for region detection.
+- **ConsoleBox widget** — new `ui.NewConsoleBox` in `internal/ui/consolebox.go`; Rip log, Queue live-output, and Author authoring log all refactored to use it. Adds dark background, accent-coloured border, pill header with label + clipboard copy icon, and optional `headerExtra` (e.g. job label, view-full-log button).
+
 ## Commit Discipline
 
-- After every change: `git add` then `git commit -m "..."`.
+- **ALWAYS stage and commit after every change. Do not wait for permission.**
+- `git add -A` then `git commit -m "..."`.
 - Do not leave unstaged changes in the worktree.
 - Commit only files related to the current task.
 
