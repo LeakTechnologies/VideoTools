@@ -40,6 +40,7 @@
   }
   .controls button:hover { border-color: var(--vt-text-muted); }
   .controls button.active { border-color: var(--vt-text); background: var(--vt-text); color: var(--vt-navy); }
+  .filter-label { font-size: 0.7rem; color: var(--vt-text-muted); display: flex; align-items: center; padding: 0 0.25rem; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
   .legend {
     display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
     padding: 0.75rem 1rem; background: var(--vt-navy-light); border-radius: 8px;
@@ -149,6 +150,7 @@
 </div>
 
 <div class="controls" id="filters">
+  <span class="filter-label">Status</span>
   <button class="active" data-filter="all">All</button>
   <button data-filter="shipped">Shipped</button>
   <button data-filter="done">Done (Untested)</button>
@@ -156,6 +158,7 @@
   <button data-filter="planned">Planned</button>
   <button data-filter="future">Future</button>
 </div>
+<div class="controls" id="module-filters"></div>
 
 <div class="board" id="board"></div>
 
@@ -427,23 +430,68 @@ function render() {
   updateCounts();
 }
 
-const filterBtns = document.querySelectorAll('#filters button');
+let currentStatusFilter = 'all';
+let currentModuleFilter = 'all';
+
 function updateCounts() {
   document.querySelectorAll('.column').forEach(col => {
+    if (col.style.display === 'none') return;
     const visible = [...col.querySelectorAll('.card:not(.hidden)')].length;
     const total = col.querySelectorAll('.card').length;
     const el = col.querySelector('.column-count');
     el.textContent = visible === total ? total + '' : visible + '/' + total;
   });
 }
-function setFilter(filter) {
-  filterBtns.forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
-  document.querySelectorAll('.card').forEach(card => {
-    card.classList.toggle('hidden', filter !== 'all' && !card.classList.contains(filter));
+
+function applyFilters() {
+  document.querySelectorAll('.column').forEach(col => {
+    const moduleMatch = currentModuleFilter === 'all' || col.dataset.module === currentModuleFilter;
+    col.style.display = moduleMatch ? '' : 'none';
+    if (moduleMatch) {
+      col.querySelectorAll('.card').forEach(card => {
+        const statusMatch = currentStatusFilter === 'all' || card.classList.contains(currentStatusFilter);
+        card.classList.toggle('hidden', !statusMatch);
+      });
+    }
   });
   updateCounts();
 }
-filterBtns.forEach(btn => btn.addEventListener('click', () => setFilter(btn.dataset.filter)));
+
+const filterBtns = document.querySelectorAll('#filters button');
+filterBtns.forEach(btn => btn.addEventListener('click', () => {
+  currentStatusFilter = btn.dataset.filter;
+  filterBtns.forEach(b => b.classList.toggle('active', b.dataset.filter === currentStatusFilter));
+  applyFilters();
+}));
+
+// Build module filter buttons dynamically from roadmap keys
+const moduleFilterContainer = document.getElementById('module-filters');
+const modLabel = document.createElement('span');
+modLabel.className = 'filter-label';
+modLabel.textContent = 'Module';
+moduleFilterContainer.appendChild(modLabel);
+
+const modAllBtn = document.createElement('button');
+modAllBtn.className = 'active';
+modAllBtn.dataset.module = 'all';
+modAllBtn.textContent = 'All';
+moduleFilterContainer.appendChild(modAllBtn);
+
+for (const moduleName of Object.keys(roadmap)) {
+  const btn = document.createElement('button');
+  btn.dataset.module = moduleName;
+  const color = moduleColors[moduleName] || '#6366f1';
+  btn.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:0.35rem;vertical-align:middle;flex-shrink:0;"></span>${moduleName}`;
+  moduleFilterContainer.appendChild(btn);
+}
+
+moduleFilterContainer.querySelectorAll('button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentModuleFilter = btn.dataset.module;
+    moduleFilterContainer.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+    applyFilters();
+  });
+});
 
 const modal = document.getElementById('modal');
 function openModal(item, moduleName) {
