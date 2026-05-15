@@ -107,31 +107,30 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 
 	queueTile := buildQueueTile(labels.Queue, queueCompleted, queueTotal, queueColor, textColor, onQueueClick)
 
-	historyBtn := widget.NewButton(labels.HistoryTitle, onToggleSidebar)
-	historyBtn.Importance = widget.LowImportance
+	historyBtn := NewPillButton(labels.HistoryTitle, titleColor, onToggleSidebar)
+	historyBtn.Active = sidebarVisible
 
 	filesDropdown := buildFilesDropdown(labels, filesDropdownData, textColor, labels.Window)
 
 	// Build header controls — only show logs button if callback is provided
 	headerControls := []fyne.CanvasObject{historyBtn, filesDropdown}
 	if onLogsClick != nil {
-		logsBtn := widget.NewButton(labels.Logs, onLogsClick)
-		logsBtn.Importance = widget.LowImportance
+		logsBtn := NewPillButton(labels.Logs, titleColor, onLogsClick)
 		headerControls = append(headerControls, logsBtn)
 	}
 	if onPipelineToggle != nil {
 		pipelineLabel := "&&"
-		pipelineImportance := widget.LowImportance
+		pipelineActive := false
 		switch pipelineStep {
 		case "step1":
 			pipelineLabel = "[ && ]"
-			pipelineImportance = widget.HighImportance
+			pipelineActive = true
 		case "step2":
 			pipelineLabel = "A → ?"
-			pipelineImportance = widget.HighImportance
+			pipelineActive = true
 		}
-		pipelineBtn := widget.NewButton(pipelineLabel, onPipelineToggle)
-		pipelineBtn.Importance = pipelineImportance
+		pipelineBtn := NewPillButton(pipelineLabel, titleColor, onPipelineToggle)
+		pipelineBtn.Active = pipelineActive
 		headerControls = append(headerControls, pipelineBtn)
 	}
 	headerControls = append(headerControls, queueTile)
@@ -324,7 +323,7 @@ func BuildHistorySidebar(
 			onToggleSidebar()
 		}
 	})
-	clearBtn := widget.NewButton(labels.HistoryClearAll, func() {
+	clearBtn := NewPillButton(labels.HistoryClearAll, titleColor, func() {
 		if onClearAll == nil {
 			return
 		}
@@ -337,7 +336,6 @@ func BuildHistorySidebar(
 		}
 		onClearAll(idx)
 	})
-	clearBtn.Importance = widget.LowImportance
 
 	header := container.NewVBox(
 		container.NewBorder(nil, nil, titleTappable, clearBtn, nil),
