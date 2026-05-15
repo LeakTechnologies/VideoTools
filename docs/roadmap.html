@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VideoTools Roadmap</title>
+<style>
+  :root {
+    --shipped: #22c55e;
+    --shipped-bg: #f0fdf4;
+    --shipped-border: #86efac;
+    --active: #eab308;
+    --active-bg: #fefce8;
+    --active-border: #fde047;
+    --planned: #3b82f6;
+    --planned-bg: #eff6ff;
+    --planned-border: #93c5fd;
+    --deferred: #6b7280;
+    --deferred-bg: #f3f4f6;
+    --deferred-border: #d1d5db;
+    --blocked: #ef4444;
+    --blocked-bg: #fef2f2;
+    --blocked-border: #fca5a5;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f8fafc; color: #1e293b; padding: 2rem;
+  }
+  h1 {
+    font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem;
+  }
+  .subtitle {
+    color: #64748b; margin-bottom: 1.5rem; font-size: 0.95rem;
+  }
+  .controls {
+    display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 2rem;
+  }
+  .controls button {
+    padding: 0.4rem 0.9rem; border-radius: 999px; border: 1.5px solid #e2e8f0;
+    background: #fff; cursor: pointer; font-size: 0.8rem; font-weight: 500;
+    transition: all 0.15s;
+  }
+  .controls button:hover { border-color: #94a3b8; }
+  .controls button.active { border-color: #1e293b; background: #1e293b; color: #fff; }
+  .legend {
+    display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem; background: #fff; border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+  .legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; }
+  .legend-swatch {
+    width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.1);
+  }
+  .board {
+    display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem;
+    min-height: 70vh;
+  }
+  .column {
+    min-width: 240px; max-width: 260px; flex-shrink: 0;
+    background: #fff; border-radius: 10px; border: 1px solid #e2e8f0;
+    display: flex; flex-direction: column;
+  }
+  .column-header {
+    padding: 0.75rem 1rem; font-weight: 600; font-size: 0.9rem;
+    border-bottom: 1px solid #e2e8f0; border-radius: 10px 10px 0 0;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .column-count {
+    font-size: 0.75rem; color: #94a3b8; font-weight: 400;
+  }
+  .column-body { padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .card {
+    padding: 0.6rem 0.8rem; border-radius: 6px; border-left: 3px solid #e2e8f0;
+    font-size: 0.8rem; cursor: default; transition: all 0.15s;
+    position: relative;
+  }
+  .card:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .card-title { font-weight: 500; margin-bottom: 0.15rem; }
+  .card-desc { font-size: 0.7rem; color: #64748b; line-height: 1.3; }
+  .card.shipped {
+    background: var(--shipped-bg); border-left-color: var(--shipped);
+  }
+  .card.active {
+    background: var(--active-bg); border-left-color: var(--active);
+  }
+  .card.planned {
+    background: var(--planned-bg); border-left-color: var(--planned);
+  }
+  .card.deferred {
+    background: var(--deferred-bg); border-left-color: var(--deferred);
+  }
+  .card.blocked {
+    background: var(--blocked-bg); border-left-color: var(--blocked);
+  }
+  .card.hidden { display: none; }
+  svg.deps {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 10;
+  }
+  .dep-line { stroke: #94a3b8; stroke-width: 1.5; fill: none; opacity: 0.5; }
+  @media (max-width: 768px) {
+    body { padding: 1rem; }
+    .column { min-width: 200px; }
+  }
+</style>
+</head>
+<body>
+
+<h1>VideoTools Roadmap</h1>
+<p class="subtitle">v0.1.1-dev48 &mdash; Updated May 2026</p>
+
+<div class="legend">
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--shipped)"></span> Shipped</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--active)"></span> In Progress</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--planned)"></span> Planned</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--deferred)"></span> Deferred</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--blocked)"></span> Blocked</span>
+</div>
+
+<div class="controls" id="filters">
+  <button class="active" data-filter="all">All</button>
+  <button data-filter="shipped">Shipped</button>
+  <button data-filter="active">In Progress</button>
+  <button data-filter="planned">Planned</button>
+  <button data-filter="deferred">Deferred</button>
+  <button data-filter="blocked">Blocked</button>
+</div>
+
+<div class="board" id="board">
+
+<!-- ── RIP ── -->
+<div class="column" data-module="Rip">
+  <div class="column-header">Rip <span class="column-count"></span></div>
+  <div class="column-body">
+    <div class="card shipped">
+      <div class="card-title">IFO Scanning</div>
+      <div class="card-desc">Reads VMG TT_SRPT + per-VTS IFOs for titles, chapters, audio, subs</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">ISO via UDF Reader</div>
+      <div class="card-desc">Native Go UDF parser — no 7zip/mount dependency</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Region Detection</div>
+      <div class="card-desc">VMG_Category parsing from VIDEO_TS.IFO</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Disc Info at Top</div>
+      <div class="card-desc">Type/size/region shown as standalone label above controls</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Progress Bar + ETA</div>
+      <div class="card-desc">Parse out_time_us, compute encode rate, show compact ETA</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">PAL/NTSC Full-Disc</div>
+      <div class="card-desc">Region conversion pipeline with IFO regeneration</div>
+    </div>
+    <div class="card active">
+      <div class="card-title">-f dvdvideo Demuxer</div>
+      <div class="card-desc">Cell-accurate title playback via FFmpeg native demuxer — seamless branching</div>
+    </div>
+    <div class="card deferred">
+      <div class="card-title">Main Feature Detection</div>
+      <div class="card-desc">Auto-identify feature title via IFO heuristics (longest duration, stream count)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── BURN ── -->
+<div class="column" data-module="Burn">
+  <div class="column-header">Burn <span class="column-count"></span></div>
+  <div class="column-body">
+    <div class="card shipped">
+      <div class="card-title">isoburn.exe (Windows)</div>
+      <div class="card-desc">Zero-dependency burning via built-in Windows tool</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">growisofs (Linux)</div>
+      <div class="card-desc">dvd+rw-tools with SG_IO progress parsing</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Drive Info</div>
+      <div class="card-desc">Detect disc capacity (DVD5/9, BD25/50) before burning</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">ConsoleBox Log</div>
+      <div class="card-desc">Styled log widget with clipboard copy</div>
+    </div>
+    <div class="card active">
+      <div class="card-title">Multi-Drive Batch</div>
+      <div class="card-desc">Queue multiple ISOs across available burners</div>
+    </div>
+    <div class="card planned">
+      <div class="card-title">IMAPI2 COM</div>
+      <div class="card-desc">Replace isoburn.exe for proper progress callbacks + control</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PLAYER ── -->
+<div class="column" data-module="Player">
+  <div class="column-header">Player <span class="column-count"></span></div>
+  <div class="column-body">
+    <div class="card shipped">
+      <div class="card-title">CGo/FFmpeg Engine</div>
+      <div class="card-desc">Demux + decode + audio via oto v3</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">InlineVideoPlayer API</div>
+      <div class="card-desc">Single API layer all modules use — never call engine directly</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">D3D11VA Decode</div>
+      <div class="card-desc">Hardware-accelerated video decode on Windows</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Audio Sync</div>
+      <div class="card-desc">A/V sync via oto audio playback timing</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Thread-Safe</div>
+      <div class="card-desc">WaitGroup guards on close/demuxer, pixel format crash fix, seekLoop leak fix</div>
+    </div>
+    <div class="card deferred">
+      <div class="card-title">Seeking Performance</div>
+      <div class="card-desc">Frame-accurate seeking still WIP; keyframe snapping in some containers</div>
+    </div>
+    <div class="card planned">
+      <div class="card-title">DVD Menu Playback</div>
+      <div class="card-desc">Interactive menu navigation within the media player</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONVERT ── -->
+<div class="column" data-module="Convert">
+  <div class="column-header">Convert <span class="column-count"></span></div>
+  <div class="column-body">
+    <div class="card shipped">
+      <div class="card-title">Phase 1 — Core Pipeline</div>
+      <div class="card-desc">Sample rate, normalize, deinterlace, H.264 Profile/Level</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Presets</div>
+      <div class="card-desc">H.264 MKV/MP4, Lossless MKV, presets dropdown</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">i18n</div>
+      <div class="card-desc">All user-facing strings localised (en-CA, fr-CA, iu)</div>
+    </div>
+    <div class="card deferred">
+      <div class="card-title">Phase 2 — More Formats</div>
+      <div class="card-desc">AVI, FLV, TS/M2TS, 3GP, OGG; x264/x265 tuning presets</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── AUTHOR ── -->
+<div class="column" data-module="Author">
+  <div class="column-header">Author <span class="column-count"></span></div>
+  <div class="column-body">
+    <div class="card shipped">
+      <div class="card-title">M1-M7 Menu System</div>
+      <div class="card-desc">Full DVD menu pipeline: encode, SPU mux, NAV_PCK, PCI buttons, PGC, VOB assembly</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">IFO Regeneration</div>
+      <div class="card-desc">VTS_MAT, VMG_MAT, PGCITI, TMAPT, C_ADT, ADMAP, TT_SRPT</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">ConsoleBox Log</div>
+      <div class="card-desc">Styled log with job label, header extras</div>
+    </div>
+    <div class="card deferred">
+      <div class="card-title">Log Truncation Removed</div>
+      <div class="card-desc">Full log output preserved (was limiting to 100 lines)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── AUDIO ── -->
+<div class="column" data-module="Audio">
+  <div class="column-header">Audio <span class="column-count"></span></div>
+  <div class="column-body">
+    <div class="card shipped">
+      <div class="card-title">Phase 1 — Layout</div>
+      <div class="card-desc">Consistent module styling, proper header bar, stats integration</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Phase 2 — Player</div>
+      <div class="card-desc">InlineVideoPlayer integration, video preview pane, SMPTE idle</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Phase 3 — Track Selection</div>
+      <div class="card-desc">Enhanced track list, codec colors, language flags, reordering</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── QUEUE ── -->
+<div class="column" data-module="Queue">
+  <div class="column-header">Queue <span class="column-count"></span></div>
+  <div class="column-body">
+    <div class="card shipped">
+      <div class="card-title">Job Queue</div>
+      <div class="card-desc">Multi-job management with progress tracking</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Module Pipeline (&&)</div>
+      <div class="card-desc">Two-module chains with intermediate file cleanup; KeepIntermediate toggle</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">ConsoleBox Live Output</div>
+      <div class="card-desc">Real-time FFmpeg log display in queue view</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN MENU ── -->
+<div class="column" data-module="Menu">
+  <div class="column-header">Main Menu <span class="column-count"></span></div>
+  <div class="column-body">
+    <div class="card shipped">
+      <div class="card-title">Quick Access Dropdown</div>
+      <div class="card-desc">Recent files, open in module, open folder</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Module Pipeline Toggle</div>
+      <div class="card-desc">Button in header, dims invalid targets</div>
+    </div>
+    <div class="card active">
+      <div class="card-title">Main Menu Refactor</div>
+      <div class="card-desc">Extract showMainMenu() into internal/app/modules/mainmenu/</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── INFRA ── -->
+<div class="column" data-module="Infra">
+  <div class="column-header">Infrastructure <span class="column-count"></span></div>
+  <div class="column-body">
+    <div class="card shipped">
+      <div class="card-title">DLL/ Folder + Flat Fallback</div>
+      <div class="card-desc">Shipped in DLL/ subfolder; boots from exe-dir if user extracts flat</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Linux CI Green</div>
+      <div class="card-desc">From-source FFmpeg (x264, x265) builds on every commit</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">Windows CI Green</div>
+      <div class="card-desc">Shared DLL build + ZIP packaging; AppImage on Linux</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">From-Source FFmpeg</div>
+      <div class="card-desc">Static + shared builds; x265.pc fix; MSYS2 toolchain</div>
+    </div>
+    <div class="card shipped">
+      <div class="card-title">i18n (3 Locales)</div>
+      <div class="card-desc">en-CA, fr-CA, Inuktitut (syllabics + Latin)</div>
+    </div>
+    <div class="card planned">
+      <div class="card-title">Linux CI Speedup</div>
+      <div class="card-desc">Pre-built container image for FFmpeg build deps</div>
+    </div>
+    <div class="card deferred">
+      <div class="card-title">Video Cropping Tool</div>
+      <div class="card-desc">Coordinate boxes, zoom preview, aspect-ratio lock, FFmpeg crop filter</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FUTURE ── -->
+<div class="column" data-module="Future">
+  <div class="column-header">Future <span class="column-count"></span></div>
+  <div class="column-body">
+    <div class="card blocked">
+      <div class="card-title">Trim Module</div>
+      <div class="card-desc">Frame-accurate cutting — blocked on player seeking</div>
+    </div>
+    <div class="card blocked">
+      <div class="card-title">Enhancement Module</div>
+      <div class="card-desc">AI models (BasicVSR, RIFE, RealCUGan) — blocked on player</div>
+    </div>
+    <div class="card planned">
+      <div class="card-title">Professional Workflow</div>
+      <div class="card-desc">Player ⇄ Enhancement ⇄ Trim seamless chain</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+(function() {
+  const board = document.getElementById('board');
+  const filterBtns = document.querySelectorAll('#filters button');
+  const columns = board.querySelectorAll('.column');
+
+  // Update card counts per column
+  function updateCounts() {
+    columns.forEach(col => {
+      const visible = [...col.querySelectorAll('.card:not(.hidden)')].length;
+      const total = col.querySelectorAll('.card').length;
+      const countEl = col.querySelector('.column-count');
+      countEl.textContent = visible === total ? total + '' : visible + '/' + total;
+    });
+  }
+
+  // Filter cards
+  function setFilter(filter) {
+    filterBtns.forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
+
+    board.querySelectorAll('.card').forEach(card => {
+      if (filter === 'all') {
+        card.classList.remove('hidden');
+      } else {
+        card.classList.toggle('hidden', !card.classList.contains(filter));
+      }
+    });
+    updateCounts();
+  }
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => setFilter(btn.dataset.filter));
+  });
+
+  updateCounts();
+})();
+</script>
+
+</body>
+</html>
