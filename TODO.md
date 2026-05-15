@@ -533,7 +533,7 @@ Items currently being worked on by other agents — update when assignments chan
 |----------|-----------------------------------------------------------|-------------|
 | opencode | Drag and drop into Convert (issue carried from dev32)     | In progress |
 | opencode | Phase 3 modularisation — Inspect, Settings, Queue         | In progress |
-| opencode | PAL→NTSC pipeline — full-disc extraction + NTSC IFO regeneration (stages 1–3) | Queued |
+| Claude | PAL→NTSC pipeline quality pass — all-audio mapping, per-VOB progress, AC-3 IFO attrs, subtitle PTS fix | Done |
 
 ## Road to v0.1.2 — First Public Stable Release
 

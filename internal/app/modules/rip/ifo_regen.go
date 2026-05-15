@@ -22,8 +22,12 @@ type convertedVTS struct {
 // generates new IFO/BUP files in outputVideoTS with correct NTSC/PAL timing
 // and video attributes matching the converted VOBs.
 //
+// regionConvert is "" (no conversion), "pal2ntsc", or "ntsc2pal". When non-empty,
+// subtitle track claims are zeroed in the generated IFOs because VOBSUB PTS values
+// cannot be remapped by a simple stream copy during fps conversion.
+//
 // This is Stage 3 of the full-disc PAL→NTSC conversion pipeline.
-func RegenerateIFOs(sourceVideoTS, outputVideoTS string, vtsList []convertedVTS, isNTSC bool, appendLog func(string)) error {
+func RegenerateIFOs(sourceVideoTS, outputVideoTS string, vtsList []convertedVTS, isNTSC bool, regionConvert string, appendLog func(string)) error {
 	if len(vtsList) == 0 {
 		return fmt.Errorf("no converted VTS sets to generate IFOs for")
 	}
@@ -69,7 +73,7 @@ func RegenerateIFOs(sourceVideoTS, outputVideoTS string, vtsList []convertedVTS,
 		origMat, _ := readVTSMAT(origVTSIFO)
 
 		// Build new VTS_MAT with NTSC/PAL video attributes
-		newMat := buildVTSMat(cv, origMat, isNTSC)
+		newMat := buildVTSMat(cv, origMat, isNTSC, regionConvert != "")
 
 		// Build single-cell PGC with correct NTSC timing
 		pgc := buildVTSPGC(cv, isNTSC)
@@ -175,7 +179,9 @@ func readVMGMAT(ifoPath string) (*ifo.VMG_MAT, error) {
 
 // buildVTSMat creates a VTS_MAT for the converted VOB, copying audio/subtitle
 // attributes from the original IFO when available.
-func buildVTSMat(cv convertedVTS, origMat *ifo.VTS_MAT, isNTSC bool) *ifo.VTS_MAT {
+// hasConversion is true when region conversion (PAL↔NTSC) was applied; in that
+// case subtitle claims are zeroed because VOBSUB streams were dropped from the VOB.
+func buildVTSMat(cv convertedVTS, origMat *ifo.VTS_MAT, isNTSC bool, hasConversion bool) *ifo.VTS_MAT {
 	mat := ifo.NewVTSMAT()
 
 	// Set video attributes for NTSC or PAL
@@ -195,8 +201,17 @@ func buildVTSMat(cv convertedVTS, origMat *ifo.VTS_MAT, isNTSC bool) *ifo.VTS_MA
 		mat.VTS_Attributes.PermittedDisplay = origMat.VTS_Attributes.PermittedDisplay
 		mat.VTS_Audio_Streams_Count = origMat.VTS_Audio_Streams_Count
 		mat.VTS_Audio_Attributes = origMat.VTS_Audio_Attributes
-		mat.VTS_Subpicture_Count = origMat.VTS_Subpicture_Count
-		mat.VTS_Subpicture_Attrs = origMat.VTS_Subpicture_Attrs
+		// All audio streams were re-encoded as AC-3; update codec field for each stream.
+		for i := 0; i < int(mat.VTS_Audio_Streams_Count); i++ {
+			mat.VTS_Audio_Attributes[i].AudioCodingMode = 0 // AC-3
+		}
+		if !hasConversion {
+			// No fps change: subtitle PTS are valid, preserve subpicture info.
+			mat.VTS_Subpicture_Count = origMat.VTS_Subpicture_Count
+			mat.VTS_Subpicture_Attrs = origMat.VTS_Subpicture_Attrs
+		}
+		// hasConversion: subtitle streams were dropped (PTS would be misaligned after
+		// fps change); leave VTS_Subpicture_Count at 0 so players don't try to load them.
 	} else {
 		// Defaults if no original IFO
 		mat.VTS_Audio_Streams_Count = 1
