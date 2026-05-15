@@ -6,120 +6,119 @@
 <title>VideoTools Roadmap</title>
 <style>
   :root {
-    --shipped: #22c55e; --shipped-bg: #f0fdf4; --shipped-border: #86efac;
-    --active: #eab308; --active-bg: #fefce8; --active-border: #fde047;
-    --planned: #3b82f6; --planned-bg: #eff6ff; --planned-border: #93c5fd;
-    --deferred: #6b7280; --deferred-bg: #f3f4f6; --deferred-border: #d1d5db;
-    --blocked: #ef4444; --blocked-bg: #fef2f2; --blocked-border: #fca5a5;
+    --vt-navy: #0F1529;
+    --vt-navy-light: #1a1f35;
+    --vt-card: #252a42;
+    --vt-border: #2d3456;
+    --vt-text: #e2e8f0;
+    --vt-text-muted: #94a3b8;
+
+    --shipped: #22c55e;
+    --done: #14b8a6;
+    --active: #eab308;
+    --planned: #3b82f6;
+    --deferred: #6b7280;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: #f8fafc; color: #1e293b; padding: 2rem;
+    background: var(--vt-navy); color: var(--vt-text); padding: 2rem;
   }
   h1 { font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; }
-  .subtitle { color: #64748b; margin-bottom: 1.5rem; font-size: 0.95rem; }
+  .subtitle { color: var(--vt-text-muted); margin-bottom: 1.5rem; font-size: 0.95rem; }
   .controls { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
   .controls button {
-    padding: 0.4rem 0.9rem; border-radius: 999px; border: 1.5px solid #e2e8f0;
-    background: #fff; cursor: pointer; font-size: 0.8rem; font-weight: 500;
-    transition: all 0.15s;
+    padding: 0.4rem 0.9rem; border-radius: 999px; border: 1.5px solid var(--vt-border);
+    background: var(--vt-navy-light); cursor: pointer; font-size: 0.8rem; font-weight: 500;
+    color: var(--vt-text); transition: all 0.15s;
   }
-  .controls button:hover { border-color: #94a3b8; }
-  .controls button.active { border-color: #1e293b; background: #1e293b; color: #fff; }
+  .controls button:hover { border-color: var(--vt-text-muted); }
+  .controls button.active { border-color: var(--vt-text); background: var(--vt-text); color: var(--vt-navy); }
   .legend {
     display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
-    padding: 0.75rem 1rem; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0;
+    padding: 0.75rem 1rem; background: var(--vt-navy-light); border-radius: 8px;
+    border: 1px solid var(--vt-border);
   }
-  .legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; }
-  .legend-swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(0,0,0,0.1); }
+  .legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--vt-text-muted); }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); }
   .board {
     display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem; min-height: 70vh;
   }
   .column {
-    min-width: 240px; max-width: 260px; flex-shrink: 0;
-    background: #fff; border-radius: 10px; border: 1px solid #e2e8f0;
+    min-width: 230px; max-width: 250px; flex-shrink: 0;
+    background: var(--vt-navy-light); border-radius: 10px; border: 1px solid var(--vt-border);
     display: flex; flex-direction: column;
   }
   .column-header {
-    padding: 0.75rem 1rem; font-weight: 600; font-size: 0.9rem;
-    border-bottom: 1px solid #e2e8f0; border-radius: 10px 10px 0 0;
+    padding: 0.75rem 1rem; font-weight: 600; font-size: 0.9rem; color: #fff;
+    border-bottom: 1px solid var(--vt-border); border-radius: 10px 10px 0 0;
     display: flex; justify-content: space-between; align-items: center;
   }
-  .column-count { font-size: 0.75rem; color: #94a3b8; font-weight: 400; }
+  .column-count { font-size: 0.75rem; color: rgba(255,255,255,0.6); font-weight: 400; }
   .column-body { padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
   .card {
-    padding: 0.6rem 0.8rem; border-radius: 6px; border-left: 3px solid #e2e8f0;
+    padding: 0.6rem 0.8rem; border-radius: 6px; border-left: 3px solid var(--vt-border);
     font-size: 0.8rem; cursor: pointer; transition: all 0.15s; position: relative;
+    background: var(--vt-card);
   }
-  .card:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-  .card-title { font-weight: 500; margin-bottom: 0.15rem; }
-  .card-desc { font-size: 0.7rem; color: #64748b; line-height: 1.3; }
+  .card:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .card-title { font-weight: 500; color: var(--vt-text); margin-bottom: 0.15rem; }
+  .card-desc { font-size: 0.7rem; color: var(--vt-text-muted); line-height: 1.3; }
   .card .cycle-tag {
     display: inline-block; font-size: 0.6rem; padding: 0.1rem 0.35rem;
-    border-radius: 3px; background: rgba(0,0,0,0.05); margin-top: 0.25rem;
+    border-radius: 3px; background: rgba(255,255,255,0.06); margin-top: 0.25rem;
+    color: var(--vt-text-muted);
   }
-  .card.shipped { background: var(--shipped-bg); border-left-color: var(--shipped); }
-  .card.active { background: var(--active-bg); border-left-color: var(--active); }
-  .card.planned { background: var(--planned-bg); border-left-color: var(--planned); }
-  .card.deferred { background: var(--deferred-bg); border-left-color: var(--deferred); }
-  .card.blocked { background: var(--blocked-bg); border-left-color: var(--blocked); }
+  .card.shipped { border-left-color: var(--shipped); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(34,197,94,0.08)); }
+  .card.done { border-left-color: var(--done); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(20,184,166,0.08)); }
+  .card.active { border-left-color: var(--active); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(234,179,8,0.08)); }
+  .card.planned { border-left-color: var(--planned); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(59,130,246,0.08)); }
+  .card.deferred { border-left-color: var(--deferred); background: var(--vt-card); }
   .card.hidden { display: none; }
 
-  /* ── MODAL ── */
   .modal-overlay {
     display: none; position: fixed; inset: 0; z-index: 1000;
-    background: rgba(0,0,0,0.4); backdrop-filter: blur(2px);
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
     align-items: center; justify-content: center;
   }
   .modal-overlay.open { display: flex; }
   .modal {
-    background: #fff; border-radius: 12px; max-width: 540px; width: 90%;
-    max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-    padding: 1.5rem; position: relative;
+    background: var(--vt-navy-light); border-radius: 12px; max-width: 540px; width: 90%;
+    max-height: 80vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    border: 1px solid var(--vt-border); padding: 1.5rem; position: relative;
   }
   .modal-close {
     position: absolute; top: 0.75rem; right: 1rem;
     background: none; border: none; font-size: 1.4rem; cursor: pointer;
-    color: #94a3b8; line-height: 1;
+    color: var(--vt-text-muted); line-height: 1;
   }
-  .modal-close:hover { color: #1e293b; }
+  .modal-close:hover { color: var(--vt-text); }
   .modal .status-badge {
     display: inline-block; padding: 0.15rem 0.6rem; border-radius: 999px;
     font-size: 0.7rem; font-weight: 600; margin-bottom: 0.75rem;
   }
-  .modal .status-badge.shipped { background: var(--shipped-bg); color: #166534; border: 1px solid var(--shipped-border); }
-  .modal .status-badge.active { background: var(--active-bg); color: #854d0e; border: 1px solid var(--active-border); }
-  .modal .status-badge.planned { background: var(--planned-bg); color: #1e40af; border: 1px solid var(--planned-border); }
-  .modal .status-badge.deferred { background: var(--deferred-bg); color: #4b5563; border: 1px solid var(--deferred-border); }
-  .modal .status-badge.blocked { background: var(--blocked-bg); color: #991b1b; border: 1px solid var(--blocked-border); }
-  .modal h2 { font-size: 1.2rem; margin-bottom: 0.5rem; }
-  .modal .detail-desc {
-    font-size: 0.9rem; color: #475569; line-height: 1.5; margin-bottom: 1rem;
-  }
-  .modal .detail-section {
-    margin-bottom: 0.75rem;
-  }
+  .modal .status-badge.shipped { background: rgba(34,197,94,0.15); color: #86efac; border: 1px solid var(--shipped); }
+  .modal .status-badge.done { background: rgba(20,184,166,0.15); color: #5eead4; border: 1px solid var(--done); }
+  .modal .status-badge.active { background: rgba(234,179,8,0.15); color: #fde047; border: 1px solid var(--active); }
+  .modal .status-badge.planned { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid var(--planned); }
+  .modal .status-badge.deferred { background: rgba(107,114,128,0.15); color: #9ca3af; border: 1px solid var(--deferred); }
+  .modal h2 { font-size: 1.2rem; color: var(--vt-text); margin-bottom: 0.5rem; }
+  .modal .detail-desc { font-size: 0.9rem; color: var(--vt-text-muted); line-height: 1.5; margin-bottom: 1rem; }
+  .modal .detail-section { margin-bottom: 0.75rem; }
   .modal .detail-section h3 {
     font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em;
-    color: #94a3b8; margin-bottom: 0.3rem;
+    color: #64748b; margin-bottom: 0.3rem;
   }
-  .modal .detail-section ul {
-    list-style: none; padding: 0;
-  }
-  .modal .detail-section li {
-    font-size: 0.82rem; padding: 0.2rem 0; color: #334155;
-  }
-  .modal .detail-section li::before {
-    content: '\2022'; color: #94a3b8; margin-right: 0.5rem;
-  }
+  .modal .detail-section ul { list-style: none; padding: 0; }
+  .modal .detail-section li { font-size: 0.82rem; padding: 0.2rem 0; color: #cbd5e1; }
+  .modal .detail-section li::before { content: '\2022'; color: var(--vt-text-muted); margin-right: 0.5rem; }
   .modal .detail-section .code {
     font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.75rem;
-    background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 3px;
+    background: rgba(255,255,255,0.06); padding: 0.1rem 0.3rem; border-radius: 3px;
+    color: #cbd5e1;
   }
-  .modal .grid-2 {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
-  }
+  .modal .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .modal .detail-section p { font-size: 0.85rem; color: #cbd5e1; }
   @media (max-width: 768px) {
     body { padding: 1rem; }
     .column { min-width: 200px; }
@@ -134,24 +133,23 @@
 
 <div class="legend">
   <span class="legend-item"><span class="legend-swatch" style="background:var(--shipped)"></span> Shipped</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--done)"></span> Done (Untested)</span>
   <span class="legend-item"><span class="legend-swatch" style="background:var(--active)"></span> In Progress</span>
   <span class="legend-item"><span class="legend-swatch" style="background:var(--planned)"></span> Planned</span>
   <span class="legend-item"><span class="legend-swatch" style="background:var(--deferred)"></span> Deferred</span>
-  <span class="legend-item"><span class="legend-swatch" style="background:var(--blocked)"></span> Blocked</span>
 </div>
 
 <div class="controls" id="filters">
   <button class="active" data-filter="all">All</button>
   <button data-filter="shipped">Shipped</button>
+  <button data-filter="done">Done (Untested)</button>
   <button data-filter="active">In Progress</button>
   <button data-filter="planned">Planned</button>
   <button data-filter="deferred">Deferred</button>
-  <button data-filter="blocked">Blocked</button>
 </div>
 
 <div class="board" id="board"></div>
 
-<!-- ── MODAL ── -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
     <button class="modal-close" id="modalClose">&times;</button>
@@ -161,11 +159,11 @@
     <div class="grid-2">
       <div class="detail-section">
         <h3>Module</h3>
-        <p id="modalModule" style="font-size:0.85rem;color:#334155;"></p>
+        <p id="modalModule" style="font-size:0.85rem;"></p>
       </div>
       <div class="detail-section">
         <h3>Dev Cycle</h3>
-        <p id="modalCycle" style="font-size:0.85rem;color:#334155;"></p>
+        <p id="modalCycle" style="font-size:0.85rem;"></p>
       </div>
     </div>
     <div class="detail-section">
@@ -184,265 +182,202 @@
 </div>
 
 <script>
-// ── ROADMAP DATA ──
+const moduleColors = {
+  'Rip': '#1A9373',
+  'Burn': '#178C8C',
+  'Player': '#1D8EA5',
+  'Convert': '#7225D0',
+  'Author': '#1C9C44',
+  'Audio': '#BF3C22',
+  'Queue': '#2260BF',
+  'Main Menu': '#2825D0',
+  'Settings': '#2825D0',
+  'Other Modules': '#629C1C',
+  'Infrastructure': '#B423C7',
+  'Trim + Enhancement': '#BF2290',
+};
+
+const statusLabels = {
+  shipped: 'Shipped',
+  done: 'Done (Untested)',
+  active: 'In Progress',
+  planned: 'Planned',
+  deferred: 'Deferred'
+};
+
 const roadmap = {
   Rip: {
     items: [
-      { id: 'ifo-scan', title: 'IFO Scanning', desc: 'Reads VMG TT_SRPT + per-VTS IFOs for titles, chapters, audio, subtitle tracks',
-        status: 'shipped', cycle: 'dev44', files: ['internal/dvd/ifo/extract.go', 'internal/dvd/ifo/vtsi.go', 'internal/dvd/ifo/vmgi.go'],
-        deps: [], docs: ['docs/RIP_ENRICHMENT_DESIGN.md'] },
-      { id: 'iso-udf', title: 'ISO via UDF Reader', desc: 'Native Go UDF parser — extracts VIDEO_TS from ISO without 7zip or mounting',
-        status: 'shipped', cycle: 'dev44', files: ['internal/dvd/udf/reader.go'],
-        deps: [], docs: [] },
-      { id: 'region-detect', title: 'Region Detection', desc: 'VMG_Category parsing from VIDEO_TS.IFO for disc region display',
-        status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/scan.go', 'internal/dvd/ifo/vmgi.go'],
-        deps: [], docs: [] },
-      { id: 'disc-info', title: 'Disc Info at Top', desc: 'Type/size/region shown as standalone label above controls — no card wrapper',
-        status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/view.go'],
-        deps: ['ifo-scan'], docs: [] },
-      { id: 'progress-eta', title: 'Progress Bar + ETA', desc: 'Parses out_time_us from FFmpeg, computes encode rate, shows compact ETA in status',
-        status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/executor.go'],
-        deps: [], docs: [] },
-      { id: 'css-detect', title: 'CSS Encryption Detection', desc: 'Detects CSS-encrypted VOBs before ripping, logs warning',
-        status: 'shipped', cycle: 'dev45', files: ['internal/dvd/css/css.go'],
-        deps: [], docs: [] },
-      { id: 'title-select', title: 'Title Selection UI', desc: 'Checkboxes per title for multi-title discs; each selected title becomes a queue job',
-        status: 'shipped', cycle: 'dev46', files: ['internal/app/modules/rip/view.go'],
-        deps: ['ifo-scan'], docs: [] },
-      { id: 'archivist', title: 'Archivist Mode', desc: 'Lossless extraction of elementary streams (m2v, ac3, sup) for manual DVD reconstruction',
-        status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/rip/executor.go'],
-        deps: [], docs: [] },
-      { id: 'full-disc', title: 'Full-Disc Extraction', desc: 'Iterates all VTS sets + menu VOB with CSS decryption for complete disc backup',
-        status: 'shipped', cycle: 'dev46', files: ['internal/app/modules/rip/executor.go'],
-        deps: ['pal-ntsc'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
-      { id: 'pal-ntsc', title: 'PAL/NTSC Full-Disc Conversion', desc: 'Region conversion pipeline — yadif deinterlace + scale + fps + atempo + IFO regeneration',
-        status: 'shipped', cycle: 'dev46', files: ['internal/app/modules/rip/executor.go', 'internal/dvd/ifo/ifo_regen.go'],
-        deps: ['ifo-scan'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
-      { id: 'dvdvideo', title: '-f dvdvideo Demuxer', desc: 'Cell-accurate title playback via FFmpeg native dvdvideo demuxer — handles seamless branching discs correctly',
-        status: 'active', cycle: 'dev48', files: ['internal/app/modules/rip/executor.go'],
-        deps: [], docs: [] },
-      { id: 'main-feature', title: 'Main Feature Auto-Detect', desc: 'Auto-identify the feature title via IFO heuristics (duration, stream count, title type flags)',
-        status: 'deferred', cycle: 'future', files: [], deps: ['ifo-scan'],
-        docs: [] },
+      { id: 'ifo-scan', title: 'IFO Scanning', desc: 'Reads VMG TT_SRPT + per-VTS IFOs for titles, chapters, audio, subtitle tracks', status: 'shipped', cycle: 'dev44', files: ['internal/dvd/ifo/extract.go', 'internal/dvd/ifo/vtsi.go', 'internal/dvd/ifo/vmgi.go'], deps: [], docs: ['docs/RIP_ENRICHMENT_DESIGN.md'] },
+      { id: 'iso-udf', title: 'ISO via UDF Reader', desc: 'Native Go UDF parser — extracts VIDEO_TS from ISO without 7zip or mounting', status: 'shipped', cycle: 'dev44', files: ['internal/dvd/udf/reader.go'], deps: [], docs: [] },
+      { id: 'region-detect', title: 'Region Detection', desc: 'VMG_Category parsing from VIDEO_TS.IFO for disc region display', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/scan.go', 'internal/dvd/ifo/vmgi.go'], deps: [], docs: [] },
+      { id: 'disc-info', title: 'Disc Info at Top', desc: 'Type/size/region shown as standalone label above controls — no card wrapper', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/view.go'], deps: ['ifo-scan'], docs: [] },
+      { id: 'progress-eta', title: 'Progress Bar + ETA', desc: 'Parses out_time_us from FFmpeg, computes encode rate, shows compact ETA in status', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
+      { id: 'css-detect', title: 'CSS Encryption Detection', desc: 'Detects CSS-encrypted VOBs before ripping, logs warning', status: 'shipped', cycle: 'dev45', files: ['internal/dvd/css/css.go'], deps: [], docs: [] },
+      { id: 'title-select', title: 'Title Selection UI', desc: 'Checkboxes per title for multi-title discs; each selected title becomes a queue job', status: 'shipped', cycle: 'dev46', files: ['internal/app/modules/rip/view.go'], deps: ['ifo-scan'], docs: [] },
+      { id: 'archivist', title: 'Archivist Mode', desc: 'Lossless extraction of elementary streams (m2v, ac3, sup) for manual DVD reconstruction', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
+      { id: 'full-disc', title: 'Full-Disc Extraction', desc: 'Iterates all VTS sets + menu VOB with CSS decryption for complete disc backup', status: 'shipped', cycle: 'dev46', files: ['internal/app/modules/rip/executor.go'], deps: ['pal-ntsc'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
+      { id: 'pal-ntsc', title: 'PAL/NTSC Full-Disc Conversion', desc: 'Region conversion pipeline — yadif deinterlace + scale + fps + atempo + IFO regeneration', status: 'shipped', cycle: 'dev46', files: ['internal/app/modules/rip/executor.go', 'internal/dvd/ifo/ifo_regen.go'], deps: ['ifo-scan'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
+      { id: 'dvdvideo', title: '-f dvdvideo Demuxer', desc: 'Cell-accurate title playback via FFmpeg native dvdvideo demuxer — handles seamless branching discs correctly', status: 'done', cycle: 'dev48', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
+      { id: 'm2ts-support', title: '.m2ts File Support', desc: 'Handle .m2ts files in CollectVOBSets (currently only .vob is matched)', status: 'deferred', cycle: 'future', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
+      { id: 'main-feature', title: 'Main Feature Auto-Detect', desc: 'Auto-identify the feature title via IFO heuristics (duration, stream count, title type flags)', status: 'deferred', cycle: 'future', files: [], deps: ['ifo-scan'], docs: [] },
+      { id: 'clone-disc', title: 'Clone Disc to ISO', desc: 'Sector-by-sector disc copy with queue integration — see CLONE_DISC_DESIGN.md', status: 'deferred', cycle: 'future', files: [], deps: [], docs: ['docs/CLONE_DISC_DESIGN.md'] },
     ]
   },
 
   Burn: {
     items: [
-      { id: 'isoburn', title: 'isoburn.exe (Windows)', desc: 'Zero new runtime dependencies — uses built-in Windows 7+ disc burning tool',
-        status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/burn/executor.go'],
-        deps: [], docs: ['docs/BURN_MODULE_DESIGN.md'] },
-      { id: 'growisofs', title: 'growisofs (Linux)', desc: 'dvd+rw-tools with SG_IO progress parsing + SHA-256 verify',
-        status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/burn/executor.go'],
-        deps: [], docs: ['docs/BURN_MODULE_DESIGN.md'] },
-      { id: 'drive-info', title: 'Drive Info / Capacity', desc: 'Detect disc type (DVD5/9, BD25/50) before burning starts',
-        status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/burn/view.go'],
-        deps: [], docs: ['docs/BURN_MODULE_DESIGN.md'] },
-      { id: 'consolebox', title: 'ConsoleBox Log', desc: 'Styled dark-background log widget with pill header, clipboard copy, header extras',
-        status: 'shipped', cycle: 'dev47', files: ['internal/ui/consolebox.go'],
-        deps: [], docs: [] },
-      { id: 'multi-drive', title: 'Multi-Drive Batch', desc: 'Queue multiple ISOs and burn across all available burners simultaneously',
-        status: 'active', cycle: 'dev48', files: [],
-        deps: [], docs: ['docs/BURN_MODULE_DESIGN.md#phase-2'] },
-      { id: 'imapi2', title: 'IMAPI2 COM Replacement', desc: 'Replace isoburn.exe direct COM API for proper progress callbacks, speed control, and error reporting',
-        status: 'planned', cycle: 'dev49', files: [],
-        deps: ['multi-drive'], docs: ['docs/BURN_MODULE_DESIGN.md#phase-3'] },
+      { id: 'isoburn', title: 'isoburn.exe (Windows)', desc: 'Zero new runtime dependencies — uses built-in Windows 7+ disc burning tool', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/burn/executor.go'], deps: [], docs: ['docs/BURN_MODULE_DESIGN.md'] },
+      { id: 'growisofs', title: 'growisofs (Linux)', desc: 'dvd+rw-tools with SG_IO progress parsing + SHA-256 verify', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/burn/executor.go'], deps: [], docs: ['docs/BURN_MODULE_DESIGN.md'] },
+      { id: 'drive-info', title: 'Drive Info / Capacity', desc: 'Detect disc type (DVD5/9, BD25/50) before burning starts', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/burn/view.go'], deps: [], docs: ['docs/BURN_MODULE_DESIGN.md'] },
+      { id: 'consolebox', title: 'ConsoleBox Log', desc: 'Styled dark-background log widget with pill header, clipboard copy, header extras', status: 'shipped', cycle: 'dev47', files: ['internal/ui/consolebox.go'], deps: [], docs: [] },
+      { id: 'multi-drive', title: 'Multi-Drive Batch', desc: 'Queue multiple ISOs and burn across all available burners simultaneously', status: 'active', cycle: 'dev48', files: [], deps: ['drive-info'], docs: ['docs/BURN_MODULE_DESIGN.md'] },
+      { id: 'imapi2', title: 'IMAPI2 COM Replacement', desc: 'Replace isoburn.exe with direct COM API for proper progress callbacks, speed control, and error reporting', status: 'planned', cycle: 'dev49', files: [], deps: ['multi-drive'], docs: ['docs/BURN_MODULE_DESIGN.md'] },
     ]
   },
 
   Player: {
     items: [
-      { id: 'engine', title: 'CGo/FFmpeg Engine', desc: 'FFmpeg-based demux + decode + audio via oto v3; native_media build tag',
-        status: 'shipped', cycle: 'dev42', files: ['internal/media/'],
-        deps: [], docs: ['docs/NATIVE_PLAYER.md'] },
-      { id: 'inline-player', title: 'InlineVideoPlayer API', desc: 'Single API layer wrapping VideoPlayer — all modules must use this, not the engine directly',
-        status: 'shipped', cycle: 'dev44', files: ['internal/ui/inline_player.go'],
-        deps: ['engine'], docs: ['docs/NATIVE_PLAYER.md'] },
-      { id: 'd3d11va', title: 'D3D11VA Hardware Decode', desc: 'Direct3D 11 hardware-accelerated video decoding on Windows',
-        status: 'shipped', cycle: 'dev44', files: ['internal/media/'],
-        deps: ['engine'], docs: [] },
-      { id: 'audio-sync', title: 'Audio Sync', desc: 'A/V synchronisation via oto audio playback timing',
-        status: 'shipped', cycle: 'dev44', files: ['internal/media/audio.go'],
-        deps: ['engine'], docs: [] },
-      { id: 'thread-safe', title: 'Thread-Safety Audit', desc: 'WaitGroup guards on close/demuxer race, pixel format SIGSEGV fix, seekLoop goroutine leak fix',
-        status: 'shipped', cycle: 'dev43', files: ['internal/media/player.go', 'internal/media/engine.go'],
-        deps: ['engine'], docs: ['docs/PLAYER_DEBUG.md'] },
-      { id: 'smpte-idle', title: 'SMPTE Bars Idle State', desc: '"DROP VIDEO TO LOAD" placeholder with colour bars when no media is loaded',
-        status: 'shipped', cycle: 'dev44', files: ['internal/ui/smpte_idle.go'],
-        deps: ['inline-player'], docs: [] },
-      { id: 'audio-prewarm', title: 'Audio Context Pre-Warm', desc: 'Initializes shared audio context (oto/WASAPI) at startup to avoid first-playback delay',
-        status: 'shipped', cycle: 'dev47', files: ['internal/media/audio.go'],
-        deps: ['engine'], docs: [] },
-      { id: 'seeking', title: 'Seeking Performance', desc: 'Frame-accurate seeking — still WIP; keyframe snapping in some container formats',
-        status: 'deferred', cycle: 'future', files: ['internal/media/player.go'],
-        deps: ['engine'], docs: ['docs/PLAYER_DEBUG.md'] },
-      { id: 'dvd-menu-play', title: 'DVD Menu Playback', desc: 'Interactive menu navigation (select buttons, navigate chapters) within the media player',
-        status: 'planned', cycle: 'future', files: [],
-        deps: ['engine', 'dvdvideo'], docs: [] },
+      { id: 'engine', title: 'CGo/FFmpeg Engine', desc: 'FFmpeg-based demux + decode + audio via oto v3; native_media build tag', status: 'shipped', cycle: 'dev42', files: ['internal/media/'], deps: [], docs: ['docs/NATIVE_PLAYER.md'] },
+      { id: 'inline-player', title: 'InlineVideoPlayer API', desc: 'Single API layer wrapping VideoPlayer — all modules must use this, not the engine directly', status: 'shipped', cycle: 'dev44', files: ['internal/ui/inline_player.go'], deps: ['engine'], docs: ['docs/NATIVE_PLAYER.md'] },
+      { id: 'd3d11va', title: 'D3D11VA Hardware Decode', desc: 'Direct3D 11 hardware-accelerated video decoding on Windows', status: 'shipped', cycle: 'dev44', files: ['internal/media/'], deps: ['engine'], docs: [] },
+      { id: 'audio-sync', title: 'Audio Sync', desc: 'A/V synchronisation via oto audio playback timing', status: 'shipped', cycle: 'dev44', files: ['internal/media/audio.go'], deps: ['engine'], docs: [] },
+      { id: 'thread-safe', title: 'Thread-Safety Audit', desc: 'WaitGroup guards on close/demuxer race, pixel format SIGSEGV fix, seekLoop goroutine leak fix', status: 'shipped', cycle: 'dev43', files: ['internal/media/player.go', 'internal/media/engine.go'], deps: ['engine'], docs: ['docs/PLAYER_DEBUG.md'] },
+      { id: 'smpte-idle', title: 'SMPTE Bars Idle State', desc: '"DROP VIDEO TO LOAD" placeholder with colour bars when no media is loaded', status: 'shipped', cycle: 'dev44', files: ['internal/ui/smpte_idle.go'], deps: ['inline-player'], docs: [] },
+      { id: 'audio-prewarm', title: 'Audio Context Pre-Warm', desc: 'Initializes shared audio context (oto/WASAPI) at startup to avoid first-playback delay', status: 'shipped', cycle: 'dev47', files: ['internal/media/audio.go'], deps: ['engine'], docs: [] },
+      { id: 'gstreamer-removal', title: 'GStreamer Removal', desc: 'Remove legacy internal/player/gstreamer* files, build scripts, and CI references', status: 'deferred', cycle: 'future', files: ['internal/player/gstreamer*'], deps: ['engine'], docs: [] },
+      { id: 'seeking', title: 'Seeking Performance', desc: 'Frame-accurate seeking — keyframe snapping in some containers, needs adaptive timing with drift correction', status: 'deferred', cycle: 'future', files: ['internal/media/player.go'], deps: ['engine'], docs: ['docs/PLAYER_DEBUG.md'] },
+      { id: 'dvd-menu-play', title: 'DVD Menu Playback', desc: 'Interactive menu navigation (select buttons, navigate chapters) within the media player', status: 'deferred', cycle: 'future', files: [], deps: ['dvdvideo'], docs: [] },
+      { id: 'unified-arch', title: 'Unified FFmpeg Architecture', desc: 'Single FFmpeg process with multiplexed A/V output; master clock, PTS drift correction, ring buffers', status: 'deferred', cycle: 'future', files: ['internal/media/'], deps: ['engine'], docs: [] },
+      { id: 'frame-extract', title: 'Frame Extraction System', desc: 'Keyframe detection, frame buffer pooling, extraction without restarting playback', status: 'deferred', cycle: 'future', files: [], deps: ['unified-arch'], docs: [] },
+      { id: 'frame-seeking', title: 'Frame-Accurate Seeking', desc: 'Seek to specific frames without killing/restarting processes; keyframe-aware seeking', status: 'deferred', cycle: 'future', files: [], deps: ['unified-arch'], docs: [] },
+      { id: 'chapter-sys', title: 'Chapter System Integration', desc: 'Port scene detection from Author; manual chapter support; chapter navigation in player', status: 'deferred', cycle: 'future', files: [], deps: ['seeking'], docs: [] },
     ]
   },
 
   Convert: {
     items: [
-      { id: 'conv-p1', title: 'Phase 1 — Core Pipeline', desc: 'Sample rate dropdown, normalize audio with LUFS/TruePeak sliders, deinterlace modes, H.264 Profile/Level',
-        status: 'shipped', cycle: 'dev44', files: ['internal/app/modules/convert/'],
-        deps: [], docs: ['docs/CONVERT_MODULE_IMPROVEMENTS.md'] },
-      { id: 'conv-presets', title: 'Presets System', desc: 'H.264 MKV/MP4, Lossless MKV (stream copy), presets dropdown with descriptions',
-        status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/convert/'],
-        deps: ['conv-p1'], docs: [] },
-      { id: 'conv-i18n', title: 'Convert i18n', desc: 'All ~42 hardcoded strings replaced with i18n keys; en-CA, fr-CA, iu locales',
-        status: 'shipped', cycle: 'dev44', files: ['internal/i18n/'],
-        deps: [], docs: [] },
-      { id: 'conv-p2', title: 'Phase 2 — More Formats', desc: 'AVI, FLV, TS/M2TS, 3GP, OGG support; x264/x265 tuning presets (Film, Animation, Grain)',
-        status: 'deferred', cycle: 'future', files: [],
-        deps: ['conv-presets'], docs: ['docs/CONVERT_MODULE_IMPROVEMENTS.md'] },
+      { id: 'conv-p1', title: 'Phase 1 — Core Pipeline', desc: 'Sample rate dropdown, normalize audio with LUFS/TruePeak sliders, deinterlace modes, H.264 Profile/Level', status: 'shipped', cycle: 'dev44', files: ['internal/app/modules/convert/'], deps: [], docs: ['docs/CONVERT_MODULE_IMPROVEMENTS.md'] },
+      { id: 'conv-presets', title: 'Presets System', desc: 'H.264 MKV/MP4, Lossless MKV (stream copy), presets dropdown with descriptions', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/convert/'], deps: ['conv-p1'], docs: [] },
+      { id: 'conv-i18n', title: 'Convert i18n', desc: 'All ~42 hardcoded strings replaced with i18n keys; en-CA, fr-CA, iu locales', status: 'shipped', cycle: 'dev44', files: ['internal/i18n/'], deps: [], docs: [] },
+      { id: 'conv-p2-formats', title: 'Phase 2 — More Formats', desc: 'AVI, FLV, TS/M2TS, 3GP, OGG support', status: 'deferred', cycle: 'future', files: [], deps: ['conv-presets'], docs: ['docs/CONVERT_MODULE_IMPROVEMENTS.md'] },
+      { id: 'conv-tuning', title: 'x264/x265 Tuning Presets', desc: 'Film, Animation, Grain, Stillimage, Fastdecode tuning presets for H.264/H.265 encodes', status: 'deferred', cycle: 'future', files: [], deps: ['conv-presets'], docs: ['docs/CONVERT_MODULE_IMPROVEMENTS.md'] },
+      { id: 'conv-consolidate', title: 'Consolidate Presets', desc: 'Move inline format definitions to presets.go for cleaner architecture', status: 'deferred', cycle: 'future', files: ['internal/app/modules/convert/'], deps: [], docs: [] },
+      { id: 'conv-dragdrop', title: 'Fix Drag & Drop', desc: 'Files dragged onto the Convert module drop zone are not registered (carry-forward from dev32)', status: 'deferred', cycle: 'future', files: ['internal/app/modules/convert/view.go'], deps: [], docs: [] },
+      { id: 'conv-icon-pass', title: 'Convert UI Icon Pass', desc: 'Replace temporary ASCII-safe Convert control labels with proper icon resources', status: 'deferred', cycle: 'future', files: ['internal/app/modules/convert/view.go'], deps: [], docs: [] },
     ]
   },
 
   Author: {
     items: [
-      { id: 'm1-m7', title: 'M1-M7 Menu System', desc: 'Full DVD menu pipeline: MPEG-2 encode, SPU subtitle mux, NAV_PCK with PCI buttons, PGC cell table, VOB assembly',
-        status: 'shipped', cycle: 'dev40', files: ['author_menu.go', 'author_dvd_functions.go', 'internal/dvd/ifo/'],
-        deps: [], docs: ['docs/DVD_MENU_SYSTEM_DESIGN.md'] },
-      { id: 'ifo-regen', title: 'IFO Regeneration', desc: 'Full VTS_MAT, VMG_MAT, PGCITI, TMAPT, C_ADT, ADMAP, TT_SRPT generation for converted discs',
-        status: 'shipped', cycle: 'dev46', files: ['internal/dvd/ifo/ifo_regen.go', 'internal/dvd/ifo/builder.go'],
-        deps: ['m1-m7'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
-      { id: 'author-log', title: 'ConsoleBox Author Log', desc: 'Styled log widget in author module with job label and header extras',
-        status: 'shipped', cycle: 'dev47', files: ['author_module.go'],
-        deps: ['consolebox'], docs: [] },
-      { id: 'log-trunc', title: 'Log Truncation Removed', desc: 'Previously limited to 100 lines; now preserves full FFmpeg/authoring output',
-        status: 'shipped', cycle: 'dev47', files: ['author_module.go'],
-        deps: ['author-log'], docs: [] },
+      { id: 'm1-m7', title: 'M1-M7 Menu System', desc: 'Full DVD menu pipeline: MPEG-2 encode, SPU mux, NAV_PCK with PCI buttons, PGC cell table, VOB assembly', status: 'shipped', cycle: 'dev40', files: ['author_menu.go', 'author_dvd_functions.go', 'internal/dvd/ifo/'], deps: [], docs: ['docs/DVD_MENU_SYSTEM_DESIGN.md'] },
+      { id: 'ifo-regen', title: 'IFO Regeneration', desc: 'Full VTS_MAT, VMG_MAT, PGCITI, TMAPT, C_ADT, ADMAP, TT_SRPT generation for converted discs', status: 'shipped', cycle: 'dev46', files: ['internal/dvd/ifo/ifo_regen.go', 'internal/dvd/ifo/builder.go'], deps: ['m1-m7'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
+      { id: 'author-log', title: 'ConsoleBox Log', desc: 'Styled log widget in author module with job label and header extras', status: 'shipped', cycle: 'dev47', files: ['author_module.go'], deps: ['consolebox'], docs: [] },
+      { id: 'log-trunc', title: 'Log Truncation Removed', desc: 'Previously limited to 100 lines; now preserves full FFmpeg/authoring output', status: 'shipped', cycle: 'dev47', files: ['author_module.go'], deps: [], docs: [] },
+      { id: 'multi-audio', title: 'Multi-Audio Track Authoring', desc: 'Wire multi-track AC3 encoding into the authoring pipeline', status: 'deferred', cycle: 'future', files: ['author_module.go'], deps: ['m1-m7'], docs: [] },
+      { id: 'subtitle-track', title: 'Subtitle Track Authoring', desc: 'Wire subtitle track authoring through FFmpeg mapping pipeline', status: 'deferred', cycle: 'future', files: ['author_module.go'], deps: ['m1-m7'], docs: [] },
+      { id: 'multi-disc', title: 'Multi-Disc Authoring', desc: 'Volume management UI (2-9 discs), per-volume clip assignment, auto-balance, batch ISO output', status: 'deferred', cycle: 'future', files: [], deps: ['m1-m7'], docs: ['docs/MULTI_DISC_AUTHORING.md'] },
+      { id: 'content-classify', title: 'Content Classification', desc: 'Feature/Extra/Gallery classification, per-type menu rules, chapter screenshot generation', status: 'deferred', cycle: 'future', files: [], deps: ['m1-m7'], docs: [] },
+      { id: 'menu-templates', title: 'Menu Template: Cinematic', desc: 'Wide banner title, full-bleed background — modern cinematic menu template', status: 'deferred', cycle: 'future', files: [], deps: ['m1-m7'], docs: [] },
+      { id: 'menu-customize', title: 'Menu Customization Options', desc: 'Custom font support (TTF/OTF), button style/shape options, colour theme pickers', status: 'deferred', cycle: 'future', files: [], deps: ['menu-templates'], docs: [] },
+      { id: 'pro-authoring', title: 'Professional Authoring', desc: 'Menu preset save/load, widescreen (16:9) support, DVD-9 dual-layer, disc label generation', status: 'deferred', cycle: 'future', files: [], deps: ['m1-m7'], docs: [] },
     ]
   },
 
   Audio: {
     items: [
-      { id: 'audio-p1', title: 'Phase 1 — Layout', desc: 'Consistent module box styling via buildAudioBox(), proper TintedBar header, stats bar integration',
-        status: 'shipped', cycle: 'dev42', files: ['internal/app/modules/audio/'],
-        deps: [], docs: ['docs/AUDIO_MODULE_IMPROVEMENTS.md'] },
-      { id: 'audio-p2', title: 'Phase 2 — Native Player', desc: 'InlineVideoPlayer integration, video preview pane for source selection, SMPTE idle state',
-        status: 'shipped', cycle: 'dev44', files: ['internal/app/modules/audio/'],
-        deps: ['audio-p1', 'inline-player'], docs: ['docs/AUDIO_MODULE_IMPROVEMENTS.md'] },
-      { id: 'audio-p3', title: 'Phase 3 — Track Selection', desc: 'Enhanced track list with codec colours, language flags, duration display, output naming preview, reordering',
-        status: 'shipped', cycle: 'dev46', files: ['internal/app/modules/audio/'],
-        deps: ['audio-p2'], docs: ['docs/AUDIO_MODULE_IMPROVEMENTS.md'] },
+      { id: 'audio-p1', title: 'Phase 1 — Layout', desc: 'Consistent module box styling via buildAudioBox(), proper TintedBar header, stats bar integration', status: 'shipped', cycle: 'dev42', files: ['internal/app/modules/audio/'], deps: [], docs: ['docs/AUDIO_MODULE_IMPROVEMENTS.md'] },
+      { id: 'audio-p2', title: 'Phase 2 — Native Player', desc: 'InlineVideoPlayer integration, video preview pane, SMPTE idle state', status: 'shipped', cycle: 'dev44', files: ['internal/app/modules/audio/'], deps: ['audio-p1', 'inline-player'], docs: ['docs/AUDIO_MODULE_IMPROVEMENTS.md'] },
+      { id: 'audio-p3', title: 'Phase 3 — Track Selection', desc: 'Enhanced track list with codec colours, language flags, duration display, reordering', status: 'shipped', cycle: 'dev46', files: ['internal/app/modules/audio/'], deps: ['audio-p2'], docs: ['docs/AUDIO_MODULE_IMPROVEMENTS.md'] },
     ]
   },
 
   Queue: {
     items: [
-      { id: 'job-queue', title: 'Job Queue', desc: 'Multi-job management with progress tracking, start/stop/clear controls, per-job status',
-        status: 'shipped', cycle: 'dev43', files: ['internal/queue/'],
-        deps: [], docs: ['docs/QUEUE_SYSTEM_GUIDE.md'] },
-      { id: 'pipeline', title: 'Module Pipeline (&&)', desc: 'Two-module chains: pipelineActive state machine, && button in header, dims invalid targets, intermediate file cleanup',
-        status: 'shipped', cycle: 'dev45', files: ['main.go', 'internal/queue/'],
-        deps: ['job-queue'], docs: [] },
-      { id: 'queue-console', title: 'ConsoleBox Live Output', desc: 'Real-time FFmpeg log output in queue view using ConsoleBox widget',
-        status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/queue/', 'internal/ui/consolebox.go'],
-        deps: ['job-queue', 'consolebox'], docs: [] },
+      { id: 'job-queue', title: 'Job Queue', desc: 'Multi-job management with progress tracking, start/stop/clear controls, per-job status', status: 'shipped', cycle: 'dev43', files: ['internal/queue/'], deps: [], docs: ['docs/QUEUE_SYSTEM_GUIDE.md'] },
+      { id: 'pipeline', title: 'Module Pipeline (&&)', desc: 'Two-module chains: pipelineActive state machine, && button in header, intermediate file cleanup', status: 'shipped', cycle: 'dev45', files: ['main.go', 'internal/queue/'], deps: ['job-queue'], docs: [] },
+      { id: 'queue-console', title: 'ConsoleBox Live Output', desc: 'Real-time FFmpeg log display in queue view using ConsoleBox widget', status: 'shipped', cycle: 'dev47', files: ['internal/queue/', 'internal/ui/consolebox.go'], deps: ['job-queue', 'consolebox'], docs: [] },
+      { id: 'race-fix', title: 'Queue notifyChange Race Fix', desc: 'Fix goroutine in queue.go spawning without lock on queue state', status: 'planned', cycle: 'dev48', files: ['internal/queue/queue.go'], deps: ['job-queue'], docs: [] },
+      { id: 'visual-feedback', title: 'Queue Visual Polish', desc: 'Improve button states and hover effects in queue view', status: 'deferred', cycle: 'future', files: ['internal/app/modules/queue/view.go'], deps: [], docs: [] },
     ]
   },
 
   'Main Menu': {
     items: [
-      { id: 'quick-access', title: 'Quick Access Dropdown', desc: 'Files dropdown in header: recent files list, open in module, open output folder',
-        status: 'shipped', cycle: 'dev45', files: ['main.go'],
-        deps: [], docs: ['docs/QUICK_ACCESS_DROPDOWN.md'] },
-      { id: 'pipeline-toggle', title: 'Module Pipeline (&&) Toggle', desc: 'Button in main menu header that toggles pipeline mode, dims invalid step-2 targets',
-        status: 'shipped', cycle: 'dev45', files: ['main.go'],
-        deps: ['pipeline'], docs: [] },
-      { id: 'menu-refactor', title: 'Main Menu Refactor', desc: 'Extract showMainMenu() from root mainmenu_module.go into internal/app/modules/mainmenu/ — reduces root coupling',
-        status: 'active', cycle: 'dev48', files: ['mainmenu_module.go'],
-        deps: [], docs: ['docs/REFACTOR_DEV30_PLAN.md'] },
+      { id: 'quick-access', title: 'Quick Access Dropdown', desc: 'Files dropdown in header: recent files list, open in module, open output folder', status: 'shipped', cycle: 'dev45', files: ['main.go'], deps: [], docs: ['docs/QUICK_ACCESS_DROPDOWN.md'] },
+      { id: 'pipeline-toggle', title: 'Module Pipeline (&&) Toggle', desc: 'Button in main menu header that toggles pipeline mode, dims invalid step-2 targets', status: 'shipped', cycle: 'dev45', files: ['main.go'], deps: ['pipeline'], docs: [] },
+      { id: 'menu-refactor', title: 'Main Menu Refactor', desc: 'Extract showMainMenu() from root mainmenu_module.go into internal/app/modules/mainmenu/', status: 'active', cycle: 'dev48', files: ['mainmenu_module.go'], deps: [], docs: ['docs/REFACTOR_DEV30_PLAN.md'] },
+      { id: 'root-hygiene', title: 'Root Package Cleanup', desc: 'Move 24+ package main files from root to internal/app/modules/ with thin shims', status: 'planned', cycle: 'dev49', files: ['*.go'], deps: ['menu-refactor'], docs: ['docs/REFACTOR_DEV30_PLAN.md'] },
+    ]
+  },
+
+  Settings: {
+    items: [
+      { id: 'settings-ship', title: 'Settings Module', desc: 'Preferences panel: FFmpeg path, KeepIntermediate toggle, performance presets, dependency validation', status: 'shipped', cycle: 'dev47', files: ['settings_module.go'], deps: [], docs: ['docs/SETTINGS_EXTRACTION_PLAN.md'] },
+      { id: 'win-signing', title: 'Windows Code Signing', desc: 'Wire production signing cert into Forgejo secrets for signed release builds', status: 'planned', cycle: 'dev49', files: ['scripts/windows/support/sign-exe.ps1'], deps: [], docs: [] },
+      { id: 'msix-packaging', title: 'MSIX / Winget Packaging', desc: 'Keep Windows installer aligned with MSIX/WinGet production publishing path', status: 'planned', cycle: 'dev49', files: ['packaging/windows/'], deps: ['win-signing'], docs: ['docs/WINDOWS_PACKAGING.md'] },
+      { id: 'dep-bootstrap', title: 'First-Run Dependency Bootstrap', desc: 'Validate FFmpeg bootstrap on clean Windows; modules unlock without restart', status: 'deferred', cycle: 'future', files: ['internal/app/appcfg/'], deps: [], docs: ['docs/INSTALL_WINDOWS.md'] },
     ]
   },
 
   'Other Modules': {
     items: [
-      { id: 'compare', title: 'Compare Module', desc: 'Side-by-side video comparison with two independent media engines; fullscreen mode',
-        status: 'shipped', cycle: 'dev44', files: ['compare_module.go'],
-        deps: ['engine'], docs: ['docs/COMPARE_FULLSCREEN.md'] },
-      { id: 'subtitles', title: 'Subtitles Module', desc: 'Subtitle extraction, conversion (SRT/SSA/VOBSUB), timing adjustments, preview',
-        status: 'shipped', cycle: 'dev44', files: ['subtitles_module.go', 'internal/app/modules/subtitles/'],
-        deps: [], docs: ['docs/SUBTITLE_HANDLING_DESIGN.md'] },
-      { id: 'upscale', title: 'Upscale Module', desc: 'AI upscaling presets (SD→HD, 1080p→4K, Anime, Restoration), RIFE frame interpolation, HW accel sync',
-        status: 'shipped', cycle: 'dev44', files: ['upscale_module.go', 'internal/app/modules/upscale/'],
-        deps: [], docs: ['docs/UPSCALE_OPTIMIZATION.md'] },
-      { id: 'filters', title: 'Filters Module', desc: 'Video filter pipeline (brightness, contrast, saturation, rotate, crop), HW acceleration dropdown',
-        status: 'shipped', cycle: 'dev44', files: ['filters_module.go'],
-        deps: [], docs: ['docs/FILTER_INTEGRATION_DESIGN.md'] },
-      { id: 'thumbnail', title: 'Thumbnail Module', desc: 'Thumbnail generation with 3-way output mode (single, grid, contact-sheet), image inspector',
-        status: 'shipped', cycle: 'dev42', files: ['thumbnail_module.go'],
-        deps: [], docs: [] },
-      { id: 'merge', title: 'Merge Module', desc: 'Video file concatenation with FFmpeg concat demuxer',
-        status: 'shipped', cycle: 'dev43', files: ['merge_module.go'],
-        deps: [], docs: [] },
-      { id: 'file-manager', title: 'File Manager', desc: 'Basic file browser with breadcrumb trail, context menu to open files in modules, multi-tab deferred',
-        status: 'shipped', cycle: 'dev40', files: ['file_manager_module.go'],
-        deps: [], docs: ['docs/FILE_MANAGER_DESIGN.md'] },
-      { id: 'enhancement', title: 'Enhancement Module (Placeholder)', desc: 'Shell UI ready — model integration (BasicVSR, RIFE, RealCUGan) blocked on player maturity',
-        status: 'deferred', cycle: 'future', files: ['enhancement_module.go'],
-        deps: ['engine', 'seeking'], docs: [] },
-      { id: 'settings', title: 'Settings Module', desc: 'Preferences panel: FFmpeg path, GStreamer toggle, KeepIntermediate, performance presets',
-        status: 'shipped', cycle: 'dev47', files: ['settings_module.go'],
-        deps: [], docs: ['docs/SETTINGS_EXTRACTION_PLAN.md'] },
-      { id: 'inspect', title: 'Inspect Module', desc: 'Video metadata inspector: codec info, stream tree, interlaced detection, sync tab with load-state pills',
-        status: 'shipped', cycle: 'dev44', files: ['inspect_module.go'],
-        deps: [], docs: ['docs/INSPECT_MODULE_ANALYSIS.md'] },
+      { id: 'compare', title: 'Compare Module', desc: 'Side-by-side video comparison with two independent media engines; fullscreen mode', status: 'shipped', cycle: 'dev44', files: ['compare_module.go'], deps: ['engine'], docs: ['docs/COMPARE_FULLSCREEN.md'] },
+      { id: 'subtitles', title: 'Subtitles Module', desc: 'Subtitle extraction, conversion (SRT/SSA/VOBSUB), timing adjustments, preview', status: 'shipped', cycle: 'dev44', files: ['subtitles_module.go', 'internal/app/modules/subtitles/'], deps: [], docs: ['docs/SUBTITLE_HANDLING_DESIGN.md'] },
+      { id: 'upscale', title: 'Upscale Module', desc: 'AI upscaling presets (SD→HD, 1080p→4K, Anime, Restoration), RIFE frame interpolation, HW accel sync', status: 'shipped', cycle: 'dev44', files: ['upscale_module.go', 'internal/app/modules/upscale/'], deps: [], docs: ['docs/UPSCALE_OPTIMIZATION.md'] },
+      { id: 'filters', title: 'Filters Module', desc: 'Video filter pipeline (brightness, contrast, saturation, rotate), HW acceleration dropdown', status: 'shipped', cycle: 'dev44', files: ['filters_module.go'], deps: [], docs: ['docs/FILTER_INTEGRATION_DESIGN.md'] },
+      { id: 'thumbnail', title: 'Thumbnail Module', desc: 'Thumbnail generation with 3-way output mode (single, grid, contact-sheet), image inspector', status: 'shipped', cycle: 'dev42', files: ['thumbnail_module.go'], deps: [], docs: [] },
+      { id: 'merge', title: 'Merge Module', desc: 'Video file concatenation with FFmpeg concat demuxer', status: 'shipped', cycle: 'dev43', files: ['merge_module.go'], deps: [], docs: [] },
+      { id: 'file-manager', title: 'File Manager', desc: 'Basic file browser, breadcrumb trail, context menu to open files in modules, multi-tab deferred', status: 'shipped', cycle: 'dev40', files: ['file_manager_module.go'], deps: [], docs: ['docs/FILE_MANAGER_DESIGN.md'] },
+      { id: 'enhancement', title: 'Enhancement Module', desc: 'Shell UI shipped — full AI model integration (BasicVSR, RIFE, RealCUGan) is future work', status: 'shipped', cycle: 'dev44', files: ['enhancement_module.go'], deps: [], docs: [] },
+      { id: 'inspect', title: 'Inspect Module', desc: 'Video metadata inspector: codec info, stream tree, interlaced detection, sync tab', status: 'shipped', cycle: 'dev44', files: ['inspect_module.go'], deps: [], docs: ['docs/INSPECT_MODULE_ANALYSIS.md'] },
+      { id: 'rife-interp', title: 'RIFE Frame Interpolation', desc: 'Detect rife-ncnn-vulkan, multiplier select (2x/4x/8x), chain after Real-ESRGAN upscale', status: 'deferred', cycle: 'future', files: ['upscale_module.go'], deps: ['upscale'], docs: [] },
+      { id: 'file-tabs', title: 'File Manager Multi-Tab', desc: 'Open multiple folders in tabs within the file manager', status: 'deferred', cycle: 'future', files: ['file_manager_module.go'], deps: ['file-manager'], docs: ['docs/FILE_MANAGER_DESIGN.md'] },
+      { id: 'quick-access-persist', title: 'Quick Access Persistence', desc: 'Persist recent files list across sessions; wire OnOpenMore/OnOpenFolder per module', status: 'deferred', cycle: 'future', files: ['main.go'], deps: [], docs: ['docs/QUICK_ACCESS_DROPDOWN.md'] },
+      { id: 'git-converter', title: 'Git Converter Integration', desc: 'Move git_converter workflow into VT UI; retire legacy scripts/legacy/git_converter', status: 'deferred', cycle: 'future', files: ['scripts/legacy/git_converter/'], deps: [], docs: [] },
     ]
   },
 
   Infrastructure: {
     items: [
-      { id: 'dll-fix', title: 'DLL/ Folder + Flat Fallback', desc: 'CI packages DLLs in DLL/ subfolder; bootstrap checks DLL/ → exe-dir → LOCALAPPDATA in that order',
-        status: 'shipped', cycle: 'dev47', files: ['internal/app/appcfg/ffmpeg_bootstrap.go', 'scripts/windows/ci-build.ps1'],
-        deps: [], docs: [] },
-      { id: 'linux-ci', title: 'Linux CI (green)', desc: 'From-source FFmpeg build with x264 + x265 static libs; AppImage packaging',
-        status: 'shipped', cycle: 'dev44', files: ['.forgejo/workflows/dev-packages.yml', 'scripts/linux/'],
-        deps: [], docs: [] },
-      { id: 'windows-ci', title: 'Windows CI (green)', desc: 'Shared FFmpeg DLL build + static link; ZIP packaging with DLL/ subfolder; MSYS2 toolchain',
-        status: 'shipped', cycle: 'dev44', files: ['.forgejo/workflows/dev-packages.yml', 'scripts/windows/'],
-        deps: [], docs: [] },
-      { id: 'ffmpeg-source', title: 'From-Source FFmpeg Builds', desc: 'CI builds FFmpeg 8.1, x264, x265 from source. Settled decisions: x265.pc overwrite, MSYS2 pkg-config, Libs ordering',
-        status: 'shipped', cycle: 'dev44', files: ['.forgejo/workflows/dev-packages.yml'],
-        deps: [], docs: [] },
-      { id: 'i18n', title: 'i18n (3 Locales)', desc: 'en-CA, fr-CA, Inuktitut (syllabics + Latin, machine-translated). All UI strings via i18n.T().KeyName',
-        status: 'shipped', cycle: 'dev44', files: ['internal/i18n/'],
-        deps: [], docs: ['docs/localization-policy.md'] },
-      { id: 'tintedbar', title: 'TintedBar Widget', desc: 'Reusable module header with accent colour, title, and optional stats bar integration',
-        status: 'shipped', cycle: 'dev44', files: ['internal/ui/tintedbar.go'],
-        deps: [], docs: [] },
-      { id: 'logging-audit', title: 'Logging Audit', desc: 'Removed unused CatEnhance/CatRip, added CatQueue, fixed CatSystem→CatUI misuse in recentfiles.go',
-        status: 'shipped', cycle: 'dev45', files: ['internal/logging/logging.go'],
-        deps: [], docs: [] },
-      { id: 'ci-speedup', title: 'Linux CI Speedup', desc: 'Pre-built Docker container image with FFmpeg build dependencies baked in',
-        status: 'planned', cycle: 'dev48', files: [],
-        deps: ['linux-ci'], docs: [] },
-      { id: 'crop-tool', title: 'Video Cropping Tool', desc: 'Visual cropper: coordinate boxes, zoom preview, center button, aspect-ratio lock, FFmpeg crop filter',
-        status: 'deferred', cycle: 'future', files: [],
-        deps: ['engine'], docs: ['docs/CROP_DESIGN.md'] },
+      { id: 'dll-fix', title: 'DLL/ Folder + Flat Fallback', desc: 'CI packages DLLs in DLL/ subfolder; bootstrap checks DLL/ → exe-dir → LOCALAPPDATA', status: 'done', cycle: 'dev47', files: ['internal/app/appcfg/ffmpeg_bootstrap.go', 'scripts/windows/ci-build.ps1'], deps: [], docs: [] },
+      { id: 'dll-fix-untested', title: 'DLL Flat Fallback (Untested)', desc: 'Flat exe-dir DLL resolution — for users who extract ZIP flat; code complete, awaiting testing', status: 'done', cycle: 'dev47', files: ['internal/app/appcfg/ffmpeg_bootstrap.go'], deps: [], docs: [] },
+      { id: 'linux-ci', title: 'Linux CI (green)', desc: 'From-source FFmpeg build with x264 + x265 static libs; AppImage packaging', status: 'shipped', cycle: 'dev44', files: ['.forgejo/workflows/dev-packages.yml', 'scripts/linux/'], deps: [], docs: [] },
+      { id: 'windows-ci', title: 'Windows CI (green)', desc: 'Shared FFmpeg DLL build + static link; ZIP packaging with DLL/ subfolder; MSYS2 toolchain', status: 'shipped', cycle: 'dev44', files: ['.forgejo/workflows/dev-packages.yml', 'scripts/windows/'], deps: [], docs: [] },
+      { id: 'ffmpeg-source', title: 'From-Source FFmpeg Builds', desc: 'CI builds FFmpeg 8.1, x264, x265 from source. Settled decisions documented', status: 'shipped', cycle: 'dev44', files: ['.forgejo/workflows/dev-packages.yml'], deps: [], docs: [] },
+      { id: 'i18n', title: 'i18n (3 Locales)', desc: 'en-CA, fr-CA, Inuktitut (syllabics + Latin). All UI via i18n.T().KeyName', status: 'shipped', cycle: 'dev44', files: ['internal/i18n/'], deps: [], docs: ['docs/localization-policy.md'] },
+      { id: 'tintedbar', title: 'TintedBar Widget', desc: 'Reusable module header with accent colour, title, and optional stats bar integration', status: 'shipped', cycle: 'dev44', files: ['internal/ui/tintedbar.go'], deps: [], docs: [] },
+      { id: 'logging-audit', title: 'Logging Audit', desc: 'Removed unused CatEnhance/CatRip, added CatQueue, fixed CatSystem→CatUI misuse', status: 'shipped', cycle: 'dev45', files: ['internal/logging/logging.go'], deps: [], docs: [] },
+      { id: 'native-dvd-engine', title: 'Native Go DVD Engine', desc: 'Complete DVD authoring engine: IFO read/write, VOB assembly, PCI/NAV generation — no external tools', status: 'shipped', cycle: 'dev40', files: ['internal/dvd/'], deps: [], docs: ['docs/INTERNAL_DVD_AUTHORING_SPEC.md'] },
+      { id: 'build-parity', title: 'build.ps1 CI Parity', desc: 'Local dev build now copies DLLs into DLL/ subfolder matching CI layout', status: 'done', cycle: 'dev48', files: ['scripts/windows/build.ps1'], deps: [], docs: [] },
+      { id: 'roadmap-board', title: 'Interactive Roadmap Board', desc: 'Column-per-module HTML board with colour-coded cards, clickable modals, filter by status', status: 'done', cycle: 'dev48', files: ['docs/roadmap.html', 'docs/ROADMAP.md'], deps: [], docs: [] },
+      { id: 'version-bump', title: 'Version Bump dev48', desc: 'Bumped v0.1.1-dev47 → v0.1.1-dev48 in VERSION, main.go, FyneApp.toml (build 43→44)', status: 'done', cycle: 'dev48', files: ['VERSION', 'main.go', 'FyneApp.toml'], deps: [], docs: [] },
+      { id: 'ci-speedup', title: 'Linux CI Speedup', desc: 'Pre-built Docker container image with FFmpeg build dependencies baked in', status: 'active', cycle: 'dev48', files: ['.forgejo/workflows/dev-packages.yml'], deps: ['linux-ci'], docs: [] },
+      { id: 'win-sign-cert', title: 'Windows Signing Pipeline', desc: 'Wire production cert into Forgejo secrets for authenticode signing on release', status: 'planned', cycle: 'dev49', files: ['scripts/windows/support/sign-exe.ps1'], deps: [], docs: [] },
+      { id: 'forgejo-releases', title: 'Forgejo Release Automation', desc: 'Validate publish workflow: builds both platforms, replaces assets, nightly changelog', status: 'planned', cycle: 'dev49', files: ['.forgejo/workflows/dev-packages.yml'], deps: ['linux-ci', 'windows-ci'], docs: [] },
+      { id: 'github-actions', title: 'GitHub Actions Mirror', desc: '.github/workflows/ produces release artifacts (MSIX + AppImage) for GitHub releases', status: 'deferred', cycle: 'future', files: [], deps: ['linux-ci', 'windows-ci'], docs: [] },
+      { id: 'silent-errors', title: 'Fix Silent Error Handling', desc: 'Log instead of discarding errors in dvd/vob/sri.go, queue/edit.go, convert/dvd.go', status: 'deferred', cycle: 'future', files: ['internal/dvd/vob/sri.go', 'internal/queue/edit.go', 'internal/convert/dvd.go'], deps: [], docs: [] },
+      { id: 'crop-tool', title: 'Video Cropping Tool', desc: 'Visual cropper: coordinate boxes, zoom preview, center button, aspect-ratio lock, FFmpeg crop filter', status: 'deferred', cycle: 'future', files: [], deps: [], docs: ['docs/CROP_DESIGN.md'] },
+      { id: 'vr360', title: 'VR360 Video Processing', desc: 'Viewport extraction, stabilization, equirect↔cubemap format conversion', status: 'deferred', cycle: 'future', files: [], deps: [], docs: ['docs/VR360_VIDEO_PROCESSING.md'] },
+      { id: 'indigenous-langs', title: 'Indigenous Language Expansion', desc: 'Cree, Ojibwe, Mohawk, Mi\'kmaq, Dene, Oji-Cree, Dakota/Sioux locales', status: 'deferred', cycle: 'future', files: ['internal/i18n/'], deps: ['i18n'], docs: ['docs/localization-policy.md'] },
+      { id: 'whisper', title: 'Whisper Speech-to-Text', desc: 'Ship whisper.cpp binary, LT_Mirror model hosting, proper install/uninstall in Dependencies', status: 'deferred', cycle: 'future', files: [], deps: [], docs: [] },
     ]
   },
 
-  Future: {
+  'Trim + Enhancement': {
     items: [
-      { id: 'trim', title: 'Trim Module', desc: 'Frame-accurate trimming and cutting with visual timeline, chapter markers, preview-based selection',
-        status: 'blocked', cycle: 'future', files: [],
-        deps: ['engine', 'seeking', 'inline-player'], docs: ['docs/TRIM_MODULE_DESIGN.md'] },
-      { id: 'enhance-full', title: 'Enhancement Module (Full)', desc: 'AI model integration (BasicVSR, RIFE, RealCUGan), model registry, content-aware model selection',
-        status: 'blocked', cycle: 'future', files: [],
-        deps: ['engine', 'seeking'], docs: [] },
-      { id: 'pro-workflow', title: 'Professional Workflow', desc: 'Seamless Player ⇄ Enhancement ⇄ Trim chaining; batch queue processing; HW-accelerated pipeline',
-        status: 'planned', cycle: 'future', files: [],
-        deps: ['trim', 'enhance-full'], docs: [] },
+      { id: 'trim-module', title: 'Trim Module', desc: 'Frame-accurate cutting and trimming — requires player seeking to be stable first', status: 'deferred', cycle: 'future', files: ['trim_module.go'], deps: ['seeking', 'frame-seeking'], docs: ['docs/TRIM_MODULE_DESIGN.md'] },
+      { id: 'multisegment-trim', title: 'Multi-Segment Trimming', desc: 'Add/remove multiple trim segments; output modes: split to clips vs keep with chapters', status: 'deferred', cycle: 'future', files: [], deps: ['trim-module'], docs: ['docs/TRIM_MODULE_DESIGN.md'] },
+      { id: 'timeline-ui', title: 'Timeline Interface', desc: 'Frame-accurate timeline visualization with zoom, scrubbing, time/frame dual display', status: 'deferred', cycle: 'future', files: [], deps: ['trim-module'], docs: ['docs/TRIM_MODULE_DESIGN.md'] },
+      { id: 'enhance-full', title: 'Enhancement Module (AI Full)', desc: 'BasicVSR, RIFE, RealCUGan integration; model registry; content-aware selection; multi-pass pipeline', status: 'deferred', cycle: 'future', files: ['enhancement_module.go'], deps: ['seeking'], docs: [] },
+      { id: 'content-detect', title: 'Content Detection Pipeline', desc: 'Auto-detect content type (general/anime/film) for optimal model selection', status: 'deferred', cycle: 'future', files: [], deps: ['enhance-full'], docs: [] },
+      { id: 'ai-expansion', title: 'AI Model Expansion', desc: 'Diffusion models (SeedVR2, SVFR), face enhancement (GFPGAN), advanced restoration', status: 'deferred', cycle: 'future', files: [], deps: ['enhance-full'], docs: [] },
+      { id: 'pro-workflow', title: 'Professional Workflow', desc: 'Seamless Player ⇄ Enhancement ⇄ Trim chaining; batch queue processing; HW-accelerated pipeline', status: 'deferred', cycle: 'future', files: [], deps: ['trim-module', 'enhance-full'], docs: [] },
     ]
   }
 };
 
-// ── RENDER BOARD ──
 const board = document.getElementById('board');
-const statusLabels = { shipped: 'Shipped', active: 'In Progress', planned: 'Planned', deferred: 'Deferred', blocked: 'Blocked' };
 
 function render() {
   board.innerHTML = '';
@@ -451,8 +386,11 @@ function render() {
     col.className = 'column';
     col.dataset.module = moduleName;
 
+    const color = moduleColors[moduleName] || '#6366f1';
+
     const header = document.createElement('div');
     header.className = 'column-header';
+    header.style.background = `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`;
     header.innerHTML = `${moduleName} <span class="column-count"></span>`;
 
     const body = document.createElement('div');
@@ -478,7 +416,6 @@ function render() {
   updateCounts();
 }
 
-// ── FILTERS ──
 const filterBtns = document.querySelectorAll('#filters button');
 function updateCounts() {
   document.querySelectorAll('.column').forEach(col => {
@@ -497,7 +434,6 @@ function setFilter(filter) {
 }
 filterBtns.forEach(btn => btn.addEventListener('click', () => setFilter(btn.dataset.filter)));
 
-// ── MODAL ──
 const modal = document.getElementById('modal');
 function openModal(item, moduleName) {
   document.getElementById('modalBadge').className = `status-badge ${item.status}`;
@@ -509,39 +445,18 @@ function openModal(item, moduleName) {
 
   const filesEl = document.getElementById('modalFiles');
   filesEl.innerHTML = '';
-  if (item.files.length === 0) {
-    filesEl.innerHTML = '<li style="color:#94a3b8;">(not yet scoped)</li>';
-  } else {
-    item.files.forEach(f => {
-      const li = document.createElement('li');
-      li.innerHTML = `<span class="code">${f}</span>`;
-      filesEl.appendChild(li);
-    });
-  }
+  if (item.files.length === 0) filesEl.innerHTML = '<li style="color:#64748b;">(not yet scoped)</li>';
+  else item.files.forEach(f => { const li = document.createElement('li'); li.innerHTML = `<span class="code">${f}</span>`; filesEl.appendChild(li); });
 
   const depsEl = document.getElementById('modalDeps');
   depsEl.innerHTML = '';
-  if (item.deps.length === 0) {
-    depsEl.innerHTML = '<li style="color:#94a3b8;">(none)</li>';
-  } else {
-    item.deps.forEach(d => {
-      const li = document.createElement('li');
-      li.textContent = d;
-      depsEl.appendChild(li);
-    });
-  }
+  if (item.deps.length === 0) depsEl.innerHTML = '<li style="color:#64748b;">(none)</li>';
+  else item.deps.forEach(d => { const li = document.createElement('li'); li.textContent = d; depsEl.appendChild(li); });
 
   const docsEl = document.getElementById('modalDocs');
   docsEl.innerHTML = '';
-  if (item.docs.length === 0) {
-    docsEl.innerHTML = '<li style="color:#94a3b8;">(none)</li>';
-  } else {
-    item.docs.forEach(d => {
-      const li = document.createElement('li');
-      li.textContent = d;
-      docsEl.appendChild(li);
-    });
-  }
+  if (item.docs.length === 0) docsEl.innerHTML = '<li style="color:#64748b;">(none)</li>';
+  else item.docs.forEach(d => { const li = document.createElement('li'); li.textContent = d; docsEl.appendChild(li); });
 
   modal.classList.add('open');
 }

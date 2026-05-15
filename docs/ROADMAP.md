@@ -10,6 +10,7 @@ timeline
     v0.1.1-dev47 (Shipped) : DLL/ folder rename : Flat exe-dir DLL fallback : Disc info at rip view top : UDF ReadFileData (ISO)
     v0.1.1-dev47 (Shipped) : Progress bar with ETA : ConsoleBox widget : Log refactor (Burn/Rip/Author) : PAL/NTSC full-disc convert
     v0.1.1-dev48 (Current) : -f dvdvideo demuxer : Seamless branching support : FFmpeg DLL bootstrap fixes : Cell-accurate title playback
+    v0.1.1-dev48 (Current) : build.ps1 CI parity : Version bump + roadmap board : Interactive visual roadmap : DLL flat fallback
     Next Up : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
@@ -21,9 +22,14 @@ timeline
 |--------|---------|
 | Blue | Shipped in dev47 |
 | Green | Current dev48 work |
+| **Teal** | **Done (untested)** — code written, committed, awaiting testing |
 | Yellow | Next up (handoff priorities) |
 | Orange | Blocked on player completion |
 | Red | Future / deferred |
+
+> **Status distinction:** The interactive board (`roadmap.html`) uses 5 statuses:
+> `Shipped` → `Done (Untested)` → `In Progress` → `Planned` → `Deferred`.
+> "Done" items are complete and committed but not yet verified by a tester.
 
 ## Current State (v0.1.1-dev48)
 
@@ -31,8 +37,8 @@ timeline
 - Native Go DVD authoring engine with full M1-M7 menu system.
 - Native media player: CGo/FFmpeg engine, InlineVideoPlayer API layer, D3D11VA, audio sync, thread-safe.
 - Disc ripping: IFO scanning, ISO via UDF reader, region detection, progress with ETA.
-- **Seamless branching**: `-f dvdvideo` demuxer now used for single-title rips (FFmpeg 8.1+).
-- **DLL bootstrap**: `DLL/` folder with flat exe-dir fallback — no more DLL errors on extraction.
+- **Seamless branching**: `-f dvdvideo` demuxer now used for single-title rips (FFmpeg 8.1+). **Status: Done (untested)** — awaiting Jake.
+- **DLL bootstrap**: `DLL/` folder with flat exe-dir fallback — no more DLL errors on extraction. **Status: Done (untested)**.
 - Burn module: isoburn.exe (Windows), growisofs (Linux), ConsoleBox log, drive info.
 - Module Pipeline (&&): two-module chain state machine with queue integration.
 - PAL→NTSC / NTSC→PAL full-disc conversion with IFO regeneration.
