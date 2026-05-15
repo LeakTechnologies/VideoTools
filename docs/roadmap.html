@@ -41,6 +41,27 @@
   .controls button:hover { border-color: var(--vt-text-muted); }
   .controls button.active { border-color: var(--vt-text); background: var(--vt-text); color: var(--vt-navy); }
   .filter-label { font-size: 0.7rem; color: var(--vt-text-muted); display: flex; align-items: center; padding: 0 0.25rem; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+  .search-wrap { position: relative; display: inline-flex; align-items: center; margin-bottom: 1.25rem; width: 100%; max-width: 520px; }
+  .search-wrap svg { position: absolute; left: 0.8rem; color: #475569; pointer-events: none; flex-shrink: 0; }
+  #searchInput {
+    width: 100%; padding: 0.5rem 1rem 0.5rem 2.3rem;
+    background: var(--vt-card); border: 1.5px solid var(--vt-border);
+    border-radius: 999px; color: var(--vt-text);
+    font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem;
+    outline: none; transition: border-color 0.15s;
+  }
+  #searchInput:focus { border-color: var(--vt-text-muted); }
+  #searchInput::placeholder { color: #475569; }
+  .search-clear {
+    position: absolute; right: 0.7rem; background: none; border: none;
+    color: #475569; cursor: pointer; font-size: 1rem; line-height: 1; padding: 0;
+    display: none;
+  }
+  .search-clear:hover { color: var(--vt-text-muted); }
+  .no-results {
+    display: none; padding: 2rem; color: var(--vt-text-muted);
+    font-size: 0.85rem; text-align: center; width: 100%;
+  }
   .legend {
     display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem;
     padding: 0.75rem 1rem; background: var(--vt-navy-light); border-radius: 8px;
@@ -143,6 +164,12 @@
   <h1>Roadmap</h1>
 </div>
 <p class="subtitle">v0.1.1-dev48 &mdash; Updated 15 May 2026 &mdash; Click any card for details</p>
+
+<div class="search-wrap">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+  <input type="text" id="searchInput" placeholder="Search features, or type a version like dev46..." autocomplete="off" spellcheck="false">
+  <button class="search-clear" id="searchClear" title="Clear search">&times;</button>
+</div>
 
 <div class="legend">
   <span class="legend-item"><span class="legend-swatch" style="background:var(--shipped)"></span> Shipped</span>
@@ -452,6 +479,7 @@ function render() {
 
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
+let currentSearch = '';
 
 function updateCounts() {
   document.querySelectorAll('.column').forEach(col => {
@@ -464,16 +492,35 @@ function updateCounts() {
 }
 
 function applyFilters() {
+  const term = currentSearch.toLowerCase().trim();
+  let totalVisible = 0;
+
   document.querySelectorAll('.column').forEach(col => {
     const moduleMatch = currentModuleFilter === 'all' || col.dataset.module === currentModuleFilter;
-    col.style.display = moduleMatch ? '' : 'none';
-    if (moduleMatch) {
-      col.querySelectorAll('.card').forEach(card => {
-        const statusMatch = currentStatusFilter === 'all' || card.classList.contains(currentStatusFilter);
-        card.classList.toggle('hidden', !statusMatch);
-      });
-    }
+    if (!moduleMatch) { col.style.display = 'none'; return; }
+
+    let colVisible = 0;
+    col.querySelectorAll('.card').forEach(card => {
+      const statusMatch = currentStatusFilter === 'all' || card.classList.contains(currentStatusFilter);
+      let searchMatch = true;
+      if (term) {
+        const title = (card.querySelector('.card-title')?.textContent || '').toLowerCase();
+        const desc  = (card.querySelector('.card-desc')?.textContent  || '').toLowerCase();
+        const cycle = (card.querySelector('.cycle-tag')?.textContent  || '').toLowerCase();
+        const mod   = (col.dataset.module || '').toLowerCase();
+        searchMatch = title.includes(term) || desc.includes(term) || cycle.includes(term) || mod.includes(term);
+      }
+      const visible = statusMatch && searchMatch;
+      card.classList.toggle('hidden', !visible);
+      if (visible) colVisible++;
+    });
+
+    col.style.display = (term && colVisible === 0) ? 'none' : '';
+    totalVisible += colVisible;
   });
+
+  const noRes = document.getElementById('no-results');
+  if (noRes) noRes.style.display = (term && totalVisible === 0) ? 'block' : 'none';
   updateCounts();
 }
 
@@ -511,6 +558,28 @@ moduleFilterContainer.querySelectorAll('button').forEach(btn => {
     moduleFilterContainer.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
     applyFilters();
   });
+});
+
+// Inject no-results placeholder into the board
+const noResultsEl = document.createElement('div');
+noResultsEl.id = 'no-results';
+noResultsEl.className = 'no-results';
+noResultsEl.textContent = 'No matching features found.';
+document.getElementById('board').after(noResultsEl);
+
+const searchInput = document.getElementById('searchInput');
+const searchClear = document.getElementById('searchClear');
+searchInput.addEventListener('input', () => {
+  currentSearch = searchInput.value;
+  searchClear.style.display = currentSearch ? 'block' : 'none';
+  applyFilters();
+});
+searchClear.addEventListener('click', () => {
+  searchInput.value = '';
+  currentSearch = '';
+  searchClear.style.display = 'none';
+  searchInput.focus();
+  applyFilters();
 });
 
 const modal = document.getElementById('modal');
