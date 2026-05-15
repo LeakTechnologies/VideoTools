@@ -20,6 +20,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/smpte"
+	vtheme "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/theme"
 )
 
 const (
@@ -225,18 +226,18 @@ type VideoPlayer struct {
 	drawBufW int
 	drawBufH int
 
-	playBtn        *widget.Button
+	playBtn        *vtheme.PillIconButton
 	slider         *widget.Slider
 	timeLabel      *canvas.Text
 	durLabel       *canvas.Text
-	volumeBtn      *widget.Button
+	volumeBtn      *vtheme.PillIconButton
 	volumeSlider   *widget.Slider
-	speedBtn       *widget.Button
-	prevChapterBtn *widget.Button
-	nextChapterBtn *widget.Button
-	fullscreenBtn  *widget.Button
-	pipBtn         *widget.Button
-	subtitleBtn    *widget.Button
+	speedBtn       *vtheme.PillButton
+	prevChapterBtn *vtheme.PillIconButton
+	nextChapterBtn *vtheme.PillIconButton
+	fullscreenBtn  *vtheme.PillButton
+	pipBtn         *vtheme.PillIconButton
+	subtitleBtn    *vtheme.PillButton
 	loadingSpinner *widget.ProgressBarInfinite
 	bufferingLabel *widget.Label
 	errorLabel     *widget.Label
@@ -349,9 +350,7 @@ func NewInlineVideoPlayer() *VideoPlayer {
 
 func (v *VideoPlayer) buildControls() {
 	th := fyne.CurrentApp().Settings().Theme()
-	v.playBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameMediaPlay), v.togglePlay)
-	v.playBtn.Importance = widget.LowImportance
-	v.playBtn.Resize(fyne.NewSize(36, 36))
+	v.playBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameMediaPlay), v.togglePlay)
 
 	var lastSliderPos float64
 	v.slider = widget.NewSlider(0, 100)
@@ -382,9 +381,7 @@ func (v *VideoPlayer) buildControls() {
 	v.durLabel = canvas.NewText("00:00:00", color.White)
 	v.durLabel.TextSize = 12
 
-	v.volumeBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameVolumeUp), v.toggleMute)
-	v.volumeBtn.Importance = widget.MediumImportance
-	v.volumeBtn.Resize(fyne.NewSize(36, 36))
+	v.volumeBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameVolumeUp), v.toggleMute)
 
 	v.volumeSlider = widget.NewSlider(0, 100)
 	v.volumeSlider.Value = v.volume * 100
@@ -396,18 +393,12 @@ func (v *VideoPlayer) buildControls() {
 		}
 	}
 
-	v.speedBtn = widget.NewButton("1x", v.toggleSpeed)
-	v.speedBtn.Importance = widget.LowImportance
-	v.speedBtn.Resize(fyne.NewSize(36, 24))
+	v.speedBtn = vtheme.NewPillButton("1x", vtheme.TextMuted, v.toggleSpeed)
 
-	v.prevChapterBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameMediaSkipPrevious), v.prevChapter)
-	v.prevChapterBtn.Importance = widget.LowImportance
-	v.prevChapterBtn.Resize(fyne.NewSize(36, 24))
+	v.prevChapterBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameMediaSkipPrevious), v.prevChapter)
 	v.prevChapterBtn.Hide()
 
-	v.nextChapterBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameMediaSkipNext), v.nextChapter)
-	v.nextChapterBtn.Importance = widget.LowImportance
-	v.nextChapterBtn.Resize(fyne.NewSize(36, 24))
+	v.nextChapterBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameMediaSkipNext), v.nextChapter)
 	v.nextChapterBtn.Hide()
 
 	v.loadingSpinner = widget.NewProgressBarInfinite()
@@ -424,17 +415,11 @@ func (v *VideoPlayer) buildControls() {
 	v.errorLabel.TextStyle = fyne.TextStyle{Bold: true}
 	v.errorLabel.Hide()
 
-	v.fullscreenBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameViewFullScreen), v.toggleFullscreen)
-	v.fullscreenBtn.Importance = widget.LowImportance
-	v.fullscreenBtn.Resize(fyne.NewSize(36, 24))
+	v.fullscreenBtn = vtheme.NewPillButton("⛶", vtheme.TextMuted, v.toggleFullscreen)
 
-	v.pipBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameWindowMaximize), v.togglePiP)
-	v.pipBtn.Importance = widget.LowImportance
-	v.pipBtn.Resize(fyne.NewSize(36, 24))
+	v.pipBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameWindowMaximize), v.togglePiP)
 
-	v.subtitleBtn = widget.NewButton("CC", v.toggleSubtitles)
-	v.subtitleBtn.Importance = widget.LowImportance
-	v.subtitleBtn.Resize(fyne.NewSize(36, 24))
+	v.subtitleBtn = vtheme.NewPillButton("CC", vtheme.TextMuted, v.toggleSubtitles)
 
 	v.markerCanvas = canvas.NewRaster(v.drawMarkers)
 	seekStack := container.NewStack(v.slider, v.markerCanvas)
@@ -1099,11 +1084,8 @@ func (v *VideoPlayer) OnPiP(cb func()) {
 func (v *VideoPlayer) togglePiP() {
 	v.isPiP = !v.isPiP
 	if v.pipBtn != nil {
-		if v.isPiP {
-			v.pipBtn.Importance = widget.HighImportance
-		} else {
-			v.pipBtn.Importance = widget.LowImportance
-		}
+		v.pipBtn.Active = v.isPiP
+		v.pipBtn.Refresh()
 	}
 	if v.onPiP != nil {
 		v.onPiP()
@@ -1122,13 +1104,8 @@ func (v *VideoPlayer) OnSubtitles(cb func(bool)) {
 func (v *VideoPlayer) toggleSubtitles() {
 	v.subtitlesEnabled = !v.subtitlesEnabled
 	if v.subtitleBtn != nil {
-		if v.subtitlesEnabled {
-			v.subtitleBtn.Text = "CC"
-			v.subtitleBtn.Importance = widget.MediumImportance
-		} else {
-			v.subtitleBtn.Text = "CC"
-			v.subtitleBtn.Importance = widget.LowImportance
-		}
+		v.subtitleBtn.Active = v.subtitlesEnabled
+		v.subtitleBtn.Refresh()
 	}
 	if v.onSubtitles != nil {
 		v.onSubtitles(v.subtitlesEnabled)
@@ -1143,11 +1120,8 @@ func (v *VideoPlayer) IsSubtitlesEnabled() bool {
 func (v *VideoPlayer) SetSubtitlesEnabled(enabled bool) {
 	v.subtitlesEnabled = enabled
 	if v.subtitleBtn != nil {
-		if enabled {
-			v.subtitleBtn.Importance = widget.MediumImportance
-		} else {
-			v.subtitleBtn.Importance = widget.LowImportance
-		}
+		v.subtitleBtn.Active = enabled
+		v.subtitleBtn.Refresh()
 	}
 }
 

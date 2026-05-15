@@ -21,6 +21,7 @@ import (
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
+	vtheme "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/theme"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 	tooltipwidget "github.com/dweymouth/fyne-tooltip/widget"
 )
@@ -596,109 +597,13 @@ func TintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 	return container.NewMax(rect, padded)
 }
 
-// PillButton renders a pill-shaped button matching the roadmap's visual style:
-// dark background, coloured border, centred text, hover lightens border, active inverts.
-type PillButton struct {
-	widget.DisableableWidget
-	Label     string
-	BorderCol color.Color
-	OnTapped  func()
-	hovered   bool
-	Active    bool
-}
+// PillButton is the canonical pill-shaped button (dark bg, coloured border).
+// The implementation lives in internal/theme; this alias keeps the ui package API stable.
+type PillButton = vtheme.PillButton
 
+// NewPillButton constructs a PillButton with the given label, border colour, and tap handler.
 func NewPillButton(label string, borderCol color.Color, onTapped func()) *PillButton {
-	p := &PillButton{
-		Label:     label,
-		BorderCol: borderCol,
-		OnTapped:  onTapped,
-	}
-	p.ExtendBaseWidget(p)
-	return p
-}
-
-func (p *PillButton) CreateRenderer() fyne.WidgetRenderer {
-	bg := canvas.NewRectangle(nil)
-	bg.CornerRadius = 12
-	bg.StrokeWidth = 1.5
-	txt := canvas.NewText(p.Label, nil)
-	txt.Alignment = fyne.TextAlignCenter
-	return &pillButtonRenderer{pill: p, bg: bg, txt: txt}
-}
-
-func (p *PillButton) MouseIn(*desktop.MouseEvent) {
-	if p.Disabled() {
-		return
-	}
-	p.hovered = true
-	p.Refresh()
-}
-
-func (p *PillButton) MouseOut() {
-	p.hovered = false
-	p.Refresh()
-}
-
-func (p *PillButton) MouseMoved(*desktop.MouseEvent) {}
-
-func (p *PillButton) SetText(label string) {
-	p.Label = label
-	p.Refresh()
-}
-
-func (p *PillButton) Tapped(*fyne.PointEvent) {
-	if p.Disabled() {
-		return
-	}
-	if p.OnTapped != nil {
-		p.OnTapped()
-	}
-}
-
-type pillButtonRenderer struct {
-	pill *PillButton
-	bg   *canvas.Rectangle
-	txt  *canvas.Text
-}
-
-func (r *pillButtonRenderer) Layout(size fyne.Size) {
-	r.bg.Resize(size)
-	r.txt.Resize(size)
-}
-
-func (r *pillButtonRenderer) MinSize() fyne.Size {
-	return r.txt.MinSize().Add(fyne.NewSize(24, 12))
-}
-
-func (r *pillButtonRenderer) Refresh() {
-	p := r.pill
-	switch {
-	case p.Disabled():
-		r.bg.FillColor = BgLight
-		r.bg.StrokeColor = TextMuted
-		r.txt.Color = TextMuted
-	case p.Active:
-		r.bg.FillColor = p.BorderCol
-		r.bg.StrokeColor = p.BorderCol
-		r.txt.Color = BgDark
-	case p.hovered:
-		r.bg.FillColor = BgLight
-		r.bg.StrokeColor = TextMuted
-		r.txt.Color = TextOnDark
-	default:
-		r.bg.FillColor = BgLight
-		r.bg.StrokeColor = p.BorderCol
-		r.txt.Color = TextOnDark
-	}
-	r.txt.Text = p.Label
-	r.bg.Refresh()
-	r.txt.Refresh()
-}
-
-func (r *pillButtonRenderer) Destroy() {}
-
-func (r *pillButtonRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.bg, r.txt}
+	return vtheme.NewPillButton(label, borderCol, onTapped)
 }
 
 // NewRatioRow lays out two objects with a fixed width ratio for the left item.
