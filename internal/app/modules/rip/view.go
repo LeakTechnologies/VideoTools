@@ -326,7 +326,15 @@ func BuildView(opts Options) fyne.CanvasObject {
 	)
 	titleNavRow.Hide()
 
-	playerPane := container.NewBorder(nil, titleNavRow, nil, nil, playerCanvas)
+	playWithMenusBtn := widget.NewButton("▶  Play with Menus", func() {
+		if err := launchDVDPlayer(vs.sourcePath); err != nil {
+			dialog.ShowError(err, opts.Window)
+		}
+	})
+	playWithMenusBtn.Importance = widget.MediumImportance
+
+	playerBottomRow := container.NewVBox(titleNavRow, playWithMenusBtn)
+	playerPane := container.NewBorder(nil, playerBottomRow, nil, nil, playerCanvas)
 
 	rebuildTitleNav = func() {
 		if vs.scanResult == nil || len(vs.scanResult.Titles) <= 1 || vs.videoTSPath == "" {
@@ -885,7 +893,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		playerPane,
 		container.NewVScroll(container.NewPadded(controls)),
 	)
-	mainSplit.SetOffset(0.65)
+	mainSplit.SetOffset(0.40)
 
 	var bottomBar fyne.CanvasObject
 	if opts.OnModuleFooter != nil {
