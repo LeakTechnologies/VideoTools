@@ -30,9 +30,8 @@ See `docs/CONVERT_MODULE_IMPROVEMENTS.md` for full plan.
 
 ### Convert Module Improvements — Phase 2 (HIGH)
 
-- [ ] **Consolidate presets** — Move inline format definitions to `presets.go`
-- [ ] **Add missing formats** — AVI, FLV, TS/M2TS, 3GP, OGG
-- [ ] **x264/x265 tuning** — Film/Animation/Grain/Stillimage/Fastdecode
+- [x] **Consolidate presets** — Move inline format definitions to `presets.go`
+- [x] **x264/x265 tuning** — Film/Animation/Grain/Stillimage/Fastdecode
 
 ### Audio Module Improvements
 
@@ -192,34 +191,7 @@ Full-disc extraction with region conversion and IFO regeneration is now implemen
 - [ ] **Stabilization** — Reduce shakiness in handheld 360° footage
 - [ ] **Format conversion** — Equirect ↔ Cubemap, fisheye de-warp
 
-### Module Pipeline (`&&` feature) — DESIGNED, NOT YET BUILT
-
-Two-module chains where the output of Step 1 is automatically fed into Step 2,
-with the intermediate file cleaned up on success (unless the user opts to keep it).
-
-**Design decisions (finalised):**
-- Limit to exactly two modules — no A → B → C chains.
-- "Keep intermediate files" lives in **Settings → Preferences** (persistent, default off).
-  - Only delete the intermediate if Step 2 succeeded AND the file is not the original source.
-  - If Step 2 fails, keep the intermediate and notify the user.
-- After queuing Step 1, **auto-return** to main menu in "Step 2 pick" state.
-- Valid second steps: Convert, Trim, Upscale, Thumbnail, Filters, Audio, Subtitles.
-  - Rip, Burn, Author, Inspect are excluded (no single-file video output).
-- Module tiles for **invalid Step 2 targets are dimmed** when in "pick Step 2" state.
-- Pre-configure both steps upfront (Step 1 output path is known before it runs).
-  - `PipelineAfter string` — job ID of the preceding job; Step 2 stays blocked until Step 1 completes successfully.
-  - `PipelineDeleteOnSuccess string` — absolute path of the intermediate file to remove after Step 2 succeeds.
-- Queue runner: on Step 1 success, un-block and auto-start Step 2.
-  On Step 2 success, delete the intermediate (unless preference is "keep").
-
-**What needs to be built:**
-- [ ] `pipelineActive` state machine on `appState` (off / waiting-step1 / waiting-step2)
-- [ ] `&&` button in main menu header, visually reflects state (off / glowing / showing "A → ?")
-- [ ] Module tile dimming for invalid Step 2 targets
-- [ ] `PipelineAfter` + `PipelineDeleteOnSuccess` fields on `queue.Job`
-- [ ] Queue runner: chain execution + intermediate file deletion
-- [ ] "Keep intermediate files" toggle in Settings → Preferences
-- [ ] Each module's "Add to Queue" checks `state.pipelineActive` and links jobs
+### Module Pipeline (`&&` feature) — SHIPPED (dev45)
 
 ### UI Improvements
 - [x] **Auto-grey incompatible codecs** — See docs/AUTO_GREY_CODECS.md
@@ -398,7 +370,7 @@ Note: Full direct OpenGL/D3D11 integration requires deeper Fyne modifications. C
   - `internal/ui/components.go:269,275,287` — `fmt.Printf()` in drop handler
 
 ### Race Conditions
-- [ ] **Queue notifyChange goroutine** — `internal/queue/queue.go:100-104` spawns goroutine accessing queue state without locking
+- [x] **Queue notifyChange goroutine** — `internal/queue/queue.go:100-104` spawns goroutine accessing queue state without locking (fixed dev45)
 
 ## Agent Work Tracking
 
@@ -521,9 +493,9 @@ It uses `rife-ncnn-vulkan` — same deployment model as `realesrgan-ncnn-vulkan`
     - [x] Create reusable `media.VideoPlayer` widget.
     - [ ] Implement frame-accurate scrubbing loop.
     - [ ] Link In/Out points to `internal/queue` for lossless processing.
-- [ ] **Phase 6: GStreamer Removal**
-    - [ ] Remove `internal/player/gstreamer*` (Deferred until Native Engine is stable).
-    - [ ] Remove GStreamer from build scripts and CI.
+- [x] **Phase 6: GStreamer Removal**
+    - [x] Remove `internal/player/gstreamer*` (done dev42).
+    - [x] Remove GStreamer from build scripts and CI (done dev42).
 
 ## Agent Work Tracking
 
@@ -619,6 +591,7 @@ logic moves to `internal/app/modules/{name}/`, a thin `package main` shim at roo
   - Download missing `eng/fra/iku` traineddata during bundled packaging before enforcing required checks.
 - [X] **GStreamer CI packaging policy**
   - Treat GStreamer as optional in bundled artifacts and do not fail packaging when absent.
+  - Note: GStreamer fully removed in dev42 — all references above are historical.
 - [X] **Whisper model packaging resilience**
   - Added multi-source fallback download and continue-on-failure behavior in bundled packaging.
 - [X] **Linux bundled zip tooling**

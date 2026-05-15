@@ -145,6 +145,44 @@ archive (for operator new/delete, __cxa_guard, RTTI vtables).
 If CI is failing, read the build log carefully before changing the FFmpeg setup strategy.
 Open an issue or ask before touching the "Setup static FFmpeg" steps.
 
+## Roadmap & Planning — Settled Decisions (Do Not Revert)
+
+The following decisions about the interactive roadmap (`docs/roadmap.html`) and feature tracking were reached after multiple audit passes and must not be changed without explicit approval:
+
+**Interactive roadmap is the single source of truth.** The roadmap HTML board at `docs/roadmap.html` is the canonical feature tracker. TODO.md and DONE.md are narrative supplements; keep them in sync when landing work, but always update the roadmap first.
+
+**Obsolete output formats (AVI, FLV, 3GP, OGG) are NOT output targets.** These exist only as `Legacy: true` entries in `internal/convert/presets.go` for remuxing legacy files. They have been removed from the roadmap entirely. Do not add them back.
+
+**GStreamer was fully removed in dev42.** All `internal/player/gstreamer*` files, build scripts, and CI references were deleted. The native_media build tag is the only player path. Any stale GStreamer references in docs are historical and should be cleaned up when found.
+
+**x264/x265 tuning presets shipped in dev45.** Film, Animation, Grain, Stillimage, Fastdecode presets are fully wired in the Convert module. Do not list this as future/planned work.
+
+**Presets consolidation shipped in dev45.** Format definitions moved from inline builder code to `internal/convert/presets.go`. Do not list this as future/planned work.
+
+**Drag-and-drop for Convert shipped in dev44.** Files dropped onto the Convert module are registered correctly. Do not list this as a known issue.
+
+**Queue notifyChange race fix shipped in dev45.** The goroutine spawning without lock in `internal/queue/queue.go` was fixed. Do not list this as a known issue.
+
+**Audio pre-warm shipped in dev42**, not dev47. Shared audio context (oto/WASAPI) initialized at startup was part of the original player stabilization cycle.
+
+**PAL/NTSC full-disc conversion shipped in dev47**, not dev46. The IFO regeneration pipeline with full-disc extraction was completed in dev47.
+
+**Testing checklist lives in the roadmap.** The interactive roadmap at `docs/roadmap.html` includes a Testing Checklist modal (button next to Changelog). Items are grouped by module with pass/fail/untested status persisted to localStorage. Any new feature added to the roadmap must also be added to the testing checklist. The checklist server-side data (`checklistData` array in the roadmap JS) should be updated when features land.
+
+## Player P0: D3D11VA Crash — C SEH Bridge Needed
+
+The D3D11VA hardware decoder path in `internal/media/` has an access violation inside `avcodec_send_packet` when the FFmpeg D3D11VA hwaccel encounters corrupted/malformed H.264 NAL units (observed on some commercial DVDs and damaged files). This is a CGo boundary issue — Go's signal handling cannot recover from a Windows SEH exception raised inside native code.
+
+A C SEH bridge (`__try`/`__except`) must be written in a `.c` file (compiled via CGO) that wraps the `avcodec_send_packet` / `avcodec_receive_frame` call pair and translates the access violation into a returned error code. This does not exist yet and is P0 for player stability.
+
+**Approach:**
+1. Create `internal/media/cbridge/sehbridge.c` and `internal/media/cbridge/sehbridge.h`
+2. Export a C function like `int avcodec_send_packet_safe(AVCodecContext *ctx, const AVPacket *pkt)` that wraps the call in `__try`/`__except(EXCEPTION_EXECUTE_HANDLER)`
+3. Call the bridge from Go via `// #include "sehbridge.h"` + `// #cgo LDFLAGS:` in a Go file
+4. On error return, force software decode fallback for the remainder of playback
+
+Until this bridge exists, users with problematic discs should disable D3D11VA in Settings or use software decode mode.
+
 ## Coordination
 
 - Ask before changing workflow entrypoints or automation behavior.
