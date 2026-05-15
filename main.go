@@ -8202,11 +8202,11 @@ func runGUI() {
 	// crashed or were force-killed before cleanup could run.
 	go sweepOrphanTempFiles()
 
-	// Bootstrap FFmpeg DLLs for native media engine
+	// Bootstrap FFmpeg DLLs for native media engine.
+	// Failure is non-fatal — the player degrades gracefully when DLLs are absent.
 	if HasNativeMediaPlayer() {
 		if err := appcfg.AddFFmpegDllsToPath(); err != nil {
-			logging.Error(logging.CatSystem, "failed to locate FFmpeg DLLs: %v", err)
-			ShowErrorLarge(fmt.Errorf("VideoTools could not locate the FFmpeg DLLs needed for video playback.\n\n%v\n\nIf you downloaded a ZIP, make sure you extracted ALL contents (including the DLL\\ folder) into the same directory as VideoTools.exe before running it — do not run directly from inside the ZIP.", err), w)
+			logging.Warning(logging.CatSystem, "FFmpeg DLLs not found — video player will be unavailable: %v", err)
 		} else {
 			logging.Info(logging.CatSystem, "FFmpeg DLLs ready for native media engine")
 			// Pre-warm the shared audio context during startup so the first video
