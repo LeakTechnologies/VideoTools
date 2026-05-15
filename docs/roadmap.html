@@ -20,7 +20,7 @@
     --done: #14b8a6;
     --active: #eab308;
     --planned: #3b82f6;
-    --future: #6b7280;
+    --future: #f97316;
     --deprecated: #a855f7;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -107,7 +107,7 @@
   .card.done { border-left-color: var(--done); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(20,184,166,0.08)); }
   .card.active { border-left-color: var(--active); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(234,179,8,0.08)); }
   .card.planned { border-left-color: var(--planned); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(59,130,246,0.08)); }
-  .card.future { border-left-color: var(--future); background: var(--vt-card); }
+  .card.future { border-left-color: var(--future); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(249,115,22,0.08)); }
   .card.deprecated { border-left-color: var(--deprecated); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(168,85,247,0.08)); }
   .card.hidden { display: none; }
 
@@ -138,7 +138,7 @@
   .modal .status-badge.done { background: rgba(20,184,166,0.15); color: #5eead4; border: 1px solid var(--done); }
   .modal .status-badge.active { background: rgba(234,179,8,0.15); color: #fde047; border: 1px solid var(--active); }
   .modal .status-badge.planned { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid var(--planned); }
-  .modal .status-badge.future { background: rgba(107,114,128,0.15); color: #9ca3af; border: 1px solid var(--future); }
+  .modal .status-badge.future { background: rgba(249,115,22,0.15); color: #fdba74; border: 1px solid var(--future); }
   .modal .status-badge.deprecated { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid var(--deprecated); }
   .modal h2 { font-size: 1.2rem; color: var(--vt-text); margin-bottom: 0.5rem; }
   .modal .detail-desc { font-size: 0.9rem; color: var(--vt-text-muted); line-height: 1.5; margin-bottom: 1rem; }
