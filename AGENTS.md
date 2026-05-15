@@ -4,10 +4,11 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev47`.
+- Current cycle: `v0.1.1-dev48`.
 - Public/stable baseline: `v0.1.1`.
-- `dev47` in progress (nearly complete). Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir fallback for DLL resolution, `DLL/` folder rename (was `ffmpeg-dll/`), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
-- `dev46` closed. Full PAL→NTSC disc pipeline shipped: full-disc extraction (all VTS sets + menu VOB), per-stream MPEG-2 NTSC re-encode with yadif/atempo, IFO/BUP regeneration with NTSC attributes (`executor.go`, `ifo_regen.go`). Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
+- `dev48` in progress. -f dvdvideo demuxer integration for seamless branching support, FFmpeg DLL bootstrap fix.
+- `dev47` closed. Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir DLL fallback, DLL/ folder rename (was ffmpeg-dll/), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
+- `dev46` closed. PAL→NTSC full-disc conversion pipeline with IFO regeneration, Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
 - `dev45` closed. Convert Phase 1+2 (SR, Normalize, Deinterlace, H.264 Profile/Level, presets, AVI/TS/FLV), Convert i18n, Module Pipeline (&&), logging audit, FFmpeg DLL bootstrap.
 - `dev44` closed. Player thread-safety audit, D3D11VA, audio sync, GStreamer removal, Queue UI polish, thumbnail improvements, flags/i18n.
 - `dev43` closed. Player thread-safety: pixel format SIGSEGV fix, Close/demuxer WaitGroup, NextFrame/Close codec race, seekLoop goroutine leak.
@@ -347,4 +348,3 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 - Linux may take small runtime dependencies where appropriate (e.g. `dvd+rw-tools` for disc burning).
 - Do not add macOS-specific code paths, CI jobs, or documentation.
 - **Existing darwin code should be removed** when found during code reviews or refactoring — there is no reason for any `case "darwin":` blocks to exist in this codebase.
-

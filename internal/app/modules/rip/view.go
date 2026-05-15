@@ -304,9 +304,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 		// Build list of (vtsNumber, outputPath, title) for each job to enqueue.
 		type titleJob struct {
-			vtsNumber  int
-			outputPath string
-			jobTitle   string
+			vtsNumber    int
+			titleNumber  int
+			outputPath   string
+			jobTitle     string
 		}
 		var jobs []titleJob
 
@@ -319,9 +320,10 @@ func BuildView(opts Options) fyne.CanvasObject {
 				}
 				titlePath := fmt.Sprintf("%s_Title_%02d%s", base, dt.Number, ext)
 				jobs = append(jobs, titleJob{
-					vtsNumber:  dt.VTSNumber,
-					outputPath: titlePath,
-					jobTitle:   fmt.Sprintf("Rip DVD Title %d: %s", dt.Number, filepath.Base(vs.sourcePath)),
+					vtsNumber:   dt.VTSNumber,
+					titleNumber: dt.Number,
+					outputPath:  titlePath,
+					jobTitle:    fmt.Sprintf("Rip DVD Title %d: %s", dt.Number, filepath.Base(vs.sourcePath)),
 				})
 			}
 			if len(jobs) == 0 {
@@ -329,13 +331,16 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		} else {
 			vtsNumber := 0
+			titleNumber := 0
 			if vs.scanResult != nil && len(vs.scanResult.Titles) == 1 {
 				vtsNumber = vs.scanResult.Titles[0].VTSNumber
+				titleNumber = vs.scanResult.Titles[0].Number
 			}
 			jobs = []titleJob{{
-				vtsNumber:  vtsNumber,
-				outputPath: vs.outputPath,
-				jobTitle:   fmt.Sprintf("Rip DVD: %s", filepath.Base(vs.sourcePath)),
+				vtsNumber:   vtsNumber,
+				titleNumber: titleNumber,
+				outputPath:  vs.outputPath,
+				jobTitle:    fmt.Sprintf("Rip DVD: %s", filepath.Base(vs.sourcePath)),
 			}}
 		}
 
@@ -356,6 +361,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 					"regionConvert":    vs.regionConvert,
 					"discTitle":        vs.discTitle,
 					"vtsNumber":        j.vtsNumber,
+					"titleNumber":      j.titleNumber,
 				},
 			}
 			opts.AddJob(job)

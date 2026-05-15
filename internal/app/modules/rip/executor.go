@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/css"
@@ -21,6 +22,33 @@ import (
 )
 
 // DefaultOutputPath returns the default output path for a rip job.
+// dvdVideoSupported caches whether the FFmpeg binary supports -f dvdvideo.
+var dvdVideoSupported bool
+var dvdVideoChecked bool
+var dvdVideoCheckMu sync.Mutex
+
+// SupportsDVDVideo returns true if the FFmpeg binary has the dvdvideo demuxer.
+// The dvdvideo demuxer (FFmpeg ≥ 6.0) reads IFO cell playback tables directly,
+// correctly handling seamless branching discs.
+func SupportsDVDVideo() bool {
+	dvdVideoCheckMu.Lock()
+	defer dvdVideoCheckMu.Unlock()
+	if dvdVideoChecked {
+		return dvdVideoSupported
+	}
+	dvdVideoChecked = true
+
+	cmd := exec.Command(utils.GetFFmpegPath(), "-hide_banner", "-h", "demuxer=dvdvideo")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logging.Debug(logging.CatDVD, "SupportsDVDVideo: ffmpeg -h demuxer=dvdvideo failed: %v", err)
+		return false
+	}
+	dvdVideoSupported = strings.Contains(string(out), "DVD video demuxer")
+	logging.Info(logging.CatDVD, "SupportsDVDVideo: %v", dvdVideoSupported)
+	return dvdVideoSupported
+}
+
 func DefaultOutputPath(sourcePath, format string) string {
 	if sourcePath == "" {
 		return ""
@@ -229,6 +257,8 @@ type RipArgs struct {
 	DiscTitle      string   // embedded title tag; empty = skip
 	Interlaced      bool   // when true and format is H.264, adds yadif=mode=1 deinterlace filter
 	RegionConvert   string // "" (none), "pal2ntsc", "ntsc2pal"
+	VideoTSPath    string // VIDEO_TS directory for -f dvdvideo (seamless branching)
+	TitleNumber    int    // 1-based title index from VMG TT_SRPT for -f dvdvideo
 }
 
 // BuildRipArgs returns the ffmpeg argument list for a rip job.
@@ -240,14 +270,14 @@ type RipArgs struct {
 // -max_interleave_delta 0: prevents ffmpeg from buffering indefinitely while
 // waiting for each stream to reach the same presentation timestamp before flushing.
 func BuildRipArgs(ra RipArgs) []string {
-	args := []string{
-		"-y",
-		"-hide_banner",
-		"-loglevel", "error",
-		"-fflags", "+genpts",
-		"-f", "concat",
-		"-safe", "0",
-		"-i", ra.ListFile,
+	args := []string{"-y", "-hide_banner", "-loglevel", "error"}
+
+	if ra.VideoTSPath != "" && ra.TitleNumber > 0 {
+		// -f dvdvideo reads the IFO cell playback table natively,
+		// correctly handling seamless branching discs.
+		args = append(args, "-f", "dvdvideo", "-i", ra.VideoTSPath, "-title", fmt.Sprintf("%d", ra.TitleNumber))
+	} else {
+		args = append(args, "-fflags", "+genpts", "-f", "concat", "-safe", "0", "-i", ra.ListFile)
 	}
 
 	metaInputIdx := -1
@@ -480,12 +510,28 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		set = sets[0]
 	}
 	appendLog(fmt.Sprintf("Using title set: %s", set.Name))
-	listFile, err := BuildConcatList(set.Files)
-	if err != nil {
-		appendLog(fmt.Sprintf("Error building concat list: %v", err))
-		return fmt.Errorf("build concat list: %w", err)
+
+	// Prefer -f dvdvideo when available — it reads the IFO cell playback table
+	// natively, correctly handling seamless branching discs.
+	useDVDVideo := opts.ExtractMode != "full" && format != FormatArchivist && opts.TitleNumber > 0 && SupportsDVDVideo()
+	if useDVDVideo {
+		appendLog("FFmpeg dvdvideo demuxer available — using cell-accurate title playback")
+	} else {
+		if opts.TitleNumber > 0 && !SupportsDVDVideo() {
+			appendLog("FFmpeg dvdvideo demuxer not available — falling back to VOB concatenation (may break on seamless branching discs)")
+		}
 	}
-	defer os.Remove(listFile)
+
+	listFile := ""
+	if !useDVDVideo {
+		var err error
+		listFile, err = BuildConcatList(set.Files)
+		if err != nil {
+			appendLog(fmt.Sprintf("Error building concat list: %v", err))
+			return fmt.Errorf("build concat list: %w", err)
+		}
+		defer os.Remove(listFile)
+	}
 
 	// Create output directory if it doesn't exist.
 	outputDir := outputPath
@@ -507,6 +553,10 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 		OutputPath: outputPath,
 		Format:     format,
 		DiscTitle:  opts.DiscTitle,
+	}
+	if useDVDVideo {
+		ra.VideoTSPath = videoTSPath
+		ra.TitleNumber = opts.TitleNumber
 	}
 
 	vtsName := set.Name // e.g. "VTS_01"

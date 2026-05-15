@@ -130,12 +130,22 @@ func (s *appState) executeRipJob(ctx context.Context, job *queue.Job, progressCa
 			vtsNumber = int(n)
 		}
 	}
+	titleNumber := 0
+	if v, ok := cfg["titleNumber"]; ok {
+		switch n := v.(type) {
+		case int:
+			titleNumber = n
+		case float64:
+			titleNumber = int(n)
+		}
+	}
 
 	execOpts := ripmod.ExecuteOptions{
 		SourcePath:       sourcePath,
 		OutputPath:       outputPath,
 		Format:           format,
 		VTSNumber:        vtsNumber,
+		TitleNumber:      titleNumber,
 		ExtractMode:      toString(cfg["extractMode"]),
 		EmbedChapters:    toBool(cfg["embedChapters"]),
 		AllAudioTracks:   toBool(cfg["allAudioTracks"]),

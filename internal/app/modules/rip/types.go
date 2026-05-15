@@ -117,6 +117,10 @@ type ExecuteOptions struct {
 	// VTSNumber selects a specific VTS to rip. 0 = largest set (default = main feature).
 	VTSNumber int
 
+	// TitleNumber is the 1-based title index from VMG TT_SRPT.
+	// Used with -f dvdvideo for seamless branching support. 0 = auto-detect.
+	TitleNumber int
+
 	// ExtractMode controls whether only the main feature (default) or the full disc
 	// (all VTS sets + menu VOB) is extracted. "" or "main" = main feature only.
 	// "full" = full disc extraction with IFO regeneration (DVD-Video output).
