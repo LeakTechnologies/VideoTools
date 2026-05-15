@@ -601,6 +601,98 @@ func TintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 	return container.NewMax(rect, padded)
 }
 
+// PillButton renders a pill-shaped button matching the roadmap's visual style:
+// dark background, coloured border, centred text, hover lightens border, active inverts.
+type PillButton struct {
+	widget.BaseWidget
+	Label     string
+	BorderCol color.Color
+	OnTapped  func()
+	hovered   bool
+	Active    bool
+}
+
+func NewPillButton(label string, borderCol color.Color, onTapped func()) *PillButton {
+	p := &PillButton{
+		Label:     label,
+		BorderCol: borderCol,
+		OnTapped:  onTapped,
+	}
+	p.ExtendBaseWidget(p)
+	return p
+}
+
+func (p *PillButton) CreateRenderer() fyne.WidgetRenderer {
+	bg := canvas.NewRectangle(nil)
+	bg.CornerRadius = 12
+	bg.StrokeWidth = 1.5
+	txt := canvas.NewText(p.Label, nil)
+	txt.Alignment = fyne.TextAlignCenter
+	return &pillButtonRenderer{pill: p, bg: bg, txt: txt}
+}
+
+func (p *PillButton) MouseIn(*desktop.MouseEvent) {
+	p.hovered = true
+	p.Refresh()
+}
+
+func (p *PillButton) MouseOut() {
+	p.hovered = false
+	p.Refresh()
+}
+
+func (p *PillButton) MouseMoved(*desktop.MouseEvent) {}
+
+func (p *PillButton) Tapped(*fyne.PointEvent) {
+	if p.OnTapped != nil {
+		p.OnTapped()
+	}
+}
+
+type pillButtonRenderer struct {
+	pill *PillButton
+	bg   *canvas.Rectangle
+	txt  *canvas.Text
+}
+
+func (r *pillButtonRenderer) Layout(size fyne.Size) {
+	r.bg.Resize(size)
+	r.txt.Resize(size)
+}
+
+func (r *pillButtonRenderer) MinSize() fyne.Size {
+	return r.txt.MinSize().Add(fyne.NewSize(24, 12))
+}
+
+func (r *pillButtonRenderer) Refresh() {
+	p := r.pill
+	navyLight := utils.MustHex("#1a1f35")
+	navy := utils.MustHex("#0F1529")
+	muted := utils.MustHex("#94a3b8")
+	if p.Active {
+		r.bg.FillColor = p.BorderCol
+		r.bg.StrokeColor = p.BorderCol
+		r.txt.Color = navy
+	} else if p.hovered {
+		r.bg.FillColor = navyLight
+		r.bg.StrokeColor = muted
+		r.txt.Color = color.White
+	} else {
+		r.bg.FillColor = navyLight
+		r.bg.StrokeColor = p.BorderCol
+		r.txt.Color = color.White
+	}
+	r.txt.Text = p.Label
+	r.bg.Refresh()
+	r.txt.Refresh()
+}
+
+func (r *pillButtonRenderer) Destroy() {}
+
+func (r *pillButtonRenderer) Objects() []fyne.CanvasObject {
+	return []fyne.CanvasObject{r.bg, r.txt}
+}
+
 // NewRatioRow lays out two objects with a fixed width ratio for the left item.
 func NewRatioRow(left, right fyne.CanvasObject, leftRatio float32) *fyne.Container {
 	return NewRatioRowWithGap(left, right, leftRatio, 0)
