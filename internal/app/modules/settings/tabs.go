@@ -39,10 +39,9 @@ func BuildBenchmarkTab(cb BenchmarkCallbacks) fyne.CanvasObject {
 
 	content.Add(widget.NewSeparator())
 
-	runBtn := widget.NewButton(t.BenchmarkRunButton, func() {
+	runBtn := ui.NewPillButton(t.BenchmarkRunButton, utils.MustHex(ModuleColor), func() {
 		cb.ShowBenchmark()
 	})
-	runBtn.Importance = widget.MediumImportance
 	content.Add(container.NewCenter(runBtn))
 
 	cfg, err := appcfg.LoadBenchmarkConfig()
@@ -103,8 +102,9 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	updateStatusLabel.TextStyle = fyne.TextStyle{Italic: true}
 	content.Add(container.NewHBox(updateStatusIcon, updateStatusLabel))
 
-	installBtn := widget.NewButton(t.UpdateInstall, nil)
-	installBtn.Importance = widget.HighImportance
+	settingsColor := utils.MustHex(ModuleColor)
+
+	installBtn := ui.NewPillButton(t.UpdateInstall, settingsColor, nil)
 	installBtn.Hide()
 
 	onUpdateAvailable := func(tag string) {
@@ -116,11 +116,10 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		installBtn.Show()
 	}
 
-	checkBtn := widget.NewButton(t.UpdateCheckButton, func() {
+	checkBtn := ui.NewPillButton(t.UpdateCheckButton, settingsColor, func() {
 		installBtn.Hide()
 		cb.CheckForUpdatesWithStatus(updateStatusIcon, updateStatusLabel, onUpdateAvailable)
 	})
-	checkBtn.Importance = widget.MediumImportance
 
 	content.Add(container.NewHBox(checkBtn, installBtn))
 
@@ -288,8 +287,8 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	})
 	hwSelect.SetSelected(cb.ConvertHardwareAccel())
 
-	var detectBtn *widget.Button
-	detectBtn = widget.NewButton(t.SettingsDetect, func() {
+	var detectBtn *ui.PillButton
+	detectBtn = ui.NewPillButton(t.SettingsDetect, settingsColor, func() {
 		detectBtn.SetText("Detecting...")
 		detectBtn.Disable()
 		go func() {
@@ -304,15 +303,13 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 			}, false)
 		}()
 	})
-	detectBtn.Importance = widget.HighImportance
 
-	autoBtn := widget.NewButton(t.SettingsUseAuto, func() {
+	autoBtn := ui.NewPillButton(t.SettingsUseAuto, settingsColor, func() {
 		hwSelect.SetSelected("auto")
 		cb.SetConvertHardwareAccel("auto")
 		cb.PersistConvertConfig()
 		hwStatus.SetText("Set to auto — best available encoder selected at encode time.")
 	})
-	autoBtn.Importance = widget.MediumImportance
 
 	content.Add(container.NewVBox(
 		hwLabel,
@@ -548,7 +545,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 		cb.SetDefaultOutputDir(strings.TrimSpace(val))
 	}
 
-	outputBrowseBtn := widget.NewButton(t.ActionBrowse, func() {
+	outputBrowseBtn := ui.NewPillButton(t.ActionBrowse, settingsColor, func() {
 		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
 			if err != nil || uri == nil {
 				return
@@ -558,13 +555,11 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 			cb.SetDefaultOutputDir(path)
 		}, cb.Window())
 	})
-	outputBrowseBtn.Importance = widget.MediumImportance
 
-	outputClearBtn := widget.NewButton(t.ConvertUseDefault, func() {
+	outputClearBtn := ui.NewPillButton(t.ConvertUseDefault, settingsColor, func() {
 		outputDirEntry.SetText("")
 		cb.SetDefaultOutputDir("")
 	})
-	outputClearBtn.Importance = widget.LowImportance
 
 	outputHint := widget.NewLabel(t.SettingsDefaultOutputDirHint)
 	outputHint.TextStyle = fyne.TextStyle{Italic: true}
@@ -667,16 +662,17 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 		actions := container.NewHBox()
 		cmds = cb.GetDependencyCommands(depName)
 
+		depColor := utils.MustHex(ModuleColor)
+
 		if cmds.Install != nil {
 			// Skip install button for bundled deps
 			if !bundledDeps[depName] {
-				installBtn := widget.NewButton(t.DependenciesInstall, func() {
+				installBtn := ui.NewPillButton(t.DependenciesInstall, depColor, func() {
 					cb.RunDependencyCommandWithProgress(fmt.Sprintf("Installing %s", dep.Name), dep.InstallCmd, cmds.Install, func(out string, err error) {
 						cb.ShowCommandResult(fmt.Sprintf("%s Install", dep.Name), out, err)
 						cb.ShowSettingsView()
 					})
 				})
-				installBtn.Importance = widget.HighImportance
 				if isInstalled {
 					installBtn.Disable()
 				}
@@ -688,7 +684,7 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 		showUninstall := cmds.Uninstall != nil && !bundledDeps[depName]
 
 		if showUninstall {
-			uninstallBtn := widget.NewButton(t.DependenciesUninstall, func() {
+			uninstallBtn := ui.NewPillButton(t.DependenciesUninstall, depColor, func() {
 				dialog.ShowConfirm(fmt.Sprintf("Uninstall %s?", dep.Name), "This will attempt to remove the dependency using your package manager.", func(ok bool) {
 					if !ok {
 						return
@@ -699,7 +695,6 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 					})
 				}, cb.Window())
 			})
-			uninstallBtn.Importance = widget.LowImportance
 			if !isInstalled {
 				uninstallBtn.Disable()
 			}

@@ -646,6 +646,11 @@ func (p *PillButton) MouseOut() {
 
 func (p *PillButton) MouseMoved(*desktop.MouseEvent) {}
 
+func (p *PillButton) SetText(label string) {
+	p.Label = label
+	p.Refresh()
+}
+
 func (p *PillButton) Tapped(*fyne.PointEvent) {
 	if p.Disabled() {
 		return

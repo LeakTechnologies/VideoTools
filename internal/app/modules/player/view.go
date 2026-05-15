@@ -108,7 +108,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	loadBtn.Importance = widget.HighImportance
 
-	clearBtn := widget.NewButton(t.ActionClearVideo, func() {
+	clearBtn := ui.NewPillButton(t.ActionClearVideo, playerColor, func() {
 		if opts.OnReleasePlaybackSession != nil {
 			opts.OnReleasePlaybackSession()
 		}
@@ -120,7 +120,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.OnShowPlayerView()
 		}
 	})
-	clearBtn.Importance = widget.MediumImportance
 
 	var bottomBar fyne.CanvasObject
 	if opts.OnGetPlayerFooter != nil {
