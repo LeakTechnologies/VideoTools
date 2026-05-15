@@ -7,9 +7,11 @@ import (
 	"image/color"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -55,6 +57,7 @@ type viewState struct {
 
 	scanResult     *DiscScanResult
 	selectedTitles map[int]bool // title Number → selected
+	videoTSPath    string       // resolved VIDEO_TS dir; empty for ISOs / unloaded
 
 	statusLabel *widget.Label
 	progressBar *widget.ProgressBar
@@ -131,9 +134,10 @@ func (vs *viewState) setProgress(percent float64) {
 func BuildView(opts Options) fyne.CanvasObject {
 	t := i18n.T()
 
-	// rebuildEnrich is assigned after the enrichment widgets are created;
-	// declared here so formatSelect and the drop handler can capture it by ref.
+	// rebuildEnrich / rebuildTitleNav are assigned after their widgets are created;
+	// declared here so formatSelect and the drop handler can capture them by ref.
 	var rebuildEnrich func()
+	var rebuildTitleNav func()
 	var discInfoLabel *widget.Label
 
 	vs := &viewState{
@@ -257,6 +261,87 @@ func BuildView(opts Options) fyne.CanvasObject {
 		func() string { return vs.logText },
 		opts.Window,
 	)
+
+	// ── DVD Player ───────────────────────────────────────────────────────────
+	dvdPlayer := ui.NewInlineVideoPlayer()
+	dvdPlayer.SetIdleText("LOAD DISC TO RIP")
+
+	var playerCanvas fyne.CanvasObject
+	if w := dvdPlayer.Widget(); w != nil {
+		playerCanvas = ui.BuildPlayerContainer(w, fyne.NewSize(0, 0))
+	} else {
+		// Non-native build: static dark placeholder
+		bg := canvas.NewRectangle(utils.MustHex("#0F1529"))
+		bg.CornerRadius = 8
+		bg.StrokeColor = ui.GridColor
+		bg.StrokeWidth = 1
+		txt := canvas.NewText("LOAD DISC TO RIP", color.NRGBA{R: 80, G: 80, B: 80, A: 255})
+		txt.TextStyle = fyne.TextStyle{Monospace: true}
+		txt.Alignment = fyne.TextAlignCenter
+		playerCanvas = container.NewMax(bg, container.NewCenter(txt))
+	}
+
+	// Title navigation (revealed when a multi-title disc is loaded)
+	titleIdx := 0
+	var titleNavSelect *widget.Select
+	var prevTitleBtn, nextTitleBtn *widget.Button
+
+	prevTitleBtn = widget.NewButton("◀", func() {
+		if vs.scanResult == nil || titleIdx <= 0 || vs.videoTSPath == "" {
+			return
+		}
+		titleIdx--
+		titleNavSelect.SetSelected(buildTitleNavLabel(vs.scanResult.Titles[titleIdx]))
+	})
+	nextTitleBtn = widget.NewButton("▶", func() {
+		if vs.scanResult == nil || titleIdx >= len(vs.scanResult.Titles)-1 || vs.videoTSPath == "" {
+			return
+		}
+		titleIdx++
+		titleNavSelect.SetSelected(buildTitleNavLabel(vs.scanResult.Titles[titleIdx]))
+	})
+	prevTitleBtn.Importance = widget.LowImportance
+	nextTitleBtn.Importance = widget.LowImportance
+
+	titleNavSelect = widget.NewSelect(nil, func(s string) {
+		if vs.scanResult == nil || vs.videoTSPath == "" {
+			return
+		}
+		for i, dt := range vs.scanResult.Titles {
+			if buildTitleNavLabel(dt) == s {
+				titleIdx = i
+				if url := buildDiscConcatURL(vs.videoTSPath, dt.VTSNumber); url != "" {
+					go func() { _ = dvdPlayer.Load(url) }()
+				}
+				return
+			}
+		}
+	})
+
+	titleNavRow := container.NewHBox(
+		widget.NewLabel("Title:"),
+		titleNavSelect,
+		prevTitleBtn,
+		nextTitleBtn,
+	)
+	titleNavRow.Hide()
+
+	playerPane := container.NewBorder(nil, titleNavRow, nil, nil, playerCanvas)
+
+	rebuildTitleNav = func() {
+		if vs.scanResult == nil || len(vs.scanResult.Titles) <= 1 || vs.videoTSPath == "" {
+			titleNavRow.Hide()
+			return
+		}
+		navOpts := make([]string, len(vs.scanResult.Titles))
+		for i, dt := range vs.scanResult.Titles {
+			navOpts[i] = buildTitleNavLabel(dt)
+		}
+		titleNavSelect.SetOptions(navOpts)
+		titleIdx = 0
+		titleNavSelect.SetSelected(navOpts[0])
+		titleNavRow.Show()
+	}
 
 	applyControls := func() {
 		formatSelect.SetSelected(vs.format)
@@ -439,9 +524,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 	clearISOBtn := widget.NewButton(t.RipClearISO, func() {
 		vs.sourcePath = ""
 		vs.outputPath = ""
+		vs.videoTSPath = ""
 		vs.resetLog()
 		vs.scanResult = nil
 		vs.selectedTitles = nil
+		dvdPlayer.Close()
+		rebuildTitleNav()
 		rebuildEnrich()
 		if opts.SetRipSourcePath != nil {
 			opts.SetRipSourcePath("")
@@ -761,10 +849,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 								logging.Warning(logging.CatDVD, "disc scan failed: %v", scanErr)
 							} else {
 								vs.scanResult = result
+								vs.videoTSPath = vtsp
 								vs.selectedTitles = make(map[int]bool)
 								for _, dt := range result.Titles {
 									vs.selectedTitles[dt.Number] = true
 								}
+								if len(result.Titles) > 0 {
+									if url := buildDiscConcatURL(vtsp, result.Titles[0].VTSNumber); url != "" {
+										go func() { _ = dvdPlayer.Load(url) }()
+									}
+								}
+								rebuildTitleNav()
 							}
 							rebuildEnrich()
 						}, false)
@@ -786,12 +881,70 @@ func BuildView(opts Options) fyne.CanvasObject {
 		progressBar,
 	)
 
+	mainSplit := container.NewHSplit(
+		playerPane,
+		container.NewVScroll(container.NewPadded(controls)),
+	)
+	mainSplit.SetOffset(0.65)
+
 	var bottomBar fyne.CanvasObject
 	if opts.OnModuleFooter != nil {
 		bottomBar = opts.OnModuleFooter(opts.ModuleColor, container.NewHBox(addQueueBtn, layout.NewSpacer(), runNowBtn), opts.OnGetStatsBar())
 	}
 	return container.NewBorder(topBar, bottomBar, nil, nil,
 		container.NewBorder(nil, logSection, nil, nil,
-			container.NewVScroll(container.NewPadded(controls)),
+			mainSplit,
 		))
+}
+
+// buildTitleNavLabel builds the display label for a disc title in the nav dropdown.
+func buildTitleNavLabel(dt DiscTitle) string {
+	return fmt.Sprintf("T%02d  %s  (%d chap)", dt.Number, FormatDuration(dt.Duration), dt.NumChapters)
+}
+
+// collectVTSVOBFiles returns the content VOB paths for a VTS set in playback order.
+// VTS_XX_0.VOB is the menu VOB and is excluded; VTS_XX_1.VOB onward are content.
+func collectVTSVOBFiles(videoTSPath string, vtsNum int) []string {
+	if vtsNum <= 0 {
+		vtsNum = 1
+	}
+	prefix := strings.ToUpper(fmt.Sprintf("VTS_%02d_", vtsNum))
+	entries, err := os.ReadDir(videoTSPath)
+	if err != nil {
+		return nil
+	}
+	var vobs []string
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		upper := strings.ToUpper(entry.Name())
+		if strings.HasPrefix(upper, prefix) &&
+			strings.HasSuffix(upper, ".VOB") &&
+			!strings.HasSuffix(upper, "_0.VOB") {
+			vobs = append(vobs, filepath.Join(videoTSPath, entry.Name()))
+		}
+	}
+	sort.Strings(vobs)
+	return vobs
+}
+
+// buildDiscConcatURL returns an ffmpeg concat: protocol URL covering all content
+// VOBs for the given VTS set. Returns "" if no VOBs are found.
+func buildDiscConcatURL(videoTSPath string, vtsNum int) string {
+	vobs := collectVTSVOBFiles(videoTSPath, vtsNum)
+	if len(vobs) == 0 {
+		return ""
+	}
+	if len(vobs) == 1 {
+		return vobs[0] // single file — no concat protocol needed
+	}
+	parts := make([]string, len(vobs))
+	for i, p := range vobs {
+		// concat: protocol uses | as separator; convert backslashes and encode spaces
+		p = filepath.ToSlash(p)
+		p = strings.ReplaceAll(p, " ", "%20")
+		parts[i] = p
+	}
+	return "concat:" + strings.Join(parts, "|")
 }
