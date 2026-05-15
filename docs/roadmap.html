@@ -21,6 +21,7 @@
     --active: #eab308;
     --planned: #3b82f6;
     --future: #6b7280;
+    --deprecated: #a855f7;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -105,6 +106,9 @@
   .card.active { border-left-color: var(--active); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(234,179,8,0.08)); }
   .card.planned { border-left-color: var(--planned); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(59,130,246,0.08)); }
   .card.future { border-left-color: var(--future); background: var(--vt-card); }
+  .card.deprecated { border-left-color: var(--deprecated); background: linear-gradient(135deg, var(--vt-card) 60%, rgba(168,85,247,0.08)); opacity: 0.7; }
+  .card.deprecated .card-title { text-decoration: line-through; }
+  .card.deprecated .cycle-tag { background: rgba(168,85,247,0.12); color: #c084fc; }
   .card.hidden { display: none; }
 
   .modal-overlay {
@@ -133,6 +137,7 @@
   .modal .status-badge.active { background: rgba(234,179,8,0.15); color: #fde047; border: 1px solid var(--active); }
   .modal .status-badge.planned { background: rgba(59,130,246,0.15); color: #93c5fd; border: 1px solid var(--planned); }
   .modal .status-badge.future { background: rgba(107,114,128,0.15); color: #9ca3af; border: 1px solid var(--future); }
+  .modal .status-badge.deprecated { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid var(--deprecated); }
   .modal h2 { font-size: 1.2rem; color: var(--vt-text); margin-bottom: 0.5rem; }
   .modal .detail-desc { font-size: 0.9rem; color: var(--vt-text-muted); line-height: 1.5; margin-bottom: 1rem; }
   .modal .detail-section { margin-bottom: 0.75rem; }
@@ -187,6 +192,7 @@
   <span class="legend-item"><span class="legend-swatch" style="background:var(--active)"></span> In Progress</span>
   <span class="legend-item"><span class="legend-swatch" style="background:var(--planned)"></span> Planned</span>
   <span class="legend-item"><span class="legend-swatch" style="background:var(--future)"></span> Future</span>
+  <span class="legend-item"><span class="legend-swatch" style="background:var(--deprecated)"></span> Deprecated</span>
 </div>
 
 <div class="controls" id="filters">
@@ -197,6 +203,7 @@
   <button data-filter="active">In Progress</button>
   <button data-filter="planned">Planned</button>
   <button data-filter="future">Future</button>
+  <button data-filter="deprecated">Deprecated</button>
 </div>
 <div class="controls" id="module-filters"></div>
 <div class="controls" style="margin-top:-0.75rem;">
@@ -288,7 +295,8 @@ const statusLabels = {
   done: 'Done (Untested)',
   active: 'In Progress',
   planned: 'Planned',
-  future: 'Future'
+  future: 'Future',
+  deprecated: 'Deprecated'
 };
 
 const roadmap = {
@@ -333,7 +341,7 @@ const roadmap = {
       { id: 'thread-safe', title: 'Thread-Safety Audit', desc: 'WaitGroup guards on close/demuxer race, pixel format SIGSEGV fix, seekLoop goroutine leak fix', status: 'shipped', cycle: 'dev43', files: ['internal/media/player.go', 'internal/media/engine.go'], deps: ['engine'], docs: ['docs/PLAYER_DEBUG.md'] },
       { id: 'smpte-idle', title: 'SMPTE Bars Idle State', desc: '"DROP VIDEO TO LOAD" placeholder with colour bars when no media is loaded', status: 'shipped', cycle: 'dev44', files: ['internal/ui/smpte_idle.go'], deps: ['inline-player'], docs: [] },
       { id: 'audio-prewarm', title: 'Audio Context Pre-Warm', desc: 'Initializes shared audio context (oto/WASAPI) at startup to avoid first-playback delay', status: 'shipped', cycle: 'dev42', files: ['internal/media/audio.go'], deps: ['engine'], docs: [] },
-      { id: 'gstreamer-removal', title: 'GStreamer Removal', desc: 'Remove legacy internal/player/gstreamer* files, build scripts, and CI references', status: 'shipped', cycle: 'dev42', files: ['internal/player/gstreamer*'], deps: ['engine'], docs: [] },
+      { id: 'gstreamer-removal', title: 'GStreamer Removal', desc: 'Remove legacy internal/player/gstreamer* files, build scripts, and CI references — native_media build tag is the only player path', status: 'deprecated', cycle: 'dev42', files: ['internal/player/gstreamer*'], deps: ['engine'], docs: [] },
       { id: 'seeking', title: 'Seeking Performance', desc: 'Frame-accurate seeking — keyframe snapping in some containers, needs adaptive timing with drift correction', status: 'future', cycle: 'future', files: ['internal/media/player.go'], deps: ['engine'], docs: ['docs/PLAYER_DEBUG.md'] },
       { id: 'dvd-menu-play', title: 'Native DVD Menu VM', desc: 'Full libdvdnav menu VM inside the player — button highlight, chapter navigation, conditional branching. External VLC/mpv launch is already available via Rip module "Play with Menus" button.', status: 'future', cycle: 'future', files: [], deps: ['dvdvideo'], docs: [] },
       { id: 'unified-arch', title: 'Unified FFmpeg Architecture', desc: 'Single FFmpeg process with multiplexed A/V output; master clock, PTS drift correction, ring buffers', status: 'future', cycle: 'future', files: ['internal/media/'], deps: ['engine'], docs: [] },
@@ -451,7 +459,7 @@ const roadmap = {
       { id: 'roadmap-board', title: 'Interactive Roadmap Board', desc: 'Column-per-module HTML board with colour-coded cards, clickable modals, filter by status, IBM Plex Mono font, VT logo', status: 'shipped', cycle: 'dev48', files: ['docs/roadmap.html', 'docs/ROADMAP.md'], deps: [], docs: [] },
       { id: 'version-bump', title: 'Version Bump dev48', desc: 'Bumped v0.1.1-dev47 → v0.1.1-dev48 in VERSION, main.go, FyneApp.toml (build 43→44)', status: 'shipped', cycle: 'dev48', files: ['VERSION', 'main.go', 'FyneApp.toml'], deps: [], docs: [] },
       { id: 'ci-speedup', title: 'Linux CI Speedup', desc: 'Pre-built Docker container image with FFmpeg build dependencies baked in', status: 'active', cycle: 'dev48', files: ['.forgejo/workflows/dev-packages.yml'], deps: ['linux-ci'], docs: [] },
-      { id: 'win-sign-cert', title: 'Windows Signing Pipeline', desc: 'Wire production cert into Forgejo secrets for authenticode signing on release', status: 'planned', cycle: 'dev49', files: ['scripts/windows/support/sign-exe.ps1'], deps: [], docs: [] },
+      { id: 'win-sign-cert', title: 'Windows Signing Pipeline', desc: 'Scripts fully written and CI-wired (sign-exe.ps1, new-dev-cert.ps1). Two paths: (1) SignPath.io free OSS — apply at app.signpath.io, add SIGNPATH_API_TOKEN + SIGNPATH_ORGANIZATION_ID to Forgejo secrets; (2) PFX cert — purchase from DigiCert/Sectigo, base64-encode .pfx, add VT_SIGN_PFX_B64 + VT_SIGN_PASSWORD to Forgejo secrets. CI signing step already wired in ci-build.ps1 (non-fatal if secrets absent). Blocker: no production credential obtained yet.', status: 'planned', cycle: 'dev49', files: ['scripts/windows/support/sign-exe.ps1', 'scripts/windows/support/new-dev-cert.ps1', 'scripts/windows/ci-build.ps1'], deps: [], docs: [] },
       { id: 'forgejo-releases', title: 'Forgejo Release Automation', desc: 'publish-release job creates/updates Forgejo release, prunes stale assets, uploads Linux + Windows artifacts, patches target_commitish for in-app update check. Staleness guard skips publish if newer master commit has already run. Fully wired via FORGEJO_TOKEN + FORGEJO_API_URL secrets.', status: 'shipped', cycle: 'dev48', files: ['.forgejo/workflows/dev-packages.yml'], deps: ['linux-ci', 'windows-ci'], docs: [] },
       { id: 'github-actions', title: 'GitHub Actions Mirror', desc: '.github/workflows/ produces release artifacts (MSIX + AppImage) for GitHub releases', status: 'future', cycle: 'future', files: [], deps: ['linux-ci', 'windows-ci'], docs: [] },
       { id: 'silent-errors', title: 'Fix Silent Error Handling', desc: 'Log instead of discarding errors in dvd/vob/sri.go, queue/edit.go, convert/dvd.go', status: 'future', cycle: 'future', files: ['internal/dvd/vob/sri.go', 'internal/queue/edit.go', 'internal/convert/dvd.go'], deps: [], docs: [] },
