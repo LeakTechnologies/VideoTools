@@ -1,7 +1,9 @@
 package theme
 
 import (
+	"fmt"
 	"image/color"
+	"os"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -36,6 +38,9 @@ func (p *PillIconButton) SetIcon(resource fyne.Resource) {
 }
 
 func (p *PillIconButton) CreateRenderer() fyne.WidgetRenderer {
+	if startupDebug {
+		fmt.Fprintf(os.Stderr, "[vt-debug] PillIconButton.CreateRenderer\n")
+	}
 	bg := canvas.NewRectangle(nil)
 	bg.CornerRadius = 8
 	bg.StrokeWidth = 1.5

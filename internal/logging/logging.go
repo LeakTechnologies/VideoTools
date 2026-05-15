@@ -279,6 +279,16 @@ func Fatal(cat Category, format string, args ...interface{}) {
 	os.Exit(1)
 }
 
+// Sync flushes the log file to disk immediately. Call this at startup checkpoints
+// before code that could crash at the C/OS level — ensures log entries survive.
+func Sync() {
+	fileMu.Lock()
+	if file != nil {
+		file.Sync()
+	}
+	fileMu.Unlock()
+}
+
 // Close closes log file
 func Close() {
 	if file != nil {

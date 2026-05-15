@@ -8169,7 +8169,11 @@ func runGUI() {
 	// Re-applying the theme here triggers that listener so the first render always
 	// sees IBM Plex Mono for every text style, not stale DefaultTheme entries.
 	a.Lifecycle().SetOnStarted(func() {
+		logging.Info(logging.CatUI, "startup: SetOnStarted — applying theme to seed font cache")
+		logging.Sync()
 		a.Settings().SetTheme(a.Settings().Theme())
+		logging.Info(logging.CatUI, "startup: SetOnStarted complete — render loop will start on next tick")
+		logging.Sync()
 	})
 
 	fontutil.SetFontCacheDebugCallback(func(styleName, fontResourceName string) {
@@ -8400,6 +8404,8 @@ func runGUI() {
 		}
 	}()
 
+	logging.Info(logging.CatUI, "startup: ShowAndRun — window showing, entering GL event loop")
+	logging.Sync()
 	w.Show()
 	w.RequestFocus()
 	w.ShowAndRun()
