@@ -214,13 +214,15 @@ if (Test-Path $BUILD_OUTPUT) {
     Write-Host " Size: ${size}MB" -ForegroundColor Green
     Write-Host ""
 
-    # Copy FFmpeg DLLs to output directory (required for native_media build)
+    # Bundle FFmpeg DLLs in DLL/ subfolder (matches CI layout)
     $ffmpegBinDir = "C:\ffmpeg\bin"
     if (Test-Path $ffmpegBinDir) {
+        $dllDest = Join-Path (Split-Path $BUILD_OUTPUT) "DLL"
+        New-Item -ItemType Directory -Force -Path $dllDest | Out-Null
         Get-ChildItem "$ffmpegBinDir\*.dll" |
             Where-Object { $_.Name -notmatch "^(ffmpeg|ffprobe|ffplay)" } |
-            ForEach-Object { Copy-Item $_.FullName -Destination (Split-Path $BUILD_OUTPUT) -Force }
-        Write-Host "Copied FFmpeg DLLs to output" -ForegroundColor Green
+            ForEach-Object { Copy-Item $_.FullName -Destination $dllDest -Force }
+        Write-Host "Copied FFmpeg DLLs to DLL/ subfolder" -ForegroundColor Green
     } else {
         Write-Host "Warning: C:\ffmpeg\bin not found, DLLs not copied. Run install-deps first." -ForegroundColor Yellow
     }
