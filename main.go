@@ -91,10 +91,10 @@ type Module struct {
 var (
 	debugFlag = flag.Bool("debug", false, "enable verbose logging (env: VIDEOTOOLS_DEBUG=1)")
 
-	backgroundColor = utils.MustHex("#0B0F1A")
-	gridColor       = utils.MustHex("#171C2A")
-	textColor       = utils.MustHex("#E1EEFF")
-	queueColor      = utils.MustHex("#5961FF")
+	backgroundColor = ui.BgBase
+	gridColor       = ui.BorderDim
+	textColor       = ui.Text
+	queueColor      = ui.Magenta
 
 	conversionLogSuffix = ".videotools.log"
 
