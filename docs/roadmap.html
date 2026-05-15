@@ -815,24 +815,27 @@ document.getElementById('changelogModal').addEventListener('click', (e) => {
 
 render();
 
-// --- Board drag-to-pan ---
+// --- Board drag-to-pan (horizontal + vertical) ---
 (function() {
   const boardEl = document.getElementById('board');
-  let dragging = false, startX = 0, startScroll = 0, moved = false;
+  let dragging = false, startX = 0, startY = 0, startScrollX = 0, startScrollY = 0, moved = false;
 
   boardEl.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
     dragging = true; moved = false;
-    startX = e.clientX;
-    startScroll = boardEl.scrollLeft;
+    startX = e.clientX; startY = e.clientY;
+    startScrollX = boardEl.scrollLeft;
+    startScrollY = window.scrollY;
     boardEl.classList.add('panning');
   });
 
   window.addEventListener('mousemove', (e) => {
     if (!dragging) return;
     const dx = e.clientX - startX;
-    if (Math.abs(dx) > 4) moved = true;
-    boardEl.scrollLeft = startScroll - dx;
+    const dy = e.clientY - startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+    boardEl.scrollLeft = startScrollX - dx;
+    window.scrollTo({ top: startScrollY - dy, behavior: 'instant' });
   });
 
   window.addEventListener('mouseup', () => {
