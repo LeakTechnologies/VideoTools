@@ -43,13 +43,70 @@ These rules apply to any automation or agent working in this repo.
 
 ## Documentation Discipline
 
-- If behavior changes, update:
-  - `docs/INSTALLATION.md`
-  - the relevant platform guide (`docs/INSTALL_WINDOWS.md`, `docs/INSTALL_LINUX.md`)
-- Always update `DONE.md`, `TODO.md`, and `CHANGELOG.md` for completed or planned work.
-- `CHANGELOG.md` means `docs/CHANGELOG.md` in this repo.
-- Avoid personal names in documentation; use `user report` or `dev report` only.
+Every time work lands, **all six documents must be updated in the same commit**:
+
+| Document | What to update |
+|---|---|
+| `docs/roadmap.html` | Card status, cycle, desc; add new cards; update changelog/checklist data |
+| `docs/ROADMAP.md` | Mermaid timeline entry; Current State prose; Now/Next sections |
+| `docs/CHANGELOG.md` | New bullet under current dev cycle heading |
+| `AGENTS.md` | Settled decisions, handoff priorities, current cycle state |
+| `DONE.md` | New section entry for the completed feature |
+| `TODO.md` | Check off completed items; add newly scoped items |
+
+Additional rules:
+- If behavior changes, also update `docs/INSTALLATION.md` and the relevant platform guide (`docs/INSTALL_WINDOWS.md`, `docs/INSTALL_LINUX.md`).
+- `CHANGELOG.md` means `docs/CHANGELOG.md` in this repo (not the root).
+- Avoid personal names; use `user report` or `dev report` only.
 - The retired `docs.leaktechnologies.dev` site must not be used; active docs live in-repo and on the Forgejo wiki.
+
+## Interactive Roadmap Maintenance (`docs/roadmap.html`)
+
+The interactive roadmap is the **primary visual tracker** for the project. It must be kept current at all times. Both Claude and opencode are responsible for updating it whenever features land or scope changes.
+
+### Card Status Values
+
+| Value | Meaning |
+|---|---|
+| `shipped` | Merged, tested, confirmed working by a real user or tester |
+| `done` | Code committed and CI green, but not yet tester-verified |
+| `active` | Currently being worked on this cycle |
+| `planned` | Scoped for an upcoming cycle — implementation not started |
+| `future` | Deferred; no cycle assigned yet |
+
+### What to Update When a Feature Lands
+
+1. **Find the card** — search the `roadmap` JS object by `id` or `title`.
+2. **Update `status`** — set to `done` when committed, `shipped` once tester confirms.
+3. **Update `cycle`** — set to the current dev cycle (e.g. `'dev48'`).
+4. **Update `desc`** — if the implementation detail differs from what was planned, rewrite it to match reality.
+5. **Update `files`** — add or correct the key file paths.
+
+### What to Update When New Work Is Scoped
+
+Add a new card object to the correct module's `items` array:
+
+```javascript
+{ id: 'unique-kebab-id', title: 'Feature Name',
+  desc: 'What it does and why it matters — one or two sentences.',
+  status: 'planned', cycle: 'dev49',
+  files: ['internal/path/to/relevant.go'],
+  deps: ['id-of-dependency-card'],
+  docs: ['docs/DESIGN_DOC.md'] },
+```
+
+### What to Update When a Dev Cycle Closes
+
+1. Add a new entry to the **`changelogData` array** at the top (newest first) with the cycle's sections and bullet points. Use the actual technical detail from `docs/CHANGELOG.md` — not just card titles.
+2. Add the cycle's items to the **`checklistData` array** so testers can verify them.
+3. Update the **subtitle line** (`<p class="subtitle">`) with the new version and date.
+
+### What NOT to Do
+
+- Do not leave a card at `status: 'planned'` after the code is committed.
+- Do not leave a card at `status: 'done'` indefinitely — chase the tester sign-off and move it to `shipped`.
+- Do not add a card for something that is already shipped and was never tracked — just note it in `CHANGELOG.md` instead.
+- Do not edit roadmap.html in isolation — always sync `ROADMAP.md`, `CHANGELOG.md`, `DONE.md`, `TODO.md` in the same commit.
 
 ### New Feature Documentation
 
