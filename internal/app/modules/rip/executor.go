@@ -894,8 +894,14 @@ func executeFullDiscRip(ctx context.Context, opts ExecuteOptions, videoTSPath st
 			return fmt.Errorf("build concat list for menu: %w", err)
 		}
 
-		// Menu VOBs always use MPEG-2 video (DVD compliant)
-		if err := convertVOBWithRegion(ctx, opts, listFile, menuOut, "VIDEO_TS", vfFilter, afFilter, isEncrypted, appendLog, updateProgress); err != nil {
+		menuInputDuration := probeDurationConcat(listFile, opts.OnRunCommand, appendLog)
+		startPct := float64(step-1) / float64(totalSteps) * 80
+		endPct := float64(step) / float64(totalSteps) * 80
+		menuSubProgress := func(pct float64) {
+			updateProgress(startPct + pct/100*(endPct-startPct))
+		}
+
+		if err := convertVOBWithRegion(ctx, opts, listFile, menuOut, "VIDEO_TS", vfFilter, afFilter, isEncrypted, menuInputDuration, appendLog, menuSubProgress); err != nil {
 			os.Remove(listFile)
 			return err
 		}
@@ -915,7 +921,7 @@ func executeFullDiscRip(ctx context.Context, opts ExecuteOptions, videoTSPath st
 	updateProgress(85)
 
 	// Stage 3: IFO regeneration
-	if err := RegenerateIFOs(videoTSPath, videoTSOut, convertedSets, isNTSC, appendLog); err != nil {
+	if err := RegenerateIFOs(videoTSPath, videoTSOut, convertedSets, isNTSC, opts.RegionConvert, appendLog); err != nil {
 		appendLog(fmt.Sprintf("IFO regeneration error: %v", err))
 		return fmt.Errorf("IFO regeneration: %w", err)
 	}
@@ -926,7 +932,8 @@ func executeFullDiscRip(ctx context.Context, opts ExecuteOptions, videoTSPath st
 }
 
 // convertVOBWithRegion runs ffmpeg to convert a VOB concat list with optional region conversion.
-func convertVOBWithRegion(ctx context.Context, opts ExecuteOptions, listFile, outputPath, setName, vfFilter, afFilter string, isEncrypted bool, appendLog func(string), updateProgress func(float64)) error {
+// duration is the input duration in seconds (used for progress tracking; 0 = no progress).
+func convertVOBWithRegion(ctx context.Context, opts ExecuteOptions, listFile, outputPath, setName, vfFilter, afFilter string, isEncrypted bool, duration float64, appendLog func(string), updateProgress func(float64)) error {
 	args := []string{
 		"-y",
 		"-hide_banner",
@@ -937,14 +944,17 @@ func convertVOBWithRegion(ctx context.Context, opts ExecuteOptions, listFile, ou
 		"-i", listFile,
 	}
 
-	// Map streams
+	// Map all video and all audio streams.
+	// Subtitles are dropped on region conversion: VOBSUB PTS values are baked at the
+	// source frame rate and cannot be cleanly remapped by a simple stream copy.
 	args = append(args, "-map", "0:v:0")
-	args = append(args, "-map", "0:a:0?")
-	args = append(args, "-map", "0:a:1?")
-	args = append(args, "-map", "0:s?")
+	args = append(args, "-map", "0:a")
+	if vfFilter == "" {
+		// No region conversion: include subtitles as-is (PTS remain valid).
+		args = append(args, "-map", "0:s?")
+	}
 	args = append(args, "-map_metadata", "-1")
 
-	// Region conversion filters
 	if vfFilter != "" {
 		args = append(args, "-vf", vfFilter)
 	}
@@ -958,13 +968,24 @@ func convertVOBWithRegion(ctx context.Context, opts ExecuteOptions, listFile, ou
 		"-q:v", "5",
 		"-c:a", "ac3",
 		"-b:a", "192k",
-		"-c:s", "copy",
-		"-max_interleave_delta", "0",
-		outputPath,
 	)
+	if vfFilter == "" {
+		args = append(args, "-c:s", "copy")
+	}
+	args = append(args, "-max_interleave_delta", "0", "-progress", "pipe:1", "-nostats", outputPath)
 
 	appendLog(fmt.Sprintf(">> ffmpeg %s", strings.Join(args, " ")))
-	if err := opts.OnRunCommand(utils.GetFFmpegPath(), args, appendLog); err != nil {
+
+	statusFn := func(msg string) {
+		if opts.OnSetStatus != nil {
+			if msg != "" {
+				opts.OnSetStatus(fmt.Sprintf("[%s] %s", setName, msg))
+			} else {
+				opts.OnSetStatus("")
+			}
+		}
+	}
+	if err := runFFmpegWithProgress(ctx, utils.GetFFmpegPath(), args, duration, updateProgress, appendLog, statusFn); err != nil {
 		return fmt.Errorf("%s conversion failed: %w", setName, err)
 	}
 	return nil
