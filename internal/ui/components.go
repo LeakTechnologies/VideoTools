@@ -189,9 +189,9 @@ func GetIcon(name string) fyne.Resource {
 
 var (
 	// GridColor is the color used for grid lines and borders
-	GridColor color.Color
+	GridColor color.Color = BorderDim
 	// TextColor is the main text color
-	TextColor color.Color
+	TextColor color.Color = Text
 )
 
 // SetColors sets the UI colors
@@ -222,20 +222,15 @@ func (m *MonoTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) c
 		newB := uint8(min(int(float64(b>>8)*lightness), 255))
 		return color.RGBA{R: newR, G: newG, B: newB, A: uint8(a >> 8)}
 	case theme.ColorNameBackground:
-		// Match dropdown background tone for panels/inputs
-		return utils.MustHex("#344256")
+		return InputBg
 	case theme.ColorNameInputBackground:
-		// Match dropdown background tone for input fields
-		return utils.MustHex("#344256")
+		return InputBg
 	case theme.ColorNameInputBorder:
-		// Keep input borders visually flat against the background
-		return utils.MustHex("#344256")
+		return InputBg
 	case theme.ColorNameFocus:
-		// Avoid bright focus outlines on dark input fields
-		return utils.MustHex("#344256")
+		return InputBg
 	case theme.ColorNameForeground:
-		// Ensure good contrast on dark backgrounds
-		return color.White
+		return TextOnDark
 	}
 	return theme.DefaultTheme().Color(name, variant)
 }
@@ -677,26 +672,23 @@ func (r *pillButtonRenderer) MinSize() fyne.Size {
 
 func (r *pillButtonRenderer) Refresh() {
 	p := r.pill
-	navyLight := utils.MustHex("#1a1f35")
-	navy := utils.MustHex("#0F1529")
-	muted := utils.MustHex("#94a3b8")
 	switch {
 	case p.Disabled():
-		r.bg.FillColor = navyLight
-		r.bg.StrokeColor = muted
-		r.txt.Color = muted
+		r.bg.FillColor = BgLight
+		r.bg.StrokeColor = TextMuted
+		r.txt.Color = TextMuted
 	case p.Active:
 		r.bg.FillColor = p.BorderCol
 		r.bg.StrokeColor = p.BorderCol
-		r.txt.Color = navy
+		r.txt.Color = BgDark
 	case p.hovered:
-		r.bg.FillColor = navyLight
-		r.bg.StrokeColor = muted
-		r.txt.Color = color.White
+		r.bg.FillColor = BgLight
+		r.bg.StrokeColor = TextMuted
+		r.txt.Color = TextOnDark
 	default:
-		r.bg.FillColor = navyLight
+		r.bg.FillColor = BgLight
 		r.bg.StrokeColor = p.BorderCol
-		r.txt.Color = color.White
+		r.txt.Color = TextOnDark
 	}
 	r.txt.Text = p.Label
 	r.bg.Refresh()
