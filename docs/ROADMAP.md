@@ -2,6 +2,8 @@
 
 A lightweight forward look. Updated at the start of each dev cycle.
 
+**Interactive board:** open [`roadmap.html`](roadmap.html) in your browser for a visual, filterable card layout by module area.
+
 ```mermaid
 timeline
     title VideoTools Development Roadmap
