@@ -388,7 +388,7 @@ const roadmap = {
       { id: 'version-bump', title: 'Version Bump dev48', desc: 'Bumped v0.1.1-dev47 → v0.1.1-dev48 in VERSION, main.go, FyneApp.toml (build 43→44)', status: 'shipped', cycle: 'dev48', files: ['VERSION', 'main.go', 'FyneApp.toml'], deps: [], docs: [] },
       { id: 'ci-speedup', title: 'Linux CI Speedup', desc: 'Pre-built Docker container image with FFmpeg build dependencies baked in', status: 'active', cycle: 'dev48', files: ['.forgejo/workflows/dev-packages.yml'], deps: ['linux-ci'], docs: [] },
       { id: 'win-sign-cert', title: 'Windows Signing Pipeline', desc: 'Wire production cert into Forgejo secrets for authenticode signing on release', status: 'planned', cycle: 'dev49', files: ['scripts/windows/support/sign-exe.ps1'], deps: [], docs: [] },
-      { id: 'forgejo-releases', title: 'Forgejo Release Automation', desc: 'Validate publish workflow: builds both platforms, replaces assets, nightly changelog', status: 'planned', cycle: 'dev49', files: ['.forgejo/workflows/dev-packages.yml'], deps: ['linux-ci', 'windows-ci'], docs: [] },
+      { id: 'forgejo-releases', title: 'Forgejo Release Automation', desc: 'publish-release job creates/updates Forgejo release, prunes stale assets, uploads Linux + Windows artifacts, patches target_commitish for in-app update check. Staleness guard skips publish if newer master commit has already run. Fully wired via FORGEJO_TOKEN + FORGEJO_API_URL secrets.', status: 'shipped', cycle: 'dev48', files: ['.forgejo/workflows/dev-packages.yml'], deps: ['linux-ci', 'windows-ci'], docs: [] },
       { id: 'github-actions', title: 'GitHub Actions Mirror', desc: '.github/workflows/ produces release artifacts (MSIX + AppImage) for GitHub releases', status: 'future', cycle: 'future', files: [], deps: ['linux-ci', 'windows-ci'], docs: [] },
       { id: 'silent-errors', title: 'Fix Silent Error Handling', desc: 'Log instead of discarding errors in dvd/vob/sri.go, queue/edit.go, convert/dvd.go', status: 'future', cycle: 'future', files: ['internal/dvd/vob/sri.go', 'internal/queue/edit.go', 'internal/convert/dvd.go'], deps: [], docs: [] },
       { id: 'crop-tool', title: 'Video Cropping Tool', desc: 'Visual cropper: coordinate boxes, zoom preview, center button, aspect-ratio lock, FFmpeg crop filter', status: 'future', cycle: 'future', files: [], deps: [], docs: ['docs/CROP_DESIGN.md'] },
@@ -567,6 +567,12 @@ const changelogData = [
       '60+ items across 10 module columns; clickable detail modals with files/deps/docs',
       'Filter by status and by module independently (compound AND logic)',
       'IBM Plex Mono font, VT logo header, Changelog view',
+    ]},
+    { title: 'Forgejo Release Automation (confirmed shipped)', items: [
+      'publish-release job creates/updates release via API, prunes stale assets, uploads Linux + Windows ZIPs',
+      'Patches target_commitish per run so in-app update check matches the correct binary',
+      'Staleness guard: skips publish if newer master commit has superseded this run',
+      'Wired via FORGEJO_TOKEN + FORGEJO_API_URL secrets -- already on the runner',
     ]},
     { title: 'Version Bump', items: [
       'v0.1.1-dev47 -> v0.1.1-dev48 in VERSION, main.go, FyneApp.toml (build 43->44)',
