@@ -122,7 +122,7 @@ if ((Test-Path $ffmpegDllSource) -and $avcodecPresent) {
     }
     $dllCount = (Get-ChildItem -Path $ffmpegDllDest -Filter "*.dll" | Measure-Object).Count
     if ($dllCount -eq 0) {
-        Write-Error "[ERROR] DLL copy produced 0 files — aborting"
+        Write-Error "[ERROR] DLL copy produced 0 files -- aborting"
         exit 1
     }
     Write-Host "[INFO] Bundled $dllCount FFmpeg DLLs in DLL/ subfolder"
@@ -162,7 +162,7 @@ if (Test-Path $ffmpegBinSource) {
     Copy-Item (Join-Path $ffmpegBinSource "ffprobe.exe") -Destination $pkgDir.FullName -Force -ErrorAction SilentlyContinue
     Write-Host "[INFO] Bundled ffmpeg.exe and ffprobe.exe in package root"
 } else {
-    Write-Host "[WARN] FFmpeg CLI executables not found at $ffmpegBinSource — ffmpeg/ffprobe not bundled; user must supply their own"
+    Write-Host "[WARN] FFmpeg CLI executables not found at $ffmpegBinSource -- ffmpeg/ffprobe not bundled; user must supply their own"
 }
 
 # README
