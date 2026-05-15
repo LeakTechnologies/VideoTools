@@ -8203,11 +8203,10 @@ func runGUI() {
 	go sweepOrphanTempFiles()
 
 	// Bootstrap FFmpeg DLLs for native media engine
-	// Downloads FFmpeg shared libraries on first run so the media engine can work
 	if HasNativeMediaPlayer() {
 		if err := appcfg.AddFFmpegDllsToPath(); err != nil {
-			logging.Error(logging.CatSystem, "failed to bootstrap FFmpeg DLLs: %v", err)
-			ShowErrorLarge(fmt.Errorf("VideoTools could not download FFmpeg DLLs for video playback:\n\n%v\n\nVideo playback features will be unavailable. You can try again later or check your internet connection.", err), w)
+			logging.Error(logging.CatSystem, "failed to locate FFmpeg DLLs: %v", err)
+			ShowErrorLarge(fmt.Errorf("VideoTools could not locate the FFmpeg DLLs needed for video playback.\n\n%v\n\nIf you downloaded a ZIP, make sure you extracted ALL contents (including the DLL\\ folder) into the same directory as VideoTools.exe before running it — do not run directly from inside the ZIP.", err), w)
 		} else {
 			logging.Info(logging.CatSystem, "FFmpeg DLLs ready for native media engine")
 			// Pre-warm the shared audio context during startup so the first video
