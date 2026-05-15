@@ -543,6 +543,7 @@ function applyFilters() {
   document.querySelectorAll('.column').forEach(col => {
     const moduleMatch = currentModuleFilter === 'all' || col.dataset.module === currentModuleFilter;
     if (!moduleMatch) { col.style.display = 'none'; return; }
+    col.style.display = '';
 
     let colVisible = 0;
     col.querySelectorAll('.card').forEach(card => {
@@ -560,9 +561,21 @@ function applyFilters() {
       if (visible) colVisible++;
     });
 
-    col.style.display = (term && colVisible === 0) ? 'none' : '';
+    col.dataset.visible = colVisible;
     totalVisible += colVisible;
   });
+
+  // Reorder: push empty columns to the end so they don't force extra scrolling
+  const cols = Array.from(document.querySelectorAll('.column'));
+  cols.sort((a, b) => {
+    const aVis = parseInt(a.dataset.visible || '0');
+    const bVis = parseInt(b.dataset.visible || '0');
+    if (aVis === 0 && bVis > 0) return 1;
+    if (aVis > 0 && bVis === 0) return -1;
+    return 0;
+  });
+  const boardEl = document.getElementById('board');
+  cols.forEach(c => boardEl.appendChild(c));
 
   const noRes = document.getElementById('no-results');
   if (noRes) noRes.style.display = (term && totalVisible === 0) ? 'block' : 'none';
