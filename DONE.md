@@ -1,6 +1,6 @@
 # VideoTools - Completed Features
 
-## Version 0.1.1-dev47 (in progress)
+## Version 0.1.1-dev47 (complete)
 
 ### PAL→NTSC Full-Disc Conversion Pipeline — Stages 1-3 (HIGH)
 

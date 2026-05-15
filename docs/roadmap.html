@@ -150,6 +150,16 @@
   }
   .modal .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   .modal .detail-section p { font-size: 0.85rem; color: #cbd5e1; }
+  #backToTop {
+    position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 999;
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--vt-card); border: 1.5px solid var(--vt-border);
+    color: var(--vt-text); font-size: 1.3rem; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+    transition: all 0.15s; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  #backToTop:hover { border-color: var(--vt-text-muted); transform: translateY(-2px); }
+
   @media (max-width: 768px) {
     body { padding: 1rem; }
     .column { min-width: 200px; }
@@ -193,6 +203,10 @@
   <button id="changelogBtn" style="background:var(--vt-card);border-color:var(--done);color:var(--vt-text);display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.4rem 1rem;">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     Changelog
+  </button>
+  <button id="testChecklistBtn" style="background:var(--vt-card);border-color:var(--planned);color:var(--vt-text);display:flex;align-items:center;gap:0.4rem;font-size:0.85rem;padding:0.4rem 1rem;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    Testing Checklist
   </button>
 </div>
 
@@ -240,6 +254,19 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="testChecklistModal">
+  <div class="modal" style="max-width:680px;">
+    <button class="modal-close" id="testChecklistModalClose">&times;</button>
+    <h2 style="margin-bottom:1.25rem;display:flex;align-items:center;gap:0.5rem;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--planned)" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      Testing Checklist
+    </h2>
+    <div id="testChecklistBody"></div>
+  </div>
+</div>
+
+<button id="backToTop" title="Back to top">&uarr;</button>
+
 <script>
 const moduleColors = {
   'Rip': '#1A9373',
@@ -273,10 +300,10 @@ const roadmap = {
       { id: 'disc-info', title: 'Disc Info at Top', desc: 'Type/size/region shown as standalone label above controls — no card wrapper', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/view.go'], deps: ['ifo-scan'], docs: [] },
       { id: 'progress-eta', title: 'Progress Bar + ETA', desc: 'Parses out_time_us from FFmpeg, computes encode rate, shows compact ETA in status', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
       { id: 'css-detect', title: 'CSS Encryption Detection', desc: 'Detects CSS-encrypted VOBs before ripping, logs warning', status: 'shipped', cycle: 'dev45', files: ['internal/dvd/css/css.go'], deps: [], docs: [] },
-      { id: 'title-select', title: 'Title Selection UI', desc: 'Checkboxes per title for multi-title discs; each selected title becomes a queue job', status: 'shipped', cycle: 'dev46', files: ['internal/app/modules/rip/view.go'], deps: ['ifo-scan'], docs: [] },
+      { id: 'title-select', title: 'Title Selection UI', desc: 'Checkboxes per title for multi-title discs; each selected title becomes a queue job', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/rip/view.go'], deps: ['ifo-scan'], docs: [] },
       { id: 'archivist', title: 'Archivist Mode', desc: 'Lossless extraction of elementary streams (m2v, ac3, sup) for manual DVD reconstruction', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
-      { id: 'full-disc', title: 'Full-Disc Extraction', desc: 'Iterates all VTS sets + menu VOB with CSS decryption for complete disc backup', status: 'shipped', cycle: 'dev46', files: ['internal/app/modules/rip/executor.go'], deps: ['pal-ntsc'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
-      { id: 'pal-ntsc', title: 'PAL/NTSC Full-Disc Conversion', desc: 'Region conversion pipeline — yadif deinterlace + scale + fps + atempo + IFO regeneration', status: 'shipped', cycle: 'dev46', files: ['internal/app/modules/rip/executor.go', 'internal/dvd/ifo/ifo_regen.go'], deps: ['ifo-scan'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
+      { id: 'full-disc', title: 'Full-Disc Extraction', desc: 'Iterates all VTS sets + menu VOB with CSS decryption for complete disc backup', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/executor.go'], deps: ['pal-ntsc'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
+      { id: 'pal-ntsc', title: 'PAL/NTSC Full-Disc Conversion', desc: 'Region conversion pipeline — yadif deinterlace + scale + fps + atempo + IFO regeneration', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/rip/executor.go', 'internal/dvd/ifo/ifo_regen.go'], deps: ['ifo-scan'], docs: ['docs/PAL_NTSC_CONVERSION.md'] },
       { id: 'dvdvideo', title: '-f dvdvideo Demuxer', desc: 'Cell-accurate title playback via FFmpeg native dvdvideo demuxer — handles seamless branching discs correctly', status: 'done', cycle: 'dev48', files: ['internal/app/modules/rip/executor.go'], deps: [], docs: [] },
       { id: 'rip-player', title: 'Rip DVD Player Pane', desc: 'InlineVideoPlayer at 40% width for disc preview after scan; title nav dropdown + VOB concat URL; "Play with Menus" button launches VLC or mpv for full libdvdnav interactive menu navigation', status: 'done', cycle: 'dev48', files: ['internal/app/modules/rip/view.go', 'internal/app/modules/rip/launch.go'], deps: ['dvdvideo', 'inline-player'], docs: [] },
       { id: 'css-bypass', title: 'CSS Decryption Wiring', desc: 'Full CSS decryptor package exists (DecryptSector, DecryptVOB, DecryptReader) — needs wiring into the VOB concat and dvdvideo rip pipeline to unblock commercial encrypted disc ripping', status: 'planned', cycle: 'dev49', files: ['internal/dvd/css/css.go', 'internal/dvd/css/detect.go', 'internal/app/modules/rip/executor.go'], deps: ['css-detect'], docs: [] },
@@ -305,8 +332,8 @@ const roadmap = {
       { id: 'audio-sync', title: 'Audio Sync', desc: 'A/V synchronisation via oto audio playback timing', status: 'shipped', cycle: 'dev44', files: ['internal/media/audio.go'], deps: ['engine'], docs: [] },
       { id: 'thread-safe', title: 'Thread-Safety Audit', desc: 'WaitGroup guards on close/demuxer race, pixel format SIGSEGV fix, seekLoop goroutine leak fix', status: 'shipped', cycle: 'dev43', files: ['internal/media/player.go', 'internal/media/engine.go'], deps: ['engine'], docs: ['docs/PLAYER_DEBUG.md'] },
       { id: 'smpte-idle', title: 'SMPTE Bars Idle State', desc: '"DROP VIDEO TO LOAD" placeholder with colour bars when no media is loaded', status: 'shipped', cycle: 'dev44', files: ['internal/ui/smpte_idle.go'], deps: ['inline-player'], docs: [] },
-      { id: 'audio-prewarm', title: 'Audio Context Pre-Warm', desc: 'Initializes shared audio context (oto/WASAPI) at startup to avoid first-playback delay', status: 'shipped', cycle: 'dev47', files: ['internal/media/audio.go'], deps: ['engine'], docs: [] },
-      { id: 'gstreamer-removal', title: 'GStreamer Removal', desc: 'Remove legacy internal/player/gstreamer* files, build scripts, and CI references', status: 'future', cycle: 'future', files: ['internal/player/gstreamer*'], deps: ['engine'], docs: [] },
+      { id: 'audio-prewarm', title: 'Audio Context Pre-Warm', desc: 'Initializes shared audio context (oto/WASAPI) at startup to avoid first-playback delay', status: 'shipped', cycle: 'dev42', files: ['internal/media/audio.go'], deps: ['engine'], docs: [] },
+      { id: 'gstreamer-removal', title: 'GStreamer Removal', desc: 'Remove legacy internal/player/gstreamer* files, build scripts, and CI references', status: 'shipped', cycle: 'dev42', files: ['internal/player/gstreamer*'], deps: ['engine'], docs: [] },
       { id: 'seeking', title: 'Seeking Performance', desc: 'Frame-accurate seeking — keyframe snapping in some containers, needs adaptive timing with drift correction', status: 'future', cycle: 'future', files: ['internal/media/player.go'], deps: ['engine'], docs: ['docs/PLAYER_DEBUG.md'] },
       { id: 'dvd-menu-play', title: 'Native DVD Menu VM', desc: 'Full libdvdnav menu VM inside the player — button highlight, chapter navigation, conditional branching. External VLC/mpv launch is already available via Rip module "Play with Menus" button.', status: 'future', cycle: 'future', files: [], deps: ['dvdvideo'], docs: [] },
       { id: 'unified-arch', title: 'Unified FFmpeg Architecture', desc: 'Single FFmpeg process with multiplexed A/V output; master clock, PTS drift correction, ring buffers', status: 'future', cycle: 'future', files: ['internal/media/'], deps: ['engine'], docs: [] },
@@ -321,10 +348,10 @@ const roadmap = {
       { id: 'conv-p1', title: 'Phase 1 — Core Pipeline', desc: 'Sample rate dropdown, normalize audio with LUFS/TruePeak sliders, deinterlace modes, H.264 Profile/Level', status: 'shipped', cycle: 'dev44', files: ['internal/app/modules/convert/'], deps: [], docs: ['docs/CONVERT_MODULE_IMPROVEMENTS.md'] },
       { id: 'conv-presets', title: 'Presets System', desc: 'H.264 MKV/MP4, Lossless MKV (stream copy), presets dropdown with descriptions', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/convert/'], deps: ['conv-p1'], docs: [] },
       { id: 'conv-i18n', title: 'Convert i18n', desc: 'All ~42 hardcoded strings replaced with i18n keys; en-CA, fr-CA, iu locales', status: 'shipped', cycle: 'dev44', files: ['internal/i18n/'], deps: [], docs: [] },
-      { id: 'conv-p2-formats', title: 'Phase 2 — More Formats', desc: 'AVI, FLV, TS/M2TS, 3GP, OGG support', status: 'future', cycle: 'future', files: [], deps: ['conv-presets'], docs: ['docs/CONVERT_MODULE_IMPROVEMENTS.md'] },
-      { id: 'conv-tuning', title: 'x264/x265 Tuning Presets', desc: 'Film, Animation, Grain, Stillimage, Fastdecode tuning presets for H.264/H.265 encodes', status: 'future', cycle: 'future', files: [], deps: ['conv-presets'], docs: ['docs/CONVERT_MODULE_IMPROVEMENTS.md'] },
-      { id: 'conv-consolidate', title: 'Consolidate Presets', desc: 'Move inline format definitions to presets.go for cleaner architecture', status: 'future', cycle: 'future', files: ['internal/app/modules/convert/'], deps: [], docs: [] },
-      { id: 'conv-dragdrop', title: 'Fix Drag & Drop', desc: 'Files dragged onto the Convert module drop zone are not registered (carry-forward from dev32)', status: 'future', cycle: 'future', files: ['internal/app/modules/convert/view.go'], deps: [], docs: [] },
+
+      { id: 'conv-tuning', title: 'x264/x265 Tuning Presets', desc: 'Film, Animation, Grain, Stillimage, Fastdecode tuning presets for H.264/H.265 encodes', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/convert/presets.go'], deps: ['conv-presets'], docs: ['docs/CONVERT_MODULE_IMPROVEMENTS.md'] },
+      { id: 'conv-consolidate', title: 'Consolidate Presets', desc: 'Move inline format definitions to presets.go for cleaner architecture', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/convert/presets.go'], deps: [], docs: [] },
+      { id: 'conv-dragdrop', title: 'Fix Drag & Drop', desc: 'Files dragged onto the Convert module drop zone are not registered (carry-forward from dev32)', status: 'shipped', cycle: 'dev44', files: ['internal/app/modules/convert/view.go'], deps: [], docs: [] },
       { id: 'conv-icon-pass', title: 'Convert UI Icon Pass', desc: 'Replace temporary ASCII-safe Convert control labels with proper icon resources', status: 'future', cycle: 'future', files: ['internal/app/modules/convert/view.go'], deps: [], docs: [] },
     ]
   },
@@ -358,7 +385,7 @@ const roadmap = {
       { id: 'job-queue', title: 'Job Queue', desc: 'Multi-job management with progress tracking, start/stop/clear controls, per-job status', status: 'shipped', cycle: 'dev43', files: ['internal/queue/'], deps: [], docs: ['docs/QUEUE_SYSTEM_GUIDE.md'] },
       { id: 'pipeline', title: 'Module Pipeline (&&)', desc: 'Two-module chains: pipelineActive state machine, && button in header, intermediate file cleanup', status: 'shipped', cycle: 'dev45', files: ['main.go', 'internal/queue/'], deps: ['job-queue'], docs: [] },
       { id: 'queue-console', title: 'ConsoleBox Live Output', desc: 'Real-time FFmpeg log display in queue view using ConsoleBox widget', status: 'shipped', cycle: 'dev47', files: ['internal/queue/', 'internal/ui/consolebox.go'], deps: ['job-queue', 'consolebox'], docs: [] },
-      { id: 'race-fix', title: 'Queue notifyChange Race Fix', desc: 'Fix goroutine in queue.go spawning without lock on queue state', status: 'planned', cycle: 'dev48', files: ['internal/queue/queue.go'], deps: ['job-queue'], docs: [] },
+      { id: 'race-fix', title: 'Queue notifyChange Race Fix', desc: 'Fix goroutine in queue.go spawning without lock on queue state', status: 'shipped', cycle: 'dev45', files: ['internal/queue/queue.go'], deps: ['job-queue'], docs: [] },
       { id: 'visual-feedback', title: 'Queue Visual Polish', desc: 'Improve button states and hover effects in queue view', status: 'future', cycle: 'future', files: ['internal/app/modules/queue/view.go'], deps: [], docs: [] },
     ]
   },
@@ -923,6 +950,179 @@ render();
     if (moved) { e.stopImmediatePropagation(); moved = false; }
   }, true);
 })();
+
+// --- Back to Top ---
+const backToTop = document.getElementById('backToTop');
+window.addEventListener('scroll', () => {
+  backToTop.style.display = window.scrollY > 300 ? 'flex' : 'none';
+});
+backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+// --- Testing Checklist ---
+const checklistData = [
+  { title: 'Convert Module', items: [
+    'All preset permutations encode without crash (H.264 MKV/MP4, Lossless MKV)',
+    'Audio sample rate dropdown applies correctly',
+    'Normalize audio with LUFS/TruePeak sliders works',
+    'Deinterlace modes produce correct output',
+    'H.264 Profile/Level controls respected in output',
+    'x264/x265 tuning presets applied correctly (Film, Animation, Grain, Stillimage, Fastdecode)',
+    'Drag-and-drop file registration works',
+    'Presets dropdown loads/saves/removes user-defined presets',
+    'i18n strings render in English (en-CA) and French (fr-CA)',
+  ]},
+  { title: 'Rip Module', items: [
+    'IFO scanning reads titles, chapters, audio/subtitle tracks correctly',
+    'ISO via UDF reader extracts VIDEO_TS without mounting',
+    'Region detection shows correct disc region',
+    'Disc info (type/size/region) displayed at top of view',
+    'Progress bar with ETA tracks encode correctly',
+    'CSS encryption detected and warned on protected discs',
+    '-f dvdvideo demuxer handles seamless branching discs',
+    'Rip DVD player pane shows preview after scan',
+    'Title selection UI queues multiple titles correctly',
+  ]},
+  { title: 'Player Module', items: [
+    'CGo/FFmpeg engine plays video with A/V sync',
+    'D3D11VA hardware decode works on Windows',
+    'Audio sync via oto timing is correct',
+    'SMPTE bars show idle state when no media loaded',
+    'Thread safety: no crashes on rapid load/close/seek',
+    'InlineVideoPlayer API works across all consuming modules',
+  ]},
+  { title: 'Burn Module', items: [
+    'isoburn.exe (Windows) burns DVD without errors',
+    'growisofs (Linux) burns DVD with progress parsing',
+    'Drive info shows disc type/capacity before burning',
+    'ConsoleBox log shows real-time burn output',
+  ]},
+  { title: 'Queue Module', items: [
+    'Multi-job management with progress tracking',
+    'Module pipeline (&&) chains two modules correctly',
+    'Intermediate file cleanup works (with/without KeepIntermediate)',
+    'ConsoleBox live output updates in real time',
+    'notifyChange race condition does not trigger',
+  ]},
+  { title: 'Author Module', items: [
+    'M1-M7 menu system produces playable DVD menu',
+    'IFO regeneration produces valid IFO/BUP files',
+    'ConsoleBox log shows authoring output',
+    'Full log preserved (no truncation)',
+  ]},
+  { title: 'Audio Module', items: [
+    'Phase 1 layout consistent with other modules',
+    'InlineVideoPlayer integration shows video preview',
+    'Track selection: codec colours, language flags, reordering work',
+  ]},
+  { title: 'Infrastructure', items: [
+    'DLL bootstrap finds DLLs in DLL/, exe-dir, LOCALAPPDATA fallback',
+    'Linux CI builds FFmpeg from source with x264/x265',
+    'Windows CI builds with shared DLLs, packages in ZIP',
+    'Forgejo release automation creates/updates release correctly',
+    'i18n: en-CA, fr-CA, Inuktitut all render UI correctly',
+  ]},
+  { title: 'Upscale Module', items: [
+    'One-click presets (SD→HD, 1080p→4K, Anime, Restoration) work',
+    'Hardware acceleration syncs from master setting',
+    'RIFE frame interpolation produces smooth output',
+  ]},
+  { title: 'Other Modules', items: [
+    'Compare: side-by-side playback with two engines works',
+    'Subtitles: extraction, conversion (SRT/SSA/VOBSUB), timing adjustments work',
+    'Filters: brightness, contrast, saturation, rotate work',
+    'Thumbnail: 3-way output (single, grid, contact-sheet) works',
+    'Merge: video concatenation produces correct output',
+    'Inspect: codec info, stream tree, interlaced detection all correct',
+    'Trim: in/out markers produce correct cuts',
+  ]},
+];
+
+function buildTestChecklist() {
+  const body = document.getElementById('testChecklistBody');
+  body.innerHTML = '<p style="color:var(--vt-text-muted);font-size:0.82rem;margin-bottom:1rem;">Check off items as they pass manual testing. This list should be updated whenever new features are added to ensure nothing regresses.</p>';
+
+  const statusCounts = { pass: 0, fail: 0, untested: 0 };
+
+  for (const section of checklistData) {
+    const secEl = document.createElement('div');
+    secEl.style.cssText = 'margin-bottom:0.8rem;border-bottom:1px solid var(--vt-border);padding-bottom:0.6rem;';
+
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:0.82rem;font-weight:600;color:#cbd5e1;margin-bottom:0.35rem;letter-spacing:0.02em;';
+    title.textContent = section.title;
+    secEl.appendChild(title);
+
+    const ul = document.createElement('ul');
+    ul.style.cssText = 'list-style:none;padding:0;margin:0;';
+
+    for (const item of section.items) {
+      const key = section.title.replace(/\s+/g, '-').toLowerCase() + '-' + item.replace(/[^a-z0-9]/gi, '-').toLowerCase().slice(0, 60);
+      const stored = localStorage.getItem('checklist-' + key) || 'untested';
+
+      if (stored === 'pass') statusCounts.pass++;
+      else if (stored === 'fail') statusCounts.fail++;
+      else statusCounts.untested++;
+
+      const li = document.createElement('li');
+      li.style.cssText = 'font-size:0.76rem;color:var(--vt-text-muted);padding:0.2rem 0;display:flex;align-items:flex-start;gap:0.5rem;line-height:1.45;';
+      li.innerHTML = `
+        <span style="flex-shrink:0;display:inline-flex;gap:0.2rem;">
+          <button data-key="${key}" data-value="pass" style="width:22px;height:22px;border-radius:4px;border:1.5px solid var(--shipped);background:${stored === 'pass' ? 'var(--shipped)' : 'transparent'};cursor:pointer;font-size:0.65rem;color:#fff;display:flex;align-items:center;justify-content:center;" title="Pass">&#10003;</button>
+          <button data-key="${key}" data-value="fail" style="width:22px;height:22px;border-radius:4px;border:1.5px solid #ef4444;background:${stored === 'fail' ? '#ef4444' : 'transparent'};cursor:pointer;font-size:0.65rem;color:#fff;display:flex;align-items:center;justify-content:center;" title="Fail">&#10007;</button>
+          <button data-key="${key}" data-value="untested" style="width:22px;height:22px;border-radius:4px;border:1.5px solid var(--future);background:${stored === 'untested' ? 'var(--future)' : 'transparent'};cursor:pointer;font-size:0.65rem;color:#fff;display:flex;align-items:center;justify-content:center;" title="Reset">&#9675;</button>
+        </span>
+        <span>${item}</span>
+      `;
+
+      const btns = li.querySelectorAll('button');
+      btns.forEach(btn => btn.addEventListener('click', () => {
+        localStorage.setItem('checklist-' + btn.dataset.key, btn.dataset.value);
+        buildTestChecklist();
+      }));
+
+      ul.appendChild(li);
+    }
+
+    secEl.appendChild(ul);
+    body.appendChild(secEl);
+  }
+
+  // Summary bar
+  const sum = document.createElement('div');
+  sum.style.cssText = 'margin-top:1rem;padding:0.6rem;background:var(--vt-navy-light);border-radius:6px;border:1px solid var(--vt-border);display:flex;gap:1.2rem;font-size:0.8rem;';
+  sum.innerHTML = `
+    <span style="color:var(--shipped);">&#10003; Pass: ${statusCounts.pass}</span>
+    <span style="color:#ef4444;">&#10007; Fail: ${statusCounts.fail}</span>
+    <span style="color:var(--future);">&#9675; Untested: ${statusCounts.untested}</span>
+    <span style="color:var(--vt-text-muted);margin-left:auto;">Total: ${statusCounts.pass + statusCounts.fail + statusCounts.untested}</span>
+  `;
+  body.appendChild(sum);
+
+  // Reset button
+  const resetBtn = document.createElement('button');
+  resetBtn.textContent = 'Reset All';
+  resetBtn.style.cssText = 'margin-top:0.6rem;padding:0.3rem 0.8rem;border-radius:6px;border:1.5px solid var(--vt-border);background:var(--vt-navy-light);cursor:pointer;font-size:0.75rem;color:var(--vt-text-muted);font-family:inherit;';
+  resetBtn.addEventListener('click', () => {
+    if (confirm('Reset all checklist items to untested?')) {
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith('checklist-')) localStorage.removeItem(key);
+      }
+      buildTestChecklist();
+    }
+  });
+  body.appendChild(resetBtn);
+}
+
+document.getElementById('testChecklistBtn').addEventListener('click', () => {
+  buildTestChecklist();
+  document.getElementById('testChecklistModal').classList.add('open');
+});
+document.getElementById('testChecklistModalClose').addEventListener('click', () => {
+  document.getElementById('testChecklistModal').classList.remove('open');
+});
+document.getElementById('testChecklistModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
 </script>
 </body>
 </html>
