@@ -416,6 +416,12 @@ jobs:
             Copy-Item $_.FullName -Destination $dllDest -Force
             $copied++
           }
+          # Also copy CLI executables for bundled ffmpeg/ffprobe
+          $exeDest = "C:\ffmpeg-shared\bin"
+          New-Item -ItemType Directory -Force -Path $exeDest | Out-Null
+          Copy-Item (Join-Path $binDir.FullName "ffmpeg.exe") -Destination $exeDest -Force -ErrorAction Stop
+          Copy-Item (Join-Path $binDir.FullName "ffprobe.exe") -Destination $exeDest -Force -ErrorAction Stop
+          Write-Host "[INFO] Copied ffmpeg.exe and ffprobe.exe to $exeDest"
           Remove-Item $zipPath -Force
           Remove-Item $extractDir -Recurse -Force
           if ($copied -eq 0) { throw "[ERROR] No DLLs found in BtbN archive bin/" }

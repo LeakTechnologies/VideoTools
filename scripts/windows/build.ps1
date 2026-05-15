@@ -217,12 +217,17 @@ if (Test-Path $BUILD_OUTPUT) {
     # Bundle FFmpeg DLLs in DLL/ subfolder (matches CI layout)
     $ffmpegBinDir = "C:\ffmpeg\bin"
     if (Test-Path $ffmpegBinDir) {
-        $dllDest = Join-Path (Split-Path $BUILD_OUTPUT) "DLL"
+        $outputDir = Split-Path $BUILD_OUTPUT
+        $dllDest = Join-Path $outputDir "DLL"
         New-Item -ItemType Directory -Force -Path $dllDest | Out-Null
         Get-ChildItem "$ffmpegBinDir\*.dll" |
             Where-Object { $_.Name -notmatch "^(ffmpeg|ffprobe|ffplay)" } |
             ForEach-Object { Copy-Item $_.FullName -Destination $dllDest -Force }
         Write-Host "Copied FFmpeg DLLs to DLL/ subfolder" -ForegroundColor Green
+        # Bundle CLI executables next to VideoTools.exe (matches CI layout)
+        Copy-Item (Join-Path $ffmpegBinDir "ffmpeg.exe") -Destination $outputDir -Force
+        Copy-Item (Join-Path $ffmpegBinDir "ffprobe.exe") -Destination $outputDir -Force
+        Write-Host "Copied ffmpeg.exe and ffprobe.exe to output directory" -ForegroundColor Green
     } else {
         Write-Host "Warning: C:\ffmpeg\bin not found, DLLs not copied. Run install-deps first." -ForegroundColor Yellow
     }

@@ -155,6 +155,16 @@ if ((Test-Path $ffmpegDllSource) -and $avcodecPresent) {
     exit 1
 }
 
+# Bundle FFmpeg/FFprobe CLI executables in package root for zero-dependency extraction
+$ffmpegBinSource = "C:\ffmpeg-shared\bin"
+if (Test-Path $ffmpegBinSource) {
+    Copy-Item (Join-Path $ffmpegBinSource "ffmpeg.exe") -Destination $pkgDir.FullName -Force -ErrorAction SilentlyContinue
+    Copy-Item (Join-Path $ffmpegBinSource "ffprobe.exe") -Destination $pkgDir.FullName -Force -ErrorAction SilentlyContinue
+    Write-Host "[INFO] Bundled ffmpeg.exe and ffprobe.exe in package root"
+} else {
+    Write-Host "[WARN] FFmpeg CLI executables not found at $ffmpegBinSource — ffmpeg/ffprobe not bundled; user must supply their own"
+}
+
 # README
 if (Test-Path (Join-Path $projectRoot "README.md")) {
     Copy-Item (Join-Path $projectRoot "README.md") -Destination $pkgDir.FullName -Force
