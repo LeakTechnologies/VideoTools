@@ -1,13 +1,17 @@
 package theme
 
 import (
+	"fmt"
 	"image/color"
+	"os"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 )
+
+var startupDebug = os.Getenv("VT_STARTUP_DEBUG") != ""
 
 // PillButton renders a pill-shaped button matching the roadmap's visual style:
 // dark background, coloured border, centred text, hover lightens border, active inverts.
@@ -31,6 +35,9 @@ func NewPillButton(label string, borderCol color.Color, onTapped func()) *PillBu
 }
 
 func (p *PillButton) CreateRenderer() fyne.WidgetRenderer {
+	if startupDebug {
+		fmt.Fprintf(os.Stderr, "[vt-debug] PillButton.CreateRenderer label=%q\n", p.Label)
+	}
 	bg := canvas.NewRectangle(nil)
 	bg.CornerRadius = 12
 	bg.StrokeWidth = 1.5
