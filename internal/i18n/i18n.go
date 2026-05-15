@@ -38,6 +38,9 @@ var (
 	currentScript ScriptVariant
 	listeners     []func()
 	listenersMu   sync.Mutex
+	// scriptPrefs remembers the last explicitly-chosen script per language code
+	// so switching away and back preserves the user's selection.
+	scriptPrefs = map[string]ScriptVariant{}
 )
 
 // All returns the list of all registered languages.
@@ -84,10 +87,27 @@ func T() Strings {
 	return current
 }
 
+// SetPreferredScript stores a script preference for a language code so that
+// future SetLanguage calls restore it automatically. Called at startup from
+// the locale config to seed the in-memory map before any language switch.
+func SetPreferredScript(code string, script ScriptVariant) {
+	if script == ScriptDefault {
+		return
+	}
+	mu.Lock()
+	scriptPrefs[code] = script
+	mu.Unlock()
+}
+
 // SetLanguage switches the active language and notifies all listeners.
+// If a script preference was previously stored for code (via SetPreferredScript
+// or a prior SetLanguageWithScript call), it is restored automatically.
 // Unknown codes fall back to en-CA silently.
 func SetLanguage(code string) {
-	SetLanguageWithScript(code, ScriptDefault)
+	mu.RLock()
+	pref := scriptPrefs[code]
+	mu.RUnlock()
+	SetLanguageWithScript(code, pref)
 }
 
 // SetLanguageWithScript switches language and script variant simultaneously.
@@ -118,6 +138,9 @@ func SetLanguageWithScript(code string, script ScriptVariant) {
 	current = merged
 	currentLang = code // always "iu", not "iu-Latn"
 	currentScript = script
+	if script != ScriptDefault {
+		scriptPrefs[code] = script
+	}
 	mu.Unlock()
 
 	notify()
