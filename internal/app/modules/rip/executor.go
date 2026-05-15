@@ -835,7 +835,17 @@ func executeFullDiscRip(ctx context.Context, opts ExecuteOptions, videoTSPath st
 			return fmt.Errorf("build concat list for %s: %w", set.Name, err)
 		}
 
-		if err := convertVOBWithRegion(ctx, opts, listFile, vtsOut, set.Name, vfFilter, afFilter, isEncrypted, appendLog, updateProgress); err != nil {
+		// Probe input duration for per-VTS progress tracking
+		inputDuration := probeDurationConcat(listFile, opts.OnRunCommand, appendLog)
+
+		// Map this VTS's progress to its slice of the 0-80% overall range
+		startPct := float64(step-1) / float64(totalSteps) * 80
+		endPct := float64(step) / float64(totalSteps) * 80
+		subProgress := func(pct float64) {
+			updateProgress(startPct + pct/100*(endPct-startPct))
+		}
+
+		if err := convertVOBWithRegion(ctx, opts, listFile, vtsOut, set.Name, vfFilter, afFilter, isEncrypted, inputDuration, appendLog, subProgress); err != nil {
 			os.Remove(listFile)
 			return err
 		}
@@ -958,6 +968,32 @@ func convertVOBWithRegion(ctx context.Context, opts ExecuteOptions, listFile, ou
 		return fmt.Errorf("%s conversion failed: %w", setName, err)
 	}
 	return nil
+}
+
+// probeDurationConcat returns duration from a concat list file.
+func probeDurationConcat(listFile string, onRunCommand func(string, []string, func(string)) error, appendLog func(string)) float64 {
+	args := []string{
+		"-v", "error",
+		"-f", "concat",
+		"-safe", "0",
+		"-i", listFile,
+		"-show_entries", "format=duration",
+		"-of", "csv=p=0",
+	}
+	var durationStr string
+	logFn := func(line string) {
+		if durationStr == "" {
+			durationStr = strings.TrimSpace(line)
+		}
+	}
+	if err := onRunCommand(utils.GetFFprobePath(), args, logFn); err != nil {
+		return 0
+	}
+	var d float64
+	if _, err := fmt.Sscanf(durationStr, "%f", &d); err != nil {
+		return 0
+	}
+	return d
 }
 
 // probeDuration returns the duration in seconds of a VOB file by quick ffprobe.
