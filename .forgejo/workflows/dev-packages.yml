@@ -432,6 +432,8 @@ jobs:
       - name: Build Windows package
         env:
           VT_BUILD_CHANNEL: ${{ steps.meta.outputs.channel }}
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
         run: |
           $ErrorActionPreference = 'Continue'
           & (Join-Path $env:GITHUB_WORKSPACE "scripts\windows\ci-build.ps1")
