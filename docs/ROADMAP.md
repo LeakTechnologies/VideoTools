@@ -2,19 +2,42 @@
 
 A lightweight forward look. Updated at the start of each dev cycle.
 
-## Current State (v0.1.1-dev47)
+```mermaid
+timeline
+    title VideoTools Development Roadmap
+    v0.1.1-dev47 (Shipped) : DLL/ folder rename : Flat exe-dir DLL fallback : Disc info at rip view top : UDF ReadFileData (ISO)
+    v0.1.1-dev47 (Shipped) : Progress bar with ETA : ConsoleBox widget : Log refactor (Burn/Rip/Author) : PAL/NTSC full-disc convert
+    v0.1.1-dev48 (Current) : -f dvdvideo demuxer : Seamless branching support : FFmpeg DLL bootstrap fixes : Cell-accurate title playback
+    Next Up : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
+    Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
+    Future : DVD menu playback : Video cropping tool : Professional workflow
+```
+
+## Legend
+
+| Colour | Meaning |
+|--------|---------|
+| Blue | Shipped in dev47 |
+| Green | Current dev48 work |
+| Yellow | Next up (handoff priorities) |
+| Orange | Blocked on player completion |
+| Red | Future / deferred |
+
+## Current State (v0.1.1-dev48)
 
 - Core modules shipped: Convert, Merge, Filters, Audio, Thumb, Inspect, Compare, Rip, Author, Burn, Queue, Settings, Subtitles, Upscale, Enhancement (placeholder).
 - Native Go DVD authoring engine with full M1-M7 menu system.
 - Native media player: CGo/FFmpeg engine, InlineVideoPlayer API layer, D3D11VA, audio sync, thread-safe.
-- Disc ripping with IFO scanning, ISO support via UDF reader, region detection, progress with ETA.
+- Disc ripping: IFO scanning, ISO via UDF reader, region detection, progress with ETA.
+- **Seamless branching**: `-f dvdvideo` demuxer now used for single-title rips (FFmpeg 8.1+).
+- **DLL bootstrap**: `DLL/` folder with flat exe-dir fallback — no more DLL errors on extraction.
 - Burn module: isoburn.exe (Windows), growisofs (Linux), ConsoleBox log, drive info.
 - Module Pipeline (&&): two-module chain state machine with queue integration.
 - PAL→NTSC / NTSC→PAL full-disc conversion with IFO regeneration.
 - Localization: en-CA, fr-CA, Inuktitut (syllabics + Latin, machine-translated).
 - CI green on Linux + Windows with from-source FFmpeg static builds.
 
-## Now (dev47 focus)
+## Now (dev48 focus)
 
 - **Burn multi-drive batch** — Queue multiple ISOs across available burners.
   See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
@@ -23,8 +46,6 @@ A lightweight forward look. Updated at the start of each dev cycle.
   See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 
 - **Main Menu refactor** — Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
-
-- **Convert Phase 2 polish** — x264/x265 tuning preset sanity, format dropdown ordering.
 
 - **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
 
