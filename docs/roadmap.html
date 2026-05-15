@@ -50,16 +50,19 @@
   .legend-swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.1); }
   .board {
     display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem; min-height: 70vh;
+    cursor: grab; user-select: none;
   }
+  .board.panning { cursor: grabbing; }
   .column {
     min-width: 230px; max-width: 250px; flex-shrink: 0;
     background: var(--vt-navy-light); border-radius: 10px; border: 1px solid var(--vt-border);
     display: flex; flex-direction: column;
   }
   .column-header {
-    padding: 0.75rem 1rem; font-weight: 600; font-size: 0.9rem; color: #fff;
+    padding: 0.75rem 1rem; font-weight: 600; font-size: 0.82rem; color: #fff;
     border-bottom: 1px solid var(--vt-border); border-radius: 10px 10px 0 0;
     display: flex; justify-content: space-between; align-items: center;
+    text-transform: uppercase; letter-spacing: 0.07em;
   }
   .column-count { font-size: 0.75rem; color: rgba(255,255,255,0.6); font-weight: 400; }
   .column-body { padding: 0.5rem; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -498,7 +501,7 @@ for (const moduleName of Object.keys(roadmap)) {
   const btn = document.createElement('button');
   btn.dataset.module = moduleName;
   const color = moduleColors[moduleName] || '#6366f1';
-  btn.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:0.35rem;vertical-align:middle;flex-shrink:0;"></span>${moduleName}`;
+  btn.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${color};margin-right:0.35rem;vertical-align:middle;flex-shrink:0;"></span>${moduleName.toUpperCase()}`;
   moduleFilterContainer.appendChild(btn);
 }
 
@@ -541,62 +544,261 @@ modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.classList.remove('open'); });
 
 // --- Changelog ---
-const cycleOrder = ['dev48','dev47','dev46','dev45','dev44','dev43','dev42','dev40'];
+const changelogData = [
+  { version: 'v0.1.1-dev48', date: 'May 2026', tag: 'current', sections: [
+    { title: 'DLL Bootstrap (Solid)', items: [
+      'Boot popup removed — DLL failure is now a silent warning log; player degrades gracefully',
+      'CI: self-contained BtbN LGPL DLL download step — every ZIP always bundles DLLs regardless of runner state',
+      'avcodec*.dll verification gate before packaging; hard error on zero DLLs copied',
+      'Bootstrap lookup order: DLL/ subfolder -> exe-dir -> %LOCALAPPDATA%/VideoTools/DLL',
+      'build.ps1 now copies DLLs into DLL/ subfolder matching CI layout',
+    ]},
+    { title: 'Rip: -f dvdvideo Demuxer + Seamless Branching', items: [
+      'Cell-accurate title extraction via FFmpeg native dvdvideo demuxer (requires FFmpeg 8.1+)',
+      'Handles seamless branching discs correctly -- no duplicate frames or missing segments',
+      'Status: Done (Untested) -- awaiting tester verification on real hardware',
+    ]},
+    { title: 'Rip: DVD Player Pane', items: [
+      'InlineVideoPlayer at 40% width for disc preview after scan',
+      'Title nav dropdown + VOB concat URL; "Play with Menus" button launches VLC/mpv',
+      'Status: Done (Untested)',
+    ]},
+    { title: 'Interactive Roadmap Board', items: [
+      '60+ items across 10 module columns; clickable detail modals with files/deps/docs',
+      'Filter by status and by module independently (compound AND logic)',
+      'IBM Plex Mono font, VT logo header, Changelog view',
+    ]},
+    { title: 'Version Bump', items: [
+      'v0.1.1-dev47 -> v0.1.1-dev48 in VERSION, main.go, FyneApp.toml (build 43->44)',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev47', date: 'May 2026', tag: 'shipped', sections: [
+    { title: 'PAL/NTSC Full-Disc Conversion Pipeline', items: [
+      'Full-disc extraction mode iterates ALL VTS sets + VIDEO_TS.VOB menu',
+      'DVD-compliant MPEG-2 re-encode: yadif deinterlace, scale, fps, atempo per title',
+      'IFO/BUP regeneration: VTS_MAT, VMG_MAT, PGCITI, TMAPT, C_ADT, ADMAP, TT_SRPT',
+      'New file: internal/app/modules/rip/ifo_regen.go',
+    ]},
+    { title: 'ConsoleBox Widget', items: [
+      'Styled dark-background log widget with pill header and clipboard copy button',
+      'Wired into Burn, Author, and Queue modules; log truncation removed (was capped at 100 lines)',
+    ]},
+    { title: 'Rip: Disc Info & Progress', items: [
+      'Disc type/size/region shown as standalone label above controls (no card wrapper)',
+      'Progress bar parses out_time_us from FFmpeg; compact ETA in status label',
+      'Region detection from VMG_Category in VIDEO_TS.IFO',
+    ]},
+    { title: 'Audio Pre-Warm', items: [
+      'Shared audio context (oto/WASAPI) initialized at startup to avoid first-playback delay',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev46', date: 'June 2026', tag: 'shipped', sections: [
+    { title: 'Quick Access Dropdown', items: [
+      'FilesDropdownData fully wired: CurrentModule, RecentFiles, OnFileClick, OnOpenFolder, OnOpenMore',
+      'Clicking a recent file opens it in the correct module',
+    ]},
+    { title: 'Windows CI + DLL Bundling', items: [
+      'DLL/ subfolder now included in Windows ZIP release',
+      'build-ffmpeg-shared.ps1 step added to Windows CI job',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev45', date: 'May 2026', tag: 'shipped', sections: [
+    { title: 'Convert Module Phase 1', items: [
+      'Audio sample rate dropdown; normalize audio with LUFS/TruePeak sliders',
+      'Deinterlace mode + method dropdowns; H.264 Profile/Level controls shown when H.264 active',
+      '~42 hardcoded strings i18n\'d across en-CA, fr-CA, and iu locales',
+    ]},
+    { title: 'Burn Module', items: [
+      'Windows: isoburn.exe (zero new deps), eject via IOCTL_STORAGE_EJECT_MEDIA',
+      'Linux: growisofs with SG_IO progress parsing + SHA-256 post-burn verify',
+      'Drive capacity labels (BD-50/25, DVD-9/5); ConsoleBox log integration',
+    ]},
+    { title: 'Audio Module Phase 2 + 3', items: [
+      'InlineVideoPlayer integration with SMPTE bars idle state',
+      'Enhanced track list: codec colours, language flags, duration display, reordering',
+    ]},
+    { title: 'Upscale Improvements', items: [
+      'One-click presets: SD->HD, 1080p->4K, Anime, Restoration, Social Media',
+      'Hardware acceleration synced from master setting; VerifyTool() checks PATH + app-local bin + smoke test',
+    ]},
+    { title: 'Logging Audit', items: [
+      'Removed unused CatEnhance, CatRip; added CatQueue',
+      'Fixed CatSystem misuse -> CatUI via cat() helper in recentfiles.go',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev44', date: 'April 2026', tag: 'shipped', sections: [
+    { title: 'Native Media Player -- Playback & Sync Fixes', items: [
+      'Start()/Resume() state fix -- decode goroutine now starts correctly on Play',
+      'Audio/video sync: clock reset in ResetAfterGrab eliminates ~5s drift on load',
+      'Settings: IBM Plex Mono vs VCR OSD Mono player font preference',
+    ]},
+    { title: 'Queue UI Polish', items: [
+      'TintedBar header with active/completed/failed count badge',
+      '90px thumbnail with 3px module-colour outline; module colours match main menu exactly',
+      'ConsoleBox live FFmpeg output display in queue view',
+    ]},
+    { title: 'Module Pipeline (&&)', items: [
+      'Two-module chain state machine: off / waiting-step1 / waiting-step2',
+      '"&&" button in main menu header; invalid Step 2 targets dimmed',
+      'PipelineAfter + PipelineDeleteOnSuccess on queue.Job; "Keep intermediate files" in Settings',
+    ]},
+    { title: 'Thumbnail Module', items: [
+      '3-way output mode: Individual / Contact Sheet / Both',
+      'Image inspector: click any thumbnail to inspect at full window size',
+      'Live preview grid: thumbnails appear in real time (layout: 32% settings / 68% preview)',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev43', date: 'April 2026', tag: 'shipped', sections: [
+    { title: 'Native Media Player -- Thread-Safety & Crash Fixes', items: [
+      'Pixel format SIGSEGV: sws derived from frame.format, not videoCodecCtx.pix_fmt (NONE until first SPS)',
+      'Close/demuxer race: sync.WaitGroup waits for demuxer exit before freeing FFmpeg resources',
+      'NextFrame/Close codec race: videoCodecMu held before freeing videoCodecCtx',
+      'seekLoop goroutine leak: seekCh closed and reallocated per Load(); goroutine drained on Close()',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev42', date: 'April 2026', tag: 'shipped', sections: [
+    { title: 'GStreamer Removal', items: [
+      'All internal/player/gstreamer* deleted -- native_media build tag is the only player path',
+      'closeNativePlayer() prevents audio hanging on module switch',
+    ]},
+    { title: 'D3D11VA Hardware Decode Stabilization', items: [
+      'get_format callback accepts AV_PIX_FMT_D3D11VA_VLD; separate hwFramesCtx prevents race conditions',
+      'AV_NOPTS_VALUE guard: invalid PTS frames skipped; HW frame download with recover/fallback to SW',
+      'Only codecs compatible with get_format callback get HW decode enabled',
+    ]},
+    { title: 'A/V Sync Fixes', items: [
+      'Master clock SetSpeed() wired on speed change; AudioPlayer.Read() non-blocking on empty buffer',
+      'Audio context pre-warm at startup to avoid WASAPI initialization hang',
+      'SetSpeed deadlock fix; pause spin-loop replaced with sleep',
+    ]},
+    { title: 'SMPTE Bars Idle State', items: [
+      '"DROP VIDEO TO LOAD" placeholder with SMPTE colour bars; 4:3 with letterboxing',
+      'Dynamic sizing -- bars scale to player widget dimensions; proportional idle text',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev41', date: 'April 2026', tag: 'shipped', sections: [
+    { title: 'Convert Module', items: [
+      'Device presets: 11 presets (iPhone, Android, PS4, Xbox, Apple TV, etc.) each set ALL encoding vars',
+      'User-defined named presets: save / apply / delete; persisted to JSON via appcfg',
+      'Batch output directory: jobs respect configured output dir, not source file location',
+      'Source frame rate pinning: -r <fps> explicitly passed to prevent AVI->MP4 re-timestamping',
+    ]},
+    { title: 'Upscale Module', items: [
+      'Batch queue: multiple drag-dropped files all queued with full config (targetWidth, preserveAR, GroupID)',
+      'Real-CUGAN support added alongside Real-ESRGAN',
+    ]},
+    { title: 'Thumbnail Module', items: [
+      'Contact sheet pad crash fixed: trim filter removed; time window via -ss/-t input options',
+      'Individual thumbnail timestamps fixed: hardcoded formatted string for individually-seeked frames',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev40', date: 'April 2026', tag: 'shipped', sections: [
+    { title: 'InlineVideoPlayer Unified', items: [
+      'All modules (Convert, Trim, Inspect) use ui.InlineVideoPlayer as single API layer',
+      'Compare and Upscale documented as approved dual-engine exceptions in AGENTS.md',
+      'EOF handling: SetOnEnd fires on main goroutine; play button resets correctly',
+    ]},
+    { title: 'Author Module -- M1-M7 DVD Menu System', items: [
+      'Full DVD menu pipeline: MPEG-2 encode, SPU mux, NAV_PCK with PCI buttons, PGC cell table',
+      'JumpVMGM_PGCN post-command on all title PGCs for correct return-to-menu',
+      'Chapter navigation using binary search on actual NAV_PCK PTMs (fixes VBR content errors)',
+      'VTS_MAT byte layout corrected to match packed vtsi_mat_t struct in libdvdread ifo_types.h',
+      'IFO audio track table reflects actual codec, channel count, and language',
+    ]},
+    { title: 'Logging Standardization', items: [
+      'Added CatConvert, CatTrim, CatMerge, CatFilters, CatAudio, CatAuthor categories',
+      'Config load, probe, and encode failures promoted from Debug to Error with full path context',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev39', date: 'March 2026', tag: 'shipped', sections: [
+    { title: 'Filter Integration (Complete)', items: [
+      'Standalone filter jobs from Filters module; "Add to Queue" button added',
+      'Color correction, enhancement, transform, and stylistic filters via FFmpeg',
+    ]},
+    { title: 'Author Module Improvements', items: [
+      'Interactive Preview tab with working DVD menu playback',
+      'VTS_MAT byte layout corrected (table offsets, video attrs, audio/subpic at correct byte positions)',
+      'DVD menu VOB: native MPEG-2 still-video background + SPU subpicture mux into Program Stream',
+      'DnD drag crash fix: addAuthorFiles runs off main thread; no view rebuild during DnD',
+    ]},
+    { title: 'CI: From-Source FFmpeg Build', items: [
+      'Switched from BtbN pre-built to building FFmpeg, x264, x265 from source (BtbN has no .a static libs)',
+      'x265.pc: C++ deps moved from Libs.private to Libs for FFmpeg configure link test',
+      'Windows multiple-definition fix: -lsupc++ stripped from CGO_LDFLAGS after pkg-config',
+      'Windows disk space: -g0 in CGO_CFLAGS suppresses multi-GB DWARF temp files in C:/WINDOWS/TEMP',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev38 - dev33', date: 'March 2026', tag: 'shipped', sections: [
+    { title: 'Key Milestones', items: [
+      'dev38: Native Go SPU encoder (internal/dvd/spu) -- zero-dep DVD menus without spumux',
+      'dev36-38: Module extraction: Subtitles, Inspect, Queue, Upscale, Settings -> internal/app/modules/',
+      'dev36: GPU texture optimization fork (TexSubImage2D); adaptive buffering + error recovery',
+      'dev35: Full i18n coverage for Subtitles, Audio, Filters, Inspect; status bar localization',
+      'dev34: Full i18n framework (en-CA, fr-CA, Inuktitut syllabics + Latin); Aboriginal Sans embedded',
+      'dev34: Native media engine Phase 1 -- CGo/FFmpeg, PacketQueue, AudioPlayer, MasterClock, A/V sync',
+      'dev34: IFO reading (VTSI + VMGI) for accurate re-authoring from ripped disc sources',
+      'dev33: Native DVD Engine Foundation -- internal/dvd package structure established',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev32 - dev27', date: 'Feb-Mar 2026', tag: 'shipped', sections: [
+    { title: 'Key Milestones', items: [
+      'dev32: ~150 Material Design SVG icons embedded in binary; ASCII placeholders replaced',
+      'dev32: In-app auto-update (Windows + Linux); check for updates via Forgejo tags API',
+      'dev32: Drag-to-scroll fixed; FastVScroll on all settings panels; Convert pane layout fixed',
+      'dev30: Full phased refactor -- 24+ root module files migrated to internal/app/modules/',
+      'dev30: Forgejo release targeting: VERSION file read first; stale tag drift prevented',
+      'dev28: First-run FFmpeg bootstrap for Windows; app-local DLL at %LOCALAPPDATA%/VideoTools/bin',
+      'dev27: Forgejo CI/CD: self-hosted runner, artifact versioning, optional EXE signing',
+    ]},
+  ]},
+  { version: 'v0.1.0-dev26 and earlier', date: 'Jan 2026 and before', tag: 'old', sections: [
+    { title: 'Foundations', items: [
+      'dev26: Mirror hosting (lt_mirror), Forgejo CI/CD, Windows build system with MSYS2/Chocolatey',
+      'dev24: Rainbow+ main menu palette, distinct module colour identity, accessibility improvements',
+      'dev22: Auto GPU detection (NVIDIA/AMD/Intel); SVT-AV1 speed presets preventing 80+ hour encodes',
+      'dev14: Windows compatibility -- MinGW-w64, platform.go, cross-compilation from Linux',
+      'dev13: Complete DVD-NTSC encoding system; queue system with 24 public methods',
+    ]},
+  ]},
+];
 
 function buildChangelog() {
-  const byCycle = {};
-  for (const [mod, data] of Object.entries(roadmap)) {
-    for (const item of data.items) {
-      const cy = item.cycle;
-      if (cy === 'future') continue;
-      if (item.status !== 'shipped' && item.status !== 'done') continue;
-      if (!byCycle[cy]) byCycle[cy] = [];
-      byCycle[cy].push({ ...item, module: mod });
-    }
-  }
-  const cycles = Object.keys(byCycle).sort((a, b) => {
-    const ia = cycleOrder.indexOf(a);
-    const ib = cycleOrder.indexOf(b);
-    if (ia !== -1 && ib !== -1) return ia - ib;
-    if (ia !== -1) return -1;
-    if (ib !== -1) return 1;
-    return a < b ? 1 : -1;
-  });
-
   const body = document.getElementById('changelogBody');
   body.innerHTML = '';
-  for (const cycle of cycles) {
-    const items = byCycle[cycle];
-    const section = document.createElement('div');
-    section.style.cssText = 'margin-bottom:1.25rem;border-bottom:1px solid var(--vt-border);padding-bottom:1rem;';
-    section.innerHTML = `<h3 style="font-size:1rem;margin-bottom:0.5rem;color:var(--vt-text);">${cycle}</h3>`;
+  for (const entry of changelogData) {
+    const tagColor = entry.tag === 'current' ? 'var(--active)' : entry.tag === 'shipped' ? 'var(--shipped)' : 'var(--future)';
+    const tagLabel = entry.tag === 'current' ? 'Current' : entry.tag === 'shipped' ? 'Shipped' : 'Historical';
 
-    const grouped = {};
-    for (const item of items) {
-      if (!grouped[item.module]) grouped[item.module] = [];
-      grouped[item.module].push(item);
-    }
+    const entryEl = document.createElement('div');
+    entryEl.style.cssText = 'margin-bottom:1.1rem;border-bottom:1px solid var(--vt-border);padding-bottom:1rem;';
 
-    for (const [mod, mitems] of Object.entries(grouped)) {
-      const color = moduleColors[mod] || '#6366f1';
-      const block = document.createElement('div');
-      block.style.cssText = 'margin-bottom:0.5rem;';
-      block.innerHTML = `<div style="font-size:0.75rem;font-weight:600;color:${color};margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.04em;">${mod}</div>`;
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;align-items:baseline;gap:0.6rem;margin-bottom:0.65rem;';
+    hdr.innerHTML = `
+      <span style="font-size:0.95rem;font-weight:600;color:var(--vt-text);">${entry.version}</span>
+      <span style="font-size:0.72rem;color:var(--vt-text-muted);">${entry.date}</span>
+      <span style="font-size:0.62rem;padding:0.08rem 0.45rem;border-radius:999px;background:rgba(255,255,255,0.06);color:${tagColor};border:1px solid ${tagColor};font-weight:600;margin-left:auto;">${tagLabel}</span>`;
+    entryEl.appendChild(hdr);
+
+    for (const sec of entry.sections) {
+      const secEl = document.createElement('div');
+      secEl.style.cssText = 'margin-bottom:0.55rem;';
+      const title = document.createElement('div');
+      title.style.cssText = 'font-size:0.73rem;font-weight:600;color:#cbd5e1;margin-bottom:0.2rem;letter-spacing:0.02em;';
+      title.textContent = sec.title;
+      secEl.appendChild(title);
       const ul = document.createElement('ul');
       ul.style.cssText = 'list-style:none;padding:0;margin:0;';
-      for (const item of mitems) {
+      for (const item of sec.items) {
         const li = document.createElement('li');
-        li.style.cssText = 'font-size:0.8rem;padding:0.2rem 0;color:var(--vt-text-muted);display:flex;align-items:center;gap:0.4rem;';
-        const dot = document.createElement('span');
-        dot.style.cssText = `display:inline-block;width:6px;height:6px;border-radius:50%;background:${item.status === 'shipped' ? 'var(--shipped)' : 'var(--done)'};flex-shrink:0;`;
-        li.appendChild(dot);
-        li.appendChild(document.createTextNode(item.title));
+        li.style.cssText = 'font-size:0.76rem;color:var(--vt-text-muted);padding:0.1rem 0 0.1rem 0.9rem;position:relative;line-height:1.45;';
+        li.innerHTML = `<span style="position:absolute;left:0;color:#475569;">-</span>${item}`;
         ul.appendChild(li);
       }
-      block.appendChild(ul);
-      section.appendChild(block);
+      secEl.appendChild(ul);
+      entryEl.appendChild(secEl);
     }
-    body.appendChild(section);
+    body.appendChild(entryEl);
   }
 }
 
@@ -612,6 +814,37 @@ document.getElementById('changelogModal').addEventListener('click', (e) => {
 });
 
 render();
+
+// --- Board drag-to-pan ---
+(function() {
+  const boardEl = document.getElementById('board');
+  let dragging = false, startX = 0, startScroll = 0, moved = false;
+
+  boardEl.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    dragging = true; moved = false;
+    startX = e.clientX;
+    startScroll = boardEl.scrollLeft;
+    boardEl.classList.add('panning');
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) > 4) moved = true;
+    boardEl.scrollLeft = startScroll - dx;
+  });
+
+  window.addEventListener('mouseup', () => {
+    dragging = false;
+    boardEl.classList.remove('panning');
+  });
+
+  // Suppress card click after a drag
+  boardEl.addEventListener('click', (e) => {
+    if (moved) { e.stopImmediatePropagation(); moved = false; }
+  }, true);
+})();
 </script>
 </body>
 </html>
