@@ -397,9 +397,10 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $dllDest = "C:\ffmpeg-shared\dll"
           $existing = Get-ChildItem -Path $dllDest -Filter "avcodec*.dll" -ErrorAction SilentlyContinue
-          if ($existing) {
+          $ffmpegExePresent = Test-Path "C:\ffmpeg-shared\bin\ffmpeg.exe"
+          if ($existing -and $ffmpegExePresent) {
             $count = (Get-ChildItem -Path $dllDest -Filter "*.dll").Count
-            Write-Host "[INFO] FFmpeg shared DLLs already present ($count DLLs) - skipping download"
+            Write-Host "[INFO] FFmpeg shared DLLs ($count) and CLI executables already present - skipping download"
             exit 0
           }
           New-Item -ItemType Directory -Force -Path $dllDest | Out-Null
