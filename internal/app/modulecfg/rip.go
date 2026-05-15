@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/configpath"
 )
 
 type RipConfig struct {

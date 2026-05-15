@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/media"
-	mediafilters "git.leaktechnologies.dev/stu/VideoTools/internal/media/filters"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media"
+	mediafilters "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media/filters"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 )
 
 var convertInlinePlayer *ui.InlineVideoPlayer

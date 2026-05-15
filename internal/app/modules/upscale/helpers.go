@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 type ModelFamily int

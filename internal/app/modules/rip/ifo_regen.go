@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/ifo"
 )
 
 // convertedVTS holds metadata about one converted VOB set for IFO regeneration.

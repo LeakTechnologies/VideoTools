@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // TitleInfo holds the extracted chapter/track information from a VTS IFO file.

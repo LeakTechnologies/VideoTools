@@ -7,7 +7,7 @@ import (
 	"io"
 	"strings"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // VTS_MAT represents the Video Title Set Information Management Table.

@@ -4,7 +4,7 @@ import (
 	"image/color"
 	"strings"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 // Semantic Color System for VideoTools

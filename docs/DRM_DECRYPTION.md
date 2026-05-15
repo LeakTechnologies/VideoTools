@@ -16,7 +16,7 @@
 
 **Usage**:
 ```go
-import "git.leaktechnologies.dev/stu/VideoTools/internal/dvd/css"
+import "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/css"
 
 // Check if encrypted
 encrypted, err := css.IsCSSEncrypted("VIDEO_TS.IFO")
@@ -117,7 +117,7 @@ The Author module supports setting region codes during DVD creation:
 ### Usage
 
 ```go
-import "git.leaktechnologies.dev/stu/VideoTools/internal/dvd/region"
+import "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/region"
 
 // Region-free (recommended for archival)
 cat := region.RegionFreeCategory()

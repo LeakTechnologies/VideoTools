@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/css"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/css"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/ifo"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 // DefaultOutputPath returns the default output path for a rip job.

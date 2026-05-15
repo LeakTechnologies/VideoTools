@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/configpath"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 	const (

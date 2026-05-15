@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // CreateMinimalMenuVOB writes a single-sector VIDEO_TS.VOB containing one

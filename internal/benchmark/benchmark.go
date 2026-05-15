@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 // perTestTimeout is the maximum time allowed for a single encoder test.

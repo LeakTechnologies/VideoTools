@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/ifo"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/ifo"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 // classifyDiscType returns a human-readable disc type string based on total

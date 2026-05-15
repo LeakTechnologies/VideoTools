@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"fyne.io/fyne/v2"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/about"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/about"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
 )
 
 func (s *appState) showAbout() {

@@ -1,4 +1,4 @@
-module git.leaktechnologies.dev/stu/VideoTools
+module git.leaktechnologies.dev/leak_technologies/VideoTools
 
 go 1.26.1
 

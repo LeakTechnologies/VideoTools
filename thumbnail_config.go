@@ -1,8 +1,8 @@
 package main
 
 import (
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/modulecfg"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modulecfg"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 )
 
 type thumbnailConfig = modulecfg.ThumbnailConfig

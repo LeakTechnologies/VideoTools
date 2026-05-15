@@ -155,7 +155,7 @@ Order of extraction (least to most dependent):
 // settings_module.go
 package main
 
-import "git.leaktechnologies.dev/stu/VideoTools/internal/app/modules/settings"
+import "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/settings"
 
 func (s *appState) showSettingsView() {
     s.setContent(settings.BuildView(settings.Options{

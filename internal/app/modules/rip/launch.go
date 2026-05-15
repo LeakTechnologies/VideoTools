@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"strings"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 // launchDVDPlayer opens the given disc source in an external DVD-capable player

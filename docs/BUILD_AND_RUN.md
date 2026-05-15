@@ -248,7 +248,7 @@ go clean -cache -modcache
 **Solution:** Clean and rebuild
 ```bash
 rm -rf go.mod go.sum
-go mod init git.leaktechnologies.dev/stu/VideoTools
+go mod init git.leaktechnologies.dev/leak_technologies/VideoTools
 bash scripts/linux/build.sh
 ```
 

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/app/configpath"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/configpath"
 )
 
 func LoadModuleJSON(name string, out interface{}) (map[string]json.RawMessage, error) {

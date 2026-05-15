@@ -12,12 +12,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/spu"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/theme"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/dvd/vob"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/i18n"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/logging"
-	"git.leaktechnologies.dev/stu/VideoTools/internal/utils"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/spu"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/theme"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/dvd/vob"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 //go:embed assets/fonts/IBMPlexMono-Regular.ttf
