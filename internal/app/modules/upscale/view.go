@@ -101,13 +101,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetUpscaleFilterChain(append([]string{}, opts.OnGetFilterActiveChain()...))
 	}
 
-	loadBtn := widget.NewButton(t.ActionLoadVideo, nil)
-	loadBtn.Importance = widget.LowImportance
+	loadBtn := ui.NewPillButton(t.ActionLoadVideo, ui.BorderDim, nil)
 
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleUpscale), func() {
+	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleUpscale), ui.BorderDim, func() {
 		opts.OnShowMainMenu()
 	})
-	backBtn.Importance = widget.LowImportance
 
 	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
 		opts.OnShowQueue()
@@ -1215,7 +1213,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { triggerUpscale() })
 	}
 
-	addQueueBtn := widget.NewButton(t.ActionAddToQueue, func() {
+	addQueueBtn := ui.NewPillButton(t.ActionAddToQueue, upscaleColor, func() {
 		job, err := createUpscaleJob()
 		if err != nil {
 			dialog.ShowError(err, opts.Window)
@@ -1227,7 +1225,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 			fmt.Sprintf(t.UpscaleAddedFmt, opts.UpscaleTargetRes(), opts.UpscaleMethod()),
 			opts.Window)
 	})
-	addQueueBtn.Importance = widget.MediumImportance
 	if src == nil {
 		addQueueBtn.Disable()
 	}
