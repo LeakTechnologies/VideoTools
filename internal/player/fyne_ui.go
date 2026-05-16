@@ -20,14 +20,14 @@ type FynePlayerUI struct {
 	container *fyne.Container
 
 	// UI Components
-	playPauseBtn  *widget.Button
-	stopBtn       *widget.Button
+	playPauseBtn  *vtheme.PillButton
+	stopBtn       *vtheme.PillButton
 	seekSlider    *vtheme.Slider
 	timeLabel     *widget.Label
 	durationLabel *widget.Label
 	volumeSlider  *vtheme.Slider
-	fullscreenBtn *widget.Button
-	fileBtn       *widget.Button
+	fullscreenBtn *vtheme.PillButton
+	fileBtn       *vtheme.PillButton
 	frameLabel    *widget.Label
 	fpsLabel      *widget.Label
 
@@ -56,10 +56,10 @@ func NewFynePlayerUI(app fyne.App, player VTPlayer) *FynePlayerUI {
 // setupUI creates the user interface components
 func (ui *FynePlayerUI) setupUI() {
 	// Control buttons - using text instead of icons for compatibility
-	ui.playPauseBtn = widget.NewButton("Play", ui.togglePlayPause)
-	ui.stopBtn = widget.NewButton("Stop", ui.stop)
-	ui.fullscreenBtn = widget.NewButton("Fullscreen", ui.toggleFullscreen)
-	ui.fileBtn = widget.NewButton("Open File", ui.openFile)
+	ui.playPauseBtn = vtheme.MakePillButton("Play", vtheme.BorderDim, ui.togglePlayPause)
+	ui.stopBtn = vtheme.MakePillButton("Stop", vtheme.BorderDim, ui.stop)
+	ui.fullscreenBtn = vtheme.MakePillButton("Fullscreen", vtheme.BorderDim, ui.toggleFullscreen)
+	ui.fileBtn = vtheme.MakePillButton("Open File", vtheme.BorderDim, ui.openFile)
 
 	// Time controls
 	ui.seekSlider = vtheme.MakeSlider(0, 100)
