@@ -619,7 +619,7 @@ func buildChaptersTab(state *appState) fyne.CanvasObject {
 	})
 
 	thresholdLabel := widget.NewLabel(fmt.Sprintf("Detection Sensitivity: %.2f", state.authorSceneThreshold))
-	thresholdSlider := widget.NewSlider(0.1, 0.9)
+	thresholdSlider := ui.MakeSlider(0.1, 0.9)
 	thresholdSlider.Value = state.authorSceneThreshold
 	thresholdSlider.Step = 0.05
 	thresholdSlider.OnChanged = func(v float64) {

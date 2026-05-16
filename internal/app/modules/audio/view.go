@@ -340,7 +340,7 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 	normalizeCheck.SetChecked(opts.Normalize)
 
 	lufsLabel := widget.NewLabel(fmt.Sprintf("%s %.1f", t.AudioTargetLUFS, opts.NormTargetLUFS))
-	lufsSlider := ui.NewVTSlider(-30, -10)
+	lufsSlider := ui.MakeSlider(-30, -10)
 	lufsSlider.SetValue(opts.NormTargetLUFS)
 	lufsSlider.Step = 0.5
 	lufsSlider.OnChanged = func(value float64) {
@@ -352,7 +352,7 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 	}
 
 	peakLabel := widget.NewLabel(fmt.Sprintf("%s %.1f dB", t.AudioTruePeak, opts.NormTruePeak))
-	peakSlider := ui.NewVTSlider(-3, 0)
+	peakSlider := ui.MakeSlider(-3, 0)
 	peakSlider.SetValue(opts.NormTruePeak)
 	peakSlider.Step = 0.1
 	peakSlider.OnChanged = func(value float64) {
@@ -397,7 +397,7 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 	outputDirRow := container.NewBorder(nil, nil, nil, outputDirBrowseBtn, outputDirEntry)
 
 	statusLabel := widget.NewLabel(t.StatusReady)
-	progressBar := ui.NewVTProgressBar()
+	progressBar := ui.MakeProgressBar()
 	progressBar.Hide()
 
 	buildAudioBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
