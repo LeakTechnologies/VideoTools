@@ -107,7 +107,7 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 
 	queueTile := buildQueueTile(labels.Queue, queueCompleted, queueTotal, queueColor, textColor, onQueueClick)
 
-	historyBtn := NewPillButton(labels.HistoryTitle, titleColor, onToggleSidebar)
+	historyBtn := MakePillButton(labels.HistoryTitle, titleColor, onToggleSidebar)
 	historyBtn.Active = sidebarVisible
 
 	filesDropdown := buildFilesDropdown(labels, filesDropdownData, textColor, labels.Window)
@@ -115,7 +115,7 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 	// Build header controls — only show logs button if callback is provided
 	headerControls := []fyne.CanvasObject{historyBtn, filesDropdown}
 	if onLogsClick != nil {
-		logsBtn := NewPillButton(labels.Logs, titleColor, onLogsClick)
+		logsBtn := MakePillButton(labels.Logs, titleColor, onLogsClick)
 		headerControls = append(headerControls, logsBtn)
 	}
 	if onPipelineToggle != nil {
@@ -129,7 +129,7 @@ func BuildMainMenu(titleText string, labels MenuLabels, modules []ModuleInfo, on
 			pipelineLabel = "A → ?"
 			pipelineActive = true
 		}
-		pipelineBtn := NewPillButton(pipelineLabel, titleColor, onPipelineToggle)
+		pipelineBtn := MakePillButton(pipelineLabel, titleColor, onPipelineToggle)
 		pipelineBtn.Active = pipelineActive
 		headerControls = append(headerControls, pipelineBtn)
 	}
@@ -323,7 +323,7 @@ func BuildHistorySidebar(
 			onToggleSidebar()
 		}
 	})
-	clearBtn := NewPillButton(labels.HistoryClearAll, titleColor, func() {
+	clearBtn := MakePillButton(labels.HistoryClearAll, titleColor, func() {
 		if onClearAll == nil {
 			return
 		}

@@ -158,7 +158,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		vs.format = FormatLosslessMKV
 	}
 
-	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleRip), ui.BorderDim, opts.OnShowMainMenu)
+	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleRip), ui.BorderDim, opts.OnShowMainMenu)
 
 	queueBtn := opts.QueueBtn
 	if queueBtn == nil {
@@ -171,7 +171,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.OnUpdateQueueButtonLabel()
 	}
 
-	clearCompletedBtn := ui.NewPillButton("⌫", ui.BorderDim, func() {
+	clearCompletedBtn := ui.MakePillButton("⌫", ui.BorderDim, func() {
 		if opts.OnClearCompleted != nil {
 			opts.OnClearCompleted()
 		}
@@ -284,14 +284,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 	var titleNavSelect *widget.Select
 	var prevTitleBtn, nextTitleBtn *ui.PillButton
 
-	prevTitleBtn = ui.NewPillButton("◀", ui.BorderDim, func() {
+	prevTitleBtn = ui.MakePillButton("◀", ui.BorderDim, func() {
 		if vs.scanResult == nil || titleIdx <= 0 || vs.videoTSPath == "" {
 			return
 		}
 		titleIdx--
 		titleNavSelect.SetSelected(buildTitleNavLabel(vs.scanResult.Titles[titleIdx]))
 	})
-	nextTitleBtn = ui.NewPillButton("▶", ui.BorderDim, func() {
+	nextTitleBtn = ui.MakePillButton("▶", ui.BorderDim, func() {
 		if vs.scanResult == nil || titleIdx >= len(vs.scanResult.Titles)-1 || vs.videoTSPath == "" {
 			return
 		}
@@ -322,7 +322,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	)
 	titleNavRow.Hide()
 
-	playWithMenusBtn := ui.NewPillButton("▶  Play with Menus", opts.ModuleColor, func() {
+	playWithMenusBtn := ui.MakePillButton("▶  Play with Menus", opts.ModuleColor, func() {
 		if err := launchDVDPlayer(vs.sourcePath); err != nil {
 			dialog.ShowError(err, opts.Window)
 		}
@@ -464,7 +464,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return nil
 	}
 
-	addQueueBtn := ui.NewPillButton(t.RipAddToQueue, opts.ModuleColor, func() {
+	addQueueBtn := ui.MakePillButton(t.RipAddToQueue, opts.ModuleColor, func() {
 		if err := addToQueue(false); err != nil {
 			dialog.ShowError(err, opts.Window)
 			return
@@ -476,7 +476,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	})
 
-	runNowBtn := ui.NewPillButton(t.RipNow, opts.ModuleColor, func() {
+	runNowBtn := ui.MakePillButton(t.RipNow, opts.ModuleColor, func() {
 		if err := addToQueue(true); err != nil {
 			dialog.ShowError(err, opts.Window)
 			return
@@ -487,7 +487,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		dialog.ShowInformation(t.RipStartTitle, t.RipStartMsg, opts.Window)
 	})
-	loadCfgBtn := ui.NewPillButton(t.ActionLoadConfig, ui.BorderDim, func() {
+	loadCfgBtn := ui.MakePillButton(t.ActionLoadConfig, ui.BorderDim, func() {
 		cfg, err := loadPersistedRipConfig()
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -505,12 +505,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		applyControls()
 	})
 
-	saveCfgBtn := ui.NewPillButton(t.ActionSaveConfig, ui.BorderDim, func() {
+	saveCfgBtn := ui.MakePillButton(t.ActionSaveConfig, ui.BorderDim, func() {
 		vs.persistConfig()
 		dialog.ShowInformation(t.RipConfigSavedTitle, fmt.Sprintf(t.RipConfigSavedFmt, configpath.ModuleConfigPath("rip")), opts.Window)
 	})
 
-	resetBtn := ui.NewPillButton(t.ActionReset, ui.BorderDim, func() {
+	resetBtn := ui.MakePillButton(t.ActionReset, ui.BorderDim, func() {
 		cfg := defaultRipConfig()
 		vs.applyConfig(cfg)
 		vs.outputPath = DefaultOutputPath(vs.sourcePath, vs.format)
@@ -521,7 +521,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		vs.persistConfig()
 	})
 
-	clearISOBtn := ui.NewPillButton(t.RipClearISO, ui.BorderDim, func() {
+	clearISOBtn := ui.MakePillButton(t.RipClearISO, ui.BorderDim, func() {
 		vs.sourcePath = ""
 		vs.outputPath = ""
 		vs.videoTSPath = ""

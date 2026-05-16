@@ -96,7 +96,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		audioColor = utils.MustHex("#9A7500")
 	}
 
-	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleAudio), ui.BorderDim, func() {
+	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleAudio), ui.BorderDim, func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}
@@ -127,13 +127,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 	mainSplit := container.NewHSplit(videoContainer, audioScroll)
 	mainSplit.SetOffset(0.5)
 
-	extractBtn := ui.NewPillButton(t.AudioExtractNow, audioColor, func() {
+	extractBtn := ui.MakePillButton(t.AudioExtractNow, audioColor, func() {
 		if opts.OnStartExtraction != nil {
 			opts.OnStartExtraction(false)
 		}
 	})
 
-	queueBtn := ui.NewPillButton(t.AudioAddToQueue, audioColor, func() {
+	queueBtn := ui.MakePillButton(t.AudioAddToQueue, audioColor, func() {
 		if opts.OnStartExtraction != nil {
 			opts.OnStartExtraction(true)
 		}
@@ -205,7 +205,7 @@ func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 
 	dropContainer := container.NewPadded(dropZone)
 
-	browseBtn := ui.NewPillButton(t.AudioBrowseForVideo, audioColor, func() {
+	browseBtn := ui.MakePillButton(t.AudioBrowseForVideo, audioColor, func() {
 		dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
 			if err != nil || uc == nil {
 				return
@@ -222,8 +222,8 @@ func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 
 	trackListContainer := container.NewVBox()
 
-	selectAllBtn := ui.NewPillButton(t.AudioSelectAll, ui.BorderDim, nil)
-	deselectAllBtn := ui.NewPillButton(t.AudioDeselectAll, ui.BorderDim, nil)
+	selectAllBtn := ui.MakePillButton(t.AudioSelectAll, ui.BorderDim, nil)
+	deselectAllBtn := ui.MakePillButton(t.AudioDeselectAll, ui.BorderDim, nil)
 
 	trackControls := container.NewHBox(selectAllBtn, deselectAllBtn)
 
@@ -240,7 +240,7 @@ func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 	batchContent := container.NewVBox(
 		batchModeCheck,
 		container.NewHBox(
-			ui.NewPillButton(t.AudioAddFiles, audioColor, func() {
+			ui.MakePillButton(t.AudioAddFiles, audioColor, func() {
 				dialog.ShowFileOpen(func(uc fyne.URIReadCloser, err error) {
 					if err != nil || uc == nil {
 						return
@@ -251,7 +251,7 @@ func buildAudioLeftPanel(opts Options) fyne.CanvasObject {
 					}
 				}, opts.Window)
 			}),
-			ui.NewPillButton(t.AudioClearFiles, ui.BorderDim, func() {
+			ui.MakePillButton(t.AudioClearFiles, ui.BorderDim, func() {
 				if opts.OnClearBatchFiles != nil {
 					opts.OnClearBatchFiles()
 				}
@@ -381,7 +381,7 @@ func buildAudioRightPanel(opts Options) fyne.CanvasObject {
 		}
 	}
 
-	outputDirBrowseBtn := ui.NewPillButton("Browse", ui.BorderDim, func() {
+	outputDirBrowseBtn := ui.MakePillButton("Browse", ui.BorderDim, func() {
 		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
 			if err != nil || uri == nil {
 				return

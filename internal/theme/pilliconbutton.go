@@ -22,7 +22,7 @@ type PillIconButton struct {
 	hovered  bool
 }
 
-func NewPillIconButton(icon fyne.Resource, onTapped func()) *PillIconButton {
+func MakePillIconButton(icon fyne.Resource, onTapped func()) *PillIconButton {
 	p := &PillIconButton{
 		Icon:     icon,
 		OnTapped: onTapped,

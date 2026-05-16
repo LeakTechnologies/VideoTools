@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/widget"
 	"image/color"
 
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
@@ -29,8 +28,7 @@ type Options struct {
 func BuildView(opts Options) fyne.CanvasObject {
 	t := i18n.T()
 
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleSettings), opts.OnBack)
-	backBtn.Importance = widget.LowImportance
+	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleSettings), ui.BorderDim, opts.OnBack)
 
 	settingsColor := utils.MustHex(ModuleColor)
 	topBar := ui.TintedBar(settingsColor, container.NewHBox(backBtn, layout.NewSpacer()))

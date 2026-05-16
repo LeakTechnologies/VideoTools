@@ -174,7 +174,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	state.exportSelect = widget.NewSelect([]string{t.TrimSmartCopy, t.TrimRecode}, func(s string) {})
 	state.exportSelect.SetSelected(t.TrimSmartCopy)
 
-	state.addBtn = ui.NewPillButton(t.MenuQueue, trimColor, func() {
+	state.addBtn = ui.MakePillButton(t.MenuQueue, trimColor, func() {
 		if state.videoPath == "" || state.duration == 0 {
 			dialog.ShowInformation(t.DialogNoVideo, "Please load a video first.", opts.Window)
 			return

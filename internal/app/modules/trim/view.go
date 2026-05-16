@@ -203,32 +203,32 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	ts.durationLabel = widget.NewLabel(t.TrimDuration + ": 00:00:00.000")
 
 	// Frame stepping
-	stepBackBtn := ui.NewPillButton("<", ui.BorderDim, func() {
+	stepBackBtn := ui.MakePillButton("<", ui.BorderDim, func() {
 		if ts.videoPath != "" {
 			ts.stepFrame(-1)
 		}
 	})
 
-	stepFwdBtn := ui.NewPillButton(">", ui.BorderDim, func() {
+	stepFwdBtn := ui.MakePillButton(">", ui.BorderDim, func() {
 		if ts.videoPath != "" {
 			ts.stepFrame(1)
 		}
 	})
 
 	// Set In / Set Out
-	setInBtn := ui.NewPillButton(t.TrimSetIn, trimColor, func() {
+	setInBtn := ui.MakePillButton(t.TrimSetIn, trimColor, func() {
 		ts.setInPoint()
 	})
 
-	setOutBtn := ui.NewPillButton(t.TrimSetOut, trimColor, func() {
+	setOutBtn := ui.MakePillButton(t.TrimSetOut, trimColor, func() {
 		ts.setOutPoint()
 	})
 
-	clearBtn := ui.NewPillButton(t.TrimClear, ui.BorderDim, func() {
+	clearBtn := ui.MakePillButton(t.TrimClear, ui.BorderDim, func() {
 		ts.clearPoints()
 	})
 
-	previewBtn := ui.NewPillButton(t.TrimPreview, trimColor, func() {
+	previewBtn := ui.MakePillButton(t.TrimPreview, trimColor, func() {
 		ts.previewTrimRegion()
 	})
 
@@ -253,7 +253,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	exportSelect.SetSelected(t.TrimSmartCopy)
 
 	// Add to Queue
-	ts.addBtn = ui.NewPillButton(t.MenuQueue, trimColor, func() {
+	ts.addBtn = ui.MakePillButton(t.MenuQueue, trimColor, func() {
 		if ts.videoPath == "" {
 			dialog.ShowInformation(t.DialogNoVideo, "Please load a video first.", opts.Window)
 			return
@@ -297,7 +297,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 			ts.loadVideo(path)
 		}, opts.Window)
 	}
-	openBtn := ui.NewPillButton(t.ActionBrowse, ui.BorderDim, openVideoFile)
+	openBtn := ui.MakePillButton(t.ActionBrowse, ui.BorderDim, openVideoFile)
 	ts.player.SetOnTapEmpty(openVideoFile)
 
 	// Toolbar row under the player
@@ -383,7 +383,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		ts.loadVideo(initialPath)
 	}
 
-	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleTrim), ui.BorderDim, opts.OnShowMainMenu)
+	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleTrim), ui.BorderDim, opts.OnShowMainMenu)
 	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// Footer: tinted action bar matching other modules' moduleFooter pattern.

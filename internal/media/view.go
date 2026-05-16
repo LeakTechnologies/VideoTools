@@ -350,7 +350,7 @@ func NewInlineVideoPlayer() *VideoPlayer {
 
 func (v *VideoPlayer) buildControls() {
 	th := fyne.CurrentApp().Settings().Theme()
-	v.playBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameMediaPlay), v.togglePlay)
+	v.playBtn = vtheme.MakePillIconButton(th.Icon(theme.IconNameMediaPlay), v.togglePlay)
 
 	var lastSliderPos float64
 	v.slider = vtheme.NewVTSlider(0, 100)
@@ -381,7 +381,7 @@ func (v *VideoPlayer) buildControls() {
 	v.durLabel = canvas.NewText("00:00:00", color.White)
 	v.durLabel.TextSize = 12
 
-	v.volumeBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameVolumeUp), v.toggleMute)
+	v.volumeBtn = vtheme.MakePillIconButton(th.Icon(theme.IconNameVolumeUp), v.toggleMute)
 
 	v.volumeSlider = vtheme.NewVTSlider(0, 100)
 	v.volumeSlider.Value = v.volume * 100
@@ -393,12 +393,12 @@ func (v *VideoPlayer) buildControls() {
 		}
 	}
 
-	v.speedBtn = vtheme.NewPillButton("1x", vtheme.TextMuted, v.toggleSpeed)
+	v.speedBtn = vtheme.MakePillButton("1x", vtheme.TextMuted, v.toggleSpeed)
 
-	v.prevChapterBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameMediaSkipPrevious), v.prevChapter)
+	v.prevChapterBtn = vtheme.MakePillIconButton(th.Icon(theme.IconNameMediaSkipPrevious), v.prevChapter)
 	v.prevChapterBtn.Hide()
 
-	v.nextChapterBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameMediaSkipNext), v.nextChapter)
+	v.nextChapterBtn = vtheme.MakePillIconButton(th.Icon(theme.IconNameMediaSkipNext), v.nextChapter)
 	v.nextChapterBtn.Hide()
 
 	v.loadingSpinner = widget.NewProgressBarInfinite()
@@ -415,11 +415,11 @@ func (v *VideoPlayer) buildControls() {
 	v.errorLabel.TextStyle = fyne.TextStyle{Bold: true}
 	v.errorLabel.Hide()
 
-	v.fullscreenBtn = vtheme.NewPillButton("⛶", vtheme.TextMuted, v.toggleFullscreen)
+	v.fullscreenBtn = vtheme.MakePillButton("⛶", vtheme.TextMuted, v.toggleFullscreen)
 
-	v.pipBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameWindowMaximize), v.togglePiP)
+	v.pipBtn = vtheme.MakePillIconButton(th.Icon(theme.IconNameWindowMaximize), v.togglePiP)
 
-	v.subtitleBtn = vtheme.NewPillButton("CC", vtheme.TextMuted, v.toggleSubtitles)
+	v.subtitleBtn = vtheme.MakePillButton("CC", vtheme.TextMuted, v.toggleSubtitles)
 
 	v.markerCanvas = canvas.NewRaster(v.drawMarkers)
 	seekStack := container.NewStack(v.slider, v.markerCanvas)

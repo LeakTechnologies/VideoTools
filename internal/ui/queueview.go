@@ -323,17 +323,17 @@ onScheduleModule func(string, string),
 	statusBadge.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	statusBadge.TextSize = 11
 
-	startAllBtn := NewPillButton(t.ActionQueueStart, Magenta, onStart)
+	startAllBtn := MakePillButton(t.ActionQueueStart, Magenta, onStart)
 
-	pauseAllBtn := NewPillButton(t.ActionQueuePauseAll, BorderDim, onPauseAll)
+	pauseAllBtn := MakePillButton(t.ActionQueuePauseAll, BorderDim, onPauseAll)
 
-	resumeAllBtn := NewPillButton(t.ActionQueueResumeAll, BorderDim, onResumeAll)
+	resumeAllBtn := MakePillButton(t.ActionQueueResumeAll, BorderDim, onResumeAll)
 
-	clearBtn := NewPillButton(t.ActionQueueClearCompleted, BorderDim, onClear)
+	clearBtn := MakePillButton(t.ActionQueueClearCompleted, BorderDim, onClear)
 
-	clearAllBtn := NewPillButton(t.ActionClearAll, Orange, onClearAll)
+	clearAllBtn := MakePillButton(t.ActionClearAll, Orange, onClearAll)
 
-	cancelAllBtn := NewPillButton(t.ActionQueueCancelAll, Orange, onCancelAll)
+	cancelAllBtn := MakePillButton(t.ActionQueueCancelAll, Orange, onCancelAll)
 
 	var buttonRow *fyne.Container
 	if hasActiveJobs {
@@ -598,26 +598,26 @@ func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
 	switch job.Status {
 	case queue.JobStatusRunning:
 		buttons = append(buttons,
-			NewPillButton("Copy Command", BorderDim, func() { callbacks.onCopyCommand(job.ID) }),
-			NewPillButton("Pause", BorderDim, func() { callbacks.onPause(job.ID) }),
-			NewPillButton("Cancel", BorderDim, func() { callbacks.onCancel(job.ID) }),
+			MakePillButton("Copy Command", BorderDim, func() { callbacks.onCopyCommand(job.ID) }),
+			MakePillButton("Pause", BorderDim, func() { callbacks.onPause(job.ID) }),
+			MakePillButton("Cancel", BorderDim, func() { callbacks.onCancel(job.ID) }),
 		)
 	case queue.JobStatusPaused:
 		buttons = append(buttons,
-			NewPillButton("Resume", BorderDim, func() { callbacks.onResume(job.ID) }),
-			NewPillButton("Cancel", BorderDim, func() { callbacks.onCancel(job.ID) }),
+			MakePillButton("Resume", BorderDim, func() { callbacks.onResume(job.ID) }),
+			MakePillButton("Cancel", BorderDim, func() { callbacks.onCancel(job.ID) }),
 		)
 	case queue.JobStatusPending:
 		buttons = append(buttons,
-			NewPillButton("Copy Command", BorderDim, func() { callbacks.onCopyCommand(job.ID) }),
-			NewPillButton("Remove", BorderDim, func() { callbacks.onRemove(job.ID) }),
+			MakePillButton("Copy Command", BorderDim, func() { callbacks.onCopyCommand(job.ID) }),
+			MakePillButton("Remove", BorderDim, func() { callbacks.onRemove(job.ID) }),
 		)
 	case queue.JobStatusCompleted, queue.JobStatusFailed, queue.JobStatusCancelled:
 		// For author jobs, show Burn DVD button if ISO output
 		if job.Type == queue.JobTypeAuthor && job.Status == queue.JobStatusCompleted {
 			outputExt := strings.ToLower(filepath.Ext(job.OutputFile))
 			if outputExt == ".iso" && callbacks.onBurnISO != nil {
-				burnBtn := NewPillButton("Burn DVD", Magenta, func() {
+				burnBtn := MakePillButton("Burn DVD", Magenta, func() {
 					callbacks.onBurnISO(job.ID)
 				})
 				buttons = append(buttons, burnBtn)
@@ -627,12 +627,12 @@ func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
 		// Open in Folder + Play/Open stacked, shown whenever there is an output file.
 		if job.OutputFile != "" && (callbacks.onOpenFolder != nil || callbacks.onOpenOutput != nil) {
 			openLabel := openOutputLabel(job.OutputFile)
-			openFolderBtn := NewPillButton("Open in Folder", BorderDim, func() {
+			openFolderBtn := MakePillButton("Open in Folder", BorderDim, func() {
 				if callbacks.onOpenFolder != nil {
 					callbacks.onOpenFolder(job.ID)
 				}
 			})
-			openOutputBtn := NewPillButton(openLabel, BorderDim, func() {
+			openOutputBtn := MakePillButton(openLabel, BorderDim, func() {
 				if callbacks.onOpenOutput != nil {
 					callbacks.onOpenOutput(job.ID)
 				}
@@ -640,21 +640,21 @@ func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
 			buttons = append(buttons, container.NewVBox(openFolderBtn, openOutputBtn))
 		}
 		if (job.Status == queue.JobStatusFailed || job.Status == queue.JobStatusCancelled) && callbacks.onRetry != nil && isRetryableJobType(job.Type) {
-			retryBtn := NewPillButton("Retry", Magenta, func() { callbacks.onRetry(job.ID) })
+			retryBtn := MakePillButton("Retry", Magenta, func() { callbacks.onRetry(job.ID) })
 			buttons = append(buttons, retryBtn)
 		}
 		if job.Status == queue.JobStatusFailed && strings.TrimSpace(job.Error) != "" && callbacks.onCopyError != nil {
 			buttons = append(buttons,
-				NewPillButton("Copy Error", BorderDim, func() { callbacks.onCopyError(job.ID) }),
+				MakePillButton("Copy Error", BorderDim, func() { callbacks.onCopyError(job.ID) }),
 			)
 		}
 		if job.LogPath != "" && callbacks.onViewLog != nil {
 			buttons = append(buttons,
-				NewPillButton("View Log", BorderDim, func() { callbacks.onViewLog(job.ID) }),
+				MakePillButton("View Log", BorderDim, func() { callbacks.onViewLog(job.ID) }),
 			)
 		}
 		buttons = append(buttons,
-			NewPillButton("Remove", BorderDim, func() { callbacks.onRemove(job.ID) }),
+			MakePillButton("Remove", BorderDim, func() { callbacks.onRemove(job.ID) }),
 		)
 	}
 

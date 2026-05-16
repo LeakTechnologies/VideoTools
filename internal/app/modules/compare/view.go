@@ -111,13 +111,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 	file1 := toVideoSource(opts.CompareFile1)
 	file2 := toVideoSource(opts.CompareFile2)
 
-	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleCompare), ui.BorderDim, func() {
+	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleCompare), ui.BorderDim, func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}
 	})
 
-	queueBtn := ui.NewPillButton(t.ActionViewQueue, compareColor, func() {
+	queueBtn := ui.MakePillButton(t.ActionViewQueue, compareColor, func() {
 		if opts.OnShowQueue != nil {
 			opts.OnShowQueue()
 		}
@@ -127,7 +127,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	playerVisible := true
 	var togglePlayerFn func()
-	togglePlayerBtn := ui.NewPillButton(t.CompareHidePlayer, compareColor, func() {
+	togglePlayerBtn := ui.MakePillButton(t.CompareHidePlayer, compareColor, func() {
 		if togglePlayerFn != nil {
 			togglePlayerFn()
 		}
@@ -146,7 +146,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
-	fullscreenBtn := ui.NewPillButton(t.CompareFullscreen, compareColor, func() {
+	fullscreenBtn := ui.MakePillButton(t.CompareFullscreen, compareColor, func() {
 		if file1 == nil && file2 == nil {
 			dialog.ShowInformation(t.CompareNoVideosTitle, t.CompareNoVideosFSMsg, opts.Window)
 			return
@@ -156,7 +156,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	})
 
-	copyComparisonBtn := ui.NewPillButton(t.CompareCopyReport, ui.BorderDim, func() {
+	copyComparisonBtn := ui.MakePillButton(t.CompareCopyReport, ui.BorderDim, func() {
 		if file1 == nil && file2 == nil {
 			dialog.ShowInformation(t.CompareNoVideosTitle, t.CompareNoVideosCopyMsg, opts.Window)
 			return
@@ -302,7 +302,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		dialog.ShowInformation(t.CompareCopied, t.CompareCopiedMsg, opts.Window)
 	})
 
-	clearAllBtn := ui.NewPillButton(t.ActionClearAll, ui.BorderDim, func() {
+	clearAllBtn := ui.MakePillButton(t.ActionClearAll, ui.BorderDim, func() {
 		file1 = nil
 		file2 = nil
 		if opts.OnRefreshView != nil {
@@ -498,7 +498,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	updateFile1()
 	updateFile2()
 
-	file1SelectBtn := ui.NewPillButton(t.CompareLoadFile1, compareColor, func() {
+	file1SelectBtn := ui.MakePillButton(t.CompareLoadFile1, compareColor, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -520,7 +520,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}, opts.Window)
 	})
 
-	file2SelectBtn := ui.NewPillButton(t.CompareLoadFile2, compareColor, func() {
+	file2SelectBtn := ui.MakePillButton(t.CompareLoadFile2, compareColor, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -542,7 +542,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}, opts.Window)
 	})
 
-	file1CopyBtn := ui.NewPillButton(t.ActionCopyMetadata, ui.BorderDim, func() {
+	file1CopyBtn := ui.MakePillButton(t.ActionCopyMetadata, ui.BorderDim, func() {
 		if file1 == nil {
 			return
 		}
@@ -551,12 +551,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		dialog.ShowInformation(t.CompareCopied, t.CompareCopiedFileMsg, opts.Window)
 	})
 
-	file1ClearBtn := ui.NewPillButton(t.ActionClear, ui.BorderDim, func() {
+	file1ClearBtn := ui.MakePillButton(t.ActionClear, ui.BorderDim, func() {
 		file1 = nil
 		updateFile1()
 	})
 
-	file2CopyBtn := ui.NewPillButton(t.ActionCopyMetadata, ui.BorderDim, func() {
+	file2CopyBtn := ui.MakePillButton(t.ActionCopyMetadata, ui.BorderDim, func() {
 		if file2 == nil {
 			return
 		}
@@ -565,7 +565,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		dialog.ShowInformation(t.CompareCopied, t.CompareCopiedFileMsg, opts.Window)
 	})
 
-	file2ClearBtn := ui.NewPillButton(t.ActionClear, ui.BorderDim, func() {
+	file2ClearBtn := ui.MakePillButton(t.ActionClear, ui.BorderDim, func() {
 		file2 = nil
 		updateFile2()
 	})
