@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	vtheme "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/theme"
 )
 
 type Texture interface {
@@ -47,7 +48,7 @@ type VideoRenderer struct {
 	controlBar     *canvas.Rectangle
 	controls       *fyne.Container
 	playBtn        *widget.Button
-	slider         *widget.Slider
+	slider         *vtheme.VTSlider
 	timeLabel      *canvas.Text
 	durLabel       *canvas.Text
 	volumeBtn      *widget.Button
@@ -90,7 +91,7 @@ func (v *VideoRenderer) buildUI() {
 	v.playBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameMediaPlay), v.togglePlay)
 	v.playBtn.Importance = widget.LowImportance
 
-	v.slider = widget.NewSlider(0, 100)
+	v.slider = vtheme.NewVTSlider(0, 100)
 	v.slider.OnChanged = func(pos float64) {
 		if v.suppressSeek {
 			return
