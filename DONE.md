@@ -1,5 +1,44 @@
 # VideoTools - Completed Features
 
+## Version 0.1.1-dev48 (in progress)
+
+### Theme System — internal/theme/ Package
+- **VT_Navy colour palette** — `internal/theme/palette.go` defines BgBase/BgDark/BgLight/BgCard, Border/BorderDim, Text/TextMuted, InputBg, and all status colours (Green, Teal, Yellow, Blue, Orange, Purple, Magenta).
+- **PillButton widget** — `internal/theme/pillbutton.go` — pill-shaped button with coloured border, hover/active/disabled states, bold text, initial-paint fix (`r.Refresh()` in CreateRenderer).
+- **PillIconButton widget** — `internal/theme/pilliconbutton.go` — square icon-only pill button for transport controls. Supports fyne.Resource icon, hover lightens border.
+- **Text primitives** — `internal/theme/text.go` — `NewTitleLabel` (Monospace+Bold 24pt), `NewSectionLabel` (Bold), `NewWrappingLabel` (word wrap), `NewHintLabel` (Italic), `NewMonoLabel` (Monospace).
+- **MonoTheme updated** — references theme vars (InputBg) instead of hardcoded `#344256`.
+- **main.go colours** — `backgroundColor`/`gridColor`/`textColor`/`queueColor` reference `ui.BgBase`/`ui.BorderDim`/`ui.Text`/`ui.Magenta`.
+- **Circular dep resolved** — `ui/` re-exports theme symbols; `media/` imports theme directly. `ui` no longer defines palette/primitives — all source of truth is `internal/theme/`.
+
+### Player Transport Controls Migration
+- **speedBtn/subtitleBtn** — `widget.NewButton` → `theme.NewPillButton`. Displays "1x"/speed and "CC" labels.
+- **playBtn/volumeBtn/prevChapterBtn/nextChapterBtn/fullscreenBtn/pipBtn** — `widget.NewButtonWithIcon` → `theme.NewPillIconButton`. Icon-only buttons with consistent pill styling.
+- All transport buttons share navy-light background (`BgLight`), hover border lightens to `TextMuted`.
+
+### Bug Fixes
+- **Audio nil-widget crash** — `Player.Widget()` nil guard; falls back to SMPTE placeholder so HSplit never receives nil.
+- **PillButton initial paint** — `CreateRenderer` calls `r.Refresh()` so colours are set before first paint (buttons were invisible until hover triggered a Refresh cycle).
+- **Window recentering removed** — `CenterOnScreen()` removed from `maximizeWindow`; window stays where user placed it.
+- **i18n script persistence** — `SetLanguageWithScript("iu", ScriptLatin)` stores preference; future `SetLanguage("iu")` restores it. `ScriptPrefs` map in locale JSON survives app restarts.
+
+### CI & Diagnostics
+- **Windows SignPath signing** — `SIGNPATH_API_TOKEN` + `SIGNPATH_ORGANIZATION_ID` set in Forgejo secrets. ci-build.ps1 calls sign-exe.ps1 non-fatally.
+- **Cache guard** — require `ffmpeg.exe` present on disk before skipping BtbN download on cache hit.
+- **ci-build.ps1 encoding** — UTF-8 em dashes replaced with ASCII `--`.
+- **VT_STARTUP_DEBUG** — env var gates per-widget CreateRenderer tracing to stderr. `logging.Sync()` force-flushes at crash-risk checkpoints. Confirmed: STATUS_STACK_OVERFLOW is glfw.CreateWindow() GPU driver DLL injection.
+
+### Roadmap Visual Polish
+- **Deprecated status** — purple (`#a855f7`), no strikethrough.
+- **Cycle filter row** — dynamically built from roadmap data, sorted newest-first; current version gets green outline.
+- **Testing Checklist modal** — pass/fail/untested per item, localStorage, grouped by module.
+- **Column reorder** — empty columns drift right.
+- **Back-to-top button** — appears at 300px scroll.
+- **VT logo** — 96px, right-aligned, `align-items: flex-start`.
+- **Modal drag-to-scroll** — changelog/checklist click-and-drag vertical scrolling.
+- **Colour dots** — 16px circles across legend, status filter, module filter buttons.
+- **Future status** — grey → orange (`#f97316`).
+
 ## Version 0.1.1-dev47 (complete)
 
 ### PAL→NTSC Full-Disc Conversion Pipeline — Stages 1-3 (HIGH)
