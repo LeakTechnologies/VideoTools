@@ -274,8 +274,7 @@ func BuildBenchmarkResultsView(
 		benchmark.FriendlyName(recommendation.Encoder), recommendation.FPS))
 	recDetail.Alignment = fyne.TextAlignCenter
 
-	applyBtn := widget.NewButton("Apply to Settings", onApply)
-	applyBtn.Importance = widget.HighImportance
+	applyBtn := MakePillButton("Apply to Settings", Teal, onApply)
 
 	recCard := canvas.NewRectangle(color.RGBA{R: 68, G: 136, B: 255, A: 50})
 	recCard.CornerRadius = 8
