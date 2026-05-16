@@ -67,7 +67,7 @@ type trimState struct {
 	outPointLabel *widget.Label
 	durationLabel *widget.Label
 	fileLabel     *widget.Label
-	addBtn        *widget.Button
+	addBtn        *ui.PillButton
 	timeline      *ui.TrimTimeline
 }
 
@@ -254,7 +254,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	exportSelect.SetSelected(t.TrimSmartCopy)
 
 	// Add to Queue
-	ts.addBtn = widget.NewButton(t.MenuQueue, func() {
+	ts.addBtn = ui.NewPillButton(t.MenuQueue, trimColor, func() {
 		if ts.videoPath == "" {
 			dialog.ShowInformation(t.DialogNoVideo, "Please load a video first.", opts.Window)
 			return
@@ -275,7 +275,6 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		}
 		ts.doAddToQueue(opts)
 	})
-	ts.addBtn.Importance = widget.HighImportance
 	ts.addBtn.Disable()
 
 	// File name label — updated when a video is loaded

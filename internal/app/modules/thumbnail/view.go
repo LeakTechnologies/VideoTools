@@ -440,7 +440,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	noVideosMsg := or(opts.NoVideosMsg, "Load videos first to add to queue.")
 	jobsQueuedFmt := or(opts.JobsQueuedFmt, "Queued %d thumbnail jobs.")
 
-	generateNowBtn := widget.NewButton(or(opts.GenerateNowLabel, "GENERATE NOW"), func() {
+	generateNowBtn := ui.NewPillButton(or(opts.GenerateNowLabel, "GENERATE NOW"), thumbColor, func() {
 		if opts.ThumbnailFile == nil {
 			dialog.ShowInformation(noVideoTitle, noVideoMsg, opts.Window)
 			return
@@ -450,8 +450,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		dialog.ShowInformation(startedTitle, startedMsg, opts.Window)
 	})
-	generateNowBtn.Importance = widget.HighImportance
-
 	if opts.ThumbnailFile == nil {
 		generateNowBtn.Disable()
 	}

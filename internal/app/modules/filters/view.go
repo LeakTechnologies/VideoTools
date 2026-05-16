@@ -524,7 +524,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		),
 	))
 
-	applyBtn := widget.NewButton("Apply Filters", func() {
+	applyBtn := ui.NewPillButton("Apply Filters", filtersColor, func() {
 		if opts.FiltersFile == nil {
 			dialog.ShowInformation("No Video", "Please load a video first.", opts.Window)
 			return
@@ -535,7 +535,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		dialog.ShowInformation("Filters", "Filters are now configured and will be applied when sent to Upscale.", opts.Window)
 	})
-	applyBtn.Importance = widget.HighImportance
 
 	filterNowBtn := widget.NewButton("Filter Now", func() {
 		if opts.FiltersFile == nil {

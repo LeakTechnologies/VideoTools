@@ -38,15 +38,14 @@ func (p *PillButton) CreateRenderer() fyne.WidgetRenderer {
 	if startupDebug {
 		fmt.Fprintf(os.Stderr, "[vt-debug] PillButton.CreateRenderer label=%q\n", p.Label)
 	}
-	bg := canvas.NewRectangle(nil)
+	bg := canvas.NewRectangle(BgLight)
 	bg.CornerRadius = 12
 	bg.StrokeWidth = 1.5
-	txt := canvas.NewText(p.Label, nil)
+	bg.StrokeColor = p.BorderCol
+	txt := canvas.NewText(p.Label, TextOnDark)
 	txt.Alignment = fyne.TextAlignCenter
 	txt.TextStyle = fyne.TextStyle{Bold: true}
-	r := &pillButtonRenderer{pill: p, bg: bg, txt: txt}
-	r.Refresh()
-	return r
+	return &pillButtonRenderer{pill: p, bg: bg, txt: txt}
 }
 
 func (p *PillButton) MouseIn(*desktop.MouseEvent) {

@@ -41,13 +41,12 @@ func (p *PillIconButton) CreateRenderer() fyne.WidgetRenderer {
 	if startupDebug {
 		fmt.Fprintf(os.Stderr, "[vt-debug] PillIconButton.CreateRenderer\n")
 	}
-	bg := canvas.NewRectangle(nil)
+	bg := canvas.NewRectangle(BgLight)
 	bg.CornerRadius = 8
 	bg.StrokeWidth = 1.5
+	bg.StrokeColor = color.Transparent
 	icon := canvas.NewImageFromResource(p.Icon)
-	r := &pillIconRenderer{btn: p, bg: bg, icon: icon}
-	r.Refresh()
-	return r
+	return &pillIconRenderer{btn: p, bg: bg, icon: icon}
 }
 
 func (p *PillIconButton) MouseIn(*desktop.MouseEvent) {
