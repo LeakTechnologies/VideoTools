@@ -227,11 +227,11 @@ type VideoPlayer struct {
 	drawBufH int
 
 	playBtn        *vtheme.PillIconButton
-	slider         *widget.Slider
+	slider         *vtheme.VTSlider
 	timeLabel      *canvas.Text
 	durLabel       *canvas.Text
 	volumeBtn      *vtheme.PillIconButton
-	volumeSlider   *widget.Slider
+	volumeSlider   *vtheme.VTSlider
 	speedBtn       *vtheme.PillButton
 	prevChapterBtn *vtheme.PillIconButton
 	nextChapterBtn *vtheme.PillIconButton
@@ -353,7 +353,7 @@ func (v *VideoPlayer) buildControls() {
 	v.playBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameMediaPlay), v.togglePlay)
 
 	var lastSliderPos float64
-	v.slider = widget.NewSlider(0, 100)
+	v.slider = vtheme.NewVTSlider(0, 100)
 	v.slider.OnChanged = func(pos float64) {
 		if v.suppressSeek {
 			return
@@ -383,7 +383,7 @@ func (v *VideoPlayer) buildControls() {
 
 	v.volumeBtn = vtheme.NewPillIconButton(th.Icon(theme.IconNameVolumeUp), v.toggleMute)
 
-	v.volumeSlider = widget.NewSlider(0, 100)
+	v.volumeSlider = vtheme.NewVTSlider(0, 100)
 	v.volumeSlider.Value = v.volume * 100
 	v.volumeSlider.Resize(fyne.NewSize(150, 40))
 	v.volumeSlider.OnChanged = func(pos float64) {

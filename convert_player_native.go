@@ -175,7 +175,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 	totalTime := widget.NewLabel(formatClock(srcDuration))
 	totalTime.Alignment = fyne.TextAlignTrailing
 
-	slider := widget.NewSlider(0, math.Max(1, srcDuration))
+	slider := ui.NewVTSlider(0, math.Max(1, srcDuration))
 	slider.Step = 0.5
 
 	// frameLabel declared here so updateProgress can reference it via closure.
@@ -257,7 +257,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		updateVolIcon()
 	})
 
-	volSlider := widget.NewSlider(0, 100)
+	volSlider := ui.NewVTSlider(0, 100)
 	volSlider.Step = 1
 	volSlider.Value = state.playerVolume
 	volSlider.Resize(fyne.NewSize(150, 40))
@@ -435,7 +435,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		})
 		fsExitBtn.Importance = widget.LowImportance
 
-		fsSeek := widget.NewSlider(0, player.Duration())
+		fsSeek := ui.NewVTSlider(0, player.Duration())
 		fsSeek.Step = 0.1
 		fsSeek.Value = player.CurrentTime()
 		var fsUpdatingSeek bool

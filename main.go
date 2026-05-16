@@ -1994,7 +1994,7 @@ func (s *appState) syncPlayerWindow() {
 	logging.Debug(logging.CatUI, "player window target pos=(%d,%d) size=%dx%d", int(pos.X), int(pos.Y), width, height)
 }
 
-func (s *appState) startPreview(frames []string, img *canvas.Image, slider *widget.Slider) {
+func (s *appState) startPreview(frames []string, img *canvas.Image, slider *ui.VTSlider) {
 	if len(frames) == 0 {
 		return
 	}
@@ -11274,14 +11274,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 	lufsLabel := widget.NewLabel(fmt.Sprintf("%.0f LUFS", normalizeLUFSValue))
 	truePeakLabel := widget.NewLabel(fmt.Sprintf("%.1f dBTP", normalizeTruePeakValue))
-	normalizeLUFSSlider := widget.NewSlider(-24, -9)
+	normalizeLUFSSlider := ui.NewVTSlider(-24, -9)
 	normalizeLUFSSlider.Step = 1
 	normalizeLUFSSlider.SetValue(normalizeLUFSValue)
 	normalizeLUFSSlider.OnChanged = func(value float64) {
 		state.convert.NormalizeLUFS = value
 		lufsLabel.SetText(fmt.Sprintf("%.0f LUFS", value))
 	}
-	normalizeTruePeakSlider := widget.NewSlider(-9, 0)
+	normalizeTruePeakSlider := ui.NewVTSlider(-9, 0)
 	normalizeTruePeakSlider.Step = 0.5
 	normalizeTruePeakSlider.SetValue(normalizeTruePeakValue)
 	normalizeTruePeakSlider.OnChanged = func(value float64) {
@@ -12378,7 +12378,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Snippet length configuration
 	snippetLengthLabel := widget.NewLabel(fmt.Sprintf(t.ConvertSnippetLengthFmt, state.snippetLength))
-	snippetLengthSlider := widget.NewSlider(5, 60)
+	snippetLengthSlider := ui.NewVTSlider(5, 60)
 	snippetLengthSlider.SetValue(float64(state.snippetLength))
 	snippetLengthSlider.Step = 1
 	snippetLengthSlider.OnChanged = func(value float64) {
@@ -13586,7 +13586,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 	totalTime := widget.NewLabel(src.DurationString())
 	totalTime.Alignment = fyne.TextAlignTrailing
 	var updatingProgress bool
-	slider := widget.NewSlider(0, math.Max(1, src.Duration))
+	slider := ui.NewVTSlider(0, math.Max(1, src.Duration))
 	slider.Step = 0.5
 	updateProgress := func(val float64) {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -13660,7 +13660,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 			}
 			updateVolIcon()
 		})
-		volSlider := widget.NewSlider(0, 100)
+		volSlider := ui.NewVTSlider(0, 100)
 		volSlider.Step = 1
 		volSlider.Value = state.playerVolume
 		volSlider.Resize(fyne.NewSize(150, 40))
@@ -13751,7 +13751,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 
 		controls = container.NewVBox(primaryBar, advancedBar)
 	} else {
-		slider := widget.NewSlider(0, math.Max(1, float64(len(src.PreviewFrames)-1)))
+		slider := ui.NewVTSlider(0, math.Max(1, float64(len(src.PreviewFrames)-1)))
 		slider.Step = 1
 		slider.OnChanged = func(val float64) {
 			if state.anim != nil && state.anim.playing {
@@ -13816,7 +13816,7 @@ func buildVideoPane(state *appState, min fyne.Size, src *videoSource, onCover fu
 type previewAnimator struct {
 	frames  []string
 	img     *canvas.Image
-	slider  *widget.Slider
+	slider  *ui.VTSlider
 	stop    chan struct{}
 	playing bool
 	state   *appState
