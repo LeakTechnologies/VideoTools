@@ -226,7 +226,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return container.NewMax(layers...)
 	}
 
-	brightnessSlider := ui.NewVTSlider(-1.0, 1.0)
+	brightnessSlider := ui.MakeSlider(-1.0, 1.0)
 	brightnessSlider.SetValue(opts.FilterBrightness)
 	brightnessSlider.OnChanged = func(f float64) {
 		if opts.OnSetBrightness != nil {
@@ -235,7 +235,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChain()
 	}
 
-	contrastSlider := ui.NewVTSlider(0.0, 3.0)
+	contrastSlider := ui.MakeSlider(0.0, 3.0)
 	contrastSlider.SetValue(opts.FilterContrast)
 	contrastSlider.OnChanged = func(f float64) {
 		if opts.OnSetContrast != nil {
@@ -244,7 +244,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChain()
 	}
 
-	saturationSlider := ui.NewVTSlider(0.0, 3.0)
+	saturationSlider := ui.MakeSlider(0.0, 3.0)
 	saturationSlider.SetValue(opts.FilterSaturation)
 	saturationSlider.OnChanged = func(f float64) {
 		if opts.OnSetSaturation != nil {
@@ -265,7 +265,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		),
 	))
 
-	sharpnessSlider := ui.NewVTSlider(0.0, 5.0)
+	sharpnessSlider := ui.MakeSlider(0.0, 5.0)
 	sharpnessSlider.SetValue(opts.FilterSharpness)
 	sharpnessSlider.OnChanged = func(f float64) {
 		if opts.OnSetSharpness != nil {
@@ -274,7 +274,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChain()
 	}
 
-	denoiseSlider := ui.NewVTSlider(0.0, 10.0)
+	denoiseSlider := ui.MakeSlider(0.0, 10.0)
 	denoiseSlider.SetValue(opts.FilterDenoise)
 	denoiseSlider.OnChanged = func(f float64) {
 		if opts.OnSetDenoise != nil {
@@ -379,7 +379,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	scanlinesCheck.SetChecked(opts.FilterScanlines)
 
-	chromaNoiseSlider := ui.NewVTSlider(0.0, 1.0)
+	chromaNoiseSlider := ui.MakeSlider(0.0, 1.0)
 	chromaNoiseSlider.SetValue(opts.FilterChromaNoise)
 	chromaNoiseSlider.OnChanged = func(f float64) {
 		if opts.OnSetChromaNoise != nil {
@@ -388,7 +388,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChain()
 	}
 
-	tapeNoiseSlider := ui.NewVTSlider(0.0, 1.0)
+	tapeNoiseSlider := ui.MakeSlider(0.0, 1.0)
 	tapeNoiseSlider.SetValue(opts.FilterTapeNoise)
 	tapeNoiseSlider.OnChanged = func(f float64) {
 		if opts.OnSetTapeNoise != nil {
@@ -397,7 +397,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChain()
 	}
 
-	trackingErrorSlider := ui.NewVTSlider(0.0, 1.0)
+	trackingErrorSlider := ui.MakeSlider(0.0, 1.0)
 	trackingErrorSlider.SetValue(opts.FilterTrackingError)
 	trackingErrorSlider.OnChanged = func(f float64) {
 		if opts.OnSetTrackingError != nil {
@@ -406,7 +406,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChain()
 	}
 
-	dropoutSlider := ui.NewVTSlider(0.0, 1.0)
+	dropoutSlider := ui.MakeSlider(0.0, 1.0)
 	dropoutSlider.SetValue(opts.FilterDropout)
 	dropoutSlider.OnChanged = func(f float64) {
 		if opts.OnSetDropout != nil {

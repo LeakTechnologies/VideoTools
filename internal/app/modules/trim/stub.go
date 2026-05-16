@@ -51,7 +51,7 @@ type trimState struct {
 	exportSelect *widget.Select
 	inEntry      *widget.Entry
 	outEntry     *widget.Entry
-	timeline     *widget.Slider
+	timeline     *ui.Slider
 	addBtn       *ui.PillButton
 	videoPreview *ui.VideoPreview
 }
@@ -83,7 +83,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	timeLabel := widget.NewLabel("00:00:00.000")
 	durLabel := widget.NewLabel("00:00:00.000")
 
-	state.timeline = widget.NewSlider(0, 100)
+	state.timeline = ui.MakeSlider(0, 100)
 	state.timeline.OnChanged = func(val float64) {
 		if state.duration > 0 {
 			state.currentMs = int64(val / 100.0 * float64(state.duration*1000))

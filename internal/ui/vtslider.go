@@ -11,14 +11,14 @@ import (
 )
 
 const (
-	vtSliderTrackH    = float32(2)
-	vtSliderThumbD    = float32(14)
-	vtSliderMinHeight = float32(26)
+	sliderTrackH    = float32(2)
+	sliderThumbD    = float32(14)
+	sliderMinHeight = float32(26)
 )
 
-// VTSlider is a styled slider: thin coloured track + hollow circle thumb.
-// API-compatible with the fields of widget.Slider that are used across VT.
-type VTSlider struct {
+// Slider is a styled slider: thin coloured track + hollow circle thumb.
+// Generic enough to be used in any Fyne project.
+type Slider struct {
 	widget.BaseWidget
 
 	Min   float64
@@ -34,27 +34,28 @@ type VTSlider struct {
 	disabled bool
 }
 
-func (s *VTSlider) Enable() {
-	s.disabled = false
-	s.Refresh()
-}
-
-func (s *VTSlider) Disable() {
-	s.disabled = true
-	s.Refresh()
-}
-
-func (s *VTSlider) Disabled() bool {
-	return s.disabled
-}
-
-func NewVTSlider(min, max float64) *VTSlider {
-	s := &VTSlider{Min: min, Max: max}
+// MakeSlider constructs a Slider with the given range.
+func MakeSlider(min, max float64) *Slider {
+	s := &Slider{Min: min, Max: max}
 	s.ExtendBaseWidget(s)
 	return s
 }
 
-func (s *VTSlider) SetValue(v float64) {
+func (s *Slider) Enable() {
+	s.disabled = false
+	s.Refresh()
+}
+
+func (s *Slider) Disable() {
+	s.disabled = true
+	s.Refresh()
+}
+
+func (s *Slider) Disabled() bool {
+	return s.disabled
+}
+
+func (s *Slider) SetValue(v float64) {
 	v = math.Max(s.Min, math.Min(s.Max, v))
 	if s.Step > 0 {
 		steps := math.Round((v - s.Min) / s.Step)
@@ -71,7 +72,7 @@ func (s *VTSlider) SetValue(v float64) {
 	}
 }
 
-func (s *VTSlider) Tapped(e *fyne.PointEvent) {
+func (s *Slider) Tapped(e *fyne.PointEvent) {
 	if s.disabled {
 		return
 	}
@@ -81,20 +82,20 @@ func (s *VTSlider) Tapped(e *fyne.PointEvent) {
 	}
 }
 
-func (s *VTSlider) Dragged(e *fyne.DragEvent) {
+func (s *Slider) Dragged(e *fyne.DragEvent) {
 	if s.disabled {
 		return
 	}
 	s.setFromX(e.Position.X)
 }
 
-func (s *VTSlider) DragEnd() {
+func (s *Slider) DragEnd() {
 	if s.OnChangeEnded != nil {
 		s.OnChangeEnded(s.Value)
 	}
 }
 
-func (s *VTSlider) setFromX(x float32) {
+func (s *Slider) setFromX(x float32) {
 	w := s.Size().Width
 	if w <= 0 {
 		return
@@ -103,49 +104,47 @@ func (s *VTSlider) setFromX(x float32) {
 	s.SetValue(s.Min + ratio*(s.Max-s.Min))
 }
 
-func (s *VTSlider) trackColor() color.Color {
+func (s *Slider) trackColor() color.Color {
 	if s.TrackColor != nil {
 		return s.TrackColor
 	}
 	return vtheme.Green
 }
 
-func (s *VTSlider) CreateRenderer() fyne.WidgetRenderer {
+func (s *Slider) CreateRenderer() fyne.WidgetRenderer {
 	tc := s.trackColor()
 	track := canvas.NewRectangle(tc)
 	thumb := canvas.NewCircle(color.Transparent)
 	thumb.StrokeColor = tc
 	thumb.StrokeWidth = 1.5
-	return &vtSliderRenderer{s: s, track: track, thumb: thumb}
+	return &sliderRenderer{s: s, track: track, thumb: thumb}
 }
 
-// vtSliderRenderer -------------------------------------------------------
-
-type vtSliderRenderer struct {
-	s     *VTSlider
+type sliderRenderer struct {
+	s     *Slider
 	track *canvas.Rectangle
 	thumb *canvas.Circle
 }
 
-func (r *vtSliderRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(40, vtSliderMinHeight)
+func (r *sliderRenderer) MinSize() fyne.Size {
+	return fyne.NewSize(40, sliderMinHeight)
 }
 
-func (r *vtSliderRenderer) Layout(size fyne.Size) {
+func (r *sliderRenderer) Layout(size fyne.Size) {
 	mid := size.Height / 2
-	r.track.Move(fyne.NewPos(0, mid-vtSliderTrackH/2))
-	r.track.Resize(fyne.NewSize(size.Width, vtSliderTrackH))
+	r.track.Move(fyne.NewPos(0, mid-sliderTrackH/2))
+	r.track.Resize(fyne.NewSize(size.Width, sliderTrackH))
 
 	ratio := float32(0)
 	if r.s.Max > r.s.Min {
 		ratio = float32((r.s.Value - r.s.Min) / (r.s.Max - r.s.Min))
 	}
-	tx := ratio*size.Width - vtSliderThumbD/2
-	r.thumb.Move(fyne.NewPos(tx, mid-vtSliderThumbD/2))
-	r.thumb.Resize(fyne.NewSize(vtSliderThumbD, vtSliderThumbD))
+	tx := ratio*size.Width - sliderThumbD/2
+	r.thumb.Move(fyne.NewPos(tx, mid-sliderThumbD/2))
+	r.thumb.Resize(fyne.NewSize(sliderThumbD, sliderThumbD))
 }
 
-func (r *vtSliderRenderer) Refresh() {
+func (r *sliderRenderer) Refresh() {
 	tc := r.s.trackColor()
 	if r.s.disabled {
 		tc = vtheme.BorderDim
@@ -157,18 +156,16 @@ func (r *vtSliderRenderer) Refresh() {
 	r.Layout(r.s.Size())
 }
 
-func (r *vtSliderRenderer) Objects() []fyne.CanvasObject {
+func (r *sliderRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.track, r.thumb}
 }
 
-func (r *vtSliderRenderer) Destroy() {}
+func (r *sliderRenderer) Destroy() {}
 
-// VTProgressBar ----------------------------------------------------------
-
-// VTProgressBar renders a thin styled progress bar (track + filled portion).
+// ProgressBar renders a thin styled progress bar (track + filled portion).
 // Use instead of widget.ProgressBar in module views.
 // Not for use in the queue module where the stock widget is intentional.
-type VTProgressBar struct {
+type ProgressBar struct {
 	widget.BaseWidget
 	Min   float64
 	Max   float64
@@ -177,34 +174,35 @@ type VTProgressBar struct {
 	TrackColor color.Color // filled portion; nil → vtheme.Green
 }
 
-func NewVTProgressBar() *VTProgressBar {
-	p := &VTProgressBar{Min: 0, Max: 1}
+// MakeProgressBar constructs a ProgressBar with the default [0, 1] range.
+func MakeProgressBar() *ProgressBar {
+	p := &ProgressBar{Min: 0, Max: 1}
 	p.ExtendBaseWidget(p)
 	return p
 }
 
-func (p *VTProgressBar) SetValue(v float64) {
+func (p *ProgressBar) SetValue(v float64) {
 	p.Value = math.Max(p.Min, math.Min(p.Max, v))
 	p.Refresh()
 }
 
-func (p *VTProgressBar) CreateRenderer() fyne.WidgetRenderer {
+func (p *ProgressBar) CreateRenderer() fyne.WidgetRenderer {
 	bg := canvas.NewRectangle(vtheme.Border)
 	fill := canvas.NewRectangle(vtheme.Green)
-	return &vtProgressRenderer{p: p, bg: bg, fill: fill}
+	return &progressBarRenderer{p: p, bg: bg, fill: fill}
 }
 
-type vtProgressRenderer struct {
-	p    *VTProgressBar
+type progressBarRenderer struct {
+	p    *ProgressBar
 	bg   *canvas.Rectangle
 	fill *canvas.Rectangle
 }
 
-func (r *vtProgressRenderer) MinSize() fyne.Size {
+func (r *progressBarRenderer) MinSize() fyne.Size {
 	return fyne.NewSize(40, 6)
 }
 
-func (r *vtProgressRenderer) Layout(size fyne.Size) {
+func (r *progressBarRenderer) Layout(size fyne.Size) {
 	r.bg.Move(fyne.NewPos(0, 0))
 	r.bg.Resize(size)
 
@@ -216,7 +214,7 @@ func (r *vtProgressRenderer) Layout(size fyne.Size) {
 	r.fill.Resize(fyne.NewSize(ratio*size.Width, size.Height))
 }
 
-func (r *vtProgressRenderer) Refresh() {
+func (r *progressBarRenderer) Refresh() {
 	tc := r.p.TrackColor
 	if tc == nil {
 		tc = vtheme.Green
@@ -228,8 +226,8 @@ func (r *vtProgressRenderer) Refresh() {
 	r.Layout(r.p.Size())
 }
 
-func (r *vtProgressRenderer) Objects() []fyne.CanvasObject {
+func (r *progressBarRenderer) Objects() []fyne.CanvasObject {
 	return []fyne.CanvasObject{r.bg, r.fill}
 }
 
-func (r *vtProgressRenderer) Destroy() {}
+func (r *progressBarRenderer) Destroy() {}

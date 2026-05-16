@@ -158,8 +158,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		vs.format = FormatLosslessMKV
 	}
 
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleRip), opts.OnShowMainMenu)
-	backBtn.Importance = widget.LowImportance
+	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleRip), ui.BorderDim, opts.OnShowMainMenu)
 
 	queueBtn := opts.QueueBtn
 	if queueBtn == nil {
@@ -172,12 +171,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.OnUpdateQueueButtonLabel()
 	}
 
-	clearCompletedBtn := widget.NewButton("⌫", func() {
+	clearCompletedBtn := ui.NewPillButton("⌫", ui.BorderDim, func() {
 		if opts.OnClearCompleted != nil {
 			opts.OnClearCompleted()
 		}
 	})
-	clearCompletedBtn.Importance = widget.LowImportance
 
 	topBar := ui.TintedBar(opts.ModuleColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
@@ -284,24 +282,22 @@ func BuildView(opts Options) fyne.CanvasObject {
 	// Title navigation (revealed when a multi-title disc is loaded)
 	titleIdx := 0
 	var titleNavSelect *widget.Select
-	var prevTitleBtn, nextTitleBtn *widget.Button
+	var prevTitleBtn, nextTitleBtn *ui.PillButton
 
-	prevTitleBtn = widget.NewButton("◀", func() {
+	prevTitleBtn = ui.NewPillButton("◀", ui.BorderDim, func() {
 		if vs.scanResult == nil || titleIdx <= 0 || vs.videoTSPath == "" {
 			return
 		}
 		titleIdx--
 		titleNavSelect.SetSelected(buildTitleNavLabel(vs.scanResult.Titles[titleIdx]))
 	})
-	nextTitleBtn = widget.NewButton("▶", func() {
+	nextTitleBtn = ui.NewPillButton("▶", ui.BorderDim, func() {
 		if vs.scanResult == nil || titleIdx >= len(vs.scanResult.Titles)-1 || vs.videoTSPath == "" {
 			return
 		}
 		titleIdx++
 		titleNavSelect.SetSelected(buildTitleNavLabel(vs.scanResult.Titles[titleIdx]))
 	})
-	prevTitleBtn.Importance = widget.LowImportance
-	nextTitleBtn.Importance = widget.LowImportance
 
 	titleNavSelect = widget.NewSelect(nil, func(s string) {
 		if vs.scanResult == nil || vs.videoTSPath == "" {
@@ -326,12 +322,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	)
 	titleNavRow.Hide()
 
-	playWithMenusBtn := widget.NewButton("▶  Play with Menus", func() {
+	playWithMenusBtn := ui.NewPillButton("▶  Play with Menus", opts.ModuleColor, func() {
 		if err := launchDVDPlayer(vs.sourcePath); err != nil {
 			dialog.ShowError(err, opts.Window)
 		}
 	})
-	playWithMenusBtn.Importance = widget.MediumImportance
 
 	playerBottomRow := container.NewVBox(titleNavRow, playWithMenusBtn)
 	playerPane := container.NewBorder(nil, playerBottomRow, nil, nil, playerCanvas)
@@ -469,7 +464,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		return nil
 	}
 
-	addQueueBtn := widget.NewButton(t.RipAddToQueue, func() {
+	addQueueBtn := ui.NewPillButton(t.RipAddToQueue, opts.ModuleColor, func() {
 		if err := addToQueue(false); err != nil {
 			dialog.ShowError(err, opts.Window)
 			return
@@ -480,7 +475,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 			jq.Start()
 		}
 	})
-	addQueueBtn.Importance = widget.MediumImportance
 
 	runNowBtn := ui.NewPillButton(t.RipNow, opts.ModuleColor, func() {
 		if err := addToQueue(true); err != nil {
@@ -493,7 +487,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		dialog.ShowInformation(t.RipStartTitle, t.RipStartMsg, opts.Window)
 	})
-	loadCfgBtn := widget.NewButton(t.ActionLoadConfig, func() {
+	loadCfgBtn := ui.NewPillButton(t.ActionLoadConfig, ui.BorderDim, func() {
 		cfg, err := loadPersistedRipConfig()
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -511,12 +505,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		applyControls()
 	})
 
-	saveCfgBtn := widget.NewButton(t.ActionSaveConfig, func() {
+	saveCfgBtn := ui.NewPillButton(t.ActionSaveConfig, ui.BorderDim, func() {
 		vs.persistConfig()
 		dialog.ShowInformation(t.RipConfigSavedTitle, fmt.Sprintf(t.RipConfigSavedFmt, configpath.ModuleConfigPath("rip")), opts.Window)
 	})
 
-	resetBtn := widget.NewButton(t.ActionReset, func() {
+	resetBtn := ui.NewPillButton(t.ActionReset, ui.BorderDim, func() {
 		cfg := defaultRipConfig()
 		vs.applyConfig(cfg)
 		vs.outputPath = DefaultOutputPath(vs.sourcePath, vs.format)
@@ -527,7 +521,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		vs.persistConfig()
 	})
 
-	clearISOBtn := widget.NewButton(t.RipClearISO, func() {
+	clearISOBtn := ui.NewPillButton(t.RipClearISO, ui.BorderDim, func() {
 		vs.sourcePath = ""
 		vs.outputPath = ""
 		vs.videoTSPath = ""
@@ -546,8 +540,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		sourceEntry.SetText("")
 		outputEntry.SetText("")
 	})
-	clearISOBtn.Importance = widget.LowImportance
-
 	// ── Enrichment options ───────────────────────────────────────────────────
 	titleEntry := widget.NewEntry()
 	titleEntry.SetPlaceHolder("Disc / movie title (embedded as metadata)")
