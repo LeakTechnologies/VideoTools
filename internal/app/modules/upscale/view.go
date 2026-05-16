@@ -279,7 +279,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetUpscaleManualCRF(16)
 	}
 	crfValueLabel := widget.NewLabel(fmt.Sprintf("%d", opts.UpscaleManualCRF()))
-	crfSlider := widget.NewSlider(0, 51)
+	crfSlider := ui.NewVTSlider(0, 51)
 	crfSlider.Step = 1
 	crfSlider.Value = float64(opts.UpscaleManualCRF())
 	crfSlider.OnChanged = func(v float64) {
@@ -552,7 +552,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	if opts.UpscaleAIAvailable() {
 		var aiTileSelect *widget.Select
 		var aiTTACheck *widget.Check
-		var aiDenoiseSlider *widget.Slider
+		var aiDenoiseSlider *ui.VTSlider
 		var denoiseHint *widget.Label
 
 		applyAIPreset := func(preset string) {
@@ -660,7 +660,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 
 		aiAdjustLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleAdjustFmt, opts.UpscaleAIOutputAdjust()))
-		aiAdjustSlider := widget.NewSlider(0.5, 2.0)
+		aiAdjustSlider := ui.NewVTSlider(0.5, 2.0)
 		aiAdjustSlider.Value = opts.UpscaleAIOutputAdjust()
 		aiAdjustSlider.Step = 0.05
 		aiAdjustSlider.OnChanged = func(v float64) {
@@ -669,7 +669,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 
 		aiDenoiseLabel := widget.NewLabel(fmt.Sprintf(t.UpscaleDenoiseFmt, opts.UpscaleAIDenoise()))
-		aiDenoiseSlider = widget.NewSlider(0.0, 1.0)
+		aiDenoiseSlider = ui.NewVTSlider(0.0, 1.0)
 		aiDenoiseSlider.Value = opts.UpscaleAIDenoise()
 		aiDenoiseSlider.Step = 0.05
 		aiDenoiseSlider.OnChanged = func(v float64) {
@@ -905,7 +905,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	buildFilterChainForUpscale()
 
 	// Integrated filter controls - same as filters module
-	brightnessSlider := widget.NewSlider(-1.0, 1.0)
+	brightnessSlider := ui.NewVTSlider(-1.0, 1.0)
 	if opts.FilterBrightness != nil {
 		brightnessSlider.SetValue(opts.FilterBrightness())
 	}
@@ -916,7 +916,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChainForUpscale()
 	}
 
-	contrastSlider := widget.NewSlider(0.0, 3.0)
+	contrastSlider := ui.NewVTSlider(0.0, 3.0)
 	if opts.FilterContrast != nil {
 		contrastSlider.SetValue(opts.FilterContrast())
 	}
@@ -927,7 +927,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChainForUpscale()
 	}
 
-	saturationSlider := widget.NewSlider(0.0, 3.0)
+	saturationSlider := ui.NewVTSlider(0.0, 3.0)
 	if opts.FilterSaturation != nil {
 		saturationSlider.SetValue(opts.FilterSaturation())
 	}
@@ -938,7 +938,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChainForUpscale()
 	}
 
-	sharpnessSlider := widget.NewSlider(0.0, 5.0)
+	sharpnessSlider := ui.NewVTSlider(0.0, 5.0)
 	if opts.FilterSharpness != nil {
 		sharpnessSlider.SetValue(opts.FilterSharpness())
 	}
@@ -949,7 +949,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		buildFilterChainForUpscale()
 	}
 
-	denoiseSlider := widget.NewSlider(0.0, 10.0)
+	denoiseSlider := ui.NewVTSlider(0.0, 10.0)
 	if opts.FilterDenoise != nil {
 		denoiseSlider.SetValue(opts.FilterDenoise())
 	}
