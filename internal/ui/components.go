@@ -1412,7 +1412,7 @@ type FFmpegCommandWidget struct {
 	widget.BaseWidget
 	command      string
 	commandLabel *widget.Label
-	copyButton   *widget.Button
+	copyButton   *PillButton
 	window       fyne.Window
 }
 
@@ -1428,11 +1428,10 @@ func NewFFmpegCommandWidget(command string, window fyne.Window) *FFmpegCommandWi
 	w.commandLabel.Wrapping = fyne.TextWrapBreak
 	w.commandLabel.TextStyle = fyne.TextStyle{Monospace: true}
 
-	w.copyButton = widget.NewButton("Copy Command", func() {
+	w.copyButton = MakePillButton("Copy Command", BorderDim, func() {
 		window.Clipboard().SetContent(w.command)
 		dialog.ShowInformation("Copied", "FFmpeg command copied to clipboard", window)
 	})
-	w.copyButton.Importance = widget.LowImportance
 
 	return w
 }

@@ -379,10 +379,9 @@ func buildHistoryItem(
 	headerItems := []fyne.CanvasObject{badge, layout.NewSpacer()}
 	if onEntryDelete != nil {
 		// Delete button - small "×" button (only for completed/failed)
-		deleteBtn := widget.NewButton("×", func() {
+		deleteBtn := MakePillButton("×", BorderDim, func() {
 			onEntryDelete(capturedEntry)
 		})
-		deleteBtn.Importance = widget.LowImportance
 		headerItems = append(headerItems, deleteBtn)
 	}
 
@@ -445,7 +444,7 @@ func buildHistoryItem(
 
 // buildFilesDropdown creates a dropdown menu with context-aware options
 func buildFilesDropdown(labels MenuLabels, data *FilesDropdownData, textColor color.Color, win fyne.Window) fyne.CanvasObject {
-	btn := widget.NewButton(labels.Files, func() {
+	btn := MakePillButton(labels.Files, BorderDim, func() {
 		menu := fyne.NewMenu("")
 
 		menu.Items = append(menu.Items, &fyne.MenuItem{
@@ -491,7 +490,6 @@ func buildFilesDropdown(labels MenuLabels, data *FilesDropdownData, textColor co
 			pop.ShowAtPosition(fyne.NewPos(pos.Width, pos.Height))
 		}
 	})
-	btn.Importance = widget.LowImportance
 	return btn
 }
 
