@@ -2208,7 +2208,6 @@ func (s *appState) maximizeWindow() {
 	if canvas != nil {
 		size := canvas.Size()
 		s.window.Resize(size)
-		s.window.CenterOnScreen()
 		s.windowAutoSized = true
 	}
 }

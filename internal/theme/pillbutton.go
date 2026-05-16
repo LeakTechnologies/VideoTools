@@ -43,7 +43,9 @@ func (p *PillButton) CreateRenderer() fyne.WidgetRenderer {
 	bg.StrokeWidth = 1.5
 	txt := canvas.NewText(p.Label, nil)
 	txt.Alignment = fyne.TextAlignCenter
-	return &pillButtonRenderer{pill: p, bg: bg, txt: txt}
+	r := &pillButtonRenderer{pill: p, bg: bg, txt: txt}
+	r.Refresh()
+	return r
 }
 
 func (p *PillButton) MouseIn(*desktop.MouseEvent) {

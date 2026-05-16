@@ -110,8 +110,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		logging.Info(logging.CatModule, "audio.BuildView: calling opts.Player.Widget()")
 		videoContainer = opts.Player.Widget()
 		logging.Info(logging.CatModule, "audio.BuildView: Widget() returned %v", videoContainer != nil)
-	} else {
-		logging.Info(logging.CatModule, "audio.BuildView: Player is nil, using SMPTE")
+	}
+	if videoContainer == nil {
+		logging.Info(logging.CatModule, "audio.BuildView: using SMPTE fallback (no player widget available)")
 		videoContainer = buildAudioSMPTE()
 	}
 
