@@ -111,26 +111,27 @@ func BuildView(opts Options) fyne.CanvasObject {
 	file1 := toVideoSource(opts.CompareFile1)
 	file2 := toVideoSource(opts.CompareFile2)
 
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleCompare), func() {
+	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleCompare), ui.BorderDim, func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}
 	})
-	backBtn.Importance = widget.LowImportance
 
-	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
+	queueBtn := ui.NewPillButton(t.ActionViewQueue, compareColor, func() {
 		if opts.OnShowQueue != nil {
 			opts.OnShowQueue()
 		}
 	})
-	if opts.QueueBtn != nil {
-		opts.QueueBtn = queueBtn
-	}
 	if opts.OnUpdateQueueButtonLabel != nil {
 		opts.OnUpdateQueueButtonLabel()
 	}
 	playerVisible := true
-	togglePlayerBtn := widget.NewButton(t.CompareHidePlayer, nil)
+	var togglePlayerFn func()
+	togglePlayerBtn := ui.NewPillButton(t.CompareHidePlayer, compareColor, func() {
+		if togglePlayerFn != nil {
+			togglePlayerFn()
+		}
+	})
 
 	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer(), togglePlayerBtn, queueBtn))
 	statsBar := opts.OnGetStatsBar()
@@ -145,7 +146,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
-	fullscreenBtn := widget.NewButton(t.CompareFullscreen, func() {
+	fullscreenBtn := ui.NewPillButton(t.CompareFullscreen, compareColor, func() {
 		if file1 == nil && file2 == nil {
 			dialog.ShowInformation(t.CompareNoVideosTitle, t.CompareNoVideosFSMsg, opts.Window)
 			return
@@ -154,9 +155,8 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.OnShowCompareFullscreen()
 		}
 	})
-	fullscreenBtn.Importance = widget.MediumImportance
 
-	copyComparisonBtn := widget.NewButton(t.CompareCopyReport, func() {
+	copyComparisonBtn := ui.NewPillButton(t.CompareCopyReport, ui.BorderDim, func() {
 		if file1 == nil && file2 == nil {
 			dialog.ShowInformation(t.CompareNoVideosTitle, t.CompareNoVideosCopyMsg, opts.Window)
 			return
@@ -301,16 +301,14 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.Window.Clipboard().SetContent(comparisonText.String())
 		dialog.ShowInformation(t.CompareCopied, t.CompareCopiedMsg, opts.Window)
 	})
-	copyComparisonBtn.Importance = widget.LowImportance
 
-	clearAllBtn := widget.NewButton(t.ActionClearAll, func() {
+	clearAllBtn := ui.NewPillButton(t.ActionClearAll, ui.BorderDim, func() {
 		file1 = nil
 		file2 = nil
 		if opts.OnRefreshView != nil {
 			opts.OnRefreshView()
 		}
 	})
-	clearAllBtn.Importance = widget.LowImportance
 
 	buildCompareBox := func(title string, content fyne.CanvasObject) fyne.CanvasObject {
 		bg := canvas.NewRectangle(navyBlue)
@@ -500,7 +498,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	updateFile1()
 	updateFile2()
 
-	file1SelectBtn := widget.NewButton(t.CompareLoadFile1, func() {
+	file1SelectBtn := ui.NewPillButton(t.CompareLoadFile1, compareColor, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -522,7 +520,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}, opts.Window)
 	})
 
-	file2SelectBtn := widget.NewButton(t.CompareLoadFile2, func() {
+	file2SelectBtn := ui.NewPillButton(t.CompareLoadFile2, compareColor, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -544,7 +542,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}, opts.Window)
 	})
 
-	file1CopyBtn := widget.NewButton(t.ActionCopyMetadata, func() {
+	file1CopyBtn := ui.NewPillButton(t.ActionCopyMetadata, ui.BorderDim, func() {
 		if file1 == nil {
 			return
 		}
@@ -552,15 +550,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.Window.Clipboard().SetContent(metadata)
 		dialog.ShowInformation(t.CompareCopied, t.CompareCopiedFileMsg, opts.Window)
 	})
-	file1CopyBtn.Importance = widget.LowImportance
 
-	file1ClearBtn := widget.NewButton(t.ActionClear, func() {
+	file1ClearBtn := ui.NewPillButton(t.ActionClear, ui.BorderDim, func() {
 		file1 = nil
 		updateFile1()
 	})
-	file1ClearBtn.Importance = widget.LowImportance
 
-	file2CopyBtn := widget.NewButton(t.ActionCopyMetadata, func() {
+	file2CopyBtn := ui.NewPillButton(t.ActionCopyMetadata, ui.BorderDim, func() {
 		if file2 == nil {
 			return
 		}
@@ -568,13 +564,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.Window.Clipboard().SetContent(metadata)
 		dialog.ShowInformation(t.CompareCopied, t.CompareCopiedFileMsg, opts.Window)
 	})
-	file2CopyBtn.Importance = widget.LowImportance
 
-	file2ClearBtn := widget.NewButton(t.ActionClear, func() {
+	file2ClearBtn := ui.NewPillButton(t.ActionClear, ui.BorderDim, func() {
 		file2 = nil
 		updateFile2()
 	})
-	file2ClearBtn.Importance = widget.LowImportance
 
 	file1Header := container.NewVBox(
 		file1Label,
@@ -615,7 +609,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		file2MetaBox,
 	)
 
-	togglePlayerBtn.OnTapped = func() {
+	togglePlayerFn = func() {
 		playerVisible = !playerVisible
 		if playerVisible {
 			file1PlayerRow.Show()
