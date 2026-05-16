@@ -138,7 +138,7 @@ type VideoPlayerGPU struct {
 	onFrame    func(*image.RGBA)
 
 	playBtn    *widget.Button
-	slider     *vtheme.VTSlider
+	slider     *vtheme.Slider
 	timeLabel  *canvas.Text
 	durLabel   *canvas.Text
 	volumeBtn  *widget.Button
@@ -179,7 +179,7 @@ func (v *VideoPlayerGPU) buildUI() {
 	v.playBtn = widget.NewButtonWithIcon("", th.Icon(theme.IconNameMediaPlay), v.togglePlay)
 	v.playBtn.Importance = widget.LowImportance
 
-	v.slider = vtheme.NewVTSlider(0, 100)
+	v.slider = vtheme.MakeSlider(0, 100)
 	v.slider.OnChanged = func(pos float64) {
 		if v.suppressSeek {
 			return
