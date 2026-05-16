@@ -343,6 +343,7 @@ const roadmap = {
       { id: 'd3d11va', title: 'D3D11VA Hardware Decode', desc: 'Direct3D 11 hardware-accelerated video decoding on Windows', status: 'shipped', cycle: 'dev44', files: ['internal/media/'], deps: ['engine'], docs: [] },
       { id: 'audio-sync', title: 'Audio Sync', desc: 'A/V synchronisation via oto audio playback timing', status: 'shipped', cycle: 'dev44', files: ['internal/media/audio.go'], deps: ['engine'], docs: [] },
       { id: 'thread-safe', title: 'Thread-Safety Audit', desc: 'WaitGroup guards on close/demuxer race, pixel format SIGSEGV fix, seekLoop goroutine leak fix', status: 'shipped', cycle: 'dev43', files: ['internal/media/player.go', 'internal/media/engine.go'], deps: ['engine'], docs: ['docs/PLAYER_DEBUG.md'] },
+      { id: 'pill-icons', title: 'PillIconButton + Transport Migration', desc: 'PillIconButton widget for icon-only pill buttons; speedBtn/subtitleBtn migrated to PillButton, play/volume/fullscreen etc. to PillIconButton. Shared internal/theme/ package breaks circular dep between ui and media.', status: 'done', cycle: 'dev48', files: ['internal/theme/pilliconbutton.go', 'internal/media/view.go', 'internal/theme/pillbutton.go'], deps: ['engine'], docs: [] },
       { id: 'smpte-idle', title: 'SMPTE Bars Idle State', desc: '"DROP VIDEO TO LOAD" placeholder with colour bars when no media is loaded', status: 'shipped', cycle: 'dev44', files: ['internal/ui/smpte_idle.go'], deps: ['inline-player'], docs: [] },
       { id: 'audio-prewarm', title: 'Audio Context Pre-Warm', desc: 'Initializes shared audio context (oto/WASAPI) at startup to avoid first-playback delay', status: 'shipped', cycle: 'dev42', files: ['internal/media/audio.go'], deps: ['engine'], docs: [] },
       { id: 'gstreamer-removal', title: 'GStreamer Removal', desc: 'Remove legacy internal/player/gstreamer* files, build scripts, and CI references — native_media build tag is the only player path', status: 'deprecated', cycle: 'dev42', files: ['internal/player/gstreamer*'], deps: ['engine'], docs: [] },
@@ -457,6 +458,7 @@ const roadmap = {
       { id: 'x265-source', title: 'From-Source x265 Build', desc: 'CI builds x265 as static library from source with pkg-config fix for C++ runtime deps in Libs field', status: 'shipped', cycle: 'dev44', files: ['.forgejo/workflows/dev-packages.yml'], deps: ['ffmpeg-source'], docs: [] },
       { id: 'i18n', title: 'i18n (3 Locales)', desc: 'en-CA, fr-CA, Inuktitut (syllabics + Latin). All UI via i18n.T().KeyName', status: 'shipped', cycle: 'dev44', files: ['internal/i18n/'], deps: [], docs: ['docs/localization-policy.md'] },
       { id: 'tintedbar', title: 'TintedBar Widget', desc: 'Reusable module header with accent colour, title, and optional stats bar integration', status: 'shipped', cycle: 'dev44', files: ['internal/ui/tintedbar.go'], deps: [], docs: [] },
+      { id: 'theme-system', title: 'VT_Navy Theme System', desc: 'internal/theme/ package with colour palette, PillButton, PillIconButton, text primitives (TitleLabel, SectionLabel, etc.). MonoTheme and main.go reference theme vars. ui/ re-exports for backward compat. Breaks circular dep between ui and media.', status: 'done', cycle: 'dev48', files: ['internal/theme/', 'internal/ui/components.go', 'internal/ui/theme.go'], deps: [], docs: [] },
       { id: 'logging-audit', title: 'Logging Audit', desc: 'Removed unused CatEnhance/CatRip, added CatQueue, fixed CatSystem→CatUI misuse', status: 'shipped', cycle: 'dev45', files: ['internal/logging/logging.go'], deps: [], docs: [] },
       { id: 'native-dvd-engine', title: 'Native Go DVD Engine', desc: 'Complete DVD authoring engine: IFO read/write, VOB assembly, PCI/NAV generation — no external tools', status: 'shipped', cycle: 'dev40', files: ['internal/dvd/'], deps: [], docs: ['docs/INTERNAL_DVD_AUTHORING_SPEC.md'] },
       { id: 'build-parity', title: 'build.ps1 CI Parity', desc: 'Local dev build now copies DLLs into DLL/ subfolder matching CI layout', status: 'shipped', cycle: 'dev48', files: ['scripts/windows/build.ps1'], deps: [], docs: [] },
@@ -723,36 +725,40 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 // --- Changelog ---
 const changelogData = [
   { version: 'v0.1.1-dev48', date: 'May 2026', tag: 'current', sections: [
-    { title: 'DLL Bootstrap (Solid)', items: [
-      'Boot popup removed — DLL failure is now a silent warning log; player degrades gracefully',
-      'CI: self-contained BtbN LGPL DLL download step — every ZIP always bundles DLLs regardless of runner state',
-      'avcodec*.dll verification gate before packaging; hard error on zero DLLs copied',
-      'Bootstrap lookup order: DLL/ subfolder -> exe-dir -> %LOCALAPPDATA%/VideoTools/DLL',
-      'build.ps1 now copies DLLs into DLL/ subfolder matching CI layout',
+    { title: 'Theme System — internal/theme/ Package', items: [
+      'Extracted VT_Navy colour palette, PillButton, PillIconButton, and text primitives into internal/theme/',
+      'Both ui/ and media/ packages import from theme directly — no circular dependencies',
+      'PillButton: pill-shaped button with coloured border, hover/active/disabled states, bold text',
+      'PillIconButton: square icon-only pill button for transport controls (play, volume, etc.)',
+      'Text primitives: NewTitleLabel, NewSectionLabel, NewWrappingLabel, NewHintLabel, NewMonoLabel',
+      'MonoTheme + main.go colour vars reference theme palette instead of hardcoded hex values',
     ]},
-    { title: 'Rip: -f dvdvideo Demuxer + Seamless Branching', items: [
-      'Cell-accurate title extraction via FFmpeg native dvdvideo demuxer (requires FFmpeg 8.1+)',
-      'Handles seamless branching discs correctly -- no duplicate frames or missing segments',
-      'Status: Done (Untested) -- awaiting tester verification on real hardware',
+    { title: 'Media: Transport Controls Migrated', items: [
+      'speedBtn and subtitleBtn migrated from widget.Button to theme.PillButton',
+      'playBtn, volumeBtn, prev/nextChapter, fullscreenBtn, pipBtn migrated to theme.PillIconButton',
+      'All transport buttons share consistent navy-light bg, hover lightens border, no invisible-first-paint bug',
     ]},
-    { title: 'Rip: DVD Player Pane', items: [
-      'InlineVideoPlayer at 40% width for disc preview after scan',
-      'Title nav dropdown + VOB concat URL; "Play with Menus" button launches VLC/mpv',
-      'Status: Done (Untested)',
+    { title: 'Bug Fixes', items: [
+      'Audio: guard against Player.Widget() returning nil — HSplit no longer receives nil, no more crash',
+      'PillButton/PillIconButton: call Refresh() at end of CreateRenderer so colours render on first paint',
+      'Window: removed CenterOnScreen() from maximizeWindow — window position is preserved across module entries',
+      'i18n: Inuktitut script preference (syllabics vs Latin) now persists across language switches and app restarts',
     ]},
-    { title: 'Interactive Roadmap Board', items: [
-      '60+ items across 10 module columns; clickable detail modals with files/deps/docs',
-      'Filter by status and by module independently (compound AND logic)',
-      'IBM Plex Mono font, VT logo header, Changelog view',
+    { title: 'CI & Diagnostics', items: [
+      'SIGNPATH_API_TOKEN added to Forgejo secrets — Windows code signing active',
+      'Cache guard: require ffmpeg.exe present before skipping BtbN download on cache hit',
+      'ci-build.ps1: replaced UTF-8 em dashes with ASCII -- for Windows PowerShell compatibility',
+      'VT_STARTUP_DEBUG=1 env var for per-widget CreateRenderer tracing; logging.Sync() for pre-crash flush',
+      'Confirmed: recent STATUS_STACK_OVERFLOW is glfw.CreateWindow() — GPU driver DLL injection, not VT code',
     ]},
-    { title: 'Forgejo Release Automation (confirmed shipped)', items: [
-      'publish-release job creates/updates release via API, prunes stale assets, uploads Linux + Windows ZIPs',
-      'Patches target_commitish per run so in-app update check matches the correct binary',
-      'Staleness guard: skips publish if newer master commit has superseded this run',
-      'Wired via FORGEJO_TOKEN + FORGEJO_API_URL secrets -- already on the runner',
-    ]},
-    { title: 'Version Bump', items: [
-      'v0.1.1-dev47 -> v0.1.1-dev48 in VERSION, main.go, FyneApp.toml (build 43->44)',
+    { title: 'Roadmap Visual Polish', items: [
+      'Deprecated status added (purple) for removed features',
+      'Cycle filter row built dynamically from roadmap data; current version gets green outline',
+      'Testing Checklist modal with localStorage persistence per item',
+      'Column reorder: empty columns drift right; back-to-top button on long boards',
+      'VT logo 96px top-right aligned; title "VideoTools Roadmap" in VT_Green IBM Plex Mono Medium',
+      'Modal drag-to-scroll for changelog/checklist; colour dots 16px across all filters and legend',
+      'Future status colour changed from grey to orange (#f97316)',
     ]},
   ]},
   { version: 'v0.1.1-dev47', date: 'May 2026', tag: 'shipped', sections: [

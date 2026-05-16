@@ -6,7 +6,8 @@ These rules apply to any automation or agent working in this repo.
 
 - Current cycle: `v0.1.1-dev48`.
 - Public/stable baseline: `v0.1.1`.
-- `dev48` in progress. -f dvdvideo demuxer integration for seamless branching support, FFmpeg DLL bootstrap fix.
+- `dev48` in progress. Theme system (internal/theme/), PillButton + PillIconButton, player transport controls migrated, text primitives, startup crash diagnostics, i18n script persistence, Windows signing wired, roadmap visual polish.
+- `dev48` shipped so far: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives (TitleLabel, SectionLabel, WrappingLabel, HintLabel, MonoLabel). MonoTheme + main.go reference theme vars. Player transport controls (speedBtn, subtitleBtn, play, volume, fullscreen, etc.) all migrated to PillButton/PillIconButton. Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists across restarts. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics active.
 - `dev47` closed. Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir DLL fallback, DLL/ folder rename (was ffmpeg-dll/), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
 - `dev46` closed. PAL→NTSC full-disc conversion pipeline with IFO regeneration, Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
 - `dev45` closed. Convert Phase 1+2 (SR, Normalize, Deinterlace, H.264 Profile/Level, presets, AVI/TS/FLV), Convert i18n, Module Pipeline (&&), logging audit, FFmpeg DLL bootstrap.
@@ -19,20 +20,26 @@ These rules apply to any automation or agent working in this repo.
 
 ## Immediate Handoff Priorities
 
+- **Remaining button migrations** — Compare (14), Audio (9), Rip (12), Filters (8), Upscale (5), Subtitles (23), Trim (16), Thumbnail (9), ui/queueview.go (20 buttons) still use widget.Button. Migrate module by module to PillButton.
 - **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
 - **IMAPI2 COM replacement** — Replace isoburn.exe on Windows for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 - **Main Menu refactor** — Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
 - **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
+- **C SEH bridge for D3D11VA crash** — P0 for player stability: C `__try`/`__except` wrapper around `avcodec_send_packet`/`avcodec_receive_frame`.
 - **Do not expand scope beyond what is listed unless explicitly approved.**
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
 
-### Recently Shipped (dev47)
-- **DLL folder rename** — `ffmpeg-dll/` renamed to `DLL/` in bootstrap (`internal/app/appcfg/ffmpeg_bootstrap.go`), CI packaging (`scripts/windows/ci-build.ps1`), local dev build (`scripts/windows/build.ps1`), and all docs. **All DLLs go in `DLL/` subfolder — never flat next to exe in packaging.**
-- **Flat exe-dir DLL resolution** — `FFmpegDllDir()` now checks `<exe-dir>/DLL/`, then `<exe-dir>/` (flat DLLs), then `%LOCALAPPDATA%\VideoTools\DLL`. Users who extract the ZIP flat (exe + DLLs in same dir) will now find them.
-- **Disc info at top of rip view** — Type/region/size shown as standalone label above controls (no card wrapper).
-- **Progress bar with ETA** — `runFFmpegWithProgress` parses `out_time_us`, computes encode rate, shows `"42% — ETA 2m 34s"`.
-- **UDF ReadFileData** — `reader.go` can now read individual files from ISO for region detection.
-- **ConsoleBox widget** — new `ui.NewConsoleBox` in `internal/ui/consolebox.go`; Rip log, Queue live-output, and Author authoring log all refactored to use it. Adds dark background, accent-coloured border, pill header with label + clipboard copy icon, and optional `headerExtra` (e.g. job label, view-full-log button).
+### Recently Shipped (dev48)
+- **internal/theme/ package** — VT_Navy colour palette, PillButton, PillIconButton, text primitives (TitleLabel, SectionLabel, WrappingLabel, HintLabel, MonoLabel) extracted to `internal/theme/`. Both `ui/` and `media/` import from theme — no circular dependency. `ui/` re-exports for backward compat.
+- **PillButton** — pill-shaped button with coloured border, hover/active/disabled states, bold text, initial-paint fix. Wired into main menu (History, Logs, &&), settings tabs (8 buttons), player Clear Video.
+- **PillIconButton** — square icon-only pill button for transport controls and toolbar actions. Migrated play, volume, prev/next chapter, fullscreen, PiP, speed, subtitle buttons.
+- **Text primitives** — `NewTitleLabel` (Monospace+Bold 24pt), `NewSectionLabel` (Bold), `NewWrappingLabel` (word wrap), `NewHintLabel` (Italic), `NewMonoLabel` (Monospace). `SectionHeader()` updated to use `NewSectionLabel`.
+- **Player transport controls migrated** — speedBtn, subtitleBtn to PillButton; playBtn, volumeBtn, prev/nextChapter, fullscreenBtn, pipBtn to PillIconButton.
+- **Audio nil-widget crash** — Guard against `Player.Widget()` returning nil.
+- **Window recentering removed** — `CenterOnScreen()` removed from `maximizeWindow`; window stays where user placed it.
+- **i18n script persistence** — Inuktitut syllabics/Latin preference survives app restarts via `ScriptPrefs` map in locale JSON.
+- **Windows SignPath signing** — `SIGNPATH_API_TOKEN` + `SIGNPATH_ORGANIZATION_ID` both set in Forgejo secrets. ci-build.ps1 calls sign-exe.ps1 on every Windows build (non-fatal).
+- **VT_STARTUP_DEBUG** — crash diagnostics env var traces widget CreateRenderer to stderr. Confirmed: STATUS_STACK_OVERFLOW is glfw.CreateWindow() GPU driver DLL injection, not VT code.
 
 ## Commit Discipline
 

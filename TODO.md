@@ -2,6 +2,26 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
+## Dev48 Scope (in progress)
+
+- [x] **Theme system** — `internal/theme/` package with VT_Navy palette, PillButton, PillIconButton, text primitives. See `DONE.md` for full dev48 changelog.
+- [x] **Transport controls migration** — Player speedBtn/subtitleBtn to PillButton; play/volume/fullscreen/PiP etc. to PillIconButton.
+- [x] **Audio nil-widget crash** — Guard against `Player.Widget()` returning nil.
+- [x] **Window recentering removed** — `CenterOnScreen()` removed from `maximizeWindow`.
+- [x] **i18n script persistence** — Inuktitut syllabics/Latin preference survives app restarts.
+- [x] **Windows SignPath signing** — `SIGNPATH_API_TOKEN` + `SIGNPATH_ORGANIZATION_ID` both set in Forgejo secrets.
+- [x] **Startup crash diagnostics** — `VT_STARTUP_DEBUG` env var, `logging.Sync()` pre-crash flush.
+- [x] **CI fixes** — cache guard, ci-build.ps1 encoding.
+- [x] **Roadmap visual polish** — deprecated status, cycle filter, testing checklist, drag-to-scroll modals, colour dots standardisation.
+
+### Remaining
+- [ ] **Button migrations** — Compare (14), Audio (9), Rip (12), Filters (8), Upscale (5), Subtitles (23), Trim (16), Thumbnail (9), ui/queueview.go (20) still use `widget.Button`. Migrate module by module to `PillButton`.
+- [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
+- [ ] **IMAPI2 COM replacement** — Replace `isoburn.exe` for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
+- [ ] **Main Menu refactor** — Extract `showMainMenu()` from root into `internal/app/modules/mainmenu/`.
+- [ ] **Linux CI speedup** — Pre-built container image for FFmpeg build deps.
+- [ ] **C SEH bridge for D3D11VA crash** — `__try`/`__except` wrapper around `avcodec_send_packet`/`avcodec_receive_frame`.
+
 ## Dev42 Scope (closed)
 
 Player stabilisation complete. D3D11VA decode, audio sync, GStreamer removal, and SMPTE idle state all ship. Audio module i18n and layout partially done. Thumbnail module gets 3-way output mode and image inspector.
