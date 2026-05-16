@@ -284,7 +284,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		totalLabel.TextStyle = fyne.TextStyle{Italic: true}
 		totalLabel.Wrapping = fyne.TextWrapWord
 
-		colSlider := widget.NewSlider(2, 9)
+		colSlider := ui.NewVTSlider(2, 9)
 		colSlider.Value = float64(opts.ThumbnailColumns)
 		colSlider.Step = 1
 		colSlider.OnChanged = func(val float64) {
@@ -298,7 +298,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 			}
 		}
 
-		rowSlider := widget.NewSlider(2, 12)
+		rowSlider := ui.NewVTSlider(2, 12)
 		rowSlider.Value = float64(opts.ThumbnailRows)
 		rowSlider.Step = 1
 		rowSlider.OnChanged = func(val float64) {
@@ -372,7 +372,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		))
 	} else {
 		countLabel := widget.NewLabel(fmt.Sprintf(countFmt, opts.ThumbnailCount))
-		countSlider := widget.NewSlider(3, 50)
+		countSlider := ui.NewVTSlider(3, 50)
 		countSlider.Value = float64(opts.ThumbnailCount)
 		countSlider.Step = 1
 		countSlider.OnChanged = func(val float64) {
