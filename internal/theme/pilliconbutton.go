@@ -45,7 +45,9 @@ func (p *PillIconButton) CreateRenderer() fyne.WidgetRenderer {
 	bg.CornerRadius = 8
 	bg.StrokeWidth = 1.5
 	icon := canvas.NewImageFromResource(p.Icon)
-	return &pillIconRenderer{btn: p, bg: bg, icon: icon}
+	r := &pillIconRenderer{btn: p, bg: bg, icon: icon}
+	r.Refresh()
+	return r
 }
 
 func (p *PillIconButton) MouseIn(*desktop.MouseEvent) {
