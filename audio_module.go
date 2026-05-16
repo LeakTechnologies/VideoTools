@@ -278,7 +278,7 @@ func (s *appState) updateAudioTrackList() {
 		check.SetChecked(s.audioSelectedTracks[trackCopy.Index])
 
 		// Reorder buttons (up/down)
-		upBtn := widget.NewButton("↑", func(idx int) func() {
+		upBtn := ui.MakePillButton("\u2191", ui.BorderDim, func(idx int) func() {
 			return func() {
 				if idx > 0 {
 					s.audioTracks[idx], s.audioTracks[idx-1] = s.audioTracks[idx-1], s.audioTracks[idx]
@@ -286,12 +286,11 @@ func (s *appState) updateAudioTrackList() {
 				}
 			}
 		}(idx))
-		upBtn.Importance = widget.LowImportance
 		if idx == 0 {
 			upBtn.Disable()
 		}
 
-		downBtn := widget.NewButton("↓", func(idx int) func() {
+		downBtn := ui.MakePillButton("\u2193", ui.BorderDim, func(idx int) func() {
 			return func() {
 				if idx < len(s.audioTracks)-1 {
 					s.audioTracks[idx], s.audioTracks[idx+1] = s.audioTracks[idx+1], s.audioTracks[idx]
@@ -299,7 +298,6 @@ func (s *appState) updateAudioTrackList() {
 				}
 			}
 		}(idx))
-		downBtn.Importance = widget.LowImportance
 		if idx == len(s.audioTracks)-1 {
 			downBtn.Disable()
 		}
@@ -374,10 +372,9 @@ func (s *appState) updateAudioBatchFilesList() {
 		for i, src := range s.audioBatchFiles {
 			idx := i
 			fileLabel := widget.NewLabel(fmt.Sprintf("%d. %s", i+1, src.DisplayName))
-			removeBtn := widget.NewButton("Remove", func() {
+			removeBtn := ui.MakePillButton("Remove", ui.BorderDim, func() {
 				s.removeAudioBatchFile(idx)
 			})
-			removeBtn.Importance = widget.LowImportance
 			row := container.NewBorder(nil, nil, nil, removeBtn, fileLabel)
 			s.audioBatchListContainer.Add(row)
 		}
