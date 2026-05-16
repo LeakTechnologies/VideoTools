@@ -985,7 +985,7 @@ func (s *appState) maybePromptWindowsDependencyBootstrap() {
 	message.Wrapping = fyne.TextWrapWord
 
 	var prompt dialog.Dialog
-	installBtn := widget.NewButton(t.SettingsInstallFFmpeg, func() {
+	installBtn := ui.MakePillButton(t.SettingsInstallFFmpeg, ui.Magenta, func() {
 		s.installWindowsFFmpegFromUI(func() {
 			if prompt != nil {
 				prompt.Hide()
@@ -994,15 +994,14 @@ func (s *appState) maybePromptWindowsDependencyBootstrap() {
 			dialog.ShowInformation("FFmpeg Ready", "FFmpeg is installed for this user. Video modules are now available.", s.window)
 		})
 	})
-	installBtn.Importance = widget.HighImportance
 
-	settingsBtn := widget.NewButton(t.SettingsOpenSettings, func() {
+	settingsBtn := ui.MakePillButton(t.SettingsOpenSettings, ui.BorderDim, func() {
 		if prompt != nil {
 			prompt.Hide()
 		}
 		s.showSettingsView()
 	})
-	continueBtn := widget.NewButton(t.SettingsContinueLimited, func() {
+	continueBtn := ui.MakePillButton(t.SettingsContinueLimited, ui.BorderDim, func() {
 		if prompt != nil {
 			prompt.Hide()
 		}
@@ -1096,7 +1095,7 @@ func checkForUpdates(state *appState) {
 				lbl.Wrapping = fyne.TextWrapWord
 				d := dialog.NewCustom("Update Available", "Close", lbl, state.window)
 				latestTag := info.latestTag
-				installBtn := widget.NewButton("Install Update", func() {
+				installBtn := ui.MakePillButton("Install Update", ui.Magenta, func() {
 					d.Hide()
 					queueBusy := state.jobQueue != nil && state.jobQueue.IsRunning()
 					if state.convertBusy || queueBusy {
@@ -1106,14 +1105,13 @@ func checkForUpdates(state *appState) {
 					}
 					applyUpdate(state, latestTag)
 				})
-				installBtn.Importance = widget.HighImportance
 				d.SetButtons([]fyne.CanvasObject{
 					installBtn,
-					widget.NewButton("Open Releases Page", func() {
+					ui.MakePillButton("Open Releases Page", ui.BorderDim, func() {
 						d.Hide()
 						_ = openURL(forgejoReleasesPage)
 					}),
-					widget.NewButton("Close", func() { d.Hide() }),
+					ui.MakePillButton("Close", ui.BorderDim, func() { d.Hide() }),
 				})
 				d.Show()
 				return
@@ -1144,7 +1142,7 @@ func checkForUpdates(state *appState) {
 				lbl.Wrapping = fyne.TextWrapWord
 				d := dialog.NewCustom("Patches Available", "Close", lbl, state.window)
 				currentTag := appVersion
-				installBtn := widget.NewButton("Install Patches", func() {
+				installBtn := ui.MakePillButton("Install Patches", ui.Magenta, func() {
 					d.Hide()
 					queueBusy := state.jobQueue != nil && state.jobQueue.IsRunning()
 					if state.convertBusy || queueBusy {
@@ -1154,10 +1152,9 @@ func checkForUpdates(state *appState) {
 					}
 					applyUpdate(state, currentTag)
 				})
-				installBtn.Importance = widget.HighImportance
 				d.SetButtons([]fyne.CanvasObject{
 					installBtn,
-					widget.NewButton("Close", func() { d.Hide() }),
+					ui.MakePillButton("Close", ui.BorderDim, func() { d.Hide() }),
 				})
 				d.Show()
 				return
