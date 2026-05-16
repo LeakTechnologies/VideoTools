@@ -56,10 +56,9 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		cb.SetOCROutput("srt")
 	}
 
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleSubtitles), func() {
+	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleSubtitles), ui.BorderDim, func() {
 		cb.ShowMainMenu()
 	})
-	backBtn.Importance = widget.LowImportance
 
 	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
 		cb.ShowQueue()
@@ -67,10 +66,9 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	cb.SetQueueBtn(queueBtn)
 	cb.UpdateQueueButtonLabel()
 
-	clearCompletedBtn := widget.NewButton("⌫", func() {
+	clearCompletedBtn := ui.NewPillButton("⌫", ui.BorderDim, func() {
 		cb.ClearCompletedJobs()
 	})
-	clearCompletedBtn.Importance = widget.LowImportance
 
 	subtitlesColor := utils.MustHex(ModuleColor)
 	topBar := ui.TintedBar(subtitlesColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
@@ -149,13 +147,12 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		statusLabel.SetText(cb.Status())
 	}
 
-	copyStatusBtn := widget.NewButton(t.SubtitlesCopyStatus, func() {
+	copyStatusBtn := ui.NewPillButton(t.SubtitlesCopyStatus, ui.BorderDim, func() {
 		if cb.Status() != "" {
 			cb.Clipboard().SetContent(cb.Status())
 			dialog.ShowInformation("Copied", "Status text copied to clipboard", cb.Window())
 		}
 	})
-	copyStatusBtn.Importance = widget.LowImportance
 
 	statusScroll := container.NewVScroll(statusLabel)
 	statusScroll.SetMinSize(fyne.NewSize(0, 60))
@@ -208,11 +205,10 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 				cb.UpdateCue(idx, cue)
 			}
 
-			removeBtn := widget.NewButton(i18n.T().ActionRemove, func() {
+			removeBtn := ui.NewPillButton(i18n.T().ActionRemove, subtitlesColor, func() {
 				cb.RemoveCue(idx)
 				rebuildCues()
 			})
-			removeBtn.Importance = widget.MediumImportance
 
 			timesCol := container.NewVBox(
 				widget.NewLabel(i18n.T().SubtitlesStart),
@@ -282,12 +278,12 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		rebuildCues()
 	})
 
-	clearBtn := widget.NewButton(t.ActionClearAll, func() {
+	clearBtn := ui.NewPillButton(t.ActionClearAll, ui.BorderDim, func() {
 		cb.SetCues(nil)
 		rebuildCues()
 	})
 
-	loadBtn := widget.NewButton(t.SubtitlesLoadSubtitles, func() {
+	loadBtn := ui.NewPillButton(t.SubtitlesLoadSubtitles, ui.BorderDim, func() {
 		if err := cb.LoadSubtitleFile(cb.FilePath()); err != nil {
 			cb.SetSubtitleStatus(err.Error())
 			return
@@ -295,7 +291,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		rebuildCues()
 	})
 
-	saveBtn := widget.NewButton(t.SubtitlesSaveSubtitles, func() {
+	saveBtn := ui.NewPillButton(t.SubtitlesSaveSubtitles, subtitlesColor, func() {
 		path := strings.TrimSpace(cb.FilePath())
 		if path == "" {
 			path = defaultSubtitlePath(cb.VideoPath())
@@ -339,10 +335,10 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			cb.LoadVideoInPlayer(path)
 		}, cb.Window())
 	}
-	browseVideoBtn := widget.NewButton(t.ActionBrowse, openSubtitleVideo)
+	browseVideoBtn := ui.NewPillButton(t.ActionBrowse, ui.BorderDim, openSubtitleVideo)
 	cb.SetPlayerOnTapEmpty(openSubtitleVideo)
 
-	browseSubtitleBtn := widget.NewButton(t.ActionBrowse, func() {
+	browseSubtitleBtn := ui.NewPillButton(t.ActionBrowse, ui.BorderDim, func() {
 		dialog.ShowFileOpen(func(file fyne.URIReadCloser, err error) {
 			if err != nil || file == nil {
 				return
@@ -411,7 +407,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		streamSelect.SetSelected(options[cb.RipIndex()])
 	}
 
-	detectStreamsBtn := widget.NewButton(t.SubtitlesDetectStreams, func() {
+	detectStreamsBtn := ui.NewPillButton(t.SubtitlesDetectStreams, subtitlesColor, func() {
 		videoPath := strings.TrimSpace(cb.VideoPath())
 		if videoPath == "" {
 			cb.SetSubtitleStatus("Set a video file before detecting subtitle streams.")
@@ -496,19 +492,19 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		cb.ApplySubtitleTimeOffset(cb.TimeOffset())
 	})
 
-	offsetPlus1Btn := widget.NewButton("+1s", func() {
+	offsetPlus1Btn := ui.NewPillButton("+1s", ui.BorderDim, func() {
 		cb.ApplySubtitleTimeOffset(1.0)
 	})
 
-	offsetMinus1Btn := widget.NewButton("-1s", func() {
+	offsetMinus1Btn := ui.NewPillButton("-1s", ui.BorderDim, func() {
 		cb.ApplySubtitleTimeOffset(-1.0)
 	})
 
-	offsetPlus01Btn := widget.NewButton("+0.1s", func() {
+	offsetPlus01Btn := ui.NewPillButton("+0.1s", ui.BorderDim, func() {
 		cb.ApplySubtitleTimeOffset(0.1)
 	})
 
-	offsetMinus01Btn := widget.NewButton("-0.1s", func() {
+	offsetMinus01Btn := ui.NewPillButton("-0.1s", ui.BorderDim, func() {
 		cb.ApplySubtitleTimeOffset(-0.1)
 	})
 
@@ -529,7 +525,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 
 	refreshRipStreams()
 
-	loadCfgBtn := widget.NewButton(t.ActionLoadConfig, func() {
+	loadCfgBtn := ui.NewPillButton(t.ActionLoadConfig, ui.BorderDim, func() {
 		cfg, err := cb.LoadConfig()
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -543,7 +539,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		applyControls()
 	})
 
-	saveCfgBtn := widget.NewButton(t.ActionSaveConfig, func() {
+	saveCfgBtn := ui.NewPillButton(t.ActionSaveConfig, ui.BorderDim, func() {
 		cfg := SubtitleState{
 			OutputMode:  cb.OutputMode(),
 			ModelPath:   cb.ModelPath(),
@@ -560,7 +556,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		dialog.ShowInformation("Config Saved", fmt.Sprintf("Saved to subtitles config"), cb.Window())
 	})
 
-	resetBtn := widget.NewButton(t.ActionReset, func() {
+	resetBtn := ui.NewPillButton(t.ActionReset, ui.BorderDim, func() {
 		cb.ApplySubtitlesConfig(SubtitleState{})
 		applyControls()
 		cb.PersistSubtitlesConfig()
