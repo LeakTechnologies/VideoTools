@@ -115,28 +115,25 @@ func BuildView(opts Options) fyne.CanvasObject {
 		filtersColor = utils.MustHex("#005F5F")
 	}
 
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleFilters), func() {
+	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleFilters), ui.BorderDim, func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}
 	})
-	backBtn.Importance = widget.LowImportance
 
-	loadBtn := widget.NewButton(t.ActionLoadVideo, nil)
-	loadBtn.Importance = widget.LowImportance
+	loadBtn := ui.NewPillButton(t.ActionLoadVideo, ui.BorderDim, nil)
 
-	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
+	queueBtn := ui.NewPillButton(t.ActionViewQueue, ui.BorderDim, func() {
 		if opts.OnShowQueue != nil {
 			opts.OnShowQueue()
 		}
 	})
 
-	clearCompletedBtn := widget.NewButton("⌫", func() {
+	clearCompletedBtn := ui.NewPillButton("⌫", ui.BorderDim, func() {
 		if opts.OnClearCompletedJobs != nil {
 			opts.OnClearCompletedJobs()
 		}
 	})
-	clearCompletedBtn.Importance = widget.LowImportance
 
 	topBar := ui.TintedBar(filtersColor, container.NewHBox(backBtn, loadBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
@@ -202,7 +199,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}, opts.Window)
 	}
 
-	upscaleNavBtn := widget.NewButton("Send to Upscale →", func() {
+	upscaleNavBtn := ui.NewPillButton("Send to Upscale →", filtersColor, func() {
 		if opts.OnSendToUpscale != nil {
 			opts.OnSendToUpscale()
 		}
@@ -536,7 +533,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		dialog.ShowInformation("Filters", "Filters are now configured and will be applied when sent to Upscale.", opts.Window)
 	})
 
-	filterNowBtn := widget.NewButton("Filter Now", func() {
+	filterNowBtn := ui.NewPillButton("Filter Now", filtersColor, func() {
 		if opts.FiltersFile == nil {
 			dialog.ShowInformation("No Video", "Please load a video first.", opts.Window)
 			return
@@ -547,7 +544,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	})
 
-	addQueueBtn := widget.NewButton("Add to Queue", func() {
+	addQueueBtn := ui.NewPillButton("Add to Queue", filtersColor, func() {
 		if opts.FiltersFile == nil {
 			dialog.ShowInformation("No Video", "Please load a video first.", opts.Window)
 			return
