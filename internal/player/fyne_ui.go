@@ -62,14 +62,14 @@ func (ui *FynePlayerUI) setupUI() {
 	ui.fileBtn = widget.NewButton("Open File", ui.openFile)
 
 	// Time controls
-	ui.seekSlider = widget.NewSlider(0, 100)
+	ui.seekSlider = vtheme.MakeSlider(0, 100)
 	ui.seekSlider.OnChanged = ui.onSeekChanged
 
 	ui.timeLabel = widget.NewLabel("00:00:00")
 	ui.durationLabel = widget.NewLabel("00:00:00")
 
 	// Volume control
-	ui.volumeSlider = widget.NewSlider(0, 100)
+	ui.volumeSlider = vtheme.MakeSlider(0, 100)
 	ui.volumeSlider.SetValue(ui.player.GetVolume())
 	ui.volumeSlider.OnChanged = ui.onVolumeChanged
 

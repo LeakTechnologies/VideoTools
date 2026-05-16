@@ -382,7 +382,7 @@ func buildVideoPaneNative(state *appState, min fyne.Size, src *videoSource, onCo
 		return container.NewStack(bg, btn)
 	}
 	// visibleSlider wraps a slider with a visible track background.
-	visibleSlider := func(sl *widget.Slider) fyne.CanvasObject {
+	visibleSlider := func(sl fyne.CanvasObject) fyne.CanvasObject {
 		track := canvas.NewRectangle(color.NRGBA{R: 60, G: 75, B: 110, A: 220})
 		track.CornerRadius = 3
 		track.SetMinSize(fyne.NewSize(0, 6))
