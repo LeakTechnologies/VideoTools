@@ -107,7 +107,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.OnShowMainMenu()
 	})
 
-	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
+	queueBtn := ui.MakePillButton(t.ActionViewQueue, ui.BorderDim, func() {
 		opts.OnShowQueue()
 	})
 	opts.QueueBtn = queueBtn

@@ -47,7 +47,7 @@ type Options struct {
 	RipProgress   float64
 
 	// Widget refs set back on the caller via Set* callbacks.
-	QueueBtn       *widget.Button
+	QueueBtn       *ui.PillButton
 	RipStatusLabel *widget.Label
 	RipProgressBar *widget.ProgressBar
 	RipLogEntry    *widget.Label
@@ -75,7 +75,7 @@ type Options struct {
 	OnProbeVideo     func(path string) (*ProbeResult, error)
 
 	// Widget refs written back to caller after build.
-	SetQueueBtn       func(*widget.Button)
+	SetQueueBtn       func(*ui.PillButton)
 	SetRipStatusLabel func(*widget.Label)
 	SetRipProgressBar func(*widget.ProgressBar)
 	SetRipLogEntry    func(*widget.Label)

@@ -13,9 +13,9 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
-	"image/color"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
+	"image/color"
 )
 
 var gridColor = utils.MustHex("#2A3A52")
@@ -27,7 +27,7 @@ type Options struct {
 
 	CompareFile1 interface{}
 	CompareFile2 interface{}
-	QueueBtn     *widget.Button
+	QueueBtn     *ui.PillButton
 
 	OnShowMainMenu           func()
 	OnShowQueue              func()

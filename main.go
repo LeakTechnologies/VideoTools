@@ -1231,7 +1231,7 @@ type appState struct {
 	recentFiles               *recentfiles.Manager
 	jobQueue                  *queue.Queue
 	statsBar                  *ui.ConversionStatsBar
-	queueBtn                  *widget.Button
+	queueBtn                  *ui.PillButton
 	queueScroll               *container.Scroll
 	queueOffset               fyne.Position
 	compareFile1              *videoSource
@@ -1420,7 +1420,7 @@ type appState struct {
 	authorProgress                float64
 	authorProgressBar             *widget.ProgressBar
 	authorStatusLabel             *widget.Label
-	authorCancelBtn               *widget.Button
+	authorCancelBtn               *ui.PillButton
 	authorVideoTSPath             string
 
 	// Burn module state
@@ -4197,7 +4197,7 @@ func (s *appState) showMergeView() {
 	})
 	backBtn.Importance = widget.LowImportance
 
-	queueBtn := widget.NewButton("View Queue", func() {
+	queueBtn := ui.MakePillButton("View Queue", ui.BorderDim, func() {
 		s.showQueue()
 	})
 	s.queueBtn = queueBtn
@@ -8954,7 +8954,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Queue button to view queue
-	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
+	queueBtn := ui.MakePillButton(t.ActionViewQueue, ui.BorderDim, func() {
 		state.showQueue()
 	})
 	state.queueBtn = queueBtn

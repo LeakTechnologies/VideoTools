@@ -77,7 +77,7 @@ func (s *appState) buildRipView() fyne.CanvasObject {
 			return pr, nil
 		},
 
-		SetQueueBtn: func(btn *widget.Button) {
+		SetQueueBtn: func(btn *ui.PillButton) {
 			s.queueBtn = btn
 			s.updateQueueButtonLabel()
 		},

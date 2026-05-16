@@ -20,7 +20,7 @@ type Options struct {
 	ModuleColor color.Color
 
 	PlayerFile interface{}
-	QueueBtn   *widget.Button
+	QueueBtn   *ui.PillButton
 	StatsBar   fyne.CanvasObject
 
 	OnShowMainMenu           func()

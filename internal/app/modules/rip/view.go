@@ -162,7 +162,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 
 	queueBtn := opts.QueueBtn
 	if queueBtn == nil {
-		queueBtn = widget.NewButton(t.ActionViewQueue, opts.OnShowQueue)
+		queueBtn = ui.MakePillButton(t.ActionViewQueue, ui.BorderDim, opts.OnShowQueue)
 	}
 	if opts.SetQueueBtn != nil {
 		opts.SetQueueBtn(queueBtn)
