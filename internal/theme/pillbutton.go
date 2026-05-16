@@ -24,7 +24,7 @@ type PillButton struct {
 	Active    bool
 }
 
-func NewPillButton(label string, borderCol color.Color, onTapped func()) *PillButton {
+func MakePillButton(label string, borderCol color.Color, onTapped func()) *PillButton {
 	p := &PillButton{
 		Label:     label,
 		BorderCol: borderCol,

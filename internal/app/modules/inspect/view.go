@@ -51,15 +51,15 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	t := i18n.T()
 	inspectColor := utils.MustHex(ModuleColor)
 
-	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleInspect), ui.BorderDim, func() {
+	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleInspect), ui.BorderDim, func() {
 		cb.ShowMainMenu()
 	})
 
-	queueBtn := ui.NewPillButton(t.ActionViewQueue, inspectColor, func() {
+	queueBtn := ui.MakePillButton(t.ActionViewQueue, inspectColor, func() {
 		cb.ShowQueue()
 	})
 
-	clearCompletedBtn := ui.NewPillButton("⌫", ui.BorderDim, func() {
+	clearCompletedBtn := ui.MakePillButton("⌫", ui.BorderDim, func() {
 		cb.ClearCompletedJobs()
 	})
 
@@ -71,7 +71,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
-	clearBtn := ui.NewPillButton(t.ActionClear, ui.BorderDim, func() {
+	clearBtn := ui.MakePillButton(t.ActionClear, ui.BorderDim, func() {
 		cb.ClearFile()
 		cb.ShowInspectView()
 	})
@@ -346,23 +346,23 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			cb.LoadFile(path)
 		}, cb.Window())
 	}
-	loadBtn := ui.NewPillButton(t.ActionLoadVideo, inspectColor, openInspectFile)
+	loadBtn := ui.MakePillButton(t.ActionLoadVideo, inspectColor, openInspectFile)
 	player.Widget().SetOnTapEmpty(openInspectFile)
 
-	copyBtn := ui.NewPillButton(t.ActionCopyMetadata, ui.BorderDim, func() {
+	copyBtn := ui.MakePillButton(t.ActionCopyMetadata, ui.BorderDim, func() {
 		metadata := formatMetadata()
 		cb.Clipboard().SetContent(metadata)
 		dialog.ShowInformation(t.DialogCopied, t.CompareCopiedFileMsg, cb.Window())
 	})
 
-	viewLogBtn := ui.NewPillButton(t.ActionCopyLog, ui.BorderDim, func() {
+	viewLogBtn := ui.MakePillButton(t.ActionCopyLog, ui.BorderDim, func() {
 		dialog.ShowInformation(t.DialogNoLog, t.DialogNoLog, cb.Window())
 	})
 	viewLogBtn.Disable()
 
 	actionButtons := container.NewHBox(loadBtn, copyBtn, viewLogBtn, clearBtn)
 
-	editMetaBtn := ui.NewPillButton("Edit Metadata", ui.BorderDim, func() {
+	editMetaBtn := ui.MakePillButton("Edit Metadata", ui.BorderDim, func() {
 		currentTitle := cb.GetTitle()
 		currentAuthor := ""
 		currentDesc := ""
@@ -407,7 +407,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	actionButtons = container.NewHBox(loadBtn, editMetaBtn, copyBtn, viewLogBtn, clearBtn)
 
 	if coverPath := cb.GetEmbeddedCoverArt(); coverPath != "" {
-		exportCoverBtn := ui.NewPillButton("Export Cover", ui.BorderDim, func() {
+		exportCoverBtn := ui.MakePillButton("Export Cover", ui.BorderDim, func() {
 			dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
 				if err != nil || writer == nil {
 					return
@@ -424,7 +424,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		actionButtons = container.NewHBox(loadBtn, copyBtn, exportCoverBtn, viewLogBtn, clearBtn)
 	}
 
-	exportJSONBtn := ui.NewPillButton("Export JSON", ui.BorderDim, func() {
+	exportJSONBtn := ui.MakePillButton("Export JSON", ui.BorderDim, func() {
 		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if err != nil || writer == nil {
 				return
@@ -471,7 +471,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		}, cb.Window())
 	})
 	if coverPath := cb.GetEmbeddedCoverArt(); coverPath != "" {
-		exportCoverBtn := ui.NewPillButton("Export Cover", ui.BorderDim, func() {
+		exportCoverBtn := ui.MakePillButton("Export Cover", ui.BorderDim, func() {
 			dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
 				if err != nil || writer == nil {
 					return

@@ -601,9 +601,9 @@ func TintedBar(col color.Color, body fyne.CanvasObject) fyne.CanvasObject {
 // The implementation lives in internal/theme; this alias keeps the ui package API stable.
 type PillButton = vtheme.PillButton
 
-// NewPillButton constructs a PillButton with the given label, border colour, and tap handler.
-func NewPillButton(label string, borderCol color.Color, onTapped func()) *PillButton {
-	return vtheme.NewPillButton(label, borderCol, onTapped)
+// MakePillButton constructs a PillButton with the given label, border colour, and tap handler.
+func MakePillButton(label string, borderCol color.Color, onTapped func()) *PillButton {
+	return vtheme.MakePillButton(label, borderCol, onTapped)
 }
 
 // NewRatioRow lays out two objects with a fixed width ratio for the left item.

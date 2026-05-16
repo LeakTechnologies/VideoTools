@@ -43,13 +43,13 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	t := i18n.T()
 
-	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModulePlayer), ui.BorderDim, func() {
+	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModulePlayer), ui.BorderDim, func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}
 	})
 
-	queueBtn := ui.NewPillButton(t.ActionViewQueue, playerColor, func() {
+	queueBtn := ui.MakePillButton(t.ActionViewQueue, playerColor, func() {
 		if opts.OnShowQueue != nil {
 			opts.OnShowQueue()
 		}
@@ -59,7 +59,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	topBar := ui.TintedBar(playerColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
 
-	clearBtn := ui.NewPillButton(t.ActionClearVideo, playerColor, func() {
+	clearBtn := ui.MakePillButton(t.ActionClearVideo, playerColor, func() {
 		if opts.OnReleasePlaybackSession != nil {
 			opts.OnReleasePlaybackSession()
 		}

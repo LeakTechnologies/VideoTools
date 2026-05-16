@@ -101,9 +101,9 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.SetUpscaleFilterChain(append([]string{}, opts.OnGetFilterActiveChain()...))
 	}
 
-	loadBtn := ui.NewPillButton(t.ActionLoadVideo, ui.BorderDim, nil)
+	loadBtn := ui.MakePillButton(t.ActionLoadVideo, ui.BorderDim, nil)
 
-	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleUpscale), ui.BorderDim, func() {
+	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleUpscale), ui.BorderDim, func() {
 		opts.OnShowMainMenu()
 	})
 
@@ -1184,7 +1184,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}, nil
 	}
 
-	applyBtn := ui.NewPillButton(t.UpscaleNow, upscaleColor, func() {
+	applyBtn := ui.MakePillButton(t.UpscaleNow, upscaleColor, func() {
 		job, err := createUpscaleJob()
 		if err != nil {
 			dialog.ShowError(err, opts.Window)
@@ -1213,7 +1213,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		c.AddShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyEnter, Modifier: fyne.KeyModifierControl}, func(fyne.Shortcut) { triggerUpscale() })
 	}
 
-	addQueueBtn := ui.NewPillButton(t.ActionAddToQueue, upscaleColor, func() {
+	addQueueBtn := ui.MakePillButton(t.ActionAddToQueue, upscaleColor, func() {
 		job, err := createUpscaleJob()
 		if err != nil {
 			dialog.ShowError(err, opts.Window)

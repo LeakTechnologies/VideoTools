@@ -114,19 +114,19 @@ func BuildView(opts Options) fyne.CanvasObject {
 		thumbColor = utils.MustHex("#5E35B1")
 	}
 
-	backBtn := ui.NewPillButton(or(opts.BackLabel, "< THUMBNAILS"), ui.BorderDim, func() {
+	backBtn := ui.MakePillButton(or(opts.BackLabel, "< THUMBNAILS"), ui.BorderDim, func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}
 	})
 
-	queueBtn := ui.NewPillButton(or(opts.ViewQueueLabel, "View Queue"), ui.BorderDim, func() {
+	queueBtn := ui.MakePillButton(or(opts.ViewQueueLabel, "View Queue"), ui.BorderDim, func() {
 		if opts.OnShowQueue != nil {
 			opts.OnShowQueue()
 		}
 	})
 
-	clearCompletedBtn := ui.NewPillButton("⌫", ui.BorderDim, func() {
+	clearCompletedBtn := ui.MakePillButton("⌫", ui.BorderDim, func() {
 		if opts.OnClearCompletedJobs != nil {
 			opts.OnClearCompletedJobs()
 		}
@@ -162,7 +162,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		fileLabel.SetText(name)
 	}
 
-	loadBtn := ui.NewPillButton(or(opts.LoadVideoLabel, "Load Video"), ui.BorderDim, func() {
+	loadBtn := ui.MakePillButton(or(opts.LoadVideoLabel, "Load Video"), ui.BorderDim, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -175,7 +175,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}, opts.Window)
 	})
 
-	clearBtn := ui.NewPillButton(or(opts.ClearLabel, "Clear"), ui.BorderDim, func() {
+	clearBtn := ui.MakePillButton(or(opts.ClearLabel, "Clear"), ui.BorderDim, func() {
 		if opts.OnClearFiles != nil {
 			opts.OnClearFiles()
 		}
@@ -437,7 +437,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	noVideosMsg := or(opts.NoVideosMsg, "Load videos first to add to queue.")
 	jobsQueuedFmt := or(opts.JobsQueuedFmt, "Queued %d thumbnail jobs.")
 
-	generateNowBtn := ui.NewPillButton(or(opts.GenerateNowLabel, "GENERATE NOW"), thumbColor, func() {
+	generateNowBtn := ui.MakePillButton(or(opts.GenerateNowLabel, "GENERATE NOW"), thumbColor, func() {
 		if opts.ThumbnailFile == nil {
 			dialog.ShowInformation(noVideoTitle, noVideoMsg, opts.Window)
 			return
@@ -451,7 +451,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		generateNowBtn.Disable()
 	}
 
-	addQueueBtn := ui.NewPillButton(or(opts.AddToQueueLabel, "Add to Queue"), thumbColor, func() {
+	addQueueBtn := ui.MakePillButton(or(opts.AddToQueueLabel, "Add to Queue"), thumbColor, func() {
 		if opts.ThumbnailFile == nil {
 			dialog.ShowInformation(noVideoTitle, noVideoMsg, opts.Window)
 			return
@@ -466,7 +466,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		addQueueBtn.Disable()
 	}
 
-	addAllBtn := ui.NewPillButton(or(opts.AddAllToQueueLabel, "Add All to Queue"), thumbColor, func() {
+	addAllBtn := ui.MakePillButton(or(opts.AddAllToQueueLabel, "Add All to Queue"), thumbColor, func() {
 		if len(opts.ThumbnailFiles) == 0 {
 			dialog.ShowInformation(noVideosTitle, noVideosMsg, opts.Window)
 			return
