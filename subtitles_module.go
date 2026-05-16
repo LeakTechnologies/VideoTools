@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modulecfg"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/app/modules/subtitles"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
@@ -1217,11 +1218,11 @@ func (a *subtitlesAdapter) UpdateQueueButtonLabel() {
 	a.s.updateQueueButtonLabel()
 }
 
-func (a *subtitlesAdapter) QueueBtn() *widget.Button {
+func (a *subtitlesAdapter) QueueBtn() *ui.PillButton {
 	return a.s.queueBtn
 }
 
-func (a *subtitlesAdapter) SetQueueBtn(btn *widget.Button) {
+func (a *subtitlesAdapter) SetQueueBtn(btn *ui.PillButton) {
 	a.s.queueBtn = btn
 }
 

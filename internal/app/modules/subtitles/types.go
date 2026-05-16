@@ -3,6 +3,8 @@ package subtitles
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
+
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 )
 
 type SubtitleCue struct {
@@ -62,8 +64,8 @@ type ViewCallbacks interface {
 	SetContent(obj fyne.CanvasObject)
 	UpdateQueueButtonLabel()
 
-	QueueBtn() *widget.Button
-	SetQueueBtn(btn *widget.Button)
+	QueueBtn() *ui.PillButton
+	SetQueueBtn(btn *ui.PillButton)
 
 	PersistSubtitlesConfig()
 	ApplySubtitlesConfig(cfg SubtitleState)

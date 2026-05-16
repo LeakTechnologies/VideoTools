@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 	"image/color"
@@ -15,7 +14,7 @@ type Options struct {
 	ModuleColor color.Color
 
 	UpscaleFile interface{}
-	QueueBtn    *widget.Button
+	QueueBtn    *ui.PillButton
 
 	OnShowMainMenu           func()
 	OnRefreshView            func()
