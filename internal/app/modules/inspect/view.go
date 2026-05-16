@@ -51,19 +51,17 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	t := i18n.T()
 	inspectColor := utils.MustHex(ModuleColor)
 
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleInspect), func() {
+	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleInspect), ui.BorderDim, func() {
 		cb.ShowMainMenu()
 	})
-	backBtn.Importance = widget.LowImportance
 
-	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
+	queueBtn := ui.NewPillButton(t.ActionViewQueue, inspectColor, func() {
 		cb.ShowQueue()
 	})
 
-	clearCompletedBtn := widget.NewButton("⌫", func() {
+	clearCompletedBtn := ui.NewPillButton("⌫", ui.BorderDim, func() {
 		cb.ClearCompletedJobs()
 	})
-	clearCompletedBtn.Importance = widget.LowImportance
 
 	topBar := ui.TintedBar(inspectColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
@@ -73,11 +71,10 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	instructions.Wrapping = fyne.TextWrapWord
 	instructions.Alignment = fyne.TextAlignCenter
 
-	clearBtn := widget.NewButton(t.ActionClear, func() {
+	clearBtn := ui.NewPillButton(t.ActionClear, ui.BorderDim, func() {
 		cb.ClearFile()
 		cb.ShowInspectView()
 	})
-	clearBtn.Importance = widget.LowImportance
 
 	instructionsRow := container.NewBorder(nil, nil, nil, nil, instructions)
 
@@ -349,25 +346,23 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			cb.LoadFile(path)
 		}, cb.Window())
 	}
-	loadBtn := widget.NewButton(t.ActionLoadVideo, openInspectFile)
+	loadBtn := ui.NewPillButton(t.ActionLoadVideo, inspectColor, openInspectFile)
 	player.Widget().SetOnTapEmpty(openInspectFile)
 
-	copyBtn := widget.NewButton(t.ActionCopyMetadata, func() {
+	copyBtn := ui.NewPillButton(t.ActionCopyMetadata, ui.BorderDim, func() {
 		metadata := formatMetadata()
 		cb.Clipboard().SetContent(metadata)
 		dialog.ShowInformation(t.DialogCopied, t.CompareCopiedFileMsg, cb.Window())
 	})
-	copyBtn.Importance = widget.LowImportance
 
-	viewLogBtn := widget.NewButton(t.ActionCopyLog, func() {
+	viewLogBtn := ui.NewPillButton(t.ActionCopyLog, ui.BorderDim, func() {
 		dialog.ShowInformation(t.DialogNoLog, t.DialogNoLog, cb.Window())
 	})
-	viewLogBtn.Importance = widget.LowImportance
 	viewLogBtn.Disable()
 
 	actionButtons := container.NewHBox(loadBtn, copyBtn, viewLogBtn, clearBtn)
 
-	editMetaBtn := widget.NewButton("Edit Metadata", func() {
+	editMetaBtn := ui.NewPillButton("Edit Metadata", ui.BorderDim, func() {
 		currentTitle := cb.GetTitle()
 		currentAuthor := ""
 		currentDesc := ""
@@ -409,11 +404,10 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			}, cb.Window())
 		form.Show()
 	})
-	editMetaBtn.Importance = widget.LowImportance
 	actionButtons = container.NewHBox(loadBtn, editMetaBtn, copyBtn, viewLogBtn, clearBtn)
 
 	if coverPath := cb.GetEmbeddedCoverArt(); coverPath != "" {
-		exportCoverBtn := widget.NewButton("Export Cover", func() {
+		exportCoverBtn := ui.NewPillButton("Export Cover", ui.BorderDim, func() {
 			dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
 				if err != nil || writer == nil {
 					return
@@ -427,11 +421,10 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 				}
 			}, cb.Window())
 		})
-		exportCoverBtn.Importance = widget.LowImportance
 		actionButtons = container.NewHBox(loadBtn, copyBtn, exportCoverBtn, viewLogBtn, clearBtn)
 	}
 
-	exportJSONBtn := widget.NewButton("Export JSON", func() {
+	exportJSONBtn := ui.NewPillButton("Export JSON", ui.BorderDim, func() {
 		dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if err != nil || writer == nil {
 				return
@@ -477,9 +470,8 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			}
 		}, cb.Window())
 	})
-	exportJSONBtn.Importance = widget.LowImportance
 	if coverPath := cb.GetEmbeddedCoverArt(); coverPath != "" {
-		exportCoverBtn := widget.NewButton("Export Cover", func() {
+		exportCoverBtn := ui.NewPillButton("Export Cover", ui.BorderDim, func() {
 			dialog.ShowFileSave(func(writer fyne.URIWriteCloser, err error) {
 				if err != nil || writer == nil {
 					return
@@ -493,7 +485,6 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 				}
 			}, cb.Window())
 		})
-		exportCoverBtn.Importance = widget.LowImportance
 		actionButtons = container.NewHBox(loadBtn, copyBtn, exportJSONBtn, exportCoverBtn, viewLogBtn, clearBtn)
 	} else {
 		actionButtons = container.NewHBox(loadBtn, copyBtn, exportJSONBtn, viewLogBtn, clearBtn)
