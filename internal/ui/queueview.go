@@ -323,23 +323,17 @@ onScheduleModule func(string, string),
 	statusBadge.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
 	statusBadge.TextSize = 11
 
-	startAllBtn := widget.NewButton(t.ActionQueueStart, onStart)
-	startAllBtn.Importance = widget.MediumImportance
+	startAllBtn := NewPillButton(t.ActionQueueStart, Magenta, onStart)
 
-	pauseAllBtn := widget.NewButton(t.ActionQueuePauseAll, onPauseAll)
-	pauseAllBtn.Importance = widget.LowImportance
+	pauseAllBtn := NewPillButton(t.ActionQueuePauseAll, BorderDim, onPauseAll)
 
-	resumeAllBtn := widget.NewButton(t.ActionQueueResumeAll, onResumeAll)
-	resumeAllBtn.Importance = widget.LowImportance
+	resumeAllBtn := NewPillButton(t.ActionQueueResumeAll, BorderDim, onResumeAll)
 
-	clearBtn := widget.NewButton(t.ActionQueueClearCompleted, onClear)
-	clearBtn.Importance = widget.LowImportance
+	clearBtn := NewPillButton(t.ActionQueueClearCompleted, BorderDim, onClear)
 
-	clearAllBtn := widget.NewButton(t.ActionClearAll, onClearAll)
-	clearAllBtn.Importance = widget.DangerImportance
+	clearAllBtn := NewPillButton(t.ActionClearAll, Orange, onClearAll)
 
-	cancelAllBtn := widget.NewButton(t.ActionQueueCancelAll, onCancelAll)
-	cancelAllBtn.Importance = widget.DangerImportance
+	cancelAllBtn := NewPillButton(t.ActionQueueCancelAll, Orange, onCancelAll)
 
 	var buttonRow *fyne.Container
 	if hasActiveJobs {
@@ -604,29 +598,28 @@ func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
 	switch job.Status {
 	case queue.JobStatusRunning:
 		buttons = append(buttons,
-			widget.NewButton("Copy Command", func() { callbacks.onCopyCommand(job.ID) }),
-			widget.NewButton("Pause", func() { callbacks.onPause(job.ID) }),
-			widget.NewButton("Cancel", func() { callbacks.onCancel(job.ID) }),
+			NewPillButton("Copy Command", BorderDim, func() { callbacks.onCopyCommand(job.ID) }),
+			NewPillButton("Pause", BorderDim, func() { callbacks.onPause(job.ID) }),
+			NewPillButton("Cancel", BorderDim, func() { callbacks.onCancel(job.ID) }),
 		)
 	case queue.JobStatusPaused:
 		buttons = append(buttons,
-			widget.NewButton("Resume", func() { callbacks.onResume(job.ID) }),
-			widget.NewButton("Cancel", func() { callbacks.onCancel(job.ID) }),
+			NewPillButton("Resume", BorderDim, func() { callbacks.onResume(job.ID) }),
+			NewPillButton("Cancel", BorderDim, func() { callbacks.onCancel(job.ID) }),
 		)
 	case queue.JobStatusPending:
 		buttons = append(buttons,
-			widget.NewButton("Copy Command", func() { callbacks.onCopyCommand(job.ID) }),
-			widget.NewButton("Remove", func() { callbacks.onRemove(job.ID) }),
+			NewPillButton("Copy Command", BorderDim, func() { callbacks.onCopyCommand(job.ID) }),
+			NewPillButton("Remove", BorderDim, func() { callbacks.onRemove(job.ID) }),
 		)
 	case queue.JobStatusCompleted, queue.JobStatusFailed, queue.JobStatusCancelled:
 		// For author jobs, show Burn DVD button if ISO output
 		if job.Type == queue.JobTypeAuthor && job.Status == queue.JobStatusCompleted {
 			outputExt := strings.ToLower(filepath.Ext(job.OutputFile))
 			if outputExt == ".iso" && callbacks.onBurnISO != nil {
-				burnBtn := widget.NewButton("Burn DVD", func() {
+				burnBtn := NewPillButton("Burn DVD", Magenta, func() {
 					callbacks.onBurnISO(job.ID)
 				})
-				burnBtn.Importance = widget.MediumImportance
 				buttons = append(buttons, burnBtn)
 			}
 		}
@@ -634,37 +627,34 @@ func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
 		// Open in Folder + Play/Open stacked, shown whenever there is an output file.
 		if job.OutputFile != "" && (callbacks.onOpenFolder != nil || callbacks.onOpenOutput != nil) {
 			openLabel := openOutputLabel(job.OutputFile)
-			openFolderBtn := widget.NewButton("Open in Folder", func() {
+			openFolderBtn := NewPillButton("Open in Folder", BorderDim, func() {
 				if callbacks.onOpenFolder != nil {
 					callbacks.onOpenFolder(job.ID)
 				}
 			})
-			openFolderBtn.Importance = widget.LowImportance
-			openOutputBtn := widget.NewButton(openLabel, func() {
+			openOutputBtn := NewPillButton(openLabel, BorderDim, func() {
 				if callbacks.onOpenOutput != nil {
 					callbacks.onOpenOutput(job.ID)
 				}
 			})
-			openOutputBtn.Importance = widget.LowImportance
 			buttons = append(buttons, container.NewVBox(openFolderBtn, openOutputBtn))
 		}
 		if (job.Status == queue.JobStatusFailed || job.Status == queue.JobStatusCancelled) && callbacks.onRetry != nil && isRetryableJobType(job.Type) {
-			retryBtn := widget.NewButton("Retry", func() { callbacks.onRetry(job.ID) })
-			retryBtn.Importance = widget.MediumImportance
+			retryBtn := NewPillButton("Retry", Magenta, func() { callbacks.onRetry(job.ID) })
 			buttons = append(buttons, retryBtn)
 		}
 		if job.Status == queue.JobStatusFailed && strings.TrimSpace(job.Error) != "" && callbacks.onCopyError != nil {
 			buttons = append(buttons,
-				widget.NewButton("Copy Error", func() { callbacks.onCopyError(job.ID) }),
+				NewPillButton("Copy Error", BorderDim, func() { callbacks.onCopyError(job.ID) }),
 			)
 		}
 		if job.LogPath != "" && callbacks.onViewLog != nil {
 			buttons = append(buttons,
-				widget.NewButton("View Log", func() { callbacks.onViewLog(job.ID) }),
+				NewPillButton("View Log", BorderDim, func() { callbacks.onViewLog(job.ID) }),
 			)
 		}
 		buttons = append(buttons,
-			widget.NewButton("Remove", func() { callbacks.onRemove(job.ID) }),
+			NewPillButton("Remove", BorderDim, func() { callbacks.onRemove(job.ID) }),
 		)
 	}
 
