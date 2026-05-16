@@ -291,10 +291,9 @@ func (s *appState) showMainMenu() {
 	// Footer with version info and a small About/Support button
 	versionLabel := widget.NewLabel(fmt.Sprintf("VideoTools %s", versionWithPlatform()))
 	versionLabel.Alignment = fyne.TextAlignLeading
-	aboutBtn := widget.NewButton(t.MenuAbout, func() {
+	aboutBtn := ui.MakePillButton(t.MenuAbout, ui.BorderDim, func() {
 		s.showAbout()
 	})
-	aboutBtn.Importance = widget.LowImportance
 	footer := container.NewBorder(nil, nil, nil, aboutBtn, versionLabel)
 
 	// Add stats bar at the bottom of the menu
