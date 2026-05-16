@@ -43,19 +43,17 @@ func BuildView(opts Options) fyne.CanvasObject {
 	}
 	t := i18n.T()
 
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModulePlayer), func() {
+	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModulePlayer), ui.BorderDim, func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}
 	})
-	backBtn.Importance = widget.LowImportance
 
-	queueBtn := widget.NewButton(t.ActionViewQueue, func() {
+	queueBtn := ui.NewPillButton(t.ActionViewQueue, playerColor, func() {
 		if opts.OnShowQueue != nil {
 			opts.OnShowQueue()
 		}
 	})
-	opts.QueueBtn = queueBtn
 	if opts.OnUpdateQueueButtonLabel != nil {
 		opts.OnUpdateQueueButtonLabel()
 	}
