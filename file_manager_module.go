@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 )
 
 type FileEntry struct {
@@ -41,10 +42,10 @@ type fmState struct {
 	entries     []FileEntry
 	fileList    *widget.List
 	breadcrumb  *widget.Label
-	backBtn     *widget.Button
-	forwardBtn  *widget.Button
-	upBtn       *widget.Button
-	homeBtn     *widget.Button
+	backBtn     *ui.PillButton
+	forwardBtn  *ui.PillButton
+	upBtn       *ui.PillButton
+	homeBtn     *ui.PillButton
 }
 
 func (s *appState) buildFileManagerView() fyne.CanvasObject {
@@ -63,10 +64,10 @@ func (s *appState) buildFileManagerView() fyne.CanvasObject {
 	state.breadcrumb = widget.NewLabel(state.currentPath)
 	state.breadcrumb.TextStyle = fyne.TextStyle{Monospace: true}
 
-	state.backBtn = widget.NewButton("←", state.fmGoBack)
-	state.forwardBtn = widget.NewButton("→", state.fmGoForward)
-	state.upBtn = widget.NewButton("↑", state.fmGoUp)
-	state.homeBtn = widget.NewButton("🏠", state.fmGoHome)
+	state.backBtn = ui.MakePillButton("←", ui.BorderDim, state.fmGoBack)
+	state.forwardBtn = ui.MakePillButton("→", ui.BorderDim, state.fmGoForward)
+	state.upBtn = ui.MakePillButton("↑", ui.BorderDim, state.fmGoUp)
+	state.homeBtn = ui.MakePillButton("🏠", ui.BorderDim, state.fmGoHome)
 
 	toolbar := container.NewHBox(state.backBtn, state.forwardBtn, state.upBtn, state.homeBtn)
 
@@ -91,7 +92,7 @@ func (s *appState) buildFileManagerView() fyne.CanvasObject {
 
 	state.fmRefresh()
 
-	cancelBtn := widget.NewButton(t.ActionCancel, func() {
+	cancelBtn := ui.MakePillButton(t.ActionCancel, ui.BorderDim, func() {
 		s.showMainMenu()
 	})
 
