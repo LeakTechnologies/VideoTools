@@ -43,6 +43,7 @@ func (p *PillButton) CreateRenderer() fyne.WidgetRenderer {
 	bg.StrokeWidth = 1.5
 	txt := canvas.NewText(p.Label, nil)
 	txt.Alignment = fyne.TextAlignCenter
+	txt.TextStyle = fyne.TextStyle{Bold: true}
 	r := &pillButtonRenderer{pill: p, bg: bg, txt: txt}
 	r.Refresh()
 	return r
