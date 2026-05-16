@@ -57,14 +57,13 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 	burnColor := moduleColor("burn")
 
 	// Top navigation bar (matches Rip/Audio module pattern)
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleBurn), s.showMainMenu)
-	backBtn.Importance = widget.LowImportance
+	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleBurn), ui.BorderDim, s.showMainMenu)
 	topBar := ui.TintedBar(burnColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// ISO file entry + browse button
 	sourceEntry := widget.NewEntry()
 	sourceEntry.SetPlaceHolder("Drop ISO file or click to browse...")
-	browseBtn := widget.NewButton(t.ActionBrowse, func() {
+	browseBtn := ui.MakePillButton(t.ActionBrowse, ui.BorderDim, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -76,7 +75,7 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 
 	// Drive select + refresh button
 	driveSelect := widget.NewSelect([]string{t.BurnNoDrivesFound}, func(val string) {})
-	refreshDrivesBtn := widget.NewButton(t.ActionRefresh, func() {
+	refreshDrivesBtn := ui.MakePillButton(t.ActionRefresh, ui.BorderDim, func() {
 		drives := detectOpticalDrives()
 		options := []string{}
 		for _, d := range drives {
@@ -118,7 +117,7 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 	)
 
 	// Action buttons
-	burnBtn := widget.NewButton(t.BurnStart, func() {
+	burnBtn := ui.MakePillButton(t.BurnStart, burnColor, func() {
 		isoPath := sourceEntry.Text
 		drive := driveSelect.Selected
 		if isoPath == "" {
@@ -155,9 +154,8 @@ func (s *appState) buildBurnView() fyne.CanvasObject {
 		}
 		dialog.ShowInformation(t.DialogQueued, "Burn job added to queue.", s.window)
 	})
-	burnBtn.Importance = widget.HighImportance
 
-	cancelBtn := widget.NewButton(t.ActionCancel, s.showMainMenu)
+	cancelBtn := ui.MakePillButton(t.ActionCancel, ui.BorderDim, s.showMainMenu)
 
 	footer := moduleFooter(burnColor, container.NewHBox(cancelBtn, layout.NewSpacer(), burnBtn), s.statsBar)
 
