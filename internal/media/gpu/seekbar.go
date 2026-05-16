@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	vtheme "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/theme"
 )
 
 const (
@@ -90,7 +91,7 @@ func (c *ThumbnailCache) Clear() {
 type SeekBar struct {
 	widget.BaseWidget
 
-	slider       *widget.Slider
+	slider       *vtheme.VTSlider
 	preview      *canvas.Image
 	previewLabel *canvas.Text
 	previewBox   *fyne.Container
@@ -111,7 +112,7 @@ func NewSeekBar() *SeekBar {
 	}
 	s.ExtendBaseWidget(s)
 
-	s.slider = widget.NewSlider(0, 100)
+	s.slider = vtheme.NewVTSlider(0, 100)
 	s.slider.OnChanged = s.onSliderChange
 
 	s.preview = canvas.NewImageFromResource(nil)
@@ -302,7 +303,7 @@ func (s *SeekBarWithThumbnails) LoadThumbnails(videoPath string) error {
 type VolumeControl struct {
 	widget.BaseWidget
 
-	slider     *widget.Slider
+	slider     *vtheme.VTSlider
 	icon       *widget.Button
 	mute       bool
 	volume     float64
@@ -317,7 +318,7 @@ func NewVolumeControl() *VolumeControl {
 	}
 	v.ExtendBaseWidget(v)
 
-	v.slider = widget.NewSlider(0, 1)
+	v.slider = vtheme.NewVTSlider(0, 1)
 	v.slider.SetValue(1.0)
 	v.slider.OnChanged = v.onSliderChange
 

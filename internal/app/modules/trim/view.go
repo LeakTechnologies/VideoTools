@@ -203,35 +203,34 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	ts.durationLabel = widget.NewLabel(t.TrimDuration + ": 00:00:00.000")
 
 	// Frame stepping
-	stepBackBtn := widget.NewButton("<", func() {
+	stepBackBtn := ui.NewPillButton("<", ui.BorderDim, func() {
 		if ts.videoPath != "" {
 			ts.stepFrame(-1)
 		}
 	})
 
-	stepFwdBtn := widget.NewButton(">", func() {
+	stepFwdBtn := ui.NewPillButton(">", ui.BorderDim, func() {
 		if ts.videoPath != "" {
 			ts.stepFrame(1)
 		}
 	})
 
 	// Set In / Set Out
-	setInBtn := widget.NewButton(t.TrimSetIn, func() {
+	setInBtn := ui.NewPillButton(t.TrimSetIn, trimColor, func() {
 		ts.setInPoint()
 	})
 
-	setOutBtn := widget.NewButton(t.TrimSetOut, func() {
+	setOutBtn := ui.NewPillButton(t.TrimSetOut, trimColor, func() {
 		ts.setOutPoint()
 	})
 
-	clearBtn := widget.NewButton(t.TrimClear, func() {
+	clearBtn := ui.NewPillButton(t.TrimClear, ui.BorderDim, func() {
 		ts.clearPoints()
 	})
 
-	previewBtn := widget.NewButton(t.TrimPreview, func() {
+	previewBtn := ui.NewPillButton(t.TrimPreview, trimColor, func() {
 		ts.previewTrimRegion()
 	})
-	previewBtn.Importance = widget.MediumImportance
 
 	// Mode selector
 	modeSelect := widget.NewSelect([]string{t.TrimModeKeep, t.TrimModeCut}, func(s string) {
@@ -298,7 +297,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 			ts.loadVideo(path)
 		}, opts.Window)
 	}
-	openBtn := widget.NewButton(t.ActionBrowse, openVideoFile)
+	openBtn := ui.NewPillButton(t.ActionBrowse, ui.BorderDim, openVideoFile)
 	ts.player.SetOnTapEmpty(openVideoFile)
 
 	// Toolbar row under the player
@@ -384,8 +383,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		ts.loadVideo(initialPath)
 	}
 
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleTrim), opts.OnShowMainMenu)
-	backBtn.Importance = widget.LowImportance
+	backBtn := ui.NewPillButton("< "+strings.ToUpper(t.ModuleTrim), ui.BorderDim, opts.OnShowMainMenu)
 	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// Footer: tinted action bar matching other modules' moduleFooter pattern.
