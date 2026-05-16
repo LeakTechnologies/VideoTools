@@ -114,25 +114,23 @@ func BuildView(opts Options) fyne.CanvasObject {
 		thumbColor = utils.MustHex("#5E35B1")
 	}
 
-	backBtn := widget.NewButton(or(opts.BackLabel, "< THUMBNAILS"), func() {
+	backBtn := ui.NewPillButton(or(opts.BackLabel, "< THUMBNAILS"), ui.BorderDim, func() {
 		if opts.OnShowMainMenu != nil {
 			opts.OnShowMainMenu()
 		}
 	})
-	backBtn.Importance = widget.LowImportance
 
-	queueBtn := widget.NewButton(or(opts.ViewQueueLabel, "View Queue"), func() {
+	queueBtn := ui.NewPillButton(or(opts.ViewQueueLabel, "View Queue"), ui.BorderDim, func() {
 		if opts.OnShowQueue != nil {
 			opts.OnShowQueue()
 		}
 	})
 
-	clearCompletedBtn := widget.NewButton("⌫", func() {
+	clearCompletedBtn := ui.NewPillButton("⌫", ui.BorderDim, func() {
 		if opts.OnClearCompletedJobs != nil {
 			opts.OnClearCompletedJobs()
 		}
 	})
-	clearCompletedBtn.Importance = widget.LowImportance
 
 	topBar := ui.TintedBar(thumbColor, container.NewHBox(backBtn, layout.NewSpacer(), clearCompletedBtn, queueBtn))
 
@@ -164,7 +162,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		fileLabel.SetText(name)
 	}
 
-	loadBtn := widget.NewButton(or(opts.LoadVideoLabel, "Load Video"), func() {
+	loadBtn := ui.NewPillButton(or(opts.LoadVideoLabel, "Load Video"), ui.BorderDim, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -177,7 +175,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}, opts.Window)
 	})
 
-	clearBtn := widget.NewButton(or(opts.ClearLabel, "Clear"), func() {
+	clearBtn := ui.NewPillButton(or(opts.ClearLabel, "Clear"), ui.BorderDim, func() {
 		if opts.OnClearFiles != nil {
 			opts.OnClearFiles()
 		}
@@ -185,7 +183,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 			opts.OnShowThumbnailView()
 		}
 	})
-	clearBtn.Importance = widget.LowImportance
 
 	// Construct with nil OnChanged so that the initialising SetSelected call
 	// below does not fire the callback and trigger infinite recursion
@@ -454,7 +451,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		generateNowBtn.Disable()
 	}
 
-	addQueueBtn := widget.NewButton(or(opts.AddToQueueLabel, "Add to Queue"), func() {
+	addQueueBtn := ui.NewPillButton(or(opts.AddToQueueLabel, "Add to Queue"), thumbColor, func() {
 		if opts.ThumbnailFile == nil {
 			dialog.ShowInformation(noVideoTitle, noVideoMsg, opts.Window)
 			return
@@ -464,13 +461,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		dialog.ShowInformation(jobQueuedTitle, jobQueuedMsg, opts.Window)
 	})
-	addQueueBtn.Importance = widget.MediumImportance
 
 	if opts.ThumbnailFile == nil {
 		addQueueBtn.Disable()
 	}
 
-	addAllBtn := widget.NewButton(or(opts.AddAllToQueueLabel, "Add All to Queue"), func() {
+	addAllBtn := ui.NewPillButton(or(opts.AddAllToQueueLabel, "Add All to Queue"), thumbColor, func() {
 		if len(opts.ThumbnailFiles) == 0 {
 			dialog.ShowInformation(noVideosTitle, noVideosMsg, opts.Window)
 			return
@@ -486,14 +482,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		dialog.ShowInformation(jobQueuedTitle, fmt.Sprintf(jobsQueuedFmt, len(opts.ThumbnailFiles)), opts.Window)
 	})
-	addAllBtn.Importance = widget.MediumImportance
-
-	viewQueueBtn := widget.NewButton(or(opts.ViewQueueLabel, "View Queue"), func() {
-		if opts.OnShowQueue != nil {
-			opts.OnShowQueue()
-		}
-	})
-	viewQueueBtn.Importance = widget.MediumImportance
 
 	// --- Settings panel (left, fixed width) ---
 	var previewWidget fyne.CanvasObject
