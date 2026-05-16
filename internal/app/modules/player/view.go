@@ -8,7 +8,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
@@ -61,52 +60,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		opts.OnUpdateQueueButtonLabel()
 	}
 	topBar := ui.TintedBar(playerColor, container.NewHBox(backBtn, layout.NewSpacer(), queueBtn))
-
-	// Load button — opens a file dialog and probes the selected video.
-	loadBtn := widget.NewButton(t.ActionLoadVideo, func() {
-		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
-			if err != nil || reader == nil {
-				return
-			}
-			defer reader.Close()
-
-			path := reader.URI().Path()
-			go func() {
-				var src interface{}
-				var probeErr error
-				if opts.OnProbeVideo != nil {
-					src, probeErr = opts.OnProbeVideo(path)
-				}
-				fyne.CurrentApp().Driver().DoFromGoroutine(func() {
-					if probeErr != nil {
-						dialog.ShowError(probeErr, opts.Window)
-						return
-					}
-
-					opts.PlayerFile = src
-
-					// Persist the file reference in the host state so the view
-					// rebuild picks it up via state.playerFile.
-					if opts.OnPlayerFileLoaded != nil {
-						opts.OnPlayerFileLoaded(src)
-					}
-
-					// Load into the player engine.
-					if vs, ok := src.(interface{ Path() string }); ok {
-						if opts.OnLoadVideo != nil {
-							opts.OnLoadVideo(vs.Path())
-						}
-					}
-
-					// Rebuild the view to show the loaded video.
-					if opts.OnShowPlayerView != nil {
-						opts.OnShowPlayerView()
-					}
-				}, false)
-			}()
-		}, opts.Window)
-	})
-	loadBtn.Importance = widget.HighImportance
 
 	clearBtn := ui.NewPillButton(t.ActionClearVideo, playerColor, func() {
 		if opts.OnReleasePlaybackSession != nil {

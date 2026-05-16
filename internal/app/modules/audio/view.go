@@ -128,12 +128,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 	mainSplit := container.NewHSplit(videoContainer, audioScroll)
 	mainSplit.SetOffset(0.5)
 
-	extractBtn := widget.NewButton(t.AudioExtractNow, func() {
+	extractBtn := ui.NewPillButton(t.AudioExtractNow, audioColor, func() {
 		if opts.OnStartExtraction != nil {
 			opts.OnStartExtraction(false)
 		}
 	})
-	extractBtn.Importance = widget.HighImportance
 
 	queueBtn := widget.NewButton(t.AudioAddToQueue, func() {
 		if opts.OnStartExtraction != nil {

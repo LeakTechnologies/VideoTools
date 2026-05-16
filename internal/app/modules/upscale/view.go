@@ -1186,7 +1186,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}, nil
 	}
 
-	applyBtn := widget.NewButton(t.UpscaleNow, func() {
+	applyBtn := ui.NewPillButton(t.UpscaleNow, upscaleColor, func() {
 		job, err := createUpscaleJob()
 		if err != nil {
 			dialog.ShowError(err, opts.Window)
@@ -1201,7 +1201,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 			fmt.Sprintf(t.UpscaleStartedFmt, opts.UpscaleTargetRes()),
 			opts.Window)
 	})
-	applyBtn.Importance = widget.HighImportance
 	if src == nil {
 		applyBtn.Disable()
 	}

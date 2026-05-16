@@ -271,7 +271,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 
 	listArea := container.NewMax(listScroll, emptyOverlay)
 
-	addCueBtn := widget.NewButton(t.SubtitlesAddCue, func() {
+	addCueBtn := ui.NewPillButton(t.SubtitlesAddCue, subtitlesColor, func() {
 		cues := cb.Cues()
 		start := 0.0
 		if len(cues) > 0 {
@@ -281,7 +281,6 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		cb.SetCues(newCues)
 		rebuildCues()
 	})
-	addCueBtn.Importance = widget.HighImportance
 
 	clearBtn := widget.NewButton(t.ActionClearAll, func() {
 		cb.SetCues(nil)
@@ -310,11 +309,10 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		cb.SetSubtitleStatus(fmt.Sprintf("Saved subtitles to %s", filepath.Base(path)))
 	})
 
-	generateBtn := widget.NewButton(t.SubtitlesGenerateSpeech, func() {
+	generateBtn := ui.NewPillButton(t.SubtitlesGenerateSpeech, subtitlesColor, func() {
 		cb.GenerateSubtitlesFromSpeech()
 		rebuildCues()
 	})
-	generateBtn.Importance = widget.HighImportance
 
 	outputModeSelect := widget.NewSelect(
 		[]string{subtitleModeExternal, subtitleModeEmbed, subtitleModeBurn},
@@ -325,10 +323,9 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 	)
 	outputModeSelect.SetSelected(cb.OutputMode())
 
-	applyBtn := widget.NewButton(t.SubtitlesCreateOutput, func() {
+	applyBtn := ui.NewPillButton(t.SubtitlesCreateOutput, subtitlesColor, func() {
 		cb.ApplySubtitlesToVideo()
 	})
-	applyBtn.Importance = widget.HighImportance
 
 	openSubtitleVideo := func() {
 		dialog.ShowFileOpen(func(file fyne.URIReadCloser, err error) {
@@ -436,7 +433,7 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		cb.SetSubtitleStatus(fmt.Sprintf("Detected %d subtitle streams.", len(streams)))
 	})
 
-	ripBtn := widget.NewButton(t.SubtitlesExtractSelected, func() {
+	ripBtn := ui.NewPillButton(t.SubtitlesExtractSelected, subtitlesColor, func() {
 		videoPath := strings.TrimSpace(cb.VideoPath())
 		if videoPath == "" {
 			cb.SetSubtitleStatus("Set a video file before extracting subtitles.")
@@ -485,8 +482,6 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 			}
 		}()
 	})
-	ripBtn.Importance = widget.HighImportance
-
 	offsetEntry := widget.NewEntry()
 	offsetEntry.SetPlaceHolder("0.0")
 	offsetEntry.SetText(fmt.Sprintf("%.2f", cb.TimeOffset()))
@@ -497,10 +492,9 @@ func BuildView(cb ViewCallbacks) fyne.CanvasObject {
 		}
 	}
 
-	applyOffsetBtn := widget.NewButton(t.SubtitlesApplyOffset, func() {
+	applyOffsetBtn := ui.NewPillButton(t.SubtitlesApplyOffset, subtitlesColor, func() {
 		cb.ApplySubtitleTimeOffset(cb.TimeOffset())
 	})
-	applyOffsetBtn.Importance = widget.HighImportance
 
 	offsetPlus1Btn := widget.NewButton("+1s", func() {
 		cb.ApplySubtitleTimeOffset(1.0)

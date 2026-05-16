@@ -52,7 +52,7 @@ type trimState struct {
 	inEntry      *widget.Entry
 	outEntry     *widget.Entry
 	timeline     *widget.Slider
-	addBtn       *widget.Button
+	addBtn       *ui.PillButton
 	videoPreview *ui.VideoPreview
 }
 
@@ -174,7 +174,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	state.exportSelect = widget.NewSelect([]string{t.TrimSmartCopy, t.TrimRecode}, func(s string) {})
 	state.exportSelect.SetSelected(t.TrimSmartCopy)
 
-	state.addBtn = widget.NewButton(t.MenuQueue, func() {
+	state.addBtn = ui.NewPillButton(t.MenuQueue, trimColor, func() {
 		if state.videoPath == "" || state.duration == 0 {
 			dialog.ShowInformation(t.DialogNoVideo, "Please load a video first.", opts.Window)
 			return

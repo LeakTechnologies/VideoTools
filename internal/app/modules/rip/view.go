@@ -482,7 +482,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	addQueueBtn.Importance = widget.MediumImportance
 
-	runNowBtn := widget.NewButton(t.RipNow, func() {
+	runNowBtn := ui.NewPillButton(t.RipNow, opts.ModuleColor, func() {
 		if err := addToQueue(true); err != nil {
 			dialog.ShowError(err, opts.Window)
 			return
@@ -493,8 +493,6 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 		dialog.ShowInformation(t.RipStartTitle, t.RipStartMsg, opts.Window)
 	})
-	runNowBtn.Importance = widget.HighImportance
-
 	loadCfgBtn := widget.NewButton(t.ActionLoadConfig, func() {
 		cfg, err := loadPersistedRipConfig()
 		if err != nil {
