@@ -110,26 +110,26 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		}
 	}
 
-	setInBtn := widget.NewButton(t.TrimSetIn, func() {
+	setInBtn := ui.MakePillButton(t.TrimSetIn, trimColor, func() {
 		state.inPointMs = state.currentMs
 		state.inEntry.SetText(formatMs(state.inPointMs))
 	})
 	setInBtn.Disable()
 
-	setOutBtn := widget.NewButton(t.TrimSetOut, func() {
+	setOutBtn := ui.MakePillButton(t.TrimSetOut, trimColor, func() {
 		state.outPointMs = state.currentMs
 		state.outEntry.SetText(formatMs(state.outPointMs))
 	})
 	setOutBtn.Disable()
 
-	clearBtn := widget.NewButton(t.TrimClear, func() {
+	clearBtn := ui.MakePillButton(t.TrimClear, ui.BorderDim, func() {
 		state.inPointMs = 0
 		state.outPointMs = int64(state.duration * 1000)
 		state.inEntry.SetText("")
 		state.outEntry.SetText("")
 	})
 
-	openBtn := widget.NewButton(t.ActionBrowse, func() {
+	openBtn := ui.MakePillButton(t.ActionBrowse, ui.BorderDim, func() {
 		dialog.ShowFileOpen(func(f fyne.URIReadCloser, err error) {
 			if err != nil || f == nil {
 				return
@@ -160,7 +160,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 		}, opts.Window)
 	})
 
-	previewBtn := widget.NewButton(t.TrimPreview, func() {
+	previewBtn := ui.MakePillButton(t.TrimPreview, ui.BorderDim, func() {
 		if state.videoPath != "" {
 			if u, err := url.Parse("file://" + state.videoPath); err == nil {
 				fyne.CurrentApp().OpenURL(u)
@@ -206,8 +206,7 @@ func BuildView(opts Options, initialPath string) fyne.CanvasObject {
 	_ = darkBg // retained for potential future use
 	videoArea := container.NewMax(videoStage, state.videoPreview.GetContainer())
 
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleTrim), opts.OnShowMainMenu)
-	backBtn.Importance = widget.LowImportance
+	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleTrim), ui.BorderDim, opts.OnShowMainMenu)
 	topBar := ui.TintedBar(trimColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	leftPanel := section(t.ModuleTrim, container.NewVBox(

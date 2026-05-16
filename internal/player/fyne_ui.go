@@ -8,6 +8,8 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
+
+	vtheme "git.leaktechnologies.dev/leak_technologies/VideoTools/internal/theme"
 )
 
 // FynePlayerUI provides a Fyne-based user interface for the VTPlayer
@@ -20,10 +22,10 @@ type FynePlayerUI struct {
 	// UI Components
 	playPauseBtn  *widget.Button
 	stopBtn       *widget.Button
-	seekSlider    *widget.Slider
+	seekSlider    *vtheme.Slider
 	timeLabel     *widget.Label
 	durationLabel *widget.Label
-	volumeSlider  *widget.Slider
+	volumeSlider  *vtheme.Slider
 	fullscreenBtn *widget.Button
 	fileBtn       *widget.Button
 	frameLabel    *widget.Label
