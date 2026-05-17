@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -1379,7 +1380,19 @@ func fetchReleaseAssetURL(tag string) (downloadURL string, isZip bool, err error
 // progressFn is called periodically with (bytesDownloaded, totalBytes); totalBytes
 // is -1 when the server does not send Content-Length. Pass nil to skip tracking.
 func downloadToTemp(url string, progressFn func(downloaded, total int64)) (string, error) {
-	client := &http.Client{Timeout: 5 * time.Minute}
+	// Use connection-level timeouts only — no overall deadline on the transfer.
+	// http.Client.Timeout covers the entire body read, which kills large downloads
+	// on slow connections before they complete.
+	client := &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			TLSHandshakeTimeout:   15 * time.Second,
+			ResponseHeaderTimeout: 30 * time.Second,
+		},
+	}
 	resp, err := client.Get(url)
 	if err != nil {
 		return "", err
