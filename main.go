@@ -2541,7 +2541,7 @@ func (s *appState) showBenchmark() {
 
 			// Show results with "Run New Benchmark" option
 			// "Run New Benchmark" sits in the action bar alongside a cache note
-			runNewBtn := ui.DarkTextButton("Run New Benchmark", func() {
+			runNewBtn := ui.MakePillButton("Run New Benchmark", ui.BorderDim, func() {
 				s.runNewBenchmark()
 			})
 

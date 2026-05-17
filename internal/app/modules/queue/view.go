@@ -8,6 +8,7 @@ import (
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/logging"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
 type queueViewWrapper struct {
@@ -57,6 +58,11 @@ func BuildView(opts Options) (fyne.CanvasObject, ViewAPI) {
 		}, win)
 	}
 
+	accColor := opts.AccentColor
+	if accColor == nil {
+		accColor = utils.MustHex("#4CE870")
+	}
+
 	queueView := ui.BuildQueueView(
 		opts.Jobs,
 		func() {
@@ -88,6 +94,8 @@ func BuildView(opts Options) (fyne.CanvasObject, ViewAPI) {
 		opts.TitleColor,
 		opts.BgColor,
 		opts.TextColor,
+		accColor,
+		opts.StatsBar,
 	)
 
 	return queueView.Root, &queueViewWrapper{view: queueView}
