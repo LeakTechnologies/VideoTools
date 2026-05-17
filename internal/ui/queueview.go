@@ -288,13 +288,14 @@ func BuildQueueView(
 	onCopyError func(string),
 	onViewLog func(string),
 	onCopyCommand func(string),
-onOpenFolder func(string),
+	onOpenFolder func(string),
 	onOpenOutput func(string),
 	onBurnISO func(string),
 	onOpenInModule func(string, string),
-onScheduleModule func(string, string),
+	onScheduleModule func(string, string),
 	Window fyne.Window,
-	titleColor, bgColor, textColor color.Color,
+	titleColor, bgColor, textColor, accentColor color.Color,
+	statsBar *ConversionStatsBar,
 ) *QueueView {
 	t := i18n.T()
 
@@ -308,15 +309,9 @@ onScheduleModule func(string, string),
 	}
 
 	// Header
-	titleText := t.QueueTitle
-	if titleText == "" {
-		titleText = "Queue"
-	}
-	title := canvas.NewText(strings.ToUpper(titleText), titleColor)
-	title.TextStyle = fyne.TextStyle{Monospace: true, Bold: true}
-	title.TextSize = 24
+	title := NewTitleLabel(t.QueueTitle, titleColor)
 
-	backBtn := DarkTextButton("< QUEUE", onBack)
+	backBtn := MakePillButton("< QUEUE", BorderDim, onBack)
 
 	// Status badge for queue (shows active/completed counts)
 	statusBadge := canvas.NewText("", color.Black)
@@ -350,11 +345,12 @@ onScheduleModule func(string, string),
 
 	headerTitle := container.NewHBox(
 		backBtn,
+		title,
 		layout.NewSpacer(),
 		actionGroup,
 		statusBadge,
 	)
-	topBar := TintedBar(color.NRGBA{R: 0x4c, G: 0xe8, B: 0x70, A: 0xff}, headerTitle)
+	topBar := TintedBar(accentColor, headerTitle)
 
 	jobList := container.NewVBox()
 	emptyMsg := widget.NewLabel(t.QueueEmpty)
@@ -388,8 +384,12 @@ onScheduleModule func(string, string),
 		logJobLabel,
 	)
 
-	// Bottom TintedBar (matches other modules like benchmark)
-	bottomBar := TintedBar(vtGreen, layout.NewSpacer())
+	// Bottom bar with stats
+	footerContent := layout.NewSpacer()
+	if statsBar != nil {
+		footerContent = statsBar
+	}
+	bottomBar := TintedBar(accentColor, footerContent)
 
 	// Use BorderLayout: top bar (TintedBar), bottom bar (TintedBar), content fills middle
 	// Live output (logSection) is pinned at bottom of content area

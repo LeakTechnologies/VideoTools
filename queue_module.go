@@ -331,7 +331,9 @@ func (s *appState) refreshQueueView() {
 			},
 			TitleColor: utils.MustHex("#4CE870"),
 			BgColor:    gridColor,
-			TextColor: textColor,
+			TextColor:  textColor,
+			AccentColor: utils.MustHex("#4CE870"),
+			StatsBar:   s.statsBar,
 		}
 
 		_, view := queue.BuildView(opts)

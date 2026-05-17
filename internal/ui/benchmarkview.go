@@ -66,7 +66,7 @@ type BenchmarkProgressView struct {
 
 func (v *BenchmarkProgressView) build() {
 	// Header bar
-	backBtn := DarkTextButton("< BENCHMARK", v.onBack)
+	backBtn := MakePillButton("< BENCHMARK", BorderDim, v.onBack)
 	topBar := TintedBar(v.headerColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// Hardware info section
@@ -220,7 +220,7 @@ func BuildBenchmarkResultsView(
 	actionContent fyne.CanvasObject,
 ) fyne.CanvasObject {
 	// Header bar
-	backBtn := DarkTextButton("< BENCHMARK", onBack)
+	backBtn := MakePillButton("< BENCHMARK", BorderDim, onBack)
 	topBar := TintedBar(headerColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// Footer bar
@@ -370,7 +370,7 @@ func BuildBenchmarkHistoryView(
 	statsBar *ConversionStatsBar,
 ) fyne.CanvasObject {
 	// Header bar
-	backBtn := DarkTextButton("< BENCHMARK", onBack)
+	backBtn := MakePillButton("< BENCHMARK", BorderDim, onBack)
 	topBar := TintedBar(headerColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	// Footer bar

@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 )
 
 type Options struct {
@@ -39,9 +40,11 @@ type Options struct {
 	OnOpenInModule   func(string, string) // jobID, module name
 	OnScheduleModule func(string, string) // jobID, module name
 
-	TitleColor color.Color
-	BgColor    color.Color
-	TextColor  color.Color
+	TitleColor  color.Color
+	BgColor     color.Color
+	TextColor   color.Color
+	AccentColor color.Color
+	StatsBar    *ui.ConversionStatsBar
 }
 
 type ViewAPI interface {
