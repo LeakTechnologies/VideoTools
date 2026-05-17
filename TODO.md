@@ -19,7 +19,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
 - [ ] **IMAPI2 COM replacement** — Replace `isoburn.exe` for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 - [ ] **Main Menu refactor** — Extract `showMainMenu()` from root into `internal/app/modules/mainmenu/`.
-- [ ] **Linux CI speedup** — Pre-built container image for FFmpeg build deps.
+- [x] **Windows CI FFmpeg cache** — Added `actions/cache` for Windows static FFmpeg build (C:\ffmpeg-static), matching the existing Linux cache. Both platforms now skip the FFmpeg source build on cache hits.
 - [ ] **C SEH bridge for D3D11VA crash** — `__try`/`__except` wrapper around `avcodec_send_packet`/`avcodec_receive_frame`.
 
 ## Dev42 Scope (closed)
