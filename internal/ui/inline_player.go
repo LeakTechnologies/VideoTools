@@ -658,6 +658,7 @@ func (v *InlineVideoPlayer) Close() {
 func (v *InlineVideoPlayer) playbackLoop() {
 	defer logging.RecoverPanic()
 
+	var loopFrameN int64
 	for {
 		// Snapshot engine pointer under lock; if Load replaced it, stop this loop.
 		v.mu.Lock()
@@ -710,6 +711,10 @@ func (v *InlineVideoPlayer) playbackLoop() {
 		// Align the frame swap to the display vsync boundary.
 		// WaitVsync() takes 0–16 ms; the audio clock self-corrects within
 		// 1–2 frame periods after the small delay.
+		loopFrameN++
+		if loopFrameN <= 25 {
+			logging.Info(logging.CatPlayer, "playbackLoop: frame %d t=%.3f pre-vsync", loopFrameN, t)
+		}
 		media.WaitVsync()
 
 		// Frame delivery: atomic store + goroutine-safe widget.Refresh().

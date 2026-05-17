@@ -47,6 +47,9 @@
 /* Sentinel for a caught access violation. */
 #define SAFE_BRIDGE_ACCESS_VIOLATION 0xDEAD0002u
 
+/* Sentinel for a caught stack-overflow exception (STATUS_STACK_OVERFLOW). */
+#define SAFE_BRIDGE_STACK_OVERFLOW 0xDEAD0003u
+
 /* =========================================================================
  * Platform-specific crash-recovery setup
  * ======================================================================= */
@@ -62,39 +65,56 @@
  * Each call site registers a VEH for its duration and removes it on return
  * or recovery.  Thread-local storage ensures concurrent calls on different
  * threads cannot corrupt each other's setjmp context.
+ *
+ * STATUS_STACK_OVERFLOW (0xC00000FD) is now also caught: the guard page is
+ * restored with _resetstkoflw() before longjmp so the handler has enough
+ * stack to unwind cleanly.  Without _resetstkoflw() the longjmp itself
+ * would fault because no guard page exists to expand the stack further.
  */
 #include <windows.h>
+#include <malloc.h>  /* _resetstkoflw */
 #include <setjmp.h>
 
-static __thread jmp_buf  tl_veh_buf;
-static __thread volatile int tl_veh_set = 0;
+static __thread jmp_buf          tl_veh_buf;
+static __thread volatile int     tl_veh_set  = 0;
+static __thread volatile uint32_t tl_veh_code = 0;
+
+#define STATUS_STACK_OVERFLOW_CODE 0xC00000FDu
 
 static LONG WINAPI veh_codec_handler(PEXCEPTION_POINTERS ep) {
-    if (ep->ExceptionRecord->ExceptionCode == EXCEPTION_ACCESS_VIOLATION) {
-        if (tl_veh_set) {
-            tl_veh_set = 0;
-            longjmp(tl_veh_buf, 1);
+    DWORD code = ep->ExceptionRecord->ExceptionCode;
+    if ((code == EXCEPTION_ACCESS_VIOLATION ||
+         code == STATUS_STACK_OVERFLOW_CODE) && tl_veh_set) {
+        tl_veh_set  = 0;
+        tl_veh_code = (uint32_t)code;
+        if (code == STATUS_STACK_OVERFLOW_CODE) {
+            /* Restore the guard page so longjmp has stack to execute on. */
+            _resetstkoflw();
         }
+        longjmp(tl_veh_buf, 1);
     }
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
 /* Convenience macro: wrap CALL in VEH recovery, storing result in RET.
- * On a caught AV: sets *exc_code_out and returns AVERROR(EINVAL). */
-#define SAFE_CALL(CALL, RET, exc_code_out)                              \
-    do {                                                                 \
-        volatile PVOID _veh = AddVectoredExceptionHandler(1,            \
-                                  veh_codec_handler);                   \
-        tl_veh_set = 1;                                                  \
-        if (setjmp(tl_veh_buf)) {                                        \
-            tl_veh_set = 0;                                              \
-            RemoveVectoredExceptionHandler((PVOID)_veh);                \
-            *(exc_code_out) = SAFE_BRIDGE_ACCESS_VIOLATION;             \
-            return AVERROR(EINVAL);                                      \
-        }                                                                \
-        (RET) = (CALL);                                                  \
-        tl_veh_set = 0;                                                  \
-        RemoveVectoredExceptionHandler((PVOID)_veh);                    \
+ * On a caught AV or stack-overflow: sets *exc_code_out and returns AVERROR(EINVAL). */
+#define SAFE_CALL(CALL, RET, exc_code_out)                                   \
+    do {                                                                      \
+        volatile PVOID _veh = AddVectoredExceptionHandler(1,                 \
+                                  veh_codec_handler);                        \
+        tl_veh_set  = 1;                                                      \
+        tl_veh_code = 0;                                                      \
+        if (setjmp(tl_veh_buf)) {                                             \
+            tl_veh_set = 0;                                                   \
+            RemoveVectoredExceptionHandler((PVOID)_veh);                     \
+            *(exc_code_out) = (tl_veh_code == STATUS_STACK_OVERFLOW_CODE)    \
+                              ? SAFE_BRIDGE_STACK_OVERFLOW                   \
+                              : SAFE_BRIDGE_ACCESS_VIOLATION;                \
+            return AVERROR(EINVAL);                                           \
+        }                                                                     \
+        (RET) = (CALL);                                                       \
+        tl_veh_set = 0;                                                       \
+        RemoveVectoredExceptionHandler((PVOID)_veh);                         \
     } while (0)
 
 #elif defined(_WIN32) && !defined(__GNUC__)
