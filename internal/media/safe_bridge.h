@@ -21,6 +21,9 @@ extern "C" {
 /* Sentinel for Windows SEH-caught access violations */
 #define SAFE_BRIDGE_ACCESS_VIOLATION 0xDEAD0002u
 
+/* Sentinel for Windows STATUS_STACK_OVERFLOW caught via VEH */
+#define SAFE_BRIDGE_STACK_OVERFLOW 0xDEAD0003u
+
 /*
  * CodecDiagnostic — snapshot of key codec/packet state for crash diagnostics.
  * Safe to populate even when priv_data is NULL.
