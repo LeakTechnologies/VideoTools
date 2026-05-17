@@ -590,8 +590,8 @@ func buildJobButtons(job *queue.Job, callbacks queueCallbacks) *fyne.Container {
 
 	if job.Status == queue.JobStatusPending || job.Status == queue.JobStatusPaused {
 		buttons = append(buttons,
-			widget.NewButtonWithIcon("", GetIcon("keyboard_arrow_up"), func() { callbacks.onMoveUp(job.ID) }),
-			widget.NewButtonWithIcon("", GetIcon("keyboard_arrow_down"), func() { callbacks.onMoveDown(job.ID) }),
+			MakePillIconButton(GetIcon("keyboard_arrow_up"), func() { callbacks.onMoveUp(job.ID) }),
+			MakePillIconButton(GetIcon("keyboard_arrow_down"), func() { callbacks.onMoveDown(job.ID) }),
 		)
 	}
 

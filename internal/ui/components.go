@@ -606,6 +606,15 @@ func MakePillButton(label string, borderCol color.Color, onTapped func()) *PillB
 	return vtheme.MakePillButton(label, borderCol, onTapped)
 }
 
+// PillIconButton is an icon-only pill-shaped button.
+// The implementation lives in internal/theme; this alias keeps the ui package API stable.
+type PillIconButton = vtheme.PillIconButton
+
+// MakePillIconButton constructs a PillIconButton with the given icon and tap handler.
+func MakePillIconButton(icon fyne.Resource, onTapped func()) *PillIconButton {
+	return vtheme.MakePillIconButton(icon, onTapped)
+}
+
 // NewRatioRow lays out two objects with a fixed width ratio for the left item.
 func NewRatioRow(left, right fyne.CanvasObject, leftRatio float32) *fyne.Container {
 	return NewRatioRowWithGap(left, right, leftRatio, 0)
