@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 )
 
 var consoleDark = color.NRGBA{R: 0x0a, G: 0x0d, B: 0x18, A: 0xff}
@@ -41,7 +40,7 @@ func NewConsoleBox(
 
 	pillParts := []fyne.CanvasObject{container.NewPadded(labelTxt)}
 	if getText != nil && window != nil {
-		copyBtn := widget.NewButtonWithIcon("", theme.ContentCopyIcon(), func() {
+		copyBtn := MakePillIconButton(theme.ContentCopyIcon(), func() {
 			text := getText()
 			if strings.TrimSpace(text) == "" {
 				return
