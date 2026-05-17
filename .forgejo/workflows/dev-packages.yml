@@ -298,13 +298,19 @@ jobs:
           Invoke-Bash "pacman -S --needed --noconfirm nasm mingw-w64-ucrt-x86_64-cmake"
           Write-Host "[INFO] Build tools ready"
 
+      - name: Cache static FFmpeg (Windows)
+        uses: actions/cache@v4
+        with:
+          path: C:\ffmpeg-static
+          key: ffmpeg-static-${{ env.FFMPEG_VERSION }}-windows-v7
+
       - name: Setup static FFmpeg (Windows)
         shell: C:/msys64/usr/bin/bash.exe --login -eo pipefail {0}
         env:
           MSYSTEM: UCRT64
         run: |
           ver="${{ env.FFMPEG_VERSION }}"
-          marker="/c/ffmpeg-static/.built-${ver}-v6"
+          marker="/c/ffmpeg-static/.built-${ver}-v7"
           if [ -f "$marker" ]; then
             echo "[INFO] FFmpeg ${ver} already built (marker: $marker)"
             exit 0
