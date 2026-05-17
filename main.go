@@ -696,12 +696,12 @@ func (s *appState) openLogViewer(title, path string, live bool) {
 
 	stop := make(chan struct{})
 	var d dialog.Dialog
-	closeBtn := widget.NewButton("Close", func() {
+	closeBtn := ui.MakePillButton("Close", ui.BorderDim, func() {
 		if d != nil {
 			d.Hide()
 		}
 	})
-	copyBtn := widget.NewButton("Copy All", func() {
+	copyBtn := ui.MakePillButton("Copy All", ui.BorderDim, func() {
 		s.window.Clipboard().SetContent(text.Text)
 	})
 	buttons := container.NewHBox(copyBtn, layout.NewSpacer(), closeBtn)
@@ -1657,7 +1657,7 @@ Config:
 
 	if entry.OutputFile != "" {
 		if _, err := os.Stat(entry.OutputFile); err == nil {
-			buttons = append(buttons, widget.NewButton("Show in Folder", func() {
+			buttons = append(buttons, ui.MakePillButton("Show in Folder", ui.BorderDim, func() {
 				dir := filepath.Dir(entry.OutputFile)
 				if err := openFolder(dir); err != nil {
 					dialog.ShowError(err, s.window)
@@ -1668,13 +1668,13 @@ Config:
 
 	if entry.LogPath != "" {
 		if _, err := os.Stat(entry.LogPath); err == nil {
-			buttons = append(buttons, widget.NewButton("View Log", func() {
+			buttons = append(buttons, ui.MakePillButton("View Log", ui.BorderDim, func() {
 				s.openLogViewer(entry.Title, entry.LogPath, false)
 			}))
 		}
 	}
 
-	closeBtn := widget.NewButton("Close", nil)
+	closeBtn := ui.MakePillButton("Close", ui.BorderDim, nil)
 	buttons = append(buttons, layout.NewSpacer(), closeBtn)
 
 	// Job details in scrollable area
@@ -2229,7 +2229,7 @@ func (s *appState) showErrorWithCopy(title string, err error) {
 	errorLabel.Wrapping = fyne.TextWrapWord
 
 	// Create copy button
-	copyBtn := widget.NewButton("Copy Error", func() {
+	copyBtn := ui.MakePillButton("Copy Error", ui.BorderDim, func() {
 		s.window.Clipboard().SetContent(errMsg)
 	})
 
@@ -4192,10 +4192,9 @@ func (s *appState) showMergeView() {
 		s.mergeFrameRate = "Source"
 	}
 
-	backBtn := widget.NewButton("< "+strings.ToUpper(t.ModuleMerge), func() {
+	backBtn := ui.MakePillButton("< "+strings.ToUpper(t.ModuleMerge), ui.BorderDim, func() {
 		s.showMainMenu()
 	})
-	backBtn.Importance = widget.LowImportance
 
 	queueBtn := ui.MakePillButton("View Queue", ui.BorderDim, func() {
 		s.showQueue()
@@ -4207,8 +4206,8 @@ func (s *appState) showMergeView() {
 
 	listBox := container.NewVBox()
 	var addFiles func([]string)
-	var addQueueBtn *widget.Button
-	var runNowBtn *widget.Button
+	var addQueueBtn *ui.PillButton
+	var runNowBtn *ui.PillButton
 
 	var buildList func()
 	buildList = func() {
@@ -4245,22 +4244,22 @@ func (s *appState) showMergeView() {
 				chEntry.OnChanged = func(val string) {
 					s.mergeClips[idx].Chapter = val
 				}
-				upBtn := widget.NewButton("↑", func() {
-					if idx > 0 {
-						s.mergeClips[idx-1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx-1]
-						buildList()
-					}
-				})
-				downBtn := widget.NewButton("↓", func() {
-					if idx < len(s.mergeClips)-1 {
-						s.mergeClips[idx+1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx+1]
-						buildList()
-					}
-				})
-				delBtn := widget.NewButton("Remove", func() {
-					s.mergeClips = append(s.mergeClips[:idx], s.mergeClips[idx+1:]...)
+			upBtn := ui.MakePillButton("↑", ui.BorderDim, func() {
+				if idx > 0 {
+					s.mergeClips[idx-1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx-1]
 					buildList()
-				})
+				}
+			})
+			downBtn := ui.MakePillButton("↓", ui.BorderDim, func() {
+				if idx < len(s.mergeClips)-1 {
+					s.mergeClips[idx+1], s.mergeClips[idx] = s.mergeClips[idx], s.mergeClips[idx+1]
+					buildList()
+				}
+			})
+			delBtn := ui.MakePillButton("Remove", ui.BorderDim, func() {
+				s.mergeClips = append(s.mergeClips[:idx], s.mergeClips[idx+1:]...)
+				buildList()
+			})
 				row := container.NewBorder(
 					nil, nil,
 					container.NewVBox(upBtn, downBtn),
@@ -4330,7 +4329,7 @@ func (s *appState) showMergeView() {
 		}()
 	}
 
-	addBtn := widget.NewButton("Add Files", func() {
+	addBtn := ui.MakePillButton("Add Files", ui.BorderDim, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -4406,7 +4405,7 @@ func (s *appState) showMergeView() {
 		s.mergeOutputFilename = val
 	}
 
-	clearBtn := widget.NewButton("Clear", func() {
+	clearBtn := ui.MakePillButton("Clear", ui.BorderDim, func() {
 		s.mergeClips = nil
 		s.mergeOutputDir = ""
 		s.mergeOutputFilename = ""
@@ -4524,7 +4523,7 @@ func (s *appState) showMergeView() {
 		motionInterpCheck,
 	)
 
-	browseDirBtn := widget.NewButton("Browse Folder", func() {
+	browseDirBtn := ui.MakePillButton("Browse Folder", ui.BorderDim, func() {
 		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
 			if err != nil || uri == nil {
 				return
@@ -4534,7 +4533,7 @@ func (s *appState) showMergeView() {
 		}, s.window)
 	})
 
-	addQueueBtn = widget.NewButton("Add Merge to Queue", func() {
+	addQueueBtn = ui.MakePillButton("Add Merge to Queue", ui.BorderDim, func() {
 		if err := s.addMergeToQueue(false); err != nil {
 			dialog.ShowError(err, s.window)
 			return
@@ -4544,7 +4543,7 @@ func (s *appState) showMergeView() {
 			s.jobQueue.Start()
 		}
 	})
-	runNowBtn = widget.NewButton("Merge Now", func() {
+	runNowBtn = ui.MakePillButton("Merge Now", ui.BorderDim, func() {
 		if err := s.addMergeToQueue(true); err != nil {
 			dialog.ShowError(err, s.window)
 			return
@@ -4580,7 +4579,7 @@ func (s *appState) showMergeView() {
 		updateOutputExt()
 	}
 
-	loadCfgBtn := widget.NewButton("Load Config", func() {
+	loadCfgBtn := ui.MakePillButton("Load Config", ui.BorderDim, func() {
 		cfg, err := loadPersistedMergeConfig()
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -4594,7 +4593,7 @@ func (s *appState) showMergeView() {
 		applyMergeControls()
 	})
 
-	saveCfgBtn := widget.NewButton("Save Config", func() {
+	saveCfgBtn := ui.MakePillButton("Save Config", ui.BorderDim, func() {
 		cfg := mergeConfig{
 			Format:              s.mergeFormat,
 			KeepAllStreams:      s.mergeKeepAll,
@@ -4612,7 +4611,7 @@ func (s *appState) showMergeView() {
 		dialog.ShowInformation(t.DialogConfigSaved, fmt.Sprintf("Saved to %s", configpath.ModuleConfigPath("merge")), s.window)
 	})
 
-	resetBtn := widget.NewButton("Reset", func() {
+	resetBtn := ui.MakePillButton("Reset", ui.BorderDim, func() {
 		cfg := defaultMergeConfig()
 		s.applyMergeConfig(cfg)
 		applyMergeControls()
@@ -8933,18 +8932,17 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 	}
 
-	back := widget.NewButton("< "+strings.ToUpper(t.ModuleConvert), func() {
+	back := ui.MakePillButton("< "+strings.ToUpper(t.ModuleConvert), ui.BorderDim, func() {
 		state.showMainMenu()
 	})
-	back.Importance = widget.LowImportance
 
 	// Navigation buttons for multiple loaded videos
 	var navButtons fyne.CanvasObject
 	if len(state.loadedVideos) > 1 {
-		prevBtn := widget.NewButton("- "+t.ConvertNavPrev, func() {
+		prevBtn := ui.MakePillButton("- "+t.ConvertNavPrev, ui.BorderDim, func() {
 			state.prevVideo()
 		})
-		nextBtn := widget.NewButton(t.ConvertNavNext+" -", func() {
+		nextBtn := ui.MakePillButton(t.ConvertNavNext+" -", ui.BorderDim, func() {
 			state.nextVideo()
 		})
 		videoCounter := widget.NewLabel(fmt.Sprintf(t.ConvertVideoOfFmt, state.currentIndex+1, len(state.loadedVideos)))
@@ -8960,22 +8958,20 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	state.queueBtn = queueBtn
 	state.updateQueueButtonLabel()
 
-	clearCompletedBtn := widget.NewButton(t.ActionQueueClearCompleted, func() {
+	clearCompletedBtn := ui.MakePillButton(t.ActionQueueClearCompleted, ui.BorderDim, func() {
 		state.clearCompletedJobs()
 	})
-	clearCompletedBtn.Importance = widget.LowImportance
 
 	var commandDrawer *widget.PopUp
 	var snippetDrawer *widget.PopUp
 	drawerWidth := float32(420)
 	drawerInset := float32(8)
 	buildDrawer := func(title string, body fyne.CanvasObject, onClose func()) *widget.PopUp {
-		closeBtn := widget.NewButton("-", func() {
+		closeBtn := ui.MakePillButton("-", ui.BorderDim, func() {
 			if onClose != nil {
 				onClose()
 			}
 		})
-		closeBtn.Importance = widget.LowImportance
 		header := container.NewBorder(nil, nil,
 			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			closeBtn,
@@ -9003,12 +8999,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 
 	// Bottom drawer for snippet options (slides up from below the button)
 	buildBottomDrawer := func(title string, body fyne.CanvasObject, onClose func()) *widget.PopUp {
-		closeBtn := widget.NewButton("x", func() {
+		closeBtn := ui.MakePillButton("x", ui.BorderDim, func() {
 			if onClose != nil {
 				onClose()
 			}
 		})
-		closeBtn.Importance = widget.LowImportance
 		header := container.NewBorder(nil, nil,
 			widget.NewLabelWithStyle(title, fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			closeBtn,
@@ -9056,14 +9051,13 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	var buildCommandPreview func() fyne.CanvasObject
 
 	// Command Preview toggle button (drawer)
-	cmdPreviewBtn := widget.NewButton(t.ConvertCommandPreview, func() {
+	cmdPreviewBtn := ui.MakePillButton(t.ConvertCommandPreview, ui.BorderDim, func() {
 		if src == nil {
 			return
 		}
 		body := buildCommandPreview()
 		toggleDrawer(&commandDrawer, t.ConvertCommandPreview, body)
 	})
-	cmdPreviewBtn.Importance = widget.LowImportance
 
 	// Update button text and state based on preview visibility and source
 	if src == nil {
@@ -9375,7 +9369,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	userPresetSelect.SetSelected("None")
 
-	deleteUserPresetBtn := widget.NewButton(t.ActionDelete, func() {
+	deleteUserPresetBtn := ui.MakePillButton(t.ActionDelete, ui.BorderDim, func() {
 		sel := userPresetSelect.Selected
 		if sel == "None" || sel == "" {
 			return
@@ -9395,7 +9389,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		userPresetSelect.Refresh()
 	})
 
-	saveUserPresetBtn := widget.NewButton(t.ConvertSavePresetBtn, func() {
+	saveUserPresetBtn := ui.MakePillButton(t.ConvertSavePresetBtn, ui.BorderDim, func() {
 		entry := widget.NewEntry()
 		entry.SetPlaceHolder(t.ConvertPresetNamePlaceholder)
 		dialog.ShowCustomConfirm(t.ConvertSavePreset, t.ActionSave, t.ActionCancel, entry, func(ok bool) {
@@ -9666,9 +9660,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	deinterlaceMethodSelect.SetSelected(state.convert.DeinterlaceMethod)
 
-	makePanelButton := func(label string, onTap func()) (*widget.Button, fyne.CanvasObject) {
-		btn := widget.NewButton(label, onTap)
-		btn.Importance = widget.LowImportance
+	makePanelButton := func(label string, onTap func()) (*ui.PillButton, fyne.CanvasObject) {
+		btn := ui.MakePillButton(label, ui.BorderDim, onTap)
 		bg := canvas.NewRectangle(utils.MustHex("#344256"))
 		bg.CornerRadius = 8
 		bg.SetMinSize(fyne.NewSize(0, 36))
@@ -9676,7 +9669,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	}
 
 	// Interlacing Analysis Button (Simple Menu)
-	var analyzeInterlaceBtn *widget.Button
+	var analyzeInterlaceBtn *ui.PillButton
 	var analyzeInterlaceView fyne.CanvasObject
 	analyzeInterlaceBtn, analyzeInterlaceView = makePanelButton(t.ConvertAnalyzeInterlacing, func() {
 		if src == nil {
@@ -9751,7 +9744,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	})
 	autoCropCheck.Checked = state.convert.AutoCrop
 
-	var detectCropBtn *widget.Button
+	var detectCropBtn *ui.PillButton
 	var detectCropView fyne.CanvasObject
 	detectCropBtn, detectCropView = makePanelButton(t.ConvertDetectCrop, func() {
 		if src == nil {
@@ -10169,7 +10162,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert.TempDir = strings.TrimSpace(val)
 		utils.SetTempDir(state.convert.TempDir)
 	}
-	cacheBrowseBtn := widget.NewButton(t.ActionBrowse, func() {
+	cacheBrowseBtn := ui.MakePillButton(t.ActionBrowse, ui.BorderDim, func() {
 		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
 			if err != nil || uri == nil {
 				return
@@ -10179,13 +10172,11 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			utils.SetTempDir(state.convert.TempDir)
 		}, state.window)
 	})
-	cacheBrowseBtn.Importance = widget.MediumImportance
-	cacheUseSystemBtn := widget.NewButton(t.ConvertUseSystemTemp, func() {
+	cacheUseSystemBtn := ui.MakePillButton(t.ConvertUseSystemTemp, ui.BorderDim, func() {
 		cacheDirEntry.SetText("")
 		state.convert.TempDir = ""
 		utils.SetTempDir("")
 	})
-	cacheUseSystemBtn.Importance = widget.LowImportance
 
 	logsDirLabel := widget.NewLabelWithStyle(t.ConvertSectionLogsDir, fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	logsDirEntry := widget.NewEntry()
@@ -10204,7 +10195,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	logsDirEntry.OnChanged = func(val string) {
 		applyLogsDir(val)
 	}
-	logsBrowseBtn := widget.NewButton(t.ActionBrowse, func() {
+	logsBrowseBtn := ui.MakePillButton(t.ActionBrowse, ui.BorderDim, func() {
 		dialog.ShowFolderOpen(func(uri fyne.ListableURI, err error) {
 			if err != nil || uri == nil {
 				return
@@ -10212,18 +10203,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			logsDirEntry.SetText(uri.Path())
 		}, state.window)
 	})
-	logsBrowseBtn.Importance = widget.MediumImportance
-	logsUseDefaultBtn := widget.NewButton(t.ConvertUseDefault, func() {
+	logsUseDefaultBtn := ui.MakePillButton(t.ConvertUseDefault, ui.BorderDim, func() {
 		logsDirEntry.SetText("")
 	})
-	logsUseDefaultBtn.Importance = widget.LowImportance
 
-	resetSettingsBtn := widget.NewButton(t.ConvertResetDefaults, func() {
+	resetSettingsBtn := ui.MakePillButton(t.ConvertResetDefaults, ui.BorderDim, func() {
 		if resetConvertDefaults != nil {
 			resetConvertDefaults()
 		}
 	})
-	resetSettingsBtn.Importance = widget.MediumImportance
 
 	settingsContent := container.NewVBox(
 		settingsInfoContainer,
@@ -10246,8 +10234,8 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	toggleSettingsLabel.Wrapping = fyne.TextWrapWord
 	toggleSettingsLabel.Alignment = fyne.TextAlignCenter
 
-	var toggleSettingsBtn *widget.Button
-	toggleSettingsBtn = widget.NewButton("", func() {
+	var toggleSettingsBtn *ui.PillButton
+	toggleSettingsBtn = ui.MakePillButton("", ui.BorderDim, func() {
 		if settingsVisible {
 			settingsContent.Hide()
 			toggleSettingsLabel.SetText(t.ConvertShowBatchSettings)
@@ -10257,7 +10245,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		settingsVisible = !settingsVisible
 	})
-	toggleSettingsBtn.Importance = widget.LowImportance
 
 	// Replace button text with wrapped label
 	toggleSettingsBtnWithLabel := container.NewStack(
@@ -12417,7 +12404,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		snippetPositionHint,
 	)
 
-	snippetBtn := widget.NewButton(t.ConvertGenerateSnippet, func() {
+	snippetBtn := ui.MakePillButton(t.ConvertGenerateSnippet, ui.BorderDim, func() {
 		if state.source == nil {
 			dialog.ShowInformation(t.DialogSnippet, t.DialogLoadVideoFirst, state.window)
 			return
@@ -12490,15 +12477,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		dialog.ShowInformation(t.DialogSnippet, fmt.Sprintf(t.ConvertSnippetJobQueuedFmt, state.snippetLength), state.window)
 	})
-	snippetBtn.Importance = widget.MediumImportance
 	if src == nil {
 		snippetBtn.Disable()
 	}
 
 	// Button to generate snippets for all loaded videos
-	var snippetAllBtn *widget.Button
+	var snippetAllBtn *ui.PillButton
 	if len(state.loadedVideos) > 1 {
-		snippetAllBtn = widget.NewButton(t.ConvertGenerateAllSnippets, func() {
+		snippetAllBtn = ui.MakePillButton(t.ConvertGenerateAllSnippets, ui.Magenta, func() {
 			if state.jobQueue == nil {
 				dialog.ShowInformation(t.MenuQueue, t.DialogQueueNotInit, state.window)
 				return
@@ -12578,13 +12564,12 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 					state.window)
 			}
 		})
-		snippetAllBtn.Importance = widget.HighImportance
 	}
 
 	snippetHint := widget.NewLabel(t.ConvertSnippetHint)
 
-	var snippetOptionsBtn *widget.Button
-	snippetOptionsBtn = widget.NewButton(t.ConvertSnippetOptions, func() {
+	var snippetOptionsBtn *ui.PillButton
+	snippetOptionsBtn = ui.MakePillButton(t.ConvertSnippetOptions, ui.BorderDim, func() {
 		if snippetDrawer != nil {
 			snippetDrawer.Hide()
 			snippetDrawer = nil
@@ -12597,7 +12582,6 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 			}
 		})
 	})
-	snippetOptionsBtn.Importance = widget.LowImportance
 	if src == nil {
 		snippetOptionsBtn.Disable()
 	}
@@ -12629,7 +12613,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	// Add horizontal padding around the split (10px on each side)
 	mainContent := container.NewPadded(mainSplit)
 
-	resetBtn := widget.NewButton(t.ConvertReset, func() {
+	resetBtn := ui.MakePillButton(t.ConvertReset, ui.BorderDim, func() {
 		if resetConvertDefaults != nil {
 			resetConvertDefaults()
 		}
@@ -12650,16 +12634,15 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		activity.Show()
 		activity.Start()
 	}
-	var convertBtn *widget.Button
-	var cancelBtn *widget.Button
-	var cancelQueueBtn *widget.Button
-	cancelBtn = widget.NewButton(t.ActionCancel, func() {
+	var convertBtn *ui.PillButton
+	var cancelBtn *ui.PillButton
+	var cancelQueueBtn *ui.PillButton
+	cancelBtn = ui.MakePillButton(t.ActionCancel, ui.BorderDim, func() {
 		state.cancelConvert(cancelBtn, convertBtn, activity, statusLabel)
 	})
-	cancelBtn.Importance = widget.DangerImportance
 	cancelBtn.Disable()
 
-	cancelQueueBtn = widget.NewButton(t.ConvertActionCancelJob, func() {
+	cancelQueueBtn = ui.MakePillButton(t.ConvertActionCancelJob, ui.BorderDim, func() {
 		if state.jobQueue == nil {
 			dialog.ShowInformation(t.DialogCancel, t.DialogQueueNotInit, state.window)
 			return
@@ -12675,42 +12658,38 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		}
 		dialog.ShowInformation(t.DialogCancelled, fmt.Sprintf(t.DialogJobCancelledFmt, job.Title), state.window)
 	})
-	cancelQueueBtn.Importance = widget.DangerImportance
 	cancelQueueBtn.Disable()
 
 	// Add to Queue button
-	addQueueBtn := widget.NewButton(t.ActionAddToQueue, func() {
+	addQueueBtn := ui.MakePillButton(t.ActionAddToQueue, ui.BorderDim, func() {
 		state.persistConvertConfig()
 		state.executeAddToQueue()
 	})
 
 	// Add All to Queue button (only shown when multiple videos are loaded)
-	addAllQueueBtn := widget.NewButton(t.ConvertAddAllToQueue, func() {
+	addAllQueueBtn := ui.MakePillButton(t.ConvertAddAllToQueue, ui.BorderDim, func() {
 		state.persistConvertConfig()
 		state.executeAddAllToQueue()
 	})
-	addAllQueueBtn.Importance = widget.MediumImportance
 	if len(state.loadedVideos) <= 1 {
 		addAllQueueBtn.Hide()
 	}
 
-	convertBtn = widget.NewButton(t.ConvertActionStart, func() {
+	convertBtn = ui.MakePillButton(t.ConvertActionStart, ui.Magenta, func() {
 		state.persistConvertConfig()
 		state.executeConversion()
 	})
-	convertBtn.Importance = widget.HighImportance
 	if src == nil {
 		convertBtn.Disable()
 	}
 
-	viewLogBtn := widget.NewButton(t.ConvertViewLog, func() {
+	viewLogBtn := ui.MakePillButton(t.ConvertViewLog, ui.BorderDim, func() {
 		if state.convertActiveLog == "" {
 			dialog.ShowInformation(t.DialogNoLog, t.DialogNoLogMsg, state.window)
 			return
 		}
 		state.openLogViewer("Conversion Log", state.convertActiveLog, state.convertBusy)
 	})
-	viewLogBtn.Importance = widget.MediumImportance
 	if state.convertActiveLog == "" {
 		viewLogBtn.Disable()
 	}
@@ -12759,7 +12738,7 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 	autoCompareCheck.SetChecked(state.autoCompare)
 
 	// Load/Save config buttons
-	loadCfgBtn := widget.NewButton(t.ActionLoadConfig, func() {
+	loadCfgBtn := ui.MakePillButton(t.ActionLoadConfig, ui.BorderDim, func() {
 		cfg, err := loadPersistedConvertConfig()
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -12772,16 +12751,14 @@ func buildConvertView(state *appState, src *videoSource) fyne.CanvasObject {
 		state.convert = cfg
 		state.showConvertView(state.source)
 	})
-	loadCfgBtn.Importance = widget.MediumImportance
 
-	saveCfgBtn := widget.NewButton(t.ActionSaveConfig, func() {
+	saveCfgBtn := ui.MakePillButton(t.ActionSaveConfig, ui.BorderDim, func() {
 		if err := savePersistedConvertConfig(state.convert); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to save config: %w", err), state.window)
 			return
 		}
 		dialog.ShowInformation(t.DialogConfigSaved, fmt.Sprintf(t.DialogSavedToFmt, configpath.ModuleConfigPath("convert")), state.window)
 	})
-	saveCfgBtn.Importance = widget.MediumImportance
 
 	// FFmpeg Command Preview
 	var commandPreviewWidget *ui.FFmpegCommandWidget
@@ -13173,19 +13150,17 @@ Metadata: %s`,
 	info := container.NewVBox(fileRow, twoColGrid)
 
 	// Copy metadata button - beside header text
-	copyBtn := widget.NewButton("", func() {
+	copyBtn := ui.MakePillButton("", ui.BorderDim, func() {
 		state.window.Clipboard().SetContent(metadataText)
 		dialog.ShowInformation(t.DialogCopied, "Metadata copied to clipboard", state.window)
 	})
-	copyBtn.Importance = widget.LowImportance
 
 	// Clear button to remove the loaded video and reset UI - on the right
-	clearBtn := widget.NewButton("Clear Video", func() {
+	clearBtn := ui.MakePillButton("Clear Video", ui.BorderDim, func() {
 		if state != nil {
 			state.clearVideo()
 		}
 	})
-	clearBtn.Importance = widget.LowImportance
 
 	headerRow := container.NewHBox(header, copyBtn)
 	top = container.NewBorder(nil, nil, nil, clearBtn, headerRow)
@@ -13196,7 +13171,7 @@ Metadata: %s`,
 	}
 
 	// Interlacing Analysis Section
-	analyzeBtn := widget.NewButton(t.ConvertAnalyzeInterlacing, func() {
+	analyzeBtn := ui.MakePillButton(t.ConvertAnalyzeInterlacing, ui.BorderDim, func() {
 		if state.source == nil {
 			return
 		}
@@ -13229,7 +13204,6 @@ Metadata: %s`,
 			}, false)
 		}()
 	})
-	analyzeBtn.Importance = widget.MediumImportance
 
 	var interlaceSection fyne.CanvasObject
 	if state.interlaceAnalyzing {
@@ -13296,10 +13270,10 @@ Metadata: %s`,
 		// Preview button (only show if deinterlacing is recommended)
 		var previewSection fyne.CanvasObject
 		if result.SuggestDeinterlace {
-			widget.NewButton("Generate Deinterlace Preview", func() {
-				if state.source == nil {
-					return
-				}
+		ui.MakePillButton("Generate Deinterlace Preview", ui.BorderDim, func() {
+			if state.source == nil {
+				return
+			}
 
 				go func() {
 					fyne.CurrentApp().Driver().DoFromGoroutine(func() {
@@ -15128,7 +15102,7 @@ func determineAudioCodec(cfg convertConfig) string {
 	}
 }
 
-func (s *appState) cancelConvert(cancelBtn, btn *widget.Button, spinner *widget.ProgressBarInfinite, status *widget.Label) {
+func (s *appState) cancelConvert(cancelBtn, btn *ui.PillButton, spinner *widget.ProgressBarInfinite, status *widget.Label) {
 	if s.convertCancel == nil {
 		return
 	}
