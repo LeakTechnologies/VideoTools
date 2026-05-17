@@ -23,6 +23,7 @@ import (
 	"golang.org/x/image/math/fixed"
 
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
@@ -286,9 +287,8 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 	statusLabel.TextStyle = fyne.TextStyle{Italic: true}
 	statusLabel.Wrapping = fyne.TextWrapWord
 
-	viewMainBtn := widget.NewButton("Main Menu", nil)
-	viewChaptersBtn := widget.NewButton("Chapters", nil)
-	viewMainBtn.Importance = widget.HighImportance
+	viewMainBtn := ui.MakePillButton("Main Menu", ui.Magenta, nil)
+	viewChaptersBtn := ui.MakePillButton("Chapters", ui.BorderDim, nil)
 
 	var debounceMu sync.Mutex
 	var debounceTimer *time.Timer
@@ -367,8 +367,6 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 			viewChaptersBtn.Hide()
 			if viewType == "chapters" {
 				viewType = "main"
-				viewMainBtn.Importance = widget.HighImportance
-				viewChaptersBtn.Importance = widget.MediumImportance
 			}
 		}
 		viewMainBtn.Refresh()
@@ -381,7 +379,11 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 		navRow.Objects = nil
 		for i, btn := range btns {
 			i, lbl := i, btn.Label
-			b := widget.NewButton(lbl, func() {
+			borderColor := ui.BorderDim
+			if i == highlighted {
+				borderColor = ui.Magenta
+			}
+			b := ui.MakePillButton(lbl, borderColor, func() {
 				if highlighted == i {
 					highlighted = -1
 				} else {
@@ -390,11 +392,6 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 				rebuildNavRow()
 				scheduleRefresh()
 			})
-			if i == highlighted {
-				b.Importance = widget.HighImportance
-			} else {
-				b.Importance = widget.MediumImportance
-			}
 			navRow.Add(b)
 		}
 		navRow.Refresh()
@@ -406,7 +403,7 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 		}
 	}
 
-	prevBtn := widget.NewButton("◄", func() {
+	prevBtn := ui.MakePillButton("◄", ui.BorderDim, func() {
 		btns := getCurrentButtons()
 		if len(btns) == 0 {
 			return
@@ -420,7 +417,7 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 		scheduleRefresh()
 	})
 
-	nextBtn := widget.NewButton("►", func() {
+	nextBtn := ui.MakePillButton("►", ui.BorderDim, func() {
 		btns := getCurrentButtons()
 		if len(btns) == 0 {
 			return
@@ -437,10 +434,6 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 	viewMainBtn.OnTapped = func() {
 		viewType = "main"
 		highlighted = -1
-		viewMainBtn.Importance = widget.HighImportance
-		viewChaptersBtn.Importance = widget.MediumImportance
-		viewMainBtn.Refresh()
-		viewChaptersBtn.Refresh()
 		rebuildNavRow()
 		scheduleRefresh()
 	}
@@ -448,10 +441,6 @@ func buildMenuPreviewPanel(state *appState) (fyne.CanvasObject, func()) {
 	viewChaptersBtn.OnTapped = func() {
 		viewType = "chapters"
 		highlighted = -1
-		viewMainBtn.Importance = widget.MediumImportance
-		viewChaptersBtn.Importance = widget.HighImportance
-		viewMainBtn.Refresh()
-		viewChaptersBtn.Refresh()
 		rebuildNavRow()
 		scheduleRefresh()
 	}
@@ -568,19 +557,19 @@ func buildInteractiveMenuPreviewTab(state *appState) fyne.CanvasObject {
 		})
 	}
 
-	viewMainBtn := widget.NewButton("Main Menu", func() {
+	viewMainBtn := ui.MakePillButton("Main Menu", ui.Magenta, func() {
 		viewType = "main"
 		highlighted = 0
 		scheduleRefresh()
 	})
-	viewChaptersBtn := widget.NewButton("Chapters", func() {
+	viewChaptersBtn := ui.MakePillButton("Chapters", ui.BorderDim, func() {
 		if len(state.authorChapters) > 1 {
 			viewType = "chapters"
 			highlighted = 0
 			scheduleRefresh()
 		}
 	})
-	viewExtrasBtn := widget.NewButton("Extras", func() {
+	viewExtrasBtn := ui.MakePillButton("Extras", ui.BorderDim, func() {
 		hasExtras := false
 		for _, c := range state.authorClips {
 			if c.IsExtra {
@@ -619,7 +608,11 @@ func buildInteractiveMenuPreviewTab(state *appState) fyne.CanvasObject {
 		navRow := container.NewHBox()
 		for i, btn := range btns {
 			i := i
-			b := widget.NewButton(btn.Label, func() {
+			borderColor := ui.BorderDim
+			if i == highlighted {
+				borderColor = ui.Magenta
+			}
+			b := ui.MakePillButton(btn.Label, borderColor, func() {
 				highlighted = i
 				scheduleRefresh()
 
@@ -649,17 +642,11 @@ func buildInteractiveMenuPreviewTab(state *appState) fyne.CanvasObject {
 					// Menu navigation handled by view buttons
 				}
 			})
-			if i == highlighted {
-				b.Importance = widget.HighImportance
-			}
 			navRow.Add(b)
 		}
 	}
 
 	// Initial state
-	if len(state.authorChapters) > 1 {
-		viewChaptersBtn.Importance = widget.HighImportance
-	}
 	if highlighted < 0 {
 		highlighted = 0
 	}
