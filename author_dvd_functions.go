@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/utils"
 )
 
@@ -29,7 +30,7 @@ func buildDVDRipTab(state *appState) fyne.CanvasObject {
 	sourceLabel.TextStyle = fyne.TextStyle{Bold: true}
 
 	var updateTitleList func()
-	importBtn := widget.NewButton("Import DVD/ISO", func() {
+	importBtn := ui.MakePillButton("Import DVD/ISO", ui.Magenta, func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil || reader == nil {
 				return
@@ -56,7 +57,6 @@ func buildDVDRipTab(state *appState) fyne.CanvasObject {
 			updateTitleList()
 		}, state.window)
 	})
-	importBtn.Importance = widget.HighImportance
 
 	// Title list
 	titleList := container.NewVBox()
@@ -104,10 +104,9 @@ func buildDVDRipTab(state *appState) fyne.CanvasObject {
 			titleCard.SetContent(details)
 
 			// Rip button for this title
-			ripBtn := widget.NewButton(t.AuthorRipTitle, func() {
+			ripBtn := ui.MakePillButton(t.AuthorRipTitle, ui.Magenta, func() {
 				ripTitle(title, state)
 			})
-			ripBtn.Importance = widget.HighImportance
 
 			// Add to controls
 			controls := container.NewVBox(details, widget.NewSeparator(), ripBtn)
@@ -117,14 +116,13 @@ func buildDVDRipTab(state *appState) fyne.CanvasObject {
 	}
 
 	// Rip all button
-	ripAllBtn := widget.NewButton(t.AuthorRipAllTitles, func() {
+	ripAllBtn := ui.MakePillButton(t.AuthorRipAllTitles, ui.Magenta, func() {
 		if len(titles) == 0 {
 			dialog.ShowInformation(t.AuthorNoTitles, t.AuthorImportDVDISO, state.window)
 			return
 		}
 		ripAllTitles(titles, state)
 	})
-	ripAllBtn.Importance = widget.HighImportance
 
 	controls := container.NewVBox(
 		widget.NewLabel("DVD/ISO Source:"),

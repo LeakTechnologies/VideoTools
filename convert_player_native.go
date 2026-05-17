@@ -644,7 +644,7 @@ func (s *appState) showVideoLoadDialog() {
 	)
 	listWidget.Resize(fyne.NewSize(480, 180))
 
-	addBtn := widget.NewButton("Add File...", func() {
+	addBtn := ui.MakePillButton("Add File...", ui.Magenta, func() {
 		dlg := dialog.NewFileOpen(func(r fyne.URIReadCloser, err error) {
 			if err != nil || r == nil {
 				return
@@ -663,9 +663,8 @@ func (s *appState) showVideoLoadDialog() {
 		dlg.SetFilter(storage.NewExtensionFileFilter(videoExts))
 		dlg.Show()
 	})
-	addBtn.Importance = widget.HighImportance
 
-	removeBtn := widget.NewButton("Remove Selected", func() {
+	removeBtn := ui.MakePillButton("Remove Selected", ui.BorderDim, func() {
 		sel := listWidget.Length()
 		if sel == 0 {
 			return
@@ -687,7 +686,7 @@ func (s *appState) showVideoLoadDialog() {
 	)
 
 	var dlg dialog.Dialog
-	loadBtn := widget.NewButton("Load", func() {
+	loadBtn := ui.MakePillButton("Load", ui.Magenta, func() {
 		dlg.Hide()
 		if len(paths) == 0 {
 			return
@@ -698,8 +697,7 @@ func (s *appState) showVideoLoadDialog() {
 			s.loadVideos(paths)
 		}
 	})
-	loadBtn.Importance = widget.HighImportance
-	cancelBtn := widget.NewButton("Cancel", func() { dlg.Hide() })
+	cancelBtn := ui.MakePillButton("Cancel", ui.BorderDim, func() { dlg.Hide() })
 
 	dlg = dialog.NewCustom("Load Video", "Cancel", content, s.window)
 	// Override the built-in dismiss button by using CustomWithoutButtons instead
