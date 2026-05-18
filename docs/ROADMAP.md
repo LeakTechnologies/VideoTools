@@ -11,6 +11,7 @@ timeline
     v0.1.1-dev47 (Shipped) : Progress bar with ETA : ConsoleBox widget : Log refactor (Burn/Rip/Author) : PAL/NTSC full-disc convert
     v0.1.1-dev48 (Current) : Theme system (internal/theme/) : PillButton + PillIconButton : Transport controls migrated : Text primitives
     v0.1.1-dev48 (Current) : Startup crash diagnostics : i18n script persistence : Windows signing wired : Roadmap visual polish
+    v0.1.1-dev48 (Current) : Full module button+slider migration : STATUS_STACK_OVERFLOW recovery : Dual before/after player sync : Windows MSIX CI FFmpeg
     Next Up : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
@@ -38,7 +39,10 @@ timeline
 - Native media player: CGo/FFmpeg engine, InlineVideoPlayer API layer, D3D11VA, audio sync, thread-safe.
 - Disc ripping: IFO scanning, ISO via UDF reader, region detection, progress with ETA.
 - **Theme system**: `internal/theme/` package with VT_Navy palette, PillButton, PillIconButton, text primitives. `ui/` and `media/` both import from theme — no circular dependency.
+- **Full module button + slider migration**: every `widget.NewButton`/`widget.NewButtonWithIcon` across all modules replaced with `ui.MakePillButton`/`ui.MakePillIconButton`; every `widget.Slider` replaced with `ui.Slider`/`ui.MakeSlider`.
 - **Transport controls**: Player speedBtn/subtitleBtn → PillButton; play/volume/fullscreen etc. → PillIconButton. Consistent pill styling across all transport buttons.
+- **STATUS_STACK_OVERFLOW recovery**: VEH handler in `safe_bridge.c` catches `0xC00000FD`, calls `_resetstkoflw()`, raises default thread stack to 4 MB via `-Wl,--stack,4194304`. `CGO_LDFLAGS_ALLOW` added to CI and local build scripts.
+- **Dual before/after player sync**: `InlineVideoPlayer.SetPeer()` mirrors Play/Pause/Seek to a follower player. Filters and Upscale modules wired; preview players muted.
 - **Seamless branching**: `-f dvdvideo` demuxer now used for single-title rips (FFmpeg 8.1+). **Status: Done (untested)** — awaiting tester.
 - **DLL bootstrap**: `DLL/` folder with flat exe-dir fallback — no more DLL errors on extraction. **Status: Done (untested)**.
 - Burn module: isoburn.exe (Windows), growisofs (Linux), ConsoleBox log, drive info.
@@ -53,11 +57,17 @@ timeline
 
 - **Transport controls** — ✅ Player text and icon buttons migrated to theme.PillButton / PillIconButton.
 
-- **Startup crash diagnostics** — ✅ VT_STARTUP_DEBUG tracing, logging.Sync() pre-crash flush. Root cause identified: glfw.CreateWindow() stack overflow from GPU driver DLL injection.
+- **Full module button + slider migration** — ✅ All `widget.NewButton`/`NewButtonWithIcon` replaced with `ui.MakePillButton`/`ui.MakePillIconButton` across every module; all `widget.Slider` replaced with `ui.Slider`/`ui.MakeSlider`.
+
+- **Startup crash diagnostics** — ✅ VT_STARTUP_DEBUG tracing, logging.Sync() pre-crash flush. Root cause confirmed: glfw.CreateWindow() stack overflow from GPU driver DLL injection.
+
+- **STATUS_STACK_OVERFLOW recovery** — ✅ VEH handler catches 0xC00000FD, resets stack guard page, 4 MB default stack via -Wl,--stack,4194304. CGO_LDFLAGS_ALLOW in CI + build.ps1.
+
+- **Dual before/after player sync** — ✅ InlineVideoPlayer.SetPeer() mirrors transport events. Filters and Upscale wired; preview players muted.
 
 - **i18n script persistence** — ✅ Inuktitut syllabics/Latin preference survives app restarts.
 
-## Remaining dev48 work
+## Remaining dev48 work → carrying to dev49
 
 - **Burn multi-drive batch** — Queue multiple ISOs across available burners.
   See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
