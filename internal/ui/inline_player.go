@@ -347,7 +347,11 @@ func (v *InlineVideoPlayer) Play() {
 		v.mu.Unlock()
 
 		if peer != nil {
-			go peer.Play()
+			t := currentTime
+			go func() {
+				peer.Seek(t)
+				peer.Play()
+			}()
 		}
 		// Gate Resume on the first decoded frame so audio and video always
 		// start together. videoDecodeLoop is already running; when it sees
@@ -382,12 +386,16 @@ func (v *InlineVideoPlayer) Play() {
 		eng.Start()
 		logging.Info(logging.CatPlayer, "InlineVideoPlayer.Play: calling Resume()")
 		eng.Resume()
+		t := eng.CurrentTime()
 		v.mu.Unlock()
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetPlaying(true)
 		}, false)
 		if peer != nil {
-			go peer.Play()
+			go func() {
+				peer.Seek(t)
+				peer.Play()
+			}()
 		}
 		go v.playbackLoop()
 	}

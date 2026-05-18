@@ -1238,6 +1238,9 @@ func (v *VideoPlayer) resetControlHideTimer() {
 }
 
 func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {
+	if v.builtinControlsLocked {
+		return
+	}
 	canvas := fyne.CurrentApp().Driver().CanvasForObject(v)
 	if canvas != nil {
 		canvas.Focus(v)
@@ -1256,6 +1259,9 @@ func (v *VideoPlayer) Tapped(ev *fyne.PointEvent) {
 }
 
 func (v *VideoPlayer) TypedKey(event *fyne.KeyEvent) {
+	if v.builtinControlsLocked {
+		return
+	}
 	if v.source.Load() == nil {
 		return
 	}
