@@ -2,25 +2,30 @@
 
 This file tracks upcoming features, improvements, and known issues.
 
-## Dev48 Scope (in progress)
+## Dev48 Scope (closing)
 
 - [x] **Theme system** — `internal/theme/` package with VT_Navy palette, PillButton, PillIconButton, text primitives. See `DONE.md` for full dev48 changelog.
 - [x] **Transport controls migration** — Player speedBtn/subtitleBtn to PillButton; play/volume/fullscreen/PiP etc. to PillIconButton.
+- [x] **Full module button migration** — All compare/audio/rip/filters/upscale/subtitles/trim/thumbnail/queueview/settings/benchmarkview/main.go migrated to `MakePillButton`/`MakePillIconButton`. `MakePillButton` renamed from `NewPillButton`.
+- [x] **VTSlider / VTProgressBar** — `widget.Slider` and `widget.ProgressBar` replaced sitewide with styled `ui.Slider`/`ui.MakeSlider`.
+- [x] **Queue + Benchmark header/footer alignment** — Both modules now use `TintedBar`, `NewTitleLabel`, `accentColor`, shared statsBar footer.
+- [x] **STATUS_STACK_OVERFLOW recovery** — VEH in `safe_bridge.c` catches `STATUS_STACK_OVERFLOW`; `_resetstkoflw()` guard page restore; 4 MB PE stack via `CGO_LDFLAGS_ALLOW`.
+- [x] **Dual before/after player sync** — `InlineVideoPlayer.SetPeer()` mirrors Play/Pause/Seek from primary to preview in Filters and Upscale modules.
 - [x] **Audio nil-widget crash** — Guard against `Player.Widget()` returning nil.
 - [x] **Window recentering removed** — `CenterOnScreen()` removed from `maximizeWindow`.
 - [x] **i18n script persistence** — Inuktitut syllabics/Latin preference survives app restarts.
 - [x] **Windows SignPath signing** — `SIGNPATH_API_TOKEN` + `SIGNPATH_ORGANIZATION_ID` both set in Forgejo secrets.
 - [x] **Startup crash diagnostics** — `VT_STARTUP_DEBUG` env var, `logging.Sync()` pre-crash flush.
-- [x] **CI fixes** — cache guard, ci-build.ps1 encoding.
+- [x] **CI fixes** — cache guard, ci-build.ps1 encoding, Windows FFmpeg shared cache.
 - [x] **Roadmap visual polish** — deprecated status, cycle filter, testing checklist, drag-to-scroll modals, colour dots standardisation.
+- [ ] **Button stragglers** — ~28 remaining `widget.NewButton`/`NewButtonWithIcon` in `convert_player_native.go`, `main.go` transport area, `about/dialog.go`, `compare/fullscreen_*.go`, `settings/tabs.go`, `command_editor.go`, `utils/utils.go`. Assigned to opencode.
 
-### Remaining
-- [ ] **Button migrations** — Compare (14), Audio (9), Rip (12), Filters (8), Upscale (5), Subtitles (23), Trim (16), Thumbnail (9), ui/queueview.go (20) still use `widget.Button`. Migrate module by module to `PillButton`.
+## Dev49 Scope (next)
+
 - [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
 - [ ] **IMAPI2 COM replacement** — Replace `isoburn.exe` for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 - [ ] **Main Menu refactor** — Extract `showMainMenu()` from root into `internal/app/modules/mainmenu/`.
-- [x] **Windows CI FFmpeg cache** — Added `actions/cache` for Windows static FFmpeg build (C:\ffmpeg-static), matching the existing Linux cache. Both platforms now skip the FFmpeg source build on cache hits.
-- [ ] **C SEH bridge for D3D11VA crash** — `__try`/`__except` wrapper around `avcodec_send_packet`/`avcodec_receive_frame`.
+- [ ] **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
 
 ## Dev42 Scope (closed)
 

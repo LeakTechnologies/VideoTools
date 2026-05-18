@@ -4,10 +4,9 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev48`.
+- Current cycle: `v0.1.1-dev48` — **closing**. All major work landed; button stragglers in progress (opencode).
 - Public/stable baseline: `v0.1.1`.
-- `dev48` in progress. Theme system (internal/theme/), PillButton + PillIconButton, player transport controls migrated, text primitives, startup crash diagnostics, i18n script persistence, Windows signing wired, roadmap visual polish.
-- `dev48` shipped so far: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives (TitleLabel, SectionLabel, WrappingLabel, HintLabel, MonoLabel). MonoTheme + main.go reference theme vars. Player transport controls (speedBtn, subtitleBtn, play, volume, fullscreen, etc.) all migrated to PillButton/PillIconButton. Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists across restarts. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics active.
+- `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton (compare, audio, rip, filters, upscale, subtitles, trim, thumbnail, queueview, main.go, settings, benchmarkview). VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache.
 - `dev47` closed. Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir DLL fallback, DLL/ folder rename (was ffmpeg-dll/), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
 - `dev46` closed. PAL→NTSC full-disc conversion pipeline with IFO regeneration, Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
 - `dev45` closed. Convert Phase 1+2 (SR, Normalize, Deinterlace, H.264 Profile/Level, presets, AVI/TS/FLV), Convert i18n, Module Pipeline (&&), logging audit, FFmpeg DLL bootstrap.
@@ -20,26 +19,48 @@ These rules apply to any automation or agent working in this repo.
 
 ## Immediate Handoff Priorities
 
-- **Remaining button migrations** — Compare (14), Audio (9), Rip (12), Filters (8), Upscale (5), Subtitles (23), Trim (16), Thumbnail (9), ui/queueview.go (20 buttons) still use widget.Button. Migrate module by module to PillButton.
+### Button Stragglers (opencode — dev48 close task)
+
+All major module migrations are done. The following files still contain `widget.NewButton` or `widget.NewButtonWithIcon` and must be migrated before dev48 closes. Use `ui.MakePillButton` for text buttons and `ui.MakePillIconButton` for icon-only buttons. **Do not touch `internal/media/gpu/` or any file under `cmd/`, `qr-demo/`, or `scripts/legacy/`.**
+
+| File | Count | Replacement |
+|------|-------|-------------|
+| `convert_player_native.go` | 9 `NewButtonWithIcon` transport icons | `ui.MakePillIconButton` |
+| `main.go` (lines ~13617–13743, non-native player transport) | 6 `NewButtonWithIcon` | `ui.MakePillIconButton` |
+| `internal/app/modules/about/dialog.go` | 2 `NewButton` | `ui.MakePillButton` |
+| `internal/app/modules/compare/fullscreen_native.go` | 1 `NewButton` back button | `ui.MakePillButton` |
+| `internal/app/modules/compare/fullscreen_stub.go` | 1 `NewButton` back button | `ui.MakePillButton` |
+| `internal/app/modules/settings/tabs.go` | 2 `NewButton` | `ui.MakePillButton` |
+| `internal/ui/command_editor.go` | 6 `NewButton`/`NewButtonWithIcon` | `ui.MakePillButton` / `ui.MakePillIconButton` |
+| `internal/utils/utils.go` | 1 `NewButton` | `ui.MakePillButton` |
+
+After completing all stragglers: update the six docs (CHANGELOG.md, ROADMAP.md, roadmap.html, AGENTS.md, DONE.md, TODO.md) to mark button migration fully complete, then bump VERSION/main.go/FyneApp.toml to `v0.1.1-dev49`.
+
+### Dev49 Handoff (carry forward)
+
 - **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
 - **IMAPI2 COM replacement** — Replace isoburn.exe on Windows for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 - **Main Menu refactor** — Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
 - **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
-- **C SEH bridge for D3D11VA crash** — P0 for player stability: C `__try`/`__except` wrapper around `avcodec_send_packet`/`avcodec_receive_frame`.
+
 - **Do not expand scope beyond what is listed unless explicitly approved.**
 - Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
 
 ### Recently Shipped (dev48)
 - **internal/theme/ package** — VT_Navy colour palette, PillButton, PillIconButton, text primitives (TitleLabel, SectionLabel, WrappingLabel, HintLabel, MonoLabel) extracted to `internal/theme/`. Both `ui/` and `media/` import from theme — no circular dependency. `ui/` re-exports for backward compat.
-- **PillButton** — pill-shaped button with coloured border, hover/active/disabled states, bold text, initial-paint fix. Wired into main menu (History, Logs, &&), settings tabs (8 buttons), player Clear Video.
-- **PillIconButton** — square icon-only pill button for transport controls and toolbar actions. Migrated play, volume, prev/next chapter, fullscreen, PiP, speed, subtitle buttons.
-- **Text primitives** — `NewTitleLabel` (Monospace+Bold 24pt), `NewSectionLabel` (Bold), `NewWrappingLabel` (word wrap), `NewHintLabel` (Italic), `NewMonoLabel` (Monospace). `SectionHeader()` updated to use `NewSectionLabel`.
-- **Player transport controls migrated** — speedBtn, subtitleBtn to PillButton; playBtn, volumeBtn, prev/nextChapter, fullscreenBtn, pipBtn to PillIconButton.
+- **PillButton / PillIconButton** — pill-shaped and icon-only pill buttons. Wired into all modules and transport controls.
+- **Text primitives** — `NewTitleLabel`, `NewSectionLabel`, `NewWrappingLabel`, `NewHintLabel`, `NewMonoLabel`.
+- **Full module button migration** — All compare/audio/rip/filters/upscale/subtitles/trim/thumbnail/queueview/settings/benchmarkview/main.go module-level `widget.Button` calls migrated to `MakePillButton`/`MakePillIconButton`. `MakePillButton` renamed from `NewPillButton`; `MakePillIconButton` from `NewPillIconButton`.
+- **VTSlider / VTProgressBar** — `widget.Slider` and `widget.ProgressBar` replaced sitewide with styled `ui.Slider`/`ui.MakeSlider`.
+- **Queue + Benchmark header/footer alignment** — Both modules now use `TintedBar`, `NewTitleLabel`, `accentColor`, and the shared statsBar footer.
+- **STATUS_STACK_OVERFLOW recovery** — MinGW VEH in `safe_bridge.c` now catches `STATUS_STACK_OVERFLOW` (0xC00000FD). `_resetstkoflw()` restores the guard page before `longjmp`. New `SAFE_BRIDGE_STACK_OVERFLOW` (0xDEAD0003) sentinel. PE default thread stack raised to 4 MB via `CGO_LDFLAGS_ALLOW=-Wl,--stack,.*` in CI and `build.ps1`.
+- **Dual before/after player sync** — `InlineVideoPlayer.SetPeer()` designates a follower that mirrors every Play/Pause/Seek. Filters and Upscale before/after players now play simultaneously. Preview player is muted and has built-in controls disabled.
 - **Audio nil-widget crash** — Guard against `Player.Widget()` returning nil.
 - **Window recentering removed** — `CenterOnScreen()` removed from `maximizeWindow`; window stays where user placed it.
 - **i18n script persistence** — Inuktitut syllabics/Latin preference survives app restarts via `ScriptPrefs` map in locale JSON.
 - **Windows SignPath signing** — `SIGNPATH_API_TOKEN` + `SIGNPATH_ORGANIZATION_ID` both set in Forgejo secrets. ci-build.ps1 calls sign-exe.ps1 on every Windows build (non-fatal).
 - **VT_STARTUP_DEBUG** — crash diagnostics env var traces widget CreateRenderer to stderr. Confirmed: STATUS_STACK_OVERFLOW is glfw.CreateWindow() GPU driver DLL injection, not VT code.
+- **Windows CI FFmpeg shared cache** — `actions/cache` for `C:\ffmpeg-static`, matching the Linux cache. Both platforms skip the FFmpeg source build on cache hit.
 
 ## Commit Discipline
 
@@ -233,19 +254,17 @@ The following decisions about the interactive roadmap (`docs/roadmap.html`) and 
 
 **Testing checklist lives in the roadmap.** The interactive roadmap at `docs/roadmap.html` includes a Testing Checklist modal (button next to Changelog). Items are grouped by module with pass/fail/untested status persisted to localStorage. Any new feature added to the roadmap must also be added to the testing checklist. The checklist server-side data (`checklistData` array in the roadmap JS) should be updated when features land.
 
-## Player P0: D3D11VA Crash — C SEH Bridge Needed
+## Player: SEH/VEH Crash Recovery — SHIPPED dev48
 
-The D3D11VA hardware decoder path in `internal/media/` has an access violation inside `avcodec_send_packet` when the FFmpeg D3D11VA hwaccel encounters corrupted/malformed H.264 NAL units (observed on some commercial DVDs and damaged files). This is a CGo boundary issue — Go's signal handling cannot recover from a Windows SEH exception raised inside native code.
+The `internal/media/safe_bridge.c` file provides platform-specific crash recovery around all FFmpeg codec calls:
 
-A C SEH bridge (`__try`/`__except`) must be written in a `.c` file (compiled via CGO) that wraps the `avcodec_send_packet` / `avcodec_receive_frame` call pair and translates the access violation into a returned error code. This does not exist yet and is P0 for player stability.
+- **MinGW (Windows)** — `AddVectoredExceptionHandler` + thread-local `setjmp`. Catches `EXCEPTION_ACCESS_VIOLATION` (0xC0000005) and `STATUS_STACK_OVERFLOW` (0xC00000FD). `_resetstkoflw()` restores the guard page before `longjmp` on stack overflow. Sentinels: `SAFE_BRIDGE_ACCESS_VIOLATION` (0xDEAD0002), `SAFE_BRIDGE_STACK_OVERFLOW` (0xDEAD0003).
+- **MSVC** — native `__try`/`__except`.
+- **Linux/macOS** — `SIGSEGV` signal handler + thread-local `setjmp`.
 
-**Approach:**
-1. Create `internal/media/cbridge/sehbridge.c` and `internal/media/cbridge/sehbridge.h`
-2. Export a C function like `int avcodec_send_packet_safe(AVCodecContext *ctx, const AVPacket *pkt)` that wraps the call in `__try`/`__except(EXCEPTION_EXECUTE_HANDLER)`
-3. Call the bridge from Go via `// #include "sehbridge.h"` + `// #cgo LDFLAGS:` in a Go file
-4. On error return, force software decode fallback for the remainder of playback
+All four paths (`safe_avcodec_send_packet`, `safe_avcodec_receive_frame`, `safe_av_hwframe_transfer_data`, `safe_sws_scale_frame`) are wrapped. Go callers check the `exc_code_out` sentinel and log diagnostics without crashing.
 
-Until this bridge exists, users with problematic discs should disable D3D11VA in Settings or use software decode mode.
+Do not rewrite or replace this bridge without understanding all four platform paths.
 
 ## Coordination
 
@@ -338,6 +357,10 @@ internal/ui      InlineVideoPlayer — THE API layer every module talks to
 | Convert | `GetConvertPlayer()` | Custom control row; `DisableBuiltinControls()` called |
 | Trim    | `GetTrimPlayer()`    | Built-in controls overlay; in/out markers; preview region via `SetOnProgress` |
 | Inspect | `GetInspectPlayer()` | Built-in controls disabled; `SetOnLoad` wired to Sync tab load-state pills |
+| Filters (original) | `GetFiltersPlayer()` | Primary player; `SetPeer(GetFiltersPreviewPlayer())` wired in `init()` |
+| Filters (preview)  | `GetFiltersPreviewPlayer()` | Follows primary via `SetPeer`; built-in controls disabled; muted after load |
+| Upscale (original) | `GetUpscalePlayer()` | Primary player; `SetPeer(GetUpscalePreviewPlayer())` wired in `init()` |
+| Upscale (preview)  | `GetUpscalePreviewPlayer()` | Follows primary via `SetPeer`; built-in controls disabled; muted after load |
 
 ### What the `native_media` Build Tag Gates
 

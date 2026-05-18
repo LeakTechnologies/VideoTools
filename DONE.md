@@ -22,11 +22,27 @@
 - **Window recentering removed** — `CenterOnScreen()` removed from `maximizeWindow`; window stays where user placed it.
 - **i18n script persistence** — `SetLanguageWithScript("iu", ScriptLatin)` stores preference; future `SetLanguage("iu")` restores it. `ScriptPrefs` map in locale JSON survives app restarts.
 
+### Full Module Button + Slider Migration
+- **All module-level `widget.Button` calls migrated** — compare, audio, rip, filters, upscale, subtitles, trim, thumbnail, queueview, settings, benchmarkview, main.go all use `ui.MakePillButton` / `ui.MakePillIconButton`. `NewPillButton` → `MakePillButton`; `NewPillIconButton` → `MakePillIconButton` (sitewide rename).
+- **VTSlider / VTProgressBar** — `widget.Slider` and `widget.ProgressBar` replaced sitewide with `ui.Slider` / `ui.MakeSlider`. Styled to match VT_Navy theme.
+- **Queue + Benchmark header/footer alignment** — Both modules now use `TintedBar` header, `NewTitleLabel`, `accentColor` button tinting, and the shared statsBar footer — consistent with all other modules.
+
+### Player: STATUS_STACK_OVERFLOW Recovery
+- **VEH extended to catch stack overflow** — `safe_bridge.c` MinGW VEH handler now catches `STATUS_STACK_OVERFLOW` (0xC00000FD) in addition to `EXCEPTION_ACCESS_VIOLATION`. `_resetstkoflw()` restores the guard page before `longjmp` to give the handler enough stack to execute.
+- **New sentinel `SAFE_BRIDGE_STACK_OVERFLOW` (0xDEAD0003)** — Go callers can distinguish stack overflow from access violation in the `exc_code_out` return value.
+- **PE default thread stack raised to 4 MB** — `-Wl,--stack,4194304` in `#cgo windows LDFLAGS`. `CGO_LDFLAGS_ALLOW=-Wl,--stack,.*` added to CI YAML and `scripts/windows/build.ps1` to pass Go's CGO security scanner.
+
+### Player: Dual Before/After Sync
+- **`InlineVideoPlayer.SetPeer(peer)`** — designates a follower player that mirrors every `Play`, `Pause`, and `Seek`; disables the follower's built-in controls so only the primary transport bar drives both. Peer calls are non-blocking (`go peer.Method()`).
+- **Filters + Upscale wired** — `filtersInlinePlayer.SetPeer(filtersPreviewPlayer)` and `upscaleInlinePlayer.SetPeer(upscalePreviewPlayer)` called in `native_media.go` `init()`.
+- **Preview players muted** — `SetMuted(true)` called on both preview players after load; audio plays from primary only.
+
 ### CI & Diagnostics
 - **Windows SignPath signing** — `SIGNPATH_API_TOKEN` + `SIGNPATH_ORGANIZATION_ID` set in Forgejo secrets. ci-build.ps1 calls sign-exe.ps1 non-fatally.
 - **Cache guard** — require `ffmpeg.exe` present on disk before skipping BtbN download on cache hit.
 - **ci-build.ps1 encoding** — UTF-8 em dashes replaced with ASCII `--`.
 - **VT_STARTUP_DEBUG** — env var gates per-widget CreateRenderer tracing to stderr. `logging.Sync()` force-flushes at crash-risk checkpoints. Confirmed: STATUS_STACK_OVERFLOW is glfw.CreateWindow() GPU driver DLL injection.
+- **Windows CI FFmpeg shared cache** — `actions/cache` for `C:\ffmpeg-static` (BtbN shared DLL bundle) in the MSIX workflow; both CI pipelines now skip FFmpeg download on cache hit.
 
 ### Roadmap Visual Polish
 - **Deprecated status** — purple (`#a855f7`), no strikethrough.

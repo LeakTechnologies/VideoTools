@@ -21,11 +21,30 @@
 - **Window recentering** — removed `CenterOnScreen()` from `maximizeWindow`; window position is preserved across module entries.
 - **i18n: Inuktitut script preference** — script choice (syllabics vs Latin) now persists across language switches and survives app restarts via `ScriptPrefs` in locale JSON.
 
+### Full Module Button + Slider Migration
+- **MakePillButton / MakePillIconButton** — renamed from `NewPillButton`/`NewPillIconButton` to follow Go widget factory naming convention (`MakeXxx`).
+- **All module-level `widget.Button` calls migrated** — every call to `widget.NewButton` / `widget.NewButtonWithIcon` across all module files replaced with `ui.MakePillButton` / `ui.MakePillIconButton`. Covered: convert, trim, merge, filters, audio, upscale, rip, author, burn, compare, subtitles, thumbnail, inspect, queue, settings, about, utils.
+- **`widget.Slider` → `ui.Slider` / `ui.MakeSlider`** — every raw `widget.Slider` / `widget.NewSlider` replaced with the styled `ui.Slider` type (VT theme, label, min/max display). `widget.ProgressBar` → `ui.MakeSlider` where used as a display-only bar.
+- **Slider naming** — canonical names confirmed: `ui.Slider` (type) and `ui.MakeSlider` (constructor); no `VTSlider`, no `NewVTSlider`, no `NewSlider` prefix variants.
+
+### Player: STATUS_STACK_OVERFLOW Recovery
+- **VEH extension in `safe_bridge.c`** — Vectored Exception Handler now catches both `EXCEPTION_ACCESS_VIOLATION` and `STATUS_STACK_OVERFLOW (0xC00000FD)`. `_resetstkoflw()` called before `longjmp` to restore the stack guard page; `tl_veh_code` thread-local stores the exception code so callers can distinguish crash types.
+- **New return code** — `SAFE_BRIDGE_STACK_OVERFLOW (0xDEAD0003)` added to `safe_bridge.h`; callers log the stack overflow distinctly from access violations.
+- **4 MB default thread stack** — `#cgo windows LDFLAGS: -Wl,--stack,4194304` in `internal/media/engine.go` raises the PE default thread stack from 1 MB to 4 MB. This prevents the `glfw.CreateWindow()` stack overflow triggered by GPU driver DLL injection on first window creation.
+- **`CGO_LDFLAGS_ALLOW`** — Go's CGO security scanner rejects flags whose argument starts with `-`. The flag is allowed via `CGO_LDFLAGS_ALLOW=-Wl,--stack,.*` added to `scripts/windows/build.ps1` and `.github/workflows/windows-msix.yml`.
+
+### Player: Dual Before/After Player Sync
+- **`InlineVideoPlayer.SetPeer()`** — new method designates a follower player that mirrors every Play/Pause/Seek from the primary. Peer's built-in transport overlay is disabled via `DisableBuiltinControls()`. Lock discipline: `peer` captured under `v.mu`, then peer methods called outside the lock to prevent cross-mutex deadlock.
+- **Filters module wired** — `filtersInlinePlayer.SetPeer(filtersPreviewPlayer)` in `native_media.go`; preview player muted after load succeeds.
+- **Upscale module wired** — `upscaleInlinePlayer.SetPeer(upscalePreviewPlayer)` in `native_media.go`; preview player muted after load succeeds.
+- **Goroutine dispatch** — peer Play/Pause/Seek are dispatched via `go peer.Method()` so the primary player's lock is never held during the call.
+
 ### CI & Diagnostics
 - **Windows signing** — `SIGNPATH_API_TOKEN` added to Forgejo secrets; `SIGNPATH_ORGANIZATION_ID` already present. ci-build.ps1 calls sign-exe.ps1 non-fatally on every Windows build.
 - **Cache guard** — require `ffmpeg.exe` present on disk before skipping BtbN download on cache hit.
 - **ci-build.ps1 encoding** — replaced UTF-8 em dashes with ASCII `--` for PowerShell 5.1 compatibility.
-- **Startup crash diagnostics** — `VT_STARTUP_DEBUG=1` env var enables per-widget CreateRenderer tracing to stderr. `logging.Sync()` force-flushes log file at crash-risk checkpoints. Confirmed recent `STATUS_STACK_OVERFLOW` is inside `glfw.CreateWindow()` (Win32 + WGL context), caused by GPU driver DLL injection — not a VT rendering bug.
+- **Startup crash diagnostics** — `VT_STARTUP_DEBUG=1` env var enables per-widget CreateRenderer tracing to stderr. `logging.Sync()` force-flushes log file at crash-risk checkpoints. Root cause of `STATUS_STACK_OVERFLOW` confirmed as GPU driver DLL injection inside `glfw.CreateWindow()` — mitigated by 4 MB default stack and VEH recovery (see Player section above).
+- **Windows MSIX CI: `CGO_LDFLAGS_ALLOW`** — `$env:CGO_LDFLAGS_ALLOW = "-Wl,--stack,.*"` added to `.github/workflows/windows-msix.yml` build step so the 4 MB stack `#cgo LDFLAGS` flag passes the CGO security scanner in the GitHub Actions pipeline.
 
 ### Roadmap Visual Polish
 - **Deprecated status** — purple (`#a855f7`), no strikethrough, differentiated by border/glow only.
