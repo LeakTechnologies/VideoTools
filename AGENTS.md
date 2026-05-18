@@ -4,9 +4,9 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev48` — **closing**. All major work landed; button stragglers in progress (opencode).
+- Current cycle: `v0.1.1-dev49` — **new**. Key handoff priorities below. Button stragglers mostly done (3 known exceptions remain).
 - Public/stable baseline: `v0.1.1`.
-- `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton (compare, audio, rip, filters, upscale, subtitles, trim, thumbnail, queueview, main.go, settings, benchmarkview). VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache.
+- `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton (compare, audio, rip, filters, upscale, subtitles, trim, thumbnail, queueview, main.go, settings, benchmarkview). VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache. Button straggler clean-up (about, compare, settings tabs, command_editor).
 - `dev47` closed. Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir DLL fallback, DLL/ folder rename (was ffmpeg-dll/), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
 - `dev46` closed. PAL→NTSC full-disc conversion pipeline with IFO regeneration, Upscale preset overhaul, Audio Phase 2 (InlineVideoPlayer) + Phase 3 (track selection).
 - `dev45` closed. Convert Phase 1+2 (SR, Normalize, Deinterlace, H.264 Profile/Level, presets, AVI/TS/FLV), Convert i18n, Module Pipeline (&&), logging audit, FFmpeg DLL bootstrap.
@@ -21,18 +21,20 @@ These rules apply to any automation or agent working in this repo.
 
 ### Button Stragglers (opencode — dev48 close task)
 
-All major module migrations are done. The following files still contain `widget.NewButton` or `widget.NewButtonWithIcon` and must be migrated before dev48 closes. Use `ui.MakePillButton` for text buttons and `ui.MakePillIconButton` for icon-only buttons. **Do not touch `internal/media/gpu/` or any file under `cmd/`, `qr-demo/`, or `scripts/legacy/`.**
+All major module migrations are done. Most stragglers are now converted. The remaining files still contain `widget.NewButton` or `widget.NewButtonWithIcon` and must be migrated before dev48 closes.
+**Do not touch `internal/media/gpu/` or any file under `cmd/`, `qr-demo/`, or `scripts/legacy/`.**
 
-| File | Count | Replacement |
-|------|-------|-------------|
-| `convert_player_native.go` | 9 `NewButtonWithIcon` transport icons | `ui.MakePillIconButton` |
-| `main.go` (lines ~13617–13743, non-native player transport) | 6 `NewButtonWithIcon` | `ui.MakePillIconButton` |
-| `internal/app/modules/about/dialog.go` | 2 `NewButton` | `ui.MakePillButton` |
-| `internal/app/modules/compare/fullscreen_native.go` | 1 `NewButton` back button | `ui.MakePillButton` |
-| `internal/app/modules/compare/fullscreen_stub.go` | 1 `NewButton` back button | `ui.MakePillButton` |
-| `internal/app/modules/settings/tabs.go` | 2 `NewButton` | `ui.MakePillButton` |
-| `internal/ui/command_editor.go` | 6 `NewButton`/`NewButtonWithIcon` | `ui.MakePillButton` / `ui.MakePillIconButton` |
-| `internal/utils/utils.go` | 1 `NewButton` | `ui.MakePillButton` |
+| File | Count | Status |
+|------|-------|--------|
+| `convert_player_native.go` | 11 `NewButtonWithIcon` transport icons | **BLOCKED** — dynamic icon switching (play↔pause) not supported by PillIconButton |
+| `main.go` (lines ~13617–13743, non-native player transport) | 7 `NewButtonWithIcon` | **BLOCKED** — same dynamic icon switching issue |
+| `internal/utils/utils.go` | 1 `NewButton` (MakeIconButton) | **BLOCKED** — import cycle: `utils` → `ui` → `benchmark` → `utils` |
+| `internal/ui/command_editor.go` | ~~6~~ → **done** (text+icon dropped, now uses MakePillButton) | ✅ Done |
+| `internal/app/modules/about/dialog.go` | ~~2~~ → **done** | ✅ Done |
+| `internal/app/modules/compare/fullscreen_native.go` | ~~1~~ → **done** | ✅ Done |
+| `internal/app/modules/compare/fullscreen_stub.go` | ~~1~~ → **done** | ✅ Done |
+| `internal/app/modules/settings/tabs.go` | ~~2~~ → **done** | ✅ Done |
+
 
 After completing all stragglers: update the six docs (CHANGELOG.md, ROADMAP.md, roadmap.html, AGENTS.md, DONE.md, TODO.md) to mark button migration fully complete, then bump VERSION/main.go/FyneApp.toml to `v0.1.1-dev49`.
 
@@ -61,6 +63,7 @@ After completing all stragglers: update the six docs (CHANGELOG.md, ROADMAP.md, 
 - **Windows SignPath signing** — `SIGNPATH_API_TOKEN` + `SIGNPATH_ORGANIZATION_ID` both set in Forgejo secrets. ci-build.ps1 calls sign-exe.ps1 on every Windows build (non-fatal).
 - **VT_STARTUP_DEBUG** — crash diagnostics env var traces widget CreateRenderer to stderr. Confirmed: STATUS_STACK_OVERFLOW is glfw.CreateWindow() GPU driver DLL injection, not VT code.
 - **Windows CI FFmpeg shared cache** — `actions/cache` for `C:\ffmpeg-static`, matching the Linux cache. Both platforms skip the FFmpeg source build on cache hit.
+- **Button straggler clean-up** — About dialog (2), compare fullscreen (2), settings tabs (2), command_editor (7) all migrated. utils.MakeIconButton return type fixed. 18 transport icon buttons remain (blocked: PillIconButton needs SetIcon).
 
 ## Commit Discipline
 

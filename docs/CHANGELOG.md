@@ -39,6 +39,14 @@
 - **Upscale module wired** — `upscaleInlinePlayer.SetPeer(upscalePreviewPlayer)` in `native_media.go`; preview player muted after load succeeds.
 - **Goroutine dispatch** — peer Play/Pause/Seek are dispatched via `go peer.Method()` so the primary player's lock is never held during the call.
 
+### Button Straggler Migrations (dev48 close)
+- **About dialog** — 2 `widget.NewButton` → `MakePillButton` (Logs Link, Open).
+- **Compare fullscreen** — 2 `widget.NewButton` (backBtn) → `MakePillButton` in both native + stub paths.
+- **Settings tabs** — 2 `widget.NewButton` (testPatternBtn, refreshBtn) → `MakePillButton`.
+- **Command Editor** — 5 `widget.NewButtonWithIcon` + 2 `widget.NewButton` → all text-only `MakePillButton`. Struct fields `*widget.Button` → `*PillButton`. Removed unused `theme` import.
+- **MakeIconButton** — return type `*widget.Button` → `fyne.CanvasObject`; reverted to internal `widget.NewButton` to avoid `utils → ui → benchmark → utils` import cycle.
+- **Transport icon buttons** — 18 `widget.NewButtonWithIcon` in `convert_player_native.go` + `main.go` left as-is: blocked on PillIconButton lacking dynamic `SetIcon()` for play↔pause switching.
+
 ### CI & Diagnostics
 - **Windows signing** — `SIGNPATH_API_TOKEN` added to Forgejo secrets; `SIGNPATH_ORGANIZATION_ID` already present. ci-build.ps1 calls sign-exe.ps1 non-fatally on every Windows build.
 - **Cache guard** — require `ffmpeg.exe` present on disk before skipping BtbN download on cache hit.
