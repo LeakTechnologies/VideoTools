@@ -35,6 +35,11 @@ func init() {
 	filtersInlinePlayer = ui.NewInlineVideoPlayer()
 	filtersPreviewPlayer = ui.NewInlineVideoPlayer()
 	upscalePreviewPlayer = ui.NewInlineVideoPlayer()
+
+	// Mirror play/pause/seek from primary to preview; disable preview controls
+	// so both players are driven by the primary's transport bar only.
+	filtersInlinePlayer.SetPeer(filtersPreviewPlayer)
+	upscaleInlinePlayer.SetPeer(upscalePreviewPlayer)
 }
 
 func hwDecodeEnabled() bool {
@@ -102,6 +107,7 @@ func (s *appState) loadFiltersVideo(path string) {
 		logging.Error(logging.CatPlayer, "loadFiltersPreviewVideo: %v", err)
 		return
 	}
+	filtersPreviewPlayer.SetMuted(true)
 	s.applyFiltersPreview()
 }
 
@@ -174,6 +180,7 @@ func (s *appState) loadUpscalePreviewVideo(path string) {
 		logging.Error(logging.CatPlayer, "loadUpscalePreviewVideo: %v", err)
 		return
 	}
+	upscalePreviewPlayer.SetMuted(true)
 	s.applyUpscalePreview()
 }
 

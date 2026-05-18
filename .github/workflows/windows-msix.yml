@@ -72,12 +72,14 @@ jobs:
       - name: Build Windows binary (native_media)
         shell: pwsh
         run: |
-          $env:GOOS        = "windows"
-          $env:GOARCH      = "amd64"
-          $env:CGO_ENABLED = "1"
-          $env:CC          = "C:\mingw64\bin\gcc.exe"
-          $env:CXX         = "C:\mingw64\bin\g++.exe"
-          $env:PATH        = "C:\mingw64\bin;" + $env:PATH
+          $env:GOOS                = "windows"
+          $env:GOARCH              = "amd64"
+          $env:CGO_ENABLED         = "1"
+          $env:CC                  = "C:\mingw64\bin\gcc.exe"
+          $env:CXX                 = "C:\mingw64\bin\g++.exe"
+          $env:PATH                = "C:\mingw64\bin;" + $env:PATH
+          # Allow -Wl,--stack,N in #cgo LDFLAGS (sets PE default thread stack to 4 MB)
+          $env:CGO_LDFLAGS_ALLOW   = "-Wl,--stack,.*"
 
           $buildVersion = git describe --tags --always 2>$null
           $ldflags = "-s -w -H windowsgui -X main.BuildVersion=$buildVersion"
