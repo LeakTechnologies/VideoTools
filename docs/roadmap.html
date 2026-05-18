@@ -784,6 +784,14 @@ const changelogData = [
       'Modal drag-to-scroll for changelog/checklist; colour dots 16px across all filters and legend',
       'Future status colour changed from grey to orange (#f97316)',
     ]},
+    { title: 'Button Straggler Clean-up', items: [
+      'About dialog: 2 widget.NewButton → MakePillButton (Logs Link, Open)',
+      'Compare fullscreen: backBtn widget.NewButton → MakePillButton in both native + stub',
+      'Settings tabs: testPatternBtn + refreshBtn → MakePillButton',
+      'Command Editor: 5 NewButtonWithIcon + 2 NewButton → all text-only MakePillButton; struct fields *widget.Button → *PillButton; unused theme import removed',
+      'utils.MakeIconButton: return type *widget.Button → fyne.CanvasObject; body stays widget.NewButton (import cycle: utils → ui → benchmark → utils)',
+      'Remaining: 18 transport icon buttons in convert_player_native.go + main.go (blocked: PillIconButton lacks SetIcon for play↔pause)',
+    ]},
   ]},
   { version: 'v0.1.1-dev47', date: 'May 2026', tag: 'shipped', sections: [
     { title: 'PAL/NTSC Full-Disc Conversion Pipeline', items: [

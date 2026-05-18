@@ -55,6 +55,14 @@
 - **Colour dots** — 16px circles across legend, status filter, module filter buttons.
 - **Future status** — grey → orange (`#f97316`).
 
+### Button Straggler Migrations (dev48 close)
+- **About dialog** — `widget.NewButton` → `MakePillButton` (Logs Link, Open) in `internal/app/modules/about/dialog.go`.
+- **Compare fullscreen** — backBtn `widget.NewButton` → `MakePillButton` in both `fullscreen_native.go` and `fullscreen_stub.go`.
+- **Settings tabs** — testPatternBtn + refreshBtn `widget.NewButton` → `MakePillButton` in `settings/tabs.go`.
+- **Command Editor** — All 7 `widget.NewButton[WithIcon]` → text-only `MakePillButton` in `internal/ui/command_editor.go`. Struct fields changed from `*widget.Button` to `*PillButton`. Unused `theme` import removed.
+- **MakeIconButton** — `internal/utils/utils.go` return type `*widget.Button` → `fyne.CanvasObject`; body reverted to `widget.NewButton` to avoid `utils → ui → benchmark → utils` import cycle.
+- **Transport icon buttons (known remaining)** — 18 `widget.NewButtonWithIcon` icon-only transport controls in `convert_player_native.go` + `main.go` remain unconverted — PillIconButton lacks dynamic `SetIcon()` needed for play↔pause switching.
+
 ## Version 0.1.1-dev47 (complete)
 
 ### PAL→NTSC Full-Disc Conversion Pipeline — Stages 1-3 (HIGH)

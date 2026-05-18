@@ -18,7 +18,7 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Startup crash diagnostics** — `VT_STARTUP_DEBUG` env var, `logging.Sync()` pre-crash flush.
 - [x] **CI fixes** — cache guard, ci-build.ps1 encoding, Windows FFmpeg shared cache.
 - [x] **Roadmap visual polish** — deprecated status, cycle filter, testing checklist, drag-to-scroll modals, colour dots standardisation.
-- [ ] **Button stragglers** — ~28 remaining `widget.NewButton`/`NewButtonWithIcon` in `convert_player_native.go`, `main.go` transport area, `about/dialog.go`, `compare/fullscreen_*.go`, `settings/tabs.go`, `command_editor.go`, `utils/utils.go`. Assigned to opencode.
+- [x] **Button stragglers** — All migrated (about, compare, settings tabs, command_editor, audio, burn, file_manager, mainmenu, settings, main.go). Remaining exceptions: `convert_player_native.go` + `main.go` transport icons (dynamic play↔pause — PillIconButton lacks SetIcon), `utils.MakeIconButton` (import cycle with ui→benchmark→utils).
 
 ## Dev49 Scope (next)
 
