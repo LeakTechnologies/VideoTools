@@ -154,9 +154,11 @@ Write-Host "Building VideoTools..." -ForegroundColor Yellow
 Write-Host ""
 
 # Set build environment variables
-$env:GOOS = "windows"
-$env:GOARCH = "amd64"
-$env:CGO_ENABLED = "1"
+$env:GOOS              = "windows"
+$env:GOARCH            = "amd64"
+$env:CGO_ENABLED       = "1"
+# Allow -Wl,--stack,N in #cgo LDFLAGS (sets PE default thread stack to 4 MB)
+$env:CGO_LDFLAGS_ALLOW = "-Wl,--stack,.*"
 
 # Set GCC compiler explicitly if available.
 # Wrap in quotes so CGO handles paths that contain spaces (e.g. C:\Program Files\...).

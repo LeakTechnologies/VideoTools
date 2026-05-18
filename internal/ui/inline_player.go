@@ -28,6 +28,7 @@ type InlineVideoPlayer struct {
 	onFrame     func(*image.RGBA) // called on every rendered frame (playback + scrub)
 	onLoad      func(LoadEvent)  // fired on main goroutine at each load milestone
 	seekCh      chan float64     // capacity-1 channel; seekLoop drains it serially
+	peer        *InlineVideoPlayer // optional follower driven by play/pause/seek
 }
 
 // SetOnProgress registers a callback that is called from the playback goroutine
@@ -63,6 +64,18 @@ func (v *InlineVideoPlayer) SetOnLoad(fn func(LoadEvent)) {
 	v.mu.Lock()
 	v.onLoad = fn
 	v.mu.Unlock()
+}
+
+// SetPeer designates peer as a follower: every Play, Pause, and Seek on this
+// player is mirrored to peer. The peer's built-in controls are disabled so
+// only the primary player's transport bar drives both.
+func (v *InlineVideoPlayer) SetPeer(peer *InlineVideoPlayer) {
+	v.mu.Lock()
+	v.peer = peer
+	v.mu.Unlock()
+	if peer != nil {
+		peer.Widget().DisableBuiltinControls()
+	}
 }
 
 // fireLoad dispatches a LoadEvent to the onLoad callback on the main goroutine.
@@ -298,6 +311,7 @@ func (v *InlineVideoPlayer) Play() {
 		v.mu.Unlock()
 		return
 	}
+	peer := v.peer
 
 	// Guard: if a playbackLoop is already running, just ensure the engine is
 	// unpaused and sync the widget icon. Do NOT seek or spawn a new goroutine —
@@ -310,6 +324,9 @@ func (v *InlineVideoPlayer) Play() {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetPlaying(true)
 		}, false)
+		if peer != nil {
+			go peer.Play()
+		}
 		return
 	}
 
@@ -329,6 +346,9 @@ func (v *InlineVideoPlayer) Play() {
 		}
 		v.mu.Unlock()
 
+		if peer != nil {
+			go peer.Play()
+		}
 		// Gate Resume on the first decoded frame so audio and video always
 		// start together. videoDecodeLoop is already running; when it sees
 		// paused=true and an empty frameQueue it decodes one frame, so
@@ -366,6 +386,9 @@ func (v *InlineVideoPlayer) Play() {
 		fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 			v.player.SetPlaying(true)
 		}, false)
+		if peer != nil {
+			go peer.Play()
+		}
 		go v.playbackLoop()
 	}
 }
@@ -378,15 +401,20 @@ func (v *InlineVideoPlayer) Pause() {
 	}
 	v.playing = false
 	v.engine.Pause()
+	peer := v.peer
 	v.mu.Unlock()
 	fyne.CurrentApp().Driver().DoFromGoroutine(func() {
 		v.player.SetPlaying(false)
 	}, false)
+	if peer != nil {
+		go peer.Pause()
+	}
 }
 
 func (v *InlineVideoPlayer) Seek(target float64) {
 	v.mu.Lock()
 	eng := v.engine
+	peer := v.peer
 	v.mu.Unlock()
 	if eng == nil {
 		return
@@ -400,6 +428,9 @@ func (v *InlineVideoPlayer) Seek(target float64) {
 		}
 		v.player.SetCurrentTime(target)
 	}, false)
+	if peer != nil {
+		go peer.Seek(target)
+	}
 }
 
 func (v *InlineVideoPlayer) GetChapters() []media.Chapter {
