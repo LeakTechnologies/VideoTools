@@ -96,9 +96,9 @@ func (r *pillButtonRenderer) Refresh() {
 	p := r.pill
 	switch {
 	case p.Disabled():
-		r.bg.FillColor = BgLight
-		r.bg.StrokeColor = TextMuted
-		r.txt.Color = TextMuted
+		r.bg.FillColor = BgDark
+		r.bg.StrokeColor = BgDark
+		r.txt.Color = Border
 	case p.Active:
 		r.bg.FillColor = p.BorderCol
 		r.bg.StrokeColor = p.BorderCol
