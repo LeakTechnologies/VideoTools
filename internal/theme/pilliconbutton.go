@@ -103,8 +103,8 @@ func (r *pillIconRenderer) Refresh() {
 	r.icon.Resource = p.Icon
 	switch {
 	case p.Disabled():
-		r.bg.FillColor = BgLight
-		r.bg.StrokeColor = TextMuted
+		r.bg.FillColor = BgDark
+		r.bg.StrokeColor = BgDark
 	case p.Active:
 		r.bg.FillColor = BgCard
 		r.bg.StrokeColor = Green
