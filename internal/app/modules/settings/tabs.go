@@ -509,7 +509,7 @@ func BuildPreferencesTab(cb PreferencesCallbacks) fyne.CanvasObject {
 	fontHint.Wrapping = fyne.TextWrapWord
 	content.Add(fontHint)
 
-	testPatternBtn := widget.NewButton(t.SettingsTestPattern, func() {
+	testPatternBtn := ui.MakePillButton(t.SettingsTestPattern, ui.BorderDim, func() {
 		cb.ShowPlayer()
 	})
 	content.Add(testPatternBtn)
@@ -752,7 +752,7 @@ func BuildDependenciesTab(cb DependencyCallbacks) fyne.CanvasObject {
 	}
 
 	content.Add(widget.NewSeparator())
-	refreshBtn := widget.NewButton(t.DependenciesRefresh, func() {
+	refreshBtn := ui.MakePillButton(t.DependenciesRefresh, ui.BorderDim, func() {
 		cb.ShowSettingsView()
 	})
 	content.Add(refreshBtn)

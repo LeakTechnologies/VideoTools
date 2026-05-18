@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/queue"
 )
@@ -22,10 +21,10 @@ type CommandEditor struct {
 
 	// UI components
 	jsonEntry   *widget.Entry
-	validateBtn *widget.Button
-	applyBtn    *widget.Button
-	resetBtn    *widget.Button
-	cancelBtn   *widget.Button
+	validateBtn *PillButton
+	applyBtn    *PillButton
+	resetBtn    *PillButton
+	cancelBtn   *PillButton
 	statusLabel *widget.Label
 	historyList *widget.List
 
@@ -85,17 +84,14 @@ func (e *CommandEditor) buildUI(title string) {
 	e.statusLabel.Importance = widget.MediumImportance
 
 	// Action buttons
-	e.validateBtn = widget.NewButtonWithIcon("Validate", theme.ConfirmIcon(), e.validateCommand)
-	e.validateBtn.Importance = widget.MediumImportance
+	e.validateBtn = MakePillButton("Validate", BorderDim, e.validateCommand)
 
-	e.applyBtn = widget.NewButtonWithIcon("Apply Changes", theme.ConfirmIcon(), e.applyChanges)
-	e.applyBtn.Importance = widget.HighImportance
+	e.applyBtn = MakePillButton("Apply Changes", Magenta, e.applyChanges)
 	e.applyBtn.Disable()
 
-	e.resetBtn = widget.NewButtonWithIcon("Reset to Original", theme.ViewRefreshIcon(), e.resetToOriginal)
-	e.resetBtn.Importance = widget.MediumImportance
+	e.resetBtn = MakePillButton("Reset to Original", BorderDim, e.resetToOriginal)
 
-	e.cancelBtn = widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() {
+	e.cancelBtn = MakePillButton("Cancel", BorderDim, func() {
 		e.close()
 	})
 
@@ -216,8 +212,8 @@ func (e *CommandEditor) applyChanges() {
 		reasonEntry,
 	)
 	buttons := container.NewHBox(
-		widget.NewButton("Cancel", func() {}),
-		widget.NewButton("Apply", func() {
+		MakePillButton("Cancel", BorderDim, func() {}),
+		MakePillButton("Apply", Magenta, func() {
 			reason := reasonEntry.Text
 			if reason == "" {
 				reason = "Manual edit via command editor"
@@ -343,10 +339,8 @@ func ShowCommandEditorDialog(window fyne.Window, editManager queue.EditJobManage
 }
 
 // CreateCommandEditorButton creates a button that opens the command editor
-func CreateCommandEditorButton(window fyne.Window, editManager queue.EditJobManager, jobID, jobTitle string) *widget.Button {
-	btn := widget.NewButtonWithIcon("Edit Command", theme.DocumentCreateIcon(), func() {
+func CreateCommandEditorButton(window fyne.Window, editManager queue.EditJobManager, jobID, jobTitle string) *PillButton {
+	return MakePillButton("Edit Command", Magenta, func() {
 		ShowCommandEditorDialog(window, editManager, jobID, jobTitle)
 	})
-	btn.Importance = widget.MediumImportance
-	return btn
 }
