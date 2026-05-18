@@ -351,8 +351,8 @@ func CopyRGBToRGBA(dst, src []byte) {
 
 // UI utilities
 
-// MakeIconButton creates a low-importance button with a symbol
-func MakeIconButton(symbol, tooltip string, tapped func()) *widget.Button {
+// MakeIconButton creates a small pill button with a symbol
+func MakeIconButton(symbol, tooltip string, tapped func()) fyne.CanvasObject {
 	btn := widget.NewButton(symbol, tapped)
 	btn.Importance = widget.LowImportance
 	return btn

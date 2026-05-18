@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/skip2/go-qrcode"
+	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
 )
 
 type Options struct {
@@ -88,7 +89,7 @@ func Show(opts Options) {
 	if logsFolderStr == "" {
 		logsFolderStr = "Logs Folder"
 	}
-	logsLink := widget.NewButton(logsFolderStr, func() {
+	logsLink := ui.MakePillButton(logsFolderStr, ui.BorderDim, func() {
 		if opts.OpenFolder == nil {
 			return
 		}
@@ -96,7 +97,6 @@ func Show(opts Options) {
 			dialog.ShowError(fmt.Errorf("failed to open logs folder: %w", err), opts.Window)
 		}
 	})
-	logsLink.Importance = widget.LowImportance
 
 	feedbackStr := opts.FeedbackLabel
 	if feedbackStr == "" {
@@ -110,7 +110,7 @@ func Show(opts Options) {
 		openStr = "Open"
 	}
 	xLabel := widget.NewLabel(opts.XLabel)
-	xBtn := widget.NewButton(openStr, func() {
+	xBtn := ui.MakePillButton(openStr, ui.BorderDim, func() {
 		if opts.OpenURL == nil {
 			return
 		}
@@ -118,7 +118,6 @@ func Show(opts Options) {
 			dialog.ShowError(fmt.Errorf("failed to open X profile: %w", err), opts.Window)
 		}
 	})
-	xBtn.Importance = widget.LowImportance
 
 	mainContentItems := []fyne.CanvasObject{
 		versionText,

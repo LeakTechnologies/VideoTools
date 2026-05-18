@@ -25,12 +25,11 @@ func BuildFullscreenView(opts Options) fyne.CanvasObject {
 	file1 := toVideoSource(opts.CompareFile1)
 	file2 := toVideoSource(opts.CompareFile2)
 
-	backBtn := widget.NewButton(t.CompareBackToView, func() {
+	backBtn := ui.MakePillButton(t.CompareBackToView, ui.BorderDim, func() {
 		if opts.OnShowCompareFullscreen != nil {
 			opts.OnShowCompareFullscreen()
 		}
 	})
-	backBtn.Importance = widget.LowImportance
 	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	splitView := media.NewSplitView()

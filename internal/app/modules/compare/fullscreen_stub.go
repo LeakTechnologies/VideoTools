@@ -19,12 +19,11 @@ func BuildFullscreenView(opts Options) fyne.CanvasObject {
 	compareColor := utils.MustHex("#91931A")
 	t := i18n.T()
 
-	backBtn := widget.NewButton(t.CompareBackToView, func() {
+	backBtn := ui.MakePillButton(t.CompareBackToView, ui.BorderDim, func() {
 		if opts.OnShowCompareFullscreen != nil {
 			opts.OnShowCompareFullscreen()
 		}
 	})
-	backBtn.Importance = widget.LowImportance
 	topBar := ui.TintedBar(compareColor, container.NewHBox(backBtn, layout.NewSpacer()))
 
 	var left, right fyne.CanvasObject
