@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/widget"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/i18n"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/media"
 	"git.leaktechnologies.dev/leak_technologies/VideoTools/internal/ui"
