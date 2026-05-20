@@ -484,6 +484,7 @@ func buildVideoClipsTab(state *appState) fyne.CanvasObject {
 			}
 		}
 		if len(paths) > 0 {
+			naturalSortPaths(paths)
 			go state.addAuthorFiles(paths)
 		}
 	})
@@ -767,6 +768,7 @@ func buildSubtitlesTab(state *appState) fyne.CanvasObject {
 			}
 		}
 		if len(paths) > 0 {
+			naturalSortPaths(paths)
 			state.authorSubtitles = append(state.authorSubtitles, paths...)
 			buildSubList()
 			state.updateAuthorSummary()
@@ -1960,6 +1962,52 @@ func (s *appState) addAuthorFiles(paths []string) {
 		if app != nil && app.Driver() != nil {
 			app.Driver().DoFromGoroutine(s.authorClipsRefresh, false)
 		}
+	}
+}
+
+// naturalSortPaths sorts file paths using natural (alphanumeric) order so that
+// sequentially numbered files dropped from Explorer arrive in numeric order
+// regardless of which file Explorer designated as the "anchor" of the drag.
+// e.g. ["clip_10.mp4", "clip_2.mp4", "clip_1.mp4"] → ["clip_1.mp4", "clip_2.mp4", "clip_10.mp4"]
+func naturalSortPaths(paths []string) {
+	sort.Slice(paths, func(i, j int) bool {
+		return naturalLess(filepath.Base(paths[i]), filepath.Base(paths[j]))
+	})
+}
+
+// naturalLess compares two strings such that embedded digit runs are compared
+// numerically rather than lexicographically.
+func naturalLess(a, b string) bool {
+	for {
+		if b == "" {
+			return false
+		}
+		if a == "" {
+			return true
+		}
+		aDigit := a[0] >= '0' && a[0] <= '9'
+		bDigit := b[0] >= '0' && b[0] <= '9'
+		if aDigit && bDigit {
+			// Find the full digit run in each string.
+			aEnd, bEnd := 1, 1
+			for aEnd < len(a) && a[aEnd] >= '0' && a[aEnd] <= '9' {
+				aEnd++
+			}
+			for bEnd < len(b) && b[bEnd] >= '0' && b[bEnd] <= '9' {
+				bEnd++
+			}
+			an, _ := strconv.ParseUint(a[:aEnd], 10, 64)
+			bn, _ := strconv.ParseUint(b[:bEnd], 10, 64)
+			if an != bn {
+				return an < bn
+			}
+			a, b = a[aEnd:], b[bEnd:]
+			continue
+		}
+		if a[0] != b[0] {
+			return a[0] < b[0]
+		}
+		a, b = a[1:], b[1:]
 	}
 }
 
