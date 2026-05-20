@@ -365,8 +365,19 @@ func PatchVOBPCI(path string, buttons []PCIButton) error {
 		if n > pciMaxButtons {
 			n = pciMaxButtons
 		}
-		pci[pciOffBtnSLNS] = 1       // initially-selected button (1-based)
-		pci[pciOffBtnNS] = uint8(n)  // total button count
+		pci[pciOffBtnSLNS] = 1      // initially-selected button (1-based)
+		pci[pciOffBtnNS] = uint8(n) // total button count
+		// FOSL_BTTN at byte 96: force-select button 1 when player enters the menu.
+		pci[96] = 1
+
+		// BTTN_GXCOL_NS at bytes 70-93: Group 1 (Selected) and Group 2 (Activated).
+		// Group 0 (Normal) stays zero — transparent at rest.
+		// Group 1 — selected: SPU pixel 1 → palette 1 (white), alpha 10 (~67%).
+		pci[79] = (1 << 4) | 0  // COLI: c1=1 (white), c0=0
+		pci[83] = (10 << 4) | 0 // ALPHA: a1=10 (~67%), a0=0
+		// Group 2 — activated: SPU pixel 1 → palette 3 (gray), alpha 15 (opaque).
+		pci[87] = (3 << 4) | 0  // COLI: c1=3 (gray), c0=0
+		pci[91] = (15 << 4) | 0 // ALPHA: a1=15 (opaque), a0=0
 
 		for i, btn := range buttons[:n] {
 			off := pciOffBtnTable + i*pciBtnEntrySize
@@ -383,7 +394,8 @@ func PatchVOBPCI(path string, buttons []PCIButton) error {
 			}
 
 			// Bit-pack coordinates per libdvdread btn_posi_t layout.
-			pci[off+0] = (autoAct << 7) | (btnNr << 2) | uint8(x0>>8)
+			// btn_coln (bits 6-2) = 0; button number is implicit from table position.
+			pci[off+0] = (autoAct << 7) | uint8(x0>>8)
 			pci[off+1] = uint8(x0)
 			pci[off+2] = uint8(x1 >> 2)
 			pci[off+3] = (uint8(x1&0x3) << 6) | uint8(y0>>4)
