@@ -1859,10 +1859,13 @@ func buildMenuOverlay(ctx context.Context, outputPath string, buttons []dvdMenuB
 		filterChain = "null"
 	}
 
+	// Use format=rgba so the transparent background is preserved as alpha=0 in
+	// the output PNG. Without explicit rgba, FFmpeg may downgrade to yuv and
+	// lose the alpha channel, making non-button areas map to an opaque SPU color.
 	args := []string{
 		"-y",
 		"-f", "lavfi",
-		"-i", fmt.Sprintf("color=c=black@0.0:s=%dx%d", width, height),
+		"-i", fmt.Sprintf("color=c=black@0:s=%dx%d,format=rgba", width, height),
 		"-vf", filterChain,
 		"-frames:v", "1",
 		outputPath,
