@@ -500,23 +500,7 @@ func (uw *Writer) writeNode(n *FileNode) error {
 	}
 
 	if n.IsDir {
-		// Directory ICB: no allocation descriptors needed (data inline in next sector).
-		icb := FileEntryICB{
-			ICBTag: ICBTag{
-				StrategyType: 4,
-				FileType:     4, // directory
-				Flags:        0, // no allocation descriptors
-			},
-			Permissions:           0x14A5,
-			FileLinkCount:         1,
-			InformationLength:     SectorSize,
-			LogicalBlocksRecorded: 1,
-			AccessTime:            NewTimestamp(n.ModTime),
-			ModificationTime:      NewTimestamp(n.ModTime),
-			AttributeTime:         NewTimestamp(n.ModTime),
-			Checkpoint:            1,
-		}
-		if err := uw.WriteDescriptor(TagIDICB, icb); err != nil {
+		if err := uw.writeDirEntry(n); err != nil {
 			return err
 		}
 	} else {
@@ -648,6 +632,62 @@ func (uw *Writer) writeDirectoryData(n *FileNode) error {
 	return nil
 }
 
+// writeDirEntry writes a directory FileEntryICB with a ShortAd pointing to the
+// directory data sector. Mirrors writeFileEntry but uses FileType=4 (directory).
+func (uw *Writer) writeDirEntry(n *FileNode) error {
+	dataLBN := n.DataSector - partitionStart
+	alloc := ShortAd{
+		Len:      SectorSize,
+		Position: dataLBN,
+	}
+	allocSize := uint32(binary.Size(alloc))
+
+	icb := FileEntryICB{
+		ICBTag: ICBTag{
+			StrategyType: 4,
+			FileType:     4, // directory
+			Flags:        0, // short allocation descriptors
+		},
+		Permissions:                   0x14A5,
+		FileLinkCount:                 1,
+		InformationLength:             uint64(SectorSize),
+		LogicalBlocksRecorded:         1,
+		AccessTime:                    NewTimestamp(n.ModTime),
+		ModificationTime:              NewTimestamp(n.ModTime),
+		AttributeTime:                 NewTimestamp(n.ModTime),
+		Checkpoint:                    1,
+		LengthOfAllocationDescriptors: allocSize,
+	}
+
+	var buf bytes.Buffer
+	if err := binary.Write(&buf, binary.LittleEndian, icb); err != nil {
+		return err
+	}
+	if err := binary.Write(&buf, binary.LittleEndian, alloc); err != nil {
+		return err
+	}
+	data := buf.Bytes()
+
+	crcLen := uint16(len(data) - 16)
+	crc := CalculateCRC(data[16:])
+	binary.LittleEndian.PutUint16(data[8:10], crc)
+	binary.LittleEndian.PutUint16(data[10:12], crcLen)
+	binary.LittleEndian.PutUint16(data[0:2], TagIDICB)
+	binary.LittleEndian.PutUint16(data[2:4], 2)
+	binary.LittleEndian.PutUint32(data[12:16], uw.currentSector)
+	crc = CalculateCRC(data[16:])
+	binary.LittleEndian.PutUint16(data[8:10], crc)
+	data[4] = CalculateChecksum(data[:16])
+
+	sector := make([]byte, SectorSize)
+	copy(sector, data)
+	if _, err := uw.w.Write(sector); err != nil {
+		return err
+	}
+	uw.currentSector++
+	return nil
+}
+
 // writeFileEntry writes a FileEntryICB followed by a ShortAd allocation descriptor
 // that points to the file's data sectors. The entire record fits in one sector.
 func (uw *Writer) writeFileEntry(n *FileNode) error {
@@ -741,32 +781,36 @@ func CalculateCRC(data []byte) uint16 {
 	return crc
 }
 
-// WriteDescriptor writes a UDF descriptor with automatic tag header and CRC calculation.
+// WriteDescriptor writes a UDF descriptor. Each descriptor struct must start
+// with an embedded DescriptorTag (16 bytes) as its first field; this function
+// patches those bytes with the correct tag ID, CRC, and sector location rather
+// than prepending a second tag header.
 func (uw *Writer) WriteDescriptor(tagID uint16, descriptor interface{}) error {
 	var buf bytes.Buffer
-	tag := DescriptorTag{
-		TagIdentifier:     tagID,
-		DescriptorVersion: 2,
-		TagLocation:       uw.currentSector,
-	}
-
-	if err := binary.Write(&buf, binary.LittleEndian, tag); err != nil {
-		return fmt.Errorf("binary write tag: %w", err)
-	}
 	if err := binary.Write(&buf, binary.LittleEndian, descriptor); err != nil {
 		return fmt.Errorf("binary write descriptor: %w", err)
 	}
-
 	data := buf.Bytes()
+
+	// Ensure at least 16 bytes so the embedded DescriptorTag can be patched.
+	for len(data) < 16 {
+		data = append(data, 0)
+	}
+
+	// CRC covers all bytes after the 16-byte tag (the descriptor payload).
 	crcLen := uint16(len(data) - 16)
 	crc := CalculateCRC(data[16:])
 
-	binary.LittleEndian.PutUint16(data[8:10], crc)     // DescriptorCRC at offset 8
-	binary.LittleEndian.PutUint16(data[10:12], crcLen) // DescriptorCRCLen at offset 10
-	// TagLocation (offset 12-15) is already set via the tag struct above.
-
-	checksum := CalculateChecksum(data[:16])
-	data[4] = checksum
+	// Patch the embedded DescriptorTag at bytes 0-15.
+	binary.LittleEndian.PutUint16(data[0:2], tagID)
+	binary.LittleEndian.PutUint16(data[2:4], 2) // DescriptorVersion
+	data[4] = 0                                  // TagChecksum placeholder
+	data[5] = 0                                  // Reserved
+	binary.LittleEndian.PutUint16(data[6:8], 0)  // TagSerialNumber
+	binary.LittleEndian.PutUint16(data[8:10], crc)
+	binary.LittleEndian.PutUint16(data[10:12], crcLen)
+	binary.LittleEndian.PutUint32(data[12:16], uw.currentSector)
+	data[4] = CalculateChecksum(data[:16])
 
 	fullSector := make([]byte, SectorSize)
 	copy(fullSector, data)
@@ -886,7 +930,19 @@ func (uw *Writer) writeVDS(totalSectors uint32) error {
 	lvd := LogicalVolumeDescriptor{
 		VolumeDescriptorSeqNumber: 2,
 		LogicalBlockSize:          SectorSize,
+		// Type 1 Partition Map for partition 0 (6 bytes).
+		MapTableLength:        6,
+		NumberOfPartitionMaps: 1,
 	}
+	// OSTA UDF Compliant domain identifier (required for UDF 1.02 volumes).
+	copy(lvd.DomainIdentifier.Identifier[:], "*OSTA UDF Compliant")
+	lvd.DomainIdentifier.Suffix[0] = 0x02 // UDF revision minor (1.02)
+	lvd.DomainIdentifier.Suffix[1] = 0x01 // UDF revision major
+	// Type 1 Partition Map: type(1) + length(1) + VolumeSequenceNumber(2) + PartitionNumber(2)
+	lvd.PartitionMaps[0] = 1 // PartitionMapType = 1
+	lvd.PartitionMaps[1] = 6 // PartitionMapLength = 6
+	binary.LittleEndian.PutUint16(lvd.PartitionMaps[2:4], 1) // VolumeSequenceNumber = 1
+	binary.LittleEndian.PutUint16(lvd.PartitionMaps[4:6], 0) // PartitionNumber = 0
 	// Encode FSD LongAd into LogicalVolumeContentsUse[0:16]
 	// LongAd: Len(4) + Location(4) + Partition(2) + ImplementationUse(6)
 	binary.LittleEndian.PutUint32(lvd.LogicalVolumeContentsUse[0:4], uint32(SectorSize))
