@@ -1833,7 +1833,10 @@ func buildChaptersMenuBackground(ctx context.Context, outputPath, title string, 
 func buildMenuOverlays(ctx context.Context, overlayPath, highlightPath, selectPath string, buttons []dvdMenuButton, width, height int, theme *MenuTheme, logFn func(string)) error {
 	theme = resolveMenuTheme(theme)
 	accent := theme.AccentColor
-	if err := buildMenuOverlay(ctx, overlayPath, buttons, width, height, "0x000000@0.0", logFn); err != nil {
+	// Use opaque white so button areas produce SPU pixel value 1 (white).
+	// BTTN_GXCOL_NS Group 0 (Normal) has alpha=0 → invisible at rest.
+	// BTTN_GXCOL_NS Group 1 (Selected) gives a semi-transparent white highlight.
+	if err := buildMenuOverlay(ctx, overlayPath, buttons, width, height, "white", logFn); err != nil {
 		return err
 	}
 	if err := buildMenuOverlay(ctx, highlightPath, buttons, width, height, fmt.Sprintf("%s@0.35", accent), logFn); err != nil {
