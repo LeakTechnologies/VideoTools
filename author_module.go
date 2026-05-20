@@ -2775,18 +2775,18 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 		return fmt.Errorf("queue not initialized")
 	}
 
-	clips := make([]map[string]interface{}, 0, len(s.authorClips))
+	clips := make([]interface{}, 0, len(s.authorClips))
 	for _, clip := range s.authorClips {
-		// Serialize audio tracks
-		audioTracks := make([]map[string]interface{}, 0, len(clip.AudioTracks))
+		// Use []interface{} so the type assertion in runAuthoringTask works
+		// whether the config map has been JSON-round-tripped or not.
+		audioTracks := make([]interface{}, 0, len(clip.AudioTracks))
 		for _, at := range clip.AudioTracks {
 			audioTracks = append(audioTracks, map[string]interface{}{
 				"index":    at.Index,
 				"language": at.Language,
 			})
 		}
-		// Serialize subtitle tracks
-		subtitleTracks := make([]map[string]interface{}, 0, len(clip.SubtitleTracks))
+		subtitleTracks := make([]interface{}, 0, len(clip.SubtitleTracks))
 		for _, st := range clip.SubtitleTracks {
 			subtitleTracks = append(subtitleTracks, map[string]interface{}{
 				"index":    st.Index,
@@ -2803,7 +2803,7 @@ func (s *appState) addAuthorToQueue(paths []string, region, aspect, title, outpu
 			"subtitleTracks": subtitleTracks,
 		})
 	}
-	chapters := make([]map[string]interface{}, 0, len(s.authorChapters))
+	chapters := make([]interface{}, 0, len(s.authorChapters))
 	for _, ch := range s.authorChapters {
 		chapters = append(chapters, map[string]interface{}{
 			"timestamp": ch.Timestamp,
