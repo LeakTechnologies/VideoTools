@@ -143,21 +143,28 @@ func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
 	}
 
 	// BTTN_GXCOL_NS at hl_gi_t +2 (PCI bytes 70-93): three 8-byte button color groups.
-	// Each group encodes 4 palette-index/alpha pairs (one per SPU pixel color 0-3):
-	//   byte N+0: (palette_idx << 4) | alpha  for SPU pixel 0 (background)
-	//   byte N+1: (palette_idx << 4) | alpha  for SPU pixel 1 (button/text)
-	//   byte N+2: (palette_idx << 4) | alpha  for SPU pixel 2 (emphasis)
-	//   byte N+3: (palette_idx << 4) | alpha  for SPU pixel 3 (shadow)
-	//   bytes N+4..N+7: reserved zero
+	// Per DVD-Video spec (Table 5.8), each 8-byte group has two separate 32-bit fields:
+	//   BTTN_COLI (bytes N+0..N+3): palette indices for SPU pixel values 3,2,1,0
+	//     big-endian: byte N+0 = (c3<<4)|c2, byte N+1 = (c1<<4)|c0, N+2..N+3 = 0
+	//   BTTN_ALPHA (bytes N+4..N+7): alpha values for SPU pixel values 3,2,1,0
+	//     big-endian: byte N+4 = (a3<<4)|a2, byte N+5 = (a1<<4)|a0, N+6..N+7 = 0
 	// Group 0 (Normal): all transparent — button areas invisible at rest.
-	// Group 1 (Selected): SPU pixel 1 mapped to palette 1 (white) at full opacity.
-	// Group 2 (Activated): SPU pixel 1 mapped to palette 2 (black) at full opacity.
+	// Group 1 (Selected): SPU pixel 1 → palette 1 (white), alpha 15 (opaque).
+	// Group 2 (Activated): SPU pixel 1 → palette 2 (dark), alpha 15 (opaque).
 	if btnCount > 0 {
-		// Group 0 — normal: transparent (bytes 70-77 already zero)
-		// Group 1 — selected: pixel 1 = palette 1 (white), alpha 15 = opaque
-		pciData[79] = 0x1F // (palette_idx=1 << 4) | alpha=15
-		// Group 2 — activated: pixel 1 = palette 2 (black), alpha 15 = opaque
-		pciData[87] = 0x2F // (palette_idx=2 << 4) | alpha=15
+		// Group 0 — normal: bytes 70-77 stay zero (all transparent)
+
+		// Group 1 — selected (bytes 78-85):
+		// BTTN_COLI: c1=1 (palette 1 = white), c0=0; c2=c3=0
+		pciData[79] = (1 << 4) | 0 // (c1<<4)|c0 = 0x10
+		// BTTN_ALPHA: a1=10 (~67% opacity) so button label remains readable; a0=0
+		pciData[83] = (10 << 4) | 0 // (a1<<4)|a0 = 0xA0
+
+		// Group 2 — activated (bytes 86-93):
+		// BTTN_COLI: c1=3 (palette 3 = gray), c0=0 — visually distinct from selected
+		pciData[87] = (3 << 4) | 0 // (c1<<4)|c0 = 0x30
+		// BTTN_ALPHA: a1=15 (fully opaque flash), a0=0
+		pciData[91] = (15 << 4) | 0 // (a1<<4)|a0 = 0xF0
 	}
 
 	// Write button position entries (18 bytes each).
