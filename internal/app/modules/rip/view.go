@@ -256,7 +256,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 		t.RipLog,
 		ripTeal,
 		logScroll,
-		func() string { return vs.logText },
+		func() string {
+			if vs.logEntry != nil {
+				return vs.logEntry.Text
+			}
+			return vs.logText
+		},
 		opts.Window,
 	)
 
