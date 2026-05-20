@@ -137,40 +137,44 @@ func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
 	}
 	pciData[pciOffBtnSLNS] = pci.HL_GI.BTN_SL_NS
 	pciData[pciOffBtnNS] = uint8(btnCount)
+	// FOSL_BTTN at byte 96 (hl_gi_t +28): force-select button 1 when > 0 buttons.
+	if btnCount > 0 {
+		pciData[96] = 1
+	}
+
+	// BTTN_GXCOL_NS at hl_gi_t +2 (PCI bytes 70-93): three 8-byte button color groups.
+	// Each group encodes 4 palette-index/alpha pairs (one per SPU pixel color 0-3):
+	//   byte N+0: (palette_idx << 4) | alpha  for SPU pixel 0 (background)
+	//   byte N+1: (palette_idx << 4) | alpha  for SPU pixel 1 (button/text)
+	//   byte N+2: (palette_idx << 4) | alpha  for SPU pixel 2 (emphasis)
+	//   byte N+3: (palette_idx << 4) | alpha  for SPU pixel 3 (shadow)
+	//   bytes N+4..N+7: reserved zero
+	// Group 0 (Normal): all transparent — button areas invisible at rest.
+	// Group 1 (Selected): SPU pixel 1 mapped to palette 1 (white) at full opacity.
+	// Group 2 (Activated): SPU pixel 1 mapped to palette 2 (black) at full opacity.
+	if btnCount > 0 {
+		// Group 0 — normal: transparent (bytes 70-77 already zero)
+		// Group 1 — selected: pixel 1 = palette 1 (white), alpha 15 = opaque
+		pciData[79] = 0x1F // (palette_idx=1 << 4) | alpha=15
+		// Group 2 — activated: pixel 1 = palette 2 (black), alpha 15 = opaque
+		pciData[87] = 0x2F // (palette_idx=2 << 4) | alpha=15
+	}
 
 	// Write button position entries (18 bytes each).
-	// Each entry encodes pixel coordinates, neighbour routing, and the cell
-	// command number to execute when the button is activated.
-	//
-	// btn_posi_t layout (18 bytes, big-endian):
-	//   bytes  0-1  : btn_coln (upper nibble = auto_action flag, lower 6 bits = btn nr)
-	//                 Word packs x_start[9:0] | x_end[9:0] into bytes 0-3
-	//   The actual packing used by hardware players (from libdvdnav):
-	//     byte 0[7:4] = auto_action<<3 | btn_nr[5:4]
-	//     byte 0[3:0] = x_start[9:6]
-	//     byte 1      = x_start[5:0] << 2 | x_end[9:8]
-	//     byte 2      = x_end[7:0]
-	//     byte 3[7:4] = 0 (reserved)
-	//     byte 3[3:0] = y_start[9:6]
-	//     byte 4      = y_start[5:0] << 2 | y_end[9:8]
-	//     byte 5      = y_end[7:0]
-	//     bytes 6-7   = up/down/left/right neighbour (6 bits each packed as 2 bytes)
-	//     bytes 8-9   = reserved zero
-	//     bytes 10-15 = cmd (6 bytes, first byte = cmd_nr, rest zero for jump cmds)
-	//   ... However the widely-used simplified layout (also accepted by VLC/players):
-	//     bytes 0-1: x_start (uint16)
-	//     bytes 2-3: x_end   (uint16)
-	//     bytes 4-5: y_start (uint16)
-	//     bytes 6-7: y_end   (uint16)
-	//     byte  8:   auto_action (1) | 0 (7)
-	//     byte  9:   up neighbour
-	//     byte 10:   down neighbour
-	//     byte 11:   left neighbour
-	//     byte 12:   right neighbour
-	//     byte 13:   cmd_nr
-	//     bytes 14-17: zero
-	//
-	// We use the libdvdread-compatible packed encoding (matches hardware player expectations).
+	// btn_posi_t layout as decoded by libdvdnav (packing from ifo_types.h):
+	//   byte 0: [btn_coln:6][x_start_hi:2]
+	//     btn_coln bits 7-2 = auto_action (bit7) | button-color-set (bits 6-2, use 0)
+	//     bits 1-0 = x_start[9:8]
+	//   byte 1: x_start[7:0]
+	//   byte 2: x_end[9:2]
+	//   byte 3: [x_end[1:0]:2][y_start[9:4]:6]
+	//   byte 4: [y_start[3:0]:4][y_end[9:6]:4]
+	//   byte 5: [y_end[5:0]:6][reserved:2]
+	//   byte 6: [up:6][down_hi:2]
+	//   byte 7: [down_lo:4][left_hi:4]
+	//   byte 8: [left_lo:2][right:6]
+	//   byte 9: cmd_nr
+	//   bytes 10-17: zero
 	for i, btn := range pci.Buttons {
 		if i >= pciMaxButtons {
 			break
@@ -188,11 +192,9 @@ func (m *Muxer) WriteNAV_PCK(pci *PCIPacket, dsi *DSIPacket) error {
 			autoAct = 1
 		}
 
-		// Pack: [auto_action(1) | btn_nr(6) into high nibble of first byte, then coordinates]
-		// Following libdvdread btn_posi_t packing exactly:
-		//   byte 0: (autoAct<<7) | (btnNr << 2) | (x0 >> 8)  ... but btnNr is 6 bits
-		//   Simpler accepted format used by most authoring tools:
-		pciData[off+0] = (autoAct << 7) | (btnNr << 2) | uint8(x0>>8)
+		// Byte 0: auto_action in bit 7; btn_coln (color set) = 0 in bits 6-2; x_start[9:8] in bits 1-0.
+		// Button number is implicit from position in table — do NOT place it in btn_coln.
+		pciData[off+0] = (autoAct << 7) | uint8(x0>>8)
 		pciData[off+1] = uint8(x0)
 		pciData[off+2] = uint8(x1 >> 2)
 		pciData[off+3] = (uint8(x1&0x3) << 6) | uint8(y0>>4)

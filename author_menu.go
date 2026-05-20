@@ -1961,8 +1961,11 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 	}
 
 	// ── Encode background PNG as MPEG-2 still video via ffmpeg ────────────────
+	// Use -f mpeg2video to produce a raw MPEG-2 elementary stream (no PS container).
+	// The vob.Muxer wraps ES chunks in PS packs; feeding it an already-PS-muxed
+	// file from ffmpeg would double-wrap the data and corrupt the VOB.
 	workDir := filepath.Dir(outputPath)
-	videoTemp := filepath.Join(workDir, "menu_video_temp.mpg")
+	videoTemp := filepath.Join(workDir, "menu_video_temp.m2v")
 	videoArgs := []string{
 		"-y",
 		"-loop", "1",
@@ -1976,6 +1979,7 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 		"-r", fps,
 		"-pix_fmt", "yuv420p",
 		"-an",
+		"-f", "mpeg2video",
 		"-y",
 		videoTemp,
 	}
