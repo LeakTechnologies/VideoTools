@@ -16997,6 +16997,26 @@ func probeVideo(path string) (*videoSource, error) {
 					src.AudioBitrate = br
 				}
 			}
+			lang := ""
+			if l, ok := stream.Tags["language"].(string); ok {
+				lang = l
+			}
+			src.Audio = append(src.Audio, audioStreamInfo{
+				Index:    stream.Index,
+				Codec:    stream.CodecName,
+				Language: lang,
+				Channels: stream.Channels,
+			})
+		case "subtitle":
+			lang := ""
+			if l, ok := stream.Tags["language"].(string); ok {
+				lang = l
+			}
+			src.Subtitles = append(src.Subtitles, subtitleStreamInfo{
+				Index:    stream.Index,
+				Codec:    stream.CodecName,
+				Language: lang,
+			})
 		}
 	}
 
