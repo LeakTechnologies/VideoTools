@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	_ "embed"
-	"encoding/xml"
 	"fmt"
 	"image"
 	"image/png"
@@ -1873,78 +1872,6 @@ func buildMenuOverlay(ctx context.Context, outputPath string, buttons []dvdMenuB
 	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
 }
 
-func buildMenuMPEG(ctx context.Context, bgPath, outputPath, region, aspect string, motionBackground string, logFn func(string)) error {
-	scale := "720:480"
-	if strings.ToLower(region) == "pal" {
-		scale = "720:576"
-	}
-
-	var args []string
-
-	if motionBackground != "" && strings.Contains(strings.ToLower(motionBackground), ".mpg") {
-		// Use motion background video - just transcode to DVD format
-		if logFn != nil {
-			logFn(fmt.Sprintf("Using motion background: %s", filepath.Base(motionBackground)))
-		}
-		args = []string{
-			"-y",
-			"-i", motionBackground,
-			"-t", "30",
-			"-r", "30000/1001",
-			"-vf", fmt.Sprintf("scale=%s:force_original_aspect_ratio=decrease,pad=%s:(ow-iw)/2:(oh-ih)/2,format=yuv420p", scale, scale),
-			"-c:v", "mpeg2video",
-			"-b:v", "3000k",
-			"-maxrate", "5000k",
-			"-bufsize", "1835k",
-			"-g", "15",
-			"-pix_fmt", "yuv420p",
-			"-aspect", aspect,
-			"-f", "dvd",
-			"-loop", "0",
-			outputPath,
-		}
-	} else {
-		// Use static background image (looped)
-		args = []string{
-			"-y",
-			"-loop", "1",
-			"-i", bgPath,
-			"-t", "30",
-			"-r", "30000/1001",
-			"-vf", fmt.Sprintf("scale=%s,format=yuv420p", scale),
-			"-c:v", "mpeg2video",
-			"-b:v", "3000k",
-			"-maxrate", "5000k",
-			"-bufsize", "1835k",
-			"-g", "15",
-			"-pix_fmt", "yuv420p",
-			"-aspect", aspect,
-			"-f", "dvd",
-			outputPath,
-		}
-	}
-	return runCommandWithLogger(ctx, utils.GetFFmpegPath(), args, logFn)
-}
-
-func writeSpumuxXML(path, overlayPath, highlightPath, selectPath string, buttons []dvdMenuButton) error {
-	var b strings.Builder
-	b.WriteString("<subpictures>\n")
-	b.WriteString("  <stream>\n")
-	b.WriteString(fmt.Sprintf("    <spu start=\"00:00:00.00\" end=\"00:00:30.00\" image=\"%s\" highlight=\"%s\" select=\"%s\" force=\"yes\">\n",
-		escapeXMLAttr(overlayPath),
-		escapeXMLAttr(highlightPath),
-		escapeXMLAttr(selectPath),
-	))
-	for i, btn := range buttons {
-		b.WriteString(fmt.Sprintf("      <button name=\"b%d\" x0=\"%d\" y0=\"%d\" x1=\"%d\" y1=\"%d\" />\n",
-			i+1, btn.X0, btn.Y0, btn.X1, btn.Y1))
-	}
-	b.WriteString("    </spu>\n")
-	b.WriteString("  </stream>\n")
-	b.WriteString("</subpictures>\n")
-	return os.WriteFile(path, []byte(b.String()), 0o644)
-}
-
 // runNativeSpumux creates a proper DVD menu VOB containing:
 //  1. A NAV_PCK at sector 0 (with PCI button coordinates for M3)
 //  2. An MPEG-2 still video encoded from bgImagePath (M1/M2)
@@ -2019,20 +1946,6 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 	if err != nil {
 		return fmt.Errorf("encode SPU: %w", err)
 	}
-
-	// ── Write the SPU to a temp file so ffmpeg can mux it ────────────────────
-	spuTemp := filepath.Join(workDir, "menu_spu_temp.mpg")
-	spuFile, err := os.Create(spuTemp)
-	if err != nil {
-		return fmt.Errorf("create spu temp: %w", err)
-	}
-	spuMux := vob.NewMuxer(spuFile)
-	spuMux.SetFrameRate(fpsVal)
-	if err := spuMux.WriteSPU(spuData, vob.SubStreamSPUBase, 0); err != nil {
-		spuFile.Close()
-		return fmt.Errorf("write SPU temp: %w", err)
-	}
-	spuFile.Close()
 
 	// ── Write the final DVD VOB natively (NAV_PCK + video + SPU) ─────────────
 	// ffmpeg's -f dvd muxer does NOT produce proper NAV packs at sector boundaries,
@@ -2212,7 +2125,6 @@ func runNativeSpumux(ctx context.Context, overlayPath, bgImagePath, outputPath, 
 
 	// ── Clean up temporary files ──────────────────────────────────────────────
 	_ = os.Remove(videoTemp)
-	_ = os.Remove(spuTemp)
 
 	logging.Info(logging.CatDVD, "Menu VOB complete: %s (%dx%d, %s fps, %d buttons)", outputPath, width, height, fps, len(buttons))
 	return nil
@@ -2405,11 +2317,3 @@ func escapeDrawtextText(text string) string {
 	return cleaned
 }
 
-func escapeXMLAttr(value string) string {
-	var b strings.Builder
-	if err := xml.EscapeText(&b, []byte(value)); err != nil {
-		return strings.ReplaceAll(value, "\"", "&quot;")
-	}
-	escaped := b.String()
-	return strings.ReplaceAll(escaped, "\"", "&quot;")
-}
