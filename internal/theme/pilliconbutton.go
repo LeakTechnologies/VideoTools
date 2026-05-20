@@ -13,6 +13,8 @@ import (
 
 // PillIconButton is a square icon-only pill-shaped button.
 // Use for transport controls and other toolbar-style icon actions.
+const PillIconButtonRadius = 6
+
 type PillIconButton struct {
 	widget.DisableableWidget
 	Icon     fyne.Resource
@@ -42,7 +44,7 @@ func (p *PillIconButton) CreateRenderer() fyne.WidgetRenderer {
 		fmt.Fprintf(os.Stderr, "[vt-debug] PillIconButton.CreateRenderer\n")
 	}
 	bg := canvas.NewRectangle(BgLight)
-	bg.CornerRadius = 8
+	bg.CornerRadius = PillIconButtonRadius
 	bg.StrokeWidth = 1.5
 	bg.StrokeColor = color.Transparent
 	icon := canvas.NewImageFromResource(p.Icon)

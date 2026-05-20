@@ -15,6 +15,8 @@ var startupDebug = os.Getenv("VT_STARTUP_DEBUG") != ""
 
 // PillButton renders a pill-shaped button matching the roadmap's visual style:
 // dark background, coloured border, centred text, hover lightens border, active inverts.
+const PillButtonRadius = 8
+
 type PillButton struct {
 	widget.DisableableWidget
 	Label     string
@@ -39,7 +41,7 @@ func (p *PillButton) CreateRenderer() fyne.WidgetRenderer {
 		fmt.Fprintf(os.Stderr, "[vt-debug] PillButton.CreateRenderer label=%q\n", p.Label)
 	}
 	bg := canvas.NewRectangle(BgLight)
-	bg.CornerRadius = 12
+	bg.CornerRadius = PillButtonRadius
 	bg.StrokeWidth = 1.5
 	bg.StrokeColor = p.BorderCol
 	txt := canvas.NewText(p.Label, TextOnDark)
