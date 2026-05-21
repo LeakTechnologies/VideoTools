@@ -1,0 +1,217 @@
+name: GitHub Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version override (e.g. v0.1.2). Leave blank to use git describe.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  GO_VERSION: '1.21'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install MinGW-w64
+        shell: pwsh
+        run: |
+          $url = "https://github.com/brechtsanders/winlibs_mingw/releases/download/14.3.0posix-12.0.0-ucrt-r1/winlibs-x86_64-posix-seh-gcc-14.3.0-mingw-w64ucrt-12.0.0-r1.zip"
+          $zip = "C:\mingw.zip"
+          Write-Host "Downloading MinGW..."
+          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+          Write-Host "Extracting..."
+          Expand-Archive -Path $zip -DestinationPath "C:\mingw-extract" -Force
+          $inner = Get-ChildItem "C:\mingw-extract" -Directory | Select-Object -First 1
+          Move-Item $inner.FullName "C:\mingw64" -Force
+          Remove-Item $zip, "C:\mingw-extract" -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host "GCC: $((& 'C:\mingw64\bin\gcc.exe' --version)[0])"
+
+      - name: Setup FFmpeg dev libs
+        shell: pwsh
+        run: |
+          $url = "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl-shared.zip"
+          $zip = "C:\ffmpeg-shared.zip"
+          Write-Host "Downloading FFmpeg shared build..."
+          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+          Write-Host "Extracting..."
+          Expand-Archive -Path $zip -DestinationPath "C:\ffmpeg-extract" -Force
+          $inner = Get-ChildItem "C:\ffmpeg-extract" -Directory | Select-Object -First 1
+          New-Item -ItemType Directory -Force "C:\ffmpeg" | Out-Null
+          Get-ChildItem $inner.FullName | Move-Item -Destination "C:\ffmpeg" -Force
+          Remove-Item $zip, "C:\ffmpeg-extract" -Recurse -Force -ErrorAction SilentlyContinue
+          Write-Host "FFmpeg include: $(Test-Path 'C:\ffmpeg\include')"
+          Write-Host "FFmpeg lib:     $(Test-Path 'C:\ffmpeg\lib')"
+
+      - name: Build
+        shell: pwsh
+        run: |
+          $env:GOARCH              = "amd64"
+          $env:CGO_ENABLED         = "1"
+          $env:CC                  = "C:\mingw64\bin\gcc.exe"
+          $env:PATH                = "C:\mingw64\bin;" + $env:PATH
+          $env:CGO_LDFLAGS_ALLOW   = "-Wl,--stack,.*"
+          $env:PKG_CONFIG_PATH     = "C:\ffmpeg\lib\pkgconfig"
+
+          $buildVersion = git describe --tags --always 2>$null
+          $ldflags = "-s -w -H windowsgui -X main.BuildVersion=$buildVersion"
+
+          New-Item -ItemType Directory -Force dist\windows\bin | Out-Null
+          go build -tags native_media -ldflags $ldflags -o dist\windows\bin\VideoTools.exe
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+          $size = [math]::Round((Get-Item dist\windows\bin\VideoTools.exe).Length / 1MB, 1)
+          Write-Host "Build complete: ${size} MB"
+
+      - name: Bundle DLLs
+        shell: pwsh
+        run: |
+          $dllDir = "dist\windows\bin\dll"
+          New-Item -ItemType Directory -Force $dllDir | Out-Null
+          Get-ChildItem "C:\ffmpeg\bin\av*.dll" | Copy-Item -Destination $dllDir -Force
+          Get-ChildItem "C:\ffmpeg\bin\sw*.dll" | Copy-Item -Destination $dllDir -Force
+          $count = (Get-ChildItem $dllDir -Filter *.dll).Count
+          Write-Host "Bundled $count DLLs"
+
+      - name: Package ZIP
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}"
+          if (-not $version) { $version = git describe --tags --always }
+          $zipName = "VideoTools-${version}-windows-amd64.zip"
+          Compress-Archive -Path dist\windows\bin\* -DestinationPath "dist\windows\$zipName"
+          Write-Host "Created: $zipName"
+          Write-Host "Size: $([math]::Round((Get-Item "dist\windows\$zipName").Length / 1MB, 1)) MB"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: dist/windows/VideoTools-*.zip
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libgl1-mesa-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxi-dev \
+            libxxf86vm-dev \
+            libdrm-dev \
+            libasound2-dev \
+            libavcodec-dev \
+            libavformat-dev \
+            libavfilter-dev \
+            libavdevice-dev \
+            libavutil-dev \
+            libswresample-dev \
+            libswscale-dev \
+            libpostproc-dev
+
+      - name: Build
+        run: |
+          buildVersion=$(git describe --tags --always 2>/dev/null || echo "unknown")
+          ldflags="-s -w -X main.BuildVersion=$buildVersion"
+          mkdir -p dist/linux
+          go build -tags native_media -ldflags "$ldflags" -o dist/linux/VideoTools
+          size=$(du -h dist/linux/VideoTools | cut -f1)
+          echo "Build complete: ${size}"
+
+      - name: Package tarball
+        run: |
+          version="${{ github.ref_name }}"
+          if [ -z "$version" ]; then version=$(git describe --tags --always); fi
+          tar_name="VideoTools-${version}-linux-amd64.tar.gz"
+          cp scripts/linux/install.sh dist/linux/
+          cd dist/linux
+          tar czf "../${tar_name}" VideoTools install.sh
+          cd ../..
+          echo "Created: $tar_name"
+          echo "Size: $(du -h "dist/linux/${tar_name}" | cut -f1)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: dist/linux/VideoTools-*.tar.gz
+
+  create-release:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: dist
+
+      - name: Try download MSIX artifact (optional)
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: msix-artifact
+          path: dist/msix
+
+      - name: Generate changelog
+        run: |
+          tag="${{ github.ref_name }}"
+          echo "## VideoTools $tag" > dist/RELEASE_NOTES.md
+          echo "" >> dist/RELEASE_NOTES.md
+          if [ -f docs/CHANGELOG.md ]; then
+            # Extract the section for this version from CHANGELOG.md
+            awk -v ver="${tag#v}" '/^## / { found=0 } /^## v'"${tag#v}"'/ { found=1; next } found && /^## v/ { found=0 } found' docs/CHANGELOG.md >> dist/RELEASE_NOTES.md
+          fi
+          echo "" >> dist/RELEASE_NOTES.md
+          echo "---" >> dist/RELEASE_NOTES.md
+          echo "Assets are built by GitHub Actions. FFmpeg DLLs bundled for Windows; Linux requires FFmpeg installed via system package manager." >> dist/RELEASE_NOTES.md
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ github.ref_name }}"
+          gh release create "$tag" \
+            --repo "${{ github.repository }}" \
+            --title "VideoTools $tag" \
+            --notes-file dist/RELEASE_NOTES.md \
+            dist/VideoTools-*.zip dist/VideoTools-*.tar.gz
+          if [ -d dist/msix ]; then
+            gh release upload "$tag" dist/msix/* --repo "${{ github.repository }}" --clobber
+          fi
