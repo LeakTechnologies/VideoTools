@@ -46,6 +46,7 @@ type viewState struct {
 	embedChapters    bool
 	allAudioTracks   bool
 	includeSubtitles bool
+	includeMenus     bool
 	regionConvert    string // "" (none), "pal2ntsc", "ntsc2pal"
 	extractMode      string // "" (main feature) or "full" (full disc with IFO regen)
 	discTitle        string
@@ -67,6 +68,7 @@ func (vs *viewState) applyConfig(cfg ripConfig) {
 	vs.embedChapters = cfg.EmbedChapters
 	vs.allAudioTracks = cfg.AllAudioTracks
 	vs.includeSubtitles = cfg.IncludeSubtitles
+	vs.includeMenus = cfg.IncludeMenus
 }
 
 func (vs *viewState) persistConfig() {
@@ -75,6 +77,7 @@ func (vs *viewState) persistConfig() {
 		EmbedChapters:    vs.embedChapters,
 		AllAudioTracks:   vs.allAudioTracks,
 		IncludeSubtitles: vs.includeSubtitles,
+		IncludeMenus:     vs.includeMenus,
 	}
 	if err := savePersistedRipConfig(cfg); err != nil {
 		logging.Debug(logging.CatSystem, "failed to persist rip config: %v", err)
@@ -403,16 +406,32 @@ func BuildView(opts Options) fyne.CanvasObject {
 		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {
 			ext := filepath.Ext(vs.outputPath)
 			base := strings.TrimSuffix(vs.outputPath, ext)
-			for _, dt := range vs.scanResult.Titles {
+
+			// Find the main feature (longest duration).
+			mainIdx := 0
+			mainDur := 0.0
+			for i, dt := range vs.scanResult.Titles {
+				if dt.Duration > mainDur {
+					mainDur = dt.Duration
+					mainIdx = i
+				}
+			}
+
+			for i, dt := range vs.scanResult.Titles {
 				if !vs.selectedTitles[dt.Number] {
 					continue
 				}
-				titlePath := fmt.Sprintf("%s_Title_%02d%s", base, dt.Number, ext)
+				titlePath := vs.outputPath
+				jobLabel := fmt.Sprintf("Rip DVD: %s", filepath.Base(vs.sourcePath))
+				if i != mainIdx {
+					titlePath = fmt.Sprintf("%s_Extra_Title_%02d%s", base, dt.Number, ext)
+					jobLabel = fmt.Sprintf("Rip DVD Title %d (extra): %s", dt.Number, filepath.Base(vs.sourcePath))
+				}
 				jobs = append(jobs, titleJob{
 					vtsNumber:   dt.VTSNumber,
 					titleNumber: dt.Number,
 					outputPath:  titlePath,
-					jobTitle:    fmt.Sprintf("Rip DVD Title %d: %s", dt.Number, filepath.Base(vs.sourcePath)),
+					jobTitle:    jobLabel,
 				})
 			}
 			if len(jobs) == 0 {
@@ -440,18 +459,19 @@ func BuildView(opts Options) fyne.CanvasObject {
 				Description: fmt.Sprintf("Output: %s", utils.ShortenMiddle(filepath.Base(j.outputPath), 40)),
 				InputFile:   vs.sourcePath,
 				OutputFile:  j.outputPath,
-				Config: map[string]interface{}{
-					"sourcePath":       vs.sourcePath,
-					"outputPath":       j.outputPath,
-					"format":           vs.format,
-					"embedChapters":    vs.embedChapters,
-					"allAudioTracks":   vs.allAudioTracks,
-					"includeSubtitles": vs.includeSubtitles,
-					"regionConvert":    vs.regionConvert,
-					"discTitle":        vs.discTitle,
-					"vtsNumber":        j.vtsNumber,
-					"titleNumber":      j.titleNumber,
-				},
+			Config: map[string]interface{}{
+				"sourcePath":       vs.sourcePath,
+				"outputPath":       j.outputPath,
+				"format":           vs.format,
+				"embedChapters":    vs.embedChapters,
+				"allAudioTracks":   vs.allAudioTracks,
+				"includeSubtitles": vs.includeSubtitles,
+				"includeMenus":     vs.includeMenus,
+				"regionConvert":    vs.regionConvert,
+				"discTitle":        vs.discTitle,
+				"vtsNumber":        j.vtsNumber,
+				"titleNumber":      j.titleNumber,
+			},
 			}
 			opts.AddJob(job)
 		}
@@ -565,6 +585,12 @@ func BuildView(opts Options) fyne.CanvasObject {
 	})
 	subsCheck.SetChecked(vs.includeSubtitles)
 
+	menusCheck := widget.NewCheck("Preserve menus (separate files)", func(v bool) {
+		vs.includeMenus = v
+		vs.persistConfig()
+	})
+	menusCheck.SetChecked(vs.includeMenus)
+
 	var fullDiscCheck *widget.Check // assigned below; referenced by ntscSelect callback
 	fullDiscCheck = widget.NewCheck("Full disc extraction (DVD-Video with IFO regeneration)", func(v bool) {
 		if v && vs.regionConvert != "" {
@@ -616,8 +642,11 @@ func BuildView(opts Options) fyne.CanvasObject {
 		}
 	}
 
-	buildTitleCheckLabel := func(dt DiscTitle) string {
+	buildTitleCheckLabel := func(dt DiscTitle, isMain bool) string {
 		label := fmt.Sprintf("Title %d — %s, %d chapters", dt.Number, FormatDuration(dt.Duration), dt.NumChapters)
+		if isMain {
+			label += " ★ (main feature)"
+		}
 		if len(dt.Audio) > 0 {
 			parts := make([]string, 0, len(dt.Audio))
 			for _, a := range dt.Audio {
@@ -734,12 +763,24 @@ func BuildView(opts Options) fyne.CanvasObject {
 			chaptersCheck,
 			allAudioCheck,
 			subsCheck,
+			menusCheck,
+			widget.NewSeparator(),
 			widget.NewLabelWithStyle("Region Conversion", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 			ntscSelect,
 			fullDiscCheck,
 		}
 
 		if vs.scanResult != nil && len(vs.scanResult.Titles) > 1 {
+			// Find the main feature (longest duration) for display purposes.
+			mainFeatureNum := 0
+			mainDur := 0.0
+			for _, dt := range vs.scanResult.Titles {
+				if dt.Duration > mainDur {
+					mainDur = dt.Duration
+					mainFeatureNum = dt.Number
+				}
+			}
+
 			objs = append(objs, widget.NewSeparator())
 			objs = append(objs,
 				widget.NewLabelWithStyle(
@@ -747,7 +788,7 @@ func BuildView(opts Options) fyne.CanvasObject {
 					fyne.TextAlignLeading, fyne.TextStyle{Bold: true}))
 			for _, dt := range vs.scanResult.Titles {
 				dt := dt // capture
-				ch := widget.NewCheck(buildTitleCheckLabel(dt), func(v bool) {
+				ch := widget.NewCheck(buildTitleCheckLabel(dt, dt.Number == mainFeatureNum), func(v bool) {
 					vs.selectedTitles[dt.Number] = v
 				})
 				ch.SetChecked(vs.selectedTitles[dt.Number])

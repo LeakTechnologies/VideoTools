@@ -205,6 +205,12 @@ func CollectVOBSets(videoTS string) ([]VobSet, error) {
 		if len(parts) < 3 {
 			continue
 		}
+		// VTS_XX_0.VOB is the menu VOB for this title set — exclude it from
+		// the content VOB set to avoid menu data bleeding into the ripped video.
+		// Menu VOBs are collected separately for optional menu-only export.
+		if parts[len(parts)-1] == "0" {
+			continue
+		}
 		setKey := strings.Join(parts[:2], "_")
 		if sets[setKey] == nil {
 			sets[setKey] = &VobSet{Name: setKey}
@@ -588,7 +594,9 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 
 		// Chapter embedding
 		if opts.EmbedChapters && len(titleInfo.Chapters) > 1 {
-			appendLog(fmt.Sprintf("Embedding %d chapters", len(titleInfo.Chapters)))
+			appendLog(fmt.Sprintf("Embedding %d chapters (duration=%.2fs, chapter[0]=%.2fs, chapter[%d]=%.2fs)",
+				len(titleInfo.Chapters), titleInfo.Duration,
+				titleInfo.Chapters[0], len(titleInfo.Chapters)-1, titleInfo.Chapters[len(titleInfo.Chapters)-1]))
 			metaPath, err := WriteChapterFile(titleInfo.Chapters, titleInfo.Duration, opts.DiscTitle)
 			if err != nil {
 				appendLog(fmt.Sprintf("Warning: chapter file creation failed: %v", err))
@@ -599,6 +607,7 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 			}
 		} else if opts.DiscTitle != "" {
 			// Title-only metadata file (no chapters)
+			appendLog(fmt.Sprintf("No chapters to embed (%d chapter points from IFO, embed=%v)", len(titleInfo.Chapters), opts.EmbedChapters))
 			metaPath, err := WriteChapterFile(nil, titleInfo.Duration, opts.DiscTitle)
 			if err == nil {
 				defer os.Remove(metaPath)
@@ -652,6 +661,29 @@ func Execute(ctx context.Context, opts ExecuteOptions) error {
 	if err := runFFmpegWithProgress(ctx, utils.GetFFmpegPath(), args, dur, updateProgress, appendLog, updateStatus); err != nil {
 		return err
 	}
+
+	// ── Menu export ───────────────────────────────────────────────────────────
+	// After the main content rip succeeds, export menu VOBs as separate files
+	// if the user opted to preserve menus.
+	if opts.IncludeMenus && videoTSPath != "" {
+		menuSets := CollectAllMenuVOBs(videoTSPath)
+		if len(menuSets) > 0 {
+			appendLog(fmt.Sprintf("Exporting %d menu VOB(s) as separate files...", len(menuSets)))
+			ext := filepath.Ext(outputPath)
+			base := strings.TrimSuffix(outputPath, ext)
+			for i, ms := range menuSets {
+				menuLabel := ms.Name
+				menuOut := fmt.Sprintf("%s_Menu_%s%s", base, menuLabel, ext)
+				appendLog(fmt.Sprintf("[%d/%d] Menu: %s → %s", i+1, len(menuSets), ms.Name, filepath.Base(menuOut)))
+				if err := exportMenuVOB(ctx, opts, ms.Files[0], menuOut, format, updateStatus); err != nil {
+					appendLog(fmt.Sprintf("Warning: menu export failed for %s: %v", ms.Name, err))
+					continue
+				}
+				appendLog(fmt.Sprintf("Menu exported: %s", menuOut))
+			}
+		}
+	}
+
 	updateProgress(100)
 	appendLog("Rip completed successfully.")
 	return nil
@@ -771,7 +803,7 @@ func BuildISOExtractCommand(isoPath, destDir string) (string, []string, error) {
 	return "", nil, fmt.Errorf("no ISO extraction tool found (install xorriso, 7z, or bsdtar)")
 }
 
-// CollectMenuVOB returns the VIDEO_TS.VOB file as a single-entry VobSet.
+// CollectMenuVOB returns the VIDEO_TS.VOB menu VOB as a single-entry VobSet.
 // Returns nil if the menu VOB doesn't exist.
 func CollectMenuVOB(videoTS string) *VobSet {
 	menuVOB := filepath.Join(videoTS, "VIDEO_TS.VOB")
@@ -784,6 +816,87 @@ func CollectMenuVOB(videoTS string) *VobSet {
 		Files: []string{menuVOB},
 		Size:  info.Size(),
 	}
+}
+
+// CollectAllMenuVOBs returns all menu VOBs found in a VIDEO_TS directory:
+// the VMG menu (VIDEO_TS.VOB) and any VTS-level menus (VTS_XX_0.VOB).
+func CollectAllMenuVOBs(videoTS string) []VobSet {
+	var menus []VobSet
+
+	// VMG menu
+	if vmg := CollectMenuVOB(videoTS); vmg != nil {
+		menus = append(menus, *vmg)
+	}
+
+	// VTS-level menus (VTS_XX_0.VOB)
+	entries, err := os.ReadDir(videoTS)
+	if err != nil {
+		return menus
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(strings.ToLower(name), ".vob") {
+			continue
+		}
+		if !strings.HasPrefix(strings.ToUpper(name), "VTS_") {
+			continue
+		}
+		parts := strings.Split(strings.TrimSuffix(name, ".VOB"), "_")
+		if len(parts) < 3 {
+			continue
+		}
+		// Only VTS_XX_0.VOB (menu VOBs)
+		if parts[len(parts)-1] != "0" {
+			continue
+		}
+		full := filepath.Join(videoTS, name)
+		info, err := os.Stat(full)
+		if err != nil || info.IsDir() || info.Size() == 0 {
+			continue
+		}
+		menus = append(menus, VobSet{
+			Name:  parts[0] + "_" + parts[1],
+			Files: []string{full},
+			Size:  info.Size(),
+		})
+	}
+	return menus
+}
+
+// exportMenuVOB copies or re-encodes a menu VOB to the output path using the
+// same format as the main rip. This is called after a successful content rip
+// when the user opted to preserve menus.
+func exportMenuVOB(ctx context.Context, opts ExecuteOptions, menuVOBPath, outputPath, format string, updateStatus func(string)) error {
+	args := []string{
+		"-y", "-hide_banner", "-loglevel", "error",
+		"-fflags", "+genpts",
+		"-i", menuVOBPath,
+		"-map", "0:v:0",
+		"-map", "0:a",
+		"-map", "0:s?",
+		"-map_metadata", "-1",
+	}
+
+	switch format {
+	case FormatH264MKV:
+		args = append(args, "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-c:a", "copy")
+	case FormatH264MP4:
+		args = append(args, "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-c:a", "aac", "-b:a", "192k")
+	default:
+		args = append(args, "-c", "copy")
+	}
+
+	args = append(args, "-max_interleave_delta", "0", outputPath)
+
+	if updateStatus != nil {
+		updateStatus(fmt.Sprintf("Exporting menu: %s", filepath.Base(outputPath)))
+	}
+	if opts.OnRunCommand != nil {
+		return opts.OnRunCommand(utils.GetFFmpegPath(), args, nil)
+	}
+	cmd := exec.CommandContext(ctx, utils.GetFFmpegPath(), args...)
+	utils.ApplyNoWindow(cmd)
+	return cmd.Run()
 }
 
 // FullDiscOutputPath returns the directory path for full-disc extraction output.

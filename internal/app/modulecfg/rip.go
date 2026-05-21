@@ -13,6 +13,7 @@ type RipConfig struct {
 	EmbedChapters    bool   `json:"embed_chapters"`
 	AllAudioTracks   bool   `json:"all_audio_tracks"`
 	IncludeSubtitles bool   `json:"include_subtitles"`
+	IncludeMenus     bool   `json:"include_menus"`
 }
 
 func DefaultRipConfig() RipConfig {
