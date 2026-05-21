@@ -8158,7 +8158,7 @@ func runGUI() {
 	ui.SetAboriginalFontData(aboriginalSansRegular, aboriginalSansItalic, aboriginalSansBold, aboriginalSansBoldItalic)
 	smpte.SetVCRFont(vcrOSDMono)
 
-	a.Settings().SetTheme(&ui.MonoTheme{})
+	a.Settings().SetTheme(&ui.VTTheme{})
 	// Pre-loop flush: clear any NotoSans cache entries built before SetTheme.
 	fontutil.ClearFontCache()
 
