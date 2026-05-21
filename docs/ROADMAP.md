@@ -9,9 +9,11 @@ timeline
     title VideoTools Development Roadmap
     v0.1.1-dev47 (Shipped) : DLL/ folder rename : Flat exe-dir DLL fallback : Disc info at rip view top : UDF ReadFileData (ISO)
     v0.1.1-dev47 (Shipped) : Progress bar with ETA : ConsoleBox widget : Log refactor (Burn/Rip/Author) : PAL/NTSC full-disc convert
-    v0.1.1-dev48 (Current) : Theme system (internal/theme/) : PillButton + PillIconButton : Transport controls migrated : Text primitives
-    v0.1.1-dev48 (Current) : Startup crash diagnostics : i18n script persistence : Windows signing wired : Roadmap visual polish
-    v0.1.1-dev48 (Current) : Full module button+slider migration : STATUS_STACK_OVERFLOW recovery : Dual before/after player sync : Windows MSIX CI FFmpeg : Button straggler clean-up
+    v0.1.1-dev48 (Shipped) : Theme system (internal/theme/) : PillButton + PillIconButton : Transport controls migrated : Text primitives
+    v0.1.1-dev48 (Shipped) : Startup crash diagnostics : i18n script persistence : Windows signing wired : Roadmap visual polish
+    v0.1.1-dev48 (Shipped) : Full module button+slider migration : STATUS_STACK_OVERFLOW recovery : Dual before/after player sync : Button straggler clean-up
+    v0.1.1-dev49 (Current) : VT Media Engine refactor : VT ISO Engine refactor : engine.go subsystem split : UDF reader robustness
+    v0.1.1-dev49 (Current) : HW decode default-on eval : Thread safety formalisation : View.go component extraction : Player interface extraction
     Next Up : Burn multi-drive batch : IMAPI2 COM replacement : Main Menu refactor : Linux CI speedup
     Player-Dependent : Trim module (frame-accurate cutting) : Enhancement module (AI models)
     Future : DVD menu playback : Video cropping tool : Professional workflow
@@ -22,8 +24,8 @@ timeline
 | Colour | Meaning |
 |--------|---------|
 | Blue | Shipped in dev47 |
-| Green | Current dev48 work |
-| **Teal** | **Done (untested)** — code written, committed, awaiting testing |
+| Teal | Shipped in dev48 |
+| **Green** | **Current dev49 work** |
 | Yellow | Next up (handoff priorities) |
 | Orange | Blocked on player completion |
 | Red | Future / deferred |
@@ -32,45 +34,30 @@ timeline
 > `Shipped` → `Done (Untested)` → `In Progress` → `Planned` → `Deferred`.
 > "Done" items are complete and committed but not yet verified by a tester.
 
-## Current State (v0.1.1-dev48)
+## Current State (v0.1.1-dev49)
 
 - Core modules shipped: Convert, Merge, Filters, Audio, Thumb, Inspect, Compare, Rip, Author, Burn, Queue, Settings, Subtitles, Upscale, Enhancement (placeholder).
 - Native Go DVD authoring engine with full M1-M7 menu system.
 - Native media player: CGo/FFmpeg engine, InlineVideoPlayer API layer, D3D11VA, audio sync, thread-safe.
 - Disc ripping: IFO scanning, ISO via UDF reader, region detection, progress with ETA.
-- **Theme system**: `internal/theme/` package with VT_Navy palette, PillButton, PillIconButton, text primitives. `ui/` and `media/` both import from theme — no circular dependency.
-- **Full module button + slider migration**: every `widget.NewButton`/`widget.NewButtonWithIcon` across all modules replaced with `ui.MakePillButton`/`ui.MakePillIconButton`; every `widget.Slider` replaced with `ui.Slider`/`ui.MakeSlider`.
-- **Transport controls**: Player speedBtn/subtitleBtn → PillButton; play/volume/fullscreen etc. → PillIconButton. Consistent pill styling across all transport buttons.
-- **STATUS_STACK_OVERFLOW recovery**: VEH handler in `safe_bridge.c` catches `0xC00000FD`, calls `_resetstkoflw()`, raises default thread stack to 4 MB via `-Wl,--stack,4194304`. `CGO_LDFLAGS_ALLOW` added to CI and local build scripts.
-- **Dual before/after player sync**: `InlineVideoPlayer.SetPeer()` mirrors Play/Pause/Seek to a follower player. Filters and Upscale modules wired; preview players muted.
-- **Button straggler clean-up**: All remaining `widget.NewButton`/`widget.NewButtonWithIcon` migrated (about, compare fullscreen, settings tabs, command_editor). Exceptions: 18 transport icon buttons (blocked on PillIconButton SetIcon) and utils.MakeIconButton (import cycle).
-- **Seamless branching**: `-f dvdvideo` demuxer now used for single-title rips (FFmpeg 8.1+). **Status: Done (untested)** — awaiting tester.
-- **DLL bootstrap**: `DLL/` folder with flat exe-dir fallback — no more DLL errors on extraction. **Status: Done (untested)**.
-- Burn module: isoburn.exe (Windows), growisofs (Linux), ConsoleBox log, drive info.
-- Module Pipeline (&&): two-module chain state machine with queue integration.
-- PAL→NTSC / NTSC→PAL full-disc conversion with IFO regeneration.
+- Theme system, PillButton/PillIconButton, text primitives, VTTheme — all button+slider migrations shipped in dev48.
+- STATUS_STACK_OVERFLOW recovery, dual before/after player sync shipped in dev48.
+- **dev49 focuses on VT Media Engine and VT ISO Engine production-readiness** — breaking monoliths into subsystem files, formalising interfaces and thread safety, hardening error recovery.
+- PAL/NTSC full-disc conversion with IFO regeneration.
 - Localization: en-CA, fr-CA, Inuktitut (syllabics + Latin, machine-translated).
 - CI green on Linux + Windows with from-source FFmpeg static builds.
 
-## Now (dev48 focus)
+## Now (dev49 focus)
 
-- **Theme system** — ✅ `internal/theme/` package shipped (VT_Navy palette, PillButton, PillIconButton, text primitives).
+- **VT Media Engine engine.go split** — Break 3245-line Engine monolith: hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go.
+- **VT ISO Engine UDF reader robustness** — Fallback AVDP scanning, format validation, multi-extent files, ISO 9660 bridge.
+- **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go.
+- **Player interface** — Extract formal Go `Player` interface from `InlineVideoPlayer` for mock testing.
+- **HW decode default-on** — Re-evaluate D3D11VA default with VEH/SEH bridge coverage; add per-codec HW blacklist.
+- **Thread safety formalisation** — Document lock hierarchy, add lockdep assertions, eliminate reverse-order paths.
+- **UDF thread safety & progress** — Mutex-guarded Reader, extraction progress callbacks, temp file cleanup.
 
-- **Transport controls** — ✅ Player text and icon buttons migrated to theme.PillButton / PillIconButton.
-
-- **Full module button + slider migration** — ✅ All `widget.NewButton`/`NewButtonWithIcon` replaced with `ui.MakePillButton`/`ui.MakePillIconButton` across every module; all `widget.Slider` replaced with `ui.Slider`/`ui.MakeSlider`.
-
-- **Startup crash diagnostics** — ✅ VT_STARTUP_DEBUG tracing, logging.Sync() pre-crash flush. Root cause confirmed: glfw.CreateWindow() stack overflow from GPU driver DLL injection.
-
-- **STATUS_STACK_OVERFLOW recovery** — ✅ VEH handler catches 0xC00000FD, resets stack guard page, 4 MB default stack via -Wl,--stack,4194304. CGO_LDFLAGS_ALLOW in CI + build.ps1.
-
-- **Dual before/after player sync** — ✅ InlineVideoPlayer.SetPeer() mirrors transport events. Filters and Upscale wired; preview players muted.
-
-- **i18n script persistence** — ✅ Inuktitut syllabics/Latin preference survives app restarts.
-
-- **Button stragglers** — ✅ All remaining `widget.NewButton`/`widget.NewButtonWithIcon` in about, compare fullscreen, settings tabs, command_editor migrated. 18 transport icon buttons (blocked: PillIconButton lacks SetIcon) + utils.MakeIconButton (blocked: import cycle) remain as known exceptions.
-
-## Remaining dev48 work → carrying to dev49
+## Remaining dev49 work
 
 - **Burn multi-drive batch** — Queue multiple ISOs across available burners.
   See `docs/BURN_MODULE_DESIGN.md` §Phase 2.

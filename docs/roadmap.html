@@ -181,7 +181,7 @@
   <h1>VideoTools Roadmap</h1>
   <img src="../assets/logo/VT_logo.png" alt="VideoTools">
 </div>
-<p class="subtitle">v0.1.1-dev48 &mdash; Updated 18 May 2026 &mdash; Click any card for details</p>
+<p class="subtitle">v0.1.1-dev49 &mdash; Updated 21 May 2026 &mdash; Click any card for details</p>
 
 <div class="search-wrap">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -292,6 +292,8 @@ const moduleColors = {
   'Other Modules': '#629C1C',
   'Infrastructure': '#B423C7',
   'Trim + Enhancement': '#BF2290',
+  'VT Media Engine': '#0EA5E9',
+  'VT ISO Engine': '#F59E0B',
 };
 
 const statusLabels = {
@@ -331,7 +333,7 @@ const roadmap = {
       { id: 'growisofs', title: 'growisofs (Linux)', desc: 'dvd+rw-tools with SG_IO progress parsing + SHA-256 verify', status: 'shipped', cycle: 'dev45', files: ['internal/app/modules/burn/executor.go'], deps: [], docs: ['docs/BURN_MODULE_DESIGN.md'] },
       { id: 'drive-info', title: 'Drive Info / Capacity', desc: 'Detect disc type (DVD5/9, BD25/50) before burning starts', status: 'shipped', cycle: 'dev47', files: ['internal/app/modules/burn/view.go'], deps: [], docs: ['docs/BURN_MODULE_DESIGN.md'] },
       { id: 'consolebox', title: 'ConsoleBox Log', desc: 'Styled dark-background log widget with pill header, clipboard copy, header extras', status: 'shipped', cycle: 'dev47', files: ['internal/ui/consolebox.go'], deps: [], docs: [] },
-      { id: 'multi-drive', title: 'Multi-Drive Batch', desc: 'Queue multiple ISOs and burn across all available burners simultaneously', status: 'active', cycle: 'dev48', files: [], deps: ['drive-info'], docs: ['docs/BURN_MODULE_DESIGN.md'] },
+      { id: 'multi-drive', title: 'Multi-Drive Batch', desc: 'Queue multiple ISOs and burn across all available burners simultaneously', status: 'active', cycle: 'dev49', files: [], deps: ['drive-info'], docs: ['docs/BURN_MODULE_DESIGN.md'] },
       { id: 'imapi2', title: 'IMAPI2 COM Replacement', desc: 'Replace isoburn.exe with direct COM API for proper progress callbacks, speed control, and error reporting', status: 'planned', cycle: 'dev49', files: [], deps: ['multi-drive'], docs: ['docs/BURN_MODULE_DESIGN.md'] },
     ]
   },
@@ -412,7 +414,7 @@ const roadmap = {
     items: [
       { id: 'quick-access', title: 'Quick Access Dropdown', desc: 'Files dropdown in header: recent files list, open in module, open output folder', status: 'shipped', cycle: 'dev45', files: ['main.go'], deps: [], docs: ['docs/QUICK_ACCESS_DROPDOWN.md'] },
       { id: 'pipeline-toggle', title: 'Module Pipeline (&&) Toggle', desc: 'Button in main menu header that toggles pipeline mode, dims invalid step-2 targets', status: 'shipped', cycle: 'dev45', files: ['main.go'], deps: ['pipeline'], docs: [] },
-      { id: 'menu-refactor', title: 'Main Menu Refactor', desc: 'Extract showMainMenu() from root mainmenu_module.go into internal/app/modules/mainmenu/', status: 'active', cycle: 'dev48', files: ['mainmenu_module.go'], deps: [], docs: ['docs/REFACTOR_DEV30_PLAN.md'] },
+      { id: 'menu-refactor', title: 'Main Menu Refactor', desc: 'Extract showMainMenu() from root mainmenu_module.go into internal/app/modules/mainmenu/', status: 'active', cycle: 'dev49', files: ['mainmenu_module.go'], deps: [], docs: ['docs/REFACTOR_DEV30_PLAN.md'] },
       { id: 'root-hygiene', title: 'Root Package Cleanup', desc: 'Move 24+ package main files from root to internal/app/modules/ with thin shims', status: 'planned', cycle: 'dev49', files: ['*.go'], deps: ['menu-refactor'], docs: ['docs/REFACTOR_DEV30_PLAN.md'] },
     ]
   },
@@ -467,9 +469,11 @@ const roadmap = {
       { id: 'module-button-migration', title: 'Full Module Button + Slider Migration', desc: 'All widget.NewButton/NewButtonWithIcon calls across every module replaced with ui.MakePillButton/MakePillIconButton. All widget.Slider/widget.NewSlider replaced with ui.Slider/ui.MakeSlider. Canonical factory names: MakePillButton, MakePillIconButton, MakeSlider.', status: 'shipped', cycle: 'dev48', files: ['internal/ui/components.go', 'internal/app/modules/**/*.go', 'native_media.go'], deps: ['theme-system'], docs: [] },
       { id: 'roadmap-board', title: 'Interactive Roadmap Board', desc: 'Column-per-module HTML board with colour-coded cards, clickable modals, filter by status, IBM Plex Mono font, VT logo', status: 'shipped', cycle: 'dev48', files: ['docs/roadmap.html', 'docs/ROADMAP.md'], deps: [], docs: [] },
       { id: 'version-bump', title: 'Version Bump dev48', desc: 'Bumped v0.1.1-dev47 → v0.1.1-dev48 in VERSION, main.go, FyneApp.toml (build 43→44)', status: 'shipped', cycle: 'dev48', files: ['VERSION', 'main.go', 'FyneApp.toml'], deps: [], docs: [] },
-      { id: 'ci-speedup', title: 'Linux CI Speedup', desc: 'Pre-built Docker container image with FFmpeg build dependencies baked in', status: 'active', cycle: 'dev48', files: ['.forgejo/workflows/dev-packages.yml'], deps: ['linux-ci'], docs: [] },
+      { id: 'ci-speedup', title: 'Linux CI Speedup', desc: 'Pre-built Docker container image with FFmpeg build dependencies baked in', status: 'active', cycle: 'dev49', files: ['.forgejo/workflows/dev-packages.yml'], deps: ['linux-ci'], docs: [] },
       { id: 'win-sign-cert', title: 'Windows Signing Pipeline', desc: 'Scripts written, CI-wired, and Forgejo secrets active. SignPath.io OSS path: SIGNPATH_API_TOKEN + SIGNPATH_ORGANIZATION_ID both set. Policy slug: release-signing (test certificate). ci-build.ps1 calls sign-exe.ps1 non-fatally on every Windows build. Awaiting a real CI run to confirm signed output.', status: 'done', cycle: 'dev48', files: ['scripts/windows/support/sign-exe.ps1', 'scripts/windows/support/new-dev-cert.ps1', 'scripts/windows/ci-build.ps1'], deps: [], docs: [] },
       { id: 'forgejo-releases', title: 'Forgejo Release Automation', desc: 'publish-release job creates/updates Forgejo release, prunes stale assets, uploads Linux + Windows artifacts, patches target_commitish for in-app update check. Staleness guard skips publish if newer master commit has already run. Fully wired via FORGEJO_TOKEN + FORGEJO_API_URL secrets.', status: 'shipped', cycle: 'dev48', files: ['.forgejo/workflows/dev-packages.yml'], deps: ['linux-ci', 'windows-ci'], docs: [] },
+
+      { id: 'github-actions', title: 'GitHub Actions Mirror', desc: '.github/workflows/ produces release artifacts (MSIX + AppImage) for GitHub releases', status: 'future', cycle: 'future', files: [], deps: ['linux-ci', 'windows-ci'], docs: [] },
       { id: 'github-actions', title: 'GitHub Actions Mirror', desc: '.github/workflows/ produces release artifacts (MSIX + AppImage) for GitHub releases', status: 'future', cycle: 'future', files: [], deps: ['linux-ci', 'windows-ci'], docs: [] },
       { id: 'silent-errors', title: 'Fix Silent Error Handling', desc: 'Log instead of discarding errors in dvd/vob/sri.go, queue/edit.go, convert/dvd.go', status: 'future', cycle: 'future', files: ['internal/dvd/vob/sri.go', 'internal/queue/edit.go', 'internal/convert/dvd.go'], deps: [], docs: [] },
       { id: 'crop-tool', title: 'Video Cropping Tool', desc: 'Visual cropper: coordinate boxes, zoom preview, center button, aspect-ratio lock, FFmpeg crop filter', status: 'future', cycle: 'future', files: [], deps: [], docs: ['docs/CROP_DESIGN.md'] },
@@ -489,7 +493,30 @@ const roadmap = {
       { id: 'ai-expansion', title: 'AI Model Expansion', desc: 'Diffusion models (SeedVR2, SVFR), face enhancement (GFPGAN), advanced restoration', status: 'future', cycle: 'future', files: [], deps: ['enhance-full'], docs: [] },
       { id: 'pro-workflow', title: 'Professional Workflow', desc: 'Seamless Player ⇄ Enhancement ⇄ Trim chaining; batch queue processing; HW-accelerated pipeline', status: 'future', cycle: 'future', files: [], deps: ['trim-module', 'enhance-full'], docs: [] },
     ]
-  }
+  },
+
+  'VT Media Engine': {
+    items: [
+      { id: 'engine-subsystem-split', title: 'engine.go Subsystem Split', desc: 'Break 3245-line Engine monolith into focused files: hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go — high priority for maintainability', status: 'active', cycle: 'dev49', files: ['internal/media/engine.go'], deps: [], docs: [] },
+      { id: 'view-component-split', title: 'view.go Component Split', desc: 'Break 1438-line VideoPlayer widget into components: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go, loading_indicator.go', status: 'planned', cycle: 'dev49', files: ['internal/media/view.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'player-interface', title: 'Player Interface', desc: 'Extract formal Go Player interface from InlineVideoPlayer, enabling mock-based unit tests for all consuming modules', status: 'planned', cycle: 'dev49', files: ['internal/ui/inline_player.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'hw-decode-default-on', title: 'HW Decode Default On', desc: 'With VEH+SEH bridge catching AV + stack overflow, re-evaluate enabling D3D11VA by default; add per-codec HW blacklist for known-crash decoders', status: 'planned', cycle: 'dev49', files: ['internal/media/engine.go', 'internal/media/safe_bridge.c'], deps: ['veh-crash-recovery', 'engine-subsystem-split'], docs: [] },
+      { id: 'thread-safety-formal', title: 'Thread Safety Formalisation', desc: 'Document lock hierarchy (mu→videoCodecMu→formatMu→framepoolMu); add lockdep-style assertions; eliminate reverse-order paths like DegradeToSoftware', status: 'planned', cycle: 'dev49', files: ['internal/media/engine.go'], deps: ['engine-subsystem-split'], docs: ['docs/PLAYER_DEBUG.md'] },
+      { id: 'error-recovery-overhaul', title: 'Error Recovery Overhaul', desc: 'Replace single-slot lastError with ring-buffer history; adaptive HW degradation with cooldown; per-codec HW blacklist; platform-probed AudioBufferLatency', status: 'future', cycle: 'future', files: ['internal/media/engine.go', 'internal/media/audio.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'memory-mgmt', title: 'Frame Cache Memory Bounds', desc: 'Add byte-aware eviction to PlaybackFrameCache (not just count-based); frame pool size distribution; memory-pressure signal callback', status: 'future', cycle: 'future', files: ['internal/media/engine.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'subtitle-renderer', title: 'Subtitle Renderer Upgrade', desc: 'Replace custom bitmap font with proper text rendering; expand charset coverage; add anti-aliasing', status: 'future', cycle: 'future', files: ['internal/media/engine.go'], deps: ['engine-subsystem-split'], docs: [] },
+      { id: 'network-streaming', title: 'Network Stream Support', desc: 'Extend Open() to accept URLs (RTSP, HTTP, HLS); add buffering/progress for network sources', status: 'future', cycle: 'future', files: ['internal/media/engine.go'], deps: ['engine-subsystem-split'], docs: [] },
+    ]
+  },
+
+  'VT ISO Engine': {
+    items: [
+      { id: 'udf-reader-robustness', title: 'UDF Reader Robustness', desc: 'Fallback sector scanning for non-standard AVDP; format validation on all descriptors; multi-extent file support; ISO 9660 bridge for non-UDF discs', status: 'active', cycle: 'dev49', files: ['internal/dvd/udf/reader.go', 'internal/dvd/udf/udf.go'], deps: [], docs: [] },
+      { id: 'udf-thread-progress', title: 'Thread Safety & Progress (UDF)', desc: 'Mutex-guarded Reader for concurrent access; extraction progress callbacks/channels; temp file tracking for crash-safe cleanup', status: 'planned', cycle: 'dev49', files: ['internal/dvd/udf/reader.go', 'internal/app/modules/rip/iso_udf.go'], deps: ['udf-reader-robustness'], docs: [] },
+      { id: 'udf-2.50-bdmv', title: 'UDF 2.50/2.60 + BDMV', desc: 'Extend reader for Blu-ray ISO parsing: UDF 2.50/2.60 descriptor structures, BDMV directory traversal, clip/playlist metadata', status: 'future', cycle: 'future', files: ['internal/dvd/udf/reader.go', 'internal/dvd/udf/udf.go'], deps: ['udf-reader-robustness'], docs: [] },
+      { id: 'udf-sparse-writer', title: 'Sparse + Large-File UDF Writer', desc: 'Extend UDF Writer for files >2 GB (multi-extent); sparse sector allocation; optional padding', status: 'future', cycle: 'future', files: ['internal/dvd/udf/udf.go'], deps: [], docs: [] },
+    ]
+  },
 };
 
 const board = document.getElementById('board');
@@ -531,7 +558,7 @@ function render() {
   updateCounts();
 }
 
-const currentVersion = 'dev48';
+const currentVersion = 'dev49';
 let currentStatusFilter = 'all';
 let currentModuleFilter = 'all';
 let currentCycleFilter = 'all';
@@ -727,7 +754,20 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.clas
 
 // --- Changelog ---
 const changelogData = [
-  { version: 'v0.1.1-dev48', date: 'May 2026', tag: 'current', sections: [
+  { version: 'v0.1.1-dev49', date: 'May 2026', tag: 'current', sections: [
+    { title: 'VT Media Engine Refactoring', items: [
+      'engine.go subsystem split: break 3245-line monolith into focused files (hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go)',
+      'view.go component split: break 1438-line VideoPlayer widget into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go',
+      'Player interface extraction: formal Go Player interface from InlineVideoPlayer for mock testing',
+      'HW decode default-on re-evaluation with VEH/SEH bridge coverage',
+      'Thread safety formalisation: lock hierarchy documentation, lockdep assertions, eliminate reverse-order paths',
+    ]},
+    { title: 'VT ISO Engine Refactoring', items: [
+      'UDF reader robustness: fallback AVDP scanning, format validation, multi-extent files, ISO 9660 bridge',
+      'Thread safety & progress: mutex-guarded Reader, extraction progress callbacks, temp file cleanup tracking',
+    ]},
+  ]},
+  { version: 'v0.1.1-dev48', date: 'May 2026', tag: 'shipped', sections: [
     { title: 'Theme System — internal/theme/ Package', items: [
       'Extracted VT_Navy colour palette, PillButton, PillIconButton, and text primitives into internal/theme/',
       'Both ui/ and media/ packages import from theme directly — no circular dependencies',
@@ -898,7 +938,26 @@ const changelogData = [
     ]},
   ]},
   { version: 'v0.1.1-dev41', date: 'April 2026', tag: 'shipped', sections: [
-    { title: 'Convert Module', items: [
+  { title: 'VT Media Engine (Backend)', items: [
+    'engine.go split: all Engine methods still work after extraction into subsystem files',
+    'view.go split: VideoPlayer widget renders and controls function after component extraction',
+    'Player interface: modules compile with interface type instead of concrete *InlineVideoPlayer',
+    'HW decode: D3D11VA/VAAPI/QSV decode works with default-on setting, no startup crash',
+    'Thread safety: rapid load/close/seek cycles do not deadlock with formalised lock ordering',
+    'Frame cache memory: eviction respects byte budget, no OOM on 4K 10-minute clips',
+    'Error recovery: error history ring captures all errors, HW degradation triggers correctly and recovers',
+  ]},
+  { title: 'VT ISO Engine (Backend)', items: [
+    'UDF reader: parses ISOs with AVDP at non-standard locations (fallback scan)',
+    'UDF reader: reads multi-extent files correctly',
+    'UDF reader: falls back to ISO 9660 when no UDF present',
+    'UDF reader: validates descriptors, no panic on corrupted ISOs',
+    'Thread safety: concurrent reads do not corrupt seek position',
+    'Progress: extraction reports progress via callback/channel',
+    'Temp cleanup: stale temp files are cleaned up on app restart',
+    'BDMV: reader identifies and traverses Blu-ray ISO directory structures',
+  ]},
+  { title: 'Convert Module', items: [
       'Device presets: 11 presets (iPhone, Android, PS4, Xbox, Apple TV, etc.) each set ALL encoding vars',
       'User-defined named presets: save / apply / delete; persisted to JSON via appcfg',
       'Batch output directory: jobs respect configured output dir, not source file location',

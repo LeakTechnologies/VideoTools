@@ -4,7 +4,7 @@ These rules apply to any automation or agent working in this repo.
 
 ## Current Project State
 
-- Current cycle: `v0.1.1-dev49` — **new**. Key handoff priorities below. Button stragglers mostly done (3 known exceptions remain).
+- Current cycle: `v0.1.1-dev49` — **VT Media Engine + VT ISO Engine production refactoring**. Priorities below.
 - Public/stable baseline: `v0.1.1`.
 - `dev48` shipped: internal/theme/ package with VT_Navy palette, PillButton/PillIconButton widgets, text primitives. All module-level widget.Button calls migrated to MakePillButton/MakePillIconButton (compare, audio, rip, filters, upscale, subtitles, trim, thumbnail, queueview, main.go, settings, benchmarkview). VTSlider/VTProgressBar replace widget.Slider sitewide. STATUS_STACK_OVERFLOW caught by VEH in safe_bridge.c + 4 MB PE thread stack. Dual before/after player sync (SetPeer). Audio nil-widget crash fixed. Window recentering removed. Inuktitut script preference persists. Windows SignPath signing wired. VT_STARTUP_DEBUG crash diagnostics. CI Windows FFmpeg shared cache. Button straggler clean-up (about, compare, settings tabs, command_editor).
 - `dev47` closed. Rip: disc info display (type/region/size) at top of view, UDF ReadFileData for ISO region detection, progress bar with ETA, flat exe-dir DLL fallback, DLL/ folder rename (was ffmpeg-dll/), log boxes at bottom, Burn ConsoleBox, Author log truncation removed, Settings Module Chaining section, CI Linux FFmpeg build fixes. Audio Phase 1-3 fully shipped.
@@ -19,7 +19,28 @@ These rules apply to any automation or agent working in this repo.
 
 ## Immediate Handoff Priorities
 
-### Button Stragglers (opencode — dev48 close task)
+### VT Media Engine Refactoring (HIGH — start here)
+
+All items in `internal/media/` and `internal/ui/inline_player.go`.
+
+| Task | File(s) | Status |
+|------|---------|--------|
+| Split 3245-line engine.go into subsystem files (hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go) | `internal/media/engine.go` | **ACTIVE** |
+| Split 1438-line view.go (VideoPlayer widget) into components (control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go) | `internal/media/view.go` | Planned |
+| Extract formal `Player` interface from `InlineVideoPlayer` for mock testing | `internal/ui/inline_player.go` | Planned |
+| Re-evaluate HW decode default-on with VEH/SEH bridge coverage | `internal/media/engine.go`, `internal/media/safe_bridge.c` | Planned |
+| Formalise lock hierarchy, add lockdep assertions, eliminate reverse-order paths | `internal/media/engine.go` | Planned |
+
+### VT ISO Engine Refactoring (HIGH)
+
+All items in `internal/dvd/udf/` and `internal/app/modules/rip/`.
+
+| Task | File(s) | Status |
+|------|---------|--------|
+| UDF reader robustness: AVDP fallback scan, format validation, multi-extent files, ISO 9660 bridge | `internal/dvd/udf/reader.go`, `internal/dvd/udf/udf.go` | **ACTIVE** |
+| Thread safety & progress: mutex-guarded Reader, progress callbacks, temp file cleanup | `internal/dvd/udf/reader.go`, `internal/app/modules/rip/iso_udf.go` | Planned |
+
+### Button Stragglers
 
 All major module migrations are done. Most stragglers are now converted. The remaining files still contain `widget.NewButton` or `widget.NewButtonWithIcon` and must be migrated before dev48 closes.
 **Do not touch `internal/media/gpu/` or any file under `cmd/`, `qr-demo/`, or `scripts/legacy/`.**
@@ -29,14 +50,6 @@ All major module migrations are done. Most stragglers are now converted. The rem
 | `convert_player_native.go` | 11 `NewButtonWithIcon` transport icons | **BLOCKED** — dynamic icon switching (play↔pause) not supported by PillIconButton |
 | `main.go` (lines ~13617–13743, non-native player transport) | 7 `NewButtonWithIcon` | **BLOCKED** — same dynamic icon switching issue |
 | `internal/utils/utils.go` | 1 `NewButton` (MakeIconButton) | **BLOCKED** — import cycle: `utils` → `ui` → `benchmark` → `utils` |
-| `internal/ui/command_editor.go` | ~~6~~ → **done** (text+icon dropped, now uses MakePillButton) | ✅ Done |
-| `internal/app/modules/about/dialog.go` | ~~2~~ → **done** | ✅ Done |
-| `internal/app/modules/compare/fullscreen_native.go` | ~~1~~ → **done** | ✅ Done |
-| `internal/app/modules/compare/fullscreen_stub.go` | ~~1~~ → **done** | ✅ Done |
-| `internal/app/modules/settings/tabs.go` | ~~2~~ → **done** | ✅ Done |
-
-
-After completing all stragglers: update the six docs (CHANGELOG.md, ROADMAP.md, roadmap.html, AGENTS.md, DONE.md, TODO.md) to mark button migration fully complete, then bump VERSION/main.go/FyneApp.toml to `v0.1.1-dev49`.
 
 ### Dev49 Handoff (carry forward)
 
@@ -44,9 +57,6 @@ After completing all stragglers: update the six docs (CHANGELOG.md, ROADMAP.md, 
 - **IMAPI2 COM replacement** — Replace isoburn.exe on Windows for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
 - **Main Menu refactor** — Extract `showMainMenu()` from root `mainmenu_module.go` into `internal/app/modules/mainmenu/`.
 - **Linux CI speedup** — Pre-built container image for FFmpeg build dependencies.
-
-- **Do not expand scope beyond what is listed unless explicitly approved.**
-- Keep the issue tracker in sync — close issues when work lands, open new ones for discovered bugs.
 
 ### Recently Shipped (dev48)
 - **internal/theme/ package** — VT_Navy colour palette, PillButton, PillIconButton, text primitives (TitleLabel, SectionLabel, WrappingLabel, HintLabel, MonoLabel) extracted to `internal/theme/`. Both `ui/` and `media/` import from theme — no circular dependency. `ui/` re-exports for backward compat.
@@ -476,3 +486,11 @@ VideoTools targets **Linux and Windows only**. macOS is not a supported platform
 - Linux may take small runtime dependencies where appropriate (e.g. `dvd+rw-tools` for disc burning).
 - Do not add macOS-specific code paths, CI jobs, or documentation.
 - **Existing darwin code should be removed** when found during code reviews or refactoring — there is no reason for any `case "darwin":` blocks to exist in this codebase.
+
+## Next Steps (dev49)
+
+1. Split engine.go (3245 lines) into subsystem files — pure file moves, no behavior changes.
+2. Split view.go (1438 lines) into components — pure file moves.
+3. Extract Player interface from InlineVideoPlayer for mock testing.
+4. Harden UDF reader: AVDP fallback scan, format validation, multi-extent files, ISO 9660 bridge.
+5. Push staged commits to origin when satisfied.

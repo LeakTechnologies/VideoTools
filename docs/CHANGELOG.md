@@ -1,5 +1,18 @@
 # VideoTools Changelog
 
+## v0.1.1-dev49 (May 2026)
+
+### VT Media Engine — Subsystem Split
+- **engine.go (3245 lines)**: Breaking into focused subsystem files — hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go.
+- **view.go (1438 lines)**: VideoPlayer widget split into control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go.
+- **Player interface**: Extracting formal Go `Player` interface from `InlineVideoPlayer` for mock-based unit tests across all consuming modules.
+- **HW decode default-on**: Re-evaluating D3D11VA default with VEH/SEH crash bridge coverage; per-codec HW blacklist for known-crash decoders.
+- **Thread safety formalisation**: Lock hierarchy documentation, lockdep-style assertions, elimination of reverse-order lock paths (e.g. DegradeToSoftware).
+
+### VT ISO Engine — Production Hardening
+- **UDF reader robustness**: Fallback sector scanning for non-standard AVDP locations; format validation on all descriptor parsing; multi-extent file support; ISO 9660 bridge for non-UDF discs.
+- **Thread safety & progress**: Mutex-guarded Reader for concurrent access; extraction progress callbacks/channels; temp file tracking for crash-safe cleanup.
+
 ## v0.1.1-dev48 (May 2026)
 
 ### Theme System — internal/theme/ Package

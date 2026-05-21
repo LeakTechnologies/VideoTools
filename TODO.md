@@ -20,7 +20,26 @@ This file tracks upcoming features, improvements, and known issues.
 - [x] **Roadmap visual polish** — deprecated status, cycle filter, testing checklist, drag-to-scroll modals, colour dots standardisation.
 - [x] **Button stragglers** — All migrated (about, compare, settings tabs, command_editor, audio, burn, file_manager, mainmenu, settings, main.go). Remaining exceptions: `convert_player_native.go` + `main.go` transport icons (dynamic play↔pause — PillIconButton lacks SetIcon), `utils.MakeIconButton` (import cycle with ui→benchmark→utils).
 
-## Dev49 Scope (next)
+## Dev49 Scope (current)
+
+### VT Media Engine Refactoring (HIGH — monolith breakup)
+
+- [ ] **engine.go subsystem split** — Break 3245-line Engine monolith: hwdecode.go, playback.go, errors.go, framepool.go, subtitle_engine.go, buffer.go
+- [ ] **view.go component split** — Break 1438-line VideoPlayer widget: control_overlay.go, keyboard_shortcuts.go, thumbnail_preview.go
+- [ ] **Player interface extraction** — Formal Go `Player` interface from InlineVideoPlayer enabling mock-based unit tests
+- [ ] **HW decode default-on evaluation** — With VEH/SEH bridge catching AV + stack overflow, re-enable D3D11VA by default; add per-codec HW blacklist
+- [ ] **Thread safety formalisation** — Lock hierarchy docs, lockdep assertions, eliminate reverse-order paths like DegradeToSoftware
+- [ ] **Error recovery overhaul** — Ring-buffer error history, adaptive HW degradation with cooldown, per-codec HW blacklist, platform-probed AudioBufferLatency
+- [ ] **Frame cache memory bounds** — Byte-aware eviction, frame pool size distribution, memory-pressure callback
+
+### VT ISO Engine Refactoring (HIGH — UDF reader hardening)
+
+- [ ] **UDF reader robustness** — Fallback sector scanning for non-standard AVDP; format validation on all descriptors; multi-extent file support; ISO 9660 bridge
+- [ ] **Thread safety & progress** — Mutex-guarded Reader; extraction progress callbacks; temp file tracking for crash-safe cleanup
+- [ ] **UDF 2.50/2.60 + BDMV** — Extended reader for Blu-ray ISO parsing
+- [ ] **Sparse + large-file UDF Writer** — Files >2 GB (multi-extent); sparse sector allocation
+
+### Carry-forward from dev48
 
 - [ ] **Burn multi-drive batch** — Queue multiple ISOs across available burners. See `docs/BURN_MODULE_DESIGN.md` §Phase 2.
 - [ ] **IMAPI2 COM replacement** — Replace `isoburn.exe` for proper progress/control. See `docs/BURN_MODULE_DESIGN.md` §Phase 3.
